@@ -28,6 +28,7 @@ pub mod bench;
 mod buffer;
 pub mod decode;
 mod dense;
+mod bridge;
 mod dflash;
 mod fill;
 pub mod flash;
@@ -1092,6 +1093,9 @@ impl MetalBackend {
         ) && call.op == Op::MatmulNvfp4
         {
             return self.launch_nvfp4(kernel, call);
+        }
+        if bridge::KERNELS.iter().any(|k| k.0 == kernel) {
+            return self.launch_bridge(kernel, call);
         }
         if matches!(kernel, dflash::DYN_CONV_BF16 | dflash::ATTN_DECODE_BF16_WINDOW) {
             return self.launch_dflash(kernel, call);

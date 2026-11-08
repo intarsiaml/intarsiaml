@@ -98,14 +98,21 @@ fn parse_header(data: &[u8], file: usize, out: &mut BTreeMap<String, Entry>) -> 
         let dt = v.get("dtype").and_then(|d| d.as_str()).ok_or("missing dtype")?;
         // MLX packs quantised weights into `U32` words. Same 4 bytes as `I32`, and only `quant::mlx_affine` reads those
         // bits (it requires sibling `.scales` / `.biases`), so they are carried as `I32` rather than a new ABI dtype.
-        let dtype = DType::from_safetensors(if dt == "U32" { "I32" } else { dt }).map_err(|e| format!("{name}: {e}"))?;
-        let shape: Vec<usize> = v
+        let mut shape: Vec<usize> = v
             .get("shape")
             .and_then(|s| s.as_array())
             .ok_or("missing shape")?
             .iter()
             .filter_map(|x| x.as_u64().map(|x| x as usize))
             .collect();
+        // I64 has no ABI dtype. The only I64 tensors in the checkpoints we load are scalar format versions (DSpine's `*_version`
+        // markers), so they are carried as their raw bytes, `U8 [8 * n]`; a loader that wants one reads the bytes.
+        let dtype = if dt == "I64" {
+            shape = vec![8 * shape.iter().product::<usize>()];
+            DType::U8
+        } else {
+            DType::from_safetensors(if dt == "U32" { "I32" } else { dt }).map_err(|e| format!("{name}: {e}"))?
+        };
         let off = v.get("data_offsets").and_then(|o| o.as_array()).ok_or("missing offsets")?;
         let (b, e) = (off[0].as_u64().ok_or("bad offset")? as usize, off[1].as_u64().ok_or("bad offset")? as usize);
         if base + e > data.len() || b > e {

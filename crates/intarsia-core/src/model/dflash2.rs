@@ -32,39 +32,40 @@ pub(super) struct Conv2 {
 }
 
 pub(super) struct Layer2 {
-    ln1: TensorRef,
-    ln2: TensorRef,
-    wq: QTensor,
-    wk: QTensor,
-    wv: QTensor,
-    wo: QTensor,
-    q_norm: TensorRef,
-    k_norm: TensorRef,
-    gate: QTensor,
-    up: QTensor,
-    down: QTensor,
-    aconv: Conv2,
-    mconv: Conv2,
+    pub(super) ln1: TensorRef,
+    pub(super) ln2: TensorRef,
+    pub(super) wq: QTensor,
+    pub(super) wk: QTensor,
+    pub(super) wv: QTensor,
+    pub(super) wo: QTensor,
+    pub(super) q_norm: TensorRef,
+    pub(super) k_norm: TensorRef,
+    pub(super) gate: QTensor,
+    pub(super) up: QTensor,
+    pub(super) down: QTensor,
+    /// The grouped dynamic convs of a DFlash2 layer; `None` in a DSpine draft (plain Qwen3 layers).
+    pub(super) aconv: Option<Conv2>,
+    pub(super) mconv: Option<Conv2>,
 }
 
 /// The draft's own scratch, so its geometry never has to fit the target's (per-rank) workspace.
-struct Bufs2 {
+pub(super) struct Bufs2 {
     /// block rows `[block, ...]`
-    x: [Buffer; 2],
-    n: Buffer,
-    c: Buffer,
-    o: Buffer,
-    q: [Buffer; 2],
-    k: [Buffer; 2],
-    v: Buffer,
-    ao: Buffer,
-    g: Buffer,
-    u: Buffer,
-    a: Buffer,
-    dyn_: [Buffer; 2],
+    pub(super) x: [Buffer; 2],
+    pub(super) n: Buffer,
+    pub(super) c: Buffer,
+    pub(super) o: Buffer,
+    pub(super) q: [Buffer; 2],
+    pub(super) k: [Buffer; 2],
+    pub(super) v: Buffer,
+    pub(super) ao: Buffer,
+    pub(super) g: Buffer,
+    pub(super) u: Buffer,
+    pub(super) a: Buffer,
+    pub(super) dyn_: [Buffer; 2],
     /// context ingest rows `[max rows, nkv * hd]`
-    ik: [Buffer; 2],
-    iv: Buffer,
+    pub(super) ik: [Buffer; 2],
+    pub(super) iv: Buffer,
 }
 
 /// `candidate_selector.*` (DFlash2's drafts): of each block row's `top_k` highest logits, take the one whose successor code best
@@ -78,7 +79,7 @@ pub(super) struct Selector {
     succ: Vec<u16>,
 }
 
-fn bf(b: u16) -> f32 {
+pub(super) fn bf(b: u16) -> f32 {
     f32::from_bits((b as u32) << 16)
 }
 
@@ -156,14 +157,14 @@ pub(super) struct Draft2 {
     pub(super) n_heads: usize,
     pub(super) n_kv_heads: usize,
     pub(super) head_dim: usize,
-    inter: usize,
-    eps: f32,
-    theta: f32,
+    pub(super) inter: usize,
+    pub(super) eps: f32,
+    pub(super) theta: f32,
     /// `sliding_window` (0 = full context)
     pub(super) window: usize,
-    conv_k: usize,
-    conv_g: usize,
-    bufs: Bufs2,
+    pub(super) conv_k: usize,
+    pub(super) conv_g: usize,
+    pub(super) bufs: Bufs2,
     pub(super) selector: Option<Selector>,
     /// `[block, rank]` the selector's projected hidden rows
     pub(super) sel_out: Buffer,
@@ -183,6 +184,9 @@ pub(super) struct Draft2 {
     /// kernel for the sliding window (HIP `attn_decode_bf16_window_splitkv`) takes them; the other backends ignore it. Only this draft's
     /// attention can differ in bits; the target's attention never sets it.
     pub(super) win_split: bool,
+    /// A DSpine draft (`model/dspine.rs`): the code bridge, its tables and the tail. Then `layers` have no conv, `selector` is `None`
+    /// and `cand` is the tail's `head_topk`.
+    pub(super) spine: Option<Box<super::dspine::Spine>>,
 }
 
 /// The `[2*K*G, H]` kernel projection split into its two branches (rows `0..K*G` and `K*G..2*K*G`), each its own buffer.
@@ -274,6 +278,10 @@ pub(super) fn load2(
 ) -> Result<Draft2> {
     let (c, src) = (&dl.config, &*dl.src);
     let world = shard.map_or(1, |s| s.1);
+    let spine_cfg = c.spine.as_ref();
+    if spine_cfg.is_some() && (world > 1 || shard.is_some()) {
+        return Err(Error::Unsupported("a DSpine draft under tensor parallelism".into()));
+    }
     if world > 1 && (c.n_kv_heads % world != 0 || c.intermediate % world != 0) {
         return Err(Error::Unsupported(format!(
             "a DFlash2 draft with {} kv heads / ffn {} split {world} ways (INTARSIA_DFLASH_TP=0 keeps it on rank 0)",
@@ -282,25 +290,31 @@ pub(super) fn load2(
     }
     if c.hidden != dims.hidden || c.vocab != dims.vocab {
         return Err(Error::model(format!(
-            "the DFlash2 draft's hidden {} / vocab {} differ from the target's {} / {}",
+            "the {} draft's hidden {} / vocab {} differ from the target's {} / {}",
+            c.kind_name(),
             c.hidden, c.vocab, dims.hidden, dims.vocab
         )));
     }
-    if c.conv_kernel == 0 || c.conv_group == 0 || c.hidden % c.conv_group != 0 || c.n_kv_heads == 0 || c.n_heads % c.n_kv_heads != 0 {
+    if spine_cfg.is_none()
+        && (c.conv_kernel == 0 || c.conv_group == 0 || c.hidden % c.conv_group != 0 || c.n_kv_heads == 0 || c.n_heads % c.n_kv_heads != 0)
+    {
         return Err(Error::model(format!(
             "DFlash2 draft: conv kernel {} / group {} / heads {}/{} do not fit hidden {}",
             c.conv_kernel, c.conv_group, c.n_heads, c.n_kv_heads, c.hidden
         )));
     }
     if act != DType::Bf16 && act != DType::F32 {
-        return Err(Error::Unsupported(format!("the DFlash2 draft with {act} activations")));
+        return Err(Error::Unsupported(format!("the {} draft with {act} activations", c.kind_name())));
+    }
+    if spine_cfg.is_some() && act != DType::Bf16 {
+        return Err(Error::Unsupported(format!("a DSpine draft with {act} activations (the code bridge rounds at bf16 points; bf16 only)")));
     }
     let (h, hd) = (c.hidden, c.head_dim);
     // this rank's heads and ffn columns (the whole draft without a shard)
     let (nh, nkv, inter) = (c.n_heads / world, c.n_kv_heads / world, c.intermediate / world);
     let (qdim, kvdim) = (nh * hd, nkv * hd);
     let part = |axis: ShardAxis| shard.map(|(r, w)| (axis, r, w));
-    let (kk, g) = (c.conv_kernel, c.hidden / c.conv_group);
+    let (kk, g) = if spine_cfg.is_some() { (0, 0) } else { (c.conv_kernel, c.hidden / c.conv_group) };
     let norm_w = |name: &str, n: usize| -> Result<TensorRef> {
         let t = load_tensor(b, src, &resolve(src, name)?, Some(&[n]))?;
         add_bytes(t.nbytes() as u64);
@@ -329,8 +343,8 @@ pub(super) fn load2(
             gate: lin(&format!("{p}.mlp.gate_proj"), inter, h, ShardAxis::Rows)?,
             up: lin(&format!("{p}.mlp.up_proj"), inter, h, ShardAxis::Rows)?,
             down: lin_in(&format!("{p}.mlp.down_proj"), h, inter)?,
-            aconv: conv("attention_conv")?,
-            mconv: conv("mlp_conv")?,
+            aconv: if spine_cfg.is_some() { None } else { Some(conv("attention_conv")?) },
+            mconv: if spine_cfg.is_some() { None } else { Some(conv("mlp_conv")?) },
         });
     }
     let t = c.block;
@@ -355,7 +369,7 @@ pub(super) fn load2(
         ik: [alloc(rows * kvdim)?, alloc(rows * kvdim)?],
         iv: alloc(rows * kvdim)?,
     };
-    let has_selector = c.selector_rank > 0 && c.selector_top_k > 0;
+    let has_selector = spine_cfg.is_none() && c.selector_rank > 0 && c.selector_top_k > 0;
     // a split draft (lane dh): rank 0 alone picks the drafts, so only it holds the selector and its host codebooks
     let selector = if has_selector && shard.is_none_or(|s| s.0 == 0) {
         let codebook = |name: &str| -> Result<Vec<u16>> {
@@ -376,11 +390,16 @@ pub(super) fn load2(
         None
     };
     let sel_out = alloc(t * c.selector_rank.max(1))?;
-    let cand = if has_selector { c.selector_top_k.min(c.vocab) } else { 1 };
+    let cand = match spine_cfg {
+        Some(sc) => sc.head_topk,
+        None if has_selector => c.selector_top_k.min(c.vocab),
+        None => 1,
+    };
     let topk_env = std::env::var("INTARSIA_DFLASH_DEVICE_TOPK").unwrap_or_default();
     let topk_check = topk_env.trim() == "check";
     // On unless `=0`: the device top-k is the default where the backend has one (HIP; CPU has none and always takes the host path).
-    let device_topk = topk_env.trim() != "0" && b.supports_topk() && cand <= 64;
+    // (a DSpine draft ranks the candidates by bf16-rounded logits with the lower id winning ties: host path only, for now)
+    let device_topk = topk_env.trim() != "0" && b.supports_topk() && cand <= 64 && spine_cfg.is_none();
     let topk = if device_topk {
         let r = t.max(1);
         let mk = |bytes: usize| -> Result<Buffer> {
@@ -392,7 +411,12 @@ pub(super) fn load2(
         None
     };
     let win_split = std::env::var("INTARSIA_DFLASH_WIN_SPLIT").map_or(true, |v| v.trim() != "0");
+    let spine = match spine_cfg {
+        Some(sc) => Some(Box::new(super::dspine::load_spine(dl, sc, b, dims, add_bytes, rows, act)?)),
+        None => None,
+    };
     Ok(Draft2 {
+        spine,
         cand,
         topk,
         topk_check,
@@ -415,7 +439,7 @@ pub(super) fn load2(
 
 impl Model {
     /// The draft's norms: standard RMSNorm (`w_offset` 0) with the draft's eps, whatever the target's recipe says.
-    fn d2_norm(&self, d2: &Draft2, x: &TensorRef, w: &TensorRef, out: &TensorRef, profile: bool) -> Result<()> {
+    pub(super) fn d2_norm(&self, d2: &Draft2, x: &TensorRef, w: &TensorRef, out: &TensorRef, profile: bool) -> Result<()> {
         self.exec(Op::RmsNorm, vec![x.clone(), w.clone()], vec![out.clone()], OpAttrs { eps: d2.eps, w_offset: 0.0, ..Default::default() }, profile)
     }
 
@@ -437,23 +461,23 @@ impl Model {
         Ok(())
     }
 
-    fn attn_slot_at(st: &SequenceState, slot: usize) -> Result<&crate::state::AttnKvState> {
+    pub(super) fn attn_slot_at(st: &SequenceState, slot: usize) -> Result<&crate::state::AttnKvState> {
         match st.slots.get(slot) {
             Some(StateSlot::AttnKv(s)) => Ok(s),
-            _ => Err(Error::invalid("DFlash2 draft layer without its attention cache slot")),
+            _ => Err(Error::invalid("draft layer without its attention cache slot")),
         }
     }
 
     /// q/k norm then rope at positions `pos0 ..` (full rotary, the draft's theta): `x` -> `tmp` (norm) -> `out` (rope).
     #[allow(clippy::too_many_arguments)]
-    fn d2_qk(&self, d2: &Draft2, x: &TensorRef, w: &TensorRef, tmp: &TensorRef, out: &TensorRef, _t: usize, pos0: usize, profile: bool) -> Result<()> {
+    pub(super) fn d2_qk(&self, d2: &Draft2, x: &TensorRef, w: &TensorRef, tmp: &TensorRef, out: &TensorRef, _t: usize, pos0: usize, profile: bool) -> Result<()> {
         self.exec(Op::QkNorm, vec![x.clone(), w.clone()], vec![tmp.clone()], OpAttrs { eps: d2.eps, w_offset: 0.0, ..Default::default() }, profile)?;
         let rope = OpAttrs { pos0, theta: d2.theta, head_dim: d2.head_dim, rotary_dim: 0, ..Default::default() };
         self.exec(Op::Rope, vec![tmp.clone()], vec![out.clone()], rope, profile)
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn d2_append(&self, slot: &crate::state::AttnKvState, k: &TensorRef, v: &TensorRef, pos0: usize, nkv: usize, hd: usize, profile: bool) -> Result<()> {
+    pub(super) fn d2_append(&self, slot: &crate::state::AttnKvState, k: &TensorRef, v: &TensorRef, pos0: usize, nkv: usize, hd: usize, profile: bool) -> Result<()> {
         let shape = [nkv, slot.cap, hd];
         let kc = self.view(&slot.k, slot.dtype, &shape);
         let vc = self.view(&slot.v, slot.dtype, &shape);
@@ -465,7 +489,7 @@ impl Model {
     /// `out = x @ w^T` for the draft's output projections (o, down). A split draft (lane dh, `dflash_tp`): `w` holds this rank's
     /// input columns, so the products are partial sums, summed over the group (into the f32 partial when the target's partials
     /// are f32, as its dense FFN does).
-    fn d2_proj_out(&self, x: &TensorRef, w: &QTensor, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
+    pub(super) fn d2_proj_out(&self, x: &TensorRef, w: &QTensor, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
         if !self.dflash_tp {
             return self.proj(x, w, out, profile);
         }
@@ -510,11 +534,14 @@ impl Model {
         let add = |a: &TensorRef, b: &TensorRef, out: &TensorRef| self.exec(Op::Add, vec![a.clone(), b.clone()], vec![out.clone()], OpAttrs::default(), profile);
         for (li, l) in d2.layers.iter().enumerate() {
             let slot = Self::attn_slot_at(kv, li)?;
+            let (Some(aconv), Some(mconv)) = (&l.aconv, &l.mconv) else {
+                return Err(Error::invalid("the DFlash2 block pass on a DSpine draft layer (no conv)"));
+            };
             // attention sub-block
             self.d2_norm(d2, &x, &l.ln1, &n, profile)?;
-            self.proj(&n, &l.aconv.kp[0], &dyn0, profile)?;
-            self.proj(&n, &l.aconv.kp[1], &dyn1, profile)?;
-            self.d2_conv(d2, &n, &dyn0, &l.aconv.base[0], &cbuf, profile)?;
+            self.proj(&n, &aconv.kp[0], &dyn0, profile)?;
+            self.proj(&n, &aconv.kp[1], &dyn1, profile)?;
+            self.d2_conv(d2, &n, &dyn0, &aconv.base[0], &cbuf, profile)?;
             self.proj(&cbuf, &l.wq, &q3(0).reshaped(&[t, nh * hd]), profile)?;
             self.proj(&cbuf, &l.wk, &k3(0).reshaped(&[t, nkv * hd]), profile)?;
             self.proj(&cbuf, &l.wv, &v3.reshaped(&[t, nkv * hd]), profile)?;
@@ -544,19 +571,19 @@ impl Model {
                 self.exec(Op::AttnDecode, vec![q3(0).rows(r, 1), kc.clone(), vc.clone()], vec![ao.rows(r, 1)], attrs, profile)?;
             }
             self.d2_proj_out(&ao.reshaped(&[t, nh * hd]), &l.wo, &o, t, profile)?;
-            self.d2_conv(d2, &o, &dyn1, &l.aconv.base[1], &cbuf, profile)?;
+            self.d2_conv(d2, &o, &dyn1, &aconv.base[1], &cbuf, profile)?;
             add(&x, &cbuf, &xn)?;
             std::mem::swap(&mut x, &mut xn);
             // feed-forward sub-block
             self.d2_norm(d2, &x, &l.ln2, &n, profile)?;
-            self.proj(&n, &l.mconv.kp[0], &dyn0, profile)?;
-            self.proj(&n, &l.mconv.kp[1], &dyn1, profile)?;
-            self.d2_conv(d2, &n, &dyn0, &l.mconv.base[0], &cbuf, profile)?;
+            self.proj(&n, &mconv.kp[0], &dyn0, profile)?;
+            self.proj(&n, &mconv.kp[1], &dyn1, profile)?;
+            self.d2_conv(d2, &n, &dyn0, &mconv.base[0], &cbuf, profile)?;
             self.proj(&cbuf, &l.gate, &g, profile)?;
             self.proj(&cbuf, &l.up, &u, profile)?;
             self.exec(Op::SiluGlu, vec![g.clone(), u.clone()], vec![a.clone()], OpAttrs::default(), profile)?;
             self.d2_proj_out(&a, &l.down, &o, t, profile)?;
-            self.d2_conv(d2, &o, &dyn1, &l.mconv.base[1], &cbuf, profile)?;
+            self.d2_conv(d2, &o, &dyn1, &mconv.base[1], &cbuf, profile)?;
             add(&x, &cbuf, &xn)?;
             std::mem::swap(&mut x, &mut xn);
         }

@@ -54,6 +54,11 @@
 //! | `EngramGather` | records `[T,C,Dh+Dh/32]` u8 (per row: Dh e4m3 bytes, then Dh/32 E8M0 scale bytes; 264 B for Dh 256) | `[T,C*Dh]` | |
 //! | `EngramMerge` | h `[T,S,D]`, kv `[T,(S+1)*D]` (S keys, one value), q_w `[S,D]`, k_w `[S,D]` | `[T,S,D]` (h + gate * value per stream) | eps |
 //! | `HcSublayer` | x `[T,S,D]`, fn, scale, base (as `HcMixes`), pre_in `[T,S]` f32, norm_w `[D]`, then post_x `[T,D]`, post_mix `[T,S]` f32, post_comb `[T,S,S]` f32 or three `[0]` | n `[T,D]` (= `RmsNorm(HcPre(h, pre_in), norm_w)`), pre, post, comb (= `HcMixes(h)`), h_out `[T,S,D]` or `[0]`; h = x, or with the fold `HcPost(post_x, x, post_mix, post_comb)` written to h_out | eps, w_offset, dsv.iters, dsv.hc_eps |
+//! | **DSpine** (the DSpine draft's code bridge, docs/plans/2026-11-07-dspine-port.md section 5; all bf16 storage, f32 math, `bf()` = round to bf16) | | | |
+//! | `BridgeNorm` | x `[T,D]` | y `[T,D]` (= `bf(f / (rms + eps))`), rms `[T]` f32 (= `sqrt(max(mean f^2, FLT_MIN))`, no eps inside) | eps |
+//! | `BridgeCode` | p `[T,C]` | code `[T,C]` (= `bf(scale * f / (sqrt(sum f^2) + eps))`, row 0 included) | eps, scale |
+//! | `BridgeGate` | packed `[T,3R]` (rows `[q \| s \| v]`), bias `[R]`, s0 `[2R]` (the row-0 sender `[s \| v]`) | msg `[T,R]` (row 0 zero; row t: `bf(sigmoid((q[t] + s[t-1]) + bias) * v[t-1])`, sender of row 1 from `s0`) | |
+//! | `BridgeWrite` | raw `[T,H]`, rms `[T]` f32, delta `[T,H]`, w `[H]` | out `[T,H]` (= `bf(raw + (rms * delta) * (t != 0))`), normed `[T,H]` (= `bf(bf(out * rsqrt(mean out^2 + eps)) * w)`, HF two-step) | eps |
 //! | `GdnDeltaRule` | qkv `[T,C]` (`C = 2*Hk*dk + Hv*dv`, rows `[q|k|v]`), a `[T,Hv]`, b `[T,Hv]`, A_log `[Hv]`, dt_bias `[Hv]` | o `[T,Hv,dv]`, state `[Hv,dv,dk]` f32 (**in place**) | eps (l2norm) |
 //!
 //! | `MatmulPair` | x `[M,K]`, w0 `[N0,K]`, w1 `[N1,K]` (dense) | `[M,N0]`, `[M,N1]` (= two `Matmul`s of one x) | fused decode GEMV pair, see `quant::fused` |
@@ -187,10 +192,24 @@ pub enum Op {
     /// their collapse with the previous sublayer's pre-mix (`HcPre`) and the sublayer norm (`RmsNorm`) in one op; optionally
     /// first the previous sublayer's `HcPost` (the fold). Exactly the sequence of those ops (docs/design/dsv41-ops.md).
     HcSublayer,
+    // appended (2026-11-07, DSpine port): the draft's code bridge, after the DeepSeek-V4.1 block, for the same reason
+    /// DSpine bridge: RMS of a row (without eps) and the row divided by `rms + eps`.
+    BridgeNorm,
+    /// DSpine bridge: a row scaled to L2 norm `scale` (`scale * x / (|x| + eps)`).
+    BridgeCode,
+    /// DSpine bridge: the predecessor message of each row from the packed `[q | s | v]` rows.
+    BridgeGate,
+    /// DSpine bridge: `raw + rms * delta` (row 0 untouched) and its two-step RMS norm with a weight.
+    BridgeWrite,
+}
+
+/// `BridgeCode` among the two single-output-shape bridge ops (they share a shape check).
+fn call_op_is_code(op: Op) -> bool {
+    op == Op::BridgeCode
 }
 
 impl Op {
-    pub const ALL: [Op; 63] = [
+    pub const ALL: [Op; 67] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -254,6 +273,10 @@ impl Op {
         Op::EngramGather,
         Op::EngramMerge,
         Op::HcSublayer,
+        Op::BridgeNorm,
+        Op::BridgeCode,
+        Op::BridgeGate,
+        Op::BridgeWrite,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -322,6 +345,10 @@ impl Op {
             Op::EngramGather => "engram_gather",
             Op::EngramMerge => "engram_merge",
             Op::HcSublayer => "hc_sublayer",
+            Op::BridgeNorm => "bridge_norm",
+            Op::BridgeCode => "bridge_code",
+            Op::BridgeGate => "bridge_gate",
+            Op::BridgeWrite => "bridge_write",
         }
     }
 
@@ -393,6 +420,10 @@ impl Op {
             Op::EngramGather => (1, 1),
             Op::EngramMerge => (4, 1),
             Op::HcSublayer => (9, 5),
+            Op::BridgeNorm => (1, 2),
+            Op::BridgeCode => (1, 1),
+            Op::BridgeGate => (3, 1),
+            Op::BridgeWrite => (4, 2),
         }
     }
 }
@@ -767,6 +798,51 @@ impl OpCall {
                 }
                 float(&i[0], "x")?;
             }
+            Op::BridgeNorm | Op::BridgeCode => {
+                rank(&i[0], 2, "x")?;
+                let (t, d) = (i[0].shape[0], i[0].shape[1]);
+                let ok = o[0].shape == i[0].shape
+                    && o[0].dtype == i[0].dtype
+                    && (call_op_is_code(self.op) || (o[1].shape == [t] && o[1].dtype == DType::F32));
+                if !ok || d == 0 || !(a.eps >= 0.0) {
+                    return bad(format!("x {:?} out {:?}", i[0].shape, o.iter().map(|x| x.shape.clone()).collect::<Vec<_>>()));
+                }
+                float(&i[0], "x")?;
+            }
+            Op::BridgeGate => {
+                rank(&i[0], 2, "packed")?;
+                rank(&i[1], 1, "bias")?;
+                rank(&i[2], 1, "s0")?;
+                let (t, r) = (i[0].shape[0], i[1].shape[0]);
+                let ok = i[0].shape[1] == 3 * r
+                    && i[2].shape[0] == 2 * r
+                    && o[0].shape == [t, r]
+                    && i[1].dtype == i[0].dtype
+                    && i[2].dtype == i[0].dtype
+                    && o[0].dtype == i[0].dtype;
+                if !ok {
+                    return bad(format!("packed {:?} bias {:?} s0 {:?} out {:?}", i[0].shape, i[1].shape, i[2].shape, o[0].shape));
+                }
+                float(&i[0], "packed")?;
+            }
+            Op::BridgeWrite => {
+                rank(&i[0], 2, "raw")?;
+                rank(&i[1], 1, "rms")?;
+                rank(&i[2], 2, "delta")?;
+                rank(&i[3], 1, "w")?;
+                let (t, h) = (i[0].shape[0], i[0].shape[1]);
+                let ok = i[1].shape[0] == t
+                    && i[1].dtype == DType::F32
+                    && i[2].shape == i[0].shape
+                    && i[3].shape[0] == h
+                    && i[2].dtype == i[0].dtype
+                    && i[3].dtype == i[0].dtype
+                    && o.iter().all(|x| x.shape == i[0].shape && x.dtype == i[0].dtype);
+                if !ok {
+                    return bad(format!("raw {:?} rms {:?} delta {:?} w {:?}", i[0].shape, i[1].shape, i[2].shape, i[3].shape));
+                }
+                float(&i[0], "raw")?;
+            }
             Op::AddBias => {
                 rank(&i[0], 2, "x")?;
                 rank(&i[1], 1, "bias")?;
@@ -996,6 +1072,14 @@ impl ShapeInfo {
                 s.m = i[0].shape[0];
                 s.k = i[0].shape[1];
                 s.n = i[1].shape[1];
+            }
+            Op::BridgeNorm | Op::BridgeCode | Op::BridgeWrite => {
+                s.m = i[0].shape[0];
+                s.k = i[0].shape[1];
+            }
+            Op::BridgeGate => {
+                s.m = i[0].shape[0];
+                s.k = i[1].shape[0];
             }
             Op::QkNorm | Op::Rope | Op::RopeScaled | Op::KvAppend => {
                 s.m = i[0].shape[0];
@@ -1309,7 +1393,9 @@ mod tests {
             assert_eq!(*op as usize, 44 + j, "{op}");
             assert_eq!(Op::ALL[44 + j], *op);
         }
-        assert_eq!(Op::ALL.last(), Some(&Op::HcSublayer), "the last of the DSv4.1 block");
+        assert_eq!(Op::ALL[Op::HcSublayer as usize], Op::HcSublayer, "the last of the DSv4.1 block");
+        assert_eq!(Op::BridgeNorm as usize, 63, "appended after the DSv4.1 block");
+        assert_eq!(Op::ALL.last(), Some(&Op::BridgeWrite), "the last of the DSpine bridge ops");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

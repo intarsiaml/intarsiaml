@@ -124,6 +124,14 @@ int ik_attn_decode_bf16_splitkv_rows(const ik_tensor* q, const ik_tensor* kc0, c
  *   attn_decode_bf16_window (Op::AttnDecode with OpAttrs::window): ik_attn_decode_bf16 (T == 1, D <= 256) with the key loop starting at
  *     max(0, pos0 + 1 - window); window == 0 attends all keys. `pos` as in ik_attn_decode_bf16. Registered `.ext()` at priority -1. */
 int ik_dyn_conv_bf16(const ik_tensor* x, const ik_tensor* k, const ik_tensor* base, ik_tensor* out, void* stream);
+/* DSpine draft code bridge (kernels/hip/bridge.hip; Op::BridgeNorm / BridgeCode / BridgeGate / BridgeWrite, definitions in crates/intarsia-core/src/ops.rs), bf16, f32 math.
+ *   ik_bridge_norm_bf16: x[T,D] -> y[T,D], rms[T] f32.  ik_bridge_code_bf16: x[T,C] -> y[T,C] (scale).  ik_bridge_gate_bf16: packed[T,3R], bias[R], s0[2R] -> msg[T,R].
+ *   ik_bridge_write_bf16: raw[T,H], rms[T] f32, delta[T,H], w[H] -> out[T,H], normed[T,H]. One block per row. */
+int ik_bridge_norm_bf16(const ik_tensor* x, float eps, ik_tensor* y, ik_tensor* rms, void* stream);
+int ik_bridge_code_bf16(const ik_tensor* x, float eps, float scale, ik_tensor* y, void* stream);
+int ik_bridge_gate_bf16(const ik_tensor* packed, const ik_tensor* bias, const ik_tensor* s0, ik_tensor* msg, void* stream);
+int ik_bridge_write_bf16(const ik_tensor* raw, const ik_tensor* rms, const ik_tensor* delta, const ik_tensor* w, float eps, ik_tensor* out,
+                         ik_tensor* normed, void* stream);
 int ik_attn_decode_bf16_window(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, int64_t window, float scale,
                                ik_tensor* out, const ik_tensor* pos, void* stream);
 /* Lane dw (kernels/hip/attention_win_splitkv.hip): ik_attn_decode_bf16_window with the key range split over blocks (split-KV, two stages, scratch as
