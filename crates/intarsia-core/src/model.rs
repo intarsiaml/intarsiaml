@@ -47,9 +47,11 @@ pub use verify_attn::{verify_rows_pos_bytes, verify_rows_pos_stale, verify_rows_
 pub(crate) mod dcoco;
 pub(crate) mod dflash;
 mod dflash2;
+mod dspine;
 pub mod dflash_tree;
 pub(crate) mod mtp;
-pub use dflash::{DflashConfig, DflashLoad};
+pub use dflash::{DflashConfig, DflashLoad, SpineConfig};
+pub use dspine::LastPass;
 pub use mtp::{DraftScript, MtpRows};
 pub use batch::TpBatchMutant;
 use gdn_block::{ExtraWs, GdnBlock};
@@ -1466,7 +1468,7 @@ impl Model {
         // lane dh: the DFlash2 draft split over in-process tensor-parallel ranks (`INTARSIA_DFLASH_TP`, on unless `=0`; `=1` also forces it,
         // so a draft that cannot be split then fails to load instead of staying whole on rank 0)
         let dflash_tp = tp.world > 1
-            && opts.dflash.as_ref().is_some_and(|d| d.config.v2)
+            && opts.dflash.as_ref().is_some_and(|d| d.config.v2 && d.config.spine.is_none())
             && match opts.dflash_tp {
                 Some(on) => on,
                 None => match std::env::var("INTARSIA_DFLASH_TP").map(|v| v.trim().to_string()).as_deref() {
@@ -1479,6 +1481,9 @@ impl Model {
             // tensor parallelism (lane dfh): the drafter lives on rank 0 alone (the taps are the residual stream, which every rank
             // holds whole after its all-reduce); with a vocab-parallel head rank 0 also keeps a whole copy of the head for the
             // draft's logits, so drafting needs no collective
+            Some(dl) if tp.world > 1 && dl.config.spine.is_some() => {
+                return Err(Error::Unsupported("--spec dflash with a DSpine draft under tensor parallelism (--tp 1 only so far)".into()));
+            }
             Some(_) if tp.rank != 0 && !dflash_tp => None,
             Some(dl) if tp.world > 1 && !dl.config.v2 => {
                 return Err(Error::Unsupported("--spec dflash under tensor parallelism with a DFlash (v1) draft".into()));
@@ -1496,7 +1501,13 @@ impl Model {
                     head.n_layers(),
                     head.taps,
                     head.block,
-                    if head.v2.is_some() { ", DFlash2" } else { "" },
+                    if head.v2.as_ref().is_some_and(|d| d.spine.is_some()) {
+                        ", DSpine"
+                    } else if head.v2.is_some() {
+                        ", DFlash2"
+                    } else {
+                        ""
+                    },
                     t0.elapsed().as_secs_f64()
                 );
                 let mut head = head;

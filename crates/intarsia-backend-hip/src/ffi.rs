@@ -229,6 +229,10 @@ extern "C" {
     pub fn ik_attn_decode_bf16_window(q: T, kc: T, vc: T, pos0: i64, window: i64, scale: f32, out: TM, pos: T, s: S) -> c_int;
     pub fn ik_attn_decode_bf16_window_splitkv(q: T, kc: T, vc: T, pos0: i64, window: i64, scale: f32, out: TM, scratch: SC, pos: T, s: S) -> c_int;
     pub fn ik_dyn_conv_bf16(x: T, k: T, base: T, out: TM, s: S) -> c_int;
+    pub fn ik_bridge_norm_bf16(x: T, eps: f32, y: TM, rms: TM, s: S) -> c_int;
+    pub fn ik_bridge_code_bf16(x: T, eps: f32, scale: f32, y: TM, s: S) -> c_int;
+    pub fn ik_bridge_gate_bf16(packed: T, bias: T, s0: T, msg: TM, s: S) -> c_int;
+    pub fn ik_bridge_write_bf16(raw: T, rms: T, delta: T, w: T, eps: f32, out: TM, normed: TM, s: S) -> c_int;
     pub fn ik_attn_decode_bf16_splitkv(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, scratch: SC, pos: T, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16_splitkv(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_attn_prefill_bf16_flash(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;

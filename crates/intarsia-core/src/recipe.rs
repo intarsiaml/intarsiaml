@@ -408,6 +408,10 @@ pub struct BackendTuning {
     /// Quantise the `lm_head` at load on this backend (`"fp8"` or `"mxfp4"`, [`crate::quant::head`]) when `INTARSIA_LMHEAD_QUANT` is not
     /// set. It changes outputs: only `recipes/qwen3_5_vl.toml` (Qwen3.8-27B) sets it, on Metal, HIP and CUDA (user decisions 2026-11-06, lane lmhead-fp8-default).
     pub lm_head_quant: Option<String>,
+    /// Quantise the dense MTP draft head's projections at load on this backend (`"fp8"`, `"mxfp4"` or `"mix"`, [`crate::quant::head::parse_mtp_quant`])
+    /// when `INTARSIA_MTP_QUANT` is not set. Drafts only (the verified output is unchanged). Only `recipes/qwen3_5_vl.toml` (Qwen3.8-27B) sets it, `"mix"` on
+    /// CUDA (user decision 2026-11-08, lane mxd).
+    pub mtp_quant: Option<String>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -472,6 +476,11 @@ impl Recipe {
     /// The recipe's `lm_head_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
     pub fn lm_head_quant(&self, backend: &str) -> Option<&str> {
         self.tuning.backends.get(backend).and_then(|b| b.lm_head_quant.as_deref())
+    }
+
+    /// The recipe's `mtp_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
+    pub fn mtp_quant(&self, backend: &str) -> Option<&str> {
+        self.tuning.backends.get(backend).and_then(|b| b.mtp_quant.as_deref())
     }
 
     /// The MXFP4 activation mode the recipe picks for `backend` when `--mxfp4-act` is absent: `[tuning.<backend>] mxfp4_act`, else
@@ -720,6 +729,9 @@ impl Recipe {
         }
         for v in self.tuning.backends.values().filter_map(|b| b.lm_head_quant.as_deref()) {
             crate::quant::head::HeadQuant::parse(v)?;
+        }
+        for v in self.tuning.backends.values().filter_map(|b| b.mtp_quant.as_deref()) {
+            crate::quant::head::parse_mtp_quant(v)?;
         }
         self.accuracy.ppl_form()?;
         if self.accuracy.max_ppl.is_some_and(|m| !(m.is_finite() && m > 0.0)) {

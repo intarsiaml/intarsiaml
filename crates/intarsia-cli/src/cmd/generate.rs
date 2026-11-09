@@ -194,6 +194,13 @@ pub fn run(args: GenerateArgs) -> Result<()> {
         if args.show_ids {
             eprintln!("ids{tag}: {generated:?}");
         }
+        // INTARSIA_DSPINE_DUMP: the prompt and generated ids beside the draft's dump (`req-{r:04}` is this run's request;
+        // tools/dspine/replay_taps.py takes the target's greedy tokens from here)
+        if let Some(d) = std::env::var("INTARSIA_DSPINE_DUMP").ok().filter(|s| !s.is_empty()) {
+            std::fs::create_dir_all(&d)?;
+            let j = serde_json::json!({ "prompt": ids, "ids": generated });
+            std::fs::write(std::path::Path::new(&d).join(format!("ids-{r}.json")), j.to_string())?;
+        }
         if let Some(t) = trace {
             eprintln!("margins{tag}: {}", margins(&t.lock().unwrap()));
         }

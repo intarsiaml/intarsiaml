@@ -22,6 +22,9 @@ use crate::tensor::HostTensor;
 /// The environment variable (`fp8`, `mxfp4`; `off`, `0`, `none` or empty: off, and then the recipe key is ignored).
 pub const ENV: &str = "INTARSIA_LMHEAD_QUANT";
 
+/// The MTP draft head's environment variable (`fp8`, `mxfp4`, `mix`; the off spellings of [`ENV`]; lane c27). Wins over the recipe's `mtp_quant`.
+pub const MTP_ENV: &str = "INTARSIA_MTP_QUANT";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HeadQuant {
     Fp8,
@@ -52,6 +55,29 @@ impl HeadQuant {
             Some(v) => HeadQuant::parse(v),
             None => recipe.map_or(Ok(None), HeadQuant::parse),
         }
+    }
+}
+
+/// The dense MTP head's projection formats: (fc + attention, feed-forward).
+pub type MtpQuant = (HeadQuant, HeadQuant);
+
+/// Parse an `INTARSIA_MTP_QUANT` / recipe `mtp_quant` value: `fp8` (all fp8), `mxfp4` (all mxfp4), `mix` (fc and attention fp8, feed-forward
+/// mxfp4); `Ok(None)` for the off spellings.
+pub fn parse_mtp_quant(s: &str) -> Result<Option<MtpQuant>> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "fp8" | "fp8_e4m3" | "e4m3" => Ok(Some((HeadQuant::Fp8, HeadQuant::Fp8))),
+        "mxfp4" => Ok(Some((HeadQuant::Mxfp4, HeadQuant::Mxfp4))),
+        "mix" => Ok(Some((HeadQuant::Fp8, HeadQuant::Mxfp4))),
+        "" | "off" | "0" | "none" | "bf16" => Ok(None),
+        other => Err(Error::model(format!("{MTP_ENV} / mtp_quant = '{other}' (fp8 | mxfp4 | mix | off)"))),
+    }
+}
+
+/// The env var wins over the recipe's `mtp_quant` (any off spelling of the variable keeps bf16); unset on both: off.
+pub fn resolve_mtp_quant(env: Option<&str>, recipe: Option<&str>) -> Result<Option<MtpQuant>> {
+    match env {
+        Some(v) => parse_mtp_quant(v),
+        None => recipe.map_or(Ok(None), parse_mtp_quant),
     }
 }
 

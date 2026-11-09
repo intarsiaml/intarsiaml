@@ -25,6 +25,19 @@ use crate::state::DflashState;
 /// Rows of single-token decode steps the draft keeps back before one batched ingest (`DflashState::store`, 8 KB per tap and row).
 const PEND_MAX: usize = 512;
 
+impl DflashConfig {
+    /// The draft's kind as error messages name it.
+    pub fn kind_name(&self) -> &'static str {
+        if self.spine.is_some() {
+            "DSpine"
+        } else if self.v2 {
+            "DFlash2"
+        } else {
+            "DFlash"
+        }
+    }
+}
+
 /// What the draft checkpoint's `config.json` (`dflash_config`) says, parsed by the loader.
 #[derive(Clone, Debug, Default)]
 pub struct DflashConfig {
@@ -59,6 +72,22 @@ pub struct DflashConfig {
     /// `dflash_config.selector_rank` / `selector_top_k` (0: no candidate selector, drafts are the rows' argmax).
     pub selector_rank: usize,
     pub selector_top_k: usize,
+    /// A DSpine checkpoint (`model/dspine.rs`, `tencent/Qwen3.8-27B-DSpine-b16`): a causal plain-Qwen3 block with a code bridge
+    /// after every layer and a refinement tail. `v2` is set for it as well (the DFlash2 backbone path, without the conv).
+    pub spine: Option<SpineConfig>,
+}
+
+/// The DSpine code bridge's geometry (`dflash_config.selected_prefix_code_bridge`, `code_bridge_second_pass`).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SpineConfig {
+    /// `code_size` (C): the width of a token's code.
+    pub code: usize,
+    /// `rank` (R): the width of the bridge's message.
+    pub rank: usize,
+    /// `selected_prefix_code_bridge.eps`: added to the RMS / L2 norms of the read and code steps.
+    pub eps_b: f32,
+    /// `head_topk` (K): candidates per block row of the refinement tail.
+    pub head_topk: usize,
 }
 
 /// `LoadOptions::dflash`: the draft checkpoint's weights and config.
@@ -82,7 +111,7 @@ pub(super) struct DflashHead {
     /// `fc` split by columns into one `[H, H]` projection per tap (summed), so no concat buffer is needed.
     fc: Vec<QTensor>,
     hidden_norm: TensorRef,
-    norm: TensorRef,
+    pub(super) norm: TensorRef,
     /// Target layers tapped; `feat[i]` is the staging buffer of tap `i`, `[max rows, H]`.
     pub(super) taps: Vec<usize>,
     pub(super) feat: Vec<Buffer>,
@@ -279,11 +308,12 @@ fn load_head2(
 ) -> Result<DflashHead> {
     let (c, src) = (&dl.config, &*dl.src);
     if dl.dcoco {
-        return Err(Error::Unsupported("--dcoco with a DFlash2 draft".into()));
+        return Err(Error::Unsupported(format!("--dcoco with a {} draft", c.kind_name())));
     }
     if c.layer_ids.is_empty() || c.layer_ids.iter().any(|&l| l >= dims.n_layers) || c.block < 2 || c.block > Model::VERIFY_MAX_ROWS {
         return Err(Error::model(format!(
-            "DFlash2 draft tap layers {:?} / block {} do not fit a {}-layer target with {}-row verify passes",
+            "{} draft tap layers {:?} / block {} do not fit a {}-layer target with {}-row verify passes",
+            c.kind_name(),
             c.layer_ids,
             c.block,
             dims.n_layers,
@@ -424,6 +454,7 @@ impl Model {
                 }
                 Ok(())
             } else {
+                self.dspine_dump_taps(head, d.kv.len, &head.feat, t)?;
                 self.dflash_ingest(head, &mut d.kv, &head.feat, t, profile)
             }
         })();
@@ -460,6 +491,7 @@ impl Model {
         if n == 0 {
             return Ok(());
         }
+        self.dspine_dump_taps(head, d.kv.len, &d.store, n)?;
         self.dflash_ingest(head, &mut d.kv, &d.store, n, profile)?;
         d.pending = 0;
         Ok(())
@@ -601,7 +633,8 @@ impl Model {
                 d.kv.len, d.active, d.synced, st.len
             )));
         }
-        let t = head.block;
+        // a DSpine block is causal: its first `k + 1` rows are those of the whole block, so only they run
+        let t = if head.v2.as_ref().is_some_and(|d2| d2.spine.is_some()) { head.block.min(k + 1) } else { head.block };
         let p0 = d.kv.len;
         if p0 + t > d.kv.cap {
             return Ok(Vec::new());
@@ -620,6 +653,23 @@ impl Model {
         if let Some(d2) = &head.v2 {
             // DFlash2: rows 1 .. t draft the tokens at p0 + 1 .. p0 + t - 1 (`logits_start = 1`)
             let rows_k = head.rows_kernels.load(std::sync::atomic::Ordering::Relaxed);
+            if let Some(sp) = d2.spine.as_deref() {
+                // DSpine: the block, the live head's logits, host candidates and the greedy tail (`model/dspine.rs`)
+                let mut drafts = self.dspine_draft(d2, sp, &d.kv, &st.tokens, next, t, rows_k, profile)?;
+                drafts.truncate(k);
+                if self.recorder.lock().unwrap().is_some() {
+                    return Ok(Vec::new());
+                }
+                if let Some(f) = head.script.lock().unwrap().as_ref() {
+                    let mut seq = st.tokens.clone();
+                    seq.push(next);
+                    let sc: Vec<u32> = f(&seq, drafts.len()).into_iter().filter(|&x| (x as usize) < self.dims.vocab).take(drafts.len()).collect();
+                    if !sc.is_empty() {
+                        drafts = sc;
+                    }
+                }
+                return Ok(drafts);
+            }
             if rows_k {
                 self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
             }
@@ -949,7 +999,8 @@ impl Model {
         let exact = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
         let t = head.block;
         let cap = self.plan.kv_cap_tokens;
-        let one = |mut kv: SequenceState| -> Result<()> {
+        let spine = head.v2.as_ref().is_some_and(|d| d.spine.is_some());
+        let one = |mut kv: SequenceState, kd: usize| -> Result<()> {
             self.dflash_ingest(head, &mut kv, &head.feat, t, false)?;
             let mut st = crate::plan::phantom_state(&[], cap, kv.len);
             st.dflash = Some(Box::new(DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false }));
@@ -959,20 +1010,32 @@ impl Model {
                 (true, 0) => DraftLink2::Lead(Vec::new()),
                 (true, _) => DraftLink2::Follow(std::sync::mpsc::channel().0),
             };
-            self.dflash_draft_rank(&mut st, 0, t, link).map(|_| ())
+            self.dflash_draft_rank(&mut st, 0, kd, link).map(|_| ())
         };
         // lane dh (bug 0): a DFlash2 draft past its sliding window runs windowed attention calls (`OpAttrs::window > 0`, on HIP
         // the `.ext()` kernel `attn_decode_bf16_window`) that a draft at the start of the context never makes. Record one at
         // the end of the context too, or `serve` (admitted kernels only) has no kernel for them once a request outgrows the
         // window (`no kernel for attn_decode ... [admitted kernels only]`).
         let window = head.v2.as_ref().map_or(0, |d2| d2.window);
-        let r = one(kv).and_then(|_| {
-            if window > 0 && cap >= window + 2 * t {
-                one(crate::plan::phantom_state(&specs, cap, cap - 2 * t))
-            } else {
+        let r = if spine {
+            // a DSpine draft runs `min(block, k + 1)` rows: every row count 2 ..= block, plain and past the window
+            (2..=t).try_for_each(|tt| {
+                one(crate::plan::phantom_state(&specs, cap, 0), tt - 1)?;
+                // (the pass ingests `block` rows first, then runs `tt` block rows: both end at the cache's end)
+                if window > 0 && cap >= window + t + tt {
+                    one(crate::plan::phantom_state(&specs, cap, cap - t - tt), tt - 1)?;
+                }
                 Ok(())
-            }
-        });
+            })
+        } else {
+            one(kv, t).and_then(|_| {
+                if window > 0 && cap >= window + 2 * t {
+                    one(crate::plan::phantom_state(&specs, cap, cap - 2 * t), t)
+                } else {
+                    Ok(())
+                }
+            })
+        };
         // lane dm: a pass ingests as many context rows as it emitted (1 ..= block); those projections are M = 1 .. block calls, which
         // some backends (Metal: `matmul_bf16_gemv` at M = 1) serve with other kernels than the block's M rows. Record each, or `serve`
         // (admitted kernels only) fails on the first such pass (`no kernel for matmul ... m=1 ... [admitted kernels only]`).

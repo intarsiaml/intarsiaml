@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "/opt/code/deepeval/.venv/bin/localeval", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opt/code/deepeval/src/localeval/__init__.py", line 16, in main
+    cli_main()
+  File "/opt/code/deepeval/src/localeval/cli.py", line 376, in main
+    p.add_argument("--thinking", choices=["on", "off"], help="force thinking on every model request "
+  File "/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/lib/python3.12/argparse.py", line 1500, in add_argument
+    return self._add_action(action)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/lib/python3.12/argparse.py", line 1885, in _add_action
+    self._optionals._add_action(action)
+  File "/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/lib/python3.12/argparse.py", line 1705, in _add_action
+    action = super(_ArgumentGroup, self)._add_action(action)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/lib/python3.12/argparse.py", line 1514, in _add_action
+    self._check_conflict(action)
+  File "/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/lib/python3.12/argparse.py", line 1654, in _check_conflict
+    conflict_handler(action, confl_optionals)
+  File "/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/lib/python3.12/argparse.py", line 1663, in _handle_conflict_error
+    raise ArgumentError(action, message % conflict_string)
+argparse.ArgumentError: argument --thinking: conflicting option string: --thinking

@@ -21,9 +21,10 @@ TP=${TP:-1}; GPUS=0; TPA=""; [[ $TP == 2 ]] && { GPUS=0,1; TPA="--tp 2 --devices
 TREE=${TREE:-dev}; ROUNDS=${ROUNDS:-1}; ARMS=${ARMS:-"off mtp2 dfl7"}; GEN=${GEN:-512}; CAP=${CAP:-2700}; PORT=8095
 M27=/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0
 DRAFT=/models/tensorfold/Qwen3.8-27B-DFlash2
+DSP=/models/intarsia/Qwen3.8-27B-DSpine-b16  # lane dspine: arms dsp<k>
 IMG=intarsia-hip-dev:rocm7.2.4-rust1.90.0
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; REPO="$(cd "$HERE/../.." && pwd)"
-OUT=$REPO/docs/results/2026-11-06-27b-dflash-hip-tp1/raw/$W; mkdir -p "$OUT"
+OUT=${OUTROOT:-$REPO/docs/results/2026-11-06-27b-dflash-hip-tp1/raw}/$W; mkdir -p "$OUT"
 T0=$(date +%s); left() { echo $(( CAP - ($(date +%s) - T0) )); }
 say() { echo "$(date +%T) $*" | tee -a "$OUT/steps.log"; }
 SSH="ssh -o BatchMode=yes tatooine"
@@ -85,6 +86,7 @@ serve() { # serve <arm>
     mtp2) spec="--spec mtp --spec-k 2" ;;
     mtp*) spec="--spec mtp --spec-k ${base#mtp}" ;;
     dfl*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${base#dfl}" ;;
+    dsp*) spec="--spec dflash --spec-draft $DSP --spec-k ${base#dsp}" ;;
   esac
   ARM_AUDIT=0; [[ $ENVX == *INTARSIA_SPEC_MB_AUDIT=1* ]] && ARM_AUDIT=1  # lane mb: save the server's mb-audit lines per category
   # lane mb: under 255 characters (localeval stat()s the recipe as a file name first: a longer one fails every request)

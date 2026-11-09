@@ -1,0 +1,24 @@
+fleetq: #9121 running on spark1: bash -c 'ssh spark1 "bash -s" < .mxd/g2.sh'
+stamp: mxd-dev 2cba0854fde  avail 82 GB
+ids-short-0-spec0: rc=0 quantised-lines=0  | prefill 414 ms (99.1 tok/s) | decode 16860 ms (15.12 tok/s) |  | avail 82
+IDS short-0 spec0: md5 b594fdcc7955 (1433 B)
+ids-short-0-def: rc=0 quantised-lines=1 mtp head quantised (INTARSIA_MTP_QUANT / recipe mtp_quant): fc and attention fp8, feed-forward mxfp4; drafts only, verified output unchanged | prefill 442 ms (92.7 tok/s) | decode 8277 ms (30.81 tok/s) | spec: verify passes=103 proposed=206 accepted=151 (acceptance 73.3%, 2.47 tokens per pass) | avail 83
+IDS short-0 def: md5 b594fdcc7955 (1433 B)
+ids-short-0-off: rc=0 quantised-lines=0  | prefill 577 ms (71.0 tok/s) | decode 8538 ms (29.87 tok/s) | spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass) | avail 83
+IDS short-0 off: md5 b594fdcc7955 (1433 B)
+IDS short-0: def == spec off  PASS
+IDS short-0: off == spec off  PASS
+ids-4k-1-spec0: rc=0 quantised-lines=0  | prefill 5118 ms (780.2 tok/s) | decode 17183 ms (14.84 tok/s) |  | avail 83
+IDS 4k-1 spec0: md5 56eefb4d9f43 (1425 B)
+ids-4k-1-def: rc=0 quantised-lines=1 mtp head quantised (INTARSIA_MTP_QUANT / recipe mtp_quant): fc and attention fp8, feed-forward mxfp4; drafts only, verified output unchanged | prefill 5112 ms (781.0 tok/s) | decode 8541 ms (29.85 tok/s) | spec: verify passes=105 proposed=210 accepted=149 (acceptance 71.0%, 2.42 tokens per pass) | avail 82
+IDS 4k-1 def: md5 56eefb4d9f43 (1425 B)
+ids-4k-1-off: rc=0 quantised-lines=0  | prefill 5024 ms (794.9 tok/s) | decode 9058 ms (28.15 tok/s) | spec: verify passes=106 proposed=212 accepted=149 (acceptance 70.3%, 2.41 tokens per pass) | avail 82
+IDS 4k-1 off: md5 56eefb4d9f43 (1425 B)
+IDS 4k-1: def == spec off  PASS
+IDS 4k-1: off == spec off  PASS
+speed4k-1-def: rc=0 quantised-lines=1 mtp head quantised (INTARSIA_MTP_QUANT / recipe mtp_quant): fc and attention fp8, feed-forward mxfp4; drafts only, verified output unchanged | prefill 5257 ms (800.9 tok/s) | decode 6215 ms (30.73 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass) | avail 82
+speed4k-2-off: rc=0 quantised-lines=0  | prefill 5271 ms (798.7 tok/s) | decode 6577 ms (29.04 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass) | avail 83
+speed4k-3-off: rc=0 quantised-lines=0  | prefill 5281 ms (797.2 tok/s) | decode 6584 ms (29.01 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass) | avail 83
+speed4k-4-def: rc=0 quantised-lines=1 mtp head quantised (INTARSIA_MTP_QUANT / recipe mtp_quant): fc and attention fp8, feed-forward mxfp4; drafts only, verified output unchanged | prefill 5306 ms (793.4 tok/s) | decode 6228 ms (30.67 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass) | avail 83
+== done 13:45:37
+fleetq: #9121 done (exit 0)
