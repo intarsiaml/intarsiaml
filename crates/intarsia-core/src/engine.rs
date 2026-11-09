@@ -259,6 +259,14 @@ pub trait Engine: Send + Sync {
         Err(Error::Unsupported("this engine has no scripted forward path".into()))
     }
 
+    /// Dev tooling (`intarsia mtp-dump`): prefill `ids` on a fresh sequence with the MTP head loaded (`--spec mtp`), teacher
+    /// forced, and return what the head saw and said at each of the first `ids.len() - 1` positions ([`crate::model::MtpRows`]):
+    /// the queued main-model hidden row of position `p` (paired with token `p + 1`), the head's argmax over the full vocabulary
+    /// and over its draft vocabulary, optionally its output row. Single rank, single-sequence engine only.
+    fn mtp_dump(&self, _ids: &[u32], _head_out: bool) -> Result<crate::model::MtpRows> {
+        Err(Error::Unsupported("this engine has no MTP dump path".into()))
+    }
+
     fn telemetry(&self) -> TelemetrySnapshot;
 
     /// `Some(reason)` once the engine can no longer serve requests (the worker
@@ -909,6 +917,39 @@ impl Engine for LocalEngine {
             });
         }
         Ok(out)
+    }
+
+    fn mtp_dump(&self, ids: &[u32], head_out: bool) -> Result<crate::model::MtpRows> {
+        if let Some(why) = self.shared.failure() {
+            return Err(Error::Other(format!("engine failed: {why}")));
+        }
+        check_prompt_ids(ids, self.info.vocab)?;
+        if ids.len() < 2 {
+            return Err(Error::invalid("an MTP dump needs at least 2 tokens (the head pairs each position with the next token)"));
+        }
+        let mut g = self.shared.inner.lock().unwrap();
+        let Inner { model, state } = &mut *g;
+        if !model.has_mtp() || state.mtp.is_none() {
+            return Err(Error::invalid("the MTP dump needs the model loaded with its MTP head (--spec mtp)"));
+        }
+        if ids.len() > state.cap {
+            return Err(Error::invalid(format!("{} tokens exceed the context of {} (raise --max-seq)", ids.len(), state.cap)));
+        }
+        state.reset(&*model.backend)?;
+        if let Some(m) = state.mtp.as_mut() {
+            m.active = true;
+        }
+        model.mtp_dump_begin(head_out)?;
+        let fwd = model.forward_prefill(state, ids, HeadMode::None, None);
+        let rows = model.mtp_dump_take();
+        fwd?;
+        let rows = rows?;
+        // the last position's row stays queued (its next token is not known), so a prompt of n tokens yields n - 1 rows
+        if rows.rows != ids.len() - 1 || rows.top1.len() != rows.rows {
+            return Err(Error::backend(format!("MTP dump recorded {} rows for {} tokens", rows.rows, ids.len())));
+        }
+        state.reset(&*model.backend)?;
+        Ok(rows)
     }
 
     fn plan(&self) -> Value {

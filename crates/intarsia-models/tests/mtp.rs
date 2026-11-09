@@ -2306,3 +2306,138 @@ fn moe_mtp_tp2_greedy_ids_equal_spec_off() {
         }
     }
 }
+
+// ------------------------------------------------------------------------------------------------------------------
+// engine-side dump of the head's rows (`Engine::mtp_dump`, `intarsia mtp-dump`), for offline fine-tuning
+// ------------------------------------------------------------------------------------------------------------------
+
+fn bf16_rows(v: &[u16]) -> Vec<f32> {
+    v.iter().map(|&b| f32::from_bits((b as u32) << 16)).collect()
+}
+
+fn dump_model(w: &MemWeights, act: DType, draft_vocab: usize) -> Model {
+    let (recipe, dims) = dims();
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        act_dtype: Some(act),
+        kv_dtype: Some(act),
+        fp8_act: Some(Fp8Act::None),
+        mtp: true,
+        mtp_draft_vocab: (draft_vocab > 0).then_some(draft_vocab),
+        profile_every: 0,
+        ..Default::default()
+    };
+    Model::load(CpuBackend::arc(), &recipe, &dims, w, &opts, Arc::new(Telemetry::new())).unwrap()
+}
+
+fn dump_ids(n: usize) -> Vec<u32> {
+    (0..n).map(|i| ((i * 37 + 5) % V as usize) as u32).collect()
+}
+
+/// The dump of `ids` on a fresh sequence of `m` (prefill chunks of 8, so the head catches up chunk by chunk).
+fn dump_of(m: &Model, ids: &[u32], head_out: bool) -> intarsia_core::model::MtpRows {
+    let mut st = m.new_state().unwrap();
+    m.mtp_dump_begin(head_out).unwrap();
+    m.forward_prefill(&mut st, ids, HeadMode::None, None).unwrap();
+    m.mtp_dump_take().unwrap()
+}
+
+/// `head_top1` / `head_top1_dv` at row p are the engine's own first draft at that position: a fresh sequence over ids[..=p] (the
+/// ordinary prefill, no dump, the K / V-only head catch-up) drafting after ids[p + 1] with `mtp_draft`; and the dumped hidden rows
+/// are the rows the head consumes: the head alone over them (`mtp_reference_pass`) argmaxes to `head_top1`.
+fn check_dump(act: DType, draft_vocab: usize) {
+    let w = weights(11);
+    let m = dump_model(&w, act, draft_vocab);
+    let (n, h) = (17usize, H);
+    let ids = dump_ids(n);
+    let rows = dump_of(&m, &ids, true);
+    assert_eq!(rows.rows, n - 1);
+    assert_eq!(rows.hidden, h);
+    assert_eq!(rows.hidden_rows.len(), (n - 1) * h);
+    assert_eq!(rows.head_out.as_ref().map(|o| o.len()), Some((n - 1) * h));
+    assert_eq!(rows.top1.len(), n - 1);
+    assert_eq!(rows.draft_vocab, draft_vocab);
+    assert_eq!(rows.top1_dv.as_ref().map(|d| d.len()), (draft_vocab > 0).then_some(n - 1));
+    assert!(rows.hidden_rows.iter().any(|&b| b != 0), "hidden rows are not all zero");
+    if let Some(dv) = &rows.top1_dv {
+        assert!(dv.iter().all(|&t| (t as usize) < draft_vocab), "reduced-head argmax stays inside 0..{draft_vocab}: {dv:?}");
+    }
+    // the engine's own drafts, one prefix at a time
+    for p in 0..n - 1 {
+        let mut st = m.new_state().unwrap();
+        m.forward_prefill(&mut st, &ids[..=p], HeadMode::None, None).unwrap();
+        let d = m.mtp_draft(&mut st, ids[p + 1], 1).unwrap();
+        let want = match &rows.top1_dv {
+            Some(dv) => dv[p],
+            None => rows.top1[p],
+        };
+        assert_eq!(d[0] as i64, want, "row {p}: draft of the engine's path vs the dump");
+    }
+    // a dump is not a different run: the same sequence again gives the same rows, and a longer one extends them
+    let again = dump_of(&m, &ids, true);
+    assert_eq!((again.hidden_rows.clone(), again.top1.clone(), again.head_out.clone()), (rows.hidden_rows.clone(), rows.top1.clone(), rows.head_out.clone()));
+    let long = dump_of(&m, &dump_ids(41), false);
+    assert_eq!(long.rows, 40);
+    assert!(long.head_out.is_none());
+    assert_eq!(&long.hidden_rows[..(n - 1) * h], &rows.hidden_rows[..]);
+    assert_eq!(&long.top1[..n - 1], &rows.top1[..]);
+    if act == DType::Bf16 {
+        // the dumped rows, bf16 as the head read them, through the head alone
+        // (the reference pass is limited to one prefill chunk of rows: the first 8)
+        let logits = m.mtp_reference_pass(&ids[1..9], &bf16_rows(&rows.hidden_rows[..8 * h])).unwrap();
+        for (p, l) in logits.iter().enumerate() {
+            let am = l.iter().enumerate().fold((0usize, f32::NEG_INFINITY), |b, (i, &x)| if x > b.1 { (i, x) } else { b }).0;
+            assert_eq!(am as i64, rows.top1[p], "row {p}: reference pass over the dumped hidden row");
+        }
+    }
+}
+
+#[test]
+fn mtp_dump_rows_equal_the_engines_own_drafts_bf16() {
+    check_dump(DType::Bf16, 0);
+}
+
+#[test]
+fn mtp_dump_rows_equal_the_engines_own_drafts_f32_activations() {
+    check_dump(DType::F32, 0);
+}
+
+#[test]
+fn mtp_dump_with_a_reduced_draft_head_has_both_argmaxes() {
+    check_dump(DType::Bf16, 48);
+    // the full-vocabulary argmax ignores the reduced head: it can leave 0..48
+    let w = weights(11);
+    let rows = dump_of(&dump_model(&w, DType::Bf16, 48), &dump_ids(41), false);
+    assert!(rows.top1.iter().any(|&t| t >= 48), "a 96-token vocabulary: some full-head argmax lands past the first 48 rows ({:?})", rows.top1);
+}
+
+/// Through the `Engine` trait (what the CLI calls): the rows of `Model` and of the engine agree, a later request on the same
+/// engine is untouched by the dump, and the error cases (one token, a token outside the vocabulary, no head) are refused.
+#[test]
+fn engine_mtp_dump_matches_the_model_and_leaves_serving_alone() {
+    let w = weights(11);
+    let (e, _) = engine_full(CpuBackend::arc(), &w, Some(2), None, 0);
+    let (plain, _) = engine_full(CpuBackend::arc(), &w, Some(2), None, 0);
+    let before = run(&plain, req(PROMPTS[0], 64));
+    let ids = dump_ids(23);
+    let rows = e.mtp_dump(&ids, true).unwrap();
+    // the model the engine wraps: default activation / KV dtypes, prepared for verify passes (k = 2)
+    let (recipe, dims) = dims();
+    let opts = LoadOptions { max_seq: 512, prefill_chunk: 8, fp8_act: Some(Fp8Act::None), mtp: true, mtp_draft_vocab: Some(0), profile_every: 0, ..Default::default() };
+    let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.enable_verify(3).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    let want = dump_of(&m, &ids, true);
+    assert_eq!(rows.rows, ids.len() - 1);
+    assert_eq!(rows.hidden_rows, want.hidden_rows);
+    assert_eq!(rows.top1, want.top1);
+    assert_eq!(rows.head_out, want.head_out);
+    // serving after a dump: same output as an engine that never dumped, with speculation on
+    let after = run(&e, req(PROMPTS[0], 64));
+    assert_eq!(before, after);
+    assert!(e.mtp_dump(&ids[..1], false).is_err());
+    assert!(e.mtp_dump(&[1, V + 1], false).is_err());
+    let (nohead, _) = engine_full(CpuBackend::arc(), &w, None, None, 0);
+    assert!(nohead.mtp_dump(&ids, false).is_err());
+}
