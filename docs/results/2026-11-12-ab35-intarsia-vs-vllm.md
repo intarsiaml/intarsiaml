@@ -63,7 +63,7 @@ vLLM was down 274 s + 479 s in total (about 12.5 min, far under the 60 min cap);
 
 ## Results
 
-Each cell is median (min-max) over the 3 measured reps; with n=3 that is all three reps (the minimum, the median and the maximum), localeval does not store the middle-to-order assignment of reps beyond that. The 2-stream cell is one aggregate measurement per arm. All four arms: `cached_tokens_max` 0, i.e. no prefix-cache hit in any speed call, on vLLM either (nonce-first prompts defeat its prefix cache). Prompt sizes are the real token counts the server reported.
+Each cell is median (min-max) over the 3 measured reps; with n=3 that is all three reps (the minimum, the median and the maximum), the order of the reps is not kept. The 2-stream cell is one aggregate measurement per arm. All four arms: `cached_tokens_max` 0, i.e. no prefix-cache hit in any speed call, on vLLM either (nonce-first prompts defeat its prefix cache). Prompt sizes are the real token counts the server reported.
 
 ### Decode tok/s, single stream, 256 forced tokens: median (min-max of 3 reps)
 
