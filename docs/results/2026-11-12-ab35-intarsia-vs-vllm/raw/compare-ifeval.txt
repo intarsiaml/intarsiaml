@@ -1,0 +1,10 @@
+# compare: 20261112-183155-adhoc-ab35-A-ifeval → 20261112-184348-adhoc-ab35-B-default-ifeval
+
+Speed differences under 10% are marked noise (fleet finding 6a7efe40). Quality differences inside ~2 standard errors are marked noise.
+
+| benchmark | A | B | Δ | 2·SE | verdict |
+|---|---:|---:|---:|---:|---|
+| ifeval | 0.920 (n=25) | 0.920 (n=25) | +0.000 | ±0.153 | noise |
+
+- A: `guidance` @ http://spark-fa00:8000/v1 thinking=off (2026-11-12T18:31:55-05:00)
+- B: `guidance` @ http://spark-fa00:8191/v1 thinking=off (2026-11-12T18:43:48-05:00)

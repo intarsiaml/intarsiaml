@@ -1,0 +1,30 @@
+# compare: 20261112-182950-adhoc-ab35-A-speed → 20261112-184207-adhoc-ab35-B-default-speed
+
+Speed differences under 10% are marked noise (fleet finding 6a7efe40). Quality differences inside ~2 standard errors are marked noise.
+
+| prompt tok | metric | A | B | Δ | verdict | cell |
+|---:|---|---:|---:|---:|---|---|
+| 112 | prefill_tok_s | 1225.2 | 1318.9 | +7.7% | overhead-dominated |  |
+| 112 | decode_tok_s | 76.8 | 107.4 | +39.8% | faster |  |
+| 112 | peak_decode_tok_s | 93.1 | 163.2 | +75.3% | faster |  |
+| 991 | prefill_tok_s | 5403.8 | 5241.3 | -3.0% | overhead-dominated |  |
+| 991 | marginal_prefill_tok_s | 9554.3 | 9930.2 | +3.9% | noise |  |
+| 991 | decode_tok_s | 77.6 | 105.1 | +35.6% | faster |  |
+| 991 | peak_decode_tok_s | 93.5 | 210.5 | +125.1% | faster |  |
+| 4090 | prefill_tok_s | 6287.9 | 6988.2 | +11.1% | faster |  |
+| 4090 | marginal_prefill_tok_s | 6636.0 | 7813.6 | +17.7% | faster |  |
+| 4090 | decode_tok_s | 76.5 | 107.6 | +40.6% | faster |  |
+| 4090 | peak_decode_tok_s | 90.9 | 156.9 | +72.6% | faster |  |
+| 16654 | prefill_tok_s | 6253.6 | 6632.3 | +6.1% | noise |  |
+| 16654 | marginal_prefill_tok_s | 6241.4 | 6522.8 | +4.5% | noise |  |
+| 16654 | decode_tok_s | 73.6 | 88.2 | +19.7% | faster |  |
+| 16654 | peak_decode_tok_s | 89.7 | 112.6 | +25.5% | faster |  |
+
+Concurrency: aggregate tok/s over all streams, median of reps; ranges are the reps' min–max.
+
+| cell | prompt set | prompt tok | streams | A | B | Δ | verdict | A range | B range | ranges |
+|---|---|---:|---:|---:|---:|---:|---|---|---|---|
+|  | filler-v1 | 1024 | 2 | - | - | - | - | - | - | - |
+
+- A: `guidance` @ http://spark-fa00:8000/v1 thinking=off (2026-11-12T18:29:50-05:00)
+- B: `guidance` @ http://spark-fa00:8191/v1 thinking=off (2026-11-12T18:42:07-05:00)

@@ -63,7 +63,7 @@ vLLM was down 274 s + 479 s in total (about 12.5 min, far under the 60 min cap);
 
 ## Results
 
-localeval stores median, min and max of the 3 measured reps (not each rep), so cells read median (min-max). All four arms: `cached_tokens_max` 0, i.e. no prefix-cache hit in any speed call, on vLLM either (nonce-first prompts defeat its prefix cache). Prompt sizes are the real token counts the server reported.
+Each cell is median (min-max) over the 3 measured reps; with n=3 that is all three reps (the minimum, the median and the maximum), localeval does not store the middle-to-order assignment of reps beyond that. The 2-stream cell is one aggregate measurement per arm. All four arms: `cached_tokens_max` 0, i.e. no prefix-cache hit in any speed call, on vLLM either (nonce-first prompts defeat its prefix cache). Prompt sizes are the real token counts the server reported.
 
 ### Decode tok/s, single stream, 256 forced tokens: median (min-max of 3 reps)
 
@@ -133,33 +133,37 @@ GSM8K detail: with thinking off the pinned template makes the model answer with 
 
 ## Fairness notes
 
-- **KV cache dtype**: vLLM fp8 e4m3 (8 GiB pool); intarsiaml bf16 (the checkpoint declares FP8 KV scales; intarsiaml does not use them and says so in its log). bf16 KV reads twice the bytes per token, which costs intarsiaml at long context and is part of why its 16k decode gain shrinks; fp8 KV is an opt-in for intarsiaml (`--kv-dtype fp8`, `docs/results/2026-10-29-fp8kv-opt-in.md`) and was not tried here.
+- **KV cache dtype**: vLLM fp8 e4m3 (8 GiB pool); intarsiaml bf16 (the checkpoint declares FP8 KV scales; intarsiaml does not use them and says so in its log). bf16 KV reads twice the bytes per token and may be part of why its 16k decode gain shrinks (a hypothesis, not tested: only one layer in four of this hybrid model has a KV cache); fp8 KV is an opt-in for intarsiaml (`--kv-dtype fp8`, `docs/results/2026-10-29-fp8kv-opt-in.md`) and was not tried here.
 - **Speculation**: A none; B-default MTP k2, which drafts only while one sequence decodes (at 2 streams B-default is plain batched decode, hence 122 vs 126 tok/s, B-default 3 % under B-specoff). Judge decode by B-specoff vs A for the engine itself and by B-default vs A for the shipped product.
 - **Prefill scheduling**: vLLM chunked prefill with `--max-num-batched-tokens 8192`; intarsiaml 2048-row chunks (macro pass up to 8192 rows when alone).
 - **Context and memory**: vLLM serves 131072 tokens in 38 GB; B was run with `--max-seq 20480 --mem-budget 40` and was alone on the GPU (vLLM stopped). B at 131072 context, and B beside the other roles, were not measured.
 - **Time order**: A before, B in the window, A again after: A drifted at most 2 % (decode 76.8/77.6/76.5/73.6 vs 75.9/77.5/76.5/73.5), so the box was stable. The first A run followed 6 days of vLLM uptime, A-post a fresh container.
 - **Noise**: decode about 5 %, long-prompt prefill about 3 %, mid-length prefill up to 39 % (unanimis 6a7efe40). B-default decode had wide spreads at 1k (104-130) and 16k (83-96); medians are used, no rerun was done. Prefill and TTFT under about 1k uncached tokens are request overhead.
 - **Not the same as production traffic**: the fleetq quiet slot stops other fleetq jobs, not missioncntrl requests; every localeval activity check on A read idle.
+- **Sampled requests**: this run sent temperature 0. intarsiaml's MTP also runs for sampled requests by default on CUDA (`INTARSIA_SPEC_SAMPLED` unset = `match`, the server log says so), and a request that omits temperature gets the checkpoint's `generation_config` defaults (temperature 1, top_p 0.95, top_k 20) on both engines. Draft acceptance and the MTP decode gain at those settings were not measured, so production traffic that does not pin temperature 0 may see a smaller (or different) gain than the table shows.
 - **Different frontends**: parsers differ (production vLLM: `qwen3_xml` tool parser and `qwen3` reasoning parser; intarsiaml recipe: `hermes` and think-tags). No tool-calling or reasoning-parser equivalence test was run.
 
 ## Verdict per metric (this data only)
 
+Verdict words follow `localeval compare` (`raw/compare-*.txt`): a speed delta under 10 % is noise, a quality delta inside 2 SE is noise. compare does not read the older 2-stream cell or TTFT, so those are judged by the same 10 % rule by hand.
+
 | metric | where it lands | size |
 |---|---|---|
-| Decode, single stream, as shipped (MTP k2) | **intarsiaml wins** at every length | 1.40x / 1.35x / 1.41x / 1.20x at 128 / 1k / 4k / 16k (107 / 105 / 108 / 88 vs 77 / 78 / 77 / 74 tok/s) |
-| Decode, single stream, no speculation (engine only) | intarsiaml ahead, shrinking with length | 1.13x / 1.11x / 1.09x at 128 / 1k / 4k (about 2x the 5 % noise), 1.02x at 16k = parity |
-| Prefill | parity to a small intarsiaml lead | 4k +8 to +11 %, 16k +4 to +6 % (near the 3 % noise), 1k -3 to -4 % (inside noise), 128 parity |
-| TTFT | split | intarsiaml 6-9 % lower at 4k (0.59 vs 0.63-0.65 s) and 4-6 % at 16k (2.51 vs 2.61-2.66 s); vLLM 0.01-0.02 s lower at 128 and 1k (request overhead) |
-| 2-stream aggregate decode (1k prompts) | intarsiaml wins | 122.1 (B-default) / 125.6 (B-specoff) vs 113.1 / 112.1 tok/s: +8 to +12 %; per-stream 65.5-67.4 vs 60.1-60.5 |
-| Quality (GSM8K n=100, IFEval n=25, thinking off) | parity within noise | GSM8K 0.66 vs 0.59 (inside 2 SE, reply-style mix), IFEval 0.92 vs 0.92 |
+| Decode, single stream, as shipped (MTP k2) | **intarsiaml wins** at every length (compare: faster, against A and A-post) | +40 % / +36 % / +41 % / +20 % at 128 / 1k / 4k / 16k (107 / 105 / 108 / 88 vs 77 / 78 / 77 / 74 tok/s) |
+| Decode, single stream, no speculation (engine only) | intarsiaml ahead at short prompts, parity beyond | 128 +13 to +14 %, 1k +11 % (faster); 4k +9 % and 16k +2 to +3 % are noise |
+| Prefill | 4k intarsiaml ahead, rest parity | 4k marginal prefill +12 to +17 % (faster against both A runs), total +11 % vs A but +7 to +8 % vs A-post (noise); 16k +4 to +6 % noise; 1k and 128 overhead-dominated, no difference |
+| TTFT | parity (inside noise) | 4k 0.59 vs 0.63-0.65 s and 16k 2.51 vs 2.61-2.66 s are 4-9 % lower for intarsiaml, under the 10 % line; vLLM 0.01-0.02 s lower at 128 and 1k (overhead) |
+| 2-stream aggregate decode (1k prompts) | small intarsiaml lead, not firm | B-default +8 to +9 % (noise), B-specoff +11 to +12 % (just over the line); one aggregate measurement per arm, no reps; per-stream 65.5-67.4 vs 60.1-60.5 |
+| Quality (GSM8K n=100, IFEval n=25, thinking off) | parity | GSM8K 0.66 vs 0.59 (+0.07, 2 SE = 0.137: noise), IFEval 0.92 vs 0.92 |
 
-Reading: on one Spark, for this model and these short single-turn probes, intarsiaml as shipped is not behind vLLM on any measured metric and is ahead on decode (mostly from MTP) and 2-stream throughput. The 2.4-2.8x prefill gap of 2026-10-13 is gone (prefill is level with vLLM here). Whether that is enough to replace vLLM is **not** settled by this data. Not measured: contexts beyond 16k (vLLM serves 131072; B ran at 20480), more than 2 streams, prefix-cache-heavy agent traffic (vLLM has prefix caching on; intarsiaml's prefix store is off by default and excluded with MTP), thinking-on quality, tool calling and the reasoning/tool parsers, sampled requests (MTP applies to greedy requests only), long soak and stability, and intarsiaml with `--kv-dtype fp8` or the other roles resident.
+Reading: on one Spark, for this model and these short single-turn probes, intarsiaml as shipped is not behind vLLM on any measured metric. The one clear win is single-stream decode (+20 to +41 %, mostly MTP); the 2-stream and prefill leads are small and mostly inside the noise line. The 2.4-2.8x prefill gap of 2026-10-13 is gone (prefill is level with vLLM here). Whether that is enough to replace vLLM is **not** settled by this data. Not measured: contexts beyond 16k (vLLM serves 131072; B ran at 20480), more than 2 streams, prefix-cache-heavy agent traffic (vLLM has prefix caching on; intarsiaml's prefix store is off by default and excluded with MTP), thinking-on quality, tool calling and the reasoning/tool parsers, sampled requests (this run is temperature 0 only; see the fairness note on sampled speculation), long soak and stability, and intarsiaml with `--kv-dtype fp8` or the other roles resident.
 
 ## Raw results
 
 - Run directories (summary.md, result.json): `docs/results/2026-11-12-ab35-intarsia-vs-vllm/raw/<run id>/`; the localeval originals are under `/opt/code/deepeval/results/<run id>/` and each run was logged to unanimis.
-- A speed `20261112-182950-adhoc-ab35-A-speed` (unanimis 35803f53), A gsm8k `20261112-183050-adhoc-ab35-A-gsm8k`, A ifeval `20261112-183155-adhoc-ab35-A-ifeval` (94a87015), A-post speed `20261112-184939-adhoc-ab35-A-post-speed`.
-- B-default speed `20261112-184207-adhoc-ab35-B-default-speed` (e3eeb9a6), gsm8k `20261112-184255-adhoc-ab35-B-default-gsm8k`, ifeval `20261112-184348-adhoc-ab35-B-default-ifeval`; B-specoff speed `20261112-184521-adhoc-ab35-B-specoff-speed`.
+- A speed `20261112-182950-adhoc-ab35-A-speed` (unanimis 35803f53), A gsm8k `20261112-183050-adhoc-ab35-A-gsm8k` (c15562c7), A ifeval `20261112-183155-adhoc-ab35-A-ifeval` (94a87015), A-post speed `20261112-184939-adhoc-ab35-A-post-speed` (63ea5ec6).
+- B-default speed `20261112-184207-adhoc-ab35-B-default-speed` (e3eeb9a6), gsm8k `20261112-184255-adhoc-ab35-B-default-gsm8k` (76c6a920), ifeval `20261112-184348-adhoc-ab35-B-default-ifeval` (a08c8612); B-specoff speed `20261112-184521-adhoc-ab35-B-specoff-speed` (b1fa51fb).
+- `localeval compare` outputs: `raw/compare-A-vs-Bdefault.txt`, `compare-A-vs-Bspecoff.txt`, `compare-Apost-vs-Bdefault.txt`, `compare-Apost-vs-Bspecoff.txt`, `compare-A-vs-Apost.txt` (A drift), `compare-gsm8k.txt`, `compare-ifeval.txt`.
 - Logs: `raw/window.log`, `raw/serve-B-default.{log,metrics}`, `raw/serve-B-specoff.{log,metrics}`, `raw/*.out` (localeval stdout), `raw/aborted-1/` (window 1). Scripts: `.ab35/` in the worktree (not committed; `window.sh`, `le.sh`, `build.sh`, `smoke.sh`, `memwatch.sh`).
 
 ## Decisions
