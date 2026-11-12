@@ -1,0 +1,13 @@
+[18:36:07 +0s] window start; vLLM up: 200
+2026-11-06T14:28:59.493722746Z missioncntrl/vllm-openai:65b7662d
+missioncntrl-guidance
+[18:36:19 +12s] vLLM DOWN (docker stop done)
+Mem:             121          11          65           0          46         110
+[N/A]
+[18:36:19 +12s] serve arm B-default: ~/intarsia-ab35/bin/intarsia serve 
+[18:37:11 +64s] serve B-default up; MemAvailable MB: 88420
+min MemAvailable MB (B-default): 18:37:10 88424
+[18:37:15 +68s] B-default spec counters: # HELP intarsia_spec_steps_total Speculative decoding verify passes (--spec). # TYPE intarsia_spec_steps_total counter intarsia_spec_steps_total 0 # HELP intarsia_spec_proposed_tokens_total Draft tokens proposed to speculative verify passes. # TYPE intarsia_spec_proposed_tokens_total counter intarsia_spec_proposed_tokens_total 0 # HELP intarsia_spec_accepted_tokens_total Draft tokens accepted by speculative verify passes. # TYPE intarsia_spec_accepted_tokens_total counter intarsia_spec_accepted_tokens_total 0 
+[18:37:15 +68s] serve arm B-specoff: ~/intarsia-ab35/bin/intarsia serve --spec off
+[18:37:34 +87s] restoring vLLM: docker start missioncntrl-guidance
+missioncntrl-guidance

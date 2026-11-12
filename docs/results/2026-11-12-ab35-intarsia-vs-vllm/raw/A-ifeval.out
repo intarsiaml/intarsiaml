@@ -1,0 +1,59 @@
+[localeval] benchmark ifeval (limit=25, shots=None, tasks=all)
+Processing 25 IFEval problems:   0%|          | 0/25 [00:00<?, ?it/s]Processing 25 IFEval problems:   4%|▍         | 1/25 [00:07<02:59,  7.49s/it]Processing 25 IFEval problems:   8%|▊         | 2/25 [00:08<01:26,  3.77s/it]Processing 25 IFEval problems:  12%|█▏        | 3/25 [00:10<01:07,  3.07s/it]Processing 25 IFEval problems:  16%|█▌        | 4/25 [00:14<01:12,  3.45s/it]Processing 25 IFEval problems:  20%|██        | 5/25 [00:15<00:46,  2.30s/it]Processing 25 IFEval problems:  24%|██▍       | 6/25 [00:18<00:47,  2.52s/it]Processing 25 IFEval problems:  28%|██▊       | 7/25 [00:27<01:27,  4.86s/it]Processing 25 IFEval problems:  32%|███▏      | 8/25 [00:32<01:18,  4.65s/it]Processing 25 IFEval problems:  36%|███▌      | 9/25 [00:32<00:54,  3.40s/it]Processing 25 IFEval problems:  40%|████      | 10/25 [00:42<01:20,  5.39s/it]Processing 25 IFEval problems:  44%|████▍     | 11/25 [00:50<01:27,  6.24s/it]Processing 25 IFEval problems:  48%|████▊     | 12/25 [00:51<01:00,  4.66s/it]Processing 25 IFEval problems:  52%|█████▏    | 13/25 [00:54<00:50,  4.22s/it]Processing 25 IFEval problems:  56%|█████▌    | 14/25 [00:57<00:40,  3.66s/it]Processing 25 IFEval problems:  60%|██████    | 15/25 [01:02<00:40,  4.04s/it]Processing 25 IFEval problems:  64%|██████▍   | 16/25 [01:03<00:29,  3.33s/it]Processing 25 IFEval problems:  68%|██████▊   | 17/25 [01:04<00:20,  2.57s/it]Processing 25 IFEval problems:  72%|███████▏  | 18/25 [01:05<00:13,  1.96s/it]Processing 25 IFEval problems:  76%|███████▌  | 19/25 [01:05<00:09,  1.55s/it]Processing 25 IFEval problems:  80%|████████  | 20/25 [01:06<00:06,  1.31s/it]Processing 25 IFEval problems:  84%|████████▍ | 21/25 [01:09<00:06,  1.67s/it]Processing 25 IFEval problems:  88%|████████▊ | 22/25 [01:09<00:03,  1.28s/it]Processing 25 IFEval problems:  92%|█████████▏| 23/25 [01:10<00:02,  1.18s/it]Processing 25 IFEval problems:  96%|█████████▌| 24/25 [01:11<00:01,  1.10s/it]Processing 25 IFEval problems: 100%|██████████| 25/25 [01:16<00:00,  2.43s/it]Processing 25 IFEval problems: 100%|██████████| 25/25 [01:16<00:00,  3.07s/it]
+Overall IFEval Accuracy: 0.9200
+Instruction 'punctuation:no_comma' Accuracy: 1.0000
+Instruction 'detectable_format:number_highlighted_sections' Accuracy: 1.0000
+Instruction 'length_constraints:number_words' Accuracy: 1.0000
+Instruction 'detectable_content:number_placeholders' Accuracy: 1.0000
+Instruction 'combination:repeat_prompt' Accuracy: 0.5000
+Instruction 'detectable_format:title' Accuracy: 1.0000
+Instruction 'change_case:english_lowercase' Accuracy: 1.0000
+Instruction 'detectable_format:number_bullet_lists' Accuracy: 1.0000
+Instruction 'change_case:english_capital' Accuracy: 1.0000
+Instruction 'detectable_format:multiple_sections' Accuracy: 1.0000
+Instruction 'change_case:capital_word_frequency' Accuracy: 1.0000
+Instruction 'startend:quotation' Accuracy: 1.0000
+Instruction 'keywords:existence' Accuracy: 1.0000
+Instruction 'detectable_format:json_format' Accuracy: 1.0000
+Instruction 'length_constraints:number_paragraphs' Accuracy: 1.0000
+Instruction 'combination:two_responses' Accuracy: 1.0000
+Instruction 'language:response_language' Accuracy: 0.0000
+Instruction 'keywords:letter_frequency' Accuracy: 1.0000
+Instruction 'startend:end_checker' Accuracy: 1.0000
+# localeval: adhoc — 2026-11-12T18:31
+
+- model: `guidance` on ? (?), url `http://spark-fa00:8000/v1`
+- thinking: off; run kind: quality; label: ab35-A-ifeval
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d96f899
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --url http://spark-fa00:8000/v1 --model guidance --thinking off --structured prompt --wait-idle 600 --recipe docker missioncntrl/vllm-openai:65b7662d (vllm 0.26.1rc1.dev602): vllm serve nvidia/Qwen3.6-35B-A3B-NVFP4 --host 100.96.95.89 --port 8000 --served-model-name guidance capcom --quantization modelopt_fp4 --max-model-len 131072 --max-num-seqs 2 --max-num-batched-tokens 8192 --kv-cache-dtype fp8 --kv-cache-memory-bytes 8589934592 --gpu-memory-utilization 0.32 --enable-prefix-caching --enable-prompt-tokens-details --enable-chunked-prefill --enable-auto-tool-choice --tool-call-parser qwen3_xml --reasoning-parser qwen3 (env VLLM_USE_FLASHINFER_MOE_FP4=0 VLLM_DISABLED_KERNELS=FlashInferFP8ScaledMMLinearKernel; no speculative config; spark2 retro role) --bench ifeval --limit 25 --max-tokens 1024 --nonce --label ab35-A-ifeval`
+- result file: `results/20261112-183155-adhoc-ab35-A-ifeval/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+docker missioncntrl/vllm-openai:65b7662d (vllm 0.26.1rc1.dev602): vllm serve nvidia/Qwen3.6-35B-A3B-NVFP4 --host 100.96.95.89 --port 8000 --served-model-name guidance capcom --quantization modelopt_fp4 --max-model-len 131072 --max-num-seqs 2 --max-num-batched-tokens 8192 --kv-cache-dtype fp8 --kv-cache-memory-bytes 8589934592 --gpu-memory-utilization 0.32 --enable-prefix-caching --enable-prompt-tokens-details --enable-chunked-prefill --enable-auto-tool-choice --tool-call-parser qwen3_xml --reasoning-parser qwen3 (env VLLM_USE_FLASHINFER_MOE_FP4=0 VLLM_DISABLED_KERNELS=FlashInferFP8ScaledMMLinearKernel; no speculative config; spark2 retro role)
+````
+
+server-reported (version):
+
+````json
+{"version":{"version":"0.26.1rc1.dev602+g65b7662d3"}}
+````
+
+## Benchmarks (deepeval)
+
+| benchmark | score | n | TTFT s | prefill tok/s | decode tok/s | calls | errors | wall s |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| ifeval | 0.920 | 25 | 0.09 | - | 77.3 | 31 | 0 | 77.4 |
+- ifeval: 25 replies kept; 0 truncated (score 0); thinking verified off; mean output 198.08 tokens
+
+Benchmark speed is incidental (short, varying prompts); prefill '-' means no call had 1024+ uncached tokens. Quote the sweep for speed.
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261112-183155-adhoc-ab35-A-ifeval/result.json
+[localeval] logged to unanimis: 94a87015-09b1-4599-baaf-14777426f7a0
