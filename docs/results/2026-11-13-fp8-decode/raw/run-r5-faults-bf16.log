@@ -1,0 +1,23 @@
+fleetq: #9204 running on spark1: bash scripts/fp8-decode/serve-run.sh
+01:03:00 server up
+[reps] calibrated 22.05 tok/sentence base=55
+[reps] req1 4096 rep1 p0: prompt=4091 ttft=0.66s decode=83.4 peak=103.0 itl_p50=12.172 p99=75.996 cv=0.8455 out=256 sha=7a29a172f2 start=2026-11-13T01:03:02.106-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req2 4096 rep2 p1: prompt=4069 ttft=0.58s decode=81.7 peak=101.1 itl_p50=12.162 p99=84.541 cv=0.955 out=256 sha=6639f847bc start=2026-11-13T01:03:05.990-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req3 4096 rep3 p2: prompt=4070 ttft=0.58s decode=81.6 peak=99.3 itl_p50=12.184 p99=80.239 cv=0.9036 out=256 sha=e25b53cd51 start=2026-11-13T01:03:09.783-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req4 4096 rep4 p3: prompt=4096 ttft=0.59s decode=81.6 peak=100.5 itl_p50=12.178 p99=77.028 cv=0.8895 out=256 sha=ec0e5a940b start=2026-11-13T01:03:13.589-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req5 4096 rep5 p4: prompt=4070 ttft=0.58s decode=81.5 peak=99.9 itl_p50=12.167 p99=82.482 cv=0.9286 out=256 sha=6a64d89ace start=2026-11-13T01:03:17.479-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req6 32768 rep1 p0: prompt=33927 ttft=5.75s decode=67.2 peak=78.9 itl_p50=14.807 p99=83.918 cv=0.8033 out=256 sha=19aa47b15e start=2026-11-13T01:03:21.281-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req7 32768 rep2 p1: prompt=33923 ttft=5.76s decode=66.9 peak=79.3 itl_p50=14.835 p99=82.434 cv=0.8473 out=256 sha=a9895a3fa3 start=2026-11-13T01:03:30.934-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req8 32768 rep3 p2: prompt=33916 ttft=5.75s decode=67.1 peak=79.6 itl_p50=14.803 p99=81.641 cv=0.7978 out=256 sha=65ce1cea32 start=2026-11-13T01:03:40.613-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req9 32768 rep4 p3: prompt=33919 ttft=5.75s decode=66.9 peak=78.6 itl_p50=14.844 p99=81.776 cv=0.7999 out=256 sha=5292550824 start=2026-11-13T01:03:50.254-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req10 32768 rep5 p4: prompt=33977 ttft=5.79s decode=66.9 peak=79.7 itl_p50=14.827 p99=78.627 cv=0.7942 out=256 sha=c2d29b231d start=2026-11-13T01:04:00.026-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req11 65536 rep1 p0: prompt=68974 ttft=14.65s decode=55.8 peak=61.6 itl_p50=17.8 p99=86.235 cv=0.7593 out=256 sha=017d61f481 start=2026-11-13T01:04:09.746-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req12 65536 rep2 p1: prompt=68912 ttft=14.65s decode=56.0 peak=61.4 itl_p50=17.735 p99=81.361 cv=0.7253 out=256 sha=03a789cbeb start=2026-11-13T01:04:29.089-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req13 65536 rep3 p2: prompt=68959 ttft=14.65s decode=55.8 peak=62.3 itl_p50=17.767 p99=88.243 cv=0.7597 out=256 sha=09039a5c58 start=2026-11-13T01:04:48.406-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req14 65536 rep4 p3: prompt=68969 ttft=14.64s decode=55.9 peak=71.3 itl_p50=17.728 p99=88.633 cv=0.8149 out=256 sha=e0f38288c0 start=2026-11-13T01:05:07.740-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req15 65536 rep5 p4: prompt=68938 ttft=14.67s decode=55.9 peak=63.8 itl_p50=17.056 p99=88.204 cv=0.7641 out=256 sha=528abb786b start=2026-11-13T01:05:27.070-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+| r5-faults-bf16 | 4096 | median 81.6 | each [83.4, 81.7, 81.6, 81.6, 81.5] |
+| r5-faults-bf16 | 32768 | median 66.9 | each [67.2, 66.9, 67.1, 66.9, 66.9] |
+| r5-faults-bf16 | 65536 | median 55.9 | each [55.8, 56.0, 55.8, 55.9, 55.9] |
+min MemAvailable GB: 01:03:02.513 53 2411MHz,78.52W,64,96% minflt=5243231
+fleetq: #9204 done (exit 0)

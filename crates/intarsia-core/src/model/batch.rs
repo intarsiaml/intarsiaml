@@ -424,43 +424,46 @@ impl Model {
         // the rows that want the whole logits row come back in ONE download of the `[b, V]` block when several do (rows are
         // contiguous in `ws.logits`), not one transfer per row
         let want: Vec<usize> = (0..b).filter(|&r| modes[r] == HeadMode::LastLogits || top.as_ref().is_some_and(|t| t.2[r] != 0 && matches!(modes[r], HeadMode::LastTopK(_)))).collect();
-        // one download per run of consecutive wanted rows (rows are contiguous in `ws.logits`)
-        let mut runs: Vec<(usize, Vec<u8>)> = Vec::new();
-        let mut i = 0;
-        while i < want.len() {
-            let mut j = i;
-            while j + 1 < want.len() && want[j + 1] == want[j] + 1 {
-                j += 1;
+        // one download per run of consecutive wanted rows (rows are contiguous in `ws.logits`), into this thread's reused
+        // download buffer (`with_logits_bytes`), run after run
+        super::with_logits_bytes(want.len() * v * 4, |buf| -> Result<Vec<StepOut>> {
+            let mut runs: Vec<(usize, usize)> = Vec::new(); // (first row, byte offset in buf)
+            let (mut i, mut off) = (0, 0);
+            while i < want.len() {
+                let mut j = i;
+                while j + 1 < want.len() && want[j + 1] == want[j] + 1 {
+                    j += 1;
+                }
+                let (lo, n) = (want[i], want[j] + 1 - want[i]);
+                self.backend.download(&self.ws.logits, lo * v * 4, &mut buf[off..off + n * v * 4], self.stream)?;
+                runs.push((lo, off));
+                off += n * v * 4;
+                i = j + 1;
             }
-            let (lo, n) = (want[i], want[j] + 1 - want[i]);
-            let mut bytes = vec![0u8; n * v * 4];
-            self.backend.download(&self.ws.logits, lo * v * 4, &mut bytes, self.stream)?;
-            runs.push((lo, bytes));
-            i = j + 1;
-        }
-        drop(prof_sync);
-        crate::hostprof::mark_sync_end();
-        let _prof_tail = crate::hostprof::span(crate::hostprof::Cat::StepTail);
-        let mut out = Vec::with_capacity(b);
-        for r in 0..b {
-            out.push(match modes[r] {
-                HeadMode::LastArgmax => {
-                    let c = &toks[r * 4..r * 4 + 4];
-                    StepOut::Token(i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32)
-                }
-                HeadMode::LastTopK(k) if top.as_ref().is_some_and(|t| t.2[r] == 0) => {
-                    let (ids, vals, _) = top.as_ref().expect("checked");
-                    StepOut::TopK { ids: ids[r * kmax..r * kmax + k].to_vec(), vals: vals[r * kmax..r * kmax + k].to_vec() }
-                }
-                _ => {
-                    // LastLogits, or a top-k row whose logits hold a NaN (the host sampler's comparator path decides then)
-                    let (lo, run) = runs.iter().rev().find(|(lo, _)| *lo <= r).expect("row was downloaded");
-                    let bytes = &run[(r - lo) * v * 4..(r - lo + 1) * v * 4];
-                    StepOut::Logits(bytes.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect())
-                }
-            });
-        }
-        Ok(out)
+            drop(prof_sync);
+            crate::hostprof::mark_sync_end();
+            let _prof_tail = crate::hostprof::span(crate::hostprof::Cat::StepTail);
+            let mut out = Vec::with_capacity(b);
+            for r in 0..b {
+                out.push(match modes[r] {
+                    HeadMode::LastArgmax => {
+                        let c = &toks[r * 4..r * 4 + 4];
+                        StepOut::Token(i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32)
+                    }
+                    HeadMode::LastTopK(k) if top.as_ref().is_some_and(|t| t.2[r] == 0) => {
+                        let (ids, vals, _) = top.as_ref().expect("checked");
+                        StepOut::TopK { ids: ids[r * kmax..r * kmax + k].to_vec(), vals: vals[r * kmax..r * kmax + k].to_vec() }
+                    }
+                    _ => {
+                        // LastLogits, or a top-k row whose logits hold a NaN (the host sampler's comparator path decides then)
+                        let (lo, o) = runs.iter().rev().find(|(lo, _)| *lo <= r).expect("row was downloaded");
+                        let o = o + (r - lo) * v * 4;
+                        StepOut::Logits(super::logits_row(&buf[o..o + v * 4]))
+                    }
+                });
+            }
+            Ok(out)
+        })
     }
 
     /// [`Model::forward_batch`] of a tensor-parallel group (`b >= 2`, every row checked): every peer runs the same batched step

@@ -374,6 +374,51 @@ pub enum StepOut {
     TopK { ids: Vec<u32>, vals: Vec<f32> },
 }
 
+thread_local! {
+    /// Host logits rows given back by their consumer ([`recycle_logits`], the sampler's caller) for the next step's download,
+    /// and the byte buffer the downloads land in (lane fp8-decode). A 248k-vocab row is 1 MB: allocated fresh each step it
+    /// can land on new pages (glibc maps chunks this size while its dynamic mmap threshold is low), and page faults on them,
+    /// the device download's above all, cost ~1-12 ms a step on GB10 (docs/results/2026-11-13-fp8-decode.md). The values
+    /// are the same either way.
+    static LOGITS_POOL: std::cell::RefCell<Vec<Vec<f32>>> = const { std::cell::RefCell::new(Vec::new()) };
+    static LOGITS_BYTES: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// At most this many rows wait in this thread's logits pool.
+const LOGITS_POOL_MAX: usize = 8;
+
+/// A logits row of the f32 little-endian `bytes`, in a vector of this thread's pool when one is there.
+pub(crate) fn logits_row(bytes: &[u8]) -> Vec<f32> {
+    let mut out = LOGITS_POOL.with(|p| p.borrow_mut().pop()).unwrap_or_default();
+    out.clear();
+    out.extend(bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])));
+    out
+}
+
+/// Hand a logits row ([`StepOut::Logits`]) back once it is read, for [`logits_row`] to reuse on this thread.
+pub fn recycle_logits(v: Vec<f32>) {
+    if v.capacity() == 0 {
+        return;
+    }
+    LOGITS_POOL.with(|p| {
+        let mut p = p.borrow_mut();
+        if p.len() < LOGITS_POOL_MAX {
+            p.push(v);
+        }
+    });
+}
+
+/// `f` on this thread's download buffer of at least `len` bytes (grown, never shrunk, so its pages stay mapped).
+pub(crate) fn with_logits_bytes<R>(len: usize, f: impl FnOnce(&mut [u8]) -> R) -> R {
+    LOGITS_BYTES.with(|b| {
+        let mut b = b.borrow_mut();
+        if b.len() < len {
+            b.resize(len, 0);
+        }
+        f(&mut b[..len])
+    })
+}
+
 pub type RowCallback<'a> = &'a mut dyn FnMut(usize, &[f32]) -> Result<()>;
 
 /// Views of the attention scratch for some rows: the two ping-pong q buffers `[t, n_heads, head_dim]`, the two k

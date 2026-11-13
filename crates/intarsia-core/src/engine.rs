@@ -1651,10 +1651,13 @@ impl Seq {
                         let tok = self.sampler.sample(&l) as u32;
                         crate::constrain::prof::add(&crate::constrain::prof::SAMPLE, t);
                         crate::constrain::prof::step();
+                        crate::model::recycle_logits(l);
                         return Ok(tok);
                     }
                 }
-                Ok(self.sampler.sample(&l) as u32)
+                let tok = self.sampler.sample(&l) as u32;
+                crate::model::recycle_logits(l);
+                Ok(tok)
             }
             StepOut::TopK { ids, vals } if logits && self.topk_for(k) == Some(vals.len()) => Ok(self.sampler.sample_topk(&ids, &vals) as u32),
             _ => Err(Error::Other(if logits { "backend returned no logits" } else { "backend returned no token" }.into())),

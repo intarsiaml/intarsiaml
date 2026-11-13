@@ -1,0 +1,12 @@
+fleetq: running inside #9207 "fp8-decode: malloc arms A/B" (FLEETQ_JOB): bash scripts/fp8-decode/serve-run.sh
+01:09:08 server up
+[reps] calibrated 22.07 tok/sentence base=51
+[reps] req1 4096 rep1 p0: prompt=4086 ttft=0.58s decode=81.2 peak=97.9 itl_p50=12.27 p99=79.192 cv=0.8717 out=256 sha=1a3bd1c7b2 start=2026-11-13T01:09:09.514-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req2 4096 rep2 p1: prompt=4067 ttft=0.62s decode=81.1 peak=99.7 itl_p50=12.235 p99=78.709 cv=0.8861 out=256 sha=b5800bee8c start=2026-11-13T01:09:13.329-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req3 4096 rep3 p2: prompt=4072 ttft=0.69s decode=83.8 peak=107.7 itl_p50=12.196 p99=76.014 cv=0.9164 out=256 sha=b7d5f5cf02 start=2026-11-13T01:09:17.184-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req4 65536 rep1 p0: prompt=68883 ttft=14.50s decode=54.9 peak=61.2 itl_p50=17.802 p99=86.152 cv=0.7376 out=256 sha=4a0ffd7524 start=2026-11-13T01:09:21.009-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req5 65536 rep2 p1: prompt=68822 ttft=14.57s decode=55.7 peak=63.6 itl_p50=17.84 p99=86.934 cv=0.717 out=256 sha=58655530c9 start=2026-11-13T01:09:40.287-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req6 65536 rep3 p2: prompt=68867 ttft=14.64s decode=56.3 peak=69.2 itl_p50=17.844 p99=87.635 cv=0.8173 out=256 sha=b4639a78eb start=2026-11-13T01:09:59.616-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+| r6b-nommap-bf16 | 4096 | median 81.2 | each [81.2, 81.1, 83.8] |
+| r6b-nommap-bf16 | 65536 | median 55.7 | each [54.9, 55.7, 56.3] |
+min MemAvailable GB: 01:09:09.756 53 2411MHz,69.15W,66,96% minflt=4801355
