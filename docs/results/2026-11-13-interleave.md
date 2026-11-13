@@ -59,3 +59,7 @@ Cause: worst gaps = the other stream's uncached prefill running while this strea
 
 localeval's `itl_stats` spreads a chunk's delta over its characters when SSE chunks do not line up with tokens, which inflates p99 (stream-burst: 50.9 ms reported vs 35.7 ms raw on the same marks). The reasoning parser (thinking on) and MTP (up to 3 tokens per verify) distort it further. This lane's replay (`scripts/ab35b/replay.py`, used by replay2) runs **thinking off, temperature 0**, and the store refuses MTP, so only the character weighting applies here. Raw engine-side gaps are reported next to the client numbers: the server's `intarsia_batch_itl_seconds` histogram (time between consecutive tokens of one request, scheduler side), diffed over each arm (`raw/serve-*.metrics` minus `.metrics.before`). Probe for raw per-chunk gaps if needed: `/opt/code/intarsiaml/.worktrees/stream-burst/docs/results/2026-11-13-stream-burst/sse_probe.py`.
 
+### Pending step (coordinator, 2026-11-13): merge main before the PR
+
+#357 (batch-fu) merged to main as 53a8c500d (touches `scheduler.rs` validate-before-restore / reject directly, `engine/batch.rs` own_chunk / check_constraint, `load.rs`, `serve.rs`); #358 (docs) merged too. Plan: finish the spark1 `prefix_store_cuda` gate and the spark2 window on the build in hand (branch 9cae1a9d1 code), then `git merge origin/main`, resolve, rerun the four CPU gates; if the merge touched the changed code paths (scheduler prefill/housekeep, batch.rs SlotModel/finish), rebuild on spark1 and rerun `prefix_store_cuda`. Then open the draft PR.
+
