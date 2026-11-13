@@ -1,0 +1,2 @@
+V2 before: success=740 prompt_tokens=697298 gen_tokens=16890 | after: success=828 prompt_tokens=739377 gen_tokens=185055 | own requests: 85
+V3 before: success=828 prompt_tokens=739377 gen_tokens=185055 | after: success=913 prompt_tokens=780767 gen_tokens=349741 | own requests: 85
