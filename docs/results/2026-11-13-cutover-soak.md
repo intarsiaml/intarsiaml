@@ -105,3 +105,34 @@ sampler: 38 samples, 09:24:36 to 10:01:40
 - server gaps (batch_itl) total 74026: above 0.25 s 3002, above 0.5 s 0
 
 Raw per-replay metrics scrapes: `raw/serve-S.metrics.after-seed*`.
+
+### Window B (2026-11-13, spark2, vLLM down from 10:46:33; fleetq #9247) and the vLLM thinking-on arm (#9246)
+
+All three arms: `--max-batch 2 --prefix-store on` (default host budget), bf16 KV unless stated, no MTP (the store refuses drafting), `localeval quality --thinking off|on --structured prompt --bench gsm8k --max-tokens ... --pin-gsm8k` (the ab35b Run 2 setup: pinned template, temperature 0, no nonce). Raw: `raw/<run id>/{summary.md,result.json}`, `raw/{Ba,Bb,Bc,V-think}-gsm8k.out`, `raw/compare-*.txt` (localeval `compare`), `raw/gsm8k-style.json`. Paired verdicts are `scripts/soak/paired_gsm8k.py` (same question ids; exact McNemar on the discordant pairs), since localeval `compare` is an unpaired 2-standard-error test.
+
+#### (a) store on, bf16 KV, GSM8K n=200, thinking off
+
+| run | gsm8k_flexible | n | truncated | mean output tokens | worked-answer style | bare-number style (correct) |
+|---|---:|---:|---:|---:|---:|---:|
+| vLLM A1 / A2 (ab35b) | 0.610 / 0.585 | 200 | 1 / 1 | 43.0 / 44.6 | 50 / 53 | 150 (75) / 147 (66) |
+| intarsiaml store off, no MTP (B-specoff, ab35b) | 0.710 | 200 | 1 | 72.5 | 86 | 114 (58) |
+| **Ba: store on, bf16** | **0.715** | 200 | 2 | 72.2 | 77 | 123 (68) |
+
+- Paired against store-off (B-specoff): 10 questions right only in store-off, 11 right only in store-on, McNemar p = 1.0; 127 of 200 reply texts identical (73 differ). localeval `compare`: +0.005, noise. The store does change greedy bits (73 differing replies), and accuracy does not move.
+- Against vLLM: Ba is +0.105 over A1 (paired 9 vs 30, p = 0.001) and +0.130 over A2 (3 vs 29, p < 0.001), the same direction and size as store-off in ab35b (0.710): not below vLLM.
+- **Caveat that limits what (a) tested:** the store's own counters for this arm read 200 lookups, 0 hits, 200 misses, 0 tokens saved, 200 inserts (`raw/serve-Ba.metrics`). The pinned GSM8K prompt is one user message, so the store has no boundary inside it to restore from, and every request prefills in full. What changed against store-off is therefore the prefill chunking and the capture work (cuts at message boundaries), not a restored prefix. The accuracy of an answer decoded after a restore is not measured here; the replay check against store-off (interleave lane) is the evidence for that path. A GSM8K variant with a shared system or multi-turn prefix would be needed to test it.
+
+#### (b) store on, `--kv-dtype fp8`, GSM8K n=200, thinking off
+
+| run | gsm8k_flexible | truncated | mean output tokens | worked-answer style (correct) | bare-number style (correct) |
+|---|---:|---:|---:|---:|---:|
+| Ba (bf16) | 0.715 | 2 | 72.2 | 77 (75) | 123 (68) |
+| **Bb (fp8 KV)** | **0.655** | 0 | 56.8 | 73 (72) | 127 (59) |
+| vLLM A1 / A2 (fp8 KV in production) | 0.610 / 0.585 | 1 / 1 | 43.0 / 44.6 | 50 (47) / 53 (51) | 150 (75) / 147 (66) |
+
+- Paired Ba vs Bb: 20 right only in bf16, 8 right only in fp8, McNemar p = 0.036; against store-off B-specoff: 22 vs 11, p = 0.080; localeval `compare`: -0.060 and -0.055, both "noise" (2 standard errors ±0.093). 114 of 200 reply texts identical to Ba. Against vLLM (which also runs fp8 KV): Bb is +0.045 over A1 (paired p = 0.15) and +0.070 over A2 (p = 0.013).
+- Reading: fp8 KV costs about 6 points on this n=200 set at the edge of what the set can resolve (p 0.04 against the same-store bf16 arm, 0.08 against store-off, inside the 2-SE line), and the loss sits in the bare-number replies (59 of 127 right against 68 of 123), while the worked answers stay at 72 of 73. It is not below vLLM, which runs the same KV dtype. `--kv-dtype fp8` is opt-in and the store accepted it (serve up, 200 requests, 0 errors, 0 hits as in (a)); a repeat at n=400 or more would be needed before calling the drop real or switching it on by default. Same limit as (a): 0 store hits.
+
+#### vLLM thinking-on (V-think; fleetq #9246, `--quiet gpu,cpu`, vLLM up the whole time, 40.8 min)
+
+GSM8K n=100, thinking on, `--max-tokens 8192`: **0.970** (97 of 100), 0 truncated, mean 1875.6 output tokens, decode 77.3 tok/s, `reasoning_content` present on 100 of 100 (qwen3 reasoning parser), `thinking_seen` 100. vLLM's own counters before and after: exactly 100 requests (no production traffic inside the run). The 5-problem pilot before it (1475 tokens, 19.4 s per problem) was a low sample: the real mean is 24.4 s per problem.
