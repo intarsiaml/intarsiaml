@@ -72,7 +72,7 @@ What it shows (all measured, 48 requests per cell, no repeats of a whole run):
 - **B-store** (prefix store on) gets cache fractions above vLLM's (61 to 85 % of the prompt from turn 2) and TTFT within vLLM's range in both orders (turn 6: 1.35 s and 1.30 s vs 1.43 s and 1.41 s; sum 58.1 s and 57.2 s vs 58.6 s and 58.4 s). Its **decode is not**: plain decode (no MTP) measured 41 to 51 tok/s median in the interleaved order and 68 to 79 sequential, against vLLM's 70 to 76. The interleaved figure is far below `--spec off` decode in ab35 (about 86 at short prompts), and the cause was not isolated (a hypothesis, untested: the store moves deferred captures off the device after the first token, inside the decode window; `INTARSIA_PREFIX_STORE_DEBUG` was not run). Defaults only (8 GiB host); whether a larger store changes anything was not tried, and no eviction counters were checked.
 - **Store versus batching**: the store works only on the single-sequence engine, so the one arm that matches vLLM's multi-turn TTFT cannot serve 2 streams, and it gives up MTP.
 
-Verdict run 1: **vLLM is ahead for multi-turn traffic.** The shipped batched default is 2.7x worse on TTFT (3.9x at 33k tokens); the prefix store closes the TTFT gap but not as a 2-stream engine and with a slower decode.
+Verdict run 1: **vLLM is ahead for multi-turn traffic.** The shipped batched default is 2.7x worse on TTFT (3.9x at 33k tokens); the prefix store closes the TTFT gap but not as a 2-stream engine, and with plain decode (41 to 51 tok/s interleaved, 68 to 79 sequential, vLLM 70 to 76).
 
 ## Run 2: fixed-prompt GSM8K (no nonce, n=200, thinking off, temperature 0)
 
@@ -92,11 +92,19 @@ Verdict run 1: **vLLM is ahead for multi-turn traffic.** The shipped batched def
 | A1 vs B-default / B-specoff | 113 of 200 | 162 of 200 |
 | A2 vs B-default / B-specoff | 112 of 200 | 161 of 200 |
 
-- **MTP is exact under greedy decoding in this test**: all 200 replies identical between the shipped default and `--spec off`, including the 1 truncated reply.
-- **vLLM is not reproducible even at temperature 0 here**: the same 200 requests sent again gave 72 different replies; most differ from the first character (a bare number in one run, a worked solution in the other), i.e. near-ties at the first token flip with the batch and cache state. Cache and batch state differ between the two runs (vLLM's prefix cache warms on the shared few-shot prefix), one possible cause, untested. The A-vs-B differences (87 and 88 replies) are of the same kind and size as A against itself (72), so they are not evidence of an engine difference.
-- Accuracy: B 0.710 vs A 0.585 to 0.610; the gap of 0.10 to 0.125 is about 2 SE (SE of a difference about 0.05 at n=200) and A moves 0.025 between two repeats. As in ab35 the score is mostly reply style: the bare-number share (58 of 200 on B, 66 to 75 on A) and the worked answers' 84 right on B vs 47 to 51 on A. Not equivalence, not a firm accuracy gap.
+- **MTP is exact under greedy decoding in this test**: all 200 replies identical between the shipped default and `--spec off`, including the 1 truncated reply. MTP did draft in the default arm: `raw/serve-B-default.metrics` after the whole window (replay, GSM8K, sampled, tools) shows 10851 verify steps, 21679 draft tokens proposed, 18590 accepted (all from greedy requests; the sampled run added none), and `raw/serve-B-specoff.metrics` shows 0 steps, 0 proposed, 0 accepted.
+- **vLLM is not reproducible even at temperature 0 here**: the same 200 requests sent again gave 72 different replies; most differ from the first character (a bare number in one run, a worked solution in the other), i.e. near-ties at the first token flip with the batch and cache state. Cache and batch state differ between the two runs (vLLM's prefix cache warms on the shared few-shot prefix), one possible cause, untested.
+- **Accuracy, paired on identical prompts** (`raw/compare-A1-vs-Bdefault.txt`, `compare-A2-vs-Bdefault.txt`, `compare-A1-vs-A2.txt`, localeval `compare`):
 
-Verdict run 2: MTP-vs-off exactness holds (200/200); no accuracy conclusion beyond "no gap clearly outside noise"; the prompts are now identical across arms.
+| pair | accuracy | localeval verdict | questions only the first is right / only the second is right |
+|---|---|---|---|
+| A1 vs A2 (vLLM twice) | 0.610 vs 0.585 | noise (2 SE 0.098) | 14 / 9 |
+| A1 vs B-default | 0.610 vs 0.710 | **B better, +0.100 (2 SE 0.094)** | 9 / 29 |
+| A2 vs B-default | 0.585 vs 0.710 | **B better, +0.125 (2 SE 0.095)** | 7 / 32 |
+
+  vLLM against itself is small and balanced; vLLM against intarsiaml is larger and one-sided, so this is not the same kind of difference as A against itself. B scores higher on identical prompts, by more worked-out answers and more of them correct (84 of 142 worked answers right on B vs 47 to 51 of 125 to 134 on A; bare-number replies 58 vs 66 to 75, right in every case). That is a reply-style difference in this pinned-prompt, thinking-off regime, not shown to be a capability difference; it favours intarsiaml, it is not a risk. The A-vs-B reply-text differences (87 and 88 of 200) are larger than A against itself (72 of 200).
+
+Verdict run 2: MTP-vs-off exactness holds (200/200) and MTP demonstrably ran; on identical prompts intarsiaml's GSM8K accuracy is higher than vLLM's by more than 2 SE (0.71 vs 0.585 to 0.61), through the reply style described above; vLLM does not reproduce its own replies.
 
 ## Run 3: sampled decode and tool calls
 
@@ -110,7 +118,7 @@ Verdict run 2: MTP-vs-off exactness holds (200/200); no accuracy conclusion beyo
 | 32k (33.9k) | 69.2 (69.2-69.2) | 65.9 (65.6-67.0) | 68.5 (66.1-71.6) | 62.9 %, 2.25 | 6.08 / 5.72 / 5.71 |
 | 64k (68.9k) | 62.7 (62.4-63.3) | 54.8 (54.2-54.8) | 52.3 (49.3-56.6) | 63.9 %, 2.28 | 15.84 / 14.48 / 14.43 |
 
-- **B-batch2 never speculates on sampled requests**: the spec counters did not move over the whole sampled run (0 verify steps; `raw/B-default-sampled.json`). Its sampled decode is plain batched decode. Sampled speculation (`Match`, the server log line) is a single-sequence-engine feature, so MTP acceptance at each size could only be measured on **B-single** (57 %, 63 %, 64 %), and there the sampled decode shows **no gain** from MTP (76.8 / 68.5 / 52.3 vs B-batch2's plain 80.6 / 65.9 / 54.8; the reps overlap at 4k and 32k).
+- **B-batch2 never speculates on sampled requests**: the spec counters did not move over the whole sampled run (0 verify steps; `raw/B-default-sampled.json`). Its sampled decode is plain batched decode. Sampled speculation (`Match`, the server log line) is a single-sequence-engine feature, so MTP acceptance at each size could only be measured on **B-single** (57 %, 63 %, 64 %), and there the sampled decode is no faster than B-batch2's plain batched decode (76.8 / 68.5 / 52.3 vs 80.6 / 65.9 / 54.8; the reps overlap at 4k and 32k). That compares two engines; a single-engine `--spec off` sampled control was not run, so this does not show what MTP alone does for sampled requests.
 - Against vLLM: B-batch2 +7 % at 4k (under the 10 % noise line), -5 % at 32k (same), **-12.6 % at 64k** (54.8 vs 62.7); prefill TTFT is 5 to 9 % lower on B at every size. This is the opposite of the greedy picture (ab35: B-default +36 to +41 % over vLLM at 1k to 4k) and is the same regime a request without a temperature gets (checkpoint defaults temperature 1, top_p 0.95).
 
 ### Tool-call smoke (each engine with its own parser: vLLM `qwen3_xml`, intarsiaml `hermes`)
@@ -133,8 +141,8 @@ Verdict run 2: MTP-vs-off exactness holds (200/200); no accuracy conclusion beyo
 | run | verdict |
 |---|---|
 | 1 multi-turn prefix-cached replay | vLLM ahead. Shipped batched default: TTFT 2.7x worse over the run (5.6 s vs 1.4 s at 33k), no reuse. Prefix store matches vLLM's TTFT but only single-sequence, plain decode (45 to 79 tok/s vs 70 to 76), cause of the interleaved slowdown unknown |
-| 2 GSM8K n=200 fixed prompt | MTP and `--spec off` identical (200/200). vLLM differs from itself on 72 of 200 repeated requests. No accuracy gap outside noise (B 0.71, A 0.585 to 0.61, reply-style driven) |
-| 3 sampled decode + tools | B has no MTP gain on sampled requests (batched: never drafts; single: 57 to 64 % acceptance, no speedup), parity at 4k to 32k, 13 % behind vLLM at 64k. Tool calls parse as strict JSON on both, but intarsiaml fails every tool-result turn (HTTP 400) |
+| 2 GSM8K n=200 fixed prompt | MTP and `--spec off` identical (200/200), MTP verified running. vLLM differs from itself on 72 of 200 repeated requests. B scores higher on identical prompts (0.71 vs 0.585 to 0.61, +0.10 and +0.125, outside 2 SE; reply-style driven, not shown to be capability) |
+| 3 sampled decode + tools | Batched B never drafts on sampled requests; single-engine MTP acceptance 57 to 64 %, no speed advantage over batched plain decode (no same-engine off control). B vs vLLM: +7 % at 4k, -5 % at 32k (both under the 10 % line), 13 % behind at 64k. Tool calls parse as strict JSON on both, but intarsiaml fails every tool-result turn (HTTP 400) |
 
 ## Cutover readiness (updated from the ab35 list)
 
@@ -145,17 +153,17 @@ Settled by ab35 and ab35b (measured, same box, same harness):
 - MTP is exact against `--spec off` under greedy decoding (200 of 200 replies identical), which ab35 had left unchecked.
 - vLLM is not deterministic at temperature 0 here (128 of 200 repeats identical), so exact-reply parity with vLLM is not a testable bar.
 - The shipped multi-turn path (batched, no reuse) is far behind vLLM on TTFT; the prefix store fixes TTFT only in the single-sequence engine.
-- MTP does not speed up sampled requests on this model (no gain at temperature 0.7, any size), so the greedy decode lead does not carry over to default-sampled traffic; at 64k vLLM is faster.
+- Sampled decode at temperature 0.7: B has no decode lead over vLLM (batched B +7 % at 4k, -5 % at 32k, -13 % at 64k), and the batched engine never speculates on sampled requests.
 - Tool call generation parses as strict JSON on both engines.
 
 Still open:
 
 1. **Tool-result turns fail (HTTP 400) on intarsiaml**: the chat template needs an object for `tool_call.arguments`; needs a server fix and a re-run of the receipt test. Blocker for agent traffic.
 2. Prefix reuse with more than one stream: no combination of `--max-batch 2` and a prefix store exists; batched slots never reuse. Blocker for multi-turn traffic at the vLLM setting (`--max-num-seqs 2`).
-3. Prefix-store decode: 41 to 79 tok/s plain decode, interleaved slowdown unexplained; store sizing (8 GiB default) and eviction not examined.
-4. Sampled MTP gives no gain; the 64k sampled decode is 13 % slower than vLLM (bf16 vs fp8 KV is a hypothesis, `--kv-dtype fp8` not tried).
+3. Prefix-store decode: plain decode, 41 to 51 tok/s interleaved (far below vLLM's 70 to 76) and 68 to 79 sequential (vLLM's range), interleaved slowdown unexplained; store sizing (8 GiB default) and eviction not examined.
+4. Sampled MTP: the single-sequence engine drafts (57 to 64 % acceptance) but showed no gain against the batched plain path; a same-engine `--spec off` sampled control was **not measured**, so MTP's value on sampled requests is open. The 64k sampled decode is 13 % slower than vLLM (bf16 vs fp8 KV is a hypothesis, `--kv-dtype fp8` not tried).
 5. More than 2 streams, concurrent multi-turn load, soak and stability, thinking-on quality and reasoning parser equivalence, `--kv-dtype fp8`, and production client traffic (missioncntrl) are still unmeasured.
-6. Accuracy: n=200 GSM8K shows no gap outside noise, but it is dominated by reply style; no equivalence is shown.
+6. Accuracy: on identical prompts B scores higher than vLLM on GSM8K n=200 (+0.10 to +0.125, outside 2 SE), driven by reply style (more worked answers, more of them right); no equivalence and no capability difference is shown.
 
 ## Fairness and limits
 
