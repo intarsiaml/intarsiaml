@@ -120,6 +120,21 @@ demoted everything); it matters only for an object a demote could not move.
 Mac gates on the merged tree: `prefix_store` 29 (7 new on this branch + #354's), `batch_engine` 9, `intarsia-core --test scheduler`
 40, `intarsia-core --lib` 200 (2 ignored), `docs_env_vars` 2; `prefix_store_cuda` compiles (macOS cfg stripped for the check).
 
+## Follow-ups (Fable re-review of `2ff35dfdd`: "merge" once the merged-HEAD GPU gates pass; no blockers)
+
+Fable confirmed the A/B settle is safe against in-flight captures: settle demotes every device object before `recycle_slabs`, all of it runs under the one store mutex, and `on_chunk` re-arms the deferral. Not implemented here, because a code change would invalidate the running gate:
+
+- (a) `fail_active` never settles when it empties `active` (`scheduler.rs:905-916`).
+- (b) A request cancelled while queued (`slot == None`) still triggers a settle in `SeqAdapter::finish`, which demotes the other stream's captures (`engine/batch.rs:683-691`); skip the settle when `slot.is_none()`.
+- (c) With `device_mb > 0`, once past `DEFER_CAP` the device use grows beyond `device_mb` until the next `Done` (`prefix_store.rs:857-861`, `:1217`).
+- (d) A bad token id or a structured-output error can still restore before `admit` refuses the request (wasted work only).
+- (e) Nits:
+  - `serve.rs:73` still says "as before" beside the new refusal;
+  - the `INTARSIA_PREFIX_STORE_DEBUG` row in `docs/tuning.md` lacks the `admission` settle site;
+  - "confirms them. every restore" in the store row needs a capital;
+  - the speculation refusal comes only after the model is loaded;
+  - the PrefillStart trace event still reports the scheduler's chunk for a store request.
+
 ## CUDA (spark1)
 
 New `prefix_store_batched_is_single_engine_cuda` in `crates/intarsia-models/tests/prefix_store_cuda.rs`: two chats on the 35B,
@@ -154,6 +169,12 @@ macro prefill (8192 rows) is off", "workspace 1537 MiB", "the backend's packed p
 **Macro workspace (review item 5):** the batched test again with `INTARSIA_PREFILL_MACRO=0` (1 of 1 passed, 81 s) reports
 workspace 537 MiB, so the recipe's macro sizing keeps **about 1000 MiB** of workspace reserved (1537 vs 537 MiB) when the store
 turns macro off. `INTARSIA_PREFILL_MACRO=0` on the serve command line returns it; not changed in code.
+
+**On the merged HEAD** `2ff35dfdd` (main with #354 merged in; gates **#9220**, `--quiet gpu --mem 45`, vLLM up):
+`prefix_store_cuda` **2 of 2 passed** (210 s). All 4 batched replies are bitwise the single engine's (store on), cached 1871 / 1168 match,
+and the batched settle took 152 ms over 4 finished requests. The single-engine gate is bitwise against a cold run with the store on,
+and differs from store off at step 0 with equal ids (the documented chunk-sensitivity). `free -g` after: 83 GB available.
+#354's `cuda_host_pressure_report` was not run (the `prefix_store_` filter).
 
 Not run: `batch_cuda_real.rs` / `batch_recurrent.rs` on CUDA (the batched decode path is unchanged for store-off requests;
 the gate above runs it with the store on).
@@ -227,3 +248,7 @@ loop kept the job's ssh open for ~30 min, holding the GPU slot; it was stopped f
   `recycle_slabs`: confirm it covers the 2-slot case, add a CPU test if cheap); (3) Mac gates prefix_store, scheduler,
   intarsia-core --lib, push; (4) re-run spark1 `prefix_store_cuda` on the merged HEAD through fleetq, report the sha and
   results. Also fix the stale `DEFER_CAP` comment (done in `3f85b4ae9`, re-check after the merge).
+- 2026-11-13 ~03:30 EST, from the coordinator: Fable re-reviewed `2ff35dfdd`: **merge** once the GPU gates on the merged HEAD
+  pass; no blockers. When gate #9220 ends: put its results in this doc and the PR body and push; do NOT merge or mark the PR
+  ready (the coordinator holds the merge for the user's morning decision on packed / macro prefill); list follow-ups (a)-(e)
+  (section "Follow-ups (Fable re-review)") without implementing them; report the gate result and HEAD sha, then stop.
