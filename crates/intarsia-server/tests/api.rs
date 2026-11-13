@@ -1876,6 +1876,22 @@ async fn anthropic_qwen3_xml_tool_use_and_default_thinking_blocks() {
     }
     assert!(m.templated.lock().unwrap().iter().all(|(_, o)| o.enable_thinking.is_none()));
 
+    // the next turn of an Anthropic tool loop sends the thinking block it was given back: accepted, and not rendered
+    // as text
+    let history = json!([
+        {"role": "user", "content": "q"},
+        {"role": "assistant", "content": [
+            {"type": "thinking", "thinking": "need the weather", "signature": ""},
+            {"type": "tool_use", "id": "toolu_1", "name": "get_weather", "input": xml_args()}]},
+        {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "toolu_1", "content": "sunny"}]}
+    ]);
+    let b = json!({"model": "m", "max_tokens": 300, "messages": history, "tools": tools});
+    let (st, _, out) = call(&app, "POST", "/v1/messages", Some(b)).await;
+    assert_eq!(st, StatusCode::OK, "{out}");
+    let sent = m.templated.lock().unwrap().last().unwrap().0.clone();
+    assert_eq!(sent[1]["content"], "");
+    assert_eq!(sent[1]["tool_calls"][0]["function"]["arguments"], xml_args());
+
     // plain text, no tools: the same default
     let (app, _) = template_thinking_mock(ThinkPrompt::OpenByDefault, None, Some(think_script()));
     let (_, _, out) =

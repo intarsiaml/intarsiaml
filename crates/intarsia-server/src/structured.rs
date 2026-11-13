@@ -2094,6 +2094,12 @@ mod tests {
                     ..Default::default()
                 };
                 let out = t.render(&messages, &opts).unwrap_or_else(|e| panic!("{name}: {e}"));
+                // the real template opens the think block unless thinking is off: decided from these bytes
+                assert!(out.ends_with("<|im_start|>assistant\n<think>\n"), "{name}");
+                assert!(splits_reasoning(None, true, &out), "{name}");
+                assert!(!splits_reasoning(Some(false), true, &out), "{name}");
+                let off = t.render(&messages, &ChatOpts { enable_thinking: Some(false), ..opts.clone() }).unwrap();
+                assert!(off.ends_with("<think>\n\n</think>\n\n") && !splits_reasoning(None, true, &off), "{name}");
                 let turn = out.split("<|im_start|>assistant\n").nth(1).unwrap().split("<|im_end|>").next().unwrap();
                 // after the (empty) think block the turn is the model's text
                 let body = turn.strip_prefix("<think>\n\n</think>\n\n").unwrap_or(turn);
@@ -2104,5 +2110,29 @@ mod tests {
             // the tools block of the prompt teaches the same format
             assert!(src.contains("<tool_call>\\n<function=example_function_name>\\n<parameter=example_parameter_1>\\nvalue_1\\n</parameter>"));
         }
+    }
+
+    /// The Qwen3.5-0.8B-Base (and 2B) template is closed unless thinking is asked for: no flag leaves nothing to split.
+    #[test]
+    fn closed_by_default_template_is_not_split() {
+        use intarsia_core::engine::ChatOpts;
+        use intarsia_models::chat_template::ChatTemplate;
+        let t = ChatTemplate::from_source(
+            include_str!("../tests/fixtures/qwen3_5_0_8b_base_chat_template.jinja"),
+            "qwen3.5-0.8b-base",
+            Value::Null,
+            Value::Null,
+        )
+        .unwrap();
+        let messages = vec![json!({"role": "user", "content": "hi"})];
+        let render = |enable_thinking| {
+            t.render(&messages, &ChatOpts { add_generation_prompt: true, enable_thinking, ..Default::default() }).unwrap()
+        };
+        let default = render(None);
+        assert!(default.ends_with("<|im_start|>assistant\n<think>\n\n</think>\n\n"), "{default}");
+        assert!(!splits_reasoning(None, true, &default));
+        let on = render(Some(true));
+        assert!(on.ends_with("<|im_start|>assistant\n<think>\n"), "{on}");
+        assert!(splits_reasoning(None, true, &on) && splits_reasoning(Some(true), true, &default));
     }
 }
