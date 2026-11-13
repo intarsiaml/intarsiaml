@@ -98,3 +98,7 @@ Why TTFT rose: **not established.** My first reading (each park adds the partner
   - An earlier attempt (#9236) never ran the test (`cd` inside a backgrounded subshell, cargo started in `~`), and its orphaned memory-sampling loop held the job open for 26 min until I killed it under that job.
 - Merge of origin/main `53a8c500d` (#357 batch-fu, #358): one conflict, `docs/tuning.md` (main's `INTARSIA_PREFIX_STORE` / `_DEBUG` rows taken, this lane's settle wording reapplied). Main's code changes are admission-time `BatchSeq::validate`, `own_chunk` for the `PrefillStart` trace event, and a comment in `store_combinations`; none touches the pause path, `housekeep`, `finish`/settle or the model, so the CUDA gate above (pre-merge build) was not rerun. CPU gates on the merge `b338dfc50`: `batch_engine` 9/9, `prefix_store` 32/32, `scheduler` 44/44, `intarsia-core --lib` 201 (2 ignored), `docs_env_vars` 2/2.
 
+
+## 6. PR
+
+Draft PR https://github.com/intarsiaml/intarsiaml/pull/359 (not merged). Host build dirs left in place: spark1 `~/intarsia-interleave`, spark2 `~/intarsia-interleave` and `~/intarsia-il-main`.
