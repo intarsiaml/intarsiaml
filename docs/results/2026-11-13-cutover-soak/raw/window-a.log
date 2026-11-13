@@ -1,0 +1,17 @@
+[09:17:58 +1s] vLLM up: 200; earlyoom: active
+2026-11-13T13:35:48.453604885Z missioncntrl/vllm-openai:65b7662d
+missioncntrl-guidance
+[09:18:00 +0s] vLLM DOWN (docker stop done) at 09:18:00
+Mem:             121          10          55           0          56         111
+[09:18:01 +1s] serve arm L1: ~/intarsia-soak/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[09:18:44 +44s] serve L1 up; MemAvailable MB: 86208; prefix store: on (build b50a11f73f480f92, 0 entries loaded, boundaries [248045], chunk-invariant backend: false) loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 40.6s, context 131072 tokens 
+min MemAvailable MB (time MB; KILLED count) (L1): 09:22:23 76011 0 
+[09:23:34 +334s] serve arm S: ~/intarsia-soak/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store host_mb=4096
+[09:24:15 +375s] serve S up; MemAvailable MB: 87127; prefix store: on (build b50a11f73f480f92, 0 entries loaded, boundaries [248045], chunk-invariant backend: false) loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 38.4s, context 131072 tokens 
+[09:24:15 +375s] soak: no new replay after 09:59:15 (target 35 min, hard end by cap)
+[10:01:54 +2634s] soak done: 10 replays in 37 min
+min MemAvailable MB (time MB; KILLED count) (S): 10:01:08 79808 0 
+[10:02:25 +2665s] restoring vLLM: docker start missioncntrl-guidance
+missioncntrl-guidance
+[10:05:32 +2852s] vLLM /v1/models 200 at 10:05:32 (vLLM down for 2852s total)
+[10:05:32 +2852s] window end

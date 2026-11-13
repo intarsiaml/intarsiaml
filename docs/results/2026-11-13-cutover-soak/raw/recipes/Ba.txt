@@ -1,0 +1,1 @@
+intarsia serve --backend cuda (HF snapshot nvidia/Qwen3.6-35B-A3B-NVFP4 1355db6a) --max-seq 131072 --mem-budget 40 --max-batch 2 --prefix-store on --profile-every 0; bf16 KV, no MTP (the store refuses drafting), prefill chunk 2048, tool parser hermes

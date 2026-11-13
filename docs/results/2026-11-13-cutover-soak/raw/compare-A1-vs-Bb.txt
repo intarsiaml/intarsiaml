@@ -1,0 +1,11 @@
+# compare: 20261112-201151-adhoc-ab35b-A1-gsm8k → 20261113-105153-adhoc-soak-Bb-gsm8k
+
+Speed differences under 10% are marked noise (fleet finding 6a7efe40). Quality differences inside ~2 standard errors are marked noise.
+
+| benchmark | A | B | Δ | 2·SE | verdict |
+|---|---:|---:|---:|---:|---|
+| gsm8k_flexible | 0.610 (n=200) | 0.655 (n=200) | +0.045 | ±0.096 | noise |
+| gsm8k_bare_number | 0.375 (n=200) | 0.295 (n=200) | -0.080 | ±0.094 | noise |
+
+- A: `guidance` @ http://spark-fa00:8000/v1 thinking=off (2026-11-12T20:11:51-05:00)
+- B: `guidance` @ http://spark-fa00:8191/v1 thinking=off (2026-11-13T10:51:53-05:00)

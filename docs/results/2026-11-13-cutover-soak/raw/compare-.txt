@@ -1,0 +1,2 @@
+usage: localeval compare [-h] [--noise-pct NOISE_PCT] a b
+localeval compare: error: the following arguments are required: b

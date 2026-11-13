@@ -1,0 +1,1 @@
+intarsia serve --backend cuda (HF snapshot nvidia/Qwen3.6-35B-A3B-NVFP4 1355db6a) --max-seq 131072 --mem-budget 40 --max-batch 2 --prefix-store on --kv-dtype fp8 --profile-every 0; fp8_e4m3 KV, no MTP, prefill chunk 2048, tool parser hermes

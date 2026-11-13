@@ -1,0 +1,33 @@
+{
+ "runs": {
+  "Vt": {
+   "n": 85,
+   "correct": 82,
+   "acc": 0.9647,
+   "truncated": 0,
+   "mean_completion_tokens": 1857.9,
+   "with_reasoning_content": 85,
+   "thinking_seen": 85
+  },
+  "Bc": {
+   "n": 85,
+   "correct": 84,
+   "acc": 0.9882,
+   "truncated": 0,
+   "mean_completion_tokens": 2133.1,
+   "with_reasoning_content": 85,
+   "thinking_seen": 85
+  }
+ },
+ "pairs": {
+  "Vt vs Bc": {
+   "common": 85,
+   "acc_a": 0.9647,
+   "acc_b": 0.9882,
+   "a_right_b_wrong": 0,
+   "a_wrong_b_right": 2,
+   "mcnemar_p": 0.5,
+   "identical_reply_text": 53
+  }
+ }
+}
