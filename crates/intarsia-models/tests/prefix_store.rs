@@ -1085,10 +1085,15 @@ fn run_batched(e: &BatchedEngine, reqs: &[(Vec<u32>, usize)]) -> Vec<Out> {
 /// beside each other and one waits; a prompt prefills while the other slot decodes, slots change conversations, turns restore
 /// from the store). Every reply is bitwise the single-sequence engine's with the store on (the same requests one at a time).
 fn batched_multi_turn(kind: Kind, chunk: usize, reuse: bool) {
+    batched_multi_turn_opts(kind, chunk, |o| o.prefix_reuse = reuse);
+}
+
+/// [`batched_multi_turn`] with the batched engine's options set by `f`; returns the engine (idle) for its metrics.
+fn batched_multi_turn_opts(kind: Kind, chunk: usize, f: impl FnOnce(&mut BatchedOptions)) -> BatchedEngine {
     let cfg = store_cfg();
     let solo = LocalEngine::new(planned(kind, chunk, 1), Arc::new(kind.codec()), store_meta(Some(cfg.clone())), Arc::new(Telemetry::new()))
         .unwrap();
-    let eng = batched_store(kind, chunk, cfg, reuse);
+    let eng = batched_store_opts(kind, chunk, Some(cfg), f).unwrap();
     let mut chats: Vec<Chat> = (0..3u32)
         .map(|c| {
             let mut ch = Chat::new(kind);
@@ -1118,6 +1123,7 @@ fn batched_multi_turn(kind: Kind, chunk: usize, reuse: bool) {
     assert!(snap.hits > 0 && snap.tokens_saved > 0, "no restore from the store: {snap:?}");
     let info = eng.prefix_store();
     assert!(info["entries"].as_array().is_some_and(|e| !e.is_empty()), "{info}");
+    eng
 }
 
 #[test]
@@ -1134,6 +1140,38 @@ fn batched_hybrid_multi_turn_without_slot_reuse() {
 #[test]
 fn batched_dense_multi_turn_is_the_single_engine_store_on() {
     batched_multi_turn(Kind::Dense, 8, true);
+}
+
+/// Lane interleave: chunks that park between layers while the other slot decodes (2 rows per segment of an 8-row chunk), and a
+/// settle in one-object slices: every reply is still bitwise the single-sequence engine's with the store on, decode steps ran
+/// inside parked chunks, and once idle nothing deferred is left on the device.
+fn batched_multi_turn_paused(kind: Kind) {
+    let eng = batched_multi_turn_opts(kind, 8, |o| {
+        o.pause_rows = 2;
+        o.settle_slice_mb = 0;
+    });
+    let m = eng.metrics();
+    assert!(m.paused_steps > 0, "no decode step ran inside a parked chunk: {m:?}");
+    let t0 = std::time::Instant::now();
+    loop {
+        // the scheduler settles what is left once it is idle, right after the last request's `Done`
+        let snap = eng.telemetry().prefix_store.unwrap();
+        if snap.device.bytes == 0 {
+            break;
+        }
+        assert!(t0.elapsed().as_secs() < 10, "deferred captures left on the device: {snap:?}");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
+#[test]
+fn batched_hybrid_multi_turn_paused_chunks_are_bitwise() {
+    batched_multi_turn_paused(Kind::Hybrid);
+}
+
+#[test]
+fn batched_dense_multi_turn_paused_chunks_are_bitwise() {
+    batched_multi_turn_paused(Kind::Dense);
 }
 
 #[test]
