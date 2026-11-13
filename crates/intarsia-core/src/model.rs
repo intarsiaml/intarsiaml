@@ -4847,9 +4847,11 @@ impl Model {
         if self.recorder.lock().unwrap().is_some() {
             return Ok(Vec::new());
         }
-        let mut bytes = vec![0u8; c * v * 4];
-        self.backend.download(&self.ws.logits, 0, &mut bytes, self.stream)?;
-        let mut out: Vec<f32> = bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
+        // the reused download buffer and pooled row of the decode paths (`with_logits_bytes`; eager one-row decode steps land here)
+        let mut out = with_logits_bytes(c * v * 4, |bytes| -> Result<Vec<f32>> {
+            self.backend.download(&self.ws.logits, 0, bytes, self.stream)?;
+            Ok(logits_row(bytes))
+        })?;
         if self.vocab_par && c > 1 {
             // the gathered tile is rank-major `[world][c][V / world]`: put each row's slices side by side
             let (w, vh) = (self.tp.world, v / self.tp.world);

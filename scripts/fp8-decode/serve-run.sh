@@ -14,7 +14,7 @@ rsh() { ssh -n -o BatchMode=yes "$H" "export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 RLOG="$L/out/serve-$ARM.log"
 rsh "mkdir -p $L/out; pkill -f '[s]erve --backend cuda.*--port $PORT' || true"
 rsh "cd $L; nohup env ${SERVE_ENV:-} $BIN serve --backend cuda --model $SNAP --port $PORT --max-seq 131072 --mem-budget 40 \
-  --max-batch 2 --profile-every 0 --served-model-name guidance --host 0.0.0.0 ${SERVE_ARGS:-} > $RLOG 2>&1 < /dev/null & echo \$! > $L/out/serve.pid"
+  --max-batch ${MAXB:-2} --profile-every 0 --served-model-name guidance --host 0.0.0.0 ${SERVE_ARGS:-} > $RLOG 2>&1 < /dev/null & echo \$! > $L/out/serve.pid"
 # memory guard: kill the server if MemAvailable drops under 10 GB
 scp -q -o BatchMode=yes "$HERE/memguard.sh" "$H:intarsia-fp8-decode/memguard.sh"
 rsh "nohup bash $L/memguard.sh $L/out/serve.pid $L/out/mem-$ARM.log >/dev/null 2>&1 < /dev/null &"
