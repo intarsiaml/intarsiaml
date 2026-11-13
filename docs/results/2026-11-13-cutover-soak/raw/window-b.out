@@ -24,3 +24,13 @@ min MemAvailable MB (time MB; KILLED count) (Bb): 10:54:49 81569 0 [10:55:20 +52
 [10:55:20 +527s] serve arm Bc: ~/intarsia-soak/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
 [10:56:00 +567s] serve Bc up; MemAvailable MB: 87134; prefix store: on (build b50a11f73f480f92, 0 entries loaded, boundaries [248045], chunk-invariant backend: false) loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 36.7s, context 131072 tokens 
 == Bc gsm8k thinking=on n=85 max_tokens=8192 10:56:01
+
+[localeval] saved /opt/code/deepeval/results/20261113-105601-adhoc-soak-Bc-gsm8k/result.json
+[localeval] logged to unanimis: ca8e7bbf-0af6-4860-9c49-d8e561d99919
+Bc gsm8k run_id=20261113-105601-adhoc-soak-Bc-gsm8k
+min MemAvailable MB (time MB; KILLED count) (Bc): 11:31:58 82762 0 [11:32:30 +2757s] restoring vLLM: docker start missioncntrl-guidance
+/opt/code/intarsiaml/.worktrees/soak/scripts/soak/lib.sh: line 15: 56696 Terminated: 15          ( sleep $(( $1*60 )); echo "[cap] $1 min down reached, restoring" >> "$OUT/${WLOG:-lib}.log"; kill -TERM $$ ) > /dev/null 2>&1
+missioncntrl-guidance
+[11:35:32 +2939s] vLLM /v1/models 200 at 11:35:32 (vLLM down for 2939s total)
+[11:35:32 +2939s] window end
+fleetq: #9247 done (exit 0); spark2-vllm must come back before others can use it

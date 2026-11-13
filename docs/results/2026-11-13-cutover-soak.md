@@ -44,7 +44,7 @@ Use localeval `compare` for paired verdicts against the existing vLLM and B runs
 
 ### Window A (done 2026-11-13, spark2, vLLM down 09:18:00 to 10:05:32 = 2852 s = 47.5 min; fleetq #9245, owner claude-soak)
 
-Build: main `45e6ce56b` (binary stamp `ab35c-45e6ce56b0236`), fleetq #9242, 5 m 47 s. Serve shape for all intarsiaml arms: `--max-batch 2 --prefix-store ...`, bf16 KV, `--max-seq 131072 --mem-budget 40 --profile-every 0`, everything else default (no MTP: the store refuses drafting). earlyoom was `active` on spark2 at both window starts. Plan and prompts are the interleave lane's (`replay-plan.json`, 8 conversations x 6 turns, 8k to 33k tokens, thinking off, temperature 0, 160 max tokens); replay2 interleaved.
+Build: main `45e6ce56b` (binary stamp `ab35c-45e6ce56b023`), fleetq #9242, 5 m 47 s. Serve shape for all intarsiaml arms: `--max-batch 2 --prefix-store ...`, bf16 KV, `--max-seq 131072 --mem-budget 40 --profile-every 0`, everything else default (no MTP: the store refuses drafting). earlyoom was `active` on spark2 at both window starts. Plan and prompts are the interleave lane's (`replay-plan.json`, 8 conversations x 6 turns, 8k to 33k tokens, thinking off, temperature 0, 160 max tokens); replay2 interleaved.
 
 #### 1. More than 2 streams (K=3 seed 1, K=4 seed 2)
 
@@ -64,7 +64,7 @@ vLLM arms (fleetq #9244, `--quiet gpu,cpu`, production vLLM up and idle: `vllm:n
 
 #### 2. Soak (37 min, K=2, 10 replays of 48 requests = 480 requests, fresh seeds 11 to 20)
 
-Store host budget: `--prefix-store host_mb=4096` (4.29 GB, half the 8 GiB default). The ~66 KB per token figure from the brief gives about 65k tokens of KV, two conversations at 28k; one replay inserts about 12.5 GB (E-main metrics: 12.49 GB of `insert_bytes_total` per replay), so eviction starts inside the first minute (first host eviction seen at the first 60 s sample, 5507 in total). The default 8 GiB budget also evicts inside one replay (E-main: 8.55 of 8.59 GB, 110 host evictions after 131 s), so the shrink is a stress case, not the only way to hit the eviction path: it drops the cached fraction from 0.73 to about 0.19 and so roughly triples the uncached prefill that runs beside decode. Each replay records its own trace from the server's replies (multi-turn with the model's own answers). No `INTARSIA_PREFIX_STORE_DEBUG`. A sampler on the box wrote one row per minute (`raw/sample-S.tsv`, `scripts/soak/sampler.sh`); `memwatch.sh` (2 s MemAvailable, kill under 10 GB) logged 1149 samples, lowest 79.8 GB, 0 kills.
+Store host budget: `--prefix-store host_mb=4096` (4.29 GB, half the 8 GiB default). The ~66 KB per token figure from the brief gives about 65k tokens of KV, two conversations at 28k; one replay inserts about 12.5 GB (E-main metrics: 12.49 GB of `insert_bytes_total` per replay), so eviction starts inside the first replay (the second 60 s sample, about 80 s after the first request, already showed evictions; 5507 in total). The default 8 GiB budget also evicts inside one replay (E-main: 8.55 of 8.59 GB, 110 host evictions after 131 s), so the shrink is a stress case, not the only way to hit the eviction path: it drops the cached fraction from 0.73 to about 0.19 and so roughly triples the uncached prefill that runs beside decode. Each replay records its own trace from the server's replies (multi-turn with the model's own answers). No `INTARSIA_PREFIX_STORE_DEBUG`. A sampler on the box wrote one row per minute (`raw/sample-S.tsv`, `scripts/soak/sampler.sh`); `memwatch.sh` (2 s MemAvailable, kill under 10 GB) logged 1149 samples, lowest 79.8 GB, 0 kills.
 
 | replay | start min | requests | errors | TTFT sum s | TTFT p50 s | TTFT p90 s | decode tok/s median (bimodal: see doc) | decode tok/s mean | agg output tok/s | cached frac | wall s |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -106,7 +106,7 @@ sampler: 38 samples, 09:24:36 to 10:01:40
 
 Raw per-replay metrics scrapes: `raw/serve-S.metrics.after-seed*`.
 
-### Window B (2026-11-13, spark2, vLLM down from 10:46:33; fleetq #9247) and the vLLM thinking-on arm (#9246)
+### Window B (2026-11-13, spark2, vLLM down 10:46:33 to 11:35:32 = 2939 s = 49.0 min; fleetq #9247) and the vLLM thinking-on arm (#9246)
 
 All three arms: `--max-batch 2 --prefix-store on` (default host budget), bf16 KV unless stated, no MTP (the store refuses drafting), `localeval quality --thinking off|on --structured prompt --bench gsm8k --max-tokens ... --pin-gsm8k` (the ab35b Run 2 setup: pinned template, temperature 0, no nonce). Raw: `raw/<run id>/{summary.md,result.json}`, `raw/{Ba,Bb,Bc,V-think}-gsm8k.out`, `raw/compare-*.txt` (localeval `compare`), `raw/gsm8k-style.json`. Paired verdicts are `scripts/soak/paired_gsm8k.py` (same question ids; exact McNemar on the discordant pairs), since localeval `compare` is an unpaired 2-standard-error test.
 
@@ -136,3 +136,57 @@ All three arms: `--max-batch 2 --prefix-store on` (default host budget), bf16 KV
 #### vLLM thinking-on (V-think; fleetq #9246, `--quiet gpu,cpu`, vLLM up the whole time, 40.8 min)
 
 GSM8K n=100, thinking on, `--max-tokens 8192`: **0.970** (97 of 100), 0 truncated, mean 1875.6 output tokens, decode 77.3 tok/s, `reasoning_content` present on 100 of 100 (qwen3 reasoning parser), `thinking_seen` 100. vLLM's own counters before and after: exactly 100 requests (no production traffic inside the run). The 5-problem pilot before it (1475 tokens, 19.4 s per problem) was a low sample: the real mean is 24.4 s per problem.
+
+#### (c) thinking on, GSM8K, `--max-tokens 8192`: intarsiaml store-on bf16 (Bc) against vLLM (V-think)
+
+Bc ran n=85, not 100: at ~24 s per problem (measured on vLLM, which finished first) n=100 needs 41 min, and window B had 39 min left after (a) and (b), so `window_b.sh` took the n that fits (85); the 4-minute margin it keeps left 3 min to the cap and Bc finished with 4 min to spare. The vLLM arm ran n=100 (it needed no window); the paired comparison uses the same first 85 question ids. Same prompts (median 483 prompt tokens, min and max identical on both).
+
+| run | gsm8k_flexible | n | truncated | mean output tokens (median, max) | decode tok/s | `reasoning_content` present | wall |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| V-think (vLLM), all 100 | 0.970 | 100 | 0 | 1875.6 | 77.3 | 100 / 100 | 2445 s |
+| V-think, first 85 ids | 0.965 (82) | 85 | 0 | 1857.9 (1574, 4638) | | 85 / 85 | |
+| **Bc (intarsiaml, store on, bf16)** | **0.988 (84)** | 85 | 0 | 2133.1 (1771, 6318) | 85.3 | 85 / 85 | 2155 s |
+
+- Paired (first 85 ids): intarsiaml right where vLLM is wrong on 2 questions, the reverse on 0, McNemar p = 0.5; 53 of 85 final answers are textually identical. The one question Bc got wrong (gsm8k-00012) vLLM also got wrong (and vLLM missed two more). No accuracy gap in either direction.
+- Reasoning parser: both engines return the chain of thought in `reasoning_content` (85 of 85) and the short final answer in `content` (median 2 characters); no `think` tag in either field, no empty reply, 0 truncated at 8192 on either engine. This is equivalence for this plain no-tool, non-streaming-checked prompt only (localeval streams, so the stream path was exercised); tool calls inside thinking, and `reasoning_content` deltas against another client, were not tested.
+- **Difference worth knowing:** intarsiaml's thinking is longer on the same questions: mean 2133 against 1858 output tokens (+15 %), median 1771 against 1574 (+12.5 %), longer on 53 of 85, longest 6318 against 4638. Decode is faster (85.3 against 77.3 tok/s, +10 %), so wall per problem is nearly the same (25.3 against 24.5 s). I did not find the cause (numerics under greedy decoding is the likely class; not investigated). It is not a quality loss here, but the 8192 cap sits closer to intarsiaml's tail.
+- As in (a) and (b), the store saw no hits (single user message; `raw/serve-Bc.metrics`).
+
+## Verdicts
+
+### Blocker 6, unmeasured load and soak: CLOSED for load, soak and thinking-on quality; two parts stay open
+
+- **More than 2 streams: closed.** K=3 and K=4 behave like vLLM: TTFT sums 164.2 vs 162.1 s and 302.8 vs 302.6 s, aggregate 56.6 vs 58.0 and 59.6 vs 60.2 tok/s, 0 errors, 0 rejections, no engine gap above 0.5 s. One seed per cell.
+- **Soak: pass, with a stress budget.** 37 min, 480 requests, 0 errors, 0 rejections, `engine_failed` 0, no log warnings. Store host bytes peaked at 4293 MB against a 4295 MB budget, 5507 evictions, 0 rejected inserts. Memory: MemAvailable 79.8 to 81.2 GB after the first 5 minutes with a fitted drift of -3.3 MB/min (about -0.1 GB over the run against 1.4 GB of peak-to-peak noise); mem_used 43.4 to 44.8 GB (+3.4 MB/min); `intarsia_device_memory_free_bytes` the same shape; swap flat at 490 MB (there before the run); server RSS flat at 162 MB (CUDA allocations live outside RSS, so MemAvailable and the device-free gauge are the signals). TTFT sum per replay 169 to 199 s with the first-half mean 181 and second-half mean 179 s; aggregate output 32.2 to 34.8 tok/s; wall 219 to 230 s; no trend. earlyoom `active`; memwatch never fired (lowest 79.8 GB).
+- **The soak's budget is a stress case.** At `host_mb=4096` the cached fraction is 0.19 (0.73 at the 8 GiB default), so about 3 times more prompt tokens prefill beside decode (81 % uncached against 27 %): 3021 of 74355 engine gaps are above 0.25 s (4.1 %, against 1.4 % in the K=2 default runs), 0 above 0.5 s. That is the expected cost of a store smaller than the working set (8 conversations at 28k), not drift: it is the same in the first and the last replay. A soak at the 8 GiB default (the production shape) was not run; only the two K=3/K=4 replays used it.
+- **Thinking-on quality: closed** (Bc 0.988 against vLLM 0.965 on the same 85 questions; see (c)).
+- **Still open:** real missioncntrl traffic (agent tool calls, long sessions, mixed sampled and greedy requests) was not available to this lane and was not replayed; reasoning-parser equivalence is shown for GSM8K only (no tools, no streaming deltas compared); no soak at the default budget; the 15 % longer thinking is unexplained.
+
+### Blocker 7, unexplained output differences: CLOSED for the default (bf16) path; fp8 KV is a new small item
+
+- Store on against store off (bf16, greedy): 0.715 against 0.710, paired 10 vs 11, p = 1.0, 73 of 200 replies differ in text. The store's bit changes do not move accuracy. **But** the store registered 0 hits in all three quality arms (the pinned GSM8K prompt is one message with nothing to restore), so this tests the store-on chunking and capture path, not accuracy after a restore.
+- `--kv-dtype fp8` with the store: 0.655, 6 points below bf16 (paired 20 vs 8, p = 0.036; vs store-off p = 0.080; localeval compare calls it noise). Not below vLLM (0.610 and 0.585; vLLM also runs fp8 KV). Opt-in, so not a cutover blocker, but it should not become a default on this evidence; n=400 or more would settle it.
+- Thinking on: no difference from vLLM (above).
+
+### New issues, none blocking
+1. fp8 KV accuracy drop above (borderline).
+2. Thinking traces +15 % longer than vLLM on identical prompts, cause not found.
+3. GSM8K cannot exercise the store's restore path; a variant with a shared system prompt or multi-turn prefix is needed to measure accuracy after a restore.
+4. Store sizing: at a budget below the working set the cached fraction collapses (0.19), so the production `host_mb` has to be chosen for the conversation count (the default 8 GiB gave 0.73 at 8 conversations of up to 33k).
+
+## Fairness and limits
+
+- One seed per K=3 / K=4 cell, one run per quality arm (greedy, so repeats would be identical on the same server state; no repeat of fp8 or store-on was run).
+- The vLLM and intarsiaml K=3/K=4 arms ran back to back (vLLM 09:13 to 09:17, intarsiaml 09:18 to 09:23, same day, same box); vLLM's own counters showed no foreign requests in any vLLM arm (`raw/vllm-foreign-traffic.txt`). The production vLLM kept its prefix cache between K=3 and K=4 as intarsiaml's store did.
+- vLLM's baseline GSM8K thinking-off numbers (A1 0.610, A2 0.585) are from the ab35b run before vLLM was restarted for other lanes; the thinking-on vLLM arm is new (this run).
+- Replays use synthetic filler prompts with the interleave lane's plan; decode medians per request are bimodal under concurrency, so throughput claims use TTFT sums and aggregate output tokens per wall second.
+- localeval's ITL p99 was not used for any stall claim: gap counts come from the engine's `intarsia_batch_itl_seconds`.
+- Bc n=85 against the asked 100 (time); the paired comparison is on the same 85 ids.
+- The `--quiet gpu,cpu` slot holds other fleetq jobs off; it does not stop missioncntrl requests. The vLLM counters are the check that none arrived.
+
+## Raw results and scripts
+
+- `docs/results/2026-11-13-cutover-soak/raw/`: window logs (`window-a.log`, `window-b.log`, `vllm-arms.log`, `*.out`), per-replay jsonl and summaries (`V-k3`, `V-k4`, `L-k3`, `L-k4`, `S11` to `S20`), traces (`replay-trace-seed{1,2}.json`, `soak-trace-seed*.json`), sampler and memwatch files (`sample-{L1,S}.tsv`, `mem-*.txt`), server logs and metrics (`serve-*`, including per-replay scrapes `serve-S.metrics.after-seed*`), localeval runs (`<run id>/{summary.md,result.json}`: V-pilot, V-think, Ba, Bb, Bc), `compare-*.txt` (localeval compare), `gsm8k-style.json`, `gsm8k-think-paired.json`, `recipes/`, `vllm-foreign-traffic.txt`, `index.txt`, `build.log`.
+- localeval originals `/opt/code/deepeval/results/<run id>/`; unanimis ids: Ba 27e569c1, Bb 11d7269a, Bc ca8e7bbf, V-think 3b998021, V-pilot 56f0af2f.
+- fleetq jobs (owner `claude-soak`): #9242 build, #9243 vLLM thinking pilot (n=5, discarded), #9244 vLLM K=3/K=4, #9245 window A, #9246 vLLM thinking n=100, #9247 window B.
+- Scripts `scripts/soak/`: `lib.sh`, `vllm_arms.sh`, `window_a.sh`, `window_b.sh`, `memwatch.sh`, `sampler.sh`, `soak_table.py` (`load` / `soak`), `paired_gsm8k.py`. Tables: `python3 scripts/soak/soak_table.py docs/results/2026-11-13-cutover-soak/raw load|soak`; pairs: `python3 scripts/soak/paired_gsm8k.py [--first N] label=<result.json> ... --pairs a:b`.
