@@ -102,3 +102,8 @@ Why TTFT rose: **not established.** My first reading (each park adds the partner
 ## 6. PR
 
 Draft PR https://github.com/intarsiaml/intarsiaml/pull/359 (not merged). Host build dirs left in place: spark1 `~/intarsia-interleave`, spark2 `~/intarsia-interleave` and `~/intarsia-il-main`.
+
+## 7. Brief: second window, TTFT attribution (coordinator, 2026-11-13)
+
+One more spark2 window to find the cause of the +6% TTFT. All arms on the current HEAD build, `--max-batch 2 --prefix-store on`, replay2 interleaved seed 0, K=2: (1) both switches off, (2) pause only 768, (3) slice only 48, (4) both (dropped if 4 do not fit). Main's arm reused from window 1 (E-main) unless time allows a rerun. vLLM down <= 35 min, same trap/restore; `fleetq run --host spark2 --takes-down retro --quiet gpu,cpu --mem 58 --expect 45`. Report per arm: TTFT sum, decode per stream, median ITL p99, server gap counts; plus per-request paired TTFT delta against the switches-off arm (separates the off path's own cost from each switch's). Do not change engine code until Fable's #359 findings arrive (forwarded by the coordinator). Also: fix the ab35c lane doc's claim that decode never runs between chunks (`/opt/code/intarsiaml/.worktrees/ab35c-lane`, branch `ab35c`, `docs/results/2026-11-13-ab35c-tools-store-sampled.md`, "Cause (checked against the per-request trace)"), commit and push on `ab35c`.
+
