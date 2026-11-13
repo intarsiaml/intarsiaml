@@ -5,7 +5,7 @@ import os
 import sys
 
 raw = sys.argv[1]
-print("| arm | n | errors | correct | acc | truncated (512) | mean output tokens | prompt tokens median (min-max) | requests with cached tokens | cached frac | median cached tokens (hits) | store hits / misses / local_wins | tokens_saved | rejected inserts | paused steps | median latency s | wall s | concurrency |")
+print("| arm | n | errors | correct | acc | truncated (512) | mean output tokens | prompt tokens median (min-max) | requests with cached tokens | cached frac | median cached tokens (hits) | store hits / misses / local_wins | tokens_saved | rejected (failed restore checks) | paused steps | median latency s | wall s | concurrency |")
 print("|---|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|")
 for a in sys.argv[2:]:
     p = f"{raw}/{a}.summary.json"

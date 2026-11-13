@@ -4,7 +4,7 @@
 #   serve 1 "W" (production shape: --max-batch 2 --prefix-store on, default host budget, bf16 KV, defaults otherwise, prefill pause default):
 #      W  = gsm8k_prefix.py at concurrency 1 (first request cold and inserts, the rest restore the shared prefix)
 #   serve 2 "C" (--prefix-store host_mb=1: the store is ON, so the same boundary-cut chunk schedule and captures, but the host tier
-#      is 1 MB, so every insert is rejected and every lookup misses: a cold prefill of the whole prompt for every request): C at concurrency 1
+#      is 1 MB, so every captured entry is evicted at once and every lookup misses: a cold prefill of the whole prompt for every request): C at concurrency 1
 #   then, only if the time left covers each (checked against C's measured wall):
 #      serve 3 "O" (store OFF, --max-batch 2), concurrency 2 (optional arm)
 #      serve 4 "W2" (as W; warm only from its own first request), concurrency 2 (the production stream count; a separate observation, not the gate)
