@@ -233,7 +233,24 @@ impl ChatTemplate {
         }
     }
 
+    /// Render the conversation. OpenAI clients send an assistant turn's `tool_calls[].function.arguments` as a JSON *string*
+    /// (it is what this server returns too), while the Qwen3.5+ templates iterate it as a mapping (`arguments|items`) and fail
+    /// on a string ("cannot convert value into pairs"): every follow-up turn of a tool conversation was a 400. So when the
+    /// template rejects the messages as sent and some arguments are strings holding a JSON object, it is rendered once more
+    /// with those parsed (what vLLM does before templating). A conversation that renders as sent is not touched, so the
+    /// templates that print a string argument verbatim (Qwen3) give the same prompt as before.
     pub fn render(&self, messages: &[Json], opts: &ChatOpts) -> Result<String> {
+        match self.render_as_sent(messages, opts) {
+            Ok(text) => Ok(text),
+            Err(e) => match with_parsed_tool_arguments(messages) {
+                // the first error is the one about what the client sent
+                Some(parsed) => self.render_as_sent(&parsed, opts).map_err(|_| e),
+                None => Err(e),
+            },
+        }
+    }
+
+    fn render_as_sent(&self, messages: &[Json], opts: &ChatOpts) -> Result<String> {
         let mut ctx = serde_json::Map::new();
         ctx.insert("messages".into(), Json::Array(messages.to_vec()));
         ctx.insert("add_generation_prompt".into(), Json::Bool(opts.add_generation_prompt));
@@ -253,10 +270,67 @@ impl ChatTemplate {
     }
 }
 
+/// `messages` with every tool call's string `arguments` that holds a JSON object replaced by that object (`function.arguments`,
+/// or `arguments` of a call written without the `function` wrapper). `None` when there is nothing to parse.
+fn with_parsed_tool_arguments(messages: &[Json]) -> Option<Vec<Json>> {
+    let mut out = messages.to_vec();
+    let mut changed = false;
+    for m in &mut out {
+        let Some(calls) = m.get_mut("tool_calls").and_then(Json::as_array_mut) else { continue };
+        for call in calls {
+            let holder = if call.get("function").is_some_and(Json::is_object) { &mut call["function"] } else { call };
+            let Some(args) = holder.get_mut("arguments") else { continue };
+            let parsed = match args.as_str().map(serde_json::from_str::<Json>) {
+                Some(Ok(v @ Json::Object(_))) => v,
+                _ => continue,
+            };
+            *args = parsed;
+            changed = true;
+        }
+    }
+    changed.then_some(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    /// The tool-call part of the Qwen3.5+ templates: the arguments are iterated as a mapping.
+    const ITEMS: &str = "{%- for m in messages %}{%- for tc in m.tool_calls or [] %}{%- set tc = tc.function %}<function={{ tc.name }}>{%- for k, v in tc.arguments|items %}<parameter={{ k }}>{{ v }}</parameter>{%- endfor %}</function>{%- endfor %}{%- endfor %}";
+
+    fn tool_turn(arguments: Json) -> Vec<Json> {
+        vec![
+            json!({"role": "user", "content": "weather?"}),
+            json!({"role": "assistant", "content": "", "tool_calls": [
+                {"id": "c1", "type": "function", "function": {"name": "get_weather", "arguments": arguments}}]}),
+            json!({"role": "tool", "tool_call_id": "c1", "content": "sunny"}),
+        ]
+    }
+
+    #[test]
+    fn string_tool_arguments_render_like_the_object_where_the_template_needs_a_mapping() {
+        let t = ChatTemplate::from_source(ITEMS, "t", Json::Null, Json::Null).unwrap();
+        let opts = ChatOpts::default();
+        let want = t.render(&tool_turn(json!({"city": "Paris", "days": 2})), &opts).unwrap();
+        assert_eq!(want, "<function=get_weather><parameter=city>Paris</parameter><parameter=days>2</parameter></function>");
+        // what an OpenAI client sends back: the arguments as the JSON string it was given
+        assert_eq!(t.render(&tool_turn(json!("{\"city\": \"Paris\", \"days\": 2}")), &opts).unwrap(), want);
+        // a string that is not a JSON object stays the template's error
+        for bad in ["not json", "[1, 2]", "\"x\""] {
+            let err = t.render(&tool_turn(json!(bad)), &opts).unwrap_err().to_string();
+            assert!(err.contains("chat template"), "{bad}: {err}");
+        }
+    }
+
+    #[test]
+    fn string_tool_arguments_stay_verbatim_where_the_template_takes_them() {
+        // Qwen3 prints a string argument as it is: the prompt of a conversation that renders must not change
+        let sent = "{\"city\":\"Paris\"}";
+        let out = tmpl().render(&tool_turn(json!(sent)), &ChatOpts { add_generation_prompt: true, ..Default::default() }).unwrap();
+        assert!(out.contains(&format!("\"arguments\": {sent}}}")), "{out}");
+        assert!(with_parsed_tool_arguments(&tool_turn(json!({"city": "Paris"}))).is_none());
+    }
 
     const QWEN3: &str = include_str!("../tests/fixtures/qwen3_chat_template.jinja");
 
