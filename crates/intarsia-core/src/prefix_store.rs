@@ -510,13 +510,14 @@ pub struct PrefixStore {
     /// synchronises the device, which would stall the prefill that queued the next chunk, and inside decode it stalled
     /// the stream; ab35c).
     defer: bool,
-    /// Device bytes captured while deferring (capped at [`DEFER_CAP`]; past it inserts copy to host directly).
+    /// Device bytes of the per-insert allocations made while deferring (only with a device tier, where no slab is used;
+    /// capped at [`DEFER_CAP`], like the slabs' size: past it inserts copy to host directly).
     deferred: u64,
     /// Engine-thread time spent in `queue_write` since the last `settle` (reported under `INTARSIA_PREFIX_STORE_DEBUG`).
     queue_write_seconds: f64,
     /// Pre-faulted host buffers freed by host-tier eviction, kept for the next demote (or host capture) of the same size
     /// (objects come in a few sizes; a fresh buffer costs a page fault per 4 KiB, a recycled one nothing). Counted with
-    /// `used[1]` against the host budget: the pool never makes the host tier exceed it.
+    /// `used[1]` against the host budget: `enforce` drops pooled buffers first when the two together exceed it.
     host_free: Vec<Vec<u8>>,
     host_free_bytes: u64,
     /// Device slab the deferred captures of the current request are carved from (`bytes used` of it taken), and the
@@ -851,8 +852,8 @@ impl PrefixStore {
         }
         cap.segments = todo.iter().map(|t| t.1.len()).sum();
         cap.drain(backend)?;
-        let defer = self.defer && self.deferred + total as u64 <= DEFER_CAP;
-        if defer {
+        let defer = self.defer && self.defer_fits(total);
+        if defer && !self.use_slab() {
             self.deferred += total as u64;
         }
         if !defer && self.cfg.device_bytes >= total as u64 {
@@ -876,10 +877,10 @@ impl PrefixStore {
             return Ok((out, cap));
         }
         if defer {
-            // deferred: carved from a slab all of whose captures leave the device at `settle`
+            // deferred: carved from a slab (no device tier) or one allocation per insert; all of it leaves the device at `settle`
             cap.how = "deferred";
             let t = Instant::now();
-            let (buf, base) = self.slab(backend, total)?;
+            let (buf, base) = if self.use_slab() { self.slab(backend, total)? } else { (backend.alloc(total.max(16), MemKind::Device)?, 0) };
             cap.alloc_s += t.elapsed().as_secs_f64();
             let t = Instant::now();
             let mut out = Vec::with_capacity(todo.len());
@@ -913,6 +914,45 @@ impl PrefixStore {
         Ok((out, cap))
     }
 
+    /// Deferred captures are carved from slabs only without a device tier (`device_mb` 0: all of them leave the device at
+    /// `settle`, so a slab is idle again right after). With one, survivors on the device would pin whole slabs, so each
+    /// insert gets its own allocation (freed with its last object).
+    fn use_slab(&self) -> bool {
+        self.cfg.device_bytes == 0
+    }
+
+    /// Device bytes the deferred captures of this request hold (slabs allocated, not just carved, or per-insert allocations).
+    fn deferred_footprint(&self) -> u64 {
+        if self.use_slab() {
+            self.slabs_full.iter().map(|b| b.bytes() as u64).sum::<u64>() + self.slab.as_ref().map_or(0, |(b, _)| b.bytes() as u64)
+        } else {
+            self.deferred
+        }
+    }
+
+    /// Size of a new slab for a capture of `bytes` when `held` bytes of slabs are in use: [`SLAB_MIN`] (less when the cap is
+    /// near), or exactly the capture when it is larger.
+    fn new_slab_size(bytes: usize, held: u64) -> usize {
+        let room = DEFER_CAP.saturating_sub(held) as usize;
+        bytes.max(SLAB_MIN.min(room)).next_multiple_of(256)
+    }
+
+    /// Whether a deferred capture of `bytes` keeps the request's device memory within [`DEFER_CAP`].
+    fn defer_fits(&self, bytes: usize) -> bool {
+        if !self.use_slab() {
+            return self.deferred + bytes as u64 <= DEFER_CAP;
+        }
+        if self.slab.as_ref().is_some_and(|(b, used)| *used + bytes <= b.bytes()) {
+            return true;
+        }
+        let held = self.deferred_footprint();
+        let fresh = match self.slab_pool.iter().filter(|b| b.bytes() >= bytes).map(Buffer::bytes).min() {
+            Some(n) => n,
+            None => Self::new_slab_size(bytes, held),
+        };
+        held + fresh as u64 <= DEFER_CAP
+    }
+
     /// `bytes` of device memory for a deferred capture: `(slab, offset)`. The current slab while it has room, else an idle
     /// one from the pool, else a new allocation. Everything carved from a slab is demoted at `settle`, after which the
     /// slab goes back to the pool ([`PrefixStore::recycle_slabs`]); its stale bytes are never read (every capture writes
@@ -927,7 +967,7 @@ impl PrefixStore {
         }
         let buf = match self.slab_pool.iter().position(|b| b.bytes() >= bytes) {
             Some(i) => self.slab_pool.swap_remove(i),
-            None => backend.alloc(bytes.next_multiple_of(SLAB_MIN), MemKind::Device)?,
+            None => backend.alloc(Self::new_slab_size(bytes, self.deferred_footprint()), MemKind::Device)?,
         };
         if let Some((old, _)) = self.slab.take() {
             self.slabs_full.push(old);
@@ -1174,12 +1214,14 @@ impl PrefixStore {
     fn enforce(&mut self, backend: &dyn Backend) {
         while self.used[0] > self.cfg.device_bytes && !self.defer {
             let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Device(..)))) else { break };
-            let mut o = self.objs.remove(&k).unwrap();
+            let ta = Instant::now();
+            // room first, while `k` is still registered: an entry the evictions drop gives its references back to it
+            let (bytes, last_use) = self.objs.get(&k).map(|o| (o.bytes, o.last_use)).unwrap();
+            self.make_host_room(bytes, last_use);
+            let Some(mut o) = self.objs.remove(&k) else { continue }; // went with the entry that needed it
             let Some(Mem::Device(buf, boff)) = o.mem.take() else { unreachable!() };
             self.used[0] -= o.bytes as u64;
             self.stats.device.evictions += 1;
-            let ta = Instant::now();
-            self.make_host_room(o.bytes, o.last_use);
             let mut v = self.take_host_buf(o.bytes);
             let tb = Instant::now();
             let ok = backend.download(&buf, boff, &mut v, 0).is_ok();
@@ -1204,13 +1246,16 @@ impl PrefixStore {
             }
             self.objs.insert(k, o);
         }
-        // host memory = the host tier plus what the disk writer still holds of evicted objects; only an object without a pending
-        // write frees anything when evicted (the others just move to the second part), so only those are candidates. Over budget
-        // with none left, the writer's progress (polled at the next insert / settle) brings it back
-        let mut orphans = self.staged_orphans();
-        while self.used[1] + orphans > self.cfg.host_bytes {
+        // idle pooled buffers go first; then host objects, oldest first. One whose write the disk writer has not confirmed
+        // stays (the writer holds its buffer, so evicting it would free nothing): the tier can be over budget until the writer
+        // confirms it (polled at the next insert / settle) and a later enforce evicts it
+        while self.used[1] + self.host_free_bytes > self.cfg.host_bytes {
+            let Some(v) = self.host_free.pop() else { break };
+            self.host_free_bytes -= v.len() as u64;
+        }
+        while self.used[1] > self.cfg.host_bytes {
             let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Host(_))) && o.pins == 0 && o.staged.is_none()) else { break };
-            orphans += self.evict_host(k);
+            self.evict_host(k);
         }
         while self.used[2] > self.cfg.disk_bytes {
             let Some(k) = self.lru(|o| o.disk.is_some() && o.pins == 0) else { break };
@@ -1228,31 +1273,19 @@ impl PrefixStore {
     }
 
     /// Take `k`'s host copy away: its disk copy stays (when it has one), else the object goes; the buffer is kept for reuse.
-    /// Returns the bytes that stay in host memory anyway (the disk writer still holds them: [`PrefixStore::staged_orphans`]).
-    fn evict_host(&mut self, k: Key) -> u64 {
+    fn evict_host(&mut self, k: Key) {
         self.stats.host.evictions += 1;
         let o = self.objs.get_mut(&k).unwrap();
         if o.disk.is_some() {
             let bytes = o.bytes as u64;
-            let staged = o.staged.is_some();
             let mem = o.mem.take();
             self.used[1] -= bytes;
             if let Some(Mem::Host(v)) = mem {
                 self.release_host(v);
             }
-            if staged {
-                return bytes;
-            }
         } else {
             self.drop_obj(k);
         }
-        0
-    }
-
-    /// Host bytes only the disk writer's queue keeps alive: objects whose host copy was evicted before the writer confirmed
-    /// the file (`staged` without `mem`). They are not in `used[1]` but they are host memory, so the host budget counts them.
-    fn staged_orphans(&self) -> u64 {
-        self.objs.values().filter(|o| o.mem.is_none() && o.staged.is_some()).map(|o| o.bytes as u64).sum()
     }
 
     /// Before a demote of `bytes` (an object last used at `last_use`): evict the host objects that are older than it, oldest
