@@ -1,0 +1,1709 @@
+[supervisor] started server pid 3944823
+--spec mtp default of recipe qwen3_5_moe on cuda not applied: --prefix-store (or INTARSIA_PREFIX_STORE) is set and a drafting request bypasses the store; --spec mtp --prefix-store ... asks for both
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 41 kernel(s) checked, 0 case(s) run, 513 cached
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 2048
+prefix store: the recipe's macro prefill (8192 rows) is off with --max-batch > 1
+prefix store with --max-batch > 1: workspace 1537 MiB
+prefix store: the backend's packed prefill is off with --max-batch > 1
+prefix store: on (build e7daf2fc576054fb, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 36.5s, context 131072 tokens
+sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_config.json; a request's own values win)
+intarsia server listening on http://0.0.0.0:8191
+prefix store: insert 2051 tok: 10 objs, 390 segments, 71.5 MiB in 97.50 ms (keys 0.14, capture 97.36 [drain 0.00, alloc 6.10, copies 91.25, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 4099 tok: 10 objs, 390 segments, 71.5 MiB in 97.54 ms (keys 0.33, capture 97.20 [drain 0.00, alloc 6.05, copies 91.15, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 6147 tok: 10 objs, 390 segments, 71.5 MiB in 100.43 ms (keys 0.20, capture 100.21 [drain 0.00, alloc 6.23, copies 93.98, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 6699 tok: 4 objs, 150 segments, 42.2 MiB in 6.16 ms (keys 0.38, capture 5.77 [drain 0.00, alloc 0.00, copies 5.77, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 9.41 ms, download 4.24 ms
+prefix store: demote 60 KiB: alloc 0.03 ms, download 0.01 ms
+prefix store: demote 32160 KiB: alloc 8.74 ms, download 4.07 ms
+prefix store: demote 60 KiB: alloc 0.03 ms, download 0.01 ms
+prefix store: demote 60 KiB: alloc 0.02 ms, download 2.74 ms
+prefix store: demote 32160 KiB: alloc 8.67 ms, download 6.98 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.64 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.37 ms
+prefix store: demote 32160 KiB: alloc 8.62 ms, download 4.27 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 4.04 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.27 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.44 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.34 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 4.15 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.27 ms
+prefix store: demote 860 KiB: alloc 0.22 ms, download 3.17 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.34 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.80 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.45 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.56 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.55 ms, download 3.43 ms
+prefix store: demote 5120 KiB: alloc 1.54 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.41 ms
+prefix store: settle (after done) moved 256 MiB off the device in 180.2 ms (queue_write 0.00 ms)
+prefix store: insert 44 tok: 2 objs, 70 segments, 32.3 MiB in 2.06 ms (keys 0.00, capture 2.05 [drain 0.00, alloc 0.00, copies 2.05, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 2092 tok: 10 objs, 390 segments, 72.3 MiB in 96.22 ms (keys 0.14, capture 96.07 [drain 0.00, alloc 0.00, copies 96.07, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 4140 tok: 10 objs, 390 segments, 72.3 MiB in 95.52 ms (keys 0.20, capture 95.32 [drain 0.00, alloc 0.00, copies 95.32, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 6188 tok: 10 objs, 390 segments, 72.3 MiB in 98.74 ms (keys 0.19, capture 98.54 [drain 0.00, alloc 6.04, copies 92.49, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 8034 tok: 9 objs, 350 segments, 68.3 MiB in 87.68 ms (keys 0.86, capture 86.80 [drain 0.00, alloc 6.72, copies 80.07, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 2092 tok: 10 objs, 390 segments, 72.3 MiB in 96.09 ms (keys 0.16, capture 95.93 [drain 0.00, alloc 6.19, copies 89.74, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 4140 tok: 10 objs, 390 segments, 72.3 MiB in 97.94 ms (keys 0.30, capture 97.64 [drain 0.00, alloc 6.74, copies 90.89, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 6188 tok: 10 objs, 390 segments, 72.3 MiB in 99.62 ms (keys 0.21, capture 99.40 [drain 0.00, alloc 6.30, copies 93.09, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 8046 tok: 9 objs, 350 segments, 68.6 MiB in 89.35 ms (keys 0.58, capture 88.73 [drain 0.00, alloc 6.78, copies 81.95, sync 0.00], add 0.03, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 9.08 ms, download 4.24 ms
+prefix store: demote 880 KiB: alloc 0.23 ms, download 0.03 ms
+prefix store: demote 880 KiB: alloc 0.23 ms, download 3.36 ms
+prefix store: demote 32160 KiB: alloc 8.86 ms, download 4.15 ms
+prefix store: demote 880 KiB: alloc 0.23 ms, download 0.05 ms
+prefix store: demote 32160 KiB: alloc 8.83 ms, download 4.14 ms
+prefix store: demote 5120 KiB: alloc 1.45 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.97 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.44 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.20 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.13 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 4.74 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.23 ms
+prefix store: demote 1960 KiB: alloc 0.49 ms, download 3.13 ms
+prefix store: demote 32160 KiB: alloc 8.93 ms, download 4.16 ms
+prefix store: demote 5120 KiB: alloc 1.60 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 3.30 ms
+prefix store: demote 5120 KiB: alloc 1.59 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.60 ms, download 4.23 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.57 ms, download 3.46 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.23 ms
+prefix store: demote 5120 KiB: alloc 1.54 ms, download 3.18 ms
+prefix store: demote 5120 KiB: alloc 1.54 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.19 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.20 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.51 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.54 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.52 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 1.54 ms, download 3.19 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 1.52 ms, download 3.20 ms
+prefix store: demote 32160 KiB: alloc 9.27 ms, download 4.55 ms
+prefix store: demote 880 KiB: alloc 0.23 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.45 ms, download 3.98 ms
+prefix store: demote 880 KiB: alloc 0.24 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.22 ms, download 7.34 ms
+prefix store: demote 880 KiB: alloc 0.26 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.58 ms, download 4.39 ms
+prefix store: demote 880 KiB: alloc 0.26 ms, download 0.03 ms
+prefix store: demote 5120 KiB: alloc 1.58 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.33 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.23 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 1.48 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 3.45 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.45 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.33 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.46 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.47 ms
+prefix store: demote 2200 KiB: alloc 0.56 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.63 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 4.04 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.71 ms
+prefix store: demote 5120 KiB: alloc 1.45 ms, download 3.75 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.75 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.80 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.61 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.76 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.37 ms
+prefix store: demote 32160 KiB: alloc 9.18 ms, download 4.49 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 0.10 ms
+prefix store: settle (after done) moved 602 MiB off the device in 420.0 ms (queue_write 0.00 ms)
+prefix store: insert 2092 tok: 10 objs, 390 segments, 72.3 MiB in 96.48 ms (keys 0.14, capture 96.33 [drain 0.00, alloc 0.00, copies 96.33, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 4140 tok: 10 objs, 390 segments, 72.3 MiB in 97.69 ms (keys 0.22, capture 97.47 [drain 0.00, alloc 0.00, copies 97.47, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 6188 tok: 10 objs, 390 segments, 72.3 MiB in 98.91 ms (keys 0.18, capture 98.72 [drain 0.00, alloc 5.76, copies 92.95, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 8041 tok: 9 objs, 350 segments, 68.5 MiB in 88.42 ms (keys 0.59, capture 87.82 [drain 0.00, alloc 6.45, copies 81.37, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 880 KiB: alloc 0.08 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.74 ms, download 4.41 ms
+prefix store: demote 880 KiB: alloc 0.39 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.71 ms, download 4.21 ms
+prefix store: demote 32160 KiB: alloc 9.26 ms, download 4.63 ms
+prefix store: demote 880 KiB: alloc 0.27 ms, download 0.03 ms
+prefix store: demote 5120 KiB: alloc 1.51 ms, download 3.44 ms
+prefix store: demote 5120 KiB: alloc 1.60 ms, download 3.92 ms
+prefix store: demote 5120 KiB: alloc 1.60 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 3.29 ms
+prefix store: demote 5120 KiB: alloc 1.58 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 3.57 ms
+prefix store: demote 5120 KiB: alloc 1.58 ms, download 4.80 ms
+prefix store: demote 5120 KiB: alloc 1.57 ms, download 3.68 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.55 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.64 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.96 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.27 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.69 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.30 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.56 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.65 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 0.15 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.50 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.62 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.67 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.10 ms
+prefix store: demote 32160 KiB: alloc 8.70 ms, download 4.67 ms
+prefix store: demote 2100 KiB: alloc 0.67 ms, download 0.05 ms
+prefix store: settle (after done) moved 285 MiB off the device in 207.6 ms (queue_write 0.00 ms)
+prefix store: insert 2092 tok: 10 objs, 390 segments, 72.3 MiB in 94.64 ms (keys 0.14, capture 94.50 [drain 0.00, alloc 0.00, copies 94.50, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 4140 tok: 10 objs, 390 segments, 72.3 MiB in 97.33 ms (keys 0.21, capture 97.11 [drain 0.00, alloc 0.00, copies 97.11, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 6188 tok: 10 objs, 390 segments, 72.3 MiB in 101.00 ms (keys 0.19, capture 100.81 [drain 0.00, alloc 5.97, copies 94.83, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 8047 tok: 9 objs, 350 segments, 68.6 MiB in 89.39 ms (keys 0.59, capture 88.79 [drain 0.00, alloc 7.02, copies 81.77, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 10.02 ms, download 4.44 ms
+prefix store: demote 880 KiB: alloc 0.05 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.27 ms, download 4.03 ms
+prefix store: demote 880 KiB: alloc 0.26 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.09 ms, download 6.11 ms
+prefix store: demote 880 KiB: alloc 0.23 ms, download 0.03 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.49 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.58 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.58 ms, download 3.92 ms
+prefix store: demote 5120 KiB: alloc 1.59 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.44 ms
+prefix store: demote 5120 KiB: alloc 1.55 ms, download 3.14 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 4.20 ms
+prefix store: demote 5120 KiB: alloc 1.55 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.64 ms
+prefix store: demote 5120 KiB: alloc 1.58 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.58 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 3.51 ms
+prefix store: demote 5120 KiB: alloc 1.58 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.57 ms, download 3.30 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 5.71 ms
+prefix store: demote 32160 KiB: alloc 9.58 ms, download 3.98 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 0.11 ms
+prefix store: demote 2220 KiB: alloc 0.57 ms, download 3.23 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.29 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.28 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.33 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.33 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.43 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.80 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.32 ms
+prefix store: settle (after done) moved 285 MiB off the device in 204.7 ms (queue_write 0.00 ms)
+prefix store: insert 2092 tok: 10 objs, 390 segments, 72.3 MiB in 95.43 ms (keys 0.13, capture 95.29 [drain 0.00, alloc 0.00, copies 95.29, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 4140 tok: 10 objs, 390 segments, 72.3 MiB in 96.06 ms (keys 0.22, capture 95.84 [drain 0.00, alloc 0.00, copies 95.84, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 6188 tok: 10 objs, 390 segments, 72.3 MiB in 99.68 ms (keys 0.18, capture 99.50 [drain 0.00, alloc 6.24, copies 93.26, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 8063 tok: 9 objs, 350 segments, 68.9 MiB in 89.76 ms (keys 0.57, capture 89.17 [drain 0.00, alloc 5.85, copies 83.31, sync 0.00], add 0.02, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 9.71 ms, download 4.35 ms
+prefix store: demote 880 KiB: alloc 0.07 ms, download 0.03 ms
+prefix store: demote 880 KiB: alloc 0.26 ms, download 2.93 ms
+prefix store: demote 32160 KiB: alloc 9.36 ms, download 4.29 ms
+prefix store: demote 32160 KiB: alloc 9.33 ms, download 4.62 ms
+prefix store: demote 880 KiB: alloc 0.24 ms, download 0.03 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.74 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.58 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.44 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.57 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.70 ms
+prefix store: demote 5120 KiB: alloc 1.45 ms, download 0.10 ms
+prefix store: demote 32160 KiB: alloc 9.08 ms, download 4.38 ms
+prefix store: demote 5120 KiB: alloc 1.49 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 3.78 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 3.90 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 1.48 ms, download 6.27 ms
+prefix store: demote 2540 KiB: alloc 0.66 ms, download 3.74 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.73 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 4.23 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.78 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 3.62 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.67 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.90 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.66 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.75 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.68 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.66 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.55 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.29 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.15 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.91 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.30 ms
+prefix store: demote 5120 KiB: alloc 1.20 ms, download 3.37 ms
+prefix store: settle (after done) moved 285 MiB off the device in 212.7 ms (queue_write 0.00 ms)
+prefix store: insert 2092 tok: 10 objs, 390 segments, 72.3 MiB in 95.45 ms (keys 0.16, capture 95.29 [drain 0.00, alloc 0.00, copies 95.29, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 4140 tok: 10 objs, 390 segments, 72.3 MiB in 98.48 ms (keys 0.21, capture 98.27 [drain 0.00, alloc 0.00, copies 98.27, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 6188 tok: 10 objs, 390 segments, 72.3 MiB in 100.70 ms (keys 0.19, capture 100.50 [drain 0.00, alloc 5.99, copies 94.50, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 8041 tok: 9 objs, 350 segments, 68.5 MiB in 88.56 ms (keys 0.60, capture 87.94 [drain 0.00, alloc 6.74, copies 81.20, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 880 KiB: alloc 0.07 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.31 ms, download 4.42 ms
+prefix store: demote 880 KiB: alloc 0.24 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.03 ms, download 4.25 ms
+prefix store: demote 32160 KiB: alloc 8.50 ms, download 4.28 ms
+prefix store: demote 880 KiB: alloc 0.23 ms, download 0.03 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.46 ms
+prefix store: demote 32160 KiB: alloc 8.61 ms, download 4.07 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 5.75 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.23 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.23 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.31 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 4.70 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.19 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.28 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.34 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.27 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.28 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 0.10 ms
+prefix store: demote 2100 KiB: alloc 0.52 ms, download 3.30 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 3.19 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.34 ms
+prefix store: settle (after done) moved 285 MiB off the device in 194.8 ms (queue_write 0.00 ms)
+prefix store: insert 8197 tok: 3 objs, 110 segments, 36.5 MiB in 9.08 ms (keys 0.69, capture 8.38 [drain 0.00, alloc 0.00, copies 8.38, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 10245 tok: 10 objs, 390 segments, 71.5 MiB in 107.92 ms (keys 0.36, capture 107.56 [drain 0.00, alloc 0.00, copies 107.55, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 12293 tok: 10 objs, 390 segments, 71.5 MiB in 109.16 ms (keys 0.36, capture 108.79 [drain 0.00, alloc 0.00, copies 108.79, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 13060 tok: 5 objs, 190 segments, 46.5 MiB in 27.48 ms (keys 0.43, capture 27.05 [drain 0.00, alloc 0.00, copies 27.05, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 100 KiB: alloc 0.00 ms, download 0.01 ms
+prefix store: demote 32160 KiB: alloc 9.11 ms, download 4.52 ms
+prefix store: demote 32160 KiB: alloc 8.58 ms, download 4.22 ms
+prefix store: demote 100 KiB: alloc 0.00 ms, download 0.01 ms
+prefix store: demote 32160 KiB: alloc 8.61 ms, download 6.34 ms
+prefix store: demote 100 KiB: alloc 0.00 ms, download 0.01 ms
+prefix store: demote 5120 KiB: alloc 1.18 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.36 ms
+prefix store: demote 32160 KiB: alloc 8.44 ms, download 4.17 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.52 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.70 ms
+prefix store: demote 5120 KiB: alloc 1.38 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.52 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.55 ms
+prefix store: demote 80 KiB: alloc 0.02 ms, download 2.17 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.33 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 5.65 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 3.34 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.45 ms, download 3.23 ms
+prefix store: demote 5120 KiB: alloc 1.05 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.90 ms, download 3.24 ms
+prefix store: settle (after done) moved 225 MiB off the device in 139.2 ms (queue_write 0.00 ms)
+prefix store: insert 2092 tok: 10 objs, 390 segments, 72.3 MiB in 96.53 ms (keys 0.12, capture 96.41 [drain 0.00, alloc 0.00, copies 96.40, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 4140 tok: 10 objs, 390 segments, 72.3 MiB in 96.05 ms (keys 0.18, capture 95.86 [drain 0.00, alloc 0.00, copies 95.86, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 6188 tok: 10 objs, 390 segments, 72.3 MiB in 100.65 ms (keys 0.17, capture 100.47 [drain 0.00, alloc 5.86, copies 94.61, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 8036 tok: 9 objs, 350 segments, 68.4 MiB in 87.11 ms (keys 0.56, capture 86.55 [drain 0.00, alloc 6.38, copies 80.16, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 880 KiB: alloc 0.07 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 8.88 ms, download 4.30 ms
+prefix store: demote 880 KiB: alloc 0.25 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 8.90 ms, download 4.74 ms
+prefix store: demote 32160 KiB: alloc 9.03 ms, download 4.04 ms
+prefix store: demote 880 KiB: alloc 0.30 ms, download 0.03 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 5.23 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 1.51 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.18 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.12 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.58 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 3.56 ms
+prefix store: demote 5120 KiB: alloc 1.50 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.17 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 3.06 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 5.23 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 3.44 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.58 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.61 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.19 ms
+prefix store: demote 32160 KiB: alloc 9.05 ms, download 4.19 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.38 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.68 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 4.11 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.55 ms
+prefix store: demote 2000 KiB: alloc 0.53 ms, download 3.74 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.34 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 3.51 ms
+prefix store: settle (after done) moved 285 MiB off the device in 203.5 ms (queue_write 0.00 ms)
+prefix store: insert 2092 tok: 10 objs, 390 segments, 72.3 MiB in 95.78 ms (keys 0.13, capture 95.64 [drain 0.00, alloc 0.00, copies 95.64, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 4140 tok: 10 objs, 390 segments, 72.3 MiB in 97.65 ms (keys 0.21, capture 97.43 [drain 0.00, alloc 0.00, copies 97.43, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 6188 tok: 10 objs, 390 segments, 72.3 MiB in 100.98 ms (keys 0.19, capture 100.79 [drain 0.00, alloc 6.00, copies 94.79, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 8033 tok: 9 objs, 350 segments, 68.3 MiB in 88.91 ms (keys 0.59, capture 88.31 [drain 0.00, alloc 6.79, copies 81.53, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 880 KiB: alloc 0.06 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 8.86 ms, download 4.30 ms
+prefix store: demote 32160 KiB: alloc 8.69 ms, download 4.56 ms
+prefix store: demote 880 KiB: alloc 0.29 ms, download 0.03 ms
+prefix store: demote 880 KiB: alloc 0.22 ms, download 2.84 ms
+prefix store: demote 32160 KiB: alloc 8.41 ms, download 4.07 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 0.15 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 6.52 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 4.17 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.14 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.23 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 4.01 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.18 ms
+prefix store: demote 1940 KiB: alloc 0.47 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.20 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.18 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.19 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.18 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.33 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.43 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 3.12 ms
+prefix store: demote 32160 KiB: alloc 8.90 ms, download 3.94 ms
+prefix store: settle (after done) moved 285 MiB off the device in 196.7 ms (queue_write 0.00 ms)
+prefix store: insert 8212 tok: 3 objs, 110 segments, 36.8 MiB in 9.02 ms (keys 0.62, capture 8.40 [drain 0.00, alloc 0.00, copies 8.40, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 10260 tok: 10 objs, 390 segments, 71.8 MiB in 105.60 ms (keys 0.31, capture 105.28 [drain 0.00, alloc 0.00, copies 105.28, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 12308 tok: 10 objs, 390 segments, 71.8 MiB in 110.09 ms (keys 0.39, capture 109.69 [drain 0.00, alloc 0.00, copies 109.69, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 13067 tok: 5 objs, 190 segments, 46.6 MiB in 26.96 ms (keys 0.45, capture 26.51 [drain 0.00, alloc 0.00, copies 26.51, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 400 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 9.25 ms, download 4.79 ms
+prefix store: demote 400 KiB: alloc 0.03 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 8.60 ms, download 4.09 ms
+prefix store: demote 32160 KiB: alloc 8.41 ms, download 4.14 ms
+prefix store: demote 400 KiB: alloc 0.11 ms, download 0.02 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 6.08 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 3.65 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 3.61 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 4.54 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.61 ms
+prefix store: demote 220 KiB: alloc 0.06 ms, download 2.84 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.51 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.51 ms, download 3.63 ms
+prefix store: demote 5120 KiB: alloc 1.45 ms, download 3.62 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 3.59 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 4.30 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 3.31 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.31 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 3.51 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 3.51 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 0.10 ms
+prefix store: demote 32160 KiB: alloc 9.18 ms, download 4.17 ms
+prefix store: settle (after done) moved 227 MiB off the device in 151.8 ms (queue_write 0.00 ms)
+prefix store: insert 8211 tok: 3 objs, 110 segments, 36.8 MiB in 8.72 ms (keys 0.85, capture 7.87 [drain 0.00, alloc 0.00, copies 7.87, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 10259 tok: 10 objs, 390 segments, 71.8 MiB in 108.80 ms (keys 0.31, capture 108.49 [drain 0.00, alloc 0.00, copies 108.49, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 12307 tok: 10 objs, 390 segments, 71.8 MiB in 109.57 ms (keys 0.37, capture 109.20 [drain 0.00, alloc 0.00, copies 109.20, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 13072 tok: 5 objs, 190 segments, 46.7 MiB in 26.25 ms (keys 0.39, capture 25.86 [drain 0.00, alloc 0.00, copies 25.86, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 380 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 9.08 ms, download 5.30 ms
+prefix store: demote 380 KiB: alloc 0.02 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 8.90 ms, download 4.08 ms
+prefix store: demote 380 KiB: alloc 0.11 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 8.57 ms, download 4.07 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 4.52 ms
+prefix store: demote 32160 KiB: alloc 8.53 ms, download 4.26 ms
+prefix store: demote 320 KiB: alloc 0.15 ms, download 0.02 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 3.60 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 3.90 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 4.27 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.51 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.60 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 4.39 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.63 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.59 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.55 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.57 ms
+prefix store: settle (after done) moved 227 MiB off the device in 145.8 ms (queue_write 0.00 ms)
+prefix store: insert 8206 tok: 3 objs, 110 segments, 36.7 MiB in 8.14 ms (keys 0.71, capture 7.43 [drain 0.00, alloc 0.00, copies 7.43, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 10254 tok: 10 objs, 390 segments, 71.7 MiB in 105.50 ms (keys 0.37, capture 105.13 [drain 0.00, alloc 0.00, copies 105.13, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 12302 tok: 10 objs, 390 segments, 71.7 MiB in 110.70 ms (keys 0.37, capture 110.32 [drain 0.00, alloc 0.00, copies 110.32, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 13051 tok: 4 objs, 150 segments, 46.3 MiB in 22.35 ms (keys 0.46, capture 21.88 [drain 0.00, alloc 0.00, copies 21.88, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 9.27 ms, download 4.48 ms
+prefix store: demote 280 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 8.82 ms, download 4.31 ms
+prefix store: demote 280 KiB: alloc 0.00 ms, download 0.01 ms
+prefix store: demote 32160 KiB: alloc 8.80 ms, download 4.48 ms
+prefix store: demote 280 KiB: alloc 0.04 ms, download 0.02 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.41 ms
+prefix store: demote 5020 KiB: alloc 1.39 ms, download 3.55 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.68 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.61 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.55 ms
+prefix store: demote 32160 KiB: alloc 8.60 ms, download 4.15 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 5.32 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.51 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.52 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.54 ms
+prefix store: settle (after done) moved 226 MiB off the device in 141.3 ms (queue_write 0.00 ms)
+prefix store: insert 13225 tok: 2 objs, 70 segments, 34.7 MiB in 6.12 ms (keys 0.78, capture 5.34 [drain 0.00, alloc 0.00, copies 5.34, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 15273 tok: 10 objs, 390 segments, 74.7 MiB in 114.38 ms (keys 0.95, capture 113.42 [drain 0.00, alloc 0.00, copies 113.42, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 17321 tok: 10 objs, 390 segments, 74.7 MiB in 117.30 ms (keys 0.66, capture 116.63 [drain 0.00, alloc 0.00, copies 116.63, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 18084 tok: 5 objs, 190 segments, 49.6 MiB in 28.44 ms (keys 0.64, capture 27.79 [drain 0.00, alloc 0.00, copies 27.79, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 3380 KiB: alloc 0.60 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 9.29 ms, download 4.47 ms
+prefix store: demote 32160 KiB: alloc 8.51 ms, download 5.89 ms
+prefix store: demote 3380 KiB: alloc 0.84 ms, download 0.08 ms
+prefix store: demote 3380 KiB: alloc 0.83 ms, download 3.41 ms
+prefix store: demote 32160 KiB: alloc 8.69 ms, download 5.90 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 4.49 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.66 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.66 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.43 ms
+prefix store: demote 32160 KiB: alloc 8.44 ms, download 4.35 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 3.70 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 4.61 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 3.67 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 3.65 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.67 ms
+prefix store: demote 3280 KiB: alloc 0.96 ms, download 3.19 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.16 ms
+prefix store: demote 5120 KiB: alloc 1.46 ms, download 3.15 ms
+prefix store: demote 5120 KiB: alloc 1.47 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.50 ms, download 5.08 ms
+prefix store: settle (after done) moved 233 MiB off the device in 148.6 ms (queue_write 0.00 ms)
+prefix store: insert 8228 tok: 3 objs, 110 segments, 37.1 MiB in 8.64 ms (keys 0.78, capture 7.86 [drain 0.00, alloc 0.00, copies 7.85, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 10276 tok: 10 objs, 390 segments, 72.1 MiB in 107.56 ms (keys 0.33, capture 107.23 [drain 0.00, alloc 0.00, copies 107.23, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 12324 tok: 10 objs, 390 segments, 72.1 MiB in 110.40 ms (keys 0.36, capture 110.03 [drain 0.00, alloc 0.00, copies 110.03, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 13087 tok: 5 objs, 190 segments, 47.0 MiB in 26.94 ms (keys 0.37, capture 26.57 [drain 0.00, alloc 0.00, copies 26.57, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 9.37 ms, download 3.97 ms
+prefix store: demote 720 KiB: alloc 0.01 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.30 ms, download 4.63 ms
+prefix store: demote 720 KiB: alloc 0.18 ms, download 0.03 ms
+prefix store: demote 720 KiB: alloc 0.18 ms, download 3.21 ms
+prefix store: demote 32160 KiB: alloc 8.86 ms, download 4.74 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 3.51 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.29 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.29 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.33 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 4.31 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 3.42 ms
+prefix store: demote 32160 KiB: alloc 9.24 ms, download 4.38 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.45 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.45 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.45 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.16 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.17 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.79 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.30 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.27 ms
+prefix store: demote 620 KiB: alloc 0.15 ms, download 1.46 ms
+prefix store: settle (after done) moved 228 MiB off the device in 145.2 ms (queue_write 0.00 ms)
+prefix store: insert 8206 tok: 3 objs, 110 segments, 36.7 MiB in 8.90 ms (keys 0.62, capture 8.28 [drain 0.00, alloc 0.00, copies 8.28, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 10254 tok: 10 objs, 390 segments, 71.7 MiB in 105.83 ms (keys 0.32, capture 105.50 [drain 0.00, alloc 0.00, copies 105.50, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 12302 tok: 10 objs, 390 segments, 71.7 MiB in 108.58 ms (keys 0.39, capture 108.19 [drain 0.00, alloc 0.00, copies 108.19, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 13072 tok: 5 objs, 190 segments, 46.7 MiB in 25.35 ms (keys 0.39, capture 24.96 [drain 0.00, alloc 0.00, copies 24.96, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 280 KiB: alloc 0.00 ms, download 0.01 ms
+prefix store: demote 32160 KiB: alloc 9.07 ms, download 4.44 ms
+prefix store: demote 32160 KiB: alloc 8.61 ms, download 4.19 ms
+prefix store: demote 280 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 280 KiB: alloc 0.04 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 8.52 ms, download 4.24 ms
+prefix store: demote 5120 KiB: alloc 1.45 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.92 ms
+prefix store: demote 5120 KiB: alloc 1.50 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.28 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 4.20 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 3.23 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.13 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 4.06 ms
+prefix store: demote 32160 KiB: alloc 8.83 ms, download 4.38 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 4.40 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.45 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.50 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.41 ms
+prefix store: demote 320 KiB: alloc 0.08 ms, download 1.11 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.42 ms
+prefix store: settle (after done) moved 226 MiB off the device in 137.3 ms (queue_write 0.00 ms)
+prefix store: insert 13232 tok: 2 objs, 70 segments, 34.8 MiB in 6.20 ms (keys 0.92, capture 5.28 [drain 0.00, alloc 0.00, copies 5.28, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 15280 tok: 10 objs, 390 segments, 74.8 MiB in 114.64 ms (keys 0.87, capture 113.76 [drain 0.00, alloc 0.00, copies 113.76, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 17328 tok: 10 objs, 390 segments, 74.8 MiB in 116.60 ms (keys 0.63, capture 115.97 [drain 0.00, alloc 0.00, copies 115.97, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 18093 tok: 5 objs, 190 segments, 49.8 MiB in 27.16 ms (keys 0.60, capture 26.56 [drain 0.00, alloc 0.00, copies 26.56, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 9.01 ms, download 4.33 ms
+prefix store: demote 3520 KiB: alloc 0.53 ms, download 0.08 ms
+prefix store: demote 3520 KiB: alloc 1.01 ms, download 3.44 ms
+prefix store: demote 32160 KiB: alloc 8.91 ms, download 4.33 ms
+prefix store: demote 32160 KiB: alloc 8.62 ms, download 4.07 ms
+prefix store: demote 3520 KiB: alloc 0.96 ms, download 0.08 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.52 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.57 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.53 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 0.10 ms
+prefix store: demote 3460 KiB: alloc 0.88 ms, download 3.50 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.51 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.58 ms
+prefix store: demote 32160 KiB: alloc 8.76 ms, download 4.11 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 4.69 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 4.73 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.20 ms, download 3.34 ms
+prefix store: settle (after done) moved 234 MiB off the device in 155.1 ms (queue_write 0.00 ms)
+prefix store: insert 8201 tok: 3 objs, 110 segments, 36.6 MiB in 8.70 ms (keys 0.82, capture 7.88 [drain 0.00, alloc 0.00, copies 7.88, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 10249 tok: 10 objs, 390 segments, 71.6 MiB in 108.41 ms (keys 0.34, capture 108.07 [drain 0.00, alloc 0.00, copies 108.07, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 12297 tok: 10 objs, 390 segments, 71.6 MiB in 109.57 ms (keys 0.39, capture 109.17 [drain 0.00, alloc 0.00, copies 109.17, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 13056 tok: 4 objs, 150 segments, 46.4 MiB in 22.60 ms (keys 0.39, capture 22.21 [drain 0.00, alloc 0.00, copies 22.21, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 8.98 ms, download 4.57 ms
+prefix store: demote 180 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 180 KiB: alloc 0.00 ms, download 0.01 ms
+prefix store: demote 32160 KiB: alloc 7.99 ms, download 4.21 ms
+prefix store: demote 32160 KiB: alloc 8.47 ms, download 4.39 ms
+prefix store: demote 180 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 5120 KiB: alloc 1.21 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.70 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 4.63 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.80 ms
+prefix store: demote 32160 KiB: alloc 8.18 ms, download 4.98 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.62 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.91 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.58 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.65 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.27 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 5.80 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.49 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.20 ms
+prefix store: settle (after done) moved 226 MiB off the device in 141.2 ms (queue_write 0.00 ms)
+prefix store: insert 8198 tok: 3 objs, 110 segments, 36.5 MiB in 8.56 ms (keys 0.73, capture 7.84 [drain 0.00, alloc 0.00, copies 7.83, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 10246 tok: 10 objs, 390 segments, 71.5 MiB in 106.53 ms (keys 0.32, capture 106.21 [drain 0.00, alloc 0.00, copies 106.20, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 12294 tok: 10 objs, 390 segments, 71.5 MiB in 109.34 ms (keys 0.40, capture 108.94 [drain 0.00, alloc 0.00, copies 108.94, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 13053 tok: 4 objs, 150 segments, 46.3 MiB in 22.66 ms (keys 0.38, capture 22.28 [drain 0.00, alloc 0.00, copies 22.28, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 8.97 ms, download 4.40 ms
+prefix store: demote 120 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 8.45 ms, download 4.45 ms
+prefix store: demote 120 KiB: alloc 0.00 ms, download 0.01 ms
+prefix store: demote 32160 KiB: alloc 8.48 ms, download 4.00 ms
+prefix store: demote 120 KiB: alloc 0.00 ms, download 0.01 ms
+prefix store: demote 5120 KiB: alloc 1.18 ms, download 0.10 ms
+prefix store: demote 5060 KiB: alloc 1.43 ms, download 0.12 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.45 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.46 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.48 ms
+prefix store: demote 32160 KiB: alloc 8.67 ms, download 4.53 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 4.16 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 3.55 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.50 ms
+prefix store: demote 5120 KiB: alloc 1.19 ms, download 4.35 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.43 ms
+prefix store: demote 5120 KiB: alloc 1.20 ms, download 3.53 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.54 ms
+prefix store: settle (after done) moved 225 MiB off the device in 145.6 ms (queue_write 0.00 ms)
+prefix store: insert 18249 tok: 3 objs, 110 segments, 37.8 MiB in 10.02 ms (keys 1.40, capture 8.61 [drain 0.00, alloc 0.00, copies 8.60, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 20297 tok: 10 objs, 390 segments, 72.8 MiB in 123.01 ms (keys 0.63, capture 122.38 [drain 0.00, alloc 0.00, copies 122.38, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 22345 tok: 10 objs, 390 segments, 72.8 MiB in 125.03 ms (keys 0.66, capture 124.36 [drain 0.00, alloc 0.00, copies 124.36, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 23112 tok: 5 objs, 190 segments, 47.8 MiB in 28.77 ms (keys 0.68, capture 28.09 [drain 0.00, alloc 0.00, copies 28.09, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 8.56 ms, download 4.37 ms
+prefix store: demote 1460 KiB: alloc 0.02 ms, download 0.04 ms
+prefix store: demote 1460 KiB: alloc 0.36 ms, download 3.89 ms
+prefix store: demote 32160 KiB: alloc 8.11 ms, download 4.43 ms
+prefix store: demote 1460 KiB: alloc 0.40 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 8.78 ms, download 4.10 ms
+prefix store: demote 32160 KiB: alloc 7.60 ms, download 3.86 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 0.12 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 5.25 ms
+prefix store: demote 5120 KiB: alloc 0.84 ms, download 3.31 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 0.90 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 0.90 ms, download 5.88 ms
+prefix store: demote 5120 KiB: alloc 0.90 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 3.43 ms
+prefix store: demote 5120 KiB: alloc 0.89 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 0.90 ms, download 3.44 ms
+prefix store: demote 1440 KiB: alloc 0.25 ms, download 2.48 ms
+prefix store: demote 5120 KiB: alloc 0.89 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 0.90 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 5.98 ms
+prefix store: demote 5120 KiB: alloc 0.90 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 0.83 ms, download 3.37 ms
+prefix store: settle (after done) moved 231 MiB off the device in 139.5 ms (queue_write 0.00 ms)
+prefix store: insert 13224 tok: 2 objs, 70 segments, 34.7 MiB in 5.40 ms (keys 0.51, capture 4.89 [drain 0.00, alloc 0.00, copies 4.89, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 15272 tok: 10 objs, 390 segments, 74.7 MiB in 114.11 ms (keys 0.79, capture 113.32 [drain 0.00, alloc 0.00, copies 113.32, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 17320 tok: 10 objs, 390 segments, 74.7 MiB in 116.23 ms (keys 0.57, capture 115.66 [drain 0.00, alloc 0.00, copies 115.66, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 18099 tok: 5 objs, 190 segments, 49.9 MiB in 27.61 ms (keys 0.58, capture 27.02 [drain 0.00, alloc 0.00, copies 27.02, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 8.77 ms, download 4.68 ms
+prefix store: demote 3360 KiB: alloc 0.50 ms, download 0.07 ms
+prefix store: demote 3360 KiB: alloc 0.82 ms, download 3.36 ms
+prefix store: demote 32160 KiB: alloc 8.45 ms, download 3.81 ms
+prefix store: demote 3360 KiB: alloc 0.95 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 8.78 ms, download 4.30 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.50 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 5.30 ms
+prefix store: demote 32160 KiB: alloc 8.78 ms, download 4.00 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.45 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.43 ms
+prefix store: demote 5120 KiB: alloc 0.94 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 3.52 ms
+prefix store: demote 5120 KiB: alloc 0.83 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 5.84 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 3.55 ms
+prefix store: demote 5120 KiB: alloc 0.83 ms, download 3.55 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 0.83 ms, download 4.10 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 3.43 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 3.40 ms
+prefix store: demote 3580 KiB: alloc 0.58 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.83 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.91 ms, download 0.10 ms
+prefix store: settle (after done) moved 233 MiB off the device in 130.7 ms (queue_write 0.00 ms)
+prefix store: insert 13216 tok: 3 objs, 110 segments, 39.5 MiB in 10.10 ms (keys 0.58, capture 9.52 [drain 0.00, alloc 0.00, copies 9.52, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 15264 tok: 10 objs, 390 segments, 74.5 MiB in 114.97 ms (keys 0.74, capture 114.22 [drain 0.00, alloc 0.00, copies 114.22, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 17312 tok: 10 objs, 390 segments, 74.5 MiB in 117.36 ms (keys 0.62, capture 116.73 [drain 0.00, alloc 0.00, copies 116.73, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 18079 tok: 5 objs, 190 segments, 49.5 MiB in 28.33 ms (keys 0.72, capture 27.61 [drain 0.00, alloc 0.00, copies 27.61, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 3200 KiB: alloc 0.60 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 8.64 ms, download 4.61 ms
+prefix store: demote 3200 KiB: alloc 0.82 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 7.83 ms, download 4.13 ms
+prefix store: demote 32160 KiB: alloc 8.31 ms, download 4.61 ms
+prefix store: demote 3200 KiB: alloc 0.78 ms, download 0.08 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.28 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.35 ms
+prefix store: demote 32160 KiB: alloc 8.55 ms, download 4.20 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.23 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.23 ms
+prefix store: demote 3180 KiB: alloc 0.80 ms, download 3.23 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.20 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.14 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.17 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.13 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 4.45 ms
+prefix store: settle (after done) moved 238 MiB off the device in 142.8 ms (queue_write 0.00 ms)
+prefix store: insert 18258 tok: 3 objs, 110 segments, 38.0 MiB in 10.74 ms (keys 1.44, capture 9.29 [drain 0.00, alloc 0.00, copies 9.29, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 20306 tok: 10 objs, 390 segments, 73.0 MiB in 122.85 ms (keys 0.62, capture 122.22 [drain 0.00, alloc 0.00, copies 122.22, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 22354 tok: 10 objs, 390 segments, 73.0 MiB in 124.96 ms (keys 0.66, capture 124.30 [drain 0.00, alloc 0.00, copies 124.29, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 23130 tok: 5 objs, 190 segments, 48.2 MiB in 29.13 ms (keys 0.67, capture 28.46 [drain 0.00, alloc 0.00, copies 28.46, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 1640 KiB: alloc 0.07 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 8.68 ms, download 4.47 ms
+prefix store: demote 1640 KiB: alloc 0.42 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 8.80 ms, download 4.70 ms
+prefix store: demote 1640 KiB: alloc 0.40 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 8.50 ms, download 4.01 ms
+prefix store: demote 5120 KiB: alloc 1.45 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.88 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.75 ms
+prefix store: demote 32160 KiB: alloc 8.87 ms, download 3.99 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 4.47 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.53 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.30 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 0.14 ms
+prefix store: demote 1800 KiB: alloc 0.44 ms, download 4.57 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.34 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.45 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.25 ms
+prefix store: settle (after done) moved 232 MiB off the device in 143.6 ms (queue_write 0.00 ms)
+prefix store: insert 13246 tok: 2 objs, 70 segments, 35.1 MiB in 5.95 ms (keys 0.96, capture 4.99 [drain 0.00, alloc 0.00, copies 4.99, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 15294 tok: 10 objs, 390 segments, 75.1 MiB in 113.79 ms (keys 0.95, capture 112.84 [drain 0.00, alloc 0.00, copies 112.84, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 17342 tok: 10 objs, 390 segments, 75.1 MiB in 116.50 ms (keys 0.60, capture 115.90 [drain 0.00, alloc 0.00, copies 115.90, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 18104 tok: 5 objs, 190 segments, 50.0 MiB in 29.27 ms (keys 0.61, capture 28.65 [drain 0.00, alloc 0.00, copies 28.65, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 8.04 ms, download 4.09 ms
+prefix store: demote 3800 KiB: alloc 0.40 ms, download 0.08 ms
+prefix store: demote 3800 KiB: alloc 0.67 ms, download 3.27 ms
+prefix store: demote 32160 KiB: alloc 5.59 ms, download 4.62 ms
+prefix store: demote 3800 KiB: alloc 0.64 ms, download 0.08 ms
+prefix store: demote 32160 KiB: alloc 7.01 ms, download 4.19 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 0.18 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.31 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.34 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.27 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.61 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.78 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 0.10 ms
+prefix store: demote 3680 KiB: alloc 0.87 ms, download 3.62 ms
+prefix store: demote 32160 KiB: alloc 7.75 ms, download 4.15 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 4.14 ms
+prefix store: demote 5120 KiB: alloc 1.21 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.25 ms
+prefix store: settle (after done) moved 235 MiB off the device in 131.6 ms (queue_write 0.00 ms)
+prefix store: insert 13237 tok: 2 objs, 70 segments, 34.9 MiB in 6.02 ms (keys 0.84, capture 5.17 [drain 0.00, alloc 0.00, copies 5.17, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 15285 tok: 10 objs, 390 segments, 74.9 MiB in 114.17 ms (keys 0.85, capture 113.31 [drain 0.00, alloc 0.00, copies 113.31, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 17333 tok: 10 objs, 390 segments, 74.9 MiB in 117.66 ms (keys 0.60, capture 117.06 [drain 0.00, alloc 0.00, copies 117.06, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 18100 tok: 5 objs, 190 segments, 49.9 MiB in 28.03 ms (keys 0.61, capture 27.42 [drain 0.00, alloc 0.00, copies 27.42, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 8.37 ms, download 4.46 ms
+prefix store: demote 3620 KiB: alloc 0.54 ms, download 0.08 ms
+prefix store: demote 3620 KiB: alloc 1.01 ms, download 0.09 ms
+prefix store: demote 32160 KiB: alloc 8.03 ms, download 5.25 ms
+prefix store: demote 32160 KiB: alloc 7.82 ms, download 4.12 ms
+prefix store: demote 3620 KiB: alloc 0.87 ms, download 0.08 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.73 ms
+prefix store: demote 5120 KiB: alloc 1.19 ms, download 3.33 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.52 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 4.00 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.28 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.27 ms
+prefix store: demote 3600 KiB: alloc 0.90 ms, download 3.27 ms
+prefix store: demote 32160 KiB: alloc 8.49 ms, download 4.00 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 4.07 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.34 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.34 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.34 ms
+prefix store: settle (after done) moved 234 MiB off the device in 146.1 ms (queue_write 0.00 ms)
+prefix store: insert 23277 tok: 2 objs, 70 segments, 36.0 MiB in 6.49 ms (keys 1.50, capture 4.99 [drain 0.00, alloc 0.00, copies 4.99, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 25325 tok: 10 objs, 390 segments, 76.0 MiB in 130.78 ms (keys 0.74, capture 130.04 [drain 0.00, alloc 0.00, copies 130.04, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 27373 tok: 10 objs, 390 segments, 76.0 MiB in 131.83 ms (keys 0.77, capture 131.05 [drain 0.00, alloc 0.00, copies 131.05, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 28148 tok: 5 objs, 190 segments, 51.2 MiB in 28.53 ms (keys 0.83, capture 27.70 [drain 0.00, alloc 0.00, copies 27.70, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 8.08 ms, download 4.23 ms
+prefix store: demote 4740 KiB: alloc 0.82 ms, download 0.10 ms
+prefix store: demote 4740 KiB: alloc 1.17 ms, download 3.42 ms
+prefix store: demote 32160 KiB: alloc 8.03 ms, download 4.20 ms
+prefix store: demote 32160 KiB: alloc 7.82 ms, download 3.85 ms
+prefix store: demote 4740 KiB: alloc 1.15 ms, download 0.12 ms
+prefix store: demote 32160 KiB: alloc 8.18 ms, download 4.30 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.28 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 4.25 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.28 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 5.57 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.29 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 1.21 ms, download 3.10 ms
+prefix store: demote 4880 KiB: alloc 1.19 ms, download 5.67 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 1.04 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 0.82 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 0.89 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 3.28 ms
+prefix store: settle (after done) moved 239 MiB off the device in 140.3 ms (queue_write 0.00 ms)
+prefix store: insert 13221 tok: 2 objs, 70 segments, 34.6 MiB in 6.63 ms (keys 0.60, capture 6.03 [drain 0.00, alloc 0.00, copies 6.02, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 15269 tok: 10 objs, 390 segments, 74.6 MiB in 114.64 ms (keys 0.77, capture 113.87 [drain 0.00, alloc 0.00, copies 113.87, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 17317 tok: 10 objs, 390 segments, 74.6 MiB in 116.55 ms (keys 0.62, capture 115.93 [drain 0.00, alloc 0.00, copies 115.93, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 18077 tok: 5 objs, 190 segments, 49.5 MiB in 27.84 ms (keys 0.60, capture 27.24 [drain 0.00, alloc 0.00, copies 27.24, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 3300 KiB: alloc 0.54 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 8.77 ms, download 4.60 ms
+prefix store: demote 32160 KiB: alloc 8.69 ms, download 4.87 ms
+prefix store: demote 3300 KiB: alloc 0.83 ms, download 0.09 ms
+prefix store: demote 3300 KiB: alloc 0.79 ms, download 3.76 ms
+prefix store: demote 32160 KiB: alloc 7.84 ms, download 4.10 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.31 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 4.71 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 1.20 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.50 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.56 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.33 ms
+prefix store: demote 3140 KiB: alloc 0.76 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.27 ms
+prefix store: demote 32160 KiB: alloc 7.96 ms, download 4.45 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 4.03 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.17 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.33 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.31 ms
+prefix store: settle (after done) moved 233 MiB off the device in 141.6 ms (queue_write 0.00 ms)
+prefix store: insert 13218 tok: 3 objs, 110 segments, 39.6 MiB in 9.61 ms (keys 0.77, capture 8.83 [drain 0.00, alloc 0.00, copies 8.83, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 15266 tok: 10 objs, 390 segments, 74.6 MiB in 114.92 ms (keys 0.87, capture 114.04 [drain 0.00, alloc 0.00, copies 114.04, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 17314 tok: 10 objs, 390 segments, 74.6 MiB in 117.43 ms (keys 0.58, capture 116.85 [drain 0.00, alloc 0.00, copies 116.85, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 18069 tok: 5 objs, 190 segments, 49.3 MiB in 28.61 ms (keys 0.60, capture 28.01 [drain 0.00, alloc 0.00, copies 28.01, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 3240 KiB: alloc 0.42 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 8.58 ms, download 4.20 ms
+prefix store: demote 3240 KiB: alloc 0.85 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 8.23 ms, download 4.29 ms
+prefix store: demote 3240 KiB: alloc 0.80 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 8.56 ms, download 4.70 ms
+prefix store: demote 2980 KiB: alloc 0.74 ms, download 0.09 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.27 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.23 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.28 ms
+prefix store: demote 32160 KiB: alloc 8.29 ms, download 3.88 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 4.65 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.44 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.52 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.68 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.56 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.58 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.63 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.66 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.31 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.24 ms
+prefix store: settle (after done) moved 238 MiB off the device in 143.0 ms (queue_write 0.00 ms)
+prefix store: insert 23295 tok: 2 objs, 70 segments, 36.4 MiB in 6.39 ms (keys 1.51, capture 4.88 [drain 0.00, alloc 0.00, copies 4.88, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 25343 tok: 10 objs, 390 segments, 76.4 MiB in 129.43 ms (keys 0.76, capture 128.66 [drain 0.00, alloc 0.00, copies 128.66, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 27391 tok: 10 objs, 390 segments, 76.4 MiB in 132.25 ms (keys 0.80, capture 131.44 [drain 0.00, alloc 0.00, copies 131.44, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 28156 tok: 5 objs, 190 segments, 51.3 MiB in 29.32 ms (keys 0.79, capture 28.51 [drain 0.00, alloc 0.00, copies 28.51, sync 0.00], add 0.02, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 5100 KiB: alloc 1.15 ms, download 0.10 ms
+prefix store: demote 32160 KiB: alloc 8.52 ms, download 7.70 ms
+prefix store: demote 5100 KiB: alloc 1.24 ms, download 0.11 ms
+prefix store: demote 32160 KiB: alloc 8.42 ms, download 5.19 ms
+prefix store: demote 5100 KiB: alloc 1.33 ms, download 0.11 ms
+prefix store: demote 32160 KiB: alloc 8.48 ms, download 3.94 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.21 ms, download 4.27 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.27 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.29 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.68 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.60 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 0.10 ms
+prefix store: demote 5040 KiB: alloc 1.20 ms, download 3.58 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.62 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.79 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.91 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.26 ms
+prefix store: demote 32160 KiB: alloc 8.19 ms, download 4.65 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.64 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.61 ms
+prefix store: settle (after done) moved 240 MiB off the device in 144.8 ms (queue_write 0.00 ms)
+prefix store: insert 18255 tok: 3 objs, 110 segments, 37.9 MiB in 9.92 ms (keys 1.39, capture 8.52 [drain 0.00, alloc 0.00, copies 8.52, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 20303 tok: 10 objs, 390 segments, 72.9 MiB in 122.94 ms (keys 0.64, capture 122.29 [drain 0.00, alloc 0.00, copies 122.29, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 22351 tok: 10 objs, 390 segments, 72.9 MiB in 125.75 ms (keys 0.70, capture 125.05 [drain 0.00, alloc 0.00, copies 125.05, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 23111 tok: 5 objs, 190 segments, 47.8 MiB in 28.59 ms (keys 0.67, capture 27.92 [drain 0.00, alloc 0.00, copies 27.92, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 8.07 ms, download 4.53 ms
+prefix store: demote 1580 KiB: alloc 0.05 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 7.79 ms, download 4.18 ms
+prefix store: demote 1580 KiB: alloc 0.39 ms, download 0.04 ms
+prefix store: demote 1580 KiB: alloc 0.39 ms, download 3.23 ms
+prefix store: demote 32160 KiB: alloc 7.96 ms, download 4.17 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 0.10 ms
+prefix store: demote 1420 KiB: alloc 0.36 ms, download 0.04 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.29 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 6.05 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.19 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 4.03 ms
+prefix store: demote 32160 KiB: alloc 8.31 ms, download 4.73 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 0.22 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 4.60 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.27 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.46 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.44 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 4.44 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.52 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.30 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.60 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.46 ms
+prefix store: settle (after done) moved 231 MiB off the device in 140.5 ms (queue_write 0.00 ms)
+prefix store: insert 18244 tok: 3 objs, 110 segments, 37.7 MiB in 10.90 ms (keys 1.37, capture 9.52 [drain 0.00, alloc 0.00, copies 9.52, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 20292 tok: 10 objs, 390 segments, 72.7 MiB in 120.94 ms (keys 0.64, capture 120.30 [drain 0.00, alloc 0.00, copies 120.30, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 22340 tok: 10 objs, 390 segments, 72.7 MiB in 123.54 ms (keys 0.69, capture 122.84 [drain 0.00, alloc 0.00, copies 122.84, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 23102 tok: 5 objs, 190 segments, 47.6 MiB in 29.40 ms (keys 0.68, capture 28.72 [drain 0.00, alloc 0.00, copies 28.72, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 8.88 ms, download 4.34 ms
+prefix store: demote 1360 KiB: alloc 0.02 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 8.56 ms, download 4.39 ms
+prefix store: demote 1360 KiB: alloc 0.31 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 8.35 ms, download 4.65 ms
+prefix store: demote 1360 KiB: alloc 0.37 ms, download 0.04 ms
+prefix store: demote 1240 KiB: alloc 0.31 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.61 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.65 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.62 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.31 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.86 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 4.06 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.45 ms
+prefix store: demote 32160 KiB: alloc 8.13 ms, download 4.47 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.78 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.74 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.43 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 5.31 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.79 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.71 ms
+prefix store: settle (after done) moved 230 MiB off the device in 145.6 ms (queue_write 0.00 ms)
+prefix store: insert 28313 tok: 3 objs, 110 segments, 39.4 MiB in 11.38 ms (keys 1.63, capture 9.74 [drain 0.00, alloc 0.00, copies 9.74, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 30361 tok: 10 objs, 390 segments, 74.4 MiB in 136.78 ms (keys 1.79, capture 134.99 [drain 0.00, alloc 0.00, copies 134.99, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 32409 tok: 10 objs, 390 segments, 74.4 MiB in 138.99 ms (keys 1.16, capture 137.83 [drain 0.00, alloc 0.00, copies 137.83, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 33162 tok: 5 objs, 190 segments, 49.1 MiB in 30.21 ms (keys 1.11, capture 29.09 [drain 0.00, alloc 0.00, copies 29.09, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 3060 KiB: alloc 0.03 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 8.30 ms, download 4.54 ms
+prefix store: demote 32160 KiB: alloc 8.22 ms, download 4.43 ms
+prefix store: demote 3060 KiB: alloc 0.74 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 7.93 ms, download 4.67 ms
+prefix store: demote 3060 KiB: alloc 0.78 ms, download 0.09 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.34 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.97 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.64 ms
+prefix store: demote 32160 KiB: alloc 8.35 ms, download 5.47 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.56 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.55 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.20 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 4.18 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.21 ms, download 3.45 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.58 ms
+prefix store: demote 2760 KiB: alloc 0.66 ms, download 3.29 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.50 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.58 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.57 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.63 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 0.10 ms
+prefix store: settle (after done) moved 237 MiB off the device in 143.4 ms (queue_write 0.00 ms)
+prefix store: insert 18259 tok: 3 objs, 110 segments, 38.0 MiB in 10.32 ms (keys 1.49, capture 8.82 [drain 0.00, alloc 0.00, copies 8.82, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 20307 tok: 10 objs, 390 segments, 73.0 MiB in 121.04 ms (keys 0.65, capture 120.39 [drain 0.00, alloc 0.00, copies 120.39, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 22355 tok: 10 objs, 390 segments, 73.0 MiB in 125.09 ms (keys 0.66, capture 124.42 [drain 0.00, alloc 0.00, copies 124.42, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 23125 tok: 5 objs, 190 segments, 48.1 MiB in 28.29 ms (keys 0.67, capture 27.62 [drain 0.00, alloc 0.00, copies 27.62, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 1660 KiB: alloc 0.07 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 8.86 ms, download 4.46 ms
+prefix store: demote 32160 KiB: alloc 8.27 ms, download 4.31 ms
+prefix store: demote 1660 KiB: alloc 0.41 ms, download 0.04 ms
+prefix store: demote 1660 KiB: alloc 0.40 ms, download 3.51 ms
+prefix store: demote 32160 KiB: alloc 8.03 ms, download 4.35 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.21 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.70 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.69 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.33 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 4.15 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.53 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.34 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.63 ms
+prefix store: demote 32160 KiB: alloc 8.61 ms, download 4.81 ms
+prefix store: demote 1700 KiB: alloc 0.41 ms, download 0.04 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.84 ms
+prefix store: settle (after done) moved 232 MiB off the device in 115.8 ms (queue_write 0.00 ms)
+prefix store: insert 18265 tok: 3 objs, 110 segments, 38.1 MiB in 10.05 ms (keys 1.42, capture 8.62 [drain 0.00, alloc 0.00, copies 8.62, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 20313 tok: 10 objs, 390 segments, 73.1 MiB in 122.57 ms (keys 0.64, capture 121.93 [drain 0.00, alloc 0.00, copies 121.93, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 22361 tok: 10 objs, 390 segments, 73.1 MiB in 123.61 ms (keys 0.73, capture 122.87 [drain 0.00, alloc 0.00, copies 122.87, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 23123 tok: 5 objs, 190 segments, 48.0 MiB in 28.69 ms (keys 0.69, capture 28.00 [drain 0.00, alloc 0.00, copies 28.00, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 8.48 ms, download 4.40 ms
+prefix store: demote 1780 KiB: alloc 0.09 ms, download 0.05 ms
+prefix store: demote 1780 KiB: alloc 0.46 ms, download 3.21 ms
+prefix store: demote 32160 KiB: alloc 0.05 ms, download 0.57 ms
+prefix store: demote 32160 KiB: alloc 0.01 ms, download 0.57 ms
+prefix store: demote 1780 KiB: alloc 0.43 ms, download 0.04 ms
+prefix store: demote 5120 KiB: alloc 1.21 ms, download 4.07 ms
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.60 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 0.03 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.00 ms, download 0.10 ms
+prefix store: demote 1660 KiB: alloc 0.40 ms, download 0.04 ms
+prefix store: settle (after done) moved 232 MiB off the device in 28.2 ms (queue_write 0.00 ms)
+prefix store: insert 28320 tok: 3 objs, 110 segments, 39.5 MiB in 11.42 ms (keys 1.59, capture 9.82 [drain 0.00, alloc 0.00, copies 9.82, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 30368 tok: 10 objs, 390 segments, 74.5 MiB in 137.22 ms (keys 1.84, capture 135.38 [drain 0.00, alloc 0.00, copies 135.38, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 32416 tok: 10 objs, 390 segments, 74.5 MiB in 138.48 ms (keys 1.16, capture 137.32 [drain 0.00, alloc 0.00, copies 137.32, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 33173 tok: 5 objs, 190 segments, 49.3 MiB in 30.26 ms (keys 1.16, capture 29.09 [drain 0.00, alloc 0.00, copies 29.09, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 0.00 ms, download 0.57 ms
+prefix store: demote 3200 KiB: alloc 0.05 ms, download 0.06 ms
+prefix store: demote 32160 KiB: alloc 8.70 ms, download 4.19 ms
+prefix store: demote 3200 KiB: alloc 0.05 ms, download 0.07 ms
+prefix store: demote 3200 KiB: alloc 0.04 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 0.04 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 3.73 ms, download 0.10 ms
+prefix store: demote 2980 KiB: alloc 0.04 ms, download 0.06 ms
+prefix store: demote 5120 KiB: alloc 0.07 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.07 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.07 ms, download 0.10 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 0.61 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 5.16 ms
+prefix store: demote 5120 KiB: alloc 4.30 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 3.07 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 5.07 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.27 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 4.21 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.31 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 6.04 ms
+prefix store: demote 5120 KiB: alloc 4.24 ms, download 0.10 ms
+prefix store: settle (after done) moved 237 MiB off the device in 91.8 ms (queue_write 0.00 ms)
+prefix store: insert 18242 tok: 3 objs, 110 segments, 37.7 MiB in 10.77 ms (keys 0.94, capture 9.83 [drain 0.00, alloc 0.00, copies 9.83, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 20290 tok: 10 objs, 390 segments, 72.7 MiB in 122.73 ms (keys 0.72, capture 122.01 [drain 0.00, alloc 0.00, copies 122.01, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 22338 tok: 10 objs, 390 segments, 72.7 MiB in 122.45 ms (keys 0.69, capture 121.76 [drain 0.00, alloc 0.00, copies 121.76, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 23090 tok: 5 objs, 190 segments, 47.4 MiB in 27.84 ms (keys 0.80, capture 27.04 [drain 0.00, alloc 0.00, copies 27.04, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 1320 KiB: alloc 0.01 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.64 ms
+prefix store: demote 1320 KiB: alloc 0.01 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 0.01 ms, download 0.57 ms
+prefix store: demote 1320 KiB: alloc 0.02 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 0.01 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 1.38 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 3.68 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 3.27 ms
+prefix store: demote 5120 KiB: alloc 3.88 ms, download 0.10 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 1000 KiB: alloc 0.01 ms, download 0.03 ms
+prefix store: demote 5120 KiB: alloc 0.94 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.06 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.00 ms, download 3.73 ms
+prefix store: demote 5120 KiB: alloc 0.99 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 0.92 ms, download 5.81 ms
+prefix store: demote 5120 KiB: alloc 0.98 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 3.56 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.92 ms, download 3.55 ms
+prefix store: demote 5120 KiB: alloc 0.91 ms, download 3.46 ms
+prefix store: demote 5120 KiB: alloc 0.92 ms, download 3.52 ms
+prefix store: demote 5120 KiB: alloc 0.92 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 1.02 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 2.61 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.95 ms, download 0.14 ms
+prefix store: settle (after done) moved 230 MiB off the device in 79.5 ms (queue_write 0.00 ms)
+prefix store: insert 18230 tok: 3 objs, 110 segments, 37.5 MiB in 9.53 ms (keys 0.97, capture 8.55 [drain 0.00, alloc 0.00, copies 8.55, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 20278 tok: 10 objs, 390 segments, 72.5 MiB in 120.66 ms (keys 0.67, capture 119.99 [drain 0.00, alloc 0.00, copies 119.99, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 22326 tok: 10 objs, 390 segments, 72.5 MiB in 125.52 ms (keys 0.63, capture 124.89 [drain 0.00, alloc 0.00, copies 124.89, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 23074 tok: 5 objs, 190 segments, 47.1 MiB in 28.46 ms (keys 0.65, capture 27.80 [drain 0.00, alloc 0.00, copies 27.80, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 1080 KiB: alloc 0.02 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 0.04 ms, download 0.57 ms
+prefix store: demote 1080 KiB: alloc 0.02 ms, download 0.06 ms
+prefix store: demote 32160 KiB: alloc 0.05 ms, download 0.73 ms
+prefix store: demote 1080 KiB: alloc 0.02 ms, download 0.06 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.83 ms
+prefix store: demote 5120 KiB: alloc 1.48 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.52 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 1.51 ms, download 3.39 ms
+prefix store: demote 680 KiB: alloc 0.01 ms, download 0.03 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 6.02 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 5.85 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.67 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.75 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.43 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.57 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.64 ms
+prefix store: demote 5120 KiB: alloc 4.14 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.30 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 5.98 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.77 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.34 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 4.59 ms
+prefix store: demote 5120 KiB: alloc 4.15 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.35 ms
+prefix store: settle (after done) moved 229 MiB off the device in 105.4 ms (queue_write 0.00 ms)
+prefix store: insert 23271 tok: 2 objs, 70 segments, 35.9 MiB in 6.38 ms (keys 1.09, capture 5.28 [drain 0.00, alloc 0.00, copies 5.28, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 25319 tok: 10 objs, 390 segments, 75.9 MiB in 130.70 ms (keys 0.96, capture 129.74 [drain 0.00, alloc 0.00, copies 129.74, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 27367 tok: 10 objs, 390 segments, 75.9 MiB in 132.74 ms (keys 0.80, capture 131.93 [drain 0.00, alloc 0.00, copies 131.93, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 28136 tok: 5 objs, 190 segments, 50.9 MiB in 28.51 ms (keys 0.78, capture 27.73 [drain 0.00, alloc 0.00, copies 27.73, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.67 ms
+prefix store: demote 4620 KiB: alloc 1.30 ms, download 0.09 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 4620 KiB: alloc 1.27 ms, download 0.09 ms
+prefix store: demote 4620 KiB: alloc 1.17 ms, download 3.42 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 4.93 ms, download 0.10 ms
+prefix store: demote 32160 KiB: alloc 8.16 ms, download 4.12 ms
+prefix store: demote 5120 KiB: alloc 3.45 ms, download 0.22 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 4.64 ms
+prefix store: demote 5120 KiB: alloc 0.89 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 0.89 ms, download 3.19 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 3.09 ms
+prefix store: demote 5120 KiB: alloc 0.91 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 2.63 ms, download 0.14 ms
+prefix store: demote 5120 KiB: alloc 0.92 ms, download 3.28 ms
+prefix store: demote 5120 KiB: alloc 0.94 ms, download 3.26 ms
+prefix store: demote 4640 KiB: alloc 0.86 ms, download 3.20 ms
+prefix store: demote 5120 KiB: alloc 0.94 ms, download 3.09 ms
+prefix store: demote 5120 KiB: alloc 0.94 ms, download 5.56 ms
+prefix store: demote 5120 KiB: alloc 0.92 ms, download 3.28 ms
+prefix store: demote 5120 KiB: alloc 2.42 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 3.16 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 3.51 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 4.72 ms
+prefix store: demote 5120 KiB: alloc 0.95 ms, download 0.10 ms
+prefix store: settle (after done) moved 238 MiB off the device in 98.2 ms (queue_write 0.00 ms)
+prefix store: insert 23267 tok: 2 objs, 70 segments, 35.8 MiB in 6.76 ms (keys 0.90, capture 5.86 [drain 0.00, alloc 0.00, copies 5.85, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 25315 tok: 10 objs, 390 segments, 75.8 MiB in 129.93 ms (keys 0.70, capture 129.22 [drain 0.00, alloc 0.00, copies 129.22, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 27363 tok: 10 objs, 390 segments, 75.8 MiB in 130.87 ms (keys 0.75, capture 130.12 [drain 0.00, alloc 0.00, copies 130.12, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 28130 tok: 5 objs, 190 segments, 50.8 MiB in 30.43 ms (keys 0.80, capture 29.63 [drain 0.00, alloc 0.00, copies 29.63, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.57 ms
+prefix store: demote 4540 KiB: alloc 1.22 ms, download 0.09 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 4540 KiB: alloc 1.18 ms, download 0.09 ms
+prefix store: demote 4540 KiB: alloc 4.86 ms, download 0.10 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 3.64 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 3.68 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 3.83 ms
+prefix store: demote 4520 KiB: alloc 1.17 ms, download 3.74 ms
+prefix store: demote 5120 KiB: alloc 0.95 ms, download 3.26 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 3.20 ms, download 0.14 ms
+prefix store: demote 5120 KiB: alloc 0.90 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 3.30 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 3.59 ms
+prefix store: demote 5120 KiB: alloc 2.62 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.91 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 0.92 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 0.90 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 0.94 ms, download 3.72 ms
+prefix store: demote 5120 KiB: alloc 0.93 ms, download 3.63 ms
+prefix store: demote 5120 KiB: alloc 0.91 ms, download 3.45 ms
+prefix store: demote 5120 KiB: alloc 2.40 ms, download 0.10 ms
+prefix store: settle (after done) moved 238 MiB off the device in 89.2 ms (queue_write 0.00 ms)
+prefix store: insert 23276 tok: 2 objs, 70 segments, 36.0 MiB in 6.17 ms (keys 1.04, capture 5.13 [drain 0.00, alloc 0.00, copies 5.12, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 25324 tok: 10 objs, 390 segments, 76.0 MiB in 127.83 ms (keys 0.79, capture 127.03 [drain 0.00, alloc 0.00, copies 127.03, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 27372 tok: 10 objs, 390 segments, 76.0 MiB in 131.18 ms (keys 0.75, capture 130.42 [drain 0.00, alloc 0.00, copies 130.42, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 28134 tok: 5 objs, 190 segments, 50.9 MiB in 29.43 ms (keys 0.77, capture 28.66 [drain 0.00, alloc 0.00, copies 28.66, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 4720 KiB: alloc 0.86 ms, download 0.09 ms
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.56 ms
+prefix store: demote 4720 KiB: alloc 0.85 ms, download 0.09 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.56 ms
+prefix store: demote 32160 KiB: alloc 0.01 ms, download 0.57 ms
+prefix store: demote 4720 KiB: alloc 0.89 ms, download 0.09 ms
+prefix store: demote 5120 KiB: alloc 0.91 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 0.91 ms, download 3.44 ms
+prefix store: demote 5120 KiB: alloc 0.93 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 3.22 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.89 ms, download 3.53 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 3.56 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 3.31 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 3.16 ms
+prefix store: demote 5120 KiB: alloc 3.19 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.91 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.90 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 0.89 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 3.22 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.95 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 4.20 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.38 ms
+prefix store: demote 4600 KiB: alloc 1.13 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.75 ms
+prefix store: settle (after done) moved 238 MiB off the device in 83.9 ms (queue_write 0.00 ms)
+prefix store: insert 23288 tok: 2 objs, 70 segments, 36.2 MiB in 7.07 ms (keys 0.99, capture 6.07 [drain 0.00, alloc 0.00, copies 6.07, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 25336 tok: 10 objs, 390 segments, 76.2 MiB in 128.78 ms (keys 0.81, capture 127.97 [drain 0.00, alloc 0.00, copies 127.97, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 27384 tok: 10 objs, 390 segments, 76.2 MiB in 130.16 ms (keys 0.73, capture 129.42 [drain 0.00, alloc 0.00, copies 129.42, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 28154 tok: 5 objs, 190 segments, 51.3 MiB in 29.18 ms (keys 0.83, capture 28.34 [drain 0.00, alloc 0.00, copies 28.34, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 4960 KiB: alloc 1.33 ms, download 0.10 ms
+prefix store: demote 32160 KiB: alloc 0.05 ms, download 0.56 ms
+prefix store: demote 32160 KiB: alloc 0.01 ms, download 0.57 ms
+prefix store: demote 4960 KiB: alloc 1.28 ms, download 0.10 ms
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.57 ms
+prefix store: demote 4960 KiB: alloc 1.28 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.08 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 5.23 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 3.43 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 3.46 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 3.14 ms
+prefix store: demote 5120 KiB: alloc 1.35 ms, download 4.17 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 4.17 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.46 ms
+prefix store: demote 5120 KiB: alloc 1.21 ms, download 3.31 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.18 ms
+prefix store: demote 5000 KiB: alloc 0.07 ms, download 0.10 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.56 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.51 ms
+prefix store: demote 5120 KiB: alloc 3.91 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 4.25 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.56 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 3.27 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.49 ms
+prefix store: settle (after done) moved 240 MiB off the device in 89.3 ms (queue_write 0.00 ms)
+prefix store: insert 23255 tok: 2 objs, 70 segments, 35.6 MiB in 6.43 ms (keys 1.10, capture 5.32 [drain 0.00, alloc 0.00, copies 5.32, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 25303 tok: 10 objs, 390 segments, 75.6 MiB in 126.78 ms (keys 0.78, capture 126.00 [drain 0.00, alloc 0.00, copies 126.00, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 27351 tok: 10 objs, 390 segments, 75.6 MiB in 132.82 ms (keys 0.75, capture 132.06 [drain 0.00, alloc 0.00, copies 132.06, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 28106 tok: 5 objs, 190 segments, 50.4 MiB in 29.32 ms (keys 0.76, capture 28.55 [drain 0.00, alloc 0.00, copies 28.55, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.57 ms
+prefix store: demote 4300 KiB: alloc 1.20 ms, download 0.09 ms
+prefix store: demote 4300 KiB: alloc 1.08 ms, download 3.44 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 32160 KiB: alloc 0.01 ms, download 0.57 ms
+prefix store: demote 4300 KiB: alloc 4.84 ms, download 0.09 ms
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.35 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.32 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 3.88 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.21 ms, download 3.62 ms
+prefix store: demote 5120 KiB: alloc 1.08 ms, download 3.23 ms
+prefix store: demote 4040 KiB: alloc 0.67 ms, download 3.20 ms
+prefix store: demote 5120 KiB: alloc 0.85 ms, download 3.22 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 0.85 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 2.38 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.86 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.85 ms, download 3.18 ms
+prefix store: demote 5120 KiB: alloc 0.85 ms, download 3.16 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 0.17 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 4.62 ms
+prefix store: demote 5120 KiB: alloc 0.85 ms, download 3.60 ms
+prefix store: settle (after done) moved 237 MiB off the device in 86.9 ms (queue_write 0.00 ms)
+prefix store: insert 23239 tok: 2 objs, 70 segments, 35.3 MiB in 6.41 ms (keys 1.00, capture 5.40 [drain 0.00, alloc 0.00, copies 5.40, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 25287 tok: 10 objs, 390 segments, 75.3 MiB in 130.23 ms (keys 0.73, capture 129.50 [drain 0.00, alloc 0.00, copies 129.50, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 27335 tok: 10 objs, 390 segments, 75.3 MiB in 130.79 ms (keys 0.75, capture 130.04 [drain 0.00, alloc 0.00, copies 130.04, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 28106 tok: 5 objs, 190 segments, 50.4 MiB in 28.60 ms (keys 0.74, capture 27.86 [drain 0.00, alloc 0.00, copies 27.86, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.57 ms
+prefix store: demote 3980 KiB: alloc 4.39 ms, download 0.09 ms
+prefix store: demote 3980 KiB: alloc 0.70 ms, download 3.53 ms
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.57 ms
+prefix store: demote 32160 KiB: alloc 0.01 ms, download 0.57 ms
+prefix store: demote 3980 KiB: alloc 0.70 ms, download 0.08 ms
+prefix store: demote 5120 KiB: alloc 0.96 ms, download 3.38 ms
+prefix store: demote 5120 KiB: alloc 0.95 ms, download 5.60 ms
+prefix store: demote 5120 KiB: alloc 0.91 ms, download 3.56 ms
+prefix store: demote 5120 KiB: alloc 0.95 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 0.07 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 3.17 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.84 ms, download 4.19 ms
+prefix store: demote 5120 KiB: alloc 0.85 ms, download 3.59 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.85 ms, download 3.90 ms
+prefix store: demote 4040 KiB: alloc 0.69 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 0.90 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 3.18 ms, download 0.10 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 0.88 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 0.87 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 2.06 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.82 ms, download 3.30 ms
+prefix store: settle (after done) moved 236 MiB off the device in 86.3 ms (queue_write 0.00 ms)
+prefix store: insert 28293 tok: 3 objs, 110 segments, 39.0 MiB in 10.83 ms (keys 1.15, capture 9.67 [drain 0.00, alloc 0.00, copies 9.67, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 30341 tok: 10 objs, 390 segments, 74.0 MiB in 137.29 ms (keys 1.38, capture 135.90 [drain 0.00, alloc 0.00, copies 135.90, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 32389 tok: 10 objs, 390 segments, 74.0 MiB in 139.68 ms (keys 1.22, capture 138.45 [drain 0.00, alloc 0.00, copies 138.45, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 33160 tok: 5 objs, 190 segments, 49.1 MiB in 30.84 ms (keys 1.11, capture 29.73 [drain 0.00, alloc 0.00, copies 29.73, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 2660 KiB: alloc 0.04 ms, download 0.06 ms
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.57 ms
+prefix store: demote 2660 KiB: alloc 0.04 ms, download 0.06 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.56 ms
+prefix store: demote 2660 KiB: alloc 0.04 ms, download 0.06 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.56 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 3.51 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 5.01 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.48 ms
+prefix store: demote 2720 KiB: alloc 0.04 ms, download 0.06 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.56 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 4.77 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.31 ms
+prefix store: demote 5120 KiB: alloc 4.17 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 4.65 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 3.79 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.32 ms
+prefix store: settle (after done) moved 236 MiB off the device in 85.1 ms (queue_write 0.00 ms)
+prefix store: insert 28295 tok: 3 objs, 110 segments, 39.0 MiB in 11.06 ms (keys 0.97, capture 10.09 [drain 0.00, alloc 0.00, copies 10.09, sync 0.00], add 0.00, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 30343 tok: 10 objs, 390 segments, 74.0 MiB in 136.22 ms (keys 1.28, capture 134.93 [drain 0.00, alloc 0.00, copies 134.93, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 32391 tok: 10 objs, 390 segments, 74.0 MiB in 140.26 ms (keys 1.17, capture 139.08 [drain 0.00, alloc 0.00, copies 139.08, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 33152 tok: 5 objs, 190 segments, 48.9 MiB in 30.62 ms (keys 1.08, capture 29.53 [drain 0.00, alloc 0.00, copies 29.53, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.57 ms
+prefix store: demote 2700 KiB: alloc 0.04 ms, download 0.06 ms
+prefix store: demote 2700 KiB: alloc 0.04 ms, download 0.06 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.56 ms
+prefix store: demote 32160 KiB: alloc 0.01 ms, download 0.57 ms
+prefix store: demote 2700 KiB: alloc 0.04 ms, download 0.06 ms
+prefix store: demote 32160 KiB: alloc 0.01 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.50 ms, download 3.77 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 3.75 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 4.78 ms
+prefix store: demote 5120 KiB: alloc 4.76 ms, download 0.10 ms
+prefix store: demote 2560 KiB: alloc 0.04 ms, download 0.05 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.43 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 4.59 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 0.08 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 3.81 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.24 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.29 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.21 ms
+prefix store: demote 5120 KiB: alloc 3.82 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 0.10 ms
+prefix store: settle (after done) moved 236 MiB off the device in 81.6 ms (queue_write 0.00 ms)
+prefix store: insert 28284 tok: 3 objs, 110 segments, 38.8 MiB in 10.94 ms (keys 1.11, capture 9.82 [drain 0.00, alloc 0.00, copies 9.82, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 30332 tok: 10 objs, 390 segments, 73.8 MiB in 137.12 ms (keys 1.33, capture 135.78 [drain 0.00, alloc 0.00, copies 135.78, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 32380 tok: 10 objs, 390 segments, 73.8 MiB in 137.96 ms (keys 1.22, capture 136.73 [drain 0.00, alloc 0.00, copies 136.73, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 33140 tok: 5 objs, 190 segments, 48.7 MiB in 30.17 ms (keys 1.07, capture 29.09 [drain 0.00, alloc 0.00, copies 29.09, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.57 ms
+prefix store: demote 2480 KiB: alloc 0.04 ms, download 0.05 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 2480 KiB: alloc 0.04 ms, download 0.05 ms
+prefix store: demote 2480 KiB: alloc 0.03 ms, download 0.05 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.56 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.43 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.54 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 6.06 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.40 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 4.21 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.37 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 1.44 ms, download 3.37 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 5.97 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 3.31 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.36 ms
+prefix store: demote 5120 KiB: alloc 1.34 ms, download 3.23 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 4.22 ms
+prefix store: demote 5120 KiB: alloc 1.38 ms, download 3.44 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 4.62 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 0.10 ms
+prefix store: demote 2320 KiB: alloc 0.03 ms, download 0.05 ms
+prefix store: settle (after done) moved 235 MiB off the device in 96.5 ms (queue_write 0.00 ms)
+prefix store: insert 28319 tok: 3 objs, 110 segments, 39.5 MiB in 10.81 ms (keys 1.01, capture 9.79 [drain 0.00, alloc 0.00, copies 9.79, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 30367 tok: 10 objs, 390 segments, 74.5 MiB in 134.06 ms (keys 1.14, capture 132.91 [drain 0.00, alloc 0.00, copies 132.91, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 32415 tok: 10 objs, 390 segments, 74.5 MiB in 137.35 ms (keys 1.14, capture 136.21 [drain 0.00, alloc 0.00, copies 136.21, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 33170 tok: 5 objs, 190 segments, 49.3 MiB in 30.99 ms (keys 1.06, capture 29.92 [drain 0.00, alloc 0.00, copies 29.92, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 3180 KiB: alloc 0.05 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.56 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 3180 KiB: alloc 0.05 ms, download 0.07 ms
+prefix store: demote 3180 KiB: alloc 0.04 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.56 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.38 ms, download 3.44 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 0.07 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.23 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 2.67 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.31 ms, download 4.20 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.44 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.84 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 4.32 ms
+prefix store: demote 5120 KiB: alloc 4.85 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 3.39 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 3.33 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 4.06 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.65 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 3.67 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 0.10 ms
+prefix store: demote 2920 KiB: alloc 0.06 ms, download 0.06 ms
+prefix store: demote 5120 KiB: alloc 3.50 ms, download 0.10 ms
+prefix store: settle (after done) moved 237 MiB off the device in 77.1 ms (queue_write 0.00 ms)
+prefix store: insert 28269 tok: 3 objs, 110 segments, 38.5 MiB in 11.89 ms (keys 1.01, capture 10.87 [drain 0.00, alloc 0.00, copies 10.87, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 30317 tok: 10 objs, 390 segments, 73.5 MiB in 137.72 ms (keys 1.25, capture 136.46 [drain 0.00, alloc 0.00, copies 136.46, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 32365 tok: 10 objs, 390 segments, 73.5 MiB in 137.08 ms (keys 1.12, capture 135.96 [drain 0.00, alloc 0.00, copies 135.96, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 33142 tok: 5 objs, 190 segments, 48.7 MiB in 29.70 ms (keys 1.10, capture 28.59 [drain 0.00, alloc 0.00, copies 28.59, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 2180 KiB: alloc 0.03 ms, download 0.05 ms
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.56 ms
+prefix store: demote 2180 KiB: alloc 0.03 ms, download 0.05 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 2180 KiB: alloc 0.03 ms, download 0.05 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.56 ms
+prefix store: demote 5120 KiB: alloc 1.42 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.40 ms, download 3.67 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 3.52 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 0.07 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.10 ms, download 0.10 ms
+prefix store: demote 2360 KiB: alloc 3.52 ms, download 0.05 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 0.13 ms
+prefix store: demote 5120 KiB: alloc 1.21 ms, download 3.57 ms
+prefix store: demote 5120 KiB: alloc 1.20 ms, download 3.58 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 1.24 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 3.10 ms
+prefix store: demote 5120 KiB: alloc 1.39 ms, download 5.42 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 4.85 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.32 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 4.10 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.26 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.20 ms
+prefix store: demote 5120 KiB: alloc 1.41 ms, download 3.30 ms
+prefix store: settle (after done) moved 234 MiB off the device in 82.0 ms (queue_write 0.00 ms)
+prefix store: insert 28271 tok: 3 objs, 110 segments, 38.6 MiB in 11.30 ms (keys 1.01, capture 10.28 [drain 0.00, alloc 0.00, copies 10.28, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 30319 tok: 10 objs, 390 segments, 73.6 MiB in 137.06 ms (keys 1.34, capture 135.72 [drain 0.00, alloc 0.00, copies 135.72, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 32367 tok: 10 objs, 390 segments, 73.6 MiB in 137.80 ms (keys 1.18, capture 136.61 [drain 0.00, alloc 0.00, copies 136.61, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: insert 33130 tok: 5 objs, 190 segments, 48.5 MiB in 30.33 ms (keys 1.10, capture 29.22 [drain 0.00, alloc 0.00, copies 29.22, sync 0.00], add 0.01, manifest 0.00, enforce 0.00); deferred
+prefix store: demote 32160 KiB: alloc 0.05 ms, download 0.57 ms
+prefix store: demote 2220 KiB: alloc 0.04 ms, download 0.05 ms
+prefix store: demote 2220 KiB: alloc 0.03 ms, download 0.05 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.56 ms
+prefix store: demote 2220 KiB: alloc 0.03 ms, download 0.05 ms
+prefix store: demote 32160 KiB: alloc 0.02 ms, download 0.56 ms
+prefix store: demote 5120 KiB: alloc 0.08 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 6.05 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.69 ms
+prefix store: demote 5120 KiB: alloc 1.26 ms, download 3.40 ms
+prefix store: demote 32160 KiB: alloc 0.03 ms, download 0.57 ms
+prefix store: demote 5120 KiB: alloc 1.25 ms, download 0.14 ms
+prefix store: demote 5120 KiB: alloc 1.37 ms, download 3.68 ms
+prefix store: demote 5120 KiB: alloc 1.27 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.29 ms, download 3.62 ms
+prefix store: demote 5120 KiB: alloc 1.30 ms, download 3.59 ms
+prefix store: demote 5120 KiB: alloc 0.10 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 3.64 ms, download 0.16 ms
+prefix store: demote 5120 KiB: alloc 1.19 ms, download 3.89 ms
+prefix store: demote 5120 KiB: alloc 1.19 ms, download 3.52 ms
+prefix store: demote 5120 KiB: alloc 1.33 ms, download 3.27 ms
+prefix store: demote 5120 KiB: alloc 1.18 ms, download 3.16 ms
+prefix store: demote 5120 KiB: alloc 1.18 ms, download 4.59 ms
+prefix store: demote 2120 KiB: alloc 0.05 ms, download 0.05 ms
+prefix store: demote 5120 KiB: alloc 4.76 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.20 ms, download 3.25 ms
+prefix store: demote 5120 KiB: alloc 1.22 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.36 ms, download 0.10 ms
+prefix store: settle (after done) moved 234 MiB off the device in 80.5 ms (queue_write 0.00 ms)

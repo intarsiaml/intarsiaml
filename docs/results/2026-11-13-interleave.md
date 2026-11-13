@@ -63,3 +63,28 @@ localeval's `itl_stats` spreads a chunk's delta over its characters when SSE chu
 
 #357 (batch-fu) merged to main as 53a8c500d (touches `scheduler.rs` validate-before-restore / reject directly, `engine/batch.rs` own_chunk / check_constraint, `load.rs`, `serve.rs`); #358 (docs) merged too. Plan: finish the spark1 `prefix_store_cuda` gate and the spark2 window on the build in hand (branch 9cae1a9d1 code), then `git merge origin/main`, resolve, rerun the four CPU gates; if the merge touched the changed code paths (scheduler prefill/housekeep, batch.rs SlotModel/finish), rebuild on spark1 and rerun `prefix_store_cuda`. Then open the draft PR.
 
+## 4. spark2 window (2026-11-13 07:43–08:00 EST)
+
+vLLM (`missioncntrl-guidance`) down 1003 s (16.7 min, cap 35), restored with `/v1/models` 200 at 08:00:33; earlyoom active; MemAvailable ≥ 85 GB at every arm start. fleetq: `--takes-down retro --quiet gpu,cpu --mem 58 --expect 45`, owner claude-interleave. Script `scripts/interleave/window.sh 35 k3`, window 3's plan and trace (copied to `raw/`), replay2 interleaved seed 0 (48 requests, thinking off, temperature 0), every arm `--max-batch 2 --prefix-store on` with `INTARSIA_PREFIX_STORE_DEBUG=1`. Binaries built on spark2 by `scripts/interleave/build.sh`: E-main = main `10b235785`, E-il = this branch `bc0fb6c54` (code = `9cae1a9d1`; defaults `INTARSIA_PREFILL_PAUSE_ROWS` 768, `INTARSIA_SETTLE_SLICE_MB` 48). Table: `python3 scripts/interleave/table.py docs/results/2026-11-13-interleave/raw <arm prefixes>`. Server gaps = `intarsia_batch_itl_seconds` diff (engine side, raw, no character weighting).
+
+| arm | ITL p99 median / worst (client, localeval) | TTFT sum | decode/stream median | combined | wall | server gaps > 0.15 / > 0.25 / > 0.5 s | paused steps | settles whole / slices |
+|---|---|---|---|---|---|---|---|---|
+| vLLM (window 3 baseline) | 304 / 884 ms | 77.8 s | 39.8 tok/s | 58.9 tok/s | 129.1 s | n/a | n/a | n/a |
+| D-store (window 3, #353) | 370 / 1412 ms | 73.4 s | 39.8 tok/s | 57.4 tok/s | 132.2 s | 165 / 104 / 0 | n/a | 47 / 0 |
+| **E-main** (main 10b235785) K=2 | 384 / 1479 ms | 72.5 s | 40.1 tok/s | 57.9 tok/s | 131.1 s | 162 / 103 / 0 of 7548 | n/a | 47 / 0 |
+| **E-il** (this branch) K=2 | **182** / 1201 ms | 77.0 s (+6.2%) | 39.4 tok/s (-1.7%) | 57.1 tok/s | 133.0 s | 116 / **0** / 0 of 7548 | 190 | 18 / 193 |
+| E-main K=3 | 361 / 2287 ms | 158.1 s | 38.6 tok/s | 57.8 tok/s | 131.4 s | 180 / 109 / 0 | n/a | 48 / 0 |
+| E-il K=3 | 179 / 1384 ms | 169.3 s (+7.1%) | 38.8 tok/s | 57.2 tok/s | 132.6 s | 113 / 0 / 0 | 203 | 23 / 195 |
+
+(K=3 still serves 2 slots; the third stream queues, so its TTFT includes queueing.)
+
+Against the targets (K=2):
+- median ITL p99 <= ~310 ms: **met** (384 -> 182 ms, below vLLM's 304).
+- worst ITL p99 <= ~900 ms: **not met** (1479 -> 1201 ms). The engine has no gap above 0.25 s any more (103 -> 0), so the remaining client worst is the character-weighting artifact on a ~0.15–0.25 s gap (116 such gaps remain: a 768-row segment plus its decode step, chunk ends with their capture enqueue, settle slices). Getting under 900 ms reliably needs every gap at roughly 150 ms or less, i.e. more parks.
+- TTFT sum within +5%: **not met** (+6.2%, 72.5 -> 77.0 s).
+- decode tok/s not lower: **not met by 1.7%** (40.1 -> 39.4 median per stream; window 3's D-store on #353 measured 39.8, so run-to-run spread is about 1%).
+
+Why TTFT rose, measured: the sliced settle did move settle work off the critical path (whole settles 6964 ms -> 208 ms; slices 6422 ms in 193 slices, max 56.5 ms; 1 capture of 197 fell to the synchronous host path), but the TTFT sum did not fall from it; on main the after-Done settle evidently did not delay the next admission measurably. The +4.5 s is the parks: 190 decode steps of the partner run inside the prefilling request's chunks, ~24 ms each, which is +4.5 s. That is the inherent trade-off of a bitwise-safe interleave on one GPU stream: a decode step moved into a prefill chunk is serial GPU time added to that chunk, so the time the decoding stream gains comes out of the prefilling stream's TTFT. vLLM avoids the trade by putting decode rows into the prefill pass (nearly free on a compute-bound pass), which changes GEMM row counts and so is ruled out by the batched == single-engine bitwise gate on CUDA.
+
+Knob: `INTARSIA_PREFILL_PAUSE_ROWS` moves along this curve without a rebuild. Expected from these numbers (not measured): 1024 rows ≈ 1 park per 2048-row chunk, about +3 s TTFT (+4%) with gaps ≈ 0.19 s; 512 rows ≈ 3 parks, about +7 s (+10%) with gaps ≈ 0.11 s. No setting meets all four targets; 768 (default on this branch) trades +6% TTFT for halving the median p99. Whether the default should stay on is an operator decision (raised in the PR).
+
