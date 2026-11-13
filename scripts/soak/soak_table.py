@@ -56,7 +56,7 @@ else:
     sp = f"{raw}/sample-S.tsv"
     if os.path.exists(sp):
         L = [l.rstrip("\n").split("\t") for l in open(sp)]
-        hdr, data = L[0], L[1:]
+        hdr, data = L[0], [r for r in L[1:] if "NA" not in r[5:8]]  # drop samples taken before the server answered /metrics
         col = {h: i for i, h in enumerate(hdr)}
 
         def series(name):
@@ -64,16 +64,17 @@ else:
 
         n = len(data)
         print(f"\nsampler: {n} samples, {data[0][0]} to {data[-1][0]}")
-        print("| signal | first 5 mean | last 5 mean | min | max | slope/min |")
-        print("|---|---:|---:|---:|---:|---:|")
+        print("| signal | first 5 mean | last 5 mean | min | max | slope/min, all | slope/min, from sample 6 (store full) |")
+        print("|---|---:|---:|---:|---:|---:|---:|")
         for name, sc in (("mem_avail_mb", 1), ("mem_used_mb", 1), ("swap_used_mb", 1), ("rss_mb", 1), ("intarsia_kv_bytes_used", 1e6),
                          ("intarsia_device_memory_free_bytes", 1e6), ("intarsia_prefix_store_tier_bytes{tier=\"host\"}", 1e6),
                          ("intarsia_prefix_store_entries", 1), ("intarsia_prefix_store_tier_objects{tier=\"host\"}", 1)):
             v = [x / sc for x in series(name)]
-            xs = list(range(n))
-            mx, my = statistics.mean(xs), statistics.mean(v)
-            slope = sum((a - mx) * (b - my) for a, b in zip(xs, v)) / max(1e-9, sum((a - mx) ** 2 for a in xs))
-            print(f"| {name} | {statistics.mean(v[:5]):.1f} | {statistics.mean(v[-5:]):.1f} | {min(v):.1f} | {max(v):.1f} | {slope:.2f} |")
+            def sl(vv):
+                xs = list(range(len(vv)))
+                mx, my = statistics.mean(xs), statistics.mean(vv)
+                return sum((a - mx) * (b - my) for a, b in zip(xs, vv)) / max(1e-9, sum((a - mx) ** 2 for a in xs))
+            print(f"| {name} | {statistics.mean(v[:5]):.1f} | {statistics.mean(v[-5:]):.1f} | {min(v):.1f} | {max(v):.1f} | {sl(v):.2f} | {sl(v[5:]):.2f} |")
         last = data[-1]
         g = lambda k: last[col[k]]
         K_HEV = 'intarsia_prefix_store_tier_evictions_total{tier="host"}'

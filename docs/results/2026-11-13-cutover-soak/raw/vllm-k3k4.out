@@ -1,0 +1,32 @@
+fleetq: #9244 running on spark2: bash /opt/code/intarsiaml/.worktrees/soak/scripts/soak/vllm_arms.sh k3k4
+[09:13:25 +0s] V-k3: vLLM counters before: success=5 prompt_tokens=2438 gen_tokens=7377 (own expected: 49)
+== V-k3 replay2 k=3 interleaved seed 1 09:13:25
+[replay2] w1 c1 t6 prompt=33183 cached=27248 ttft=1.45s decode=70.2 out=160 
+[replay2] w1 c4 t6 prompt=33140 cached=27248 ttft=1.49s decode=72.2 out=159 
+[replay2] w1 c7 t6 prompt=33160 cached=27248 ttft=1.49s decode=72.0 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8042 | 0 (0.0) | 3.714 (2.26-7.331) | 41.5 (40.9-59.1) |
+| 2 | 13076 | 6288 (0.481) | 2.548 (2.28-5.671) | 41.8 (31.2-58.6) |
+| 3 | 18090 | 12576 (0.695) | 3.607 (2.238-4.7) | 40.1 (38.2-55.1) |
+| 4 | 23108 | 16768 (0.726) | 3.651 (2.375-5.224) | 38.7 (29.6-51.5) |
+| 5 | 28132 | 23056 (0.82) | 2.719 (1.181-5.123) | 37.3 (30.6-69.2) |
+| 6 | 33146 | 27248 (0.822) | 1.492 (1.447-4.813) | 52.3 (37.2-72.2) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 17.92, 'itl_ms_p99_median': 365.75, 'itl_ms_p99_max': 2485.22, 'itl_cv_median': 2.39}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988463, 'cached_tokens': 687488, 'ttft_s_sum': 162.12, 'decode_tok_s_median': 40.9, 'completion_tokens': 7353, 'agg_output_tok_s': 57.98} wall 126.8s
+[09:15:34 +129s] V-k3: vLLM counters after:  success=54 prompt_tokens=997602 gen_tokens=14738
+[09:15:34 +129s] V-k4: vLLM counters before: success=54 prompt_tokens=997602 gen_tokens=14738 (own expected: 49)
+== V-k4 replay2 k=4 interleaved seed 2 09:15:34
+[replay2] w3 c7 t6 prompt=33141 cached=27248 ttft=7.16s decode=36.1 out=160 
+[replay2] w1 c5 t6 prompt=33170 cached=27248 ttft=7.09s decode=35.8 out=159 
+[replay2] w2 c6 t6 prompt=33194 cached=27248 ttft=7.21s decode=54.6 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8050 | 0 (0.0) | 6.242 (2.242-7.643) | 42.1 (41.1-55.4) |
+| 2 | 13078 | 6288 (0.481) | 6.187 (6.106-6.238) | 40.8 (40.6-42.7) |
+| 3 | 18097 | 12576 (0.695) | 5.956 (5.774-6.085) | 41.0 (39.2-41.4) |
+| 4 | 23117 | 16768 (0.725) | 6.719 (6.175-6.786) | 37.8 (37.1-39.0) |
+| 5 | 28136 | 23056 (0.819) | 6.359 (6.192-6.593) | 38.8 (36.6-38.9) |
+| 6 | 33160 | 27248 (0.822) | 7.127 (6.553-7.206) | 36.0 (35.7-54.6) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.76, 'itl_ms_p99_median': 377.11, 'itl_ms_p99_max': 2096.97, 'itl_cv_median': 2.518}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989194, 'cached_tokens': 687488, 'ttft_s_sum': 302.55, 'decode_tok_s_median': 39.7, 'completion_tokens': 7575, 'agg_output_tok_s': 60.17} wall 125.9s
+[09:17:41 +256s] V-k4: vLLM counters after:  success=103 prompt_tokens=1993497 gen_tokens=22321
+fleetq: #9244 done (exit 0)

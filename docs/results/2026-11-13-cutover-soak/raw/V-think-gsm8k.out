@@ -1,0 +1,2 @@
+[localeval] benchmark gsm8k (limit=100, shots=None, tasks=all)
+Processing 100 problems:   0%|          | 0/100 [00:00<?, ?it/s]Processing 100 problems:   1%|          | 1/100 [00:12<20:43, 12.56s/it]
