@@ -407,7 +407,8 @@ pub struct EngineMeta {
     /// Speculative decoding (`--spec`; default off). On needs `Model::enable_verify` before the plan is configured
     /// (`intarsia_models::load_engine` does both, and only on the Metal backend).
     pub spec: crate::spec::SpecConfig,
-    /// Content-addressed prefix store (`crate::prefix_store`); `None` (the default): off. Single-sequence engine only.
+    /// Content-addressed prefix store (`crate::prefix_store`); `None` (the default): off. The single-sequence engine, and the
+    /// batched one for plain decode (no packed or macro prefill, no overlap, one rank; `BatchedEngine::new`).
     pub prefix_store: Option<crate::prefix_store::PrefixStoreConfig>,
 }
 
@@ -473,6 +474,30 @@ impl StorePolicy {
         let _ = st;
         Ok(Some(StorePolicy { store: Arc::new(Mutex::new(store)), boundary_ids, header_end_ids, cut_roles, chunk_invariant, min_tokens, grid_tokens }))
     }
+
+    /// `Engine::prefix_store`: the store's counters and entries.
+    pub(crate) fn info(&self) -> Value {
+        let mut s = self.store.lock().unwrap_or_else(|e| e.into_inner());
+        serde_json::json!({
+            "stats": s.snapshot(),
+            "boundary_ids": self.boundary_ids,
+            "chunk_invariant": self.chunk_invariant,
+            "entries": s.entries(),
+        })
+    }
+
+    /// The one startup line (and telemetry) of an engine that opened the store.
+    pub(crate) fn announce(&self, telemetry: &Telemetry) {
+        let mut g = self.store.lock().unwrap_or_else(|e| e.into_inner());
+        telemetry.set_prefix_store(g.snapshot());
+        eprintln!(
+            "prefix store: on (build {}, {} entries loaded, boundaries {:?}, chunk-invariant backend: {})",
+            g.snapshot().build,
+            g.snapshot().entries,
+            self.boundary_ids,
+            self.chunk_invariant
+        );
+    }
 }
 
 /// A request's view of the prefix store ([`Seq`]): its prompt's boundaries and schedule points.
@@ -491,6 +516,8 @@ pub(crate) struct SeqStore {
     points: std::collections::BTreeSet<usize>,
     /// Length of the last entry this request stored (grid spacing).
     last_insert: usize,
+    /// The prefill chunk of the schedule (the model's): the batched engine runs this request's chunks at it too.
+    chunk: usize,
 }
 
 impl SeqStore {
@@ -540,7 +567,7 @@ impl SeqStore {
                 break;
             }
         }
-        SeqStore { pol, boundaries, headers, messages: starts, points, last_insert: 0 }
+        SeqStore { pol, boundaries, headers, messages: starts, points, last_insert: 0, chunk }
     }
 
     /// A length `st` can return to bitwise, at most `cap` (already capped at the prefill-clean watermark): on a
@@ -744,16 +771,7 @@ impl LocalEngine {
 
         let store = StorePolicy::new(&model, &*codec, &meta, &state)?;
         if let Some(s) = &store {
-            let mut g = s.store.lock().unwrap();
-            telemetry.set_prefix_store(g.snapshot());
-            eprintln!(
-                "prefix store: on (build {}, {} entries loaded, boundaries {:?}, chunk-invariant backend: {})",
-                g.snapshot().build,
-                g.snapshot().entries,
-                s.boundary_ids,
-                s.chunk_invariant
-            );
-            drop(g);
+            s.announce(&telemetry);
         }
         let failed = Arc::new(Mutex::new(None));
         if let Some(peer) = model.remote_peer() {
@@ -968,14 +986,7 @@ impl Engine for LocalEngine {
     }
 
     fn prefix_store(&self) -> Value {
-        let Some(pol) = &self.shared.store else { return Value::Null };
-        let mut s = pol.store.lock().unwrap_or_else(|e| e.into_inner());
-        serde_json::json!({
-            "stats": s.snapshot(),
-            "boundary_ids": pol.boundary_ids,
-            "chunk_invariant": pol.chunk_invariant,
-            "entries": s.entries(),
-        })
+        self.shared.store.as_ref().map_or(Value::Null, StorePolicy::info)
     }
 
     fn telemetry(&self) -> TelemetrySnapshot {

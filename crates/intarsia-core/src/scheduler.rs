@@ -241,6 +241,25 @@ pub trait BatchSeq<M: BatchModel>: Send {
     /// The scheduler accepted the request into its queue (called once, after the submit checks passed): a later
     /// [`BatchSeq::fail`] is an accepted request that failed, not a refusal.
     fn on_queued(&mut self) {}
+    /// Prefix store (`--prefix-store` with `--max-batch` > 1): the length this request's prefill starts from in `slot`, called
+    /// at admission before [`BatchSeq::admit`] with `local`, the slot's own reusable prefix ([`BatchModel::reuse_len`]). The
+    /// sequence may cut `local` back to a point of its own chunk schedule, or restore a longer stored prefix into the slot; the
+    /// slot then holds at least the returned length, which the scheduler admits with (and truncates to). `Err`: the request
+    /// fails (the slot is invalidated). Default: `local`, the slot untouched.
+    fn restore(&mut self, _model: &mut M, _slot: usize, local: usize) -> Result<usize> {
+        Ok(local)
+    }
+    /// Prefix store: the request's own prefill schedule, the length of its next chunk at `pos` with `remaining` rows left
+    /// (`Some`), whatever the scheduler's chunk size (no busy chunk, macro step or packing): a function of the prompt and `pos`
+    /// only, so the slot's history and the other sequences never change its bits. `None` (default): the scheduler's schedule.
+    fn chunk_len(&self, _pos: usize, _remaining: usize) -> Option<usize> {
+        None
+    }
+    /// A prefill chunk `[start, end)` of this request ran in `slot` (`last`: the final one, before its output is accepted).
+    /// The prefix store captures the slot's state here. Default: nothing. `Err` fails the request.
+    fn on_chunk(&mut self, _model: &mut M, _slot: usize, _start: usize, _end: usize, _last: bool) -> Result<()> {
+        Ok(())
+    }
     /// The request failed: send `Error`.
     fn fail(&mut self, err: &Error);
 }
@@ -994,6 +1013,21 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             self.queued.fetch_sub(1, Ordering::SeqCst);
             did = true;
             let cap = self.model.slot_cap();
+            // the prefix store: the request's own reuse rule, or a stored prefix restored into the slot
+            let cached = match w.seq.restore(&mut self.model, slot, cached) {
+                Ok(c) => c,
+                Err(e) => {
+                    w.seq.fail(&e);
+                    if self.model.is_fatal(&e) {
+                        self.fail_all(&e.to_string());
+                        return true;
+                    }
+                    let _ = self.model.truncate(slot, 0);
+                    self.ev(TraceEvent::Finished { iter: self.iter, id: w.id, how: EndKind::Failed });
+                    self.metrics.lock().unwrap().failed += 1;
+                    continue;
+                }
+            };
             match w.seq.admit(cached, cap) {
                 Err(e) => {
                     w.seq.fail(&e);
@@ -1360,6 +1394,10 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let Phase::Prefilling { pos, chunk } = self.active[i].phase else { return None };
         let chunk = chunk.unwrap_or(if n_decoding > 0 { self.cfg.busy_chunk } else { self.cfg.solo_chunk });
         let plen = self.active[i].seq.prompt().len();
+        if self.active[i].seq.chunk_len(pos, plen - pos).is_some() {
+            // a request on its own (prefix store) schedule never packs
+            return None;
+        }
         let len = next_prefill_chunk_tm(plen - pos, chunk, self.model.avoid_single_row_prefill(), self.model.tail_merge());
         if self.model.pack_whole_prompts() && (pos != 0 || len != plen) {
             // lane srv16: only a whole prompt from row 0 packs where that is all that was proven bitwise (CUDA)
@@ -1466,7 +1504,11 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let plen = self.active[i].seq.prompt().len();
         let mut len = next_prefill_chunk_tm(plen - pos, chunk, self.model.avoid_single_row_prefill(), self.model.tail_merge());
         let slot = self.active[i].slot;
-        if n_decoding == 0 && chunk == self.cfg.solo_chunk && plen - pos > chunk {
+        let own = self.active[i].seq.chunk_len(pos, plen - pos);
+        if let Some(n) = own {
+            debug_assert!(n >= 1 && n <= plen - pos, "own chunk {n} of {} rows", plen - pos);
+            len = n.clamp(1, plen - pos);
+        } else if n_decoding == 0 && chunk == self.cfg.solo_chunk && plen - pos > chunk {
             let sole = self.active.iter().filter(|a| matches!(a.phase, Phase::Prefilling { .. })).count() == 1;
             if let Some(n) = self.model.macro_step(slot, plen - pos, chunk).filter(|_| sole) {
                 debug_assert!(n >= len && n <= plen - pos, "macro step {n} of {} rows", plen - pos);
@@ -1490,6 +1532,13 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             m.prefill_chunks += 1;
             m.prefill_tokens += len as u64;
         }
+        let res = match res {
+            Ok(out) => {
+                let slot = self.active[i].slot;
+                self.active[i].seq.on_chunk(&mut self.model, slot, pos, pos + len, last).map(|()| out)
+            }
+            Err(e) => Err(e),
+        };
         match res {
             Err(e) => {
                 self.fail_active(i, e);
