@@ -1,0 +1,95 @@
+{
+ "arm": "ss-mmap-fix",
+ "args": {
+  "url": "http://spark-4e77:8291/v1",
+  "model": "guidance",
+  "arm": "ss-mmap-fix",
+  "sizes": "4096",
+  "reps": 3,
+  "gen": 256,
+  "temperature": 0.7,
+  "top_p": 0.95,
+  "same_prompt": false,
+  "prompt_seeds": "",
+  "seed": null,
+  "vllm_metrics": "http://spark-4e77:8000/metrics",
+  "out": "/opt/code/intarsiaml/.worktrees/fp8-decode/docs/results/2026-11-13-fp8-decode/raw"
+ },
+ "rows": [
+  {
+   "req": 1,
+   "size": 4096,
+   "rep": 1,
+   "prompt_idx": 0,
+   "ok": true,
+   "error": null,
+   "prompt_tokens": 4089,
+   "cached": 0,
+   "ttft_s": 0.5899407081305981,
+   "decode_tok_s": 82.0833197215023,
+   "peak": 100.9,
+   "itl_p50_ms": 12.101,
+   "itl_p99_ms": 79.076,
+   "itl_cv": 0.9022,
+   "out": 256,
+   "text_sha": "34374b4839",
+   "text_head": "nonce dc9c06da122343f99ec2253d4b77109b Note 184: the amber recover will vector t",
+   "t_start": "2026-11-13T02:12:18.961-05:00",
+   "vllm": {
+    "prompt_tokens_total": 0,
+    "generation_tokens_total": 0,
+    "running_after": 0.0
+   }
+  },
+  {
+   "req": 2,
+   "size": 4096,
+   "rep": 2,
+   "prompt_idx": 1,
+   "ok": true,
+   "error": null,
+   "prompt_tokens": 4068,
+   "cached": 0,
+   "ttft_s": 0.5811287499964237,
+   "decode_tok_s": 81.98572423225019,
+   "peak": 100.1,
+   "itl_p50_ms": 12.06,
+   "itl_p99_ms": 74.369,
+   "itl_cv": 0.8562,
+   "out": 256,
+   "text_sha": "e518acbd92",
+   "text_head": "nonce 8dd59188877b4f4380e0012e3efbb21a Note 184: the silver kernel will survey t",
+   "t_start": "2026-11-13T02:12:22.734-05:00",
+   "vllm": {
+    "prompt_tokens_total": 0,
+    "generation_tokens_total": 0,
+    "running_after": 0.0
+   }
+  },
+  {
+   "req": 3,
+   "size": 4096,
+   "rep": 3,
+   "prompt_idx": 2,
+   "ok": true,
+   "error": null,
+   "prompt_tokens": 4064,
+   "cached": 0,
+   "ttft_s": 0.5767184169963002,
+   "decode_tok_s": 82.02082807770267,
+   "peak": 98.9,
+   "itl_p50_ms": 12.089,
+   "itl_p99_ms": 76.092,
+   "itl_cv": 0.8704,
+   "out": 256,
+   "text_sha": "0d725ff602",
+   "text_head": "184: the quiet matrix will harbor the ancient ledger near the signal buffer befo",
+   "t_start": "2026-11-13T02:12:26.507-05:00",
+   "vllm": {
+    "prompt_tokens_total": 0,
+    "generation_tokens_total": 0,
+    "running_after": 0.0
+   }
+  }
+ ]
+}

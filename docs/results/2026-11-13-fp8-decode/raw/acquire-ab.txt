@@ -1,4 +1,0 @@
-fleetq: #9221 waiting (#1 in line): needs gpu quiet on spark1, but #9220 "batch-store: prefix_store_cuda gates (merged main)" (claude-batch-store) loads it
-#9221 "fp8-decode: base vs fix A/B (quiet cpu)" (claude-fp8-decode) running on spark1 35 GB needs gpu,cpu quiet for 0s
-  run work inside it: prefix commands with FLEETQ_JOB=9221
-  release when finished: fleetq release 9221

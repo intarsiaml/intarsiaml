@@ -1,0 +1,5 @@
+[reps] calibrated 22.06 tok/sentence base=50
+[reps] req1 4096 rep1 p0: prompt=4090 ttft=0.59s decode=60.5 peak=62.6 itl_p50=16.314 p99=81.801 cv=0.7536 out=256 sha=ead2034cfa start=2026-11-13T02:11:03.851-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req2 4096 rep2 p1: prompt=4067 ttft=0.59s decode=53.0 peak=60.3 itl_p50=18.676 p99=82.97 cv=0.6812 out=256 sha=1c83de05ee start=2026-11-13T02:11:08.741-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req3 4096 rep3 p2: prompt=4073 ttft=0.59s decode=52.9 peak=60.2 itl_p50=18.56 p99=80.589 cv=0.679 out=256 sha=2678af5d3b start=2026-11-13T02:11:14.310-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+| ss-mmap-base | 4096 | median 53.0 | each [60.5, 53.0, 52.9] |

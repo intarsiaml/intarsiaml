@@ -1,0 +1,8 @@
+fleetq: running inside #9224 "fp8-decode: single-seq forced-mmap A/B" (FLEETQ_JOB): bash scripts/fp8-decode/serve-run.sh
+02:12:18 server up
+[reps] calibrated 22.05 tok/sentence base=53
+[reps] req1 4096 rep1 p0: prompt=4089 ttft=0.59s decode=82.1 peak=100.9 itl_p50=12.101 p99=79.076 cv=0.9022 out=256 sha=34374b4839 start=2026-11-13T02:12:18.961-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req2 4096 rep2 p1: prompt=4068 ttft=0.58s decode=82.0 peak=100.1 itl_p50=12.06 p99=74.369 cv=0.8562 out=256 sha=e518acbd92 start=2026-11-13T02:12:22.734-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req3 4096 rep3 p2: prompt=4064 ttft=0.58s decode=82.0 peak=98.9 itl_p50=12.089 p99=76.092 cv=0.8704 out=256 sha=0d725ff602 start=2026-11-13T02:12:26.507-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+| ss-mmap-fix | 4096 | median 82.0 | each [82.1, 82.0, 82.0] |
+min MemAvailable GB: 02:12:17.261 56 2398MHz,11.42W,49,0% minflt=10222742
