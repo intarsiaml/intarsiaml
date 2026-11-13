@@ -90,6 +90,10 @@ impl Buffer {
     pub fn ptr_eq(&self, other: &Buffer) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
     }
+    /// How many `Buffer` handles share this allocation (1: the caller's is the only one).
+    pub fn strong_count(&self) -> usize {
+        Arc::strong_count(&self.0)
+    }
     pub fn layout(&self) -> Layout {
         self.0.layout()
     }

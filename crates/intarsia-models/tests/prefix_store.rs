@@ -287,6 +287,35 @@ fn store_recycled_host_buffers_restore_exact_bytes_under_eviction() {
     }
 }
 
+/// The captures of one request share a device slab that later requests reuse: restoring every capture before and after the
+/// settle, over several requests, gives each one's own bytes.
+#[test]
+fn store_deferred_captures_share_a_reused_slab_without_mixing_bytes() {
+    let b = cpu();
+    let mut c = cfg(16);
+    c.device_bytes = 1;
+    let mut s = PrefixStore::new(c, &specs(), "slab").unwrap();
+    let mut st = SequenceState::new(&*b, &specs(), 64).unwrap();
+    for round in 0..3u32 {
+        let mut made = Vec::new();
+        s.set_defer(true);
+        for i in 0..3u32 {
+            let t: Vec<u32> = (0..32).map(|j| 10_000 * round + 1000 * i + j).collect();
+            let a = fake_state(&*b, &t, 64);
+            s.insert(&*b, &a, 32, None, &[]).unwrap();
+            made.push((t, a));
+        }
+        for phase in ["on the device", "settled"] {
+            for (t, a) in &made {
+                let h = s.lookup(t, 32).unwrap();
+                s.restore(&*b, &mut st, h).unwrap();
+                assert_eq!(dump(&*b, &st), dump(&*b, a), "round {round}, {phase}");
+            }
+            s.settle(&*b, "test");
+        }
+    }
+}
+
 #[test]
 fn store_disk_survives_restart_and_rejects_corruption_and_other_builds() {
     let b = cpu();

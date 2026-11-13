@@ -519,6 +519,12 @@ pub struct PrefixStore {
     /// `used[1]` against the host budget: the pool never makes the host tier exceed it.
     host_free: Vec<Vec<u8>>,
     host_free_bytes: u64,
+    /// Device slab the deferred captures of the current request are carved from (`bytes used` of it taken), and the
+    /// slabs of this request it has outgrown; see [`PrefixStore::slab`].
+    slab: Option<(Buffer, usize)>,
+    slabs_full: Vec<Buffer>,
+    /// Idle slabs kept for the next request (at most [`SLAB_POOL_CAP`] bytes): a device allocation costs 3-10 ms each.
+    slab_pool: Vec<Buffer>,
 }
 
 /// `INTARSIA_PREFIX_STORE_DEBUG` is set: report the store's timings on stderr.
@@ -567,6 +573,10 @@ impl CaptureTimes {
 
 /// Most device memory the deferred captures of one request may hold.
 const DEFER_CAP: u64 = 1 << 30;
+/// Device slabs the deferred captures are carved from: a new slab is at least this big (rounded up to the next multiple
+/// of it), and the idle ones the store keeps between requests add up to at most `SLAB_POOL_CAP`.
+const SLAB_MIN: usize = 128 << 20;
+const SLAB_POOL_CAP: usize = 256 << 20;
 
 struct DiskWriter {
     dir: PathBuf,
@@ -605,6 +615,9 @@ impl PrefixStore {
             queue_write_seconds: 0.0,
             host_free: Vec::new(),
             host_free_bytes: 0,
+            slab: None,
+            slabs_full: Vec::new(),
+            slab_pool: Vec::new(),
         };
         if let (Some(dir), true) = (s.cfg.disk_dir.clone(), s.cfg.disk_bytes > 0) {
             let dir = dir.join(format!("{build:016x}"));
@@ -863,14 +876,14 @@ impl PrefixStore {
             return Ok((out, cap));
         }
         if defer {
-            // deferred: one allocation for the insert (all of it leaves the device at `settle`)
+            // deferred: carved from a slab all of whose captures leave the device at `settle`
             cap.how = "deferred";
             let t = Instant::now();
-            let buf = backend.alloc(total.max(16), MemKind::Device)?;
+            let (buf, base) = self.slab(backend, total)?;
             cap.alloc_s += t.elapsed().as_secs_f64();
             let t = Instant::now();
             let mut out = Vec::with_capacity(todo.len());
-            let mut off = 0;
+            let mut off = base;
             for (_, segs, _) in todo {
                 out.push(Mem::Device(buf.clone(), off));
                 for &(src, so, n) in segs {
@@ -898,6 +911,43 @@ impl PrefixStore {
             out.push(Mem::Host(Arc::new(v)));
         }
         Ok((out, cap))
+    }
+
+    /// `bytes` of device memory for a deferred capture: `(slab, offset)`. The current slab while it has room, else an idle
+    /// one from the pool, else a new allocation. Everything carved from a slab is demoted at `settle`, after which the
+    /// slab goes back to the pool ([`PrefixStore::recycle_slabs`]); its stale bytes are never read (every capture writes
+    /// its whole range, and a restore reads only what a capture wrote).
+    fn slab(&mut self, backend: &dyn Backend, bytes: usize) -> Result<(Buffer, usize)> {
+        if let Some((buf, used)) = &mut self.slab {
+            if *used + bytes <= buf.bytes() {
+                let at = *used;
+                *used = (at + bytes).next_multiple_of(256);
+                return Ok((buf.clone(), at));
+            }
+        }
+        let buf = match self.slab_pool.iter().position(|b| b.bytes() >= bytes) {
+            Some(i) => self.slab_pool.swap_remove(i),
+            None => backend.alloc(bytes.next_multiple_of(SLAB_MIN), MemKind::Device)?,
+        };
+        if let Some((old, _)) = self.slab.take() {
+            self.slabs_full.push(old);
+        }
+        self.slab = Some((buf.clone(), bytes.next_multiple_of(256)));
+        Ok((buf, 0))
+    }
+
+    /// After a settle: the slabs nothing but the store holds any more become idle (the first ones, up to the pool cap, are
+    /// kept; the rest are freed). A slab that a device-resident object still points into is left to it.
+    fn recycle_slabs(&mut self) {
+        let mut all: Vec<Buffer> = std::mem::take(&mut self.slabs_full);
+        all.extend(self.slab.take().map(|(b, _)| b));
+        let mut kept: usize = self.slab_pool.iter().map(Buffer::bytes).sum();
+        for b in all {
+            if b.strong_count() == 1 && kept + b.bytes() <= SLAB_POOL_CAP {
+                kept += b.bytes();
+                self.slab_pool.push(b);
+            }
+        }
     }
 
     fn add_obj(&mut self, k: Key, bytes: usize, mem: Mem, now: u64, pinned: bool) {
@@ -1036,6 +1086,7 @@ impl PrefixStore {
         let t0 = Instant::now();
         let before = self.used[0];
         self.enforce(backend);
+        self.recycle_slabs();
         let took = t0.elapsed().as_secs_f64();
         self.stats.insert_seconds_total += took;
         self.stats.settle_seconds_total += took;
