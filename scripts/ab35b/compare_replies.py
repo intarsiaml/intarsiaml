@@ -4,6 +4,8 @@ usage: compare_replies.py label=path/to/result.json ... [--pairs a:b,a:c] [--jso
 Equality is on the reply text, question by question (same id). Ids are the benchmark's own, so the runs must be the
 same question set (no nonce, no shuffling)."""
 import json, sys, itertools
+import re
+NUMBER_ONLY = re.compile(r'^\s*\$?-?[\d,]+(\.\d+)?\s*%?\.?\s*$')
 
 def load(p):
     d = json.load(open(p))
@@ -23,10 +25,12 @@ def main():
     res = {"accuracy": {}, "pairs": {}}
     for k, (rep, b) in runs.items():
         n = len(rep); s = sum(1 for r in rep.values() if r["flexible"])
-        bare = [r for r in rep.values() if r.get("bare_number")]
+        # style from the reply text itself. localeval's `bare_number` flag is a score (the reply IS the gold number), not a style:
+        # a wrong bare number has it false, so it must not be used to count "worked" replies.
+        num = [r for r in rep.values() if NUMBER_ONLY.match(r["reply"])]
         res["accuracy"][k] = {"n": n, "correct": s, "acc": round(s / n, 4), "overall_score": b.get("overall_score"),
-                              "bare": len(bare), "bare_correct": sum(1 for r in bare if r["flexible"]),
-                              "worked": n - len(bare), "worked_correct": s - sum(1 for r in bare if r["flexible"]),
+                              "number_only": len(num), "number_only_correct": sum(1 for r in num if r["flexible"]),
+                              "worked": n - len(num), "worked_correct": s - sum(1 for r in num if r["flexible"]),
                               "mean_completion_tokens": round(sum(r["completion_tokens"] for r in rep.values()) / n, 1),
                               "truncated": sum(1 for r in rep.values() if r.get("truncated"))}
     pr = pairs or [list(p) for p in itertools.combinations(runs, 2)]
