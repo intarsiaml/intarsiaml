@@ -1,0 +1,16 @@
+[20:19:02 +0s] window w1 start (cap 50 min); vLLM up: 200; earlyoom: active
+2026-11-12T23:46:19.63646884Z missioncntrl/vllm-openai:65b7662d
+missioncntrl-guidance
+[20:19:05 +3s] vLLM DOWN (docker stop done) at 20:19:05
+Mem:             121          11          60           0          51         110
+[N/A]
+[20:19:05 +3s] serve arm B-default: serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2
+[20:19:58 +56s] serve B-default up; MemAvailable MB: 82314; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 48.8s, context 131072 tokens
+min MemAvailable MB (time MB; KILLED count) (B-default): 20:19:56 82303 0 
+[20:32:32 +810s] serve arm B-specoff: serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --spec off
+[20:33:17 +855s] serve B-specoff up; MemAvailable MB: 85614; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 42.3s, context 131072 tokens
+min MemAvailable MB (time MB; KILLED count) (B-specoff): 20:33:22 84776 0 
+[20:37:08 +1086s] restoring vLLM: docker start missioncntrl-guidance
+missioncntrl-guidance
+[20:40:26 +1284s] vLLM /v1/models 200 at 20:40:26 (vLLM down for 1281s total)
+[20:40:26 +1284s] window end

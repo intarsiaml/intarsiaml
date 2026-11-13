@@ -1,0 +1,145 @@
+{
+ "arm": "B-single",
+ "url": "http://spark-fa00:8191/v1",
+ "temperature": 0.7,
+ "top_p": 0.95,
+ "gen": 256,
+ "reps": 3,
+ "rows": [
+  {
+   "size": 4096,
+   "prompt_tokens": 4072,
+   "ttft_s": {
+    "median": 0.59,
+    "min": 0.59,
+    "max": 0.593
+   },
+   "decode_tok_s": {
+    "median": 76.769,
+    "min": 74.521,
+    "max": 80.87
+   },
+   "peak_decode_tok_s": {
+    "median": 108.1,
+    "min": 103.7,
+    "max": 128.7
+   },
+   "completion_tokens": {
+    "median": 256,
+    "min": 256,
+    "max": 256
+   },
+   "cached_tokens_max": 0,
+   "decode_each": [
+    80.9,
+    76.8,
+    74.5
+   ],
+   "errors": [],
+   "mtp": {
+    "delta": {
+     "intarsia_tokens_cached_total": 0.0,
+     "intarsia_spec_steps_total": 356.0,
+     "intarsia_spec_proposed_tokens_total": 711.0,
+     "intarsia_spec_accepted_tokens_total": 407.0,
+     "intarsia_spec_costgate_off_total": 0.0,
+     "intarsia_spec_costgate_on_total": 0.0,
+     "intarsia_spec_costgate_plain_steps_total": 0.0,
+     "intarsia_spec_costgate_probe_steps_total": 0.0
+    },
+    "accept_rate": 0.572,
+    "tokens_per_verify": 2.143
+   }
+  },
+  {
+   "size": 32768,
+   "prompt_tokens": 33849,
+   "ttft_s": {
+    "median": 5.71,
+    "min": 5.697,
+    "max": 5.758
+   },
+   "decode_tok_s": {
+    "median": 68.537,
+    "min": 66.1,
+    "max": 71.593
+   },
+   "peak_decode_tok_s": {
+    "median": 94.7,
+    "min": 94.2,
+    "max": 108.9
+   },
+   "completion_tokens": {
+    "median": 256,
+    "min": 256,
+    "max": 256
+   },
+   "cached_tokens_max": 0,
+   "decode_each": [
+    68.5,
+    71.6,
+    66.1
+   ],
+   "errors": [],
+   "mtp": {
+    "delta": {
+     "intarsia_tokens_cached_total": 0.0,
+     "intarsia_spec_steps_total": 339.0,
+     "intarsia_spec_proposed_tokens_total": 676.0,
+     "intarsia_spec_accepted_tokens_total": 425.0,
+     "intarsia_spec_costgate_off_total": 0.0,
+     "intarsia_spec_costgate_on_total": 0.0,
+     "intarsia_spec_costgate_plain_steps_total": 0.0,
+     "intarsia_spec_costgate_probe_steps_total": 0.0
+    },
+    "accept_rate": 0.629,
+    "tokens_per_verify": 2.254
+   }
+  },
+  {
+   "size": 65536,
+   "prompt_tokens": 68846,
+   "ttft_s": {
+    "median": 14.433,
+    "min": 14.42,
+    "max": 14.441
+   },
+   "decode_tok_s": {
+    "median": 52.349,
+    "min": 49.317,
+    "max": 56.648
+   },
+   "peak_decode_tok_s": {
+    "median": 66.5,
+    "min": 61.1,
+    "max": 73.4
+   },
+   "completion_tokens": {
+    "median": 256,
+    "min": 256,
+    "max": 256
+   },
+   "cached_tokens_max": 0,
+   "decode_each": [
+    49.3,
+    56.6,
+    52.3
+   ],
+   "errors": [],
+   "mtp": {
+    "delta": {
+     "intarsia_tokens_cached_total": 0.0,
+     "intarsia_spec_steps_total": 336.0,
+     "intarsia_spec_proposed_tokens_total": 671.0,
+     "intarsia_spec_accepted_tokens_total": 429.0,
+     "intarsia_spec_costgate_off_total": 0.0,
+     "intarsia_spec_costgate_on_total": 0.0,
+     "intarsia_spec_costgate_plain_steps_total": 0.0,
+     "intarsia_spec_costgate_probe_steps_total": 0.0
+    },
+    "accept_rate": 0.639,
+    "tokens_per_verify": 2.277
+   }
+  }
+ ]
+}

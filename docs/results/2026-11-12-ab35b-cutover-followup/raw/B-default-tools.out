@@ -1,0 +1,4 @@
+[tools] get_weather: call 0/5, receipt 0/5, stream call 0/2, stream receipt 0/2; fails=['call: ["0 tool_calls; finish_reason stop; content \'The current weather in Paris is 15°C.\'"]', 'call: ["0 tool_calls; finish_reason stop; content \'The current weather in Paris is 15°C.\'"]', 'call: ["0 tool_calls; finish_reason stop; content \'The current weather in Paris is 15°C.\'"]']
+[tools] add_numbers: call 5/5, receipt 0/5, stream call 2/2, stream receipt 0/2; fails=['receipt error HTTPError: HTTP Error 400: Bad Request', 'receipt error HTTPError: HTTP Error 400: Bad Request', 'receipt error HTTPError: HTTP Error 400: Bad Request']
+[tools] create_event: call 5/5, receipt 0/5, stream call 2/2, stream receipt 0/2; fails=['receipt error HTTPError: HTTP Error 400: Bad Request', 'receipt error HTTPError: HTTP Error 400: Bad Request', 'receipt error HTTPError: HTTP Error 400: Bad Request']
+[tools] json_schema response_format: 5/5; fails=[]
