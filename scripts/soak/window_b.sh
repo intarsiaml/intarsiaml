@@ -4,7 +4,7 @@
 #   (a) Ba: --max-batch 2 --prefix-store on, bf16 KV, GSM8K n=200 thinking off max_tokens 1024 pinned (ab35b Run 2 setup)
 #   (b) Bb: same + --kv-dtype fp8
 #   (c) Bc: same as (a), GSM8K thinking on, n=<think-n>, max_tokens=<think-max-tokens>, the same values as the vLLM arm (V-think)
-# Arm (c) takes the n that still fits in the remaining time (at most <think-n>; skipped below 30).
+# Arm (c) takes the n that still fits in the remaining time (at most <think-n>, at PER_PROBLEM_S seconds per problem, default 30; skipped below 30).
 set -uo pipefail
 CAPMIN=${1:-50}; TN=${2:-100}; TMAX=${3:-8192}
 WLOG=window-b
@@ -24,8 +24,8 @@ if start_serve Bb --max-batch 2 --prefix-store on --kv-dtype fp8; then
   gsm8k Bb "$URL" "$RB" off 200 1024
   finish_serve Bb
 fi
-# Bc: n = what still fits at ~21 s per problem (vLLM pilot: 19.4 s, 1475 tokens at 77 tok/s) after 4 min of margin for start and restore
-N=$(( ($(left) - 240) / 21 )); (( N > TN )) && N=$TN
+# Bc: n = what still fits at PER_PROBLEM_S per problem (vLLM thinking arm measured ~29 s: ~2200 tokens at 77 tok/s; the 5-problem pilot said 19.4 s) after 4 min of margin for start and restore
+N=$(( ($(left) - 240) / ${PER_PROBLEM_S:-30} )); (( N > TN )) && N=$TN
 if (( N >= 30 )); then
   log "Bc: n=$N (asked $TN), $(left) s left"
   if start_serve Bc --max-batch 2 --prefix-store on; then
