@@ -69,7 +69,7 @@ CAPPID=$!
 rsh "free -g | sed -n 2p; nvidia-smi --query-gpu=memory.used --format=csv,noheader" | tee -a "$OUT/window3.log"
 
 # window 3: 2-stream replay (replay2 --streams 2): batched no store vs batched + store (#353); #354 single-engine replay
-BIN353='~/intarsia-batch-store/bin/intarsia'; BIN354='~/intarsia-store-capture/bin/intarsia'
+BIN353='~/intarsia-w3-353/bin/intarsia'; BIN354='~/intarsia-w3-354/bin/intarsia'
 log "binaries: 353 $(rsh "$BIN353 --version | head -1"); 354 $(rsh "$BIN354 --version | head -1")"
 if start_serve D-nostore "$BIN353" - --max-batch 2; then
   replay2 D-nostore "$URL" interleaved 0 2
