@@ -1,0 +1,11 @@
+[reps] calibrated 22.08 tok/sentence base=52
+[reps] req1 32768 rep1 p0: prompt=33880 ttft=5.76s decode=67.9 peak=78.4 itl_p50=14.901 p99=74.286 cv=0.7767 out=256 sha=1f43666611 start=2026-11-13T01:00:01.581-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req2 32768 rep2 p1: prompt=33876 ttft=5.70s decode=66.1 peak=79.8 itl_p50=14.902 p99=80.786 cv=0.8433 out=256 sha=5d1e9f8f69 start=2026-11-13T01:00:11.205-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req3 32768 rep3 p2: prompt=33870 ttft=5.72s decode=66.6 peak=78.1 itl_p50=14.95 p99=78.208 cv=0.7652 out=256 sha=bb6eaf6f3b start=2026-11-13T01:00:20.859-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req4 32768 rep4 p3: prompt=33872 ttft=5.72s decode=66.7 peak=79.7 itl_p50=14.895 p99=74.597 cv=0.7707 out=256 sha=7dce04a335 start=2026-11-13T01:00:30.512-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req5 65536 rep1 p0: prompt=68882 ttft=14.60s decode=56.8 peak=65.9 itl_p50=17.905 p99=82.926 cv=0.7261 out=256 sha=5c5d495ba0 start=2026-11-13T01:00:40.251-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req6 65536 rep2 p1: prompt=68817 ttft=14.53s decode=55.8 peak=61.2 itl_p50=17.808 p99=80.774 cv=0.715 out=256 sha=5ff81e90ec start=2026-11-13T01:00:59.454-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req7 65536 rep3 p2: prompt=68868 ttft=14.55s decode=55.4 peak=61.7 itl_p50=17.936 p99=86.195 cv=0.7381 out=256 sha=52d5e477e0 start=2026-11-13T01:01:18.666-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req8 65536 rep4 p3: prompt=68876 ttft=14.57s decode=55.8 peak=62.0 itl_p50=17.827 p99=84.345 cv=0.6954 out=256 sha=a54aac19c4 start=2026-11-13T01:01:37.918-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+| r4-faults-bf16 | 32768 | median 66.7 | each [67.9, 66.1, 66.6, 66.7] |
+| r4-faults-bf16 | 65536 | median 55.8 | each [56.8, 55.8, 55.4, 55.8] |

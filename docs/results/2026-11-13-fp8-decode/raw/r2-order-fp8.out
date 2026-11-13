@@ -1,0 +1,10 @@
+[reps] calibrated 22.08 tok/sentence base=48
+[reps] req1 65536 rep1 p2: prompt=68868 ttft=15.56s decode=63.5 peak=74.3 itl_p50=15.435 p99=78.202 cv=0.7608 out=256 sha=eb41ee16a3 start=2026-11-13T00:04:38.703-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req2 65536 rep2 p1: prompt=68815 ttft=15.63s decode=64.0 peak=75.1 itl_p50=15.525 p99=81.757 cv=0.7586 out=256 sha=5397650330 start=2026-11-13T00:04:58.410-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req3 65536 rep3 p0: prompt=68884 ttft=15.72s decode=64.7 peak=75.5 itl_p50=15.538 p99=82.1 cv=0.7767 out=256 sha=fee00ea331 start=2026-11-13T00:05:18.150-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req4 65536 rep4 p0: prompt=68884 ttft=15.70s decode=63.9 peak=74.8 itl_p50=15.55 p99=86.14 cv=0.8186 out=256 sha=e887115042 start=2026-11-13T00:05:37.991-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req5 65536 rep5 p1: prompt=68818 ttft=15.71s decode=64.1 peak=74.4 itl_p50=15.494 p99=82.868 cv=0.8238 out=256 sha=d3701af593 start=2026-11-13T00:05:57.801-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req6 65536 rep6 p2: prompt=68870 ttft=15.73s decode=62.6 peak=74.7 itl_p50=15.63 p99=84.567 cv=0.8089 out=256 sha=7c67770c5b start=2026-11-13T00:06:17.613-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req7 65536 rep7 p3: prompt=68873 ttft=15.74s decode=63.2 peak=76.1 itl_p50=15.481 p99=84.385 cv=0.8123 out=256 sha=f6875419d4 start=2026-11-13T00:06:37.535-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req8 65536 rep8 p4: prompt=68844 ttft=15.74s decode=62.8 peak=73.7 itl_p50=15.503 p99=79.361 cv=0.7572 out=256 sha=be3eabaa0a start=2026-11-13T00:06:57.426-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+| r2-order-fp8 | 65536 | median 63.7 | each [63.5, 64.0, 64.7, 63.9, 64.1, 62.6, 63.2, 62.8] |
