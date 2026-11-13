@@ -134,12 +134,52 @@ bounded only by `max_tokens`. On a model without a reasoning parser the flag onl
 dropped (newer templates put it in the prompt), and the whitespace around the tags is trimmed. Output without a
 `</think>` (cut off by `max_tokens`, or the model stopped) is all reasoning, with empty `content`.
 
-**A call before the close.** With tools parsed, complete `<tool_call>` envelopes that end the reasoning, with `</think>`
-after them and nothing but whitespace after that, are the reply's tool calls instead of reasoning (`finish_reason`
-`tool_calls` / `stop_reason` `tool_use`), whole and streamed. vLLM's `qwen3` parser returns such calls too. A call followed by
-more reasoning or by an answer, an incomplete envelope, and a reply with no `</think>` stay reasoning. While streaming,
-reasoning from a `<tool_call>` that could still be such a tail is held back until it is decided: the answer starts, other
-text follows the call, or the reply ends.
+**A tool call while reasoning.** For a `qwen3_xml` recipe (Qwen3.5 and later) this reproduces vLLM 0.26.1rc1's
+`--reasoning-parser qwen3 --tool-call-parser qwen3_xml` (its parser engine, `vllm/parser/qwen3.py`; read from the source on
+spark2 and checked with three live requests with thinking off). With `tool_choice` auto (or none, or no tools), a
+`<tool_call>` seen while reasoning ends the reasoning, wherever it sits and whether or not a `</think>` follows: the
+reasoning is the text before it, and the content, from the `<tool_call>` on, goes to the tool parser. Other cases keep the
+split at `</think>` only, as before:
+- a **hermes** recipe (`qwen3.toml`) keeps only the narrow rule: complete call envelopes at the very end of the reasoning,
+  with `</think>` after them and no answer, are the reply's calls (not with `tool_choice` required or a named function);
+  a call followed by more reasoning or an answer, an incomplete one, or a reply with no `</think>` stays reasoning;
+- `tool_choice` **required** or a **named** function: calls written while reasoning are not lifted (the grammar allows
+  calls only after `</think>`, and only those count);
+- a request with a `response_format` (any grammar-constrained output): reasoning ends at `</think>` only and nothing in
+  the content is stripped or read as markup;
+- a recipe with no tool parser.
+
+`parallel_tool_calls: false` returns at most the first call. The reasoning's surrounding whitespace is still trimmed,
+which vLLM does not do (an older, separate choice).
+
+The `qwen3_xml` rows (vLLM and this server):
+
+| Case | Behaviour |
+|---|---|
+| Call last before `</think>`, nothing after | reasoning before it, the call returned, `finish_reason` `tool_calls` (Anthropic `tool_use`) |
+| Call, then more reasoning, then `</think>` and an answer | the call returned; the text after it (more reasoning, answer) is dropped when a call was found; the later `</think>` is absorbed |
+| Call and no `</think>` | the same: reasoning before it, the call returned |
+| Several calls | all returned, in order (`parallel_tool_calls: false`: the first); the text between them is dropped |
+| Text before a call in the answer | the content is that text, trimmed; the calls returned |
+| Call cut off by `max_tokens` | a call with the parameters that were complete (none for a half-written value); `finish_reason` is `tool_calls` although the engine said `length`; cut inside the name, the name as written; cut before any `<function=NAME>`, nothing |
+| Closed envelope with no `<function=NAME>` | nothing returned and the envelope is cut out; the text after it is content (no call was found), unstripped |
+| `<tool_call>` in prose while reasoning | the reasoning ends there and the envelope never closes: the rest, answer included, is swallowed; nothing returned |
+| Request without tools | the call is read and thrown away: no `tool_calls`, the text after it dropped, reasoning ends at the tag |
+| `tool_choice: none` (with tools) | no call; the markup is cut out, all other text stays, unstripped; reasoning ends at the tag |
+| A second `</think>` after the real one | dropped from the content (one pass, so what a removal joins stays) |
+| Thinking off | the tool parser reads the answer as above (nothing to end) |
+
+A reply whose text has no `<tool_call>` is answered exactly as before these rules, with two exceptions on a `qwen3_xml`
+recipe: a repeated `</think>` after the real one is dropped, and a stream's chunks can differ where a token ends in a
+prefix of `<tool_call>` (it is held until the next token; the text is the same). `return_token_ids` on a streamed reply
+without reasoning keeps its per-delta ids, so for such a request the markup of the no-tools and `tool_choice` none rows is
+not read.
+
+Where this server differs from vLLM: vLLM's streaming path lets text after a call through as content when it arrives in a
+later chunk, while its whole-reply path drops it; here both drop it (the whole-reply rule). When no call is found
+vLLM's whole-reply path puts the text after a dropped envelope before the text that precedes it; here the order is kept.
+A `</think>` inside a call's argument is dropped too. The text before a call is streamed as written and trimmed in
+the whole-reply path.
 
 | Endpoint | Reasoning | Answer |
 |---|---|---|
@@ -153,7 +193,7 @@ a non-streamed response is unchanged).
 
 **Constraints.** With reasoning split (as above), `response_format`, `tool_choice: required` / a named tool, and `auto` are all gated:
 nothing is masked until the model emits the `</think>` token, so the think section is free text (a `<tool_call>` inside
-it does not open a call). Then the grammar starts from the first answer token. This is the same lazy-trigger mechanism
+it does not constrain a call, but the tag still ends the reasoning, as in the table above). Then the grammar starts from the first answer token. This is the same lazy-trigger mechanism
 as `tool_choice: auto` (`TokenConstraint::active`): until `</think>` the request decodes like an unconstrained one.
 The template's usual `\n\n` after `</think>` may come before the constrained text (the grammar takes an optional `"\n\n"`
 first); the reasoning parser trims it, so `content` starts with the JSON or the call itself.
