@@ -13,11 +13,11 @@ mkdir -p "$OUT"
 rsh() { ssh -n -o BatchMode=yes "$H" "export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 RLOG="$L/out/serve-$ARM.log"
 rsh "mkdir -p $L/out; pkill -f '[s]erve --backend cuda.*--port $PORT' || true"
-rsh "cd $L && nohup env ${SERVE_ENV:-} $BIN serve --backend cuda --model $SNAP --port $PORT --max-seq 131072 --mem-budget 40 \
-  --max-batch 2 --profile-every 0 --served-model-name guidance ${SERVE_ARGS:-} > $RLOG 2>&1 & echo \$! > $L/out/serve.pid"
+rsh "cd $L; nohup env ${SERVE_ENV:-} $BIN serve --backend cuda --model $SNAP --port $PORT --max-seq 131072 --mem-budget 40 \
+  --max-batch 2 --profile-every 0 --served-model-name guidance --host 0.0.0.0 ${SERVE_ARGS:-} > $RLOG 2>&1 < /dev/null & echo \$! > $L/out/serve.pid"
 # memory guard: kill the server if MemAvailable drops under 10 GB
-scp -q -o BatchMode=yes "$HERE/memguard.sh" "$H:${L#\~/}/memguard.sh"
-rsh "nohup bash $L/memguard.sh $L/out/serve.pid $L/out/mem-$ARM.log >/dev/null 2>&1 &"
+scp -q -o BatchMode=yes "$HERE/memguard.sh" "$H:intarsia-fp8-decode/memguard.sh"
+rsh "nohup bash $L/memguard.sh $L/out/serve.pid $L/out/mem-$ARM.log >/dev/null 2>&1 < /dev/null &"
 for i in $(seq 1 120); do
   if rsh "grep -q 'listening on' $RLOG"; then break; fi
   if ! rsh "kill -0 \$(cat $L/out/serve.pid)" 2>/dev/null; then echo "server died"; rsh "tail -20 $RLOG"; exit 1; fi
@@ -32,5 +32,5 @@ set -e
 rsh "kill \$(cat $L/out/serve.pid); sleep 3; pkill -9 -f '[s]erve --backend cuda.*--port $PORT' || true"
 scp -q -o BatchMode=yes "$H:$RLOG" "$OUT/serve-$ARM.log"
 scp -q -o BatchMode=yes "$H:$L/out/mem-$ARM.log" "$OUT/mem-$ARM.log" || true
-echo "min MemAvailable GB: $(sort -k2 -n "$OUT/mem-$ARM.log" | head -1)"
+echo "min MemAvailable GB: $(sort -k2 -n "$OUT/mem-$ARM.log" 2>/dev/null | head -1)"
 exit $rc
