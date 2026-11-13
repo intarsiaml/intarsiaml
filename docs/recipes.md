@@ -45,7 +45,7 @@ checkpoint has the name only with that suffix.
 | `family` | string | required | Name shown in logs, `plan show` and tuning sources (`recipe qwen3_5_moe, cuda`). Also the file stem by convention. |
 | `chat_template` | string | `"hf"` | Where the chat template comes from. `"hf"` = the model's own Jinja template via minijinja (`chat_template.jinja`, then `tokenizer_config.json`). |
 | `reasoning_parser` | string | none | Server-side splitting of reasoning from the answer. `"think-tags"` splits on `<think>...</think>`. Set, it also turns thinking on in the chat template; unset, the model is not asked to think. |
-| `tool_parser` | string | none | Tool-call dialect the server parses from the output. `"hermes"` is the dialect the server recognises. |
+| `tool_parser` | string | none | Tool-call dialect the server parses from the output. `"hermes"` (`<tool_call>` JSON, Qwen3) and `"qwen3_xml"` (`<tool_call><function=..><parameter=..>`, Qwen3.5 and later) are the dialects the server recognises. |
 | `norm_offset` | float | `0.0` | Added to every RMSNorm weight in f32 before use (`x * (1 + w)` for Qwen3.5/3.6 is `1.0`). Applies to pre-block norms, the final norm and q/k norms, not the gated norm inside GatedDeltaNet. Getting it wrong gives fluent nonsense. |
 
 ### `[layer]` (required)
@@ -305,7 +305,7 @@ match.architectures = ["Qwen3_5MoeForConditionalGeneration", "Qwen3_5MoeForCausa
 family = "qwen3_5_moe"
 chat_template = "hf"
 reasoning_parser = "think-tags"
-tool_parser = "hermes"
+tool_parser = "qwen3_xml"
 norm_offset = 1.0                 # x * (1 + w)
 
 [layer]

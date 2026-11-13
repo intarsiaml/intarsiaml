@@ -42,7 +42,7 @@ Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md)
 | Host-RAM KV tier | **partial** | the prefix store keeps prefix pages in host memory and on disk (`crates/intarsia-core/src/prefix_store.rs`); live per-slot KV has no host tier |
 | Speculation | **partial** | n-gram (Metal only) and the MTP drafter (`--spec mtp` on CUDA, HIP and Metal, one sequence, greedy; captured draft+verify step on HIP in `crates/intarsia-core/src/model/spec_graph.rs`); DFlash2 block drafter opt-in on HIP (`--spec dflash`, Qwen3.8-27B, tp=1 and tp=2; #175, cost lane dcp: `docs/results/2026-10-27-dcp-dflash-cost.md`; `crates/intarsia-core/src/model/dflash2.rs`); batched MTP refused at load (`crates/intarsia-models/src/load.rs`) |
 | Sampler and structured output | **partial** | no min-p or penalties; `llguidance` is in |
-| Tool and reasoning parsers | **partial** | one tool-call format (hermes) and one reasoning format (think-tags) |
+| Tool and reasoning parsers | **partial** | two tool-call formats (hermes, qwen3_xml) and one reasoning format (think-tags) |
 | Tensor parallelism and `Comm` | **partial** | NCCL (CUDA), 2-rank P2P (HIP), host-bounced for the rest; no RCCL, no fused all-reduce+norm+quant, no lossy transports; batching under tp, vocab-parallel head and fused all-reduce+norm are open PRs, not on main |
 | Accuracy system | **partial** | `intarsia accuracy` and `qualify`; gates differ from section 6 (see ADR-0008) |
 | Bench plugins, onboarding | **partial** | `bench speed` and `onboard` exist; no `BenchPlugin` trait, no `micro` plugin |
@@ -414,7 +414,7 @@ The plan is serializable (`intarsia plan show`) so the UI and humans can see exa
 | Sampling: min-p and penalties | **planned** | not in `sampler.rs` |
 | Sampling: seeded; `ignore_eos` and `min_tokens` | **implemented** | [`crates/intarsia-core/src/sampler.rs`](../crates/intarsia-core/src/sampler.rs), [`crates/intarsia-core/src/scheduler.rs`](../crates/intarsia-core/src/scheduler.rs) |
 | Structured output via `llguidance` | **implemented** | [`crates/intarsia-core/src/constrain.rs`](../crates/intarsia-core/src/constrain.rs), [`crates/intarsia-server/src/structured.rs`](../crates/intarsia-server/src/structured.rs) |
-| Parsers: `hermes`, `qwen3-xml`, `glm`, `deepseek`, `think-tags`, `harmony`, selected by recipe | **partial** | `hermes` tool calls and `think-tags` reasoning in [`crates/intarsia-server/src/structured.rs`](../crates/intarsia-server/src/structured.rs); the other four (`qwen3-xml`, `glm`, `deepseek`, `harmony`) are **planned**; recipes carry `tool_parser` and `reasoning_parser` keys ([`recipes/qwen3.toml`](../recipes/qwen3.toml)) but there is one implementation of each |
+| Parsers: `hermes`, `qwen3-xml`, `glm`, `deepseek`, `think-tags`, `harmony`, selected by recipe | **partial** | `hermes` and `qwen3_xml` tool calls (the recipe spells it `qwen3_xml`) and `think-tags` reasoning in [`crates/intarsia-server/src/structured.rs`](../crates/intarsia-server/src/structured.rs); the other three (`glm`, `deepseek`, `harmony`) are **planned**; recipes carry `tool_parser` and `reasoning_parser` keys ([`recipes/qwen3.toml`](../recipes/qwen3.toml)) but there is one implementation of each |
 
 ## 5. Parallelism (TP = X)
 
