@@ -141,6 +141,22 @@ mod tests {
     }
 
     #[test]
+    fn a_misspelt_tuning_key_or_backend_is_rejected() {
+        let base = include_str!("../../../recipes/qwen3.toml");
+        assert!(base.contains("[tuning.cuda]"), "the test edits the qwen3 recipe's CUDA tuning table");
+        // a key no backend table has: it was ignored, so the tuning it meant never applied
+        let e = parse_recipe(&base.replace("[tuning.cuda]", "[tuning.cuda]\nprefil_chunk = 512")).unwrap_err().to_string();
+        assert!(e.contains("prefil_chunk") && e.contains("prefill_chunk"), "{e}");
+        // a table for a backend that does not exist: nothing ever read it
+        let e = parse_recipe(&base.replace("[tuning.cuda]", "[tuning.cudda]")).unwrap_err().to_string();
+        assert!(e.contains("[tuning.cudda]") && e.contains("cuda"), "{e}");
+        // every shipped recipe still loads
+        for (name, text) in BUILTIN_RECIPES {
+            parse_recipe(text).unwrap_or_else(|e| panic!("{name}: {e}"));
+        }
+    }
+
+    #[test]
     fn no_match_error_lists_what_is_loaded_and_why_a_user_recipe_was_skipped() {
         let dir = std::env::temp_dir().join(format!("intarsia-recipe-skip-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();

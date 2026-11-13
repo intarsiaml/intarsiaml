@@ -351,6 +351,9 @@ pub struct Tuning {
     pub backends: BTreeMap<String, BackendTuning>,
 }
 
+/// The backends a `[tuning.<backend>]` table may name (`Backend::name` of the four device backends).
+pub const TUNING_BACKENDS: [&str; 4] = ["cpu", "cuda", "hip", "metal"];
+
 /// A resolved `--max-batch` and where it came from.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct MaxBatch {
@@ -360,6 +363,7 @@ pub struct MaxBatch {
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BackendTuning {
     pub prefill_chunk: Option<usize>,
     /// Default of `--mtp-draft-vocab` for this backend (see [`Tuning::mtp_draft_vocab`]).
@@ -688,6 +692,14 @@ impl Recipe {
 
     /// Light structural validation (the builder re-checks what it needs).
     pub fn validate(&self) -> Result<()> {
+        // `[tuning]` flattens its backend tables into a map, so serde takes any table name: a misspelt backend would be a
+        // table nothing ever reads
+        if let Some(name) = self.tuning.backends.keys().find(|k| !TUNING_BACKENDS.contains(&k.as_str())) {
+            return Err(Error::model(format!(
+                "recipe [tuning.{name}]: unknown backend (one of {})",
+                TUNING_BACKENDS.join(", ")
+            )));
+        }
         let chunks = self.tuning.prefill_chunk.iter().chain(self.tuning.backends.values().filter_map(|b| b.prefill_chunk.as_ref()));
         if chunks.into_iter().any(|&c| c == 0) {
             return Err(Error::model("recipe [tuning] prefill_chunk must be at least 1"));
