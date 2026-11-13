@@ -1,0 +1,42 @@
+{
+ "arm": "A-vllm",
+ "url": "http://spark-fa00:8000/v1",
+ "thinking": "default",
+ "scenarios": [
+  {
+   "tool": "get_weather",
+   "call_ok": 2,
+   "receipt_ok": 2,
+   "stream_call_ok": 1,
+   "stream_receipt_ok": 1,
+   "fails": [],
+   "reps": 2,
+   "stream_reps": 1
+  },
+  {
+   "tool": "add_numbers",
+   "call_ok": 2,
+   "receipt_ok": 2,
+   "stream_call_ok": 1,
+   "stream_receipt_ok": 1,
+   "fails": [],
+   "reps": 2,
+   "stream_reps": 1
+  },
+  {
+   "tool": "create_event",
+   "call_ok": 2,
+   "receipt_ok": 2,
+   "stream_call_ok": 1,
+   "stream_receipt_ok": 1,
+   "fails": [],
+   "reps": 2,
+   "stream_reps": 1
+  }
+ ],
+ "json_mode": {
+  "ok": 2,
+  "reps": 2,
+  "fails": []
+ }
+}

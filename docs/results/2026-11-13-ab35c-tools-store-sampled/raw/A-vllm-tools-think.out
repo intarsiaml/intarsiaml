@@ -1,0 +1,6 @@
+fleetq: #9173 running on spark2: python3 scripts/ab35c/toolsmoke.py --url http://spark-fa00:8000/v1 --model guidance --arm A-vllm --reps 2 --stream-reps 1 --thinking default --out docs/results/2026-11-13-ab35c-tools-store-sampled/raw
+[tools] get_weather: call 2/2, receipt 2/2, stream call 1/1, stream receipt 1/1; fails=[]
+[tools] add_numbers: call 2/2, receipt 2/2, stream call 1/1, stream receipt 1/1; fails=[]
+[tools] create_event: call 2/2, receipt 2/2, stream call 1/1, stream receipt 1/1; fails=[]
+[tools] json_schema response_format: 2/2; fails=[]
+fleetq: #9173 done (exit 0)
