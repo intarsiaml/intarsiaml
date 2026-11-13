@@ -1,0 +1,9 @@
+[reps] calibrated 22.08 tok/sentence base=50
+[reps] req1 4096 rep1 p0: prompt=4089 ttft=0.66s decode=81.0 peak=98.8 itl_p50=12.258 p99=79.338 cv=0.8909 out=256 sha=6e391237ee start=2026-11-13T01:29:08.663-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req2 4096 rep2 p1: prompt=4065 ttft=0.59s decode=80.8 peak=98.5 itl_p50=12.286 p99=78.115 cv=0.8795 out=256 sha=e4ef68ecde start=2026-11-13T01:29:12.577-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req3 4096 rep3 p2: prompt=4070 ttft=0.59s decode=79.0 peak=97.0 itl_p50=12.57 p99=80.501 cv=0.8632 out=256 sha=1fb27ce768 start=2026-11-13T01:29:16.410-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req4 65536 rep1 p0: prompt=68883 ttft=15.87s decode=54.4 peak=61.3 itl_p50=18.28 p99=81.268 cv=0.7033 out=256 sha=4371cf65b3 start=2026-11-13T01:29:20.414-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req5 65536 rep2 p1: prompt=68822 ttft=15.61s decode=55.0 peak=65.3 itl_p50=14.591 p99=158.702 cv=1.357 out=256 sha=04c887f287 start=2026-11-13T01:29:41.105-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req6 65536 rep3 p2: prompt=68866 ttft=14.98s decode=55.6 peak=61.8 itl_p50=17.868 p99=87.639 cv=0.725 out=256 sha=a972c9ad18 start=2026-11-13T01:30:01.484-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+| r7a-fix-mmap-bf16 | 4096 | median 80.8 | each [81.0, 80.8, 79.0] |
+| r7a-fix-mmap-bf16 | 65536 | median 55.0 | each [54.4, 55.0, 55.6] |

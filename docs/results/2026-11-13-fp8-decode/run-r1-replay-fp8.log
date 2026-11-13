@@ -1,0 +1,13 @@
+fleetq: #9184 running on spark1: bash scripts/fp8-decode/serve-run.sh
+23:55:23 server up
+[reps] calibrated 22.05 tok/sentence base=53
+[reps] req1 32768 rep1 p0: prompt=33905 ttft=5.98s decode=72.1 peak=86.0 itl_p50=13.774 p99=82.107 cv=0.8749 out=256 sha=d5d43909f3 start=2026-11-12T23:55:24.784-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req2 32768 rep2 p1: prompt=33897 ttft=5.98s decode=72.1 peak=86.0 itl_p50=13.798 p99=82.111 cv=0.8506 out=256 sha=949c70f227 start=2026-11-12T23:55:34.411-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req3 32768 rep3 p2: prompt=33894 ttft=5.99s decode=71.8 peak=86.1 itl_p50=13.67 p99=80.91 cv=0.8582 out=256 sha=51580c89b8 start=2026-11-12T23:55:44.028-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req4 65536 rep1 p0: prompt=68953 ttft=15.70s decode=63.9 peak=77.0 itl_p50=15.542 p99=86.647 cv=0.8042 out=256 sha=fd047833f7 start=2026-11-12T23:55:53.677-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req5 65536 rep2 p1: prompt=68885 ttft=15.73s decode=63.9 peak=74.5 itl_p50=15.503 p99=83.748 cv=0.7539 out=256 sha=5f45b01c57 start=2026-11-12T23:56:13.552-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req6 65536 rep3 p2: prompt=68936 ttft=15.78s decode=62.9 peak=74.4 itl_p50=15.506 p99=85.407 cv=0.8045 out=256 sha=f6d3bf8fcf start=2026-11-12T23:56:33.483-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+| r1-replay-fp8 | 32768 | median 72.1 | each [72.1, 72.1, 71.8] |
+| r1-replay-fp8 | 65536 | median 63.9 | each [63.9, 63.9, 62.9] |
+min MemAvailable GB: 23:55:21.884 56 2398MHz,10.93W,45,0%
+fleetq: #9184 done (exit 0)

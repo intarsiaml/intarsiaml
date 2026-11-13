@@ -206,9 +206,10 @@ impl Model {
         }
         let v = self.dims.vocab;
         if want_logits {
-            let mut bytes = vec![0u8; v * 4];
-            self.backend.download(&self.ws.logits, 0, &mut bytes, self.stream)?;
-            let mut out: Vec<f32> = bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
+            let mut out = super::with_logits_bytes(v * 4, |bytes| -> Result<Vec<f32>> {
+                self.backend.download(&self.ws.logits, 0, bytes, self.stream)?;
+                Ok(super::logits_row(bytes))
+            })?;
             self.softcap_logits(&mut out);
             Ok(Some(StepOut::Logits(out)))
         } else {

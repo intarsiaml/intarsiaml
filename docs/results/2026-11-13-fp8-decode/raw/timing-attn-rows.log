@@ -1,0 +1,30 @@
+fleetq: #9190 waiting (#1 in line): needs cpu quiet on spark1, but #9187 "batch-store: build" (claude-batch-store) loads it
+fleetq: #9190 running on spark1: bash scripts/fp8-decode/kernel-tests.sh
+== timing pos=4096 kv=bf16 pf=2
+ATTNT attn_decode_bf16_splitkv_rows M=1 pos~4096 52.4 us/call 160 GB/s
+ATTNT attn_decode_bf16_splitkv_rows M=2 pos~4096 84.8 us/call 199 GB/s
+== timing pos=4096 kv=fp8_e4m3 pf=2
+ATTNT attn_decode_f8kv_splitkv_rows M=1 pos~4096 42.9 us/call 98 GB/s
+ATTNT attn_decode_f8kv_splitkv_rows M=2 pos~4096 62.9 us/call 134 GB/s
+== timing pos=4096 kv=fp8_e4m3 pf=1
+ATTNT attn_decode_f8kv_splitkv_rows M=1 pos~4096 38.4 us/call 109 GB/s
+ATTNT attn_decode_f8kv_splitkv_rows M=2 pos~4096 55.5 us/call 152 GB/s
+== timing pos=32768 kv=bf16 pf=2
+ATTNT attn_decode_bf16_splitkv_rows M=1 pos~32768 300.9 us/call 223 GB/s
+ATTNT attn_decode_bf16_splitkv_rows M=2 pos~32768 597.7 us/call 225 GB/s
+== timing pos=32768 kv=fp8_e4m3 pf=2
+ATTNT attn_decode_f8kv_splitkv_rows M=1 pos~32768 179.8 us/call 187 GB/s
+ATTNT attn_decode_f8kv_splitkv_rows M=2 pos~32768 347.7 us/call 193 GB/s
+== timing pos=32768 kv=fp8_e4m3 pf=1
+ATTNT attn_decode_f8kv_splitkv_rows M=1 pos~32768 170.6 us/call 197 GB/s
+ATTNT attn_decode_f8kv_splitkv_rows M=2 pos~32768 330.6 us/call 203 GB/s
+== timing pos=65536 kv=bf16 pf=2
+ATTNT attn_decode_bf16_splitkv_rows M=1 pos~65536 583.0 us/call 230 GB/s
+ATTNT attn_decode_bf16_splitkv_rows M=2 pos~65536 1156.9 us/call 232 GB/s
+== timing pos=65536 kv=fp8_e4m3 pf=2
+ATTNT attn_decode_f8kv_splitkv_rows M=1 pos~65536 322.7 us/call 208 GB/s
+ATTNT attn_decode_f8kv_splitkv_rows M=2 pos~65536 644.0 us/call 208 GB/s
+== timing pos=65536 kv=fp8_e4m3 pf=1
+ATTNT attn_decode_f8kv_splitkv_rows M=1 pos~65536 309.7 us/call 217 GB/s
+ATTNT attn_decode_f8kv_splitkv_rows M=2 pos~65536 624.4 us/call 215 GB/s
+fleetq: #9190 done (exit 0)

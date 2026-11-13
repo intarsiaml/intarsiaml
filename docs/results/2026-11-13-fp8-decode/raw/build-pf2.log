@@ -1,0 +1,20 @@
+fleetq: #9188 running on spark1: bash /opt/code/intarsiaml/.worktrees/ab35c/build.sh
+00:08:42
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-fp8-decode/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-fp8-decode/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-fp8-decode/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsia-fp8-decode/src/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-fp8-decode/src/crates/intarsia-tui)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-fp8-decode/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsia-fp8-decode/src/crates/intarsia-engram)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-fp8-decode/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-fp8-decode/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-fp8-decode/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 09s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.2T  321G  92% /
+2.8G	/home/nvidia/intarsia-fp8-decode
+Mem:             121          39          42           0          40          81
+00:13:53
+git sha bf68f0fa563182c54a1388a1e99cad07231eebfd
+fleetq: #9188 done (exit 0)

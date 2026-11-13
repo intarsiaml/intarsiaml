@@ -1,0 +1,12 @@
+fleetq: #9222 running on spark1: bash scripts/fp8-decode/kernel-tests.sh
+== gate attn_f8kv
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 18.67s
+== gate rows_exact
+test result: ok. 12 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 20.58s
+== gate row_invariance
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 34.35s
+== gate attention
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 7.26s
+== gate row_tables
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 48.44s
+fleetq: #9222 done (exit 0)

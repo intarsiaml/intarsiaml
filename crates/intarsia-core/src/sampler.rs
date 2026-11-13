@@ -75,8 +75,24 @@ fn radix_sort_hi(keys: &mut Vec<u64>, tmp: &mut Vec<u64>) {
     }
 }
 
+/// Reusable host buffers of [`sample_row_in`] (lane fp8-decode): a draw over a 248k-token row needs a 2 MB key array (and,
+/// without top-k, as much again for the sort and the candidates). Allocated fresh each step they can land on new pages, whose
+/// faults cost ~0.7 ms a step on GB10 (docs/results/2026-11-13-fp8-decode.md); [`Sampler`] keeps one across its steps.
+#[derive(Default)]
+pub struct SampleScratch {
+    keys: Vec<u64>,
+    tmp: Vec<u64>,
+    idx: Vec<u32>,
+    probs: Vec<f64>,
+}
+
 /// Sample one token id from `logits` using the uniform draw `u` in [0, 1).
 pub fn sample_row(logits: &[f32], p: &SamplingParams, u: f32) -> usize {
+    sample_row_in(logits, p, u, &mut SampleScratch::default())
+}
+
+/// [`sample_row`] with its buffers in `s` (the same token for the same inputs).
+pub fn sample_row_in(logits: &[f32], p: &SamplingParams, u: f32, s: &mut SampleScratch) -> usize {
     if p.temperature <= 0.0 {
         return argmax(logits);
     }
@@ -85,17 +101,20 @@ pub fn sample_row(logits: &[f32], p: &SamplingParams, u: f32) -> usize {
         return sample_row_cmp(logits, p, u);
     }
     // Same order as `sample_row_cmp`'s comparator sort, on flat u64 keys (no indirect loads) instead.
-    let mut keys: Vec<u64> = logits.iter().enumerate().map(|(i, &l)| (order_key(l) as u64) << 32 | i as u64).collect();
+    let keys = &mut s.keys;
+    keys.clear();
+    keys.extend(logits.iter().enumerate().map(|(i, &l)| (order_key(l) as u64) << 32 | i as u64));
     let keep = if p.top_k > 0 && p.top_k < n { p.top_k } else { n };
     if keep < n {
         keys.select_nth_unstable(keep - 1);
         keys.truncate(keep);
         keys.sort_unstable();
     } else {
-        radix_sort_hi(&mut keys, &mut Vec::new());
+        radix_sort_hi(keys, &mut s.tmp);
     }
-    let idx: Vec<u32> = keys.iter().map(|&k| k as u32).collect();
-    walk(logits, p, u, idx)
+    s.idx.clear();
+    s.idx.extend(keys.iter().map(|&k| k as u32));
+    walk_in(logits, p, u, &mut s.idx, &mut s.probs)
 }
 
 /// The comparator-sort path (NaN logits: `partial_cmp` has no total order there, so keep the old behaviour).
@@ -115,11 +134,16 @@ fn sample_row_cmp(logits: &[f32], p: &SamplingParams, u: f32) -> usize {
 }
 
 /// Softmax over the sorted candidates `idx`, top-p cut, then the cumulative walk to `u`.
-fn walk(logits: &[f32], p: &SamplingParams, u: f32, idx: Vec<u32>) -> usize {
-    let (idx, probs) = cut(logits, p, idx);
+fn walk(logits: &[f32], p: &SamplingParams, u: f32, mut idx: Vec<u32>) -> usize {
+    walk_in(logits, p, u, &mut idx, &mut Vec::new())
+}
+
+/// [`walk`] on the candidates in `idx` (cut in place), the probabilities in `probs`.
+fn walk_in(logits: &[f32], p: &SamplingParams, u: f32, idx: &mut Vec<u32>, probs: &mut Vec<f64>) -> usize {
+    cut_in(logits, p, idx, probs);
     let mut acc = 0.0;
     let target = u as f64;
-    for (q, &i) in probs.iter().zip(&idx) {
+    for (q, &i) in probs.iter().zip(idx.iter()) {
         acc += q;
         if target < acc {
             return i as usize;
@@ -130,9 +154,17 @@ fn walk(logits: &[f32], p: &SamplingParams, u: f32, idx: Vec<u32>) -> usize {
 
 /// Softmax over the sorted candidates `idx` and the top-p cut: the candidates `walk` can return and their probabilities.
 fn cut(logits: &[f32], p: &SamplingParams, mut idx: Vec<u32>) -> (Vec<u32>, Vec<f64>) {
+    let mut probs = Vec::new();
+    cut_in(logits, p, &mut idx, &mut probs);
+    (idx, probs)
+}
+
+/// [`cut`] in place: `idx` is truncated to the candidates, `probs` (cleared first) gets their probabilities.
+fn cut_in(logits: &[f32], p: &SamplingParams, idx: &mut Vec<u32>, probs: &mut Vec<f64>) {
     let maxl = logits[idx[0] as usize] as f64;
     let inv_t = 1.0 / p.temperature as f64;
-    let mut probs: Vec<f64> = idx.iter().map(|&i| ((logits[i as usize] as f64 - maxl) * inv_t).exp()).collect();
+    probs.clear();
+    probs.extend(idx.iter().map(|&i| ((logits[i as usize] as f64 - maxl) * inv_t).exp()));
     let total: f64 = probs.iter().sum();
     for q in probs.iter_mut() {
         *q /= total;
@@ -154,7 +186,6 @@ fn cut(logits: &[f32], p: &SamplingParams, mut idx: Vec<u32>) -> (Vec<u32>, Vec<
             *q /= s;
         }
     }
-    (idx, probs)
 }
 
 /// A processed next-token distribution: the candidates [`sample_row`] can return for a row and their probabilities (after
@@ -237,6 +268,8 @@ pub fn dist(logits: &[f32], p: &SamplingParams) -> Dist {
 pub struct Sampler {
     pub params: SamplingParams,
     rng: SplitMix64,
+    /// [`sample_row_in`]'s buffers, kept across the request's steps
+    scratch: SampleScratch,
 }
 
 impl Sampler {
@@ -247,12 +280,12 @@ impl Sampler {
                 .map(|d| d.as_nanos() as u64)
                 .unwrap_or(0x1234_5678)
         });
-        Sampler { params, rng: SplitMix64::new(seed) }
+        Sampler { params, rng: SplitMix64::new(seed), scratch: SampleScratch::default() }
     }
 
     pub fn sample(&mut self, logits: &[f32]) -> usize {
         let u = self.rng.next_f32();
-        sample_row(logits, &self.params, u)
+        sample_row_in(logits, &self.params, u, &mut self.scratch)
     }
 
     /// One uniform draw in [0, 1) with 53 bits (speculative sampling's accept tests and draws).
@@ -313,6 +346,23 @@ mod tests {
         let p = SamplingParams { temperature: 1.0, top_k: 0, top_p: 0.8 };
         for u in [0.0, 0.3, 0.7, 0.999] {
             assert!(sample_row(&logits, &p, u) <= 1);
+        }
+    }
+
+    /// One scratch reused across rows of different lengths and every parameter form gives `sample_row`'s token (lane fp8-decode).
+    #[test]
+    fn scratch_reuse_is_sample_row() {
+        let mut rng = SplitMix64::new(7);
+        let mut s = SampleScratch::default();
+        for n in [1usize, 5, 64, 3000, 40000, 17] {
+            for (t, k, tp) in [(1.0f32, 0usize, 1.0f32), (0.7, 20, 0.95), (0.7, 0, 0.95), (1.3, 5, 0.5), (0.0, 0, 1.0)] {
+                let p = SamplingParams { temperature: t, top_k: k, top_p: tp };
+                for _ in 0..4 {
+                    let logits: Vec<f32> = (0..n).map(|_| (rng.next_f32() * 8.0).round() / 2.0 - 2.0).collect();
+                    let u = rng.next_f32();
+                    assert_eq!(sample_row_in(&logits, &p, u, &mut s), sample_row(&logits, &p, u), "n {n} t {t} k {k} tp {tp} u {u}");
+                }
+            }
         }
     }
 

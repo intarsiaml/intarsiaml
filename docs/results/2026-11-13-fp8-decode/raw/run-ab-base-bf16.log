@@ -1,0 +1,22 @@
+fleetq: running inside #9221 "fp8-decode: base vs fix A/B (quiet cpu)" (FLEETQ_JOB): bash scripts/fp8-decode/serve-run.sh
+01:52:26 server up
+[reps] calibrated 22.07 tok/sentence base=53
+[reps] req1 4096 rep1 p0: prompt=4089 ttft=0.63s decode=82.2 peak=102.1 itl_p50=12.199 p99=80.651 cv=0.9257 out=256 sha=0964d5b6f9 start=2026-11-13T01:52:27.866-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req2 4096 rep2 p1: prompt=4069 ttft=0.64s decode=81.0 peak=98.6 itl_p50=12.224 p99=80.429 cv=0.8858 out=256 sha=8db156fb54 start=2026-11-13T01:52:31.677-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req3 4096 rep3 p2: prompt=4073 ttft=0.59s decode=81.3 peak=99.7 itl_p50=12.214 p99=78.808 cv=0.886 out=256 sha=a5f212a996 start=2026-11-13T01:52:35.545-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req4 4096 rep4 p3: prompt=4093 ttft=0.60s decode=81.5 peak=99.5 itl_p50=12.236 p99=79.45 cv=0.902 out=256 sha=3041570d43 start=2026-11-13T01:52:39.360-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req5 4096 rep5 p4: prompt=4066 ttft=0.68s decode=83.8 peak=107.4 itl_p50=12.219 p99=76.639 cv=0.8416 out=256 sha=6f1ddf3361 start=2026-11-13T01:52:43.170-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req6 32768 rep1 p0: prompt=33906 ttft=5.75s decode=67.0 peak=78.9 itl_p50=14.853 p99=81.995 cv=0.7915 out=256 sha=a1306cacc3 start=2026-11-13T01:52:47.064-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req7 32768 rep2 p1: prompt=33901 ttft=5.79s decode=67.3 peak=79.6 itl_p50=14.901 p99=82.825 cv=0.8271 out=256 sha=5742a2c3ed start=2026-11-13T01:52:56.720-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req8 32768 rep3 p2: prompt=33893 ttft=5.75s decode=66.8 peak=78.7 itl_p50=14.879 p99=82.501 cv=0.7794 out=256 sha=62d9544908 start=2026-11-13T01:53:06.505-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req9 32768 rep4 p3: prompt=33895 ttft=5.80s decode=67.0 peak=79.4 itl_p50=14.87 p99=77.895 cv=0.8283 out=256 sha=b731cab1a3 start=2026-11-13T01:53:16.176-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req10 32768 rep5 p4: prompt=33954 ttft=5.79s decode=66.8 peak=78.1 itl_p50=14.886 p99=79.19 cv=0.7776 out=256 sha=e8a010e2b1 start=2026-11-13T01:53:25.878-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req11 65536 rep1 p0: prompt=68931 ttft=14.61s decode=55.7 peak=77.4 itl_p50=13.635 p99=393.111 cv=2.2416 out=256 sha=18dbca35b2 start=2026-11-13T01:53:35.582-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req12 65536 rep2 p1: prompt=68863 ttft=14.74s decode=57.1 peak=67.8 itl_p50=17.788 p99=86.791 cv=0.7817 out=256 sha=f00d165ad1 start=2026-11-13T01:53:54.893-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req13 65536 rep3 p2: prompt=68915 ttft=14.67s decode=55.7 peak=61.5 itl_p50=17.831 p99=82.091 cv=0.7163 out=256 sha=5327acfc69 start=2026-11-13T01:54:14.223-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req14 65536 rep4 p3: prompt=68921 ttft=14.71s decode=55.7 peak=62.6 itl_p50=17.81 p99=84.045 cv=0.746 out=256 sha=e0a7f5e556 start=2026-11-13T01:54:33.577-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req15 65536 rep5 p4: prompt=68893 ttft=14.67s decode=55.7 peak=61.5 itl_p50=17.868 p99=85.333 cv=0.7267 out=256 sha=c0a11d45a5 start=2026-11-13T01:54:52.974-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+| ab-base-bf16 | 4096 | median 81.5 | each [82.2, 81.0, 81.3, 81.5, 83.8] |
+| ab-base-bf16 | 32768 | median 67.0 | each [67.0, 67.3, 66.8, 67.0, 66.8] |
+| ab-base-bf16 | 65536 | median 55.7 | each [55.7, 57.1, 55.7, 55.7, 55.7] |
+min MemAvailable GB: 01:52:27.598 53 2411MHz,43.39W,66,96% minflt=5011663

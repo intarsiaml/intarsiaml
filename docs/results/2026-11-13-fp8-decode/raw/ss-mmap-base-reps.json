@@ -1,0 +1,95 @@
+{
+ "arm": "ss-mmap-base",
+ "args": {
+  "url": "http://spark-4e77:8291/v1",
+  "model": "guidance",
+  "arm": "ss-mmap-base",
+  "sizes": "4096",
+  "reps": 3,
+  "gen": 256,
+  "temperature": 0.7,
+  "top_p": 0.95,
+  "same_prompt": false,
+  "prompt_seeds": "",
+  "seed": null,
+  "vllm_metrics": "http://spark-4e77:8000/metrics",
+  "out": "/opt/code/intarsiaml/.worktrees/fp8-decode/docs/results/2026-11-13-fp8-decode/raw"
+ },
+ "rows": [
+  {
+   "req": 1,
+   "size": 4096,
+   "rep": 1,
+   "prompt_idx": 0,
+   "ok": true,
+   "error": null,
+   "prompt_tokens": 4090,
+   "cached": 0,
+   "ttft_s": 0.5863754581660032,
+   "decode_tok_s": 60.48557643091503,
+   "peak": 62.6,
+   "itl_p50_ms": 16.314,
+   "itl_p99_ms": 81.801,
+   "itl_cv": 0.7536,
+   "out": 256,
+   "text_sha": "ead2034cfa",
+   "text_head": "nonce c4d8b558f41b4777a3ea500bd234d268\n\nNote 184: the amber recover will vector ",
+   "t_start": "2026-11-13T02:11:03.851-05:00",
+   "vllm": {
+    "prompt_tokens_total": 0,
+    "generation_tokens_total": 0,
+    "running_after": 0.0
+   }
+  },
+  {
+   "req": 2,
+   "size": 4096,
+   "rep": 2,
+   "prompt_idx": 1,
+   "ok": true,
+   "error": null,
+   "prompt_tokens": 4067,
+   "cached": 0,
+   "ttft_s": 0.5942602080758661,
+   "decode_tok_s": 53.003976088679046,
+   "peak": 60.3,
+   "itl_p50_ms": 18.676,
+   "itl_p99_ms": 82.97,
+   "itl_cv": 0.6812,
+   "out": 256,
+   "text_sha": "1c83de05ee",
+   "text_head": "Note 184: the ledger crimson will report the ancient thread near the quiet vecto",
+   "t_start": "2026-11-13T02:11:08.741-05:00",
+   "vllm": {
+    "prompt_tokens_total": 0,
+    "generation_tokens_total": 0,
+    "running_after": 0.0
+   }
+  },
+  {
+   "req": 3,
+   "size": 4096,
+   "rep": 3,
+   "prompt_idx": 2,
+   "ok": true,
+   "error": null,
+   "prompt_tokens": 4073,
+   "cached": 0,
+   "ttft_s": 0.5853978749364614,
+   "decode_tok_s": 52.948763810755196,
+   "peak": 60.2,
+   "itl_p50_ms": 18.56,
+   "itl_p99_ms": 80.589,
+   "itl_cv": 0.679,
+   "out": 256,
+   "text_sha": "2678af5d3b",
+   "text_head": "Note 184: the quiet silver will anchor the marble signal near the report harbor ",
+   "t_start": "2026-11-13T02:11:14.310-05:00",
+   "vllm": {
+    "prompt_tokens_total": 0,
+    "generation_tokens_total": 0,
+    "running_after": 0.0
+   }
+  }
+ ]
+}
