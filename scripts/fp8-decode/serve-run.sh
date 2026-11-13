@@ -12,7 +12,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$OUT"
 rsh() { ssh -n -o BatchMode=yes "$H" "export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 RLOG="$L/out/serve-$ARM.log"
-rsh "mkdir -p $L/out; pkill -f 'intarsia serve.*--port $PORT' || true"
+rsh "mkdir -p $L/out; pkill -f '[s]erve --backend cuda.*--port $PORT' || true"
 rsh "cd $L && nohup env ${SERVE_ENV:-} $BIN serve --backend cuda --model $SNAP --port $PORT --max-seq 131072 --mem-budget 40 \
   --max-batch 2 --profile-every 0 --served-model-name guidance ${SERVE_ARGS:-} > $RLOG 2>&1 & echo \$! > $L/out/serve.pid"
 # memory guard: kill the server if MemAvailable drops under 10 GB
@@ -29,7 +29,7 @@ set +e
   --arm "$ARM" --out "$OUT" ${REPS_ARGS:-}) 2>&1 | grep -v '^\s*$' | tee "$OUT/$ARM.out"
 rc=${PIPESTATUS[0]}
 set -e
-rsh "kill \$(cat $L/out/serve.pid); sleep 3; pkill -9 -f 'intarsia serve.*--port $PORT' || true"
+rsh "kill \$(cat $L/out/serve.pid); sleep 3; pkill -9 -f '[s]erve --backend cuda.*--port $PORT' || true"
 scp -q -o BatchMode=yes "$H:$RLOG" "$OUT/serve-$ARM.log"
 scp -q -o BatchMode=yes "$H:$L/out/mem-$ARM.log" "$OUT/mem-$ARM.log" || true
 echo "min MemAvailable GB: $(sort -k2 -n "$OUT/mem-$ARM.log" | head -1)"
