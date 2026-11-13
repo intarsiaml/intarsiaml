@@ -504,6 +504,14 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         Ok(go)
     }
 
+    fn validate(&self) -> Result<()> {
+        let Some(seq) = self.seq.as_ref() else { return Ok(()) };
+        if let Some(&bad) = seq.req.prompt.iter().find(|&&t| t as usize >= self.vocab) {
+            return Err(Error::BadRequest(format!("token id {bad} >= vocab {}", self.vocab)));
+        }
+        seq.check_constraint()
+    }
+
     fn first_mode(&self) -> HeadMode {
         self.seq.as_ref().map_or(HeadMode::LastArgmax, |s| s.head_mode(1))
     }
@@ -562,6 +570,10 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         let ps = self.seq.as_ref()?.ps.as_ref()?;
         // the single-sequence engine's store schedule (`Seq::prefill_step`): the model's chunk cut at the next message boundary
         Some(SeqStore::chunk_end(&ps.boundaries, pos, remaining.min(ps.chunk), ps.chunk) - pos)
+    }
+
+    fn own_chunk(&self) -> Option<usize> {
+        self.seq.as_ref()?.ps.as_ref().map(|ps| ps.chunk)
     }
 
     fn on_chunk(&mut self, model: &mut SlotModel, slot: usize, start: usize, end: usize, last: bool) -> Result<()> {
@@ -895,7 +907,8 @@ fn store_combinations(model: &mut Model, opts: &BatchedOptions) -> Result<()> {
         return refuse("macro prefill (INTARSIA_PREFILL_MACRO)");
     }
     if model.macro_rows() > 0 {
-        // the workspace was sized for the macro pass at load and stays so (`Model::set_macro_rows` only changes the schedule)
+        // `load_engine` turns the recipe's macro prefill off before the weights are read (the workspace is then planned without it);
+        // a model loaded another way keeps the workspace sized for the macro pass (`Model::set_macro_rows` only changes the schedule)
         eprintln!("prefix store: the recipe's macro prefill ({} rows) is off with --max-batch > 1", model.macro_rows());
         model.set_macro_rows(0);
     }

@@ -70,7 +70,8 @@ pub struct ServeArgs {
     /// roles' headers, e.g. `assistant`: fewer passes, less reuse inside other messages).
     /// With `--max-batch` > 1: plain decode (no `--spec`), no prewarm or `--prefix-store-pin`, no packed or macro prefill opt-in, no
     /// `INTARSIA_OVERLAP` (docs/results/2026-11-13-batch-store.md). A recipe's `--spec mtp` default is not applied when a store is set (a drafting request bypasses
-    /// the store; one line says so); an explicit `--spec mtp` with the store is as before.
+    /// the store; one line says so); an explicit `--spec` with the store is refused at `--max-batch` > 1 before the model loads, and
+    /// served at `--max-batch 1` as before.
     /// Overrides `INTARSIA_PREFIX_STORE`. See docs/results/2026-10-22-pc-prefix-store.md.
     #[arg(long)]
     pub prefix_store: Option<String>,
@@ -100,6 +101,19 @@ pub fn run(args: ServeArgs) -> Result<()> {
     // a pin is a prewarm, which the batched engine refuses: say so before a model is loaded
     if args.prefix_store_pin.is_some() && args.max_batch.is_some_and(|n| n > 1) {
         anyhow::bail!("--prefix-store-pin needs the single-sequence engine (--max-batch 1)");
+    }
+    // an explicit `--spec` with the store is refused by the batched engine (`BatchedEngine::new`), after the weights are read: say so now
+    if args.max_batch.is_some_and(|n| n > 1) && args.model.spec_mode() != "off" {
+        let store = match &args.prefix_store {
+            Some(spec) => intarsia_core::prefix_store::PrefixStoreConfig::parse(spec).map_err(|e| anyhow::anyhow!("--prefix-store: {e}"))?,
+            None => intarsia_core::prefix_store::PrefixStoreConfig::from_env().ok().flatten(),
+        };
+        if store.is_some() {
+            anyhow::bail!(
+                "the prefix store with --max-batch > 1 and --spec {} (use --spec off, or --max-batch 1)",
+                args.model.spec_mode()
+            );
+        }
     }
     if !args.child && !args.no_supervisor {
         return supervise(&args);
