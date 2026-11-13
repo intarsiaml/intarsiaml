@@ -81,6 +81,12 @@ spark2. vLLM was down for 962 s (16 min), within the 35 min cap. earlyoom was ac
   - Per-stream decode is equal.
   - Combined output is 2.5% lower.
   - Wall time is 2.4% longer.
-  - Worst inter-token gaps are higher: the median ITL p99 is 370 ms against 304 ms, and the max is 1412 ms against 884 ms. The likely cause is restore and settle stalls on the scheduler thread (Fable #353 finding 2). Settle took 7.67 s in total over 197 inserts, restore 2.35 s for 16.3 GB.
+  - Worst inter-token gaps are higher: the median ITL p99 is 370 ms against 304 ms, and the max is 1412 ms against 884 ms. **Cause (checked against the per-request trace):** the worst gaps are the other stream's uncached prefill running while this stream waits to decode. The batched engine does not run a decode step between prefill chunks.
+  - c2t1, p99 1412 ms: during its decode, c3t1 started with 44 of 8045 tokens cached, TTFT 1.49 s.
+  - c1t3, p99 1312 ms: c0t3 prefilled about 5k uncached tokens, TTFT 1.31 s.
+  - c5t5, p99 1219 ms: c4t5 prefilled about 5k, TTFT 1.47 s.
+  - Store settle is a second, smaller source. Single settles take 170–410 ms (256–602 MiB at about 1.5 GB/s, debug lines in `raw/serve-D-store.log`), which is in the range of the mid-tier p99s (about 370–450 ms). Restore averages about 50 ms per request.
+  - The tail exists without the store: D-nostore's worst gap is 3533 ms, from cold full prefills.
+  - Totals: settle 7.67 s over 197 inserts; restore 2.35 s for 16.3 GB.
 - **C-storecap (#354)** matches the window 2 C-storepf numbers: 60.2 s against 60.5 s TTFT sum and 75.1 tok/s decode. The slab reuse caused no regression.
 - **Raw files:** `raw/{D-nostore,D-store}-interleaved-seed0-k2.*`, `raw/C-storecap-interleaved-seed0.*`, `raw/serve-{D-nostore,D-store,C-storecap}.{log,metrics}`, `raw/window3.log`.
