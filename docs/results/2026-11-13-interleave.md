@@ -116,3 +116,34 @@ Fable: pause path and sliced settle against in-flight captures check out; with b
 4. TTFT attribution from `serve-E-il.log`: 51 slices inside parked chunks (1.93 s, direct TTFT cost; consider not slicing in a park unless near the cap); one capture hit DEFER_CAP and went synchronous (156 ms); insert alloc 225 -> 437 ms; the rest most likely the 190 parked decode steps (~24 ms). Use actual park counts from the trace, not `ceil(len/768)-1`.
 5. After the fixes: CPU gates and spark1 `prefix_store_cuda` on the final HEAD; confirm in the doc that the switches-off arm covers "replay identical to main" for the shipped defaults. Push, update the PR body, report HEAD sha, window table, gates. Do not merge.
 
+## 9. Window 2: switch split (2026-11-13 08:22–08:39 EST)
+
+spark2, vLLM down 1010 s (16.8 min, cap 35), restored with `/v1/models` 200 at 08:38:58; earlyoom active. fleetq `--takes-down retro --quiet gpu,cpu --mem 58 --expect 45`. One build, this branch `2add69b8e` (engine code = `88346a7e7`, before the Fable fixes), `scripts/interleave/window2.sh 35`; every arm `--max-batch 2 --prefix-store on`, `INTARSIA_PREFIX_STORE_DEBUG=1`, replay2 interleaved seed 0, K=2, thinking off, temperature 0, window 3's plan and trace. E-main and E-il are window 1's arms (main `10b235785`; branch with pause 768 + slice 48), shown for reference. Tables: `scripts/interleave/table.py` and `scripts/interleave/paired.py` (paired = same conversation and turn, so the same prompt).
+
+| arm | ITL p99 median / worst (client) | TTFT sum | decode/stream median | combined | wall | server gaps >0.15 / >0.25 / >0.5 s | paused steps | settles: whole / slices |
+|---|---|---|---|---|---|---|---|---|
+| E-main | 384 / 1479 ms | 72.5 s | 40.1 tok/s | 57.9 tok/s | 131.1 s | 162 / 103 / 0 of 7548 | n/a | 47 / 0 |
+| F-off | 370 / 1430 ms | 73.0 s | 39.9 tok/s | 57.7 tok/s | 131.5 s | 163 / 104 / 0 of 7548 | 0 | 46 / 0 |
+| F-pause | 180 / 1014 ms | 72.6 s | 39.4 tok/s | 57.0 tok/s | 133.2 s | 141 / 3 / 0 of 7548 | 220 | 48 / 0 |
+| F-slice | 375 / 1800 ms | 74.7 s | 39.2 tok/s | 57.6 tok/s | 131.7 s | 114 / 86 / 0 of 7548 | 0 | 19 / 175 |
+| F-both | 183 / 966 ms | 74.1 s | 39.2 tok/s | 56.8 tok/s | 133.7 s | 111 / 0 / 0 of 7548 | 204 | 22 / 191 |
+| E-il | 182 / 1201 ms | 77.0 s | 39.4 tok/s | 57.1 tok/s | 133.0 s | 116 / 0 / 0 of 7548 | 190 | 18 / 193 |
+
+| arm vs F-off | dTTFT sum | dTTFT median / p90 per request | replies identical | settles (n, ms) by site | sync host captures |
+|---|---|---|---|---|---|
+| E-main | -0.56 s | -10 / +50 ms | 48/48 | whole after done: 47, 6964 | 0 |
+| F-pause | -0.41 s | +53 / +344 ms | 48/48 | whole after done: 48, 7076 | 0 |
+| F-slice | +1.70 s | -29 / +808 ms | 48/48 | slice after done: 175, 5579; whole after done: 17, 60; whole idle: 2, 425 | 8 |
+| F-both | +1.09 s | +1 / +819 ms | 48/48 | slice after done: 158, 5299; slice in a paused chunk: 33, 1241; whole after done: 21, 55; whole idle: 1, 155 | 1 |
+| E-il | +3.98 s | +23 / +588 ms | 48/48 | slice after done: 142, 4488; slice in a paused chunk: 51, 1934; whole after done: 17, 53; whole idle: 1, 155 | 1 |
+
+(vLLM, window 3, not re-measured: ITL p99 304 / 884 ms, TTFT sum 77.8 s, 39.8 tok/s per stream, 58.9 combined, 129.1 s.)
+
+Findings:
+- **Switches off = main.** F-off vs E-main: TTFT sum 73.0 vs 72.5 s (paired -0.56 s for main, median -10 ms), ITL p99 370 / 1430 vs 384 / 1479 ms, the same server gap counts (104 vs 103 above 0.25 s), and replies identical 48/48. This is the "replay identical to main" check for the shipped defaults (both switches 0).
+- **The pause costs no TTFT.** F-pause vs F-off: TTFT sum 72.6 vs 73.0 s (paired -0.41 s; per request median +53 ms, p90 +344 ms: requests whose prefill ran beside a decoding partner pay their parks, others gain from the partner finishing earlier); median ITL p99 370 -> 180 ms (below vLLM's 304); worst 1430 -> 1014 ms (vLLM 884); engine gaps above 0.25 s 104 -> 3; 220 parked decode steps. Decode per stream 39.9 -> 39.4 tok/s (-1.3%), combined 57.7 -> 57.0 (-1.2%), wall +1.3%: the partner's tokens during a prefill come from B=1 steps at the parks instead of later B=2 steps, which costs a little aggregate throughput.
+- **The sliced settle is what cost TTFT and the worst gap.** F-slice vs F-off: TTFT +1.70 s (p90 +808 ms), 8 captures fell to the synchronous host path (slices run only when nothing prefills, so a pending settle accumulates over the next prefill and hits the 1 GiB deferral cap), worst ITL p99 1800 ms. F-both vs F-pause: +1.5 s TTFT; 33 slices ran inside parked chunks (1.24 s, direct TTFT cost, Fable item 4).
+- Window 1's E-il (+6.2% vs E-main) = slicing (+1.1 to +1.7 s here) plus run-to-run spread (E-il vs F-both: 77.0 vs 74.1 s with the same switches; E-main vs F-off: 0.5 s apart). Park counts per request are not in the serve logs (no `INTARSIA_CB_TRACE` in serve runs); the per-arm totals are the `intarsia_batch_paused_steps_total` diffs above.
+
+Against the brief's targets with the pause alone (768): median p99 met (180 ms); worst p99 1014 ms (target ~900, not met; vLLM 884); TTFT sum met (-0.6% vs off); decode -1.3% (gate "must not drop": not met). Recommendation: pause opt-in at 768 for deployments that weigh the ITL tail over ~1% throughput; **slicing not recommended** (kept opt-in and documented as needing pauses). Both defaults stay 0 in this PR; flipping the pause default is the operator's call.
+
