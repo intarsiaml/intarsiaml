@@ -3,7 +3,7 @@
 # Everything runs inside a fleetq slot (FLEETQ_JOB set), so localeval does not queue again.
 : "${FLEETQ_JOB:?run under fleetq run}"
 REPO="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
-OUT=$REPO/docs/results/2026-11-13-cutover-soak/raw; mkdir -p "$OUT"
+OUT=${SOAK_OUT:-$REPO/docs/results/2026-11-13-cutover-soak/raw}; mkdir -p "$OUT"  # SOAK_OUT: restore-acc lane sets its own raw dir
 SC=$REPO/scripts/soak; IL=$REPO/scripts/interleave
 HOST=spark2; HN=spark-fa00; PORT=8191; VPORT=8000; CT=missioncntrl-guidance
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5

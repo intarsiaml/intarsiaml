@@ -1,0 +1,13 @@
+{
+ "n": 200,
+ "a": "W",
+ "b": "SW2",
+ "identical_text": 200,
+ "identical_token_ids": 200,
+ "acc_a": 0.98,
+ "acc_b": 0.98,
+ "right_only_W": 0,
+ "right_only_SW2": 0,
+ "mcnemar_p": 1.0,
+ "non_identical": []
+}

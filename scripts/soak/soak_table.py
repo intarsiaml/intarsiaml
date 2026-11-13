@@ -2,7 +2,7 @@
 """soak lane tables. usage: soak_table.py <raw-dir> load|soak
   load: one row per replay2 arm (V-k3, V-k4, L-k3, L-k4): requests, errors, TTFT sum / p50 / p90, decode median per request, wall,
         cached fraction; per-request paired TTFT is not meaningful across engines (different caches), so only aggregates.
-  soak: one row per soak replay (S<seed>), in time order, then the sampler drift table (sample-S.tsv) and the pass/fail checks."""
+  soak: [HH:MM:SS cut-off for the sampler rows] one row per soak replay (S<seed>), in time order, then the sampler drift table (sample-S.tsv) and the pass/fail checks."""
 import datetime, glob, json, os, statistics, sys
 
 raw, mode = sys.argv[1], sys.argv[2]
@@ -58,6 +58,8 @@ else:
         L = [l.rstrip("\n").split("\t") for l in open(sp)]
         hdr, data = L[0], [r for r in L[1:] if "NA" not in r[5:8]]  # drop samples taken before the server answered /metrics
         col = {h: i for i, h in enumerate(hdr)}
+        if len(sys.argv) > 3:  # optional HH:MM:SS: drop sampler rows after the soak ended (restore-acc window D runs an extra arm on the same serve)
+            data = [r for r in data if r[0] <= sys.argv[3]]
 
         def series(name):
             return [float(r[col[name]]) if r[col[name]] not in ("NA", "") else float("nan") for r in data]
@@ -94,4 +96,6 @@ else:
         gaps = [float(r[col['intarsia_batch_itl_seconds_count']]) for r in data]
         b25 = [float(r[col['intarsia_batch_itl_seconds_bucket{le="0.25"}']]) for r in data]
         b50 = [float(r[col['intarsia_batch_itl_seconds_bucket{le="0.5"}']]) for r in data]
+        if 'intarsia_batch_paused_steps_total' in col:
+            print(f"- intarsia_batch_paused_steps_total (prefill pause default ran when > 0): {g('intarsia_batch_paused_steps_total')}")
         print(f"- server gaps (batch_itl) total {gaps[-1]:.0f}: above 0.25 s {gaps[-1]-b25[-1]:.0f}, above 0.5 s {gaps[-1]-b50[-1]:.0f}")

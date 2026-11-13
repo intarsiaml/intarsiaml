@@ -12,7 +12,7 @@ KEYS=(
   intarsia_prefix_store_entries
   'intarsia_prefix_store_tier_bytes{tier="host"}' 'intarsia_prefix_store_tier_budget_bytes{tier="host"}'
   'intarsia_prefix_store_tier_evictions_total{tier="host"}' 'intarsia_prefix_store_tier_objects{tier="host"}'
-  intarsia_batch_itl_seconds_count
+  intarsia_batch_itl_seconds_count intarsia_batch_paused_steps_total
   'intarsia_batch_itl_seconds_bucket{le="0.15"}' 'intarsia_batch_itl_seconds_bucket{le="0.25"}' 'intarsia_batch_itl_seconds_bucket{le="0.5"}'
 )
 { printf 'time\tmem_avail_mb\tmem_used_mb\tswap_used_mb\trss_mb'; for k in "${KEYS[@]}"; do printf '\t%s' "$k"; done; echo; } > "$f"

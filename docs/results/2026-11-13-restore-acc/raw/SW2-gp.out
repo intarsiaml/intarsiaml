@@ -1,0 +1,11 @@
+[SW2] 20/200 39s correct so far 19
+[SW2] 40/200 64s correct so far 39
+[SW2] 60/200 86s correct so far 59
+[SW2] 80/200 112s correct so far 79
+[SW2] 100/200 138s correct so far 97
+[SW2] 120/200 161s correct so far 117
+[SW2] 140/200 186s correct so far 136
+[SW2] 160/200 216s correct so far 156
+[SW2] 180/200 241s correct so far 176
+[SW2] 200/200 266s correct so far 196
+{"arm": "SW2", "n": 200, "aborted": false, "errors": 0, "correct": 196, "acc": 0.98, "truncated": 2, "mean_completion_tokens": 145.3, "prompt_tokens_median": 6976.0, "prompt_tokens_min": 6944, "prompt_tokens_max": 7054, "requests_with_cached_tokens": 198, "cached_tokens_median_of_hits": 6904.0, "cached_tokens_sum": 1366992, "cached_frac": 0.9791, "latency_s_median": 2.365, "wall_s": 266.3, "concurrency": 2, "shots": 32, "max_tokens": 512}

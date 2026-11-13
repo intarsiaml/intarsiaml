@@ -1,0 +1,11 @@
+[C] 20/200 147s correct so far 19
+[C] resume: 29 rows kept, 171 to send
+[C] 20/200 145s correct so far 48
+[C] 40/200 283s correct so far 68
+[C] 60/200 428s correct so far 87
+[C] 80/200 569s correct so far 106
+[C] 100/200 711s correct so far 125
+[C] 120/200 851s correct so far 145
+[C] 140/200 998s correct so far 165
+[C] 160/200 1143s correct so far 185
+{"arm": "C", "n": 200, "aborted": false, "errors": 0, "correct": 196, "acc": 0.98, "truncated": 2, "mean_completion_tokens": 145.3, "prompt_tokens_median": 6976.0, "prompt_tokens_min": 6944, "prompt_tokens_max": 7054, "requests_with_cached_tokens": 0, "cached_tokens_median_of_hits": 0, "cached_tokens_sum": 0, "cached_frac": 0.0, "latency_s_median": 6.972, "wall_s": 1220.5, "concurrency": 1, "shots": 32, "max_tokens": 512}
