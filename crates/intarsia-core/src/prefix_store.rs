@@ -506,8 +506,9 @@ pub struct PrefixStore {
     stats: PrefixStoreSnapshot,
     writer: Option<DiskWriter>,
     /// Inserts go to the device whatever its budget, and the device tier is not brought within budget, until
-    /// [`PrefixStore::settle`] (the engine defers the device-to-host copies until the first token went out: a download
-    /// synchronises the device, which would stall the prefill that queued the next chunk).
+    /// [`PrefixStore::settle`] (the engine defers the device-to-host copies until the request's `Done` went out: a download
+    /// synchronises the device, which would stall the prefill that queued the next chunk, and inside decode it stalled
+    /// the stream; ab35c).
     defer: bool,
     /// Device bytes captured while deferring (capped at [`DEFER_CAP`]; past it inserts copy to host directly).
     deferred: u64,

@@ -795,6 +795,17 @@ impl LocalEngine {
                         *sh.failed.lock().unwrap_or_else(|e| e.into_inner()) = Some(why.clone());
                         sh.telemetry.request_finished("error", plen, 0, 0, Duration::ZERO, Duration::ZERO, Duration::ZERO);
                         let _ = tx.send(GenEvent::Error { message: why });
+                        continue;
+                    }
+                    // after the reply: the client has its `Done` (or `Error`), so this copy overlaps whatever it does
+                    // next. The engine thread takes the next job only when it is done, so a request already queued
+                    // waits for it (its time to first token absorbs the cost); what moves is the cost, out of the decode
+                    // window, not the work. Outside `run_job`'s unwind guard: a panic here must not report the finished
+                    // request a second time, only fail the engine.
+                    if let Err(p) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| settle_after_done(&sh))) {
+                        let why = format!("worker panicked in the prefix-store settle: {}", panic_message(&*p));
+                        eprintln!("engine failed: {why}");
+                        *sh.failed.lock().unwrap_or_else(|e| e.into_inner()) = Some(why);
                     }
                 }
             })
@@ -1048,10 +1059,6 @@ fn run_job(sh: &Shared, job: Job) {
             report_error(&sh.telemetry, &tx, plen, generated, t_total.elapsed(), &e)
         }
     }
-    // after the reply: the client has its `Done`, so this copy overlaps whatever it does next. The engine thread takes the
-    // next job only when it is done, so a request already queued waits for it (its time to first token absorbs the cost);
-    // what moves is the cost, out of the decode window, not the work
-    settle_after_done(sh);
 }
 
 /// Move the entries the finished request captured on the device to their tier ([`crate::prefix_store::PrefixStore::settle`]),
