@@ -572,7 +572,9 @@ impl CaptureTimes {
     }
 }
 
-/// Most device memory the deferred captures of one request may hold.
+/// Most device memory the deferred captures may hold between two settles (with slabs: the slabs' size): one request's on the
+/// single-sequence engine; on the batched engine every request in flight shares it (a settle after any request's `Done`
+/// resets it), and past it inserts download to host synchronously, inside the prefill.
 const DEFER_CAP: u64 = 1 << 30;
 /// Device slabs the deferred captures are carved from: a new slab is at least this big (rounded up to the next multiple
 /// of it), and the idle ones the store keeps between requests add up to at most `SLAB_POOL_CAP`.

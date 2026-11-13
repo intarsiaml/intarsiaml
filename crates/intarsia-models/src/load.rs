@@ -1029,9 +1029,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             None => intarsia_core::prefix_store::PrefixStoreConfig::from_env()?,
         },
     };
-    if meta.prefix_store.is_some() && max_batch.value > 1 {
-        return Err(Error::invalid("the prefix store needs the single-sequence engine (--max-batch 1)"));
-    }
+    // the prefix store with `--max-batch` > 1 (slice 1): plain decode, the store's own chunk schedule; `BatchedEngine::new` refuses
+    // the opt-ins it does not combine with (packed or macro prefill, overlap) and tensor parallelism
     let engine: Arc<dyn Engine> = if max_batch.value > 1 {
         // the server admits at most max_queue + max_batch requests, so a queue of that size never fills first
         let queue = batch_queue(opts.max_queue, max_batch.value);
