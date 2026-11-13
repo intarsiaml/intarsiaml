@@ -5,3 +5,4 @@
 [09:15:34 +129s] V-k4: vLLM counters before: success=54 prompt_tokens=997602 gen_tokens=14738 (own expected: 49)
 [09:17:41 +256s] V-k4: vLLM counters after:  success=103 prompt_tokens=1993497 gen_tokens=22321
 [10:05:40 +0s] V-think: vLLM counters before: success=0 prompt_tokens=0 gen_tokens=0 (own expected: 100)
+[10:46:29 +2449s] V-think: vLLM counters after:  success=100 prompt_tokens=48774 gen_tokens=187558

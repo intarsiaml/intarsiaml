@@ -1,3 +1,4 @@
 V-pilot before: success=0 prompt_tokens=0 gen_tokens=0 | after: success=5 prompt_tokens=2438 gen_tokens=7377 | own requests (excl. idle probes): 5
 V-k3 before: success=5 prompt_tokens=2438 gen_tokens=7377 | after: success=54 prompt_tokens=997602 gen_tokens=14738 | own requests (excl. idle probes): 49
 V-k4 before: success=54 prompt_tokens=997602 gen_tokens=14738 | after: success=103 prompt_tokens=1993497 gen_tokens=22321 | own requests (excl. idle probes): 49
+V-think before: success=0 prompt_tokens=0 gen_tokens=0 | after: success=100 prompt_tokens=48774 gen_tokens=187558 | own requests (excl. idle probes): 100

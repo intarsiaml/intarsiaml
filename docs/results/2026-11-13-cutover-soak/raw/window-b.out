@@ -1,0 +1,9 @@
+fleetq: #9247 waiting (#1 in line): needs gpu quiet on spark2, but #9246 "soak: vLLM GSM8K thinking-on n=100" (claude-soak) loads it
+fleetq:   #9246 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9246 set, or it will wait for #9246 to be released.
+fleetq: #9247 running on spark2: env PER_PROBLEM_S=26 bash /opt/code/intarsiaml/.worktrees/soak/scripts/soak/window_b.sh 50 100 8192
+[10:46:30 +1s] vLLM up: 200; earlyoom: active
+2026-11-13T15:02:26.151246025Z missioncntrl/vllm-openai:65b7662d
+missioncntrl-guidance
+[10:46:33 +0s] vLLM DOWN (docker stop done) at 10:46:33
+Mem:             121          10          55           0          56         111
+[10:46:33 +0s] serve arm Ba: ~/intarsia-soak/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
