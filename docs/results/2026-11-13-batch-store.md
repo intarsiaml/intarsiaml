@@ -78,7 +78,32 @@ New `prefix_store_batched_is_single_engine_cuda` in `crates/intarsia-models/test
 two turns each, each round's two requests in flight together on a `--max-batch 2` engine with the store; every reply must be
 bitwise the single-sequence engine's (store on), and the second turns must restore more than half their prompt.
 
-Results: RESULTS_CUDA
+spark1 (GB10), build `161c0f5b4` (this branch rebased on #352's `3a25a19e3`), `cargo test --release --locked -p intarsia-models
+--test prefix_store_cuda -- --test-threads=1 prefix_store_`, fleetq #9196 (`--quiet gpu --mem 45`, vLLM up), Qwen3.6-35B-A3B NVFP4,
+max_seq 8192, bf16 KV: **2 passed, 0 failed** (173 s, MemAvailable never under the 10 GB watchdog; `free -g` after: 83 GB
+available).
+
+`prefix_store_batched_is_single_engine_cuda` (`--max-batch 2`, store on; startup line: "the recipe's macro prefill (8192 rows) is
+off with --max-batch > 1"):
+
+| round, chat | prompt tok | batched cached | batched wall (both in flight) | vs single-sequence (store on) |
+|---|---|---|---|---|
+| 1, chat 0 | 1873 | 0 | 2229 ms | bitwise (48 steps of logits + ids) |
+| 1, chat 1 | 1170 | 0 (single engine: 19, its held system prompt) | 2378 ms | bitwise |
+| 2, chat 0 | 2531 | 1871 (restored) | 1247 ms | bitwise, cached 1871 = 1871 |
+| 2, chat 1 | 2065 | 1168 (restored) | 1349 ms | bitwise, cached 1168 = 1168 |
+
+Batched store counters: 4 lookups, 2 hits, 6 inserts (303 MB), tokens_saved 3039, restore 46 ms in total, insert 324 ms of
+which settle 150 ms over the 4 finished requests (~38 ms per request at these 1-2.5k-token prompts), 0 rejected.
+
+The existing single-engine gate `prefix_store_restore_is_bitwise_cold_cuda` on the same build: restored vs cold (store on)
+bitwise true; vs store off bitwise false from step 0 with equal ids (the documented chunk-sensitivity), restored 1871 tokens.
+
+Not run: `batch_cuda_real.rs` / `batch_recurrent.rs` on CUDA (the batched decode path is unchanged for store-off requests;
+the gate above runs it with the store on).
+
+Process note: the first GPU attempt (#9193) ran cargo from `$HOME` (a shell `&&`/`&` grouping error) and its leftover watchdog
+loop kept the job's ssh open for ~30 min, holding the GPU slot; it was stopped from inside that job's slot and the rerun is #9196.
 
 ## Open risks
 
