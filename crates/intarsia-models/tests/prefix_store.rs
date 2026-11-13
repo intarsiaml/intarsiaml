@@ -240,6 +240,119 @@ fn store_deferred_captures_restore_unsettled_then_settle_to_host_and_disk() {
     assert_eq!(s.snapshot().rejected, 0);
 }
 
+/// Many requests through a host tier that holds about two entries: every settle evicts, so the demotes take the evicted
+/// buffers over (stale bytes in them). Whatever the store still finds must come back bit-exact, with and without the disk
+/// tier (where an evicted object's buffer may still be held by the writer), and the host tier stays within its budget.
+#[test]
+fn store_recycled_host_buffers_restore_exact_bytes_under_eviction() {
+    let b = cpu();
+    for disk in [false, true] {
+        let dir = tmpdir(if disk { "recycle-disk" } else { "recycle" });
+        let mut c = cfg(16);
+        c.device_bytes = 1;
+        c.host_bytes = 9_000;
+        if disk {
+            c.disk_dir = Some(dir.clone());
+            c.disk_bytes = 1 << 30;
+        }
+        let mut s = PrefixStore::new(c, &specs(), "recycle").unwrap();
+        let mut kept = Vec::new();
+        for i in 0..8u32 {
+            let t: Vec<u32> = (0..32).map(|j| 1000 * i + j).collect();
+            let a = fake_state(&*b, &t, 64);
+            s.set_defer(true);
+            s.insert(&*b, &a, 32, None, &[]).unwrap();
+            s.settle(&*b, "test");
+            // with the disk tier an object whose write is still queued cannot go yet (its buffer is the writer's): the
+            // tier is over budget until the writer confirms it, and within it at the next settle after that
+            if !disk {
+                assert!(s.snapshot().host.bytes <= 9_000, "{:?}", s.snapshot());
+            }
+            kept.push((t, a));
+        }
+        s.flush();
+        s.settle(&*b, "test");
+        assert!(s.snapshot().host.bytes <= 9_000, "disk {disk}: {:?}", s.snapshot());
+        let mut st = SequenceState::new(&*b, &specs(), 64).unwrap();
+        let mut found = 0;
+        for (t, a) in &kept {
+            if let Some(h) = s.lookup(t, 32) {
+                s.restore(&*b, &mut st, h).unwrap();
+                assert_eq!(dump(&*b, &st), dump(&*b, a), "disk {disk}");
+                found += 1;
+            }
+        }
+        assert!(found >= 2, "disk {disk}: only {found} entries found");
+        assert!(s.snapshot().host.evictions >= 1);
+    }
+}
+
+/// The captures of one request share a device slab that later requests reuse: restoring every capture before and after the
+/// settle, over several requests, gives each one's own bytes.
+#[test]
+fn store_deferred_captures_share_a_reused_slab_without_mixing_bytes() {
+    let b = cpu();
+    let mut c = cfg(16);
+    c.device_bytes = 0; // no device tier: the captures are carved from slabs
+    let mut s = PrefixStore::new(c, &specs(), "slab").unwrap();
+    let mut st = SequenceState::new(&*b, &specs(), 64).unwrap();
+    for round in 0..3u32 {
+        let mut made = Vec::new();
+        s.set_defer(true);
+        for i in 0..3u32 {
+            let t: Vec<u32> = (0..32).map(|j| 10_000 * round + 1000 * i + j).collect();
+            let a = fake_state(&*b, &t, 64);
+            s.insert(&*b, &a, 32, None, &[]).unwrap();
+            made.push((t, a));
+        }
+        for phase in ["on the device", "settled"] {
+            for (t, a) in &made {
+                let h = s.lookup(t, 32).unwrap();
+                s.restore(&*b, &mut st, h).unwrap();
+                assert_eq!(dump(&*b, &st), dump(&*b, a), "round {round}, {phase}");
+            }
+            s.settle(&*b, "test");
+        }
+    }
+}
+
+/// Entries that share their first page, captured in one request and so tight a host tier that demoting one object evicts
+/// another entry (one holding the shared page too) while the shared page is still being demoted: the references stay
+/// consistent whatever the budget (no object outlives the entries that need it, none is dropped while one does), and what
+/// is found restores exactly.
+#[test]
+fn store_shared_pages_keep_their_references_when_demotes_evict_entries() {
+    let b = cpu();
+    for budget in (2_000..9_000).step_by(100) {
+        let mut c = cfg(16);
+        c.device_bytes = 0;
+        c.host_bytes = budget;
+        let mut s = PrefixStore::new(c, &specs(), "refs").unwrap();
+        let mut made = Vec::new();
+        s.set_defer(true);
+        for i in 0..3u32 {
+            // the first 16 tokens (page 1) are the same for every entry, the second page and the recurrent state are not
+            let t: Vec<u32> = (0..32).map(|j| if j < 16 { 100 + j } else { 5000 + 1000 * i + j }).collect();
+            let a = fake_state(&*b, &t, 64);
+            s.insert(&*b, &a, 32, None, &[16, 32]).unwrap();
+            made.push((t, a));
+        }
+        s.settle(&*b, "test");
+        let snap = s.snapshot();
+        let (entries, objects) = (snap.entries as u64, snap.host.objects as u64);
+        // per entry its own page and recurrent blob, plus the shared page while any entry lives
+        assert_eq!(objects, 2 * entries + (entries > 0) as u64, "budget {budget}: {snap:?}");
+        assert!(snap.host.bytes <= budget as u64, "budget {budget}: {snap:?}");
+        let mut st = SequenceState::new(&*b, &specs(), 64).unwrap();
+        for (t, a) in &made {
+            if let Some(h) = s.lookup(t, 32) {
+                s.restore(&*b, &mut st, h).unwrap();
+                assert_eq!(dump(&*b, &st), dump(&*b, a), "budget {budget}");
+            }
+        }
+    }
+}
+
 #[test]
 fn store_disk_survives_restart_and_rejects_corruption_and_other_builds() {
     let b = cpu();

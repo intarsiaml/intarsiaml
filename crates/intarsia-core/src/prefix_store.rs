@@ -510,10 +510,22 @@ pub struct PrefixStore {
     /// synchronises the device, which would stall the prefill that queued the next chunk, and inside decode it stalled
     /// the stream; ab35c).
     defer: bool,
-    /// Device bytes captured while deferring (capped at [`DEFER_CAP`]; past it inserts copy to host directly).
+    /// Device bytes of the per-insert allocations made while deferring (only with a device tier, where no slab is used;
+    /// capped at [`DEFER_CAP`], like the slabs' size: past it inserts copy to host directly).
     deferred: u64,
     /// Engine-thread time spent in `queue_write` since the last `settle` (reported under `INTARSIA_PREFIX_STORE_DEBUG`).
     queue_write_seconds: f64,
+    /// Pre-faulted host buffers freed by host-tier eviction, kept for the next demote (or host capture) of the same size
+    /// (objects come in a few sizes; a fresh buffer costs a page fault per 4 KiB, a recycled one nothing). Counted with
+    /// `used[1]` against the host budget: `enforce` drops pooled buffers first when the two together exceed it.
+    host_free: Vec<Vec<u8>>,
+    host_free_bytes: u64,
+    /// Device slab the deferred captures of the current request are carved from (`bytes used` of it taken), and the
+    /// slabs of this request it has outgrown; see [`PrefixStore::slab`].
+    slab: Option<(Buffer, usize)>,
+    slabs_full: Vec<Buffer>,
+    /// Idle slabs kept for the next request (at most [`SLAB_POOL_CAP`] bytes): a device allocation costs 3-10 ms each.
+    slab_pool: Vec<Buffer>,
 }
 
 /// `INTARSIA_PREFIX_STORE_DEBUG` is set: report the store's timings on stderr.
@@ -522,8 +534,50 @@ fn debug() -> bool {
     *ON.get_or_init(|| std::env::var_os("INTARSIA_PREFIX_STORE_DEBUG").is_some())
 }
 
+/// Where one insert's capture went (reported under `INTARSIA_PREFIX_STORE_DEBUG`; `=sync` first drains the stream (`drain`:
+/// the prefill queued before the capture), then waits for the capture's own copies, so `sync` is how long they take to run
+/// on the device rather than to queue. It changes the timing it measures: use it to diagnose, not to benchmark).
+#[derive(Default)]
+struct CaptureTimes {
+    segments: usize,
+    alloc_s: f64,
+    copy_s: f64,
+    sync_s: f64,
+    drain_s: f64,
+    how: &'static str,
+}
+
+impl CaptureTimes {
+    fn sync_mode() -> bool {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        *ON.get_or_init(|| std::env::var("INTARSIA_PREFIX_STORE_DEBUG").is_ok_and(|v| v == "sync"))
+    }
+
+    fn drain(&mut self, backend: &dyn Backend) -> Result<()> {
+        if Self::sync_mode() {
+            let t = Instant::now();
+            backend.synchronize(0)?;
+            self.drain_s = t.elapsed().as_secs_f64();
+        }
+        Ok(())
+    }
+
+    fn sync(&mut self, backend: &dyn Backend) -> Result<()> {
+        if Self::sync_mode() {
+            let t = Instant::now();
+            backend.synchronize(0)?;
+            self.sync_s = t.elapsed().as_secs_f64();
+        }
+        Ok(())
+    }
+}
+
 /// Most device memory the deferred captures of one request may hold.
 const DEFER_CAP: u64 = 1 << 30;
+/// Device slabs the deferred captures are carved from: a new slab is at least this big (rounded up to the next multiple
+/// of it), and the idle ones the store keeps between requests add up to at most `SLAB_POOL_CAP`.
+const SLAB_MIN: usize = 128 << 20;
+const SLAB_POOL_CAP: usize = 256 << 20;
 
 struct DiskWriter {
     dir: PathBuf,
@@ -560,6 +614,11 @@ impl PrefixStore {
             defer: false,
             deferred: 0,
             queue_write_seconds: 0.0,
+            host_free: Vec::new(),
+            host_free_bytes: 0,
+            slab: None,
+            slabs_full: Vec::new(),
+            slab_pool: Vec::new(),
         };
         if let (Some(dir), true) = (s.cfg.disk_dir.clone(), s.cfg.disk_bytes > 0) {
             let dir = dir.join(format!("{build:016x}"));
@@ -724,7 +783,9 @@ impl PrefixStore {
         if let Some(rk) = rec {
             todo.push((rk, self.layout.rec_segments(st), self.layout.rec_bytes));
         }
-        let mems = self.capture_all(backend, &todo)?;
+        let t_keys = t0.elapsed();
+        let (mems, cap) = self.capture_all(backend, &todo)?;
+        let t_cap = t0.elapsed();
         // only now (the copies worked) does the entry take its references
         for pk in shared {
             let o = self.objs.get_mut(&pk).unwrap();
@@ -750,66 +811,183 @@ impl PrefixStore {
             },
         );
         self.lens.insert(len);
+        let t_add = t0.elapsed();
         self.write_manifest(key);
+        let t_man = t0.elapsed();
         self.enforce(backend);
         self.stats.inserts += 1;
         self.stats.insert_bytes += copied;
         self.stats.insert_seconds_total += t0.elapsed().as_secs_f64();
+        if debug() {
+            let ms = |d: Duration| d.as_secs_f64() * 1e3;
+            eprintln!(
+                "prefix store: insert {len} tok: {} objs, {} segments, {:.1} MiB in {:.2} ms (keys {:.2}, capture {:.2} [drain {:.2}, alloc {:.2}, copies {:.2}, sync {:.2}], add {:.2}, manifest {:.2}, enforce {:.2}); {}",
+                todo.len(),
+                cap.segments,
+                copied as f64 / (1u64 << 20) as f64,
+                ms(t0.elapsed()),
+                ms(t_keys),
+                ms(t_cap - t_keys),
+                cap.drain_s * 1e3,
+                cap.alloc_s * 1e3,
+                cap.copy_s * 1e3,
+                cap.sync_s * 1e3,
+                ms(t_add - t_cap),
+                ms(t_man - t_add),
+                ms(t0.elapsed() - t_man),
+                cap.how
+            );
+        }
         self.refresh_counts();
         Ok(copied)
     }
 
     /// Copy each object's segments out of the state into new objects in the highest tier with room: on the device one
     /// allocation for all of them (device-to-device copies, nothing waits), else one host buffer each.
-    fn capture_all(&mut self, backend: &dyn Backend, todo: &[(Key, Vec<(&Buffer, usize, usize)>, usize)]) -> Result<Vec<Mem>> {
+    fn capture_all(&mut self, backend: &dyn Backend, todo: &[(Key, Vec<(&Buffer, usize, usize)>, usize)]) -> Result<(Vec<Mem>, CaptureTimes)> {
+        let mut cap = CaptureTimes::default();
         let total: usize = todo.iter().map(|t| t.2).sum();
         if total == 0 {
-            return Ok(Vec::new());
+            return Ok((Vec::new(), cap));
         }
-        let defer = self.defer && self.deferred + total as u64 <= DEFER_CAP;
-        if defer {
+        cap.segments = todo.iter().map(|t| t.1.len()).sum();
+        cap.drain(backend)?;
+        let defer = self.defer && self.defer_fits(total);
+        if defer && !self.use_slab() {
             self.deferred += total as u64;
         }
         if !defer && self.cfg.device_bytes >= total as u64 {
             // a real device tier: one allocation per object, so demoting one frees its memory
+            cap.how = "device tier";
             let mut out = Vec::with_capacity(todo.len());
             for (_, segs, bytes) in todo {
+                let t = Instant::now();
                 let buf = backend.alloc((*bytes).max(16), MemKind::Device)?;
+                cap.alloc_s += t.elapsed().as_secs_f64();
+                let t = Instant::now();
                 let mut off = 0;
                 for &(src, so, n) in segs {
                     backend.copy(&buf, off, src, so, n, 0)?;
                     off += n;
                 }
+                cap.copy_s += t.elapsed().as_secs_f64();
                 out.push(Mem::Device(buf, 0));
             }
-            return Ok(out);
+            cap.sync(backend)?;
+            return Ok((out, cap));
         }
         if defer {
-            // deferred: one allocation for the insert (all of it leaves the device at `settle`)
-            let buf = backend.alloc(total.max(16), MemKind::Device)?;
+            // deferred: carved from a slab (no device tier) or one allocation per insert; all of it leaves the device at `settle`
+            cap.how = "deferred";
+            let t = Instant::now();
+            let (buf, base) = if self.use_slab() { self.slab(backend, total)? } else { (backend.alloc(total.max(16), MemKind::Device)?, 0) };
+            cap.alloc_s += t.elapsed().as_secs_f64();
+            let t = Instant::now();
             let mut out = Vec::with_capacity(todo.len());
-            let mut off = 0;
-            for (_, segs, bytes) in todo {
+            let mut off = base;
+            for (_, segs, _) in todo {
                 out.push(Mem::Device(buf.clone(), off));
                 for &(src, so, n) in segs {
                     backend.copy(&buf, off, src, so, n, 0)?;
                     off += n;
                 }
-                let _ = bytes;
             }
-            return Ok(out);
+            cap.copy_s += t.elapsed().as_secs_f64();
+            cap.sync(backend)?;
+            return Ok((out, cap));
         }
+        cap.how = "host";
         let mut out = Vec::with_capacity(todo.len());
         for (_, segs, bytes) in todo {
-            let mut v = host_buf(*bytes);
+            let t = Instant::now();
+            let mut v = self.take_host_buf(*bytes);
+            cap.alloc_s += t.elapsed().as_secs_f64();
+            let t = Instant::now();
             let mut off = 0;
             for &(src, so, n) in segs {
                 backend.download(src, so, &mut v[off..off + n], 0)?;
                 off += n;
             }
+            cap.copy_s += t.elapsed().as_secs_f64();
             out.push(Mem::Host(Arc::new(v)));
         }
-        Ok(out)
+        Ok((out, cap))
+    }
+
+    /// Deferred captures are carved from slabs only without a device tier (`device_mb` 0: all of them leave the device at
+    /// `settle`, so a slab is idle again right after). With one, survivors on the device would pin whole slabs, so each
+    /// insert gets its own allocation (freed with its last object).
+    fn use_slab(&self) -> bool {
+        self.cfg.device_bytes == 0
+    }
+
+    /// Device bytes the deferred captures of this request hold (slabs allocated, not just carved, or per-insert allocations).
+    fn deferred_footprint(&self) -> u64 {
+        if self.use_slab() {
+            self.slabs_full.iter().map(|b| b.bytes() as u64).sum::<u64>() + self.slab.as_ref().map_or(0, |(b, _)| b.bytes() as u64)
+        } else {
+            self.deferred
+        }
+    }
+
+    /// Size of a new slab for a capture of `bytes` when `held` bytes of slabs are in use: [`SLAB_MIN`] (less when the cap is
+    /// near), or exactly the capture when it is larger.
+    fn new_slab_size(bytes: usize, held: u64) -> usize {
+        let room = DEFER_CAP.saturating_sub(held) as usize;
+        bytes.max(SLAB_MIN.min(room)).next_multiple_of(256)
+    }
+
+    /// Whether a deferred capture of `bytes` keeps the request's device memory within [`DEFER_CAP`].
+    fn defer_fits(&self, bytes: usize) -> bool {
+        if !self.use_slab() {
+            return self.deferred + bytes as u64 <= DEFER_CAP;
+        }
+        if self.slab.as_ref().is_some_and(|(b, used)| *used + bytes <= b.bytes()) {
+            return true;
+        }
+        let held = self.deferred_footprint();
+        let fresh = match self.slab_pool.iter().filter(|b| b.bytes() >= bytes).map(Buffer::bytes).min() {
+            Some(n) => n,
+            None => Self::new_slab_size(bytes, held),
+        };
+        held + fresh as u64 <= DEFER_CAP
+    }
+
+    /// `bytes` of device memory for a deferred capture: `(slab, offset)`. The current slab while it has room, else an idle
+    /// one from the pool, else a new allocation. Everything carved from a slab is demoted at `settle`, after which the
+    /// slab goes back to the pool ([`PrefixStore::recycle_slabs`]); its stale bytes are never read (every capture writes
+    /// its whole range, and a restore reads only what a capture wrote).
+    fn slab(&mut self, backend: &dyn Backend, bytes: usize) -> Result<(Buffer, usize)> {
+        if let Some((buf, used)) = &mut self.slab {
+            if *used + bytes <= buf.bytes() {
+                let at = *used;
+                *used = (at + bytes).next_multiple_of(256);
+                return Ok((buf.clone(), at));
+            }
+        }
+        let buf = match self.slab_pool.iter().position(|b| b.bytes() >= bytes) {
+            Some(i) => self.slab_pool.swap_remove(i),
+            None => backend.alloc(Self::new_slab_size(bytes, self.deferred_footprint()), MemKind::Device)?,
+        };
+        if let Some((old, _)) = self.slab.take() {
+            self.slabs_full.push(old);
+        }
+        self.slab = Some((buf.clone(), bytes.next_multiple_of(256)));
+        Ok((buf, 0))
+    }
+
+    /// After a settle: the slabs nothing but the store holds any more become idle (the first ones, up to the pool cap, are
+    /// kept; the rest are freed). A slab that a device-resident object still points into is left to it.
+    fn recycle_slabs(&mut self) {
+        let mut all: Vec<Buffer> = std::mem::take(&mut self.slabs_full);
+        all.extend(self.slab.take().map(|(b, _)| b));
+        let mut kept: usize = self.slab_pool.iter().map(Buffer::bytes).sum();
+        for b in all {
+            if b.strong_count() == 1 && kept + b.bytes() <= SLAB_POOL_CAP {
+                kept += b.bytes();
+                self.slab_pool.push(b);
+            }
+        }
     }
 
     fn add_obj(&mut self, k: Key, bytes: usize, mem: Mem, now: u64, pinned: bool) {
@@ -944,9 +1122,11 @@ impl PrefixStore {
         self.defer = false;
         self.deferred = 0;
         self.queue_write_seconds = 0.0;
+        self.poll_writer();
         let t0 = Instant::now();
         let before = self.used[0];
         self.enforce(backend);
+        self.recycle_slabs();
         let took = t0.elapsed().as_secs_f64();
         self.stats.insert_seconds_total += took;
         self.stats.settle_seconds_total += took;
@@ -1034,12 +1214,15 @@ impl PrefixStore {
     fn enforce(&mut self, backend: &dyn Backend) {
         while self.used[0] > self.cfg.device_bytes && !self.defer {
             let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Device(..)))) else { break };
-            let mut o = self.objs.remove(&k).unwrap();
+            let ta = Instant::now();
+            // room first, while `k` is still registered: an entry the evictions drop gives its references back to it
+            let (bytes, last_use) = self.objs.get(&k).map(|o| (o.bytes, o.last_use)).unwrap();
+            self.make_host_room(bytes, last_use);
+            let Some(mut o) = self.objs.remove(&k) else { continue }; // went with the entry that needed it
             let Some(Mem::Device(buf, boff)) = o.mem.take() else { unreachable!() };
             self.used[0] -= o.bytes as u64;
             self.stats.device.evictions += 1;
-            let ta = Instant::now();
-            let mut v = host_buf(o.bytes);
+            let mut v = self.take_host_buf(o.bytes);
             let tb = Instant::now();
             let ok = backend.download(&buf, boff, &mut v, 0).is_ok();
             if debug() {
@@ -1063,16 +1246,16 @@ impl PrefixStore {
             }
             self.objs.insert(k, o);
         }
+        // idle pooled buffers go first; then host objects, oldest first. One whose write the disk writer has not confirmed
+        // stays (the writer holds its buffer, so evicting it would free nothing): the tier can be over budget until the writer
+        // confirms it (polled at the next insert / settle) and a later enforce evicts it
+        while self.used[1] + self.host_free_bytes > self.cfg.host_bytes {
+            let Some(v) = self.host_free.pop() else { break };
+            self.host_free_bytes -= v.len() as u64;
+        }
         while self.used[1] > self.cfg.host_bytes {
-            let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Host(_))) && o.pins == 0) else { break };
-            self.stats.host.evictions += 1;
-            let o = self.objs.get_mut(&k).unwrap();
-            if o.disk.is_some() {
-                o.mem = None;
-                self.used[1] -= o.bytes as u64;
-            } else {
-                self.drop_obj(k);
-            }
+            let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Host(_))) && o.pins == 0 && o.staged.is_none()) else { break };
+            self.evict_host(k);
         }
         while self.used[2] > self.cfg.disk_bytes {
             let Some(k) = self.lru(|o| o.disk.is_some() && o.pins == 0) else { break };
@@ -1087,6 +1270,59 @@ impl PrefixStore {
                 self.drop_obj(k);
             }
         }
+    }
+
+    /// Take `k`'s host copy away: its disk copy stays (when it has one), else the object goes; the buffer is kept for reuse.
+    fn evict_host(&mut self, k: Key) {
+        self.stats.host.evictions += 1;
+        let o = self.objs.get_mut(&k).unwrap();
+        if o.disk.is_some() {
+            let bytes = o.bytes as u64;
+            let mem = o.mem.take();
+            self.used[1] -= bytes;
+            if let Some(Mem::Host(v)) = mem {
+                self.release_host(v);
+            }
+        } else {
+            self.drop_obj(k);
+        }
+    }
+
+    /// Before a demote of `bytes` (an object last used at `last_use`): evict the host objects that are older than it, oldest
+    /// first, until it fits the host budget, so its buffer can be the evicted one. What does not fit this way is left to the
+    /// loop after the demotes, which evicts in the same order.
+    fn make_host_room(&mut self, bytes: usize, last_use: u64) {
+        while self.used[1] + bytes as u64 > self.cfg.host_bytes {
+            let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Host(_))) && o.pins == 0 && o.staged.is_none() && o.last_use < last_use)
+            else {
+                break;
+            };
+            self.evict_host(k);
+        }
+    }
+
+    /// Keep a host buffer nobody else holds for [`PrefixStore::take_host_buf`], if it fits the host budget.
+    fn release_host(&mut self, v: Arc<Vec<u8>>) {
+        if let Ok(v) = Arc::try_unwrap(v) {
+            if self.used[1] + self.host_free_bytes + v.len() as u64 <= self.cfg.host_bytes {
+                self.host_free_bytes += v.len() as u64;
+                self.host_free.push(v);
+            }
+        }
+    }
+
+    /// A host buffer of `n` bytes, every page touched: a recycled one (stale bytes: the caller overwrites all of it), else
+    /// a new one ([`host_buf`]) after giving back pooled buffers the budget needs.
+    fn take_host_buf(&mut self, n: usize) -> Vec<u8> {
+        if let Some(i) = self.host_free.iter().position(|v| v.len() == n) {
+            self.host_free_bytes -= n as u64;
+            return self.host_free.swap_remove(i);
+        }
+        while self.used[1] + self.host_free_bytes + n as u64 > self.cfg.host_bytes {
+            let Some(v) = self.host_free.pop() else { break };
+            self.host_free_bytes -= v.len() as u64;
+        }
+        host_buf(n)
     }
 
     fn lru(&self, f: impl Fn(&Obj) -> bool) -> Option<Key> {
@@ -1110,9 +1346,12 @@ impl PrefixStore {
     }
 
     fn release_obj(&mut self, o: Obj) {
-        match &o.mem {
+        match o.mem {
             Some(Mem::Device(..)) => self.used[0] -= o.bytes as u64,
-            Some(Mem::Host(_)) => self.used[1] -= o.bytes as u64,
+            Some(Mem::Host(v)) => {
+                self.used[1] -= o.bytes as u64;
+                self.release_host(v);
+            }
             None => {}
         }
         if let Some(p) = &o.disk {
