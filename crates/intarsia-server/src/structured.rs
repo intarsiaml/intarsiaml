@@ -893,13 +893,7 @@ impl ToolParser {
     fn envelopes(&self, s: &str) -> String {
         let (mut rest, mut out) = (s, String::new());
         while let Some(body) = rest.trim_start().strip_prefix(OPEN) {
-            let mut from = 0;
-            while let Some(i) = body[from..].find(CLOSE).map(|i| i + from) {
-                from = i + CLOSE.len();
-                if self.parse_body(&body[..i]).is_some() {
-                    break;
-                }
-            }
+            let from = body.find(CLOSE).map_or(body.len(), |i| i + CLOSE.len());
             out.push_str(&format!("{OPEN}{}", &body[..from]));
             rest = &body[from..];
         }
@@ -927,22 +921,52 @@ impl ToolParser {
                 return Some(false);
             }
             let body = rest.strip_prefix(OPEN)?;
-            let mut from = 0;
-            loop {
-                let Some(i) = body[from..].find(CLOSE).map(|i| i + from) else {
-                    // no closing tag yet: it must still look like the start of a call body
-                    let lead = match self.format {
-                        ToolFormat::Hermes => "{",
-                        ToolFormat::Qwen3Xml => FUNCTION_OPEN,
-                    };
-                    let b = body.trim_start();
-                    return (b.is_empty() || lead.starts_with(b) || b.starts_with(lead)).then_some(false);
-                };
-                if self.parse_body(&body[..i]).is_some() {
-                    rest = &body[i + CLOSE.len()..];
-                    break;
+            let Some(i) = body.find(CLOSE) else {
+                // no closing tag yet: the text so far must still be able to become a call body
+                return self.body_may_grow(body).then_some(false);
+            };
+            // a closing tag ends the envelope: what is before it is a call or this is not a tail
+            self.parse_body(&body[..i])?;
+            rest = &body[i + CLOSE.len()..];
+        }
+    }
+
+    /// Whether `body` (the text after `<tool_call>`, no closing tag yet) is a prefix of some call body.
+    fn body_may_grow(&self, body: &str) -> bool {
+        let b = body.trim_start();
+        match self.format {
+            ToolFormat::Hermes => {
+                let mut it = serde_json::Deserializer::from_str(b).into_iter::<Value>();
+                match it.next() {
+                    None => true,
+                    Some(Err(e)) => e.is_eof(),
+                    Some(Ok(_)) => {
+                        let after = b[it.byte_offset()..].trim();
+                        after.is_empty() || CLOSE.starts_with(after)
+                    }
                 }
-                from = i + CLOSE.len();
+            }
+            ToolFormat::Qwen3Xml => {
+                let Some(rest) = b.strip_prefix(FUNCTION_OPEN) else { return FUNCTION_OPEN.starts_with(b) };
+                let Some(end) = rest.find('>') else { return true }; // the name is still being written
+                let mut rest = &rest[end + 1..];
+                loop {
+                    rest = rest.trim_start();
+                    let Some(r) = rest.strip_prefix(PARAMETER_OPEN) else {
+                        // between parameters: only whitespace, a partial tag, or the closing tags may follow
+                        if let Some(after) = rest.strip_prefix(FUNCTION_CLOSE) {
+                            let after = after.trim();
+                            return after.is_empty() || CLOSE.starts_with(after);
+                        }
+                        return PARAMETER_OPEN.starts_with(rest) || FUNCTION_CLOSE.starts_with(rest) || rest.is_empty();
+                    };
+                    let Some(end) = r.find('>') else { return true };
+                    let r = &r[end + 1..];
+                    match value_end(r, true) {
+                        Some((close, len)) => rest = &r[close + len..],
+                        None => return true, // still inside the value
+                    }
+                }
             }
         }
     }
@@ -1216,6 +1240,17 @@ impl ThinkStream {
     pub fn push(&mut self, text: &str) -> Vec<Part> {
         let parts = self.rp.push(text);
         self.absorb(parts)
+    }
+
+    /// The output ended without a clean finish (an engine error): everything held is reasoning, never a call.
+    pub fn abort(&mut self) -> Vec<Part> {
+        let parts = self.rp.finish();
+        let mut out = self.absorb(parts);
+        let held = std::mem::take(&mut self.held);
+        if !held.is_empty() {
+            out.push(Part::Reasoning(held));
+        }
+        out
     }
 
     /// End of output.
@@ -2009,6 +2044,56 @@ mod tests {
         rest.extend(p.finish());
         assert_eq!(rest.len(), 1);
         assert!(matches!(&rest[0], Part::Content(c) if c.starts_with("<tool_call>") && c.ends_with("</tool_call>")), "{rest:?}");
+    }
+
+    /// Reasoning streamed before the close arrives: every chunk but the last is pushed, then `</think>` and the answer.
+    fn streamed_before_close(f: ToolFormat, chunks: &[&str]) -> String {
+        let tools = lookup_tool();
+        let mut p = ThinkStream::new(Some(ToolParser::new(f, &tools)));
+        let mut seen = String::new();
+        for t in chunks {
+            for part in p.push(t) {
+                if let Part::Reasoning(r) = part {
+                    seen.push_str(&r);
+                }
+            }
+        }
+        seen
+    }
+
+    #[test]
+    fn think_tail_stops_holding_once_the_text_cannot_be_a_tail() {
+        // a mention with a placeholder body, then prose
+        let seen = streamed_before_close(ToolFormat::Hermes, &["The format is <tool_call>{...}</tool_call> with JSON.", " Now lots more reasoning here."]);
+        assert_eq!(seen, "The format is <tool_call>{...}</tool_call> with JSON. Now lots more reasoning here.");
+        // an invalid-JSON call, then prose
+        let seen = streamed_before_close(ToolFormat::Hermes, &["Try <tool_call>{\"name\": }</tool_call>", " then think more.", " And more."]);
+        assert_eq!(seen, "Try <tool_call>{\"name\": }</tool_call> then think more. And more.");
+        // an unclosed XML body that is not one
+        let seen = streamed_before_close(ToolFormat::Qwen3Xml, &["Maybe <tool_call>\n<function=lookup> hmm, no.", " More reasoning here.", " Even more."]);
+        assert_eq!(seen, "Maybe <tool_call>\n<function=lookup> hmm, no. More reasoning here. Even more.");
+        // an unclosed Hermes body with text after it
+        let seen = streamed_before_close(ToolFormat::Hermes, &["Use <tool_call>{\"name\": \"x\"} and then", " keep going"]);
+        assert_eq!(seen, "Use <tool_call>{\"name\": \"x\"} and then keep going");
+        // and the close and answer after them change nothing
+        let (r, c) = think_split("The format is <tool_call>{...}</tool_call> with JSON. More.</think>Answer.", ToolFormat::Hermes);
+        assert_eq!((r.as_str(), c.as_str()), ("The format is <tool_call>{...}</tool_call> with JSON. More.", "Answer."));
+        // a genuine call in progress is still held
+        let seen = streamed_before_close(ToolFormat::Qwen3Xml, &["Plan.\n<tool_call>\n<function=lookup>\n<parameter=q>\nexam"]);
+        assert_eq!(seen, "Plan.");
+    }
+
+    #[test]
+    fn think_stream_abort_releases_held_reasoning_never_a_call() {
+        let tools = lookup_tool();
+        for (f, call) in [(ToolFormat::Qwen3Xml, LOOKUP_XML), (ToolFormat::Hermes, LOOKUP_JSON)] {
+            let mut p = ThinkStream::new(Some(ToolParser::new(f, &tools)));
+            let mut parts = p.push(&format!("Plan.\n{call}</think>"));
+            parts.extend(p.abort());
+            let reasoning: String = parts.iter().filter_map(|x| if let Part::Reasoning(t) = x { Some(t.as_str()) } else { None }).collect();
+            assert_eq!(reasoning, format!("Plan.\n{call}"));
+            assert!(parts.iter().all(|x| matches!(x, Part::Reasoning(_))), "{parts:?}");
+        }
     }
 
     #[test]

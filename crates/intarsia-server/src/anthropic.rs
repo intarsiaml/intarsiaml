@@ -506,11 +506,23 @@ fn stream_with_tools(
         }
         Some(GenEvent::Error { message }) => {
             done = true;
-            vec![err_event(&message)]
+            let mut out = held_reasoning(&mut b, &st, rp.as_mut());
+            out.push(err_event(&message));
+            out
         }
-        None if !done => vec![err_event("engine stopped before finishing the request")],
+        None if !done => {
+            let mut out = held_reasoning(&mut b, &st, rp.as_mut());
+            out.push(err_event("engine stopped before finishing the request"));
+            out
+        }
         None => vec![],
     })
+}
+
+/// The reasoning a stream still holds when it ends without a clean finish, as thinking deltas (never as a call).
+fn held_reasoning(b: &mut Blocks, st: &AppState, rp: Option<&mut ThinkStream>) -> Vec<Event> {
+    let parts: Vec<Part> = rp.map(|rp| rp.abort()).unwrap_or_default().into_iter().filter(|p| matches!(p, Part::Reasoning(_))).collect();
+    b.parts(st, parts, &mut None)
 }
 
 #[derive(Deserialize)]
