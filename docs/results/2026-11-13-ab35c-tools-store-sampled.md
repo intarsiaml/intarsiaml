@@ -81,8 +81,8 @@ spark2. vLLM was down for 962 s (16 min), within the 35 min cap. earlyoom was ac
   - Per-stream decode is equal.
   - Combined output is 2.5% lower.
   - Wall time is 2.4% longer.
-  - Worst inter-token gaps are higher: the median ITL p99 is 370 ms against 304 ms, and the max is 1412 ms against 884 ms. **Cause (checked against the per-request trace):** the worst gaps are the other stream's uncached prefill running while this stream waits to decode. The batched engine does not run a decode step between prefill chunks.
-  - c2t1, p99 1412 ms: during its decode, c3t1 started with 44 of 8045 tokens cached, TTFT 1.49 s.
+  - Worst inter-token gaps are higher: the median ITL p99 is 370 ms against 304 ms, and the max is 1412 ms against 884 ms. **Cause (corrected 2026-11-13 by lane interleave, docs/results/2026-11-13-interleave.md on branch `prefill-decode-interleave`, PR #359):** the engine does run a decode step between prefill chunks (one store chunk of up to 2048 rows per iteration). The real server-side gaps are about 330 ms (one 2048-row chunk of the other stream's uncached prefill) plus the settle after `Done`; this run's `intarsia_batch_itl_seconds` diff has no gap above 0.5 s (104 in 0.25–0.5 s, 61 in 0.15–0.25 s, of 7548). The 1.2–1.4 s values are a measurement artifact: localeval's `itl_stats` divides each SSE chunk's delta by a character-count weight, and its p99 is the second-largest of ~159 values, so a ~330 ms stall that lands on a 1-character token reads as about 1.4 s. The per-request pairs below are where such a stall landed, not 1.4 s stalls:
+  - c2t1, p99 1412 ms: during its decode, c3t1 started with 44 of 8045 tokens cached, TTFT 1.49 s (four chunks, one decode step of c2t1 after each).
   - c1t3, p99 1312 ms: c0t3 prefilled about 5k uncached tokens, TTFT 1.31 s.
   - c5t5, p99 1219 ms: c4t5 prefilled about 5k, TTFT 1.47 s.
   - Store settle is a second, smaller source. Single settles take 170–410 ms (256–602 MiB at about 1.5 GB/s, debug lines in `raw/serve-D-store.log`), which is in the range of the mid-tier p99s (about 370–450 ms). Restore averages about 50 ms per request.
