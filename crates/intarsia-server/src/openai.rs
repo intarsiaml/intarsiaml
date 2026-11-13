@@ -1,7 +1,7 @@
 //! OpenAI-compatible endpoints.
 
 use crate::api::*;
-use crate::structured::{self, Part, Piece, ReasoningParser, ToolFormat, ToolParser};
+use crate::structured::{self, Part, Piece, ThinkStream, ToolFormat, ToolParser};
 use axum::extract::{Path, State};
 use axum::response::sse::Event;
 use axum::response::{IntoResponse, Json, Response};
@@ -234,7 +234,7 @@ async fn chat_inner(
         let mut finish = finish_str(c.finish);
         let mut answer = c.text.clone();
         if think {
-            let (reasoning, content) = ReasoningParser::parse_all(&c.text);
+            let (reasoning, content) = ThinkStream::parse_all(&c.text, parse_tools.map(|f| ToolParser::new(f, &tools)));
             message["reasoning_content"] = reasoning.map_or(Value::Null, Value::String);
             answer = content.unwrap_or_default();
             message["content"] = json!(answer);
@@ -273,7 +273,7 @@ async fn chat_inner(
     };
     // tool calls are parsed out of the text (token ids are not reported per delta then)
     let mut tp = parse_tools.map(|f| ToolParser::new(f, &tools));
-    let mut rp = think.then(ReasoningParser::default);
+    let mut rp = think.then(|| ThinkStream::new(parse_tools.map(|f| ToolParser::new(f, &tools))));
     let mut ncalls = 0usize;
     let st2 = st.clone();
     let sse = sse_from(rx, vec![first], move |ev| match ev {
@@ -330,11 +330,14 @@ async fn chat_inner(
         }
         Some(GenEvent::Error { message }) => {
             done = true;
-            vec![error_event(&message)]
+            let mut out: Vec<Event> = held_reasoning(rp.as_mut()).into_iter().map(|d| sse_json(None, &chunk(d, None, inc))).collect();
+            out.push(error_event(&message));
+            out
         }
         None => {
             let mut out = Vec::new();
             if !done {
+                out.extend(held_reasoning(rp.as_mut()).into_iter().map(|d| sse_json(None, &chunk(d, None, inc))));
                 out.push(error_event("engine stopped before finishing the request"));
             }
             out.push(Event::default().data("[DONE]"));
@@ -342,6 +345,18 @@ async fn chat_inner(
         }
     });
     Ok(sse.into_response())
+}
+
+/// The reasoning a stream still holds when it ends without a clean finish, as reasoning deltas (never as a call).
+fn held_reasoning(rp: Option<&mut ThinkStream>) -> Vec<Value> {
+    let parts: Vec<Part> = rp.map(|rp| rp.abort()).unwrap_or_default();
+    parts
+        .into_iter()
+        .filter_map(|p| match p {
+            Part::Reasoning(t) => Some(json!({"reasoning_content": t})),
+            Part::Content(_) => None,
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
