@@ -522,6 +522,29 @@ fn debug() -> bool {
     *ON.get_or_init(|| std::env::var_os("INTARSIA_PREFIX_STORE_DEBUG").is_some())
 }
 
+/// Where one insert's capture went (reported under `INTARSIA_PREFIX_STORE_DEBUG`; `=sync` also waits for the device-side
+/// copies so `sync` shows how long they take to run, not only to queue).
+#[derive(Default)]
+struct CaptureTimes {
+    segments: usize,
+    alloc_s: f64,
+    copy_s: f64,
+    sync_s: f64,
+    how: &'static str,
+}
+
+impl CaptureTimes {
+    fn sync(&mut self, backend: &dyn Backend) -> Result<()> {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if *ON.get_or_init(|| std::env::var("INTARSIA_PREFIX_STORE_DEBUG").is_ok_and(|v| v == "sync")) {
+            let t = Instant::now();
+            backend.synchronize(0)?;
+            self.sync_s = t.elapsed().as_secs_f64();
+        }
+        Ok(())
+    }
+}
+
 /// Most device memory the deferred captures of one request may hold.
 const DEFER_CAP: u64 = 1 << 30;
 
@@ -724,7 +747,9 @@ impl PrefixStore {
         if let Some(rk) = rec {
             todo.push((rk, self.layout.rec_segments(st), self.layout.rec_bytes));
         }
-        let mems = self.capture_all(backend, &todo)?;
+        let t_keys = t0.elapsed();
+        let (mems, cap) = self.capture_all(backend, &todo)?;
+        let t_cap = t0.elapsed();
         // only now (the copies worked) does the entry take its references
         for pk in shared {
             let o = self.objs.get_mut(&pk).unwrap();
@@ -750,66 +775,105 @@ impl PrefixStore {
             },
         );
         self.lens.insert(len);
+        let t_add = t0.elapsed();
         self.write_manifest(key);
+        let t_man = t0.elapsed();
         self.enforce(backend);
         self.stats.inserts += 1;
         self.stats.insert_bytes += copied;
         self.stats.insert_seconds_total += t0.elapsed().as_secs_f64();
+        if debug() {
+            let ms = |d: Duration| d.as_secs_f64() * 1e3;
+            eprintln!(
+                "prefix store: insert {len} tok: {} objs, {} segments, {:.1} MiB in {:.2} ms (keys {:.2}, capture {:.2} [alloc {:.2}, copies {:.2}, sync {:.2}], add {:.2}, manifest {:.2}, enforce {:.2}); {}",
+                todo.len(),
+                cap.segments,
+                copied as f64 / (1u64 << 20) as f64,
+                ms(t0.elapsed()),
+                ms(t_keys),
+                ms(t_cap - t_keys),
+                cap.alloc_s * 1e3,
+                cap.copy_s * 1e3,
+                cap.sync_s * 1e3,
+                ms(t_add - t_cap),
+                ms(t_man - t_add),
+                ms(t0.elapsed() - t_man),
+                cap.how
+            );
+        }
         self.refresh_counts();
         Ok(copied)
     }
 
     /// Copy each object's segments out of the state into new objects in the highest tier with room: on the device one
     /// allocation for all of them (device-to-device copies, nothing waits), else one host buffer each.
-    fn capture_all(&mut self, backend: &dyn Backend, todo: &[(Key, Vec<(&Buffer, usize, usize)>, usize)]) -> Result<Vec<Mem>> {
+    fn capture_all(&mut self, backend: &dyn Backend, todo: &[(Key, Vec<(&Buffer, usize, usize)>, usize)]) -> Result<(Vec<Mem>, CaptureTimes)> {
+        let mut cap = CaptureTimes::default();
         let total: usize = todo.iter().map(|t| t.2).sum();
         if total == 0 {
-            return Ok(Vec::new());
+            return Ok((Vec::new(), cap));
         }
+        cap.segments = todo.iter().map(|t| t.1.len()).sum();
         let defer = self.defer && self.deferred + total as u64 <= DEFER_CAP;
         if defer {
             self.deferred += total as u64;
         }
         if !defer && self.cfg.device_bytes >= total as u64 {
             // a real device tier: one allocation per object, so demoting one frees its memory
+            cap.how = "device tier";
             let mut out = Vec::with_capacity(todo.len());
             for (_, segs, bytes) in todo {
+                let t = Instant::now();
                 let buf = backend.alloc((*bytes).max(16), MemKind::Device)?;
+                cap.alloc_s += t.elapsed().as_secs_f64();
+                let t = Instant::now();
                 let mut off = 0;
                 for &(src, so, n) in segs {
                     backend.copy(&buf, off, src, so, n, 0)?;
                     off += n;
                 }
+                cap.copy_s += t.elapsed().as_secs_f64();
                 out.push(Mem::Device(buf, 0));
             }
-            return Ok(out);
+            cap.sync(backend)?;
+            return Ok((out, cap));
         }
         if defer {
             // deferred: one allocation for the insert (all of it leaves the device at `settle`)
+            cap.how = "deferred";
+            let t = Instant::now();
             let buf = backend.alloc(total.max(16), MemKind::Device)?;
+            cap.alloc_s += t.elapsed().as_secs_f64();
+            let t = Instant::now();
             let mut out = Vec::with_capacity(todo.len());
             let mut off = 0;
-            for (_, segs, bytes) in todo {
+            for (_, segs, _) in todo {
                 out.push(Mem::Device(buf.clone(), off));
                 for &(src, so, n) in segs {
                     backend.copy(&buf, off, src, so, n, 0)?;
                     off += n;
                 }
-                let _ = bytes;
             }
-            return Ok(out);
+            cap.copy_s += t.elapsed().as_secs_f64();
+            cap.sync(backend)?;
+            return Ok((out, cap));
         }
+        cap.how = "host";
         let mut out = Vec::with_capacity(todo.len());
         for (_, segs, bytes) in todo {
+            let t = Instant::now();
             let mut v = host_buf(*bytes);
+            cap.alloc_s += t.elapsed().as_secs_f64();
+            let t = Instant::now();
             let mut off = 0;
             for &(src, so, n) in segs {
                 backend.download(src, so, &mut v[off..off + n], 0)?;
                 off += n;
             }
+            cap.copy_s += t.elapsed().as_secs_f64();
             out.push(Mem::Host(Arc::new(v)));
         }
-        Ok(out)
+        Ok((out, cap))
     }
 
     fn add_obj(&mut self, k: Key, bytes: usize, mem: Mem, now: u64, pinned: bool) {
