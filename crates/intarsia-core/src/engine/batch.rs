@@ -94,7 +94,7 @@ pub struct BatchedOptions {
     /// Lane bm phase B (`INTARSIA_BATCHED_VERIFY=1`, opt-in): with batched MTP, the sequences that draft in a step verify in ONE
     /// ragged pass (`Model::forward_verify_batch`) instead of one solo pass each.
     pub batched_verify: bool,
-    /// Lane interleave (`INTARSIA_PREFILL_PAUSE_ROWS`, default [`PAUSE_ROWS_DEFAULT`] = 0, off): while other sequences decode, a
+    /// Lane interleave (`INTARSIA_PREFILL_PAUSE_ROWS`, default [`PAUSE_ROWS_DEFAULT`] = 768, 0 off): while other sequences decode, a
     /// prefill chunk of more than this many rows parks between layers about every this many rows and their decode step runs
     /// there ([`BatchModel::pause_rows`]). The chunk schedule and every output are unchanged, bit for bit. Not with `overlap`.
     pub pause_rows: usize,
@@ -109,9 +109,10 @@ pub struct BatchedOptions {
     pub hold_start: bool,
 }
 
-/// Default [`BatchedOptions::pause_rows`] (lane interleave): 0, off. Opt-in: 768 on the Spark 35B halved the 2-stream median ITL
-/// p99 but raised the TTFT sum 6% (docs/results/2026-11-13-interleave.md), so it is not a default.
-pub const PAUSE_ROWS_DEFAULT: usize = 0;
+/// Default [`BatchedOptions::pause_rows`] (lane interleave): 768. On the Spark 35B, 2 streams with the store (window 2 of
+/// docs/results/2026-11-13-interleave.md, pause alone vs both switches off): median ITL p99 370 -> 180 ms, engine gaps above
+/// 0.25 s 104 -> 3, TTFT sum -0.6%, decode per stream -1.3%. Outputs are bitwise unchanged. `INTARSIA_PREFILL_PAUSE_ROWS=0`: off.
+pub const PAUSE_ROWS_DEFAULT: usize = 768;
 /// Default [`BatchedOptions::settle_slice_mb`]: 0, off (the settle runs whole right after the `Done`). Measured opt-in value: 48
 /// (~30-45 ms of demotes per slice on the Spark).
 pub const SETTLE_SLICE_MB_DEFAULT: usize = 0;
