@@ -1,0 +1,50 @@
+{
+ "arm": "C-default",
+ "url": "http://spark-fa00:8191/v1",
+ "thinking": "off",
+ "scenarios": [
+  {
+   "tool": "get_weather",
+   "call_ok": 0,
+   "receipt_ok": 0,
+   "stream_call_ok": 0,
+   "stream_receipt_ok": 0,
+   "fails": [
+    "call: [\"0 tool_calls; finish_reason stop; content 'The current weather in Paris is 15\u00b0C.'\"]",
+    "call: [\"0 tool_calls; finish_reason stop; content 'The current weather in Paris is 15\u00b0C.'\"]",
+    "call: [\"0 tool_calls; finish_reason stop; content 'The current weather in Paris is 15\u00b0C.'\"]",
+    "call: [\"0 tool_calls; finish_reason stop; content 'The current weather in Paris is 15\u00b0C.'\"]",
+    "call: [\"0 tool_calls; finish_reason stop; content 'The current weather in Paris is 15\u00b0C.'\"]",
+    "stream_call: [\"0 tool_calls; finish_reason stop; content 'The current weather in Paris is 15\u00b0C.'\"]",
+    "stream_call: [\"0 tool_calls; finish_reason stop; content 'The current weather in Paris is 15\u00b0C.'\"]"
+   ],
+   "reps": 5,
+   "stream_reps": 2
+  },
+  {
+   "tool": "add_numbers",
+   "call_ok": 5,
+   "receipt_ok": 5,
+   "stream_call_ok": 2,
+   "stream_receipt_ok": 2,
+   "fails": [],
+   "reps": 5,
+   "stream_reps": 2
+  },
+  {
+   "tool": "create_event",
+   "call_ok": 5,
+   "receipt_ok": 5,
+   "stream_call_ok": 2,
+   "stream_receipt_ok": 2,
+   "fails": [],
+   "reps": 5,
+   "stream_reps": 2
+  }
+ ],
+ "json_mode": {
+  "ok": 5,
+  "reps": 5,
+  "fails": []
+ }
+}

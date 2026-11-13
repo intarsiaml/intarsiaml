@@ -1,0 +1,102 @@
+{
+ "arm": "C-fp8",
+ "url": "http://spark-fa00:8191/v1",
+ "temperature": 0.7,
+ "top_p": 0.95,
+ "gen": 256,
+ "reps": 3,
+ "rows": [
+  {
+   "size": 32768,
+   "prompt_tokens": 33949,
+   "ttft_s": {
+    "median": 6.06,
+    "min": 6.06,
+    "max": 6.061
+   },
+   "decode_tok_s": {
+    "median": 70.942,
+    "min": 70.908,
+    "max": 71.059
+   },
+   "peak_decode_tok_s": {
+    "median": 128.4,
+    "min": 84.0,
+    "max": 132.1
+   },
+   "completion_tokens": {
+    "median": 256,
+    "min": 256,
+    "max": 256
+   },
+   "cached_tokens_max": 0,
+   "decode_each": [
+    70.9,
+    71.1,
+    70.9
+   ],
+   "errors": [],
+   "mtp": {
+    "delta": {
+     "intarsia_tokens_cached_total": 0.0,
+     "intarsia_spec_steps_total": 0.0,
+     "intarsia_spec_proposed_tokens_total": 0.0,
+     "intarsia_spec_accepted_tokens_total": 0.0,
+     "intarsia_spec_costgate_off_total": 0.0,
+     "intarsia_spec_costgate_on_total": 0.0,
+     "intarsia_spec_costgate_plain_steps_total": 0.0,
+     "intarsia_spec_costgate_probe_steps_total": 0.0,
+     "intarsia_batch_cached_tokens_total": 0.0
+    },
+    "accept_rate": null,
+    "tokens_per_verify": null
+   }
+  },
+  {
+   "size": 65536,
+   "prompt_tokens": 69035,
+   "ttft_s": {
+    "median": 15.683,
+    "min": 15.657,
+    "max": 15.717
+   },
+   "decode_tok_s": {
+    "median": 58.258,
+    "min": 58.247,
+    "max": 62.767
+   },
+   "peak_decode_tok_s": {
+    "median": 62.1,
+    "min": 61.9,
+    "max": 72.9
+   },
+   "completion_tokens": {
+    "median": 256,
+    "min": 256,
+    "max": 256
+   },
+   "cached_tokens_max": 0,
+   "decode_each": [
+    62.8,
+    58.3,
+    58.2
+   ],
+   "errors": [],
+   "mtp": {
+    "delta": {
+     "intarsia_tokens_cached_total": 0.0,
+     "intarsia_spec_steps_total": 0.0,
+     "intarsia_spec_proposed_tokens_total": 0.0,
+     "intarsia_spec_accepted_tokens_total": 0.0,
+     "intarsia_spec_costgate_off_total": 0.0,
+     "intarsia_spec_costgate_on_total": 0.0,
+     "intarsia_spec_costgate_plain_steps_total": 0.0,
+     "intarsia_spec_costgate_probe_steps_total": 0.0,
+     "intarsia_batch_cached_tokens_total": 0.0
+    },
+    "accept_rate": null,
+    "tokens_per_verify": null
+   }
+  }
+ ]
+}

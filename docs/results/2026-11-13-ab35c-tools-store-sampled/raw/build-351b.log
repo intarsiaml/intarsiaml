@@ -1,0 +1,20 @@
+fleetq: #9174 running on spark2: bash qwen3-xml/scripts/ab35b/build.sh
+22:58:43
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-ab35b/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-ab35b/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-ab35b/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsia-ab35b/src/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-ab35b/src/crates/intarsia-tui)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-ab35b/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsia-ab35b/src/crates/intarsia-engram)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-ab35b/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-ab35b/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-ab35b/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 05s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  215G  94% /
+2.7G	/home/nvidia/intarsia-ab35b
+Mem:             121          48          23           0          51          73
+23:03:49
+git sha 672b173934409f2313b24cda2f64f57319744e44
+fleetq: #9174 done (exit 0)

@@ -1,0 +1,20 @@
+fleetq: #9175 running on spark2: bash ab35c/build.sh
+23:04:31
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-ab35c-fix/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-ab35c-fix/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-ab35c-fix/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsia-ab35c-fix/src/crates/intarsia-engram)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-ab35c-fix/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsia-ab35c-fix/src/crates/intarsia-ui)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-ab35c-fix/src/crates/intarsia-models)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-ab35c-fix/src/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-ab35c-fix/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-ab35c-fix/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 43s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  213G  95% /
+2.7G	/home/nvidia/intarsia-ab35c-fix
+Mem:             121          48          20           0          54          73
+23:10:16
+git sha 541a156ea7f1c9ac14dc7ac08826f8cd51d60f83
+fleetq: #9175 done (exit 0)

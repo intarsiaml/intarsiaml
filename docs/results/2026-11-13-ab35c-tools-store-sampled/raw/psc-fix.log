@@ -1,0 +1,44 @@
+fleetq: #9176 running on spark2: ssh -n -o BatchMode=yes spark2 'export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; cd ~/intarsia-ab35c-fix/src && CARGO_BUILD_JOBS=4 MAX_JOBS=4 cargo test --release --locked -p intarsia-models --test prefix_store_cuda --no-run 2>&1 | grep -E "^error|Finished" | tail -3; free -g | sed -n 2p; INTARSIA_TEST_REAL_MODEL=1 INTARSIA_PREFIX_STORE_DEBUG=1 timeout 900 cargo test --release --locked -p intarsia-models --test prefix_store_cuda -- --nocapture --test-threads 1 2>&1 | grep -vE "^\s*Compiling|^warning" | tail -40'
+    Finished `release` profile [optimized] target(s) in 30.68s
+Mem:             121          48          19           0          55          73
+prefix store: demote 5120 KiB: alloc 0.01 ms, download 32.25 ms
+prefix store: settle (after done) moved 48 MiB off the device in 83.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 2640 KiB: alloc 0.01 ms, download 11.46 ms
+prefix store: demote 32160 KiB: alloc 0.01 ms, download 227.56 ms
+prefix store: demote 4500 KiB: alloc 0.07 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 0.08 ms, download 0.10 ms
+prefix store: demote 32160 KiB: alloc 0.01 ms, download 223.28 ms
+prefix store: demote 5120 KiB: alloc 0.08 ms, download 0.10 ms
+prefix store: settle (after done) moved 79 MiB off the device in 464.2 ms (queue_write 0.00 ms)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefix store: on (build ba0fab05fe5fe644, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 1580 KiB: alloc 0.02 ms, download 0.06 ms
+prefix store: demote 32160 KiB: alloc 11.90 ms, download 0.96 ms
+prefix store: demote 2640 KiB: alloc 0.04 ms, download 0.09 ms
+prefix store: demote 32160 KiB: alloc 11.53 ms, download 0.75 ms
+prefix store: demote 5120 KiB: alloc 0.09 ms, download 0.15 ms
+prefix store: demote 5120 KiB: alloc 0.08 ms, download 0.16 ms
+prefix store: demote 5120 KiB: alloc 0.08 ms, download 0.16 ms
+prefix store: demote 5120 KiB: alloc 0.08 ms, download 0.16 ms
+prefix store: demote 32160 KiB: alloc 11.15 ms, download 0.99 ms
+prefix store: demote 4500 KiB: alloc 0.07 ms, download 0.15 ms
+prefix store: demote 5120 KiB: alloc 0.08 ms, download 0.18 ms
+prefix store: demote 5120 KiB: alloc 0.08 ms, download 0.21 ms
+prefix store: demote 5120 KiB: alloc 0.09 ms, download 0.17 ms
+prefix store: demote 5120 KiB: alloc 0.08 ms, download 0.33 ms
+prefix store: demote 5120 KiB: alloc 0.08 ms, download 0.19 ms
+prefix store: settle (after done) moved 147 MiB off the device in 43.4 ms (queue_write 0.00 ms)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+PREFIX-STORE-CUDA model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 turn1 1873 tok (1763 ms), other 878 tok, turn2 2531 tok: restored 1871 cached in 1063 ms vs cold 1165 ms (store on) / 1001 ms (store off)
+PREFIX-STORE-CUDA restored vs cold(store on): bitwise true (first differing step None)
+PREFIX-STORE-CUDA restored vs cold(store off): bitwise false (first differing step Some(0)); ids equal true
+PREFIX-STORE-CUDA store: {"build":"ba0fab05fe5fe644","entries":4,"pinned_entries":0,"lookups":3,"hits":1,"misses":2,"local_wins":0,"tokens_saved":1871,"bytes_restored":71249920,"restore_seconds_total":0.003726314,"last_restore_ms":3.726314,"inserts":4,"insert_bytes":205783040,"insert_seconds_total":0.33568449599999994,"settle_seconds_total":0.10596818499999999,"rejected":0,"ttft_saved_seconds_total":0.8545586700392039,"prefill_tok_s":2291.1154653323865,"device":{"objects":6,"bytes":83660800,"budget_bytes":0,"hits":0,"evictions":14},"host":{"objects":14,"bytes":122122240,"budget_bytes":17179869184,"hits":1,"evictions":0},"disk":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":0}}
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 103.98s
+
+fleetq: #9176 done (exit 0)

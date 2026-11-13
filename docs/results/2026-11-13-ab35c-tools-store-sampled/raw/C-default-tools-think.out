@@ -1,0 +1,4 @@
+[tools] get_weather: call 2/2, receipt 2/2, stream call 1/1, stream receipt 1/1; fails=[]
+[tools] add_numbers: call 2/2, receipt 2/2, stream call 1/1, stream receipt 1/1; fails=[]
+[tools] create_event: call 2/2, receipt 2/2, stream call 1/1, stream receipt 1/1; fails=[]
+[tools] json_schema response_format: 2/2; fails=[]
