@@ -147,6 +147,14 @@ which settle 150 ms over the 4 finished requests (~38 ms per request at these 1-
 The existing single-engine gate `prefix_store_restore_is_bitwise_cold_cuda` on the same build: restored vs cold (store on)
 bitwise true; vs store off bitwise false from step 0 with equal ids (the documented chunk-sensitivity), restored 1871 tokens.
 
+**After the review fixes** (code `3f85b4ae9`, fleetq builds #9210 / #9213, gates #9214, `--quiet gpu --mem 45`, vLLM up):
+`prefix_store_cuda` 2 of 2 tests passed (197 s). In the batched test, all 4 replies are again bitwise the single engine's (store on),
+and cached 1871 / 1168 match. Settle 155 ms over 4 finished requests, restore 48 ms in total. The startup lines read "the recipe's
+macro prefill (8192 rows) is off", "workspace 1537 MiB", "the backend's packed prefill is off".
+**Macro workspace (review item 5):** the batched test again with `INTARSIA_PREFILL_MACRO=0` (1 of 1 passed, 81 s) reports
+workspace 537 MiB, so the recipe's macro sizing keeps **about 1000 MiB** of workspace reserved (1537 vs 537 MiB) when the store
+turns macro off. `INTARSIA_PREFILL_MACRO=0` on the serve command line returns it; not changed in code.
+
 Not run: `batch_cuda_real.rs` / `batch_recurrent.rs` on CUDA (the batched decode path is unchanged for store-off requests;
 the gate above runs it with the store on).
 
