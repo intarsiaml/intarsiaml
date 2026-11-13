@@ -188,6 +188,58 @@ fn store_device_tier_demotes_to_host() {
     assert_eq!(dump(&*b, &st), dump(&*b, &a1));
 }
 
+/// Captures made while deferring stay on the device (past the device budget) until `settle`; an entry restored before
+/// then still comes back bit-exact, and the settled ones reach disk with a checksum the reloading store accepts (the
+/// header is built by the writer thread).
+#[test]
+fn store_deferred_captures_restore_unsettled_then_settle_to_host_and_disk() {
+    let b = cpu();
+    let dir = tmpdir("defer");
+    let mut c = cfg(16);
+    c.device_bytes = 1; // everything leaves the device at settle
+    c.disk_dir = Some(dir.clone());
+    c.disk_bytes = 1 << 30;
+    let t1: Vec<u32> = (0..32).map(|i| i as u32).collect();
+    let t2: Vec<u32> = (0..32).map(|i| 500 + i as u32).collect();
+    let a1 = fake_state(&*b, &t1, 64);
+    let a2 = fake_state(&*b, &t2, 64);
+    {
+        let mut s = PrefixStore::new(c.clone(), &specs(), "defer").unwrap();
+        s.set_defer(true);
+        s.insert(&*b, &a1, 32, None, &[]).unwrap();
+        s.insert(&*b, &a2, 32, None, &[]).unwrap();
+        let snap = s.snapshot();
+        assert!(s.deferring());
+        assert!(snap.device.bytes > 1 && snap.host.bytes == 0, "{snap:?}");
+        // an entry still on the device restores
+        let mut st = SequenceState::new(&*b, &specs(), 64).unwrap();
+        let h = s.lookup(&t1, 32).unwrap();
+        s.restore(&*b, &mut st, h).unwrap();
+        assert_eq!(dump(&*b, &st), dump(&*b, &a1));
+        s.settle(&*b, "test");
+        assert!(!s.deferring());
+        let snap = s.snapshot();
+        assert!(snap.device.bytes == 0 && snap.host.bytes > 0, "{snap:?}");
+        let h = s.lookup(&t2, 32).unwrap();
+        s.restore(&*b, &mut st, h).unwrap();
+        assert_eq!(dump(&*b, &st), dump(&*b, &a2));
+        s.flush();
+    }
+    // the demoted object was written with a valid header: a new store on the same directory reads it back
+    let mut s = PrefixStore::new(c, &specs(), "defer").unwrap();
+    let mut st = SequenceState::new(&*b, &specs(), 64).unwrap();
+    let mut from_disk = 0;
+    for (t, a) in [(&t1, &a1), (&t2, &a2)] {
+        if let Some(h) = s.lookup(t, 32) {
+            let r = s.restore(&*b, &mut st, h).unwrap();
+            assert_eq!(dump(&*b, &st), dump(&*b, a));
+            from_disk += (r.tier == Some(intarsia_core::prefix_store::Tier::Disk)) as usize;
+        }
+    }
+    assert!(from_disk > 0, "nothing came back from disk");
+    assert_eq!(s.snapshot().rejected, 0);
+}
+
 #[test]
 fn store_disk_survives_restart_and_rejects_corruption_and_other_builds() {
     let b = cpu();
