@@ -186,3 +186,11 @@ loop kept the job's ssh open for ~30 min, holding the GPU slot; it was stopped f
   6. test gaps and 7. device-tier accounting: follow-ups, listed in the doc and PR body;
   8. stale comment at `cfg.prefix_reuse = false` ("stays at batch 1"); refuse `--prefix-store-pin` with `--max-batch` > 1 before
      the model loads; make the PR body's "2 of 2" and the doc's 4 replies consistent.
+- 2026-11-13 ~02:30 EST, from the coordinator: PR #354 (store-capture: slab reuse for device captures, host buffer
+  recycling, slab bytes counted against `DEFER_CAP`) is merged into main as `5bb5d54b0`; #353 conflicts with it in
+  `prefix_store.rs`, `prefix_store_cuda.rs` and `docs/tuning.md`. In order: (1) let the spark1 gates on `3f85b4ae9` finish and
+  record them; (2) merge origin/main into `batch-store` keeping both changes, and make sure a settle after request A's `Done`
+  cannot recycle a slab request B's pending capture still points into (#354 guards with `strong_count() == 1` in
+  `recycle_slabs`: confirm it covers the 2-slot case, add a CPU test if cheap); (3) Mac gates prefix_store, scheduler,
+  intarsia-core --lib, push; (4) re-run spark1 `prefix_store_cuda` on the merged HEAD through fleetq, report the sha and
+  results. Also fix the stale `DEFER_CAP` comment (done in `3f85b4ae9`, re-check after the merge).
