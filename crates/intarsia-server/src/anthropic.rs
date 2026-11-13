@@ -39,7 +39,7 @@ pub struct MessagesReq {
 }
 
 /// Anthropic content (string or blocks) to a plain string. Only text blocks are
-/// supported; `thinking` blocks from earlier turns are dropped.
+/// supported; `thinking` blocks are skipped here (an assistant turn's become its `reasoning_content`).
 fn blocks_to_text(v: &Value) -> Result<String, ApiError> {
     match v {
         Value::String(s) => Ok(s.clone()),
@@ -61,6 +61,18 @@ fn blocks_to_text(v: &Value) -> Result<String, ApiError> {
         }
         _ => Err(ApiError::bad_request(F, "content must be a string or an array of blocks")),
     }
+}
+
+/// The text of the `thinking` blocks of an assistant turn (what the model reasoned before it answered), `None` when
+/// there are none. Templates that keep earlier reasoning read it as the message's `reasoning_content`.
+fn thinking_text(v: &Value) -> Option<String> {
+    let t: String = v
+        .as_array()?
+        .iter()
+        .filter(|b| b.get("type").and_then(Value::as_str) == Some("thinking"))
+        .filter_map(|b| b.get("thinking").and_then(Value::as_str))
+        .collect();
+    (!t.is_empty()).then_some(t)
 }
 
 /// Whether `v` (message content) holds `tool_use` / `tool_result` blocks.
@@ -124,10 +136,17 @@ fn to_chat_messages(system: &Option<Value>, messages: &[Value]) -> Result<Vec<Va
         let c = m.get("content").unwrap_or(&Value::Null);
         if has_tool_blocks(c) {
             tool_turn(role, c.as_array().map(Vec::as_slice).unwrap_or(&[]), &mut out)?;
-            continue;
+        } else {
+            let content = blocks_to_text(c)?;
+            out.push(json!({"role": role, "content": content}));
         }
-        let content = blocks_to_text(c)?;
-        out.push(json!({"role": role, "content": content}));
+        if role == "assistant" {
+            if let (Some(t), Some(last)) = (thinking_text(c), out.last_mut()) {
+                if last["role"] == "assistant" {
+                    last["reasoning_content"] = json!(t);
+                }
+            }
+        }
     }
     Ok(out)
 }

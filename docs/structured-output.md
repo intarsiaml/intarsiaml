@@ -40,8 +40,13 @@ in the body:
   that stop; an `enum` or `const` string is its members). Any other parameter is JSON constrained to its property
   schema (the template writes it with `tojson`). Parameters come in the schema's property order; `required` ones
   must be there, the others may be skipped. A property with no type is a string. The parser reads a string as it is
-  (one `\n` of each end is the template's), and parses a non-string value as JSON by its property's schema, keeping the
-  raw text when it is not JSON. Not enforced: string `maxLength` / `pattern`, parameters the schema does not list.
+  (the `\n` after the opening tag is the template's), and parses a non-string value as JSON by its property's schema, keeping the
+  raw text when it is not JSON (Python's `True`, `False` and `None` count as JSON). A string or null union
+  (`type: ["string", "null"]`, `anyOf`) is raw text, where the text `null` is null. A tool with no `properties`
+  (`{"type": "object"}`) or `additionalProperties` that is not `false` may also carry any other parameter, a raw
+  string, which the parser types as JSON when it parses. A string ends at the first `\n</parameter>` followed by a newline
+  (or the end of the call), so it may hold a bare `</parameter>`. A parameter name with `>` or a newline is a 400. Not
+  enforced: string `maxLength` / `pattern`.
 
 A call that the assistant made earlier in the conversation is rendered by the template in the same format. The
 OpenAI API carries its `arguments` as a JSON string; the server hands the template an object when the template needs one
@@ -143,8 +148,8 @@ a non-streamed response is unchanged).
 nothing is masked until the model emits the `</think>` token, so the think section is free text (a `<tool_call>` inside
 it does not open a call). Then the grammar starts from the first answer token. This is the same lazy-trigger mechanism
 as `tool_choice: auto` (`TokenConstraint::active`): until `</think>` the request decodes like an unconstrained one.
-The model's usual `\n\n` after `</think>` is not valid JSON, so the grammar leaves it out and `content` starts with the
-JSON itself.
+The template's usual `\n\n` after `</think>` may come before the constrained text (the grammar takes an optional `"\n\n"`
+first); the reasoning parser trims it, so `content` starts with the JSON or the call itself.
 - The tokenizer needs a single `</think>` token (Qwen3 has one); otherwise a constrained thinking request returns 400.
 - If the model never closes the think block, the output is reasoning only and never constrained.
 - J1's rules are unchanged: a constrained request never uses speculative decoding, and `Seq::feedback_ok` still excludes

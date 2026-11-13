@@ -122,14 +122,20 @@ impl GrammarEnv {
         } else {
             None
         };
+        // after `</think>` the template's own `\n\n` may come before the first forced token (the model wrote
+        // `</think>\n\n<tool_call>` in its training); it is optional, and the reasoning parser trims it from the content
+        let lead = if think { r#""\n\n"? "# } else { "" };
         let (grammar, trigger) = match plan {
+            Plan::Json(schema) if think => {
+                (TopLevelGrammar::from_lark(format!("start: {lead}%json {}\n", compact(schema))), None)
+            }
             Plan::Json(schema) => (TopLevelGrammar::from_json_schema(compact(schema)), None),
             Plan::Tools { tools, required: true, parallel, format } => {
                 // one call (or several, newline-separated), nothing else; the grammar ends where the model must stop
                 let (rules, body) = call_body(tools, *format);
                 let call = format!(r#"{} "\n" {body} "\n" {}"#, self.open.lark, self.close.lark);
                 let start = if *parallel { "call (\"\\n\" call)*" } else { "call" };
-                (TopLevelGrammar::from_lark(format!("start: {start}\ncall: {call}\n{rules}")), None)
+                (TopLevelGrammar::from_lark(format!("start: {lead}{start}\ncall: {call}\n{rules}")), None)
             }
             Plan::Tools { tools, required: false, format, .. } => {
                 // free text until the model opens a call; the call's body is constrained, then text is free again
@@ -271,6 +277,14 @@ pub fn choose(
             _ => Err("tool_choice required / a named function needs a model with hermes or qwen3_xml tool calls".into()),
         };
     };
+    if tool_format == ToolFormat::Qwen3Xml {
+        // a parameter name is written inside `<parameter=NAME>`
+        for t in tools {
+            if let Some(bad) = tool_params(t).iter().map(|p| p.0).find(|n| n.is_empty() || n.contains(['>', '\n', '\r'])) {
+                return Err(format!("tool '{}': parameter name {bad:?} cannot be used (empty, or has '>' or a newline)", t.name));
+            }
+        }
+    }
     Ok((tools_plan(tools, choice, parallel, tool_format), Some(tool_format)))
 }
 
@@ -340,6 +354,9 @@ enum ParamKind {
     Text,
     /// A string with an `enum` (or a `const`): one of these.
     Enum(Vec<String>),
+    /// A string or null (`type: ["string", "null"]`, `anyOf` of both): written as the raw text, where the text `null` is
+    /// null.
+    NullableText,
     /// Anything else: JSON matching the property's schema (the templates `tojson` every non-string value).
     Json,
 }
@@ -356,6 +373,29 @@ fn param_kind(schema: &Value) -> ParamKind {
     }
     if let Some(Value::String(c)) = o.get("const") {
         return ParamKind::Enum(vec![c.clone()]);
+    }
+    // a union whose only non-null member is a plain string
+    let is_null = |v: &Value| v.get("type").and_then(Value::as_str) == Some("null") || v.get("const") == Some(&Value::Null);
+    let mut union: Vec<&Value> = Vec::new();
+    match o.get("type") {
+        Some(Value::Array(a)) => {
+            let non_null: Vec<&str> = a.iter().filter_map(Value::as_str).filter(|t| *t != "null").collect();
+            if non_null == ["string"] && a.len() == a.iter().filter(|v| v.is_string()).count() {
+                return if a.len() > 1 { ParamKind::NullableText } else { ParamKind::Text };
+            }
+        }
+        _ => {}
+    }
+    for k in ["anyOf", "oneOf"] {
+        if let Some(Value::Array(a)) = o.get(k) {
+            union.extend(a.iter());
+        }
+    }
+    if !union.is_empty() && !o.contains_key("type") {
+        let non_null: Vec<&&Value> = union.iter().filter(|v| !is_null(v)).collect();
+        if non_null.len() == 1 && matches!(param_kind(non_null[0]), ParamKind::Text) {
+            return if non_null.len() < union.len() { ParamKind::NullableText } else { ParamKind::Text };
+        }
     }
     match o.get("type") {
         Some(Value::String(t)) if t == "string" => ParamKind::Text,
@@ -384,6 +424,17 @@ fn tool_params(t: &Tool) -> Vec<(&str, &Value, bool)> {
         .unwrap_or_default()
 }
 
+/// Whether a tool may be called with parameters its schema does not list: it lists no properties but
+/// `additionalProperties` is not `false` (`{"type": "object"}`, a top-level `$ref` / `oneOf`), or says `true` / a schema.
+fn open_params(t: &Tool) -> bool {
+    let no_props = t.parameters.get("properties").and_then(Value::as_object).is_none_or(|p| p.is_empty());
+    match t.parameters.get("additionalProperties") {
+        Some(Value::Bool(false)) => false,
+        None => no_props,
+        Some(_) => true,
+    }
+}
+
 /// A property schema that can stand alone: the tool's root `$defs` / `definitions` come along, so `$ref`s still resolve.
 fn standalone(prop: &Value, root: &Value) -> Value {
     let mut s = prop.clone();
@@ -410,7 +461,7 @@ fn xml_rules(tools: &[Tool]) -> String {
         for (j, (name, schema, required)) in tool_params(t).into_iter().enumerate() {
             let open = lit(&format!("<parameter={name}>\n"));
             let rule = match param_kind(schema) {
-                ParamKind::Text => format!("{open} sval"),
+                ParamKind::Text | ParamKind::NullableText => format!("{open} sval"),
                 ParamKind::Enum(vs) => {
                     format!("{open} ({}) {}", vs.iter().map(|v| lit(v)).collect::<Vec<_>>().join(" | "), lit(XML_PARAM_END))
                 }
@@ -420,6 +471,11 @@ fn xml_rules(tools: &[Tool]) -> String {
             };
             out.push_str(&format!("p{i}_{j}: {rule}\n"));
             seq.push(format!("p{i}_{j}{}", if required { "" } else { "?" }));
+        }
+        if open_params(t) {
+            // parameters the schema does not list: any name, a raw string value
+            out.push_str(&format!("g{i}: {} /[^>\\n]+/ {} sval\n", lit(PARAMETER_OPEN), lit(">\n")));
+            seq.push(format!("g{i}*"));
         }
         seq.push(lit("</function>"));
         out.push_str(&format!("t{i}: {}\n", seq.join(" ")));
@@ -853,8 +909,9 @@ const PARAMETER_OPEN: &str = "<parameter=";
 const PARAMETER_CLOSE: &str = "</parameter>";
 const FUNCTION_CLOSE: &str = "</function>";
 
-/// `<function=NAME>\n<parameter=ARG>\nVALUE\n</parameter>\n...</function>` (vLLM's `qwen3_xml`). A value loses exactly one
-/// `\n` at each end (what the template adds), so a string comes back byte for byte. A string-typed (or untyped, or
+/// `<function=NAME>\n<parameter=ARG>\nVALUE\n</parameter>\n...</function>` (vLLM's `qwen3_xml`). A value is what lies
+/// between the `\n` after the opening tag and the first `\n</parameter>` followed by a newline (as the grammar ends it),
+/// so a string comes back byte for byte. A string-typed (or untyped, or
 /// unknown) parameter is that raw text; any other is parsed as JSON, and stays raw text when it is not JSON.
 fn parse_xml_call(body: &str, schemas: &HashMap<String, Value>) -> Option<Piece> {
     let rest = body.trim_start().strip_prefix(FUNCTION_OPEN)?;
@@ -872,12 +929,13 @@ fn parse_xml_call(body: &str, schemas: &HashMap<String, Value>) -> Option<Piece>
         let end = r.find('>')?;
         let key = r[..end].trim();
         let r = &r[end + 1..];
-        let close = r.find(PARAMETER_CLOSE)?;
+        let schema = params.and_then(|p| p.get(key));
+        let (close, len) = value_end(r, schema.is_none())?;
         let raw = &r[..close];
+        // the template's `\n` after the tag; the one before the closing tag is part of what closes the value
         let raw = raw.strip_prefix('\n').unwrap_or(raw);
-        let raw = raw.strip_suffix('\n').unwrap_or(raw);
-        arguments.insert(key.to_string(), param_value(raw, params.and_then(|p| p.get(key))));
-        rest = &r[close + PARAMETER_CLOSE.len()..];
+        arguments.insert(key.to_string(), param_value(raw, schema));
+        rest = &r[close + len..];
     }
     // the closing tag may be missing at the end of the output
     match rest.trim() {
@@ -886,20 +944,45 @@ fn parse_xml_call(body: &str, schemas: &HashMap<String, Value>) -> Option<Piece>
     }
 }
 
-/// An XML parameter's value as JSON, by its property's schema.
+/// Where a parameter's value ends in `r` (the text after `<parameter=NAME>`): the first `\n</parameter>` followed by a
+/// newline or the end of the body, which is where the grammar ends a string, so a value may hold a bare `</parameter>`.
+/// Returns the offset of the end and the length of what closes it (with its `\n`). A parameter the schema does not list may also end at a bare
+/// `</parameter>` when no such line exists.
+fn value_end(r: &str, unknown: bool) -> Option<(usize, usize)> {
+    const LINE: &str = "\n</parameter>";
+    let mut from = 0;
+    while let Some(i) = r[from..].find(LINE).map(|i| i + from) {
+        let after = &r[i + LINE.len()..];
+        if after.is_empty() || after.starts_with('\n') {
+            return Some((i, LINE.len()));
+        }
+        from = i + 1;
+    }
+    if unknown {
+        return r.find(PARAMETER_CLOSE).map(|i| (i, PARAMETER_CLOSE.len()));
+    }
+    None
+}
+
+/// An XML parameter's value as JSON, by its property's schema (`None`: the schema does not list it).
 fn param_value(raw: &str, schema: Option<&Value>) -> Value {
-    let Some(schema) = schema else { return Value::String(raw.to_string()) };
-    if !matches!(param_kind(schema), ParamKind::Json) {
-        return Value::String(raw.to_string());
+    // a parameter the schema does not list: JSON when it is, else the text
+    let kind = schema.map_or(ParamKind::Json, param_kind);
+    match kind {
+        ParamKind::Text | ParamKind::Enum(_) => return Value::String(raw.to_string()),
+        ParamKind::NullableText if raw == "null" => return Value::Null,
+        ParamKind::NullableText => return Value::String(raw.to_string()),
+        ParamKind::Json => {}
     }
     let t = raw.trim();
     if let Ok(v) = serde_json::from_str::<Value>(t) {
         return v;
     }
-    // Python's spelling, as the older Qwen3.5 templates print a bool
+    // Python's spelling, as the older Qwen3.5 templates print a bool and a null
     match t {
         "True" => Value::Bool(true),
         "False" => Value::Bool(false),
+        "None" => Value::Null,
         _ => Value::String(raw.to_string()),
     }
 }
@@ -1922,12 +2005,12 @@ mod tests {
         assert_eq!(calls[0].1, json!({"city": "New York\nline 2 </param </function>", "days": 3, "opts": {"a": 1}}));
         assert_eq!(calls[1], ("noop".to_string(), json!({})));
         // the leading/trailing newline pair is peeled once; a non-JSON value of a JSON-typed parameter stays text;
-        // Python's True is a boolean; a parameter the schema does not know is text
-        assert_eq!(calls[2].1, json!({"city": "\n x \n", "days": "seven", "metric": true, "extra": "5"}));
+        // Python's True is a boolean; a parameter the schema does not know is JSON when it parses
+        assert_eq!(calls[2].1, json!({"city": "\n x \n", "days": "seven", "metric": true, "extra": 5}));
         assert_eq!(split_calls(&text, X, &tools).0.as_deref(), Some("Let me look."));
         // a call to an unknown tool still parses (its values are text); a malformed block stays text
         let (_, c) = calls_of(ToolParser::parse_all("<tool_call>\n<function=zz>\n<parameter=a>\n1\n</parameter>\n</function>\n</tool_call>", X, &tools));
-        assert_eq!(c, vec![("zz".to_string(), json!({"a": "1"}))]);
+        assert_eq!(c, vec![("zz".to_string(), json!({"a": 1}))]);
         for bad in [
             "<tool_call>\n{\"name\": \"noop\", \"arguments\": {}}\n</tool_call>",
             "<tool_call>\n<function=noop>\nstray\n</function>\n</tool_call>",
@@ -2044,7 +2127,7 @@ mod tests {
 
     /// What a model writes in the XML format, parsed into calls, sent back the way an OpenAI client does (the arguments
     /// as the JSON string the server returned), and rendered by the real Qwen3.5+ chat template: the tool-call part of
-    /// the history is the model's own text, byte for byte. The fixtures are the templates of Qwen3.8-27B (every non-string
+    /// the history is the model's own text, byte for byte. The fixtures are the templates of Qwen3.8-27B and Qwen3.6-35B-A3B (every non-string
     /// value through `tojson`) and Qwen3.5-4B (a bool prints as Python's `True`, so it is left out there).
     #[test]
     fn xml_calls_round_trip_through_the_real_templates() {
@@ -2064,6 +2147,7 @@ mod tests {
         };
         for (name, src, bool_param) in [
             ("qwen3.8-27b", include_str!("../tests/fixtures/qwen3_8_27b_chat_template.jinja"), "<parameter=metric>\ntrue\n</parameter>\n"),
+            ("qwen3.6-35b-a3b", include_str!("../tests/fixtures/qwen3_6_35b_a3b_chat_template.jinja"), "<parameter=metric>\ntrue\n</parameter>\n"),
             ("qwen3.5-4b", include_str!("../tests/fixtures/qwen3_5_4b_chat_template.jinja"), ""),
         ] {
             let t = ChatTemplate::from_source(src, name, Value::Null, Value::Null).unwrap();
@@ -2134,5 +2218,152 @@ mod tests {
         let on = render(Some(true));
         assert!(on.ends_with("<|im_start|>assistant\n<think>\n"), "{on}");
         assert!(splits_reasoning(None, true, &on) && splits_reasoning(Some(true), true, &default));
+    }
+
+    #[test]
+    fn xml_value_ends_at_the_first_closing_line_not_at_a_bare_tag() {
+        let tools = openai_tools(&Some(json!([
+            {"type": "function", "function": {"name": "write", "parameters": {"type": "object", "properties": {
+                "content": {"type": "string"}, "mode": {"type": "string"}}, "required": ["content"]}}},
+            {"type": "function", "function": {"name": "noop"}}
+        ])))
+        .unwrap();
+        let text = "Before.\n<tool_call>\n<function=write>\n<parameter=content>\nclose with </parameter> here\n</parameter>\n<parameter=mode>\nx\n</parameter> y\n</parameter>\n</function>\n</tool_call>\n<tool_call>\n<function=noop>\n</function>\n</tool_call>";
+        let want = calls_of(ToolParser::parse_all(text, X, &tools));
+        assert_eq!(
+            want.1,
+            vec![
+                ("write".to_string(), json!({"content": "close with </parameter> here", "mode": "x\n</parameter> y"})),
+                ("noop".to_string(), json!({}))
+            ]
+        );
+        assert_eq!(want.0, "Before.\n\n");
+        // streamed, split at every byte (two chunks), and one byte at a time
+        for k in 0..=text.len() {
+            if !text.is_char_boundary(k) {
+                continue;
+            }
+            let mut p = ToolParser::new(X, &tools);
+            let mut got = p.push(&text[..k]);
+            got.extend(p.push(&text[k..]));
+            got.extend(p.finish());
+            assert_eq!(calls_of(got), want, "split at {k}");
+        }
+        let mut p = ToolParser::new(X, &tools);
+        let mut got = Vec::new();
+        for ch in text.chars() {
+            got.extend(p.push(&ch.to_string()));
+        }
+        got.extend(p.finish());
+        assert_eq!(calls_of(got), want);
+        // a value's own trailing newline is kept
+        let t = "<tool_call>\n<function=write>\n<parameter=content>\nx\n\n</parameter>\n</function>\n</tool_call>";
+        assert_eq!(calls_of(ToolParser::parse_all(t, X, &tools)).1[0].1, json!({"content": "x\n"}));
+        // a parameter the schema does not list may end at a bare tag; a listed one may not
+        let t = "<tool_call>\n<function=write>\n<parameter=zz>\nv</parameter>\n</function>\n</tool_call>";
+        assert_eq!(calls_of(ToolParser::parse_all(t, X, &tools)).1[0].1, json!({"zz": "v"}));
+        let t = "<tool_call>\n<function=write>\n<parameter=content>\nv</parameter>\n</function>\n</tool_call>";
+        assert_eq!(ToolParser::parse_all(t, X, &tools), vec![Piece::Text(t.into())]);
+    }
+
+    #[test]
+    fn xml_tools_without_a_property_list_take_any_parameters() {
+        let tools = openai_tools(&Some(json!([
+            {"type": "function", "function": {"name": "any", "parameters": {"type": "object"}}},
+            {"type": "function", "function": {"name": "open", "parameters": {"type": "object",
+                "properties": {"a": {"type": "string"}}, "required": ["a"], "additionalProperties": true}}},
+            {"type": "function", "function": {"name": "closed", "parameters": {"type": "object",
+                "properties": {"a": {"type": "string"}}, "additionalProperties": false}}},
+            {"type": "function", "function": {"name": "typical", "parameters": {"type": "object",
+                "properties": {"a": {"type": "string"}}}}},
+            {"type": "function", "function": {"name": "noop"}}
+        ])))
+        .unwrap();
+        let open: Vec<bool> = tools.iter().map(open_params).collect();
+        assert_eq!(open, [true, true, false, false, false]);
+        let spec = env().compile(&tools_plan(&tools, &Choice::Required, true, X).unwrap()).unwrap();
+        let fresh = |text: &str| feed(&mut spec.start().unwrap(), text);
+        let call = |f: &str, body: &str| format!("<tool_call>\n<function={f}>\n{body}</function>\n</tool_call>");
+        let any = "<parameter=path>\n/tmp/a\nb\n</parameter>\n<parameter=n>\n5\n</parameter>\n";
+        assert_eq!(fresh(&call("any", any)), None);
+        assert_eq!(fresh(&call("any", "")), None);
+        assert_eq!(fresh(&call("open", &format!("<parameter=a>\nx\n</parameter>\n{any}"))), None);
+        assert!(fresh(&call("open", any)).is_some(), "a is required");
+        assert!(fresh(&call("closed", any)).is_some() && fresh(&call("typical", any)).is_some());
+        assert!(fresh("<tool_call>\n<function=any>\n<parameter=>\n").is_some(), "a name has at least one character");
+        let (_, c) = calls_of(ToolParser::parse_all(&call("any", any), X, &tools));
+        assert_eq!(c, vec![("any".to_string(), json!({"path": "/tmp/a\nb", "n": 5}))]);
+    }
+
+    #[test]
+    fn xml_nullable_string_is_raw_text_or_null() {
+        let schemas = [
+            json!({"type": ["string", "null"]}),
+            json!({"anyOf": [{"type": "string"}, {"type": "null"}]}),
+            json!({"oneOf": [{"type": "null"}, {"type": "string"}]}),
+        ];
+        for sc in &schemas {
+            assert!(matches!(param_kind(sc), ParamKind::NullableText), "{sc}");
+            assert_eq!(param_value("hello", Some(sc)), json!("hello"));
+            assert_eq!(param_value("null", Some(sc)), Value::Null);
+        }
+        assert!(matches!(param_kind(&json!({"type": ["string"]})), ParamKind::Text));
+        assert!(matches!(param_kind(&json!({"anyOf": [{"type": "string"}]})), ParamKind::Text));
+        assert!(matches!(param_kind(&json!({"type": ["string", "integer"]})), ParamKind::Json));
+        assert!(matches!(param_kind(&json!({"anyOf": [{"type": "integer"}, {"type": "null"}]})), ParamKind::Json));
+        // the grammar writes it as raw text
+        let tools = openai_tools(&Some(json!([{"type": "function", "function": {"name": "f", "parameters": {
+            "type": "object", "properties": {"s": schemas[1].clone()}, "required": ["s"]}}}])))
+        .unwrap();
+        let spec = env().compile(&tools_plan(&tools, &Choice::Required, true, X).unwrap()).unwrap();
+        for v in ["null", "raw text"] {
+            let t = format!("<tool_call>\n<function=f>\n<parameter=s>\n{v}\n</parameter>\n</function>\n</tool_call>");
+            assert_eq!(feed(&mut spec.start().unwrap(), &t), None, "{v}");
+        }
+        // Python's spelling of null, in a JSON-typed parameter
+        assert_eq!(param_value("None", Some(&json!({"type": "integer"}))), Value::Null);
+    }
+
+    #[test]
+    fn xml_parameter_names_that_cannot_be_written_are_refused() {
+        let ok = openai_tools(&Some(json!([{"type": "function", "function": {"name": "f", "parameters": {
+            "type": "object", "properties": {"a>b": {"type": "string"}}}}}])))
+        .unwrap();
+        let e = choose(None, &ok, &Choice::Auto, true, Some(X)).unwrap_err();
+        assert!(e.contains("parameter name"), "{e}");
+        assert!(choose(None, &ok, &Choice::Auto, true, Some(H)).is_ok(), "hermes writes JSON keys");
+        let nl = openai_tools(&Some(json!([{"type": "function", "function": {"name": "f", "parameters": {
+            "type": "object", "properties": {"a\nb": {}}}}}])))
+        .unwrap();
+        assert!(choose(None, &nl, &Choice::Required, true, Some(X)).is_err());
+    }
+
+    /// With thinking on, the template's `\n\n` after `</think>` may come before the first forced token.
+    #[test]
+    fn think_gate_allows_the_templates_blank_line_before_the_constraint() {
+        let e = env();
+        let gated = |plan: &Plan| e.compile_with(plan, true).unwrap();
+        let run = |spec: &Arc<dyn ConstraintSpec>, text: &str| {
+            let mut c = spec.start().unwrap();
+            c.commit(259).unwrap(); // </think>
+            feed(&mut c, text)
+        };
+        let xml = gated(&tools_plan(&xml_tools(), &Choice::Required, true, X).unwrap());
+        let herm = gated(&tools_plan(&weather(), &Choice::Required, true, H).unwrap());
+        let json_plan = gated(&Plan::Json(schema()));
+        let call = "<tool_call>\n<function=noop>\n</function>\n</tool_call>";
+        assert_eq!(run(&xml, call), None);
+        assert_eq!(run(&xml, &format!("\n\n{call}")), None);
+        assert!(run(&xml, &format!("\n{call}")).is_some() && run(&xml, &format!("\n\n\n{call}")).is_some());
+        let hcall = "<tool_call>\n{\"name\": \"noop\", \"arguments\": {}}\n</tool_call>";
+        assert_eq!(run(&herm, hcall), None);
+        assert_eq!(run(&herm, &format!("\n\n{hcall}")), None);
+        let j = "{\"answer\": 1, \"unit\": \"kg\", \"ok\": true, \"tags\": []}";
+        assert_eq!(run(&json_plan, j), None);
+        assert_eq!(run(&json_plan, &format!("\n\n{j}")), None);
+        assert!(run(&json_plan, &format!("x{j}")).is_some());
+        // not gated: the grammar starts at the first token, no blank line
+        let plain = e.compile(&tools_plan(&xml_tools(), &Choice::Required, true, X).unwrap()).unwrap();
+        assert!(feed(&mut plain.start().unwrap(), &format!("\n\n{call}")).is_some());
     }
 }

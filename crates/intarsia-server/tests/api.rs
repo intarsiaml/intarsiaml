@@ -1787,10 +1787,9 @@ async fn openai_qwen3_xml_tool_calls_come_out_of_the_content_after_the_think_blo
     // starts after </think>
     let xml_call = "<tool_call>\n<function=get_weather>\n<parameter=city>\nNew York\nline 2\n</parameter>\n<parameter=days>\n3\n</parameter>\n<parameter=opts>\n{\"a\": true}\n</parameter>\n</function>\n</tool_call>";
     for choice in [json!("required"), json!("auto")] {
-        // under `required` the grammar starts right at </think>; under `auto` the text after it is free
-        let want: &'static str = Box::leak(
-            format!("which tool? <tool_call> no\n</think>{}{xml_call}", if choice == "auto" { "\n\n" } else { "" }).into_boxed_str(),
-        );
+        // the template's `\n\n` after </think> is allowed before the call under `required`, and free under `auto`
+        let want: &'static str =
+            Box::leak(format!("which tool? <tool_call> no\n</think>\n\n{xml_call}").into_boxed_str());
         let m = Arc::new(Mock {
             structured: true,
             xml: true,
@@ -1834,7 +1833,7 @@ async fn openai_qwen3_xml_tool_calls_come_out_of_the_content_after_the_think_blo
 
 #[tokio::test]
 async fn anthropic_qwen3_xml_tool_use_and_default_thinking_blocks() {
-    let want: &'static str = "need the weather\n</think><tool_call>\n<function=get_weather>\n<parameter=city>\nNew York\nline 2\n</parameter>\n<parameter=days>\n3\n</parameter>\n<parameter=opts>\n{\"a\": true}\n</parameter>\n</function>\n</tool_call>";
+    let want: &'static str = "need the weather\n</think>\n\n<tool_call>\n<function=get_weather>\n<parameter=city>\nNew York\nline 2\n</parameter>\n<parameter=days>\n3\n</parameter>\n<parameter=opts>\n{\"a\": true}\n</parameter>\n</function>\n</tool_call>";
     let tools = json!([{"name": "get_weather", "description": "w", "input_schema": xml_weather_tools()[0]["function"]["parameters"].clone()}]);
     let m = Arc::new(Mock {
         structured: true,
@@ -1876,8 +1875,8 @@ async fn anthropic_qwen3_xml_tool_use_and_default_thinking_blocks() {
     }
     assert!(m.templated.lock().unwrap().iter().all(|(_, o)| o.enable_thinking.is_none()));
 
-    // the next turn of an Anthropic tool loop sends the thinking block it was given back: accepted, and not rendered
-    // as text
+    // the next turn of an Anthropic tool loop sends the thinking block it was given back: it becomes the turn's
+    // `reasoning_content` (the templates read it), not text
     let history = json!([
         {"role": "user", "content": "q"},
         {"role": "assistant", "content": [
@@ -1890,6 +1889,8 @@ async fn anthropic_qwen3_xml_tool_use_and_default_thinking_blocks() {
     assert_eq!(st, StatusCode::OK, "{out}");
     let sent = m.templated.lock().unwrap().last().unwrap().0.clone();
     assert_eq!(sent[1]["content"], "");
+    assert_eq!(sent[1]["reasoning_content"], "need the weather");
+    assert!(sent[0].get("reasoning_content").is_none());
     assert_eq!(sent[1]["tool_calls"][0]["function"]["arguments"], xml_args());
 
     // plain text, no tools: the same default
