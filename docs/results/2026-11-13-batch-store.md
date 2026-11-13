@@ -60,7 +60,7 @@ Mutation check (each change reverted after): the request taking the scheduler's 
 on bits; no clean-watermark update -> every test fails on `inserts > 0`; final chunk split (lone last token) -> hybrid tests
 fail on bits; restore skipped -> every test fails (no hits / nothing cached).
 
-Results (debug build, macOS arm64, all pass):
+Results (debug build, macOS arm64, all pass; re-run in full on the rebased branch, code at `161c0f5b4`):
 
 | suite | passed |
 |---|---|
@@ -125,6 +125,9 @@ loop kept the job's ssh open for ~30 min, holding the GPU slot; it was stopped f
   prefill at 4k to 16k, recipe note) when the store is on.
 - **Drafting requests bypass the store** (as on the single engine). With the store configured the recipe's MTP default is
   skipped, so the batched store engine decodes plain (68 to 79 tok/s at 8k to 33k in ab35b, vLLM's range).
+- **Explicit `--spec mtp` with the store at `--max-batch` > 1 is untested** (CPU and CUDA). The code path exists: greedy
+  (drafting) requests bypass the store and start from empty slots (batched MTP turns slot reuse off); sampled requests use
+  the store, and a restore leaves the MTP head unsynced until the slot is truncated to 0, which the next drafting request does.
 - A failed request's deferred captures settle at the next successful `finish` (no backstop at admission: it would stall the
   other stream); bounded by the store's 1 GiB deferral cap.
 
