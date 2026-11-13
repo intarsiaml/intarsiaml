@@ -84,13 +84,11 @@ fn parse_header(data: &[u8], file: usize, out: &mut BTreeMap<String, Entry>) -> 
     if data.len() < 8 {
         return Err("file too small".into());
     }
-    let hlen = u64::from_le_bytes(data[..8].try_into().unwrap()) as usize;
-    if 8 + hlen > data.len() {
-        return Err("header length exceeds file".into());
-    }
-    let header: serde_json::Value = serde_json::from_slice(&data[8..8 + hlen]).map_err(|e| e.to_string())?;
+    // every size below comes from the file: a truncated or corrupt one must be an error, not an overflow or an index panic
+    let hlen = u64::from_le_bytes(data[..8].try_into().unwrap());
+    let base = usize::try_from(hlen).ok().and_then(|h| h.checked_add(8)).filter(|&b| b <= data.len()).ok_or("header length exceeds file")?;
+    let header: serde_json::Value = serde_json::from_slice(&data[8..base]).map_err(|e| e.to_string())?;
     let obj = header.as_object().ok_or("header is not an object")?;
-    let base = 8 + hlen;
     for (name, v) in obj {
         if name == "__metadata__" {
             continue;
@@ -103,22 +101,27 @@ fn parse_header(data: &[u8], file: usize, out: &mut BTreeMap<String, Entry>) -> 
             .and_then(|s| s.as_array())
             .ok_or("missing shape")?
             .iter()
-            .filter_map(|x| x.as_u64().map(|x| x as usize))
-            .collect();
+            .map(|x| x.as_u64().and_then(|x| usize::try_from(x).ok()))
+            .collect::<Option<_>>()
+            .ok_or_else(|| format!("tensor {name}: bad shape"))?;
+        let elems = shape.iter().try_fold(1usize, |n, &d| n.checked_mul(d)).ok_or_else(|| format!("tensor {name}: shape overflows"))?;
         // I64 has no ABI dtype. The only I64 tensors in the checkpoints we load are scalar format versions (DSpine's `*_version`
         // markers), so they are carried as their raw bytes, `U8 [8 * n]`; a loader that wants one reads the bytes.
         let dtype = if dt == "I64" {
-            shape = vec![8 * shape.iter().product::<usize>()];
+            shape = vec![elems.checked_mul(8).ok_or_else(|| format!("tensor {name}: shape overflows"))?];
             DType::U8
         } else {
             DType::from_safetensors(if dt == "U32" { "I32" } else { dt }).map_err(|e| format!("{name}: {e}"))?
         };
         let off = v.get("data_offsets").and_then(|o| o.as_array()).ok_or("missing offsets")?;
-        let (b, e) = (off[0].as_u64().ok_or("bad offset")? as usize, off[1].as_u64().ok_or("bad offset")? as usize);
-        if base + e > data.len() || b > e {
+        let at = |i: usize| off.get(i).and_then(|x| x.as_u64()).and_then(|x| usize::try_from(x).ok()).ok_or("bad offset");
+        let (b, e) = (at(0)?, at(1)?);
+        if base.checked_add(e).is_none_or(|end| end > data.len()) || b > e {
             return Err(format!("tensor {name}: offsets out of range"));
         }
-        if e - b != shape.iter().product::<usize>() * dtype.size_bytes() {
+        // `shape` is the stored one here except for I64, whose bytes are its one dimension
+        let bytes = if dt == "I64" { Some(shape[0]) } else { elems.checked_mul(dtype.size_bytes()) };
+        if Some(e - b) != bytes {
             return Err(format!("tensor {name}: byte size does not match shape"));
         }
         out.insert(name.clone(), Entry { file, dtype, shape, begin: base + b, end: base + e });
@@ -208,5 +211,40 @@ mod tests {
         let (mem, off, len) = st.host_memory("b.weight").unwrap();
         assert_eq!(&mem.as_slice()[off..off + len], &b.data[..]);
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A file of `header` (with the length field `hlen`, by default the header's) and `data` bytes after it.
+    fn file(header: &str, hlen: Option<u64>, data: usize) -> Vec<u8> {
+        let mut f = hlen.unwrap_or(header.len() as u64).to_le_bytes().to_vec();
+        f.extend_from_slice(header.as_bytes());
+        f.resize(f.len() + data, 0);
+        f
+    }
+
+    #[test]
+    fn corrupt_headers_are_errors_not_panics() {
+        let parse = |f: &[u8]| parse_header(f, 0, &mut BTreeMap::new());
+        let ok = r#"{"a":{"dtype":"F32","shape":[2],"data_offsets":[0,8]}}"#;
+        assert!(parse(&file(ok, None, 8)).is_ok());
+        // a header length that wraps `8 + hlen`, or just runs past the file
+        for hlen in [u64::MAX, u64::MAX - 7, 1 << 40] {
+            assert_eq!(parse(&file(ok, Some(hlen), 8)).unwrap_err(), "header length exceeds file");
+        }
+        for (bad, why) in [
+            (r#"{"a":{"dtype":"F32","shape":[2],"data_offsets":[0]}}"#, "bad offset"),
+            (r#"{"a":{"dtype":"F32","shape":[2],"data_offsets":[]}}"#, "bad offset"),
+            (r#"{"a":{"dtype":"F32","shape":[2],"data_offsets":[0,18446744073709551615]}}"#, "offsets out of range"),
+            (r#"{"a":{"dtype":"F32","shape":[2,-1],"data_offsets":[0,8]}}"#, "bad shape"),
+            (r#"{"a":{"dtype":"F32","shape":[4294967296,4294967296],"data_offsets":[0,0]}}"#, "shape overflows"),
+            (r#"{"a":{"dtype":"F32","shape":[4611686018427387904],"data_offsets":[0,0]}}"#, "byte size does not match shape"),
+            (r#"{"a":{"dtype":"I64","shape":[4611686018427387904],"data_offsets":[0,0]}}"#, "shape overflows"),
+        ] {
+            let err = parse(&file(bad, None, 8)).unwrap_err();
+            assert!(err.contains(why), "{bad}: {err}");
+        }
+        // I64 scalars are still carried as their bytes
+        let mut out = BTreeMap::new();
+        parse_header(&file(r#"{"v":{"dtype":"I64","shape":[],"data_offsets":[0,8]}}"#, None, 8), 0, &mut out).unwrap();
+        assert_eq!((out["v"].dtype, out["v"].shape.clone()), (DType::U8, vec![8]));
     }
 }
