@@ -1,0 +1,294 @@
+{
+ "run_id": "20261112-182950-adhoc-ab35-A-speed",
+ "kind": "speed",
+ "label": "ab35-A-speed",
+ "started_at": "2026-11-12T18:29:50-05:00",
+ "finished_at": "2026-11-12T18:30:47-05:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-fa00:8000/v1",
+  "model": "guidance",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "prompt",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "inline",
+   "text": "docker missioncntrl/vllm-openai:65b7662d (vllm 0.26.1rc1.dev602): vllm serve nvidia/Qwen3.6-35B-A3B-NVFP4 --host 100.96.95.89 --port 8000 --served-model-name guidance capcom --quantization modelopt_fp4 --max-model-len 131072 --max-num-seqs 2 --max-num-batched-tokens 8192 --kv-cache-dtype fp8 --kv-cache-memory-bytes 8589934592 --gpu-memory-utilization 0.32 --enable-prefix-caching --enable-prompt-tokens-details --enable-chunked-prefill --enable-auto-tool-choice --tool-call-parser qwen3_xml --reasoning-parser qwen3 (env VLLM_USE_FLASHINFER_MOE_FP4=0 VLLM_DISABLED_KERNELS=FlashInferFP8ScaledMMLinearKernel; no speculative config; spark2 retro role)"
+  },
+  "server_reported": {
+   "version": {
+    "version": "0.26.1rc1.dev602+g65b7662d3"
+   }
+  }
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8000/v1 --model guidance --thinking off --structured prompt --wait-idle 600 --recipe docker missioncntrl/vllm-openai:65b7662d (vllm 0.26.1rc1.dev602): vllm serve nvidia/Qwen3.6-35B-A3B-NVFP4 --host 100.96.95.89 --port 8000 --served-model-name guidance capcom --quantization modelopt_fp4 --max-model-len 131072 --max-num-seqs 2 --max-num-batched-tokens 8192 --kv-cache-dtype fp8 --kv-cache-memory-bytes 8589934592 --gpu-memory-utilization 0.32 --enable-prefix-caching --enable-prompt-tokens-details --enable-chunked-prefill --enable-auto-tool-choice --tool-call-parser qwen3_xml --reasoning-parser qwen3 (env VLLM_USE_FLASHINFER_MOE_FP4=0 VLLM_DISABLED_KERNELS=FlashInferFP8ScaledMMLinearKernel; no speculative config; spark2 retro role) --sizes 128,1024,4096,16384 --gen 256 --reps 3 --concurrency 2 --label ab35-A-speed",
+  "git": "d96f899"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "guidance",
+    "capcom"
+   ],
+   "root": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+   "owned_by": "vllm",
+   "max_model_len": 131072
+  },
+  "gen_tokens": 256,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.07,
+  "rows": [
+   {
+    "target_prompt_tokens": 128,
+    "prompt_tokens": 112,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.091,
+     "min": 0.079,
+     "max": 0.145,
+     "n": 3,
+     "spread_pct": 71.5
+    },
+    "prefill_tok_s": {
+     "median": 1225.173,
+     "min": 788.735,
+     "max": 1401.341,
+     "n": 3,
+     "spread_pct": 50.0
+    },
+    "decode_tok_s": {
+     "median": 76.805,
+     "min": 76.204,
+     "max": 77.284,
+     "n": 3,
+     "spread_pct": 1.4
+    },
+    "peak_decode_tok_s": {
+     "median": 93.1,
+     "min": 90.5,
+     "max": 94.2,
+     "n": 3,
+     "spread_pct": 4.0
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 991,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.183,
+     "min": 0.183,
+     "max": 0.193,
+     "n": 3,
+     "spread_pct": 5.6
+    },
+    "prefill_tok_s": {
+     "median": 5403.75,
+     "min": 5142.202,
+     "max": 5406.606,
+     "n": 3,
+     "spread_pct": 4.9
+    },
+    "decode_tok_s": {
+     "median": 77.556,
+     "min": 77.504,
+     "max": 77.657,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "peak_decode_tok_s": {
+     "median": 93.5,
+     "min": 93.2,
+     "max": 97.0,
+     "n": 3,
+     "spread_pct": 4.1
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 9554.3,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4090,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.65,
+     "min": 0.641,
+     "max": 0.692,
+     "n": 3,
+     "spread_pct": 7.7
+    },
+    "prefill_tok_s": {
+     "median": 6287.903,
+     "min": 5911.433,
+     "max": 6374.305,
+     "n": 3,
+     "spread_pct": 7.4
+    },
+    "decode_tok_s": {
+     "median": 76.486,
+     "min": 76.246,
+     "max": 77.654,
+     "n": 3,
+     "spread_pct": 1.8
+    },
+    "peak_decode_tok_s": {
+     "median": 90.9,
+     "min": 90.5,
+     "max": 91.8,
+     "n": 3,
+     "spread_pct": 1.4
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 6636.0
+   },
+   {
+    "target_prompt_tokens": 16384,
+    "prompt_tokens": 16654,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 2.663,
+     "min": 2.662,
+     "max": 2.669,
+     "n": 3,
+     "spread_pct": 0.3
+    },
+    "prefill_tok_s": {
+     "median": 6253.646,
+     "min": 6241.252,
+     "max": 6257.179,
+     "n": 3,
+     "spread_pct": 0.3
+    },
+    "decode_tok_s": {
+     "median": 73.621,
+     "min": 73.538,
+     "max": 73.694,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "peak_decode_tok_s": {
+     "median": 89.7,
+     "min": 87.5,
+     "max": 137.8,
+     "n": 3,
+     "spread_pct": 56.1
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 6241.4
+   }
+  ],
+  "skipped": [],
+  "concurrency": [
+   {
+    "streams": 2,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 113.1,
+    "per_stream_decode_tok_s": {
+     "median": 60.475,
+     "min": 59.801,
+     "max": 61.15,
+     "n": 2,
+     "spread_pct": 2.2
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 71.9,
+     "min": 71.9,
+     "max": 71.9,
+     "n": 2,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.299,
+     "min": 0.248,
+     "max": 0.35,
+     "n": 2,
+     "spread_pct": 34.1
+    },
+    "errors": []
+   }
+  ],
+  "dropped_params": [],
+  "server_fingerprint": "vllm-0.26.1rc1.dev602+g65b7662d3-9e4897ff",
+  "served_model": "guidance",
+  "activity_checks": {
+   "idle": 14,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

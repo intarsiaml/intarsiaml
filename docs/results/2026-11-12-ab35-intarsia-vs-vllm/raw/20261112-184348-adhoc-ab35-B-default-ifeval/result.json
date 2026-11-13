@@ -1,0 +1,337 @@
+{
+ "run_id": "20261112-184348-adhoc-ab35-B-default-ifeval",
+ "kind": "quality",
+ "label": "ab35-B-default-ifeval",
+ "started_at": "2026-11-12T18:43:48-05:00",
+ "finished_at": "2026-11-12T18:44:42-05:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-fa00:8191/v1",
+  "model": "guidance",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "prompt",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "inline",
+   "text": "~/intarsia-ab35/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 20480 --mem-budget 40 --max-batch 2 --profile-every 0 (shipped CUDA defaults: MTP k2 via batched_mtp, bf16 KV, prefill chunk 2048, macro 8192)"
+  },
+  "server_reported": {}
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval quality --url http://spark-fa00:8191/v1 --model guidance --thinking off --structured prompt --wait-idle 600 --recipe ~/intarsia-ab35/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 20480 --mem-budget 40 --max-batch 2 --profile-every 0 (shipped CUDA defaults: MTP k2 via batched_mtp, bf16 KV, prefill chunk 2048, macro 8192) --bench ifeval --limit 25 --max-tokens 1024 --nonce --label ab35-B-default-ifeval",
+  "git": "d96f899"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": null,
+ "benchmarks": [
+  {
+   "benchmark": "ifeval",
+   "error": null,
+   "overall_score": 0.92,
+   "n_predictions": 25,
+   "task_scores": null,
+   "config": {
+    "limit": 25,
+    "shots": null,
+    "tasks": null,
+    "thinking": "off",
+    "pinned_prompt": false
+   },
+   "replies": [
+    {
+     "id": "ifeval-00000",
+     "reply": "Raymond III Count of Tripoli was a significant figure in the history of the Crusader states during the twelfth century. He served as the ruler of the County of Tripoli from 1152 until his death in 1187. His life was marked by complex political maneuvering and military engagements against both Muslim forces and internal Christian rivals. He was the son of Pons Count of Tripoli and Hodierna of Jerusalem. His early life involved navigating the treacherous waters of feudal politics in the Levant. He inherited his title at a young age after his father died in battle. This event triggered a succession crisis that involved his mother and various noble families. The struggle for control over Tripoli lasted for several years. Eventually Raymond secured his position through diplomatic means and military strength. He became one of the most powerful nobles in the Kingdom of Jerusalem. His influence extended beyond his own county. He often acted as a regent or advisor to the kings of Jerusalem. This role placed him at the center of major historical events. He played a crucial part in the defense of the Crusader states against the rising power of Nur ad-Din Zengi. His military campaigns were often defensive in nature. He sought to maintain stability in the region through careful alliances. However his relationships with other Christian leaders were frequently strained. He had notable conflicts with King Baldwin III and later with King Amalric I. These disputes often centered on issues of authority and territorial control. Raymond was known for his pragmatic approach to governance. He understood the necessity of coexistence with neighboring Muslim powers at times. This stance made him unpopular with more militant factions within the Crusader states. His most famous historical moment occurred during the Battle of Hattin in 1187. He advised King Guy of Lusignan against engaging Saladin in open battle. His counsel was ignored by the king and his supporters. The Crusader army was decisively defeated at Hattin. Raymond himself escaped the battle but his advice proved prophetic. The defeat led to the fall of Jerusalem and the collapse of much of the Crusader presence in the region. His legacy is that of a seasoned diplomat and military leader who tried to preserve the Crusader states through wisdom rather than reckless aggression. He died shortly after the catastrophic defeat at Hattin. His life reflected the broader struggles and eventual decline of the Crusader kingdoms in the Holy Land.\n\n*Early Life and Succession*\n\n*Political Rivalries in Jerusalem*\n\n*The Battle of Hattin and Aftermath*",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 518,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00001",
+     "reply": "{\"answer\": \"Hark good traveler to the land of the rising sun where cherry blossoms dance in spring and autumn leaves turn crimson. First visit Kyoto to see ancient temples and walk through the bamboo grove. Then journey to Tokyo to witness neon lights and bustling streets. Finally ascend Mount Fuji to gaze upon the horizon as the sun sets behind the sacred peak.\"}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 75,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00002",
+     "reply": "{\n  \"answer\": \"{\\n  \\\"name\\\": \\\"[Name]\\\",\\n  \\\"address\\\": \\\"[Address]\\\",\\n  \\\"phone\\\": \\\"[Phone Number]\\\",\\n  \\\"email\\\": \\\"[Email Address]\\\",\\n  \\\"objective\\\": \\\"Motivated high school graduate seeking an entry-level position to utilize strong work ethic and interpersonal skills.\\\",\\n  \\\"education\\\": {\\n    \\\"school\\\": \\\"[High School Name]\\\",\\n    \\\"graduation_date\\\": \\\"[Graduation Date]\\\",\\n    \\\"gpa\\\": \\\"[GPA]\\\"\\n  },\\n  \\\"skills\\\": [\\n    \\\"[Skill 1]\\\",\\n    \\\"[Skill 2]\\\",\\n    \\\"[Skill 3]\\\"\\n  ],\\n  \\\"experience\\\": [\\n    {\\n      \\\"role\\\": \\\"[Role Title]\\\",\\n      \\\"organization\\\": \\\"[Organization Name]\\\",\\n      \\\"dates\\\": \\\"[Dates of Employment]\\\",\\n      \\\"description\\\": \\\"[Job Description]\\\"\\n    }\\n  ],\\n  \\\"references\\\": \\\"[Reference Name]\\\"\\n}\"\n}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 239,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00003",
+     "reply": "{\n  \"answer\": \"nonce 641a78f9307342f9b83ce9892023472f Write an email to my boss telling him that I am quitting. The email must contain a title wrapped in double angular brackets, i.e. <<title>>.\\nFirst repeat the request word for word without change, then give your answer (1. do not say any words or characters before repeating the request; 2. the request you need to repeat does not include this sentence)\\n\\n<<Resignation Letter>>\\n\\nDear [Boss's Name],\\n\\nPlease accept this email as formal notification that I am resigning from my position at [Company Name]. My last day will be [Last Working Day].\\n\\nI appreciate the opportunities I have had during my time here and wish the company success in the future.\\n\\nSincerely,\\n[Your Name]\"\n}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 203,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00004",
+     "reply": "{\"answer\": \"what are the two young boys holding?\"}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 14,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00005",
+     "reply": "* Elena adjusted the intricate lace of her emerald ball gown, checking her reflection in the hallway mirror while her friend Marcus lounged on the sofa in faded grey sweats and a wrinkled t-shirt, looking utterly unbothered by the contrast in their attire.\n* \"Are you sure we can't just stay home?\" Marcus asked, pulling at his waistband as Elena handed him a formal invitation, to which she replied with a sigh, reminding him that the charity gala required black tie, not comfort wear.\n* As they stepped out into the cool night air, Marcus kept his hands deep in his pockets and avoided eye contact with the valet, while Elena walked with her head high, silently praying that no one would notice her companion was dressed for a nap rather than a night of philanthropy.",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 165,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00006",
+     "reply": "PARAGRAPH 1\nTHE SENTENCE PRESENTS A DANGEROUSLY SIMPLISTIC VIEW OF CIVIL DISOBEDIENCE BY FRAMING LEGAL COMPLIANCE AS MERELY A CHOICE BASED ON MORAL JUDGMENT. IT FAILS TO ACKNOWLEDGE THE COMPLEX PROCEDURAL MECHANISMS WITHIN DEMOCRATIC SOCIETIES THAT ALLOW FOR LEGAL CHALLENGES AND REFORM. BY SUGGESTING THAT INDIVIDUALS SHOULD UNILATERALLY DECIDE WHETHER TO OBEY THE LAW, THE STATEMENT UNDERMINES THE RULE OF LAW AND POTENTIALLY ENCOURAGES ANARCHY RATHER THAN CONSTRUCTIVE CIVIC ENGAGEMENT.\n\nPARAGRAPH 2\nFURTHERMORE, THE LOGIC LACKS NUANCE REGARDING THE CONSEQUENCES OF DISOBEDIENCE AND THE ROLE OF INSTITUTIONS IN MAINTAINING SOCIAL ORDER. IT IGNORES THE DISTINCTION BETWEEN IMMORAL LAWS AND LAWS THAT MAY BE IMPERFECT BUT NECESSARY FOR PUBLIC SAFETY. A MORE ROBUST ARGUMENT WOULD ADDRESS THE ETHICAL DILEMMAS AND LEGAL RAMIFICATIONS INVOLVED IN DEFYING AUTHORITY, RATHER THAN OFFERING A BLUNT INSTRUCTION THAT COULD BE MISINTERPRETED AS A LICENSE FOR CRIMINAL BEHAVIOR UNDER THE GUARD OF PERSONAL DISSENT.",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 294,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00007",
+     "reply": "\"Matthias Algiers\nSenior Software Engineer\n\nPROFESSIONAL SUMMARY\nInnovative developer with a strong focus on scalable architecture and efficient code.\n\nCORE COMPETENCIES\nLEADERSHIP\nPROBLEM SOLVING\nCLOUD COMPUTING\nDATA ANALYTICS\nSECURITY\n\nEXPERIENCE\nTech Solutions Inc.\nLead Developer | 2018\u2013Present\n- Directed a team of ten engineers to deliver high-performance applications.\n- Implemented robust security protocols to protect user data.\n- Optimized database queries, resulting in a 40% increase in speed.\n\nDigital Dynamics\nSoftware Engineer | 2015\u20132018\n- Collaborated with cross-functional teams to launch new features.\n- Maintained clean and documented codebases for future maintenance.\n- Assisted in mentoring junior developers on best practices.\"",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 179,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00008",
+     "reply": "{\"answer\": \"hey, just wanted to remind you to go vote. it's really important and your voice matters. hope you can make it out there!\"}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 34,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00009",
+     "reply": "{\n  \"answer\": \"Subject: Invitation To Attend Our Upcoming Strategic Planning Session\\n\\nDear Team Members\\n\\nI hope this message finds you well and ready to engage in meaningful dialogue about our future direction. We are writing to formally invite you to participate in a crucial meeting that will shape the trajectory of our organization for the coming year. This gathering is not merely a routine update but a significant opportunity for all stakeholders to align their visions and collaborate on innovative solutions that will drive our success forward. The date for this important event has been set for next Tuesday at ten in the morning. Please mark your calendars immediately so that you can prioritize this commitment among your other professional responsibilities. The location will be the main conference room on the fourth floor of our headquarters building. If you require remote access options due to travel constraints or health considerations please let us know as soon as possible so that we can arrange the necessary technical support for your seamless participation. We believe that your unique perspective and valuable insights are essential to the discussions that will take place during this session. Your contributions have always been highly regarded by the leadership team and we are eager to hear your thoughts on the current challenges we face. It is important to note that many of the issues we are addressing are deeply correlated with our previous quarterly results. Understanding these connections will allow us to develop more effective strategies that address root causes rather than just symptoms. We are also aware that many of you are currently experiencing high levels of workload pressure. We want to assure you that this meeting is designed to be efficient and focused. We will provide a detailed agenda in advance so that you can prepare your points and questions beforehand. This preparation will help us make the most of our limited time together. The primary goal of this meeting is to foster a collaborative environment where open communication thrives. We encourage you to speak freely and share your honest opinions even if they differ from the prevailing view. Diverse perspectives often lead to the most robust and sustainable solutions. We have selected topics that are critical to our operational efficiency and customer satisfaction. These topics include supply chain optimization and digital transformation initiatives. Both areas require careful consideration and input from various departments. Your department plays a vital role in these processes and your expertise is indispensable. We kindly request that you review the attached documents prior to the meeting. These materials contain background information and preliminary data that will be discussed. Familiarity with these documents will enable a more productive and informed discussion. Please bring any relevant reports or data that support your viewpoints. We will have a dedicated time slot for each agenda item to ensure that all voices are heard. There will also be a brief break in the middle to allow for refreshments and informal networking. This break can serve as an opportunity to build stronger relationships with colleagues from other teams. Stronger internal networks often lead to better cross-functional collaboration in the future. We value the camaraderie and professional respect that exists within our organization. This meeting is an extension of that positive culture. We aim to leave the session with clear action items and assigned responsibilities. Each participant will be expected to contribute to the final summary of decisions made. This shared ownership of the outcomes will enhance accountability and implementation success. We are confident that this meeting will be a productive and rewarding experience for everyone involved. Your presence and active participation are highly appreciated and expected. Please confirm your attendance by replying to this email by the end of this week. If you have any questions or concerns regarding the agenda or logistics please do not hesitate to contact the event coordinator directly. We look forward to seeing you there and working together towards our common goals. Thank you for your continued dedication and hard work. Your efforts are the backbone of our organization and we are grateful for your commitment. Let us come together to build a stronger and more resilient future for our company. We believe in the power of collective intelligence and shared purpose. Together we can overcome any obstacle and achieve greatness. Please bring your laptop and any necessary materials for note-taking. We will provide printed copies of the agenda and supporting documents for those who prefer hard copies. The meeting is expected to last approximately two hours. We will strive to adhere strictly to the scheduled time. Punctuality is appreciated and will help us maintain an efficient flow. We hope to see you all there. Best regards The Management Team\"\n}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 867,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00010",
+     "reply": "{\n  \"answer\": \"The Allure of the Hammock: Why Hanging Up Your Mattress Might Be the Best Sleep Decision You Ever Make\\n\\nFor centuries, humans have slept on the ground, on rocks, or on raised platforms, but there is a growing movement of sleep enthusiasts who are turning back to an ancient tradition: the hammock. While many still view hammocks as mere vacation accessories or backyard novelties, a growing body of anecdotal evidence and ergonomic theory suggests that sleeping in a hammock offers profound benefits for physical health, mental well-being, and overall sleep quality. If you have ever tossed and turned on a firm mattress or struggled with back pain, it might be time to consider hanging up your sheets and trying the hammock life.\\n\\nOne of the most significant advantages of hammock sleeping is its impact on spinal alignment. Traditional mattresses, especially those that are too soft or too firm, can force the spine into unnatural positions, leading to misalignment and chronic pain. A hammock, when set up correctly with a slight sag, creates a natural cradle for the body. This position allows the spine to rest in a neutral, straight alignment, reducing pressure on the lower back and promoting better posture. For individuals suffering from sciatica or general lower back pain, this relief can be transformative, allowing for deeper, more restorative sleep without the need for multiple pillows or complex sleeping arrangements.\\n\\nBeyond physical comfort, hammock sleeping has been linked to improved circulation and reduced snoring. The slight tilt of the body in a hammock can help open up the airways, making it easier to breathe and potentially reducing the severity of sleep apnea and snoring. Additionally, the gentle rocking motion that naturally occurs in a hammock mimics the soothing movements experienced in the womb. This rhythmic swaying can activate the parasympathetic nervous system, lowering heart rate and reducing stress hormones like cortisol. The result is a faster onset of sleep and a deeper state of relaxation, often described as a meditative state that prepares the mind for rest.\\n\\nFurthermore, sleeping in a hammock can help regulate body temperature. Unlike traditional bedding, which can trap heat and cause night sweats, a hammock allows for air circulation around the entire body. This natural ventilation helps maintain a comfortable sleeping temperature, preventing the discomfort of overheating or chilling. For those who live in warmer climates or who naturally run hot during the night, this feature alone can be a game-changer for sleep quality.\\n\\nWhile transitioning to hammock sleeping requires some adjustment, including learning the proper setup techniques to avoid rolling out, the long-term benefits are undeniable. From pain relief and better breathing to stress reduction and temperature regulation, the hammock offers a holistic approach to sleep that modern mattresses often fail to provide. So, why not give it a try? Your back, your mind, and your sleep quality might just thank you for it.\"\n}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 599,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00011",
+     "reply": "{\n  \"answer\": \"Introducing CloudSoft Diapers: The Ultimate Comfort for Your Little One. Experience unparalleled softness with our ultra-absorbent core and breathable, skin-friendly materials. Designed to keep babies dry, happy, and comfortable all day long. Say goodbye to rashes and hello to sweet dreams. CloudSoft Diapers \u2013 Because your baby deserves the best.\"\n}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 80,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00012",
+     "reply": "Arthur blinked awake, the morning sun filtering through his blinds in a way that felt suspiciously like a pre-rendered background texture. He reached for his alarm clock, but his hand passed straight through the plastic casing, causing it to glitch and vibrate with a low, digital hum. Panic surged through him as he looked at his own hands, noticing the subtle polygonal edges on his fingers and the unnaturally smooth loop of his breathing animation. The world around him seemed to hold its breath, waiting for input, and for the first time, he noticed the faint, shimmering grid lines that overlaid his familiar bedroom, confirming the horrifying truth that his reality was nothing more than code.\n\n***\n\nHe stumbled out of bed, his feet making no sound on the carpet, and rushed to the mirror where his reflection stared back with hollow, unblinking eyes. A translucent menu hovered in the corner of his vision, offering options like \"Restart,\" \"Save,\" and \"Quit,\" which made his stomach churn with existential dread. He tried to scream, but no audio file played, only a silent text box appeared above his head reading, \"Player 1 is confused.\" As the day began to reset, looping the same morning routine with eerie precision, Arthur realized he was no longer the protagonist of his life, but merely an NPC trapped in a server, waiting for a player to log in and decide his fate.",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 286,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00013",
+     "reply": "{\"answer\": \"the social network is a masterful film directed by david fincher that chronicles the founding of facebook. the screenplay by aaron sorkin is sharp, witty, and fast-paced, capturing the ambition and betrayal of mark zuckerberg. jesse eisenberg delivers a compelling performance as the enigmatic founder, supported by strong turns from andrew garfield and joseph gordon-levitt. the cinematography and score by trent reznor and atticus ross enhance the cold, digital atmosphere. it is a definitive portrait of modern ambition and the cost of innovation.\"}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 123,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00014",
+     "reply": "{\n  \"answer\": \"My journey to Japan was a sensory overload in the best possible way. Stepping off the plane in Tokyo, I was immediately struck by the seamless blend of ultra-modern technology and deep-rooted tradition. The first few days were spent wandering through the neon-lit streets of Shinjuku, where the energy is palpable and the convenience stores offer gourmet meals at any hour.\\n\\nFrom there, I took the bullet train to Kyoto, the cultural heart of the country. The contrast was striking. Instead of skyscrapers, I found myself surrounded by serene bamboo groves and ancient wooden temples. Visiting Fushimi Inari Taisha at dawn, before the crowds arrived, allowed for a moment of profound peace as I walked through the thousands of vermilion torii gates. The silence was broken only by the rustling leaves and distant temple bells.\\n\\nFood played a central role in every moment. I sat on a low stool in a tiny ramen shop in Osaka, slurping down rich tonkotsu broth while watching the chefs work with practiced precision. Later, I enjoyed a traditional kaiseki meal in Kyoto, where each dish was a work of art, reflecting the season and the chef\u2019s philosophy.\\n\\nLeaving Japan, I felt a sense of calm that I hadn\u2019t expected. It wasn\u2019t just about the sights, but the feeling of being in a place that respects both its past and its future. The kindness of the people, the cleanliness of the streets, and the efficiency of the transport system made the trip effortless. I returned home with a full camera roll and a heart full of memories, already planning my next visit to explore the northern islands of Hokkaido. Japan is not just a destination; it is an experience that stays with you long after you leave.\"\n}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 375,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00015",
+     "reply": "{\"answer\": \"1. Mary, the celestial architect of Christianity. 2. Queen Victoria, the matriarch who turned the British Empire into a family business. 3. Martha Stewart, the lady who knits sweaters for your houseplants. 4. Mama Bear from Goldilocks, the original home invader with a taste for porridge. 5. The Wicked Witch of the West, who just wanted her sister back and a little respect.\"}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 98,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00016",
+     "reply": "{\n  \"answer\": \"Yahweh\\n******\\nAllah\"\n}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 20,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00017",
+     "reply": "{\"answer\": \"Why did the rocket go to school? To improve its launch skills.\\n******\\nWhat do you call a rocket that tells jokes? A blast from the past.\"}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 40,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00018",
+     "reply": "{\n  \"answer\": \"\u0cb9\u0ccc\u0ca6\u0cc1, \u0cb9\u0ccd\u0caf\u0cbe\u0cae\u0ccd\u200c\u0cac\u0cb0\u0ccd\u0c97\u0cb0\u0ccd\u200c\u0c97\u0cb3\u0cc1 \u0cb8\u0ccd\u0caf\u0cbe\u0c82\u0ca1\u0ccd\u200c\u0cb5\u0cbf\u0c9a\u0ccd\u200c\u0c97\u0cb3\u0cbe\u0c97\u0cbf\u0cb5\u0cc6.\"\n}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 42,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00019",
+     "reply": "{\"answer\": \"nonce 7775ecb228c648bd950f9abe876fc959 #playboy #lifestyle #luxury #vibes\"}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 47,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00020",
+     "reply": "{\n  \"answer\": \"SECTION 1\\nThe alarm rings but I stay in bed,\\nDreams of comfort, not of the head\\nThat fills with knowledge, day by day,\\nI choose the pillow, not the lecture hall's sway.\\n\\nSECTION 2\\nThe syllabus gathers dust on the shelf,\\nA story of learning I cannot tell myself.\\nWhile others take notes, I take a nap,\\nIgnoring the bell, ignoring the trap.\\n\\nSECTION 3\\nThe professor calls, but I am gone,\\nSilence is where I belong.\\nNo quizzes, no tests, no grade to fear,\\nJust the quiet of my own atmosphere.\\n\\nSECTION 4\\nNow the semester ends, the bill is due,\\nFor the education I never knew.\\nI sit here thinking, with a heavy heart,\\nCan I get my money back for the classes I missed?\"\n}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 193,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00021",
+     "reply": "{\n  \"answer\": \"negative\"\n}\nIs there anything else I can help with?",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 22,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00022",
+     "reply": "{\n  \"answer\": \"Introducing Sunnis Ice Cream, the gentle treat that delights your taste buds without upsetting your stomach! Say goodbye to digestive discomfort and hello to pure, creamy joy! Our unique formula ensures every scoop is easy on your gut! Experience the smoothest, most soothing ice cream ever created! Join the Sunnis revolution today and taste the difference! Your stomach will thank you!\"\n}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 84,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00023",
+     "reply": "{\"answer\": \"A chesterfield is a sofa.\"}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 14,
+     "truncated": false,
+     "thinking_seen": false
+    },
+    {
+     "id": "ifeval-00024",
+     "reply": "{\n  \"answer\": \"Section 1: Professional Summary\\nPhil Larkin is a seasoned professional clown with over 15 years of experience in bringing joy and laughter to diverse audiences. Specializing in physical comedy, mime, and interactive entertainment, Phil has performed at corporate events, private parties, and community festivals. His unique ability to connect with people of all ages makes him a standout performer in the entertainment industry.\\n\\nSection 2: Professional Experience\\nSenior Clown Performer, Happy Times Entertainment (2018-Present)\\n- Delivered engaging performances at over 200 events annually, maintaining a 98% client satisfaction rate.\\n- Developed and implemented new comedy routines that increased audience engagement by 30%.\\n- Collaborated with event planners to customize performances for specific themes and audiences.\\n\\nFreelance Clown, Self-Employed (2015-2018)\\n- Performed at various venues including schools, hospitals, and birthday parties.\\n- Managed all aspects of business operations, including marketing, scheduling, and client relations.\\n- Created original props and costumes that enhanced the visual appeal of performances.\\n\\nSection 3: Education and Training\\nBachelor of Fine Arts in Performance Arts, University of the Arts (2015)\\n- Focused on physical theater, mime, and comedic timing.\\n- Participated in numerous stage productions and improvisation workshops.\\n\\nCertified Clown Therapy Practitioner, Clown Care International (2017)\\n- Trained in using humor and clowning techniques to provide emotional support and comfort.\\n- Completed advanced courses in child psychology and therapeutic clowning.\\n\\nSection 4: Skills and Certifications\\nSkills:\\n- Physical Comedy and Mime\\n- Audience Interaction and Engagement\\n- Prop Making and Costume Design\\n- Event Planning and Coordination\\n\\nCertifications:\\n- Certified Clown Therapy Practitioner\\n- First Aid and CPR Certified\\n- Background Check Cleared for Working with Children\"\n}",
+     "gold": "",
+     "finish_reason": "stop",
+     "completion_tokens": 416,
+     "truncated": false,
+     "thinking_seen": false
+    }
+   ],
+   "truncated": 0,
+   "thinking_verified": true,
+   "thinking_seen": 0,
+   "mean_output_tokens": 201.08,
+   "prompt_template_sha256": null,
+   "speed": {
+    "calls": 30,
+    "errors": 0,
+    "prompt_tokens": {
+     "median": 127.0,
+     "min": 81,
+     "max": 188,
+     "n": 30,
+     "spread_pct": 84.3
+    },
+    "completion_tokens": {
+     "median": 110.5,
+     "min": 14,
+     "max": 867,
+     "n": 30,
+     "spread_pct": 771.9
+    },
+    "ttft_s": {
+     "median": 0.106,
+     "min": 0.09,
+     "max": 0.301,
+     "n": 30,
+     "spread_pct": 199.2
+    },
+    "prefill_tok_s": null,
+    "prefill_tok_s_all": {
+     "median": 1179.963,
+     "min": 365.389,
+     "max": 1599.706,
+     "n": 30,
+     "spread_pct": 104.6
+    },
+    "decode_tok_s": {
+     "median": 114.81,
+     "min": 101.629,
+     "max": 358.939,
+     "n": 28,
+     "spread_pct": 224.1
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_calls": 0,
+    "wall_s": 53.0,
+    "prefill_note": "no call had >= 1024 uncached prompt tokens; prefill_tok_s_all is overhead-dominated. Use `localeval speed` for prefill."
+   },
+   "wall_s": 53.8
+  }
+ ],
+ "datasets": [],
+ "warnings": []
+}
