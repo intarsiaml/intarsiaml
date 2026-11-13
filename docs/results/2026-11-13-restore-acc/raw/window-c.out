@@ -1,0 +1,28 @@
+fleetq: #9250 running on spark2: bash /opt/code/intarsiaml/.worktrees/restore-acc/scripts/soak/window_c.sh 50
+[14:02:48 +1s] vLLM up: 200; earlyoom: active
+2026-11-13T16:32:30.58861945Z missioncntrl/vllm-openai:65b7662d
+missioncntrl-guidance
+[14:02:51 +0s] vLLM DOWN (docker stop done) at 14:02:51
+Mem:             121          10          55           0          56         110
+intarsia 0.0.1
+[14:02:52 +1s] serve arm W: ~/intarsia-soak/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[14:03:35 +44s] serve W up; MemAvailable MB: 86152; prefix store: on (build d875b142d8228e3b, 0 entries loaded, boundaries [248045], chunk-invariant backend: false) loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 40.6s, context 131072 tokens 
+== W gsm8k-prefix conc=1 14:03:35
+[W] 200/200 388s correct so far 196
+{"arm": "W", "n": 200, "aborted": false, "errors": 0, "correct": 196, "acc": 0.98, "truncated": 2, "mean_completion_tokens": 145.3, "prompt_tokens_median": 6976.0, "prompt_tokens_min": 6944, "prompt_tokens_max": 7054, "requests_with_cached_tokens": 199, "cached_tokens_median_of_hits": 6904, "cached_tokens_sum": 1373896, "cached_frac": 0.984, "latency_s_median": 1.744, "wall_s": 388.4, "concurrency": 1, "shots": 32, "max_tokens": 512}
+{"prefix_store_lookups_total": 200.0, "prefix_store_hits_total": 199.0, "prefix_store_misses_total": 1.0, "prefix_store_local_wins_total": 0.0, "prefix_store_tokens_saved_total": 1373896.0, "prefix_store_bytes_restored_total": 34690826240.0, "prefix_store_inserts_total": 265.0, "prefix_store_rejected_total": 0.0, "requests_total": 200.0, "tokens_prompt_total": 1396191.0, "tokens_cached_total": 1373896.0, "batch_paused_steps_total": 0.0, "requests_rejected_total": 0.0, "engine_failed": 0.0, "prefix_store_tier_evictions_total{tier=\"host\"}": 50.0}
+min MemAvailable MB (time MB; KILLED count) (W): 14:09:36 77819 0 [14:10:34 +463s] serve arm C: ~/intarsia-soak/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store host_mb=1
+[14:11:13 +502s] serve C up; MemAvailable MB: 87126; prefix store: on (build d875b142d8228e3b, 0 entries loaded, boundaries [248045], chunk-invariant backend: false) loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 36.9s, context 131072 tokens 
+== C gsm8k-prefix conc=1 14:11:13
+fleetq: checking on #9250 failed (fleetq server http://fleetq:8470 unreachable: timed out); the command keeps running
+[C] 160/200 1143s correct so far 185
+{"arm": "C", "n": 200, "aborted": false, "errors": 0, "correct": 196, "acc": 0.98, "truncated": 2, "mean_completion_tokens": 145.3, "prompt_tokens_median": 6976.0, "prompt_tokens_min": 6944, "prompt_tokens_max": 7054, "requests_with_cached_tokens": 0, "cached_tokens_median_of_hits": 0, "cached_tokens_sum": 0, "cached_frac": 0.0, "latency_s_median": 6.972, "wall_s": 1220.5, "concurrency": 1, "shots": 32, "max_tokens": 512}
+{"prefix_store_lookups_total": 201.0, "prefix_store_hits_total": 0.0, "prefix_store_misses_total": 201.0, "prefix_store_local_wins_total": 0.0, "prefix_store_tokens_saved_total": 0.0, "prefix_store_bytes_restored_total": 0.0, "prefix_store_inserts_total": 13266.0, "prefix_store_rejected_total": 0.0, "requests_total": 201.0, "tokens_prompt_total": 1403178.0, "tokens_cached_total": 0.0, "batch_paused_steps_total": 0.0, "requests_rejected_total": 0.0, "engine_failed": 0.0, "prefix_store_tier_evictions_total{tier=\"host\"}": 13266.0}
+min MemAvailable MB (time MB; KILLED count) (C): 14:11:26 85123 0 [14:45:43 +2572s] skipping O: 428 s left, estimate 882 s
+[14:45:43 +2572s] skipping W2: 428 s left, estimate 382 s
+[14:45:43 +2572s] restoring vLLM: docker start missioncntrl-guidance
+/opt/code/intarsiaml/.worktrees/restore-acc/scripts/soak/lib.sh: line 15: 21610 Terminated: 15          ( sleep $(( $1*60 )); echo "[cap] $1 min down reached, restoring" >> "$OUT/${WLOG:-lib}.log"; kill -TERM $$ ) > /dev/null 2>&1
+missioncntrl-guidance
+[14:48:50 +2759s] vLLM /v1/models 200 at 14:48:50 (vLLM down for 2759s total)
+[14:48:50 +2759s] window end
+fleetq: #9250 done (exit 0); spark2-vllm must come back before others can use it
