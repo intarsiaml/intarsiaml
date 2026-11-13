@@ -22,3 +22,11 @@ tools() { # tools <arm> <url> <off|default> [reps] [stream-reps]
   python3 "$SC/toolsmoke.py" --url "$2" --model guidance --arm "$1" --thinking "$3" --reps "${4:-5}" --stream-reps "${5:-2}" --out "$OUT" > "$OUT/$1-tools$sfx.out" 2>&1
   tail -6 "$OUT/$1-tools$sfx.out"
 }
+# replay2 <arm> <url> <order> <seed> [streams=2]: K-concurrent-stream replay (ab35c/replay2.py), same plan/trace as replay()
+replay2() {
+  local k="${5:-2}"
+  echo "== $1 replay2 k=$k $3 seed $4 $(date +%T)"
+  ( cd /opt/code/deepeval && uv run python "$SC/replay2.py" --url "$2" --model guidance --arm "$1" --order "$3" --seed "$4" --streams "$k" \
+      --plan "$OUT/replay-plan.json" --trace "$OUT/replay-trace-seed$4.json" --out "$OUT" ) > "$OUT/$1-replay2-$3-seed$4.out" 2>&1
+  tail -14 "$OUT/$1-replay2-$3-seed$4.out"
+}
