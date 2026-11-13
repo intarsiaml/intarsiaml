@@ -1,0 +1,17 @@
+[23:49:29 +1s] window start (cap 25 min); vLLM up: 200; earlyoom: active
+[23:49:30 +2s] binaries: 351 intarsia 0.0.1; fix intarsia 0.0.1
+2026-11-13T04:35:04.81012652Z missioncntrl/vllm-openai:65b7662d
+missioncntrl-guidance
+[23:49:32 +4s] vLLM DOWN (docker stop done) at 23:49:32
+Mem:             121          11          63           0          48         110
+[N/A]
+[23:49:33 +5s] serve arm C-storepf: INTARSIA_PREFIX_STORE_DEBUG=1 ~/intarsia-ab35c-fix/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --prefix-store on
+[23:50:13 +45s] serve C-storepf up; MemAvailable MB: 87239; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 37.4s, context 131072 tokens 
+min MemAvailable MB (time MB; KILLED count) (C-storepf): 23:52:49 78461 0 
+[23:53:28 +240s] serve arm C-storepf-dev: INTARSIA_PREFIX_STORE_DEBUG=1 ~/intarsia-ab35c-fix/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --prefix-store device_mb=8192,host_mb=2048
+[23:54:06 +278s] serve C-storepf-dev up; MemAvailable MB: 88137; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 35.5s, context 131072 tokens 
+min MemAvailable MB (time MB; KILLED count) (C-storepf-dev): 23:56:50 73294 0 
+[23:57:18 +470s] restoring vLLM: docker start missioncntrl-guidance
+missioncntrl-guidance
+[00:00:33 +665s] vLLM /v1/models 200 at 00:00:33 (vLLM down for 661s total)
+[00:00:33 +665s] window end

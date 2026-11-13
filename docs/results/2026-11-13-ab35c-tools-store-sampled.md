@@ -16,7 +16,7 @@ Builds: PR #351 at `672b17393` (qwen3_xml tool parser, reasoning split by defaul
 - `get_weather` with thinking off: the model writes "The current weather in Paris is 15°C." without a call. vLLM did the same on this prompt in ab35b (1/5), so it is the prompt, not the engine.
 - Thinking default: reasoning is split (no `</think>` in content), calls parse, receipts pass; equal to vLLM on the same script. Small n (2 + 1 stream per tool).
 
-## Blocker 3: prefix-store decode stall. Cause found, fix half done
+## Blocker 3: prefix-store decode stall. Fixed (PR #352)
 
 Interleaved replay (8 conversations x 6 turns, seed 0), `--prefix-store on`, `INTARSIA_PREFIX_STORE_DEBUG=1`:
 
@@ -29,6 +29,19 @@ Interleaved replay (8 conversations x 6 turns, seed 0), `--prefix-store on`, `IN
 - The stall is the settle: about 1.5 s per request inside the decode window. Moving it after `Done` restores decode to the sequential range, but the replay sends the next request at once, so the cost lands in that request's TTFT (sum 58 -> 122 s, wall unchanged). A relocation, not a fix.
 - Where the time goes: 1476 demotes, 11.8 GiB, **download 70.9 s, alloc 0.4 s**: about 170 MB/s device-to-host, with the GPU idle (after-done arm: 68.9 s for 11.6 GiB). `prefix_store_cuda` showed one 32 MiB object at 227 ms into a fresh zero-mapped `Vec` and 1 ms into a reused, written one. Reading: on GB10 a download into untouched host pages pays a fault per page. Candidate fix on #352: pre-fault the destination (gate pending). Restores (upload) run at GB/s on the same box.
 - `prefix_store_cuda` on #352 (`541a156ea`): restored vs cold (store on) bitwise true.
+
+### Window 2 (vLLM down 23:49:32 to 00:00:32, 11 min): pre-faulted host buffers (#352 at `368346b24`)
+
+| arm | TTFT sum | decode tok/s median | wall | D2H demotes |
+|---|---|---|---|---|
+| C-store (main, window 1) | 58.0 s | 43.4 | 230.3 s | 11.8 GiB in 70.9 s (170 MB/s) |
+| C-storefix (`541a156ea`, window 1) | 122.3 s | 75.3 | 225.4 s | 11.6 GiB in 68.9 s |
+| **C-storepf** (`368346b24`, `--prefix-store on`) | **60.5 s** | **75.1** (turn 1 81.4, turn 6 68.3) | **164.0 s** | 11.6 GiB in 2.7 s (4.4 GB/s) |
+| C-storepf-dev (`device_mb=8192,host_mb=2048`) | 56.8 s | 74.7 | 160.2 s | |
+
+- Pre-faulting the destination (`host_buf`: one write per 4 KiB page before the download) takes the demote from 170 MB/s to 4.4 GB/s; `prefix_store_cuda` on that build: demotes 465 MB/s -> 11.7 GB/s, 2 passed, restored vs cold bitwise true.
+- Same TTFT as main with decode at the sequential rate: the interleaved stall is gone. Remaining settle 6.8 s over 98 settles (page faults, now in the alloc column).
+- Device tier: a little better again (TTFT 56.8 s); a recommendation candidate, not a default change (the device tier is not counted in `--mem-budget`; min MemAvailable 73.3 GB).
 
 ## Blocker 5: sampled decode at long context
 

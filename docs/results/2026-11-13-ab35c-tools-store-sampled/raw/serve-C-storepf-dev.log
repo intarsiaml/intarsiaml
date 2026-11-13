@@ -1,0 +1,351 @@
+[supervisor] started server pid 3764306
+--spec mtp default of recipe qwen3_5_moe on cuda not applied: --prefix-store (or INTARSIA_PREFIX_STORE) is set and a drafting request bypasses the store; --spec mtp --prefix-store ... asks for both
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 36 kernel(s) checked, 0 case(s) run, 501 cached
+prefix store: on (build 33fcbc4675121474, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 35.5s, context 131072 tokens
+sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_config.json; a request's own values win)
+intarsia server listening on http://0.0.0.0:8191
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (after done) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 60 KiB: alloc 0.00 ms, download 0.01 ms
+prefix store: demote 32160 KiB: alloc 10.55 ms, download 4.61 ms
+prefix store: demote 60 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 10.47 ms, download 4.25 ms
+prefix store: demote 60 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 10.05 ms, download 3.98 ms
+prefix store: demote 5120 KiB: alloc 1.28 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.50 ms, download 3.41 ms
+prefix store: demote 5120 KiB: alloc 1.62 ms, download 3.49 ms
+prefix store: demote 5120 KiB: alloc 1.63 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 1.54 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.64 ms, download 3.34 ms
+prefix store: demote 800 KiB: alloc 0.23 ms, download 1.83 ms
+prefix store: demote 5120 KiB: alloc 1.66 ms, download 3.46 ms
+prefix store: demote 5120 KiB: alloc 1.52 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 1.66 ms, download 3.42 ms
+prefix store: demote 5120 KiB: alloc 1.67 ms, download 3.47 ms
+prefix store: demote 5120 KiB: alloc 1.53 ms, download 3.45 ms
+prefix store: demote 5120 KiB: alloc 1.66 ms, download 4.36 ms
+prefix store: demote 5120 KiB: alloc 1.53 ms, download 3.46 ms
+prefix store: demote 5120 KiB: alloc 1.65 ms, download 3.43 ms
+prefix store: settle (after done) moved 165 MiB off the device in 111.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 5120 KiB: alloc 1.20 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.61 ms, download 3.69 ms
+prefix store: demote 5120 KiB: alloc 1.70 ms, download 0.10 ms
+prefix store: demote 5120 KiB: alloc 1.63 ms, download 0.11 ms
+prefix store: demote 32160 KiB: alloc 10.17 ms, download 4.64 ms
+prefix store: demote 5120 KiB: alloc 1.55 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.68 ms, download 3.60 ms
+prefix store: demote 5120 KiB: alloc 1.57 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.64 ms, download 5.19 ms
+prefix store: demote 5120 KiB: alloc 1.67 ms, download 3.53 ms
+prefix store: demote 5120 KiB: alloc 1.66 ms, download 3.48 ms
+prefix store: demote 5120 KiB: alloc 1.53 ms, download 0.11 ms
+prefix store: demote 5120 KiB: alloc 1.59 ms, download 4.99 ms
+prefix store: demote 32160 KiB: alloc 10.17 ms, download 4.40 ms
+prefix store: demote 880 KiB: alloc 0.40 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 10.09 ms, download 4.22 ms
+prefix store: demote 880 KiB: alloc 0.27 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 10.22 ms, download 3.98 ms
+prefix store: demote 880 KiB: alloc 0.27 ms, download 0.03 ms
+prefix store: demote 880 KiB: alloc 0.27 ms, download 2.66 ms
+prefix store: demote 32160 KiB: alloc 10.07 ms, download 4.04 ms
+prefix store: demote 880 KiB: alloc 0.28 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 10.20 ms, download 4.08 ms
+prefix store: settle (after done) moved 252 MiB off the device in 138.7 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 880 KiB: alloc 0.01 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.24 ms, download 4.52 ms
+prefix store: demote 880 KiB: alloc 0.10 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.92 ms, download 6.35 ms
+prefix store: demote 880 KiB: alloc 0.27 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 10.25 ms, download 4.23 ms
+prefix store: demote 32160 KiB: alloc 10.08 ms, download 3.97 ms
+prefix store: demote 880 KiB: alloc 0.27 ms, download 0.03 ms
+prefix store: demote 880 KiB: alloc 0.26 ms, download 1.98 ms
+prefix store: demote 32160 KiB: alloc 10.21 ms, download 3.96 ms
+prefix store: demote 880 KiB: alloc 0.40 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 10.07 ms, download 4.25 ms
+prefix store: demote 32160 KiB: alloc 10.22 ms, download 4.07 ms
+prefix store: settle (after done) moved 225 MiB off the device in 105.1 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 880 KiB: alloc 0.01 ms, download 0.03 ms
+prefix store: demote 880 KiB: alloc 0.11 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.31 ms, download 4.33 ms
+prefix store: demote 32160 KiB: alloc 9.19 ms, download 4.13 ms
+prefix store: demote 880 KiB: alloc 0.25 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.28 ms, download 4.08 ms
+prefix store: demote 880 KiB: alloc 0.24 ms, download 0.03 ms
+prefix store: demote 880 KiB: alloc 0.27 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.27 ms, download 4.03 ms
+prefix store: demote 880 KiB: alloc 0.25 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.13 ms, download 5.45 ms
+prefix store: demote 880 KiB: alloc 0.24 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.16 ms, download 4.26 ms
+prefix store: demote 32160 KiB: alloc 9.90 ms, download 4.11 ms
+prefix store: demote 880 KiB: alloc 0.27 ms, download 0.03 ms
+prefix store: demote 880 KiB: alloc 0.40 ms, download 3.21 ms
+prefix store: demote 32160 KiB: alloc 10.08 ms, download 3.80 ms
+prefix store: settle (after done) moved 258 MiB off the device in 115.4 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 880 KiB: alloc 0.01 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 6.92 ms, download 4.44 ms
+prefix store: demote 880 KiB: alloc 0.07 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 8.53 ms, download 4.00 ms
+prefix store: demote 32160 KiB: alloc 9.16 ms, download 4.02 ms
+prefix store: demote 880 KiB: alloc 0.24 ms, download 0.03 ms
+prefix store: demote 880 KiB: alloc 0.24 ms, download 3.51 ms
+prefix store: demote 32160 KiB: alloc 9.68 ms, download 3.97 ms
+prefix store: demote 880 KiB: alloc 0.27 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 10.11 ms, download 4.09 ms
+prefix store: demote 2100 KiB: alloc 0.63 ms, download 0.14 ms
+prefix store: demote 32160 KiB: alloc 10.07 ms, download 4.11 ms
+prefix store: demote 280 KiB: alloc 0.09 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 10.21 ms, download 4.23 ms
+prefix store: settle (after done) moved 226 MiB off the device in 99.8 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 32160 KiB: alloc 9.24 ms, download 4.35 ms
+prefix store: demote 280 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 280 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 9.34 ms, download 4.17 ms
+prefix store: demote 32160 KiB: alloc 9.30 ms, download 3.97 ms
+prefix store: demote 2200 KiB: alloc 0.37 ms, download 0.05 ms
+prefix store: demote 380 KiB: alloc 0.10 ms, download 4.07 ms
+prefix store: demote 32160 KiB: alloc 9.14 ms, download 3.98 ms
+prefix store: demote 380 KiB: alloc 0.11 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 9.13 ms, download 3.92 ms
+prefix store: demote 32160 KiB: alloc 9.29 ms, download 5.63 ms
+prefix store: demote 380 KiB: alloc 0.11 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 9.27 ms, download 3.78 ms
+prefix store: demote 1960 KiB: alloc 0.53 ms, download 0.05 ms
+prefix store: demote 100 KiB: alloc 0.05 ms, download 2.95 ms
+prefix store: demote 32160 KiB: alloc 9.61 ms, download 3.91 ms
+prefix store: settle (after done) moved 257 MiB off the device in 126.6 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 100 KiB: alloc 0.00 ms, download 0.01 ms
+prefix store: demote 32160 KiB: alloc 9.59 ms, download 4.69 ms
+prefix store: demote 32160 KiB: alloc 9.57 ms, download 3.92 ms
+prefix store: demote 100 KiB: alloc 0.00 ms, download 0.01 ms
+prefix store: demote 32160 KiB: alloc 9.78 ms, download 3.99 ms
+prefix store: demote 2100 KiB: alloc 0.27 ms, download 0.05 ms
+prefix store: demote 280 KiB: alloc 0.16 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 9.52 ms, download 3.89 ms
+prefix store: demote 32160 KiB: alloc 9.55 ms, download 4.26 ms
+prefix store: demote 280 KiB: alloc 0.16 ms, download 0.02 ms
+prefix store: demote 280 KiB: alloc 0.08 ms, download 2.65 ms
+prefix store: demote 32160 KiB: alloc 9.52 ms, download 4.13 ms
+prefix store: demote 2540 KiB: alloc 0.74 ms, download 0.06 ms
+prefix store: demote 32160 KiB: alloc 9.53 ms, download 3.94 ms
+prefix store: settle (after done) moved 225 MiB off the device in 100.5 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 32160 KiB: alloc 9.60 ms, download 4.56 ms
+prefix store: demote 720 KiB: alloc 0.01 ms, download 0.03 ms
+prefix store: demote 720 KiB: alloc 0.01 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 9.60 ms, download 4.03 ms
+prefix store: demote 32160 KiB: alloc 9.55 ms, download 4.06 ms
+prefix store: demote 720 KiB: alloc 0.21 ms, download 0.03 ms
+prefix store: demote 32160 KiB: alloc 9.80 ms, download 4.80 ms
+prefix store: demote 2220 KiB: alloc 0.65 ms, download 0.05 ms
+prefix store: demote 32160 KiB: alloc 9.76 ms, download 3.87 ms
+prefix store: demote 400 KiB: alloc 0.12 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 9.52 ms, download 3.97 ms
+prefix store: demote 400 KiB: alloc 0.19 ms, download 0.02 ms
+prefix store: demote 400 KiB: alloc 0.12 ms, download 2.48 ms
+prefix store: demote 32160 KiB: alloc 9.44 ms, download 4.08 ms
+prefix store: settle (after done) moved 225 MiB off the device in 101.0 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 32160 KiB: alloc 9.40 ms, download 4.36 ms
+prefix store: demote 1940 KiB: alloc 0.03 ms, download 0.05 ms
+prefix store: demote 32160 KiB: alloc 9.81 ms, download 4.41 ms
+prefix store: demote 120 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 9.59 ms, download 4.06 ms
+prefix store: demote 120 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 9.55 ms, download 4.02 ms
+prefix store: demote 120 KiB: alloc 0.00 ms, download 0.01 ms
+prefix store: demote 2000 KiB: alloc 0.37 ms, download 0.05 ms
+prefix store: demote 32160 KiB: alloc 9.36 ms, download 3.92 ms
+prefix store: demote 32160 KiB: alloc 9.33 ms, download 4.82 ms
+prefix store: demote 180 KiB: alloc 0.05 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 9.28 ms, download 4.01 ms
+prefix store: demote 180 KiB: alloc 0.05 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 9.28 ms, download 3.91 ms
+prefix store: settle (after done) moved 255 MiB off the device in 119.1 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 180 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 10.21 ms, download 0.60 ms
+prefix store: demote 5020 KiB: alloc 0.74 ms, download 0.10 ms
+prefix store: demote 3200 KiB: alloc 1.02 ms, download 3.63 ms
+prefix store: demote 32160 KiB: alloc 10.20 ms, download 0.58 ms
+prefix store: demote 3200 KiB: alloc 1.01 ms, download 4.42 ms
+prefix store: demote 32160 KiB: alloc 9.57 ms, download 0.58 ms
+prefix store: demote 3200 KiB: alloc 0.95 ms, download 3.38 ms
+prefix store: demote 32160 KiB: alloc 9.68 ms, download 0.58 ms
+prefix store: demote 32160 KiB: alloc 9.53 ms, download 4.62 ms
+prefix store: demote 320 KiB: alloc 0.10 ms, download 2.68 ms
+prefix store: demote 3360 KiB: alloc 1.08 ms, download 0.08 ms
+prefix store: demote 32160 KiB: alloc 9.46 ms, download 3.96 ms
+prefix store: demote 3360 KiB: alloc 0.97 ms, download 0.09 ms
+prefix store: demote 32160 KiB: alloc 9.70 ms, download 0.58 ms
+prefix store: settle (after done) moved 241 MiB off the device in 115.1 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 32160 KiB: alloc 0.58 ms, download 0.57 ms
+prefix store: demote 3360 KiB: alloc 0.05 ms, download 0.07 ms
+prefix store: demote 80 KiB: alloc 0.00 ms, download 0.01 ms
+prefix store: demote 32160 KiB: alloc 0.57 ms, download 0.56 ms
+prefix store: demote 32160 KiB: alloc 9.84 ms, download 0.58 ms
+prefix store: demote 3380 KiB: alloc 0.06 ms, download 0.07 ms
+prefix store: demote 3380 KiB: alloc 0.05 ms, download 0.09 ms
+prefix store: demote 32160 KiB: alloc 9.88 ms, download 0.58 ms
+prefix store: demote 3380 KiB: alloc 0.06 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 9.58 ms, download 0.58 ms
+prefix store: demote 320 KiB: alloc 0.01 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 10.19 ms, download 0.58 ms
+prefix store: demote 3620 KiB: alloc 0.07 ms, download 0.08 ms
+prefix store: demote 32160 KiB: alloc 9.51 ms, download 0.58 ms
+prefix store: settle (after done) moved 236 MiB off the device in 88.2 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 3620 KiB: alloc 0.06 ms, download 0.08 ms
+prefix store: demote 32160 KiB: alloc 9.85 ms, download 0.58 ms
+prefix store: demote 3620 KiB: alloc 0.06 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 9.76 ms, download 0.58 ms
+prefix store: demote 32160 KiB: alloc 9.76 ms, download 0.58 ms
+prefix store: demote 620 KiB: alloc 0.01 ms, download 0.02 ms
+prefix store: demote 32160 KiB: alloc 9.75 ms, download 0.58 ms
+prefix store: demote 3800 KiB: alloc 0.06 ms, download 0.08 ms
+prefix store: demote 3800 KiB: alloc 0.06 ms, download 0.09 ms
+prefix store: demote 32160 KiB: alloc 9.79 ms, download 0.58 ms
+prefix store: demote 3800 KiB: alloc 0.06 ms, download 0.08 ms
+prefix store: demote 32160 KiB: alloc 9.61 ms, download 0.58 ms
+prefix store: demote 32160 KiB: alloc 9.86 ms, download 0.58 ms
+prefix store: settle (after done) moved 238 MiB off the device in 106.8 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 220 KiB: alloc 0.00 ms, download 0.02 ms
+prefix store: demote 3520 KiB: alloc 0.06 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 9.39 ms, download 0.58 ms
+prefix store: demote 3520 KiB: alloc 0.06 ms, download 0.09 ms
+prefix store: demote 32160 KiB: alloc 9.77 ms, download 0.58 ms
+prefix store: demote 32160 KiB: alloc 9.62 ms, download 4.10 ms
+prefix store: demote 3520 KiB: alloc 0.06 ms, download 0.08 ms
+prefix store: demote 32160 KiB: alloc 9.82 ms, download 0.59 ms
+prefix store: demote 5060 KiB: alloc 0.08 ms, download 0.10 ms
+prefix store: demote 32160 KiB: alloc 9.60 ms, download 0.58 ms
+prefix store: demote 3240 KiB: alloc 0.05 ms, download 0.07 ms
+prefix store: demote 3240 KiB: alloc 0.05 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 9.84 ms, download 0.58 ms
+prefix store: settle (after done) moved 210 MiB off the device in 100.5 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 3240 KiB: alloc 0.05 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 9.44 ms, download 0.58 ms
+prefix store: demote 32160 KiB: alloc 9.82 ms, download 0.58 ms
+prefix store: demote 32160 KiB: alloc 9.78 ms, download 4.68 ms
+prefix store: demote 3300 KiB: alloc 0.06 ms, download 0.08 ms
+prefix store: demote 32160 KiB: alloc 9.84 ms, download 0.60 ms
+prefix store: demote 3300 KiB: alloc 0.05 ms, download 0.07 ms
+prefix store: demote 3300 KiB: alloc 0.05 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 9.72 ms, download 0.58 ms
+prefix store: demote 3180 KiB: alloc 0.05 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 9.77 ms, download 0.58 ms
+prefix store: demote 1360 KiB: alloc 0.02 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 10.33 ms, download 0.58 ms
+prefix store: settle (after done) moved 237 MiB off the device in 111.8 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 32160 KiB: alloc 9.87 ms, download 0.59 ms
+prefix store: demote 1360 KiB: alloc 0.02 ms, download 0.04 ms
+prefix store: demote 1360 KiB: alloc 0.02 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 9.76 ms, download 0.58 ms
+prefix store: demote 3580 KiB: alloc 0.06 ms, download 0.08 ms
+prefix store: demote 32160 KiB: alloc 9.76 ms, download 0.58 ms
+prefix store: demote 1580 KiB: alloc 0.03 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 9.60 ms, download 0.58 ms
+prefix store: demote 32160 KiB: alloc 9.84 ms, download 0.58 ms
+prefix store: demote 1580 KiB: alloc 0.02 ms, download 0.04 ms
+prefix store: demote 1580 KiB: alloc 0.02 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 10.03 ms, download 0.58 ms
+prefix store: demote 3280 KiB: alloc 0.05 ms, download 0.07 ms
+prefix store: demote 32160 KiB: alloc 10.29 ms, download 0.58 ms
+prefix store: settle (after done) moved 233 MiB off the device in 106.8 ms (queue_write 0.00 ms)
+prefix store: settle (prefill start) moved 0 MiB off the device in 0.0 ms (queue_write 0.00 ms)
+prefix store: demote 32160 KiB: alloc 9.16 ms, download 0.59 ms
+prefix store: demote 1460 KiB: alloc 0.02 ms, download 0.04 ms
+prefix store: demote 1460 KiB: alloc 0.02 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 9.51 ms, download 0.58 ms
+prefix store: demote 1460 KiB: alloc 0.02 ms, download 0.04 ms
+prefix store: demote 32160 KiB: alloc 9.31 ms, download 0.58 ms
+prefix store: demote 32160 KiB: alloc 9.79 ms, download 0.58 ms
+prefix store: demote 3600 KiB: alloc 1.10 ms, download 3.93 ms
+prefix store: demote 1780 KiB: alloc 0.54 ms, download 4.02 ms
+prefix store: demote 32160 KiB: alloc 9.19 ms, download 0.58 ms
+prefix store: demote 1780 KiB: alloc 0.54 ms, download 3.93 ms
+prefix store: demote 32160 KiB: alloc 9.93 ms, download 0.61 ms
+prefix store: demote 1780 KiB: alloc 0.68 ms, download 4.16 ms
+prefix store: demote 32160 KiB: alloc 10.30 ms, download 0.58 ms
+prefix store: demote 3680 KiB: alloc 1.11 ms, download 4.35 ms
+prefix store: settle (after done) moved 236 MiB off the device in 133.8 ms (queue_write 0.00 ms)
