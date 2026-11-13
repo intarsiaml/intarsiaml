@@ -514,6 +514,11 @@ pub struct PrefixStore {
     deferred: u64,
     /// Engine-thread time spent in `queue_write` since the last `settle` (reported under `INTARSIA_PREFIX_STORE_DEBUG`).
     queue_write_seconds: f64,
+    /// Pre-faulted host buffers freed by host-tier eviction, kept for the next demote (or host capture) of the same size
+    /// (objects come in a few sizes; a fresh buffer costs a page fault per 4 KiB, a recycled one nothing). Counted with
+    /// `used[1]` against the host budget: the pool never makes the host tier exceed it.
+    host_free: Vec<Vec<u8>>,
+    host_free_bytes: u64,
 }
 
 /// `INTARSIA_PREFIX_STORE_DEBUG` is set: report the store's timings on stderr.
@@ -522,21 +527,36 @@ fn debug() -> bool {
     *ON.get_or_init(|| std::env::var_os("INTARSIA_PREFIX_STORE_DEBUG").is_some())
 }
 
-/// Where one insert's capture went (reported under `INTARSIA_PREFIX_STORE_DEBUG`; `=sync` also waits for the device-side
-/// copies so `sync` shows how long they take to run, not only to queue).
+/// Where one insert's capture went (reported under `INTARSIA_PREFIX_STORE_DEBUG`; `=sync` first drains the stream (`drain`:
+/// the prefill queued before the capture), then waits for the capture's own copies, so `sync` is how long they take to run
+/// on the device rather than to queue. It changes the timing it measures: use it to diagnose, not to benchmark).
 #[derive(Default)]
 struct CaptureTimes {
     segments: usize,
     alloc_s: f64,
     copy_s: f64,
     sync_s: f64,
+    drain_s: f64,
     how: &'static str,
 }
 
 impl CaptureTimes {
-    fn sync(&mut self, backend: &dyn Backend) -> Result<()> {
+    fn sync_mode() -> bool {
         static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        if *ON.get_or_init(|| std::env::var("INTARSIA_PREFIX_STORE_DEBUG").is_ok_and(|v| v == "sync")) {
+        *ON.get_or_init(|| std::env::var("INTARSIA_PREFIX_STORE_DEBUG").is_ok_and(|v| v == "sync"))
+    }
+
+    fn drain(&mut self, backend: &dyn Backend) -> Result<()> {
+        if Self::sync_mode() {
+            let t = Instant::now();
+            backend.synchronize(0)?;
+            self.drain_s = t.elapsed().as_secs_f64();
+        }
+        Ok(())
+    }
+
+    fn sync(&mut self, backend: &dyn Backend) -> Result<()> {
+        if Self::sync_mode() {
             let t = Instant::now();
             backend.synchronize(0)?;
             self.sync_s = t.elapsed().as_secs_f64();
@@ -583,6 +603,8 @@ impl PrefixStore {
             defer: false,
             deferred: 0,
             queue_write_seconds: 0.0,
+            host_free: Vec::new(),
+            host_free_bytes: 0,
         };
         if let (Some(dir), true) = (s.cfg.disk_dir.clone(), s.cfg.disk_bytes > 0) {
             let dir = dir.join(format!("{build:016x}"));
@@ -785,13 +807,14 @@ impl PrefixStore {
         if debug() {
             let ms = |d: Duration| d.as_secs_f64() * 1e3;
             eprintln!(
-                "prefix store: insert {len} tok: {} objs, {} segments, {:.1} MiB in {:.2} ms (keys {:.2}, capture {:.2} [alloc {:.2}, copies {:.2}, sync {:.2}], add {:.2}, manifest {:.2}, enforce {:.2}); {}",
+                "prefix store: insert {len} tok: {} objs, {} segments, {:.1} MiB in {:.2} ms (keys {:.2}, capture {:.2} [drain {:.2}, alloc {:.2}, copies {:.2}, sync {:.2}], add {:.2}, manifest {:.2}, enforce {:.2}); {}",
                 todo.len(),
                 cap.segments,
                 copied as f64 / (1u64 << 20) as f64,
                 ms(t0.elapsed()),
                 ms(t_keys),
                 ms(t_cap - t_keys),
+                cap.drain_s * 1e3,
                 cap.alloc_s * 1e3,
                 cap.copy_s * 1e3,
                 cap.sync_s * 1e3,
@@ -814,6 +837,7 @@ impl PrefixStore {
             return Ok((Vec::new(), cap));
         }
         cap.segments = todo.iter().map(|t| t.1.len()).sum();
+        cap.drain(backend)?;
         let defer = self.defer && self.deferred + total as u64 <= DEFER_CAP;
         if defer {
             self.deferred += total as u64;
@@ -862,7 +886,7 @@ impl PrefixStore {
         let mut out = Vec::with_capacity(todo.len());
         for (_, segs, bytes) in todo {
             let t = Instant::now();
-            let mut v = host_buf(*bytes);
+            let mut v = self.take_host_buf(*bytes);
             cap.alloc_s += t.elapsed().as_secs_f64();
             let t = Instant::now();
             let mut off = 0;
@@ -1008,6 +1032,7 @@ impl PrefixStore {
         self.defer = false;
         self.deferred = 0;
         self.queue_write_seconds = 0.0;
+        self.poll_writer();
         let t0 = Instant::now();
         let before = self.used[0];
         self.enforce(backend);
@@ -1103,7 +1128,8 @@ impl PrefixStore {
             self.used[0] -= o.bytes as u64;
             self.stats.device.evictions += 1;
             let ta = Instant::now();
-            let mut v = host_buf(o.bytes);
+            self.make_host_room(o.bytes, o.last_use);
+            let mut v = self.take_host_buf(o.bytes);
             let tb = Instant::now();
             let ok = backend.download(&buf, boff, &mut v, 0).is_ok();
             if debug() {
@@ -1127,16 +1153,13 @@ impl PrefixStore {
             }
             self.objs.insert(k, o);
         }
-        while self.used[1] > self.cfg.host_bytes {
-            let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Host(_))) && o.pins == 0) else { break };
-            self.stats.host.evictions += 1;
-            let o = self.objs.get_mut(&k).unwrap();
-            if o.disk.is_some() {
-                o.mem = None;
-                self.used[1] -= o.bytes as u64;
-            } else {
-                self.drop_obj(k);
-            }
+        // host memory = the host tier plus what the disk writer still holds of evicted objects; only an object without a pending
+        // write frees anything when evicted (the others just move to the second part), so only those are candidates. Over budget
+        // with none left, the writer's progress (polled at the next insert / settle) brings it back
+        let mut orphans = self.staged_orphans();
+        while self.used[1] + orphans > self.cfg.host_bytes {
+            let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Host(_))) && o.pins == 0 && o.staged.is_none()) else { break };
+            orphans += self.evict_host(k);
         }
         while self.used[2] > self.cfg.disk_bytes {
             let Some(k) = self.lru(|o| o.disk.is_some() && o.pins == 0) else { break };
@@ -1151,6 +1174,71 @@ impl PrefixStore {
                 self.drop_obj(k);
             }
         }
+    }
+
+    /// Take `k`'s host copy away: its disk copy stays (when it has one), else the object goes; the buffer is kept for reuse.
+    /// Returns the bytes that stay in host memory anyway (the disk writer still holds them: [`PrefixStore::staged_orphans`]).
+    fn evict_host(&mut self, k: Key) -> u64 {
+        self.stats.host.evictions += 1;
+        let o = self.objs.get_mut(&k).unwrap();
+        if o.disk.is_some() {
+            let bytes = o.bytes as u64;
+            let staged = o.staged.is_some();
+            let mem = o.mem.take();
+            self.used[1] -= bytes;
+            if let Some(Mem::Host(v)) = mem {
+                self.release_host(v);
+            }
+            if staged {
+                return bytes;
+            }
+        } else {
+            self.drop_obj(k);
+        }
+        0
+    }
+
+    /// Host bytes only the disk writer's queue keeps alive: objects whose host copy was evicted before the writer confirmed
+    /// the file (`staged` without `mem`). They are not in `used[1]` but they are host memory, so the host budget counts them.
+    fn staged_orphans(&self) -> u64 {
+        self.objs.values().filter(|o| o.mem.is_none() && o.staged.is_some()).map(|o| o.bytes as u64).sum()
+    }
+
+    /// Before a demote of `bytes` (an object last used at `last_use`): evict the host objects that are older than it, oldest
+    /// first, until it fits the host budget, so its buffer can be the evicted one. What does not fit this way is left to the
+    /// loop after the demotes, which evicts in the same order.
+    fn make_host_room(&mut self, bytes: usize, last_use: u64) {
+        while self.used[1] + bytes as u64 > self.cfg.host_bytes {
+            let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Host(_))) && o.pins == 0 && o.staged.is_none() && o.last_use < last_use)
+            else {
+                break;
+            };
+            self.evict_host(k);
+        }
+    }
+
+    /// Keep a host buffer nobody else holds for [`PrefixStore::take_host_buf`], if it fits the host budget.
+    fn release_host(&mut self, v: Arc<Vec<u8>>) {
+        if let Ok(v) = Arc::try_unwrap(v) {
+            if self.used[1] + self.host_free_bytes + v.len() as u64 <= self.cfg.host_bytes {
+                self.host_free_bytes += v.len() as u64;
+                self.host_free.push(v);
+            }
+        }
+    }
+
+    /// A host buffer of `n` bytes, every page touched: a recycled one (stale bytes: the caller overwrites all of it), else
+    /// a new one ([`host_buf`]) after giving back pooled buffers the budget needs.
+    fn take_host_buf(&mut self, n: usize) -> Vec<u8> {
+        if let Some(i) = self.host_free.iter().position(|v| v.len() == n) {
+            self.host_free_bytes -= n as u64;
+            return self.host_free.swap_remove(i);
+        }
+        while self.used[1] + self.host_free_bytes + n as u64 > self.cfg.host_bytes {
+            let Some(v) = self.host_free.pop() else { break };
+            self.host_free_bytes -= v.len() as u64;
+        }
+        host_buf(n)
     }
 
     fn lru(&self, f: impl Fn(&Obj) -> bool) -> Option<Key> {
@@ -1174,9 +1262,12 @@ impl PrefixStore {
     }
 
     fn release_obj(&mut self, o: Obj) {
-        match &o.mem {
+        match o.mem {
             Some(Mem::Device(..)) => self.used[0] -= o.bytes as u64,
-            Some(Mem::Host(_)) => self.used[1] -= o.bytes as u64,
+            Some(Mem::Host(v)) => {
+                self.used[1] -= o.bytes as u64;
+                self.release_host(v);
+            }
             None => {}
         }
         if let Some(p) = &o.disk {

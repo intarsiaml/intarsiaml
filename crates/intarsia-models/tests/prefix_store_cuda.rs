@@ -182,3 +182,50 @@ fn cuda_d2h_bandwidth_report() {
         gb / memcpy
     );
 }
+
+/// Distinct prompts through a small host tier: every settle evicts, so demotes either take fresh host buffers (a page
+/// fault per 4 KiB) or recycle the evicted ones. Prints the demote and capture throughput from the stats
+/// (`INTARSIA_PREFIX_STORE_DEBUG=1` adds the per-object lines). Opt-in like the gate.
+#[test]
+fn cuda_host_pressure_report() {
+    if !enabled() || !intarsia_backend_cuda::AVAILABLE || !model_dir().join("config.json").exists() {
+        return;
+    }
+    let host_mb: u64 = std::env::var("INTARSIA_TEST_STORE_HOST_MB").ok().and_then(|v| v.parse().ok()).unwrap_or(200);
+    let backend = intarsia_backend_cuda::create(0).unwrap();
+    let opts = EngineOptions {
+        load: LoadOptions { max_seq: 8192, profile_every: 0, ..Default::default() },
+        prefix_store: Some(PrefixStoreConfig { host_bytes: host_mb << 20, ..Default::default() }),
+        max_batch: Some(1),
+        ..Default::default()
+    };
+    let e = load_engine(&model_dir(), backend, &opts).unwrap().engine;
+    let t0 = Instant::now();
+    let mut prompt_tokens = 0;
+    for i in 0..12 {
+        let msgs = vec![json!({"role": "user", "content": format!("{}\n\nSummarise.", corpus(2000 + i * 5000, 6000))})];
+        prompt_tokens += run(&*e, &msgs, 4).prompt;
+    }
+    let wall = t0.elapsed().as_secs_f64();
+    let snap = e.telemetry().prefix_store.unwrap();
+    let gb = 1e9;
+    println!(
+        "PREFIX-STORE-CUDA pressure: {} prompts {} tok in {:.2} s; inserts {} ({:.0} MiB) insert {:.3} s of which settle {:.3} s; host {} objs {:.0} MiB / {} MiB, {} evictions",
+        12,
+        prompt_tokens,
+        wall,
+        snap.inserts,
+        snap.insert_bytes as f64 / 1048576.0,
+        snap.insert_seconds_total,
+        snap.settle_seconds_total,
+        snap.host.objects,
+        snap.host.bytes as f64 / 1048576.0,
+        host_mb,
+        snap.host.evictions
+    );
+    println!(
+        "PREFIX-STORE-CUDA pressure: settle {:.2} GB/s of captured bytes",
+        snap.insert_bytes as f64 / gb / snap.settle_seconds_total.max(1e-9)
+    );
+    assert!(snap.host.bytes <= host_mb << 20, "host tier over budget: {} > {} MiB", snap.host.bytes, host_mb);
+}

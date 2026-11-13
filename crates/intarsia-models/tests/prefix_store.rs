@@ -240,6 +240,53 @@ fn store_deferred_captures_restore_unsettled_then_settle_to_host_and_disk() {
     assert_eq!(s.snapshot().rejected, 0);
 }
 
+/// Many requests through a host tier that holds about two entries: every settle evicts, so the demotes take the evicted
+/// buffers over (stale bytes in them). Whatever the store still finds must come back bit-exact, with and without the disk
+/// tier (where an evicted object's buffer may still be held by the writer), and the host tier stays within its budget.
+#[test]
+fn store_recycled_host_buffers_restore_exact_bytes_under_eviction() {
+    let b = cpu();
+    for disk in [false, true] {
+        let dir = tmpdir(if disk { "recycle-disk" } else { "recycle" });
+        let mut c = cfg(16);
+        c.device_bytes = 1;
+        c.host_bytes = 9_000;
+        if disk {
+            c.disk_dir = Some(dir.clone());
+            c.disk_bytes = 1 << 30;
+        }
+        let mut s = PrefixStore::new(c, &specs(), "recycle").unwrap();
+        let mut kept = Vec::new();
+        for i in 0..8u32 {
+            let t: Vec<u32> = (0..32).map(|j| 1000 * i + j).collect();
+            let a = fake_state(&*b, &t, 64);
+            s.set_defer(true);
+            s.insert(&*b, &a, 32, None, &[]).unwrap();
+            s.settle(&*b, "test");
+            // with the disk tier an object whose write is still queued cannot go yet (its buffer is the writer's): the
+            // tier is over budget until the writer confirms it, and within it at the next settle after that
+            if !disk {
+                assert!(s.snapshot().host.bytes <= 9_000, "{:?}", s.snapshot());
+            }
+            kept.push((t, a));
+        }
+        s.flush();
+        s.settle(&*b, "test");
+        assert!(s.snapshot().host.bytes <= 9_000, "disk {disk}: {:?}", s.snapshot());
+        let mut st = SequenceState::new(&*b, &specs(), 64).unwrap();
+        let mut found = 0;
+        for (t, a) in &kept {
+            if let Some(h) = s.lookup(t, 32) {
+                s.restore(&*b, &mut st, h).unwrap();
+                assert_eq!(dump(&*b, &st), dump(&*b, a), "disk {disk}");
+                found += 1;
+            }
+        }
+        assert!(found >= 2, "disk {disk}: only {found} entries found");
+        assert!(s.snapshot().host.evictions >= 1);
+    }
+}
+
 #[test]
 fn store_disk_survives_restart_and_rejects_corruption_and_other_builds() {
     let b = cpu();
