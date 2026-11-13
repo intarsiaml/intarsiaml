@@ -82,10 +82,15 @@ Results: RESULTS_CUDA
 
 ## Open risks
 
-- **Settle stalls the other stream.** The settle runs on the scheduler thread right after a request's `Done`; the other
-  sequence's next decode step waits for the device-to-host copies (ab35b measured `settle_seconds_total` 73.8 s over 394
-  inserts before #352's pre-faulting). The GPU replay's "other stream inter-token p99 at capture" check is the measure;
-  a background settle or a device tier is the follow-up if it spikes.
+- **Settle stalls the other stream (known cost, accepted for slice 1).** The settle runs on the scheduler thread right after
+  a request's `Done`; the other sequence's next decode step waits for the device-to-host copies: about 70 ms per finished
+  request with #352's pre-faulting (coordinator's spark2 single-engine measurement, 6.8 s over 98 settles; ab35b measured
+  73.8 s over 394 inserts before it). A device tier (`device_mb=8192,host_mb=2048`) cut the single engine's TTFT sum further
+  (56.8 s vs 60.5 s). Moving it off-thread later: the settle is one call at one place (`SeqAdapter::finish`, after
+  `report_done`) on the shared `Arc<Mutex<PrefixStore>>`, so it can become a request to a settle worker (or a scheduler step
+  taken only when no sequence decodes) without touching the restore / schedule / capture hooks; what it needs is the backend
+  copies on a stream of their own, so they do not serialise with the decode stream. The GPU replay's "other stream
+  inter-token p99 at capture" check is the measure.
 - **One deferral flag for the whole store.** A request's settle also moves the captures another request in flight made so
   far; the hook re-arms deferral before each capture, so bits are unaffected, only where the copy cost lands.
 - **A store request's prefill chunk is the model's chunk beside a decoding stream.** On CUDA the busy chunk already equals the
@@ -100,4 +105,11 @@ Results: RESULTS_CUDA
 
 ## Coordinator instructions
 
-(none received yet)
+- 2026-11-13 ~00:05 EST, from the coordinator: PR #352 (this branch's base) got one more commit on
+  `origin/store-settle-off-decode`: the after-Done settle moved out of `run_job` into the worker loop in its own
+  `catch_unwind` (Fable fix), plus doc fixes; it merges to main after CI. Rebase onto origin/main once #352 is merged (or onto
+  `origin/store-settle-off-decode` now). Measured on spark2 (interleaved replay, single engine): with pre-fault the settle
+  costs ~6.8 s over 98 settles (~70 ms per request), TTFT sum 60.5 s, decode 75.1 tok/s; with
+  `--prefix-store device_mb=8192,host_mb=2048` TTFT sum 56.8 s. For the batched store, a settle on the scheduler thread stalls
+  the other stream ~70 ms per finished request: acceptable for slice 1, recorded as a known cost (Open risks), and the design
+  must let it move off-thread later.
