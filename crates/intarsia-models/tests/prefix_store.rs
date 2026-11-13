@@ -998,3 +998,42 @@ fn batched_store_refuses_overlap_pack_and_prewarm() {
     assert!(e.contains("prewarm"), "{e}");
 }
 
+
+#[test]
+fn batched_store_refuses_speculation() {
+    use intarsia_core::spec::{SpecConfig, SpecMode};
+    let mut meta = store_meta(Some(store_cfg()));
+    meta.spec = SpecConfig { mode: SpecMode::Mtp, k: 2, k_min: None };
+    let mut o = BatchedOptions::new(2, 64);
+    o.mtp_max_b = 1;
+    let e = BatchedEngine::new(planned(Kind::Hybrid, 8, 2), Arc::new(Kind::Hybrid.codec()), meta, Arc::new(Telemetry::new()), o)
+        .err()
+        .map(|e| e.to_string())
+        .unwrap_or_default();
+    assert!(e.contains("prefix store") && e.contains("speculative decoding"), "{e}");
+}
+
+/// A prompt that does not fit a slot is rejected before the store is looked up: no lookup, no restore, and the slot keeps what
+/// it held (the next turn of the conversation still finds its history).
+#[test]
+fn batched_store_rejects_an_over_length_prompt_before_the_lookup() {
+    let kind = Kind::Hybrid;
+    let eng = batched_store(kind, 8, store_cfg(), true);
+    let mut a = Chat::new(kind);
+    a.msg(1, 23).msg(2, 9);
+    let t1 = run_batched(&eng, &[(a.prompt(), 4)]).remove(0);
+    let lookups = eng.telemetry().prefix_store.unwrap().lookups;
+    let mut long = a.prompt();
+    long.extend(std::iter::repeat(40).take(eng.info().context_len));
+    let (req, _) = traced(&long, 4);
+    let rx = eng.submit(req).unwrap();
+    let err = rx.iter().find_map(|ev| match ev {
+        GenEvent::Error { message } => Some(message),
+        _ => None,
+    });
+    assert!(err.is_some_and(|m| m.contains("does not fit")), "an over-length prompt must be rejected");
+    assert_eq!(eng.telemetry().prefix_store.unwrap().lookups, lookups, "the rejected prompt was looked up");
+    a.answer(&t1.ids).msg(3, 5);
+    let t2 = run_batched(&eng, &[(a.prompt(), 4)]).remove(0);
+    assert!(t2.cached > 30, "turn 2 reused only {} tokens", t2.cached);
+}

@@ -246,7 +246,8 @@ pub trait BatchSeq<M: BatchModel>: Send {
     /// sequence may cut `local` back to a point of its own chunk schedule, or restore a longer stored prefix into the slot; the
     /// slot then holds at least the returned length, which the scheduler admits with (and truncates to). `Err`: the request
     /// fails (the slot is invalidated). Default: `local`, the slot untouched.
-    fn restore(&mut self, _model: &mut M, _slot: usize, local: usize) -> Result<usize> {
+    /// `idle`: no other request holds a slot (nothing decodes or prefills beside this admission).
+    fn restore(&mut self, _model: &mut M, _slot: usize, local: usize, _idle: bool) -> Result<usize> {
         Ok(local)
     }
     /// Prefix store: the request's own prefill schedule, the length of its next chunk at `pos` with `remaining` rows left
@@ -1013,8 +1014,12 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             self.queued.fetch_sub(1, Ordering::SeqCst);
             did = true;
             let cap = self.model.slot_cap();
-            // the prefix store: the request's own reuse rule, or a stored prefix restored into the slot
-            let cached = match w.seq.restore(&mut self.model, slot, cached) {
+            // the prefix store: the request's own reuse rule, or a stored prefix restored into the slot. Not for a prompt
+            // `admit` rejects (empty, or no room in a slot): it would touch the slot for nothing
+            let plen = w.seq.prompt().len();
+            let idle = self.active.is_empty();
+            let restored = if plen == 0 || plen >= cap { Ok(cached) } else { w.seq.restore(&mut self.model, slot, cached, idle) };
+            let cached = match restored {
                 Ok(c) => c,
                 Err(e) => {
                     w.seq.fail(&e);

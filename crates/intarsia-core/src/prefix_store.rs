@@ -522,7 +522,9 @@ fn debug() -> bool {
     *ON.get_or_init(|| std::env::var_os("INTARSIA_PREFIX_STORE_DEBUG").is_some())
 }
 
-/// Most device memory the deferred captures of one request may hold.
+/// Most device memory the deferred captures may hold between two settles: one request's on the single-sequence engine; on the
+/// batched engine every request in flight shares it (a settle after any request's `Done` resets it), and past it inserts
+/// download to host synchronously, inside the prefill.
 const DEFER_CAP: u64 = 1 << 30;
 
 struct DiskWriter {

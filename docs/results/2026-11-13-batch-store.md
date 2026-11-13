@@ -20,8 +20,10 @@ references were checked against this base; the serve refusal it could not locate
   - `on_chunk(model, slot, start, end, last)`: after every prefill chunk, before the final chunk's output is accepted.
 - **Batched engine** (`crates/intarsia-core/src/engine/batch.rs`):
   - `BatchedEngine::new` opens the store (`StorePolicy::new`, shared with `LocalEngine`; it refuses tensor parallelism).
-  - `submit` attaches the request's `SeqStore` unless it drafts with an MTP / DFlash state (`Seq::new`'s bypass rule), and refuses
-    a prewarm (400): `/v1/intarsia/prefill` and `--prefix-store-pin` stay single-sequence.
+  - `submit` attaches the request's `SeqStore` and refuses a prewarm (400): `/v1/intarsia/prefill` stays single-sequence, and
+    `serve --prefix-store-pin` with `--max-batch` > 1 is refused before the model loads.
+  - Speculative decoding with the store is refused (review fix 1); the recipe's MTP default is already skipped when a store
+    is configured, so this only affects an explicit `--spec mtp`.
   - Admission (`SeqAdapter::restore`): the slot's own prefix cut to a point of the request's store schedule
     (`SeqStore::local_reuse`, under the prefill-clean watermark), then `SeqStore::restore` of a longer stored prefix into the
     slot; deferral on.
@@ -55,22 +57,43 @@ engine's with the store on; later turns report cached tokens; the store shows in
 - `batched_hybrid_multi_turn_without_slot_reuse` (every admission restores from the store: the CUDA case, no batched snapshots)
 - `batched_dense_multi_turn_is_the_single_engine_store_on`
 - `batched_store_refuses_overlap_pack_and_prewarm`
+- `batched_store_refuses_speculation` (review fix 1)
+- `batched_store_rejects_an_over_length_prompt_before_the_lookup` (review fix 3)
 
 Mutation check (each change reverted after): the request taking the scheduler's chunk instead of its own -> hybrid tests fail
 on bits; no clean-watermark update -> every test fails on `inserts > 0`; final chunk split (lone last token) -> hybrid tests
 fail on bits; restore skipped -> every test fails (no hits / nothing cached).
 
-Results (debug build, macOS arm64, all pass; re-run in full on the rebased branch, code at `161c0f5b4`):
+Results (debug build, macOS arm64, all pass; re-run in full after the review fixes, commit named in the review-fix CUDA run below):
 
 | suite | passed |
 |---|---|
-| `intarsia-models --test prefix_store` | 23 (4 new) |
+| `intarsia-models --test prefix_store` | 25 (6 new; 23 before the review fixes) |
 | `intarsia-models --test batch_engine` | 9 |
 | `intarsia-models --test batch_recurrent` | 14 |
 | `intarsia-core --test scheduler` | 40 |
 | `intarsia-core --lib` | 200 (2 ignored) |
 | `intarsia-server` (lib, api, prefix_store) | 25 + 46 + 3 |
 | `intarsia-cli --test docs_env_vars` | 2 |
+| `intarsia-cli --lib` (after the review fixes) | 194 (1 ignored) |
+
+## Review fixes (Fable review of #353, "merge after fixes")
+
+1. `BatchedEngine::new` refuses the store with any speculative decoding at `--max-batch` > 1, before the MTP-head checks
+   (test `batched_store_refuses_speculation`).
+2. Docs: the `DEFER_CAP` comment now says the cap is shared by every request in flight between two settles; the scheduler-thread
+   stalls are listed under Open risks with the planned fix.
+3. The scheduler checks the prompt against the slot capacity before calling `BatchSeq::restore`: an empty or over-length prompt
+   is rejected by `admit` without a lookup, a restore or touching the slot (test
+   `batched_store_rejects_an_over_length_prompt_before_the_lookup`, which fails with the check removed).
+4. Backstop settle: `BatchSeq::restore` gets `idle` (no other request holds a slot); an idle admission settles what a failed
+   request left deferred (the single engine's "prefill start" backstop). Not covered by a test (follow-up 6).
+5. Startup lines: "the backend's packed prefill is off with --max-batch > 1" (new), beside the macro one, plus the workspace size.
+   `Model::set_macro_rows(0)` changes only the schedule: the workspace keeps the size it was planned with at load (macro rows
+   8192 instead of chunk 2048), measured below. Not fixed here (the workspace is planned in `Model::load`, before the engine
+   knows about the store); `INTARSIA_PREFILL_MACRO=0` on the command line avoids it.
+8. Stale comment at `cfg.prefix_reuse = false` fixed; `serve --prefix-store-pin` with `--max-batch` > 1 is refused before the
+   model loads; the PR body and this doc give the same CUDA counts.
 
 ## CUDA (spark1)
 
@@ -123,13 +146,20 @@ loop kept the job's ssh open for ~30 min, holding the GPU slot; it was stopped f
   `busy_chunk = 2048` vs solo 4096, the VL recipe 256) a store request now stalls the other streams for a whole model chunk.
 - **Packed and macro prefill are off with the store** (CUDA defaults): long cold prompts lose the macro speedup (+5 to +10 %
   prefill at 4k to 16k, recipe note) when the store is on.
-- **Drafting requests bypass the store** (as on the single engine). With the store configured the recipe's MTP default is
-  skipped, so the batched store engine decodes plain (68 to 79 tok/s at 8k to 33k in ab35b, vLLM's range).
-- **Explicit `--spec mtp` with the store at `--max-batch` > 1 is untested** (CPU and CUDA). The code path exists: greedy
-  (drafting) requests bypass the store and start from empty slots (batched MTP turns slot reuse off); sampled requests use
-  the store, and a restore leaves the MTP head unsynced until the slot is truncated to 0, which the next drafting request does.
-- A failed request's deferred captures settle at the next successful `finish` (no backstop at admission: it would stall the
-  other stream); bounded by the store's 1 GiB deferral cap.
+- **No MTP with the batched store** (refused). With the store configured the recipe's MTP default is skipped anyway, so the
+  batched store engine decodes plain (68 to 79 tok/s at 8k to 33k in ab35b, vLLM's range).
+- A failed request's deferred captures settle at the next successful `finish`, or at the next admission that finds no other
+  request in flight (backstop, review fix 4); bounded by the store's 1 GiB deferral cap meanwhile.
+- **Scheduler-thread stalls, known slice-1 costs** (review item 2). Everything the store does runs on the scheduler thread,
+  so the other stream's next decode step waits for: (a) a restore at admission, about 0.3 to 0.6 s for a 33k-token prefix
+  (single-engine figures; 46 ms total for the 1.2k + 1.9k restores of the CUDA gate); (b) the settle after each `Done`
+  (~38 ms per request at 1-2.5k tokens here, ~70 ms at 8-33k per the coordinator); (c) once the deferred captures in flight
+  pass `DEFER_CAP` (1 GiB, shared by every request in flight between two settles), synchronous downloads inside the prefill.
+  Planned fix: the settle on a worker with its own copy stream, and a chunked restore (one slice per scheduler iteration),
+  both behind the same hooks.
+- **Follow-ups, not in this PR** (review items 6 and 7): test gaps (no CPU test drives a failure path into the backstop settle,
+  the device tier with the batched engine, or a disk-tier restore under batching; no CUDA run of `batch_cuda_real.rs` on this
+  branch), and the device-tier accounting under two requests sharing the deferral.
 
 ## Coordinator instructions
 
@@ -141,3 +171,18 @@ loop kept the job's ssh open for ~30 min, holding the GPU slot; it was stopped f
   `--prefix-store device_mb=8192,host_mb=2048` TTFT sum 56.8 s. For the batched store, a settle on the scheduler thread stalls
   the other stream ~70 ms per finished request: acceptable for slice 1, recorded as a known cost (Open risks), and the design
   must let it move off-thread later.
+- 2026-11-13 ~01:30 EST, from the coordinator: Fable reviewed #353, verdict "merge after fixes", no bit-corrupting or
+  memory-unsafe bug. Fix on this branch, re-run the CPU gates, rebuild on spark1, re-run `prefix_store_cuda`, report the final
+  commit (the coordinator builds it on spark2 for the replay window):
+  1. merge-blocking: refuse explicit `--spec mtp` + store + `--max-batch` > 1 (greedy requests bypass and get no reuse, sampled
+     requests restore into slots holding an MTP head without `Seq::new`'s `active` / `synced` handling), with a test;
+  2. docs only: correct the `DEFER_CAP` comment (the counter is shared by every request in flight); list the scheduler-thread
+     stalls (a long restore ~0.3-0.6 s at 33k, settle, past-`DEFER_CAP` synchronous downloads mid-prefill) as slice-1 costs
+     with the planned fix (settle on a worker, chunked restore);
+  3. check the prompt against the slot capacity before the restore, so an over-length prompt neither restores nor wipes the slot;
+  4. failure paths never settle: add a backstop settle at admission when no other request is active;
+  5. print a startup line when the store turns packed prefill off; check whether `set_macro_rows(0)` after the states are
+     allocated leaves macro scratch reserved and say how much (fix only if simple);
+  6. test gaps and 7. device-tier accounting: follow-ups, listed in the doc and PR body;
+  8. stale comment at `cfg.prefix_reuse = false` ("stays at batch 1"); refuse `--prefix-store-pin` with `--max-batch` > 1 before
+     the model loads; make the PR body's "2 of 2" and the doc's 4 replies consistent.

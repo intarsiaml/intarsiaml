@@ -513,7 +513,7 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         self.chunk = self.seq.as_ref().and_then(|s| s.ps.as_ref()).map_or(chunk, |ps| ps.chunk);
     }
 
-    fn restore(&mut self, model: &mut SlotModel, slot: usize, local: usize) -> Result<usize> {
+    fn restore(&mut self, model: &mut SlotModel, slot: usize, local: usize, idle: bool) -> Result<usize> {
         let on = self.seq.as_ref().is_some_and(|s| s.ps.is_some());
         model.store_slot[slot] = on;
         if !on {
@@ -527,8 +527,17 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         let ps = seq.ps.as_ref().expect("checked above");
         // the solo engine's rule (`Seq::new`): bitwise reuse only, what prefill wrote at a point of this prompt's own schedule
         let mut p = ps.local_reuse(st, local.min(st.clean));
-        // inserts during this prefill copy device-to-device and leave the host copy for `finish` (after the `Done`)
-        ps.pol.store.lock().unwrap_or_else(|e| e.into_inner()).set_defer(true);
+        {
+            let mut store = ps.pol.store.lock().unwrap_or_else(|e| e.into_inner());
+            if idle && store.deferring() {
+                // a backstop (the single-sequence engine's "prefill start" settle): captures a failed request left on the device,
+                // which no `finish` settled. Only with no other request in flight, whose decode would wait for it
+                store.settle(&*m.backend, "admission");
+                seq.telemetry.set_prefix_store(store.snapshot());
+            }
+            // inserts during this prefill copy device-to-device and leave the host copy for `finish` (after the `Done`)
+            store.set_defer(true);
+        }
         let max_reuse = seq.plen.saturating_sub(1);
         match ps.restore(m, st, &seq.req.prompt, p, max_reuse, &seq.telemetry) {
             Ok(Some((len, took))) => {
@@ -718,10 +727,8 @@ pub struct BatchedEngine {
     verify_rows: usize,
     /// The slots hold recurrent state (hybrid opt-in): no sequence drafts (`Seq::build`).
     recurrent: bool,
-    /// The prefix store (`EngineMeta::prefix_store`), plain decode only: a drafting request bypasses it.
+    /// The prefix store (`EngineMeta::prefix_store`), plain decode only (`BatchedEngine::new` refuses speculation).
     store: Option<StorePolicy>,
-    /// The slots hold an MTP head's or DFlash draft's state: a drafting request bypasses the store (`Seq::new`'s rule).
-    drafter_state: bool,
     /// The model's prefill chunk: the store schedule's chunk.
     solo_chunk: usize,
 }
@@ -749,6 +756,14 @@ impl BatchedEngine {
                 "model prepared for {} batched rows, --max-batch is {} (Model::enable_batch before configure_plan)",
                 model.batch_rows(),
                 opts.max_batch
+            )));
+        }
+        if meta.prefix_store.is_some() && meta.spec.enabled() {
+            // slice 1 of the store here is plain decode: batched MTP turns slot reuse off (a drafting request would get no reuse at
+            // all), and a restore into a slot holding a drafter's cache is not synced the way `Seq::new` syncs it
+            return Err(Error::Unsupported(format!(
+                "the prefix store with --max-batch > 1 and speculative decoding ({:?}; --spec off, or use --max-batch 1)",
+                meta.spec.mode
             )));
         }
         let mtp = meta.spec.mode == crate::spec::SpecMode::Mtp;
@@ -790,7 +805,6 @@ impl BatchedEngine {
         if store.is_some() {
             store_combinations(&mut model, &opts)?;
         }
-        let drafter_state = states[0].mtp.is_some() || states[0].dflash.is_some();
         let cap = states[0].cap;
         let total_kv: u64 = states.iter().map(|s| s.total_bytes() as u64).sum();
         let dinfo = model.backend.info();
@@ -808,7 +822,11 @@ impl BatchedEngine {
         let mut cfg = opts.scheduler_config(solo_chunk);
         if opts.pack_prefill.is_none() {
             // the prefix store turns the backend's default off (its requests never pack; `store_combinations` refuses the opt-in)
-            cfg.pack_prefill = model.backend.pack_prefill_default() && store.is_none();
+            cfg.pack_prefill = model.backend.pack_prefill_default();
+            if cfg.pack_prefill && store.is_some() {
+                eprintln!("prefix store: the backend's packed prefill is off with --max-batch > 1");
+                cfg.pack_prefill = false;
+            }
         }
         if mtp {
             // lane bm: the per-step choice. A sequence drafts (its own draft and verify pass on its slot, `Seq::prepare`) only while
@@ -818,8 +836,8 @@ impl BatchedEngine {
             cfg.prefix_reuse = false;
         }
         if recurrent && model.batch_snapshots() == 0 {
-            // the prefix store stays at batch 1 on this backend: a recurrent slot cannot be rewound, so no slot is a reuse
-            // candidate (every request starts from an empty slot)
+            // no batched snapshots on this backend: a recurrent slot cannot be rewound, so no slot is a reuse candidate (every
+            // request starts from an empty slot; with the prefix store on, its admission restores from the store instead)
             cfg.prefix_reuse = false;
         }
         let vocab = model.dims.vocab;
@@ -845,7 +863,7 @@ impl BatchedEngine {
         let slots =
             SlotModel { model: Arc::new(model), twin, states, row_fault: opts.row_fault, inflight: None, batched_verify, store_slot };
         let engine = if opts.hold_start { BatchEngine::spawn_held(slots, cfg)? } else { BatchEngine::spawn(slots, cfg)? };
-        Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent, store, drafter_state, solo_chunk })
+        Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent, store, solo_chunk })
     }
 
     /// Let an engine built with [`BatchedOptions::hold_start`] start scheduling (no effect on any other engine).
@@ -860,8 +878,8 @@ impl BatchedEngine {
     }
 }
 
-/// The prefix store with the batching engine, slice 1 (docs/tuning.md, `--prefix-store`): plain-decode chunk scheduling only.
-/// The opt-ins that change how a prompt is chunked or where its chunk runs are refused (`INTARSIA_OVERLAP=1`,
+/// The prefix store with the batching engine, slice 1 (docs/tuning.md, `--prefix-store`): plain decode only. Speculative
+/// decoding is refused, and so are the opt-ins that change how a prompt is chunked or where its chunk runs (`INTARSIA_OVERLAP=1`,
 /// `INTARSIA_PACK_PREFILL=1`, `INTARSIA_PREFILL_MACRO` > 0; tensor parallelism is refused by `StorePolicy::new`); a recipe's macro
 /// prefill default is turned off here, the backend's packed-prefill default in [`BatchedEngine::new`].
 fn store_combinations(model: &mut Model, opts: &BatchedOptions) -> Result<()> {
@@ -877,9 +895,11 @@ fn store_combinations(model: &mut Model, opts: &BatchedOptions) -> Result<()> {
         return refuse("macro prefill (INTARSIA_PREFILL_MACRO)");
     }
     if model.macro_rows() > 0 {
+        // the workspace was sized for the macro pass at load and stays so (`Model::set_macro_rows` only changes the schedule)
         eprintln!("prefix store: the recipe's macro prefill ({} rows) is off with --max-batch > 1", model.macro_rows());
         model.set_macro_rows(0);
     }
+    eprintln!("prefix store with --max-batch > 1: workspace {} MiB", model.plan.workspace_bytes >> 20);
     Ok(())
 }
 
@@ -922,11 +942,8 @@ impl Engine for BatchedEngine {
         let plen = req.prompt.len();
         let mut seq = Seq::build(&self.env, req, etx.clone(), self.verify_rows, self.recurrent);
         if let Some(pol) = &self.store {
-            // the store restores the main model's state only, never a drafter's: a drafting request bypasses it (`Seq::new`)
-            let drafting = seq.spec_on && seq.spec_mtp;
-            if !(drafting && self.drafter_state) {
-                seq.ps = Some(SeqStore::new(pol.clone(), &seq.req.prompt, self.recurrent, self.solo_chunk));
-            }
+            // plain decode only: no request drafts with the store on (`BatchedEngine::new` refuses speculation)
+            seq.ps = Some(SeqStore::new(pol.clone(), &seq.req.prompt, self.recurrent, self.solo_chunk));
         }
         let adapter = SeqAdapter {
             seq: Some(seq),
