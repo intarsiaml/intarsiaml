@@ -1143,12 +1143,12 @@ fn batched_dense_multi_turn_is_the_single_engine_store_on() {
 }
 
 /// Lane interleave: chunks that park between layers while the other slot decodes (2 rows per segment of an 8-row chunk), and a
-/// settle in one-object slices: every reply is still bitwise the single-sequence engine's with the store on, decode steps ran
+/// settle in 1 MiB slices (one object each on the tiny models): every reply is still bitwise the single-sequence engine's with the store on, decode steps ran
 /// inside parked chunks, and once idle nothing deferred is left on the device.
 fn batched_multi_turn_paused(kind: Kind) {
     let eng = batched_multi_turn_opts(kind, 8, |o| {
         o.pause_rows = 2;
-        o.settle_slice_mb = 0;
+        o.settle_slice_mb = 1;
     });
     let m = eng.metrics();
     assert!(m.paused_steps > 0, "no decode step ran inside a parked chunk: {m:?}");

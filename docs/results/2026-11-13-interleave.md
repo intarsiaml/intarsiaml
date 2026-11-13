@@ -69,7 +69,7 @@ vLLM (`missioncntrl-guidance`) down 1003 s (16.7 min, cap 35), restored with `/v
 
 | arm | ITL p99 median / worst (client, localeval) | TTFT sum | decode/stream median | combined | wall | server gaps > 0.15 / > 0.25 / > 0.5 s | paused steps | settles whole / slices |
 |---|---|---|---|---|---|---|---|---|
-| vLLM (window 3 baseline) | 304 / 884 ms | 77.8 s | 39.8 tok/s | 58.9 tok/s | 129.1 s | n/a | n/a | n/a |
+| vLLM (window 3, not re-measured in this window) | 304 / 884 ms | 77.8 s | 39.8 tok/s | 58.9 tok/s | 129.1 s | n/a | n/a | n/a |
 | D-store (window 3, #353) | 370 / 1412 ms | 73.4 s | 39.8 tok/s | 57.4 tok/s | 132.2 s | 165 / 104 / 0 | n/a | 47 / 0 |
 | **E-main** (main 10b235785) K=2 | 384 / 1479 ms | 72.5 s | 40.1 tok/s | 57.9 tok/s | 131.1 s | 162 / 103 / 0 of 7548 | n/a | 47 / 0 |
 | **E-il** (this branch) K=2 | **182** / 1201 ms | 77.0 s (+6.2%) | 39.4 tok/s (-1.7%) | 57.1 tok/s | 133.0 s | 116 / **0** / 0 of 7548 | 190 | 18 / 193 |
@@ -84,9 +84,13 @@ Against the targets (K=2):
 - TTFT sum within +5%: **not met** (+6.2%, 72.5 -> 77.0 s).
 - decode tok/s not lower: **not met by 1.7%** (40.1 -> 39.4 median per stream; window 3's D-store on #353 measured 39.8, so run-to-run spread is about 1%).
 
-Why TTFT rose, measured: the sliced settle did move settle work off the critical path (whole settles 6964 ms -> 208 ms; slices 6422 ms in 193 slices, max 56.5 ms; 1 capture of 197 fell to the synchronous host path), but the TTFT sum did not fall from it; on main the after-Done settle evidently did not delay the next admission measurably. The +4.5 s is the parks: 190 decode steps of the partner run inside the prefilling request's chunks, ~24 ms each, which is +4.5 s. That is the inherent trade-off of a bitwise-safe interleave on one GPU stream: a decode step moved into a prefill chunk is serial GPU time added to that chunk, so the time the decoding stream gains comes out of the prefilling stream's TTFT. vLLM avoids the trade by putting decode rows into the prefill pass (nearly free on a compute-bound pass), which changes GEMM row counts and so is ruled out by the batched == single-engine bitwise gate on CUDA.
+Why TTFT rose: **not established.** My first reading (each park adds the partner's ~24 ms decode step to the prefilling request, and the sliced settle saved nothing because main's settle was not on the admission path) did not survive an offline check (advisor review):
+- Paired E-main / E-il requests by (conversation, turn): same prompts, same uncached rows (48/48), and **identical replies 48/48** (temperature 0).
+- Regressing per-request ΔTTFT on estimated parks (store chunks of up to 2048 rows, `ceil(len/768) - 1` parks each): **slope -0.4 ms per park, intercept +97 ms per request** (ΔTTFT sum +4.54 s, median +52 ms). So the TTFT cost does not scale with parks; it is a roughly constant per-request cost whose cause is not identified. Prime suspect: the sliced settle (slices run only in iterations with nothing prefilling, so a new request can wait behind a slice, and slices stall both decoding streams); the parks themselves look nearly free.
+- Server side (metrics diffs): `batch_itl` sum 188.7 s (main) vs 188.3 s (branch) over the same 7548 gaps, `batch_step` sum 125.1 s / 3893 steps vs 121.4 s / 3832, `batch_ttft` sum 71.1 s vs 75.7 s. Total decode time is unchanged; the client decode median moved 40.1 -> 39.4 tok/s (means 41.22 -> 40.90, -0.8%).
+- Consequently the earlier knob projections (1024 / 512 rows) are withdrawn, and whether a setting meets all four targets is open. The next measurement that would settle it: one window with pause on / slicing off and pause off / slicing on as separate arms.
 
-Knob: `INTARSIA_PREFILL_PAUSE_ROWS` moves along this curve without a rebuild. Expected from these numbers (not measured): 1024 rows ≈ 1 park per 2048-row chunk, about +3 s TTFT (+4%) with gaps ≈ 0.19 s; 512 rows ≈ 3 parks, about +7 s (+10%) with gaps ≈ 0.11 s. No setting meets all four targets; 768 (default on this branch) trades +6% TTFT for halving the median p99. Whether the default should stay on is an operator decision (raised in the PR).
+**Defaults changed after this check:** `INTARSIA_PREFILL_PAUSE_ROWS` and `INTARSIA_SETTLE_SLICE_MB` both default to 0 (off) on this branch, so by default the engine behaves as main (whole settle right after `Done`), plus follow-ups (a) (idle settle when `fail_active` empties `active`) and (b) (no settle for a request cancelled while queued). The window above ran the earlier defaults (768 / 48), i.e. both features on. CPU gates rerun after the change: `prefix_store` 32/32, `batch_engine` 9/9, `scheduler` 44/44, `intarsia-core --lib` 201 (2 ignored), `docs_env_vars` 2/2.
 
 ## 5. CUDA gate (spark1) and the merge of main
 
