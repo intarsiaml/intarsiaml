@@ -95,6 +95,31 @@ Results (debug build, macOS arm64, all pass; re-run in full after the review fix
 8. Stale comment at `cfg.prefix_reuse = false` fixed; `serve --prefix-store-pin` with `--max-batch` > 1 is refused before the
    model loads; the PR body and this doc give the same CUDA counts.
 
+## Merge of main with #354 (slab reuse, host buffer recycling)
+
+Conflicts resolved keeping both sides: `prefix_store.rs` (#354's capture timing, slab constants; this branch's `DEFER_CAP`
+comment, now also naming the slabs), `prefix_store_cuda.rs` (both new tests kept), `docs/tuning.md` (#354's line numbers and its
+sentence on memory beyond the tier budgets, with "a request holds at most 1 GiB of slabs" generalised to the requests in
+flight between two settles).
+
+Can A's settle recycle a slab that B's capture still points into? No, in the 2-slot case either:
+- every `insert` (the capture: carve, copy, register the objects) and every `settle` runs under the one store mutex, and once
+  `insert` returns, a capture's only reference to its slab is inside the store's own objects (`Mem::Device(slab, offset)`);
+  the batched engine keeps no `Buffer` of its own;
+- slabs are used only without a device tier (`device_mb` 0), so `settle` demotes every device object, B's as well as A's,
+  before `recycle_slabs` runs; a slab is pooled only at `strong_count() == 1`, i.e. when no object holds it any more;
+- B's next capture is carved from a pooled slab after that, so its copies cannot overwrite a live entry; copies and restores
+  are ordered on the one stream (overlap is refused with the store).
+
+New store-level test `store_two_requests_share_the_deferral_and_recycled_slabs`: A and B capture interleaved under one
+deferral, a settle after A's `Done` while B is mid-prefill, B captures again from the recycled slab; all entries restore
+bitwise, before and after the final settle (3 rounds). The existing batched multi-turn tests run the same interleaving through
+the engine and still pass bitwise. Note: in this configuration the `strong_count` guard never rejects a slab (settle has
+demoted everything); it matters only for an object a demote could not move.
+
+Mac gates on the merged tree: `prefix_store` 29 (7 new on this branch + #354's), `batch_engine` 9, `intarsia-core --test scheduler`
+40, `intarsia-core --lib` 200 (2 ignored), `docs_env_vars` 2; `prefix_store_cuda` compiles (macOS cfg stripped for the check).
+
 ## CUDA (spark1)
 
 New `prefix_store_batched_is_single_engine_cuda` in `crates/intarsia-models/tests/prefix_store_cuda.rs`: two chats on the 35B,

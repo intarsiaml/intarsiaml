@@ -29,9 +29,29 @@ unconstrained one, on-device argmax included.
 whitespace: a greedy model can otherwise pad with whitespace until it hits `max_tokens`. A schema's own `x-guidance`
 object (llguidance's JSON options) overrides this.
 
-**Tool-call format.** Tool calls use the hermes format of the Qwen chat templates, `<tool_call>\n{"name": ..., "arguments":
-{...}}\n</tool_call>`. Constraining them needs `tool_parser = "hermes"` in the recipe (Qwen3, Qwen3.5, Qwen3.6). On
-other models:
+**Tool-call format.** The recipe's `tool_parser` picks the dialect, which is the one the model's chat template teaches
+and renders history in. Both share the `<tool_call>` / `</tool_call>` tags (and the streaming hold-back); they differ
+in the body:
+- `hermes` (Qwen3): `<tool_call>\n{"name": ..., "arguments": {...}}\n</tool_call>`, the body constrained by the call's
+  JSON schema.
+- `qwen3_xml` (Qwen3.5, Qwen3.6, Qwen3.8, as vLLM's parser of the same name; `recipes/qwen3_5*.toml`):
+  `<tool_call>\n<function=NAME>\n<parameter=ARG>\nVALUE\n</parameter>\n</function>\n</tool_call>`, several calls
+  separated by `\n`. A string parameter is the raw text up to the first `\n</parameter>` (a lazy llguidance lexeme with
+  that stop; an `enum` or `const` string is its members). Any other parameter is JSON constrained to its property
+  schema (the template writes it with `tojson`). Parameters come in the schema's property order; `required` ones
+  must be there, the others may be skipped. A property with no type is a string. The parser reads a string as it is
+  (the `\n` after the opening tag is the template's), and parses a non-string value as JSON by its property's schema, keeping the
+  raw text when it is not JSON (Python's `True`, `False` and `None` count as JSON). A string or null union
+  (`type: ["string", "null"]`, `anyOf`) is raw text, where the text `null` is null. A tool with no `properties`
+  (`{"type": "object"}`) or `additionalProperties` that is not `false` may also carry any other parameter, a raw
+  string, which the parser types as JSON when it parses. A string ends at the first `\n</parameter>` followed by a newline
+  (or the end of the call), so it may hold a bare `</parameter>`. A parameter name with `>` or a newline is a 400. Not
+  enforced: string `maxLength` / `pattern`.
+
+A call that the assistant made earlier in the conversation is rendered by the template in the same format. The
+OpenAI API carries its `arguments` as a JSON string; the server hands the template an object when the template needs one
+(`ChatTemplate::render`), so the history round-trips byte for byte (a test renders it with the real Qwen3.8 and
+Qwen3.5 templates). On other models:
 - `required` or a named function returns 400;
 - `auto` behaves as before: the tools reach the template and the output stays text.
 
@@ -45,7 +65,7 @@ other models:
 - `tool_choice` without `tools`, or naming a tool that is not in `tools`;
 - `response_format` together with tools (unless `tool_choice` is `none`);
 - `ignore_eos` or `min_tokens` together with a constraint (the grammar ends with EOS);
-- a model without `tokenizer.json`, or `required` / named tools on a model without hermes tool calls.
+- a model without `tokenizer.json`, or `required` / named tools on a model without a tool-call format (`tool_parser`).
 
 ## Design
 
@@ -64,7 +84,7 @@ other models:
     argmax for every row and downloads logits only for `LastLogits` rows (`Model::forward_batch`). Unconstrained rows
     therefore keep their device argmax next to constrained ones. The cost each constrained row adds to the shared step
     is one row download (V x 4 bytes, about 600 KB for Qwen3), the same cost a sampled row already adds.
-  - **Behaviour change for `tools`.** On a hermes model `tool_choice` defaults to `auto`, so a request with `tools` now
+  - **Behaviour change for `tools`.** On a model with a tool-call format `tool_choice` defaults to `auto`, so a request with `tools` now
     carries a lazy constraint. It therefore gets no speculative drafts, and it gets a 400 when combined with
     `ignore_eos` or `min_tokens`, even before any `<tool_call>` appears. A request without `tools` or `response_format`
     is unaffected.
@@ -93,13 +113,22 @@ as llama.cpp and vLLM do.
 
 Models with a reasoning parser in their recipe (`reasoning_parser = "think-tags"`: Qwen3, Qwen3.5, Qwen3.6) write
 `<think>...</think>` before the answer. intarsia splits it out and keeps the constraint off until the think block is
-closed. This is **opt-in per request**; a request that does not turn thinking on is answered exactly as before
-(greedy ids and bytes unchanged).
+closed. Whether a request is split follows the template, as vLLM's `--reasoning-parser qwen3` does for every request:
+the Qwen3.5+ templates open the block themselves (the rendered prompt ends with `<think>\n`) unless thinking is turned
+off, so a stock OpenAI client that sends no `chat_template_kwargs` gets `reasoning_content` and a clean `content`.
 
-**Turning it on.** `chat_template_kwargs: {"enable_thinking": true}` on `/v1/chat/completions`, or `thinking:
-{"type": "enabled", "budget_tokens": N}` (or the same `chat_template_kwargs`) on `/v1/messages`. `budget_tokens` is
-accepted and not enforced: the think section is bounded only by `max_tokens`. On a model without a reasoning parser the
-flag only reaches the chat template, as before.
+**When it applies.** The model has a reasoning parser, and
+- `enable_thinking: false` (or `thinking: {"type": "disabled"}`): never split;
+- `enable_thinking: true` (`chat_template_kwargs` on `/v1/chat/completions`, or `thinking: {"type": "enabled",
+  "budget_tokens": N}` or the same `chat_template_kwargs` on `/v1/messages`): split;
+- nothing said: split when the rendered prompt ends with `<think>\n`. A template that closes the block in the prompt
+  (`<think>\n\n</think>\n\n`, as the Qwen3.5-0.8B-Base and 2B templates do unless thinking is asked for) is answered as
+  generated, and so is a template that does not mention `<think>` (Qwen3 with no flag: the model writes the block
+  itself; send `enable_thinking: true` to split it).
+
+The server never fills in `enable_thinking` for the template: the prompt is what the template makes of the request as sent
+(and `/v1/intarsia/prefill` renders the same). `budget_tokens` is accepted and not enforced: the think section is
+bounded only by `max_tokens`. On a model without a reasoning parser the flag only reaches the chat template.
 
 **Output.** The text before `</think>` is the reasoning, the text after it is the answer. A leading `<think>` is
 dropped (newer templates put it in the prompt), and the whitespace around the tags is trimmed. Output without a
@@ -115,20 +144,20 @@ Streams send every reasoning delta before the first content delta. `/v1/completi
 `return_token_ids`, a streamed reasoning request does not report per-delta `token_ids` (the choice-level `token_ids` of
 a non-streamed response is unchanged).
 
-**Constraints.** With thinking on, `response_format`, `tool_choice: required` / a named tool, and `auto` are all gated:
+**Constraints.** With reasoning split (as above), `response_format`, `tool_choice: required` / a named tool, and `auto` are all gated:
 nothing is masked until the model emits the `</think>` token, so the think section is free text (a `<tool_call>` inside
 it does not open a call). Then the grammar starts from the first answer token. This is the same lazy-trigger mechanism
 as `tool_choice: auto` (`TokenConstraint::active`): until `</think>` the request decodes like an unconstrained one.
-The model's usual `\n\n` after `</think>` is not valid JSON, so the grammar leaves it out and `content` starts with the
-JSON itself.
+The template's usual `\n\n` after `</think>` may come before the constrained text (the grammar takes an optional `"\n\n"`
+first); the reasoning parser trims it, so `content` starts with the JSON or the call itself.
 - The tokenizer needs a single `</think>` token (Qwen3 has one); otherwise a constrained thinking request returns 400.
 - If the model never closes the think block, the output is reasoning only and never constrained.
 - J1's rules are unchanged: a constrained request never uses speculative decoding, and `Seq::feedback_ok` still excludes
   constraints. Gated requests count as constrained from the first step.
 
-Thinking off (`enable_thinking: false` / `thinking: {type: "disabled"}`), or not stated at all, keeps the old
-behaviour: the grammar applies from the first generated token. On a Qwen3 template with thinking left at its default,
-a constrained request therefore answers directly, with no `<think>` block.
+With the reasoning not split (`enable_thinking: false` / `thinking: {type: "disabled"}`, a closed or absent think block
+in the prompt, or no reasoning parser) the grammar applies from the first generated token. Tool calls are parsed only
+from the content after the split, never from inside the think block.
 
 ## Tests
 
