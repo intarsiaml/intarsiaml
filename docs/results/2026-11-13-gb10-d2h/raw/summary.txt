@@ -1,0 +1,42 @@
+               total        used        free      shared  buff/cache   available
+Mem:             121          39          32           0          51          82
+NVIDIA GB10, 580.178.04
+6.17.0-1032-nvidia
+1
+== p1_baseline: /home/nvidia/intarsia-gb10-d2h/repo/scripts/gb10-d2h/run.sh /home/nvidia/intarsia-gb10-d2h/repo /home/nvidia/intarsia-gb10-d2h/out --iters 200
+   exit 0 : TOTAL runs=28000 bad=0 | ours_bad=0 sync(positive control)_bad=0 bounce_bad=0 | wall 169.9 s
+== p2_large: /home/nvidia/intarsia-gb10-d2h/repo/scripts/gb10-d2h/run.sh /home/nvidia/intarsia-gb10-d2h/repo /home/nvidia/intarsia-gb10-d2h/out --iters 200 --sizes 268435456,629145600 --methods ours,sync_drv --kinds fresh,cold
+   exit 0 : TOTAL runs=1600 bad=0 | ours_bad=0 sync(positive control)_bad=0 bounce_bad=0 | wall 366.3 s
+== p3_pressure: /home/nvidia/intarsia-gb10-d2h/repo/scripts/gb10-d2h/run.sh /home/nvidia/intarsia-gb10-d2h/repo /home/nvidia/intarsia-gb10-d2h/out --iters 200 --threads 4 --pressure 12 --gpuload --sizes 4096,303104,1048576,16777216 --methods ours,ours_hp,sync_rt,sync_drv --kinds fresh,cold,rand_off
+   exit 0 : TOTAL runs=38400 bad=0 | ours_bad=0 sync(positive control)_bad=0 bounce_bad=0 | wall 133.6 s
+== p4_pagecache: /home/nvidia/intarsia-gb10-d2h/repo/scripts/gb10-d2h/run.sh /home/nvidia/intarsia-gb10-d2h/repo /home/nvidia/intarsia-gb10-d2h/out --iters 200 --threads 4 --pressure 12 --sizes 303104,4194304,67108864 --methods ours,sync_rt,sync_drv --kinds fresh,cold
+   exit 0 : TOTAL runs=14400 bad=0 | ours_bad=0 sync(positive control)_bad=0 bounce_bad=0 | wall 117.8 s
+== p5_many: /home/nvidia/intarsia-gb10-d2h/repo/scripts/gb10-d2h/run.sh /home/nvidia/intarsia-gb10-d2h/repo /home/nvidia/intarsia-gb10-d2h/out --iters 3000 --threads 8 --pressure 8 --sizes 303104 --methods ours,sync_drv --kinds fresh,cold
+   exit 0 : TOTAL runs=96000 bad=0 | ours_bad=0 sync(positive control)_bad=0 bounce_bad=0 | wall 40.6 s
+DONE
+               total        used        free      shared  buff/cache   available
+Mem:             121          38          31           0          52          82
+NVIDIA GB10, 580.178.04
+6.17.0-1032-nvidia
+1
+== p6_thp_pageout: /home/nvidia/intarsia-gb10-d2h/repo/scripts/gb10-d2h/run.sh /home/nvidia/intarsia-gb10-d2h/repo /home/nvidia/intarsia-gb10-d2h/out --iters 200 --threads 4 --pressure 12 --sizes 303104,4194304,16777216,67108864 --methods ours,sync_rt,sync_drv --kinds thp,pageout
+   exit 0 : TOTAL runs=19200 bad=0 | ours_bad=0 sync(positive control)_bad=0 bounce_bad=0 | wall 342.2 s
+== p7_soak: /home/nvidia/intarsia-gb10-d2h/repo/scripts/gb10-d2h/run.sh /home/nvidia/intarsia-gb10-d2h/repo /home/nvidia/intarsia-gb10-d2h/out --iters 2000 --threads 8 --pressure 12 --sizes 4096,303104,1048576 --methods ours,ours_hp,sync_drv --kinds fresh,cold,rand_off,thp,pageout
+   exit 0 : TOTAL runs=720000 bad=0 | ours_bad=0 sync(positive control)_bad=0 bounce_bad=0 | wall 361.8 s
+DONE
+               total        used        free      shared  buff/cache   available
+Mem:             121          38          31           0          52          82
+NVIDIA GB10, 580.178.04
+6.17.0-1032-nvidia
+1
+== p8_selftest: /home/nvidia/intarsia-gb10-d2h/repo/scripts/gb10-d2h/run.sh /home/nvidia/intarsia-gb10-d2h/repo /home/nvidia/intarsia-gb10-d2h/out --iters 20 --sizes 303104,4194304 --methods ours,mut_noop,mut_skippage --kinds fresh,cold,pageout --no-pool
+   exit 0 : TOTAL runs=360 bad=0 | ours_bad=0 sync(positive control)_bad=0 bounce_bad=0 | wall 0.9 s
+DONE
+               total        used        free      shared  buff/cache   available
+Mem:             121          38          31           0          52          82
+NVIDIA GB10, 580.178.04
+6.17.0-1032-nvidia
+1
+== p8_selftest: /home/nvidia/intarsia-gb10-d2h/repo/scripts/gb10-d2h/run.sh /home/nvidia/intarsia-gb10-d2h/repo /home/nvidia/intarsia-gb10-d2h/out --iters 20 --sizes 303104,4194304 --methods ours,mut_noop,mut_skippage --kinds fresh,cold,pageout --no-pool
+   exit 0 : TOTAL runs=360 bad=0 | ours_bad=0 sync(positive control)_bad=0 bounce_bad=0 | wall 1.0 s
+DONE
