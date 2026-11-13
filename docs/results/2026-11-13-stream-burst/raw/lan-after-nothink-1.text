@@ -1,0 +1,34 @@
+# How a Hash Map Works: A Comprehensive Explanation
+
+A **hash map** (also known as a hash table, associative array, or dictionary) is one of the most fundamental and widely used data structures in computer science. It provides an efficient way to store and retrieve data using **key-value pairs**, offering an average time complexity of **O(1)** for insertion, deletion, and lookup operations.
+
+This explanation will cover:
+1. Core concepts and terminology
+2. The hashing mechanism
+3. Collision handling strategies
+4. Resizing and load factor
+5. A detailed step-by-step example
+6. Real-world applications
+7. Pros and cons
+
+---
+
+## 1. Core Concepts
+
+A hash map is essentially an array indexed by **keys** rather than by integer indices. Instead of manually managing indices, the hash map uses a **hash function** to compute an index from the key. This allows direct access to values without searching through the entire structure.
+
+### Key Components:
+- **Key**: A unique identifier (e.g., a string, integer, or object) used to look up a value.
+- **Value**: The data associated with the key.
+- **Hash Function**: A function that takes a key and returns an integer (the hash code), which is then mapped to an array index.
+- **Bucket**: Each position in the underlying array is called a bucket. Multiple keys may map to the same bucket, leading to **collisions**.
+- **Load Factor**: The ratio of the number of stored elements to the total number of buckets. It determines when the hash map should resize.
+
+---
+
+## 2. The Hashing Mechanism
+
+The heart of a hash map is the **hash function**. Its purpose is to convert a key into an integer index within the bounds of the underlying array.
+
+### Ideal Properties of a Hash Function:
+1. **Deterministic**: The same key always produces the
