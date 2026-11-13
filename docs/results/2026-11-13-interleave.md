@@ -147,3 +147,13 @@ Findings:
 
 Against the brief's targets with the pause alone (768): median p99 met (180 ms); worst p99 1014 ms (target ~900, not met; vLLM 884); TTFT sum met (-0.6% vs off); decode -1.3% (gate "must not drop": not met). Recommendation: pause opt-in at 768 for deployments that weigh the ITL tail over ~1% throughput; **slicing not recommended** (kept opt-in and documented as needing pauses). Both defaults stay 0 in this PR; flipping the pause default is the operator's call.
 
+## 10. Fable fixes and final-HEAD gates
+
+- Fix 1 (idle settle after a failed request): `SlotModel` keeps the engine's store handle; `Housekeep::Idle` settles whenever the store is deferring (or a sliced settle is pending), so a request that failed after its prefill (`fail_active`, never `finish`) no longer leaves its captures on the device until the next admission. Test `batched_store_failed_request_settles_when_idle` (row fault after prefill; device tier empty with no further admission; whole and sliced settle); negative control: without the store handle it fails ("captures stayed on the device").
+- Fix 2: `settle_some` calls `poll_writer` first.
+- Fix 3: documented (`docs/tuning.md`, `BatchedOptions::settle_slice_mb`) that `INTARSIA_SETTLE_SLICE_MB` is meant with `INTARSIA_PREFILL_PAUSE_ROWS` (no relief valve without pauses). Window 2 confirms the cost (F-slice: 8 synchronous host captures).
+- Fix 4 (slices inside parked chunks): left at the existing near-cap gate (deferred bytes > DEFER_CAP/2); window 2 shows slicing is not worth enabling, so it stays opt-in and not recommended rather than tuned.
+- Final HEAD `ed83ce96d`, CPU (macOS): `batch_engine` 9/9, `prefix_store` 33/33, `scheduler` 44/44, `intarsia-core --lib` 201 (2 ignored), `docs_env_vars` 2/2, server metrics 1/1.
+- Final HEAD `ed83ce96d`, CUDA (spark1, fleetq #9241, build + test in one `--quiet gpu --mem 45` slot): `INTARSIA_PREFILL_PAUSE_ROWS=256 INTARSIA_SETTLE_SLICE_MB=48`, `prefix_store_cuda` **2/2 passed** (183 s); all 4 batched replies bitwise the single engine's (store on), cached 1871 / 1168 match; 4 settle slices ran; MemAvailable after 82 GB.
+- Shipped defaults (both switches 0): window 2's F-off arm is the "replay identical to main" check (replies 48/48 identical to main, TTFT and gap counts within run spread).
+
