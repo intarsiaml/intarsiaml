@@ -1,7 +1,7 @@
 //! OpenAI-compatible endpoints.
 
 use crate::api::*;
-use crate::structured::{self, Part, Piece, ThinkStream, ToolFormat, ToolParser};
+use crate::structured::{self, Part, Piece, ReasoningParser, ToolFormat, ToolParser};
 use axum::extract::{Path, State};
 use axum::response::sse::Event;
 use axum::response::{IntoResponse, Json, Response};
@@ -178,7 +178,9 @@ async fn chat_inner(
     let format = structured::response_format(&req.response_format).map_err(bad)?;
     let tool_format = ToolFormat::from_parser(info.tool_parser.as_deref());
     let parallel = req.parallel_tool_calls.unwrap_or(true);
+    let has_response_format = format.is_some();
     let (plan, parse_tools) = structured::choose(format, &tools, &choice, parallel, tool_format).map_err(bad)?;
+    let stage = structured::tool_stage(parse_tools, tool_format, &tools, has_response_format);
 
     // Content-part arrays become plain strings (templates call string methods).
     let mut messages = Vec::with_capacity(req.messages.len());
@@ -234,19 +236,22 @@ async fn chat_inner(
         let mut finish = finish_str(c.finish);
         let mut answer = c.text.clone();
         if think {
-            let (reasoning, content) = ThinkStream::parse_all(&c.text, parse_tools.map(|f| ToolParser::new(f, &tools)));
+            let (reasoning, content) = ReasoningParser::parse_all(&c.text);
             message["reasoning_content"] = reasoning.map_or(Value::Null, Value::String);
             answer = content.unwrap_or_default();
             message["content"] = json!(answer);
         }
-        if let Some(format) = parse_tools {
-            let (content, calls) = structured::split_calls(&answer, format, &tools);
-            if !calls.is_empty() {
+        if let Some((format, mode)) = stage {
+            let (content, calls) = structured::split_calls_with(&answer, format, &tools, mode);
+            if calls.is_empty() {
+                if format == ToolFormat::Qwen3Xml {
+                    message["content"] = json!(content.unwrap_or_default());
+                }
+            } else {
                 message["content"] = content.map_or(Value::Null, Value::String);
                 message["tool_calls"] = calls.iter().map(|(n, a)| tool_call(st.new_id("call"), n, a)).collect();
-                if c.finish != FinishReason::Length {
-                    finish = "tool_calls";
-                }
+                // as vLLM: a reply with calls ends with `tool_calls`, a cut-off one too
+                finish = "tool_calls";
             }
         }
         let v = json!({
@@ -272,8 +277,8 @@ async fn chat_inner(
         None => json!({"content": text}),
     };
     // tool calls are parsed out of the text (token ids are not reported per delta then)
-    let mut tp = parse_tools.map(|f| ToolParser::new(f, &tools));
-    let mut rp = think.then(|| ThinkStream::new(parse_tools.map(|f| ToolParser::new(f, &tools))));
+    let mut tp = stage.map(|(f, m)| ToolParser::with_mode(f, &tools, m));
+    let mut rp = think.then(ReasoningParser::default);
     let mut ncalls = 0usize;
     let st2 = st.clone();
     let sse = sse_from(rx, vec![first], move |ev| match ev {
@@ -317,7 +322,7 @@ async fn chat_inner(
             } else if let Some((i, t)) = hold.finish(finish_reason, stop_sequence.is_some(), completion_tokens) {
                 out.push(sse_json(None, &chunk(delta_of(i, t), None, inc)));
             }
-            let fr = if ncalls > 0 && finish_reason != FinishReason::Length { "tool_calls" } else { finish_str(finish_reason) };
+            let fr = if ncalls > 0 { "tool_calls" } else { finish_str(finish_reason) };
             out.push(sse_json(None, &chunk(json!({}), Some(fr), inc)));
             if inc {
                 out.push(sse_json(
@@ -348,8 +353,8 @@ async fn chat_inner(
 }
 
 /// The reasoning a stream still holds when it ends without a clean finish, as reasoning deltas (never as a call).
-fn held_reasoning(rp: Option<&mut ThinkStream>) -> Vec<Value> {
-    let parts: Vec<Part> = rp.map(|rp| rp.abort()).unwrap_or_default();
+fn held_reasoning(rp: Option<&mut ReasoningParser>) -> Vec<Value> {
+    let parts: Vec<Part> = rp.map(|rp| rp.finish()).unwrap_or_default();
     parts
         .into_iter()
         .filter_map(|p| match p {

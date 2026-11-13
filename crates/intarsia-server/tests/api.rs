@@ -1627,7 +1627,7 @@ async fn openai_json_schema_waits_for_the_close_tag_when_thinking() {
 
 #[tokio::test]
 async fn openai_tool_calls_come_out_of_the_content_after_the_think_block() {
-    let want = "<think>\nwhich tool? <tool_call> no\n</think><tool_call>\n{\"name\": \"get_weather\", \"arguments\": {\"city\": \"Paris\"}}\n</tool_call>";
+    let want = "<think>\nwhich tool? no\n</think><tool_call>\n{\"name\": \"get_weather\", \"arguments\": {\"city\": \"Paris\"}}\n</tool_call>";
     for choice in [json!("required"), json!("auto")] {
         let (app, _) = thinking_mock(Some(want), None);
         for stream in [false, true] {
@@ -1643,13 +1643,13 @@ async fn openai_tool_calls_come_out_of_the_content_after_the_think_block() {
             if stream {
                 let (r, _) = chat_stream_reasoning(&out);
                 let (_, calls, finish) = chat_stream_parts(&out);
-                assert_eq!(r, "which tool? <tool_call> no", "{choice}");
+                assert_eq!(r, "which tool? no", "{choice}");
                 assert_eq!((calls.len(), finish.as_str()), (1, "tool_calls"), "{choice}");
                 assert_eq!(calls[0]["function"]["name"], "get_weather");
             } else {
                 let v: Value = serde_json::from_str(&out).unwrap();
                 let m = &v["choices"][0]["message"];
-                assert_eq!(m["reasoning_content"], "which tool? <tool_call> no", "{choice}");
+                assert_eq!(m["reasoning_content"], "which tool? no", "{choice}");
                 assert_eq!(m["tool_calls"][0]["function"]["name"], "get_weather");
                 assert_eq!(v["choices"][0]["finish_reason"], "tool_calls");
             }
@@ -1657,121 +1657,150 @@ async fn openai_tool_calls_come_out_of_the_content_after_the_think_block() {
     }
 }
 
-const WEATHER_CALL: &str = "<tool_call>\n{\"name\": \"get_weather\", \"arguments\": {\"city\": \"Paris\"}}\n</tool_call>";
+/// The vLLM table (docs/structured-output.md, "A tool call while reasoning"), through the OpenAI and Anthropic handlers,
+/// whole and streamed. The model is the `qwen3_xml` mock that thinks by default and says `text` in one piece.
+fn vllm_mock(text: &'static str, finish: FinishReason) -> Router {
+    let m = Arc::new(Mock {
+        structured: true,
+        xml: true,
+        think: true,
+        think_prompt: ThinkPrompt::OpenByDefault,
+        script: Some((vec![(65, text)], 1, finish)),
+        ..Default::default()
+    });
+    app_with(m)
+}
 
-/// A call written as the last thing before `</think>` is the reply's call (vLLM's qwen3 parser lifts it), whole and
-/// streamed, with `finish_reason` `tool_calls`; a call followed by an answer or more reasoning stays reasoning.
+/// `(reasoning, content, tool calls' arguments, finish_reason)` of an OpenAI reply.
+async fn openai_vllm(app: &Router, extra: Value, stream: bool) -> (String, String, Vec<Value>, String) {
+    let mut body = json!({"messages": user("q"), "max_tokens": 300, "stream": stream});
+    for (k, v) in extra.as_object().unwrap() {
+        body[k] = v.clone();
+    }
+    let (st, _, out) = call(app, "POST", "/v1/chat/completions", Some(body)).await;
+    assert_eq!(st, StatusCode::OK, "{out}");
+    if stream {
+        let (r, _) = chat_stream_reasoning(&out);
+        let (c, calls, finish) = chat_stream_parts(&out);
+        let args = calls.iter().map(|c| serde_json::from_str(c["function"]["arguments"].as_str().unwrap()).unwrap()).collect();
+        (r, c, args, finish)
+    } else {
+        let v: Value = serde_json::from_str(&out).unwrap();
+        let m = &v["choices"][0]["message"];
+        let args = m["tool_calls"]
+            .as_array()
+            .map(|a| a.iter().map(|c| serde_json::from_str(c["function"]["arguments"].as_str().unwrap()).unwrap()).collect())
+            .unwrap_or_default();
+        (
+            m["reasoning_content"].as_str().unwrap_or("").to_string(),
+            m["content"].as_str().unwrap_or("").to_string(),
+            args,
+            v["choices"][0]["finish_reason"].as_str().unwrap().to_string(),
+        )
+    }
+}
+
 #[tokio::test]
-async fn openai_trailing_call_before_the_close_is_lifted() {
-    let lifted: &'static str = Box::leak(format!("<think>\nwhich tool?\n{WEATHER_CALL}\n</think>\n\n").into_boxed_str());
-    let two: &'static str = Box::leak(format!("<think>\nwhich tool?\n{WEATHER_CALL}\n{WEATHER_CALL}\n</think>").into_boxed_str());
-    let answered: &'static str = Box::leak(format!("<think>\nwhich tool?\n{WEATHER_CALL}\n</think>\n\nDone.").into_boxed_str());
-    let more: &'static str = Box::leak(format!("<think>\nwhich tool?\n{WEATHER_CALL}\nmore\n</think>").into_boxed_str());
-    // (reply, calls, reasoning, content, finish)
-    let cases: [(&'static str, usize, String, &str, &str); 4] = [
-        (lifted, 1, "which tool?".into(), "", "tool_calls"),
-        (two, 2, "which tool?".into(), "", "tool_calls"),
-        (answered, 0, format!("which tool?\n{WEATHER_CALL}"), "Done.", "stop"),
-        (more, 0, format!("which tool?\n{WEATHER_CALL}\nmore"), "", "stop"),
+async fn openai_vllm_table_tool_call_while_reasoning() {
+    let call_text = XML_CALL;
+    let leak = |s: String| -> &'static str { Box::leak(s.into_boxed_str()) };
+    let tools = json!({"tools": xml_weather_tools(), "tool_choice": "auto"});
+    let cut = "plan\n<tool_call>\n<function=get_weather>\n<parameter=city>\nParis\n</parameter>\n<parameter=days>\n3";
+    // (reply, finish of the engine, request extras, reasoning, content, call arguments, finish_reason)
+    let rows: Vec<(&'static str, FinishReason, Value, &str, &str, Vec<Value>, &str)> = vec![
+        // a call as the last thing before the close, with no answer
+        (leak(format!("plan\n{call_text}\n</think>")), FinishReason::Stop, tools.clone(), "plan", "", vec![xml_args()], "tool_calls"),
+        // wherever it sits: more reasoning and an answer after it are dropped, the later close is absorbed
+        (leak(format!("plan\n{call_text}\nmore</think>Answer.")), FinishReason::Stop, tools.clone(), "plan", "", vec![xml_args()], "tool_calls"),
+        // no close at all
+        (leak(format!("plan\n{call_text}")), FinishReason::Stop, tools.clone(), "plan", "", vec![xml_args()], "tool_calls"),
+        // several calls
+        (leak(format!("plan\n{call_text}\n{call_text}")), FinishReason::Stop, tools.clone(), "plan", "", vec![xml_args(), xml_args()], "tool_calls"),
+        // cut by max_tokens: the call with its whole parameters, and still `tool_calls`
+        (cut, FinishReason::Length, tools.clone(), "plan", "", vec![json!({"city": "Paris"})], "tool_calls"),
+        // a closed envelope with no call in it is nothing; the text after it is content
+        ("plan\n<tool_call>junk</tool_call> after</think>", FinishReason::Stop, tools.clone(), "plan", " after", vec![], "stop"),
+        // the tag in prose: the reasoning ends there and the rest is swallowed
+        ("I will write <tool_call> later.</think>Answer.", FinishReason::Stop, tools.clone(), "I will write", "", vec![], "stop"),
+        // no tools: the call is thrown away, the text after it dropped
+        (leak(format!("plan\n{call_text}\nmore</think>Answer.")), FinishReason::Stop, json!({}), "plan", "", vec![], "stop"),
+        // tool_choice none: the markup is cut out, the text stays
+        (
+            leak(format!("plan\n{call_text}\nmore</think>Answer.")),
+            FinishReason::Stop,
+            json!({"tools": xml_weather_tools(), "tool_choice": "none"}),
+            "plan",
+            "\nmoreAnswer.",
+            vec![],
+            "stop",
+        ),
     ];
-    for (want, ncalls, reasoning, content, finish) in cases {
-        let (app, _) = thinking_mock(Some(want), None);
+    for (text, engine_finish, extra, reasoning, content, args, finish) in rows {
+        let app = vllm_mock(text, engine_finish);
         for stream in [false, true] {
-            let (st, _, out) = call(
-                &app,
-                "POST",
-                "/v1/chat/completions",
-                Some(json!({"messages": user("q"), "tools": weather_tools(), "tool_choice": "auto", "max_tokens": 300,
-                            "stream": stream, "chat_template_kwargs": thinking_on()})),
-            )
-            .await;
-            assert_eq!(st, StatusCode::OK, "{out}");
-            if stream {
-                let (r, c) = chat_stream_reasoning(&out);
-                let (_, calls, fin) = chat_stream_parts(&out);
-                assert_eq!((r.as_str(), c.as_str(), calls.len(), fin.as_str()), (reasoning.as_str(), content, ncalls, finish), "{want}");
-                if ncalls > 0 {
-                    assert_eq!(calls[0]["function"]["name"], "get_weather");
-                    assert_eq!(calls[0]["function"]["arguments"], "{\"city\":\"Paris\"}");
-                }
-            } else {
-                let v: Value = serde_json::from_str(&out).unwrap();
-                let m = &v["choices"][0]["message"];
-                assert_eq!(m["reasoning_content"], reasoning.as_str(), "{want}");
-                assert_eq!(m["content"].as_str().unwrap_or(""), content, "{want}");
-                assert_eq!(m["tool_calls"].as_array().map_or(0, |a| a.len()), ncalls, "{want}");
-                assert_eq!(v["choices"][0]["finish_reason"], finish, "{want}");
+            let got = openai_vllm(&app, extra.clone(), stream).await;
+            assert_eq!(
+                (got.0.as_str(), got.1.trim(), got.2.len(), got.3.as_str()),
+                (reasoning, content.trim(), args.len(), finish),
+                "stream={stream}: {text}"
+            );
+            assert_eq!(got.2, args, "stream={stream}: {text}");
+            if !stream {
+                assert_eq!(got.1, content, "{text}");
             }
         }
     }
 }
 
 #[tokio::test]
-async fn openai_trailing_call_stays_without_thinking_or_tool_parsing() {
-    // thinking off: nothing is split or lifted; the tool parser reads the text as it always did (a call in it is a call,
-    // and the rest, `<think>` and all, is content)
-    let want: &'static str = Box::leak(format!("<think>\nplan\n{WEATHER_CALL}\n</think>").into_boxed_str());
-    let (app, _) = thinking_mock(None, Some((vec![(65, want)], 1, FinishReason::Stop)));
-    let (st, _, out) = call(
-        &app,
-        "POST",
-        "/v1/chat/completions",
-        Some(json!({"messages": user("q"), "tools": weather_tools(), "tool_choice": "auto", "max_tokens": 300,
-                    "chat_template_kwargs": {"enable_thinking": false}})),
-    )
-    .await;
-    assert_eq!(st, StatusCode::OK, "{out}");
-    let v: Value = serde_json::from_str(&out).unwrap();
-    let m = &v["choices"][0]["message"];
-    assert!(m.get("reasoning_content").is_none(), "{out}");
-    assert_eq!(m["content"], "<think>\nplan\n\n</think>");
-    assert_eq!(m["tool_calls"].as_array().unwrap().len(), 1, "{out}");
-    // no tools in the request: the call is reasoning
-    let (st, _, out) = call(
-        &app,
-        "POST",
-        "/v1/chat/completions",
-        Some(json!({"messages": user("q"), "max_tokens": 300, "chat_template_kwargs": thinking_on()})),
-    )
-    .await;
-    assert_eq!(st, StatusCode::OK, "{out}");
-    let v: Value = serde_json::from_str(&out).unwrap();
-    let m = &v["choices"][0]["message"];
-    assert_eq!(m["reasoning_content"], format!("plan\n{WEATHER_CALL}").as_str());
-    assert!(m.get("tool_calls").is_none() || m["tool_calls"].is_null(), "{out}");
-    assert_eq!(v["choices"][0]["finish_reason"], "stop");
-}
-
-#[tokio::test]
-async fn anthropic_trailing_call_before_the_close_is_lifted() {
-    let want: &'static str = Box::leak(format!("<think>\nneed the weather\n{WEATHER_CALL}\n</think>").into_boxed_str());
-    let tools = json!([{"name": "get_weather", "description": "w",
-        "input_schema": {"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]}}]);
-    let (app, _) = thinking_mock(Some(want), None);
-    for stream in [false, true] {
-        let mut b = anthropic_think_body(stream);
-        b["tools"] = tools.clone();
-        let (st, _, out) = call(&app, "POST", "/v1/messages", Some(b)).await;
-        assert_eq!(st, StatusCode::OK, "{out}");
-        if stream {
-            let ev = sse_events(&out);
-            let kinds: Vec<&str> = ev
-                .iter()
-                .filter(|(n, _)| n == "content_block_start")
-                .map(|(_, v)| v["content_block"]["type"].as_str().unwrap())
-                .collect();
-            assert_eq!(kinds, ["thinking", "tool_use"], "{out}");
-            let think: String = ev.iter().filter_map(|(_, v)| v["delta"]["thinking"].as_str()).collect();
-            assert_eq!(think, "need the weather");
-            let md = ev.iter().find(|(n, _)| n == "message_delta").unwrap();
-            assert_eq!(md.1["delta"]["stop_reason"], "tool_use");
-        } else {
-            let v: Value = serde_json::from_str(&out).unwrap();
-            assert_eq!(v["content"][0]["thinking"], "need the weather");
-            assert_eq!(v["content"][1]["type"], "tool_use");
-            assert_eq!(v["content"][1]["input"], json!({"city": "Paris"}));
-            assert_eq!(v["content"].as_array().unwrap().len(), 2, "{out}");
-            assert_eq!(v["stop_reason"], "tool_use");
+async fn anthropic_vllm_table_tool_call_while_reasoning() {
+    let tools = json!([{"name": "get_weather", "description": "w", "input_schema": {"type": "object",
+        "properties": {"city": {"type": "string"}, "days": {"type": "integer"}}, "required": ["city"]}}]);
+    let leak = |s: String| -> &'static str { Box::leak(s.into_boxed_str()) };
+    let cut = "plan\n<tool_call>\n<function=get_weather>\n<parameter=city>\nParis\n</parameter>\n<parameter=days>\n3";
+    let both = leak(format!("plan\n{XML_CALL}\nmore</think>Answer."));
+    // (reply, engine finish, tools sent, tool_use inputs, stop_reason)
+    let rows: Vec<(&'static str, FinishReason, bool, usize, &str)> = vec![
+        (leak(format!("plan\n{XML_CALL}\n</think>")), FinishReason::Stop, true, 1, "tool_use"),
+        (both, FinishReason::Stop, true, 1, "tool_use"),
+        (leak(format!("plan\n{XML_CALL}")), FinishReason::Stop, true, 1, "tool_use"),
+        (cut, FinishReason::Length, true, 1, "tool_use"),
+        (both, FinishReason::Stop, false, 0, "end_turn"),
+    ];
+    for (text, engine_finish, with_tools, n, stop) in rows {
+        let app = vllm_mock(text, engine_finish);
+        for stream in [false, true] {
+            let mut b = anthropic_think_body(stream);
+            if with_tools {
+                b["tools"] = tools.clone();
+            }
+            let (st, _, out) = call(&app, "POST", "/v1/messages", Some(b)).await;
+            assert_eq!(st, StatusCode::OK, "{out}");
+            let (think, uses, texts, stop_reason): (String, Vec<Value>, String, String) = if stream {
+                let ev = sse_events(&out);
+                let think: String = ev.iter().filter_map(|(_, v)| v["delta"]["thinking"].as_str()).collect();
+                let texts: String = ev.iter().filter_map(|(_, v)| v["delta"]["text"].as_str()).collect();
+                let uses: Vec<Value> = ev
+                    .iter()
+                    .filter(|(n, v)| n == "content_block_start" && v["content_block"]["type"] == "tool_use")
+                    .map(|(_, v)| v["content_block"].clone())
+                    .collect();
+                let md = ev.iter().find(|(n, _)| n == "message_delta").unwrap();
+                (think, uses, texts, md.1["delta"]["stop_reason"].as_str().unwrap().to_string())
+            } else {
+                let v: Value = serde_json::from_str(&out).unwrap();
+                let blocks = v["content"].as_array().unwrap();
+                let think = blocks.iter().find(|b| b["type"] == "thinking").map(|b| b["thinking"].as_str().unwrap().to_string()).unwrap_or_default();
+                let texts: String = blocks.iter().filter(|b| b["type"] == "text").map(|b| b["text"].as_str().unwrap()).collect();
+                let uses = blocks.iter().filter(|b| b["type"] == "tool_use").cloned().collect();
+                (think, uses, texts, v["stop_reason"].as_str().unwrap().to_string())
+            };
+            assert_eq!((think.as_str(), uses.len(), texts.trim(), stop_reason.as_str()), ("plan", n, "", stop), "stream={stream}: {text}");
+            if !stream && n == 1 {
+                let want = if text == cut { json!({"city": "Paris"}) } else { json!({"city": "New York\nline 2", "days": 3}) };
+                let got = &uses[0]["input"];
+                assert_eq!(got["city"], want["city"], "{text}");
+            }
         }
     }
 }
@@ -1908,7 +1937,7 @@ async fn openai_qwen3_xml_tool_calls_come_out_of_the_content_after_the_think_blo
     for choice in [json!("required"), json!("auto")] {
         // the template's `\n\n` after </think> is allowed before the call under `required`, and free under `auto`
         let want: &'static str =
-            Box::leak(format!("which tool? <tool_call> no\n</think>\n\n{xml_call}").into_boxed_str());
+            Box::leak(format!("which tool? no\n</think>\n\n{xml_call}").into_boxed_str());
         let m = Arc::new(Mock {
             structured: true,
             xml: true,
@@ -1941,7 +1970,7 @@ async fn openai_qwen3_xml_tool_calls_come_out_of_the_content_after_the_think_blo
                     v["choices"][0]["finish_reason"].as_str().unwrap().to_string(),
                 )
             };
-            assert_eq!(reasoning, "which tool? <tool_call> no", "{choice} stream={stream}");
+            assert_eq!(reasoning, "which tool? no", "{choice} stream={stream}");
             assert_eq!((calls.len(), finish.as_str()), (1, "tool_calls"), "{choice} stream={stream}: {out}");
             let args: Value = serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap()).unwrap();
             assert_eq!(args, xml_args());
