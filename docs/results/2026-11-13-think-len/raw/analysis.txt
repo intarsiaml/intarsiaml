@@ -1,0 +1,93 @@
+greedy check: chosen token is the engine's top-1 at every generated position
+  vllm: 0 of 8445 positions where the sampled id is not top-1 (intarsia: sampled logprob != top-1 logprob)
+  bf16: 0 of 8445 positions where the sampled id is not top-1 (intarsia: sampled logprob != top-1 logprob)
+  fp8: 0 of 8445 positions where the sampled id is not top-1 (intarsia: sampled logprob != top-1 logprob)
+  nomoe: 0 of 8360 positions where the sampled id is not top-1 (intarsia: sampled logprob != top-1 logprob)
+  simt: 0 of 8360 positions where the sampled id is not top-1 (intarsia: sampled logprob != top-1 logprob)
+  nomoe-simt: 0 of 8360 positions where the sampled id is not top-1 (intarsia: sampled logprob != top-1 logprob)
+  bf16b: 0 of 8360 positions where the sampled id is not top-1 (intarsia: sampled logprob != top-1 logprob)
+  vllm-b: 0 of 8360 positions where the sampled id is not top-1 (intarsia: sampled logprob != top-1 logprob)
+
+== thinking OFF, first answer token (200 prompts): P(bare-number start) = summed prob of top-20 tokens that start with a digit or $
+  vLLM vs bf16: n=200  mean P(bare) vLLM 0.697  intarsia 0.611  mean diff -0.087 (se 0.009)
+    mean log-odds shift -0.491 (se 0.052); argmax is bare: vLLM 162, intarsia 130 of 200; argmax token differs on 55; mean top-20 KL 0.1232 (median 0.0818, max 0.593)
+    prompts where intarsia has the higher P(bare): 49, lower: 151
+  vLLM vs fp8: n=200  mean P(bare) vLLM 0.697  intarsia 0.624  mean diff -0.073 (se 0.010)
+    mean log-odds shift -0.414 (se 0.055); argmax is bare: vLLM 162, intarsia 132 of 200; argmax token differs on 49; mean top-20 KL 0.1315 (median 0.0683, max 1.185)
+    prompts where intarsia has the higher P(bare): 50, lower: 150
+  vLLM vs nomoe: n=200  mean P(bare) vLLM 0.697  intarsia 0.611  mean diff -0.087 (se 0.009)
+    mean log-odds shift -0.491 (se 0.052); argmax is bare: vLLM 162, intarsia 130 of 200; argmax token differs on 55; mean top-20 KL 0.1232 (median 0.0818, max 0.593)
+    prompts where intarsia has the higher P(bare): 49, lower: 151
+  vLLM vs simt: n=200  mean P(bare) vLLM 0.697  intarsia 0.627  mean diff -0.071 (se 0.009)
+    mean log-odds shift -0.395 (se 0.052); argmax is bare: vLLM 162, intarsia 131 of 200; argmax token differs on 52; mean top-20 KL 0.1193 (median 0.0742, max 0.874)
+    prompts where intarsia has the higher P(bare): 55, lower: 145
+  vLLM vs nomoe-simt: n=200  mean P(bare) vLLM 0.697  intarsia 0.627  mean diff -0.071 (se 0.009)
+    mean log-odds shift -0.395 (se 0.052); argmax is bare: vLLM 162, intarsia 131 of 200; argmax token differs on 52; mean top-20 KL 0.1193 (median 0.0742, max 0.874)
+    prompts where intarsia has the higher P(bare): 55, lower: 145
+  vLLM vs bf16b: n=200  mean P(bare) vLLM 0.697  intarsia 0.611  mean diff -0.087 (se 0.009)
+    mean log-odds shift -0.491 (se 0.052); argmax is bare: vLLM 162, intarsia 130 of 200; argmax token differs on 55; mean top-20 KL 0.1232 (median 0.0818, max 0.593)
+    prompts where intarsia has the higher P(bare): 49, lower: 151
+  vLLM vs vllm-b: n=200  mean P(bare) vLLM 0.697  intarsia 0.690  mean diff -0.007 (se 0.008)
+    mean log-odds shift -0.039 (se 0.045); argmax is bare: vLLM 162, intarsia 152 of 200; argmax token differs on 45; mean top-20 KL 0.0793 (median 0.0508, max 0.619)
+    prompts where intarsia has the higher P(bare): 91, lower: 109
+
+== thinking ON, first token after the vLLM trace + </think> (85): P(bare-number start) = summed prob of top-20 tokens that start with a digit or $
+  vLLM vs bf16: n=85  mean P(bare) vLLM 0.871  intarsia 0.871  mean diff -0.000 (se 0.000)
+    mean log-odds shift -0.020 (se 0.041); argmax is bare: vLLM 74, intarsia 74 of 85; argmax token differs on 0; mean top-20 KL 0.0000 (median 0.0000, max 0.001)
+    prompts where intarsia has the higher P(bare): 49, lower: 35
+  vLLM vs fp8: n=85  mean P(bare) vLLM 0.871  intarsia 0.871  mean diff -0.000 (se 0.000)
+    mean log-odds shift -0.063 (se 0.042); argmax is bare: vLLM 74, intarsia 74 of 85; argmax token differs on 0; mean top-20 KL 0.0000 (median 0.0000, max 0.001)
+    prompts where intarsia has the higher P(bare): 51, lower: 33
+
+== thinking ON, first 96 greedy tokens: where do the engines diverge, and what was the margin there?
+  vLLM vs bf16: identical 96 tokens on 7 of 85; first-divergence token index quantiles (10/25/50/75/90%): [22, 22, 37, 43, 92]
+    top-1 minus top-2 logprob gap at the divergence: vLLM median 0.250, intarsia median 0.274; gap < 0.5 nats on both engines in 45 of 78
+  vLLM vs fp8: identical 96 tokens on 17 of 85; first-divergence token index quantiles (10/25/50/75/90%): [22, 22, 37, 63, 96]
+    top-1 minus top-2 logprob gap at the divergence: vLLM median 0.250, intarsia median 0.167; gap < 0.5 nats on both engines in 49 of 68
+  vLLM vs nomoe: identical 96 tokens on 7 of 85; first-divergence token index quantiles (10/25/50/75/90%): [22, 22, 37, 43, 92]
+    top-1 minus top-2 logprob gap at the divergence: vLLM median 0.250, intarsia median 0.274; gap < 0.5 nats on both engines in 45 of 78
+  vLLM vs simt: identical 96 tokens on 13 of 85; first-divergence token index quantiles (10/25/50/75/90%): [22, 22, 37, 43, 96]
+    top-1 minus top-2 logprob gap at the divergence: vLLM median 0.250, intarsia median 0.189; gap < 0.5 nats on both engines in 51 of 72
+  vLLM vs nomoe-simt: identical 96 tokens on 13 of 85; first-divergence token index quantiles (10/25/50/75/90%): [22, 22, 37, 43, 96]
+    top-1 minus top-2 logprob gap at the divergence: vLLM median 0.250, intarsia median 0.189; gap < 0.5 nats on both engines in 51 of 72
+  vLLM vs bf16b: identical 96 tokens on 7 of 85; first-divergence token index quantiles (10/25/50/75/90%): [22, 22, 37, 43, 92]
+    top-1 minus top-2 logprob gap at the divergence: vLLM median 0.250, intarsia median 0.274; gap < 0.5 nats on both engines in 45 of 78
+  vLLM vs vllm-b: identical 96 tokens on 22 of 85; first-divergence token index quantiles (10/25/50/75/90%): [22, 22, 37, 96, 96]
+    top-1 minus top-2 logprob gap at the divergence: vLLM median 0.125, intarsia median 0.125; gap < 0.5 nats on both engines in 49 of 63
+
+== thinking ON: the 'The user provides [a few | three] examples' decision
+  vllm: first-trace choice (own greedy path) {'a': 58, 'three': 27, 'other': 0}
+  bf16: first-trace choice (own greedy path) {'a': 25, 'three': 60, 'other': 0}
+  fp8: first-trace choice (own greedy path) {'a': 49, 'three': 35, 'other': 1}
+  nomoe: first-trace choice (own greedy path) {'a': 25, 'three': 60, 'other': 0}
+  simt: first-trace choice (own greedy path) {'a': 33, 'three': 52, 'other': 0}
+  nomoe-simt: first-trace choice (own greedy path) {'a': 33, 'three': 52, 'other': 0}
+  bf16b: first-trace choice (own greedy path) {'a': 25, 'three': 60, 'other': 0}
+  vllm-b: first-trace choice (own greedy path) {'a': 56, 'three': 29, 'other': 0}
+  bf16: at the 'a'/'three' divergence slot (same context on both engines), log-odds(three vs a): vLLM mean -0.239, intarsia mean +0.322, n=35; paired diff +0.561 (se 0.050)
+  fp8: at the 'a'/'three' divergence slot (same context on both engines), log-odds(three vs a): vLLM mean -0.060, intarsia mean +0.051, n=25; paired diff +0.111 (se 0.078)
+  nomoe: at the 'a'/'three' divergence slot (same context on both engines), log-odds(three vs a): vLLM mean -0.239, intarsia mean +0.322, n=35; paired diff +0.561 (se 0.050)
+  simt: at the 'a'/'three' divergence slot (same context on both engines), log-odds(three vs a): vLLM mean -0.174, intarsia mean +0.214, n=33; paired diff +0.388 (se 0.061)
+  nomoe-simt: at the 'a'/'three' divergence slot (same context on both engines), log-odds(three vs a): vLLM mean -0.174, intarsia mean +0.214, n=33; paired diff +0.388 (se 0.061)
+  bf16b: at the 'a'/'three' divergence slot (same context on both engines), log-odds(three vs a): vLLM mean -0.239, intarsia mean +0.322, n=35; paired diff +0.561 (se 0.050)
+  vllm-b: at the 'a'/'three' divergence slot (same context on both engines), log-odds(three vs a): vLLM mean -0.010, intarsia mean +0.062, n=24; paired diff +0.073 (se 0.101)
+
+== thinking ON: first-96-token text of each probe against the soak run's trace of the same question (same engine = reproducibility)
+  probe vllm vs soak vLLM: first 96 tokens identical on 18 of 85
+  probe vllm vs soak Bc (intarsia bf16, store on): first 96 tokens identical on 7 of 85
+  probe bf16 vs soak vLLM: first 96 tokens identical on 12 of 85
+  probe bf16 vs soak Bc (intarsia bf16, store on): first 96 tokens identical on 85 of 85
+  probe fp8 vs soak vLLM: first 96 tokens identical on 17 of 85
+  probe fp8 vs soak Bc (intarsia bf16, store on): first 96 tokens identical on 13 of 85
+  probe nomoe vs soak vLLM: first 96 tokens identical on 12 of 85
+  probe nomoe vs soak Bc (intarsia bf16, store on): first 96 tokens identical on 85 of 85
+  probe simt vs soak vLLM: first 96 tokens identical on 11 of 85
+  probe simt vs soak Bc (intarsia bf16, store on): first 96 tokens identical on 11 of 85
+  probe nomoe-simt vs soak vLLM: first 96 tokens identical on 11 of 85
+  probe nomoe-simt vs soak Bc (intarsia bf16, store on): first 96 tokens identical on 11 of 85
+  probe bf16b vs soak vLLM: first 96 tokens identical on 12 of 85
+  probe bf16b vs soak Bc (intarsia bf16, store on): first 96 tokens identical on 85 of 85
+  probe vllm-b vs soak vLLM: first 96 tokens identical on 21 of 85
+  probe vllm-b vs soak Bc (intarsia bf16, store on): first 96 tokens identical on 13 of 85
+
+== thinking ON, first token after Bc's own traces + </think>, vLLM only: argmax is a bare number on 61 of 85, mean P(bare) 0.718 (Bc's actual replies: 61 of 85 bare; vLLM on its own traces: 74 of 85, 0.871)
