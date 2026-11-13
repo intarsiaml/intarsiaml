@@ -1190,3 +1190,35 @@ fn batched_store_rejects_an_over_length_prompt_before_the_lookup() {
     let t2 = run_batched(&eng, &[(a.prompt(), 4)]).remove(0);
     assert!(t2.cached > 30, "turn 2 reused only {} tokens", t2.cached);
 }
+
+/// A structured-output constraint that cannot start rejects the request before the store is looked up: no lookup, no restore into
+/// the slot, which keeps what it held. (A token id outside the vocabulary is refused by `submit` itself.)
+#[test]
+fn batched_store_rejects_a_bad_constraint_before_the_lookup() {
+    #[derive(Debug)]
+    struct Broken;
+    impl intarsia_core::constrain::ConstraintSpec for Broken {
+        fn start(&self) -> intarsia_core::Result<Box<dyn intarsia_core::constrain::TokenConstraint>> {
+            Err(intarsia_core::Error::BadRequest("no such schema".into()))
+        }
+    }
+    let kind = Kind::Hybrid;
+    let eng = batched_store(kind, 8, store_cfg(), true);
+    let mut a = Chat::new(kind);
+    a.msg(1, 23).msg(2, 9);
+    let t1 = run_batched(&eng, &[(a.prompt(), 4)]).remove(0);
+    let lookups = eng.telemetry().prefix_store.unwrap().lookups;
+    // the conversation's own history, which the store could restore
+    let (mut req, _) = traced(&a.prompt(), 4);
+    req.constraint = Some(Arc::new(Broken));
+    let rx = eng.submit(req).unwrap();
+    let err = rx.iter().find_map(|ev| match ev {
+        GenEvent::Error { message } => Some(message),
+        _ => None,
+    });
+    assert!(err.is_some_and(|m| m.contains("structured output")), "a broken constraint must be rejected");
+    assert_eq!(eng.telemetry().prefix_store.unwrap().lookups, lookups, "the rejected prompt was looked up");
+    a.answer(&t1.ids).msg(3, 5);
+    let t2 = run_batched(&eng, &[(a.prompt(), 4)]).remove(0);
+    assert!(t2.cached > 30, "turn 2 reused only {} tokens", t2.cached);
+}

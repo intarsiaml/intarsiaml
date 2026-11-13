@@ -1557,9 +1557,7 @@ impl Seq {
     /// or no room), the finish reason is set to `Length` and no prefill is needed. Errors reject the request.
     pub(crate) fn admit(&mut self, cached: usize, cap: usize) -> Result<bool> {
         check_prompt(self.plen, cap)?;
-        if let Some(Err(e)) = &self.cons {
-            return Err(Error::BadRequest(format!("structured output: {e}")));
-        }
+        self.check_constraint()?;
         debug_assert!(cached < self.plen || (self.req.prewarm.is_some() && cached == self.plen));
         self.max_new = self.req.max_tokens.min(cap - self.plen);
         self.cached = cached;
@@ -1574,6 +1572,14 @@ impl Seq {
         // the first token's mask is computed while the prompt is prefilled
         self.prefetch_mask();
         Ok(true)
+    }
+
+    /// The structured-output constraint did not compile: the request is rejected (a 400).
+    pub(crate) fn check_constraint(&self) -> Result<()> {
+        match &self.cons {
+            Some(Err(e)) => Err(Error::BadRequest(format!("structured output: {e}"))),
+            _ => Ok(()),
+        }
     }
 
     /// End the sequence as cancelled (the scheduler's cancellation check). [`Seq::finish`] then reports it.
