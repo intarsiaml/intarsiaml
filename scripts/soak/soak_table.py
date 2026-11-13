@@ -27,7 +27,7 @@ def replay_stats(path):
     t0 = min(datetime.datetime.fromisoformat(x["t_start"]).timestamp() for x in r)
     wall = max(x["end_s"] for x in r)
     return dict(n=len(r), err=len(r) - len(ok), ttft_sum=sum(tt), ttft_p50=statistics.median(tt), ttft_p90=q(tt, 0.9),
-                dec_p50=statistics.median(dc), cached=ct / pt if pt else 0, wall=wall, t0=t0,
+                dec_p50=statistics.median(dc), dec_mean=statistics.mean(dc), cached=ct / pt if pt else 0, wall=wall, t0=t0,
                 out=sum(x["completion_tokens"] or 0 for x in ok))
 
 
@@ -44,11 +44,11 @@ else:
     if not st:
         sys.exit("no soak replays")
     base = st[0][0]["t0"]
-    print("| replay | start min | requests | errors | TTFT sum s | TTFT p50 s | TTFT p90 s | decode tok/s median | cached frac | wall s |")
-    print("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    print("| replay | start min | requests | errors | TTFT sum s | TTFT p50 s | TTFT p90 s | decode tok/s median (bimodal: see doc) | decode tok/s mean | agg output tok/s | cached frac | wall s |")
+    print("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for s, name in st:
-        print(f"| {name} | {(s['t0']-base)/60:.1f} | {s['n']} | {s['err']} | {s['ttft_sum']:.1f} | {s['ttft_p50']:.2f} | {s['ttft_p90']:.2f} | {s['dec_p50']:.1f} | {s['cached']:.3f} | {s['wall']:.0f} |")
-    for key in ("ttft_sum", "ttft_p50", "dec_p50", "cached", "wall"):
+        print(f"| {name} | {(s['t0']-base)/60:.1f} | {s['n']} | {s['err']} | {s['ttft_sum']:.1f} | {s['ttft_p50']:.2f} | {s['ttft_p90']:.2f} | {s['dec_p50']:.1f} | {s['dec_mean']:.1f} | {s['out']/s['wall']:.1f} | {s['cached']:.3f} | {s['wall']:.0f} |")
+    for key in ("ttft_sum", "ttft_p50", "dec_p50", "dec_mean", "cached", "wall"):
         v = [s[key] for s, _ in st]
         h = len(v) // 2
         print(f"- {key}: first half mean {statistics.mean(v[:h]):.3f}, second half mean {statistics.mean(v[h:]):.3f}, min {min(v):.3f}, max {max(v):.3f}")
