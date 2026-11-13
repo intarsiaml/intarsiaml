@@ -6,6 +6,7 @@
 #   w1: B-batch2 (--max-batch 2, shipped defaults: MTP k2): replay x2 orders, gsm8k n=200, sampled + MTP acceptance, tool smoke;
 #       then B-batch2-specoff (--spec off): gsm8k n=200 (MTP-vs-off exact-reply equality)
 #   w2: B-single (default --max-batch 1 single-sequence engine, no prefix store): replay x2 orders;
+#       sampled decode + MTP acceptance and tool smoke on B-single (sampled requests speculate only in the single-sequence engine);
 #       B-store (--prefix-store on; recipe: a configured store keeps plain decode): replay x2 orders
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
@@ -82,6 +83,8 @@ else
   if start_serve B-single; then
     replay B-single "$URL" interleaved 0
     replay B-single "$URL" sequential 1
+    sampled B-single "$URL" "http://$HN:$PORT/metrics"
+    tools B-single "$URL"
     finish_serve B-single
   fi
   if ! late && start_serve B-store --prefix-store on; then

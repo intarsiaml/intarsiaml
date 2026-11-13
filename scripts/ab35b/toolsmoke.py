@@ -18,6 +18,7 @@ import json
 import pathlib
 import sys
 import time
+import urllib.error
 import urllib.request
 
 TOOLS = [
@@ -86,6 +87,8 @@ def call(url, model, msgs, stream=False, **kw):
                 s["function"]["arguments"] += f.get("arguments") or ""
             fin = ch.get("finish_reason") or fin
         return {"content": content, "tool_calls": [tcs[k] for k in sorted(tcs)]}, fin, None
+    except urllib.error.HTTPError as e:
+        return None, None, f"HTTPError {e.code}: {e.read().decode('utf-8', 'replace')[:300]}"
     except Exception as e:  # noqa: BLE001
         return None, None, f"{type(e).__name__}: {e}"
 
@@ -94,7 +97,7 @@ def check_call(msg, fin, name, ok_args):
     notes = []
     tcs = (msg or {}).get("tool_calls") or []
     if len(tcs) != 1:
-        return False, [f"{len(tcs)} tool_calls"], None
+        return False, [f"{len(tcs)} tool_calls; finish_reason {fin}; content {((msg or {}).get('content') or '')[:200]!r}"], None
     tc = tcs[0]
     if tc["function"]["name"] != name:
         notes.append(f"name {tc['function']['name']}")
