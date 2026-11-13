@@ -100,7 +100,8 @@ pub struct BatchedOptions {
     pub pause_rows: usize,
     /// Lane interleave (`INTARSIA_SETTLE_SLICE_MB`, default [`SETTLE_SLICE_MB_DEFAULT`] = 0, off): > 0, a prefix-store settle after a
     /// request's `Done` moves at most about this many MiB per scheduler iteration, between decode steps, instead of all of it at once
-    /// right after the `Done`.
+    /// right after the `Done`. Meant with [`BatchedOptions::pause_rows`]: without pauses a slice runs only in an iteration where nothing
+    /// prefills, so a long prefill beside a pending settle has no relief (captures past the deferral cap then download inside the chunk).
     pub settle_slice_mb: usize,
     /// Tests only: start the scheduler thread held, so that a whole workload is submitted before its first iteration admits
     /// anything (see [`BatchedEngine::release`]). Always false from [`BatchedOptions::new`].
@@ -181,6 +182,9 @@ pub(crate) struct SlotModel {
     pause_rows: usize,
     /// A prefix-store settle left to do after a request's `Done` ([`BatchModel::housekeep`]), with the telemetry to report it to.
     settle: Option<(Arc<std::sync::Mutex<crate::prefix_store::PrefixStore>>, Arc<Telemetry>)>,
+    /// The engine's prefix store (with the telemetry to report to), if on: the idle settle ([`Housekeep::Idle`]) settles whatever is
+    /// deferred, also captures of a request that failed and never reached `finish`.
+    store: Option<(Arc<std::sync::Mutex<crate::prefix_store::PrefixStore>>, Arc<Telemetry>)>,
     /// [`BatchedOptions::settle_slice_mb`] in bytes.
     settle_slice: u64,
     /// Per slot: the request it holds runs the prefix store's schedule (set at admission, [`BatchSeq::restore`]), so its final
@@ -381,14 +385,23 @@ impl BatchModel for SlotModel {
         }
     }
     fn housekeep(&mut self, at: Housekeep) {
+        if at == Housekeep::Idle {
+            // nothing runs or waits: settle whatever is deferred, pending slices or not (a failed request's captures too)
+            if let Some((store, tel)) = &self.store {
+                let mut s = store.lock().unwrap_or_else(|e| e.into_inner());
+                if s.deferring() || self.settle.is_some() {
+                    s.settle(&*self.model.backend, "idle");
+                    tel.set_prefix_store(s.snapshot());
+                }
+            }
+            self.settle = None;
+            return;
+        }
         let Some((store, tel)) = &self.settle else { return };
         let backend = &*self.model.backend;
         let mut s = store.lock().unwrap_or_else(|e| e.into_inner());
         let done = match at {
-            Housekeep::Idle => {
-                s.settle(backend, "idle");
-                true
-            }
+            Housekeep::Idle => unreachable!("handled above"),
             Housekeep::Step => s.settle_some(backend, self.settle_slice, "after done"),
             // inside a parked chunk only when the deferred captures near their cap, past which a capture downloads inside the chunk
             Housekeep::Pause if s.deferred_bytes() > crate::prefix_store::DEFER_CAP / 2 => {
@@ -991,6 +1004,7 @@ impl BatchedEngine {
                 batched_verify,
                 pause_rows: opts.pause_rows,
                 settle: None,
+                store: store.as_ref().map(|p| (p.store.clone(), env.telemetry.clone())),
                 settle_slice: (opts.settle_slice_mb as u64) << 20,
                 store_slot,
             };

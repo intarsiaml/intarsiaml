@@ -1,0 +1,9 @@
+[08:22:04 +0s] window start (cap 35 min); vLLM up: 200; earlyoom: active
+[08:22:05 +1s] binary: ~/intarsia-interleave/bin/intarsia intarsia 0.0.1
+2026-11-13T12:57:27.666576964Z missioncntrl/vllm-openai:65b7662d
+missioncntrl-guidance
+[08:22:08 +4s] vLLM DOWN (docker stop done) at 08:22:08
+Mem:             121          10          56           0          55         110
+[N/A]
+[08:22:08 +4s] serve arm F-off: INTARSIA_PREFIX_STORE_DEBUG=1 INTARSIA_PREFILL_PAUSE_ROWS=0 INTARSIA_SETTLE_SLICE_MB=0 ~/intarsia-interleave/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[08:22:53 +49s] serve F-off up; MemAvailable MB: 86219; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 41.2s, context 131072 tokens 

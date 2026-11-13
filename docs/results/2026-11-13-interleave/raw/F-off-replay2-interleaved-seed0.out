@@ -1,0 +1,14 @@
+[replay2] arm=F-off order=interleaved seed=0 streams=2 plan={'per_sentence': 22.06, 'base_tokens': 52, 'sentences': [357, 218, 218, 218, 218, 218]} trace=replay
+[replay2] warmup ok=True prompt=6700
+[replay2] w0 c0 t1 prompt=8045 cached=0 ttft=1.48s decode=42.0 out=160 
+[replay2] w1 c1 t1 prompt=8050 cached=0 ttft=2.92s decode=38.2 out=160 
+[replay2] w0 c2 t1 prompt=8038 cached=44 ttft=1.75s decode=40.8 out=159 
+[replay2] w1 c3 t1 prompt=8045 cached=44 ttft=1.51s decode=40.8 out=160 
+[replay2] w0 c4 t1 prompt=8067 cached=44 ttft=1.51s decode=40.8 out=160 
+[replay2] w1 c5 t1 prompt=8051 cached=44 ttft=1.52s decode=41.0 out=160 
+[replay2] w0 c6 t1 prompt=8037 cached=44 ttft=1.5s decode=40.7 out=160 
+[replay2] w1 c7 t1 prompt=8040 cached=44 ttft=1.5s decode=43.2 out=160 
+[replay2] w1 c1 t2 prompt=13076 cached=8046 ttft=1.18s decode=60.1 out=148 
+[replay2] w0 c0 t2 prompt=13055 cached=8041 ttft=1.27s decode=36.1 out=160 
+[replay2] w1 c3 t2 prompt=13076 cached=8041 ttft=1.25s decode=43.8 out=160 
+[replay2] w0 c2 t2 prompt=13064 cached=8034 ttft=1.61s decode=41.6 out=160 

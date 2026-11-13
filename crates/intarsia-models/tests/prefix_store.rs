@@ -1174,6 +1174,44 @@ fn batched_dense_multi_turn_paused_chunks_are_bitwise() {
     batched_multi_turn_paused(Kind::Dense);
 }
 
+/// Fable #359 (1): a request that fails after its prefill (a bad decode row: `fail_active`, never `finish`) leaves its deferred
+/// captures on the device; once the engine is idle they settle (the idle housekeeping), with no further admission. Both with the
+/// default whole settle and with sliced settles.
+#[test]
+fn batched_store_failed_request_settles_when_idle() {
+    for slice in [0usize, 1] {
+        let kind = Kind::Hybrid;
+        let mut a = Chat::new(kind);
+        a.msg(1, 23).msg(2, 9);
+        let prompt = a.prompt();
+        let plen = prompt.len();
+        // slot 0 is fed an out-of-vocab id at its second decode row: the request fails there, its prefill captures deferred
+        let eng = batched_store_opts(kind, 8, Some(store_cfg()), |o| {
+            o.row_fault = Some((0, plen + 1, 99_999));
+            o.settle_slice_mb = slice;
+        })
+        .unwrap();
+        let (req, _) = traced(&prompt, 6);
+        let rx = eng.submit(req).unwrap();
+        let err = rx.iter().find_map(|ev| match ev {
+            GenEvent::Error { message } => Some(message),
+            GenEvent::Done { .. } => panic!("the faulted request finished"),
+            _ => None,
+        });
+        assert!(err.is_some_and(|m| m.contains("vocab")), "slice {slice}: the request must fail on its bad row");
+        let t0 = std::time::Instant::now();
+        loop {
+            let snap = eng.telemetry().prefix_store.unwrap();
+            if snap.inserts > 0 && snap.device.bytes == 0 {
+                break;
+            }
+            assert!(t0.elapsed().as_secs() < 10, "slice {slice}: the failed request's captures stayed on the device: {snap:?}");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert!(eng.failed().is_none());
+    }
+}
+
 #[test]
 fn batched_store_refuses_overlap_pack_and_prewarm() {
     let err = |r: intarsia_core::Result<BatchedEngine>| r.err().map(|e| e.to_string()).unwrap_or_default();

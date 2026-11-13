@@ -1148,6 +1148,7 @@ impl PrefixStore {
     /// left, after a full [`PrefixStore::settle`] (the same end state); false: call again. Full slabs whose captures have all
     /// moved go back to the pool on the way, so the deferred footprint ([`PrefixStore::deferred_bytes`]) shrinks with each slice.
     pub fn settle_some(&mut self, backend: &dyn Backend, budget: u64, site: &str) -> bool {
+        self.poll_writer();
         let t0 = Instant::now();
         let mut moved = 0u64;
         while moved < budget.max(1) && self.used[0] > self.cfg.device_bytes {
