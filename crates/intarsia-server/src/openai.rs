@@ -1,7 +1,7 @@
 //! OpenAI-compatible endpoints.
 
 use crate::api::*;
-use crate::structured::{self, Part, Piece, ReasoningParser, ToolFormat, ToolParser};
+use crate::structured::{self, Part, Piece, ThinkStream, ToolFormat, ToolParser};
 use axum::extract::{Path, State};
 use axum::response::sse::Event;
 use axum::response::{IntoResponse, Json, Response};
@@ -234,7 +234,7 @@ async fn chat_inner(
         let mut finish = finish_str(c.finish);
         let mut answer = c.text.clone();
         if think {
-            let (reasoning, content) = ReasoningParser::parse_all(&c.text);
+            let (reasoning, content) = ThinkStream::parse_all(&c.text, parse_tools.map(|f| ToolParser::new(f, &tools)));
             message["reasoning_content"] = reasoning.map_or(Value::Null, Value::String);
             answer = content.unwrap_or_default();
             message["content"] = json!(answer);
@@ -273,7 +273,7 @@ async fn chat_inner(
     };
     // tool calls are parsed out of the text (token ids are not reported per delta then)
     let mut tp = parse_tools.map(|f| ToolParser::new(f, &tools));
-    let mut rp = think.then(ReasoningParser::default);
+    let mut rp = think.then(|| ThinkStream::new(parse_tools.map(|f| ToolParser::new(f, &tools))));
     let mut ncalls = 0usize;
     let st2 = st.clone();
     let sse = sse_from(rx, vec![first], move |ev| match ev {

@@ -1,7 +1,7 @@
 //! Anthropic Messages API: text, and client tools (`tool_use` / `tool_result`) with schema-constrained arguments.
 
 use crate::api::*;
-use crate::structured::{self, Part, Piece, ReasoningParser, Tool, ToolFormat, ToolParser};
+use crate::structured::{self, Part, Piece, ThinkStream, Tool, ToolFormat, ToolParser};
 use axum::extract::State;
 use axum::response::sse::Event;
 use axum::response::{IntoResponse, Json, Response};
@@ -374,7 +374,7 @@ async fn messages_inner(
         let mut thinking = None;
         let mut answer = c.text.clone();
         if think {
-            let (reasoning, text) = ReasoningParser::parse_all(&c.text);
+            let (reasoning, text) = ThinkStream::parse_all(&c.text, parse_tools.map(|f| ToolParser::new(f, &tools)));
             thinking = reasoning.map(|r| json!({"type": "thinking", "thinking": r, "signature": ""}));
             answer = text.unwrap_or_default();
             content = vec![json!({"type": "text", "text": answer})];
@@ -412,7 +412,8 @@ async fn messages_inner(
     );
     if parse_tools.is_some() || think {
         let tp = parse_tools.map(|f| ToolParser::new(f, &tools));
-        return Ok(stream_with_tools(st, rx, start_ev, tp, think).into_response());
+        let lift = parse_tools.map(|f| ToolParser::new(f, &tools));
+        return Ok(stream_with_tools(st, rx, start_ev, tp, lift, think).into_response());
     }
     let prelude = vec![
         start_ev,
@@ -463,10 +464,11 @@ fn stream_with_tools(
     rx: GenRx,
     start_ev: Event,
     mut tp: Option<ToolParser>,
+    lift: Option<ToolParser>,
     think: bool,
 ) -> axum::response::sse::Sse<impl futures_util::Stream<Item = Result<Event, std::convert::Infallible>>> {
     let mut done = false;
-    let mut rp = think.then(ReasoningParser::default);
+    let mut rp = think.then(|| ThinkStream::new(lift));
     let mut b = Blocks { next: 0, text_open: false, think_open: false, calls: 0 };
     sse_from(rx, vec![start_ev], move |ev| match ev {
         Some(GenEvent::Token { text, .. }) => match rp.as_mut() {

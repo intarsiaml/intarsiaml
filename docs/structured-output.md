@@ -134,6 +134,13 @@ bounded only by `max_tokens`. On a model without a reasoning parser the flag onl
 dropped (newer templates put it in the prompt), and the whitespace around the tags is trimmed. Output without a
 `</think>` (cut off by `max_tokens`, or the model stopped) is all reasoning, with empty `content`.
 
+**A call before the close.** With tools parsed, complete `<tool_call>` envelopes that end the reasoning, with `</think>`
+after them and nothing but whitespace after that, are the reply's tool calls instead of reasoning (`finish_reason`
+`tool_calls` / `stop_reason` `tool_use`), whole and streamed. vLLM's `qwen3` parser returns such calls too. A call followed by
+more reasoning or by an answer, an incomplete envelope, and a reply with no `</think>` stay reasoning. While streaming,
+reasoning from a `<tool_call>` that could still be such a tail is held back until it is decided: the answer starts, other
+text follows the call, or the reply ends.
+
 | Endpoint | Reasoning | Answer |
 |---|---|---|
 | `/v1/chat/completions` | `message.reasoning_content` (`null` when empty), streamed as `delta.reasoning_content` | `message.content` / `delta.content` |
