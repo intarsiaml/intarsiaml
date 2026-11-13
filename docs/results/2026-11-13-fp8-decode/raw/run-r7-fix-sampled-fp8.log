@@ -1,0 +1,22 @@
+fleetq: running inside #9215 "fp8-decode: after-fix runs" (FLEETQ_JOB): bash scripts/fp8-decode/serve-run.sh
+01:31:11 server up
+[reps] calibrated 22.08 tok/sentence base=51
+[reps] req1 4096 rep1 p0: prompt=4091 ttft=0.59s decode=81.9 peak=100.1 itl_p50=12.126 p99=80.282 cv=0.9089 out=256 sha=cdf806eb99 start=2026-11-13T01:31:12.927-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req2 4096 rep2 p1: prompt=4067 ttft=0.59s decode=82.0 peak=98.8 itl_p50=12.098 p99=75.866 cv=0.8648 out=256 sha=04169bca93 start=2026-11-13T01:31:16.786-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req3 4096 rep3 p2: prompt=4069 ttft=0.59s decode=81.9 peak=103.6 itl_p50=12.114 p99=81.435 cv=0.9467 out=256 sha=f4556bbffd start=2026-11-13T01:31:20.571-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req4 4096 rep4 p3: prompt=4096 ttft=0.59s decode=81.9 peak=100.7 itl_p50=12.133 p99=81.863 cv=0.9128 out=256 sha=00dc66d29c start=2026-11-13T01:31:24.365-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req5 4096 rep5 p4: prompt=4067 ttft=0.64s decode=83.2 peak=100.7 itl_p50=12.154 p99=73.464 cv=0.8192 out=256 sha=1e7f61d10c start=2026-11-13T01:31:28.155-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req6 32768 rep1 p0: prompt=33881 ttft=6.04s decode=71.7 peak=85.9 itl_p50=13.847 p99=83.651 cv=0.8681 out=256 sha=ade037a8a4 start=2026-11-13T01:31:32.053-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req7 32768 rep2 p1: prompt=33872 ttft=6.06s decode=71.3 peak=85.0 itl_p50=13.91 p99=84.203 cv=0.8685 out=256 sha=432eb037f3 start=2026-11-13T01:31:41.765-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req8 32768 rep3 p2: prompt=33873 ttft=6.12s decode=72.3 peak=85.5 itl_p50=13.891 p99=79.209 cv=0.7894 out=256 sha=2583fafb63 start=2026-11-13T01:31:51.502-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req9 32768 rep4 p3: prompt=33871 ttft=6.10s decode=71.6 peak=84.9 itl_p50=13.899 p99=78.326 cv=0.8174 out=256 sha=969aed80cd start=2026-11-13T01:32:01.327-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req10 32768 rep5 p4: prompt=33929 ttft=6.13s decode=71.4 peak=84.2 itl_p50=13.912 p99=80.471 cv=0.8379 out=256 sha=fea9098fd6 start=2026-11-13T01:32:11.097-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req11 65536 rep1 p0: prompt=68885 ttft=16.02s decode=63.4 peak=74.1 itl_p50=15.666 p99=83.156 cv=0.7483 out=256 sha=36d3b85e1b start=2026-11-13T01:32:20.913-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req12 65536 rep2 p1: prompt=68820 ttft=15.99s decode=63.2 peak=73.5 itl_p50=15.697 p99=83.611 cv=0.7766 out=256 sha=9550442d90 start=2026-11-13T01:32:41.075-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req13 65536 rep3 p2: prompt=68866 ttft=16.08s decode=63.2 peak=73.3 itl_p50=15.724 p99=82.444 cv=0.7483 out=256 sha=ccea886456 start=2026-11-13T01:33:01.291-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req14 65536 rep4 p3: prompt=68874 ttft=16.19s decode=63.4 peak=74.4 itl_p50=15.678 p99=83.299 cv=0.7578 out=256 sha=76cfdb861a start=2026-11-13T01:33:21.601-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+[reps] req15 65536 rep5 p4: prompt=68849 ttft=15.98s decode=63.7 peak=74.1 itl_p50=15.591 p99=84.013 cv=0.8089 out=256 sha=662af63838 start=2026-11-13T01:33:41.995-05:00 vllm={'prompt_tokens_total': 0, 'generation_tokens_total': 0, 'running_after': 0.0}
+| r7-fix-sampled-fp8 | 4096 | median 81.9 | each [81.9, 82.0, 81.9, 81.9, 83.2] |
+| r7-fix-sampled-fp8 | 32768 | median 71.6 | each [71.7, 71.3, 72.3, 71.6, 71.4] |
+| r7-fix-sampled-fp8 | 65536 | median 63.4 | each [63.4, 63.2, 63.2, 63.4, 63.7] |
+min MemAvailable GB: 01:32:56.579 51 2327MHz,85.49W,79,96% minflt=5321344
