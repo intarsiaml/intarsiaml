@@ -800,7 +800,7 @@ impl PrefixStore {
         }
         let mut out = Vec::with_capacity(todo.len());
         for (_, segs, bytes) in todo {
-            let mut v = vec![0u8; *bytes];
+            let mut v = host_buf(*bytes);
             let mut off = 0;
             for &(src, so, n) in segs {
                 backend.download(src, so, &mut v[off..off + n], 0)?;
@@ -1038,7 +1038,7 @@ impl PrefixStore {
             self.used[0] -= o.bytes as u64;
             self.stats.device.evictions += 1;
             let ta = Instant::now();
-            let mut v = vec![0u8; o.bytes];
+            let mut v = host_buf(o.bytes);
             let tb = Instant::now();
             let ok = backend.download(&buf, boff, &mut v, 0).is_ok();
             if debug() {
@@ -1537,4 +1537,19 @@ mod tests {
         assert_ne!(build_fingerprint("a"), build_fingerprint("b"));
         assert_ne!(checksum(b"abcdefgh1"), checksum(b"abcdefgh2"));
     }
+}
+
+/// A host buffer for a device-to-host download, with every page already faulted in by the CPU. `vec![0u8; n]` maps
+/// fresh zero pages lazily, and on the GB10 (unified memory) a download into untouched pages ran at about 170 MB/s
+/// (ab35c: 11.8 GiB in 70.9 s; one 32 MiB object 227 ms) against GB/s into touched ones (the same object 1 ms after
+/// a reused, already-written allocation). Writing one byte per page first moves the faults to the CPU, where they
+/// are cheap.
+fn host_buf(n: usize) -> Vec<u8> {
+    let mut v = vec![0u8; n];
+    let p = v.as_mut_ptr();
+    for i in (0..n).step_by(4096) {
+        // SAFETY: i < n = v.len(); a volatile write so the touch is not folded into the zeroed allocation.
+        unsafe { std::ptr::write_volatile(p.add(i), 0) };
+    }
+    v
 }
