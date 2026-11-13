@@ -575,7 +575,7 @@ impl CaptureTimes {
 /// Most device memory the deferred captures may hold between two settles (with slabs: the slabs' size): one request's on the
 /// single-sequence engine; on the batched engine every request in flight shares it (a settle after any request's `Done`
 /// resets it), and past it inserts download to host synchronously, inside the prefill.
-const DEFER_CAP: u64 = 1 << 30;
+pub const DEFER_CAP: u64 = 1 << 30;
 /// Device slabs the deferred captures are carved from: a new slab is at least this big (rounded up to the next multiple
 /// of it), and the idle ones the store keeps between requests add up to at most `SLAB_POOL_CAP`.
 const SLAB_MIN: usize = 128 << 20;
@@ -1143,6 +1143,50 @@ impl PrefixStore {
         self.refresh_counts();
     }
 
+    /// [`PrefixStore::settle`] in slices (lane interleave, the batched engine between decode steps): demote device objects, whatever
+    /// `defer` says, until at least `budget` bytes moved or none is left over the device budget. Returns true once nothing is
+    /// left, after a full [`PrefixStore::settle`] (the same end state); false: call again. Full slabs whose captures have all
+    /// moved go back to the pool on the way, so the deferred footprint ([`PrefixStore::deferred_bytes`]) shrinks with each slice.
+    pub fn settle_some(&mut self, backend: &dyn Backend, budget: u64, site: &str) -> bool {
+        self.poll_writer();
+        let t0 = Instant::now();
+        let mut moved = 0u64;
+        while moved < budget.max(1) && self.used[0] > self.cfg.device_bytes {
+            match self.demote_one(backend) {
+                Some(b) => moved += b,
+                None => break,
+            }
+        }
+        if self.used[0] <= self.cfg.device_bytes || moved == 0 {
+            self.settle(backend, site);
+            return true;
+        }
+        self.deferred = self.deferred.saturating_sub(moved);
+        let full = std::mem::take(&mut self.slabs_full);
+        let mut kept: usize = self.slab_pool.iter().map(Buffer::bytes).sum();
+        for b in full {
+            if b.strong_count() > 1 {
+                self.slabs_full.push(b);
+            } else if kept + b.bytes() <= SLAB_POOL_CAP {
+                kept += b.bytes();
+                self.slab_pool.push(b);
+            }
+        }
+        let took = t0.elapsed().as_secs_f64();
+        self.stats.insert_seconds_total += took;
+        self.stats.settle_seconds_total += took;
+        if debug() {
+            eprintln!("prefix store: settle slice ({site}) moved {} MiB off the device in {:.1} ms", moved >> 20, took * 1e3);
+        }
+        self.refresh_counts();
+        false
+    }
+
+    /// Device bytes the deferred captures hold (what [`DEFER_CAP`] bounds).
+    pub fn deferred_bytes(&self) -> u64 {
+        self.deferred_footprint()
+    }
+
     /// Feed the cold prefill rate the TTFT-saved estimate uses (tokens computed, time they took).
     pub fn note_prefill(&mut self, tokens: usize, elapsed: Duration) {
         let s = elapsed.as_secs_f64();
@@ -1215,38 +1259,9 @@ impl PrefixStore {
     /// objects are deleted. Pinned objects never leave memory.
     fn enforce(&mut self, backend: &dyn Backend) {
         while self.used[0] > self.cfg.device_bytes && !self.defer {
-            let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Device(..)))) else { break };
-            let ta = Instant::now();
-            // room first, while `k` is still registered: an entry the evictions drop gives its references back to it
-            let (bytes, last_use) = self.objs.get(&k).map(|o| (o.bytes, o.last_use)).unwrap();
-            self.make_host_room(bytes, last_use);
-            let Some(mut o) = self.objs.remove(&k) else { continue }; // went with the entry that needed it
-            let Some(Mem::Device(buf, boff)) = o.mem.take() else { unreachable!() };
-            self.used[0] -= o.bytes as u64;
-            self.stats.device.evictions += 1;
-            let mut v = self.take_host_buf(o.bytes);
-            let tb = Instant::now();
-            let ok = backend.download(&buf, boff, &mut v, 0).is_ok();
-            if debug() {
-                eprintln!(
-                    "prefix store: demote {} KiB: alloc {:.2} ms, download {:.2} ms",
-                    o.bytes >> 10,
-                    (tb - ta).as_secs_f64() * 1e3,
-                    tb.elapsed().as_secs_f64() * 1e3
-                );
+            if self.demote_one(backend).is_none() {
+                break;
             }
-            if !ok {
-                self.objs.insert(k, o);
-                self.drop_obj(k);
-                continue;
-            }
-            self.used[1] += o.bytes as u64;
-            let v = Arc::new(v);
-            o.mem = Some(Mem::Host(v.clone()));
-            if o.disk.is_none() {
-                self.queue_write(k, &mut o, v);
-            }
-            self.objs.insert(k, o);
         }
         // idle pooled buffers go first; then host objects, oldest first. One whose write the disk writer has not confirmed
         // stays (the writer holds its buffer, so evicting it would free nothing): the tier can be over budget until the writer
@@ -1272,6 +1287,45 @@ impl PrefixStore {
                 self.drop_obj(k);
             }
         }
+    }
+
+    /// Move the least recently used device object to host (and queue its disk write): the bytes it moved, or `None` when no
+    /// device object is left.
+    fn demote_one(&mut self, backend: &dyn Backend) -> Option<u64> {
+        let k = self.lru(|o| matches!(o.mem, Some(Mem::Device(..))))?;
+        let ta = Instant::now();
+        // room first, while `k` is still registered: an entry the evictions drop gives its references back to it
+        let (bytes, last_use) = self.objs.get(&k).map(|o| (o.bytes, o.last_use)).unwrap();
+        self.make_host_room(bytes, last_use);
+        let Some(mut o) = self.objs.remove(&k) else { return Some(0) }; // went with the entry that needed it
+        let Some(Mem::Device(buf, boff)) = o.mem.take() else { unreachable!() };
+        self.used[0] -= o.bytes as u64;
+        self.stats.device.evictions += 1;
+        let mut v = self.take_host_buf(o.bytes);
+        let tb = Instant::now();
+        let ok = backend.download(&buf, boff, &mut v, 0).is_ok();
+        if debug() {
+            eprintln!(
+                "prefix store: demote {} KiB: alloc {:.2} ms, download {:.2} ms",
+                o.bytes >> 10,
+                (tb - ta).as_secs_f64() * 1e3,
+                tb.elapsed().as_secs_f64() * 1e3
+            );
+        }
+        if !ok {
+            self.objs.insert(k, o);
+            self.drop_obj(k);
+            return Some(0);
+        }
+        self.used[1] += o.bytes as u64;
+        let v = Arc::new(v);
+        o.mem = Some(Mem::Host(v.clone()));
+        if o.disk.is_none() {
+            self.queue_write(k, &mut o, v);
+        }
+        let moved = o.bytes as u64;
+        self.objs.insert(k, o);
+        Some(moved)
     }
 
     /// Take `k`'s host copy away: its disk copy stays (when it has one), else the object goes; the buffer is kept for reuse.

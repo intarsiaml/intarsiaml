@@ -1,0 +1,23 @@
+[07:43:45 +0s] window start (cap 35 min); vLLM up: 200; earlyoom: active
+[07:43:46 +1s] binaries: main intarsia 0.0.1; interleave intarsia 0.0.1
+2026-11-13T06:41:31.45589778Z missioncntrl/vllm-openai:65b7662d
+missioncntrl-guidance
+[07:43:50 +5s] vLLM DOWN (docker stop done) at 07:43:50
+Mem:             121          11          57           0          54         110
+[N/A]
+[07:43:50 +5s] serve arm E-main: INTARSIA_PREFIX_STORE_DEBUG=1 ~/intarsia-il-main/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[07:44:33 +48s] serve E-main up; MemAvailable MB: 85169; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 40.8s, context 131072 tokens 
+
+[07:47:16 +211s] serve arm E-il: INTARSIA_PREFIX_STORE_DEBUG=1 ~/intarsia-interleave/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[07:47:56 +251s] serve E-il up; MemAvailable MB: 85175; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 38.1s, context 131072 tokens 
+
+[07:50:41 +416s] serve arm E-il-k3: INTARSIA_PREFIX_STORE_DEBUG=1 ~/intarsia-interleave/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[07:51:19 +454s] serve E-il-k3 up; MemAvailable MB: 86146; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 34.2s, context 131072 tokens 
+
+[07:54:04 +619s] serve arm E-main-k3: INTARSIA_PREFIX_STORE_DEBUG=1 ~/intarsia-il-main/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[07:54:43 +658s] serve E-main-k3 up; MemAvailable MB: 86126; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 36.5s, context 131072 tokens 
+
+[07:57:27 +822s] restoring vLLM: docker start missioncntrl-guidance
+missioncntrl-guidance
+[08:00:33 +1008s] vLLM /v1/models 200 at 08:00:33 (vLLM down for 1003s total)
+[08:00:33 +1008s] window end

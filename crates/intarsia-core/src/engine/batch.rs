@@ -26,7 +26,7 @@ use super::{
 use crate::error::{Error, Result};
 use crate::model::{HeadMode, Model, StepOut};
 use crate::scheduler::{
-    BatchEngine, BatchMetrics, BatchModel, BatchSeq, RequestId, Row, SchedulerConfig, SeqStep, MAX_BATCH_CAP,
+    BatchEngine, BatchMetrics, BatchModel, BatchSeq, Housekeep, RequestId, Row, SchedulerConfig, SeqStep, MAX_BATCH_CAP,
     SPEC_OFF_AT_DEFAULT,
 };
 use crate::state::SequenceState;
@@ -94,11 +94,27 @@ pub struct BatchedOptions {
     /// Lane bm phase B (`INTARSIA_BATCHED_VERIFY=1`, opt-in): with batched MTP, the sequences that draft in a step verify in ONE
     /// ragged pass (`Model::forward_verify_batch`) instead of one solo pass each.
     pub batched_verify: bool,
+    /// Lane interleave (`INTARSIA_PREFILL_PAUSE_ROWS`, default [`PAUSE_ROWS_DEFAULT`] = 0, off): while other sequences decode, a
+    /// prefill chunk of more than this many rows parks between layers about every this many rows and their decode step runs
+    /// there ([`BatchModel::pause_rows`]). The chunk schedule and every output are unchanged, bit for bit. Not with `overlap`.
+    pub pause_rows: usize,
+    /// Lane interleave (`INTARSIA_SETTLE_SLICE_MB`, default [`SETTLE_SLICE_MB_DEFAULT`] = 0, off): > 0, a prefix-store settle after a
+    /// request's `Done` moves at most about this many MiB per scheduler iteration, between decode steps, instead of all of it at once
+    /// right after the `Done`. Meant with [`BatchedOptions::pause_rows`]: without pauses a slice runs only in an iteration where nothing
+    /// prefills, so a long prefill beside a pending settle has no relief (captures past the deferral cap then download inside the chunk).
+    pub settle_slice_mb: usize,
     /// Tests only: start the scheduler thread held, so that a whole workload is submitted before its first iteration admits
     /// anything (see [`BatchedEngine::release`]). Always false from [`BatchedOptions::new`].
     #[doc(hidden)]
     pub hold_start: bool,
 }
+
+/// Default [`BatchedOptions::pause_rows`] (lane interleave): 0, off. Opt-in: 768 on the Spark 35B halved the 2-stream median ITL
+/// p99 but raised the TTFT sum 6% (docs/results/2026-11-13-interleave.md), so it is not a default.
+pub const PAUSE_ROWS_DEFAULT: usize = 0;
+/// Default [`BatchedOptions::settle_slice_mb`]: 0, off (the settle runs whole right after the `Done`). Measured opt-in value: 48
+/// (~30-45 ms of demotes per slice on the Spark).
+pub const SETTLE_SLICE_MB_DEFAULT: usize = 0;
 
 /// Default row cap of a packed prefill pass (lane srv16b): a decoding stream waits for the whole pass, ~0.14 ms per row on the Spark
 /// 35B, so 3072 rows (three ~1k-token prompts) keep that wait under ~0.5 s, and keep most of the 8192-row pass's 16-stream gain
@@ -138,6 +154,11 @@ impl BatchedOptions {
             pack_rows: std::env::var("INTARSIA_PACK_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(PACK_ROWS_DEFAULT),
             pack_half: std::env::var("INTARSIA_PACK_HALF").map(|v| v != "0").unwrap_or(true),
             mtp_max_b: 0,
+            pause_rows: std::env::var("INTARSIA_PREFILL_PAUSE_ROWS").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(PAUSE_ROWS_DEFAULT),
+            settle_slice_mb: std::env::var("INTARSIA_SETTLE_SLICE_MB")
+                .ok()
+                .and_then(|v| v.trim().parse().ok())
+                .unwrap_or(SETTLE_SLICE_MB_DEFAULT),
             batched_verify: env("INTARSIA_BATCHED_VERIFY"),
             hold_start: false,
         }
@@ -157,6 +178,15 @@ pub(crate) struct SlotModel {
     inflight: Option<Inflight>,
     /// Lane bm phase B: drafting sequences verify in one batched pass ([`BatchModel::verify_step`]).
     batched_verify: bool,
+    /// Lane interleave: [`BatchedOptions::pause_rows`] (0 with the decode twin: overlap runs chunks beside decode instead).
+    pause_rows: usize,
+    /// A prefix-store settle left to do after a request's `Done` ([`BatchModel::housekeep`]), with the telemetry to report it to.
+    settle: Option<(Arc<std::sync::Mutex<crate::prefix_store::PrefixStore>>, Arc<Telemetry>)>,
+    /// The engine's prefix store (with the telemetry to report to), if on: the idle settle ([`Housekeep::Idle`]) settles whatever is
+    /// deferred, also captures of a request that failed and never reached `finish`.
+    store: Option<(Arc<std::sync::Mutex<crate::prefix_store::PrefixStore>>, Arc<Telemetry>)>,
+    /// [`BatchedOptions::settle_slice_mb`] in bytes.
+    settle_slice: u64,
     /// Per slot: the request it holds runs the prefix store's schedule (set at admission, [`BatchSeq::restore`]), so its final
     /// prefill chunk runs whole on a recurrent state, as `Seq::prefill_step` runs it with the store on.
     store_slot: Vec<bool>,
@@ -167,6 +197,9 @@ pub(crate) struct SlotModel {
 struct Inflight {
     slot: usize,
     done: Arc<std::sync::atomic::AtomicBool>,
+    /// A chunk that parks between layers ([`BatchModel::prefill_begin_paused`]): it sends on the first when it parks and waits
+    /// on the second (`false`: go on, `true`: abort).
+    park: Option<(Receiver<()>, Sender<bool>)>,
     handle: std::thread::JoinHandle<(SequenceState, Result<Option<StepOut>>)>,
 }
 
@@ -283,7 +316,7 @@ impl BatchModel for SlotModel {
                 (st, r)
             })
             .map_err(|e| Error::Other(format!("cannot start the prefill thread: {e}")))?;
-        self.inflight = Some(Inflight { slot, done, handle });
+        self.inflight = Some(Inflight { slot, done, handle, park: None });
         Ok(())
     }
     fn prefill_done(&self) -> bool {
@@ -298,6 +331,88 @@ impl BatchModel for SlotModel {
             }
             // the slot's state died with the thread: the engine goes down with it, as for any panic of its own thread
             Err(panic) => std::panic::resume_unwind(panic),
+        }
+    }
+    fn pause_rows(&self) -> usize {
+        if self.twin.is_some() {
+            0
+        } else {
+            self.pause_rows
+        }
+    }
+    fn prefill_begin_paused(&mut self, slot: usize, tokens: &[u32], mode: Option<HeadMode>) -> Result<()> {
+        if self.inflight.is_some() {
+            return Err(Error::Other("a prefill chunk is already in flight".into()));
+        }
+        let placeholder = self.model.placeholder_state();
+        let mut st = std::mem::replace(&mut self.states[slot], placeholder);
+        let model = self.model.clone();
+        let tokens = tokens.to_vec();
+        let whole_last = self.store_slot[slot];
+        let rows = self.pause_rows;
+        let done = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = done.clone();
+        let (park_tx, park_rx) = channel::<()>();
+        let (go_tx, go_rx) = channel::<bool>();
+        let spawned = std::thread::Builder::new().name("intarsia-prefill".into()).spawn(move || {
+            // park: tell the scheduler, wait for its go (a dropped sender is an abort: the scheduler went away)
+            let hook: crate::model::PauseFn = Box::new(move || {
+                let _ = park_tx.send(());
+                match go_rx.recv() {
+                    Ok(false) => Ok(()),
+                    _ => Err(Error::Other("prefill chunk aborted while parked".into())),
+                }
+            });
+            let r = model.with_layer_pause(rows, hook, || run_prefill(&model, &mut st, &tokens, mode, whole_last));
+            flag.store(true, std::sync::atomic::Ordering::Release);
+            (st, r)
+        });
+        match spawned {
+            Ok(handle) => {
+                self.inflight = Some(Inflight { slot, done, handle, park: Some((park_rx, go_tx)) });
+                Ok(())
+            }
+            Err(e) => Err(Error::Other(format!("cannot start the prefill thread: {e}"))),
+        }
+    }
+    fn prefill_park(&mut self) -> bool {
+        // the hook (and its sender) is dropped when the chunk's pass ends, however it ends
+        self.inflight.as_ref().and_then(|f| f.park.as_ref()).is_some_and(|(rx, _)| rx.recv().is_ok())
+    }
+    fn prefill_resume(&mut self, abort: bool) {
+        if let Some((_, go)) = self.inflight.as_ref().and_then(|f| f.park.as_ref()) {
+            let _ = go.send(abort);
+        }
+    }
+    fn housekeep(&mut self, at: Housekeep) {
+        if at == Housekeep::Idle {
+            // nothing runs or waits: settle whatever is deferred, pending slices or not (a failed request's captures too)
+            if let Some((store, tel)) = &self.store {
+                let mut s = store.lock().unwrap_or_else(|e| e.into_inner());
+                if s.deferring() || self.settle.is_some() {
+                    s.settle(&*self.model.backend, "idle");
+                    tel.set_prefix_store(s.snapshot());
+                }
+            }
+            self.settle = None;
+            return;
+        }
+        let Some((store, tel)) = &self.settle else { return };
+        let backend = &*self.model.backend;
+        let mut s = store.lock().unwrap_or_else(|e| e.into_inner());
+        let done = match at {
+            Housekeep::Idle => unreachable!("handled above"),
+            Housekeep::Step => s.settle_some(backend, self.settle_slice, "after done"),
+            // inside a parked chunk only when the deferred captures near their cap, past which a capture downloads inside the chunk
+            Housekeep::Pause if s.deferred_bytes() > crate::prefix_store::DEFER_CAP / 2 => {
+                s.settle_some(backend, self.settle_slice, "in a paused chunk")
+            }
+            Housekeep::Pause => false,
+        };
+        tel.set_prefix_store(s.snapshot());
+        drop(s);
+        if done {
+            self.settle = None;
         }
     }
     fn avoid_single_row_prefill(&self) -> bool {
@@ -692,14 +807,21 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         self.ended = true;
         self.was_cancelled = outcome.reason == FinishReason::Cancelled;
         report_done(&self.telemetry, &self.tx, outcome, Some(self.chunk));
-        if let Some(store) = store {
+        if let (Some(store), Some(_)) = (store, slot) {
             // after the reply (`settle_after_done` of the single-sequence engine): the captures this request (and any other
-            // still prefilling) left on the device move to their tier. This runs on the scheduler thread, so the other
-            // sequences' next decode step waits for it.
+            // still prefilling) left on the device move to their tier. By default here, in one piece, on the scheduler thread (the
+            // other sequences' next decode step waits for it); with `INTARSIA_SETTLE_SLICE_MB` > 0 (lane interleave, opt-in) in
+            // slices between later decode steps instead, and whole once the engine is idle (`SlotModel::housekeep`). A request
+            // that never held a slot (cancelled while queued) captured nothing and settles nothing.
             let mut s = store.lock().unwrap_or_else(|e| e.into_inner());
             if s.deferring() {
-                s.settle(&*model.model.backend, "after done");
-                self.telemetry.set_prefix_store(s.snapshot());
+                if model.settle_slice == 0 {
+                    s.settle(&*model.model.backend, "after done");
+                    self.telemetry.set_prefix_store(s.snapshot());
+                } else if model.settle.is_none() {
+                    drop(s);
+                    model.settle = Some((store, self.telemetry.clone()));
+                }
             }
         }
         Ok(())
@@ -873,7 +995,19 @@ impl BatchedEngine {
         let batched_verify = mtp && twin.is_none() && opts.batched_verify;
         let store_slot = vec![false; states.len()];
         let slots =
-            SlotModel { model: Arc::new(model), twin, states, row_fault: opts.row_fault, inflight: None, batched_verify, store_slot };
+            SlotModel {
+                model: Arc::new(model),
+                twin,
+                states,
+                row_fault: opts.row_fault,
+                inflight: None,
+                batched_verify,
+                pause_rows: opts.pause_rows,
+                settle: None,
+                store: store.as_ref().map(|p| (p.store.clone(), env.telemetry.clone())),
+                settle_slice: (opts.settle_slice_mb as u64) << 20,
+                store_slot,
+            };
         let engine = if opts.hold_start { BatchEngine::spawn_held(slots, cfg)? } else { BatchEngine::spawn(slots, cfg)? };
         Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent, store, solo_chunk })
     }
