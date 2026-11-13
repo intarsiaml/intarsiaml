@@ -835,7 +835,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     eprintln!("prefill chunk {}", prefill_chunk.describe());
     let mtp = opts.spec.mode == intarsia_core::spec::SpecMode::Mtp;
     // `--spec auto` (lane asp) loads the MTP head beside the DFlash draft
-    let load_opts = LoadOptions {
+    let mut load_opts = LoadOptions {
         prefill_chunk: prefill_chunk.value,
         mtp: opts.load.mtp || mtp || spec_auto,
         mtp_k: if mtp { opts.spec.k } else if spec_auto { intarsia_core::spec::AUTO_MTP_K } else { opts.load.mtp_k },
@@ -844,6 +844,20 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         dflash,
         ..opts.load.clone()
     };
+    // The prefix store with `--max-batch` > 1 runs without macro prefill (`BatchedEngine::new`): decide it here, so the workspace
+    // is planned for the model's chunk and not for the macro pass the engine would then switch off (about 1000 MiB of the 35B's on
+    // CUDA). An explicit `INTARSIA_PREFILL_MACRO` or `LoadOptions::prefill_macro` is left alone (the engine refuses a value above 0).
+    if max_batch.value > 1
+        && prefix_store_given(opts)
+        && load_opts.prefill_macro.is_none()
+        && intarsia_core::scheduler::parse_macro_env(std::env::var(intarsia_core::scheduler::MACRO_ENV).ok().as_deref())?.is_none()
+    {
+        let (rows, _) = recipe.resolve_prefill_macro(backend_name);
+        if rows > 0 {
+            eprintln!("prefix store: recipe's macro prefill ({rows} rows) off with --max-batch > 1 (the workspace is planned without it)");
+        }
+        load_opts.prefill_macro = Some(0);
+    }
     let mut model = match group {
         Group::Local(backends, comms) if backends.len() == 1 => {
             let _ = comms;

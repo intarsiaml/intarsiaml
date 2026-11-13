@@ -356,6 +356,12 @@ struct Params {
     seed: Option<u64>,
     /// The sequence errors at its `n`-th token (a codec error, say).
     fail_at: Option<usize>,
+    /// `BatchSeq::validate` refuses the request (a bad token id).
+    invalid: bool,
+    /// Counts every `BatchSeq::restore` call.
+    restores: Option<Arc<AtomicUsize>>,
+    /// The request's own chunk schedule (`BatchSeq::chunk_len` / `own_chunk`), as a prefix-store request has.
+    own_chunk: Option<usize>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -432,6 +438,7 @@ impl BatchSeq<MockModel> for MockSeq {
         &self.p.prompt
     }
     fn admit(&mut self, cached: usize, cap: usize) -> Result<bool> {
+        self.validate()?;
         let plen = self.p.prompt.len();
         if plen == 0 {
             return Err(Error::BadRequest("empty prompt".into()));
@@ -445,6 +452,24 @@ impl BatchSeq<MockModel> for MockSeq {
             self.reason = Some(FinishReason::Length);
         }
         Ok(self.max_new > 0)
+    }
+    fn validate(&self) -> Result<()> {
+        if self.p.invalid {
+            return Err(Error::BadRequest("token id out of range".into()));
+        }
+        Ok(())
+    }
+    fn restore(&mut self, _m: &mut MockModel, _slot: usize, local: usize, _idle: bool) -> Result<usize> {
+        if let Some(n) = &self.p.restores {
+            n.fetch_add(1, Ordering::SeqCst);
+        }
+        Ok(local)
+    }
+    fn chunk_len(&self, _pos: usize, remaining: usize) -> Option<usize> {
+        self.p.own_chunk.map(|c| remaining.min(c))
+    }
+    fn own_chunk(&self) -> Option<usize> {
+        self.p.own_chunk
     }
     fn first_mode(&self) -> Mode {
         self.head_mode(1)
@@ -2422,4 +2447,30 @@ fn recurrent_schedule_cuts_follow_the_solo_schedule() {
     // a tail merge folds a short remainder into the last chunk: no cut at the chunk end
     assert_eq!(recurrent_schedule_cuts(4105, 4096, 64), vec![4104]);
     assert_eq!(recurrent_schedule_cuts(9000, 4096, 1024), vec![4096, 8999]);
+}
+
+/// A request `validate` refuses is rejected before `restore` (no store lookup or restore for it), and a request on its own chunk
+/// schedule reports that chunk in `PrefillStart`, not the one the scheduler picked.
+#[test]
+fn validate_runs_before_restore_and_prefill_start_reports_the_own_chunk() {
+    let restores = Arc::new(AtomicUsize::new(0));
+    let mut s = Scheduler::new(MockModel::new(2, 8192), SchedulerConfig { trace: true, ..Default::default() }).unwrap();
+    let mut rng = SplitMix64::new(7);
+    let bad = Params { invalid: true, restores: Some(restores.clone()), ..greedy(random_prompt(&mut rng, 300), 4) };
+    let (_, rx_bad, _) = submit(&mut s, bad);
+    run_to_end(&mut s);
+    let evs = collect(&rx_bad);
+    assert!(matches!(evs.as_slice(), [Ev::Err(m)] if m.contains("token id")), "{evs:?}");
+    assert_eq!(restores.load(Ordering::SeqCst), 0, "a refused request was restored");
+    let ok = Params { restores: Some(restores.clone()), own_chunk: Some(96), ..greedy(random_prompt(&mut rng, 300), 4) };
+    let (_, rx_ok, _) = submit(&mut s, ok);
+    run_to_end(&mut s);
+    assert_eq!(tokens(&collect(&rx_ok)).len(), 4);
+    assert_eq!(restores.load(Ordering::SeqCst), 1);
+    let started: Vec<usize> = s
+        .take_trace()
+        .iter()
+        .filter_map(|e| if let TraceEvent::PrefillStart { chunk, .. } = e { Some(*chunk) } else { None })
+        .collect();
+    assert_eq!(started, vec![96], "the refused request never started a prefill; the other ran its own chunk");
 }

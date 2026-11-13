@@ -260,6 +260,12 @@ pub trait BatchSeq<M: BatchModel>: Send {
     /// The scheduler accepted the request into its queue (called once, after the submit checks passed): a later
     /// [`BatchSeq::fail`] is an accepted request that failed, not a refusal.
     fn on_queued(&mut self) {}
+    /// A rejection [`BatchSeq::admit`] would give that does not depend on the slot (a bad token id, a structured-output
+    /// error), asked before [`BatchSeq::restore`] so a request that is refused never looks up or restores a prefix. `Err`:
+    /// rejected, as from `admit`. Default: `Ok`.
+    fn validate(&self) -> Result<()> {
+        Ok(())
+    }
     /// Prefix store (`--prefix-store` with `--max-batch` > 1): the length this request's prefill starts from in `slot`, called
     /// at admission before [`BatchSeq::admit`] with `local`, the slot's own reusable prefix ([`BatchModel::reuse_len`]). The
     /// sequence may cut `local` back to a point of its own chunk schedule, or restore a longer stored prefix into the slot; the
@@ -273,6 +279,11 @@ pub trait BatchSeq<M: BatchModel>: Send {
     /// (`Some`), whatever the scheduler's chunk size (no busy chunk, macro step or packing): a function of the prompt and `pos`
     /// only, so the slot's history and the other sequences never change its bits. `None` (default): the scheduler's schedule.
     fn chunk_len(&self, _pos: usize, _remaining: usize) -> Option<usize> {
+        None
+    }
+    /// Prefix store: the chunk size of the request's own schedule (what [`TraceEvent::PrefillStart`] reports), `Some` exactly
+    /// when [`BatchSeq::chunk_len`] is. Default: `None`.
+    fn own_chunk(&self) -> Option<usize> {
         None
     }
     /// A prefill chunk `[start, end)` of this request ran in `slot` (`last`: the final one, before its output is accepted).
@@ -1050,6 +1061,13 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             // `admit` rejects (empty, or no room in a slot): it would touch the slot for nothing
             let plen = w.seq.prompt().len();
             let idle = self.active.is_empty();
+            // a request `validate` refuses is rejected here, with its error, before any lookup or restore
+            if let Err(e) = w.seq.validate() {
+                w.seq.fail(&e);
+                self.ev(TraceEvent::Finished { iter: self.iter, id: w.id, how: EndKind::Rejected });
+                self.metrics.lock().unwrap().rejected += 1;
+                continue;
+            }
             let restored = if plen == 0 || plen >= cap { Ok(cached) } else { w.seq.restore(&mut self.model, slot, cached, idle) };
             let cached = match restored {
                 Ok(c) => c,
@@ -1579,7 +1597,9 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             None => {
                 let c = if n_decoding > 0 { self.cfg.busy_chunk } else { self.cfg.solo_chunk };
                 let id = self.active[i].id;
-                self.ev(TraceEvent::PrefillStart { iter: self.iter, id, chunk: c, decoding: n_decoding });
+                // a request on its own schedule runs that chunk, not the one the scheduler picked
+                let used = self.active[i].seq.own_chunk().unwrap_or(c);
+                self.ev(TraceEvent::PrefillStart { iter: self.iter, id, chunk: used, decoding: n_decoding });
                 self.active[i].seq.on_prefill_start(c, n_decoding);
                 c
             }
