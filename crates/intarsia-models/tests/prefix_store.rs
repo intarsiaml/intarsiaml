@@ -4,7 +4,10 @@
 //! - engine byte identity: a request that restores a stored prefix (after another conversation replaced the held state,
 //!   from a prewarm, from disk after a restart) gives bit-identical logits and tokens to a cold prefill of the same
 //!   prompt, on the hybrid model (GatedDeltaNet recurrent state + attention KV) and an attention-only model, against a
-//!   cold run with the store on and one with the store off (the cpu backend is chunk-invariant, so both must match).
+//!   cold run with the store on and one with the store off (the cpu backend is chunk-invariant, so both must match);
+//! - the batched engine (`--max-batch 2`) with the store: every reply bitwise the single-sequence engine's with the store on, with
+//!   several multi-turn conversations in flight on two slots (restores, captures and settles interleaved with the other slot's
+//!   prefill and decode).
 
 mod common;
 use intarsia_core::backend::Backend;
@@ -13,7 +16,7 @@ use intarsia_core::model::{LoadOptions, Model};
 use intarsia_core::prefix_store::{PrefixStore, PrefixStoreConfig};
 use intarsia_core::recipe::ModelDims;
 use intarsia_core::state::{SequenceState, SlotSpec};
-use intarsia_core::{DType, Engine, EngineMeta, GenEvent, GenRequest, LocalEngine, Prewarm, Telemetry};
+use intarsia_core::{BatchedEngine, BatchedOptions, DType, Engine, EngineMeta, GenEvent, GenRequest, LocalEngine, Prewarm, Telemetry};
 use intarsia_models::SafeTensors;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -312,6 +315,46 @@ fn store_deferred_captures_share_a_reused_slab_without_mixing_bytes() {
                 assert_eq!(dump(&*b, &st), dump(&*b, a), "round {round}, {phase}");
             }
             s.settle(&*b, "test");
+        }
+    }
+}
+
+/// The batched engine's pattern (two requests in flight share one deferral): A and B capture interleaved, A's `Done` settles
+/// while B is still prefilling (which also settles B's captures so far and recycles their slabs), then B re-arms the deferral
+/// and captures more, carved from a recycled slab. Nothing B captured before the settle may be overwritten by what it captures
+/// after: every entry restores exactly, before and after the final settle.
+#[test]
+fn store_two_requests_share_the_deferral_and_recycled_slabs() {
+    let b = cpu();
+    let mut c = cfg(16);
+    c.device_bytes = 0; // no device tier: the captures are carved from slabs
+    let mut s = PrefixStore::new(c, &specs(), "two").unwrap();
+    let mut st = SequenceState::new(&*b, &specs(), 64).unwrap();
+    let mut made = Vec::new();
+    let mut capture = |s: &mut PrefixStore, tag: u32| {
+        s.set_defer(true);
+        let t: Vec<u32> = (0..32).map(|j| tag * 1000 + j).collect();
+        let a = fake_state(&*b, &t, 64);
+        s.insert(&*b, &a, 32, None, &[]).unwrap();
+        (t, a)
+    };
+    for round in 0..3u32 {
+        let base = 100 * round;
+        made.push(capture(&mut s, base + 1)); // A
+        made.push(capture(&mut s, base + 2)); // B
+        made.push(capture(&mut s, base + 3)); // A
+        s.settle(&*b, "after A's done"); // B still in flight
+        made.push(capture(&mut s, base + 4)); // B, from a recycled slab
+        made.push(capture(&mut s, base + 5)); // B
+        for phase in ["B's captures on the device", "settled"] {
+            for (i, (t, a)) in made.iter().enumerate() {
+                let h = s.lookup(t, 32).unwrap_or_else(|| panic!("round {round}: entry {i} lost"));
+                s.restore(&*b, &mut st, h).unwrap();
+                assert_eq!(dump(&*b, &st), dump(&*b, a), "round {round}, entry {i}, {phase}");
+            }
+            if phase.starts_with("B") {
+                s.settle(&*b, "after B's done");
+            }
         }
     }
 }
@@ -948,4 +991,202 @@ fn hybrid_cpu_prefill_chunk_sensitivity() {
     for c in [&ids[..5], &ids[5..24], &ids[24..40]] { m.forward(&mut sb, c, HeadMode::None, None).unwrap(); }
     println!("CHUNK-SENSITIVITY cpu hybrid (tiny fixture): state after 40 tokens, 8x5 vs 5+19+16 rows, bitwise equal: {}", dump(b, &sa) == dump(b, &sb));
     println!("CHUNK-SENSITIVITY cpu hybrid: chunks (5, 19, 15, 1) vs (8 x 5) bitwise equal: {}", l3 == l4);
+}
+
+// ------------------------------------------------------------------------------------------- batched engine (slice 1)
+
+/// The test model for the batched engine (batching enabled for `rows` slots; the hybrid with the cpu opt-in) and its
+/// single-sequence twin (`rows` 1): both planned the same way.
+fn planned(kind: Kind, chunk: usize, rows: usize) -> Model {
+    let mut m = match kind {
+        Kind::Hybrid => hybrid(chunk),
+        Kind::Dense => dense(chunk),
+    };
+    if rows > 1 {
+        if kind == Kind::Hybrid {
+            m.allow_recurrent_batch().unwrap();
+        }
+        m.enable_batch(rows).unwrap();
+    }
+    m.configure_plan(&Default::default(), None).unwrap();
+    m
+}
+
+fn store_meta(cfg: Option<PrefixStoreConfig>) -> EngineMeta {
+    let store = cfg.map(|mut c| {
+        c.boundary_tokens = vec![BOUND_TEXT.into()];
+        c.header_end_tokens = vec!["\n".into()];
+        c
+    });
+    EngineMeta { id: "tiny".into(), prefix_store: store, ..Default::default() }
+}
+
+/// A batched engine of 2 slots with the store; `busy_chunk` below the model's chunk, so a store request that took the
+/// scheduler's busy chunk instead of its own schedule would change its bits.
+fn batched_store(kind: Kind, chunk: usize, cfg: PrefixStoreConfig, reuse: bool) -> BatchedEngine {
+    batched_store_opts(kind, chunk, Some(cfg), |o| o.prefix_reuse = reuse).unwrap()
+}
+
+fn batched_store_opts(
+    kind: Kind,
+    chunk: usize,
+    cfg: Option<PrefixStoreConfig>,
+    f: impl FnOnce(&mut BatchedOptions),
+) -> intarsia_core::Result<BatchedEngine> {
+    let mut o = BatchedOptions::new(2, 64);
+    o.busy_chunk = (chunk / 2).max(1);
+    f(&mut o);
+    BatchedEngine::new(planned(kind, chunk, 2), Arc::new(kind.codec()), store_meta(cfg), Arc::new(Telemetry::new()), o)
+}
+
+fn traced(prompt: &[u32], n: usize) -> (GenRequest, Arc<Mutex<Vec<Vec<f32>>>>) {
+    let trace = Arc::new(Mutex::new(Vec::new()));
+    let req = GenRequest {
+        prompt: prompt.to_vec(),
+        max_tokens: n,
+        ignore_eos: true,
+        trace_logits: Some(trace.clone()),
+        ..Default::default()
+    };
+    (req, trace)
+}
+
+/// Submit every request at once (several in flight on the slots, the rest queued), then collect each reply.
+fn run_batched(e: &BatchedEngine, reqs: &[(Vec<u32>, usize)]) -> Vec<Out> {
+    let pending: Vec<_> = reqs
+        .iter()
+        .map(|(p, n)| {
+            let (req, trace) = traced(p, *n);
+            (e.submit(req).unwrap(), trace)
+        })
+        .collect();
+    pending
+        .into_iter()
+        .map(|(rx, trace)| {
+            let (mut ids, mut cached) = (vec![], usize::MAX);
+            for ev in rx.iter() {
+                match ev {
+                    GenEvent::Token { id, .. } => ids.push(id),
+                    GenEvent::Done { cached_tokens, .. } => {
+                        cached = cached_tokens;
+                        break;
+                    }
+                    GenEvent::Error { message } => panic!("{message}"),
+                }
+            }
+            assert_ne!(cached, usize::MAX, "no Done");
+            let logits = trace.lock().unwrap().clone();
+            Out { ids, logits, cached }
+        })
+        .collect()
+}
+
+/// Three multi-turn conversations, three turns each, every round submitted together to a 2-slot batched engine (so two run
+/// beside each other and one waits; a prompt prefills while the other slot decodes, slots change conversations, turns restore
+/// from the store). Every reply is bitwise the single-sequence engine's with the store on (the same requests one at a time).
+fn batched_multi_turn(kind: Kind, chunk: usize, reuse: bool) {
+    let cfg = store_cfg();
+    let solo = LocalEngine::new(planned(kind, chunk, 1), Arc::new(kind.codec()), store_meta(Some(cfg.clone())), Arc::new(Telemetry::new()))
+        .unwrap();
+    let eng = batched_store(kind, chunk, cfg, reuse);
+    let mut chats: Vec<Chat> = (0..3u32)
+        .map(|c| {
+            let mut ch = Chat::new(kind);
+            ch.msg(10 + c, 19 + 4 * c as usize).msg(20 + c, 7 + c as usize);
+            ch
+        })
+        .collect();
+    let gen = [9usize, 5, 7];
+    let mut cached_later = 0;
+    for round in 0..3u32 {
+        let reqs: Vec<(Vec<u32>, usize)> = chats.iter().zip(gen).map(|(c, n)| (c.prompt(), n)).collect();
+        let got = run_batched(&eng, &reqs);
+        for (i, ((p, n), b)) in reqs.iter().zip(&got).enumerate() {
+            let s = run(&solo, p, *n);
+            same_bits(b, &s, &format!("round {round} conversation {i}: batched vs single-sequence (store on)"));
+            if round > 0 {
+                cached_later += b.cached;
+            }
+        }
+        for (c, (out, extra)) in chats.iter_mut().zip(got.iter().zip([5usize, 9, 3])) {
+            c.answer(&out.ids).msg(30 + round, extra);
+        }
+    }
+    assert!(cached_later > 0, "later turns reused nothing");
+    let snap = eng.telemetry().prefix_store.expect("the batched engine reports its store");
+    assert!(snap.inserts > 0, "nothing was captured: {snap:?}");
+    assert!(snap.hits > 0 && snap.tokens_saved > 0, "no restore from the store: {snap:?}");
+    let info = eng.prefix_store();
+    assert!(info["entries"].as_array().is_some_and(|e| !e.is_empty()), "{info}");
+}
+
+#[test]
+fn batched_hybrid_multi_turn_is_the_single_engine_store_on() {
+    batched_multi_turn(Kind::Hybrid, 8, true);
+}
+
+#[test]
+fn batched_hybrid_multi_turn_without_slot_reuse() {
+    // every request starts from an empty slot (the CUDA case: no batched snapshots), so every later turn restores
+    batched_multi_turn(Kind::Hybrid, 8, false);
+}
+
+#[test]
+fn batched_dense_multi_turn_is_the_single_engine_store_on() {
+    batched_multi_turn(Kind::Dense, 8, true);
+}
+
+#[test]
+fn batched_store_refuses_overlap_pack_and_prewarm() {
+    let err = |r: intarsia_core::Result<BatchedEngine>| r.err().map(|e| e.to_string()).unwrap_or_default();
+    let e = err(batched_store_opts(Kind::Hybrid, 8, Some(store_cfg()), |o| o.overlap = true));
+    assert!(e.contains("INTARSIA_OVERLAP"), "{e}");
+    let e = err(batched_store_opts(Kind::Hybrid, 8, Some(store_cfg()), |o| o.pack_prefill = Some(true)));
+    assert!(e.contains("INTARSIA_PACK_PREFILL"), "{e}");
+    // without the store both stay accepted
+    assert!(batched_store_opts(Kind::Hybrid, 8, None, |o| o.pack_prefill = Some(true)).is_ok());
+    let eng = batched_store(Kind::Hybrid, 8, store_cfg(), true);
+    let req = GenRequest { prompt: vec![3, 25, 5, 40, 41], max_tokens: 1, prewarm: Some(Prewarm { pin: None }), ..Default::default() };
+    let e = eng.submit(req).err().map(|e| e.to_string()).unwrap_or_default();
+    assert!(e.contains("prewarm"), "{e}");
+}
+
+
+#[test]
+fn batched_store_refuses_speculation() {
+    use intarsia_core::spec::{SpecConfig, SpecMode};
+    let mut meta = store_meta(Some(store_cfg()));
+    meta.spec = SpecConfig { mode: SpecMode::Mtp, k: 2, k_min: None };
+    let mut o = BatchedOptions::new(2, 64);
+    o.mtp_max_b = 1;
+    let e = BatchedEngine::new(planned(Kind::Hybrid, 8, 2), Arc::new(Kind::Hybrid.codec()), meta, Arc::new(Telemetry::new()), o)
+        .err()
+        .map(|e| e.to_string())
+        .unwrap_or_default();
+    assert!(e.contains("prefix store") && e.contains("speculative decoding"), "{e}");
+}
+
+/// A prompt that does not fit a slot is rejected before the store is looked up: no lookup, no restore, and the slot keeps what
+/// it held (the next turn of the conversation still finds its history).
+#[test]
+fn batched_store_rejects_an_over_length_prompt_before_the_lookup() {
+    let kind = Kind::Hybrid;
+    let eng = batched_store(kind, 8, store_cfg(), true);
+    let mut a = Chat::new(kind);
+    a.msg(1, 23).msg(2, 9);
+    let t1 = run_batched(&eng, &[(a.prompt(), 4)]).remove(0);
+    let lookups = eng.telemetry().prefix_store.unwrap().lookups;
+    let mut long = a.prompt();
+    long.extend(std::iter::repeat(40).take(eng.info().context_len));
+    let (req, _) = traced(&long, 4);
+    let rx = eng.submit(req).unwrap();
+    let err = rx.iter().find_map(|ev| match ev {
+        GenEvent::Error { message } => Some(message),
+        _ => None,
+    });
+    assert!(err.is_some_and(|m| m.contains("does not fit")), "an over-length prompt must be rejected");
+    assert_eq!(eng.telemetry().prefix_store.unwrap().lookups, lookups, "the rejected prompt was looked up");
+    a.answer(&t1.ids).msg(3, 5);
+    let t2 = run_batched(&eng, &[(a.prompt(), 4)]).remove(0);
+    assert!(t2.cached > 30, "turn 2 reused only {} tokens", t2.cached);
 }

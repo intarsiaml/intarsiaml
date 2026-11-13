@@ -68,7 +68,8 @@ pub struct ServeArgs {
     /// `boundary` (`|`-separated one-token texts that start a message; default `<|im_start|>`), `header` (texts that end
     /// a message header; default a newline), `any_cut=1` (restore at any length: only for chunk-invariant prefill), `roles` (cut only after these
     /// roles' headers, e.g. `assistant`: fewer passes, less reuse inside other messages).
-    /// Single-sequence engine only. A recipe's `--spec mtp` default is not applied when a store is set (a drafting request bypasses
+    /// With `--max-batch` > 1: plain decode (no `--spec`), no prewarm or `--prefix-store-pin`, no packed or macro prefill opt-in, no
+    /// `INTARSIA_OVERLAP` (docs/results/2026-11-13-batch-store.md). A recipe's `--spec mtp` default is not applied when a store is set (a drafting request bypasses
     /// the store; one line says so); an explicit `--spec mtp` with the store is as before.
     /// Overrides `INTARSIA_PREFIX_STORE`. See docs/results/2026-10-22-pc-prefix-store.md.
     #[arg(long)]
@@ -96,6 +97,10 @@ fn supervise(args: &ServeArgs) -> Result<()> {
 }
 
 pub fn run(args: ServeArgs) -> Result<()> {
+    // a pin is a prewarm, which the batched engine refuses: say so before a model is loaded
+    if args.prefix_store_pin.is_some() && args.max_batch.is_some_and(|n| n > 1) {
+        anyhow::bail!("--prefix-store-pin needs the single-sequence engine (--max-batch 1)");
+    }
     if !args.child && !args.no_supervisor {
         return supervise(&args);
     }
