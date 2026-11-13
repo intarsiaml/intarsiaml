@@ -357,17 +357,12 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const K
 // as streaming (`__ldcs`, evict first) so they do not push the partials out of L2 before the combine reads them.
 // KT = uint8_t (fp8_e4m3 cache): the same schedule with 8-byte K / V loads and splitkv_step's e4m3 unpack, so every partial is
 // bitwise splitkv_kernel<8, TPK, 2, uint8_t, true>'s block, as the bf16 instantiation is the bf16 one's.
-template <int TPK, typename KT = ik_bf16, int PFV = 1>
+template <int TPK, typename KT = ik_bf16>
 __global__ void __launch_bounds__(kBlock)
 splitkv_rows_persist_kernel(const ik_bf16* __restrict__ q, float* __restrict__ pacc, float2* __restrict__ pml, int N, int G,
                             int NKV, int64_t cap, float qscale, int nsplit, int R, const int32_t* __restrict__ pos_dev,
                             const uint8_t* __restrict__ tab, int64_t tstride, int64_t tindex) {
     constexpr int GP = kMaxGroup, KB = 2;  // dispatch_group's (8, 2) case
-    // PF iterations' K / V are loaded together and run as PF splitkv_step calls in order (an iteration starting at or past the
-    // item's end is skipped, as the one-iteration loop never runs it), so the arithmetic, and every bit, is the PF = 1 kernel's.
-    // e4m3 (8-byte loads): PF = 2 keeps as many bytes in flight per warp as the bf16 kernel (fp8 decode at 64k was latency-
-    // bound at ~0.6x the bf16 kernel's bandwidth, lane fp8-decode); INTARSIA_ATTN_F8_PF=1 is the kernel of before.
-    constexpr int PF = PFV;
     constexpr int D = TPK * 8;
     constexpr int NG = kBlock / TPK;
     using L = KvLoad<KT>;
@@ -411,7 +406,7 @@ splitkv_rows_persist_kernel(const ik_bf16* __restrict__ q, float* __restrict__ p
     // the K / V of the iteration at `base` of an item (zero past its end, as splitkv_item)
     auto load = [&](const Item& d, int64_t base, typename L::V* nk, typename L::V* nv) {
 #pragma unroll
-        for (int u = 0; u < KB * PF; ++u) {
+        for (int u = 0; u < KB; ++u) {
             const int64_t j = base + (int64_t)u * NG + gk;
             nk[u] = L::zero();
             nv[u] = L::zero();
@@ -426,7 +421,7 @@ splitkv_rows_persist_kernel(const ik_bf16* __restrict__ q, float* __restrict__ p
     if (it >= items) return;
     Item cur;
     describe(it, t, cur);
-    typename L::V nk[KB * PF], nv[KB * PF];  // the K / V of the next PF iterations
+    typename L::V nk[KB], nv[KB];  // the K / V of the next iteration
     load(cur, cur.start, nk, nv);
     while (true) {
         const bool more = it + (int)gridDim.x < items;
@@ -456,16 +451,16 @@ splitkv_rows_persist_kernel(const ik_bf16* __restrict__ q, float* __restrict__ p
         }
 
         bool fetched = false;  // whether an iteration of this item has loaded the next item's first K / V
-        for (int64_t base = cur.start; base < cur.end; base += (int64_t)NG * KB * PF) {
-            typename L::V kk[KB * PF], vv[KB * PF];
-            bool ok[KB * PF];
+        for (int64_t base = cur.start; base < cur.end; base += (int64_t)NG * KB) {
+            typename L::V kk[KB], vv[KB];
+            bool ok[KB];
 #pragma unroll
-            for (int u = 0; u < KB * PF; ++u) {
+            for (int u = 0; u < KB; ++u) {
                 kk[u] = nk[u];
                 vv[u] = nv[u];
                 ok[u] = base + (int64_t)u * NG + gk < cur.end;
             }
-            const int64_t nb = base + (int64_t)NG * KB * PF;
+            const int64_t nb = base + (int64_t)NG * KB;
             if (nb < cur.end) {
                 load(cur, nb, nk, nv);
             } else if (more) {
@@ -473,11 +468,6 @@ splitkv_rows_persist_kernel(const ik_bf16* __restrict__ q, float* __restrict__ p
                 fetched = true;
             }
             splitkv_step<GP, TPK, KB, KT>(kk, vv, ok, qr, m, l, acc);
-#pragma unroll
-            for (int f = 1; f < PF; ++f) {
-                // block-uniform: the one-iteration loop would have stopped before this iteration
-                if (base + (int64_t)f * NG * KB < cur.end) splitkv_step<GP, TPK, KB, KT>(kk + f * KB, vv + f * KB, ok + f * KB, qr, m, l, acc);
-            }
         }
         if (more && !fetched) load(nxt, nxt.start, nk, nv);  // an item without keys loaded nothing
         splitkv_merge<GP, TPK>(m, l, acc, pacc, pml, N, G, nsplit, cur.sp, cur.kvh, cur.t, s_acc, s_m, s_l);
@@ -490,15 +480,7 @@ splitkv_rows_persist_kernel(const ik_bf16* __restrict__ q, float* __restrict__ p
 template <int TPK, typename KT>
 int launch_rows_persist(const ik_bf16* q, float* pacc, float2* pml, int64_t R, int64_t N, int64_t NKV, int64_t cap, float qscale,
                         int nsplit, const int32_t* pos_dev, cudaStream_t s, const uint8_t* tab, int64_t tstride, int64_t tindex) {
-    // e4m3: two iterations per load (bitwise the same partials, see splitkv_rows_persist_kernel) unless INTARSIA_ATTN_F8_PF=1
-    static const int pf = [] {
-        const char* e = getenv("INTARSIA_ATTN_F8_PF");
-        return (e && e[0] == '1' && !e[1]) ? 1 : 2;
-    }();
-    auto kern = splitkv_rows_persist_kernel<TPK, KT, 1>;
-    if constexpr (sizeof(KT) == 1) {
-        if (pf == 2) kern = splitkv_rows_persist_kernel<TPK, KT, 2>;
-    }
+    auto kern = splitkv_rows_persist_kernel<TPK, KT>;
     static int grid = 0;  // SMs x resident blocks, once per process
     if (!grid) {
         int occ = 0, sms = 0, d = 0;
