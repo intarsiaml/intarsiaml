@@ -1029,11 +1029,14 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             // `admit` rejects (empty, or no room in a slot): it would touch the slot for nothing
             let plen = w.seq.prompt().len();
             let idle = self.active.is_empty();
-            let restored = if plen == 0 || plen >= cap || w.seq.validate().is_err() {
-                Ok(cached)
-            } else {
-                w.seq.restore(&mut self.model, slot, cached, idle)
-            };
+            // a request `validate` refuses is rejected here, with its error, before any lookup or restore
+            if let Err(e) = w.seq.validate() {
+                w.seq.fail(&e);
+                self.ev(TraceEvent::Finished { iter: self.iter, id: w.id, how: EndKind::Rejected });
+                self.metrics.lock().unwrap().rejected += 1;
+                continue;
+            }
+            let restored = if plen == 0 || plen >= cap { Ok(cached) } else { w.seq.restore(&mut self.model, slot, cached, idle) };
             let cached = match restored {
                 Ok(c) => c,
                 Err(e) => {
