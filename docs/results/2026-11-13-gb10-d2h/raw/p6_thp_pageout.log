@@ -1,0 +1,28 @@
+# device NVIDIA GB10 integrated=1 pageableMemoryAccess=1 hostNativeAtomic=1 driver_api=13000 runtime=13000
+# iters=200 threads=4 pressure_gb=12.0 gpuload=0 pool=1
+method    kind             bytes     runs      bad  stale_bytes  canary    pool    med_us
+ours      thp             303104      800        0            0       0       0      16.6
+sync_rt   thp             303104      800        0            0       0       0      15.4
+sync_drv  thp             303104      800        0            0       0       0      15.2
+ours      pageout         303104      800        0            0       0       0     132.8
+sync_rt   pageout         303104      800        0            0       0       0     140.0
+sync_drv  pageout         303104      800        0            0       0       0     128.0
+ours      thp            4194304      800        0            0       0       0      82.6
+sync_rt   thp            4194304      800        0            0       0       0      81.6
+sync_drv  thp            4194304      800        0            0       0       0      81.3
+ours      pageout        4194304      800        0            0       0       0    1495.4
+sync_rt   pageout        4194304      800        0            0       0       0    2135.0
+sync_drv  pageout        4194304      800        0            0       0       0    2054.4
+ours      thp           16777216      800        0            0       0       0     301.6
+sync_rt   thp           16777216      800        0            0       0       0     299.0
+sync_drv  thp           16777216      800        0            0       0       0     300.0
+ours      pageout       16777216      800        0            0       0       0    4242.1
+sync_rt   pageout       16777216      800        0            0       0       0    6575.0
+sync_drv  pageout       16777216      800        0            0       0       0    6604.5
+ours      thp           67108864      800        0            0       0       0    1208.9
+sync_rt   thp           67108864      800        0            0       0       0    1191.1
+sync_drv  thp           67108864      800        0            0       0       0    1202.0
+ours      pageout       67108864      800        0            0       0       0   20008.4
+sync_rt   pageout       67108864      800        0            0       0       0   31787.2
+sync_drv  pageout       67108864      800        0            0       0       0   28363.2
+TOTAL runs=19200 bad=0 | ours_bad=0 sync(positive control)_bad=0 bounce_bad=0 | wall 342.2 s
