@@ -1,0 +1,20 @@
+[01:28:48 +1s] window start (cap 35 min); vLLM up: 200; earlyoom: active
+2026-11-13T04:57:19.095227076Z missioncntrl/vllm-openai:65b7662d
+missioncntrl-guidance
+[01:28:51 +4s] vLLM DOWN (docker stop done) at 01:28:51
+Mem:             121          11          64           0          47         110
+[N/A]
+[01:28:52 +5s] binaries: 353 intarsia 0.0.1; 354 intarsia 0.0.1
+[01:28:52 +5s] serve arm D-nostore: ~/intarsia-w3-353/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2
+[01:29:48 +61s] serve D-nostore up; MemAvailable MB: 81885; sampled requests (temperature > 0): speculation Match (default; single sequence, one rank) loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 53.3s, context 131072 tokens 
+min MemAvailable MB (time MB; KILLED count) (D-nostore): 01:29:48 81865 0 
+[01:34:15 +328s] serve arm D-store: INTARSIA_PREFIX_STORE_DEBUG=1 ~/intarsia-w3-353/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[01:34:51 +364s] serve D-store up; MemAvailable MB: 85310; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 33.3s, context 131072 tokens 
+min MemAvailable MB (time MB; KILLED count) (D-store): 01:36:51 75588 0 
+[01:37:35 +528s] serve arm C-storecap: INTARSIA_PREFIX_STORE_DEBUG=1 ~/intarsia-w3-354/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --prefix-store on
+[01:38:15 +568s] serve C-storecap up; MemAvailable MB: 87057; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 37.9s, context 131072 tokens 
+min MemAvailable MB (time MB; KILLED count) (C-storecap): 01:40:31 78376 0 
+[01:41:31 +764s] restoring vLLM: docker start missioncntrl-guidance
+missioncntrl-guidance
+[01:44:53 +966s] vLLM /v1/models 200 at 01:44:53 (vLLM down for 962s total)
+[01:44:53 +966s] window end

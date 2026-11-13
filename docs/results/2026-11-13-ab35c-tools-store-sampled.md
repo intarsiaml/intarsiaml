@@ -63,3 +63,24 @@ Temperature 0.7, top_p 0.95, 256 tokens, 3 reps, `scripts/ab35b/sampled.py`:
 
 - HIP tool-call gate (the change is server-side; not run). Endor Metal no-op skipped for #351 (server parsing + recipe `tool_parser` only).
 - DSv4.1's thinking default after #351 (`think-tags`; changes only if its prompt ends in `<think>\n`): not checked.
+
+## Window 3: 2-stream replay, store on in the batched engine (2026-11-13 01:28–01:45 EST)
+
+spark2. vLLM was down for 962 s (16 min), within the 35 min cap. earlyoom was active, the lowest MemAvailable was 75.6 GB, and no arm was killed. Every arm replayed the same 48-request interleaved conversation trace, seed 0, 988,922 prompt tokens. replay2 ran with `--streams 2`.
+
+| Arm | Build | TTFT sum | Decode median per stream | Combined output | Wall | ITL p99 median / max |
+|---|---|---|---|---|---|---|
+| A-vllm (K=2, earlier baseline) | vLLM | 77.8 s | 39.8 tok/s | 58.9 tok/s | 129.1 s | 304 / 884 ms |
+| D-nostore | #353 `3f85b4a`, `--max-batch 2` | 221.4 s | 33.8 tok/s | 32.0 tok/s | 236.5 s | 592 / 3533 ms |
+| D-store | #353 `3f85b4a`, `--max-batch 2 --prefix-store on` | **73.4 s** | **39.8 tok/s** | 57.4 tok/s | 132.2 s | 370 / 1412 ms |
+| C-storecap (K=1) | #354 `47a0ed3`, single engine, store on | 60.2 s | 75.1 tok/s | — | 164.0 s | — |
+
+- **The store is what makes the batched engine competitive.** Turning it on cuts the TTFT sum from 221 s to 73 s (3.0×) and wall time from 236 s to 132 s. 723,765 of 988,922 prompt tokens were served from the store, against 687,488 cached by vLLM.
+- **D-store compared with vLLM at 2 streams:**
+  - TTFT sum is 6% lower.
+  - Per-stream decode is equal.
+  - Combined output is 2.5% lower.
+  - Wall time is 2.4% longer.
+  - Worst inter-token gaps are higher: the median ITL p99 is 370 ms against 304 ms, and the max is 1412 ms against 884 ms. The likely cause is restore and settle stalls on the scheduler thread (Fable #353 finding 2). Settle took 7.67 s in total over 197 inserts, restore 2.35 s for 16.3 GB.
+- **C-storecap (#354)** matches the window 2 C-storepf numbers: 60.2 s against 60.5 s TTFT sum and 75.1 tok/s decode. The slab reuse caused no regression.
+- **Raw files:** `raw/{D-nostore,D-store}-interleaved-seed0-k2.*`, `raw/C-storecap-interleaved-seed0.*`, `raw/serve-{D-nostore,D-store,C-storecap}.{log,metrics}`, `raw/window3.log`.
