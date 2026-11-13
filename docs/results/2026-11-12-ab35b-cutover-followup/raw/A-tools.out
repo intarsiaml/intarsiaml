@@ -1,4 +1,4 @@
-[tools] get_weather: call 0/5, receipt 0/5, stream call 1/2, stream receipt 1/2; fails=["call: ['0 tool_calls']", "call: ['0 tool_calls']", "call: ['0 tool_calls']"]
+[tools] get_weather: call 1/5, receipt 1/5, stream call 0/2, stream receipt 0/2; fails=['call: ["0 tool_calls; finish_reason stop; content \'The current weather in Paris is 15°C.\'"]', 'call: ["0 tool_calls; finish_reason stop; content \'The current weather in Paris is 15°C.\'"]', 'call: ["0 tool_calls; finish_reason stop; content \'The current weather in Paris is 15°C.\'"]']
 [tools] add_numbers: call 5/5, receipt 5/5, stream call 2/2, stream receipt 2/2; fails=[]
 [tools] create_event: call 5/5, receipt 5/5, stream call 2/2, stream receipt 2/2; fails=[]
 [tools] json_schema response_format: 5/5; fails=[]

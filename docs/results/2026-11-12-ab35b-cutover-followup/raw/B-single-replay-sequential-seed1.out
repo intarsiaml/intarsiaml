@@ -1,0 +1,58 @@
+[replay] arm=B-single order=sequential seed=1 plan={'per_sentence': 22.06, 'base_tokens': 54, 'sentences': [357, 218, 218, 218, 218, 218]} trace=replay
+[replay] warmup ok=True prompt=6704
+[replay] c0 t1 prompt=8042 cached=0 ttft=1.14s decode=110.7 out=160 
+[replay] c0 t2 prompt=13081 cached=0 ttft=1.97s decode=106.5 out=160 
+[replay] c0 t3 prompt=18110 cached=8192 ttft=1.65s decode=102.1 out=160 
+[replay] c0 t4 prompt=23150 cached=14336 ttft=1.64s decode=110.2 out=160 
+[replay] c0 t5 prompt=28196 cached=20480 ttft=1.5s decode=100.9 out=160 
+[replay] c0 t6 prompt=33213 cached=20480 ttft=2.58s decode=98.3 out=160 
+[replay] c1 t1 prompt=8050 cached=0 ttft=1.14s decode=100.1 out=160 
+[replay] c1 t2 prompt=13083 cached=0 ttft=1.93s decode=102.7 out=160 
+[replay] c1 t3 prompt=18080 cached=8192 ttft=1.65s decode=96.9 out=142 
+[replay] c1 t4 prompt=23093 cached=14336 ttft=1.6s decode=99.6 out=153 
+[replay] c1 t5 prompt=28095 cached=20480 ttft=1.46s decode=102.8 out=139 
+[replay] c1 t6 prompt=33107 cached=20480 ttft=2.48s decode=95.5 out=143 
+[replay] c2 t1 prompt=8043 cached=0 ttft=1.13s decode=108.3 out=160 
+[replay] c2 t2 prompt=13075 cached=0 ttft=1.97s decode=102.9 out=142 
+[replay] c2 t3 prompt=18078 cached=8192 ttft=1.65s decode=100.6 out=155 
+[replay] c2 t4 prompt=23065 cached=14336 ttft=1.59s decode=104.9 out=152 
+[replay] c2 t5 prompt=28081 cached=20480 ttft=1.46s decode=100.7 out=142 
+[replay] c2 t6 prompt=33088 cached=20480 ttft=2.55s decode=100.5 out=149 
+[replay] c3 t1 prompt=8056 cached=0 ttft=1.2s decode=119.1 out=160 
+[replay] c3 t2 prompt=13082 cached=0 ttft=1.94s decode=77.7 out=134 
+[replay] c3 t3 prompt=18088 cached=8192 ttft=1.65s decode=96.1 out=145 
+[replay] c3 t4 prompt=23117 cached=14336 ttft=1.61s decode=106.9 out=151 
+[replay] c3 t5 prompt=28139 cached=20480 ttft=1.54s decode=106.0 out=155 
+[replay] c3 t6 prompt=33166 cached=20480 ttft=2.63s decode=86.5 out=146 
+[replay] c4 t1 prompt=8032 cached=0 ttft=1.14s decode=105.9 out=160 
+[replay] c4 t2 prompt=13081 cached=0 ttft=2.01s decode=121.1 out=155 
+[replay] c4 t3 prompt=18108 cached=8192 ttft=1.66s decode=114.3 out=153 
+[replay] c4 t4 prompt=23111 cached=14336 ttft=1.61s decode=109.4 out=152 
+[replay] c4 t5 prompt=28116 cached=20480 ttft=1.5s decode=103.8 out=150 
+[replay] c4 t6 prompt=33127 cached=20480 ttft=2.57s decode=96.9 out=151 
+[replay] c5 t1 prompt=8024 cached=0 ttft=1.19s decode=108.6 out=152 
+[replay] c5 t2 prompt=13043 cached=0 ttft=1.92s decode=114.9 out=160 
+[replay] c5 t3 prompt=18073 cached=8192 ttft=1.65s decode=107.9 out=160 
+[replay] c5 t4 prompt=23085 cached=14336 ttft=1.61s decode=102.7 out=160 
+[replay] c5 t5 prompt=28105 cached=20480 ttft=1.51s decode=101.1 out=160 
+[replay] c5 t6 prompt=33134 cached=20480 ttft=2.5s decode=94.5 out=160 
+[replay] c6 t1 prompt=8054 cached=0 ttft=1.21s decode=96.8 out=160 
+[replay] c6 t2 prompt=13073 cached=0 ttft=1.97s decode=105.9 out=150 
+[replay] c6 t3 prompt=18079 cached=8192 ttft=1.65s decode=95.6 out=154 
+[replay] c6 t4 prompt=23095 cached=14336 ttft=1.6s decode=105.5 out=155 
+[replay] c6 t5 prompt=28121 cached=20480 ttft=1.47s decode=102.5 out=160 
+[replay] c6 t6 prompt=33139 cached=20480 ttft=2.51s decode=97.0 out=155 
+[replay] c7 t1 prompt=8032 cached=0 ttft=1.14s decode=103.3 out=160 
+[replay] c7 t2 prompt=13073 cached=0 ttft=1.93s decode=98.4 out=157 
+[replay] c7 t3 prompt=18104 cached=8192 ttft=1.65s decode=99.8 out=148 
+[replay] c7 t4 prompt=23119 cached=14336 ttft=1.65s decode=110.0 out=160 
+[replay] c7 t5 prompt=28153 cached=20480 ttft=1.54s decode=105.8 out=154 
+[replay] c7 t6 prompt=33163 cached=20480 ttft=2.52s decode=95.4 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8042 | 0 (0.0) | 1.139 (1.134-1.211) | 107.1 (96.8-119.1) |
+| 2 | 13078 | 0 (0.0) | 1.957 (1.918-2.014) | 104.4 (77.7-121.1) |
+| 3 | 18084 | 8192 (0.453) | 1.649 (1.646-1.657) | 100.2 (95.6-114.3) |
+| 4 | 23103 | 14336 (0.621) | 1.607 (1.592-1.654) | 106.2 (99.6-110.2) |
+| 5 | 28118 | 20480 (0.728) | 1.499 (1.46-1.539) | 102.7 (100.7-106.0) |
+| 6 | 33136 | 20480 (0.618) | 2.537 (2.483-2.625) | 96.2 (86.5-100.5) |
+[replay] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988622, 'cached_tokens': 507904, 'ttft_s_sum': 83.37, 'decode_tok_s_median': 102.7} wall 157.2s

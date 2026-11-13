@@ -4,17 +4,17 @@
  "scenarios": [
   {
    "tool": "get_weather",
-   "call_ok": 0,
-   "receipt_ok": 0,
-   "stream_call_ok": 1,
-   "stream_receipt_ok": 1,
+   "call_ok": 1,
+   "receipt_ok": 1,
+   "stream_call_ok": 0,
+   "stream_receipt_ok": 0,
    "fails": [
-    "call: ['0 tool_calls']",
-    "call: ['0 tool_calls']",
-    "call: ['0 tool_calls']",
-    "call: ['0 tool_calls']",
-    "call: ['0 tool_calls']",
-    "stream_call: ['0 tool_calls']"
+    "call: [\"0 tool_calls; finish_reason stop; content 'The current weather in Paris is 15\u00b0C.'\"]",
+    "call: [\"0 tool_calls; finish_reason stop; content 'The current weather in Paris is 15\u00b0C.'\"]",
+    "call: [\"0 tool_calls; finish_reason stop; content 'The current weather in Paris is 15\u00b0C.'\"]",
+    "call: [\"0 tool_calls; finish_reason stop; content 'The current weather in Paris is 15\u00b0C.'\"]",
+    "stream_call: [\"0 tool_calls; finish_reason stop; content 'The current weather in Paris is 15\u00b0C.'\"]",
+    "stream_call: [\"0 tool_calls; finish_reason stop; content 'The current weather in Paris is 15\u00b0C.'\"]"
    ],
    "reps": 5,
    "stream_reps": 2
