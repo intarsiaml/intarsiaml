@@ -795,6 +795,17 @@ impl LocalEngine {
                         *sh.failed.lock().unwrap_or_else(|e| e.into_inner()) = Some(why.clone());
                         sh.telemetry.request_finished("error", plen, 0, 0, Duration::ZERO, Duration::ZERO, Duration::ZERO);
                         let _ = tx.send(GenEvent::Error { message: why });
+                        continue;
+                    }
+                    // after the reply: the client has its `Done` (or `Error`), so this copy overlaps whatever it does
+                    // next. The engine thread takes the next job only when it is done, so a request already queued
+                    // waits for it (its time to first token absorbs the cost); what moves is the cost, out of the decode
+                    // window, not the work. Outside `run_job`'s unwind guard: a panic here must not report the finished
+                    // request a second time, only fail the engine.
+                    if let Err(p) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| settle_after_done(&sh))) {
+                        let why = format!("worker panicked in the prefix-store settle: {}", panic_message(&*p));
+                        eprintln!("engine failed: {why}");
+                        *sh.failed.lock().unwrap_or_else(|e| e.into_inner()) = Some(why);
                     }
                 }
             })
@@ -1047,6 +1058,22 @@ fn run_job(sh: &Shared, job: Job) {
             }
             report_error(&sh.telemetry, &tx, plen, generated, t_total.elapsed(), &e)
         }
+    }
+}
+
+/// Move the entries the finished request captured on the device to their tier ([`crate::prefix_store::PrefixStore::settle`]),
+/// once its `Done` or `Error` went out. A no-op with the store off or nothing deferred, and on a failed engine (its
+/// device may refuse the copies; they are dropped with the process).
+fn settle_after_done(sh: &Shared) {
+    let Some(pol) = &sh.store else { return };
+    if sh.failed.lock().unwrap_or_else(|e| e.into_inner()).is_some() {
+        return;
+    }
+    let g = sh.inner.lock().unwrap_or_else(|e| e.into_inner());
+    let mut store = pol.store.lock().unwrap_or_else(|e| e.into_inner());
+    if store.deferring() {
+        store.settle(&*g.model.backend, "after done");
+        sh.telemetry.set_prefix_store(store.snapshot());
     }
 }
 
@@ -1377,7 +1404,9 @@ impl Seq {
         if let Some(ps) = &ps {
             // inserts during this prefill copy device-to-device and leave the host copy for later
             let mut store = ps.pol.store.lock().unwrap_or_else(|e| e.into_inner());
-            store.settle(&*model.backend);
+            // a backstop: the previous request's captures were settled after its `Done` (`settle_after_done`), so this
+            // is a no-op unless that was skipped (a failed engine, a panic)
+            store.settle(&*model.backend, "prefill start");
             store.set_defer(true);
         }
         if let Some(ps) = &ps {
@@ -1808,17 +1837,6 @@ impl Seq {
         ps.last_insert = pos;
         self.telemetry.set_prefix_store(store.snapshot());
         Ok(())
-    }
-
-    /// Move the entries this request captured on the device to their tier ([`crate::prefix_store::PrefixStore::settle`]).
-    pub(crate) fn settle_store(&self, model: &Model) {
-        if let Some(ps) = &self.ps {
-            let mut store = ps.pol.store.lock().unwrap_or_else(|e| e.into_inner());
-            if store.deferring() {
-                store.settle(&*model.backend);
-                self.telemetry.set_prefix_store(store.snapshot());
-            }
-        }
     }
 
     /// The end of a prewarm request: no token generated, the prompt counted as processed.
@@ -2491,8 +2509,9 @@ fn generate_one(
     }
     let mut seq = Seq::new(sh, model, st, req, tx)?;
     let r = run_seq(&mut seq, model, st);
-    // entries captured on the device during this request go to their tier now (a no-op when already settled)
-    seq.settle_store(model);
+    // the entries this request captured on the device stay there until `run_job` has sent the client its `Done` (or
+    // `Error`): `settle_after_done` moves them to their tier then, so their device-to-host copies stall neither decode
+    // nor the reply
     match r {
         Ok(Some(o)) => Ok(o),
         Ok(None) => {
@@ -2520,16 +2539,10 @@ fn run_seq(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<O
             PrefillStep::Finished(o) => return Ok(Some(o)),
         }
     }
-    let mut first = true;
     // this loop alone runs on the model between the sequence's steps
     seq.pipe_solo = true;
     loop {
         let done = seq.on_token()?;
-        if first {
-            // after the first token went out: the prefix store's device-to-host copies stay off the time to first token
-            seq.settle_store(model);
-            first = false;
-        }
         if done {
             break;
         }

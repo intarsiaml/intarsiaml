@@ -464,7 +464,8 @@ pub struct PrefixStoreSnapshot {
     pub inserts: u64,
     pub insert_bytes: u64,
     pub insert_seconds_total: f64,
-    /// Part of `insert_seconds_total` spent after the first token, moving deferred captures off the device.
+    /// Part of `insert_seconds_total` spent in `settle`, moving deferred captures off the device (the engine calls it after
+    /// the request's `Done` went out).
     pub settle_seconds_total: f64,
     /// Restores rejected because an object failed its checks (corrupt or foreign file); the request ran cold.
     pub rejected: u64,
@@ -505,11 +506,20 @@ pub struct PrefixStore {
     stats: PrefixStoreSnapshot,
     writer: Option<DiskWriter>,
     /// Inserts go to the device whatever its budget, and the device tier is not brought within budget, until
-    /// [`PrefixStore::settle`] (the engine defers the device-to-host copies until the first token went out: a download
-    /// synchronises the device, which would stall the prefill that queued the next chunk).
+    /// [`PrefixStore::settle`] (the engine defers the device-to-host copies until the request's `Done` went out: a download
+    /// synchronises the device, which would stall the prefill that queued the next chunk, and inside decode it stalled
+    /// the stream; ab35c).
     defer: bool,
     /// Device bytes captured while deferring (capped at [`DEFER_CAP`]; past it inserts copy to host directly).
     deferred: u64,
+    /// Engine-thread time spent in `queue_write` since the last `settle` (reported under `INTARSIA_PREFIX_STORE_DEBUG`).
+    queue_write_seconds: f64,
+}
+
+/// `INTARSIA_PREFIX_STORE_DEBUG` is set: report the store's timings on stderr.
+fn debug() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("INTARSIA_PREFIX_STORE_DEBUG").is_some())
 }
 
 /// Most device memory the deferred captures of one request may hold.
@@ -517,7 +527,7 @@ const DEFER_CAP: u64 = 1 << 30;
 
 struct DiskWriter {
     dir: PathBuf,
-    tx: Sender<(Key, PathBuf, Arc<Vec<u8>>, Vec<u8>)>,
+    tx: Sender<(Key, PathBuf, Arc<Vec<u8>>)>,
     done: Receiver<(Key, bool)>,
     _thread: std::thread::JoinHandle<()>,
 }
@@ -549,11 +559,12 @@ impl PrefixStore {
             writer: None,
             defer: false,
             deferred: 0,
+            queue_write_seconds: 0.0,
         };
         if let (Some(dir), true) = (s.cfg.disk_dir.clone(), s.cfg.disk_bytes > 0) {
             let dir = dir.join(format!("{build:016x}"));
             std::fs::create_dir_all(&dir)?;
-            s.writer = Some(DiskWriter::spawn(dir)?);
+            s.writer = Some(DiskWriter::spawn(dir, build)?);
             s.load_disk();
         }
         Ok(s)
@@ -790,7 +801,7 @@ impl PrefixStore {
         }
         let mut out = Vec::with_capacity(todo.len());
         for (_, segs, bytes) in todo {
-            let mut v = vec![0u8; *bytes];
+            let mut v = host_buf(*bytes);
             let mut off = 0;
             for &(src, so, n) in segs {
                 backend.download(src, so, &mut v[off..off + n], 0)?;
@@ -928,17 +939,24 @@ impl PrefixStore {
     }
 
     /// Stop deferring and bring every tier within budget (device captures move to host, and to disk when it is on).
-    pub fn settle(&mut self, backend: &dyn Backend) {
+    /// `site` says where the engine called it (only for the `INTARSIA_PREFIX_STORE_DEBUG` line).
+    pub fn settle(&mut self, backend: &dyn Backend, site: &str) {
         self.defer = false;
         self.deferred = 0;
+        self.queue_write_seconds = 0.0;
         let t0 = Instant::now();
         let before = self.used[0];
         self.enforce(backend);
         let took = t0.elapsed().as_secs_f64();
         self.stats.insert_seconds_total += took;
         self.stats.settle_seconds_total += took;
-        if std::env::var_os("INTARSIA_PREFIX_STORE_DEBUG").is_some() {
-            eprintln!("prefix store: settle moved {} MiB off the device in {:.1} ms", (before - self.used[0]) >> 20, took * 1e3);
+        if debug() {
+            eprintln!(
+                "prefix store: settle ({site}) moved {} MiB off the device in {:.1} ms (queue_write {:.2} ms)",
+                (before - self.used[0]) >> 20,
+                took * 1e3,
+                self.queue_write_seconds * 1e3
+            );
         }
         self.refresh_counts();
     }
@@ -1021,10 +1039,10 @@ impl PrefixStore {
             self.used[0] -= o.bytes as u64;
             self.stats.device.evictions += 1;
             let ta = Instant::now();
-            let mut v = vec![0u8; o.bytes];
+            let mut v = host_buf(o.bytes);
             let tb = Instant::now();
             let ok = backend.download(&buf, boff, &mut v, 0).is_ok();
-            if std::env::var_os("INTARSIA_PREFIX_STORE_DEBUG").is_some() {
+            if debug() {
                 eprintln!(
                     "prefix store: demote {} KiB: alloc {:.2} ms, download {:.2} ms",
                     o.bytes >> 10,
@@ -1137,12 +1155,18 @@ impl PrefixStore {
         if self.cfg.disk_bytes < o.bytes as u64 {
             return;
         }
+        let t0 = Instant::now();
         let path = w.dir.join(format!("o-{k:032x}.bin"));
-        let header = obj_header(self.build, k, &data);
-        if w.tx.send((k, path.clone(), data.clone(), header)).is_ok() {
+        // the header (its checksum reads every byte of `data`) is built by the writer thread, off the engine thread
+        if w.tx.send((k, path.clone(), data.clone())).is_ok() {
             o.disk = Some(path);
             o.staged = Some(data);
             self.used[2] += o.bytes as u64;
+        }
+        let took = t0.elapsed().as_secs_f64();
+        self.queue_write_seconds += took;
+        if debug() {
+            eprintln!("prefix store: queue_write {} KiB: {:.3} ms", o.bytes >> 10, took * 1e3);
         }
     }
 
@@ -1390,14 +1414,27 @@ fn write_atomic(path: &Path, parts: &[&[u8]]) -> std::io::Result<()> {
 }
 
 impl DiskWriter {
-    fn spawn(dir: PathBuf) -> Result<DiskWriter> {
-        let (tx, rx) = channel::<(Key, PathBuf, Arc<Vec<u8>>, Vec<u8>)>();
+    fn spawn(dir: PathBuf, build: u64) -> Result<DiskWriter> {
+        let (tx, rx) = channel::<(Key, PathBuf, Arc<Vec<u8>>)>();
         let (dtx, done) = channel();
         let thread = std::thread::Builder::new()
             .name("intarsia-prefix-store-writer".into())
             .spawn(move || {
-                for (k, path, data, header) in rx.iter() {
+                let dbg = debug();
+                for (k, path, data) in rx.iter() {
+                    let t0 = Instant::now();
+                    let header = obj_header(build, k, &data);
+                    let t1 = Instant::now();
                     let ok = write_atomic(&path, &[&header, &data]).is_ok();
+                    if dbg {
+                        eprintln!(
+                            "prefix store: writer {} KiB: checksum {:.2} ms, write {:.2} ms{}",
+                            data.len() >> 10,
+                            (t1 - t0).as_secs_f64() * 1e3,
+                            t1.elapsed().as_secs_f64() * 1e3,
+                            if ok { "" } else { " (failed)" }
+                        );
+                    }
                     if dtx.send((k, ok)).is_err() {
                         break;
                     }
@@ -1501,4 +1538,19 @@ mod tests {
         assert_ne!(build_fingerprint("a"), build_fingerprint("b"));
         assert_ne!(checksum(b"abcdefgh1"), checksum(b"abcdefgh2"));
     }
+}
+
+/// A host buffer for a device-to-host download, with every page already faulted in by the CPU. `vec![0u8; n]` maps
+/// fresh zero pages lazily, and on the GB10 (unified memory) a download into untouched pages ran at about 170 MB/s
+/// (ab35c: 11.8 GiB in 70.9 s; one 32 MiB object 227 ms) against GB/s into touched ones (the same object 1 ms after
+/// a reused, already-written allocation). Writing one byte per page first moves the faults to the CPU, where they
+/// are cheap.
+fn host_buf(n: usize) -> Vec<u8> {
+    let mut v = vec![0u8; n];
+    let p = v.as_mut_ptr();
+    for i in (0..n).step_by(4096) {
+        // SAFETY: i < n = v.len(); a volatile write so the touch is not folded into the zeroed allocation.
+        unsafe { std::ptr::write_volatile(p.add(i), 0) };
+    }
+    v
 }
