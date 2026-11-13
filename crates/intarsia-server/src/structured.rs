@@ -3,9 +3,11 @@
 //! the engine applies before sampling (`intarsia_core::constrain`).
 //!
 //! The token table comes from the model's HF `tokenizer.json`, padded to the logit width, with the model's EOS ids as
-//! the grammar's end. It is built once, on the first constrained request. Tool calls use the hermes format the Qwen
-//! templates use (`<tool_call>\n{"name": ..., "arguments": {...}}\n</tool_call>`); [`ToolParser`] turns generated text
-//! back into calls.
+//! the grammar's end. It is built once, on the first constrained request. Tool calls come in the two formats the Qwen
+//! templates use ([`ToolFormat`], chosen by the recipe's `tool_parser`): hermes JSON
+//! (`<tool_call>\n{"name": ..., "arguments": {...}}\n</tool_call>`, Qwen3) and the XML of Qwen3.5 and later
+//! (`<tool_call>\n<function=NAME>\n<parameter=ARG>\nVALUE\n</parameter>\n</function>\n</tool_call>`, vLLM's
+//! `qwen3_xml`); [`ToolParser`] turns generated text back into calls.
 
 use crate::api::{blocking_as, ApiError, AppState, Flavor};
 use intarsia_core::constrain::{ConstraintSpec, TokenConstraint, TokenMask};
@@ -16,6 +18,7 @@ use llguidance::earley::SlicedBiasComputer;
 use llguidance::toktrie::{InferenceCapabilities, TokEnv, TokRxInfo, TokTrie, TokenId, TokenizerEnv};
 use llguidance::{Matcher, ParserFactory};
 use serde_json::{json, Map, Value};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 /// Tokenize callback of the grammar env (the model's own tokenizer; `None` falls back to the trie's greedy split).
@@ -121,17 +124,19 @@ impl GrammarEnv {
         };
         let (grammar, trigger) = match plan {
             Plan::Json(schema) => (TopLevelGrammar::from_json_schema(compact(schema)), None),
-            Plan::Tools { tools, required: true, parallel } => {
+            Plan::Tools { tools, required: true, parallel, format } => {
                 // one call (or several, newline-separated), nothing else; the grammar ends where the model must stop
-                let call = format!(r#"{} "\n" %json {} "\n" {}"#, self.open.lark, calls_schema(tools), self.close.lark);
+                let (rules, body) = call_body(tools, *format);
+                let call = format!(r#"{} "\n" {body} "\n" {}"#, self.open.lark, self.close.lark);
                 let start = if *parallel { "call (\"\\n\" call)*" } else { "call" };
-                (TopLevelGrammar::from_lark(format!("start: {start}\ncall: {call}\n")), None)
+                (TopLevelGrammar::from_lark(format!("start: {start}\ncall: {call}\n{rules}")), None)
             }
-            Plan::Tools { tools, required: false, .. } => {
+            Plan::Tools { tools, required: false, format, .. } => {
                 // free text until the model opens a call; the call's body is constrained, then text is free again
                 let trigger = self.open.id.ok_or("tool_choice auto needs a single-token <tool_call> tag")?;
-                let body = format!(r#""\n" %json {} "\n" {}"#, calls_schema(tools), self.close.lark);
-                (TopLevelGrammar::from_lark(format!("start: {body}\n")), Some(trigger))
+                let (rules, call) = call_body(tools, *format);
+                let body = format!(r#""\n" {call} "\n" {}"#, self.close.lark);
+                (TopLevelGrammar::from_lark(format!("start: {body}\n{rules}")), Some(trigger))
             }
         };
         let parser = self.factory.create_parser(grammar).map_err(|e| format!("invalid schema: {e}"))?;
@@ -182,12 +187,35 @@ pub async fn attach(
     Ok(())
 }
 
-/// Split generated text into the content and the hermes tool calls in it. Without calls the content is the text
-/// unchanged; with calls it is the text around them, trimmed (`None` when nothing is left).
-pub fn split_calls(text: &str) -> (Option<String>, Vec<(String, Value)>) {
+/// The tool-call dialect of a model (its recipe's `tool_parser`). The `<tool_call>` tags and the streaming hold-back are
+/// shared; only the grammar of the body and the parser of the body differ.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ToolFormat {
+    /// `<tool_call>\n{"name": ..., "arguments": {...}}\n</tool_call>` (Qwen3).
+    #[default]
+    Hermes,
+    /// `<tool_call>\n<function=NAME>\n<parameter=ARG>\nVALUE\n</parameter>\n</function>\n</tool_call>` (Qwen3.5 and
+    /// later; vLLM's `qwen3_xml`).
+    Qwen3Xml,
+}
+
+impl ToolFormat {
+    /// The format a recipe's `tool_parser` names; `None` for no (or an unknown) parser.
+    pub fn from_parser(name: Option<&str>) -> Option<ToolFormat> {
+        match name? {
+            "hermes" => Some(ToolFormat::Hermes),
+            "qwen3_xml" | "qwen3-xml" => Some(ToolFormat::Qwen3Xml),
+            _ => None,
+        }
+    }
+}
+
+/// Split generated text into the content and the tool calls in it. Without calls the content is the text unchanged;
+/// with calls it is the text around them, trimmed (`None` when nothing is left).
+pub fn split_calls(text: &str, format: ToolFormat, tools: &[Tool]) -> (Option<String>, Vec<(String, Value)>) {
     let mut calls = Vec::new();
     let mut rest = String::new();
-    for p in ToolParser::parse_all(text) {
+    for p in ToolParser::parse_all(text, format, tools) {
         match p {
             Piece::Text(t) => rest.push_str(&t),
             Piece::Call { name, arguments } => calls.push((name, arguments)),
@@ -200,32 +228,50 @@ pub fn split_calls(text: &str) -> (Option<String>, Vec<(String, Value)>) {
     (if t.is_empty() { None } else { Some(t.to_string()) }, calls)
 }
 
-/// Which plan a request's `response_format` / `tools` / `tool_choice` make, and whether the output is parsed for hermes
-/// tool calls. `hermes`: the model's tool format (`tool_parser`) is the one [`ToolParser`] reads.
+/// Whether the model's reasoning is split from its answer (and a constraint waits for `</think>`). An explicit
+/// `enable_thinking: false` never splits. Otherwise the model must have a reasoning parser, and then an explicit `true`
+/// splits, and so does a request that said nothing when the rendered prompt itself opens the think block
+/// ([`THINK_OPEN_PROMPT`]): the Qwen3.5+ templates do that unless thinking is off, and the model then writes the
+/// reasoning and `</think>` as the start of its answer. A template that closes the block in the prompt (thinking off,
+/// or off by default) leaves nothing to split.
+pub fn splits_reasoning(enable_thinking: Option<bool>, has_reasoning_parser: bool, prompt: &str) -> bool {
+    has_reasoning_parser
+        && match enable_thinking {
+            Some(on) => on,
+            None => prompt.ends_with(THINK_OPEN_PROMPT),
+        }
+}
+
+/// What the generation prompt ends with when the template has opened the think block for the model.
+pub const THINK_OPEN_PROMPT: &str = "<think>\n";
+
+/// Which plan a request's `response_format` / `tools` / `tool_choice` make, and in which format the output is parsed for
+/// tool calls (`None`: not parsed). `format`: the model's tool format (`tool_parser`), `None` when it has none the
+/// server reads.
 pub fn choose(
     format: Option<Plan>,
     tools: &[Tool],
     choice: &Choice,
     parallel: bool,
-    hermes: bool,
-) -> Result<(Option<Plan>, bool), String> {
+    tool_format: Option<ToolFormat>,
+) -> Result<(Option<Plan>, Option<ToolFormat>), String> {
     if let Some(f) = format {
         if *choice != Choice::None {
             return Err("response_format cannot be combined with tools (unless tool_choice is none)".into());
         }
-        return Ok((Some(f), false));
+        return Ok((Some(f), None));
     }
     if *choice == Choice::None {
-        return Ok((None, false));
+        return Ok((None, None));
     }
-    if !hermes {
+    let Some(tool_format) = tool_format else {
         return match choice {
             // as before: the tools reach the template, the output is returned as text
-            Choice::Auto => Ok((None, false)),
-            _ => Err("tool_choice required / a named function needs a model with hermes-format tool calls".into()),
+            Choice::Auto => Ok((None, None)),
+            _ => Err("tool_choice required / a named function needs a model with hermes or qwen3_xml tool calls".into()),
         };
-    }
-    Ok((tools_plan(tools, choice, parallel), true))
+    };
+    Ok((tools_plan(tools, choice, parallel, tool_format), Some(tool_format)))
 }
 
 /// What a request asks the output to be.
@@ -233,10 +279,10 @@ pub fn choose(
 pub enum Plan {
     /// One JSON value matching the schema.
     Json(Value),
-    /// Hermes tool calls with schema-constrained arguments: `required` = calls only (tool_choice `required` or a named
-    /// function), else `auto` (free text, each call constrained once its tag is opened). `parallel: false`
+    /// Tool calls with schema-constrained arguments, in `format`: `required` = calls only (tool_choice `required` or a
+    /// named function), else `auto` (free text, each call constrained once its tag is opened). `parallel: false`
     /// (`parallel_tool_calls: false`) allows one call, after which the model must stop.
-    Tools { tools: Vec<Tool>, required: bool, parallel: bool },
+    Tools { tools: Vec<Tool>, required: bool, parallel: bool, format: ToolFormat },
 }
 
 #[derive(Clone, Debug)]
@@ -278,6 +324,111 @@ fn calls_schema(tools: &[Tool]) -> String {
     let s = if tools.len() == 1 { one(&tools[0]) } else { json!({"anyOf": tools.iter().map(one).collect::<Vec<_>>()}) };
     compact(&s).to_string()
 }
+
+/// The grammar of one call's body (between `<tool_call>\n` and `\n</tool_call>`) in `format`: extra lark rules to append
+/// to the grammar, and the expression for the body.
+fn call_body(tools: &[Tool], format: ToolFormat) -> (String, String) {
+    match format {
+        ToolFormat::Hermes => (String::new(), format!("%json {}", calls_schema(tools))),
+        ToolFormat::Qwen3Xml => (xml_rules(tools), "xcall".into()),
+    }
+}
+
+/// How the XML format writes one parameter's value: raw text, one of a fixed set of strings, or JSON.
+enum ParamKind {
+    /// A string: the raw text up to `\n</parameter>`.
+    Text,
+    /// A string with an `enum` (or a `const`): one of these.
+    Enum(Vec<String>),
+    /// Anything else: JSON matching the property's schema (the templates `tojson` every non-string value).
+    Json,
+}
+
+/// The kind of a property schema. The grammar and the output parser both use this, so they cannot disagree on what is
+/// a raw string. A property with no type information is a string, as in vLLM.
+fn param_kind(schema: &Value) -> ParamKind {
+    let Some(o) = schema.as_object() else { return ParamKind::Text };
+    if let Some(Value::Array(e)) = o.get("enum") {
+        let strs: Vec<String> = e.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+        if !strs.is_empty() && strs.len() == e.len() && matches!(o.get("type"), None | Some(Value::String(_))) {
+            return ParamKind::Enum(strs);
+        }
+    }
+    if let Some(Value::String(c)) = o.get("const") {
+        return ParamKind::Enum(vec![c.clone()]);
+    }
+    match o.get("type") {
+        Some(Value::String(t)) if t == "string" => ParamKind::Text,
+        None if !["anyOf", "oneOf", "allOf", "$ref", "enum", "const", "properties", "items", "not"]
+            .iter()
+            .any(|k| o.contains_key(*k)) =>
+        {
+            ParamKind::Text
+        }
+        _ => ParamKind::Json,
+    }
+}
+
+/// `(name, schema, required)` of a tool's parameters, in the schema's property order.
+fn tool_params(t: &Tool) -> Vec<(&str, &Value, bool)> {
+    let required: Vec<&str> = t
+        .parameters
+        .get("required")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_str).collect())
+        .unwrap_or_default();
+    t.parameters
+        .get("properties")
+        .and_then(Value::as_object)
+        .map(|o| o.iter().map(|(k, v)| (k.as_str(), v, required.contains(&k.as_str()))).collect())
+        .unwrap_or_default()
+}
+
+/// A property schema that can stand alone: the tool's root `$defs` / `definitions` come along, so `$ref`s still resolve.
+fn standalone(prop: &Value, root: &Value) -> Value {
+    let mut s = prop.clone();
+    if let (Value::Object(o), Value::Object(r)) = (&mut s, root) {
+        for k in ["$defs", "definitions"] {
+            if let (Some(d), false) = (r.get(k), o.contains_key(k)) {
+                o.insert(k.into(), d.clone());
+            }
+        }
+    }
+    s
+}
+
+/// Lark rules of the XML call body: `xcall` is any of the tools,
+/// `<function=NAME>\n` then its parameters (required ones, optional ones skippable, both in the schema's property
+/// order), `</function>`. A parameter is `<parameter=NAME>\n` VALUE `\n</parameter>\n`; a string value is raw text that
+/// ends at the first `\n</parameter>` (a lazy lexeme with that stop), any other is JSON matching its schema.
+fn xml_rules(tools: &[Tool]) -> String {
+    let lit = |s: &str| serde_json::to_string(s).expect("string");
+    let mut out = format!("xcall: {}\n", (0..tools.len()).map(|i| format!("t{i}")).collect::<Vec<_>>().join(" | "));
+    out.push_str(&format!("sval[{XML_STRING_END}]: /(?s:.*)/\n"));
+    for (i, t) in tools.iter().enumerate() {
+        let mut seq = vec![lit(&format!("<function={}>\n", t.name))];
+        for (j, (name, schema, required)) in tool_params(t).into_iter().enumerate() {
+            let open = lit(&format!("<parameter={name}>\n"));
+            let rule = match param_kind(schema) {
+                ParamKind::Text => format!("{open} sval"),
+                ParamKind::Enum(vs) => {
+                    format!("{open} ({}) {}", vs.iter().map(|v| lit(v)).collect::<Vec<_>>().join(" | "), lit(XML_PARAM_END))
+                }
+                ParamKind::Json => {
+                    format!("{open} %json {} {}", compact(&standalone(schema, &t.parameters)), lit(XML_PARAM_END))
+                }
+            };
+            out.push_str(&format!("p{i}_{j}: {rule}\n"));
+            seq.push(format!("p{i}_{j}{}", if required { "" } else { "?" }));
+        }
+        seq.push(lit("</function>"));
+        out.push_str(&format!("t{i}: {}\n", seq.join(" ")));
+    }
+    out
+}
+
+const XML_PARAM_END: &str = "\n</parameter>\n";
+const XML_STRING_END: &str = r#"suffix="\n</parameter>\n""#;
 
 // ---------------------------------------------------------------------------
 // request parsing (OpenAI / Anthropic shapes)
@@ -464,8 +615,8 @@ pub fn anthropic_choice(v: &Option<Value>, tools: &[Tool]) -> Result<Choice, Str
 }
 
 /// The constraint plan for a request's tools: `None` for `tool_choice: none` (or no tools).
-pub fn tools_plan(tools: &[Tool], choice: &Choice, parallel: bool) -> Option<Plan> {
-    let plan = |tools: Vec<Tool>, required| Some(Plan::Tools { tools, required, parallel });
+pub fn tools_plan(tools: &[Tool], choice: &Choice, parallel: bool, format: ToolFormat) -> Option<Plan> {
+    let plan = |tools: Vec<Tool>, required| Some(Plan::Tools { tools, required, parallel, format });
     match choice {
         Choice::None => None,
         Choice::Auto => plan(tools.to_vec(), false),
@@ -575,7 +726,7 @@ impl TokenConstraint for LlgConstraint {
 }
 
 // ---------------------------------------------------------------------------
-// hermes tool-call output parsing
+// tool-call output parsing
 // ---------------------------------------------------------------------------
 
 /// A piece of generated output.
@@ -594,25 +745,36 @@ const THINK_CLOSE: &str = "</think>";
 const OPEN: &str = "<tool_call>";
 const CLOSE: &str = "</tool_call>";
 
-/// Splits streamed text into plain text and hermes tool calls. Text that may be the start of `<tool_call>` is held
-/// back until it is decided; a call is reported once its closing tag arrives. A block that does not parse as a call
-/// is passed through as text.
-#[derive(Default)]
+/// Splits streamed text into plain text and tool calls. Text that may be the start of `<tool_call>` is held back until
+/// it is decided; a call is reported once its closing tag arrives. A block that does not parse as a call is passed
+/// through as text. Only the body between the tags depends on the [`ToolFormat`].
 pub struct ToolParser {
+    format: ToolFormat,
+    /// Tool name to its `parameters` schema: the XML format types each value by its property's schema.
+    schemas: HashMap<String, Value>,
     buf: String,
     in_call: bool,
-    /// Inside a call: where to look for the next `</tool_call>` (an earlier one sat inside a JSON string).
+    /// Inside a call: where to look for the next `</tool_call>` (an earlier one sat inside an argument value).
     from: usize,
 }
 
 impl ToolParser {
+    /// A parser for one response; `tools` are the request's (only the XML format reads them).
+    pub fn new(format: ToolFormat, tools: &[Tool]) -> ToolParser {
+        let schemas = match format {
+            ToolFormat::Hermes => HashMap::new(),
+            ToolFormat::Qwen3Xml => tools.iter().map(|t| (t.name.clone(), t.parameters.clone())).collect(),
+        };
+        ToolParser { format, schemas, buf: String::new(), in_call: false, from: 0 }
+    }
+
     pub fn push(&mut self, text: &str) -> Vec<Piece> {
         self.buf.push_str(text);
         let mut out = Vec::new();
         loop {
             if self.in_call {
                 let Some(i) = self.buf[self.from..].find(CLOSE).map(|i| i + self.from) else { break };
-                match parse_call(&self.buf[..i]) {
+                match self.parse_body(&self.buf[..i]) {
                     Some(call) => {
                         self.buf.drain(..i + CLOSE.len());
                         self.in_call = false;
@@ -656,15 +818,25 @@ impl ToolParser {
     }
 
     /// The whole output at once.
-    pub fn parse_all(text: &str) -> Vec<Piece> {
-        let mut p = ToolParser::default();
+    pub fn parse_all(text: &str, format: ToolFormat, tools: &[Tool]) -> Vec<Piece> {
+        let mut p = ToolParser::new(format, tools);
         let mut v = p.push(text);
         v.extend(p.finish());
         v
     }
 }
 
-fn parse_call(body: &str) -> Option<Piece> {
+impl ToolParser {
+    /// The call in the text between the tags, `None` when it is not (yet) a complete call.
+    fn parse_body(&self, body: &str) -> Option<Piece> {
+        match self.format {
+            ToolFormat::Hermes => parse_hermes_call(body),
+            ToolFormat::Qwen3Xml => parse_xml_call(body, &self.schemas),
+        }
+    }
+}
+
+fn parse_hermes_call(body: &str) -> Option<Piece> {
     let v: Value = serde_json::from_str(body.trim()).ok()?;
     let name = v.get("name")?.as_str()?.to_string();
     let arguments = match v.get("arguments") {
@@ -674,6 +846,62 @@ fn parse_call(body: &str) -> Option<Piece> {
         Some(a) => a.clone(),
     };
     Some(Piece::Call { name, arguments })
+}
+
+const FUNCTION_OPEN: &str = "<function=";
+const PARAMETER_OPEN: &str = "<parameter=";
+const PARAMETER_CLOSE: &str = "</parameter>";
+const FUNCTION_CLOSE: &str = "</function>";
+
+/// `<function=NAME>\n<parameter=ARG>\nVALUE\n</parameter>\n...</function>` (vLLM's `qwen3_xml`). A value loses exactly one
+/// `\n` at each end (what the template adds), so a string comes back byte for byte. A string-typed (or untyped, or
+/// unknown) parameter is that raw text; any other is parsed as JSON, and stays raw text when it is not JSON.
+fn parse_xml_call(body: &str, schemas: &HashMap<String, Value>) -> Option<Piece> {
+    let rest = body.trim_start().strip_prefix(FUNCTION_OPEN)?;
+    let end = rest.find('>')?;
+    let name = rest[..end].trim().to_string();
+    if name.is_empty() {
+        return None;
+    }
+    let params = schemas.get(&name).and_then(|p| p.get("properties"));
+    let mut rest = &rest[end + 1..];
+    let mut arguments = Map::new();
+    loop {
+        rest = rest.trim_start();
+        let Some(r) = rest.strip_prefix(PARAMETER_OPEN) else { break };
+        let end = r.find('>')?;
+        let key = r[..end].trim();
+        let r = &r[end + 1..];
+        let close = r.find(PARAMETER_CLOSE)?;
+        let raw = &r[..close];
+        let raw = raw.strip_prefix('\n').unwrap_or(raw);
+        let raw = raw.strip_suffix('\n').unwrap_or(raw);
+        arguments.insert(key.to_string(), param_value(raw, params.and_then(|p| p.get(key))));
+        rest = &r[close + PARAMETER_CLOSE.len()..];
+    }
+    // the closing tag may be missing at the end of the output
+    match rest.trim() {
+        "" | FUNCTION_CLOSE => Some(Piece::Call { name, arguments: Value::Object(arguments) }),
+        _ => None,
+    }
+}
+
+/// An XML parameter's value as JSON, by its property's schema.
+fn param_value(raw: &str, schema: Option<&Value>) -> Value {
+    let Some(schema) = schema else { return Value::String(raw.to_string()) };
+    if !matches!(param_kind(schema), ParamKind::Json) {
+        return Value::String(raw.to_string());
+    }
+    let t = raw.trim();
+    if let Ok(v) = serde_json::from_str::<Value>(t) {
+        return v;
+    }
+    // Python's spelling, as the older Qwen3.5 templates print a bool
+    match t {
+        "True" => Value::Bool(true),
+        "False" => Value::Bool(false),
+        _ => Value::String(raw.to_string()),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -812,6 +1040,8 @@ impl ReasoningParser {
 mod tests {
     use super::*;
     use intarsia_core::rng::SplitMix64;
+
+    const H: ToolFormat = ToolFormat::Hermes;
 
     /// Single-byte vocabulary (token i = byte i for i < 256), EOS = 256 (special), a `<tool_call>` token 257 and a
     /// `</tool_call>` token 258 (plain text), padded to 300 logits.
@@ -1075,13 +1305,13 @@ mod tests {
     fn required_tool_calls_parse_and_validate() {
         let e = env();
         let tools = weather();
-        let spec = e.compile(&tools_plan(&tools, &Choice::Required, true).unwrap()).unwrap();
-        let spec1 = e.compile(&tools_plan(&tools, &Choice::Named("get_weather".into()), true).unwrap()).unwrap();
+        let spec = e.compile(&tools_plan(&tools, &Choice::Required, true, ToolFormat::Hermes).unwrap()).unwrap();
+        let spec1 = e.compile(&tools_plan(&tools, &Choice::Named("get_weather".into()), true, ToolFormat::Hermes).unwrap()).unwrap();
         for seed in 0..30 {
             for (sp, only_weather) in [(&spec, false), (&spec1, true)] {
                 let (text, stopped) = run(sp, seed, 2000, 3.0);
                 assert!(stopped, "seed {seed}: {text:?}");
-                let pieces = ToolParser::parse_all(&text);
+                let pieces = ToolParser::parse_all(&text, ToolFormat::Hermes, &tools);
                 assert!(!pieces.is_empty());
                 for p in pieces {
                     match p {
@@ -1101,7 +1331,7 @@ mod tests {
     fn auto_tools_are_lazy() {
         let e = env();
         let tools = weather();
-        let spec = e.compile(&tools_plan(&tools, &Choice::Auto, true).unwrap()).unwrap();
+        let spec = e.compile(&tools_plan(&tools, &Choice::Auto, true, ToolFormat::Hermes).unwrap()).unwrap();
         let mut c = spec.start().unwrap();
         assert!(!c.active(), "free text until <tool_call>");
         for &b in b"hi " {
@@ -1134,7 +1364,7 @@ mod tests {
         // a random model under auto: every call it opens validates
         for seed in 0..20 {
             let (text, _) = run_auto(&spec, seed);
-            for p in ToolParser::parse_all(&text) {
+            for p in ToolParser::parse_all(&text, ToolFormat::Hermes, &tools) {
                 if let Piece::Call { name, arguments } = p {
                     let t = tools.iter().find(|t| t.name == name).unwrap();
                     assert!(validates(&t.parameters, &arguments), "{text}");
@@ -1411,12 +1641,12 @@ mod tests {
         assert!(m.allows(256) && !m.allows(b'{' as u32));
         // tools: required calls start only after the gate, auto keeps its own trigger after it
         let tools = weather();
-        let spec = e.compile_with(&tools_plan(&tools, &Choice::Required, true).unwrap(), true).unwrap();
+        let spec = e.compile_with(&tools_plan(&tools, &Choice::Required, true, ToolFormat::Hermes).unwrap(), true).unwrap();
         let mut c = spec.start().unwrap();
         assert!(!c.active());
         c.commit(259).unwrap();
         assert!(c.active() && c.compute_mask().unwrap().allows(257));
-        let spec = e.compile_with(&tools_plan(&tools, &Choice::Auto, true).unwrap(), true).unwrap();
+        let spec = e.compile_with(&tools_plan(&tools, &Choice::Auto, true, ToolFormat::Hermes).unwrap(), true).unwrap();
         let mut c = spec.start().unwrap();
         c.commit(257).unwrap(); // a <tool_call> inside the think section does not trigger
         assert!(!c.active());
@@ -1434,7 +1664,7 @@ mod tests {
 {"name": "noop", "arguments": {}}
 "#;
         // required: after one call only EOS
-        let spec = e.compile(&tools_plan(&tools, &Choice::Required, false).unwrap()).unwrap();
+        let spec = e.compile(&tools_plan(&tools, &Choice::Required, false, ToolFormat::Hermes).unwrap()).unwrap();
         let mut c = spec.start().unwrap();
         c.commit(257).unwrap();
         for &b in call {
@@ -1444,7 +1674,7 @@ mod tests {
         let m = c.compute_mask().unwrap();
         assert!(m.allows(256) && !m.allows(b'\n' as u32));
         // auto: likewise after the first call closes
-        let spec = e.compile(&tools_plan(&tools, &Choice::Auto, false).unwrap()).unwrap();
+        let spec = e.compile(&tools_plan(&tools, &Choice::Auto, false, ToolFormat::Hermes).unwrap()).unwrap();
         let mut c = spec.start().unwrap();
         c.commit(b'a' as u32).unwrap();
         c.commit(257).unwrap();
@@ -1457,14 +1687,14 @@ mod tests {
         assert!(m.allows(256) && !m.allows(b'a' as u32) && !m.allows(257));
         // choose(): the request-level rules
         let none = Choice::None;
-        assert!(choose(Some(Plan::Json(json!({}))), &tools, &Choice::Auto, true, true).is_err());
+        assert!(choose(Some(Plan::Json(json!({}))), &tools, &Choice::Auto, true, Some(H)).is_err());
         assert!(matches!(
-            choose(Some(Plan::Json(json!({}))), &tools, &none, true, true),
-            Ok((Some(Plan::Json(_)), false))
+            choose(Some(Plan::Json(json!({}))), &tools, &none, true, Some(H)),
+            Ok((Some(Plan::Json(_)), None))
         ));
-        assert!(matches!(choose(None, &tools, &Choice::Auto, true, false), Ok((None, false))));
-        assert!(choose(None, &tools, &Choice::Required, true, false).is_err());
-        assert!(matches!(choose(None, &tools, &Choice::Auto, true, true), Ok((Some(Plan::Tools { .. }), true))));
+        assert!(matches!(choose(None, &tools, &Choice::Auto, true, None), Ok((None, None))));
+        assert!(choose(None, &tools, &Choice::Required, true, None).is_err());
+        assert!(matches!(choose(None, &tools, &Choice::Auto, true, Some(H)), Ok((Some(Plan::Tools { .. }), Some(ToolFormat::Hermes)))));
     }
 
     #[test]
@@ -1507,7 +1737,7 @@ mod tests {
         let bad = openai_tools(&Some(json!([{"type": "function", "function": {"name": "a",
             "parameters": {"type": "object", "properties": {"x": {"type": "wat"}}}}}])))
         .unwrap();
-        assert!(env().compile(&tools_plan(&bad, &Choice::Required, true).unwrap()).is_err());
+        assert!(env().compile(&tools_plan(&bad, &Choice::Required, true, ToolFormat::Hermes).unwrap()).is_err());
     }
 
     #[test]
@@ -1519,9 +1749,9 @@ mod tests {
             Piece::Text("\n".into()),
             Piece::Call { name: "g".into(), arguments: json!({"b": 2}) },
         ];
-        assert_eq!(ToolParser::parse_all(text), want);
+        assert_eq!(ToolParser::parse_all(text, H, &[]), want);
         // byte-by-byte streaming gives the same calls, and never releases a partial tag as text
-        let mut p = ToolParser::default();
+        let mut p = ToolParser::new(H, &[]);
         let mut got = Vec::new();
         for ch in text.chars() {
             for piece in p.push(&ch.to_string()) {
@@ -1539,19 +1769,340 @@ mod tests {
         assert_eq!(txt, "Let me check.\n\n");
         // a bad block stays text; an unterminated one too; "<" that is not a tag is released at the end
         assert_eq!(
-            ToolParser::parse_all("<tool_call>nope</tool_call>"),
+            ToolParser::parse_all("<tool_call>nope</tool_call>", H, &[]),
             vec![Piece::Text("<tool_call>nope</tool_call>".into())]
         );
         // the closing tag inside an argument string does not end the call
         let t = "<tool_call>{\"name\": \"f\", \"arguments\": {\"s\": \"a</tool_call>b\"}}</tool_call>";
         assert_eq!(
-            ToolParser::parse_all(t),
+            ToolParser::parse_all(t, H, &[]),
             vec![Piece::Call { name: "f".into(), arguments: json!({"s": "a</tool_call>b"}) }]
         );
         assert_eq!(
-            ToolParser::parse_all("a<tool_call>{"),
+            ToolParser::parse_all("a<tool_call>{", H, &[]),
             vec![Piece::Text("a".into()), Piece::Text("<tool_call>{".into())]
         );
-        assert_eq!(ToolParser::parse_all("x <tool"), vec![Piece::Text("x ".into()), Piece::Text("<tool".into())]);
+        assert_eq!(ToolParser::parse_all("x <tool", H, &[]), vec![Piece::Text("x ".into()), Piece::Text("<tool".into())]);
+    }
+
+    // ----- the XML (qwen3_xml) format -----
+
+    const X: ToolFormat = ToolFormat::Qwen3Xml;
+
+    fn xml_tools() -> Vec<Tool> {
+        openai_tools(&Some(json!([
+            {"type": "function", "function": {"name": "get_weather", "parameters": {"type": "object",
+                "properties": {
+                    "city": {"type": "string"},
+                    "days": {"type": "integer", "minimum": 1, "maximum": 7},
+                    "unit": {"type": "string", "enum": ["c", "f"]},
+                    "metric": {"type": "boolean"},
+                    "opts": {"type": "object", "properties": {"a": {"type": "integer"}}, "required": ["a"],
+                             "additionalProperties": false}},
+                "required": ["city", "days"], "additionalProperties": false}}},
+            {"type": "function", "function": {"name": "noop"}}
+        ])))
+        .unwrap()
+    }
+
+    /// Token by token: the position of the first byte the mask refuses, `None` when all of `text` is allowed.
+    fn feed(c: &mut Box<dyn TokenConstraint>, text: &str) -> Option<usize> {
+        let mut at = 0;
+        for t in tokenize(text) {
+            if c.active() && !c.compute_mask().unwrap().allows(t) {
+                return Some(at);
+            }
+            c.commit(t).unwrap();
+            at += bytes_of(t).len();
+        }
+        None
+    }
+
+    fn xml_required(parallel: bool) -> Arc<dyn ConstraintSpec> {
+        env().compile(&tools_plan(&xml_tools(), &Choice::Required, parallel, X).unwrap()).unwrap()
+    }
+
+    const XML_CALL: &str = "<tool_call>\n<function=get_weather>\n<parameter=city>\nNew York\nline 2 </param </function>\n</parameter>\n<parameter=days>\n3\n</parameter>\n<parameter=opts>\n{\"a\": 1}\n</parameter>\n</function>\n</tool_call>";
+
+    #[test]
+    fn xml_grammar_accepts_a_valid_call_and_only_that_shape() {
+        let spec = xml_required(true);
+        let mut c = spec.start().unwrap();
+        assert_eq!(feed(&mut c, XML_CALL), None, "a valid call (raw multi-line string, int, object, optional skipped)");
+        let m = c.compute_mask().unwrap();
+        assert!(m.allows(256) && m.allows(b'\n' as u32), "EOS, or a second call after a newline");
+        // a second call, a no-argument one
+        assert_eq!(feed(&mut c, "\n<tool_call>\n<function=noop>\n</function>\n</tool_call>"), None);
+        assert!(c.compute_mask().unwrap().allows(256));
+
+        let fresh = |text: &str| feed(&mut spec.start().unwrap(), text);
+        // the hermes body is refused right after the tag
+        assert_eq!(fresh("<tool_call>\n{\"name\": \"noop\", \"arguments\": {}}"), Some("<tool_call>\n".len()));
+        // a tool that does not exist
+        assert!(fresh("<tool_call>\n<function=nope>").is_some());
+        // required parameters cannot be skipped, nor reordered
+        assert_eq!(fresh("<tool_call>\n<function=get_weather>\n</function>"), Some("<tool_call>\n<function=get_weather>\n<".len()));
+        let head = "<tool_call>\n<function=get_weather>\n";
+        assert!(fresh(&format!("{head}<parameter=days>")).is_some(), "city comes first");
+        assert!(fresh(&format!("{head}<parameter=city>\nx\n</parameter>\n</function>")).is_some(), "days is required");
+        assert!(fresh(&format!("{head}<parameter=city>\nx\n</parameter>\n<parameter=nope>")).is_some());
+        // an optional parameter in its place, then the call closes
+        assert_eq!(
+            fresh(&format!("{head}<parameter=city>\nx\n</parameter>\n<parameter=days>\n7\n</parameter>\n<parameter=unit>\nf\n</parameter>\n<parameter=metric>\ntrue\n</parameter>\n</function>\n</tool_call>")),
+            None
+        );
+        // typed values: the enum takes its members only, the integer its range and no quotes, the object its schema
+        let pre = format!("{head}<parameter=city>\nx\n</parameter>\n<parameter=days>\n");
+        assert!(fresh(&format!("{pre}8")).is_some() && fresh(&format!("{pre}\"3\"")).is_some() && fresh(&format!("{pre}x")).is_some());
+        let pre = format!("{pre}2\n</parameter>\n<parameter=unit>\n");
+        assert!(fresh(&format!("{pre}k")).is_some());
+        let pre = format!("{pre}c\n</parameter>\n<parameter=opts>\n");
+        assert!(fresh(&format!("{pre}{{\"b\": 1}}")).is_some());
+        // one call only
+        let one = xml_required(false);
+        let mut c = one.start().unwrap();
+        assert_eq!(feed(&mut c, XML_CALL), None);
+        let m = c.compute_mask().unwrap();
+        assert!(m.allows(256) && !m.allows(b'\n' as u32));
+    }
+
+    #[test]
+    fn xml_string_value_ends_at_the_first_closing_parameter_line() {
+        let spec = xml_required(true);
+        let mut c = spec.start().unwrap();
+        let head = "<tool_call>\n<function=get_weather>\n<parameter=city>\n";
+        assert_eq!(feed(&mut c, head), None);
+        // anything, newlines and partial closers included, is text; the empty string too
+        assert_eq!(feed(&mut c, "a\n</param\n<x>\n</parameter "), None);
+        assert_eq!(feed(&mut c, "\n</parameter>\n"), None);
+        // after the stop only the next parameter is possible
+        let m = c.compute_mask().unwrap();
+        assert!(m.allows(b'<' as u32) && !m.allows(b'x' as u32));
+        let mut c = spec.start().unwrap();
+        assert_eq!(feed(&mut c, head), None);
+        assert_eq!(feed(&mut c, "\n</parameter>\n<parameter=days>\n1\n</parameter>\n</function>\n</tool_call>"), None);
+    }
+
+    #[test]
+    fn xml_auto_is_lazy_and_rearms() {
+        let spec = env().compile(&tools_plan(&xml_tools(), &Choice::Auto, true, X).unwrap()).unwrap();
+        let mut c = spec.start().unwrap();
+        assert!(!c.active());
+        assert_eq!(feed(&mut c, "Checking.\n\n"), None);
+        c.commit(257).unwrap();
+        assert!(c.active());
+        let m = c.compute_mask().unwrap();
+        assert!(m.allows(b'\n' as u32) && !m.allows(b'{' as u32));
+        assert_eq!(feed(&mut c, "\n<function=noop>\n</function>\n"), None);
+        assert!(c.compute_mask().unwrap().allows(258) && !c.compute_mask().unwrap().allows(b'x' as u32));
+        c.commit(258).unwrap();
+        assert!(!c.active(), "free text again after the call");
+    }
+
+    fn calls_of(pieces: Vec<Piece>) -> (String, Vec<(String, Value)>) {
+        let (mut text, mut calls) = (String::new(), Vec::new());
+        for p in pieces {
+            match p {
+                Piece::Text(t) => text.push_str(&t),
+                Piece::Call { name, arguments } => calls.push((name, arguments)),
+            }
+        }
+        (text, calls)
+    }
+
+    #[test]
+    fn xml_parser_reads_calls_typed_by_the_schema() {
+        let tools = xml_tools();
+        let text = format!("Let me look.\n\n{XML_CALL}\n<tool_call>\n<function=noop>\n</function>\n</tool_call>\n<tool_call>\n<function=get_weather>\n<parameter=city>\n\n x \n\n</parameter>\n<parameter=days>\nseven\n</parameter>\n<parameter=metric>\nTrue\n</parameter>\n<parameter=extra>\n5\n</parameter>\n</function>\n</tool_call>");
+        let (txt, calls) = calls_of(ToolParser::parse_all(&text, X, &tools));
+        assert_eq!(txt, "Let me look.\n\n\n\n");
+        assert_eq!(calls.len(), 3);
+        assert_eq!(calls[0].0, "get_weather");
+        // a string is raw, up to the stop; one newline of each end is the template's
+        assert_eq!(calls[0].1, json!({"city": "New York\nline 2 </param </function>", "days": 3, "opts": {"a": 1}}));
+        assert_eq!(calls[1], ("noop".to_string(), json!({})));
+        // the leading/trailing newline pair is peeled once; a non-JSON value of a JSON-typed parameter stays text;
+        // Python's True is a boolean; a parameter the schema does not know is text
+        assert_eq!(calls[2].1, json!({"city": "\n x \n", "days": "seven", "metric": true, "extra": "5"}));
+        assert_eq!(split_calls(&text, X, &tools).0.as_deref(), Some("Let me look."));
+        // a call to an unknown tool still parses (its values are text); a malformed block stays text
+        let (_, c) = calls_of(ToolParser::parse_all("<tool_call>\n<function=zz>\n<parameter=a>\n1\n</parameter>\n</function>\n</tool_call>", X, &tools));
+        assert_eq!(c, vec![("zz".to_string(), json!({"a": "1"}))]);
+        for bad in [
+            "<tool_call>\n{\"name\": \"noop\", \"arguments\": {}}\n</tool_call>",
+            "<tool_call>\n<function=noop>\nstray\n</function>\n</tool_call>",
+            "<tool_call>\n<function=noop>\n<parameter=a>\n1\n</tool_call>",
+        ] {
+            assert_eq!(ToolParser::parse_all(bad, X, &tools), vec![Piece::Text(bad.into())], "{bad}");
+        }
+        // a closing tag inside a value does not end the call
+        let t = "<tool_call>\n<function=get_weather>\n<parameter=city>\na</tool_call>b\n</parameter>\n<parameter=days>\n1\n</parameter>\n</function>\n</tool_call>";
+        assert_eq!(
+            calls_of(ToolParser::parse_all(t, X, &tools)).1,
+            vec![("get_weather".to_string(), json!({"city": "a</tool_call>b", "days": 1}))]
+        );
+    }
+
+    #[test]
+    fn xml_parser_streams_in_any_chunking() {
+        let tools = xml_tools();
+        let text = format!("Let me look.\n\n{XML_CALL}\n<tool_call>\n<function=noop>\n</function>\n</tool_call>\nDone <tool");
+        let want = calls_of(ToolParser::parse_all(&text, X, &tools));
+        assert_eq!(want.1.len(), 2);
+        let chars: Vec<char> = text.chars().collect();
+        for size in [1usize, 2, 3, 5, 7, 16, 100] {
+            let mut p = ToolParser::new(X, &tools);
+            let mut got = Vec::new();
+            for ch in chars.chunks(size) {
+                for piece in p.push(&ch.iter().collect::<String>()) {
+                    if let Piece::Text(t) = &piece {
+                        assert!(!t.contains("<tool_c") && !t.contains("<function"), "tag leaked: {t:?} (chunks of {size})");
+                    }
+                    got.push(piece);
+                }
+            }
+            got.extend(p.finish());
+            assert_eq!(calls_of(got), want, "chunks of {size}");
+        }
+    }
+
+    #[test]
+    fn tool_format_follows_the_recipe_and_reasoning_is_decided_from_the_prompt() {
+        assert_eq!(ToolFormat::from_parser(Some("hermes")), Some(ToolFormat::Hermes));
+        assert_eq!(ToolFormat::from_parser(Some("qwen3_xml")), Some(X));
+        assert_eq!(ToolFormat::from_parser(Some("glm")), None);
+        assert_eq!(ToolFormat::from_parser(None), None);
+        let open = "<|im_start|>assistant\n<think>\n";
+        let closed = "<|im_start|>assistant\n<think>\n\n</think>\n\n";
+        let bare = "<|im_start|>assistant\n";
+        // (flag, parser, prompt) -> split
+        assert!(splits_reasoning(None, true, open), "no flag, the template opened the block");
+        assert!(!splits_reasoning(None, true, closed) && !splits_reasoning(None, true, bare));
+        assert!(!splits_reasoning(Some(false), true, open), "an explicit false wins");
+        assert!(splits_reasoning(Some(true), true, closed) && splits_reasoning(Some(true), true, bare));
+        assert!(!splits_reasoning(None, false, open) && !splits_reasoning(Some(true), false, open), "no parser, no split");
+    }
+
+    /// The XML grammar on the real Qwen3.5 vocabulary (skips without the checkpoint's `tokenizer.json`; the Hugging Face
+    /// cache path of Qwen3.5-4B, or `INTARSIA_TEST_TOKENIZER_QWEN35`): multi-character tokens (`</`, `parameter`, `>\n`)
+    /// cross the grammar's literals and the string stop, and a call spelled with them is accepted token by token.
+    #[test]
+    fn xml_grammar_on_the_qwen35_vocabulary() {
+        let path = std::env::var("INTARSIA_TEST_TOKENIZER_QWEN35").ok().or_else(|| {
+            let snaps = format!("{}/.cache/huggingface/hub/models--Qwen--Qwen3.5-4B/snapshots", std::env::var("HOME").ok()?);
+            let dir = std::fs::read_dir(snaps).ok()?.next()?.ok()?.path();
+            Some(dir.join("tokenizer.json").to_string_lossy().into_owned())
+        });
+        let Some(text) = path.and_then(|p| std::fs::read_to_string(p).ok()) else {
+            eprintln!("skip: no Qwen3.5 tokenizer.json");
+            return;
+        };
+        let tj: Value = serde_json::from_str(&text).unwrap();
+        let bytes = llguidance::token_bytes_from_tokenizer_json(&tj).unwrap();
+        let e = GrammarEnv::from_parts(
+            bytes,
+            248320,
+            &[248046, 248044],
+            Box::new(|s| match s {
+                OPEN => Some(vec![248058]),
+                CLOSE => Some(vec![248059]),
+                THINK_CLOSE => Some(vec![248069]),
+                _ => None,
+            }),
+        )
+        .unwrap();
+        let trie = e.factory.tok_env().tok_trie().clone();
+        for choice in [Choice::Required, Choice::Auto] {
+            let spec = e.compile(&tools_plan(&xml_tools(), &choice, true, X).unwrap()).unwrap();
+            let mut c = spec.start().unwrap();
+            let mut toks = Vec::new();
+            for (i, part) in XML_CALL.split(OPEN).enumerate() {
+                if i > 0 {
+                    toks.push(248058);
+                }
+                toks.extend(trie.greedy_tokenize(part.as_bytes()).into_iter().filter(|&t| t != 248058));
+            }
+            // "</tool_call>" is one token as well
+            let split: Vec<u32> = toks
+                .iter()
+                .flat_map(|&t| if trie.token(t) == CLOSE.as_bytes() { vec![248059] } else { vec![t] })
+                .collect();
+            let n = split.len();
+            for (i, t) in split.into_iter().enumerate() {
+                if c.active() {
+                    assert!(c.compute_mask().unwrap().allows(t), "{choice:?}: token {i}/{n} {:?} refused", String::from_utf8_lossy(trie.token(t)));
+                }
+                c.commit(t).unwrap();
+            }
+            if choice == Choice::Required {
+                assert!(c.compute_mask().unwrap().allows(248046), "EOS ends the call");
+            } else {
+                assert!(!c.active(), "free text after the call");
+            }
+        }
+    }
+
+    /// What a model writes in the XML format, parsed into calls, sent back the way an OpenAI client does (the arguments
+    /// as the JSON string the server returned), and rendered by the real Qwen3.5+ chat template: the tool-call part of
+    /// the history is the model's own text, byte for byte. The fixtures are the templates of Qwen3.8-27B (every non-string
+    /// value through `tojson`) and Qwen3.5-4B (a bool prints as Python's `True`, so it is left out there).
+    #[test]
+    fn xml_calls_round_trip_through_the_real_templates() {
+        use intarsia_core::engine::ChatOpts;
+        use intarsia_models::chat_template::ChatTemplate;
+        let tools = openai_tools(&Some(json!([
+            {"type": "function", "function": {"name": "search", "parameters": {"type": "object", "properties": {
+                "city": {"type": "string"}, "note": {"type": "string"}, "empty": {"type": "string"},
+                "days": {"type": "integer"}, "metric": {"type": "boolean"},
+                "tags": {"type": "array", "items": {"type": "string"}},
+                "opts": {"type": "object"}}}}},
+            {"type": "function", "function": {"name": "noop"}}
+        ])))
+        .unwrap();
+        let args = |bool_param: &str| {
+            format!("<parameter=city>\nNew York\nline 2 </parameter\n</parameter>\n<parameter=note>\n\n x \n\n</parameter>\n<parameter=empty>\n\n</parameter>\n<parameter=days>\n3\n</parameter>\n{bool_param}<parameter=tags>\n[\"a\", \"b c\"]\n</parameter>\n<parameter=opts>\n{{\"k\": {{\"z\": 1, \"a\": [1, 2]}}, \"n\": null, \"s\": \"x\\ny\"}}\n</parameter>\n")
+        };
+        for (name, src, bool_param) in [
+            ("qwen3.8-27b", include_str!("../tests/fixtures/qwen3_8_27b_chat_template.jinja"), "<parameter=metric>\ntrue\n</parameter>\n"),
+            ("qwen3.5-4b", include_str!("../tests/fixtures/qwen3_5_4b_chat_template.jinja"), ""),
+        ] {
+            let t = ChatTemplate::from_source(src, name, Value::Null, Value::Null).unwrap();
+            let calls = format!(
+                "<tool_call>\n<function=search>\n{}</function>\n</tool_call>\n<tool_call>\n<function=noop>\n</function>\n</tool_call>",
+                args(bool_param)
+            );
+            for prose in ["", "I'll look that up."] {
+                let model_text = if prose.is_empty() { calls.clone() } else { format!("{prose}\n\n{calls}") };
+                let (content, parsed) = split_calls(&model_text, X, &tools);
+                assert_eq!(parsed.len(), 2, "{name}");
+                assert_eq!(content.as_deref(), (!prose.is_empty()).then_some(prose));
+                let tool_calls: Vec<Value> = parsed
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (n, a))| json!({"id": format!("call-{i}"), "type": "function",
+                                              "function": {"name": n, "arguments": a.to_string()}}))
+                    .collect();
+                let messages = vec![
+                    json!({"role": "user", "content": "weather?"}),
+                    json!({"role": "assistant", "content": content.unwrap_or_default(), "tool_calls": tool_calls}),
+                    json!({"role": "tool", "tool_call_id": "call-0", "content": "sunny"}),
+                    json!({"role": "tool", "tool_call_id": "call-1", "content": "ok"}),
+                ];
+                let opts = ChatOpts {
+                    add_generation_prompt: true,
+                    tools: Some(json!(tools.iter().map(Tool::openai).collect::<Vec<_>>())),
+                    ..Default::default()
+                };
+                let out = t.render(&messages, &opts).unwrap_or_else(|e| panic!("{name}: {e}"));
+                let turn = out.split("<|im_start|>assistant\n").nth(1).unwrap().split("<|im_end|>").next().unwrap();
+                // after the (empty) think block the turn is the model's text
+                let body = turn.strip_prefix("<think>\n\n</think>\n\n").unwrap_or(turn);
+                assert_eq!(body, model_text, "{name} (prose: {prose:?})");
+                // and the rendered text is what the parser reads back
+                assert_eq!(split_calls(body, X, &tools), ((!prose.is_empty()).then(|| prose.to_string()), parsed), "{name}");
+            }
+            // the tools block of the prompt teaches the same format
+            assert!(src.contains("<tool_call>\\n<function=example_function_name>\\n<parameter=example_parameter_1>\\nvalue_1\\n</parameter>"));
+        }
     }
 }

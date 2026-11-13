@@ -44,6 +44,21 @@ struct Mock {
     want: Option<&'static str>,
     /// The model has a reasoning parser (`<think>` tags): `</think>` is token 258 of the structured mock.
     think: bool,
+    /// The tool format is the XML one (`tool_parser = "qwen3_xml"`) instead of hermes.
+    xml: bool,
+    /// What the mock chat template puts at the end of the generation prompt, as the Qwen3.5+ templates do.
+    think_prompt: ThinkPrompt,
+}
+
+#[derive(Default, Clone, Copy)]
+enum ThinkPrompt {
+    /// Nothing: the prompt ends with `assistant:`.
+    #[default]
+    Off,
+    /// `<think>\n` unless `enable_thinking` is false, then `<think>\n\n</think>\n\n` (Qwen3.5-4B, 3.6, 3.8).
+    OpenByDefault,
+    /// `<think>\n` only when `enable_thinking` is true (Qwen3.5-0.8B-Base, 2B).
+    ClosedByDefault,
 }
 
 const OPEN_TAG: &str = "<tool_call>";
@@ -154,7 +169,7 @@ impl Engine for Mock {
             eos_ids: vec![0],
             has_chat_template: true,
             reasoning_parser: self.think.then(|| "think-tags".into()),
-            tool_parser: self.structured.then(|| "hermes".into()),
+            tool_parser: self.structured.then(|| if self.xml { "qwen3_xml" } else { "hermes" }.into()),
             memory_plan: MemoryPlan {
                 device: "test".into(),
                 total_bytes: 0,
@@ -193,6 +208,16 @@ impl Engine for Mock {
             s.push_str(&format!("{}:{}\n", m["role"].as_str().unwrap(), c));
         }
         s.push_str("assistant:");
+        let open = match self.think_prompt {
+            ThinkPrompt::Off => None,
+            ThinkPrompt::OpenByDefault => Some(opts.enable_thinking != Some(false)),
+            ThinkPrompt::ClosedByDefault => Some(opts.enable_thinking == Some(true)),
+        };
+        match open {
+            Some(true) => s.push_str("<think>\n"),
+            Some(false) => s.push_str("<think>\n\n</think>\n\n"),
+            None => {}
+        }
         Ok(s)
     }
     fn submit(&self, req: GenRequest) -> Result<Receiver<GenEvent>> {
@@ -1630,6 +1655,246 @@ async fn openai_tool_calls_come_out_of_the_content_after_the_think_block() {
             }
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// reasoning is split by default when the template opened the think block in the prompt
+// ---------------------------------------------------------------------------
+
+fn template_thinking_mock(
+    think_prompt: ThinkPrompt,
+    want: Option<&'static str>,
+    script: Option<(Vec<(u32, &'static str)>, usize, FinishReason)>,
+) -> (Router, Arc<Mock>) {
+    let m = Arc::new(Mock { structured: true, think: true, think_prompt, want, script, ..Default::default() });
+    (app_with(m.clone()), m)
+}
+
+#[tokio::test]
+async fn openai_reasoning_is_split_without_a_flag_when_the_prompt_opens_the_think_block() {
+    let (app, mock) = template_thinking_mock(ThinkPrompt::OpenByDefault, None, Some(think_script()));
+    // a stock client: no chat_template_kwargs at all
+    let body = json!({"messages": user("q")});
+    let (st, _, out) = call(&app, "POST", "/v1/chat/completions", Some(body.clone())).await;
+    assert_eq!(st, StatusCode::OK, "{out}");
+    let v: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["choices"][0]["message"]["reasoning_content"], "plan a", "{out}");
+    assert_eq!(v["choices"][0]["message"]["content"], "Hello");
+    // the server did not invent a flag: the prompt is what the template makes of the request as sent
+    assert_eq!(mock.templated.lock().unwrap()[0].1.enable_thinking, None);
+    let mut sbody = body.clone();
+    sbody["stream"] = json!(true);
+    let (_, _, out) = call(&app, "POST", "/v1/chat/completions", Some(sbody)).await;
+    assert_eq!(chat_stream_reasoning(&out), ("plan a".to_string(), "Hello".to_string()));
+
+    // an explicit false: the template closed the block in the prompt, nothing is split
+    let (_, _, out) = call(
+        &app,
+        "POST",
+        "/v1/chat/completions",
+        Some(json!({"messages": user("q"), "chat_template_kwargs": {"enable_thinking": false}})),
+    )
+    .await;
+    let v: Value = serde_json::from_str(&out).unwrap();
+    assert!(v["choices"][0]["message"].get("reasoning_content").is_none(), "{out}");
+    assert_eq!(v["choices"][0]["message"]["content"], "<think>\nplan a\n</think>\n\nHello");
+    // an explicit true splits whatever the prompt looks like
+    let (app2, _) = template_thinking_mock(ThinkPrompt::ClosedByDefault, None, Some(think_script()));
+    let (_, _, out) = call(
+        &app2,
+        "POST",
+        "/v1/chat/completions",
+        Some(json!({"messages": user("q"), "chat_template_kwargs": thinking_on()})),
+    )
+    .await;
+    assert_eq!(serde_json::from_str::<Value>(&out).unwrap()["choices"][0]["message"]["reasoning_content"], "plan a");
+    // a template that is closed unless asked (Qwen3.5-0.8B-Base, 2B) with no flag: left as generated
+    let (_, _, out) = call(&app2, "POST", "/v1/chat/completions", Some(body)).await;
+    let v: Value = serde_json::from_str(&out).unwrap();
+    assert!(v["choices"][0]["message"].get("reasoning_content").is_none(), "{out}");
+    assert_eq!(v["choices"][0]["message"]["content"], "<think>\nplan a\n</think>\n\nHello");
+}
+
+#[tokio::test]
+async fn reasoning_default_needs_a_reasoning_parser() {
+    // the template opens a think block but the recipe has no reasoning parser: nothing is split
+    let m = Arc::new(Mock {
+        structured: true,
+        think_prompt: ThinkPrompt::OpenByDefault,
+        script: Some(think_script()),
+        ..Default::default()
+    });
+    let (_, _, out) = call(&app_with(m), "POST", "/v1/chat/completions", Some(json!({"messages": user("q")}))).await;
+    assert!(!out.contains("reasoning_content"), "{out}");
+}
+
+fn xml_weather_tools() -> Value {
+    json!([{"type": "function", "function": {"name": "get_weather", "description": "w", "parameters": {
+        "type": "object",
+        "properties": {"city": {"type": "string"}, "days": {"type": "integer"},
+                       "opts": {"type": "object", "properties": {"a": {"type": "boolean"}}, "required": ["a"],
+                                "additionalProperties": false}},
+        "required": ["city", "days"], "additionalProperties": false}}}])
+}
+
+const XML_CALL: &str = "<tool_call>\n<function=get_weather>\n<parameter=city>\nNew York\nline 2\n</parameter>\n<parameter=days>\n3\n</parameter>\n<parameter=opts>\n{\"a\": true}\n</parameter>\n</function>\n</tool_call>";
+
+fn xml_args() -> Value {
+    json!({"city": "New York\nline 2", "days": 3, "opts": {"a": true}})
+}
+
+#[tokio::test]
+async fn openai_qwen3_xml_tool_calls_non_stream_and_stream() {
+    for choice in [json!("required"), json!("auto")] {
+        let want: &'static str =
+            if choice == "auto" { "Checking.\n\n<tool_call>\n<function=get_weather>\n<parameter=city>\nNew York\nline 2\n</parameter>\n<parameter=days>\n3\n</parameter>\n<parameter=opts>\n{\"a\": true}\n</parameter>\n</function>\n</tool_call>" } else { XML_CALL };
+        let m = Arc::new(Mock { structured: true, xml: true, want: Some(want), ..Default::default() });
+        let app = app_with(m.clone());
+        for stream in [false, true] {
+            let (st, _, out) = call(
+                &app,
+                "POST",
+                "/v1/chat/completions",
+                Some(json!({"messages": user("q"), "tools": xml_weather_tools(), "tool_choice": choice, "max_tokens": 300,
+                            "stream": stream})),
+            )
+            .await;
+            assert_eq!(st, StatusCode::OK, "{out}");
+            let (text, calls, finish) = if stream {
+                chat_stream_parts(&out)
+            } else {
+                let v: Value = serde_json::from_str(&out).unwrap();
+                let m = &v["choices"][0]["message"];
+                (
+                    m["content"].as_str().unwrap_or("").to_string(),
+                    m["tool_calls"].as_array().cloned().unwrap_or_default(),
+                    v["choices"][0]["finish_reason"].as_str().unwrap().to_string(),
+                )
+            };
+            assert_eq!((calls.len(), finish.as_str()), (1, "tool_calls"), "{choice} stream={stream}: {out}");
+            assert_eq!(calls[0]["function"]["name"], "get_weather");
+            let args: Value = serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap()).unwrap();
+            assert_eq!(args, xml_args(), "{choice} stream={stream}");
+            assert_eq!(text.trim(), if choice == "auto" { "Checking." } else { "" });
+        }
+        assert!(m.reqs.lock().unwrap().iter().all(|r| r.constraint.is_some()));
+    }
+}
+
+#[tokio::test]
+async fn openai_qwen3_xml_tool_calls_come_out_of_the_content_after_the_think_block() {
+    // reasoning is split without any flag (the prompt opens the block); the tag in it is not a call, and the constraint
+    // starts after </think>
+    let xml_call = "<tool_call>\n<function=get_weather>\n<parameter=city>\nNew York\nline 2\n</parameter>\n<parameter=days>\n3\n</parameter>\n<parameter=opts>\n{\"a\": true}\n</parameter>\n</function>\n</tool_call>";
+    for choice in [json!("required"), json!("auto")] {
+        // under `required` the grammar starts right at </think>; under `auto` the text after it is free
+        let want: &'static str = Box::leak(
+            format!("which tool? <tool_call> no\n</think>{}{xml_call}", if choice == "auto" { "\n\n" } else { "" }).into_boxed_str(),
+        );
+        let m = Arc::new(Mock {
+            structured: true,
+            xml: true,
+            think: true,
+            think_prompt: ThinkPrompt::OpenByDefault,
+            want: Some(want),
+            ..Default::default()
+        });
+        let app = app_with(m.clone());
+        for stream in [false, true] {
+            let (st, _, out) = call(
+                &app,
+                "POST",
+                "/v1/chat/completions",
+                Some(json!({"messages": user("q"), "tools": xml_weather_tools(), "tool_choice": choice,
+                            "max_tokens": 300, "stream": stream})),
+            )
+            .await;
+            assert_eq!(st, StatusCode::OK, "{out}");
+            let (reasoning, calls, finish) = if stream {
+                let (r, _) = chat_stream_reasoning(&out);
+                let (_, calls, finish) = chat_stream_parts(&out);
+                (r, calls, finish)
+            } else {
+                let v: Value = serde_json::from_str(&out).unwrap();
+                let m = &v["choices"][0]["message"];
+                (
+                    m["reasoning_content"].as_str().unwrap().to_string(),
+                    m["tool_calls"].as_array().cloned().unwrap_or_default(),
+                    v["choices"][0]["finish_reason"].as_str().unwrap().to_string(),
+                )
+            };
+            assert_eq!(reasoning, "which tool? <tool_call> no", "{choice} stream={stream}");
+            assert_eq!((calls.len(), finish.as_str()), (1, "tool_calls"), "{choice} stream={stream}: {out}");
+            let args: Value = serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap()).unwrap();
+            assert_eq!(args, xml_args());
+        }
+        assert!(m.reqs.lock().unwrap().iter().all(|r| r.constraint.is_some()));
+    }
+}
+
+#[tokio::test]
+async fn anthropic_qwen3_xml_tool_use_and_default_thinking_blocks() {
+    let want: &'static str = "need the weather\n</think><tool_call>\n<function=get_weather>\n<parameter=city>\nNew York\nline 2\n</parameter>\n<parameter=days>\n3\n</parameter>\n<parameter=opts>\n{\"a\": true}\n</parameter>\n</function>\n</tool_call>";
+    let tools = json!([{"name": "get_weather", "description": "w", "input_schema": xml_weather_tools()[0]["function"]["parameters"].clone()}]);
+    let m = Arc::new(Mock {
+        structured: true,
+        xml: true,
+        think: true,
+        think_prompt: ThinkPrompt::OpenByDefault,
+        want: Some(want),
+        ..Default::default()
+    });
+    let app = app_with(m.clone());
+    for stream in [false, true] {
+        // no `thinking` field: the template opens the block, the reasoning still comes out as a thinking block
+        let b = json!({"model": "m", "max_tokens": 300, "stream": stream, "messages": user("q"), "tools": tools,
+                       "tool_choice": {"type": "any"}});
+        let (st, _, out) = call(&app, "POST", "/v1/messages", Some(b)).await;
+        assert_eq!(st, StatusCode::OK, "{out}");
+        if stream {
+            let ev = sse_events(&out);
+            let kinds: Vec<&str> = ev
+                .iter()
+                .filter(|(n, _)| n == "content_block_start")
+                .map(|(_, v)| v["content_block"]["type"].as_str().unwrap())
+                .collect();
+            assert_eq!(kinds, ["thinking", "tool_use"], "{out}");
+            let think: String = ev.iter().filter_map(|(_, v)| v["delta"]["thinking"].as_str()).collect();
+            assert_eq!(think, "need the weather");
+            let text: String = ev.iter().filter_map(|(_, v)| v["delta"]["text"].as_str()).collect();
+            assert_eq!(text, "", "no reasoning in the text");
+            let input: String = ev.iter().filter_map(|(_, v)| v["delta"]["partial_json"].as_str()).collect();
+            assert_eq!(serde_json::from_str::<Value>(&input).unwrap(), xml_args());
+        } else {
+            let v: Value = serde_json::from_str(&out).unwrap();
+            assert_eq!(v["content"][0], json!({"type": "thinking", "thinking": "need the weather", "signature": ""}));
+            assert_eq!(v["content"][1]["type"], "tool_use");
+            assert_eq!(v["content"][1]["input"], xml_args());
+            assert_eq!(v["content"].as_array().unwrap().len(), 2, "{out}");
+            assert_eq!(v["stop_reason"], "tool_use");
+        }
+    }
+    assert!(m.templated.lock().unwrap().iter().all(|(_, o)| o.enable_thinking.is_none()));
+
+    // plain text, no tools: the same default
+    let (app, _) = template_thinking_mock(ThinkPrompt::OpenByDefault, None, Some(think_script()));
+    let (_, _, out) =
+        call(&app, "POST", "/v1/messages", Some(json!({"model": "m", "max_tokens": 50, "messages": user("q")}))).await;
+    let v: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["content"][0]["type"], "thinking");
+    assert_eq!(v["content"][0]["thinking"], "plan a");
+    assert_eq!(v["content"][1], json!({"type": "text", "text": "Hello"}));
+    // disabled: no thinking block, the text is left as generated
+    let (_, _, out) = call(
+        &app,
+        "POST",
+        "/v1/messages",
+        Some(json!({"model": "m", "max_tokens": 50, "messages": user("q"), "thinking": {"type": "disabled"}})),
+    )
+    .await;
+    let v: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["content"].as_array().unwrap().len(), 1);
+    assert_eq!(v["content"][0]["text"], "<think>\nplan a\n</think>\n\nHello");
 }
 
 fn anthropic_think_body(stream: bool) -> Value {

@@ -9,7 +9,7 @@ match.architectures = ["Qwen3_5MoeForConditionalGeneration", "Qwen3_5MoeForCausa
 family = "qwen3_5_moe"
 chat_template = "hf"
 reasoning_parser = "think-tags"
-tool_parser = "hermes"
+tool_parser = "qwen3_xml"
 norm_offset = 1.0        # RMSNorm scale is 1 + weight (not the gated norm inside GatedDeltaNet)
 
 [layer]

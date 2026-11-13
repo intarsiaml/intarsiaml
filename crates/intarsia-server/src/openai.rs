@@ -1,7 +1,7 @@
 //! OpenAI-compatible endpoints.
 
 use crate::api::*;
-use crate::structured::{self, Part, Piece, ReasoningParser, ToolParser};
+use crate::structured::{self, Part, Piece, ReasoningParser, ToolFormat, ToolParser};
 use axum::extract::{Path, State};
 use axum::response::sse::Event;
 use axum::response::{IntoResponse, Json, Response};
@@ -176,9 +176,9 @@ async fn chat_inner(
     let tools = structured::openai_tools(&req.tools).map_err(bad)?;
     let choice = structured::openai_choice(&req.tool_choice, &tools).map_err(bad)?;
     let format = structured::response_format(&req.response_format).map_err(bad)?;
-    let hermes = info.tool_parser.as_deref() == Some("hermes");
+    let tool_format = ToolFormat::from_parser(info.tool_parser.as_deref());
     let parallel = req.parallel_tool_calls.unwrap_or(true);
-    let (plan, parse_tools) = structured::choose(format, &tools, &choice, parallel, hermes).map_err(bad)?;
+    let (plan, parse_tools) = structured::choose(format, &tools, &choice, parallel, tool_format).map_err(bad)?;
 
     // Content-part arrays become plain strings (templates call string methods).
     let mut messages = Vec::with_capacity(req.messages.len());
@@ -199,12 +199,14 @@ async fn chat_inner(
             }
         }
     }
-    // Reasoning is parsed (and a constraint waits for `</think>`) only when the request turns thinking on and the model
-    // has a reasoning parser; every other request is answered exactly as before.
-    let think = opts.enable_thinking == Some(true) && info.reasoning_parser.is_some();
-    let prompt = blocking_as(&st.engine, F, move |e| {
+    // Reasoning is split off (and a constraint waits for `</think>`) when the model has a reasoning parser and thinking is
+    // on: asked for by the request, or, when it says nothing, opened by the template in the prompt (so it is decided
+    // from the rendered prompt, below).
+    let enable_thinking = opts.enable_thinking;
+    let has_reasoning_parser = info.reasoning_parser.is_some();
+    let (think, prompt) = blocking_as(&st.engine, F, move |e| {
         let text = e.apply_chat_template(&messages, &opts)?;
-        e.tokenize(&text, false)
+        Ok((structured::splits_reasoning(enable_thinking, has_reasoning_parser, &text), e.tokenize(&text, false)?))
     })
     .await?;
     let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens, &st.sampling_defaults)?;
@@ -237,8 +239,8 @@ async fn chat_inner(
             answer = content.unwrap_or_default();
             message["content"] = json!(answer);
         }
-        if parse_tools {
-            let (content, calls) = structured::split_calls(&answer);
+        if let Some(format) = parse_tools {
+            let (content, calls) = structured::split_calls(&answer, format, &tools);
             if !calls.is_empty() {
                 message["content"] = content.map_or(Value::Null, Value::String);
                 message["tool_calls"] = calls.iter().map(|(n, a)| tool_call(st.new_id("call"), n, a)).collect();
@@ -269,8 +271,8 @@ async fn chat_inner(
         Some(id) => json!({"content": text, "token_ids": [id]}),
         None => json!({"content": text}),
     };
-    // hermes tool calls are parsed out of the text (token ids are not reported per delta then)
-    let mut tp = parse_tools.then(ToolParser::default);
+    // tool calls are parsed out of the text (token ids are not reported per delta then)
+    let mut tp = parse_tools.map(|f| ToolParser::new(f, &tools));
     let mut rp = think.then(ReasoningParser::default);
     let mut ncalls = 0usize;
     let st2 = st.clone();

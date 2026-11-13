@@ -1,7 +1,7 @@
 //! Anthropic Messages API: text, and client tools (`tool_use` / `tool_result`) with schema-constrained arguments.
 
 use crate::api::*;
-use crate::structured::{self, Part, Piece, ReasoningParser, Tool, ToolParser};
+use crate::structured::{self, Part, Piece, ReasoningParser, Tool, ToolFormat, ToolParser};
 use axum::extract::State;
 use axum::response::sse::Event;
 use axum::response::{IntoResponse, Json, Response};
@@ -316,16 +316,18 @@ async fn messages_inner(
         .and_then(|c| c.get("disable_parallel_tool_use"))
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let hermes = info.tool_parser.as_deref() == Some("hermes");
-    let (plan, parse_tools) = structured::choose(None, &tools, &choice, parallel, hermes).map_err(bad)?;
+    let tool_format = ToolFormat::from_parser(info.tool_parser.as_deref());
+    let (plan, parse_tools) = structured::choose(None, &tools, &choice, parallel, tool_format).map_err(bad)?;
     let messages = to_chat_messages(&req.system, &req.messages)?;
     let mut opts = chat_opts(&req.thinking, &req.chat_template_kwargs);
     if !tools.is_empty() {
         opts.tools = Some(tools.iter().map(Tool::openai).collect());
     }
-    // Thinking blocks are produced (and a constraint waits for `</think>`) only when the request turns thinking on and
-    // the model has a reasoning parser; every other request is answered exactly as before.
-    let think = opts.enable_thinking == Some(true) && info.reasoning_parser.is_some();
+    // Thinking blocks are produced (and a constraint waits for `</think>`) when the model has a reasoning parser and
+    // thinking is on: asked for by the request, or, when it says nothing, opened by the template in the prompt (decided
+    // from the rendered prompt, below).
+    let enable_thinking = opts.enable_thinking;
+    let has_reasoning_parser = info.reasoning_parser.is_some();
     let sampling = Sampling {
         max_tokens: Some(max_tokens),
         temperature: req.temperature,
@@ -334,9 +336,9 @@ async fn messages_inner(
         stop: req.stop_sequences.clone(),
         ..Default::default()
     };
-    let prompt = blocking_as(&st.engine, F, move |e| {
+    let (think, prompt) = blocking_as(&st.engine, F, move |e| {
         let text = e.apply_chat_template(&messages, &opts)?;
-        e.tokenize(&text, false)
+        Ok((structured::splits_reasoning(enable_thinking, has_reasoning_parser, &text), e.tokenize(&text, false)?))
     })
     .await?;
     let input_tokens = prompt.len();
@@ -358,8 +360,8 @@ async fn messages_inner(
             answer = text.unwrap_or_default();
             content = vec![json!({"type": "text", "text": answer})];
         }
-        if parse_tools {
-            let (text, calls) = structured::split_calls(&answer);
+        if let Some(format) = parse_tools {
+            let (text, calls) = structured::split_calls(&answer, format, &tools);
             if !calls.is_empty() {
                 content = text.map(|t| json!({"type": "text", "text": t})).into_iter().collect();
                 for (name, input) in calls {
@@ -389,8 +391,9 @@ async fn messages_inner(
             "stop_reason": null, "stop_sequence": null,
             "usage": {"input_tokens": input_tokens, "output_tokens": 0}}}),
     );
-    if parse_tools || think {
-        return Ok(stream_with_tools(st, rx, start_ev, parse_tools, think).into_response());
+    if parse_tools.is_some() || think {
+        let tp = parse_tools.map(|f| ToolParser::new(f, &tools));
+        return Ok(stream_with_tools(st, rx, start_ev, tp, think).into_response());
     }
     let prelude = vec![
         start_ev,
@@ -440,11 +443,10 @@ fn stream_with_tools(
     st: AppState,
     rx: GenRx,
     start_ev: Event,
-    parse_tools: bool,
+    mut tp: Option<ToolParser>,
     think: bool,
 ) -> axum::response::sse::Sse<impl futures_util::Stream<Item = Result<Event, std::convert::Infallible>>> {
     let mut done = false;
-    let mut tp = parse_tools.then(ToolParser::default);
     let mut rp = think.then(ReasoningParser::default);
     let mut b = Blocks { next: 0, text_open: false, think_open: false, calls: 0 };
     sse_from(rx, vec![start_ev], move |ev| match ev {
