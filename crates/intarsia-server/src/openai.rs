@@ -1,7 +1,7 @@
 //! OpenAI-compatible endpoints.
 
 use crate::api::*;
-use crate::structured::{self, Part, Piece, ReasoningParser, ToolFormat, ToolParser};
+use crate::structured::{self, Part, Piece, ThinkRule, ThinkStream, ToolFormat, ToolMode, ToolParser};
 use axum::extract::{Path, State};
 use axum::response::sse::Event;
 use axum::response::{IntoResponse, Json, Response};
@@ -180,7 +180,7 @@ async fn chat_inner(
     let parallel = req.parallel_tool_calls.unwrap_or(true);
     let has_response_format = format.is_some();
     let (plan, parse_tools) = structured::choose(format, &tools, &choice, parallel, tool_format).map_err(bad)?;
-    let stage = structured::tool_stage(parse_tools, tool_format, &tools, has_response_format);
+    let stage = structured::tool_stage(parse_tools, tool_format, &tools, has_response_format, &choice, parallel);
 
     // Content-part arrays become plain strings (templates call string methods).
     let mut messages = Vec::with_capacity(req.messages.len());
@@ -236,15 +236,15 @@ async fn chat_inner(
         let mut finish = finish_str(c.finish);
         let mut answer = c.text.clone();
         if think {
-            let (reasoning, content) = ReasoningParser::parse_all(&c.text);
+            let (reasoning, content) = ThinkStream::parse_all(&c.text, stage.map_or(ThinkRule::Plain, |s| s.think), stage.map(|s| s.parser(&tools)));
             message["reasoning_content"] = reasoning.map_or(Value::Null, Value::String);
             answer = content.unwrap_or_default();
             message["content"] = json!(answer);
         }
-        if let Some((format, mode)) = stage {
-            let (content, calls) = structured::split_calls_with(&answer, format, &tools, mode);
+        if let Some(stage) = stage {
+            let (content, calls) = stage.split(&answer, &tools);
             if calls.is_empty() {
-                if format == ToolFormat::Qwen3Xml {
+                if stage.format == ToolFormat::Qwen3Xml {
                     message["content"] = json!(content.unwrap_or_default());
                 }
             } else {
@@ -277,8 +277,10 @@ async fn chat_inner(
         None => json!({"content": text}),
     };
     // tool calls are parsed out of the text (token ids are not reported per delta then)
-    let mut tp = stage.map(|(f, m)| ToolParser::with_mode(f, &tools, m));
-    let mut rp = think.then(ReasoningParser::default);
+    // markup in the answer is read for the request's tools only: with `return_token_ids` the stream keeps its per-delta ids
+    // (the reasoning-free paths below that report them) instead
+    let mut tp = stage.filter(|s| s.mode == ToolMode::Parse || !rid || think).map(|s| s.parser(&tools));
+    let mut rp = think.then(|| stage.map_or_else(|| ThinkStream::new(ThinkRule::Plain, None), |s| s.thinker(&tools)));
     let mut ncalls = 0usize;
     let st2 = st.clone();
     let sse = sse_from(rx, vec![first], move |ev| match ev {
@@ -353,8 +355,8 @@ async fn chat_inner(
 }
 
 /// The reasoning a stream still holds when it ends without a clean finish, as reasoning deltas (never as a call).
-fn held_reasoning(rp: Option<&mut ReasoningParser>) -> Vec<Value> {
-    let parts: Vec<Part> = rp.map(|rp| rp.finish()).unwrap_or_default();
+fn held_reasoning(rp: Option<&mut ThinkStream>) -> Vec<Value> {
+    let parts: Vec<Part> = rp.map(|rp| rp.abort()).unwrap_or_default();
     parts
         .into_iter()
         .filter_map(|p| match p {

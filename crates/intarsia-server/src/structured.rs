@@ -221,14 +221,13 @@ impl ToolFormat {
 /// (hermes keeps the text around the calls). Without calls the content is the text, `qwen3_xml` markup that came to
 /// nothing cut out.
 pub fn split_calls(text: &str, format: ToolFormat, tools: &[Tool]) -> (Option<String>, Vec<(String, Value)>) {
-    split_calls_with(text, format, tools, ToolMode::Parse)
+    split_calls_with(text, ToolParser::new(format, tools), format)
 }
 
-/// [`split_calls`] for a [`ToolMode`]: `Suppress` and `Discard` never return calls, and cut the markup out of the text.
-pub fn split_calls_with(text: &str, format: ToolFormat, tools: &[Tool], mode: ToolMode) -> (Option<String>, Vec<(String, Value)>) {
+/// [`split_calls`] with a configured parser: `Suppress` and `Discard` never return calls, and cut the markup out.
+pub fn split_calls_with(text: &str, mut p: ToolParser, format: ToolFormat) -> (Option<String>, Vec<(String, Value)>) {
     let mut calls = Vec::new();
     let mut rest = String::new();
-    let mut p = ToolParser::with_mode(format, tools, mode);
     let mut pieces = p.push(text);
     pieces.extend(p.finish());
     for piece in pieces {
@@ -833,6 +832,9 @@ pub struct ToolParser {
     found: bool,
     /// ... and the text after it, held until the end: dropped when a call was found, else it is content.
     deferred: String,
+    /// At most this many calls are returned.
+    limit: Option<usize>,
+    returned: usize,
 }
 
 /// What a [`ToolParser`] does with the calls it finds. vLLM's `qwen3_xml` parser engine reads the markup in every
@@ -848,21 +850,77 @@ pub enum ToolMode {
     Discard,
 }
 
-/// The tool handling of a request: the format and mode, `None` for a model whose recipe reads no tool markup (or a
-/// `response_format` request). `parse` is [`choose`]'s answer for the request.
+/// How reasoning is split from the answer, by what the request does with tool calls.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ThinkRule {
+    /// At `</think>` only.
+    Plain,
+    /// At `</think>`; complete call envelopes at the end of the reasoning with no answer after the close are the reply's
+    /// calls (hermes, `tool_choice` auto).
+    Tail,
+    /// vLLM's `qwen3_xml` engine: a `<tool_call>` ends the reasoning, later `</think>` are absorbed.
+    Engine,
+}
+
+/// The tool handling of a request: the format, what is done with the calls found, how many may be returned, and how the
+/// reasoning is split.
+#[derive(Clone, Copy, Debug)]
+pub struct ToolStage {
+    pub format: ToolFormat,
+    pub mode: ToolMode,
+    /// `parallel_tool_calls: false`: at most this many calls are returned (the first).
+    pub limit: Option<usize>,
+    pub think: ThinkRule,
+}
+
+impl ToolStage {
+    /// The parser for one response.
+    pub fn parser(&self, tools: &[Tool]) -> ToolParser {
+        let mut p = ToolParser::with_mode(self.format, tools, self.mode);
+        p.limit = self.limit;
+        p
+    }
+
+    /// The reasoning parser for one response (`lift`: the tail rule's own tool parser).
+    pub fn thinker(&self, tools: &[Tool]) -> ThinkStream {
+        ThinkStream::new(self.think, (self.think == ThinkRule::Tail).then(|| self.parser(tools)))
+    }
+
+    /// [`split_calls_with`] for this stage.
+    pub fn split(&self, text: &str, tools: &[Tool]) -> (Option<String>, Vec<(String, Value)>) {
+        split_calls_with(text, self.parser(tools), self.format)
+    }
+}
+
+/// The tool handling of a request, `None` for a model whose recipe reads no tool markup, or a `response_format`
+/// request. `parse` is [`choose`]'s answer for the request. A `qwen3_xml` request that parses no tools still has its
+/// markup read, as vLLM's engine does (see docs/structured-output.md): thrown away (no tools) or cut out (`tool_choice`
+/// none).
 pub fn tool_stage(
     parse: Option<ToolFormat>,
     tool_format: Option<ToolFormat>,
     tools: &[Tool],
     has_response_format: bool,
-) -> Option<(ToolFormat, ToolMode)> {
-    if let Some(f) = parse {
-        return Some((f, ToolMode::Parse));
+    choice: &Choice,
+    parallel: bool,
+) -> Option<ToolStage> {
+    if let Some(format) = parse {
+        // calls written while reasoning are only the engine's / tail's to lift when the grammar does not rule them
+        // out: `required` and a named function constrain the calls after `</think>`, and nothing else counts
+        let think = match (format, choice) {
+            (ToolFormat::Qwen3Xml, Choice::Auto) => ThinkRule::Engine,
+            (ToolFormat::Hermes, Choice::Auto) => ThinkRule::Tail,
+            _ => ThinkRule::Plain,
+        };
+        return Some(ToolStage { format, mode: ToolMode::Parse, limit: (!parallel).then_some(1), think });
     }
     match tool_format {
-        Some(ToolFormat::Qwen3Xml) if !has_response_format => {
-            Some((ToolFormat::Qwen3Xml, if tools.is_empty() { ToolMode::Discard } else { ToolMode::Suppress }))
-        }
+        Some(ToolFormat::Qwen3Xml) if !has_response_format => Some(ToolStage {
+            format: ToolFormat::Qwen3Xml,
+            mode: if tools.is_empty() { ToolMode::Discard } else { ToolMode::Suppress },
+            limit: None,
+            think: ThinkRule::Engine,
+        }),
         _ => None,
     }
 }
@@ -878,7 +936,7 @@ impl ToolParser {
             ToolFormat::Hermes => HashMap::new(),
             ToolFormat::Qwen3Xml => tools.iter().map(|t| (t.name.clone(), t.parameters.clone())).collect(),
         };
-        ToolParser { format, schemas, mode, buf: String::new(), in_call: false, from: 0, started: false, found: false, deferred: String::new() }
+        ToolParser { format, schemas, mode, buf: String::new(), in_call: false, from: 0, started: false, found: false, deferred: String::new(), limit: None, returned: 0 }
     }
 
     fn engine(&self) -> bool {
@@ -904,7 +962,8 @@ impl ToolParser {
         }
         if let Some(call) = call {
             self.found = true;
-            if self.mode == ToolMode::Parse {
+            if self.mode == ToolMode::Parse && self.limit.is_none_or(|n| self.returned < n) {
+                self.returned += 1;
                 out.push(call);
             }
         }
@@ -996,6 +1055,94 @@ impl ToolParser {
 }
 
 impl ToolParser {
+    /// Where the trailing run of whole call envelopes and whitespace in `text` begins (at its first `<tool_call>`), if
+    /// it ends the text; `None` when the text does not end in at least one complete call.
+    pub fn tail_start(&self, text: &str) -> Option<usize> {
+        text.match_indices(OPEN).map(|(i, _)| i).find(|&i| self.calls_only(&text[i..]) == Some(true))
+    }
+
+    /// The call envelopes of text that [`ToolParser::tail_start`] found (its whitespace dropped).
+    fn envelopes(&self, s: &str) -> String {
+        let (mut rest, mut out) = (s, String::new());
+        while let Some(body) = rest.trim_start().strip_prefix(OPEN) {
+            let from = body.find(CLOSE).map_or(body.len(), |i| i + CLOSE.len());
+            out.push_str(&format!("{OPEN}{}", &body[..from]));
+            rest = &body[from..];
+        }
+        out
+    }
+
+    /// Where the earliest `<tool_call>` (or the partial one the text ends with) begins that may still turn out to start
+    /// a trailing run of calls as more text arrives.
+    fn pending_start(&self, text: &str) -> Option<usize> {
+        let whole = text.match_indices(OPEN).map(|(i, _)| i).find(|&i| self.calls_only(&text[i..]).is_some());
+        whole.or_else(|| Some(text.len() - partial_suffix(text, OPEN)).filter(|&i| i < text.len()))
+    }
+
+    /// Whether `s` (starting at `<tool_call>`) is only call envelopes and whitespace: `Some(true)` when all of them are
+    /// complete calls, `Some(false)` when the last one is not finished yet but could still become one, `None` when
+    /// anything else is in it.
+    fn calls_only(&self, s: &str) -> Option<bool> {
+        let mut rest = s;
+        loop {
+            rest = rest.trim_start();
+            if rest.is_empty() {
+                return Some(true);
+            }
+            if OPEN.starts_with(rest) {
+                return Some(false);
+            }
+            let body = rest.strip_prefix(OPEN)?;
+            let Some(i) = body.find(CLOSE) else {
+                // no closing tag yet: the text so far must still be able to become a call body
+                return self.body_may_grow(body).then_some(false);
+            };
+            // a closing tag ends the envelope: what is before it is a call or this is not a tail
+            self.parse_body(&body[..i])?;
+            rest = &body[i + CLOSE.len()..];
+        }
+    }
+
+    /// Whether `body` (the text after `<tool_call>`, no closing tag yet) is a prefix of some call body.
+    fn body_may_grow(&self, body: &str) -> bool {
+        let b = body.trim_start();
+        match self.format {
+            ToolFormat::Hermes => {
+                let mut it = serde_json::Deserializer::from_str(b).into_iter::<Value>();
+                match it.next() {
+                    None => true,
+                    Some(Err(e)) => e.is_eof(),
+                    Some(Ok(_)) => {
+                        let after = b[it.byte_offset()..].trim();
+                        after.is_empty() || CLOSE.starts_with(after)
+                    }
+                }
+            }
+            ToolFormat::Qwen3Xml => {
+                let Some(rest) = b.strip_prefix(FUNCTION_OPEN) else { return FUNCTION_OPEN.starts_with(b) };
+                let Some(end) = rest.find('>') else { return true }; // the name is still being written
+                let mut rest = &rest[end + 1..];
+                loop {
+                    rest = rest.trim_start();
+                    let Some(r) = rest.strip_prefix(PARAMETER_OPEN) else {
+                        // between parameters: only whitespace, a partial tag, or the closing tags may follow
+                        if let Some(after) = rest.strip_prefix(FUNCTION_CLOSE) {
+                            let after = after.trim();
+                            return after.is_empty() || CLOSE.starts_with(after);
+                        }
+                        return PARAMETER_OPEN.starts_with(rest) || FUNCTION_CLOSE.starts_with(rest) || rest.is_empty();
+                    };
+                    let Some(end) = r.find('>') else { return true };
+                    let r = &r[end + 1..];
+                    match value_end(r, true) {
+                        Some((close, len)) => rest = &r[close + len..],
+                        None => return true, // still inside the value
+                    }
+                }
+            }
+        }
+    }
+
     /// The call in the text between the tags, `None` when it is not (yet) a complete call.
     fn parse_body(&self, body: &str) -> Option<Piece> {
         match self.format {
@@ -1164,11 +1311,13 @@ pub struct ReasoningParser {
     buf: String,
     /// Nothing but whitespace was emitted in the current section so far: drop leading whitespace.
     lead: bool,
+    /// vLLM's `qwen3_xml` engine rules (see above); off: the split is at `</think>` only.
+    engine: bool,
 }
 
 impl Default for ReasoningParser {
     fn default() -> Self {
-        ReasoningParser { phase: Phase::Start, buf: String::new(), lead: true }
+        ReasoningParser { phase: Phase::Start, buf: String::new(), lead: true, engine: false }
     }
 }
 
@@ -1178,6 +1327,11 @@ fn partial_suffix(s: &str, pat: &str) -> usize {
 }
 
 impl ReasoningParser {
+    /// A parser with vLLM's `qwen3_xml` engine rules: a `<tool_call>` ends the reasoning, later `</think>` are absorbed.
+    pub fn engine() -> ReasoningParser {
+        ReasoningParser { engine: true, ..Default::default() }
+    }
+
     pub fn push(&mut self, text: &str) -> Vec<Part> {
         self.buf.push_str(text);
         let mut out = Vec::new();
@@ -1195,7 +1349,7 @@ impl ReasoningParser {
                 }
                 Phase::Reasoning => {
                     let close = self.buf.find(THINK_CLOSE);
-                    let call = self.buf.find(OPEN);
+                    let call = if self.engine { self.buf.find(OPEN) } else { None };
                     if let Some(i) = call.filter(|&c| close.is_none_or(|x| c < x)) {
                         // a call ends the reasoning; it, and everything after, is content
                         let rest = self.buf.split_off(i);
@@ -1213,7 +1367,7 @@ impl ReasoningParser {
                         self.phase = Phase::Content;
                         self.lead = true;
                     } else {
-                        let keep = partial_suffix(&self.buf, THINK_CLOSE).max(partial_suffix(&self.buf, OPEN));
+                        let keep = partial_suffix(&self.buf, THINK_CLOSE).max(if self.engine { partial_suffix(&self.buf, OPEN) } else { 0 });
                         let cut = self.buf.len() - keep;
                         let head = self.buf[..cut].trim_end().len();
                         // trailing whitespace (and a possible partial tag) stays until it is known not to be trailing
@@ -1223,13 +1377,14 @@ impl ReasoningParser {
                     }
                 }
                 Phase::Content => {
-                    // a further `</think>` is absorbed (vLLM drops it), a possible partial one waits
                     let mut t = std::mem::take(&mut self.buf);
-                    while let Some(i) = t.find(THINK_CLOSE) {
-                        t.replace_range(i..i + THINK_CLOSE.len(), "");
+                    if self.engine {
+                        // a further `</think>` is absorbed (vLLM drops it), a possible partial one waits; one pass,
+                        // as the stream does, so what a removal joins is not removed again
+                        t = t.replace(THINK_CLOSE, "");
+                        let keep = partial_suffix(&t, THINK_CLOSE);
+                        self.buf = t.split_off(t.len() - keep);
                     }
-                    let keep = partial_suffix(&t, THINK_CLOSE);
-                    self.buf = t.split_off(t.len() - keep);
                     self.emit_content(&mut out, &t);
                     return out;
                 }
@@ -1278,6 +1433,127 @@ impl ReasoningParser {
             }
         }
         ((!r.is_empty()).then_some(r), (!c.is_empty()).then_some(c))
+    }
+}
+
+impl ReasoningParser {
+    /// Whether `</think>` has been seen (the answer section has begun, though it may still be empty).
+    pub fn closed(&self) -> bool {
+        self.phase == Phase::Content
+    }
+}
+
+/// [`ReasoningParser`] by a [`ThinkRule`]. `Tail` is vLLM's handling of a tool call written as the last thing before `</think>`: complete call
+/// envelopes (and whitespace) that end the reasoning, with `</think>` closing the block and no answer after it, are the
+/// reply's tool calls, not reasoning. A call followed by more reasoning or by an answer, an envelope that is incomplete
+/// or does not parse as a call, and a reply without `</think>` all stay as the plain parser leaves them. The lifted
+/// text comes out as [`Part::Content`], so the caller's [`ToolParser`] turns it into calls. While streaming, reasoning
+/// from a `<tool_call>` that could still be such a tail is held back until that is decided (the answer starts, the
+/// call is followed by other text, or the reply ends); without a tool format nothing is held.
+pub struct ThinkStream {
+    rp: ReasoningParser,
+    /// Reasoning not yet sent: starts at (whitespace before) a `<tool_call>` that may still be a trailing call.
+    held: String,
+    /// An answer has started: nothing is held any more.
+    answered: bool,
+    /// `None`: tool calls are not parsed.
+    lift: Option<ToolParser>,
+}
+
+impl ThinkStream {
+    pub fn new(rule: ThinkRule, lift: Option<ToolParser>) -> ThinkStream {
+        let rp = if rule == ThinkRule::Engine { ReasoningParser::engine() } else { ReasoningParser::default() };
+        ThinkStream { rp, held: String::new(), answered: false, lift: if rule == ThinkRule::Tail { lift } else { None } }
+    }
+
+    pub fn push(&mut self, text: &str) -> Vec<Part> {
+        let parts = self.rp.push(text);
+        self.absorb(parts)
+    }
+
+    /// The output ended without a clean finish (an engine error): everything held is reasoning, never a call.
+    pub fn abort(&mut self) -> Vec<Part> {
+        let parts = self.rp.finish();
+        let mut out = self.absorb(parts);
+        let held = std::mem::take(&mut self.held);
+        if !held.is_empty() {
+            out.push(Part::Reasoning(held));
+        }
+        out
+    }
+
+    /// End of output.
+    pub fn finish(&mut self) -> Vec<Part> {
+        let parts = self.rp.finish();
+        let mut out = self.absorb(parts);
+        let held = std::mem::take(&mut self.held);
+        if held.is_empty() {
+            return out;
+        }
+        let at = if self.rp.closed() && !self.answered { self.lift.as_ref().and_then(|t| t.tail_start(&held)) } else { None };
+        match at {
+            Some(i) => {
+                let (reasoning, calls) = held.split_at(i);
+                let reasoning = reasoning.trim_end();
+                if !reasoning.is_empty() {
+                    out.push(Part::Reasoning(reasoning.to_string()));
+                }
+                // the envelopes alone: whitespace between them is not an answer
+                out.push(Part::Content(self.lift.as_ref().map_or_else(String::new, |t| t.envelopes(calls))));
+            }
+            None => out.push(Part::Reasoning(held)),
+        }
+        out
+    }
+
+    /// The whole output at once: `(reasoning, content)`, `None` for an empty section.
+    pub fn parse_all(text: &str, rule: ThinkRule, lift: Option<ToolParser>) -> (Option<String>, Option<String>) {
+        let mut p = ThinkStream::new(rule, lift);
+        let mut parts = p.push(text);
+        parts.extend(p.finish());
+        let (mut r, mut c) = (String::new(), String::new());
+        for part in parts {
+            match part {
+                Part::Reasoning(t) => r.push_str(&t),
+                Part::Content(t) => c.push_str(&t),
+            }
+        }
+        ((!r.is_empty()).then_some(r), (!c.is_empty()).then_some(c))
+    }
+
+    fn absorb(&mut self, parts: Vec<Part>) -> Vec<Part> {
+        let mut out = Vec::new();
+        for part in parts {
+            match part {
+                Part::Reasoning(t) if self.lift.is_none() => out.push(Part::Reasoning(t)),
+                Part::Reasoning(t) => {
+                    self.held.push_str(&t);
+                    self.release(&mut out);
+                }
+                Part::Content(t) => {
+                    // an answer: the held text was reasoning after all
+                    self.answered = true;
+                    if !self.held.is_empty() {
+                        out.push(Part::Reasoning(std::mem::take(&mut self.held)));
+                    }
+                    out.push(Part::Content(t));
+                }
+            }
+        }
+        out
+    }
+
+    /// Send the held reasoning that cannot belong to a trailing call: all of it up to the earliest `<tool_call>` that
+    /// still might, less the whitespace before that (it may separate the call from reasoning that stays).
+    fn release(&mut self, out: &mut Vec<Part>) {
+        let lift = self.lift.as_ref().expect("held text needs a tool parser");
+        let cut = match lift.pending_start(&self.held) {
+            Some(i) => self.held[..i].trim_end().len(),
+            None => self.held.len(),
+        };
+        if cut > 0 {
+            out.push(Part::Reasoning(self.held.drain(..cut).collect()));
+        }
     }
 }
 
@@ -1861,19 +2137,210 @@ mod tests {
         assert_eq!(ReasoningParser::parse_all(""), (None, None));
     }
 
+    const LOOKUP_XML: &str = "<tool_call>\n<function=lookup>\n<parameter=q>\nexample\n</parameter>\n</function>\n</tool_call>";
+    const LOOKUP_JSON: &str = "<tool_call>{\"name\":\"lookup\",\"arguments\":{\"q\":\"example\"}}</tool_call>";
+
+
+    /// `(reasoning, content)` of a streamed reply through `ThinkStream` with the tool format `f`, in chunks of `n` chars
+    /// (`0`: the whole text), plus the parts in order.
+    fn think_stream(text: &str, f: Option<ToolFormat>, n: usize) -> (String, String, Vec<Part>) {
+        let tools = lookup_tool();
+        let mut p = ThinkStream::new(ThinkRule::Tail, f.map(|f| ToolParser::new(f, &tools)));
+        let chars: Vec<char> = text.chars().collect();
+        let chunks: Vec<String> = if n == 0 { vec![text.to_string()] } else { chars.chunks(n).map(|c| c.iter().collect()).collect() };
+        let mut parts: Vec<Part> = chunks.iter().flat_map(|t| p.push(t)).collect();
+        parts.extend(p.finish());
+        let (mut r, mut c) = (String::new(), String::new());
+        for part in &parts {
+            match part {
+                Part::Reasoning(t) => r.push_str(t),
+                Part::Content(t) => c.push_str(t),
+            }
+        }
+        (r, c, parts)
+    }
+
+    /// The calls a lifted tail turns into, through the tool parser as the handlers do.
+    fn lifted_calls(content: &str, f: ToolFormat) -> Vec<(String, Value)> {
+        let (rest, calls) = split_calls(content, f, &lookup_tool());
+        assert_eq!(rest, None, "only call envelopes were lifted: {content:?}");
+        calls
+    }
+
+    /// Whole and streamed in every chunking give the same split.
+    fn think_split(text: &str, f: ToolFormat) -> (String, String) {
+        let want = think_stream(text, Some(f), 0);
+        for n in [1, 2, 3, 7, 4096] {
+            let got = think_stream(text, Some(f), n);
+            assert_eq!((&got.0, &got.1), (&want.0, &want.1), "chunk {n}: {text:?}");
+        }
+        (want.0, want.1)
+    }
+
+    #[test]
+    fn think_tail_lifts_complete_calls_before_the_close() {
+        for (f, call) in [(ToolFormat::Hermes, LOOKUP_JSON)] {
+            for after in ["", "\n", "\n \t\u{3000}"] {
+                let (r, c) = think_split(&format!("<think>\nPlan.\n{call}</think>{after}"), f);
+                assert_eq!(r, "Plan.");
+                assert_eq!(c, call);
+                let calls = lifted_calls(&c, f);
+                assert_eq!((calls.len(), calls[0].0.as_str(), calls[0].1.clone()), (1, "lookup", json!({"q": "example"})));
+            }
+            // a call and nothing else
+            let (r, c) = think_split(&format!("{call}</think>"), f);
+            assert_eq!((r.as_str(), c.as_str()), ("", call));
+            // several calls, with whitespace between and after
+            let two = format!("Plan.\n{call} \n{call}\n\t");
+            let (r, c) = think_split(&format!("{two}</think>"), f);
+            assert_eq!(r, "Plan.");
+            assert_eq!(lifted_calls(&c, f).len(), 2);
+            // the call is not held when the reply has no tool format, or stays reasoning without a close
+            let text = format!("Plan.\n{call}</think>");
+            let plain = think_stream(&text, None, 3);
+            assert_eq!((plain.0.as_str(), plain.1.as_str()), (text.trim_end_matches("</think>"), ""));
+            let open = think_stream(&format!("Plan.\n{call}"), Some(f), 3);
+            assert_eq!((open.0.as_str(), open.1.as_str()), (format!("Plan.\n{call}").as_str(), ""));
+        }
+    }
+
+    #[test]
+    fn think_tail_keeps_calls_followed_by_more_reasoning_or_an_answer() {
+        for (f, call) in [(ToolFormat::Hermes, LOOKUP_JSON)] {
+            let one = format!("Plan.\n{call}");
+            // an answer after the close
+            let (r, c) = think_split(&format!("{one}</think>\n\nDone."), f);
+            assert_eq!((r.as_str(), c.as_str()), (one.as_str(), "Done."));
+            let (r, c) = think_split(&format!("{one}</think>\u{200b}"), f);
+            assert_eq!((r.as_str(), c.as_str()), (one.as_str(), "\u{200b}"));
+            // more reasoning after the call
+            let more = format!("{one}\nMore reasoning.");
+            let (r, c) = think_split(&format!("{more}</think>"), f);
+            assert_eq!((r.as_str(), c.as_str()), (more.as_str(), ""));
+            // an earlier mention stays reasoning before the final real call
+            let early = format!("Example: {call}\nStill reasoning.\n");
+            let (r, c) = think_split(&format!("{early}{call}</think>"), f);
+            assert_eq!(r, early.trim_end());
+            assert_eq!(c, call);
+        }
+    }
+
+    #[test]
+    fn think_tail_leaves_incomplete_envelopes_and_prose_alone() {
+        for (f, call) in [(ToolFormat::Hermes, LOOKUP_JSON)] {
+            let cut = format!("Plan.\n{}", &call[..call.len() - 3]);
+            let (r, c) = think_split(&format!("{cut}</think>"), f);
+            assert_eq!((r.as_str(), c.as_str()), (cut.as_str(), ""));
+            // the last of two is cut
+            let second = format!("{call}\n{}", &call[..call.len() - 3]);
+            let (r, c) = think_split(&format!("{second}</think>"), f);
+            assert_eq!((r.as_str(), c.as_str()), (second.as_str(), ""));
+            // an envelope that does not parse as a call
+            let bad = "Plan. <tool_call>not a call</tool_call>";
+            let (r, c) = think_split(&format!("{bad}</think>"), f);
+            assert_eq!((r.as_str(), c.as_str()), (bad, ""));
+        }
+        // text that is only a partial opener at the very end
+        let (r, c) = think_split("Plan. <tool_</think>", ToolFormat::Hermes);
+        assert_eq!((r.as_str(), c.as_str()), ("Plan. <tool_", ""));
+    }
+
+    #[test]
+    fn think_tail_streams_prose_mentions_without_holding_them_back() {
+        // `<tool_call>` followed by prose can never be a call: the reasoning keeps streaming
+        let tools = lookup_tool();
+        let mut p = ThinkStream::new(ThinkRule::Tail, Some(ToolParser::new(ToolFormat::Qwen3Xml, &tools)));
+        let mut seen = String::new();
+        for t in ["I will write <tool_call> ", "in the next turn, ", "then continue"] {
+            for part in p.push(t) {
+                if let Part::Reasoning(r) = part {
+                    seen.push_str(&r);
+                }
+            }
+        }
+        assert!(seen.starts_with("I will write <tool_call>"), "{seen:?}");
+        // a real call in progress is held until it is decided
+        let mut p = ThinkStream::new(ThinkRule::Tail, Some(ToolParser::new(ToolFormat::Qwen3Xml, &tools)));
+        let early: Vec<Part> = ["Plan.\n", "<tool_call>\n<function=lookup>\n", "<parameter=q>\nexample\n</parameter>\n</function>\n</tool_call>\n"]
+            .iter()
+            .flat_map(|t| p.push(t))
+            .collect();
+        assert_eq!(early, vec![Part::Reasoning("Plan.".into())]);
+        let mut rest = p.push("</think>");
+        rest.extend(p.finish());
+        assert_eq!(rest.len(), 1);
+        assert!(matches!(&rest[0], Part::Content(c) if c.starts_with("<tool_call>") && c.ends_with("</tool_call>")), "{rest:?}");
+    }
+
+    /// Reasoning streamed before the close arrives: every chunk but the last is pushed, then `</think>` and the answer.
+    fn streamed_before_close(f: ToolFormat, chunks: &[&str]) -> String {
+        let tools = lookup_tool();
+        let mut p = ThinkStream::new(ThinkRule::Tail, Some(ToolParser::new(f, &tools)));
+        let mut seen = String::new();
+        for t in chunks {
+            for part in p.push(t) {
+                if let Part::Reasoning(r) = part {
+                    seen.push_str(&r);
+                }
+            }
+        }
+        seen
+    }
+
+    #[test]
+    fn think_tail_stops_holding_once_the_text_cannot_be_a_tail() {
+        // a mention with a placeholder body, then prose
+        let seen = streamed_before_close(ToolFormat::Hermes, &["The format is <tool_call>{...}</tool_call> with JSON.", " Now lots more reasoning here."]);
+        assert_eq!(seen, "The format is <tool_call>{...}</tool_call> with JSON. Now lots more reasoning here.");
+        // an invalid-JSON call, then prose
+        let seen = streamed_before_close(ToolFormat::Hermes, &["Try <tool_call>{\"name\": }</tool_call>", " then think more.", " And more."]);
+        assert_eq!(seen, "Try <tool_call>{\"name\": }</tool_call> then think more. And more.");
+        // an unclosed XML body that is not one
+        let seen = streamed_before_close(ToolFormat::Qwen3Xml, &["Maybe <tool_call>\n<function=lookup> hmm, no.", " More reasoning here.", " Even more."]);
+        assert_eq!(seen, "Maybe <tool_call>\n<function=lookup> hmm, no. More reasoning here. Even more.");
+        // an unclosed Hermes body with text after it
+        let seen = streamed_before_close(ToolFormat::Hermes, &["Use <tool_call>{\"name\": \"x\"} and then", " keep going"]);
+        assert_eq!(seen, "Use <tool_call>{\"name\": \"x\"} and then keep going");
+        // and the close and answer after them change nothing
+        let (r, c) = think_split("The format is <tool_call>{...}</tool_call> with JSON. More.</think>Answer.", ToolFormat::Hermes);
+        assert_eq!((r.as_str(), c.as_str()), ("The format is <tool_call>{...}</tool_call> with JSON. More.", "Answer."));
+        // a genuine call in progress is still held
+        let seen = streamed_before_close(ToolFormat::Qwen3Xml, &["Plan.\n<tool_call>\n<function=lookup>\n<parameter=q>\nexam"]);
+        assert_eq!(seen, "Plan.");
+    }
+
+    #[test]
+    fn think_stream_abort_releases_held_reasoning_never_a_call() {
+        let tools = lookup_tool();
+        for (f, call) in [(ToolFormat::Hermes, LOOKUP_JSON)] {
+            let mut p = ThinkStream::new(ThinkRule::Tail, Some(ToolParser::new(f, &tools)));
+            let mut parts = p.push(&format!("Plan.\n{call}</think>"));
+            parts.extend(p.abort());
+            let reasoning: String = parts.iter().filter_map(|x| if let Part::Reasoning(t) = x { Some(t.as_str()) } else { None }).collect();
+            assert_eq!(reasoning, format!("Plan.\n{call}"));
+            assert!(parts.iter().all(|x| matches!(x, Part::Reasoning(_))), "{parts:?}");
+        }
+    }
+
     const LOOKUP: &str = "<tool_call>\n<function=lookup>\n<parameter=q>\nexample\n</parameter>\n</function>\n</tool_call>";
 
     fn lookup_tool() -> Vec<Tool> {
         vec![Tool { name: "lookup".into(), description: None, parameters: json!({"type": "object", "properties": {"q": {"type": "string"}}}) }]
     }
 
+    fn xml_stage(mode: ToolMode) -> ToolStage {
+        ToolStage { format: ToolFormat::Qwen3Xml, mode, limit: None, think: ThinkRule::Engine }
+    }
+
     /// What the handlers make of a reply, whole: `(reasoning, content, calls)`.
-    fn whole(text: &str, think: bool, stage: Option<ToolMode>) -> (String, String, Vec<(String, Value)>) {
-        let (reasoning, answer) = if think { ReasoningParser::parse_all(text) } else { (None, Some(text.to_string())) };
+    fn whole(text: &str, think: bool, stage: Option<ToolStage>) -> (String, String, Vec<(String, Value)>) {
+        let tools = lookup_tool();
+        let rule = stage.map_or(ThinkRule::Plain, |s| s.think);
+        let (reasoning, answer) = if think { ThinkStream::parse_all(text, rule, stage.map(|s| s.parser(&tools))) } else { (None, Some(text.to_string())) };
         let answer = answer.unwrap_or_default();
         let (content, calls) = match stage {
-            Some(mode) => {
-                let (c, calls) = split_calls_with(&answer, ToolFormat::Qwen3Xml, &lookup_tool(), mode);
+            Some(s) => {
+                let (c, calls) = s.split(&answer, &tools);
                 (c.unwrap_or_default(), calls)
             }
             None => (answer, vec![]),
@@ -1882,10 +2349,10 @@ mod tests {
     }
 
     /// The same reply streamed in chunks of `n` chars, the way the handlers feed the two parsers.
-    fn streamed(text: &str, think: bool, stage: Option<ToolMode>, n: usize) -> (String, String, Vec<(String, Value)>) {
+    fn streamed(text: &str, think: bool, stage: Option<ToolStage>, n: usize) -> (String, String, Vec<(String, Value)>) {
         let tools = lookup_tool();
-        let mut rp = think.then(ReasoningParser::default);
-        let mut tp = stage.map(|m| ToolParser::with_mode(ToolFormat::Qwen3Xml, &tools, m));
+        let mut rp = think.then(|| stage.map_or_else(|| ThinkStream::new(ThinkRule::Plain, None), |s| s.thinker(&tools)));
+        let mut tp = stage.map(|s| s.parser(&tools));
         let (mut r, mut c, mut calls) = (String::new(), String::new(), vec![]);
         let chars: Vec<char> = text.chars().collect();
         let chunks: Vec<String> = if n == 0 { vec![text.to_string()] } else { chars.chunks(n).map(|c| c.iter().collect()).collect() };
@@ -1923,7 +2390,7 @@ mod tests {
     }
 
     /// A row of the vLLM table: whole, and streamed in every chunking, give `(reasoning, content, calls)`.
-    fn row(text: &str, think: bool, stage: Option<ToolMode>, want: (&str, &str, &[(&str, Value)])) {
+    fn row(text: &str, think: bool, stage: Option<ToolStage>, want: (&str, &str, &[(&str, Value)])) {
         let want_calls: Vec<(String, Value)> = want.2.iter().map(|(n, a)| (n.to_string(), a.clone())).collect();
         let w = whole(text, think, stage);
         assert_eq!((w.0.as_str(), w.1.as_str(), &w.2), (want.0, want.1, &want_calls), "whole: {text:?}");
@@ -1934,46 +2401,48 @@ mod tests {
         }
     }
 
-    const P: Option<ToolMode> = Some(ToolMode::Parse);
+    fn px() -> Option<ToolStage> {
+        Some(xml_stage(ToolMode::Parse))
+    }
     fn q() -> Value {
         json!({"q": "example"})
     }
 
     #[test]
     fn vllm_row_call_before_the_close_with_no_answer() {
-        row(&format!("<think>\nPlan.\n{LOOKUP}</think>"), true, P, ("Plan.", "", &[("lookup", q())]));
-        row(&format!("<think>\nPlan.\n{LOOKUP}\n</think>\n\n"), true, P, ("Plan.", "", &[("lookup", q())]));
-        row(&format!("{LOOKUP}</think>"), true, P, ("", "", &[("lookup", q())]));
+        row(&format!("<think>\nPlan.\n{LOOKUP}</think>"), true, px(), ("Plan.", "", &[("lookup", q())]));
+        row(&format!("<think>\nPlan.\n{LOOKUP}\n</think>\n\n"), true, px(), ("Plan.", "", &[("lookup", q())]));
+        row(&format!("{LOOKUP}</think>"), true, px(), ("", "", &[("lookup", q())]));
     }
 
     #[test]
     fn vllm_row_call_inside_reasoning_wherever_it_sits() {
         // more reasoning after it, or an answer: the text after a call is dropped, the later `</think>` absorbed
-        row(&format!("Plan.\n{LOOKUP}\nMore reasoning.</think>Answer."), true, P, ("Plan.", "", &[("lookup", q())]));
-        row(&format!("Plan.\n{LOOKUP}</think>\n\nAnswer."), true, P, ("Plan.", "", &[("lookup", q())]));
+        row(&format!("Plan.\n{LOOKUP}\nMore reasoning.</think>Answer."), true, px(), ("Plan.", "", &[("lookup", q())]));
+        row(&format!("Plan.\n{LOOKUP}</think>\n\nAnswer."), true, px(), ("Plan.", "", &[("lookup", q())]));
         // no `</think>` at all
-        row(&format!("Plan.\n{LOOKUP}"), true, P, ("Plan.", "", &[("lookup", q())]));
+        row(&format!("Plan.\n{LOOKUP}"), true, px(), ("Plan.", "", &[("lookup", q())]));
     }
 
     #[test]
     fn vllm_row_several_calls() {
-        row(&format!("Plan.\n{LOOKUP}\nand\n{LOOKUP}\n</think>"), true, P, ("Plan.", "", &[("lookup", q()), ("lookup", q())]));
+        row(&format!("Plan.\n{LOOKUP}\nand\n{LOOKUP}\n</think>"), true, px(), ("Plan.", "", &[("lookup", q()), ("lookup", q())]));
         // in the answer, with text before them (content is the text before the first call, trimmed)
-        row(&format!("R</think>\n\nHi {LOOKUP}{LOOKUP} bye"), true, P, ("R", "Hi", &[("lookup", q()), ("lookup", q())]));
+        row(&format!("R</think>\n\nHi {LOOKUP}{LOOKUP} bye"), true, px(), ("R", "Hi", &[("lookup", q()), ("lookup", q())]));
     }
 
     #[test]
     fn vllm_row_cut_or_malformed_envelopes() {
         // cut by max_tokens: a call with the parameters that are whole, nothing without a `<function=NAME>`
-        row("Plan.\n<tool_call>\n<function=lookup>\n<parameter=q>\nex", true, P, ("Plan.", "", &[("lookup", json!({}))]));
-        row("Plan.\n<tool_call>\n<function=lookup>\n<parameter=q>\nex\n</parameter>\n", true, P, ("Plan.", "", &[("lookup", q_ex())]));
-        row("Plan.\n<tool_call>\n<function=loo", true, P, ("Plan.", "", &[("loo", json!({}))]));
-        row("Plan.\n<tool_call>\n", true, P, ("Plan.", "", &[]));
+        row("Plan.\n<tool_call>\n<function=lookup>\n<parameter=q>\nex", true, px(), ("Plan.", "", &[("lookup", json!({}))]));
+        row("Plan.\n<tool_call>\n<function=lookup>\n<parameter=q>\nex\n</parameter>\n", true, px(), ("Plan.", "", &[("lookup", q_ex())]));
+        row("Plan.\n<tool_call>\n<function=loo", true, px(), ("Plan.", "", &[("loo", json!({}))]));
+        row("Plan.\n<tool_call>\n", true, px(), ("Plan.", "", &[]));
         // a closed envelope with no call in it is nothing; text after it is content (no call was found)
-        row("Plan.\n<tool_call>junk</tool_call> after</think>", true, P, ("Plan.", " after", &[]));
+        row("Plan.\n<tool_call>junk</tool_call> after</think>", true, px(), ("Plan.", " after", &[]));
         // the same in the answer, thinking off
-        row("Hi <tool_call>\n<function=lookup>\n<parameter=q>\nexample\n</parameter>\n</function>\n</tool_call> bye", false, P, ("", "Hi", &[("lookup", q())]));
-        row("Hi <tool_call>\n<function=lookup>\n<parameter=q>\nex", false, P, ("", "Hi", &[("lookup", json!({}))]));
+        row("Hi <tool_call>\n<function=lookup>\n<parameter=q>\nexample\n</parameter>\n</function>\n</tool_call> bye", false, px(), ("", "Hi", &[("lookup", q())]));
+        row("Hi <tool_call>\n<function=lookup>\n<parameter=q>\nex", false, px(), ("", "Hi", &[("lookup", json!({}))]));
     }
 
     fn q_ex() -> Value {
@@ -1983,10 +2452,10 @@ mod tests {
     #[test]
     fn vllm_row_prose_mention_of_the_tag() {
         // vLLM reads it as a call that never comes: the reasoning ends there and the rest (the answer too) is swallowed
-        row("I will write <tool_call> in the next turn.</think>Answer.", true, P, ("I will write", "", &[]));
+        row("I will write <tool_call> in the next turn.</think>Answer.", true, px(), ("I will write", "", &[]));
         // streamed, the reasoning before it is out at once and nothing is held for the rest
         let tools = lookup_tool();
-        let mut p = ReasoningParser::default();
+        let mut p = ReasoningParser::engine();
         let early: String = ["I will write ", "<tool_call> in the next turn, ", "then more"]
             .iter()
             .flat_map(|t| p.push(t))
@@ -2000,33 +2469,36 @@ mod tests {
     fn vllm_row_requests_without_tools_or_with_tool_choice_none() {
         let text = format!("Plan.\n{LOOKUP}\nMore.</think>Answer.");
         // no tools: the call is read and thrown away; the text after it is dropped as it is when there is one
-        row(&text, true, Some(ToolMode::Discard), ("Plan.", "", &[]));
-        row(&format!("Hi {LOOKUP} bye"), false, Some(ToolMode::Discard), ("", "Hi", &[]));
+        row(&text, true, Some(xml_stage(ToolMode::Discard)), ("Plan.", "", &[]));
+        row(&format!("Hi {LOOKUP} bye"), false, Some(xml_stage(ToolMode::Discard)), ("", "Hi", &[]));
         // tool_choice none: the markup is cut out, all the text stays
-        row(&text, true, Some(ToolMode::Suppress), ("Plan.", "\nMore.Answer.", &[]));
-        row(&format!("A {LOOKUP} B <tool_call>\n<function=lookup>\n<parameter=q>\nyy"), false, Some(ToolMode::Suppress), ("", "A  B ", &[]));
+        row(&text, true, Some(xml_stage(ToolMode::Suppress)), ("Plan.", "\nMore.Answer.", &[]));
+        row(&format!("A {LOOKUP} B <tool_call>\n<function=lookup>\n<parameter=q>\nyy"), false, Some(xml_stage(ToolMode::Suppress)), ("", "A  B ", &[]));
         // production vLLM, thinking off, "A <call> B <cut call>": no tools -> "A"; tool_choice none -> "A  B "; auto -> "A" and two calls
         let probe = format!("A {LOOKUP} B <tool_call>\n<function=lookup>\n<parameter=q>\nyy");
-        assert_eq!(whole(&probe, false, Some(ToolMode::Discard)).1, "A");
-        assert_eq!(whole(&probe, false, Some(ToolMode::Suppress)).1, "A  B ");
-        let auto = whole(&probe, false, P);
+        assert_eq!(whole(&probe, false, Some(xml_stage(ToolMode::Discard))).1, "A");
+        assert_eq!(whole(&probe, false, Some(xml_stage(ToolMode::Suppress))).1, "A  B ");
+        let auto = whole(&probe, false, px());
         assert_eq!((auto.1.as_str(), auto.2.len(), auto.2[1].1.clone()), ("A", 2, json!({})));
     }
 
     #[test]
-    fn vllm_row_recipe_without_a_tool_parser_and_later_think_closes() {
-        // no tool parser: the reasoning still ends at the tag, the content starts at it, `</think>` is dropped
-        let text = format!("Plan.\n{LOOKUP}\nMore.</think>Answer.");
-        row(&text, true, None, ("Plan.", &format!("{LOOKUP}\nMore.Answer."), &[]));
-        // a duplicate `</think>` after the real one is absorbed
-        row("R</think>ans</think>wer</think>", true, None, ("R", "answer", &[]));
-        // however it is chunked
-        row("R</think>a</think>b", true, None, ("R", "ab", &[]));
+    fn vllm_row_later_think_closes_and_the_plain_rule() {
+        // a duplicate `</think>` after the real one is absorbed (qwen3_xml), however it is chunked and whole alike
+        let s = Some(xml_stage(ToolMode::Suppress));
+        row("R</think>ans</think>wer</think>", true, s, ("R", "answer", &[]));
+        row("R</think>a</think>b", true, s, ("R", "ab", &[]));
+        // one pass: what a removal joins is not removed again, whole or streamed
+        row("R</think>a</thi</think>nk>b", true, s, ("R", "a</think>b", &[]));
+        // the plain rule (no tool stage, hermes without tools, a grammar, required / named): main's split, nothing
+        // ended at a tag and nothing stripped
+        let text = format!("Plan.\n{LOOKUP}\nMore.</think>Answer.</think>x");
+        row(&text, true, None, (&format!("Plan.\n{LOOKUP}\nMore."), "Answer.</think>x", &[]));
     }
 
     #[test]
     fn reasoning_parser_keeps_a_partial_tag_until_it_is_decided() {
-        let mut p = ReasoningParser::default();
+        let mut p = ReasoningParser::engine();
         let mut got = vec![];
         for t in ["plan <tool_", "call>x", "</think>"] {
             got.extend(p.push(t));
@@ -2036,7 +2508,7 @@ mod tests {
         let joined: String = got.iter().map(|x| if let Part::Reasoning(t) = x { t.as_str() } else { "" }).collect();
         assert_eq!(joined, "plan");
         // abort-style finish: held text comes out as it is
-        let mut p = ReasoningParser::default();
+        let mut p = ReasoningParser::engine();
         let mut got = p.push("plan <tool_");
         got.extend(p.finish());
         let joined: String = got.iter().map(|x| if let Part::Reasoning(t) = x { t.as_str() } else { "" }).collect();

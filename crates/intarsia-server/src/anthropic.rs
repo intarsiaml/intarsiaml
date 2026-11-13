@@ -1,7 +1,7 @@
 //! Anthropic Messages API: text, and client tools (`tool_use` / `tool_result`) with schema-constrained arguments.
 
 use crate::api::*;
-use crate::structured::{self, Part, Piece, ReasoningParser, Tool, ToolFormat, ToolParser};
+use crate::structured::{self, Part, Piece, ThinkRule, ThinkStream, Tool, ToolFormat, ToolParser};
 use axum::extract::State;
 use axum::response::sse::Event;
 use axum::response::{IntoResponse, Json, Response};
@@ -337,7 +337,7 @@ async fn messages_inner(
         .unwrap_or(false);
     let tool_format = ToolFormat::from_parser(info.tool_parser.as_deref());
     let (plan, parse_tools) = structured::choose(None, &tools, &choice, parallel, tool_format).map_err(bad)?;
-    let stage = structured::tool_stage(parse_tools, tool_format, &tools, false);
+    let stage = structured::tool_stage(parse_tools, tool_format, &tools, false, &choice, parallel);
     let messages = to_chat_messages(&req.system, &req.messages)?;
     let mut opts = chat_opts(&req.thinking, &req.chat_template_kwargs);
     if !tools.is_empty() {
@@ -375,15 +375,15 @@ async fn messages_inner(
         let mut thinking = None;
         let mut answer = c.text.clone();
         if think {
-            let (reasoning, text) = ReasoningParser::parse_all(&c.text);
+            let (reasoning, text) = ThinkStream::parse_all(&c.text, stage.map_or(ThinkRule::Plain, |s| s.think), stage.map(|s| s.parser(&tools)));
             thinking = reasoning.map(|r| json!({"type": "thinking", "thinking": r, "signature": ""}));
             answer = text.unwrap_or_default();
             content = vec![json!({"type": "text", "text": answer})];
         }
-        if let Some((format, mode)) = stage {
-            let (text, calls) = structured::split_calls_with(&answer, format, &tools, mode);
+        if let Some(stage) = stage {
+            let (text, calls) = stage.split(&answer, &tools);
             if calls.is_empty() {
-                if format == ToolFormat::Qwen3Xml {
+                if stage.format == ToolFormat::Qwen3Xml {
                     content = vec![json!({"type": "text", "text": text.unwrap_or_default()})];
                 }
             } else {
@@ -414,9 +414,11 @@ async fn messages_inner(
             "stop_reason": null, "stop_sequence": null,
             "usage": {"input_tokens": input_tokens, "output_tokens": 0}}}),
     );
-    if stage.is_some() || think {
-        let tp = stage.map(|(f, m)| ToolParser::with_mode(f, &tools, m));
-        return Ok(stream_with_tools(st, rx, start_ev, tp, think).into_response());
+    // as before: the tools path only for a request that parses tools or has reasoning (no tools: the plain stream)
+    if parse_tools.is_some() || think {
+        let tp = stage.map(|s| s.parser(&tools));
+        let rp = think.then(|| stage.map_or_else(|| ThinkStream::new(ThinkRule::Plain, None), |s| s.thinker(&tools)));
+        return Ok(stream_with_tools(st, rx, start_ev, tp, rp).into_response());
     }
     let prelude = vec![
         start_ev,
@@ -467,10 +469,9 @@ fn stream_with_tools(
     rx: GenRx,
     start_ev: Event,
     mut tp: Option<ToolParser>,
-    think: bool,
+    mut rp: Option<ThinkStream>,
 ) -> axum::response::sse::Sse<impl futures_util::Stream<Item = Result<Event, std::convert::Infallible>>> {
     let mut done = false;
-    let mut rp = think.then(ReasoningParser::default);
     let mut b = Blocks { next: 0, text_open: false, think_open: false, calls: 0 };
     sse_from(rx, vec![start_ev], move |ev| match ev {
         Some(GenEvent::Token { text, .. }) => match rp.as_mut() {
@@ -522,8 +523,8 @@ fn stream_with_tools(
 }
 
 /// The reasoning a stream still holds when it ends without a clean finish, as thinking deltas (never as a call).
-fn held_reasoning(b: &mut Blocks, st: &AppState, rp: Option<&mut ReasoningParser>) -> Vec<Event> {
-    let parts: Vec<Part> = rp.map(|rp| rp.finish()).unwrap_or_default().into_iter().filter(|p| matches!(p, Part::Reasoning(_))).collect();
+fn held_reasoning(b: &mut Blocks, st: &AppState, rp: Option<&mut ThinkStream>) -> Vec<Event> {
+    let parts: Vec<Part> = rp.map(|rp| rp.abort()).unwrap_or_default().into_iter().filter(|p| matches!(p, Part::Reasoning(_))).collect();
     b.parts(st, parts, &mut None)
 }
 
