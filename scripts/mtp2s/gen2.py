@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Lane mtp2s: N concurrent greedy chat streams (distinct natural prompts), exactly <gen> tokens each, against 127.0.0.1:<port>.
   gen2.py <port> <streams> <gen> [first_prompt_index]   prints one JSON line: per-stream decode tok/s and the aggregate."""
-import json, sys, threading, time, urllib.request
+import json, os, sys, threading, time, urllib.request
 P = [
     "Explain how a hash map handles collisions, with an example in Python.",
     "Write a short story about a lighthouse keeper who finds a message in a bottle.",
@@ -16,7 +16,7 @@ first = int(sys.argv[4]) if len(sys.argv) > 4 else 0
 
 def one(i, out):
     req = urllib.request.Request(f'http://127.0.0.1:{port}/v1/chat/completions', json.dumps({
-        'model': 'm', 'stream': True, 'max_tokens': gen, 'min_tokens': gen, 'ignore_eos': True, 'temperature': 0,
+        'model': 'm', 'stream': True, 'max_tokens': gen, 'min_tokens': gen, 'ignore_eos': True, 'temperature': float(os.environ.get('GEN_TEMP', '0')), 'seed': 2000 + i,
         'chat_template_kwargs': {'enable_thinking': False},
         'messages': [{'role': 'user', 'content': P[(first + i) % len(P)]}]}).encode(), {'content-type': 'application/json'})
     t1 = None; toks = 0

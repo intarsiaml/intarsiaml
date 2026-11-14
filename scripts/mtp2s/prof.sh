@@ -7,6 +7,7 @@
 #   N2    INTARSIA_BATCHED_MTP=2 (solo verify passes), 2 streams
 #   S1    default, 1 stream (the captured solo spec step)
 #   P1    INTARSIA_BATCHED_MTP=0 (no drafting), 1 stream (plain decode)
+#   VD    V2 + --mtp-draft-vocab 65536;  VDt / Vt: VD / V2 at temperature 1.0 (seeded)
 # Extra env: GEN (tokens per stream in the profiled window, default 256), ENVPLUS (added to every arm's env).
 set -uo pipefail
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
@@ -23,7 +24,7 @@ stop_srv() {
 }
 trap stop_srv EXIT
 one_arm() {
-  local ARM=$1 ENVX NS SA
+  local ARM=$1 ENVX NS SA; export GEN_TEMP=0
   case $ARM in
     P2)   ENVX="X=1";                                              NS=2; SA="" ;;
     V2)   ENVX="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1"; NS=2; SA="" ;;
@@ -31,6 +32,9 @@ one_arm() {
     N2)   ENVX="INTARSIA_BATCHED_MTP=2";                           NS=2; SA="" ;;
     S1)   ENVX="X=1";                                              NS=1; SA="" ;;
     P1)   ENVX="INTARSIA_BATCHED_MTP=0";                           NS=1; SA="" ;;
+    VD)   ENVX="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1"; NS=2; SA="--spec mtp --spec-k 2 --mtp-draft-vocab 65536" ;;
+    VDt)  ENVX="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1"; NS=2; SA="--spec mtp --spec-k 2 --mtp-draft-vocab 65536"; export GEN_TEMP=1.0 ;;
+    Vt)   ENVX="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1"; NS=2; SA=""; export GEN_TEMP=1.0 ;;
     *) echo "unknown arm $ARM"; return 1 ;;
   esac
   SES=mtp2s$$$ARM
