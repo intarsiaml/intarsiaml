@@ -1,0 +1,41 @@
+ref      t0.6/b1                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t0.6/b2                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t0.6/b4                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0/b1                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0/b2                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0/b4                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0-fullvocab/b2        8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+off      t0.6/b1                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+off      t0.6/b2                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+off      t0.6/b4                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+off      t1.0/b1                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+off      t1.0/b2                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+off      t1.0/b4                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+off      t1.0-fullvocab/b2        8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+off      mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 20 drafted 39 accepted 29 (0.744)
+on       t0.6/b1                  8/8 requests identical to ref b1 | verify passes 451 drafted 901 accepted 695 (0.771)
+on       t0.6/b2                  8/8 requests identical to ref b1 | verify passes 66 drafted 131 accepted 107 (0.817)
+on       t0.6/b4                  8/8 requests identical to ref b1 | verify passes 37 drafted 74 accepted 53 (0.716)
+on       t1.0/b1                  8/8 requests identical to ref b1 | verify passes 481 drafted 959 accepted 667 (0.696)
+on       t1.0/b2                  8/8 requests identical to ref b1 | verify passes 86 drafted 170 accepted 107 (0.629)
+on       t1.0/b4                  8/8 requests identical to ref b1 | verify passes 42 drafted 83 accepted 48 (0.578)
+on       t1.0-fullvocab/b2        8/8 requests identical to ref b1 | verify passes 85 drafted 168 accepted 89 (0.530)
+on       mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 40 drafted 80 accepted 50 (0.625)
+onv      t0.6/b1                  8/8 requests identical to ref b1 | verify passes 451 drafted 901 accepted 695 (0.771)
+onv      t0.6/b2                  8/8 requests identical to ref b1 | verify passes 451 drafted 901 accepted 695 (0.771)
+onv      t0.6/b4                  8/8 requests identical to ref b1 | verify passes 451 drafted 901 accepted 695 (0.771)
+onv      t1.0/b1                  8/8 requests identical to ref b1 | verify passes 481 drafted 959 accepted 667 (0.696)
+onv      t1.0/b2                  8/8 requests identical to ref b1 | verify passes 481 drafted 959 accepted 667 (0.696)
+onv      t1.0/b4                  8/8 requests identical to ref b1 | verify passes 481 drafted 959 accepted 667 (0.696)
+onv      t1.0-fullvocab/b2        8/8 requests identical to ref b1 | verify passes 488 drafted 973 accepted 651 (0.669)
+onv      mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 456 drafted 911 accepted 691 (0.759)
+default  t0.6/b1                  8/8 requests identical to ref b1 | verify passes 451 drafted 901 accepted 695 (0.771)
+default  t0.6/b2                  8/8 requests identical to ref b1 | verify passes 70 drafted 139 accepted 120 (0.863)
+default  t0.6/b4                  8/8 requests identical to ref b1 | verify passes 27 drafted 54 accepted 45 (0.833)
+default  t1.0/b1                  8/8 requests identical to ref b1 | verify passes 481 drafted 959 accepted 667 (0.696)
+default  t1.0/b2                  8/8 requests identical to ref b1 | verify passes 78 drafted 154 accepted 101 (0.656)
+default  t1.0/b4                  8/8 requests identical to ref b1 | verify passes 31 drafted 62 accepted 36 (0.581)
+default  t1.0-fullvocab/b2        8/8 requests identical to ref b1 | verify passes 78 drafted 154 accepted 81 (0.526)
+default  mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 32 drafted 64 accepted 44 (0.688)
+VERDICT: PASS: every request's ids are identical across arms and concurrency
