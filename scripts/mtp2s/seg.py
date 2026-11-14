@@ -11,7 +11,7 @@ per group (to check the class regexes)."""
 import collections, re, sqlite3, statistics as st, sys
 
 CLASSES = [  # first match wins; applied to the demangled/short kernel name
-    ("moe_experts", r"moe_experts|moe_decode|moe_gate_up|moe_down|experts"),
+    ("moe_experts", r"moe_experts|moe_dec_|moe_gate_up|moe_down|experts"),
     ("moe_router", r"moe_topk|topk_softmax|router"),
     ("gdn", r"gdn|delta|gated_delta|conv1d|short_conv|l2norm"),
     ("attention", r"attn|flash|sdpa|rope|kv_|paged|softmax_rows"),
@@ -22,7 +22,10 @@ CLASSES = [  # first match wins; applied to the demangled/short kernel name
 RX = [(c, re.compile(r, re.I)) for c, r in CLASSES]
 
 
-def cls(name):
+def cls(name, dur=0):
+    # the lm_head: the one GEMV of a pass long enough to read a vocabulary-sized matrix (single launch at the end of the pass)
+    if dur > 400e3 and re.search(r"gemv|matmul|gemm|mma", name):
+        return "lm_head/argmax"
     for c, r in RX:
         if r.search(name):
             return c
@@ -35,10 +38,10 @@ def main():
     db = sqlite3.connect(path)
     names = dict(db.execute("select id, value from StringIds"))
     ks = db.execute(
-        "select start, end, coalesce(demangledName, shortName), shortName, graphNodeId from CUPTI_ACTIVITY_KIND_KERNEL order by start"
+        "select start, end, coalesce(demangledName, shortName), shortName, graphNodeId, streamId from CUPTI_ACTIVITY_KIND_KERNEL order by start"
     ).fetchall()
     cps = db.execute("select start, end, bytes from CUPTI_ACTIVITY_KIND_MEMCPY where copyKind = 2 order by start").fetchall()
-    ks = [(s, e, names.get(sn, str(sn)), g is not None) for s, e, _dn, sn, g in ks]
+    ks = [(s, e, names.get(sn, str(sn)), g is not None, sid) for s, e, _dn, sn, g, sid in ks]
     # segments: kernels whose start is before a D2H copy's start, after the previous copy
     segs, ki, prev_end = [], 0, None
     for cs, ce, nb in cps:
@@ -76,23 +79,27 @@ def main():
     # per-class table for the biggest groups
     big = sorted(groups, key=lambda k: -sum(s["span"] for s in groups[k]))[:6]
     allc = [c for c, _ in CLASSES] + ["other"]
-    print("\nper op class, mean GPU kernel ms per segment (kernel durations, overlap not removed):\n")
-    print("| captured / kernels | " + " | ".join(allc) + " | sum |")
-    print("|---" * (len(allc) + 2) + "|")
+    print("\nper op class, mean kernel ms per segment summed over all streams (a node-level graph trace spreads graph nodes over")
+    print("many stream ids, and the side-stream kernels overlap the main chain, so the classes add up to more than the busy time);")
+    print("busy = union of all kernel intervals; idle = span - busy (launch gaps and the download):\n")
+    print("| captured / kernels | " + " | ".join(allc) + " | kernel sum | busy | idle | span |")
+    print("|---" * (len(allc) + 5) + "|")
     for key in big:
         g = groups[key]
-        acc = collections.Counter()
+        acc = collections.Counter(); busy = 0; span = 0
         for s in g:
-            for ks_, ke, nm, _ in s["ks"]:
-                acc[cls(nm)] += ke - ks_
+            for ks_, ke, nm, _, sid in s["ks"]:
+                acc[cls(nm, ke - ks_)] += ke - ks_
+            busy += s["busy"]; span += s["span"]
         n = len(g)
-        print(f"| {'graph' if key[0] else 'eager'} / {key[1]} (x{n}) | " + " | ".join(f"{acc[c] / n / 1e6:.3f}" for c in allc) + f" | {sum(acc.values()) / n / 1e6:.3f} |")
+        print(f"| {'graph' if key[0] else 'eager'} / {key[1]} (x{n}) | " + " | ".join(f"{acc[c] / n / 1e6:.3f}" for c in allc)
+              + f" | {sum(acc.values()) / n / 1e6:.3f} | {busy / n / 1e6:.3f} | {(span - busy) / n / 1e6:.3f} | {span / n / 1e6:.3f} |")
     if show:
         for key in big:
             g = groups[key]
             acc = collections.Counter(); cnt = collections.Counter()
             for s in g:
-                for ks_, ke, nm, _ in s["ks"]:
+                for ks_, ke, nm, _, _sid in s["ks"]:
                     acc[nm] += ke - ks_; cnt[nm] += 1
             print(f"\n{'graph' if key[0] else 'eager'} / {key[1]} kernels (x{len(g)}): top names, ms per segment, launches per segment, class")
             for nm, t in acc.most_common(25):
