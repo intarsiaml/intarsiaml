@@ -104,6 +104,11 @@ pub struct BatchedOptions {
     /// (temperature > 0) draft too, with seed-exact acceptance (`engine/keyed.rs`): a seeded request's ids are the same with it on
     /// or off. Off: sampled requests take plain steps.
     pub mtp_sampled: bool,
+    /// Lane mtp2s (`INTARSIA_VERIFY_TOPK=1`, opt-in): in a batched verify pass, a sampled sequence's rows come back as the
+    /// device-side top-k of each row (`HeadMode::LastTopK`, the candidates a plain batched decode step samples from) instead of
+    /// whole logits rows, when its sampler takes the top-k in a plain step for every row of the pass (`Seq::verify_topk`). The
+    /// draws are the same (`Sampler::sample_topk` is exact); a pass downloads `rows x k` values instead of `rows x vocab`.
+    pub verify_topk: bool,
     /// Lane interleave (`INTARSIA_PREFILL_PAUSE_ROWS`, default [`PAUSE_ROWS_DEFAULT`] = 768, 0 off): while other sequences decode, a
     /// prefill chunk of more than this many rows parks between layers about every this many rows and their decode step runs
     /// there ([`BatchModel::pause_rows`]). The chunk schedule and every output are unchanged, bit for bit. Not with `overlap`.
@@ -172,6 +177,7 @@ impl BatchedOptions {
                 .unwrap_or(SETTLE_SLICE_MB_DEFAULT),
             batched_verify: env("INTARSIA_BATCHED_VERIFY"),
             mtp_sampled: batched_mtp_sampled_env(),
+            verify_topk: env("INTARSIA_VERIFY_TOPK"),
             hold_start: false,
         }
     }
@@ -190,6 +196,8 @@ pub(crate) struct SlotModel {
     inflight: Option<Inflight>,
     /// Lane bm phase B: drafting sequences verify in one batched pass ([`BatchModel::verify_step`]).
     batched_verify: bool,
+    /// Lane mtp2s: [`BatchedOptions::verify_topk`] (with batched verify only).
+    verify_topk: bool,
     /// Lane interleave: [`BatchedOptions::pause_rows`] (0 with the decode twin: overlap runs chunks beside decode instead).
     pause_rows: usize,
     /// A prefix-store settle left to do after a request's `Done` ([`BatchModel::housekeep`]), with the telemetry to report it to.
@@ -497,7 +505,7 @@ impl BatchModel for SlotModel {
         let mut by_slot: Vec<Option<&mut SequenceState>> = self.states.iter_mut().map(Some).collect();
         let mut refs: Vec<&mut SequenceState> = Vec::with_capacity(rows.len());
         for (slot, _, want) in rows {
-            if want.is_some_and(|m| m != HeadMode::LastLogits) {
+            if want.is_some_and(|m| !matches!(m, HeadMode::LastLogits | HeadMode::LastTopK(_))) {
                 return Err(Error::Unsupported(format!("verify rows in head mode {want:?}")));
             }
             refs.push(
@@ -522,13 +530,14 @@ impl BatchModel for SlotModel {
                 return Err(Error::invalid(format!("a verify segment of {} rows exceeds the pass's {cap}", rows[i].1.len())));
             }
             let ids: Vec<Vec<u32>> = rows[i..j].iter().map(|(_, v, _)| v.clone()).collect();
-            let want: Vec<bool> = rows[i..j].iter().map(|(_, _, w)| w.is_some()).collect();
+            let want: Vec<Option<HeadMode>> = rows[i..j].iter().map(|(_, _, w)| *w).collect();
             // an error here is a device / pass failure: fatal for the whole batch, as a decode step's
-            if want.iter().any(|&w| w) {
-                // lane mtp-sampled: the sampled sequences' rows as logits (they draw their own tokens), the others' greedy tokens
-                let (toks, logits) = m.forward_verify_batch_logits(&mut refs[i..j], &ids, &want)?;
-                for ((t, l), w) in toks.into_iter().zip(logits).zip(want) {
-                    out.push(Ok(if w { Verified::Rows(l.into_iter().map(StepOut::Logits).collect()) } else { Verified::Greedy(t) }));
+            if want.iter().any(Option::is_some) {
+                // lane mtp-sampled: the sampled sequences' rows as logits (they draw their own tokens), the others' greedy tokens;
+                // lane mtp2s: or as each row's device-side top-k (`LastTopK`, `INTARSIA_VERIFY_TOPK`)
+                let (toks, rws) = m.forward_verify_batch_rows(&mut refs[i..j], &ids, &want)?;
+                for ((t, r), w) in toks.into_iter().zip(rws).zip(want) {
+                    out.push(Ok(if w.is_some() { Verified::Rows(r) } else { Verified::Greedy(t) }));
                 }
             } else {
                 let res = m.forward_verify_batch(&mut refs[i..j], &ids)?;
@@ -759,7 +768,7 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         spec_allowed: bool,
         busy: bool,
     ) -> Result<SeqStep<HeadMode>> {
-        let SlotModel { model, twin, states, batched_verify, .. } = model;
+        let SlotModel { model, twin, states, batched_verify, verify_topk, .. } = model;
         let model: &Model = twin.as_ref().unwrap_or(&**model);
         let defer = *batched_verify && busy;
         let seq = self.seq()?;
@@ -777,7 +786,15 @@ impl BatchSeq<SlotModel> for SeqAdapter {
             }
             Prep::Ready => SeqStep::Ready,
             // a sampled sequence draws its own token from every row: its rows come back as logits
-            Prep::Verify(ids) => SeqStep::Verify(ids, seq.keyed().then_some(HeadMode::LastLogits)),
+            Prep::Verify(ids) => {
+                // lane mtp2s (`INTARSIA_VERIFY_TOPK=1`, opt-in): a sampled sequence's rows as the device-side top-k when every row's
+                // draw is one a plain batched step would make from it (`Seq::verify_topk`), else whole logits rows
+                let mode = match (*verify_topk && model.device_sampling(), seq.verify_topk(ids.len())) {
+                    (true, Some(k)) => HeadMode::LastTopK(k),
+                    _ => HeadMode::LastLogits,
+                };
+                SeqStep::Verify(ids, seq.keyed().then_some(mode))
+            }
         })
     }
 
@@ -790,16 +807,7 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         let seq = self.seq()?;
         match out {
             Verified::Greedy(out) => seq.accept_verify(model, &mut states[slot], out),
-            Verified::Rows(rows) => {
-                let rows = rows
-                    .into_iter()
-                    .map(|r| match r {
-                        StepOut::Logits(l) => Ok(l),
-                        _ => Err(Error::Other("a sampled verify row without logits".into())),
-                    })
-                    .collect::<Result<Vec<_>>>()?;
-                seq.accept_verify_rows(model, &mut states[slot], rows)
-            }
+            Verified::Rows(rows) => seq.accept_verify_rows(model, &mut states[slot], rows),
         }
     }
 
@@ -1033,6 +1041,9 @@ impl BatchedEngine {
         // lane bm phase B: `INTARSIA_BATCHED_VERIFY=1` (opt-in, with batched MTP) verifies the drafting sequences in one pass
         let batched_verify = mtp && twin.is_none() && opts.batched_verify;
         let mtp_sampled = mtp && opts.mtp_sampled;
+        if batched_verify && opts.verify_topk {
+            eprintln!("batched verify: sampled rows as the device-side top-k when the request samples from it (INTARSIA_VERIFY_TOPK=1)");
+        }
         if mtp {
             eprintln!(
                 "batched MTP: sampled requests (temperature > 0) {}",
@@ -1048,6 +1059,7 @@ impl BatchedEngine {
                 row_fault: opts.row_fault,
                 inflight: None,
                 batched_verify,
+                verify_topk: batched_verify && opts.verify_topk,
                 pause_rows: opts.pause_rows,
                 settle: None,
                 store: store.as_ref().map(|p| (p.store.clone(), env.telemetry.clone())),

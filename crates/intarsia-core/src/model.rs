@@ -2110,7 +2110,30 @@ impl Model {
         if want.len() != states.len() {
             return Err(Error::invalid("forward_verify_batch_logits: one `want` per state"));
         }
-        self.forward_verify_batch_run(states, ids, Some(want))
+        let modes: Vec<Option<HeadMode>> = want.iter().map(|&w| w.then_some(HeadMode::LastLogits)).collect();
+        let (toks, rows) = self.forward_verify_batch_run(states, ids, Some(&modes))?;
+        let logits = rows
+            .into_iter()
+            .map(|r| r.into_iter().map(|o| if let StepOut::Logits(l) = o { l } else { Vec::new() }).collect())
+            .collect();
+        Ok((toks, logits))
+    }
+
+    /// [`Model::forward_verify_batch_logits`] with a head mode per sequence (lane mtp2s, `INTARSIA_VERIFY_TOPK`): `None` (greedy
+    /// tokens only), `LastLogits` (every row's logits) or `LastTopK(k)` (every row's `k` largest logits and their ids, from the
+    /// device-side top-k of batched decode; a row holding a NaN comes back as its logits), so a sampled sequence gets what its
+    /// plain batched decode steps would hand the sampler. Rows are `StepOut`s, in pass order per sequence.
+    #[allow(clippy::type_complexity)]
+    pub fn forward_verify_batch_rows(
+        &self,
+        states: &mut [&mut SequenceState],
+        ids: &[Vec<u32>],
+        modes: &[Option<HeadMode>],
+    ) -> Result<(Vec<Vec<u32>>, Vec<Vec<StepOut>>)> {
+        if modes.len() != states.len() {
+            return Err(Error::invalid("forward_verify_batch_rows: one mode per state"));
+        }
+        self.forward_verify_batch_run(states, ids, Some(modes))
     }
 
     #[allow(clippy::type_complexity)]
@@ -2118,8 +2141,8 @@ impl Model {
         &self,
         states: &mut [&mut SequenceState],
         ids: &[Vec<u32>],
-        want: Option<&[bool]>,
-    ) -> Result<(Vec<Vec<u32>>, Vec<Vec<Vec<f32>>>)> {
+        want: Option<&[Option<HeadMode>]>,
+    ) -> Result<(Vec<Vec<u32>>, Vec<Vec<StepOut>>)> {
         let n = states.len();
         let Some(tok) = &self.verify_tok else {
             return Err(Error::invalid("forward_verify_batch before enable_verify"));
@@ -2153,11 +2176,11 @@ impl Model {
                 return Err(Error::invalid("forward_verify_batch names one state twice"));
             }
         }
-        let wants = |i: usize| want.is_some_and(|w| w[i]);
+        let mode = |i: usize| want.and_then(|w| w[i]);
         if n == 1 && ids[0].len() >= 2 {
-            if wants(0) {
+            if mode(0).is_some() {
                 let (t, rows) = self.forward_verify_logits(states[0], &ids[0])?;
-                return Ok((vec![t], vec![rows]));
+                return Ok((vec![t], vec![rows.into_iter().map(StepOut::Logits).collect()]));
             }
             return Ok((vec![self.forward_verify(states[0], &ids[0])?], vec![Vec::new()]));
         }
@@ -2200,16 +2223,35 @@ impl Model {
         self.backend.download(tok, 0, &mut b, self.stream)?;
         let flat: Vec<u32> = b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect();
         // the wanted segments' logits rows (the head wrote one row per fed position, in pass order)
-        let mut logits: Vec<Vec<Vec<f32>>> = Vec::with_capacity(n);
+        let mut logits: Vec<Vec<StepOut>> = Vec::with_capacity(n);
         let v = self.dims.vocab;
+        // lane mtp2s: the top-k of every row of the pass in one device call when a sequence asks for it (`LastTopK`)
+        let kmax = (0..n).filter_map(|i| if let Some(HeadMode::LastTopK(k)) = mode(i) { Some(k) } else { None }).max().unwrap_or(0);
+        let top = if kmax > 0 { Some(self.batch_topk(total, kmax)?) } else { None };
         let mut lo = 0;
         for (i, q) in ids.iter().enumerate() {
             let mut rows = Vec::new();
-            if wants(i) {
-                rows = with_logits_bytes(q.len() * v * 4, |l| -> Result<Vec<Vec<f32>>> {
-                    self.backend.download(&self.ws.logits, lo * v * 4, l, self.stream)?;
-                    Ok(l.chunks_exact(v * 4).map(logits_row).collect())
-                })?;
+            match (mode(i), top.as_ref()) {
+                (Some(HeadMode::LastTopK(k)), Some((tid, tval, nan))) => {
+                    for r in lo..lo + q.len() {
+                        rows.push(if nan[r] != 0 {
+                            // a row holding a NaN: its logits, as batched decode hands the host sampler then
+                            StepOut::Logits(with_logits_bytes(v * 4, |l| -> Result<Vec<f32>> {
+                                self.backend.download(&self.ws.logits, r * v * 4, l, self.stream)?;
+                                Ok(logits_row(l))
+                            })?)
+                        } else {
+                            StepOut::TopK { ids: tid[r * kmax..r * kmax + k].to_vec(), vals: tval[r * kmax..r * kmax + k].to_vec() }
+                        });
+                    }
+                }
+                (Some(_), _) => {
+                    rows = with_logits_bytes(q.len() * v * 4, |l| -> Result<Vec<StepOut>> {
+                        self.backend.download(&self.ws.logits, lo * v * 4, l, self.stream)?;
+                        Ok(l.chunks_exact(v * 4).map(|c| StepOut::Logits(logits_row(c))).collect())
+                    })?;
+                }
+                (None, _) => {}
             }
             logits.push(rows);
             lo += q.len();
