@@ -47,6 +47,12 @@ impl Model {
         f()
     }
 
+    /// Wait until the device has run everything enqueued on this model's stream: what a parked pass submitted before its park
+    /// (lane mtp-store, `BatchModel::park_sync`). Called from the thread that runs the park's decode phase.
+    pub(crate) fn park_sync(&self) -> Result<()> {
+        self.backend.synchronize(self.stream)
+    }
+
     /// The layers a single-sequence pass of `t` rows pauses in front of (empty: none, the common case). A pass pauses only
     /// with a hook installed on this thread, on one rank, and outside plan recordings.
     pub(super) fn pause_layers(&self, t: usize) -> Vec<usize> {

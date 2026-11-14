@@ -438,6 +438,7 @@ impl Model {
             kv: SequenceState::new(&*self.backend, &[spec], cap)?,
             pending: self.backend.alloc(head.pending_rows * row_bytes, MemKind::Device)?,
             pending_rows: 0,
+            base: 0,
             cap_rows: head.pending_rows,
             row_bytes,
             active: true,
@@ -494,7 +495,7 @@ impl Model {
         Ok(())
     }
 
-    /// Run the head over the first `n` queued rows (tokens `st.tokens[kv.len + 1 ..]`, and `next` as the token after the
+    /// Run the head over the first `n` queued rows (tokens `st.tokens[m.pos() + 1 ..]`, and `next` as the token after the
     /// last committed one when the rows reach it), in pieces of at most a prefill chunk, then shift the rest of the queue
     /// to its front. Returns the argmax of the last row run (the first draft when `next` is given).
     fn mtp_run_pending(&self, st: &mut SequenceState, n: usize, next: Option<u32>, profile: bool) -> Result<u32> {
@@ -505,7 +506,7 @@ impl Model {
                 return Err(Error::invalid(format!("MTP catch-up of {n} rows ({} queued)", m.pending_rows)));
             }
             // token of position p + 1 for queued row p
-            let p0 = m.kv.len;
+            let p0 = m.pos();
             let mut ids: Vec<u32> = st.tokens.get(p0 + 1..(p0 + n + 1).min(st.len)).unwrap_or(&[]).to_vec();
             if ids.len() < n {
                 ids.extend(next);
@@ -843,10 +844,10 @@ impl Model {
             return Ok(Vec::new());
         }
         let n = m.pending_rows;
-        if !m.active || !m.synced || n == 0 || m.kv.len + n != st.len {
+        if !m.active || !m.synced || n == 0 || m.pos() + n != st.len {
             return Err(Error::invalid(format!(
                 "MTP state at {} + {n} queued rows (active {}, synced {}), sequence at {}",
-                m.kv.len, m.active, m.synced, st.len
+                m.pos(), m.active, m.synced, st.len
             )));
         }
         let profile = false;

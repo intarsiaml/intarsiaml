@@ -104,7 +104,7 @@ impl Model {
             && m.synced
             && n >= 1
             && n <= q
-            && m.kv.len + n == st.len
+            && m.pos() + n == st.len
             // the verify rows, and the head's chained rows (positions st.len .. st.len + k - 2), fit their caches
             && st.len + q <= st.cap
             && st.len + k <= m.kv.cap
@@ -115,7 +115,7 @@ impl Model {
     /// `p0 + i + 1`, the last one is `next`.
     fn pipe_catch(st: &SequenceState, next: u32) -> Result<Vec<u32>> {
         let m = st.mtp.as_ref().ok_or_else(|| Error::invalid("sequence without MTP state"))?;
-        let (p0, n) = (m.kv.len, m.pending_rows);
+        let (p0, n) = (m.pos(), m.pending_rows);
         let mut catch: Vec<u32> = st.tokens.get(p0 + 1..(p0 + n + 1).min(st.len)).unwrap_or(&[]).to_vec();
         if catch.len() < n {
             catch.push(next);

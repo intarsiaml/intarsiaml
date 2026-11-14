@@ -1,0 +1,123 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1241:4
+     |
+1241 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: intarsia-backend-hip@0.0.1: intarsia-backend-hip: hipcc not found, building the stub (set ROCM_PATH)
+warning: function `ik_rdma_available` is never used
+  --> crates/intarsia-backend-cuda/src/ffi.rs:69:12
+   |
+69 |     pub fn ik_rdma_available() -> c_int;
+   |            ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/mtp_store_cuda.rs (target/release/deps/mtp_store_cuda-bd6060d1f2439eef)
+
+running 1 test
+test mtp_on_store_requests_equals_mtp_off_cuda ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefix store: on (build ded447bdb80307a5, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+MTP-STORE-CUDA store-on mtp-off request 0: prompt 1873 cached 0 | 160 tokens, ttft 1012 ms, decode 86.2 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-CUDA store-on mtp-off request 1: prompt 1170 cached 19 | 160 tokens, ttft 215 ms, decode 87.6 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-CUDA store-on mtp-off request 2: prompt 2643 cached 1871 | 160 tokens, ttft 265 ms, decode 86.1 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-CUDA store-on mtp-off request 3: prompt 2177 cached 1168 | 160 tokens, ttft 261 ms, decode 86.5 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-CUDA store-on mtp-off request 4: prompt 3198 cached 2641 | 160 tokens, ttft 234 ms, decode 85.4 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-CUDA store-on mtp-off request 5: prompt 2357 cached 2175 | 160 tokens, ttft 155 ms, decode 86.5 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-CUDA reference done at 46 s
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4)
+verify attention rows: engaged (one row-table attention launch per layer)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_decode_v2_rows_bf16 matmul_nvfp4=matmul_nvfp4_gemv_rows silu_glu=silu_glu_bf16 moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+prefix store: on (build 95f1121fcca4511c, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+MTP-STORE-CUDA store-on mtp-on request 0: prompt 1873 cached 0 | 160 tokens, ttft 381 ms, decode 128.7 tok/s | 61 passes, drafted 121, accepted 98 (81.0 %)
+MTP-STORE-CUDA store-on mtp-on request 1: prompt 1170 cached 19 | 160 tokens, ttft 208 ms, decode 129.0 tok/s | 62 passes, drafted 123, accepted 97 (78.9 %)
+MTP-STORE-CUDA store-on mtp-on request 2: prompt 2643 cached 1871 | 160 tokens, ttft 262 ms, decode 124.1 tok/s | 62 passes, drafted 124, accepted 97 (78.2 %)
+MTP-STORE-CUDA store-on mtp-on request 3: prompt 2177 cached 1168 | 160 tokens, ttft 265 ms, decode 126.9 tok/s | 61 passes, drafted 122, accepted 97 (79.5 %)
+MTP-STORE-CUDA store-on mtp-on request 4: prompt 3198 cached 2641 | 160 tokens, ttft 235 ms, decode 127.6 tok/s | 61 passes, drafted 122, accepted 98 (80.3 %)
+MTP-STORE-CUDA store-on mtp-on request 5: prompt 2357 cached 2175 | 160 tokens, ttft 156 ms, decode 133.7 tok/s | 59 passes, drafted 118, accepted 99 (83.9 %)
+MTP-STORE-CUDA single store: {"build":"95f1121fcca4511c","entries":10,"pinned_entries":0,"lookups":6,"hits":4,"misses":2,"local_wins":0,"tokens_saved":7855,"bytes_restored":292597760,"restore_seconds_total":0.015641182,"last_restore_ms":4.200953999999999,"inserts":10,"insert_bytes":463687680,"insert_seconds_total":0.21591751899999997,"settle_seconds_total":0.17368573799999995,"rejected":0,"ttft_saved_seconds_total":1.7322422966073476,"prefill_tok_s":3492.9027417839775,"device":{"objects":5,"bytes":72888320,"budget_bytes":0,"hits":0,"evictions":36},"host":{"objects":36,"bytes":390799360,"budget_bytes":17179869184,"hits":4,"evictions":0},"disk":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":0},"disk_pending_bytes":0,"disk_write_skips":0}
+MTP-STORE-CUDA single engine: ids and cached equal mtp-off true; acceptance cold turns 79.9 % (195 / 244), restored turns 80.5 % (391 / 486)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+mtp: drafter head 'mtp' loaded in 0.8 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_decode_v2_rows_bf16 matmul_nvfp4=matmul_nvfp4_gemv_rows silu_glu=silu_glu_bf16 moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+MTP-STORE-CUDA store-off mtp-on request 0: prompt 1873 cached 0 | 160 tokens, ttft 286 ms, decode 130.5 tok/s | 60 passes, drafted 119, accepted 99 (83.2 %)
+MTP-STORE-CUDA store-off request 0: ids equal the store-on reference false
+MTP-STORE-CUDA store-off mtp-on request 1: prompt 1170 cached 0 | 160 tokens, ttft 201 ms, decode 119.7 tok/s | 66 passes, drafted 131, accepted 93 (71.0 %)
+MTP-STORE-CUDA store-off request 1: ids equal the store-on reference false
+MTP-STORE-CUDA store-off mtp-on request 2: prompt 2643 cached 0 | 160 tokens, ttft 385 ms, decode 120.3 tok/s | 63 passes, drafted 125, accepted 95 (76.0 %)
+MTP-STORE-CUDA store-off request 2: ids equal the store-on reference false
+MTP-STORE-CUDA store-off mtp-on request 3: prompt 2177 cached 0 | 160 tokens, ttft 332 ms, decode 126.5 tok/s | 61 passes, drafted 122, accepted 98 (80.3 %)
+MTP-STORE-CUDA store-off request 3: ids equal the store-on reference false
+MTP-STORE-CUDA store-off mtp-on request 4: prompt 3198 cached 0 | 160 tokens, ttft 448 ms, decode 121.9 tok/s | 63 passes, drafted 126, accepted 96 (76.2 %)
+MTP-STORE-CUDA store-off request 4: ids equal the store-on reference false
+MTP-STORE-CUDA store-off mtp-on request 5: prompt 2357 cached 0 | 160 tokens, ttft 349 ms, decode 131.8 tok/s | 60 passes, drafted 120, accepted 99 (82.5 %)
+MTP-STORE-CUDA store-off request 5: ids equal the store-on reference false
+MTP-STORE-CUDA whole head context (store off): acceptance first turns 76.8 % (192 / 250), later turns 78.7 % (388 / 493)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_decode_v2_rows_bf16 matmul_nvfp4=matmul_nvfp4_gemv_rows silu_glu=silu_glu_bf16 moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 2048
+prefix store with --max-batch > 1: workspace 678 MiB
+prefix store: the backend's packed prefill is off with --max-batch > 1
+prefix store: on (build 68680ae258ddca77, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+MTP-STORE-CUDA batched together request 0: prompt 1873 cached 0 | ttft 370 ms, decode 63.5 tok/s | ids equal mtp-off true
+MTP-STORE-CUDA batched together request 1: prompt 1170 cached 0 | ttft 693 ms, decode 69.3 tok/s | ids equal mtp-off true
+MTP-STORE-CUDA batched together request 2: prompt 2643 cached 1871 | ttft 262 ms, decode 61.7 tok/s | ids equal mtp-off true
+MTP-STORE-CUDA batched together request 3: prompt 2177 cached 1168 | ttft 559 ms, decode 66.3 tok/s | ids equal mtp-off true
+MTP-STORE-CUDA batched together request 4: prompt 3198 cached 2641 | ttft 238 ms, decode 64.2 tok/s | ids equal mtp-off true
+MTP-STORE-CUDA batched together request 5: prompt 2357 cached 2175 | ttft 405 ms, decode 66.9 tok/s | ids equal mtp-off true
+MTP-STORE-CUDA batched alone store-on mtp-on request 0: prompt 1873 cached 1871 | 160 tokens, ttft 22 ms, decode 114.4 tok/s | 68 passes, drafted 135, accepted 91 (67.4 %)
+MTP-STORE-CUDA batched alone store-on mtp-on request 1: prompt 1170 cached 1168 | 160 tokens, ttft 21 ms, decode 111.5 tok/s | 70 passes, drafted 140, accepted 88 (62.9 %)
+MTP-STORE-CUDA batched alone store-on mtp-on request 2: prompt 2643 cached 2641 | 160 tokens, ttft 23 ms, decode 106.1 tok/s | 73 passes, drafted 145, accepted 86 (59.3 %)
+MTP-STORE-CUDA batched alone store-on mtp-on request 3: prompt 2177 cached 2175 | 160 tokens, ttft 22 ms, decode 106.4 tok/s | 73 passes, drafted 145, accepted 86 (59.3 %)
+MTP-STORE-CUDA batched alone store-on mtp-on request 4: prompt 3198 cached 3196 | 160 tokens, ttft 24 ms, decode 107.5 tok/s | 72 passes, drafted 143, accepted 87 (60.8 %)
+MTP-STORE-CUDA batched alone store-on mtp-on request 5: prompt 2357 cached 2355 | 160 tokens, ttft 22 ms, decode 124.4 tok/s | 62 passes, drafted 124, accepted 96 (77.4 %)
+MTP-STORE-CUDA batched store: {"build":"68680ae258ddca77","entries":10,"pinned_entries":0,"lookups":12,"hits":10,"misses":2,"local_wins":0,"tokens_saved":21261,"bytes_restored":764743680,"restore_seconds_total":0.04192543,"last_restore_ms":4.5249060000000005,"inserts":10,"insert_bytes":463687680,"insert_seconds_total":0.350178729,"settle_seconds_total":0.19504686799999996,"rejected":0,"ttft_saved_seconds_total":6.747755895455473,"prefill_tok_s":2806.9313207390724,"device":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":41},"host":{"objects":41,"bytes":463687680,"budget_bytes":17179869184,"hits":10,"evictions":0},"disk":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":0},"disk_pending_bytes":0,"disk_write_skips":0}
+MTP-STORE-CUDA batched engine: ids equal mtp-off true; together: 9 passes, acceptance 100.0 % (18 / 18); alone after a restore: 418 passes, acceptance 64.2 % (534 / 832)
+MTP-STORE-CUDA total 195 s
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 194.98s
+
+GATE-EXIT 0
+22:30:49 end; min MemAvailable 22:29:01 59484 MB over 96 samples, KILLED 0; Mem:             121          38          38           0          45          82

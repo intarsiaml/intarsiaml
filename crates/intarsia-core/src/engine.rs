@@ -409,8 +409,11 @@ pub struct EngineMeta {
     /// (`intarsia_models::load_engine` does both, and only on the Metal backend).
     pub spec: crate::spec::SpecConfig,
     /// Content-addressed prefix store (`crate::prefix_store`); `None` (the default): off. The single-sequence engine, and the
-    /// batched one for plain decode (no packed or macro prefill, no overlap, one rank; `BatchedEngine::new`).
+    /// batched one (no packed or macro prefill, no overlap, one rank; `BatchedEngine::new`).
     pub prefix_store: Option<crate::prefix_store::PrefixStoreConfig>,
+    /// MTP drafting on prefix-store requests (lane mtp-store): `None` (the default): `INTARSIA_MTP_STORE`, else the backend's
+    /// default ([`crate::spec::mtp_store_for`]: on for CUDA); tests set it.
+    pub mtp_store: Option<bool>,
 }
 
 struct Inner {
@@ -428,6 +431,8 @@ struct Shared {
     failed: Arc<Mutex<Option<String>>>,
     /// The prefix store and how requests use it (`EngineMeta::prefix_store`).
     store: Option<StorePolicy>,
+    /// A drafting request uses the store, its MTP head's context restarting where the store restored (`EngineMeta::mtp_store`).
+    mtp_store: bool,
 }
 
 /// How the single-sequence engine uses its prefix store.
@@ -498,6 +503,15 @@ impl StorePolicy {
             self.boundary_ids,
             self.chunk_invariant
         );
+    }
+}
+
+/// The startup line of an engine with the prefix store and `--spec mtp` (lane mtp-store).
+pub(crate) fn announce_mtp_store(on: bool) {
+    if on {
+        eprintln!("prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)");
+    } else {
+        eprintln!("prefix store: a request that drafts (--spec mtp) bypasses the store (INTARSIA_MTP_STORE=1: it uses the store, the MTP head's context restarting where it resumes)");
     }
 }
 
@@ -774,6 +788,10 @@ impl LocalEngine {
         if let Some(s) = &store {
             s.announce(&telemetry);
         }
+        let mtp_store = meta.mtp_store.unwrap_or_else(|| crate::spec::mtp_store_for(model.backend.name()));
+        if store.is_some() && meta.spec.mode == crate::spec::SpecMode::Mtp && model.has_mtp() {
+            announce_mtp_store(mtp_store);
+        }
         let failed = Arc::new(Mutex::new(None));
         if let Some(peer) = model.remote_peer() {
             // the engine thread may sit in a kernel that never returns once the other rank is gone: the peer's reader thread
@@ -792,6 +810,7 @@ impl LocalEngine {
             spec: meta.spec,
             failed,
             store,
+            mtp_store,
         });
         let (tx, rx) = channel::<Job>();
         let sh = shared.clone();
@@ -1392,12 +1411,14 @@ impl Seq {
         // `--spec mtp`: only a drafting request runs the head. After a request that did not, the head's cache no
         // longer covers the sequence, so a drafting request then starts from an empty sequence (no prefix reuse).
         let drafting = seq.spec_on && seq.spec_mtp;
-        // the prefix store restores the main model's state only, never the MTP head's cache: a drafting request on a
-        // model with an MTP head bypasses the store (the store stays off for it, prefill runs exactly as without it)
+        // the prefix store restores the main model's state only, never a drafter's cache. With an MTP head (lane mtp-store)
+        // the head's context restarts where this request resumes (below), so the request drafts and uses the store. With
+        // `INTARSIA_MTP_STORE=0`, and with a DFlash draft, a drafting request bypasses the store (the store stays off for it,
+        // prefill runs exactly as without it)
         let ps = sh
             .store
             .as_ref()
-            .filter(|_| !(drafting && (st.mtp.is_some() || st.dflash.is_some())))
+            .filter(|_| !(drafting && ((st.mtp.is_some() && !sh.mtp_store) || st.dflash.is_some())))
             .map(|pol| SeqStore::new(pol.clone(), &seq.req.prompt, recurrent, model.prefill_chunk().max(1)));
 
         // KV prefix reuse (contiguous cache of the previous request; always keep >= 1 token to compute)
@@ -1412,7 +1433,8 @@ impl Seq {
             // only: on a chunk-sensitive backend (CUDA) only a prefix the cold schedule of this prompt also cuts at.
             p = model.reuse_len(st, plen, p);
         }
-        if st.mtp.as_ref().is_some_and(|m| drafting && !m.synced) || st.dflash.as_ref().is_some_and(|d| drafting && !d.synced) {
+        // (a store request keeps its reuse: the head's context restarts there instead)
+        if st.mtp.as_ref().is_some_and(|m| drafting && !m.synced && ps.is_none()) || st.dflash.as_ref().is_some_and(|d| drafting && !d.synced) {
             p = 0;
         }
         let mut restored = Duration::ZERO;
@@ -1440,6 +1462,12 @@ impl Seq {
             }
         } else {
             st.truncate(p, &*model.backend)?;
+        }
+        if ps.is_some() && drafting && st.mtp.as_ref().is_some_and(|m| !m.synced) {
+            // lane mtp-store: the store wrote the state (or a request that did not draft left it): no pass of the head
+            // covers these rows. Its context starts over at the resume point; drafts only propose, so this moves the
+            // acceptance rate of the first passes, never a token (TensorFold's `cuda_mtp_absorb.zig` restart after a gap)
+            st.mtp_restart(&*model.backend)?;
         }
         if let Some(m) = st.mtp.as_mut() {
             m.active = drafting;
