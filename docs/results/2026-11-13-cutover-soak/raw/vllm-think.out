@@ -1,0 +1,9 @@
+fleetq: #9246 running on spark2: bash /opt/code/intarsiaml/.worktrees/soak/scripts/soak/vllm_arms.sh think 100 8192
+[10:05:40 +0s] V-think: vLLM counters before: success=0 prompt_tokens=0 gen_tokens=0 (own expected: 100)
+== V-think gsm8k thinking=on n=100 max_tokens=8192 10:05:40
+
+[localeval] saved /opt/code/deepeval/results/20261113-100540-adhoc-soak-V-think-gsm8k/result.json
+[localeval] logged to unanimis: 3b998021-f76a-4a0b-96ea-693dd162299e
+V-think gsm8k run_id=20261113-100540-adhoc-soak-V-think-gsm8k
+[10:46:29 +2449s] V-think: vLLM counters after:  success=100 prompt_tokens=48774 gen_tokens=187558
+fleetq: #9246 done (exit 0)

@@ -1,0 +1,22 @@
+{
+ "arm": "SW2",
+ "n": 200,
+ "aborted": false,
+ "errors": 0,
+ "correct": 196,
+ "acc": 0.98,
+ "truncated": 2,
+ "mean_completion_tokens": 145.3,
+ "prompt_tokens_median": 6976.0,
+ "prompt_tokens_min": 6944,
+ "prompt_tokens_max": 7054,
+ "requests_with_cached_tokens": 198,
+ "cached_tokens_median_of_hits": 6904.0,
+ "cached_tokens_sum": 1366992,
+ "cached_frac": 0.9791,
+ "latency_s_median": 2.365,
+ "wall_s": 266.3,
+ "concurrency": 2,
+ "shots": 32,
+ "max_tokens": 512
+}

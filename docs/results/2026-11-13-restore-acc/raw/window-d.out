@@ -1,0 +1,214 @@
+fleetq: #9251 reserved for Fri 15:05; waiting until then
+fleetq: #9251 running on spark2: bash /opt/code/intarsiaml/.worktrees/restore-acc/scripts/soak/window_d.sh 50 30
+[15:05:01 +1s] vLLM up: 200; earlyoom: active
+2026-11-13T19:45:44.263440216Z missioncntrl/vllm-openai:65b7662d
+missioncntrl-guidance
+[15:05:04 +0s] vLLM DOWN (docker stop done) at 15:05:04
+Mem:             121          10          55           0          56         111
+[15:05:04 +0s] serve arm S: ~/intarsia-soak/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[15:05:47 +43s] serve S up; MemAvailable MB: 87138; prefix store: on (build d875b142d8228e3b, 0 entries loaded, boundaries [248045], chunk-invariant backend: false) loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 39.7s, context 131072 tokens 
+[15:05:47 +43s] soak: no new replay after 15:35:47 (target 30 min, hard end by cap)
+== S31 replay2 k=2 interleaved seed 31 15:05:47
+[replay2] w1 c5 t6 prompt=33136 cached=28102 ttft=1.5s decode=34.4 out=148 
+[replay2] w0 c6 t6 prompt=33087 cached=28089 ttft=1.46s decode=34.0 out=143 
+[replay2] w1 c7 t6 prompt=33173 cached=28166 ttft=1.48s decode=58.8 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8040 | 44 (0.005) | 1.639 (1.518-3.022) | 40.9 (38.4-44.3) |
+| 2 | 13061 | 8036 (0.615) | 1.264 (1.198-1.782) | 43.0 (41.1-51.6) |
+| 3 | 18072 | 13057 (0.722) | 1.331 (1.32-1.715) | 40.0 (31.0-57.6) |
+| 4 | 23094 | 18068 (0.782) | 1.405 (1.376-1.466) | 37.8 (37.1-38.1) |
+| 5 | 28110 | 23090 (0.821) | 1.407 (1.38-1.509) | 36.0 (34.8-36.4) |
+| 6 | 33132 | 28106 (0.849) | 1.493 (1.458-1.515) | 34.7 (33.1-58.8) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.93, 'itl_ms_p99_median': 308.0, 'itl_ms_p99_max': 1000.14, 'itl_cv_median': 1.649}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988144, 'cached_tokens': 723256, 'ttft_s_sum': 70.91, 'decode_tok_s_median': 38.2, 'completion_tokens': 7367, 'agg_output_tok_s': 56.22} wall 131.0s
+== S32 replay2 k=2 interleaved seed 32 15:08:00
+[replay2] w1 c5 t6 prompt=33182 cached=28178 ttft=2.76s decode=43.9 out=160 
+[replay2] w0 c6 t6 prompt=33114 cached=28101 ttft=1.47s decode=35.6 out=154 
+[replay2] w1 c7 t6 prompt=33151 cached=28130 ttft=2.11s decode=49.2 out=148 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8042 | 44 (0.005) | 1.688 (1.295-2.927) | 43.3 (40.0-64.2) |
+| 2 | 13074 | 8038 (0.615) | 1.292 (1.141-1.974) | 45.7 (43.1-59.5) |
+| 3 | 18094 | 13070 (0.722) | 1.435 (1.142-2.228) | 44.4 (41.1-57.0) |
+| 4 | 23122 | 18090 (0.783) | 1.337 (1.236-2.423) | 39.3 (38.8-52.0) |
+| 5 | 28142 | 23118 (0.822) | 1.42 (1.395-2.287) | 37.4 (37.0-41.7) |
+| 6 | 33164 | 28138 (0.848) | 1.532 (1.466-2.761) | 36.9 (35.0-49.9) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.45, 'itl_ms_p99_median': 303.87, 'itl_ms_p99_max': 898.97, 'itl_cv_median': 1.58}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989005, 'cached_tokens': 723875, 'ttft_s_sum': 76.94, 'decode_tok_s_median': 42.0, 'completion_tokens': 7518, 'agg_output_tok_s': 59.05} wall 127.3s
+== S33 replay2 k=2 interleaved seed 33 15:10:09
+[replay2] w1 c7 t6 prompt=33144 cached=28120 ttft=1.53s decode=34.9 out=145 
+[replay2] w0 c4 t6 prompt=33102 cached=28092 ttft=1.49s decode=55.5 out=147 
+[replay2] w0 c6 t6 prompt=33219 cached=28187 ttft=1.37s decode=69.5 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8042 | 44 (0.005) | 1.44 (1.375-2.947) | 42.7 (40.6-44.6) |
+| 2 | 13062 | 8038 (0.616) | 1.16 (1.043-2.082) | 43.3 (42.3-60.0) |
+| 3 | 18076 | 13058 (0.722) | 1.242 (1.223-1.314) | 40.6 (39.7-41.9) |
+| 4 | 23092 | 18072 (0.783) | 1.34 (1.306-1.416) | 38.6 (37.7-39.9) |
+| 5 | 28111 | 23088 (0.821) | 1.429 (1.278-2.543) | 37.0 (36.2-52.2) |
+| 6 | 33123 | 28107 (0.848) | 1.528 (1.371-1.567) | 35.9 (34.9-69.5) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.23, 'itl_ms_p99_median': 401.15, 'itl_ms_p99_max': 906.83, 'itl_cv_median': 1.732}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988253, 'cached_tokens': 723310, 'ttft_s_sum': 68.77, 'decode_tok_s_median': 40.6, 'completion_tokens': 7259, 'agg_output_tok_s': 57.69} wall 125.8s
+== S34 replay2 k=2 interleaved seed 34 15:12:16
+[replay2] w0 c4 t6 prompt=33135 cached=28111 ttft=2.78s decode=43.5 out=154 
+[replay2] w1 c7 t6 prompt=33109 cached=28084 ttft=1.49s decode=35.9 out=155 
+[replay2] w0 c6 t6 prompt=33155 cached=28133 ttft=2.09s decode=50.2 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8037 | 44 (0.005) | 1.446 (1.341-2.871) | 42.8 (42.1-46.9) |
+| 2 | 13062 | 8033 (0.615) | 1.156 (1.144-1.206) | 43.6 (43.0-52.7) |
+| 3 | 18086 | 13058 (0.722) | 1.285 (1.24-2.219) | 41.4 (40.7-57.9) |
+| 4 | 23110 | 18082 (0.783) | 1.341 (1.229-2.412) | 39.3 (37.8-54.6) |
+| 5 | 28130 | 23106 (0.821) | 1.417 (1.377-2.14) | 37.3 (36.7-52.2) |
+| 6 | 33133 | 28126 (0.849) | 1.493 (1.361-2.784) | 35.8 (35.4-50.2) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.49, 'itl_ms_p99_median': 266.17, 'itl_ms_p99_max': 884.26, 'itl_cv_median': 1.58}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988529, 'cached_tokens': 723534, 'ttft_s_sum': 72.66, 'decode_tok_s_median': 41.9, 'completion_tokens': 7455, 'agg_output_tok_s': 59.01} wall 126.3s
+== S35 replay2 k=2 interleaved seed 35 15:14:24
+[replay2] w0 c4 t6 prompt=33110 cached=28091 ttft=2.21s decode=40.2 out=160 
+[replay2] w1 c7 t6 prompt=33153 cached=28139 ttft=1.53s decode=36.2 out=157 
+[replay2] w0 c6 t6 prompt=33199 cached=28179 ttft=2.17s decode=53.9 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8046 | 44 (0.005) | 1.44 (1.349-2.881) | 42.8 (42.0-45.6) |
+| 2 | 13065 | 8042 (0.615) | 1.174 (1.146-1.232) | 43.5 (43.0-44.6) |
+| 3 | 18084 | 13061 (0.722) | 1.244 (1.225-1.316) | 41.4 (41.0-41.9) |
+| 4 | 23112 | 18080 (0.783) | 1.349 (1.302-2.019) | 40.0 (39.2-49.0) |
+| 5 | 28140 | 23108 (0.821) | 1.426 (1.397-2.055) | 37.8 (36.7-46.2) |
+| 6 | 33159 | 28136 (0.849) | 1.878 (1.471-2.215) | 38.5 (35.7-53.9) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.1, 'itl_ms_p99_median': 187.85, 'itl_ms_p99_max': 1069.38, 'itl_cv_median': 1.362}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989001, 'cached_tokens': 723838, 'ttft_s_sum': 71.61, 'decode_tok_s_median': 41.8, 'completion_tokens': 7634, 'agg_output_tok_s': 59.66} wall 128.0s
+== S36 replay2 k=2 interleaved seed 36 15:16:34
+[replay2] w1 c5 t6 prompt=33230 cached=28192 ttft=1.52s decode=35.2 out=159 
+[replay2] w0 c6 t6 prompt=33082 cached=28071 ttft=1.5s decode=35.2 out=148 
+[replay2] w1 c7 t6 prompt=33199 cached=28171 ttft=1.55s decode=59.6 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8035 | 44 (0.005) | 1.45 (1.347-2.877) | 42.6 (40.9-46.2) |
+| 2 | 13058 | 8031 (0.615) | 1.16 (1.127-1.193) | 43.1 (42.1-44.2) |
+| 3 | 18076 | 13054 (0.722) | 1.257 (1.248-1.285) | 40.9 (39.7-41.6) |
+| 4 | 23099 | 18072 (0.782) | 1.345 (1.329-1.414) | 39.0 (38.1-39.9) |
+| 5 | 28105 | 23095 (0.821) | 1.416 (1.4-1.477) | 37.3 (36.3-37.6) |
+| 6 | 33116 | 28101 (0.848) | 1.509 (1.463-1.547) | 35.4 (35.0-59.6) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.19, 'itl_ms_p99_median': 292.9, 'itl_ms_p99_max': 659.1, 'itl_cv_median': 1.591}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988199, 'cached_tokens': 723253, 'ttft_s_sum': 66.62, 'decode_tok_s_median': 39.8, 'completion_tokens': 7388, 'agg_output_tok_s': 58.38} wall 126.5s
+== S37 replay2 k=2 interleaved seed 37 15:18:42
+[replay2] w1 c7 t6 prompt=33140 cached=28118 ttft=1.49s decode=35.6 out=160 
+[replay2] w0 c4 t6 prompt=33131 cached=28118 ttft=1.49s decode=50.9 out=160 
+[replay2] w0 c6 t6 prompt=33162 cached=28125 ttft=1.34s decode=68.1 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8050 | 44 (0.005) | 1.557 (1.349-2.887) | 44.6 (41.8-48.9) |
+| 2 | 13072 | 8046 (0.615) | 1.165 (1.11-1.774) | 43.6 (41.4-54.5) |
+| 3 | 18089 | 13068 (0.722) | 1.251 (1.238-1.332) | 41.2 (39.0-42.2) |
+| 4 | 23104 | 18085 (0.783) | 1.347 (1.327-1.459) | 39.3 (36.6-40.0) |
+| 5 | 28126 | 23100 (0.821) | 1.408 (1.385-1.755) | 37.7 (36.4-44.6) |
+| 6 | 33146 | 28122 (0.849) | 1.486 (1.336-2.739) | 47.2 (28.2-68.1) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.32, 'itl_ms_p99_median': 194.4, 'itl_ms_p99_max': 1026.46, 'itl_cv_median': 1.391}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988552, 'cached_tokens': 723613, 'ttft_s_sum': 70.38, 'decode_tok_s_median': 41.6, 'completion_tokens': 7444, 'agg_output_tok_s': 58.57} wall 127.1s
+== S38 replay2 k=2 interleaved seed 38 15:20:50
+[replay2] w0 c4 t6 prompt=33160 cached=28113 ttft=1.52s decode=35.5 out=160 
+[replay2] w1 c7 t6 prompt=33132 cached=28097 ttft=1.52s decode=35.6 out=160 
+[replay2] w0 c6 t6 prompt=33157 cached=28129 ttft=1.49s decode=61.6 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8047 | 44 (0.005) | 1.529 (1.364-2.879) | 44.2 (41.3-46.8) |
+| 2 | 13067 | 8043 (0.616) | 1.162 (1.147-1.226) | 43.6 (42.5-44.3) |
+| 3 | 18090 | 13063 (0.722) | 1.26 (1.237-1.406) | 41.2 (39.9-43.1) |
+| 4 | 23114 | 18086 (0.783) | 1.334 (1.31-1.395) | 39.2 (38.0-39.8) |
+| 5 | 28135 | 23110 (0.822) | 1.426 (1.401-1.484) | 37.4 (36.6-37.8) |
+| 6 | 33156 | 28131 (0.848) | 1.489 (1.473-1.581) | 35.6 (34.6-61.6) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 17.92, 'itl_ms_p99_median': 365.88, 'itl_ms_p99_max': 824.97, 'itl_cv_median': 1.709}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988617, 'cached_tokens': 723577, 'ttft_s_sum': 67.39, 'decode_tok_s_median': 40.2, 'completion_tokens': 7487, 'agg_output_tok_s': 58.68} wall 127.6s
+== S39 replay2 k=2 interleaved seed 39 15:22:59
+[replay2] w0 c4 t6 prompt=33185 cached=28151 ttft=1.57s decode=35.7 out=151 
+[replay2] w1 c7 t6 prompt=33153 cached=28144 ttft=1.54s decode=35.1 out=150 
+[replay2] w0 c6 t6 prompt=33127 cached=28110 ttft=1.5s decode=52.5 out=156 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8043 | 44 (0.005) | 1.605 (1.313-2.88) | 45.1 (41.6-62.7) |
+| 2 | 13060 | 8039 (0.615) | 1.161 (1.051-2.131) | 43.9 (42.6-60.0) |
+| 3 | 18091 | 13056 (0.722) | 1.242 (1.236-1.323) | 40.9 (40.4-42.2) |
+| 4 | 23098 | 18087 (0.783) | 1.348 (1.33-1.38) | 39.2 (38.5-39.6) |
+| 5 | 28126 | 23094 (0.821) | 1.423 (1.402-1.484) | 37.2 (36.3-39.8) |
+| 6 | 33134 | 28122 (0.849) | 1.515 (1.485-1.566) | 35.5 (35.0-52.5) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.21, 'itl_ms_p99_median': 425.14, 'itl_ms_p99_max': 906.4, 'itl_cv_median': 1.841}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988340, 'cached_tokens': 723399, 'ttft_s_sum': 70.47, 'decode_tok_s_median': 40.6, 'completion_tokens': 7388, 'agg_output_tok_s': 58.72} wall 125.8s
+== S40 replay2 k=2 interleaved seed 40 15:25:06
+[replay2] w1 c5 t6 prompt=33190 cached=28176 ttft=1.55s decode=36.0 out=160 
+[replay2] w0 c6 t6 prompt=33150 cached=28153 ttft=1.48s decode=35.1 out=150 
+[replay2] w1 c7 t6 prompt=33111 cached=28095 ttft=1.47s decode=56.2 out=148 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8056 | 44 (0.005) | 1.45 (1.414-2.95) | 42.9 (42.2-48.7) |
+| 2 | 13078 | 8052 (0.616) | 1.159 (1.123-1.706) | 43.9 (42.3-57.9) |
+| 3 | 18092 | 13074 (0.723) | 1.262 (1.236-2.028) | 40.8 (39.1-41.6) |
+| 4 | 23101 | 18088 (0.783) | 1.361 (1.313-1.41) | 39.4 (37.9-40.0) |
+| 5 | 28116 | 23097 (0.821) | 1.405 (1.391-1.455) | 36.9 (35.9-37.6) |
+| 6 | 33134 | 28112 (0.849) | 1.508 (1.472-1.576) | 35.4 (34.9-56.2) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.28, 'itl_ms_p99_median': 405.13, 'itl_ms_p99_max': 862.4, 'itl_cv_median': 1.824}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988850, 'cached_tokens': 723834, 'ttft_s_sum': 68.33, 'decode_tok_s_median': 39.9, 'completion_tokens': 7319, 'agg_output_tok_s': 58.24} wall 125.7s
+== S41 replay2 k=2 interleaved seed 41 15:27:14
+[replay2] w0 c4 t6 prompt=33153 cached=28131 ttft=1.49s decode=35.6 out=160 
+[replay2] w1 c7 t6 prompt=33120 cached=28124 ttft=1.5s decode=35.0 out=144 
+[replay2] w0 c6 t6 prompt=33165 cached=28139 ttft=1.61s decode=61.5 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8042 | 44 (0.005) | 1.528 (1.342-2.87) | 44.2 (42.1-53.3) |
+| 2 | 13068 | 8038 (0.615) | 1.171 (1.037-2.15) | 43.8 (41.2-60.8) |
+| 3 | 18092 | 13064 (0.722) | 1.255 (1.124-2.277) | 41.0 (32.8-57.5) |
+| 4 | 23106 | 18088 (0.783) | 1.346 (1.224-2.39) | 39.4 (38.4-54.3) |
+| 5 | 28128 | 23102 (0.821) | 1.418 (1.406-1.457) | 36.8 (35.5-37.9) |
+| 6 | 33136 | 28124 (0.849) | 1.492 (1.485-1.61) | 35.3 (33.9-61.5) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 17.7, 'itl_ms_p99_median': 211.02, 'itl_ms_p99_max': 1221.71, 'itl_cv_median': 1.496}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988376, 'cached_tokens': 723479, 'ttft_s_sum': 70.87, 'decode_tok_s_median': 39.8, 'completion_tokens': 7261, 'agg_output_tok_s': 58.13} wall 124.9s
+== S42 replay2 k=2 interleaved seed 42 15:29:20
+[replay2] w0 c4 t6 prompt=33141 cached=28122 ttft=1.51s decode=35.7 out=160 
+[replay2] w1 c7 t6 prompt=33082 cached=28084 ttft=1.49s decode=34.9 out=147 
+[replay2] w0 c6 t6 prompt=33127 cached=28114 ttft=1.52s decode=59.3 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8054 | 44 (0.005) | 1.515 (1.363-2.934) | 44.4 (42.2-48.7) |
+| 2 | 13079 | 8050 (0.616) | 1.27 (1.107-2.108) | 47.0 (34.8-60.0) |
+| 3 | 18094 | 13075 (0.722) | 1.246 (1.133-2.26) | 41.1 (40.8-57.7) |
+| 4 | 23106 | 18090 (0.783) | 1.339 (1.333-1.421) | 39.4 (38.1-40.0) |
+| 5 | 28122 | 23102 (0.821) | 1.412 (1.392-1.483) | 37.3 (36.5-37.6) |
+| 6 | 33134 | 28118 (0.849) | 1.525 (1.489-1.577) | 35.9 (34.9-59.3) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 16.88, 'itl_ms_p99_median': 398.06, 'itl_ms_p99_max': 917.09, 'itl_cv_median': 1.795}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988684, 'cached_tokens': 723713, 'ttft_s_sum': 70.26, 'decode_tok_s_median': 40.4, 'completion_tokens': 7495, 'agg_output_tok_s': 58.99} wall 127.1s
+== S43 replay2 k=2 interleaved seed 43 15:31:28
+[replay2] w1 c5 t6 prompt=33138 cached=28138 ttft=1.5s decode=35.8 out=160 
+[replay2] w0 c6 t6 prompt=33146 cached=28127 ttft=1.56s decode=36.3 out=160 
+[replay2] w1 c7 t6 prompt=33075 cached=28054 ttft=1.48s decode=52.6 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8054 | 44 (0.005) | 1.444 (1.345-2.883) | 42.7 (42.0-61.3) |
+| 2 | 13085 | 8050 (0.616) | 1.187 (1.079-1.861) | 44.0 (42.9-44.9) |
+| 3 | 18107 | 13081 (0.722) | 1.248 (1.239-1.367) | 41.4 (39.6-42.1) |
+| 4 | 23118 | 18103 (0.783) | 1.331 (1.313-1.367) | 39.2 (38.7-39.7) |
+| 5 | 28136 | 23114 (0.822) | 1.422 (1.406-1.516) | 37.3 (36.8-38.0) |
+| 6 | 33144 | 28132 (0.848) | 1.513 (1.48-1.56) | 35.7 (34.8-52.6) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.51, 'itl_ms_p99_median': 221.62, 'itl_ms_p99_max': 829.61, 'itl_cv_median': 1.569}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988863, 'cached_tokens': 723789, 'ttft_s_sum': 67.48, 'decode_tok_s_median': 40.2, 'completion_tokens': 7544, 'agg_output_tok_s': 59.08} wall 127.7s
+== S44 replay2 k=2 interleaved seed 44 15:33:38
+[replay2] w1 c5 t6 prompt=33196 cached=28152 ttft=1.52s decode=34.9 out=160 
+[replay2] w0 c6 t6 prompt=33047 cached=28054 ttft=1.48s decode=34.7 out=144 
+[replay2] w1 c7 t6 prompt=33197 cached=28168 ttft=1.53s decode=54.3 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8034 | 44 (0.005) | 1.562 (1.345-2.884) | 44.4 (41.5-48.7) |
+| 2 | 13062 | 8030 (0.615) | 1.164 (1.033-2.133) | 51.1 (34.6-60.2) |
+| 3 | 18089 | 13058 (0.723) | 1.26 (1.121-2.264) | 41.4 (40.1-57.8) |
+| 4 | 23106 | 18085 (0.783) | 1.35 (1.31-1.851) | 39.2 (38.4-47.8) |
+| 5 | 28116 | 23102 (0.822) | 1.412 (1.396-1.483) | 37.0 (35.8-37.7) |
+| 6 | 33142 | 28112 (0.848) | 1.523 (1.482-1.715) | 35.3 (34.7-54.3) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 17.68, 'itl_ms_p99_median': 222.84, 'itl_ms_p99_max': 2294.82, 'itl_cv_median': 1.578}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988289, 'cached_tokens': 723338, 'ttft_s_sum': 71.07, 'decode_tok_s_median': 40.5, 'completion_tokens': 7328, 'agg_output_tok_s': 58.51} wall 125.3s
+== S45 replay2 k=2 interleaved seed 45 15:35:44
+[replay2] w1 c5 t6 prompt=33125 cached=28115 ttft=2.68s decode=35.7 out=159 
+[replay2] w0 c6 t6 prompt=33119 cached=28114 ttft=1.48s decode=35.2 out=150 
+[replay2] w1 c7 t6 prompt=33133 cached=28119 ttft=1.5s decode=51.1 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8036 | 44 (0.005) | 1.489 (1.345-2.897) | 43.6 (41.4-64.7) |
+| 2 | 13060 | 8032 (0.615) | 1.17 (1.15-1.301) | 43.8 (42.7-45.3) |
+| 3 | 18085 | 13056 (0.722) | 1.256 (1.242-1.337) | 41.4 (40.4-57.3) |
+| 4 | 23108 | 18081 (0.783) | 1.347 (1.289-2.428) | 39.4 (38.8-52.2) |
+| 5 | 28118 | 23104 (0.822) | 1.428 (1.287-2.604) | 37.5 (32.6-52.7) |
+| 6 | 33129 | 28114 (0.849) | 1.526 (1.375-2.684) | 35.6 (34.9-51.1) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 17.13, 'itl_ms_p99_median': 293.17, 'itl_ms_p99_max': 1015.73, 'itl_cv_median': 1.582}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988323, 'cached_tokens': 723417, 'ttft_s_sum': 73.38, 'decode_tok_s_median': 41.6, 'completion_tokens': 7378, 'agg_output_tok_s': 58.75} wall 125.6s
+[15:37:51 +1967s] soak done: 15 replays in 32 min
+{"arm": "SW2", "n": 200, "aborted": false, "errors": 0, "correct": 196, "acc": 0.98, "truncated": 2, "mean_completion_tokens": 145.3, "prompt_tokens_median": 6976.0, "prompt_tokens_min": 6944, "prompt_tokens_max": 7054, "requests_with_cached_tokens": 198, "cached_tokens_median_of_hits": 6904.0, "cached_tokens_sum": 1366992, "cached_frac": 0.9791, "latency_s_median": 2.365, "wall_s": 266.3, "concurrency": 2, "shots": 32, "max_tokens": 512}
+{"prefix_store_lookups_total": 200.0, "prefix_store_hits_total": 198.0, "prefix_store_misses_total": 2.0, "prefix_store_local_wins_total": 0.0, "prefix_store_tokens_saved_total": 1366992.0, "prefix_store_bytes_restored_total": 34516500480.0, "prefix_store_inserts_total": 265.0, "prefix_store_rejected_total": 0.0, "requests_total": 200.0, "tokens_prompt_total": 1396191.0, "tokens_cached_total": 1366992.0, "batch_paused_steps_total": 0.0, "requests_rejected_total": 0.0, "engine_failed": 0.0, "prefix_store_tier_evictions_total{tier=\"host\"}": 139.0}
+min MemAvailable MB (time MB; KILLED count) (S): 15:41:26 72686 0 [15:42:49 +2265s] restoring vLLM: docker start missioncntrl-guidance
+/opt/code/intarsiaml/.worktrees/restore-acc/scripts/soak/lib.sh: line 15: 33579 Terminated: 15          ( sleep $(( $1*60 )); echo "[cap] $1 min down reached, restoring" >> "$OUT/${WLOG:-lib}.log"; kill -TERM $$ ) > /dev/null 2>&1
+missioncntrl-guidance
+[15:45:48 +2444s] vLLM /v1/models 200 at 15:45:48 (vLLM down for 2444s total)
+[15:45:48 +2444s] window end
+fleetq: #9251 done (exit 0); spark2-vllm must come back before others can use it

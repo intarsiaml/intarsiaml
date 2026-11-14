@@ -70,7 +70,8 @@ pub struct ServeArgs {
     /// roles' headers, e.g. `assistant`: fewer passes, less reuse inside other messages).
     /// With `--max-batch` > 1: plain decode (no `--spec`), no prewarm or `--prefix-store-pin`, no packed or macro prefill opt-in, no
     /// `INTARSIA_OVERLAP` (docs/results/2026-11-13-batch-store.md). A recipe's `--spec mtp` default is not applied when a store is set (a drafting request bypasses
-    /// the store; one line says so); an explicit `--spec mtp` with the store is as before.
+    /// the store; one line says so); an explicit `--spec` with the store is refused at `--max-batch` > 1 before the model loads, and
+    /// served at `--max-batch 1` as before.
     /// Overrides `INTARSIA_PREFIX_STORE`. See docs/results/2026-10-22-pc-prefix-store.md.
     #[arg(long)]
     pub prefix_store: Option<String>,
@@ -101,6 +102,8 @@ pub fn run(args: ServeArgs) -> Result<()> {
     if args.prefix_store_pin.is_some() && args.max_batch.is_some_and(|n| n > 1) {
         anyhow::bail!("--prefix-store-pin needs the single-sequence engine (--max-batch 1)");
     }
+    // an explicit `--spec` with the store is refused by the batched engine (`BatchedEngine::new`), after the weights are read: say so now
+    refuse_spec_with_store(args.max_batch, args.model.spec_mode(), args.prefix_store.as_deref())?;
     if !args.child && !args.no_supervisor {
         return supervise(&args);
     }
@@ -170,6 +173,24 @@ pub fn run(args: ServeArgs) -> Result<()> {
     }
 }
 
+/// `--max-batch` > 1 with the prefix store and a speculative `--spec` (anything `SpecConfig::parse` does not read as off: `off`, `none`
+/// and the empty string are): the batched engine refuses it after loading, so refuse it first. The store is the flag, else
+/// `INTARSIA_PREFIX_STORE`, as the loader reads them (`--prefix-store off` does not yet override the env: follow-up).
+fn refuse_spec_with_store(max_batch: Option<usize>, spec: &str, store_flag: Option<&str>) -> Result<()> {
+    if !max_batch.is_some_and(|n| n > 1) || !intarsia_core::spec::SpecConfig::parse(spec, 1).is_ok_and(|c| c.enabled()) {
+        return Ok(());
+    }
+    let store = match store_flag {
+        Some(f) => intarsia_core::prefix_store::PrefixStoreConfig::parse(f).map_err(|e| anyhow::anyhow!("--prefix-store: {e}"))?,
+        None => None,
+    }
+    .or_else(|| intarsia_core::prefix_store::PrefixStoreConfig::from_env().ok().flatten());
+    if store.is_some() {
+        anyhow::bail!("the prefix store with --max-batch > 1 and --spec {spec} (use --spec off, or --max-batch 1)");
+    }
+    Ok(())
+}
+
 /// `--generation-config` (or `INTARSIA_GENERATION_CONFIG`): the sampling a request without its own values gets; logged once.
 fn sampling_defaults(flag: Option<&str>, model_dir: &std::path::Path) -> intarsia_server::SamplingDefaults {
     let env = std::env::var("INTARSIA_GENERATION_CONFIG").ok();
@@ -224,4 +245,25 @@ fn pin_prefixes(engine: &dyn Engine, path: &std::path::Path) -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::refuse_spec_with_store;
+
+    #[test]
+    fn spec_with_the_store_is_refused_early_only_for_a_speculative_mode() {
+        let store = Some("host_mb=64");
+        // every spelling `SpecConfig::parse` reads as off keeps working with the store at --max-batch 2
+        for off in ["off", "none", ""] {
+            assert!(refuse_spec_with_store(Some(2), off, store).is_ok(), "--spec {off:?} is off");
+        }
+        for on in ["mtp", "ngram"] {
+            let e = refuse_spec_with_store(Some(2), on, store).unwrap_err().to_string();
+            assert!(e.contains("--max-batch > 1") && e.contains(on), "{e}");
+        }
+        // one sequence at a time serves them as before
+        assert!(refuse_spec_with_store(Some(1), "mtp", store).is_ok());
+        assert!(refuse_spec_with_store(None, "mtp", store).is_ok());
+    }
 }

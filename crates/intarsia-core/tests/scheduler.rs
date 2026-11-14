@@ -17,7 +17,7 @@ use std::time::Duration;
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::scheduler::{
     chunk_schedule, chunk_schedule_tm, effective_tail_merge, next_prefill_chunk, next_prefill_chunk_tm, parse_peel,
-    parse_peel_period, parse_tail_merge, peel_tail, BatchEngine, BatchModel, BatchSeq, EndKind, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
+    parse_peel_period, parse_tail_merge, peel_tail, BatchEngine, BatchModel, BatchSeq, EndKind, Housekeep, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
     TraceEvent,
 };
 use intarsia_core::{Error, FinishReason, Result};
@@ -41,6 +41,19 @@ fn with_overlap<R>(v: bool, f: impl FnOnce() -> R) -> R {
     let old = OVERLAP.with(|a| a.replace(v));
     let r = f();
     OVERLAP.with(|a| a.set(old));
+    r
+}
+
+thread_local! {
+    /// `BatchModel::pause_rows` of every `MockModel` created on this test thread (0: chunks never park).
+    static PAUSE: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Run `f` with the mock models' pause rows set to `rows` (lane interleave).
+fn with_pause<R>(rows: usize, f: impl FnOnce() -> R) -> R {
+    let old = PAUSE.with(|a| a.replace(rows));
+    let r = f();
+    PAUSE.with(|a| a.set(old));
     r
 }
 
@@ -134,6 +147,13 @@ struct MockModel {
     macro_rows: usize,
     /// `BatchModel::pack_rows_max` (0: the model cannot pack); a packed pass runs its chunks one by one.
     pack: usize,
+    /// `BatchModel::pause_rows` (lane interleave); a paused chunk (`prefill_begin_paused`) parks `ceil(len / pause) - 1` times
+    /// and runs at `prefill_end`.
+    pause: usize,
+    /// Parks left of the paused chunk in flight.
+    parks: usize,
+    /// `BatchModel::housekeep` calls, by kind.
+    housekept: Arc<Mutex<Vec<Housekeep>>>,
 }
 
 impl MockModel {
@@ -153,6 +173,9 @@ impl MockModel {
             rec: Arc::new(Mutex::new(Rec::default())),
             macro_rows: 0,
             pack: PACK.with(|a| a.get()),
+            pause: PAUSE.with(|a| a.get()),
+            parks: 0,
+            housekept: Arc::new(Mutex::new(Vec::new())),
             avoid: avoid(),
             overlap: OVERLAP.with(|a| a.get()),
             inflight: None,
@@ -251,6 +274,27 @@ impl BatchModel for MockModel {
     fn pack_rows_max(&self) -> usize {
         self.pack
     }
+    fn pause_rows(&self) -> usize {
+        self.pause
+    }
+    fn prefill_begin_paused(&mut self, slot: usize, tokens: &[u32], mode: Option<Mode>) -> Result<()> {
+        assert!(self.inflight.is_none(), "two chunks in flight");
+        assert!(self.pause > 0 && tokens.len() > self.pause, "a paused chunk of {} rows at pause {}", tokens.len(), self.pause);
+        self.parks = tokens.len().div_ceil(self.pause) - 1;
+        self.inflight = Some((slot, tokens.to_vec(), mode, self.steps));
+        Ok(())
+    }
+    fn prefill_park(&mut self) -> bool {
+        assert!(self.inflight.is_some(), "park without a chunk in flight");
+        if self.parks == 0 {
+            return false;
+        }
+        self.parks -= 1;
+        true
+    }
+    fn housekeep(&mut self, at: Housekeep) {
+        self.housekept.lock().unwrap().push(at);
+    }
     fn pack_min_rows(&self) -> usize {
         16
     }
@@ -312,6 +356,12 @@ struct Params {
     seed: Option<u64>,
     /// The sequence errors at its `n`-th token (a codec error, say).
     fail_at: Option<usize>,
+    /// `BatchSeq::validate` refuses the request (a bad token id).
+    invalid: bool,
+    /// Counts every `BatchSeq::restore` call.
+    restores: Option<Arc<AtomicUsize>>,
+    /// The request's own chunk schedule (`BatchSeq::chunk_len` / `own_chunk`), as a prefix-store request has.
+    own_chunk: Option<usize>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -388,6 +438,7 @@ impl BatchSeq<MockModel> for MockSeq {
         &self.p.prompt
     }
     fn admit(&mut self, cached: usize, cap: usize) -> Result<bool> {
+        self.validate()?;
         let plen = self.p.prompt.len();
         if plen == 0 {
             return Err(Error::BadRequest("empty prompt".into()));
@@ -401,6 +452,24 @@ impl BatchSeq<MockModel> for MockSeq {
             self.reason = Some(FinishReason::Length);
         }
         Ok(self.max_new > 0)
+    }
+    fn validate(&self) -> Result<()> {
+        if self.p.invalid {
+            return Err(Error::BadRequest("token id out of range".into()));
+        }
+        Ok(())
+    }
+    fn restore(&mut self, _m: &mut MockModel, _slot: usize, local: usize, _idle: bool) -> Result<usize> {
+        if let Some(n) = &self.p.restores {
+            n.fetch_add(1, Ordering::SeqCst);
+        }
+        Ok(local)
+    }
+    fn chunk_len(&self, _pos: usize, remaining: usize) -> Option<usize> {
+        self.p.own_chunk.map(|c| remaining.min(c))
+    }
+    fn own_chunk(&self) -> Option<usize> {
+        self.p.own_chunk
     }
     fn first_mode(&self) -> Mode {
         self.head_mode(1)
@@ -1005,6 +1074,95 @@ fn batched_equals_solo_randomized_with_overlap() {
             assert!(cov.exact >= 100 && cov.multi_chunk >= 20, "{cov:?}");
         }));
     }
+}
+
+/// Lane interleave: with paused chunks (a chunk parks between layers and the decoding sequences step there), every request still
+/// equals its solo reference (same chunk schedule, same tokens, same events), decode-first holds, and steps really ran in parks.
+#[test]
+fn batched_equals_solo_randomized_with_pause() {
+    for flag in [false, true] {
+        with_avoid(flag, || with_pause(100, || {
+            let cap = 4096;
+            let mut cov = Cov::default();
+            let mut paused = 0u64;
+            for &b in &[2usize, 3, 4, 8] {
+                for seed in 0..6u64 {
+                    let mut rng = SplitMix64::new(seed * 1000 + b as u64 + 91);
+                    let reqs = random_reqs(&mut rng, 24, cap);
+                    // the model's chunk while others decode too, so long chunks run beside decode rows
+                    let cfg = SchedulerConfig { max_batch: b, max_queue: 1000, busy_chunk: 2048, ..Default::default() };
+                    let run = run_batched(cfg.clone(), cap, &reqs, false);
+                    let mm = check_identity_cov(&run, &reqs, &cfg, cap, &mut cov);
+                    assert_eq!(mm, 0, "pause, B = {b}, seed {seed}: {mm} requests differ from their solo reference");
+                    assert!(run.metrics.paused_steps <= run.metrics.decode_steps);
+                    paused += run.metrics.paused_steps;
+                }
+            }
+            eprintln!("pause coverage: {cov:?}, {paused} decode steps in parked chunks");
+            assert!(paused >= 50, "the randomized runs never stepped inside a parked chunk ({paused})");
+            assert!(cov.exact >= 100 && cov.multi_chunk >= 20, "{cov:?}");
+        }));
+    }
+}
+
+/// Lane interleave: a decoding sequence keeps advancing while another request prefills one long chunk. Without pauses it gets
+/// no token between that chunk and the prefilling request's first token (the chunk runs whole after its step); with
+/// `pause_rows` 300 the 1500-row chunk parks 4 times and it gets a token at each park. Both requests' tokens are the same.
+#[test]
+fn decoding_slot_advances_during_a_long_chunk() {
+    let run = |pause: usize| {
+        with_pause(pause, || {
+            let cfg = SchedulerConfig { max_batch: 2, busy_chunk: 2048, trace: true, ..Default::default() };
+            let mut s = Scheduler::new(MockModel::new(2, 8192), cfg).unwrap();
+            let mut rng = SplitMix64::new(5);
+            let (a, rxa, _) = submit(&mut s, greedy(random_prompt(&mut rng, 100), 40));
+            s.step(); // A prefilled: its first token
+            s.step(); // A decodes
+            let (b, rxb, _) = submit(&mut s, greedy(random_prompt(&mut rng, 1500), 5));
+            run_to_end(&mut s);
+            let tr = s.take_trace();
+            // A's steps after B's (only) chunk was planned and before B's first decode row
+            let at = tr.iter().position(|e| matches!(e, TraceEvent::Chunk { id, last: true, .. } if *id == b)).unwrap();
+            let b_rows = tr.iter().position(|e| matches!(e, TraceEvent::Decode { ids, .. } if ids.contains(&b))).unwrap();
+            let chunks = tr.iter().filter(|e| matches!(e, TraceEvent::Chunk { id, .. } if *id == b)).count();
+            let during = tr[at..b_rows].iter().filter(|e| matches!(e, TraceEvent::Decode { ids, .. } if ids == &vec![a])).count();
+            (chunks, during, tokens(&collect(&rxa)), tokens(&collect(&rxb)), s.metrics().paused_steps)
+        })
+    };
+    let (c0, d0, a0, b0, p0) = run(0);
+    let (c1, d1, a1, b1, p1) = run(300);
+    assert_eq!((c0, c1), (1, 1), "B's prompt is one chunk");
+    assert_eq!((d0, p0), (0, 0), "without pauses A waits for the whole chunk");
+    assert_eq!((d1, p1), (4, 4), "with pauses A steps at every park");
+    assert_eq!((a0.len(), b0.len()), (40, 5));
+    assert_eq!(a0, a1, "A's tokens do not depend on the pauses");
+    assert_eq!(b0, b1, "B's tokens do not depend on the pauses");
+}
+
+/// Lane interleave: deferred work runs only where the device is idle: after a decode step in an iteration with no prefill in
+/// progress, inside parked chunks, and once with nothing left to run.
+#[test]
+fn housekeeping_points() {
+    with_pause(300, || {
+        let cfg = SchedulerConfig { max_batch: 2, busy_chunk: 2048, ..Default::default() };
+        let m = MockModel::new(2, 8192);
+        let hk = m.housekept.clone();
+        let mut s = Scheduler::new(m, cfg).unwrap();
+        let mut rng = SplitMix64::new(9);
+        let _a = submit(&mut s, greedy(random_prompt(&mut rng, 100), 10));
+        s.step(); // A's prefill: nothing decoded, nothing kept
+        assert!(hk.lock().unwrap().is_empty());
+        s.step(); // A decodes alone
+        assert_eq!(*hk.lock().unwrap(), vec![Housekeep::Step]);
+        let _b = submit(&mut s, greedy(random_prompt(&mut rng, 1000), 3));
+        s.step(); // A decodes, then B's chunk parks 3 times with a step of A in each
+        assert_eq!(hk.lock().unwrap()[1..], [Housekeep::Pause; 3]);
+        run_to_end(&mut s);
+        assert_eq!(hk.lock().unwrap().last(), Some(&Housekeep::Idle));
+        let n = hk.lock().unwrap().len();
+        s.step(); // idle again: once more
+        assert_eq!(hk.lock().unwrap().len(), n + 1);
+    });
 }
 
 /// Same with two chunks per iteration under load and a small busy chunk (budget 2 x 64).
@@ -2289,4 +2447,30 @@ fn recurrent_schedule_cuts_follow_the_solo_schedule() {
     // a tail merge folds a short remainder into the last chunk: no cut at the chunk end
     assert_eq!(recurrent_schedule_cuts(4105, 4096, 64), vec![4104]);
     assert_eq!(recurrent_schedule_cuts(9000, 4096, 1024), vec![4096, 8999]);
+}
+
+/// A request `validate` refuses is rejected before `restore` (no store lookup or restore for it), and a request on its own chunk
+/// schedule reports that chunk in `PrefillStart`, not the one the scheduler picked.
+#[test]
+fn validate_runs_before_restore_and_prefill_start_reports_the_own_chunk() {
+    let restores = Arc::new(AtomicUsize::new(0));
+    let mut s = Scheduler::new(MockModel::new(2, 8192), SchedulerConfig { trace: true, ..Default::default() }).unwrap();
+    let mut rng = SplitMix64::new(7);
+    let bad = Params { invalid: true, restores: Some(restores.clone()), ..greedy(random_prompt(&mut rng, 300), 4) };
+    let (_, rx_bad, _) = submit(&mut s, bad);
+    run_to_end(&mut s);
+    let evs = collect(&rx_bad);
+    assert!(matches!(evs.as_slice(), [Ev::Err(m)] if m.contains("token id")), "{evs:?}");
+    assert_eq!(restores.load(Ordering::SeqCst), 0, "a refused request was restored");
+    let ok = Params { restores: Some(restores.clone()), own_chunk: Some(96), ..greedy(random_prompt(&mut rng, 300), 4) };
+    let (_, rx_ok, _) = submit(&mut s, ok);
+    run_to_end(&mut s);
+    assert_eq!(tokens(&collect(&rx_ok)).len(), 4);
+    assert_eq!(restores.load(Ordering::SeqCst), 1);
+    let started: Vec<usize> = s
+        .take_trace()
+        .iter()
+        .filter_map(|e| if let TraceEvent::PrefillStart { chunk, .. } = e { Some(*chunk) } else { None })
+        .collect();
+    assert_eq!(started, vec![96], "the refused request never started a prefill; the other ran its own chunk");
 }

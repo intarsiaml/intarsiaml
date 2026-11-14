@@ -29,6 +29,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 mod ar_norm;
+mod pause;
+pub use pause::PauseFn;
 mod batch;
 mod coll_trace;
 mod det_tap;
@@ -672,6 +674,8 @@ pub struct Model {
     skip_dead: std::sync::atomic::AtomicBool,
     /// Set by [`Model::forward_inner`] around a chunk that feeds no head (read by `run_layers`).
     tail_dead: std::sync::atomic::AtomicBool,
+    /// Lane interleave: where a pass parked between layers ([`Model::with_layer_pause`]) keeps its residual rows meanwhile.
+    pause_save: Mutex<Option<Buffer>>,
     /// The MTP drafter head (`LoadOptions::mtp`, `model/mtp.rs`).
     mtp: Option<mtp::MtpHead>,
     /// The DFlash block drafter (`LoadOptions::dflash`, `model/dflash.rs`).
@@ -1807,6 +1811,7 @@ impl Model {
             macro_passes: std::sync::atomic::AtomicU64::new(0),
             skip_dead: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_PREFILL_SKIP_DEAD").is_ok_and(|v| v == "1")),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
+            pause_save: Mutex::new(None),
             spec_cost,
             spec_auto: std::sync::Mutex::new(crate::spec::AutoParams::from_env()),
             mtp: mtp_head,
@@ -3546,7 +3551,12 @@ impl Model {
             && self.tail_dead.load(std::sync::atomic::Ordering::Relaxed)
             && !self.recorder.lock().unwrap().is_some();
         let n_layers = self.layers.len();
+        // lane interleave: a long prefill pass on a thread with a pause hook parks in front of these layers
+        let pauses = if matches!(seqs, Seqs::One(_)) && dpos.is_none() && ids_at.is_none() { self.pause_layers(t) } else { Vec::new() };
         for (li, blocks) in self.layers.iter().enumerate() {
+            if pauses.contains(&li) {
+                self.layer_pause(t, cur, pending)?;
+            }
             let tail = dead_tail && li + 1 == n_layers;
             for block in blocks {
                 if tail && !matches!(block, Block::Attn(_) | Block::Gdn(_) | Block::Conv(_)) {

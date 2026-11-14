@@ -1,0 +1,8 @@
+# device NVIDIA GB10 integrated=1 pageableMemoryAccess=1 hostNativeAtomic=1 driver_api=13000 runtime=13000
+# iters=3000 threads=8 pressure_gb=8.0 gpuload=0 pool=1
+method    kind             bytes     runs      bad  stale_bytes  canary    pool    med_us
+ours      fresh           303104    24000        0            0       0       0      17.2
+sync_drv  fresh           303104    24000        0            0       0       0      15.9
+ours      cold            303104    24000        0            0       0       0     178.2
+sync_drv  cold            303104    24000        0            0       0       0     183.9
+TOTAL runs=96000 bad=0 | ours_bad=0 sync(positive control)_bad=0 bounce_bad=0 | wall 40.6 s

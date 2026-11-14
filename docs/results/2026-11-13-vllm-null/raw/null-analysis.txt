@@ -1,0 +1,51 @@
+n=85 questions (gsm8k-00000..gsm8k-00084), length = completion_tokens
+
+== per run: mean / median / max / >2500 / >4000 tokens, accuracy, truncated, finish_reason stop
+  V1: mean 1857.9 median 1574 max 4638 >2500 17 >4000 2 acc 82/85 truncated 0 stop 85
+  V2: mean 1976.9 median 1650 max 4492 >2500 21 >4000 5 acc 83/85 truncated 0 stop 85
+  V3: mean 1937.5 median 1662 max 4818 >2500 16 >4000 4 acc 84/85 truncated 0 stop 85
+  Bc: mean 2133.1 median 1771 max 6318 >2500 26 >4000 6 acc 84/85 truncated 0 stop 85
+  Vmean (per-question mean of V1,V2,V3): mean 1924.1
+
+== the null: vLLM against vLLM (first run named is the numerator)
+         V2 / V1: ratio of means 1.064 (boot 95% CI 0.945 to 1.199); geo-mean ratio 1.061; first longer on 48, shorter on 37; sign p 0.278
+         V3 / V1: ratio of means 1.043 (boot 95% CI 0.934 to 1.161); geo-mean ratio 1.052; first longer on 46, shorter on 39; sign p 0.515
+         V3 / V2: ratio of means 0.980 (boot 95% CI 0.871 to 1.103); geo-mean ratio 0.991; first longer on 45, shorter on 40; sign p 0.665
+  null ratios of means: 1.064, 1.043, 0.980; vLLM run means: 1858, 1977, 1937 (spread of run means 1.064x)
+
+== Bc against vLLM
+         Bc / V1: ratio of means 1.148 (boot 95% CI 1.015 to 1.293); geo-mean ratio 1.116; first longer on 53, shorter on 32; sign p 0.029
+         Bc / V2: ratio of means 1.079 (boot 95% CI 0.947 to 1.226); geo-mean ratio 1.051; first longer on 46, shorter on 39; sign p 0.515
+         Bc / V3: ratio of means 1.101 (boot 95% CI 0.965 to 1.250); geo-mean ratio 1.060; first longer on 46, shorter on 39; sign p 0.515
+      Bc / Vmean: ratio of means 1.109 (boot 95% CI 0.992 to 1.232); geo-mean ratio 1.033; first longer on 45, shorter on 40; sign p 0.665
+  Bc against the vLLM runs pooled (sum of Bc over sum of all vLLM lengths): 1.109
+
+== outliers: the 5 largest per-question excesses of ref over V1 (the think-len set), and what V2/V3/Vmean do on them
+  question:      V1      V2      V3   Vmean      Bc   excess over V1 | over Vmean
+  gsm8k-00075:    2513    1473    1896    1961    6170     3657 |    4209
+  gsm8k-00045:    3443    4492    2874    3603    6318     2875 |    2715
+  gsm8k-00035:     837    1165    1510    1171    3570     2733 |    2399
+  gsm8k-00030:    1293    1599    2094    1662    3924     2631 |    2262
+  gsm8k-00002:    3668    3938    2438    3348    5942     2274 |    2594
+  top 5 carry 14170 of 23393 total excess over V1 (61%)
+  top 5 excess over Vmean: ['gsm8k-00075', 'gsm8k-00045', 'gsm8k-00002', 'gsm8k-00035', 'gsm8k-00063'] carry 14191 of 17768; overlap with the V1 top 5: 4 ['gsm8k-00075', 'gsm8k-00045', 'gsm8k-00035', 'gsm8k-00002']
+  top 5 excess over V2: ['gsm8k-00075', 'gsm8k-00035', 'gsm8k-00030', 'gsm8k-00063', 'gsm8k-00027']; overlap with the V1 top 5: 3
+  top 5 excess over V3: ['gsm8k-00075', 'gsm8k-00002', 'gsm8k-00045', 'gsm8k-00063', 'gsm8k-00009']; overlap with the V1 top 5: 3
+  of the V1 top 5, ref is still longer than V2/V3/Vmean on: V2 5/5, V3 5/5, Vmean 5/5
+  how the V1 top 5 are also 'long' for vLLM itself: V1 length rank among its 85: [17, 8, 83, 59, 5]
+  ref / Vmean without the V1 top 5: 1.024
+
+== accuracy, paired on the same ids (right-only-in-a, right-only-in-b, McNemar exact p)
+  V1 vs V2: 82 vs 83 of 85; 0 vs 1; p 1.000
+  V1 vs V3: 82 vs 84 of 85; 0 vs 2; p 0.500
+  V1 vs Bc: 82 vs 84 of 85; 0 vs 2; p 0.500
+  V2 vs V3: 83 vs 84 of 85; 0 vs 1; p 1.000
+  V2 vs Bc: 83 vs 84 of 85; 0 vs 1; p 1.000
+  V3 vs Bc: 84 vs 84 of 85; 0 vs 0; p 1.000
+  wrong ids: V1 ['gsm8k-00012', 'gsm8k-00037', 'gsm8k-00045']; V2 ['gsm8k-00012', 'gsm8k-00045']; V3 ['gsm8k-00012']; Bc ['gsm8k-00012']
+
+== final answer text identical to V1 / bare-number answers / worked answers (reply)
+  V1: identical to V1 85; bare number 71
+  V2: identical to V1 62; bare number 65
+  V3: identical to V1 61; bare number 72
+  Bc: identical to V1 53; bare number 61

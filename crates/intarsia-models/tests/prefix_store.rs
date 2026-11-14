@@ -1085,10 +1085,15 @@ fn run_batched(e: &BatchedEngine, reqs: &[(Vec<u32>, usize)]) -> Vec<Out> {
 /// beside each other and one waits; a prompt prefills while the other slot decodes, slots change conversations, turns restore
 /// from the store). Every reply is bitwise the single-sequence engine's with the store on (the same requests one at a time).
 fn batched_multi_turn(kind: Kind, chunk: usize, reuse: bool) {
+    batched_multi_turn_opts(kind, chunk, |o| o.prefix_reuse = reuse);
+}
+
+/// [`batched_multi_turn`] with the batched engine's options set by `f`; returns the engine (idle) for its metrics.
+fn batched_multi_turn_opts(kind: Kind, chunk: usize, f: impl FnOnce(&mut BatchedOptions)) -> BatchedEngine {
     let cfg = store_cfg();
     let solo = LocalEngine::new(planned(kind, chunk, 1), Arc::new(kind.codec()), store_meta(Some(cfg.clone())), Arc::new(Telemetry::new()))
         .unwrap();
-    let eng = batched_store(kind, chunk, cfg, reuse);
+    let eng = batched_store_opts(kind, chunk, Some(cfg), f).unwrap();
     let mut chats: Vec<Chat> = (0..3u32)
         .map(|c| {
             let mut ch = Chat::new(kind);
@@ -1118,6 +1123,7 @@ fn batched_multi_turn(kind: Kind, chunk: usize, reuse: bool) {
     assert!(snap.hits > 0 && snap.tokens_saved > 0, "no restore from the store: {snap:?}");
     let info = eng.prefix_store();
     assert!(info["entries"].as_array().is_some_and(|e| !e.is_empty()), "{info}");
+    eng
 }
 
 #[test]
@@ -1134,6 +1140,76 @@ fn batched_hybrid_multi_turn_without_slot_reuse() {
 #[test]
 fn batched_dense_multi_turn_is_the_single_engine_store_on() {
     batched_multi_turn(Kind::Dense, 8, true);
+}
+
+/// Lane interleave: chunks that park between layers while the other slot decodes (2 rows per segment of an 8-row chunk), and a
+/// settle in 1 MiB slices (one object each on the tiny models): every reply is still bitwise the single-sequence engine's with the store on, decode steps ran
+/// inside parked chunks, and once idle nothing deferred is left on the device.
+fn batched_multi_turn_paused(kind: Kind) {
+    let eng = batched_multi_turn_opts(kind, 8, |o| {
+        o.pause_rows = 2;
+        o.settle_slice_mb = 1;
+    });
+    let m = eng.metrics();
+    assert!(m.paused_steps > 0, "no decode step ran inside a parked chunk: {m:?}");
+    let t0 = std::time::Instant::now();
+    loop {
+        // the scheduler settles what is left once it is idle, right after the last request's `Done`
+        let snap = eng.telemetry().prefix_store.unwrap();
+        if snap.device.bytes == 0 {
+            break;
+        }
+        assert!(t0.elapsed().as_secs() < 10, "deferred captures left on the device: {snap:?}");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
+#[test]
+fn batched_hybrid_multi_turn_paused_chunks_are_bitwise() {
+    batched_multi_turn_paused(Kind::Hybrid);
+}
+
+#[test]
+fn batched_dense_multi_turn_paused_chunks_are_bitwise() {
+    batched_multi_turn_paused(Kind::Dense);
+}
+
+/// Fable #359 (1): a request that fails after its prefill (a bad decode row: `fail_active`, never `finish`) leaves its deferred
+/// captures on the device; once the engine is idle they settle (the idle housekeeping), with no further admission. Both with the
+/// default whole settle and with sliced settles.
+#[test]
+fn batched_store_failed_request_settles_when_idle() {
+    for slice in [0usize, 1] {
+        let kind = Kind::Hybrid;
+        let mut a = Chat::new(kind);
+        a.msg(1, 23).msg(2, 9);
+        let prompt = a.prompt();
+        let plen = prompt.len();
+        // slot 0 is fed an out-of-vocab id at its second decode row: the request fails there, its prefill captures deferred
+        let eng = batched_store_opts(kind, 8, Some(store_cfg()), |o| {
+            o.row_fault = Some((0, plen + 1, 99_999));
+            o.settle_slice_mb = slice;
+        })
+        .unwrap();
+        let (req, _) = traced(&prompt, 6);
+        let rx = eng.submit(req).unwrap();
+        let err = rx.iter().find_map(|ev| match ev {
+            GenEvent::Error { message } => Some(message),
+            GenEvent::Done { .. } => panic!("the faulted request finished"),
+            _ => None,
+        });
+        assert!(err.is_some_and(|m| m.contains("vocab")), "slice {slice}: the request must fail on its bad row");
+        let t0 = std::time::Instant::now();
+        loop {
+            let snap = eng.telemetry().prefix_store.unwrap();
+            if snap.inserts > 0 && snap.device.bytes == 0 {
+                break;
+            }
+            assert!(t0.elapsed().as_secs() < 10, "slice {slice}: the failed request's captures stayed on the device: {snap:?}");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert!(eng.failed().is_none());
+    }
 }
 
 #[test]
@@ -1185,6 +1261,38 @@ fn batched_store_rejects_an_over_length_prompt_before_the_lookup() {
         _ => None,
     });
     assert!(err.is_some_and(|m| m.contains("does not fit")), "an over-length prompt must be rejected");
+    assert_eq!(eng.telemetry().prefix_store.unwrap().lookups, lookups, "the rejected prompt was looked up");
+    a.answer(&t1.ids).msg(3, 5);
+    let t2 = run_batched(&eng, &[(a.prompt(), 4)]).remove(0);
+    assert!(t2.cached > 30, "turn 2 reused only {} tokens", t2.cached);
+}
+
+/// A structured-output constraint that cannot start rejects the request before the store is looked up: no lookup, no restore into
+/// the slot, which keeps what it held. (A token id outside the vocabulary is refused by `submit` itself.)
+#[test]
+fn batched_store_rejects_a_bad_constraint_before_the_lookup() {
+    #[derive(Debug)]
+    struct Broken;
+    impl intarsia_core::constrain::ConstraintSpec for Broken {
+        fn start(&self) -> intarsia_core::Result<Box<dyn intarsia_core::constrain::TokenConstraint>> {
+            Err(intarsia_core::Error::BadRequest("no such schema".into()))
+        }
+    }
+    let kind = Kind::Hybrid;
+    let eng = batched_store(kind, 8, store_cfg(), true);
+    let mut a = Chat::new(kind);
+    a.msg(1, 23).msg(2, 9);
+    let t1 = run_batched(&eng, &[(a.prompt(), 4)]).remove(0);
+    let lookups = eng.telemetry().prefix_store.unwrap().lookups;
+    // the conversation's own history, which the store could restore
+    let (mut req, _) = traced(&a.prompt(), 4);
+    req.constraint = Some(Arc::new(Broken));
+    let rx = eng.submit(req).unwrap();
+    let err = rx.iter().find_map(|ev| match ev {
+        GenEvent::Error { message } => Some(message),
+        _ => None,
+    });
+    assert!(err.is_some_and(|m| m.contains("structured output")), "a broken constraint must be rejected");
     assert_eq!(eng.telemetry().prefix_store.unwrap().lookups, lookups, "the rejected prompt was looked up");
     a.answer(&t1.ids).msg(3, 5);
     let t2 = run_batched(&eng, &[(a.prompt(), 4)]).remove(0);

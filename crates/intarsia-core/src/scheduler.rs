@@ -150,6 +150,25 @@ pub trait BatchModel {
     fn avoid_single_row_prefill(&self) -> bool {
         false
     }
+    /// Lane interleave: rows per segment of a prefill chunk that parks between layers while other sequences decode
+    /// ([`BatchModel::prefill_begin_paused`]); 0 (default): every chunk runs whole before the next decode step.
+    fn pause_rows(&self) -> usize {
+        0
+    }
+    /// Start the chunk [`BatchModel::prefill_chunk`] would run, on its own thread, parking between layers about every
+    /// [`BatchModel::pause_rows`] rows ([`BatchModel::prefill_park`]); [`BatchModel::prefill_end`] returns what `prefill_chunk`
+    /// would have. The chunk and its bits are the same; only other slots may be used while it is parked.
+    fn prefill_begin_paused(&mut self, _slot: usize, _tokens: &[u32], _mode: Option<Self::Mode>) -> Result<()> {
+        Err(Error::Unsupported("paused prefill".into()))
+    }
+    /// Wait until the chunk in flight parks between layers (true) or ends (false).
+    fn prefill_park(&mut self) -> bool {
+        false
+    }
+    /// Let the parked chunk go on; `abort`: it ends with an error instead.
+    fn prefill_resume(&mut self, _abort: bool) {}
+    /// Deferred background work of the model (the prefix store's settle), called where the device is idle; see [`Housekeep`].
+    fn housekeep(&mut self, _at: Housekeep) {}
     /// Opt-in tail merge threshold in rows ([`next_prefill_chunk_tm`]); default 0 (off). The real adapter returns the
     /// model's `INTARSIA_PREFILL_TAIL_MERGE`, whose workspace is sized for it.
     fn tail_merge(&self) -> usize {
@@ -241,6 +260,12 @@ pub trait BatchSeq<M: BatchModel>: Send {
     /// The scheduler accepted the request into its queue (called once, after the submit checks passed): a later
     /// [`BatchSeq::fail`] is an accepted request that failed, not a refusal.
     fn on_queued(&mut self) {}
+    /// A rejection [`BatchSeq::admit`] would give that does not depend on the slot (a bad token id, a structured-output
+    /// error), asked before [`BatchSeq::restore`] so a request that is refused never looks up or restores a prefix. `Err`:
+    /// rejected, as from `admit`. Default: `Ok`.
+    fn validate(&self) -> Result<()> {
+        Ok(())
+    }
     /// Prefix store (`--prefix-store` with `--max-batch` > 1): the length this request's prefill starts from in `slot`, called
     /// at admission before [`BatchSeq::admit`] with `local`, the slot's own reusable prefix ([`BatchModel::reuse_len`]). The
     /// sequence may cut `local` back to a point of its own chunk schedule, or restore a longer stored prefix into the slot; the
@@ -256,6 +281,11 @@ pub trait BatchSeq<M: BatchModel>: Send {
     fn chunk_len(&self, _pos: usize, _remaining: usize) -> Option<usize> {
         None
     }
+    /// Prefix store: the chunk size of the request's own schedule (what [`TraceEvent::PrefillStart`] reports), `Some` exactly
+    /// when [`BatchSeq::chunk_len`] is. Default: `None`.
+    fn own_chunk(&self) -> Option<usize> {
+        None
+    }
     /// A prefill chunk `[start, end)` of this request ran in `slot` (`last`: the final one, before its output is accepted).
     /// The prefix store captures the slot's state here. Default: nothing. `Err` fails the request.
     fn on_chunk(&mut self, _model: &mut M, _slot: usize, _start: usize, _end: usize, _last: bool) -> Result<()> {
@@ -263,6 +293,17 @@ pub trait BatchSeq<M: BatchModel>: Send {
     }
     /// The request failed: send `Error`.
     fn fail(&mut self, err: &Error);
+}
+
+/// Where the scheduler calls [`BatchModel::housekeep`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Housekeep {
+    /// After a decode step (its sync left the device idle) in an iteration with no prefill in progress.
+    Step,
+    /// Inside a parked prefill chunk, after the decode step that ran there.
+    Pause,
+    /// Nothing is running or waiting (finish what is deferred).
+    Idle,
 }
 
 /// Scheduler policy. Defaults are the operator decisions (design 8.1 and the 2026-10-15 scheduler confirmation).
@@ -657,6 +698,8 @@ pub struct BatchMetrics {
     /// Iterations that ran a decode phase and a prefill chunk (the decode rows stalled behind the chunk). Iterations
     /// with a decode step and no chunk are `decode_steps - mixed_iterations` (spec-only decode phases aside).
     pub mixed_iterations: u64,
+    /// Lane interleave: decode steps that ran while a prefill chunk was parked between layers (counted in `decode_steps` too).
+    pub paused_steps: u64,
     /// Requests submitted and not yet holding a slot, now: still in the hand-off channel plus the FIFO queue. Live
     /// (read from the engine's queue counter when the snapshot is taken), not as of the last iteration.
     pub queue_depth: usize,
@@ -1018,6 +1061,13 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             // `admit` rejects (empty, or no room in a slot): it would touch the slot for nothing
             let plen = w.seq.prompt().len();
             let idle = self.active.is_empty();
+            // a request `validate` refuses is rejected here, with its error, before any lookup or restore
+            if let Err(e) = w.seq.validate() {
+                w.seq.fail(&e);
+                self.ev(TraceEvent::Finished { iter: self.iter, id: w.id, how: EndKind::Rejected });
+                self.metrics.lock().unwrap().rejected += 1;
+                continue;
+            }
             let restored = if plen == 0 || plen >= cap { Ok(cached) } else { w.seq.restore(&mut self.model, slot, cached, idle) };
             let cached = match restored {
                 Ok(c) => c,
@@ -1100,6 +1150,10 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
             stepped = out.stepped;
             decoding_n = out.decoding;
+            if out.stepped && !self.active.iter().any(|a| matches!(a.phase, Phase::Prefilling { .. })) {
+                // the step's sync left the device idle and no chunk follows in this iteration: a slice of deferred work
+                self.model.housekeep(Housekeep::Step);
+            }
         }
 
         // 4. prefill: the oldest prefilling sequence gets its next chunk(s)
@@ -1157,6 +1211,10 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
         }
 
+        if self.active.is_empty() && self.waiting.is_empty() {
+            // nothing runs or waits (also after a failure emptied the slots): finish what is deferred before the thread blocks
+            self.model.housekeep(Housekeep::Idle);
+        }
         crate::hostprof::iter_end(if did { t_iter.elapsed().as_nanos() } else { 0 });
         let mut m = self.metrics.lock().unwrap();
         m.iterations += 1;
@@ -1384,12 +1442,50 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
         }
         let (slot, c, mode) = self.prefill_plan(i, n_decoding);
+        let rows = self.model.pause_rows();
+        if n_decoding > 0 && rows > 0 && c.len > rows {
+            return self.prefill_paused(i, slot, c, mode);
+        }
         let res = {
             let tokens = &self.active[i].seq.prompt()[c.pos..c.pos + c.len];
             let _prof = crate::hostprof::span(crate::hostprof::Cat::Prefill);
             crate::hostprof::prefilled();
             self.model.prefill_chunk(slot, tokens, mode)
         };
+        self.prefill_finish(i, c, res)
+    }
+
+    /// Lane interleave: run request `i`'s chunk `c` so that it parks between layers ([`BatchModel::prefill_begin_paused`]), and
+    /// run a decode step of the decoding sequences at every park: they wait for a slice of the chunk instead of all of it. The
+    /// chunk is the planned one, so the prefill is bit for bit what [`Scheduler::prefill_one`] runs. Returns as `prefill_one`.
+    fn prefill_paused(&mut self, i: usize, slot: usize, c: Chunk, mode: Option<M::Mode>) -> bool {
+        let id = c.id;
+        let begun = {
+            let tokens = self.active[i].seq.prompt()[c.pos..c.pos + c.len].to_vec();
+            crate::hostprof::prefilled();
+            self.model.prefill_begin_paused(slot, &tokens, mode)
+        };
+        let res = match begun {
+            Err(e) => Err(e),
+            Ok(()) => {
+                while self.model.prefill_park() {
+                    let out = self.decode_phase();
+                    if out.fatal {
+                        // every request has been failed: the chunk ends with an error and nobody takes its result
+                        self.model.prefill_resume(true);
+                        let _ = self.model.prefill_end();
+                        return true;
+                    }
+                    if out.stepped {
+                        self.metrics.lock().unwrap().paused_steps += 1;
+                        self.model.housekeep(Housekeep::Pause);
+                    }
+                    self.model.prefill_resume(false);
+                }
+                self.model.prefill_end()
+            }
+        };
+        let Some(i) = self.index_of(id) else { return true };
         self.prefill_finish(i, c, res)
     }
 
@@ -1501,7 +1597,9 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             None => {
                 let c = if n_decoding > 0 { self.cfg.busy_chunk } else { self.cfg.solo_chunk };
                 let id = self.active[i].id;
-                self.ev(TraceEvent::PrefillStart { iter: self.iter, id, chunk: c, decoding: n_decoding });
+                // a request on its own schedule runs that chunk, not the one the scheduler picked
+                let used = self.active[i].seq.own_chunk().unwrap_or(c);
+                self.ev(TraceEvent::PrefillStart { iter: self.iter, id, chunk: used, decoding: n_decoding });
                 self.active[i].seq.on_prefill_start(c, n_decoding);
                 c
             }

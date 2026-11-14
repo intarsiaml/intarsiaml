@@ -1170,6 +1170,7 @@ impl Model {
             macro_passes: std::sync::atomic::AtomicU64::new(0),
             skip_dead: std::sync::atomic::AtomicBool::new(false),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
+            pause_save: Mutex::new(None),
             mtp: None,
             dflash: None,
             dflash_tp: false,

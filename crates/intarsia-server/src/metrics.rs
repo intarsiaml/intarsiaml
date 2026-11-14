@@ -225,6 +225,13 @@ pub fn render_batch(b: &intarsia_core::scheduler::BatchMetrics) -> String {
     );
     metric(
         &mut o,
+        "intarsia_batch_paused_steps_total",
+        "counter",
+        "Decode steps run while a prefill chunk was parked between layers (INTARSIA_PREFILL_PAUSE_ROWS).",
+        b.paused_steps,
+    );
+    metric(
+        &mut o,
         "intarsia_batch_running",
         "gauge",
         "Requests holding a KV slot, prefilling or decoding, as of the end of the scheduler's last iteration.",

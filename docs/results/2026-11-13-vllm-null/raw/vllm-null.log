@@ -1,0 +1,4 @@
+[17:20:05 +0s] V2: vLLM counters before: success=740 prompt_tokens=697298 gen_tokens=16890 (own expected: 85)
+[17:56:46 +2201s] V2: vLLM counters after:  success=828 prompt_tokens=739377 gen_tokens=185055
+[17:56:47 +2202s] V3: vLLM counters before: success=828 prompt_tokens=739377 gen_tokens=185055 (own expected: 85)
+[18:32:41 +4356s] V3: vLLM counters after:  success=913 prompt_tokens=780767 gen_tokens=349741

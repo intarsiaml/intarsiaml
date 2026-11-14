@@ -1,0 +1,13 @@
+[supervisor] started server pid 4104669
+--spec mtp default of recipe qwen3_5_moe on cuda not applied: --prefix-store (or INTARSIA_PREFIX_STORE) is set and a drafting request bypasses the store; --spec mtp --prefix-store ... asks for both
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 41 kernel(s) checked, 511 case(s) run, 0 cached
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 2048
+prefix store with --max-batch > 1: workspace 537 MiB
+prefix store: the backend's packed prefill is off with --max-batch > 1
+prefix store: on (build d875b142d8228e3b, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 40.6s, context 131072 tokens
+sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_config.json; a request's own values win)
+intarsia server listening on http://0.0.0.0:8191

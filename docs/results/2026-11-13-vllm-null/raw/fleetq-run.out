@@ -1,0 +1,16 @@
+fleetq: #9256 running on spark2: bash scripts/vllm-null/run.sh 85 V2 V3
+[17:20:05 +0s] V2: vLLM counters before: success=740 prompt_tokens=697298 gen_tokens=16890 (own expected: 85)
+== V2 gsm8k thinking=on n=85 max_tokens=8192 17:20:05
+
+[localeval] saved /opt/code/deepeval/results/20261113-172006-adhoc-soak-V2-gsm8k/result.json
+[localeval] logged to unanimis: 2b044dbd-87e1-45e3-b64b-c15bbb58a266
+V2 gsm8k run_id=20261113-172006-adhoc-soak-V2-gsm8k
+[17:56:46 +2201s] V2: vLLM counters after:  success=828 prompt_tokens=739377 gen_tokens=185055
+[17:56:47 +2202s] V3: vLLM counters before: success=828 prompt_tokens=739377 gen_tokens=185055 (own expected: 85)
+== V3 gsm8k thinking=on n=85 max_tokens=8192 17:56:47
+
+[localeval] saved /opt/code/deepeval/results/20261113-175647-adhoc-soak-V3-gsm8k/result.json
+[localeval] logged to unanimis: d3971ece-23fb-4a76-b5aa-81ad85e8c0f0
+V3 gsm8k run_id=20261113-175647-adhoc-soak-V3-gsm8k
+[18:32:41 +4356s] V3: vLLM counters after:  success=913 prompt_tokens=780767 gen_tokens=349741
+fleetq: #9256 done (exit 0)

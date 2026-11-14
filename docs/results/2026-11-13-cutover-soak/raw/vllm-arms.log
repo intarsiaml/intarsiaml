@@ -1,0 +1,8 @@
+[09:11:05 +0s] V-pilot: vLLM counters before: success=0 prompt_tokens=0 gen_tokens=0 (own expected: 5)
+[09:12:46 +101s] V-pilot: vLLM counters after:  success=5 prompt_tokens=2438 gen_tokens=7377
+[09:13:25 +0s] V-k3: vLLM counters before: success=5 prompt_tokens=2438 gen_tokens=7377 (own expected: 49)
+[09:15:34 +129s] V-k3: vLLM counters after:  success=54 prompt_tokens=997602 gen_tokens=14738
+[09:15:34 +129s] V-k4: vLLM counters before: success=54 prompt_tokens=997602 gen_tokens=14738 (own expected: 49)
+[09:17:41 +256s] V-k4: vLLM counters after:  success=103 prompt_tokens=1993497 gen_tokens=22321
+[10:05:40 +0s] V-think: vLLM counters before: success=0 prompt_tokens=0 gen_tokens=0 (own expected: 100)
+[10:46:29 +2449s] V-think: vLLM counters after:  success=100 prompt_tokens=48774 gen_tokens=187558

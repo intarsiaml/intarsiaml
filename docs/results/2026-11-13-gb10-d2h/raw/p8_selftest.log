@@ -1,0 +1,60 @@
+  !! mut_noop fresh 303104 iter 0: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 1: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 2: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 3: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 4: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 5: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 6: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 7: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 8: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 9: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 10: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 11: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 12: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 13: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 14: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 15: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 16: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 17: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 18: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_noop fresh 303104 iter 19: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_skippage fresh 303104 iter 0: stale 4081 of 303104 (still 0xAA: 4081, first at 151552), canary 0, pool 0
+  !! mut_skippage fresh 303104 iter 1: stale 4081 of 303104 (still 0xAA: 4081, first at 151552), canary 0, pool 0
+  !! mut_noop cold 303104 iter 0: stale 301941 of 303104 (still 0xAA: 0, first at 0), canary 0, pool 0
+  !! mut_skippage cold 303104 iter 0: stale 4080 of 303104 (still 0xAA: 0, first at 151552), canary 0, pool 0
+  !! mut_noop pageout 303104 iter 0: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+  !! mut_skippage pageout 303104 iter 0: stale 4081 of 303104 (still 0xAA: 4081, first at 151552), canary 0, pool 0
+  !! mut_noop fresh 4194304 iter 0: stale 4178156 of 4194304 (still 0xAA: 4178156, first at 0), canary 0, pool 0
+  !! mut_skippage fresh 4194304 iter 0: stale 4078 of 4194304 (still 0xAA: 4078, first at 2097152), canary 0, pool 0
+  !! mut_noop cold 4194304 iter 0: stale 4177952 of 4194304 (still 0xAA: 0, first at 0), canary 0, pool 0
+  !! mut_skippage cold 4194304 iter 0: stale 4086 of 4194304 (still 0xAA: 0, first at 2097152), canary 0, pool 0
+  !! mut_noop pageout 4194304 iter 0: stale 4178156 of 4194304 (still 0xAA: 4178156, first at 0), canary 0, pool 0
+  !! mut_skippage pageout 4194304 iter 0: stale 4078 of 4194304 (still 0xAA: 4078, first at 2097152), canary 0, pool 0
+# device NVIDIA GB10 integrated=1 pageableMemoryAccess=1 hostNativeAtomic=1 driver_api=13000 runtime=13000
+# iters=20 threads=1 pressure_gb=0.0 gpuload=0 pool=0
+method    kind             bytes     runs      bad  stale_bytes  canary    pool    med_us
+ours      fresh           303104       20        0            0       0       0      15.5
+mut_noop  fresh           303104       20       20      6038900       0       0       6.9  iter 0: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+mut_skippage fresh           303104       20       20        81620       0       0      17.8  iter 0: stale 4081 of 303104 (still 0xAA: 4081, first at 151552), canary 0, pool 0
+ours      cold            303104       20        0            0       0       0      14.1
+mut_noop  cold            303104       20       20      6038820       0       0       4.7  iter 0: stale 301941 of 303104 (still 0xAA: 0, first at 0), canary 0, pool 0
+mut_skippage cold            303104       20       20        81600       0       0      19.7  iter 0: stale 4080 of 303104 (still 0xAA: 0, first at 151552), canary 0, pool 0
+ours      pageout         303104       20        0            0       0       0      75.6
+          (pageout: 0.0 % of the destination's pages present in the page table right before the copy)
+mut_noop  pageout         303104       20       20      6038900       0       0       8.4  iter 0: stale 301945 of 303104 (still 0xAA: 301945, first at 0), canary 0, pool 0
+          (pageout: 0.0 % of the destination's pages present in the page table right before the copy)
+mut_skippage pageout         303104       20       20        81620       0       0     116.2  iter 0: stale 4081 of 303104 (still 0xAA: 4081, first at 151552), canary 0, pool 0
+          (pageout: 0.0 % of the destination's pages present in the page table right before the copy)
+ours      fresh          4194304       20        0            0       0       0      80.3
+mut_noop  fresh          4194304       20       20     83563120       0       0       6.4  iter 0: stale 4178156 of 4194304 (still 0xAA: 4178156, first at 0), canary 0, pool 0
+mut_skippage fresh          4194304       20       20        81560       0       0      86.1  iter 0: stale 4078 of 4194304 (still 0xAA: 4078, first at 2097152), canary 0, pool 0
+ours      cold           4194304       20        0            0       0       0      80.2
+mut_noop  cold           4194304       20       20     83559040       0       0       8.3  iter 0: stale 4177952 of 4194304 (still 0xAA: 0, first at 0), canary 0, pool 0
+mut_skippage cold           4194304       20       20        81720       0       0      86.5  iter 0: stale 4086 of 4194304 (still 0xAA: 0, first at 2097152), canary 0, pool 0
+ours      pageout        4194304       20        0            0       0       0     941.6
+          (pageout: 0.0 % of the destination's pages present in the page table right before the copy)
+mut_noop  pageout        4194304       20       20     83563120       0       0       9.8  iter 0: stale 4178156 of 4194304 (still 0xAA: 4178156, first at 0), canary 0, pool 0
+          (pageout: 0.0 % of the destination's pages present in the page table right before the copy)
+mut_skippage pageout        4194304       20       20        81560       0       0     933.3  iter 0: stale 4078 of 4194304 (still 0xAA: 4078, first at 2097152), canary 0, pool 0
+          (pageout: 0.0 % of the destination's pages present in the page table right before the copy)
+TOTAL runs=360 bad=0 | ours_bad=0 sync(positive control)_bad=0 bounce_bad=0 | wall 1.0 s
