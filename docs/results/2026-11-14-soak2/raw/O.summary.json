@@ -1,0 +1,22 @@
+{
+ "arm": "O",
+ "n": 200,
+ "aborted": false,
+ "errors": 0,
+ "correct": 195,
+ "acc": 0.975,
+ "truncated": 3,
+ "mean_completion_tokens": 144.1,
+ "prompt_tokens_median": 6976.0,
+ "prompt_tokens_min": 6944,
+ "prompt_tokens_max": 7054,
+ "requests_with_cached_tokens": 0,
+ "cached_tokens_median_of_hits": 0,
+ "cached_tokens_sum": 0,
+ "cached_frac": 0.0,
+ "latency_s_median": 2.203,
+ "wall_s": 454.8,
+ "concurrency": 1,
+ "shots": 32,
+ "max_tokens": 512
+}

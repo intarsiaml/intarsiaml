@@ -1,0 +1,20 @@
+fleetq: #9315 running on spark1: bash scripts/soak2/build.sh
+00:26:02
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-soak2/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-soak2/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-soak2/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsia-soak2/src/crates/intarsia-engram)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-soak2/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsia-soak2/src/crates/intarsia-ui)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-soak2/src/crates/intarsia-models)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-soak2/src/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-soak2/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-soak2/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 6m 01s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.2T  307G  92% /
+2.7G	/home/nvidia/intarsia-soak2
+Mem:             121          40          38           0          44          80
+00:32:05
+git sha ef31cff03e853747b888894f9f0869a5b9857b41
+fleetq: #9315 done (exit 0)
