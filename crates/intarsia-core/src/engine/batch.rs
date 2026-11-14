@@ -104,10 +104,11 @@ pub struct BatchedOptions {
     /// (temperature > 0) draft too, with seed-exact acceptance (`engine/keyed.rs`): a seeded request's ids are the same with it on
     /// or off. Off: sampled requests take plain steps.
     pub mtp_sampled: bool,
-    /// Lane mtp2s (`INTARSIA_VERIFY_TOPK=1`, opt-in): in a batched verify pass, a sampled sequence's rows come back as the
-    /// device-side top-k of each row (`HeadMode::LastTopK`, the candidates a plain batched decode step samples from) instead of
-    /// whole logits rows, when its sampler takes the top-k in a plain step for every row of the pass (`Seq::verify_topk`). The
-    /// draws are the same (`Sampler::sample_topk` is exact); a pass downloads `rows x k` values instead of `rows x vocab`.
+    /// Lane mtp2s (`INTARSIA_VERIFY_TOPK=1`, opt-in): in a batched verify pass, a sampled sequence's rows come
+    /// back as the device-side top-k of each row (`HeadMode::LastTopK`, the candidates a plain batched decode step
+    /// samples from) instead of whole logits rows, when its sampler takes the top-k in a plain step for every row
+    /// of the pass (`Seq::verify_topk`). The draws are the same (`Sampler::sample_topk` is exact); a pass
+    /// downloads `rows x k` values instead of `rows x vocab`.
     pub verify_topk: bool,
     /// Lane interleave (`INTARSIA_PREFILL_PAUSE_ROWS`, default [`PAUSE_ROWS_DEFAULT`] = 768, 0 off): while other sequences decode, a
     /// prefill chunk of more than this many rows parks between layers about every this many rows and their decode step runs
@@ -533,8 +534,8 @@ impl BatchModel for SlotModel {
             let want: Vec<Option<HeadMode>> = rows[i..j].iter().map(|(_, _, w)| *w).collect();
             // an error here is a device / pass failure: fatal for the whole batch, as a decode step's
             if want.iter().any(Option::is_some) {
-                // lane mtp-sampled: the sampled sequences' rows as logits (they draw their own tokens), the others' greedy tokens;
-                // lane mtp2s: or as each row's device-side top-k (`LastTopK`, `INTARSIA_VERIFY_TOPK`)
+                // lane mtp-sampled: the sampled sequences' rows as logits (they draw their own tokens), the
+                // others' greedy tokens; lane mtp2s: or as each row's device-side top-k (`INTARSIA_VERIFY_TOPK`)
                 let (toks, rws) = m.forward_verify_batch_rows(&mut refs[i..j], &ids, &want)?;
                 for ((t, r), w) in toks.into_iter().zip(rws).zip(want) {
                     out.push(Ok(if w.is_some() { Verified::Rows(r) } else { Verified::Greedy(t) }));
@@ -787,8 +788,9 @@ impl BatchSeq<SlotModel> for SeqAdapter {
             Prep::Ready => SeqStep::Ready,
             // a sampled sequence draws its own token from every row: its rows come back as logits
             Prep::Verify(ids) => {
-                // lane mtp2s (`INTARSIA_VERIFY_TOPK=1`, opt-in): a sampled sequence's rows as the device-side top-k when every row's
-                // draw is one a plain batched step would make from it (`Seq::verify_topk`), else whole logits rows
+                // lane mtp2s (`INTARSIA_VERIFY_TOPK=1`, opt-in): a sampled sequence's rows as the device-side
+                // top-k when every row's draw is one a plain batched step would make from it
+                // (`Seq::verify_topk`), else whole logits rows
                 let mode = match (*verify_topk && model.device_sampling(), seq.verify_topk(ids.len())) {
                     (true, Some(k)) => HeadMode::LastTopK(k),
                     _ => HeadMode::LastLogits,
@@ -1042,7 +1044,10 @@ impl BatchedEngine {
         let batched_verify = mtp && twin.is_none() && opts.batched_verify;
         let mtp_sampled = mtp && opts.mtp_sampled;
         if batched_verify && opts.verify_topk {
-            eprintln!("batched verify: sampled rows as the device-side top-k when the request samples from it (INTARSIA_VERIFY_TOPK=1)");
+            eprintln!(
+                "batched verify: sampled rows as the device-side top-k when the request samples from it \
+                 (INTARSIA_VERIFY_TOPK=1)"
+            );
         }
         if mtp {
             eprintln!(

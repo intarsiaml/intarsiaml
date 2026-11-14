@@ -2119,10 +2119,11 @@ impl Model {
         Ok((toks, logits))
     }
 
-    /// [`Model::forward_verify_batch_logits`] with a head mode per sequence (lane mtp2s, `INTARSIA_VERIFY_TOPK`): `None` (greedy
-    /// tokens only), `LastLogits` (every row's logits) or `LastTopK(k)` (every row's `k` largest logits and their ids, from the
-    /// device-side top-k of batched decode; a row holding a NaN comes back as its logits), so a sampled sequence gets what its
-    /// plain batched decode steps would hand the sampler. Rows are `StepOut`s, in pass order per sequence.
+    /// [`Model::forward_verify_batch_logits`] with a head mode per sequence (lane mtp2s, `INTARSIA_VERIFY_TOPK`):
+    /// `None` (greedy tokens only), `LastLogits` (every row's logits) or `LastTopK(k)` (every row's `k` largest
+    /// logits and their ids, from the device-side top-k of batched decode; a row holding a NaN comes back as its
+    /// logits), so a sampled sequence gets what its plain batched decode steps would hand the sampler. Rows are
+    /// `StepOut`s, in pass order per sequence.
     #[allow(clippy::type_complexity)]
     pub fn forward_verify_batch_rows(
         &self,
@@ -2226,7 +2227,10 @@ impl Model {
         let mut logits: Vec<Vec<StepOut>> = Vec::with_capacity(n);
         let v = self.dims.vocab;
         // lane mtp2s: the top-k of every row of the pass in one device call when a sequence asks for it (`LastTopK`)
-        let kmax = (0..n).filter_map(|i| if let Some(HeadMode::LastTopK(k)) = mode(i) { Some(k) } else { None }).max().unwrap_or(0);
+        let kmax = (0..n)
+            .filter_map(|i| if let Some(HeadMode::LastTopK(k)) = mode(i) { Some(k) } else { None })
+            .max()
+            .unwrap_or(0);
         let top = if kmax > 0 { Some(self.batch_topk(total, kmax)?) } else { None };
         let mut lo = 0;
         for (i, q) in ids.iter().enumerate() {
@@ -2241,7 +2245,8 @@ impl Model {
                                 Ok(logits_row(l))
                             })?)
                         } else {
-                            StepOut::TopK { ids: tid[r * kmax..r * kmax + k].to_vec(), vals: tval[r * kmax..r * kmax + k].to_vec() }
+                            let at = r * kmax;
+                            StepOut::TopK { ids: tid[at..at + k].to_vec(), vals: tval[at..at + k].to_vec() }
                         });
                     }
                 }
