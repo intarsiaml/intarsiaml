@@ -2,3 +2,8 @@ fleetq: #9308 waiting (#3 in line): in line behind #9305 "mtp2s: build verify-to
 fleetq:   #9305 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9305 set, or it will wait for #9305 to be released.
 fleetq: #9308 waiting (#2 in line): in line behind #9307 "mtp2s: gates verify-topk (plan show, seeded ids)" (claude-2ae67a71) on spark2
 fleetq:   #9307 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9307 set, or it will wait for #9307 to be released.
+fleetq: #9308 waiting (#1 in line): needs gpu quiet on spark2, but #9307 "mtp2s: gates verify-topk (plan show, seeded ids)" (claude-2ae67a71) loads it
+fleetq:   #9307 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9307 set, or it will wait for #9307 to be released.
+fleetq: #9308 running on spark2: scripts/mtp2s/ab.sh
+[23:34:07 +1s] ab start; vLLM: 200; earlyoom: active; Mem:             121          48          30           0          44          73
+[23:34:07 +1s] serve arm VD1: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2 --spec mtp --spec-k 2 --mtp-draft-vocab 65536

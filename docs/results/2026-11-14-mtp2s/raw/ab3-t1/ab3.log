@@ -1,0 +1,2 @@
+[23:34:07 +1s] ab start; vLLM: 200; earlyoom: active; Mem:             121          48          30           0          44          73
+[23:34:07 +1s] serve arm VD1: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2 --spec mtp --spec-k 2 --mtp-draft-vocab 65536
