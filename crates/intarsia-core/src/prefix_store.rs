@@ -476,6 +476,11 @@ pub struct PrefixStoreSnapshot {
     pub device: TierStats,
     pub host: TierStats,
     pub disk: TierStats,
+    /// Host buffers queued for the disk writer and not yet confirmed (the writer holds them, whatever tier the object is in now).
+    pub disk_pending_bytes: u64,
+    /// Objects not written to disk because the pending writes had reached `host_mb` (a disk slower than the inserts): they
+    /// stay host-only and are dropped, not demoted, when the host tier evicts them.
+    pub disk_write_skips: u64,
 }
 
 /// One entry, for `GET /v1/intarsia/prefix-store`.
@@ -515,6 +520,10 @@ pub struct PrefixStore {
     deferred: u64,
     /// Engine-thread time spent in `queue_write` since the last `settle` (reported under `INTARSIA_PREFIX_STORE_DEBUG`).
     queue_write_seconds: f64,
+    /// Bytes sent to the disk writer and not yet confirmed. The queue holds those buffers even after the object left the host
+    /// tier (the disk budget clears `staged`; an evicted or dropped object leaves its buffer to the queue), so this, not
+    /// `used[1]`, is what a slow disk adds to resident memory: `queue_write` stops queueing past `host_bytes`.
+    pending_write_bytes: u64,
     /// Pre-faulted host buffers freed by host-tier eviction, kept for the next demote (or host capture) of the same size
     /// (objects come in a few sizes; a fresh buffer costs a page fault per 4 KiB, a recycled one nothing). Counted with
     /// `used[1]` against the host budget: `enforce` drops pooled buffers first when the two together exceed it.
@@ -584,7 +593,8 @@ const SLAB_POOL_CAP: usize = 256 << 20;
 struct DiskWriter {
     dir: PathBuf,
     tx: Sender<(Key, PathBuf, Arc<Vec<u8>>)>,
-    done: Receiver<(Key, bool)>,
+    /// `(key, written, bytes)` per queued write, in queue order.
+    done: Receiver<(Key, bool, usize)>,
     _thread: std::thread::JoinHandle<()>,
 }
 
@@ -616,6 +626,7 @@ impl PrefixStore {
             defer: false,
             deferred: 0,
             queue_write_seconds: 0.0,
+            pending_write_bytes: 0,
             host_free: Vec::new(),
             host_free_bytes: 0,
             slab: None,
@@ -948,11 +959,17 @@ impl PrefixStore {
             return true;
         }
         let held = self.deferred_footprint();
-        let fresh = match self.slab_pool.iter().filter(|b| b.bytes() >= bytes).map(Buffer::bytes).min() {
-            Some(n) => n,
+        let fresh = match self.pooled_slab(bytes) {
+            Some(i) => self.slab_pool[i].bytes(),
             None => Self::new_slab_size(bytes, held),
         };
         held + fresh as u64 <= DEFER_CAP
+    }
+
+    /// The idle slab a capture of `bytes` takes: the smallest that fits (what [`PrefixStore::defer_fits`] budgets with, so
+    /// a larger idle slab cannot push the request past [`DEFER_CAP`]).
+    fn pooled_slab(&self, bytes: usize) -> Option<usize> {
+        self.slab_pool.iter().enumerate().filter(|(_, b)| b.bytes() >= bytes).min_by_key(|(_, b)| b.bytes()).map(|(i, _)| i)
     }
 
     /// `bytes` of device memory for a deferred capture: `(slab, offset)`. The current slab while it has room, else an idle
@@ -967,7 +984,7 @@ impl PrefixStore {
                 return Ok((buf.clone(), at));
             }
         }
-        let buf = match self.slab_pool.iter().position(|b| b.bytes() >= bytes) {
+        let buf = match self.pooled_slab(bytes) {
             Some(i) => self.slab_pool.swap_remove(i),
             None => backend.alloc(Self::new_slab_size(bytes, self.deferred_footprint()), MemKind::Device)?,
         };
@@ -1244,6 +1261,7 @@ impl PrefixStore {
             }
         }
         self.stats.entries = self.entries.len() as u64;
+        self.stats.disk_pending_bytes = self.pending_write_bytes;
         self.stats.pinned_entries = self.entries.values().filter(|e| e.pinned.is_some()).count() as u64;
         self.stats.device.objects = n[0];
         self.stats.host.objects = n[1];
@@ -1258,6 +1276,8 @@ impl PrefixStore {
     /// Bring every tier within its budget: device objects move to host, host objects to disk (or are dropped), disk
     /// objects are deleted. Pinned objects never leave memory.
     fn enforce(&mut self, backend: &dyn Backend) {
+        // confirmed writes first: they lower the pending bytes the demotes below are queued against
+        self.poll_writer();
         while self.used[0] > self.cfg.device_bytes && !self.defer {
             if self.demote_one(backend).is_none() {
                 break;
@@ -1274,6 +1294,12 @@ impl PrefixStore {
             let Some(k) = self.lru(|o| matches!(o.mem, Some(Mem::Host(_))) && o.pins == 0 && o.staged.is_none()) else { break };
             self.evict_host(k);
         }
+        self.enforce_disk();
+    }
+
+    /// Bring the disk tier within budget, oldest first. An object whose write is still queued has no file yet: the writer
+    /// creates it later, and [`PrefixStore::poll_writer`] deletes it then (the object no longer claims it).
+    fn enforce_disk(&mut self) {
         while self.used[2] > self.cfg.disk_bytes {
             let Some(k) = self.lru(|o| o.disk.is_some() && o.pins == 0) else { break };
             self.stats.disk.evictions += 1;
@@ -1450,6 +1476,12 @@ impl PrefixStore {
         if self.cfg.disk_bytes < o.bytes as u64 {
             return;
         }
+        // a disk slower than the inserts: past `host_bytes` of unconfirmed writes the object stays host-only (one write is
+        // always let through, so an object larger than the limit is still written when the queue is empty)
+        if self.pending_write_bytes > 0 && self.pending_write_bytes + o.bytes as u64 > self.cfg.host_bytes {
+            self.stats.disk_write_skips += 1;
+            return;
+        }
         let t0 = Instant::now();
         let path = w.dir.join(format!("o-{k:032x}.bin"));
         // the header (its checksum reads every byte of `data`) is built by the writer thread, off the engine thread
@@ -1457,6 +1489,7 @@ impl PrefixStore {
             o.disk = Some(path);
             o.staged = Some(data);
             self.used[2] += o.bytes as u64;
+            self.pending_write_bytes += o.bytes as u64;
         }
         let took = t0.elapsed().as_secs_f64();
         self.queue_write_seconds += took;
@@ -1467,14 +1500,25 @@ impl PrefixStore {
 
     fn poll_writer(&mut self) {
         let Some(w) = &self.writer else { return };
-        let done: Vec<(Key, bool)> = w.done.try_iter().collect();
-        for (k, ok) in done {
+        let done: Vec<(Key, bool, usize)> = w.done.try_iter().collect();
+        let dir = w.dir.clone();
+        for (k, ok, bytes) in done {
+            self.pending_write_bytes = self.pending_write_bytes.saturating_sub(bytes as u64);
             let mut lost = false;
-            if let Some(o) = self.objs.get_mut(&k) {
-                o.staged = None;
-                if !ok && o.disk.take().is_some() {
-                    self.used[2] -= o.bytes as u64;
-                    lost = o.mem.is_none();
+            match self.objs.get_mut(&k) {
+                Some(o) if o.disk.is_some() => {
+                    o.staged = None;
+                    if !ok {
+                        o.disk = None;
+                        self.used[2] -= o.bytes as u64;
+                        lost = o.mem.is_none();
+                    }
+                }
+                // evicted from disk or dropped while queued: nothing claims the file the writer just made
+                _ => {
+                    if ok {
+                        let _ = std::fs::remove_file(dir.join(format!("o-{k:032x}.bin")));
+                    }
                 }
             }
             if lost {
@@ -1486,7 +1530,8 @@ impl PrefixStore {
     /// Wait for the disk writer to finish what is queued (tests, shutdown).
     pub fn flush(&mut self) {
         let deadline = Instant::now() + Duration::from_secs(60);
-        while self.objs.values().any(|o| o.staged.is_some()) && Instant::now() < deadline {
+        self.poll_writer();
+        while self.pending_write_bytes > 0 && Instant::now() < deadline {
             std::thread::sleep(Duration::from_millis(2));
             self.poll_writer();
         }
@@ -1714,29 +1759,32 @@ impl DiskWriter {
         let (dtx, done) = channel();
         let thread = std::thread::Builder::new()
             .name("intarsia-prefix-store-writer".into())
-            .spawn(move || {
-                let dbg = debug();
-                for (k, path, data) in rx.iter() {
-                    let t0 = Instant::now();
-                    let header = obj_header(build, k, &data);
-                    let t1 = Instant::now();
-                    let ok = write_atomic(&path, &[&header, &data]).is_ok();
-                    if dbg {
-                        eprintln!(
-                            "prefix store: writer {} KiB: checksum {:.2} ms, write {:.2} ms{}",
-                            data.len() >> 10,
-                            (t1 - t0).as_secs_f64() * 1e3,
-                            t1.elapsed().as_secs_f64() * 1e3,
-                            if ok { "" } else { " (failed)" }
-                        );
-                    }
-                    if dtx.send((k, ok)).is_err() {
-                        break;
-                    }
-                }
-            })
+            .spawn(move || run_writer(rx, dtx, build))
             .map_err(|e| Error::Other(format!("spawn prefix store writer: {e}")))?;
         Ok(DiskWriter { dir, tx, done, _thread: thread })
+    }
+}
+
+/// The disk writer thread: each queued object written (header with its checksum, then the bytes) and confirmed in order.
+fn run_writer(rx: Receiver<(Key, PathBuf, Arc<Vec<u8>>)>, dtx: Sender<(Key, bool, usize)>, build: u64) {
+    let dbg = debug();
+    for (k, path, data) in rx.iter() {
+        let t0 = Instant::now();
+        let header = obj_header(build, k, &data);
+        let t1 = Instant::now();
+        let ok = write_atomic(&path, &[&header, &data]).is_ok();
+        if dbg {
+            eprintln!(
+                "prefix store: writer {} KiB: checksum {:.2} ms, write {:.2} ms{}",
+                data.len() >> 10,
+                (t1 - t0).as_secs_f64() * 1e3,
+                t1.elapsed().as_secs_f64() * 1e3,
+                if ok { "" } else { " (failed)" }
+            );
+        }
+        if dtx.send((k, ok, data.len())).is_err() {
+            break;
+        }
     }
 }
 
@@ -1832,6 +1880,136 @@ mod tests {
         assert_ne!(pd[1].0, pa[1].0);
         assert_ne!(build_fingerprint("a"), build_fingerprint("b"));
         assert_ne!(checksum(b"abcdefgh1"), checksum(b"abcdefgh2"));
+    }
+
+    fn test_store(cfg: PrefixStoreConfig) -> PrefixStore {
+        PrefixStore::new(cfg, &[crate::state::SlotSpec::Recurrent { bytes: 64 }], "unit").unwrap()
+    }
+
+    /// A store with a disk tier whose writer writes one queued object per token sent on the returned gate (a stalled disk).
+    fn stalled_store(name: &str, host_bytes: u64, disk_bytes: u64) -> (PrefixStore, Sender<()>, PathBuf) {
+        let root = std::env::temp_dir().join(format!("intarsia-ps-unit-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let cfg = PrefixStoreConfig { host_bytes, disk_bytes, disk_dir: Some(root), ..Default::default() };
+        let mut s = test_store(cfg);
+        let dir = s.writer.as_ref().unwrap().dir.clone();
+        let (tx, rx) = channel::<(Key, PathBuf, Arc<Vec<u8>>)>();
+        let (gated_tx, gated) = channel();
+        let (gate_tx, gate) = channel::<()>();
+        let (dtx, done) = channel();
+        std::thread::spawn(move || {
+            for job in rx.iter() {
+                if gate.recv().is_err() || gated_tx.send(job).is_err() {
+                    break;
+                }
+            }
+        });
+        let build = s.build;
+        let thread = std::thread::spawn(move || run_writer(gated, dtx, build));
+        s.writer = Some(DiskWriter { dir: dir.clone(), tx, done, _thread: thread });
+        (s, gate_tx, dir)
+    }
+
+    fn obj_path(dir: &Path, k: Key) -> PathBuf {
+        dir.join(format!("o-{k:032x}.bin"))
+    }
+
+    #[test]
+    fn disk_writes_stop_queueing_past_the_host_budget() {
+        let mib = MIB as usize;
+        let (mut s, gate, dir) = stalled_store("bound", 4 * MIB, 1 << 30);
+        for k in 1..=6u128 {
+            s.add_obj(k, mib, Mem::Host(Arc::new(vec![k as u8; mib])), k as u64, false);
+        }
+        // four 1 MiB writes fill the 4 MiB limit; the rest stay host-only
+        assert_eq!(s.pending_write_bytes, 4 * MIB);
+        assert_eq!(s.stats.disk_write_skips, 2);
+        assert!((1..=4).all(|k| s.objs[&k].disk.is_some()));
+        assert!((5..=6).all(|k| s.objs[&k].disk.is_none()));
+        // the queued objects leave the store: their buffers are still the queue's, so the limit still holds
+        for k in 1..=4u128 {
+            s.drop_obj(k);
+        }
+        s.add_obj(7, mib, Mem::Host(Arc::new(vec![7; mib])), 7, false);
+        assert!(s.objs[&7].disk.is_none());
+        assert_eq!(s.pending_write_bytes, 4 * MIB);
+        // the disk catches up: nothing pending, and no file for the objects dropped while queued
+        for _ in 0..4 {
+            gate.send(()).unwrap();
+        }
+        s.flush();
+        assert_eq!(s.pending_write_bytes, 0);
+        assert!((1..=4).all(|k| !obj_path(&dir, k).exists()));
+        s.add_obj(8, mib, Mem::Host(Arc::new(vec![8; mib])), 8, false);
+        assert!(s.objs[&8].disk.is_some());
+        gate.send(()).unwrap();
+        s.flush();
+        assert!(obj_path(&dir, 8).exists());
+        assert_eq!(s.snapshot().disk_pending_bytes, 0);
+        let _ = std::fs::remove_dir_all(dir.parent().unwrap());
+    }
+
+    #[test]
+    fn disk_eviction_of_a_queued_write_leaves_no_file() {
+        let mib = MIB as usize;
+        let (mut s, gate, dir) = stalled_store("evict", 64 * MIB, 2 * MIB);
+        for k in 1..=3u128 {
+            s.add_obj(k, mib, Mem::Host(Arc::new(vec![k as u8; mib])), k as u64, false);
+        }
+        assert_eq!(s.used[2], 3 * MIB);
+        // over the disk budget before anything was written: the oldest loses its (not yet existing) file, keeps its host copy
+        s.enforce_disk();
+        assert_eq!(s.used[2], 2 * MIB);
+        assert!(s.objs[&1].disk.is_none() && s.objs[&1].mem.is_some());
+        for _ in 0..3 {
+            gate.send(()).unwrap();
+        }
+        s.flush();
+        assert!(!obj_path(&dir, 1).exists(), "the writer's late file for an evicted object is removed");
+        assert!(obj_path(&dir, 2).exists() && obj_path(&dir, 3).exists());
+        assert!(s.objs[&2].disk.is_some() && s.objs[&2].staged.is_none());
+        let _ = std::fs::remove_dir_all(dir.parent().unwrap());
+    }
+
+    struct FakeBuf(usize);
+
+    impl crate::backend::BufferImpl for FakeBuf {
+        fn bytes(&self) -> usize {
+            self.0
+        }
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+    }
+
+    #[test]
+    fn deferred_slabs_stay_within_the_cap() {
+        let mib = MIB as usize;
+        let mut s = test_store(PrefixStoreConfig { device_bytes: 0, ..Default::default() });
+        assert!(s.use_slab());
+        // near the cap a new slab shrinks to the room left, and a capture larger than the room does not defer
+        s.slabs_full.push(Buffer::new(FakeBuf(DEFER_CAP as usize - 100 * mib)));
+        let held = s.deferred_footprint();
+        assert_eq!(PrefixStore::new_slab_size(mib, held), 100 * mib);
+        assert!(s.defer_fits(100 * mib));
+        assert!(!s.defer_fits(100 * mib + 256));
+        // idle slabs: the first that fits (192 MiB) would pass the cap; the smallest (64 MiB) is what both the check and
+        // the pick use
+        s.slab_pool = vec![Buffer::new(FakeBuf(192 * mib)), Buffer::new(FakeBuf(64 * mib))];
+        assert!(s.defer_fits(32 * mib));
+        let i = s.pooled_slab(32 * mib).unwrap();
+        assert_eq!(s.slab_pool[i].bytes(), 64 * mib);
+        let buf = s.slab_pool.swap_remove(i);
+        s.slab = Some((buf, 32 * mib));
+        assert!(s.deferred_footprint() <= DEFER_CAP);
+        assert!(!s.defer_fits(128 * mib), "only the 192 MiB slab is left, and it does not fit under the cap");
+        // after the request: the near-cap slab is over the pool cap and freed, the 64 MiB one is idle again and reused
+        s.recycle_slabs();
+        let mut sizes: Vec<usize> = s.slab_pool.iter().map(Buffer::bytes).collect();
+        sizes.sort();
+        assert_eq!(sizes, vec![64 * mib, 192 * mib]);
+        assert!(s.slabs_full.is_empty() && s.slab.is_none());
+        assert_eq!(s.slab_pool[s.pooled_slab(mib).unwrap()].bytes(), 64 * mib);
     }
 }
 
