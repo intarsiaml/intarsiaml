@@ -83,7 +83,8 @@ impl Seq {
         }
         let mut emit = Vec::with_capacity(rows.len());
         let mut accepted = drafts.len();
-        for (i, row) in rows.into_iter().enumerate() {
+        let mut rows = rows.into_iter();
+        for (i, row) in rows.by_ref().enumerate() {
             let x = self.token_from(StepOut::Logits(row), self.generated + 1 + i)?;
             emit.push(x);
             if drafts.get(i) != Some(&x) {
@@ -91,6 +92,8 @@ impl Seq {
                 break;
             }
         }
+        // the rows behind the first mismatch go back to the pool unread
+        rows.for_each(crate::model::recycle_logits);
         spec_cut(model, st, len0 + accepted + 1)?;
         self.account_verify(len0, drafts, SpecStep { emit, accepted, accepted_exact: accepted, plain_next: false });
         Ok(())

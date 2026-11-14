@@ -2058,13 +2058,12 @@ impl Model {
         let mut b = vec![0u8; q * 4];
         self.backend.download(tok, 0, &mut b, self.stream)?;
         if let Some(rows) = rows {
+            // pooled buffers, as a decode step's logits row: fresh megabyte allocations page-fault on GB10 (`LOGITS_POOL`)
             let v = self.dims.vocab;
-            let mut l = vec![0u8; q * v * 4];
-            self.backend.download(&self.ws.logits, 0, &mut l, self.stream)?;
-            *rows = l
-                .chunks_exact(v * 4)
-                .map(|r| r.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect())
-                .collect();
+            *rows = with_logits_bytes(q * v * 4, |l| -> Result<Vec<Vec<f32>>> {
+                self.backend.download(&self.ws.logits, 0, l, self.stream)?;
+                Ok(l.chunks_exact(v * 4).map(logits_row).collect())
+            })?;
         }
         st.commit_verify(ids);
         if recurrent {
@@ -2207,12 +2206,10 @@ impl Model {
         for (i, q) in ids.iter().enumerate() {
             let mut rows = Vec::new();
             if wants(i) {
-                let mut l = vec![0u8; q.len() * v * 4];
-                self.backend.download(&self.ws.logits, lo * v * 4, &mut l, self.stream)?;
-                rows = l
-                    .chunks_exact(v * 4)
-                    .map(|r| r.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect())
-                    .collect();
+                rows = with_logits_bytes(q.len() * v * 4, |l| -> Result<Vec<Vec<f32>>> {
+                    self.backend.download(&self.ws.logits, lo * v * 4, l, self.stream)?;
+                    Ok(l.chunks_exact(v * 4).map(logits_row).collect())
+                })?;
             }
             logits.push(rows);
             lo += q.len();
