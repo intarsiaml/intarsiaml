@@ -4,6 +4,7 @@
 #   A  INTARSIA_MTP_STORE=0   the shape before the lane: the store skips the recipe's MTP default, no request drafts
 #   B  (unset)                the lane's default on CUDA: the MTP default applies (k 2, batched MTP N = 1), restored requests draft
 #   C  INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1   as B, drafting while both streams decode (optional, ARMS)
+#   D  no --prefix-store, the recipe's MTP default; E  no --prefix-store, --spec off (is the ITL p99 rise there without a store?)
 # Each run replays the multi-turn trace of lane interleave (scripts/interleave/replay2.py: 8 conversations x 6 turns, temperature 0,
 # thinking off, 160 tokens) at K streams. ARMS: space-separated <arm>:<K>[:tag] in run order (default: A:2 B:2 B:2:r A:2:r A:1 B:1).
 #   fleetq run --host spark1 --quiet gpu --mem 55 --expect 45 --label "mtp-store: A/B" -- bash scripts/mtp-store/window.sh
@@ -49,6 +50,8 @@ run_arm() { # run_arm <arm> <K> [tag]
     A) envs="INTARSIA_MTP_STORE=0";;
     B) envs="-";;
     C) envs="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1";;
+    D) envs="-"; args="--max-batch 2";;              # store off, the recipe's MTP default (main's shipped shape without a store)
+    E) envs="-"; args="--max-batch 2 --spec off";;   # store off, no MTP
     *) log "unknown arm $arm"; return 1;;
   esac
   local name="$arm-k$k${tag:+-$tag}"
