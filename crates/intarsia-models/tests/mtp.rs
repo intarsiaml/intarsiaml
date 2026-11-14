@@ -2744,7 +2744,7 @@ fn captured_step_after_a_head_restart_equals_the_eager_step() {
 /// Store + spec in the batching engine: three conversations, three turns each, every round submitted together to a 2-slot
 /// engine with `--spec mtp` and the store (later turns restore at admission, the slot's head context restarts there). Every
 /// reply is the single-sequence engine's with the store on and MTP off.
-fn batched_store_mtp(mtp_max_b: usize, verify: bool, script: bool) {
+fn batched_store_mtp(mtp_max_b: usize, verify: bool, script: bool, pause: bool) {
     let w = weights(11);
     let k = 2;
     let chunk = 8;
@@ -2791,6 +2791,8 @@ fn batched_store_mtp(mtp_max_b: usize, verify: bool, script: bool) {
     o.spec_off_at = 3;
     o.busy_chunk = chunk / 2;
     o.batched_verify = verify;
+    // `pause`: a chunk parks between layers every 2 rows while the other slot decodes (and drafts) inside the park
+    o.pause_rows = if pause { 2 } else { 0 };
     let meta = EngineMeta {
         id: "tiny-mtp".into(),
         eos_ids: vec![],
@@ -2816,23 +2818,35 @@ fn batched_store_mtp(mtp_max_b: usize, verify: bool, script: bool) {
     assert!(cached_later > 0 && ps.hits > 0 && ps.tokens_saved > 0, "later turns restored from the store: cached {cached_later}, {ps:?}");
     assert!(t.spec_steps > 0 && t.spec_proposed > 0, "the sequences drafted");
     assert!(!script || (t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed), "partial acceptance exercised");
+    let paused = eng.metrics().paused_steps;
+    // (counted for the head's own drafts: an accepted run of scripted drafts is emitted without a step of its own)
+    assert!(!pause || script || paused > 0, "no decode step ran inside a parked chunk");
     eprintln!(
-        "batched store + mtp B<={mtp_max_b} verify {verify} scripted {script}: {} passes, {} drafted, {} accepted; store hits {}, {} tokens saved",
+        "batched store + mtp B<={mtp_max_b} verify {verify} scripted {script} pause {pause}: {} passes, {} drafted, {} accepted; store hits {}, {} tokens saved; {paused} steps inside parked chunks",
         t.spec_steps, t.spec_proposed, t.spec_accepted, ps.hits, ps.tokens_saved
     );
 }
 
 #[test]
 fn batched_store_with_mtp_equals_the_single_engine_store_on_mtp_off() {
-    batched_store_mtp(1, false, false);
-    batched_store_mtp(2, false, false);
-    batched_store_mtp(2, false, true);
+    batched_store_mtp(1, false, false, false);
+    batched_store_mtp(2, false, false, false);
+    batched_store_mtp(2, false, true, false);
+}
+
+/// The same while prefill chunks park between layers (`INTARSIA_PREFILL_PAUSE_ROWS`, on by default): the other slot's draft and
+/// verify passes run inside the parks of a store request's chunk.
+#[test]
+fn batched_store_with_mtp_drafts_inside_parked_chunks() {
+    batched_store_mtp(1, false, false, true);
+    batched_store_mtp(1, false, true, true);
+    batched_store_mtp(2, true, true, true);
 }
 
 #[test]
 fn batched_store_with_mtp_and_batched_verify_equals_mtp_off() {
-    batched_store_mtp(2, true, false);
-    batched_store_mtp(2, true, true);
+    batched_store_mtp(2, true, false, false);
+    batched_store_mtp(2, true, true, false);
 }
 
 /// `INTARSIA_MTP_STORE=0` (`EngineMeta::mtp_store = Some(false)`): the batching engine refuses the store with `--spec mtp`, as
