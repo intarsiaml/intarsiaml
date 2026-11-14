@@ -1,0 +1,38 @@
+fleetq: #9308 waiting (#3 in line): in line behind #9305 "mtp2s: build verify-topk" (claude-2ae67a71) on spark2
+fleetq:   #9305 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9305 set, or it will wait for #9305 to be released.
+fleetq: #9308 waiting (#2 in line): in line behind #9307 "mtp2s: gates verify-topk (plan show, seeded ids)" (claude-2ae67a71) on spark2
+fleetq:   #9307 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9307 set, or it will wait for #9307 to be released.
+fleetq: #9308 waiting (#1 in line): needs gpu quiet on spark2, but #9307 "mtp2s: gates verify-topk (plan show, seeded ids)" (claude-2ae67a71) loads it
+fleetq:   #9307 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9307 set, or it will wait for #9307 to be released.
+fleetq: #9308 running on spark2: scripts/mtp2s/ab.sh
+[23:34:07 +1s] ab start; vLLM: 200; earlyoom: active; Mem:             121          48          30           0          44          73
+[23:34:07 +1s] serve arm VD1: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2 --spec mtp --spec-k 2 --mtp-draft-vocab 65536
+[23:34:54 +48s] serve VD1 up; MemAvailable MB: 49538; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 43.6s, context 32768 tokens;
+[23:34:54 +48s] vLLM requests running before VD1: 0
+[speed] VD1 streams 1: per stream 116.96 tok/s (108.95-119.92), combined 116.96, ITL p99 104.3 ms, chunk gap p99 81.78 ms (max 126.75), MTP passes 1271 accept 0.704 tokens/pass 2.407
+[speed] VD1 streams 2: per stream 75.13 tok/s (69.72-77.41), combined 150.82, ITL p99 154.73 ms, chunk gap p99 93.79 ms (max 123.14), MTP passes 1271 accept 0.704 tokens/pass 2.407
+[23:35:47 +101s] vLLM requests running after VD1: 0
+[23:35:47 +102s] min MemAvailable MB (time MB; KILLED count) (VD1): 23:34:55 48303 0 
+[23:35:49 +103s] serve arm VDT1: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2 --spec mtp --spec-k 2 --mtp-draft-vocab 65536
+[23:36:36 +150s] serve VDT1 up; MemAvailable MB: 49170; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 43.5s, context 32768 tokens;
+[23:36:36 +150s] vLLM requests running before VDT1: 0
+[speed] VDT1 streams 1: per stream 116.91 tok/s (108.87-119.96), combined 116.91, ITL p99 122.59 ms, chunk gap p99 83.52 ms (max 135.71), MTP passes 1271 accept 0.704 tokens/pass 2.407
+[speed] VDT1 streams 2: per stream 80.32 tok/s (73.15-83.33), combined 160.76, ITL p99 147.32 ms, chunk gap p99 94.26 ms (max 115.43), MTP passes 1271 accept 0.704 tokens/pass 2.407
+[23:37:28 +202s] vLLM requests running after VDT1: 0
+[23:37:29 +203s] min MemAvailable MB (time MB; KILLED count) (VDT1): 23:36:37 48344 0 
+[23:37:31 +205s] serve arm VDT2: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2 --spec mtp --spec-k 2 --mtp-draft-vocab 65536
+[23:38:17 +251s] serve VDT2 up; MemAvailable MB: 49132; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 42.2s, context 32768 tokens;
+[23:38:17 +251s] vLLM requests running before VDT2: 0
+[speed] VDT2 streams 1: per stream 116.31 tok/s (107.91-119.75), combined 116.31, ITL p99 97.0 ms, chunk gap p99 82.8 ms (max 115.08), MTP passes 1271 accept 0.704 tokens/pass 2.407
+[speed] VDT2 streams 2: per stream 80.31 tok/s (74.2-83.26), combined 160.76, ITL p99 135.0 ms, chunk gap p99 92.94 ms (max 126.86), MTP passes 1271 accept 0.704 tokens/pass 2.407
+[23:39:09 +303s] vLLM requests running after VDT2: 0
+[23:39:10 +304s] min MemAvailable MB (time MB; KILLED count) (VDT2): 23:38:18 48327 0 
+[23:39:12 +306s] serve arm VD2: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2 --spec mtp --spec-k 2 --mtp-draft-vocab 65536
+[23:39:55 +349s] serve VD2 up; MemAvailable MB: 49120; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 41.3s, context 32768 tokens;
+[23:39:55 +349s] vLLM requests running before VD2: 0
+[speed] VD2 streams 1: per stream 116.09 tok/s (108.14-120.72), combined 116.09, ITL p99 89.18 ms, chunk gap p99 79.29 ms (max 102.46), MTP passes 1271 accept 0.704 tokens/pass 2.407
+[speed] VD2 streams 2: per stream 74.7 tok/s (69.76-76.59), combined 149.32, ITL p99 138.97 ms, chunk gap p99 88.18 ms (max 167.96), MTP passes 1271 accept 0.704 tokens/pass 2.407
+[23:40:49 +403s] vLLM requests running after VD2: 0
+[23:40:50 +404s] min MemAvailable MB (time MB; KILLED count) (VD2): 23:39:57 48310 0 
+[23:40:52 +406s] end
+fleetq: #9308 done (exit 0)

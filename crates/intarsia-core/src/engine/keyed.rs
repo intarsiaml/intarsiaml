@@ -61,14 +61,28 @@ impl Seq {
             return Ok(Prep::Verify(ids));
         }
         let (_, rows) = model.forward_verify_logits(st, &ids)?;
-        self.keyed_accept(model, st, len0, &drafts, rows)?;
+        self.keyed_accept(model, st, len0, &drafts, rows.into_iter().map(StepOut::Logits).collect())?;
         self.keyed_first()?;
         Ok(Prep::Ready)
     }
 
-    /// The logits rows of this sequence's deferred verify pass, run batched by the caller and committed to `st`: the keyed
-    /// acceptance and rollback, then the first token of the pass becomes `self.tok`.
-    pub(crate) fn accept_verify_rows(&mut self, model: &Model, st: &mut SequenceState, rows: Vec<Vec<f32>>) -> Result<()> {
+    /// Lane mtp2s (`INTARSIA_VERIFY_TOPK`): the candidate count `k` when every row of a verify pass of `rows` rows
+    /// may come back as the device-side top-k, i.e. the plain step that draws each of those tokens would ask for the
+    /// same `k` ([`Seq::topk_for`]).
+    pub(crate) fn verify_topk(&self, rows: usize) -> Option<usize> {
+        let k = self.topk_for(self.generated + 1)?;
+        (1..rows).all(|i| self.topk_for(self.generated + 1 + i) == Some(k)).then_some(k)
+    }
+
+    /// The rows (logits, or each row's device-side top-k: lane mtp2s) of this sequence's deferred verify pass,
+    /// run batched by the caller and committed to `st`: the keyed acceptance and rollback, then the first token of
+    /// the pass becomes `self.tok`.
+    pub(crate) fn accept_verify_rows(
+        &mut self,
+        model: &Model,
+        st: &mut SequenceState,
+        rows: Vec<StepOut>,
+    ) -> Result<()> {
         let (len0, drafts) = self.deferred.take().ok_or_else(|| Error::Other("verify rows without a deferred pass".into()))?;
         self.keyed_accept(model, st, len0, &drafts, rows)?;
         self.keyed_first()
@@ -77,7 +91,14 @@ impl Seq {
     /// Row `i` of the pass over `[tok, d_1..d_m]` that started at `len0` holds the logits of generated token
     /// `generated + 1 + i` given that `d_1..d_i` were kept. Draw that token as the plain step would; keep going while the draw
     /// is the next draft. Rows after the first mismatch are never looked at (no draw is spent on them) and are rolled back.
-    fn keyed_accept(&mut self, model: &Model, st: &mut SequenceState, len0: usize, drafts: &[u32], rows: Vec<Vec<f32>>) -> Result<()> {
+    fn keyed_accept(
+        &mut self,
+        model: &Model,
+        st: &mut SequenceState,
+        len0: usize,
+        drafts: &[u32],
+        rows: Vec<StepOut>,
+    ) -> Result<()> {
         if rows.len() != drafts.len() + 1 {
             return Err(Error::Other(format!("a sampled verify pass of {} drafts returned {} logits rows", drafts.len(), rows.len())));
         }
@@ -85,7 +106,7 @@ impl Seq {
         let mut accepted = drafts.len();
         let mut rows = rows.into_iter();
         for (i, row) in rows.by_ref().enumerate() {
-            let x = self.token_from(StepOut::Logits(row), self.generated + 1 + i)?;
+            let x = self.token_from(row, self.generated + 1 + i)?;
             emit.push(x);
             if drafts.get(i) != Some(&x) {
                 accepted = i;
@@ -93,7 +114,11 @@ impl Seq {
             }
         }
         // the rows behind the first mismatch go back to the pool unread
-        rows.for_each(crate::model::recycle_logits);
+        rows.for_each(|r| {
+            if let StepOut::Logits(l) = r {
+                crate::model::recycle_logits(l)
+            }
+        });
         spec_cut(model, st, len0 + accepted + 1)?;
         self.account_verify(len0, drafts, SpecStep { emit, accepted, accepted_exact: accepted, plain_next: false });
         Ok(())

@@ -1,0 +1,71 @@
+fleetq: #9307 waiting (#2 in line): in line behind #9305 "mtp2s: build verify-topk" (claude-2ae67a71) on spark2
+fleetq:   #9305 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9305 set, or it will wait for #9305 to be released.
+fleetq: #9307 waiting (#1 in line): needs cpu quiet on spark2, but #9305 "mtp2s: build verify-topk" (claude-2ae67a71) loads it
+fleetq:   #9305 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9305 set, or it will wait for #9305 to be released.
+fleetq: #9307 running on spark2: scripts/mtp2s/gates.sh
+[23:25:51 +0s] gates start; vLLM: 200; earlyoom: active; Mem:             121          49          26           0          47          71
+exit 0
+exit 0
+exit 0
+[23:27:37 +106s] plan show json, main's binary vs the lane's (knob unset): IDENTICAL 15570 
+[23:27:37 +106s] plan show json, the lane's binary, knob set vs unset: IDENTICAL 
+[23:27:38 +107s] serve arm ids-ref: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2 --spec off
+[23:28:22 +151s] serve ids-ref up; MemAvailable MB: 49985; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 40.5s, context 32768 tokens;
+t0.6/b1: 1160 tokens in 14.32 s; verify passes 0, drafted 0, accepted 0
+t0.6/b2: 1160 tokens in 9.78 s; verify passes 0, drafted 0, accepted 0
+t0.6/b4: 1160 tokens in 9.21 s; verify passes 0, drafted 0, accepted 0
+t1.0/b1: 1160 tokens in 14.33 s; verify passes 0, drafted 0, accepted 0
+t1.0/b2: 1160 tokens in 9.61 s; verify passes 0, drafted 0, accepted 0
+t1.0/b4: 1160 tokens in 9.25 s; verify passes 0, drafted 0, accepted 0
+t1.0-fullvocab/b2: 1160 tokens in 11.62 s; verify passes 0, drafted 0, accepted 0
+mixed-greedy-t1.0/b4: 1160 tokens in 9.28 s; verify passes 0, drafted 0, accepted 0
+[23:29:50 +239s] min MemAvailable MB (time MB; KILLED count) (ids-ref): 23:29:44 49890 0 
+[23:29:52 +241s] serve arm ids-vd: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2 --spec mtp --spec-k 2 --mtp-draft-vocab 65536
+[23:30:41 +290s] serve ids-vd up; MemAvailable MB: 48625; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 45.1s, context 32768 tokens;
+t0.6/b1: 1160 tokens in 10.64 s; verify passes 457, drafted 913, accepted 688 (0.754; 2.51 tokens/pass)
+t0.6/b2: 1160 tokens in 8.6 s; verify passes 457, drafted 913, accepted 688 (0.754; 2.51 tokens/pass)
+t0.6/b4: 1160 tokens in 8.47 s; verify passes 457, drafted 913, accepted 688 (0.754; 2.51 tokens/pass)
+t1.0/b1: 1160 tokens in 11.42 s; verify passes 478, drafted 951, accepted 640 (0.673; 2.34 tokens/pass)
+t1.0/b2: 1160 tokens in 9.79 s; verify passes 478, drafted 951, accepted 640 (0.673; 2.34 tokens/pass)
+t1.0/b4: 1160 tokens in 9.37 s; verify passes 478, drafted 951, accepted 640 (0.673; 2.34 tokens/pass)
+t1.0-fullvocab/b2: 1160 tokens in 11.28 s; verify passes 492, drafted 981, accepted 650 (0.663; 2.32 tokens/pass)
+mixed-greedy-t1.0/b4: 1160 tokens in 8.5 s; verify passes 466, drafted 929, accepted 682 (0.734; 2.46 tokens/pass)
+[23:32:02 +371s] min MemAvailable MB (time MB; KILLED count) (ids-vd): 23:32:00 48437 0 
+[23:32:04 +373s] serve arm ids-vdt: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2 --spec mtp --spec-k 2 --mtp-draft-vocab 65536
+[23:32:48 +417s] serve ids-vdt up; MemAvailable MB: 49133; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 41.7s, context 32768 tokens;
+t0.6/b1: 1160 tokens in 11.23 s; verify passes 457, drafted 913, accepted 688 (0.754; 2.51 tokens/pass)
+t0.6/b2: 1160 tokens in 8.2 s; verify passes 457, drafted 913, accepted 688 (0.754; 2.51 tokens/pass)
+t0.6/b4: 1160 tokens in 7.82 s; verify passes 457, drafted 913, accepted 688 (0.754; 2.51 tokens/pass)
+t1.0/b1: 1160 tokens in 11.21 s; verify passes 478, drafted 951, accepted 640 (0.673; 2.34 tokens/pass)
+t1.0/b2: 1160 tokens in 9.03 s; verify passes 478, drafted 951, accepted 640 (0.673; 2.34 tokens/pass)
+t1.0/b4: 1160 tokens in 8.95 s; verify passes 478, drafted 951, accepted 640 (0.673; 2.34 tokens/pass)
+t1.0-fullvocab/b2: 1160 tokens in 11.03 s; verify passes 492, drafted 981, accepted 650 (0.663; 2.32 tokens/pass)
+mixed-greedy-t1.0/b4: 1160 tokens in 7.92 s; verify passes 466, drafted 929, accepted 682 (0.734; 2.46 tokens/pass)
+[23:34:04 +493s] min MemAvailable MB (time MB; KILLED count) (ids-vdt): 23:34:03 48973 0 
+ref      t0.6/b1                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t0.6/b2                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t0.6/b4                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0/b1                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0/b2                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0/b4                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0-fullvocab/b2        8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+vd       t0.6/b1                  8/8 requests identical to ref b1 | verify passes 457 drafted 913 accepted 688 (0.754)
+vd       t0.6/b2                  8/8 requests identical to ref b1 | verify passes 457 drafted 913 accepted 688 (0.754)
+vd       t0.6/b4                  8/8 requests identical to ref b1 | verify passes 457 drafted 913 accepted 688 (0.754)
+vd       t1.0/b1                  8/8 requests identical to ref b1 | verify passes 478 drafted 951 accepted 640 (0.673)
+vd       t1.0/b2                  8/8 requests identical to ref b1 | verify passes 478 drafted 951 accepted 640 (0.673)
+vd       t1.0/b4                  8/8 requests identical to ref b1 | verify passes 478 drafted 951 accepted 640 (0.673)
+vd       t1.0-fullvocab/b2        8/8 requests identical to ref b1 | verify passes 492 drafted 981 accepted 650 (0.663)
+vd       mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 466 drafted 929 accepted 682 (0.734)
+vdt      t0.6/b1                  8/8 requests identical to ref b1 | verify passes 457 drafted 913 accepted 688 (0.754)
+vdt      t0.6/b2                  8/8 requests identical to ref b1 | verify passes 457 drafted 913 accepted 688 (0.754)
+vdt      t0.6/b4                  8/8 requests identical to ref b1 | verify passes 457 drafted 913 accepted 688 (0.754)
+vdt      t1.0/b1                  8/8 requests identical to ref b1 | verify passes 478 drafted 951 accepted 640 (0.673)
+vdt      t1.0/b2                  8/8 requests identical to ref b1 | verify passes 478 drafted 951 accepted 640 (0.673)
+vdt      t1.0/b4                  8/8 requests identical to ref b1 | verify passes 478 drafted 951 accepted 640 (0.673)
+vdt      t1.0-fullvocab/b2        8/8 requests identical to ref b1 | verify passes 492 drafted 981 accepted 650 (0.663)
+vdt      mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 466 drafted 929 accepted 682 (0.734)
+VERDICT: PASS: every request's ids are identical across arms and concurrency
+[23:34:06 +495s] end
+fleetq: #9307 done (exit 0)
