@@ -1,0 +1,43 @@
+fleetq: #9296 running on spark2: scripts/mtp2s/prof-run.sh P2 V2 S1 P1 V2k1
+== P2 up 22:27:10 MemAvailable MB 49274
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+	/home/nvidia/intarsia-mtp2s/out/prof/P2.nsys-rep
+{"streams": 2, "wall": 4.176, "per_stream": [64.63, 63.42], "aggregate": 128.05, "chunks": [256, 256], "overlap_s": 3.929}
+min MemAvailable MB: 22:27:18 49147
+exported 21M
+== V2 up 22:28:09 MemAvailable MB 50043
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+	/home/nvidia/intarsia-mtp2s/out/prof/V2.nsys-rep
+{"streams": 2, "wall": 4.174, "per_stream": [71.75, 62.92], "aggregate": 134.67, "chunks": [256, 256], "overlap_s": 3.554}
+min MemAvailable MB: 22:28:21 49384
+exported 33M
+== S1 up 22:29:06 MemAvailable MB 50056
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+	/home/nvidia/intarsia-mtp2s/out/prof/S1.nsys-rep
+{"streams": 1, "wall": 2.226, "per_stream": [119.67], "aggregate": 119.67, "chunks": [256], "overlap_s": 2.131}
+min MemAvailable MB: 22:29:07 48930
+exported 13M
+== P1 up 22:29:54 MemAvailable MB 52267
+	/home/nvidia/intarsia-mtp2s/out/prof/P1.nsys-rep
+{"streams": 1, "wall": 3.159, "per_stream": [82.99], "aggregate": 82.99, "chunks": [256], "overlap_s": 3.073}
+min MemAvailable MB: 22:30:02 50952
+exported 15M
+== V2k1 up 22:30:46 MemAvailable MB 50121
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 1 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+	/home/nvidia/intarsia-mtp2s/out/prof/V2k1.nsys-rep
+{"streams": 2, "wall": 4.027, "per_stream": [70.12, 65.64], "aggregate": 135.77, "chunks": [256, 256], "overlap_s": 3.636}
+min MemAvailable MB: 22:30:47 48982
+exported 36M
+fleetq: #9296 done (exit 0)

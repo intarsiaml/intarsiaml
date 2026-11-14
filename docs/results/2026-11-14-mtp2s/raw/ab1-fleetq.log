@@ -1,0 +1,5 @@
+fleetq: #9300 running on spark2: scripts/mtp2s/ab.sh
+[22:35:02 +1s] ab start; vLLM: 200; earlyoom: active; Mem:             121          48          29           0          45          73
+[22:35:02 +1s] serve arm A1: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[22:35:52 +51s] serve A1 up; MemAvailable MB: 49407; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 44.0s, context 32768 tokens;
+[22:35:52 +51s] vLLM requests running before A1: 0
