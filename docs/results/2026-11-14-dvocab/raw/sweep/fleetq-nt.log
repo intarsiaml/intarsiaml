@@ -1,0 +1,5 @@
+fleetq: #9322 waiting (#1 in line): needs gpu quiet on spark2, but #9321 "dvocab: draft-vocab sweep T=1.0 ABBA" (claude-2ae67a71) loads it
+fleetq:   #9321 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9321 set, or it will wait for #9321 to be released.
+fleetq: #9322 running on spark2: scripts/dvocab/sweep2.sh
+[02:44:25 +2s] sweep (thinking off) start; vLLM: 200; earlyoom: active; Mem:             121          49          29           0          44          72
+[02:44:25 +2s] serve arm A.a: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
