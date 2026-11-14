@@ -8,12 +8,14 @@
 #   VD   V + --mtp-draft-vocab 65536
 #   VD1  VD at --spec-k 1 (visit names VD1a, VD1b, ...)
 #   X / XD / XV / XVD: any extra arm via the ENV_<arm> / ARGS_<arm> variables
-# STREAMS (default 1,2), GEN (default 384), SET (en|cjk).
+#   O    drafting off (--spec off)
+# STREAMS (default 1,2), GEN (default 384), SET (en|cjk|long), TEMP (default 0), OUT (raw dir).
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 LOGNAME_=${LOGNAME_:-ab}; source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 log "ab start; vLLM: $(curl -s -o /dev/null -w '%{http_code}' http://$HN:$VPORT/v1/models); earlyoom: $(rsh 'systemctl is-active earlyoom'); $(rsh 'free -g | sed -n 2p')"
 DV="--spec mtp --spec-k 2 --mtp-draft-vocab 65536"
+ENV_O="X=1";                                              ARGS_O="--spec off"
 ENV_A="X=1";                                              ARGS_A=""
 ENV_D="X=1";                                              ARGS_D="$DV"
 ENV_V="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1"; ARGS_V=""
@@ -24,7 +26,7 @@ visit() { # visit <name> <arm>
   e="ENV_$arm"; a="ARGS_$arm"
   if start_serve "$name" "${!e}" --max-batch 2 ${!a}; then
     log "vLLM requests running before $name: $(vllm_busy)"
-    ( cd /opt/code/deepeval && uv run python "$S/speed.py" --url "$URL" --model guidance --arm "$name" --streams "${STREAMS:-1,2}" --gen "${GEN:-384}" --temperature 0 --set "${SET:-en}" --out "$OUT" --metrics "http://$HN:$PORT/metrics" ) 2>&1 | tee -a "$LOG"
+    ( cd /opt/code/deepeval && uv run python "$S/speed.py" --url "$URL" --model guidance --arm "$name" --streams "${STREAMS:-1,2}" --gen "${GEN:-384}" --temperature "${TEMP:-0}" --set "${SET:-en}" --out "$OUT" --metrics "http://$HN:$PORT/metrics" ) 2>&1 | tee -a "$LOG"
     log "vLLM requests running after $name: $(vllm_busy)"
     finish_serve "$name"
   fi

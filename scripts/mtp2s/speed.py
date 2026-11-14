@@ -87,11 +87,16 @@ def main():
     ap.add_argument("--temperature", type=float, default=1.0)
     ap.add_argument("--metrics", default="")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--set", default="en", choices=["en", "cjk"])
+    ap.add_argument("--set", default="en", choices=["en", "cjk", "long"])
     a = ap.parse_args()
     global PROMPTS
     if a.set == "cjk":
         PROMPTS = CJK
+    elif a.set == "long":
+        # lane mtp2s: ~3k-token prompts (a piece of this repo's own docs, read at run time) and a question about it
+        repo = pathlib.Path(__file__).resolve().parents[2]
+        docs = ["docs/ARCHITECTURE.md", "docs/adding-a-model.md", "docs/quant-moe.md", "docs/benchmarking.md"]
+        PROMPTS = [f"Read this document and then explain its main ideas in your own words, section by section.\n\n{(repo / d).read_text()[:12000]}" for d in docs]
     probe = Target(name=a.arm, url=a.url, model=a.model)
     info = model_info(probe)
     if not info.get("reachable"):
