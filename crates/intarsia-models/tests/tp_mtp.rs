@@ -607,13 +607,20 @@ fn single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_n
         prefix_store: intarsia_core::prefix_store::PrefixStoreConfig::parse("on").unwrap(),
         ..Default::default()
     };
-    assert_eq!(mtp_default(&stored, &with, "cuda", 1, true), None, "--prefix-store on: no default at cuda tp 1");
+    // lane mtp-store: on CUDA a drafting request uses the store (`INTARSIA_MTP_STORE` unset), so the store does not skip the default
+    assert_eq!(mtp_default(&stored, &with, "cuda", 1, true), Some(2), "--prefix-store on: the default stays at cuda tp 1");
     let lone_stored = intarsia_models::EngineOptions { spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3, k_min: None }, ..stored.clone() };
-    assert_eq!(mtp_default(&lone_stored, &with, "cuda", 1, true), None, "a lone --spec-k does not bring it back");
+    assert_eq!(mtp_default(&lone_stored, &with, "cuda", 1, true), Some(3), "a lone --spec-k sets its k with a store too");
     std::env::set_var("INTARSIA_PREFIX_STORE", "on");
     let env_store = mtp_default(&auto, &with, "cuda", 1, true);
+    let with_metal = intarsia_models::parse_recipe(&format!("{base}\n[tuning.metal]\nmtp_default_k = 2\n")).unwrap();
+    let env_store_metal = mtp_default(&auto, &with_metal, "metal", 1, true);
     std::env::remove_var("INTARSIA_PREFIX_STORE");
-    assert_eq!(env_store, None, "INTARSIA_PREFIX_STORE=on: no default");
+    assert_eq!(env_store, Some(2), "INTARSIA_PREFIX_STORE=on: the default stays on CUDA");
+    // elsewhere a drafting request still bypasses the store, so a store still skips the default
+    assert_eq!(mtp_default(&auto, &with_metal, "metal", 1, true), Some(2), "metal, no store: the default");
+    assert_eq!(mtp_default(&stored, &with_metal, "metal", 1, true), None, "--prefix-store on: no default on metal");
+    assert_eq!(env_store_metal, None, "INTARSIA_PREFIX_STORE=on: no default on metal");
     assert_eq!(mtp_default(&auto, &with, "cuda", 1, true), Some(2), "and back on once it is unset");
     single_rank_loader_default_matches_off();
     std::env::set_var("INTARSIA_SPEC_DEFAULT", "0");

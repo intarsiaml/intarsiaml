@@ -400,6 +400,10 @@ impl BatchModel for SlotModel {
         // the hook (and its sender) is dropped when the chunk's pass ends, however it ends
         self.inflight.as_ref().and_then(|f| f.park.as_ref()).is_some_and(|(rx, _)| rx.recv().is_ok())
     }
+    fn park_sync(&mut self) {
+        // the parked pass waits in its hook: nothing else enqueues on the stream meanwhile. A failed sync shows at the next pass
+        let _ = self.model.park_sync();
+    }
     fn prefill_resume(&mut self, abort: bool) {
         if let Some((_, go)) = self.inflight.as_ref().and_then(|f| f.park.as_ref()) {
             let _ = go.send(abort);
@@ -709,6 +713,12 @@ impl BatchSeq<SlotModel> for SeqAdapter {
                 p = 0;
             }
         }
+        if p > 0 && st.mtp.as_ref().is_some_and(|h| !h.synced) {
+            // lane mtp-store (`Seq::new` of the single-sequence engine): no pass of the slot's MTP head covers the rows the store
+            // wrote, so its context starts over at the resume point. Drafts only propose: no token changes
+            st.truncate(p, &*m.backend)?;
+            st.mtp_restart(&*m.backend)?;
+        }
         if let Some(ps) = seq.ps.as_mut() {
             ps.last_insert = p;
         }
@@ -910,7 +920,8 @@ pub struct BatchedEngine {
     recurrent: bool,
     /// Lane mtp-sampled: sampled requests draft too ([`BatchedOptions::mtp_sampled`] under `--spec mtp`).
     mtp_sampled: bool,
-    /// The prefix store (`EngineMeta::prefix_store`), plain decode only (`BatchedEngine::new` refuses speculation).
+    /// The prefix store (`EngineMeta::prefix_store`); with `--spec mtp` a restore restarts the slot's MTP head context
+    /// (`SeqAdapter::restore`, lane mtp-store). Any other speculation is refused with it (`BatchedEngine::new`).
     store: Option<StorePolicy>,
     /// The model's prefill chunk: the store schedule's chunk.
     solo_chunk: usize,
@@ -941,15 +952,18 @@ impl BatchedEngine {
                 opts.max_batch
             )));
         }
-        if meta.prefix_store.is_some() && meta.spec.enabled() {
-            // slice 1 of the store here is plain decode: batched MTP turns slot reuse off (a drafting request would get no reuse at
-            // all), and a restore into a slot holding a drafter's cache is not synced the way `Seq::new` syncs it
+        let mtp = meta.spec.mode == crate::spec::SpecMode::Mtp;
+        let mtp_store = mtp && meta.mtp_store.unwrap_or_else(|| crate::spec::mtp_store_for(model.backend.name()));
+        if meta.prefix_store.is_some() && meta.spec.enabled() && !mtp_store {
+            // the store restores the main model's state only. `--spec mtp` runs with it (lane mtp-store): batched MTP keeps slot
+            // reuse off, so a request resumes from the store alone, and its admission restarts the head's context there
+            // (`SeqAdapter::restore`). Off with `INTARSIA_MTP_STORE=0`; no other drafter is restarted that way
             return Err(Error::Unsupported(format!(
-                "the prefix store with --max-batch > 1 and speculative decoding ({:?}; --spec off, or use --max-batch 1)",
-                meta.spec.mode
+                "the prefix store with --max-batch > 1 and speculative decoding ({:?}; --spec off, or use --max-batch 1{})",
+                meta.spec.mode,
+                if mtp { "; or INTARSIA_MTP_STORE=1: off here by INTARSIA_MTP_STORE=0 or the backend's default" } else { "" }
             )));
         }
-        let mtp = meta.spec.mode == crate::spec::SpecMode::Mtp;
         if mtp && opts.mtp_max_b == 0 {
             return Err(Error::Unsupported(
                 "--spec mtp with the batching engine (use --max-batch 1, or opt in with INTARSIA_BATCHED_MTP=N)".into(),
@@ -1015,7 +1029,8 @@ impl BatchedEngine {
             // lane bm: the per-step choice. A sequence drafts (its own draft and verify pass on its slot, `Seq::prepare`) only while
             // at most `mtp_max_b` sequences decode; a wider step is plain batched decode, which only queues the heads' rows
             cfg.spec_off_at = cfg.spec_off_at.min(opts.mtp_max_b + 1);
-            // a reused prefix would need the head's cache to cover it: every request starts its slot empty (which also syncs the head)
+            // a reused prefix would need the head's cache to cover it: every request starts its slot empty (which also syncs the head),
+            // or, with the prefix store, from what its admission restores (the head's context then restarts there, lane mtp-store)
             cfg.prefix_reuse = false;
         }
         if recurrent && model.batch_snapshots() == 0 {
@@ -1027,6 +1042,9 @@ impl BatchedEngine {
         let verify_rows = model.verify_rows();
         if let Some(s) = &store {
             s.announce(&telemetry);
+            if mtp {
+                super::announce_mtp_store(true);
+            }
         }
         let env = SeqEnv { codec, telemetry, eos: meta.eos_ids, spec: meta.spec };
         let twin = if opts.overlap {
@@ -1087,8 +1105,8 @@ impl BatchedEngine {
     }
 }
 
-/// The prefix store with the batching engine, slice 1 (docs/tuning.md, `--prefix-store`): plain decode only. Speculative
-/// decoding is refused, and so are the opt-ins that change how a prompt is chunked or where its chunk runs (`INTARSIA_OVERLAP=1`,
+/// The prefix store with the batching engine (docs/tuning.md, `--prefix-store`): plain decode, or `--spec mtp` (lane mtp-store,
+/// [`BatchedEngine::new`]). Refused are the opt-ins that change how a prompt is chunked or where its chunk runs (`INTARSIA_OVERLAP=1`,
 /// `INTARSIA_PACK_PREFILL=1`, `INTARSIA_PREFILL_MACRO` > 0; tensor parallelism is refused by `StorePolicy::new`); a recipe's macro
 /// prefill default is turned off here, the backend's packed-prefill default in [`BatchedEngine::new`].
 fn store_combinations(model: &mut Model, opts: &BatchedOptions) -> Result<()> {
@@ -1156,7 +1174,7 @@ impl Engine for BatchedEngine {
             seq.enable_keyed(self.env.spec.mode, self.verify_rows);
         }
         if let Some(pol) = &self.store {
-            // plain decode only: no request drafts with the store on (`BatchedEngine::new` refuses speculation)
+            // every request runs the store's schedule, drafting or not (`--spec mtp`, lane mtp-store)
             seq.ps = Some(SeqStore::new(pol.clone(), &seq.req.prompt, self.recurrent, self.solo_chunk));
         }
         let adapter = SeqAdapter {

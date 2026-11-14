@@ -145,6 +145,8 @@ pub struct RecurrentSnapshot {
 }
 
 struct MtpSnap {
+    /// [`MtpState::base`] when the snapshot was taken: a snapshot of another head context is not restored.
+    base: usize,
     kv_len: usize,
     rows: usize,
     buf: Option<Buffer>,
@@ -152,11 +154,20 @@ struct MtpSnap {
 
 /// State of the MTP drafter (`--spec mtp`, `crate::model::mtp`) beside a sequence. The MTP layer's position `p` reads
 /// the main model's final normed hidden state of position `p` and the token of position `p + 1` (vLLM's convention), so
-/// it trails the main model: `kv.len` positions are in its KV cache, the hidden rows of positions `kv.len .. st.len` wait
-/// in `pending` until the token after them is known. `kv.len + pending_rows == st.len` between passes.
+/// it trails the main model: `kv.len` positions are in its KV cache, the hidden rows of the positions after them wait
+/// in `pending` until the token after them is known. `base + kv.len + pending_rows == st.len` between passes.
+///
+/// The head's context need not start at position 0 (lane mtp-store): after the prefix store restored the main model's
+/// state for `tokens[..L]` (no pass of this state computed their hidden rows) the head's context restarts at `base = L`:
+/// its cache row `i` then holds position `base + i`, at rope position `i` (rope is relative, so the attention over the
+/// rows it holds is the one absolute positions give), and it attends to positions `base..` only. Drafts only propose,
+/// so a shorter context moves the acceptance rate, never a token.
 pub struct MtpState {
-    /// The MTP layer's attention cache (one `AttnKv` slot); `kv.len` = positions it has processed.
+    /// The MTP layer's attention cache (one `AttnKv` slot); `kv.len` = positions it has processed, from `base` on.
     pub kv: SequenceState,
+    /// Position of the head's cache row 0: 0 for a sequence the head followed from its start, the restored length after
+    /// a prefix-store restore ([`SequenceState::mtp_restart`]).
+    pub base: usize,
     /// `[cap_rows, hidden]` (activation dtype): pending main-model hidden rows, oldest first.
     pub pending: Buffer,
     pub pending_rows: usize,
@@ -166,10 +177,26 @@ pub struct MtpState {
     /// The current request drafts (`Seq::spec_on`): only then does each pass queue rows and run the head. A request
     /// that never drafts (sampled, constrained, traced) skips the head entirely and leaves the state unsynced.
     pub active: bool,
-    /// `kv.len + pending_rows == st.len` with valid pending rows. False once a pass ran without the head (inactive) or
-    /// a head pass failed; only an empty sequence (`truncate(0)`) syncs it again, so a drafting request on an unsynced
-    /// state starts from an empty cache (`Seq::new`).
+    /// `base + kv.len + pending_rows == st.len` with valid pending rows. False once a pass ran without the head (inactive),
+    /// a head pass failed or the prefix store overwrote the sequence; an empty sequence (`truncate(0)`) syncs it again, and so
+    /// does a restart of the head's context at the current length ([`SequenceState::mtp_restart`]).
     pub synced: bool,
+}
+
+impl MtpState {
+    /// The position the head's cache has reached (`base + kv.len`): the position of the first queued row.
+    pub fn pos(&self) -> usize {
+        self.base + self.kv.len
+    }
+
+    /// Start the head's context over at position `len` (empty cache and queue, synced).
+    fn restart(&mut self, len: usize, backend: &dyn Backend) -> Result<()> {
+        self.kv.truncate(0, backend)?;
+        self.base = len;
+        self.pending_rows = 0;
+        self.synced = true;
+        Ok(())
+    }
 }
 
 /// Recurrent state after each row of the last speculative verify pass (`Model::forward_verify` on a model with
@@ -486,7 +513,7 @@ impl SequenceState {
                 } else {
                     None
                 };
-                Some(MtpSnap { kv_len: m.kv.len, rows: m.pending_rows, buf })
+                Some(MtpSnap { base: m.base, kv_len: m.kv.len, rows: m.pending_rows, buf })
             }
             None => None,
         };
@@ -605,10 +632,10 @@ impl SequenceState {
         self.clip_passes(keep);
         self.tokens.truncate(keep);
         if let Some(m) = &mut self.mtp {
-            if m.kv.len > keep {
-                m.kv.truncate(keep, backend)?;
+            if m.pos() > keep {
+                m.kv.truncate(keep.saturating_sub(m.base), backend)?;
             }
-            m.pending_rows = keep - m.kv.len;
+            m.pending_rows = keep.saturating_sub(m.pos());
         }
         if let Some(d) = &mut self.dflash {
             d.cut(keep, backend)?;
@@ -757,12 +784,11 @@ impl SequenceState {
             let snap = self.snapshots.iter().find(|s| s.len == len).and_then(|s| s.mtp.as_ref());
             if let Some(m) = &mut self.mtp {
                 if len == 0 {
-                    m.kv.truncate(0, backend)?;
-                    m.pending_rows = 0;
-                    m.synced = true;
+                    m.restart(0, backend)?;
                 } else if !m.synced {
-                    // nothing to keep consistent: the next drafting request starts from an empty sequence
-                } else if let Some(ms) = snap.filter(|ms| ms.kv_len + ms.rows == len && ms.rows <= m.cap_rows) {
+                    // nothing to keep consistent: the next drafting request starts from an empty sequence, or restarts
+                    // the head's context where it resumes (`SequenceState::mtp_restart`)
+                } else if let Some(ms) = snap.filter(|ms| ms.base == m.base && ms.base + ms.kv_len + ms.rows == len && ms.rows <= m.cap_rows) {
                     m.kv.truncate(ms.kv_len.min(m.kv.len), backend)?;
                     if m.kv.len != ms.kv_len {
                         return Err(Error::invalid("MTP snapshot ahead of the MTP cache"));
@@ -771,14 +797,17 @@ impl SequenceState {
                         backend.copy(&m.pending, 0, b, 0, ms.rows * m.row_bytes, 0)?;
                     }
                     m.pending_rows = ms.rows;
-                } else if len >= m.kv.len {
-                    m.pending_rows = len - m.kv.len;
-                } else {
+                } else if len >= m.pos() {
+                    m.pending_rows = len - m.pos();
+                } else if len > m.base {
                     // the hidden row of position len - 1 is gone: the drafter reads a zero row there once (drafts only,
                     // never the output)
-                    m.kv.truncate(len - 1, backend)?;
+                    m.kv.truncate(len - 1 - m.base, backend)?;
                     backend.zero(&m.pending, 0)?;
                     m.pending_rows = 1;
+                } else {
+                    // the cut is at or before the start of the head's context: it starts over at the cut
+                    m.restart(len, backend)?;
                 }
             }
         }
@@ -836,6 +865,22 @@ impl SequenceState {
         }
         if let Some(d) = &mut self.dflash {
             d.synced = false;
+        }
+    }
+
+    /// Restart the MTP head's context at the current length (lane mtp-store): after the prefix store restored this state
+    /// ([`SequenceState::load_prefix`]), or a pass ran without the head, its cache does not cover the sequence. The head
+    /// then follows the sequence from here on and attends to these positions only ([`MtpState::base`]); drafts only
+    /// propose, so no token changes. Nothing without the head.
+    pub fn mtp_restart(&mut self, backend: &dyn Backend) -> Result<()> {
+        let len = self.len;
+        // the snapshots' queued rows belong to the context that ends here
+        for s in self.snapshots.iter_mut() {
+            s.mtp = None;
+        }
+        match &mut self.mtp {
+            Some(m) => m.restart(len, backend),
+            None => Ok(()),
         }
     }
 
