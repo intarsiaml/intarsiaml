@@ -59,3 +59,11 @@ for label, d, pre, mf in RUNS:
     g50 = n - m.get('intarsia_batch_itl_seconds_bucket{le="0.5"}', n)
     print(f"| {label} | {len(fs)} | {len(allr)} | {len(allr)-len(ok)} | {statistics.mean(sums):.1f} ({min(sums):.1f}-{max(sums):.1f}) | {statistics.median(tt):.2f} / {q(tt,.9):.2f} / {q(tt,.99):.2f} | "
           f"{statistics.mean(dc):.1f} / {statistics.median(dc):.1f} | {statistics.median(p99):.0f} / {max(p99):.0f} | {statistics.mean(aggs):.1f} | {ct/pt:.3f} | {statistics.mean(walls):.0f} | {g25:.0f} / {g50:.0f} of {n:.0f} |")
+# vLLM reference rows (numbers copied from docs/results/2026-11-13-cutover-soak.md, window A, spark2, vLLM up and quiet, one replay each;
+# K is NOT 2 for the first two, so TTFT columns are not comparable to the K=2 soaks above, only the aggregate throughput is)
+for label, row in (
+    ("vLLM K=3 (production `--max-num-seqs 2`, queueing), cutover soak, spark2, 2026-11-13 (K differs)", "| 1 | 48 | 0 | 162.1 | 2.61 / 5.22 / n/a | n/a / 40.9 | n/a | 58.0 | 0.696 | 127 | n/a |"),
+    ("vLLM K=4, same (K differs)", "| 1 | 48 | 0 | 302.6 | 6.28 / 7.18 / n/a | n/a / 39.7 | n/a | 60.2 | 0.695 | 126 | n/a |"),
+    ("vLLM K=2, ab35b doc as quoted in the cutover soak brief (one replay)", "| 1 | 48 | 0 | 77.8 | n/a | 39.8 / n/a | n/a | n/a | n/a | n/a | n/a |"),
+):
+    print(f"| {label} {row}")
