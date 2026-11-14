@@ -5,6 +5,7 @@
 #   B  (unset)                the lane's default on CUDA: the MTP default applies (k 2, batched MTP N = 1), restored requests draft
 #   C  INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1   as B, drafting while both streams decode (optional, ARMS)
 #   D  no --prefix-store, the recipe's MTP default; E  no --prefix-store, --spec off (is the ITL p99 rise there without a store?)
+#   F, G  as D, E on the origin/main binary (bin/intarsia-main, built with BINNAME=intarsia-main SHA=<main> build.sh)
 # Each run replays the multi-turn trace of lane interleave (scripts/interleave/replay2.py: 8 conversations x 6 turns, temperature 0,
 # thinking off, 160 tokens) at K streams. ARMS: space-separated <arm>:<K>[:tag] in run order (default: A:2 B:2 B:2:r A:2:r A:1 B:1).
 #   fleetq run --host spark1 --quiet gpu --mem 55 --expect 45 --label "mtp-store: A/B" -- bash scripts/mtp-store/window.sh
@@ -15,7 +16,7 @@ OUT=$REPO/docs/results/2026-11-13-mtp-store/raw; mkdir -p "$OUT"
 IL=$REPO/scripts/interleave; ILRAW=$REPO/docs/results/2026-11-13-interleave/raw
 HOST=spark1; HN=spark-4e77; PORT=8191; VPORT=8000
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
-BIN='~/intarsia-mtp-store/bin/intarsia'; W='~/intarsia-mtp-store/out'; MS=131072; MB=${MB:-40}
+BIN='~/intarsia-mtp-store/bin/intarsia'; BIN_MAIN='~/intarsia-mtp-store/bin/intarsia-main'; W='~/intarsia-mtp-store/out'; MS=131072; MB=${MB:-40}
 ARMS=${ARMS:-"A:2 B:2 B:2:r A:2:r A:1 B:1"}
 URL=http://$HN:$PORT/v1
 SPID=""; WPID=""; T0=$(date +%s)
@@ -24,7 +25,7 @@ log() { echo "[$(date +%T) +$(( $(date +%s)-T0 ))s] $*" | tee -a "$OUT/window.lo
 vcount() { curl -s --max-time 5 "http://$HN:$VPORT/metrics" | awk '/^vllm:request_success_total/ {s+=$2} /^vllm:generation_tokens_total/ {g=$2} END {printf "success=%d gen_tokens=%d", s, g}'; }
 stop_server() {
   [[ -n "$WPID" ]] && { rsh "kill $WPID 2>/dev/null"; WPID=""; }
-  [[ -n "$SPID" ]] && { rsh "pkill -TERM -P $SPID 2>/dev/null; kill $SPID 2>/dev/null; for i in \$(seq 1 25); do pgrep -f 'intarsia-mtp-store/bin/intarsia serve' >/dev/null || exit 0; sleep 1; done; pkill -9 -f 'intarsia-mtp-store/bin/intarsia serve'; sleep 3"; SPID=""; }
+  [[ -n "$SPID" ]] && { rsh "pkill -TERM -P $SPID 2>/dev/null; kill $SPID 2>/dev/null; for i in \$(seq 1 25); do pgrep -f 'intarsia-mtp-store/bin/intarsia[-a-z]* serve' >/dev/null || exit 0; sleep 1; done; pkill -9 -f 'intarsia-mtp-store/bin/intarsia[-a-z]* serve'; sleep 3"; SPID=""; }
 }
 trap 'stop_server; log "window end"' EXIT; trap 'exit 130' INT TERM
 start_serve() { # start_serve <name> <env-assignments or -> <serve args...>
@@ -45,13 +46,15 @@ finish_serve() { # finish_serve <name>
   stop_server
 }
 run_arm() { # run_arm <arm> <K> [tag]
-  local arm=$1 k=$2 tag=${3:-} envs args="--max-batch 2 --prefix-store on"
+  local arm=$1 k=$2 tag=${3:-} envs args="--max-batch 2 --prefix-store on" BIN=$BIN
   case $arm in
     A) envs="INTARSIA_MTP_STORE=0";;
     B) envs="-";;
     C) envs="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1";;
     D) envs="-"; args="--max-batch 2";;              # store off, the recipe's MTP default (main's shipped shape without a store)
     E) envs="-"; args="--max-batch 2 --spec off";;   # store off, no MTP
+    F) envs="-"; args="--max-batch 2"; BIN=$BIN_MAIN;;             # as D on the origin/main binary (bin/intarsia-main)
+    G) envs="-"; args="--max-batch 2 --spec off"; BIN=$BIN_MAIN;;  # as E on the origin/main binary
     *) log "unknown arm $arm"; return 1;;
   esac
   local name="$arm-k$k${tag:+-$tag}"
