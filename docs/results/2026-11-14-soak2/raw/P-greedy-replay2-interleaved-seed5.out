@@ -1,0 +1,23 @@
+[replay2] arm=P-greedy order=interleaved seed=5 streams=1 plan={'per_sentence': 22.06, 'base_tokens': 52, 'sentences': [357, 218, 218, 218, 218, 218]} trace=RECORD
+[replay2] warmup ok=True prompt=6701
+[replay2] w0 c0 t1 prompt=8031 cached=0 ttft=1.5s decode=99.8 out=160 
+[replay2] w0 c1 t1 prompt=8057 cached=44 ttft=1.43s decode=114.8 out=160 
+[replay2] w0 c0 t2 prompt=13053 cached=8027 ttft=1.12s decode=95.0 out=160 
+[replay2] w0 c1 t2 prompt=13078 cached=8053 ttft=1.09s decode=102.8 out=157 
+[replay2] w0 c0 t3 prompt=18062 cached=13049 ttft=1.18s decode=106.3 out=160 
+[replay2] w0 c1 t3 prompt=18084 cached=13074 ttft=1.13s decode=99.5 out=160 
+[replay2] w0 c0 t4 prompt=23084 cached=18058 ttft=1.26s decode=98.5 out=160 
+[replay2] w0 c1 t4 prompt=23114 cached=18080 ttft=1.19s decode=99.1 out=156 
+[replay2] w0 c0 t5 prompt=28105 cached=23080 ttft=1.33s decode=104.4 out=160 
+[replay2] w0 c1 t5 prompt=28117 cached=23110 ttft=1.33s decode=106.7 out=150 
+[replay2] w0 c0 t6 prompt=33124 cached=28101 ttft=1.4s decode=97.6 out=160 
+[replay2] w0 c1 t6 prompt=33139 cached=28113 ttft=1.39s decode=103.3 out=159 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8044 | 22 (0.003) | 1.465 (1.428-1.502) | 107.3 (99.8-114.8) |
+| 2 | 13066 | 8040 (0.615) | 1.108 (1.095-1.121) | 98.9 (95.0-102.8) |
+| 3 | 18073 | 13062 (0.723) | 1.154 (1.129-1.179) | 102.9 (99.5-106.3) |
+| 4 | 23099 | 18069 (0.782) | 1.223 (1.186-1.26) | 98.8 (98.5-99.1) |
+| 5 | 28111 | 23095 (0.822) | 1.33 (1.328-1.331) | 105.6 (104.4-106.7) |
+| 6 | 33132 | 28107 (0.848) | 1.396 (1.391-1.401) | 100.4 (97.6-103.3) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.03, 'itl_ms_p99_median': 92.65, 'itl_ms_p99_max': 423.52, 'itl_cv_median': 1.712}
+[replay2] totals {'requests': 12, 'errors': 0, 'prompt_tokens': 247048, 'cached_tokens': 180789, 'ttft_s_sum': 15.35, 'decode_tok_s_median': 101.3, 'completion_tokens': 1902, 'agg_output_tok_s': 55.75} wall 34.1s
