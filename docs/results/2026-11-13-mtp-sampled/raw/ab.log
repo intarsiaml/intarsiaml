@@ -1,0 +1,106 @@
+[20:05:56 +1s] ab start; vLLM: 200; earlyoom: active; Mem:             121          39          32           0          51          82
+[20:05:56 +1s] serve arm mb2-A1: env [INTARSIA_BATCHED_MTP_SAMPLED=0] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[20:06:46 +51s] serve mb2-A1 up; MemAvailable MB: 58910; batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) take plain steps (INTARSIA_BATCHED_MTP_SAMPLED=0);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 47.8s, context 32768 tokens;
+[20:06:46 +51s] vLLM requests running before mb2-A1: 0
+[speed] mb2-A1 streams 1: per stream 84.44 tok/s (84.12-84.79), combined 84.44, ITL p99 111.35 ms, chunk gap p99 80.53 ms (max 258.76), MTP passes 0 accept None tokens/pass None
+[speed] mb2-A1 streams 2: per stream 68.97 tok/s (68.34-69.92), combined 138.15, ITL p99 151.06 ms, chunk gap p99 86.3 ms (max 124.73), MTP passes 0 accept None tokens/pass None
+[20:07:51 +116s] vLLM requests running after mb2-A1: 0
+[20:07:52 +117s] min MemAvailable MB (time MB; KILLED count) (mb2-A1): 20:06:47 58092 0 
+[20:08:18 +143s] serve arm mb2-B1: env [INTARSIA_BATCHED_MTP_SAMPLED=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[20:09:04 +189s] serve mb2-B1 up; MemAvailable MB: 58945; batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 42.3s, context 32768 tokens;
+[20:09:04 +189s] vLLM requests running before mb2-B1: 0
+[speed] mb2-B1 streams 1: per stream 109.29 tok/s (100.9-115.81), combined 109.29, ITL p99 101.43 ms, chunk gap p99 83.76 ms (max 104.03), MTP passes 1237 accept 0.737 tokens/pass 2.473
+[speed] mb2-B1 streams 2: per stream 68.03 tok/s (67.34-68.74), combined 135.92, ITL p99 157.25 ms, chunk gap p99 86.83 ms (max 126.02), MTP passes 4 accept 1.0 tokens/pass 3.0
+[20:10:01 +246s] vLLM requests running after mb2-B1: 0
+[20:10:02 +247s] min MemAvailable MB (time MB; KILLED count) (mb2-B1): 20:09:06 58142 0 
+[20:10:28 +273s] serve arm mb2-B2: env [INTARSIA_BATCHED_MTP_SAMPLED=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[20:11:15 +320s] serve mb2-B2 up; MemAvailable MB: 58935; batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 44.6s, context 32768 tokens;
+[20:11:15 +320s] vLLM requests running before mb2-B2: 0
+[speed] mb2-B2 streams 1: per stream 109.53 tok/s (101.06-114.96), combined 109.53, ITL p99 146.55 ms, chunk gap p99 90.07 ms (max 114.31), MTP passes 1237 accept 0.737 tokens/pass 2.473
+[speed] mb2-B2 streams 2: per stream 68.56 tok/s (67.79-69.74), combined 137.52, ITL p99 102.84 ms, chunk gap p99 83.69 ms (max 127.84), MTP passes 4 accept 1.0 tokens/pass 3.0
+[20:12:12 +377s] vLLM requests running after mb2-B2: 0
+[20:12:13 +378s] min MemAvailable MB (time MB; KILLED count) (mb2-B2): 20:11:17 58121 0 
+[20:12:39 +404s] serve arm mb2-A2: env [INTARSIA_BATCHED_MTP_SAMPLED=0] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[20:13:24 +449s] serve mb2-A2 up; MemAvailable MB: 58851; batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) take plain steps (INTARSIA_BATCHED_MTP_SAMPLED=0);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 42.9s, context 32768 tokens;
+[20:13:24 +449s] vLLM requests running before mb2-A2: 0
+[speed] mb2-A2 streams 1: per stream 83.81 tok/s (82.75-84.08), combined 83.81, ITL p99 101.26 ms, chunk gap p99 80.49 ms (max 123.2), MTP passes 0 accept None tokens/pass None
+[speed] mb2-A2 streams 2: per stream 67.92 tok/s (67.26-68.67), combined 135.9, ITL p99 139.34 ms, chunk gap p99 85.86 ms (max 118.71), MTP passes 0 accept None tokens/pass None
+[20:14:30 +515s] vLLM requests running after mb2-A2: 0
+[20:14:31 +516s] min MemAvailable MB (time MB; KILLED count) (mb2-A2): 20:13:26 58050 0 
+[20:14:57 +542s] serve arm mb4-A1: env [INTARSIA_BATCHED_MTP_SAMPLED=0] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 4
+[20:15:45 +590s] serve mb4-A1 up; MemAvailable MB: 57140; batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) take plain steps (INTARSIA_BATCHED_MTP_SAMPLED=0);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 46.2s, context 32768 tokens;
+[20:15:45 +590s] vLLM requests running before mb4-A1: 0
+[speed] mb4-A1 streams 1: per stream 84.77 tok/s (83.48-85.52), combined 84.77, ITL p99 97.0 ms, chunk gap p99 78.93 ms (max 123.38), MTP passes 0 accept None tokens/pass None
+[speed] mb4-A1 streams 2: per stream 68.8 tok/s (68.17-69.44), combined 137.73, ITL p99 156.31 ms, chunk gap p99 86.16 ms (max 114.95), MTP passes 0 accept None tokens/pass None
+[speed] mb4-A1 streams 4: per stream 49.62 tok/s (48.97-50.55), combined 198.8, ITL p99 169.61 ms, chunk gap p99 94.96 ms (max 182.22), MTP passes 0 accept None tokens/pass None
+[20:17:06 +671s] vLLM requests running after mb4-A1: 0
+[20:17:07 +672s] min MemAvailable MB (time MB; KILLED count) (mb4-A1): 20:15:47 56319 0 
+[20:17:33 +698s] serve arm mb4-B1: env [INTARSIA_BATCHED_MTP_SAMPLED=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 4
+[20:18:22 +747s] serve mb4-B1 up; MemAvailable MB: 57183; batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 44.5s, context 32768 tokens;
+[20:18:22 +747s] vLLM requests running before mb4-B1: 0
+[speed] mb4-B1 streams 1: per stream 108.69 tok/s (102.52-116.05), combined 108.69, ITL p99 149.26 ms, chunk gap p99 90.99 ms (max 282.94), MTP passes 1237 accept 0.737 tokens/pass 2.473
+[speed] mb4-B1 streams 2: per stream 68.14 tok/s (67.59-68.77), combined 136.33, ITL p99 155.06 ms, chunk gap p99 86.62 ms (max 236.82), MTP passes 4 accept 1.0 tokens/pass 3.0
+[speed] mb4-B1 streams 4: per stream 49.76 tok/s (49.11-50.44), combined 199.08, ITL p99 186.58 ms, chunk gap p99 101.94 ms (max 208.17), MTP passes 2 accept 1.0 tokens/pass 3.0
+[20:19:34 +819s] vLLM requests running after mb4-B1: 0
+[20:19:35 +820s] min MemAvailable MB (time MB; KILLED count) (mb4-B1): 20:18:22 56380 0 
+[20:20:01 +846s] serve arm mb4-B2: env [INTARSIA_BATCHED_MTP_SAMPLED=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 4
+[20:20:55 +900s] serve mb4-B2 up; MemAvailable MB: 57062; batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 52.4s, context 32768 tokens;
+[20:20:55 +900s] vLLM requests running before mb4-B2: 0
+[speed] mb4-B2 streams 1: per stream 107.08 tok/s (98.74-115.64), combined 107.08, ITL p99 107.55 ms, chunk gap p99 86.13 ms (max 114.64), MTP passes 1237 accept 0.737 tokens/pass 2.473
+[speed] mb4-B2 streams 2: per stream 67.4 tok/s (65.94-68.39), combined 134.61, ITL p99 121.95 ms, chunk gap p99 82.73 ms (max 114.29), MTP passes 4 accept 1.0 tokens/pass 3.0
+[speed] mb4-B2 streams 4: per stream 48.74 tok/s (48.07-49.31), combined 194.94, ITL p99 155.13 ms, chunk gap p99 88.6 ms (max 131.52), MTP passes 2 accept 1.0 tokens/pass 3.0
+[20:22:09 +974s] vLLM requests running after mb4-B2: 0
+[20:22:10 +975s] min MemAvailable MB (time MB; KILLED count) (mb4-B2): 20:20:56 56297 0 
+[20:22:36 +1001s] serve arm mb4-A2: env [INTARSIA_BATCHED_MTP_SAMPLED=0] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 4
+[20:23:24 +1049s] serve mb4-A2 up; MemAvailable MB: 57179; batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) take plain steps (INTARSIA_BATCHED_MTP_SAMPLED=0);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 44.9s, context 32768 tokens;
+[20:23:24 +1049s] vLLM requests running before mb4-A2: 0
+[speed] mb4-A2 streams 1: per stream 84.99 tok/s (83.67-85.58), combined 84.99, ITL p99 92.45 ms, chunk gap p99 80.1 ms (max 110.86), MTP passes 0 accept None tokens/pass None
+[speed] mb4-A2 streams 2: per stream 69.1 tok/s (68.42-69.57), combined 138.13, ITL p99 106.76 ms, chunk gap p99 82.55 ms (max 112.8), MTP passes 0 accept None tokens/pass None
+[speed] mb4-A2 streams 4: per stream 49.82 tok/s (49.08-50.76), combined 199.44, ITL p99 164.35 ms, chunk gap p99 92.03 ms (max 152.97), MTP passes 0 accept None tokens/pass None
+[20:24:45 +1130s] vLLM requests running after mb4-A2: 0
+[20:24:46 +1131s] min MemAvailable MB (time MB; KILLED count) (mb4-A2): 20:23:26 56372 0 
+[20:25:12 +1157s] serve arm mb2-N2: env [INTARSIA_BATCHED_MTP=2] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[20:25:57 +1202s] serve mb2-N2 up; MemAvailable MB: 58920; batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 42.4s, context 32768 tokens;
+[20:25:57 +1202s] vLLM requests running before mb2-N2: 0
+[speed] mb2-N2 streams 2: per stream 66.75 tok/s (65.85-67.95), combined 133.89, ITL p99 145.33 ms, chunk gap p99 84.94 ms (max 108.27), MTP passes 88 accept 0.938 tokens/pass 2.875
+[20:26:25 +1230s] vLLM requests running after mb2-N2: 0
+[20:26:26 +1231s] min MemAvailable MB (time MB; KILLED count) (mb2-N2): 20:25:59 58120 0 
+[20:26:52 +1257s] serve arm mb2-V2: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[20:27:40 +1305s] serve mb2-V2 up; MemAvailable MB: 58937; batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 44.7s, context 32768 tokens;
+[20:27:40 +1305s] vLLM requests running before mb2-V2: 0
+[speed] mb2-V2 streams 2: per stream 69.42 tok/s (63.11-71.83), combined 139.01, ITL p99 150.11 ms, chunk gap p99 97.24 ms (max 190.62), MTP passes 1237 accept 0.737 tokens/pass 2.473
+[20:28:08 +1333s] vLLM requests running after mb2-V2: 0
+[20:28:09 +1334s] min MemAvailable MB (time MB; KILLED count) (mb2-V2): 20:27:42 58132 0 
+| visit | streams | decode tok/s per stream, median (min-max) | combined tok/s | ITL p99 ms (localeval) | chunk gap p99 ms (max) | MTP passes | accepted / drafted | tokens per pass |
+|---|---|---|---|---|---|---|---|---|
+| mb2-A1 | 1 | 84.44 (84.12-84.79) | 84.44 | 111.35 | 80.53 (258.76) | 0 | 0 / 0 | None |
+| mb2-A1 | 2 | 68.97 (68.34-69.92) | 138.15 | 151.06 | 86.3 (124.73) | 0 | 0 / 0 | None |
+| mb2-A2 | 1 | 83.81 (82.75-84.08) | 83.81 | 101.26 | 80.49 (123.2) | 0 | 0 / 0 | None |
+| mb2-A2 | 2 | 67.92 (67.26-68.67) | 135.9 | 139.34 | 85.86 (118.71) | 0 | 0 / 0 | None |
+| mb2-B1 | 1 | 109.29 (100.9-115.81) | 109.29 | 101.43 | 83.76 (104.03) | 1237 | 1822 / 2471 (0.737) | 2.473 |
+| mb2-B1 | 2 | 68.03 (67.34-68.74) | 135.92 | 157.25 | 86.83 (126.02) | 4 | 8 / 8 (1.0) | 3.0 |
+| mb2-B2 | 1 | 109.53 (101.06-114.96) | 109.53 | 146.55 | 90.07 (114.31) | 1237 | 1822 / 2471 (0.737) | 2.473 |
+| mb2-B2 | 2 | 68.56 (67.79-69.74) | 137.52 | 102.84 | 83.69 (127.84) | 4 | 8 / 8 (1.0) | 3.0 |
+| mb2-N2 | 2 | 66.75 (65.85-67.95) | 133.89 | 145.33 | 84.94 (108.27) | 88 | 165 / 176 (0.938) | 2.875 |
+| mb2-V2 | 2 | 69.42 (63.11-71.83) | 139.01 | 150.11 | 97.24 (190.62) | 1237 | 1822 / 2471 (0.737) | 2.473 |
+| mb4-A1 | 1 | 84.77 (83.48-85.52) | 84.77 | 97.0 | 78.93 (123.38) | 0 | 0 / 0 | None |
+| mb4-A1 | 2 | 68.8 (68.17-69.44) | 137.73 | 156.31 | 86.16 (114.95) | 0 | 0 / 0 | None |
+| mb4-A1 | 4 | 49.62 (48.97-50.55) | 198.8 | 169.61 | 94.96 (182.22) | 0 | 0 / 0 | None |
+| mb4-A2 | 1 | 84.99 (83.67-85.58) | 84.99 | 92.45 | 80.1 (110.86) | 0 | 0 / 0 | None |
+| mb4-A2 | 2 | 69.1 (68.42-69.57) | 138.13 | 106.76 | 82.55 (112.8) | 0 | 0 / 0 | None |
+| mb4-A2 | 4 | 49.82 (49.08-50.76) | 199.44 | 164.35 | 92.03 (152.97) | 0 | 0 / 0 | None |
+| mb4-B1 | 1 | 108.69 (102.52-116.05) | 108.69 | 149.26 | 90.99 (282.94) | 1237 | 1822 / 2471 (0.737) | 2.473 |
+| mb4-B1 | 2 | 68.14 (67.59-68.77) | 136.33 | 155.06 | 86.62 (236.82) | 4 | 8 / 8 (1.0) | 3.0 |
+| mb4-B1 | 4 | 49.76 (49.11-50.44) | 199.08 | 186.58 | 101.94 (208.17) | 2 | 4 / 4 (1.0) | 3.0 |
+| mb4-B2 | 1 | 107.08 (98.74-115.64) | 107.08 | 107.55 | 86.13 (114.64) | 1237 | 1822 / 2471 (0.737) | 2.473 |
+| mb4-B2 | 2 | 67.4 (65.94-68.39) | 134.61 | 121.95 | 82.73 (114.29) | 4 | 8 / 8 (1.0) | 3.0 |
+| mb4-B2 | 4 | 48.74 (48.07-49.31) | 194.94 | 155.13 | 88.6 (131.52) | 2 | 4 / 4 (1.0) | 3.0 |
+
+| --max-batch | streams | A per stream (two visits) | B per stream (two visits) | B / A per stream | A combined | B combined | B / A combined | replies identical A vs B |
+|---|---|---|---|---|---|---|---|---|
+| 2 | 1 | 84.44 / 83.81 | 109.29 / 109.53 | 1.301 | 84.44 / 83.81 | 109.29 / 109.53 | 1.301 | 8 of 8 |
+| 2 | 2 | 68.97 / 67.92 | 68.03 / 68.56 | 0.998 | 138.15 / 135.9 | 135.92 / 137.52 | 0.998 | 8 of 8 |
+| 4 | 1 | 84.77 / 84.99 | 108.69 / 107.08 | 1.271 | 84.77 / 84.99 | 108.69 / 107.08 | 1.271 | 8 of 8 |
+| 4 | 2 | 68.8 / 69.1 | 68.14 / 67.4 | 0.983 | 137.73 / 138.13 | 136.33 / 134.61 | 0.982 | 8 of 8 |
+| 4 | 4 | 49.62 / 49.82 | 49.76 / 48.74 | 0.991 | 198.8 / 199.44 | 199.08 / 194.94 | 0.989 | 8 of 8 |
+[20:28:35 +1360s] end

@@ -18,7 +18,7 @@ use intarsia_core::rng::SplitMix64;
 use intarsia_core::scheduler::{
     chunk_schedule, chunk_schedule_tm, effective_tail_merge, next_prefill_chunk, next_prefill_chunk_tm, parse_peel,
     parse_peel_period, parse_tail_merge, peel_tail, BatchEngine, BatchModel, BatchSeq, EndKind, Housekeep, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
-    TraceEvent,
+    TraceEvent, Verified, VerifyRows,
 };
 use intarsia_core::{Error, FinishReason, Result};
 
@@ -70,6 +70,19 @@ fn with_pack<R>(rows: usize, f: impl FnOnce() -> R) -> R {
     r
 }
 
+thread_local! {
+    /// `BatchModel::batched_verify` of every `MockModel` created on this test thread (lane bm phase B).
+    static BVERIFY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Run `f` with the mock models' batched-verify flag set to `v`.
+fn with_batched_verify<R>(v: bool, f: impl FnOnce() -> R) -> R {
+    let old = BVERIFY.with(|a| a.replace(v));
+    let r = f();
+    BVERIFY.with(|a| a.set(old));
+    r
+}
+
 /// Run `f` with the mock models' flag set to `v`.
 fn with_avoid<R>(v: bool, f: impl FnOnce() -> R) -> R {
     let old = AVOID.with(|a| a.replace(v));
@@ -116,6 +129,8 @@ struct Rec {
     batch_sizes: Vec<usize>,
     /// Packed passes as the model ran them: the body rows of each chunk (`prefill_pack`).
     packs: Vec<Vec<usize>>,
+    /// Batched verify passes (`verify_step`): per pass, whether each sequence asked for row outputs (a sampled one).
+    verify_passes: Vec<Vec<bool>>,
 }
 
 struct MockModel {
@@ -154,6 +169,8 @@ struct MockModel {
     parks: usize,
     /// `BatchModel::housekeep` calls, by kind.
     housekept: Arc<Mutex<Vec<Housekeep>>>,
+    /// `BatchModel::batched_verify`.
+    batched_verify: bool,
 }
 
 impl MockModel {
@@ -176,6 +193,7 @@ impl MockModel {
             pause: PAUSE.with(|a| a.get()),
             parks: 0,
             housekept: Arc::new(Mutex::new(Vec::new())),
+            batched_verify: BVERIFY.with(|a| a.get()),
             avoid: avoid(),
             overlap: OVERLAP.with(|a| a.get()),
             inflight: None,
@@ -206,6 +224,27 @@ impl MockModel {
         self.kv[slot].push(Entry { tok, writer, h });
         self.toks[slot].push(tok);
         h
+    }
+    /// The output a decode step in head mode `mode` would give after feeding `fed` to `slot`, one token per step (the last
+    /// step's); the slot is left as it was. The mock drafter's oracle.
+    fn peek(&mut self, slot: usize, fed: &[u32], mode: Mode) -> u64 {
+        let len = self.kv[slot].len();
+        let mut h = 0;
+        for &t in fed {
+            h = self.push(slot, t, Writer::Decode);
+        }
+        self.kv[slot].truncate(len);
+        self.toks[slot].truncate(len);
+        mix(h, mode_code(mode))
+    }
+    /// One sequence's verify rows: every fed token is written as a decode step writes it, and its row is that decode step's
+    /// output (in head mode `want`), or its greedy token.
+    fn verify_rows(&mut self, slot: usize, ids: &[u32], want: Option<Mode>) -> Verified<Out> {
+        let hs: Vec<u64> = ids.iter().map(|&t| self.push(slot, t, Writer::Decode)).collect();
+        match want {
+            Some(m) => Verified::Rows(hs.into_iter().map(|h| (mix(h, mode_code(m)), m)).collect()),
+            None => Verified::Greedy(hs.into_iter().map(|h| (mix(h, mode_code(Mode::Argmax)) % V) as u32).collect()),
+        }
     }
 }
 
@@ -338,6 +377,14 @@ impl BatchModel for MockModel {
         }
         Ok(outs)
     }
+    fn batched_verify(&self) -> bool {
+        self.batched_verify
+    }
+    fn verify_step(&mut self, rows: &[VerifyRows<Mode>]) -> Result<Vec<Result<Verified<Out>>>> {
+        assert!(self.batched_verify && !rows.is_empty());
+        self.rec.lock().unwrap().verify_passes.push(rows.iter().map(|r| r.2.is_some()).collect());
+        Ok(rows.iter().map(|(slot, ids, want)| Ok(self.verify_rows(*slot, ids, *want))).collect())
+    }
     fn on_admit(&mut self, slot: usize, id: RequestId, cached: usize) {
         self.owner[slot] = Some(id);
         let mut rec = self.rec.lock().unwrap();
@@ -362,6 +409,14 @@ struct Params {
     restores: Option<Arc<AtomicUsize>>,
     /// The request's own chunk schedule (`BatchSeq::chunk_len` / `own_chunk`), as a prefix-store request has.
     own_chunk: Option<usize>,
+    /// The sequence drafts when the scheduler allows it (lane bm / mtp-sampled): up to `.0` tokens per pass from an oracle (the
+    /// tokens it would produce), each replaced by a wrong one with probability 1/3 (drawn from a generator seeded `.1`).
+    draft: Option<(usize, u64)>,
+    /// Negative control of the sampled acceptance: the sequence spends a draw on every verify row, also those after the first
+    /// rejected draft.
+    draft_mutant: bool,
+    /// Counts drafts proposed and accepted.
+    draft_stats: Option<Arc<Mutex<(usize, usize)>>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -385,6 +440,11 @@ struct MockSeq {
     out: Vec<u32>,
     spec_log: Arc<Mutex<Vec<(bool, bool)>>>,
     on_tokens: Arc<AtomicUsize>,
+    /// Verified tokens not yet handed to `on_token`.
+    pending: std::collections::VecDeque<u32>,
+    /// The drafts of the verify pass in flight and the slot length it started at.
+    deferred: Option<(usize, Vec<u32>)>,
+    draft_rng: Option<SplitMix64>,
 }
 
 impl MockSeq {
@@ -394,6 +454,9 @@ impl MockSeq {
         let stop_ids = if p.ignore_eos { Vec::new() } else { vec![EOS] };
         let seq = MockSeq {
             rng: p.seed.map(SplitMix64::new),
+            draft_rng: p.draft.map(|d| SplitMix64::new(d.1)),
+            pending: Default::default(),
+            deferred: None,
             p,
             tx,
             cancel: cancel.clone(),
@@ -430,6 +493,26 @@ impl MockSeq {
             }
         }
         Ok(t)
+    }
+    /// Up to `k` drafts after `self.tok`: the tokens this sequence would produce next (the model peeked at, a copy of the
+    /// generator drawn from), some of them replaced by a wrong token.
+    fn draft(&mut self, m: &mut MockModel, slot: usize, k: usize) -> Vec<u32> {
+        let mut rng = self.rng.clone();
+        let mut fed = vec![self.tok];
+        let mut drafts = Vec::new();
+        for i in 0..k {
+            let o = m.peek(slot, &fed, self.head_mode(self.generated + 1 + i));
+            let mut t = match &mut rng {
+                Some(r) => (mix(o, r.next_u64()) % V) as u32,
+                None => (o % V) as u32,
+            };
+            if self.draft_rng.as_mut().unwrap().next_u64() % 3 == 0 {
+                t = (t + 1) % V as u32;
+            }
+            drafts.push(t);
+            fed.push(t);
+        }
+        drafts
     }
 }
 
@@ -474,9 +557,77 @@ impl BatchSeq<MockModel> for MockSeq {
     fn first_mode(&self) -> Mode {
         self.head_mode(1)
     }
-    fn prepare(&mut self, _m: &mut MockModel, _slot: usize, spec_allowed: bool, busy: bool) -> Result<SeqStep<Mode>> {
+    fn prepare(&mut self, m: &mut MockModel, slot: usize, spec_allowed: bool, busy: bool) -> Result<SeqStep<Mode>> {
         self.spec_log.lock().unwrap().push((spec_allowed, busy));
+        if let Some(t) = self.pending.pop_front() {
+            self.tok = t;
+            return Ok(SeqStep::Ready);
+        }
+        if let Some((k, _)) = self.p.draft.filter(|_| spec_allowed && self.generated >= self.p.min_tokens) {
+            // a pass feeds 1 + k tokens and emits up to k + 1
+            let k = k.min(self.max_new - self.generated - 1).min(m.cap.saturating_sub(m.kv[slot].len() + 1));
+            if k > 0 {
+                let drafts = self.draft(m, slot, k);
+                let mut ids = vec![self.tok];
+                ids.extend(&drafts);
+                self.deferred = Some((m.kv[slot].len(), drafts));
+                // a sampled sequence draws its own token from every row
+                let want = self.rng.is_some().then_some(Mode::Logits);
+                if m.batched_verify && busy {
+                    return Ok(SeqStep::Verify(ids, want));
+                }
+                let out = m.verify_rows(slot, &ids, want);
+                self.accept_verify(m, slot, out)?;
+                return Ok(SeqStep::Ready);
+            }
+        }
         Ok(SeqStep::Plain(self.tok, self.head_mode(self.generated + 1)))
+    }
+    fn accept_verify(&mut self, m: &mut MockModel, slot: usize, out: Verified<Out>) -> Result<()> {
+        let (len0, drafts) = self.deferred.take().expect("verify rows of a pass in flight");
+        let mut emit = Vec::new();
+        match out {
+            Verified::Greedy(toks) => {
+                assert!(self.rng.is_none(), "greedy tokens for a sampled sequence");
+                let j = drafts.iter().zip(&toks).take_while(|(d, t)| d == t).count();
+                emit.extend(&toks[..=j]);
+            }
+            Verified::Rows(rows) => {
+                // keep a draft only where the sequence's own draw for that position equals it
+                let mut over = false;
+                for (i, row) in rows.into_iter().enumerate() {
+                    let x = self.token_from(row, self.generated + 1 + i)?;
+                    if !over {
+                        emit.push(x);
+                    }
+                    over |= drafts.get(i) != Some(&x);
+                    if over && !self.p.draft_mutant {
+                        break;
+                    }
+                }
+            }
+        }
+        if let Some(st) = &self.p.draft_stats {
+            let mut st = st.lock().unwrap();
+            st.0 += drafts.len();
+            st.1 += emit.len() - 1;
+        }
+        m.truncate(slot, len0 + emit.len())?;
+        self.tok = emit[0];
+        self.pending.extend(&emit[1..]);
+        Ok(())
+    }
+    fn next_ready(&mut self) -> bool {
+        if self.reason.is_some() {
+            return false;
+        }
+        match self.pending.pop_front() {
+            Some(t) => {
+                self.tok = t;
+                true
+            }
+            None => false,
+        }
     }
     fn accept(&mut self, out: Out) -> Result<()> {
         self.tok = self.token_from(out, self.generated + 1)?;
@@ -515,7 +666,14 @@ impl BatchSeq<MockModel> for MockSeq {
     fn cancelled(&self) -> bool {
         self.cancel.load(Ordering::SeqCst)
     }
-    fn finish(&mut self, _m: &mut MockModel, _slot: Option<usize>, cancelled: bool) -> Result<()> {
+    fn finish(&mut self, m: &mut MockModel, slot: Option<usize>, cancelled: bool) -> Result<()> {
+        if let (Some(slot), true) = (slot, self.p.draft.is_some() && self.generated > 0) {
+            // a stop inside an accepted run leaves rows of tokens that were never emitted: back to what plain decode holds
+            let want = self.p.prompt.len() + self.generated - 1;
+            if m.kv[slot].len() > want {
+                m.truncate(slot, want)?;
+            }
+        }
         // the scheduler only finishes a request uncancelled once it ended on its own (as engine::Seq::finish expects)
         let reason =
             if cancelled { FinishReason::Cancelled } else { self.reason.expect("finish before the sequence ended") };
@@ -2473,4 +2631,112 @@ fn validate_runs_before_restore_and_prefill_start_reports_the_own_chunk() {
         .filter_map(|e| if let TraceEvent::PrefillStart { chunk, .. } = e { Some(*chunk) } else { None })
         .collect();
     assert_eq!(started, vec![96], "the refused request never started a prefill; the other ran its own chunk");
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// lane mtp-sampled: sampled sequences draft, and a seeded sequence's tokens do not depend on it
+// ------------------------------------------------------------------------------------------------------------------
+
+/// Greedy and seeded sampled requests (about one in three greedy), short and multi-chunk prompts, `min_tokens`, stop sequences,
+/// EOS on or off; no cancels or injected failures (the drafting mock does not model them).
+fn drafting_reqs(rng: &mut SplitMix64, n: usize) -> Vec<Req> {
+    (0..n)
+        .map(|_| {
+            let len = 1 + (rng.next_u64() % 300) as usize;
+            let mut p = Params {
+                prompt: random_prompt(rng, len),
+                max_tokens: 1 + (rng.next_u64() % 90) as usize,
+                min_tokens: if rng.next_u64() % 4 == 0 { (rng.next_u64() % 12) as usize } else { 0 },
+                ignore_eos: rng.next_u64() % 3 != 0,
+                seed: if rng.next_u64() % 3 != 0 { Some(rng.next_u64()) } else { None },
+                ..Default::default()
+            };
+            if rng.next_u64() % 5 == 0 {
+                p.stop_seq = vec![3 + (rng.next_u64() % (V - 3)) as u32];
+            }
+            Req { p, arrive: rng.next_u64() % 40, cancel_at: None, drop_rx_at: None, fail_row_n: None, fail_prefill: false }
+        })
+        .collect()
+}
+
+/// `reqs` with drafting on (depth `k`, corruption seeds from `salt`), optionally the mutant acceptance.
+fn with_drafts(reqs: &[Req], k: usize, salt: u64, stats: &Arc<Mutex<(usize, usize)>>, mutant: bool) -> Vec<Req> {
+    reqs.iter()
+        .enumerate()
+        .map(|(i, r)| Req {
+            p: Params { draft: Some((k, mix(salt, i as u64))), draft_stats: Some(stats.clone()), draft_mutant: mutant, ..r.p.clone() },
+            arrive: r.arrive,
+            cancel_at: None,
+            drop_rx_at: None,
+            fail_row_n: None,
+            fail_prefill: false,
+        })
+        .collect()
+}
+
+/// Seeded sampled requests that draft give the events of the same requests with drafting off, whatever the batch they decode
+/// in: batch sizes 1 to 4, the scheduler's drafting gate at different widths, solo verify passes and batched ones (greedy and
+/// sampled sequences in one pass), different draft depths and draft errors, and the requests arriving in another order. The
+/// reference itself equals each request's solo run. A sequence that spends a draw on a row after its first rejected draft (the
+/// mutant) is caught.
+#[test]
+fn seeded_sampled_drafting_equals_drafting_off_in_any_batch() {
+    let cap = 1024;
+    // one chunk size and no slot reuse: a request's bits then depend on nothing but the request (the chunk a prefill starts
+    // with and the prefix a slot holds follow from timing, which drafting changes)
+    let cfg = |b: usize, off_at: usize| SchedulerConfig {
+        max_batch: b,
+        max_queue: 1000,
+        solo_chunk: 64,
+        busy_chunk: 64,
+        prefix_reuse: false,
+        spec_off_at: off_at,
+        ..Default::default()
+    };
+    let stats = Arc::new(Mutex::new((0usize, 0usize)));
+    let (mut total, mut sampled, mut mixed_passes, mut wide_passes, mut mutants) = (0, 0, 0, 0, 0);
+    for seed in 0..8u64 {
+        let mut rng = SplitMix64::new(0x5A17 + seed);
+        let reqs = drafting_reqs(&mut rng, 16);
+        let base_cfg = cfg(4, 5);
+        let base = run_batched(base_cfg.clone(), cap, &reqs, false);
+        assert_eq!(check_identity(&base, &reqs, &base_cfg, cap), 0, "seed {seed}: the drafting-off run differs from solo");
+        assert!(base.rec.lock().unwrap().verify_passes.is_empty());
+        total += reqs.len();
+        sampled += reqs.iter().filter(|r| r.p.seed.is_some()).count();
+        // (max_batch, spec_off_at, batched verify, draft depth)
+        for &(b, off_at, bv, k) in &[(4, 5, false, 3), (4, 5, true, 3), (4, 5, true, 1), (4, 2, false, 4), (4, 3, true, 2), (2, 3, true, 3), (1, 2, false, 3)] {
+            for order in 0..2 {
+                let mut drafting = with_drafts(&reqs, k, seed * 31 + k as u64, &stats, false);
+                if order == 1 {
+                    // another arrival order: the same requests, arriving in reverse
+                    let latest = drafting.iter().map(|r| r.arrive).max().unwrap();
+                    for r in &mut drafting {
+                        r.arrive = latest - r.arrive;
+                    }
+                }
+                let run = with_batched_verify(bv, || run_batched(cfg(b, off_at), cap, &drafting, false));
+                for (i, (got, want)) in run.events.iter().zip(&base.events).enumerate() {
+                    assert_eq!(got, want, "seed {seed} request {i} (B {b}, off at {off_at}, batched verify {bv}, k {k}, order {order})");
+                }
+                let rec = run.rec.lock().unwrap();
+                assert_eq!(rec.verify_passes.is_empty(), !bv || b == 1, "batched verify passes (B {b}, {bv})");
+                mixed_passes += rec.verify_passes.iter().filter(|p| p.contains(&true) && p.contains(&false)).count();
+                wide_passes += rec.verify_passes.iter().filter(|p| p.iter().filter(|&&s| s).count() >= 2).count();
+            }
+        }
+        // negative control: extra draws on rejected rows shift every later draw of the request
+        let mutant = with_drafts(&reqs, 3, seed, &stats, true);
+        let run = with_batched_verify(true, || run_batched(cfg(4, 5), cap, &mutant, false));
+        mutants += run.events.iter().zip(&base.events).filter(|(g, w)| g != w).count();
+    }
+    let (proposed, accepted) = *stats.lock().unwrap();
+    eprintln!(
+        "{total} requests ({sampled} sampled), drafts {accepted} of {proposed} accepted, verify passes with greedy + sampled {mixed_passes}, \
+         with >= 2 sampled {wide_passes}, mutant mismatches {mutants}"
+    );
+    assert!(sampled >= 60 && total - sampled >= 20, "greedy and sampled requests");
+    assert!(accepted > 1000 && proposed - accepted > 1000, "drafts accepted and rejected ({accepted} of {proposed})");
+    assert!(mixed_passes > 100 && wide_passes > 100, "batched verify passes of mixed and of several sampled sequences");
+    assert!(mutants > 20, "the mutant acceptance went unnoticed ({mutants})");
 }

@@ -26,8 +26,8 @@ use super::{
 use crate::error::{Error, Result};
 use crate::model::{HeadMode, Model, StepOut};
 use crate::scheduler::{
-    BatchEngine, BatchMetrics, BatchModel, BatchSeq, Housekeep, RequestId, Row, SchedulerConfig, SeqStep, MAX_BATCH_CAP,
-    SPEC_OFF_AT_DEFAULT,
+    BatchEngine, BatchMetrics, BatchModel, BatchSeq, Housekeep, RequestId, Row, SchedulerConfig, SeqStep, Verified, VerifyRows,
+    MAX_BATCH_CAP, SPEC_OFF_AT_DEFAULT,
 };
 use crate::state::SequenceState;
 use crate::telemetry::{Telemetry, TelemetrySnapshot};
@@ -50,6 +50,12 @@ pub fn batched_mtp_env_opt() -> Result<Option<usize>> {
             Error::invalid(format!("INTARSIA_BATCHED_MTP={v}: a sequence count 0..={MAX_BATCH_CAP} (draft while at most that many decode)"))
         }),
     }
+}
+
+/// `INTARSIA_BATCHED_MTP_SAMPLED` (lane mtp-sampled): `0` keeps sampled requests (temperature > 0) on plain steps in the
+/// batching engine; unset, empty or anything else: they draft with the MTP head like greedy ones ([`BatchedOptions::mtp_sampled`]).
+pub fn batched_mtp_sampled_env() -> bool {
+    std::env::var("INTARSIA_BATCHED_MTP_SAMPLED").map(|v| v != "0").unwrap_or(true)
 }
 
 /// Knobs of [`BatchedEngine::new`].
@@ -94,6 +100,10 @@ pub struct BatchedOptions {
     /// Lane bm phase B (`INTARSIA_BATCHED_VERIFY=1`, opt-in): with batched MTP, the sequences that draft in a step verify in ONE
     /// ragged pass (`Model::forward_verify_batch`) instead of one solo pass each.
     pub batched_verify: bool,
+    /// Lane mtp-sampled (`INTARSIA_BATCHED_MTP_SAMPLED`, [`batched_mtp_sampled_env`]): with batched MTP, sampled requests
+    /// (temperature > 0) draft too, with seed-exact acceptance (`engine/keyed.rs`): a seeded request's ids are the same with it on
+    /// or off. Off: sampled requests take plain steps.
+    pub mtp_sampled: bool,
     /// Lane interleave (`INTARSIA_PREFILL_PAUSE_ROWS`, default [`PAUSE_ROWS_DEFAULT`] = 768, 0 off): while other sequences decode, a
     /// prefill chunk of more than this many rows parks between layers about every this many rows and their decode step runs
     /// there ([`BatchModel::pause_rows`]). The chunk schedule and every output are unchanged, bit for bit. Not with `overlap`.
@@ -161,6 +171,7 @@ impl BatchedOptions {
                 .and_then(|v| v.trim().parse().ok())
                 .unwrap_or(SETTLE_SLICE_MB_DEFAULT),
             batched_verify: env("INTARSIA_BATCHED_VERIFY"),
+            mtp_sampled: batched_mtp_sampled_env(),
             hold_start: false,
         }
     }
@@ -481,11 +492,14 @@ impl BatchModel for SlotModel {
         self.batched_verify
     }
 
-    fn verify_step(&mut self, rows: &[(usize, Vec<u32>)]) -> Result<Vec<Result<Vec<u32>>>> {
+    fn verify_step(&mut self, rows: &[VerifyRows<HeadMode>]) -> Result<Vec<Result<Verified<StepOut>>>> {
         let m: &Model = &self.model;
         let mut by_slot: Vec<Option<&mut SequenceState>> = self.states.iter_mut().map(Some).collect();
         let mut refs: Vec<&mut SequenceState> = Vec::with_capacity(rows.len());
-        for (slot, _) in rows {
+        for (slot, _, want) in rows {
+            if want.is_some_and(|m| m != HeadMode::LastLogits) {
+                return Err(Error::Unsupported(format!("verify rows in head mode {want:?}")));
+            }
             refs.push(
                 by_slot
                     .get_mut(*slot)
@@ -495,7 +509,7 @@ impl BatchModel for SlotModel {
         }
         // passes of at most `cap` rows (the workspace and the head's logits rows), sequences in order
         let cap = Model::VERIFY_MAX_ROWS.min(m.ws_rows());
-        let mut out: Vec<Result<Vec<u32>>> = Vec::with_capacity(rows.len());
+        let mut out: Vec<Result<Verified<StepOut>>> = Vec::with_capacity(rows.len());
         let mut i = 0;
         while i < rows.len() {
             let mut j = i;
@@ -507,10 +521,19 @@ impl BatchModel for SlotModel {
             if j == i {
                 return Err(Error::invalid(format!("a verify segment of {} rows exceeds the pass's {cap}", rows[i].1.len())));
             }
-            let ids: Vec<Vec<u32>> = rows[i..j].iter().map(|(_, v)| v.clone()).collect();
+            let ids: Vec<Vec<u32>> = rows[i..j].iter().map(|(_, v, _)| v.clone()).collect();
+            let want: Vec<bool> = rows[i..j].iter().map(|(_, _, w)| w.is_some()).collect();
             // an error here is a device / pass failure: fatal for the whole batch, as a decode step's
-            let res = m.forward_verify_batch(&mut refs[i..j], &ids)?;
-            out.extend(res.into_iter().map(Ok));
+            if want.iter().any(|&w| w) {
+                // lane mtp-sampled: the sampled sequences' rows as logits (they draw their own tokens), the others' greedy tokens
+                let (toks, logits) = m.forward_verify_batch_logits(&mut refs[i..j], &ids, &want)?;
+                for ((t, l), w) in toks.into_iter().zip(logits).zip(want) {
+                    out.push(Ok(if w { Verified::Rows(l.into_iter().map(StepOut::Logits).collect()) } else { Verified::Greedy(t) }));
+                }
+            } else {
+                let res = m.forward_verify_batch(&mut refs[i..j], &ids)?;
+                out.extend(res.into_iter().map(|t| Ok(Verified::Greedy(t))));
+            }
             i = j;
         }
         Ok(out)
@@ -759,7 +782,8 @@ impl BatchSeq<SlotModel> for SeqAdapter {
                 SeqStep::Plain(tok, mode)
             }
             Prep::Ready => SeqStep::Ready,
-            Prep::Verify(ids) => SeqStep::Verify(ids),
+            // a sampled sequence draws its own token from every row: its rows come back as logits
+            Prep::Verify(ids) => SeqStep::Verify(ids, seq.keyed().then_some(HeadMode::LastLogits)),
         })
     }
 
@@ -767,10 +791,22 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         self.seq.as_mut().is_some_and(|s| s.next_pending())
     }
 
-    fn accept_verify(&mut self, model: &mut SlotModel, slot: usize, out: Vec<u32>) -> Result<()> {
+    fn accept_verify(&mut self, model: &mut SlotModel, slot: usize, out: Verified<StepOut>) -> Result<()> {
         let SlotModel { model, states, .. } = model;
         let seq = self.seq()?;
-        seq.accept_verify(model, &mut states[slot], out)
+        match out {
+            Verified::Greedy(out) => seq.accept_verify(model, &mut states[slot], out),
+            Verified::Rows(rows) => {
+                let rows = rows
+                    .into_iter()
+                    .map(|r| match r {
+                        StepOut::Logits(l) => Ok(l),
+                        _ => Err(Error::Other("a sampled verify row without logits".into())),
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                seq.accept_verify_rows(model, &mut states[slot], rows)
+            }
+        }
     }
 
     fn accept(&mut self, out: StepOut) -> Result<()> {
@@ -868,6 +904,8 @@ pub struct BatchedEngine {
     verify_rows: usize,
     /// The slots hold recurrent state (hybrid opt-in): no sequence drafts (`Seq::build`).
     recurrent: bool,
+    /// Lane mtp-sampled: sampled requests draft too ([`BatchedOptions::mtp_sampled`] under `--spec mtp`).
+    mtp_sampled: bool,
     /// The prefix store (`EngineMeta::prefix_store`); with `--spec mtp` a restore restarts the slot's MTP head context
     /// (`SeqAdapter::restore`, lane mtp-store). Any other speculation is refused with it (`BatchedEngine::new`).
     store: Option<StorePolicy>,
@@ -1008,6 +1046,13 @@ impl BatchedEngine {
         };
         // lane bm phase B: `INTARSIA_BATCHED_VERIFY=1` (opt-in, with batched MTP) verifies the drafting sequences in one pass
         let batched_verify = mtp && twin.is_none() && opts.batched_verify;
+        let mtp_sampled = mtp && opts.mtp_sampled;
+        if mtp {
+            eprintln!(
+                "batched MTP: sampled requests (temperature > 0) {}",
+                if mtp_sampled { "draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)" } else { "take plain steps (INTARSIA_BATCHED_MTP_SAMPLED=0)" }
+            );
+        }
         let store_slot = vec![false; states.len()];
         let slots =
             SlotModel {
@@ -1024,7 +1069,7 @@ impl BatchedEngine {
                 store_slot,
             };
         let engine = if opts.hold_start { BatchEngine::spawn_held(slots, cfg)? } else { BatchEngine::spawn(slots, cfg)? };
-        Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent, store, solo_chunk })
+        Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent, store, solo_chunk, mtp_sampled })
     }
 
     /// Let an engine built with [`BatchedOptions::hold_start`] start scheduling (no effect on any other engine).
@@ -1103,6 +1148,10 @@ impl Engine for BatchedEngine {
         let (etx, erx) = channel();
         let plen = req.prompt.len();
         let mut seq = Seq::build(&self.env, req, etx.clone(), self.verify_rows, self.recurrent);
+        if self.mtp_sampled {
+            // lane mtp-sampled: a sampled request drafts too, seed-exact (`engine/keyed.rs`)
+            seq.enable_keyed(self.env.spec.mode, self.verify_rows);
+        }
         if let Some(pol) = &self.store {
             // every request runs the store's schedule, drafting or not (`--spec mtp`, lane mtp-store)
             seq.ps = Some(SeqStore::new(pol.clone(), &seq.req.prompt, self.recurrent, self.solo_chunk));
