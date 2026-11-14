@@ -332,3 +332,118 @@ min MemAvailable (time MB; KILLED count) (B-k1-f2): 22:58:33 46159 0
 min MemAvailable (time MB; KILLED count) (A-k1-f2): 23:01:44 48339 0 
 [23:03:01 +1739s] vLLM up at the end: 200; Mem:             121          39          40           0          43          82
 [23:03:01 +1739s] window end
+[23:23:38 +2s] window start; arms: F:2:o1 G:2:o1 E:2:o1 D:2:o1 D:2:o2 E:2:o2 G:2:o2 F:2:o2; vLLM up: 200; earlyoom: active; binary: intarsia 0.0.1
+[23:23:38 +2s] serve F-k2-o1: ~/intarsia-mtp-store/bin/intarsia-main serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2
+[23:24:33 +57s] serve F-k2-o1 up; MemAvailable MB: 53034; --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row) batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps) loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 52.6s, context 131072 tokens 
+[replay2] w0 c6 t6 prompt=33134 cached=0 ttft=9.02s decode=59.2 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8045 | 0 (0.0) | 1.415 (1.125-2.583) | 45.0 (44.0-65.1) |
+| 2 | 13068 | 0 (0.0) | 2.466 (2.12-4.19) | 36.3 (33.4-59.7) |
+| 3 | 18092 | 0 (0.0) | 3.501 (3.04-4.711) | 30.8 (28.6-61.1) |
+| 4 | 23116 | 0 (0.0) | 4.607 (3.92-8.186) | 26.0 (24.0-35.2) |
+| 5 | 28139 | 0 (0.0) | 5.791 (5.089-8.435) | 22.6 (20.3-33.5) |
+| 6 | 33160 | 0 (0.0) | 6.816 (6.481-9.021) | 18.6 (17.7-59.2) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 17.05, 'itl_ms_p99_median': 408.61, 'itl_ms_p99_max': 2225.18, 'itl_cv_median': 2.202}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988922, 'cached_tokens': 0, 'ttft_s_sum': 216.59, 'decode_tok_s_median': 33.0, 'completion_tokens': 7580, 'agg_output_tok_s': 31.93} wall 237.4s
+[23:28:32 +296s] F-k2-o1 vLLM counters before: success=13 gen_tokens=2145, after: success=13 gen_tokens=2145 (a change is foreign GPU traffic inside the run)
+min MemAvailable (time MB; KILLED count) (F-k2-o1): 23:24:31 52970 0 
+[23:28:38 +302s] serve G-k2-o1: ~/intarsia-mtp-store/bin/intarsia-main serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --spec off
+[23:29:21 +345s] serve G-k2-o1 up; MemAvailable MB: 56699; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 41.0s, context 131072 tokens 
+[replay2] w1 c7 t6 prompt=33146 cached=0 ttft=6.98s decode=55.8 out=159 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8045 | 0 (0.0) | 1.454 (1.131-2.498) | 44.1 (43.3-65.9) |
+| 2 | 13068 | 0 (0.0) | 2.534 (2.126-3.804) | 36.2 (34.0-54.0) |
+| 3 | 18092 | 0 (0.0) | 3.615 (3.106-5.006) | 28.4 (24.1-36.8) |
+| 4 | 23116 | 0 (0.0) | 4.515 (4.505-4.604) | 23.7 (20.8-23.9) |
+| 5 | 28139 | 0 (0.0) | 5.611 (5.484-6.421) | 20.6 (19.3-23.2) |
+| 6 | 33160 | 0 (0.0) | 6.964 (6.558-9.387) | 17.9 (17.1-55.8) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.05, 'itl_ms_p99_median': 214.63, 'itl_ms_p99_max': 1334.4, 'itl_cv_median': 1.323}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988922, 'cached_tokens': 0, 'ttft_s_sum': 207.97, 'decode_tok_s_median': 25.8, 'completion_tokens': 7580, 'agg_output_tok_s': 31.12} wall 243.6s
+[23:33:26 +590s] G-k2-o1 vLLM counters before: success=13 gen_tokens=2145, after: success=13 gen_tokens=2145 (a change is foreign GPU traffic inside the run)
+min MemAvailable (time MB; KILLED count) (G-k2-o1): 23:33:16 55805 0 
+[23:33:32 +596s] serve E-k2-o1: ~/intarsia-mtp-store/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --spec off
+[23:34:16 +640s] serve E-k2-o1 up; MemAvailable MB: 55730; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 40.7s, context 131072 tokens 
+[replay2] w1 c7 t6 prompt=33146 cached=0 ttft=6.89s decode=57.3 out=159 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8045 | 0 (0.0) | 1.438 (1.125-2.617) | 44.2 (42.8-65.4) |
+| 2 | 13068 | 0 (0.0) | 2.609 (2.128-3.85) | 36.9 (33.6-53.5) |
+| 3 | 18092 | 0 (0.0) | 3.764 (3.099-4.729) | 28.2 (24.0-38.9) |
+| 4 | 23116 | 0 (0.0) | 4.544 (4.498-4.615) | 23.7 (20.7-24.1) |
+| 5 | 28139 | 0 (0.0) | 5.616 (5.588-5.62) | 20.5 (17.8-20.6) |
+| 6 | 33160 | 0 (0.0) | 6.922 (6.882-7.004) | 17.7 (17.1-57.3) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.17, 'itl_ms_p99_median': 200.17, 'itl_ms_p99_max': 1012.69, 'itl_cv_median': 1.298}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988922, 'cached_tokens': 0, 'ttft_s_sum': 203.22, 'decode_tok_s_median': 25.2, 'completion_tokens': 7580, 'agg_output_tok_s': 30.96} wall 244.8s
+[23:38:22 +886s] E-k2-o1 vLLM counters before: success=13 gen_tokens=2145, after: success=13 gen_tokens=2145 (a change is foreign GPU traffic inside the run)
+min MemAvailable (time MB; KILLED count) (E-k2-o1): 23:34:22 55692 0 
+[23:38:28 +892s] serve D-k2-o1: ~/intarsia-mtp-store/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2
+[23:39:21 +945s] serve D-k2-o1 up; MemAvailable MB: 53300; --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row) batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps) loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 50.4s, context 131072 tokens 
+[replay2] w1 c7 t6 prompt=33146 cached=0 ttft=7.57s decode=58.9 out=159 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8045 | 0 (0.0) | 1.391 (1.131-2.527) | 44.2 (35.2-64.3) |
+| 2 | 13068 | 0 (0.0) | 2.411 (2.17-3.373) | 36.0 (33.7-50.6) |
+| 3 | 18092 | 0 (0.0) | 3.589 (3.001-5.629) | 28.8 (24.5-52.0) |
+| 4 | 23116 | 0 (0.0) | 4.404 (4.208-5.379) | 24.3 (23.3-29.2) |
+| 5 | 28139 | 0 (0.0) | 5.443 (5.179-8.082) | 21.0 (19.7-32.6) |
+| 6 | 33160 | 0 (0.0) | 7.054 (6.478-8.636) | 19.3 (17.4-58.9) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.12, 'itl_ms_p99_median': 193.87, 'itl_ms_p99_max': 879.57, 'itl_cv_median': 1.256}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988922, 'cached_tokens': 0, 'ttft_s_sum': 208.17, 'decode_tok_s_median': 28.8, 'completion_tokens': 7580, 'agg_output_tok_s': 31.76} wall 238.6s
+[23:43:21 +1185s] D-k2-o1 vLLM counters before: success=13 gen_tokens=2145, after: success=13 gen_tokens=2145 (a change is foreign GPU traffic inside the run)
+min MemAvailable (time MB; KILLED count) (D-k2-o1): 23:39:19 53275 0 
+[23:43:27 +1191s] serve D-k2-o2: ~/intarsia-mtp-store/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2
+[23:44:16 +1240s] serve D-k2-o2 up; MemAvailable MB: 54706; --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row) batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps) loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 45.7s, context 131072 tokens 
+[replay2] w1 c7 t6 prompt=33146 cached=0 ttft=6.73s decode=59.2 out=159 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8045 | 0 (0.0) | 1.39 (1.147-2.487) | 44.4 (43.1-63.1) |
+| 2 | 13068 | 0 (0.0) | 2.47 (2.105-4.24) | 36.0 (34.0-62.1) |
+| 3 | 18092 | 0 (0.0) | 3.441 (3.055-4.945) | 28.6 (24.6-41.3) |
+| 4 | 23116 | 0 (0.0) | 4.399 (4.376-4.701) | 24.2 (23.8-25.8) |
+| 5 | 28139 | 0 (0.0) | 5.446 (5.119-8.066) | 21.0 (19.6-33.1) |
+| 6 | 33160 | 0 (0.0) | 6.706 (6.475-8.633) | 18.2 (17.5-59.2) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.14, 'itl_ms_p99_median': 198.84, 'itl_ms_p99_max': 1143.09, 'itl_cv_median': 1.289}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988922, 'cached_tokens': 0, 'ttft_s_sum': 205.42, 'decode_tok_s_median': 27.7, 'completion_tokens': 7580, 'agg_output_tok_s': 31.75} wall 238.8s
+[23:48:16 +1480s] D-k2-o2 vLLM counters before: success=13 gen_tokens=2145, after: success=13 gen_tokens=2145 (a change is foreign GPU traffic inside the run)
+min MemAvailable (time MB; KILLED count) (D-k2-o2): 23:44:23 53823 0 
+[23:48:22 +1486s] serve E-k2-o2: ~/intarsia-mtp-store/bin/intarsia serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --spec off
+[23:49:10 +1534s] serve E-k2-o2 up; MemAvailable MB: 56703; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 43.8s, context 131072 tokens 
+[replay2] w0 c6 t6 prompt=33134 cached=0 ttft=8.82s decode=55.1 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8045 | 0 (0.0) | 1.623 (1.127-2.498) | 47.4 (43.0-65.3) |
+| 2 | 13068 | 0 (0.0) | 2.481 (2.171-3.75) | 35.3 (33.5-62.0) |
+| 3 | 18092 | 0 (0.0) | 3.509 (3.105-6.194) | 29.3 (28.0-58.7) |
+| 4 | 23116 | 0 (0.0) | 4.706 (3.93-8.289) | 24.6 (23.4-32.1) |
+| 5 | 28139 | 0 (0.0) | 5.625 (5.29-7.615) | 20.5 (19.9-24.1) |
+| 6 | 33160 | 0 (0.0) | 7.032 (6.602-8.944) | 18.0 (17.2-55.1) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.16, 'itl_ms_p99_median': 195.14, 'itl_ms_p99_max': 945.41, 'itl_cv_median': 1.286}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988922, 'cached_tokens': 0, 'ttft_s_sum': 215.14, 'decode_tok_s_median': 28.3, 'completion_tokens': 7580, 'agg_output_tok_s': 31.18} wall 243.1s
+[23:53:15 +1779s] E-k2-o2 vLLM counters before: success=13 gen_tokens=2145, after: success=13 gen_tokens=2145 (a change is foreign GPU traffic inside the run)
+min MemAvailable (time MB; KILLED count) (E-k2-o2): 23:52:42 55783 0 
+[23:53:20 +1784s] serve G-k2-o2: ~/intarsia-mtp-store/bin/intarsia-main serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --spec off
+[23:54:01 +1825s] serve G-k2-o2 up; MemAvailable MB: 56701; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 37.2s, context 131072 tokens 
+[replay2] w1 c7 t6 prompt=33146 cached=0 ttft=8.67s decode=54.5 out=159 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8045 | 0 (0.0) | 1.895 (1.207-2.579) | 54.0 (42.5-65.4) |
+| 2 | 13068 | 0 (0.0) | 2.78 (2.064-4.321) | 39.9 (33.7-62.3) |
+| 3 | 18092 | 0 (0.0) | 3.892 (3.127-6.185) | 28.3 (24.1-58.0) |
+| 4 | 23116 | 0 (0.0) | 4.528 (4.515-4.589) | 23.6 (22.3-23.8) |
+| 5 | 28139 | 0 (0.0) | 5.632 (5.349-7.407) | 20.4 (19.3-38.9) |
+| 6 | 33160 | 0 (0.0) | 7.67 (6.476-11.3) | 20.2 (17.0-54.5) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 18.06, 'itl_ms_p99_median': 206.98, 'itl_ms_p99_max': 1087.8, 'itl_cv_median': 1.454}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988922, 'cached_tokens': 0, 'ttft_s_sum': 225.16, 'decode_tok_s_median': 28.3, 'completion_tokens': 7580, 'agg_output_tok_s': 31.12} wall 243.6s
+[23:58:07 +2071s] G-k2-o2 vLLM counters before: success=13 gen_tokens=2145, after: success=13 gen_tokens=2145 (a change is foreign GPU traffic inside the run)
+min MemAvailable (time MB; KILLED count) (G-k2-o2): 23:58:10 55738 0 
+[23:58:14 +2078s] serve F-k2-o2: ~/intarsia-mtp-store/bin/intarsia-main serve --backend cuda --model <HF snapshot 1355db6a> --port 8191 --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2
+[23:59:02 +2126s] serve F-k2-o2 up; MemAvailable MB: 54634; --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row) batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps) loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 45.0s, context 131072 tokens 
+[replay2] w0 c6 t6 prompt=33134 cached=0 ttft=9.04s decode=59.3 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8045 | 0 (0.0) | 1.42 (1.133-2.465) | 44.2 (43.3-64.6) |
+| 2 | 13068 | 0 (0.0) | 2.314 (2.086-3.54) | 34.5 (28.8-35.5) |
+| 3 | 18092 | 0 (0.0) | 3.305 (3.273-3.38) | 29.0 (28.7-36.8) |
+| 4 | 23116 | 0 (0.0) | 5.139 (4.181-6.519) | 27.8 (23.7-36.2) |
+| 5 | 28139 | 0 (0.0) | 5.612 (5.123-9.469) | 21.7 (20.3-43.3) |
+| 6 | 33160 | 0 (0.0) | 6.859 (6.493-9.079) | 18.5 (17.6-59.3) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 17.36, 'itl_ms_p99_median': 397.37, 'itl_ms_p99_max': 2325.84, 'itl_cv_median': 2.183}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988922, 'cached_tokens': 0, 'ttft_s_sum': 210.96, 'decode_tok_s_median': 29.1, 'completion_tokens': 7580, 'agg_output_tok_s': 31.77} wall 238.6s
+[00:03:02 +2366s] F-k2-o2 vLLM counters before: success=13 gen_tokens=2145, after: success=13 gen_tokens=2145 (a change is foreign GPU traffic inside the run)
+min MemAvailable (time MB; KILLED count) (F-k2-o2): 23:59:10 53789 0 
+[00:03:08 +2372s] vLLM up at the end: 200; Mem:             121          39          39           0          45          82
+[00:03:08 +2372s] window end
