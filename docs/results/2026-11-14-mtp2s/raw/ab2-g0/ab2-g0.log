@@ -1,0 +1,9 @@
+[23:07:51 +3s] ab start; vLLM: 200; earlyoom: active; Mem:             121          49          29           0          44          72
+[23:07:51 +3s] serve arm O1: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2 --spec off
+[23:08:28 +40s] serve O1 up; MemAvailable MB: 50779; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 33.3s, context 32768 tokens;
+[23:08:28 +40s] vLLM requests running before O1: 0
+[speed] O1 streams 1: per stream 88.49 tok/s (87.64-88.87), combined 88.49, ITL p99 92.45 ms, chunk gap p99 78.83 ms (max 128.95), MTP passes 0 accept None tokens/pass None
+[speed] O1 streams 2: per stream 69.83 tok/s (68.7-70.18), combined 139.63, ITL p99 141.16 ms, chunk gap p99 85.16 ms (max 131.51), MTP passes 0 accept None tokens/pass None
+[23:09:31 +103s] vLLM requests running after O1: 0
+[23:09:32 +104s] min MemAvailable MB (time MB; KILLED count) (O1): 23:08:29 49904 0 
+[23:09:34 +106s] end

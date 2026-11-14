@@ -1,0 +1,22 @@
+fleetq: #9302 waiting (#1 in line): needs gpu quiet on spark2, but #9301 "mtp2s: A/B round 2 temp1/off/long/cjk" (claude-2ae67a71) loads it
+fleetq:   #9301 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9301 set, or it will wait for #9301 to be released.
+fleetq: #9302 running on spark2: scripts/mtp2s/prof-run.sh VD VDt
+== VD up 23:15:22 MemAvailable MB 50621
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+	/home/nvidia/intarsia-mtp2s/out/prof/VD.nsys-rep
+{"streams": 2, "wall": 3.711, "per_stream": [79.54, 71.07], "aggregate": 150.61, "chunks": [256, 256], "overlap_s": 3.206}
+min MemAvailable MB: 23:15:34 48179
+exported 34M
+== VDt up 23:16:19 MemAvailable MB 49608
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+	/home/nvidia/intarsia-mtp2s/out/prof/VDt.nsys-rep
+{"streams": 2, "wall": 4.189, "per_stream": [71.96, 62.74], "aggregate": 134.7, "chunks": [256, 256], "overlap_s": 3.544}
+min MemAvailable MB: 23:16:32 48053
+exported 37M
+fleetq: #9302 done (exit 0)

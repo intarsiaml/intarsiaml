@@ -723,7 +723,7 @@ impl Model {
     pub const TOPK_MAX: usize = 64;
 
     /// Top-`kmax` of rows `[0, b)` of `ws.logits` on the device; returns (ids, values, NaN flag) of every row, `kmax` per row.
-    fn batch_topk(&self, b: usize, kmax: usize) -> Result<(Vec<u32>, Vec<f32>, Vec<i32>)> {
+    pub(super) fn batch_topk(&self, b: usize, kmax: usize) -> Result<(Vec<u32>, Vec<f32>, Vec<i32>)> {
         let t = self.topk.as_ref().ok_or_else(|| Error::invalid("device-side sampling is off"))?;
         let v = self.dims.vocab;
         let logits = self.view(&self.ws.logits, DType::F32, &[b, v]);
