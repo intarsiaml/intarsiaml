@@ -1,0 +1,3 @@
+.prof/V2.sqlite: 100 iterations; medians: period 34.75 ms, verify span 26.84, draft passes 4 spanning 7.51, D2H copies 5 (0.00 MB, 0.011 ms), GPU idle 4.71 ms (no kernel or copy running)
+.prof/VD.sqlite: 104 iterations; medians: period 30.16 ms, verify span 26.18, draft passes 4 spanning 3.55, D2H copies 5 (0.00 MB, 0.009 ms), GPU idle 4.48 ms (no kernel or copy running)
+.prof/VDt.sqlite: 108 iterations; medians: period 32.19 ms, verify span 26.12, draft passes 4 spanning 3.52, D2H copies 7 (5.96 MB, 0.116 ms), GPU idle 6.53 ms (no kernel or copy running)

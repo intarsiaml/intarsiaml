@@ -1,0 +1,172 @@
+VDt.sqlite: 206777 kernels, 857 D2H copies, 616 segments over 4134.7 ms
+
+| captured | kernels | segments | span ms (mean) | GPU busy ms | host gap before ms (median) | share of window |
+|---|---|---|---|---|---|---|
+| eager | 1464 | 109 | 26.114 | 22.422 | 0.018 | 68.9 % |
+| eager | 1094 | 22 | 17.558 | 15.284 | 0.017 | 9.4 % |
+| eager | 35 | 316 | 0.823 | 0.739 | 0.017 | 8.5 % |
+| eager | 39 | 162 | 1.000 | 0.902 | 0.643 | 8.3 % |
+| eager | 1984 | 2 | 69.304 | 66.857 | 0.885 | 3.4 % |
+
+per op class, mean kernel ms per segment summed over all streams (a node-level graph trace spreads graph nodes over
+many stream ids, and the side-stream kernels overlap the main chain, so the classes add up to more than the busy time);
+busy = union of all kernel intervals; idle = span - busy (launch gaps and the download):
+
+| captured / kernels | moe_experts | moe_router | gdn | attention | lm_head/argmax | proj_gemv | norm/elementwise | other | kernel sum | busy | idle | span |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| eager / 1464 (x109) | 10.891 | 0.229 | 2.014 | 0.543 | 1.342 | 9.992 | 0.667 | 0.127 | 25.804 | 22.422 | 3.693 | 26.114 |
+| eager / 1094 (x22) | 5.732 | 0.199 | 0.987 | 0.270 | 1.230 | 10.871 | 0.593 | 0.107 | 19.988 | 15.284 | 2.274 | 17.558 |
+| eager / 35 (x316) | 0.080 | 0.007 | 0.000 | 0.027 | 0.006 | 0.695 | 0.025 | 0.004 | 0.844 | 0.739 | 0.084 | 0.823 |
+| eager / 39 (x162) | 0.169 | 0.004 | 0.000 | 0.026 | 0.006 | 0.669 | 0.021 | 0.008 | 0.902 | 0.902 | 0.098 | 1.000 |
+| eager / 1984 (x2) | 40.861 | 0.381 | 1.723 | 0.614 | 1.292 | 21.317 | 0.979 | 0.888 | 68.055 | 66.857 | 2.447 | 69.304 |
+| eager / 1004 (x1) | 4.157 | 0.181 | 0.648 | 0.255 | 1.231 | 11.010 | 0.526 | 0.103 | 18.110 | 13.246 | 1.819 | 15.065 |
+
+eager / 1464 kernels (x109): top names, ms per segment, launches per segment, class
+     7.254    40.0  moe_experts      moe_dec_gate_up_kernel
+     6.422   110.0  proj_gemv        fp8_gemv_rows_full_kernel
+     3.637    40.0  moe_experts      moe_dec_down_dd_kernel
+     1.516   140.0  proj_gemv        gemv_split_kernel
+     1.324     1.0  proj_gemv        nvfp4_gemv_full_kernel
+     1.250   180.0  gdn              gdn_delta_dec_kernel
+     1.144    80.0  proj_gemv        nvfp4_gemv_split_kernel
+     0.667    40.0  proj_gemv        nvfp4_gemv_tile_kernel
+     0.464   180.0  gdn              gdn_conv_kernel
+     0.315    40.0  norm/elementwise silu_glu_kernel
+     0.300   180.0  gdn              gdn_conv_state_kernel
+     0.263   121.0  norm/elementwise rmsnorm_kernel
+     0.243    10.0  proj_gemv        fp8_gemv_rows_q_pair_kernel
+     0.229    40.0  moe_router       moe_topk_kernel
+     0.215    40.0  attention        rope_kernel
+     0.197    20.0  attention        splitkv_rows_persist_kernel
+     0.084    40.0  attention        kv_append_kernel
+     0.071    30.0  norm/elementwise gated_rmsnorm_kernel
+     0.054    40.0  other            moe_combine_kernel
+     0.046    40.0  attention        rope_pass_kernel
+     0.042    20.0  other            combine_kernel
+     0.030    20.0  other            gate_split_kernel
+     0.018     1.0  lm_head/argmax   argmax_kernel
+     0.015    10.0  norm/elementwise sigmoid_mul_kernel
+     0.003     1.0  norm/elementwise embedding_kernel
+
+eager / 1094 kernels (x22): top names, ms per segment, launches per segment, class
+     6.374   130.0  proj_gemv        fp8_gemv_rows_full_kernel
+     3.788    40.0  moe_experts      moe_dec_gate_up_kernel
+     2.831   140.0  proj_gemv        gemv_split_kernel
+     1.944    40.0  moe_experts      moe_dec_down_dd_kernel
+     1.791    41.0  proj_gemv        nvfp4_gemv_kernel
+     1.088    80.0  proj_gemv        nvfp4_gemv_split_kernel
+     0.597    90.0  gdn              gdn_delta_dec_kernel
+     0.294    40.0  norm/elementwise silu_glu_kernel
+     0.240    90.0  gdn              gdn_conv_kernel
+     0.218   101.0  norm/elementwise rmsnorm_kernel
+     0.199    40.0  moe_router       moe_topk_kernel
+     0.150    90.0  gdn              gdn_conv_state_kernel
+     0.106    20.0  attention        rope_kernel
+     0.101    10.0  attention        splitkv_rows_persist_kernel
+     0.065    30.0  norm/elementwise gated_rmsnorm_kernel
+     0.049    40.0  other            moe_combine_kernel
+     0.041    20.0  attention        kv_append_kernel
+     0.034    10.0  other            gate_split_kernel
+     0.023    10.0  other            combine_kernel
+     0.023    20.0  attention        rope_pass_kernel
+     0.017     1.0  lm_head/argmax   argmax_kernel
+     0.013    10.0  norm/elementwise sigmoid_mul_kernel
+     0.003     1.0  norm/elementwise embedding_kernel
+
+eager / 35 kernels (x316): top names, ms per segment, launches per segment, class
+     0.353     7.0  proj_gemv        gemv_kernel
+     0.279     1.0  proj_gemv        nvfp4_gemv_kernel
+     0.063     2.0  proj_gemv        gemv_pair_kernel
+     0.052     1.0  moe_experts      moe_dec_gate_up_kernel
+     0.028     1.0  moe_experts      moe_dec_down_v2_kernel
+     0.013     7.0  norm/elementwise rmsnorm_kernel
+     0.011     1.0  attention        splitkv_kernel
+     0.011     2.0  attention        rope_kernel
+     0.007     1.0  norm/elementwise silu_glu_kernel
+     0.007     1.0  moe_router       moe_topk_kernel
+     0.006     1.0  lm_head/argmax   argmax_kernel
+     0.003     2.0  attention        kv_append_kernel
+     0.003     1.0  norm/elementwise embedding_kernel
+     0.002     2.0  attention        rope_pass_kernel
+     0.002     1.0  other            combine_kernel
+     0.001     1.0  other            gate_split_kernel
+     0.001     1.0  norm/elementwise sigmoid_mul_kernel
+     0.001     1.0  other            moe_combine_kernel
+     0.001     1.0  norm/elementwise add_kernel
+
+eager / 39 kernels (x162): top names, ms per segment, launches per segment, class
+     0.366    11.0  proj_gemv        gemv_kernel
+     0.303     1.0  proj_gemv        nvfp4_gemv_kernel
+     0.103     1.0  moe_experts      moe_gate_up_kernel
+     0.066     1.0  moe_experts      moe_down_kernel
+     0.014     7.0  norm/elementwise rmsnorm_kernel
+     0.010     2.0  attention        rope_kernel
+     0.010     1.0  attention        splitkv_rows_persist_kernel
+     0.006     1.0  lm_head/argmax   argmax_kernel
+     0.004     1.0  moe_router       moe_topk_kernel
+     0.004     2.0  attention        kv_append_kernel
+     0.003     1.0  norm/elementwise embedding_kernel
+     0.002     1.0  other            combine_kernel
+     0.002     1.0  other            moe_group_kernel
+     0.002     2.0  attention        rope_pass_kernel
+     0.002     1.0  other            moe_reduce_kernel
+     0.001     1.0  norm/elementwise silu_glu_kernel
+     0.001     1.0  other            moe_combine_kernel
+     0.001     1.0  other            gate_split_kernel
+     0.001     1.0  norm/elementwise add_kernel
+     0.001     1.0  norm/elementwise sigmoid_mul_kernel
+
+eager / 1984 kernels (x2): top names, ms per segment, launches per segment, class
+    19.939    40.0  moe_experts      moe_gate_up_kernel
+    17.899    40.0  moe_experts      moe_down_kernel
+     5.392   120.0  proj_gemv        nvfp4_mma_kernel
+     3.687    40.0  proj_gemv        nvjet_sm121_qqtst_mma_192x176x128_2_48x88x128_tmaAB_bz_TNNN
+     3.469    40.0  proj_gemv        fp8_gemv_pair_kernel
+     2.518    40.0  proj_gemv        nvjet_sm121_qqtst_mma_192x160x128_2_48x80x128_tmaAB_bz_TNNN
+     1.973    40.0  moe_experts      moe_dec_gate_up_kernel
+     1.668    41.0  proj_gemv        nvfp4_gemv_kernel
+     1.562    30.0  proj_gemv        sm89_xmma_gemm_e4m3bf16_e4m3f32_f32_tn_n_tilesize128x128x64_stage3_warpsize2x2x1_tensor16x8x32_execute_kernel_
+     1.242    30.0  proj_gemv        fp8_gemv_gated_kernel
+     1.195    20.0  proj_gemv        fp8_gemv_kernel
+     1.050    40.0  moe_experts      moe_dec_down_v2_kernel
+     0.821    30.0  gdn              gdn_delta_split_kernel
+     0.603    60.0  gdn              gdn_conv_kernel
+     0.545    20.0  proj_gemv        nvjet_sm121_qqtst_mma_128x192x128_2_32x96x128_tmaAB_bz_TNNN
+     0.510    40.0  proj_gemv        nvfp4_glu_kernel
+     0.457    69.0  norm/elementwise rmsnorm_add_pair_kernel
+     0.381    80.0  moe_router       moe_topk_kernel
+     0.335   138.0  norm/elementwise rmsnorm_kernel
+     0.315    40.0  proj_gemv        nvjet_sm121_tst_mma_192x16x64_3_32x16x64_tmaAB_splitK_TNNN
+     0.229    22.0  attention        rope_multi_kernel
+     0.227    60.0  proj_gemv        nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_splitK_TNNN
+     0.223   130.0  other            lt_actq8_kernel
+     0.206    30.0  gdn              gdn_delta_dec_kernel
+     0.189   100.0  other            splitKreduce_kernel
+
+eager / 1004 kernels (x1): top names, ms per segment, launches per segment, class
+     6.139   130.0  proj_gemv        fp8_gemv_rows_full_kernel
+     2.802   140.0  proj_gemv        gemv_split_kernel
+     2.727    40.0  moe_experts      moe_dec_gate_up_kernel
+     1.643    41.0  proj_gemv        nvfp4_gemv_kernel
+     1.639    80.0  proj_gemv        nvfp4_gemv_split_kernel
+     1.429    40.0  moe_experts      moe_dec_down_dd_kernel
+     0.398    60.0  gdn              gdn_delta_dec_kernel
+     0.243    40.0  norm/elementwise silu_glu_kernel
+     0.207   101.0  norm/elementwise rmsnorm_kernel
+     0.181    40.0  moe_router       moe_topk_kernel
+     0.155    60.0  gdn              gdn_conv_kernel
+     0.105    20.0  attention        rope_kernel
+     0.099    10.0  attention        splitkv_rows_persist_kernel
+     0.095    60.0  gdn              gdn_conv_state_kernel
+     0.061    30.0  norm/elementwise gated_rmsnorm_kernel
+     0.047    40.0  other            moe_combine_kernel
+     0.033    10.0  other            gate_split_kernel
+     0.030    20.0  attention        kv_append_kernel
+     0.023    10.0  other            combine_kernel
+     0.022    20.0  attention        rope_pass_kernel
+     0.017     1.0  lm_head/argmax   argmax_kernel
+     0.013    10.0  norm/elementwise sigmoid_mul_kernel
+     0.002     1.0  norm/elementwise embedding_kernel
+
+sequence (first 60 segments: G/E + kernels):
+E1984 E51 E35 E1094 E1984 E51 E35 E35 E35 E1464 E39 E35 E35 E35 E1464 E35 E35 E39 E35 E1464 E39 E35 E39 E35 E1464 E39 E35 E35 E35 E1464 E39 E35 E39 E35 E1464 E35 E35 E39 E35 E1464 E39 E35 E39 E35 E1464 E39 E35 E35 E35 E1464 E35 E35 E35 E35 E1464 E39 E35 E39 E35 E1464
