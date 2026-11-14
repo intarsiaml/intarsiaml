@@ -2095,6 +2095,32 @@ impl Model {
     /// attention where the backend needs it, the delta rule row by row with the state saves). So each row is the solo verify
     /// row's, which is the decode step's. Single rank only.
     pub fn forward_verify_batch(&self, states: &mut [&mut SequenceState], ids: &[Vec<u32>]) -> Result<Vec<Vec<u32>>> {
+        Ok(self.forward_verify_batch_run(states, ids, None)?.0)
+    }
+
+    /// [`Model::forward_verify_batch`] that also returns the logits rows (`[q][V]`) of every sequence `i` with `want[i]` (an empty
+    /// list for the others), read back before the drafters' hooks run. Lane mtp-sampled: a sampled sequence draws its own token
+    /// from each of its rows, which are bitwise its decode steps' (see [`Model::forward_verify_logits`]).
+    #[allow(clippy::type_complexity)]
+    pub fn forward_verify_batch_logits(
+        &self,
+        states: &mut [&mut SequenceState],
+        ids: &[Vec<u32>],
+        want: &[bool],
+    ) -> Result<(Vec<Vec<u32>>, Vec<Vec<Vec<f32>>>)> {
+        if want.len() != states.len() {
+            return Err(Error::invalid("forward_verify_batch_logits: one `want` per state"));
+        }
+        self.forward_verify_batch_run(states, ids, Some(want))
+    }
+
+    #[allow(clippy::type_complexity)]
+    fn forward_verify_batch_run(
+        &self,
+        states: &mut [&mut SequenceState],
+        ids: &[Vec<u32>],
+        want: Option<&[bool]>,
+    ) -> Result<(Vec<Vec<u32>>, Vec<Vec<Vec<f32>>>)> {
         let n = states.len();
         let Some(tok) = &self.verify_tok else {
             return Err(Error::invalid("forward_verify_batch before enable_verify"));
@@ -2128,8 +2154,13 @@ impl Model {
                 return Err(Error::invalid("forward_verify_batch names one state twice"));
             }
         }
+        let wants = |i: usize| want.is_some_and(|w| w[i]);
         if n == 1 && ids[0].len() >= 2 {
-            return Ok(vec![self.forward_verify(states[0], &ids[0])?]);
+            if wants(0) {
+                let (t, rows) = self.forward_verify_logits(states[0], &ids[0])?;
+                return Ok((vec![t], vec![rows]));
+            }
+            return Ok((vec![self.forward_verify(states[0], &ids[0])?], vec![Vec::new()]));
         }
         let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
         for (st, q) in states.iter_mut().zip(ids) {
@@ -2169,6 +2200,23 @@ impl Model {
         let mut b = vec![0u8; total * 4];
         self.backend.download(tok, 0, &mut b, self.stream)?;
         let flat: Vec<u32> = b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect();
+        // the wanted segments' logits rows (the head wrote one row per fed position, in pass order)
+        let mut logits: Vec<Vec<Vec<f32>>> = Vec::with_capacity(n);
+        let v = self.dims.vocab;
+        let mut lo = 0;
+        for (i, q) in ids.iter().enumerate() {
+            let mut rows = Vec::new();
+            if wants(i) {
+                let mut l = vec![0u8; q.len() * v * 4];
+                self.backend.download(&self.ws.logits, lo * v * 4, &mut l, self.stream)?;
+                rows = l
+                    .chunks_exact(v * 4)
+                    .map(|r| r.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect())
+                    .collect();
+            }
+            logits.push(rows);
+            lo += q.len();
+        }
         let mut out = Vec::with_capacity(n);
         let mut segs = Vec::with_capacity(n);
         let mut lo = 0;
@@ -2184,7 +2232,7 @@ impl Model {
         self.telemetry.step();
         // every head queues its rows (the rollback drops the rejected ones), as after a solo verify pass
         self.mtp_after_rows(states, &hn, &segs, false, profile)?;
-        Ok(out)
+        Ok((out, logits))
     }
 
     /// [`Model::forward_verify`] with in-process tensor-parallel peers: every rank runs the pass on its own thread (as
