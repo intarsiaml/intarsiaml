@@ -66,3 +66,22 @@ for s in sets:
             else:
                 out.append("-")
         print(f"| {s} | {n} | " + " | ".join(out) + " |")
+
+print("\n### compact: tok/s (vs A) / acceptance / ITL p99 ms\n")
+print("| set | streams | " + " | ".join(arms) + " |")
+print("|---|---|" + "---|" * len(arms))
+for s in sets:
+    for n in streams:
+        if not any((s, n, a) in cells for a in arms):
+            continue
+        b = agg(cells[(s, n, base)])["mean"] if (s, n, base) in cells else None
+        out = []
+        for a in arms:
+            if (s, n, a) in cells:
+                g = agg(cells[(s, n, a)])
+                acc = "-" if (g["acc"] is None or a == base and n > 1) else "%.2f" % g["acc"]
+                rel = "%.3f" % (g["mean"] / b) if b else "-"
+                out.append(f"{g['mean']:.1f} ({rel}) / {acc} / {g['itl']:.0f}")
+            else:
+                out.append("-")
+        print(f"| {s} | {n} | " + " | ".join(out) + " |")
