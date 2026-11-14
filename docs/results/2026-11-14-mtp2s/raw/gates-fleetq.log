@@ -1,0 +1,4 @@
+fleetq: #9307 waiting (#2 in line): in line behind #9305 "mtp2s: build verify-topk" (claude-2ae67a71) on spark2
+fleetq:   #9305 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9305 set, or it will wait for #9305 to be released.
+fleetq: #9307 waiting (#1 in line): needs cpu quiet on spark2, but #9305 "mtp2s: build verify-topk" (claude-2ae67a71) loads it
+fleetq:   #9305 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9305 set, or it will wait for #9305 to be released.
