@@ -9,6 +9,7 @@
 #   VD1  VD at --spec-k 1 (visit names VD1a, VD1b, ...)
 #   X / XD / XV / XVD: any extra arm via the ENV_<arm> / ARGS_<arm> variables
 #   O    drafting off (--spec off)
+#   VDT  VD + INTARSIA_VERIFY_TOPK=1 (needs the lane's binary: BIN=~/intarsia-mtp2s/bin/intarsia-topk)
 # STREAMS (default 1,2), GEN (default 384), SET (en|cjk|long), TEMP (default 0), OUT (raw dir).
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
@@ -20,6 +21,7 @@ ENV_A="X=1";                                              ARGS_A=""
 ENV_D="X=1";                                              ARGS_D="$DV"
 ENV_V="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1"; ARGS_V=""
 ENV_VD="$ENV_V";                                          ARGS_VD="$DV"
+ENV_VDT="$ENV_V INTARSIA_VERIFY_TOPK=1";                  ARGS_VDT="$DV"
 ENV_VD1="$ENV_V";                                         ARGS_VD1="--spec mtp --spec-k 1 --mtp-draft-vocab 65536"
 visit() { # visit <name> <arm>
   local name=$1 arm=$2 e a
