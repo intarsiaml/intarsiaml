@@ -81,7 +81,7 @@ impl Model {
             && m.synced
             && n >= 1
             && n <= q
-            && m.kv.len + n == st.len
+            && m.pos() + n == st.len
             // the verify rows, and the head's chained rows (positions st.len .. st.len + k - 1), fit their caches
             && st.len + q <= st.cap
             && st.len + k <= m.kv.cap
@@ -124,7 +124,8 @@ impl Model {
                                 && pm_.active
                                 && pm_.synced
                                 && pm_.pending_rows == n
-                                && pm_.kv.len + n == p.len
+                                && pm_.base == st.mtp.as_ref().map_or(0, |m0| m0.base)
+                                && pm_.pos() + n == p.len
                                 && p.len + k <= pm_.kv.cap
                         }
                         _ => false,
@@ -270,9 +271,10 @@ impl Model {
         }
         let q = k + 1;
         let p = st.len;
-        let (n, p0) = {
+        // `hb`: the head's cache row 0 is position `hb` (`MtpState::base`), so its rows sit at positions relative to it
+        let (n, p0, hb) = {
             let m = st.mtp.as_ref().expect("checked by spec_step_ok");
-            (m.pending_rows, m.kv.len)
+            (m.pending_rows, m.pos(), m.base)
         };
         // the catch-up tokens: the head row of position p0 + i pairs with the token of position p0 + i + 1; the last one is `next`
         let mut catch: Vec<u32> = st.tokens.get(p0 + 1..(p0 + n + 1).min(st.len)).unwrap_or(&[]).to_vec();
@@ -308,11 +310,11 @@ impl Model {
             tab[POS_VERIFY + r] = (p + r) as i32;
         }
         for i in 0..n {
-            tab[POS_CATCH_UP + i] = (p - n + i) as i32;
+            tab[POS_CATCH_UP + i] = (p - hb - n + i) as i32;
             tab[CATCH_IDS + i] = catch[i] as i32;
         }
         for i in 0..k.saturating_sub(1) {
-            tab[POS_CHAIN + i] = (p + i) as i32;
+            tab[POS_CHAIN + i] = (p - hb + i) as i32;
         }
         for (i, &t) in scripted.iter().flatten().enumerate() {
             tab[SCRIPT_IDS + i] = t as i32;

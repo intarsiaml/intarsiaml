@@ -625,10 +625,11 @@ pub fn mtp_default(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe,
 }
 
 /// The k of the recipe default for this group (`mtp_default_tp_k` at `world > 1`, `mtp_default_k` at one rank), or `None`. With
-/// `store_blocks` a configured prefix store (`--prefix-store`, `INTARSIA_PREFIX_STORE`) means `None`: that is explicit caching intent, and
-/// a drafting request bypasses the store. Without it the answer is what the default would be were no store given (the loader's skip note).
+/// `store_blocks` and MTP drafting on store requests off for the backend (`INTARSIA_MTP_STORE=0`, or unset off CUDA) a configured prefix store (`--prefix-store`, `INTARSIA_PREFIX_STORE`) means `None`: that is
+/// explicit caching intent, and a drafting request then bypasses the store. Without it the answer is what the default would be were no
+/// store given (the loader's skip note). On CUDA by default (lane mtp-store) a drafting request uses the store, so the store blocks nothing.
 fn default_k(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backend: &str, world: usize, local: bool, store_blocks: bool) -> Option<usize> {
-    if !mtp_default_allowed(opts, local) || (store_blocks && prefix_store_given(opts)) {
+    if !mtp_default_allowed(opts, local) || (store_blocks && !intarsia_core::spec::mtp_store_for(backend) && prefix_store_given(opts)) {
         return None;
     }
     // a batched server (`--max-batch` > 1) takes the MTP default only where batched MTP is on for this group (lane bm)
@@ -706,15 +707,17 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     // without --spec, on in-process ranks, at one sequence (MTP does not batch), unless INTARSIA_SPEC_DEFAULT=0.
     let defaulted;
     let local = matches!(group, Group::Local(..));
-    // a prefix store means explicit caching intent, and a drafting request bypasses the store: the default is skipped, with one line
+    // MTP drafting on store requests off (`INTARSIA_MTP_STORE=0`, or unset off CUDA): a prefix store means explicit caching intent, and a
+    // drafting request bypasses the store: the default is skipped, with one line. Otherwise (lane mtp-store) a drafting request uses the
+    // store and the default applies
     let mut skipped_by_store = false;
     if let Some(b0) = backends.first() {
         let (world, name) = (backends.len(), b0.name());
         if default_k(opts, &recipe, name, world, local, true).is_none() && default_k(opts, &recipe, name, world, local, false).is_some() {
             skipped_by_store = true;
             eprintln!(
-                "--spec mtp default of recipe {} on {} not applied: --prefix-store (or INTARSIA_PREFIX_STORE) is set and a drafting request bypasses the store; \
-                 --spec mtp --prefix-store ... asks for both",
+                "--spec mtp default of recipe {} on {} not applied: --prefix-store (or INTARSIA_PREFIX_STORE) is set and a drafting request bypasses the store \
+                 on this backend (INTARSIA_MTP_STORE=1 drafts on store requests); --spec mtp --prefix-store ... asks for both",
                 recipe.model.family, name
             );
         }
@@ -1042,9 +1045,10 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             Some(c) => Some(c.clone()),
             None => intarsia_core::prefix_store::PrefixStoreConfig::from_env()?,
         },
+        mtp_store: None,
     };
-    // the prefix store with `--max-batch` > 1 (slice 1): plain decode, the store's own chunk schedule; `BatchedEngine::new` refuses
-    // the opt-ins it does not combine with (packed or macro prefill, overlap) and tensor parallelism
+    // the prefix store with `--max-batch` > 1: the store's own chunk schedule, plain decode or `--spec mtp` (lane mtp-store);
+    // `BatchedEngine::new` refuses the opt-ins it does not combine with (packed or macro prefill, overlap) and tensor parallelism
     let engine: Arc<dyn Engine> = if max_batch.value > 1 {
         // the server admits at most max_queue + max_batch requests, so a queue of that size never fills first
         let queue = batch_queue(opts.max_queue, max_batch.value);

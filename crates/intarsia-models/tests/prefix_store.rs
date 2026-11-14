@@ -1233,6 +1233,8 @@ fn batched_store_refuses_speculation() {
     use intarsia_core::spec::{SpecConfig, SpecMode};
     let mut meta = store_meta(Some(store_cfg()));
     meta.spec = SpecConfig { mode: SpecMode::Mtp, k: 2, k_min: None };
+    // `INTARSIA_MTP_STORE=0`; on CUDA by default `--spec mtp` runs with the store (lane mtp-store, `tests/mtp.rs`)
+    meta.mtp_store = Some(false);
     let mut o = BatchedOptions::new(2, 64);
     o.mtp_max_b = 1;
     let e = BatchedEngine::new(planned(Kind::Hybrid, 8, 2), Arc::new(Kind::Hybrid.codec()), meta, Arc::new(Telemetry::new()), o)

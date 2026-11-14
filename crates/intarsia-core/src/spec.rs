@@ -241,6 +241,37 @@ pub fn residual(p: &crate::sampler::Dist, q: &crate::sampler::Dist) -> Option<cr
     Some(crate::sampler::Dist { ids, probs })
 }
 
+/// MTP drafting on a prefix-store request (lane mtp-store, docs/results/2026-11-13-mtp-store.md): the store restores the main
+/// model's state only, so the MTP head's context restarts at the restored length ([`crate::state::MtpState::base`]) and the
+/// request drafts from there. On: a drafting request uses the store (single-sequence engine), `--spec mtp` runs beside the
+/// store in the batching engine, and a configured store no longer skips a recipe's MTP default. Off: as before the lane (a
+/// drafting request bypasses the store, the batching engine refuses the pair, the store skips the default).
+///
+/// The default when `INTARSIA_MTP_STORE` is unset: on for the CUDA backend (gated there on the Qwen3.6-35B-A3B, spark1), off
+/// elsewhere (the cpu reference passes the same gates in `tests/mtp.rs`; Metal and HIP were not measured).
+pub fn mtp_store_default_for(backend: &str) -> bool {
+    backend == "cuda"
+}
+
+/// `INTARSIA_MTP_STORE` (read once): `0` / `off` or `1` / `on`; `None` when unset, empty or unknown (with a warning).
+pub fn mtp_store_from_env() -> Option<bool> {
+    static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| match std::env::var("INTARSIA_MTP_STORE").unwrap_or_default().as_str() {
+        "" => None,
+        "0" | "off" => Some(false),
+        "1" | "on" => Some(true),
+        v => {
+            eprintln!("INTARSIA_MTP_STORE={v}: unknown (0 / off, 1 / on); the default applies");
+            None
+        }
+    })
+}
+
+/// Whether MTP drafting runs on prefix-store requests on `backend`: `INTARSIA_MTP_STORE`, else [`mtp_store_default_for`].
+pub fn mtp_store_for(backend: &str) -> bool {
+    mtp_store_from_env().unwrap_or_else(|| mtp_store_default_for(backend))
+}
+
 /// mb-MTP ("mode-biased", after llamAmpere v0.6, `common_sampler_verify_pq`): on a rejected draft, keep the draft instead of
 /// the replacement token when the target rates it at least as likely, `p(d) >= p(replacement)`, and neither is a stop token.
 /// Not exact: the output leans toward the target's likelier tokens (llamAmpere measured 0.009 KL per token at draft depth 6),

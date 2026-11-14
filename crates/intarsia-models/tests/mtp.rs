@@ -2441,3 +2441,423 @@ fn engine_mtp_dump_matches_the_model_and_leaves_serving_alone() {
     let (nohead, _) = engine_full(CpuBackend::arc(), &w, None, None, 0);
     assert!(nohead.mtp_dump(&ids, false).is_err());
 }
+
+// ------------------------------------------------------------------------------------------------------------------
+// lane mtp-store: `--spec mtp` on prefix-store requests (`EngineMeta::mtp_store`, `INTARSIA_MTP_STORE`; on by default on CUDA
+// only, so the engines here set it). The store restores the main model's state only; the head's context restarts at the
+// restored length (`MtpState::base`).
+// ------------------------------------------------------------------------------------------------------------------
+
+use intarsia_core::prefix_store::PrefixStoreConfig;
+
+/// Message boundary and header end of the test conversations, one `ByteCodec` token each (ids 3 and 10).
+const BOUND: u32 = 3;
+const NL: u32 = 10;
+
+fn mtp_store_cfg() -> PrefixStoreConfig {
+    PrefixStoreConfig {
+        min_tokens: 4,
+        grid_tokens: 16,
+        page_tokens: 16,
+        boundary_tokens: vec!["\u{3}".into()],
+        header_end_tokens: vec!["\n".into()],
+        ..Default::default()
+    }
+}
+
+/// A ChatML-like conversation in token ids (`prefix_store.rs`'s `Chat`): `BOUND role NL content...` per message.
+#[derive(Clone, Default)]
+struct Convo(Vec<u32>);
+
+impl Convo {
+    fn msg(&mut self, seed: u32, n: usize) -> &mut Convo {
+        self.0.extend([BOUND, 25, NL]);
+        // ids 11..=90: clear of the boundary ids
+        self.0.extend((0..n as u32).map(|i| 11 + (seed * 17 + i * 7) % 80));
+        self
+    }
+    /// The next request's prompt: the conversation and an open assistant turn.
+    fn prompt(&self) -> Vec<u32> {
+        let mut p = self.0.clone();
+        p.extend([BOUND, 20, NL, 4, 21]);
+        p
+    }
+    fn answer(&mut self, ans: &[u32]) -> &mut Convo {
+        self.0.extend([BOUND, 20, NL]);
+        self.0.extend(ans.iter().map(|&t| if t == BOUND || t == NL { 22 } else { t }));
+        self
+    }
+}
+
+/// A single-sequence engine with the prefix store on; `k`: `--spec mtp --spec-k k` (`None`: spec off, no head).
+fn store_engine(
+    backend: Arc<dyn Backend>,
+    w: &MemWeights,
+    k: Option<usize>,
+    script: Option<DraftScript>,
+    pipe: Option<bool>,
+    mtp_store: Option<bool>,
+) -> (LocalEngine, Arc<Telemetry>) {
+    let tel = Arc::new(Telemetry::new());
+    let (recipe, dims) = dims();
+    let opts = LoadOptions { max_seq: 512, prefill_chunk: 8, fp8_act: Some(Fp8Act::None), mtp: k.is_some(), profile_every: 0, ..Default::default() };
+    let mut m = Model::load(backend, &recipe, &dims, w, &opts, tel.clone()).unwrap();
+    m.set_spec_pipe(pipe);
+    let spec = match k {
+        Some(k) => {
+            m.enable_verify(k + 1).unwrap();
+            m.configure_plan(&Default::default(), None).unwrap();
+            if script.is_some() {
+                m.mtp_script(script).unwrap();
+            }
+            SpecConfig { mode: SpecMode::Mtp, k, k_min: None }
+        }
+        None => SpecConfig::default(),
+    };
+    let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec, prefix_store: Some(mtp_store_cfg()), mtp_store, ..Default::default() };
+    (LocalEngine::new(m, Arc::new(ByteCodec), meta, tel.clone()).unwrap(), tel)
+}
+
+/// The requests of the store scenario on `e`, in order, each with its reply:
+///  0. turn 1 of conversation A (cold);
+///  1. conversation B (replaces the held state);
+///  2. turn 2 of A: restored from the store, the head's context restarts there;
+///  3. turn 3 of A: the slot holds A with the head past the resume point (queued rows, a cache over the reply);
+///  4. turn 3 again (a regenerate);
+///  5. A's first message with another second message: resumes inside the span the head's cache covers;
+///  6. turn 2 of B: a restore over a state whose head followed another conversation.
+fn store_scenario(e: &LocalEngine) -> Vec<(Vec<u32>, Out)> {
+    let mut log: Vec<(Vec<u32>, Out)> = Vec::new();
+    let mut go = |p: Vec<u32>, n: usize| {
+        let o = run(e, req(&p, n));
+        log.push((p, o));
+        log.last().unwrap().1.ids.clone()
+    };
+    let mut a = Convo::default();
+    a.msg(1, 23).msg(2, 9);
+    let a1 = go(a.prompt(), 24);
+    let mut b = Convo::default();
+    b.msg(7, 30).msg(8, 5);
+    let b1 = go(b.prompt(), 12);
+    a.answer(&a1).msg(3, 11);
+    let a2 = go(a.prompt(), 40);
+    a.answer(&a2).msg(4, 6);
+    go(a.prompt(), 30);
+    go(a.prompt(), 17);
+    let mut c = Convo::default();
+    c.msg(1, 23).msg(9, 14);
+    go(c.prompt(), 20);
+    b.answer(&b1).msg(5, 8);
+    go(b.prompt(), 25);
+    log
+}
+
+/// Restore, then draft: with the store on, every reply of the scenario with MTP on is the reply with MTP off (ids, finish reason,
+/// counts and the cached tokens: the request used the store exactly as a request that does not draft), on the eager, the
+/// pipelined and the captured step, with the head's own drafts.
+#[test]
+fn store_restore_then_draft_equals_mtp_off() {
+    let w = weights(11);
+    let (off, _) = store_engine(CpuBackend::arc(), &w, None, None, None, None);
+    let want = store_scenario(&off);
+    assert!(want[2].1.cached_tokens > 30 && want[6].1.cached_tokens > 30, "the reference restores: {:?}", want.iter().map(|x| x.1.cached_tokens).collect::<Vec<_>>());
+    for k in 1..=3 {
+        for (name, pipe, captured) in [("eager", None, false), ("pipelined", Some(true), false), ("captured", None, true)] {
+            let rec = RecCpu::arc();
+            let backend: Arc<dyn Backend> = if captured { rec.clone() } else { CpuBackend::arc() };
+            let (on, tel) = store_engine(backend, &w, Some(k), None, pipe, Some(true));
+            let got = store_scenario(&on);
+            for (i, (g, w)) in got.iter().zip(&want).enumerate() {
+                assert_eq!(g.1, w.1, "{name} k {k}: request {i}");
+            }
+            let t = tel.snapshot();
+            let ps = t.prefix_store.clone().expect("the store reports");
+            assert!(ps.hits >= 2 && ps.tokens_saved > 0, "{name} k {k}: drafting requests restored from the store: {ps:?}");
+            assert!(t.spec_steps > 0 && t.spec_proposed > 0, "{name} k {k}: the head drafted");
+            assert!(!captured || rec.replays.load(std::sync::atomic::Ordering::Relaxed) > 0, "k {k}: the captured step ran");
+            eprintln!("store + mtp {name} k {k}: {} passes, {} drafted, {} accepted; store hits {}, local wins {}", t.spec_steps, t.spec_proposed, t.spec_accepted, ps.hits, ps.local_wins);
+        }
+    }
+}
+
+/// The same with scripted drafts (all, some or none accepted per pass, through the GatedDeltaNet rollback) after every restore.
+#[test]
+fn store_restore_then_scripted_drafts_stay_identical() {
+    let w = weights(11);
+    let (off, _) = store_engine(CpuBackend::arc(), &w, None, None, None, None);
+    let want = store_scenario(&off);
+    let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+    for (p, o) in &want {
+        let mut s = p.clone();
+        s.extend(&o.ids);
+        truth.lock().unwrap().push(s);
+    }
+    for k in 1..=3 {
+        for (name, pipe, captured) in [("eager", None, false), ("pipelined", Some(true), false), ("captured", None, true)] {
+            let backend: Arc<dyn Backend> = if captured { RecCpu::arc() } else { CpuBackend::arc() };
+            let (on, tel) = store_engine(backend, &w, Some(k), Some(scripted(truth.clone(), k as u64)), pipe, Some(true));
+            let got = store_scenario(&on);
+            for (i, (g, w)) in got.iter().zip(&want).enumerate() {
+                assert_eq!(g.1, w.1, "{name} scripted k {k}: request {i}");
+            }
+            let t = tel.snapshot();
+            assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "{name} k {k}: partial acceptance exercised");
+            assert!(t.prefix_store.as_ref().is_some_and(|p| p.hits >= 2), "{name} k {k}: restored");
+        }
+    }
+}
+
+/// `INTARSIA_MTP_STORE=0` (`EngineMeta::mtp_store = Some(false)`): a drafting request bypasses the store, as before the lane.
+#[test]
+fn store_bypass_knob_keeps_drafting_requests_off_the_store() {
+    let w = weights(11);
+    let (on, tel) = store_engine(CpuBackend::arc(), &w, Some(2), None, None, Some(false));
+    let got = store_scenario(&on);
+    let t = tel.snapshot();
+    let ps = t.prefix_store.clone().expect("the store is announced");
+    assert_eq!((ps.hits, ps.inserts), (0, 0), "no drafting request touched the store: {ps:?}");
+    assert!(t.spec_steps > 0);
+    // (ids against spec off without the store: the bypass runs the store-off schedule)
+    let (off, _) = engine(&w, None);
+    for (i, (p, o)) in got.iter().enumerate() {
+        assert_eq!(run(&off, req(p, o.ids.len())).ids, o.ids, "request {i}");
+    }
+}
+
+/// The head's bookkeeping across a restart: `base + kv.len + pending_rows == st.len` after a restart at the current length,
+/// through decode steps, draft + verify + rollback, a cut back to a snapshot of the same context, and a cut to before the
+/// context's start (which restarts it at the cut).
+#[test]
+fn head_context_restart_keeps_the_queue_invariant_through_cuts() {
+    let w = weights(11);
+    let b = CpuBackend::arc();
+    let m = load_on(b.clone(), &w, 2, 0);
+    let inv = |st: &intarsia_core::state::SequenceState, what: &str| {
+        let h = st.mtp.as_ref().unwrap();
+        assert!(h.synced && h.base + h.kv.len + h.pending_rows == st.len, "{what}: base {} + cache {} + queue {} vs {}", h.base, h.kv.len, h.pending_rows, st.len);
+    };
+    let tok = |o: StepOut| match o {
+        StepOut::Token(t) => t,
+        o => panic!("{o:?}"),
+    };
+    let p = PROMPTS[0];
+    let mut st = m.new_state().unwrap();
+    m.forward(&mut st, &p[..8], HeadMode::None, None).unwrap();
+    st.snapshot(&*b, 8).unwrap();
+    let mut last = tok(m.forward(&mut st, &p[8..], HeadMode::LastArgmax, None).unwrap());
+    inv(&st, "after the prompt");
+    assert_eq!(st.mtp.as_ref().unwrap().base, 0);
+    st.mtp_restart(&*b).unwrap();
+    {
+        let h = st.mtp.as_ref().unwrap();
+        assert_eq!((h.base, h.kv.len, h.pending_rows), (p.len(), 0, 0));
+    }
+    let mut snap_at = 0;
+    for i in 0..8 {
+        if i % 2 == 0 {
+            last = tok(m.forward(&mut st, &[last], HeadMode::LastArgmax, None).unwrap());
+        } else {
+            let len0 = st.len;
+            let d = m.mtp_draft(&mut st, last, 2).unwrap();
+            assert_eq!(d.len(), 2);
+            let mut ids = vec![last];
+            ids.extend(&d);
+            let out = m.forward_verify(&mut st, &ids).unwrap();
+            let j = i % 3;
+            st.spec_rollback(len0 + j + 1, &*b).unwrap();
+            last = out[j];
+        }
+        inv(&st, "decode");
+        if i == 3 {
+            st.snapshot(&*b, 8).unwrap();
+            snap_at = st.len;
+        }
+    }
+    assert_eq!(st.mtp.as_ref().unwrap().base, p.len(), "the context still starts at the restart");
+    // back to a snapshot of this context: the queue comes back with it
+    let toks = st.tokens.clone();
+    st.truncate(snap_at, &*b).unwrap();
+    inv(&st, "cut to a snapshot");
+    assert_eq!(st.mtp.as_ref().unwrap().base, p.len());
+    let t = tok(m.forward(&mut st, &[toks[snap_at]], HeadMode::LastArgmax, None).unwrap());
+    assert_eq!(m.mtp_draft(&mut st, t, 2).unwrap().len(), 2);
+    inv(&st, "draft after the cut");
+    // a cut to before the context's start: it starts over at the cut
+    st.truncate(8, &*b).unwrap();
+    {
+        let h = st.mtp.as_ref().unwrap();
+        assert_eq!((h.base, h.kv.len, h.pending_rows, h.synced), (8, 0, 0, true));
+    }
+    let t = tok(m.forward(&mut st, &p[8..], HeadMode::LastArgmax, None).unwrap());
+    inv(&st, "prefill after the restart");
+    assert_eq!(m.mtp_draft(&mut st, t, 2).unwrap().len(), 2);
+    // an empty sequence is position 0 again
+    st.truncate(0, &*b).unwrap();
+    assert_eq!(st.mtp.as_ref().unwrap().base, 0);
+}
+
+/// After a restart the captured step (device position table) drafts what the eager step drafts, and verifies the same: the
+/// head's rows sit at positions relative to its context's start on both paths.
+#[test]
+fn captured_step_after_a_head_restart_equals_the_eager_step() {
+    let w = weights(11);
+    for k in 1..=3usize {
+        let rec = RecCpu::arc();
+        let m = load_on(rec.clone(), &w, k, 0);
+        let schedule = [0usize, k, 0, 1.min(k), k, k, 0, 0, k, 1.min(k)];
+        let mut steps = 0;
+        for (round, prompt) in PROMPTS.iter().enumerate() {
+            let (mut a, mut b) = (m.new_state().unwrap(), m.new_state().unwrap());
+            let mut last = 0;
+            for st in [&mut a, &mut b] {
+                // all but the last prompt token, a restart there (as after a store restore), then the last token
+                m.forward(st, &prompt[..prompt.len() - 1], HeadMode::None, None).unwrap();
+                st.mtp_restart(&*rec).unwrap();
+                let StepOut::Token(t) = m.forward(st, &prompt[prompt.len() - 1..], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+                last = t;
+            }
+            for i in 0..24 {
+                let len0 = a.len;
+                let drafts_a = m.mtp_draft(&mut a, last, k).unwrap();
+                let mut ids = vec![last];
+                ids.extend(&drafts_a);
+                let out_a = m.forward_verify(&mut a, &ids).unwrap();
+                assert!(m.spec_step_ok(&b, last, k), "k {k} round {round} step {i}: the captured step applies after a restart");
+                steps += 1;
+                let p = m.spec_step(&mut b, last, k).unwrap().expect("captured");
+                assert_eq!(drafts_a, p.drafts, "k {k} round {round} step {i}: drafts");
+                assert_eq!(out_a, p.out, "k {k} round {round} step {i}: verify outputs");
+                let j = schedule[i % schedule.len()];
+                for st in [&mut a, &mut b] {
+                    st.spec_rollback(len0 + j + 1, &*rec).unwrap();
+                }
+                let (ha, hb) = (a.mtp.as_ref().unwrap(), b.mtp.as_ref().unwrap());
+                assert_eq!((ha.base, ha.kv.len, ha.pending_rows), (hb.base, hb.kv.len, hb.pending_rows), "k {k} round {round} step {i}: head state");
+                assert_eq!(ha.base, prompt.len() - 1);
+                last = out_a[j];
+            }
+        }
+        assert!(steps > 40, "k {k}: the captured step ran ({steps})");
+    }
+}
+
+/// Store + spec in the batching engine: three conversations, three turns each, every round submitted together to a 2-slot
+/// engine with `--spec mtp` and the store (later turns restore at admission, the slot's head context restarts there). Every
+/// reply is the single-sequence engine's with the store on and MTP off.
+fn batched_store_mtp(mtp_max_b: usize, verify: bool, script: bool) {
+    let w = weights(11);
+    let k = 2;
+    let chunk = 8;
+    let (solo, _) = store_engine(CpuBackend::arc(), &w, None, None, None, None);
+    let convos = || -> Vec<Convo> {
+        (0..3u32)
+            .map(|c| {
+                let mut ch = Convo::default();
+                ch.msg(10 + c, 19 + 4 * c as usize).msg(20 + c, 7 + c as usize);
+                ch
+            })
+            .collect()
+    };
+    let gen = [29usize, 15, 22];
+    // the reference, one request at a time (and the truth streams of the scripted drafts)
+    let mut want: Vec<Vec<(Vec<u32>, Out)>> = Vec::new();
+    let mut chats = convos();
+    for round in 0..3u32 {
+        let row: Vec<(Vec<u32>, Out)> = chats.iter().zip(gen).map(|(c, n)| (c.prompt(), run(&solo, req(&c.prompt(), n)))).collect();
+        for (c, ((_, out), extra)) in chats.iter_mut().zip(row.iter().zip([5usize, 9, 3])) {
+            c.answer(&out.ids).msg(30 + round, extra);
+        }
+        want.push(row);
+    }
+    let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+    for (p, o) in want.iter().flatten() {
+        let mut s = p.clone();
+        s.extend(&o.ids);
+        truth.lock().unwrap().push(s);
+    }
+    let tel = Arc::new(Telemetry::new());
+    let (recipe, dims) = dims();
+    let opts = LoadOptions { max_seq: 512, prefill_chunk: chunk, fp8_act: Some(Fp8Act::None), mtp: true, profile_every: 0, ..Default::default() };
+    let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts, tel.clone()).unwrap();
+    m.enable_verify(k + 1).unwrap();
+    m.allow_recurrent_batch().unwrap();
+    m.enable_batch(2).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    if script {
+        m.mtp_script(Some(scripted(truth, 5))).unwrap();
+    }
+    let mut o = intarsia_core::BatchedOptions::new(2, 64);
+    o.mtp_max_b = mtp_max_b;
+    o.spec_off_at = 3;
+    o.busy_chunk = chunk / 2;
+    o.batched_verify = verify;
+    let meta = EngineMeta {
+        id: "tiny-mtp".into(),
+        eos_ids: vec![],
+        spec: SpecConfig { mode: SpecMode::Mtp, k, k_min: None },
+        prefix_store: Some(mtp_store_cfg()),
+        mtp_store: Some(true),
+        ..Default::default()
+    };
+    let eng = intarsia_core::BatchedEngine::new(m, Arc::new(ByteCodec), meta, tel.clone(), o).unwrap();
+    let mut cached_later = 0;
+    for (round, row) in want.iter().enumerate() {
+        let rxs: Vec<_> = row.iter().zip(gen).map(|((p, _), n)| eng.submit(req(p, n)).unwrap()).collect();
+        for (i, (rx, (_, w))) in rxs.iter().zip(row).enumerate() {
+            let got = collect_rx(rx);
+            assert_eq!((&got.ids, got.reason, got.completion_tokens), (&w.ids, w.reason, w.completion_tokens), "round {round} conversation {i} (drafting at B <= {mtp_max_b}, batched verify {verify}, scripted {script})");
+            if round > 0 {
+                cached_later += got.cached_tokens;
+            }
+        }
+    }
+    let t = tel.snapshot();
+    let ps = t.prefix_store.clone().expect("the batched engine reports its store");
+    assert!(cached_later > 0 && ps.hits > 0 && ps.tokens_saved > 0, "later turns restored from the store: cached {cached_later}, {ps:?}");
+    assert!(t.spec_steps > 0 && t.spec_proposed > 0, "the sequences drafted");
+    assert!(!script || (t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed), "partial acceptance exercised");
+    eprintln!(
+        "batched store + mtp B<={mtp_max_b} verify {verify} scripted {script}: {} passes, {} drafted, {} accepted; store hits {}, {} tokens saved",
+        t.spec_steps, t.spec_proposed, t.spec_accepted, ps.hits, ps.tokens_saved
+    );
+}
+
+#[test]
+fn batched_store_with_mtp_equals_the_single_engine_store_on_mtp_off() {
+    batched_store_mtp(1, false, false);
+    batched_store_mtp(2, false, false);
+    batched_store_mtp(2, false, true);
+}
+
+#[test]
+fn batched_store_with_mtp_and_batched_verify_equals_mtp_off() {
+    batched_store_mtp(2, true, false);
+    batched_store_mtp(2, true, true);
+}
+
+/// `INTARSIA_MTP_STORE=0` (`EngineMeta::mtp_store = Some(false)`): the batching engine refuses the store with `--spec mtp`, as
+/// before the lane.
+#[test]
+fn batched_store_with_mtp_is_refused_with_the_knob_off() {
+    let w = weights(11);
+    let tel = Arc::new(Telemetry::new());
+    let (recipe, dims) = dims();
+    let opts = LoadOptions { max_seq: 512, prefill_chunk: 8, fp8_act: Some(Fp8Act::None), mtp: true, profile_every: 0, ..Default::default() };
+    let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts, tel.clone()).unwrap();
+    m.enable_verify(3).unwrap();
+    m.allow_recurrent_batch().unwrap();
+    m.enable_batch(2).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    let mut o = intarsia_core::BatchedOptions::new(2, 64);
+    o.mtp_max_b = 1;
+    let meta = EngineMeta {
+        id: "tiny-mtp".into(),
+        spec: SpecConfig { mode: SpecMode::Mtp, k: 2, k_min: None },
+        prefix_store: Some(mtp_store_cfg()),
+        mtp_store: Some(false),
+        ..Default::default()
+    };
+    let e = intarsia_core::BatchedEngine::new(m, Arc::new(ByteCodec), meta, tel, o).err().map(|e| e.to_string()).unwrap_or_default();
+    assert!(e.contains("prefix store") && e.contains("INTARSIA_MTP_STORE"), "{e}");
+    assert!(!intarsia_core::spec::mtp_store_default_for("cpu") && intarsia_core::spec::mtp_store_default_for("cuda"));
+}
