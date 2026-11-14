@@ -1,0 +1,13 @@
+{
+ "n": 200,
+ "a": "W2",
+ "b": "Wprev",
+ "identical_text": 200,
+ "identical_token_ids": 200,
+ "acc_a": 0.98,
+ "acc_b": 0.98,
+ "right_only_W2": 0,
+ "right_only_Wprev": 0,
+ "mcnemar_p": 1.0,
+ "non_identical": []
+}
