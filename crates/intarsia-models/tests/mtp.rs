@@ -2940,8 +2940,8 @@ fn batched_store_mtp(mtp_max_b: usize, verify: bool, script: bool, pause: bool) 
     assert!(t.spec_steps > 0 && t.spec_proposed > 0, "the sequences drafted");
     assert!(!script || (t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed), "partial acceptance exercised");
     let paused = eng.metrics().paused_steps;
-    // (counted for the head's own drafts: an accepted run of scripted drafts is emitted without a step of its own)
-    assert!(!pause || script || paused > 0, "no decode step ran inside a parked chunk");
+    // (no sequence drafts inside a parked chunk: a park's step is a plain one, or the emission of a verified draft)
+    assert!(!pause || paused > 0, "no decode step ran inside a parked chunk");
     eprintln!(
         "batched store + mtp B<={mtp_max_b} verify {verify} scripted {script} pause {pause}: {} passes, {} drafted, {} accepted; store hits {}, {} tokens saved; {paused} steps inside parked chunks",
         t.spec_steps, t.spec_proposed, t.spec_accepted, ps.hits, ps.tokens_saved
@@ -2955,10 +2955,10 @@ fn batched_store_with_mtp_equals_the_single_engine_store_on_mtp_off() {
     batched_store_mtp(2, false, true, false);
 }
 
-/// The same while prefill chunks park between layers (`INTARSIA_PREFILL_PAUSE_ROWS`, on by default): the other slot's draft and
-/// verify passes run inside the parks of a store request's chunk.
+/// The same while prefill chunks park between layers (`INTARSIA_PREFILL_PAUSE_ROWS`, on by default): the other slot takes plain
+/// steps inside the parks of a store request's chunk (the scheduler lets nobody draft there) and drafts again after it.
 #[test]
-fn batched_store_with_mtp_drafts_inside_parked_chunks() {
+fn batched_store_with_mtp_beside_parked_chunks() {
     batched_store_mtp(1, false, false, true);
     batched_store_mtp(1, false, true, true);
     batched_store_mtp(2, true, true, true);

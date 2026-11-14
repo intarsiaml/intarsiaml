@@ -171,6 +171,8 @@ struct MockModel {
     housekept: Arc<Mutex<Vec<Housekeep>>>,
     /// `BatchModel::batched_verify`.
     batched_verify: bool,
+    /// `BatchModel::park_sync` calls (lane mtp-store).
+    park_syncs: Arc<AtomicUsize>,
 }
 
 impl MockModel {
@@ -194,6 +196,7 @@ impl MockModel {
             parks: 0,
             housekept: Arc::new(Mutex::new(Vec::new())),
             batched_verify: BVERIFY.with(|a| a.get()),
+            park_syncs: Arc::new(AtomicUsize::new(0)),
             avoid: avoid(),
             overlap: OVERLAP.with(|a| a.get()),
             inflight: None,
@@ -333,6 +336,10 @@ impl BatchModel for MockModel {
     }
     fn housekeep(&mut self, at: Housekeep) {
         self.housekept.lock().unwrap().push(at);
+    }
+    fn park_sync(&mut self) {
+        assert!(self.inflight.is_some(), "park_sync without a parked chunk");
+        self.park_syncs.fetch_add(1, Ordering::SeqCst);
     }
     fn pack_min_rows(&self) -> usize {
         16
@@ -1295,6 +1302,37 @@ fn decoding_slot_advances_during_a_long_chunk() {
     assert_eq!((a0.len(), b0.len()), (40, 5));
     assert_eq!(a0, a1, "A's tokens do not depend on the pauses");
     assert_eq!(b0, b1, "B's tokens do not depend on the pauses");
+}
+
+/// Lane mtp-store: no sequence drafts in the decode phase of a parked chunk (a draft pass there hands the sequence several
+/// tokens at one park and none at the next, so it then waits for the rest of the chunk), and the device is brought up to the
+/// park before that phase. Outside the parks the speculation gate is the batch-size rule as before.
+#[test]
+fn no_speculation_inside_a_parked_chunk() {
+    with_pause(300, || {
+        let cfg = SchedulerConfig { max_batch: 2, busy_chunk: 2048, ..Default::default() };
+        let m = MockModel::new(2, 8192);
+        let syncs = m.park_syncs.clone();
+        let mut s = Scheduler::new(m, cfg).unwrap();
+        let mut rng = SplitMix64::new(5);
+        let (seq, rxa, _) = MockSeq::new(greedy(random_prompt(&mut rng, 100), 40));
+        let log = seq.spec_log.clone();
+        s.submit(seq).unwrap();
+        s.step(); // A prefilled: its first token
+        s.step(); // A decodes alone
+        assert!(!log.lock().unwrap().is_empty() && log.lock().unwrap().iter().all(|&(allowed, busy)| allowed && !busy), "alone: A may draft");
+        let (_b, rxb, _) = submit(&mut s, greedy(random_prompt(&mut rng, 1500), 5));
+        run_to_end(&mut s);
+        let l = log.lock().unwrap().clone();
+        // B's 1500-row chunk parks 4 times: A's 4 steps there are plain (not allowed to draft, nobody else decodes)
+        assert_eq!(l.iter().filter(|&&(allowed, _)| !allowed).count(), 4, "{l:?}");
+        assert!(l.iter().filter(|&&(allowed, _)| !allowed).all(|&(_, busy)| !busy));
+        assert_eq!(s.metrics().paused_steps, 4);
+        assert_eq!(syncs.load(Ordering::SeqCst), 4, "the device is brought up to every park that has a decode phase");
+        // beside B (2 rows) and alone again after it, the gate is the batch-size rule
+        assert!(l.iter().any(|&(allowed, busy)| allowed && busy) && l.last().is_some_and(|&(allowed, busy)| allowed && !busy));
+        assert_eq!((tokens(&collect(&rxa)).len(), tokens(&collect(&rxb)).len()), (40, 5));
+    })
 }
 
 /// Lane interleave: deferred work runs only where the device is idle: after a decode step in an iteration with no prefill in

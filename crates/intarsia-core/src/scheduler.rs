@@ -167,6 +167,11 @@ pub trait BatchModel {
     }
     /// Let the parked chunk go on; `abort`: it ends with an error instead.
     fn prefill_resume(&mut self, _abort: bool) {}
+    /// Lane mtp-store: wait until the device has run what the parked chunk enqueued so far. A backend that only enqueues a
+    /// chunk's kernels (CUDA) parks long before the device reaches the park; the scheduler calls this before a parked decode
+    /// phase so that a token which needs no device work (a verified draft waiting to be emitted) goes out one chunk segment
+    /// after the last one, as a plain step's token does, instead of at once with a whole chunk's wait behind it.
+    fn park_sync(&mut self) {}
     /// Deferred background work of the model (the prefix store's settle), called where the device is idle; see [`Housekeep`].
     fn housekeep(&mut self, _at: Housekeep) {}
     /// Opt-in tail merge threshold in rows ([`next_prefill_chunk_tm`]); default 0 (off). The real adapter returns the
@@ -801,6 +806,9 @@ pub struct Scheduler<M: BatchModel, S: BatchSeq<M>> {
     busy: Vec<bool>,
     last_used: Vec<u64>,
     iter: u64,
+    /// A prefill chunk is parked between layers and this is its decode phase ([`Scheduler::prefill_paused`]): no sequence
+    /// drafts in it (lane mtp-store).
+    parked: bool,
     next_id: RequestId,
     failed: Option<String>,
     /// The same, published before any request hears of the failure ([`BatchEngine::failed`] reads it).
@@ -838,6 +846,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             busy: vec![false; n],
             last_used: vec![0; n],
             iter: 0,
+            parked: false,
             next_id: 0,
             failed: None,
             failed_shared: Arc::new(Mutex::new(None)),
@@ -1258,7 +1267,11 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let mut stepped = false;
         if !decoding.is_empty() {
             let b = decoding.len();
-            let spec_allowed = b < self.cfg.spec_off_at;
+            // lane mtp-store: no drafts inside a parked chunk. A draft pass there hands its sequence up to k + 1 tokens at one
+            // park and nothing at the next ones, so the sequence then waits for the rest of the chunk (client ITL p99 180 ->
+            // 330 ms on the 35B at two streams); a plain step per park keeps its tokens one segment apart. Drafts only propose:
+            // the tokens are the same either way
+            let spec_allowed = b < self.cfg.spec_off_at && !self.parked;
             if self.cfg.trace_stderr {
                 // Test hook: marks the decode phase so `spec:` lines (INTARSIA_SPEC_TRACE) printed by `prepare` below can be
                 // attributed to an iteration, including iterations where every sequence drafted and no Decode event follows.
@@ -1487,7 +1500,12 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             Err(e) => Err(e),
             Ok(()) => {
                 while self.model.prefill_park() {
+                    if self.active.iter().any(|a| matches!(a.phase, Phase::Decoding)) {
+                        self.model.park_sync();
+                    }
+                    self.parked = true;
                     let out = self.decode_phase();
+                    self.parked = false;
                     if out.fatal {
                         // every request has been failed: the chunk ends with an error and nobody takes its result
                         self.model.prefill_resume(true);

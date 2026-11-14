@@ -391,6 +391,10 @@ impl BatchModel for SlotModel {
         // the hook (and its sender) is dropped when the chunk's pass ends, however it ends
         self.inflight.as_ref().and_then(|f| f.park.as_ref()).is_some_and(|(rx, _)| rx.recv().is_ok())
     }
+    fn park_sync(&mut self) {
+        // the parked pass waits in its hook: nothing else enqueues on the stream meanwhile. A failed sync shows at the next pass
+        let _ = self.model.park_sync();
+    }
     fn prefill_resume(&mut self, abort: bool) {
         if let Some((_, go)) = self.inflight.as_ref().and_then(|f| f.park.as_ref()) {
             let _ = go.send(abort);
