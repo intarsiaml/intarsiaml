@@ -392,6 +392,7 @@ impl StopMatcher {
 }
 
 mod batch;
+mod keyed;
 pub use batch::{batched_mtp_env, batched_mtp_env_opt, BatchedEngine, BatchedOptions, BUSY_PREFILL_CHUNK};
 
 // ---------------------------------------------------------------------------
@@ -1280,6 +1281,9 @@ pub(crate) struct Seq {
     /// Speculation for this sampled request ([`crate::spec::SampledSpec`]; `Off` for greedy requests, which keep the greedy
     /// acceptance). Set by [`Seq::new`] (single-sequence engine only), never by the batching scheduler.
     spec_sampled: crate::spec::SampledSpec,
+    /// Lane mtp-sampled: this sampled request drafts in the batching engine with seed-exact acceptance (`engine/keyed.rs`).
+    /// Set by [`Seq::enable_keyed`], never by [`Seq::new`].
+    spec_keyed: bool,
     /// `--spec auto` (lane asp): picks the drafter of every pass; `None` for every other mode.
     auto: Option<crate::spec::AutoPolicy>,
     /// The drafter of the pass [`Seq::plan_step`] planned last (`--spec auto`; the fixed one otherwise).
@@ -1529,6 +1533,7 @@ impl Seq {
             spec_k,
             depth: if spec_mtp && !spec_dflash { crate::spec::k_min_for(&env.spec).and_then(|m| crate::spec::Depth::new(m, spec_k)) } else { None },
             spec_sampled: crate::spec::SampledSpec::Off,
+            spec_keyed: false,
             auto: None,
             drafter: if spec_dflash { crate::spec::Drafter::Dflash } else { crate::spec::Drafter::Mtp },
             spec_paused: false,
@@ -2189,6 +2194,12 @@ impl Seq {
                         return Ok(Prep::Ready);
                     }
                 }
+            }
+            Next::Draft(k) if self.spec_keyed => {
+                // lane mtp-sampled: a sampled request in the batching engine (`engine/keyed.rs`)
+                self.predraft = None;
+                self.staged = None;
+                return self.keyed_draft(model, st, k, defer_verify);
             }
             Next::Draft(k) if defer_verify && self.auto.is_none() && !self.spec_dflash && !mtp_verify_check() => {
                 self.predraft = None;
