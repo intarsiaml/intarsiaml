@@ -1,0 +1,21 @@
+21:45:22 guard: [guard] radiance stopped 2026-11-14 21:45:21
+21:45:22 phase tp2 round 1 arm tp2-off: starting server
+21:45:32 phase tp2 round 1 arm tp2-off: server up, localeval
+21:45:46 phase tp2 round 1 arm tp2-off: localeval exit 0 - result file: `results/20261114-214532-adhoc-wht6ar-tp2-tp2-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-214532-adhoc-wht6ar-tp2-tp2-off-r1/result.json|
+21:45:46 phase tp2 round 1 arm tp2-on: starting server
+21:45:56 phase tp2 round 1 arm tp2-on: server up, localeval
+21:46:10 phase tp2 round 1 arm tp2-on: localeval exit 0 - result file: `results/20261114-214557-adhoc-wht6ar-tp2-tp2-on-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-214557-adhoc-wht6ar-tp2-tp2-on-r1/result.json|
+21:46:10 phase tp2 round 2 arm tp2-on: starting server
+21:46:20 phase tp2 round 2 arm tp2-on: server up, localeval
+21:46:33 phase tp2 round 2 arm tp2-on: localeval exit 0 - result file: `results/20261114-214620-adhoc-wht6ar-tp2-tp2-on-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-214620-adhoc-wht6ar-tp2-tp2-on-r2/result.json|
+21:46:34 phase tp2 round 2 arm tp2-off: starting server
+21:46:43 phase tp2 round 2 arm tp2-off: server up, localeval
+21:46:58 phase tp2 round 2 arm tp2-off: localeval exit 0 - result file: `results/20261114-214644-adhoc-wht6ar-tp2-tp2-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-214644-adhoc-wht6ar-tp2-tp2-off-r2/result.json|
+21:46:58 phase tp2 round 3 arm tp2-off: starting server
+21:47:08 phase tp2 round 3 arm tp2-off: server up, localeval
+21:47:22 phase tp2 round 3 arm tp2-off: localeval exit 0 - result file: `results/20261114-214708-adhoc-wht6ar-tp2-tp2-off-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-214708-adhoc-wht6ar-tp2-tp2-off-r3/result.json|
+21:47:23 phase tp2 round 3 arm tp2-on: starting server
+21:47:32 phase tp2 round 3 arm tp2-on: server up, localeval
+21:47:46 phase tp2 round 3 arm tp2-on: localeval exit 0 - result file: `results/20261114-214733-adhoc-wht6ar-tp2-tp2-on-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-214733-adhoc-wht6ar-tp2-tp2-on-r3/result.json|
+21:47:46 done, time left 1352s
+21:47:57 guard: [guard] radiance answers 2026-11-14 21:47:57 (after 15 s)

@@ -1,0 +1,16 @@
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 128 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: Qwen3.6-35B-A3B-NVFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) (vocab 248320, weights/act/kv bf16/bf16)
+golden: /work/.wht6-ar-logs/acc1/acc-off.safetensors (10 prompts, 1441 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia UNSTAMPED (built without INTARSIA_BUILD_STAMP) | model Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 4096; longest prompt 700; prompts spanning more than one chunk: 0/10
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: the self-golden does not record the code that produced it (written by a build without INTARSIA_BUILD_STAMP, or by an older tool): record it again from the pre-change build (--allow-unstamped)
+self-golden written by: UNSTAMPED (built without INTARSIA_BUILD_STAMP) (top-64, modes prefill,decode)
+WARNING: this run resolved exactly the same kernels and flags as the self-golden's run: a kernel or graph change cannot show up in this comparison
+self-golden budgets: mean KL(21-way) <= 1.0e-4, max position KL <= 5.0e-3, top-1 flips <= 0.5% (>= 1 position), mean |tail diff| <= 5.0e-4, prompt KL <= x5
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159
+Error: accuracy gate FAILED

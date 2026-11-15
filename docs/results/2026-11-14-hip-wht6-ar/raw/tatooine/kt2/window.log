@@ -1,0 +1,7 @@
+[window] stopping radiance 2026-11-14 21:35:35
+21:36:10 comm exit 0
+21:36:14 rate exit 0
+21:36:14 done
+[window] kernels-window.sh exit 0 2026-11-14 21:36:14
+[window] starting radiance 2026-11-14 21:36:14
+[window] radiance answers 2026-11-14 21:36:24 (after 15 s)

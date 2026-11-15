@@ -1,0 +1,15 @@
+[window] stopping radiance 2026-11-14 21:50:16
+21:50:26 wht6 exit 0
+21:50:56 comm exit 0
+21:51:03 rate exit 0
+21:51:03 done
+21:51:12 gref-off exit 0
+21:51:12   gref-off: golden gate: PASS|reference noise [--ref-noise /work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json]: run_to_run, KL21 all rows 3.161e-3 (n=1441), scored rows 3.010e-3 (n=1279), per-prompt values for 10 prompt(s); 2026-10-21; docs/results/2026-10-21-cuda-roun|
+21:51:22 gref-on exit 0 [INTARSIA_HIP_AR_WIRE=wht6]
+21:51:22   gref-on: golden gate: PASS|hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 128 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.|reference noise [--ref-noise /work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json]: run_to_run, KL21 all rows 3.161e-3 (n=1441), scored rows 3.010e-3 (n=1279), per-prompt values for 10 prompt(s); 2026-10-21; docs/results/2026-10-21-cuda-roun|
+21:52:42 selfl-on-8192 exit 1 [INTARSIA_HIP_AR_WIRE=wht6 INTARSIA_HIP_AR_WIRE_MIN_KB=8192]
+21:52:42   selfl-on-8192: SELF-STATS mode=prefill positions=36887 mean_kl21=3.408638e-2 max_kl21=2.575581e1 flips=1753 flip_pct=4.7524 tail_abs=4.058696e-3 worst_prompt_kl21=1.966882e-1|SELF-STATS mode=decode positions=80 mean_kl21=9.608723e-3 max_kl21=1.593095e-1 flips=2 flip_pct=2.5000 tail_abs=1.405846e-3 worst_prompt_kl21=2.123820e-2|golden gate: FAIL|hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 8192 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.|reference noise [--ref-noise /work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors.json]: run_to_run, KL21 all rows 2.218e-2 (n=36887), scored rows 8.417e-3 (n=32349), per-prompt values for 5 prompt(s); 2026-10-21; docs/results/2026-10-21-cud|Error: accuracy gate FAILED|
+21:52:42 done
+[window] final-window.sh exit 0 2026-11-14 21:52:42
+[window] starting radiance 2026-11-14 21:52:42
+[window] radiance answers 2026-11-14 21:52:52 (after 15 s)

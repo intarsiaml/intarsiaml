@@ -1,0 +1,40 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1241:4
+     |
+1241 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/ar_wht6.rs (/target/release/deps/ar_wht6-f1b479fcf834706d)
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 4096 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 2048 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 128 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+wht6 f32 n     32832: worst rotated error 0.991 of the bound, rms error 1.966 % of the sum's rms
+wht6 f32 n     40000: worst rotated error 0.990 of the bound, rms error 1.451 % of the sum's rms
+wht6 f32 n    133120: worst rotated error 0.991 of the bound, rms error 1.620 % of the sum's rms
+wht6 f32 n    614464: worst rotated error 0.995 of the bound, rms error 1.661 % of the sum's rms
+wht6 f32 n  10485760: worst rotated error 0.996 of the bound, rms error 1.675 % of the sum's rms
+wht6 f32 n  26278400: worst rotated error 0.996 of the bound, rms error 1.663 % of the sum's rms
+wht6: worst rotated error 0.996 of the bound, worst rms error 1.966 %
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 128 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 128 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+negative control (wht6, no wait): 82 wrong results

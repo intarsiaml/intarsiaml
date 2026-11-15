@@ -752,6 +752,13 @@ do not use that comparison as a TP gate.
   reordering: the tp=2 all-reduce sums in a different order, and a correct tp=1 kernel change fails the same check the same way. A tp=2 run that
   fails it while passing the vLLM `--ref-noise` gate is not a failure. The checks listed under "What guards TP instead" stay as they are.
 
+**The lossy all-reduce wire (`INTARSIA_HIP_AR_WIRE=wht6`, HIP tp=2, opt-in).** It is not a reordering: every prefill all-reduce above
+its floor carries a 6-bit rotated code (about 1.7 % rms of the reduced partial). Measured on the 35B NVFP4 at tp=2, wire on against
+off on the same build (docs/results/2026-11-14-hip-wht6-ar.md): it **fails the change-vs-base rule** on the short golden (mean KL
+4.72e-3, 1.49 x the reference noise, two prompts over 3 x their own noise) and on the long golden (3.38e-2, 1.52 x), and passes the
+vLLM-golden gates (static floor 3e-2 binding). Greedy ids change within the first 15 to 82 tokens. A build or profile that turns it on
+is outside the accuracy gates as they stand; `INTARSIA_HIP_AR_WIRE_MIN_KB` only moves the prompt length from which that applies.
+
 ### `--reference`
 
 `--reference` makes every op run its `ref_*` kernel (the f64 oracle) instead of the fast cpu kernels (before
