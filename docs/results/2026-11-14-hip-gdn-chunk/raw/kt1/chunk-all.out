@@ -1,0 +1,35 @@
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=2.651e-3 rel_l2=3.479e-3 T=1 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=5.199e-3 rel_l2=4.128e-3 T=7 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=4.993e-3 rel_l2=4.371e-3 T=64 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=3.370e-3 rel_l2=4.297e-3 T=130 Hk=16 Hv=32 dk=128 dv=128 bf16
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=3.720e-3 rel_l2=3.289e-3 T=1 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=zero
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=2.100e-3 rel_l2=3.079e-3 T=1 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=rand
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=2.004e-3 rel_l2=4.706e-3 T=2 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=zero
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=3.127e-3 rel_l2=3.451e-3 T=2 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=rand
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=2.646e-3 rel_l2=3.916e-3 T=3 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=zero
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=2.790e-3 rel_l2=2.900e-3 T=3 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=rand
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=3.522e-3 rel_l2=4.427e-3 T=63 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=zero
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=2.091e-3 rel_l2=4.309e-3 T=63 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=rand
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=1.386e-3 rel_l2=4.187e-3 T=64 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=zero
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=3.056e-3 rel_l2=4.315e-3 T=64 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=rand
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=1.837e-3 rel_l2=3.890e-3 T=65 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=zero
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=3.802e-3 rel_l2=4.355e-3 T=65 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=rand
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=3.325e-3 rel_l2=4.502e-3 T=200 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=zero
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=1.934e-3 rel_l2=4.126e-3 T=200 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=rand
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=1.690e-3 rel_l2=4.333e-3 T=4096 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=zero
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=2.871e-3 rel_l2=4.365e-3 T=4096 Hk=1 Hv=2 dk=128 dv=128 bf16 S0=rand
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=4.491e-3 rel_l2=4.322e-3 T=65 Hk=16 Hv=32 dk=128 dv=128 bf16 S0=zero
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=3.776e-3 rel_l2=4.324e-3 T=65 Hk=16 Hv=32 dk=128 dv=128 bf16 S0=rand
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=3.292e-3 rel_l2=4.365e-3 T=200 Hk=16 Hv=32 dk=128 dv=128 bf16 S0=zero
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=3.795e-3 rel_l2=4.365e-3 T=200 Hk=16 Hv=32 dk=128 dv=128 bf16 S0=rand
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=4.646e-3 rel_l2=4.358e-3 T=130 Hk=8 Hv=16 dk=128 dv=128 bf16 S0=zero
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=2.824e-3 rel_l2=4.277e-3 T=130 Hk=8 Hv=16 dk=128 dv=128 bf16 S0=rand
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=2.414e-3 rel_l2=4.297e-3 T=130 Hk=2 Hv=2 dk=128 dv=128 bf16 S0=zero
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=1.835e-3 rel_l2=4.232e-3 T=130 Hk=2 Hv=2 dk=128 dv=128 bf16 S0=rand
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=1.476e-3 rel_l2=4.458e-3 T=130 Hk=1 Hv=3 dk=128 dv=128 bf16 S0=zero
+  gdn_delta_rule gdn_delta_rule_bf16_chunk ok    max_abs=2.466e-3 rel_l2=4.175e-3 T=130 Hk=1 Hv=3 dk=128 dv=128 bf16 S0=rand
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+gdn_delta_rule gdn_delta_rule_bf16_chunk      30      0    5.199e-3    4.706e-3  ADMITTED
+1 kernels, 30 cases in 0.9s

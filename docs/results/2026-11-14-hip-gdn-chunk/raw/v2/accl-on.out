@@ -1,0 +1,31 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064  4064    93.23   1.984e-2   1.765e-2   1.765e-2    1.859e0   0.0944   0.0972    90.82    0/4064      0
+long_code_4k        4064  4064    96.92   8.610e-3   7.724e-3   7.724e-3   8.096e-1   0.0370   0.0377    91.28   20/4064      0
+chat_reuse_4k       4631  4631    88.36   2.075e-1   2.407e-1   1.217e-2    2.702e1   0.0688   0.0834    87.95   58/4631      0
+long_docs_12k      12064 12064    93.15   2.337e-2   2.106e-2   2.106e-2    1.045e1   0.0839   0.0850    90.36  16/12064      0
+long_code_12k      12064 12064    97.11   9.340e-3   8.634e-3   8.634e-3    1.603e0   0.0323   0.0326    90.84  20/12064      0
+OVERALL                  36887    94.27   3.989e-2   4.272e-2   1.430e-2    2.702e1   0.0611   0.0638    90.37      0.3%      0
+prefill floor [4bit]: top-1 (all rows) 94.27% (not gated for this class) ok | 21-way KL (scored rows, n=32349) 1.430e-2 (need <= 3.0e-2) ok [all rows, n=36887: 4.272e-2, reported only] | tail mass (all rows) ours 0.0638 vs ref 0.0611, excess +0.0027 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 8.417e-3 (scored rows) x factor 1 (default) = 8.417e-3 => effective 3.000e-2 bound by static floor; KL 1.430e-2 PASS | KL / ref noise = 1.699 on scored rows (the factor at which the noise term passes)
+gate-definition: kl_floor [prefill]: old def: FAIL 4.272e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.430e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+long_docs_4k        4064    16    75.00   3.381e-2   3.012e-2   3.012e-2   1.310e-1   0.0545   0.0601    91.25      0/16      0
+long_code_4k        4064    16    93.75   1.174e-2   1.069e-2   1.069e-2   3.747e-2   0.0762   0.0802    91.25      5/16      0
+chat_reuse_4k       4631    16   100.00   5.785e-3   5.789e-3   5.789e-3   3.498e-2   0.0001   0.0001    93.75     16/16      0
+long_docs_12k      12064    16    93.75   1.319e-2   1.322e-2   1.322e-2   9.957e-2   0.0088   0.0108    88.75     12/16      0
+long_code_12k      12064    16   100.00   9.147e-4   9.710e-4   9.710e-4   3.716e-3   0.0011   0.0015    85.00     16/16      0
+OVERALL                     80    92.50   1.309e-2   1.216e-2   1.216e-2   1.310e-1   0.0281   0.0306    90.00     61.2%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 92.50% (not gated for this class) ok | 21-way KL (scored rows, n=80) 1.216e-2 (need <= 3.0e-2) ok [all rows, n=80: 1.216e-2, reported only] | tail mass (all rows) ours 0.0306 vs ref 0.0281, excess +0.0024 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 2.218e-2 (all rows) x factor 1 (default) = 2.218e-2 => effective 3.000e-2 bound by static floor; KL 1.216e-2 PASS | KL / ref noise = 0.548 on all rows (the factor at which the noise term passes)
+gate-definition: kl_floor [decode]: old def: PASS 1.216e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.216e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 0.4% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 61.3% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden /work/.gdn-chunk-logs/v2/accl-on.safetensors (top-64 rows of modes prefill,decode for 5 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

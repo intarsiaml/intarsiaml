@@ -15,6 +15,13 @@ Files in this repository whose design is ported from radiance (rewritten for the
                               without FMA contraction so both ranks sum the same bits). The handshake, counters and slot
                               parity are allreduce.hip's; radiance's push check (r4d_archk_*), its host mailbox mirror and
                               its fused gated-residual writes are not ported
+  kernels/hip/gdn_chunk.hip   from libr4d/r4d_gdn_chunk_scan_k128_v128_c64_bf16.hip, libr4d/r4d_gdn_kkt_solve_k128_c64_bf16.hip
+                              and libr4d/r4d_gdn_wmma.h (tag v2.0.0, commit ddcb9c6): the GatedDeltaNet delta rule on 64-token
+                              chunks, the per-chunk triangular inverse (I + K K^T)^-1 and the scan with the recurrent state
+                              in WMMA accumulators, the gate-overflow guard (every decay factor <= 1). Rewritten for the
+                              ik_* ABI: one sequence per call, the in-place f32 state, q / k / v read from the conv output's
+                              rows with the q / k normalisation folded into the kernels' f32 scales; radiance's slot-indexed
+                              state cache, fp16 state and multi-sequence cu_seqlens form are not ported
 
 The radiance NOTICE file follows verbatim. The all-reduce kernels it credits to tcclaviger (N-rank all-reduce kernels)
 are the origin of the design above.

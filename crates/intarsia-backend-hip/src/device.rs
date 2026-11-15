@@ -1275,6 +1275,9 @@ impl Backend for HipBackend {
                 "gdn_delta_rule_bf16_v3" => {
                     ffi::ik_gdn_delta_rule_bf16_v3(i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), s)
                 }
+                "gdn_delta_rule_bf16_chunk" => {
+                    ffi::ik_gdn_delta_rule_bf16_chunk(i(0), i(1), i(2), i(3), i(4), a.eps, o, o.add(1), sc, s)
+                }
                 "matmul_fp8_gemv" => ffi::ik_matmul_fp8_gemv(i(0), i(1), i(2), o, s),
                 "matmul_fp8_gemv_v2" => ffi::ik_matmul_fp8_gemv_v2(i(0), i(1), i(2), o, s),
                 "matmul_fp8_gemv_rows" => ffi::ik_matmul_fp8_gemv_rows(i(0), i(1), i(2), o, s),

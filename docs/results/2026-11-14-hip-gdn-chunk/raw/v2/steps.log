@@ -1,0 +1,23 @@
+21:00:09 chunk-all exit 0 [INTARSIA_GDN_CHUNK=1 INTARSIA_GDN_CHUNK_MIN=1]
+21:00:10 chunk-def exit 0 [INTARSIA_GDN_CHUNK=1]
+21:00:14 seq exit 0
+21:00:14 done
+21:00:15 timing exit 0
+21:00:19 trace-off exit 0 [INTARSIA_HIP_TRACE=1]
+21:00:23 trace-on exit 0 [INTARSIA_HIP_TRACE=1 INTARSIA_GDN_CHUNK=1]
+21:00:32 acc-off exit 0
+21:00:42 acc-on exit 0 [INTARSIA_GDN_CHUNK=1]
+21:00:50 self-on exit 1 [INTARSIA_GDN_CHUNK=1]
+21:00:57 self-on-budgets exit 1 [INTARSIA_GDN_CHUNK=1]
+21:01:05 self-off exit 0
+21:03:04 accl-off exit 0
+21:05:02 accl-on exit 0 [INTARSIA_GDN_CHUNK=1]
+21:06:21 selfl-on exit 1 [INTARSIA_GDN_CHUNK=1]
+21:07:40 selfl-on-budgets exit 1 [INTARSIA_GDN_CHUNK=1]
+21:07:45 gen-short-off exit 0
+21:07:50 gen-4k-off exit 0
+21:07:54 gen-short-on exit 0 [INTARSIA_GDN_CHUNK=1]
+21:07:59 gen-4k-on exit 0 [INTARSIA_GDN_CHUNK=1]
+21:10:43 qual-on exit 1 [INTARSIA_GDN_CHUNK=1]
+21:13:27 qual-off exit 0
+21:13:27 done

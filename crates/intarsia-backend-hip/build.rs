@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Translation units compiled in CU mode (`-mcumode`); every other one keeps the WGP-mode default.
-const CU_MODE_SOURCES: &[&str] = &["gdn.hip"];
+const CU_MODE_SOURCES: &[&str] = &["gdn.hip", "gdn_chunk.hip"];
 /// Translation units compiled with `-ffp-contract=off`: the lossy all-reduce wire's two ranks compute `a * sa + b * sb` with the
 /// operands in opposite order, and a fused multiply-add on either side would make their sums differ by an ulp.
 const NO_FP_CONTRACT_SOURCES: &[&str] = &["allreduce_wht6.hip"];
