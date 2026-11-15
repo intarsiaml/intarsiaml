@@ -190,7 +190,7 @@ pub fn gdn_v3_from(v: Option<&str>) -> bool {
 
 /// Fewest tokens `gdn_delta_rule_bf16_chunk` takes by default (INTARSIA_GDN_CHUNK_MIN overrides): shorter calls (decode, verify
 /// rows, short prefill tails) keep the sequential kernels. From measurement, docs/results/2026-11-14-hip-gdn-chunk.md.
-pub const GDN_CHUNK_MIN_TOKENS: usize = 128;
+pub const GDN_CHUNK_MIN_TOKENS: usize = 64;
 
 /// `gdn_delta_rule_bf16_chunk` (lane gdn-chunk) is opt-in: selectable only when INTARSIA_GDN_CHUNK is exactly "1". It is not
 /// bitwise the sequential kernels (bf16 WMMA operands, another summation order). Read once per process.
@@ -215,11 +215,11 @@ pub fn gdn_chunk_min_from(v: Option<&str>) -> usize {
 fn gdn_chunk_shape_ok(s: &ShapeInfo) -> bool {
     s.head_dim == 128 && s.n == 128 && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0 && matches!(s.n_heads / s.n_kv_heads, 1 | 2 | 3 | 4 | 6 | 8)
 }
-/// Scratch of `gdn_delta_rule_bf16_chunk`, mirroring the launcher (kernels/hip/gdn_chunk.hip): bf16 qn and kn [T, Hk, 128], bf16
-/// A [T, Hv, 64], f32 G and beta [T, Hv], each rounded up to 16 bytes.
+/// Scratch of `gdn_delta_rule_bf16_chunk`, mirroring the launcher (kernels/hip/gdn_chunk.hip): bf16 A [T, Hv, 64], f32 G and beta
+/// [T, Hv], f32 lq and lk [T, Hk], each rounded up to 16 bytes.
 pub fn gdn_chunk_scratch(s: &ShapeInfo) -> usize {
     let r16 = |n: usize| (n + 15) & !15;
-    2 * r16(s.m * s.n_kv_heads * 128 * 2) + r16(s.m * s.n_heads * 64 * 2) + 2 * r16(s.m * s.n_heads * 4)
+    r16(s.m * s.n_heads * 64 * 2) + 2 * r16(s.m * s.n_heads * 4) + 2 * r16(s.m * s.n_kv_heads * 4)
 }
 
 /// Most rows of a row-exact (`rows_exact`) multi-row kernel call (bf16 / fp8 / nvfp4 GEMV rows, MoE decode rows): the cap of
@@ -650,9 +650,9 @@ mod tests {
         assert_eq!(gdn_chunk_min_from(Some("4096")), 4096);
         assert_eq!(gdn_chunk_min_from(Some("0")), GDN_CHUNK_MIN_TOKENS);
         assert_eq!(gdn_chunk_min_from(Some("x")), GDN_CHUNK_MIN_TOKENS);
-        // the 35B shape at a 4096-token chunk: qn + kn 2 x 16.8 MB, A 16.8 MB, G + beta 2 x 0.5 MB
+        // the 35B shape at a 4096-token chunk: A 16.8 MB, G + beta 2 x 0.5 MB, lq + lk 2 x 0.26 MB
         let s = ShapeInfo { m: 4096, n_heads: 32, n_kv_heads: 16, head_dim: 128, k: 128, n: 128, ..Default::default() };
-        assert_eq!(gdn_chunk_scratch(&s), 2 * 4096 * 16 * 256 + 4096 * 32 * 128 + 2 * 4096 * 32 * 4);
+        assert_eq!(gdn_chunk_scratch(&s), 4096 * 32 * 128 + 2 * 4096 * 32 * 4 + 2 * 4096 * 16 * 4);
         assert!(gdn_chunk_shape_ok(&s));
         assert!(!gdn_chunk_shape_ok(&ShapeInfo { n: 64, ..s.clone() }), "dv = 64");
         assert!(!gdn_chunk_shape_ok(&ShapeInfo { head_dim: 64, ..s.clone() }), "dk = 64");

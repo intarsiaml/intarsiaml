@@ -71,8 +71,8 @@ int ik_gdn_delta_rule_bf16_v3(const ik_tensor* qkv, const ik_tensor* a, const ik
                               const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream);
 /* gdn_delta_rule_bf16_chunk (lane gdn-chunk, gdn_chunk.hip; design from radiance's chunked scan): the delta rule on 64-token
  * chunks with WMMA, for prefill. dk = dv = 128, Hv / Hk in {1, 2, 3, 4, 6, 8}, any T. NOT bitwise the sequential kernels (bf16
- * WMMA operands, another summation order); deterministic. Scratch: bf16 qn, kn [T, Hk, 128], bf16 A [T, Hv, 64], f32 G, beta
- * [T, Hv], each rounded up to 16 bytes. */
+ * WMMA operands, another summation order); deterministic. Scratch: bf16 A [T, Hv, 64], f32 G, beta [T, Hv], f32 lq, lk
+ * [T, Hk], each rounded up to 16 bytes. */
 int ik_gdn_delta_rule_bf16_chunk(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
                                  const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state,
                                  const ik_scratch* scratch, void* stream);

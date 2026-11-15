@@ -3,8 +3,9 @@
 // v2.0.0, commit ddcb9c6; kernels/hip/NOTICE-radiance): r4d_gdn_kkt_solve_k128_c64_bf16.hip (the per-chunk triangular
 // inverse), r4d_gdn_chunk_scan_k128_v128_c64_bf16.hip (the scan, the recurrent state in WMMA accumulators across the chunk
 // loop) and r4d_gdn_wmma.h (the fragment helpers), rewritten for the ik_* ABI: one sequence per call, the in-place f32
-// state [Hv, dv, dk], v read from the conv output's rows, and the q / k normalisation and the gates (which radiance's
-// caller prepares) computed here by two small kernels into the launch's scratch.
+// state [Hv, dv, dk], q / k / v read from the conv output's rows, and the gates and the q / k normalisation (which radiance's
+// caller prepares) computed here by two small kernels into the launch's scratch. The normalisation is applied as per-token
+// f32 factors folded into the scales the kernels apply anyway, so q and k enter the WMMAs as the exact bf16 the conv stored.
 //
 // Semantics: crates/intarsia-core/src/gdn.rs. Per chunk of BT = 64 tokens (the last one may be short), value head h and
 // its key head, with G_i the within-chunk running sum of the log decay g_t = -exp(A_log) * softplus(a_t + dt_bias):
@@ -19,14 +20,14 @@
 // chunk reaches hundreds of nats on real activations, and a split about a per-chunk reference would overflow f32 (radiance's
 // guard, kept).
 //
-// Numerics: NOT bitwise gdn_delta_rule_bf16_v2 / _v3. The WMMA operands are bf16, so the normalised q / k, the state as the
-// chunk's matmuls read it, W, A and V' are rounded to bf16 (the state itself stays f32 in the accumulators and in memory),
+// Numerics: NOT bitwise gdn_delta_rule_bf16_v2 / _v3. The WMMA operands are bf16, so the state as the chunk's matmuls
+// read it, W, A, V' and the decayed k of the state update are rounded to bf16 (the state itself stays f32 in the accumulators and in memory),
 // and the sums run in WMMA order. Shapes: dk = dv = 128 (the 35B / 27B GDN), Hv / Hk in {1, 2, 3, 4, 6, 8}, any T >= 1.
 // Token-range pieces (ik_split_pieces) cut at chunk boundaries continue the in-place state exactly, so they give the single
 // launch's bits.
 //
-// Scratch (ik_scratch, kernels.rs gdn_chunk_scratch): bf16 qn [T, Hk, 128], bf16 kn [T, Hk, 128], bf16 A [T, Hv, 64],
-// f32 G [T, Hv], f32 beta [T, Hv], each rounded up to 16 bytes.
+// Scratch (ik_scratch, kernels.rs gdn_chunk_scratch): bf16 A [T, Hv, 64], f32 G [T, Hv], f32 beta [T, Hv], f32 lq [T, Hk],
+// f32 lk [T, Hk], each rounded up to 16 bytes.
 //
 // Compiled -mcumode (build.rs CU_MODE_SOURCES), as radiance compiles the scan. No fp contraction, as libr4d is built.
 #include "ik_hip.h"
@@ -146,11 +147,13 @@ __global__ void __launch_bounds__(BT) gdn_chunk_gate_kernel(const ik_bf16* __res
     }
 }
 
-// ---- q / k l2-normalisation (gdn.rs: x * rsqrt(sum(x^2) + eps); the 1 / sqrt(dk) of q is the scan's `scale`) -----------
-// grid (T, Hk), one wave: lane l owns elements 4 l .. 4 l + 3 of the key head's q and k.
-__global__ void __launch_bounds__(32) gdn_chunk_norm_kernel(const ik_bf16* __restrict__ qkv, float eps,
-                                                            unsigned short* __restrict__ qn,
-                                                            unsigned short* __restrict__ kn, int C, int Hk) {
+// ---- q / k l2-normalisation factors (gdn.rs: x * rsqrt(sum(x^2) + eps), and q / sqrt(dk)) -----------------------------------
+// The conv output's q and k stay as they are (bf16, exact WMMA operands); only the per-token factors are computed, as
+// logs: lq = log(rsqrt(|q|^2 + eps) / sqrt(dk)), lk = log(rsqrt(|k|^2 + eps)) (bounded by log(1 / sqrt(eps))). The kernels
+// below fold them into the per-token f32 scales they apply anyway, so normalising costs no bf16 rounding.
+// grid (T, Hk), one wave: lane l reads elements 4 l .. 4 l + 3 of the key head's q and k.
+__global__ void __launch_bounds__(32) gdn_chunk_norm_kernel(const ik_bf16* __restrict__ qkv, float eps, float scale,
+                                                            float* __restrict__ lq, float* __restrict__ lk, int C, int Hk) {
     const int lane = threadIdx.x, kh = blockIdx.y;
     const int64_t t = blockIdx.x;
     const unsigned short* row = (const unsigned short*)(qkv + t * C);
@@ -165,10 +168,10 @@ __global__ void __launch_bounds__(32) gdn_chunk_norm_kernel(const ik_bf16* __res
     float kk = (k[0] * k[0] + k[1] * k[1]) + (k[2] * k[2] + k[3] * k[3]);
     qq = ik_warp_sum(qq);
     kk = ik_warp_sum(kk);
-    const float qs = rsqrtf(qq + eps), ks = rsqrtf(kk + eps);
-    const size_t off = ((size_t)t * Hk + kh) * KD + 4 * lane;
-    *(uint2*)(qn + off) = make_uint2(ik_pack2(q[0] * qs, q[1] * qs), ik_pack2(q[2] * qs, q[3] * qs));
-    *(uint2*)(kn + off) = make_uint2(ik_pack2(k[0] * ks, k[1] * ks), ik_pack2(k[2] * ks, k[3] * ks));
+    if (lane == 0) {
+        lq[t * Hk + kh] = logf(rsqrtf(qq + eps) * scale);
+        lk[t * Hk + kh] = logf(rsqrtf(kk + eps));
+    }
 }
 
 // ---- A = (I + strict_lower(diag(beta) . K K^T . e^{G_i - G_j}))^-1 per chunk (r4d_gdn_kkt_solve_k128_c64_bf16) --------
@@ -187,7 +190,8 @@ __global__ void __launch_bounds__(32) gdn_chunk_norm_kernel(const ik_bf16* __res
 struct KkSmem {
     unsigned short A[BT][AP];    // A on the way in, its inverse on the way out
     unsigned short TMP[32][36];  // one 32x32 intermediate, transposed
-    float gb[BT], bt[BT];        // the chunk's G and beta, per token
+    float gi[BT], gj[BT], bt[BT];  // per token: G + lk (as a row), G - lk (as a column), beta
+    float lk[BT];                  // the key head's log k scale, per token
 };
 
 // (mt, nt) of upper-triangular tile ti
@@ -201,12 +205,16 @@ IK_DEVI void kkt_tile(int ti, int* mt, int* nt) {
     *nt = n + m;
 }
 
-// grid (chunks, Hk)
+// grid (chunks, Hk). k: the conv output's k columns (qkv + Hk * KD; row pitch C, key head hg at hg * KD), not normalised:
+// the gram of the normalised k is P_raw[i][j] * e^{lk_i + lk_j}, folded into the decay exponent (so the exponent of a kept
+// element is at most lk_i + lk_j <= log(1 / eps), no overflow).
 template <int HG_RATIO>
 __global__ void __launch_bounds__(KK_NTHR) gdn_chunk_kkt_kernel(const unsigned short* __restrict__ k,
+                                                                const float* __restrict__ lkn,
                                                                 const float* __restrict__ beta,
                                                                 const float* __restrict__ g,
-                                                                unsigned short* __restrict__ Ao, int T, int H, int Hg) {
+                                                                unsigned short* __restrict__ Ao, int T, int C, int H,
+                                                                int Hg) {
     __shared__ KkSmem s;
     const int tid = threadIdx.x, lane = tid & 31, warp = tid >> 5;
     const int lo = lane & 15, hi = lane >> 4;
@@ -218,8 +226,9 @@ __global__ void __launch_bounds__(KK_NTHR) gdn_chunk_kkt_kernel(const unsigned s
     for (int i = tid; i < BT * AP / 8; i += KK_NTHR) ((uint4*)&s.A[0][0])[i] = make_uint4(0, 0, 0, 0);
 
     // the gram, once for all HG_RATIO value heads of this key head
-    const unsigned short* kp = k + ((size_t)t0 * Hg + hg) * KD;
-    const unsigned krow = (unsigned)(Hg * KD);
+    const unsigned short* kp = k + (size_t)t0 * C + hg * KD;
+    const unsigned krow = (unsigned)C;
+    if (tid < BT) s.lk[tid] = lkn[(size_t)(t0 + min(tid, rows - 1)) * Hg + hg];  // published by the head loop's first barrier
     v8f P[KK_MAXT];
 #pragma unroll
     for (int t = 0; t < KK_MAXT; ++t) P[t] = (v8f){0, 0, 0, 0, 0, 0, 0, 0};
@@ -241,7 +250,9 @@ __global__ void __launch_bounds__(KK_NTHR) gdn_chunk_kkt_kernel(const unsigned s
 
         if (tid < BT) {
             const int t = min(tid, rows - 1);
-            s.gb[tid] = g[(size_t)(t0 + t) * H + hv];
+            const float gt = g[(size_t)(t0 + t) * H + hv];
+            s.gi[tid] = gt + s.lk[tid];  // the thread's own store (same tid), no barrier needed
+            s.gj[tid] = gt - s.lk[tid];
             s.bt[tid] = beta[(size_t)(t0 + t) * H + hv];
         }
         lds_barrier();
@@ -258,15 +269,15 @@ __global__ void __launch_bounds__(KK_NTHR) gdn_chunk_kkt_kernel(const unsigned s
                 const int j0 = mt * 16 + 8 * hi;  // first column of A
                 const bool live = (i < rows);
                 const float bi = live ? s.bt[i] : 0.0f;
-                const float gi = live ? s.gb[i] : 0.0f;
+                const float gi = live ? s.gi[i] : 0.0f;
                 float vv[8];
 #pragma unroll
                 for (int e = 0; e < 8; ++e) {
                     const int j = j0 + e;
-                    // a live row has i > j, so G_i <= G_j and the exponent is never positive. Padding rows and columns
-                    // are masked to -inf (with gi = 0 the exponent -gb[j] would be large and positive, 0 * inf = NaN,
+                    // a live row has i > j, so G_i <= G_j and the exponent is at most lk_i + lk_j. Padding rows and columns
+                    // are masked to -inf (with gi = 0 the exponent -G_j would be large and positive, 0 * inf = NaN,
                     // and the merges would spread it into live rows).
-                    const float d = (live && i > j && j < rows) ? (gi - s.gb[j]) : -INFINITY;
+                    const float d = (live && i > j && j < rows) ? (gi - s.gj[j]) : -INFINITY;
                     vv[e] = bi * expf(d) * P[t][e];
                 }
                 *(uint2*)(&s.A[i][j0]) = f2bf4(vv[0], vv[1], vv[2], vv[3]);
@@ -371,7 +382,13 @@ struct ScSmem {
     unsigned short S[BV][KP];  // B: state, V-major (the state's own [dv, dk] layout)
     unsigned short W[BV][WP];  // B: W (transposed)
     unsigned short D[BV][AP];  // staged V as [token][v]; then V' as [v][token]
-    float ge[BT], gv[BT], gg[BT], bt[BT];  // ge = e^G, gv = e^{G_last - G}, gg = G
+    // per token, with the q / k normalisation folded in (lq, lk: gdn_chunk_norm_kernel):
+    float go[BT];  // scale_q * e^G = e^{G + lq}: the Q @ S0 term of the output
+    float gu[BT];  // norm_k * e^G = e^{G + lk}: U in W
+    float gv[BT];  // norm_k * e^{G_last - G}: K for the state update
+    float gi[BT];  // G + lq: the score exponent's row part
+    float gj[BT];  // G - lk: the score exponent's column part
+    float bt[BT];
 };
 
 #define SC_SB 2  // k steps per sched group in the V' and O += loops
@@ -383,13 +400,16 @@ struct ScSmem {
 #define SC_ROWO(buf, pitch, base) \
     ((unsigned)((const char*)&(buf)[0][0] - (const char*)&s) + (unsigned)((((base) + lo) * (pitch) + 4 * hi) * 2))
 
-// q, k: the normalised [T, Hg, KD] copies; v: the conv output's value columns (qkv + 2 * Hg * KD; row pitch C, value head
-// hv at hv * VD); Amat: [T, H, BT]; gcs, beta: [T, H]; o: [T, H, VD]; state: [H, VD, KD] f32, read at the start and
+// qkv: the conv output rows [q (Hg * KD) | k (Hg * KD) | v (H * VD)], row pitch C, q and k not normalised; lqn, lkn: their
+// log scales [T, Hg]; Amat: [T, H, BT]; gcs, beta: [T, H]; o: [T, H, VD]; state: [H, VD, KD] f32, read at the start and
 // written at the end by the workgroup that owns the rows.
 __global__ void __launch_bounds__(SC_NTHR) gdn_chunk_scan_kernel(
-    const unsigned short* __restrict__ q, const unsigned short* __restrict__ k, const unsigned short* __restrict__ v,
+    const unsigned short* __restrict__ qkv, const float* __restrict__ lqn, const float* __restrict__ lkn,
     const unsigned short* __restrict__ Amat, const float* __restrict__ gcs, const float* __restrict__ beta,
-    unsigned short* __restrict__ o, float* state, int T, int C, int H, int Hg, float scale) {
+    unsigned short* __restrict__ o, float* state, int T, int C, int H, int Hg) {
+    const unsigned short* const q = qkv;
+    const unsigned short* const k = qkv + Hg * KD;
+    const unsigned short* const v = qkv + 2 * Hg * KD;
     __shared__ ScSmem s;
     const int bv = blockIdx.x, hv = blockIdx.y;
     const int tid = threadIdx.x, w = tid >> 5, lane = tid & 31;
@@ -428,11 +448,11 @@ __global__ void __launch_bounds__(SC_NTHR) gdn_chunk_scan_kernel(
 #define SC_PREFETCH(CH)                                                                              \
     {                                                                                                \
         const int pc0 = (CH) * BT, pnv = min(BT, te - pc0);                                          \
-        const unsigned short* kb_ = k + ((size_t)pc0 * Hg + hq) * KD;                                \
+        const unsigned short* kb_ = k + (size_t)pc0 * C + hq * KD;                                   \
         const unsigned short* vb_ = v + (size_t)pc0 * C + hv * VD + v0;                              \
         _Pragma("unroll") for (int u = 0; u < SC_NKB; ++u) {                                         \
             const int r = kr0 + SC_KRU * u;                                                          \
-            kb[u] = r < pnv ? *(const uint4*)(kb_ + (unsigned)(r * (Hg * KD)) + kc) : SC_PFZERO;     \
+            kb[u] = r < pnv ? *(const uint4*)(kb_ + (unsigned)(r * C) + kc) : SC_PFZERO;             \
         }                                                                                            \
         _Pragma("unroll") for (int u = 0; u < SC_NVB; ++u) {                                         \
             const int r = vr0 + SC_VRU * u;                                                          \
@@ -465,22 +485,22 @@ __global__ void __launch_bounds__(SC_NTHR) gdn_chunk_scan_kernel(
     SC_PREFETCH(0);
 
     const char* const sbase = (const char*)&s;
-    // scale goes inside the score exponent, exp(G_i + log(scale) - G_j)
-    const float lgs = logf(scale);
     for (int ci = 0; ci < nchunk; ++ci) {
         const int c0 = ci * BT, nval = min(BT, te - c0);
         const int lim = nval - 1;
-        const unsigned short* qg = q + ((size_t)c0 * Hg + hq) * KD;
+        const unsigned short* qg = q + (size_t)c0 * C + hq * KD;
         const unsigned short* ag = Amat + ((size_t)c0 * H + hv) * BT;
-        const size_t qrs = (size_t)Hg * KD, ars = (size_t)H * BT;
+        const size_t qrs = (size_t)C, ars = (size_t)H * BT;
         const float gl = gcs[(size_t)(c0 + lim) * H + hv];
 
         // issued before the staging store so the LDS writes cover their latency; only waves 0-1 (tid < BT) run this
-        float ggr = 0.f, btr = 0.f;
+        float ggr = 0.f, btr = 0.f, lqr = 0.f, lkr = 0.f;
         if (tid < BT) {
             const bool ok = tid < nval;
             ggr = ok ? gcs[(size_t)(c0 + tid) * H + hv] : 0.f;
             btr = ok ? beta[(size_t)(c0 + tid) * H + hv] : 0.f;
+            lqr = ok ? lqn[(size_t)(c0 + tid) * Hg + hq] : 0.f;
+            lkr = ok ? lkn[(size_t)(c0 + tid) * Hg + hq] : 0.f;
         }
         {  // consume the previous iteration's prefetch, issued a whole chunk of compute ago
 #pragma unroll
@@ -491,13 +511,15 @@ __global__ void __launch_bounds__(SC_NTHR) gdn_chunk_scan_kernel(
         if (tid < BT) {
             const bool ok = tid < nval;
             s.bt[tid] = btr;
-            s.ge[tid] = expf(ggr);
+            s.go[tid] = expf(ggr + lqr);
+            s.gu[tid] = expf(ggr + lkr);
             // G is a running sum of non-positive gates, so it is non-increasing and gl is its minimum: gl - ggr <= 0, and
-            // gs underflowing to 0 is correct. A padding row gets gl, not 0: it is scored against live j with very
-            // negative G_j, and G_i = 0 would give exp(+400) = inf in s.A. The row is discarded anyway (the O store is
-            // guarded).
-            s.gg[tid] = ok ? ggr : gl;
-            s.gv[tid] = ok ? expf(gl - ggr) : 0.f;
+            // the state factor underflowing to 0 is correct. A padding row gets gl, not 0: it is scored against live j
+            // with very negative G_j, and G_i = 0 would give exp(+400) = inf in s.A. The row is discarded anyway (the O
+            // store is guarded). lq and lk are bounded (<= log(1 / sqrt(eps))), so no exponent here can overflow.
+            s.gi[tid] = (ok ? ggr : gl) + lqr;
+            s.gj[tid] = (ok ? ggr : gl) - lkr;
+            s.gv[tid] = ok ? expf(gl - ggr + lkr) : 0.f;
         }
         lds_barrier();                               // (1)
         SC_PREFETCH(min(ci + 1, nchunk - 1));        // issue only; consumed next iteration
@@ -551,7 +573,7 @@ __global__ void __launch_bounds__(SC_NTHR) gdn_chunk_scan_kernel(
             }
         }
         {
-            const float g = scale * s.ge[mt * 16 + lo];  // the token index is constant per lane
+            const float g = s.go[mt * 16 + lo];  // the token index is constant per lane
 #pragma unroll
             for (int i = 0; i < SC_NTV; ++i)
 #pragma unroll
@@ -563,7 +585,7 @@ __global__ void __launch_bounds__(SC_NTHR) gdn_chunk_scan_kernel(
 #pragma unroll
             for (int e = 0; e < 8; ++e) {  // beta / ge read once for both tiles
                 const int tok = mt * 16 + 8 * hi + e;
-                const float f = s.bt[tok], g = s.ge[tok];
+                const float f = s.bt[tok], g = s.gu[tok];
 #pragma unroll
                 for (int i = 0; i < SC_NTV; ++i) wa[i][e] = f * (bf2f(s.D[tok][(ntb + i) * 16 + lo]) - g * u[i][e]);
             }
@@ -574,16 +596,17 @@ __global__ void __launch_bounds__(SC_NTHR) gdn_chunk_scan_kernel(
                 *(uint2*)(wp + 4) = f2bf4(wa[i][4], wa[i][5], wa[i][6], wa[i][7]);
             }
         }
-        // sA = scale * e^{G_i - G_j} * tril(P). Where kept, G_i - G_j <= 0, so the exp cannot overflow.
+        // sA = scale_q_i * norm_k_j * e^{G_i - G_j} * tril(P). Where kept, G_i - G_j <= 0, so the exponent is at most
+        // lq_i + lk_j and the exp cannot overflow.
         {
             const int ii = mt * 16 + lo;
-            const float gis = s.gg[ii] + lgs;
+            const float gis = s.gi[ii];
 #pragma unroll
             for (int i = 0; i < SC_NTV; ++i) {
                 const int j0 = (ntb + i) * 16 + 8 * hi;
                 float a[8];
 #pragma unroll
-                for (int e = 0; e < 8; ++e) a[e] = (j0 + e <= ii) ? p[i][e] * expf(gis - s.gg[j0 + e]) : 0.f;
+                for (int e = 0; e < 8; ++e) a[e] = (j0 + e <= ii) ? p[i][e] * expf(gis - s.gj[j0 + e]) : 0.f;
                 *(uint2*)&s.A[ii][j0] = f2bf4(a[0], a[1], a[2], a[3]);
                 *(uint2*)&s.A[ii][j0 + 4] = f2bf4(a[4], a[5], a[6], a[7]);
             }
@@ -621,7 +644,7 @@ __global__ void __launch_bounds__(SC_NTHR) gdn_chunk_scan_kernel(
                 *(uint2*)(dp + 4) = f2bf4(d[i][4], d[i][5], d[i][6], d[i][7]);
             }
         }
-        // K <- gs * K in place, for the state's V'^T @ K: (diag(gs) V')^T K == V'^T (diag(gs) K), and K is otherwise dead
+        // K <- (norm_k * gs) * K in place, for the state's V'^T @ K: (diag(gs) V')^T K == V'^T (diag(gs) K), and K is otherwise dead
         // (all raw-K reads retired before barrier (2); s.k is restaged next chunk; barrier (3) publishes the scaled K).
 #pragma unroll
         for (int u = 0; u < BT * (KD / 4) / SC_NTHR; ++u) {
@@ -741,15 +764,17 @@ int ik_gdn_delta_rule_bf16_chunk(const ik_tensor* qkv, const ik_tensor* a, const
     if (T > (int64_t)1 << 20 || C > (int64_t)1 << 20 || Hv > 4096) return IK_ERR_UNSUPPORTED;
     if (T == 0) return IK_OK;
 
-    const int64_t qn_b = gc_r16(T * Hk * KD * 2), a_b = gc_r16(T * Hv * BT * 2), g_b = gc_r16(T * Hv * 4);
-    const int64_t need = 2 * qn_b + a_b + 2 * g_b;
+    const int64_t a_b = gc_r16(T * Hv * BT * 2), g_b = gc_r16(T * Hv * 4), l_b = gc_r16(T * Hk * 4);
+    const int64_t need = a_b + 2 * g_b + 2 * l_b;
     if (!scratch || !scratch->data || scratch->bytes < need || !ik_aligned16(scratch->data)) return IK_ERR_INVALID_ARG;
     char* base = (char*)scratch->data;
-    unsigned short* qn = (unsigned short*)base;
-    unsigned short* kn = (unsigned short*)(base + qn_b);
-    unsigned short* Am = (unsigned short*)(base + 2 * qn_b);
-    float* g = (float*)(base + 2 * qn_b + a_b);
-    float* beta = (float*)(base + 2 * qn_b + a_b + g_b);
+    unsigned short* Am = (unsigned short*)base;
+    float* g = (float*)(base + a_b);
+    float* beta = (float*)(base + a_b + g_b);
+    float* lq = (float*)(base + a_b + 2 * g_b);
+    float* lk = (float*)(base + a_b + 2 * g_b + l_b);
+    const unsigned short* qkvp = (const unsigned short*)qkv->data;
+    const float scale = 1.0f / sqrtf((float)KD);
 
     hipStream_t s = IK_STREAM(stream);
     const int64_t nchunk = (T + BT - 1) / BT;
@@ -758,12 +783,12 @@ int ik_gdn_delta_rule_bf16_chunk(const ik_tensor* qkv, const ik_tensor* a, const
         (const ik_bf16*)a->data, (const ik_bf16*)b->data, (const ik_bf16*)a_log->data, (const ik_bf16*)dt_bias->data, g,
         beta, T, (int)Hv);
     IK_TRY(ik_launch_status());
-    gdn_chunk_norm_kernel<<<dim3((unsigned)T, (unsigned)Hk), 32, 0, s>>>((const ik_bf16*)qkv->data, eps, qn, kn, (int)C,
-                                                                         (int)Hk);
+    gdn_chunk_norm_kernel<<<dim3((unsigned)T, (unsigned)Hk), 32, 0, s>>>((const ik_bf16*)qkv->data, eps, scale, lq, lk,
+                                                                         (int)C, (int)Hk);
     IK_TRY(ik_launch_status());
     const dim3 kgrid((unsigned)nchunk, (unsigned)Hk);
 #define IK_GC_KKT(R) \
-    gdn_chunk_kkt_kernel<R><<<kgrid, KK_NTHR, 0, s>>>(kn, beta, g, Am, (int)T, (int)Hv, (int)Hk)
+    gdn_chunk_kkt_kernel<R><<<kgrid, KK_NTHR, 0, s>>>(qkvp + Hk * KD, lk, beta, g, Am, (int)T, (int)C, (int)Hv, (int)Hk)
     switch (ratio) {
         case 1: IK_GC_KKT(1); break;
         case 2: IK_GC_KKT(2); break;
@@ -784,15 +809,13 @@ int ik_gdn_delta_rule_bf16_chunk(const ik_tensor* qkv, const ik_tensor* a, const
     const double wg = (double)sgrid.x * (double)sgrid.y;
     const double est_us = (double)nchunk * kScanUsPerChunk * (wg > 64.0 ? wg / 64.0 : 1.0);
     const int pieces = ik_split_pieces(est_us, nchunk);
-    const unsigned short* vp = (const unsigned short*)qkv->data + 2 * Hk * KD;
-    const float scale = 1.0f / sqrtf((float)KD);
     for (int i = 0; i < pieces; ++i) {
         const int64_t t0 = (nchunk * i / pieces) * BT;
         const int64_t t1 = i + 1 == pieces ? T : (nchunk * (i + 1) / pieces) * BT;
-        gdn_chunk_scan_kernel<<<sgrid, SC_NTHR, 0, s>>>(qn + t0 * Hk * KD, kn + t0 * Hk * KD, vp + t0 * C,
-                                                        Am + t0 * Hv * BT, g + t0 * Hv, beta + t0 * Hv,
+        gdn_chunk_scan_kernel<<<sgrid, SC_NTHR, 0, s>>>(qkvp + t0 * C, lq + t0 * Hk, lk + t0 * Hk, Am + t0 * Hv * BT,
+                                                        g + t0 * Hv, beta + t0 * Hv,
                                                         (unsigned short*)o->data + t0 * Hv * VD, (float*)state->data,
-                                                        (int)(t1 - t0), (int)C, (int)Hv, (int)Hk, scale);
+                                                        (int)(t1 - t0), (int)C, (int)Hv, (int)Hk);
         ik_rt_stamp(s, "gdn_chunk", i + 1);
     }
     return ik_launch_status();
