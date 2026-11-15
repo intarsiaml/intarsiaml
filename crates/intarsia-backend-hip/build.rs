@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Translation units compiled in CU mode (`-mcumode`); every other one keeps the WGP-mode default.
-const CU_MODE_SOURCES: &[&str] = &["gdn.hip"];
+const CU_MODE_SOURCES: &[&str] = &["gdn.hip", "gdn_chunk.hip"];
 
 fn find_hipcc() -> Option<PathBuf> {
     let mut roots: Vec<PathBuf> = Vec::new();

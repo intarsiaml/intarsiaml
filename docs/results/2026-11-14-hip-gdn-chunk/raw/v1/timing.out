@@ -1,0 +1,30 @@
+
+running 1 test
+Hk=16 Hv=32 T=33    gdn_delta_rule_bf16_v2      23.3 us   chunk      26.1 us   seq/chunk 0.89
+Hk=16 Hv=32 T=48    gdn_delta_rule_bf16_v2      34.2 us   chunk      26.3 us   seq/chunk 1.30
+Hk=16 Hv=32 T=64    gdn_delta_rule_bf16_v3      42.8 us   chunk      26.9 us   seq/chunk 1.59
+Hk=16 Hv=32 T=96    gdn_delta_rule_bf16_v3      61.2 us   chunk      32.9 us   seq/chunk 1.86
+Hk=16 Hv=32 T=128   gdn_delta_rule_bf16_v3      79.7 us   chunk      44.5 us   seq/chunk 1.79
+Hk=16 Hv=32 T=192   gdn_delta_rule_bf16_v3     116.4 us   chunk      41.7 us   seq/chunk 2.79
+Hk=16 Hv=32 T=256   gdn_delta_rule_bf16_v3     153.2 us   chunk      49.2 us   seq/chunk 3.11
+Hk=16 Hv=32 T=384   gdn_delta_rule_bf16_v3     226.9 us   chunk      65.5 us   seq/chunk 3.46
+Hk=16 Hv=32 T=512   gdn_delta_rule_bf16_v3     301.3 us   chunk      80.5 us   seq/chunk 3.74
+Hk=16 Hv=32 T=1024  gdn_delta_rule_bf16_v3     603.9 us   chunk     148.3 us   seq/chunk 4.07
+Hk=16 Hv=32 T=2048  gdn_delta_rule_bf16_v3    1193.7 us   chunk     489.0 us   seq/chunk 2.44
+Hk=16 Hv=32 T=4096  gdn_delta_rule_bf16_v3    2375.3 us   chunk    1081.3 us   seq/chunk 2.20
+Hk=8  Hv=16 T=33    gdn_delta_rule_bf16_v2      21.5 us   chunk      24.7 us   seq/chunk 0.87
+Hk=8  Hv=16 T=48    gdn_delta_rule_bf16_v2      29.2 us   chunk      25.2 us   seq/chunk 1.16
+Hk=8  Hv=16 T=64    gdn_delta_rule_bf16_v3      36.6 us   chunk      25.8 us   seq/chunk 1.42
+Hk=8  Hv=16 T=96    gdn_delta_rule_bf16_v3      51.9 us   chunk      30.3 us   seq/chunk 1.71
+Hk=8  Hv=16 T=128   gdn_delta_rule_bf16_v3      67.5 us   chunk      31.0 us   seq/chunk 2.18
+Hk=8  Hv=16 T=192   gdn_delta_rule_bf16_v3      98.6 us   chunk      37.5 us   seq/chunk 2.63
+Hk=8  Hv=16 T=256   gdn_delta_rule_bf16_v3     129.4 us   chunk      53.3 us   seq/chunk 2.43
+Hk=8  Hv=16 T=384   gdn_delta_rule_bf16_v3     191.1 us   chunk      57.3 us   seq/chunk 3.33
+Hk=8  Hv=16 T=512   gdn_delta_rule_bf16_v3     253.5 us   chunk      69.3 us   seq/chunk 3.66
+Hk=8  Hv=16 T=1024  gdn_delta_rule_bf16_v3     500.8 us   chunk     121.6 us   seq/chunk 4.12
+Hk=8  Hv=16 T=2048  gdn_delta_rule_bf16_v3    1003.9 us   chunk     229.2 us   seq/chunk 4.38
+Hk=8  Hv=16 T=4096  gdn_delta_rule_bf16_v3    1995.3 us   chunk     501.4 us   seq/chunk 3.98
+test gdn_chunk_vs_sequential_timing ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.44s
+

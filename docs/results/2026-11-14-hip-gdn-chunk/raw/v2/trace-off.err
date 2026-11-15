@@ -1,0 +1,29 @@
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded Qwen3.6-35B-A3B-NVFP4 on AMD Radeon Graphics in 2.9s: 40 layers, hidden 2048, act bf16, kv bf16, weights 20.83 GB, context 8192 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 4420 tokens
+ids: [27775, 383, 279, 3766, 1414, 11, 1532, 369]
+finish=length prompt=4420 (cached 0) completion=8 | prefill 443 ms (9980.1 tok/s) | decode 44 ms (159.96 tok/s)
+macro prefill passes=1
+steps=10 graph replays=8 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/8 attn_decode=0ms/80 attn_prefill=0ms/20 embedding=0ms/9 gate_split_qk_norm_rope_kv=0ms/100
+hip trace: 1 batches, 1102 launches, kernel GPU time 426.2 ms, stream wall time 430.4 ms, idle between launches 4.2 ms (1% of wall)
+kernel                         launches   total ms    avg us % kern
+moe_experts_bf16_v2                  40     148.17    3704.3  34.8%
+matmul_fp8_mma_f8                   260      89.82     345.5  21.1%
+gdn_delta_rule_bf16_v3               60      88.09    1468.1  20.7%
+attn_prefill_bf16_flash_v2           20      25.09    1254.4   5.9%
+matmul_nvfp4_mma                    120      22.06     183.9   5.2%
+matmul_bf16                         280      12.99      46.4   3.0%
+gdn_conv_bf16                        60      10.86     181.0   2.5%
+rmsnorm_add_bf16                     80       7.96      99.4   1.9%
+gated_rmsnorm_bf16                   30       6.29     209.6   1.5%
+moe_combine_bf16                     40       5.82     145.4   1.4%
+gate_split_qk_norm_rope_kv_bf16       20       3.61     180.5   0.8%
+sigmoid_mul_bf16                     10       1.87     187.4   0.4%
+embedding_bf16                        1       1.31    1309.8   0.3%
+moe_topk_bf16_v2                     40       0.81      20.3   0.2%
+silu_glu_bf16                        40       0.76      19.1   0.2%
+rmsnorm_bf16                          1       0.64     644.8   0.2%
+hip trace gaps after launches of < 0.1 ms: n 560 sum 2.14 ms, us min 3.5 p10 3.6 median 3.8 p90 3.9 max 9.6
+hip trace gaps after launches of 0.1 to 1 ms: n 459 sum 1.77 ms, us min 3.6 p10 3.7 median 3.8 p90 3.9 max 9.1
+hip trace gaps after launches of >= 1 ms: n 82 sum 0.31 ms, us min 3.6 p10 3.6 median 3.8 p90 3.9 max 5.6

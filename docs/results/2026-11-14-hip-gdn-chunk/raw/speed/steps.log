@@ -1,0 +1,39 @@
+21:14:32 guard: [guard] radiance stopped 2026-11-14 21:14:31
+21:14:32 phase tp1 round 1 arm tp1-off: starting server
+21:14:44 phase tp1 round 1 arm tp1-off: server up, localeval
+21:14:52 phase tp1 round 1 arm tp1-off: localeval exit 0 - result file: `results/20261114-211445-adhoc-gdnchunk-tp1-tp1-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-211445-adhoc-gdnchunk-tp1-tp1-off-r1/result.json|
+21:14:53 phase tp1 round 1 arm tp1-on: starting server
+21:15:05 phase tp1 round 1 arm tp1-on: server up, localeval
+21:15:11 phase tp1 round 1 arm tp1-on: localeval exit 0 - result file: `results/20261114-211506-adhoc-gdnchunk-tp1-tp1-on-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-211506-adhoc-gdnchunk-tp1-tp1-on-r1/result.json|
+21:15:11 phase tp1 round 2 arm tp1-on: starting server
+21:15:24 phase tp1 round 2 arm tp1-on: server up, localeval
+21:15:30 phase tp1 round 2 arm tp1-on: localeval exit 0 - result file: `results/20261114-211525-adhoc-gdnchunk-tp1-tp1-on-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-211525-adhoc-gdnchunk-tp1-tp1-on-r2/result.json|
+21:15:30 phase tp1 round 2 arm tp1-off: starting server
+21:15:43 phase tp1 round 2 arm tp1-off: server up, localeval
+21:15:49 phase tp1 round 2 arm tp1-off: localeval exit 0 - result file: `results/20261114-211544-adhoc-gdnchunk-tp1-tp1-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-211544-adhoc-gdnchunk-tp1-tp1-off-r2/result.json|
+21:15:50 phase tp1 round 3 arm tp1-off: starting server
+21:16:02 phase tp1 round 3 arm tp1-off: server up, localeval
+21:16:08 phase tp1 round 3 arm tp1-off: localeval exit 0 - result file: `results/20261114-211603-adhoc-gdnchunk-tp1-tp1-off-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-211603-adhoc-gdnchunk-tp1-tp1-off-r3/result.json|
+21:16:09 phase tp1 round 3 arm tp1-on: starting server
+21:16:21 phase tp1 round 3 arm tp1-on: server up, localeval
+21:16:27 phase tp1 round 3 arm tp1-on: localeval exit 0 - result file: `results/20261114-211622-adhoc-gdnchunk-tp1-tp1-on-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-211622-adhoc-gdnchunk-tp1-tp1-on-r3/result.json|
+21:16:27 phase tp2 round 1 arm tp2-off: starting server
+21:16:37 phase tp2 round 1 arm tp2-off: server up, localeval
+21:16:40 phase tp2 round 1 arm tp2-off: localeval exit 0 - result file: `results/20261114-211638-adhoc-gdnchunk-tp2-tp2-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-211638-adhoc-gdnchunk-tp2-tp2-off-r1/result.json|
+21:16:41 phase tp2 round 1 arm tp2-on: starting server
+21:16:50 phase tp2 round 1 arm tp2-on: server up, localeval
+21:16:53 phase tp2 round 1 arm tp2-on: localeval exit 0 - result file: `results/20261114-211651-adhoc-gdnchunk-tp2-tp2-on-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-211651-adhoc-gdnchunk-tp2-tp2-on-r1/result.json|
+21:16:54 phase tp2 round 2 arm tp2-on: starting server
+21:17:04 phase tp2 round 2 arm tp2-on: server up, localeval
+21:17:06 phase tp2 round 2 arm tp2-on: localeval exit 0 - result file: `results/20261114-211704-adhoc-gdnchunk-tp2-tp2-on-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-211704-adhoc-gdnchunk-tp2-tp2-on-r2/result.json|
+21:17:07 phase tp2 round 2 arm tp2-off: starting server
+21:17:17 phase tp2 round 2 arm tp2-off: server up, localeval
+21:17:20 phase tp2 round 2 arm tp2-off: localeval exit 0 - result file: `results/20261114-211717-adhoc-gdnchunk-tp2-tp2-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-211717-adhoc-gdnchunk-tp2-tp2-off-r2/result.json|
+21:17:20 phase tp2 round 3 arm tp2-off: starting server
+21:17:30 phase tp2 round 3 arm tp2-off: server up, localeval
+21:17:33 phase tp2 round 3 arm tp2-off: localeval exit 0 - result file: `results/20261114-211730-adhoc-gdnchunk-tp2-tp2-off-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-211730-adhoc-gdnchunk-tp2-tp2-off-r3/result.json|
+21:17:33 phase tp2 round 3 arm tp2-on: starting server
+21:17:43 phase tp2 round 3 arm tp2-on: server up, localeval
+21:17:46 phase tp2 round 3 arm tp2-on: localeval exit 0 - result file: `results/20261114-211743-adhoc-gdnchunk-tp2-tp2-on-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261114-211743-adhoc-gdnchunk-tp2-tp2-on-r3/result.json|
+21:17:46 done, time left 1902s
+21:17:57 guard: [guard] radiance answers 2026-11-14 21:17:57 (after 15 s)

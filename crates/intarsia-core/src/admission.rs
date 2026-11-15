@@ -1016,6 +1016,51 @@ fn gdn_sweep(op: Op, cfg: &SweepConfig, rng: &mut SplitMix64) -> Vec<Case> {
             break; // shapes do not depend on the conv/delta configuration beyond the first entry
         }
     }
+    if op == Op::GdnDeltaRule {
+        cases.extend(gdn_chunk_cases(cfg));
+    }
+    cases
+}
+
+/// `GdnDeltaRule` cases for chunked scans (HIP `gdn_delta_rule_bf16_chunk`, 64-token chunks, dk = dv = 128; lane gdn-chunk): token
+/// counts on both sides of a chunk boundary (63 / 64 / 65), a short tail after several chunks (200), a long prefill chunk (4096) and
+/// the first few T, each from a zero state (`S0=zero`) and from a non-zero one (`S0=rand`); in the full sweep also the 35B shape, its
+/// tp2 shard and other value-per-key-head ratios. Their own generator, so the cases above keep their data.
+fn gdn_chunk_cases(cfg: &SweepConfig) -> Vec<Case> {
+    let mut rng = SplitMix64::new(cfg.seed ^ 0x6764_6e5f_6368_756e);
+    let mut cases = Vec::new();
+    // (key heads, value heads, token counts)
+    let sets: &[(usize, usize, &[usize])] = if cfg.quick {
+        &[(1, 2, &[63, 65, 200])]
+    } else {
+        &[(1, 2, &[1, 2, 3, 63, 64, 65, 200, 4096]), (16, 32, &[65, 200]), (8, 16, &[130]), (2, 2, &[130]), (1, 3, &[130])]
+    };
+    let (dk, dv) = (128usize, 128usize);
+    for &(hk, hv, ts) in sets {
+        let c = 2 * hk * dk + hv * dv;
+        for &t in ts {
+            for dt in act_dtypes() {
+                for zero in [true, false] {
+                    let init = if zero { None } else { Some(rand_t(&mut rng, DType::F32, &[hv, dv, dk], 0.1)) };
+                    cases.push(Case {
+                        label: format!("T={t} Hk={hk} Hv={hv} dk={dk} dv={dv} {dt} S0={}", if zero { "zero" } else { "rand" }),
+                        call: HostCall {
+                            op: Op::GdnDeltaRule,
+                            inputs: vec![
+                                rand_t(&mut rng, dt, &[t, c], 1.0),
+                                rand_t(&mut rng, dt, &[t, hv], 1.0),
+                                rand_t(&mut rng, dt, &[t, hv], 1.0),
+                                rand_t(&mut rng, dt, &[hv], 0.5),
+                                rand_t(&mut rng, dt, &[hv], 0.5),
+                            ],
+                            outputs: vec![OutSpec::new(dt, &[t, hv, dv]), OutSpec { dtype: DType::F32, shape: vec![hv, dv, dk], init }],
+                            attrs: attrs(),
+                        },
+                    });
+                }
+            }
+        }
+    }
     cases
 }
 

@@ -1,0 +1,14 @@
+[window] stopping radiance 2026-11-14 20:48:17
+20:48:23 timing exit 0
+20:48:30 self-on exit 0 [INTARSIA_GDN_CHUNK=1]
+20:48:38 self-on-budgets exit 1 [INTARSIA_GDN_CHUNK=1]
+20:48:46 self-off exit 0
+20:50:40 accl-off exit 0
+20:52:35 accl-on exit 0 [INTARSIA_GDN_CHUNK=1]
+20:53:53 selfl-on exit 1 [INTARSIA_GDN_CHUNK=1]
+20:55:10 selfl-on-budgets exit 1 [INTARSIA_GDN_CHUNK=1]
+20:57:52 qual-on exit 1 [INTARSIA_GDN_CHUNK=1]
+20:57:52 done
+[window] w3-window.sh exit 0 2026-11-14 20:57:52
+[window] starting radiance 2026-11-14 20:57:52
+[window] radiance answers 2026-11-14 20:58:12 (after 25 s)
