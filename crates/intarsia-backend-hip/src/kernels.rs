@@ -108,7 +108,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("gdn_delta_rule_bf16", Op::GdnDeltaRule),
     ("gdn_delta_rule_bf16_v2", Op::GdnDeltaRule),
     ("gdn_delta_rule_bf16_v3", Op::GdnDeltaRule),
-    // lane gdn-chunk: the delta rule on 64-token chunks (WMMA; design from radiance), opt-in (INTARSIA_GDN_CHUNK=1)
+    // lane gdn-chunk: the delta rule on 64-token chunks (WMMA; design from radiance), default since 2026-11-15 (INTARSIA_GDN_CHUNK=0 disables)
     ("gdn_delta_rule_bf16_chunk", Op::GdnDeltaRule),
     ("gate_split_bf16", Op::GateSplit),
     ("sigmoid_mul_bf16", Op::SigmoidMul),
@@ -188,19 +188,20 @@ pub fn gdn_v3_from(v: Option<&str>) -> bool {
     v != Some("0")
 }
 
-/// Fewest tokens `gdn_delta_rule_bf16_chunk` takes by default (INTARSIA_GDN_CHUNK_MIN overrides): shorter calls (decode, verify
+/// Fewest tokens `gdn_delta_rule_bf16_chunk` takes (INTARSIA_GDN_CHUNK_MIN overrides): shorter calls (decode, verify
 /// rows, short prefill tails) keep the sequential kernels. From measurement, docs/results/2026-11-14-hip-gdn-chunk.md.
 pub const GDN_CHUNK_MIN_TOKENS: usize = 64;
 
-/// `gdn_delta_rule_bf16_chunk` (lane gdn-chunk) is opt-in: selectable only when INTARSIA_GDN_CHUNK is exactly "1". It is not
-/// bitwise the sequential kernels (bf16 WMMA operands, another summation order). Read once per process.
+/// `gdn_delta_rule_bf16_chunk` (lane gdn-chunk) is the default for prefill calls since 2026-11-15 (user decision, docs/decisions/LOG.md);
+/// INTARSIA_GDN_CHUNK exactly "0" is the kill switch (back to v3 / v2). It is not bitwise the sequential kernels (bf16 WMMA operands,
+/// another summation order). Read once per process.
 pub fn gdn_chunk_enabled() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| gdn_chunk_from(std::env::var("INTARSIA_GDN_CHUNK").ok().as_deref()))
 }
-/// The value of INTARSIA_GDN_CHUNK -> the chunked kernel selectable: only exactly "1" enables.
+/// The value of INTARSIA_GDN_CHUNK -> the chunked kernel selectable: only exactly "0" disables.
 pub fn gdn_chunk_from(v: Option<&str>) -> bool {
-    v == Some("1")
+    v != Some("0")
 }
 /// Fewest tokens the chunked kernel takes: INTARSIA_GDN_CHUNK_MIN (a positive integer; a measurement and test knob), else
 /// `GDN_CHUNK_MIN_TOKENS`. Read once per process.
@@ -452,7 +453,7 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(11),
-            // lane gdn-chunk: 64-token chunks on WMMA for prefill (design from radiance). Opt-in and NOT bitwise v2 / v3 (bf16
+            // lane gdn-chunk: 64-token chunks on WMMA for prefill (design from radiance). Default (INTARSIA_GDN_CHUNK=0 disables), NOT bitwise v2 / v3 (bf16
             // WMMA operands, another summation order); run-to-run identical. Above v3 where it applies.
             "gdn_delta_rule_bf16_chunk" => k
                 .acts(bf)
@@ -631,20 +632,27 @@ mod tests {
         };
         for m in [1usize, 2, 7, 63, 64, 312, 4096] {
             // lane hp: v3 (bitwise v2) from GDN_V3_MIN_TOKENS on, unless INTARSIA_HIP_GDN_V3=0
-            let want = if m >= GDN_V3_MIN_TOKENS && gdn_v3_enabled() { "gdn_delta_rule_bf16_v3" } else { "gdn_delta_rule_bf16_v2" };
+            let want = if gdn_chunk_enabled() && m >= gdn_chunk_min_tokens() {
+                "gdn_delta_rule_bf16_chunk"
+            } else if m >= GDN_V3_MIN_TOKENS && gdn_v3_enabled() {
+                "gdn_delta_rule_bf16_v3"
+            } else {
+                "gdn_delta_rule_bf16_v2"
+            };
             assert_eq!(pick(Op::GdnDeltaRule, &gdn(m, 128)).as_deref(), Some(want), "m={m}");
             assert_eq!(pick(Op::GdnDeltaRule, &gdn(m, 64)).as_deref(), Some("gdn_delta_rule_bf16"), "m={m} dk=64");
         }
     }
 
-    /// INTARSIA_GDN_CHUNK: only exactly "1" enables the chunked delta rule; INTARSIA_GDN_CHUNK_MIN: a positive integer or the default.
+    /// INTARSIA_GDN_CHUNK: only exactly "0" disables the chunked delta rule; INTARSIA_GDN_CHUNK_MIN: a positive integer or the default.
     #[test]
     fn gdn_chunk_knobs() {
-        assert!(!gdn_chunk_from(None));
+        assert!(gdn_chunk_from(None));
         assert!(!gdn_chunk_from(Some("0")));
-        assert!(!gdn_chunk_from(Some("")));
-        assert!(!gdn_chunk_from(Some("true")));
+        assert!(gdn_chunk_from(Some("")));
+        assert!(gdn_chunk_from(Some("true")));
         assert!(gdn_chunk_from(Some("1")));
+        assert_eq!(gdn_chunk_enabled(), std::env::var("INTARSIA_GDN_CHUNK").as_deref() != Ok("0"));
         assert_eq!(gdn_chunk_min_from(None), GDN_CHUNK_MIN_TOKENS);
         assert_eq!(gdn_chunk_min_from(Some("1")), 1);
         assert_eq!(gdn_chunk_min_from(Some("4096")), 4096);
