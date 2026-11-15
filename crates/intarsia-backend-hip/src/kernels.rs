@@ -24,6 +24,8 @@ pub const ENV_KNOBS: &[&str] = &[
     "INTARSIA_HIP_FP8_PAIR",
     "INTARSIA_HIP_FP8_Q",
     "INTARSIA_HIP_FP8_ROWS",
+    "INTARSIA_GDN_CHUNK",
+    "INTARSIA_GDN_CHUNK_MIN",
     "INTARSIA_HIP_GDN_PD",
     "INTARSIA_HIP_GDN_V3",
     "INTARSIA_HIP_FLASH_HPB",
@@ -106,6 +108,8 @@ pub const TABLE: &[(&str, Op)] = &[
     ("gdn_delta_rule_bf16", Op::GdnDeltaRule),
     ("gdn_delta_rule_bf16_v2", Op::GdnDeltaRule),
     ("gdn_delta_rule_bf16_v3", Op::GdnDeltaRule),
+    // lane gdn-chunk: the delta rule on 64-token chunks (WMMA; design from radiance), opt-in (INTARSIA_GDN_CHUNK=1)
+    ("gdn_delta_rule_bf16_chunk", Op::GdnDeltaRule),
     ("gate_split_bf16", Op::GateSplit),
     ("sigmoid_mul_bf16", Op::SigmoidMul),
     ("argmax_f32", Op::Argmax),
@@ -182,6 +186,40 @@ pub fn gdn_v3_enabled() -> bool {
 /// The value of INTARSIA_HIP_GDN_V3 -> v3 selectable: only exactly "0" disables.
 pub fn gdn_v3_from(v: Option<&str>) -> bool {
     v != Some("0")
+}
+
+/// Fewest tokens `gdn_delta_rule_bf16_chunk` takes by default (INTARSIA_GDN_CHUNK_MIN overrides): shorter calls (decode, verify
+/// rows, short prefill tails) keep the sequential kernels. From measurement, docs/results/2026-11-14-hip-gdn-chunk.md.
+pub const GDN_CHUNK_MIN_TOKENS: usize = 128;
+
+/// `gdn_delta_rule_bf16_chunk` (lane gdn-chunk) is opt-in: selectable only when INTARSIA_GDN_CHUNK is exactly "1". It is not
+/// bitwise the sequential kernels (bf16 WMMA operands, another summation order). Read once per process.
+pub fn gdn_chunk_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| gdn_chunk_from(std::env::var("INTARSIA_GDN_CHUNK").ok().as_deref()))
+}
+/// The value of INTARSIA_GDN_CHUNK -> the chunked kernel selectable: only exactly "1" enables.
+pub fn gdn_chunk_from(v: Option<&str>) -> bool {
+    v == Some("1")
+}
+/// Fewest tokens the chunked kernel takes: INTARSIA_GDN_CHUNK_MIN (a positive integer; a measurement and test knob), else
+/// `GDN_CHUNK_MIN_TOKENS`. Read once per process.
+pub fn gdn_chunk_min_tokens() -> usize {
+    static MIN: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *MIN.get_or_init(|| gdn_chunk_min_from(std::env::var("INTARSIA_GDN_CHUNK_MIN").ok().as_deref()))
+}
+pub fn gdn_chunk_min_from(v: Option<&str>) -> usize {
+    v.and_then(|x| x.trim().parse::<usize>().ok()).filter(|&n| n >= 1).unwrap_or(GDN_CHUNK_MIN_TOKENS)
+}
+/// The shapes `gdn_delta_rule_bf16_chunk` is compiled for: dk = dv = 128, value heads per key head 1 | 2 | 3 | 4 | 6 | 8.
+fn gdn_chunk_shape_ok(s: &ShapeInfo) -> bool {
+    s.head_dim == 128 && s.n == 128 && s.n_kv_heads > 0 && s.n_heads % s.n_kv_heads == 0 && matches!(s.n_heads / s.n_kv_heads, 1 | 2 | 3 | 4 | 6 | 8)
+}
+/// Scratch of `gdn_delta_rule_bf16_chunk`, mirroring the launcher (kernels/hip/gdn_chunk.hip): bf16 qn and kn [T, Hk, 128], bf16
+/// A [T, Hv, 64], f32 G and beta [T, Hv], each rounded up to 16 bytes.
+pub fn gdn_chunk_scratch(s: &ShapeInfo) -> usize {
+    let r16 = |n: usize| (n + 15) & !15;
+    2 * r16(s.m * s.n_kv_heads * 128 * 2) + r16(s.m * s.n_heads * 64 * 2) + 2 * r16(s.m * s.n_heads * 4)
 }
 
 /// Most rows of a row-exact (`rows_exact`) multi-row kernel call (bf16 / fp8 / nvfp4 GEMV rows, MoE decode rows): the cap of
@@ -414,6 +452,16 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(11),
+            // lane gdn-chunk: 64-token chunks on WMMA for prefill (design from radiance). Opt-in and NOT bitwise v2 / v3 (bf16
+            // WMMA operands, another summation order); run-to-run identical. Above v3 where it applies.
+            "gdn_delta_rule_bf16_chunk" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| gdn_chunk_enabled() && gdn_chunk_shape_ok(s) && s.m >= gdn_chunk_min_tokens())
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(12)
+                .scratch(gdn_chunk_scratch),
             // P4a: gate_split_bf16 + qk_norm_rope_kv_bf16 in one launch, bitwise those two (tests/fusion_p2.rs); the prologue's
             // constraints (head_dim is the split-off query's)
             "gate_split_qk_norm_rope_kv_bf16" => k
@@ -587,6 +635,28 @@ mod tests {
             assert_eq!(pick(Op::GdnDeltaRule, &gdn(m, 128)).as_deref(), Some(want), "m={m}");
             assert_eq!(pick(Op::GdnDeltaRule, &gdn(m, 64)).as_deref(), Some("gdn_delta_rule_bf16"), "m={m} dk=64");
         }
+    }
+
+    /// INTARSIA_GDN_CHUNK: only exactly "1" enables the chunked delta rule; INTARSIA_GDN_CHUNK_MIN: a positive integer or the default.
+    #[test]
+    fn gdn_chunk_knobs() {
+        assert!(!gdn_chunk_from(None));
+        assert!(!gdn_chunk_from(Some("0")));
+        assert!(!gdn_chunk_from(Some("")));
+        assert!(!gdn_chunk_from(Some("true")));
+        assert!(gdn_chunk_from(Some("1")));
+        assert_eq!(gdn_chunk_min_from(None), GDN_CHUNK_MIN_TOKENS);
+        assert_eq!(gdn_chunk_min_from(Some("1")), 1);
+        assert_eq!(gdn_chunk_min_from(Some("4096")), 4096);
+        assert_eq!(gdn_chunk_min_from(Some("0")), GDN_CHUNK_MIN_TOKENS);
+        assert_eq!(gdn_chunk_min_from(Some("x")), GDN_CHUNK_MIN_TOKENS);
+        // the 35B shape at a 4096-token chunk: qn + kn 2 x 16.8 MB, A 16.8 MB, G + beta 2 x 0.5 MB
+        let s = ShapeInfo { m: 4096, n_heads: 32, n_kv_heads: 16, head_dim: 128, k: 128, n: 128, ..Default::default() };
+        assert_eq!(gdn_chunk_scratch(&s), 2 * 4096 * 16 * 256 + 4096 * 32 * 128 + 2 * 4096 * 32 * 4);
+        assert!(gdn_chunk_shape_ok(&s));
+        assert!(!gdn_chunk_shape_ok(&ShapeInfo { n: 64, ..s.clone() }), "dv = 64");
+        assert!(!gdn_chunk_shape_ok(&ShapeInfo { head_dim: 64, ..s.clone() }), "dk = 64");
+        assert!(!gdn_chunk_shape_ok(&ShapeInfo { n_heads: 80, ..s.clone() }), "5 value heads per key head");
     }
 
     /// INTARSIA_HIP_GDN_V3: only exactly "0" disables v3.
