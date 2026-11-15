@@ -1,0 +1,12 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on hip, report directory /work/.gdn-default-logs/1115-1139/q-a4k
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (AMD Radeon Graphics (gfx1201), 95 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     10s] plan: PASS in 9.2s (31 ops resolved, exactness deterministic, loaded in 9.2s)
+[qualify     10s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify     10s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     10s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify     66s] acc-4k: FAIL in 56.1s (prefix reuse differs from a cold run; prefix reuse at chunk 1024: 3 judged, 0 skipped: prefix reuse differs from a cold run)
+[qualify     66s] exit code 1

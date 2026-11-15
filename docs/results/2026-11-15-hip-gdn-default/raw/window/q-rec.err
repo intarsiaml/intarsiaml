@@ -1,0 +1,21 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on hip, report directory /work/.gdn-default-logs/1115-1139/q-rec
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (AMD Radeon Graphics (gfx1201), 95 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     10s] plan: PASS in 9.2s (31 ops resolved, exactness deterministic, loaded in 9.2s)
+[qualify     10s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     16s] gate: PASS in 5.9s (perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     16s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify     16s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     16s] == acc-short [short accuracy against a golden]
+[qualify     23s] acc-short: MISSING-BASELINE in 7.7s (MISSING-BASELINE: no baseline for backend hip next to the golden or in golden/baselines: KL, tail, prefix-reuse gates only, top-1 not gated. Qwen3.6-35B-A3B-NVFP4 has no full-precision golden (MoE / hybrid / quantized, golden from a reference server), so acc-short's floor alone does not gate it (it read: prefill top-1 98.47% KL 6.00e-3; decode top-1 98.75% KL 1.11e-2); record one with the envelope stage and commit it to golden/baselines/)
+[qualify     23s] == acc-oracle [short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)]
+[qualify     43s] acc-oracle: MISSING-BASELINE in 19.7s (MISSING-BASELINE: no recorded dump qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors in golden/baselines; the oracle floor passed (prefill top-1 95.77% KL 1.04e-2), but on this model only a recorded same-backend dump can see a 1 % scale bug. Record it from clean main: copy baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors to golden/baselines/ and commit it)
+[qualify     43s] == envelope [noise envelope and baseline for regression gating]
+[qualify     66s] envelope: PASS in 23.1s (baseline and envelope (chunk + attn-simt) written; they gate this build: PASS)
+[qualify     66s] == tp [tensor-parallel variant]
+[qualify     78s] server up in 8s on http://127.0.0.1:8090 (max-seq 2048)
+[qualify    109s] tp: MISSING-BASELINE in 42.8s (MISSING-BASELINE: tp=2: no recorded dump qwen36-35b-a3b-nvfp4-cpu-oracle.hip-tp2.selfgolden.safetensors in golden/baselines; record it from clean main: copy baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip-tp2.selfgolden.safetensors to golden/baselines/)
+[qualify    109s] exit code 1

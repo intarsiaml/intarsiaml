@@ -1,0 +1,77 @@
+[window] stopping radiance 2026-11-15 11:39:20
+11:39:24 stages start; head=4379dd0 code-tree=a5d1066ac581 dirty=no; STEPS=tests kern rec chk a4k
+11:48:47 hip-tests exit 0
+11:49:14 models-tests exit 0 [INTARSIA_BATCH_TEST_BACKEND=hip ]
+11:49:42 models-tests-min1 exit 0 [INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_GDN_CHUNK_MIN=1]
+11:51:27 models-tests-35b exit 0 [INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=/models/Qwen3.6-35B-A3B-NVFP4]
+11:51:59 models-tests-35b-off exit 0 [INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=/models/Qwen3.6-35B-A3B-NVFP4 INTARSIA_GDN_CHUNK=0]
+      1 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+      1 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+      1 test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+      1 test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 2 filtered out; finished in 26.31s
+      1 test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 24.77s
+      1 test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 17.97s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.94s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.55s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.94s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.35s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.35s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.01s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.22s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.19s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 31.33s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.09s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.26s
+      1 test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.15s
+      1 test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.34s
+      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.21s
+      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s
+      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.56s
+      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 14.71s
+      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 3.55s
+      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 3.56s
+      1 test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 44.38s
+      1 test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.00s
+      1 test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+      1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.91s
+      1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.66s
+      2 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 23.59s
+      1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 105.00s
+      1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.00s
+      1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+      1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+      1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.57s
+      1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.72s
+      1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 8.47s
+      1 test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.19s
+      1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+      1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.35s
+      1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s
+      1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.16s
+      1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.36s
+      1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.81s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.29s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 99.96s
+      1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.12s
+      1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.47s
+      1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.99s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 191.49s
+11:52:04 kernels exit 0
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+91 kernels, 550 cases in 4.7s
+incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+11:53:53 q-rec exit 1
+11:53:53 recorded: 2853852 qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors 2853796 qwen36-35b-a3b-nvfp4-cpu-oracle.hip-tp2.selfgolden.safetensors 15793 qwen36-35b-a3b-nvfp4-vllm-top20.hip.baseline.json 68644 qwen36-35b-a3b-nvfp4-vllm-top20.hip.envelope.json 
+11:55:48 q-chk exit 0
+11:56:55 q-a4k exit 1
+11:56:55 stages done
+[window] stages exit 0 2026-11-15 11:56:55
+[window] starting radiance 2026-11-15 11:56:55
+[window] radiance answers 2026-11-15 11:57:05 (after 15 s)

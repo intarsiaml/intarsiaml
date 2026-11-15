@@ -1,0 +1,7 @@
+[window] stopping radiance 2026-11-15 11:57:46
+11:57:50 stages start; head=4379dd0 code-tree=a5d1066ac581 dirty=no; STEPS=a4k
+11:58:59 q-a4k exit 1 [INTARSIA_GDN_CHUNK=0]
+11:58:59 stages done
+[window] stages exit 0 2026-11-15 11:58:59
+[window] starting radiance 2026-11-15 11:58:59
+[window] radiance answers 2026-11-15 11:59:09 (after 15 s)

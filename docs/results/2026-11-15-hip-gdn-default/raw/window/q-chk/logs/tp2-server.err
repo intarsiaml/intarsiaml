@@ -1,0 +1,6 @@
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 29 kernel(s) checked, 221 case(s) run, 158 cached
+loaded Qwen3.6-35B-A3B-NVFP4 on hip (AMD Radeon Graphics x2 (tp=2, hip-p2p comm)) in 7.5s, context 2048 tokens
+sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /models/Qwen3.6-35B-A3B-NVFP4/generation_config.json; a request's own values win)
+intarsia server listening on http://127.0.0.1:8090

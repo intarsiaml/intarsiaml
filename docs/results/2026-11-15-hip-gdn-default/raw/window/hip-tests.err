@@ -1,0 +1,134 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1241:4
+     |
+1241 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: unused import: `Backend`
+  --> crates/intarsia-backend-hip/tests/gdn_verify_snap.rs:11:30
+   |
+11 | use intarsia_core::backend::{Backend, MemKind};
+   |                              ^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `Backend`
+   --> crates/intarsia-backend-hip/tests/admission.rs:143:25
+    |
+143 |     use intarsia_core::{Backend as _, DType, HostTensor, Op, OpAttrs};
+    |                         ^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` on by default
+
+warning: `intarsia-backend-hip` (test "gdn_verify_snap") generated 1 warning
+warning: `intarsia-backend-hip` (test "admission") generated 1 warning
+warning: variable does not need to be mutable
+    --> crates/intarsia-backend-hip/tests/rows_exact.rs:1114:9
+     |
+1114 |     let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
+     |         ----^^^^
+     |         |
+     |         help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: unnecessary parentheses around closure body
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:52:45
+   |
+52 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+   |                                             ^           ^
+   |
+   = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+   |
+52 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+52 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+   |
+
+warning: unnecessary parentheses around closure body
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:58:48
+   |
+58 |     let ids: Vec<i32> = (0..1024).flat_map(|_| (0..k as i32)).collect();
+   |                                                ^           ^
+   |
+help: remove these parentheses
+   |
+58 -     let ids: Vec<i32> = (0..1024).flat_map(|_| (0..k as i32)).collect();
+58 +     let ids: Vec<i32> = (0..1024).flat_map(|_| 0..k as i32).collect();
+   |
+
+warning: `intarsia-backend-hip` (test "rows_exact") generated 1 warning (run `cargo fix --test "rows_exact"` to apply 1 suggestion)
+warning: `intarsia-backend-hip` (test "quantmoe") generated 2 warnings (run `cargo fix --test "quantmoe"` to apply 2 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.10s
+     Running unittests src/lib.rs (/target/release/deps/intarsia_backend_hip-fc3efd7d13bae4aa)
+     Running tests/a8_served.rs (/target/release/deps/a8_served-d50fc949c6eeda88)
+     Running tests/admission.rs (/target/release/deps/admission-436357379a704e17)
+intarsia-hip: INTARSIA_HIP_GEMV=2,16 is not an instantiated variant, using 1,8
+     Running tests/ar_norm.rs (/target/release/deps/ar_norm-0ee5753fd1d14b70)
+     Running tests/ar_push.rs (/target/release/deps/ar_push-5984d5831e2266e2)
+     Running tests/ar_wht6.rs (/target/release/deps/ar_wht6-f1b479fcf834706d)
+     Running tests/attention.rs (/target/release/deps/attention-1e769c865987adc7)
+     Running tests/comm.rs (/target/release/deps/comm-3f00de4f34953f0a)
+     Running tests/decode_v2.rs (/target/release/deps/decode_v2-ece65a2a52e3819e)
+     Running tests/device_pos.rs (/target/release/deps/device_pos-69157cf4ffca06a0)
+     Running tests/flash_v2.rs (/target/release/deps/flash_v2-4d39ae482d80da9e)
+     Running tests/fp8_f8.rs (/target/release/deps/fp8_f8-8a45da309935f9f3)
+     Running tests/fp8_mma_v2.rs (/target/release/deps/fp8_mma_v2-9070f2a2e7811a08)
+     Running tests/fp8_pair_shapes.rs (/target/release/deps/fp8_pair_shapes-8be680d02604fe2b)
+     Running tests/frag_layout.rs (/target/release/deps/frag_layout-41fbfe45ab96e765)
+     Running tests/fused_decode.rs (/target/release/deps/fused_decode-e9b11a0c7deb9f83)
+     Running tests/fusion_p1.rs (/target/release/deps/fusion_p1-a4d8bb19f7aa244d)
+     Running tests/fusion_p2.rs (/target/release/deps/fusion_p2-0e3b01a74935052a)
+     Running tests/gdn_timing.rs (/target/release/deps/gdn_timing-8bfe49a9aa03c382)
+     Running tests/gdn_v2.rs (/target/release/deps/gdn_v2-1113730ae5c5aa5a)
+     Running tests/gdn_verify_snap.rs (/target/release/deps/gdn_verify_snap-1516c626e92353a5)
+     Running tests/matmul_bench.rs (/target/release/deps/matmul_bench-821f5af20b83828a)
+     Running tests/moe_block.rs (/target/release/deps/moe_block-9bbe8a1dbc842643)
+     Running tests/moe_pairs.rs (/target/release/deps/moe_pairs-0f6fc079a2ad8e0a)
+     Running tests/moe_v3.rs (/target/release/deps/moe_v3-545fdfa2700f45eb)
+     Running tests/mxfp4_a8.rs (/target/release/deps/mxfp4_a8-b31ffe3c0d902af6)
+     Running tests/mxfp4_a8_fuse.rs (/target/release/deps/mxfp4_a8_fuse-24c1764bdc97a1e6)
+     Running tests/mxfp4_decode.rs (/target/release/deps/mxfp4_decode-53ab9bd883710181)
+     Running tests/mxfp4_fold.rs (/target/release/deps/mxfp4_fold-b48693e749c54561)
+     Running tests/mxfp4_v2.rs (/target/release/deps/mxfp4_v2-118b5ffb2ed92e21)
+     Running tests/packed_rows.rs (/target/release/deps/packed_rows-1d12f4b7d75a731f)
+     Running tests/pf_flash_vp.rs (/target/release/deps/pf_flash_vp-73fcdb9d481a6ffb)
+     Running tests/qk_rope_kv.rs (/target/release/deps/qk_rope_kv-0298da6973cf637a)
+     Running tests/quantmoe.rs (/target/release/deps/quantmoe-4d7424f44bd0327f)
+     Running tests/quick_coverage.rs (/target/release/deps/quick_coverage-6db8b369063d7b0d)
+     Running tests/quick_coverage_wmma.rs (/target/release/deps/quick_coverage_wmma-0316b23580dbe049)
+     Running tests/round6_selection.rs (/target/release/deps/round6_selection-b79b1b788d4ddba6)
+     Running tests/row_tables.rs (/target/release/deps/row_tables-5513eb43c0895419)
+     Running tests/rows_exact.rs (/target/release/deps/rows_exact-a907226ec5b40278)
+     Running tests/rows_registry.rs (/target/release/deps/rows_registry-b287f1f7596acd31)
+     Running tests/split_trigger.rs (/target/release/deps/split_trigger-058b475d1f088874)
+     Running tests/splitkv_occ.rs (/target/release/deps/splitkv_occ-f062c9e41e946b98)
+     Running tests/splitkv_r8.rs (/target/release/deps/splitkv_r8-dde96137410d7c64)
+     Running tests/staging.rs (/target/release/deps/staging-f44743639b4e42c0)
+     Running tests/topk.rs (/target/release/deps/topk-5fc438c231946c93)
+     Running tests/tp_partial_math.rs (/target/release/deps/tp_partial_math-e9e2677dcc69d39b)
+     Running tests/tp_partial_sum.rs (/target/release/deps/tp_partial_sum-155185e8f9cff6b3)
+     Running tests/verify_attn_rows.rs (/target/release/deps/verify_attn_rows-066a7926d51bd950)
+     Running tests/verify_gemv_bench.rs (/target/release/deps/verify_gemv_bench-a54abc627e332b7b)
+     Running tests/vocab_split.rs (/target/release/deps/vocab_split-e6d27ccc9e570955)
+     Running tests/win_splitkv.rs (/target/release/deps/win_splitkv-4a3e6fee2f005c39)
+     Running tests/wmma_folds.rs (/target/release/deps/wmma_folds-1dc4ae60425965ee)

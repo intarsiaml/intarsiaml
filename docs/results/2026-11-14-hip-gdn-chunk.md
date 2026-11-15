@@ -1,5 +1,7 @@
 # HIP: chunked WMMA GatedDeltaNet prefill scan (lane gdn-chunk)
 
+**Update 2026-11-15: default-on by user decision (docs/results/2026-11-15-hip-gdn-default.md); `INTARSIA_GDN_CHUNK=0` disables. The `scripts/gdn-chunk` runs with no knob (`E=""`) now run the chunked kernel.**
+
 Status: built and measured 2026-11-14 (branch `gdn-chunk`, not pushed). Opt-in only: the change-against-base accuracy gate fails
 (section 4), so the default is NOT flipped. The lane brief is kept below; results follow it.
 
