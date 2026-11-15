@@ -328,7 +328,7 @@ fn wht6_rate() {
         let Some((be, comms)) = group(7, wire) else { return };
         let mut rng = SplitMix64::new(5);
         for hidden in [2048usize, 5120] {
-            for rows in [64usize, 256, 1024, 2048] {
+            for rows in [24usize, 40, 64, 256, 1024, 2048, 4096] {
                 for dt in [DType::Bf16, DType::F32] {
                     let n = rows * hidden;
                     let v = rng.normal_vec(n, 1.0);

@@ -6,7 +6,9 @@
 #           budgets, and the control (wire off against its own dump)
 #   gen     256 greedy ids, short and 4k prompt, wire off / on (the divergence point; scripts/wht6-ar/diverge.py)
 #   long    the acc pair and the change-vs-base rule on the long golden (prompts up to 16k tokens)
+#   gref    the vLLM golden with its reference-noise record (`--ref-noise`, the required tp=2 gate class), wire off / on, short + long
 #   floor   the wire with a 1 MiB / 8 MiB floor (INTARSIA_HIP_AR_WIRE_MIN_KB) against the wire-off dump, short golden
+#   floorl  the same on the long golden (FLOORS, default 8192)
 set -u
 cd "$(dirname "$0")/../.." && . scripts/wht6-ar/lib.sh
 STEPS=${STEPS:-"acc self gen"}
@@ -48,9 +50,21 @@ if has long; then
   E="$ON" run 0,1 600 accl-on $ACC --golden $LG --write-self-golden $W/accl-on.safetensors; sum accl-on
   E="$ON" run 0,1 600 selfl-on $ACC --self-golden $W/accl-off.safetensors $AB --self-vs-ref-noise --ref-noise $NL; sum selfl-on
 fi
+if has gref; then   # the required tp=2 class: the vLLM golden with its reference-noise record, wire off / on, short and long
+  for arm in off on; do
+    e=""; [[ $arm == on ]] && e="$ON"
+    E="$e" run 0,1 420 gref-$arm $ACC --golden $SG --ref-noise $NS; sum gref-$arm
+    [[ ${GREF_LONG:-0} == 1 ]] && { E="$e" run 0,1 600 grefl-$arm $ACC --golden $LG --ref-noise $NL; sum grefl-$arm; }
+  done
+fi
 if has floor; then
-  for kb in 1024 8192; do
+  for kb in ${FLOORS:-1024 8192}; do
     E="$ON INTARSIA_HIP_AR_WIRE_MIN_KB=$kb" run 0,1 420 self-on-$kb $ACC --self-golden $W/acc-off.safetensors $AB --self-vs-ref-noise --ref-noise $NS; sum self-on-$kb
+  done
+fi
+if has floorl; then   # the long golden with a floor (needs accl-off.safetensors of the `long` step in $O)
+  for kb in ${FLOORS:-8192}; do
+    E="$ON INTARSIA_HIP_AR_WIRE_MIN_KB=$kb" run 0,1 600 selfl-on-$kb $ACC --self-golden $W/accl-off.safetensors $AB --self-vs-ref-noise --ref-noise $NL; sum selfl-on-$kb
   done
 fi
 log "done"
