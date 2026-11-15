@@ -8,6 +8,13 @@ Files in this repository whose design is ported from radiance (rewritten for the
                               as a second operand on the norm's load, no grid barrier, a per-block handshake. Exact bf16
                               all-reduce + residual add + rmsnorm; radiance's int8 quantisation and Hadamard transform
                               are not ported
+  kernels/hip/allreduce_wht6.hip  from libr4d/r4d_ar_oneshot_2rank_wht6.h, libr4d/r4d_ar_oneshot_2rank_wht6.hip and
+                              libr4d/r4d_fwht.h (tag v2.0.0, commit ddcb9c6): the lossy wht6 all-reduce wire (a 64-point
+                              Walsh-Hadamard rotation per group in registers, a bf16 amax scale per group, 6-bit symbols,
+                              one coalesced 512-byte store per wave and chunk, a local copy of the packed half, built
+                              without FMA contraction so both ranks sum the same bits). The handshake, counters and slot
+                              parity are allreduce.hip's; radiance's push check (r4d_archk_*), its host mailbox mirror and
+                              its fused gated-residual writes are not ported
 
 The radiance NOTICE file follows verbatim. The all-reduce kernels it credits to tcclaviger (N-rank all-reduce kernels)
 are the origin of the design above.
