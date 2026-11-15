@@ -1,0 +1,20 @@
+[window] stopping radiance 2026-11-14 21:36:56
+21:37:11 acc-off exit 0
+21:37:11   acc-off: golden gate: PASS|
+21:37:22 acc-on exit 0 [INTARSIA_HIP_AR_WIRE=wht6]
+21:37:22   acc-on: golden gate: PASS|hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 128 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.|
+21:37:31 self-on exit 1 [INTARSIA_HIP_AR_WIRE=wht6]
+21:37:31   self-on: SELF-STATS mode=prefill positions=1441 mean_kl21=4.724548e-3 max_kl21=7.501855e-1 flips=21 flip_pct=1.4573 tail_abs=8.563216e-4 worst_prompt_kl21=1.617440e-2|SELF-STATS mode=decode positions=160 mean_kl21=3.298505e-3 max_kl21=5.708063e-2 flips=1 flip_pct=0.6250 tail_abs=6.019271e-4 worst_prompt_kl21=6.907123e-3|golden gate: FAIL|hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 128 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.|reference noise [--ref-noise /work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json]: run_to_run, KL21 all rows 3.161e-3 (n=1441), scored rows 3.010e-3 (n=1279), per-prompt values for 10 prompt(s); 2026-10-21; docs/results/2026-10-21-cuda-roun|Error: accuracy gate FAILED|
+21:37:40 self-on-budgets exit 1 [INTARSIA_HIP_AR_WIRE=wht6]
+21:37:40   self-on-budgets: SELF-STATS mode=prefill positions=1441 mean_kl21=4.724548e-3 max_kl21=7.501855e-1 flips=21 flip_pct=1.4573 tail_abs=8.563216e-4 worst_prompt_kl21=1.617440e-2|SELF-STATS mode=decode positions=160 mean_kl21=3.298505e-3 max_kl21=5.708063e-2 flips=1 flip_pct=0.6250 tail_abs=6.019271e-4 worst_prompt_kl21=6.907123e-3|golden gate: FAIL|hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 128 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.|Error: accuracy gate FAILED|
+21:37:49 self-off exit 0
+21:37:49   self-off: SELF-STATS mode=prefill positions=1441 mean_kl21=2.262626e-13 max_kl21=1.759315e-10 flips=0 flip_pct=0.0000 tail_abs=3.670859e-9 worst_prompt_kl21=3.315740e-12|SELF-STATS mode=decode positions=160 mean_kl21=1.591146e-12 max_kl21=2.310667e-10 flips=0 flip_pct=0.0000 tail_abs=5.415819e-9 worst_prompt_kl21=1.445398e-11|golden gate: PASS|
+21:37:55 gen-short-off exit 0
+21:38:01 gen-4k-off exit 0
+21:38:07 gen-short-on exit 0 [INTARSIA_HIP_AR_WIRE=wht6]
+21:38:13 gen-4k-on exit 0 [INTARSIA_HIP_AR_WIRE=wht6]
+21:38:13   divergence: gen-short-off.ids: first difference at id 15 of 256|gen-4k-off.ids: first difference at id 82 of 256|
+21:38:13 done
+[window] accuracy-window.sh exit 0 2026-11-14 21:38:13
+[window] starting radiance 2026-11-14 21:38:13
+[window] radiance answers 2026-11-14 21:38:23 (after 15 s)

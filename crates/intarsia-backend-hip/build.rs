@@ -12,6 +12,9 @@ use std::process::Command;
 
 /// Translation units compiled in CU mode (`-mcumode`); every other one keeps the WGP-mode default.
 const CU_MODE_SOURCES: &[&str] = &["gdn.hip", "gdn_chunk.hip"];
+/// Translation units compiled with `-ffp-contract=off`: the lossy all-reduce wire's two ranks compute `a * sa + b * sb` with the
+/// operands in opposite order, and a fused multiply-add on either side would make their sums differ by an ulp.
+const NO_FP_CONTRACT_SOURCES: &[&str] = &["allreduce_wht6.hip"];
 
 fn find_hipcc() -> Option<PathBuf> {
     let mut roots: Vec<PathBuf> = Vec::new();
@@ -128,9 +131,11 @@ fn main() {
         // one-wave blocks are LDS-bound, and in CU mode each CU serves its waves from its own LDS half instead of the two
         // CUs of a WGP sharing one (the delta-rule scan -13 % per token). It changes no instruction's arithmetic.
         let cu_mode = CU_MODE_SOURCES.iter().any(|f| src.file_name().map(|n| n == *f).unwrap_or(false));
+        let no_contract = NO_FP_CONTRACT_SOURCES.iter().any(|f| src.file_name().map(|n| n == *f).unwrap_or(false));
         let child = Command::new(&hipcc)
             .args(["-c", "-O3", "-std=c++17", "-fPIC", "-Wall", "-Wno-unused-function"])
             .args(if cu_mode { &["-mcumode"][..] } else { &[][..] })
+            .args(if no_contract { &["-ffp-contract=off"][..] } else { &[][..] })
             .arg(format!("--offload-arch={arch}"))
             .arg("-I")
             .arg(&kroot)

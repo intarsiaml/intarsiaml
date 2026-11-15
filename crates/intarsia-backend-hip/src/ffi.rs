@@ -115,6 +115,27 @@ extern "C" {
         ll_slot_bytes: i64,
         stream: S,
     ) -> c_int;
+    /// lane wht6-ar (`kernels/hip/allreduce_wht6.hip`): the lossy wht6 wire on a fence path's buffers, and its slot geometry
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_ar2_wht6(
+        x: *mut c_void,
+        out: *mut c_void,
+        dtype: c_int,
+        out_dtype: c_int,
+        n_elem: i64,
+        peer_scratch: *mut c_void,
+        my_scratch: *mut c_void,
+        loc: *mut c_void,
+        peer_flags: *mut u32,
+        my_flags: *mut u32,
+        ctrs: *mut u32,
+        slot_bytes: i64,
+        nblocks: c_int,
+        drain: c_int,
+        stream: S,
+    ) -> c_int;
+    pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
     /// lane arx: the reduce of a partial its GEMM already pushed (`ik_matmul_mxfp4_a8_mma_push`), on the wide path's buffers
     #[allow(clippy::too_many_arguments)]
     pub fn ik_ar2_pushed(

@@ -1,0 +1,49 @@
+[localeval] calibrated: 22.1 tokens/sentence, 52 base tokens, ctx=18432
+[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.11s prefill=8920 tok/s decode=192.1 tok/s peak=193.9 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.11s prefill=8852 tok/s decode=193.1 tok/s peak=195.0 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=987 ttft=0.11s prefill=8665 tok/s decode=193.4 tok/s peak=211.6 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4088 ttft=0.33s prefill=12367 tok/s decode=189.6 tok/s peak=201.8 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4090 ttft=0.33s prefill=12549 tok/s decode=190.3 tok/s peak=211.0 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4091 ttft=0.33s prefill=12487 tok/s decode=190.6 tok/s peak=199.4 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16676 ttft=1.42s prefill=11768 tok/s decode=180.6 tok/s peak=183.4 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16679 ttft=1.46s prefill=11408 tok/s decode=191.8 tok/s peak=239.9 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16675 ttft=1.42s prefill=11766 tok/s decode=179.5 tok/s peak=181.9 tok/s out=128
+# localeval: adhoc — 2026-11-14T21:46
+
+- model: `qwen36-35b-tp2-off` on ? (?), url `http://tatooine:8090/v1`
+- thinking: off; run kind: speed; label: wht6ar-tp2-tp2-off-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d96f899
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8090/v1 --model qwen36-35b-tp2-off --label wht6ar-tp2-tp2-off-r2 --sizes 1024,4096,16384 --gen 128 --reps 3 --thinking off --wait-idle 60 --recipe HIP_VISIBLE_DEVICES=0,1 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b-tp2-off --tp 2 --devices 0,1 --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor --host 0.0.0.0 --port 8090 (tree wht6-ar, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)`
+- result file: `results/20261114-214644-adhoc-wht6ar-tp2-tp2-off-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b-tp2-off --tp 2 --devices 0,1 --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor --host 0.0.0.0 --port 8090 (tree wht6-ar, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)
+````
+
+## Speed sweep
+
+served `qwen36-35b-tp2-off`, fingerprint `None`, ctx 18432, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.11 | 8852 (8665–8920) * | - | 193.1 (192.1–193.4) | 195.0 (193.9–211.6) | - | - | 128 |
+| 4090 | 0.33 | 12487 (12367–12549) | 14352 | 190.3 (189.6–190.6) | 201.8 (199.4–211.0) | - | - | 128 |
+| 16676 | 1.42 | 11766 (11408–11768) | 11557 | 180.6 (179.5–191.8) | 183.4 (181.9–239.9) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261114-214644-adhoc-wht6ar-tp2-tp2-off-r2/result.json
+[localeval] logged to unanimis: 7fddeaf4-2587-4a7c-a083-940de89ae384

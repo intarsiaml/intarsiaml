@@ -192,6 +192,29 @@ pub fn create_group_push(
     Ok((backends, comms))
 }
 
+/// [`create_group_push`] with the all-reduce wire of lane wht6-ar set explicitly (tests): `wire` = `Some(min_bytes)` for the lossy
+/// wht6 wire on wide-path messages of at least `min_bytes`, `None` for the exact wire (instead of `INTARSIA_HIP_AR_WIRE`).
+#[cfg(ik_hip)]
+#[doc(hidden)]
+#[allow(clippy::type_complexity)]
+pub fn create_group_wire(
+    ordinals: &[usize],
+    drain: i32,
+    ll_max: usize,
+    wide: Option<(i32, usize)>,
+    push: bool,
+    wire: Option<usize>,
+) -> intarsia_core::Result<(Vec<Arc<dyn Backend>>, Vec<Arc<dyn intarsia_core::Comm>>)> {
+    disable::check_env()?;
+    let hips = ordinals
+        .iter()
+        .map(|&o| device::HipBackend::new(o).map(Arc::new))
+        .collect::<intarsia_core::Result<Vec<_>>>()?;
+    let backends: Vec<Arc<dyn Backend>> = hips.iter().map(|h| h.clone() as Arc<dyn Backend>).collect();
+    let comms = comm::p2p_group_wire(&hips, Some(drain), Some(ll_max), Some(wide), Some(push), Some(wire))?;
+    Ok((backends, comms))
+}
+
 /// Lane pf27b's P2P link micro-benchmark on two devices (`comm::p2p_bench`).
 #[cfg(ik_hip)]
 #[doc(hidden)]
