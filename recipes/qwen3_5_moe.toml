@@ -86,7 +86,15 @@ mtp_default_k = 2
 # and runs plain batched decode when more do, and the `--spec mtp` default above also applies to a batched server. Lone stream 80.2 -> 102.7
 # tok/s, 2-16 streams within 0-3 % of plain, greedy ids per sequence equal to solo spec-off (docs/results/2026-11-05-batched-mtp.md).
 # `INTARSIA_BATCHED_MTP=0` (or `--spec off`) turns it off.
-batched_mtp = 1
+# Lane flipprep (USER DECISION, docs/results/2026-11-15-flipprep.md): N = 2 with batched verify, verify top-k rows and a 131072-row draft head makes
+# MTP pay at 2 concurrent streams (docs/results/2026-11-14-mtp2s.md, 2026-11-14-dvocab.md: +11 to +27 % at 2 streams, +3 to +5 % at 1, no losing cell).
+# `INTARSIA_BATCHED_MTP=1` (or `0`), `INTARSIA_BATCHED_VERIFY=0`, `INTARSIA_VERIFY_TOPK=0` and `--mtp-draft-vocab 0` (the full head) turn the pieces off.
+batched_mtp = 2
+batched_verify = true
+verify_topk = true
+# The first N token ids of the lm_head draft; the verify pass keeps the full head, so output never changes. 131072 holds all of ASCII / Latin and the
+# 35k commonest Chinese tokens (the first Chinese id is 95726); 65536 holds none and loses 21-24 % on Chinese (docs/results/2026-11-14-dvocab.md).
+mtp_draft_vocab = 131072
 # GatedDeltaNet delta-rule state stored bf16 (half the bytes of the recurrent slot; f32 compute, one round to nearest even per launch). Lane spark35
 # (docs/results/2026-11-05-spark35-numerics.md): KL 0.5x to 1.6x of a benign chunk-schedule perturbation at 4k to 64k and over 8192 decode tokens, no drift,
 # needle 12/12 and 8/8, MMLU / GSM8K inside 2 SE, 16-stream aggregate +8.3 %. User decision 2026-11-06: flip the C default and keep D opt-in.
