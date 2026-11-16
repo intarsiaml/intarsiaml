@@ -401,6 +401,11 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::fp8::MATMUL_FP8_GEMV_ROWS, Op::MatmulFp8),
     (crate::nvfp4::MATMUL_NVFP4_GEMV_ROWS, Op::MatmulNvfp4),
     (crate::moe::MOE_EXPERTS_BF16_ROWS, Op::MoeExperts),
+    // lane mfold: the shared expert in two launches (solo) and their row-exact twins (verify / batched rows)
+    (crate::nvfp4::MATMUL_NVFP4_GLU_GEMV, Op::MatmulNvfp4Glu),
+    (crate::nvfp4::SHARED_DOWN_COMBINE_GEMV, Op::SharedDownCombine),
+    (crate::nvfp4::MATMUL_NVFP4_GLU_GEMV_ROWS, Op::MatmulNvfp4Glu),
+    (crate::nvfp4::SHARED_DOWN_COMBINE_GEMV_ROWS, Op::SharedDownCombine),
     (crate::rowtab::GDN_CONV_BF16_ROWS, Op::GdnConv),
     (crate::rowtab::GDN_DELTA_RULE_BF16_ROWS, Op::GdnDeltaRule),
     (crate::rowtab::KV_APPEND_BF16_ROWS, Op::KvAppend),
@@ -743,6 +748,38 @@ pub fn all() -> Vec<KernelImpl> {
                     .priority(-1)
                     .rows_exact()
                     .scratch(intarsia_core::quant::ops::moe_experts_scratch),
+                // lane mfold: fused shared-expert decode GEMVs, bitwise the unfused chains (tests/nvfp4_fused.rs); the `_rows`
+                // twins are the same shaders with one threadgroup row per activation row (row r = the one-row launch on row r)
+                crate::nvfp4::MATMUL_NVFP4_GLU_GEMV => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(crate::nvfp4::glu_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .priority(10),
+                crate::nvfp4::SHARED_DOWN_COMBINE_GEMV => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(crate::nvfp4::down_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .priority(10),
+                crate::nvfp4::MATMUL_NVFP4_GLU_GEMV_ROWS => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(crate::nvfp4::glu_rows_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .priority(-1)
+                    .rows_exact(),
+                crate::nvfp4::SHARED_DOWN_COMBINE_GEMV_ROWS => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(crate::nvfp4::down_rows_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .priority(-1)
+                    .rows_exact(),
                 // Row-table twins (lane mr3, `OpCall::rows`): the solo one-row decode kernel of the same name without `_rows`
                 // on 1..=16 rows at once, each row on its own state / cache from a table of device addresses. Bitwise the
                 // solo launch per row (tests/row_tables.rs); selected only for calls with a row table, and those select only

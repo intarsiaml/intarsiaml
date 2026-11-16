@@ -1104,6 +1104,13 @@ impl MetalBackend {
         {
             return self.launch_nvfp4(kernel, call);
         }
+        if matches!(
+            (kernel, call.op),
+            (nvfp4::MATMUL_NVFP4_GLU_GEMV | nvfp4::MATMUL_NVFP4_GLU_GEMV_ROWS, Op::MatmulNvfp4Glu)
+                | (nvfp4::SHARED_DOWN_COMBINE_GEMV | nvfp4::SHARED_DOWN_COMBINE_GEMV_ROWS, Op::SharedDownCombine)
+        ) {
+            return self.launch_nvfp4_fused(kernel, call);
+        }
         if bridge::KERNELS.iter().any(|k| k.0 == kernel) {
             return self.launch_bridge(kernel, call);
         }
