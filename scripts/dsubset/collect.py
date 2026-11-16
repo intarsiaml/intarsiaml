@@ -17,7 +17,10 @@ import time
 import urllib.request
 
 sys.path.insert(0, __import__("os").path.dirname(__file__))
-from prompts import COLLECT, TOOLS_ALL  # noqa: E402
+import prompts  # noqa: E402
+from prompts import TOOLS_ALL  # noqa: E402
+
+COLLECT = getattr(prompts, __import__('os').environ.get('COLLECT_SET', 'COLLECT'))
 
 
 def jobs():
@@ -36,7 +39,7 @@ def one(base, model, cat, i, think, p, max_tokens):
         "temperature": 0.6,
         "top_p": 0.95,
         "top_k": 20,
-        "seed": 7000 + 97 * i + (1 if think else 0),
+        "seed": int(__import__("os").environ.get("COLLECT_SEED0", "7000")) + 97 * i + (1 if think else 0),
         "return_token_ids": True,
         "chat_template_kwargs": {"enable_thinking": think},
     }

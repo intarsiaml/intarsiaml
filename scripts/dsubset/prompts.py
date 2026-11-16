@@ -229,3 +229,46 @@ EVAL["json"] = [
     '只输出 JSON：调用 get_weather(city, unit)，查询上海的天气，单位为摄氏度，格式为 {"name": ..., "arguments": {...}}。',
     'Выведи только JSON: вызов create_event с полями title, start (ISO 8601), duration_minutes и attendees для встречи команды завтра в 10:00.',
 ]
+
+# ------------------------------------------------------------------------------------------------------------ COLLECT2
+# Round 2 of the collection (lane dsubset, after v1's held-out reachability showed rare Latin and Han tokens missing): new tasks
+# and topics, none of them an EVAL prompt's topic or task. Same rules: grids in each language, thinking alternating.
+_TOP_EN = ["volcanoes", "the immune system", "jazz history", "compound interest", "bridge engineering", "coral reefs", "the Roman Empire",
+           "electric cars", "bees and pollination", "urban gardening", "black holes", "the history of the internet", "marathon training",
+           "climate models", "medieval castles", "fermentation"]
+_TOP_ZH = ["火山", "免疫系统", "爵士乐的历史", "复利", "桥梁工程", "珊瑚礁", "罗马帝国", "电动汽车", "蜜蜂与授粉", "城市园艺", "黑洞", "互联网的历史",
+           "马拉松训练", "气候模型", "中世纪城堡", "发酵"]
+_TOP_RU = ["вулканы", "иммунная система", "история джаза", "сложные проценты", "строительство мостов", "коралловые рифы", "Римская империя",
+           "электромобили", "пчёлы и опыление", "городское садоводство", "чёрные дыры", "история интернета"]
+_TOP_AR = ["البراكين", "جهاز المناعة", "تاريخ موسيقى الجاز", "الفائدة المركبة", "هندسة الجسور", "الشعاب المرجانية", "الإمبراطورية الرومانية",
+           "السيارات الكهربائية", "النحل والتلقيح", "الزراعة الحضرية", "الثقوب السوداء", "تاريخ الإنترنت"]
+_TOP_KO = ["화산", "면역 체계", "재즈의 역사", "복리", "다리 공학", "산호초", "로마 제국", "전기 자동차", "벌과 수분", "블랙홀"]
+_TOP_JA = ["火山", "免疫システム", "ジャズの歴史", "複利", "橋の工学", "サンゴ礁", "ローマ帝国", "電気自動車", "ミツバチと受粉", "ブラックホール"]
+EN2 = grid(["Write a detailed encyclopedia-style article about {}.", "Explain {} step by step, then answer three likely follow-up questions.",
+            "Write a short blog post about {} for beginners, with a catchy title and headings.", "Compare two competing views about {} and conclude."], _TOP_EN)
+CODE2 = grid([
+    "In {}, implement a JSON tokenizer and parser for objects, arrays, strings and numbers, with tests.",
+    "In {}, write a rate limiter (token bucket) with a clock abstraction and unit tests.",
+    "In {}, implement Dijkstra's algorithm on an adjacency list and print the shortest path.",
+    "In {}, write a small key-value store with a write-ahead log and crash recovery; explain the design.",
+    "In {}, write a CSV reader that handles quoted fields and a function that groups rows by a column.",
+    "In {}, implement a matrix type with multiplication, transpose and tests.",
+], ["Python", "Rust", "Go", "TypeScript", "Java", "C++", "Swift", "Ruby"]) + [
+    "Write a React component with hooks for a paginated, sortable table fetching data from /api/items.",
+    "Write a Kubernetes Deployment, Service and HorizontalPodAutoscaler for a web app, with comments.",
+    "Write Terraform for an S3 bucket with versioning, lifecycle rules and a bucket policy, with comments.",
+    "Write a SQL migration that adds a soft-delete column, an index and a view, and its rollback.",
+    "Write a Python asyncio web crawler with a concurrency limit, retries and robots.txt handling.",
+    "Write a shell script that backs up a Postgres database, rotates old backups and reports errors.",
+    "Explain Rust lifetimes with five progressively harder code examples.",
+    "Write a CUDA kernel for a parallel prefix sum and explain the work-efficient algorithm.",
+]
+ZH2 = grid(["写一篇关于{}的百科式文章，内容要详细。", "一步一步解释{}，然后回答三个可能的后续问题。", "为初学者写一篇关于{}的博客文章，要有标题和小标题。",
+            "比较关于{}的两种不同观点，并给出结论。"], _TOP_ZH) + grid(
+    ["用{}实现一个JSON解析器，并用中文写注释。", "用{}实现Dijkstra最短路径算法，并用中文解释。"], ["Python", "Go", "Rust", "JavaScript"])
+RU2 = grid(["Напиши подробную энциклопедическую статью о теме «{}».", "Объясни тему «{}» шаг за шагом и ответь на три возможных вопроса.",
+            "Напиши для начинающих короткий пост в блог на тему «{}» с заголовками."], _TOP_RU)
+AR2 = grid(["اكتب مقالة موسوعية مفصلة عن {}.", "اشرح {} خطوة بخطوة، ثم أجب عن ثلاثة أسئلة متوقعة.", "اكتب تدوينة قصيرة للمبتدئين عن {} مع عناوين."], _TOP_AR)
+KO2 = grid(["{}에 대한 백과사전식 글을 자세히 써 주세요.", "{}을(를) 단계별로 설명하고 예상 질문 세 가지에 답해 주세요.", "{}에 관한 초보자용 블로그 글을 제목과 소제목을 넣어 써 주세요."], _TOP_KO)
+JA2 = grid(["{}について百科事典風の詳しい記事を書いてください。", "{}を段階的に説明し、想定される質問三つに答えてください。", "{}について初心者向けのブログ記事を見出し付きで書いてください。"], _TOP_JA)
+COLLECT2 = {"en": EN2, "code": CODE2, "zh": ZH2, "ru": RU2, "ar": AR2, "ko": KO2, "ja": JA2}
