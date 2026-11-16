@@ -1,0 +1,43 @@
+fleetq: #9398 running on endor: scripts/mac-plan/diag.sh
+## mtp [] []
+nonce mtpa: ttft 1033 ms, events 48, first gaps ms [26.1, 21.3, 0.0, 22.1, 20.4, 0.0], total 1514 ms, usage {'prompt_tokens': 4100, 'completion_tokens': 48, 'total_tokens': 4148, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtpb: ttft 1221 ms, events 15, first gaps ms [24.4, 20.4, 0.0, 0.0, 21.2, 20.1], total 1387 ms, usage {'prompt_tokens': 4100, 'completion_tokens': 16, 'total_tokens': 4116, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtpc: ttft 1188 ms, events 48, first gaps ms [24.0, 20.0, 0.0, 0.0, 22.8, 24.7], total 1614 ms, usage {'prompt_tokens': 4100, 'completion_tokens': 48, 'total_tokens': 4148, 'prompt_tokens_details': {'cached_tokens': 0}}
+## off [] []
+nonce offa: ttft 771 ms, events 48, first gaps ms [19.8, 15.0, 0.0, 15.1, 0.0, 15.0], total 1053 ms, usage {'prompt_tokens': 4100, 'completion_tokens': 48, 'total_tokens': 4148, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce offb: ttft 738 ms, events 48, first gaps ms [14.6, 14.6, 0.0, 14.8, 13.8, 0.0], total 1051 ms, usage {'prompt_tokens': 4100, 'completion_tokens': 48, 'total_tokens': 4148, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce offc: ttft 758 ms, events 48, first gaps ms [15.2, 15.1, 0.0, 15.4, 14.5, 0.0], total 1059 ms, usage {'prompt_tokens': 4100, 'completion_tokens': 48, 'total_tokens': 4148, 'prompt_tokens_details': {'cached_tokens': 0}}
+## mtptrace [INTARSIA_SPEC_TRACE=1] []
+nonce mtptracea: ttft 1020 ms, events 4, first gaps ms [25.5, 21.2, 0.0], total 1066 ms, usage {'prompt_tokens': 4101, 'completion_tokens': 5, 'total_tokens': 4106, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtptraceb: ttft 1205 ms, events 48, first gaps ms [22.9, 19.4, 0.0, 20.3, 19.1, 0.0], total 1564 ms, usage {'prompt_tokens': 4101, 'completion_tokens': 48, 'total_tokens': 4149, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtptracec: ttft 1124 ms, events 48, first gaps ms [19.8, 19.7, 0.0, 20.2, 19.0, 0.0], total 1476 ms, usage {'prompt_tokens': 4101, 'completion_tokens': 48, 'total_tokens': 4149, 'prompt_tokens_details': {'cached_tokens': 0}}
+spec: mtp pipe step 17.826 ms (drafted ahead true), next draft submitted in 0.000 ms (false)
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=3 rep=1 prompt=3 prefill 331 ms (9.1 tok/s) decode 234 ms (34.17 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=3 rep=2 prompt=3 prefill 334 ms (9.0 tok/s) decode 235 ms (33.99 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=7 rep=1 prompt=7 prefill 363 ms (19.3 tok/s) decode 236 ms (33.89 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=7 rep=2 prompt=7 prefill 370 ms (18.9 tok/s) decode 234 ms (34.15 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=12 rep=1 prompt=12 prefill 555 ms (21.6 tok/s) decode 239 ms (33.44 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=12 rep=2 prompt=12 prefill 558 ms (21.5 tok/s) decode 235 ms (34.01 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=16 rep=1 prompt=16 prefill 552 ms (29.0 tok/s) decode 236 ms (33.86 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=16 rep=2 prompt=16 prefill 552 ms (29.0 tok/s) decode 234 ms (34.21 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=24 rep=1 prompt=24 prefill 552 ms (43.5 tok/s) decode 235 ms (34.10 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=24 rep=2 prompt=24 prefill 573 ms (41.9 tok/s) decode 235 ms (33.98 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=32 rep=1 prompt=32 prefill 572 ms (55.9 tok/s) decode 235 ms (34.04 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=32 rep=2 prompt=32 prefill 553 ms (57.8 tok/s) decode 235 ms (34.06 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=64 rep=1 prompt=64 prefill 572 ms (112.0 tok/s) decode 242 ms (33.04 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 words=64 rep=2 prompt=64 prefill 575 ms (111.4 tok/s) decode 235 ms (34.09 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=3 rep=1 prompt=3 prefill 364 ms (8.2 tok/s) decode 65 ms (122.43 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=3 rep=2 prompt=3 prefill 414 ms (7.2 tok/s) decode 67 ms (119.09 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=7 rep=1 prompt=7 prefill 334 ms (21.0 tok/s) decode 63 ms (126.19 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=7 rep=2 prompt=7 prefill 380 ms (18.4 tok/s) decode 64 ms (125.70 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=12 rep=1 prompt=12 prefill 341 ms (35.2 tok/s) decode 63 ms (126.00 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=12 rep=2 prompt=12 prefill 411 ms (29.2 tok/s) decode 63 ms (126.34 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=16 rep=1 prompt=16 prefill 359 ms (44.5 tok/s) decode 63 ms (126.16 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=16 rep=2 prompt=16 prefill 376 ms (42.6 tok/s) decode 63 ms (126.29 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=24 rep=1 prompt=24 prefill 378 ms (63.5 tok/s) decode 63 ms (126.81 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=24 rep=2 prompt=24 prefill 381 ms (62.9 tok/s) decode 64 ms (124.26 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=32 rep=1 prompt=32 prefill 365 ms (87.8 tok/s) decode 63 ms (126.44 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=32 rep=2 prompt=32 prefill 353 ms (90.7 tok/s) decode 63 ms (127.16 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=64 rep=1 prompt=64 prefill 371 ms (172.4 tok/s) decode 64 ms (124.77 tok/s) 
+Qwen3.6-35B-A3B-NVFP4 words=64 rep=2 prompt=64 prefill 376 ms (170.2 tok/s) decode 66 ms (121.08 tok/s) 
+fleetq: #9398 done (exit 0)
