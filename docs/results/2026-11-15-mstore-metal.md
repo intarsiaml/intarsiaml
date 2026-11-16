@@ -53,3 +53,8 @@ Progress:
   gate is the fresh-engine comparison of `tests/mtp_store_metal.rs`. Leftover: a store-aware reuse mode.
 - 22:40 pinned measurement binary `target/mstore-run/intarsia-measure` from `345aec626` (no local crate changes).
 - PR 2 draft on branch `mstore-default` (worktree `target/pr2wt`): `mtp_store_default_for` = cuda | metal, tests and docs.
+- 23:0x reuse gate 27B #9515 (`raw/reuse/27b-*.out`, chunk 512; the golden's longest prompt is 700 tokens, so only
+  `long_prose_700` is judged): store off PASS; store on: restore ok, aligned ok (logits bit-identical to cold), continue
+  32 of 32 agree but FAIL "reuse covered 512 < the 698 tokens of turn 1" (the store resumes at its cut point).
+- PR 2 cpu tests (`target/pr2wt`, #9586 and rerun): `tp_mtp` 13 passed, `mtp` 51 passed (1 ignored), `docs_env_vars` 2
+  passed after adding rows for this lane's two test knobs.
