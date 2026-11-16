@@ -1,0 +1,256 @@
+# HELP intarsia_engine_steps_total Engine steps (prefill chunks and decode steps).
+# TYPE intarsia_engine_steps_total counter
+intarsia_engine_steps_total 426
+# HELP intarsia_requests_running Requests holding the engine now: the one running request (max-batch 1) or, with --max-batch N, those that started (got a slot), prefilling or decoding.
+# TYPE intarsia_requests_running gauge
+intarsia_requests_running 0
+# HELP intarsia_requests_waiting Requests accepted by the engine and not yet started, counted from submit: with --max-batch N, those in the hand-off channel and the scheduler queue (a request leaves when it gets a KV slot), plus a request being refused for a full queue until it is refused.
+# TYPE intarsia_requests_waiting gauge
+intarsia_requests_waiting 0
+# HELP intarsia_requests_total Requests accepted into the engine queue (refused submits excluded); once idle, equals the sum of intarsia_requests_finished_total over reasons.
+# TYPE intarsia_requests_total counter
+intarsia_requests_total 9
+# HELP vllm:num_requests_running Same value as intarsia_requests_running (vLLM name).
+# TYPE vllm:num_requests_running gauge
+vllm:num_requests_running 0
+# HELP vllm:num_requests_waiting Same value as intarsia_requests_waiting (vLLM name).
+# TYPE vllm:num_requests_waiting gauge
+vllm:num_requests_waiting 0
+# HELP intarsia_requests_rejected_total Requests refused with 429 because the queue was full.
+# TYPE intarsia_requests_rejected_total counter
+intarsia_requests_rejected_total 0
+# HELP intarsia_engine_failed 1 when the engine worker has failed and the server answers 503.
+# TYPE intarsia_engine_failed gauge
+intarsia_engine_failed 0
+# HELP intarsia_engine_no_progress_seconds Seconds the engine has had work without completing a step (watchdog input).
+# TYPE intarsia_engine_no_progress_seconds gauge
+intarsia_engine_no_progress_seconds 0
+# HELP intarsia_requests_finished_total Finished requests by reason.
+# TYPE intarsia_requests_finished_total counter
+intarsia_requests_finished_total{reason="length"} 1
+intarsia_requests_finished_total{reason="stop"} 8
+# HELP intarsia_tokens_prompt_total Prompt tokens processed.
+# TYPE intarsia_tokens_prompt_total counter
+intarsia_tokens_prompt_total 397
+# HELP intarsia_tokens_generated_total Tokens generated.
+# TYPE intarsia_tokens_generated_total counter
+intarsia_tokens_generated_total 1166
+# HELP intarsia_tokens_cached_total Prompt tokens served from the reused KV prefix.
+# TYPE intarsia_tokens_cached_total counter
+intarsia_tokens_cached_total 0
+# HELP intarsia_ttft_seconds Time to first token.
+# TYPE intarsia_ttft_seconds histogram
+intarsia_ttft_seconds_bucket{le="0.01"} 0
+intarsia_ttft_seconds_bucket{le="0.025"} 0
+intarsia_ttft_seconds_bucket{le="0.05"} 0
+intarsia_ttft_seconds_bucket{le="0.1"} 8
+intarsia_ttft_seconds_bucket{le="0.25"} 8
+intarsia_ttft_seconds_bucket{le="0.5"} 8
+intarsia_ttft_seconds_bucket{le="1"} 9
+intarsia_ttft_seconds_bucket{le="2.5"} 9
+intarsia_ttft_seconds_bucket{le="5"} 9
+intarsia_ttft_seconds_bucket{le="10"} 9
+intarsia_ttft_seconds_bucket{le="15"} 9
+intarsia_ttft_seconds_bucket{le="20"} 9
+intarsia_ttft_seconds_bucket{le="30"} 9
+intarsia_ttft_seconds_bucket{le="45"} 9
+intarsia_ttft_seconds_bucket{le="60"} 9
+intarsia_ttft_seconds_bucket{le="120"} 9
+intarsia_ttft_seconds_bucket{le="300"} 9
+intarsia_ttft_seconds_bucket{le="+Inf"} 9
+intarsia_ttft_seconds_sum 1.1861049399999997
+intarsia_ttft_seconds_count 9
+# HELP intarsia_itl_seconds Inter-token latency (per-request mean, weighted by token count).
+# TYPE intarsia_itl_seconds histogram
+intarsia_itl_seconds_bucket{le="0.001"} 0
+intarsia_itl_seconds_bucket{le="0.0025"} 0
+intarsia_itl_seconds_bucket{le="0.005"} 0
+intarsia_itl_seconds_bucket{le="0.01"} 1157
+intarsia_itl_seconds_bucket{le="0.025"} 1157
+intarsia_itl_seconds_bucket{le="0.05"} 1157
+intarsia_itl_seconds_bucket{le="0.1"} 1157
+intarsia_itl_seconds_bucket{le="0.25"} 1157
+intarsia_itl_seconds_bucket{le="0.5"} 1157
+intarsia_itl_seconds_bucket{le="1"} 1157
+intarsia_itl_seconds_bucket{le="+Inf"} 1157
+intarsia_itl_seconds_sum 8.113132085
+intarsia_itl_seconds_count 1157
+# HELP intarsia_request_prompt_tokens Prompt tokens per finished request (includes tokens served from the reused KV prefix).
+# TYPE intarsia_request_prompt_tokens histogram
+intarsia_request_prompt_tokens_bucket{le="16"} 0
+intarsia_request_prompt_tokens_bucket{le="64"} 9
+intarsia_request_prompt_tokens_bucket{le="128"} 9
+intarsia_request_prompt_tokens_bucket{le="256"} 9
+intarsia_request_prompt_tokens_bucket{le="512"} 9
+intarsia_request_prompt_tokens_bucket{le="1024"} 9
+intarsia_request_prompt_tokens_bucket{le="2048"} 9
+intarsia_request_prompt_tokens_bucket{le="4096"} 9
+intarsia_request_prompt_tokens_bucket{le="8192"} 9
+intarsia_request_prompt_tokens_bucket{le="12288"} 9
+intarsia_request_prompt_tokens_bucket{le="16384"} 9
+intarsia_request_prompt_tokens_bucket{le="24576"} 9
+intarsia_request_prompt_tokens_bucket{le="32768"} 9
+intarsia_request_prompt_tokens_bucket{le="65536"} 9
+intarsia_request_prompt_tokens_bucket{le="131072"} 9
+intarsia_request_prompt_tokens_bucket{le="262144"} 9
+intarsia_request_prompt_tokens_bucket{le="+Inf"} 9
+intarsia_request_prompt_tokens_sum 397
+intarsia_request_prompt_tokens_count 9
+# HELP intarsia_request_generation_tokens Generated tokens per finished request.
+# TYPE intarsia_request_generation_tokens histogram
+intarsia_request_generation_tokens_bucket{le="16"} 0
+intarsia_request_generation_tokens_bucket{le="64"} 5
+intarsia_request_generation_tokens_bucket{le="128"} 6
+intarsia_request_generation_tokens_bucket{le="256"} 8
+intarsia_request_generation_tokens_bucket{le="512"} 9
+intarsia_request_generation_tokens_bucket{le="1024"} 9
+intarsia_request_generation_tokens_bucket{le="2048"} 9
+intarsia_request_generation_tokens_bucket{le="4096"} 9
+intarsia_request_generation_tokens_bucket{le="8192"} 9
+intarsia_request_generation_tokens_bucket{le="12288"} 9
+intarsia_request_generation_tokens_bucket{le="16384"} 9
+intarsia_request_generation_tokens_bucket{le="24576"} 9
+intarsia_request_generation_tokens_bucket{le="32768"} 9
+intarsia_request_generation_tokens_bucket{le="65536"} 9
+intarsia_request_generation_tokens_bucket{le="131072"} 9
+intarsia_request_generation_tokens_bucket{le="262144"} 9
+intarsia_request_generation_tokens_bucket{le="+Inf"} 9
+intarsia_request_generation_tokens_sum 1166
+intarsia_request_generation_tokens_count 9
+# HELP intarsia_source_requests_total Requests admitted to the engine by client (X-Intarsia-Client header, else the User-Agent product; at most 16 values, the rest are "other").
+# TYPE intarsia_source_requests_total counter
+intarsia_source_requests_total{source="python-urllib"} 9
+# HELP intarsia_source_tokens_total Tokens of finished requests by client and kind.
+# TYPE intarsia_source_tokens_total counter
+intarsia_source_tokens_total{source="python-urllib",kind="prompt"} 397
+intarsia_source_tokens_total{source="python-urllib",kind="generated"} 1166
+# HELP intarsia_kv_bytes_used KV cache bytes in use.
+# TYPE intarsia_kv_bytes_used gauge
+intarsia_kv_bytes_used 35266560
+# HELP intarsia_kv_bytes_total KV cache bytes allocated.
+# TYPE intarsia_kv_bytes_total gauge
+intarsia_kv_bytes_total 704020480
+# HELP intarsia_kv_tokens_used KV cache tokens in use.
+# TYPE intarsia_kv_tokens_used gauge
+intarsia_kv_tokens_used 114
+# HELP intarsia_kv_tokens_capacity KV cache capacity in tokens.
+# TYPE intarsia_kv_tokens_capacity gauge
+intarsia_kv_tokens_capacity 32768
+# HELP intarsia_weights_bytes Model weight bytes resident.
+# TYPE intarsia_weights_bytes gauge
+intarsia_weights_bytes 21356690164
+# HELP intarsia_device_memory_total_bytes Device memory total.
+# TYPE intarsia_device_memory_total_bytes gauge
+intarsia_device_memory_total_bytes 130663231488
+# HELP intarsia_device_memory_free_bytes Device memory free at scrape time.
+# TYPE intarsia_device_memory_free_bytes gauge
+intarsia_device_memory_free_bytes 61766631424
+# HELP intarsia_last_prefill_tokens_per_second Prefill speed of the last finished request.
+# TYPE intarsia_last_prefill_tokens_per_second gauge
+intarsia_last_prefill_tokens_per_second 769.950809915699
+# HELP intarsia_last_decode_tokens_per_second Decode speed of the last finished request.
+# TYPE intarsia_last_decode_tokens_per_second gauge
+intarsia_last_decode_tokens_per_second 144.42933503944445
+# HELP intarsia_graph_replays_total Decode steps replayed from a captured CUDA graph.
+# TYPE intarsia_graph_replays_total counter
+intarsia_graph_replays_total 416
+# HELP intarsia_graph_captures_total Decode graphs captured.
+# TYPE intarsia_graph_captures_total counter
+intarsia_graph_captures_total 4
+# HELP intarsia_decode_eager_steps_total Single-token decode steps that ran through the eager (non-graph) path.
+# TYPE intarsia_decode_eager_steps_total counter
+intarsia_decode_eager_steps_total 0
+# HELP intarsia_decode_profiled_steps_total Eager decode steps that ran with per-op profiling (synchronises around every op).
+# TYPE intarsia_decode_profiled_steps_total counter
+intarsia_decode_profiled_steps_total 0
+# HELP intarsia_spec_steps_total Speculative decoding verify passes (--spec).
+# TYPE intarsia_spec_steps_total counter
+intarsia_spec_steps_total 408
+# HELP intarsia_spec_proposed_tokens_total Draft tokens proposed to speculative verify passes.
+# TYPE intarsia_spec_proposed_tokens_total counter
+intarsia_spec_proposed_tokens_total 815
+# HELP intarsia_spec_accepted_tokens_total Draft tokens accepted by speculative verify passes.
+# TYPE intarsia_spec_accepted_tokens_total counter
+intarsia_spec_accepted_tokens_total 755
+# HELP intarsia_spec_costgate_off_total Times the measured-cost gate switched a request from speculation to plain decode.
+# TYPE intarsia_spec_costgate_off_total counter
+intarsia_spec_costgate_off_total 0
+# HELP intarsia_spec_costgate_on_total Times the measured-cost gate switched a request back to speculation (re-probe).
+# TYPE intarsia_spec_costgate_on_total counter
+intarsia_spec_costgate_on_total 0
+# HELP intarsia_spec_costgate_plain_steps_total Plain steps taken by the measured-cost gate (held off, or a probe of the plain-step cost).
+# TYPE intarsia_spec_costgate_plain_steps_total counter
+intarsia_spec_costgate_plain_steps_total 0
+# HELP intarsia_spec_costgate_probe_steps_total Of those, probes of the plain-step cost.
+# TYPE intarsia_spec_costgate_probe_steps_total counter
+intarsia_spec_costgate_probe_steps_total 0
+# HELP intarsia_uptime_seconds Seconds since engine start.
+# TYPE intarsia_uptime_seconds gauge
+intarsia_uptime_seconds 63.166899108
+# HELP intarsia_last_step_timestamp_seconds Unix time of the last engine step (0 = none yet).
+# TYPE intarsia_last_step_timestamp_seconds gauge
+intarsia_last_step_timestamp_seconds 1794805487.592
+# HELP intarsia_op_seconds_total Cumulative sampled time per op (profiled launches only).
+# TYPE intarsia_op_seconds_total counter
+intarsia_op_seconds_total{op="add"} 0
+intarsia_op_seconds_total{op="argmax"} 0
+intarsia_op_seconds_total{op="attn_decode"} 0
+intarsia_op_seconds_total{op="attn_prefill"} 0
+intarsia_op_seconds_total{op="embedding"} 0
+intarsia_op_seconds_total{op="gate_split"} 0
+intarsia_op_seconds_total{op="gated_rmsnorm"} 0
+intarsia_op_seconds_total{op="gated_rmsnorm_matmul_fp8"} 0
+intarsia_op_seconds_total{op="gdn_conv"} 0
+intarsia_op_seconds_total{op="gdn_delta_rule"} 0
+intarsia_op_seconds_total{op="kv_append"} 0
+intarsia_op_seconds_total{op="matmul"} 0
+intarsia_op_seconds_total{op="matmul_fp8"} 0
+intarsia_op_seconds_total{op="matmul_fp8_pair"} 0
+intarsia_op_seconds_total{op="matmul_nvfp4"} 0
+intarsia_op_seconds_total{op="matmul_nvfp4_glu"} 0
+intarsia_op_seconds_total{op="matmul_pair"} 0
+intarsia_op_seconds_total{op="moe_combine"} 0
+intarsia_op_seconds_total{op="moe_experts"} 0
+intarsia_op_seconds_total{op="moe_topk"} 0
+intarsia_op_seconds_total{op="qk_norm"} 0
+intarsia_op_seconds_total{op="rmsnorm"} 0
+intarsia_op_seconds_total{op="rmsnorm_add"} 0
+intarsia_op_seconds_total{op="rmsnorm_add_matmul_pair"} 0
+intarsia_op_seconds_total{op="rope"} 0
+intarsia_op_seconds_total{op="sigmoid_mul"} 0
+intarsia_op_seconds_total{op="silu_glu"} 0
+# HELP intarsia_op_calls_total Launches per op.
+# TYPE intarsia_op_calls_total counter
+intarsia_op_calls_total{op="add"} 833
+intarsia_op_calls_total{op="argmax"} 1232
+intarsia_op_calls_total{op="attn_decode"} 13861
+intarsia_op_calls_total{op="attn_prefill"} 90
+intarsia_op_calls_total{op="embedding"} 1259
+intarsia_op_calls_total{op="gate_split"} 5075
+intarsia_op_calls_total{op="gated_rmsnorm"} 12510
+intarsia_op_calls_total{op="gated_rmsnorm_matmul_fp8"} 270
+intarsia_op_calls_total{op="gdn_conv"} 37230
+intarsia_op_calls_total{op="gdn_delta_rule"} 37230
+intarsia_op_calls_total{op="kv_append"} 10186
+intarsia_op_calls_total{op="matmul"} 65679
+intarsia_op_calls_total{op="matmul_fp8"} 21750
+intarsia_op_calls_total{op="matmul_fp8_pair"} 16680
+intarsia_op_calls_total{op="matmul_nvfp4"} 51632
+intarsia_op_calls_total{op="matmul_nvfp4_glu"} 360
+intarsia_op_calls_total{op="matmul_pair"} 878
+intarsia_op_calls_total{op="moe_combine"} 17855
+intarsia_op_calls_total{op="moe_experts"} 17855
+intarsia_op_calls_total{op="moe_topk"} 17855
+intarsia_op_calls_total{op="qk_norm"} 10186
+intarsia_op_calls_total{op="rmsnorm"} 2925
+intarsia_op_calls_total{op="rmsnorm_add"} 35089
+intarsia_op_calls_total{op="rmsnorm_add_matmul_pair"} 621
+intarsia_op_calls_total{op="rope"} 10186
+intarsia_op_calls_total{op="sigmoid_mul"} 5075
+intarsia_op_calls_total{op="silu_glu"} 17495
+# HELP intarsia_info Static build/model information.
+# TYPE intarsia_info gauge
+intarsia_info{model="nvidia/Qwen3.6-35B-A3B-NVFP4",family="qwen3_5_moe",backend="cuda",device="NVIDIA GB10",act_dtype="bf16",kv_dtype="bf16"} 1
+# HELP intarsia_sampling_defaults Sampling a request without its own values gets (the checkpoint's generation_config.json, or the built-ins).
+# TYPE intarsia_sampling_defaults gauge
+intarsia_sampling_defaults{source="/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_config.json",temperature="1",top_p="0.95",top_k="20"} 1

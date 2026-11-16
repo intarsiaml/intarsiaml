@@ -1,2 +1,73 @@
 fleetq: #9572 waiting (#7 in line): in line behind #9432 "flipprep: tools + plain mixed pairs (A vs F)" (claude-2ae67a71) on spark2
 fleetq:   #9432 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9432 set, or it will wait for #9432 to be released.
+fleetq: #9572 waiting (#6 in line): in line behind #9433 "flipprep: tool_choice none acceptance (A, F, F0)" (claude-2ae67a71) on spark2
+fleetq:   #9433 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9433 set, or it will wait for #9433 to be released.
+fleetq: #9572 waiting (#5 in line): in line behind #9491 "flipprep: batched-verify rows 2..6 under admitted kernels" (claude-2ae67a71) on spark2
+fleetq:   #9491 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9491 set, or it will wait for #9491 to be released.
+fleetq: #9572 waiting (#4 in line): in line behind #9553 "mx6: build mx6 CUDA CLI (main = flipprep's), copy to spark1" (claude-2ae67a71) on spark2
+fleetq:   #9553 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9553 set, or it will wait for #9553 to be released.
+fleetq: #9572 waiting (#3 in line): in line behind #9554 "mx6: gates 35B (plan identity, ids R vs M vs main)" (claude-2ae67a71) on spark2
+fleetq:   #9554 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9554 set, or it will wait for #9554 to be released.
+fleetq: #9572 waiting (#2 in line): in line behind #9559 "flipprep: build flip + mx6 (comb)" (claude-2ae67a71) on spark2
+fleetq:   #9559 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9559 set, or it will wait for #9559 to be released.
+fleetq: #9572 waiting (#1 in line): needs cpu quiet on spark2, but #9559 "flipprep: build flip + mx6 (comb)" (claude-2ae67a71) loads it
+fleetq:   #9559 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9559 set, or it will wait for #9559 to be released.
+fleetq: #9572 running on spark2: env HOST=spark2 PARTS=ids 'IDARMS=s1f s1p' 'IDCMP=ref s1f s1p s1' IDTAG=-controls LOGNAME_=w4 scripts/dsubset/runs.sh
+[22:41:28 +3s] runs start [ids]; vLLM: 200; earlyoom: active; Mem:             121          49          24           0          49          72; subsets: sub-32768.txt sub-65536.txt 
+[22:41:28 +3s] serve arm ids-s1f: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --mtp-draft-vocab 0 --max-batch 1
+[22:42:13 +48s] serve ids-s1f up; MemAvailable MB: 50272; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 41.8s, context 32768 tokens;
+t0.6/b1: 1160 tokens in 11.93 s; verify passes 451, drafted 901, accepted 695 (0.771; 2.54 tokens/pass)
+t0.6/b2: 1160 tokens in 10.97 s; verify passes 451, drafted 901, accepted 695 (0.771; 2.54 tokens/pass)
+t0.6/b4: 1160 tokens in 10.98 s; verify passes 451, drafted 901, accepted 695 (0.771; 2.54 tokens/pass)
+t1.0/b1: 1160 tokens in 11.72 s; verify passes 481, drafted 959, accepted 667 (0.696; 2.39 tokens/pass)
+t1.0/b2: 1160 tokens in 11.64 s; verify passes 481, drafted 959, accepted 667 (0.696; 2.39 tokens/pass)
+t1.0/b4: 1160 tokens in 11.64 s; verify passes 481, drafted 959, accepted 667 (0.696; 2.39 tokens/pass)
+t1.0-fullvocab/b2: 1160 tokens in 13.2 s; verify passes 477, drafted 952, accepted 605 (0.636; 2.27 tokens/pass)
+mixed-greedy-t1.0/b4: 1160 tokens in 10.36 s; verify passes 456, drafted 911, accepted 691 (0.759; 2.52 tokens/pass)
+[22:43:46 +141s] min MemAvailable MB (time MB; KILLED count) (ids-s1f): 22:42:26 50169 0 
+[22:43:48 +143s] serve arm ids-s1p: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --mtp-draft-vocab 131072 --max-batch 1
+[22:44:33 +188s] serve ids-s1p up; MemAvailable MB: 50225; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 41.3s, context 32768 tokens;
+t0.6/b1: 1160 tokens in 11.02 s; verify passes 452, drafted 903, accepted 694 (0.769; 2.54 tokens/pass)
+t0.6/b2: 1160 tokens in 10.4 s; verify passes 452, drafted 903, accepted 694 (0.769; 2.54 tokens/pass)
+t0.6/b4: 1160 tokens in 10.64 s; verify passes 452, drafted 903, accepted 694 (0.769; 2.54 tokens/pass)
+t1.0/b1: 1160 tokens in 11.0 s; verify passes 479, drafted 955, accepted 669 (0.701; 2.40 tokens/pass)
+t1.0/b2: 1160 tokens in 10.94 s; verify passes 479, drafted 955, accepted 669 (0.701; 2.40 tokens/pass)
+t1.0/b4: 1160 tokens in 11.02 s; verify passes 479, drafted 955, accepted 669 (0.701; 2.40 tokens/pass)
+t1.0-fullvocab/b2: 1160 tokens in 12.61 s; verify passes 476, drafted 950, accepted 606 (0.638; 2.27 tokens/pass)
+mixed-greedy-t1.0/b4: 1160 tokens in 9.72 s; verify passes 455, drafted 909, accepted 692 (0.761; 2.52 tokens/pass)
+[22:46:01 +276s] min MemAvailable MB (time MB; KILLED count) (ids-s1p): 22:44:33 49860 0 
+ref      t0.6/b1                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t0.6/b2                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t0.6/b4                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0/b1                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0/b2                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0/b4                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0-fullvocab/b2        8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+s1f      t0.6/b1                  8/8 requests identical to ref b1 | verify passes 451 drafted 901 accepted 695 (0.771)
+s1f      t0.6/b2                  8/8 requests identical to ref b1 | verify passes 451 drafted 901 accepted 695 (0.771)
+s1f      t0.6/b4                  8/8 requests identical to ref b1 | verify passes 451 drafted 901 accepted 695 (0.771)
+s1f      t1.0/b1                  8/8 requests identical to ref b1 | verify passes 481 drafted 959 accepted 667 (0.696)
+s1f      t1.0/b2                  8/8 requests identical to ref b1 | verify passes 481 drafted 959 accepted 667 (0.696)
+s1f      t1.0/b4                  8/8 requests identical to ref b1 | verify passes 481 drafted 959 accepted 667 (0.696)
+s1f      t1.0-fullvocab/b2        0/8 requests identical to ref b1  FIRST DIFFS AT [1, 76, 3, 59, 2, 78, 37, 6] | verify passes 477 drafted 952 accepted 605 (0.636)
+s1f      mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 456 drafted 911 accepted 691 (0.759)
+s1p      t0.6/b1                  8/8 requests identical to ref b1 | verify passes 452 drafted 903 accepted 694 (0.769)
+s1p      t0.6/b2                  8/8 requests identical to ref b1 | verify passes 452 drafted 903 accepted 694 (0.769)
+s1p      t0.6/b4                  8/8 requests identical to ref b1 | verify passes 452 drafted 903 accepted 694 (0.769)
+s1p      t1.0/b1                  8/8 requests identical to ref b1 | verify passes 479 drafted 955 accepted 669 (0.701)
+s1p      t1.0/b2                  8/8 requests identical to ref b1 | verify passes 479 drafted 955 accepted 669 (0.701)
+s1p      t1.0/b4                  8/8 requests identical to ref b1 | verify passes 479 drafted 955 accepted 669 (0.701)
+s1p      t1.0-fullvocab/b2        0/8 requests identical to ref b1  FIRST DIFFS AT [1, 76, 3, 59, 2, 78, 37, 6] | verify passes 476 drafted 950 accepted 606 (0.638)
+s1p      mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 455 drafted 909 accepted 692 (0.761)
+s1       t0.6/b1                  8/8 requests identical to ref b1 | verify passes 463 drafted 924 accepted 684 (0.740)
+s1       t0.6/b2                  8/8 requests identical to ref b1 | verify passes 463 drafted 924 accepted 684 (0.740)
+s1       t0.6/b4                  8/8 requests identical to ref b1 | verify passes 463 drafted 924 accepted 684 (0.740)
+s1       t1.0/b1                  8/8 requests identical to ref b1 | verify passes 502 drafted 1001 accepted 646 (0.645)
+s1       t1.0/b2                  8/8 requests identical to ref b1 | verify passes 502 drafted 1001 accepted 646 (0.645)
+s1       t1.0/b4                  8/8 requests identical to ref b1 | verify passes 502 drafted 1001 accepted 646 (0.645)
+s1       t1.0-fullvocab/b2        0/8 requests identical to ref b1  FIRST DIFFS AT [1, 76, 3, 59, 2, 78, 37, 6] | verify passes 484 drafted 965 accepted 598 (0.620)
+s1       mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 466 drafted 931 accepted 681 (0.731)
+VERDICT: FAIL: 24 requests differ
+[22:46:03 +278s] end
+fleetq: #9572 done (exit 1)
