@@ -21,7 +21,7 @@ stop_server() {
   [[ -n "$WPID" ]] && { rsh "kill $WPID 2>/dev/null"; WPID=""; }
   # the pattern names our own binary: other lanes' servers on this box are never touched
   [[ -n "$SPID" ]] && { rsh "pkill -TERM -P $SPID 2>/dev/null; kill $SPID 2>/dev/null; for i in \$(seq 1 25); do pgrep -f 'intarsia-itlcreep/bin/intarsia serve' >/dev/null || exit 0; sleep 1; done; pkill -9 -f 'intarsia-itlcreep/bin/intarsia serve'; sleep 3"; SPID=""; }
-  rsh "pkill -f 'intarsia-itlcreep/client' 2>/dev/null; true"
+  rsh "pkill -f 'intarsia-itlcreep/clien[t]' 2>/dev/null; true"
 }
 trap 'stop_server; log "window end"' EXIT; trap 'exit 130' INT TERM
 prep_box() {
