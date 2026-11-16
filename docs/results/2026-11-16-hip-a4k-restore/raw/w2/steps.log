@@ -1,0 +1,15 @@
+20:31:02 stages start; head=4b6e308 code-tree=d35211b4df54 dirty=no; STEPS=mytest hrbase
+20:31:03 models-mytest exit 0 [INTARSIA_BATCH_TEST_BACKEND=hip]
+test macro_prefill_keeps_chunk_snapshots_for_reuse ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.92s
+20:31:13 hybrid-reuse-base exit 101 [INTARSIA_PROBE_BACKEND=hip INTARSIA_PROBE_DIR=/models/Qwen3.6-35B-A3B-NVFP4 INTARSIA_REQUIRE_GPU=1]
+20:31:22 hybrid-reuse-macro0 exit 101 [INTARSIA_PROBE_BACKEND=hip INTARSIA_PROBE_DIR=/models/Qwen3.6-35B-A3B-NVFP4 INTARSIA_REQUIRE_GPU=1 INTARSIA_PREFILL_MACRO=0]
+thread 'engine_hybrid_reuse_equals_cold' panicked at crates/intarsia-models/tests/hybrid_reuse_real.rs:286:5:
+assertion `left == right` failed: B resumed from A's state (cached 4095) differs from a fresh engine's B
+test engine_hybrid_reuse_equals_cold ... FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 8.94s
+thread 'engine_hybrid_reuse_equals_cold' panicked at crates/intarsia-models/tests/hybrid_reuse_real.rs:286:5:
+assertion `left == right` failed: B resumed from A's state (cached 4095) differs from a fresh engine's B
+test engine_hybrid_reuse_equals_cold ... FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 9.00s
+20:31:22 stages done

@@ -1,0 +1,10 @@
+[qualify      0s] Qwen3.8-27B-Quark-AWQ-MXFP4 on hip, report directory /work/.q27-logs/w1/qual
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (AMD Radeon Graphics (gfx1201), 95 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3_5_vl covers this model (45/45 tensor templates resolve, quant mxfp4))
+[qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify     99s] plan: PASS in 98.5s (29 ops resolved, exactness deterministic, loaded in 98.5s)
+[qualify     99s] == kernels [kernels test on the model's shapes]
+[qualify    327s] kernels: PASS in 228.1s (91 kernels, 2219 cases in 227.9s; incomplete: 10 kernel(s) had no cases in this sweep (untested, not failed; plan-time admission tests them))
+[qualify    327s] exit code 0
