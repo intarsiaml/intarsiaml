@@ -325,6 +325,8 @@ fn engine_hybrid_reuse_equals_cold() {
         collect(&l.engine.submit(req(&b, gen)).unwrap()).0
     };
     let l = load_engine(&dir, be, &opts).unwrap();
+    // the rule is latched per process (`prefix_reuse_override`): fail loudly if another test in this binary got there first
+    assert_eq!(l.engine.info().reuse_cold_cuts_only, strict, "the strict rule is not what this run asked for: run one rule per process");
     let (cold_a, _) = collect(&l.engine.submit(req(&a, 256)).unwrap());
     let (got, cached) = collect(&l.engine.submit(req(&b, gen)).unwrap());
     let flip = got.iter().zip(&reference).position(|(x, y)| x != y);
