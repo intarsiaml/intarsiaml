@@ -535,10 +535,11 @@ impl SequenceState {
     /// Buffers for the snapshots a multi-chunk pass takes at chunk ends `lens` (ascending, all above the current length;
     /// [`SequenceState::prefill_snapshots`]): the pass copies every recurrent slot into them at [`SequenceState::recurrent_offset`]
     /// as the chunk's recurrence finishes, then [`SequenceState::push_inner_snapshots`] files them. Empty without recurrent
-    /// slots, with a drafter state (an MTP snapshot holds the head's state at its length, which the pass has only at its end),
-    /// or under tensor parallelism (the other ranks' states are not copied).
+    /// slots or under tensor parallelism (the other ranks' states are not copied), and with a DFlash state (unreachable: a
+    /// model with a DFlash draft runs no macro pass). With an MTP state the snapshots also carry the head's position at their
+    /// length ([`SequenceState::inner_mtp_rows`], lane mtp-snap).
     pub(crate) fn inner_snapshot_bufs(&mut self, backend: &dyn Backend, lens: &[usize], keep: usize) -> Result<Vec<Buffer>> {
-        if self.recurrent_bytes() == 0 || self.mtp.is_some() || self.dflash.is_some() || !self.peers.is_empty() || self.remote.is_some() {
+        if self.recurrent_bytes() == 0 || self.dflash.is_some() || !self.peers.is_empty() || self.remote.is_some() {
             return Ok(Vec::new());
         }
         let mut out = Vec::with_capacity(lens.len());
@@ -548,12 +549,53 @@ impl SequenceState {
         Ok(out)
     }
 
+    /// The MTP head's queued row of each inner snapshot of a macro pass (lane mtp-snap): the pass's normed hidden row of
+    /// position `len - 1` for every `len` in `lens`, copied out of `hn` (the pass's rows, `hn_off` the byte offset of its row
+    /// 0, at position `pass_start`) before the head ingests and the workspace is reused. Between plain chunk-by-chunk passes
+    /// the head trails the sequence by exactly that one row (`mtp_after_forward` catches up over all but the newest), so with
+    /// the head's cache cut to `len - 1` it is the head's state the plain schedule leaves at `len`. `None` per length when the
+    /// head is not following this pass (no MTP state, a request that does not draft, or out of sync).
+    pub(crate) fn inner_mtp_rows(
+        &self,
+        backend: &dyn Backend,
+        hn: &Buffer,
+        hn_off: usize,
+        pass_start: usize,
+        lens: &[usize],
+    ) -> Result<Vec<Option<Buffer>>> {
+        let Some(m) = self.mtp.as_ref().filter(|m| m.active && m.synced) else {
+            return Ok(lens.iter().map(|_| None).collect());
+        };
+        let mut out = Vec::with_capacity(lens.len());
+        for &len in lens {
+            if len <= pass_start || len - 1 < m.base {
+                out.push(None);
+                continue;
+            }
+            let b = backend.alloc(m.row_bytes, MemKind::Device)?;
+            backend.copy(&b, 0, hn, hn_off + (len - 1 - pass_start) * m.row_bytes, m.row_bytes, 0)?;
+            out.push(Some(b));
+        }
+        Ok(out)
+    }
+
     /// File the snapshots of [`SequenceState::inner_snapshot_bufs`] after the pass that filled them committed its rows
-    /// (`lens[i]` at most the current length). On a failed pass the buffers go back to the free pool instead (`ok` false).
-    pub(crate) fn push_inner_snapshots(&mut self, lens: &[usize], bufs: Vec<Buffer>, ok: bool) {
+    /// (`lens[i]` at most the current length) and the MTP head (if any) ingested them. `mtp_rows` ([`SequenceState::inner_mtp_rows`],
+    /// empty without one) gives each snapshot the head's position at its length: its cache cut to `len - 1` and that one queued
+    /// row, kept only while the head is in sync and its cache covers `len - 1`. On a failed pass the buffers go back to the free
+    /// pool instead (`ok` false).
+    pub(crate) fn push_inner_snapshots(&mut self, lens: &[usize], bufs: Vec<Buffer>, mtp_rows: Vec<Option<Buffer>>, ok: bool) {
+        let mut rows = mtp_rows.into_iter();
         for (&len, buf) in lens.iter().zip(bufs) {
+            let row = rows.next().flatten();
             if ok && len <= self.len {
-                self.snapshots.push(RecurrentSnapshot { len, buf, mtp: None });
+                let mtp = match (&self.mtp, row) {
+                    (Some(m), Some(row)) if m.active && m.synced && len > m.base && m.pos() >= len - 1 => {
+                        Some(MtpSnap { base: m.base, kv_len: len - 1 - m.base, rows: 1, buf: Some(row) })
+                    }
+                    _ => None,
+                };
+                self.snapshots.push(RecurrentSnapshot { len, buf, mtp });
             } else {
                 self.snap_pool.push(buf);
             }

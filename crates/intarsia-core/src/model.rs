@@ -3337,33 +3337,51 @@ impl Model {
                 let ran = match ran {
                     Ok(r) => r,
                     Err(e) => {
-                        st.push_inner_snapshots(&lens, bufs, false);
+                        st.push_inner_snapshots(&lens, bufs, Vec::new(), false);
                         return Err(e);
                     }
                 };
                 if let Some(hn) = ran {
                     let total: usize = group.iter().map(|c| c.len()).sum();
-                    match mode {
-                        HeadMode::LastLogits if last => out = StepOut::Logits(self.head_logits(&hn, total - 1, 1, profile)?),
-                        HeadMode::LastArgmax if last => out = StepOut::Token(self.head_argmax(&hn, total - 1, profile)?),
-                        _ => {}
+                    // lane mtp-snap: the MTP head's queued row at each inner snapshot (the pass's hidden row before it), taken
+                    // before anything reuses the workspace that holds `hn`
+                    let mtp_rows = if bufs.is_empty() || st.mtp.is_none() {
+                        Ok(Vec::new())
+                    } else {
+                        st.inner_mtp_rows(&*self.backend, &hn.buf, hn.offset, st.len, &lens)
+                    };
+                    let mtp_rows = match mtp_rows {
+                        Ok(r) => r,
+                        Err(e) => {
+                            st.push_inner_snapshots(&lens, bufs, Vec::new(), false);
+                            return Err(e);
+                        }
+                    };
+                    let head = match mode {
+                        HeadMode::LastLogits if last => self.head_logits(&hn, total - 1, 1, profile).map(|l| out = StepOut::Logits(l)),
+                        HeadMode::LastArgmax if last => self.head_argmax(&hn, total - 1, profile).map(|t| out = StepOut::Token(t)),
+                        _ => Ok(()),
+                    };
+                    if let Err(e) = head {
+                        st.push_inner_snapshots(&lens, bufs, Vec::new(), false);
+                        return Err(e);
                     }
                     for c in group {
                         st.commit(c);
                         self.telemetry.step();
                     }
-                    st.push_inner_snapshots(&lens, bufs, true);
                     // the MTP drafter queues the pass's hidden rows and catches up over them in chunk-sized pieces (lane mpf)
-                    if st.mtp.is_some() {
-                        self.mtp_after_forward(st, &hn, total, true, profile)?;
-                    }
+                    let head = if st.mtp.is_some() { self.mtp_after_forward(st, &hn, total, true, profile) } else { Ok(()) };
+                    // filed after the head's catch-up: an inner snapshot keeps the head's position only while it is in sync
+                    st.push_inner_snapshots(&lens, bufs, mtp_rows, true);
+                    head?;
                     if !last && st.len >= snap_from {
                         st.snapshot(&*self.backend, keep)?;
                     }
                     ci += glen;
                     continue;
                 }
-                st.push_inner_snapshots(&lens, bufs, false);
+                st.push_inner_snapshots(&lens, bufs, Vec::new(), false);
                 glen = 1; // the segments take different attention paths: chunk by chunk, as without the macro schedule
             }
             debug_assert_eq!(glen, 1);
