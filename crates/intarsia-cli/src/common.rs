@@ -139,7 +139,7 @@ pub struct ModelArgs {
     /// ~65k-row head drafts every script (a prefix head stops at its last id: no Cyrillic, Arabic, Hangul or kana at any size up
     /// to 131072, no Chinese below 95726). The rows are gathered at load and the drafts mapped back to token ids. Output is
     /// unchanged (the verify pass keeps the full head). Wins over the recipe's `draft_vocab`; not with `--mtp-draft-vocab N`.
-    /// CUDA and cpu. Unset: `INTARSIA_MTP_DRAFT_SUBSET`.
+    /// CUDA and cpu. Needs `--spec mtp` or a recipe MTP default (an error with another `--spec`). Unset: `INTARSIA_MTP_DRAFT_SUBSET`.
     #[arg(long)]
     pub mtp_draft_subset: Option<PathBuf>,
     /// Concurrent sequences the engine decodes together (continuous batching). Not a flag of this group: only
@@ -318,8 +318,9 @@ impl ModelArgs {
     fn draft_subset(&self) -> Result<Option<Arc<intarsia_core::draft_subset::DraftSubset>>> {
         let env = std::env::var_os("INTARSIA_MTP_DRAFT_SUBSET").filter(|v| !v.is_empty()).map(PathBuf::from);
         let Some(path) = self.mtp_draft_subset.clone().or(env) else { return Ok(None) };
-        if self.spec_mode() != "mtp" {
-            bail!("--mtp-draft-subset {} needs --spec mtp (it replaces the MTP drafter's head; --spec is {})", path.display(), self.spec_mode());
+        // `--spec` unset: the recipe's MTP default may still draft (the 35B on CUDA), and the loader ignores the subset otherwise
+        if self.spec.as_deref().is_some_and(|m| m != "mtp") {
+            bail!("--mtp-draft-subset {} needs --spec mtp or the recipe's MTP default (it replaces the MTP drafter's head; --spec is {})", path.display(), self.spec_mode());
         }
         if let Some(n) = self.mtp_draft_vocab.filter(|&n| n > 0) {
             bail!("--mtp-draft-subset and --mtp-draft-vocab {n} both choose the drafter's head rows: pass one");

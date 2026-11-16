@@ -3028,7 +3028,7 @@ fn load_subset(backend: Arc<dyn Backend>, w: &MemWeights, k: usize, sub: Option<
     m
 }
 
-fn engine_subset(backend: Arc<dyn Backend>, w: &MemWeights, k: usize, sub: Vec<u32>) -> (LocalEngine, Arc<Telemetry>) {
+fn engine_subset(backend: Arc<dyn Backend>, w: &MemWeights, k: usize, sub: Vec<u32>, sampled: Option<intarsia_core::spec::SampledSpec>) -> (LocalEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
     let (recipe, dims) = dims();
     let opts = LoadOptions {
@@ -3043,24 +3043,39 @@ fn engine_subset(backend: Arc<dyn Backend>, w: &MemWeights, k: usize, sub: Vec<u
     let mut m = Model::load(backend, &recipe, &dims, w, &opts, tel.clone()).unwrap();
     m.enable_verify(k + 1).unwrap();
     m.configure_plan(&Default::default(), None).unwrap();
+    m.set_spec_sampled(sampled);
     let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec: SpecConfig { mode: SpecMode::Mtp, k, k_min: None }, ..Default::default() };
     (LocalEngine::new(m, Arc::new(ByteCodec), meta, tel.clone()).unwrap(), tel)
 }
 
-/// Greedy and seeded sampled output equal spec off for a scattered subset, eager and captured.
+/// Greedy output equals spec off for a scattered subset, eager and captured. Sampled requests on the single-sequence engine
+/// draft over the subset head with both sampled-speculation variants (`Match`: the head's argmax chain; `Reject`: draws from the
+/// widened logits row, -inf outside the subset) and reproduce for a seed; that engine's sampled speculation is exact in law,
+/// not per seed (`sampled_speculation_*` above), so seed identity with spec off is gated on the batched engine below.
 #[test]
 fn draft_subset_keeps_greedy_and_sampled_output() {
+    use intarsia_core::spec::SampledSpec;
     let w = weights(11);
     let (off, _) = engine(&w, None);
     for captured in [false, true] {
         let backend: Arc<dyn Backend> = if captured { RecCpu::arc() } else { CpuBackend::arc() };
-        let (on, tel) = engine_subset(backend, &w, 2, scattered());
+        let (on, tel) = engine_subset(backend, &w, 2, scattered(), None);
         for p in PROMPTS {
             assert_eq!(run(&off, req(p, 160)), run(&on, req(p, 160)), "captured {captured} prompt {p:?}");
-            let sampled = || GenRequest { temperature: 0.8, seed: Some(9), ..req(p, 60) };
-            assert_eq!(run(&off, sampled()), run(&on, sampled()), "sampled, captured {captured} prompt {p:?}");
         }
         assert!(tel.snapshot().spec_proposed > 0);
+    }
+    for variant in [SampledSpec::Match, SampledSpec::Reject] {
+        let (e, tel) = engine_subset(CpuBackend::arc(), &w, 2, scattered(), Some(variant));
+        for p in PROMPTS {
+            assert_eq!(run(&e, req(p, 64)).ids, run(&off, req(p, 64)).ids, "{variant:?}: greedy ids changed");
+        }
+        let before = tel.snapshot().spec_steps;
+        let a = run(&e, sampled_req(PROMPTS[0], 40, 5, 0.8, 0, 1.0));
+        let b = run(&e, sampled_req(PROMPTS[0], 40, 5, 0.8, 0, 1.0));
+        assert_eq!(a.ids, b.ids, "{variant:?}: a seed must reproduce");
+        assert_eq!(a.ids.len(), 40);
+        assert!(tel.snapshot().spec_steps > before, "{variant:?}: sampled requests did not speculate");
     }
 }
 
@@ -3121,7 +3136,7 @@ fn draft_subset_drafts_are_the_subset_argmax() {
     let StepOut::Token(t2) = mp.forward(&mut q, PROMPTS[1], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
     assert_eq!(t, t2);
     for i in 0..20 {
-        let (len0, d1, d2) = (s.len, ms.mtp_draft(&mut s, t, 3).unwrap(), mp.mtp_draft(&mut q, t, 3).unwrap());
+        let (len0, d1, d2) = (s.len, ms.mtp_draft(&mut s, t, 2).unwrap(), mp.mtp_draft(&mut q, t, 2).unwrap());
         assert_eq!(d1, d2, "step {i}: subset 0..48 == prefix 48");
         let mut ids = vec![t];
         ids.extend(&d1);
@@ -3166,56 +3181,54 @@ fn draft_subset_refuses_ids_outside_the_head() {
     }
 }
 
-/// Batched MTP with batched verify (the 2-stream opt-in set) over a subset head: every sequence equals its solo spec-off run.
+/// Batched MTP with batched verify (the 2-stream opt-in set) over a subset head: every sequence (greedy and seeded sampled)
+/// equals its solo spec-off run, the two sequences share verify passes, and the sampled one drafts too (run alone).
 #[test]
 fn draft_subset_batched_mtp_equals_solo() {
     let w = weights(11);
-    let tel = Arc::new(Telemetry::new());
-    let (recipe, dims) = dims();
-    let opts = LoadOptions {
-        max_seq: 512,
-        prefill_chunk: 8,
-        fp8_act: Some(Fp8Act::None),
-        mtp: true,
-        mtp_draft_subset: Some(subset(scattered())),
-        profile_every: 0,
-        ..Default::default()
+    let make = |tel: Arc<Telemetry>| {
+        let (recipe, dims) = dims();
+        let opts = LoadOptions {
+            max_seq: 512,
+            prefill_chunk: 8,
+            fp8_act: Some(Fp8Act::None),
+            mtp: true,
+            mtp_draft_subset: Some(subset(scattered())),
+            profile_every: 0,
+            ..Default::default()
+        };
+        let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts, tel.clone()).unwrap();
+        m.enable_verify(3).unwrap();
+        m.allow_recurrent_batch().unwrap();
+        m.enable_batch(2).unwrap();
+        m.configure_plan(&Default::default(), None).unwrap();
+        let mut o = intarsia_core::BatchedOptions::new(2, 64);
+        o.mtp_max_b = 2;
+        o.spec_off_at = 3;
+        o.batched_verify = true;
+        o.mtp_sampled = true;
+        o.hold_start = true;
+        let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec: SpecConfig { mode: SpecMode::Mtp, k: 2, k_min: None }, ..Default::default() };
+        intarsia_core::BatchedEngine::new(m, Arc::new(ByteCodec), meta, tel, o).unwrap()
     };
-    let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts, tel.clone()).unwrap();
-    m.enable_verify(3).unwrap();
-    m.allow_recurrent_batch().unwrap();
-    m.enable_batch(2).unwrap();
-    m.configure_plan(&Default::default(), None).unwrap();
-    let mut o = intarsia_core::BatchedOptions::new(2, 64);
-    o.mtp_max_b = 2;
-    o.spec_off_at = 3;
-    o.batched_verify = true;
-    o.hold_start = true;
-    let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec: SpecConfig { mode: SpecMode::Mtp, k: 2, k_min: None }, ..Default::default() };
-    let eng = intarsia_core::BatchedEngine::new(m, Arc::new(ByteCodec), meta, tel.clone(), o).unwrap();
     let solo = solo_off(&w, 8);
-    let reqs = [req(PROMPTS[0], 80), GenRequest { temperature: 0.7, seed: Some(3), ..req(PROMPTS[2], 80) }];
-    let outs: Vec<Vec<u32>> = std::thread::scope(|sc| {
-        let hs: Vec<_> = reqs
-            .iter()
-            .map(|r| {
-                let (eng, r) = (&eng, r.clone());
-                sc.spawn(move || {
-                    let mut ids = vec![];
-                    eng.generate(r, &mut |ev| {
-                        if let GenEvent::Token { id, .. } = ev {
-                            ids.push(id)
-                        }
-                    })
-                    .unwrap();
-                    ids
-                })
-            })
-            .collect();
-        hs.into_iter().map(|h| h.join().unwrap()).collect()
-    });
-    for (r, got) in reqs.iter().zip(outs) {
-        assert_eq!(run(&solo, r.clone()).ids, got);
+    let sampled = GenRequest { temperature: 0.7, seed: Some(3), ..req(PROMPTS[2], 80) };
+    let reqs = vec![req(PROMPTS[0], 80), sampled.clone()];
+    let want: Vec<Out> = reqs.iter().map(|r| run(&solo, r.clone())).collect();
+    let tel = Arc::new(Telemetry::new());
+    let eng = make(tel.clone());
+    let rxs: Vec<_> = reqs.into_iter().map(|r| eng.submit(r).unwrap()).collect();
+    eng.release();
+    for (i, (rx, w)) in rxs.iter().zip(&want).enumerate() {
+        assert_eq!(&collect_rx(rx), w, "sequence {i}");
     }
-    assert!(tel.snapshot().spec_proposed > 0, "the batched engine drafted");
+    let m = eng.metrics();
+    assert!(m.verify_hist[2..].iter().sum::<u64>() > 0, "no batched verify pass of both sequences: {m:?}");
+    // the sampled request alone drafts over the subset head too
+    let tel = Arc::new(Telemetry::new());
+    let eng = make(tel.clone());
+    let rx = eng.submit(sampled).unwrap();
+    eng.release();
+    assert_eq!(collect_rx(&rx), want[1], "sampled alone");
+    assert!(tel.snapshot().spec_proposed > 0, "the sampled request drafted");
 }

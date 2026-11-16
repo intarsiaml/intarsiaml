@@ -159,6 +159,10 @@ pub fn run(mut args: MtpDumpArgs) -> Result<()> {
         None | Some("mtp") => args.model.spec = Some("mtp".into()),
         Some(other) => bail!("mtp-dump loads the MTP head itself; --spec {other} conflicts (leave --spec unset or `mtp`)"),
     }
+    if args.model.mtp_draft_subset.is_some() || std::env::var_os("INTARSIA_MTP_DRAFT_SUBSET").is_some_and(|v| !v.is_empty()) {
+        // the dump's `draft_vocab` / `head_top1_dv` describe a prefix head (tools/mtp-ft reads them that way)
+        bail!("mtp-dump: --mtp-draft-subset (INTARSIA_MTP_DRAFT_SUBSET) is not supported; the dump describes prefix heads only");
+    }
     let seqs = parse_input(std::io::BufReader::new(std::fs::File::open(&args.input).with_context(|| format!("opening {}", args.input.display()))?))?;
     if seqs.is_empty() {
         bail!("{}: no sequences", args.input.display());
