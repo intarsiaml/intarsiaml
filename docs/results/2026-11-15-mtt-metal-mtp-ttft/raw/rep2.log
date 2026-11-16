@@ -1,0 +1,18 @@
+fleetq: #9418 running on endor: scripts/mtt/ttft.sh 'off1cb::--spec off' mtp1cb mtp2cb 'off2cb::--spec off'
+## off1cb [] [--spec off]
+nonce off1cba1: ttft 776 ms, events 48, first gaps ms [8.2, 8.3, 8.4, 8.4, 8.2, 8.1], total 1164 ms, usage {'prompt_tokens': 4102, 'completion_tokens': 48, 'total_tokens': 4150, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce off1cbb1: ttft 744 ms, events 48, first gaps ms [8.3, 8.3, 8.2, 8.3, 8.3, 8.2], total 1131 ms, usage {'prompt_tokens': 4103, 'completion_tokens': 48, 'total_tokens': 4151, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce off1cbc1: ttft 745 ms, events 48, first gaps ms [8.3, 8.3, 8.3, 8.2, 8.4, 8.5], total 1136 ms, usage {'prompt_tokens': 4102, 'completion_tokens': 48, 'total_tokens': 4150, 'prompt_tokens_details': {'cached_tokens': 0}}
+## mtp1cb [] []
+nonce mtp1cba1: ttft 813 ms, events 11, first gaps ms [21.1, 15.3, 0.0, 0.0, 15.6, 14.8], total 911 ms, usage {'prompt_tokens': 4102, 'completion_tokens': 12, 'total_tokens': 4114, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtp1cbb1: ttft 773 ms, events 48, first gaps ms [15.4, 15.3, 0.0, 0.0, 15.4, 14.7], total 1095 ms, usage {'prompt_tokens': 4103, 'completion_tokens': 48, 'total_tokens': 4151, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtp1cbc1: ttft 761 ms, events 48, first gaps ms [15.4, 15.3, 0.0, 0.0, 15.5, 15.0], total 1083 ms, usage {'prompt_tokens': 4102, 'completion_tokens': 48, 'total_tokens': 4150, 'prompt_tokens_details': {'cached_tokens': 0}}
+## mtp2cb [] []
+nonce mtp2cba1: ttft 782 ms, events 48, first gaps ms [19.5, 14.7, 0.0, 0.0, 15.3, 14.4], total 1083 ms, usage {'prompt_tokens': 4102, 'completion_tokens': 48, 'total_tokens': 4150, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtp2cbb1: ttft 755 ms, events 48, first gaps ms [14.9, 15.0, 0.0, 15.5, 14.4, 0.0], total 1024 ms, usage {'prompt_tokens': 4103, 'completion_tokens': 48, 'total_tokens': 4151, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtp2cbc1: ttft 752 ms, events 48, first gaps ms [14.4, 14.6, 0.0, 15.0, 13.9, 0.0], total 1081 ms, usage {'prompt_tokens': 4102, 'completion_tokens': 48, 'total_tokens': 4150, 'prompt_tokens_details': {'cached_tokens': 0}}
+## off2cb [] [--spec off]
+nonce off2cba1: ttft 773 ms, events 48, first gaps ms [8.4, 8.4, 8.4, 8.6, 8.6, 8.4], total 1172 ms, usage {'prompt_tokens': 4102, 'completion_tokens': 48, 'total_tokens': 4150, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce off2cbb1: ttft 748 ms, events 48, first gaps ms [8.4, 8.4, 8.3, 8.4, 8.2, 8.4], total 1139 ms, usage {'prompt_tokens': 4103, 'completion_tokens': 48, 'total_tokens': 4151, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce off2cbc1: ttft 745 ms, events 48, first gaps ms [8.4, 8.5, 8.3, 8.3, 8.4, 8.3], total 1140 ms, usage {'prompt_tokens': 4102, 'completion_tokens': 48, 'total_tokens': 4150, 'prompt_tokens_details': {'cached_tokens': 0}}
+fleetq: #9418 done (exit 0)
