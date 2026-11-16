@@ -1,0 +1,12 @@
+[loop M] start 20:28:38 end 20:48:38 url http://spark-4e77:8191/v1 only=0 ignore=1
+[loop M] seed 501 done 20:30:49: [replay2] totals {'requests': 24, 'errors': 0, 'prompt_tokens': 492356, 'cached_tokens': 360456, 'ttft_s_sum': 35.62, 'decode_tok_s_median': 41.9, 'completion_tokens': 3755, 'agg_output_tok_s': 29.89}
+[loop M] seed 502 done 20:32:57: [replay2] totals {'requests': 24, 'errors': 0, 'prompt_tokens': 492273, 'cached_tokens': 360360, 'ttft_s_sum': 32.99, 'decode_tok_s_median': 40.3, 'completion_tokens': 3691, 'agg_output_tok_s': 29.51}
+[loop M] seed 503 done 20:35:04: [replay2] totals {'requests': 24, 'errors': 0, 'prompt_tokens': 491992, 'cached_tokens': 360167, 'ttft_s_sum': 31.8, 'decode_tok_s_median': 40.2, 'completion_tokens': 3746, 'agg_output_tok_s': 29.75} 
+[loop M] seed 504 done 20:37:14: [replay2] totals {'requests': 24, 'errors': 0, 'prompt_tokens': 492658, 'cached_tokens': 360622, 'ttft_s_sum': 32.21, 'decode_tok_s_median': 40.0, 'completion_tokens': 3804, 'agg_output_tok_s': 29.76}
+[loop M] seed 505 done 20:39:23: [replay2] totals {'requests': 24, 'errors': 0, 'prompt_tokens': 492277, 'cached_tokens': 360370, 'ttft_s_sum': 33.22, 'decode_tok_s_median': 39.4, 'completion_tokens': 3731, 'agg_output_tok_s': 29.3} 
+[loop M] seed 506 done 20:41:31: [replay2] totals {'requests': 24, 'errors': 0, 'prompt_tokens': 492380, 'cached_tokens': 360444, 'ttft_s_sum': 32.71, 'decode_tok_s_median': 39.7, 'completion_tokens': 3763, 'agg_output_tok_s': 29.64}
+[loop M] seed 507 done 20:43:38: [replay2] totals {'requests': 24, 'errors': 0, 'prompt_tokens': 492398, 'cached_tokens': 360510, 'ttft_s_sum': 33.02, 'decode_tok_s_median': 40.4, 'completion_tokens': 3698, 'agg_output_tok_s': 29.68}
+[loop M] seed 508 done 20:45:44: [replay2] totals {'requests': 24, 'errors': 0, 'prompt_tokens': 492504, 'cached_tokens': 360535, 'ttft_s_sum': 37.74, 'decode_tok_s_median': 42.5, 'completion_tokens': 3684, 'agg_output_tok_s': 29.63}
+[loop M] seed 509 done 20:47:50: [replay2] totals {'requests': 24, 'errors': 0, 'prompt_tokens': 491893, 'cached_tokens': 360100, 'ttft_s_sum': 32.95, 'decode_tok_s_median': 39.6, 'completion_tokens': 3682, 'agg_output_tok_s': 29.54}
+[loop M] seed 510 done 20:49:44: [replay2] totals {'requests': 24, 'errors': 0, 'prompt_tokens': 492114, 'cached_tokens': 360273, 'ttft_s_sum': 32.72, 'decode_tok_s_median': 43.2, 'completion_tokens': 3681, 'agg_output_tok_s': 32.87}
+[loop M] done 20:49:44, 10 replays
