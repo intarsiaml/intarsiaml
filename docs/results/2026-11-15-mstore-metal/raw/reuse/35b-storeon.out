@@ -1,0 +1,22 @@
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 1024 (--prefill-chunk) NOT the recipe default: this run does not show that the default passes; restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+    continue judged against the committed CPU oracle qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000-g4k.continue-oracle.safetensors: mean KL(oracle||cold) 8.99e-3, mean KL(oracle||warm) 1.54e-2, warm/cold 1.71x; limit 1.5x cold + 3e-3 = 1.65e-2: PASS
+long_docs_4k       continue    2000   4080    1024   3072     32/32  FAIL (reuse covered 1024 < the 2000 tokens of turn 1 it must resume at (2000 held))
+long_docs_4k       restore     2000   4064    1024   3072     32/32  FAIL (the cold run was not cold)
+long_docs_4k       aligned     1024   4064    3072   3072     32/32  FAIL (reused 3072 > the shared prefix 1024: stale state)
+long_code_4k: committed continue oracle /opt/code/intarsiaml/.worktrees/mstore/golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_code_4k-s2000.continue-oracle.safetensors: not used, the golden's prompt token ids differ from the ones it was made for
+long_code_4k: committed continue oracle /opt/code/intarsiaml/.worktrees/mstore/golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_code_4k-s3072.continue-oracle.safetensors: not used, frozen at split 3072, this run splits at 2000
+long_code_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_code_4k-s2000.continue-oracle.safetensors: not used, the golden's prompt token ids differ from the ones it was made for
+long_code_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_code_4k-s3072.continue-oracle.safetensors: not used, frozen at split 3072, this run splits at 2000
+long_code_4k       continue    2000   4080    1024   3072     32/32  FAIL (reuse covered 1024 < the 2000 tokens of turn 1 it must resume at (2000 held))
+long_code_4k       restore     2000   4064    1024   3072     32/32  FAIL (the cold run was not cold)
+long_code_4k       aligned     1024   4064    3072   3072     32/32  FAIL (reused 3072 > the shared prefix 1024: stale state)
+    continue judged against the committed CPU oracle qwen36-35b-a3b-nvfp4-continue-chat_reuse_4k-s4521.continue-oracle.safetensors: mean KL(oracle||cold) 5.18e-3, mean KL(oracle||warm) 3.68e-3, warm/cold 0.71x; limit 1.5x cold + 3e-3 = 1.08e-2: PASS
+chat_reuse_4k      continue    4521   4647    4521   4583     32/32  FAIL (the cold run was not cold)
+chat_reuse_4k      restore     4521   4631    4521   4567     32/32  FAIL (the cold run was not cold)
+chat_reuse_4k      aligned     4096   4631    4567   4567     32/32  FAIL (reused 4567 > the shared prefix 4096: stale state)
+prefix reuse: 3 prompt(s) judged, 0 skipped
+prefix-reuse gate: FAIL
+golden gate: FAIL
