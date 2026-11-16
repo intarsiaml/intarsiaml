@@ -218,3 +218,28 @@ fn nax_is_registered_for_m_above_the_gemv_rows_only() {
     assert!(nax.priority > gemv.priority, "above the GEMV for M > 8");
     assert!(nax.scratch_bytes(&shape(2048, 17408, 5120)) >= (2048 + 17408) * 5120 * 2);
 }
+
+/// Lane mprefill: every in-kernel decode form (`mxfp4::NAXD_FORMS`, `INTARSIA_METAL_MXFP4_NAXD`) against the scratch path, bit
+/// for bit, bf16 and f32 output, W4A16 and W4A4, with M and N tails, the 27B's widths and offsets.
+#[test]
+fn naxd_forms_are_bitwise_the_scratch_path() {
+    use intarsia_backend_metal::mxfp4::{with_naxd, NAXD_FORMS};
+    let be = backend();
+    let shapes: &[(usize, usize, usize)] =
+        &[(9, 64, 64), (37, 130, 128), (130, 100, 192), (300, 1000, 512), (257, 5120, 5120), (64, 6144, 5120), (200, 512, 17408)];
+    for (si, &(m, n, k)) in shapes.iter().enumerate() {
+        let (r, _, _) = Run::new(&be, m + 3, n, k, 900 + si as u64);
+        for act in [0.0f32, 1.0] {
+            for f32_out in [false, true] {
+                let yo = if f32_out { 4 } else { 2 };
+                let want = with_naxd(None, || r.go(NAX, act, 3, m, yo, f32_out, None));
+                for f in 0..NAXD_FORMS.len() {
+                    let got = with_naxd(Some(f), || r.go(NAX, act, 3, m, yo, f32_out, None));
+                    let esz = if f32_out { 4 } else { 2 };
+                    let bad = (0..m * n).filter(|&i| got[i * esz..(i + 1) * esz] != want[i * esz..(i + 1) * esz]).count();
+                    assert_eq!(bad, 0, "{} m={m} n={n} k={k} act {act} f32 {f32_out}: {bad} elements differ", NAXD_FORMS[f].0);
+                }
+            }
+        }
+    }
+}
