@@ -1,0 +1,210 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1243:4
+     |
+1243 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 6 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/ar_wht6.rs (/target/release/deps/ar_wht6-f1b479fcf834706d)
+AR exact   24 rows x 2048 bf16 -> bf16     98304 B     13.4 us/call   7.34 GB/s of partial
+AR exact   24 rows x 2048 f32  -> bf16    196608 B     40.5 us/call   4.85 GB/s of partial
+AR exact   40 rows x 2048 bf16 -> bf16    163840 B     40.0 us/call   4.10 GB/s of partial
+AR exact   40 rows x 2048 f32  -> bf16    327680 B     43.8 us/call   7.48 GB/s of partial
+AR exact   64 rows x 2048 bf16 -> bf16    262144 B     39.3 us/call   6.67 GB/s of partial
+AR exact   64 rows x 2048 f32  -> bf16    524288 B     54.1 us/call   9.70 GB/s of partial
+AR exact  256 rows x 2048 bf16 -> bf16   1048576 B     67.8 us/call  15.47 GB/s of partial
+AR exact  256 rows x 2048 f32  -> bf16   2097152 B    106.8 us/call  19.64 GB/s of partial
+AR exact 1024 rows x 2048 bf16 -> bf16   4194304 B    200.8 us/call  20.89 GB/s of partial
+AR exact 1024 rows x 2048 f32  -> bf16   8388608 B    353.7 us/call  23.72 GB/s of partial
+AR exact 2048 rows x 2048 bf16 -> bf16   8388608 B    364.0 us/call  23.04 GB/s of partial
+AR exact 2048 rows x 2048 f32  -> bf16  16777216 B    668.2 us/call  25.11 GB/s of partial
+AR exact 4096 rows x 2048 bf16 -> bf16  16777216 B    678.6 us/call  24.72 GB/s of partial
+AR exact 4096 rows x 2048 f32  -> bf16  33554432 B   1332.6 us/call  25.18 GB/s of partial
+AR exact   24 rows x 5120 bf16 -> bf16    245760 B     36.4 us/call   6.76 GB/s of partial
+AR exact   24 rows x 5120 f32  -> bf16    491520 B     52.7 us/call   9.33 GB/s of partial
+AR exact   40 rows x 5120 bf16 -> bf16    409600 B     49.0 us/call   8.35 GB/s of partial
+AR exact   40 rows x 5120 f32  -> bf16    819200 B     63.4 us/call  12.91 GB/s of partial
+AR exact   64 rows x 5120 bf16 -> bf16    655360 B     59.4 us/call  11.03 GB/s of partial
+AR exact   64 rows x 5120 f32  -> bf16   1310720 B     82.7 us/call  15.85 GB/s of partial
+AR exact  256 rows x 5120 bf16 -> bf16   2621440 B    149.2 us/call  17.57 GB/s of partial
+AR exact  256 rows x 5120 f32  -> bf16   5242880 B    238.0 us/call  22.03 GB/s of partial
+AR exact 1024 rows x 5120 bf16 -> bf16  10485760 B    440.7 us/call  23.79 GB/s of partial
+AR exact 1024 rows x 5120 f32  -> bf16  20971520 B    824.2 us/call  25.44 GB/s of partial
+AR exact 2048 rows x 5120 bf16 -> bf16  20971520 B    838.5 us/call  25.01 GB/s of partial
+AR exact 2048 rows x 5120 f32  -> bf16  41943040 B   1649.2 us/call  25.43 GB/s of partial
+AR exact 4096 rows x 5120 bf16 -> bf16  41943040 B   1683.3 us/call  24.92 GB/s of partial
+AR exact 4096 rows x 5120 f32  -> bf16  83886080 B   3298.9 us/call  25.43 GB/s of partial
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 128 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+AR wht6    24 rows x 2048 bf16 -> bf16     98304 B     13.3 us/call   7.42 GB/s of partial
+AR wht6    24 rows x 2048 f32  -> bf16    196608 B     41.1 us/call   4.78 GB/s of partial
+AR wht6    40 rows x 2048 bf16 -> bf16    163840 B     40.4 us/call   4.05 GB/s of partial
+AR wht6    40 rows x 2048 f32  -> bf16    327680 B     39.2 us/call   8.36 GB/s of partial
+AR wht6    64 rows x 2048 bf16 -> bf16    262144 B     38.9 us/call   6.74 GB/s of partial
+AR wht6    64 rows x 2048 f32  -> bf16    524288 B     39.6 us/call  13.25 GB/s of partial
+AR wht6   256 rows x 2048 bf16 -> bf16   1048576 B     59.1 us/call  17.75 GB/s of partial
+AR wht6   256 rows x 2048 f32  -> bf16   2097152 B     60.8 us/call  34.49 GB/s of partial
+AR wht6  1024 rows x 2048 bf16 -> bf16   4194304 B    116.0 us/call  36.15 GB/s of partial
+AR wht6  1024 rows x 2048 f32  -> bf16   8388608 B    116.0 us/call  72.34 GB/s of partial
+AR wht6  2048 rows x 2048 bf16 -> bf16   8388608 B    188.1 us/call  44.59 GB/s of partial
+AR wht6  2048 rows x 2048 f32  -> bf16  16777216 B    191.7 us/call  87.51 GB/s of partial
+AR wht6  4096 rows x 2048 bf16 -> bf16  16777216 B    322.9 us/call  51.96 GB/s of partial
+AR wht6  4096 rows x 2048 f32  -> bf16  33554432 B    328.6 us/call 102.11 GB/s of partial
+AR wht6    24 rows x 5120 bf16 -> bf16    245760 B     38.6 us/call   6.37 GB/s of partial
+AR wht6    24 rows x 5120 f32  -> bf16    491520 B     39.4 us/call  12.48 GB/s of partial
+AR wht6    40 rows x 5120 bf16 -> bf16    409600 B     41.2 us/call   9.95 GB/s of partial
+AR wht6    40 rows x 5120 f32  -> bf16    819200 B     41.5 us/call  19.74 GB/s of partial
+AR wht6    64 rows x 5120 bf16 -> bf16    655360 B     47.3 us/call  13.84 GB/s of partial
+AR wht6    64 rows x 5120 f32  -> bf16   1310720 B     49.1 us/call  26.67 GB/s of partial
+AR wht6   256 rows x 5120 bf16 -> bf16   2621440 B     91.0 us/call  28.81 GB/s of partial
+AR wht6   256 rows x 5120 f32  -> bf16   5242880 B     85.9 us/call  61.05 GB/s of partial
+AR wht6  1024 rows x 5120 bf16 -> bf16  10485760 B    216.0 us/call  48.55 GB/s of partial
+AR wht6  1024 rows x 5120 f32  -> bf16  20971520 B    218.7 us/call  95.89 GB/s of partial
+AR wht6  2048 rows x 5120 bf16 -> bf16  20971520 B    389.1 us/call  53.90 GB/s of partial
+AR wht6  2048 rows x 5120 f32  -> bf16  41943040 B    405.3 us/call 103.48 GB/s of partial
+AR wht6  4096 rows x 5120 bf16 -> bf16  41943040 B    741.6 us/call  56.56 GB/s of partial
+AR wht6  4096 rows x 5120 f32  -> bf16  83886080 B    757.5 us/call 110.74 GB/s of partial
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht8): all-reduces above 128 KiB and of at least 128 KiB carry a 8-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+AR wht8    24 rows x 2048 bf16 -> bf16     98304 B     13.3 us/call   7.41 GB/s of partial
+AR wht8    24 rows x 2048 f32  -> bf16    196608 B     40.4 us/call   4.87 GB/s of partial
+AR wht8    40 rows x 2048 bf16 -> bf16    163840 B     39.8 us/call   4.12 GB/s of partial
+AR wht8    40 rows x 2048 f32  -> bf16    327680 B     39.8 us/call   8.23 GB/s of partial
+AR wht8    64 rows x 2048 bf16 -> bf16    262144 B     41.3 us/call   6.35 GB/s of partial
+AR wht8    64 rows x 2048 f32  -> bf16    524288 B     41.5 us/call  12.64 GB/s of partial
+AR wht8   256 rows x 2048 bf16 -> bf16   1048576 B     64.9 us/call  16.15 GB/s of partial
+AR wht8   256 rows x 2048 f32  -> bf16   2097152 B     65.5 us/call  32.02 GB/s of partial
+AR wht8  1024 rows x 2048 bf16 -> bf16   4194304 B    130.8 us/call  32.07 GB/s of partial
+AR wht8  1024 rows x 2048 f32  -> bf16   8388608 B    130.2 us/call  64.43 GB/s of partial
+AR wht8  2048 rows x 2048 bf16 -> bf16   8388608 B    220.7 us/call  38.01 GB/s of partial
+AR wht8  2048 rows x 2048 f32  -> bf16  16777216 B    220.8 us/call  75.99 GB/s of partial
+AR wht8  4096 rows x 2048 bf16 -> bf16  16777216 B    392.4 us/call  42.75 GB/s of partial
+AR wht8  4096 rows x 2048 f32  -> bf16  33554432 B    396.4 us/call  84.65 GB/s of partial
+AR wht8    24 rows x 5120 bf16 -> bf16    245760 B     39.8 us/call   6.17 GB/s of partial
+AR wht8    24 rows x 5120 f32  -> bf16    491520 B     40.3 us/call  12.20 GB/s of partial
+AR wht8    40 rows x 5120 bf16 -> bf16    409600 B     45.7 us/call   8.96 GB/s of partial
+AR wht8    40 rows x 5120 f32  -> bf16    819200 B     45.3 us/call  18.10 GB/s of partial
+AR wht8    64 rows x 5120 bf16 -> bf16    655360 B     49.6 us/call  13.21 GB/s of partial
+AR wht8    64 rows x 5120 f32  -> bf16   1310720 B     49.6 us/call  26.41 GB/s of partial
+AR wht8   256 rows x 5120 bf16 -> bf16   2621440 B    102.8 us/call  25.51 GB/s of partial
+AR wht8   256 rows x 5120 f32  -> bf16   5242880 B     94.5 us/call  55.49 GB/s of partial
+AR wht8  1024 rows x 5120 bf16 -> bf16  10485760 B    257.1 us/call  40.78 GB/s of partial
+AR wht8  1024 rows x 5120 f32  -> bf16  20971520 B    259.3 us/call  80.87 GB/s of partial
+AR wht8  2048 rows x 5120 bf16 -> bf16  20971520 B    475.6 us/call  44.10 GB/s of partial
+AR wht8  2048 rows x 5120 f32  -> bf16  41943040 B    489.9 us/call  85.61 GB/s of partial
+AR wht8  4096 rows x 5120 bf16 -> bf16  41943040 B    954.4 us/call  43.95 GB/s of partial
+AR wht8  4096 rows x 5120 f32  -> bf16  83886080 B    987.7 us/call  84.93 GB/s of partial
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht12): all-reduces above 128 KiB and of at least 128 KiB carry a 12-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+AR wht12   24 rows x 2048 bf16 -> bf16     98304 B     13.2 us/call   7.45 GB/s of partial
+AR wht12   24 rows x 2048 f32  -> bf16    196608 B     40.2 us/call   4.89 GB/s of partial
+AR wht12   40 rows x 2048 bf16 -> bf16    163840 B     41.9 us/call   3.91 GB/s of partial
+AR wht12   40 rows x 2048 f32  -> bf16    327680 B     41.1 us/call   7.98 GB/s of partial
+AR wht12   64 rows x 2048 bf16 -> bf16    262144 B     47.2 us/call   5.55 GB/s of partial
+AR wht12   64 rows x 2048 f32  -> bf16    524288 B     45.6 us/call  11.49 GB/s of partial
+AR wht12  256 rows x 2048 bf16 -> bf16   1048576 B     82.2 us/call  12.75 GB/s of partial
+AR wht12  256 rows x 2048 f32  -> bf16   2097152 B     74.4 us/call  28.18 GB/s of partial
+AR wht12 1024 rows x 2048 bf16 -> bf16   4194304 B    162.0 us/call  25.90 GB/s of partial
+AR wht12 1024 rows x 2048 f32  -> bf16   8388608 B    161.1 us/call  52.06 GB/s of partial
+AR wht12 2048 rows x 2048 bf16 -> bf16   8388608 B    291.4 us/call  28.79 GB/s of partial
+AR wht12 2048 rows x 2048 f32  -> bf16  16777216 B    289.2 us/call  58.02 GB/s of partial
+AR wht12 4096 rows x 2048 bf16 -> bf16  16777216 B    543.2 us/call  30.88 GB/s of partial
+AR wht12 4096 rows x 2048 f32  -> bf16  33554432 B    549.5 us/call  61.06 GB/s of partial
+AR wht12   24 rows x 5120 bf16 -> bf16    245760 B     46.5 us/call   5.28 GB/s of partial
+AR wht12   24 rows x 5120 f32  -> bf16    491520 B     46.2 us/call  10.64 GB/s of partial
+AR wht12   40 rows x 5120 bf16 -> bf16    409600 B     50.1 us/call   8.17 GB/s of partial
+AR wht12   40 rows x 5120 f32  -> bf16    819200 B     51.2 us/call  16.00 GB/s of partial
+AR wht12   64 rows x 5120 bf16 -> bf16    655360 B     57.6 us/call  11.38 GB/s of partial
+AR wht12   64 rows x 5120 f32  -> bf16   1310720 B     58.7 us/call  22.34 GB/s of partial
+AR wht12  256 rows x 5120 bf16 -> bf16   2621440 B    125.3 us/call  20.93 GB/s of partial
+AR wht12  256 rows x 5120 f32  -> bf16   5242880 B    115.7 us/call  45.30 GB/s of partial
+AR wht12 1024 rows x 5120 bf16 -> bf16  10485760 B    351.3 us/call  29.85 GB/s of partial
+AR wht12 1024 rows x 5120 f32  -> bf16  20971520 B    348.8 us/call  60.12 GB/s of partial
+AR wht12 2048 rows x 5120 bf16 -> bf16  20971520 B    673.2 us/call  31.15 GB/s of partial
+AR wht12 2048 rows x 5120 f32  -> bf16  41943040 B    675.3 us/call  62.11 GB/s of partial
+AR wht12 4096 rows x 5120 bf16 -> bf16  41943040 B   1349.6 us/call  31.08 GB/s of partial
+AR wht12 4096 rows x 5120 f32  -> bf16  83886080 B   1350.7 us/call  62.11 GB/s of partial
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht16): all-reduces above 128 KiB and of at least 128 KiB carry a 16-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+AR wht16   24 rows x 2048 bf16 -> bf16     98304 B     13.3 us/call   7.40 GB/s of partial
+AR wht16   24 rows x 2048 f32  -> bf16    196608 B     41.9 us/call   4.70 GB/s of partial
+AR wht16   40 rows x 2048 bf16 -> bf16    163840 B     41.9 us/call   3.91 GB/s of partial
+AR wht16   40 rows x 2048 f32  -> bf16    327680 B     43.1 us/call   7.61 GB/s of partial
+AR wht16   64 rows x 2048 bf16 -> bf16    262144 B     49.0 us/call   5.35 GB/s of partial
+AR wht16   64 rows x 2048 f32  -> bf16    524288 B     49.3 us/call  10.63 GB/s of partial
+AR wht16  256 rows x 2048 bf16 -> bf16   1048576 B     81.6 us/call  12.85 GB/s of partial
+AR wht16  256 rows x 2048 f32  -> bf16   2097152 B     83.8 us/call  25.01 GB/s of partial
+AR wht16 1024 rows x 2048 bf16 -> bf16   4194304 B    195.5 us/call  21.45 GB/s of partial
+AR wht16 1024 rows x 2048 f32  -> bf16   8388608 B    198.6 us/call  42.24 GB/s of partial
+AR wht16 2048 rows x 2048 bf16 -> bf16   8388608 B    362.3 us/call  23.16 GB/s of partial
+AR wht16 2048 rows x 2048 f32  -> bf16  16777216 B    361.2 us/call  46.45 GB/s of partial
+AR wht16 4096 rows x 2048 bf16 -> bf16  16777216 B    695.7 us/call  24.12 GB/s of partial
+AR wht16 4096 rows x 2048 f32  -> bf16  33554432 B    704.9 us/call  47.60 GB/s of partial
+AR wht16   24 rows x 5120 bf16 -> bf16    245760 B     47.8 us/call   5.14 GB/s of partial
+AR wht16   24 rows x 5120 f32  -> bf16    491520 B     48.8 us/call  10.08 GB/s of partial
+AR wht16   40 rows x 5120 bf16 -> bf16    409600 B     58.0 us/call   7.06 GB/s of partial
+AR wht16   40 rows x 5120 f32  -> bf16    819200 B     59.7 us/call  13.72 GB/s of partial
+AR wht16   64 rows x 5120 bf16 -> bf16    655360 B     64.4 us/call  10.18 GB/s of partial
+AR wht16   64 rows x 5120 f32  -> bf16   1310720 B     65.0 us/call  20.16 GB/s of partial
+AR wht16  256 rows x 5120 bf16 -> bf16   2621440 B    138.3 us/call  18.95 GB/s of partial
+AR wht16  256 rows x 5120 f32  -> bf16   5242880 B    143.2 us/call  36.62 GB/s of partial
+AR wht16 1024 rows x 5120 bf16 -> bf16  10485760 B    447.4 us/call  23.44 GB/s of partial
+AR wht16 1024 rows x 5120 f32  -> bf16  20971520 B    444.9 us/call  47.14 GB/s of partial
+AR wht16 2048 rows x 5120 bf16 -> bf16  20971520 B    905.2 us/call  23.17 GB/s of partial
+AR wht16 2048 rows x 5120 f32  -> bf16  41943040 B    902.3 us/call  46.48 GB/s of partial
+AR wht16 4096 rows x 5120 bf16 -> bf16  41943040 B   1762.7 us/call  23.80 GB/s of partial
+AR wht16 4096 rows x 5120 f32  -> bf16  83886080 B   1774.6 us/call  47.27 GB/s of partial
