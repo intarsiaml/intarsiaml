@@ -1,0 +1,173 @@
+21:19:32 stages start; head=f219eec code-tree=aa4946c84c9a dirty=no; STEPS=s1 rec chk
+1b32357eaa08043145c5ae67ff7197d22618f06601389c095db188dd0876d612  golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors
+32e2b96d84cc4de1593f6ba3eed2131315376901e462353fc917cefcb3640ebd  golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+21:20:22 s1-w4a16-chunk0 exit 1 [INTARSIA_GDN_CHUNK=0]
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.out:golden gate: FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.err:mxfp4 activations: none (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.err:this build: head f219eec code-tree aa4946c84c9a clean
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.err:Error: accuracy gate FAILED
+21:20:36 s1-w4a4-chunk0 exit 0 [INTARSIA_GDN_CHUNK=0]
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunk0.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunk0.out:golden gate: PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunk0.err:mxfp4 activations: dynamic (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunk0.err:this build: head f219eec code-tree aa4946c84c9a clean
+21:20:51 s1-w4a16-chunkon exit 1
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.out:golden gate: FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.err:mxfp4 activations: none (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.err:this build: head f219eec code-tree aa4946c84c9a clean
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.err:Error: accuracy gate FAILED
+21:21:05 s1-w4a4-chunkon exit 1
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.out:golden gate: FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.err:mxfp4 activations: dynamic (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.err:this build: head f219eec code-tree aa4946c84c9a clean
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.err:Error: accuracy gate FAILED
+21:21:05 STOP: 1a (w4a16, INTARSIA_GDN_CHUNK=0) did not PASS; not re-recording
+21:25:32 stages start; head=f219eec code-tree=aa4946c84c9a dirty=no; STEPS=rec chk self
+1b32357eaa08043145c5ae67ff7197d22618f06601389c095db188dd0876d612  golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors
+32e2b96d84cc4de1593f6ba3eed2131315376901e462353fc917cefcb3640ebd  golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+21:27:37 q-rec-w4a4 exit 1
+21:27:54 rec-w4a16-baseline exit 0
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-baseline.out:floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-baseline.out:golden gate: PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-baseline.err:mxfp4 activations: none (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-baseline.err:this build: head f219eec code-tree aa4946c84c9a clean
+21:28:09 rec-w4a16-envelope exit 0
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-envelope.out:floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-envelope.out:golden gate: PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-envelope.err:mxfp4 activations: none (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-envelope.err:this build: head f219eec code-tree aa4946c84c9a clean
+total 880
+drwxrwxr-x 2 josef josef   4096 Nov 15 21:28 .
+drwxrwxr-x 5 josef josef   4096 Nov 15 21:27 ..
+-rw-r--r-- 1 josef josef  15828 Nov 15 21:27 qwen3.8-27b-mxfp4-hfquark-w4a16-top20.hip.baseline.json
+-rw-r--r-- 1 josef josef  34735 Nov 15 21:28 qwen3.8-27b-mxfp4-hfquark-w4a16-top20.hip.envelope.json
+-rw-r--r-- 1 josef josef 839308 Nov 15 21:27 w4a16-self.safetensors
+21:29:46 q-chk-w4a4 exit 1
+21:30:01 chk-w4a16 exit 0
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a16.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a16.out:golden gate: PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a16.err:mxfp4 activations: none (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a16.err:this build: head f219eec code-tree aa4946c84c9a clean
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a16.err:WARNING: the baseline is from the same code tree as this build (--allow-same-code): this checks reproducibility only
+21:30:17 self-w4a4-base exit 1 [INTARSIA_GDN_CHUNK=0]
+21:30:20 self-w4a4-change exit 1
+21:30:24 self-w4a4-plain exit 1
+21:30:27 self-w4a4-control exit 1 [INTARSIA_GDN_CHUNK=0]
+-- self-w4a4-change
+-- self-w4a4-plain
+-- self-w4a4-control
+21:30:44 self-w4a16-base exit 0 [INTARSIA_GDN_CHUNK=0]
+21:30:47 self-w4a16-change exit 1
+21:30:51 self-w4a16-plain exit 1
+21:30:54 self-w4a16-control exit 1 [INTARSIA_GDN_CHUNK=0]
+-- self-w4a16-change
+-- self-w4a16-plain
+-- self-w4a16-control
+21:30:54 stages done
+21:32:12 stages start; head=f219eec code-tree=aa4946c84c9a dirty=no; STEPS=rec4 chk4 self
+1b32357eaa08043145c5ae67ff7197d22618f06601389c095db188dd0876d612  golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors
+32e2b96d84cc4de1593f6ba3eed2131315376901e462353fc917cefcb3640ebd  golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+21:32:44 rec-w4a4-baseline exit 1
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a4-baseline.out:floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a4-baseline.out:golden gate: FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a4-baseline.err:mxfp4 activations: dynamic (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a4-baseline.err:this build: head f219eec code-tree aa4946c84c9a clean
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a4-baseline.err:Error: accuracy gate FAILED
+21:32:58 rec-w4a4-envelope exit 0
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a4-envelope.out:floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a4-envelope.out:golden gate: PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a4-envelope.err:mxfp4 activations: dynamic (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a4-envelope.err:this build: head f219eec code-tree aa4946c84c9a clean
+total 1756
+drwxrwxr-x 2 josef josef   4096 Nov 15 21:32 .
+drwxrwxr-x 7 josef josef   4096 Nov 15 21:32 ..
+-rw-r--r-- 1 josef josef  15732 Nov 15 21:32 qwen3.8-27b-mxfp4-hfquark-top20.hip.baseline.json
+-rw-r--r-- 1 josef josef  34454 Nov 15 21:32 qwen3.8-27b-mxfp4-hfquark-top20.hip.envelope.json
+-rw-r--r-- 1 josef josef  15828 Nov 15 21:27 qwen3.8-27b-mxfp4-hfquark-w4a16-top20.hip.baseline.json
+-rw-r--r-- 1 josef josef  34735 Nov 15 21:28 qwen3.8-27b-mxfp4-hfquark-w4a16-top20.hip.envelope.json
+-rw-r--r-- 1 josef josef 839308 Nov 15 21:27 w4a16-self.safetensors
+-rw-r--r-- 1 josef josef 841220 Nov 15 21:32 w4a4-self.safetensors
+21:33:12 chk-w4a4 exit 0
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a4.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a4.out:golden gate: PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a4.err:mxfp4 activations: dynamic (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a4.err:this build: head f219eec code-tree aa4946c84c9a clean
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a4.err:WARNING: the baseline is from the same code tree as this build (--allow-same-code): this checks reproducibility only
+21:33:27 self-w4a4-base exit 1 [INTARSIA_GDN_CHUNK=0]
+21:33:40 self-w4a4-change exit 1
+21:33:54 self-w4a4-plain exit 1
+21:34:08 self-w4a4-control exit 0 [INTARSIA_GDN_CHUNK=0]
+-- self-w4a4-change
+  mean KL(21-way) vs ref noise                    1.6530e-1  (limit 1.9692e-1)  ok
+  prompt KL / (prompt factor x its noise) [long_prose_700]    4.2936e-1  (limit 1.0000e0)  ok
+prefill KL threshold [21-way KL]: no static floor | ref noise 1.969e-1 (all rows) x factor 1 (default) = 1.969e-1 => effective 1.969e-1 bound by ref noise; KL 1.653e-1 PASS | KL / ref noise = 0.839 on all rows (the factor at which the noise term passes) | 10 p
+gate-definition: self_vs_base.mean KL(21-way) vs ref noise [prefill]: old def: FAIL 1.653e-1 (mean KL(21-way) <= budget, gated) | current def: PASS 1.653e-1 (mean KL(21-way) vs ref noise <= limit, gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13
+gate-definition: self_vs_base.max position KL(21-way) [prefill]: old def: FAIL 1.185e1 (max position KL(21-way) <= budget, gated) | current def: NOT_GATED 1.185e1 (max position KL(21-way): reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10
+gate-definition: self_vs_base.top-1 flips [prefill]: old def: FAIL 1.110e2 (top-1 flips <= budget, gated) | current def: NOT_GATED 1.110e2 (top-1 flips: reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.mean |tail diff| [prefill]: old def: FAIL 4.444e-3 (mean |tail diff| <= budget, gated) | current def: NOT_GATED 4.444e-3 (mean |tail diff|: reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-
+gate-definition: self_vs_base.worst prompt KL(21-way) [long_prose_700] [prefill]: old def: FAIL 2.536e-1 (worst prompt KL(21-way) [long_prose_700] <= budget, gated) | current def: NOT_GATED 2.536e-1 (worst prompt KL(21-way) [long_prose_700]: reported, not gate
+gate-definition: self_vs_base.prompt KL / (prompt factor x its noise) [long_prose_700] [prefill]: old def: ABSENT - (no such check) | current def: PASS 4.294e-1 (prompt KL / (prompt factor x its noise) [long_prose_700] <= limit, gated) [changed 2026-10-21; LOG
+gate-definition: self_vs_base.overall [prefill]: old def: FAIL 5.000e0 (every self-golden budget gated) | current def: PASS 0.000e0 (mean KL vs factor x reference noise and per-prompt check gated; other budgets reported) [changed 2026-10-21; LOG 2026-10-21 11:
+prefill self-golden => PASS
+  mean KL(21-way) vs ref noise                    1.0915e-1  (limit 1.9692e-1)  ok
+-- self-w4a4-plain
+  mean KL(21-way)                                 1.6530e-1  (limit 1.0000e-4)  FAIL
+  max position KL(21-way)                          1.1852e1  (limit 5.0000e-3)  FAIL
+  top-1 flips                                      1.1100e2  (limit 7.0000e0)  FAIL
+  mean |tail diff|                                4.4435e-3  (limit 5.0000e-4)  FAIL
+  worst prompt KL(21-way) [long_prose_700]        2.5364e-1  (limit 5.0000e-4)  FAIL
+prefill self-golden => FAIL
+  mean KL(21-way)                                 1.0915e-1  (limit 1.0000e-4)  FAIL
+  max position KL(21-way)                          3.2924e0  (limit 5.0000e-3)  FAIL
+  top-1 flips                                      7.0000e0  (limit 1.0000e0)  FAIL
+  mean |tail diff|                                2.9987e-3  (limit 5.0000e-4)  FAIL
+  worst prompt KL(21-way) [long_prose_700]        9.2841e-1  (limit 5.0000e-4)  FAIL
+decode (teacher-forced) self-golden => FAIL
+-- self-w4a4-control
+  mean KL(21-way) vs ref noise                   2.6310e-12  (limit 1.9692e-1)  ok
+  prompt KL / (prompt factor x its noise) [chat_system]   1.3780e-10  (limit 1.0000e0)  ok
+prefill KL threshold [21-way KL]: no static floor | ref noise 1.969e-1 (all rows) x factor 1 (default) = 1.969e-1 => effective 1.969e-1 bound by ref noise; KL 2.631e-12 PASS | KL / ref noise = 0.000 on all rows (the factor at which the noise term passes) | 10 
+gate-definition: self_vs_base.mean KL(21-way) vs ref noise [prefill]: old def: PASS 2.631e-12 (mean KL(21-way) <= budget, gated) | current def: PASS 2.631e-12 (mean KL(21-way) vs ref noise <= limit, gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 
+gate-definition: self_vs_base.max position KL(21-way) [prefill]: old def: PASS 2.592e-9 (max position KL(21-way) <= budget, gated) | current def: NOT_GATED 2.592e-9 (max position KL(21-way): reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-
+gate-definition: self_vs_base.top-1 flips [prefill]: old def: PASS 0.000e0 (top-1 flips <= budget, gated) | current def: NOT_GATED 0.000e0 (top-1 flips: reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-21 13:58]
+gate-definition: self_vs_base.mean |tail diff| [prefill]: old def: PASS 5.011e-9 (mean |tail diff| <= budget, gated) | current def: NOT_GATED 5.011e-9 (mean |tail diff|: reported, not gated) [changed 2026-10-21; LOG 2026-10-21 11:23; 2026-10-21 13:23; 2026-10-
+gate-definition: self_vs_base.worst prompt KL(21-way) [chat_system] [prefill]: old def: PASS 8.140e-11 (worst prompt KL(21-way) [chat_system] <= budget, gated) | current def: NOT_GATED 8.140e-11 (worst prompt KL(21-way) [chat_system]: reported, not gated) [cha
+gate-definition: self_vs_base.prompt KL / (prompt factor x its noise) [chat_system] [prefill]: old def: ABSENT - (no such check) | current def: PASS 1.378e-10 (prompt KL / (prompt factor x its noise) [chat_system] <= limit, gated) [changed 2026-10-21; LOG 2026
+gate-definition: self_vs_base.overall [prefill]: old def: PASS 0.000e0 (every self-golden budget gated) | current def: PASS 0.000e0 (mean KL vs factor x reference noise and per-prompt check gated; other budgets reported) [changed 2026-10-21; LOG 2026-10-21 11:
+prefill self-golden => PASS
+  mean KL(21-way) vs ref noise                   2.9212e-11  (limit 1.9692e-1)  ok
+21:34:25 self-w4a16-base exit 0 [INTARSIA_GDN_CHUNK=0]
+21:34:40 self-w4a16-change exit 1
+21:34:55 self-w4a16-plain exit 1
+21:35:10 self-w4a16-control exit 0 [INTARSIA_GDN_CHUNK=0]
+-- self-w4a16-change
+  mean KL(21-way)                                 3.2038e-4  (limit 1.0000e-4)  FAIL
+  max position KL(21-way)                         2.9832e-2  (limit 5.0000e-3)  FAIL
+prefill self-golden => FAIL
+  mean KL(21-way)                                 4.6609e-4  (limit 1.0000e-4)  FAIL
+  max position KL(21-way)                         1.8564e-2  (limit 5.0000e-3)  FAIL
+  worst prompt KL(21-way) [long_prose_700]        2.9891e-3  (limit 5.0000e-4)  FAIL
+decode (teacher-forced) self-golden => FAIL
+self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+golden gate: FAIL
+-- self-w4a16-plain
+  mean KL(21-way)                                 3.2038e-4  (limit 1.0000e-4)  FAIL
+  max position KL(21-way)                         2.9832e-2  (limit 5.0000e-3)  FAIL
+prefill self-golden => FAIL
+  mean KL(21-way)                                 4.6609e-4  (limit 1.0000e-4)  FAIL
+  max position KL(21-way)                         1.8564e-2  (limit 5.0000e-3)  FAIL
+  worst prompt KL(21-way) [long_prose_700]        2.9891e-3  (limit 5.0000e-4)  FAIL
+decode (teacher-forced) self-golden => FAIL
+self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+golden gate: FAIL
+-- self-w4a16-control
+  mean KL(21-way)                                4.2924e-12  (limit 1.0000e-4)  ok
+prefill self-golden => PASS
+  mean KL(21-way)                                1.1357e-11  (limit 1.0000e-4)  ok
+decode (teacher-forced) self-golden => PASS
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+golden gate: PASS
+21:35:10 stages done
