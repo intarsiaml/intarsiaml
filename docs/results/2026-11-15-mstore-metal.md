@@ -140,6 +140,27 @@ shape, so the stop rule's verdict stands for it; the passing cells do not offset
 cost is persisting the head's KV rows in the entry (35B: about 2 KB per token, 9 MB at 4.5k; it needs a store format bump
 and a restore path for `MtpState`). Not built (stop rule).
 
+### What the `INTARSIA_MTP_STORE` flip changes for a store user (PR 2)
+
+Today on Metal a configured store skips the MTP default, so a store user gets restore + plain decode. `scripts/mstore/flip.sh`
+(#9639, #9640): store on, a fresh server per run on a copy of the same store, order M P P M; M = `INTARSIA_MTP_STORE=1`, P = `=0`
+(today). All runs generate the same text (hash equal, M and P). Means of 2 reps:
+
+| model 4k | case | TTFT M / P | decode tok/s M / P | acceptance M | request total M / P |
+|---|---|---|---|---|---|
+| 35B | same prompt again, restored from the host tier | 40 / 43 ms | **126.8 / 112.4 (+13 %)** | 42.0 % | 2051 / 2320 ms |
+| 27B | same prompt again, restored from the host tier | 68 / 82 ms | **45.7 / 31.5 (+45 %)** | 48.4 % | 5642 / 8192 ms |
+| 35B | new turn after a restart | 343 ms / 1164 ms (P: no restore, see below) | 124.0 / 120.8 | 42.0 % | 2399 / 3275 ms |
+| 27B | new turn after a restart | 848 ms / 6077 ms (P: no restore) | 45.6 / 31.7 | 50.0 % | 6443 / 14126 ms |
+
+So drafting after a restore beats today's plain decode after a restore even in the cell where the stop rule fired (35B 4k,
++13 %), and by +45 % on the 27B. The flip helps store users; the stop rule is about restored-with-MTP against cold-with-MTP.
+
+The store's build key includes the resolved plan, which lists the MTP head's ops, so a server with MTP and one without use
+different store directories (`build 84df166f...` with MTP, `673989410...` without; P found 0 entries in the store M wrote,
+hence its cold "new turn" row). The text is identical, so the key is conservative; the consequence for PR 2 is that a Metal
+store written before the flip is not reused after it (one cold miss per prefix).
+
 ### Footprint (default budget)
 
 Disk tier after storing P (`raw/win-*/setup.store.json`; the store keeps an entry at each message boundary and every
