@@ -3232,3 +3232,20 @@ fn draft_subset_batched_mtp_equals_solo() {
     assert_eq!(collect_rx(&rx), want[1], "sampled alone");
     assert!(tel.snapshot().spec_proposed > 0, "the sampled request drafted");
 }
+
+/// The single-sequence engine with `SampledSpec::Match` (CUDA's default): seeded top-k sampled output equals spec off with the
+/// subset head, as with the full head. Full-vocabulary sampling (top_k 0) is exact in law only on this engine, with any head:
+/// the full head and the subset head both give 0 of 8 seeds identical to spec off (measured here and in the CUDA ids gate,
+/// arm s1 vs the controls s1f / s1p), so it is asserted only on the batched engine (`draft_subset_batched_mtp_equals_solo`).
+#[test]
+fn draft_subset_single_engine_match_topk_is_seed_exact() {
+    use intarsia_core::spec::SampledSpec;
+    let w = weights(11);
+    let (off, _) = engine_sampled(&w, 2, 0, SampledSpec::Off);
+    let (sub, tel) = engine_subset(CpuBackend::arc(), &w, 2, scattered(), Some(SampledSpec::Match));
+    for s in 0..8 {
+        let r = || sampled_req(PROMPTS[0], 40, s, 0.6, 20, 0.95);
+        assert_eq!(run(&sub, r()).ids, run(&off, r()).ids, "seed {s}");
+    }
+    assert!(tel.snapshot().spec_steps > 0);
+}
