@@ -1,0 +1,239 @@
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/crates/intarsia-core)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1243:4
+     |
+1243 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/crates/intarsia-engram)
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/crates/intarsia-backend-metal)
+   Compiling intarsia-server v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/crates/intarsia-server)
+warning: function `split_calls` is never used
+   --> crates/intarsia-server/src/structured.rs:223:8
+    |
+223 | pub fn split_calls(text: &str, format: ToolFormat, tools: &[Tool]) -> (Option<String>, Vec<(String, Value)>) {
+    |        ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated functions `new`, `parse_all`, and `parse_all_with` are never used
+    --> crates/intarsia-server/src/structured.rs:930:12
+     |
+ 928 | impl ToolParser {
+     | --------------- associated functions in this implementation
+ 929 |     /// A parser for one response; `tools` are the request's (only the XML format reads them).
+ 930 |     pub fn new(format: ToolFormat, tools: &[Tool]) -> ToolParser {
+     |            ^^^
+...
+1045 |     pub fn parse_all(text: &str, format: ToolFormat, tools: &[Tool]) -> Vec<Piece> {
+     |            ^^^^^^^^^
+...
+1049 |     pub fn parse_all_with(text: &str, format: ToolFormat, tools: &[Tool], mode: ToolMode) -> Vec<Piece> {
+     |            ^^^^^^^^^^^^^^
+
+warning: associated function `parse_all` is never used
+    --> crates/intarsia-server/src/structured.rs:1424:12
+     |
+1329 | impl ReasoningParser {
+     | -------------------- associated function in this implementation
+...
+1424 |     pub fn parse_all(text: &str) -> (Option<String>, Option<String>) {
+     |            ^^^^^^^^^
+
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/crates/intarsia-cli)
+warning: `intarsia-server` (lib) generated 3 warnings
+warning: variable does not need to be mutable
+    --> crates/intarsia-cli/src/cmd/qualify.rs:1889:13
+     |
+1889 |         let mut v: Vec<String> = vec![
+     |             ----^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 13.81s
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/crates/intarsia-core)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1243:4
+     |
+1243 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/crates/intarsia-backend-metal)
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 10.86s
+  Executable unittests src/lib.rs (target/release/deps/intarsia_backend_metal-52ae18ab87ff48e8)
+  Executable tests/a8_served.rs (target/release/deps/a8_served-8cd1cb275b059175)
+  Executable tests/attention.rs (target/release/deps/attention-40e36ee8e323d673)
+  Executable tests/dense.rs (target/release/deps/dense-47cd4391fbbd53e2)
+  Executable tests/df_verify_bench.rs (target/release/deps/df_verify_bench-a952650ea5b143b5)
+  Executable tests/dflash2.rs (target/release/deps/dflash2-c3f49dbf26c78a2f)
+  Executable tests/dspine.rs (target/release/deps/dspine-e168242ec56d2118)
+  Executable tests/fault_inject.rs (target/release/deps/fault_inject-5612fb4feafa3b9d)
+  Executable tests/fill.rs (target/release/deps/fill-4db218041191d730)
+  Executable tests/flash_prefill.rs (target/release/deps/flash_prefill-a4ca651389fa32ab)
+  Executable tests/flash_prefill_nax.rs (target/release/deps/flash_prefill_nax-5de2430e2d22e85c)
+  Executable tests/fp8_nax.rs (target/release/deps/fp8_nax-5b5b84acde770431)
+  Executable tests/fused.rs (target/release/deps/fused-823c490addbf32a8)
+  Executable tests/g0b_attn.rs (target/release/deps/g0b_attn-7e8e122df58b32d6)
+  Executable tests/g0b_small.rs (target/release/deps/g0b_small-330875c341f9b76c)
+  Executable tests/gdn.rs (target/release/deps/gdn-d969434792818de1)
+  Executable tests/gemm_nax.rs (target/release/deps/gemm_nax-f5f99ff887e947b0)
+  Executable tests/gemv.rs (target/release/deps/gemv-8de932ff068fd763)
+  Executable tests/hs_bitwise.rs (target/release/deps/hs_bitwise-a8552225156e16c1)
+  Executable tests/keepwarm.rs (target/release/deps/keepwarm-c0c4d5c81bcfe080)
+  Executable tests/kv_once.rs (target/release/deps/kv_once-284166581f049af1)
+  Executable tests/lowlat.rs (target/release/deps/lowlat-477295aafabb81bd)
+  Executable tests/metal4_fallback.rs (target/release/deps/metal4_fallback-30b296953ce63c14)
+  Executable tests/moe.rs (target/release/deps/moe-a8752d3bfed60c08)
+  Executable tests/multirow.rs (target/release/deps/multirow-eac1f81ffb2317b5)
+  Executable tests/mxfp4_gemv.rs (target/release/deps/mxfp4_gemv-2801c5c214c9c653)
+  Executable tests/mxfp4_nax.rs (target/release/deps/mxfp4_nax-aa68146d6e519445)
+  Executable tests/qkv_fold.rs (target/release/deps/qkv_fold-0e8bc77809137a00)
+  Executable tests/quant.rs (target/release/deps/quant-7644efe241bd070c)
+  Executable tests/quick_coverage.rs (target/release/deps/quick_coverage-99be3c348c7f0ee5)
+  Executable tests/row_tables.rs (target/release/deps/row_tables-46d607405fb71997)
+  Executable tests/rows_exact.rs (target/release/deps/rows_exact-6758ef4336abf182)
+  Executable tests/token_feedback.rs (target/release/deps/token_feedback-640e7d2e7d25d6a0)
+  Executable tests/wrap_host.rs (target/release/deps/wrap_host-e885a833ce1a07bb)
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/crates/intarsia-core)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib test) generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 5.45s
+  Executable unittests src/lib.rs (target/release/deps/intarsia_core-a281a1093171dcd5)
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/target/base-src/crates/intarsia-core)
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/target/base-src/crates/intarsia-backend-metal)
+   Compiling intarsia-ui v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/target/base-src/crates/intarsia-ui)
+   Compiling intarsia-bench v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/target/base-src/crates/intarsia-bench)
+   Compiling intarsia-tui v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/target/base-src/crates/intarsia-tui)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1243:4
+     |
+1243 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/target/base-src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/target/base-src/crates/intarsia-engram)
+   Compiling intarsia-server v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/target/base-src/crates/intarsia-server)
+warning: function `split_calls` is never used
+   --> crates/intarsia-server/src/structured.rs:223:8
+    |
+223 | pub fn split_calls(text: &str, format: ToolFormat, tools: &[Tool]) -> (Option<String>, Vec<(String, Value)>) {
+    |        ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated functions `new`, `parse_all`, and `parse_all_with` are never used
+    --> crates/intarsia-server/src/structured.rs:930:12
+     |
+ 928 | impl ToolParser {
+     | --------------- associated functions in this implementation
+ 929 |     /// A parser for one response; `tools` are the request's (only the XML format reads them).
+ 930 |     pub fn new(format: ToolFormat, tools: &[Tool]) -> ToolParser {
+     |            ^^^
+...
+1045 |     pub fn parse_all(text: &str, format: ToolFormat, tools: &[Tool]) -> Vec<Piece> {
+     |            ^^^^^^^^^
+...
+1049 |     pub fn parse_all_with(text: &str, format: ToolFormat, tools: &[Tool], mode: ToolMode) -> Vec<Piece> {
+     |            ^^^^^^^^^^^^^^
+
+warning: associated function `parse_all` is never used
+    --> crates/intarsia-server/src/structured.rs:1424:12
+     |
+1329 | impl ReasoningParser {
+     | -------------------- associated function in this implementation
+...
+1424 |     pub fn parse_all(text: &str) -> (Option<String>, Option<String>) {
+     |            ^^^^^^^^^
+
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/target/base-src/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/target/base-src/crates/intarsia-cli)
+warning: `intarsia-server` (lib) generated 3 warnings
+warning: variable does not need to be mutable
+    --> crates/intarsia-cli/src/cmd/qualify.rs:1889:13
+     |
+1889 |         let mut v: Vec<String> = vec![
+     |             ----^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-core` (lib) generated 3 warnings

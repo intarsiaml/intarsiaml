@@ -40,7 +40,9 @@ Lane `mka`, branch `mka`, worktree `/opt/code/intarsiaml/.worktrees/mka`, base `
      with `scripts/mka/ce1.py`.
   4. Write sections 4 (gates), 5 (speed), 6 (verdict + default-flip recommendation); LOG row in `docs/decisions/LOG.md`;
      mark the PR ready (do not merge); `unim store`; `rm -rf target`.
-- [ ] steps 1 to 4 above
+- [x] steps 1 to 3 read 2026-11-16 (all queued jobs exit 0) -> sections 4, 5, 6
+- 2026-11-16: coordinator: knob stays opt-in, no flip; merge origin/main (f0ecebe2b: #389, #393, #380), rerun build + suites,
+  push, undraft #387 if green, do not merge, clean build folders.
 - [ ] gates 1..7
 - [ ] LOG row, merge origin/main, PR (do not merge)
 
@@ -364,3 +366,79 @@ Reading:
   4 simdgroups; the 35B's launches are byte-for-byte today's code path under the knob.
 * The brief's kernel rule (M = 3 <= 1.3x M = 1) is not met and cannot be (section 1.3): 27B packed 766 / 244 = 3.1x.
   Its second half (M = 1 >= 70 % of the roofline at 34k) holds: 27B 112 % of 550 GB/s chained, 35B 86 % (unchanged).
+
+The threadgroup-size sweep (`raw/ksweep1/ksweep.txt`, fleetq #9519, 34k, 32 MB gap) agrees: 27B solo 407 us unpacked,
+403 at 2 windows per threadgroup, 243 at 3 (the shipped layout), 243 to 246 at 4 and 6; its verify rows 995 -> 803 to 833
+at 1 to 3 windows, worse again at 4 and 6. 35B solo 181 unpacked, 175 at 1 window, 282 to 285 at 3 and more. The trim
+changes nothing measurable (243.1 vs 242.7 us).
+
+---
+
+## 4. Gates (pre-merge tree 8750c8955 against origin/main c5ce87bc8; all jobs exit 0)
+
+| gate | job | result |
+|---|---|---|
+| 1. packed vs unpacked bit-identical: 5 shapes x (1-row, G0b verify rows, row table, one-cache table), host and device position, guards; planted fault seen 5 / 5 per launch kind | #9536 | PASS in 7 layouts: every shape packed, 1 / 2 / 3 windows per threadgroup, trim off, largest accumulator instance, shipped policy |
+| existing attention tests (`hs_bitwise`, `g0b_attn`, `row_tables`, `rows_exact`, `dflash2`, `attention`, `multirow`), knob 0 and 1 | #9536 | PASS, all |
+| 2. `kernels test --backend metal`, knob off and on (+ 35B / 27B `attn_decode`, 35B `attn_prefill` shapes) | #9538 | 55 kernels, 1276 cases, 0 FAIL in both; reports differ only in the run time line |
+| 3. `plan show --json` knob unset vs origin/main: 8B, 27B, 35B x default / `--spec off` / `--spec mtp` | #9539 | byte-identical, 9 of 9 (8B `--spec mtp` is refused identically: no MTP head) |
+| `plan show --json` knob set vs unset | #9539 | identical where MTP is off; with MTP one field differs: the `attn_prefill` scratch (`scratch_bytes` 3170304 -> 8454144 on the 35B), because the head catch-up now needs the rows kernel's workspace |
+| 4. greedy ids, 256 tokens, 35B: short / 4k / 4k (second text) / 16k / 32k x MTP default / `--spec off`; main, knob unset, knob set | #9537, #9540 | SAME, 10 of 10 |
+| greedy ids, 27B, same grid (main arm on short and 4k) | #9537, #9541 | SAME, 10 of 10 |
+| served, 35B `--max-batch 8`: 8 prompts (400 and 2500 tokens) at 1 / 4 / 8 streams | #9542 | every stream equals its solo run in all three arms (16 of 16); main == unset and unset == set, 24 of 24 cells |
+
+With the knob set the ids are identical to unset everywhere tested. The one visible difference is in the MTP draft
+statistics of one cell (35B 4k: 99 passes / 155 accepted unset, 98 / 156 set): the head's catch-up rows come from another
+kernel, so a draft can differ, as section 2.1 says; the emitted tokens are the same.
+
+Not covered: 27B multi-stream (the 27B has no batched path gated here), sampled requests.
+
+## 5. Speed
+
+### 5.1 End to end (`localeval speed`, fresh server per arm, order off / on / on / off, 2 reps, 256 tokens; #9543 to #9546)
+
+Decode tok/s, the two arms of each setting and their mean:
+
+| model, mode | prompt | off | on | on / off |
+|---|---:|---|---|---:|
+| 35B MTP default | 4k | 129.4, 141.9 (135.7) | 154.5, 134.5 (144.5) | 1.07 |
+| 35B MTP default | 32k | 87.2, 90.3 (88.8) | 98.6, 95.4 (97.0) | 1.09 |
+| 35B `--spec off` | 4k | 112.3, 115.6 (114.0) | 111.3, 98.0 (104.7) | 0.92 |
+| 35B `--spec off` | 32k | 93.5, 93.8 (93.7) | 84.0, 69.8 (76.9) | 0.82 |
+| 27B MTP default | 4k | 51.5, 43.7 (47.6) | 47.0, 46.7 (46.9) | 0.98 |
+| 27B MTP default | 32k | 38.6, 39.2 (38.9) | 39.0, 38.9 (39.0) | 1.00 |
+| 27B `--spec off` | 4k | 29.8, 28.0 (28.9) | 30.1, 30.1 (30.1) | 1.04 |
+| 27B `--spec off` | 32k | 24.5, 24.2 (24.4) | 26.4, 24.5 (25.5) | 1.05 |
+
+**These runs do not establish a speedup.** The 35B `--spec off` rows are a null test: under the knob the 35B's plain decode
+runs exactly today's launches (its shape is not packed and there is no head catch-up), yet the arms differ by 8 and 18 %.
+The box was shared with other lanes' CPU jobs during the window, and the arm-to-arm spread inside one setting reaches
+15 %. So the noise of this run is at least as large as every effect in the table. Prefill and TTFT are unchanged within
+the same noise (35B 32k 11.0 to 12.0 s, 27B 51.5 to 54.6 s in all arms).
+
+### 5.2 In the engine, per dispatch (32k prompt, MTP default, one command buffer per dispatch; `raw/ce1-base`, `raw/ce1-on` #9547)
+
+| | 35B off | 35B on | 27B off | 27B on |
+|---|---:|---:|---:|---:|
+| verify rows attention, us per launch | 653 | 662 | 1274 | 1054 |
+| solo attention (MTP head's one-row step), us per launch | 246 | 249 | 535 | 332 |
+| head catch-up through `attn_prefill_bf16_flash_nax`, ms per pass | 3.18 | 0 (rows kernel instead, about 0.5) | 3.28 | 0 (about 0.9) |
+| GPU busy per verify pass, ms (on: scaled to true passes) | 24.0 | 21.5 | 66.8 | 60.8 |
+
+One run per arm. The kernels do what the microbench says (27B verify rows 0.83x, solo 0.62x; the flash launch is gone), and
+GPU busy time per pass drops 9 to 10 % on both models at 32k. That this does not show as tok/s on the 27B in 5.1 is not
+explained here; a quiet-box rerun of 5.1 would settle it.
+
+## 6. Verdict
+
+* Brief's stop rules: rule 1 did not fire; the premise behind the build (KV re-reads) is wrong (section 1), and the
+  kernel rule "M = 3 <= 1.3x M = 1" is out of reach for any bitwise kernel. The end-to-end rule (35B default at 34k
+  >= 1.25x) is **not met**: 1.09x measured, inside the run's noise.
+* What ships, opt-in: bitwise packed threadgroups (27B shape only) and the MTP head catch-up on the rows kernel (both
+  models). All correctness gates pass; knob unset is byte-identical to main.
+* **Default flip: not recommended yet.** Correctness would allow it (ids identical in every cell, plan identical with the
+  knob unset), but the speed evidence is a microbench and one trace per arm; the end-to-end ABBA is inconclusive. Needed
+  first: sections 5.1 rerun on a box with no other jobs (`--quiet gpu,cpu`), 3 reps.
+* Follow-ups the attribution points at (not built): the verify rows are ALU-bound, so the next step is fewer ALU
+  operations per key (a non-bitwise change), not memory; the row table's idle simdgroups on the 35B batched path (250 vs
+  147 us at one row) are still there.
