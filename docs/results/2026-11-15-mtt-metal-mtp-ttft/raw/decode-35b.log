@@ -34,3 +34,21 @@ fleetq: #9511 waiting (#2 in line): in line behind #9510 "mtt: TTFT abba-27b-34k
 fleetq:   #9510 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9510 set, or it will wait for #9510 to be released.
 fleetq: #9511 waiting (#1 in line): needs gpu quiet on endor, but #9510 "mtt: TTFT abba-27b-34k (quiet gpu+cpu)" (claude-2ae67a71) loads it
 fleetq:   #9510 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9510 set, or it will wait for #9510 to be released.
+fleetq: #9511 running on endor: scripts/mtt/decode.sh /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 35b
+## 35b on1 22:23:24 thermal 0 load 4.6s
+localeval exit 0
+| 4091 | 0.75 | 5470 (5320–5621) | - | 151.3 (148.6–154.1) | 208.5 (205.6–211.4) | - | - | 256 |
+| 16655 | 3.68 | 4531 (4514–4549) | 4292 | 121.2 (121.0–121.4) | 162.6 (154.4–170.7) | - | - | 256 |
+## 35b old1 22:25:22 thermal 0 load 9.8s
+localeval exit 0
+| 4090 | 0.70 | 5827 (5826–5829) | - | 147.7 (141.0–154.4) | 198.4 (181.3–215.5) | - | - | 256 |
+| 16678 | 4.19 | 3996 (3767–4224) | 3611 | 108.6 (105.8–111.4) | 136.8 (125.8–147.8) | - | - | 256 |
+## 35b old2 22:25:57 thermal 0 load 12.6s
+localeval exit 0
+| 4087 | 0.71 | 5713 (5666–5760) | - | 141.8 (140.5–143.1) | 181.7 (172.5–190.9) | - | - | 256 |
+| 16656 | 4.33 | 3850 (3796–3905) | 3480 | 113.5 (110.2–116.8) | 152.1 (138.9–165.2) | - | - | 256 |
+## 35b on2 22:27:38 thermal 0 load 2.8s
+localeval exit 0
+| 4085 | 0.70 | 5830 (5828–5832) | - | 148.7 (145.4–152.0) | 193.9 (170.6–217.3) | - | - | 256 |
+| 16654 | 3.47 | 4799 (4789–4808) | 4539 | 124.7 (121.9–127.5) | 171.2 (171.2–171.3) | - | - | 256 |
+fleetq: #9511 done (exit 0)

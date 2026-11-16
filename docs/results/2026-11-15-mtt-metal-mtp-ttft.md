@@ -107,14 +107,16 @@ Median, with the range in brackets.
 | 35B, 4.1k tokens, unthrottled run | | 754 (745..786), 6 calls | 746 (742..780), 6 calls | #9507 |
 | 35B, 32.8k tokens | 8836 (8444..10349), 4 calls | 9310 (8620..10205), 4 calls | 10376 (9688..10913), 4 calls | #9509 |
 | 27B, 4.1k tokens | 4524 (4518..4580), 4 calls | 4646 (4527..4923), 4 calls | 4676 (4514..4897), 4 calls | #9508 |
-| 27B, 32.8k tokens | TBD27B34OLD | TBD27B34ON | TBD27B34OFF | #9510 |
+| 27B, 32.8k tokens | 44240 / 46705, 2 calls | 43614 / 46141, 2 calls | 47012 / 61444, 2 calls (the second one throttled: started 53 s after the first) | #9510 |
 
 * **Pre-registered rule** (35B median TTFT at 4k within 40 ms of `--spec off`, at 34k within 150 ms): met, and it was already
   met on main. At 4k the MTP default is 8 ms behind `--spec off` in the unthrottled run (754 against 746) and ahead of it in
   the throttled one. At 34k the MTP arms are ahead of `--spec off` (by 1.1 to 1.5 s), which is the order of the arms: the
   `--spec off` servers ran in the middle, when the box was warmest, and the second call of every server is 0.4 to 1.5 s
   slower than its first. A 34k prefill is 9 to 10 s of full GPU load, enough to heat the box by itself.
-* The 27B shows the same thing at a smaller scale: first calls 4514 to 4621 ms in every arm, second calls up to 4923.
+* The 27B shows the same thing: at 4k first calls 4514 to 4621 ms in every arm and second calls up to 4923; at 34k one
+  call per server, 43.6 to 47.0 s in all arms but for the one `--spec off` server that started without a cool-down (61.4 s).
+  27B start-up before the fix at 34k was again 66 to 70 s against 2.0 to 2.1 s.
 * The prompt files are the roadmap's (`prompt-4096.txt`, `prompt-32768.txt`); "34k" there is this 32.8k prompt.
 
 ## 4. The start-up fix
@@ -164,7 +166,21 @@ size and mtime (35B 15 to 16 s, 27B 88 s). CUDA and HIP run the same eager loop;
 | 3. `crates/intarsia-models/tests/batch_metal_real.rs` (35B) | TBDBATCH | TBDBATCHJOB; `raw/test-batch-metal-real.log` |
 | 4. Regression test on CPU | **PASS** `lazy_admission_cases_build_nothing_when_cached_and_keep_the_data_of_those_that_run` (`crates/intarsia-models/tests/plan.rs`) and `plan::tests::lazy_admission_cases_default_to_metal_and_follow_the_switches` | #9446, #9448 |
 | 5. Speed rule, TTFT | **PASS** (section 3; already true on main) | #9506, #9507, #9509 |
-| 5. Speed rule, decode, no cell below 0.98 | TBDDECODE | TBDDECODEJOB |
+| 5. Speed rule, decode, no cell below 0.98 | **PASS** lowest cell 1.03 (table below) | #9511, #9512; `raw/decode-*.log`, `raw/decode/` |
+
+Decode check (localeval `speed --sizes 4096,16384 --gen 256 --reps 2`, MTP default, fresh server per arm, order after,
+before, before, after, `--quiet gpu,cpu`; tok/s, median of 2 reps per server):
+
+| model | prompt | before (two servers) | after (two servers) | after / before |
+|---|---|---|---|---:|
+| 35B | 4k | 147.7, 141.8 | 151.3, 148.7 | 1.04 |
+| 35B | 16k | 108.6, 113.5 | 121.2, 124.7 | 1.11 |
+| 27B | 4k | 53.2, 52.9 | 54.5, 55.1 | 1.03 |
+| 27B | 16k | 46.8, 48.3 | 49.0, 49.6 | 1.04 |
+
+The decode path is untouched, so the 3 to 11 % in favour of "after" is not a decode gain. The "before" servers come out of
+10 to 68 s of CPU work and ran back to back; this lane reads the difference as the box's state (section 2). TTFT of the same
+runs: 35B 4k 0.70 to 0.75 s in all four servers, 27B 4k 4.50 to 4.90 s.
 
 The regression test runs admission on the tiny model three ways, eager and lazy side by side: cold (same cache file, byte
 for byte), warm (eager builds every case, lazy builds none, same counts and kernels), and after a quarter of the cache
@@ -197,7 +213,7 @@ Builds and CPU tests (`--load cpu`): #9411, #9446, #9448, #9449, #9451, #9454, #
 `docs/tuning.md` rows, fixed). GPU (`--quiet gpu`): #9413 (knobs), #9418 (ABBA + traces), #9430, #9442, #9453 (hot box),
 #9437 (start-up `sample`), #9461, #9463 (ids), #9462 (void), #9484 (plan show), #9486 (workspace tests, in line),
 #9470 (ABBA beside other jobs' builds, kept as `raw/busy-abba-35b-4k.log`), #9471 to #9473 (stopped or released by this lane
-before they produced data). GPU (`--quiet gpu,cpu`): #9506, #9507, #9508, #9509, #9510 (TTFT), TBDJOBS.
+before they produced data). GPU (`--quiet gpu,cpu`): #9506, #9507, #9508, #9509, #9510 (TTFT), #9511, #9512 (decode check, localeval).
 
 ---
 

@@ -36,3 +36,13 @@ fleetq: #9510 running on endor: scripts/mtt/ttft.sh on1 old1:INTARSIA_METAL_MTP_
 ## on1 [] [] 22:10:33 thermal com.apple.system.thermalpressurelevel 0 load 2.1s
 nonce on1a-16138: ttft 46141 ms, events 48, first gaps ms [66.5, 0.0, 0.0, 63.2, 0.0, 0.0], total 47262 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 48, 'total_tokens': 32823, 'prompt_tokens_details': {'cached_tokens': 0}}
 ## old1 [INTARSIA_METAL_MTP_TTFT_FIX=0] [] 22:13:54 thermal com.apple.system.thermalpressurelevel 0 load 66.2s
+nonce old1a-15247: ttft 46705 ms, events 48, first gaps ms [70.3, 0.0, 0.0, 66.9, 0.1, 0.0], total 47880 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 48, 'total_tokens': 32823, 'prompt_tokens_details': {'cached_tokens': 0}}
+## off1 [] [--spec off] 22:16:16 thermal com.apple.system.thermalpressurelevel 1 load 2.0s
+nonce off1a-16158: ttft 47012 ms, events 48, first gaps ms [39.6, 39.8, 39.8, 39.3, 39.0, 39.8], total 48872 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 48, 'total_tokens': 32823, 'prompt_tokens_details': {'cached_tokens': 0}}
+## off2 [] [--spec off] 22:17:09 thermal com.apple.system.thermalpressurelevel 0 load 2.2s
+nonce off2a-19620: ttft 61444 ms, events 48, first gaps ms [40.7, 40.4, 40.7, 40.7, 39.3, 40.2], total 63453 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 48, 'total_tokens': 32823, 'prompt_tokens_details': {'cached_tokens': 0}}
+## old2 [INTARSIA_METAL_MTP_TTFT_FIX=0] [] 22:20:29 thermal com.apple.system.thermalpressurelevel 0 load 69.7s
+nonce old2a-12617: ttft 44240 ms, events 48, first gaps ms [68.7, 0.0, 0.0, 64.8, 0.0, 0.0], total 45394 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 48, 'total_tokens': 32823, 'prompt_tokens_details': {'cached_tokens': 0}}
+## on2 [] [] 22:22:33 thermal com.apple.system.thermalpressurelevel 0 load 2.0s
+nonce on2a-17191: ttft 43614 ms, events 48, first gaps ms [65.9, 0.0, 0.0, 62.7, 0.0, 0.0], total 44712 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 48, 'total_tokens': 32823, 'prompt_tokens_details': {'cached_tokens': 0}}
+fleetq: #9510 done (exit 0)

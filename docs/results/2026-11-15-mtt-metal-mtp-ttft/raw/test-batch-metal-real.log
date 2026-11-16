@@ -28,3 +28,9 @@ fleetq: #9534 waiting (#9 in line): in line behind #9510 "mtt: TTFT abba-27b-34k
 fleetq:   #9510 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9510 set, or it will wait for #9510 to be released.
 fleetq: #9534 waiting (#8 in line): in line behind #9511 "mtt: decode check 35B localeval speed, lazy admission on/off ABBA (quiet gpu+cpu)" (claude-2ae67a71) on endor
 fleetq:   #9511 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9511 set, or it will wait for #9511 to be released.
+fleetq: #9534 waiting (#7 in line): in line behind #9512 "mtt: decode check 27B localeval speed, lazy admission on/off ABBA (quiet gpu+cpu)" (claude-2ae67a71) on endor
+fleetq:   #9512 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9512 set, or it will wait for #9512 to be released.
+fleetq: #9534 waiting (#6 in line): in line behind #9514 "mstore: accuracy --mode reuse 35b, MTP default, store off/on" (claude-2ae67a71) on endor
+fleetq:   #9514 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9514 set, or it will wait for #9514 to be released.
+fleetq: #9534 waiting (#5 in line): in line behind #9515 "mstore: accuracy --mode reuse 27b, MTP default, store off/on" (claude-2ae67a71) on endor
+fleetq:   #9515 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9515 set, or it will wait for #9515 to be released.
