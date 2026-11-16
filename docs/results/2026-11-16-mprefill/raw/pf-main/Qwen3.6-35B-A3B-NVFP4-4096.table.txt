@@ -1,0 +1,47 @@
+Qwen3.6-35B-A3B-NVFP4-4096.jsonl: 962 buffers, GPU busy 733 ms, idle 2456 ms, span 3189 ms
+
+| class | ms | share of busy |
+|---|---:|---:|
+| MoE (router top-k, experts, combine) | 250 | 34.1 % |
+| activation prep (x QDQ / copy) | 225 | 30.6 % |
+| GDN (conv, delta rule, gates) | 152 | 20.7 % |
+| attention | 46 | 6.3 % |
+| norms | 23 | 3.2 % |
+| weight decode -> bf16 scratch | 21 | 2.9 % |
+| other (rope, kv append, silu, copies, embed) | 16 | 2.2 % |
+
+| op | launches | ms | share | us / launch |
+|---|---:|---:|---:|---:|
+| matmul_fp8_nax | 130 | 218.2 | 29.8 % | 1678.7 |
+| moe_experts_bf16#1 | 40 | 144.5 | 19.7 % | 3612.6 |
+| gdn_delta_rule_bf16_pre#1 | 30 | 137.5 | 18.8 % | 4582.6 |
+| moe_experts_bf16#2 | 40 | 86.2 | 11.8 % | 2155.1 |
+| attn_prefill_bf16_flash_nax | 10 | 46.1 | 6.3 % | 4608.5 |
+| matmul_nvfp4_nax | 120 | 21.2 | 2.9 % | 176.3 |
+| moe_experts_bf16#3 | 40 | 12.2 | 1.7 % | 305.6 |
+| rmsnorm_add_bf16 | 80 | 8.7 | 1.2 % | 109.1 |
+| gdn_conv_bf16 | 30 | 8.2 | 1.1 % | 272.7 |
+| rmsnorm_bf16 | 31 | 7.4 | 1.0 % | 237.7 |
+| qk_norm_rope_kv_bf16 | 10 | 7.3 | 1.0 % | 728.4 |
+| silu_glu_bf16 | 70 | 6.9 | 0.9 % | 98.6 |
+| matmul_pair_bf16_nax | 70 | 6.4 | 0.9 % | 91.9 |
+| gate_split_bf16 | 10 | 6.3 | 0.9 % | 632.9 |
+| gdn_delta_rule_bf16_pre | 30 | 5.9 | 0.8 % | 195.8 |
+| moe_combine_bf16 | 40 | 3.9 | 0.5 % | 98.1 |
+| sigmoid_mul_bf16 | 10 | 1.9 | 0.3 % | 189.3 |
+| moe_topk_bf16 | 40 | 1.9 | 0.3 % | 46.7 |
+| moe_experts_bf16 | 40 | 1.5 | 0.2 % | 37.7 |
+| other | 60 | 0.6 | 0.1 % | 9.4 |
+| embedding_bf16 | 1 | 0.3 | 0.0 % | 296.3 |
+| gdn_conv_bf16#1 | 30 | 0.2 | 0.0 % | 6.1 |
+
+| matmul | N x K (unpacked) | calls | rows / call | x prep ms | w decode ms | GEMM ms | decode share | GEMM TFLOPS |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| matmul_fp8_nax | 8192 x 2048 | 0 | 0 | 120.7 | 0.0 | 0.0 | 0 % | 0.0 |
+| matmul_fp8_nax | 2048 x 4096 | 0 | 0 | 54.2 | 0.0 | 0.0 | 0 % | 0.0 |
+| matmul_fp8_nax | 4096 x 2048 | 0 | 0 | 43.1 | 0.0 | 0.0 | 0 % | 0.0 |
+| matmul_nvfp4_nax | 512 x 2048 | 80 | 4095 | 0.0 | 13.5 | 0.0 | 100 % | 0.0 |
+| matmul_nvfp4_nax | 2048 x 512 | 40 | 4095 | 0.0 | 7.6 | 0.0 | 100 % | 0.0 |
+| matmul_fp8_nax | 512 x 2048 | 0 | 0 | 5.8 | 0.0 | 0.0 | 0 % | 0.0 |
+| matmul_pair_bf16_nax | 257 x 2048 | 0 | 0 | 3.8 | 0.0 | 0.0 | 0 % | 0.0 |
+| matmul_pair_bf16_nax | 64 x 2048 | 0 | 0 | 2.6 | 0.0 | 0.0 | 0 % | 0.0 |

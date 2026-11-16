@@ -1,0 +1,5 @@
+fleetq: #9740 waiting (#1 in line): #9739 "mprefill: prefill per-dispatch profile 35B+27B 4k/32k (main)" (claude-2ae67a71) needs cpu quiet on endor, and this job loads it
+fleetq:   #9739 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9739 set, or it will wait for #9739 to be released.
+fleetq: #9740 running on endor: zsh -c 'cd /opt/code/intarsiaml/.worktrees/mprefill && cargo build --release -p intarsia-cli --features metal 2>&1 | grep -E "^(error|warning: unused)|Finished" | head'
+    Finished `release` profile [optimized] target(s) in 11.32s
+fleetq: #9740 done (exit 0)
