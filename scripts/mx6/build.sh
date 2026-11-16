@@ -20,8 +20,11 @@ for spec in ${REVS:?REVS}; do
   rsh "cd $R && env INTARSIA_BUILD_STAMP='$STAMP' CARGO_BUILD_JOBS=4 MAX_JOBS=4 FLASHINFER_NVCC_THREADS=1 cargo build --release --locked --features cuda -p intarsia-cli 2>&1 | grep -E '^(error|warning: unused)|Finished|Compiling intarsia' | tail -20; cp $R/target/release/intarsia $L/bin/intarsia-$name && $L/bin/intarsia-$name --version | head -1"
   date +%T
 done
+# the `main` reference binary: when REVS has no `main=`, take lane flipprep's origin/main CUDA build (base c5ce87bc8; origin/main has changed only
+# crates/intarsia-core/src/hostprof.rs, a test, since: `git diff c5ce87bc8 origin/main -- crates kernels recipes Cargo.toml Cargo.lock`)
+rsh "[ -f $L/bin/intarsia-main ] || cp -p ~/intarsia-flipprep/bin/intarsia-main $L/bin/intarsia-main; ls -la $L/bin; sha256sum $L/bin/intarsia-main | cut -c1-16"
 rsh "df -h ~ | tail -1; du -sh $L; free -g | sed -n 2p; systemctl is-active earlyoom"
 ssh -n -o BatchMode=yes spark2 "mkdir -p ~/intarsia-mx6/bin ~/intarsia-mx6/out"
-for spec in $REVS; do n=${spec%%=*}; rsh "scp -q -o BatchMode=yes $L/bin/intarsia-$n spark2:intarsia-mx6/bin/intarsia-$n"; done
+for n in main mx6; do rsh "scp -q -o BatchMode=yes $L/bin/intarsia-$n spark2:intarsia-mx6/bin/intarsia-$n"; done
 scp -q -o BatchMode=yes "$REPO/scripts/mx6/memwatch.sh" spark2:intarsia-mx6/memwatch.sh
 ssh -n -o BatchMode=yes spark2 "ls -la ~/intarsia-mx6/bin"
