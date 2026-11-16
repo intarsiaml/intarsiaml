@@ -1,0 +1,41 @@
+fleetq: #9714 running on endor: sh -c 'BIN=/opt/code/intarsiaml/.worktrees/mfold/target/base/intarsia /opt/code/intarsiaml/.worktrees/mfold/scripts/mfold/ce1.sh /opt/code/intarsiaml/.worktrees/mfold/docs/results/2026-11-16-mfold/raw/ce1-main2 && /opt/code/intarsiaml/.worktrees/mfold/scripts/mfold/ce1.sh /opt/code/intarsiaml/.worktrees/mfold/docs/results/2026-11-16-mfold/raw/ce1-fold1b && /opt/code/intarsiaml/.worktrees/mfold/scripts/mfold/pilot.sh /opt/code/intarsiaml/.worktrees/mfold/docs/results/2026-11-16-mfold/raw/pilot-fold1b INTARSIA_METAL_FOLD_SHARED ABBABAABABBABAAB'
+Qwen3.6-35B-A3B-NVFP4-4096-off prefill 871 ms (4702.5 tok/s) decode 862 ms (111.43 tok/s)  
+Qwen3.6-35B-A3B-NVFP4-4096-default prefill 907 ms (4517.7 tok/s) decode 648 ms (148.05 tok/s)  spec: verify passes=39 proposed=77 accepted=56 (acceptance 72.7%, 2.44 tokens per pass)
+## done
+Qwen3.6-35B-A3B-NVFP4-4096-off prefill 890 ms (4604.7 tok/s) decode 843 ms (113.88 tok/s)  
+Qwen3.6-35B-A3B-NVFP4-4096-default prefill 912 ms (4491.4 tok/s) decode 685 ms (140.05 tok/s)  spec: verify passes=39 proposed=77 accepted=56 (acceptance 72.7%, 2.44 tokens per pass)
+## done
+Qwen3.6-35B-A3B-NVFP4 4096 off 1 A decode 2146 ms (119.28 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 2 B decode 2132 ms (120.09 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 3 B decode 2161 ms (118.49 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 4 A decode 2116 ms (120.99 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 5 B decode 2192 ms (116.81 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 6 A decode 2127 ms (120.35 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 7 A decode 2113 ms (121.17 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 8 B decode 2152 ms (118.95 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 9 A decode 2122 ms (120.64 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 10 B decode 2127 ms (120.37 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 11 B decode 2124 ms (120.55 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 12 A decode 2155 ms (118.78 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 13 B decode 2137 ms (119.82 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 14 A decode 2132 ms (120.07 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 15 A decode 2142 ms (119.53 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 16 B decode 2166 ms (118.17 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 1 A decode 1425 ms (179.70 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 2 B decode 1423 ms (179.84 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 3 B decode 1462 ms (175.12 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 4 A decode 1421 ms (180.12 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 5 B decode 1436 ms (178.24 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 6 A decode 1443 ms (177.45 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 7 A decode 1429 ms (179.12 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 8 B decode 1508 ms (169.79 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 9 A decode 1435 ms (178.46 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 10 B decode 1455 ms (175.96 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 11 B decode 1425 ms (179.60 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 12 A decode 1425 ms (179.64 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 13 B decode 1489 ms (171.90 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 14 A decode 1445 ms (177.15 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 15 A decode 1449 ms (176.66 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 16 B decode 1468 ms (174.41 tok/s) ids c92e3344 thermal 0
+## done
+fleetq: #9714 done (exit 0)

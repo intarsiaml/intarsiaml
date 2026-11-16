@@ -1,0 +1,39 @@
+fleetq: #9719 waiting (#1 in line): needs cpu quiet on endor, but #9717 "mdraft: cpu suites" (claude-2ae67a71) loads it
+fleetq:   #9717 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9717 set, or it will wait for #9717 to be released.
+fleetq: #9719 running on endor: sh -c 'cd /opt/code/intarsiaml/.worktrees/mfold && CARGO_TARGET_DIR=/opt/code/intarsiaml/.worktrees/mfold/target cargo build --release --locked -p intarsia-cli --features metal 2>&1 | grep -E '"'"'^error|Finished'"'"' -A6; BVAL=glu /opt/code/intarsiaml/.worktrees/mfold/scripts/mfold/pilot.sh /opt/code/intarsiaml/.worktrees/mfold/docs/results/2026-11-16-mfold/raw/pilot-glu INTARSIA_METAL_FOLD_SHARED ABBABAAB && BVAL=down /opt/code/intarsiaml/.worktrees/mfold/scripts/mfold/pilot.sh /opt/code/intarsiaml/.worktrees/mfold/docs/results/2026-11-16-mfold/raw/pilot-down INTARSIA_METAL_FOLD_SHARED ABBABAAB'
+    Finished `release` profile [optimized] target(s) in 11.61s
+Qwen3.6-35B-A3B-NVFP4 4096 off 1 A decode 2194 ms (116.66 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 2 B decode 2169 ms (118.04 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 3 B decode 2177 ms (117.62 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 4 A decode 2123 ms (120.58 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 5 B decode 2204 ms (116.15 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 6 A decode 2314 ms (110.65 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 7 A decode 2161 ms (118.47 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 8 B decode 2154 ms (118.83 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 1 A decode 1455 ms (176.00 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 2 B decode 1454 ms (176.12 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 3 B decode 1489 ms (171.98 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 4 A decode 1448 ms (176.80 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 5 B decode 1468 ms (174.38 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 6 A decode 1452 ms (176.25 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 7 A decode 1453 ms (176.17 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 8 B decode 1450 ms (176.51 tok/s) ids c92e3344 thermal 0
+## done
+Qwen3.6-35B-A3B-NVFP4 4096 off 1 A decode 2181 ms (117.37 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 2 B decode 2246 ms (114.00 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 3 B decode 2180 ms (117.45 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 4 A decode 2195 ms (116.64 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 5 B decode 2221 ms (115.26 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 6 A decode 2172 ms (117.89 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 7 A decode 2210 ms (115.84 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 off 8 B decode 2245 ms (114.04 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 1 A decode 1441 ms (177.62 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 2 B decode 1472 ms (173.93 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 3 B decode 1441 ms (177.66 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 4 A decode 1486 ms (172.29 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 5 B decode 1449 ms (176.65 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 6 A decode 1437 ms (178.14 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 7 A decode 1483 ms (172.58 tok/s) ids c92e3344 thermal 0
+Qwen3.6-35B-A3B-NVFP4 4096 default 8 B decode 1476 ms (173.49 tok/s) ids c92e3344 thermal 0
+## done
+fleetq: #9719 done (exit 0)

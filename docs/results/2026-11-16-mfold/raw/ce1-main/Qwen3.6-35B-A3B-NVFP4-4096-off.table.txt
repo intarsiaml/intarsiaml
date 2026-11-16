@@ -1,0 +1,21 @@
+Qwen3.6-35B-A3B-NVFP4-4096-off.jsonl: 84.9 passes, 8.11 ms busy / pass, 0.59 ms idle / pass, 764 dispatches / pass
+| op | launches / pass | us / pass | share | us / launch |
+|---|---:|---:|---:|---:|
+| matmul_fp8_gemv | 130.0 | 3413 | 42.1 % | 26.3 |
+| moe_experts_bf16 | 40.0 | 952 | 11.7 % | 23.8 |
+| moe_experts_bf16#1 | 40.0 | 703 | 8.7 % | 17.6 |
+| matmul_nvfp4_gemv | 121.0 | 695 | 8.6 % | 5.7 |
+| attn_decode_bf16_splitkv | 10.0 | 444 | 5.5 % | 44.4 |
+| rmsnorm_add_bf16 | 80.0 | 406 | 5.0 % | 5.1 |
+| moe_topk_bf16 | 40.0 | 327 | 4.0 % | 8.2 |
+| gdn_delta_rule_bf16 | 30.0 | 306 | 3.8 % | 10.2 |
+| matmul_pair_bf16_gemv | 70.0 | 304 | 3.7 % | 4.3 |
+| gdn_conv_bf16 | 30.0 | 131 | 1.6 % | 4.4 |
+| moe_combine_bf16 | 40.0 | 116 | 1.4 % | 2.9 |
+| rmsnorm_bf16 | 31.0 | 95 | 1.2 % | 3.1 |
+| qk_norm_rope_kv_bf16 | 10.0 | 75 | 0.9 % | 7.5 |
+| silu_glu_bf16 | 70.0 | 71 | 0.9 % | 1.0 |
+| gate_split_bf16 | 10.0 | 30 | 0.4 % | 3.0 |
+| sigmoid_mul_bf16 | 10.0 | 21 | 0.3 % | 2.1 |
+| argmax_f32 | 1.0 | 19 | 0.2 % | 18.7 |
+| embedding_bf16 | 1.0 | 3 | 0.0 % | 3.0 |

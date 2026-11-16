@@ -192,13 +192,13 @@ const PK_KEEP_SHAPE_PACKED: bool = false;
 static KVO_OVERRIDE: AtomicUsize = AtomicUsize::new(usize::MAX);
 static KVO_FAULT: AtomicUsize = AtomicUsize::new(0);
 
-/// `INTARSIA_METAL_ATTN_KV_ONCE=1` (opt-in, lane mka): the decode-attention launches (1-row, G0b verify rows, row table) run
+/// `INTARSIA_METAL_ATTN_KV_ONCE` (default ON since lane kvq, `=0` turns it off; lane mka built it): the decode-attention launches (1-row, G0b verify rows, row table) run
 /// their stage 1 with packed threadgroups, bit for bit the unpacked launch; the Metal backend also reports
 /// [`intarsia_core::backend::Backend::head_rows_exact`], so the MTP head's short catch-up takes the rows-exact kernel.
 pub fn kv_once() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
     match KVO_OVERRIDE.load(Ordering::Relaxed) {
-        usize::MAX => *ON.get_or_init(|| std::env::var("INTARSIA_METAL_ATTN_KV_ONCE").is_ok_and(|v| v.trim() == "1")),
+        usize::MAX => *ON.get_or_init(|| std::env::var("INTARSIA_METAL_ATTN_KV_ONCE").map_or(true, |v| v.trim() != "0")),
         v => v != 0,
     }
 }

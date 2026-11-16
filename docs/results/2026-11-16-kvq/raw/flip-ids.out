@@ -1,0 +1,15 @@
+fleetq: #9702 running on endor: scripts/kvq/flip_gates.sh ids
+SAME 35b short spec=default | z 6292d0f4 n=256 passes=100 proposed=200 accepted=154 | d 6292d0f4 n=256 passes=100 proposed=200 accepted=154
+SAME 35b 4k spec=default | z bda48660 n=256 passes=99 proposed=198 accepted=155 | d bda48660 n=256 passes=98 proposed=196 accepted=156
+SAME 35b 32k spec=default | z 6acc4f5f n=256 passes=93 proposed=186 accepted=162 | d 6acc4f5f n=256 passes=93 proposed=186 accepted=162
+SAME 27b short spec=default | z e0eb02d2 n=256 passes=109 proposed=217 accepted=146 | d e0eb02d2 n=256 passes=109 proposed=217 accepted=146
+SAME 27b 4k spec=default | z 418d1c81 n=256 passes=95 proposed=190 accepted=160 | d 418d1c81 n=256 passes=95 proposed=190 accepted=160
+SAME 27b 32k spec=default | z 58f8d5ae n=256 passes=90 proposed=179 accepted=165 | d 58f8d5ae n=256 passes=90 proposed=179 accepted=165
+SAME 35b short spec=off | z 6292d0f4 n=256  | d 6292d0f4 n=256 
+SAME 35b 4k spec=off | z bda48660 n=256  | d bda48660 n=256 
+SAME 35b 32k spec=off | z 6acc4f5f n=256  | d 6acc4f5f n=256 
+SAME 27b short spec=off | z e0eb02d2 n=256  | d e0eb02d2 n=256 
+SAME 27b 4k spec=off | z 418d1c81 n=256  | d 418d1c81 n=256 
+SAME 27b 32k spec=off | z 58f8d5ae n=256  | d 58f8d5ae n=256 
+## done ids
+fleetq: #9702 done (exit 0)
