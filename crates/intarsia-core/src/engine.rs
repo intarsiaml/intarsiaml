@@ -2248,7 +2248,12 @@ impl Seq {
                 self.predraft = None;
                 self.staged = None;
                 self.cost_begin(true);
+                let t_draft = crate::spec::trace_enabled().then(Instant::now);
                 let drafts = model.mtp_draft(st, self.tok, k)?;
+                if let Some(t) = t_draft {
+                    // lane mtp2s: the draft ends in a token download, so host time is device time
+                    eprintln!("spec: mtp draft (deferred verify) {:.3} ms, {} drafts", t.elapsed().as_secs_f64() * 1e3, drafts.len());
+                }
                 if drafts.is_empty() {
                     // no room for a draft block near the end of the context window: a plain step
                     self.cost_begin(false);

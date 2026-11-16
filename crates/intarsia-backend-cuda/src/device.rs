@@ -409,6 +409,35 @@ impl Backend for CudaBackend {
         Ok(())
     }
 
+    /// Lane mtp2s: `ik_gdn_verify_snap_bf16` (kernels/cuda/gdn.cu), bitwise the row-by-row verify launches and the slot copies after
+    /// each row. `INTARSIA_CUDA_GDN_VERIFY_FUSE=0` turns it off. A launcher that refuses the arguments (`IK_ERR_UNSUPPORTED`, nothing
+    /// launched) answers `Ok(false)`.
+    fn gdn_verify_rows(&self, c: &intarsia_core::GdnVerifyRows<'_>, stream: StreamId) -> Result<bool> {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if !*ON.get_or_init(|| std::env::var_os("INTARSIA_CUDA_GDN_VERIFY_FUSE").map_or(true, |v| v != "0")) {
+            return Ok(false);
+        }
+        if c.snap_conv.is_empty() || c.snap_conv.len() != c.snap_s.len() {
+            return Ok(false);
+        }
+        self.bind()?;
+        let s = self.stream(stream)?;
+        let (x, taps, a, b, al, dt) = (Self::tensor(c.x)?, Self::tensor(c.taps)?, Self::tensor(c.a)?, Self::tensor(c.b)?, Self::tensor(c.a_log)?, Self::tensor(c.dt_bias)?);
+        let (mut y, mut o, mut cs, mut st) = (Self::tensor(c.y)?, Self::tensor(c.o)?, Self::tensor(c.conv_state)?, Self::tensor(c.state)?);
+        let sc: Vec<IkTensor> = c.snap_conv.iter().map(Self::tensor).collect::<Result<_>>()?;
+        let ss: Vec<IkTensor> = c.snap_s.iter().map(Self::tensor).collect::<Result<_>>()?;
+        // SAFETY: tensors are bounds-checked views of live device buffers; the launcher validates dtype / rank / shape / alignment and
+        // returns an error status instead of faulting (`IK_ERR_UNSUPPORTED`: nothing launched), and never synchronises or allocates.
+        let rc = unsafe {
+            ffi::ik_gdn_verify_snap_bf16(&x, &taps, &mut y, &a, &b, &al, &dt, c.eps, &mut o, &mut cs, &mut st, sc.as_ptr(), ss.as_ptr(), s)
+        };
+        match rc {
+            0 => Ok(true),
+            5 => Ok(false),
+            _ => Err(Error::backend(format!("gdn_verify_snap: {}", ffi::status_name(rc)))),
+        }
+    }
+
     fn device_address(&self, buf: &Buffer) -> Option<u64> {
         Self::ptr(buf, 0, 0).ok().map(|p| p as u64)
     }

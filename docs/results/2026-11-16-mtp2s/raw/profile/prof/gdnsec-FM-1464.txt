@@ -1,0 +1,4 @@
+.scratch/FM.sqlite: 87 passes of 1464 kernels
+  span ms 25.995 (median 25.999)
+  GDN sections ms 3.943 (median 3.841) over 30 layers; gdn kernels 540 launches, 1.994 ms of kernel time
+  D2D copies 120 per pass, 0.476 ms

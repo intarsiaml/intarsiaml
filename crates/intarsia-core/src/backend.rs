@@ -193,6 +193,26 @@ impl TensorRef {
     }
 }
 
+/// The arguments of [`Backend::gdn_verify_rows`]: `x` the block's projection rows `[T, C]`, `taps` `[C, K]`, `y` the conv output
+/// scratch `[T, C]`, `a` / `b` `[T, Hv]`, `a_log` / `dt_bias` `[Hv]`, `o` the delta-rule output `[T, Hv, dv]`, `conv_state` `[C, K-1]`
+/// and `state` `[Hv, dv, dk]` in the slot (updated in place), `snap_conv[r]` / `snap_s[r]` (`T - 1` of each) the same two states in the
+/// save buffer of row `r`.
+pub struct GdnVerifyRows<'a> {
+    pub x: &'a TensorRef,
+    pub taps: &'a TensorRef,
+    pub y: &'a TensorRef,
+    pub a: &'a TensorRef,
+    pub b: &'a TensorRef,
+    pub a_log: &'a TensorRef,
+    pub dt_bias: &'a TensorRef,
+    pub eps: f32,
+    pub o: &'a TensorRef,
+    pub conv_state: &'a TensorRef,
+    pub state: &'a TensorRef,
+    pub snap_conv: &'a [TensorRef],
+    pub snap_s: &'a [TensorRef],
+}
+
 pub trait Backend: Send + Sync {
     /// Backend id: "cpu", "cuda", "hip".
     fn name(&self) -> &str;
@@ -499,6 +519,16 @@ pub trait Backend: Send + Sync {
         _stream: StreamId,
     ) -> Result<()> {
         Err(Error::Unsupported(format!("{}: device-side top-k", self.name())))
+    }
+
+    /// Lane mtp2s: the `t` rows (2..=8) of one sequence's GatedDeltaNet block of a speculative verify pass in two launches: the conv
+    /// (rows in order, the conv state advanced) then the delta rule (state kept on chip across the rows), storing the conv state and the
+    /// delta-rule state after every row but the last into `snap_conv[r]` / `snap_s[r]` (the pass's rollback saves) and the final ones in
+    /// place. BITWISE the row-by-row `GdnConv` + `GdnDeltaRule` calls of the verify pass and the copies of the slot after each row (the
+    /// backend's own device test pins it). Not a registered op (so not in the plan): `Ok(false)` = unsupported for these arguments,
+    /// nothing ran, the caller does it row by row. Default: `Ok(false)`.
+    fn gdn_verify_rows(&self, _call: &GdnVerifyRows<'_>, _stream: StreamId) -> Result<bool> {
+        Ok(false)
     }
 
     /// Does `topk_rows` work on this backend?

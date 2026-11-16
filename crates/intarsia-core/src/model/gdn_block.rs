@@ -236,6 +236,10 @@ impl Model {
                     // state after every row but the last saved, exactly as the solo verify branch below runs them (unfused)
                     let save = sg.st.spec_rows.bufs.len() >= len - 1 && self.recorder.lock().unwrap().is_none();
                     let off = sg.st.recurrent_offset(g.slot);
+                    // lane mtp2s: the rows in two launches with the saves (CUDA), bitwise the loop below
+                    if save && self.gdn_verify_rows_fused(g, sg.st, off, rec.bytes, (&qkv, &a, &b, &conv, &core), (lo, len), &s_state, &conv_state, &delta_attrs)? {
+                        continue;
+                    }
                     for r in 0..len {
                         let (qkv, a, b, conv, core) =
                             (qkv.rows(lo + r, 1), a.rows(lo + r, 1), b.rows(lo + r, 1), conv.rows(lo + r, 1), core.rows(lo + r, 1));
@@ -258,7 +262,11 @@ impl Model {
             // HIP (lane vrc): the T rows in one launch that also stores the state after every row but the last into the save
             // buffers: bitwise the row-by-row calls and copies below, without their launches (INTARSIA_HIP_GDN_VERIFY_FUSE=0: off)
             let mut done = false;
-            if save && self.gdn_verify_fuse_ok(t, off, rec.bytes, state_s_offset(l, conv_dt)) {
+            // lane mtp2s: the rows in two launches with the saves (CUDA), bitwise the loop below
+            if save && self.gdn_verify_rows_fused(g, st, off, rec.bytes, (&qkv, &a, &b, &conv, &core), (0, t), &s_state, &conv_state, &delta_attrs)? {
+                done = true;
+            }
+            if !done && save && self.gdn_verify_fuse_ok(t, off, rec.bytes, state_s_offset(l, conv_dt)) {
                 let snaps: Vec<TensorRef> = st.spec_rows.bufs[..t - 1]
                     .iter()
                     .map(|b| {
@@ -367,6 +375,60 @@ impl Model {
             )?;
         }
         Ok(())
+    }
+
+    /// Lane mtp2s: rows `lo .. lo + len` (2..=8) of a speculative verify pass's GatedDeltaNet block as [`Backend::gdn_verify_rows`] (CUDA:
+    /// the conv in one launch and the delta rule in another, the state saved after every row but the last into the pass's save buffers
+    /// `st.spec_rows.bufs[r]`, at this slot's offset `off`), instead of three launches and a copy of the whole slot per row. Bitwise the
+    /// row loop of the callers (the backend's device test pins it) and not a registered op, so the plan is the same with it on or off.
+    /// `Ok(false)`: the backend takes no such call (or `INTARSIA_CUDA_GDN_VERIFY_FUSE=0`), nothing ran. `rows` = the block's
+    /// `(qkv, a, b, conv, core)` views over all of the pass's rows.
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
+    fn gdn_verify_rows_fused(
+        &self,
+        g: &GdnBlock,
+        st: &SequenceState,
+        off: usize,
+        slot_bytes: usize,
+        rows: (&TensorRef, &TensorRef, &TensorRef, &TensorRef, &TensorRef),
+        (lo, len): (usize, usize),
+        s_state: &TensorRef,
+        conv_state: &TensorRef,
+        delta_attrs: &OpAttrs,
+    ) -> Result<bool> {
+        let (qkv, a, b, conv, core) = rows;
+        let l = &g.lin;
+        let conv_dt = self.backend.gdn_conv_dtype();
+        let s_off = state_s_offset(l, conv_dt);
+        if !(2..=8).contains(&len) || st.spec_rows.bufs.len() < len - 1 || off % 16 != 0 || slot_bytes % 16 != 0 || s_off % 16 != 0 {
+            return Ok(false);
+        }
+        let (c, hv, dv, dk, ks) = (l.conv_dim(), l.v_heads, l.v_head_dim, l.k_head_dim, l.conv_kernel);
+        let (mut snap_conv, mut snap_s) = (Vec::with_capacity(len - 1), Vec::with_capacity(len - 1));
+        for buf in &st.spec_rows.bufs[..len - 1] {
+            let mut v = TensorRef::new(buf.clone(), conv_dt, &[c, ks - 1]);
+            v.offset = off;
+            snap_conv.push(v);
+            let mut w = TensorRef::new(buf.clone(), self.gdn_state_dt, &[hv, dv, dk]);
+            w.offset = off + s_off;
+            snap_s.push(w);
+        }
+        let call = crate::backend::GdnVerifyRows {
+            x: &qkv.rows(lo, len),
+            taps: &g.conv,
+            y: &conv.rows(lo, len),
+            a: &a.rows(lo, len),
+            b: &b.rows(lo, len),
+            a_log: &g.a_log,
+            dt_bias: &g.dt_bias,
+            eps: delta_attrs.eps,
+            o: &core.rows(lo, len),
+            conv_state,
+            state: s_state,
+            snap_conv: &snap_conv,
+            snap_s: &snap_s,
+        };
+        self.backend.gdn_verify_rows(&call, self.stream)
     }
 
     /// Whether a speculative-verify GatedDeltaNet block of `t` rows may take the one-launch snapshotting `GdnConvDelta` (HIP only):

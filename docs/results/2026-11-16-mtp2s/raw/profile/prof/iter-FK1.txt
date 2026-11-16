@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/nvidia/intarsia-mtp2s/src/scripts/mtp2s/iter.py", line 34, in <module>
+    print(f"{sys.argv[1]}: {len(rows)} iterations; medians: period {m('period')/1e6:.2f} ms, verify span {m('verify')/1e6:.2f}, draft passes {m('ndraft'):.0f} "
+                                                                    ^^^^^^^^^^^
+  File "/home/nvidia/intarsia-mtp2s/src/scripts/mtp2s/iter.py", line 33, in <lambda>
+    m = lambda k: st.median(r[k] for r in rows)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/statistics.py", line 617, in median
+    raise StatisticsError("no median for empty data")
+statistics.StatisticsError: no median for empty data

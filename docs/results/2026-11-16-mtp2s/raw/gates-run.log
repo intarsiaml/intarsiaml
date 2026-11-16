@@ -1,0 +1,53 @@
+fleetq: #9692 running on spark2: scripts/mtp2s/gates2.sh
+[08:56:57 +1s] gates start; vLLM: 200 running 0; earlyoom: active; Mem:             121          49          28           0          46          72
+[08:56:57 +1s] serve arm ids-off: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2 --spec off
+[08:57:39 +43s] serve ids-off up; MemAvailable MB: 50077; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 39.1s, context 32768 tokens;
+s1:short tokens 256 spec {}
+s1:4k-a tokens 256 spec {}
+s1:4k-b tokens 256 spec {}
+s2:short|4k-a tokens [256, 256] spec {}
+s2:4k-a|4k-b tokens [256, 256] spec {}
+s2:4k-b|short tokens [256, 256] spec {}
+[08:58:05 +69s] min MemAvailable MB (time MB; KILLED count) (ids-off): 08:57:50 50049 0 
+[08:58:06 +70s] serve arm ids-base: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[08:58:52 +116s] serve ids-base up; MemAvailable MB: 49664; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk);batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 43.5s, context 32768 tokens;
+s1:short tokens 256 spec {'intarsia_spec_accepted_tokens_total': 148.0, 'intarsia_spec_proposed_tokens_total': 213.0, 'intarsia_spec_steps_total': 107.0}
+s1:4k-a tokens 256 spec {'intarsia_spec_accepted_tokens_total': 133.0, 'intarsia_spec_proposed_tokens_total': 243.0, 'intarsia_spec_steps_total': 122.0}
+s1:4k-b tokens 256 spec {'intarsia_spec_accepted_tokens_total': 142.0, 'intarsia_spec_proposed_tokens_total': 224.0, 'intarsia_spec_steps_total': 112.0}
+s2:short|4k-a tokens [256, 256] spec {'intarsia_spec_accepted_tokens_total': 279.0, 'intarsia_spec_proposed_tokens_total': 452.0, 'intarsia_spec_steps_total': 227.0}
+s2:4k-a|4k-b tokens [256, 256] spec {'intarsia_spec_accepted_tokens_total': 274.0, 'intarsia_spec_proposed_tokens_total': 461.0, 'intarsia_spec_steps_total': 231.0}
+s2:4k-b|short tokens [256, 256] spec {'intarsia_spec_accepted_tokens_total': 288.0, 'intarsia_spec_proposed_tokens_total': 433.0, 'intarsia_spec_steps_total': 217.0}
+[08:59:16 +140s] min MemAvailable MB (time MB; KILLED count) (ids-base): 08:59:12 49611 0 
+[08:59:17 +141s] serve arm ids-f1: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[09:00:07 +191s] serve ids-f1 up; MemAvailable MB: 48781; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk);batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 47.3s, context 32768 tokens;
+s1:short tokens 256 spec {'intarsia_spec_accepted_tokens_total': 148.0, 'intarsia_spec_proposed_tokens_total': 213.0, 'intarsia_spec_steps_total': 107.0}
+s1:4k-a tokens 256 spec {'intarsia_spec_accepted_tokens_total': 133.0, 'intarsia_spec_proposed_tokens_total': 243.0, 'intarsia_spec_steps_total': 122.0}
+s1:4k-b tokens 256 spec {'intarsia_spec_accepted_tokens_total': 142.0, 'intarsia_spec_proposed_tokens_total': 224.0, 'intarsia_spec_steps_total': 112.0}
+s2:short|4k-a tokens [256, 256] spec {'intarsia_spec_accepted_tokens_total': 279.0, 'intarsia_spec_proposed_tokens_total': 452.0, 'intarsia_spec_steps_total': 227.0}
+s2:4k-a|4k-b tokens [256, 256] spec {'intarsia_spec_accepted_tokens_total': 273.0, 'intarsia_spec_proposed_tokens_total': 463.0, 'intarsia_spec_steps_total': 232.0}
+s2:4k-b|short tokens [256, 256] spec {'intarsia_spec_accepted_tokens_total': 288.0, 'intarsia_spec_proposed_tokens_total': 433.0, 'intarsia_spec_steps_total': 217.0}
+[09:00:30 +214s] min MemAvailable MB (time MB; KILLED count) (ids-f1): 09:00:19 48597 0 
+[09:00:31 +215s] serve arm ids-f0: env [INTARSIA_CUDA_GDN_VERIFY_FUSE=0] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[09:01:08 +252s] serve ids-f0 up; MemAvailable MB: 49173; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk);batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 34.6s, context 32768 tokens;
+s1:short tokens 256 spec {'intarsia_spec_accepted_tokens_total': 148.0, 'intarsia_spec_proposed_tokens_total': 213.0, 'intarsia_spec_steps_total': 107.0}
+s1:4k-a tokens 256 spec {'intarsia_spec_accepted_tokens_total': 133.0, 'intarsia_spec_proposed_tokens_total': 243.0, 'intarsia_spec_steps_total': 122.0}
+s1:4k-b tokens 256 spec {'intarsia_spec_accepted_tokens_total': 142.0, 'intarsia_spec_proposed_tokens_total': 224.0, 'intarsia_spec_steps_total': 112.0}
+s2:short|4k-a tokens [256, 256] spec {'intarsia_spec_accepted_tokens_total': 279.0, 'intarsia_spec_proposed_tokens_total': 452.0, 'intarsia_spec_steps_total': 227.0}
+s2:4k-a|4k-b tokens [256, 256] spec {'intarsia_spec_accepted_tokens_total': 273.0, 'intarsia_spec_proposed_tokens_total': 463.0, 'intarsia_spec_steps_total': 232.0}
+s2:4k-b|short tokens [256, 256] spec {'intarsia_spec_accepted_tokens_total': 288.0, 'intarsia_spec_proposed_tokens_total': 433.0, 'intarsia_spec_steps_total': 217.0}
+[09:01:33 +277s] min MemAvailable MB (time MB; KILLED count) (ids-f0): 09:01:06 49168 0 
+off: 9 / 9 identical to off solo
+base: 9 / 9 identical to off solo
+f1: 9 / 9 identical to off solo
+f0: 9 / 9 identical to off solo
+[09:01:34 +278s] served plan base vs f1: IDENTICAL
+10491
+[09:01:34 +278s] served plan base vs f0: IDENTICAL
+10491
+exit 0
+exit 0
+exit 0
+[09:03:20 +384s] plan show json base vs fuse: IDENTICAL 15570 
+[09:03:20 +384s] plan show json base vs fuse =0: IDENTICAL 
+[09:03:21 +385s] end
+fleetq: #9692 done (exit 0)
