@@ -145,46 +145,6 @@ thread_local! {
     static NAX_TILE: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
 }
 
-/// Lane mprefill: the in-kernel weight decode forms of the NAX GEMM (kernels/metal/mxfp4_naxd.metal): (bf16-out shader,
-/// f32-out shader, BM, BN, BK, simdgroups). Keep in step with the `NAXD_T` list there.
-pub const NAXD_FORMS: [(&str, &str, usize, usize, usize, usize); 4] = [
-    ("gemm_naxd_mxfp4_bf16_t64x64k64w4", "gemm_naxd_mxfp4_f32_t64x64k64w4", 64, 64, 64, 4),
-    ("gemm_naxd_mxfp4_bf16_t128x64k64w4", "gemm_naxd_mxfp4_f32_t128x64k64w4", 128, 64, 64, 4),
-    ("gemm_naxd_mxfp4_bf16_t128x128k32w8", "gemm_naxd_mxfp4_f32_t128x128k32w8", 128, 128, 32, 8),
-    ("gemm_naxd_mxfp4_bf16_t64x64k64w2", "gemm_naxd_mxfp4_f32_t64x64k64w2", 64, 64, 64, 2),
-];
-
-/// `INTARSIA_METAL_MXFP4_NAXD`: unset or `0` = off (the scratch path, bitwise the previous build); `1` = the default
-/// in-kernel decode form for every `matmul_mxfp4_nax` call; `f<i>` = form `NAXD_FORMS[i]` (measurement). Opt-in, numerics
-/// gated (lane mprefill, docs/results/2026-11-16-mprefill.md). `INTARSIA_METAL_MXFP4_NAXD_SWZ=<log2>` sets the grid swizzle.
-pub fn naxd_form() -> Option<usize> {
-    static F: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
-    *F.get_or_init(|| match std::env::var("INTARSIA_METAL_MXFP4_NAXD").ok()?.as_str() {
-        "" | "0" => None,
-        "1" => Some(NAXD_DEFAULT),
-        v => v.strip_prefix('f').and_then(|i| i.parse().ok()).filter(|&i: &usize| i < NAXD_FORMS.len()),
-    })
-}
-/// The form `INTARSIA_METAL_MXFP4_NAXD=1` takes.
-pub const NAXD_DEFAULT: usize = 1;
-fn naxd_swz() -> u32 {
-    static S: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
-    *S.get_or_init(|| std::env::var("INTARSIA_METAL_MXFP4_NAXD_SWZ").ok().and_then(|v| v.parse().ok()).unwrap_or(0).min(4))
-}
-
-thread_local! {
-    static NAXD: std::cell::Cell<Option<Option<usize>>> = const { std::cell::Cell::new(None) };
-}
-
-/// Test / bench hook: run `f` with every `matmul_mxfp4_nax` launch of this thread on in-kernel decode form `form` (`None`:
-/// the scratch path) whatever `INTARSIA_METAL_MXFP4_NAXD` says.
-pub fn with_naxd<R>(form: Option<usize>, f: impl FnOnce() -> R) -> R {
-    NAXD.with(|t| t.set(Some(form)));
-    let r = f();
-    NAXD.with(|t| t.set(None));
-    r
-}
-
 /// Test hook: run `f` with every `matmul_mxfp4_nax` launch of this thread on tile `gemm_nax::NAX_VARIANTS[tile]` instead of
 /// `pick_variant`'s (the tiles must give the same bits).
 pub fn with_nax_tile<R>(tile: usize, f: impl FnOnce() -> R) -> R {
@@ -192,19 +152,6 @@ pub fn with_nax_tile<R>(tile: usize, f: impl FnOnce() -> R) -> R {
     let r = f();
     NAX_TILE.with(|t| t.set(None));
     r
-}
-
-/// `NaxdP` of kernels/metal/mxfp4_naxd.metal.
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct NaxdParams {
-    m: u32,
-    n: u32,
-    k: u32,
-    swz_log: u32,
-    s_c: u32,
-    s_s: u32,
-    pad: [u32; 2],
 }
 
 fn u32_of(v: usize, what: &str) -> Result<u32> {
@@ -388,10 +335,6 @@ impl MetalBackend {
         let vi = NAX_VARIANTS.iter().position(|x| x.shader == v.shader).expect("NAX variant table");
         let gemm = crate::fp8::NAX_FP8_SHADERS[vi][f32_out as usize];
         let pso_x = self.pso(XPREP).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP}'")))?;
-        let naxd = NAXD.with(|t| t.get()).unwrap_or_else(naxd_form).filter(|&f| k % NAXD_FORMS[f].4 == 0);
-        if let Some(f) = naxd {
-            return self.launch_mxfp4_naxd(f, (xb, wb, sb, ab, ob), &xs, [m, n, k], f32_out);
-        }
         let pso_w = self.pso(W_TO_BF16).ok_or_else(|| Error::backend(format!("metal: no pipeline '{W_TO_BF16}'")))?;
         let pso_g = self
             .pso(gemm)
@@ -403,7 +346,7 @@ impl MetalBackend {
         let tx = pso_x.maxTotalThreadsPerThreadgroup().min(256);
         let tw = pso_w.maxTotalThreadsPerThreadgroup().min(256);
         let (gx, gy) = grid(v, pg.m, pg.n, 0);
-        let d0 = |enc: &objc2::runtime::ProtocolObject<dyn MTLComputeCommandEncoder>| {
+        self.with_encoder(|enc| {
             // SAFETY: offsets lie inside the buffers (TensorRef bounds checked by `OpCall::check`, the scratch size above).
             unsafe {
                 enc.setComputePipelineState(pso_x);
@@ -416,8 +359,6 @@ impl MetalBackend {
                 MTLSize { width: m * (k / 32), height: 1, depth: 1 },
                 MTLSize { width: tx, height: 1, depth: 1 },
             );
-        };
-        let d1 = |enc: &objc2::runtime::ProtocolObject<dyn MTLComputeCommandEncoder>| {
             // SAFETY: as above.
             unsafe {
                 enc.setComputePipelineState(pso_w);
@@ -430,8 +371,6 @@ impl MetalBackend {
                 MTLSize { width: n * (k / 32), height: 1, depth: 1 },
                 MTLSize { width: tw, height: 1, depth: 1 },
             );
-        };
-        let d2 = |enc: &objc2::runtime::ProtocolObject<dyn MTLComputeCommandEncoder>| {
             // SAFETY: as above.
             unsafe {
                 enc.setComputePipelineState(pso_g);
@@ -444,69 +383,6 @@ impl MetalBackend {
                 MTLSize { width: gx, height: gy, depth: 1 },
                 MTLSize { width: v.threads() as usize, height: 1, depth: 1 },
             );
-        };
-        self.with_encoder_parts(&[&d0, &d1, &d2])
-    }
-
-    /// Lane mprefill: `matmul_mxfp4_nax` with the weights decoded inside the GEMM (`NAXD_FORMS[form]`,
-    /// kernels/metal/mxfp4_naxd.metal): the activation pre-pass as in the scratch path, then one GEMM that reads the packed
-    /// weights; no bf16 weight scratch is written. `xs` is the 16-byte aligned activation scratch.
-    fn launch_mxfp4_naxd(
-        &self,
-        form: usize,
-        (xb, wb, sb, ab, ob): (
-            &crate::dense::Bind,
-            &crate::dense::Bind,
-            &crate::dense::Bind,
-            &crate::dense::Bind,
-            &crate::dense::Bind,
-        ),
-        xs: &crate::dense::Bind,
-        [m, n, k]: [usize; 3],
-        f32_out: bool,
-    ) -> Result<()> {
-        let (s_bf, s_f32, bm, bn, _, nsg) = NAXD_FORMS[form];
-        let gemm = if f32_out { s_f32 } else { s_bf };
-        let pso_x = self.pso(XPREP).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP}'")))?;
-        let pso_g = self
-            .pso(gemm)
-            .ok_or_else(|| Error::backend(format!("metal: no pipeline '{gemm}' (metal4.0 library not loaded)")))?;
-        let dims = [u32_of(m, "M")?, u32_of(n, "N")?, u32_of(k, "K")?, 0, 0, 0, 0, 0];
-        let px = OpP { dims, skips: [xb.skip, 0, 0, 0, 0], ..Default::default() };
-        let swz = naxd_swz();
-        let pg = NaxdParams { m: dims[0], n: dims[1], k: dims[2], swz_log: swz, s_c: ob.skip, s_s: sb.skip, pad: [0; 2] };
-        let tx = pso_x.maxTotalThreadsPerThreadgroup().min(256);
-        let (tiles_m, tiles_n) = (m.div_ceil(bm), n.div_ceil(bn));
-        let (gx, gy) = (tiles_n << swz, tiles_m.div_ceil(1 << swz));
-        let d0 = |enc: &objc2::runtime::ProtocolObject<dyn MTLComputeCommandEncoder>| {
-            // SAFETY: offsets lie inside the buffers (TensorRef bounds checked by `OpCall::check`, the scratch size checked
-            // by the caller).
-            unsafe {
-                enc.setComputePipelineState(pso_x);
-                for (i, b) in [xb, ab, xs].into_iter().enumerate() {
-                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
-                }
-            }
-            set_bytes(enc, &px, 3);
-            enc.dispatchThreads_threadsPerThreadgroup(
-                MTLSize { width: m * (k / 32), height: 1, depth: 1 },
-                MTLSize { width: tx, height: 1, depth: 1 },
-            );
-        };
-        let d1 = |enc: &objc2::runtime::ProtocolObject<dyn MTLComputeCommandEncoder>| {
-            // SAFETY: as above.
-            unsafe {
-                enc.setComputePipelineState(pso_g);
-                for (i, b) in [xs, wb, sb, ob].into_iter().enumerate() {
-                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
-                }
-            }
-            set_bytes(enc, &pg, 4);
-            enc.dispatchThreadgroups_threadsPerThreadgroup(
-                MTLSize { width: gx, height: gy, depth: 1 },
-                MTLSize { width: nsg * 32, height: 1, depth: 1 },
-            );
-        };
-        self.with_encoder_parts(&[&d0, &d1])
+        })
     }
 }

@@ -288,7 +288,6 @@ pub fn metal4_shaders() -> Vec<&'static str> {
     v.extend(crate::flash_nax::NAX_FLASH_VARIANTS.iter().map(|f| f.name));
     v.extend(crate::fp8::NAX_FP8_SHADERS.iter().flatten());
     v.extend(crate::moe::NAX_MM_GU.iter().chain(&crate::moe::NAX_MM_DN));
-    v.extend(crate::mxfp4::NAXD_FORMS.iter().flat_map(|f| [f.0, f.1]));
     v
 }
 
@@ -819,7 +818,6 @@ mod tests {
                 + crate::flash_nax::NAX_FLASH_VARIANTS.len()
                 + 2 * crate::gemm_nax::NAX_VARIANTS.len()
                 + 8
-                + 2 * crate::mxfp4::NAXD_FORMS.len()
         );
         assert!(!shader_names().iter().any(|n| m4.contains(n)));
         let set: HashSet<_> = m4.iter().collect();
