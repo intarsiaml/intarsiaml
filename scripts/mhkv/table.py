@@ -46,7 +46,7 @@ for w in wins:
         c = got.get((b, "B0", "-Q"))
         for key, label in (((b, "B", "-Q-disk"), "new turn, from disk"), ((b, "B", "-Q-repeat"), "repeat, from host")):
             r = got.get(key)
-            if c and r:
+            if c and r and c[0] != r[0]:
                 n = c[2] - 1
                 extra = n / r[1] - n / c[1]
                 saved = (c[0] - r[0]) / 1e3
