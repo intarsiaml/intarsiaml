@@ -26,6 +26,28 @@ use crate::state::MtpState;
 /// Lane mdraft: most sequences of one batched MTP draft ([`Model::mtp_draft_batch`]).
 pub(crate) const MAX_DRAFT_BATCH: usize = 8;
 
+/// Lane mhead dev check (`INTARSIA_BATCHED_HEAD_CHECK=1`, off by default, needs the batched head): every batched chained head pass is
+/// followed by the per-sequence passes on the same inputs, which the draft then continues from, and the two sets of output rows are
+/// compared bit for bit; a mismatch is printed at once, and the running counts every 256 passes.
+fn head_check_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("INTARSIA_BATCHED_HEAD_CHECK").is_some_and(|v| v != "0"))
+}
+
+fn head_check_note(same: bool, row: usize, rows: usize) {
+    use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
+    static ROWS: AtomicUsize = AtomicUsize::new(0);
+    static BAD: AtomicUsize = AtomicUsize::new(0);
+    let n = ROWS.fetch_add(1, Relaxed) + 1;
+    if !same {
+        BAD.fetch_add(1, Relaxed);
+        eprintln!("mhead check: MISMATCH row {row} of {rows} (batched head pass differs from the one-row pass)");
+    }
+    if n % 256 == 0 {
+        eprintln!("mhead check: {n} rows compared, {} mismatches", BAD.load(Relaxed));
+    }
+}
+
 pub(super) struct MtpHead {
     /// `fc` columns `[0, H)` (normed embedding) and `[H, 2H)` (normed hidden state), each `[H, H]` bf16.
     fc_e: QTensor,
@@ -856,23 +878,39 @@ impl Model {
         let bases: Vec<usize> = ms.iter().map(|m| m.kv.len).collect();
         let r = (|| -> Result<()> {
             while drafts[0].len() < k {
-                if self.backend.batched_head() {
-                    // lane mhead: the b one-row passes as one b-row pass (`mtp_layer_batch`: each row bitwise its solo pass), its output
-                    // rows to the staging rows in one copy
+                let batched = self.backend.batched_head();
+                let check = batched && head_check_enabled();
+                // lane mhead: the b one-row passes as one b-row pass (`mtp_layer_batch`: each row bitwise its solo pass), its output rows
+                // to the staging rows in one copy
+                let mut got: Option<Vec<u8>> = None;
+                if batched {
                     let ids: Vec<u32> = drafts.iter().map(|d| *d.last().expect("a first draft")).collect();
                     let out = {
                         let kvs: Vec<&SequenceState> = ms.iter().map(|m| &m.kv).collect();
                         self.mtp_layer_batch(head, &kvs, &ids, &stage.rows(0, b), false)?
                     };
-                    for (m, &id) in ms.iter_mut().zip(&ids) {
-                        m.kv.commit(&[id]);
+                    if check {
+                        // `INTARSIA_BATCHED_HEAD_CHECK=1`: keep the batched rows and run the per-sequence passes below as well
+                        let mut bytes = vec![0u8; b * ms[0].row_bytes];
+                        self.backend.download(&out.buf, out.offset, &mut bytes, self.stream)?;
+                        got = Some(bytes);
+                    } else {
+                        for (m, &id) in ms.iter_mut().zip(&ids) {
+                            m.kv.commit(&[id]);
+                        }
+                        self.backend.copy(&stage.buf, stage.offset, &out.buf, out.offset, b * ms[0].row_bytes, 0)?;
                     }
-                    self.backend.copy(&stage.buf, stage.offset, &out.buf, out.offset, b * ms[0].row_bytes, 0)?;
-                } else {
+                }
+                if !batched || check {
                     for (i, m) in ms.iter_mut().enumerate() {
                         let ids = [*drafts[i].last().expect("a first draft")];
                         let row = stage.rows(i, 1);
                         let out = self.mtp_layer(head, &m.kv, &ids, &row, false)?;
+                        if let Some(want) = &got {
+                            let mut bytes = vec![0u8; m.row_bytes];
+                            self.backend.download(&out.buf, out.offset, &mut bytes, self.stream)?;
+                            head_check_note(bytes[..] == want[i * m.row_bytes..(i + 1) * m.row_bytes], i, b);
+                        }
                         m.kv.commit(&ids);
                         self.backend.copy(&row.buf, row.offset, &out.buf, out.offset, m.row_bytes, 0)?;
                     }
