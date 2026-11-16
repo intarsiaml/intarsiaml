@@ -19,6 +19,8 @@ struct Wrap {
     no_ref: bool,
     /// Adds a row-exact (verify-row) `Matmul` kernel taking at most this many rows, as a backend whose multi-row kernel stops there.
     rows_cap: Option<usize>,
+    /// Adds two row-exact `Matmul` kernels split as the CUDA MXFP4 table is (2..=4 rows, then 5 and up), both running the cpu matmul.
+    split_rows: bool,
     scratch_seen: Mutex<Vec<usize>>,
 }
 
@@ -30,6 +32,7 @@ fn wrap(drop_op: Option<Op>, scratch_op: Option<Op>, corrupt_op: Option<Op>) -> 
         corrupt_op,
         no_ref: false,
         rows_cap: None,
+        split_rows: false,
         scratch_seen: Mutex::new(vec![]),
     })
 }
@@ -70,6 +73,13 @@ impl Backend for Wrap {
             k.when = if c <= 5 { |s| s.m <= 5 } else { |s| s.m <= 6 };
             ks.push(k);
         }
+        if self.split_rows {
+            let mut lo = KernelImpl::new(Op::Matmul, "test_mm_lo_rows", "cpu").rows_exact();
+            lo.when = |s| s.m <= 4;
+            let mut hi = KernelImpl::new(Op::Matmul, "test_mm_hi_rows", "cpu").rows_exact();
+            hi.when = |s| s.m >= 5;
+            ks.extend([lo, hi]);
+        }
         ks
     }
     fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> Result<()> {
@@ -79,6 +89,7 @@ impl Backend for Wrap {
             assert_eq!(s.offset % 16, 0);
             self.scratch_seen.lock().unwrap().push(s.nbytes());
         }
+        let kernel = if kernel.starts_with("test_mm_") { "cpu_f32_matmul" } else { kernel };
         self.inner.launch(kernel, call, stream)?;
         if Some(call.op) == self.corrupt_op && !kernel.starts_with("ref_") {
             let out = &call.outputs[0];
@@ -326,4 +337,58 @@ fn batched_verify_row_counts_are_planned_and_a_gap_switches_it_off_at_load() {
     // the plan JSON differs from the off plan's only where the pass's shapes add something
     let (a, b) = (intarsia_core::plan::plan_json(&off, "m"), intarsia_core::plan::plan_json(&gap, "m"));
     assert_eq!(a, b);
+}
+
+/// Lane mx6, the failure itself: the kernel for a row count EXISTS but was never admitted. The row-exact matmul table is split as
+/// CUDA's MXFP4 one is (a kernel for 2..=4 rows, another for 5 and up). Plan admission probes only the solo verify row counts (2..=3), so
+/// the second kernel stays untested, `require_admitted` skips it, and a batched verify pass of two sequences x 3 rows (6 rows) fails
+/// with `[admitted kernels only] [row-exact verify kernels only]`. With the batched row counts planned, admission tests that kernel
+/// at 5 and 6 rows and the pass runs, and its rows are the solo verify passes' bitwise.
+#[test]
+fn batched_verify_runs_on_a_kernel_only_the_plan_admission_of_its_row_counts_admits() {
+    let build = |batched: bool| {
+        let w = Arc::new(Wrap { split_rows: true, ..Arc::try_unwrap(wrap(None, None, None)).ok().unwrap() });
+        let mut m = load_on(w, LoadOptions { max_seq: 64, ..Default::default() }).unwrap();
+        m.enable_verify(4).unwrap();
+        if batched {
+            m.enable_verify_batch(2).unwrap();
+        }
+        let oracle = intarsia_backend_cpu::CpuBackend::arc();
+        let opts = PlanOptions { admit: true, require_admitted: true, no_cache: true, ..Default::default() };
+        let sum = m.configure_plan(&opts, Some(&*oracle)).unwrap();
+        assert!(sum.rejected.is_empty(), "{:?}", sum.rejected);
+        m
+    };
+    let prompts: [&[u32]; 2] = [&[3, 9, 27, 81, 50, 7], &[90, 1, 2, 3]];
+    let ids: Vec<Vec<u32>> = vec![vec![5, 17, 33, 2], vec![8, 8, 40, 1]]; // 2 sequences x 4 rows = 8 rows
+    let states = |m: &Model| -> Vec<_> {
+        prompts
+            .iter()
+            .map(|p| {
+                let mut st = m.new_state().unwrap();
+                m.forward(&mut st, p, intarsia_core::model::HeadMode::LastArgmax, None).unwrap();
+                st
+            })
+            .collect()
+    };
+    // not planned: the 5+ row kernel was never admitted, so the pass has no kernel (what the server hit at m=6)
+    let m = build(false);
+    let mut st = states(&m);
+    let mut refs: Vec<&mut _> = st.iter_mut().collect();
+    let e = m.forward_verify_batch(&mut refs, &ids).err().expect("an 8-row pass has no admitted kernel");
+    let msg = e.to_string();
+    assert!(msg.contains("admitted kernels only") && msg.contains("row-exact verify kernels only"), "{msg}");
+    // planned: admission tests the 5+ row kernel at the pass's row counts and the pass is each sequence's solo verify, bitwise
+    let m = build(true);
+    assert_eq!(m.verify_batch_seqs(), 2, "the kernel is admitted at every row count: batched verify stays on");
+    let (mut a, mut b) = (states(&m), states(&m));
+    let got = {
+        let mut refs: Vec<&mut _> = a.iter_mut().collect();
+        m.forward_verify_batch(&mut refs, &ids).unwrap()
+    };
+    for i in 0..2 {
+        // a solo pass of 4 rows takes the 1..=4 row kernel: the batched pass's 5+ row kernel gives the same tokens and state
+        assert_eq!(got[i], m.forward_verify(&mut b[i], &ids[i]).unwrap(), "sequence {i}");
+        assert_eq!(a[i].len, b[i].len);
+    }
 }

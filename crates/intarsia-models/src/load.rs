@@ -981,6 +981,9 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         }
         model.enable_verify(opts.spec.verify_rows())?;
     }
+    // lane mx6: batched verify is resolved ONCE, before the plan (below) and used again for the engine's option, so the plan covers
+    // exactly the passes the engine may run
+    let batched_verify_asked = max_batch.value > 1 && batched_verify_for(&recipe, backend_name);
     if max_batch.value > 1 {
         // Metal: only the hybrid 35B opts in (row-exact fp8 / nvfp4 / expert-grouped kernels, lane mb); a dense model keeps the
         // path it always had
@@ -1001,7 +1004,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         model.enable_batch(max_batch.value)?;
         // lane mx6: batched verify passes (opt-in) have more rows than a solo verify pass: the plan probes and admits those row counts
         // (`Model::enable_verify_batch`); a model that cannot batch its verify passes just keeps per-sequence verify
-        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && model.verify_rows() >= 2 && batched_verify_for(&recipe, backend_name) {
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && model.verify_rows() >= 2 && batched_verify_asked {
             let n = batched_verify_seqs_for(batched_mtp_for(&recipe, backend_name, backends.len(), local)?, opts.spec_off_at, max_batch.value);
             if n >= 2 {
                 match model.enable_verify_batch(n) {
@@ -1094,6 +1097,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
                 bo.mtp_max_b.min(bo.spec_off_at.saturating_sub(1))
             );
         }
+        // the value the plan was built for (lane mx6; `BatchedOptions::new` read the env var alone)
+        bo.batched_verify = batched_verify_asked;
         if let Some(n) = opts.busy_chunk {
             bo.busy_chunk = n;
         } else if let Some(n) = recipe.resolve_busy_chunk(backend_name) {
