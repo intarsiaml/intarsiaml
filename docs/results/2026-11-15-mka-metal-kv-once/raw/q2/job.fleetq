@@ -1,2 +1,8 @@
 fleetq: #9635 waiting (#3 in line): in line behind #9570 "mstore: TTFT cold vs restored 27b 32k (ABBA, fresh servers)" (claude-2ae67a71) on endor
 fleetq:   #9570 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9570 set, or it will wait for #9570 to be released.
+fleetq: #9635 waiting (#2 in line): in line behind #9594 "mstore: plan show --json pinned vs branch (8B/27B/35B)" (claude-2ae67a71) on endor
+fleetq:   #9594 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9594 set, or it will wait for #9594 to be released.
+fleetq: #9635 waiting (#1 in line): needs gpu quiet on endor, but #9594 "mstore: plan show --json pinned vs branch (8B/27B/35B)" (claude-2ae67a71) loads it
+fleetq:   #9594 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9594 set, or it will wait for #9594 to be released.
+fleetq: #9635 running on endor: sh -c '/opt/code/intarsiaml/.worktrees/mka/scripts/mka/tests.sh > /opt/code/intarsiaml/.worktrees/mka/docs/results/2026-11-15-mka-metal-kv-once/raw/q2/tests.out 2>&1; /opt/code/intarsiaml/.worktrees/mka/scripts/mka/gates.sh plan > /opt/code/intarsiaml/.worktrees/mka/docs/results/2026-11-15-mka-metal-kv-once/raw/q2/plan.out 2>&1; /opt/code/intarsiaml/.worktrees/mka/scripts/mka/gates.sh confirm > /opt/code/intarsiaml/.worktrees/mka/docs/results/2026-11-15-mka-metal-kv-once/raw/q2/confirm.out 2>&1; /opt/code/intarsiaml/.worktrees/mka/scripts/mka/gates.sh kernels > /opt/code/intarsiaml/.worktrees/mka/docs/results/2026-11-15-mka-metal-kv-once/raw/q2/kernels.out 2>&1; echo ALLDONE > /opt/code/intarsiaml/.worktrees/mka/docs/results/2026-11-15-mka-metal-kv-once/raw/q2/done'
+fleetq: #9635 done (exit 0)

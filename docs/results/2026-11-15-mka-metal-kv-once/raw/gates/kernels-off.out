@@ -56,4 +56,4 @@ bridge_norm    bridge_norm_bf16               24      0    1.188e-7    9.476e-8 
 bridge_code    bridge_code_bf16               24      0     0.000e0     0.000e0  ADMITTED
 bridge_gate    bridge_gate_bf16               24      0     0.000e0     0.000e0  ADMITTED
 bridge_write   bridge_write_bf16              24      0     0.000e0     0.000e0  ADMITTED
-55 kernels, 1276 cases in 39.6s
+55 kernels, 1276 cases in 40.6s

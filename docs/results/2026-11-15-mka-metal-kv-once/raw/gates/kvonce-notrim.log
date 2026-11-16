@@ -1,7 +1,7 @@
 warning: function `hip_batch_needs_hybrid` is never used
-    --> crates/intarsia-core/src/model/batch.rs:1241:4
+    --> crates/intarsia-core/src/model/batch.rs:1243:4
      |
-1241 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+1243 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
      |    ^^^^^^^^^^^^^^^^^^^^^^
      |
      = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
@@ -34,5 +34,5 @@ kv_once 8/2/64: bit-identical packed vs unpacked: 288 1-row, 660 verify-rows, 57
 kv_once 12/2/128: bit-identical packed vs unpacked: 288 1-row, 660 verify-rows, 576 row-table, 354 one-cache-table launches (guards included); planted fault seen [5, 5, 5] of 5
 test packed_launches_are_bit_identical_to_the_unpacked_launches ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.19s
 

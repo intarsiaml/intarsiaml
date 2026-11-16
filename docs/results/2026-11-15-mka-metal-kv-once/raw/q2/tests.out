@@ -1,0 +1,22 @@
+kv_once all-packed: exit 0 | 5 shapes | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.16s
+kv_once ipt1: exit 0 | 5 shapes | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.14s
+kv_once ipt2: exit 0 | 5 shapes | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.26s
+kv_once ipt3: exit 0 | 5 shapes | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.29s
+kv_once notrim: exit 0 | 5 shapes | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.19s
+kv_once tgf7680: exit 0 | 5 shapes | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.20s
+kv_once shipped: exit 0 | 5 shapes | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.15s
+hs_bitwise kvo=0: exit 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.91s 
+g0b_attn kvo=0: exit 0 | test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.52s 
+row_tables kvo=0: exit 0 | test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.00s 
+rows_exact kvo=0: exit 0 | test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.75s 
+dflash2 kvo=0: exit 0 | test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s 
+attention kvo=0: exit 0 | test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s 
+multirow kvo=0: exit 0 | test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.59s 
+hs_bitwise kvo=1: exit 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.71s 
+g0b_attn kvo=1: exit 0 | test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.45s 
+row_tables kvo=1: exit 0 | test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.97s 
+rows_exact kvo=1: exit 0 | test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.78s 
+dflash2 kvo=1: exit 0 | test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s 
+attention kvo=1: exit 0 | test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s 
+multirow kvo=1: exit 0 | test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.70s 
+## done tests

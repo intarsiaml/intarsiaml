@@ -1,4 +1,4 @@
 59c59
-< 55 kernels, 1276 cases in 39.6s
+< 55 kernels, 1276 cases in 40.6s
 ---
-> 55 kernels, 1276 cases in 38.6s
+> 55 kernels, 1276 cases in 36.9s

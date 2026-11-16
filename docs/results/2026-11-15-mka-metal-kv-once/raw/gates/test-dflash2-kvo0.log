@@ -1,7 +1,7 @@
 warning: function `hip_batch_needs_hybrid` is never used
-    --> crates/intarsia-core/src/model/batch.rs:1241:4
+    --> crates/intarsia-core/src/model/batch.rs:1243:4
      |
-1241 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+1243 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
      |    ^^^^^^^^^^^^^^^^^^^^^^
      |
      = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
@@ -23,8 +23,7 @@ warning: field `state_id` is never read
    |                ^^^^^^^^
 
 warning: `intarsia-core` (lib) generated 3 warnings
-   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/crates/intarsia-backend-metal)
-    Finished `release` profile [optimized] target(s) in 0.33s
+    Finished `release` profile [optimized] target(s) in 0.03s
      Running tests/dflash2.rs (target/release/deps/dflash2-c3f49dbf26c78a2f)
 
 running 3 tests
@@ -32,5 +31,5 @@ test window_decode_is_never_picked_by_plain_calls ... ok
 test dyn_conv_matches_the_reference ... ok
 test window_decode_is_bitwise_the_plain_decode_over_the_window ... ok
 
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.28s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
 

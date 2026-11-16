@@ -43,6 +43,7 @@ Lane `mka`, branch `mka`, worktree `/opt/code/intarsiaml/.worktrees/mka`, base `
 - [x] steps 1 to 3 read 2026-11-16 (all queued jobs exit 0) -> sections 4, 5, 6
 - 2026-11-16: coordinator: knob stays opt-in, no flip; merge origin/main (f0ecebe2b: #389, #393, #380), rerun build + suites,
   push, undraft #387 if green, do not merge, clean build folders.
+- [x] post-merge rerun green (#9635, section 4.1); pushed; #387 marked ready; `target/` removed. LANE DONE.
 - [ ] gates 1..7
 - [ ] LOG row, merge origin/main, PR (do not merge)
 
@@ -392,6 +393,15 @@ statistics of one cell (35B 4k: 99 passes / 155 accepted unset, 98 / 156 set): t
 kernel, so a draft can differ, as section 2.1 says; the emitted tokens are the same.
 
 Not covered: 27B multi-stream (the 27B has no batched path gated here), sampled requests.
+
+### 4.1 Rerun after merging origin/main f0ecebe2b (#389, #393, #380); fleetq #9635, `raw/q2/`
+
+| check | result |
+|---|---|
+| `kv_once` in the 7 layouts; `hs_bitwise`, `g0b_attn`, `row_tables`, `rows_exact`, `dflash2`, `attention`, `multirow` at knob 0 and 1 | PASS, all |
+| `plan show --json` knob unset vs the new main, 8B / 27B / 35B x default / off / mtp | byte-identical, 9 of 9 |
+| greedy ids main / unset / set: 35B 4k and 32k MTP, 27B 4k MTP, 27B short plain | SAME, 4 of 4 |
+| `kernels test`, knob off and on | 55 kernels, 1276 cases, 0 FAIL in both |
 
 ## 5. Speed
 

@@ -1,0 +1,10 @@
+plan Qwen3-8B spec=default: exits 0/0/0, base e6e7e70b0be79b3df709ba40e19c0541 off e6e7e70b0be79b3df709ba40e19c0541 on e6e7e70b0be79b3df709ba40e19c0541 base==off IDENTICAL (on vs off: 0 lines)
+plan Qwen3-8B spec=off: exits 0/0/0, base e6e7e70b0be79b3df709ba40e19c0541 off e6e7e70b0be79b3df709ba40e19c0541 on e6e7e70b0be79b3df709ba40e19c0541 base==off IDENTICAL (on vs off: 0 lines)
+plan Qwen3-8B spec=mtp: exits 1/1/1, base d41d8cd98f00b204e9800998ecf8427e off d41d8cd98f00b204e9800998ecf8427e on d41d8cd98f00b204e9800998ecf8427e base==off IDENTICAL (on vs off: 0 lines)
+plan Qwen3.8-27B-Quark-AWQ-MXFP4 spec=default: exits 0/0/0, base e07bac6a3ebc69251d03c42890ef4bed off e07bac6a3ebc69251d03c42890ef4bed on 7f12546f7711326ba7bb08f163c60f2a base==off IDENTICAL (on vs off: 2 lines)
+plan Qwen3.8-27B-Quark-AWQ-MXFP4 spec=off: exits 0/0/0, base 71e09f96bc660a6e5950b076a3cdae76 off 71e09f96bc660a6e5950b076a3cdae76 on 71e09f96bc660a6e5950b076a3cdae76 base==off IDENTICAL (on vs off: 0 lines)
+plan Qwen3.8-27B-Quark-AWQ-MXFP4 spec=mtp: exits 0/0/0, base e07bac6a3ebc69251d03c42890ef4bed off e07bac6a3ebc69251d03c42890ef4bed on 7f12546f7711326ba7bb08f163c60f2a base==off IDENTICAL (on vs off: 2 lines)
+plan Qwen3.6-35B-A3B-NVFP4 spec=default: exits 0/0/0, base ad89bd5abe464559600c3500ab7f5459 off ad89bd5abe464559600c3500ab7f5459 on c74c89cfea57b3deeb38d4c0d3d940f6 base==off IDENTICAL (on vs off: 2 lines)
+plan Qwen3.6-35B-A3B-NVFP4 spec=off: exits 0/0/0, base 915cb74ec1d0fa5fceb0f1a1540af48a off 915cb74ec1d0fa5fceb0f1a1540af48a on 915cb74ec1d0fa5fceb0f1a1540af48a base==off IDENTICAL (on vs off: 0 lines)
+plan Qwen3.6-35B-A3B-NVFP4 spec=mtp: exits 0/0/0, base ad89bd5abe464559600c3500ab7f5459 off ad89bd5abe464559600c3500ab7f5459 on c74c89cfea57b3deeb38d4c0d3d940f6 base==off IDENTICAL (on vs off: 2 lines)
+## done plan

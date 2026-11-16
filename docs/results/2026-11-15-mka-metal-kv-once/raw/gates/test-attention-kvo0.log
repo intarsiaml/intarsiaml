@@ -1,7 +1,7 @@
 warning: function `hip_batch_needs_hybrid` is never used
-    --> crates/intarsia-core/src/model/batch.rs:1241:4
+    --> crates/intarsia-core/src/model/batch.rs:1243:4
      |
-1241 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+1243 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
      |    ^^^^^^^^^^^^^^^^^^^^^^
      |
      = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
@@ -23,13 +23,12 @@ warning: field `state_id` is never read
    |                ^^^^^^^^
 
 warning: `intarsia-core` (lib) generated 3 warnings
-   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/crates/intarsia-backend-metal)
-    Finished `release` profile [optimized] target(s) in 0.47s
+    Finished `release` profile [optimized] target(s) in 0.03s
      Running tests/attention.rs (target/release/deps/attention-40e36ee8e323d673)
 
 running 10 tests
-test predicates_accept_bf16_caches_only ... ok
 test splitkv_predicate_and_scratch_declaration ... ok
+test predicates_accept_bf16_caches_only ... ok
 test splitkv_scratch_is_required_and_checked ... ok
 test fingerprint_names_device_and_metallib ... ok
 test decode_device_position ... ok
