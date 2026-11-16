@@ -84,7 +84,7 @@ fn main() {
     }
     // spread: 0 = narrow exponents (like the model), 1 = wide (order-sensitive)
     for spread in [0u32, 1] {
-        for &k in &[8usize, 10, 12, 16, 20, 24, 32, 48, 64, 128, 160, 256, 1024, 5120] {
+        for &k in &[8usize, 10, 12, 16, 20, 24, 32, 48, 64, 128, 160, 256, 1024, 5120, 17408] {
             let kk = k.next_multiple_of(32);
             let (n, m) = (256usize, 4usize);
             let mut r = Rng(1234 + k as u64 + spread as u64 * 77);
@@ -179,7 +179,22 @@ fn main() {
                     t[0]
                 })
             };
+            // the order the absorption probe (`tree`) shows: one accumulator over quads in K order, a quad being
+            // (p[a] + p[a+1]) + (p[a+8] + p[a+9]) for a = 16 t + 2 j, j = 0..3
+            fn quad_order(p: &[f64]) -> f32 {
+                let mut acc = 0f32;
+                for blk in p.chunks(16) {
+                    let g = |i: usize| blk.get(i).copied().unwrap_or(0.0);
+                    for j in 0..4 {
+                        let lo = (g(2 * j) + g(2 * j + 1)) as f32;
+                        let hi = (g(2 * j + 8) + g(2 * j + 9)) as f32;
+                        acc += lo + hi;
+                    }
+                }
+                acc
+            }
             let mut cands: Vec<Cand> = vec![
+                ("QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])", Box::new(quad_order)),
                 ("seq asc (rounded add per product)", Box::new(move |p: &[f64]| p.iter().fold(0f32, |a, &v| add(a, v)))),
                 ("seq desc", Box::new(move |p: &[f64]| p.iter().rev().fold(0f32, |a, &v| add(a, v)))),
                 ("exact sum, one rounding", Box::new(|p: &[f64]| p.iter().sum::<f64>() as f32)),
@@ -220,78 +235,6 @@ fn main() {
                     }
                 }
                 println!("    K = {k}: of {} = nearest {rn}, toward zero {rz}, down {rd}, up {ru}, neither neighbour {other}", m * n);
-            }
-            // nested family: chunk sizes c1 | c2 | .. with a combine mode per level (seq from 0, or pairwise tree), then seq into acc
-            if spread == 1 {
-                fn level(p: &[f32], c: usize, tree: bool) -> Vec<f32> {
-                    p.chunks(c)
-                        .map(|ch| {
-                            if tree {
-                                let mut v = ch.to_vec();
-                                while v.len() > 1 {
-                                    v = v.chunks(2).map(|c| if c.len() == 2 { c[0] + c[1] } else { c[0] }).collect();
-                                }
-                                v[0]
-                            } else {
-                                ch.iter().fold(0f32, |a, &v| a + v)
-                            }
-                        })
-                        .collect()
-                }
-                let sizes = [2usize, 4, 8, 16, 32, 64, 128];
-                let mut fam: Vec<(String, Vec<(usize, bool)>)> = Vec::new();
-                for mask in 0u32..(1 << sizes.len()) {
-                    let chain: Vec<usize> = (0..sizes.len()).filter(|b| mask >> b & 1 == 1).map(|b| sizes[b]).collect();
-                    for modes in 0u32..(1 << chain.len()) {
-                        // a tree only differs from seq when a level merges more than two sub-blocks
-                        let mut ok = true;
-                        let mut prev = 1;
-                        let lv: Vec<(usize, bool)> = chain
-                            .iter()
-                            .enumerate()
-                            .map(|(i, &c)| {
-                                let t = modes >> i & 1 == 1;
-                                if t && c / prev <= 2 {
-                                    ok = false;
-                                }
-                                let r = (c / prev, t);
-                                prev = c;
-                                r
-                            })
-                            .collect();
-                        if ok {
-                            let name = chain
-                                .iter()
-                                .zip(&lv)
-                                .map(|(c, (_, t))| format!("{c}{}", if *t { "t" } else { "s" }))
-                                .collect::<Vec<_>>()
-                                .join(" > ");
-                            fam.push((name, lv));
-                        }
-                    }
-                }
-                let mut fm = vec![0usize; fam.len()];
-                for i in 0..m {
-                    for j in 0..n {
-                        let p: Vec<f32> = prod(i, j).iter().map(|&v| v as f32).collect();
-                        for (fi, (_, lv)) in fam.iter().enumerate() {
-                            let mut v = p.clone();
-                            for &(c, t) in lv {
-                                v = level(&v, c, t);
-                            }
-                            let r = v.iter().fold(0f32, |a, &x| a + x);
-                            if r.to_bits() != got[i * n + j].to_bits() {
-                                fm[fi] += 1;
-                            }
-                        }
-                    }
-                }
-                let mut order: Vec<usize> = (0..fam.len()).collect();
-                order.sort_by_key(|&c| fm[c]);
-                println!("  nested family, K = {k} ({} candidates; 's' seq from 0, 't' pairwise tree; then seq into acc):", fam.len());
-                for &c in order.iter().take(8) {
-                    println!("    {:5} mismatches  [{}]", fm[c], fam[c].0);
-                }
             }
             let mut miss = vec![0usize; cands.len()];
             for i in 0..m {

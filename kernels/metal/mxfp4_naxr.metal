@@ -29,37 +29,28 @@ constant constexpr uint NR_TM = 16;  // activation rows of the accelerator tile
 
 constant float kNrFp4[16] = {0.f, 0.5f, 1.f, 1.5f, 2.f, 3.f, 4.f, 6.f, -0.f, -0.5f, -1.f, -1.5f, -2.f, -3.f, -4.f, -6.f};
 
-// The 8 codes of a weight word (element i in nibble i) with e8m0 scale byte sb -> 8 bf16, element 2j in the low half of
-// component j / 2 .. : returned as two uints per pair, x = elements 0..7 packed as uint4 (2 bf16 per uint, memory order).
-// bf16 bits of e2m1(code) * 2^(sb - 127) built with integer math: code = sign, e (2 bits), m (1 bit); nonzero magnitudes are
-// 2^(e - 1) * (1 + m / 2) for e > 0 and 0.5 for (e, m) = (0, 1), so the biased exponent is sb - 1 + e and the top mantissa bit
-// is m when e > 0. Valid while that exponent stays a normal one (2 <= sb <= 252); other scale bytes (subnormal, overflow, NaN)
-// take the float decode of `mxfp4_w_to_bf16`.
-inline uint4 nr_dec8(uint v, uint sb) {
+// Decode. bf16 bits of e2m1(code) * 2^(sb - 127): code = sign, e (2 bits), m (1 bit); nonzero magnitudes are 2^(e - 1) * (1 + m / 2)
+// for e > 0 and 0.5 for (e, m) = (0, 1), so the biased exponent is sb - 1 + e and the top mantissa bit is m when e > 0. That is
+// integer math while the exponent stays a normal one (2 <= sb <= 252): `kNrLut[byte]` holds, per code of the byte, sign, e << 7,
+// m << 6 and a nonzero flag in bit 0, and adding ((sb - 1) << 7) - 1 per flagged field turns the flag into the exponent base.
+// Other scale bytes (subnormal, overflow, NaN) take the float decode of `mxfp4_w_to_bf16` (`nr_dec8_slow`).
+// Returned: the 8 elements of a weight word in memory order, two bf16 per uint.
+inline uint4 nr_dec8_slow(uint v, uint sb) {
     const uint4 w = uint4(v);
     const uint4 t = ((w >> uint4(0u, 8u, 16u, 24u)) & 0xFu) | (((w >> uint4(4u, 12u, 20u, 28u)) & 0xFu) << 16u);
-    if (sb - 2u > 250u) {
-        const float s = sb == 0u ? as_type<float>(0x00400000u) : (sb == 255u ? as_type<float>(0x7FC00000u) : as_type<float>(sb << 23));
-        uint4 o;
-        for (int j = 0; j < 4; ++j) {
-            const float lo = kNrFp4[t[j] & 0xFu] * s, hi = kNrFp4[t[j] >> 16] * s;
-            o[j] = (as_type<uint>(lo) >> 16) | (as_type<uint>(hi) & 0xFFFF0000u);
-        }
-        return o;
+    const float s = sb == 0u ? as_type<float>(0x00400000u) : (sb == 255u ? as_type<float>(0x7FC00000u) : as_type<float>(sb << 23));
+    uint4 o;
+    for (int j = 0; j < 4; ++j) {
+        const float lo = kNrFp4[t[j] & 0xFu] * s, hi = kNrFp4[t[j] >> 16] * s;
+        o[j] = (as_type<uint>(lo) >> 16) | (as_type<uint>(hi) & 0xFFFF0000u);
     }
-    const uint4 e = (t >> 1u) & 0x00030003u;
-    const uint4 m = t & 0x00010001u;
-    const uint4 ge2 = (e | (e >> 1u)) & 0x00010001u;
-    const uint4 nz = ge2 | m;
-    return (nz * ((sb - 1u) << 7)) + (e << 7u) + ((m & ge2) << 6u) + ((t & 0x00080008u) << 12u);
+    return o;
 }
 
 constant uint kNrLut[256] = {0x00000000u, 0x00000001u, 0x00000081u, 0x000000C1u, 0x00000101u, 0x00000141u, 0x00000181u, 0x000001C1u, 0x00008000u, 0x00008001u, 0x00008081u, 0x000080C1u, 0x00008101u, 0x00008141u, 0x00008181u, 0x000081C1u, 0x00010000u, 0x00010001u, 0x00010081u, 0x000100C1u, 0x00010101u, 0x00010141u, 0x00010181u, 0x000101C1u, 0x00018000u, 0x00018001u, 0x00018081u, 0x000180C1u, 0x00018101u, 0x00018141u, 0x00018181u, 0x000181C1u, 0x00810000u, 0x00810001u, 0x00810081u, 0x008100C1u, 0x00810101u, 0x00810141u, 0x00810181u, 0x008101C1u, 0x00818000u, 0x00818001u, 0x00818081u, 0x008180C1u, 0x00818101u, 0x00818141u, 0x00818181u, 0x008181C1u, 0x00C10000u, 0x00C10001u, 0x00C10081u, 0x00C100C1u, 0x00C10101u, 0x00C10141u, 0x00C10181u, 0x00C101C1u, 0x00C18000u, 0x00C18001u, 0x00C18081u, 0x00C180C1u, 0x00C18101u, 0x00C18141u, 0x00C18181u, 0x00C181C1u, 0x01010000u, 0x01010001u, 0x01010081u, 0x010100C1u, 0x01010101u, 0x01010141u, 0x01010181u, 0x010101C1u, 0x01018000u, 0x01018001u, 0x01018081u, 0x010180C1u, 0x01018101u, 0x01018141u, 0x01018181u, 0x010181C1u, 0x01410000u, 0x01410001u, 0x01410081u, 0x014100C1u, 0x01410101u, 0x01410141u, 0x01410181u, 0x014101C1u, 0x01418000u, 0x01418001u, 0x01418081u, 0x014180C1u, 0x01418101u, 0x01418141u, 0x01418181u, 0x014181C1u, 0x01810000u, 0x01810001u, 0x01810081u, 0x018100C1u, 0x01810101u, 0x01810141u, 0x01810181u, 0x018101C1u, 0x01818000u, 0x01818001u, 0x01818081u, 0x018180C1u, 0x01818101u, 0x01818141u, 0x01818181u, 0x018181C1u, 0x01C10000u, 0x01C10001u, 0x01C10081u, 0x01C100C1u, 0x01C10101u, 0x01C10141u, 0x01C10181u, 0x01C101C1u, 0x01C18000u, 0x01C18001u, 0x01C18081u, 0x01C180C1u, 0x01C18101u, 0x01C18141u, 0x01C18181u, 0x01C181C1u, 0x80000000u, 0x80000001u, 0x80000081u, 0x800000C1u, 0x80000101u, 0x80000141u, 0x80000181u, 0x800001C1u, 0x80008000u, 0x80008001u, 0x80008081u, 0x800080C1u, 0x80008101u, 0x80008141u, 0x80008181u, 0x800081C1u, 0x80010000u, 0x80010001u, 0x80010081u, 0x800100C1u, 0x80010101u, 0x80010141u, 0x80010181u, 0x800101C1u, 0x80018000u, 0x80018001u, 0x80018081u, 0x800180C1u, 0x80018101u, 0x80018141u, 0x80018181u, 0x800181C1u, 0x80810000u, 0x80810001u, 0x80810081u, 0x808100C1u, 0x80810101u, 0x80810141u, 0x80810181u, 0x808101C1u, 0x80818000u, 0x80818001u, 0x80818081u, 0x808180C1u, 0x80818101u, 0x80818141u, 0x80818181u, 0x808181C1u, 0x80C10000u, 0x80C10001u, 0x80C10081u, 0x80C100C1u, 0x80C10101u, 0x80C10141u, 0x80C10181u, 0x80C101C1u, 0x80C18000u, 0x80C18001u, 0x80C18081u, 0x80C180C1u, 0x80C18101u, 0x80C18141u, 0x80C18181u, 0x80C181C1u, 0x81010000u, 0x81010001u, 0x81010081u, 0x810100C1u, 0x81010101u, 0x81010141u, 0x81010181u, 0x810101C1u, 0x81018000u, 0x81018001u, 0x81018081u, 0x810180C1u, 0x81018101u, 0x81018141u, 0x81018181u, 0x810181C1u, 0x81410000u, 0x81410001u, 0x81410081u, 0x814100C1u, 0x81410101u, 0x81410141u, 0x81410181u, 0x814101C1u, 0x81418000u, 0x81418001u, 0x81418081u, 0x814180C1u, 0x81418101u, 0x81418141u, 0x81418181u, 0x814181C1u, 0x81810000u, 0x81810001u, 0x81810081u, 0x818100C1u, 0x81810101u, 0x81810141u, 0x81810181u, 0x818101C1u, 0x81818000u, 0x81818001u, 0x81818081u, 0x818180C1u, 0x81818101u, 0x81818141u, 0x81818181u, 0x818181C1u, 0x81C10000u, 0x81C10001u, 0x81C10081u, 0x81C100C1u, 0x81C10101u, 0x81C10141u, 0x81C10181u, 0x81C101C1u, 0x81C18000u, 0x81C18001u, 0x81C18081u, 0x81C180C1u, 0x81C18101u, 0x81C18141u, 0x81C18181u, 0x81C181C1u};
 
-// byte (two codes) -> two bf16 through the table: field = sign, e << 7, m << 6 and bit 0 = nonzero; adding (base - 1) per nonzero
-// field turns the flag into the exponent base ((sb - 1) << 7)
-inline uint4 nr_dec8_lut(uint v, uint sb) {
-    if (sb - 2u > 250u) return nr_dec8(v, sb);
+inline uint4 nr_dec8(uint v, uint sb) {
+    if (sb - 2u > 250u) return nr_dec8_slow(v, sb);
     const uint bm1 = ((sb - 1u) << 7) - 1u;
     uint4 o;
     for (int j = 0; j < 4; ++j) {
@@ -101,17 +92,13 @@ inline void mxfp4_naxr_impl(device const ushort* x, device const uchar* w, devic
     const ulong wrow = bok ? n0 + br : 0;
     device const uchar* wp = w + wrow * (K / 2);
     device const uchar* sp = sc + p.s0 + wrow * (K / 32);
-    uint4 wv[NB], wn[NB];
-    uint sv[NB], sn[NB];
+    uint4 wv[NB];
+    uint sv[NB];
     for (uint q = 0; q < NB; ++q) {
         const uint g = bq + q;
         const bool ok = bok && g * 32u < K;
         wv[q] = ok ? uint4(*(device const packed_uint4*)(wp + g * 16u)) : uint4(0u);
         sv[q] = ok ? (uint)sp[g] : 127u;
-        const uint g1 = BK / 32u + bq + q;
-        const bool ok1 = bok && g1 * 32u < K;
-        wn[q] = ok1 ? uint4(*(device const packed_uint4*)(wp + (ulong)g1 * 16u)) : uint4(0u);
-        sn[q] = ok1 ? (uint)sp[g1] : 127u;
     }
     const uint scol = sg * SN;
 
@@ -128,7 +115,7 @@ inline void mxfp4_naxr_impl(device const ushort* x, device const uchar* w, devic
     for (uint k0 = 0; k0 < K; k0 += BK) {
         for (uint j = 0; j < NA; ++j) {  // activations (x may sit at an odd element: 2-byte loads)
             const uint c = tid + 128u * j;
-            if (ap[j] == nullptr || (p.d & 8u)) continue;
+            if (ap[j] == nullptr) continue;
             uint4 v = uint4(0u);
             if (k0 + (c % AC) * 8u < K) {
                 device const packed_ushort4* q4 = (device const packed_ushort4*)(ap[j] + k0);
@@ -139,25 +126,15 @@ inline void mxfp4_naxr_impl(device const ushort* x, device const uchar* w, devic
         }
         for (uint q = 0; q < NB; ++q) {
             threadgroup uint4* d = (threadgroup uint4*)(Bs + br * LD + (bq + q) * 32u);
-            if (p.d & 2u) { if (k0 == 0) for (uint i = 0; i < 4; ++i) d[i] = nr_dec8(wv[q][i], sv[q]); }
-            else if (p.d & 16u) for (uint i = 0; i < 4; ++i) d[i] = nr_dec8_lut(wv[q][i], sv[q]);
-            else for (uint i = 0; i < 4; ++i) d[i] = nr_dec8(wv[q][i], sv[q]);
+            for (uint i = 0; i < 4; ++i) d[i] = nr_dec8(wv[q][i], sv[q]);
         }
         threadgroup_barrier(mem_flags::mem_threadgroup);
-        // the words of the step after next are fetched while the accelerator runs (two steps of slack for the memory)
-        for (uint q = 0; q < NB; ++q) {
-            wv[q] = wn[q];
-            sv[q] = sn[q];
-            const uint g = (k0 + 2u * BK) / 32u + bq + q;
-            const bool ok = bok && g * 32u < K;
-            if (p.d & 32u) {
-                const uint g1 = (k0 + BK) / 32u + bq + q;
-                const bool ok1 = bok && g1 * 32u < K;
-                wv[q] = ok1 ? uint4(*(device const packed_uint4*)(wp + (ulong)g1 * 16u)) : uint4(0u);
-                sv[q] = ok1 ? (uint)sp[g1] : 127u;
-            } else {
-                wn[q] = ok ? uint4(*(device const packed_uint4*)(wp + (ulong)g * 16u)) : uint4(0u);
-                sn[q] = ok ? (uint)sp[g] : 127u;
+        if (k0 + BK < K) {  // next step's weight words, fetched while the accelerator runs
+            for (uint q = 0; q < NB; ++q) {
+                const uint g = (k0 + BK) / 32u + bq + q;
+                const bool ok = bok && g * 32u < K;
+                wv[q] = ok ? uint4(*(device const packed_uint4*)(wp + (ulong)g * 16u)) : uint4(0u);
+                sv[q] = ok ? (uint)sp[g] : 127u;
             }
         }
         ext_a ea;
@@ -165,11 +142,7 @@ inline void mxfp4_naxr_impl(device const ushort* x, device const uchar* w, devic
         array<int, 2> st = {1, int(LD)};
         ten_a tA(As, ea, st);                // activations [TM rows][BK]
         ten_b tB(Bs + scol * LD, eb, st);    // weights [SN rows][BK] (transpose_right)
-        if (p.d & 8u) {
-            tensor<device bfloat, dextents<int, 2>, tensor_inline> dA((device bfloat*)(x + p.s2), dextents<int, 2>(int(K), int(M)));
-            auto sA = dA.template slice<BK, TM>(int(k0), int(m0));
-            op.run(sA, tB, ct);
-        } else if (!(p.d & 1u)) op.run(tA, tB, ct);
+        op.run(tA, tB, ct);
         threadgroup_barrier(mem_flags::mem_threadgroup);
     }
     {
@@ -216,7 +189,7 @@ MX_NAXR(mxfp4_naxr_f32_w32k256, 32, 256, float)
 inline bfloat4 nq_dec4(uint v, uint sb) {  // 4 codes (16 bits) -> 4 bf16
     uint2 o;
     if (sb - 2u > 250u) {
-        const uint4 d = nr_dec8(v, sb);
+        const uint4 d = nr_dec8_slow(v, sb);
         o = uint2(d.x, d.y);
     } else {
         const uint bm1 = ((sb - 1u) << 7) - 1u;
@@ -302,3 +275,90 @@ inline void mxfp4_naxq_impl(device const ushort* x, device const uchar* w, devic
     }
 MX_NAXQ(mxfp4_naxq_bf16, ushort)
 MX_NAXQ(mxfp4_naxq_f32, float)
+
+// ---- ALU twin: the accelerator's bits without the accelerator (small M) ------------------------------------------------------
+// The accelerator sums the K products of an output element in a fixed order (absorption probe, examples/naxr_order.rs; pinned by
+// tests/mxfp4_naxr.rs `naxr_is_the_quad_order_sum_bit_for_bit`): one f32 accumulator over quads in K order, a quad being
+// (p[a] + p[a+1]) + (p[a+8] + p[a+9]) for a = 16 t + 2 j, j = 0..3, every add rounded to nearest even, every product exact. That
+// is plain IEEE arithmetic, so a GEMV can produce the same bits: here one lane owns one output row (its accumulator chain is
+// serial in K), decodes a 32-weight group and walks its two 16-blocks. The codes are decoded to e2m1 * 2^-14 (the half trick of
+// mxfp4.metal `mx_x2`) and the group scale is applied to each quad (q * 2^14 exact, then fma(q, s, acc)): scaling by a power of
+// two commutes with every rounding above (no underflow at the magnitudes of a checkpoint), so the bits are the accelerator's.
+// MB activation rows per grid row; grid (ceil(N / 128), ceil(M / MB)), 128 threads. Same bindings as the forms above.
+inline float2 nt_x2(uint t) {
+    const uint h = ((t & 0x00070007u) << 9) | ((t & 0x00080008u) << 12);
+    return float2(as_type<half2>(h));
+}
+
+template <int MB, typename OutT>
+inline void mxfp4_naxt_impl(device const ushort* x, device const uchar* w, device const uchar* sc, device OutT* out,
+                            constant OpP& p, uint2 tg, uint tid) {
+    const uint M = p.a, N = p.b, K = p.c;
+    const uint n = tg.x * 128u + tid;
+    if (n >= N) return;
+    const uint m0 = tg.y * MB;
+    device const packed_uint4* wr = (device const packed_uint4*)(w + (ulong)n * (K / 2));
+    device const uchar* sr = sc + p.s0 + (ulong)n * (K / 32);
+    device const ushort* xr = x + p.s2 + (ulong)m0 * K;
+    float acc[MB];
+    for (int m = 0; m < MB; ++m) acc[m] = 0.f;
+    for (uint g = 0; g < K / 32u; ++g) {
+        const uint4 wv = uint4(wr[g]);
+        const uint sb = sr[g];
+        const float s = sb == 0u ? as_type<float>(0x00400000u) : (sb == 255u ? as_type<float>(0x7FC00000u) : as_type<float>(sb << 23));
+#pragma clang loop unroll(full)
+        for (uint h = 0; h < 2; ++h) {
+            float wf[16];  // element e of the 16-block, * 2^-14
+#pragma clang loop unroll(full)
+            for (uint c = 0; c < 2; ++c) {
+                const uint v = wv[2 * h + c];
+#pragma clang loop unroll(full)
+                for (uint k = 0; k < 4; ++k) {
+                    const float2 d = nt_x2((v >> (4 * k)) & 0x000F000Fu);  // elements k and k + 4 of the word
+                    wf[8 * c + k] = d.x;
+                    wf[8 * c + k + 4] = d.y;
+                }
+            }
+#pragma clang loop unroll(full)
+            for (int m = 0; m < MB; ++m) {
+                if (m0 + m >= M) break;
+                device const packed_ushort4* xp = (device const packed_ushort4*)(xr + (ulong)m * K + g * 32u + h * 16u);
+                float xf[16];
+#pragma clang loop unroll(full)
+                for (uint c = 0; c < 4; ++c) {
+                    const float4 f = as_type<float4>(uint4(ushort4(xp[c])) << 16u);
+                    xf[4 * c] = f.x;
+                    xf[4 * c + 1] = f.y;
+                    xf[4 * c + 2] = f.z;
+                    xf[4 * c + 3] = f.w;
+                }
+#pragma clang loop unroll(full)
+                for (uint j = 0; j < 4; ++j) {
+                    const float lo = fma(xf[2 * j + 1], wf[2 * j + 1], xf[2 * j] * wf[2 * j]);
+                    const float hi = fma(xf[2 * j + 9], wf[2 * j + 9], xf[2 * j + 8] * wf[2 * j + 8]);
+                    const float q = lo + hi;
+                    acc[m] = fma(q * 16384.0f, s, acc[m]);
+                }
+            }
+        }
+    }
+    for (int m = 0; m < MB; ++m) {
+        if (m0 + m >= M) break;
+        store_out(out + p.s1, (ulong)(m0 + m) * N + n, acc[m]);
+    }
+}
+
+#define MX_NAXT(NAME, MB, OUT)                                                                                       \
+    kernel void NAME(device const ushort* x [[buffer(0)]], device const uchar* w [[buffer(1)]],                      \
+                     device const uchar* sc [[buffer(2)]], device OUT* out [[buffer(3)]],                            \
+                     constant OpP& p [[buffer(4)]], uint2 tg [[threadgroup_position_in_grid]],                       \
+                     uint tid [[thread_index_in_threadgroup]]) {                                                     \
+        mxfp4_naxt_impl<MB, OUT>(x, w, sc, out, p, tg, tid);                                                         \
+    }
+// Keep in step with NAXT_SHADERS in src/mxfp4.rs.
+MX_NAXT(mxfp4_naxt_bf16_m1, 1, ushort)
+MX_NAXT(mxfp4_naxt_f32_m1, 1, float)
+MX_NAXT(mxfp4_naxt_bf16_m2, 2, ushort)
+MX_NAXT(mxfp4_naxt_f32_m2, 2, float)
+MX_NAXT(mxfp4_naxt_bf16_m4, 4, ushort)
+MX_NAXT(mxfp4_naxt_f32_m4, 4, float)

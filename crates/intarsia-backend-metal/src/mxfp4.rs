@@ -32,8 +32,8 @@ pub struct NaxrForm {
     pub bk: usize,
     pub shaders: [&'static str; 2],
 }
-/// Forms of equal `bk` give the same bits (tests/mxfp4_naxr.rs); the launcher uses [`NAXR_DEFAULT`] unless a test or
-/// `INTARSIA_METAL_NAXR_FORM` (A/B only) says otherwise.
+/// Every form gives the same bits (tests/mxfp4_naxr.rs: the accelerator's K order does not depend on how K is cut into runs); the
+/// launcher picks by shape ([`naxr_pick`]) unless a test or `INTARSIA_METAL_NAXR_FORM` (A/B only) says otherwise.
 pub const NAXR_FORMS: [NaxrForm; 4] = [
     NaxrForm { wr: 64, bk: 128, shaders: ["mxfp4_naxr_bf16_w64k128", "mxfp4_naxr_f32_w64k128"] },
     NaxrForm { wr: 32, bk: 128, shaders: ["mxfp4_naxr_bf16_w32k128", "mxfp4_naxr_f32_w32k128"] },
@@ -41,7 +41,27 @@ pub const NAXR_FORMS: [NaxrForm; 4] = [
     // register-fed: 4 simdgroups of 32 weight rows, K runs of 16, no threadgroup memory
     NaxrForm { wr: 128, bk: 16, shaders: ["mxfp4_naxq_bf16", "mxfp4_naxq_f32"] },
 ];
-pub const NAXR_DEFAULT: usize = 0;
+/// The ALU twin (`mxfp4_naxt_*`): the accelerator's summation order in plain fp32, one lane per output row, MB = 1 / 2 / 4 activation
+/// rows per grid row, bf16 then f32 output. Bitwise the accelerator forms (tests/mxfp4_naxr.rs). Form index [`NAXT_FORM`] in the test
+/// hook and `INTARSIA_METAL_NAXR_FORM`.
+pub const NAXT_SHADERS: [[&str; 2]; 3] = [
+    ["mxfp4_naxt_bf16_m1", "mxfp4_naxt_f32_m1"],
+    ["mxfp4_naxt_bf16_m2", "mxfp4_naxt_f32_m2"],
+    ["mxfp4_naxt_bf16_m4", "mxfp4_naxt_f32_m4"],
+];
+pub const NAXT_FORM: usize = NAXR_FORMS.len();
+/// Largest M the launcher gives to the ALU twin by default (above it the accelerator forms): from the 27B-shape bench.
+pub const NAXT_MAX_M: usize = 0;
+
+/// Form of an N-row weight, from the 27B-shape bench (docs/results/2026-11-15-mnr-metal-nax-rows.md): 64 rows x 128 for the wide
+/// outputs (gate/up, q_proj), 32 rows x 256 for outputs of at most 8192 rows (down, out_proj: long K, few threadgroups).
+pub fn naxr_pick(n: usize) -> usize {
+    if n <= 8192 {
+        2
+    } else {
+        0
+    }
+}
 /// Activation rows per grid row of the row kernel (`NR_TM`).
 pub const NAXR_TM: usize = 16;
 
@@ -96,17 +116,15 @@ pub fn with_naxr_fault<R>(f: impl FnOnce() -> R) -> R {
     r
 }
 
-fn naxr_form() -> usize {
-    static ENV: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
-    NAXR_FORM.with(|t| t.get()).unwrap_or_else(|| {
-        *ENV.get_or_init(|| {
-            std::env::var("INTARSIA_METAL_NAXR_FORM")
-                .ok()
-                .and_then(|v| v.trim().parse().ok())
-                .filter(|&i: &usize| i < NAXR_FORMS.len())
-                .unwrap_or(NAXR_DEFAULT)
-        })
+fn naxt_env() -> Option<usize> {
+    static ENV: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
+    *ENV.get_or_init(|| {
+        std::env::var("INTARSIA_METAL_NAXR_FORM").ok().and_then(|v| v.trim().parse().ok()).filter(|&i: &usize| i <= NAXT_FORM)
     })
+}
+
+fn naxr_form(n: usize) -> usize {
+    NAXR_FORM.with(|t| t.get()).unwrap_or_else(|| naxt_env().unwrap_or_else(|| naxr_pick(n)))
 }
 
 const XPREP: &str = "mxfp4_xprep_bf16";
@@ -495,8 +513,24 @@ impl MetalBackend {
         [m, n, k]: [usize; 3],
         f32_out: bool,
     ) -> Result<()> {
-        let form = &NAXR_FORMS[naxr_form()];
-        let name = form.shaders[f32_out as usize];
+        let fi = match naxr_form(n) {
+            f if NAXR_FORM.with(|t| t.get()).is_none() && naxt_env().is_none() && m <= NAXT_MAX_M => {
+                let _ = f;
+                NAXT_FORM
+            }
+            f => f,
+        };
+        // (weight rows per threadgroup, activation rows per grid row, shader)
+        let (wr, tm, name) = if fi == NAXT_FORM {
+            let mb = match m {
+                1 => 0,
+                2 => 1,
+                _ => 2,
+            };
+            (128, 1 << mb, NAXT_SHADERS[mb][f32_out as usize])
+        } else {
+            (NAXR_FORMS[fi].wr, NAXR_TM, NAXR_FORMS[fi].shaders[f32_out as usize])
+        };
         let pso_g = self
             .pso(name)
             .ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}' (metal4.0 library not loaded)")))?;
@@ -525,7 +559,6 @@ impl MetalBackend {
         let px = OpP { dims, skips: [xb.skip, 0, 0, 0, 0], ..Default::default() };
         let src = xs.as_ref().unwrap_or(xb);
         let mut pg = OpP { dims, skips: [sb.skip, ob.skip, src.skip, 0, 0], ..Default::default() };
-        pg.dims[3] = std::env::var("NAXR_DBG").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
         if NAXR_FAULT.with(|t| t.get()) && m > 1 {
             pg.dims[0] -= 1;
         }
@@ -554,7 +587,7 @@ impl MetalBackend {
             }
             set_bytes(enc, &pg, 4);
             enc.dispatchThreadgroups_threadsPerThreadgroup(
-                MTLSize { width: n.div_ceil(form.wr), height: (pg.dims[0] as usize).div_ceil(NAXR_TM), depth: 1 },
+                MTLSize { width: n.div_ceil(wr), height: (pg.dims[0] as usize).div_ceil(tm), depth: 1 },
                 MTLSize { width: 128, height: 1, depth: 1 },
             );
         })

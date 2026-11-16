@@ -210,13 +210,14 @@ fn naxr_forms_give_the_same_bits() {
         let rows: Vec<usize> = (0..16).collect();
         for f32_out in [false, true] {
             let want = r.go(&rows, Opt { f32_out, form: Some(0), ..O });
-            for form in 1..NAXR_FORMS.len() {
-                for m in [1usize, 3, 16] {
+            // the accelerator forms and the ALU twin (index NAXR_FORMS.len())
+            for form in 1..=NAXR_FORMS.len() {
+                for m in [1usize, 2, 3, 5, 16] {
                     let got = r.go(&rows[..m], Opt { f32_out, form: Some(form), ..O });
                     assert!(
                         got[..] == want[..got.len()],
                         "n={n} k={k} f32={f32_out} m={m}: form {} differs from form 0",
-                        NAXR_FORMS[form].shaders[0]
+                        NAXR_FORMS.get(form).map_or("the ALU twin", |f| f.shaders[0])
                     );
                 }
             }
@@ -273,6 +274,48 @@ fn naxr_matches_an_f64_reference() {
     }
 }
 
+/// The accelerator's K order, found by the absorption probe (examples/naxr_order.rs `tree`): one f32 accumulator over quads in K
+/// order, a quad being (p[a] + p[a+1]) + (p[a+8] + p[a+9]) for a = 16 t + 2 j (j = 0..4), every add rounded to nearest even and
+/// every product exact. The kernel's f32 output is this sum bit for bit, on operands with a wide exponent spread (where the order
+/// matters in most outputs).
+#[test]
+fn naxr_is_the_quad_order_sum_bit_for_bit() {
+    let be = backend();
+    for (si, &(n, k)) in [(64usize, 32usize), (130, 96), (37, 160), (64, 1024), (100, 5120), (16, 17408)].iter().enumerate() {
+        let m = 5;
+        let mut r = Rng(4242 + si as u64);
+        let mut next = |md: u64| (r.next_u64() >> 40) % md;
+        let w: Vec<u8> = (0..n * k / 2).map(|_| next(256) as u8).collect();
+        let sc: Vec<u8> = (0..n * k / 32).map(|_| 110 + next(12) as u8).collect();
+        let x: Vec<u16> = (0..m * k).map(|_| ((next(2) as u16) << 15) | ((120 + next(12) as u16) << 7) | next(128) as u16).collect();
+        let dec = decode(&w, &sc, n, k);
+        let run = Run::with(&be, x.clone(), w, sc, n, k);
+        let rows: Vec<usize> = (0..m).collect();
+        let got = f32s(&run.go(&rows, Opt { f32_out: true, ..O }));
+        let (mut bad, mut differs_from_seq) = (0, 0);
+        for i in 0..m {
+            for j in 0..n {
+                let p = |e: usize| bf16_to_f32(x[i * k + e]) as f64 * dec[j * k + e] as f64; // exact
+                let (mut acc, mut seq) = (0f32, 0f32);
+                for a in (0..k).step_by(16) {
+                    for q in 0..4 {
+                        let a = a + 2 * q;
+                        acc += (p(a) + p(a + 1)) as f32 + (p(a + 8) + p(a + 9)) as f32;
+                    }
+                }
+                for e in 0..k {
+                    seq = (seq as f64 + p(e)) as f32;
+                }
+                bad += (acc.to_bits() != got[i * n + j].to_bits()) as usize;
+                differs_from_seq += (acc.to_bits() != seq.to_bits()) as usize;
+            }
+        }
+        eprintln!("quad order n={n} k={k}: {bad} of {} differ; the plain K-ascending chain would differ in {differs_from_seq}", m * n);
+        assert_eq!(bad, 0, "n={n} k={k}: outputs that are not the quad-order sum");
+        assert!(k < 64 || differs_from_seq > m * n / 4, "the operands must make the order matter");
+    }
+}
+
 /// Against the GEMV (same activations, fp32 FMA chain): only the K accumulation order differs. W4A16 and W4A4.
 #[test]
 fn naxr_matches_the_gemv_within_accumulation_order() {
@@ -309,12 +352,14 @@ fn naxr_w4a4_rows_do_not_depend_on_the_call() {
     }
 }
 
-/// Scale bytes at the edges of the integer decode (subnormal, the last normal exponents) and every code: K = 32, one-hot
-/// activations of a power of two, so each output is one decoded weight times that power exactly.
+/// Scale bytes at the edges of the integer decode (the first and last normal exponents, and 253 on the float path) and every
+/// code: K = 32, one-hot activations of a power of two, so each output is one decoded weight times that power exactly.
+/// Scale bytes 0 and 1 are left out: they give weights below 2^-126, subnormal as bf16, and the accelerator reads a subnormal
+/// operand as zero (measured; `matmul_mxfp4_nax` feeds it the same bf16). No checkpoint has such scales.
 #[test]
 fn naxr_decodes_every_code_and_edge_scale() {
     let be = backend();
-    let scs: [u8; 12] = [0, 1, 2, 3, 4, 100, 127, 200, 250, 251, 252, 253];
+    let scs: [u8; 12] = [2, 3, 4, 5, 6, 100, 127, 200, 250, 251, 252, 253];
     let (n, k) = (scs.len() * 2, 32usize);
     // row j: scale scs[j / 2]; codes: element e holds code (e + 8 * (j % 2)) % 16 -> every code at even and odd elements
     let mut w = vec![0u8; n * k / 2];
@@ -326,7 +371,7 @@ fn naxr_decodes_every_code_and_edge_scale() {
     }
     let sc: Vec<u8> = (0..n).map(|j| scs[j / 2]).collect();
     let dec = decode(&w, &sc, n, k);
-    for (pow, lo, hi) in [(100i32, 0u8, 127u8), (-100, 127, 253)] {
+    for (pow, lo, hi) in [(100i32, 2u8, 127u8), (-100, 127, 253)] {
         let xv = 2f32.powi(pow);
         let mut x = vec![0u16; 32 * k];
         for e in 0..32 {
