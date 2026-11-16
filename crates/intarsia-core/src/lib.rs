@@ -38,7 +38,7 @@ pub mod tensor;
 pub mod tp_remote;
 pub mod weights;
 
-pub use backend::{Backend, Buffer, DeviceInfo, MemKind, StreamId, TensorRef};
+pub use backend::{Backend, Buffer, DeviceInfo, GdnVerifyRows, MemKind, StreamId, TensorRef};
 pub use comm::{Comm, CommStats, HostCommGroup};
 pub use dtype::DType;
 pub use engine::{BatchedEngine, BatchedOptions, ChatOpts, Engine, EngineMeta, FinishReason, GenEvent, GenRequest, LocalEngine, ModelInfo, Prewarm, ScriptStep, TextCodec};

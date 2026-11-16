@@ -89,6 +89,17 @@ int ik_matmul_fp8_gemm_lt(const ik_tensor* x, const ik_tensor* w, const ik_tenso
 int ik_gdn_delta_rule_bf16_split(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
                                  const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state, void* stream);
 
+/* gdn_verify_snap (lane mtp2s, kernels/cuda/gdn.cu): the T = 2..8 rows of one sequence's GatedDeltaNet block in two launches, with the
+ * recurrent state saved after every row but the last. BITWISE the row-by-row ik_gdn_conv_bf16 + ik_gdn_delta_rule_bf16_split launches
+ * (T = 1, the decode kernel) and the copies of the whole slot after each row that the speculative verify pass makes. x / qkv [T, C],
+ * y [T, C] (the conv output, scratch), o [T, Hv, dv]; conv_state [C, K-1] (f32 | bf16) and state [Hv, dv, dk] (f32 | bf16), dk = 128, in
+ * place; snap_conv / snap_s: T - 1 tensors each (the conv state and the delta-rule state after rows 0 .. T - 2, same dtypes, the state
+ * 16-byte aligned). IK_ERR_UNSUPPORTED (nothing launched) when the one-row launches would take another kernel
+ * (INTARSIA_GDN_DEC=0, INTARSIA_CUDA_GDN_STATE_BF16_EMU=1). */
+int ik_gdn_verify_snap_bf16(const ik_tensor* x, const ik_tensor* taps, ik_tensor* y, const ik_tensor* a, const ik_tensor* b,
+                            const ik_tensor* a_log, const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* conv_state,
+                            ik_tensor* state, const ik_tensor* snap_conv, const ik_tensor* snap_s, void* stream);
+
 /* attn_decode_f8kv_splitkv / attn_prefill_f8kv_splitkv / attn_prefill_f8kv_flash: ik_attn_decode_bf16_splitkv /
  * ik_attn_prefill_bf16_splitkv / ik_attn_prefill_bf16_flash (same arguments and scratch, bf16 q and out) over an fp8_e4m3 KV
  * cache [Nkv, cap, D]; bitwise the bf16 kernels on the cache upcast to bf16, see kernels/cuda/attention_splitkv.cu and

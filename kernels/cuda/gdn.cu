@@ -738,6 +738,124 @@ void gdn_dec_run(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, c
 #undef IK_GDN_DEC
 }
 
+
+// ---- speculative verify: T rows of one sequence in two launches, with the recurrent state saved after every row but the last -------
+// Lane mtp2s (2026-11-16). The verify pass runs a GatedDeltaNet block's rows one at a time (each launch is the decode step's:
+// gdn_conv_kernel + gdn_delta_dec_kernel + gdn_conv_state_kernel) and copies the whole recurrent slot to a save buffer after every
+// row but the last, so a rejected draft can roll back. These two kernels run the same T rows in one launch each and store the
+// saves themselves: BITWISE the row-by-row launches and copies (tests: crates/intarsia-backend-cuda/tests/gdn_verify_snap.rs), the
+// same expressions in the same order per element; only the launches, the copies and the state's round trip through memory go.
+constexpr int kMaxSnap = 7;  // the most saves (rows - 1) one launch stores
+struct GdnSnaps {
+    void* conv[kMaxSnap];  // save r: the conv state after row r, [C, K-1] in the state's dtype
+    void* s[kMaxSnap];     // save r: the delta-rule state after row r, [Hv, dv, dk] in the state's dtype
+};
+
+// Conv: one thread per channel, rows in order. History h[] = the K-1 previous inputs as gdn_conv_kernel reads them for a T = 1 call
+// (the old state), shifted by the row's input as gdn_conv_state_kernel stores it; the new state of row r goes to save r (the last row:
+// the state in place). Thread c owns channel c's history, so reading the old state first and writing it last has no hazard.
+template <typename ST>
+__global__ void gdn_conv_snap_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, ik_bf16* __restrict__ y,
+                                     ST* __restrict__ state, GdnSnaps snaps, int T, int C, int K) {
+    const int c = blockIdx.x * blockDim.x + threadIdx.x;
+    if (c >= C) return;
+    float taps[kMaxTaps], h[kMaxTaps];
+    for (int j = 0; j < K; ++j) taps[j] = ik_b2f(w[(int64_t)c * K + j]);
+    for (int j = 0; j < K - 1; ++j) h[j] = st_ld(state + (int64_t)c * (K - 1) + j);
+    for (int t = 0; t < T; ++t) {
+        const float cur = ik_b2f(x[(int64_t)t * C + c]);
+        float acc = taps[K - 1] * cur;
+        for (int j = 0; j < K - 1; ++j) acc += taps[j] * h[j];
+        y[(int64_t)t * C + c] = ik_f2b(silu(acc));
+        for (int j = 0; j < K - 2; ++j) h[j] = h[j + 1];
+        h[K - 2] = cur;
+        ST* dst = t + 1 < T ? reinterpret_cast<ST*>(snaps.conv[t]) : state;
+        for (int j = 0; j < K - 1; ++j) st_put(dst + (int64_t)c * (K - 1) + j, h[j]);
+    }
+}
+
+// Delta rule: gdn_delta_dec_kernel (RPW = 1, WPB = 1) looped over the T rows with the state kept in registers. A state stored as bf16
+// is rounded (to nearest even) at the end of every row, as every one-row launch rounds at its final store; the output row is computed
+// from the unrounded state, as there. Row t's save (t < T - 1) takes the state as the launch would store it; the last row's goes to
+// the state in place. EMU (the dev-only f32-with-bf16-rounding emulation) is not handled: the launcher refuses it.
+template <class SE>
+__global__ void __launch_bounds__(32) gdn_delta_snap_kernel(
+    const ik_bf16* __restrict__ qkv, const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ b,
+    const ik_bf16* __restrict__ a_log, const ik_bf16* __restrict__ dt_bias, float eps, ik_bf16* __restrict__ o,
+    SE* __restrict__ state, GdnSnaps snaps, int T, int Hk, int Hv, int dv) {
+    constexpr int DK = 128, PL = DK / 32;
+    const int lane = threadIdx.x;
+    const int j0 = blockIdx.x;  // RPW = 1, WPB = 1: one value row per warp
+    const int h = blockIdx.y;
+    const int kh = h / (Hv / Hk);
+    const int C = 2 * Hk * DK + Hv * dv;
+    if (j0 >= dv) return;
+    const int64_t soff = ((int64_t)h * dv + j0) * DK;
+    SE* const blk = state + soff;
+    float4 s = ik_ld4(blk, lane);
+    const float scale = rsqrtf((float)DK);
+    const float neg_a = -expf(ik_b2f(a_log[h]));
+    const float dtb = ik_b2f(dt_bias[h]);
+    __shared__ float gs[33];
+    __shared__ float ds;
+    for (int t = 0; t < T; ++t) {
+        const ik_bf16* q_ = qkv + (int64_t)t * C;
+        float qr_[PL], kr_[PL];
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            qr_[i] = ik_b2f(q_[kh * DK + lane + 32 * i]);
+            kr_[i] = ik_b2f(q_[Hk * DK + kh * DK + lane + 32 * i]);
+        }
+        float qq = 0.f, kk = 0.f;
+#pragma unroll
+        for (int i = 0; i < PL; ++i) {
+            qq += qr_[i] * qr_[i];
+            kk += kr_[i] * kr_[i];
+        }
+        qq = ik_warp_sum(qq);
+        kk = ik_warp_sum(kk);
+        const float qn = rsqrtf(qq + eps) * scale, kn = rsqrtf(kk + eps);
+        float kq[4], qv[4];
+#pragma unroll
+        for (int e = 0; e < 4; ++e) {
+            qv[e] = ik_b2f(q_[kh * DK + 4 * lane + e]) * qn;
+            kq[e] = ik_b2f(q_[Hk * DK + kh * DK + 4 * lane + e]) * kn;
+        }
+        const float4 k4 = make_float4(kq[0], kq[1], kq[2], kq[3]), q4 = make_float4(qv[0], qv[1], qv[2], qv[3]);
+        const float v = lane < 1 ? ik_b2f(q_[2 * Hk * DK + h * dv + j0 + lane]) : 0.f;
+        const float beta = sigmoidf(ik_b2f(b[(int64_t)t * Hv + h]));
+        const float decay = expf(neg_a * softplus(ik_b2f(a[(int64_t)t * Hv + h]) + dtb));
+
+        s.x = __fmul_rn(s.x, decay); s.y = __fmul_rn(s.y, decay);
+        s.z = __fmul_rn(s.z, decay); s.w = __fmul_rn(s.w, decay);
+        gs[lane] = __fmaf_rn(s.w, k4.w, __fmaf_rn(s.z, k4.z, __fmaf_rn(s.x, k4.x, __fmul_rn(s.y, k4.y))));
+        __syncwarp();
+        if (lane < 1) {
+            float c = 0.f;
+#pragma unroll
+            for (int i = 0; i < DK / 4; ++i) c = __fadd_rn(c, gs[i]);
+            ds = __fmul_rn(__fsub_rn(v, c), beta);
+        }
+        __syncwarp();
+        const float delta = ds;
+        s.x = __fmaf_rn(k4.x, delta, s.x); s.y = __fmaf_rn(k4.y, delta, s.y);
+        s.z = __fmaf_rn(k4.z, delta, s.z); s.w = __fmaf_rn(k4.w, delta, s.w);
+        gs[lane] = __fmaf_rn(s.w, q4.w, __fmaf_rn(s.z, q4.z, __fmaf_rn(s.x, q4.x, __fmul_rn(s.y, q4.y))));
+        // the state as the one-row launch stores it (bf16: rounded), which the next row then loads
+        if constexpr (sizeof(SE) == 2) s = ik_round_bf16(s);
+        SE* const dst = t + 1 < T ? reinterpret_cast<SE*>(snaps.s[t]) + soff : blk;
+        ik_put4(dst, lane, s);
+        __syncwarp();
+        if (lane < 1) {
+            float c = 0.f;
+#pragma unroll
+            for (int i = 0; i < DK / 4; ++i) c = __fadd_rn(c, gs[i]);
+            o[((int64_t)t * Hv + h) * dv + j0 + lane] = ik_f2b(c);
+        }
+        __syncwarp();  // the reads of gs / ds are done before the next row rewrites them
+    }
+}
+
 }  // namespace
 
 extern "C" {
@@ -1031,6 +1149,70 @@ int ik_gdn_delta_rule_bf16_split_rows(const ik_tensor* qkv, const ik_tensor* a, 
     }
 #undef IK_GDN_SPLIT_ROWS
 #undef IK_GDN_SPLIT_ROWS_ARGS
+    return ik_launch_status();
+}
+
+
+// Lane mtp2s: the T = 2..8 rows of one sequence's GatedDeltaNet block in two launches with the saves, see gdn_conv_snap_kernel. x / qkv
+// [T, C], y [T, C] (the conv output, scratch), o [T, Hv, dv]; `conv_state` [C, K-1] and `state` [Hv, dv, dk] in place; `snap_conv[r]` /
+// `snap_s[r]` (r < T - 1): the saves. dk = 128, state f32 or bf16 (not the emulation), the delta-rule decode kernel's default
+// (INTARSIA_GDN_DEC != 0); the saves' state 16-byte aligned. Anything else: IK_ERR_UNSUPPORTED before any launch.
+int ik_gdn_verify_snap_bf16(const ik_tensor* x, const ik_tensor* taps, ik_tensor* y, const ik_tensor* a, const ik_tensor* b,
+                            const ik_tensor* a_log, const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* conv_state,
+                            ik_tensor* state, const ik_tensor* snap_conv, const ik_tensor* snap_s, void* stream) {
+    IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(taps, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(y, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(a, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(b, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(a_log, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(dt_bias, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(o, IK_DTYPE_BF16, 3));
+    const bool c16 = conv_state && conv_state->dtype == IK_DTYPE_BF16;
+    const bool s16 = state && state->dtype == IK_DTYPE_BF16;
+    IK_TRY(ik_check(conv_state, c16 ? IK_DTYPE_BF16 : IK_DTYPE_F32, 2));
+    IK_TRY(ik_check(state, s16 ? IK_DTYPE_BF16 : IK_DTYPE_F32, 3));
+    const int64_t T = x->shape[0], C = x->shape[1], K = taps->shape[1];
+    const int64_t Hv = o->shape[1], dv = o->shape[2], dk = state->shape[2];
+    if (T < 2 || T > kMaxSnap + 1 || K < 2 || K > kMaxTaps || dk != 128 || dv == 0 || Hv == 0 || C <= Hv * dv ||
+        (C - Hv * dv) % (2 * dk) != 0)
+        return IK_ERR_SHAPE;
+    const int64_t Hk = (C - Hv * dv) / (2 * dk);
+    if (Hv % Hk != 0 || taps->shape[0] != C || y->shape[0] != T || y->shape[1] != C || o->shape[0] != T || state->shape[0] != Hv ||
+        state->shape[1] != dv || conv_state->shape[0] != C || conv_state->shape[1] != K - 1 || a->shape[0] != T ||
+        a->shape[1] != Hv || b->shape[0] != T || b->shape[1] != Hv || a_log->shape[0] != Hv || dt_bias->shape[0] != Hv)
+        return IK_ERR_SHAPE;
+    if (!snap_conv || !snap_s) return IK_ERR_INVALID_ARG;
+    if (gdn_dec_rpw() == 0 || gdn_state_emu()) return IK_ERR_UNSUPPORTED;  // the row-by-row launches would take another kernel
+    if (!ik_aligned16(state->data)) return IK_ERR_INVALID_ARG;
+    GdnSnaps sn;
+    for (int r = 0; r < kMaxSnap; ++r) sn.conv[r] = sn.s[r] = nullptr;
+    for (int r = 0; r < T - 1; ++r) {
+        if (snap_conv[r].dtype != conv_state->dtype || snap_s[r].dtype != state->dtype || !snap_conv[r].data || !snap_s[r].data ||
+            !ik_aligned16(snap_s[r].data))
+            return IK_ERR_INVALID_ARG;
+        sn.conv[r] = snap_conv[r].data;
+        sn.s[r] = snap_s[r].data;
+    }
+    cudaStream_t s = IK_STREAM(stream);
+    const int threads = 128;
+    const dim3 cgrid((unsigned)((C + threads - 1) / threads));
+    if (c16)
+        gdn_conv_snap_kernel<ik_bf16><<<cgrid, threads, 0, s>>>((const ik_bf16*)x->data, (const ik_bf16*)taps->data, (ik_bf16*)y->data,
+                                                                (ik_bf16*)conv_state->data, sn, (int)T, (int)C, (int)K);
+    else
+        gdn_conv_snap_kernel<float><<<cgrid, threads, 0, s>>>((const ik_bf16*)x->data, (const ik_bf16*)taps->data, (ik_bf16*)y->data,
+                                                              (float*)conv_state->data, sn, (int)T, (int)C, (int)K);
+    IK_TRY(ik_launch_status());
+    const dim3 dgrid((unsigned)dv, (unsigned)Hv);
+    if (s16)
+        gdn_delta_snap_kernel<ik_bf16><<<dgrid, 32, 0, s>>>((const ik_bf16*)y->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data,
+                                                            (const ik_bf16*)a_log->data, (const ik_bf16*)dt_bias->data, eps,
+                                                            (ik_bf16*)o->data, (ik_bf16*)state->data, sn, (int)T, (int)Hk, (int)Hv, (int)dv);
+    else
+        gdn_delta_snap_kernel<float><<<dgrid, 32, 0, s>>>((const ik_bf16*)y->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data,
+                                                          (const ik_bf16*)a_log->data, (const ik_bf16*)dt_bias->data, eps,
+                                                          (ik_bf16*)o->data, (float*)state->data, sn, (int)T, (int)Hk, (int)Hv, (int)dv);
     return ik_launch_status();
 }
 
