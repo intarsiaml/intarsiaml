@@ -53,9 +53,11 @@ on, the chats alternating so every later turn restores. Arms: reference (store o
 store on + MTP default; per later prompt a fresh single and a fresh `--max-batch 2` engine (cold); store off + MTP
 (reported); `--max-batch 2` store on + MTP (both turns together, then each alone); restart (disk tier, new engine).
 `INTARSIA_MTP_STORE=1`; the 27B with `INTARSIA_BATCHED_MTP=1` (its recipe has no `batched_mtp` on Metal). Script
-`scripts/mstore/gate.sh`, raw `raw/gate-*.log`.
+`scripts/mstore/gate.sh`. First run on `7f806cc51` (#9498, #9499; raw `raw/gate-*-premerge.log`); rerun on the branch after
+the merge of main `0f1fa5ccf` (lanes mtt and mtp-snap changed MTP) with the fix (#9642, #9643; raw `raw/gate-*.log`): the same
+verdicts, every check true, the same acceptance numbers.
 
-| check | 35B (#9498, 160 tokens/reply) | 27B (#9499, 128 tokens/reply) |
+| check | 35B (#9498, #9642; 160 tokens/reply) | 27B (#9499, #9643; 128 tokens/reply) |
 |---|---|---|
 | single engine: greedy ids and cached tokens, MTP on == MTP off (6 replies, 4 restored) | pass | pass |
 | greedy restored == cold with MTP on (fresh engine) | pass | pass |
