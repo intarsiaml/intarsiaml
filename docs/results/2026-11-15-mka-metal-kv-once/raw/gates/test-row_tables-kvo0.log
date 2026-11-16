@@ -1,0 +1,41 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1241:4
+     |
+1241 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mka/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 1.02s
+     Running tests/row_tables.rs (target/release/deps/row_tables-46d607405fb71997)
+
+running 8 tests
+test swapped_state_entries_are_seen ... ok
+test a_swapped_table_entry_is_seen ... ok
+test rope_with_one_position_per_token_is_the_solo_rope ... ok
+test gdn_conv_rows_are_the_solo_conv ... ok
+test gdn_delta_rows_are_the_solo_delta_rule ... ok
+test kv_append_rows_are_the_solo_append ... ok
+test qk_norm_rope_kv_rows_are_the_solo_prologue ... ok
+test attn_decode_rows_are_the_solo_decode ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.13s
+
