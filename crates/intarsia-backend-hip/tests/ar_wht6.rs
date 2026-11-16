@@ -1,4 +1,5 @@
-//! The lossy wht6 all-reduce wire (lane wht6-ar, `kernels/hip/allreduce_wht6.hip`, `INTARSIA_HIP_AR_WIRE=wht6`) on real GPUs,
+//! The lossy wht6 / wht8 all-reduce wires (lane wht6-ar, wht8 from lane wht6-8b, `kernels/hip/allreduce_wht6.hip`,
+//! `INTARSIA_HIP_AR_WIRE=wht6` / `wht8`) on real GPUs,
 //! against the exact all-reduce. Needs two HIP devices that can reach each other (skips otherwise); `INTARSIA_HIP_DEVICES=0,1`
 //! picks them. The rate test is `--ignored --nocapture`.
 #![cfg(ik_hip)]
@@ -16,8 +17,8 @@ fn serial() -> MutexGuard<'static, ()> {
 }
 
 type Grp = (Vec<Arc<dyn Backend>>, Vec<Arc<dyn Comm>>);
-/// The default group (LL up to 128 KiB, wide path 64 blocks / 20 MiB) with the wire given: `Some(min_bytes)` = wht6.
-fn group(drain: i32, wire: Option<usize>) -> Option<Grp> {
+/// The default group (LL up to 128 KiB, wide path 64 blocks / 20 MiB) with the wire given: `Some((min_bytes, bits))` = wht6 (6) or wht8 (8).
+fn group(drain: i32, wire: Option<(usize, u32)>) -> Option<Grp> {
     let ords: Vec<usize> = std::env::var("INTARSIA_HIP_DEVICES")
         .ok()
         .map(|v| v.split(',').filter_map(|x| x.trim().parse().ok()).collect())
@@ -115,9 +116,10 @@ fn wht64(g: &[f64]) -> [f64; 64] {
 }
 
 /// The codec's error bound for a reduced f32 result `got` of the partials `a`, `b`: per group, every element of the ROTATED error is
-/// at most half a quantiser step of each rank (step = amax of the rank's rotated group / 31, shipped as a bf16: 0.4 % slack) plus
+/// at most half a quantiser step of each rank (step = amax of the rank's rotated group / (2^(bits-1) - 1), shipped as a bf16: 0.4 % slack) plus
 /// f32 round-off. Returns (worst rotated error / bound, rms error / rms of the exact sum).
-fn check_bound(a: &[f32], b: &[f32], got: &[f32]) -> (f64, f64) {
+fn check_bound(a: &[f32], b: &[f32], got: &[f32], bits: u32) -> (f64, f64) {
+    let qmax = ((1u32 << (bits - 1)) - 1) as f64;
     assert_eq!(a.len() % 64, 0);
     let (mut worst, mut se, mut ss) = (0f64, 0f64, 0f64);
     for g in 0..a.len() / 64 {
@@ -127,7 +129,7 @@ fn check_bound(a: &[f32], b: &[f32], got: &[f32]) -> (f64, f64) {
         let err: Vec<f64> = (0..64).map(|i| got[g * 64 + i] as f64 - (fa[i] + fb[i])).collect();
         let amax = |v: &[f64; 64]| v.iter().fold(0f64, |m, x| m.max(x.abs()));
         let (a0, a1) = (amax(&wht64(&fa)), amax(&wht64(&fb)));
-        let bound = (0.5 * 1.004 / 31.0 + 2e-5) * (a0 + a1);
+        let bound = (0.5 * 1.004 / qmax + 2e-5) * (a0 + a1);
         let e = amax(&wht64(&err));
         if bound > 0.0 {
             worst = worst.max(e / bound);
@@ -143,7 +145,7 @@ fn check_bound(a: &[f32], b: &[f32], got: &[f32]) -> (f64, f64) {
 const KIB128: usize = 128 << 10;
 /// f32 element counts: below / at the 128 KiB floor (exact), just above it (lossy), not multiples of 64 (exact), a last chunk that
 /// is not full, a single chunk more than the blocks, a 2048-row chunk of the 27B (hidden 5120), and one above a slot's capacity
-/// of 26 214 400 elements (two launches).
+/// of 26 214 400 elements for wht6, 19 660 800 for wht8 (two launches for both).
 const SIZES: [usize; 10] =
     [KIB128 / 4 - 64, KIB128 / 4, KIB128 / 4 + 64, KIB128 / 4 + 32, 40_000, 100_008, 65 * 2048, 300 * 2048 + 64, 2048 * 5120, 26_214_400 + 64 * 1000];
 
@@ -153,10 +155,9 @@ fn lossy(n: usize, dt: DType, min: usize) -> bool {
     bytes > KIB128 && bytes >= min && n % 64 == 0
 }
 
-#[test]
-fn wht6_wire_is_rank_identical_within_its_bound_and_exact_below_the_floor() {
+fn rank_identical_within_bound_and_exact_below_the_floor(bits: u32) {
     let _one = serial();
-    let Some((be, comms)) = group(7, Some(KIB128)) else { return };
+    let Some((be, comms)) = group(7, Some((KIB128, bits))) else { return };
     let mut rng = SplitMix64::new(606);
     let (mut worst_all, mut rms_all) = (0f64, 0f64);
     for n in SIZES {
@@ -175,10 +176,10 @@ fn wht6_wire_is_rank_identical_within_its_bound_and_exact_below_the_floor() {
         assert!(raw(&*be[0], &p[0]) == enc(DType::F32, &a), "n {n} f32 -> bf16: the partial was changed");
         if lossy(n, DType::F32, KIB128) {
             let got = floats(DType::F32, &ff[0]);
-            let (worst, rms) = check_bound(&a, &b, &got);
-            eprintln!("wht6 f32 n {n:>9}: worst rotated error {worst:.3} of the bound, rms error {:.3} % of the sum's rms", rms * 100.0);
+            let (worst, rms) = check_bound(&a, &b, &got, bits);
+            eprintln!("wht{bits} f32 n {n:>9}: worst rotated error {worst:.3} of the bound, rms error {:.3} % of the sum's rms", rms * 100.0);
             assert!(worst <= 1.0, "n {n}: a rotated error is {worst:.3} x the codec's bound");
-            assert!(rms < 0.1, "n {n}: rms error {rms}");
+            assert!(rms < 0.1 / if bits == 8 { 4.0 } else { 1.0 }, "n {n}: rms error {rms}");
             assert!(ff[0] != host_sum(DType::F32, &a, &b), "n {n}: expected the lossy wire, got the exact sum");
             // the bf16 output is the f32 output rounded once
             assert!(fb[0] == enc(DType::Bf16, &got), "n {n}: f32 -> bf16 is not the f32 result rounded to bf16");
@@ -205,19 +206,27 @@ fn wht6_wire_is_rank_identical_within_its_bound_and_exact_below_the_floor() {
             assert!(bbits[0] == host_sum(DType::Bf16, &ab, &bb), "n {n} bf16: below the floor or not whole groups, but not the exact sum");
         }
     }
-    eprintln!("wht6: worst rotated error {worst_all:.3} of the bound, worst rms error {:.3} %", rms_all * 100.0);
+    eprintln!("wht{bits}: worst rotated error {worst_all:.3} of the bound, worst rms error {:.3} %", rms_all * 100.0);
     let st = comms[0].debug_state().unwrap_or_default();
-    assert!(st.contains("wht6 launches"), "{st}");
+    assert!(st.contains(&format!("wht{bits} launches")), "{st}");
+}
+
+#[test]
+fn wht6_wire_is_rank_identical_within_its_bound_and_exact_below_the_floor() {
+    rank_identical_within_bound_and_exact_below_the_floor(6);
+}
+#[test]
+fn wht8_wire_is_rank_identical_within_its_bound_and_exact_below_the_floor() {
+    rank_identical_within_bound_and_exact_below_the_floor(8);
 }
 
 /// A higher floor keeps more exact; with the wire off nothing is lossy.
-#[test]
-fn wht6_floor_and_the_exact_default() {
+fn floor_and_the_exact_default(bits: u32) {
     let _one = serial();
     let mut rng = SplitMix64::new(77);
     let n = 2048 * 256; // 2 MiB of f32
     let (a, b) = (partial(&mut rng, n), partial(&mut rng, n));
-    for (wire, want_lossy) in [(None, false), (Some(4 << 20), false), (Some(2 << 20), true)] {
+    for (wire, want_lossy) in [(None, false), (Some((4 << 20, bits)), false), (Some((2 << 20, bits)), true)] {
         let Some((be, comms)) = group(7, wire) else { return };
         let t = [put(&*be[0], DType::F32, &a), put(&*be[1], DType::F32, &b)];
         run2(&|r| comms[r].all_reduce_sum(&t[r], 0).unwrap());
@@ -226,11 +235,19 @@ fn wht6_floor_and_the_exact_default() {
         assert_eq!(got[0] != host_sum(DType::F32, &a, &b), want_lossy, "wire {wire:?}");
     }
 }
+#[test]
+fn wht6_floor_and_the_exact_default() {
+    floor_and_the_exact_default(6);
+}
+#[test]
+fn wht8_floor_and_the_exact_default() {
+    floor_and_the_exact_default(8);
+}
 
 /// Chains of mixed collectives (small LL ones, exact wide ones, lossy ones, bf16 and f32) while one rank is delayed at random:
 /// every result must be the bits of the undelayed first round (and the exact ones the host sum). Returns the wrong results.
-fn stress(drain: i32, rounds: usize) -> usize {
-    let Some((be, comms)) = group(drain, Some(KIB128)) else { return 0 };
+fn stress(drain: i32, rounds: usize, bits: u32) -> usize {
+    let Some((be, comms)) = group(drain, Some((KIB128, bits))) else { return 0 };
     let mut rng = SplitMix64::new(92);
     let shapes: [(DType, usize); 10] = [
         (DType::Bf16, 8),
@@ -285,9 +302,9 @@ fn stress(drain: i32, rounds: usize) -> usize {
             if round == 0 {
                 // the reference: checked on its own merits
                 if lossy(*n, *dt, KIB128) {
-                    let (worst, rms) = check_bound(&ins[i][0], &ins[i][1], &floats(*dt, &got[0]));
+                    let (worst, rms) = check_bound(&ins[i][0], &ins[i][1], &floats(*dt, &got[0]), bits);
                     // a bf16 output adds its own rounding to the rotated error: only the rms is checked for it
-                    if (*dt == DType::F32 && worst > 1.0) || rms > 0.1 || got[0] != got[1] {
+                    if (*dt == DType::F32 && worst > 1.0) || rms > 0.1 / if bits == 8 { 4.0 } else { 1.0 } || got[0] != got[1] {
                         wrong += 1;
                     }
                 } else if got[0] != host_sum(*dt, &ins[i][0], &ins[i][1]) || got[0] != got[1] {
@@ -305,16 +322,28 @@ fn stress(drain: i32, rounds: usize) -> usize {
 #[test]
 fn wht6_wire_survives_a_delayed_rank_between_exact_collectives() {
     let _one = serial();
-    assert_eq!(stress(7, 30), 0, "wrong or unequal results on the wht6 wire while one rank was delayed");
+    assert_eq!(stress(7, 30, 6), 0, "wrong or unequal results on the wht6 wire while one rank was delayed");
+}
+#[test]
+fn wht8_wire_survives_a_delayed_rank_between_exact_collectives() {
+    let _one = serial();
+    assert_eq!(stress(7, 30, 8), 0, "wrong or unequal results on the wht8 wire while one rank was delayed");
 }
 
 /// Negative control: drain 9 is the handshake without its wait; with a delayed peer the stress test must see wrong results.
 #[test]
 fn wht6_wire_without_the_wait_is_caught_by_the_stress_test() {
     let _one = serial();
-    let wrong = stress(9, 8);
+    let wrong = stress(9, 8, 6);
     assert!(wrong > 0, "the wht6 path's wait was removed and nothing went wrong: the stress test cannot see a stale read");
     eprintln!("negative control (wht6, no wait): {wrong} wrong results");
+}
+#[test]
+fn wht8_wire_without_the_wait_is_caught_by_the_stress_test() {
+    let _one = serial();
+    let wrong = stress(9, 8, 8);
+    assert!(wrong > 0, "the wht8 path's wait was removed and nothing went wrong: the stress test cannot see a stale read");
+    eprintln!("negative control (wht8, no wait): {wrong} wrong results");
 }
 
 /// `cargo test --release -p intarsia-backend-hip --test ar_wht6 wht6_rate -- --ignored --nocapture`: us per all-reduce (both ranks,
@@ -324,7 +353,7 @@ fn wht6_wire_without_the_wait_is_caught_by_the_stress_test() {
 fn wht6_rate() {
     let _one = serial();
     let iters = 200;
-    for (label, wire) in [("exact", None), ("wht6 ", Some(KIB128))] {
+    for (label, wire) in [("exact", None), ("wht6 ", Some((KIB128, 6))), ("wht8 ", Some((KIB128, 8)))] {
         let Some((be, comms)) = group(7, wire) else { return };
         let mut rng = SplitMix64::new(5);
         for hidden in [2048usize, 5120] {

@@ -2,6 +2,13 @@
  * (6.25 bits per element: 5.1x fewer bytes than f32, 2.6x fewer than bf16). Opt-in (`INTARSIA_HIP_AR_WIRE=wht6`, comm.rs), for
  * large (prefill) messages only, where the PCIe wire time dominates an all-reduce; small messages keep allreduce.hip.
  *
+ * Lane wht6-8b adds the same code with 8-bit symbols (`INTARSIA_HIP_AR_WIRE=wht8`, 8.25 bits per element: 3.9x fewer bytes than
+ * f32, 1.9x fewer than bf16; ik_ar2_wht8). Everything below holds for both widths: the symbol width B is a template parameter,
+ * the rotation, the group size, the bf16 per-group scale (amax / (2^(B-1) - 1), nearest-even bf16, symbols round to nearest
+ * even and clamp to [-2^(B-1), 2^(B-1) - 1]) and the lane / chunk geometry are the same; only the number of packed words per
+ * lane grows (B = 6: 12 dwords = three 16-byte words, a 1536-byte chunk; B = 8: 16 dwords = four 16-byte words, a 2048-byte
+ * chunk, byte-aligned symbols). The quantiser step is amax / 127 instead of amax / 31, 4.1x finer.
+ *
  * Design after radiance's libr4d r4d_ar_oneshot_2rank_wht6 (Apache-2.0, https://codeberg.org/StillDeadcode/radiance, tag v2.0.0,
  * commit ddcb9c6; see kernels/hip/NOTICE-radiance). The code (rotation, scale, symbols, chunk packing) follows
  * r4d_ar_oneshot_2rank_wht6.h; the handshake, counters and slot parity are allreduce.hip's (ar2_kernel), on the wide path's
@@ -34,16 +41,15 @@
 
 #define W6_SPIN_MAX 480000000u /* as AR_SPIN_MAX (allreduce.hip) */
 #define W6_GROUP 64            /* elements per rotation + scale group */
-#define W6_BITS 6
 #define W6_EPL 8                               /* elements per lane per group */
 #define W6_LPG (W6_GROUP / W6_EPL)             /* 8 lanes span a group */
 #define W6_GPW (IK_WARP * W6_EPL / W6_GROUP)   /* 4 groups per wave-iteration */
 #define W6_CG 32                               /* groups per chunk */
 #define W6_ITERS (W6_CG / W6_GPW)              /* 8 wave-iterations per chunk */
-#define W6_NW (W6_ITERS * W6_EPL * W6_BITS / 32) /* 12 packed dwords per lane per chunk */
-#define W6_NU (W6_NW / 4)                      /* = 3 uint4 */
+#define W6_NW(B) (W6_ITERS * W6_EPL * (B) / 32) /* packed dwords per lane per chunk: 12 (B = 6), 16 (B = 8) */
+#define W6_NU(B) (W6_NW(B) / 4)                 /* uint4 per lane per chunk: 3, 4 */
 #define W6_CHUNK_ELEMS (W6_CG * W6_GROUP)      /* 2048 */
-#define W6_CHUNK_BYTES (W6_NU * IK_WARP * 16)  /* 1536 */
+#define W6_CHUNK_BYTES(B) (W6_NU(B) * IK_WARP * 16) /* 1536 (B = 6), 2048 (B = 8) */
 
 IK_DEVI void w6_store_rel(unsigned int* p, unsigned int v) { __hip_atomic_store(p, v, __ATOMIC_RELEASE, __HIP_MEMORY_SCOPE_SYSTEM); }
 IK_DEVI unsigned int w6_load_acq(const unsigned int* p) { return __hip_atomic_load(p, __ATOMIC_ACQUIRE, __HIP_MEMORY_SCOPE_SYSTEM); }
@@ -115,13 +121,13 @@ IK_DEVI void w6_store(void* out, long off, const float* v) {
 }
 
 /* push one chunk: rotate, amax, quantise, pack into the peer's slot and the local copy */
-template <int F32>
+template <int F32, int B>
 IK_DEVI void w6_push_chunk(const void* x, int c, int n_groups, int lane, uint4* p_pay, unsigned short* p_sc, uint4* l_pay, float* l_sc) {
     const int lig = lane & (W6_LPG - 1), gw = lane / W6_LPG;
-    const int qmin = -(1 << (W6_BITS - 1)), qmax = (1 << (W6_BITS - 1)) - 1;
-    unsigned int acc[W6_NW];
+    const int qmin = -(1 << (B - 1)), qmax = (1 << (B - 1)) - 1;
+    unsigned int acc[W6_NW(B)];
 #pragma unroll
-    for (int k = 0; k < W6_NW; ++k) acc[k] = 0u;
+    for (int k = 0; k < W6_NW(B); ++k) acc[k] = 0u;
 #pragma unroll
     for (int t = 0; t < W6_ITERS; ++t) {
         const int g = c * W6_CG + t * W6_GPW + gw;
@@ -151,31 +157,31 @@ IK_DEVI void w6_push_chunk(const void* x, int c, int n_groups, int lane, uint4* 
         for (int i = 0; i < W6_EPL; ++i) {
             const int q = min(max((int)rintf(v[i] * inv), qmin), qmax) - qmin;
             const unsigned int sym = (unsigned int)q;
-            const int bit = (t * W6_EPL + i) * W6_BITS, wi = bit >> 5, bo = bit & 31;
+            const int bit = (t * W6_EPL + i) * B, wi = bit >> 5, bo = bit & 31;
             acc[wi] |= sym << bo;
-            if (bo + W6_BITS > 32) acc[wi + 1] |= sym >> (32 - bo);
+            if (bo + B > 32) acc[wi + 1] |= sym >> (32 - bo);
         }
     }
 #pragma unroll
-    for (int u = 0; u < W6_NU; ++u) {
+    for (int u = 0; u < W6_NU(B); ++u) {
         const uint4 q = make_uint4(acc[4 * u], acc[4 * u + 1], acc[4 * u + 2], acc[4 * u + 3]);
-        const long o = (long)c * (W6_NU * IK_WARP) + (long)u * IK_WARP + lane;
+        const long o = (long)c * (W6_NU(B) * IK_WARP) + (long)u * IK_WARP + lane;
         p_pay[o] = q;
         l_pay[o] = q;
     }
 }
 
 /* reduce one chunk: unpack both halves, add in f32, rotate back, store */
-template <int F32OUT>
+template <int F32OUT, int B>
 IK_DEVI void w6_reduce_chunk(void* out, int c, int n_groups, int lane, const uint4* m_pay, const unsigned short* m_sc, const uint4* l_pay,
                              const float* l_sc) {
     const int lig = lane & (W6_LPG - 1), gw = lane / W6_LPG;
-    const int qmin = -(1 << (W6_BITS - 1));
-    const unsigned int MASK = (1u << W6_BITS) - 1u;
-    unsigned int pac[W6_NW], lac[W6_NW];
+    const int qmin = -(1 << (B - 1));
+    const unsigned int MASK = (1u << B) - 1u;
+    unsigned int pac[W6_NW(B)], lac[W6_NW(B)];
 #pragma unroll
-    for (int u = 0; u < W6_NU; ++u) {
-        const long o = (long)c * (W6_NU * IK_WARP) + (long)u * IK_WARP + lane;
+    for (int u = 0; u < W6_NU(B); ++u) {
+        const long o = (long)c * (W6_NU(B) * IK_WARP) + (long)u * IK_WARP + lane;
         const uint4 pq = m_pay[o], lq = l_pay[o];
         pac[4 * u] = pq.x; pac[4 * u + 1] = pq.y; pac[4 * u + 2] = pq.z; pac[4 * u + 3] = pq.w;
         lac[4 * u] = lq.x; lac[4 * u + 1] = lq.y; lac[4 * u + 2] = lq.z; lac[4 * u + 3] = lq.w;
@@ -189,9 +195,9 @@ IK_DEVI void w6_reduce_chunk(void* out, int c, int n_groups, int lane, const uin
         float v[W6_EPL];
 #pragma unroll
         for (int i = 0; i < W6_EPL; ++i) {
-            const int bit = (t * W6_EPL + i) * W6_BITS, wi = bit >> 5, bo = bit & 31;
+            const int bit = (t * W6_EPL + i) * B, wi = bit >> 5, bo = bit & 31;
             unsigned int ps = pac[wi] >> bo, ls = lac[wi] >> bo;
-            if (bo + W6_BITS > 32) {
+            if (bo + B > 32) {
                 ps |= pac[wi + 1] << (32 - bo);
                 ls |= lac[wi + 1] << (32 - bo);
             }
@@ -208,7 +214,7 @@ IK_DEVI void w6_reduce_chunk(void* out, int c, int n_groups, int lane, const uin
  * counter -> seq, slot seq & 1, the flag after the pushes are fenced, a bounded wait for the peer's flag. Block b owns the
  * chunks [b * cpb, (b + 1) * cpb); a wave takes every nwave-th of them. A block without chunks only does the handshake (the
  * block count is the wide path's, fixed, so the counters of both ranks stay in lockstep). */
-template <int F32, int F32OUT>
+template <int F32, int F32OUT, int B>
 __global__ void ar2w6_kernel(const void* x, void* out, char* peer_scratch, const char* my_scratch, char* loc, unsigned int* peer_flags,
                              unsigned int* my_flags, unsigned int* ctrs, int n_groups, int n_chunks, long slot_stride, long scale_off,
                              int drain) {
@@ -231,7 +237,7 @@ __global__ void ar2w6_kernel(const void* x, void* out, char* peer_scratch, const
     const int cpb = (n_chunks + nb - 1) / nb;
     const int c0 = min(b * cpb, n_chunks), c1 = min(c0 + cpb, n_chunks);
 
-    for (int c = c0 + wid; c < c1; c += nwave) w6_push_chunk<F32>(x, c, n_groups, lane, p_pay, p_sc, l_pay, l_sc);
+    for (int c = c0 + wid; c < c1; c += nwave) w6_push_chunk<F32, B>(x, c, n_groups, lane, p_pay, p_sc, l_pay, l_sc);
 
     /* the data must be visible at the peer before the flag is (allreduce.hip: the fence is the mode that never reads stale rows) */
     if (drain >= 3 && drain <= 5)
@@ -250,36 +256,28 @@ __global__ void ar2w6_kernel(const void* x, void* out, char* peer_scratch, const
     }
     __syncthreads();
 
-    for (int c = c0 + wid; c < c1; c += nwave) w6_reduce_chunk<F32OUT>(out, c, n_groups, lane, m_pay, m_sc, l_pay, l_sc);
+    for (int c = c0 + wid; c < c1; c += nwave) w6_reduce_chunk<F32OUT, B>(out, c, n_groups, lane, m_pay, m_sc, l_pay, l_sc);
 }
 
-extern "C" {
-
-/* Bytes of a slot's payload region for a slot of slot_bytes: the scales (2 bytes per group of a chunk-rounded message) start
- * there. 15/16 of the slot, a whole number of chunks. */
-int64_t ik_ar2_wht6_scale_off(int64_t slot_bytes) { return slot_bytes / 16 * 15 / W6_CHUNK_BYTES * W6_CHUNK_BYTES; }
-
-/* Elements one launch can carry in a slot of slot_bytes (a multiple of 2048). */
-int64_t ik_ar2_wht6_capacity(int64_t slot_bytes) {
-    const int64_t so = ik_ar2_wht6_scale_off(slot_bytes);
-    int64_t chunks = so / W6_CHUNK_BYTES;
+/* Slot geometry for symbol width B, all of it a function of the slot size. */
+template <int B>
+static int64_t w6_scale_off(int64_t slot_bytes) { return slot_bytes / 16 * 15 / W6_CHUNK_BYTES(B) * W6_CHUNK_BYTES(B); }
+template <int B>
+static int64_t w6_capacity(int64_t slot_bytes) {
+    const int64_t so = w6_scale_off<B>(slot_bytes);
+    int64_t chunks = so / W6_CHUNK_BYTES(B);
     const int64_t by_scales = (slot_bytes - so) / (2 * W6_CG);
     if (chunks > by_scales) chunks = by_scales;
     return chunks * W6_CHUNK_ELEMS;
 }
+template <int B>
+static int64_t w6_loc_bytes(int64_t slot_bytes) { return w6_scale_off<B>(slot_bytes) + w6_capacity<B>(slot_bytes) / W6_GROUP * 4; }
 
-/* Bytes of the local pack buffer (`loc`, ordinary device memory, one per rank) for a slot of slot_bytes. */
-int64_t ik_ar2_wht6_loc_bytes(int64_t slot_bytes) {
-    return ik_ar2_wht6_scale_off(slot_bytes) + ik_ar2_wht6_capacity(slot_bytes) / W6_GROUP * 4;
-}
-
-/* out = x + the peer's x through the wht6 wire (lossy; bit-identical on both ranks). (dtype, out_dtype) as ik_ar2_oneshot:
- * (bf16, bf16), (f32, f32), (f32, bf16); out may be x for the first two. n_elem: a multiple of 64, at most
- * ik_ar2_wht6_capacity(slot_bytes). Scratch (2 x slot_bytes), flags and counters (nblocks each) are a fence path's (the wide
- * path's, comm.rs), shared with ik_ar2_oneshot on the same buffers; nblocks must be that path's block count. loc:
- * ik_ar2_wht6_loc_bytes(slot_bytes) of this rank's device memory, used by this launch only. drain as ik_ar2_oneshot (7 / 8 -> 1). */
-int ik_ar2_wht6(void* x, void* out, int dtype, int out_dtype, int64_t n_elem, void* peer_scratch, void* my_scratch, void* loc,
-                unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes, int nblocks, int drain, void* stream) {
+/* out = x + the peer's x through the wire of symbol width B. See ik_ar2_wht6 / ik_ar2_wht8 below. */
+template <int B>
+static int w6_allreduce(void* x, void* out, int dtype, int out_dtype, int64_t n_elem, void* peer_scratch, void* my_scratch, void* loc,
+                        unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes, int nblocks, int drain,
+                        void* stream) {
     if (!x || !out || !peer_scratch || !my_scratch || !loc || !peer_flags || !my_flags || !ctrs || nblocks < 1 || nblocks > 1024) return IK_ERR_INVALID_ARG;
     int kind;
     if (dtype == IK_DTYPE_BF16 && out_dtype == IK_DTYPE_BF16) kind = 0;
@@ -287,20 +285,49 @@ int ik_ar2_wht6(void* x, void* out, int dtype, int out_dtype, int64_t n_elem, vo
     else if (dtype == IK_DTYPE_F32 && out_dtype == IK_DTYPE_BF16) kind = 2;
     else return IK_ERR_DTYPE;
     if (n_elem < 0 || n_elem % W6_GROUP != 0 || ((uintptr_t)x & 15) != 0 || ((uintptr_t)out & 15) != 0) return IK_ERR_SHAPE;
-    if (slot_bytes % 16 != 0 || n_elem > ik_ar2_wht6_capacity(slot_bytes)) return IK_ERR_SHAPE;
+    if (slot_bytes % 16 != 0 || n_elem > w6_capacity<B>(slot_bytes)) return IK_ERR_SHAPE;
     if (n_elem == 0) return IK_OK;
     hipStream_t s = IK_STREAM(stream);
     const int n_groups = (int)(n_elem / W6_GROUP), n_chunks = (n_groups + W6_CG - 1) / W6_CG;
-    const long so = (long)ik_ar2_wht6_scale_off(slot_bytes);
+    const long so = (long)w6_scale_off<B>(slot_bytes);
     if (drain == 7 || drain == 8) drain = 1;
 #define W6_LAUNCH(F, FO)                                                                                                                 \
-    ar2w6_kernel<F, FO><<<nblocks, 256, 0, s>>>(x, out, (char*)peer_scratch, (const char*)my_scratch, (char*)loc, peer_flags, my_flags, \
-                                                ctrs, n_groups, n_chunks, (long)slot_bytes, so, drain)
+    ar2w6_kernel<F, FO, B><<<nblocks, 256, 0, s>>>(x, out, (char*)peer_scratch, (const char*)my_scratch, (char*)loc, peer_flags, my_flags, \
+                                                   ctrs, n_groups, n_chunks, (long)slot_bytes, so, drain)
     if (kind == 0) W6_LAUNCH(0, 0);
     else if (kind == 1) W6_LAUNCH(1, 1);
     else W6_LAUNCH(1, 0);
 #undef W6_LAUNCH
     return ik_launch_status();
+}
+
+extern "C" {
+
+/* Bytes of a slot's payload region for a slot of slot_bytes: the scales (2 bytes per group of a chunk-rounded message) start
+ * there. 15/16 of the slot, a whole number of chunks. */
+int64_t ik_ar2_wht6_scale_off(int64_t slot_bytes) { return w6_scale_off<6>(slot_bytes); }
+int64_t ik_ar2_wht8_scale_off(int64_t slot_bytes) { return w6_scale_off<8>(slot_bytes); }
+
+/* Elements one launch can carry in a slot of slot_bytes (a multiple of 2048). */
+int64_t ik_ar2_wht6_capacity(int64_t slot_bytes) { return w6_capacity<6>(slot_bytes); }
+int64_t ik_ar2_wht8_capacity(int64_t slot_bytes) { return w6_capacity<8>(slot_bytes); }
+
+/* Bytes of the local pack buffer (`loc`, ordinary device memory, one per rank) for a slot of slot_bytes. */
+int64_t ik_ar2_wht6_loc_bytes(int64_t slot_bytes) { return w6_loc_bytes<6>(slot_bytes); }
+int64_t ik_ar2_wht8_loc_bytes(int64_t slot_bytes) { return w6_loc_bytes<8>(slot_bytes); }
+
+/* out = x + the peer's x through the wht6 (6-bit) / wht8 (8-bit) wire (lossy; bit-identical on both ranks). (dtype, out_dtype) as
+ * ik_ar2_oneshot: (bf16, bf16), (f32, f32), (f32, bf16); out may be x for the first two. n_elem: a multiple of 64, at most
+ * ik_ar2_wht{6,8}_capacity(slot_bytes). Scratch (2 x slot_bytes), flags and counters (nblocks each) are a fence path's (the wide
+ * path's, comm.rs), shared with ik_ar2_oneshot on the same buffers; nblocks must be that path's block count. loc:
+ * ik_ar2_wht{6,8}_loc_bytes(slot_bytes) of this rank's device memory, used by this launch only. drain as ik_ar2_oneshot (7 / 8 -> 1). */
+int ik_ar2_wht6(void* x, void* out, int dtype, int out_dtype, int64_t n_elem, void* peer_scratch, void* my_scratch, void* loc,
+                unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes, int nblocks, int drain, void* stream) {
+    return w6_allreduce<6>(x, out, dtype, out_dtype, n_elem, peer_scratch, my_scratch, loc, peer_flags, my_flags, ctrs, slot_bytes, nblocks, drain, stream);
+}
+int ik_ar2_wht8(void* x, void* out, int dtype, int out_dtype, int64_t n_elem, void* peer_scratch, void* my_scratch, void* loc,
+                unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes, int nblocks, int drain, void* stream) {
+    return w6_allreduce<8>(x, out, dtype, out_dtype, n_elem, peer_scratch, my_scratch, loc, peer_flags, my_flags, ctrs, slot_bytes, nblocks, drain, stream);
 }
 
 } /* extern "C" */
