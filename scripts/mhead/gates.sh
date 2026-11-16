@@ -5,6 +5,7 @@
 #            base  the base binary (main's engine), defaults
 #            n1    the new binary, defaults (INTARSIA_BATCHED_HEAD unset)
 #            n0    the new binary, INTARSIA_BATCHED_HEAD=0
+#            chk   the new binary, INTARSIA_BATCHED_HEAD_CHECK=1 (every batched chained head pass is also run per sequence and compared bitwise)
 #          every request of every arm must equal the reference's solo ids of the same prompt; the served /v1/intarsia/plan of base, n1, n0
 #          byte-identical; base / n1 / n0 run with INTARSIA_SPEC_TRACE=1 INTARSIA_CB_TRACE=1 so spec_cmp.py can compare the per-pass
 #          (position, drafted, accepted) lines of the arms and count the batched drafts
@@ -14,7 +15,7 @@ set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 REPO="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
 export OUT=${OUT:-$REPO/docs/results/2026-11-16-mhead/raw/gates}; mkdir -p "$OUT"
-ARMS=${ARMS:-off base n1 n0}
+ARMS=${ARMS:-off base n1 n0 chk}
 LOGNAME_=gates; source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 log "gates start; vLLM: $(curl -s -o /dev/null -w '%{http_code}' http://$HN:$VPORT/v1/models) running $(vllm_busy); earlyoom: $(rsh 'systemctl is-active earlyoom'); $(rsh 'free -g | sed -n 2p')"
 NEW='~/intarsia-mhead/bin/new'; BASE='~/intarsia-mhead/bin/base'
@@ -28,6 +29,7 @@ for part in ${PARTS:-ids plan}; do
           off)  BIN=$NEW;  e="X=1"; args="--spec off" ;;
           base*) BIN=$BASE; e="$TR"; args="" ;;
           n1*)   BIN=$NEW;  e="$TR"; args="" ;;
+          chk*)  BIN=$NEW;  e="$TR INTARSIA_BATCHED_HEAD_CHECK=1"; args="" ;;
           n0*)   BIN=$NEW;  e="$TR INTARSIA_BATCHED_HEAD=0"; args="" ;;
         esac
         if start_serve "ids-$a" "$e" --max-batch 2 $args; then

@@ -1,2 +1,40 @@
 fleetq: #9750 running on spark2: scripts/mhead/build2.sh
 12:02:13
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-tui)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-engram)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 06s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  190G  95% /
+3.2G	/home/nvidia/intarsia-mhead
+Mem:             121          50          27           0          46          71
+active
+12:07:20
+git sha 914267d89e37cfc4159a56489306b678b82c2bca
+12:08:22
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-tui)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-engram)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-mhead/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 03s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  190G  95% /
+3.4G	/home/nvidia/intarsia-mhead
+Mem:             121          49          27           0          46          72
+active
+12:13:27
+git sha 241348eecf84ffc78e2a703e138b98159b197bdf
+fleetq: #9750 done (exit 0)
