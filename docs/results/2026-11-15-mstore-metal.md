@@ -58,3 +58,8 @@ Progress:
   32 of 32 agree but FAIL "reuse covered 512 < the 698 tokens of turn 1" (the store resumes at its cut point).
 - PR 2 cpu tests (`target/pr2wt`, #9586 and rerun): `tp_mtp` 13 passed, `mtp` 51 passed (1 ignored), `docs_env_vars` 2
   passed after adding rows for this lane's two test knobs.
+- 23:2x **fix** `ad5870fb0`: writes still queued when a store is dropped (or a server stops: its watchdog keeps an engine
+  handle, so the store was never dropped) were lost. `PrefixStore` now flushes on drop, `serve` calls the new
+  `Engine::flush_prefix_store` after the HTTP server stops. New test `store_drop_waits_for_the_disk_writer` fails without
+  it, passes with it. CPU suites on the branch (#9592): core lib 204, `prefix_store` 34, `mtp` 51, `batch_engine` 9,
+  server 53 / 58 / 3, `docs_env_vars` 2, all passed. `plan show --json` check queued (#9594).
