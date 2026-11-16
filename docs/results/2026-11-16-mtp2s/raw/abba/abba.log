@@ -1,0 +1,2 @@
+[09:03:29 +1s] start; vLLM: 200 running 0; earlyoom: active; Mem:             121          47          30           0          44          73
+[09:03:29 +1s] serve arm B.a: env [INTARSIA_CB_TRACE=1 ] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
