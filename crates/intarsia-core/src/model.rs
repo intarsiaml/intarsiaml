@@ -666,6 +666,10 @@ pub struct Model {
     /// The rows of the macro pass being run, `(lo, len)` per chunk, `Some` only inside [`Model::run_macro_group`]
     /// (and, per prompt, inside [`Model::forward_packed`] on a [`Backend::pack_split_gemms`] backend).
     macro_ctx: Mutex<Option<Vec<(usize, usize)>>>,
+    /// The snapshot buffers of the macro pass being run, one entry per segment (`Some` only inside [`Model::forward_inner`]'s
+    /// macro group, with `SequenceState::prefill_snapshots` set): the recurrent blocks copy their slot into a segment's buffer
+    /// (at `SequenceState::recurrent_offset`) once that segment's recurrence has run, so it holds the state at the segment's end.
+    macro_snaps: Mutex<Option<Vec<Option<Buffer>>>>,
     /// Macro passes run (groups of two or more chunks), for tests and the serve log.
     macro_passes: std::sync::atomic::AtomicU64,
     /// Opt-in (`INTARSIA_PREFILL_SKIP_DEAD=1`, [`Model::set_skip_dead`]): a prefill chunk whose rows feed no head skips
@@ -1808,6 +1812,7 @@ impl Model {
             macro_cap: macro_rows,
             macro_split: macro_split_ops()?,
             macro_ctx: Mutex::new(None),
+            macro_snaps: Mutex::new(None),
             macro_passes: std::sync::atomic::AtomicU64::new(0),
             skip_dead: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_PREFILL_SKIP_DEAD").is_ok_and(|v| v == "1")),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
@@ -3233,6 +3238,16 @@ impl Model {
         let mut out = StepOut::None;
         // the opt-in macro schedule: runs of consecutive chunks (the same chunks, in the same order) as ONE layer-by-layer pass
         let (macro_rows_n, per) = self.macro_plan(st, &chunks, mode);
+        // lane a4k-restore: with `st.prefill_snapshots` set (an engine's prefill step) the chunk ends inside this call keep the
+        // snapshots the plain schedule (one call per chunk, a snapshot after each) would leave: the last `keep - 1` of them (the
+        // caller snapshots the call's end). Copies only, after each chunk's recurrence: no op and no numerics change.
+        let keep = st.prefill_snapshots;
+        let snap_from = if keep > 1 && st.has_recurrent() && nchunks > 1 {
+            let ends: Vec<usize> = chunks[..nchunks - 1].iter().scan(st.len, |p, c| { *p += c.len(); Some(*p) }).collect();
+            ends[ends.len().saturating_sub(keep - 1)]
+        } else {
+            usize::MAX
+        };
         let mut ci = 0usize;
         while ci < nchunks {
             let mut glen = if ci < macro_rows_n { per.min(macro_rows_n - ci) } else { 1 };
@@ -3240,7 +3255,32 @@ impl Model {
                 let group = &chunks[ci..ci + glen];
                 let last = ci + glen == nchunks;
                 let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
-                if let Some(hn) = self.run_macro_group(st, group, profile)? {
+                // the chunk ends inside the pass (all but its last segment's) that keep a snapshot, and their buffers
+                let inner: Vec<(usize, usize)> = group[..glen - 1]
+                    .iter()
+                    .scan(st.len, |p, c| { *p += c.len(); Some(*p) })
+                    .enumerate()
+                    .filter(|&(_, len)| len >= snap_from)
+                    .collect();
+                let lens: Vec<usize> = inner.iter().map(|&(_, l)| l).collect();
+                let bufs = if lens.is_empty() { Vec::new() } else { st.inner_snapshot_bufs(&*self.backend, &lens, keep)? };
+                if !bufs.is_empty() {
+                    let mut by_seg = vec![None; glen];
+                    for (&(si, _), b) in inner.iter().zip(&bufs) {
+                        by_seg[si] = Some(b.clone());
+                    }
+                    *self.macro_snaps.lock().unwrap() = Some(by_seg);
+                }
+                let ran = self.run_macro_group(st, group, profile);
+                *self.macro_snaps.lock().unwrap() = None;
+                let ran = match ran {
+                    Ok(r) => r,
+                    Err(e) => {
+                        st.push_inner_snapshots(&lens, bufs, false);
+                        return Err(e);
+                    }
+                };
+                if let Some(hn) = ran {
                     let total: usize = group.iter().map(|c| c.len()).sum();
                     match mode {
                         HeadMode::LastLogits if last => out = StepOut::Logits(self.head_logits(&hn, total - 1, 1, profile)?),
@@ -3251,13 +3291,18 @@ impl Model {
                         st.commit(c);
                         self.telemetry.step();
                     }
+                    st.push_inner_snapshots(&lens, bufs, true);
                     // the MTP drafter queues the pass's hidden rows and catches up over them in chunk-sized pieces (lane mpf)
                     if st.mtp.is_some() {
                         self.mtp_after_forward(st, &hn, total, true, profile)?;
                     }
+                    if !last && st.len >= snap_from {
+                        st.snapshot(&*self.backend, keep)?;
+                    }
                     ci += glen;
                     continue;
                 }
+                st.push_inner_snapshots(&lens, bufs, false);
                 glen = 1; // the segments take different attention paths: chunk by chunk, as without the macro schedule
             }
             debug_assert_eq!(glen, 1);
@@ -3308,6 +3353,9 @@ impl Model {
                 self.mtp_after_forward(st, &hn, chunk.len(), true, profile)?;
             }
             self.dflash_after_forward(st, chunk.len(), profile)?;
+            if !last && st.len >= snap_from {
+                st.snapshot(&*self.backend, keep)?;
+            }
         }
         Ok(out)
     }
@@ -3356,6 +3404,16 @@ impl Model {
         let r = self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None);
         *self.macro_ctx.lock().unwrap() = None;
         r.map(Some)
+    }
+
+    /// Inside a macro pass with snapshots ([`Model::macro_snaps`]): copy recurrent slot `slot` of segment `si`'s state, its
+    /// recurrence for that segment just run, into the segment's snapshot buffer. No-op otherwise.
+    pub(super) fn macro_snap_copy(&self, si: usize, st: &SequenceState, slot: usize, rec: &crate::state::RecurrentState) -> Result<()> {
+        let buf = match self.macro_snaps.lock().unwrap().as_ref().and_then(|v| v.get(si).cloned().flatten()) {
+            Some(b) => b,
+            None => return Ok(()),
+        };
+        self.backend.copy(&buf, st.recurrent_offset(slot), &rec.buf, 0, rec.bytes, self.stream)
     }
 
     fn view(&self, b: &Buffer, dtype: DType, shape: &[usize]) -> TensorRef {
