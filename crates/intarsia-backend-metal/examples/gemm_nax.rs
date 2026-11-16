@@ -1,6 +1,6 @@
 //! P1 spike: NAX bf16 GEMM microbench and error table (docs/results/2026-10-14-metal-prefill-p1-spike.md).
 //!
-//!   cargo run --release -p intarsia-backend-metal --example gemm_nax -- bench|err|pair|pick|pick2|pick3|sweep|waves [shape ...]
+//!   cargo run --release -p intarsia-backend-metal --example gemm_nax -- bench|err|pair|pick|pick2|pick3|sweep|waves|ks [shape ...]
 //!   pair: gate/up (2 x 12288x4096) and k/v (2 x 1024x4096) as one pair dispatch against two single dispatches, per tile
 //!   pick: the shipped tile pick (gemm_nax::pick_variant) against each fixed tile, per shape and M
 //!   pick2: the P1 rule against the shipped pick; pick3: the P4/P5 rule (pick_variant_p45) against the shipped pick
@@ -29,7 +29,8 @@ fn main() {
 mod imp {
     use intarsia_backend_metal::bench::{self, stats, Rng};
     use intarsia_backend_metal::gemm_nax::{
-        encode_nax, encode_nax_pair, pick_variant, pick_variant_p45, NaxPairParams, NaxParams, NaxVariant, NAX_VARIANTS,
+        encode_nax, encode_nax_ks, encode_nax_pair, pick_variant, pick_variant_p45, NaxKsParams, NaxPairParams, NaxParams,
+        NaxVariant, NAX_KS_VARIANTS, NAX_VARIANTS,
     };
     use intarsia_backend_metal::{MetalBackend, MtlBuffer};
     use objc2_metal::{MTLBuffer, MTLCommandBuffer, MTLCommandEncoder, MTLCommandQueue};
@@ -41,13 +42,19 @@ mod imp {
         k: usize,
     }
 
-    const SHAPES: [Shape; 5] = [
+    const SHAPES: [Shape; 9] = [
         Shape { label: "qo", n: 4096, k: 4096 },
         Shape { label: "kv", n: 1024, k: 4096 },
         Shape { label: "gu", n: 12288, k: 4096 },
         Shape { label: "down", n: 4096, k: 12288 },
         // q + k + v of one projection set as one 6144-column output (the P4 triple GEMM proxy: one kernel, same FLOPs)
         Shape { label: "qkv", n: 6144, k: 4096 },
+        // lane mgemm (docs/results/2026-11-16-mgemm.md): Qwen3.8-27B FFN down (hidden 5120, intermediate 17408), a 5120
+        // square control, and the 35B shared expert (hidden 2048, intermediate 512): gate / up and down
+        Shape { label: "d27", n: 5120, k: 17408 },
+        Shape { label: "sq27", n: 5120, k: 5120 },
+        Shape { label: "se_gu", n: 512, k: 2048 },
+        Shape { label: "se_dn", n: 2048, k: 512 },
     ];
 
     fn env_list<T: std::str::FromStr>(name: &str, default: &[T]) -> Vec<T>
@@ -730,6 +737,139 @@ mod imp {
         }
     }
 
+    /// K range boundaries of an `s`-way split of `k`, on multiples of 64 (the last one is `k`).
+    fn ks_bounds(k: usize, s: usize) -> Vec<usize> {
+        let mut b: Vec<usize> = (0..=s).map(|i| ((k * i / s) / 64 * 64).min(k)).collect();
+        b[s] = k;
+        b.dedup();
+        b
+    }
+
+    /// One chain of `count` K-split GEMMs (each `bounds.len() - 1` passes) of tile `v`, serial encoder.
+    #[allow(clippy::too_many_arguments)]
+    fn ks_chain(
+        be: &MetalBackend,
+        v: &NaxVariant,
+        m: usize,
+        n: usize,
+        k: usize,
+        bounds: &[usize],
+        op: &Operands,
+        part: &MtlBuffer,
+        swz: u32,
+        count: usize,
+    ) -> f64 {
+        let pso = be.pso(v.shader).unwrap_or_else(|| panic!("no pipeline {}", v.shader));
+        let cb = be.queue().commandBuffer().unwrap();
+        let enc = cb.computeCommandEncoder().unwrap();
+        let passes = bounds.len() - 1;
+        for i in 0..count {
+            let w = &op.ws[i % op.ws.len()];
+            for j in 0..passes {
+                let flags = u32::from(j > 0) | (u32::from(j + 1 == passes) << 1);
+                let p = NaxKsParams {
+                    m: m as u32,
+                    n: n as u32,
+                    k: k as u32,
+                    swz_log: swz,
+                    k0: bounds[j] as u32,
+                    k1: bounds[j + 1] as u32,
+                    flags,
+                    pad: 0,
+                };
+                encode_nax_ks(&enc, pso, v, (&op.a, 0), (w, 0), (&op.c, 0), (part, 0), &p);
+            }
+        }
+        enc.endEncoding();
+        be.commit(&cb);
+        MetalBackend::wait(&cb).unwrap();
+        bench::gpu_seconds(&cb)
+    }
+
+    fn c_bytes(op: &Operands, m: usize, n: usize) -> Vec<u8> {
+        // SAFETY: m*n bf16 at offset 0 of c.
+        unsafe { std::slice::from_raw_parts(op.c.contents().as_ptr() as *const u8, m * n * 2).to_vec() }
+    }
+
+    /// Lane mgemm form (b): the K-split kernel against the shipped single-pass kernel. Per shape and M: bits of every
+    /// (tile, split) against the shipped pick (`KSBITS` lines: differing bf16 outputs), then all cells timed interleaved
+    /// (`KS` lines, TFLOPS median / p10 / p90). env NAX_M, NAX_SPLITS (default 1,2,4,6), NAX_KS_ONLY (tile filter),
+    /// NAX_SWZ (one value), NAX_ROUNDS, NAX_REPS, NAX_POOL_MIB.
+    fn ks_mode(be: &MetalBackend, shapes: &[&Shape]) {
+        let ms: Vec<usize> = env_list("NAX_M", &[512, 2048, 4096]);
+        let splits: Vec<usize> = env_list("NAX_SPLITS", &[1, 2, 4, 6]);
+        let rounds = env_usize("NAX_ROUNDS", 15);
+        let reps = env_usize("NAX_REPS", 10);
+        let pool = env_usize("NAX_POOL_MIB", 0) << 20;
+        let swz = env_usize("NAX_SWZ", 0) as u32;
+        let only = std::env::var("NAX_KS_ONLY").ok();
+        let kvs: Vec<&NaxVariant> = NAX_KS_VARIANTS
+            .iter()
+            .filter(|v| only.as_ref().is_none_or(|o| o.split(',').any(|t| v.shader.contains(t.trim()))))
+            .collect();
+        std::thread::sleep(std::time::Duration::from_secs(4));
+        let utils: Vec<Option<u32>> = (0..3)
+            .map(|_| {
+                let u = gpu_util();
+                std::thread::sleep(std::time::Duration::from_millis(400));
+                u
+            })
+            .collect();
+        println!("gpu idle (ioreg Device Utilization %, 3 samples): {utils:?}");
+        println!("rounds {rounds}, reps {reps}, pool {} MiB, splits {splits:?}, swz {swz}", pool >> 20);
+        for s in shapes {
+            for &m in &ms {
+                let op = Operands::new(be, m, s.n, s.k, pool, (0, 0, 0));
+                let part = be.new_mtl_buffer(m * s.n * 4 + 64, true).unwrap();
+                let flop = 2.0 * m as f64 * s.n as f64 * s.k as f64;
+                let base = pick_variant(m, s.n);
+                dispatch_chain(be, base, m, s.n, s.k, 0, &op, 1);
+                let want = c_bytes(&op, m, s.n);
+                // cells: None = the shipped kernel and pick; Some((tile, split))
+                let mut cells: Vec<Option<(&NaxVariant, usize)>> = vec![None];
+                for v in &kvs {
+                    for &sp in &splits {
+                        let b = ks_bounds(s.k, sp);
+                        ks_chain(be, v, m, s.n, s.k, &b, &op, &part, swz, 1);
+                        let got = c_bytes(&op, m, s.n);
+                        let diff = want.chunks(2).zip(got.chunks(2)).filter(|(a, b)| a != b).count();
+                        println!(
+                            "KSBITS shape={} M={m} N={} K={} tile={}x{}w{} split={sp} passes={} diff={diff} of {}",
+                            s.label, s.n, s.k, v.bm, v.bn, v.sg, b.len() - 1, m * s.n
+                        );
+                        cells.push(Some((*v, sp)));
+                    }
+                }
+                let run = |c: &Option<(&NaxVariant, usize)>, count: usize| match c {
+                    None => dispatch_chain(be, base, m, s.n, s.k, 0, &op, count),
+                    Some((v, sp)) => ks_chain(be, v, m, s.n, s.k, &ks_bounds(s.k, *sp), &op, &part, swz, count),
+                };
+                for c in &cells {
+                    run(c, 2);
+                }
+                let mut samples: Vec<Vec<f64>> = vec![Vec::new(); cells.len()];
+                let mut order: Vec<usize> = (0..cells.len()).collect();
+                for _ in 0..rounds {
+                    order.rotate_left(1);
+                    for &ci in &order {
+                        samples[ci].push(flop * reps as f64 / run(&cells[ci], reps) / 1e12);
+                    }
+                }
+                for (ci, c) in cells.iter().enumerate() {
+                    let st = stats(&mut samples[ci]);
+                    let name = match c {
+                        None => format!("shipped:{}", base.shader.trim_start_matches("gemm_nax_")),
+                        Some((v, sp)) => format!("ks{}x{}w{}/s{sp}", v.bm, v.bn, v.sg),
+                    };
+                    println!(
+                        "KS shape={} M={m} N={} K={} cell={name} median_tflops={:.2} p10={:.2} p90={:.2} us_per_call={:.1}",
+                        s.label, s.n, s.k, st.median, st.p10, st.p90, flop / (st.median * 1e12) * 1e6
+                    );
+                }
+            }
+        }
+    }
+
     pub fn main() {
         let be = MetalBackend::new().expect("metal backend");
         assert!(be.has_metal4(), "metal4.0 library not loaded");
@@ -746,6 +886,7 @@ mod imp {
             "sweep" => sweep_mode(&be),
             "waves" => waves_mode(&be),
             "pick3" => pick3_mode(&be),
+            "ks" => ks_mode(&be, &shapes),
             other => panic!("mode '{other}': bench or err"),
         }
     }

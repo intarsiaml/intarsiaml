@@ -243,6 +243,57 @@ pub fn encode_nax_pair(
     );
 }
 
+/// Lane mgemm form (b): K-split entry points of gemm_nax_bf16.metal (`gemm_nax_ks_t`), one per tile; `pair_shader` unused.
+pub const NAX_KS_VARIANTS: &[NaxVariant] = &[
+    NaxVariant { shader: "gemm_nax_ks_t64x64w2", pair_shader: "", bm: 64, bn: 64, sg: 2 },
+    NaxVariant { shader: "gemm_nax_ks_t128x64w4", pair_shader: "", bm: 128, bn: 64, sg: 4 },
+    NaxVariant { shader: "gemm_nax_ks_t32x128w2", pair_shader: "", bm: 32, bn: 128, sg: 2 },
+    NaxVariant { shader: "gemm_nax_ks_t64x64w4", pair_shader: "", bm: 64, bn: 64, sg: 4 },
+];
+
+/// Kernel arguments of `gemm_nax_ks_t` (`NaxKsP`; 32 bytes). `flags`: bit 0 = load the f32 partial and accumulate, bit 1 =
+/// last pass (store bf16 C, else the f32 partial).
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct NaxKsParams {
+    pub m: u32,
+    pub n: u32,
+    pub k: u32,
+    pub swz_log: u32,
+    pub k0: u32,
+    pub k1: u32,
+    pub flags: u32,
+    pub pad: u32,
+}
+
+/// Encode one K-range pass of `gemm_nax_ks_t` (operands 4-byte aligned, no leading skip; `part` is the f32 [M,N] partial).
+#[allow(clippy::too_many_arguments)]
+pub fn encode_nax_ks(
+    enc: &ProtocolObject<dyn MTLComputeCommandEncoder>,
+    pso: &ProtocolObject<dyn MTLComputePipelineState>,
+    v: &NaxVariant,
+    a: MtlBuf,
+    w: MtlBuf,
+    c: MtlBuf,
+    part: MtlBuf,
+    p: &NaxKsParams,
+) {
+    enc.setComputePipelineState(pso);
+    // SAFETY: as `encode_nax`.
+    unsafe {
+        enc.setBuffer_offset_atIndex(Some(a.0), a.1, 0);
+        enc.setBuffer_offset_atIndex(Some(w.0), w.1, 1);
+        enc.setBuffer_offset_atIndex(Some(c.0), c.1, 2);
+        enc.setBuffer_offset_atIndex(Some(part.0), part.1, 3);
+    }
+    set_bytes(enc, p, 4);
+    let (gx, gy) = grid(v, p.m, p.n, p.swz_log);
+    enc.dispatchThreadgroups_threadsPerThreadgroup(
+        MTLSize { width: gx, height: gy, depth: 1 },
+        MTLSize { width: v.threads() as usize, height: 1, depth: 1 },
+    );
+}
+
 fn dim(v: usize, what: &str) -> Result<u32> {
     u32::try_from(v).map_err(|_| Error::invalid(format!("metal nax: {what} = {v} exceeds u32")))
 }

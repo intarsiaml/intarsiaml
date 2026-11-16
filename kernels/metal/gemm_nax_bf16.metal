@@ -101,3 +101,77 @@ NAX_T("gemm_nax_t128x64w4", "gemm_nax_pair_t128x64w4", 128, 64, 4)
 NAX_T("gemm_nax_t32x32w1", "gemm_nax_pair_t32x32w1", 32, 32, 1)
 NAX_T("gemm_nax_t32x128w2", "gemm_nax_pair_t32x128w2", 32, 128, 2)
 NAX_T("gemm_nax_t64x64w2", "gemm_nax_pair_t64x64w2", 64, 64, 2)
+
+// Lane mgemm (docs/results/2026-11-16-mgemm.md), form (b): K-split. One dispatch per K range [k0, k1); the partial sum of
+// the output tile is carried between dispatches in an f32 buffer P [M,N]. The first pass multiplies, the next ones load
+// P into the float cooperative destination and multiply-accumulate, the last one rounds to bf16 into C (the same RNE
+// store as the float-destination variant the P1 spike measured bitwise equal to gemm_nax_t). A and W keep their
+// [M,K] / [N,K] layouts: a K range is a strided tensor (row stride K) starting at column k0.
+// bind: 0 A, 1 W, 2 C bf16, 3 P f32, 4 NaxKsP. flags: bit 0 = load P (accumulate), bit 1 = last pass (store C, else P).
+struct NaxKsP {
+  uint m, n, k, swz_log;
+  uint k0, k1, flags, pad;
+};
+
+template <int BM, int BN, int NSG, bool ACC, typename TA, typename TW, typename TP, typename TC>
+METAL_FUNC void ks_tile(TA sA, TW sW, TP sP, TC sC, bool last) {
+  constexpr auto mode = ACC ? matmul2d_descriptor::mode::multiply_accumulate : matmul2d_descriptor::mode::multiply;
+  constexpr auto desc = matmul2d_descriptor(BM, BN, static_cast<int>(dynamic_extent), false, true, false, mode);
+  matmul2d<desc, execution_simdgroups<NSG>> op;
+  auto ct = op.template get_destination_cooperative_tensor<TA, TW, float>();
+  if constexpr (ACC) {
+    ct.load(sP);
+  }
+  op.run(sA, sW, ct);
+  if (last) {
+    auto cb = op.template get_destination_cooperative_tensor<TA, TW, bfloat>();
+#pragma clang loop unroll(full)
+    for (uint16_t i = 0; i < ct.get_capacity(); ++i) {
+      if (ct.is_valid_element(i)) cb[i] = static_cast<bfloat>(ct[i]);
+    }
+    cb.store(sC);
+  } else {
+    ct.store(sP);
+  }
+}
+
+template <int BM, int BN, int NSG>
+kernel void gemm_nax_ks_t(device bfloat* A [[buffer(0)]], device bfloat* W [[buffer(1)]], device bfloat* C [[buffer(2)]],
+                          device float* P [[buffer(3)]], constant NaxKsP& p [[buffer(4)]],
+                          uint2 tg [[threadgroup_position_in_grid]]) {
+  const int M = int(p.m), N = int(p.n), K = int(p.k);
+  const int tiles_m = (M + BM - 1) / BM, tiles_n = (N + BN - 1) / BN;
+  const int ty = int((tg.y << p.swz_log) + (tg.x & ((1u << p.swz_log) - 1)));
+  const int tx = int(tg.x >> p.swz_log);
+  if (tx >= tiles_n || ty >= tiles_m) return;
+  const int m0 = ty * BM, n0 = tx * BN, k0 = int(p.k0), kl = int(p.k1) - int(p.k0);
+  const bool acc = (p.flags & 1u) != 0, last = (p.flags & 2u) != 0;
+  tensor<device bfloat, dextents<int, 2>, tensor_inline> tA(A + k0, dextents<int, 2>(kl, M), array<int, 2>{1, K});
+  tensor<device bfloat, dextents<int, 2>, tensor_inline> tW(W + k0, dextents<int, 2>(kl, N), array<int, 2>{1, K});
+  tensor<device float, dextents<int, 2>, tensor_inline> tP(P, dextents<int, 2>(N, M));
+  tensor<device bfloat, dextents<int, 2>, tensor_inline> tC(C, dextents<int, 2>(N, M));
+  if (m0 + BM <= M && n0 + BN <= N) {
+    auto sA = tA.template slice<dynamic_extent, BM>(0, m0);
+    auto sW = tW.template slice<dynamic_extent, BN>(0, n0);
+    auto sP = tP.template slice<BN, BM>(n0, m0);
+    auto sC = tC.template slice<BN, BM>(n0, m0);
+    if (acc) ks_tile<BM, BN, NSG, true>(sA, sW, sP, sC, last);
+    else ks_tile<BM, BN, NSG, false>(sA, sW, sP, sC, last);
+  } else {
+    auto sA = tA.slice(0, m0);
+    auto sW = tW.slice(0, n0);
+    auto sP = tP.slice(n0, m0);
+    auto sC = tC.slice(n0, m0);
+    if (acc) ks_tile<BM, BN, NSG, true>(sA, sW, sP, sC, last);
+    else ks_tile<BM, BN, NSG, false>(sA, sW, sP, sC, last);
+  }
+}
+
+#define NAX_KS_T(NAME, BM, BN, NSG) \
+  template [[host_name(NAME)]] kernel void gemm_nax_ks_t<BM, BN, NSG>( \
+      device bfloat*, device bfloat*, device bfloat*, device float*, constant NaxKsP&, uint2);
+
+NAX_KS_T("gemm_nax_ks_t64x64w2", 64, 64, 2)
+NAX_KS_T("gemm_nax_ks_t128x64w4", 128, 64, 4)
+NAX_KS_T("gemm_nax_ks_t32x128w2", 32, 128, 2)
+NAX_KS_T("gemm_nax_ks_t64x64w4", 64, 64, 4)

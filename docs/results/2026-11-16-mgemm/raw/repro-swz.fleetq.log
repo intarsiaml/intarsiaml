@@ -1,0 +1,2 @@
+fleetq: #9725 running on endor: env NAX_M=512,2048,4096 NAX_SWZ=0,1,2,3 scripts/mgemm/bench.sh /opt/code/intarsiaml/.worktrees/mgemm/docs/results/2026-11-16-mgemm/raw/repro-swz.txt d27 sq27 se_gu se_dn down qo
+fleetq: #9725 done (exit 0)

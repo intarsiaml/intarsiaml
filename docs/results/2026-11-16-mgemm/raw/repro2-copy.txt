@@ -1,0 +1,10 @@
+device: Apple M5 Max
+page size 16384 B, maxBufferLength 86586540032 B, recommendedMaxWorkingSetSize 115448725504 B, peak assumed 614 GB/s
+warm-up 5, reps 100, weight pool >= 4 GiB per shape, GB/s = 1e9 bytes/s
+
+== copy kernel (copy_u4: 16 B loads/stores, 4 per thread); GB/s = (read+write bytes)/time ==
+copy 1 GiB: median   538.4  p10   502.0  p90   545.7  (87.7% of 614)
+copy 2 GiB: median   540.6  p10   535.7  p90   545.8  (88.0% of 614)
+-- read-only ceiling (read_xor_u4, writes 4 B per 64 B read); GB/s = read bytes/time --
+read 1 GiB: median   552.0  p10   486.0  p90   575.8  (89.9% of 614)
+read 4 GiB: median   536.6  p10   506.9  p90   552.0  (87.4% of 614)
