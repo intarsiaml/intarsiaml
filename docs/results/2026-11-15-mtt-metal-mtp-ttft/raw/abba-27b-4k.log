@@ -1,2 +1,10 @@
 fleetq: #9508 waiting (#15 in line): in line behind #9481 "mnr: kernel tests + order probes + bench" (claude-2ae67a71) on endor
 fleetq:   #9481 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9481 set, or it will wait for #9481 to be released.
+fleetq: #9508 waiting (#14 in line): in line behind #9484 "mtt: gate 2 plan show main vs branch (8B/27B/35B), rerun" (claude-2ae67a71) on endor
+fleetq:   #9484 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9484 set, or it will wait for #9484 to be released.
+fleetq: #9508 waiting (#13 in line): in line behind #9486 "mtt: cargo test --workspace --release --locked (in line, not beside the timing runs)" (claude-2ae67a71) on endor
+fleetq:   #9486 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9486 set, or it will wait for #9486 to be released.
+fleetq: #9508 waiting (#12 in line): in line behind #9487 "mnr: 27B accuracy knob off/on + ids under the knob" (claude-2ae67a71) on endor
+fleetq:   #9487 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9487 set, or it will wait for #9487 to be released.
+fleetq: #9508 waiting (#11 in line): in line behind #9488 "mnr: 27B 8 streams ABBA knob off/on" (claude-2ae67a71) on endor
+fleetq:   #9488 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9488 set, or it will wait for #9488 to be released.

@@ -21,7 +21,7 @@ Models: Qwen3.6-35B-A3B NVFP4 (MoE; 40 layers = 30 GDN + 10 full attention; hidd
 2. **The 35B loses a third of its speed at long context to attention that reads the KV cache several times.** With the
    default MTP path it decodes 129 tok/s at 4k and 87 at 34k; the KV bytes at 34k are worth 1.2 ms per pass at the
    roofline and the verify pass spends about 10 ms on them.
-3. **The MTP default costs 0.3 to 0.45 s of time to first token on the 35B under `serve`** (TTFT at 4k: 1.03 to 1.22 s
+3. (**Withdrawn**, see the note in section 1.5: a hot box, not the MTP default.) **The MTP default costs 0.3 to 0.45 s of time to first token on the 35B under `serve`** (TTFT at 4k: 1.03 to 1.22 s
    against 0.73 to 0.77 s with `--spec off`). `generate` does not show it. The prefill command buffers themselves run
    longer (97 ms -> 111 to 166 ms), so something runs beside the prefill. Not diagnosed; found today.
 4. Single-stream plain decode of the 35B (51 % of roofline) has no clean lever left: fewer dispatches was tried and lost
@@ -137,6 +137,12 @@ weight pass.**
   threadgroups per kv head) reads it four more times, softened by the caches.
 
 ### 1.5 Found today: the MTP default costs TTFT under `serve` (35B)
+
+> **Corrected by lane mtt (same day, [results](../results/2026-11-15-mtt-metal-mtp-ttft.md)).** This is not a cost of the MTP
+> default. The "`--spec off`" arm of #9398 below was started without `--spec off` (an MTP server, and fast), and on a cool,
+> quiet box the two arms are equal (MTP 760 ms against 748 ms). The slow arms were a hot box: after minutes of GPU load the
+> machine throttles the GPU by 1.2 to 1.45x for whichever server runs, `--spec off` included. What the lane did find is a
+> start-up cost: admission built every test case to read its label (27B with the MTP default: 80 s to start, now 3 s).
 
 Same binary, same prompt (`prompt-4096.txt`, `/v1/completions`, fresh nonce per call, 3 calls per arm):
 
