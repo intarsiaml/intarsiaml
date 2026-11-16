@@ -53,7 +53,7 @@ pub struct PlanOptions {
 }
 
 /// Whether [`admit`] looks a planned call's result up by its label before building the case's random data (lane mtt).
-/// On for Metal, where a served 35B with the MTP default spent 5.7 s of an 11.1 s start-up drawing normal variates for
+/// On for Metal (and, since lane lazyc, CUDA; HIP and cpu stay off), where a served 35B with the MTP default spent 5.7 s of an 11.1 s start-up drawing normal variates for
 /// cases that were all cached; `INTARSIA_ADMIT_LAZY=1` / `=0` turns it on / off on any backend, and
 /// `INTARSIA_METAL_MTP_TTFT_FIX=0` turns the Metal default off (the lane's A/B switch). Either way every case that runs
 /// sees the data it always saw: the skipped draws are replayed, in order, before the first case that is built.
@@ -65,7 +65,11 @@ fn lazy_cases_from(backend: &str, lazy: Option<&str>, fix: Option<&str>) -> bool
     match lazy.map(str::trim) {
         Some("1") => true,
         Some("0") => false,
-        _ => backend == "metal" && fix.map(str::trim) != Some("0"),
+        _ => match backend {
+            "metal" => fix.map(str::trim) != Some("0"),
+            "cuda" => true,
+            _ => false,
+        },
     }
 }
 
@@ -1141,16 +1145,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn lazy_admission_cases_default_to_metal_and_follow_the_switches() {
-        assert!(lazy_cases_from("metal", None, None));
-        assert!(!lazy_cases_from("cuda", None, None) && !lazy_cases_from("hip", None, None) && !lazy_cases_from("cpu", None, None));
-        // the lane's A/B switch turns the Metal default off, and only that
-        assert!(!lazy_cases_from("metal", None, Some("0")));
-        assert!(lazy_cases_from("metal", None, Some("1")) && !lazy_cases_from("cuda", None, Some("1")));
+    fn lazy_admission_cases_default_to_metal_and_cuda_and_follow_the_switches() {
+        assert!(lazy_cases_from("metal", None, None) && lazy_cases_from("cuda", None, None));
+        assert!(!lazy_cases_from("hip", None, None) && !lazy_cases_from("cpu", None, None));
+        // the lane's A/B switch turns the Metal default off, and only that (CUDA ignores it)
+        assert!(!lazy_cases_from("metal", None, Some("0")) && lazy_cases_from("cuda", None, Some("0")));
+        assert!(lazy_cases_from("metal", None, Some("1")) && !lazy_cases_from("hip", None, Some("1")));
         // the explicit switch wins on every backend
-        assert!(lazy_cases_from("cuda", Some("1"), None) && lazy_cases_from("metal", Some("1"), Some("0")));
+        assert!(lazy_cases_from("hip", Some("1"), None) && lazy_cases_from("metal", Some("1"), Some("0")));
         assert!(!lazy_cases_from("metal", Some("0"), None) && !lazy_cases_from("metal", Some(" 0 "), Some("1")));
-        assert!(lazy_cases_from("metal", Some("yes"), None), "an unknown value keeps the default");
+        assert!(!lazy_cases_from("cuda", Some("0"), None) && !lazy_cases_from("cuda", Some(" 0 "), Some("1")));
+        assert!(lazy_cases_from("metal", Some("yes"), None) && lazy_cases_from("cuda", Some("yes"), None), "an unknown value keeps the default");
     }
 
     #[test]
