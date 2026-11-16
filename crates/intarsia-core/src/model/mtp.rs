@@ -23,6 +23,9 @@ use crate::quant::{nvfp4, BF16};
 use crate::recipe::MtpSpec;
 use crate::state::MtpState;
 
+/// Lane mdraft: most sequences of one batched MTP draft ([`Model::mtp_draft_batch`]).
+pub(crate) const MAX_DRAFT_BATCH: usize = 8;
+
 pub(super) struct MtpHead {
     /// `fc` columns `[0, H)` (normed embedding) and `[H, 2H)` (normed hidden state), each `[H, H]` bf16.
     fc_e: QTensor,
@@ -36,6 +39,9 @@ pub(super) struct MtpHead {
     norm: TensorRef,
     /// `[1, H]`: the head's last normed output row, the hidden input of a chained draft.
     pub(super) chain: Buffer,
+    /// Lane mdraft: `[MAX_DRAFT_BATCH, H]`, one row per sequence of a batched draft ([`Model::mtp_draft_batch`]): each sequence's
+    /// head output row (the draft lm_head's input and the next chained pass's hidden input), as `chain` is for one sequence.
+    stage: Buffer,
     /// Rows of the pending buffer a sequence's [`MtpState`] gets.
     pending_rows: usize,
     /// Lane mt2: an MoE head under tensor parallelism runs whole on rank 0 (global dims, no collective; the other ranks keep no
@@ -264,6 +270,7 @@ pub(super) fn load_head(
         }
     };
     let chain = b.alloc((h * 4).max(16), MemKind::Device)?;
+    let stage = b.alloc((MAX_DRAFT_BATCH * h * 4).max(16), MemKind::Device)?;
     let scratch = match (whole_rows, &ffn) {
         (Some(rows), HeadFfn::Moe(m)) => Some(MoeScratch::new(b, &m.w.cfg, rows, act)?),
         _ => None,
@@ -277,6 +284,7 @@ pub(super) fn load_head(
         ffn,
         norm: load(&format!("{p}.norm"), Some(&[h]))?,
         chain,
+        stage,
         pending_rows,
         whole_rows,
         scratch,
@@ -485,7 +493,7 @@ impl Model {
         if m.pending_rows + t > m.cap_rows {
             // cannot happen with the sizes `Model::load` gives the queue (a prefill chunk + a verify pass); stay correct
             let n = m.pending_rows;
-            self.mtp_run_pending(st, n, None, profile)?;
+            self.mtp_run_pending(st, n, None, profile, None)?;
         }
         let m = st.mtp.as_mut().unwrap();
         if m.pending_rows + t > m.cap_rows {
@@ -497,7 +505,7 @@ impl Model {
         m.pending_rows += t;
         if catch_up && m.pending_rows > 1 {
             let n = m.pending_rows - 1;
-            self.mtp_run_pending(st, n, None, profile)?;
+            self.mtp_run_pending(st, n, None, profile, None)?;
         }
         Ok(())
     }
@@ -505,7 +513,17 @@ impl Model {
     /// Run the head over the first `n` queued rows (tokens `st.tokens[m.pos() + 1 ..]`, and `next` as the token after the
     /// last committed one when the rows reach it), in pieces of at most a prefill chunk, then shift the rest of the queue
     /// to its front. Returns the argmax of the last row run (the first draft when `next` is given).
-    fn mtp_run_pending(&self, st: &mut SequenceState, n: usize, next: Option<u32>, profile: bool) -> Result<u32> {
+    /// Lane mdraft: with `hold` (a `[1, H]` row of `MtpHead::stage`, drafting catch-up only: `next` given) the last row's output is
+    /// copied there and neither its argmax nor the chain copy runs (returns 0): the caller's batched draft head takes it from there
+    /// ([`Model::mtp_draft_batch`]). Everything else, the head layer pass included, is the unchanged per-sequence pass.
+    fn mtp_run_pending(
+        &self,
+        st: &mut SequenceState,
+        n: usize,
+        next: Option<u32>,
+        profile: bool,
+        hold: Option<&TensorRef>,
+    ) -> Result<u32> {
         let head = self.mtp.as_ref().ok_or_else(|| Error::invalid("no MTP head"))?;
         let mut m = st.mtp.take().ok_or_else(|| Error::invalid("sequence without MTP state"))?;
         let r = (|| -> Result<u32> {
@@ -544,6 +562,10 @@ impl Model {
                 m.kv.commit(&ids[done..done + c]);
                 done += c;
                 if done == n {
+                    if let (Some(dst), Some(_)) = (hold, next) {
+                        self.backend.copy(&dst.buf, dst.offset, &out.buf, out.offset + (c - 1) * m.row_bytes, m.row_bytes, 0)?;
+                        continue;
+                    }
                     // tensor parallelism: rank 0 alone holds the drafting head (a peer only keeps its chain row)
                     tok = if next.is_some() && self.tp.rank == 0 { self.draft_head_argmax(&out, c - 1, profile)? } else { 0 };
                     if next.is_some() && self.recorder.lock().unwrap().is_none() {
@@ -739,7 +761,7 @@ impl Model {
             return Ok(());
         }
         let n = m.pending_rows - 1;
-        let r = self.mtp_run_pending(st, n, None, false);
+        let r = self.mtp_run_pending(st, n, None, false, None);
         if r.is_err() {
             if let Some(m) = st.mtp.as_mut() {
                 m.synced = false;
@@ -757,6 +779,128 @@ impl Model {
             return self.mtp_draft_rank(st, next, k, DraftLink::Solo, None);
         }
         self.mtp_draft_tp(st, next, k)
+    }
+
+    /// Lane mdraft: whether [`Model::mtp_draft_batch`] may run on this model: a backend whose row-exact GEMV is bitwise its one-row
+    /// GEMV ([`Backend::batched_draft`]), one rank, the reduced draft head (`--mtp-draft-vocab`, no `--mtp-draft-subset`), the
+    /// verify token buffer (`enable_verify`), no dry-run recorder, scripted drafts or head dump.
+    pub fn batched_draft_ok(&self) -> bool {
+        self.backend.batched_draft()
+            && self.peers.is_empty()
+            && !self.is_tp()
+            && self.verify_tok.is_some()
+            && self.draft_head.is_some()
+            && self.draft_map.is_none()
+            && self.recorder.lock().unwrap().is_none()
+            && self.mtp.as_ref().is_some_and(|h| !h.whole() && h.script.lock().unwrap().is_none() && h.dump.lock().unwrap().is_none())
+    }
+
+    /// Lane mdraft: [`Model::mtp_draft`] for several sequences of one scheduler iteration, `(state, next, k)` each, with ONE draft
+    /// lm_head launch and ONE token download per draft step for all of them instead of one per sequence. The head's layer passes
+    /// are the per-sequence ones, unchanged (same row counts, same kernels, each on its own head cache): a catch-up pass per
+    /// sequence leaves its last output row in a staging row instead of running the lm_head, the chained passes run one sequence
+    /// after the other, and the lm_head over the staged rows runs on the backend's row-exact multi-row kernel, which is bitwise its
+    /// one-row kernel per row (what the per-sequence drafts run). So the drafts and the head state afterwards are what
+    /// [`Model::mtp_draft`] gives each sequence alone.
+    ///
+    /// `Ok(None)`, nothing run and no state touched: not applicable (a backend or model that does not take it, fewer than 2 or more
+    /// than [`MAX_DRAFT_BATCH`] jobs, a head state [`Model::mtp_draft`] would refuse, or sequences that draft to different depths,
+    /// where the caller drafts one by one). An `Err` leaves every job's head state unsynced.
+    pub fn mtp_draft_batch(&self, jobs: &mut [(&mut SequenceState, u32, usize)]) -> Result<Option<Vec<Vec<u32>>>> {
+        let b = jobs.len();
+        if b < 2 || b > MAX_DRAFT_BATCH || !self.batched_draft_ok() {
+            return Ok(None);
+        }
+        let head = self.mtp.as_ref().ok_or_else(|| Error::invalid("--spec mtp without the MTP head (LoadOptions::mtp)"))?;
+        // every job's head state as `mtp_draft_rank` wants it, and one common depth
+        let mut depth = None;
+        for (st, _, k) in jobs.iter() {
+            let Some(m) = st.mtp.as_ref() else { return Ok(None) };
+            let n = m.pending_rows;
+            if *k == 0 || !m.active || !m.synced || n == 0 || m.pos() + n != st.len || m.kv.len + n > m.kv.cap || !st.peers.is_empty() {
+                return Ok(None);
+            }
+            let k = (*k).min(m.kv.cap.saturating_sub(m.kv.len + n) + 1);
+            if *depth.get_or_insert(k) != k {
+                return Ok(None);
+            }
+        }
+        let k = depth.unwrap_or(0);
+        let h = self.dims.hidden;
+        let stage = TensorRef::new(head.stage.clone(), self.act, &[MAX_DRAFT_BATCH, h]);
+        let unsync = |jobs: &mut [(&mut SequenceState, u32, usize)]| {
+            for (st, _, _) in jobs.iter_mut() {
+                if let Some(m) = st.mtp.as_mut() {
+                    m.synced = false;
+                }
+            }
+        };
+        // catch-up, per sequence: its last output row goes to its staging row
+        for (i, (st, next, _)) in jobs.iter_mut().enumerate() {
+            let n = st.mtp.as_ref().map_or(0, |m| m.pending_rows);
+            if let Err(e) = self.mtp_run_pending(st, n, Some(*next), false, Some(&stage.rows(i, 1))) {
+                unsync(jobs);
+                return Err(e);
+            }
+        }
+        // first drafts: one lm_head over the staged rows
+        let mut drafts: Vec<Vec<u32>> = match self.draft_head_rows(&stage.rows(0, b), b) {
+            Ok(t) => t.into_iter().map(|t| vec![t]).collect(),
+            Err(e) => {
+                unsync(jobs);
+                return Err(e);
+            }
+        };
+        // chained passes: each sequence's one-row head pass on its own cache, then one lm_head over their output rows
+        let mut ms: Vec<Box<MtpState>> = jobs.iter_mut().map(|(st, _, _)| st.mtp.take().expect("checked above")).collect();
+        let bases: Vec<usize> = ms.iter().map(|m| m.kv.len).collect();
+        let r = (|| -> Result<()> {
+            while drafts[0].len() < k {
+                for (i, m) in ms.iter_mut().enumerate() {
+                    let ids = [*drafts[i].last().expect("a first draft")];
+                    let row = stage.rows(i, 1);
+                    let out = self.mtp_layer(head, &m.kv, &ids, &row, false)?;
+                    m.kv.commit(&ids);
+                    self.backend.copy(&row.buf, row.offset, &out.buf, out.offset, m.row_bytes, 0)?;
+                }
+                for (d, t) in drafts.iter_mut().zip(self.draft_head_rows(&stage.rows(0, b), b)?) {
+                    d.push(t);
+                }
+            }
+            Ok(())
+        })();
+        // the chained rows were speculative (and on an error, part-way): the head re-runs those positions from the verified
+        // tokens, so every cache goes back to its committed length on both paths
+        let mut cut = Ok(());
+        for ((st, _, _), (mut m, base)) in jobs.iter_mut().zip(ms.into_iter().zip(bases)) {
+            if let Err(e) = m.kv.truncate(base, &*self.backend) {
+                m.synced = false;
+                cut = cut.and(Err(e));
+            }
+            if r.is_err() {
+                m.synced = false;
+            }
+            st.mtp = Some(m);
+        }
+        r?;
+        cut?;
+        Ok(Some(drafts))
+    }
+
+    /// Lane mdraft: the draft head's lm_head and argmax over the `b` rows of `x` (`[b, H]`) as one row-exact launch pair (row `r`
+    /// bitwise the one-row [`Model::draft_head_argmax`] of row `r` alone) and one download of the `b` ids.
+    fn draft_head_rows(&self, x: &TensorRef, b: usize) -> Result<Vec<u32>> {
+        let h = self.draft_head.as_ref().ok_or_else(|| Error::invalid("batched draft without the reduced draft head"))?;
+        let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("batched draft before enable_verify"))?;
+        let logits = self.view(&self.ws.logits, DType::F32, &[b, h.n]);
+        let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);
+        let r = self.proj(x, h, &logits, false);
+        self.exact_rows.store(prev, std::sync::atomic::Ordering::Relaxed);
+        r?;
+        self.exec(Op::Argmax, vec![logits], vec![self.view(tok, DType::I32, &[b])], OpAttrs::default(), false)?;
+        let mut bytes = vec![0u8; b * 4];
+        self.backend.download(tok, 0, &mut bytes, self.stream)?;
+        Ok(bytes.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect())
     }
 
     /// [`Model::mtp_draft`] with sampled drafts ([`crate::spec::SampledSpec::Reject`], one rank only): each draft is
@@ -867,7 +1011,7 @@ impl Model {
             )));
         }
         let profile = false;
-        let first = self.mtp_run_pending(st, n, Some(next), profile);
+        let first = self.mtp_run_pending(st, n, Some(next), profile, None);
         // sampled drafts: the head's logits row is still in `ws.logits` after its argmax
         let first = first.and_then(|t| match pick.as_mut() {
             Some(f) => Ok(f(&self.draft_logits_row()?)),

@@ -409,6 +409,12 @@ impl Backend for CudaBackend {
         Ok(())
     }
 
+    /// Lane mdraft: the batched MTP draft head (`Model::mtp_draft_batch`). `INTARSIA_BATCHED_DRAFT=0` turns it off.
+    fn batched_draft(&self) -> bool {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        *ON.get_or_init(|| std::env::var_os("INTARSIA_BATCHED_DRAFT").map_or(true, |v| v != "0"))
+    }
+
     /// Lane mtp2s: `ik_gdn_verify_snap_bf16` (kernels/cuda/gdn.cu), bitwise the row-by-row verify launches and the slot copies after
     /// each row. `INTARSIA_CUDA_GDN_VERIFY_FUSE=0` turns it off. A launcher that refuses the arguments (`IK_ERR_UNSUPPORTED`, nothing
     /// launched) answers `Ok(false)`.

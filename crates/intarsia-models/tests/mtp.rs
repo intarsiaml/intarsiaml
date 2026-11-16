@@ -836,6 +836,8 @@ struct RecCpu {
     count_attn: std::sync::atomic::AtomicBool,
     attn_prefill: std::sync::atomic::AtomicUsize,
     attn_decode: std::sync::atomic::AtomicUsize,
+    /// Claims `Backend::batched_draft` (lane mdraft: the cpu kernels are row-exact by construction, as the CUDA twins are by test).
+    batched_draft: std::sync::atomic::AtomicBool,
 }
 impl RecCpu {
     fn arc() -> Arc<RecCpu> {
@@ -848,6 +850,7 @@ impl RecCpu {
             count_attn: Default::default(),
             attn_prefill: Default::default(),
             attn_decode: Default::default(),
+            batched_draft: Default::default(),
         })
     }
     fn forbid(&self, what: &str) -> Result<()> {
@@ -911,6 +914,9 @@ impl Backend for RecCpu {
     }
     fn verify_attn_per_row(&self) -> bool {
         true
+    }
+    fn batched_draft(&self) -> bool {
+        self.batched_draft.load(std::sync::atomic::Ordering::Relaxed)
     }
     fn graph_capture(&self, _stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {
         let left = self.fail_captures.load(std::sync::atomic::Ordering::Relaxed);
@@ -3591,4 +3597,81 @@ fn draft_subset_single_engine_match_topk_is_seed_exact() {
         assert_eq!(run(&sub, r()).ids, run(&off, r()).ids, "seed {s}");
     }
     assert!(tel.snapshot().spec_steps > 0);
+}
+
+/// Lane mdraft: `Model::mtp_draft_batch` (the drafts of several sequences with one draft lm_head launch and one download per draft
+/// step) drafts what `Model::mtp_draft` drafts for each sequence alone, and leaves each head's state (cache length, queue, sync) as
+/// the per-sequence draft does. Two sequences run round after round, each accepting 0..=k of its drafts per pass so the catch-up
+/// rows differ between the two and from round to round; one pair is drafted one by one, the other batched; the drafts, the
+/// states and the next round's drafts must stay equal. Depths that differ between the sequences are not batched (`Ok(None)`, nothing
+/// run); a model without the claim is never batched either.
+#[test]
+fn batched_draft_equals_the_per_sequence_drafts() {
+    let w = weights(11);
+    for k in [1usize, 2, 3] {
+        let rec = RecCpu::arc();
+        rec.batched_draft.store(true, std::sync::atomic::Ordering::Relaxed);
+        let m = load_on(rec.clone(), &w, k, 32);
+        assert!(m.batched_draft_ok());
+        let mut serial = [m.new_state().unwrap(), m.new_state().unwrap()];
+        let mut batched = [m.new_state().unwrap(), m.new_state().unwrap()];
+        let mut last = [0u32; 2];
+        for (i, p) in [PROMPTS[0], PROMPTS[1]].into_iter().enumerate() {
+            for st in [&mut serial[i], &mut batched[i]] {
+                let StepOut::Token(t) = m.forward(st, p, HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+                last[i] = t;
+            }
+        }
+        let mut rng = SplitMix64::new(7 + k as u64);
+        let mut seen_catch_up = [[false; 5]; 2];
+        for round in 0..40 {
+            // 1. drafts: one by one, and batched
+            for (i, st) in serial.iter().enumerate() {
+                seen_catch_up[i][(st.mtp.as_ref().unwrap().pending_rows).min(4)] = true;
+            }
+            let want: Vec<Vec<u32>> = (0..2).map(|i| m.mtp_draft(&mut serial[i], last[i], k).unwrap()).collect();
+            let [b0, b1] = &mut batched;
+            let got = m.mtp_draft_batch(&mut [(b0, last[0], k), (b1, last[1], k)]).unwrap().expect("batched");
+            assert_eq!(want, got, "k {k} round {round}: drafts");
+            // 2. head state afterwards
+            for i in 0..2 {
+                let (a, b) = (serial[i].mtp.as_ref().unwrap(), batched[i].mtp.as_ref().unwrap());
+                assert_eq!((a.kv.len, a.pending_rows, a.synced, a.pos()), (b.kv.len, b.pending_rows, b.synced, b.pos()), "k {k} round {round} seq {i}: head state");
+            }
+            // 3. verify each sequence alone on both pairs (identically), accept 0..=k of its drafts
+            for i in 0..2 {
+                let len0 = serial[i].len;
+                let mut ids = vec![last[i]];
+                ids.extend(&want[i]);
+                let acc = (rng.next_u64() % (want[i].len() as u64 + 1)) as usize;
+                let mut outs = Vec::new();
+                for st in [&mut serial[i], &mut batched[i]] {
+                    let out = m.forward_verify(st, &ids).unwrap();
+                    st.spec_rollback(len0 + 1 + acc, &*rec).unwrap();
+                    outs.push(out);
+                }
+                assert_eq!(outs[0], outs[1], "k {k} round {round} seq {i}: verify rows");
+                last[i] = outs[0][acc];
+            }
+        }
+        // catch-ups of 1, 2 and 3+ rows all occurred in both sequences
+        for (i, seen) in seen_catch_up.iter().enumerate() {
+            assert!(seen[1] && seen[2], "k {k} seq {i}: catch-up row counts seen {seen:?}");
+        }
+        // depths that differ: not batched, nothing touched; the per-sequence drafts go on from where they were
+        let before: Vec<_> = batched.iter().map(|s| { let m = s.mtp.as_ref().unwrap(); (m.kv.len, m.pending_rows, m.synced) }).collect();
+        let [b0, b1] = &mut batched;
+        assert!(m.mtp_draft_batch(&mut [(b0, last[0], k), (b1, last[1], k + 1)]).unwrap().is_none());
+        let after: Vec<_> = batched.iter().map(|s| { let m = s.mtp.as_ref().unwrap(); (m.kv.len, m.pending_rows, m.synced) }).collect();
+        assert_eq!(before, after);
+        let (d0, d1) = (m.mtp_draft(&mut serial[0], last[0], k).unwrap(), m.mtp_draft(&mut batched[0], last[0], k).unwrap());
+        assert_eq!(d0, d1);
+        // one sequence is not a batch; a backend without the claim never batches
+        let [b0, _] = &mut batched;
+        assert!(m.mtp_draft_batch(&mut [(b0, last[0], k)]).unwrap().is_none());
+        rec.batched_draft.store(false, std::sync::atomic::Ordering::Relaxed);
+        assert!(!m.batched_draft_ok());
+        let [b0, b1] = &mut batched;
+        assert!(m.mtp_draft_batch(&mut [(b0, last[0], k), (b1, last[1], k)]).unwrap().is_none());
+    }
 }
