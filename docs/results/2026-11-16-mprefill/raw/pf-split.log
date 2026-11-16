@@ -1,0 +1,7 @@
+fleetq: #9741 running on endor: zsh scripts/mprefill/pf.sh /opt/code/intarsiaml/.worktrees/mprefill/docs/results/2026-11-16-mprefill/raw/pf-split
+Qwen3.6-35B-A3B-NVFP4-4096 prefill 1939 ms (2112.9 tok/s)  thermal 0
+Qwen3.6-35B-A3B-NVFP4-32764 prefill 11033 ms (2969.5 tok/s)  thermal 2
+Qwen3.8-27B-Quark-AWQ-MXFP4-4096 prefill 7393 ms (554.0 tok/s)  thermal 2
+Qwen3.8-27B-Quark-AWQ-MXFP4-32764 prefill 50313 ms (651.2 tok/s)  thermal 1
+## done
+fleetq: #9741 done (exit 0)

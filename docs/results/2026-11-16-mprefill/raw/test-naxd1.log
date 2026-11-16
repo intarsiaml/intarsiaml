@@ -1,0 +1,18 @@
+fleetq: #9746 running on endor: zsh -c 'cd /opt/code/intarsiaml/.worktrees/mprefill && cargo test --release -p intarsia-backend-metal --test mxfp4_nax 2>&1 | grep -vE "^\s*(-->|warning|\||=|[0-9]+ \|)" | tail -20'
+
+
+
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mprefill/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 0.71s
+     Running tests/mxfp4_nax.rs (target/release/deps/mxfp4_nax-aa68146d6e519445)
+
+running 5 tests
+test nax_is_registered_for_m_above_the_gemv_rows_only ... ok
+test nax_rows_do_not_depend_on_the_call ... ok
+test nax_matches_the_gemv_within_accumulation_order ... ok
+test nax_w4a16_equals_the_bf16_nax_gemm_on_decoded_weights ... ok
+test naxd_forms_are_bitwise_the_scratch_path ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+
+fleetq: #9746 done (exit 0)

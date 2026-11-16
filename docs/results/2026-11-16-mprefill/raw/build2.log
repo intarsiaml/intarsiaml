@@ -1,0 +1,5 @@
+fleetq: #9738 running on endor: zsh -c 'cd /opt/code/intarsiaml/.worktrees/mprefill && cargo build --release -p intarsia-cli --features metal 2>&1 | tail -3'
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 13.69s
+fleetq: #9738 done (exit 0)

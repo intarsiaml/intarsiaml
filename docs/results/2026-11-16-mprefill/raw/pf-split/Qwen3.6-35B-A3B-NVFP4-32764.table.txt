@@ -1,0 +1,51 @@
+Qwen3.6-35B-A3B-NVFP4-32764.jsonl: 10526 buffers, GPU busy 10217 ms, idle 588 ms, span 10805 ms
+
+| class | ms | share of busy |
+|---|---:|---:|
+| attention | 3918 | 38.4 % |
+| MoE (router top-k, experts, combine) | 2353 | 23.0 % |
+| NAX GEMM (quantised weights) | 2046 | 20.0 % |
+| GDN (conv, delta rule, gates) | 1376 | 13.5 % |
+| norms | 210 | 2.1 % |
+| activation prep (x QDQ / copy) | 137 | 1.3 % |
+| other (rope, kv append, silu, copies, embed) | 106 | 1.0 % |
+| weight decode -> bf16 scratch | 70 | 0.7 % |
+
+| op | launches | ms | share | us / launch |
+|---|---:|---:|---:|---:|
+| attn_prefill_bf16_flash_nax | 80 | 3918.4 | 38.4 % | 48979.5 |
+| matmul_fp8_nax#2 | 1040 | 1841.0 | 18.0 % | 1770.2 |
+| moe_experts_bf16#1 | 320 | 1378.6 | 13.5 % | 4308.2 |
+| gdn_delta_rule_bf16_pre#1 | 240 | 1326.2 | 13.0 % | 5525.8 |
+| moe_experts_bf16#2 | 320 | 796.6 | 7.8 % | 2489.3 |
+| matmul_nvfp4_nax#1 | 960 | 205.5 | 2.0 % | 214.0 |
+| moe_experts_bf16#3 | 320 | 112.2 | 1.1 % | 350.5 |
+| matmul_fp8_nax | 1040 | 98.8 | 1.0 % | 95.0 |
+| qk_norm_rope_kv_bf16 | 80 | 72.9 | 0.7 % | 911.3 |
+| rmsnorm_bf16 | 248 | 70.5 | 0.7 % | 284.4 |
+| matmul_fp8_nax#1 | 1040 | 66.6 | 0.7 % | 64.1 |
+| rmsnorm_add_bf16 | 640 | 66.2 | 0.6 % | 103.4 |
+| silu_glu_bf16 | 560 | 60.6 | 0.6 % | 108.3 |
+| gdn_delta_rule_bf16_pre | 240 | 47.0 | 0.5 % | 195.8 |
+| matmul_pair_bf16_nax | 560 | 37.8 | 0.4 % | 67.5 |
+| moe_combine_bf16 | 320 | 33.1 | 0.3 % | 103.3 |
+| gate_split_bf16 | 80 | 27.5 | 0.3 % | 344.0 |
+| moe_topk_bf16 | 320 | 18.2 | 0.2 % | 56.9 |
+| sigmoid_mul_bf16 | 80 | 16.1 | 0.2 % | 201.9 |
+| moe_experts_bf16 | 320 | 14.6 | 0.1 % | 45.7 |
+| matmul_nvfp4_nax | 960 | 3.8 | 0.0 % | 3.9 |
+| gdn_conv_bf16 | 240 | 2.6 | 0.0 % | 10.8 |
+| embedding_bf16 | 8 | 0.9 | 0.0 % | 113.7 |
+| other | 270 | 0.7 | 0.0 % | 2.6 |
+| gdn_conv_bf16#1 | 240 | 0.6 | 0.0 % | 2.6 |
+
+| matmul | N x K (unpacked) | calls | rows / call | x prep ms | w decode ms | GEMM ms | decode share | GEMM TFLOPS |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| matmul_fp8_nax | 8192 x 2048 | 320 | 4095 | 26.0 | 36.7 | 921.0 | 4 % | 47.7 |
+| matmul_fp8_nax | 2048 x 4096 | 320 | 4095 | 47.9 | 16.6 | 466.0 | 3 % | 47.2 |
+| matmul_fp8_nax | 4096 x 2048 | 240 | 4095 | 18.8 | 12.7 | 420.6 | 3 % | 39.2 |
+| matmul_pair_bf16_nax | 64 x 2048 | 0 | 0 | 140.4 | 0.0 | 0.0 | 0 % | 0.0 |
+| matmul_nvfp4_nax | 512 x 2048 | 640 | 4095 | 0.0 | 3.8 | 132.8 | 3 % | 41.4 |
+| matmul_nvfp4_nax | 2048 x 512 | 320 | 4095 | 0.0 | 2.2 | 72.8 | 3 % | 37.7 |
+| matmul_fp8_nax | 512 x 2048 | 160 | 4095 | 12.9 | 1.9 | 33.9 | 4 % | 40.6 |
+| matmul_pair_bf16_nax | 257 x 2048 | 0 | 0 | 37.9 | 0.0 | 0.0 | 0 % | 0.0 |

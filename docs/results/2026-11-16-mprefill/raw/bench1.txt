@@ -1,0 +1,82 @@
+thermal 0 12:02:40
+RESULT n=17408 k=5120 m=256 act=0 arm=scratch (3 dispatches)                   med   1999.8 us [  1246.9 ..   2699.2]  22.8 TFLOPS  x1.000 vs scratch  h=79e2ce9ae6bf01b0
+RESULT n=17408 k=5120 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med   1900.1 us [  1030.7 ..   2271.8]  24.0 TFLOPS  x1.053 vs scratch  h=79e2ce9ae6bf01b0
+RESULT n=17408 k=5120 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med   1874.0 us [  1061.3 ..   2300.7]  24.4 TFLOPS  x1.067 vs scratch  h=79e2ce9ae6bf01b0
+RESULT n=17408 k=5120 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med   2216.0 us [  1415.9 ..   3021.5]  20.6 TFLOPS  x0.902 vs scratch  h=79e2ce9ae6bf01b0
+RESULT n=17408 k=5120 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med   1878.4 us [  1214.6 ..   2555.1]  24.3 TFLOPS  x1.065 vs scratch  h=79e2ce9ae6bf01b0
+RESULT n=17408 k=5120 m=512 act=0 arm=scratch (3 dispatches)                   med   2788.0 us [  2456.8 ..   3757.7]  32.7 TFLOPS  x1.000 vs scratch  h=a0c6d965230d3230
+RESULT n=17408 k=5120 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med   3152.7 us [  2775.8 ..   3570.2]  28.9 TFLOPS  x0.884 vs scratch  h=a0c6d965230d3230
+RESULT n=17408 k=5120 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med   3168.1 us [  2801.0 ..   4072.5]  28.8 TFLOPS  x0.880 vs scratch  h=a0c6d965230d3230
+RESULT n=17408 k=5120 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med   4836.1 us [  3898.8 ..   5560.7]  18.9 TFLOPS  x0.577 vs scratch  h=a0c6d965230d3230
+RESULT n=17408 k=5120 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med   3168.1 us [  2855.8 ..   4013.1]  28.8 TFLOPS  x0.880 vs scratch  h=a0c6d965230d3230
+RESULT n=17408 k=5120 m=1024 act=0 arm=scratch (3 dispatches)                   med   5618.0 us [  4678.9 ..   7436.0]  32.5 TFLOPS  x1.000 vs scratch  h=e36d3d23da944c00
+RESULT n=17408 k=5120 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med   6505.1 us [  5623.2 ..   8983.9]  28.1 TFLOPS  x0.864 vs scratch  h=e36d3d23da944c00
+RESULT n=17408 k=5120 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med   6409.1 us [  5739.5 ..   7394.2]  28.5 TFLOPS  x0.877 vs scratch  h=e36d3d23da944c00
+RESULT n=17408 k=5120 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med   8392.1 us [  7868.1 ..   8810.0]  21.8 TFLOPS  x0.669 vs scratch  h=e36d3d23da944c00
+RESULT n=17408 k=5120 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med   6110.3 us [  5780.3 ..   7430.6]  29.9 TFLOPS  x0.919 vs scratch  h=e36d3d23da944c00
+RESULT n=17408 k=5120 m=2048 act=0 arm=scratch (3 dispatches)                   med   9884.5 us [  8086.0 ..  10832.6]  36.9 TFLOPS  x1.000 vs scratch  h=5d2d8e827e4e1015
+RESULT n=17408 k=5120 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med  13438.9 us [ 10563.3 ..  14637.6]  27.2 TFLOPS  x0.736 vs scratch  h=5d2d8e827e4e1015
+RESULT n=17408 k=5120 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med  12734.3 us [ 10394.3 ..  14879.1]  28.7 TFLOPS  x0.776 vs scratch  h=5d2d8e827e4e1015
+RESULT n=17408 k=5120 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med  16619.5 us [ 14239.5 ..  20412.7]  22.0 TFLOPS  x0.595 vs scratch  h=5d2d8e827e4e1015
+RESULT n=17408 k=5120 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med  12385.1 us [ 11700.9 ..  12767.3]  29.5 TFLOPS  x0.798 vs scratch  h=5d2d8e827e4e1015
+RESULT n=5120 k=17408 m=256 act=0 arm=scratch (3 dispatches)                   med   1448.9 us [  1308.4 ..   1644.9]  31.5 TFLOPS  x1.000 vs scratch  h=d1a44e74dd16e333
+RESULT n=5120 k=17408 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med   1493.1 us [  1085.8 ..   1756.5]  30.6 TFLOPS  x0.970 vs scratch  h=d1a44e74dd16e333
+RESULT n=5120 k=17408 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med   1433.0 us [  1038.1 ..   1588.6]  31.8 TFLOPS  x1.011 vs scratch  h=d1a44e74dd16e333
+RESULT n=5120 k=17408 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med   1985.9 us [  1434.6 ..   2227.5]  23.0 TFLOPS  x0.730 vs scratch  h=d1a44e74dd16e333
+RESULT n=5120 k=17408 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med   1791.0 us [  1452.8 ..   2087.5]  25.5 TFLOPS  x0.809 vs scratch  h=d1a44e74dd16e333
+RESULT n=5120 k=17408 m=512 act=0 arm=scratch (3 dispatches)                   med   2998.9 us [  2604.8 ..   3766.2]  30.4 TFLOPS  x1.000 vs scratch  h=0dc6beed01c1d3bb
+RESULT n=5120 k=17408 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med   3548.8 us [  3195.0 ..   4053.2]  25.7 TFLOPS  x0.845 vs scratch  h=0dc6beed01c1d3bb
+RESULT n=5120 k=17408 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med   3323.6 us [  2975.5 ..   4027.8]  27.5 TFLOPS  x0.902 vs scratch  h=0dc6beed01c1d3bb
+RESULT n=5120 k=17408 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med   4736.1 us [  3848.3 ..   5251.8]  19.3 TFLOPS  x0.633 vs scratch  h=0dc6beed01c1d3bb
+RESULT n=5120 k=17408 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med   4155.1 us [  3801.7 ..   5419.0]  22.0 TFLOPS  x0.722 vs scratch  h=0dc6beed01c1d3bb
+RESULT n=5120 k=17408 m=1024 act=0 arm=scratch (3 dispatches)                   med   6630.7 us [  5424.5 ..   8747.5]  27.5 TFLOPS  x1.000 vs scratch  h=d97716efbfdda845
+RESULT n=5120 k=17408 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med   8543.7 us [  6273.1 ..   9809.8]  21.4 TFLOPS  x0.776 vs scratch  h=d97716efbfdda845
+RESULT n=5120 k=17408 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med   9200.7 us [  6644.4 ..   9792.2]  19.8 TFLOPS  x0.721 vs scratch  h=d97716efbfdda845
+RESULT n=5120 k=17408 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med  10592.7 us [  8150.4 ..  10928.2]  17.2 TFLOPS  x0.626 vs scratch  h=d97716efbfdda845
+RESULT n=5120 k=17408 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med   8630.2 us [  7275.0 ..   9567.7]  21.2 TFLOPS  x0.768 vs scratch  h=d97716efbfdda845
+RESULT n=5120 k=17408 m=2048 act=0 arm=scratch (3 dispatches)                   med  14041.8 us [ 10605.0 ..  15743.7]  26.0 TFLOPS  x1.000 vs scratch  h=6cef04f673626080
+RESULT n=5120 k=17408 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med  18133.0 us [ 14634.6 ..  20410.8]  20.1 TFLOPS  x0.774 vs scratch  h=6cef04f673626080
+RESULT n=5120 k=17408 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med  17413.2 us [ 12962.7 ..  19177.3]  21.0 TFLOPS  x0.806 vs scratch  h=6cef04f673626080
+RESULT n=5120 k=17408 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med  22253.3 us [ 17639.6 ..  25013.0]  16.4 TFLOPS  x0.631 vs scratch  h=6cef04f673626080
+RESULT n=5120 k=17408 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med  17050.4 us [ 12850.9 ..  19582.1]  21.4 TFLOPS  x0.824 vs scratch  h=6cef04f673626080
+RESULT n=10240 k=5120 m=256 act=0 arm=scratch (3 dispatches)                   med    914.2 us [   809.3 ..   1018.2]  29.4 TFLOPS  x1.000 vs scratch  h=76c21142d1e32cc6
+RESULT n=10240 k=5120 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med   1056.2 us [   728.0 ..   1213.9]  25.4 TFLOPS  x0.866 vs scratch  h=76c21142d1e32cc6
+RESULT n=10240 k=5120 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med   1034.1 us [   710.6 ..   1173.8]  26.0 TFLOPS  x0.884 vs scratch  h=76c21142d1e32cc6
+RESULT n=10240 k=5120 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med   1257.2 us [   962.6 ..   1506.9]  21.4 TFLOPS  x0.727 vs scratch  h=76c21142d1e32cc6
+RESULT n=10240 k=5120 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med   1216.1 us [   967.1 ..   1391.8]  22.1 TFLOPS  x0.752 vs scratch  h=76c21142d1e32cc6
+RESULT n=10240 k=5120 m=512 act=0 arm=scratch (3 dispatches)                   med   1831.8 us [  1690.9 ..   2417.1]  29.3 TFLOPS  x1.000 vs scratch  h=359d083b80ac40e8
+RESULT n=10240 k=5120 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med   2342.5 us [  1983.8 ..   2753.5]  22.9 TFLOPS  x0.782 vs scratch  h=359d083b80ac40e8
+RESULT n=10240 k=5120 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med   2518.3 us [  2055.8 ..   2908.4]  21.3 TFLOPS  x0.727 vs scratch  h=359d083b80ac40e8
+RESULT n=10240 k=5120 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med   2750.9 us [  2354.5 ..   3050.6]  19.5 TFLOPS  x0.666 vs scratch  h=359d083b80ac40e8
+RESULT n=10240 k=5120 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med   2249.8 us [  1929.4 ..   2662.6]  23.9 TFLOPS  x0.814 vs scratch  h=359d083b80ac40e8
+RESULT n=10240 k=5120 m=1024 act=0 arm=scratch (3 dispatches)                   med   3811.0 us [  3292.3 ..   3936.1]  28.2 TFLOPS  x1.000 vs scratch  h=094d742ee4f98d11
+RESULT n=10240 k=5120 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med   4503.7 us [  3990.9 ..   4642.6]  23.8 TFLOPS  x0.846 vs scratch  h=094d742ee4f98d11
+RESULT n=10240 k=5120 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med   4490.0 us [  4083.0 ..   4576.3]  23.9 TFLOPS  x0.849 vs scratch  h=094d742ee4f98d11
+RESULT n=10240 k=5120 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med   5825.5 us [  5503.8 ..   5941.9]  18.4 TFLOPS  x0.654 vs scratch  h=094d742ee4f98d11
+RESULT n=10240 k=5120 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med   4155.0 us [  3986.2 ..   4384.4]  25.8 TFLOPS  x0.917 vs scratch  h=094d742ee4f98d11
+RESULT n=10240 k=5120 m=2048 act=0 arm=scratch (3 dispatches)                   med   7063.5 us [  5767.3 ..   7398.0]  30.4 TFLOPS  x1.000 vs scratch  h=2c3e76930f6e5a3b
+RESULT n=10240 k=5120 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med   9155.1 us [  7811.4 ..   9704.6]  23.5 TFLOPS  x0.772 vs scratch  h=2c3e76930f6e5a3b
+RESULT n=10240 k=5120 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med   8994.0 us [  7922.9 ..   9483.2]  23.9 TFLOPS  x0.785 vs scratch  h=2c3e76930f6e5a3b
+RESULT n=10240 k=5120 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med  11573.7 us [ 10797.6 ..  12329.1]  18.6 TFLOPS  x0.610 vs scratch  h=2c3e76930f6e5a3b
+RESULT n=10240 k=5120 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med   8473.1 us [  8157.3 ..   9045.4]  25.3 TFLOPS  x0.834 vs scratch  h=2c3e76930f6e5a3b
+RESULT n=5120 k=6144 m=256 act=0 arm=scratch (3 dispatches)                   med    521.4 us [   478.0 ..    586.6]  30.9 TFLOPS  x1.000 vs scratch  h=f5c0d0136fb38461
+RESULT n=5120 k=6144 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med    603.2 us [   406.1 ..    678.1]  26.7 TFLOPS  x0.864 vs scratch  h=f5c0d0136fb38461
+RESULT n=5120 k=6144 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med    594.8 us [   403.6 ..    670.6]  27.1 TFLOPS  x0.877 vs scratch  h=f5c0d0136fb38461
+RESULT n=5120 k=6144 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med    725.7 us [   549.0 ..    869.4]  22.2 TFLOPS  x0.718 vs scratch  h=f5c0d0136fb38461
+RESULT n=5120 k=6144 m=256 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med    681.2 us [   541.6 ..    795.1]  23.6 TFLOPS  x0.765 vs scratch  h=f5c0d0136fb38461
+RESULT n=5120 k=6144 m=512 act=0 arm=scratch (3 dispatches)                   med   1027.8 us [  1003.5 ..   1070.8]  31.3 TFLOPS  x1.000 vs scratch  h=f228a5662a12fd7f
+RESULT n=5120 k=6144 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med   1359.8 us [  1336.5 ..   1414.7]  23.7 TFLOPS  x0.756 vs scratch  h=f228a5662a12fd7f
+RESULT n=5120 k=6144 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med   1303.7 us [  1291.9 ..   1349.5]  24.7 TFLOPS  x0.788 vs scratch  h=f228a5662a12fd7f
+RESULT n=5120 k=6144 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med   1701.2 us [  1671.5 ..   1731.9]  18.9 TFLOPS  x0.604 vs scratch  h=f228a5662a12fd7f
+RESULT n=5120 k=6144 m=512 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med   1624.7 us [  1596.1 ..   1636.8]  19.8 TFLOPS  x0.633 vs scratch  h=f228a5662a12fd7f
+RESULT n=5120 k=6144 m=1024 act=0 arm=scratch (3 dispatches)                   med   2145.6 us [  1971.1 ..   2201.1]  30.0 TFLOPS  x1.000 vs scratch  h=b2ef1990466204f3
+RESULT n=5120 k=6144 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med   2649.3 us [  2451.2 ..   2702.2]  24.3 TFLOPS  x0.810 vs scratch  h=b2ef1990466204f3
+RESULT n=5120 k=6144 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med   2836.8 us [  2696.5 ..   2942.8]  22.7 TFLOPS  x0.756 vs scratch  h=b2ef1990466204f3
+RESULT n=5120 k=6144 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med   3236.0 us [  3142.2 ..   3332.5]  19.9 TFLOPS  x0.663 vs scratch  h=b2ef1990466204f3
+RESULT n=5120 k=6144 m=1024 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med   2592.8 us [  2538.0 ..   2652.8]  24.8 TFLOPS  x0.828 vs scratch  h=b2ef1990466204f3
+RESULT n=5120 k=6144 m=2048 act=0 arm=scratch (3 dispatches)                   med   4196.5 us [  3626.0 ..   4513.0]  30.7 TFLOPS  x1.000 vs scratch  h=8d0d887bb68aa056
+RESULT n=5120 k=6144 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w4         med   5483.8 us [  4756.0 ..   5725.5]  23.5 TFLOPS  x0.765 vs scratch  h=8d0d887bb68aa056
+RESULT n=5120 k=6144 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t128x64k64w4        med   5468.6 us [  4905.8 ..   5748.3]  23.6 TFLOPS  x0.767 vs scratch  h=8d0d887bb68aa056
+RESULT n=5120 k=6144 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t128x128k32w8       med   7224.1 us [  6799.3 ..   7322.0]  17.8 TFLOPS  x0.581 vs scratch  h=8d0d887bb68aa056
+RESULT n=5120 k=6144 m=2048 act=0 arm=gemm_naxd_mxfp4_bf16_t64x64k64w2         med   5030.4 us [  4918.2 ..   5384.1]  25.6 TFLOPS  x0.834 vs scratch  h=8d0d887bb68aa056
+thermal 0 12:03:46

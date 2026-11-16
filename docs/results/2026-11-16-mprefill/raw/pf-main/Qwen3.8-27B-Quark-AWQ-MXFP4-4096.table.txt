@@ -1,0 +1,37 @@
+Qwen3.8-27B-Quark-AWQ-MXFP4-4096.jsonl: 2228 buffers, GPU busy 4364 ms, idle 2001 ms, span 6365 ms
+
+| class | ms | share of busy |
+|---|---:|---:|
+| activation prep (x QDQ / copy) | 3747 | 85.9 % |
+| GDN (conv, delta rule, gates) | 326 | 7.5 % |
+| attention | 119 | 2.7 % |
+| other (rope, kv append, silu, copies, embed) | 100 | 2.3 % |
+| norms | 72 | 1.6 % |
+
+| op | launches | ms | share | us / launch |
+|---|---:|---:|---:|---:|
+| matmul_mxfp4_nax | 992 | 3746.8 | 85.9 % | 3777.0 |
+| gdn_delta_rule_bf16_pre#1 | 96 | 320.0 | 7.3 % | 3333.6 |
+| attn_prefill_bf16_flash_nax | 32 | 119.2 | 2.7 % | 3725.0 |
+| silu_glu_bf16 | 224 | 65.0 | 1.5 % | 290.3 |
+| rmsnorm_add_bf16 | 256 | 34.5 | 0.8 % | 134.6 |
+| gate_split_bf16 | 32 | 29.0 | 0.7 % | 907.4 |
+| qk_norm_rope_kv_bf16 | 32 | 19.6 | 0.4 % | 612.7 |
+| rmsnorm_bf16 | 98 | 17.7 | 0.4 % | 180.3 |
+| gdn_delta_rule_bf16_pre | 96 | 6.0 | 0.1 % | 62.8 |
+| sigmoid_mul_bf16 | 32 | 4.2 | 0.1 % | 129.9 |
+| other | 144 | 1.5 | 0.0 % | 10.4 |
+| embedding_bf16 | 2 | 0.4 | 0.0 % | 223.2 |
+| gdn_conv_bf16 | 96 | 0.0 | 0.0 % | 0.0 |
+| gdn_conv_bf16#1 | 96 | 0.0 | 0.0 % | 0.0 |
+
+| matmul | N x K (unpacked) | calls | rows / call | x prep ms | w decode ms | GEMM ms | decode share | GEMM TFLOPS |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| matmul_mxfp4_nax | 17408 x 5120 | 0 | 0 | 1703.5 | 0.0 | 0.0 | 0 % | 0.0 |
+| matmul_mxfp4_nax | 5120 x 17408 | 0 | 0 | 901.6 | 0.0 | 0.0 | 0 % | 0.0 |
+| matmul_mxfp4_nax | 10240 x 5120 | 0 | 0 | 393.0 | 0.0 | 0.0 | 0 % | 0.0 |
+| matmul_mxfp4_nax | 5120 x 6144 | 0 | 0 | 313.3 | 0.0 | 0.0 | 0 % | 0.0 |
+| matmul_mxfp4_nax | 6144 x 5120 | 0 | 0 | 249.5 | 0.0 | 0.0 | 0 % | 0.0 |
+| matmul_mxfp4_nax | 12288 x 5120 | 0 | 0 | 152.8 | 0.0 | 0.0 | 0 % | 0.0 |
+| matmul_mxfp4_nax | 1024 x 5120 | 0 | 0 | 34.4 | 0.0 | 0.0 | 0 % | 0.0 |
+| matmul_mxfp4_nax | 48 x 5120 | 0 | 0 | 27.5 | 0.0 | 0.0 | 0 % | 0.0 |
