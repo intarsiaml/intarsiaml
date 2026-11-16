@@ -1,0 +1,19 @@
+21:43:54 SAME plan 8b spec default
+21:43:55 SAME plan 8b spec off
+21:43:55 SAME plan 8b spec mtp
+21:44:02 SAME plan 27b spec default
+21:44:08 SAME plan 27b spec off
+21:44:16 SAME plan 27b spec mtp
+21:44:40 SAME plan 35b spec default
+21:44:45 SAME plan 35b spec off
+21:44:51 SAME plan 35b spec mtp
+21:45:31 kernels test base exit 0 55 kernels, 1276 cases in 39.1s
+21:46:10 kernels test lane exit 0 55 kernels, 1276 cases in 39.1s
+21:46:10 SAME kernels list
+21:46:10 SAME kernels test
+21:46:10 done
+kernels test knob exit 0 57 kernels, 1419 cases in 40.6s
+> matmul_mxfp4   matmul_mxfp4_naxr          deterministic       max_abs=1.5e-2 rel_l2=1.0e-3  f32 out: max_abs=1.0e-3 rel_l2=2.0e-4
+> matmul_mxfp4   matmul_mxfp4_naxr_rows     deterministic       max_abs=1.5e-2 rel_l2=1.0e-3  f32 out: max_abs=1.0e-3 rel_l2=2.0e-4
+35:matmul_mxfp4   matmul_mxfp4_naxr              56      0    9.259e-4    2.886e-5  ADMITTED
+36:matmul_mxfp4   matmul_mxfp4_naxr_rows         87      0    1.961e-3    4.118e-5  ADMITTED
