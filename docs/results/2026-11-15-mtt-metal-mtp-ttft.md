@@ -189,7 +189,9 @@ only can if the lazy loop replays the skipped draws). Checked by mutation: with 
 
 The Metal binary of gates 1 and 2 and of the timing runs was built on the lane's base. `origin/main` was merged in twice
 afterwards: first a refactor inside `hostprof.rs` for a test (#379), then lanes `dsubset` (#389, opt-in) and `hip-reuse`
-(#392, HIP). The workspace tests ran after each merge. MERGEDIDS
+(#392, HIP). The workspace tests ran after each merge, and the Metal binary builds on the final tree (#9598). Gates 1 and 2 were not
+repeated on that last merge (the queue on endor was 12 jobs deep; #9600 was released unrun): the coordinator's pre-merge
+check covers it.
 
 The first run of gate 2 (#9462) is void: `cargo test --workspace` rebuilt `target/release/intarsia` without the Metal feature
 while it ran. The lane's Metal binary lives in `target/metal/` since.
@@ -214,7 +216,7 @@ Builds and CPU tests (`--load cpu`): #9411, #9446, #9448, #9449, #9451, #9454, #
 `docs/tuning.md` rows, fixed). GPU (`--quiet gpu`): #9413 (knobs), #9418 (ABBA + traces), #9430, #9442, #9453 (hot box),
 #9437 (start-up `sample`), #9461, #9463 (ids), #9462 (void), #9484 (plan show), #9486 (workspace tests, in line),
 #9470 (ABBA beside other jobs' builds, kept as `raw/busy-abba-35b-4k.log`), #9471 to #9473 (stopped or released by this lane
-before they produced data). GPU (`--quiet gpu,cpu`): #9506, #9507, #9508, #9509, #9510 (TTFT), #9511, #9512 (decode check, localeval). GPU (`--quiet gpu`): #9534 (35B batch test).
+before they produced data). GPU (`--quiet gpu,cpu`): #9506, #9507, #9508, #9509, #9510 (TTFT), #9511, #9512 (decode check, localeval). GPU (`--quiet gpu`): #9534 (35B batch test). `--load cpu`: #9598 (workspace tests and Metal build on the final tree). Released unrun: #9533, #9600.
 
 ---
 
