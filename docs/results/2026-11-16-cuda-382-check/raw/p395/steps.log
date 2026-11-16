@@ -1,0 +1,10 @@
+00:02:55 build pr exit 0
+00:02:57 build main exit 0
+00:05:57 pr acc4k c2048 exit 1
+00:07:04 pr acc4k c1024 exit 1
+00:07:44 pr acc4k c4096 exit 0
+00:07:44 step acc done
+00:08:54 main long-golden diag exit 1
+00:08:54 step diag done
+00:10:36 main long-golden diag exit 1
+00:10:36 step diag done
