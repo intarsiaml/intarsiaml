@@ -2,3 +2,5 @@ fleetq: #9531 waiting (#9 in line): in line behind #9408 "dsubset: 27B acceptanc
 fleetq:   #9408 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9408 set, or it will wait for #9408 to be released.
 fleetq: #9531 waiting (#7 in line): in line behind #9460 "dv27: smoke2 (27B, 2 streams, batched MTP without batched verify)" (claude-2ae67a71) on spark1
 fleetq:   #9460 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9460 set, or it will wait for #9460 to be released.
+fleetq: #9531 waiting (#6 in line): in line behind #9466 "dv27: 27B draft-vocab sweep a1 (1 stream)" (claude-2ae67a71) on spark1
+fleetq:   #9466 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9466 set, or it will wait for #9466 to be released.
