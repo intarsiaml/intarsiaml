@@ -1,6 +1,6 @@
 # Lane mtt: the MTP default's time-to-first-token cost under `serve` on Metal (2026-11-15)
 
-Branch `mtt`, base `origin/main` `c5ce87bc8`, merged up to `fd8a3af08`. Box endor (Apple M5 Max, macOS 27.0); every GPU run in
+Branch `mtt`, base `origin/main` `c5ce87bc8`, merged up to `930411f58`. Box endor (Apple M5 Max, macOS 27.0); every GPU run in
 a fleetq slot (section 7). Scripts: [`scripts/mtt/`](../../scripts/mtt/); raw logs:
 [`2026-11-15-mtt-metal-mtp-ttft/raw/`](2026-11-15-mtt-metal-mtp-ttft/raw/). The brief and the coordinator's overrides are kept
 at the end of this file.
@@ -162,7 +162,7 @@ size and mtime (35B 15 to 16 s, 27B 88 s). CUDA and HIP run the same eager loop;
 | 1. Served greedy ids, 256 tokens, fix on == fix off == `--spec off`; short, 4k (two prompts), 16k | **PASS** 35B and 27B, 4 / 4 cases each | #9461, #9463; `raw/gate-ids-*.log`, `raw/ids/` |
 | 1. MTP counters (`intarsia_spec_steps / proposed / accepted`) identical, fix on against off | **PASS** 35B and 27B (e.g. 35B 4k 95 passes, 190 proposed, 159 accepted in both) | same |
 | 2. `plan show --backend metal` byte-identical to main: 8B, 27B, 35B x default / `--spec off` / `--spec mtp`, each also with `--admit` | **PASS** 18 / 18 (8B `--spec mtp`: the same refusal from both) | #9484; `raw/gate-plan.log`, `raw/plan/` |
-| 3. `cargo test --workspace --release --locked` on the merged tree | **PASS** 1495 passed, 0 failed, 33 ignored | #9486; `raw/test-workspace.log` |
+| 3. `cargo test --workspace --release --locked` | **PASS** 1495 passed, 0 failed, 33 ignored (merged with main `fd8a3af08`); again after the merge with main `930411f58`: 1509 passed, 0 failed, 33 ignored, and the Metal build | #9486, #9598; `raw/test-workspace.log`, `raw/test-workspace-merged.log` |
 | 3. `crates/intarsia-models/tests/batch_metal_real.rs` (35B) | **PASS** both 35B tests (`real_35b_batched_decode_is_bitwise_the_solo_step`, `real_35b_batched_engine_equals_the_local_engine`). The file's LFM2 test reports FAILED only because the run set `INTARSIA_REQUIRE_GPU=1` and there is no LFM2 checkpoint on endor (`SKIPPED: INTARSIA_LFM2_DIR not set`) | #9534; `raw/test-batch-metal-real.log` |
 | 4. Regression test on CPU | **PASS** `lazy_admission_cases_build_nothing_when_cached_and_keep_the_data_of_those_that_run` (`crates/intarsia-models/tests/plan.rs`) and `plan::tests::lazy_admission_cases_default_to_metal_and_follow_the_switches` | #9446, #9448 |
 | 5. Speed rule, TTFT | **PASS** (section 3; already true on main) | #9506, #9507, #9509 |
@@ -187,8 +187,9 @@ for byte), warm (eager builds every case, lazy builds none, same counts and kern
 entries are removed (both re-measure exactly those, and the files match each other and the cold run's values, which they
 only can if the lazy loop replays the skipped draws). Checked by mutation: with the replay removed the test fails (#9449).
 
-The Metal binary of gates 1 and 2 was built before `origin/main` was merged in; the merge brought one engine change, a
-refactor inside `hostprof.rs` for a test (#379). The workspace tests ran on the merged tree.
+The Metal binary of gates 1 and 2 and of the timing runs was built on the lane's base. `origin/main` was merged in twice
+afterwards: first a refactor inside `hostprof.rs` for a test (#379), then lanes `dsubset` (#389, opt-in) and `hip-reuse`
+(#392, HIP). The workspace tests ran after each merge. MERGEDIDS
 
 The first run of gate 2 (#9462) is void: `cargo test --workspace` rebuilt `target/release/intarsia` without the Metal feature
 while it ran. The lane's Metal binary lives in `target/metal/` since.
