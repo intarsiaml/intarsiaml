@@ -1,0 +1,38 @@
+fleetq: #9413 running on endor: scripts/mtt/ttft.sh mtp 'off::--spec off' ga0:INTARSIA_METAL_MTP_GPU_ACCEPT=0 bm0:INTARSIA_BATCHED_MTP=0 'k1::--spec mtp --spec-k 1' sd0:INTARSIA_SPEC_DEFAULT=0 ms8k:MAXSEQ=8192 mtpsmp:SAMPLE=1 'offsmp:SAMPLE=1:--spec off'
+## mtp [] []
+nonce mtpa-1377: ttft 778 ms, events 48, first gaps ms [18.3, 14.4, 0.0, 14.8, 13.9, 14.1], total 1057 ms, usage {'prompt_tokens': 4105, 'completion_tokens': 48, 'total_tokens': 4153, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtpb-18976: ttft 748 ms, events 48, first gaps ms [14.3, 14.5, 0.0, 0.0, 14.6, 0.0], total 1048 ms, usage {'prompt_tokens': 4106, 'completion_tokens': 48, 'total_tokens': 4154, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtpc-3982: ttft 745 ms, events 48, first gaps ms [14.3, 14.4, 0.0, 0.0, 14.8, 0.0], total 1046 ms, usage {'prompt_tokens': 4105, 'completion_tokens': 48, 'total_tokens': 4153, 'prompt_tokens_details': {'cached_tokens': 0}}
+## off [] [--spec off]
+nonce offa-28469: ttft 804 ms, events 4, first gaps ms [9.1, 9.0, 9.1], total 832 ms, usage {'prompt_tokens': 4106, 'completion_tokens': 5, 'total_tokens': 4111, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce offb-10816: ttft 803 ms, events 48, first gaps ms [9.8, 9.7, 9.9, 9.8, 10.4, 11.9], total 1291 ms, usage {'prompt_tokens': 4106, 'completion_tokens': 48, 'total_tokens': 4154, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce offc-28786: ttft 974 ms, events 4, first gaps ms [17.8, 10.5, 12.9], total 1015 ms, usage {'prompt_tokens': 4106, 'completion_tokens': 5, 'total_tokens': 4111, 'prompt_tokens_details': {'cached_tokens': 0}}
+## ga0 [INTARSIA_METAL_MTP_GPU_ACCEPT=0] []
+nonce ga0a-27987: ttft 797 ms, events 48, first gaps ms [19.8, 16.6, 0.0, 16.6, 0.0, 0.0], total 1139 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce ga0b-2571: ttft 763 ms, events 48, first gaps ms [14.9, 15.3, 0.0, 15.8, 14.7, 0.0], total 1085 ms, usage {'prompt_tokens': 4106, 'completion_tokens': 48, 'total_tokens': 4154, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce ga0c-29370: ttft 768 ms, events 48, first gaps ms [14.8, 15.4, 0.0, 15.4, 0.0, 15.4], total 1037 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+## bm0 [INTARSIA_BATCHED_MTP=0] []
+nonce bm0a-18870: ttft 830 ms, events 48, first gaps ms [27.7, 17.6, 0.0, 21.6, 19.5, 0.0], total 1213 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce bm0b-22832: ttft 782 ms, events 48, first gaps ms [15.6, 17.6, 0.0, 0.0, 16.0, 0.0], total 1110 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce bm0c-26267: ttft 823 ms, events 48, first gaps ms [15.9, 15.7, 0.0, 16.0, 15.3, 15.1], total 1124 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+## k1 [] [--spec mtp --spec-k 1]
+nonce k1a-963: ttft 808 ms, events 48, first gaps ms [17.7, 12.5, 0.1, 12.3, 0.0, 12.5], total 1111 ms, usage {'prompt_tokens': 4104, 'completion_tokens': 48, 'total_tokens': 4152, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce k1b-12938: ttft 753 ms, events 48, first gaps ms [11.8, 11.6, 0.0, 12.1, 11.5, 11.3], total 1071 ms, usage {'prompt_tokens': 4106, 'completion_tokens': 48, 'total_tokens': 4154, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce k1c-5438: ttft 755 ms, events 48, first gaps ms [11.8, 11.8, 0.0, 11.8, 11.3, 0.0], total 1060 ms, usage {'prompt_tokens': 4105, 'completion_tokens': 48, 'total_tokens': 4153, 'prompt_tokens_details': {'cached_tokens': 0}}
+## sd0 [INTARSIA_SPEC_DEFAULT=0] []
+nonce sd0a-13853: ttft 777 ms, events 48, first gaps ms [8.4, 8.5, 8.5, 8.5, 8.3, 8.3], total 1169 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce sd0b-15042: ttft 742 ms, events 48, first gaps ms [8.2, 8.4, 8.3, 8.3, 8.2, 8.3], total 1134 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce sd0c-11899: ttft 744 ms, events 48, first gaps ms [8.3, 8.4, 8.6, 8.4, 8.4, 8.4], total 1138 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+## ms8k [MAXSEQ=8192] []
+nonce ms8ka-16652: ttft 783 ms, events 48, first gaps ms [19.1, 15.2, 0.0, 14.8, 0.0, 14.5], total 1038 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce ms8kb-1177: ttft 748 ms, events 48, first gaps ms [14.3, 14.6, 0.0, 15.0, 14.1, 14.0], total 1023 ms, usage {'prompt_tokens': 4106, 'completion_tokens': 48, 'total_tokens': 4154, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce ms8kc-32604: ttft 747 ms, events 48, first gaps ms [14.6, 14.5, 0.0, 0.0, 14.8, 0.0], total 1037 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+## mtpsmp [SAMPLE=1] []
+nonce mtpsmpa-31394: ttft 783 ms, events 48, first gaps ms [18.1, 14.4, 0.0, 14.9, 14.2, 14.1], total 1099 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtpsmpb-12286: ttft 796 ms, events 48, first gaps ms [14.6, 14.5, 0.0, 0.0, 14.7, 14.1], total 1091 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtpsmpc-3337: ttft 746 ms, events 48, first gaps ms [14.6, 14.5, 0.0, 0.0, 14.7, 14.2], total 1023 ms, usage {'prompt_tokens': 4106, 'completion_tokens': 48, 'total_tokens': 4154, 'prompt_tokens_details': {'cached_tokens': 0}}
+## offsmp [SAMPLE=1] [--spec off]
+nonce offsmpa-29898: ttft 791 ms, events 48, first gaps ms [8.5, 8.5, 8.5, 8.4, 8.6, 8.7], total 1224 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce offsmpb-31987: ttft 755 ms, events 4, first gaps ms [8.8, 8.4, 9.1], total 781 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 5, 'total_tokens': 4112, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce offsmpc-29903: ttft 754 ms, events 48, first gaps ms [8.2, 8.2, 8.3, 8.2, 8.4, 8.3], total 1146 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+fleetq: #9413 done (exit 0)

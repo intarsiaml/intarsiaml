@@ -181,6 +181,80 @@ fn admission_on_plan_shapes_is_cached_and_enforced() {
     let _ = std::fs::remove_dir_all(dir);
 }
 
+/// Lane mtt: `PlanOptions::lazy_cases` answers cached cases without building their random data (a warm load builds none),
+/// and changes nothing else: a cold run writes the same cache file, and after a partial cache loss the cases that run again
+/// get the data the eager loop gives them (the skipped draws are replayed), so the file comes back byte for byte.
+#[test]
+fn lazy_admission_cases_build_nothing_when_cached_and_keep_the_data_of_those_that_run() {
+    let oracle = intarsia_backend_cpu::CpuBackend::arc();
+    let run = |dir: &std::path::Path, lazy: bool| {
+        let opts = PlanOptions {
+            admit: true,
+            require_admitted: true,
+            cache_dir: Some(dir.to_path_buf()),
+            lazy_cases: Some(lazy),
+            ..Default::default()
+        };
+        let mut m =
+            load_on(intarsia_backend_cpu::CpuBackend::arc(), LoadOptions { max_seq: 64, ..Default::default() }).unwrap();
+        let s = m.configure_plan(&opts, Some(&*oracle)).unwrap();
+        assert!(s.rejected.is_empty(), "{:?}", s.rejected);
+        let kernels: Vec<(String, bool)> = m.resolved.ops.iter().map(|o| (o.kernel.clone(), o.admitted)).collect();
+        (s, kernels)
+    };
+    let file = |dir: &std::path::Path| {
+        let mut f: Vec<_> = std::fs::read_dir(dir).unwrap().flatten().map(|e| e.path()).collect();
+        assert_eq!(f.len(), 1, "{f:?}");
+        f.pop().unwrap()
+    };
+    let (eager, lazy) = (tmp_cache("lazy-e"), tmp_cache("lazy-l"));
+
+    // cold: nothing is cached, so the lazy loop is the eager loop from its first case on
+    let (se, ke) = run(&eager, false);
+    let (sl, kl) = run(&lazy, true);
+    assert!(se.cases_run > 10 && se.cases_cached == 0 && se.cases_built > 10, "{se:?}");
+    assert_eq!((sl.cases_run, sl.cases_cached, sl.cases_built), (se.cases_run, se.cases_cached, se.cases_built));
+    assert_eq!(kl, ke);
+    let full = std::fs::read(file(&eager)).unwrap();
+    assert_eq!(std::fs::read(file(&lazy)).unwrap(), full, "a cold lazy run writes the eager cache file");
+
+    // warm: the eager loop builds every case to find its label, the lazy one builds none
+    let (se, ke) = run(&eager, false);
+    let (sl, kl) = run(&lazy, true);
+    assert_eq!((se.cases_run, sl.cases_run), (0, 0));
+    assert!(se.cases_built > 10, "{se:?}");
+    assert_eq!(sl.cases_built, 0, "{sl:?}");
+    assert_eq!(sl.cases_cached, se.cases_cached);
+    assert_eq!(kl, ke);
+
+    // some results lost (not the first ones, so cached cases come before a miss): both loops run them again on the same
+    // data, which shows in the measured errors the file stores
+    let mut v: serde_json::Value = serde_json::from_slice(&full).unwrap();
+    let entries = v["entries"].as_object_mut().unwrap();
+    let keys: Vec<String> = entries.keys().cloned().collect();
+    let lost: Vec<&String> = keys.iter().enumerate().filter(|(i, _)| *i >= 3 && i % 4 == 3).map(|(_, k)| k).collect();
+    assert!(lost.len() >= 3, "{}", keys.len());
+    for k in &lost {
+        entries.remove(*k);
+    }
+    let partial = serde_json::to_vec_pretty(&v).unwrap();
+    std::fs::write(file(&eager), &partial).unwrap();
+    std::fs::write(file(&lazy), &partial).unwrap();
+    let (se, ke) = run(&eager, false);
+    let (sl, kl) = run(&lazy, true);
+    assert_eq!(se.cases_run, lost.len(), "{se:?}");
+    assert_eq!((sl.cases_run, sl.cases_cached), (se.cases_run, se.cases_cached));
+    assert!(sl.cases_built >= sl.cases_run && sl.cases_built <= se.cases_built, "{sl:?} {se:?}");
+    assert_eq!(kl, ke);
+    let (fe, fl) = (std::fs::read(file(&eager)).unwrap(), std::fs::read(file(&lazy)).unwrap());
+    assert_eq!(fl, fe, "the lazy loop re-measured a lost case on other data than the eager loop");
+    let (je, jf): (serde_json::Value, serde_json::Value) = (serde_json::from_slice(&fe).unwrap(), serde_json::from_slice(&full).unwrap());
+    let diff: Vec<_> = keys.iter().filter(|k| je["entries"][k.as_str()] != jf["entries"][k.as_str()]).map(|k| (k, &je["entries"][k.as_str()], &jf["entries"][k.as_str()])).collect();
+    assert!(diff.is_empty(), "re-measured cases differ from the cold run's: {diff:#?}");
+    let _ = std::fs::remove_dir_all(eager);
+    let _ = std::fs::remove_dir_all(lazy);
+}
+
 #[test]
 fn bad_kernel_is_rejected_on_plan_shapes_and_replaced() {
     let w = wrap(None, None, Some(Op::SiluGlu));

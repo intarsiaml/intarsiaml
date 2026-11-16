@@ -47,6 +47,26 @@ pub struct PlanOptions {
     pub cache_dir: Option<PathBuf>,
     /// Do not read or write the admission cache.
     pub no_cache: bool,
+    /// Lane mtt: build a case's random data only when its result is not in the cache ([`admit`]). `None`: [`lazy_cases_for`]
+    /// (the backend's default and the environment); tests set it.
+    pub lazy_cases: Option<bool>,
+}
+
+/// Whether [`admit`] looks a planned call's result up by its label before building the case's random data (lane mtt).
+/// On for Metal, where a served 35B with the MTP default spent 5.7 s of an 11.1 s start-up drawing normal variates for
+/// cases that were all cached; `INTARSIA_ADMIT_LAZY=1` / `=0` turns it on / off on any backend, and
+/// `INTARSIA_METAL_MTP_TTFT_FIX=0` turns the Metal default off (the lane's A/B switch). Either way every case that runs
+/// sees the data it always saw: the skipped draws are replayed, in order, before the first case that is built.
+pub fn lazy_cases_for(backend: &str) -> bool {
+    lazy_cases_from(backend, std::env::var("INTARSIA_ADMIT_LAZY").ok().as_deref(), std::env::var("INTARSIA_METAL_MTP_TTFT_FIX").ok().as_deref())
+}
+
+fn lazy_cases_from(backend: &str, lazy: Option<&str>, fix: Option<&str>) -> bool {
+    match lazy.map(str::trim) {
+        Some("1") => true,
+        Some("0") => false,
+        _ => backend == "metal" && fix.map(str::trim) != Some("0"),
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -729,6 +749,9 @@ pub struct AdmitSummary {
     pub kernels_checked: usize,
     pub cases_run: usize,
     pub cases_cached: usize,
+    /// Cases whose random data was built (to run, or to keep the generator's stream for a later case). With
+    /// [`PlanOptions::lazy_cases`] a load served from the cache builds none.
+    pub cases_built: usize,
     pub rejected: Vec<(String, String)>,
 }
 
@@ -746,6 +769,12 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
     let mut sum = AdmitSummary::default();
     let same_backend = reference.name() == cand.name();
     let mut rng = SplitMix64::new(0x1a7a);
+    // lane mtt: with `lazy`, a call whose result is cached under its label ([`case_label`], the label its case would get)
+    // is answered from the cache without building the case; its call is kept in `skipped`. The first call that has to be
+    // built replays the skipped ones through the generator first (in order, data dropped), so it and every later case
+    // get exactly the data the eager loop gives them: cache entries and verdicts cannot differ.
+    let mut lazy = opts.lazy_cases.unwrap_or_else(|| lazy_cases_for(cand.name()));
+    let mut skipped: Vec<OpCall> = Vec::new();
 
     for _round in 0..8 {
         resolve(model)?;
@@ -797,6 +826,24 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
             let items: Vec<Option<PlannedCall>> =
                 if work.is_empty() && twins.contains(&kname) { vec![None] } else { work.into_iter().map(Some).collect() };
             for c in items {
+                // (a call without a label has no case: `case_from_call` returns `None` for it before it draws anything, and
+                // its kernel's sweep decides below, lazy or not)
+                if let Some((c, label)) = c.as_ref().filter(|_| lazy).and_then(|c| Some((c, case_label(&c.call, &CAPS)?))) {
+                    if let Some(e) = cache.file.entries.get(&case_key(&kname, &label)) {
+                        sum.cases_cached += 1;
+                        skipped.push(c.call.clone());
+                        if !e.pass {
+                            bad = Some(case_failure(&label, e, kern));
+                            break;
+                        }
+                        continue;
+                    }
+                    // not answered by the cache: from here on the eager loop, on the generator state it would have
+                    lazy = false;
+                    for call in skipped.drain(..) {
+                        sum.cases_built += usize::from(case_from_call(&call, &CAPS, &mut rng).is_some());
+                    }
+                }
                 let (host, label) = match c.as_ref().and_then(|c| case_from_call(&c.call, &CAPS, &mut rng)) {
                     Some(x) => x,
                     None => {
@@ -828,6 +875,7 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
                         continue;
                     }
                 };
+                sum.cases_built += 1;
                 let key = case_key(&kname, &label);
                 let e = match cache.file.entries.get(&key) {
                     Some(e) => {
@@ -851,17 +899,7 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
                     }
                 };
                 if !e.pass {
-                    bad = Some(format!(
-                        "{label}: {}",
-                        e.error.clone().unwrap_or_else(|| format!(
-                            "max_abs {:.3e} rel_l2 {:.3e} (tol {:.1e}/{:.1e}{})",
-                            e.max_abs,
-                            e.rel_l2,
-                            kern.tol.max_abs,
-                            kern.tol.rel_l2,
-                            kern.tol_f32.map_or(String::new(), |t| format!(", f32 outputs {:.1e}/{:.1e}", t.max_abs, t.rel_l2))
-                        ))
-                    ));
+                    bad = Some(case_failure(&label, &e, kern));
                 }
                 if bad.is_some() {
                     break;
@@ -890,6 +928,21 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
         e => e,
     })?;
     Ok(sum)
+}
+
+/// Why a failed exact-shape case rejects its kernel (the line the load error prints).
+fn case_failure(label: &str, e: &CacheEntry, kern: &crate::registry::KernelImpl) -> String {
+    format!(
+        "{label}: {}",
+        e.error.clone().unwrap_or_else(|| format!(
+            "max_abs {:.3e} rel_l2 {:.3e} (tol {:.1e}/{:.1e}{})",
+            e.max_abs,
+            e.rel_l2,
+            kern.tol.max_abs,
+            kern.tol.rel_l2,
+            kern.tol_f32.map_or(String::new(), |t| format!(", f32 outputs {:.1e}/{:.1e}", t.max_abs, t.rel_l2))
+        ))
+    )
 }
 
 fn sweep_entry(model: &Model, reference: &dyn Backend, cand: &dyn Backend, kernel: &str) -> Result<CacheEntry> {
@@ -1045,6 +1098,19 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lazy_admission_cases_default_to_metal_and_follow_the_switches() {
+        assert!(lazy_cases_from("metal", None, None));
+        assert!(!lazy_cases_from("cuda", None, None) && !lazy_cases_from("hip", None, None) && !lazy_cases_from("cpu", None, None));
+        // the lane's A/B switch turns the Metal default off, and only that
+        assert!(!lazy_cases_from("metal", None, Some("0")));
+        assert!(lazy_cases_from("metal", None, Some("1")) && !lazy_cases_from("cuda", None, Some("1")));
+        // the explicit switch wins on every backend
+        assert!(lazy_cases_from("cuda", Some("1"), None) && lazy_cases_from("metal", Some("1"), Some("0")));
+        assert!(!lazy_cases_from("metal", Some("0"), None) && !lazy_cases_from("metal", Some(" 0 "), Some("1")));
+        assert!(lazy_cases_from("metal", Some("yes"), None), "an unknown value keeps the default");
+    }
 
     #[test]
     fn the_no_kernel_error_names_the_weight_tensors_their_dtype_and_the_op() {

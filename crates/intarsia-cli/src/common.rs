@@ -355,6 +355,7 @@ impl ModelArgs {
                 force_reference: self.reference,
                 cache_dir: None,
                 no_cache: self.no_admission_cache,
+                lazy_cases: None,
             },
             spec: intarsia_core::spec::SpecConfig::parse(
                 self.spec_mode(),
