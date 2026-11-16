@@ -9,7 +9,9 @@
 //! Layout (docs/results/2026-10-22-pc-prefix-store.md):
 //! - An **entry** is one restorable prefix: its token ids (compared in full on every hit, so a hash collision can never
 //!   restore a wrong state), one recurrent blob (all recurrent slots, slot order; none for attention-only models) and
-//!   the list of KV **pages** covering `0..len`.
+//!   the list of KV **pages** covering `0..len`. With an MTP head (`--spec mtp`, lane mhkv) an entry a drafting request
+//!   stored also has the head's pages (its cache rows, shifted by one position against the main pages) and its queued
+//!   hidden row, so a restored sequence drafts as after a cold prefill ([`HeadLayout`]).
 //! - A **page** holds `page_tokens` rows of every attention slot (K then V, per head). Pages are content-addressed by
 //!   the hash of the whole prefix up to the page end, so the entries of one conversation (turn 1, turn 2, ...) and of
 //!   every conversation sharing a system prompt share their KV pages; only the recurrent blob is per entry.
@@ -25,7 +27,7 @@
 
 use crate::backend::{Backend, Buffer, MemKind};
 use crate::error::{Error, Result};
-use crate::state::{SequenceState, SlotSpec, StateSlot};
+use crate::state::{MtpState, SequenceState, SlotSpec, StateSlot};
 use serde::Serialize;
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
@@ -358,6 +360,84 @@ impl Layout {
     }
 }
 
+/// The MTP head's part of an entry (lane mhkv; `--spec mtp`). The head trails the main model by one position: its cache row
+/// `p` reads the main model's hidden row of `p` and the token of `p + 1`, so after a prefill chunk ending at `len` it holds
+/// rows `0..len - 1` and queues the hidden row of `len - 1`. Head pages are shifted by one against the main pages: the head
+/// page of the main page `[start, end)` holds head rows `[start - 1, end - 1)` (`[0, end - 1)` for the first), which depend on
+/// the tokens up to `end` and on the chunks that wrote main rows up to `end - 1`, exactly what the main page's key covers, so
+/// a head page shares its main page's key (salted) and is shared between entries alike. The queued row is per entry (the
+/// head tail). An entry holds no head part when the sequence's head did not follow it from position 0 (a request that did
+/// not draft, a head context restarted by an earlier restore), and then a restore restarts the head's context as before.
+#[derive(Clone, Debug, PartialEq)]
+struct HeadLayout {
+    kv: AttnLayout,
+    /// Bytes of one queued hidden row.
+    row_bytes: usize,
+}
+
+/// Salts of the head objects' keys (a head page: its main page's key; the tail: the entry's key). The recurrent blob uses
+/// `u128::MAX >> 1`.
+const HEAD_PAGE_SALT: u128 = 0x4d54_5048_4541_4450_4147_4500_0000_0001;
+const HEAD_TAIL_SALT: u128 = 0x4d54_5048_4541_4454_4149_4c00_0000_0002;
+
+impl HeadLayout {
+    fn from_spec(spec: &SlotSpec, row_bytes: usize) -> Option<HeadLayout> {
+        match spec {
+            SlotSpec::AttnKv { n_kv_heads, head_dim, dtype } => Some(HeadLayout {
+                kv: AttnLayout { slot: 0, heads: *n_kv_heads, head_dim: *head_dim, elem: dtype.size_bytes() },
+                row_bytes,
+            }),
+            _ => None,
+        }
+    }
+
+    /// Head rows stored with the main page `[start, end)`.
+    fn rows(start: usize, end: usize) -> (usize, usize) {
+        (start.saturating_sub(1), end - 1)
+    }
+
+    fn page_bytes(&self, start: usize, end: usize) -> usize {
+        let (a, b) = Self::rows(start, end);
+        2 * self.kv.heads * (b - a) * self.kv.head_dim * self.kv.elem
+    }
+
+    /// The head state matches this layout.
+    fn fits(&self, m: &MtpState) -> bool {
+        matches!(m.kv.slots.as_slice(), [StateSlot::AttnKv(s)] if s.n_kv_heads == self.kv.heads && s.head_dim == self.kv.head_dim && s.dtype.size_bytes() == self.kv.elem)
+            && m.row_bytes == self.row_bytes
+            && m.cap_rows >= 1
+    }
+
+    /// The head of `st` can be stored with an entry of `len` tokens: it followed the sequence from position 0 through
+    /// prefill passes that caught it up (cache `0..len - 1`, one queued row).
+    fn capturable(&self, st: &SequenceState, len: usize) -> bool {
+        st.mtp.as_ref().is_some_and(|m| {
+            m.active && m.synced && m.base == 0 && len >= 2 && st.len == len && m.kv.len + 1 == len && m.pending_rows == 1 && self.fits(m)
+        })
+    }
+
+    /// Segments of the head page for the main page `[start, end)` (per K / V, per head).
+    fn segments<'s>(&self, m: &'s MtpState, start: usize, end: usize) -> Vec<(&'s Buffer, usize, usize)> {
+        let (a, b) = Self::rows(start, end);
+        let StateSlot::AttnKv(s) = &m.kv.slots[0] else { unreachable!("checked layout") };
+        let row = self.kv.head_dim * self.kv.elem;
+        let mut out = Vec::with_capacity(2 * self.kv.heads);
+        for buf in [&s.k, &s.v] {
+            for h in 0..self.kv.heads {
+                out.push((buf, (h * s.cap + a) * row, (b - a) * row));
+            }
+        }
+        out
+    }
+}
+
+/// An entry's head objects: one page per main page, then the tail.
+#[derive(Clone, Debug)]
+struct HeadRef {
+    pages: Vec<Key>,
+    tail: Key,
+}
+
 // ------------------------------------------------------------------------------------------------------------- objects
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -412,10 +492,19 @@ struct Entry {
     ends: Vec<usize>,
     rec: Option<Key>,
     pages: Vec<Key>,
+    /// The MTP head's pages and tail ([`HeadLayout`]); `None`: the entry restores the main model only.
+    head: Option<HeadRef>,
     pinned: Option<String>,
     last_use: u64,
     hits: u64,
     created: Instant,
+}
+
+impl Entry {
+    /// Every object the entry references (an entry missing one is not restorable and is dropped with it).
+    fn objs(&self) -> impl Iterator<Item = &Key> + '_ {
+        self.rec.iter().chain(self.pages.iter()).chain(self.head.iter().flat_map(|h| h.pages.iter().chain(std::iter::once(&h.tail))))
+    }
 }
 
 /// A restorable prefix found for a prompt ([`PrefixStore::lookup`]).
@@ -481,6 +570,16 @@ pub struct PrefixStoreSnapshot {
     /// Objects not written to disk because the pending writes had reached `host_mb` (a disk slower than the inserts): they
     /// stay host-only and are dropped, not demoted, when the host tier evicts them.
     pub disk_write_skips: u64,
+    /// Entries stored with the MTP head's state (lane mhkv), and restores that also restored it (the head then drafts as
+    /// after a cold prefill instead of restarting at the restore point). Absent without an MTP head.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub mtp_head_inserts: u64,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub mtp_head_restores: u64,
+}
+
+fn is_zero(n: &u64) -> bool {
+    *n == 0
 }
 
 /// One entry, for `GET /v1/intarsia/prefix-store`.
@@ -502,6 +601,8 @@ pub struct PrefixStore {
     cfg: PrefixStoreConfig,
     build: u64,
     layout: Layout,
+    /// The MTP head's layout when entries keep the head's state ([`PrefixStore::new_with_head`]).
+    head: Option<HeadLayout>,
     entries: HashMap<Key, Entry>,
     /// Distinct entry lengths (a lookup tries them longest first).
     lens: BTreeSet<usize>,
@@ -614,8 +715,16 @@ impl PrefixStore {
     /// A store for states laid out as `specs`. `build_desc` describes everything that can change the bits a prefill
     /// produces (the caller's [`describe_build`]); its fingerprint salts every key and names the disk directory.
     pub fn new(cfg: PrefixStoreConfig, specs: &[SlotSpec], build_desc: &str) -> Result<PrefixStore> {
+        Self::new_with_head(cfg, specs, None, build_desc)
+    }
+
+    /// [`PrefixStore::new`] for a model with an MTP head (lane mhkv): `head` is the head's cache slot and the bytes of one
+    /// queued hidden row (`Model::mtp_store_layout`); entries then also keep the head's cache and queue, so a restored
+    /// sequence drafts as a cold one does. `build_desc` must say so ([`describe_build`] does).
+    pub fn new_with_head(cfg: PrefixStoreConfig, specs: &[SlotSpec], head: Option<(SlotSpec, usize)>, build_desc: &str) -> Result<PrefixStore> {
         let build = build_fingerprint(build_desc);
         let layout = Layout::from_specs(specs);
+        let head = head.and_then(|(spec, row)| HeadLayout::from_spec(&spec, row));
         let mut stats = PrefixStoreSnapshot { build: format!("{build:016x}"), ..Default::default() };
         stats.device.budget_bytes = cfg.device_bytes;
         stats.host.budget_bytes = cfg.host_bytes;
@@ -624,6 +733,7 @@ impl PrefixStore {
             cfg,
             build,
             layout,
+            head,
             entries: HashMap::new(),
             lens: BTreeSet::new(),
             objs: HashMap::new(),
@@ -700,7 +810,7 @@ impl PrefixStore {
             if e.tokens.len() != len || e.tokens[..] != prompt[..len] {
                 continue; // hash collision: never restore it
             }
-            if e.rec.iter().chain(e.pages.iter()).all(|k| self.objs.contains_key(k)) {
+            if e.objs().all(|k| self.objs.contains_key(k)) {
                 return Some(Hit { key, len });
             }
         }
@@ -721,7 +831,7 @@ impl PrefixStore {
             return true;
         }
         e.pinned = Some(name.to_string());
-        let ks: Vec<Key> = e.rec.iter().chain(e.pages.iter()).copied().collect();
+        let ks: Vec<Key> = e.objs().copied().collect();
         for k in ks {
             if let Some(o) = self.objs.get_mut(&k) {
                 o.pins += 1;
@@ -761,13 +871,14 @@ impl PrefixStore {
         let tokens = &st.tokens[..len];
         let key = entry_key(self.build, tokens);
         let now = self.tick();
+        let head_ok = self.head.as_ref().is_some_and(|h| h.capturable(st, len));
         if let Some(e) = self.entries.get_mut(&key) {
             e.last_use = now;
             let newly_pinned = pin.is_some() && e.pinned.is_none();
             if newly_pinned {
                 e.pinned = pin.map(String::from);
             }
-            let ks: Vec<Key> = e.rec.iter().chain(e.pages.iter()).copied().collect();
+            let ks: Vec<Key> = e.objs().copied().collect();
             for k in ks {
                 if let Some(o) = self.objs.get_mut(&k) {
                     o.last_use = now;
@@ -804,6 +915,7 @@ impl PrefixStore {
         if let Some(rk) = rec {
             todo.push((rk, self.layout.rec_segments(st), self.layout.rec_bytes));
         }
+        let head = if head_ok { Some(self.head_todo(st, key, &pages, len, &mut shared, &mut todo)) } else { None };
         let t_keys = t0.elapsed();
         let (mems, cap) = self.capture_all(backend, &todo)?;
         let t_cap = t0.elapsed();
@@ -825,6 +937,7 @@ impl PrefixStore {
                 ends,
                 rec,
                 pages,
+                head,
                 pinned: pin.map(String::from),
                 last_use: now,
                 hits: 0,
@@ -837,6 +950,7 @@ impl PrefixStore {
         let t_man = t0.elapsed();
         self.enforce(backend);
         self.stats.inserts += 1;
+        self.stats.mtp_head_inserts += head_ok as u64;
         self.stats.insert_bytes += copied;
         self.stats.insert_seconds_total += t0.elapsed().as_secs_f64();
         if debug() {
@@ -861,6 +975,36 @@ impl PrefixStore {
         }
         self.refresh_counts();
         Ok(copied)
+    }
+
+    /// The head objects of the entry `key` whose main pages are `pages` (`len` tokens): their keys, and the capture of each
+    /// one no other entry holds yet (pushed to `todo`; the others to `shared`).
+    fn head_todo<'s>(
+        &self,
+        st: &'s SequenceState,
+        key: Key,
+        pages: &[Key],
+        len: usize,
+        shared: &mut Vec<Key>,
+        todo: &mut Vec<(Key, Vec<(&'s Buffer, usize, usize)>, usize)>,
+    ) -> HeadRef {
+        let h = self.head.as_ref().expect("checked by the caller");
+        let m = st.mtp.as_ref().expect("checked by the caller");
+        let page = self.cfg.page_tokens;
+        let mut keys = Vec::with_capacity(pages.len());
+        for (i, pk) in pages.iter().enumerate() {
+            let (start, end) = (i * page, ((i + 1) * page).min(len));
+            let hk = pk ^ HEAD_PAGE_SALT;
+            keys.push(hk);
+            if self.objs.contains_key(&hk) {
+                shared.push(hk);
+            } else {
+                todo.push((hk, h.segments(m, start, end), h.page_bytes(start, end)));
+            }
+        }
+        let tail = key ^ HEAD_TAIL_SALT;
+        todo.push((tail, vec![(&m.pending, 0, h.row_bytes)], h.row_bytes));
+        HeadRef { pages: keys, tail }
     }
 
     /// Copy each object's segments out of the state into new objects in the highest tier with room: on the device one
@@ -1050,9 +1194,12 @@ impl PrefixStore {
         let tokens = e.tokens.clone();
         let pages = e.pages.clone();
         let rec = e.rec;
+        // the head's part only into a head of this layout (a state without the head restores the main model alone)
+        let head = e.head.clone().filter(|_| self.head.as_ref().is_some_and(|h| st.mtp.as_ref().is_some_and(|m| h.fits(m))));
+        let head_keys: Vec<Key> = head.iter().flat_map(|h| h.pages.iter().chain(std::iter::once(&h.tail))).copied().collect();
         // load what is on disk only, verified, before anything is written
         let mut loaded: HashMap<Key, Arc<Vec<u8>>> = HashMap::new();
-        for k in rec.iter().chain(pages.iter()) {
+        for k in rec.iter().chain(pages.iter()).chain(head_keys.iter()) {
             let o = self.objs.get(k).ok_or_else(|| Error::invalid("prefix store: object gone"))?;
             if o.mem.is_none() {
                 let data = match &o.staged {
@@ -1099,8 +1246,26 @@ impl PrefixStore {
             put(backend, o, loaded.get(&k), &segs)?;
             bytes += o.bytes as u64;
         }
+        if let (Some(hr), Some(h), Some(m)) = (&head, &self.head, st.mtp.as_ref()) {
+            let mut segs: Vec<(Vec<(&Buffer, usize, usize)>, Key)> = Vec::with_capacity(hr.pages.len() + 1);
+            for (i, k) in hr.pages.iter().enumerate() {
+                segs.push((h.segments(m, i * page, ((i + 1) * page).min(hit.len)), *k));
+            }
+            segs.push((vec![(&m.pending, 0, h.row_bytes)], hr.tail));
+            for (sg, k) in segs {
+                let o = self.objs.get_mut(&k).unwrap();
+                o.last_use = now;
+                slowest = slowest.max(Some(o.tier()));
+                put(backend, o, loaded.get(&k), &sg)?;
+                bytes += o.bytes as u64;
+            }
+        }
         backend.synchronize(0)?;
         st.load_prefix(&tokens);
+        if head.is_some() {
+            st.mtp_load_head();
+            self.stats.mtp_head_restores += 1;
+        }
         // what came from disk goes back to host memory (it is hot again)
         for (k, d) in loaded {
             if let Some(o) = self.objs.get_mut(&k) {
@@ -1234,7 +1399,7 @@ impl PrefixStore {
             .entries
             .iter()
             .map(|(k, e)| {
-                let objs = e.rec.iter().chain(e.pages.iter()).filter_map(|k| self.objs.get(k));
+                let objs = e.objs().filter_map(|k| self.objs.get(k));
                 let (mut tier, mut bytes) = (Tier::Device, 0u64);
                 for o in objs {
                     tier = tier.max(o.tier());
@@ -1424,7 +1589,7 @@ impl PrefixStore {
         let dead: Vec<Key> = self
             .entries
             .iter()
-            .filter(|(_, e)| e.rec == Some(k) || e.pages.contains(&k))
+            .filter(|(_, e)| e.objs().any(|x| *x == k))
             .map(|(ek, _)| *ek)
             .collect();
         for ek in dead {
@@ -1459,7 +1624,7 @@ impl PrefixStore {
         if let Some(w) = &self.writer {
             let _ = std::fs::remove_file(w.dir.join(format!("e-{ek:032x}.entry")));
         }
-        for k in e.rec.iter().chain(e.pages.iter()) {
+        for k in e.objs() {
             let gone = match self.objs.get_mut(k) {
                 Some(o) => {
                     o.refs = o.refs.saturating_sub(1);
@@ -1547,7 +1712,7 @@ impl PrefixStore {
 
     fn write_manifest(&self, ek: Key) {
         let (Some(w), Some(e)) = (&self.writer, self.entries.get(&ek)) else { return };
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "key": format!("{ek:032x}"),
             "rec": e.rec.map(|k| format!("{k:032x}")),
             "pages": e.pages.iter().map(|k| format!("{k:032x}")).collect::<Vec<_>>(),
@@ -1555,6 +1720,13 @@ impl PrefixStore {
             "tokens": &*e.tokens,
             "ends": e.ends,
         });
+        // only with the head's part: a manifest without it is what it was before lane mhkv
+        if let Some(h) = &e.head {
+            body["head"] = serde_json::json!({
+                "pages": h.pages.iter().map(|k| format!("{k:032x}")).collect::<Vec<_>>(),
+                "tail": format!("{:032x}", h.tail),
+            });
+        }
         let body = serde_json::to_vec(&body).unwrap_or_default();
         let mut f = Vec::with_capacity(body.len() + 32);
         f.extend_from_slice(ENTRY_MAGIC);
@@ -1639,15 +1811,38 @@ impl PrefixStore {
             return Err(bad());
         }
         let pinned = v["pinned"].as_str().map(String::from);
+        // the head's part: its keys follow from the entry's (a store without a head layout has no manifest with one: the
+        // build key differs)
+        let head = if v.get("head").is_none() {
+            None
+        } else {
+            let h = self.head.as_ref().ok_or_else(bad)?;
+            let hp: Vec<Key> = v["head"]["pages"].as_array().ok_or_else(bad)?.iter().map(|x| hex(x).ok_or_else(bad)).collect::<Result<_>>()?;
+            let tail = hex(&v["head"]["tail"]).ok_or_else(bad)?;
+            if hp.len() != pages.len() || hp.iter().zip(&pages).any(|(a, b)| *a != b ^ HEAD_PAGE_SALT) || tail != key ^ HEAD_TAIL_SALT || tokens.len() < 2 {
+                return Err(bad());
+            }
+            let sizes: Vec<usize> = expect.iter().map(|x| h.page_bytes(x.1, x.2)).chain(std::iter::once(h.row_bytes)).collect();
+            Some((HeadRef { pages: hp, tail }, sizes))
+        };
         // every object file must exist with the right size (contents are checked when restored)
         let mut sizes = Vec::new();
-        for (i, k) in rec.iter().chain(pages.iter()).enumerate() {
+        let head_objs: Vec<(Key, usize)> = match &head {
+            Some((hr, hs)) => hr.pages.iter().chain(std::iter::once(&hr.tail)).copied().zip(hs.iter().copied()).collect(),
+            None => Vec::new(),
+        };
+        let main = rec.iter().chain(pages.iter()).enumerate().map(|(i, k)| {
             let want = if rec.is_some() && i == 0 {
                 self.layout.rec_bytes
             } else {
                 let pi = if rec.is_some() { i - 1 } else { i };
                 self.layout.page_bytes(expect[pi].2 - expect[pi].1)
             };
+            (*k, want)
+        });
+        let all: Vec<(Key, usize)> = main.chain(head_objs).collect();
+        for (k, want) in all {
+            let k = &k;
             if !self.objs.contains_key(k) {
                 let op = dir.join(format!("o-{k:032x}.bin"));
                 let Ok(m) = std::fs::metadata(&op) else { return Ok(false) };
@@ -1684,7 +1879,7 @@ impl PrefixStore {
         self.lens.insert(tokens.len());
         self.entries.insert(
             key,
-            Entry { tokens: Arc::new(tokens), ends, rec, pages, pinned, last_use: now, hits: 0, created: Instant::now() },
+            Entry { tokens: Arc::new(tokens), ends, rec, pages, head: head.map(|h| h.0), pinned, last_use: now, hits: 0, created: Instant::now() },
         );
         Ok(true)
     }
@@ -1836,6 +2031,9 @@ pub fn describe_build(model: &crate::model::Model, model_id: &str, cfg: &PrefixS
     } else {
         String::new()
     }
+        // lane mhkv: entries of a model with an MTP head keep the head's state (another layout of objects and manifests); a
+        // model without one keeps its key
+        + if model.mtp_store_layout().is_some() { "|mtphead1" } else { "" }
 }
 
 #[cfg(test)]

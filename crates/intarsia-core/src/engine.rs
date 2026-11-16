@@ -480,7 +480,7 @@ impl StorePolicy {
         let chunk_invariant = cfg.any_cut;
         let desc = crate::prefix_store::describe_build(model, &meta.id, &cfg);
         let (min_tokens, grid_tokens) = (cfg.min_tokens, cfg.grid_tokens);
-        let store = crate::prefix_store::PrefixStore::new(cfg, model.slot_specs(), &desc)?;
+        let store = crate::prefix_store::PrefixStore::new_with_head(cfg, model.slot_specs(), model.mtp_store_layout(), &desc)?;
         let _ = st;
         Ok(Some(StorePolicy { store: Arc::new(Mutex::new(store)), boundary_ids, header_end_ids, cut_roles, chunk_invariant, min_tokens, grid_tokens }))
     }
@@ -1421,8 +1421,9 @@ impl Seq {
         // `--spec mtp`: only a drafting request runs the head. After a request that did not, the head's cache no
         // longer covers the sequence, so a drafting request then starts from an empty sequence (no prefix reuse).
         let drafting = seq.spec_on && seq.spec_mtp;
-        // the prefix store restores the main model's state only, never a drafter's cache. With an MTP head (lane mtp-store)
-        // the head's context restarts where this request resumes (below), so the request drafts and uses the store. With
+        // the prefix store restores the main model's state and, for an entry a drafting request stored, the MTP head's cache and
+        // queue (lane mhkv), never a DFlash drafter's cache. With an MTP head and an entry without the head's part (lane
+        // mtp-store) the head's context restarts where this request resumes (below), so the request drafts and uses the store. With
         // `INTARSIA_MTP_STORE=0`, and with a DFlash draft, a drafting request bypasses the store (the store stays off for it,
         // prefill runs exactly as without it)
         let ps = sh
@@ -1474,8 +1475,8 @@ impl Seq {
             st.truncate(p, &*model.backend)?;
         }
         if ps.is_some() && drafting && st.mtp.as_ref().is_some_and(|m| !m.synced) {
-            // lane mtp-store: the store wrote the state (or a request that did not draft left it): no pass of the head
-            // covers these rows. Its context starts over at the resume point; drafts only propose, so this moves the
+            // lane mtp-store: the store wrote the state without the head's part (or a request that did not draft left it): no
+            // pass of the head covers these rows. Its context starts over at the resume point; drafts only propose, so this moves the
             // acceptance rate of the first passes, never a token (TensorFold's `cuda_mtp_absorb.zig` restart after a gap)
             st.mtp_restart(&*model.backend)?;
         }
