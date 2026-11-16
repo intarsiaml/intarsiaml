@@ -11,6 +11,29 @@ LOGNAME_=gates-${PARTS_TAG:-all}; source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 rsh "test -x $B/intarsia-main && test -x $B/intarsia-mx6" || { echo "binaries missing in $B on $HOST (scripts/mx6/build.sh has not finished)"; exit 3; }
 scp -q -o BatchMode=yes "$S/memwatch.sh" $HOST:intarsia-mx6/memwatch.sh
 log "gates start ($TAG on $HOST); vLLM: $(curl -s -o /dev/null -w '%{http_code}' http://$HN:$VPORT/v1/models); earlyoom: $(rsh 'systemctl is-active earlyoom'); $(rsh 'free -g | sed -n 2p'); binaries: $(rsh "$B/intarsia-main --version | head -1; $B/intarsia-mx6 --version | head -1" | tr '\n' ' ')"
+# served_plans <arms to serve for their plan>: the served plans (`GET /v1/intarsia/plan`, what `serve` resolved with --max-batch 2). Knobs off (R, N) must equal
+# main's (RM, NM) byte for byte (as sorted JSON); the opt-in set (M against MM) must grow, the diff is kept. An arm already served by `ids` is not served again.
+served_plans() {
+  local a
+  for a in "$@"; do
+    [[ -s "$OUT/plan-served-ids-$a.json" ]] && continue
+    arm_setup $a
+    if start_serve "plan-$a" "$ENVS" --max-batch 2 $ARGS; then finish_serve "plan-$a"; fi
+  done
+  nm() { if [[ -s "$OUT/plan-served-ids-$1.json" ]]; then echo ids-$1; else echo plan-$1; fi; }
+  pl() { python3 -m json.tool --sort-keys "$OUT/plan-served-$1.json" 2>/dev/null; }
+  local x y
+  for pair in "R RM" "N NM"; do
+    set -- $pair; x=$(nm $1); y=$(nm $2)
+    if [[ -s "$OUT/plan-served-$x.json" && -s "$OUT/plan-served-$y.json" ]]; then
+      cmp -s <(pl $x) <(pl $y) && log "served plan $1 (mx6) vs $2 (main), knobs off: IDENTICAL" || log "served plan $1 (mx6) vs $2 (main), knobs off: DIFFERENT"
+    else log "served plan $1 vs $2: a file is missing"; fi
+  done
+  x=$(nm M); y=$(nm MM)
+  if [[ -s "$OUT/plan-served-$x.json" && -s "$OUT/plan-served-$y.json" ]]; then
+    diff <(pl $y) <(pl $x) > "$OUT/plan-served-on.diff"; log "served plan, opt-in set, main (MM) vs mx6 (M): $(wc -l < "$OUT/plan-served-on.diff") diff lines (plan-served-on.diff)"
+  fi
+}
 for part in ${PARTS:-plan ids}; do
   case $part in
     plan)
@@ -35,6 +58,7 @@ for part in ${PARTS:-plan ids}; do
         log "engine failure line: $(grep -m1 'watchdog' "$OUT/serve-repro-main.log" | cut -c1-300)"
       fi
       ;;
+    servedplan) served_plans ${PLANARMS:-R RM N NM M MM} ;;
     ids)
       for a in ${ARMS:-R M}; do
         arm_setup $a
@@ -44,22 +68,7 @@ for part in ${PARTS:-plan ids}; do
         fi
       done
       python3 "$S/ids_compare.py" "$OUT" ${ARMS:-R M} 2>&1 | tee -a "$LOG" "$OUT/ids-compare.txt"
-      # the served plans (`GET /v1/intarsia/plan`, what `serve` really resolved with --max-batch 2): knobs off must equal main's byte for byte, the opt-in set must grow
-      for a in ${PLANARMS:-RM N NM MM}; do
-        arm_setup $a
-        if start_serve "plan-$a" "$ENVS" --max-batch 2 $ARGS; then finish_serve "plan-$a"; fi
-      done
-      pl() { python3 -m json.tool --sort-keys "$OUT/plan-served-$1.json" 2>/dev/null; }
-      for pair in "ids-R plan-RM" "plan-N plan-NM"; do
-        set -- $pair
-        if [[ -s "$OUT/plan-served-$1.json" && -s "$OUT/plan-served-$2.json" ]]; then
-          cmp -s <(pl $1) <(pl $2) && log "served plan $1 (mx6) vs $2 (main), knobs off: IDENTICAL" || log "served plan $1 (mx6) vs $2 (main), knobs off: DIFFERENT"
-        else log "served plan $1 vs $2: a file is missing"; fi
-      done
-      mm=ids-MM; [[ -s "$OUT/plan-served-$mm.json" ]] || mm=plan-MM
-      if [[ -s "$OUT/plan-served-ids-M.json" && -s "$OUT/plan-served-$mm.json" ]]; then
-        diff <(pl $mm) <(pl ids-M) > "$OUT/plan-served-on.diff"; log "served plan, opt-in set, main (MM) vs mx6 (M): $(wc -l < "$OUT/plan-served-on.diff") diff lines (plan-served-on.diff)"
-      fi
+      served_plans ${PLANARMS:-RM N NM MM}
       ;;
   esac
 done
