@@ -1233,6 +1233,12 @@ impl Engine for BatchedEngine {
     fn prefix_store(&self) -> Value {
         self.store.as_ref().map_or(Value::Null, StorePolicy::info)
     }
+
+    fn flush_prefix_store(&self) {
+        if let Some(s) = &self.store {
+            s.store.lock().unwrap_or_else(|e| e.into_inner()).flush();
+        }
+    }
 }
 
 #[cfg(test)]
