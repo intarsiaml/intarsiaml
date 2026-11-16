@@ -1242,6 +1242,12 @@ impl Engine for BatchedEngine {
     }
 }
 
+/// A boolean opt-in env var read as [`BatchedOptions::new`] reads it (`1` is on, any other value off), `None` when it is unset or empty (the
+/// recipe's `[tuning.<backend>]` value then applies: `INTARSIA_BATCHED_VERIFY` / `batched_verify`, `INTARSIA_VERIFY_TOPK` / `verify_topk`).
+pub fn bool_env_opt(name: &str) -> Option<bool> {
+    std::env::var(name).ok().filter(|v| !v.trim().is_empty()).map(|v| v == "1")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
