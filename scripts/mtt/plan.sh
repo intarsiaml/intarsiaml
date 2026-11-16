@@ -1,6 +1,7 @@
 #!/bin/zsh
 # Lane mtt gate 2: `intarsia plan show --backend metal` byte-identical between main (BASE binary) and the branch, 8B / 27B / 35B x
-# default / --spec off / --spec mtp, without and with admission (`--admit`: the path the lane changed). usage (fleetq slot): OUT=dir plan.sh
+# default / --spec off / --spec mtp, without and with admission (`--admit`: the path the lane changed). BASE is a build of main in a worktree
+# of its own with CARGO_TARGET_DIR=<lane>/target/base. usage (fleetq slot): OUT=dir plan.sh
 set -u
 [ -n "${FLEETQ_JOB:-}" ] || { echo "not inside a fleetq slot" >&2; exit 2; }
 W=${W:-/opt/code/intarsiaml/.worktrees/mtt}; NEW=$W/target/metal/release/intarsia; BASE=$W/target/base/release/intarsia; R=${OUT:?}; mkdir -p $R

@@ -140,9 +140,9 @@ weight pass.**
 
 > **Corrected by lane mtt (same day, [results](../results/2026-11-15-mtt-metal-mtp-ttft.md)).** This is not a cost of the MTP
 > default. The "`--spec off`" arm of #9398 below was started without `--spec off` (an MTP server, and fast), and on a cool,
-> quiet box the two arms are equal (MTP 760 ms against 748 ms). The slow arms were a hot box: after minutes of GPU load the
+> unthrottled box the two arms are equal (MTP 754 ms against 746 ms). The slow arms were a hot box: after minutes of GPU load the
 > machine throttles the GPU by 1.2 to 1.45x for whichever server runs, `--spec off` included. What the lane did find is a
-> start-up cost: admission built every test case to read its label (27B with the MTP default: 80 s to start, now 3 s).
+> start-up cost: admission built every test case to read its label (27B with the MTP default: 65 s to start, now 2 to 3 s).
 
 Same binary, same prompt (`prompt-4096.txt`, `/v1/completions`, fresh nonce per call, 3 calls per arm):
 
