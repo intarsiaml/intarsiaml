@@ -1,0 +1,53 @@
+[localeval] calibrated: 22.0 tokens/sentence, 54 base tokens, ctx=18432
+[localeval]   1024 tok rep 1/3: prompt=993 ttft=0.09s prefill=10761 tok/s decode=191.9 tok/s peak=329.3 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=992 ttft=0.09s prefill=10808 tok/s decode=192.4 tok/s peak=324.8 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.09s prefill=10721 tok/s decode=183.2 tok/s peak=326.5 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4087 ttft=0.23s prefill=17492 tok/s decode=188.5 tok/s peak=333.7 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4090 ttft=0.29s prefill=14291 tok/s decode=204.1 tok/s peak=394.2 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4092 ttft=0.23s prefill=17506 tok/s decode=182.5 tok/s peak=325.1 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16678 ttft=1.06s prefill=15747 tok/s decode=179.7 tok/s peak=291.3 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16677 ttft=1.13s prefill=14741 tok/s decode=175.3 tok/s peak=301.4 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16678 ttft=1.06s prefill=15737 tok/s decode=178.9 tok/s peak=295.7 tok/s out=128
+# localeval: adhoc — 2026-11-15T20:39
+
+- model: `qwen36-35b-tp2-wht8` on ? (?), url `http://tatooine:8090/v1`
+- thinking: off; run kind: speed; label: wht8ar-tp2-tp2-wht8-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d96f899
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8090/v1 --model qwen36-35b-tp2-wht8 --label wht8ar-tp2-tp2-wht8-r1 --sizes 1024,4096,16384 --gen 128 --reps 3 --thinking off --wait-idle 60 --recipe HIP_VISIBLE_DEVICES=0,1 INTARSIA_HIP_AR_WIRE=wht8 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b-tp2-wht8 --tp 2 --devices 0,1 --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor --host 0.0.0.0 --port 8090 (tree wht6-8b, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)`
+- result file: `results/20261115-203931-adhoc-wht8ar-tp2-tp2-wht8-r1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 INTARSIA_HIP_AR_WIRE=wht8 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b-tp2-wht8 --tp 2 --devices 0,1 --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor --host 0.0.0.0 --port 8090 (tree wht6-8b, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)
+````
+
+## Speed sweep
+
+served `qwen36-35b-tp2-wht8`, fingerprint `None`, ctx 18432, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.09 | 10761 (10721–10808) * | - | 191.9 (183.2–192.4) | 326.5 (324.8–329.3) | - | - | 128 |
+| 4090 | 0.23 | 17492 (14291–17506) | 21817 | 188.5 (182.5–204.1) | 333.7 (325.1–394.2) | - | - | 128 |
+| 16678 | 1.06 | 15737 (14741–15747) | 15240 | 178.9 (175.3–179.7) | 295.7 (291.3–301.4) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 11.4% at 4096 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261115-203931-adhoc-wht8ar-tp2-tp2-wht8-r1/result.json
+[localeval] logged to unanimis: 48875daf-f814-4f63-b5c0-dde439c9db27

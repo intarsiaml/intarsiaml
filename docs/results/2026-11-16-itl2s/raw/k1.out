@@ -1,0 +1,15 @@
+fleetq: #9684 waiting (#1 in line): needs gpu quiet on spark2, but #9675 "itl2s: full ABBA N1/F 10 cells" (claude-2ae67a71) loads it
+fleetq:   #9675 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9675 set, or it will wait for #9675 to be released.
+fleetq: #9684 running on spark2: env LOGNAME_=k1 OUT=/opt/code/intarsiaml/.worktrees/itl2s/docs/results/2026-11-16-itl2s/raw/k1 ARMS=X1.a 'ARM_ARGS=--spec-k 1' 'CELLS=en:0:default code:0:default cjk:0:off code:1.0:default' scripts/itl2s/visit.sh
+[08:18:33 +1s] start; vLLM: 200 running 0; earlyoom: active; Mem:             121          47          30           0          44          73
+[08:18:33 +1s] serve X1.a: env [X=1  INTARSIA_CB_TRACE=1] ~/intarsia-itl2s/bin/intarsia-itl2s serve --backend cuda --max-seq 32768 --mem-budget 40 --max-batch 2 --spec-k 1
+[08:19:22 +50s] serve X1.a up; MemAvailable MB: 50208; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);batched verify: the plan covers passes of up to 2 sequences (4 rows);speculative decoding: Mtp, up to 1 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk);batched verify: sampled rows as the device-side top-k when the request samples from it (INTARSIA_VERIFY_TOPK=1);batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 46.6s, context 32768 tokens;
+[08:19:22 +50s] vLLM requests running before X1.a: 0
+[itl] X1.a en t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 42.1s -> itl-X1.a-en-t0-s2.json
+[itl] X1.a code t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 40.8s -> itl-X1.a-code-t0-s2.json
+[itl] X1.a cjk t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 43.4s -> itl-X1.a-cjk-nt-t0-s2.json
+[itl] X1.a code t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 42.9s -> itl-X1.a-code-t1-s2.json
+[08:22:27 +235s] vLLM requests running after X1.a: 0
+[08:22:27 +235s] min MemAvailable MB (time MB; KILLED count) (X1.a): 08:19:24 49383 0 
+[08:22:29 +237s] end
+fleetq: #9684 done (exit 0)

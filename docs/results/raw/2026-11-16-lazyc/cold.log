@@ -1,0 +1,28 @@
+fleetq: #9677 running on spark1: /Users/josef/.local/state/claude-watch/lazyc-run.sh cold
+## c-35b-specoff-lazy0 lazy=0 up 41.39s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 41.2s, context 40000 tokens | admission on plan shapes: 41 kernel(s) checked, 513 case(s) run, 0 cached | avail 58 GB
+COLD 35b-specoff lazy=0 up=41.39
+## c-35b-default-lazy0 lazy=0 up 50.08s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 49.9s, context 40000 tokens | admission on plan shapes: 42 kernel(s) checked, 174 case(s) run, 513 cached | avail 57 GB
+COLD 35b-default lazy=0 up=50.08
+## c-27b-default-lazy0 lazy=0 up 54.82s | loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 54.6s, context 40000 tokens | admission on plan shapes: 28 kernel(s) checked, 543 case(s) run, 4 cached | avail 62 GB
+COLD 27b-default lazy=0 up=54.82
+## c-35b-specoff-lazy1 lazy=1 up 39.47s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 39.3s, context 40000 tokens | admission on plan shapes: 41 kernel(s) checked, 513 case(s) run, 0 cached | avail 58 GB
+COLD 35b-specoff lazy=1 up=39.47
+## c-35b-default-lazy1 lazy=1 up 52.58s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 52.4s, context 40000 tokens | admission on plan shapes: 42 kernel(s) checked, 174 case(s) run, 513 cached | avail 56 GB
+COLD 35b-default lazy=1 up=52.58
+## c-27b-default-lazy1 lazy=1 up 50.26s | loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 50.1s, context 40000 tokens | admission on plan shapes: 28 kernel(s) checked, 543 case(s) run, 4 cached | avail 62 GB
+COLD 27b-default lazy=1 up=50.26
+== admission cache files
+/home/nvidia/intarsia-lazyc/home-lazy0/.cache/intarsia/admission:
+total 216
+-rw-rw-r-- 1 nvidia nvidia 220354 Nov 16 07:37 cuda-sm_121-e2958ec17193db65.json
+
+/home/nvidia/intarsia-lazyc/home-lazy1/.cache/intarsia/admission:
+total 216
+-rw-rw-r-- 1 nvidia nvidia 220354 Nov 16 07:39 cuda-sm_121-e2958ec17193db65.json
+GATE2 cuda-sm_121-e2958ec17193db65.json identical
+GATE2 PASS
+GATE2plan 35b-specoff (cold/mixed) identical
+GATE2plan 35b-default (cold/mixed) identical
+GATE2plan 27b-default (cold/mixed) identical
+Connection to spark-4e77 closed.
+fleetq: #9677 done (exit 0)

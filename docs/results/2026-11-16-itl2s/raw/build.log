@@ -1,0 +1,21 @@
+fleetq: #9661 running on spark2: env NAME=itl2s REV=HEAD scripts/itl2s/build.sh
+== itl2s c89da7e829d3f2cffb493cfa173718a3f2422a84
+07:15:29
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-itl2s/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-itl2s/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-itl2s/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsia-itl2s/src/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-itl2s/src/crates/intarsia-tui)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsia-itl2s/src/crates/intarsia-engram)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-itl2s/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-itl2s/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-itl2s/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-itl2s/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 19s
+intarsia 0.0.1
+07:21:30
+/dev/nvme0n1p2  3.7T  3.3T  191G  95% /
+2.8G	/home/nvidia/intarsia-itl2s
+Mem:             121          49          27           0          46          72
+active
+fleetq: #9661 done (exit 0)

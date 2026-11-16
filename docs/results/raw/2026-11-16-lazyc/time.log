@@ -1,0 +1,23 @@
+fleetq: #9674 running on spark1: /Users/josef/.local/state/claude-watch/lazyc-run.sh time
+## t-35b-warm lazy=1 up 50.95s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 50.7s, context 40000 tokens | admission on plan shapes: 42 kernel(s) checked, 687 case(s) run, 0 cached | avail 57 GB
+## t-35b-warm2 lazy=1 up 36.18s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 36.0s, context 40000 tokens | admission on plan shapes: 42 kernel(s) checked, 0 case(s) run, 687 cached | avail 57 GB
+## t-35b-r1-lazy0 lazy=0 up 44.92s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 44.7s, context 40000 tokens | admission on plan shapes: 42 kernel(s) checked, 0 case(s) run, 687 cached | avail 57 GB
+TIME 35b lazy=0 up=44.92
+## t-35b-r2-lazy1 lazy=1 up 34.09s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 33.9s, context 40000 tokens | admission on plan shapes: 42 kernel(s) checked, 0 case(s) run, 687 cached | avail 57 GB
+TIME 35b lazy=1 up=34.09
+## t-35b-r3-lazy1 lazy=1 up 36.63s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 36.5s, context 40000 tokens | admission on plan shapes: 42 kernel(s) checked, 0 case(s) run, 687 cached | avail 57 GB
+TIME 35b lazy=1 up=36.63
+## t-35b-r4-lazy0 lazy=0 up 45.71s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 45.5s, context 40000 tokens | admission on plan shapes: 42 kernel(s) checked, 0 case(s) run, 687 cached | avail 58 GB
+TIME 35b lazy=0 up=45.71
+## t-27b-warm lazy=1 up 54.30s | loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 54.1s, context 40000 tokens | admission on plan shapes: 28 kernel(s) checked, 543 case(s) run, 4 cached | avail 62 GB
+## t-27b-warm2 lazy=1 up 34.08s | loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 33.9s, context 40000 tokens | admission on plan shapes: 28 kernel(s) checked, 0 case(s) run, 547 cached | avail 61 GB
+## t-27b-r1-lazy0 lazy=0 up 38.19s | loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 38.0s, context 40000 tokens | admission on plan shapes: 28 kernel(s) checked, 0 case(s) run, 547 cached | avail 61 GB
+TIME 27b lazy=0 up=38.19
+## t-27b-r2-lazy1 lazy=1 up 35.84s | loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 35.6s, context 40000 tokens | admission on plan shapes: 28 kernel(s) checked, 0 case(s) run, 547 cached | avail 61 GB
+TIME 27b lazy=1 up=35.84
+## t-27b-r3-lazy1 lazy=1 up 34.56s | loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 34.5s, context 40000 tokens | admission on plan shapes: 28 kernel(s) checked, 0 case(s) run, 547 cached | avail 61 GB
+TIME 27b lazy=1 up=34.56
+## t-27b-r4-lazy0 lazy=0 up 41.63s | loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 41.5s, context 40000 tokens | admission on plan shapes: 28 kernel(s) checked, 0 case(s) run, 547 cached | avail 62 GB
+TIME 27b lazy=0 up=41.63
+Connection to spark-4e77 closed.
+fleetq: #9674 done (exit 0)
