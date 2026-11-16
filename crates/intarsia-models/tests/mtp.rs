@@ -2761,6 +2761,19 @@ fn store_engine(
     pipe: Option<bool>,
     mtp_store: Option<bool>,
 ) -> (LocalEngine, Arc<Telemetry>) {
+    store_engine_cfg(backend, w, k, script, pipe, mtp_store, mtp_store_cfg())
+}
+
+/// [`store_engine`] with the store's config.
+fn store_engine_cfg(
+    backend: Arc<dyn Backend>,
+    w: &MemWeights,
+    k: Option<usize>,
+    script: Option<DraftScript>,
+    pipe: Option<bool>,
+    mtp_store: Option<bool>,
+    cfg: PrefixStoreConfig,
+) -> (LocalEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
     let (recipe, dims) = dims();
     let opts = LoadOptions { max_seq: 512, prefill_chunk: 8, fp8_act: Some(Fp8Act::None), mtp: k.is_some(), profile_every: 0, ..Default::default() };
@@ -2777,7 +2790,7 @@ fn store_engine(
         }
         None => SpecConfig::default(),
     };
-    let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec, prefix_store: Some(mtp_store_cfg()), mtp_store, ..Default::default() };
+    let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec, prefix_store: Some(cfg), mtp_store, ..Default::default() };
     (LocalEngine::new(m, Arc::new(ByteCodec), meta, tel.clone()).unwrap(), tel)
 }
 
@@ -2887,7 +2900,189 @@ fn store_bypass_knob_keeps_drafting_requests_off_the_store() {
     }
 }
 
-/// The head's bookkeeping across a restart: `base + kv.len + pending_rows == st.len` after a restart at the current length,
+// lane mhkv: the entry keeps the MTP head's cache and queued row, so a restored request drafts as a cold one does.
+
+/// (passes, drafted, accepted) of one request on `e`, and its reply.
+fn run_spec(e: &LocalEngine, tel: &Telemetry, req: GenRequest) -> (Out, (u64, u64, u64)) {
+    let a = tel.snapshot();
+    let o = run(e, req);
+    let b = tel.snapshot();
+    (o, (b.spec_steps - a.spec_steps, b.spec_proposed - a.spec_proposed, b.spec_accepted - a.spec_accepted))
+}
+
+fn head_restores(tel: &Telemetry) -> (u64, u64) {
+    let ps = tel.snapshot().prefix_store.expect("the store reports");
+    (ps.mtp_head_inserts, ps.mtp_head_restores)
+}
+
+/// Two turns of conversation A and one of B: turn 2 of A restores turn 1's entry after B replaced the held sequence.
+fn head_convos() -> (Vec<u32>, Vec<u32>, Vec<u32>) {
+    let mut a = Convo::default();
+    a.msg(1, 40).msg(2, 23);
+    let a1 = a.prompt();
+    let mut b = Convo::default();
+    b.msg(7, 30).msg(8, 5);
+    // a fixed answer (the scenario's own would differ per k): turn 2 shares turn 1's prompt up to its last header
+    a.answer(&[30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41]).msg(3, 19);
+    (a1, b.prompt(), a.prompt())
+}
+
+/// A restored request drafts exactly as the same request cold: the same replies, and the same passes, drafts and accepted
+/// drafts (the head's cache and queue come back bit for bit on cpu), with the head's own drafts and on the eager, pipelined
+/// and captured step. Before lane mhkv the head's context restarted at the restore point.
+#[test]
+fn store_restores_the_head_so_a_restored_request_drafts_as_cold() {
+    let w = weights(11);
+    let (a1, b1, a2) = head_convos();
+    for k in 1..=3 {
+        for (name, pipe, captured) in [("eager", None, false), ("pipelined", Some(true), false), ("captured", None, true)] {
+            let mk = || -> (LocalEngine, Arc<Telemetry>) {
+                let backend: Arc<dyn Backend> = if captured { RecCpu::arc() } else { CpuBackend::arc() };
+                store_engine(backend, &w, Some(k), None, pipe, Some(true))
+            };
+            let (cold, ctel) = mk();
+            let (want, want_spec) = run_spec(&cold, &ctel, req(&a2, 48));
+            assert_eq!(want.cached_tokens, 0);
+            let (on, tel) = mk();
+            run(&on, req(&a1, 20));
+            run(&on, req(&b1, 12));
+            let (got, got_spec) = run_spec(&on, &tel, req(&a2, 48));
+            assert!(got.cached_tokens > 40, "{name} k {k}: turn 2 restored ({} cached)", got.cached_tokens);
+            assert_eq!(got.ids, want.ids, "{name} k {k}: ids");
+            let (ins, res) = head_restores(&tel);
+            assert!(ins >= 1 && res >= 1, "{name} k {k}: the head was stored and restored ({ins} / {res})");
+            assert_eq!(got_spec, want_spec, "{name} k {k}: (passes, drafted, accepted) restored vs cold");
+            eprintln!("mhkv {name} k {k}: cold {want_spec:?}");
+            eprintln!("mhkv {name} k {k}: restored == cold {got_spec:?}, cached {}", got.cached_tokens);
+        }
+    }
+}
+
+/// The same after a restart from the disk tier, and the manifests: an MTP-on store's entries name their head objects; a
+/// store without the head (spec off, the head not loaded) writes the manifests it wrote before lane mhkv (no `head` field).
+#[test]
+fn head_restores_from_the_disk_tier_and_mtp_off_manifests_are_unchanged() {
+    let w = weights(11);
+    let (a1, b1, a2) = head_convos();
+    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("mhkv-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let cfg = |sub: &str| PrefixStoreConfig { disk_bytes: 1 << 30, disk_dir: Some(root.join(sub)), ..mtp_store_cfg() };
+    let manifests = |sub: &str| -> Vec<serde_json::Value> {
+        let mut out = Vec::new();
+        for d in std::fs::read_dir(root.join(sub)).unwrap().flatten() {
+            for f in std::fs::read_dir(d.path()).unwrap().flatten() {
+                if f.path().extension().is_some_and(|x| x == "entry") {
+                    let b = std::fs::read(f.path()).unwrap();
+                    out.push(serde_json::from_slice(&b[24..]).unwrap());
+                }
+            }
+        }
+        out
+    };
+    let (cold, ctel) = store_engine_cfg(CpuBackend::arc(), &w, Some(2), None, None, Some(true), mtp_store_cfg());
+    let (want, want_spec) = run_spec(&cold, &ctel, req(&a2, 48));
+    {
+        let (on, _) = store_engine_cfg(CpuBackend::arc(), &w, Some(2), None, None, Some(true), cfg("on"));
+        run(&on, req(&a1, 20));
+        run(&on, req(&b1, 12));
+    } // dropped: the store flushes its disk writes
+    let ms = manifests("on");
+    assert!(!ms.is_empty() && ms.iter().all(|m| m.get("head").is_some()), "every entry of a drafting request keeps the head: {ms:?}");
+    let (on, tel) = store_engine_cfg(CpuBackend::arc(), &w, Some(2), None, None, Some(true), cfg("on"));
+    let (got, got_spec) = run_spec(&on, &tel, req(&a2, 48));
+    let ps = tel.snapshot().prefix_store.unwrap();
+    assert!(got.cached_tokens > 40 && ps.disk.hits >= 1 && ps.mtp_head_restores >= 1, "restored from disk with the head: {ps:?}");
+    assert_eq!((got.ids, got_spec), (want.ids, want_spec), "restored from disk vs cold");
+    // spec off, no head: no `head` in any manifest, no head counters in the snapshot
+    {
+        let (off, tel) = store_engine_cfg(CpuBackend::arc(), &w, None, None, None, None, cfg("off"));
+        run(&off, req(&a1, 20));
+        run(&off, req(&b1, 12));
+        run(&off, req(&a2, 12));
+        let snap = serde_json::to_value(tel.snapshot().prefix_store.unwrap()).unwrap();
+        assert!(snap.get("mtp_head_inserts").is_none() && snap.get("mtp_head_restores").is_none(), "{snap}");
+    }
+    let ms = manifests("off");
+    assert!(!ms.is_empty() && ms.iter().all(|m| m.get("head").is_none()), "{ms:?}");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// The store's entry brings the head back bit for bit: after a restore the head's cache rows, its queued row and its
+/// bookkeeping equal the cold state's, and they stay equal (and draft the same) through the next prefill chunk.
+#[test]
+fn store_entry_restores_the_head_bit_for_bit() {
+    use intarsia_core::prefix_store::PrefixStore;
+    use intarsia_core::state::{SequenceState, StateSlot};
+    let w = weights(11);
+    let b = CpuBackend::arc();
+    let m = load_on(b.clone(), &w, 2, 0);
+    let (_, _, p) = head_convos();
+    let l = 40;
+    assert!(p.len() >= l + 8);
+    let mut store = PrefixStore::new_with_head(mtp_store_cfg(), m.slot_specs(), m.mtp_store_layout(), "t").unwrap();
+    let mut cold = m.new_state().unwrap();
+    for c in p[..l].chunks(8) {
+        m.forward(&mut cold, c, HeadMode::None, None).unwrap();
+    }
+    {
+        let h = cold.mtp.as_ref().unwrap();
+        assert_eq!((h.base, h.kv.len, h.pending_rows, h.synced), (0, l - 1, 1, true), "the head trails by one row after a chunk");
+    }
+    let ends: Vec<usize> = (8..=l).step_by(8).collect();
+    store.insert(&*b, &cold, l, None, &ends).unwrap();
+    assert_eq!(store.snapshot().mtp_head_inserts, 1);
+    // another sequence's state first: the restore must overwrite it
+    let mut warm = m.new_state().unwrap();
+    m.forward(&mut warm, &p[l..l + 8], HeadMode::None, None).unwrap();
+    let hit = store.lookup(&p, l).expect("stored");
+    store.restore(&*b, &mut warm, hit).unwrap();
+    assert_eq!(store.snapshot().mtp_head_restores, 1);
+    let dl = |buf: &intarsia_core::backend::Buffer, off: usize, n: usize| {
+        let mut v = vec![0u8; n];
+        b.download(buf, off, &mut v, 0).unwrap();
+        v
+    };
+    let same = |a: &SequenceState, c: &SequenceState, what: &str| {
+        let (ha, hc) = (a.mtp.as_ref().unwrap(), c.mtp.as_ref().unwrap());
+        assert_eq!((ha.base, ha.kv.len, ha.pending_rows, ha.synced), (hc.base, hc.kv.len, hc.pending_rows, hc.synced), "{what}: bookkeeping");
+        assert_eq!(ha.kv.tokens, hc.kv.tokens, "{what}: the head's tokens");
+        let (StateSlot::AttnKv(x), StateSlot::AttnKv(y)) = (&ha.kv.slots[0], &hc.kv.slots[0]) else { panic!() };
+        let row = x.head_dim * x.dtype.size_bytes();
+        for h in 0..x.n_kv_heads {
+            for (bx, by) in [(&x.k, &y.k), (&x.v, &y.v)] {
+                assert_eq!(dl(bx, h * x.cap * row, ha.kv.len * row), dl(by, h * y.cap * row, hc.kv.len * row), "{what}: head {h} rows");
+            }
+        }
+        assert_eq!(dl(&ha.pending, 0, ha.pending_rows * ha.row_bytes), dl(&hc.pending, 0, hc.pending_rows * hc.row_bytes), "{what}: queued rows");
+    };
+    same(&warm, &cold, "restored");
+    for st in [&mut cold, &mut warm] {
+        m.forward(st, &p[l..l + 8], HeadMode::None, None).unwrap();
+    }
+    same(&warm, &cold, "after the next chunk");
+    let next = p[l + 8];
+    assert_eq!(m.mtp_draft(&mut warm, next, 2).unwrap(), m.mtp_draft(&mut cold, next, 2).unwrap(), "the same drafts");
+}
+
+/// A request that does not draft stores entries without the head; a drafting request that restores one restarts the head's
+/// context at the restore point (lane mtp-store) and still drafts.
+#[test]
+fn entries_without_the_head_restart_it() {
+    let w = weights(11);
+    let (a1, b1, a2) = head_convos();
+    let (on, tel) = store_engine(CpuBackend::arc(), &w, Some(2), None, None, Some(true));
+    // a sampled request does not draft (`Seq::spec_on` needs greedy)
+    let nodraft = GenRequest { temperature: 0.8, seed: Some(5), ..req(&a1, 8) };
+    let before = tel.snapshot().spec_steps;
+    run(&on, nodraft);
+    assert_eq!(tel.snapshot().spec_steps, before, "the first request did not draft");
+    assert_eq!(head_restores(&tel).0, 0, "its entries keep no head");
+    run(&on, req(&b1, 12));
+    let (got, spec) = run_spec(&on, &tel, req(&a2, 32));
+    assert!(got.cached_tokens > 40 && spec.1 > 0, "restored, and drafted after the restart: {spec:?}");
+    assert_eq!(head_restores(&tel).1, 0, "nothing to restore of the head");
+}
+
 /// through decode steps, draft + verify + rollback, a cut back to a snapshot of the same context, and a cut to before the
 /// context's start (which restarts it at the cut).
 #[test]

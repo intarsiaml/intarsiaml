@@ -158,7 +158,8 @@ struct MtpSnap {
 /// in `pending` until the token after them is known. `base + kv.len + pending_rows == st.len` between passes.
 ///
 /// The head's context need not start at position 0 (lane mtp-store): after the prefix store restored the main model's
-/// state for `tokens[..L]` (no pass of this state computed their hidden rows) the head's context restarts at `base = L`:
+/// state for `tokens[..L]` from an entry without the head's part (lane mhkv stores it when the storing request drafted;
+/// [`SequenceState::mtp_load_head`]) no pass of this state computed their hidden rows, so the head's context restarts at `base = L`:
 /// its cache row `i` then holds position `base + i`, at rope position `i` (rope is relative, so the attention over the
 /// rows it holds is the one absolute positions give), and it attends to positions `base..` only. Drafts only propose,
 /// so a shorter context moves the acceptance rate, never a token.
@@ -949,6 +950,19 @@ impl SequenceState {
         }
         if let Some(d) = &mut self.dflash {
             d.synced = false;
+        }
+    }
+
+    /// After the prefix store also wrote the MTP head's cache rows `0..len - 1` and its queued hidden row of position
+    /// `len - 1` (lane mhkv; [`SequenceState::load_prefix`] ran first): the head follows the sequence from position 0 again,
+    /// as after a cold prefill of `tokens[..len]` (its cache row `p` holds the token of position `p + 1`).
+    pub fn mtp_load_head(&mut self) {
+        let len = self.len;
+        if let Some(m) = &mut self.mtp {
+            m.kv.load_prefix(&self.tokens[1..len]);
+            m.base = 0;
+            m.pending_rows = 1;
+            m.synced = true;
         }
     }
 

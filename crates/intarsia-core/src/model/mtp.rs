@@ -428,6 +428,13 @@ impl Model {
         SlotSpec::AttnKv { n_kv_heads: d.n_kv_heads, head_dim: d.head_dim, dtype: self.kv }
     }
 
+    /// What the prefix store keeps of the head (lane mhkv): its cache slot and the bytes of one queued hidden row (`None`
+    /// without the head).
+    pub fn mtp_store_layout(&self) -> Option<(SlotSpec, usize)> {
+        let head = self.mtp.as_ref()?;
+        Some((self.mtp_kv_spec(head), self.dims.hidden * self.act.size_bytes()))
+    }
+
     /// The drafter state a new sequence gets (`None` without the head).
     pub(super) fn new_mtp_state(&self, cap: usize) -> Result<Option<Box<MtpState>>> {
         let Some(head) = &self.mtp else { return Ok(None) };

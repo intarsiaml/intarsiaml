@@ -13,6 +13,10 @@
 //! 4. `--max-batch 2`, store on, the recipe's MTP default (batched MTP N = 1): each round's two requests in flight together,
 //!    then every request once more alone (each restores, then drafts): every reply's ids must equal the reference's.
 //!
+//! 5. lane mhkv (the store entry keeps the MTP head's cache and queued row): per later prompt, a fresh engine (store on, MTP
+//!    default) runs it cold; its ids and its (passes, drafted, accepted) must equal the restored run of 2 (acceptance within
+//!    `INTARSIA_TEST_ACC_TOL` points, default 2), and every restore of 2 and 4 must have restored the head (store counters).
+//!
 //! Prints the acceptance rate per request (`MTP-STORE-CUDA` lines). Opt-in: `INTARSIA_TEST_REAL_MODEL=1`; take a fleetq slot.
 #![cfg(not(target_os = "macos"))]
 use intarsia_core::engine::ChatOpts;
@@ -191,6 +195,7 @@ fn mtp_on_store_requests_equals_mtp_off_cuda() {
     let mut solo_ok = true;
     let (mut cold, mut restored) = ((0, 0, 0), (0, 0, 0));
     let mut on_outs = Vec::new();
+    let mut on_specs = Vec::new();
     for (i, (p, w)) in prompts.iter().zip(&want).enumerate() {
         let (o, s) = run(&*on, p, gen);
         line("store-on mtp-on", i, &o, s);
@@ -203,6 +208,7 @@ fn mtp_on_store_requests_equals_mtp_off_cuda() {
         let acc = if i < n_first { &mut cold } else { &mut restored };
         *acc = (acc.0 + s.0, acc.1 + s.1, acc.2 + s.2);
         on_outs.push(o);
+        on_specs.push(s);
     }
     let snap = on.telemetry().prefix_store.unwrap();
     println!("MTP-STORE-CUDA single store: {}", serde_json::to_string(&snap).unwrap());
@@ -288,6 +294,36 @@ fn mtp_on_store_requests_equals_mtp_off_cuda() {
         alone.2,
         alone.1
     );
+
+    // 5. lane mhkv: the restored runs of 2 against the same prompts cold (a fresh engine each: nothing to restore)
+    let tol: f64 = std::env::var("INTARSIA_TEST_ACC_TOL").ok().and_then(|v| v.parse().ok()).unwrap_or(2.0);
+    let mut head_ok = true;
+    for i in n_first..prompts.len() {
+        let e = engine(true, true, 1);
+        let (c, cs) = run(&*e, &prompts[i], gen);
+        drop(e);
+        line("cold (fresh engine)", i, &c, cs);
+        assert_eq!(c.cached, 0, "a fresh engine runs cold");
+        let (r, rs) = (&on_outs[i], on_specs[i]);
+        let (ac, ar) = (100.0 * rate(cs), 100.0 * rate(rs));
+        let ok = c.ids == r.ids && (ar - ac).abs() <= tol;
+        println!(
+            "MTP-STORE-CUDA mhkv request {i}: ids restored == cold {}; restored {} of {} tokens; acceptance cold {ac:.1} % ({} / {}) restored {ar:.1} % ({} / {}), delta {:+.1} points; ok {ok}",
+            c.ids == r.ids,
+            r.cached,
+            r.prompt,
+            cs.2,
+            cs.1,
+            rs.2,
+            rs.1,
+            ar - ac
+        );
+        head_ok &= ok;
+    }
+    println!(
+        "MTP-STORE-CUDA mhkv head restores: single {} of {} hits ({} entries, {} with the head); batched {} of {} hits",
+        snap.mtp_head_restores, snap.hits, snap.entries, snap.mtp_head_inserts, bsnap.mtp_head_restores, bsnap.hits
+    );
     println!("MTP-STORE-CUDA total {:.0} s", t0.elapsed().as_secs_f64());
 
     assert!(solo_ok, "single-sequence engine: a store-on MTP-on reply differs from the store-on MTP-off reply");
@@ -296,5 +332,7 @@ fn mtp_on_store_requests_equals_mtp_off_cuda() {
     assert!(batched_ok, "batched engine: a store-on MTP-on reply differs from the store-on MTP-off reply");
     assert!(alone_cached && bsnap.hits > 0, "batched engine: the requests restored: {bsnap:?}");
     assert!(alone.1 > 0 && alone.2 > 0, "batched engine: the restored requests drafted and accepted: {alone:?}");
-    let _ = on_outs;
+    assert!(snap.hits > 0 && snap.mtp_head_restores == snap.hits, "lane mhkv: every restore of the single engine restored the head: {snap:?}");
+    assert!(bsnap.hits > 0 && bsnap.mtp_head_restores == bsnap.hits, "lane mhkv: every restore of the batched engine restored the head: {bsnap:?}");
+    assert!(head_ok, "lane mhkv: a restored request's ids or acceptance differ from the same request cold (see the mhkv lines)");
 }
