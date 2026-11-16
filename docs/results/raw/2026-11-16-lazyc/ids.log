@@ -1,0 +1,39 @@
+fleetq: #9683 running on spark1: /Users/josef/.local/state/claude-watch/lazyc-run.sh ids
+## i-35b-default-lazy0 lazy=0 up 47.19s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 47.1s, context 40000 tokens | admission on plan shapes: 42 kernel(s) checked, 0 case(s) run, 687 cached | avail 58 GB
+short tokens 256 prompt 15 spec {'intarsia_spec_accepted_tokens_total': 148.0, 'intarsia_spec_proposed_tokens_total': 213.0, 'intarsia_spec_steps_total': 107.0}
+4k-a tokens 256 prompt 4100 spec {'intarsia_spec_accepted_tokens_total': 169.0, 'intarsia_spec_proposed_tokens_total': 172.0, 'intarsia_spec_steps_total': 86.0}
+4k-b tokens 256 prompt 4104 spec {'intarsia_spec_accepted_tokens_total': 126.0, 'intarsia_spec_proposed_tokens_total': 196.0, 'intarsia_spec_steps_total': 98.0}
+## i-35b-default-lazy1 lazy=1 up 34.79s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 34.7s, context 40000 tokens | admission on plan shapes: 42 kernel(s) checked, 0 case(s) run, 687 cached | avail 57 GB
+short tokens 256 prompt 15 spec {'intarsia_spec_accepted_tokens_total': 148.0, 'intarsia_spec_proposed_tokens_total': 213.0, 'intarsia_spec_steps_total': 107.0}
+4k-a tokens 256 prompt 4100 spec {'intarsia_spec_accepted_tokens_total': 169.0, 'intarsia_spec_proposed_tokens_total': 172.0, 'intarsia_spec_steps_total': 86.0}
+4k-b tokens 256 prompt 4104 spec {'intarsia_spec_accepted_tokens_total': 126.0, 'intarsia_spec_proposed_tokens_total': 196.0, 'intarsia_spec_steps_total': 98.0}
+GATE3 35b-default plan identical
+GATE4 35b-default short: ids lazy0==lazy1 True (256 tokens, prompt 15) 
+GATE4 35b-default 4k-a: ids lazy0==lazy1 True (256 tokens, prompt 4100) 
+GATE4 35b-default 4k-b: ids lazy0==lazy1 True (256 tokens, prompt 4104) 
+## i-35b-specoff-lazy0 lazy=0 up 35.79s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 35.6s, context 40000 tokens | admission on plan shapes: 41 kernel(s) checked, 0 case(s) run, 513 cached | avail 59 GB
+short tokens 256 prompt 15 spec {}
+4k-a tokens 256 prompt 4100 spec {}
+4k-b tokens 256 prompt 4104 spec {}
+## i-35b-specoff-lazy1 lazy=1 up 32.97s | loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 32.9s, context 40000 tokens | admission on plan shapes: 41 kernel(s) checked, 0 case(s) run, 513 cached | avail 59 GB
+short tokens 256 prompt 15 spec {}
+4k-a tokens 256 prompt 4100 spec {}
+4k-b tokens 256 prompt 4104 spec {}
+GATE3 35b-specoff plan identical
+GATE4 35b-specoff short: ids lazy0==lazy1 True (256 tokens, prompt 15) 
+GATE4 35b-specoff 4k-a: ids lazy0==lazy1 True (256 tokens, prompt 4100) 
+GATE4 35b-specoff 4k-b: ids lazy0==lazy1 True (256 tokens, prompt 4104) 
+## i-27b-default-lazy0 lazy=0 up 41.34s | loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 41.1s, context 40000 tokens | admission on plan shapes: 28 kernel(s) checked, 0 case(s) run, 547 cached | avail 62 GB
+short tokens 256 prompt 15 spec {'intarsia_spec_accepted_tokens_total': 154.0, 'intarsia_spec_proposed_tokens_total': 202.0, 'intarsia_spec_steps_total': 101.0}
+4k-a tokens 256 prompt 4100 spec {'intarsia_spec_accepted_tokens_total': 164.0, 'intarsia_spec_proposed_tokens_total': 180.0, 'intarsia_spec_steps_total': 90.0}
+4k-b tokens 256 prompt 4104 spec {'intarsia_spec_accepted_tokens_total': 154.0, 'intarsia_spec_proposed_tokens_total': 200.0, 'intarsia_spec_steps_total': 100.0}
+## i-27b-default-lazy1 lazy=1 up 34.15s | loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 34.0s, context 40000 tokens | admission on plan shapes: 28 kernel(s) checked, 0 case(s) run, 547 cached | avail 61 GB
+short tokens 256 prompt 15 spec {'intarsia_spec_accepted_tokens_total': 154.0, 'intarsia_spec_proposed_tokens_total': 202.0, 'intarsia_spec_steps_total': 101.0}
+4k-a tokens 256 prompt 4100 spec {'intarsia_spec_accepted_tokens_total': 164.0, 'intarsia_spec_proposed_tokens_total': 180.0, 'intarsia_spec_steps_total': 90.0}
+4k-b tokens 256 prompt 4104 spec {'intarsia_spec_accepted_tokens_total': 154.0, 'intarsia_spec_proposed_tokens_total': 200.0, 'intarsia_spec_steps_total': 100.0}
+GATE3 27b-default plan identical
+GATE4 27b-default short: ids lazy0==lazy1 True (256 tokens, prompt 15) 
+GATE4 27b-default 4k-a: ids lazy0==lazy1 True (256 tokens, prompt 4100) 
+GATE4 27b-default 4k-b: ids lazy0==lazy1 True (256 tokens, prompt 4104) 
+Connection to spark-4e77 closed.
+fleetq: #9683 done (exit 0)
