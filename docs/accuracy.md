@@ -758,6 +758,7 @@ off on the same build (docs/results/2026-11-14-hip-wht6-ar.md): it **fails the c
 4.72e-3, 1.49 x the reference noise, two prompts over 3 x their own noise) and on the long golden (3.38e-2, 1.52 x), and passes the
 vLLM-golden gates (static floor 3e-2 binding). Greedy ids change within the first 15 to 82 tokens. A build or profile that turns it on
 is outside the accuracy gates as they stand; `INTARSIA_HIP_AR_WIRE_MIN_KB` only moves the prompt length from which that applies.
+`INTARSIA_HIP_AR_WIRE=wht8` (the same wire with 8-bit symbols, 4x smaller wire error, docs/results/2026-11-16-hip-wht8-ar.md) fails the same rule by a similar margin (short golden 5.56e-3 = 1.76 x the reference noise, long 3.24e-2 = 1.46 x; wht6 in the same build 1.51 x / 1.42 x) and passes the vLLM-golden gates.
 
 ### `--reference`
 
