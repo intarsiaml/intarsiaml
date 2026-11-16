@@ -6,7 +6,7 @@ REPO="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
 OUT=${OUT:-$REPO/docs/results/2026-11-15-dsubset/raw/runs}; mkdir -p "$OUT"
 S=$REPO/scripts/dsubset
 HOST=${HOST:-spark1}; case $HOST in spark1) HN=spark-4e77 ;; spark2) HN=spark-fa00 ;; esac; PORT=8197; VPORT=8000
-M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
+M35=${M35:-/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5}
 BIN=${BIN:-'~/intarsia-dsubset/bin/intarsia'}; MS=32768; MB=40
 SPID=""; WPID=""; T0=$(date +%s); LOG=$OUT/${LOGNAME_:-run}.log
 rsh() { ssh -n -o BatchMode=yes "$HOST" "export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
