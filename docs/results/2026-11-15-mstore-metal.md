@@ -40,8 +40,8 @@ Brief (coordinator, 2026-11-15 evening, condensed):
 - **Restore speed (Apple silicon):** a 32k prefix comes back in 0.69 s (35B, 36.5k tokens from disk after a restart,
   TTFT) against 13.4 s cold with the store, 11.5 s cold without; the 27B in 1.7 s against 53 s. The disk read is from the
   page cache (no `purge` without sudo), not a cold SSD read.
-- **The store costs every miss:** cold TTFT with the store on against off: +30 % (35B 4k), +16 % (35B 32k), +35 %
-  (27B 4k), 0 % (27B 32k); and on Metal the store-on chunk schedule changes the text against store off (3 of 4 windows, 5 of
+- **The store costs every miss:** cold TTFT with the store on against off, mean (range over rep pairs): +30 % (25 to
+  34, 35B 4k), +16 % (4 to 32, 35B 32k), +35 % (20 to 51, 27B 4k), 0 % (-7 to +6, 27B 32k); and on Metal the store-on chunk schedule changes the text against store off (3 of 4 windows, 5 of
   6 gate replies). **So no store-on default is proposed** (PR 2 only flips `INTARSIA_MTP_STORE` for Metal).
 - **Fix (PR 1):** queued disk writes were lost when a store was dropped or `serve` stopped; now flushed. Bitwise neutral,
   `plan show --json` byte-identical (8B, 27B, 35B).
@@ -91,7 +91,8 @@ document (corpus docs + code) of about 4.5k / 36.5k tokens + a question; Q = P +
 (133 tokens after P). Greedy, thinking off, `ignore_eos`, 256 tokens. A fresh server per run, order A B0 B B B0 A:
 A = store off (today's default); B0 = store on, empty store; B = store on with a copy of a store holding P, after a
 restart: Q (restores P from disk), an unrelated request U, Q again (restores all but 4 tokens from the host tier).
-Means of 2 reps; the reps agree within 2 % on TTFT. Client `scripts/mstore/req.py` (per-SSE-chunk gaps, not a
+Means of 2 reps. Rep-to-rep spread: cold TTFT up to 24 % (35B 32k store off: 10.3 / 12.8 s; 27B 4k store on: 7.5 /
+6.2 s), restored TTFT up to 16 %, decode up to 13 %; the catch-up costs compare B0 with B, whose decode reps agree within 8 %. Client `scripts/mstore/req.py` (per-SSE-chunk gaps, not a
 weighted ITL). Table: `scripts/mstore/table.py raw`.
 
 | model, prefix | arm | TTFT | decode tok/s | acceptance | chunk-gap p99 ms | cached / prompt |
@@ -179,7 +180,7 @@ Host tier the same size (write-through); `host_mb=8192` held every run. Insert t
 0.12 s per stored prompt, so the cold-TTFT cost of the store is not the captures: most likely the extra, shorter prefill
 passes of the boundary-cut schedule (on the 27B each MXFP4 pass decodes its weights once, roadmap section 1.4). Restore
 time per run (two hits, disk + host): 0.06 s (35B 4k, 303 MiB) to 0.90 s (27B 32k, 4.9 GiB). Memory pressure stayed at or
-above 46 % free in every run, no swap growth (`raw/*/mem.log`).
+above 46 % free in every run; swap used stayed at 88 to 96 MB (`raw/*/mem.log`).
 
 Shutdown: a server stopped right after its reply (no wait for the writer) left every entry on disk at these sizes, on
 the binary without the fix below (the `F` runs: `F2` restores 4486 of 4490 / 36513 of 36517 tokens). So the window cannot demonstrate the
@@ -196,8 +197,8 @@ byte-identical to the pinned main-equivalent binary on the 8B, 27B and 35B (#959
 
 ## Deviations and limits
 
-- Two reps per arm, one window per cell; endor drifts 10 to 20 % window to window (lane m27), but every comparison above
-  is inside one window and the reps agree within 2 %.
+- Two reps per arm, one window per cell; endor drifts 10 to 20 % window to window (lane m27). Every comparison above is
+  inside one window; rep-to-rep spread is up to 24 % on cold TTFT (so the store's cold overhead is a range, not a point).
 - The disk restore reads the page cache; a cold SSD read was not measured.
 - `--max-batch` was gated (ids) but not timed.
 - The 27B batched arms need `INTARSIA_BATCHED_MTP=1` (opt-in on the 27B).
