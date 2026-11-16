@@ -10,7 +10,7 @@ Lane `a4k-restore`, branch `a4k-restore` from origin/main `76726167f`. Follow-up
 |---|---|
 | Root cause | **Macro prefill** (`[tuning.hip] prefill_macro = 8192`, lane l7m, 2026-10-26) ran several prefill chunks of a prompt as ONE `forward` call, and the engine snapshots the recurrent state only after that call (`crates/intarsia-core/src/engine.rs:1799` macro step, `:1809` the one snapshot on main; batched engine `crates/intarsia-core/src/engine/batch.rs:246,255`). The chunk ends inside the pass had no snapshot. Not a HIP kernel, budget, recipe-flag or harness problem |
 | Fix | A macro pass now keeps the snapshots of its inner chunk ends (the same set the plain chunk-by-chunk schedule leaves): copies only, no op and no numerics change |
-| acc-4k restore / aligned, after | all 6 rows reuse and pass; the 3 `aligned` rows are **logits bit-identical to the cold run**; `prefix-reuse gate: PASS` at chunk 4096 and at 1024 |
+| acc-4k restore / aligned, after | all 8 rows (2 at chunk 4096, 6 at chunk 1024) reuse and pass; the 4 `aligned` rows are **logits bit-identical to the cold run**; `prefix-reuse gate: PASS` at chunk 4096 and at 1024 |
 | Non-reuse numerics | acc-4k prefill / decode KL and top-1 lines byte-identical to the 2026-11-15 window (same `qualify` stage, prior build) |
 | acc-4k stage verdict | now `MISSING-BASELINE` (exit 1): KL, tail and prefix-reuse gates all pass, but no HIP `acc-4k` baseline is committed for this model, so top-1 is not gated. Was `FAIL` (prefix reuse) |
 | Tests | Mac `cargo test --workspace --release` 1494 passed, 0 failed; HIP window: see Tests |
@@ -64,7 +64,7 @@ A plain continuation (`continue` case: turn 2 = turn 1 + reply + more) was not a
 - `SequenceState::snapshot` refactored to share the buffer logic (`snapshot_buf`); same eviction and same-length replacement.
 
 The copies run on the model's stream after the segment's kernels and read the slot only; no kernel, launch order or reduction changes.
-Cost: one device-to-device copy of the recurrent slots (`SequenceState::recurrent_bytes`, tens of MB on the 35B; not timed) per kept inner chunk end, against a multi-second prefill pass.
+Cost: one device-to-device copy of the recurrent slots (`SequenceState::recurrent_bytes`; one live recurrent state is 63 MB on the 35B per `model/batch.rs`; not timed) per kept inner chunk end, against a multi-second prefill pass.
 
 ## Commands
 
