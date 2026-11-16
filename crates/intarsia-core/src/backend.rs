@@ -461,6 +461,15 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Most rows of an MTP head's short catch-up (the 2 or 3 rows queued by a verify pass, `Model::head_rows_attn`) the backend
+    /// wants as ONE rows-exact multi-row attention call (`OpCall::exact_rows`: the kernel a verify pass selects, bitwise the
+    /// decode step per row) instead of the ordinary prefill call; 0 = no (the default). For a backend whose prefill attention
+    /// kernel costs the same for 3 rows as for a chunk (Metal: 3.4 to 3.8 ms at 32k against 0.4 to 0.65 ms, lane mka,
+    /// docs/results/2026-11-15-mka-metal-kv-once.md). The rows only feed the next drafts, so the generated ids do not change.
+    fn head_rows_exact(&self) -> usize {
+        0
+    }
+
     /// Called once by a model that runs MTP speculation (`--spec mtp`): the backend switches its verify attention to per-row
     /// ([`Backend::verify_attn_per_row`]) unless the user opted out, so the speculative ids equal spec-off at any context
     /// (CUDA: the multi-row kernel is not bitwise the decode step at large positions, docs/results/2026-10-25-dc-dflash-dcoco.md

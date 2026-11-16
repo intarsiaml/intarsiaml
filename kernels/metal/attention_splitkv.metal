@@ -83,7 +83,7 @@ inline uint ask_gpn(uint s1, uint gp) { return (s1 >> 8) != 0 ? (s1 >> 8) : gp; 
 template <uint GP, bool FULL>
 inline void ask_step(device const uint4* kb, device const uint4* vb, uint start32, uint end32, uint u0, uint nsg, uint kps,
                      uint slot, uint lpk, thread float (&qv)[GP][8], thread float (&acc)[GP][8], thread float (&m)[GP],
-                     thread float (&l)[GP]) {
+                     thread float (&l)[GP], bool trim = false) {
     const uint row4 = lpk;  // uint4 per row
     uint4 kr[ASK_U], vr[ASK_U];
     bool ok[ASK_U];
@@ -117,9 +117,16 @@ inline void ask_step(device const uint4* kb, device const uint4* vb, uint start3
             pr[u][g] = (ok[u] && m_new != -INFINITY) ? exp2(sc[u][g] - m_new) : 0.0f;
             psum += pr[u][g];
         }
-        l[g] = l[g] * corr + psum;
-        m[g] = m_new;
-        for (uint i = 0; i < 8; ++i) acc[g][i] *= corr;
+        // `trim` (the packed kernels only): a step that does not raise the stream's maximum has corr = exp2(0) = 1, so
+        // l * 1 + psum and acc * 1 are l + psum and acc, bit for bit; the multiplies are skipped (a uniform branch when a
+        // simdgroup holds one slot, head_dim 256)
+        if (trim && m_new == m[g]) {
+            l[g] = l[g] + psum;
+        } else {
+            l[g] = l[g] * corr + psum;
+            m[g] = m_new;
+            for (uint i = 0; i < 8; ++i) acc[g][i] *= corr;
+        }
     }
     for (uint u = 0; u < ASK_U; ++u) {
         float vf[8];
@@ -720,3 +727,284 @@ kernel void attn_decode_rowtab_combine(device ushort* out [[buffer(0)]],
     }
     out[p.s3 + (row * n + head) * d + di] = f2bf(lt > 0.0f ? num / lt : 0.0f);
 }
+
+// ===================================================================================================================
+// Packed threadgroups (lane mka, `INTARSIA_METAL_ATTN_KV_ONCE=1`): stage 1 of the three launches above (the 1-row decode, the
+// G0b verify rows, the row table) with several (row, head group) ITEMS per threadgroup. Bitwise the launches above.
+//
+// Why (docs/results/2026-11-15-mka-metal-kv-once.md): an item (one row's head group on one K / V split) is `nsg` simdgroup
+// streams. The launches above give every item its own threadgroup, so a threadgroup is as small as 2 simdgroups (the 27B's
+// bitwise head split, limited by the unsplit launch's accumulator bound), or half idle (the row table launches 8 simdgroups
+// and a long row uses 4), and the items that read the same K / V slice (the head groups of a kv head, the verify rows of a
+// sequence) sit in different threadgroups. Here one threadgroup of `W * IPT` simdgroups holds up to `IPT * W / nsg` items of
+// the same kv head and split: they walk the same keys together (one read from memory, the others from the core's cache) and
+// no simdgroup of a full threadgroup idles.
+//
+// Bitwise rule: an item keeps EXACTLY its streams. Its split count, chunk, simdgroup count `nsg`, key-to-(stream, step, unit)
+// assignment, the loop body (`ask_step`), the slot merge, the stream merge order and the combine are those of the launch
+// above; only the threadgroup an item's simdgroups live in, and the index of its streams in threadgroup memory, change.
+//
+// Item layout. Items of a kv head are numbered `row * HS + hg`. The launch picks a WINDOW of `W` simdgroups (the largest
+// `nsg` any row of the launch can have) and `IPT` windows per threadgroup; the grid is (Nkv * NTG, max_split) with
+// NTG = ceil(R * HS / IPT). Window `widx = j * IPT + sg / W` of threadgroup j belongs to row `widx / HS`. A row whose own
+// `nsg` equals W has one item per window (head group `widx % HS`); a row with `nsg = W / sub` has `sub` items per window
+// (head groups `(widx % HS) * sub + k`, k < sub), so its later windows are empty (their simdgroups do nothing).
+//
+// `OpP` as the launch it replaces, except s0 = R (1 for the 1-row launch) and s1 = the packed plan (`pk_*` below): HS
+// (bits 0..3), the kv-head multiplier of the split policy (4..11), the accumulator bound on `nsg` (12..15), W (16..19),
+// IPT (20..24), the host-position simdgroup rule (25), a planted fault for the tests (26), the corr == 1 trim of `ask_step` (27). The combine stages are the ones above, with their own `OpP`.
+constant constexpr uint PK_MAX_SG = 16;        // simdgroups per packed threadgroup, at most
+constant constexpr uint PK_TG_FLOATS = 7680;   // most accumulator floats of a packed threadgroup (the NF instances below)
+
+struct PkPlan {
+    uint hs, pol, capn, w, ipt, few, fault, trim;
+};
+
+inline PkPlan pk_plan(uint s1) {
+    PkPlan pl;
+    pl.hs = max(s1 & 15u, 1u);
+    pl.pol = max((s1 >> 4) & 255u, 1u);
+    pl.capn = max((s1 >> 12) & 15u, 1u);
+    pl.w = max((s1 >> 16) & 15u, 1u);
+    pl.ipt = max((s1 >> 20) & 31u, 1u);
+    pl.few = (s1 >> 25) & 1u;
+    pl.fault = (s1 >> 26) & 1u;  // test only: a planted fault (the launcher's test hook)
+    pl.trim = (s1 >> 27) & 1u;
+    return pl;
+}
+
+// The item of simdgroup `sg` of threadgroup `j` (of a kv head's NTG): row, head group, stream, and whether it exists.
+struct PkItem {
+    uint row, hw;
+    bool inr;
+};
+
+inline PkItem pk_item(PkPlan pl, uint rows, uint j, uint sg) {
+    PkItem it;
+    const uint widx = j * pl.ipt + sg / pl.w;
+    it.row = widx / pl.hs;
+    it.hw = widx - it.row * pl.hs;
+    it.inr = it.row < rows;
+    if (!it.inr) it.row = 0;
+    return it;
+}
+
+// Simdgroups of a row with `nsplit` splits: the rule of the launch the packed one replaces (`launch_attn_splitkv`, `askr_nsg`).
+inline uint pk_nsg(PkPlan pl, uint nkv, uint nsplit) {
+    return min(pl.capn, (pl.few != 0 && nkv * pl.pol * nsplit <= ASK_FEW_TGS) ? ASK_MAX_SG : ASK_MAX_SG / 2);
+}
+
+template <uint GP>
+inline void pk_core(device const ushort* q, device const ushort* kc, device const ushort* vc, device ushort* out,
+                    device float* part, constant OpP& p, PkPlan pl, uint kvh, uint sp, uint row, uint hg, uint s, uint nsg,
+                    bool on, uint visible, uint nsplit, uint sg, uint lane, threadgroup float* tm, threadgroup float* tl,
+                    threadgroup float* tacc) {
+    const uint n = p.b, nkv = p.c, d = p.d;
+    const uint cap = p.e;
+    const uint hs = pl.hs;
+    const uint kgrp = n / nkv;
+    const uint grp = kgrp / hs;
+    const uint head0 = kvh * kgrp + hg * grp;
+    const uint lpk = d / 8, kps = 32 / lpk;
+    const uint slot = lane / lpk, c8 = lane % lpk;
+    device float* part_r = part + row * (n * p.h * (d + 2));
+    device float2* ml = (device float2*)(part_r + n * p.h * d);
+    const uint qrow = row * n;
+    bool work = on;
+    uint start = 0, end = 0;
+    if (on) {
+        const uint chunk = ask_chunk(visible, nsplit);
+        start = sp * chunk;
+        end = min(visible, start + chunk);
+        if (start >= end) {  // an empty split of this row
+            if (s == 0 && lane < grp) ml[(head0 + lane) * p.h + sp] = float2(-INFINITY, 0.0f);
+            work = false;
+        }
+    }
+    if (work) {
+        device const uint4* kb = (device const uint4*)(kc + kvh * cap * d) + c8;
+        device const uint4* vb = (device const uint4*)(vc + kvh * cap * d) + c8;
+        float qv[GP][8], acc[GP][8], m[GP], l[GP];
+        const float qs = p.f0 * ASK_LOG2E;
+        for (uint g = 0; g < GP; ++g) {
+            float qf[8];
+            ask_unpack8(g < grp ? ((device const uint4*)(q + (qrow + head0 + g) * d + c8 * 8))[0] : uint4(0), qf);
+            for (uint i = 0; i < 8; ++i) {
+                qv[g][i] = g < grp ? qf[i] * qs : 0.0f;
+                acc[g][i] = 0.0f;
+            }
+            m[g] = -INFINITY;
+            l[g] = 0.0f;
+        }
+
+        const uint units = (end - start + kps - 1) / kps;
+        const uint start32 = start, end32 = end;
+        // (the planted fault of the tests drops the first step of stream 0 of split 0)
+        const uint first = s + ((pl.fault != 0 && sp == 0 && s == 0) ? nsg * ASK_U : 0u);
+        for (uint u0 = first; u0 < units; u0 += nsg * ASK_U) {
+            const bool full = start32 + (u0 + (ASK_U - 1) * nsg + 1) * kps <= end32;
+            if (full) {
+                ask_step<GP, true>(kb, vb, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l, pl.trim != 0);
+            } else {
+                ask_step<GP, false>(kb, vb, start32, end32, u0, nsg, kps, slot, lpk, qv, acc, m, l, pl.trim != 0);
+            }
+        }
+
+        for (uint o = lpk; o < 32; o <<= 1) {
+            for (uint g = 0; g < GP; ++g) {
+                const float mo = simd_shuffle_xor(m[g], (ushort)o), lo = simd_shuffle_xor(l[g], (ushort)o);
+                const float mn = max(m[g], mo);
+                const float wa = m[g] == -INFINITY ? 0.0f : exp2(m[g] - mn);
+                const float wb = mo == -INFINITY ? 0.0f : exp2(mo - mn);
+                for (uint i = 0; i < 8; ++i) acc[g][i] = acc[g][i] * wa + simd_shuffle_xor(acc[g][i], (ushort)o) * wb;
+                l[g] = l[g] * wa + lo * wb;
+                m[g] = mn;
+            }
+        }
+        if (slot == 0) {
+            for (uint g = 0; g < GP; ++g) {
+                if (c8 == 0) {
+                    tm[sg * GP + g] = m[g];
+                    tl[sg * GP + g] = l[g];
+                }
+                for (uint i = 0; i < 8; ++i) tacc[(sg * GP + g) * d + c8 * 8 + i] = acc[g][i];
+            }
+        }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    if (work) {
+        // the item's `nsg` simdgroups merge its streams (threadgroup simdgroups base .. base + nsg) exactly as the unpacked
+        // launch's threadgroup does: work items strided by nsg * 32 over the item's threads, streams in order
+        const uint base = sg - s;
+        const uint tid = s * 32 + lane;
+        const uint lgd = ctz(d);
+        for (uint idx = tid; idx < grp * d; idx += nsg * 32) {
+            const uint g = idx >> lgd, di = idx & (d - 1);
+            float mt = -INFINITY;
+            for (uint t = 0; t < nsg; ++t) mt = max(mt, tm[(base + t) * GP + g]);
+            float lt = 0.0f, num = 0.0f;
+            for (uint t = 0; t < nsg; ++t) {
+                const float ms = tm[(base + t) * GP + g];
+                const float w = ms == -INFINITY ? 0.0f : exp2(ms - mt);
+                lt += tl[(base + t) * GP + g] * w;
+                num += tacc[((base + t) * GP + g) * d + di] * w;
+            }
+            const uint head = head0 + g;
+            if (nsplit == 1) {
+                out[p.s3 + (qrow + head) * d + di] = f2bf(lt > 0.0f ? num / lt : 0.0f);
+            } else {
+                part_r[(head * p.h + sp) * d + di] = num;
+                if (di == 0) ml[head * p.h + sp] = float2(mt, lt);
+            }
+        }
+    }
+}
+
+// Rows of ONE sequence at consecutive positions (R = 1: the decode step; R = 2..8: the G0b verify rows). Bind as
+// `attn_decode_bf16_splitkv_g*` / `attn_rows_splitkv_g*`.
+template <uint GP, uint NF>
+kernel void attn_pack_t(device const ushort* q [[buffer(0)]],
+                        device const ushort* kc [[buffer(1)]],
+                        device const ushort* vc [[buffer(2)]],
+                        device ushort* out [[buffer(3)]],
+                        device const int* posbuf [[buffer(4)]],
+                        device float* part [[buffer(5)]],
+                        constant OpP& p [[buffer(6)]],
+                        uint2 tg [[threadgroup_position_in_grid]],
+                        uint sg [[simdgroup_index_in_threadgroup]],
+                        uint lane [[thread_index_in_simdgroup]]) {
+    threadgroup float tm[PK_MAX_SG * GP], tl[PK_MAX_SG * GP];
+    threadgroup float tacc[NF];  // NF: the launcher takes the smallest instance that holds W * IPT * GP * D floats
+
+    const uint nkv = p.c, rows = max(p.s0, 1u);
+    const PkPlan pl = pk_plan(p.s1);
+    const uint ntg = (rows * pl.hs + pl.ipt - 1) / pl.ipt;
+    const uint kvh = tg.x / ntg, j = tg.x - kvh * ntg;
+    const int pos0 = p.g != 0 ? posbuf[0] : (int)p.f;
+    {
+        // a threadgroup past the split count of its LAST row (the longest: the count grows with the position) has no work:
+        // uniform over the threadgroup, as the early return of the unpacked kernels
+        const uint row_hi = min((j * pl.ipt + pl.ipt - 1) / pl.hs, rows - 1);
+        const uint vis_hi = min((uint)max(pos0 + (int)row_hi, 0) + 1u, p.e);
+        if (tg.y >= ask_nsplit(vis_hi, nkv * pl.pol, p.h, p.pad, p.a)) return;
+    }
+    const PkItem it = pk_item(pl, rows, j, sg);
+    const int pos_raw = pos0 + (int)it.row;
+    const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);
+    const uint nsplit = ask_nsplit(visible, nkv * pl.pol, p.h, p.pad, p.a);
+    const uint nsg = pk_nsg(pl, nkv, nsplit);
+    const uint ws = sg % pl.w;
+    const uint hg = it.hw * (pl.w / nsg) + ws / nsg, s = ws % nsg;
+    const bool on = it.inr && hg < pl.hs && tg.y < nsplit;
+    pk_core<GP>(q, kc, vc, out, part, p, pl, kvh, tg.y, it.row, hg, s, nsg, on, visible, nsplit, sg, lane, tm, tl, tacc);
+}
+
+#define PK_INST(GP, NF)                                                                                        \
+    template [[host_name("attn_pack_g" #GP "_f" #NF)]] kernel void attn_pack_t<GP, NF>(                        \
+        device const ushort*, device const ushort*, device const ushort*, device ushort*, device const int*, \
+        device float*, constant OpP&, uint2, uint, uint);
+#define PK_INST_ALL(GP) PK_INST(GP, 2048) PK_INST(GP, 3072) PK_INST(GP, 4096) PK_INST(GP, 6144) PK_INST(GP, 7680)
+PK_INST_ALL(1)
+PK_INST_ALL(2)
+PK_INST_ALL(4)
+PK_INST_ALL(8)
+#undef PK_INST_ALL
+#undef PK_INST
+
+// Row table (R rows, each with its own cache and position). Bind as `attn_decode_rowtab_g*`; the rows are folded into grid x.
+template <uint GP, uint NF>
+kernel void attn_pack_rowtab_t(device const ushort* q [[buffer(0)]],
+                               device const ulong* tab [[buffer(1)]],
+                               device ushort* out [[buffer(2)]],
+                               device const int* posbuf [[buffer(3)]],
+                               device float* part [[buffer(4)]],
+                               constant OpP& p [[buffer(5)]],
+                               uint2 tg [[threadgroup_position_in_grid]],
+                               uint sg [[simdgroup_index_in_threadgroup]],
+                               uint lane [[thread_index_in_simdgroup]]) {
+    threadgroup float tm[PK_MAX_SG * GP], tl[PK_MAX_SG * GP];
+    threadgroup float tacc[NF];  // NF: the launcher takes the smallest instance that holds W * IPT * GP * D floats
+
+    const uint nkv = p.c, rows = max(p.s0, 1u);
+    const PkPlan pl = pk_plan(p.s1);
+    const uint ntg = (rows * pl.hs + pl.ipt - 1) / pl.ipt;
+    const uint kvh = tg.x / ntg, j = tg.x - kvh * ntg;
+    {
+        // a threadgroup none of whose windows has work returns at once (uniform over the threadgroup): the surplus splits of
+        // short rows, and the windows a row with fewer simdgroups than the window leaves empty
+        bool any = false;
+        for (uint wi = 0; wi < pl.ipt; ++wi) {
+            const uint widx = j * pl.ipt + wi;
+            const uint r = widx / pl.hs;
+            if (r >= rows) break;
+            const uint vis = min((uint)max(posbuf[r], 0) + 1u, p.e);
+            const uint ns = ask_nsplit(vis, nkv * pl.pol, p.h, p.pad, p.a);
+            any = any || (tg.y < ns && (widx - r * pl.hs) * (pl.w / pk_nsg(pl, nkv, ns)) < pl.hs);
+        }
+        if (!any) return;
+    }
+    const PkItem it = pk_item(pl, rows, j, sg);
+    const int pos_raw = posbuf[it.row];
+    const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);
+    const uint nsplit = ask_nsplit(visible, nkv * pl.pol, p.h, p.pad, p.a);
+    const uint nsg = pk_nsg(pl, nkv, nsplit);
+    const uint ws = sg % pl.w;
+    const uint hg = it.hw * (pl.w / nsg) + ws / nsg, s = ws % nsg;
+    const bool on = it.inr && hg < pl.hs && tg.y < nsplit;
+    device const ushort* kc = reinterpret_cast<device const ushort*>(tab[(ulong)it.row * p.s2 + p.s4]);
+    device const ushort* vc = reinterpret_cast<device const ushort*>(tab[(ulong)it.row * p.s2 + p.s4 + 1]);
+    pk_core<GP>(q, kc, vc, out, part, p, pl, kvh, tg.y, it.row, hg, s, nsg, on, visible, nsplit, sg, lane, tm, tl, tacc);
+}
+
+#define PKT_INST(GP, NF)                                                                                       \
+    template [[host_name("attn_pack_rowtab_g" #GP "_f" #NF)]] kernel void attn_pack_rowtab_t<GP, NF>(          \
+        device const ushort*, device const ulong*, device ushort*, device const int*, device float*,        \
+        constant OpP&, uint2, uint, uint);
+#define PKT_INST_ALL(GP) PKT_INST(GP, 2048) PKT_INST(GP, 3072) PKT_INST(GP, 4096) PKT_INST(GP, 6144) PKT_INST(GP, 7680)
+PKT_INST_ALL(1)
+PKT_INST_ALL(2)
+PKT_INST_ALL(4)
+PKT_INST_ALL(8)
+#undef PKT_INST_ALL
+#undef PKT_INST

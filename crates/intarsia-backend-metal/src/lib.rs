@@ -23,7 +23,7 @@
 
 mod attn;
 #[doc(hidden)]
-pub use attn::{head_plan_for_test, set_hsb_for_test};
+pub use attn::{head_plan_for_test, kv_once, set_hsb_for_test, set_kv_once_for_test, set_kvo_fault_for_test};
 pub mod bench;
 mod buffer;
 pub mod decode;
@@ -735,6 +735,16 @@ impl Backend for MetalBackend {
     /// with a table of device addresses (`kernels/metal`, [`rowtab`]); `INTARSIA_ROW_TABLES=0` turns it off per model.
     fn supports_row_tables(&self) -> bool {
         true
+    }
+
+    /// `INTARSIA_METAL_ATTN_KV_ONCE=1` (lane mka): the MTP head's catch-up of 2..=8 rows runs `attn_prefill_bf16_splitkv_rows`
+    /// (the verify pass's kernel) instead of `attn_prefill_bf16_flash_nax`, whose time does not depend on the row count.
+    fn head_rows_exact(&self) -> usize {
+        if attn::kv_once() {
+            attn::ROWS_MAX
+        } else {
+            0
+        }
     }
 
     /// The GPU address of byte 0 of `buf`; the buffer joins the set declared resident for row-table dispatches.

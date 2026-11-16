@@ -1,0 +1,202 @@
+== 35B default cold
+heads 16/2 head_dim 256, 10 layers (one KV cache each), 20 reps, host position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1      41.1      31.3      43.6      204   (37% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       1      32.1      32.0      32.3      261   (48% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       3      55.7      54.9      56.1      151   (27% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       8     111.6     111.1     112.7       75   (14% of 550 GB/s; floor 15.3 us)
+   16384 attn_decode_bf16_splitkv            1      75.3      75.1      77.4      446   (81% of 550 GB/s; floor 61.0 us)
+   16384 attn_decode_bf16_splitkv_rows       1     104.7     102.3     106.3      320   (58% of 550 GB/s; floor 61.0 us)
+   16384 attn_decode_bf16_splitkv_rows       3     203.1     202.2     204.6      165   (30% of 550 GB/s; floor 61.0 us)
+   16384 attn_decode_bf16_splitkv_rows       8     440.5     438.7     441.7       76   (14% of 550 GB/s; floor 61.0 us)
+   34000 attn_decode_bf16_splitkv            1     147.4     147.1     148.6      472   (86% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       1     250.4     248.0     252.0      278   (51% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       3     418.1     414.1     419.8      167   (30% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       8     939.5     936.1     943.1       74   (13% of 550 GB/s; floor 126.6 us)
+== 27B default cold
+heads 24/4 head_dim 256, 16 layers (one KV cache each), 20 reps, host position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1      55.8      55.7      64.0      301   (55% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       1      56.6      56.5      57.0      296   (54% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       3     119.1     118.4     119.9      141   (26% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       8     256.4     255.8     257.0       65   (12% of 550 GB/s; floor 30.5 us)
+   16384 attn_decode_bf16_splitkv            1     194.9     194.0     196.3      344   (63% of 550 GB/s; floor 122.0 us)
+   16384 attn_decode_bf16_splitkv_rows       1     196.7     196.0     198.5      341   (62% of 550 GB/s; floor 122.0 us)
+   16384 attn_decode_bf16_splitkv_rows       3     447.3     444.9     449.1      150   (27% of 550 GB/s; floor 122.0 us)
+   16384 attn_decode_bf16_splitkv_rows       8    1007.5    1005.6    1011.0       67   (12% of 550 GB/s; floor 122.0 us)
+   34000 attn_decode_bf16_splitkv            1     390.8     388.1     392.8      356   (65% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       1     391.8     389.1     395.5      355   (65% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       3     958.6     953.3     968.4      145   (26% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       8    2287.4    2279.1    2369.6       61   (11% of 550 GB/s; floor 253.2 us)
+== 35B default hot
+heads 16/2 head_dim 256, 10 layers (ONE cache for all: hot), 20 reps, host position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1      38.7      38.6      89.9      217   (39% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       1      39.7      39.5      40.0      211   (38% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       3      48.4      47.1      50.2      173   (31% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       8     104.7     102.6     105.2       80   (15% of 550 GB/s; floor 15.3 us)
+   16384 attn_decode_bf16_splitkv            1      70.2      69.0      71.0      478   (87% of 550 GB/s; floor 61.0 us)
+   16384 attn_decode_bf16_splitkv_rows       1      70.7      69.9      72.0      474   (86% of 550 GB/s; floor 61.0 us)
+   16384 attn_decode_bf16_splitkv_rows       3     194.8     192.6     197.0      172   (31% of 550 GB/s; floor 61.0 us)
+   16384 attn_decode_bf16_splitkv_rows       8     454.6     439.6     462.2       74   (13% of 550 GB/s; floor 61.0 us)
+   34000 attn_decode_bf16_splitkv            1     157.0     154.6     163.8      444   (81% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       1     251.6     239.5     258.2      277   (50% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       3     441.5     431.6     447.7      158   (29% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       8    1055.5    1022.2    1107.4       66   (12% of 550 GB/s; floor 126.6 us)
+== 27B default hot
+heads 24/4 head_dim 256, 16 layers (ONE cache for all: hot), 20 reps, host position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1      70.9      66.5     100.4      236   (43% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       1      55.9      54.0      61.6      300   (55% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       3     125.1     120.9     125.7      134   (24% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       8     274.5     269.4     276.0       61   (11% of 550 GB/s; floor 30.5 us)
+   16384 attn_decode_bf16_splitkv            1     194.2     191.3     198.9      346   (63% of 550 GB/s; floor 122.0 us)
+   16384 attn_decode_bf16_splitkv_rows       1     195.3     192.2     198.5      344   (62% of 550 GB/s; floor 122.0 us)
+   16384 attn_decode_bf16_splitkv_rows       3     459.7     454.0     464.6      146   (27% of 550 GB/s; floor 122.0 us)
+   16384 attn_decode_bf16_splitkv_rows       8    1132.4    1078.2    1168.3       59   (11% of 550 GB/s; floor 122.0 us)
+   34000 attn_decode_bf16_splitkv            1     407.1     404.4     413.4      342   (62% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       1     410.6     405.9     413.7      339   (62% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       3    1016.1    1009.2    1036.6      137   (25% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       8    2742.5    2646.1    2770.1       51   (9% of 550 GB/s; floor 253.2 us)
+== 35B HS=1 cold
+heads 16/2 head_dim 256, 10 layers (one KV cache each), 20 reps, host position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1     132.9     129.8     137.8       63   (11% of 550 GB/s; floor 15.3 us)
+   16384 attn_decode_bf16_splitkv            1     264.8     263.1     271.2      127   (23% of 550 GB/s; floor 61.0 us)
+   34000 attn_decode_bf16_splitkv            1     490.3     489.4     491.0      142   (26% of 550 GB/s; floor 126.6 us)
+== 35B HS=2 cold
+heads 16/2 head_dim 256, 10 layers (one KV cache each), 20 reps, host position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1      46.5      46.2     107.1      181   (33% of 550 GB/s; floor 15.3 us)
+   16384 attn_decode_bf16_splitkv            1     129.5     101.5     136.2      259   (47% of 550 GB/s; floor 61.0 us)
+   34000 attn_decode_bf16_splitkv            1     135.8     135.3     136.9      513   (93% of 550 GB/s; floor 126.6 us)
+== 35B HS=8 cold
+heads 16/2 head_dim 256, 10 layers (one KV cache each), 20 reps, host position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1      49.9      48.7      50.1      168   (31% of 550 GB/s; floor 15.3 us)
+   16384 attn_decode_bf16_splitkv            1     107.3     106.5     112.6      313   (57% of 550 GB/s; floor 61.0 us)
+   34000 attn_decode_bf16_splitkv            1     220.9     219.3     222.2      315   (57% of 550 GB/s; floor 126.6 us)
+== 27B HSB=0 cold
+heads 24/4 head_dim 256, 16 layers (one KV cache each), 20 reps, host position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1     175.2     174.6     175.9       96   (17% of 550 GB/s; floor 30.5 us)
+   16384 attn_decode_bf16_splitkv            1     611.9     610.9     612.8      110   (20% of 550 GB/s; floor 122.0 us)
+   34000 attn_decode_bf16_splitkv            1    1209.0    1206.0    1210.8      115   (21% of 550 GB/s; floor 253.2 us)
+== 27B HSB=2 cold
+heads 24/4 head_dim 256, 16 layers (one KV cache each), 20 reps, host position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1      48.1      47.9      67.3      349   (63% of 550 GB/s; floor 30.5 us)
+   16384 attn_decode_bf16_splitkv            1     217.5     192.8     242.8      308   (56% of 550 GB/s; floor 122.0 us)
+   34000 attn_decode_bf16_splitkv            1     536.1     535.1     537.3      260   (47% of 550 GB/s; floor 253.2 us)
+== 27B HSB=6 cold
+heads 24/4 head_dim 256, 16 layers (one KV cache each), 20 reps, host position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1      64.4      62.4      66.4      261   (47% of 550 GB/s; floor 30.5 us)
+   16384 attn_decode_bf16_splitkv            1     252.3     250.2     256.4      266   (48% of 550 GB/s; floor 122.0 us)
+   34000 attn_decode_bf16_splitkv            1     549.0     546.3     553.1      254   (46% of 550 GB/s; floor 253.2 us)
+== 35B distinct cold
+heads 16/2 head_dim 256, 4 layers (one KV cache each), 20 reps, host position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv_rows/distinct    1     175.4     130.5     179.5       48   (9% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows/distinct    3     110.8     108.9     115.3      227   (41% of 550 GB/s; floor 45.8 us)
+    4096 attn_decode_bf16_splitkv_rows/distinct    8     303.7     301.2     305.0      221   (40% of 550 GB/s; floor 122.0 us)
+   16384 attn_decode_bf16_splitkv_rows/distinct    1     231.9     173.8     538.9      145   (26% of 550 GB/s; floor 61.0 us)
+   16384 attn_decode_bf16_splitkv_rows/distinct    3     465.8     462.1     468.5      216   (39% of 550 GB/s; floor 183.0 us)
+   16384 attn_decode_bf16_splitkv_rows/distinct    8    1928.2    1895.9    1947.6      139   (25% of 550 GB/s; floor 488.1 us)
+   34000 attn_decode_bf16_splitkv_rows/distinct    1     416.9     412.7     426.7      167   (30% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows/distinct    3    1092.6    1078.1    1104.6      191   (35% of 550 GB/s; floor 379.8 us)
+   34000 attn_decode_bf16_splitkv_rows/distinct    8    3824.4    3814.1    3836.2      146   (26% of 550 GB/s; floor 1012.8 us)
+== 27B distinct cold
+heads 24/4 head_dim 256, 4 layers (one KV cache each), 20 reps, host position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv_rows/distinct    1      80.8      75.2     324.5      208   (38% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows/distinct    3     175.5     173.9     177.1      287   (52% of 550 GB/s; floor 91.5 us)
+    4096 attn_decode_bf16_splitkv_rows/distinct    8     431.8     429.3     434.2      311   (57% of 550 GB/s; floor 244.0 us)
+   16384 attn_decode_bf16_splitkv_rows/distinct    1     250.7     249.2     294.3      268   (49% of 550 GB/s; floor 122.0 us)
+   16384 attn_decode_bf16_splitkv_rows/distinct    3     678.5     674.9     680.6      297   (54% of 550 GB/s; floor 366.0 us)
+   16384 attn_decode_bf16_splitkv_rows/distinct    8    1675.9    1668.4    1711.4      320   (58% of 550 GB/s; floor 976.1 us)
+   34000 attn_decode_bf16_splitkv_rows/distinct    1     491.7     490.3     492.9      283   (51% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows/distinct    3    1362.8    1357.1    1378.1      307   (56% of 550 GB/s; floor 759.6 us)
+   34000 attn_decode_bf16_splitkv_rows/distinct    8    3603.5    3584.3    3667.4      309   (56% of 550 GB/s; floor 2025.7 us)
+== 35B devpos cold
+heads 16/2 head_dim 256, 10 layers (one KV cache each), 20 reps, device position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1      33.5      22.3      45.4      251   (46% of 550 GB/s; floor 15.3 us)
+   16384 attn_decode_bf16_splitkv            1      75.1      74.9      77.3      447   (81% of 550 GB/s; floor 61.0 us)
+   34000 attn_decode_bf16_splitkv            1     148.2     147.8     148.6      470   (85% of 550 GB/s; floor 126.6 us)
+== 27B devpos cold
+heads 24/4 head_dim 256, 16 layers (one KV cache each), 20 reps, device position; split policy default
+pso attn_decode_bf16_splitkv_g1: max threads/tg 1024, static tg mem 16448
+pso attn_decode_bf16_splitkv_g2: max threads/tg 1024, static tg mem 16512
+pso attn_decode_bf16_splitkv_g4: max threads/tg 1024, static tg mem 16640
+pso attn_decode_bf16_splitkv_g8: max threads/tg 1024, static tg mem 16896
+pso attn_decode_bf16_combine: max threads/tg 1024, static tg mem 0
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1      55.9      55.8      62.4      300   (55% of 550 GB/s; floor 30.5 us)
+   16384 attn_decode_bf16_splitkv            1     184.5     184.3     185.7      364   (66% of 550 GB/s; floor 122.0 us)
+   34000 attn_decode_bf16_splitkv            1     375.6     372.6     378.1      371   (67% of 550 GB/s; floor 253.2 us)

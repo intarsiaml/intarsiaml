@@ -335,6 +335,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([ATTN_PREFILL_BF16, ATTN_DECODE_BF16, ATTN_DECODE_BF16_V8]);
     v.extend(ATTN_DECODE_SPLITKV_SHADERS);
     v.extend(ATTN_ROWS_SHADERS);
+    v.extend(crate::attn::pack_shader_names());
     v.extend(crate::flash::FLASH_VARIANTS.iter().map(|f| f.name));
     v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8, GEMV_PAIR_BF16_R1, GEMV_PAIR_BF16_R1_A8]);
     v.extend(RMSNORM_EX);

@@ -1,0 +1,4 @@
+fleetq: #9519 waiting (#21 in line): in line behind #9484 "mtt: gate 2 plan show main vs branch (8B/27B/35B), rerun" (claude-2ae67a71) on endor
+fleetq:   #9484 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9484 set, or it will wait for #9484 to be released.
+fleetq: #9519 waiting (#20 in line): in line behind #9486 "mtt: cargo test --workspace --release --locked (in line, not beside the timing runs)" (claude-2ae67a71) on endor
+fleetq:   #9486 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9486 set, or it will wait for #9486 to be released.

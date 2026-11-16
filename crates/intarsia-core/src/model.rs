@@ -4355,6 +4355,26 @@ impl Model {
             }
             return Ok((attn_out, qc));
         }
+        // lane mka: the MTP head's short catch-up as one rows-exact call where the backend asks for it (`Backend::head_rows_exact`,
+        // off by default): the verify pass's multi-row kernel instead of the prefill kernel. Host positions only.
+        if t > 1
+            && dpos.is_none()
+            && self.head_rows_attn.load(std::sync::atomic::Ordering::Relaxed)
+            && t <= self.backend.head_rows_exact()
+        {
+            let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);
+            let r = self.exec_pos(
+                Op::AttnPrefill,
+                vec![bufs.q[qc].clone(), kcache, vcache],
+                vec![attn_out.clone()],
+                attrs,
+                None,
+                profile,
+            );
+            self.exact_rows.store(prev, std::sync::atomic::Ordering::Relaxed);
+            r?;
+            return Ok((attn_out, qc));
+        }
         // a one-row pass is a decode step, except in a row-invariant prefill pass: its last prompt token alone (a resumed prompt)
         // must run the prefill kernel that row runs inside a longer pass
         let decode = t == 1 && !self.prefill_inv();
