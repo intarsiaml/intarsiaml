@@ -819,3 +819,53 @@ fn batched_mtp_default_only_where_measured_and_env_wins() {
     got.sort();
     assert_eq!(got, ["qwen3_5_moe cuda 1", "qwen3_5_moe metal 1"], "the recipes that turn batched MTP on by default");
 }
+
+/// Lane flipprep: `[tuning.<backend>] batched_verify` / `verify_topk` are recipe keys (unset: off). The shipped recipes set them for exactly the
+/// pairs measured, and the keys resolve per backend. PR 1 (this test) ships no recipe that sets either.
+#[test]
+fn shipped_recipes_set_batched_verify_and_verify_topk_only_where_measured() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../recipes");
+    let mut got = Vec::new();
+    for e in std::fs::read_dir(&dir).unwrap() {
+        let path = e.unwrap().path();
+        if path.extension().is_none_or(|x| x != "toml") {
+            continue;
+        }
+        let r = intarsia_models::parse_recipe(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        for backend in ["cpu", "cuda", "hip", "metal"] {
+            if r.resolve_batched_verify(backend).is_some() {
+                got.push(format!("{} {backend} batched_verify {:?}", r.model.family, r.resolve_batched_verify(backend)));
+            }
+            if r.resolve_verify_topk(backend).is_some() {
+                got.push(format!("{} {backend} verify_topk {:?}", r.model.family, r.resolve_verify_topk(backend)));
+            }
+        }
+    }
+    got.sort();
+    assert_eq!(got, Vec::<String>::new(), "the recipes that set batched verify / verify top-k");
+}
+
+/// lane dsubset: `--mtp-draft-subset` at tp = 2 (replicated or vocab-parallel head; drafter split or whole on rank 0) drafts
+/// exactly what it drafts at tp = 1: rank 0 gathers the subset's rows from the whole head and maps its argmax to token ids.
+#[test]
+fn mtp_tp2_draft_subset_drafts_equal_tp1() {
+    // three 16-id blocks, two past rank 0's 48-row share of a vocab-parallel head
+    let ids: Vec<u32> = (0..16).chain(40..56).chain(80..96).collect();
+    let sub = Some(Arc::new(intarsia_core::draft_subset::DraftSubset::from_ids(ids.clone(), "test").unwrap()));
+    let (recipe, dims) = spec();
+    let o = |vocab_par: bool, whole: bool| LoadOptions { mtp_draft_vocab: None, mtp_draft_subset: sub.clone(), mtp_whole: whole, ..opts(Some(3), vocab_par, 0) };
+    let m1 = finish(Model::load(CpuBackend::arc(), &recipe, &dims, &weights(), &o(false, false), Arc::new(Telemetry::new())).unwrap(), Some(3));
+    let mut outside = 0;
+    for (vocab_par, whole) in [(false, false), (true, false), (false, true), (true, true)] {
+        let backends: Vec<Arc<dyn intarsia_core::backend::Backend>> = (0..2).map(|_| CpuBackend::arc()).collect();
+        let comms = intarsia_core::HostCommGroup::new(backends.clone());
+        let m2 = finish(Model::load_tp(backends, comms, &recipe, &dims, &weights(), &o(vocab_par, whole), Arc::new(Telemetry::new())).unwrap(), Some(3));
+        for p in PROMPTS {
+            let (a, b) = (drafts(&m1, p, 3), drafts(&m2, p, 3));
+            assert_eq!(a, b, "tp=2 subset drafts (vocab_par {vocab_par}, whole {whole}) differ from tp=1 for {p:?}");
+            assert!(a.iter().flatten().all(|t| ids.contains(t)), "drafts outside the subset: {a:?}");
+            outside += a.iter().flatten().filter(|&&t| t >= 48).count();
+        }
+    }
+    assert!(outside > 0, "some drafts past rank 0's vocab-parallel share");
+}

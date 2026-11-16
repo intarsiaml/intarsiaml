@@ -397,6 +397,13 @@ pub struct BackendTuning {
     /// server. `INTARSIA_BATCHED_MTP` wins (`0`: off). Per backend only, set only where measured (the Qwen3.6-35B-A3B on CUDA and Metal:
     /// docs/results/2026-11-05-batched-mtp.md); unset (HIP, every tp > 1): off.
     pub batched_mtp: Option<usize>,
+    /// Batched verify on this backend (lane bm phase B, [`Recipe::resolve_batched_verify`]): with batched MTP the sequences that draft in a
+    /// step verify in ONE ragged pass. Unset: off. `INTARSIA_BATCHED_VERIFY` wins both ways (`1` on, `0` off). Per backend only, set
+    /// only where measured (docs/results/2026-11-14-mtp2s.md).
+    pub batched_verify: Option<bool>,
+    /// Sampled rows of a batched verify pass as the device-side top-k (lane mtp2s, [`Recipe::resolve_verify_topk`]); needs
+    /// `batched_verify`. Unset: off. `INTARSIA_VERIFY_TOPK` wins both ways (`1` on, `0` off). Per backend only, set only where measured.
+    pub verify_topk: Option<bool>,
     /// MXFP4 projections on this backend: the activation mode when `--mxfp4-act` is not given (`"dynamic"`, `"none"` or `"fp8"`;
     /// wins over `[defaults] mxfp4_act`, loses to the flag). For a mode only some backends implement: the Qwen3.8-27B sets `"fp8"`
     /// (W4A8) under `[tuning.hip]`, so CUDA and Metal keep the `[defaults]` W4A16.
@@ -522,6 +529,16 @@ impl Recipe {
     pub fn resolve_batched_mtp(&self, backend: &str) -> Option<usize> {
         self.mtp.as_ref()?;
         self.tuning.backends.get(backend).and_then(|b| b.batched_mtp).filter(|&n| n > 0)
+    }
+
+    /// The recipe's batched verify setting for `backend` (`[tuning.<backend>] batched_verify`); `None`: not set (off). `INTARSIA_BATCHED_VERIFY` wins.
+    pub fn resolve_batched_verify(&self, backend: &str) -> Option<bool> {
+        self.tuning.backends.get(backend).and_then(|b| b.batched_verify)
+    }
+
+    /// The recipe's verify top-k setting for `backend` (`[tuning.<backend>] verify_topk`); `None`: not set (off). `INTARSIA_VERIFY_TOPK` wins.
+    pub fn resolve_verify_topk(&self, backend: &str) -> Option<bool> {
+        self.tuning.backends.get(backend).and_then(|b| b.verify_topk)
     }
 
     /// Prefill tail peel for `backend` ([`crate::scheduler::peel_tail`]): the recipe's value for that backend, then its
@@ -1203,6 +1220,16 @@ mod tests {
     }
     fn dims(c: &serde_json::Value) -> Result<ModelDims> {
         ModelDims::from_hf_config(c, &ConfigKeys::default())
+    }
+
+    #[test]
+    fn batched_verify_and_verify_topk_are_per_backend_recipe_keys_unset_means_none() {
+        let t: Tuning = serde_json::from_value(json!({"cuda": {"batched_verify": true, "verify_topk": true}, "metal": {"batched_verify": false}})).unwrap();
+        let r = |backend: &str| (t.backends.get(backend).and_then(|b| b.batched_verify), t.backends.get(backend).and_then(|b| b.verify_topk));
+        assert_eq!(r("cuda"), (Some(true), Some(true)));
+        assert_eq!(r("metal"), (Some(false), None));
+        assert_eq!(r("hip"), (None, None), "a backend without a table: unset, so off");
+        assert!(serde_json::from_value::<Tuning>(json!({"cuda": {"batched_verify": "yes"}})).is_err(), "a boolean, not a string");
     }
 
     #[test]

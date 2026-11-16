@@ -240,7 +240,11 @@ fn run_prefill(
         let keep = model.batch_snapshots();
         return Ok(match mode {
             None => {
-                if !matches!(model.forward_prefill(st, tokens, HeadMode::None, None)?, StepOut::None) {
+                // a macro step holds several chunks: keep the snapshots of the chunk ends inside it too (lane a4k-restore)
+                st.prefill_snapshots = keep;
+                let ran = model.forward_prefill(st, tokens, HeadMode::None, None);
+                st.prefill_snapshots = 0;
+                if !matches!(ran?, StepOut::None) {
                     return Err(Error::Other("a headless prefill pass returned an output".into()));
                 }
                 st.snapshot(&*model.backend, keep)?;
@@ -249,7 +253,10 @@ fn run_prefill(
             Some(m) => {
                 if tokens.len() > 1 {
                     // nothing is asked of this pass: a head output here would be a bug, not a result to drop
-                    if !matches!(model.forward_prefill(st, &tokens[..tokens.len() - 1], HeadMode::None, None)?, StepOut::None) {
+                    st.prefill_snapshots = keep;
+                    let ran = model.forward_prefill(st, &tokens[..tokens.len() - 1], HeadMode::None, None);
+                    st.prefill_snapshots = 0;
+                    if !matches!(ran?, StepOut::None) {
                         return Err(Error::Other("a headless prefill pass returned an output".into()));
                     }
                     st.snapshot(&*model.backend, keep)?;
@@ -1233,6 +1240,12 @@ impl Engine for BatchedEngine {
     fn prefix_store(&self) -> Value {
         self.store.as_ref().map_or(Value::Null, StorePolicy::info)
     }
+}
+
+/// A boolean opt-in env var read as [`BatchedOptions::new`] reads it (`1` is on, any other value off), `None` when it is unset or empty (the
+/// recipe's `[tuning.<backend>]` value then applies: `INTARSIA_BATCHED_VERIFY` / `batched_verify`, `INTARSIA_VERIFY_TOPK` / `verify_topk`).
+pub fn bool_env_opt(name: &str) -> Option<bool> {
+    std::env::var(name).ok().filter(|v| !v.trim().is_empty()).map(|v| v == "1")
 }
 
 #[cfg(test)]

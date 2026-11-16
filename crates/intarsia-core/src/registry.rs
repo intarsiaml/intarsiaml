@@ -341,6 +341,16 @@ impl Registry {
         k.name.strip_suffix("_rows").and_then(|base| self.admission(base)).unwrap_or(own)
     }
 
+    /// Is the implementation called `name` admitted the way `select` counts it: a row-table kernel by the admission of the kernel it
+    /// twins ([`Registry::effective_admission`]), every other kernel by its own. The plan description reports this, so a plan that
+    /// runs the row-table twin of an admitted kernel does not show it as unadmitted.
+    pub fn is_admitted(&self, name: &str) -> bool {
+        self.entries
+            .iter()
+            .find(|(k, _)| k.name == name)
+            .is_some_and(|(k, a)| self.effective_admission(k, *a) == Admission::Admitted)
+    }
+
     pub fn set_admission(&mut self, name: &str, a: Admission) {
         for (k, st) in self.entries.iter_mut() {
             if k.name == name {
@@ -450,6 +460,27 @@ mod tests {
         assert_eq!(reg.effective_admission(&twin, Admission::Untested), Admission::Rejected);
         // a rows-exact kernel is swept on its own, so its own admission stands
         assert_eq!(reg.effective_admission(&other, Admission::Untested), Admission::Untested);
+    }
+
+    /// `is_admitted` is what the plan description reports: the twin counts as admitted once its base is (the plan of the 27B on HIP
+    /// lists `attn_decode_bf16_splitkv_rows` from the verify probes, and `qualify`'s plan stage fails any op reported unadmitted).
+    #[test]
+    fn is_admitted_counts_a_row_table_twin_by_its_base() {
+        let base = KernelImpl::new(Op::GdnConv, "gdn_conv_x", "b");
+        let twin = KernelImpl::new(Op::GdnConv, "gdn_conv_x_rows", "b").row_table();
+        let other = KernelImpl::new(Op::Matmul, "mm_rows", "b").rows_exact();
+        let entries = vec![(base, Admission::Untested), (twin, Admission::Untested), (other, Admission::Untested)];
+        let mut reg = Registry { backend: "b".into(), arch: "any".into(), entries, require_admitted: true, reference_only: false };
+        assert!(!reg.is_admitted("gdn_conv_x_rows") && !reg.is_admitted("gdn_conv_x") && !reg.is_admitted("nope"));
+        reg.set_admission("gdn_conv_x", Admission::Admitted);
+        assert!(reg.is_admitted("gdn_conv_x") && reg.is_admitted("gdn_conv_x_rows"));
+        reg.set_admission("gdn_conv_x", Admission::Rejected);
+        assert!(!reg.is_admitted("gdn_conv_x_rows"));
+        // a kernel that is not a row-table twin is admitted by its own result only
+        reg.set_admission("gdn_conv_x", Admission::Admitted);
+        assert!(!reg.is_admitted("mm_rows"));
+        reg.set_admission("mm_rows", Admission::Admitted);
+        assert!(reg.is_admitted("mm_rows"));
     }
 
     #[test]

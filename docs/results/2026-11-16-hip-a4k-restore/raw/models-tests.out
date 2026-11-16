@@ -1,0 +1,34 @@
+
+running 15 tests
+test alternating_rows_and_batches_do_not_recapture ... ok
+test batched_engine_equals_solo_over_128_tokens ... ok
+test batched_engine_with_macro_prefill_equals_plain_solo ... ok
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... ok
+test batched_engine_with_packed_prefill_equals_solo ... ok
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... ok
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... ok
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test macro_forward_equals_chunked_forward ... ok
+test macro_prefill_equals_the_plain_chunk_schedule ... ok
+test macro_prefill_keeps_chunk_snapshots_for_reuse ... FAILED
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+
+failures:
+
+---- macro_prefill_keeps_chunk_snapshots_for_reuse stdout ----
+
+thread 'macro_prefill_keeps_chunk_snapshots_for_reuse' panicked at crates/intarsia-models/tests/batch_recurrent.rs:997:13:
+assertion `left == right` failed: Dense, batched, macro 32 rows: resumes at the last chunk end in the shared prefix
+  left: 0
+ right: 32
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    macro_prefill_keeps_chunk_snapshots_for_reuse
+
+test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 104.08s
+

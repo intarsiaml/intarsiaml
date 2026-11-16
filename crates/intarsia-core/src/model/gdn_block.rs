@@ -222,7 +222,7 @@ impl Model {
         // HF l2norm epsilon (a constant of the architecture, not rms_norm_eps)
         let delta_attrs = OpAttrs { eps: 1e-6, ..Default::default() };
         if segs.len() > 1 {
-            for sg in segs {
+            for (si, sg) in segs.iter().enumerate() {
                 let rec = match &sg.st.slots[g.slot] {
                     StateSlot::Recurrent(r) => r,
                     StateSlot::AttnKv(_) | StateSlot::Ring(_) | StateSlot::Shared(_) => return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot")),
@@ -248,6 +248,7 @@ impl Model {
                 }
                 let (qkv, a, b, conv, core) = (qkv.rows(lo, len), a.rows(lo, len), b.rows(lo, len), conv.rows(lo, len), core.rows(lo, len));
                 self.conv_delta(g, &qkv, &a, &b, &conv, &core, &s_state, &conv_state, &delta_attrs, profile)?;
+                self.macro_snap_copy(si, sg.st, g.slot, rec)?;
             }
         } else if self.verifying() && t > 1 {
             // speculative verify: one row at a time (each call is the decode step's), and the slot's state after every row
