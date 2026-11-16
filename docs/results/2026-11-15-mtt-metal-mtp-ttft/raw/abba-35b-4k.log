@@ -1,6 +1,2 @@
-fleetq: #9470 waiting (#3 in line): in line behind #9462 "mtt: gate 2 plan show main vs branch (8B/27B/35B)" (claude-2ae67a71) on endor
-fleetq:   #9462 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9462 set, or it will wait for #9462 to be released.
-fleetq: #9470 waiting (#2 in line): in line behind #9463 "mtt: gate 1 served ids 27B (lazy on/off/spec off)" (claude-2ae67a71) on endor
-fleetq:   #9463 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9463 set, or it will wait for #9463 to be released.
-fleetq: #9470 waiting (#1 in line): needs gpu quiet on endor, but #9463 "mtt: gate 1 served ids 27B (lazy on/off/spec off)" (claude-2ae67a71) loads it
-fleetq:   #9463 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9463 set, or it will wait for #9463 to be released.
+fleetq: #9506 waiting (#13 in line): in line behind #9481 "mnr: kernel tests + order probes + bench" (claude-2ae67a71) on endor
+fleetq:   #9481 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9481 set, or it will wait for #9481 to be released.
