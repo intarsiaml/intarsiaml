@@ -44,6 +44,8 @@ Status: built, measured, **kernel speed rule missed, end-to-end rule (a) failed;
 - 21:15 K-order probes (#9439 to #9475): the accelerator's order is one accumulator over quads (section 3), 0 mismatches.
 - 21:25 ALU twin written; bitwise the accelerator forms in every bench cell (#9481); 1.46x to 2.85x at M = 1.
 - 21:38 accuracy + ids under the knob (#9487), 8 streams ABBA (#9488): 1.02x at 8 streams, 0.65x at 2. No-op gates pass (#9489).
+- 22:55 final tests (#9528): naxr 9 of 9 knob off and on; workspace 131 ok + quick_coverage fixed (#9593). MTP k2 ABBA (#9529): 0.59x / 0.62x.
+- PR #390 opened against main, not merged.
 - MMLU and the short-prompt 8-stream arm withdrawn (speed rules already failed; the GPU queue is 30 deep tonight).
 
 ### 0.3 The brief, verbatim (roadmap `docs/design/2026-11-15-mac-roadmap.md` section 4, lane `mac-plan`)
@@ -309,9 +311,18 @@ roadmap's 3x assumed the 8-row step is the MXFP4 rows; the measured step is abou
 arm also the busy prefill chunks of the other streams, which decode 256-row chunks through the scratch NAX form). Not attributed
 further in this lane.
 
-**(b) default MTP k2, one stream:** see section 5 (pending at the time of writing if the cell says so). From `generate` under the
+**(b) default serve (MTP k2), one stream, localeval `speed --sizes 1024,4096 --gen 256 --reps 2` (ABBA, #9529, `raw/mtp-*`;
+localeval's own filler prompts, not natural-v1):**
+
+| prompt | decode tok/s off (A1 / A2) | on (B1 / B2) | on / off | prefill tok/s off | on |
+|---:|---:|---:|---:|---:|---:|
+| 1k | 56.4 / 54.8 | 33.0 / 33.0 | **0.59x** | 802 / 828 | 864 / 850 |
+| 4k | 56.8 / 57.4 | 35.9 / 34.5 | **0.62x** | 878 / 909 | 939 / 924 |
+
+Rule (b), no cell below 0.97: **FAIL**. Prefill reads 3 % to 6 % faster under the knob (the short tail pass of a prompt runs on
+the row kernel instead of peeled GEMV rows); two reps per arm, so treat that as a hint. From `generate` under the
 knob (256 greedy tokens, #9487): plain decode 18.95 tok/s (short prompt) and 16.7 (1k) against about 30 on the default; MTP k2
-31.4 / 28.4; MTP k4 33.9 / 32.8. The one-row step costs 1.5x to 2.3x under the knob, so rule (b) (no cell below 0.97) cannot hold.
+31.4 / 28.4; MTP k4 33.9 / 32.8. The one-row step costs 1.5x to 2.3x under the knob, which is what the served numbers show.
 
 **(c) `--spec dflash --spec-k 7`:** not run. It needs 8-row verify passes to be cheap against the one-row step of the same class,
 and under the knob both moved the wrong way for a single stream.
@@ -320,13 +331,13 @@ and under the knob both moved the wrong way for a single stream.
 
 | gate | result |
 |---|---|
-| 1. `tests/mxfp4_naxr.rs` | GATE1 |
+| 1. `tests/mxfp4_naxr.rs` | 9 of 9 pass with the knob unset and with it set (#9528, `raw/test-knob-{unset,1}.log`): row invariance over M 1..=16 and 17 / 23 / 33 / 40, every row index, replaced co-rows, 2-byte x offset, bf16 and f32 out, K 32 .. 17408, N tails; W4A4 rows; all five forms the same bits; planted fault caught on exactly the faulted row; f64 reference rel_l2 <= 1.5e-7; bitwise the host quad-order sum; edge scale bytes; registration follows the knob |
 | 2. `kernels test --backend metal` | knob unset: 55 kernels, 1276 cases, list and report identical to a build of origin/main (`5c9cb111e`). Knob set: 57 kernels, 1419 cases, 0 FAIL; `matmul_mxfp4_naxr` 56 cases ADMITTED (max_abs 9.3e-4, rel_l2 2.9e-5), `matmul_mxfp4_naxr_rows` 87 cases ADMITTED (2.0e-3, 4.1e-5). #9489, `raw/noop/` |
 | 3. `plan show --json` knob unset | byte-identical to origin/main for Qwen3-8B, Qwen3.8-27B MXFP4, Qwen3.6-35B NVFP4, each with default flags, `--spec off`, `--spec mtp`: 9 of 9 SAME (#9489) |
 | 4. ids under the knob, 256 greedy tokens | MTP k2 == MTP k4 == `--spec off` on the short prompt and on natural-v1 1k (#9487, `raw/ids/`). **Not run:** DFlash, the batched 2 / 4 / 8 identical prompts, 4k and 16k, repeat runs |
 | 5. accuracy under the knob (HF W4A16 golden, 1441 prefill / 160 decode positions) | decode KL21 **1.089e-3** scored rows (1.020e-3 all rows), top-1 **99.38 %**; pass rule decode KL21 <= 1.5e-3: PASS. Default on the same build: 1.216e-3 (1.582e-3), 98.75 %. Prefill 7.734e-4 / 99.51 % with and without the knob (the accuracy prefill runs on the scratch NAX form either way). #9487, `raw/acc-{off,on}.out`. **MMLU not run** (withdrawn, #9530: an hour of the shared GPU for a knob that already fails its speed rules) |
-| 6. `cargo test --workspace --release --locked` | GATE6 |
-| 7. speed rules | kernel rule MISS on all four shapes (section 2); (a) 1.02x against >= 3x: FAIL; (b) GATE7B; (c) not run |
+| 6. `cargo test --workspace --release --locked` | 131 suites ok, 1 failed on the full run (#9528): `quick_coverage` asks every table entry for a quick case its predicate accepts, and the two opt-in predicates accept nothing without the knob. The test now sets the knob (own process, one test) so the quick cases of the new kernels are checked; rerun alone it passes (#9593). The full workspace was not rerun after that one-line test change |
+| 7. speed rules | kernel rule MISS on all four shapes (section 2); (a) 1.02x against >= 3x: FAIL; (b) 0.59x and 0.62x against >= 0.97: FAIL; (c) not run |
 
 The brief's default numbers for gate 5 (5.9e-4 / 9.6e-4) are the 2026-11-02 build's; today's default measures 7.7e-4 / 1.2e-3 on
 scored rows with the same golden and flags.
@@ -357,5 +368,5 @@ ruling of 2026-11-06 is not touched. There is no default decision to make from t
 fleetq (endor): builds #9419, #9423, #9438, #9452, #9457, #9459, #9483, #9485, #9492 (`--load cpu`); kernel microbench and
 ablations #9424, the job after #9424 (id not kept), #9435, #9450, #9458; K-order probes #9439, #9441, #9443, #9455, #9475; kernel tests + probes + bench #9481;
 no-op gates #9489; accuracy + ids #9487; 8 streams ABBA #9488; workspace tests #9490 (first run, one stale pinned count, fixed);
-FINALJOBS. Withdrawn before they ran: #9525 (build, done inside #9487 instead), #9530 (MMLU), #9558 (short-prompt 8-stream arm).
+final tests #9528, `quick_coverage` rerun #9593, MTP ABBA #9529, push #9562. Withdrawn before they ran: #9525 (build, done inside #9487 instead), #9530 (MMLU), #9558 (short-prompt 8-stream arm).
 Raw logs: `docs/results/2026-11-15-mnr-metal-nax-rows/raw/`. Scripts: `scripts/mnr/`. unanimis: `c284aa6a`.
