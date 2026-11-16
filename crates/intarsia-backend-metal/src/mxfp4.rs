@@ -346,7 +346,7 @@ impl MetalBackend {
         let tx = pso_x.maxTotalThreadsPerThreadgroup().min(256);
         let tw = pso_w.maxTotalThreadsPerThreadgroup().min(256);
         let (gx, gy) = grid(v, pg.m, pg.n, 0);
-        self.with_encoder(|enc| {
+        let d0 = |enc: &objc2::runtime::ProtocolObject<dyn MTLComputeCommandEncoder>| {
             // SAFETY: offsets lie inside the buffers (TensorRef bounds checked by `OpCall::check`, the scratch size above).
             unsafe {
                 enc.setComputePipelineState(pso_x);
@@ -359,6 +359,8 @@ impl MetalBackend {
                 MTLSize { width: m * (k / 32), height: 1, depth: 1 },
                 MTLSize { width: tx, height: 1, depth: 1 },
             );
+        };
+        let d1 = |enc: &objc2::runtime::ProtocolObject<dyn MTLComputeCommandEncoder>| {
             // SAFETY: as above.
             unsafe {
                 enc.setComputePipelineState(pso_w);
@@ -371,6 +373,8 @@ impl MetalBackend {
                 MTLSize { width: n * (k / 32), height: 1, depth: 1 },
                 MTLSize { width: tw, height: 1, depth: 1 },
             );
+        };
+        let d2 = |enc: &objc2::runtime::ProtocolObject<dyn MTLComputeCommandEncoder>| {
             // SAFETY: as above.
             unsafe {
                 enc.setComputePipelineState(pso_g);
@@ -383,6 +387,7 @@ impl MetalBackend {
                 MTLSize { width: gx, height: gy, depth: 1 },
                 MTLSize { width: v.threads() as usize, height: 1, depth: 1 },
             );
-        })
+        };
+        self.with_encoder_parts(&[&d0, &d1, &d2])
     }
 }
