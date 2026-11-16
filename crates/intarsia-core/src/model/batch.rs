@@ -1103,6 +1103,7 @@ impl Model {
             final_norm: self.final_norm.clone(),
             lm_head: self.lm_head.clone(),
             draft_head: None,
+            draft_map: None,
             layers: self.layers.clone(),
             gemma: None,
             slot_specs: self.slot_specs.clone(),

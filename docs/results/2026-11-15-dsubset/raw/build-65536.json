@@ -1,0 +1,45 @@
+{
+ "rows": 65536,
+ "tokenizer": "d312a63678904587",
+ "special": 26,
+ "observed": 26488,
+ "distinct_seen": 26491,
+ "corpus_tokens": 222526,
+ "corpus_replies": 262,
+ "fill_by_script": {
+  "latin": 26770,
+  "han": 4022,
+  "cyrillic": 2184,
+  "arabic": 2995,
+  "hangul": 1826,
+  "kana": 836,
+  "other": 386
+ },
+ "script_mass": {
+  "latin": 154135,
+  "other": 73,
+  "han": 23161,
+  "cyrillic": 12579,
+  "arabic": 17245,
+  "hangul": 10518,
+  "kana": 4815
+ },
+ "corpus_coverage": 1.0,
+ "prefix_coverage": {
+  "32768": 0.6754581487107124,
+  "65536": 0.7314246425136838,
+  "98304": 0.8006435203077393,
+  "131072": 0.8450832711683129
+ },
+ "per_script_ids": {
+  "latin": 38289,
+  "cyrillic": 5571,
+  "han": 9511,
+  "arabic": 5898,
+  "kana": 1838,
+  "hangul": 4017,
+  "other": 412
+ },
+ "max_id": 248069,
+ "ranges": 17140
+}
