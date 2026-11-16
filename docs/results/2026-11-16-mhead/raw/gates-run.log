@@ -109,3 +109,10 @@ chk: 1017 verify passes, drafted 2028, accepted 1263; batched drafts 314; multis
    only in base: ('101', '114', '2', '1', '2', None) x3
    only in base: ('101', '4292', '2', '2', '3', None) x3
    only in base: ('103', '116', '2', '1', '2', None) x3
+exit 0
+exit 0
+exit 0
+[12:21:23 +458s] plan show json base vs new: IDENTICAL 15570 
+[12:21:23 +458s] plan show json base vs new =0: IDENTICAL 
+[12:21:24 +459s] end
+fleetq: #9757 done (exit 0)
