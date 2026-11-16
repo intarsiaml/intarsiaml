@@ -12,12 +12,12 @@ quantisation at all. Opt-in only; `exact` stays the default; nothing was flipped
 - Built (opt-in values of `INTARSIA_HIP_AR_WIRE`): `wht12` (12.25 bits per element), `wht16` (16.25), and the control **`whtf`**:
   the same rotation, group of 64 and block layout, but the rotated **f32 values** go on the wire unquantised (32 bits per element,
   the scale slot unused), the two ranks add the rotated values in f32 and rotate back. It is the exact all-reduce up to f32
-  rounding of the rotation (rms error below 5e-6 % of the sum, i.e. at most f32 round-off), with the rotation and reduction order
+  rounding of the rotation (measured: rms error below 0.0005 % of the sum, printed 0.000 %; worst rotated error 0.12 x 3e-6 of the groups' amax sums, i.e. f32 round-off), with the rotation and reduction order
   of the lossy wires.
-- **The gate does not see wire precision.** The control, whose wire error is about 1e-7, already sits at **1.10 x** (short golden)
+- **The gate does not see wire precision.** The control, whose wire error is at most f32 round-off (below 5e-6 of the sum's rms, measured), already sits at **1.10 x** (short golden)
   and **1.35 x** (long golden) the reference noise and flips 19 / 1596 top-1 positions: it **fails the rule too**. Across the five
   wires the KL moves between 1.10 and 1.76 x (short) and 1.35 and 1.68 x (long) with no order in the wire error, which spans
-  five orders of magnitude (1.7 % down to f32 round-off). The widest lossy wire (wht16, error 0.0016 %) is above the control, and
+  at least three and a half orders of magnitude (1.66 % down to a measured bound of 5e-6 on the control; f32 round-off itself is about 1e-7). The widest lossy wire (wht16, error 0.0016 %) is above the control, and
   wht12 on the long golden is the worst of all. Every number is deterministic (wht6 and wht8 reproduce #383's figures to all digits:
   5.559e-3 / 3.240e-2 and 4.786e-3 / 3.142e-2), so the spread is not run-to-run noise but the model's response to which bits flip
   (MoE routing near-ties, bf16 rounding of the hidden state): chaotic, not precision-driven.
@@ -46,7 +46,7 @@ per 2048-element chunk, the layout and the coalesced 16-byte stores are as wht6'
 
 | wire | symbol | dwords per lane and chunk | chunk bytes | bits per element | elements per 20 MiB slot | note |
 |---|---|---:|---:|---:|---:|---|
-| wht6 | 6 bit, straddles dwords | 12 | 1536 | 6.25 | 26.2 M | #375 |
+| wht6 | 6 bit, straddles dwords | 12 | 1536 | 6.25 | 26.2 M | #377 |
 | wht8 | 8 bit, byte aligned | 16 | 2048 | 8.25 | 19.7 M | #383 |
 | wht12 | 12 bit, straddles dwords (generic shift / or) | 24 | 3072 | 12.25 | 13.1 M | new |
 | wht16 | 16 bit, half-word aligned | 32 | 4096 | 16.25 | 9.8 M | new |
@@ -59,7 +59,7 @@ One change that matters above 8 bits: the per-group scale is shipped as a bf16, 
 it **down** by up to 2^-8, which clamps the extreme symbol and costs up to `amax / 256` on that element. That is fine for 6 and 8
 bits (the half step is `amax / 62` and `amax / 254`) but at 12 and 16 bits it would be the dominant error, 16x and 256x the half
 step. For `B > 8` the scale is therefore rounded **up** (`w6_bf16_ceil`): no clamp, the step is at most 2^-7 larger. `B <= 8`
-keeps the nearest-even scale, bit-identical to #375 / #383 (their kernel results reproduced, section 2).
+keeps the nearest-even scale, bit-identical to #377 / #383 (their kernel results reproduced, section 2).
 
 ## 2. Kernel gate (both R9700s) - PASS
 
@@ -68,7 +68,7 @@ keeps the nearest-even scale, bit-identical to #375 / #383 (their kernel results
 width: both ranks bit-identical at every size and dtype pair, bitwise the exact sum below the floor, at 128 KiB and for sizes that
 are not multiples of 64, every rotated error element inside the codec's bound, the f32 to bf16 output the f32 result rounded once,
 the delayed-rank stress test clean (0 wrong of 30 rounds), the negative control (no wait) sees 94 to 124 wrong results.
-`whtf` is held to the f32 round-off bound only. (The first window, not kept, failed three tests that were test artefacts: the stress
+`whtf` is held to the f32 round-off bound only. (The first window, not kept, failed four tests that were test artefacts: the stress
 test's rms limit did not allow for the bf16 output rounding of two shapes at the tight widths, and the wht6 negative control
 asserted instead of counting; both fixed in `ar_wht6.rs`, then the whole window rerun.)
 
@@ -96,7 +96,7 @@ dirty=no`, declared as its own pre-change commit as in the wht8 lane). Control: 
 
 | wire | bits/elem | wire rms error | prefill mean KL21 | KL / limit | top-1 flips | per-prompt rule (3 x own noise) | decode KL / ref noise |
 |---|---:|---:|---:|---:|---:|---|---:|
-| whtf (control) | 32 | about 1e-7 | 3.468e-3 | **1.10** | 19 (1.32 %) | all inside | 0.86 |
+| whtf (control) | 32 | below 0.0005 % (f32 round-off) | 3.468e-3 | **1.10** | 19 (1.32 %) | all inside | 0.86 |
 | wht16 | 16.25 | 0.002 % | 4.513e-3 | 1.43 | 17 (1.18 %) | `code` over (needs 6.72) | 0.84 |
 | wht12 | 12.25 | 0.025 % | 3.922e-3 | 1.24 | 15 (1.04 %) | all inside | 1.14 |
 | wht8 | 8.25 | 0.41 % | 5.559e-3 | 1.76 | 18 (1.25 %) | `code`, `chat_system` over | 1.62 |
@@ -133,8 +133,8 @@ accuracy measure either.
 
 ## 4. Answer
 
-**Does the gate see wire precision? No.** The wire error from wht6 to the control varies by a factor of about 1.7e5 (1.66 % to f32
-round-off) while KL / limit moves 1.10 to 1.76 (short) and 1.35 to 1.68 (long) with no monotone relation. By wire error the order
+**Does the gate see wire precision? No.** The wire error from wht6 to the control varies by a factor of at least 3e3 (1.66 % to a measured bound of 0.0005 %; f32
+round-off itself is about 1e-5 %, not measured separately) while KL / limit moves 1.10 to 1.76 (short) and 1.35 to 1.68 (long) with no monotone relation. By wire error the order
 (best first) is whtf, wht16, wht12, wht8, wht6; by KL on the short golden it is whtf, wht12, wht16, wht6, wht8; on the long golden
 whtf, wht6, wht16, wht8, wht12. The control, exact up to f32 rounding, already **fails** both goldens (1.10 x, 1.35 x). So the
 hypothesis holds: the rule's floor is set by changing the reduction at all (the rotation re-associates the f32 sum, a bf16
