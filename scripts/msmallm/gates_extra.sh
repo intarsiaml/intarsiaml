@@ -2,7 +2,9 @@
 # Lane msmallm gates, second pass (gates.sh's TAIL prompt tokenised to 2474 = 2048 + 426: outside the window, so its ids and route
 # steps did not exercise the routing). Same arms and helpers as gates.sh; prompts sized to land in the window:
 #   TAIL2 about 8000 characters = 2048 + about 80 rows; INWIN (125 tokens) for the routing trace.
-# usage (under fleetq): gates_extra.sh route | ids
+#   served1: the default engine (MTP k2, max-batch 1: `--max-batch` > 1 on Metal serves without MTP), 1 / 4 / 9 / 16 concurrent
+#            requests (queued), ids main / unset / zero and the served plan.
+# usage (under fleetq): gates_extra.sh route | ids | served1
 set -u
 [ -n "${FLEETQ_JOB:-}" ] || { echo "not inside a fleetq slot" >&2; exit 2; }
 W=/opt/code/intarsiaml/.worktrees/msmallm; R=$W/docs/results/2026-11-16-msmallm/raw/gates; mkdir -p $R
@@ -28,7 +30,28 @@ ids() { # pn prompt spec arms...
   done
   echo "$( [ $ok = 1 ] && echo SAME || echo DIFFER ) 27b $pn spec=$spec ($pt)$line"
 }
+PORT=18674
+start() { local O=$1 arm=$2; shift 2; arm_env $arm; mkdir -p $O
+  env $E $B serve --backend metal --model $M27 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui \
+    --host 127.0.0.1 --port $PORT "$@" > $O/server.out 2> $O/server.err < /dev/null &
+  TP=$!
+  for i in {1..240}; do curl -sf -m 2 http://127.0.0.1:$PORT/health >/dev/null 2>&1 && return 0; kill -0 $TP 2>/dev/null || break; sleep 1; done
+  echo "SERVER FAILED $O"; kill $TP 2>/dev/null; return 1
+}
+stop() { kill -INT $TP 2>/dev/null; for i in {1..60}; do kill -0 $TP 2>/dev/null || break; sleep 1; done; kill -9 $TP 2>/dev/null; wait $TP 2>/dev/null; }
 case ${1:?step} in
+  served1)
+    for arm in base unset zero; do
+      start $R/served-mtp1-$arm $arm || continue
+      curl -s http://127.0.0.1:$PORT/v1/intarsia/plan > $R/plan-served-mtp1-$arm.json
+      python3 $W/scripts/msmallm/served_ids.py run --url http://127.0.0.1:$PORT/v1 --text $PR/prompt-16384.txt --out $R/served-mtp1-$arm.json 2>&1 | sed "s/^/$arm: /"
+      stop
+      echo "$arm: $(grep -a 'specul' $R/served-mtp1-$arm/server.err | head -1 | cut -c1-80)"
+    done
+    python3 $W/scripts/msmallm/served_ids.py compare $R/served-mtp1-base.json $R/served-mtp1-unset.json
+    python3 $W/scripts/msmallm/served_ids.py compare $R/served-mtp1-unset.json $R/served-mtp1-zero.json
+    for a in unset zero; do echo "plan served mtp1 base vs $a: $(diff <(python3 -m json.tool $R/plan-served-mtp1-base.json) <(python3 -m json.tool $R/plan-served-mtp1-$a.json) | grep -c '^[<>]') differing lines"; done
+    ;;
   route)
     for arm in unset zero; do arm_env $arm
       for pn in inwin tail2; do

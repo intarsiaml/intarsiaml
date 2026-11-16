@@ -1,0 +1,25 @@
+fleetq: #9772 running on endor: zsh scripts/msmallm/gates.sh served mtp
+served mtp base: flags [--max-batch 8]
+base: streams 1: [256]
+base: streams 4: [256, 256, 256, 256]
+base: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+base: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+base: within arm: streams vs fewer streams, same prompt: SAME
+served mtp unset: flags [--max-batch 8]
+unset: streams 1: [256]
+unset: streams 4: [256, 256, 256, 256]
+unset: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+unset: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+unset: within arm: streams vs fewer streams, same prompt: SAME
+served mtp zero: flags [--max-batch 8]
+zero: streams 1: [256]
+zero: streams 4: [256, 256, 256, 256]
+zero: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+zero: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+zero: within arm: streams vs fewer streams, same prompt: SAME
+served-mtp-base.json vs served-mtp-unset.json: SAME (30/30 cells equal)
+served-mtp-unset.json vs served-mtp-zero.json: SAME (30/30 cells equal)
+plan served mtp base vs unset: 0 differing lines
+plan served mtp base vs zero: 0 differing lines
+## done served mtp
+fleetq: #9772 done (exit 0)
