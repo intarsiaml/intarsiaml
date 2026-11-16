@@ -41,5 +41,6 @@ tatooine now; re-record when it is back.
 
 Open, not measured: the 27B on HIP with the flip; served speed on main after the flip (the gdn-chunk numbers were measured
 with the knob on the lane tree).
+**Update 2026-11-15 23:05: the 27B's served speed with the flip is measured, `2026-11-16-hip-gdn27-speed.md`: prefill +7-8 % (tp1) / +10-12 % (tp2) at 4k/16k, decode within noise.**
 
 Raw: `2026-11-15-hip-gdn-default/raw/` (window = all steps, control = acc-4k knob off). Scripts: `scripts/gdn-default/`.
