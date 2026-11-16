@@ -1,0 +1,26 @@
+fleetq: #9691 running on spark2: scripts/mtp2s/devtest.sh gdn_verify_snap
+   Compiling syn v2.0.119
+   Compiling serde v1.0.229
+   Compiling indexmap v2.14.2
+   Compiling either v1.19.0
+   Compiling rayon v1.12.0
+   Compiling serde_json v1.0.154
+   Compiling zerocopy-derive v0.8.62
+   Compiling zerocopy v0.8.62
+   Compiling half v2.7.1
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-mtp2s/src/crates/intarsia-core)
+1244 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+60 | pub(super) struct GemmaWs {
+61 |     pub max_tokens: usize,
+36 | pub(super) struct Captured {
+37 |     pub(super) state_id: u64,
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-mtp2s/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-mtp2s/src/crates/intarsia-backend-cpu)
+69 |     pub fn ik_rdma_available() -> c_int;
+    Finished `release` profile [optimized] target(s) in 20.11s
+     Running tests/gdn_verify_snap.rs (target/release/deps/gdn_verify_snap-d86239ed072fb5eb)
+running 1 test
+MTP2SHASH 42e21841f74a2d3b saves=448 calls=112
+test verify_rows_are_bitwise_the_row_by_row_launches_and_saves ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.58s
+fleetq: #9691 done (exit 0)

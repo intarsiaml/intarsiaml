@@ -780,3 +780,601 @@ test dsv41_engine::failpath_tests::sampled_speculation_emits_the_ids_plain_sampl
 test dsv41_engine::failpath_tests::constrained_speculation_emits_the_ids_plain_decoding_does ... ok
 test dsv41_engine::failpath_tests::the_device_wait_blocks_on_stream_0 ... ok
 test dsv41_engine::failpath_tests::the_runtime_drains_stream_0 ... ok
+test dsv41_engine::failpath_tests::next_rows_drafts_exactly_where_the_block_fits_and_the_runtime_refuses_the_rest ... ok
+test dsv41_engine::failpath_tests::rank_1_leaves_the_group_when_the_primary_is_gone_and_stream_0_is_parked ... ok
+test dsv41_engine::failpath_tests::sampled_speculation_has_plain_samplings_token_frequencies ... ok
+
+test result: ok. 72 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.61s
+
+     Running tests/batch.rs (target/release/deps/batch-c5e4aaa821ed69ec)
+
+running 6 tests
+test max_batch_resolution ... ok
+test kv_budget_is_shared_by_the_sequences ... ok
+test batch_plan_records_the_batched_pass ... ok
+test enable_and_forward_checks ... ok
+test batch_beside_prefill_chunks ... ok
+test batch_bitwise_equals_solo_steps ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+
+     Running tests/batch_cuda_real.rs (target/release/deps/batch_cuda_real-98b27f60b1fbfac3)
+
+running 27 tests
+test real_35b_batch_op_listing ... ignored
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_sampled_timing ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+test real_35b_busy_chunk_prefill_kl_gate ... ignored
+test real_35b_forced_packs_are_bitwise_solo_prefill ... ignored
+test real_35b_macro_prefill_is_bitwise_the_plain_schedule ... ignored
+test real_35b_macro_trailing_chunk_probe ... ignored
+test real_35b_packed_prefill_equals_the_local_engine ... ignored
+test real_35b_tp2_batch_first_steps_repro ... ignored
+test real_35b_tp2_batch_with_prefill_repro ... ignored
+test real_35b_tp2_solo_fresh_states_repro ... ignored
+test real_35b_tp2_batch_stale_position_mutant_is_caught ... ok
+test real_35b_tp2_batch_mutants_are_caught ... ok
+test timing_35b_batched_step ... ignored, micro-timing
+test real_35b_device_sampling_draws_the_host_tokens ... ok
+test real_qwen3_8b_batched_engine_equals_the_cold_reference ... ok
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... ok
+test real_qwen3_8b_ordinary_short_pass_fits_the_plan ... ok
+test real_qwen3_8b_decode_written_rows_are_not_prefill_rows ... ok
+test real_35b_batched_engine_equals_the_local_engine ... ok
+test real_35b_batched_decode_is_bitwise_the_solo_step ... ok
+test real_qwen3_8b_prefill_is_row_invariant ... ok
+test real_qwen3_8b_prefix_reuse_probe ... ok
+test real_qwen3_8b_reuse_and_busy_chunks_equal_the_cold_reference ... ok
+
+test result: ok. 12 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/batch_engine.rs (target/release/deps/batch_engine-100374c021fc2333)
+
+running 9 tests
+test solo_only_endpoints_are_refused ... ok
+test shutdown_ends_every_submitted_request ... ok
+test only_the_batched_engine_reports_the_prefill_chunk ... ok
+test client_gone_mid_generation_counts_as_cancelled ... ok
+test queue_full_is_refused_and_unwinds_telemetry ... ok
+test bad_decode_row_fails_only_its_request ... ok
+test cancel_and_errors_leave_others_alone ... ok
+test batched_equals_solo_with_speculation ... ok
+test batched_equals_solo_plain ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.55s
+
+     Running tests/batch_metal.rs (target/release/deps/batch_metal-3dcc922d36108a1a)
+
+running 1 test
+test batch_bitwise_equals_solo_steps_qwen3_8b_metal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/batch_metal_real.rs (target/release/deps/batch_metal_real-f1138ab1118163c1)
+
+running 8 tests
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_real_traffic ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_engine_long_prompts_control_busy_chunk_64 ... ignored
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_lfm2_batched_decode_is_bitwise_the_solo_step ... ok
+test real_35b_batched_engine_equals_the_local_engine ... ok
+test real_35b_batched_decode_is_bitwise_the_solo_step ... ok
+
+test result: ok. 3 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/batch_recurrent.rs (target/release/deps/batch_recurrent-140dcd78d549f205)
+
+running 15 tests
+test alternating_rows_and_batches_do_not_recapture ... ok
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... ok
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... ok
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... ok
+test batched_engine_with_macro_prefill_equals_plain_solo ... ok
+test macro_forward_equals_chunked_forward ... ok
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test macro_prefill_equals_the_plain_chunk_schedule ... ok
+test batched_engine_with_packed_prefill_equals_solo ... ok
+test macro_prefill_keeps_chunk_snapshots_for_reuse ... ok
+test batched_engine_equals_solo_over_128_tokens ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 57.81s
+
+     Running tests/batch_recurrent_load.rs (target/release/deps/batch_recurrent_load-a866344782682427)
+
+running 1 test
+test load_engine_batches_a_hybrid_model_only_with_the_env_opt_in ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s
+
+     Running tests/chat_templates_real.rs (target/release/deps/chat_templates_real-0e7aef43f6c90330)
+
+running 2 tests
+test qwen25_template_matches_transformers ... ok
+test llama31_template_matches_transformers ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/compressed_tensors.rs (target/release/deps/compressed_tensors-bacca3f1685ade7c)
+
+running 6 tests
+test real_slices_match_the_reference ... ok
+test the_view_shows_modelopt_names_and_hides_the_compressed_tensors_ones ... ok
+test malformed_modules_are_refused_with_their_name ... ok
+test modelopt_and_int4_tensors_are_left_alone ... ok
+test dequantises_like_the_compressed_tensors_reference ... ok
+test a_checkpoint_directory_loads_through_the_schemed_source ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/config.rs (target/release/deps/config-c0ddceba28a5e81f)
+
+running 2 tests
+test qwen36_multimodal_wrapper_reads_text_config ... ok
+test qwen3_checkpoints_load ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/constrain.rs (target/release/deps/constrain-1ca5f1d5f57a31ab)
+
+running 7 tests
+test failing_constraint_rejects_the_request ... ok
+test mask_decides_tokens_and_grammar_end_stops ... ok
+test permissive_constraint_keeps_greedy_ids ... ok
+test lazy_constraint_waits_for_its_trigger ... ok
+test sampled_requests_are_masked_too ... ok
+test speculation_is_off_for_constrained_requests ... ok
+test constrained_and_unconstrained_batch_together ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running tests/dflash2_cpu.rs (target/release/deps/dflash2_cpu-f9dcbab6f923bda2)
+
+running 13 tests
+test dflash2_taps_are_the_target_layer_outputs ... ok
+test dflash2_draft_matches_the_z_lab_mlx_reference ... ok
+test dflash2_draft_matches_host_reference ... ok
+test dflash2_tp2_taps_match_tp1 ... ok
+test dflash2_plan_covers_the_context_ingest_at_every_row_count ... ok
+test dflash2_split_draft_drafts_equal_the_whole_draft ... ok
+test dflash2_plan_covers_the_windowed_draft_and_serves_past_the_window ... ok
+test dflash2_greedy_ids_equal_spec_off_on_the_hybrid ... ok
+test dflash2_tp2_greedy_ids_equal_spec_off ... ok
+test dflash2_split_draft_greedy_ids_equal_spec_off ... ok
+test dflash2_scripted_drafts_hit_every_acceptance_pattern_and_stay_identical ... ok
+test spec_auto_greedy_ids_equal_spec_off_with_forced_switches_and_the_policy has been running for over 60 seconds
+test spec_auto_with_the_captured_mtp_step_keeps_greedy_ids_equal_spec_off has been running for over 60 seconds
+test spec_auto_greedy_ids_equal_spec_off_with_forced_switches_and_the_policy ... ok
+test spec_auto_with_the_captured_mtp_step_keeps_greedy_ids_equal_spec_off ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 96.03s
+
+     Running tests/dflash2_real.rs (target/release/deps/dflash2_real-7a9056131a3a0105)
+
+running 1 test
+test dflash2_real_taps_and_cost ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/dflash_cpu.rs (target/release/deps/dflash_cpu-db098651e23a5132)
+
+running 7 tests
+test dflash_bad_geometry_is_refused ... ok
+test dflash_draft_matches_host_reference ... ok
+test dflash_off_loads_nothing ... ok
+test dflash_deferred_rows_give_the_same_draft_as_direct_ingest ... ok
+test dflash_rollback_odd_lengths_and_prefix_reuse ... ok
+test dflash_greedy_ids_equal_spec_off ... ok
+test dflash_partial_acceptance_keeps_ids_identical ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.80s
+
+     Running tests/dflash_fixture.rs (target/release/deps/dflash_fixture-9e65837d9a392008)
+
+running 3 tests
+test dcoco_drafts_after_real_prefill_match_the_mlx_reference ... ok
+test draft_after_real_target_prefill_matches_the_mlx_reference ... ok
+test draft_from_reference_features_matches_the_mlx_reference ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/dspine_cpu.rs (target/release/deps/dspine_cpu-d78f7305a034e648)
+
+running 6 tests
+test the_fixture_loads_as_dspine ... ok
+test loader_refusals_name_the_key ... ok
+test dspine_tail_is_the_reference_on_its_own_inputs ... ok
+test shorter_block_is_a_prefix ... ok
+test dspine_draft_matches_the_mlx_reference ... ok
+test dspine_greedy_ids_equal_spec_off_on_the_hybrid ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.81s
+
+     Running tests/dsv41.rs (target/release/deps/dsv41-58d43352ebe54e86)
+
+running 11 tests
+test recipe_matches_and_loading_refuses_until_the_kernels_land ... ok
+test trimmed_index_and_quant_config_match_the_headers ... ok
+test mia_dspark_graphs_record_with_the_official_structure ... ok
+test mia_graph_records_every_layer_with_the_official_structure ... ok
+test the_unrotated_read_check_fails_on_an_injected_late_reader ... ok
+test every_step_resolves_to_a_cuda_kernel ... ok
+test in_place_rope_across_the_replay_cut ... ok
+test plan_show_lists_every_new_op_and_resolves_cpu_kernels ... ok
+test decode_graph_build_is_cheap ... ok
+test in_place_rope_leaves_no_reader_of_the_unrotated_rows ... ok
+test in_place_rope_in_the_fp8_dense_and_tp_configurations ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests/dsv41_cache.rs (target/release/deps/dsv41_cache-aa54fe32c27aa1cc)
+
+running 5 tests
+test real_cache_loads_on_cpu ... ignored
+test layer_range_cache_keeps_only_its_layers ... ok
+test mtp_sub_cache_shards_the_stages_with_the_layer_rules ... ok
+test loader_streams_tensors_across_chunk_boundaries ... ok
+test cache_split_reassembly_rename_experts_and_load ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.38s
+
+     Running tests/dsv41_layers.rs (target/release/deps/dsv41_layers-4fdff9e0f4e005f7)
+
+running 5 tests
+test exl3_graph_has_no_fp8_qdq_of_the_attention_output ... ok
+test layers_0_to_2_bf16_match_official_taps ... ok
+test layer2_chunked_equals_whole_through_the_graph_bit_for_bit ... ok
+test layers_0_to_2_fp32_match_official_taps ... ok
+test sequence_state_truncate_follows_the_graph_ring_margin ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/dsv41_replay.rs (target/release/deps/dsv41_replay-a1af9d2b19aac700)
+
+running 9 tests
+test replay_graphs_refuse_what_they_do_not_do ... ok
+test the_decoder_part_absorbs_the_dspark_taps_of_the_kept_rows ... ok
+test the_gate_script_names_steps_that_exist ... ok
+test the_decoder_part_is_layers_20_to_39_less_the_kv_update_on_the_kept_rows ... ok
+test the_encoder_part_is_layers_0_to_19_and_the_cut_layers_kv_update ... ok
+test a_whole_chunk_under_a_floor_moves_only_the_decoder_layers_window_test ... ok
+test every_replay_step_resolves_to_a_cuda_kernel ... ok
+test the_default_replay_is_the_plain_graph ... ok
+test a_prompts_chunks_map_onto_the_graphs ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/dsv41_runtime.rs (target/release/deps/dsv41_runtime-3561eacfbe13ca47)
+
+running 8 tests
+test dspark_rounds_match_the_official_drafter ... ok
+test device_position_passes_equal_host_passes ... ok
+test few_layer_runtime_fp32_matches_the_official_fp32_layer_outputs ... ok
+test few_layer_runtime_matches_the_official_layer_outputs ... ok
+test speculative_greedy_equals_plain_greedy ... ok
+test verify_rows_track_decode_through_rollback ... ok
+test few_layer_runtime_two_ranks_match_the_official_layer_outputs ... ok
+test verify_rows_track_decode_through_rollback_two_ranks ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/engine.rs (target/release/deps/engine-9c3205e629b58230)
+
+running 10 tests
+test bad_requests_become_error_events ... ok
+test forward_logits_all_positions ... ok
+test dropped_receiver_cancels ... ok
+test eos_min_tokens_and_ignore_eos ... ok
+test seeded_sampling_reproducible_and_telemetry_counts ... ok
+test greedy_is_deterministic_and_reports_usage ... ok
+test scripted_replay_reproduces_a_warm_generate_bit_for_bit ... ok
+test stop_strings_trim_and_holdback ... ok
+test prefix_reuse_continue_and_unaligned_restore_match_cold ... ok
+test prefix_reuse_restore_on_a_chunk_boundary_is_bit_identical_to_cold ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests/engine_localfail.rs (target/release/deps/engine_localfail-b685309ce96e56c9)
+
+running 9 tests
+test queued_requests_drain_after_a_device_error ... ok
+test memory_error_on_one_device_is_not_fatal ... ok
+test device_error_fails_the_engine ... ok
+test a_transient_backend_error_does_not_fail_the_engine ... ok
+test aborted_tp_group_fails_the_engine ... ok
+test out_of_vocab_prompt_leaves_the_tp_group_working ... ok
+test cancelled_queued_request_keeps_the_warm_cache ... ok
+test bad_requests_are_not_fatal ... ok
+test out_of_vocab_prompt_is_a_bad_request ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/engine_panic.rs (target/release/deps/engine_panic-78063135a278431d)
+
+running 1 test
+test worker_panic_fails_the_engine ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/engine_robust.rs (target/release/deps/engine_robust-6623423e13b9e16b)
+
+running 3 tests
+test cancel_flag_stops_decoding ... ok
+test cancel_before_prefill_runs_no_step_and_frees_the_worker ... ok
+test done_carries_the_matched_stop_string ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/exact_reuse.rs (target/release/deps/exact_reuse-9495f37d368b9bc2)
+
+running 8 tests
+test pass_record_carries_the_row_invariant_prefix ... ok
+test wide_reuse_len_reads_the_pass_history ... ok
+test batched_engine_picks_slots_by_wide_passes ... ok
+test batched_engine_multi_turn_resumes_the_whole_prompt ... ok
+test single_sequence_engine_resumes_at_any_row_of_wide_passes ... ok
+test batched_engine_picks_slots_by_the_same_rule ... ok
+test single_sequence_engine_resumes_only_at_the_cold_schedule ... ok
+test cpu_prefill_is_bitwise_row_count_invariant ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+
+     Running tests/exl3_model.rs (target/release/deps/exl3_model-1c15157d0881a627)
+
+running 2 tests
+test a_declared_exl3_scheme_refuses_other_quantised_layers ... ok
+test exl3_model_matches_the_dequantised_model ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/fusion_p1.rs (target/release/deps/fusion_p1-35176009b09ed0fd)
+
+running 1 test
+test fp8_attention_folds_are_bitwise_the_unfused_chain ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+     Running tests/fusion_p2.rs (target/release/deps/fusion_p2-181523ce5d272c64)
+
+running 2 tests
+test gate_split_fold_composes_with_the_phase1_attention_folds ... ok
+test gate_split_and_gdn_conv_folds_are_bitwise_the_unfused_chain ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/fusion_p2prime.rs (target/release/deps/fusion_p2prime-88b1ba7385f30258)
+
+running 2 tests
+test moe_block_is_off_under_tp2 ... ok
+test moe_block_is_bitwise_the_unfused_chain ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/gemma4_real.rs (target/release/deps/gemma4_real-caf7ba1423f8705f)
+
+running 1 test
+test real_gemma4_cuda_matches_cpu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/gemma4_tiny.rs (target/release/deps/gemma4_tiny-bd12f3b33ead3516)
+
+running 1 test
+test tiny_gemma4_cpu_matches_hf ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/graphs.rs (target/release/deps/graphs-ef458eecac116c7a)
+
+running 7 tests
+test the_recording_contains_the_position_dependent_ops_with_a_device_position ... ok
+test a_new_state_gets_its_own_recording_and_truncate_keeps_replaying ... ok
+test no_graphs_flag_and_failed_capture_fall_back_to_eager ... ok
+test argmax_head_matches_through_the_graph ... ok
+test profiled_steps_interleave_with_replays ... ok
+test graph_decode_is_bitwise_the_eager_decode ... ok
+test replay_after_a_mid_sequence_gdn_restore_is_bitwise_the_eager_decode ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running tests/head_and_scheme.rs (target/release/deps/head_and_scheme-49bdeda73c60b699)
+
+running 2 tests
+test a_missing_lm_head_is_an_error_unless_the_config_ties_the_embeddings ... ok
+test a_declared_scheme_is_checked_against_the_stored_tensors ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/head_quant.rs (target/release/deps/head_quant-7e3e361cf0ba6173)
+
+running 4 tests
+test a_bad_value_is_a_load_error ... ok
+test quantised_heads_load_and_stay_close_to_bf16 ... ok
+test split_quantised_head_is_bitwise_the_replicated_quantised_head ... ok
+test unset_and_off_are_bitwise_the_bf16_head ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+     Running tests/hybrid.rs (target/release/deps/hybrid-d2bb8789476719f1)
+
+running 13 tests
+test cuda_bf16_matches_cpu_bf16_and_hf ... ok
+test layer_kinds_follow_the_config ... ok
+test one_shot_prefill_matches_hf ... ok
+test argmax_decode_path_agrees ... ok
+test failed_forward_resets_recurrent_state ... ok
+test recurrent_snapshots_restore_exactly ... ok
+test prefill_then_token_by_token_decode_matches_hf ... ok
+test default_resumes_a_recurrent_state_at_any_snapshot_on_a_chunk_sensitive_backend ... ok
+test engine_continues_a_conversation_without_recomputing_the_history ... ok
+test chunked_prefill_matches_hf ... ok
+test engine_reuses_prefix_through_snapshots_and_matches_a_fresh_engine ... ok
+test chunk_sensitive_backend_resumes_a_recurrent_state_only_at_cold_cuts ... ok
+test hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.96s
+
+     Running tests/hybrid_mxfp4.rs (target/release/deps/hybrid_mxfp4-bc6301f11e021964)
+
+running 1 test
+test mxfp4_w4a16_matches_the_dequantised_model_and_w4a4_runs ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/hybrid_real.rs (target/release/deps/hybrid_real-14104df31479812c)
+
+running 1 test
+test real_35b_attention_layers_cuda_matches_cpu ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/hybrid_reuse_real.rs (target/release/deps/hybrid_reuse_real-93bc123e5022cbba)
+
+running 2 tests
+test engine_hybrid_reuse_equals_cold ... ok
+test hybrid_reuse_shapes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/lfm2.rs (target/release/deps/lfm2-8548868bbc7f6eda)
+
+running 10 tests
+test cuda_and_hip_register_no_short_conv_kernel ... ok
+test dims_follow_the_recipe_config_renames ... ok
+test a_backend_without_the_kernel_refuses_the_load_naming_the_op ... ok
+test layer_kinds_follow_the_config ... ok
+test one_shot_prefill_matches_hf ... ok
+test failed_forward_resets_the_conv_state ... ok
+test recurrent_snapshots_restore_exactly ... ok
+test prefill_then_token_by_token_decode_matches_hf ... ok
+test chunked_prefill_matches_hf ... ok
+test batched_decode_is_bitwise_the_solo_step ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.29s
+
+     Running tests/min_tokens.rs (target/release/deps/min_tokens-58a5b53e8a4c084c)
+
+running 3 tests
+test min_tokens_alone_masks_eos_without_ignore_eos ... ok
+test forced_length_greedy_keeps_the_on_device_argmax ... ok
+test stop_strings_wait_for_min_tokens ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/mlx_affine_real.rs (target/release/deps/mlx_affine_real-4d33b4fbb5ded446)
+
+running 2 tests
+test mixed_bits_and_stacked_experts_open_with_the_implied_shapes ... ignored
+test mlx_checkpoint_reads_bit_for_bit_like_the_numpy_dequantiser ... ignored
+
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/model.rs (target/release/deps/model-b303f4aedc2ea309)
+
+running 5 tests
+test recurrent_slot_is_allocated_but_inert ... ok
+test decoder_matches_naive_reference_f32 ... ok
+test context_overflow_and_truncate ... ok
+test decoder_close_to_naive_reference_bf16 ... ok
+test prefill_equals_prefill_plus_decode_and_chunking ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/mtp.rs (target/release/deps/mtp-a3b6b215dc571dfe)
+
+running 60 tests
+test batched_store_with_mtp_is_refused_with_the_knob_off ... ok
+test a_capture_failure_is_not_permanent ... ok
+test batched_verify_logits_rows_are_the_decode_steps_rows ... ok
+test batched_verify_pass_equals_each_sequences_solo_verify ... ok
+test draft_subset_batched_mtp_equals_solo ... ok
+test batched_mtp_with_packed_prefill_equals_solo ... ok
+test draft_subset_is_in_the_dry_run ... ok
+test captured_step_after_a_head_restart_equals_the_eager_step ... ok
+test draft_subset_refuses_ids_outside_the_head ... ok
+test batched_store_with_mtp_and_batched_verify_equals_mtp_off ... ok
+test eager_head_catch_up_is_per_row_attention ... ok
+test draft_subset_drafts_are_the_subset_argmax ... ok
+test head_context_restart_keeps_the_queue_invariant_through_cuts ... ok
+test engine_mtp_dump_matches_the_model_and_leaves_serving_alone ... ok
+test draft_subset_single_engine_match_topk_is_seed_exact ... ok
+test moe_mtp_head_whole_on_rank0_is_bitwise_the_tp1_head ... ok
+test batched_store_with_mtp_beside_parked_chunks ... ok
+test batched_store_with_mtp_equals_the_single_engine_store_on_mtp_off ... ok
+test moe_mtp_tp2_drafts_equal_tp1_drafts ... ok
+test mtp_dump_rows_equal_the_engines_own_drafts_bf16 ... ok
+test mtp_dump_rows_equal_the_engines_own_drafts_f32_activations ... ok
+test mtp_dump_with_a_reduced_draft_head_has_both_argmaxes ... ok
+test mtp_head_matches_a_host_reference ... ok
+test mtp_is_not_loaded_without_the_flag ... ok
+test batched_mtp_switches_between_plain_batched_steps_and_drafting ... ok
+test batched_mtp_interleaved_sequences_equal_solo_with_every_acceptance_pattern ... ok
+test captured_spec_step_drafts_equal_the_eager_drafts ... ok
+test mtp_macro_prefill_keeps_chunk_snapshots_with_the_heads_position ... ok
+test non_drafting_requests_skip_the_head_and_leave_greedy_ones_identical ... ok
+test planned_batched_verify_pass_equals_each_sequences_solo_verify ... ok
+test prefill_peel_period_reaches_the_model_and_the_prefix_store_key ... ok
+test mtp_model_takes_the_macro_prefill_pass_and_the_head_follows ... ok
+test reduced_draft_head_is_in_the_dry_run ... ok
+test recipe_draft_vocab_default_is_overridden_by_the_flag ... ok
+test min_tokens_requests_stay_identical_and_still_speculate_without_stop_ids ... ok
+test sampled_speculation_matches_plain_sampling_in_law_on_the_fixture ... ignored
+test batched_verify_engine_equals_solo ... ok
+test shipped_recipes_default_the_draft_vocab_only_for_the_27b_and_the_35b_on_cuda ... ok
+test adaptive_depth_keeps_greedy_output_and_varies_the_draft_length ... ok
+test min_tokens_requests_stay_identical_on_the_pipelined_step ... ok
+test skip_dead_leaves_the_mtp_heads_rows_and_drafts_alone ... ok
+test draft_subset_keeps_greedy_and_sampled_output ... ok
+test cost_gate_flipping_between_speculation_and_plain_decode_keeps_output_identical ... ok
+test cost_gate_flipping_on_the_pipelined_step_keeps_output_identical ... ok
+test store_bypass_knob_keeps_drafting_requests_off_the_store ... ok
+test captured_spec_step_keeps_greedy_output_identical ... ok
+test short_scripted_drafts_behave_alike_on_both_paths ... ok
+test mtp_head_drafts_keep_greedy_output_identical_over_256_tokens ... ok
+test sampled_speculation_drafts_sampled_requests_and_leaves_greedy_ones_alone ... ok
+test store_restore_then_scripted_drafts_stay_identical ... ok
+test store_restore_then_draft_equals_mtp_off ... ok
+test reduced_draft_vocab_keeps_output_and_drafts_inside_the_prefix ... ok
+test pipelined_mtp_step_keeps_output_and_drafts_of_the_eager_step ... ok
+test captured_spec_step_survives_every_acceptance_pattern ... ok
+test pipelined_mtp_step_with_scripted_drafts_stays_identical ... ok
+test moe_mtp_tp2_greedy_ids_equal_spec_off ... ok
+test scripted_drafts_hit_every_acceptance_pattern_and_stay_identical ... ok
+test cost_gate_with_scripted_drafts_stays_identical ... ok
+test dense_mtp_head_keeps_greedy_output_identical ... ok
+test batched_mtp_sampled_requests_equal_spec_off_for_a_seed ... ok
+
+test result: ok. 59 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 44.77s
+
+     Running tests/mtp_store_cuda.rs (target/release/deps/mtp_store_cuda-f098ea0228b685f2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mtp_store_metal.rs (target/release/deps/mtp_store_metal-e7a3af1088d03800)
+
+running 1 test
+test mtp_on_store_requests_restore_bitwise_metal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/plan.rs (target/release/deps/plan-d433f3761bbae9a7)
+
+running 10 tests
+test missing_kernel_fails_the_load_with_a_list ... ok
+test plan_json_follows_the_contract ... ok
+test scratch_workspace_is_reserved_and_passed ... ok
+test reference_flag_forces_ref_kernels ... ok
+test batched_verify_row_counts_are_planned_and_a_gap_switches_it_off_at_load ... ok
+test teacher_forced_decode_matches_full_forward ... ok
+test bad_kernel_is_rejected_on_plan_shapes_and_replaced ... ok
+test admission_on_plan_shapes_is_cached_and_enforced ... ok
