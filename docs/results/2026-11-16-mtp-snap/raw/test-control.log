@@ -1,0 +1,5 @@
+running 1 test
+test mtp_macro_prefill_keeps_chunk_snapshots_with_the_heads_position ... FAILED
+thread 'mtp_macro_prefill_keeps_chunk_snapshots_with_the_heads_position' (11119938) panicked at crates/intarsia-models/tests/mtp.rs:1726:9:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.11s
+error: test failed, to rerun pass `-p intarsia-models --test mtp`

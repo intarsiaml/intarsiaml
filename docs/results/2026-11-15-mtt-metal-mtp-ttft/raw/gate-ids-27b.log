@@ -1,0 +1,32 @@
+fleetq: #9463 waiting (#5 in line): in line behind #9455 "mnr: NAX summation tree probe" (claude-2ae67a71) on endor
+fleetq:   #9455 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9455 set, or it will wait for #9455 to be released.
+fleetq: #9463 waiting (#4 in line): in line behind #9458 "mnr: register form bench + tests" (claude-2ae67a71) on endor
+fleetq:   #9458 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9458 set, or it will wait for #9458 to be released.
+fleetq: #9463 waiting (#3 in line): in line behind #9461 "mtt: gate 1 served ids 35B (lazy on/off/spec off)" (claude-2ae67a71) on endor
+fleetq:   #9461 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9461 set, or it will wait for #9461 to be released.
+fleetq: #9463 waiting (#2 in line): in line behind #9462 "mtt: gate 2 plan show main vs branch (8B/27B/35B)" (claude-2ae67a71) on endor
+fleetq:   #9462 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9462 set, or it will wait for #9462 to be released.
+fleetq: #9463 waiting (#1 in line): needs gpu quiet on endor, but #9462 "mtt: gate 2 plan show main vs branch (8B/27B/35B)" (claude-2ae67a71) loads it
+fleetq:   #9462 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9462 set, or it will wait for #9462 to be released.
+fleetq: #9463 running on endor: scripts/mtt/ids.sh /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 27b
+## 27b on: 88.3s, admission on plan shapes: 24 kernel(s) checked, 487 case(s) run, 0 cached
+short tokens 256 prompt 15 spec {'intarsia_spec_accepted_tokens_total': 153.0, 'intarsia_spec_proposed_tokens_total': 204.0, 'intarsia_spec_steps_total': 102.0}
+4k-a tokens 256 prompt 4100 spec {'intarsia_spec_accepted_tokens_total': 157.0, 'intarsia_spec_proposed_tokens_total': 195.0, 'intarsia_spec_steps_total': 98.0}
+4k-b tokens 256 prompt 4104 spec {'intarsia_spec_accepted_tokens_total': 159.0, 'intarsia_spec_proposed_tokens_total': 190.0, 'intarsia_spec_steps_total': 95.0}
+16k tokens 256 prompt 16388 spec {'intarsia_spec_accepted_tokens_total': 164.0, 'intarsia_spec_proposed_tokens_total': 182.0, 'intarsia_spec_steps_total': 91.0}
+## 27b old: 79.6s, admission on plan shapes: 24 kernel(s) checked, 0 case(s) run, 487 cached
+short tokens 256 prompt 15 spec {'intarsia_spec_accepted_tokens_total': 153.0, 'intarsia_spec_proposed_tokens_total': 204.0, 'intarsia_spec_steps_total': 102.0}
+4k-a tokens 256 prompt 4100 spec {'intarsia_spec_accepted_tokens_total': 157.0, 'intarsia_spec_proposed_tokens_total': 195.0, 'intarsia_spec_steps_total': 98.0}
+4k-b tokens 256 prompt 4104 spec {'intarsia_spec_accepted_tokens_total': 159.0, 'intarsia_spec_proposed_tokens_total': 190.0, 'intarsia_spec_steps_total': 95.0}
+16k tokens 256 prompt 16388 spec {'intarsia_spec_accepted_tokens_total': 164.0, 'intarsia_spec_proposed_tokens_total': 182.0, 'intarsia_spec_steps_total': 91.0}
+## 27b off: 2.6s, admission on plan shapes: 17 kernel(s) checked, 0 case(s) run, 348 cached
+short tokens 256 prompt 15 spec {}
+4k-a tokens 256 prompt 4100 spec {}
+4k-b tokens 256 prompt 4104 spec {}
+16k tokens 256 prompt 16388 spec {}
+GATE 27b short: ids on==old==off True (256 tokens), MTP counters on==old True {'intarsia_spec_accepted_tokens_total': 153.0, 'intarsia_spec_proposed_tokens_total': 204.0, 'intarsia_spec_steps_total': 102.0}
+GATE 27b 4k-a: ids on==old==off True (256 tokens), MTP counters on==old True {'intarsia_spec_accepted_tokens_total': 157.0, 'intarsia_spec_proposed_tokens_total': 195.0, 'intarsia_spec_steps_total': 98.0}
+GATE 27b 4k-b: ids on==old==off True (256 tokens), MTP counters on==old True {'intarsia_spec_accepted_tokens_total': 159.0, 'intarsia_spec_proposed_tokens_total': 190.0, 'intarsia_spec_steps_total': 95.0}
+GATE 27b 16k: ids on==old==off True (256 tokens), MTP counters on==old True {'intarsia_spec_accepted_tokens_total': 164.0, 'intarsia_spec_proposed_tokens_total': 182.0, 'intarsia_spec_steps_total': 91.0}
+GATE 27b: PASS
+fleetq: #9463 done (exit 0)

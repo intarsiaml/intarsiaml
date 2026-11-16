@@ -1,0 +1,51 @@
+[localeval] calibrated: 22.1 tokens/sentence, 50 base tokens, ctx=18432
+[localeval]   4096 tok rep 1/5: prompt=4090 ttft=0.35s prefill=11800 tok/s decode=209.3 tok/s peak=264.6 tok/s out=64
+[localeval]   4096 tok rep 2/5: prompt=4090 ttft=0.34s prefill=11932 tok/s decode=218.8 tok/s peak=264.3 tok/s out=64
+[localeval]   4096 tok rep 3/5: prompt=4091 ttft=0.34s prefill=11888 tok/s decode=221.2 tok/s peak=264.8 tok/s out=64
+[localeval]   4096 tok rep 4/5: prompt=4091 ttft=0.35s prefill=11851 tok/s decode=228.2 tok/s peak=246.1 tok/s out=64
+[localeval]   4096 tok rep 5/5: prompt=4087 ttft=0.34s prefill=11918 tok/s decode=212.6 tok/s peak=265.5 tok/s out=64
+[localeval]  16384 tok rep 1/5: prompt=16657 ttft=1.56s prefill=10689 tok/s decode=206.3 tok/s peak=229.0 tok/s out=64
+[localeval]  16384 tok rep 2/5: prompt=16656 ttft=1.56s prefill=10677 tok/s decode=154.1 tok/s peak=176.5 tok/s out=64
+[localeval]  16384 tok rep 3/5: prompt=16654 ttft=1.56s prefill=10660 tok/s decode=147.1 tok/s peak=155.9 tok/s out=64
+[localeval]  16384 tok rep 4/5: prompt=16656 ttft=1.56s prefill=10644 tok/s decode=182.0 tok/s peak=229.7 tok/s out=64
+[localeval]  16384 tok rep 5/5: prompt=16654 ttft=1.57s prefill=10637 tok/s decode=174.7 tok/s peak=208.7 tok/s out=64
+# localeval: adhoc — 2026-11-16T00:11
+
+- model: `qwen36-35b` on ? (?), url `http://tatooine:8090/v1`
+- thinking: off; run kind: speed; label: mtpsnap-main-r4
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d96f899
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8090/v1 --model qwen36-35b --label mtpsnap-main-r4 --sizes 4096,16384 --gen 64 --reps 5 --thinking off --wait-idle 60 --recipe HIP_VISIBLE_DEVICES=0 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b --spec mtp --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor (tree mtpsnap-gpu, bin main, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)`
+- result file: `results/20261116-001115-adhoc-mtpsnap-main-r4/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b --spec mtp --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor (tree mtpsnap-gpu, bin main, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)
+````
+
+## Speed sweep
+
+served `qwen36-35b`, fingerprint `None`, ctx 18432, 5 reps, 64 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4090 | 0.34 | 11888 (11800–11932) | - | 218.8 (209.3–228.2) | 264.6 (246.1–265.5) | - | - | 64 |
+| 16656 | 1.56 | 10660 (10637–10689) | 10317 | 174.7 (147.1–206.3) | 208.7 (155.9–229.7) | - | - | 64 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 33.9% at 16384 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261116-001115-adhoc-mtpsnap-main-r4/result.json
+[localeval] logged to unanimis: b01dd3b5-8928-4a35-abf1-58714e68b6e4

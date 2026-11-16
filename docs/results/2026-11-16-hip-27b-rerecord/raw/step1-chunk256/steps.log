@@ -1,0 +1,27 @@
+21:19:32 stages start; head=f219eec code-tree=aa4946c84c9a dirty=no; STEPS=s1 rec chk
+1b32357eaa08043145c5ae67ff7197d22618f06601389c095db188dd0876d612  golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors
+32e2b96d84cc4de1593f6ba3eed2131315376901e462353fc917cefcb3640ebd  golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+21:20:22 s1-w4a16-chunk0 exit 1 [INTARSIA_GDN_CHUNK=0]
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.out:golden gate: FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.err:mxfp4 activations: none (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.err:this build: head f219eec code-tree aa4946c84c9a clean
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.err:Error: accuracy gate FAILED
+21:20:36 s1-w4a4-chunk0 exit 0 [INTARSIA_GDN_CHUNK=0]
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunk0.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunk0.out:golden gate: PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunk0.err:mxfp4 activations: dynamic (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunk0.err:this build: head f219eec code-tree aa4946c84c9a clean
+21:20:51 s1-w4a16-chunkon exit 1
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.out:golden gate: FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.err:mxfp4 activations: none (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.err:this build: head f219eec code-tree aa4946c84c9a clean
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.err:Error: accuracy gate FAILED
+21:21:05 s1-w4a4-chunkon exit 1
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.out:golden gate: FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.err:mxfp4 activations: dynamic (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.err:this build: head f219eec code-tree aa4946c84c9a clean
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.err:Error: accuracy gate FAILED
+21:21:05 STOP: 1a (w4a16, INTARSIA_GDN_CHUNK=0) did not PASS; not re-recording

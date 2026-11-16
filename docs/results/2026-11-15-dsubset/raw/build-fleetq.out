@@ -1,0 +1,40 @@
+fleetq: #9392 running on spark2: env HOST=spark2 bash -c 'scripts/dsubset/build.sh && REV=c5ce87bc8 OUTBIN=intarsia-main scripts/dsubset/build.sh'
+20:07:05
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-engram)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-ui)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-models)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 6m 06s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  187G  95% /
+2.7G	/home/nvidia/intarsia-dsubset
+Mem:             121          49          24           0          48          72
+active
+20:13:13
+git sha 0f3144a9646d14b90cc18f5153127800009017bd
+20:13:56
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-tui)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-engram)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 11s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  187G  95% /
+2.9G	/home/nvidia/intarsia-dsubset
+Mem:             121          49          23           0          50          72
+active
+20:19:09
+git sha c5ce87bc84a1f3c33fce3dfb9ea84f5e7d1ea20e
+fleetq: #9392 done (exit 0)

@@ -1,0 +1,52 @@
+[localeval] calibrated: 22.1 tokens/sentence, 52 base tokens, ctx=18432
+[localeval]   4096 tok rep 1/5: prompt=4092 ttft=0.34s prefill=11908 tok/s decode=228.0 tok/s peak=265.5 tok/s out=64
+[localeval]   4096 tok rep 2/5: prompt=4092 ttft=0.35s prefill=11852 tok/s decode=179.0 tok/s peak=203.7 tok/s out=64
+[localeval]   4096 tok rep 3/5: prompt=4087 ttft=0.35s prefill=11786 tok/s decode=199.8 tok/s peak=204.9 tok/s out=64
+[localeval]   4096 tok rep 4/5: prompt=4085 ttft=0.35s prefill=11828 tok/s decode=201.5 tok/s peak=240.0 tok/s out=64
+[localeval]   4096 tok rep 5/5: prompt=4088 ttft=0.35s prefill=11818 tok/s decode=228.6 tok/s peak=264.4 tok/s out=64
+[localeval]  16384 tok rep 1/5: prompt=16655 ttft=1.61s prefill=10317 tok/s decode=162.1 tok/s peak=169.8 tok/s out=64
+[localeval]  16384 tok rep 2/5: prompt=16656 ttft=1.57s prefill=10628 tok/s decode=175.6 tok/s peak=230.6 tok/s out=64
+[localeval]  16384 tok rep 3/5: prompt=16654 ttft=1.57s prefill=10634 tok/s decode=200.9 tok/s peak=228.9 tok/s out=64
+[localeval]  16384 tok rep 4/5: prompt=16656 ttft=1.58s prefill=10529 tok/s decode=182.7 tok/s peak=230.1 tok/s out=64
+[localeval]  16384 tok rep 5/5: prompt=16655 ttft=1.68s prefill=9891 tok/s decode=253.0 tok/s peak=485.5 tok/s out=64
+# localeval: adhoc — 2026-11-16T00:07
+
+- model: `qwen36-35b` on ? (?), url `http://tatooine:8090/v1`
+- thinking: off; run kind: speed; label: mtpsnap-pr-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d96f899
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8090/v1 --model qwen36-35b --label mtpsnap-pr-r1 --sizes 4096,16384 --gen 64 --reps 5 --thinking off --wait-idle 60 --recipe HIP_VISIBLE_DEVICES=0 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b --spec mtp --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor (tree mtpsnap-gpu, bin pr, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)`
+- result file: `results/20261116-000732-adhoc-mtpsnap-pr-r1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b --spec mtp --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor (tree mtpsnap-gpu, bin pr, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)
+````
+
+## Speed sweep
+
+served `qwen36-35b`, fingerprint `None`, ctx 18432, 5 reps, 64 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4088 | 0.34 | 11828 (11786–11908) | - | 201.5 (179.0–228.6) | 240.0 (203.7–265.5) | - | - | 64 |
+| 16655 | 1.58 | 10529 (9891–10634) | 10159 | 182.7 (162.1–253.0) | 230.1 (169.8–485.5) | - | - | 64 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 24.6% at 4096 tokens: noisy; rerun before comparing
+- decode spread 49.7% at 16384 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261116-000732-adhoc-mtpsnap-pr-r1/result.json
+[localeval] logged to unanimis: 39ab456f-3898-4808-a0d9-717addbd1749
