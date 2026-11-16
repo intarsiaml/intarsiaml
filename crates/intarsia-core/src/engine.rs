@@ -285,6 +285,10 @@ pub trait Engine: Send + Sync {
         Value::Null
     }
 
+    /// Wait until the prefix store's disk writer has written what is queued (a server calls it when it stops, so the last
+    /// entries survive a restart; lane mstore). No-op without a store or a disk tier.
+    fn flush_prefix_store(&self) {}
+
     /// The execution plan (served at `GET /v1/intarsia/plan`); `Null` when the engine has none.
     fn plan(&self) -> Value {
         Value::Null
@@ -1007,6 +1011,12 @@ impl Engine for LocalEngine {
 
     fn prefix_store(&self) -> Value {
         self.shared.store.as_ref().map_or(Value::Null, StorePolicy::info)
+    }
+
+    fn flush_prefix_store(&self) {
+        if let Some(s) = &self.shared.store {
+            s.store.lock().unwrap_or_else(|e| e.into_inner()).flush();
+        }
     }
 
     fn telemetry(&self) -> TelemetrySnapshot {
