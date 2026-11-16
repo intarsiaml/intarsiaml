@@ -6,3 +6,6 @@ fleetq: #9408 waiting (#2 in line): in line behind #9405 "dsubset: build + plan 
 fleetq:   #9405 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9405 set, or it will wait for #9405 to be released.
 fleetq: #9408 waiting (#1 in line): needs gpu quiet on spark1, but #9405 "dsubset: build + plan gate + acceptance per script (35B)" (claude-2ae67a71) loads it
 fleetq:   #9405 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9405 set, or it will wait for #9405 to be released.
+fleetq: #9408 running on spark1: env HOST=spark1 M35=/home/nvidia/models/Qwen3.8-27B-NVFP4-52d1adc5f38a OUT=/opt/code/intarsiaml/.worktrees/dsubset/docs/results/2026-11-15-dsubset/raw/runs27b ACC_MAX_TOKENS=192 PARTS=accept 'ARMS=P65536 S65536 P131072' LOGNAME_=w3 scripts/dsubset/runs.sh
+[21:41:13 +0s] hook w3 start
+[21:41:13 +0s] serve arm collect2: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 16

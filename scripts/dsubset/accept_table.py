@@ -56,6 +56,9 @@ def main():
                 toks = [i for rep in ref["sets"][s]["replies"] for i in rep["ids"]]
                 h = holds(a)
                 reach = f" / {100 * sum(1 for i in toks if h(i)) / max(1, len(toks)):.1f}%"
+            if r["accept_rate"] is None:  # no drafts (requests with a `tools` array do not speculate on this engine)
+                cells.append(f"no drafts / {r['tok_s']:.1f}{reach}")
+                continue
             cells.append(f"{r['accept_rate']:.3f} / {r['tokens_per_pass']:.2f} / {r['tok_s']:.1f}{reach}")
         print(f"| {s} | " + " | ".join(cells) + " |")
     print("\ncell: acceptance / tokens per verify pass / tok/s (one stream, greedy, incl. prefill) / share of the set's tokens the head can draft")
