@@ -193,18 +193,24 @@ def main():
             print(f"| {name} | {seed} | {mid:.1f} | {s['n_req']} | {s['ttft_sum']:.1f} | {fmt(s['w99'])} | {fmt(s['w50'],1)} | {fmt(s['g99'])} | {fmt(s['s50'],1)} | {fmt(s['s99'])} | {fmt(s['g150'],1)} | {fmt(s['tok_s'],1)} |")
     out["per_replay"] = {n: [(m, sd, s) for m, sd, s in v] for n, v in per.items()}
 
-    # ---- trends per vantage (per-replay medians vs start minute); only complete replays (>= 20 requests for the full ones, >= 10 for worker halves)
-    print("\n## Trends (per replay, least squares on start minute; value per 10 min and its standard error)\n")
-    print("| vantage | replays | w99 | g99 | s99 | g150 /1000 | TTFT sum (per request s) |")
+    # ---- trends per vantage: per-replay value against the replay's index within its own loop (the soak2 way: per replay)
+    print("\n## Trends (straight line over replay index; value per replay +- standard error)\n")
+    print("| vantage | replays | w99 ms | g99 ms | s99 ms | g150 /1000 | TTFT sum per 48 requests, s |")
     print("|---|---|---|---|---|---|---|")
+    out["trends"] = {}
     for name, v in per.items():
-        full = [(m, s) for m, sd, s in v if s["n_req"] >= (40 if "p1" in name else 20)]
+        full = [s for m, sd, s in v if s["n_req"] >= (40 if "p1" in name else 20)]
+        idx = list(range(len(full)))
         row = [name, str(len(full))]
+        tr = {}
         for key in ("w99", "g99", "s99", "g150"):
-            b, se = slope([m for m, s in full], [s[key] for m, s in full])
-            row.append(f"{b*10:+.1f} +- {se*10:.1f}")
-        b, se = slope([m for m, s in full], [s["ttft_sum"] / s["n_req"] for m, s in full])
-        row.append(f"{b*10:+.3f} +- {se*10:.3f}")
+            b, se = slope(idx, [x[key] for x in full])
+            row.append(f"{b:+.2f} +- {se:.2f}")
+            tr[key] = (b, se)
+        b, se = slope(idx, [x["ttft_sum"] / x["n_req"] * 48 for x in full])
+        row.append(f"{b:+.3f} +- {se:.3f}")
+        tr["ttft"] = (b, se)
+        out["trends"][name] = tr
         print("| " + " | ".join(row) + " |")
 
     # ---- time bins: clients, server trace, engine histogram
@@ -238,17 +244,17 @@ def main():
         rec = {"bin_min": i * a.bin_min}
         for name, rows in V.items():
             sel = [r for r in rows if lo <= r["marks"][-1][0] < hi] if rows else []
-            s = stats(sel) if len(sel) >= 3 else None
+            s = stats(sel) if len(sel) >= 12 else None
             cells.append("-" if s is None else f"{fmt(s['w99'])} / {fmt(s['g99'])} / {fmt(s['s99'])} / {fmt(s['g150'],1)}")
             rec[name] = s
         sv = [x for x in iv if lo <= x[0] < hi]
-        if len(sv) > 50:
+        if len(sv) > 50 and hi <= tmax:
             ms = [x[1] for x in sv]
             sc = f"{pctl(ms,.5):.0f} / {pctl(ms,.99):.0f} / {1000*sum(m>150 for m in ms)/len(ms):.1f}"
             rec["srv"] = {"n": len(ms), "p50": pctl(ms, .5), "p99": pctl(ms, .99), "gt150_per_1000": 1000 * sum(m > 150 for m in ms) / len(ms)}
         else:
             sc = "-"
-        e = [(ts, d) for ts, d in samp if lo - 1 <= ts <= hi + 1]
+        e = [(ts, d) for ts, d in samp if lo - 1 <= ts <= hi + 1] if samp and hi <= samp[-1][0] + 1 else []
         ec = "-"
         if len(e) >= 2:
             f0, f1 = e[0][1], e[-1][1]
@@ -271,12 +277,72 @@ def main():
     # ---- server-only trend and concurrent Mac vs box in phase 2
     print("\n## Server scheduler interval trend (trace, while a sequence decodes)\n")
     xs = [(r.get("srv") or {}).get("p99") for r in binrows]
-    ok = [(i * a.bin_min, r["srv"]["p99"], r["srv"]["gt150_per_1000"]) for i, r in enumerate(binrows) if "srv" in r]
+    ok = [(i * a.bin_min, r["srv"]["p99"], r["srv"]["gt150_per_1000"]) for i, r in enumerate(binrows) if "srv" in r and r["srv"]["n"] > 0.8 * 4 * 60 * 1000 / 45 * a.bin_min / 4]
     if len(ok) >= 4:
         b, se = slope([x for x, _, _ in ok], [y for _, y, _ in ok])
         b2, se2 = slope([x for x, _, _ in ok], [z for _, _, z in ok])
         print(f"p99 of the iteration interval: {b*10:+.1f} +- {se*10:.1f} ms per 10 min over {len(ok)} bins; share above 150 ms: {b2*10:+.2f} +- {se2*10:.2f} per 1000 per 10 min")
     print(f"trace events parsed: {len(ev)}; iteration intervals: {len(iv)}")
+
+    # ---- estimator inflation, delivery bunching
+    print("\n## localeval's weighted ITL p99 against the plain gap p99, per request; chunk bunching\n")
+    print("| vantage | requests | chunks per token | w99 / g99: median | p90 | max | requests with w99 > 1.5 x g99 | chunk gaps < 3 ms |")
+    print("|---|---|---|---|---|---|---|---|")
+    for name, rows in V.items():
+        ratio, cpt, z, tot = [], [], 0, 0
+        for r in rows:
+            g = gaps_of(r)[1]
+            if len(g) < 5 or not r.get("completion_tokens"):
+                continue
+            z += sum(x < 3 for x in g)
+            tot += len(g)
+            cpt.append(len(r["marks"]) / r["completion_tokens"])
+            ratio.append(r["itl_ms_p99"] / max(1e-6, pctl(g, .99)))
+        print(f"| {name} | {len(ratio)} | {st.median(cpt):.3f} | {st.median(ratio):.2f} | {pctl(ratio,.9):.2f} | {max(ratio):.2f} | {sum(x>1.5 for x in ratio)/len(ratio):.2f} | {z/tot:.3f} |")
+
+    # ---- client TTFT against the server's own
+    def prom(f):
+        d = {}
+        for line in open(f):
+            if line.startswith("#"):
+                continue
+            q = line.split()
+            if len(q) == 2:
+                try:
+                    d[q[0]] = float(q[1])
+                except ValueError:
+                    pass
+        return d
+    mf = [os.path.join(raw, n) for n in ("serve-S.metrics.before", "serve-S.metrics.after-p1", "serve-S.metrics.after-p2")]
+    if all(os.path.exists(f) for f in mf):
+        B, A1, A2 = (prom(f) for f in mf)
+        print("\n## Client TTFT against the server's own (submit to first token)\n")
+        print("| phase | server requests | server mean TTFT s | client replay requests | client mean TTFT s |")
+        print("|---|---|---|---|---|")
+        for ph, x, y, names in (("1", B, A1, ["box p1 (K=2, both workers)"]), ("2", A1, A2, ["box p2 (worker 1)", "Mac p2 (worker 0)"])):
+            sn = y["intarsia_ttft_seconds_count"] - x["intarsia_ttft_seconds_count"]
+            ss = y["intarsia_ttft_seconds_sum"] - x["intarsia_ttft_seconds_sum"]
+            cr = [r for n in names for r in V[n] if r["ttft_s"] is not None]
+            print(f"| {ph} | {sn:.0f} | {ss/sn:.3f} | {len(cr)} | {sum(r['ttft_s'] for r in cr)/len(cr):.3f} |")
+        for n in ("box p2 (worker 1)", "Mac p2 (worker 0)"):
+            r = V[n]
+            print(f"\n- {n}: mean TTFT {sum(x['ttft_s'] for x in r)/len(r):.3f} s over {len(r)} requests (same minutes, same server)")
+        tot = A2["intarsia_batch_itl_seconds_count"]
+        bk = lambda le: tot - A2['intarsia_batch_itl_seconds_bucket{le="%s"}' % le]  # noqa: E731
+        print(f"\nEngine ITL histogram over the whole window: {tot:.0f} token gaps, above 150 ms {bk('0.15'):.0f}, above 250 ms {bk('0.25'):.0f}, above 500 ms {bk('0.5'):.0f}")
+
+    # ---- the Mac's environment: ping per second, load average per minute
+    pf = os.path.join(raw, "ping.txt")
+    if os.path.exists(pf):
+        pings = [(float(m.group(1)), float(m.group(2))) for line in open(pf) if (m := re.match(r"([\d.]+) .*time=([\d.]+) ms", line))]
+        sent = sum(1 for line in open(pf) if "icmp_seq" in line)
+        print("\n## Mac to box ping (1/s, whole window; box clock = Mac clock + 0.18 s, ignored here)\n")
+        v = sorted(x for _, x in pings)
+        print(f"{len(v)} replies of {sent} lines: median {v[len(v)//2]:.1f} ms, p99 {v[int(.99*len(v))]:.1f} ms, max {v[-1]:.1f} ms, above 30 ms {sum(x>30 for x in v)} ({100*sum(x>30 for x in v)/len(v):.1f} %), above 100 ms {sum(x>100 for x in v)}")
+    lf = os.path.join(raw, "mac-load.txt")
+    if os.path.exists(lf):
+        ld = [float(line.split()[2]) for line in open(lf) if len(line.split()) > 2]
+        print(f"Mac 1-minute load average during the window (sampled per minute): min {min(ld):.1f}, median {st.median(ld):.1f}, max {max(ld):.1f}")
     if a.json:
         json.dump(out, open(a.json, "w"), indent=1, default=str)
 

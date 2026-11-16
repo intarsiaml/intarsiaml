@@ -53,6 +53,6 @@ finish_serve() { # finish_serve <name> [failed]
   rsh "cat $W/sample-$1.tsv" > "$OUT/sample-$1.tsv" 2>/dev/null
   rsh "sort -k2 -n $W/mem-$1.txt | head -1; grep -c KILLED $W/mem-$1.txt" | tr '\n' ' ' | sed "s/^/min MemAvailable MB (time MB; KILLED count) ($1): /" | tee -a "$OUT/${WLOG:-lib}.log"; echo | tee -a "$OUT/${WLOG:-lib}.log" >/dev/null
   rsh "cat $W/mem-$1.txt" > "$OUT/mem-$1.txt" 2>/dev/null
-  log "serve-$1.log: $(zcat "$OUT/serve-$1.log.gz" | wc -l | tr -d ' ') lines, $(zcat "$OUT/serve-$1.log.gz" | grep -v '^cb-trace' | grep -ciE 'warn|error|panic|fail') non-trace lines with warn/error/panic/fail"
+  log "serve-$1.log: $(gzip -dc "$OUT/serve-$1.log.gz" | wc -l | tr -d ' ') lines, $(gzip -dc "$OUT/serve-$1.log.gz" | grep -v '^cb-trace' | grep -ciE 'warn|error|panic|fail') non-trace lines with warn/error/panic/fail"
   stop_server
 }
