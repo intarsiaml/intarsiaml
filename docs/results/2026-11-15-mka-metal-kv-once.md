@@ -21,8 +21,15 @@ Lane `mka`, branch `mka`, worktree `/opt/code/intarsiaml/.worktrees/mka`, base `
     Evidence it helps: 27B plain HS = 3 (4-simdgroup threadgroups, not bitwise) solo 285 vs 391 us, M = 3 761 vs 959;
     35B row-table idle simdgroups 250 vs 147 us at M = 1.
   - Evaluate with an in-situ-like bench (isolated / interleaved launches): chained launches flatter the kernel by 1.6x.
-- [ ] part 1 built + tested
-- [ ] part 2 built + bitwise tests + microbench (kernel rule: M = 3 <= 1.3x M = 1; M = 1 >= 70 % roofline)
+- [x] part 1 built (head catch-up reroute; `Backend::head_rows_exact`)
+- [x] part 2 built; first bitwise run PASS on 5 shapes (fleetq #9477, `raw/test-kvonce1.log`); kbench1 (same job) -> section 3
+- POLICY DECIDED 21:25 EST from kbench1: pack only launches whose threadgroup has < 4 simdgroups (the 27B shape,
+  `PK_PACK_BELOW = 4`); the 35B stays unpacked (packed it is 0.93x to 1.30x) and gets part 1 only. `scripts/mka/policy.env`
+  empty = shipped default. The bitwise test forces every shape packed (`INTARSIA_METAL_ATTN_KVO_BELOW=16`).
+- QUEUED 21:30 EST (endor line was ~11 h long; outputs in `raw/q/<name>.out`, fleetq ids in `raw/q/<name>.fleetq`):
+  #9519 ksweep, #9536 tests, #9537 smoke (writes `raw/gates/SMOKE_OK`; later jobs skip without it), #9538 kernels,
+  #9539 plan, #9540 ids35, #9541 ids27, #9542 served ident, #9543 sp35d, #9544 sp35o, #9545 sp27d, #9546 sp27o, #9547 ce1on.
+- [ ] read the queued results -> sections 3 (kernel), 4 (gates), 5 (speed); LOG row; merge origin/main; PR; unim; rm target/
 - [ ] gates 1..7
 - [ ] LOG row, merge origin/main, PR (do not merge)
 
@@ -314,3 +321,35 @@ One ALU trim rides along (`trim`, bit 27 of the packed plan, `INTARSIA_METAL_ATT
 that does not raise a stream's running maximum has `corr = exp2(0) = 1`, so `l * 1 + psum` and `acc * 1` are `l + psum`
 and `acc` bit for bit, and the 9 multiplies and the `exp2` are skipped. At head_dim 256 a simdgroup holds one slot, so the
 branch is uniform. It is only in the packed kernels (`ask_step`'s new argument defaults to false).
+
+
+---
+
+## 3. Kernel numbers (microbench, fresh process per arm, off / on / on / off; `raw/kbench1/kbench.txt`, fleetq #9477)
+
+Every shape packed (target 8 simdgroups, trim on), before the policy was set. us per launch, mean of the two runs per arm.
+"gap32" = a 32 MB copy between the launches (the in-engine-like number), "chained" = attention launches back to back.
+
+| shape, visible | launch | chained off -> on | gap32 off -> on | on / off (gap32) |
+|---|---|---:|---:|---:|
+| 27B 34k | solo 1 row | 370 -> 226 | 403 -> 244 | **0.60** |
+| 27B 34k | verify rows M = 3 (G0b) | 880 -> 689 | 994 -> 766 | **0.77** |
+| 27B 34k | verify rows M = 8 | 2021 -> 1654 | 2315 -> 1869 | 0.81 |
+| 27B 34k | row table M = 3 / 8 | 913 -> 742 / 2293 -> 1764 | 1015 -> 788 / 2496 -> 1903 | 0.78 / 0.76 |
+| 27B 16k | solo / M = 3 | 186 -> 117 / 426 -> 328 | 193 -> 116 / 469 -> 359 | 0.60 / 0.77 |
+| 27B 4k | solo / M = 3 | 56 -> 57 / 117 -> 99 | 45 -> 27 / 113 -> 97 | 0.60 / 0.86 |
+| 35B 34k | solo 1 row | 150 -> 159 | 169 -> 181 | 1.07 |
+| 35B 34k | verify rows M = 3 (G0b) | 407 -> 389 | 518 -> 483 | 0.93 |
+| 35B 34k | row table M = 3 / 8 | 418 -> 530 / 937 -> 1016 | 516 -> 669 / 1249 -> 1303 | 1.30 / 1.04 |
+| 35B 4k | solo / M = 3 (G0b) | 36 -> 73 / 50 -> 85 | (below the copy's noise) / 41 -> 35 | |
+
+Reading:
+
+* **27B: the packed launch is 1.65x faster at one row and 1.3x at three**, at every length. The solo launch at 34k
+  streams its 139 MB of K + V in 226 us chained = 616 GB/s, the machine's peak (the bench's old constant was 614): the
+  2-simdgroup threadgroups of the bitwise head split were what held it at 65 %.
+* **35B: packing does not pay** (its threadgroups already have 4 simdgroups): solo 7 % slower, the verify rows 7 % faster,
+  the row table up to 30 % slower. The shipped policy therefore packs only launches whose own threadgroup has fewer than
+  4 simdgroups; the 35B's launches are byte-for-byte today's code path under the knob.
+* The brief's kernel rule (M = 3 <= 1.3x M = 1) is not met and cannot be (section 1.3): 27B packed 766 / 244 = 3.1x.
+  Its second half (M = 1 >= 70 % of the roofline at 34k) holds: 27B 112 % of 550 GB/s chained, 35B 86 % (unchanged).
