@@ -1496,8 +1496,8 @@ impl Model {
             .min(opts.max_seq),
             chunk,
         );
-        // one rank only (tensor-parallel passes are not packed), and no MTP head or DFlash draft (its feature taps are per chunk): the drafter's workspace and its plan probes are
-        // chunk-sized, and a speculative sequence never takes a macro pass (`macro_plan`)
+        // one rank only (tensor-parallel passes are not packed), and no DFlash draft (its feature taps are per chunk). An MTP
+        // head does take macro passes: it catches up after the pass, and inner snapshots carry its queued row (lane mtp-snap)
         let macro_rows = if tp.world > 1 || opts.dflash.is_some() { 0 } else { macro_rows };
         // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows, and a macro
         // pass of `macro_rows` (+ the merged tail)

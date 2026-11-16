@@ -572,9 +572,12 @@ impl SequenceState {
                 out.push(None);
                 continue;
             }
-            let b = backend.alloc(m.row_bytes, MemKind::Device)?;
-            backend.copy(&b, 0, hn, hn_off + (len - 1 - pass_start) * m.row_bytes, m.row_bytes, 0)?;
-            out.push(Some(b));
+            // best effort: a failed alloc/copy files this snapshot without the head's part (a restore there restarts the
+            // head) instead of failing a prefill whose recurrent slots have already advanced
+            let row = backend.alloc(m.row_bytes, MemKind::Device).and_then(|b| {
+                backend.copy(&b, 0, hn, hn_off + (len - 1 - pass_start) * m.row_bytes, m.row_bytes, 0).map(|_| b)
+            });
+            out.push(row.ok());
         }
         Ok(out)
     }
