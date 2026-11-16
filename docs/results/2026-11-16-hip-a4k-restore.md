@@ -174,3 +174,44 @@ the same bits. The fix here does not touch that path (A and the warm B are singl
 
 `raw/q-a4k/` and `raw/q-a4k-macro0/` (qualify reports and logs), `raw/steps.log`, `raw/window.log`, the test logs
 (`raw/hip-tests.out`, `raw/models-tests*.out`, `raw/hybrid-reuse.*`), `raw/w2/` (window 2), `raw/mac/` (Mac test logs).
+
+## Speed (main vs this branch)
+
+Question: does the chunk-end recurrent-state copy in a macro prefill pass (macro 8192, chunk 4096) slow HIP prefill or decode? Qwen3.6-35B-A3B-NVFP4, tatooine R9700, `intarsia serve --backend hip --max-seq 18432` (flags of scripts/gdn-chunk/speed-window.sh), `localeval speed --sizes 1024,4096,16384 --gen 64 --thinking off`. Trees: main 558512697 (stamp code-tree 641c7f44074b) vs branch f99ccdf56 (code-tree bc47f85c9ddb), each its own stamped `--features hip` release build. A fresh server per arm; 3 rounds interleaved main/dev, dev/main, main/dev. Cells: mean (min-max) over rounds (tp1x: 3 rounds x 3 reps). Raw logs and steps.log: `raw/speed/`. Note: 1024 and 4096 prompts stay inside one macro pass of 8192 (no extra chunk-end copy beyond the first); 16384 is the size that crosses macro passes.
+
+### tp 1, 1 rep per round (localeval-tp1-*)
+
+| size | metric | main mean (min-max) | dev mean (min-max) | dev vs main |
+|---:|---|---|---|---:|
+| 1024 | prefill tok/s | 8286 (7914-8475) | 8162 (7904-8453) | -1.5% |
+| 1024 | decode tok/s | 164 (163-165) | 163 (162-165) | -0.4% |
+| 4096 | prefill tok/s | 12013 (11901-12096) | 11868 (11653-12041) | -1.2% |
+| 4096 | decode tok/s | 161 (160-161) | 145 (136-161) | -9.7% |
+| 16384 | prefill tok/s | 10748 (10716-10784) | 10525 (10084-10748) | -2.1% |
+| 16384 | decode tok/s | 146 (145-147) | 147 (146-148) | +1.0% |
+
+Dev decode at 4096 was 138 and 136 tok/s in rounds 1 and 3 (main 160-161), with a peak decode of about 252 tok/s: a bursty stream, not slower steady decode. It did not repeat in the rerun below.
+
+### tp 1 rerun, 3 reps per round (localeval-tp1x-*)
+
+| size | metric | main mean (min-max) | dev mean (min-max) | dev vs main |
+|---:|---|---|---|---:|
+| 1024 | prefill tok/s | 8219 (7986-8641) | 8185 (7838-8741) | -0.4% |
+| 1024 | decode tok/s | 164 (157-166) | 165 (165-165) | +0.9% |
+| 4096 | prefill tok/s | 11730 (10913-11959) | 11615 (10109-11911) | -1.0% |
+| 4096 | decode tok/s | 160 (151-164) | 164 (155-190) | +2.1% |
+| 16384 | prefill tok/s | 10671 (10648-10706) | 10652 (10588-10693) | -0.2% |
+| 16384 | decode tok/s | 142 (128-147) | 146 (140-146) | +2.4% |
+
+### tp 2 (--tp 2 --devices 0,1), 1 rep per round (localeval-tp2-*)
+
+| size | metric | main mean (min-max) | dev mean (min-max) | dev vs main |
+|---:|---|---|---|---:|
+| 1024 | prefill tok/s | 10029 (9957-10116) | 9981 (9917-10040) | -0.5% |
+| 1024 | decode tok/s | 192 (192-192) | 180 (156-192) | -6.1% |
+| 4096 | prefill tok/s | 14834 (14769-14903) | 14415 (13665-14878) | -2.8% |
+| 4096 | decode tok/s | 189 (188-189) | 193 (188-203) | +2.4% |
+| 16384 | prefill tok/s | 13718 (13700-13752) | 13597 (13437-13732) | -0.9% |
+| 16384 | decode tok/s | 180 (179-180) | 185 (180-195) | +3.0% |
+
+Reading: prefill is 0.2-2.8% lower on dev in every cell, within the round-to-round spread (the low-end dev prefill samples, e.g. tp2 4096 at 13665, are single rounds). Decode differences are +/-3% except two bursty tp1 dev rounds and one tp2 1024 round (156 vs 192) that did not reproduce in the 3-rep rerun. No difference exceeds the spread; no measurable prefill or decode slowdown from the branch. Single-rep rounds are coarse: localeval treats under 10% as noise.
