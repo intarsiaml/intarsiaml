@@ -5,7 +5,7 @@ d = sys.argv[1]
 runs = {}
 for f in sorted(glob.glob(f"{d}/tools-*.json")):
     j = json.load(open(f)); s = j["summary"]
-    runs[(s["arm"], s["temperature"], s["streams"])] = j
+    runs[(s["arm"], s["temperature"], s["streams"] + (0.5 if s.get("mix") else 0))] = j
 print("| arm | T | streams | tool call / single | calls | args valid JSON | names known | finish | tokens | verify passes | accept rate | tokens/pass |")
 print("|---|---|---|---|---|---|---|---|---|---|---|---|")
 for (arm, t, st), j in sorted(runs.items(), key=lambda x: (x[0][1], x[0][2], x[0][0])):

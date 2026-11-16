@@ -78,6 +78,8 @@ def one(a, i, out, metrics):
     body = {"model": a.model, "messages": messages(i), "tools": TOOLS, "max_tokens": a.max_tokens, "temperature": a.temperature, "seed": 3000 + i}
     if a.temperature > 0:
         body.update({"top_k": 20, "top_p": 0.95})
+    if a.tool_choice:
+        body["tool_choice"] = a.tool_choice
     req = urllib.request.Request(a.url + "/chat/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})
     m0 = scrape(metrics) if metrics else {}
     t0 = time.time()
@@ -108,32 +110,55 @@ def one(a, i, out, metrics):
               "signature": hashlib.sha256(sig.encode()).hexdigest()[:16], "calls": calls, "mtp": d}
 
 
+PLAIN = ["Explain how a hash map handles collisions, with an example in Python.", "Write a short story about a lighthouse keeper who finds a message in a bottle.",
+         "用中文解释埃拉托斯特尼筛法，以及它为什么比试除法更快。", "Summarise the causes of the French Revolution in five paragraphs."]
+
+
+def plain(a, i, out):
+    """--mix: a plain chat request (no tools, so it drafts) beside tool request i, greedy, same on every arm."""
+    body = {"model": a.model, "messages": [{"role": "user", "content": PLAIN[i % len(PLAIN)]}], "max_tokens": 160, "temperature": 0, "seed": 4000 + i}
+    req = urllib.request.Request(a.url + "/chat/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=600) as r:
+            j = json.load(r)
+    except Exception as e:
+        out[i] = {"i": i, "error": repr(e)}
+        return
+    m = j["choices"][0]["message"]
+    out[i] = {"i": i, "signature": hashlib.sha256(((m.get("content") or "") + "|" + (m.get("reasoning_content") or m.get("reasoning") or "")).encode()).hexdigest()[:16], "completion_tokens": j["usage"]["completion_tokens"]}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--url", required=True); ap.add_argument("--model", required=True); ap.add_argument("--arm", required=True)
     ap.add_argument("--out", required=True); ap.add_argument("--metrics", default=""); ap.add_argument("--temperature", type=float, default=0.0)
     ap.add_argument("--streams", type=int, default=1); ap.add_argument("--max-tokens", type=int, default=768)
+    ap.add_argument("--tool-choice", default="", help="e.g. none: the tools array is in the prompt but no grammar constrains the reply, so the request drafts")
+    ap.add_argument("--mix", action="store_true", help="with --streams 2: each tool request runs beside a plain chat request (which drafts); both signatures are recorded")
     a = ap.parse_args()
     out = [None] * N
+    pl = [None] * N
     one(a, 0, [None] * N, "")  # warm-up
     m0 = scrape(a.metrics)
     for lo in range(0, N, a.streams):
         idx = range(lo, min(lo + a.streams, N))
         ts = [threading.Thread(target=one, args=(a, i, out, a.metrics if a.streams == 1 else "")) for i in idx]
+        if a.mix:
+            ts += [threading.Thread(target=plain, args=(a, i, pl)) for i in idx]
         [t.start() for t in ts]; [t.join() for t in ts]
     m1 = scrape(a.metrics)
     d = {k: m1.get(k, 0) - m0.get(k, 0) for k in m1}
     prop, acc, steps = d.get("intarsia_spec_proposed_tokens_total", 0), d.get("intarsia_spec_accepted_tokens_total", 0), d.get("intarsia_spec_steps_total", 0)
     ok = [o for o in out if o and "error" not in o]
     single = [o for o in ok if o["kind"] == "single"]
-    summ = {"arm": a.arm, "temperature": a.temperature, "streams": a.streams, "requests": N, "errors": [o for o in out if o and "error" in o],
+    summ = {"mix": a.mix, "tool_choice": a.tool_choice, "arm": a.arm, "temperature": a.temperature, "streams": a.streams, "requests": N, "errors": [o for o in out if o and "error" in o],
             "single_with_tool_call": sum(1 for o in single if o["n_calls"] > 0), "single": len(single), "tool_calls_total": sum(o["n_calls"] for o in ok),
             "all_arguments_valid_json": all(o["calls_valid_json"] for o in ok), "all_names_known": all(o["names_known"] for o in ok),
             "finish_reasons": {k: sum(1 for o in ok if o["finish"] == k) for k in {o["finish"] for o in ok}},
             "completion_tokens": sum(o["completion_tokens"] for o in ok), "verify_passes": steps, "drafted": prop, "accepted": acc,
             "accept_rate": round(acc / prop, 4) if prop else None, "tokens_per_pass": round((acc + steps) / steps, 3) if steps else None}
     pathlib.Path(a.out).mkdir(parents=True, exist_ok=True)
-    (pathlib.Path(a.out) / f"tools-{a.arm}-t{a.temperature}-s{a.streams}.json").write_text(json.dumps({"summary": summ, "each": out}, ensure_ascii=False, indent=1))
+    (pathlib.Path(a.out) / f"tools-{a.arm}-t{a.temperature}-s{a.streams}{'-mix' if a.mix else ''}{'-tc' + a.tool_choice if a.tool_choice else ''}.json").write_text(json.dumps({"summary": summ, "each": out, "plain": pl}, ensure_ascii=False, indent=1))
     print("[tools]", json.dumps(summ, ensure_ascii=False), flush=True)
 
 
