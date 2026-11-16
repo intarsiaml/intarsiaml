@@ -1,0 +1,35 @@
+fleetq: #9484 waiting (#11 in line): in line behind #9463 "mtt: gate 1 served ids 27B (lazy on/off/spec off)" (claude-2ae67a71) on endor
+fleetq:   #9463 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9463 set, or it will wait for #9463 to be released.
+fleetq: #9484 waiting (#10 in line): in line behind #9470 "mtt: TTFT ABBA 35b-4k (MTP on/off x lazy admission on/off)" (claude-2ae67a71) on endor
+fleetq:   #9470 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9470 set, or it will wait for #9470 to be released.
+fleetq: #9484 waiting (#9 in line): in line behind #9471 "mtt: TTFT ABBA 27b-4k (MTP on/off x lazy admission on/off)" (claude-2ae67a71) on endor
+fleetq:   #9471 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9471 set, or it will wait for #9471 to be released.
+fleetq: #9484 waiting (#8 in line): in line behind #9472 "mtt: TTFT ABBA 35b-34k (MTP on/off x lazy admission on/off)" (claude-2ae67a71) on endor
+fleetq:   #9472 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9472 set, or it will wait for #9472 to be released.
+fleetq: #9484 waiting (#6 in line): in line behind #9475 "mnr: NAX order probe 4 (quad order)" (claude-2ae67a71) on endor
+fleetq:   #9475 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9475 set, or it will wait for #9475 to be released.
+fleetq: #9484 waiting (#2 in line): in line behind #9481 "mnr: kernel tests + order probes + bench" (claude-2ae67a71) on endor
+fleetq:   #9481 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9481 set, or it will wait for #9481 to be released.
+fleetq: #9484 waiting (#1 in line): needs gpu quiet on endor, but #9481 "mnr: kernel tests + order probes + bench" (claude-2ae67a71) loads it
+fleetq:   #9481 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9481 set, or it will wait for #9481 to be released.
+fleetq: #9484 running on endor: scripts/mtt/plan.sh
+GATE plan Qwen3-8B-default-plain: exit 0/0, 1342 bytes, identical
+GATE plan Qwen3-8B-default-admit: exit 0/0, 1342 bytes, identical
+GATE plan Qwen3-8B-off-plain: exit 0/0, 1342 bytes, identical
+GATE plan Qwen3-8B-off-admit: exit 0/0, 1342 bytes, identical
+GATE plan Qwen3-8B-mtp-plain: exit 1/1, 0 bytes, identical (    unsupported: --spec mtp: the recipe has no [mtp] head)
+GATE plan Qwen3-8B-mtp-admit: exit 1/1, 0 bytes, identical (    unsupported: --spec mtp: the recipe has no [mtp] head)
+GATE plan Qwen3.8-27B-Quark-AWQ-MXFP4-default-plain: exit 0/0, 3272 bytes, identical
+GATE plan Qwen3.8-27B-Quark-AWQ-MXFP4-default-admit: exit 0/0, 3272 bytes, identical
+GATE plan Qwen3.8-27B-Quark-AWQ-MXFP4-off-plain: exit 0/0, 2768 bytes, identical
+GATE plan Qwen3.8-27B-Quark-AWQ-MXFP4-off-admit: exit 0/0, 2768 bytes, identical
+GATE plan Qwen3.8-27B-Quark-AWQ-MXFP4-mtp-plain: exit 0/0, 3272 bytes, identical
+GATE plan Qwen3.8-27B-Quark-AWQ-MXFP4-mtp-admit: exit 0/0, 3272 bytes, identical
+GATE plan Qwen3.6-35B-A3B-NVFP4-default-plain: exit 0/0, 3341 bytes, identical
+GATE plan Qwen3.6-35B-A3B-NVFP4-default-admit: exit 0/0, 3341 bytes, identical
+GATE plan Qwen3.6-35B-A3B-NVFP4-off-plain: exit 0/0, 2762 bytes, identical
+GATE plan Qwen3.6-35B-A3B-NVFP4-off-admit: exit 0/0, 2762 bytes, identical
+GATE plan Qwen3.6-35B-A3B-NVFP4-mtp-plain: exit 0/0, 3341 bytes, identical
+GATE plan Qwen3.6-35B-A3B-NVFP4-mtp-admit: exit 0/0, 3341 bytes, identical
+GATE plan: PASS
+fleetq: #9484 done (exit 0)

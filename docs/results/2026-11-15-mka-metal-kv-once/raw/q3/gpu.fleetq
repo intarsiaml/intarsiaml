@@ -1,0 +1,8 @@
+fleetq: #9646 waiting (#3 in line): in line behind #9642 "mstore: MTP+store gate 35b on merged head" (claude-2ae67a71) on endor
+fleetq:   #9642 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9642 set, or it will wait for #9642 to be released.
+fleetq: #9646 waiting (#2 in line): in line behind #9643 "mstore: MTP+store gate 27b on merged head" (claude-2ae67a71) on endor
+fleetq:   #9643 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9643 set, or it will wait for #9643 to be released.
+fleetq: #9646 waiting (#1 in line): needs gpu quiet on endor, but #9643 "mstore: MTP+store gate 27b on merged head" (claude-2ae67a71) loads it
+fleetq:   #9643 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9643 set, or it will wait for #9643 to be released.
+fleetq: #9646 running on endor: sh -c 'cd /opt/code/intarsiaml/.worktrees/mka && (cargo test --release --locked -p intarsia-backend-metal --test kv_once 2>&1 | grep '"'"'test result'"'"'; KVO_TEST_SHIPPED_POLICY=1 cargo test --release --locked -p intarsia-backend-metal --test kv_once 2>&1 | grep '"'"'test result'"'"'; scripts/mka/gates.sh smoke) > docs/results/2026-11-15-mka-metal-kv-once/raw/q3/gpu.out 2>&1; echo ALLDONE > docs/results/2026-11-15-mka-metal-kv-once/raw/q3/done'
+fleetq: #9646 done (exit 0)

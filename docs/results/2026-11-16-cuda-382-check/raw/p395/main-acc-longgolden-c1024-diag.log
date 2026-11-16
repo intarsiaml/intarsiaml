@@ -1,0 +1,51 @@
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 1024 (--prefill-chunk)
+mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4)
+verify attention rows: engaged (one row-table attention launch per layer)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_decode_v2_rows_bf16 matmul_nvfp4=matmul_nvfp4_gemv_rows silu_glu=silu_glu_bf16 moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 4538 of 36887 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /home/nvidia/intarsia-decfuse/pf-golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors (5 prompts, 36887 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine vllm 0.26.1rc1.dev602+g65b7662d3 | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision not in the model root path | dtype server | KV dtype fp8 | template chatml
+  reference cache config: {"_block_size_resolved": "True", "block_size": "2096", "cache_dtype": "fp8", "enable_prefix_caching": "True", "engine": "0", "gpu_memory_utilization": "0.5", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_max_concurrency": "80.22727272727273", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "2628887", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "16", "mamba_cache_dtype": "auto", "mamba_cache_mode": "align", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "float32", "num_cpu_blocks": "None", "num_gpu_blocks": "1765", "num_gpu_blocks_override": "None", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "skip_page_size_padded": "None", "sliding_window": "None", "use_replayssm": "False", "user_specified_block_size": "False", "user_specified_mamba_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server"} | prompt files ["golden_4k.jsonl", "golden_12k.jsonl"] | add_special_tokens true | max_model_len 32768 | launch flags: not observable through the API; note: guidance role on spark1: fp8 KV cache, prefix caching on (flags not visible)
+WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 1024; longest prompt 12064; prompts spanning more than one chunk: 5/5
+reference noise [sidecar /home/nvidia/intarsia-decfuse/pf-golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors.json]: run_to_run, KL21 all rows 2.218e-2 (n=36887), scored rows 8.417e-3 (n=32349), per-prompt values for 5 prompt(s); 2026-10-21; docs/results/2026-10-21-cuda-round7.md 3.1-3.2, raw/05-kl-table.txt (row 'vLLM re-run'); backfilled by the reference-noise gate lane (decision 2026-10-21 11:23 item 3, docs/decisions/LOG.md); estimator kl21-top20-vs-top20 (scripts/m3-accuracy/split.py rule); on our own rows it agrees with the tool-exact value to about 1e-4 relative (M3: 1.4198e-2 tool, 1.420e-2 setkl); factor 1 (default)
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 1024 (--prefill-chunk) NOT the recipe default: this run does not show that the default passes; restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+long_docs_4k: committed continue oracle /home/nvidia/intarsia-decfuse/pf-golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000-g4k.continue-oracle.safetensors: not used, the golden's prompt token ids differ from the ones it was made for
+    continue judged against the committed CPU oracle qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000.continue-oracle.safetensors: mean KL(oracle||cold) 1.63e-2, mean KL(oracle||warm) 1.32e-2, warm/cold 0.81x; limit 1.5x cold + 3e-3 = 2.74e-2: PASS
+long_docs_4k continue split 2000 turn2 4080 cached 2015 agree 27/32
+  logit-level diagnostics (32 rows each, chunk 1024, reused 2015 of 4080 prompt tokens):
+    warm run vs warm run again (determinism)     rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold run vs cold run again (determinism)     rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    streams: warm == warm again true, cold == cold again true
+    engine warm vs scripted replay of warm       rows  32  bitwise   0  argmax flips  3  KL mean 2.01e-2 max 2.54e-1  max|dlogit| 3.383e0
+    engine cold vs scripted replay of cold       rows  32  bitwise   0  argmax flips  1  KL mean 6.29e-3 max 3.22e-2  max|dlogit| 3.975e0
+    warm vs cold (same context)                  rows  32  bitwise   0  argmax flips  0  KL mean 1.67e-2 max 1.57e-1  max|dlogit| 3.936e0
+    cold chunk 1024 vs cold chunk 512            rows  32  bitwise   0  argmax flips  1  KL mean 9.48e-3 max 5.37e-2  max|dlogit| 2.164e0
+    cold chunk 1024 vs cold chunk 1023           rows  32  bitwise   0  argmax flips  1  KL mean 1.45e-2 max 5.89e-2  max|dlogit| 4.398e0
+    cold chunk 1024 vs cold chunk 2048           rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold vs warm with prefilled (not decoded) reply rows  32  bitwise   0  argmax flips  1  KL mean 1.34e-2 max 1.29e-1  max|dlogit| 3.727e0
+    warm vs warm with prefilled reply (decode-KV only) rows  32  bitwise   0  argmax flips  1  KL mean 9.22e-3 max 8.31e-2  max|dlogit| 2.363e0
+    first divergence at token 27: warm took 1396, cold took 13914; warm run: lp[1396]-lp[13914] = +0.0366; cold run: lp[13914]-lp[1396] = +0.3351; KL(cold||warm) at this row 4.83e-2
+long_docs_4k restore split 2000 turn2 4064 cached 0 agree 32/32
+  logit-level diagnostics (32 rows each, chunk 1024, reused 0 of 4064 prompt tokens):
+    warm run vs warm run again (determinism)     rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold run vs cold run again (determinism)     rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    streams: warm == warm again true, cold == cold again true
+    engine warm vs scripted replay of warm       rows  32  bitwise   0  argmax flips  3  KL mean 8.78e-3 max 5.36e-2  max|dlogit| 2.951e0
+    engine cold vs scripted replay of cold       rows  32  bitwise   0  argmax flips  3  KL mean 8.78e-3 max 5.36e-2  max|dlogit| 2.951e0
+    warm vs cold (same context)                  rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+    cold chunk 1024 vs cold chunk 512            rows  32  bitwise   0  argmax flips  1  KL mean 9.70e-3 max 3.52e-2  max|dlogit| 2.500e0
+    cold chunk 1024 vs cold chunk 1023           rows  32  bitwise   0  argmax flips  3  KL mean 1.16e-2 max 4.21e-2  max|dlogit| 2.338e0
+    cold chunk 1024 vs cold chunk 2048           rows  32  bitwise  32  argmax flips  0  KL mean 0.00e0 max 0.00e0  max|dlogit| 0.000e0
+Error: bad request: empty token list

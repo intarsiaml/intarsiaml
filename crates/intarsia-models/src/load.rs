@@ -681,6 +681,22 @@ pub fn batched_mtp_for(recipe: &intarsia_core::recipe::Recipe, backend: &str, wo
     })
 }
 
+/// Whether batched verify (lane bm phase B: the sequences that draft in a step verify in ONE ragged pass) is asked for on `backend`:
+/// `INTARSIA_BATCHED_VERIFY=1`. The plan must know before it is built (lane mx6): a batched pass has more rows than a solo verify
+/// pass, so the plan probes and admits those row counts only when this is on, and the engine (`BatchedOptions::batched_verify`) runs
+/// the pass only where the plan covers it. Whatever turns it on by default must be decided here, before `configure_plan`.
+pub fn batched_verify_for(recipe: &intarsia_core::recipe::Recipe, backend: &str) -> bool {
+    // lane flipprep's rule: `INTARSIA_BATCHED_VERIFY` wins both ways (`1` on, anything else off) where set and non-empty; else the recipe's
+    // `[tuning.<backend>] batched_verify`; unset in both: off
+    intarsia_core::engine::bool_env_opt("INTARSIA_BATCHED_VERIFY").unwrap_or_else(|| recipe.resolve_batched_verify(backend).unwrap_or(false))
+}
+
+/// Most sequences of one batched verify pass for this load: the sequences that draft together ([`batched_mtp_for`], at most
+/// `--spec-off-at` - 1 and `--max-batch`); under 2 there is no batched pass to plan.
+pub fn batched_verify_seqs_for(mtp_max_b: usize, spec_off_at: Option<usize>, max_batch: usize) -> usize {
+    mtp_max_b.min(spec_off_at.unwrap_or(intarsia_core::scheduler::SPEC_OFF_AT_DEFAULT).saturating_sub(1)).min(max_batch)
+}
+
 fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> {
     if crate::dsv41_engine::is_rank_cache(dir) {
         return load_dsv41(dir, group, opts);
@@ -967,6 +983,9 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         }
         model.enable_verify(opts.spec.verify_rows())?;
     }
+    // lane mx6: batched verify is resolved ONCE, before the plan (below) and used again for the engine's option, so the plan covers
+    // exactly the passes the engine may run
+    let batched_verify_asked = max_batch.value > 1 && batched_verify_for(&recipe, backend_name);
     if max_batch.value > 1 {
         // Metal: only the hybrid 35B opts in (row-exact fp8 / nvfp4 / expert-grouped kernels, lane mb); a dense model keeps the
         // path it always had
@@ -985,6 +1004,17 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         }
         // refuses a non-dense model without the opt-in, a remote tensor-parallel rank, and --tp > 1 on any backend but hip (and cpu)
         model.enable_batch(max_batch.value)?;
+        // lane mx6: batched verify passes (opt-in) have more rows than a solo verify pass: the plan probes and admits those row counts
+        // (`Model::enable_verify_batch`); a model that cannot batch its verify passes just keeps per-sequence verify
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && model.verify_rows() >= 2 && batched_verify_asked {
+            let n = batched_verify_seqs_for(batched_mtp_for(&recipe, backend_name, backends.len(), local)?, opts.spec_off_at, max_batch.value);
+            if n >= 2 {
+                match model.enable_verify_batch(n) {
+                    Ok(()) => eprintln!("batched verify: the plan covers passes of up to {n} sequences ({} rows)", model.verify_batch_rows()),
+                    Err(e) => eprintln!("batched verify: not planned, verify passes run per sequence ({e})"),
+                }
+            }
+        }
     }
     let summary = model.configure_plan(&opts.plan, Some(&*oracle))?;
     if model.has_dspine() {
@@ -1067,6 +1097,18 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
                     format!("recipe {}, [tuning.{backend_name}] batched_mtp", recipe.model.family)
                 },
                 bo.mtp_max_b.min(bo.spec_off_at.saturating_sub(1))
+            );
+        }
+        // lane flipprep: the recipe's `[tuning.<backend>] verify_topk` applies where the env var is unset or empty (the env var wins both ways); unset in both: off.
+        // Batched verify is resolved once before the plan (`batched_verify_for`, lane mx6) and the engine gets the value the plan was built for
+        bo.batched_verify = batched_verify_asked;
+        if intarsia_core::engine::bool_env_opt("INTARSIA_VERIFY_TOPK").is_none() {
+            bo.verify_topk = recipe.resolve_verify_topk(backend_name).unwrap_or(false);
+        }
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && (bo.batched_verify || bo.verify_topk) {
+            eprintln!(
+                "batched MTP verify: batched_verify {} (INTARSIA_BATCHED_VERIFY or recipe [tuning.{backend_name}] batched_verify), verify_topk {} (INTARSIA_VERIFY_TOPK or recipe verify_topk)",
+                bo.batched_verify, bo.verify_topk
             );
         }
         if let Some(n) = opts.busy_chunk {

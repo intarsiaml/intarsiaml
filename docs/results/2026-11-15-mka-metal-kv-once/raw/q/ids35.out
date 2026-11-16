@@ -1,0 +1,11 @@
+SAME 35b short spec=default | base 6292d0f4 n=256 passes=100 proposed=200 accepted=154 decode 1372 ms (185.85 tok/s) | off 6292d0f4 n=256 passes=100 proposed=200 accepted=154 decode 1353 ms (188.44 tok/s) | on 6292d0f4 n=256 passes=100 proposed=200 accepted=154 decode 1350 ms (188.89 tok/s)
+SAME 35b 4k spec=default | base bda48660 n=256 passes=99 proposed=198 accepted=155 decode 1622 ms (157.21 tok/s) | off bda48660 n=256 passes=99 proposed=198 accepted=155 decode 1462 ms (174.44 tok/s) | on bda48660 n=256 passes=98 proposed=196 accepted=156 decode 1423 ms (179.17 tok/s)
+SAME 35b 4kb spec=default | base cff47c31 n=256 passes=96 proposed=192 accepted=159 decode 1418 ms (179.81 tok/s) | off cff47c31 n=256 passes=96 proposed=192 accepted=159 decode 1417 ms (180.01 tok/s) | on cff47c31 n=256 passes=96 proposed=192 accepted=159 decode 1375 ms (185.44 tok/s)
+SAME 35b 16k spec=default | base 96878328 n=256 passes=99 proposed=197 accepted=156 decode 1830 ms (139.35 tok/s) | off 96878328 n=256 passes=99 proposed=197 accepted=156 decode 1992 ms (127.99 tok/s) | on 96878328 n=256 passes=99 proposed=197 accepted=156 decode 1824 ms (139.81 tok/s)
+SAME 35b 32k spec=default | base 6acc4f5f n=256 passes=93 proposed=186 accepted=162 decode 2300 ms (110.86 tok/s) | off 6acc4f5f n=256 passes=93 proposed=186 accepted=162 decode 2272 ms (112.21 tok/s) | on 6acc4f5f n=256 passes=93 proposed=186 accepted=162 decode 2012 ms (126.75 tok/s)
+SAME 35b short spec=off | base 6292d0f4 n=256  decode 2031 ms (125.53 tok/s) | off 6292d0f4 n=256  decode 2040 ms (125.00 tok/s) | on 6292d0f4 n=256  decode 2041 ms (124.96 tok/s)
+SAME 35b 4k spec=off | base bda48660 n=256  decode 2527 ms (100.92 tok/s) | off bda48660 n=256  decode 2580 ms (98.83 tok/s) | on bda48660 n=256  decode 2479 ms (102.87 tok/s)
+SAME 35b 4kb spec=off | base cff47c31 n=256  decode 2259 ms (112.87 tok/s) | off cff47c31 n=256  decode 2122 ms (120.18 tok/s) | on cff47c31 n=256  decode 2107 ms (121.03 tok/s)
+SAME 35b 16k spec=off | base 96878328 n=256  decode 2358 ms (108.13 tok/s) | off 96878328 n=256  decode 2332 ms (109.35 tok/s) | on 96878328 n=256  decode 2339 ms (109.04 tok/s)
+SAME 35b 32k spec=off | base 6acc4f5f n=256  decode 3427 ms (74.41 tok/s) | off 6acc4f5f n=256  decode 3474 ms (73.41 tok/s) | on 6acc4f5f n=256  decode 3109 ms (82.01 tok/s)
+## done ids35

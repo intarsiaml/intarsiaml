@@ -1,0 +1,29 @@
+fleetq: #9630 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #9630 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 51% busy with work fleetq does not track
+fleetq: #9630 running on tatooine-r9700, tatooine-r9700-2: scripts/mtp-snap-gpu/exact-window.sh
+23:56:32 guard: [guard] radiance stopped 2026-11-15 23:56:31
+23:56:32 serve pr-c4096-default-warm: bin=pr extra='' env=''
+23:56:54 serve pr-c4096-default-warm: up after 24 s
+A c4096 prompt 8700 cached 0 completion 32 spec delta {'intarsia_spec_steps_total': 11.0, 'intarsia_spec_proposed_tokens_total': 22.0, 'intarsia_spec_accepted_tokens_total': 19.0, 'intarsia_tokens_cached_total': 0.0}
+B c4096 prompt 5300 cached 4096 completion 128 spec delta {'intarsia_spec_steps_total': 43.0, 'intarsia_spec_proposed_tokens_total': 86.0, 'intarsia_spec_accepted_tokens_total': 84.0, 'intarsia_tokens_cached_total': 4096.0}
+23:56:57 serve pr-c4096-exact-warm: bin=pr extra='' env='INTARSIA_PREFIX_REUSE=exact'
+23:57:18 serve pr-c4096-exact-warm: up after 24 s
+A c4096 prompt 8700 cached 0 completion 32 spec delta {'intarsia_spec_steps_total': 11.0, 'intarsia_spec_proposed_tokens_total': 22.0, 'intarsia_spec_accepted_tokens_total': 19.0, 'intarsia_tokens_cached_total': 0.0}
+B c4096 prompt 5300 cached 4096 completion 128 spec delta {'intarsia_spec_steps_total': 43.0, 'intarsia_spec_proposed_tokens_total': 86.0, 'intarsia_spec_accepted_tokens_total': 84.0, 'intarsia_tokens_cached_total': 4096.0}
+23:57:21 serve main-c4096-default-warm: bin=main extra='' env=''
+23:57:43 serve main-c4096-default-warm: up after 24 s
+A c4096 prompt 8700 cached 0 completion 32 spec delta {'intarsia_spec_steps_total': 11.0, 'intarsia_spec_proposed_tokens_total': 22.0, 'intarsia_spec_accepted_tokens_total': 19.0, 'intarsia_tokens_cached_total': 0.0}
+B c4096 prompt 5300 cached 0 completion 128 spec delta {'intarsia_spec_steps_total': 43.0, 'intarsia_spec_proposed_tokens_total': 86.0, 'intarsia_spec_accepted_tokens_total': 84.0, 'intarsia_tokens_cached_total': 0.0}
+23:57:46 serve main-c4096-macro0-warm: bin=main extra='' env='INTARSIA_PREFILL_MACRO=0'
+23:58:07 serve main-c4096-macro0-warm: up after 24 s
+A c4096 prompt 8700 cached 0 completion 32 spec delta {'intarsia_spec_steps_total': 11.0, 'intarsia_spec_proposed_tokens_total': 22.0, 'intarsia_spec_accepted_tokens_total': 19.0, 'intarsia_tokens_cached_total': 0.0}
+B c4096 prompt 5300 cached 4096 completion 128 spec delta {'intarsia_spec_steps_total': 43.0, 'intarsia_spec_proposed_tokens_total': 86.0, 'intarsia_spec_accepted_tokens_total': 84.0, 'intarsia_tokens_cached_total': 4096.0}
+23:58:10 serve pr-c4096-cold: bin=pr extra='' env=''
+23:58:32 serve pr-c4096-cold: up after 24 s
+B c4096 prompt 5300 cached 0 completion 128 spec delta {'intarsia_spec_steps_total': 43.0, 'intarsia_spec_proposed_tokens_total': 86.0, 'intarsia_spec_accepted_tokens_total': 84.0, 'intarsia_tokens_cached_total': 0.0}
+23:58:34 serve main-c4096-cold: bin=main extra='' env=''
+23:58:55 serve main-c4096-cold: up after 24 s
+B c4096 prompt 5300 cached 0 completion 128 spec delta {'intarsia_spec_steps_total': 43.0, 'intarsia_spec_proposed_tokens_total': 86.0, 'intarsia_spec_accepted_tokens_total': 84.0, 'intarsia_tokens_cached_total': 0.0}
+23:58:57 done, time left 2251s
+23:59:08 guard: [guard] radiance answers 2026-11-15 23:59:07 (after 15 s)
+fleetq: #9630 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -820,6 +820,31 @@ fn batched_mtp_default_only_where_measured_and_env_wins() {
     assert_eq!(got, ["qwen3_5_moe cuda 1", "qwen3_5_moe metal 1"], "the recipes that turn batched MTP on by default");
 }
 
+/// Lane flipprep: `[tuning.<backend>] batched_verify` / `verify_topk` are recipe keys (unset: off). The shipped recipes set them for exactly the
+/// pairs measured, and the keys resolve per backend. PR 1 (this test) ships no recipe that sets either.
+#[test]
+fn shipped_recipes_set_batched_verify_and_verify_topk_only_where_measured() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../recipes");
+    let mut got = Vec::new();
+    for e in std::fs::read_dir(&dir).unwrap() {
+        let path = e.unwrap().path();
+        if path.extension().is_none_or(|x| x != "toml") {
+            continue;
+        }
+        let r = intarsia_models::parse_recipe(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        for backend in ["cpu", "cuda", "hip", "metal"] {
+            if r.resolve_batched_verify(backend).is_some() {
+                got.push(format!("{} {backend} batched_verify {:?}", r.model.family, r.resolve_batched_verify(backend)));
+            }
+            if r.resolve_verify_topk(backend).is_some() {
+                got.push(format!("{} {backend} verify_topk {:?}", r.model.family, r.resolve_verify_topk(backend)));
+            }
+        }
+    }
+    got.sort();
+    assert_eq!(got, Vec::<String>::new(), "the recipes that set batched verify / verify top-k");
+}
+
 /// lane dsubset: `--mtp-draft-subset` at tp = 2 (replicated or vocab-parallel head; drafter split or whole on rank 0) drafts
 /// exactly what it drafts at tp = 1: rank 0 gathers the subset's rows from the whole head and maps its argmax to token ids.
 #[test]
@@ -843,4 +868,25 @@ fn mtp_tp2_draft_subset_drafts_equal_tp1() {
         }
     }
     assert!(outside > 0, "some drafts past rank 0's vocab-parallel share");
+}
+
+/// Lane mx6: the plan and the engine read ONE batched-verify value (`load::batched_verify_for`): `INTARSIA_BATCHED_VERIFY` wins both ways where set and
+/// non-empty (`1` on, anything else off), else the recipe's `[tuning.<backend>] batched_verify`, else off.
+#[test]
+fn batched_verify_for_reads_the_env_first_then_the_recipe() {
+    use intarsia_models::load::batched_verify_for;
+    let mut moe = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5_moe.toml")).unwrap();
+    std::env::remove_var("INTARSIA_BATCHED_VERIFY");
+    assert!(!batched_verify_for(&moe, "cuda"), "no recipe key: off");
+    moe.tuning.backends.get_mut("cuda").unwrap().batched_verify = Some(true);
+    assert!(batched_verify_for(&moe, "cuda"), "the recipe turns it on");
+    assert!(!batched_verify_for(&moe, "metal"), "per backend");
+    std::env::set_var("INTARSIA_BATCHED_VERIFY", "");
+    assert!(batched_verify_for(&moe, "cuda"), "empty: the recipe applies");
+    std::env::set_var("INTARSIA_BATCHED_VERIFY", "0");
+    assert!(!batched_verify_for(&moe, "cuda"), "the env var wins off");
+    moe.tuning.backends.get_mut("cuda").unwrap().batched_verify = None;
+    std::env::set_var("INTARSIA_BATCHED_VERIFY", "1");
+    assert!(batched_verify_for(&moe, "cuda"), "the env var wins on");
+    std::env::remove_var("INTARSIA_BATCHED_VERIFY");
 }

@@ -1,0 +1,8 @@
+thread 'mtp_macro_prefill_keeps_chunk_snapshots_with_the_heads_position' (10954824) panicked at crates/intarsia-models/tests/mtp.rs:1706:9:
+assertion `left == right` failed: a snapshot at the chunk end 16
+  left: 0
+ right: 16
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+--
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.09s
+

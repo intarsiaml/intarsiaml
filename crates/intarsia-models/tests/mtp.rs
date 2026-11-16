@@ -1471,7 +1471,7 @@ fn cost_gate_with_scripted_drafts_stays_identical() {
 /// `recipe_dv` and the load option `opt` (`None`: the flag was not given).
 fn drafts_of(w: &MemWeights, recipe_dv: Option<usize>, opt: Option<usize>) -> Vec<Vec<u32>> {
     let (mut recipe, dims) = dims();
-    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None, prefill_peel_period: None, prefill_macro: None, mtp_default_tp_k: None, mtp_default_k: None, mtp_default_k_min: None, batched_mtp: None, mxfp4_act: None, busy_chunk: None, tp_partial: None, lm_head_quant: None, mtp_quant: None, gdn_state: None });
+    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None, prefill_peel_period: None, prefill_macro: None, mtp_default_tp_k: None, mtp_default_k: None, mtp_default_k_min: None, batched_mtp: None, batched_verify: None, verify_topk: None, mxfp4_act: None, busy_chunk: None, tp_partial: None, lm_head_quant: None, mtp_quant: None, gdn_state: None });
     let opts = LoadOptions {
         max_seq: 512,
         prefill_chunk: 8,
@@ -1651,6 +1651,126 @@ fn mtp_model_takes_the_macro_prefill_pass_and_the_head_follows() {
     assert_eq!((c.spec_steps, c.spec_proposed, c.spec_accepted), (m.spec_steps, m.spec_proposed, m.spec_accepted), "same drafts");
 }
 
+/// Lane mtp-snap: a macro prefill pass with an MTP state attached keeps the snapshots of its inner chunk ends (as #382 does without
+/// one), and each carries the head's position there: its cache cut to `len - 1` and the pass's hidden row of `len - 1` queued. A
+/// restore from an inner snapshot leaves the main model's recurrent state AND the head's state (cache length, K / V, queued row)
+/// bitwise what the plain chunk-by-chunk schedule's restore leaves; the continuation's logits and drafts follow. The engine resumes
+/// at the last chunk end in a shared prefix with the plain schedule's cached length, ids and drafts (before: the macro pass
+/// snapshotted only its end, so nothing below it was reused).
+#[test]
+fn mtp_macro_prefill_keeps_chunk_snapshots_with_the_heads_position() {
+    let w = weights(13);
+    let (recipe, dims) = dims();
+    const C: usize = 16;
+    let opts = |macro_rows: Option<usize>| LoadOptions {
+        max_seq: 512,
+        prefill_chunk: C,
+        act_dtype: Some(DType::F32),
+        kv_dtype: Some(DType::F32),
+        fp8_act: Some(Fp8Act::None),
+        mtp: true,
+        prefill_macro: macro_rows,
+        ..Default::default()
+    };
+    let mut plain = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts(Some(0)), Arc::new(Telemetry::new())).unwrap();
+    let mut mac = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts(Some(64)), Arc::new(Telemetry::new())).unwrap();
+    for m in [&mut plain, &mut mac] {
+        m.enable_verify(3).unwrap();
+        m.configure_plan(&Default::default(), None).unwrap();
+    }
+    let be = CpuBackend::arc();
+    let bytes = |b: &Buffer, n: usize| {
+        let mut v = vec![0u8; n];
+        be.download(b, 0, &mut v, 0).unwrap();
+        v
+    };
+    // every recurrent slot, and the head's cache length, K / V, queue length and queued rows
+    let dump = |st: &intarsia_core::state::SequenceState| {
+        use intarsia_core::state::StateSlot;
+        let rec: Vec<Vec<u8>> =
+            st.slots.iter().filter_map(|s| if let StateSlot::Recurrent(r) = s { Some(bytes(&r.buf, r.bytes)) } else { None }).collect();
+        let m = st.mtp.as_ref().expect("the MTP state");
+        let kv = match &m.kv.slots[0] {
+            StateSlot::AttnKv(a) => (bytes(&a.k, a.k.bytes()), bytes(&a.v, a.v.bytes())),
+            _ => panic!("the head's cache slot"),
+        };
+        (rec, m.base, m.kv.len, m.pending_rows, bytes(&m.pending, m.pending_rows * m.row_bytes), kv)
+    };
+    let t1: Vec<u32> = (0..55).map(|i| (i * 7 + 3) % 90).collect();
+    let tail: Vec<u32> = (0..20).map(|i| (i * 13 + 1) % 90).collect();
+    let resumed = |m: &Model, cut: usize| {
+        let mut st = m.new_state().unwrap();
+        st.prefill_snapshots = intarsia_core::state::RECURRENT_SNAPSHOTS;
+        assert!(matches!(m.forward_prefill(&mut st, &t1, HeadMode::None, None).unwrap(), StepOut::None));
+        st.prefill_snapshots = 0;
+        assert_eq!(st.restorable_len(cut), cut, "a snapshot at the chunk end {cut}");
+        st.truncate(cut, &*be).unwrap();
+        let at_cut = dump(&st);
+        let l = match m.forward(&mut st, &tail, HeadMode::LastLogits, None).unwrap() {
+            StepOut::Logits(l) => l,
+            o => panic!("{o:?}"),
+        };
+        let next = l.iter().enumerate().fold((0, f32::MIN), |b, (i, &x)| if x > b.1 { (i, x) } else { b }).0 as u32;
+        let after = dump(&st);
+        let drafts = m.mtp_draft(&mut st, next, 2).unwrap();
+        (at_cut, l, after, drafts)
+    };
+    for cut in [C, 2 * C] {
+        let before = mac.macro_passes();
+        let (a, b) = (resumed(&plain, cut), resumed(&mac, cut));
+        assert!(mac.macro_passes() > before, "the MTP model ran a macro pass");
+        assert_eq!(plain.macro_passes(), 0);
+        assert_eq!(a.0 .2, cut - 1, "the plain schedule's head trails the cut by one row");
+        assert_eq!(a.0 .3, 1);
+        assert!(a.0 .1 == 0 && a.0 .5 .0.iter().any(|&x| x != 0), "the head followed the sequence from its start");
+        assert!(a.0 == b.0, "cut {cut}: recurrent state and the head's state after the restore equal the plain schedule's");
+        assert_eq!(a.1, b.1, "cut {cut}: the continuation's logits");
+        assert!(a.2 == b.2, "cut {cut}: recurrent and head state after the continuation");
+        assert_eq!(a.3, b.3, "cut {cut}: drafts after the continuation");
+    }
+
+    // the engine: turn 1 = the first 2 chunks + 4 rows of the prompt, then 20 other tokens (its body runs as one macro pass);
+    // turn 2 = the whole 64-token prompt resumes at 32, as with the plain schedule, with the same ids and drafts
+    let engine_macro = |macro_rows: Option<usize>, k: Option<usize>| {
+        let tel = Arc::new(Telemetry::new());
+        let o = LoadOptions { max_seq: 512, prefill_chunk: C, fp8_act: Some(Fp8Act::None), mtp: k.is_some(), profile_every: 0, prefill_macro: macro_rows, ..Default::default() };
+        let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &o, tel.clone()).unwrap();
+        let spec = match k {
+            Some(k) => {
+                m.enable_verify(k + 1).unwrap();
+                m.configure_plan(&Default::default(), None).unwrap();
+                SpecConfig { mode: SpecMode::Mtp, k, k_min: None }
+            }
+            None => SpecConfig::default(),
+        };
+        let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone()).unwrap();
+        (e, tel)
+    };
+    let full: Vec<u32> = (0..4 * C as u32).map(|i| (i * 11 + 5) % 90).collect();
+    let shared = 2 * C + 4;
+    let mut t1 = full[..shared].to_vec();
+    t1.extend(full[shared..shared + 20].iter().map(|&t| 1 + (t * 3) % 94));
+    let (off, _) = engine_macro(Some(0), None);
+    let cold = run(&off, req(&full, 24));
+    let warm = |e: &LocalEngine| {
+        run(e, req(&[95, 94, 93], 4));
+        run(e, req(&t1, 12));
+        run(e, req(&full, 24))
+    };
+    let (chunked, tel_c) = engine_macro(Some(0), Some(2));
+    let (mac_e, tel_m) = engine_macro(Some(64), Some(2));
+    let want = warm(&chunked);
+    assert_eq!(want.cached_tokens, 2 * C, "the plain schedule resumes at the last chunk end in the shared prefix");
+    assert_eq!(want.ids, cold.ids);
+    let passes0 = intarsia_core::model::MACRO_PASSES_TOTAL.load(std::sync::atomic::Ordering::Relaxed);
+    let got = warm(&mac_e);
+    assert!(intarsia_core::model::MACRO_PASSES_TOTAL.load(std::sync::atomic::Ordering::Relaxed) > passes0, "no macro pass ran");
+    assert_eq!(got, want, "macro + MTP: cached tokens and ids equal the plain schedule's");
+    let (c, m) = (tel_c.snapshot(), tel_m.snapshot());
+    assert!(m.spec_steps > 0 && m.spec_proposed > 0, "the head drafted");
+    assert_eq!((c.spec_steps, c.spec_proposed, c.spec_accepted), (m.spec_steps, m.spec_proposed, m.spec_accepted), "same drafts");
+}
+
 // ------------------------------------------------------------------------------------------------------------------
 // prefill tail peel period (recipe `prefill_peel_period`)
 // ------------------------------------------------------------------------------------------------------------------
@@ -1667,7 +1787,7 @@ fn prefill_peel_period_reaches_the_model_and_the_prefix_store_key() {
             "cpu".into(),
             intarsia_core::recipe::BackendTuning {
                 prefill_chunk: None, mtp_draft_vocab: None, prefill_peel: peel, prefill_peel_period: period, prefill_macro: None,
-                mtp_default_tp_k: None, mtp_default_k: None, mtp_default_k_min: None, batched_mtp: None, mxfp4_act: None, busy_chunk: None, tp_partial: None, lm_head_quant: None, mtp_quant: None, gdn_state: None,
+                mtp_default_tp_k: None, mtp_default_k: None, mtp_default_k_min: None, batched_mtp: None, batched_verify: None, verify_topk: None, mxfp4_act: None, busy_chunk: None, tp_partial: None, lm_head_quant: None, mtp_quant: None, gdn_state: None,
             },
         );
         let opts = LoadOptions { max_seq: 512, prefill_chunk: 8, fp8_act: Some(Fp8Act::None), profile_every: 0, ..Default::default() };
@@ -1733,6 +1853,10 @@ fn batched_mtp(
     m.enable_verify(k + 1).unwrap();
     m.allow_recurrent_batch().unwrap();
     m.enable_batch(rows).unwrap();
+    if verify && mtp_max_b.min(rows) >= 2 {
+        // lane mx6: the engine runs batched verify only where the plan covers its row counts
+        m.enable_verify_batch(mtp_max_b.min(rows)).unwrap();
+    }
     m.configure_plan(&Default::default(), None).unwrap();
     if script.is_some() {
         m.mtp_script(script).unwrap();
@@ -1877,6 +2001,18 @@ fn batched_mtp_with_packed_prefill_equals_solo() {
 /// rounds of mixed segment lengths 1..4 with drafts accepted and rejected.
 #[test]
 fn batched_verify_pass_equals_each_sequences_solo_verify() {
+    batched_verify_pass_check(None);
+}
+
+/// Lane mx6: the same with the plan covering batched passes of up to 2 sequences (`Model::enable_verify_batch`): a pass of two
+/// sequences runs the recorded ragged shape, a pass of three (beyond the plan) runs as one solo verify pass per sequence, and
+/// every row and every state stays bitwise the solo run's either way.
+#[test]
+fn planned_batched_verify_pass_equals_each_sequences_solo_verify() {
+    batched_verify_pass_check(Some(2));
+}
+
+fn batched_verify_pass_check(plan: Option<usize>) {
     let w = weights(11);
     let (recipe, dims) = dims();
     let opts = LoadOptions { max_seq: 512, prefill_chunk: 16, fp8_act: Some(Fp8Act::None), mtp: true, profile_every: 0, ..Default::default() };
@@ -1884,7 +2020,11 @@ fn batched_verify_pass_equals_each_sequences_solo_verify() {
     m.enable_verify(4).unwrap();
     m.allow_recurrent_batch().unwrap();
     m.enable_batch(4).unwrap();
+    if let Some(n) = plan {
+        m.enable_verify_batch(n).unwrap();
+    }
     m.configure_plan(&Default::default(), None).unwrap();
+    assert_eq!(m.verify_batch_seqs(), plan.unwrap_or(0), "the plan keeps batched verify on (the cpu kernels cover every row count)");
     let be = m.backend.clone();
     let prompts: [&[u32]; 3] = [&[3, 9, 27, 81, 50, 7, 7, 1, 60, 2, 33, 33, 12], &[90, 1, 2, 3, 4, 5], &[44; 21]];
     let mut bat: Vec<_> = (0..3).map(|_| m.new_state().unwrap()).collect();
@@ -2903,6 +3043,9 @@ fn batched_store_mtp(mtp_max_b: usize, verify: bool, script: bool, pause: bool) 
     m.enable_verify(k + 1).unwrap();
     m.allow_recurrent_batch().unwrap();
     m.enable_batch(2).unwrap();
+    if verify && mtp_max_b.min(2) >= 2 {
+        m.enable_verify_batch(mtp_max_b.min(2)).unwrap();
+    }
     m.configure_plan(&Default::default(), None).unwrap();
     if script {
         m.mtp_script(Some(scripted(truth, 5))).unwrap();
@@ -3201,6 +3344,8 @@ fn draft_subset_batched_mtp_equals_solo() {
         m.enable_verify(3).unwrap();
         m.allow_recurrent_batch().unwrap();
         m.enable_batch(2).unwrap();
+        // lane mx6: the engine runs batched verify only where the plan covers its row counts
+        m.enable_verify_batch(2).unwrap();
         m.configure_plan(&Default::default(), None).unwrap();
         let mut o = intarsia_core::BatchedOptions::new(2, 64);
         o.mtp_max_b = 2;

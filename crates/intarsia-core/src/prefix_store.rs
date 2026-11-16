@@ -602,6 +602,14 @@ fn tier_idx(t: Tier) -> usize {
     t as usize
 }
 
+/// Dropping the store (an engine shut down, a server stopping) waits for the disk writer, so an entry whose objects were
+/// queued for disk before the drop is on disk afterwards and survives a restart (lane mstore). Bounded like [`PrefixStore::flush`].
+impl Drop for PrefixStore {
+    fn drop(&mut self) {
+        self.flush();
+    }
+}
+
 impl PrefixStore {
     /// A store for states laid out as `specs`. `build_desc` describes everything that can change the bits a prefill
     /// produces (the caller's [`describe_build`]); its fingerprint salts every key and names the disk directory.
