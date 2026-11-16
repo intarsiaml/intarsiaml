@@ -6,6 +6,9 @@
 #   tests   the HIP GPU test suite (benches left out); the tiny-model macro / packed prefill tests (batch_recurrent in full,
 #           incl. the new macro_prefill_keeps_chunk_snapshots_for_reuse; mtp's packed / macro ones) on HIP; the real-35B macro ==
 #           plain schedule and batched == local engine tests; the real-35B hybrid prefix-reuse gate (engine_hybrid_reuse_equals_cold)
+#   mytest  batch_recurrent's macro_prefill_keeps_chunk_snapshots_for_reuse alone on HIP
+#   hrbase  engine_hybrid_reuse_equals_cold on HIP from the origin/main tree ~/intarsiaml-a4k-restore-base (build-base.sh), and on
+#           this tree with INTARSIA_PREFILL_MACRO=0: is its HIP failure this branch's?
 set -u
 . "$(dirname "$0")/lib.sh"
 cd "$TREE"
@@ -35,5 +38,16 @@ if has tests; then
     real_35b_macro_prefill_is_bitwise_the_plain_schedule real_35b_batched_macro_prefill_equals_the_plain_local_engine real_35b_batched_engine_long_prompts_equal_the_local_engine
   E="INTARSIA_PROBE_BACKEND=hip INTARSIA_PROBE_DIR=$M35 INTARSIA_REQUIRE_GPU=1" run 0 900 hybrid-reuse cargo test --release --no-fail-fast -p intarsia-models --test hybrid_reuse_real -- --nocapture --test-threads=1 engine_hybrid_reuse_equals_cold
   grep -ahE "^test result|FAILED|panicked|^test .* \.\.\. FAILED|SKIPPED" "$O"/hip-tests.out "$O"/models-tests*.out "$O"/hybrid-reuse.out "$O"/hybrid-reuse.err | sort | uniq -c | tee -a "$O/steps.log"
+fi
+if has mytest; then
+  E="INTARSIA_BATCH_TEST_BACKEND=hip" run 0 600 models-mytest cargo test --release --no-fail-fast -p intarsia-models --test batch_recurrent -- --test-threads=1 macro_prefill_keeps
+  grep -ahE "^test |^test result" "$O/models-mytest.out" | tee -a "$O/steps.log"
+fi
+if has hrbase; then
+  HR="INTARSIA_PROBE_BACKEND=hip INTARSIA_PROBE_DIR=$M35 INTARSIA_REQUIRE_GPU=1"
+  INTARSIA_REPO=$HOME/intarsiaml-a4k-restore-base INTARSIA_TARGET_VOL=intarsia-cargo-target-a4k-restore-base E="$HR" run 0 900 hybrid-reuse-base \
+    cargo test --release --no-fail-fast -p intarsia-models --test hybrid_reuse_real -- --nocapture --test-threads=1 engine_hybrid_reuse_equals_cold
+  E="$HR INTARSIA_PREFILL_MACRO=0" run 0 900 hybrid-reuse-macro0 cargo test --release --no-fail-fast -p intarsia-models --test hybrid_reuse_real -- --nocapture --test-threads=1 engine_hybrid_reuse_equals_cold
+  grep -ahE "^test |^test result|panicked|resumed" "$O"/hybrid-reuse-base.* "$O"/hybrid-reuse-macro0.* | cut -c1-200 | tee -a "$O/steps.log"
 fi
 log "stages done"

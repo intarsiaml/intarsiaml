@@ -990,11 +990,13 @@ fn macro_prefill_keeps_chunk_snapshots_for_reuse() {
             m.allow_recurrent_batch().unwrap();
             m.enable_batch(2).unwrap();
             m.configure_plan(&Default::default(), None).unwrap();
+            // a batched slot keeps snapshots on the cpu reference only (`Model::batch_snapshots`: 0 on a GPU, no batched reuse)
+            let want_cached = if m.batch_snapshots() > 0 { 2 * CHUNK } else { 0 };
             let mut o = BatchedOptions::new(2, 64);
             o.prefix_reuse = true;
             let eng = BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel.clone(), o).unwrap();
             let got = warm(&|r| collect(&eng.submit(r).unwrap()).unwrap());
-            assert_eq!(got.cached_tokens, 2 * CHUNK, "{v:?}, batched, macro {rows} rows: resumes at the last chunk end in the shared prefix");
+            assert_eq!(got.cached_tokens, want_cached, "{v:?}, batched, macro {rows} rows: resumes at the last chunk end in the shared prefix");
             assert_eq!(got.ids, cold.ids, "{v:?}, batched, macro {rows} rows: warm run equals the cold run");
         }
     }
