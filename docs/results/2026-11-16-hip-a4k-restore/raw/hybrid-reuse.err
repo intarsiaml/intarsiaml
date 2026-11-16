@@ -1,0 +1,42 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1242:4
+     |
+1242 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/hybrid_reuse_real.rs (/target/release/deps/hybrid_reuse_real-75e0b31462c4ec59)
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+B after A: cached 4095, DIFFERS from cold at token 38
+
+thread 'engine_hybrid_reuse_equals_cold' panicked at crates/intarsia-models/tests/hybrid_reuse_real.rs:286:5:
+assertion `left == right` failed: B resumed from A's state (cached 4095) differs from a fresh engine's B
+  left: [271, 248068, 198, 8160, 579, 264, 7047, 1817, 25, 271, 16, 13, 220, 2972, 2014, 53983, 2570, 5396, 64700, 198, 256, 471, 2972, 2425, 2824, 64700, 357, 1248, 1103, 314, 22157, 11, 1754, 21988, 449, 1852, 10345, 539, 799, 314, 2250, 5587, 318, 12610, 9090, 7110, 11, 8455, 21208, 772, 11, 2235, 324, 55965, 51624, 11, 21520, 37550, 8, 383, 264, 3050, 1834, 318]
+ right: [271, 248068, 198, 8160, 579, 264, 7047, 1817, 25, 271, 16, 13, 220, 2972, 2014, 53983, 2570, 5396, 64700, 198, 256, 471, 2972, 2425, 2824, 64700, 357, 1248, 1103, 314, 22157, 11, 1754, 21988, 449, 1852, 10345, 539, 264, 3050, 3542, 318, 12610, 9090, 7110, 11, 8455, 21208, 772, 11, 2235, 324, 55965, 51624, 11, 21520, 37550, 8, 383, 264, 3050, 1834, 318, 1247]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `-p intarsia-models --test hybrid_reuse_real`
+error: 1 target failed:
+    `-p intarsia-models --test hybrid_reuse_real`
