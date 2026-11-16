@@ -819,3 +819,28 @@ fn batched_mtp_default_only_where_measured_and_env_wins() {
     got.sort();
     assert_eq!(got, ["qwen3_5_moe cuda 1", "qwen3_5_moe metal 1"], "the recipes that turn batched MTP on by default");
 }
+
+/// Lane flipprep: `[tuning.<backend>] batched_verify` / `verify_topk` are recipe keys (unset: off). The shipped recipes set them for exactly the
+/// pairs measured, and the keys resolve per backend. PR 1 (this test) ships no recipe that sets either.
+#[test]
+fn shipped_recipes_set_batched_verify_and_verify_topk_only_where_measured() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../recipes");
+    let mut got = Vec::new();
+    for e in std::fs::read_dir(&dir).unwrap() {
+        let path = e.unwrap().path();
+        if path.extension().is_none_or(|x| x != "toml") {
+            continue;
+        }
+        let r = intarsia_models::parse_recipe(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        for backend in ["cpu", "cuda", "hip", "metal"] {
+            if r.resolve_batched_verify(backend).is_some() {
+                got.push(format!("{} {backend} batched_verify {:?}", r.model.family, r.resolve_batched_verify(backend)));
+            }
+            if r.resolve_verify_topk(backend).is_some() {
+                got.push(format!("{} {backend} verify_topk {:?}", r.model.family, r.resolve_verify_topk(backend)));
+            }
+        }
+    }
+    got.sort();
+    assert_eq!(got, Vec::<String>::new(), "the recipes that set batched verify / verify top-k");
+}

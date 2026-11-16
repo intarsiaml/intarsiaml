@@ -393,7 +393,7 @@ impl StopMatcher {
 
 mod batch;
 mod keyed;
-pub use batch::{batched_mtp_env, batched_mtp_env_opt, BatchedEngine, BatchedOptions, BUSY_PREFILL_CHUNK};
+pub use batch::{bool_env_opt, batched_mtp_env, batched_mtp_env_opt, BatchedEngine, BatchedOptions, BUSY_PREFILL_CHUNK};
 
 // ---------------------------------------------------------------------------
 // LocalEngine
