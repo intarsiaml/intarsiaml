@@ -189,6 +189,10 @@ pub struct LoadOptions {
     /// frequent end of a BPE vocabulary) instead of all of them, so a draft costs N/V of a head sweep. The verify pass keeps
     /// the full head, so output stays the spec-off output and only acceptance can change. 0: the full head.
     pub mtp_draft_vocab: Option<usize>,
+    /// `--mtp-draft-subset FILE` (lane dsubset, opt-in, [`crate::draft_subset`]): the MTP drafter's head over these lm_head rows,
+    /// gathered at load, its argmax mapped back to the token id. Wins over `mtp_draft_vocab` (and the recipe's default). CUDA and
+    /// the CPU backend; the others refuse it. Output unchanged (the verify pass keeps the full head). None: nothing changes.
+    pub mtp_draft_subset: Option<Arc<crate::draft_subset::DraftSubset>>,
     /// Load a DFlash draft checkpoint (`--spec dflash --spec-draft DIR`, `model/dflash.rs`). None: nothing is read, no op is
     /// added and the model is exactly the one without it.
     pub dflash: Option<DflashLoad>,
@@ -224,12 +228,28 @@ impl Default for LoadOptions {
             mtp_k: 0,
             mtp_whole: false,
             mtp_draft_vocab: None,
+            mtp_draft_subset: None,
             dflash: None,
             dflash_tp: None,
             prefill_macro: None,
             row_invariant_prefill: None,
         }
     }
+}
+
+/// `--mtp-draft-subset` (lane dsubset): the MTP drafter's head is a gathered set of lm_head rows; its argmax `j` (a row of
+/// that head) becomes the token id `ids[j]` on the device, so a draft can feed the next chained pass and the verify ids without a
+/// host round trip. The map is an `Op::Embedding` of `j` over the id table (rows of one i32): a raw-copy gather that needs no
+/// new kernel. On CUDA the embedding kernel takes bf16 rows, so each i32 is viewed as two bf16 halves (`pairs`; the
+/// non-vectorised kernel copies the 16-bit values bit for bit); the CPU backend copies i32 rows directly.
+struct DraftMap {
+    /// Host copy of the ids (the sampled drafter widens the head's logits row to the vocabulary through it).
+    ids: Arc<crate::draft_subset::DraftSubset>,
+    /// `ids` as i32 on the device.
+    table: Buffer,
+    /// One i32: the argmax over the gathered head, before the map.
+    local: Buffer,
+    pairs: bool,
 }
 
 /// The finished frequency table of a scaled rotary embedding on the device ([`crate::rope::RopeScaling::freqs`]).
@@ -501,8 +521,11 @@ pub struct Model {
     /// The lm_head is split over the ranks by vocabulary rows (`LoadOptions::tp_vocab`): every rank runs its half and the
     /// halves are all-gathered into rank 0's `ws.logits`.
     vocab_par: bool,
-    /// The first `LoadOptions::mtp_draft_vocab` rows of `lm_head` (the MTP drafter's cheaper head), or None.
+    /// The first `LoadOptions::mtp_draft_vocab` rows of `lm_head` (the MTP drafter's cheaper head), or the rows of
+    /// `LoadOptions::mtp_draft_subset` gathered (then `draft_map` maps its rows back to token ids), or None.
     draft_head: Option<QTensor>,
+    /// `--mtp-draft-subset`: the token id of each `draft_head` row (lane dsubset).
+    draft_map: Option<DraftMap>,
     layers: Arc<Vec<Vec<Block>>>,
     /// Scratch of the Gemma 4 layers (`None` for every other model).
     gemma: Option<GemmaWs>,
@@ -1672,7 +1695,7 @@ impl Model {
         let test_bug = parse_tp_test_bug(std::env::var("INTARSIA_TP_TEST_BUG").ok().as_deref())?;
         let dv = recipe.resolve_mtp_draft_vocab(opts.mtp_draft_vocab, b.name());
         let draft_vocab = dv.value;
-        if opts.mtp && opts.mtp_draft_vocab.is_none() && draft_vocab > 0 {
+        if opts.mtp && opts.mtp_draft_vocab.is_none() && opts.mtp_draft_subset.is_none() && draft_vocab > 0 {
             eprintln!("--mtp-draft-vocab {draft_vocab} ({}; --mtp-draft-vocab 0 drafts with the full head)", dv.source);
         }
         // the reduced head the MTP drafter projects onto (`--mtp-draft-vocab`). Tensor parallelism: rank 0 alone drafts (the peers
@@ -1692,8 +1715,43 @@ impl Model {
                 }
             }
         };
+        // lane dsubset: `--mtp-draft-subset` gathers its rows of the whole head on rank 0 (a vocab-parallel rank 0 loads the whole
+        // head for it, as it does for a prefix past its shard) and wins over the prefix (`draft_vocab`, the recipe's default too)
+        let subset = opts.mtp_draft_subset.clone().filter(|_| opts.mtp && tp.rank == 0);
+        let mut draft_map = None;
         let draft_head = if !opts.mtp || tp.rank != 0 {
             None
+        } else if let Some(sub) = &subset {
+            if !matches!(b.name(), "cuda" | "cpu") {
+                return Err(Error::Unsupported(format!(
+                    "--mtp-draft-subset: the {} backend has no draft subset head (CUDA and cpu only; use --mtp-draft-vocab N)",
+                    b.name()
+                )));
+            }
+            let whole = if vocab_par { load_head(false)? } else { lm_head.clone() };
+            let full = whole.ok_or_else(|| Error::model("rank 0 without a head"))?;
+            sub.check_rows(full.n)?;
+            let t0 = Instant::now();
+            let h = full.gather_rows(&*b, &sub.ids)?.ok_or_else(|| {
+                Error::Unsupported(format!("--mtp-draft-subset: the lm_head's format {:?} has no row gather", full.format))
+            })?;
+            weights_bytes.set(weights_bytes.get() + h.weight_bytes() as u64);
+            let table: Vec<u8> = sub.ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
+            draft_map = Some(DraftMap {
+                ids: sub.clone(),
+                table: crate::backend::upload_new(&*b, &table)?,
+                local: crate::backend::upload_new(&*b, &[0u8; 4])?,
+                pairs: b.name() != "cpu",
+            });
+            eprintln!(
+                "--mtp-draft-subset {}: the drafter's head over {} of {} lm_head rows ({:.1} MB gathered, {:.1} s)",
+                sub.source,
+                h.n,
+                full.n,
+                h.weight_bytes() as f64 / 1e6,
+                t0.elapsed().as_secs_f64()
+            );
+            Some(h)
         } else if vocab_par {
             match lm_head.as_ref().filter(|h| draft_vocab > 0 && draft_vocab < h.n).and_then(|h| h.row_prefix(draft_vocab)) {
                 Some(d) => Some(d),
@@ -1743,6 +1801,7 @@ impl Model {
             final_norm,
             lm_head,
             draft_head,
+            draft_map,
             layers: Arc::new(layers),
             gemma: gemma_ws,
             slot_specs,
@@ -5075,13 +5134,22 @@ impl Model {
         self.head_proj(&hn.rows(r0, c), c, false).map(|_| ())
     }
 
-    /// [`Model::head_to_device_into`] for the MTP drafter: over the reduced head when `--mtp-draft-vocab` is on.
+    /// [`Model::head_to_device_into`] for the MTP drafter: over the reduced head when `--mtp-draft-vocab` is on, or over the
+    /// gathered rows of `--mtp-draft-subset`, whose argmax the id table then maps to the token id ([`DraftMap`]).
     fn draft_head_to_device_into(&self, hn: &TensorRef, row: usize, profile: bool, tok: TensorRef) -> Result<()> {
         let Some(h) = self.draft_head.as_ref() else { return self.head_to_device_into(hn, row, profile, tok) };
         let x = hn.rows(row, 1);
         let logits = self.view(&self.ws.logits, DType::F32, &[1, h.n]);
         self.proj(&x, h, &logits, profile)?;
-        self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
+        let Some(m) = self.draft_map.as_ref() else {
+            return self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile);
+        };
+        let local = self.view(&m.local, DType::I32, &[1]);
+        self.exec(Op::Argmax, vec![logits], vec![local.clone()], OpAttrs::default(), profile)?;
+        let (dt, w) = if m.pairs { (DType::Bf16, 2) } else { (DType::I32, 1) };
+        let table = self.view(&m.table, dt, &[h.n, w]);
+        let out = TensorRef { buf: tok.buf.clone(), offset: tok.offset, dtype: dt, shape: vec![1, w] };
+        self.exec(Op::Embedding, vec![local, table], vec![out], OpAttrs::default(), profile)
     }
 
     /// [`Model::head_argmax`] for the MTP drafter.

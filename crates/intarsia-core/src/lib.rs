@@ -9,6 +9,7 @@ pub mod backend;
 pub mod comm;
 pub mod constrain;
 pub mod dsv41;
+pub mod draft_subset;
 pub mod dtype;
 pub mod engine;
 pub mod error;
