@@ -797,6 +797,19 @@ struct Waiting<S> {
 
 /// The deterministic scheduler: [`Scheduler::step`] runs one iteration. [`BatchEngine`] drives it from a thread;
 /// tests drive it directly.
+/// Wall time of the phases of one scheduler iteration, for the `INTARSIA_CB_TRACE=1` `Iter` line (lane itl2s). Measures only.
+#[derive(Clone, Debug, Default)]
+struct IterTimes {
+    prepare_us: u64,
+    verify_us: u64,
+    verify_seqs: usize,
+    verify_rows: usize,
+    decode_us: u64,
+    decode_rows: usize,
+    /// Tokens handed to each request in this iteration's decode phase (`token_done`), in order.
+    emitted: Vec<RequestId>,
+}
+
 pub struct Scheduler<M: BatchModel, S: BatchSeq<M>> {
     cfg: SchedulerConfig,
     model: M,
@@ -819,6 +832,9 @@ pub struct Scheduler<M: BatchModel, S: BatchSeq<M>> {
     trace: VecDeque<TraceEvent>,
     /// `cfg.trace || cfg.trace_stderr`, fixed at construction: when false no event is built, stored or printed.
     tracing: bool,
+    /// Lane itl2s: per-iteration wall times (microseconds) and the tokens each request got, printed as `cb-trace ... Iter` /
+    /// `Emit` lines with `INTARSIA_CB_TRACE=1` only; zero when the trace is off.
+    itimes: IterTimes,
     /// Planned fault (`INTARSIA_FAULT_INJECT`, feature `fault-inject` only).
     #[cfg(feature = "fault-inject")]
     fault: Option<crate::fault::Plan>,
@@ -854,6 +870,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             queued: Arc::new(AtomicUsize::new(0)),
             trace: VecDeque::new(),
             tracing,
+            itimes: IterTimes::default(),
             #[cfg(feature = "fault-inject")]
             fault,
         })
@@ -1047,6 +1064,9 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         }
         self.iter += 1;
         let t_iter = Instant::now();
+        if self.cfg.trace_stderr {
+            self.itimes = IterTimes::default();
+        }
         let mut did = false;
         crate::hostprof::iter_begin();
         let prof_admit = crate::hostprof::span(crate::hostprof::Cat::ReapAdmit);
@@ -1226,6 +1246,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                 return true;
             }
         }
+        let t_prefill = self.cfg.trace_stderr.then(Instant::now);
         for _ in 0..if overlap_chunk { 0 } else { per_iter } {
             let Some(i) = self.active.iter().position(|a| matches!(a.phase, Phase::Prefilling { .. })) else { break };
             did = true;
@@ -1238,6 +1259,10 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
         }
 
+        if let (Some(t), true) = (t_prefill, chunked) {
+            let us = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_micros());
+            eprintln!("cb-trace-us t={us} PrefillIter {{ iter: {}, prefill_us: {}, decoding: {n_decoding} }}", self.iter, t.elapsed().as_micros());
+        }
         if self.active.is_empty() && self.waiting.is_empty() {
             // nothing runs or waits (also after a failure emptied the slots): finish what is deferred before the thread blocks
             self.model.housekeep(Housekeep::Idle);
@@ -1290,6 +1315,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             let mut verify_of: Vec<RequestId> = Vec::new();
             let mut failed: Vec<(RequestId, Error)> = Vec::new();
             let prof_prepare = crate::hostprof::span(crate::hostprof::Cat::Prepare);
+            let t_prepare = self.cfg.trace_stderr.then(Instant::now);
             for &i in &decoding {
                 let a = &mut self.active[i];
                 match a.seq.prepare(&mut self.model, a.slot, spec_allowed, b > 1) {
@@ -1306,6 +1332,9 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                 }
             }
             drop(prof_prepare);
+            if let Some(t) = t_prepare {
+                self.itimes.prepare_us += t.elapsed().as_micros() as u64;
+            }
             for (id, e) in failed {
                 if let Some(i) = self.index_of(id) {
                     self.fail_active(i, e);
@@ -1317,7 +1346,13 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             if !verify.is_empty() {
                 // lane bm: the drafting sequences' verify rows as ONE pass (`BatchModel::verify_step`), then acceptance and
                 // rollback per sequence
+                let t_verify = self.cfg.trace_stderr.then(Instant::now);
                 let step_result = self.model.verify_step(&verify);
+                if let Some(t) = t_verify {
+                    self.itimes.verify_us += t.elapsed().as_micros() as u64;
+                    self.itimes.verify_seqs += verify.len();
+                    self.itimes.verify_rows += verify.iter().map(|(_, v, _)| v.len()).sum::<usize>();
+                }
                 let outs = match step_result {
                     Ok(o) if o.len() == verify.len() => o,
                     Ok(o) => {
@@ -1374,7 +1409,12 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                     }
                 }
                 let prof_step = crate::hostprof::span(crate::hostprof::Cat::StepSetup);
+                let t_decode = self.cfg.trace_stderr.then(Instant::now);
                 let step_result = self.model.decode_step(&rows);
+                if let Some(t) = t_decode {
+                    self.itimes.decode_us += t.elapsed().as_micros() as u64;
+                    self.itimes.decode_rows += rows.len();
+                }
                 drop(prof_step);
                 let outs = match step_result {
                     Ok(o) if o.len() == rows.len() => o,
@@ -1432,6 +1472,26 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                     }
                 }
             }
+            if self.cfg.trace_stderr && !self.itimes.emitted.is_empty() {
+                let us = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_micros());
+                let mut per: Vec<(RequestId, usize)> = Vec::new();
+                for id in self.itimes.emitted.drain(..) {
+                    match per.iter_mut().find(|(i, _)| *i == id) {
+                        Some((_, n)) => *n += 1,
+                        None => per.push((id, 1)),
+                    }
+                }
+                eprintln!(
+                    "cb-trace-us t={us} Emit {{ iter: {}, tokens: {per:?}, prepare_us: {}, verify_us: {}, verify_seqs: {}, verify_rows: {}, decode_us: {}, decode_rows: {} }}",
+                    self.iter,
+                    self.itimes.prepare_us,
+                    self.itimes.verify_us,
+                    self.itimes.verify_seqs,
+                    self.itimes.verify_rows,
+                    self.itimes.decode_us,
+                    self.itimes.decode_rows
+                );
+            }
         }
         DecodeOut { fatal: false, decoding: decoding.len(), stepped }
     }
@@ -1442,6 +1502,9 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
 
     /// Account one new token of active request `i` (`on_token`), with TTFT / ITL; finish it if done.
     fn token_done(&mut self, i: usize, now: Instant) {
+        if self.cfg.trace_stderr {
+            self.itimes.emitted.push(self.active[i].id);
+        }
         {
             let _prof = crate::hostprof::span(crate::hostprof::Cat::Metrics);
             let a = &mut self.active[i];
