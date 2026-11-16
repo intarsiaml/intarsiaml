@@ -11,7 +11,7 @@
 //!
 //! ```text
 //! # intarsia mtp draft subset v1
-//! # tokenizer <16 hex digits>   (tokenizer_fingerprint of the model's tokenizer.json; checked at load when present)
+//! # tokenizer <16 hex digits>   (tokenizer_fingerprint of the model's tokenizer.json, its BPE vocabulary; checked at load when present)
 //! # rows <N>                    (the number of ids below; a multiple of 8)
 //! 0-95723                       (an id or an inclusive id range per line, ascending, no repeats)
 //! 95726
@@ -135,9 +135,10 @@ impl DraftSubset {
     }
 }
 
-/// FNV-1a 64 over the vocabulary in id order (`model.vocab` plus `added_tokens` of an HF tokenizer.json): each id's token
-/// string's UTF-8 bytes, then a 0xff separator (an id with no token adds the separator alone). 16 lowercase hex digits.
-/// `scripts/dsubset/build_subset.py` computes the same.
+/// FNV-1a 64 over the BPE vocabulary in id order (`model.vocab` of an HF tokenizer.json; the added / special tokens are left
+/// out, so checkpoints that share the vocabulary but add tokens, e.g. Qwen3.6-35B-A3B and Qwen3.8-27B with its audio tokens,
+/// share a fingerprint): each id's token string's UTF-8 bytes, then a 0xff separator (an id with no token adds the separator
+/// alone). 16 lowercase hex digits. `scripts/dsubset/build_subset.py` computes the same.
 pub fn tokenizer_fingerprint(tokenizer_json: &str) -> Result<String> {
     let v: serde_json::Value =
         serde_json::from_str(tokenizer_json).map_err(|e| Error::invalid(format!("tokenizer.json: {e}")))?;
@@ -152,13 +153,6 @@ pub fn tokenizer_fingerprint(tokenizer_json: &str) -> Result<String> {
     if let Some(m) = v.pointer("/model/vocab").and_then(|m| m.as_object()) {
         for (s, id) in m {
             if let Some(id) = id.as_u64() {
-                put(id, s);
-            }
-        }
-    }
-    if let Some(a) = v.get("added_tokens").and_then(|a| a.as_array()) {
-        for t in a {
-            if let (Some(id), Some(s)) = (t.get("id").and_then(|x| x.as_u64()), t.get("content").and_then(|x| x.as_str())) {
                 put(id, s);
             }
         }
@@ -208,16 +202,41 @@ mod tests {
         assert!(s.check_rows(16).is_err(), "as many rows as the head");
     }
 
+    /// The files shipped in `recipes/data/mtp-draft-subset/` parse, name a tokenizer and have the rows their names say; with
+    /// `INTARSIA_TEST_TOKENIZER=<tokenizer.json>` set, their fingerprint must match it (the Qwen3.6-35B-A3B's).
+    #[test]
+    fn checked_in_subsets_parse() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../recipes/data/mtp-draft-subset");
+        let tok = std::env::var("INTARSIA_TEST_TOKENIZER").ok().map(|p| std::fs::read_to_string(p).unwrap());
+        let mut n = 0;
+        for e in std::fs::read_dir(&dir).unwrap() {
+            let p = e.unwrap().path();
+            if p.extension().is_some_and(|x| x == "txt") {
+                let s = DraftSubset::load(&p).unwrap();
+                assert!(s.tokenizer.is_some(), "{}", p.display());
+                let rows: usize = p.file_stem().unwrap().to_str().unwrap().rsplit('-').next().unwrap().parse().unwrap();
+                assert_eq!(s.ids.len(), rows, "{}", p.display());
+                if let Some(t) = &tok {
+                    s.check_tokenizer(t).unwrap();
+                }
+                n += 1;
+            }
+        }
+        assert!(n > 0);
+    }
+
     #[test]
     fn fingerprint_is_order_and_content_sensitive() {
-        let a = r#"{"model":{"vocab":{"a":0,"b":1}},"added_tokens":[{"id":3,"content":"<s>"}]}"#;
-        let b = r#"{"model":{"vocab":{"b":0,"a":1}},"added_tokens":[{"id":3,"content":"<s>"}]}"#;
+        let a = r#"{"model":{"vocab":{"a":0,"b":1,"c":3}},"added_tokens":[{"id":4,"content":"<s>"}]}"#;
+        let b = r#"{"model":{"vocab":{"b":0,"a":1,"c":3}},"added_tokens":[{"id":4,"content":"<s>"}]}"#;
+        let a2 = r#"{"model":{"vocab":{"a":0,"b":1,"c":3}},"added_tokens":[{"id":4,"content":"<s>"},{"id":5,"content":"<audio>"}]}"#;
         let fa = tokenizer_fingerprint(a).unwrap();
         assert_eq!(fa.len(), 16);
         assert_ne!(fa, tokenizer_fingerprint(b).unwrap());
-        // FNV-1a 64 of "a\xff b\xff \xff <s>\xff" (id 2 empty), the value build_subset.py computes for the same vocabulary
+        assert_eq!(fa, tokenizer_fingerprint(a2).unwrap(), "added tokens are not part of it");
+        // FNV-1a 64 of "a\xff b\xff \xff c\xff" (id 2 empty), the value build_subset.py computes for the same vocabulary
         let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-        for &x in b"a\xffb\xff\xff<s>\xff" {
+        for &x in b"a\xffb\xff\xffc\xff" {
             h ^= x as u64;
             h = h.wrapping_mul(0x0000_0100_0000_01b3);
         }

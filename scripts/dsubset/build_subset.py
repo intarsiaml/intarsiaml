@@ -13,8 +13,8 @@ in order, until the budget (`--rows`, a multiple of 8) is full:
      any tokens), and inside a script ids are taken in id order. A byte-level BPE vocabulary assigns ids in merge order,
      which is roughly frequency order inside a script (the Qwen vocabulary's Chinese block starts with 的), so this is a
      smoothed frequency: frequent unseen tokens of a script come before rare ones.
-The `# tokenizer` header is the fingerprint `tokenizer_fingerprint` (Rust) computes, so a model with another vocabulary refuses
-the file at load.
+The `# tokenizer` header is the fingerprint `tokenizer_fingerprint` (Rust) computes over the BPE vocabulary (`model.vocab`, not
+the added tokens), so a model with another vocabulary refuses the file at load; Qwen3.6-35B-A3B and Qwen3.8-27B share it.
 
 The corpus: JSON lines with an `ids` list (scripts/dsubset/collect.py writes them).
 """
@@ -32,8 +32,6 @@ def fingerprint(tok: dict) -> str:
     toks: dict[int, str] = {}
     for s, i in tok["model"]["vocab"].items():
         toks[i] = s
-    for t in tok.get("added_tokens", []):
-        toks[t["id"]] = t["content"]
     h = 0xCBF29CE484222325
     for i in range(max(toks) + 1):
         for b in toks.get(i, "").encode("utf-8") + b"\xff":

@@ -5,7 +5,8 @@
 #             ref   --spec off, --max-batch 2
 #             s2    INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1 --spec mtp --spec-k 2 --mtp-draft-subset S65536, --max-batch 2
 #             s1    --spec mtp --spec-k 2 --mtp-draft-subset S65536, --max-batch 1 (B = 1)
-#   accept: acceptance per script, one stream (accept.py), arms F (full head), P65536, P131072, S32768, S65536 (ARMS overrides)
+#   accept: acceptance per script, one stream (accept.py), arms F (full head), P65536, P131072, S32768, S65536 (ARMS overrides);
+#           Q65536 = the 65536 prefix as a subset file (EXTRA): its counters must equal P65536's exactly (gather + id map are exact)
 #   speed:  ABBA at 1 and 2 streams with the 2-stream opt-in set, prefix 131072 (P) vs subset 65536 (S), T = 1.0 seeded, 384 forced
 #           tokens, thinking off, sets mixed en code zh (speed.py); VISITS overrides the order (default "P.1 S.1 S.2 P.2")
 # Subset files: SUBDIR (local) is copied to ~/intarsia-dsubset/subsets/ first; arms name them sub-<rows>.txt.
@@ -17,6 +18,8 @@ SUBDIR=${SUBDIR:-$REPO/recipes/data/mtp-draft-subset}
 SUB='~/intarsia-dsubset/subsets'
 rsh "mkdir -p ~/intarsia-dsubset/subsets"
 for f in "$SUBDIR"/*.txt; do scp -q -o BatchMode=yes "$f" "$HOST:intarsia-dsubset/subsets/sub-$(sed -n 's/^# rows //p' "$f").txt"; done
+# EXTRA: more subset files copied under their own names (Q<rows> arms use prefix-<rows>.txt: the prefix as a subset file)
+[[ -n "${EXTRA:-}" ]] && for f in "$EXTRA"/*.txt; do scp -q -o BatchMode=yes "$f" "$HOST:intarsia-dsubset/subsets/"; done
 log "runs start [$PARTS]; vLLM: $(curl -s -o /dev/null -w '%{http_code}' http://$HN:$VPORT/v1/models); earlyoom: $(rsh 'systemctl is-active earlyoom'); $(rsh 'free -g | sed -n 2p'); subsets: $(rsh "ls $SUB" | tr '\n' ' ')"
 OPT="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1"
 head_args() { # head_args <arm>: the drafter head flags of an arm
@@ -24,6 +27,7 @@ head_args() { # head_args <arm>: the drafter head flags of an arm
     F) echo "--mtp-draft-vocab 0" ;;
     P*) echo "--mtp-draft-vocab ${1#P}" ;;
     S*) echo "--mtp-draft-subset $SUB/sub-${1#S}.txt" ;;
+    Q*) echo "--mtp-draft-subset $SUB/prefix-${1#Q}.txt" ;;
   esac
 }
 for part in ${PARTS:?PARTS}; do
