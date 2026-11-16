@@ -5,6 +5,7 @@
 #   acc     `accuracy --mode both` against the vLLM golden, wire off / each wire, each writing a self-golden
 #   self    each wire against the wire-off self-golden: --self-vs-ref-noise (the change-vs-base KL rule); the control (wire off
 #           against its own dump); the plain self-golden budgets for the first wire
+#   cross   wht8 against the wht6 self-golden and the reverse (the lossy wires against each other)
 #   gen     256 greedy ids, short and 4k prompt, wire off / each wire (the divergence point; scripts/wht6-8b/diverge.py)
 #   long    the acc dumps and the change-vs-base rule on the long golden (prompts up to 16k tokens)
 #   gref    the vLLM golden with its reference-noise record (`--ref-noise`, the required tp=2 gate class), wire off / each wire
@@ -25,7 +26,8 @@ NS=${NS:-/work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json
 NL=${NL:-/work/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors.json}
 GEN="$BIN generate -m $M --backend hip $TP2 --mem-budget 29 --max-seq 8192 --chat --no-think --profile-every 0 --ignore-eos --show-ids"
 ACC="$BIN accuracy --backend hip --model $M $TP2 --mode both --mem-budget 29 --max-seq 17408 --allow-unstamped"
-AB="--allow-same-code --allow-config-mismatch"
+PRE=$(sed -n "s/^head=\([0-9a-f]*\) .*/\1/p" "$TREE/.stamp")   # the build is its own pre-change commit (the wire is the only difference, a runtime switch)
+AB="--allow-same-code --allow-config-mismatch --pre-change $PRE"
 has() { [[ " $STEPS " == *" $1 "* ]]; }
 sum() { log "  $1: $(grep -ahE '^golden gate|self-golden gate|SELF-STATS|ref-noise|^Error|LOSSY' "$O/$1.out" "$O/$1.err" | cut -c1-260 | tr '\n' '|')"; }
 if has acc; then
@@ -36,6 +38,10 @@ if has self; then
   for w in $WIRES; do E="$(on $w)" run 0,1 420 self-$w $ACC --self-golden $W/acc-off.safetensors $AB --self-vs-ref-noise --ref-noise $NS; sum self-$w; done
   E="$(on ${WIRES%% *})" run 0,1 420 self-budgets-${WIRES%% *} $ACC --self-golden $W/acc-off.safetensors $AB; sum self-budgets-${WIRES%% *}
   E="" run 0,1 420 self-off $ACC --self-golden $W/acc-off.safetensors $AB; sum self-off   # control: the exact wire against itself
+fi
+if has cross; then   # wht8 against the wht6 dump: independent decorrelations (a floor) or a shared deviation of the lossy path (a bug)?
+  E="$(on wht8)" run 0,1 420 cross-8v6 $ACC --self-golden $W/acc-wht6.safetensors $AB --self-vs-ref-noise --ref-noise $NS; sum cross-8v6
+  E="$(on wht6)" run 0,1 420 cross-6v8 $ACC --self-golden $W/acc-wht8.safetensors $AB --self-vs-ref-noise --ref-noise $NS; sum cross-6v8
 fi
 if has gen; then
   for arm in off $WIRES; do

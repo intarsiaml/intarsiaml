@@ -1,0 +1,13 @@
+Based on the provided text, here is a structured summary and analysis of the **IntarsiaML Architecture (v0.2)**.
+
+### 1. Core Philosophy: "Wood Inlay" Modularity
+IntarsiaML is designed as a modular system where every component (op, kernel, quant format, model block) is a distinct "piece" with a strict contract.
+*   **No Per-Family Engines:** Unlike TensorFold (which ships specific engines per model family), Intarsia uses a **generic decoder** driven by **Recipes** (TOML files). New model support requires code only for genuinely new block types, not entire engine rewrites.
+*   **No Python in Serving Path:** Python is restricted to offline tools (golden references, converters). The serving path is pure Rust + C/C++ kernels for native speed and low startup time.
+*   **Reference Oracle:** No kernel enters the system without passing a reference test against a CPU-based oracle (`cpu-ref`). This ensures accuracy before performance optimization.
+
+### 2. System Architecture Overview
+
+#### A. Front Door (Server Layer)
+*   **Language:** Rust (Axum, Tokio).
+*   **APIs:** OpenAI (`/v1
