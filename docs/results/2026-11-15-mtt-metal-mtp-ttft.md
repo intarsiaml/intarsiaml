@@ -22,7 +22,14 @@
 - 20:41 #9430 hot1: 160 s of 32k prefills first (TTFT of those climbs 9.55 -> 12.6 s; `thermalpressurelevel` 2), then alternating arms:
   mtp1 888/1044/1020 SLOW, off1 777/751/754, mtp2 782/751/749 FAST, **off2 813/918/946 SLOW (gaps 10.7 -> 13.7 ms)**, mtp3 833/1025/893 SLOW, off3 fast.
   => thermal throttling of the GPU on a hot box; hits `--spec off` too. Open: is MTP hit more often (longer, CPU-heavy load: 10.4 s vs 4.3 s)?
-- next: sample the MTP start-up (#load), controlled hot-box test of "CPU burn right before the request".
+- #9437 load sample: MTP start-up 11.1 s vs 4.7 s off; 5.7 s of it is `plan::admit` -> `case_from_call` -> `rand_t` (Box-Muller, one thread)
+  building random cases only to read their label, then "0 case(s) run, 558 cached". Wasted work => fix: lazy cases (`PlanOptions::lazy_cases`,
+  Metal default, `INTARSIA_ADMIT_LAZY=0/1`, `INTARSIA_METAL_MTP_TTFT_FIX=0` = off). Skipped draws are replayed before the first built case.
+  CPU test `lazy_admission_cases_build_nothing_when_cached_and_keep_the_data_of_those_that_run` (mutation-checked: without the replay it fails). Commit b7d8b53e4.
+- #9442 hot2 (off first): off 759..796 (gaps 9.1), mtp 796/975/822, off 801/905/826, mtp 803/975/963, off 756..781 fast, mtp3/mtp4 slow-ish (845/874).
+  Hot box: MTP instances throttled more often than off ones (start-up CPU burn right before the probe? -> #9453 hot3 tests on/old/off).
+- base binary for gate 2: nested worktree `.base` (c5ce87bc8), `target/base/` (remove both at the end: `git worktree remove .base`).
+- gate scripts: scripts/mtt/ids.sh (gate 1), plan.sh (gate 2). TODO: gates, cool ABBA TTFT table 35B/27B 4k/34k, decode check, LOG row, PR.
 
 ### Coordinator overrides (these win over the brief)
 

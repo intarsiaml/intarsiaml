@@ -1,0 +1,28 @@
+fleetq: #9461 waiting (#3 in line): in line behind #9455 "mnr: NAX summation tree probe" (claude-2ae67a71) on endor
+fleetq:   #9455 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9455 set, or it will wait for #9455 to be released.
+fleetq: #9461 waiting (#2 in line): in line behind #9458 "mnr: register form bench + tests" (claude-2ae67a71) on endor
+fleetq:   #9458 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9458 set, or it will wait for #9458 to be released.
+fleetq: #9461 waiting (#1 in line): needs gpu quiet on endor, but #9458 "mnr: register form bench + tests" (claude-2ae67a71) loads it
+fleetq:   #9458 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9458 set, or it will wait for #9458 to be released.
+fleetq: #9461 running on endor: scripts/mtt/ids.sh /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 35b
+## 35b on: 2.9s, admission on plan shapes: 32 kernel(s) checked, 0 case(s) run, 558 cached
+short tokens 256 prompt 15 spec {'intarsia_spec_accepted_tokens_total': 150.0, 'intarsia_spec_proposed_tokens_total': 209.0, 'intarsia_spec_steps_total': 105.0}
+4k-a tokens 256 prompt 4100 spec {'intarsia_spec_accepted_tokens_total': 159.0, 'intarsia_spec_proposed_tokens_total': 190.0, 'intarsia_spec_steps_total': 95.0}
+4k-b tokens 256 prompt 4104 spec {'intarsia_spec_accepted_tokens_total': 149.0, 'intarsia_spec_proposed_tokens_total': 212.0, 'intarsia_spec_steps_total': 106.0}
+16k tokens 256 prompt 16388 spec {'intarsia_spec_accepted_tokens_total': 159.0, 'intarsia_spec_proposed_tokens_total': 190.0, 'intarsia_spec_steps_total': 95.0}
+## 35b old: 10.4s, admission on plan shapes: 32 kernel(s) checked, 0 case(s) run, 558 cached
+short tokens 256 prompt 15 spec {'intarsia_spec_accepted_tokens_total': 150.0, 'intarsia_spec_proposed_tokens_total': 209.0, 'intarsia_spec_steps_total': 105.0}
+4k-a tokens 256 prompt 4100 spec {'intarsia_spec_accepted_tokens_total': 159.0, 'intarsia_spec_proposed_tokens_total': 190.0, 'intarsia_spec_steps_total': 95.0}
+4k-b tokens 256 prompt 4104 spec {'intarsia_spec_accepted_tokens_total': 149.0, 'intarsia_spec_proposed_tokens_total': 212.0, 'intarsia_spec_steps_total': 106.0}
+16k tokens 256 prompt 16388 spec {'intarsia_spec_accepted_tokens_total': 159.0, 'intarsia_spec_proposed_tokens_total': 190.0, 'intarsia_spec_steps_total': 95.0}
+## 35b off: 6.9s, admission on plan shapes: 24 kernel(s) checked, 0 case(s) run, 402 cached
+short tokens 256 prompt 15 spec {}
+4k-a tokens 256 prompt 4100 spec {}
+4k-b tokens 256 prompt 4104 spec {}
+16k tokens 256 prompt 16388 spec {}
+GATE 35b short: ids on==old==off True (256 tokens), MTP counters on==old True {'intarsia_spec_accepted_tokens_total': 150.0, 'intarsia_spec_proposed_tokens_total': 209.0, 'intarsia_spec_steps_total': 105.0}
+GATE 35b 4k-a: ids on==old==off True (256 tokens), MTP counters on==old True {'intarsia_spec_accepted_tokens_total': 159.0, 'intarsia_spec_proposed_tokens_total': 190.0, 'intarsia_spec_steps_total': 95.0}
+GATE 35b 4k-b: ids on==old==off True (256 tokens), MTP counters on==old True {'intarsia_spec_accepted_tokens_total': 149.0, 'intarsia_spec_proposed_tokens_total': 212.0, 'intarsia_spec_steps_total': 106.0}
+GATE 35b 16k: ids on==old==off True (256 tokens), MTP counters on==old True {'intarsia_spec_accepted_tokens_total': 159.0, 'intarsia_spec_proposed_tokens_total': 190.0, 'intarsia_spec_steps_total': 95.0}
+GATE 35b: PASS
+fleetq: #9461 done (exit 0)

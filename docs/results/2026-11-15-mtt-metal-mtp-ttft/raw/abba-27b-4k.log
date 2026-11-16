@@ -1,0 +1,6 @@
+fleetq: #9471 waiting (#4 in line): in line behind #9462 "mtt: gate 2 plan show main vs branch (8B/27B/35B)" (claude-2ae67a71) on endor
+fleetq:   #9462 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9462 set, or it will wait for #9462 to be released.
+fleetq: #9471 waiting (#3 in line): in line behind #9463 "mtt: gate 1 served ids 27B (lazy on/off/spec off)" (claude-2ae67a71) on endor
+fleetq:   #9463 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9463 set, or it will wait for #9463 to be released.
+fleetq: #9471 waiting (#2 in line): in line behind #9470 "mtt: TTFT ABBA 35b-4k (MTP on/off x lazy admission on/off)" (claude-2ae67a71) on endor
+fleetq:   #9470 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9470 set, or it will wait for #9470 to be released.
