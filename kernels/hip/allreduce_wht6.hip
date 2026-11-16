@@ -9,6 +9,13 @@
  * lane grows (B = 6: 12 dwords = three 16-byte words, a 1536-byte chunk; B = 8: 16 dwords = four 16-byte words, a 2048-byte
  * chunk, byte-aligned symbols). The quantiser step is amax / 127 instead of amax / 31, 4.1x finer.
  *
+ * Lane wire-probe adds the widths 12 and 16 (`wht12`, `wht16`: 12.25 and 16.25 bits per element) and a CONTROL, `whtf`, symbol width
+ * 32 = the rotated f32 values themselves, sent unquantised (32 bits per element, no scale used; the wire carries the rotated sum, so
+ * it is the exact all-reduce up to f32 rounding of the rotation, with the rotation / reduction order of the lossy wires). Per lane:
+ * 2 * B dwords per chunk (B = 12: 24 dwords = six 16-byte words, a 3072-byte chunk, symbols straddle dwords; B = 16: 32 dwords, two-byte symbols, a 4096-byte chunk; B = 32: 64 dwords, an 8192-byte chunk). For B > 8 the scale is the bf16 ROUNDED UP
+ * (never down), so the extreme symbol never clamps: a clamp at a nearest-rounded scale would cost up to amax / 256, which is far
+ * above the half step (amax / 2^B) of a 12- or 16-bit code. B <= 8 keeps the nearest-even scale (bit-identical to wht6 / wht8).
+ *
  * Design after radiance's libr4d r4d_ar_oneshot_2rank_wht6 (Apache-2.0, https://codeberg.org/StillDeadcode/radiance, tag v2.0.0,
  * commit ddcb9c6; see kernels/hip/NOTICE-radiance). The code (rotation, scale, symbols, chunk packing) follows
  * r4d_ar_oneshot_2rank_wht6.h; the handshake, counters and slot parity are allreduce.hip's (ar2_kernel), on the wide path's
@@ -67,6 +74,8 @@ IK_DEVI float w6_bf16_round(float v) {
     u += 0x7fffu + ((u >> 16) & 1u);
     return __uint_as_float(u & 0xffff0000u);
 }
+/* v > 0 rounded UP to a bf16 (the scale of the wide codes, B > 8) */
+IK_DEVI float w6_bf16_ceil(float v) { return __uint_as_float((__float_as_uint(v) + 0xffffu) & 0xffff0000u); }
 
 /* `lo ? v + o : o - v` as `o + (lo ? v : -v)`: the sign flip is one XOR with a stage-uniform mask */
 template <int M>
@@ -124,7 +133,8 @@ IK_DEVI void w6_store(void* out, long off, const float* v) {
 template <int F32, int B>
 IK_DEVI void w6_push_chunk(const void* x, int c, int n_groups, int lane, uint4* p_pay, unsigned short* p_sc, uint4* l_pay, float* l_sc) {
     const int lig = lane & (W6_LPG - 1), gw = lane / W6_LPG;
-    const int qmin = -(1 << (B - 1)), qmax = (1 << (B - 1)) - 1;
+    constexpr int QB = (B < 32) ? B : 16; /* B = 32 (whtf) has no quantiser; keep the shifts below defined */
+    const int qmin = -(1 << (QB - 1)), qmax = (1 << (QB - 1)) - 1;
     unsigned int acc[W6_NW(B)];
 #pragma unroll
     for (int k = 0; k < W6_NW(B); ++k) acc[k] = 0u;
@@ -146,8 +156,12 @@ IK_DEVI void w6_push_chunk(const void* x, int c, int n_groups, int lane, uint4* 
         a = fmaxf(a, w6_xor_lane<1>(a));
         a = fmaxf(a, w6_xor_lane<2>(a));
         a = fmaxf(a, w6_xor_lane<4>(a));
-        float sc = (a > 0.f) ? w6_bf16_round(a * (1.0f / (float)qmax)) : 1.0f;
-        if (!(sc > 0.f)) sc = 1.0f;
+        float sc = 1.0f;
+        if (B < 32) {
+            const float st = a * (1.0f / (float)qmax);
+            sc = (a > 0.f) ? ((B > 8) ? w6_bf16_ceil(st) : w6_bf16_round(st)) : 1.0f;
+            if (!(sc > 0.f)) sc = 1.0f;
+        }
         if (lig == 0 && live) {
             p_sc[g] = (unsigned short)(__float_as_uint(sc) >> 16);
             l_sc[g] = sc;
@@ -155,11 +169,12 @@ IK_DEVI void w6_push_chunk(const void* x, int c, int n_groups, int lane, uint4* 
         const float inv = 1.0f / sc;
 #pragma unroll
         for (int i = 0; i < W6_EPL; ++i) {
-            const int q = min(max((int)rintf(v[i] * inv), qmin), qmax) - qmin;
-            const unsigned int sym = (unsigned int)q;
+            unsigned int sym;
+            if (B == 32) sym = __float_as_uint(v[i]); /* whtf: the rotated value itself */
+            else sym = (unsigned int)(min(max((int)rintf(v[i] * inv), qmin), qmax) - qmin);
             const int bit = (t * W6_EPL + i) * B, wi = bit >> 5, bo = bit & 31;
             acc[wi] |= sym << bo;
-            if (bo + B > 32) acc[wi + 1] |= sym >> (32 - bo);
+            if (B < 32 && bo + B > 32) acc[wi + 1] |= sym >> (32 - bo);
         }
     }
 #pragma unroll
@@ -176,8 +191,9 @@ template <int F32OUT, int B>
 IK_DEVI void w6_reduce_chunk(void* out, int c, int n_groups, int lane, const uint4* m_pay, const unsigned short* m_sc, const uint4* l_pay,
                              const float* l_sc) {
     const int lig = lane & (W6_LPG - 1), gw = lane / W6_LPG;
-    const int qmin = -(1 << (B - 1));
-    const unsigned int MASK = (1u << B) - 1u;
+    constexpr int QB = (B < 32) ? B : 16;
+    const int qmin = -(1 << (QB - 1));
+    const unsigned int MASK = (B < 32) ? ((1u << QB) - 1u) : 0xffffffffu;
     unsigned int pac[W6_NW(B)], lac[W6_NW(B)];
 #pragma unroll
     for (int u = 0; u < W6_NU(B); ++u) {
@@ -197,12 +213,13 @@ IK_DEVI void w6_reduce_chunk(void* out, int c, int n_groups, int lane, const uin
         for (int i = 0; i < W6_EPL; ++i) {
             const int bit = (t * W6_EPL + i) * B, wi = bit >> 5, bo = bit & 31;
             unsigned int ps = pac[wi] >> bo, ls = lac[wi] >> bo;
-            if (bo + B > 32) {
+            if (B < 32 && bo + B > 32) {
                 ps |= pac[wi + 1] << (32 - bo);
                 ls |= lac[wi + 1] << (32 - bo);
             }
             /* two products and one add, no FMA: the peer computes the same sum with the operands swapped */
-            v[i] = (float)((int)(ps & MASK) + qmin) * psc + (float)((int)(ls & MASK) + qmin) * lsc;
+            if (B == 32) v[i] = __uint_as_float(ps) + __uint_as_float(ls); /* whtf: the rotated f32 sum */
+            else v[i] = (float)((int)(ps & MASK) + qmin) * psc + (float)((int)(ls & MASK) + qmin) * lsc;
         }
         w6_wht(v, lig);
         w6_store<F32OUT>(out, (long)g * W6_GROUP + (long)lig * W6_EPL, v);
@@ -330,4 +347,29 @@ int ik_ar2_wht8(void* x, void* out, int dtype, int out_dtype, int64_t n_elem, vo
     return w6_allreduce<8>(x, out, dtype, out_dtype, n_elem, peer_scratch, my_scratch, loc, peer_flags, my_flags, ctrs, slot_bytes, nblocks, drain, stream);
 }
 
+} /* extern "C" */
+
+/* Generic entry points of lane wire-probe: bits in {6, 8, 12, 16, 32} (32 = whtf, the unquantised control). The ik_ar2_wht6 / wht8
+ * functions above are the same code at 6 / 8. */
+static bool w6_bits_ok(int bits) { return bits == 6 || bits == 8 || bits == 12 || bits == 16 || bits == 32; }
+#define W6_BITS_SWITCH(bits, EXPR_B, DEFAULT) \
+    ((bits) == 6 ? (EXPR_B(6)) : (bits) == 8 ? (EXPR_B(8)) : (bits) == 12 ? (EXPR_B(12)) : (bits) == 16 ? (EXPR_B(16)) : (bits) == 32 ? (EXPR_B(32)) : (DEFAULT))
+extern "C" {
+int64_t ik_ar2_whtw_capacity(int bits, int64_t slot_bytes) {
+#define F(B) w6_capacity<B>(slot_bytes)
+    return W6_BITS_SWITCH(bits, F, 0);
+#undef F
+}
+int64_t ik_ar2_whtw_loc_bytes(int bits, int64_t slot_bytes) {
+#define F(B) w6_loc_bytes<B>(slot_bytes)
+    return W6_BITS_SWITCH(bits, F, 0);
+#undef F
+}
+int ik_ar2_whtw(int bits, void* x, void* out, int dtype, int out_dtype, int64_t n_elem, void* peer_scratch, void* my_scratch, void* loc,
+                unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes, int nblocks, int drain, void* stream) {
+#define F(B) w6_allreduce<B>(x, out, dtype, out_dtype, n_elem, peer_scratch, my_scratch, loc, peer_flags, my_flags, ctrs, slot_bytes, nblocks, drain, stream)
+    if (!w6_bits_ok(bits)) return IK_ERR_INVALID_ARG;
+    return W6_BITS_SWITCH(bits, F, IK_ERR_INVALID_ARG);
+#undef F
+}
 } /* extern "C" */

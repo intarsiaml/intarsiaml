@@ -156,14 +156,14 @@ struct Wide {
     lossy: Option<LossyWire>,
 }
 
-/// The lossy wht wire (lane wht6-ar, `INTARSIA_HIP_AR_WIRE=wht6`; lane wht6-8b adds `wht8`; `kernels/hip/allreduce_wht6.hip`, design
+/// The lossy wht wire (lane wht6-ar, `INTARSIA_HIP_AR_WIRE=wht6`; lane wht6-8b adds `wht8`; lane wire-probe `wht12`, `wht16` and the control `whtf`; `kernels/hip/allreduce_wht6.hip`, design
 /// after radiance's `r4d_ar_oneshot_2rank_wht6`): an all-reduce on the wide path of at least `min_bytes` (and a whole number of
-/// 64-element groups) pushes a rotated `bits`-bit code of the partial (6.25 bits per element for wht6, 8.25 for wht8) instead of the
+/// 64-element groups) pushes a rotated `bits`-bit code of the partial (6.25 bits per element for wht6, 8.25 for wht8, 12.25, 16.25; `whtf` sends the rotated f32 values, 32) instead of the
 /// partial. Lossy, and both ranks still get the
 /// same bits. It runs on the wide path's scratch, flags and counters (the same handshake, so it advances the same counters as an
 /// exact wide launch and the two may follow each other); what it adds per rank is `loc`, the rank's own packed half.
 struct LossyWire {
-    /// symbol width: 6 (`wht6`) or 8 (`wht8`)
+    /// symbol width: 6 (`wht6`), 8, 12, 16 or 32 (`whtf`, the unquantised control)
     bits: u32,
     /// per rank: `ik_ar2_wht{6,8}_loc_bytes` of ordinary device memory
     loc: [*mut c_void; 2],
@@ -183,15 +183,12 @@ unsafe impl Sync for LossyWire {}
 impl LossyWire {
     fn new(backends: &[Arc<HipBackend>], slot_bytes: usize, min_bytes: usize, bits: u32) -> Result<LossyWire> {
         // SAFETY: pure functions of the slot size.
-        let (bytes, cap) = unsafe {
-            match bits {
-                6 => (ffi::ik_ar2_wht6_loc_bytes(slot_bytes as i64) as usize, ffi::ik_ar2_wht6_capacity(slot_bytes as i64) as usize),
-                8 => (ffi::ik_ar2_wht8_loc_bytes(slot_bytes as i64) as usize, ffi::ik_ar2_wht8_capacity(slot_bytes as i64) as usize),
-                b => return Err(Error::invalid(format!("lossy wire of {b} bits (6 or 8)"))),
-            }
-        };
+        if !matches!(bits, 6 | 8 | 12 | 16 | 32) {
+            return Err(Error::invalid(format!("lossy wire of {bits} bits (6, 8, 12, 16 or 32)")));
+        }
+        let (bytes, cap) = unsafe { (ffi::ik_ar2_whtw_loc_bytes(bits as i32, slot_bytes as i64) as usize, ffi::ik_ar2_whtw_capacity(bits as i32, slot_bytes as i64) as usize) };
         if cap == 0 {
-            return Err(Error::invalid(format!("INTARSIA_HIP_AR_WIRE=wht{bits}: a wide slot of {slot_bytes} bytes holds no wht{bits} chunk")));
+            return Err(Error::invalid(format!("INTARSIA_HIP_AR_WIRE={}: a wide slot of {slot_bytes} bytes holds no chunk", wire_name(bits))));
         }
         let mut w = LossyWire { bits, loc: [std::ptr::null_mut(); 2], ordinals: [0; 2], min_bytes, cap, launches: AtomicU64::new(0) };
         for (r, b) in backends.iter().enumerate() {
@@ -315,14 +312,26 @@ pub fn p2p_group_push(
     p2p_group_wire(backends, drain, ll_max, wide, push, None)
 }
 
-/// The lossy wire's smallest message in bytes and symbol width from `INTARSIA_HIP_AR_WIRE` (`exact`, the default, `wht6` or `wht8`)
+/// The `INTARSIA_HIP_AR_WIRE` value of a symbol width (lane wire-probe: 32 = `whtf`, the rotated f32 values unquantised, a control).
+fn wire_name(bits: u32) -> String {
+    if bits == 32 {
+        "whtf".to_string()
+    } else {
+        format!("wht{bits}")
+    }
+}
+
+/// The lossy wire's smallest message in bytes and symbol width from `INTARSIA_HIP_AR_WIRE` (`exact`, the default, `wht6`, `wht8`, `wht12`, `wht16` or `whtf`)
 /// and `INTARSIA_HIP_AR_WIRE_MIN_KB` (KiB, default 128, radiance's `--tp-wire-min-kb`); None = every all-reduce is exact.
 fn wire_env() -> Result<Option<(usize, u32)>> {
     let bits = match std::env::var("INTARSIA_HIP_AR_WIRE").ok().as_deref() {
         None | Some("") | Some("exact") => return Ok(None),
         Some("wht6") => 6,
         Some("wht8") => 8,
-        Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_WIRE={v} (exact, wht6 or wht8)"))),
+        Some("wht12") => 12,
+        Some("wht16") => 16,
+        Some("whtf") => 32,
+        Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_WIRE={v} (exact, wht6, wht8, wht12, wht16 or whtf)"))),
     };
     let kb = match std::env::var("INTARSIA_HIP_AR_WIRE_MIN_KB").ok().as_deref() {
         None | Some("") => WIRE_MIN_KB_DEFAULT,
@@ -332,7 +341,7 @@ fn wire_env() -> Result<Option<(usize, u32)>> {
 }
 
 /// [`p2p_group_push`] with the all-reduce wire (lane wht6-ar) given explicitly: `Some(Some((min_bytes, bits)))` = the lossy wire of
-/// `bits` (6 = wht6, 8 = wht8) for wide-path messages of at least `min_bytes`, `Some(None)` = exact, `None` reads
+/// `bits` (6, 8, 12, 16 = whtN, 32 = whtf) for wide-path messages of at least `min_bytes`, `Some(None)` = exact, `None` reads
 /// `INTARSIA_HIP_AR_WIRE` / `INTARSIA_HIP_AR_WIRE_MIN_KB`. Needs the wide path (an error without it when asked for explicitly or by the environment).
 #[allow(clippy::type_complexity)]
 pub fn p2p_group_wire(
@@ -408,7 +417,7 @@ pub fn p2p_group_wire(
         None => wire_env()?,
     };
     if wire.is_some() && wide.is_none() {
-        return Err(Error::invalid("INTARSIA_HIP_AR_WIRE=wht6 / wht8 needs the wide all-reduce path (INTARSIA_HIP_AR_WIDE=0 turns it off)"));
+        return Err(Error::invalid("INTARSIA_HIP_AR_WIRE=wht* needs the wide all-reduce path (INTARSIA_HIP_AR_WIDE=0 turns it off)"));
     }
     let wide = match wide {
         Some((nblocks, slot_bytes)) => Some(Wide {
@@ -448,9 +457,9 @@ pub fn p2p_group_wire(
     if let Some(q) = group.wide.as_ref().and_then(|w| w.lossy.as_ref()) {
         // the one line a lossy run must leave in its log
         eprintln!(
-            "hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht{}): all-reduces above {} KiB and of at least {} KiB carry a {}-bit rotated code \
+            "hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE={}): all-reduces above {} KiB and of at least {} KiB carry a {}-bit rotated code \
              (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.",
-            q.bits,
+            wire_name(q.bits),
             group.wide_min >> 10,
             q.min_bytes >> 10,
             q.bits
@@ -533,8 +542,8 @@ impl Comm for P2pComm {
                 // SAFETY: both ranges are inside their tensors (bounds checked), `n` is a multiple of 64 within the slot's capacity; scratch /
                 // flags / counters / loc are live for the group's lifetime.
                 let rc = unsafe {
-                    let f = if q.bits == 8 { ffi::ik_ar2_wht8 } else { ffi::ik_ar2_wht6 };
-                    f(
+                    ffi::ik_ar2_whtw(
+                        q.bits as i32,
                         pbase.add(off * pe) as *mut c_void,
                         obase.add(off * oe) as *mut c_void,
                         partial.dtype as i32,
@@ -553,7 +562,7 @@ impl Comm for P2pComm {
                     )
                 };
                 if rc != 0 {
-                    return Err(Error::backend(format!("ik_ar2_wht{} returned {} ({rc})", q.bits, ffi::status_name(rc))));
+                    return Err(Error::backend(format!("ik_ar2_whtw({}) returned {} ({rc})", wire_name(q.bits), ffi::status_name(rc))));
                 }
                 off += n;
             }
@@ -773,7 +782,7 @@ impl Comm for P2pComm {
                 w.pushed.load(Ordering::Relaxed)
             ));
             if let Some(q) = &w.lossy {
-                out.push_str(&format!("wht{} launches {} (min {} bytes); ", q.bits, q.launches.load(Ordering::Relaxed), q.min_bytes));
+                out.push_str(&format!("{} launches {} (min {} bytes); ", wire_name(q.bits), q.launches.load(Ordering::Relaxed), q.min_bytes));
             }
         }
         if let Some(c) = &self.group.calls {
