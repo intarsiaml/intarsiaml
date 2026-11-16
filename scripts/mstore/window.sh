@@ -7,7 +7,11 @@
 #   restores all but its last tokens from the host tier).
 set -u
 [ -n "${FLEETQ_JOB:-}" ] || { echo "not inside a fleetq slot" >&2; exit 2; }
-W=/opt/code/intarsiaml/.worktrees/mstore; BIN=$W/target/release/intarsia; PR=$W/target/mstore-run/prompts
+# the CLI with the Metal backend (a no-op once built; a plain `-p intarsia-cli` build has no Metal backend)
+# pinned: the first job builds it at the branch head of that moment, every later job measures that same binary
+PIN=/opt/code/intarsiaml/.worktrees/mstore/target/mstore-run/intarsia-measure
+if [ ! -x $PIN ]; then (cd /opt/code/intarsiaml/.worktrees/mstore && cargo build --release --locked -q -p intarsia-cli --features metal && cp target/release/intarsia $PIN.tmp && mv $PIN.tmp $PIN && git rev-parse --short HEAD > $PIN.rev && git status --short crates > $PIN.dirty) || { echo "build failed" >&2; exit 3; }; fi
+W=/opt/code/intarsiaml/.worktrees/mstore; BIN=/opt/code/intarsiaml/.worktrees/mstore/target/mstore-run/intarsia-measure; PR=$W/target/mstore-run/prompts
 case $1 in
   35b) M=$HOME/models/Qwen3.6-35B-A3B-NVFP4 ;;
   27b) M=$HOME/models/Qwen3.8-27B-Quark-AWQ-MXFP4 ;;
@@ -47,7 +51,7 @@ wait_disk() { # until the disk writer has nothing pending
   echo "disk NOT settled: $p"
 }
 
-echo "## $TAG $(date +%T) bin $(cd $W && git rev-parse --short HEAD) model $M"
+echo "## $TAG $(date +%T) bin $(cat $PIN.rev) model $M"
 # setup: P into D0
 start setup --prefix-store "$STORE,dir=$S/D0" || exit 1
 req setup-P P-$CTX.json

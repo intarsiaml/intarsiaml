@@ -34,3 +34,12 @@ Progress:
 - Definition of the head catch-up cost (the restart design has no catch-up compute; the head starts empty at the restore
   point, so the cost is lower acceptance): decode time over the same tokens restored minus cold, divided by TTFT cold minus
   TTFT restored, per cell (4k / 32k x new turn after the restore point / repeated prompt).
+- 21:50 gate 35B #9498: **PASS** (1 passed, 199 s; `raw/gate-35b.log`). Single greedy, cold-engine greedy, single
+  sampled restored == cold, batched greedy, batched sampled restored == cold, restart from disk: all true. Store off gives
+  other ids than store on (5 of 6), as documented for Metal (the boundary-cut schedule changes prefill bits).
+  Acceptance: cold turns 77.8 %, restored turns with a new turn 77.5 %, store-off whole head 81.0 % (later turns);
+  all but 2 tokens restored from the store 58.7 to 68.7 % (63.0 % greedy batched, 63.3 % sampled).
+- 22:0x gate 27B #9499 (`INTARSIA_BATCHED_MTP=1` for the batched arms, opt-in on the 27B): **PASS** (1 passed, 385 s;
+  `raw/gate-27b.log`), all six checks true. Acceptance: cold turns 77.3 %, restored turns with a new turn 61.0 %
+  against 66.3 % with the whole head context (store off; not the same tokens), all but 2 restored 45.2 % (sampled) /
+  54.4 % (greedy, batched).
