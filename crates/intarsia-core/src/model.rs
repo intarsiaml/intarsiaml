@@ -3241,8 +3241,10 @@ impl Model {
         // lane a4k-restore: with `st.prefill_snapshots` set (an engine's prefill step) the chunk ends inside this call keep the
         // snapshots the plain schedule (one call per chunk, a snapshot after each) would leave: the last `keep - 1` of them (the
         // caller snapshots the call's end). Copies only, after each chunk's recurrence: no op and no numerics change.
+        // Single-rank only: `forward_tp` has taken `st.peers` out before this runs, so a rank-0-only snapshot here would leave
+        // the peers' recurrent state behind (review of #382; tp>1 runs no macro pass today, `macro_rows` is 0 there).
         let keep = st.prefill_snapshots;
-        let snap_from = if keep > 1 && st.has_recurrent() && nchunks > 1 {
+        let snap_from = if keep > 1 && self.tp.world == 1 && st.has_recurrent() && nchunks > 1 {
             let ends: Vec<usize> = chunks[..nchunks - 1].iter().scan(st.len, |p, c| { *p += c.len(); Some(*p) }).collect();
             ends[ends.len().saturating_sub(keep - 1)]
         } else {
