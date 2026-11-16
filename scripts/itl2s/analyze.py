@@ -108,7 +108,7 @@ def cell_window(visit, cell_key):
     out = []
     for (c, arm), vs in cells.items():
         for v, d in vs:
-            if v == visit:
+            if v == visit and (c, d["t_start"], d["t_end"]) not in out:
                 out.append((c, d["t_start"], d["t_end"]))
     return sorted(out, key=lambda x: x[1])
 
@@ -118,6 +118,7 @@ print("\n## server (Emit lines): per visit and cell\n")
 print("| visit | cell | iterations | emission gap ms p50 / p99 / max | per-token spread p99 | 2-seq verify pass ms p50 / p99 | draft (prepare) ms p50 / p99 | decode step ms p50 / p99 | tokens per emission | dup iters |")
 print("|---|---|---|---|---|---|---|---|---|---|")
 RECS = defaultdict(list)   # visit -> gap records
+SRV = {}
 for arm in arms:
     for visit in sorted({v for (c, ar), vs in cells.items() if ar == arm for v, _ in vs}):
         s_ = server(visit)
@@ -146,6 +147,7 @@ for arm in arms:
                     gaps.append(g); spread.append(g / L[k][1]); ntok += L[k][1]; nem += 1
                     done += L[k][1]
             if not gaps: continue
+            SRV[(visit, c)] = (q(gaps, .5), q(gaps, .99), max(gaps), ntok / nem, q(spread, .99))
             v2 = [e["verify"] for e in ee if e["vseqs"] == 2]
             dr = [e["prepare"] for e in ee if e["vseqs"] or e["prepare"]]
             dc = [e["decode"] for e in ee if e["drows"]]
@@ -172,3 +174,43 @@ for visit in sorted(RECS):
         if e["vseqs"]: by[(e["vseqs"], e["vrows"])].append(e["verify"])
     for (sq, rw), v in sorted(by.items()):
         if len(v) >= 20: print(f"| {visit} | {sq} seqs / {rw} rows | {len(v)} | {q(v, .5):.1f} | {q(v, .99):.1f} | {max(v):.1f} |")
+
+print("\n## server: tokens per emission (share of emissions with 1 / 2 / 3 tokens) and the longest run of 1-token emissions of a request, per visit\n")
+print("| visit | cell | emissions | 1 token | 2 tokens | 3 tokens | longest run of 1-token emissions (p50 / max over requests) | share of tokens delivered in 1-token emissions |")
+print("|---|---|---|---|---|---|---|---|")
+for arm in arms:
+    for visit in sorted({v for (c, ar), vs in cells.items() if ar == arm for v, _ in vs}):
+        s_ = server(visit)
+        if not s_ or arm == BASE: continue
+        em, _ = s_
+        for c, t0, t1 in cell_window(visit, None):
+            per = defaultdict(list)
+            for e in em:
+                if t0 <= e["t"] <= t1:
+                    for rid, n in e["toks"]: per[rid].append(n)
+            cnt = defaultdict(int); runs = []; tot = 0; one = 0
+            for rid, L in per.items():
+                if sum(L) < 100: continue
+                run = best = 0
+                for n in L:
+                    cnt[n] += 1; tot += n
+                    if n == 1: run += 1; one += 1; best = max(best, run)
+                    else: run = 0
+                runs.append(best)
+            ne = sum(cnt.values())
+            if ne: print(f"| {visit} | {c} | {ne} | {cnt[1] / ne:.1%} | {cnt[2] / ne:.1%} | {cnt[3] / ne:.1%} | {q(runs, .5)} / {max(runs)} | {one / tot:.1%} |")
+
+
+print(f"\n## summary per cell: {BASE} -> F (means of the visits; gaps in ms)\n")
+print("| cell | combined tok/s | gain | server emission gap p50 | server emission gap p99 | server max gap | tokens per emission | per-token spread p99 | client text-gap p50 / p99 | client max | localeval ITL p99 |")
+print("|---|---|---|---|---|---|---|---|---|---|---|")
+def avg(arm, c, i):
+    v = [SRV[(vv, c)][i] for (vv, cc) in SRV if cc == c and vv.split(".")[0] == arm]
+    return statistics.mean(v) if v else float("nan")
+for c in cell_names:
+    if (c, BASE) not in summary or (c, "F") not in summary: continue
+    b, f = summary[(c, BASE)], summary[(c, "F")]
+    cb, cf = statistics.mean(b["comb"]), statistics.mean(f["comb"])
+    lb = statistics.median([x for x in (loc_itl_p99(r["marks"], r["usage"]["completion_tokens"]) for _, d in cells[(c, BASE)] for r in d["requests"] if r["ok"]) if x])
+    lf = statistics.median([x for x in (loc_itl_p99(r["marks"], r["usage"]["completion_tokens"]) for _, d in cells[(c, "F")] for r in d["requests"] if r["ok"]) if x])
+    print(f"| {c} | {cb:.0f} -> {cf:.0f} | {cf / cb - 1:+.1%} | {avg(BASE, c, 0):.1f} -> {avg('F', c, 0):.1f} | {avg(BASE, c, 1):.1f} -> {avg('F', c, 1):.1f} | {avg(BASE, c, 2):.0f} -> {avg('F', c, 2):.0f} | {avg(BASE, c, 3):.2f} -> {avg('F', c, 3):.2f} | {avg(BASE, c, 4):.1f} -> {avg('F', c, 4):.1f} | {b['p50']:.1f} / {b['p99']:.1f} -> {f['p50']:.1f} / {f['p99']:.1f} | {b['max']:.0f} -> {f['max']:.0f} | {lb:.0f} -> {lf:.0f} |")
