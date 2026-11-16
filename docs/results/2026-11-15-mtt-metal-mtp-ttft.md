@@ -1,35 +1,207 @@
 # Lane mtt: the MTP default's time-to-first-token cost under `serve` on Metal (2026-11-15)
 
-## Brief + progress (kept at the top: context compaction loses briefs)
+Branch `mtt`, base `origin/main` `c5ce87bc8`, merged up to `fd8a3af08`. Box endor (Apple M5 Max, macOS 27.0); every GPU run in
+a fleetq slot (section 7). Scripts: [`scripts/mtt/`](../../scripts/mtt/); raw logs:
+[`2026-11-15-mtt-metal-mtp-ttft/raw/`](2026-11-15-mtt-metal-mtp-ttft/raw/). The brief and the coordinator's overrides are kept
+at the end of this file.
 
-### Progress
+## Result in short
 
-- [ ] build, reproduce
-- [ ] bisect cause
-- [ ] fix + off knob `INTARSIA_METAL_MTP_TTFT_FIX=0`
-- [ ] gates (ids, plan show, tests, regression test, speed rule)
-- [ ] 27B, first-token emission, prefix-store numbers (if time)
-- [ ] LOG row, merge origin/main, PR (do not merge), delete `target/`
+1. **The MTP default does not cost time to first token.** On an unthrottled box the 35B answers a 4k prompt in 754 ms with
+   the MTP default and 746 ms with `--spec off` (median of 6 fresh calls each, #9507; section 3). The 27B and the 34k prompts
+   show no cost either. The roadmap's +0.3 to +0.45 s was the box: its slow servers ran right after a 14-minute sweep, and
+   its "`--spec off`" arm in #9398 was started without the flag (an MTP server, and it was fast). Nothing was changed in the
+   prefill or MTP path.
+2. **A hot box slows every GPU buffer by 1.2 to 1.45x for whichever server happens to run**, `--spec off` included
+   (section 2). It comes and goes per server instance, and macOS's thermal pressure level does not announce it. The decode
+   step time of the same server does: 14.4 to 14.6 ms per MTP pass and 8.2 to 8.5 ms per plain token on the 35B when the box
+   is not throttling.
+3. **Found on the way and fixed: `serve` start-up.** Admission built the random data of every test case only to read the
+   case's label, and then took the result from its cache. With the MTP default that was 7 of the 10 s of a 35B start and 62 of
+   the 65 s of a 27B start, on one CPU core, on every start. Cases are now built only when their result is not cached: the
+   35B is up in 2.9 s and the 27B in 2.0 to 2.5 s. On by default on Metal; `INTARSIA_METAL_MTP_TTFT_FIX=0` (or
+   `INTARSIA_ADMIT_LAZY=0`) restores main's behaviour. No token, admission verdict or cache byte changes.
 
-### Working notes (newest last; rewrite into the report at the end)
+## 1. Why the roadmap's numbers looked like an MTP cost
 
-- 20:33 #9411 build ok. #9413 bisect1 (cool box): MTP default TTFT 745..813 ms == `--spec off` 742..804. **Does not reproduce.**
-- 20:37 #9418 rep2 ABBA + cb (cool box): off 744..776, mtp 752..813; prefill buffers 96..100 ms in both arms.
-- Planner's #9398 "off" arm had NO `--spec off` flag (`ttft.sh mtp off mtptrace` -> `## off [] []`, MTP gap pattern): it was an MTP-default
-  server and it was FAST (738..771). So in one job identical MTP servers went slow, fast, slow: a per-instance state, not MTP vs off.
-- In the planner's slow instances EVERY GPU buffer is 1.2..1.45x slower (verify rows 1.84 vs 1.53 ms, 3-row tail 4.70 vs 3.22), not just prefill.
-- No host thread spins under MTP (`sample`, bisect1/mtpsmp.sample.txt). No other fleetq job overlapped the planner's window (fleetq log).
-- 20:41 #9430 hot1: 160 s of 32k prefills first (TTFT of those climbs 9.55 -> 12.6 s; `thermalpressurelevel` 2), then alternating arms:
-  mtp1 888/1044/1020 SLOW, off1 777/751/754, mtp2 782/751/749 FAST, **off2 813/918/946 SLOW (gaps 10.7 -> 13.7 ms)**, mtp3 833/1025/893 SLOW, off3 fast.
-  => thermal throttling of the GPU on a hot box; hits `--spec off` too. Open: is MTP hit more often (longer, CPU-heavy load: 10.4 s vs 4.3 s)?
-- #9437 load sample: MTP start-up 11.1 s vs 4.7 s off; 5.7 s of it is `plan::admit` -> `case_from_call` -> `rand_t` (Box-Muller, one thread)
-  building random cases only to read their label, then "0 case(s) run, 558 cached". Wasted work => fix: lazy cases (`PlanOptions::lazy_cases`,
-  Metal default, `INTARSIA_ADMIT_LAZY=0/1`, `INTARSIA_METAL_MTP_TTFT_FIX=0` = off). Skipped draws are replayed before the first built case.
-  CPU test `lazy_admission_cases_build_nothing_when_cached_and_keep_the_data_of_those_that_run` (mutation-checked: without the replay it fails). Commit b7d8b53e4.
-- #9442 hot2 (off first): off 759..796 (gaps 9.1), mtp 796/975/822, off 801/905/826, mtp 803/975/963, off 756..781 fast, mtp3/mtp4 slow-ish (845/874).
-  Hot box: MTP instances throttled more often than off ones (start-up CPU burn right before the probe? -> #9453 hot3 tests on/old/off).
-- base binary for gate 2: nested worktree `.base` (c5ce87bc8), `target/base/` (remove both at the end: `git worktree remove .base`).
-- gate scripts: scripts/mtt/ids.sh (gate 1), plan.sh (gate 2). TODO: gates, cool ABBA TTFT table 35B/27B 4k/34k, decode check, LOG row, PR.
+* **One arm was mislabelled.** #9398 ran `ttft.sh mtp off mtptrace`. The arm named `off` has no flags (`## off [] []` in
+  `scripts/mac-plan/raw/diag.log`) and its token gaps are MTP passes (`15.0, 0.0, 15.1`). So that job ran three MTP-default
+  servers in a row: slow (1033 / 1221 / 1188 ms), fast (771 / 738 / 758), slow (1020 / 1205 / 1124). Same binary, same
+  flags.
+* **In a slow server everything on the GPU is slow**, not only the prefill (the planner's `mtpcb.jsonl` against a trace of
+  the same commit on a cool box, `raw/rep2/mtp1cb.jsonl`): prefill buffers 142 against 98 ms, 3-row verify buffers 1.84
+  against 1.53 ms, the 3-row prompt tail 4.70 against 3.22 ms. It starts about 300 ms into the first request (100 / 97 / 96 /
+  111 / 130 / 151 / 166 ms) and stays.
+* **Nothing runs beside the prefill.** The traces hold no other command buffer during a prefill chunk; the head's catch-up
+  over the 4095 prompt rows is one 3.2 ms buffer after it. `sample` of both servers during a request shows every host thread
+  waiting (`raw/bisect1/*.sample.txt`). `--max-seq 8192` changes nothing. The brief's three hypotheses are ruled out.
+* **Cool box, same commit, same script:** #9413 and #9418, 13 servers. MTP default 745 to 813 ms, `--spec off` 742 to
+  804 ms (and one call at 974). Every knob of the brief lands in that range (`raw/bisect1.log`: `INTARSIA_METAL_MTP_GPU_ACCEPT=0` 763 to 797,
+  `INTARSIA_BATCHED_MTP=0` 782 to 830 beside another lane's build, `--spec-k 1` 753 to 808, `INTARSIA_SPEC_DEFAULT=0` 742
+  to 777), so there was nothing to bisect.
+* The first token does not wait for the first verify pass: `run_seq` sends it (`Seq::on_token`) before the first
+  `advance` (`crates/intarsia-core/src/engine.rs`), and the TTFT difference of 8 ms is less than a pass.
+
+## 2. What does slow a server: a hot box
+
+`scripts/mtt/hot.sh` runs 150 s of 32k prefills first (the TTFT of those requests climbs from 9.6 to 12.6 s on its own, and
+`com.apple.system.thermalpressurelevel` goes to 2), then the probe on alternating fresh servers. 35B, 4k prompt, 3 calls per
+server; "step" is the median gap between token events of that server (one MTP pass or one plain token).
+
+| run | arm | TTFT ms | step ms | throttled |
+|---|---|---|---:|---|
+| #9430 | MTP | 888 / 1044 / 1020 | 17.5 | yes |
+| | `--spec off` | 777 / 751 / 754 | 8.6 | no |
+| | MTP | 782 / 751 / 749 | 14.8 | no |
+| | `--spec off` | 813 / 918 / 946 | 10.8 | yes |
+| | MTP | 833 / 1025 / 893 | 17.9 | yes |
+| | `--spec off` | 772 / 739 / 740 | 8.3 | no |
+| #9442 | `--spec off` | 796 / 759 / 765 | 9.1 | a little |
+| | MTP | 796 / 975 / 822 | 16.8 | yes |
+| | `--spec off` | 801 / 905 / 826 | 9.6 | yes |
+| | MTP | 803 / 975 / 963 | 16.7 | yes |
+| | `--spec off` | 781 / 756 / 779 | 8.5 | no |
+| | MTP | 815 / 768 / 786 | 16.3 | yes |
+| | `--spec off` | 809 / 832 / 920 | 9.6 | yes |
+| | MTP | 811 / 845 / 874 | 17.5 | yes |
+| #9506 (no heating, after other lanes' jobs) | MTP | 785 / 747 / 746 | 14.6 | no |
+| | MTP | 787 / 755 / 771 | 15.4 | a little |
+| | `--spec off` | 808 / 992 / 1149 | 11.4 | yes |
+| | `--spec off` | 808 / 794 / 833 | 9.3 | yes |
+| | `--spec off` | 788 / 892 / 951 | 10.2 | yes |
+| | `--spec off` | 808 / 759 / 766 | 8.9 | a little |
+| | MTP | 792 / 759 / 789 | 14.5 | no |
+| | MTP | 782 / 746 / 746 | 14.6 | no |
+
+Both arms are hit, in no order: in #9506 it is the four `--spec off` servers that are slow and the MTP ones that are not. The
+thermal level read at the start of each arm was 2 or 1 throughout #9430 and #9442 and 0 for seven of the eight arms of #9506, so
+it is no guide. The first call of a throttled server is usually still fast, as in the planner's trace.
+
+What it is not:
+
+* **Not CPU load from other jobs.** #9507, unthrottled, with 12 busy CPU threads beside the calls: `--spec off` 758 against
+  746 ms, MTP 762 against 754 ms, step time +3 %. A build beside a probe costs about 10 ms, not 300.
+* **Not the start-up work before the first request.** #9453 on a hot box: MTP servers with the start-up fix (3 to 5.6 s to
+  load) 832 / 823 / 929, 830 / 907 / 863, 782 / 744 / 766; without it (10 to 25 s) 810 / 766 / 812, 792 / 752 / 751, 787 /
+  920 / 878; `--spec off` 833 / 801 / 870, 825 / 836 / 907, 779 / 745 / 739.
+
+This lane cannot say which controller does it (`powermetrics` needs root). It can say that the engine has no part in it:
+identical command buffers take 1.2 to 1.45x longer.
+
+For timing work on endor this means: fresh-server A/B probes are only comparable when the arms are interleaved several
+times, and a throttled instance has to be recognised and dropped or repeated. `scripts/mtt/ttft.sh` prints the thermal level
+and the load time per arm and can wait for level 0 (`COOL=N`); `scripts/mtt/table.py` prints the step time per instance. The
+runs up to #9470 also had this lane's and other lanes' builds beside them (`--quiet gpu` lets `--load cpu` jobs in);
+the later runs used `--quiet gpu,cpu`.
+
+## 3. Time to first token, MTP default against `--spec off`, before and after
+
+"Before" is `INTARSIA_METAL_MTP_TTFT_FIX=0` (main's start-up), "after" the default. The change only touches start-up, so
+before and after differ only by noise; the column that moves is the load time (section 4). Fresh server per arm, arms in the
+order after, before, off, off, before, after (35B 4k: with a fourth arm, `--spec off` before), `COOL=90`, `--quiet gpu,cpu`.
+Median, with the range in brackets.
+
+| model, prompt | MTP default, before | MTP default, after | `--spec off` | job |
+|---|---|---|---|---|
+| 35B, 4.1k tokens | 779 (755..792), 6 calls | 746 (746..785), 6 calls | throttled in this run: 808 (759..1149), 6 calls; before: 820 (788..951) | #9506 |
+| 35B, 4.1k tokens, unthrottled run | | 754 (745..786), 6 calls | 746 (742..780), 6 calls | #9507 |
+| 35B, 32.8k tokens | 8836 (8444..10349), 4 calls | 9310 (8620..10205), 4 calls | 10376 (9688..10913), 4 calls | #9509 |
+| 27B, 4.1k tokens | 4524 (4518..4580), 4 calls | 4646 (4527..4923), 4 calls | 4676 (4514..4897), 4 calls | #9508 |
+| 27B, 32.8k tokens | TBD27B34OLD | TBD27B34ON | TBD27B34OFF | #9510 |
+
+* **Pre-registered rule** (35B median TTFT at 4k within 40 ms of `--spec off`, at 34k within 150 ms): met, and it was already
+  met on main. At 4k the MTP default is 8 ms behind `--spec off` in the unthrottled run (754 against 746) and ahead of it in
+  the throttled one. At 34k the MTP arms are ahead of `--spec off` (by 1.1 to 1.5 s), which is the order of the arms: the
+  `--spec off` servers ran in the middle, when the box was warmest, and the second call of every server is 0.4 to 1.5 s
+  slower than its first. A 34k prefill is 9 to 10 s of full GPU load, enough to heat the box by itself.
+* The 27B shows the same thing at a smaller scale: first calls 4514 to 4621 ms in every arm, second calls up to 4923.
+* The prompt files are the roadmap's (`prompt-4096.txt`, `prompt-32768.txt`); "34k" there is this 32.8k prompt.
+
+## 4. The start-up fix
+
+`plan::admit` checks every kernel the plan selects against the CPU reference on the plan's shapes and caches the results
+per binary. Its loop called `case_from_call` (random inputs, quantised random weights) for every planned call before it
+looked the result up, because the cache key contains the case's label. `case_label` gives the same label from the shapes
+alone. `sample` of a 35B start with the MTP default (#9437, `raw/load/mtp.sample.txt`): 5.7 s of 11.1 s in
+`admission::rand_t` (Box-Muller, one thread) and the quantisers, followed by
+`admission on plan shapes: 32 kernel(s) checked, 0 case(s) run, 558 cached`. The MTP default adds the verify kernels'
+cases, which are the expensive ones; that is why `--spec off` starts suffered less.
+
+The change (`crates/intarsia-core/src/plan.rs`):
+
+* With `PlanOptions::lazy_cases`, a call whose result is cached under its label is answered without building the case, and
+  the call is remembered. The first call that has to be built first replays the remembered ones through the generator (data
+  dropped), then the loop goes on as before. So every case that runs gets the data it always got, and a run writes the
+  cache file main writes.
+* Default: on for Metal, off elsewhere (`plan::lazy_cases_for`). `INTARSIA_ADMIT_LAZY=1` / `0` forces it on any backend;
+  `INTARSIA_METAL_MTP_TTFT_FIX=0` turns the Metal default off (the switch the coordinator asked for). Both have rows in
+  `docs/tuning.md`.
+* `AdmitSummary::cases_built` counts the cases built (0 on a start served from the cache).
+
+Time from process start to `loaded ...` (`serve`, `--max-seq 40000`, admission cache warm, quiet box):
+
+| model | flags | before | after | jobs |
+|---|---|---:|---:|---|
+| 35B | MTP default | 9.7 to 11.4 s | 2.8 to 3.0 s (one start 4.5 s) | #9506, #9507, #9509 |
+| 35B | `--spec off` | 5.3 to 5.9 s | 2.3 to 3.6 s (one start 4.3 s) | #9506, #9507 |
+| 27B | MTP default | 64.0 to 65.5 s | 2.0 to 2.5 s | #9508 |
+| 27B | `--spec off` | 6.4 s (roadmap's `s27off`) | 1.9 to 2.1 s | #9391, #9508 |
+
+Beside other jobs or on a hot box the "before" numbers are worse (35B 25.5 s in #9453, 27B 79.6 s in #9463); "after" stays
+at 3 to 5.6 s.
+
+Not changed: the first start of a newly built binary still runs every case, because the cache is keyed by the executable's
+size and mtime (35B 15 to 16 s, 27B 88 s). CUDA and HIP run the same eager loop; they are left off here (section 6).
+
+## 5. Gates
+
+| gate | result | where |
+|---|---|---|
+| 1. Served greedy ids, 256 tokens, fix on == fix off == `--spec off`; short, 4k (two prompts), 16k | **PASS** 35B and 27B, 4 / 4 cases each | #9461, #9463; `raw/gate-ids-*.log`, `raw/ids/` |
+| 1. MTP counters (`intarsia_spec_steps / proposed / accepted`) identical, fix on against off | **PASS** 35B and 27B (e.g. 35B 4k 95 passes, 190 proposed, 159 accepted in both) | same |
+| 2. `plan show --backend metal` byte-identical to main: 8B, 27B, 35B x default / `--spec off` / `--spec mtp`, each also with `--admit` | **PASS** 18 / 18 (8B `--spec mtp`: the same refusal from both) | #9484; `raw/gate-plan.log`, `raw/plan/` |
+| 3. `cargo test --workspace --release --locked` on the merged tree | **PASS** 1495 passed, 0 failed, 33 ignored | #9486; `raw/test-workspace.log` |
+| 3. `crates/intarsia-models/tests/batch_metal_real.rs` (35B) | TBDBATCH | TBDBATCHJOB; `raw/test-batch-metal-real.log` |
+| 4. Regression test on CPU | **PASS** `lazy_admission_cases_build_nothing_when_cached_and_keep_the_data_of_those_that_run` (`crates/intarsia-models/tests/plan.rs`) and `plan::tests::lazy_admission_cases_default_to_metal_and_follow_the_switches` | #9446, #9448 |
+| 5. Speed rule, TTFT | **PASS** (section 3; already true on main) | #9506, #9507, #9509 |
+| 5. Speed rule, decode, no cell below 0.98 | TBDDECODE | TBDDECODEJOB |
+
+The regression test runs admission on the tiny model three ways, eager and lazy side by side: cold (same cache file, byte
+for byte), warm (eager builds every case, lazy builds none, same counts and kernels), and after a quarter of the cache
+entries are removed (both re-measure exactly those, and the files match each other and the cold run's values, which they
+only can if the lazy loop replays the skipped draws). Checked by mutation: with the replay removed the test fails (#9449).
+
+The Metal binary of gates 1 and 2 was built before `origin/main` was merged in; the merge brought one engine change, a
+refactor inside `hostprof.rs` for a test (#379). The workspace tests ran on the merged tree.
+
+The first run of gate 2 (#9462) is void: `cargo test --workspace` rebuilt `target/release/intarsia` without the Metal feature
+while it ran. The lane's Metal binary lives in `target/metal/` since.
+
+## 6. Not done, and follow-ups
+
+* **CUDA and HIP still build every case.** The loop is shared and the gain should be the same or larger (slower CPU cores on
+  the Sparks). It is off there because this lane did not gate those backends; the override asked for a guard or a proof.
+  `INTARSIA_ADMIT_LAZY=1` turns it on for a trial; the check is the served ids and the `admission on plan shapes` line of
+  one start each way.
+* **A new binary starts cold** (27B 88 s): the cache key is the executable's size and mtime. A key from the kernel sources
+  would keep the cache across rebuilds that do not touch kernels. Not done: it changes when cases are re-run, which is a
+  decision about admission, not a defect.
+* **Brief item (c)**, the `--prefix-store` server with `INTARSIA_MTP_STORE=1`: not measured here; lane `mstore` ran exactly
+  those runs tonight.
+* The roadmap (`docs/design/2026-11-15-mac-roadmap.md`, item 3 of section 0 and section 1.5) carries a correction note
+  pointing here.
+
+## 7. fleetq jobs (endor)
+
+Builds and CPU tests (`--load cpu`): #9411, #9446, #9448, #9449, #9451, #9454, #9482, #9474 (stopped at the missing
+`docs/tuning.md` rows, fixed). GPU (`--quiet gpu`): #9413 (knobs), #9418 (ABBA + traces), #9430, #9442, #9453 (hot box),
+#9437 (start-up `sample`), #9461, #9463 (ids), #9462 (void), #9484 (plan show), #9486 (workspace tests, in line),
+#9470 (ABBA beside other jobs' builds, kept as `raw/busy-abba-35b-4k.log`), #9471 to #9473 (stopped or released by this lane
+before they produced data). GPU (`--quiet gpu,cpu`): #9506, #9507, #9508, #9509, #9510 (TTFT), TBDJOBS.
+
+---
+
+## Brief + progress (kept for the record)
 
 ### Coordinator overrides (these win over the brief)
 

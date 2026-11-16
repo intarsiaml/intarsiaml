@@ -8,3 +8,29 @@ fleetq: #9512 waiting (#16 in line): in line behind #9487 "mnr: 27B accuracy kno
 fleetq:   #9487 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9487 set, or it will wait for #9487 to be released.
 fleetq: #9512 waiting (#15 in line): in line behind #9488 "mnr: 27B 8 streams ABBA knob off/on" (claude-2ae67a71) on endor
 fleetq:   #9488 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9488 set, or it will wait for #9488 to be released.
+fleetq: #9512 waiting (#14 in line): in line behind #9489 "mnr: no-op gates (plan show, kernels test) + kernels test under the knob" (claude-2ae67a71) on endor
+fleetq:   #9489 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9489 set, or it will wait for #9489 to be released.
+fleetq: #9512 waiting (#13 in line): in line behind #9498 "mstore: MTP+store gate 35B (tests/mtp_store_metal)" (claude-2ae67a71) on endor
+fleetq:   #9498 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9498 set, or it will wait for #9498 to be released.
+fleetq: #9512 waiting (#12 in line): in line behind #9499 "mstore: MTP+store gate 27B (tests/mtp_store_metal)" (claude-2ae67a71) on endor
+fleetq:   #9499 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9499 set, or it will wait for #9499 to be released.
+fleetq: #9512 waiting (#11 in line): in line behind #9502 "mstore: TTFT cold vs restored 35b 4k (ABBA, fresh servers)" (claude-2ae67a71) on endor
+fleetq:   #9502 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9502 set, or it will wait for #9502 to be released.
+fleetq: #9512 waiting (#10 in line): in line behind #9503 "mstore: TTFT cold vs restored 35b 32k (ABBA, fresh servers)" (claude-2ae67a71) on endor
+fleetq:   #9503 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9503 set, or it will wait for #9503 to be released.
+fleetq: #9512 waiting (#9 in line): in line behind #9504 "mstore: TTFT cold vs restored 27b 4k (ABBA, fresh servers)" (claude-2ae67a71) on endor
+fleetq:   #9504 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9504 set, or it will wait for #9504 to be released.
+fleetq: #9512 waiting (#8 in line): in line behind #9505 "mstore: TTFT cold vs restored 27b 32k (ABBA, fresh servers)" (claude-2ae67a71) on endor
+fleetq:   #9505 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9505 set, or it will wait for #9505 to be released.
+fleetq: #9512 waiting (#7 in line): in line behind #9506 "mtt: TTFT abba-35b-4k (quiet gpu+cpu)" (claude-2ae67a71) on endor
+fleetq:   #9506 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9506 set, or it will wait for #9506 to be released.
+fleetq: #9512 waiting (#6 in line): in line behind #9507 "mtt: TTFT cpuload-35b-4k (quiet gpu+cpu)" (claude-2ae67a71) on endor
+fleetq:   #9507 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9507 set, or it will wait for #9507 to be released.
+fleetq: #9512 waiting (#5 in line): in line behind #9508 "mtt: TTFT abba-27b-4k (quiet gpu+cpu)" (claude-2ae67a71) on endor
+fleetq:   #9508 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9508 set, or it will wait for #9508 to be released.
+fleetq: #9512 waiting (#4 in line): in line behind #9509 "mtt: TTFT abba-35b-34k (quiet gpu+cpu)" (claude-2ae67a71) on endor
+fleetq:   #9509 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9509 set, or it will wait for #9509 to be released.
+fleetq: #9512 waiting (#3 in line): in line behind #9510 "mtt: TTFT abba-27b-34k (quiet gpu+cpu)" (claude-2ae67a71) on endor
+fleetq:   #9510 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9510 set, or it will wait for #9510 to be released.
+fleetq: #9512 waiting (#2 in line): in line behind #9511 "mtt: decode check 35B localeval speed, lazy admission on/off ABBA (quiet gpu+cpu)" (claude-2ae67a71) on endor
+fleetq:   #9511 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9511 set, or it will wait for #9511 to be released.

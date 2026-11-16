@@ -8,3 +8,45 @@ fleetq: #9509 waiting (#13 in line): in line behind #9487 "mnr: 27B accuracy kno
 fleetq:   #9487 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9487 set, or it will wait for #9487 to be released.
 fleetq: #9509 waiting (#12 in line): in line behind #9488 "mnr: 27B 8 streams ABBA knob off/on" (claude-2ae67a71) on endor
 fleetq:   #9488 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9488 set, or it will wait for #9488 to be released.
+fleetq: #9509 waiting (#11 in line): in line behind #9489 "mnr: no-op gates (plan show, kernels test) + kernels test under the knob" (claude-2ae67a71) on endor
+fleetq:   #9489 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9489 set, or it will wait for #9489 to be released.
+fleetq: #9509 waiting (#10 in line): in line behind #9498 "mstore: MTP+store gate 35B (tests/mtp_store_metal)" (claude-2ae67a71) on endor
+fleetq:   #9498 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9498 set, or it will wait for #9498 to be released.
+fleetq: #9509 waiting (#9 in line): in line behind #9499 "mstore: MTP+store gate 27B (tests/mtp_store_metal)" (claude-2ae67a71) on endor
+fleetq:   #9499 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9499 set, or it will wait for #9499 to be released.
+fleetq: #9509 waiting (#8 in line): in line behind #9502 "mstore: TTFT cold vs restored 35b 4k (ABBA, fresh servers)" (claude-2ae67a71) on endor
+fleetq:   #9502 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9502 set, or it will wait for #9502 to be released.
+fleetq: #9509 waiting (#7 in line): in line behind #9503 "mstore: TTFT cold vs restored 35b 32k (ABBA, fresh servers)" (claude-2ae67a71) on endor
+fleetq:   #9503 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9503 set, or it will wait for #9503 to be released.
+fleetq: #9509 waiting (#6 in line): in line behind #9504 "mstore: TTFT cold vs restored 27b 4k (ABBA, fresh servers)" (claude-2ae67a71) on endor
+fleetq:   #9504 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9504 set, or it will wait for #9504 to be released.
+fleetq: #9509 waiting (#5 in line): in line behind #9505 "mstore: TTFT cold vs restored 27b 32k (ABBA, fresh servers)" (claude-2ae67a71) on endor
+fleetq:   #9505 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9505 set, or it will wait for #9505 to be released.
+fleetq: #9509 waiting (#4 in line): in line behind #9506 "mtt: TTFT abba-35b-4k (quiet gpu+cpu)" (claude-2ae67a71) on endor
+fleetq:   #9506 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9506 set, or it will wait for #9506 to be released.
+fleetq: #9509 waiting (#3 in line): in line behind #9507 "mtt: TTFT cpuload-35b-4k (quiet gpu+cpu)" (claude-2ae67a71) on endor
+fleetq:   #9507 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9507 set, or it will wait for #9507 to be released.
+fleetq: #9509 waiting (#2 in line): in line behind #9508 "mtt: TTFT abba-27b-4k (quiet gpu+cpu)" (claude-2ae67a71) on endor
+fleetq:   #9508 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9508 set, or it will wait for #9508 to be released.
+fleetq: #9509 waiting (#1 in line): needs gpu quiet on endor, but #9508 "mtt: TTFT abba-27b-4k (quiet gpu+cpu)" (claude-2ae67a71) loads it
+fleetq:   #9508 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9508 set, or it will wait for #9508 to be released.
+fleetq: #9509 running on endor: scripts/mtt/ttft.sh on1 old1:INTARSIA_METAL_MTP_TTFT_FIX=0 'off1::--spec off' 'off2::--spec off' old2:INTARSIA_METAL_MTP_TTFT_FIX=0 on2
+## on1 [] [] 22:06:35 thermal com.apple.system.thermalpressurelevel 0 load 2.9s
+nonce on1a-21265: ttft 9584 ms, events 2, first gaps ms [25.5], total 9610 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 3, 'total_tokens': 32778, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce on1b-6197: ttft 10205 ms, events 2, first gaps ms [23.6], total 10229 ms, usage {'prompt_tokens': 32774, 'completion_tokens': 3, 'total_tokens': 32777, 'prompt_tokens_details': {'cached_tokens': 0}}
+## old1 [INTARSIA_METAL_MTP_TTFT_FIX=0] [] 22:07:08 thermal com.apple.system.thermalpressurelevel 0 load 10.5s
+nonce old1a-18119: ttft 8868 ms, events 22, first gaps ms [25.1, 0.0, 0.0, 24.1, 0.0, 0.0], total 9076 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 23, 'total_tokens': 32798, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce old1b-16581: ttft 10349 ms, events 23, first gaps ms [25.2, 0.0, 0.0, 25.9, 21.9, 0.0], total 10615 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 24, 'total_tokens': 32799, 'prompt_tokens_details': {'cached_tokens': 0}}
+## off1 [] [--spec off] 22:07:32 thermal com.apple.system.thermalpressurelevel 0 load 2.5s
+nonce off1a-31391: ttft 9688 ms, events 39, first gaps ms [11.6, 11.4, 11.4, 11.3, 11.3, 11.2], total 10108 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 40, 'total_tokens': 32815, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce off1b-4964: ttft 10913 ms, events 2, first gaps ms [10.9], total 10924 ms, usage {'prompt_tokens': 32774, 'completion_tokens': 3, 'total_tokens': 32777, 'prompt_tokens_details': {'cached_tokens': 0}}
+## off2 [] [--spec off] 22:07:57 thermal com.apple.system.thermalpressurelevel 0 load 2.4s
+nonce off2a-19289: ttft 9901 ms, events 2, first gaps ms [11.6], total 9913 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 3, 'total_tokens': 32778, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce off2b-21824: ttft 10850 ms, events 2, first gaps ms [11.8], total 10862 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 3, 'total_tokens': 32778, 'prompt_tokens_details': {'cached_tokens': 0}}
+## old2 [INTARSIA_METAL_MTP_TTFT_FIX=0] [] 22:09:49 thermal com.apple.system.thermalpressurelevel 0 load 9.7s
+nonce old2a-31226: ttft 8444 ms, events 2, first gaps ms [24.7], total 8469 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 3, 'total_tokens': 32778, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce old2b-19888: ttft 8805 ms, events 22, first gaps ms [23.9, 0.0, 0.0, 24.3, 0.0, 0.0], total 9014 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 23, 'total_tokens': 32798, 'prompt_tokens_details': {'cached_tokens': 0}}
+## on2 [] [] 22:10:11 thermal com.apple.system.thermalpressurelevel 0 load 2.9s
+nonce on2a-2645: ttft 8620 ms, events 3, first gaps ms [26.0, 21.1], total 8667 ms, usage {'prompt_tokens': 32774, 'completion_tokens': 4, 'total_tokens': 32778, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce on2b-25286: ttft 9035 ms, events 16, first gaps ms [23.6, 0.0, 0.0, 24.0, 0.0, 0.0], total 9197 ms, usage {'prompt_tokens': 32775, 'completion_tokens': 17, 'total_tokens': 32792, 'prompt_tokens_details': {'cached_tokens': 0}}
+fleetq: #9509 done (exit 0)
