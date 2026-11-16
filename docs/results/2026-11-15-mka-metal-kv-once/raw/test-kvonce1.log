@@ -1,0 +1,39 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1241:4
+     |
+1241 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/kv_once.rs (target/release/deps/kv_once-284166581f049af1)
+
+running 1 test
+kv_once 16/2/256: bit-identical packed vs unpacked: 322 1-row, 742 verify-rows, 647 row-table, 398 one-cache-table launches (guards included); planted fault seen [5, 5, 5] of 5
+kv_once 24/4/256: bit-identical packed vs unpacked: 442 1-row, 1022 verify-rows, 887 row-table, 548 one-cache-table launches (guards included); planted fault seen [5, 5, 5] of 5
+kv_once 32/8/128: bit-identical packed vs unpacked: 322 1-row, 742 verify-rows, 647 row-table, 398 one-cache-table launches (guards included); planted fault seen [5, 5, 5] of 5
+kv_once 8/2/64: bit-identical packed vs unpacked: 288 1-row, 660 verify-rows, 576 row-table, 354 one-cache-table launches (guards included); planted fault seen [5, 5, 5] of 5
+kv_once 12/2/128: bit-identical packed vs unpacked: 288 1-row, 660 verify-rows, 576 row-table, 354 one-cache-table launches (guards included); planted fault seen [5, 5, 5] of 5
+test packed_launches_are_bit_identical_to_the_unpacked_launches ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.33s
+
+exit=0

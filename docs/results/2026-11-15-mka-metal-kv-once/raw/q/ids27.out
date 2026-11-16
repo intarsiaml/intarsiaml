@@ -1,0 +1,11 @@
+SAME 27b short spec=default | base e0eb02d2 n=256 passes=109 proposed=217 accepted=146 decode 5262 ms (48.46 tok/s) | off e0eb02d2 n=256 passes=109 proposed=217 accepted=146 decode 5210 ms (48.95 tok/s) | on e0eb02d2 n=256 passes=109 proposed=217 accepted=146 decode 5136 ms (49.65 tok/s)
+SAME 27b 4k spec=default | base 418d1c81 n=256 passes=95 proposed=190 accepted=160 decode 4521 ms (56.41 tok/s) | off 418d1c81 n=256 passes=95 proposed=190 accepted=160 decode 4524 ms (56.36 tok/s) | on 418d1c81 n=256 passes=95 proposed=190 accepted=160 decode 4495 ms (56.73 tok/s)
+SAME 27b 4kb spec=default | off a275aa03 n=256 passes=107 proposed=213 accepted=148 decode 5216 ms (48.89 tok/s) | on a275aa03 n=256 passes=107 proposed=213 accepted=148 decode 5145 ms (49.57 tok/s)
+SAME 27b 16k spec=default | off e1c629fe n=256 passes=91 proposed=182 accepted=163 decode 5147 ms (49.55 tok/s) | on e1c629fe n=256 passes=91 proposed=182 accepted=163 decode 4939 ms (51.63 tok/s)
+SAME 27b 32k spec=default | off 58f8d5ae n=256 passes=90 proposed=179 accepted=165 decode 6074 ms (41.98 tok/s) | on 58f8d5ae n=256 passes=90 proposed=179 accepted=165 decode 6344 ms (40.20 tok/s)
+SAME 27b short spec=off | base e0eb02d2 n=256  decode 9024 ms (28.26 tok/s) | off e0eb02d2 n=256  decode 8332 ms (30.60 tok/s) | on e0eb02d2 n=256  decode 8849 ms (28.82 tok/s)
+SAME 27b 4k spec=off | base 418d1c81 n=256  decode 8890 ms (28.68 tok/s) | off 418d1c81 n=256  decode 8379 ms (30.43 tok/s) | on 418d1c81 n=256  decode 8394 ms (30.38 tok/s)
+SAME 27b 4kb spec=off | off a275aa03 n=256  decode 8927 ms (28.57 tok/s) | on a275aa03 n=256  decode 9076 ms (28.10 tok/s)
+SAME 27b 16k spec=off | off e1c629fe n=256  decode 9553 ms (26.69 tok/s) | on e1c629fe n=256  decode 9570 ms (26.64 tok/s)
+SAME 27b 32k spec=off | off 58f8d5ae n=256  decode 10375 ms (24.58 tok/s) | on 58f8d5ae n=256  decode 10350 ms (24.64 tok/s)
+## done ids27

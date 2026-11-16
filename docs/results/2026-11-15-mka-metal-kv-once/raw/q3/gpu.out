@@ -1,0 +1,7 @@
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.17s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.36s
+SAME 35b 4k spec=default | off bda48660 n=256 passes=99 proposed=198 accepted=155 decode 1651 ms (154.42 tok/s) | on bda48660 n=256 passes=98 proposed=196 accepted=156 decode 1493 ms (170.77 tok/s)
+SAME 27b short spec=default | off e0eb02d2 n=256 passes=109 proposed=217 accepted=146 decode 4395 ms (58.02 tok/s) | on e0eb02d2 n=256 passes=109 proposed=217 accepted=146 decode 4406 ms (57.88 tok/s)
+SAME 27b 4k spec=default | off 418d1c81 n=256 passes=95 proposed=190 accepted=160 decode 4111 ms (62.03 tok/s) | on 418d1c81 n=256 passes=95 proposed=190 accepted=160 decode 4034 ms (63.21 tok/s)
+SMOKE OK
+## done smoke

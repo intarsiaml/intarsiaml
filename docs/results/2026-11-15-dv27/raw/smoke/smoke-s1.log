@@ -1,0 +1,26 @@
+[20:50:27 +1s] sweep s1 start; vLLM: 200; earlyoom: active; Mem:             121          38          43           0          40          82; binary: intarsia 0.0.1
+[20:50:27 +1s] serve arm D.s-s1: env [X=1] serve --backend cuda --model /home/nvidia/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 8192 --mem-budget 30 --profile-every 0 
+[20:51:30 +64s] serve D.s-s1 up; MemAvailable MB: 65412; --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off);mtp head quantised (INTARSIA_MTP_QUANT / recipe mtp_quant): fc and attention fp8, feed-forward mxfp4; drafts only, verified output unchanged;mtp: drafter head 'mtp' loaded in 1.0 s (routed experts quantised to nvfp4);--mtp-draft-vocab 65536 (recipe qwen3_5_vl, cuda; --mtp-draft-vocab 0 drafts with the full head);--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_mr_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gd;loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 59.8s, context 8192 tokens;
+[20:51:30 +64s] draft-head fallback lines in the server log of D.s (must be 0): 0
+[20:51:30 +64s] vLLM requests running before D.s: 0
+[speed] D.s-s1 streams 1: per stream 25.27 tok/s (23.17-30.34), combined 25.27, ITL p99 362.55 ms, chunk gap p99 92.27 ms (max 197.08), CJK share 0.0 MTP passes 476 accept 0.564 tokens/pass 2.124
+[speed] D.s-s1 streams 1: per stream 17.21 tok/s (14.55-31.59), combined 17.21, ITL p99 85.9 ms, chunk gap p99 85.9 ms (max 149.77), CJK share 0.505 MTP passes 345 accept 0.343 tokens/pass 1.684
+[20:53:17 +171s] vLLM requests running after D.s: 0
+[20:53:18 +172s] min MemAvailable MB (time MB; KILLED count) (D.s-s1): 
+[20:53:19 +173s] serve arm V65536.s-s1: env [X=1] serve --backend cuda --model /home/nvidia/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 8192 --mem-budget 30 --profile-every 0 --spec mtp --spec-k 2 --mtp-draft-vocab 65536
+[20:54:02 +216s] serve V65536.s-s1 up; MemAvailable MB: 65593; mtp head quantised (INTARSIA_MTP_QUANT / recipe mtp_quant): fc and attention fp8, feed-forward mxfp4; drafts only, verified output unchanged;mtp: drafter head 'mtp' loaded in 0.8 s (routed experts quantised to nvfp4);--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_mr_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gd;loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 40.9s, context 8192 tokens;
+[20:54:02 +216s] draft-head fallback lines in the server log of V65536.s (must be 0): 0
+[20:54:02 +216s] vLLM requests running before V65536.s: 0
+[speed] V65536.s-s1 streams 1: per stream 25.28 tok/s (23.25-30.45), combined 25.28, ITL p99 357.19 ms, chunk gap p99 85.99 ms (max 164.63), CJK share 0.0 MTP passes 476 accept 0.564 tokens/pass 2.124
+[speed] V65536.s-s1 streams 1: per stream 17.23 tok/s (14.59-31.01), combined 17.23, ITL p99 91.84 ms, chunk gap p99 91.84 ms (max 172.36), CJK share 0.505 MTP passes 345 accept 0.343 tokens/pass 1.684
+[20:55:49 +323s] vLLM requests running after V65536.s: 0
+[20:55:50 +324s] min MemAvailable MB (time MB; KILLED count) (V65536.s-s1): 
+[20:55:51 +325s] serve arm V0.s-s1: env [X=1] serve --backend cuda --model /home/nvidia/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 8192 --mem-budget 30 --profile-every 0 --spec mtp --spec-k 2 --mtp-draft-vocab 0
+[20:56:31 +365s] serve V0.s-s1 up; MemAvailable MB: 65518; mtp head quantised (INTARSIA_MTP_QUANT / recipe mtp_quant): fc and attention fp8, feed-forward mxfp4; drafts only, verified output unchanged;mtp: drafter head 'mtp' loaded in 0.8 s (routed experts quantised to nvfp4);--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_mr_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gd;loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 37.5s, context 8192 tokens;
+[20:56:32 +366s] draft-head fallback lines in the server log of V0.s (must be 0): 0
+[20:56:32 +366s] vLLM requests running before V0.s: 0
+[speed] V0.s-s1 streams 1: per stream 23.16 tok/s (21.76-27.58), combined 23.16, ITL p99 403.7 ms, chunk gap p99 94.45 ms (max 181.9), CJK share 0.0 MTP passes 465 accept 0.591 tokens/pass 2.176
+[speed] V0.s-s1 streams 1: per stream 24.28 tok/s (19.29-32.03), combined 24.28, ITL p99 92.95 ms, chunk gap p99 92.95 ms (max 159.77), CJK share 0.505 MTP passes 452 accept 0.622 tokens/pass 2.239
+[20:58:05 +459s] vLLM requests running after V0.s: 0
+[20:58:06 +460s] min MemAvailable MB (time MB; KILLED count) (V0.s-s1): 20:56:35 65068 0 
+[20:58:07 +461s] end

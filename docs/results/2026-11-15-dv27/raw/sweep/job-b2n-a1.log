@@ -1,0 +1,38 @@
+fleetq: #9575 waiting (#7 in line): in line behind #9467 "dv27: 27B draft-vocab sweep a2 (1 stream)" (claude-2ae67a71) on spark1
+fleetq:   #9467 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9467 set, or it will wait for #9467 to be released.
+fleetq: #9575 waiting (#6 in line): in line behind #9468 "dv27: 27B draft-vocab sweep b1 (1 stream)" (claude-2ae67a71) on spark1
+fleetq:   #9468 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9468 set, or it will wait for #9468 to be released.
+fleetq: #9575 waiting (#5 in line): in line behind #9469 "dv27: 27B draft-vocab sweep b2 (1 stream)" (claude-2ae67a71) on spark1
+fleetq:   #9469 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9469 set, or it will wait for #9469 to be released.
+fleetq: #9575 waiting (#4 in line): in line behind #9524 "mx6: gates 27B (plan identity, main repro, ids R vs M)" (claude-2ae67a71) on spark1
+fleetq:   #9524 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9524 set, or it will wait for #9524 to be released.
+fleetq: #9575 waiting (#3 in line): in line behind #9571 "dsubset: 27B MXFP4 acceptance per script P65536 S65536 P131072 (optional gate 5)" (claude-2ae67a71) on spark1
+fleetq:   #9571 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9571 set, or it will wait for #9571 to be released.
+fleetq: #9575 waiting (#2 in line): in line behind #9574 "dsubset: tool-JSON-as-text acceptance (35B)" (claude-2ae67a71) on spark1
+fleetq:   #9574 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9574 set, or it will wait for #9574 to be released.
+fleetq: #9575 waiting (#1 in line): needs gpu quiet on spark1, but #9574 "dsubset: tool-JSON-as-text acceptance (35B)" (claude-2ae67a71) loads it
+fleetq:   #9574 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9574 set, or it will wait for #9574 to be released.
+fleetq: #9575 running on spark1: env MODE=b2n 'ARMS=V65536.a V98304.a' LOGNAME_=sweep-b2n-a1 'CELLS=en:default:1 cjk:off:1 mixed:default:1 code:default:1' scripts/dv27/sweep.sh
+[00:08:50 +1s] sweep b2n start; vLLM: 200; earlyoom: active; Mem:             121          39          32           0          51          82; binary: intarsia 0.0.1
+[00:08:50 +1s] serve arm V65536.a-b2n: env [INTARSIA_BATCHED_MTP=2] serve --backend cuda --model /home/nvidia/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 8192 --mem-budget 30 --profile-every 0 --max-batch 2 --spec mtp --spec-k 2 --mtp-draft-vocab 65536
+[00:09:33 +44s] serve V65536.a-b2n up; MemAvailable MB: 63882; mtp head quantised (INTARSIA_MTP_QUANT / recipe mtp_quant): fc and attention fp8, feed-forward mxfp4; drafts only, verified output unchanged;mtp: drafter head 'mtp' loaded in 0.7 s (routed experts quantised to nvfp4);--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_mr_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gd;batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 39.7s, context 8192 tokens;
+[00:09:33 +44s] draft-head fallback lines in the server log of V65536.a (must be 0): 0
+[00:09:33 +44s] vLLM requests running before V65536.a: 0
+[speed] V65536.a-b2n streams 2: per stream 14.02 tok/s (13.82-14.32), combined 28.01, ITL p99 332.43 ms, chunk gap p99 151.54 ms (max 397.52), CJK share 0.0 MTP passes 43 accept 0.86 tokens/pass 2.721
+[speed] V65536.a-b2n streams 2: per stream 14.36 tok/s (14.24-14.52), combined 28.68, ITL p99 136.16 ms, chunk gap p99 136.16 ms (max 415.65), CJK share 0.432 MTP passes 9 accept 0.333 tokens/pass 1.667
+[speed] V65536.a-b2n streams 2: per stream 14.11 tok/s (13.66-14.33), combined 28.21, ITL p99 348.1 ms, chunk gap p99 174.55 ms (max 414.71), CJK share 0.041 MTP passes 51 accept 0.902 tokens/pass 2.804
+[speed] V65536.a-b2n streams 2: per stream 14.24 tok/s (13.91-14.45), combined 28.54, ITL p99 387.59 ms, chunk gap p99 184.66 ms (max 329.72), CJK share 0.0 MTP passes 20 accept 0.725 tokens/pass 2.45
+[00:14:40 +351s] vLLM requests running after V65536.a: 0
+[00:14:41 +352s] min MemAvailable MB (time MB; KILLED count) (V65536.a-b2n): 00:09:35 63521 0 
+[00:14:43 +354s] serve arm V98304.a-b2n: env [INTARSIA_BATCHED_MTP=2] serve --backend cuda --model /home/nvidia/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 8192 --mem-budget 30 --profile-every 0 --max-batch 2 --spec mtp --spec-k 2 --mtp-draft-vocab 98304
+[00:15:30 +401s] serve V98304.a-b2n up; MemAvailable MB: 63881; mtp head quantised (INTARSIA_MTP_QUANT / recipe mtp_quant): fc and attention fp8, feed-forward mxfp4; drafts only, verified output unchanged;mtp: drafter head 'mtp' loaded in 0.8 s (routed experts quantised to nvfp4);--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_mr_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gd;batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 43.1s, context 8192 tokens;
+[00:15:30 +401s] draft-head fallback lines in the server log of V98304.a (must be 0): 0
+[00:15:30 +401s] vLLM requests running before V98304.a: 0
+[speed] V98304.a-b2n streams 2: per stream 13.93 tok/s (13.78-14.03), combined 27.86, ITL p99 483.41 ms, chunk gap p99 160.83 ms (max 415.28), CJK share 0.0 MTP passes 48 accept 0.865 tokens/pass 2.729
+[speed] V98304.a-b2n streams 2: per stream 14.32 tok/s (14.21-14.43), combined 28.66, ITL p99 140.89 ms, chunk gap p99 140.89 ms (max 415.02), CJK share 0.432 MTP passes 10 accept 0.5 tokens/pass 2.0
+[speed] V98304.a-b2n streams 2: per stream 13.92 tok/s (13.62-14.29), combined 27.82, ITL p99 502.28 ms, chunk gap p99 153.35 ms (max 414.62), CJK share 0.041 MTP passes 59 accept 0.915 tokens/pass 2.831
+[speed] V98304.a-b2n streams 2: per stream 14.04 tok/s (13.58-14.41), combined 28.08, ITL p99 409.34 ms, chunk gap p99 168.34 ms (max 310.3), CJK share 0.0 MTP passes 29 accept 0.81 tokens/pass 2.621
+[00:20:40 +711s] vLLM requests running after V98304.a: 0
+[00:20:40 +711s] min MemAvailable MB (time MB; KILLED count) (V98304.a-b2n): 00:15:28 63818 0 
+[00:20:42 +713s] end
+fleetq: #9575 done (exit 0)

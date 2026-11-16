@@ -1,0 +1,7 @@
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+attn_decode    attn_decode_bf16               38      0    3.931e-4    5.150e-5  ADMITTED
+attn_decode    attn_decode_bf16_splitkv       38      0    4.883e-4    5.424e-5  ADMITTED
+attn_decode    attn_decode_bf16_window       114      0    6.188e-4    2.351e-4  ADMITTED
+3 kernels, 190 cases in 8.7s
