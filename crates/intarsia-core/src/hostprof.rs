@@ -117,10 +117,15 @@ pub fn span(c: Cat) -> Span {
 impl Drop for Span {
     fn drop(&mut self) {
         if let Some((c, t)) = self.0.take() {
-            let ns = t.elapsed().as_nanos();
-            P.with(|p| p.borrow_mut().cur[c as usize] += ns);
+            add_ns(c, t.elapsed().as_nanos());
         }
     }
+}
+
+/// Adds `ns` to category `c` of the running iteration (what a span does when it drops; also the seam the tests feed).
+#[inline]
+fn add_ns(c: Cat, ns: u128) {
+    P.with(|p| p.borrow_mut().cur[c as usize] += ns);
 }
 
 /// Marks the instant the step's launch begins (call at the top of the launch span's work).
@@ -283,42 +288,38 @@ pub fn flush() {
 mod tests {
     use super::*;
 
-    /// Spans add up per category, the iteration is classed by what ran in it, nested categories are netted out, and the
-    /// gap between two decode-only iterations is the time from one sync to the next launch.
+    /// The iteration is classed by what ran in it, per-category time adds up across iterations, nested categories are
+    /// netted out of their enclosing one, and the gap between two decode-only iterations is counted once. Durations are
+    /// fed explicitly through `add_ns` (the call a dropping span makes) so no wall-clock thresholds are involved;
+    /// `mark_launch_begin`/`mark_sync_end` only feed the gap, which is asserted by count.
     #[test]
     fn spans_fold_into_the_iteration_class() {
+        const MS: u128 = 1_000_000;
         ENABLED.store(1, Ordering::Relaxed);
-        for it in 0..2 {
+        P.with(|p| *p.borrow_mut() = Prof::default());
+        for _ in 0..2 {
             iter_begin();
-            {
-                let _outer = span(Cat::StepSetup);
-                {
-                    mark_launch_begin();
-                    let _l = span(Cat::Launch);
-                    std::thread::sleep(std::time::Duration::from_millis(2));
-                }
-                {
-                    let _s = span(Cat::Sync);
-                    std::thread::sleep(std::time::Duration::from_millis(3));
-                }
-                mark_sync_end();
-            }
-            {
-                let _t = span(Cat::OnToken);
-                let _d = span(Cat::Detok);
-                std::thread::sleep(std::time::Duration::from_millis(1));
-            }
+            // `StepSetup` wraps launch (2 ms) and sync (3 ms) plus 0.5 ms of its own
+            mark_launch_begin();
+            add_ns(Cat::Launch, 2 * MS);
+            add_ns(Cat::Sync, 3 * MS);
+            mark_sync_end();
+            add_ns(Cat::StepSetup, 5 * MS + MS / 2);
+            // `OnToken` wraps `Detok`, nothing of its own
+            add_ns(Cat::OnToken, MS);
+            add_ns(Cat::Detok, MS);
             decoded(4);
-            iter_end(8_000_000);
-            let _ = it;
+            iter_end(8 * MS);
         }
         P.with(|p| {
             let p = p.borrow();
             let a = &p.acc[Kind::DecodeOnly as usize];
             assert_eq!((a.iters, a.rows), (2, 8));
-            assert!(a.cat_ns[Cat::Sync as usize] >= 6_000_000, "{:?}", a.cat_ns);
+            assert_eq!(a.cat_ns[Cat::Sync as usize], 6 * MS, "{:?}", a.cat_ns);
+            assert_eq!(a.cat_ns[Cat::Launch as usize], 4 * MS, "{:?}", a.cat_ns);
             // `StepSetup` was measured around launch and sync: only its own remainder is left
-            assert!(a.cat_ns[Cat::StepSetup as usize] < 2_000_000, "{:?}", a.cat_ns);
+            assert_eq!(a.cat_ns[Cat::StepSetup as usize], MS, "{:?}", a.cat_ns);
+            assert_eq!(a.cat_ns[Cat::OnToken as usize], 0, "{:?}", a.cat_ns);
             assert_eq!(a.gaps, 1, "one gap, between the two iterations");
             assert_eq!(p.acc[Kind::Mixed as usize].iters, 0);
         });

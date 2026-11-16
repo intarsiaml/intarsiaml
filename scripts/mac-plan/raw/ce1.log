@@ -1,0 +1,4 @@
+fleetq: #9407 running on endor: scripts/mac-plan/ce1.sh
+Qwen3.6-35B-A3B-NVFP4 prefill 835 ms (4907.0 tok/s) decode 700 ms (91.47 tok/s) 
+Qwen3.8-27B-Quark-AWQ-MXFP4 prefill 4979 ms (822.7 tok/s) decode 2065 ms (31.00 tok/s) 
+fleetq: #9407 done (exit 0)
