@@ -452,3 +452,9 @@ explained here; a quiet-box rerun of 5.1 would settle it.
 * Follow-ups the attribution points at (not built): the verify rows are ALU-bound, so the next step is fewer ALU
   operations per key (a non-bitwise change), not memory; the row table's idle simdgroups on the 35B batched path (250 vs
   147 us at one row) are still there.
+
+### 4.2 After merging origin/main 0f1fa5ccf (#395 mtp-snap, touches `model.rs`); fleetq #9645, #9646, `raw/q3/`
+
+`intarsia-models --test mtp` (CPU) 58 passed; `kv_once` every-shape-packed and shipped policy PASS; greedy ids knob unset
+vs set SAME on 35B 4k, 27B short, 27B 4k (MTP default), with the same id hashes as on the earlier trees. The main-vs-unset
+arm and `plan show` were not repeated on this head (last confirmed on f0ecebe2b, section 4.1).
