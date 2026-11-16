@@ -19,3 +19,88 @@
 [speed] A.a streams 2: per stream 68.5 tok/s (67.57-69.7), combined 136.87, ITL p99 62.9 ms, chunk gap p99 44.54 ms (max 93.23), CJK share 0.0 MTP passes 4 accept 1.0 tokens/pass 3.0
 [speed] A.a streams 1: per stream 110.99 tok/s (90.97-125.16), combined 110.99, ITL p99 88.65 ms, chunk gap p99 80.32 ms (max 97.7), CJK share 0.0 MTP passes 1243 accept 0.732 tokens/pass 2.462
 [speed] A.a streams 2: per stream 67.51 tok/s (66.6-68.52), combined 135.18, ITL p99 22.84 ms, chunk gap p99 22.84 ms (max 89.57), CJK share 0.0 MTP passes 4 accept 0.5 tokens/pass 2.0
+[speed] A.a streams 1: per stream 106.86 tok/s (84.68-122.63), combined 106.86, ITL p99 41.08 ms, chunk gap p99 25.44 ms (max 112.63), CJK share 0.454 MTP passes 1312 accept 0.664 tokens/pass 2.327
+[speed] A.a streams 2: per stream 67.68 tok/s (66.66-68.7), combined 135.42, ITL p99 49.83 ms, chunk gap p99 50.15 ms (max 109.08), CJK share 0.454 MTP passes 4 accept 0.875 tokens/pass 2.75
+[speed] A.a streams 1: per stream 113.3 tok/s (84.83-116.55), combined 113.3, ITL p99 40.55 ms, chunk gap p99 30.52 ms (max 207.18), CJK share 0.078 MTP passes 1275 accept 0.7 tokens/pass 2.398
+[speed] A.a streams 2: per stream 67.83 tok/s (66.54-68.84), combined 136.04, ITL p99 85.44 ms, chunk gap p99 84.03 ms (max 176.76), CJK share 0.078 MTP passes 4 accept 0.75 tokens/pass 2.5
+[21:44:35 +584s] vLLM requests running after A.a: 0
+[21:44:36 +585s] min MemAvailable MB (time MB; KILLED count) (A.a): 21:35:45 49159 0 
+[21:44:38 +587s] serve arm F.a: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[21:45:20 +629s] serve F.a up; MemAvailable MB: 49938; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk);batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 40.1s, context 32768 tokens;
+[21:45:20 +629s] draft-head fallback lines in F.a (must be 0): 0
+[21:45:20 +629s] vLLM requests running before F.a: 0
+[speed] F.a streams 1: per stream 136.13 tok/s (118.26-152.97), combined 136.13, ITL p99 80.22 ms, chunk gap p99 33.45 ms (max 90.02), CJK share 0.0 MTP passes 1216 accept 0.758 tokens/pass 2.516
+[speed] F.a streams 2: per stream 81.61 tok/s (73.59-87.47), combined 164.71, ITL p99 135.54 ms, chunk gap p99 66.29 ms (max 121.27), CJK share 0.0 MTP passes 1216 accept 0.758 tokens/pass 2.516
+[speed] F.a streams 1: per stream 136.17 tok/s (134.07-140.78), combined 136.17, ITL p99 75.1 ms, chunk gap p99 21.32 ms (max 48.82), CJK share 0.0 MTP passes 1204 accept 0.772 tokens/pass 2.542
+[speed] F.a streams 2: per stream 82.43 tok/s (79.79-87.79), combined 164.74, ITL p99 123.58 ms, chunk gap p99 35.44 ms (max 109.77), CJK share 0.0 MTP passes 1204 accept 0.772 tokens/pass 2.542
+[speed] F.a streams 1: per stream 140.28 tok/s (117.39-160.78), combined 140.28, ITL p99 84.63 ms, chunk gap p99 84.63 ms (max 94.7), CJK share 0.0 MTP passes 1215 accept 0.76 tokens/pass 2.52
+[speed] F.a streams 2: per stream 83.14 tok/s (73.88-93.28), combined 165.07, ITL p99 34.13 ms, chunk gap p99 34.13 ms (max 161.5), CJK share 0.0 MTP passes 1215 accept 0.76 tokens/pass 2.52
+[speed] F.a streams 1: per stream 133.45 tok/s (110.42-155.94), combined 133.45, ITL p99 20.85 ms, chunk gap p99 20.53 ms (max 53.05), CJK share 0.475 MTP passes 1297 accept 0.678 tokens/pass 2.356
+[speed] F.a streams 2: per stream 79.34 tok/s (66.48-91.25), combined 157.58, ITL p99 96.8 ms, chunk gap p99 91.1 ms (max 126.35), CJK share 0.475 MTP passes 1297 accept 0.678 tokens/pass 2.356
+[speed] F.a streams 1: per stream 140.1 tok/s (109.82-151.74), combined 140.1, ITL p99 20.57 ms, chunk gap p99 20.57 ms (max 639.3), CJK share 0.089 MTP passes 1184 accept 0.752 tokens/pass 2.504
+[speed] F.a streams 2: per stream 81.62 tok/s (67.39-87.6), combined 158.73, ITL p99 37.06 ms, chunk gap p99 34.79 ms (max 1567.83), CJK share 0.089 MTP passes 1184 accept 0.752 tokens/pass 2.504
+[speed] F.a streams 1: per stream 115.05 tok/s (106.9-116.67), combined 115.05, ITL p99 117.28 ms, chunk gap p99 83.49 ms (max 101.79), CJK share 0.0 MTP passes 1253 accept 0.722 tokens/pass 2.441
+[speed] F.a streams 2: per stream 78.65 tok/s (72.52-80.6), combined 157.56, ITL p99 126.2 ms, chunk gap p99 34.14 ms (max 107.26), CJK share 0.0 MTP passes 1253 accept 0.722 tokens/pass 2.441
+[speed] F.a streams 1: per stream 114.75 tok/s (100.69-119.76), combined 114.75, ITL p99 86.39 ms, chunk gap p99 24.38 ms (max 45.23), CJK share 0.0 MTP passes 1263 accept 0.71 tokens/pass 2.42
+[speed] F.a streams 2: per stream 79.56 tok/s (71.54-84.18), combined 157.53, ITL p99 141.22 ms, chunk gap p99 95.62 ms (max 128.61), CJK share 0.0 MTP passes 1263 accept 0.71 tokens/pass 2.42
+[speed] F.a streams 1: per stream 113.84 tok/s (94.98-132.53), combined 113.84, ITL p99 27.2 ms, chunk gap p99 27.2 ms (max 109.42), CJK share 0.0 MTP passes 1261 accept 0.715 tokens/pass 2.427
+[speed] F.a streams 2: per stream 79.73 tok/s (67.89-90.47), combined 163.67, ITL p99 42.86 ms, chunk gap p99 42.86 ms (max 163.07), CJK share 0.0 MTP passes 1261 accept 0.715 tokens/pass 2.427
+[speed] F.a streams 1: per stream 109.13 tok/s (86.99-128.0), combined 109.13, ITL p99 86.19 ms, chunk gap p99 83.0 ms (max 131.26), CJK share 0.454 MTP passes 1350 accept 0.633 tokens/pass 2.264
+[speed] F.a streams 2: per stream 76.18 tok/s (62.1-87.19), combined 154.2, ITL p99 45.76 ms, chunk gap p99 35.4 ms (max 198.79), CJK share 0.454 MTP passes 1350 accept 0.633 tokens/pass 2.264
+[speed] F.a streams 1: per stream 117.8 tok/s (86.75-123.77), combined 117.8, ITL p99 33.04 ms, chunk gap p99 28.44 ms (max 197.75), CJK share 0.078 MTP passes 1277 accept 0.686 tokens/pass 2.371
+[speed] F.a streams 2: per stream 78.43 tok/s (64.2-81.32), combined 155.13, ITL p99 122.07 ms, chunk gap p99 97.23 ms (max 328.4), CJK share 0.078 MTP passes 1277 accept 0.686 tokens/pass 2.371
+[21:53:41 +1130s] vLLM requests running after F.a: 0
+[21:53:42 +1131s] min MemAvailable MB (time MB; KILLED count) (F.a): 21:45:25 48864 0 
+[21:53:43 +1132s] serve arm F.b: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[21:54:31 +1180s] serve F.b up; MemAvailable MB: 49658; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk);batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 43.7s, context 32768 tokens;
+[21:54:31 +1180s] draft-head fallback lines in F.b (must be 0): 0
+[21:54:31 +1180s] vLLM requests running before F.b: 0
+[speed] F.b streams 1: per stream 139.31 tok/s (126.84-154.2), combined 139.31, ITL p99 80.76 ms, chunk gap p99 80.75 ms (max 92.44), CJK share 0.0 MTP passes 1216 accept 0.758 tokens/pass 2.516
+[speed] F.b streams 2: per stream 82.27 tok/s (74.73-90.71), combined 166.08, ITL p99 127.93 ms, chunk gap p99 33.79 ms (max 98.7), CJK share 0.0 MTP passes 1216 accept 0.758 tokens/pass 2.516
+[speed] F.b streams 1: per stream 138.26 tok/s (133.47-144.08), combined 138.26, ITL p99 74.26 ms, chunk gap p99 21.3 ms (max 38.9), CJK share 0.0 MTP passes 1204 accept 0.772 tokens/pass 2.542
+[speed] F.b streams 2: per stream 83.54 tok/s (79.84-88.61), combined 165.72, ITL p99 135.67 ms, chunk gap p99 94.28 ms (max 109.61), CJK share 0.0 MTP passes 1204 accept 0.772 tokens/pass 2.542
+[speed] F.b streams 1: per stream 143.29 tok/s (118.5-161.6), combined 143.29, ITL p99 20.6 ms, chunk gap p99 20.6 ms (max 154.55), CJK share 0.0 MTP passes 1215 accept 0.76 tokens/pass 2.52
+[speed] F.b streams 2: per stream 84.58 tok/s (73.16-93.97), combined 166.99, ITL p99 33.93 ms, chunk gap p99 33.93 ms (max 158.21), CJK share 0.0 MTP passes 1215 accept 0.76 tokens/pass 2.52
+[speed] F.b streams 1: per stream 133.64 tok/s (111.09-155.32), combined 133.64, ITL p99 26.77 ms, chunk gap p99 21.22 ms (max 113.15), CJK share 0.475 MTP passes 1297 accept 0.678 tokens/pass 2.356
+[speed] F.b streams 2: per stream 80.55 tok/s (68.31-90.75), combined 159.27, ITL p99 66.05 ms, chunk gap p99 60.96 ms (max 109.53), CJK share 0.475 MTP passes 1297 accept 0.678 tokens/pass 2.356
+[speed] F.b streams 1: per stream 139.09 tok/s (110.77-152.64), combined 139.09, ITL p99 23.99 ms, chunk gap p99 21.26 ms (max 635.19), CJK share 0.089 MTP passes 1184 accept 0.752 tokens/pass 2.504
+[speed] F.b streams 2: per stream 82.79 tok/s (67.23-87.93), combined 160.35, ITL p99 56.03 ms, chunk gap p99 35.55 ms (max 1557.34), CJK share 0.089 MTP passes 1184 accept 0.752 tokens/pass 2.504
+[speed] F.b streams 1: per stream 115.91 tok/s (106.44-117.82), combined 115.91, ITL p99 88.86 ms, chunk gap p99 36.47 ms (max 111.14), CJK share 0.0 MTP passes 1253 accept 0.722 tokens/pass 2.441
+[speed] F.b streams 2: per stream 79.29 tok/s (72.69-80.49), combined 158.69, ITL p99 126.98 ms, chunk gap p99 34.32 ms (max 97.35), CJK share 0.0 MTP passes 1253 accept 0.722 tokens/pass 2.441
+[speed] F.b streams 1: per stream 115.93 tok/s (101.35-122.23), combined 115.93, ITL p99 89.39 ms, chunk gap p99 25.26 ms (max 93.71), CJK share 0.0 MTP passes 1263 accept 0.71 tokens/pass 2.42
+[speed] F.b streams 2: per stream 80.54 tok/s (72.7-84.74), combined 157.72, ITL p99 126.67 ms, chunk gap p99 75.29 ms (max 111.38), CJK share 0.0 MTP passes 1263 accept 0.71 tokens/pass 2.42
+[speed] F.b streams 1: per stream 114.38 tok/s (95.72-133.28), combined 114.38, ITL p99 24.38 ms, chunk gap p99 24.39 ms (max 110.98), CJK share 0.0 MTP passes 1261 accept 0.715 tokens/pass 2.427
+[speed] F.b streams 2: per stream 80.07 tok/s (69.25-91.18), combined 164.91, ITL p99 34.87 ms, chunk gap p99 34.87 ms (max 188.15), CJK share 0.0 MTP passes 1261 accept 0.715 tokens/pass 2.427
+[speed] F.b streams 1: per stream 109.83 tok/s (87.25-130.08), combined 109.83, ITL p99 41.93 ms, chunk gap p99 25.12 ms (max 130.62), CJK share 0.454 MTP passes 1350 accept 0.633 tokens/pass 2.264
+[speed] F.b streams 2: per stream 76.12 tok/s (62.2-87.98), combined 154.96, ITL p99 43.61 ms, chunk gap p99 34.39 ms (max 194.22), CJK share 0.454 MTP passes 1350 accept 0.633 tokens/pass 2.264
+[speed] F.b streams 1: per stream 116.59 tok/s (87.38-124.49), combined 116.59, ITL p99 84.86 ms, chunk gap p99 84.18 ms (max 195.64), CJK share 0.078 MTP passes 1277 accept 0.686 tokens/pass 2.371
+[speed] F.b streams 2: per stream 79.07 tok/s (63.1-82.88), combined 157.47, ITL p99 80.95 ms, chunk gap p99 62.69 ms (max 355.63), CJK share 0.078 MTP passes 1277 accept 0.686 tokens/pass 2.371
+[22:02:48 +1677s] vLLM requests running after F.b: 0
+[22:02:49 +1678s] min MemAvailable MB (time MB; KILLED count) (F.b): 21:54:37 48820 0 
+[22:02:51 +1680s] serve arm A.b: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[22:03:42 +1731s] serve A.b up; MemAvailable MB: 49725; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 49.0s, context 32768 tokens;
+[22:03:43 +1732s] draft-head fallback lines in A.b (must be 0): 0
+[22:03:43 +1732s] vLLM requests running before A.b: 0
+[speed] A.b streams 1: per stream 129.92 tok/s (119.9-144.05), combined 129.92, ITL p99 82.08 ms, chunk gap p99 22.02 ms (max 41.33), CJK share 0.0 MTP passes 1202 accept 0.772 tokens/pass 2.543
+[speed] A.b streams 2: per stream 69.21 tok/s (67.7-70.13), combined 139.06, ITL p99 64.54 ms, chunk gap p99 43.73 ms (max 76.56), CJK share 0.0 MTP passes 4 accept 1.0 tokens/pass 3.0
+[speed] A.b streams 1: per stream 128.0 tok/s (125.07-136.84), combined 128.0, ITL p99 109.78 ms, chunk gap p99 83.55 ms (max 96.63), CJK share 0.0 MTP passes 1204 accept 0.772 tokens/pass 2.542
+[speed] A.b streams 2: per stream 70.29 tok/s (69.2-71.3), combined 140.61, ITL p99 62.6 ms, chunk gap p99 43.37 ms (max 84.32), CJK share 0.0 MTP passes 4 accept 1.0 tokens/pass 3.0
+[speed] A.b streams 1: per stream 133.76 tok/s (111.29-151.63), combined 133.76, ITL p99 21.69 ms, chunk gap p99 21.69 ms (max 77.51), CJK share 0.0 MTP passes 1199 accept 0.778 tokens/pass 2.555
+[speed] A.b streams 2: per stream 68.9 tok/s (68.11-69.66), combined 137.96, ITL p99 83.55 ms, chunk gap p99 83.55 ms (max 149.3), CJK share 0.0 MTP passes 4 accept 0.75 tokens/pass 2.5
+[speed] A.b streams 1: per stream 128.54 tok/s (106.04-145.61), combined 128.54, ITL p99 25.64 ms, chunk gap p99 21.83 ms (max 38.06), CJK share 0.475 MTP passes 1264 accept 0.71 tokens/pass 2.419
+[speed] A.b streams 2: per stream 68.76 tok/s (67.54-69.82), combined 138.25, ITL p99 20.8 ms, chunk gap p99 19.15 ms (max 83.48), CJK share 0.475 MTP passes 4 accept 0.875 tokens/pass 2.75
+[speed] A.b streams 1: per stream 129.95 tok/s (108.09-142.01), combined 129.95, ITL p99 84.94 ms, chunk gap p99 81.67 ms (max 588.1), CJK share 0.089 MTP passes 1177 accept 0.775 tokens/pass 2.549
+[speed] A.b streams 2: per stream 69.11 tok/s (68.61-69.61), combined 138.22, ITL p99 17.89 ms, chunk gap p99 17.89 ms (max 720.33), CJK share 0.089 MTP passes 4 accept 0.75 tokens/pass 2.5
+[speed] A.b streams 1: per stream 109.25 tok/s (100.82-116.22), combined 109.25, ITL p99 93.15 ms, chunk gap p99 25.54 ms (max 46.08), CJK share 0.0 MTP passes 1237 accept 0.737 tokens/pass 2.473
+[speed] A.b streams 2: per stream 68.22 tok/s (67.24-69.23), combined 136.71, ITL p99 149.89 ms, chunk gap p99 85.24 ms (max 122.42), CJK share 0.0 MTP passes 4 accept 1.0 tokens/pass 3.0
+[speed] A.b streams 1: per stream 109.21 tok/s (94.44-115.4), combined 109.21, ITL p99 89.68 ms, chunk gap p99 25.26 ms (max 49.23), CJK share 0.0 MTP passes 1261 accept 0.712 tokens/pass 2.423
+[speed] A.b streams 2: per stream 68.67 tok/s (67.88-69.57), combined 137.18, ITL p99 59.75 ms, chunk gap p99 44.49 ms (max 94.41), CJK share 0.0 MTP passes 4 accept 1.0 tokens/pass 3.0
+[speed] A.b streams 1: per stream 109.53 tok/s (88.87-125.94), combined 109.53, ITL p99 87.02 ms, chunk gap p99 58.04 ms (max 95.01), CJK share 0.0 MTP passes 1243 accept 0.732 tokens/pass 2.462
+[speed] A.b streams 2: per stream 67.88 tok/s (67.13-68.62), combined 135.74, ITL p99 21.27 ms, chunk gap p99 21.27 ms (max 87.23), CJK share 0.0 MTP passes 4 accept 0.5 tokens/pass 2.0
+[speed] A.b streams 1: per stream 105.87 tok/s (84.83-120.61), combined 105.87, ITL p99 61.51 ms, chunk gap p99 53.13 ms (max 144.79), CJK share 0.454 MTP passes 1312 accept 0.664 tokens/pass 2.327
+[speed] A.b streams 2: per stream 68.2 tok/s (67.14-68.76), combined 136.08, ITL p99 34.61 ms, chunk gap p99 26.76 ms (max 104.82), CJK share 0.454 MTP passes 4 accept 1.0 tokens/pass 3.0
+[speed] A.b streams 1: per stream 113.43 tok/s (83.68-116.92), combined 113.43, ITL p99 34.63 ms, chunk gap p99 25.94 ms (max 204.57), CJK share 0.078 MTP passes 1275 accept 0.7 tokens/pass 2.398
+[speed] A.b streams 2: per stream 67.31 tok/s (66.51-68.37), combined 134.66, ITL p99 84.21 ms, chunk gap p99 83.83 ms (max 186.45), CJK share 0.078 MTP passes 4 accept 1.0 tokens/pass 3.0
+[22:12:36 +2265s] vLLM requests running after A.b: 0
+[22:12:37 +2266s] min MemAvailable MB (time MB; KILLED count) (A.b): 22:03:48 48889 0 
+[22:12:39 +2268s] end
