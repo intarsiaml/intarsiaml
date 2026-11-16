@@ -86,7 +86,7 @@ mtp_default_k = 2
 # and runs plain batched decode when more do, and the `--spec mtp` default above also applies to a batched server. Lone stream 80.2 -> 102.7
 # tok/s, 2-16 streams within 0-3 % of plain, greedy ids per sequence equal to solo spec-off (docs/results/2026-11-05-batched-mtp.md).
 # `INTARSIA_BATCHED_MTP=0` (or `--spec off`) turns it off.
-# Lane flipprep (USER DECISION, docs/results/2026-11-15-flipprep.md): N = 2 with batched verify, verify top-k rows and a 131072-row draft head makes
+# Lane flipprep (user decision 2026-11-15 "1 yes, go 2", docs/results/2026-11-15-flipprep.md): N = 2 with batched verify, verify top-k rows and a 131072-row draft head makes
 # MTP pay at 2 concurrent streams (docs/results/2026-11-14-mtp2s.md, 2026-11-14-dvocab.md: +11 to +27 % at 2 streams, +3 to +5 % at 1, no losing cell).
 # `INTARSIA_BATCHED_MTP=1` (or `0`), `INTARSIA_BATCHED_VERIFY=0`, `INTARSIA_VERIFY_TOPK=0` and `--mtp-draft-vocab 0` (the full head) turn the pieces off.
 batched_mtp = 2
