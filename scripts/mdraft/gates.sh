@@ -26,9 +26,9 @@ for part in ${PARTS:-ids plan}; do
       for a in $ARMS; do
         case $a in
           off)  BIN=$NEW;  e="X=1"; args="--spec off" ;;
-          base) BIN=$BASE; e="$TR"; args="" ;;
-          n1)   BIN=$NEW;  e="$TR"; args="" ;;
-          n0)   BIN=$NEW;  e="$TR INTARSIA_BATCHED_DRAFT=0"; args="" ;;
+          base*) BIN=$BASE; e="$TR"; args="" ;;
+          n1*)   BIN=$NEW;  e="$TR"; args="" ;;
+          n0*)   BIN=$NEW;  e="$TR INTARSIA_BATCHED_DRAFT=0"; args="" ;;
         esac
         if start_serve "ids-$a" "$e" --max-batch 2 $args; then
           curl -s "http://$HN:$PORT/v1/intarsia/plan" > "$OUT/plan-served-$a.json"
@@ -37,8 +37,9 @@ for part in ${PARTS:-ids plan}; do
         fi
       done
       python3 "$S/ids3_compare.py" "$OUT" ${ARMS%% *} ${ARMS#* } 2>&1 | tee -a "$LOG" "$OUT/ids3-compare.txt"
-      for a in n1 n0; do log "served plan base vs $a: $(cmp "$OUT/plan-served-base.json" "$OUT/plan-served-$a.json" && echo IDENTICAL; wc -c < "$OUT/plan-served-base.json" | tr -d ' ')"; done
-      python3 "$S/spec_cmp.py" "$OUT" base n1 n0 2>&1 | tee -a "$LOG" "$OUT/spec-compare.txt"
+      set -- $ARMS; shift   # the arms after the reference: the first of them is the spec_cmp reference
+      for a in "${@:2}"; do log "served plan $1 vs $a: $(cmp "$OUT/plan-served-$1.json" "$OUT/plan-served-$a.json" && echo IDENTICAL; wc -c < "$OUT/plan-served-$1.json" | tr -d ' ')"; done
+      python3 "$S/spec_cmp.py" "$OUT" "$@" 2>&1 | tee -a "$LOG" "$OUT/spec-compare.txt"
       ;;
     plan)
       for spec in "base:$BASE:X=1" "new:$NEW:X=1" "new0:$NEW:INTARSIA_BATCHED_DRAFT=0"; do
