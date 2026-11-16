@@ -37,3 +37,6 @@ finish_serve() { # finish_serve <name>
 # requests another client has in flight on spark1 vLLM (noise for a timing run)
 vllm_busy() { curl -s --max-time 4 "http://$HN:$VPORT/metrics" | awk '/^vllm:num_requests_running/ {s+=$NF} END {print s+0}'; }
 URL=http://$HN:$PORT/v1
+# a per-run hook (scripts/dsubset/hooks/<LOGNAME_>.sh), sourced here, before the run's own work: lets a queued slot run extra
+# steps first (the w3 slot runs collection round 2 on the 35B before its 27B acceptance arms)
+if [[ -n "${LOGNAME_:-}" && -f "$S/hooks/$LOGNAME_.sh" ]]; then log "hook $LOGNAME_ start"; source "$S/hooks/$LOGNAME_.sh"; log "hook $LOGNAME_ end"; fi
