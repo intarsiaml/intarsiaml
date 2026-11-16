@@ -3936,7 +3936,7 @@ impl Model {
                         match seqs {
                             Seqs::One(st) if tail => self.attn_block_kv_only(a, st, &nv, t, pos0, kv_done, profile)?,
                             Seqs::One(st) => self.attn_block(a, st, &nv, &blkv, t, pos0, dpos, kv_done, profile)?,
-                            Seqs::Batch(sts) => self.attn_block_batch(a, sts, &nv, &blkv, kv_done, profile)?,
+                            Seqs::Batch(sts) => self.attn_block_batch(a, sts, &nv, &blkv, kv_done, true, profile)?,
                             Seqs::Packed(segs) => self.attn_block_packed(a, segs, &nv, &blkv, t, kv_done, profile)?,
                         }
                     }

@@ -838,6 +838,9 @@ struct RecCpu {
     attn_decode: std::sync::atomic::AtomicUsize,
     /// Claims `Backend::batched_draft` (lane mdraft: the cpu kernels are row-exact by construction, as the CUDA twins are by test).
     batched_draft: std::sync::atomic::AtomicBool,
+    /// Claims `Backend::batched_head` (lane mhead), and counts the answers `true` the model took (chained head passes run as one pass).
+    batched_head: std::sync::atomic::AtomicBool,
+    batched_head_asked: std::sync::atomic::AtomicUsize,
 }
 impl RecCpu {
     fn arc() -> Arc<RecCpu> {
@@ -851,6 +854,8 @@ impl RecCpu {
             attn_prefill: Default::default(),
             attn_decode: Default::default(),
             batched_draft: Default::default(),
+            batched_head: Default::default(),
+            batched_head_asked: Default::default(),
         })
     }
     fn forbid(&self, what: &str) -> Result<()> {
@@ -917,6 +922,13 @@ impl Backend for RecCpu {
     }
     fn batched_draft(&self) -> bool {
         self.batched_draft.load(std::sync::atomic::Ordering::Relaxed)
+    }
+    fn batched_head(&self) -> bool {
+        let on = self.batched_head.load(std::sync::atomic::Ordering::Relaxed);
+        if on {
+            self.batched_head_asked.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+        on
     }
     fn graph_capture(&self, _stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {
         let left = self.fail_captures.load(std::sync::atomic::Ordering::Relaxed);
@@ -3608,9 +3620,11 @@ fn draft_subset_single_engine_match_topk_is_seed_exact() {
 #[test]
 fn batched_draft_equals_the_per_sequence_drafts() {
     let w = weights(11);
-    for k in [1usize, 2, 3] {
+    // lane mhead: with and without the batched chained head pass (`Backend::batched_head`); k = 1 has no chained pass at all
+    for (k, head) in [(1usize, false), (2, false), (3, false), (1, true), (2, true), (3, true)] {
         let rec = RecCpu::arc();
         rec.batched_draft.store(true, std::sync::atomic::Ordering::Relaxed);
+        rec.batched_head.store(head, std::sync::atomic::Ordering::Relaxed);
         let m = load_on(rec.clone(), &w, k, 32);
         assert!(m.batched_draft_ok());
         let mut serial = [m.new_state().unwrap(), m.new_state().unwrap()];
@@ -3654,6 +3668,9 @@ fn batched_draft_equals_the_per_sequence_drafts() {
                 last[i] = outs[0][acc];
             }
         }
+        // the chained passes ran as one pass over both sequences' rows when the head claim is on (k >= 2 has chained passes)
+        let asked = rec.batched_head_asked.load(std::sync::atomic::Ordering::Relaxed);
+        assert_eq!(asked > 0, head && k >= 2, "k {k} head {head}: the batched head pass was taken {asked} times");
         // catch-ups of 1, 2 and 3+ rows all occurred in both sequences
         for (i, seen) in seen_catch_up.iter().enumerate() {
             assert!(seen[1] && seen[2], "k {k} seq {i}: catch-up row counts seen {seen:?}");

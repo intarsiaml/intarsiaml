@@ -529,6 +529,14 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Lane mhead: whether, inside a batched draft ([`Backend::batched_draft`] is true too), the chained one-row head layer passes of
+    /// the sequences may run as one multi-row pass ([`crate::Model::mtp_draft_batch`]: projections and MoE on the row-exact twins,
+    /// attention per row on each sequence's head cache). Bitwise the per-sequence one-row passes when every row-exact twin the head
+    /// layer takes is bitwise its one-row kernel per row (`tests/rows_exact.rs`, `fused_decode.rs` on CUDA). Default false.
+    fn batched_head(&self) -> bool {
+        false
+    }
+
     /// Lane mtp2s: the `t` rows (2..=8) of one sequence's GatedDeltaNet block of a speculative verify pass in two launches: the conv
     /// (rows in order, the conv state advanced) then the delta rule (state kept on chip across the rows), storing the conv state and the
     /// delta-rule state after every row but the last into `snap_conv[r]` / `snap_s[r]` (the pass's rollback saves) and the final ones in

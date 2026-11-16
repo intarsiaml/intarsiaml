@@ -2174,7 +2174,7 @@ impl Seq {
         }
         if crate::spec::trace_enabled() {
             eprintln!(
-                "spec: token {} pos {} drafted {} accepted {} emits {}{}",
+                "spec: token {} pos {} drafted {} accepted {} emits {} drafts {drafts:?}{}",
                 self.generated + 1,
                 pos,
                 drafts.len(),
