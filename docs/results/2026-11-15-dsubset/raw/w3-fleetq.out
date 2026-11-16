@@ -1,0 +1,55 @@
+fleetq: #9408 waiting (#4 in line): in line behind #9393 "dv27: smoke (27B, default vs explicit 65536, V0, b2)" (claude-2ae67a71) on spark1
+fleetq:   #9393 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9393 set, or it will wait for #9393 to be released.
+fleetq: #9408 waiting (#3 in line): in line behind #9395 "flipprep: tp2 gate (35B tp2 cross-host, spec mtp vs off)" (claude-2ae67a71) on spark1
+fleetq:   #9395 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9395 set, or it will wait for #9395 to be released.
+fleetq: #9408 waiting (#2 in line): in line behind #9405 "dsubset: build + plan gate + acceptance per script (35B)" (claude-2ae67a71) on spark1
+fleetq:   #9405 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9405 set, or it will wait for #9405 to be released.
+fleetq: #9408 waiting (#1 in line): needs gpu quiet on spark1, but #9405 "dsubset: build + plan gate + acceptance per script (35B)" (claude-2ae67a71) loads it
+fleetq:   #9405 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9405 set, or it will wait for #9405 to be released.
+fleetq: #9408 running on spark1: env HOST=spark1 M35=/home/nvidia/models/Qwen3.8-27B-NVFP4-52d1adc5f38a OUT=/opt/code/intarsiaml/.worktrees/dsubset/docs/results/2026-11-15-dsubset/raw/runs27b ACC_MAX_TOKENS=192 PARTS=accept 'ARMS=P65536 S65536 P131072' LOGNAME_=w3 scripts/dsubset/runs.sh
+[21:41:13 +0s] hook w3 start
+[21:41:13 +0s] serve arm collect2: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 16
+[21:42:11 +58s] serve collect2 up; MemAvailable MB: 47177; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 55.9s, context 32768 tokens;
+20 requests, 20470 ids, 94 s
+40 requests, 38266 ids, 134 s
+60 requests, 58672 ids, 185 s
+80 requests, 79152 ids, 230 s
+100 requests, 98734 ids, 301 s
+120 requests, 118420 ids, 354 s
+140 requests, 138900 ids, 415 s
+160 requests, 159343 ids, 462 s
+180 requests, 179823 ids, 532 s
+200 requests, 200303 ids, 587 s
+220 requests, 218483 ids, 632 s
+240 requests, 238314 ids, 691 s
+260 requests, 255439 ids, 736 s
+280 requests, 275919 ids, 802 s
+300 requests, 296362 ids, 852 s
+320 requests, 316698 ids, 895 s
+done: 324 requests, 320794 ids, 899 s
+[21:57:11 +958s] min MemAvailable MB (time MB; KILLED count) (collect2): 21:52:40 46478 0 
+[21:57:13 +960s] hook w3 end
+[21:57:16 +963s] runs start [accept]; vLLM: 200; earlyoom: active; Mem:             121          38          43           0          40          83; subsets: prefix-65536.txt sub-32768.txt sub-65536.txt 
+[21:57:16 +963s] serve arm acc-P65536: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 1 --mtp-draft-vocab 65536
+[21:57:27 +974s] serve acc-P65536 did not come up
+[supervisor] started server pid 2343540
+prefill chunk 256 (default)
+INTARSIA_LMHEAD_QUANT: the head of this checkpoint is not a float [vocab, hidden] tensor; it stays as stored
+Error: loading /home/nvidia/models/Qwen3.8-27B-NVFP4-52d1adc5f38a: unsupported: 'lm_head' is declared quant_algo 'NVFP4' (NVFP4 weights AND 4-bit activations) in hf_quant_config.json; this engine implements the weight-only W4A16_NVFP4 scheme and would run it with 16-bit activations, different from the checkpoint's declared scheme and from vLLM
+[supervisor] server failed to start (exit 78); not restarting
+[21:57:28 +975s] serve arm acc-S65536: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 1 --mtp-draft-subset ~/intarsia-dsubset/subsets/sub-65536.txt
+[21:57:39 +986s] serve acc-S65536 did not come up
+[supervisor] started server pid 2345739
+prefill chunk 256 (default)
+INTARSIA_LMHEAD_QUANT: the head of this checkpoint is not a float [vocab, hidden] tensor; it stays as stored
+Error: loading /home/nvidia/models/Qwen3.8-27B-NVFP4-52d1adc5f38a: unsupported: 'lm_head' is declared quant_algo 'NVFP4' (NVFP4 weights AND 4-bit activations) in hf_quant_config.json; this engine implements the weight-only W4A16_NVFP4 scheme and would run it with 16-bit activations, different from the checkpoint's declared scheme and from vLLM
+[supervisor] server failed to start (exit 78); not restarting
+[21:57:40 +987s] serve arm acc-P131072: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 1 --mtp-draft-vocab 131072
+[21:57:51 +998s] serve acc-P131072 did not come up
+[supervisor] started server pid 2347734
+prefill chunk 256 (default)
+INTARSIA_LMHEAD_QUANT: the head of this checkpoint is not a float [vocab, hidden] tensor; it stays as stored
+Error: loading /home/nvidia/models/Qwen3.8-27B-NVFP4-52d1adc5f38a: unsupported: 'lm_head' is declared quant_algo 'NVFP4' (NVFP4 weights AND 4-bit activations) in hf_quant_config.json; this engine implements the weight-only W4A16_NVFP4 scheme and would run it with 16-bit activations, different from the checkpoint's declared scheme and from vLLM
+[supervisor] server failed to start (exit 78); not restarting
+[21:57:52 +999s] end
+fleetq: #9408 done (exit 0)

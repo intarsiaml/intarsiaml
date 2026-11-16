@@ -1,0 +1,18 @@
+21:47:07 stages start; head=fd8a3af code-tree=9ccac5d2913f dirty=yes; STEPS=kern plan qual
+21:47:12 kernels exit 0
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+91 kernels, 550 cases in 4.7s
+incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+21:48:55 plan-json exit 0
+21:50:34 plan-text exit 0
+plan ops: 29 unadmitted: []
+  rows kernel: attn_decode attn_decode_bf16_splitkv_rows admitted True
+  rows kernel: matmul_fp8 matmul_fp8_gemv_rows admitted True
+  rows kernel: matmul_mxfp4 matmul_mxfp4_a8_gemv_rows admitted True
+  rows kernel: matmul_mxfp4_pair matmul_mxfp4_pair_a8_gemv_rows admitted True
+21:56:01 qual exit 0
+/home/josef/intarsiaml-q27-plan/.q27-logs/w1/qual.err:[qualify      0s] doctor: PASS in 0.5s (AMD Radeon Graphics (gfx1201), 95 kernels registered)
+/home/josef/intarsiaml-q27-plan/.q27-logs/w1/qual.err:[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3_5_vl covers this model (45/45 tensor templates resolve, quant mxfp4))
+/home/josef/intarsiaml-q27-plan/.q27-logs/w1/qual.err:[qualify     99s] plan: PASS in 98.5s (29 ops resolved, exactness deterministic, loaded in 98.5s)
+/home/josef/intarsiaml-q27-plan/.q27-logs/w1/qual.err:[qualify    327s] kernels: PASS in 228.1s (91 kernels, 2219 cases in 227.9s; incomplete: 10 kernel(s) had no cases in this sweep (untested, not failed; plan-time admission tests them))
+21:56:01 stages done

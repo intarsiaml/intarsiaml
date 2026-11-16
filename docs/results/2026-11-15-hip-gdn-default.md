@@ -35,11 +35,12 @@ Packed prefill: the delta rule runs once per sequence on its own state (`crates/
 `golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip{,-tp2}.selfgolden.safetensors` (the method of
 `scripts/fx1-oracle/hip-window2.sh` B-D; `scripts/gdn-default/stages.sh` steps rec / chk).
 
-**Not re-recorded: the four `qwen3.8-27b-mxfp4-*.hip.*` baselines.** The 27B has dk = dv = 128, so its HIP prefill numerics
+**Update 2026-11-15 21:35: the four `qwen3.8-27b-mxfp4-*.hip.*` baselines are now re-recorded at the recipe chunk 2048, and the 27B's change-vs-base is measured (W4A4 0.84x prefill / 0.55x decode of its reference noise; W4A16 3.2e-4 KL, no noise record): `2026-11-16-hip-27b-rerecord.md`.** Originally: **not re-recorded: the four `qwen3.8-27b-mxfp4-*.hip.*` baselines.** The 27B has dk = dv = 128, so its HIP prefill numerics
 move too, and its HIP acc-short will read against stale baselines until they are re-recorded. The 27B checkpoint is not on
 tatooine now; re-record when it is back.
 
 Open, not measured: the 27B on HIP with the flip; served speed on main after the flip (the gdn-chunk numbers were measured
 with the knob on the lane tree).
+**Update 2026-11-15 23:05: the 27B's served speed with the flip is measured, `2026-11-16-hip-gdn27-speed.md`: prefill +7-8 % (tp1) / +10-12 % (tp2) at 4k/16k, decode within noise.**
 
 Raw: `2026-11-15-hip-gdn-default/raw/` (window = all steps, control = acc-4k knob off). Scripts: `scripts/gdn-default/`.

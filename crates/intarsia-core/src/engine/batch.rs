@@ -240,7 +240,11 @@ fn run_prefill(
         let keep = model.batch_snapshots();
         return Ok(match mode {
             None => {
-                if !matches!(model.forward_prefill(st, tokens, HeadMode::None, None)?, StepOut::None) {
+                // a macro step holds several chunks: keep the snapshots of the chunk ends inside it too (lane a4k-restore)
+                st.prefill_snapshots = keep;
+                let ran = model.forward_prefill(st, tokens, HeadMode::None, None);
+                st.prefill_snapshots = 0;
+                if !matches!(ran?, StepOut::None) {
                     return Err(Error::Other("a headless prefill pass returned an output".into()));
                 }
                 st.snapshot(&*model.backend, keep)?;
@@ -249,7 +253,10 @@ fn run_prefill(
             Some(m) => {
                 if tokens.len() > 1 {
                     // nothing is asked of this pass: a head output here would be a bug, not a result to drop
-                    if !matches!(model.forward_prefill(st, &tokens[..tokens.len() - 1], HeadMode::None, None)?, StepOut::None) {
+                    st.prefill_snapshots = keep;
+                    let ran = model.forward_prefill(st, &tokens[..tokens.len() - 1], HeadMode::None, None);
+                    st.prefill_snapshots = 0;
+                    if !matches!(ran?, StepOut::None) {
                         return Err(Error::Other("a headless prefill pass returned an output".into()));
                     }
                     st.snapshot(&*model.backend, keep)?;

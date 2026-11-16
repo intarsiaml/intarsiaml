@@ -1,0 +1,237 @@
+fleetq: #9391 running on endor: scripts/mac-plan/measure.sh
+gemv_bw exit 0
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u2s4 mode=solo median=581.6 p10=539.1 p90=588.8 pct_peak=94.7 pct_copy=106.0
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u2s4 mode=chain-serial median=575.5 p10=563.7 p90=582.6 pct_peak=93.7 pct_copy=104.9
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u2s4 mode=chain-conc median=571.3 p10=548.6 p90=580.1 pct_peak=93.0 pct_copy=104.1
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u4s4 mode=solo median=587.9 p10=574.9 p90=594.7 pct_peak=95.8 pct_copy=107.2
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u4s4 mode=chain-serial median=589.6 p10=574.7 p90=593.9 pct_peak=96.0 pct_copy=107.5
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r2u4s4 mode=chain-conc median=585.0 p10=572.1 p90=587.0 pct_peak=95.3 pct_copy=106.6
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r4u1s4 mode=solo median=574.9 p10=562.7 p90=582.8 pct_peak=93.6 pct_copy=104.8
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r4u1s4 mode=chain-serial median=573.4 p10=552.0 p90=581.1 pct_peak=93.4 pct_copy=104.5
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r4u1s4 mode=chain-conc median=574.8 p10=558.3 p90=581.0 pct_peak=93.6 pct_copy=104.8
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r4u2s4 mode=solo median=583.5 p10=550.7 p90=588.8 pct_peak=95.0 pct_copy=106.4
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r4u2s4 mode=chain-serial median=568.2 p10=546.2 p90=577.2 pct_peak=92.5 pct_copy=103.6
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r4u2s4 mode=chain-conc median=571.7 p10=558.9 p90=583.7 pct_peak=93.1 pct_copy=104.2
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r8u1s2 mode=solo median=585.3 p10=562.2 p90=591.9 pct_peak=95.3 pct_copy=106.7
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r8u1s2 mode=chain-serial median=573.1 p10=541.7 p90=579.5 pct_peak=93.3 pct_copy=104.5
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r8u1s2 mode=chain-conc median=569.1 p10=559.2 p90=576.7 pct_peak=92.7 pct_copy=103.7
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r8u2s2 mode=solo median=573.6 p10=536.4 p90=581.8 pct_peak=93.4 pct_copy=104.6
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r8u2s2 mode=chain-serial median=563.5 p10=533.0 p90=569.7 pct_peak=91.8 pct_copy=102.7
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_r8u2s2 mode=chain-conc median=552.4 p10=530.8 p90=560.5 pct_peak=90.0 pct_copy=100.7
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_rt_u2s8 mode=solo median=593.1 p10=582.2 p90=602.2 pct_peak=96.6 pct_copy=108.1
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_rt_u2s8 mode=chain-serial median=598.1 p10=589.6 p90=601.7 pct_peak=97.4 pct_copy=109.0
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_rt_u2s8 mode=chain-conc median=599.9 p10=593.0 p90=602.3 pct_peak=97.7 pct_copy=109.4
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_rt_u4s4 mode=solo median=591.1 p10=583.4 p90=597.1 pct_peak=96.3 pct_copy=107.8
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_rt_u4s4 mode=chain-serial median=570.7 p10=527.4 p90=587.8 pct_peak=93.0 pct_copy=104.0
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_rt_u4s4 mode=chain-conc median=563.1 p10=537.9 p90=579.5 pct_peak=91.7 pct_copy=102.7
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_rt_u2s4 mode=solo median=572.5 p10=554.7 p90=588.7 pct_peak=93.2 pct_copy=104.4
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_rt_u2s4 mode=chain-serial median=561.4 p10=550.3 p90=579.5 pct_peak=91.4 pct_copy=102.3
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_rt_u2s4 mode=chain-conc median=569.1 p10=555.1 p90=580.6 pct_peak=92.7 pct_copy=103.7
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_rt_u1s16 mode=solo median=574.5 p10=544.4 p90=583.0 pct_peak=93.6 pct_copy=104.7
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_rt_u1s16 mode=chain-serial median=583.6 p10=573.7 p90=592.2 pct_peak=95.0 pct_copy=106.4
+RESULT gemv K=4096 N=151936 variant=gemv_bf16_rt_u1s16 mode=chain-conc median=587.5 p10=574.2 p90=600.5 pct_peak=95.7 pct_copy=107.1
+gemm_nax exit 0
+RESULT shape=kv M=2048 N=1024 K=4096 cand=gemm_nax_t128x64w4 swz=0 median_tflops=55.65 p10=53.42 p90=57.16 us_per_call=308.7
+RESULT shape=kv M=2048 N=1024 K=4096 cand=gemm_nax_t32x128w2 swz=0 median_tflops=59.59 p10=57.00 p90=61.01 us_per_call=288.3
+RESULT shape=kv M=2048 N=1024 K=4096 cand=gemm_nax_t32x32w1 swz=0 median_tflops=48.63 p10=47.00 p90=49.72 us_per_call=353.3
+RESULT shape=kv M=2048 N=1024 K=4096 cand=gemm_nax_t64x64w2 swz=0 median_tflops=59.27 p10=57.01 p90=60.86 us_per_call=289.9
+RESULT shape=kv M=2048 N=1024 K=4096 cand=gemm_nax_t64x64w4 swz=0 median_tflops=54.31 p10=52.08 p90=55.89 us_per_call=316.3
+RESULT shape=kv M=256 N=1024 K=4096 cand=gemm_nax_t128x64w4 swz=0 median_tflops=25.63 p10=25.54 p90=27.29 us_per_call=83.8
+RESULT shape=kv M=256 N=1024 K=4096 cand=gemm_nax_t32x128w2 swz=0 median_tflops=25.67 p10=25.63 p90=27.29 us_per_call=83.7
+RESULT shape=kv M=256 N=1024 K=4096 cand=gemm_nax_t32x32w1 swz=0 median_tflops=36.04 p10=35.88 p90=38.19 us_per_call=59.6
+RESULT shape=kv M=256 N=1024 K=4096 cand=gemm_nax_t64x64w2 swz=0 median_tflops=27.00 p10=26.69 p90=28.48 us_per_call=79.5
+RESULT shape=kv M=256 N=1024 K=4096 cand=gemm_nax_t64x64w4 swz=0 median_tflops=35.54 p10=35.45 p90=37.75 us_per_call=60.4
+RESULT shape=qkv M=2048 N=6144 K=4096 cand=gemm_nax_t128x64w4 swz=0 median_tflops=39.92 p10=39.22 p90=41.39 us_per_call=2582.2
+RESULT shape=qkv M=2048 N=6144 K=4096 cand=gemm_nax_t32x128w2 swz=0 median_tflops=40.05 p10=39.37 p90=42.65 us_per_call=2573.9
+RESULT shape=qkv M=2048 N=6144 K=4096 cand=gemm_nax_t32x32w1 swz=0 median_tflops=33.93 p10=33.56 p90=36.30 us_per_call=3038.1
+RESULT shape=qkv M=2048 N=6144 K=4096 cand=gemm_nax_t64x64w2 swz=0 median_tflops=40.02 p10=39.35 p90=42.20 us_per_call=2575.4
+RESULT shape=qkv M=2048 N=6144 K=4096 cand=gemm_nax_t64x64w4 swz=0 median_tflops=38.94 p10=38.19 p90=40.79 us_per_call=2647.2
+RESULT shape=qkv M=256 N=6144 K=4096 cand=gemm_nax_t128x64w4 swz=0 median_tflops=38.22 p10=36.92 p90=39.22 us_per_call=337.2
+RESULT shape=qkv M=256 N=6144 K=4096 cand=gemm_nax_t32x128w2 swz=0 median_tflops=35.94 p10=35.05 p90=36.11 us_per_call=358.5
+RESULT shape=qkv M=256 N=6144 K=4096 cand=gemm_nax_t32x32w1 swz=0 median_tflops=38.19 p10=36.68 p90=38.46 us_per_call=337.4
+RESULT shape=qkv M=256 N=6144 K=4096 cand=gemm_nax_t64x64w2 swz=0 median_tflops=37.17 p10=35.81 p90=37.57 us_per_call=346.7
+RESULT shape=qkv M=256 N=6144 K=4096 cand=gemm_nax_t64x64w4 swz=0 median_tflops=36.76 p10=35.56 p90=37.26 us_per_call=350.5
+RESULT shape=qo M=2048 N=4096 K=4096 cand=gemm_nax_t128x64w4 swz=0 median_tflops=61.43 p10=58.41 p90=64.30 us_per_call=1118.7
+RESULT shape=qo M=2048 N=4096 K=4096 cand=gemm_nax_t32x128w2 swz=0 median_tflops=61.95 p10=58.40 p90=64.06 us_per_call=1109.2
+RESULT shape=qo M=2048 N=4096 K=4096 cand=gemm_nax_t32x32w1 swz=0 median_tflops=50.01 p10=48.86 p90=50.63 us_per_call=1374.2
+RESULT shape=qo M=2048 N=4096 K=4096 cand=gemm_nax_t64x64w2 swz=0 median_tflops=62.04 p10=57.85 p90=64.25 us_per_call=1107.7
+RESULT shape=qo M=2048 N=4096 K=4096 cand=gemm_nax_t64x64w4 swz=0 median_tflops=60.22 p10=56.75 p90=62.05 us_per_call=1141.2
+RESULT shape=qo M=256 N=4096 K=4096 cand=gemm_nax_t128x64w4 swz=0 median_tflops=51.87 p10=51.53 p90=51.90 us_per_call=165.6
+RESULT shape=qo M=256 N=4096 K=4096 cand=gemm_nax_t32x128w2 swz=0 median_tflops=58.70 p10=58.30 p90=58.74 us_per_call=146.3
+RESULT shape=qo M=256 N=4096 K=4096 cand=gemm_nax_t32x32w1 swz=0 median_tflops=57.31 p10=56.04 p90=57.48 us_per_call=149.9
+RESULT shape=qo M=256 N=4096 K=4096 cand=gemm_nax_t64x64w2 swz=0 median_tflops=58.63 p10=58.43 p90=58.73 us_per_call=146.5
+RESULT shape=qo M=256 N=4096 K=4096 cand=gemm_nax_t64x64w4 swz=0 median_tflops=54.90 p10=54.66 p90=55.02 us_per_call=156.5
+## s35 20:04:02: /opt/code/intarsiaml/.worktrees/mac-plan/target/release/intarsia serve --backend metal --model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18611
+localeval exit 0
+
+````
+/opt/code/intarsiaml/.worktrees/mac-plan/target/release/intarsia serve --backend metal --model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18611
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 40000, 2 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4089 | 1.15 | 3551 (3453–3650) | - | 129.3 (127.9–130.7) | 164.3 (164.3–164.4) | - | - | 256 |
+| 33903 | 12.29 | 2762 (2655–2868) | 2676 | 87.3 (85.1–89.5) | 105.0 (101.8–108.3) | - | - | 256 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261115-200426-adhoc-macplan-s35/result.json
+[localeval] not logged to unanimis (--no-unim)
+## s35off 20:05:07: /opt/code/intarsiaml/.worktrees/mac-plan/target/release/intarsia serve --backend metal --model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18611 --spec off
+localeval exit 0
+
+````
+/opt/code/intarsiaml/.worktrees/mac-plan/target/release/intarsia serve --backend metal --model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18611 --spec off
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 40000, 2 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4088 | 0.71 | 5781 (5718–5844) | - | 117.7 (116.8–118.7) | 119.5 (118.7–120.4) | - | - | 256 |
+| 33882 | 11.51 | 2943 (2931–2956) | 2758 | 91.0 (90.3–91.7) | 94.5 (94.3–94.6) | - | - | 256 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261115-200513-adhoc-macplan-s35off/result.json
+[localeval] not logged to unanimis (--no-unim)
+## b35 20:05:50: /opt/code/intarsiaml/.worktrees/mac-plan/target/release/intarsia serve --backend metal --model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18611 --max-batch 16
+localeval exit 0
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.23 | 4393 (4393–4393) * | - | 94.4 (94.4–94.4) | 137.9 (137.9–137.9) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 2 | 109.6 | 59.5 (58.0–61.0) | 0.36 |
+| 4 | 164.3 | 46.5 (43.4–50.4) | 0.69 |
+| 8 | 211.7 | 32.3 (28.4–36.6) | 1.50 |
+| 16 | 253.8 | 19.6 (17.1–23.8) | 2.79 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261115-200616-adhoc-macplan-b35/result.json
+[localeval] not logged to unanimis (--no-unim)
+p35 4096 plain [--spec off] prefill 881 ms (4647.2 tok/s) decode 1148 ms (111.48 tok/s) 
+p35 4096 cb [--spec off] prefill 937 ms (4372.6 tok/s) decode 1103 ms (116.06 tok/s) 
+p35 32768 plain [--spec off] prefill 10644 ms (3078.3 tok/s) decode 1386 ms (92.35 tok/s) 
+p35 32768 cb [--spec off] prefill 10523 ms (3113.6 tok/s) decode 1377 ms (92.93 tok/s) 
+p35mtp 4096 plain [] prefill 907 ms (4518.1 tok/s) decode 784 ms (163.21 tok/s) 
+p35mtp 4096 cb [] prefill 867 ms (4722.0 tok/s) decode 776 ms (164.99 tok/s) 
+## s27 20:07:50: /opt/code/intarsiaml/.worktrees/mac-plan/target/release/intarsia serve --backend metal --model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18611
+localeval exit 0
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 40000, 2 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4090 | 5.97 | 687 (655–718) | - | 47.0 (44.1–49.8) | 55.5 (52.0–59.1) | - | - | 256 |
+| 33924 | 53.89 | 630 (628–631) | 623 | 35.1 (34.2–36.1) | 42.1 (42.0–42.3) | - | - | 256 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 12.2% at 4096 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261115-200920-adhoc-macplan-s27/result.json
+[localeval] not logged to unanimis (--no-unim)
+## s27off 20:11:54: /opt/code/intarsiaml/.worktrees/mac-plan/target/release/intarsia serve --backend metal --model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18611 --spec off
+localeval exit 0
+
+````
+/opt/code/intarsiaml/.worktrees/mac-plan/target/release/intarsia serve --backend metal --model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18611 --spec off
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 40000, 1 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4089 | 5.47 | 747 (747–747) | - | 30.6 (30.6–30.6) | 31.7 (31.7–31.7) | - | - | 256 |
+| 33923 | 54.59 | 621 (621–621) | 607 | 24.1 (24.1–24.1) | 24.6 (24.6–24.6) | - | - | 256 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261115-201201-adhoc-macplan-s27off/result.json
+[localeval] not logged to unanimis (--no-unim)
+## b27 20:13:27: /opt/code/intarsiaml/.worktrees/mac-plan/target/release/intarsia serve --backend metal --model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18611 --max-batch 8
+localeval exit 0
+served `intarsia`, fingerprint `None`, ctx 40000, 1 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 994 | 1.55 | 642 (642–642) * | - | 29.6 (29.6–29.6) | 30.5 (30.5–30.5) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 2 | 29.2 | 21.4 (18.2–24.7) | 2.63 |
+| 4 | 35.9 | 13.6 (10.5–19.1) | 4.59 |
+| 8 | 36.2 | 6.7 (5.1–10.7) | 8.76 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261115-201339-adhoc-macplan-b27/result.json
+[localeval] not logged to unanimis (--no-unim)
+p27 4096 plain [--spec off] prefill 5465 ms (749.5 tok/s) decode 4210 ms (30.40 tok/s) 
+p27 4096 cb [--spec off] prefill 5493 ms (745.7 tok/s) decode 4243 ms (30.17 tok/s) 
+p27mtp 4096 plain [] prefill 5582 ms (733.8 tok/s) decode 2602 ms (49.20 tok/s) 
+p27mtp 4096 cb [] prefill 5513 ms (742.9 tok/s) decode 2578 ms (49.65 tok/s) 
+## done 20:15:30
+fleetq: #9391 done (exit 0)
