@@ -320,6 +320,11 @@ pub struct SequenceState {
     /// one it cuts through, a prefix-store restore leaves none. Exact prefix reuse on a chunk-sensitive backend reads it
     /// ([`SequenceState::ladder_reuse_len`], [`SequenceState::wide_reuse_len`], [`SequenceState::inv_len`]).
     pub passes: Vec<Pass>,
+    /// Snapshots a multi-chunk forward pass takes at its inner chunk ends (lane a4k-restore): 0 (the default) none, else
+    /// the `keep` of [`SequenceState::snapshot`]. The engines' prefill steps set it around a pass that may hold several
+    /// chunks (the macro prefill step), so a later prompt that shares only part of it resumes at a chunk end inside it, as
+    /// with the plain chunk-by-chunk schedule; other callers of `Model::forward` take no snapshots.
+    pub prefill_snapshots: usize,
     /// The MTP drafter's state (`--spec mtp` only).
     pub mtp: Option<Box<MtpState>>,
     /// The DFlash drafter's state (`--spec dflash` only).
@@ -390,6 +395,7 @@ impl SequenceState {
             remote: None,
             clean: 0,
             passes: Vec::new(),
+            prefill_snapshots: 0,
             mtp: None,
             dflash: None,
             spec_rows: SpecRows::default(),
@@ -481,21 +487,7 @@ impl SequenceState {
         if total == 0 || self.len == 0 || keep == 0 {
             return Ok(());
         }
-        if let Some(i) = self.snapshots.iter().position(|s| s.len == self.len) {
-            let old = self.snapshots.remove(i);
-            self.snap_pool.push(old.buf);
-        }
-        // at most `keep` snapshots: the oldest ones' buffers become free ...
-        while self.snapshots.len() >= keep {
-            let old = self.snapshots.remove(0);
-            self.snap_pool.push(old.buf);
-        }
-        // ... and a free buffer is reused before any device allocation (none while serving, once reserved)
-        let reuse = self.snap_pool.pop();
-        let buf = match reuse {
-            Some(b) if b.bytes() >= total => b,
-            _ => backend.alloc(total, MemKind::Device)?,
-        };
+        let buf = self.snapshot_buf(backend, self.len, keep, 0)?;
         let mut off = 0;
         for s in &self.slots {
             if let StateSlot::Recurrent(r) = s {
@@ -519,6 +511,53 @@ impl SequenceState {
         };
         self.snapshots.push(RecurrentSnapshot { len: self.len, buf, mtp });
         Ok(())
+    }
+
+    /// A buffer for a snapshot at `len` tokens of which `pending` more are still to be pushed: the snapshot already held at
+    /// `len` is replaced, and the oldest are dropped until at most `keep` remain with the new one and the pending ones (their
+    /// buffers go to the free pool); a free buffer is reused before any device allocation (none while serving, once reserved).
+    fn snapshot_buf(&mut self, backend: &dyn Backend, len: usize, keep: usize, pending: usize) -> Result<Buffer> {
+        if let Some(i) = self.snapshots.iter().position(|s| s.len == len) {
+            let old = self.snapshots.remove(i);
+            self.snap_pool.push(old.buf);
+        }
+        while !self.snapshots.is_empty() && self.snapshots.len() + pending + 1 > keep {
+            let old = self.snapshots.remove(0);
+            self.snap_pool.push(old.buf);
+        }
+        let total = self.recurrent_bytes();
+        Ok(match self.snap_pool.pop() {
+            Some(b) if b.bytes() >= total => b,
+            _ => backend.alloc(total, MemKind::Device)?,
+        })
+    }
+
+    /// Buffers for the snapshots a multi-chunk pass takes at chunk ends `lens` (ascending, all above the current length;
+    /// [`SequenceState::prefill_snapshots`]): the pass copies every recurrent slot into them at [`SequenceState::recurrent_offset`]
+    /// as the chunk's recurrence finishes, then [`SequenceState::push_inner_snapshots`] files them. Empty without recurrent
+    /// slots, with a drafter state (an MTP snapshot holds the head's state at its length, which the pass has only at its end),
+    /// or under tensor parallelism (the other ranks' states are not copied).
+    pub(crate) fn inner_snapshot_bufs(&mut self, backend: &dyn Backend, lens: &[usize], keep: usize) -> Result<Vec<Buffer>> {
+        if self.recurrent_bytes() == 0 || self.mtp.is_some() || self.dflash.is_some() || !self.peers.is_empty() || self.remote.is_some() {
+            return Ok(Vec::new());
+        }
+        let mut out = Vec::with_capacity(lens.len());
+        for (i, &len) in lens.iter().enumerate() {
+            out.push(self.snapshot_buf(backend, len, keep, lens.len() - i - 1)?);
+        }
+        Ok(out)
+    }
+
+    /// File the snapshots of [`SequenceState::inner_snapshot_bufs`] after the pass that filled them committed its rows
+    /// (`lens[i]` at most the current length). On a failed pass the buffers go back to the free pool instead (`ok` false).
+    pub(crate) fn push_inner_snapshots(&mut self, lens: &[usize], bufs: Vec<Buffer>, ok: bool) {
+        for (&len, buf) in lens.iter().zip(bufs) {
+            if ok && len <= self.len {
+                self.snapshots.push(RecurrentSnapshot { len, buf, mtp: None });
+            } else {
+                self.snap_pool.push(buf);
+            }
+        }
     }
 
     /// Drop the snapshots taken past `len` tokens; their buffers go back to the free pool.
