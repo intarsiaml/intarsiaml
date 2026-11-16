@@ -1,0 +1,45 @@
+[localeval] calibrated: 22.1 tokens/sentence, 51 base tokens, ctx=18432
+[localeval]   4096 tok rep 1/2: prompt=4089 ttft=0.60s prefill=6806 tok/s decode=141.2 tok/s peak=0.0 tok/s out=32
+[localeval]   4096 tok rep 2/2: prompt=4088 ttft=0.59s prefill=6982 tok/s decode=141.7 tok/s peak=0.0 tok/s out=32
+[localeval]  16384 tok rep 1/2: prompt=16657 ttft=2.50s prefill=6658 tok/s decode=117.2 tok/s peak=0.0 tok/s out=32
+[localeval]  16384 tok rep 2/2: prompt=16653 ttft=2.51s prefill=6640 tok/s decode=88.2 tok/s peak=0.0 tok/s out=32
+# localeval: adhoc — 2026-11-16T00:11
+
+- model: `guidance` on ? (?), url `http://spark-fa00:8091/v1`
+- thinking: off; run kind: speed; label: cuda382-395-main-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d96f899
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8091/v1 --model guidance --label cuda382-395-main-r1 --sizes 4096,16384 --gen 32 --reps 2 --thinking off --wait-idle 60 --recipe intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --max-seq 18432 --mem-budget 30 --profile-every 0 (spark2, tree main, MTP default)`
+- result file: `results/20261116-001135-adhoc-cuda382-395-main-r1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --max-seq 18432 --mem-budget 30 --profile-every 0 (spark2, tree main, MTP default)
+````
+
+## Speed sweep
+
+served `guidance`, fingerprint `None`, ctx 18432, 2 reps, 32 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4088 | 0.59 | 6894 (6806–6982) | - | 141.5 (141.2–141.7) | - | - | - | 32 |
+| 16655 | 2.50 | 6649 (6640–6658) | 6573 | 102.7 (88.2–117.2) | - | - | - | 32 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 28.3% at 16384 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261116-001135-adhoc-cuda382-395-main-r1/result.json
+[localeval] logged to unanimis: e7a40081-1303-460b-a9ae-e72c29d2b36e

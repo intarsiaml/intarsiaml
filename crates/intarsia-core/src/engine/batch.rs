@@ -528,13 +528,21 @@ impl BatchModel for SlotModel {
             );
         }
         // passes of at most `cap` rows (the workspace and the head's logits rows), sequences in order
-        let cap = Model::VERIFY_MAX_ROWS.min(m.ws_rows());
+        // (and at most the row counts and sequences the plan covers, lane mx6: a pass beyond them splits, never runs unadmitted)
+        let cap = Model::VERIFY_MAX_ROWS.min(m.ws_rows()).min(match m.verify_batch_rows() {
+            0 => usize::MAX,
+            r => r,
+        });
+        let seqs = match m.verify_batch_seqs() {
+            0 => usize::MAX,
+            s => s,
+        };
         let mut out: Vec<Result<Verified<StepOut>>> = Vec::with_capacity(rows.len());
         let mut i = 0;
         while i < rows.len() {
             let mut j = i;
             let mut n = 0;
-            while j < rows.len() && n + rows[j].1.len() <= cap {
+            while j < rows.len() && j - i < seqs && n + rows[j].1.len() <= cap {
                 n += rows[j].1.len();
                 j += 1;
             }
@@ -1066,7 +1074,16 @@ impl BatchedEngine {
             None
         };
         // lane bm phase B: `INTARSIA_BATCHED_VERIFY=1` (opt-in, with batched MTP) verifies the drafting sequences in one pass
-        let batched_verify = mtp && twin.is_none() && opts.batched_verify;
+        // lane mx6: only where the plan covers the batched verify pass's row counts (`Model::enable_verify_batch`, before
+        // `configure_plan`); else drafting sequences verify one pass each, bitwise the same rows (`Model::verify_batch_seqs` is 0
+        // when it was never planned or the plan found a row count without an admitted row-exact kernel)
+        let batched_verify = mtp && twin.is_none() && opts.batched_verify && model.verify_batch_seqs() >= 2;
+        if mtp && opts.batched_verify && !batched_verify && twin.is_none() {
+            eprintln!(
+                "batched verify off: the model's plan does not cover its row counts (see the load log: Model::enable_verify_batch, or a \
+                 row count without an admitted row-exact kernel); drafting sequences verify one pass each"
+            );
+        }
         let mtp_sampled = mtp && opts.mtp_sampled;
         if batched_verify && opts.verify_topk {
             eprintln!(
@@ -1239,6 +1256,12 @@ impl Engine for BatchedEngine {
 
     fn prefix_store(&self) -> Value {
         self.store.as_ref().map_or(Value::Null, StorePolicy::info)
+    }
+
+    fn flush_prefix_store(&self) {
+        if let Some(s) = &self.store {
+            s.store.lock().unwrap_or_else(|e| e.into_inner()).flush();
+        }
     }
 }
 

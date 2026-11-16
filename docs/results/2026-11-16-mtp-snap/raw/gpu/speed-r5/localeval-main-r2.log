@@ -1,0 +1,52 @@
+[localeval] calibrated: 22.0 tokens/sentence, 54 base tokens, ctx=18432
+[localeval]   4096 tok rep 1/5: prompt=4090 ttft=0.34s prefill=11937 tok/s decode=209.9 tok/s peak=270.5 tok/s out=64
+[localeval]   4096 tok rep 2/5: prompt=4085 ttft=0.34s prefill=11912 tok/s decode=212.8 tok/s peak=241.4 tok/s out=64
+[localeval]   4096 tok rep 3/5: prompt=4085 ttft=0.35s prefill=11731 tok/s decode=180.2 tok/s peak=203.7 tok/s out=64
+[localeval]   4096 tok rep 4/5: prompt=4088 ttft=0.36s prefill=11413 tok/s decode=228.8 tok/s peak=244.2 tok/s out=64
+[localeval]   4096 tok rep 5/5: prompt=4089 ttft=0.43s prefill=9571 tok/s decode=278.9 tok/s peak=589.1 tok/s out=64
+[localeval]  16384 tok rep 1/5: prompt=16675 ttft=1.56s prefill=10668 tok/s decode=149.2 tok/s peak=165.2 tok/s out=64
+[localeval]  16384 tok rep 2/5: prompt=16677 ttft=1.57s prefill=10655 tok/s decode=180.8 tok/s peak=229.1 tok/s out=64
+[localeval]  16384 tok rep 3/5: prompt=16679 ttft=1.57s prefill=10625 tok/s decode=175.4 tok/s peak=208.6 tok/s out=64
+[localeval]  16384 tok rep 4/5: prompt=16678 ttft=1.57s prefill=10644 tok/s decode=176.2 tok/s peak=227.2 tok/s out=64
+[localeval]  16384 tok rep 5/5: prompt=16679 ttft=1.57s prefill=10648 tok/s decode=148.9 tok/s peak=164.0 tok/s out=64
+# localeval: adhoc — 2026-11-16T00:08
+
+- model: `qwen36-35b` on ? (?), url `http://tatooine:8090/v1`
+- thinking: off; run kind: speed; label: mtpsnap-main-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d96f899
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8090/v1 --model qwen36-35b --label mtpsnap-main-r2 --sizes 4096,16384 --gen 64 --reps 5 --thinking off --wait-idle 60 --recipe HIP_VISIBLE_DEVICES=0 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b --spec mtp --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor (tree mtpsnap-gpu, bin main, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)`
+- result file: `results/20261116-000844-adhoc-mtpsnap-main-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b --spec mtp --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor (tree mtpsnap-gpu, bin main, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)
+````
+
+## Speed sweep
+
+served `qwen36-35b`, fingerprint `None`, ctx 18432, 5 reps, 64 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4088 | 0.35 | 11731 (9571–11937) | - | 212.8 (180.2–278.9) | 244.2 (203.7–589.1) | - | - | 64 |
+| 16678 | 1.57 | 10648 (10625–10668) | 10337 | 175.4 (148.9–180.8) | 208.6 (164.0–229.1) | - | - | 64 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 46.4% at 4096 tokens: noisy; rerun before comparing
+- decode spread 18.2% at 16384 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261116-000844-adhoc-mtpsnap-main-r2/result.json
+[localeval] logged to unanimis: afc874c4-78cb-4c42-96af-338d67edb749

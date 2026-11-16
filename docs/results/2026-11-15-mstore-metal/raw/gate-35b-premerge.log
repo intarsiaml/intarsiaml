@@ -1,0 +1,271 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1241:4
+     |
+1241 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.worktrees/mstore/crates/intarsia-models)
+    Finished `release` profile [optimized] target(s) in 0.81s
+     Running tests/mtp_store_metal.rs (target/release/deps/mtp_store_metal-da68f6735fe34088)
+
+running 1 test
+MTP-STORE-METAL model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 gen 160
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefix store: on (build b4b85d8d16a98479, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+MTP-STORE-METAL ref store-on mtp-off greedy request 0: prompt 1873 cached 0 | 160 tokens, ttft 1228 ms, decode 116.7 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-METAL ref store-on mtp-off greedy request 1: prompt 1170 cached 19 | 160 tokens, ttft 280 ms, decode 114.5 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-METAL ref store-on mtp-off greedy request 2: prompt 2643 cached 1871 | 160 tokens, ttft 274 ms, decode 114.7 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-METAL ref store-on mtp-off greedy request 3: prompt 2177 cached 1168 | 160 tokens, ttft 320 ms, decode 108.9 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-METAL ref store-on mtp-off greedy request 4: prompt 3198 cached 2641 | 160 tokens, ttft 226 ms, decode 114.8 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-METAL ref store-on mtp-off greedy request 5: prompt 2357 cached 2175 | 160 tokens, ttft 138 ms, decode 115.3 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-METAL ref store-on mtp-off sampled request 2: prompt 2643 cached 2641 | 160 tokens, ttft 19 ms, decode 112.7 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-METAL ref store-on mtp-off sampled request 3: prompt 2177 cached 2175 | 160 tokens, ttft 18 ms, decode 113.6 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-METAL ref store-on mtp-off sampled request 4: prompt 3198 cached 3196 | 160 tokens, ttft 20 ms, decode 113.1 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-METAL ref store-on mtp-off sampled request 5: prompt 2357 cached 2355 | 160 tokens, ttft 18 ms, decode 113.2 tok/s | 0 passes, drafted 0, accepted 0 (0.0 %)
+MTP-STORE-METAL reference done at 19 s
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.3 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+prefix store: on (build d6c575ceb6e37f40, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+MTP-STORE-METAL single store-on mtp-on greedy request 0: prompt 1873 cached 0 | 160 tokens, ttft 772 ms, decode 187.9 tok/s | 60 passes, drafted 119, accepted 99 (83.2 %)
+MTP-STORE-METAL single store-on mtp-on greedy request 1: prompt 1170 cached 19 | 160 tokens, ttft 247 ms, decode 165.7 tok/s | 65 passes, drafted 129, accepted 94 (72.9 %)
+MTP-STORE-METAL single store-on mtp-on greedy request 2: prompt 2643 cached 1871 | 160 tokens, ttft 266 ms, decode 165.1 tok/s | 63 passes, drafted 126, accepted 95 (75.4 %)
+MTP-STORE-METAL single store-on mtp-on greedy request 3: prompt 2177 cached 1168 | 160 tokens, ttft 347 ms, decode 164.8 tok/s | 60 passes, drafted 120, accepted 99 (82.5 %)
+MTP-STORE-METAL single store-on mtp-on greedy request 4: prompt 3198 cached 2641 | 160 tokens, ttft 257 ms, decode 161.0 tok/s | 61 passes, drafted 121, accepted 97 (80.2 %)
+MTP-STORE-METAL single store-on mtp-on greedy request 5: prompt 2357 cached 2175 | 160 tokens, ttft 153 ms, decode 160.1 tok/s | 65 passes, drafted 130, accepted 94 (72.3 %)
+MTP-STORE-METAL single store-on mtp-on sampled (restored) request 2: prompt 2643 cached 2641 | 160 tokens, ttft 21 ms, decode 137.6 tok/s | 68 passes, drafted 135, accepted 90 (66.7 %)
+MTP-STORE-METAL single store-on mtp-on sampled (restored) request 3: prompt 2177 cached 2175 | 160 tokens, ttft 19 ms, decode 147.5 tok/s | 65 passes, drafted 130, accepted 94 (72.3 %)
+MTP-STORE-METAL single store-on mtp-on sampled (restored) request 4: prompt 3198 cached 3196 | 160 tokens, ttft 20 ms, decode 117.7 tok/s | 78 passes, drafted 155, accepted 75 (48.4 %)
+MTP-STORE-METAL single store-on mtp-on sampled (restored) request 5: prompt 2357 cached 2355 | 160 tokens, ttft 19 ms, decode 142.9 tok/s | 67 passes, drafted 133, accepted 91 (68.4 %)
+MTP-STORE-METAL single store: {"build":"d6c575ceb6e37f40","entries":10,"pinned_entries":0,"lookups":10,"hits":8,"misses":2,"local_wins":0,"tokens_saved":18222,"bytes_restored":900096000,"restore_seconds_total":0.024790250000000003,"last_restore_ms":2.408875,"inserts":10,"insert_bytes":793006080,"insert_seconds_total":0.045029251,"settle_seconds_total":0.043487959,"rejected":0,"ttft_saved_seconds_total":6.9657773613446565,"prefill_tok_s":2448.077497260439,"device":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":41},"host":{"objects":41,"bytes":793006080,"budget_bytes":8589934592,"hits":8,"evictions":0},"disk":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":0},"disk_pending_bytes":0,"disk_write_skips":0}
+MTP-STORE-METAL single greedy cold turns: 125 passes, acceptance 77.8 % (193 / 248)
+MTP-STORE-METAL single greedy restored turns (a new turn after the restore point): 249 passes, acceptance 77.5 % (385 / 497)
+MTP-STORE-METAL single sampled restored (all but the last tokens restored): 278 passes, acceptance 63.3 % (350 / 553)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.3 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+prefix store: on (build d6c575ceb6e37f40, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+MTP-STORE-METAL cold mb1 sampled request 2: prompt 2643 cached 0 | 160 tokens, ttft 1000 ms, decode 157.1 tok/s | 62 passes, drafted 123, accepted 96 (78.0 %)
+MTP-STORE-METAL cold mb1 greedy after the same prompt (all but the last tokens restored) request 2: prompt 2643 cached 2641 | 160 tokens, ttft 17 ms, decode 178.7 tok/s | 61 passes, drafted 122, accepted 97 (79.5 %)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.3 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+batched MTP N=1 (recipe qwen3_5_moe, [tuning.metal] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 2048
+prefix store with --max-batch > 1: workspace 1342 MiB
+prefix store: on (build 76a1247e5527e66a, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+MTP-STORE-METAL cold mb2 sampled request 2: prompt 2643 cached 0 | 160 tokens, ttft 999 ms, decode 155.1 tok/s | 62 passes, drafted 123, accepted 96 (78.0 %)
+MTP-STORE-METAL cold mb2 greedy after the same prompt (all but the last tokens restored) request 2: prompt 2643 cached 2641 | 160 tokens, ttft 24 ms, decode 152.1 tok/s | 69 passes, drafted 138, accepted 89 (64.5 %)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.3 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+prefix store: on (build d6c575ceb6e37f40, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+MTP-STORE-METAL cold mb1 sampled request 3: prompt 2177 cached 0 | 160 tokens, ttft 951 ms, decode 160.8 tok/s | 61 passes, drafted 122, accepted 97 (79.5 %)
+MTP-STORE-METAL cold mb1 greedy after the same prompt (all but the last tokens restored) request 3: prompt 2177 cached 2175 | 160 tokens, ttft 15 ms, decode 189.0 tok/s | 58 passes, drafted 116, accepted 100 (86.2 %)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.3 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+batched MTP N=1 (recipe qwen3_5_moe, [tuning.metal] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 2048
+prefix store with --max-batch > 1: workspace 1342 MiB
+prefix store: on (build 76a1247e5527e66a, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+MTP-STORE-METAL cold mb2 sampled request 3: prompt 2177 cached 0 | 160 tokens, ttft 951 ms, decode 161.7 tok/s | 61 passes, drafted 122, accepted 97 (79.5 %)
+MTP-STORE-METAL cold mb2 greedy after the same prompt (all but the last tokens restored) request 3: prompt 2177 cached 2175 | 160 tokens, ttft 22 ms, decode 150.5 tok/s | 71 passes, drafted 142, accepted 88 (62.0 %)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+test mtp_on_store_requests_restore_bitwise_metal has been running for over 60 seconds
+mtp: drafter head 'mtp' loaded in 0.3 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+prefix store: on (build d6c575ceb6e37f40, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+MTP-STORE-METAL cold mb1 sampled request 4: prompt 3198 cached 0 | 160 tokens, ttft 1195 ms, decode 152.3 tok/s | 64 passes, drafted 128, accepted 94 (73.4 %)
+MTP-STORE-METAL cold mb1 greedy after the same prompt (all but the last tokens restored) request 4: prompt 3198 cached 3196 | 160 tokens, ttft 17 ms, decode 184.3 tok/s | 59 passes, drafted 117, accepted 99 (84.6 %)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.4 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+batched MTP N=1 (recipe qwen3_5_moe, [tuning.metal] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 2048
+prefix store with --max-batch > 1: workspace 1342 MiB
+prefix store: on (build 76a1247e5527e66a, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+MTP-STORE-METAL cold mb2 sampled request 4: prompt 3198 cached 0 | 160 tokens, ttft 1231 ms, decode 136.2 tok/s | 64 passes, drafted 128, accepted 94 (73.4 %)
+MTP-STORE-METAL cold mb2 greedy after the same prompt (all but the last tokens restored) request 4: prompt 3198 cached 3196 | 160 tokens, ttft 26 ms, decode 135.5 tok/s | 72 passes, drafted 143, accepted 84 (58.7 %)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.4 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+prefix store: on (build d6c575ceb6e37f40, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+MTP-STORE-METAL cold mb1 sampled request 5: prompt 2357 cached 0 | 160 tokens, ttft 1104 ms, decode 154.0 tok/s | 63 passes, drafted 125, accepted 96 (76.8 %)
+MTP-STORE-METAL cold mb1 greedy after the same prompt (all but the last tokens restored) request 5: prompt 2357 cached 2355 | 160 tokens, ttft 16 ms, decode 176.9 tok/s | 61 passes, drafted 122, accepted 98 (80.3 %)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.4 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+batched MTP N=1 (recipe qwen3_5_moe, [tuning.metal] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 2048
+prefix store with --max-batch > 1: workspace 1342 MiB
+prefix store: on (build 76a1247e5527e66a, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+MTP-STORE-METAL cold mb2 sampled request 5: prompt 2357 cached 0 | 160 tokens, ttft 1091 ms, decode 150.3 tok/s | 63 passes, drafted 125, accepted 96 (76.8 %)
+MTP-STORE-METAL cold mb2 greedy after the same prompt (all but the last tokens restored) request 5: prompt 2357 cached 2355 | 160 tokens, ttft 25 ms, decode 148.6 tok/s | 67 passes, drafted 134, accepted 92 (68.7 %)
+MTP-STORE-METAL single sampled cold: 250 passes, acceptance 76.9 % (383 / 498)
+MTP-STORE-METAL single greedy, all but the last tokens restored: 239 passes, acceptance 82.6 % (394 / 477)
+MTP-STORE-METAL single sampled request 2: restored (cached 2641) == cold true; cold == the plain spec-off sampler true
+MTP-STORE-METAL single sampled request 3: restored (cached 2175) == cold true; cold == the plain spec-off sampler true
+MTP-STORE-METAL single sampled request 4: restored (cached 3196) == cold true; cold == the plain spec-off sampler true
+MTP-STORE-METAL single sampled request 5: restored (cached 2355) == cold true; cold == the plain spec-off sampler true
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.4 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+prefix store: on (build d6c575ceb6e37f40, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+MTP-STORE-METAL control: second cold mb1 sampled request 2: prompt 2643 cached 0 | 160 tokens, ttft 1053 ms, decode 148.1 tok/s | 62 passes, drafted 123, accepted 96 (78.0 %)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.4 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+prefix store: on (build d6c575ceb6e37f40, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+MTP-STORE-METAL control: cold mb1 greedy request 2: prompt 2643 cached 0 | 160 tokens, ttft 1050 ms, decode 173.9 tok/s | 61 passes, drafted 122, accepted 97 (79.5 %)
+MTP-STORE-METAL control request 2: sampled cold == cold true; greedy cold (MTP on) == the restored reference true
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.4 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+MTP-STORE-METAL store-off mtp-on greedy request 0: prompt 1873 cached 0 | 160 tokens, ttft 522 ms, decode 179.1 tok/s | 59 passes, drafted 117, accepted 100 (85.5 %)
+MTP-STORE-METAL store-off request 0: ids equal the store-on reference true
+MTP-STORE-METAL store-off mtp-on greedy request 1: prompt 1170 cached 0 | 160 tokens, ttft 263 ms, decode 154.3 tok/s | 67 passes, drafted 134, accepted 91 (67.9 %)
+MTP-STORE-METAL store-off request 1: ids equal the store-on reference false
+MTP-STORE-METAL store-off mtp-on greedy request 2: prompt 2643 cached 0 | 160 tokens, ttft 647 ms, decode 155.9 tok/s | 61 passes, drafted 121, accepted 98 (81.0 %)
+MTP-STORE-METAL store-off request 2: ids equal the store-on reference false
+MTP-STORE-METAL store-off mtp-on greedy request 3: prompt 2177 cached 0 | 160 tokens, ttft 514 ms, decode 166.4 tok/s | 59 passes, drafted 118, accepted 100 (84.7 %)
+MTP-STORE-METAL store-off request 3: ids equal the store-on reference false
+MTP-STORE-METAL store-off mtp-on greedy request 4: prompt 3198 cached 0 | 160 tokens, ttft 738 ms, decode 165.8 tok/s | 59 passes, drafted 117, accepted 100 (85.5 %)
+MTP-STORE-METAL store-off request 4: ids equal the store-on reference false
+MTP-STORE-METAL store-off mtp-on greedy request 5: prompt 2357 cached 0 | 160 tokens, ttft 529 ms, decode 156.0 tok/s | 64 passes, drafted 128, accepted 94 (73.4 %)
+MTP-STORE-METAL store-off request 5: ids equal the store-on reference false
+MTP-STORE-METAL store-off (whole head context) first turns: 126 passes, acceptance 76.1 % (191 / 251)
+MTP-STORE-METAL store-off (whole head context) later turns: 243 passes, acceptance 81.0 % (392 / 484)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.3 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+batched MTP N=1 (recipe qwen3_5_moe, [tuning.metal] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 2048
+prefix store with --max-batch > 1: workspace 1342 MiB
+prefix store: on (build 76a1247e5527e66a, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+MTP-STORE-METAL batched together greedy request 0: prompt 1873 cached 0 | ttft 773 ms, decode 81.4 tok/s | ids equal the reference true
+MTP-STORE-METAL batched together greedy request 1: prompt 1170 cached 0 | ttft 1121 ms, decode 95.9 tok/s | ids equal the reference true
+MTP-STORE-METAL batched together greedy request 2: prompt 2643 cached 1871 | ttft 260 ms, decode 75.5 tok/s | ids equal the reference true
+MTP-STORE-METAL batched together greedy request 3: prompt 2177 cached 1168 | ttft 621 ms, decode 88.1 tok/s | ids equal the reference true
+MTP-STORE-METAL batched together greedy request 4: prompt 3198 cached 2641 | ttft 239 ms, decode 80.7 tok/s | ids equal the reference true
+MTP-STORE-METAL batched together greedy request 5: prompt 2357 cached 2175 | ttft 413 ms, decode 86.1 tok/s | ids equal the reference true
+MTP-STORE-METAL batched alone greedy request 0: prompt 1873 cached 1871 | 160 tokens, ttft 18 ms, decode 144.3 tok/s | 70 passes, drafted 139, accepted 89 (64.0 %)
+MTP-STORE-METAL batched alone greedy request 1: prompt 1170 cached 1168 | 160 tokens, ttft 18 ms, decode 140.8 tok/s | 72 passes, drafted 144, accepted 87 (60.4 %)
+MTP-STORE-METAL batched alone greedy request 2: prompt 2643 cached 2641 | 160 tokens, ttft 19 ms, decode 143.8 tok/s | 69 passes, drafted 138, accepted 89 (64.5 %)
+MTP-STORE-METAL batched alone greedy request 3: prompt 2177 cached 2175 | 160 tokens, ttft 19 ms, decode 142.6 tok/s | 71 passes, drafted 142, accepted 88 (62.0 %)
+MTP-STORE-METAL batched alone greedy request 4: prompt 3198 cached 3196 | 160 tokens, ttft 21 ms, decode 135.2 tok/s | 72 passes, drafted 143, accepted 84 (58.7 %)
+MTP-STORE-METAL batched alone greedy request 5: prompt 2357 cached 2355 | 160 tokens, ttft 20 ms, decode 151.5 tok/s | 67 passes, drafted 134, accepted 92 (68.7 %)
+MTP-STORE-METAL batched alone sampled (restored) request 2: prompt 2643 cached 2641 | 160 tokens, ttft 20 ms, decode 137.6 tok/s | 68 passes, drafted 135, accepted 90 (66.7 %)
+MTP-STORE-METAL batched sampled request 2: restored (cached 2641) == cold true; == the plain spec-off sampler true
+MTP-STORE-METAL batched alone sampled (restored) request 3: prompt 2177 cached 2175 | 160 tokens, ttft 20 ms, decode 147.2 tok/s | 65 passes, drafted 130, accepted 94 (72.3 %)
+MTP-STORE-METAL batched sampled request 3: restored (cached 2175) == cold true; == the plain spec-off sampler true
+MTP-STORE-METAL batched alone sampled (restored) request 4: prompt 3198 cached 3196 | 160 tokens, ttft 20 ms, decode 118.0 tok/s | 78 passes, drafted 155, accepted 75 (48.4 %)
+MTP-STORE-METAL batched sampled request 4: restored (cached 3196) == cold true; == the plain spec-off sampler true
+MTP-STORE-METAL batched alone sampled (restored) request 5: prompt 2357 cached 2355 | 160 tokens, ttft 19 ms, decode 141.9 tok/s | 67 passes, drafted 133, accepted 91 (68.4 %)
+MTP-STORE-METAL batched sampled request 5: restored (cached 2355) == cold true; == the plain spec-off sampler true
+MTP-STORE-METAL batched store: {"build":"76a1247e5527e66a","entries":10,"pinned_entries":0,"lookups":16,"hits":14,"misses":2,"local_wins":0,"tokens_saved":31628,"bytes_restored":1569832960,"restore_seconds_total":0.047283876999999995,"last_restore_ms":3.143875,"inserts":10,"insert_bytes":793006080,"insert_seconds_total":0.08226958399999998,"settle_seconds_total":0.08047774999999999,"rejected":0,"ttft_saved_seconds_total":16.311100986506865,"prefill_tok_s":1865.991991049793,"device":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":41},"host":{"objects":41,"bytes":793006080,"budget_bytes":8589934592,"hits":14,"evictions":0},"disk":{"objects":0,"bytes":0,"budget_bytes":0,"hits":0,"evictions":0},"disk_pending_bytes":0,"disk_write_skips":0}
+MTP-STORE-METAL batched together: 9 passes, acceptance 100.0 % (18 / 18)
+MTP-STORE-METAL batched alone greedy: 421 passes, acceptance 63.0 % (529 / 840)
+MTP-STORE-METAL batched alone sampled: 278 passes, acceptance 63.3 % (350 / 553)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.3 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+prefix store: on (build d6c575ceb6e37f40, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+MTP-STORE-METAL restart: first engine greedy request 0: prompt 1873 cached 0 | 160 tokens, ttft 803 ms, decode 185.3 tok/s | 60 passes, drafted 119, accepted 99 (83.2 %)
+MTP-STORE-METAL restart: disk tier 99 MiB, 9 objects, pending 104181760 after 60.1 s
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.3 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+prefix store: on (build d6c575ceb6e37f40, 1 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+MTP-STORE-METAL restart: second engine greedy (restored from disk) request 2: prompt 2643 cached 1871 | 160 tokens, ttft 575 ms, decode 169.3 tok/s | 63 passes, drafted 126, accepted 95 (75.4 %)
+MTP-STORE-METAL restart store: {"build":"d6c575ceb6e37f40","entries":3,"pinned_entries":0,"lookups":1,"hits":1,"misses":0,"local_wins":0,"tokens_saved":1871,"bytes_restored":104181760,"restore_seconds_total":0.032288542,"last_restore_ms":32.28854200000001,"inserts":2,"insert_bytes":154112000,"insert_seconds_total":0.000979874,"settle_seconds_total":4.16e-7,"rejected":0,"ttft_saved_seconds_total":0.0,"prefill_tok_s":1422.1402388258316,"device":{"objects":7,"bytes":154112000,"budget_bytes":0,"hits":0,"evictions":0},"host":{"objects":9,"bytes":104181760,"budget_bytes":8589934592,"hits":0,"evictions":0},"disk":{"objects":9,"bytes":104181760,"budget_bytes":68719476736,"hits":1,"evictions":0},"disk_pending_bytes":0,"disk_write_skips":0}
+MTP-STORE-METAL verdict: single greedy true; cold-engine greedy true; single sampled restored == cold true; batched greedy true; batched sampled restored == cold true; restart true (cached 1871, disk hits 1)
+MTP-STORE-METAL total 199 s
+test mtp_on_store_requests_restore_bitwise_metal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 198.89s
+

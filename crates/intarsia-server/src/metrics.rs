@@ -212,6 +212,15 @@ pub fn render_batch(b: &intarsia_core::scheduler::BatchMetrics) -> String {
     for (rows, n) in b.batch_hist.iter().enumerate().skip(1) {
         let _ = writeln!(o, "intarsia_batch_decode_rows_total{{rows=\"{rows}\"}} {n}");
     }
+    // additive, only once a batched verify pass has run (lane bm phase B), so the output of a server without it is unchanged
+    if b.verify_steps > 0 {
+        let _ = writeln!(o, "# HELP intarsia_batch_verify_passes_total Batched verify passes by number of sequences.");
+        let _ = writeln!(o, "# TYPE intarsia_batch_verify_passes_total counter");
+        for (seqs, n) in b.verify_hist.iter().enumerate().skip(1).filter(|(_, n)| **n > 0) {
+            let _ = writeln!(o, "intarsia_batch_verify_passes_total{{seqs=\"{seqs}\"}} {n}");
+        }
+        metric(&mut o, "intarsia_batch_verify_rows_total", "counter", "Rows of the batched verify passes.", b.verify_rows);
+    }
     metric(&mut o, "intarsia_batch_prefill_chunks_total", "counter", "Prefill chunks run.", b.prefill_chunks);
     metric(&mut o, "intarsia_batch_pack_passes_total", "counter", "Packed prefill passes (several prompts' chunks in one pass).", b.pack_passes);
     metric(&mut o, "intarsia_batch_packed_chunks_total", "counter", "Prefill chunks run inside packed passes.", b.packed_chunks);

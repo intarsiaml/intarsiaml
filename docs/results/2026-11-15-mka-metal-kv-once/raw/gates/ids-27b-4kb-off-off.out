@@ -1,0 +1,31 @@
+
+user
+You
+<think>
+The user simply said "You" - this is a very brief, incomplete message. It could be:
+1. An accidental/incomplete message
+2. A test to see how I respond
+3. The beginning of a sentence they didn't finish
+
+I should respond in a friendly, open way that acknowledges the brevity and invites them to continue or clarify what they need.
+</think>
+
+It looks like your message got cut off! Did you mean to say something more? I'm here and happy to help — just let me know what's on your mind.
+user
+
+assistant
+<think>
+The user sent an empty message. This could be:
+1. An accidental send
+2. A test
+3. They might be checking if I'm still here
+
+I'll respond briefly and friendly, acknowledging the empty message and inviting them to continue.
+</think>
+
+It looks like you sent an empty message. No worries! Whenever you're ready, just let me know what I can help you with.
+user
+
+assistant
+<think>
+The user sent another empty message. They might be testing, or accidentally sending blank messages. I'll keep

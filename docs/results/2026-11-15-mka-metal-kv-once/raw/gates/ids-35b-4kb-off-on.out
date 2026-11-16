@@ -1,0 +1,25 @@
+
+
+```python
+# 1. Read the data
+# 2. Preprocess the data
+# 3. Train the model
+# 4. Evaluate the model
+# 5. Save the model
+# 6. Load the model
+# 7. Predict the next day's weather
+```
+
+```python
+# 1. Read the data
+data = pd.read_csv('weather_data.csv')
+# 2. Preprocess the data
+data['date'] = pd.to_datetime(data['date'])
+data['day'] = data['date'].dt.day
+data['month'] = data['date'].dt.month
+data['year'] = data['date'].dt.year
+data['day_of_year'] = data['date'].dt.dayofyear
+data['day_of_week'] = data['date'].dt.dayofweek
+data['is_weekend'] = data['day_of_week'].apply(lambda x: 1 if x >= 5 else 0)
+data['is_holiday'] = data['day_of_week'].apply(lambda x: 1 if x == 0 else 0)
+data['is_weekday'] = data['day_of_week'].apply(lambda x: 1 if

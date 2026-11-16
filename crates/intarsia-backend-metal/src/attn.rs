@@ -146,6 +146,151 @@ impl HeadPlan {
     }
 }
 
+/// Accumulator sizes (floats of threadgroup memory) the packed stage-1 shaders are instantiated for; a launch takes the
+/// smallest that holds its `W * IPT * GP * D` floats (`INTARSIA_METAL_ATTN_KVO_TGF=<floats>` forces at least that: sweeps).
+pub(crate) const PACK_TGF: [usize; 5] = [2048, 3072, 4096, 6144, 7680];
+
+/// Stage-1 shaders of the packed launches (`INTARSIA_METAL_ATTN_KV_ONCE=1`, attention_splitkv.metal "Packed threadgroups"):
+/// `attn_pack_g{GP}_f{NF}` (rows of one sequence: the 1-row decode and the G0b verify rows) and
+/// `attn_pack_rowtab_g{GP}_f{NF}` (a row table, `rowtab.rs`).
+pub fn pack_shader_names() -> Vec<&'static str> {
+    static NAMES: OnceLock<Vec<String>> = OnceLock::new();
+    NAMES
+        .get_or_init(|| {
+            let mut v = Vec::new();
+            for kind in ["attn_pack", "attn_pack_rowtab"] {
+                for gp in [1, 2, 4, 8] {
+                    for nf in PACK_TGF {
+                        v.push(format!("{kind}_g{gp}_f{nf}"));
+                    }
+                }
+            }
+            v
+        })
+        .iter()
+        .map(String::as_str)
+        .collect()
+}
+
+/// The stage-1 shader of a packed launch: `rowtab` or not, register group `gp`, accumulator instance `nf`.
+pub(crate) fn pack_shader(rowtab: bool, gp: usize, nf: usize) -> &'static str {
+    let want = format!("{}_g{gp}_f{nf}", if rowtab { "attn_pack_rowtab" } else { "attn_pack" });
+    pack_shader_names().into_iter().find(|n| *n == want).expect("a packed shader instance")
+}
+
+/// `PK_MAX_SG` / `PK_TG_FLOATS` of the shader: simdgroups and accumulator floats of a packed threadgroup.
+const PK_MAX_SG: usize = 16;
+const PK_TG_FLOATS: usize = 7680;
+/// Simdgroups a packed threadgroup aims for (`INTARSIA_METAL_ATTN_KVO_SG=<n>` overrides it: a diagnostic for sweeps, it
+/// changes no bit).
+const PK_TARGET_SG: usize = 8;
+/// Launches whose threadgroup has fewer simdgroups than this are packed (the 27B's bitwise head split: 2).
+const PK_PACK_BELOW: usize = 4;
+/// Whether a launch that is not packed still runs the packed kernel at one window per threadgroup (for its trim).
+const PK_KEEP_SHAPE_PACKED: bool = false;
+
+static KVO_OVERRIDE: AtomicUsize = AtomicUsize::new(usize::MAX);
+static KVO_FAULT: AtomicUsize = AtomicUsize::new(0);
+
+/// `INTARSIA_METAL_ATTN_KV_ONCE=1` (opt-in, lane mka): the decode-attention launches (1-row, G0b verify rows, row table) run
+/// their stage 1 with packed threadgroups, bit for bit the unpacked launch; the Metal backend also reports
+/// [`intarsia_core::backend::Backend::head_rows_exact`], so the MTP head's short catch-up takes the rows-exact kernel.
+pub fn kv_once() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    match KVO_OVERRIDE.load(Ordering::Relaxed) {
+        usize::MAX => *ON.get_or_init(|| std::env::var("INTARSIA_METAL_ATTN_KV_ONCE").is_ok_and(|v| v.trim() == "1")),
+        v => v != 0,
+    }
+}
+
+/// Test hook: force the knob for the launches that follow (`None` = back to the environment).
+#[doc(hidden)]
+pub fn set_kv_once_for_test(v: Option<bool>) {
+    KVO_OVERRIDE.store(v.map_or(usize::MAX, usize::from), Ordering::Relaxed);
+}
+
+/// Test hook (planted fault): the packed launches that follow skip the first step of the first stream of split 0.
+#[doc(hidden)]
+pub fn set_kvo_fault_for_test(on: bool) {
+    KVO_FAULT.store(usize::from(on), Ordering::Relaxed);
+}
+
+/// A packed stage-1 launch: `OpP::s1`, threadgroups per kv head along grid x, threads per threadgroup.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Pack {
+    pub s1: u32,
+    pub ntg: usize,
+    pub threads: usize,
+    /// accumulator instance (`PACK_TGF`)
+    pub nf: usize,
+}
+
+/// The packed layout of a launch whose unpacked form runs `rows` rows with head plan `hp` and a threadgroup of `w`
+/// simdgroups (the largest simdgroup count a row of the launch can have: the window). `few`: the host-position simdgroup
+/// rule (8 simdgroups while `npol * nsplit <= 64`). `None`: the knob is off or the shape does not fit a packed threadgroup
+/// (the caller launches unpacked).
+pub(crate) fn pack_plan(hp: &HeadPlan, rows: usize, w: usize, gp: usize, d: usize, few: bool) -> Option<Pack> {
+    static TARGET: OnceLock<usize> = OnceLock::new();
+    if !kv_once() {
+        return None;
+    }
+    let target = *TARGET.get_or_init(|| {
+        std::env::var("INTARSIA_METAL_ATTN_KVO_SG").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(PK_TARGET_SG)
+    });
+    let pol = if hp.gpref != 0 { 1 } else { hp.hs };
+    // the accumulator bound of the unpacked launch (`TG_FLOATS / (GP * D)`, GP the unsplit one for a bitwise head split)
+    let capn = (TG_FLOATS / (gp.max(hp.gpref) * d)).clamp(1, MAX_SG);
+    let items = rows * hp.hs;
+    if w == 0 || !w.is_power_of_two() || w > capn || hp.hs > 15 || pol > 255 || rows == 0 {
+        return None;
+    }
+    // windows per threadgroup: as many as reach the target simdgroup count and fit the threadgroup memory, and a divisor
+    // of the item count when there is one (no threadgroup then carries an empty window)
+    let fit = (PK_MAX_SG / w).min(PK_TG_FLOATS / (w * gp * d));
+    if fit == 0 {
+        return None;
+    }
+    // Policy (sweeps in docs/results/2026-11-15-mka-metal-kv-once.md): a launch whose own threadgroup has fewer than
+    // `PK_PACK_BELOW` simdgroups is packed up to the target; one that already has that many keeps its shape (one window per
+    // threadgroup) and runs the packed kernel only for its trim when `PK_KEEP_SHAPE_PACKED` says so, else it stays unpacked.
+    // `INTARSIA_METAL_ATTN_KVO_BELOW=<n>` / `INTARSIA_METAL_ATTN_KVO_KEEP=<0|1>` override the two (diagnostic, same bits).
+    static BELOW: OnceLock<usize> = OnceLock::new();
+    static KEEP: OnceLock<bool> = OnceLock::new();
+    let below = *BELOW.get_or_init(|| {
+        std::env::var("INTARSIA_METAL_ATTN_KVO_BELOW").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(PK_PACK_BELOW)
+    });
+    let keep = *KEEP.get_or_init(|| {
+        std::env::var("INTARSIA_METAL_ATTN_KVO_KEEP").map_or(PK_KEEP_SHAPE_PACKED, |v| v.trim() == "1")
+    });
+    let most = if w < below { (target / w).clamp(1, fit).min(items).min(31) } else { 1 };
+    let ipt = (1..=most).rev().find(|i| items % i == 0).unwrap_or(1);
+    if w >= below && !keep && std::env::var_os("INTARSIA_METAL_ATTN_KVO_IPT").is_none() {
+        return None;
+    }
+    // `INTARSIA_METAL_ATTN_KVO_IPT=<n>`: exactly n windows per threadgroup where they fit (diagnostic for sweeps)
+    static IPT: OnceLock<Option<usize>> = OnceLock::new();
+    let ipt = match *IPT.get_or_init(|| std::env::var("INTARSIA_METAL_ATTN_KVO_IPT").ok().and_then(|v| v.trim().parse().ok())) {
+        Some(n) if n >= 1 => n.min(fit).min(31),
+        _ => ipt,
+    };
+    let fault = KVO_FAULT.load(Ordering::Relaxed) as u32;
+    // `INTARSIA_METAL_ATTN_KVO_TRIM=0`: keep the corr multiplies of a step that does not raise the maximum (diagnostic; same bits)
+    static TRIM: OnceLock<bool> = OnceLock::new();
+    let trim = *TRIM.get_or_init(|| std::env::var("INTARSIA_METAL_ATTN_KVO_TRIM").map_or(true, |v| v.trim() != "0"));
+    let s1 = hp.hs as u32
+        | (pol as u32) << 4
+        | (capn as u32) << 12
+        | (w as u32) << 16
+        | (ipt as u32) << 20
+        | u32::from(few) << 25
+        | fault << 26
+        | u32::from(trim) << 27;
+    static TGF: OnceLock<usize> = OnceLock::new();
+    let floor = *TGF.get_or_init(|| std::env::var("INTARSIA_METAL_ATTN_KVO_TGF").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(0));
+    let nf = PACK_TGF.into_iter().find(|&f| f >= (w * ipt * gp * d).max(floor))?;
+    Some(Pack { s1, ntg: items.div_ceil(ipt), threads: w * ipt * 32, nf })
+}
+
 fn u32_of(v: usize, what: &str) -> Result<u32> {
     u32::try_from(v).map_err(|_| Error::invalid(format!("metal: {what} = {v} exceeds u32")))
 }
@@ -228,8 +373,20 @@ impl MetalBackend {
         // lets more threadgroups share a core (b2a sweeps: 4k 47 us vs 60 us, 1k 21 us vs 23 us)
         let nsg = if use_dev == 0 && npol * max_split <= FEW_TGS { MAX_SG } else { MAX_SG / 2 };
         let nsg = nsg.min((TG_FLOATS / (gp.max(hp.gpref) * d)).max(1));
-        let (name1, name2) =
-            (ATTN_DECODE_SPLITKV_SHADERS[gp.trailing_zeros() as usize], ATTN_DECODE_SPLITKV_SHADERS[4]);
+        // packed threadgroups (`INTARSIA_METAL_ATTN_KV_ONCE=1`): the head groups of a kv head share threadgroups, same bits
+        let pack = pack_plan(&hp, 1, nsg, gp, d, use_dev == 0);
+        let (name1, name2) = (
+            match pack {
+                Some(pk) => pack_shader(false, gp, pk.nf),
+                None => ATTN_DECODE_SPLITKV_SHADERS[gp.trailing_zeros() as usize],
+            },
+            ATTN_DECODE_SPLITKV_SHADERS[4],
+        );
+        let p1 = match pack {
+            Some(pk) => OpP { skips: [1, pk.s1, 0, out.skip, 0], ..p },
+            None => p,
+        };
+        let (gx, threads) = pack.map_or((nkvv, nsg * 32), |pk| (nkv * pk.ntg, pk.threads));
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
         // with one split stage 1 writes the output itself; a device position decides that on the GPU
@@ -245,10 +402,10 @@ impl MetalBackend {
                     enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, idx);
                 }
             }
-            set_bytes(enc, &p, 6);
+            set_bytes(enc, &p1, 6);
             enc.dispatchThreadgroups_threadsPerThreadgroup(
-                MTLSize { width: nkvv, height: max_split, depth: 1 },
-                MTLSize { width: nsg * 32, height: 1, depth: 1 },
+                MTLSize { width: gx, height: max_split, depth: 1 },
+                MTLSize { width: threads, height: 1, depth: 1 },
             );
             if combine {
                 // SAFETY: as above.
@@ -377,7 +534,20 @@ impl MetalBackend {
         let first_splits = decode_splits(if use_dev == 1 { cap } else { (a.pos0 + 1).min(cap) }, npol, MAX_SPLIT);
         let nsg =
             rows_nsg(use_dev == 0, npol, if use_dev == 1 { usize::MAX / 2 } else { first_splits }, gp.max(hp.gpref), d);
-        let (name1, name2) = (ATTN_ROWS_SHADERS[gp.trailing_zeros() as usize], ATTN_ROWS_SHADERS[4]);
+        // packed threadgroups (`INTARSIA_METAL_ATTN_KV_ONCE=1`): rows and head groups of a kv head share threadgroups
+        let pack = pack_plan(&hp, t, nsg, gp, d, use_dev == 0);
+        let (name1, name2) = (
+            match pack {
+                Some(pk) => pack_shader(false, gp, pk.nf),
+                None => ATTN_ROWS_SHADERS[gp.trailing_zeros() as usize],
+            },
+            ATTN_ROWS_SHADERS[4],
+        );
+        let p1 = match pack {
+            Some(pk) => OpP { skips: [p.skips[0], pk.s1, 0, out.skip, 0], ..p },
+            None => p,
+        };
+        let (gx, threads) = pack.map_or((nkvv * t, nsg * 32), |pk| (nkv * pk.ntg, pk.threads));
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
         let combine = use_dev == 1 || max_split > 1;
@@ -391,10 +561,10 @@ impl MetalBackend {
                     enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, idx);
                 }
             }
-            set_bytes(enc, &p, 6);
+            set_bytes(enc, &p1, 6);
             enc.dispatchThreadgroups_threadsPerThreadgroup(
-                MTLSize { width: nkvv * t, height: max_split, depth: 1 },
-                MTLSize { width: nsg * 32, height: 1, depth: 1 },
+                MTLSize { width: gx, height: max_split, depth: 1 },
+                MTLSize { width: threads, height: 1, depth: 1 },
             );
             if combine {
                 // SAFETY: as above.
