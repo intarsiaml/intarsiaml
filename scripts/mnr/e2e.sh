@@ -5,6 +5,7 @@
 # Arms: acc-off acc-on   accuracy gate against the HF W4A16 golden (prefill + decode KL21 / top-1)
 #       b8-off b8-on     serve --max-batch 8, localeval speed at 1k, 1 / 2 / 4 / 8 streams (repeat arms for ABBA: b8-off b8-on b8-on b8-off)
 #       ids-on ids-off   256 greedy ids, --spec off against the MTP default and MTP k4 (short prompt and 1k), must be equal
+#       b8s-off b8s-on   the same with 128-token prompts and 256 output tokens (the 8-row step alone, hardly any prefill beside it)
 #       mtp-off mtp-on   serve defaults (MTP k2), 1 stream, localeval speed at 1k and 4k
 #       mmlu-on          localeval quality mmlu, limit 25 (n = 1425), MTP default
 set -u
@@ -52,6 +53,7 @@ for arm in "$@"; do
         > $R/acc-$knob.out 2> $R/acc-$knob.err < /dev/null; echo "accuracy $knob exit $?"
       grep -aE "^== mode|^ALL|^all|mean|total|PASS|FAIL" $R/acc-$knob.out | head -20 ;;
     b8-*)   serve_arm b8-$knob $knob speed --sizes 1024 --gen 128 --reps 1 --concurrency 2,4,8 -- --max-batch 8 ;;
+    b8s-*)  serve_arm b8s-$knob $knob speed --sizes 128 --gen 256 --reps 1 --concurrency 4,8 -- --max-batch 8 ;;
     mtp-*)  serve_arm mtp-$knob $knob speed --sizes 1024,4096 --gen 256 --reps 2 -- ;;
     mmlu-*) serve_arm mmlu-$knob $knob quality --structured none --bench mmlu --limit 25 -- ;;
     ids-*)
