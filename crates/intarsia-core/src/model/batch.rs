@@ -1146,6 +1146,7 @@ impl Model {
             verify_tok: None,
             verify_tile: None,
             verify_rows: 0,
+            verify_batch_seqs: std::sync::atomic::AtomicUsize::new(0),
             batch_rows: 0,
             recurrent_batch: self.recurrent_batch,
             batch_tok: None,

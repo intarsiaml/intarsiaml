@@ -1733,6 +1733,10 @@ fn batched_mtp(
     m.enable_verify(k + 1).unwrap();
     m.allow_recurrent_batch().unwrap();
     m.enable_batch(rows).unwrap();
+    if verify && mtp_max_b.min(rows) >= 2 {
+        // lane mx6: the engine runs batched verify only where the plan covers its row counts
+        m.enable_verify_batch(mtp_max_b.min(rows)).unwrap();
+    }
     m.configure_plan(&Default::default(), None).unwrap();
     if script.is_some() {
         m.mtp_script(script).unwrap();
@@ -1877,6 +1881,18 @@ fn batched_mtp_with_packed_prefill_equals_solo() {
 /// rounds of mixed segment lengths 1..4 with drafts accepted and rejected.
 #[test]
 fn batched_verify_pass_equals_each_sequences_solo_verify() {
+    batched_verify_pass_check(None);
+}
+
+/// Lane mx6: the same with the plan covering batched passes of up to 2 sequences (`Model::enable_verify_batch`): a pass of two
+/// sequences runs the recorded ragged shape, a pass of three (beyond the plan) runs as one solo verify pass per sequence, and
+/// every row and every state stays bitwise the solo run's either way.
+#[test]
+fn planned_batched_verify_pass_equals_each_sequences_solo_verify() {
+    batched_verify_pass_check(Some(2));
+}
+
+fn batched_verify_pass_check(plan: Option<usize>) {
     let w = weights(11);
     let (recipe, dims) = dims();
     let opts = LoadOptions { max_seq: 512, prefill_chunk: 16, fp8_act: Some(Fp8Act::None), mtp: true, profile_every: 0, ..Default::default() };
@@ -1884,7 +1900,11 @@ fn batched_verify_pass_equals_each_sequences_solo_verify() {
     m.enable_verify(4).unwrap();
     m.allow_recurrent_batch().unwrap();
     m.enable_batch(4).unwrap();
+    if let Some(n) = plan {
+        m.enable_verify_batch(n).unwrap();
+    }
     m.configure_plan(&Default::default(), None).unwrap();
+    assert_eq!(m.verify_batch_seqs(), plan.unwrap_or(0), "the plan keeps batched verify on (the cpu kernels cover every row count)");
     let be = m.backend.clone();
     let prompts: [&[u32]; 3] = [&[3, 9, 27, 81, 50, 7, 7, 1, 60, 2, 33, 33, 12], &[90, 1, 2, 3, 4, 5], &[44; 21]];
     let mut bat: Vec<_> = (0..3).map(|_| m.new_state().unwrap()).collect();
@@ -2903,6 +2923,9 @@ fn batched_store_mtp(mtp_max_b: usize, verify: bool, script: bool, pause: bool) 
     m.enable_verify(k + 1).unwrap();
     m.allow_recurrent_batch().unwrap();
     m.enable_batch(2).unwrap();
+    if verify && mtp_max_b.min(2) >= 2 {
+        m.enable_verify_batch(mtp_max_b.min(2)).unwrap();
+    }
     m.configure_plan(&Default::default(), None).unwrap();
     if script {
         m.mtp_script(Some(scripted(truth, 5))).unwrap();

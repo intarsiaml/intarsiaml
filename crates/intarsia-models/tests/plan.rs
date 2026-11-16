@@ -17,6 +17,8 @@ struct Wrap {
     scratch_op: Option<Op>,
     corrupt_op: Option<Op>,
     no_ref: bool,
+    /// Adds a row-exact (verify-row) `Matmul` kernel taking at most this many rows, as a backend whose multi-row kernel stops there.
+    rows_cap: Option<usize>,
     scratch_seen: Mutex<Vec<usize>>,
 }
 
@@ -27,6 +29,7 @@ fn wrap(drop_op: Option<Op>, scratch_op: Option<Op>, corrupt_op: Option<Op>) -> 
         scratch_op,
         corrupt_op,
         no_ref: false,
+        rows_cap: None,
         scratch_seen: Mutex::new(vec![]),
     })
 }
@@ -55,12 +58,19 @@ impl Backend for Wrap {
         self.inner.copy(d, d_o, s, s_o, n, st)
     }
     fn kernels(&self) -> Vec<KernelImpl> {
-        self.inner
+        let mut ks: Vec<KernelImpl> = self
+            .inner
             .kernels()
             .into_iter()
             .filter(|k| Some(k.op) != self.drop_op && !(self.no_ref && k.is_reference))
             .map(|k| if Some(k.op) == self.scratch_op { k.scratch(scratch_of) } else { k })
-            .collect()
+            .collect();
+        if let Some(c) = self.rows_cap {
+            let mut k = KernelImpl::new(Op::Matmul, "test_mm_rows", "cpu").rows_exact();
+            k.when = if c <= 5 { |s| s.m <= 5 } else { |s| s.m <= 6 };
+            ks.push(k);
+        }
+        ks
     }
     fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> Result<()> {
         if Some(call.op) == self.scratch_op {
@@ -273,4 +283,47 @@ fn teacher_forced_decode_matches_full_forward() {
     }
     assert!(e.forward_logits_decode(&ids, 0, &mut |_, _| Ok(())).is_err());
     assert!(e.forward_logits_decode(&ids, ids.len(), &mut |_, _| Ok(())).is_err());
+}
+
+/// Lane mx6: the plan covers the row counts of batched verify passes (`Model::enable_verify_batch`). A verify run has up to 3 rows and
+/// two sequences verify together, so a pass has 4..=6 rows: the projections and the head see row counts a solo verify pass (2..=3) never
+/// has. A backend whose row-exact multi-row kernel stops at 5 rows (the server's `no kernel for matmul_mxfp4 ... m=6`) is found at load,
+/// and batched verify is switched off (the engine then verifies per sequence) instead of the first request failing; one that reaches 6
+/// keeps it on; and a plan without batched verify is what it always was, however few rows the kernel takes.
+#[test]
+fn batched_verify_row_counts_are_planned_and_a_gap_switches_it_off_at_load() {
+    let load_with = |cap: Option<usize>, batched: bool| {
+        let w = Arc::new(Wrap { rows_cap: cap, ..Arc::try_unwrap(wrap(None, None, None)).ok().unwrap() });
+        let mut m = load_on(w, LoadOptions { max_seq: 64, ..Default::default() }).unwrap();
+        m.enable_verify(3).unwrap();
+        m.enable_batch(2).unwrap();
+        if batched {
+            m.enable_verify_batch(2).unwrap();
+        }
+        m.configure_plan(&PlanOptions::default(), None).unwrap();
+        m
+    };
+    // covered: the kernel takes 6 rows
+    let on = load_with(Some(6), true);
+    assert_eq!(on.verify_batch_seqs(), 2);
+    assert_eq!(on.verify_batch_rows(), 6);
+    let rec = on.dry_run(intarsia_core::plan::Phase::VerifyBatch, 6, 0).unwrap();
+    assert!(rec.missing.is_empty(), "{:?}", rec.missing);
+    assert!(rec.calls.iter().any(|c| c.kernel == "test_mm_rows"), "the 6-row pass takes the row-exact kernel");
+    // the plan holds the pass's calls (a solo verify pass has at most 3 rows)
+    let probes_on = on.resolved.probes;
+    assert!(on.resolved.unique_calls.iter().any(|c| c.phase == intarsia_core::plan::Phase::VerifyBatch));
+    // a gap at 6 rows: no load failure, batched verify off, and no batched-verify call left in the plan
+    let gap = load_with(Some(5), true);
+    assert_eq!(gap.verify_batch_seqs(), 0, "a row count without a kernel switches batched verify off");
+    assert!(gap.resolved.unique_calls.iter().all(|c| c.phase != intarsia_core::plan::Phase::VerifyBatch));
+    // batched verify not asked for: the plan is what it was (no batched-verify probe, whatever the kernel's reach)
+    let off = load_with(Some(5), false);
+    assert_eq!(off.verify_batch_seqs(), 0);
+    assert!(off.resolved.unique_calls.iter().all(|c| c.phase != intarsia_core::plan::Phase::VerifyBatch));
+    assert_eq!(off.resolved.probes, gap.resolved.probes, "the switched-off plan equals the one never asked for batched verify");
+    assert!(probes_on > off.resolved.probes, "{probes_on} vs {}", off.resolved.probes);
+    // the plan JSON differs from the off plan's only where the pass's shapes add something
+    let (a, b) = (intarsia_core::plan::plan_json(&off, "m"), intarsia_core::plan::plan_json(&gap, "m"));
+    assert_eq!(a, b);
 }

@@ -681,6 +681,20 @@ pub fn batched_mtp_for(recipe: &intarsia_core::recipe::Recipe, backend: &str, wo
     })
 }
 
+/// Whether batched verify (lane bm phase B: the sequences that draft in a step verify in ONE ragged pass) is asked for on `backend`:
+/// `INTARSIA_BATCHED_VERIFY=1`. The plan must know before it is built (lane mx6): a batched pass has more rows than a solo verify
+/// pass, so the plan probes and admits those row counts only when this is on, and the engine (`BatchedOptions::batched_verify`) runs
+/// the pass only where the plan covers it. Whatever turns it on by default must be decided here, before `configure_plan`.
+pub fn batched_verify_for(_recipe: &intarsia_core::recipe::Recipe, _backend: &str) -> bool {
+    std::env::var("INTARSIA_BATCHED_VERIFY").is_ok_and(|v| v == "1")
+}
+
+/// Most sequences of one batched verify pass for this load: the sequences that draft together ([`batched_mtp_for`], at most
+/// `--spec-off-at` - 1 and `--max-batch`); under 2 there is no batched pass to plan.
+pub fn batched_verify_seqs_for(mtp_max_b: usize, spec_off_at: Option<usize>, max_batch: usize) -> usize {
+    mtp_max_b.min(spec_off_at.unwrap_or(intarsia_core::scheduler::SPEC_OFF_AT_DEFAULT).saturating_sub(1)).min(max_batch)
+}
+
 fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> {
     if crate::dsv41_engine::is_rank_cache(dir) {
         return load_dsv41(dir, group, opts);
@@ -985,6 +999,17 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         }
         // refuses a non-dense model without the opt-in, a remote tensor-parallel rank, and --tp > 1 on any backend but hip (and cpu)
         model.enable_batch(max_batch.value)?;
+        // lane mx6: batched verify passes (opt-in) have more rows than a solo verify pass: the plan probes and admits those row counts
+        // (`Model::enable_verify_batch`); a model that cannot batch its verify passes just keeps per-sequence verify
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && model.verify_rows() >= 2 && batched_verify_for(&recipe, backend_name) {
+            let n = batched_verify_seqs_for(batched_mtp_for(&recipe, backend_name, backends.len(), local)?, opts.spec_off_at, max_batch.value);
+            if n >= 2 {
+                match model.enable_verify_batch(n) {
+                    Ok(()) => eprintln!("batched verify: the plan covers passes of up to {n} sequences ({} rows)", model.verify_batch_rows()),
+                    Err(e) => eprintln!("batched verify: not planned, verify passes run per sequence ({e})"),
+                }
+            }
+        }
     }
     let summary = model.configure_plan(&opts.plan, Some(&*oracle))?;
     if model.has_dspine() {
