@@ -5,6 +5,7 @@
 # Arms: acc-off acc-on   accuracy gate against the HF W4A16 golden (prefill + decode KL21 / top-1)
 #       b8-off b8-on     serve --max-batch 8, localeval speed at 1k, 1 / 2 / 4 / 8 streams (repeat arms for ABBA: b8-off b8-on b8-on b8-off)
 #       ids-on ids-off   256 greedy ids, --spec off against the MTP default and MTP k4 (short prompt and 1k), must be equal
+#       mtp-off mtp-on   serve defaults (MTP k2), 1 stream, localeval speed at 1k and 4k
 #       mmlu-on          localeval quality mmlu, limit 25 (n = 1425), MTP default
 set -u
 [[ -n "${FLEETQ_JOB:-}" ]] || { echo "not inside a fleetq slot" >&2; exit 2; }
@@ -13,6 +14,8 @@ M27=$HOME/models/Qwen3.8-27B-Quark-AWQ-MXFP4
 G=/opt/code/intarsiaml/docs/results/2026-11-02-m27-metal/raw/golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
 NAT=/opt/code/deepeval/tests/data/prompts/natural-v1
 PORT=18641
+# build the lane binary from the tree inside this slot when it is stale (CPU slots queue behind the timing runs tonight)
+(cd $W && cargo build --release --locked -p intarsia-cli --features metal 2>&1 | tail -1 && mkdir -p target-bin && cp target/release/intarsia target-bin/intarsia-mnr)
 typeset -A SEQ
 knob_env() { [[ $1 == on ]] && echo INTARSIA_METAL_NAX_ROWS=1 || echo MNR_KNOB_OFF=1 }
 
@@ -49,6 +52,7 @@ for arm in "$@"; do
         > $R/acc-$knob.out 2> $R/acc-$knob.err < /dev/null; echo "accuracy $knob exit $?"
       grep -aE "^== mode|^ALL|^all|mean|total|PASS|FAIL" $R/acc-$knob.out | head -20 ;;
     b8-*)   serve_arm b8-$knob $knob speed --sizes 1024 --gen 128 --reps 1 --concurrency 2,4,8 -- --max-batch 8 ;;
+    mtp-*)  serve_arm mtp-$knob $knob speed --sizes 1024,4096 --gen 256 --reps 2 -- ;;
     mmlu-*) serve_arm mmlu-$knob $knob quality --structured none --bench mmlu --limit 25 -- ;;
     ids-*)
       mkdir -p $R/ids; print -r -- "Write a short story about a lighthouse keeper who finds a message in a bottle." > $R/ids/short.txt

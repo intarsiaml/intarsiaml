@@ -4,3 +4,241 @@ fleetq: #9475 waiting (#6 in line): in line behind #9463 "mtt: gate 1 served ids
 fleetq:   #9463 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9463 set, or it will wait for #9463 to be released.
 fleetq: #9475 waiting (#5 in line): in line behind #9470 "mtt: TTFT ABBA 35b-4k (MTP on/off x lazy admission on/off)" (claude-2ae67a71) on endor
 fleetq:   #9470 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9470 set, or it will wait for #9470 to be released.
+fleetq: #9475 waiting (#4 in line): in line behind #9471 "mtt: TTFT ABBA 27b-4k (MTP on/off x lazy admission on/off)" (claude-2ae67a71) on endor
+fleetq:   #9471 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9471 set, or it will wait for #9471 to be released.
+fleetq: #9475 waiting (#3 in line): in line behind #9472 "mtt: TTFT ABBA 35b-34k (MTP on/off x lazy admission on/off)" (claude-2ae67a71) on endor
+fleetq:   #9472 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9472 set, or it will wait for #9472 to be released.
+fleetq: #9475 waiting (#1 in line): needs gpu quiet on endor, but #9473 "mtt: TTFT ABBA 27b-34k (MTP on/off x lazy admission on/off)" (claude-2ae67a71) loads it
+fleetq:   #9473 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9473 set, or it will wait for #9473 to be released.
+fleetq: #9475 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/2ae67a71-20df-4e79-bba2-263751e93994/scratchpad/probe.sh
+    Finished `release` profile [optimized] target(s) in 0.05s
+spread 0 K = 8: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+spread 0 K = 10: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+spread 0 K = 12: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+spread 0 K = 16: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+spread 0 K = 20: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+spread 0 K = 24: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+spread 0 K = 32: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+spread 0 K = 48: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+spread 0 K = 64: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+spread 0 K = 128: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+spread 0 K = 160: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+spread 0 K = 256: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+spread 0 K = 1024: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+spread 0 K = 5120: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  chunk 2: seq f32, then add
+        0 mismatches  chunk 2: exact, rounded, then add
+        0 mismatches  chunk 2: exact, fused into acc
+spread 0 K = 17408: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+      122 mismatches  chunk 2: seq f32, then add
+      122 mismatches  chunk 2: exact, rounded, then add
+      122 mismatches  chunk 2: exact, fused into acc
+      122 mismatches  chunk 2: pair tree f32, then add
+      off by more than a rounding: got 1.080501e1 exact 1.0805010795593262e1 (-1 ulp) products [0.007232666015625, -22.5, 0.390625, 0.0006265640258789063, -0.0, 4.28125, 28.625, 0.0002765655517578125]
+      off by more than a rounding: got 9.3100586e1 exact 9.310055541992188e1 (3 ulp) products [-0.154296875, 960.0, 12.5, 0.006683349609375, 0.05126953125, -822.0, -57.25, -0.0531005859375]
+      off by more than a rounding: got 6.362725e2 exact 6.362724609375e2 (1 ulp) products [0.462890625, 960.0, -3.125, -0.04010009765625, -0.0341796875, 137.0, -458.0, 0.00885009765625]
+      off by more than a rounding: got -7.7242617e3 exact -7.724260986328125e3 (-1 ulp) products [-0.6171875, -2880.0, -100.0, 0.32080078125, -0.0, -6576.0, 1832.0, 0.035400390625]
+      off by more than a rounding: got 4.164186e4 exact 4.164185546875e4 (1 ulp) products [9.875, -61440.0, -2400.0, -0.0, 0.546875, 17536.0, 87936.0, -0.56640625]
+      off by more than a rounding: got 7.734051e-3 exact 7.734051905572414e-3 (-1 ulp) products [-1.8835067749023438e-5, 0.0439453125, -0.0, 6.118789315223694e-7, -0.0, -0.0501708984375, 0.01397705078125, 8.102506399154663e-7]
+    K = 8: of 1024 = nearest 977, toward zero 935, down 926, up 946, neither neighbour 27
+spread 1 K = 8: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+        0 mismatches  chunk 2: seq f32, then add
+        0 mismatches  chunk 2: exact, rounded, then add
+        0 mismatches  chunk 2: pair tree f32, then add
+        4 mismatches  chunk 2: exact, fused into acc
+      off by more than a rounding: got -2.0739523e4 exact -2.0739525390625e4 (1 ulp) products [-17.625, -2.34375, 23.0, -21984.0, 328.0, -0.1455078125, 0.5888671875, 828.0, 85.0, -0.0]
+      off by more than a rounding: got 4.305025e1 exact 4.305024719238281e1 (1 ulp) products [0.06884765625, -0.00457763671875, 0.0, 42.9375, -2.5625, -0.0002841949462890625, -0.002300262451171875, 1.6171875, 0.99609375, 0.0002803802490234375]
+      off by more than a rounding: got 7.831906e0 exact 7.831904888153076e0 (1 ulp) products [-0.0057373046875, -0.0011444091796875, -0.01123046875, 10.734375, -2.5625, -7.104873657226563e-5, -0.0002875328063964844, -0.404296875, 0.0830078125, -0.00021028518676757813]
+      off by more than a rounding: got 2.2584714e2 exact 2.2584715270996094e2 (-1 ulp) products [-0.1376953125, -0.0732421875, 0.71875, 343.5, -123.0, 0.004547119140625, 0.0245361328125, 2.15625, 2.65625, -0.0022430419921875]
+      off by more than a rounding: got 8.6770944e-2 exact 8.67709368467331e-2 (1 ulp) products [1.1205673217773438e-5, -1.4901161193847656e-6, 0.0, 0.0838623046875, 0.0050048828125, -5.550682544708252e-7, 1.123175024986267e-6, -0.002105712890625, -0.0, -8.21426510810852e-7]
+      off by more than a rounding: got 1.6560059e2 exact 1.6560060119628906e2 (-1 ulp) products [0.02294921875, -0.01220703125, -0.26953125, 171.75, 0.0, 0.00113677978515625, -0.0, -3.234375, -2.65625, -0.00112152099609375]
+    K = 10: of 1024 = nearest 996, toward zero 984, down 976, up 992, neither neighbour 11
+spread 1 K = 10: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+       14 mismatches  2 strided accumulators, tree
+       21 mismatches  8 strided accumulators, tree
+       28 mismatches  seq desc
+       28 mismatches  exact sum, one rounding
+      off by more than a rounding: got 5.1281016e3 exact 5.12810205078125e3 (-1 ulp) products [36.1875, -220.0, -0.0, 14336.0, -0.10107421875, 2.140625, -12240.0, 88.875, 3360.0, -262.0, -0.0, 27.0]
+      off by more than a rounding: got 5.8623195e-2 exact 5.8623164892196655e-2 (4 ulp) products [0.0, 0.00335693359375, 0.02142333984375, -0.65625, -1.850724220275879e-5, 3.266334533691406e-5, 0.7470703125, -0.007232666015625, -0.0341796875, -0.0159912109375, 0.0, 0.0004119873046875]
+      off by more than a rounding: got -6.0262322e-2 exact -6.0262300074100494e-2 (-3 ulp) products [0.0003681182861328125, 0.013427734375, 0.00267791748046875, -0.65625, -4.626810550689697e-6, -9.799003601074219e-5, 0.498046875, 0.000904083251953125, -0.01708984375, 0.095947265625, 0.001190185546875, 0.00061798095703125]
+      off by more than a rounding: got 2.5575912e-1 exact 2.557590901851654e-1 (1 ulp) products [-0.00441741943359375, 0.040283203125, -0.02142333984375, 0.875, -1.850724220275879e-5, 3.266334533691406e-5, -0.7470703125, -0.01446533203125, 0.0341796875, 0.095947265625, -0.0047607421875, 0.002471923828125]
+      off by more than a rounding: got -2.4910278e0 exact -2.491028308868408e0 (2 ulp) products [-0.0235595703125, -0.322265625, 0.1142578125, -10.5, 9.870529174804688e-5, 0.00313568115234375, 15.9375, 0.0, -6.5625, -1.0234375, -0.1142578125, -0.0]
+      off by more than a rounding: got 1.1555977e3 exact 1.1555977783203125e3 (-1 ulp) products [3.015625, 55.0, 58.5, -5376.0, -0.0252685546875, -0.267578125, 6120.0, -29.625, 1120.0, -786.0, -7.3125, -1.6875]
+    K = 12: of 1024 = nearest 1002, toward zero 939, down 945, up 937, neither neighbour 17
+spread 1 K = 12: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+       18 mismatches  chunk 2: seq f32, then add
+       18 mismatches  chunk 2: exact, rounded, then add
+       18 mismatches  chunk 2: exact, fused into acc
+       18 mismatches  chunk 2: pair tree f32, then add
+      off by more than a rounding: got 5.1933953e4 exact 5.193394921875e4 (1 ulp) products [7.9375, -45.375, 59.25, 123.75, 2616.0, 2808.0, 432.0, 0.0, -19.125, 1232.0, 3280.0, -2.05078125, -15744.0, 71808.0, 33.5625, -14656.0]
+      off by more than a rounding: got -3.0826695e-2 exact -3.0826697126030922e-2 (1 ulp) products [-3.7848949432373047e-6, -3.606081008911133e-6, -3.5315752029418945e-6, 3.933906555175781e-5, -0.0006237030029296875, 0.0006694793701171875, 3.4332275390625e-5, -3.337860107421875e-6, 0.0, -0.0, 0.0005865097045898438, -9.778887033462524e-7, 0.001407623291015625, -0.03424072265625, 5.334615707397461e-6, 0.0013103485107421875]
+      off by more than a rounding: got -3.5168657e0 exact -3.5168654918670654e0 (-1 ulp) products [0.000484466552734375, 0.003692626953125, -0.00180816650390625, 0.0, -0.05322265625, -0.028564453125, 0.01318359375, 0.0003204345703125, 0.0, 0.0751953125, -0.400390625, 0.0001251697540283203, 0.3603515625, -4.3828125, 0.002048492431640625, 0.89453125]
+      off by more than a rounding: got -9.995887e-1 exact -9.99588668346405e-1 (-1 ulp) products [-0.09619140625, -0.11572265625, -0.002002716064453125, 0.0092926025390625, 0.01251220703125, -4.023313522338867e-5, -5.793571472167969e-5, 0.0012187957763671875, -0.000835418701171875, 0.0011043548583984375, -0.01190185546875, -0.88671875, 0.04412841796875, 0.0001766681671142578, 0.04541015625, 3.910064697265625e-5]
+      off by more than a rounding: got -5.0507536e0 exact -5.050754070281982e0 (1 ulp) products [0.0, 0.173583984375, 0.0, -0.018585205078125, 0.03753662109375, -0.0001609325408935547, -0.00017380714416503906, -0.0004062652587890625, 0.00167083740234375, -0.000736236572265625, 0.047607421875, -5.3203125, 0.0294189453125, -0.0003533363342285156, -0.0, 0.000156402587890625]
+      off by more than a rounding: got 2.6902227e4 exact 2.6902224609375e4 (1 ulp) products [-7.78125, 25536.0, 5904.0, 15936.0, -220.5, 36.25, -24288.0, -11.875, 24.125, -0.0, 90.75, 0.380859375, 31.875, 11584.0, 159.0, -7872.0]
+    K = 16: of 1024 = nearest 990, toward zero 923, down 927, up 923, neither neighbour 18
+spread 1 K = 16: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+       22 mismatches  2 strided accumulators, tree
+       27 mismatches  8 strided accumulators, tree
+       28 mismatches  4 strided accumulators, tree
+       34 mismatches  exact sum, one rounding
+      off by more than a rounding: got -2.998e4 exact -2.997999609375e4 (-1 ulp) products [24192.0, 61952.0, -290.0, -117.75, -90.0, 2.56640625, 29.875, -82176.0, 4728.0, 3.515625, 0.0, -3.765625, 21632.0, 468.0, -66432.0, -0.0, 6144.0, 18.5625, -398.0, 357.0]
+      off by more than a rounding: got -5.7709595e2 exact -5.770960083007813e2 (1 ulp) products [-94.5, -484.0, -0.4248046875, -1.83984375, -0.029296875, 0.006683349609375, -0.466796875, 642.0, -6.15625, -0.006866455078125, -492.0, 0.0, -42.25, 1.828125, -86.5, 0.097412109375, -16.0, 0.0362548828125, 3.109375, 0.0]
+      off by more than a rounding: got -1.6944906e4 exact -1.6944900390625e4 (-3 ulp) products [96768.0, -123904.0, -290.0, 157.0, 30.0, -1.283203125, -179.25, 109568.0, -4728.0, 1.7578125, -188928.0, -0.0, 129792.0, 234.0, -33216.0, -24.9375, -1024.0, -6.1875, -1194.0, -0.0]
+      off by more than a rounding: got 7.137377e-3 exact 7.137376349419355e-3 (1 ulp) products [0.00384521484375, 0.0018463134765625, 5.1856040954589844e-5, 1.4036893844604492e-5, 8.940696716308594e-7, -1.019798219203949e-7, -7.12275505065918e-6, -0.0048980712890625, 0.00018787384033203125, 6.28642737865448e-7, 0.003753662109375, -2.693384885787964e-6, 0.00128936767578125, 5.5789947509765625e-5, 0.00131988525390625, -7.431954145431519e-7, -0.0001220703125, 2.212822437286377e-6, -0.0002846717834472656, 8.511543273925781e-5]
+      off by more than a rounding: got -3.1097178e3 exact -3.109717498779297e3 (-1 ulp) products [-0.0, -968.0, -1.1328125, -2.453125, -0.3515625, -0.006683349609375, 1.400390625, 214.0, 98.5, -0.0274658203125, -1968.0, 0.176513671875, 507.0, 9.75, -1038.0, 0.259765625, 0.0, -0.14501953125, 37.3125, -0.0]
+      off by more than a rounding: got -6.946048e3 exact -6.946048828125e3 (1 ulp) products [4032.0, 15488.0, 0.0, 58.875, 1.875, -0.6416015625, 22.40625, -3424.0, 1182.0, -0.2197265625, -7872.0, 1.8828125, -5408.0, -39.0, -11072.0, -3.1171875, -128.0, 4.640625, 298.5, -89.25]
+    K = 20: of 1024 = nearest 862, toward zero 738, down 764, up 728, neither neighbour 97
+spread 1 K = 20: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+       70 mismatches  chunk 2: seq f32, then add
+       70 mismatches  chunk 2: exact, rounded, then add
+       70 mismatches  chunk 2: pair tree f32, then add
+       88 mismatches  chunk 4: pair tree f32, then add
+      off by more than a rounding: got -1.1533054e2 exact -1.1533055114746094e2 (1 ulp) products [-89.625, 0.2470703125, -0.0, 1.171875, 0.01055908203125, 0.4453125, 0.0, -0.130859375, -0.1865234375, -0.00363922119140625, -6.5, 0.0, 0.01904296875, -95.625, -0.120849609375, 16.75, 0.01922607421875, 23.8125, 0.00487518310546875, 57.0, -1.306640625, 3.734375, -28.3125, 3.265625]
+      off by more than a rounding: got -9.79482e-3 exact -9.79482103139162e-3 (1 ulp) products [-0.000911712646484375, -3.0159950256347656e-5, 6.473064422607422e-5, -2.384185791015625e-5, -7.733702659606934e-6, 0.0, 4.023313522338867e-6, 6.389617919921875e-5, -2.276897430419922e-5, -4.4424086809158325e-7, 0.0, 4.470348358154297e-6, -4.649162292480469e-6, -0.01556396484375, -4.9173831939697266e-6, 0.006134033203125, 4.693865776062012e-6, 0.003875732421875, 1.5869736671447754e-6, -0.001739501953125, 7.975101470947266e-5, 0.0003418922424316406, -0.0008640289306640625, -0.0011959075927734375]
+      off by more than a rounding: got -3.9093828e3 exact -3.909380859375e3 (-4 ulp) products [-22944.0, -0.0, -11.3125, -0.0, 2.703125, -684.0, -1.40625, 100.5, 0.0, 0.931640625, -19968.0, 2.34375, -4.875, 32640.0, -82.5, -2144.0, -19.6875, 8128.0, -3.328125, -2432.0, 167.25, 0.0, -0.0, 3344.0]
+      off by more than a rounding: got 1.4497013e1 exact 1.4497014045715332e1 (-1 ulp) products [3.734375, -0.0, 0.0, -0.0732421875, 0.0079193115234375, 0.0, 0.00034332275390625, 0.0654296875, -0.0, 0.001819610595703125, -4.875, -0.00152587890625, -0.000396728515625, 23.90625, 0.0, -1.046875, 0.00240325927734375, -5.953125, -0.0006093978881835938, 1.1875, 0.163330078125, 0.35009765625, -2.359375, -0.6123046875]
+      off by more than a rounding: got 5.518114e-4 exact 5.518111865967512e-4 (4 ulp) products [-0.002735137939453125, -9.047985076904297e-5, 1.6182661056518555e-5, -8.940696716308594e-6, 3.2223761081695557e-7, 0.00016307830810546875, -2.514570951461792e-7, -1.1980533599853516e-5, 4.2691826820373535e-6, -1.1106021702289581e-7, -0.0015869140625, -2.7939677238464355e-7, 3.8743019104003906e-7, 0.0014591217041015625, 1.2293457984924316e-6, 0.002044677734375, -1.955777406692505e-7, -0.000484466552734375, 0.0, 0.000579833984375, 9.968876838684082e-6, 2.849102020263672e-5, 0.0008640289306640625, 0.0002989768981933594]
+      off by more than a rounding: got -5.9945658e-2 exact -5.994566157460213e-2 (1 ulp) products [0.0, 0.000965118408203125, -8.630752563476563e-5, -0.00019073486328125, -3.0934810638427734e-5, -0.0, 2.682209014892578e-6, -0.0003833770751953125, -2.276897430419922e-5, 5.923211574554443e-7, -0.025390625, 8.940696716308594e-6, 4.649162292480469e-6, -0.007781982421875, -0.00015735626220703125, -0.03271484375, 1.2516975402832031e-5, -0.0155029296875, -3.1739473342895508e-6, 0.013916015625, -0.0001595020294189453, -0.00182342529296875, 0.004608154296875, 0.00478363037109375]
+    K = 24: of 1024 = nearest 877, toward zero 758, down 743, up 775, neither neighbour 103
+spread 1 K = 24: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+       48 mismatches  chunk 2: seq f32, then add
+       48 mismatches  chunk 2: exact, rounded, then add
+       48 mismatches  chunk 2: pair tree f32, then add
+       63 mismatches  chunk 2: exact, fused into acc
+      off by more than a rounding: got 1.5927753e1 exact 1.5927755355834961e1 (-1 ulp) products [0.071044921875, 17.34375, -1.671875, 0.017822265625, -0.37109375, 0.00074005126953125, -0.0019073486328125, 0.0007066726684570313, 0.01544189453125, 0.0004062652587890625, 0.00244903564453125, 0.00408935546875, 10.75, 15.28125, -0.9140625, 0.0038604736328125, 0.00286102294921875, 0.0, 0.0, -0.0263671875, -0.025634765625, -0.00179290771484375, -17.625, 0.00018215179443359375, -0.134765625, -0.0966796875, -0.00258636474609375, -0.24609375, -0.0098876953125, -7.40625, -0.0016021728515625, 0.96875]
+      off by more than a rounding: got -1.0611084e2 exact -1.061107177734375e2 (-10 ulp) products [1.515625, -4440.0, 214.0, -9.125, -23.75, 0.0947265625, -0.0, -0.0301513671875, 1.482421875, -0.2080078125, -0.3134765625, -0.26171875, 688.0, 489.0, -234.0, -0.12353515625, -0.1220703125, -0.13671875, -6.28125, -0.0, 19.6875, -0.458984375, 3008.0, -0.0, 8.625, -0.0, 0.220703125, 63.0, 0.84375, 237.0, 1.23046875, -124.0]
+      off by more than a rounding: got 5.7395074e4 exact 5.7395078125e4 (-1 ulp) products [-72.75, -71040.0, -428.0, 146.0, -285.0, 1.515625, -46.875, -2.89453125, 15.8125, 3.328125, 0.0, 12.5625, 66048.0, 15648.0, -0.0, -3.953125, 23.4375, -4.375, 201.0, 27.0, -52.5, 14.6875, 72192.0, 2.23828125, 0.0, -198.0, 0.0, -1008.0, 0.0, -0.0, 9.84375, -23808.0]
+      off by more than a rounding: got 1.6523881e3 exact 1.652387939453125e3 (1 ulp) products [0.0, 2960.0, -107.0, -1.7109375, -23.75, 0.023681640625, -0.3662109375, -0.0, -0.494140625, 0.03466796875, 0.0130615234375, 0.1962890625, -2064.0, 244.5, 175.5, -0.2470703125, 0.3662109375, -0.1025390625, 25.125, -6.75, 13.125, 0.11474609375, -188.0, -0.0233154296875, -25.875, 1.546875, 0.44140625, -15.75, 0.31640625, -79.0, 0.15380859375, 744.0]
+      off by more than a rounding: got -3.0488926e1 exact -3.048892307281494e1 (-1 ulp) products [-0.00592041015625, -34.6875, 1.671875, -0.053466796875, 0.0927734375, 0.00074005126953125, 0.02288818359375, 0.0, 0.007720947265625, 0.000812530517578125, -0.0006122589111328125, 0.0, 10.75, -0.0, 0.0, -0.0038604736328125, 0.0057220458984375, -0.0, 0.049072265625, 0.0791015625, 0.205078125, -0.0, -11.75, 0.0005464553833007813, 0.2021484375, 0.14501953125, -0.0051727294921875, -0.984375, -0.019775390625, 1.8515625, -0.00080108642578125, 1.9375]
+      off by more than a rounding: got 1.494545e0 exact 1.4945459365844727e0 (-5 ulp) products [0.023681640625, 0.0, 1.671875, 0.0089111328125, -0.0927734375, 0.0014801025390625, 0.0, -0.00188446044921875, 0.04632568359375, 0.000812530517578125, 0.001224517822265625, 0.006134033203125, 32.25, -3.8203125, 3.65625, -0.0014476776123046875, 0.00286102294921875, -0.003204345703125, -0.0, 0.052734375, 0.3076171875, 0.00179290771484375, -35.25, 0.00018215179443359375, 0.134765625, 0.0362548828125, -0.00258636474609375, 0.0, -0.0032958984375, 2.46875, -0.0016021728515625, 0.0]
+    K = 32: of 1024 = nearest 797, toward zero 697, down 683, up 708, neither neighbour 136
+spread 1 K = 32: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+      149 mismatches  chunk 2: seq f32, then add
+      149 mismatches  chunk 2: exact, rounded, then add
+      149 mismatches  chunk 2: pair tree f32, then add
+      159 mismatches  chunk 4: seq f32, then add
+spread 1 K = 48: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+      280 mismatches  chunk 2: seq f32, then add
+      280 mismatches  chunk 2: exact, rounded, then add
+      280 mismatches  chunk 2: pair tree f32, then add
+      286 mismatches  chunk 2: exact, fused into acc
+spread 1 K = 64: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+      390 mismatches  chunk 2: seq f32, then add
+      390 mismatches  chunk 2: exact, rounded, then add
+      390 mismatches  chunk 2: pair tree f32, then add
+      396 mismatches  chunk 4: seq f32, then add
+spread 1 K = 128: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+      520 mismatches  chunk 2: seq f32, then add
+      520 mismatches  chunk 2: exact, rounded, then add
+      520 mismatches  chunk 2: pair tree f32, then add
+      524 mismatches  chunk 2: exact, fused into acc
+spread 1 K = 160: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+      624 mismatches  chunk 4: exact, fused into acc
+      630 mismatches  chunk 4: seq f32, then add
+      631 mismatches  chunk 4: pair tree f32, then add
+      632 mismatches  chunk 4: exact, rounded, then add
+spread 1 K = 256: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+      728 mismatches  chunk 8: exact, fused into acc
+      730 mismatches  chunk 16: exact, fused into acc
+      731 mismatches  chunk 16: exact, rounded, then add
+      732 mismatches  chunk 4: exact, fused into acc
+spread 1 K = 1024: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+      886 mismatches  chunk 32: exact, fused into acc
+      888 mismatches  chunk 64: exact, fused into acc
+      889 mismatches  chunk 32: exact, rounded, then add
+      891 mismatches  exact sum, one rounding
+spread 1 K = 5120: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+      962 mismatches  chunk 16: exact, rounded, then add
+      966 mismatches  chunk 16: seq f32, then add
+      966 mismatches  chunk 16: pair tree f32, then add
+      969 mismatches  chunk 64: seq f32, then add
+spread 1 K = 17408: 1024 outputs
+        0 mismatches  QUAD ORDER: acc += (p[a]+p[a+1]) + (p[a+8]+p[a+9])
+      982 mismatches  chunk 128: seq f32, then add
+      985 mismatches  32 strided accumulators, tree
+      985 mismatches  chunk 128: exact, rounded, then add
+      987 mismatches  chunk 128: pair tree f32, then add
+fleetq: #9475 done (exit 0)

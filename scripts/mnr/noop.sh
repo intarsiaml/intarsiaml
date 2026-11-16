@@ -6,6 +6,9 @@
 set -u
 [[ -n "${FLEETQ_JOB:-}" ]] || { echo "not inside a fleetq slot" >&2; exit 2; }
 cd ${0:A:h}/../..
+W=$PWD
+# build the lane binary from the tree inside this slot when it is stale (CPU slots queue behind the timing runs tonight)
+(cd $W && cargo build --release --locked -p intarsia-cli --features metal 2>&1 | tail -1 && mkdir -p target-bin && cp target/release/intarsia target-bin/intarsia-mnr)
 B=${1:?lane bin}; A=${2:?base bin}; O=docs/results/2026-11-15-mnr-metal-nax-rows/raw/noop; mkdir -p $O
 zsh scripts/dm/noop.sh $B $A $O
 INTARSIA_METAL_NAX_ROWS=1 $B kernels list --backend metal > $O/klist-knob.txt 2>&1 < /dev/null

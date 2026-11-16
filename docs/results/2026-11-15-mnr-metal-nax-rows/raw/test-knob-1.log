@@ -1,0 +1,75 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1241:4
+     |
+1241 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/mxfp4_naxr.rs (target/release/deps/mxfp4_naxr-07cde5f625cef799)
+
+running 9 tests
+knob true: registered true
+test naxr_registration_follows_the_knob ... ok
+quad order n=64 k=32: 0 of 320 differ; the plain K-ascending chain would differ in 0
+f64 reference n=37 k=32: rel_l2 0.000e0 max_abs 0.000e0
+vs gemv act 0 m=1 n=512 k=1024: relative RMS 1.625e-7
+
+thread 'naxr_decodes_every_code_and_edge_scale' (9327240) panicked at crates/intarsia-backend-metal/tests/mxfp4_naxr.rs:392:21:
+scale byte 253 element 0: NaN vs 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+quad order n=130 k=96: 0 of 650 differ; the plain K-ascending chain would differ in 145
+
+thread 'naxr_is_the_quad_order_sum_bit_for_bit' (9327242) panicked at crates/intarsia-backend-metal/tests/mxfp4_naxr.rs:315:9:
+the operands must make the order matter
+f64 reference n=130 k=96: rel_l2 3.493e-8 max_abs 3.242e-5
+test naxr_decodes_every_code_and_edge_scale ... FAILED
+vs gemv act 0 m=8 n=1000 k=512: relative RMS 1.102e-7
+test naxr_is_the_quad_order_sum_bit_for_bit ... FAILED
+f64 reference n=515 k=160: rel_l2 5.535e-8 max_abs 5.695e-5
+f64 reference n=64 k=128: rel_l2 3.862e-8 max_abs 1.287e-5
+f64 reference n=100 k=384: rel_l2 9.338e-8 max_abs 7.176e-5
+test naxr_planted_fault_is_caught ... ok
+test naxr_w4a4_rows_do_not_depend_on_the_call ... ok
+f64 reference n=515 k=1024: rel_l2 1.511e-7 max_abs 2.961e-4
+vs gemv act 0 m=16 n=2048 k=5120: relative RMS 3.905e-7
+f64 reference n=37 k=17408: rel_l2 7.506e-7 max_abs 2.106e-3
+f64 reference n=1024 k=5120: rel_l2 3.764e-7 max_abs 1.098e-3
+vs gemv act 0 m=5 n=5120 k=17408: relative RMS 7.612e-7
+vs gemv act 1 m=1 n=512 k=1024: relative RMS 0.000e0
+vs gemv act 1 m=8 n=1000 k=512: relative RMS 0.000e0
+f64 reference n=130 k=6144: rel_l2 4.056e-7 max_abs 1.041e-3
+test naxr_matches_an_f64_reference ... ok
+vs gemv act 1 m=16 n=2048 k=5120: relative RMS 0.000e0
+test naxr_forms_give_the_same_bits ... ok
+vs gemv act 1 m=5 n=5120 k=17408: relative RMS 6.091e-9
+test naxr_matches_the_gemv_within_accumulation_order ... ok
+test naxr_rows_do_not_depend_on_the_call ... ok
+
+failures:
+
+failures:
+    naxr_decodes_every_code_and_edge_scale
+    naxr_is_the_quad_order_sum_bit_for_bit
+
+test result: FAILED. 7 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test mxfp4_naxr`

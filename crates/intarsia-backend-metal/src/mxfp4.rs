@@ -50,8 +50,12 @@ pub const NAXT_SHADERS: [[&str; 2]; 3] = [
     ["mxfp4_naxt_bf16_m4", "mxfp4_naxt_f32_m4"],
 ];
 pub const NAXT_FORM: usize = NAXR_FORMS.len();
-/// Largest M the launcher gives to the ALU twin by default (above it the accelerator forms): from the 27B-shape bench.
-pub const NAXT_MAX_M: usize = 0;
+/// Whether the launcher gives an M x N call to the ALU twin instead of an accelerator form (same bits, so only speed decides): the
+/// one-row step on the wide outputs, where the twin measured 1.46x to 1.56x the GEMV against 1.64x to 1.94x for the accelerator
+/// (gate / up, q_proj). On outputs of at most 8192 rows (down, out_proj: long K, few lanes) and for every M > 1 the accelerator wins.
+pub fn naxt_pick(m: usize, n: usize) -> bool {
+    m == 1 && n > 8192
+}
 
 /// Form of an N-row weight, from the 27B-shape bench (docs/results/2026-11-15-mnr-metal-nax-rows.md): 64 rows x 128 for the wide
 /// outputs (gate/up, q_proj), 32 rows x 256 for outputs of at most 8192 rows (down, out_proj: long K, few threadgroups).
@@ -514,7 +518,7 @@ impl MetalBackend {
         f32_out: bool,
     ) -> Result<()> {
         let fi = match naxr_form(n) {
-            f if NAXR_FORM.with(|t| t.get()).is_none() && naxt_env().is_none() && m <= NAXT_MAX_M => {
+            f if NAXR_FORM.with(|t| t.get()).is_none() && naxt_env().is_none() && naxt_pick(m, n) => {
                 let _ = f;
                 NAXT_FORM
             }
