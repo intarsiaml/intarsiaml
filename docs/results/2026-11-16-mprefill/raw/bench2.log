@@ -1,0 +1,2 @@
+fleetq: #9754 running on endor: zsh scripts/mprefill/bench.sh /opt/code/intarsiaml/.worktrees/mprefill/docs/results/2026-11-16-mprefill/raw/bench2-smallm.txt NAXD_M=16,64,128,256 NAXD_SHAPES=17408x5120,5120x17408 NAXD_ROUNDS=15
+fleetq: #9754 done (exit 0)
