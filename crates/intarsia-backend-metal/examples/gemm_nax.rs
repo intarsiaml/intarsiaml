@@ -41,13 +41,19 @@ mod imp {
         k: usize,
     }
 
-    const SHAPES: [Shape; 5] = [
+    const SHAPES: [Shape; 9] = [
         Shape { label: "qo", n: 4096, k: 4096 },
         Shape { label: "kv", n: 1024, k: 4096 },
         Shape { label: "gu", n: 12288, k: 4096 },
         Shape { label: "down", n: 4096, k: 12288 },
         // q + k + v of one projection set as one 6144-column output (the P4 triple GEMM proxy: one kernel, same FLOPs)
         Shape { label: "qkv", n: 6144, k: 4096 },
+        // lane mgemm (docs/results/2026-11-16-mgemm.md): Qwen3.8-27B FFN down (hidden 5120, intermediate 17408), a 5120
+        // square control, and the 35B shared expert (hidden 2048, intermediate 512): gate / up and down
+        Shape { label: "d27", n: 5120, k: 17408 },
+        Shape { label: "sq27", n: 5120, k: 5120 },
+        Shape { label: "se_gu", n: 512, k: 2048 },
+        Shape { label: "se_dn", n: 2048, k: 512 },
     ];
 
     fn env_list<T: std::str::FromStr>(name: &str, default: &[T]) -> Vec<T>

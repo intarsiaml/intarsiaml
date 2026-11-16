@@ -1,0 +1,2 @@
+fleetq: #9729 running on endor: env MODE=ks NAX_M=512,2048,4096 scripts/mgemm/bench.sh /opt/code/intarsiaml/.worktrees/mgemm/docs/results/2026-11-16-mgemm/raw/ks1.txt d27 down sq27 qo
+fleetq: #9729 done (exit 0)

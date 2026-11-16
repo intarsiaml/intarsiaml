@@ -200,6 +200,27 @@ pub trait BatchModel {
     fn verify_step(&mut self, _rows: &[VerifyRows<Self::Mode>]) -> Result<Vec<Result<Verified<Self::Out>>>> {
         Err(Error::Unsupported("batched verify".into()))
     }
+    /// Lane mdraft: whether [`BatchModel::draft_batch`] can take the drafts of the sequences that draft in one iteration (the
+    /// scheduler then plans in two phases, [`BatchSeq::prepare_hold`] and [`BatchSeq::prepare_finish`]). Default false: every
+    /// sequence drafts inside its own `prepare`, as before.
+    fn batched_draft(&self) -> bool {
+        false
+    }
+    /// Lane mdraft: the drafts of several sequences as one batched draft, `(slot, next, k)` each; `Ok(None)`: not applicable now (nothing
+    /// ran), each sequence drafts alone. The drafts are what each sequence's own draft returns. `Err`: fatal for these sequences.
+    fn draft_batch(&mut self, _jobs: &[(usize, u32, usize)]) -> Result<Option<Vec<Vec<u32>>>> {
+        Ok(None)
+    }
+}
+
+/// What [`BatchSeq::prepare_hold`] returns (lane mdraft): the sequence's step, or the draft it is about to run.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Held<Mode> {
+    /// As [`BatchSeq::prepare`] returns.
+    Step(SeqStep<Mode>),
+    /// The sequence drafts `k` tokens after `next` and has not drafted yet: the scheduler drafts (batched with the other drafting
+    /// sequences, [`BatchModel::draft_batch`], or alone) and calls [`BatchSeq::prepare_finish`].
+    Draft { next: u32, k: usize },
 }
 
 /// One sequence's rows of a batched verify pass ([`BatchModel::verify_step`]): slot, `[next, drafts...]`, and the head mode of the
@@ -253,6 +274,16 @@ pub trait BatchSeq<M: BatchModel>: Send {
     /// iteration (`B >= 2`), so a verify pass is a whole extra weight pass beside the batched step; the sequence may
     /// then decline drafts that do not pay (tokens never depend on it: verify is exact).
     fn prepare(&mut self, model: &mut M, slot: usize, spec_allowed: bool, busy: bool) -> Result<SeqStep<M::Mode>>;
+    /// Lane mdraft: [`BatchSeq::prepare`] that stops before an MTP draft ([`Held::Draft`]); the scheduler calls it only when
+    /// [`BatchModel::batched_draft`], and then [`BatchSeq::prepare_finish`] for a `Draft`. Default: `prepare`, never holding.
+    fn prepare_hold(&mut self, model: &mut M, slot: usize, spec_allowed: bool, busy: bool) -> Result<Held<M::Mode>> {
+        self.prepare(model, slot, spec_allowed, busy).map(Held::Step)
+    }
+    /// Lane mdraft: the rest of a held draft step. `drafts`: the drafts the scheduler's batched draft made for this sequence, or `None`
+    /// (the sequence drafts alone here, as `prepare` would).
+    fn prepare_finish(&mut self, _model: &mut M, _slot: usize, _drafts: Option<Vec<u32>>) -> Result<SeqStep<M::Mode>> {
+        Err(Error::Unsupported("held drafts".into()))
+    }
     /// The output of this sequence's row or final chunk: becomes the next token.
     fn accept(&mut self, out: M::Out) -> Result<()>;
     /// Lane bm: the greedy tokens (or, for a sequence that asked for a head mode, the row outputs) of this sequence's rows of the
@@ -1316,9 +1347,59 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             let mut failed: Vec<(RequestId, Error)> = Vec::new();
             let prof_prepare = crate::hostprof::span(crate::hostprof::Cat::Prepare);
             let t_prepare = self.cfg.trace_stderr.then(Instant::now);
+            // lane mdraft: with a batched draft the sequences plan first (a drafting one stops before its draft), the drafts of all of
+            // them run as one batched draft, then each sequence finishes its step in the same order as before
+            let hold = b > 1 && spec_allowed && self.model.batched_draft();
+            let mut steps: Vec<(usize, Result<Held<M::Mode>>)> = Vec::with_capacity(b);
             for &i in &decoding {
                 let a = &mut self.active[i];
-                match a.seq.prepare(&mut self.model, a.slot, spec_allowed, b > 1) {
+                let r = if hold {
+                    a.seq.prepare_hold(&mut self.model, a.slot, spec_allowed, b > 1)
+                } else {
+                    a.seq.prepare(&mut self.model, a.slot, spec_allowed, b > 1).map(Held::Step)
+                };
+                steps.push((i, r));
+            }
+            let mut drafted: Vec<Option<Vec<u32>>> = Vec::new();
+            let mut draft_err: Option<String> = None;
+            if hold {
+                let jobs: Vec<(usize, u32, usize)> = steps
+                    .iter()
+                    .filter_map(|(i, r)| match r {
+                        Ok(Held::Draft { next, k }) => Some((self.active[*i].slot, *next, *k)),
+                        _ => None,
+                    })
+                    .collect();
+                if jobs.len() >= 2 {
+                    let t_draft = self.cfg.trace_stderr.then(Instant::now);
+                    match self.model.draft_batch(&jobs) {
+                        Ok(Some(d)) if d.len() == jobs.len() => {
+                            drafted = d.into_iter().map(Some).collect();
+                            if let Some(t) = t_draft {
+                                eprintln!("spec: mtp draft batch {} sequences {:.3} ms", jobs.len(), t.elapsed().as_secs_f64() * 1e3);
+                            }
+                        }
+                        Ok(_) => {}
+                        Err(e) => draft_err = Some(e.to_string()),
+                    }
+                }
+            }
+            let mut next_draft = 0;
+            for (i, r) in steps {
+                let a = &mut self.active[i];
+                let r = match r {
+                    Ok(Held::Step(s)) => Ok(s),
+                    Ok(Held::Draft { .. }) => {
+                        let d = drafted.get_mut(next_draft).and_then(Option::take);
+                        next_draft += 1;
+                        match &draft_err {
+                            Some(msg) => Err(Error::Other(msg.clone())),
+                            None => a.seq.prepare_finish(&mut self.model, a.slot, d),
+                        }
+                    }
+                    Err(e) => Err(e),
+                };
+                match r {
                     Ok(SeqStep::Plain(token, mode)) => {
                         rows.push(Row { slot: a.slot, token, mode });
                         row_of.push(a.id);
