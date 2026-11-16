@@ -18,4 +18,4 @@ for a in ${ARMS:-C CO R}; do
     finish_serve "proof-$a"
   fi
 done
-python3 "$S/ids_compare.py" "$OUT" R C CO 2>&1 | tee -a "$LOG" "$OUT/ids-compare.txt"
+python3 "$S/ids_compare.py" "$OUT" R $(for a in ${ARMS:-C CO R}; do [ "$a" != R ] && echo "$a"; done) 2>&1 | tee -a "$LOG" "$OUT/ids-compare.txt"

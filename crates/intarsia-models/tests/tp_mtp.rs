@@ -886,6 +886,10 @@ fn batched_verify_for_reads_the_env_first_then_the_recipe() {
     use intarsia_models::load::batched_verify_for;
     let mut moe = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5_moe.toml")).unwrap();
     std::env::remove_var("INTARSIA_BATCHED_VERIFY");
+    // lane flipprep: the shipped 35B CUDA recipe now sets the key (the flip), so the "no key" case is built by clearing it
+    assert_eq!(moe.tuning.backends.get("cuda").unwrap().batched_verify, Some(true), "the shipped recipe's value");
+    assert!(batched_verify_for(&moe, "cuda"), "shipped recipe, no env: on");
+    moe.tuning.backends.get_mut("cuda").unwrap().batched_verify = None;
     assert!(!batched_verify_for(&moe, "cuda"), "no recipe key: off");
     moe.tuning.backends.get_mut("cuda").unwrap().batched_verify = Some(true);
     assert!(batched_verify_for(&moe, "cuda"), "the recipe turns it on");
