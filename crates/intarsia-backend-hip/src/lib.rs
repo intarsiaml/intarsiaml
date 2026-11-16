@@ -192,8 +192,8 @@ pub fn create_group_push(
     Ok((backends, comms))
 }
 
-/// [`create_group_push`] with the all-reduce wire of lane wht6-ar set explicitly (tests): `wire` = `Some(min_bytes)` for the lossy
-/// wht6 wire on wide-path messages of at least `min_bytes`, `None` for the exact wire (instead of `INTARSIA_HIP_AR_WIRE`).
+/// [`create_group_push`] with the all-reduce wire of lane wht6-ar set explicitly (tests): `wire` = `Some((min_bytes, bits))` for the
+/// lossy wire of `bits` (6 = wht6, 8 = wht8) on wide-path messages of at least `min_bytes`, `None` for the exact wire (instead of `INTARSIA_HIP_AR_WIRE`).
 #[cfg(ik_hip)]
 #[doc(hidden)]
 #[allow(clippy::type_complexity)]
@@ -203,7 +203,7 @@ pub fn create_group_wire(
     ll_max: usize,
     wide: Option<(i32, usize)>,
     push: bool,
-    wire: Option<usize>,
+    wire: Option<(usize, u32)>,
 ) -> intarsia_core::Result<(Vec<Arc<dyn Backend>>, Vec<Arc<dyn intarsia_core::Comm>>)> {
     disable::check_env()?;
     let hips = ordinals

@@ -1,0 +1,137 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1243:4
+     |
+1243 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 6 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/ar_wht6.rs (/target/release/deps/ar_wht6-f1b479fcf834706d)
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht12): all-reduces above 128 KiB and of at least 4096 KiB carry a 12-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht12): all-reduces above 128 KiB and of at least 2048 KiB carry a 12-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht12): all-reduces above 128 KiB and of at least 128 KiB carry a 12-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+negative control (wht12, no wait): 124 wrong results
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht16): all-reduces above 128 KiB and of at least 128 KiB carry a 16-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+negative control (wht16, no wait): 96 wrong results
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=whtf): all-reduces above 128 KiB and of at least 128 KiB carry a 32-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+negative control (whtf, no wait): 100 wrong results
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht12): all-reduces above 128 KiB and of at least 128 KiB carry a 12-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+wht12 f32 n     32832: worst rotated error 0.979 of the bound, rms error 0.030 % of the sum's rms
+wht12 f32 n     40000: worst rotated error 0.978 of the bound, rms error 0.022 % of the sum's rms
+wht12 f32 n    133120: worst rotated error 0.979 of the bound, rms error 0.025 % of the sum's rms
+wht12 f32 n    614464: worst rotated error 0.984 of the bound, rms error 0.025 % of the sum's rms
+wht12 f32 n  10485760: worst rotated error 0.984 of the bound, rms error 0.026 % of the sum's rms
+wht12 f32 n  26278400: worst rotated error 0.985 of the bound, rms error 0.025 % of the sum's rms
+wht12: worst rotated error 0.985 of the bound, worst rms error 0.030 %
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht12): all-reduces above 128 KiB and of at least 128 KiB carry a 12-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht16): all-reduces above 128 KiB and of at least 4096 KiB carry a 16-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht16): all-reduces above 128 KiB and of at least 2048 KiB carry a 16-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht16): all-reduces above 128 KiB and of at least 128 KiB carry a 16-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+wht16 f32 n     32832: worst rotated error 0.831 of the bound, rms error 0.002 % of the sum's rms
+wht16 f32 n     40000: worst rotated error 0.828 of the bound, rms error 0.001 % of the sum's rms
+wht16 f32 n    133120: worst rotated error 0.834 of the bound, rms error 0.002 % of the sum's rms
+wht16 f32 n    614464: worst rotated error 0.833 of the bound, rms error 0.002 % of the sum's rms
+wht16 f32 n  10485760: worst rotated error 0.836 of the bound, rms error 0.002 % of the sum's rms
+wht16 f32 n  26278400: worst rotated error 0.835 of the bound, rms error 0.002 % of the sum's rms
+wht16: worst rotated error 0.836 of the bound, worst rms error 0.002 %
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht16): all-reduces above 128 KiB and of at least 128 KiB carry a 16-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 4096 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 2048 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 128 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+wht6 f32 n     32832: worst rotated error 0.991 of the bound, rms error 1.966 % of the sum's rms
+wht6 f32 n     40000: worst rotated error 0.990 of the bound, rms error 1.451 % of the sum's rms
+wht6 f32 n    133120: worst rotated error 0.991 of the bound, rms error 1.620 % of the sum's rms
+wht6 f32 n    614464: worst rotated error 0.995 of the bound, rms error 1.661 % of the sum's rms
+wht6 f32 n  10485760: worst rotated error 0.996 of the bound, rms error 1.675 % of the sum's rms
+wht6 f32 n  26278400: worst rotated error 0.996 of the bound, rms error 1.663 % of the sum's rms
+wht6: worst rotated error 0.996 of the bound, worst rms error 1.966 %
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 128 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht6): all-reduces above 128 KiB and of at least 128 KiB carry a 6-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+negative control (wht6, no wait): 95 wrong results
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht8): all-reduces above 128 KiB and of at least 4096 KiB carry a 8-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht8): all-reduces above 128 KiB and of at least 2048 KiB carry a 8-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht8): all-reduces above 128 KiB and of at least 128 KiB carry a 8-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+wht8 f32 n     32832: worst rotated error 0.988 of the bound, rms error 0.483 % of the sum's rms
+wht8 f32 n     40000: worst rotated error 0.987 of the bound, rms error 0.353 % of the sum's rms
+wht8 f32 n    133120: worst rotated error 0.988 of the bound, rms error 0.397 % of the sum's rms
+wht8 f32 n    614464: worst rotated error 0.991 of the bound, rms error 0.409 % of the sum's rms
+wht8 f32 n  10485760: worst rotated error 0.992 of the bound, rms error 0.411 % of the sum's rms
+wht8 f32 n  26278400: worst rotated error 0.993 of the bound, rms error 0.408 % of the sum's rms
+wht8: worst rotated error 0.993 of the bound, worst rms error 0.483 %
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht8): all-reduces above 128 KiB and of at least 128 KiB carry a 8-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht8): all-reduces above 128 KiB and of at least 128 KiB carry a 8-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+negative control (wht8, no wait): 123 wrong results
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=whtf): all-reduces above 128 KiB and of at least 128 KiB carry a 32-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+whtf f32 n     32832: worst rotated error 0.069 of the bound, rms error 0.000 % of the sum's rms
+whtf f32 n     32832: elements differing from the exact sum 23476
+whtf f32 n     40000: worst rotated error 0.076 of the bound, rms error 0.000 % of the sum's rms
+whtf f32 n     40000: elements differing from the exact sum 28824
+whtf f32 n    133120: worst rotated error 0.086 of the bound, rms error 0.000 % of the sum's rms
+whtf f32 n    133120: elements differing from the exact sum 95522
+whtf f32 n    614464: worst rotated error 0.093 of the bound, rms error 0.000 % of the sum's rms
+whtf f32 n    614464: elements differing from the exact sum 442039
+whtf f32 n  10485760: worst rotated error 0.116 of the bound, rms error 0.000 % of the sum's rms
+whtf f32 n  10485760: elements differing from the exact sum 7546689
+whtf f32 n  26278400: worst rotated error 0.123 of the bound, rms error 0.000 % of the sum's rms
+whtf f32 n  26278400: elements differing from the exact sum 18904556
+whtf: worst rotated error 0.123 of the bound, worst rms error 0.000 %
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=whtf): all-reduces above 128 KiB and of at least 4096 KiB carry a 32-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=whtf): all-reduces above 128 KiB and of at least 2048 KiB carry a 32-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=whtf): all-reduces above 128 KiB and of at least 128 KiB carry a 32-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.

@@ -1,0 +1,24 @@
+
+running 19 tests
+test wht12_floor_and_the_exact_default ... ok
+test wht12_wht16_whtf_wires_without_the_wait_are_caught_by_the_stress_test ... ok
+test wht12_wire_is_rank_identical_within_its_bound_and_exact_below_the_floor ... ok
+test wht12_wire_survives_a_delayed_rank_between_exact_collectives ... ok
+test wht16_floor_and_the_exact_default ... ok
+test wht16_wire_is_rank_identical_within_its_bound_and_exact_below_the_floor ... ok
+test wht16_wire_survives_a_delayed_rank_between_exact_collectives ... ok
+test wht6_floor_and_the_exact_default ... ok
+test wht6_rate ... ignored
+test wht6_wire_is_rank_identical_within_its_bound_and_exact_below_the_floor ... ok
+test wht6_wire_survives_a_delayed_rank_between_exact_collectives ... ok
+test wht6_wire_without_the_wait_is_caught_by_the_stress_test ... ok
+test wht8_floor_and_the_exact_default ... ok
+test wht8_wire_is_rank_identical_within_its_bound_and_exact_below_the_floor ... ok
+test wht8_wire_survives_a_delayed_rank_between_exact_collectives ... ok
+test wht8_wire_without_the_wait_is_caught_by_the_stress_test ... ok
+test whtf_control_is_rank_identical_and_exact_up_to_f32_rounding ... ok
+test whtf_floor_and_the_exact_default ... ok
+test whtf_wire_survives_a_delayed_rank_between_exact_collectives ... ok
+
+test result: ok. 18 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 30.74s
+
