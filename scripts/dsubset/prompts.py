@@ -216,3 +216,16 @@ EVAL = {
 }
 # the eval sets whose replies should be the language itself: thinking off (a Chinese prompt with thinking on gets an English think block)
 EVAL_THINKING_OFF = {"zh", "ru", "ar", "kj", "tool"}
+
+# lane dsubset follow-up: requests with a `tools` array do not draft on the single-sequence engine (the tool-call path runs
+# without speculation), so the tool-JSON script is measured as plain text: the model writes the call's JSON itself. Held out.
+EVAL["json"] = [
+    'Reply with only a JSON object {"name": ..., "arguments": {...}} that calls get_weather(city, unit) for Dublin in celsius.',
+    'Reply with only a JSON object {"name": ..., "arguments": {...}} that calls search_flights(origin, destination, date, passengers) for JFK to LHR on 2026-12-20, one adult.',
+    'Output only JSON: a list of three tool calls, each {"name": "run_sql", "arguments": {"query": ...}}, that count orders per month, per customer and per country.',
+    'Output only a JSON object describing a calendar event: title, start (ISO 8601), duration_minutes, attendees (a list of three emails), location, notes.',
+    'Output only JSON: a package.json for a small TypeScript CLI called "pixelsort" with scripts, dependencies and devDependencies.',
+    'Output only a JSON array of five products, each with id, name, category, price, in_stock and a tags array.',
+    '只输出 JSON：调用 get_weather(city, unit)，查询上海的天气，单位为摄氏度，格式为 {"name": ..., "arguments": {...}}。',
+    'Выведи только JSON: вызов create_event с полями title, start (ISO 8601), duration_minutes и attendees для встречи команды завтра в 10:00.',
+]

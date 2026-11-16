@@ -56,7 +56,7 @@ def main():
     ap.add_argument("arm")
     ap.add_argument("out")
     ap.add_argument("metrics")
-    ap.add_argument("--sets", default="en,code,zh,ru,ar,kj,tool")
+    ap.add_argument("--sets", default=__import__("os").environ.get("ACC_SETS", "en,code,zh,ru,ar,kj,tool"))
     ap.add_argument("--max-tokens", type=int, default=int(__import__("os").environ.get("ACC_MAX_TOKENS", "384")))
     a = ap.parse_args()
     chat(a.base, a.model, EVAL["en"][0], 32, False)  # warm-up
