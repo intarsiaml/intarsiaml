@@ -26,6 +26,28 @@ use crate::state::MtpState;
 /// Lane mdraft: most sequences of one batched MTP draft ([`Model::mtp_draft_batch`]).
 pub(crate) const MAX_DRAFT_BATCH: usize = 8;
 
+/// Lane mhead dev check (`INTARSIA_BATCHED_HEAD_CHECK=1`, off by default, needs the batched head): every batched chained head pass is
+/// followed by the per-sequence passes on the same inputs, which the draft then continues from, and the two sets of output rows are
+/// compared bit for bit; a mismatch is printed at once, and the running counts every 256 passes.
+fn head_check_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("INTARSIA_BATCHED_HEAD_CHECK").is_some_and(|v| v != "0"))
+}
+
+fn head_check_note(same: bool, row: usize, rows: usize) {
+    use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
+    static ROWS: AtomicUsize = AtomicUsize::new(0);
+    static BAD: AtomicUsize = AtomicUsize::new(0);
+    let n = ROWS.fetch_add(1, Relaxed) + 1;
+    if !same {
+        BAD.fetch_add(1, Relaxed);
+        eprintln!("mhead check: MISMATCH row {row} of {rows} (batched head pass differs from the one-row pass)");
+    }
+    if n % 256 == 0 {
+        eprintln!("mhead check: {n} rows compared, {} mismatches", BAD.load(Relaxed));
+    }
+}
+
 pub(super) struct MtpHead {
     /// `fc` columns `[0, H)` (normed embedding) and `[H, 2H)` (normed hidden state), each `[H, H]` bf16.
     fc_e: QTensor,
@@ -856,12 +878,42 @@ impl Model {
         let bases: Vec<usize> = ms.iter().map(|m| m.kv.len).collect();
         let r = (|| -> Result<()> {
             while drafts[0].len() < k {
-                for (i, m) in ms.iter_mut().enumerate() {
-                    let ids = [*drafts[i].last().expect("a first draft")];
-                    let row = stage.rows(i, 1);
-                    let out = self.mtp_layer(head, &m.kv, &ids, &row, false)?;
-                    m.kv.commit(&ids);
-                    self.backend.copy(&row.buf, row.offset, &out.buf, out.offset, m.row_bytes, 0)?;
+                let batched = self.backend.batched_head();
+                let check = batched && head_check_enabled();
+                // lane mhead: the b one-row passes as one b-row pass (`mtp_layer_batch`: each row bitwise its solo pass), its output rows
+                // to the staging rows in one copy
+                let mut got: Option<Vec<u8>> = None;
+                if batched {
+                    let ids: Vec<u32> = drafts.iter().map(|d| *d.last().expect("a first draft")).collect();
+                    let out = {
+                        let kvs: Vec<&SequenceState> = ms.iter().map(|m| &m.kv).collect();
+                        self.mtp_layer_batch(head, &kvs, &ids, &stage.rows(0, b), false)?
+                    };
+                    if check {
+                        // `INTARSIA_BATCHED_HEAD_CHECK=1`: keep the batched rows and run the per-sequence passes below as well
+                        let mut bytes = vec![0u8; b * ms[0].row_bytes];
+                        self.backend.download(&out.buf, out.offset, &mut bytes, self.stream)?;
+                        got = Some(bytes);
+                    } else {
+                        for (m, &id) in ms.iter_mut().zip(&ids) {
+                            m.kv.commit(&[id]);
+                        }
+                        self.backend.copy(&stage.buf, stage.offset, &out.buf, out.offset, b * ms[0].row_bytes, 0)?;
+                    }
+                }
+                if !batched || check {
+                    for (i, m) in ms.iter_mut().enumerate() {
+                        let ids = [*drafts[i].last().expect("a first draft")];
+                        let row = stage.rows(i, 1);
+                        let out = self.mtp_layer(head, &m.kv, &ids, &row, false)?;
+                        if let Some(want) = &got {
+                            let mut bytes = vec![0u8; m.row_bytes];
+                            self.backend.download(&out.buf, out.offset, &mut bytes, self.stream)?;
+                            head_check_note(bytes[..] == want[i * m.row_bytes..(i + 1) * m.row_bytes], i, b);
+                        }
+                        m.kv.commit(&ids);
+                        self.backend.copy(&row.buf, row.offset, &out.buf, out.offset, m.row_bytes, 0)?;
+                    }
                 }
                 for (d, t) in drafts.iter_mut().zip(self.draft_head_rows(&stage.rows(0, b), b)?) {
                     d.push(t);
@@ -1224,6 +1276,22 @@ impl Model {
         self.mtp_layer_at(head, kv, ids.len(), Some(ids), hid, None, None, profile)
     }
 
+    /// Lane mhead: the head's one-row pass of several sequences (`ids[r]` after the row `hid[r]`, at position `kvs[r].len` of its own head
+    /// cache) as ONE pass of `ids.len()` rows. Row `r` of the returned `[b, H]` output is bitwise what [`Model::mtp_layer`] gives the
+    /// sequence alone over one row: every projection and the MoE run on the backend's row-exact multi-row kernels (a row's bits are the
+    /// one-row kernel's, as in batched decode: `tests/rows_exact.rs`), the row-parallel ops (embedding, norms, adds) have no row-count
+    /// dependence, and the attention runs per row on that sequence's cache with the solo one-row calls ([`Model::attn_block_batch`]).
+    /// The caches are not advanced (the caller commits each row's token).
+    fn mtp_layer_batch(&self, head: &MtpHead, kvs: &[&SequenceState], ids: &[u32], hid: &TensorRef, profile: bool) -> Result<TensorRef> {
+        if kvs.is_empty() || kvs.len() != ids.len() || head.whole() {
+            return Err(Error::invalid("MTP batched pass over no rows, or ids and caches of different counts"));
+        }
+        let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);
+        let r = self.mtp_layer_core_rows(head, kvs[0], ids.len(), Some(ids), hid, None, None, false, Some(kvs), profile);
+        self.exact_rows.store(prev, std::sync::atomic::Ordering::Relaxed);
+        r
+    }
+
     /// [`Model::mtp_layer`] for `t` rows. `ids`: the host tokens, uploaded to `ws.ids`; `None` with `ids_dev` (`i32 [t]`):
     /// the tokens are already on the device (a captured speculative step, whose chained rows read the previous draft where
     /// its argmax left it). `dpos` (a run of consecutive device positions, row `r` at entry `r`): the rows' positions are
@@ -1265,10 +1333,10 @@ impl Model {
         profile: bool,
     ) -> Result<TensorRef> {
         if !head.whole() {
-            return self.mtp_layer_core_rows(head, kv, t, ids, hid, ids_dev, dpos, kv_only, profile);
+            return self.mtp_layer_core_rows(head, kv, t, ids, hid, ids_dev, dpos, kv_only, None, profile);
         }
         self.head_whole.store(true, std::sync::atomic::Ordering::Relaxed);
-        let r = self.mtp_layer_core_rows(head, kv, t, ids, hid, ids_dev, dpos, kv_only, profile);
+        let r = self.mtp_layer_core_rows(head, kv, t, ids, hid, ids_dev, dpos, kv_only, None, profile);
         self.head_whole.store(false, std::sync::atomic::Ordering::Relaxed);
         r
     }
@@ -1284,11 +1352,16 @@ impl Model {
         ids_dev: Option<&TensorRef>,
         dpos: Option<&TensorRef>,
         kv_only: bool,
+        batch: Option<&[&SequenceState]>,
         profile: bool,
     ) -> Result<TensorRef> {
         let (d, act, ws) = (&self.dims, self.act, &self.ws);
         let h = d.hidden;
-        if t == 0 || t > head.whole_rows.unwrap_or(ws.max_tokens) || (dpos.is_none() && kv.len + t > kv.cap) {
+        // lane mhead: `batch` = one row per sequence, each on its own head cache (`kv` is the first): see `mtp_layer_batch`
+        if batch.is_some_and(|b| b.len() != t || b.iter().any(|k| k.len + 1 > k.cap)) {
+            return Err(Error::invalid(format!("MTP batched pass of {t} rows over {} caches", batch.map_or(0, |b| b.len()))));
+        }
+        if t == 0 || t > head.whole_rows.unwrap_or(ws.max_tokens) || (dpos.is_none() && kv.len + t > kv.cap && batch.is_none()) {
             return Err(Error::invalid(format!(
                 "MTP pass of {t} rows at {} (cap {}, chunk {})",
                 kv.len, kv.cap, ws.max_tokens
@@ -1331,9 +1404,16 @@ impl Model {
         }
         // per-row attention keeps a short catch-up (after a verify pass) bitwise the captured step's; a prompt's rows (longer than any
         // verify pass) take the ordinary multi-row attention: per-row decode calls over a whole prompt are quadratic (lane mpf)
-        self.head_rows_attn.store(t > 1 && t <= Self::VERIFY_MAX_ROWS + 1, std::sync::atomic::Ordering::Relaxed);
-        let attn = self.attn_block(&head.attn, kv, &n, &blk, t, if dpos.is_some() { 0 } else { kv.len }, dpos, false, profile);
-        self.head_rows_attn.store(false, std::sync::atomic::Ordering::Relaxed);
+        let attn = if let Some(sts) = batch {
+            // lane mhead: one row per sequence, the projections once on all rows (row-exact kernels), the attention per row on that
+            // sequence's cache as its solo one-row pass runs it
+            self.attn_block_batch(&head.attn, sts, &n, &blk, false, true, profile)
+        } else {
+            self.head_rows_attn.store(t > 1 && t <= Self::VERIFY_MAX_ROWS + 1, std::sync::atomic::Ordering::Relaxed);
+            let r = self.attn_block(&head.attn, kv, &n, &blk, t, if dpos.is_some() { 0 } else { kv.len }, dpos, false, profile);
+            self.head_rows_attn.store(false, std::sync::atomic::Ordering::Relaxed);
+            r
+        };
         attn?;
         let ffn_norm = match &head.ffn {
             HeadFfn::Moe(m) => &m.pre_norm,

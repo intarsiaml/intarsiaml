@@ -1,0 +1,4 @@
+fleetq: #9775 running on spark2: ssh -n -o BatchMode=yes spark2 'rm -rf ~/intarsia-mhead; ls -d ~/intarsia-mhead 2>&1 | tail -1; df -h ~ | tail -1'
+ls: cannot access '/home/nvidia/intarsia-mhead': No such file or directory
+/dev/nvme0n1p2  3.7T  3.4T  140G  97% /
+fleetq: #9775 done (exit 0)

@@ -1,0 +1,82 @@
+fleetq: #9759 waiting (#1 in line): needs gpu quiet on spark2, but #9757 "mhead: gates" (claude-2ae67a71) loads it
+fleetq:   #9757 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9757 set, or it will wait for #9757 to be released.
+fleetq: #9759 running on spark2: scripts/mhead/abba.sh
+[12:21:25 +1s] start; vLLM: 200 running 0; earlyoom: active; Mem:             121          48          30           0          44          73
+[12:21:25 +1s] serve arm B.a: env [INTARSIA_CB_TRACE=1 ] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[12:22:01 +37s] serve B.a up; MemAvailable MB: 49868; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk);batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 33.5s, context 32768 tokens;
+[12:22:01 +37s] vLLM requests running before B.a: 0
+[itl] B.a en t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 36.0s -> itl-B.a-en-t0-s2.json
+[itl] B.a code t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 35.0s -> itl-B.a-code-t0-s2.json
+[itl] B.a en t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 36.4s -> itl-B.a-en-nt-t0-s2.json
+[itl] B.a cjk t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 38.7s -> itl-B.a-cjk-nt-t0-s2.json
+[itl] B.a mixed t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 38.6s -> itl-B.a-mixed-nt-t0-s2.json
+[itl] B.a en t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 37.8s -> itl-B.a-en-t1-s2.json
+[itl] B.a code t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 37.4s -> itl-B.a-code-t1-s2.json
+[itl] B.a en t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 39.1s -> itl-B.a-en-nt-t1-s2.json
+[itl] B.a cjk t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 41.6s -> itl-B.a-cjk-nt-t1-s2.json
+[itl] B.a mixed t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 39.7s -> itl-B.a-mixed-nt-t1-s2.json
+[itl] B.a en t=0.0 s=1: 16 requests, 0 failed, 6144 tokens in 45.1s -> itl-B.a-en-t0-s1.json
+[itl] B.a code t=0.0 s=1: 16 requests, 0 failed, 6144 tokens in 44.8s -> itl-B.a-code-t0-s1.json
+[itl] B.a en t=0.0 s=1: 16 requests, 0 failed, 6144 tokens in 44.7s -> itl-B.a-en-nt-t0-s1.json
+[itl] B.a en t=1.0 s=1: 16 requests, 0 failed, 6144 tokens in 52.9s -> itl-B.a-en-nt-t1-s1.json
+[12:32:11 +647s] vLLM requests running after B.a: 0
+[12:32:12 +648s] min MemAvailable MB (time MB; KILLED count) (B.a): 12:30:50 48643 0 
+[12:32:14 +650s] serve arm F.a: env [INTARSIA_CB_TRACE=1 ] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[12:32:52 +688s] serve F.a up; MemAvailable MB: 49137; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk);batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 35.5s, context 32768 tokens;
+[12:32:52 +688s] vLLM requests running before F.a: 0
+[itl] F.a en t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 35.6s -> itl-F.a-en-t0-s2.json
+[itl] F.a code t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 34.6s -> itl-F.a-code-t0-s2.json
+[itl] F.a en t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 35.9s -> itl-F.a-en-nt-t0-s2.json
+[itl] F.a cjk t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 38.2s -> itl-F.a-cjk-nt-t0-s2.json
+[itl] F.a mixed t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 38.2s -> itl-F.a-mixed-nt-t0-s2.json
+[itl] F.a en t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 37.3s -> itl-F.a-en-t1-s2.json
+[itl] F.a code t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 36.9s -> itl-F.a-code-t1-s2.json
+[itl] F.a en t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 38.6s -> itl-F.a-en-nt-t1-s2.json
+[itl] F.a cjk t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 41.2s -> itl-F.a-cjk-nt-t1-s2.json
+[itl] F.a mixed t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 39.3s -> itl-F.a-mixed-nt-t1-s2.json
+[itl] F.a en t=0.0 s=1: 16 requests, 0 failed, 6144 tokens in 45.2s -> itl-F.a-en-t0-s1.json
+[itl] F.a code t=0.0 s=1: 16 requests, 0 failed, 6144 tokens in 45.0s -> itl-F.a-code-t0-s1.json
+[itl] F.a en t=0.0 s=1: 16 requests, 0 failed, 6144 tokens in 45.0s -> itl-F.a-en-nt-t0-s1.json
+[itl] F.a en t=1.0 s=1: 16 requests, 0 failed, 6144 tokens in 53.0s -> itl-F.a-en-nt-t1-s1.json
+[12:42:58 +1294s] vLLM requests running after F.a: 0
+[12:42:59 +1295s] min MemAvailable MB (time MB; KILLED count) (F.a): 12:32:55 48303 0 
+[12:43:01 +1297s] serve arm F.b: env [INTARSIA_CB_TRACE=1 ] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[12:43:37 +1333s] serve F.b up; MemAvailable MB: 49138; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk);batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 33.5s, context 32768 tokens;
+[12:43:38 +1334s] vLLM requests running before F.b: 0
+[itl] F.b en t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 35.7s -> itl-F.b-en-t0-s2.json
+[itl] F.b code t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 34.6s -> itl-F.b-code-t0-s2.json
+[itl] F.b en t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 36.0s -> itl-F.b-en-nt-t0-s2.json
+[itl] F.b cjk t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 38.3s -> itl-F.b-cjk-nt-t0-s2.json
+[itl] F.b mixed t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 38.2s -> itl-F.b-mixed-nt-t0-s2.json
+[itl] F.b en t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 37.4s -> itl-F.b-en-t1-s2.json
+[itl] F.b code t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 37.0s -> itl-F.b-code-t1-s2.json
+[itl] F.b en t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 38.7s -> itl-F.b-en-nt-t1-s2.json
+[itl] F.b cjk t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 41.3s -> itl-F.b-cjk-nt-t1-s2.json
+[itl] F.b mixed t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 39.4s -> itl-F.b-mixed-nt-t1-s2.json
+[itl] F.b en t=0.0 s=1: 16 requests, 0 failed, 6144 tokens in 45.4s -> itl-F.b-en-t0-s1.json
+[itl] F.b code t=0.0 s=1: 16 requests, 0 failed, 6144 tokens in 45.0s -> itl-F.b-code-t0-s1.json
+[itl] F.b en t=0.0 s=1: 16 requests, 0 failed, 6144 tokens in 44.9s -> itl-F.b-en-nt-t0-s1.json
+[itl] F.b en t=1.0 s=1: 16 requests, 0 failed, 6144 tokens in 53.1s -> itl-F.b-en-nt-t1-s1.json
+[12:53:45 +1941s] vLLM requests running after F.b: 0
+[12:53:46 +1942s] min MemAvailable MB (time MB; KILLED count) (F.b): 12:43:41 48325 0 
+[12:53:48 +1944s] serve arm B.b: env [INTARSIA_CB_TRACE=1 ] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[12:54:24 +1980s] serve B.b up; MemAvailable MB: 49135; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk);batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 33.1s, context 32768 tokens;
+[12:54:24 +1980s] vLLM requests running before B.b: 0
+[itl] B.b en t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 35.9s -> itl-B.b-en-t0-s2.json
+[itl] B.b code t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 34.9s -> itl-B.b-code-t0-s2.json
+[itl] B.b en t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 36.2s -> itl-B.b-en-nt-t0-s2.json
+[itl] B.b cjk t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 38.5s -> itl-B.b-cjk-nt-t0-s2.json
+[itl] B.b mixed t=0.0 s=2: 16 requests, 0 failed, 6144 tokens in 38.4s -> itl-B.b-mixed-nt-t0-s2.json
+[itl] B.b en t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 37.6s -> itl-B.b-en-t1-s2.json
+[itl] B.b code t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 37.3s -> itl-B.b-code-t1-s2.json
+[itl] B.b en t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 38.9s -> itl-B.b-en-nt-t1-s2.json
+[itl] B.b cjk t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 41.4s -> itl-B.b-cjk-nt-t1-s2.json
+[itl] B.b mixed t=1.0 s=2: 16 requests, 0 failed, 6144 tokens in 39.6s -> itl-B.b-mixed-nt-t1-s2.json
+[itl] B.b en t=0.0 s=1: 16 requests, 0 failed, 6144 tokens in 45.0s -> itl-B.b-en-t0-s1.json
+[itl] B.b code t=0.0 s=1: 16 requests, 0 failed, 6144 tokens in 45.4s -> itl-B.b-code-t0-s1.json
+[itl] B.b en t=0.0 s=1: 16 requests, 0 failed, 6144 tokens in 49.2s -> itl-B.b-en-nt-t0-s1.json
+[itl] B.b en t=1.0 s=1: 16 requests, 0 failed, 6144 tokens in 55.1s -> itl-B.b-en-nt-t1-s1.json
+[13:04:40 +2596s] vLLM requests running after B.b: 0
+[13:04:41 +2597s] min MemAvailable MB (time MB; KILLED count) (B.b): 12:54:25 48316 0 
+[13:04:43 +2599s] end
+fleetq: #9759 done (exit 0)

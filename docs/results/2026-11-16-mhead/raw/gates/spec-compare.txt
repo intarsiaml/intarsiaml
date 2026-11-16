@@ -1,0 +1,65 @@
+   base: joined on (token, pos), (drafted, accepted) only: 343 points in both arms, 0 with different drafted ids / accepted; 0 only in base, 0 only in base
+   base: position-free multiset (token, drafted, accepted, emits, drafted ids) differences vs base: 0
+base: 1017 verify passes, drafted 2028, accepted 1263; batched drafts 314; multiset differences vs base: 0
+   n1: joined on (token, pos), (drafted, accepted) only: 343 points in both arms, 0 with different drafted ids / accepted; 0 only in n1, 0 only in base
+   n1: position-free multiset (token, drafted, accepted, emits, drafted ids) differences vs base: 2034
+n1: 1017 verify passes, drafted 2028, accepted 1263; batched drafts 314; multiset differences vs base: 0
+   n0: joined on (token, pos), (drafted, accepted) only: 342 points in both arms, 7 with different drafted ids / accepted; 1 only in n0, 1 only in base
+   JOIN MISMATCH ('4', '4195'): n0 {('2', '2', '440, 1510'): 3} vs base {('2', '2', None): 2}
+   JOIN MISMATCH ('4', '4199'): n0 {('2', '2', '440, 1510'): 2} vs base {('2', '2', None): 3}
+   JOIN MISMATCH ('7', '4198'): n0 {('2', '0', '283, 328'): 3} vs base {('2', '0', None): 2}
+   JOIN MISMATCH ('7', '4202'): n0 {('2', '0', '283, 328'): 2} vs base {('2', '0', None): 3}
+   JOIN MISMATCH ('8', '4199'): n0 {('2', '2', '321, 1510'): 3} vs base {('2', '2', None): 2}
+   n0: position-free multiset (token, drafted, accepted, emits, drafted ids) differences vs base: 2033
+n0: 1016 verify passes, drafted 2026, accepted 1264; batched drafts 308; multiset differences vs base: 9
+   only in n0: ('10', '23', '2', '2', '3', '271, 16') x3
+   only in n0: ('100', '4295', '2', '2', '3', '12, 2972') x3
+   only in n0: ('101', '114', '2', '1', '2', '471, 2500') x3
+   only in n0: ('101', '4292', '2', '2', '3', '9705, 6381') x3
+   only in n0: ('103', '116', '2', '1', '2', '10616, 5245') x3
+   only in base: ('10', '23', '2', '2', '3', None) x3
+   only in base: ('100', '4295', '2', '2', '3', None) x3
+   only in base: ('101', '114', '2', '1', '2', None) x3
+   only in base: ('101', '4292', '2', '2', '3', None) x3
+   only in base: ('103', '116', '2', '1', '2', None) x3
+   chk: joined on (token, pos), (drafted, accepted) only: 343 points in both arms, 0 with different drafted ids / accepted; 0 only in chk, 0 only in base
+   chk: position-free multiset (token, drafted, accepted, emits, drafted ids) differences vs base: 2034
+chk: 1017 verify passes, drafted 2028, accepted 1263; batched drafts 314; multiset differences vs base: 0
+--- ref n0 (new binary, per-sequence head), ids compared:
+   n0: joined on (token, pos) incl. drafted ids: 343 points in both arms, 0 with different drafted ids / accepted; 0 only in n0, 0 only in n0
+   n0: position-free multiset (token, drafted, accepted, emits, drafted ids) differences vs n0: 0
+n0: 1016 verify passes, drafted 2026, accepted 1264; batched drafts 308; multiset differences vs n0: 0
+   n1: joined on (token, pos) incl. drafted ids: 342 points in both arms, 7 with different drafted ids / accepted; 1 only in n1, 1 only in n0
+   JOIN MISMATCH ('4', '4195'): n1 {('2', '2', '440, 1510'): 2} vs n0 {('2', '2', '440, 1510'): 3}
+   JOIN MISMATCH ('4', '4199'): n1 {('2', '2', '440, 1510'): 3} vs n0 {('2', '2', '440, 1510'): 2}
+   JOIN MISMATCH ('7', '4198'): n1 {('2', '0', '283, 328'): 2} vs n0 {('2', '0', '283, 328'): 3}
+   JOIN MISMATCH ('7', '4202'): n1 {('2', '0', '283, 328'): 3} vs n0 {('2', '0', '283, 328'): 2}
+   JOIN MISMATCH ('8', '4199'): n1 {('2', '2', '321, 1510'): 2} vs n0 {('2', '2', '321, 1510'): 3}
+   n1: position-free multiset (token, drafted, accepted, emits, drafted ids) differences vs n0: 3
+n1: 1017 verify passes, drafted 2028, accepted 1263; batched drafts 314; multiset differences vs n0: 9
+   only in n1: ('4', '4199', '2', '2', '3', '440, 1510') x1
+   only in n1: ('6', '4197', '2', '2', '3', '13927, 63') x1
+   only in n1: ('7', '4202', '2', '0', '1', '283, 328') x1
+   only in n1: ('8', '4203', '2', '0', '1', '321, 1510') x1
+   only in n1: ('9', '4204', '2', '1', '2', '321, 1510') x1
+   only in n0: ('4', '4195', '2', '2', '3', '440, 1510') x1
+   only in n0: ('6', '4201', '2', '2', '3', '13927, 63') x1
+   only in n0: ('7', '4198', '2', '0', '1', '283, 328') x1
+   only in n0: ('8', '4199', '2', '2', '3', '321, 1510') x1
+   chk: joined on (token, pos) incl. drafted ids: 342 points in both arms, 7 with different drafted ids / accepted; 1 only in chk, 1 only in n0
+   JOIN MISMATCH ('4', '4195'): chk {('2', '2', '440, 1510'): 2} vs n0 {('2', '2', '440, 1510'): 3}
+   JOIN MISMATCH ('4', '4199'): chk {('2', '2', '440, 1510'): 3} vs n0 {('2', '2', '440, 1510'): 2}
+   JOIN MISMATCH ('7', '4198'): chk {('2', '0', '283, 328'): 2} vs n0 {('2', '0', '283, 328'): 3}
+   JOIN MISMATCH ('7', '4202'): chk {('2', '0', '283, 328'): 3} vs n0 {('2', '0', '283, 328'): 2}
+   JOIN MISMATCH ('8', '4199'): chk {('2', '2', '321, 1510'): 2} vs n0 {('2', '2', '321, 1510'): 3}
+   chk: position-free multiset (token, drafted, accepted, emits, drafted ids) differences vs n0: 3
+chk: 1017 verify passes, drafted 2028, accepted 1263; batched drafts 314; multiset differences vs n0: 9
+   only in chk: ('4', '4199', '2', '2', '3', '440, 1510') x1
+   only in chk: ('6', '4197', '2', '2', '3', '13927, 63') x1
+   only in chk: ('7', '4202', '2', '0', '1', '283, 328') x1
+   only in chk: ('8', '4203', '2', '0', '1', '321, 1510') x1
+   only in chk: ('9', '4204', '2', '1', '2', '321, 1510') x1
+   only in n0: ('4', '4195', '2', '2', '3', '440, 1510') x1
+   only in n0: ('6', '4201', '2', '2', '3', '13927, 63') x1
+   only in n0: ('7', '4198', '2', '0', '1', '283, 328') x1
+   only in n0: ('8', '4199', '2', '2', '3', '321, 1510') x1

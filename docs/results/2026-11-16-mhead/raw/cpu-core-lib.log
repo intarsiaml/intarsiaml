@@ -1,0 +1,248 @@
+   Compiling serde v1.0.229
+   Compiling memchr v2.8.3
+   Compiling indexmap v2.14.2
+   Compiling syn v2.0.119
+   Compiling serde_json v1.0.154
+   Compiling zerocopy-derive v0.8.62
+   Compiling zerocopy v0.8.62
+   Compiling half v2.7.1
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/mhead/crates/intarsia-core)
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib test) generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 8.94s
+     Running unittests src/lib.rs (target/release/deps/intarsia_core-a281a1093171dcd5)
+
+running 213 tests
+test constrain::tests::full_words_keep_logits ... ok
+test constrain::tests::mask_bits_and_apply ... ok
+test dsv41::replay::tests::a_resumed_prefill_runs_only_the_rows_it_is_given ... ok
+test dsv41::replay::tests::classify_covers_encoder_cross_and_whole ... ok
+test draft_subset::tests::refuses_bad_files ... ok
+test backend::launch_status_tests::only_a_launch_error_is_a_device_fault ... ok
+test draft_subset::tests::parses_ranges_and_header ... ok
+test dsv41::engram::tests::mem_tier_serves_its_shard_and_zeroes_the_rest ... ok
+test admission::plan_case_tests::unknown_ops_have_no_case ... ok
+test dsv41::replay::tests::floor_is_the_last_window_rows ... ok
+test dsv41::replay::tests::only_the_last_chunks_decoder_half_is_read ... ok
+test dsv41::replay::tests::position_dumps_of_a_crossing_chunk_use_each_parts_own_first_row ... ok
+test dsv41::replay::tests::reuse_needs_valid_decoder_window_rows_from_the_floor ... ok
+test draft_subset::tests::fingerprint_is_order_and_content_sensitive ... ok
+test constrain::tests::prefetch_matches_sync ... ok
+test dsv41::replay::tests::a_prefill_sends_exactly_the_last_window_rows_through_the_decoder_half ... ok
+test dsv41::replay::tests::decoder_dead_matches_a_direct_simulation ... ok
+test dtype::tests::abi_header_matches ... ok
+test dsv41::replay::tests::the_setting_is_on_where_supported_unless_turned_off ... ok
+test dsv41::config::tests::shared_sources_follow_layer_order_and_ratio ... ok
+test dtype::tests::bulk_roundtrip_bf16 ... ok
+test dsv41::replay::tests::the_mia_layout_is_supported_and_variations_are_refused ... ok
+test dtype::tests::fp8_e4m3_roundtrip_all_codes ... ok
+test dsv41::config::tests::hf_and_flat_configs_parse_to_the_same_shapes ... ok
+test dtype::tests::fp8_e5m2_roundtrip ... ok
+test dsv41::engram::tests::hash_matches_the_official_ngram_hash ... ok
+test engine::batch::tests::busy_chunk_reaches_the_scheduler_config ... ok
+test engine::batch::tests::finished_request_is_not_reported_twice ... ok
+test engine::batch::tests::dropped_request_hears_an_error ... ok
+test engine::batch::tests::failed_request_counts_its_generated_tokens ... ok
+test dsv41::engram::tests::layout_primes_match_the_official_layout_and_table_sizes ... ok
+test engine::batch::tests::queued_then_failed_request_stays_counted ... ok
+test engine::batch::tests::spec_off_at_reaches_the_scheduler_config ... ok
+test fusion::tests::chains_expand_to_unfused_ops ... ok
+test gdn::tests::conv_state_carries_across_chunks ... ok
+test gdn::tests::delta_rule_first_token_is_beta_scaled_v ... ok
+test gdn::tests::delta_rule_state_carries_across_chunks ... ok
+test gdn::tests::short_conv_is_the_hf_formula_and_chunk_invariant ... ok
+test gdn::tests::split_and_gate ... ok
+test hostprof::tests::spans_fold_into_the_iteration_class ... ok
+test memplan::tests::clamps_to_free_memory ... ok
+test memplan::tests::mem_budget_caps_kv ... ok
+test model::batch::hip_guard_tests::device_sampling_is_on_unless_set_to_zero ... ok
+test model::batch::hip_guard_tests::hip_refuses_dense_batching_only ... ok
+test model::dcoco::tests::erf_matches_known_values ... ok
+test model::dcoco::tests::layer_norm_is_zero_mean_unit_variance ... ok
+test model::dflash_tree::tests::accept_walks_the_matching_path ... ok
+test model::dflash_tree::tests::one_child_per_node_is_the_greedy_chain ... ok
+test model::dspine::tests::head_dot_covers_the_remainder_columns ... ok
+test model::feedback::tests::initial_switch ... ok
+test model::weights_named_tests::a_call_without_a_kernel_for_its_weight_dtype_names_the_checkpoint_tensor ... ok
+test ops::tests::check_matmul ... ok
+test draft_subset::tests::checked_in_subsets_parse ... ok
+test ops::tests::check_phase1_folds ... ok
+test ops::tests::norm_calls_report_the_norm_weight_dtype_so_a_kernel_can_declare_it ... ok
+test ops::tests::op_names_roundtrip ... ok
+test ops::tests::check_qk_norm_rope_kv ... ok
+test ops::tests::check_phase2_folds ... ok
+test ops::tests::check_moeblock ... ok
+test plan::tests::batch_check_accepts_only_proven_fusions ... ok
+test plan::tests::batch_check_catches_a_kernel_switch_under_one_op ... ok
+test plan::tests::batch_check_accepts_hip_folds_per_row_or_as_row_table_chains ... ok
+test plan::tests::fnv_is_stable ... ok
+test plan::tests::lazy_admission_cases_default_to_metal_and_cuda_and_follow_the_switches ... ok
+test plan::tests::position_diff_names_the_differing_ops ... ok
+test plan::tests::probe_sizes_cover_small_and_boundaries ... ok
+test plan::tests::the_no_kernel_error_names_the_weight_tensors_their_dtype_and_the_op ... ok
+test prefix_store::tests::deferred_slabs_stay_within_the_cap ... ok
+test prefix_store::tests::parse_spec ... ok
+test prefix_store::tests::keys_depend_on_tokens_length_and_build ... ok
+test model::dflash_tree::tests::preorder_keeps_the_tree_and_puts_each_subtree_together ... ok
+test quant::exl3::tests::config_fields_and_refusals ... ok
+test quant::exl3::tests::hadamard_is_orthonormal ... ok
+test quant::exl3::tests::shards_off_the_hadamard_grid_are_refused ... ok
+test model::dflash_tree::tests::parents_before_children_depths_and_budget ... ok
+test quant::exl3::tests::signs_unpack_low_bit_first ... ok
+test quant::exl3::tests::stream_ends_and_positions ... ok
+test fusion::tests::fusions_name_existing_tests ... ok
+test quant::exl3::tests::codebook_values_spot_checks ... ok
+test quant::exl3_moe::tests::a_bad_offset_or_width_is_an_error ... ok
+test quant::fp8::frag_tests::eligibility ... ok
+test quant::fp8::frag_tests::pack_unpack_round_trip_and_layout ... ok
+test quant::fp8::tests::activation_snaps_to_the_fp8_grid ... ok
+test quant::fp8::tests::quantize_then_dequant ... ok
+test quant::head::tests::parse_and_precedence ... ok
+test quant::head::tests::rejects_a_short_tensor_and_a_bad_k ... ok
+test quant::mlx_affine::tests::baked_in_norm_shift_is_undone_only_where_the_converter_applied_it ... ok
+test quant::mlx_affine::tests::config_parses_defaults_overrides_and_refuses_other_modes ... ok
+test quant::mlx_affine::tests::rejects_inconsistent_layouts ... ok
+test quant::mxfp4::tests::act_precedence_is_cli_then_recipe_then_checkpoint ... ok
+test quant::mxfp4::tests::e8m0_decode ... ok
+test quant::mxfp4::tests::even_scale_rule ... ok
+test quant::mxfp4::tests::nibble_order_is_low_first ... ok
+test quant::mlx_affine::tests::source_exposes_bf16_weights_and_hf_names ... ok
+test quant::mlx_affine::tests::dequant_matches_the_numpy_reference_bitwise ... ok
+test quant::mxfp4::tests::quantize_roundtrip_error_is_small ... ok
+test quant::mxfp4::tests::qdq_keeps_representable_groups_and_saturates ... ok
+test quant::head::tests::mxfp4_matches_quantize_rows_and_chunks_do_not_matter ... ok
+test quant::head::tests::fp8_matches_the_format_quantiser_and_keeps_its_error_small ... ok
+test quant::mxfp4::tests::random_rows_are_finite_and_scaled ... ok
+test quant::nvfp4::tests::code_table_and_rounding ... ok
+test quant::head::tests::a_row_shard_is_the_rows_of_the_whole_quantised_tensor ... ok
+test quant::nvfp4::tests::nibble_order_is_low_first ... ok
+test quant::nvfp4::tests::quantize_roundtrip_error_is_small ... ok
+test quant::scheme::tests::a_global_algorithm_covers_every_layer_except_the_excluded ... ok
+test quant::scheme::tests::compressed_tensors_nvfp4a16_is_nvfp4_or_plain ... ok
+test quant::scheme::tests::declared_and_stored_formats_must_agree ... ok
+test quant::scheme::tests::exl3_layers_are_exl3_or_plain ... ok
+test quant::scheme::tests::compressed_tensors_other_schemes_are_refused_with_the_reason ... ok
+test quant::exl3::tests::forward_equals_dequant_matmul ... ok
+test quant::scheme::tests::globs ... ok
+test quant::scheme::tests::kv_cache_deviation_is_a_note ... ok
+test quant::scheme::tests::matching_formats_pass ... ok
+test quant::scheme::tests::parses_the_modelopt_layout ... ok
+test quant::scheme::tests::quark_mxfp4_w4a4_and_w4a16 ... ok
+test quant::scheme::tests::quark_other_schemes_are_rejected_per_layer ... ok
+test quant::scheme::tests::w4a4_and_unknown_algorithms_are_rejected ... ok
+test quant::scheme::tests::the_real_qwen36_scheme_accepts_what_the_loader_finds ... ok
+test quant::tests::detect_each_format ... ok
+test recipe::tests::batched_verify_and_verify_topk_are_per_backend_recipe_keys_unset_means_none ... ok
+test recipe::tests::conflicting_rope_theta_is_an_error ... ok
+test recipe::tests::legacy_config_loads ... ok
+test recipe::tests::missing_numbers_are_errors_not_defaults ... ok
+test recipe::tests::llama3_and_yarn_scaling_are_read_from_either_block ... ok
+test recipe::tests::moe_checkpoint_has_no_dense_width ... ok
+test recipe::tests::rope_parameters_layout_and_text_config ... ok
+test recipe::tests::unsupported_fields_are_rejected ... ok
+test registry::tests::a_row_table_kernel_takes_the_admission_of_the_kernel_it_twins ... ok
+test registry::tests::is_admitted_counts_a_row_table_twin_by_its_base ... ok
+test registry::tests::macro_builds_impl ... ok
+test registry::tests::tol_for_picks_the_f32_budget_only_for_f32_outputs ... ok
+test rng::tests::deterministic_and_in_range ... ok
+test rope::tests::from_config_forms ... ok
+test rope::tests::llama3_head128_llama31 ... ok
+test rope::tests::llama3_head16 ... ok
+test rope::tests::unscaled_has_no_table ... ok
+test rope::tests::yarn_head128_qwen_style ... ok
+test rope::tests::yarn_head16 ... ok
+test sampler::tests::sampler_timing ... ignored
+test sampler::tests::greedy_and_ties ... ok
+test sampler::tests::seeded_reproducible ... ok
+test sampler::tests::top_k_one_is_argmax ... ok
+test sampler::tests::top_p_cuts_tail ... ok
+test spec::tests::accept_longest_matching_prefix ... ok
+test spec::tests::auto_params_follow_the_target_and_the_env_wins ... ok
+test spec::tests::auto_policy_is_deterministic_and_forced_modes_hold ... ok
+test spec::tests::auto_policy_env_knobs_and_priors ... ok
+test spec::tests::auto_policy_follows_the_mtp_acceptance_then_the_measured_rate ... ok
+test spec::tests::auto_policy_replays_window_logs ... ignored
+test spec::tests::accept_needs_one_row_per_draft_plus_one - should panic ... ok
+test spec::tests::auto_policy_stays_on_mtp_for_noisy_prose_and_on_dflash_for_noisy_code ... ok
+test spec::tests::auto_policy_switches_when_the_content_changes ... ok
+test spec::tests::config_parse ... ok
+test spec::tests::cost_gate_backs_off_longer_while_retries_keep_failing_and_starts_short_after_one_holds ... ok
+test spec::tests::cost_gate_env_syntax ... ok
+test spec::tests::cost_gate_holds_speculation_off_where_a_pass_costs_what_its_tokens_would ... ok
+test spec::tests::cost_gate_keeps_speculating_where_it_pays ... ok
+test spec::tests::cost_gate_measures_the_plain_step_before_it_decides ... ok
+test spec::tests::cost_gate_needs_a_whole_window_under_the_line ... ok
+test spec::tests::cost_gate_probes_once_when_samples_arrive_a_step_late ... ok
+test spec::tests::cost_gate_retries_on_the_text_as_it_is_now ... ok
+test spec::tests::cost_gate_smooth_falls_back_on_a_noisy_estimate_near_the_line ... ok
+test spec::tests::cost_gate_is_off_with_zero_and_beside_other_sequences ... ok
+test spec::tests::depth_climbs_and_falls ... ok
+test spec::tests::gate_accepted_pass_resets_the_back_off_length ... ok
+test spec::tests::gate_backs_off_exponentially_on_a_run_of_failures ... ok
+test spec::tests::gate_busy_stops_probing_a_poor_request_and_keeps_a_good_one ... ok
+test spec::tests::gate_busy_threshold_is_the_mean_accepted_per_pass ... ok
+test spec::tests::gate_busy_warmup_and_off_switches ... ok
+test spec::tests::gate_cost_on_open_text_is_logarithmic ... ok
+test spec::tests::gate_not_busy_ignores_the_busy_check ... ok
+test spec::tests::gate_probe_hit_reopens_immediately ... ok
+test spec::tests::gate_resumes_when_alone_again ... ok
+test spec::tests::gate_starts_open_and_one_miss_does_not_close_it ... ok
+test spec::tests::gate_zero_fails_is_off ... ok
+test spec::tests::mb_rescues_likely_drafts ... ok
+test spec::tests::propose_falls_back_to_shorter_suffixes ... ok
+test spec::tests::propose_longest_suffix_most_recent ... ok
+test spec::tests::propose_min_skips_short_suffixes ... ok
+test spec::tests::propose_overlapping_repetition ... ok
+test spec::tests::propose_never_proposes_the_suffix_position_itself ... ok
+test prefix_store::tests::disk_eviction_of_a_queued_write_leaves_no_file ... ok
+test spec::tests::sampled_spec_enumeration_catches_a_wrong_residual ... ok
+test spec::tests::sampled_spec_parse ... ok
+test telemetry::tests::counters ... ok
+test telemetry::tests::queued_requests_that_never_start_stay_counted ... ok
+test tp_remote::serve_tests::a_failed_pass_is_answered_and_ends_serving ... ok
+test quant::exl3_moe::tests::every_case_validates_and_reports_its_shape ... ok
+test quant::exl3_moe::tests::a_wrong_scales_width_is_refused ... ok
+test quant::exl3::tests::every_case_validates ... ok
+test prefix_store::tests::disk_writes_stop_queueing_past_the_host_budget ... ok
+test tp_remote::serve_tests::a_primary_that_left_nothing_stuck_is_a_clean_end ... ok
+test tp_remote::serve_tests::an_encoder_forward_needs_a_model_that_knows_it ... ok
+test tp_remote::serve_tests::a_rank_with_nothing_queued_does_not_wait ... ok
+test sampler::tests::scratch_reuse_is_sample_row ... ok
+test tp_remote::serve_tests::the_primary_closing_the_stream_ends_serving_cleanly ... ok
+test quant::exl3_moe::tests::reference_matches_dequantised_math ... ok
+test quant::cases::tests::every_case_validates ... ok
+test admission::plan_case_tests::matmul_case_keeps_k_and_clamps_rows_and_n ... ok
+test tp_remote::serve_tests::a_lost_connection_ends_a_wait_for_an_answer_even_if_the_abort_never_returns ... ok
+test tp_remote::serve_tests::a_reported_failure_is_delivered_even_if_the_abort_never_returns ... ok
+test sampler::tests::dist_is_what_sample_row_draws ... ok
+test sampler::tests::topk_candidates_sample_like_the_whole_row ... ok
+test tp_remote::serve_tests::an_answer_sent_before_the_connection_was_lost_is_still_delivered ... ok
+test quant::exl3::tests::shards_reassemble_the_whole_layer ... ok
+test tp_remote::serve_tests::queued_work_that_fails_ends_the_rank ... ok
+test tp_remote::serve_tests::a_lost_connection_reports_to_the_hook_before_the_abort_whether_installed_before_or_after ... ok
+test spec::tests::mb_row_law_matches_the_driver ... ok
+test tp_remote::serve_tests::queued_work_that_cannot_finish_ends_the_rank_before_anything_is_freed ... ok
+test admission::sweep_dim_tests::moe_only_config_sweeps_no_zero_dim_case ... ok
+test spec::tests::sampled_spec_driver_samples_the_target_law ... ok
+test spec::tests::sampled_spec_law_is_the_target_law_exactly ... ok
+test sampler::tests::keyed_sort_matches_comparator_sort ... ok
+
+test result: ok. 211 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 12.11s
+

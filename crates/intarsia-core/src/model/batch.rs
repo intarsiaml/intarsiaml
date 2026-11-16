@@ -803,6 +803,10 @@ impl Model {
 
     /// One attention block of a batched step: the q / k / v projections and the output projection run once on all
     /// rows of `n`, the attention core once per row against that row's own cache at that row's own length.
+    /// `head` (lane mhead: the MTP head's one-row passes of a batched draft, [`Model::mtp_layer_batch`]): the caches are the head's, not
+    /// the row table's main-model slots, so the row-table chain is never taken and every row runs the solo step's one-row calls; and
+    /// the hybrid opt-in `recurrent_batch` is not required for a gated block, the backend's `Backend::batched_head` claim (row-exact
+    /// twins for every op of the head layer) being the opt-in of that caller.
     pub(super) fn attn_block_batch(
         &self,
         a: &AttnBlock,
@@ -810,6 +814,7 @@ impl Model {
         n: &TensorRef,
         out: &TensorRef,
         kv_done: bool,
+        head: bool,
         profile: bool,
     ) -> Result<()> {
         let b = sts.len();
@@ -822,7 +827,8 @@ impl Model {
         // With row tables the chain runs as one launch per op for all rows (`attn_batch_rows`) where the backend's fold of the gate
         // split and the prologue is a registered bitwise equivalent of that chain (`crate::fusion`): the per-sequence fold, which
         // writes that sequence's cache, is then not used (a launch bound to one sequence's buffers cannot be in a batched graph).
-        let chain_replaces_fold = self.row_tab.is_some()
+        let chain_replaces_fold = !head
+            && self.row_tab.is_some()
             && crate::fusion::fusion(self.backend.name(), Op::GateSplitQkNormRopeKv).is_some()
             && crate::fusion::fusion(self.backend.name(), Op::QkNormRopeKv).is_some();
         let prologues: Vec<Option<OpCall>> = if !a.gated || chain_replaces_fold {
@@ -857,13 +863,14 @@ impl Model {
         }
         let prologues: Vec<Option<OpCall>> = if folded { prologues } else { vec![None; b] };
         let (qc0, gate) = self.attn_project(a, n, b, kv_done, folded, profile)?;
+        // (the MTP head's batched pass is not a `forward_batch` step: `enable_batch` does not see it, its opt-in is the backend's claim)
         debug_assert!(
-            gate.is_none() || self.recurrent_batch,
+            gate.is_none() || self.recurrent_batch || head,
             "enable_batch rejects gated attention without the hybrid opt-in"
         );
         // Row tables: the whole per-row chain (q / k norm, rope, K and V append, split-KV decode) as one launch per op for all
         // rows, each on its own cache at its own position (R3a). Not for the folded gated prologue or a scaled rope.
-        if !folded {
+        if !folded && !head {
             if let Some(qc) = self.attn_batch_rows(a, sts, &bufs, qc0, profile)? {
                 let attn_out = bufs.q[1 - qc].clone();
                 return self.attn_out_proj(a, &attn_out, gate, qc, out, b, profile);
