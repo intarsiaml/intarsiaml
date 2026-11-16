@@ -1,0 +1,5 @@
+off: 9 / 9 identical to off solo
+base: 9 / 9 identical to off solo
+n1: 9 / 9 identical to off solo
+n0: 9 / 9 identical to off solo
+chk: 9 / 9 identical to off solo

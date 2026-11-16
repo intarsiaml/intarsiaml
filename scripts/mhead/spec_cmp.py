@@ -34,15 +34,32 @@ for arm in [ref] + arms:
     j = collections.defaultdict(collections.Counter)
     for k, v in c.items():
         j[k[:2]][(k[2], k[3], k[5])] += v
+    has_ids = all(k[5] is not None for k in c)
     if arm == ref:
-        R, RJ = c, j
+        R, RJ, ref_ids = c, j, has_ids
+    # a log without the drafted ids (a binary from before lane mhead) is compared on (drafted, accepted) only
+    cmp_ids = has_ids and ref_ids
+    strip = (lambda cn: collections.Counter({(a, b, None if not cmp_ids else d): n for (a, b, d), n in cn.items()}))
+    mode = " incl. drafted ids" if cmp_ids else ", (drafted, accepted) only"
     both = [k for k in j if k in RJ]
-    jbad = [k for k in both if j[k] != RJ[k]]
-    print(f"   {arm}: joined on (token, pos): {len(both)} points in both arms, {len(jbad)} with different drafted ids / accepted; {len(set(j) - set(RJ))} only in {arm}, {len(set(RJ) - set(j))} only in {ref}")
+    jbad = [k for k in both if strip(j[k]) != strip(RJ[k])]
+    print(f"   {arm}: joined on (token, pos){mode}: {len(both)} points in both arms, {len(jbad)} with different drafted ids / accepted; {len(set(j) - set(RJ))} only in {arm}, {len(set(RJ) - set(j))} only in {ref}")
     for k in sorted(jbad)[:5]:
         print(f"   JOIN MISMATCH {k}: {arm} {dict(j[k])} vs {ref} {dict(RJ[k])}")
     bad += bool(jbad)
-    diff = (c - R) + (R - c)
+    if not cmp_ids:
+        c2 = collections.Counter(); R2 = collections.Counter()
+        for k, v in c.items(): c2[k[:5] + (None,)] += v
+        for k, v in R.items(): R2[k[:5] + (None,)] += v
+        diff = (c2 - R2) + (R2 - c2)
+    else:
+        diff = (c - R) + (R - c)
+    # position-free: the arrival-time noise moves a request's start position (a 4k prompt's chunks land differently), never what token N drafts
+    nop = lambda cn: collections.Counter([x for k, v in cn.items() for x in [(k[0],) + k[2:]] * v])
+    if arm == ref:
+        R_nop = nop(c)
+    dn = nop(c) - R_nop, R_nop - nop(c)
+    print(f"   {arm}: position-free multiset (token, drafted, accepted, emits, drafted ids) differences vs {ref}: {sum(dn[0].values()) + sum(dn[1].values())}")
     print(f"{arm}: {sum(c.values())} verify passes, drafted {dr}, accepted {acc}; batched drafts {len(batches)}; multiset differences vs {ref}: {sum(diff.values())}")
     if diff:
         bad += 1
