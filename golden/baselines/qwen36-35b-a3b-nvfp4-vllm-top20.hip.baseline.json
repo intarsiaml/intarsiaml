@@ -1,10 +1,10 @@
 {
   "format": "intarsia-accuracy-baseline-v2",
-  "created_unix": 1792644585,
+  "created_unix": 1794761547,
   "tool_version": "0.0.1",
   "code": {
-    "head": "",
-    "code_tree": "",
+    "head": "4379dd0",
+    "code_tree": "a5d1066ac581",
     "dirty": false,
     "overlay": []
   },
@@ -21,7 +21,7 @@
       "--mem-budget",
       "29",
       "--golden",
-      "/work/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors",
+      "/models/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors",
       "--mode",
       "both",
       "--decode-positions",
@@ -29,7 +29,7 @@
       "--max-seq",
       "4096",
       "--write-baseline",
-      "/work/fx1out/w4/q-0-nobaseline/baselines/acc-short.baseline.json"
+      "/work/.gdn-default-logs/1115-1139/q-rec/baselines/acc-short.baseline.json"
     ],
     "disable_list": "",
     "fault": "",
@@ -43,7 +43,7 @@
       "gated_rmsnorm_matmul_fp8": "gated_rmsnorm_matmul_fp8_gemv",
       "gdn_conv": "gdn_conv_bf16",
       "gdn_conv_delta": "gdn_conv_delta_bf16",
-      "gdn_delta_rule": "gdn_delta_rule_bf16_v2",
+      "gdn_delta_rule": "gdn_delta_rule_bf16_chunk+gdn_delta_rule_bf16_v2",
       "matmul": "matmul_bf16+matmul_bf16_gemv",
       "matmul_fp8": "matmul_fp8_gemv_v2+matmul_fp8_mma_f8",
       "matmul_fp8_pair": "matmul_fp8_pair_gemv",
@@ -93,21 +93,49 @@
       "overall": {
         "mode": "prefill",
         "positions": 1441,
-        "top1_pct": 98.6120749479528,
-        "mean_kl": 0.007625840211595139,
-        "mean_kl21": 0.007416794263115527,
-        "top5_pct": 91.29770992366412,
+        "top1_pct": 98.47328244274809,
+        "mean_kl": 0.006001103558220383,
+        "mean_kl21": 0.005687661164740439,
+        "top5_pct": 91.70020818875781,
         "tail_ref": 0.017574283359717616,
-        "tail_ours": 0.017399762731976142,
-        "max_kl": 0.7150448995011207,
-        "max_kl21": 0.7108496543727024,
-        "tail_abs": 0.0017954342499144733,
+        "tail_ours": 0.017258246102171818,
+        "max_kl": 0.6192468517896793,
+        "max_kl21": 0.6192489457875741,
+        "tail_abs": 0.0013537171230892336,
         "nonfinite": 0,
-        "greedy_match_pct": 30.950728660652324,
+        "greedy_match_pct": 6.662040249826509,
         "floor_pass": true,
-        "mean_kl_scored": 0.0062664648297315875,
-        "mean_kl21_scored": 0.0059779569912112186,
-        "scored_positions": 1279
+        "mean_kl_scored": 0.005101293459656428,
+        "mean_kl21_scored": 0.004698707135686389,
+        "scored_positions": 1279,
+        "gate_definitions": [
+          {
+            "gate": "kl_floor",
+            "changed_on": "2026-10-21",
+            "log_ref": [
+              "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+              "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+            ],
+            "metrics": {
+              "all_rows_kl": 0.005687661164740439,
+              "scored_rows_kl": 0.004698707135686389
+            },
+            "old_def": {
+              "definition": "21-way KL over all rows <= static floor",
+              "metric_name": "all_rows_kl",
+              "metric": 0.005687661164740439,
+              "limit": 0.03,
+              "verdict": "PASS"
+            },
+            "current_def": {
+              "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+              "metric_name": "scored_rows_kl",
+              "metric": 0.004698707135686389,
+              "limit": 0.03,
+              "verdict": "PASS"
+            }
+          }
+        ]
       },
       "prompts": [
         {
@@ -139,27 +167,27 @@
         {
           "name": "code",
           "positions": 87,
-          "top1_pct": 98.85057471264368,
-          "mean_kl": 0.0010527910216293639,
-          "mean_kl21": 0.0010193762938930696,
-          "top5_pct": 95.86206896551724,
-          "tail_excess": -0.00038015587191437547,
-          "max_kl21": 0.006430527683624589,
-          "tail_abs": 0.0007240798356281813,
-          "mean_kl21_scored": 0.0010193762938930696,
+          "top1_pct": 97.70114942528735,
+          "mean_kl": 0.001341460702277846,
+          "mean_kl21": 0.0012025512745579177,
+          "top5_pct": 97.47126436781609,
+          "tail_excess": 0.00011023440733147723,
+          "max_kl21": 0.014278104377146156,
+          "tail_abs": 0.0009930017227623396,
+          "mean_kl21_scored": 0.0012025512745579177,
           "scored_positions": 87
         },
         {
           "name": "science",
           "positions": 79,
-          "top1_pct": 97.46835443037975,
-          "mean_kl": 0.01076262995633227,
-          "mean_kl21": 0.01362740471061491,
-          "top5_pct": 96.70886075949367,
-          "tail_excess": 0.004593699818076719,
-          "max_kl21": 0.581197345686153,
-          "tail_abs": 0.006351380711771635,
-          "mean_kl21_scored": 0.01362740471061491,
+          "top1_pct": 96.20253164556962,
+          "mean_kl": 0.006761975552777657,
+          "mean_kl21": 0.006668251202999019,
+          "top5_pct": 97.21518987341773,
+          "tail_excess": 0.00006168422226115459,
+          "max_kl21": 0.09127689744821693,
+          "tail_abs": 0.0023734991829349327,
+          "mean_kl21_scored": 0.006668251202999019,
           "scored_positions": 79
         },
         {
@@ -204,40 +232,40 @@
         {
           "name": "chat_reasoning",
           "positions": 90,
-          "top1_pct": 94.44444444444444,
-          "mean_kl": 0.022403902410290617,
-          "mean_kl21": 0.02245275002580388,
-          "top5_pct": 95.33333333333333,
-          "tail_excess": -0.00046930571548311237,
-          "max_kl21": 0.2898826100272715,
-          "tail_abs": 0.0006154230039153798,
-          "mean_kl21_scored": 0.008952874227917242,
+          "top1_pct": 96.66666666666667,
+          "mean_kl": 0.013018322274047013,
+          "mean_kl21": 0.01301856323842435,
+          "top5_pct": 96.22222222222223,
+          "tail_excess": -0.00045068852107080167,
+          "max_kl21": 0.12625246569129292,
+          "tail_abs": 0.001000268748285404,
+          "mean_kl21_scored": 0.01024155796353466,
           "scored_positions": 5
         },
         {
           "name": "long_prose_300",
           "positions": 300,
-          "top1_pct": 100.0,
-          "mean_kl": 0.0036503225835149106,
-          "mean_kl21": 0.0037147411717031375,
-          "top5_pct": 90.53333333333333,
-          "tail_excess": 0.0005687210198226126,
-          "max_kl21": 0.5050281130609562,
-          "tail_abs": 0.0013378582037635164,
-          "mean_kl21_scored": 0.0037147411717031375,
+          "top1_pct": 99.33333333333333,
+          "mean_kl": 0.0026310708297246637,
+          "mean_kl21": 0.0026796493661572374,
+          "top5_pct": 90.2,
+          "tail_excess": 0.00045475102870451124,
+          "max_kl21": 0.13077087407716306,
+          "tail_abs": 0.0010721794968710414,
+          "mean_kl21_scored": 0.0026796493661572374,
           "scored_positions": 300
         },
         {
           "name": "long_prose_700",
           "positions": 700,
           "top1_pct": 99.0,
-          "mean_kl": 0.006846876377039307,
-          "mean_kl21": 0.005987245196067153,
-          "top5_pct": 89.14285714285714,
-          "tail_excess": -0.0005134411771559552,
-          "max_kl21": 0.7108496543727024,
-          "tail_abs": 0.001344501529810261,
-          "mean_kl21_scored": 0.005987245196067153,
+          "mean_kl": 0.005561404457825554,
+          "mean_kl21": 0.0048469029982860685,
+          "top5_pct": 89.74285714285715,
+          "tail_excess": -0.00030779079991976997,
+          "max_kl21": 0.6192489457875741,
+          "tail_abs": 0.0009150866039769721,
+          "mean_kl21_scored": 0.0048469029982860685,
           "scored_positions": 700
         }
       ]
@@ -247,20 +275,48 @@
         "mode": "decode",
         "positions": 160,
         "top1_pct": 98.75,
-        "mean_kl": 0.011755706856344646,
-        "mean_kl21": 0.011715516188755964,
-        "top5_pct": 92.875,
+        "mean_kl": 0.011121503511622303,
+        "mean_kl21": 0.011081405861686542,
+        "top5_pct": 93.375,
         "tail_ref": 0.025770566161384394,
-        "tail_ours": 0.025398772067653713,
+        "tail_ours": 0.025421834225717633,
         "max_kl": 0.731541009027974,
         "max_kl21": 0.7308349256019548,
-        "tail_abs": 0.0022702815469946816,
+        "tail_abs": 0.0022624244958288626,
         "nonfinite": 0,
         "greedy_match_pct": 88.75,
         "floor_pass": true,
-        "mean_kl_scored": 0.012327864431432167,
-        "mean_kl21_scored": 0.012144712065903018,
-        "scored_positions": 118
+        "mean_kl_scored": 0.01199398596476038,
+        "mean_kl21_scored": 0.011812720970073977,
+        "scored_positions": 118,
+        "gate_definitions": [
+          {
+            "gate": "kl_floor",
+            "changed_on": "2026-10-21",
+            "log_ref": [
+              "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+              "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+            ],
+            "metrics": {
+              "all_rows_kl": 0.011081405861686542,
+              "scored_rows_kl": 0.011812720970073977
+            },
+            "old_def": {
+              "definition": "21-way KL over all rows <= static floor",
+              "metric_name": "all_rows_kl",
+              "metric": 0.011081405861686542,
+              "limit": 0.03,
+              "verdict": "PASS"
+            },
+            "current_def": {
+              "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+              "metric_name": "scored_rows_kl",
+              "metric": 0.011812720970073977,
+              "limit": 0.03,
+              "verdict": "PASS"
+            }
+          }
+        ]
       },
       "prompts": [
         {
@@ -293,13 +349,13 @@
           "name": "code",
           "positions": 16,
           "top1_pct": 100.0,
-          "mean_kl": 0.0015878553513714634,
-          "mean_kl21": 0.001591746442332795,
+          "mean_kl": 0.0004104704337982126,
+          "mean_kl21": 0.0004143363953732247,
           "top5_pct": 92.5,
-          "tail_excess": 0.00004027247540169083,
-          "max_kl21": 0.008593517336043714,
-          "tail_abs": 0.0000696072502708206,
-          "mean_kl21_scored": 0.001591746442332795,
+          "tail_excess": 1.3720130672694071e-6,
+          "max_kl21": 0.0021208359283421993,
+          "tail_abs": 0.000056701169624643336,
+          "mean_kl21_scored": 0.0004143363953732247,
           "scored_positions": 16
         },
         {
@@ -358,39 +414,39 @@
           "name": "chat_reasoning",
           "positions": 16,
           "top1_pct": 100.0,
-          "mean_kl": 0.02927467056053079,
-          "mean_kl21": 0.02933322336553162,
-          "top5_pct": 95.0,
-          "tail_excess": -0.0004474282119214613,
-          "max_kl21": 0.11729653625694582,
-          "tail_abs": 0.0004476391310200822,
-          "mean_kl21_scored": 0.02828623169700198,
+          "mean_kl": 0.018708236160440803,
+          "mean_kl21": 0.018754079993380714,
+          "top5_pct": 97.5,
+          "tail_excess": -0.00018993668346897405,
+          "max_kl21": 0.15393284247385422,
+          "tail_abs": 0.0003487518428651353,
+          "mean_kl21_scored": 0.006889513510775225,
           "scored_positions": 5
         },
         {
           "name": "long_prose_300",
           "positions": 16,
           "top1_pct": 100.0,
-          "mean_kl": 0.00007282886371889991,
-          "mean_kl21": 0.00007957237625675382,
+          "mean_kl": 0.0001951744085181607,
+          "mean_kl21": 0.00020282353372941953,
           "top5_pct": 93.75,
-          "tail_excess": 0.00003144786767217384,
-          "max_kl21": 0.00030025925510669953,
-          "tail_abs": 0.000044562830847762895,
-          "mean_kl21_scored": 0.00007957237625675382,
+          "tail_excess": 0.0000418303870443298,
+          "max_kl21": 0.0016956985272072887,
+          "tail_abs": 0.00005318666070391797,
+          "mean_kl21_scored": 0.00020282353372941953,
           "scored_positions": 16
         },
         {
           "name": "long_prose_700",
           "positions": 16,
           "top1_pct": 100.0,
-          "mean_kl": 0.0019194835802135394,
-          "mean_kl21": 0.0019282565046604353,
-          "top5_pct": 85.0,
-          "tail_excess": 0.000089667354683822,
-          "max_kl21": 0.010326455707244202,
-          "tail_abs": 0.00011410566902079073,
-          "mean_kl21_scored": 0.0019282565046604353,
+          "mean_kl": 0.007198923905854116,
+          "mean_kl21": 0.00722045549560403,
+          "top5_pct": 87.5,
+          "tail_excess": 0.00009131534983272129,
+          "max_kl21": 0.1056985294691022,
+          "tail_abs": 0.00013870469630756973,
+          "mean_kl21_scored": 0.00722045549560403,
           "scored_positions": 16
         }
       ]

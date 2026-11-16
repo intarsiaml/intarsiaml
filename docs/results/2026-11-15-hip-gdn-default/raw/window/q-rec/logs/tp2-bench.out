@@ -1,0 +1,4 @@
+qualify-Qwen3.6-35B-A3B-NVFP4-hip-tp2  model=qualify-Qwen3.6-35B-A3B-NVFP4  gen=16  reps=1
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen  % of floor
+     128      132     0.048         2764       192.2       16      335.5
+bandwidth floor: 57.3 tok/s

@@ -1,0 +1,5 @@
+target http://127.0.0.1:8090/v1/chat/completions  model qualify-Qwen3.6-35B-A3B-NVFP4
+server context window: 2048 tokens
+calibration: 46 base tokens, 21.62 tokens per filler sentence
+  size    128 rep: prompt=132 gen=16 ttft=0.05s prefill=2764 tok/s decode=192.2 tok/s
+wrote /work/.gdn-default-logs/1115-1139/q-rec/bench/qualify-Qwen3.6-35B-A3B-NVFP4-hip-tp2.json

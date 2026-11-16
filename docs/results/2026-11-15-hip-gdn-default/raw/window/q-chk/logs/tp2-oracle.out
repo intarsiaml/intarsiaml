@@ -1,0 +1,26 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   3.638e-3   3.799e-3   3.799e-3   4.734e-2   0.0337   0.0321    94.21     38/38      0
+story                 39    39    94.87   3.609e-3   3.545e-3   3.545e-3   2.771e-2   0.0209   0.0226    96.41      4/39      0
+code                  87    87   100.00   2.198e-3   1.732e-3   1.732e-3   7.957e-2   0.0116   0.0114    96.32     87/87      0
+science               79    79    97.47   6.239e-3   6.464e-3   6.464e-3   1.650e-1   0.0120   0.0127    96.71     26/79      0
+chat_short            18    18   100.00   2.396e-3   2.439e-3   4.341e-3   1.532e-2   0.0301   0.0297    95.56     18/18      0
+chat_system           32    32    90.62   5.076e-2   5.091e-2   3.796e-2   6.081e-1   0.0184   0.0200    91.88      6/32      0
+chat_multiturn        58    58   100.00   2.873e-3   2.892e-3   6.596e-3   4.036e-2   0.0181   0.0180    94.14     58/58      0
+chat_reasoning        90    90    97.78   4.597e-3   4.642e-3   1.402e-2   6.033e-2   0.0145   0.0142    96.22      4/90      0
+long_prose_300       300   300    99.33   2.024e-3   2.010e-3   2.010e-3   1.008e-1   0.0091   0.0089    90.33     5/300      0
+long_prose_700       700   700    99.57   4.290e-3   4.145e-3   4.145e-3   6.202e-1   0.0075   0.0075    90.63    31/700      0
+long_docs_4k        4064  4064    95.10   1.294e-2   1.180e-2   1.180e-2   4.905e-1   0.0577   0.0588    92.31    7/4064      0
+OVERALL                   5505    96.13   1.079e-2   9.930e-3   9.899e-3   6.202e-1   0.0454   0.0462    92.25      5.2%      0
+prefill floor [bf16]: top-1 (all rows) 96.13% (need >= 0) ok | 21-way KL (scored rows, n=5343) 9.899e-3 (need <= 2.0e-2) ok [all rows, n=5505: 9.930e-3, reported only] | tail mass (all rows) ours 0.0462 vs ref 0.0454, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 2.000e-2 | no ref noise measured for this golden => effective 2.000e-2 bound by static floor; KL 9.899e-3 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 9.930e-3 (21-way KL over all rows <= static floor) | current def: PASS 9.899e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 43.0% of positions before the first argmax divergence, worst prompt 0.2% (informational)
+
+wrote baseline /work/.gdn-default-logs/1115-1139/q-chk/baselines/tp2-oracle.baseline.json (1 mode(s); absolute floor passed)
+
+wrote self-golden /work/.gdn-default-logs/1115-1139/q-chk/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip-tp2.selfgolden.safetensors (top-64 rows of modes prefill for 11 prompts; written by head 4379dd0 code-tree a5d1066ac581 clean)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
