@@ -1,0 +1,57 @@
+[23:51:04 +2s] gates start (35b on spark2); vLLM: 200; earlyoom: active; Mem:             121          48          31           0          43          73; binaries: intarsia 0.0.1 intarsia 0.0.1 
+plan bare main exit 0
+plan bare mx6 exit 0
+[23:52:11 +69s] plan show json bare (35b, cuda; env [X=1] args []): main vs mx6: IDENTICAL 15570 15570 
+plan mb2 main exit 2
+plan mb2 mx6 exit 2
+[23:52:12 +70s] plan show json mb2 (35b, cuda; env [X=1] args [--max-batch 2]): main vs mx6: IDENTICAL 0 0 
+plan n main exit 2
+plan n mx6 exit 2
+[23:52:14 +72s] plan show json n (35b, cuda; env [INTARSIA_BATCHED_MTP=2] args [--max-batch 2 --spec mtp --spec-k 2]): main vs mx6: IDENTICAL 0 0 
+plan on main exit 2
+plan on mx6 exit 2
+[23:52:16 +74s] plan show json on (35b, cuda; env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1] args [--max-batch 2 --spec mtp --spec-k 2]): main vs mx6: IDENTICAL 0 0 
+[23:52:17 +75s] serve arm ids-R: env [X=1] ~/intarsia-mx6/bin/intarsia-mx6 serve --backend cuda --model <35b> --max-seq 8192 --mem-budget 40 --profile-every 0 --max-batch 2 --spec off
+[23:53:00 +118s] serve ids-R up; MemAvailable MB: 51713
+[23:53:00 +118s] load lines (ids-R): admission on plan shapes: 41 kernel(s) checked, 511 case(s) run, 0 cached|
+greedy/b1: 1752 tokens in 20.75 s; batched verify passes by sequences none, rows 0; verify passes 0, drafted 0, accepted 0
+greedy/b2: 1752 tokens in 14.31 s; batched verify passes by sequences none, rows 0; verify passes 0, drafted 0, accepted 0
+t1.0/b1: 1752 tokens in 21.42 s; batched verify passes by sequences none, rows 0; verify passes 0, drafted 0, accepted 0
+t1.0/b2: 1752 tokens in 14.45 s; batched verify passes by sequences none, rows 0; verify passes 0, drafted 0, accepted 0
+mixed-greedy-t1.0/b2: 1752 tokens in 14.43 s; batched verify passes by sequences none, rows 0; verify passes 0, drafted 0, accepted 0
+[23:54:27 +205s] min MemAvailable MB (time MB; KILLED count) (ids-R): 23:53:04 51697 0 
+[23:54:29 +207s] serve arm ids-M: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1] ~/intarsia-mx6/bin/intarsia-mx6 serve --backend cuda --model <35b> --max-seq 8192 --mem-budget 40 --profile-every 0 --max-batch 2 --spec mtp --spec-k 2 --mtp-draft-vocab 131072
+[23:55:20 +258s] serve ids-M up; MemAvailable MB: 49849
+[23:55:20 +258s] load lines (ids-M): batched verify: the plan covers passes of up to 2 sequences (6 rows)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gate|admission on plan shapes: 42 kernel(s) checked, 174 case(s) run, 511 cached|batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off|batched verify: sampled rows as the device-side top-k when the request samples from it (INTARSIA_VERIFY_TOPK=1)|batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)|
+greedy/b1: 1752 tokens in 13.62 s; batched verify passes by sequences none, rows 0; verify passes 677, drafted 1350, accepted 1056 (0.782; 2.56 tokens/pass)
+greedy/b2: 1752 tokens in 11.83 s; batched verify passes by sequences {'1': 3, '2': 274}, rows 1652; verify passes 677, drafted 1350, accepted 1056 (0.782; 2.56 tokens/pass)
+t1.0/b1: 1752 tokens in 16.77 s; batched verify passes by sequences {'1': 0, '2': 0}, rows 0; verify passes 737, drafted 1470, accepted 998 (0.679; 2.35 tokens/pass)
+t1.0/b2: 1752 tokens in 13.35 s; batched verify passes by sequences {'1': 2, '2': 294}, rows 1768; verify passes 737, drafted 1470, accepted 998 (0.679; 2.35 tokens/pass)
+mixed-greedy-t1.0/b2: 1752 tokens in 12.33 s; batched verify passes by sequences {'1': 3, '2': 285}, rows 1717; verify passes 699, drafted 1395, accepted 1036 (0.743; 2.48 tokens/pass)
+[23:56:29 +327s] min MemAvailable MB (time MB; KILLED count) (ids-M): 23:55:22 49777 0 
+[23:56:31 +329s] serve arm ids-MM: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1] ~/intarsia-mx6/bin/intarsia-main serve --backend cuda --model <35b> --max-seq 8192 --mem-budget 40 --profile-every 0 --max-batch 2 --spec mtp --spec-k 2 --mtp-draft-vocab 131072
+[23:57:18 +376s] serve ids-MM up; MemAvailable MB: 51125
+[23:57:18 +376s] load lines (ids-MM): speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gate|admission on plan shapes: 42 kernel(s) checked, 9 case(s) run, 632 cached|batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off|batched verify: sampled rows as the device-side top-k when the request samples from it (INTARSIA_VERIFY_TOPK=1)|batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)|
+greedy/b1: 1752 tokens in 14.24 s; batched verify passes by sequences none, rows 0; verify passes 677, drafted 1350, accepted 1056 (0.782; 2.56 tokens/pass)
+greedy/b2: 1752 tokens in 11.77 s; batched verify passes by sequences none, rows 0; verify passes 677, drafted 1350, accepted 1056 (0.782; 2.56 tokens/pass)
+t1.0/b1: 1752 tokens in 16.89 s; batched verify passes by sequences none, rows 0; verify passes 737, drafted 1470, accepted 998 (0.679; 2.35 tokens/pass)
+t1.0/b2: 1752 tokens in 13.43 s; batched verify passes by sequences none, rows 0; verify passes 737, drafted 1470, accepted 998 (0.679; 2.35 tokens/pass)
+mixed-greedy-t1.0/b2: 1752 tokens in 12.31 s; batched verify passes by sequences none, rows 0; verify passes 699, drafted 1395, accepted 1036 (0.743; 2.48 tokens/pass)
+[23:58:28 +446s] min MemAvailable MB (time MB; KILLED count) (ids-MM): 23:57:22 50310 0 
+R        greedy/b1                12/12 requests identical to R b1 | verify passes 0 drafted 0 accepted 0
+R        greedy/b2                12/12 requests identical to R b1 | verify passes 0 drafted 0 accepted 0
+R        t1.0/b1                  12/12 requests identical to R b1 | verify passes 0 drafted 0 accepted 0
+R        t1.0/b2                  12/12 requests identical to R b1 | verify passes 0 drafted 0 accepted 0
+R        mixed-greedy-t1.0/b2     12/12 requests identical to R b1 | verify passes 0 drafted 0 accepted 0
+M        greedy/b1                12/12 requests identical to R b1 | verify passes 677 drafted 1350 accepted 1056 (0.782)
+M        greedy/b2                12/12 requests identical to R b1 | verify passes 677 drafted 1350 accepted 1056 (0.782)
+M        t1.0/b1                  12/12 requests identical to R b1 | verify passes 737 drafted 1470 accepted 998 (0.679)
+M        t1.0/b2                  12/12 requests identical to R b1 | verify passes 737 drafted 1470 accepted 998 (0.679)
+M        mixed-greedy-t1.0/b2     12/12 requests identical to R b1 | verify passes 699 drafted 1395 accepted 1036 (0.743)
+MM       greedy/b1                12/12 requests identical to R b1 | verify passes 677 drafted 1350 accepted 1056 (0.782)
+MM       greedy/b2                12/12 requests identical to R b1 | verify passes 677 drafted 1350 accepted 1056 (0.782)
+MM       t1.0/b1                  12/12 requests identical to R b1 | verify passes 737 drafted 1470 accepted 998 (0.679)
+MM       t1.0/b2                  12/12 requests identical to R b1 | verify passes 737 drafted 1470 accepted 998 (0.679)
+MM       mixed-greedy-t1.0/b2     12/12 requests identical to R b1 | verify passes 699 drafted 1395 accepted 1036 (0.743)
+VERDICT: PASS: every request's ids are identical across arms and concurrency
+[23:58:30 +448s] end

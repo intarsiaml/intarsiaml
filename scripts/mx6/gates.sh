@@ -17,7 +17,7 @@ for part in ${PARTS:-plan ids}; do
       OPT="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1"
       # (no associative arrays: this runs under the Mac's bash 3.2)
       cfg() { case $1 in bare) echo "X=1|" ;; mb2) echo "X=1|--max-batch 2" ;; n) echo "INTARSIA_BATCHED_MTP=2|--max-batch 2 --spec mtp --spec-k 2" ;; on) echo "$OPT|--max-batch 2 --spec mtp --spec-k 2" ;; esac; }
-      for c in ${CFGS:-bare mb2 n on}; do
+      for c in ${CFGS:-bare}; do   # `plan show` takes no --max-batch / --spec (exit 2, empty files: a vacuous cmp), so only the bare plan is compared here; the served plans below cover the knobs
         v=$(cfg $c); e=${v%%|*}; a=${v#*|}
         for b in main mx6; do
           rsh "env $e $B/intarsia-$b plan show --backend cuda --model $MP --max-seq $MS --mem-budget $MB $a --json > $L/out/plan-$TAG-$c-$b.json 2> $L/out/plan-$TAG-$c-$b.err; echo plan $c $b exit \$?" | tee -a "$LOG"
@@ -44,6 +44,22 @@ for part in ${PARTS:-plan ids}; do
         fi
       done
       python3 "$S/ids_compare.py" "$OUT" ${ARMS:-R M} 2>&1 | tee -a "$LOG" "$OUT/ids-compare.txt"
+      # the served plans (`GET /v1/intarsia/plan`, what `serve` really resolved with --max-batch 2): knobs off must equal main's byte for byte, the opt-in set must grow
+      for a in ${PLANARMS:-RM N NM MM}; do
+        arm_setup $a
+        if start_serve "plan-$a" "$ENVS" --max-batch 2 $ARGS; then finish_serve "plan-$a"; fi
+      done
+      pl() { python3 -m json.tool --sort-keys "$OUT/plan-served-$1.json" 2>/dev/null; }
+      for pair in "ids-R plan-RM" "plan-N plan-NM"; do
+        set -- $pair
+        if [[ -s "$OUT/plan-served-$1.json" && -s "$OUT/plan-served-$2.json" ]]; then
+          cmp -s <(pl $1) <(pl $2) && log "served plan $1 (mx6) vs $2 (main), knobs off: IDENTICAL" || log "served plan $1 (mx6) vs $2 (main), knobs off: DIFFERENT"
+        else log "served plan $1 vs $2: a file is missing"; fi
+      done
+      mm=ids-MM; [[ -s "$OUT/plan-served-$mm.json" ]] || mm=plan-MM
+      if [[ -s "$OUT/plan-served-ids-M.json" && -s "$OUT/plan-served-$mm.json" ]]; then
+        diff <(pl $mm) <(pl ids-M) > "$OUT/plan-served-on.diff"; log "served plan, opt-in set, main (MM) vs mx6 (M): $(wc -l < "$OUT/plan-served-on.diff") diff lines (plan-served-on.diff)"
+      fi
       ;;
   esac
 done

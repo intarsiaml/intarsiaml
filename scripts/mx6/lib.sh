@@ -26,6 +26,7 @@ trap cleanup EXIT; trap 'cleanup; exit 130' INT TERM
 #   M   = mx6 binary, the failing opt-in set           (INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1, --spec mtp --spec-k 2 --mtp-draft-vocab DV)
 #   MM  = main binary, the same opt-in set             (the 27B crashes at the first request; the 35B serves)
 #   N   = mx6 binary, batched MTP without batched verify (INTARSIA_BATCHED_MTP=2 only)
+#   RM / NM = the main binary with R's / N's flags (plan references: `plan show` does not take --max-batch / --spec, so the served plan is the one that counts)
 arm_setup() {
   local dv=65536; [[ $MODEL == 35 ]] && dv=131072
   ENVS="X=1"; ARGS=""
@@ -34,6 +35,8 @@ arm_setup() {
     M)  BIN=$B/intarsia-mx6; ENVS="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1"; ARGS="--spec mtp --spec-k 2 --mtp-draft-vocab $dv" ;;
     MM) BIN=$B/intarsia-main; ENVS="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1"; ARGS="--spec mtp --spec-k 2 --mtp-draft-vocab $dv" ;;
     N)  BIN=$B/intarsia-mx6; ENVS="INTARSIA_BATCHED_MTP=2"; ARGS="--spec mtp --spec-k 2 --mtp-draft-vocab $dv" ;;
+    RM) BIN=$B/intarsia-main; ARGS="--spec off" ;;
+    NM) BIN=$B/intarsia-main; ENVS="INTARSIA_BATCHED_MTP=2"; ARGS="--spec mtp --spec-k 2 --mtp-draft-vocab $dv" ;;
     *)  return 1 ;;
   esac
 }
@@ -51,6 +54,7 @@ start_serve() {
 }
 finish_serve() { # finish_serve <name>
   curl -sf "http://$HN:$PORT/metrics" > "$OUT/serve-$1.metrics" 2>/dev/null
+  curl -sf "http://$HN:$PORT/v1/intarsia/plan" > "$OUT/plan-served-$1.json" 2>/dev/null
   rsh "cat $L/out/serve-$1.log" > "$OUT/serve-$1.log"
   log "min MemAvailable MB (time MB; KILLED count) ($1): $(rsh "sort -k2 -n $L/out/mem-$1.txt | head -1; grep -c KILLED $L/out/mem-$1.txt" | tr '\n' ' ')"
   stop_server
