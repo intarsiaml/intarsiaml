@@ -1,0 +1,21 @@
+22:42:14 guard: [guard] radiance stopped 2026-11-15 22:42:13
+22:42:14 phase tp1 round 1 arm tp1-off: starting server
+22:44:25 phase tp1 round 1 arm tp1-off: server up, localeval
+22:44:40 phase tp1 round 1 arm tp1-off: localeval exit 0 - result file: `results/20261115-224426-adhoc-gdn27speed-tp1-tp1-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-224426-adhoc-gdn27speed-tp1-tp1-off-r1/result.json|
+22:44:41 phase tp1 round 1 arm tp1-on: starting server
+22:46:18 phase tp1 round 1 arm tp1-on: server up, localeval
+22:46:34 phase tp1 round 1 arm tp1-on: localeval exit 0 - result file: `results/20261115-224620-adhoc-gdn27speed-tp1-tp1-on-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-224620-adhoc-gdn27speed-tp1-tp1-on-r1/result.json|
+22:46:35 phase tp1 round 2 arm tp1-on: starting server
+22:48:12 phase tp1 round 2 arm tp1-on: server up, localeval
+22:48:27 phase tp1 round 2 arm tp1-on: localeval exit 0 - result file: `results/20261115-224813-adhoc-gdn27speed-tp1-tp1-on-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-224813-adhoc-gdn27speed-tp1-tp1-on-r2/result.json|
+22:48:27 phase tp1 round 2 arm tp1-off: starting server
+22:50:05 phase tp1 round 2 arm tp1-off: server up, localeval
+22:50:20 phase tp1 round 2 arm tp1-off: localeval exit 0 - result file: `results/20261115-225005-adhoc-gdn27speed-tp1-tp1-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-225005-adhoc-gdn27speed-tp1-tp1-off-r2/result.json|
+22:50:20 phase tp1 round 3 arm tp1-off: starting server
+22:51:58 phase tp1 round 3 arm tp1-off: server up, localeval
+22:52:13 phase tp1 round 3 arm tp1-off: localeval exit 0 - result file: `results/20261115-225158-adhoc-gdn27speed-tp1-tp1-off-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-225158-adhoc-gdn27speed-tp1-tp1-off-r3/result.json|
+22:52:14 phase tp1 round 3 arm tp1-on: starting server
+22:53:51 phase tp1 round 3 arm tp1-on: server up, localeval
+22:54:06 phase tp1 round 3 arm tp1-on: localeval exit 0 - result file: `results/20261115-225352-adhoc-gdn27speed-tp1-tp1-on-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-225352-adhoc-gdn27speed-tp1-tp1-on-r3/result.json|
+22:54:06 done, time left 1684s
+22:54:22 guard: [guard] radiance answers 2026-11-15 22:54:22 (after 20 s)

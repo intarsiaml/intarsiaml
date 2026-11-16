@@ -1,0 +1,53 @@
+[localeval] calibrated: 22.1 tokens/sentence, 53 base tokens, ctx=18432
+[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.12s prefill=8350 tok/s decode=185.1 tok/s peak=274.3 tok/s out=64
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.12s prefill=8170 tok/s decode=178.2 tok/s peak=248.7 tok/s out=64
+[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.12s prefill=8166 tok/s decode=195.1 tok/s peak=227.2 tok/s out=64
+[localeval]   4096 tok rep 1/3: prompt=4089 ttft=0.36s prefill=11325 tok/s decode=235.4 tok/s peak=284.0 tok/s out=64
+[localeval]   4096 tok rep 2/3: prompt=4086 ttft=0.35s prefill=11794 tok/s decode=211.7 tok/s peak=264.9 tok/s out=64
+[localeval]   4096 tok rep 3/3: prompt=4091 ttft=0.34s prefill=11915 tok/s decode=223.4 tok/s peak=241.4 tok/s out=64
+[localeval]  16384 tok rep 1/3: prompt=16656 ttft=1.56s prefill=10654 tok/s decode=183.0 tok/s peak=229.4 tok/s out=64
+[localeval]  16384 tok rep 2/3: prompt=16656 ttft=1.56s prefill=10645 tok/s decode=182.8 tok/s peak=230.1 tok/s out=64
+[localeval]  16384 tok rep 3/3: prompt=16654 ttft=1.63s prefill=10203 tok/s decode=197.9 tok/s peak=208.6 tok/s out=64
+# localeval: adhoc — 2026-11-16T00:02
+
+- model: `qwen36-35b` on ? (?), url `http://tatooine:8090/v1`
+- thinking: off; run kind: speed; label: mtpsnap-main-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d96f899
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8090/v1 --model qwen36-35b --label mtpsnap-main-r1 --sizes 1024,4096,16384 --gen 64 --reps 3 --thinking off --wait-idle 60 --recipe HIP_VISIBLE_DEVICES=0 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b --spec mtp --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor (tree mtpsnap-gpu, bin main, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)`
+- result file: `results/20261116-000244-adhoc-mtpsnap-main-r1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b --spec mtp --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor (tree mtpsnap-gpu, bin main, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)
+````
+
+## Speed sweep
+
+served `qwen36-35b`, fingerprint `None`, ctx 18432, 3 reps, 64 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.12 | 8170 (8166–8350) * | - | 185.1 (178.2–195.1) | 248.7 (227.2–274.3) | - | - | 64 |
+| 4089 | 0.35 | 11794 (11325–11915) | 13773 | 223.4 (211.7–235.4) | 264.9 (241.4–284.0) | - | - | 64 |
+| 16656 | 1.56 | 10645 (10203–10654) | 10309 | 183.0 (182.8–197.9) | 229.4 (208.6–230.1) | - | - | 64 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 10.6% at 4096 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261116-000244-adhoc-mtpsnap-main-r1/result.json
+[localeval] logged to unanimis: 9b1285da-81eb-449d-a8cc-680b6f896429

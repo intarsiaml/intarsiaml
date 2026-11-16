@@ -1,0 +1,12 @@
+kernels test off exit 0 : 55 kernels, 1276 cases in 39.6s
+  35B attn_decode off exit 0 : 3 kernels, 190 cases in 8.3s
+  27B attn_decode off exit 0 : 3 kernels, 190 cases in 9.1s
+  35B attn_prefill off exit 0 : 4 kernels, 87 cases in 8.4s
+kernels test on exit 0 : 55 kernels, 1276 cases in 38.6s
+  35B attn_decode on exit 0 : 3 kernels, 190 cases in 8.3s
+  27B attn_decode on exit 0 : 3 kernels, 190 cases in 9.0s
+  35B attn_prefill on exit 0 : 4 kernels, 87 cases in 8.4s
+/opt/code/intarsiaml/.worktrees/mka/docs/results/2026-11-15-mka-metal-kv-once/raw/gates/kernels-off.out:0
+/opt/code/intarsiaml/.worktrees/mka/docs/results/2026-11-15-mka-metal-kv-once/raw/gates/kernels-on.out:0
+kernels test off vs on (times stripped):        4 differing lines
+## done kernels

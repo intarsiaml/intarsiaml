@@ -1,0 +1,40 @@
+fleetq: #9470 waiting (#3 in line): in line behind #9462 "mtt: gate 2 plan show main vs branch (8B/27B/35B)" (claude-2ae67a71) on endor
+fleetq:   #9462 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9462 set, or it will wait for #9462 to be released.
+fleetq: #9470 waiting (#2 in line): in line behind #9463 "mtt: gate 1 served ids 27B (lazy on/off/spec off)" (claude-2ae67a71) on endor
+fleetq:   #9463 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9463 set, or it will wait for #9463 to be released.
+fleetq: #9470 waiting (#1 in line): needs gpu quiet on endor, but #9463 "mtt: gate 1 served ids 27B (lazy on/off/spec off)" (claude-2ae67a71) loads it
+fleetq:   #9463 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9463 set, or it will wait for #9463 to be released.
+fleetq: #9470 running on endor: scripts/mtt/ttft.sh on1 old1:INTARSIA_METAL_MTP_TTFT_FIX=0 'off1::--spec off' 'offold1:INTARSIA_METAL_MTP_TTFT_FIX=0:--spec off' 'offold2:INTARSIA_METAL_MTP_TTFT_FIX=0:--spec off' 'off2::--spec off' old2:INTARSIA_METAL_MTP_TTFT_FIX=0 on2
+## on1 [] [] 21:12:54 thermal com.apple.system.thermalpressurelevel 1 load 16.0s
+nonce on1a-13220: ttft 814 ms, events 48, first gaps ms [22.5, 16.9, 0.0, 17.0, 17.1, 0.0], total 1131 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce on1b-30395: ttft 900 ms, events 48, first gaps ms [16.8, 16.5, 0.0, 16.6, 15.7, 15.6], total 1203 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce on1c-32222: ttft 879 ms, events 48, first gaps ms [16.5, 16.3, 0.0, 0.0, 16.8, 15.8], total 1182 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+## old1 [INTARSIA_METAL_MTP_TTFT_FIX=0] [] 21:13:25 thermal com.apple.system.thermalpressurelevel 0 load 10.3s
+nonce old1a-13023: ttft 806 ms, events 48, first gaps ms [19.4, 15.1, 0.0, 0.0, 15.5, 0.0], total 1123 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce old1b-25704: ttft 863 ms, events 48, first gaps ms [16.1, 15.6, 0.0, 0.0, 16.1, 15.4], total 1156 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce old1c-5335: ttft 856 ms, events 48, first gaps ms [15.8, 15.8, 0.0, 0.0, 16.1, 15.7], total 1183 ms, usage {'prompt_tokens': 4106, 'completion_tokens': 48, 'total_tokens': 4154, 'prompt_tokens_details': {'cached_tokens': 0}}
+## off1 [] [--spec off] 21:13:33 thermal com.apple.system.thermalpressurelevel 0 load 2.6s
+nonce off1a-22567: ttft 781 ms, events 48, first gaps ms [8.2, 8.2, 8.2, 8.3, 8.4, 8.6], total 1173 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce off1b-27608: ttft 751 ms, events 48, first gaps ms [8.4, 8.5, 8.4, 8.5, 8.3, 8.5], total 1143 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce off1c-23009: ttft 752 ms, events 48, first gaps ms [8.6, 8.6, 8.6, 8.8, 8.6, 8.5], total 1146 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+## offold1 [INTARSIA_METAL_MTP_TTFT_FIX=0] [--spec off] 21:13:42 thermal com.apple.system.thermalpressurelevel 0 load 4.5s
+nonce offold1a-30123: ttft 784 ms, events 48, first gaps ms [8.3, 8.2, 8.2, 8.2, 8.2, 8.3], total 1172 ms, usage {'prompt_tokens': 4108, 'completion_tokens': 48, 'total_tokens': 4156, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce offold1b-12787: ttft 859 ms, events 48, first gaps ms [9.4, 9.3, 9.3, 9.3, 9.3, 9.2], total 1275 ms, usage {'prompt_tokens': 4108, 'completion_tokens': 48, 'total_tokens': 4156, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce offold1c-32686: ttft 855 ms, events 4, first gaps ms [9.1, 9.0, 9.1], total 883 ms, usage {'prompt_tokens': 4108, 'completion_tokens': 5, 'total_tokens': 4113, 'prompt_tokens_details': {'cached_tokens': 0}}
+## offold2 [INTARSIA_METAL_MTP_TTFT_FIX=0] [--spec off] 21:13:52 thermal com.apple.system.thermalpressurelevel 0 load 4.4s
+nonce offold2a-10945: ttft 810 ms, events 48, first gaps ms [9.1, 9.2, 9.1, 9.2, 9.1, 9.1], total 1220 ms, usage {'prompt_tokens': 4108, 'completion_tokens': 48, 'total_tokens': 4156, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce offold2b-29907: ttft 874 ms, events 48, first gaps ms [9.3, 9.2, 9.1, 9.2, 9.1, 9.0], total 1286 ms, usage {'prompt_tokens': 4108, 'completion_tokens': 48, 'total_tokens': 4156, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce offold2c-30124: ttft 869 ms, events 48, first gaps ms [9.2, 9.2, 9.1, 9.2, 9.0, 9.0], total 1278 ms, usage {'prompt_tokens': 4108, 'completion_tokens': 48, 'total_tokens': 4156, 'prompt_tokens_details': {'cached_tokens': 0}}
+## off2 [] [--spec off] 21:14:00 thermal com.apple.system.thermalpressurelevel 0 load 2.6s
+nonce off2a-5884: ttft 793 ms, events 48, first gaps ms [8.2, 8.3, 8.2, 8.2, 8.3, 8.3], total 1180 ms, usage {'prompt_tokens': 4106, 'completion_tokens': 48, 'total_tokens': 4154, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce off2b-32049: ttft 743 ms, events 48, first gaps ms [8.3, 8.2, 8.3, 8.2, 8.2, 8.2], total 1130 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce off2c-13027: ttft 743 ms, events 4, first gaps ms [8.4, 8.2, 8.3], total 768 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 5, 'total_tokens': 4112, 'prompt_tokens_details': {'cached_tokens': 0}}
+## old2 [INTARSIA_METAL_MTP_TTFT_FIX=0] [] 21:14:15 thermal com.apple.system.thermalpressurelevel 0 load 10.4s
+nonce old2a-5061: ttft 817 ms, events 48, first gaps ms [20.3, 15.8, 0.0, 0.0, 16.5, 15.9], total 1137 ms, usage {'prompt_tokens': 4106, 'completion_tokens': 48, 'total_tokens': 4154, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce old2b-3064: ttft 904 ms, events 3, first gaps ms [16.2, 16.3], total 937 ms, usage {'prompt_tokens': 4106, 'completion_tokens': 4, 'total_tokens': 4110, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce old2c-28520: ttft 917 ms, events 48, first gaps ms [16.3, 16.0, 0.0, 16.6, 0.0, 16.2], total 1231 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+## on2 [] [] 21:15:09 thermal com.apple.system.thermalpressurelevel 0 load 3.4s
+nonce on2a-18636: ttft 942 ms, events 48, first gaps ms [24.0, 19.1, 0.0, 19.5, 18.6, 18.4], total 1285 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce on2b-30830: ttft 1060 ms, events 48, first gaps ms [22.1, 18.2, 0.0, 18.6, 17.2, 0.0], total 1422 ms, usage {'prompt_tokens': 4107, 'completion_tokens': 48, 'total_tokens': 4155, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce on2c-7696: ttft 1035 ms, events 48, first gaps ms [21.7, 17.8, 0.0, 0.0, 18.0, 17.4], total 1396 ms, usage {'prompt_tokens': 4106, 'completion_tokens': 48, 'total_tokens': 4154, 'prompt_tokens_details': {'cached_tokens': 0}}
+fleetq: #9470 done (exit 0)

@@ -1,0 +1,63 @@
+21:10:48 guard: [guard] radiance stopped 2026-11-15 21:10:47
+21:10:48 tp1 round 1 arm main: starting server
+21:11:01 tp1 round 1 arm main: server up, localeval
+21:11:11 tp1 round 1 arm main: localeval exit 0 - result file: `results/20261115-211105-adhoc-a4kspd-tp1-main-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-211105-adhoc-a4kspd-tp1-main-r1/result.json|
+21:11:12 tp1 round 1 arm dev: starting server
+21:11:25 tp1 round 1 arm dev: server up, localeval
+21:11:31 tp1 round 1 arm dev: localeval exit 0 - result file: `results/20261115-211125-adhoc-a4kspd-tp1-dev-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-211125-adhoc-a4kspd-tp1-dev-r1/result.json|
+21:11:31 tp1 round 2 arm dev: starting server
+21:11:44 tp1 round 2 arm dev: server up, localeval
+21:11:50 tp1 round 2 arm dev: localeval exit 0 - result file: `results/20261115-211145-adhoc-a4kspd-tp1-dev-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-211145-adhoc-a4kspd-tp1-dev-r2/result.json|
+21:11:50 tp1 round 2 arm main: starting server
+21:12:03 tp1 round 2 arm main: server up, localeval
+21:12:09 tp1 round 2 arm main: localeval exit 0 - result file: `results/20261115-211204-adhoc-a4kspd-tp1-main-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-211204-adhoc-a4kspd-tp1-main-r2/result.json|
+21:12:09 tp1 round 3 arm main: starting server
+21:12:22 tp1 round 3 arm main: server up, localeval
+21:12:27 tp1 round 3 arm main: localeval exit 0 - result file: `results/20261115-211222-adhoc-a4kspd-tp1-main-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-211222-adhoc-a4kspd-tp1-main-r3/result.json|
+21:12:27 tp1 round 3 arm dev: starting server
+21:12:40 tp1 round 3 arm dev: server up, localeval
+21:12:46 tp1 round 3 arm dev: localeval exit 0 - result file: `results/20261115-211241-adhoc-a4kspd-tp1-dev-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-211241-adhoc-a4kspd-tp1-dev-r3/result.json|
+21:12:46 done, time left 2327s
+21:12:57 guard: [guard] radiance answers 2026-11-15 21:12:57 (after 15 s)
+21:16:58 guard: [guard] radiance stopped 2026-11-15 21:16:57
+21:16:58 tp2 round 1 arm main: starting server
+21:17:07 tp2 round 1 arm main: server up, localeval
+21:17:13 tp2 round 1 arm main: localeval exit 0 - result file: `results/20261115-211709-adhoc-a4kspd-tp2-main-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-211709-adhoc-a4kspd-tp2-main-r1/result.json|
+21:17:14 tp2 round 1 arm dev: starting server
+21:17:23 tp2 round 1 arm dev: server up, localeval
+21:17:29 tp2 round 1 arm dev: localeval exit 0 - result file: `results/20261115-211724-adhoc-a4kspd-tp2-dev-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-211724-adhoc-a4kspd-tp2-dev-r1/result.json|
+21:17:29 tp2 round 2 arm dev: starting server
+21:17:39 tp2 round 2 arm dev: server up, localeval
+21:17:45 tp2 round 2 arm dev: localeval exit 0 - result file: `results/20261115-211740-adhoc-a4kspd-tp2-dev-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-211740-adhoc-a4kspd-tp2-dev-r2/result.json|
+21:17:45 tp2 round 2 arm main: starting server
+21:17:55 tp2 round 2 arm main: server up, localeval
+21:18:00 tp2 round 2 arm main: localeval exit 0 - result file: `results/20261115-211755-adhoc-a4kspd-tp2-main-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-211755-adhoc-a4kspd-tp2-main-r2/result.json|
+21:18:00 tp2 round 3 arm main: starting server
+21:18:10 tp2 round 3 arm main: server up, localeval
+21:18:15 tp2 round 3 arm main: localeval exit 0 - result file: `results/20261115-211810-adhoc-a4kspd-tp2-main-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-211810-adhoc-a4kspd-tp2-main-r3/result.json|
+21:18:15 tp2 round 3 arm dev: starting server
+21:18:25 tp2 round 3 arm dev: server up, localeval
+21:18:30 tp2 round 3 arm dev: localeval exit 0 - result file: `results/20261115-211825-adhoc-a4kspd-tp2-dev-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-211825-adhoc-a4kspd-tp2-dev-r3/result.json|
+21:18:30 done, time left 1404s
+21:18:40 guard: [guard] radiance answers 2026-11-15 21:18:40 (after 15 s)
+21:22:02 guard: [guard] radiance stopped 2026-11-15 21:22:01
+21:22:02 tp1x round 1 arm main: starting server
+21:22:15 tp1x round 1 arm main: server up, localeval
+21:22:27 tp1x round 1 arm main: localeval exit 0 - result file: `results/20261115-212216-adhoc-a4kspd-tp1x-main-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-212216-adhoc-a4kspd-tp1x-main-r1/result.json|
+21:22:28 tp1x round 1 arm dev: starting server
+21:22:40 tp1x round 1 arm dev: server up, localeval
+21:22:53 tp1x round 1 arm dev: localeval exit 0 - result file: `results/20261115-212241-adhoc-a4kspd-tp1x-dev-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-212241-adhoc-a4kspd-tp1x-dev-r1/result.json|
+21:22:53 tp1x round 2 arm dev: starting server
+21:23:06 tp1x round 2 arm dev: server up, localeval
+21:23:18 tp1x round 2 arm dev: localeval exit 0 - result file: `results/20261115-212306-adhoc-a4kspd-tp1x-dev-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-212306-adhoc-a4kspd-tp1x-dev-r2/result.json|
+21:23:19 tp1x round 2 arm main: starting server
+21:23:31 tp1x round 2 arm main: server up, localeval
+21:23:43 tp1x round 2 arm main: localeval exit 0 - result file: `results/20261115-212332-adhoc-a4kspd-tp1x-main-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-212332-adhoc-a4kspd-tp1x-main-r2/result.json|
+21:23:44 tp1x round 3 arm main: starting server
+21:23:56 tp1x round 3 arm main: server up, localeval
+21:24:09 tp1x round 3 arm main: localeval exit 0 - result file: `results/20261115-212357-adhoc-a4kspd-tp1x-main-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-212357-adhoc-a4kspd-tp1x-main-r3/result.json|
+21:24:09 tp1x round 3 arm dev: starting server
+21:24:22 tp1x round 3 arm dev: server up, localeval
+21:24:34 tp1x round 3 arm dev: localeval exit 0 - result file: `results/20261115-212422-adhoc-a4kspd-tp1x-dev-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-212422-adhoc-a4kspd-tp1x-dev-r3/result.json|
+21:24:35 done, time left 1643s
+21:24:50 guard: [guard] radiance answers 2026-11-15 21:24:50 (after 20 s)

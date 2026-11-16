@@ -134,6 +134,14 @@ pub struct ModelArgs {
     /// recipe). `--mtp-draft-vocab 0` forces the full head.
     #[arg(long, value_parser = parse_draft_vocab)]
     pub mtp_draft_vocab: Option<usize>,
+    /// With `--spec mtp` (lane dsubset, opt-in): draft over the lm_head rows listed in FILE (a draft subset file, built from the
+    /// model's own outputs by `scripts/dsubset/build_subset.py`; `recipes/data/mtp-draft-subset/`) instead of a prefix, so a
+    /// ~65k-row head drafts every script (a prefix head stops at its last id: no Cyrillic, Arabic, Hangul or kana at any size up
+    /// to 131072, no Chinese below 95726). The rows are gathered at load and the drafts mapped back to token ids. Output is
+    /// unchanged (the verify pass keeps the full head). Wins over the recipe's `draft_vocab`; not with `--mtp-draft-vocab N`.
+    /// CUDA and cpu. Needs `--spec mtp` or a recipe MTP default (an error with another `--spec`). Unset: `INTARSIA_MTP_DRAFT_SUBSET`.
+    #[arg(long)]
+    pub mtp_draft_subset: Option<PathBuf>,
     /// Concurrent sequences the engine decodes together (continuous batching). Not a flag of this group: only
     /// `serve --max-batch` sets it, because the other commands need the single-sequence engine.
     #[arg(skip)]
@@ -306,10 +314,31 @@ impl ModelArgs {
         self.spec.as_deref().unwrap_or("off")
     }
 
+    /// `--mtp-draft-subset` (or `INTARSIA_MTP_DRAFT_SUBSET`), loaded and checked against the model's tokenizer.json; None when unset.
+    fn draft_subset(&self) -> Result<Option<Arc<intarsia_core::draft_subset::DraftSubset>>> {
+        let env = std::env::var_os("INTARSIA_MTP_DRAFT_SUBSET").filter(|v| !v.is_empty()).map(PathBuf::from);
+        let Some(path) = self.mtp_draft_subset.clone().or(env) else { return Ok(None) };
+        // `--spec` unset: the recipe's MTP default may still draft (the 35B on CUDA), and the loader ignores the subset otherwise
+        if self.spec.as_deref().is_some_and(|m| m != "mtp") {
+            bail!("--mtp-draft-subset {} needs --spec mtp or the recipe's MTP default (it replaces the MTP drafter's head; --spec is {})", path.display(), self.spec_mode());
+        }
+        if let Some(n) = self.mtp_draft_vocab.filter(|&n| n > 0) {
+            bail!("--mtp-draft-subset and --mtp-draft-vocab {n} both choose the drafter's head rows: pass one");
+        }
+        let sub = intarsia_core::draft_subset::DraftSubset::load(&path).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let tj = self.model.join("tokenizer.json");
+        if sub.tokenizer.is_some() {
+            let text = std::fs::read_to_string(&tj).with_context(|| format!("--mtp-draft-subset: reading {} to check the subset's tokenizer", tj.display()))?;
+            sub.check_tokenizer(&text).map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
+        Ok(Some(Arc::new(sub)))
+    }
+
     pub fn engine_options(&self) -> Result<EngineOptions> {
         if let Some(n) = self.mtp_draft_vocab.filter(|&n| n > 0).filter(|_| self.spec_mode() != "mtp") {
             anyhow::bail!("--mtp-draft-vocab {n} needs --spec mtp (it narrows the MTP drafter's head; --spec is {})", self.spec_mode());
         }
+        let mtp_draft_subset = self.draft_subset()?;
         let kv_dtype = self.kv_dtype.as_deref().map(DType::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?;
         let chat_template = if let Some(p) = &self.chat_template_file {
             ChatTemplateSource::File(p.clone())
@@ -337,6 +366,7 @@ impl ModelArgs {
                 mtp_k: 0, // set from --spec-k by the loader
                 mtp_whole: false, // the loader sets it for a group with a rank in another process
                 mtp_draft_vocab: self.mtp_draft_vocab,
+                mtp_draft_subset,
                 dflash: None, // set from --spec-draft by the loader
                 dflash_tp: None, // INTARSIA_DFLASH_TP (lane dh)
                 prefill_macro: None, // INTARSIA_PREFILL_MACRO (Model::load)
@@ -355,6 +385,7 @@ impl ModelArgs {
                 force_reference: self.reference,
                 cache_dir: None,
                 no_cache: self.no_admission_cache,
+                lazy_cases: None,
             },
             spec: intarsia_core::spec::SpecConfig::parse(
                 self.spec_mode(),

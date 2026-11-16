@@ -1,0 +1,69 @@
+21:19:32 stages start; head=f219eec code-tree=aa4946c84c9a dirty=no; STEPS=s1 rec chk
+1b32357eaa08043145c5ae67ff7197d22618f06601389c095db188dd0876d612  golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors
+32e2b96d84cc4de1593f6ba3eed2131315376901e462353fc917cefcb3640ebd  golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+21:20:22 s1-w4a16-chunk0 exit 1 [INTARSIA_GDN_CHUNK=0]
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.out:golden gate: FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.err:mxfp4 activations: none (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.err:this build: head f219eec code-tree aa4946c84c9a clean
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunk0.err:Error: accuracy gate FAILED
+21:20:36 s1-w4a4-chunk0 exit 0 [INTARSIA_GDN_CHUNK=0]
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunk0.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunk0.out:golden gate: PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunk0.err:mxfp4 activations: dynamic (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunk0.err:this build: head f219eec code-tree aa4946c84c9a clean
+21:20:51 s1-w4a16-chunkon exit 1
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.out:golden gate: FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.err:mxfp4 activations: none (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.err:this build: head f219eec code-tree aa4946c84c9a clean
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a16-chunkon.err:Error: accuracy gate FAILED
+21:21:05 s1-w4a4-chunkon exit 1
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.out:golden gate: FAIL
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.err:mxfp4 activations: dynamic (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.err:this build: head f219eec code-tree aa4946c84c9a clean
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/s1-w4a4-chunkon.err:Error: accuracy gate FAILED
+21:21:05 STOP: 1a (w4a16, INTARSIA_GDN_CHUNK=0) did not PASS; not re-recording
+21:25:32 stages start; head=f219eec code-tree=aa4946c84c9a dirty=no; STEPS=rec chk self
+1b32357eaa08043145c5ae67ff7197d22618f06601389c095db188dd0876d612  golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors
+32e2b96d84cc4de1593f6ba3eed2131315376901e462353fc917cefcb3640ebd  golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors
+21:27:37 q-rec-w4a4 exit 1
+21:27:54 rec-w4a16-baseline exit 0
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-baseline.out:floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-baseline.out:golden gate: PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-baseline.err:mxfp4 activations: none (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-baseline.err:this build: head f219eec code-tree aa4946c84c9a clean
+21:28:09 rec-w4a16-envelope exit 0
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-envelope.out:floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-envelope.out:golden gate: PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-envelope.err:mxfp4 activations: none (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/rec-w4a16-envelope.err:this build: head f219eec code-tree aa4946c84c9a clean
+total 880
+drwxrwxr-x 2 josef josef   4096 Nov 15 21:28 .
+drwxrwxr-x 5 josef josef   4096 Nov 15 21:27 ..
+-rw-r--r-- 1 josef josef  15828 Nov 15 21:27 qwen3.8-27b-mxfp4-hfquark-w4a16-top20.hip.baseline.json
+-rw-r--r-- 1 josef josef  34735 Nov 15 21:28 qwen3.8-27b-mxfp4-hfquark-w4a16-top20.hip.envelope.json
+-rw-r--r-- 1 josef josef 839308 Nov 15 21:27 w4a16-self.safetensors
+21:29:46 q-chk-w4a4 exit 1
+21:30:01 chk-w4a16 exit 0
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a16.out:floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a16.out:golden gate: PASS
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a16.err:mxfp4 activations: none (--mxfp4-act)
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a16.err:this build: head f219eec code-tree aa4946c84c9a clean
+/home/josef/intarsiaml-b27-rerecord/.b27-logs/main/chk-w4a16.err:WARNING: the baseline is from the same code tree as this build (--allow-same-code): this checks reproducibility only
+21:30:17 self-w4a4-base exit 1 [INTARSIA_GDN_CHUNK=0]
+21:30:20 self-w4a4-change exit 1
+21:30:24 self-w4a4-plain exit 1
+21:30:27 self-w4a4-control exit 1 [INTARSIA_GDN_CHUNK=0]
+-- self-w4a4-change
+-- self-w4a4-plain
+-- self-w4a4-control
+21:30:44 self-w4a16-base exit 0 [INTARSIA_GDN_CHUNK=0]
+21:30:47 self-w4a16-change exit 1
+21:30:51 self-w4a16-plain exit 1
+21:30:54 self-w4a16-control exit 1 [INTARSIA_GDN_CHUNK=0]
+-- self-w4a16-change
+-- self-w4a16-plain
+-- self-w4a16-control
+21:30:54 stages done

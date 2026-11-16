@@ -685,8 +685,10 @@ pub fn batched_mtp_for(recipe: &intarsia_core::recipe::Recipe, backend: &str, wo
 /// `INTARSIA_BATCHED_VERIFY=1`. The plan must know before it is built (lane mx6): a batched pass has more rows than a solo verify
 /// pass, so the plan probes and admits those row counts only when this is on, and the engine (`BatchedOptions::batched_verify`) runs
 /// the pass only where the plan covers it. Whatever turns it on by default must be decided here, before `configure_plan`.
-pub fn batched_verify_for(_recipe: &intarsia_core::recipe::Recipe, _backend: &str) -> bool {
-    std::env::var("INTARSIA_BATCHED_VERIFY").is_ok_and(|v| v == "1")
+pub fn batched_verify_for(recipe: &intarsia_core::recipe::Recipe, backend: &str) -> bool {
+    // lane flipprep's rule: `INTARSIA_BATCHED_VERIFY` wins both ways (`1` on, anything else off) where set and non-empty; else the recipe's
+    // `[tuning.<backend>] batched_verify`; unset in both: off
+    intarsia_core::engine::bool_env_opt("INTARSIA_BATCHED_VERIFY").unwrap_or_else(|| recipe.resolve_batched_verify(backend).unwrap_or(false))
 }
 
 /// Most sequences of one batched verify pass for this load: the sequences that draft together ([`batched_mtp_for`], at most
@@ -1097,8 +1099,18 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
                 bo.mtp_max_b.min(bo.spec_off_at.saturating_sub(1))
             );
         }
-        // the value the plan was built for (lane mx6; `BatchedOptions::new` read the env var alone)
+        // lane flipprep: the recipe's `[tuning.<backend>] verify_topk` applies where the env var is unset or empty (the env var wins both ways); unset in both: off.
+        // Batched verify is resolved once before the plan (`batched_verify_for`, lane mx6) and the engine gets the value the plan was built for
         bo.batched_verify = batched_verify_asked;
+        if intarsia_core::engine::bool_env_opt("INTARSIA_VERIFY_TOPK").is_none() {
+            bo.verify_topk = recipe.resolve_verify_topk(backend_name).unwrap_or(false);
+        }
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && (bo.batched_verify || bo.verify_topk) {
+            eprintln!(
+                "batched MTP verify: batched_verify {} (INTARSIA_BATCHED_VERIFY or recipe [tuning.{backend_name}] batched_verify), verify_topk {} (INTARSIA_VERIFY_TOPK or recipe verify_topk)",
+                bo.batched_verify, bo.verify_topk
+            );
+        }
         if let Some(n) = opts.busy_chunk {
             bo.busy_chunk = n;
         } else if let Some(n) = recipe.resolve_busy_chunk(backend_name) {

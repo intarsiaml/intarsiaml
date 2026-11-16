@@ -1,0 +1,9 @@
+Qwen3.6-35B-A3B-NVFP4-4096-default prefill 886 ms (4622.7 tok/s) decode 730 ms (131.50 tok/s)  spec: verify passes=39 proposed=77 accepted=56 (acceptance 72.7%, 2.44 tokens per pass)
+Qwen3.6-35B-A3B-NVFP4-4096-off prefill 854 ms (4797.9 tok/s) decode 852 ms (112.64 tok/s)  
+Qwen3.6-35B-A3B-NVFP4-32768-default prefill 9843 ms (3328.7 tok/s) decode 1043 ms (92.08 tok/s)  spec: verify passes=39 proposed=77 accepted=57 (acceptance 74.0%, 2.46 tokens per pass)
+Qwen3.6-35B-A3B-NVFP4-32768-off prefill 9185 ms (3567.3 tok/s) decode 1279 ms (75.07 tok/s)  
+Qwen3.8-27B-Quark-AWQ-MXFP4-4096-default prefill 5998 ms (682.9 tok/s) decode 1815 ms (52.90 tok/s)  spec: verify passes=39 proposed=77 accepted=57 (acceptance 74.0%, 2.46 tokens per pass)
+Qwen3.8-27B-Quark-AWQ-MXFP4-4096-off prefill 5060 ms (809.5 tok/s) decode 3271 ms (29.35 tok/s)  
+Qwen3.8-27B-Quark-AWQ-MXFP4-32768-default prefill 51557 ms (635.5 tok/s) decode 2448 ms (39.22 tok/s)  spec: verify passes=36 proposed=72 accepted=60 (acceptance 83.3%, 2.67 tokens per pass)
+Qwen3.8-27B-Quark-AWQ-MXFP4-32768-off prefill 51321 ms (638.4 tok/s) decode 4002 ms (23.99 tok/s)  
+## done

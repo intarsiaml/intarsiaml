@@ -1,0 +1,16 @@
+policy of the on arm: []
+base: n=1: 768 tokens
+base: n=4: 768 tokens
+base: n=8: 768 tokens
+base: streams vs solo inside this arm: 16 of 16 stream cells equal their solo run
+off: n=1: 768 tokens
+off: n=4: 768 tokens
+off: n=8: 768 tokens
+off: streams vs solo inside this arm: 16 of 16 stream cells equal their solo run
+on: n=1: 768 tokens
+on: n=4: 768 tokens
+on: n=8: 768 tokens
+on: streams vs solo inside this arm: 16 of 16 stream cells equal their solo run
+/opt/code/intarsiaml/.worktrees/mka/docs/results/2026-11-15-mka-metal-kv-once/raw/gates/served/base.json vs /opt/code/intarsiaml/.worktrees/mka/docs/results/2026-11-15-mka-metal-kv-once/raw/gates/served/off.json: 24 of 24 cells equal
+/opt/code/intarsiaml/.worktrees/mka/docs/results/2026-11-15-mka-metal-kv-once/raw/gates/served/off.json vs /opt/code/intarsiaml/.worktrees/mka/docs/results/2026-11-15-mka-metal-kv-once/raw/gates/served/on.json: 24 of 24 cells equal
+## done ident

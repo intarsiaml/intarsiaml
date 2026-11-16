@@ -1,0 +1,30 @@
+[22:50:14 +1s] sweep s1 start; vLLM: 200; earlyoom: active; Mem:             121          39          32           0          51          82; binary: intarsia 0.0.1
+[22:50:14 +1s] serve arm V0.b-s1: env [X=1] serve --backend cuda --model /home/nvidia/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 8192 --mem-budget 30 --profile-every 0 --spec mtp --spec-k 2 --mtp-draft-vocab 0
+[22:50:57 +44s] serve V0.b-s1 up; MemAvailable MB: 64883; mtp head quantised (INTARSIA_MTP_QUANT / recipe mtp_quant): fc and attention fp8, feed-forward mxfp4; drafts only, verified output unchanged;mtp: drafter head 'mtp' loaded in 0.8 s (routed experts quantised to nvfp4);--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_mr_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gd;loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 39.1s, context 8192 tokens;
+[22:50:58 +45s] draft-head fallback lines in the server log of V0.b (must be 0): 0
+[22:50:58 +45s] vLLM requests running before V0.b: 0
+[speed] V0.b-s1 streams 1: per stream 22.38 tok/s (20.02-27.9), combined 22.38, ITL p99 404.96 ms, chunk gap p99 109.07 ms (max 364.12), CJK share 0.0 MTP passes 961 accept 0.552 tokens/pass 2.103
+[speed] V0.b-s1 streams 1: per stream 23.26 tok/s (19.85-25.81), combined 23.26, ITL p99 376.98 ms, chunk gap p99 94.51 ms (max 189.31), CJK share 0.0 MTP passes 947 accept 0.565 tokens/pass 2.128
+[speed] V0.b-s1 streams 1: per stream 22.19 tok/s (18.91-27.63), combined 22.19, ITL p99 257.97 ms, chunk gap p99 108.37 ms (max 547.34), CJK share 0.281 MTP passes 981 accept 0.53 tokens/pass 2.058
+[speed] V0.b-s1 streams 1: per stream 25.85 tok/s (17.83-31.42), combined 25.85, ITL p99 104.67 ms, chunk gap p99 104.67 ms (max 361.07), CJK share 0.432 MTP passes 901 accept 0.625 tokens/pass 2.25
+[speed] V0.b-s1 streams 1: per stream 24.04 tok/s (18.92-27.93), combined 24.04, ITL p99 379.39 ms, chunk gap p99 151.08 ms (max 364.93), CJK share 0.041 MTP passes 931 accept 0.586 tokens/pass 2.17
+[speed] V0.b-s1 streams 1: per stream 27.18 tok/s (24.1-29.78), combined 27.18, ITL p99 389.85 ms, chunk gap p99 91.92 ms (max 346.41), CJK share 0.0 MTP passes 857 accept 0.687 tokens/pass 2.372
+[speed] V0.b-s1 streams 1: per stream 27.23 tok/s (25.23-30.73), combined 27.23, ITL p99 378.63 ms, chunk gap p99 90.21 ms (max 187.2), CJK share 0.0 MTP passes 859 accept 0.687 tokens/pass 2.37
+[speed] V0.b-s1 streams 1: per stream 28.14 tok/s (22.75-34.19), combined 28.14, ITL p99 91.01 ms, chunk gap p99 91.01 ms (max 263.04), CJK share 0.442 MTP passes 854 accept 0.694 tokens/pass 2.385
+[23:02:25 +732s] vLLM requests running after V0.b: 0
+[23:02:26 +733s] min MemAvailable MB (time MB; KILLED count) (V0.b-s1): 22:51:00 64351 0 
+[23:02:28 +735s] serve arm V131072.b-s1: env [X=1] serve --backend cuda --model /home/nvidia/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 8192 --mem-budget 30 --profile-every 0 --spec mtp --spec-k 2 --mtp-draft-vocab 131072
+[23:03:10 +777s] serve V131072.b-s1 up; MemAvailable MB: 64892; mtp head quantised (INTARSIA_MTP_QUANT / recipe mtp_quant): fc and attention fp8, feed-forward mxfp4; drafts only, verified output unchanged;mtp: drafter head 'mtp' loaded in 0.7 s (routed experts quantised to nvfp4);--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_mr_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gd;loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on cuda (NVIDIA GB10) in 40.1s, context 8192 tokens;
+[23:03:10 +777s] draft-head fallback lines in the server log of V131072.b (must be 0): 0
+[23:03:11 +778s] vLLM requests running before V131072.b: 0
+[speed] V131072.b-s1 streams 1: per stream 23.89 tok/s (21.31-28.68), combined 23.89, ITL p99 366.32 ms, chunk gap p99 88.62 ms (max 428.08), CJK share 0.0 MTP passes 975 accept 0.534 tokens/pass 2.067
+[speed] V131072.b-s1 streams 1: per stream 24.86 tok/s (21.07-27.48), combined 24.86, ITL p99 366.72 ms, chunk gap p99 88.53 ms (max 156.42), CJK share 0.0 MTP passes 947 accept 0.565 tokens/pass 2.128
+[speed] V131072.b-s1 streams 1: per stream 23.26 tok/s (20.02-29.55), combined 23.26, ITL p99 266.78 ms, chunk gap p99 120.58 ms (max 582.66), CJK share 0.281 MTP passes 995 accept 0.514 tokens/pass 2.027
+[speed] V131072.b-s1 streams 1: per stream 27.46 tok/s (19.07-33.61), combined 27.46, ITL p99 103.69 ms, chunk gap p99 88.06 ms (max 429.25), CJK share 0.432 MTP passes 919 accept 0.604 tokens/pass 2.208
+[speed] V131072.b-s1 streams 1: per stream 25.48 tok/s (20.04-29.48), combined 25.48, ITL p99 408.79 ms, chunk gap p99 97.6 ms (max 428.19), CJK share 0.041 MTP passes 936 accept 0.577 tokens/pass 2.152
+[speed] V131072.b-s1 streams 1: per stream 28.63 tok/s (25.65-31.69), combined 28.63, ITL p99 357.79 ms, chunk gap p99 116.0 ms (max 411.66), CJK share 0.0 MTP passes 868 accept 0.668 tokens/pass 2.335
+[speed] V131072.b-s1 streams 1: per stream 29.11 tok/s (26.98-32.72), combined 29.11, ITL p99 354.52 ms, chunk gap p99 143.57 ms (max 192.88), CJK share 0.0 MTP passes 859 accept 0.687 tokens/pass 2.37
+[speed] V131072.b-s1 streams 1: per stream 29.17 tok/s (23.65-36.27), combined 29.17, ITL p99 138.68 ms, chunk gap p99 136.89 ms (max 329.12), CJK share 0.442 MTP passes 865 accept 0.679 tokens/pass 2.355
+[23:14:05 +1432s] vLLM requests running after V131072.b: 0
+[23:14:05 +1432s] min MemAvailable MB (time MB; KILLED count) (V131072.b-s1): 23:03:13 64791 0 
+[23:14:07 +1434s] end

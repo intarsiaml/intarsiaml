@@ -1,0 +1,16 @@
+1570 ./.gitattributes
+11544 ./LICENSE
+4455 ./README.md
+8952 ./chat_template.jinja
+10905 ./config.json
+10830 ./config.json.orig_with_algo_config
+238 ./crc32.txt
+213 ./generation_config.json
+3353259 ./merges.txt
+19798196184 ./model.safetensors
+482 ./preprocessor_config.json
+1300 ./processor_config.json
+12809320 ./tokenizer.json
+17928 ./tokenizer_config.json
+385 ./video_preprocessor_config.json
+6722759 ./vocab.json

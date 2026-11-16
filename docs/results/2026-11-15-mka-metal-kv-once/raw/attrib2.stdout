@@ -1,0 +1,127 @@
+== E1 35B rows-adjacent vs rowtab
+heads 16/2 head_dim 256, 10 layers (one KV cache each), 30 reps, host position; split policy default
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_prefill_bf16_splitkv_rows      2      51.5      35.6      71.6      163   (30% of 550 GB/s; floor 15.3 us)
+    4096 attn_prefill_bf16_splitkv_rows      3      49.6      49.3      49.9      169   (31% of 550 GB/s; floor 15.3 us)
+    4096 attn_prefill_bf16_splitkv_rows      8     104.7     104.0     105.5       80   (15% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       1      23.0      22.7      23.6      365   (66% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       2      43.5      43.2      43.7      193   (35% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       3      54.7      54.3      55.3      153   (28% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       8     110.8     110.1     111.7       76   (14% of 550 GB/s; floor 15.3 us)
+   34000 attn_prefill_bf16_splitkv_rows      2     274.5     273.6     276.0      254   (46% of 550 GB/s; floor 126.6 us)
+   34000 attn_prefill_bf16_splitkv_rows      3     402.2     400.9     404.3      173   (31% of 550 GB/s; floor 126.6 us)
+   34000 attn_prefill_bf16_splitkv_rows      8     879.8     876.8     882.7       79   (14% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       1     249.8     247.9     251.3      279   (51% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       2     275.9     273.6     280.8      252   (46% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       3     419.0     415.5     422.9      166   (30% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       8     939.5     934.4     944.2       74   (13% of 550 GB/s; floor 126.6 us)
+== E1 27B rows-adjacent vs rowtab
+heads 24/4 head_dim 256, 16 layers (one KV cache each), 30 reps, host position; split policy default
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_prefill_bf16_splitkv_rows      2      84.1      82.1      85.7      200   (36% of 550 GB/s; floor 30.5 us)
+    4096 attn_prefill_bf16_splitkv_rows      3     116.7     116.2     117.2      144   (26% of 550 GB/s; floor 30.5 us)
+    4096 attn_prefill_bf16_splitkv_rows      8     251.7     251.1     252.3       67   (12% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       1      56.4      56.3      57.0      297   (54% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       2      88.3      84.5      90.1      190   (35% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       3     119.0     118.6     119.5      141   (26% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       8     256.6     255.9     257.1       65   (12% of 550 GB/s; floor 30.5 us)
+   34000 attn_prefill_bf16_splitkv_rows      2     694.3     691.1     695.5      201   (36% of 550 GB/s; floor 253.2 us)
+   34000 attn_prefill_bf16_splitkv_rows      3     876.3     874.5     878.8      159   (29% of 550 GB/s; floor 253.2 us)
+   34000 attn_prefill_bf16_splitkv_rows      8    2010.1    2006.7    2015.7       69   (13% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       1     368.9     368.4     369.7      378   (69% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       2     698.9     697.2     699.9      199   (36% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       3     908.4     905.2     912.2      153   (28% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       8    2179.6    2173.7    2183.7       64   (12% of 550 GB/s; floor 253.2 us)
+== E2 35B hot small
+heads 16/2 head_dim 256, 10 layers (ONE cache for all: hot), 30 reps, host position; split policy default
+ visible kernel                              M   us/call       p10       p90     GB/s
+     256 attn_decode_bf16_splitkv_rows       1      35.6      29.9      38.1       15   (3% of 550 GB/s; floor 1.0 us)
+     256 attn_decode_bf16_splitkv_rows       2       7.6       7.5       7.6       69   (13% of 550 GB/s; floor 1.0 us)
+     256 attn_decode_bf16_splitkv_rows       4       8.3       8.2       8.3       64   (12% of 550 GB/s; floor 1.0 us)
+     256 attn_decode_bf16_splitkv_rows       8      12.7      12.6      12.8       41   (8% of 550 GB/s; floor 1.0 us)
+     256 attn_decode_bf16_splitkv_rows      16      19.6      19.6      19.7       27   (5% of 550 GB/s; floor 1.0 us)
+    1024 attn_decode_bf16_splitkv_rows       1       8.2       8.2       8.2      256   (47% of 550 GB/s; floor 3.8 us)
+    1024 attn_decode_bf16_splitkv_rows       2      12.5      12.4      12.6      168   (31% of 550 GB/s; floor 3.8 us)
+    1024 attn_decode_bf16_splitkv_rows       4      18.9      18.9      19.0      111   (20% of 550 GB/s; floor 3.8 us)
+    1024 attn_decode_bf16_splitkv_rows       8      32.0      31.9      32.6       66   (12% of 550 GB/s; floor 3.8 us)
+    1024 attn_decode_bf16_splitkv_rows      16      60.0      59.9      60.5       35   (6% of 550 GB/s; floor 3.8 us)
+    4096 attn_decode_bf16_splitkv_rows       1      20.2      20.1      20.5      415   (75% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       2      33.9      33.8      34.1      248   (45% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       4      55.8      55.5      56.6      150   (27% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       8     102.5     101.8     103.3       82   (15% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows      16     190.5     189.8     191.4       44   (8% of 550 GB/s; floor 15.3 us)
+== E2 27B hot small
+heads 24/4 head_dim 256, 16 layers (ONE cache for all: hot), 30 reps, host position; split policy default
+ visible kernel                              M   us/call       p10       p90     GB/s
+     256 attn_decode_bf16_splitkv_rows       1      19.2      19.1      39.8       55   (10% of 550 GB/s; floor 1.9 us)
+     256 attn_decode_bf16_splitkv_rows       2      19.4      19.3      19.7       54   (10% of 550 GB/s; floor 1.9 us)
+     256 attn_decode_bf16_splitkv_rows       4      20.3      20.2      20.4       52   (9% of 550 GB/s; floor 1.9 us)
+     256 attn_decode_bf16_splitkv_rows       8      22.2      22.1      22.3       47   (9% of 550 GB/s; floor 1.9 us)
+     256 attn_decode_bf16_splitkv_rows      16      39.6      39.5      39.9       26   (5% of 550 GB/s; floor 1.9 us)
+    1024 attn_decode_bf16_splitkv_rows       1      19.9      19.8      19.9      211   (38% of 550 GB/s; floor 7.6 us)
+    1024 attn_decode_bf16_splitkv_rows       2      21.3      21.3      21.5      197   (36% of 550 GB/s; floor 7.6 us)
+    1024 attn_decode_bf16_splitkv_rows       4      38.4      38.3      38.9      109   (20% of 550 GB/s; floor 7.6 us)
+    1024 attn_decode_bf16_splitkv_rows       8      71.2      71.0      71.6       59   (11% of 550 GB/s; floor 7.6 us)
+    1024 attn_decode_bf16_splitkv_rows      16     125.1     124.8     126.0       34   (6% of 550 GB/s; floor 7.6 us)
+    4096 attn_decode_bf16_splitkv_rows       1      49.4      49.3      49.7      340   (62% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       2      80.2      78.0      83.9      209   (38% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       4     139.9     139.4     140.5      120   (22% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       8     251.5     250.7     252.3       67   (12% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows      16     485.5     484.6     485.9       35   (6% of 550 GB/s; floor 30.5 us)
+== E4 27B HS=3 (plain split, 4 simdgroups)
+heads 24/4 head_dim 256, 16 layers (one KV cache each), 30 reps, host position; split policy default
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1      39.3      39.3      56.7      427   (78% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       1      56.7      56.4      57.0      296   (54% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       3      93.4      93.0      93.9      180   (33% of 550 GB/s; floor 30.5 us)
+    4096 attn_decode_bf16_splitkv_rows       8     194.1     193.1     195.1       86   (16% of 550 GB/s; floor 30.5 us)
+   34000 attn_decode_bf16_splitkv            1     284.6     283.6     285.6      489   (89% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       1     496.3     494.1     500.8      281   (51% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       3     760.6     758.9     762.4      183   (33% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       8    1815.5    1807.0    1820.0       77   (14% of 550 GB/s; floor 253.2 us)
+== E4 27B HS=6
+heads 24/4 head_dim 256, 16 layers (one KV cache each), 30 reps, host position; split policy default
+ visible kernel                              M   us/call       p10       p90     GB/s
+   34000 attn_decode_bf16_splitkv            1     427.0     424.7     432.5      326   (59% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       1     660.4     652.9     664.9      211   (38% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       3    1406.1    1397.1    1417.5       99   (18% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       8    3036.7    3019.1    3055.1       46   (8% of 550 GB/s; floor 253.2 us)
+== E4 35B HS=2
+heads 16/2 head_dim 256, 10 layers (one KV cache each), 30 reps, host position; split policy default
+ visible kernel                              M   us/call       p10       p90     GB/s
+    4096 attn_decode_bf16_splitkv            1      27.8      23.9      46.2      302   (55% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       1      24.4      24.3      24.5      344   (63% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       3      46.9      46.5      47.2      179   (33% of 550 GB/s; floor 15.3 us)
+    4096 attn_decode_bf16_splitkv_rows       8     104.1     103.4     104.7       81   (15% of 550 GB/s; floor 15.3 us)
+   34000 attn_decode_bf16_splitkv            1     132.7     132.5     134.0      525   (95% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       1     133.2     133.1     134.3      523   (95% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       3     332.3     331.5     333.7      210   (38% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       8     746.5     742.7     749.5       93   (17% of 550 GB/s; floor 126.6 us)
+== E5 35B target 60
+heads 16/2 head_dim 256, 10 layers (one KV cache each), 30 reps, host position; split policy 128,60
+ visible kernel                              M   us/call       p10       p90     GB/s
+   34000 attn_decode_bf16_splitkv            1     146.3     146.0     147.1      476   (87% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       1     146.9     146.7     148.0      474   (86% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       3     394.7     393.4     395.7      176   (32% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       8     888.6     885.6     893.3       78   (14% of 550 GB/s; floor 126.6 us)
+== E5 35B target 240
+heads 16/2 head_dim 256, 10 layers (one KV cache each), 30 reps, host position; split policy 128,240
+ visible kernel                              M   us/call       p10       p90     GB/s
+   34000 attn_decode_bf16_splitkv            1     150.4     150.1     151.2      463   (84% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       1     177.3     173.6     179.1      393   (71% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       3     410.9     408.2     412.8      169   (31% of 550 GB/s; floor 126.6 us)
+   34000 attn_decode_bf16_splitkv_rows       8    1024.2    1019.1    1028.5       68   (12% of 550 GB/s; floor 126.6 us)
+== E5 27B target 60
+heads 24/4 head_dim 256, 16 layers (one KV cache each), 30 reps, host position; split policy 128,60
+ visible kernel                              M   us/call       p10       p90     GB/s
+   34000 attn_decode_bf16_splitkv            1     359.0     358.2     367.1      388   (71% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       1     363.7     361.4     367.8      383   (70% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       3    1036.9    1033.5    1045.8      134   (24% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       8    2347.7    2344.2    2351.8       59   (11% of 550 GB/s; floor 253.2 us)
+== E5 27B target 240
+heads 24/4 head_dim 256, 16 layers (one KV cache each), 30 reps, host position; split policy 128,240
+ visible kernel                              M   us/call       p10       p90     GB/s
+   34000 attn_decode_bf16_splitkv            1     386.1     385.5     387.5      361   (66% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       1     388.5     387.8     390.8      359   (65% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       3     941.6     929.4     952.1      148   (27% of 550 GB/s; floor 253.2 us)
+   34000 attn_decode_bf16_splitkv_rows       8    2311.8    2304.3    2327.7       60   (11% of 550 GB/s; floor 253.2 us)

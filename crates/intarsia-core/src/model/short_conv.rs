@@ -70,10 +70,11 @@ impl Model {
                 }
             }
         } else {
-            for sg in segs {
+            for (si, sg) in segs.iter().enumerate() {
                 let rec = Self::conv_slot(c, sg.st)?;
                 let state = TensorRef::new(rec.buf.clone(), DType::F32, &[h, ks - 1]);
                 self.conv_op(c, &bcx.rows(sg.lo, sg.len), &y.rows(sg.lo, sg.len), &state, profile)?;
+                self.macro_snap_copy(si, sg.st, c.slot, rec)?;
             }
         }
         self.proj_reduce(&y, &c.out, out, t, profile)

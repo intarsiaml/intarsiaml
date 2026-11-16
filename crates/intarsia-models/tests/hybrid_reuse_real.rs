@@ -10,7 +10,10 @@
 //!   and teacher-forced decode steps, the recurrent slots at 4105), the real path (A prefilled as the engine does, snapshot,
 //!   decode, truncate to 4095, B's remainder), and small-pass splits from a common [0, 4096) prefix. With
 //!   `INTARSIA_PROBE_ASSERT=1` it fails unless the shapes agree bit for bit.
-//! * `engine_hybrid_reuse_equals_cold`: the gate. A single-sequence engine runs A then B; B's tokens must be a fresh engine's.
+//! * `engine_hybrid_reuse_equals_cold`: the gate of the strict rule (`INTARSIA_PREFIX_REUSE=exact`, which the test sets itself when
+//!   the variable is unset). A single-sequence engine runs A then B; B's tokens must be a fresh engine's. With
+//!   `INTARSIA_PREFIX_REUSE=any` (the default rule) it only reports, unless `INTARSIA_PROBE_ASSERT=1`.
+//!   `INTARSIA_PROBE_BACKEND=hip` selects the HIP backend (default cpu, Metal on macOS).
 use intarsia_core::model::{HeadMode, LoadOptions, Model, StepOut};
 use intarsia_core::state::{SequenceState, StateSlot};
 use intarsia_core::{GenEvent, GenRequest, Telemetry};
@@ -103,6 +106,17 @@ fn maxabs(a: &[f32], b: &[f32]) -> f32 {
     a.iter().zip(b).map(|(x, y)| (x - y).abs()).fold(0f32, f32::max)
 }
 
+/// KL(want || got) in nats of the two logits rows' softmaxes (f64).
+fn kl_of(want: &[f32], got: &[f32]) -> f64 {
+    fn log_softmax(l: &[f32]) -> Vec<f64> {
+        let m = l.iter().cloned().fold(f32::MIN, f32::max) as f64;
+        let z = l.iter().map(|&v| (v as f64 - m).exp()).sum::<f64>().ln();
+        l.iter().map(|&v| v as f64 - m - z).collect()
+    }
+    let (p, q) = (log_softmax(want), log_softmax(got));
+    p.iter().zip(&q).map(|(lp, lq)| lp.exp() * (lp - lq)).sum()
+}
+
 /// What a run of B leaves: logits rows of the second-to-last pass (by absolute position), the last token's logits and
 /// `STEPS` teacher-forced decode steps, the recurrent slots' bytes at the end of the prompt.
 struct Run {
@@ -171,6 +185,27 @@ fn compare(what: &str, want: &Run, got: &Run) -> bool {
             equal = false;
             line.push_str(&format!(" tail{i}={:.3e}{}", maxabs(r, w), if argmax_of(r) != argmax_of(w) { "(FLIP)" } else { "" }));
         }
+    }
+    // how far apart, in what matters for the text: KL of the softmaxes and whether the argmax moved, over every row of the
+    // last pass and every tail row (last token, teacher-forced decode steps)
+    let mut kls = Vec::new();
+    let mut flips = 0usize;
+    let mut n = 0usize;
+    for (pos, r) in &got.rows {
+        if let Some((_, w)) = want.rows.iter().find(|(p, _)| p == pos) {
+            kls.push(kl_of(w, r));
+            flips += (argmax_of(r) != argmax_of(w)) as usize;
+            n += 1;
+        }
+    }
+    for (r, w) in got.tail.iter().zip(&want.tail) {
+        kls.push(kl_of(w, r));
+        flips += (argmax_of(r) != argmax_of(w)) as usize;
+        n += 1;
+    }
+    if !equal {
+        let (max, mean) = (kls.iter().cloned().fold(0f64, f64::max), kls.iter().sum::<f64>() / kls.len().max(1) as f64);
+        line.push_str(&format!(" [KL max {max:.3e} mean {mean:.3e}, top-1 moved {flips}/{n} rows]"));
     }
     let rec_diff: Vec<usize> = got.rec.iter().zip(&want.rec).enumerate().filter(|(_, (a, b))| a != b).map(|(i, _)| i).collect();
     if !rec_diff.is_empty() {
@@ -266,10 +301,21 @@ fn collect(rx: &std::sync::mpsc::Receiver<GenEvent>) -> (Vec<u32>, usize) {
     }
 }
 
+/// The gate of the opt-in strict rule `INTARSIA_PREFIX_REUSE=exact` (the default resumes at any snapshot and does not give
+/// cold's bits: user decision 2026-11-02, docs/results/2026-10-29-hrr-hybrid-reuse.md). Without `INTARSIA_PREFIX_REUSE` in the
+/// environment the test turns the strict rule on itself; `INTARSIA_PREFIX_REUSE=any` runs the default rule and only reports
+/// (B resumes at A's `plen - 1`; its text may differ from cold, HIP and Metal alike: a pass's bits depend on its row count),
+/// failing only with `INTARSIA_PROBE_ASSERT=1`. The rule is read once per process (`prefix_reuse_override`), so run one rule per run.
 #[test]
 fn engine_hybrid_reuse_equals_cold() {
     let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir(), backend()) else { return };
+    if std::env::var_os("INTARSIA_PREFIX_REUSE").is_none() {
+        std::env::set_var("INTARSIA_PREFIX_REUSE", "exact");
+    }
+    let strict = std::env::var("INTARSIA_PREFIX_REUSE").is_ok_and(|v| v == "exact");
+    let gate = strict || std::env::var("INTARSIA_PROBE_ASSERT").is_ok_and(|v| v == "1");
+    eprintln!("prefix reuse rule: {}", if strict { "exact (strict, cold cuts only)" } else { "default (any snapshot)" });
     let (a, b) = prompts(&dir);
     let opts = EngineOptions { load: LoadOptions { max_seq: MAX_SEQ, kv_fraction: 0.5, ..Default::default() }, ..Default::default() };
     let req = |prompt: &[u32], n: usize| GenRequest { prompt: prompt.to_vec(), max_tokens: n, ignore_eos: true, ..Default::default() };
@@ -279,18 +325,24 @@ fn engine_hybrid_reuse_equals_cold() {
         collect(&l.engine.submit(req(&b, gen)).unwrap()).0
     };
     let l = load_engine(&dir, be, &opts).unwrap();
+    // the rule is latched per process (`prefix_reuse_override`): fail loudly if another test in this binary got there first
+    assert_eq!(l.engine.info().reuse_cold_cuts_only, strict, "the strict rule is not what this run asked for: run one rule per process");
     let (cold_a, _) = collect(&l.engine.submit(req(&a, 256)).unwrap());
     let (got, cached) = collect(&l.engine.submit(req(&b, gen)).unwrap());
     let flip = got.iter().zip(&reference).position(|(x, y)| x != y);
     eprintln!("B after A: cached {cached}, {}", flip.map_or("= cold".to_string(), |i| format!("DIFFERS from cold at token {i}")));
-    assert_eq!(got, reference, "B resumed from A's state (cached {cached}) differs from a fresh engine's B");
+    if gate {
+        assert_eq!(got, reference, "B resumed from A's state (cached {cached}) differs from a fresh engine's B");
+    }
     // A after B: B's cold schedule has no state at 4095 (its passes end at 4096 and 4104), so nothing; A once more then
-    // resumes at its own plen - 1 snapshot, a cut of its cold schedule
-    for (what, want_cached) in [("A after B", 0), ("A repeated", a.len() - 1)] {
+    // resumes at its own plen - 1 snapshot, a cut of its cold schedule. (The default rule resumes A at 4095 after B too.)
+    for (what, want_cached) in [("A after B", if strict { 0 } else { a.len() - 1 }), ("A repeated", a.len() - 1)] {
         let (ta, ca) = collect(&l.engine.submit(req(&a, gen)).unwrap());
         let same = ta[..] == cold_a[..gen];
         eprintln!("{what}: cached {ca}, {}", if same { "= cold" } else { "DIFFERS from cold" });
-        assert!(same, "{what} differs from cold A");
-        assert_eq!(ca, want_cached, "{what}: cached tokens");
+        if gate {
+            assert!(same, "{what} differs from cold A");
+            assert_eq!(ca, want_cached, "{what}: cached tokens");
+        }
     }
 }

@@ -1,0 +1,3 @@
+fleetq: #9624 running on tatooine-r9700, tatooine-r9700-2: scripts/mtp-snap-gpu/sync.sh main
+head=f0ecebe ref=origin/main code-tree=eb3bc840d528 dirty=no
+fleetq: #9624 done (exit 0)

@@ -1,0 +1,21 @@
+fleetq: #9372 running on spark1: env 'BIN=~/intarsia-dsubset/bin/intarsia-gen' scripts/dsubset/collect.sh
+[19:49:00 +1s] collect start; vLLM: 200; earlyoom: active; Mem:             121          40          40           0          41          81
+[19:49:00 +1s] serve arm collect: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 8
+[19:49:59 +60s] serve collect up; MemAvailable MB: 49119; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 54.9s, context 32768 tokens;
+20 requests, 15894 ids, 69 s
+40 requests, 35763 ids, 150 s
+60 requests, 53951 ids, 214 s
+80 requests, 73042 ids, 288 s
+100 requests, 89117 ids, 346 s
+120 requests, 108849 ids, 423 s
+140 requests, 127087 ids, 491 s
+160 requests, 146473 ids, 556 s
+180 requests, 163534 ids, 625 s
+200 requests, 180961 ids, 690 s
+220 requests, 197948 ids, 752 s
+240 requests, 211041 ids, 801 s
+260 requests, 220478 ids, 837 s
+done: 262 requests, 222526 ids, 844 s
+[20:04:03 +904s] min MemAvailable MB (time MB; KILLED count) (collect): 19:50:03 48751 0 
+[20:04:05 +906s] end
+fleetq: #9372 done (exit 0)
