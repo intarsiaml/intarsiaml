@@ -1,0 +1,15 @@
+fleetq: #9703 running on endor: scripts/kvq/flip_gates.sh plan
+plan Qwen3.6-35B-A3B-NVFP4 default: 2 differing lines
+405c405
+<    "scratch_bytes": 3170304
+---
+>    "scratch_bytes": 8454144
+plan Qwen3.6-35B-A3B-NVFP4 off: 0 differing lines
+plan Qwen3.8-27B-Quark-AWQ-MXFP4 default: 2 differing lines
+597c597
+<    "scratch_bytes": 4755456
+---
+>    "scratch_bytes": 12681216
+plan Qwen3.8-27B-Quark-AWQ-MXFP4 off: 0 differing lines
+## done plan
+fleetq: #9703 done (exit 0)

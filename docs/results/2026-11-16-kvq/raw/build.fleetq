@@ -1,0 +1,2 @@
+fleetq: #9660 running on endor: sh -c 'cargo build --release --locked -p intarsia-cli --features metal > docs/results/2026-11-16-kvq/raw/build.log 2>&1; echo exit=$? >> docs/results/2026-11-16-kvq/raw/build.log'
+fleetq: #9660 done (exit 0)
