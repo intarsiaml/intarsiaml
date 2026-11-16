@@ -1520,9 +1520,9 @@ fn recipe_draft_vocab_default_is_overridden_by_the_flag() {
     assert_eq!(drafts_of(&w, Some(0), None), full);
 }
 
-/// The shipped recipes: the default is set for the Qwen3.8-27B recipe on HIP only (the one place it was measured).
+/// The shipped recipes: the default is set for the Qwen3.8-27B recipe (HIP, CUDA, Metal) and the Qwen3.6-35B-A3B on CUDA only (where it was measured).
 #[test]
-fn shipped_recipes_default_the_draft_vocab_only_for_the_27b_on_hip() {
+fn shipped_recipes_default_the_draft_vocab_only_for_the_27b_and_the_35b_on_cuda() {
     let get = |name: &str| {
         let text = match name {
             "qwen3_5_vl" => include_str!("../../../recipes/qwen3_5_vl.toml"),
@@ -1549,7 +1549,9 @@ fn shipped_recipes_default_the_draft_vocab_only_for_the_27b_on_hip() {
     for name in ["qwen3_5", "qwen3_5_moe", "qwen3", "gemma4", "llama", "qwen2"] {
         let r = get(name);
         for b in ["hip", "cuda", "metal", "cpu"] {
-            assert_eq!(r.resolve_mtp_draft_vocab(None, b).value, 0, "{name} on {b}: no measured default");
+            // lane flipprep (user decision 2026-11-15): the 35B on CUDA drafts over its first 131072 rows
+            let want = if name == "qwen3_5_moe" && b == "cuda" { 131072 } else { 0 };
+            assert_eq!(r.resolve_mtp_draft_vocab(None, b).value, want, "{name} on {b}: no measured default");
         }
     }
 }
