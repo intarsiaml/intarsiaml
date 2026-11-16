@@ -1,0 +1,25 @@
+fleetq: #9771 running on endor: zsh scripts/msmallm/gates.sh served off
+served off base: flags [--max-batch 8 --spec off]
+base: streams 1: [256]
+base: streams 4: [256, 256, 256, 256]
+base: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+base: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+base: within arm: streams vs fewer streams, same prompt: SAME
+served off unset: flags [--max-batch 8 --spec off]
+unset: streams 1: [256]
+unset: streams 4: [256, 256, 256, 256]
+unset: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+unset: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+unset: within arm: streams vs fewer streams, same prompt: SAME
+served off zero: flags [--max-batch 8 --spec off]
+zero: streams 1: [256]
+zero: streams 4: [256, 256, 256, 256]
+zero: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+zero: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+zero: within arm: streams vs fewer streams, same prompt: SAME
+served-off-base.json vs served-off-unset.json: SAME (30/30 cells equal)
+served-off-unset.json vs served-off-zero.json: SAME (30/30 cells equal)
+plan served off base vs unset: 0 differing lines
+plan served off base vs zero: 0 differing lines
+## done served off
+fleetq: #9771 done (exit 0)

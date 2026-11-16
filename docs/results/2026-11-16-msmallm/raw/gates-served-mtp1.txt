@@ -1,0 +1,29 @@
+fleetq: #9774 waiting (#2 in line): in line behind #9773 "msmallm: 27B speed ABBA (small-M routing)" (claude-2ae67a71) on endor
+fleetq:   #9773 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9773 set, or it will wait for #9773 to be released.
+fleetq: #9774 waiting (#1 in line): #9773 "msmallm: 27B speed ABBA (small-M routing)" (claude-2ae67a71) needs gpu quiet on endor, and this job loads it
+fleetq:   #9773 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9773 set, or it will wait for #9773 to be released.
+fleetq: #9774 running on endor: zsh scripts/msmallm/gates_extra.sh served1
+base: streams 1: [256]
+base: streams 4: [256, 256, 256, 256]
+base: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+base: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+base: within arm: streams vs fewer streams, same prompt: SAME
+base: speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embed
+unset: streams 1: [256]
+unset: streams 4: [256, 256, 256, 256]
+unset: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+unset: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+unset: within arm: streams vs fewer streams, same prompt: SAME
+unset: speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embed
+zero: streams 1: [256]
+zero: streams 4: [256, 256, 256, 256]
+zero: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+zero: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+zero: within arm: streams vs fewer streams, same prompt: SAME
+zero: speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embed
+served-mtp1-base.json vs served-mtp1-unset.json: SAME (30/30 cells equal)
+served-mtp1-unset.json vs served-mtp1-zero.json: SAME (30/30 cells equal)
+plan served mtp1 base vs unset: 0 differing lines
+plan served mtp1 base vs zero: 0 differing lines
+## done served1
+fleetq: #9774 done (exit 0)

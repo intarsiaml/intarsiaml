@@ -1,0 +1,6 @@
+1794852610.123300000 start s1 thermal 2
+CELL tag=B1 s1 streams=1 requests=4 tokens=1024 wall_s=16.61 agg_tps=61.66 ttft_p50=0.238 ttft_mean=0.2359 dec_tps_p50=68.15 prompt_tokens_p50=115
+1794852626.778158000 end s1 thermal 2
+1794852626.783389000 start null4k thermal 2
+CELL tag=B1 null4k streams=1 requests=2 tokens=64 wall_s=12.12 agg_tps=5.282 ttft_p50=5.55 ttft_mean=5.55 dec_tps_p50=61.37 prompt_tokens_p50=4716
+1794852638.946775000 end null4k thermal 2

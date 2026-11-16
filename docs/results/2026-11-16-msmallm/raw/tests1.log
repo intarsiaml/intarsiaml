@@ -1,0 +1,14 @@
+fleetq: #9766 running on endor: zsh -c 'cd /opt/code/intarsiaml/.worktrees/msmallm && cargo test --release -p intarsia-backend-metal --test mxfp4_nax 2>&1 | grep -E "^test |test result"; echo "## knob=0"; INTARSIA_METAL_MXFP4_NAXD=0 cargo test --release -p intarsia-backend-metal --test mxfp4_nax small_m 2>&1 | grep -E "^test |test result|skipped"; for arm in unset 0; do if [ $arm = unset ]; then E=(X=1); else E=(INTARSIA_METAL_MXFP4_NAXD=0); fi; env $E target/release/intarsia kernels test --backend metal > /opt/code/intarsiaml/.worktrees/msmallm/docs/results/2026-11-16-msmallm/raw/kernels-$arm.out 2>&1; echo "kernels test $arm exit $? FAIL lines $(grep -c FAIL /opt/code/intarsiaml/.worktrees/msmallm/docs/results/2026-11-16-msmallm/raw/kernels-$arm.out): $(tail -1 /opt/code/intarsiaml/.worktrees/msmallm/docs/results/2026-11-16-msmallm/raw/kernels-$arm.out)"; done'
+test nax_is_registered_for_m_above_the_gemv_rows_only ... ok
+test nax_rows_do_not_depend_on_the_call ... ok
+test nax_matches_the_gemv_within_accumulation_order ... ok
+test nax_w4a16_equals_the_bf16_nax_gemm_on_decoded_weights ... ok
+test small_m_routing_is_bitwise_the_scratch_path ... ok
+test naxd_forms_are_bitwise_the_scratch_path ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+## knob=0
+test small_m_routing_is_bitwise_the_scratch_path ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+kernels test unset exit 1 FAIL lines 0: Error: this binary was built without the Metal backend (macOS only: cargo build -p intarsia-cli --features metal)
+kernels test 0 exit 1 FAIL lines 0: Error: this binary was built without the Metal backend (macOS only: cargo build -p intarsia-cli --features metal)
+fleetq: #9766 done (exit 0)

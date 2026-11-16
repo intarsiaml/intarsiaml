@@ -1,0 +1,10 @@
+fleetq: #9770 running on endor: zsh -c 'zsh scripts/msmallm/gates_extra.sh route; zsh scripts/msmallm/gates_extra.sh ids'
+route inwin unset: [(('matmul_mxfp4_nax', 124), 496), (('matmul_mxfp4_nax#1', 124), 496)]
+route tail2 unset: [(('matmul_mxfp4_nax', 77), 496), (('matmul_mxfp4_nax', 2048), 496), (('matmul_mxfp4_nax#1', 77), 496), (('matmul_mxfp4_nax#1', 2048), 496), (('matmul_mxfp4_nax#2', 2048), 496)]
+route inwin zero: [(('matmul_mxfp4_nax', 124), 496), (('matmul_mxfp4_nax#1', 124), 496), (('matmul_mxfp4_nax#2', 124), 496)]
+route tail2 zero: [(('matmul_mxfp4_nax', 77), 496), (('matmul_mxfp4_nax', 2048), 496), (('matmul_mxfp4_nax#1', 77), 496), (('matmul_mxfp4_nax#1', 2048), 496), (('matmul_mxfp4_nax#2', 77), 496), (('matmul_mxfp4_nax#2', 2048), 496)]
+## done route
+SAME 27b tail2 spec=default (prompt: 2126 tokens) | base 71243138 n=256 prefill 4284 ms | unset 71243138 n=256 prefill 4197 ms | zero 71243138 n=256 prefill 3442 ms
+SAME 27b tail2 spec=off (prompt: 2126 tokens) | base 71243138 n=256 prefill 3123 ms | unset 71243138 n=256 prefill 3365 ms | zero 71243138 n=256 prefill 3399 ms
+## done ids
+fleetq: #9770 done (exit 0)

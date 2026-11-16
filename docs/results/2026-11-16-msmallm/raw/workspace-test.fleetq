@@ -1,0 +1,7 @@
+fleetq: #9778 waiting (#2 in line): in line behind #9777 "msmallm: 27B speed ABBA round 2 (cooldowns)" (claude-2ae67a71) on endor
+fleetq:   #9777 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9777 set, or it will wait for #9777 to be released.
+fleetq: #9778 waiting (#1 in line): #9777 "msmallm: 27B speed ABBA round 2 (cooldowns)" (claude-2ae67a71) needs cpu quiet on endor, and this job loads it
+fleetq:   #9777 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9777 set, or it will wait for #9777 to be released.
+fleetq: #9778 running on endor: zsh -c 'cd /opt/code/intarsiaml/.worktrees/msmallm && cargo test --workspace --release --no-fail-fast > /opt/code/intarsiaml/.worktrees/msmallm/docs/results/2026-11-16-msmallm/raw/workspace-test.log 2>&1; echo "workspace exit $?"'
+workspace exit 0
+fleetq: #9778 done (exit 0)

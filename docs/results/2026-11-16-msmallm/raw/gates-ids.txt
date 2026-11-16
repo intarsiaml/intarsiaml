@@ -1,0 +1,14 @@
+fleetq: #9769 running on endor: zsh -c 'zsh scripts/msmallm/gates.sh route; zsh scripts/msmallm/gates.sh ids'
+route unset: [(('matmul_mxfp4_nax', 425), 496), (('matmul_mxfp4_nax', 2048), 496), (('matmul_mxfp4_nax#1', 425), 496), (('matmul_mxfp4_nax#1', 2048), 496), (('matmul_mxfp4_nax#2', 425), 496), (('matmul_mxfp4_nax#2', 2048), 496)]
+route zero: [(('matmul_mxfp4_nax', 425), 496), (('matmul_mxfp4_nax', 2048), 496), (('matmul_mxfp4_nax#1', 425), 496), (('matmul_mxfp4_nax#1', 2048), 496), (('matmul_mxfp4_nax#2', 425), 496), (('matmul_mxfp4_nax#2', 2048), 496)]
+## done route
+SAME 27b short spec=default () | base e0eb02d2 n=256 accepted=146 | unset e0eb02d2 n=256 accepted=146 | zero e0eb02d2 n=256 accepted=146
+SAME 27b inwin spec=default () | base 0e16318a n=256 accepted=160 | unset 0e16318a n=256 accepted=160 | zero 0e16318a n=256 accepted=160
+SAME 27b tail spec=default () | base 8a4c67cc n=256 accepted=165 | unset 8a4c67cc n=256 accepted=165 | zero 8a4c67cc n=256 accepted=165
+SAME 27b 4k spec=default () | base 418d1c81 n=256 accepted=160 | unset 418d1c81 n=256 accepted=160 | zero 418d1c81 n=256 accepted=160
+SAME 27b short spec=off () | base e0eb02d2 n=256  | unset e0eb02d2 n=256  | zero e0eb02d2 n=256 
+SAME 27b inwin spec=off () | base 0e16318a n=256  | unset 0e16318a n=256  | zero 0e16318a n=256 
+SAME 27b tail spec=off () | base 8a4c67cc n=256  | unset 8a4c67cc n=256  | zero 8a4c67cc n=256 
+SAME 27b 4k spec=off () | base 418d1c81 n=256  | unset 418d1c81 n=256  | zero 418d1c81 n=256 
+## done ids
+fleetq: #9769 done (exit 0)

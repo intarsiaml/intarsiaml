@@ -1,0 +1,9 @@
+1794852856.789093000 start s4 thermal 2
+CELL tag=B2 s4 streams=4 requests=8 tokens=2048 wall_s=22.66 agg_tps=90.37 ttft_p50=0.6408 ttft_mean=0.6034 dec_tps_p50=23.92 prompt_tokens_p50=113.5
+1794852879.497306000 end s4 thermal 2
+1794852879.502726000 start s9 thermal 2
+CELL tag=B2 s9 streams=9 requests=18 tokens=4608 wall_s=56.21 agg_tps=81.98 ttft_p50=0.878 ttft_mean=3.417 dec_tps_p50=11.08 prompt_tokens_p50=115
+1794852935.757060000 end s9 thermal 2
+1794852935.762300000 start s16 thermal 2
+CELL tag=B2 s16 streams=16 requests=32 tokens=8192 wall_s=94.6 agg_tps=86.59 ttft_p50=24.17 ttft_mean=18.58 dec_tps_p50=11.05 prompt_tokens_p50=114.5
+1794853030.409243000 end s16 thermal 2
