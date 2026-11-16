@@ -1,0 +1,10 @@
+fleetq: #9401 running on endor: scripts/mac-plan/ttftcb.sh
+## mtpcb [] []
+nonce mtpcba: ttft 962 ms, events 48, first gaps ms [23.9, 19.5, 0.0, 20.1, 19.0, 0.0], total 1349 ms, usage {'prompt_tokens': 4100, 'completion_tokens': 48, 'total_tokens': 4148, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtpcbb: ttft 1074 ms, events 48, first gaps ms [21.5, 18.3, 0.0, 0.0, 19.1, 18.2], total 1432 ms, usage {'prompt_tokens': 4101, 'completion_tokens': 48, 'total_tokens': 4149, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce mtpcbc: ttft 1048 ms, events 4, first gaps ms [20.9, 16.9, 0.0], total 1086 ms, usage {'prompt_tokens': 4100, 'completion_tokens': 5, 'total_tokens': 4105, 'prompt_tokens_details': {'cached_tokens': 0}}
+## offcb [] [--spec off]
+nonce offcba: ttft 768 ms, events 48, first gaps ms [8.1, 8.2, 8.2, 8.2, 8.2, 8.3], total 1154 ms, usage {'prompt_tokens': 4100, 'completion_tokens': 48, 'total_tokens': 4148, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce offcbb: ttft 728 ms, events 48, first gaps ms [8.1, 8.2, 8.2, 8.2, 8.3, 8.3], total 1119 ms, usage {'prompt_tokens': 4101, 'completion_tokens': 48, 'total_tokens': 4149, 'prompt_tokens_details': {'cached_tokens': 0}}
+nonce offcbc: ttft 748 ms, events 48, first gaps ms [8.6, 8.6, 8.6, 8.6, 8.8, 8.7], total 1141 ms, usage {'prompt_tokens': 4100, 'completion_tokens': 48, 'total_tokens': 4148, 'prompt_tokens_details': {'cached_tokens': 0}}
+fleetq: #9401 done (exit 0)
