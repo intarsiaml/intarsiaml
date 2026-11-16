@@ -1,0 +1,2 @@
+verify-pass rows histogram: {2: 2473, 4: 1581}
+verified sequences per pass: {1: 2473, 2: 1581}
