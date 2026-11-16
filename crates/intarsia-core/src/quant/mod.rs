@@ -219,6 +219,33 @@ impl QTensor {
         Some(QTensor { n, parts, ..self.clone() })
     }
 
+    /// The output rows `ids` (ascending, distinct, inside `0..self.n`) gathered into a new contiguous weight in that order (the
+    /// MTP drafter's `--mtp-draft-subset` head): the row-indexed parts (weights, per-row scales) are read back in row-major
+    /// order, gathered and uploaded; the others (a global scale, the MXFP4 `act` flag) are shared. `None` for formats whose rows
+    /// are not addressable one by one (EXL3).
+    pub fn gather_rows(&self, backend: &dyn Backend, ids: &[u32]) -> Result<Option<QTensor>> {
+        if self.format == EXL3 || ids.is_empty() || ids.iter().any(|&i| i as usize >= self.n) {
+            return Ok(None);
+        }
+        let mut parts = Vec::with_capacity(self.parts.len());
+        for p in &self.parts {
+            if p.shape.len() < 2 || p.shape[0] != self.n {
+                parts.push(p.clone());
+                continue;
+            }
+            let all = backend.download_row_major(p)?;
+            let row = all.len() / self.n;
+            let mut out = Vec::with_capacity(row * ids.len());
+            for &i in ids {
+                out.extend_from_slice(&all[i as usize * row..(i as usize + 1) * row]);
+            }
+            let mut shape = p.shape.clone();
+            shape[0] = ids.len();
+            parts.push(TensorRef::new(crate::backend::upload_new(backend, &out)?, p.dtype, &shape));
+        }
+        Ok(Some(QTensor { n: ids.len(), parts, ..self.clone() }))
+    }
+
     pub fn weight_bytes(&self) -> usize {
         self.parts.iter().map(|p| p.nbytes()).sum()
     }

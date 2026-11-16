@@ -763,13 +763,22 @@ impl Model {
     }
 
     /// The drafter head's logits row the last `draft_head_argmax` left in `ws.logits`, widened to the vocabulary (`-inf` past
-    /// the reduced head's prefix).
+    /// the reduced head's prefix, or outside the `--mtp-draft-subset` rows, each subset row at its token id).
     fn draft_logits_row(&self) -> Result<Vec<f32>> {
         let v = self.dims.vocab;
         let n = self.draft_head.as_ref().map_or(v, |h| h.n).min(v);
         let mut b = vec![0u8; n * 4];
         self.backend.download(&self.ws.logits, 0, &mut b, self.stream)?;
         let mut row: Vec<f32> = b.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+        if let Some(m) = self.draft_map.as_ref() {
+            let mut wide = vec![f32::NEG_INFINITY; v];
+            for (x, &id) in row.iter().zip(m.ids.ids.iter()) {
+                if let Some(w) = wide.get_mut(id as usize) {
+                    *w = *x;
+                }
+            }
+            return Ok(wide);
+        }
         row.resize(v, f32::NEG_INFINITY);
         Ok(row)
     }

@@ -1,0 +1,24 @@
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 1024 (--prefill-chunk) NOT the recipe default: this run does not show that the default passes; restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+    continue judged against the committed CPU oracle qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000-g4k.continue-oracle.safetensors: mean KL(oracle||cold) 1.41e-2, mean KL(oracle||warm) 8.64e-3, warm/cold 0.61x; limit 1.5x cold + 3e-3 = 2.41e-2: PASS
+long_docs_4k       continue    2000   4080    2015      0     12/32  ok (oracle-relative: mean KL(oracle||cold) 1.41e-2, mean KL(oracle||warm) 8.64e-3, warm/cold 0.61x; limit 1.5x cold + 3e-3 = 2.41e-2: PASS)
+long_docs_4k       restore     2000   4064    1024      0     32/32  ok
+long_docs_4k       aligned     1024   4064    1024      0     32/32  ok (logits bit-identical to the cold run)
+long_code_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_code_4k-s2000.continue-oracle.safetensors: not used, the golden's prompt token ids differ from the ones it was made for
+long_code_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_code_4k-s3072.continue-oracle.safetensors: not used, frozen at split 3072, this run splits at 2000
+long_code_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_code_4k-s2000.continue-oracle.safetensors: not used, the golden's prompt token ids differ from the ones it was made for
+long_code_4k: committed continue oracle golden/oracle/qwen36-35b-a3b-nvfp4-continue-long_code_4k-s3072.continue-oracle.safetensors: not used, frozen at split 3072, this run splits at 2000
+long_code_4k       continue    2000   4080    2015      0     27/32  ok (beyond the rounding tolerance but past the first 16 tokens at token 27: warm took 1901 cold took 829; shared rows differ by 1.506 (before) / 0.393 (here) nats of log-probability, KL up to 1.2e-1; fixed rounding scale 0.250 nats, KL 1e-2 (built-in); warm margin 0.263, cold margin 0.192; legacy criterion (>= 16 leading tokens): ok)
+long_code_4k       restore     2000   4064    1024      0     32/32  ok
+long_code_4k       aligned     1024   4064    1024      0     32/32  ok (logits bit-identical to the cold run)
+    continue judged against the committed CPU oracle qwen36-35b-a3b-nvfp4-continue-chat_reuse_4k-s4521.continue-oracle.safetensors: mean KL(oracle||cold) 4.50e-3, mean KL(oracle||warm) 4.70e-3, warm/cold 1.04x; limit 1.5x cold + 3e-3 = 9.76e-3: PASS
+chat_reuse_4k      continue    4521   4647    4536      0     32/32  ok (oracle-relative: mean KL(oracle||cold) 4.50e-3, mean KL(oracle||warm) 4.70e-3, warm/cold 1.04x; limit 1.5x cold + 3e-3 = 9.76e-3: PASS)
+chat_reuse_4k      restore     4521   4631    4096      0     32/32  ok
+chat_reuse_4k      aligned     4096   4631    4096      0     32/32  ok (logits bit-identical to the cold run)
+prefix reuse: 3 prompt(s) judged, 0 skipped
+prefix-reuse gate: PASS
+
+wrote baseline /work/.hip-reuse-logs/w2/q-chk2/baselines/acc-4k-reuse.baseline.json (0 mode(s); absolute floor passed)
+golden gate: PASS
