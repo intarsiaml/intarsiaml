@@ -4,6 +4,8 @@
 #   R  = the flip binary with --spec off (the ids reference)
 #   F0 = the flip with --mtp-draft-vocab 0 (acceptance reference: the full head)
 #   AO = main with the mtp2s opt-in set and 131072 (what the flip should equal)
+#   C  = the flip rebased on lane mx6's plan-probe fix (binary intarsia-comb), no env, no flags: the batched pass must really run
+#   CO = C with INTARSIA_BATCHED_VERIFY=0 (per-sequence verify, the revert switch)
 #   FR = the flip with the revert switches (INTARSIA_BATCHED_MTP=1 INTARSIA_BATCHED_VERIFY=0 INTARSIA_VERIFY_TOPK=0 --mtp-draft-vocab 0): main's defaults
 B='~/intarsia-flipprep/bin'
 arm_setup() {
@@ -14,6 +16,8 @@ arm_setup() {
     R)  BIN=$B/intarsia-flip; ARGS="--spec off" ;;
     F0) BIN=$B/intarsia-flip; ARGS="--mtp-draft-vocab 0" ;;
     AO) BIN=$B/intarsia-main; ENVS="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1"; ARGS="--spec mtp --spec-k 2 --mtp-draft-vocab 131072" ;;
+    C)  BIN=$B/intarsia-comb ;;
+    CO) BIN=$B/intarsia-comb; ENVS="INTARSIA_BATCHED_VERIFY=0" ;;
     FR) BIN=$B/intarsia-flip; ENVS="INTARSIA_BATCHED_MTP=1 INTARSIA_BATCHED_VERIFY=0 INTARSIA_VERIFY_TOPK=0"; ARGS="--mtp-draft-vocab 0" ;;
     *)  return 1 ;;
   esac
