@@ -1,0 +1,548 @@
+{
+ "summary": {
+  "mix": false,
+  "arm": "A",
+  "temperature": 0.0,
+  "streams": 2,
+  "requests": 24,
+  "errors": [],
+  "single_with_tool_call": 16,
+  "single": 18,
+  "tool_calls_total": 17,
+  "all_arguments_valid_json": true,
+  "all_names_known": true,
+  "finish_reasons": {
+   "stop": 6,
+   "tool_calls": 16,
+   "length": 2
+  },
+  "completion_tokens": 7061,
+  "verify_passes": 0.0,
+  "drafted": 0.0,
+  "accepted": 0.0,
+  "accept_rate": null,
+  "tokens_per_pass": null
+ },
+ "each": [
+  {
+   "i": 0,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 101,
+   "wall_s": 1.98,
+   "reasoning_chars": 220,
+   "content_head": "",
+   "signature": "9b3bbe6b3fc9798a",
+   "calls": [
+    {
+     "name": "get_weather",
+     "args": {
+      "city": "Paris",
+      "unit": "celsius"
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 1,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 313,
+   "wall_s": 4.46,
+   "reasoning_chars": 894,
+   "content_head": "",
+   "signature": "e4d1a406bd26393b",
+   "calls": [
+    {
+     "name": "web_search",
+     "args": {
+      "query": "Rust 1.90 release date",
+      "max_results": 3
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 2,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 266,
+   "wall_s": 3.82,
+   "reasoning_chars": 547,
+   "content_head": "",
+   "signature": "25bebd942fc4c85a",
+   "calls": [
+    {
+     "name": "calculator",
+     "args": {
+      "expression": "(1234 * 5678) + 91011"
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 3,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 120,
+   "wall_s": 2.14,
+   "reasoning_chars": 190,
+   "content_head": "",
+   "signature": "d5ad409e7683add0",
+   "calls": [
+    {
+     "name": "read_file",
+     "args": {
+      "path": "src/main.rs",
+      "start_line": 1,
+      "end_line": 60
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 4,
+   "kind": "single",
+   "finish": "length",
+   "n_calls": 0,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 768,
+   "wall_s": 10.71,
+   "reasoning_chars": 3101,
+   "content_head": "",
+   "signature": "e3b0c44298fc1c14",
+   "calls": [],
+   "mtp": {}
+  },
+  {
+   "i": 5,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 488,
+   "wall_s": 7.47,
+   "reasoning_chars": 1173,
+   "content_head": "",
+   "signature": "219bf561e83d8b73",
+   "calls": [
+    {
+     "name": "create_event",
+     "args": {
+      "title": "Design review",
+      "start": "2026-11-16T14:00:00",
+      "duration_minutes": 45,
+      "attendees": [
+       "ana@example.com",
+       "bo@example.com"
+      ]
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 6,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 705,
+   "wall_s": 9.69,
+   "reasoning_chars": 2386,
+   "content_head": "",
+   "signature": "e3b04c4ebf92e5e7",
+   "calls": [
+    {
+     "name": "send_email",
+     "args": {
+      "to": "carol@example.com",
+      "subject": "Status",
+      "body": "The build is green.\nThe deploy is scheduled for Friday.\nPlease let me know if you need anything else."
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 7,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 368,
+   "wall_s": 5.74,
+   "reasoning_chars": 803,
+   "content_head": "",
+   "signature": "819a70f961bbb414",
+   "calls": [
+    {
+     "name": "run_python",
+     "args": {
+      "code": "a, b = 0, 1\nfib_sequence = []\nfor _ in range(15):\n    fib_sequence.append(a)\n    a, b = b, a + b\nprint(fib_sequence)"
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 8,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 2,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 151,
+   "wall_s": 2.56,
+   "reasoning_chars": 364,
+   "content_head": "",
+   "signature": "d743ba90a5bf3773",
+   "calls": [
+    {
+     "name": "get_weather",
+     "args": {
+      "city": "Tokyo"
+     }
+    },
+    {
+     "name": "get_weather",
+     "args": {
+      "city": "Berlin"
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 9,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 494,
+   "wall_s": 6.54,
+   "reasoning_chars": 1636,
+   "content_head": "",
+   "signature": "3b40ce8c67101dbd",
+   "calls": [
+    {
+     "name": "get_weather",
+     "args": {
+      "city": "北京",
+      "unit": "celsius"
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 10,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 319,
+   "wall_s": 5.0,
+   "reasoning_chars": 968,
+   "content_head": "",
+   "signature": "8763871f0f7aa585",
+   "calls": [
+    {
+     "name": "web_search",
+     "args": {
+      "query": "Rust 异步运行时 对比",
+      "max_results": 5
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 11,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 351,
+   "wall_s": 5.37,
+   "reasoning_chars": 871,
+   "content_head": "",
+   "signature": "68025c4090910ef5",
+   "calls": [
+    {
+     "name": "calculator",
+     "args": {
+      "expression": "(88 * 17) - 4096 / 8"
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 12,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 313,
+   "wall_s": 4.88,
+   "reasoning_chars": 1052,
+   "content_head": "",
+   "signature": "0a14eda5f8c910fd",
+   "calls": [
+    {
+     "name": "read_file",
+     "args": {
+      "path": "config/settings.toml"
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 13,
+   "kind": "single",
+   "finish": "length",
+   "n_calls": 0,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 768,
+   "wall_s": 10.25,
+   "reasoning_chars": 2584,
+   "content_head": "",
+   "signature": "e3b0c44298fc1c14",
+   "calls": [],
+   "mtp": {}
+  },
+  {
+   "i": 14,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 344,
+   "wall_s": 4.73,
+   "reasoning_chars": 615,
+   "content_head": "",
+   "signature": "875688be5944543b",
+   "calls": [
+    {
+     "name": "run_python",
+     "args": {
+      "code": "def is_prime(n):\n    if n <= 1:\n        return False\n    if n <= 3:\n        return True\n    if n % 2 == 0 or n % 3 == 0:\n        return False\n    i = 5\n    while i * i <= n:\n        if n % i == 0 or n % (i + 2) == 0:\n            return False\n        i += 6\n    return True\n\nprint(is_prime(1000003))"
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 15,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 116,
+   "wall_s": 2.1,
+   "reasoning_chars": 284,
+   "content_head": "",
+   "signature": "dd419b299db74909",
+   "calls": [
+    {
+     "name": "web_search",
+     "args": {
+      "query": "population of Lagos",
+      "max_results": 5
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 16,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 538,
+   "wall_s": 6.93,
+   "reasoning_chars": 1737,
+   "content_head": "",
+   "signature": "622602633ddd9006",
+   "calls": [
+    {
+     "name": "run_sql",
+     "args": {
+      "query": "SELECT c.name, SUM(o.amount) as total_revenue FROM customers c JOIN orders o ON c.id = o.customer_id GROUP BY c.id, c.name ORDER BY total_revenue DESC LIMIT 5",
+      "database": "sales"
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 17,
+   "kind": "single",
+   "finish": "tool_calls",
+   "n_calls": 1,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 116,
+   "wall_s": 2.05,
+   "reasoning_chars": 339,
+   "content_head": "",
+   "signature": "19d1a50ae4cc2916",
+   "calls": [
+    {
+     "name": "read_file",
+     "args": {
+      "path": "README.md"
+     }
+    }
+   ],
+   "mtp": {}
+  },
+  {
+   "i": 18,
+   "kind": "follow-up",
+   "finish": "stop",
+   "n_calls": 0,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 95,
+   "wall_s": 1.67,
+   "reasoning_chars": 305,
+   "content_head": "The current weather in Oslo is -2°C with light snow and winds at 14 km/h.",
+   "signature": "39b74c0bf5f2d8ef",
+   "calls": [],
+   "mtp": {}
+  },
+  {
+   "i": 19,
+   "kind": "follow-up",
+   "finish": "stop",
+   "n_calls": 0,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 72,
+   "wall_s": 1.43,
+   "reasoning_chars": 162,
+   "content_head": "The result of 17 * 23 + 5 is 396.",
+   "signature": "83d7b11307f70119",
+   "calls": [],
+   "mtp": {}
+  },
+  {
+   "i": 20,
+   "kind": "follow-up",
+   "finish": "stop",
+   "n_calls": 0,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 44,
+   "wall_s": 0.99,
+   "reasoning_chars": 172,
+   "content_head": "The capital of Australia is Canberra.",
+   "signature": "9bbfb12b32989d97",
+   "calls": [],
+   "mtp": {}
+  },
+  {
+   "i": 21,
+   "kind": "follow-up",
+   "finish": "stop",
+   "n_calls": 0,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 79,
+   "wall_s": 1.42,
+   "reasoning_chars": 188,
+   "content_head": "notes.txt 的内容如下：\n\n- 买牛奶\n- 给妈妈打电话\n- 周五提交报告",
+   "signature": "df80b041d56aede7",
+   "calls": [],
+   "mtp": {}
+  },
+  {
+   "i": 22,
+   "kind": "follow-up",
+   "finish": "stop",
+   "n_calls": 0,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 53,
+   "wall_s": 1.12,
+   "reasoning_chars": 124,
+   "content_head": "There are 18,342 rows in the users table.",
+   "signature": "e3eb9d6670918f28",
+   "calls": [],
+   "mtp": {}
+  },
+  {
+   "i": 23,
+   "kind": "follow-up",
+   "finish": "stop",
+   "n_calls": 0,
+   "calls_valid_json": true,
+   "names_known": true,
+   "completion_tokens": 79,
+   "wall_s": 1.44,
+   "reasoning_chars": 172,
+   "content_head": "The result of 2**20 is 1048576.",
+   "signature": "ce494be9fb3f465d",
+   "calls": [],
+   "mtp": {}
+  }
+ ],
+ "plain": [
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null
+ ]
+}

@@ -1,0 +1,7 @@
+# HELP intarsia_batch_verify_passes_total Batched verify passes by number of sequences.
+# TYPE intarsia_batch_verify_passes_total counter
+intarsia_batch_verify_passes_total{seqs="1"} 8
+intarsia_batch_verify_passes_total{seqs="2"} 856
+# HELP intarsia_batch_verify_rows_total Rows of the batched verify passes.
+# TYPE intarsia_batch_verify_rows_total counter
+intarsia_batch_verify_rows_total 5155

@@ -1,0 +1,12 @@
+Qwen3.6-35B-A3B NVFP4 (HF snapshot 1355db6a), tokenizer.json; 248044 base tokens (ids 0..248043) + 26 added tokens (ids 248044..248069); lm_head rows 248320
+'<tool_call>' 248058
+'</tool_call>' 248059
+'<think>' 248068
+'</think>' 248069
+'<|im_end|>' 248046 (eos_token in tokenizer_config; generation_config eos_token_id [248046, 248044])
+'<|im_start|>' 248045
+'<|endoftext|>' 248044 (config.json eos_token_id; pad)
+'<tool_response>' 248066
+'</tool_response>' 248067
+(<function=...>, <parameter=...> are not single tokens: they are ordinary text tokens inside the tool-call block)
+added tokens below 131072: none (all 26 are >= 248044)

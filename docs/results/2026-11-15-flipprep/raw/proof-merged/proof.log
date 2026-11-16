@@ -1,0 +1,39 @@
+[01:45:58 +0s] serve arm proof-C: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
+[01:46:50 +52s] serve proof-C up; MemAvailable MB: 48746; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk);batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 50.3s, context 32768 tokens;
+greedy/b1: 1752 tokens in 13.69 s; verify passes 677, drafted 1350, accepted 1056 (0.782; 2.56 tokens/pass)
+greedy/b2: 1752 tokens in 11.83 s; verify passes 677, drafted 1350, accepted 1056 (0.782; 2.56 tokens/pass)
+t1.0/b1: 1752 tokens in 17.22 s; verify passes 737, drafted 1470, accepted 998 (0.679; 2.35 tokens/pass)
+t1.0/b2: 1752 tokens in 13.55 s; verify passes 737, drafted 1470, accepted 998 (0.679; 2.35 tokens/pass)
+mixed-greedy-t1.0/b2: 1752 tokens in 12.41 s; verify passes 699, drafted 1395, accepted 1036 (0.743; 2.48 tokens/pass)
+# HELP intarsia_batch_verify_passes_total Batched verify passes by number of sequences.
+# TYPE intarsia_batch_verify_passes_total counter
+intarsia_batch_verify_passes_total{seqs="1"} 8
+intarsia_batch_verify_passes_total{seqs="2"} 855
+# HELP intarsia_batch_verify_rows_total Rows of the batched verify passes.
+# TYPE intarsia_batch_verify_rows_total counter
+intarsia_batch_verify_rows_total 5149
+[01:48:00 +122s] C: plan line: batched verify: the plan covers passes of up to 2 sequences (6 rows)
+[01:48:00 +122s] C: 'batched verify off' lines (must be 0 for C): 0
+[01:48:01 +123s] min MemAvailable MB (time MB; KILLED count) (proof-C): 01:48:00 48584 0 
+[01:48:03 +125s] serve arm proof-R: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2 --spec off
+[01:48:40 +162s] serve proof-R up; MemAvailable MB: 51008; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 35.2s, context 32768 tokens;
+greedy/b1: 1752 tokens in 21.57 s; verify passes 0, drafted 0, accepted 0
+greedy/b2: 1752 tokens in 14.07 s; verify passes 0, drafted 0, accepted 0
+t1.0/b1: 1752 tokens in 21.27 s; verify passes 0, drafted 0, accepted 0
+t1.0/b2: 1752 tokens in 14.23 s; verify passes 0, drafted 0, accepted 0
+mixed-greedy-t1.0/b2: 1752 tokens in 14.26 s; verify passes 0, drafted 0, accepted 0
+[01:50:06 +248s] R: plan line: 
+[01:50:07 +249s] R: 'batched verify off' lines (must be 0 for C): 0
+[01:50:08 +250s] min MemAvailable MB (time MB; KILLED count) (proof-R): 01:48:44 50147 0 
+R        greedy/b1                12/12 requests identical to R b1 | verify passes 0 drafted 0 accepted 0
+R        greedy/b2                12/12 requests identical to R b1 | verify passes 0 drafted 0 accepted 0
+R        t1.0/b1                  12/12 requests identical to R b1 | verify passes 0 drafted 0 accepted 0
+R        t1.0/b2                  12/12 requests identical to R b1 | verify passes 0 drafted 0 accepted 0
+R        mixed-greedy-t1.0/b2     12/12 requests identical to R b1 | verify passes 0 drafted 0 accepted 0
+C        greedy/b1                12/12 requests identical to R b1 | verify passes 677 drafted 1350 accepted 1056 (0.782)
+C        greedy/b2                12/12 requests identical to R b1 | verify passes 677 drafted 1350 accepted 1056 (0.782)
+C        t1.0/b1                  12/12 requests identical to R b1 | verify passes 737 drafted 1470 accepted 998 (0.679)
+C        t1.0/b2                  12/12 requests identical to R b1 | verify passes 737 drafted 1470 accepted 998 (0.679)
+C        mixed-greedy-t1.0/b2     12/12 requests identical to R b1 | verify passes 699 drafted 1395 accepted 1036 (0.743)
+VERDICT: PASS: every request's ids are identical across arms and concurrency
+[01:50:10 +252s] end

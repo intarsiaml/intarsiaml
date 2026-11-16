@@ -783,7 +783,7 @@ fn batched_mtp_default_only_where_measured_and_env_wins() {
     use intarsia_models::load::{batched_mtp_for, mtp_default, tp_mtp_default};
     let moe = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5_moe.toml")).unwrap();
     std::env::remove_var("INTARSIA_BATCHED_MTP");
-    assert_eq!(batched_mtp_for(&moe, "cuda", 1, true).unwrap(), 1, "35B cuda tp1");
+    assert_eq!(batched_mtp_for(&moe, "cuda", 1, true).unwrap(), 2, "35B cuda tp1 (lane flipprep: N = 2)");
     assert_eq!(batched_mtp_for(&moe, "metal", 1, true).unwrap(), 1, "35B metal tp1");
     assert_eq!(batched_mtp_for(&moe, "hip", 1, true).unwrap(), 0, "35B hip stays off");
     assert_eq!(batched_mtp_for(&moe, "cuda", 2, true).unwrap(), 0, "tp 2 stays off");
@@ -817,11 +817,11 @@ fn batched_mtp_default_only_where_measured_and_env_wins() {
         }
     }
     got.sort();
-    assert_eq!(got, ["qwen3_5_moe cuda 1", "qwen3_5_moe metal 1"], "the recipes that turn batched MTP on by default");
+    assert_eq!(got, ["qwen3_5_moe cuda 2", "qwen3_5_moe metal 1"], "the recipes that turn batched MTP on by default");
 }
 
 /// Lane flipprep: `[tuning.<backend>] batched_verify` / `verify_topk` are recipe keys (unset: off). The shipped recipes set them for exactly the
-/// pairs measured, and the keys resolve per backend. PR 1 (this test) ships no recipe that sets either.
+/// pairs measured, and the keys resolve per backend. The 35B on CUDA (user decision pending, PR 2) is the one pair, with its 131072-row draft head; Metal and HIP stay off.
 #[test]
 fn shipped_recipes_set_batched_verify_and_verify_topk_only_where_measured() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../recipes");
@@ -842,7 +842,16 @@ fn shipped_recipes_set_batched_verify_and_verify_topk_only_where_measured() {
         }
     }
     got.sort();
-    assert_eq!(got, Vec::<String>::new(), "the recipes that set batched verify / verify top-k");
+    assert_eq!(
+        got,
+        ["qwen3_5_moe cuda batched_verify Some(true)", "qwen3_5_moe cuda verify_topk Some(true)"],
+        "the recipes that set batched verify / verify top-k"
+    );
+    let moe = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5_moe.toml")).unwrap();
+    assert_eq!(moe.resolve_mtp_draft_vocab(None, "cuda").value, 131072, "35B cuda draft head");
+    assert_eq!(moe.resolve_mtp_draft_vocab(None, "metal").value, 0, "35B metal keeps the full head");
+    assert_eq!(moe.resolve_mtp_draft_vocab(None, "hip").value, 0, "35B hip keeps the full head");
+    assert_eq!(moe.resolve_mtp_draft_vocab(Some(0), "cuda").value, 0, "--mtp-draft-vocab 0 wins");
 }
 
 /// lane dsubset: `--mtp-draft-subset` at tp = 2 (replicated or vocab-parallel head; drafter split or whole on rank 0) drafts
@@ -877,6 +886,10 @@ fn batched_verify_for_reads_the_env_first_then_the_recipe() {
     use intarsia_models::load::batched_verify_for;
     let mut moe = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5_moe.toml")).unwrap();
     std::env::remove_var("INTARSIA_BATCHED_VERIFY");
+    // lane flipprep: the shipped 35B CUDA recipe now sets the key (the flip), so the "no key" case is built by clearing it
+    assert_eq!(moe.tuning.backends.get("cuda").unwrap().batched_verify, Some(true), "the shipped recipe's value");
+    assert!(batched_verify_for(&moe, "cuda"), "shipped recipe, no env: on");
+    moe.tuning.backends.get_mut("cuda").unwrap().batched_verify = None;
     assert!(!batched_verify_for(&moe, "cuda"), "no recipe key: off");
     moe.tuning.backends.get_mut("cuda").unwrap().batched_verify = Some(true);
     assert!(batched_verify_for(&moe, "cuda"), "the recipe turns it on");

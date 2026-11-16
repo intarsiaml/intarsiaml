@@ -1,0 +1,31 @@
+spark1: intarsia 0.0.1
+Mem:             121          38          35           0          48          82
+spark2: intarsia 0.0.1
+Mem:             121          48          30           0          44          73
+20:59:56 vLLM: spark1 200 spark2 200
+20:59:56 == arm R2: -m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 8192 --mem-budget 30 --profile-every 0 --tp 2 --spec off
+21:00:07 arm R2 up; spark1 71329 MB, spark2 62077 MB available; 
+greedy/b1: 1752 tokens in 19.48 s; verify passes 0, drafted 0, accepted 0
+greedy/b2: 1752 tokens in 18.03 s; verify passes 0, drafted 0, accepted 0
+t1.0/b1: 1752 tokens in 18.67 s; verify passes 0, drafted 0, accepted 0
+t1.0/b2: 1752 tokens in 18.52 s; verify passes 0, drafted 0, accepted 0
+mixed-greedy-t1.0/b2: 1752 tokens in 18.19 s; verify passes 0, drafted 0, accepted 0
+21:01:43 == arm F2: -m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 8192 --mem-budget 30 --profile-every 0 --tp 2 --spec mtp --spec-k 2
+21:02:06 arm F2 up; spark1 70142 MB, spark2 62336 MB available; --mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);--spec mtp on cuda with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row);
+greedy/b1: 1752 tokens in 14.59 s; verify passes 675, drafted 1347, accepted 1057 (0.785; 2.57 tokens/pass)
+greedy/b2: 1752 tokens in 12.82 s; verify passes 675, drafted 1347, accepted 1057 (0.785; 2.57 tokens/pass)
+t1.0/b1: 1752 tokens in 18.89 s; verify passes 0, drafted 0, accepted 0
+t1.0/b2: 1752 tokens in 19.16 s; verify passes 0, drafted 0, accepted 0
+mixed-greedy-t1.0/b2: 1752 tokens in 15.81 s; verify passes 351, drafted 701, accepted 567 (0.809; 2.62 tokens/pass)
+R2       greedy/b1                12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+R2       greedy/b2                12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+R2       t1.0/b1                  12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+R2       t1.0/b2                  12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+R2       mixed-greedy-t1.0/b2     12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+F2       greedy/b1                12/12 requests identical to R2 b1 | verify passes 675 drafted 1347 accepted 1057 (0.785)
+F2       greedy/b2                12/12 requests identical to R2 b1 | verify passes 675 drafted 1347 accepted 1057 (0.785)
+F2       t1.0/b1                  12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+F2       t1.0/b2                  12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+F2       mixed-greedy-t1.0/b2     12/12 requests identical to R2 b1 | verify passes 351 drafted 701 accepted 567 (0.809)
+VERDICT: PASS: every request's ids are identical across arms and concurrency
+21:03:32 end

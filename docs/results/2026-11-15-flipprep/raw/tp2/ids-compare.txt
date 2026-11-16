@@ -1,0 +1,11 @@
+R2       greedy/b1                12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+R2       greedy/b2                12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+R2       t1.0/b1                  12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+R2       t1.0/b2                  12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+R2       mixed-greedy-t1.0/b2     12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+F2       greedy/b1                12/12 requests identical to R2 b1 | verify passes 675 drafted 1347 accepted 1057 (0.785)
+F2       greedy/b2                12/12 requests identical to R2 b1 | verify passes 675 drafted 1347 accepted 1057 (0.785)
+F2       t1.0/b1                  12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+F2       t1.0/b2                  12/12 requests identical to R2 b1 | verify passes 0 drafted 0 accepted 0
+F2       mixed-greedy-t1.0/b2     12/12 requests identical to R2 b1 | verify passes 351 drafted 701 accepted 567 (0.809)
+VERDICT: PASS: every request's ids are identical across arms and concurrency

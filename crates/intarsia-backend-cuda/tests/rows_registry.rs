@@ -286,3 +286,56 @@ fn attn_decode_rows_kernel_is_selected_only_with_a_table_and_for_supported_shape
     }
     assert!(seen_rows > 0 && seen_none > 0, "the grid selected nothing: rows {seen_rows} plain {seen_none}");
 }
+
+/// Lane flipprep (coordinator gate from lane dv27's finding: the 27B's `matmul_mxfp4` at M = 6 had no ADMITTED kernel under `serve`'s admitted-only rule, because the
+/// plan probes verify passes of `2..=verify_rows()` rows and batched steps of `2..=batch_rows()` rows, never the `sequences x (k + 1)` rows of a batched verify pass).
+/// A kernel is admitted when a probed call selects it. This pins, for every op the Qwen3.6-35B-A3B runs (NVFP4 / fp8 / bf16 projections, the bf16 lm_head, the
+/// MoE experts, the fp8 pair, the ops without a row-exact kernel), that each row count a batched verify pass of N = 2 sequences with k = 2 drafts can have (2..=6,
+/// partial drafting included) selects, under `exact_rows`, a kernel that the probed shapes (ordinary calls at every probed size, row-exact calls at 2..=3 rows) already admit:
+/// those ops' row-exact kernel is one GEMV for M = 1..=16 (`ROWS_PINS`), so nothing new needs admitting. `matmul_mxfp4` (the 27B's op, whose table switches kernel
+/// at M = 5) is left out: that is lane mx6's probe fix.
+#[test]
+fn batched_verify_rows_2_to_6_select_an_admitted_kernel_for_every_35b_op() {
+    if !default_env() {
+        return;
+    }
+    let cpu = CpuBackend::new();
+    let mut checked = 0;
+    for (label, build) in cases() {
+        if label.starts_with("matmul_mxfp4") {
+            continue;
+        }
+        let probe_reg = registry();
+        let pick = |reg: &Registry, m: usize, exact: bool| {
+            let mut rng = SplitMix64::new(7);
+            let mut call = op_call(&cpu, &build(&mut rng, m));
+            call.exact_rows = exact;
+            reg.select(&call).map(|k| k.name.clone())
+        };
+        // what the plan probes admit: the ordinary kernels of every probed row count (the solo decode step at M = 1, the prefill sizes) and the row-exact
+        // kernels of the verify passes of 2..=3 rows (`verify_rows()` = 3 for k = 2) and of the batched step of 2 rows (`batch_rows()` = 2 at --max-batch 2)
+        let mut reg = registry();
+        let mut admitted = Vec::new();
+        let probes = MS.iter().map(|&m| (m, false)).chain([(2, true), (3, true)]);
+        for (m, exact) in probes {
+            if let Ok(name) = pick(&probe_reg, m, exact) {
+                reg.set_admission(&name, intarsia_core::registry::Admission::Admitted);
+                admitted.push(name);
+            }
+        }
+        reg.require_admitted = true;
+        for m in 2..=6 {
+            match (pick(&reg, m, true), pick(&probe_reg, m, true)) {
+                (Ok(name), _) => {
+                    assert!(admitted.contains(&name), "{label}: M = {m} selects {name}, which no probed shape admits");
+                    checked += 1;
+                }
+                // the op has no kernel for these rows (the fused ops: the model runs the unfused chain), so it never runs there
+                (Err(_), Err(_)) if pick(&probe_reg, 2, true).is_err() => {}
+                (Err(e), Ok(name)) => panic!("{label}: M = {m} would select {name}, but under admitted kernels only: {e}"),
+                (Err(e), Err(_)) => panic!("{label}: M = {m} has no kernel although M = 2 has one: {e}"),
+            }
+        }
+    }
+    assert!(checked >= 40, "the 35B's row-exact ops were checked: {checked} (op, rows) pairs");
+}
