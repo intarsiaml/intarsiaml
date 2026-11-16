@@ -13,7 +13,7 @@ set -uo pipefail
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
 L=$HOME/intarsia-mtp2s; O=$L/out/prof; mkdir -p $O
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
-BIN=$L/bin/intarsia; PORT=8194; GEN=${GEN:-256}; PAT="^$L/bin/intarsia serve"
+BIN=${BIN:-$L/bin/intarsia}; PORT=8194; GEN=${GEN:-256}; PAT="^$BIN serve"
 stop_srv() {
   [ -n "${SES:-}" ] && nsys stop --session=$SES >/dev/null 2>&1
   pkill -f "$PAT" 2>/dev/null
@@ -24,8 +24,11 @@ stop_srv() {
 }
 trap stop_srv EXIT
 one_arm() {
-  local ARM=$1 ENVX NS SA; export GEN_TEMP=0
+  local ARM=$1 ENVX NS SA WL=gen2.py; export GEN_TEMP=0
   case $ARM in
+    F2)   ENVX="X=1";                                              NS=2; SA="" ;;   # 2026-11-16: main's defaults (#386 recipe: batched MTP 2, batched verify, top-k, 131072 draft head)
+    FM)   ENVX="X=1";                                              NS=2; SA=""; WL=gen3.py ;;   # F2 with a long stream beside short back-to-back ones (V+D and solo 3-row passes)
+    FK1)  ENVX="X=1";                                              NS=2; SA="--spec mtp --spec-k 1" ;;   # F2 at k = 1 (4-row packed pass)
     P2)   ENVX="X=1";                                              NS=2; SA="" ;;
     V2)   ENVX="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1"; NS=2; SA="" ;;
     V2k1) ENVX="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1"; NS=2; SA="--spec mtp --spec-k 1" ;;
@@ -51,7 +54,7 @@ one_arm() {
   python3 $L/src/scripts/mtp2s/gen2.py $PORT $NS 128 3 >> $O/warm-$ARM.txt 2>&1
   curl -s http://127.0.0.1:$PORT/metrics | grep -E '^intarsia_(spec|batch|graph|decode)' | sed 's/{[^}]*}//' > $O/metrics0-$ARM.txt
   nsys start --session=$SES -o $O/$ARM --force-overwrite=true 2>&1 | tail -1
-  python3 $L/src/scripts/mtp2s/gen2.py $PORT $NS $GEN 0 > $O/gen-$ARM.txt 2>&1
+  python3 $L/src/scripts/mtp2s/$WL $PORT $NS $GEN 0 > $O/gen-$ARM.txt 2>&1
   nsys stop --session=$SES 2>&1 | tail -1
   curl -s http://127.0.0.1:$PORT/metrics | grep -E '^intarsia_(spec|batch|graph|decode)' | sed 's/{[^}]*}//' > $O/metrics1-$ARM.txt
   cat $O/gen-$ARM.txt

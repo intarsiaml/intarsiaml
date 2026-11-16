@@ -1,0 +1,2 @@
+fleetq: #9687 running on spark2: env OUTBIN=base scripts/mtp2s/build.sh
+08:32:34
