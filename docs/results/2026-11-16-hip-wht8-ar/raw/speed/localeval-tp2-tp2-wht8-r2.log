@@ -1,0 +1,49 @@
+[localeval] calibrated: 22.1 tokens/sentence, 52 base tokens, ctx=18432
+[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.09s prefill=10985 tok/s decode=191.8 tok/s peak=194.3 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=990 ttft=0.10s prefill=10041 tok/s decode=192.3 tok/s peak=203.3 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=994 ttft=0.09s prefill=10723 tok/s decode=192.6 tok/s peak=203.3 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4087 ttft=0.24s prefill=17168 tok/s decode=188.9 tok/s peak=191.6 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4086 ttft=0.24s prefill=17338 tok/s decode=188.8 tok/s peak=192.7 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4093 ttft=0.23s prefill=17502 tok/s decode=189.1 tok/s peak=193.6 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16654 ttft=1.06s prefill=15646 tok/s decode=179.8 tok/s peak=205.1 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16657 ttft=1.06s prefill=15722 tok/s decode=179.9 tok/s peak=183.2 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16654 ttft=1.06s prefill=15677 tok/s decode=179.4 tok/s peak=186.7 tok/s out=128
+# localeval: adhoc — 2026-11-15T20:40
+
+- model: `qwen36-35b-tp2-wht8` on ? (?), url `http://tatooine:8090/v1`
+- thinking: off; run kind: speed; label: wht8ar-tp2-tp2-wht8-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d96f899
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8090/v1 --model qwen36-35b-tp2-wht8 --label wht8ar-tp2-tp2-wht8-r2 --sizes 1024,4096,16384 --gen 128 --reps 3 --thinking off --wait-idle 60 --recipe HIP_VISIBLE_DEVICES=0,1 INTARSIA_HIP_AR_WIRE=wht8 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b-tp2-wht8 --tp 2 --devices 0,1 --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor --host 0.0.0.0 --port 8090 (tree wht6-8b, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)`
+- result file: `results/20261115-204017-adhoc-wht8ar-tp2-tp2-wht8-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 INTARSIA_HIP_AR_WIRE=wht8 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b-tp2-wht8 --tp 2 --devices 0,1 --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor --host 0.0.0.0 --port 8090 (tree wht6-8b, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)
+````
+
+## Speed sweep
+
+served `qwen36-35b-tp2-wht8`, fingerprint `None`, ctx 18432, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.09 | 10723 (10041–10985) * | - | 192.3 (191.8–192.6) | 203.3 (194.3–203.3) | - | - | 128 |
+| 4087 | 0.24 | 17338 (17168–17502) | 21657 | 188.9 (188.8–189.1) | 192.7 (191.6–193.6) | - | - | 128 |
+| 16654 | 1.06 | 15677 (15646–15722) | 15214 | 179.8 (179.4–179.9) | 186.7 (183.2–205.1) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261115-204017-adhoc-wht8ar-tp2-tp2-wht8-r2/result.json
+[localeval] logged to unanimis: 66a6b3ae-3174-4719-8f07-fc5d7ef0d55e

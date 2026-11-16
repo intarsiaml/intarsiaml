@@ -1,0 +1,115 @@
+fleetq: #9439 waiting (#2 in line): in line behind #9437 "mtt: sample serve start-up, MTP default vs off (35B)" (claude-2ae67a71) on endor
+fleetq:   #9437 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9437 set, or it will wait for #9437 to be released.
+fleetq: #9439 waiting (#1 in line): needs gpu quiet on endor, but #9437 "mtt: sample serve start-up, MTP default vs off (35B)" (claude-2ae67a71) loads it
+fleetq:   #9437 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9437 set, or it will wait for #9437 to be released.
+fleetq: #9439 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/2ae67a71-20df-4e79-bba2-263751e93994/scratchpad/probe.sh
+    Finished `release` profile [optimized] target(s) in 0.32s
+spread 0 K = 16: 1024 outputs
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+        0 mismatches  chunk 2: exact, rounded, then add
+spread 0 K = 32: 1024 outputs
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+        0 mismatches  chunk 2: exact, rounded, then add
+spread 0 K = 48: 1024 outputs
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+        0 mismatches  chunk 2: exact, rounded, then add
+spread 0 K = 64: 1024 outputs
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+        0 mismatches  chunk 2: exact, rounded, then add
+spread 0 K = 128: 1024 outputs
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+        0 mismatches  chunk 2: exact, rounded, then add
+spread 0 K = 160: 1024 outputs
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+        0 mismatches  chunk 2: exact, rounded, then add
+spread 0 K = 256: 1024 outputs
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+        0 mismatches  chunk 2: exact, rounded, then add
+spread 0 K = 1024: 1024 outputs
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  seq desc
+        0 mismatches  exact sum, one rounding
+        0 mismatches  chunk 2: seq f32, then add
+        0 mismatches  chunk 2: exact, rounded, then add
+spread 0 K = 5120: 1024 outputs
+        0 mismatches  seq asc (rounded add per product)
+        0 mismatches  chunk 2: seq f32, then add
+        0 mismatches  chunk 2: exact, rounded, then add
+        0 mismatches  chunk 2: exact, fused into acc
+        0 mismatches  chunk 2: pair tree f32, then add
+spread 1 K = 16: 1024 outputs
+       22 mismatches  2 strided accumulators, tree
+       27 mismatches  8 strided accumulators, tree
+       28 mismatches  4 strided accumulators, tree
+       34 mismatches  exact sum, one rounding
+       34 mismatches  chunk 16: exact, rounded, then add
+spread 1 K = 32: 1024 outputs
+      149 mismatches  chunk 2: seq f32, then add
+      149 mismatches  chunk 2: exact, rounded, then add
+      149 mismatches  chunk 2: pair tree f32, then add
+      159 mismatches  chunk 4: seq f32, then add
+      159 mismatches  chunk 4: pair tree f32, then add
+spread 1 K = 48: 1024 outputs
+      280 mismatches  chunk 2: seq f32, then add
+      280 mismatches  chunk 2: exact, rounded, then add
+      280 mismatches  chunk 2: pair tree f32, then add
+      286 mismatches  chunk 2: exact, fused into acc
+      316 mismatches  chunk 4: seq f32, then add
+spread 1 K = 64: 1024 outputs
+      390 mismatches  chunk 2: seq f32, then add
+      390 mismatches  chunk 2: exact, rounded, then add
+      390 mismatches  chunk 2: pair tree f32, then add
+      396 mismatches  chunk 4: seq f32, then add
+      396 mismatches  chunk 4: pair tree f32, then add
+spread 1 K = 128: 1024 outputs
+      520 mismatches  chunk 2: seq f32, then add
+      520 mismatches  chunk 2: exact, rounded, then add
+      520 mismatches  chunk 2: pair tree f32, then add
+      524 mismatches  chunk 2: exact, fused into acc
+      530 mismatches  chunk 4: exact, rounded, then add
+spread 1 K = 160: 1024 outputs
+      624 mismatches  chunk 4: exact, fused into acc
+      630 mismatches  chunk 4: seq f32, then add
+      631 mismatches  chunk 4: pair tree f32, then add
+      632 mismatches  chunk 4: exact, rounded, then add
+      647 mismatches  chunk 8: exact, fused into acc
+spread 1 K = 256: 1024 outputs
+      728 mismatches  chunk 8: exact, fused into acc
+      730 mismatches  chunk 16: exact, fused into acc
+      731 mismatches  chunk 16: exact, rounded, then add
+      732 mismatches  chunk 4: exact, fused into acc
+      734 mismatches  chunk 8: exact, rounded, then add
+spread 1 K = 1024: 1024 outputs
+      886 mismatches  chunk 32: exact, fused into acc
+      888 mismatches  chunk 64: exact, fused into acc
+      889 mismatches  chunk 32: exact, rounded, then add
+      891 mismatches  exact sum, one rounding
+      894 mismatches  chunk 32: pair tree f32, then add
+spread 1 K = 5120: 1024 outputs
+      962 mismatches  chunk 16: exact, rounded, then add
+      966 mismatches  chunk 16: seq f32, then add
+      966 mismatches  chunk 16: pair tree f32, then add
+      969 mismatches  chunk 64: seq f32, then add
+      971 mismatches  32 strided accumulators, tree
+fleetq: #9439 done (exit 0)

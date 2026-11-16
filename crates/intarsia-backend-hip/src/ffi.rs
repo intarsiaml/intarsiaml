@@ -136,6 +136,49 @@ extern "C" {
     ) -> c_int;
     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    /// lane wht6-8b (`kernels/hip/allreduce_wht6.hip`, symbol width 8): the lossy wht8 (8-bit) wire on a fence path's buffers, and its slot geometry
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_ar2_wht8(
+        x: *mut c_void,
+        out: *mut c_void,
+        dtype: c_int,
+        out_dtype: c_int,
+        n_elem: i64,
+        peer_scratch: *mut c_void,
+        my_scratch: *mut c_void,
+        loc: *mut c_void,
+        peer_flags: *mut u32,
+        my_flags: *mut u32,
+        ctrs: *mut u32,
+        slot_bytes: i64,
+        nblocks: c_int,
+        drain: c_int,
+        stream: S,
+    ) -> c_int;
+    pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    /// lane wire-probe: the same wire at symbol width `bits` in {6, 8, 12, 16, 32} (32 = `whtf`, the unquantised control), and its slot geometry
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_ar2_whtw(
+        bits: c_int,
+        x: *mut c_void,
+        out: *mut c_void,
+        dtype: c_int,
+        out_dtype: c_int,
+        n_elem: i64,
+        peer_scratch: *mut c_void,
+        my_scratch: *mut c_void,
+        loc: *mut c_void,
+        peer_flags: *mut u32,
+        my_flags: *mut u32,
+        ctrs: *mut u32,
+        slot_bytes: i64,
+        nblocks: c_int,
+        drain: c_int,
+        stream: S,
+    ) -> c_int;
+    pub fn ik_ar2_whtw_capacity(bits: c_int, slot_bytes: i64) -> i64;
+    pub fn ik_ar2_whtw_loc_bytes(bits: c_int, slot_bytes: i64) -> i64;
     /// lane arx: the reduce of a partial its GEMM already pushed (`ik_matmul_mxfp4_a8_mma_push`), on the wide path's buffers
     #[allow(clippy::too_many_arguments)]
     pub fn ik_ar2_pushed(

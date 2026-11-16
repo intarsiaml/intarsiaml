@@ -1,0 +1,60 @@
+20:38:32 guard: [guard] radiance stopped 2026-11-15 20:38:31
+20:38:32 phase tp2 round 1 arm tp2-off: starting server
+20:38:42 phase tp2 round 1 arm tp2-off: server up, localeval
+20:38:57 phase tp2 round 1 arm tp2-off: localeval exit 0 - result file: `results/20261115-203843-adhoc-wht8ar-tp2-tp2-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-203843-adhoc-wht8ar-tp2-tp2-off-r1/result.json|
+20:38:57 phase tp2 round 1 arm tp2-wht6: starting server
+20:39:07 phase tp2 round 1 arm tp2-wht6: server up, localeval
+20:39:20 phase tp2 round 1 arm tp2-wht6: localeval exit 0 - result file: `results/20261115-203907-adhoc-wht8ar-tp2-tp2-wht6-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-203907-adhoc-wht8ar-tp2-tp2-wht6-r1/result.json|
+20:39:21 phase tp2 round 1 arm tp2-wht8: starting server
+20:39:30 phase tp2 round 1 arm tp2-wht8: server up, localeval
+20:39:44 phase tp2 round 1 arm tp2-wht8: localeval exit 0 - result file: `results/20261115-203931-adhoc-wht8ar-tp2-tp2-wht8-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-203931-adhoc-wht8ar-tp2-tp2-wht8-r1/result.json|
+20:39:44 phase tp2 round 2 arm tp2-wht6: starting server
+20:39:54 phase tp2 round 2 arm tp2-wht6: server up, localeval
+20:40:07 phase tp2 round 2 arm tp2-wht6: localeval exit 0 - result file: `results/20261115-203954-adhoc-wht8ar-tp2-tp2-wht6-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-203954-adhoc-wht8ar-tp2-tp2-wht6-r2/result.json|
+20:40:07 phase tp2 round 2 arm tp2-wht8: starting server
+20:40:17 phase tp2 round 2 arm tp2-wht8: server up, localeval
+20:40:29 phase tp2 round 2 arm tp2-wht8: localeval exit 0 - result file: `results/20261115-204017-adhoc-wht8ar-tp2-tp2-wht8-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204017-adhoc-wht8ar-tp2-tp2-wht8-r2/result.json|
+20:40:30 phase tp2 round 2 arm tp2-off: starting server
+20:40:40 phase tp2 round 2 arm tp2-off: server up, localeval
+20:40:53 phase tp2 round 2 arm tp2-off: localeval exit 0 - result file: `results/20261115-204040-adhoc-wht8ar-tp2-tp2-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204040-adhoc-wht8ar-tp2-tp2-off-r2/result.json|
+20:40:54 done, time left 1954s
+20:41:04 guard: [guard] radiance answers 2026-11-15 20:41:04 (after 15 s)
+20:44:19 guard: [guard] radiance stopped 2026-11-15 20:44:18
+20:44:19 phase tp2 round 3 arm tp2-wht8: starting server
+20:44:29 phase tp2 round 3 arm tp2-wht8: server up, localeval
+20:44:42 phase tp2 round 3 arm tp2-wht8: localeval exit 0 - result file: `results/20261115-204430-adhoc-wht8ar-tp2-tp2-wht8-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204430-adhoc-wht8ar-tp2-tp2-wht8-r3/result.json|
+20:44:43 phase tp2 round 3 arm tp2-off: starting server
+20:44:52 phase tp2 round 3 arm tp2-off: server up, localeval
+20:45:07 phase tp2 round 3 arm tp2-off: localeval exit 0 - result file: `results/20261115-204453-adhoc-wht8ar-tp2-tp2-off-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204453-adhoc-wht8ar-tp2-tp2-off-r3/result.json|
+20:45:07 phase tp2 round 3 arm tp2-wht6: starting server
+20:45:17 phase tp2 round 3 arm tp2-wht6: server up, localeval
+20:45:30 phase tp2 round 3 arm tp2-wht6: localeval exit 0 - result file: `results/20261115-204517-adhoc-wht8ar-tp2-tp2-wht6-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204517-adhoc-wht8ar-tp2-tp2-wht6-r3/result.json|
+20:45:30 phase tp2 round 4 arm tp2-off: starting server
+20:45:40 phase tp2 round 4 arm tp2-off: server up, localeval
+20:45:53 phase tp2 round 4 arm tp2-off: localeval exit 0 - result file: `results/20261115-204540-adhoc-wht8ar-tp2-tp2-off-r4/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204540-adhoc-wht8ar-tp2-tp2-off-r4/result.json|
+20:45:54 phase tp2 round 4 arm tp2-wht6: starting server
+20:46:03 phase tp2 round 4 arm tp2-wht6: server up, localeval
+20:46:16 phase tp2 round 4 arm tp2-wht6: localeval exit 0 - result file: `results/20261115-204604-adhoc-wht8ar-tp2-tp2-wht6-r4/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204604-adhoc-wht8ar-tp2-tp2-wht6-r4/result.json|
+20:46:17 phase tp2 round 4 arm tp2-wht8: starting server
+20:46:26 phase tp2 round 4 arm tp2-wht8: server up, localeval
+20:46:39 phase tp2 round 4 arm tp2-wht8: localeval exit 0 - result file: `results/20261115-204627-adhoc-wht8ar-tp2-tp2-wht8-r4/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204627-adhoc-wht8ar-tp2-tp2-wht8-r4/result.json|
+20:46:40 phase tp2 round 5 arm tp2-wht6: starting server
+20:46:50 phase tp2 round 5 arm tp2-wht6: server up, localeval
+20:47:03 phase tp2 round 5 arm tp2-wht6: localeval exit 0 - result file: `results/20261115-204650-adhoc-wht8ar-tp2-tp2-wht6-r5/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204650-adhoc-wht8ar-tp2-tp2-wht6-r5/result.json|
+20:47:03 phase tp2 round 5 arm tp2-wht8: starting server
+20:47:13 phase tp2 round 5 arm tp2-wht8: server up, localeval
+20:47:26 phase tp2 round 5 arm tp2-wht8: localeval exit 0 - result file: `results/20261115-204714-adhoc-wht8ar-tp2-tp2-wht8-r5/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204714-adhoc-wht8ar-tp2-tp2-wht8-r5/result.json|
+20:47:26 phase tp2 round 5 arm tp2-off: starting server
+20:47:36 phase tp2 round 5 arm tp2-off: server up, localeval
+20:47:50 phase tp2 round 5 arm tp2-off: localeval exit 0 - result file: `results/20261115-204737-adhoc-wht8ar-tp2-tp2-off-r5/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204737-adhoc-wht8ar-tp2-tp2-off-r5/result.json|
+20:47:50 phase tp2 round 6 arm tp2-wht8: starting server
+20:48:00 phase tp2 round 6 arm tp2-wht8: server up, localeval
+20:48:13 phase tp2 round 6 arm tp2-wht8: localeval exit 0 - result file: `results/20261115-204800-adhoc-wht8ar-tp2-tp2-wht8-r6/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204800-adhoc-wht8ar-tp2-tp2-wht8-r6/result.json|
+20:48:13 phase tp2 round 6 arm tp2-off: starting server
+20:48:23 phase tp2 round 6 arm tp2-off: server up, localeval
+20:48:36 phase tp2 round 6 arm tp2-off: localeval exit 0 - result file: `results/20261115-204823-adhoc-wht8ar-tp2-tp2-off-r6/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204823-adhoc-wht8ar-tp2-tp2-off-r6/result.json|
+20:48:37 phase tp2 round 6 arm tp2-wht6: starting server
+20:48:47 phase tp2 round 6 arm tp2-wht6: server up, localeval
+20:48:59 phase tp2 round 6 arm tp2-wht6: localeval exit 0 - result file: `results/20261115-204847-adhoc-wht8ar-tp2-tp2-wht6-r6/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-204847-adhoc-wht8ar-tp2-tp2-wht6-r6/result.json|
+20:49:00 done, time left 1815s
+20:49:10 guard: [guard] radiance answers 2026-11-15 20:49:10 (after 15 s)

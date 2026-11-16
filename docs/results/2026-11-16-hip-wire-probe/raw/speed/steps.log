@@ -1,0 +1,27 @@
+23:45:18 guard: [guard] radiance stopped 2026-11-15 23:45:18
+23:45:18 phase tp2 round 1 arm tp2-off: starting server
+23:45:28 phase tp2 round 1 arm tp2-off: server up, localeval
+23:45:34 phase tp2 round 1 arm tp2-off: localeval exit 0 - result file: `results/20261115-234528-adhoc-wireprobe-tp2-tp2-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-234528-adhoc-wireprobe-tp2-tp2-off-r1/result.json|
+23:45:35 phase tp2 round 1 arm tp2-wht6: starting server
+23:45:44 phase tp2 round 1 arm tp2-wht6: server up, localeval
+23:45:49 phase tp2 round 1 arm tp2-wht6: localeval exit 0 - result file: `results/20261115-234545-adhoc-wireprobe-tp2-tp2-wht6-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-234545-adhoc-wireprobe-tp2-tp2-wht6-r1/result.json|
+23:45:50 phase tp2 round 1 arm tp2-wht12: starting server
+23:45:59 phase tp2 round 1 arm tp2-wht12: server up, localeval
+23:46:05 phase tp2 round 1 arm tp2-wht12: localeval exit 0 - result file: `results/20261115-234600-adhoc-wireprobe-tp2-tp2-wht12-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-234600-adhoc-wireprobe-tp2-tp2-wht12-r1/result.json|
+23:46:05 phase tp2 round 1 arm tp2-wht16: starting server
+23:46:15 phase tp2 round 1 arm tp2-wht16: server up, localeval
+23:46:20 phase tp2 round 1 arm tp2-wht16: localeval exit 0 - result file: `results/20261115-234615-adhoc-wireprobe-tp2-tp2-wht16-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-234615-adhoc-wireprobe-tp2-tp2-wht16-r1/result.json|
+23:46:20 phase tp2 round 2 arm tp2-wht6: starting server
+23:46:30 phase tp2 round 2 arm tp2-wht6: server up, localeval
+23:46:35 phase tp2 round 2 arm tp2-wht6: localeval exit 0 - result file: `results/20261115-234631-adhoc-wireprobe-tp2-tp2-wht6-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-234631-adhoc-wireprobe-tp2-tp2-wht6-r2/result.json|
+23:46:36 phase tp2 round 2 arm tp2-wht12: starting server
+23:46:46 phase tp2 round 2 arm tp2-wht12: server up, localeval
+23:46:51 phase tp2 round 2 arm tp2-wht12: localeval exit 0 - result file: `results/20261115-234646-adhoc-wireprobe-tp2-tp2-wht12-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-234646-adhoc-wireprobe-tp2-tp2-wht12-r2/result.json|
+23:46:52 phase tp2 round 2 arm tp2-wht16: starting server
+23:47:01 phase tp2 round 2 arm tp2-wht16: server up, localeval
+23:47:06 phase tp2 round 2 arm tp2-wht16: localeval exit 0 - result file: `results/20261115-234702-adhoc-wireprobe-tp2-tp2-wht16-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-234702-adhoc-wireprobe-tp2-tp2-wht16-r2/result.json|
+23:47:07 phase tp2 round 2 arm tp2-off: starting server
+23:47:16 phase tp2 round 2 arm tp2-off: server up, localeval
+23:47:22 phase tp2 round 2 arm tp2-off: localeval exit 0 - result file: `results/20261115-234717-adhoc-wireprobe-tp2-tp2-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-234717-adhoc-wireprobe-tp2-tp2-off-r2/result.json|
+23:47:22 done, time left 2273s
+23:47:32 guard: [guard] radiance answers 2026-11-15 23:47:32 (after 15 s)

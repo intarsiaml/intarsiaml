@@ -1,2 +1,94 @@
 fleetq: #9573 waiting (#8 in line): in line behind #9432 "flipprep: tools + plain mixed pairs (A vs F)" (claude-2ae67a71) on spark2
 fleetq:   #9432 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9432 set, or it will wait for #9432 to be released.
+fleetq: #9573 waiting (#7 in line): in line behind #9433 "flipprep: tool_choice none acceptance (A, F, F0)" (claude-2ae67a71) on spark2
+fleetq:   #9433 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9433 set, or it will wait for #9433 to be released.
+fleetq: #9573 waiting (#6 in line): in line behind #9491 "flipprep: batched-verify rows 2..6 under admitted kernels" (claude-2ae67a71) on spark2
+fleetq:   #9491 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9491 set, or it will wait for #9491 to be released.
+fleetq: #9573 waiting (#5 in line): in line behind #9553 "mx6: build mx6 CUDA CLI (main = flipprep's), copy to spark1" (claude-2ae67a71) on spark2
+fleetq:   #9553 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9553 set, or it will wait for #9553 to be released.
+fleetq: #9573 waiting (#4 in line): in line behind #9554 "mx6: gates 35B (plan identity, ids R vs M vs main)" (claude-2ae67a71) on spark2
+fleetq:   #9554 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9554 set, or it will wait for #9554 to be released.
+fleetq: #9573 waiting (#3 in line): in line behind #9559 "flipprep: build flip + mx6 (comb)" (claude-2ae67a71) on spark2
+fleetq:   #9559 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9559 set, or it will wait for #9559 to be released.
+fleetq: #9573 waiting (#2 in line): in line behind #9572 "dsubset: ids controls (single-sequence engine, full / prefix head)" (claude-2ae67a71) on spark2
+fleetq:   #9572 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9572 set, or it will wait for #9572 to be released.
+fleetq: #9573 waiting (#1 in line): needs gpu quiet on spark2, but #9572 "dsubset: ids controls (single-sequence engine, full / prefix head)" (claude-2ae67a71) loads it
+fleetq:   #9572 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9572 set, or it will wait for #9572 to be released.
+fleetq: #9573 running on spark2: env HOST=spark2 SUBDIR=/opt/code/intarsiaml/.worktrees/dsubset/docs/results/2026-11-15-dsubset/raw/subset-v2 OUT=/opt/code/intarsiaml/.worktrees/dsubset/docs/results/2026-11-15-dsubset/raw/runs-v2 'PARTS=accept speed' 'ARMS=S32768 S65536' LOGNAME_=w7 scripts/dsubset/runs.sh
+[22:46:06 +3s] runs start [accept speed]; vLLM: 200; earlyoom: active; Mem:             121          48          29           0          45          73; subsets: sub-32768.txt sub-65536.txt 
+[22:46:06 +3s] serve arm acc-S32768: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 1 --mtp-draft-subset ~/intarsia-dsubset/subsets/sub-32768.txt
+[22:46:56 +53s] serve acc-S32768 up; MemAvailable MB: 49883; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-subset /home/nvidia/intarsia-dsubset/subsets/sub-32768.txt: the drafter's head over 32768 of 248320 lm_head rows (37.7 MB gathered, 0.2 s);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 46.9s, context 32768 tokens;
+[22:46:56 +53s] draft-head lines of S32768: --mtp-draft-subset /home/nvidia/intarsia-dsubset/subsets/sub-32768.txt: the drafter's head over 32768 of 248320 lm_head rows (37.7 MB gathered, 0.2 s);
+[accept] S32768 en: 2819 tokens, accept 0.6203, tokens/pass 2.239, 126.39 tok/s
+[accept] S32768 code: 2899 tokens, accept 0.714, tokens/pass 2.427, 135.06 tok/s
+[accept] S32768 zh: 2920 tokens, accept 0.5038, tokens/pass 2.007, 114.81 tok/s
+[accept] S32768 ru: 2846 tokens, accept 0.5417, tokens/pass 2.081, 121.7 tok/s
+[accept] S32768 ar: 2889 tokens, accept 0.5479, tokens/pass 2.095, 120.96 tok/s
+[accept] S32768 kj: 2933 tokens, accept 0.5078, tokens/pass 2.015, 117.94 tok/s
+[accept] S32768 tool: 889 tokens, accept None, tokens/pass None, 71.26 tok/s
+[22:49:32 +209s] min MemAvailable MB (time MB; KILLED count) (acc-S32768): 22:46:57 49378 0 
+[22:49:34 +211s] serve arm acc-S65536: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 1 --mtp-draft-subset ~/intarsia-dsubset/subsets/sub-65536.txt
+[22:50:19 +256s] serve acc-S65536 up; MemAvailable MB: 50729; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-subset /home/nvidia/intarsia-dsubset/subsets/sub-65536.txt: the drafter's head over 65536 of 248320 lm_head rows (75.5 MB gathered, 0.2 s);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 42.1s, context 32768 tokens;
+[22:50:19 +256s] draft-head lines of S65536: --mtp-draft-subset /home/nvidia/intarsia-dsubset/subsets/sub-65536.txt: the drafter's head over 65536 of 248320 lm_head rows (75.5 MB gathered, 0.2 s);
+[accept] S65536 en: 2819 tokens, accept 0.6638, tokens/pass 2.327, 129.98 tok/s
+[accept] S65536 code: 2899 tokens, accept 0.8045, tokens/pass 2.608, 143.56 tok/s
+[accept] S65536 zh: 2920 tokens, accept 0.5751, tokens/pass 2.149, 121.66 tok/s
+[accept] S65536 ru: 2846 tokens, accept 0.6037, tokens/pass 2.205, 126.94 tok/s
+[accept] S65536 ar: 2889 tokens, accept 0.5939, tokens/pass 2.186, 123.63 tok/s
+[accept] S65536 kj: 2933 tokens, accept 0.5586, tokens/pass 2.117, 122.85 tok/s
+[accept] S65536 tool: 889 tokens, accept None, tokens/pass None, 72.02 tok/s
+[22:52:49 +406s] min MemAvailable MB (time MB; KILLED count) (acc-S65536): 22:50:21 49869 0 
+[22:52:51 +408s] serve arm sp-P.1: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 2 --mtp-draft-vocab 131072
+[22:53:33 +450s] serve sp-P.1 up; MemAvailable MB: 49063; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 40.7s, context 32768 tokens;
+[22:53:33 +450s] vLLM requests running before P.1: 0
+[speed] P.1 streams 1: per stream 101.43 tok/s (74.74-132.11), combined 101.43, ITL p99 30.3 ms, chunk gap p99 23.67 ms (max 153.86), CJK share 0.073 MTP passes 1434 accept 0.523 tokens/pass 2.045
+[speed] P.1 streams 2: per stream 68.53 tok/s (54.24-90.38), combined 139.31, ITL p99 93.77 ms, chunk gap p99 82.29 ms (max 253.24), CJK share 0.073 MTP passes 1434 accept 0.523 tokens/pass 2.045
+[speed] P.1 streams 1: per stream 110.73 tok/s (95.52-127.31), combined 110.73, ITL p99 23.46 ms, chunk gap p99 23.46 ms (max 111.91), CJK share 0.0 MTP passes 1318 accept 0.657 tokens/pass 2.313
+[speed] P.1 streams 2: per stream 75.1 tok/s (68.03-86.72), combined 151.22, ITL p99 35.75 ms, chunk gap p99 35.75 ms (max 159.08), CJK share 0.0 MTP passes 1318 accept 0.657 tokens/pass 2.313
+[speed] P.1 streams 1: per stream 126.85 tok/s (108.31-131.97), combined 126.85, ITL p99 86.38 ms, chunk gap p99 86.38 ms (max 101.59), CJK share 0.0 MTP passes 1139 accept 0.839 tokens/pass 2.676
+[speed] P.1 streams 2: per stream 86.05 tok/s (75.37-92.0), combined 175.39, ITL p99 34.89 ms, chunk gap p99 34.89 ms (max 262.97), CJK share 0.0 MTP passes 1139 accept 0.839 tokens/pass 2.676
+[speed] P.1 streams 1: per stream 98.97 tok/s (87.42-119.47), combined 98.97, ITL p99 34.04 ms, chunk gap p99 23.62 ms (max 129.49), CJK share 0.614 MTP passes 1474 accept 0.538 tokens/pass 2.075
+[speed] P.1 streams 2: per stream 68.83 tok/s (62.45-82.77), combined 138.96, ITL p99 121.96 ms, chunk gap p99 95.25 ms (max 129.01), CJK share 0.614 MTP passes 1474 accept 0.538 tokens/pass 2.075
+[22:57:17 +674s] vLLM requests running after P.1: 0
+[22:57:18 +675s] min MemAvailable MB (time MB; KILLED count) (sp-P.1): 22:53:34 48372 0 
+[22:57:20 +677s] serve arm sp-S.1: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 2 --mtp-draft-subset ~/intarsia-dsubset/subsets/sub-65536.txt
+[22:58:09 +726s] serve sp-S.1 up; MemAvailable MB: 48972; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-subset /home/nvidia/intarsia-dsubset/subsets/sub-65536.txt: the drafter's head over 65536 of 248320 lm_head rows (75.5 MB gathered, 0.2 s);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 46.6s, context 32768 tokens;
+[22:58:09 +726s] vLLM requests running before S.1: 0
+[speed] S.1 streams 1: per stream 110.27 tok/s (84.89-129.2), combined 110.27, ITL p99 83.19 ms, chunk gap p99 57.97 ms (max 181.51), CJK share 0.073 MTP passes 1383 accept 0.604 tokens/pass 2.208
+[speed] S.1 streams 2: per stream 76.73 tok/s (63.16-93.11), combined 156.17, ITL p99 42.38 ms, chunk gap p99 33.13 ms (max 212.05), CJK share 0.073 MTP passes 1383 accept 0.604 tokens/pass 2.208
+[speed] S.1 streams 1: per stream 110.11 tok/s (92.71-129.13), combined 110.11, ITL p99 26.64 ms, chunk gap p99 26.64 ms (max 102.21), CJK share 0.0 MTP passes 1375 accept 0.614 tokens/pass 2.226
+[speed] S.1 streams 2: per stream 77.11 tok/s (67.94-87.57), combined 153.2, ITL p99 77.31 ms, chunk gap p99 55.3 ms (max 121.54), CJK share 0.0 MTP passes 1375 accept 0.614 tokens/pass 2.226
+[speed] S.1 streams 1: per stream 124.4 tok/s (112.25-133.36), combined 124.4, ITL p99 23.35 ms, chunk gap p99 23.35 ms (max 148.18), CJK share 0.0 MTP passes 1187 accept 0.788 tokens/pass 2.576
+[speed] S.1 streams 2: per stream 88.12 tok/s (76.32-92.01), combined 177.05, ITL p99 33.78 ms, chunk gap p99 33.78 ms (max 219.54), CJK share 0.0 MTP passes 1187 accept 0.788 tokens/pass 2.576
+[speed] S.1 streams 1: per stream 98.76 tok/s (85.94-119.3), combined 98.76, ITL p99 38.42 ms, chunk gap p99 25.45 ms (max 106.43), CJK share 0.614 MTP passes 1516 accept 0.507 tokens/pass 2.013
+[speed] S.1 streams 2: per stream 69.0 tok/s (61.12-82.73), combined 138.41, ITL p99 46.4 ms, chunk gap p99 33.76 ms (max 103.37), CJK share 0.614 MTP passes 1516 accept 0.507 tokens/pass 2.013
+[23:01:45 +942s] vLLM requests running after S.1: 0
+[23:01:46 +943s] min MemAvailable MB (time MB; KILLED count) (sp-S.1): 22:58:11 48178 0 
+[23:01:48 +945s] serve arm sp-S.2: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 2 --mtp-draft-subset ~/intarsia-dsubset/subsets/sub-65536.txt
+[23:02:33 +990s] serve sp-S.2 up; MemAvailable MB: 48946; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-subset /home/nvidia/intarsia-dsubset/subsets/sub-65536.txt: the drafter's head over 65536 of 248320 lm_head rows (75.5 MB gathered, 0.2 s);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 41.8s, context 32768 tokens;
+[23:02:33 +990s] vLLM requests running before S.2: 0
+[speed] S.2 streams 1: per stream 109.76 tok/s (85.7-132.51), combined 109.76, ITL p99 33.38 ms, chunk gap p99 24.0 ms (max 148.03), CJK share 0.073 MTP passes 1383 accept 0.604 tokens/pass 2.208
+[speed] S.2 streams 2: per stream 76.65 tok/s (63.0-91.71), combined 156.21, ITL p99 100.21 ms, chunk gap p99 93.42 ms (max 213.04), CJK share 0.073 MTP passes 1383 accept 0.604 tokens/pass 2.208
+[speed] S.2 streams 1: per stream 109.31 tok/s (93.68-128.58), combined 109.31, ITL p99 22.99 ms, chunk gap p99 22.99 ms (max 81.73), CJK share 0.0 MTP passes 1375 accept 0.614 tokens/pass 2.226
+[speed] S.2 streams 2: per stream 77.0 tok/s (66.93-88.54), combined 152.48, ITL p99 33.79 ms, chunk gap p99 33.59 ms (max 123.41), CJK share 0.0 MTP passes 1375 accept 0.614 tokens/pass 2.226
+[speed] S.2 streams 1: per stream 123.45 tok/s (111.45-132.57), combined 123.45, ITL p99 85.13 ms, chunk gap p99 85.13 ms (max 148.93), CJK share 0.0 MTP passes 1187 accept 0.788 tokens/pass 2.576
+[speed] S.2 streams 2: per stream 87.66 tok/s (76.33-93.35), combined 177.09, ITL p99 32.4 ms, chunk gap p99 32.4 ms (max 220.49), CJK share 0.0 MTP passes 1187 accept 0.788 tokens/pass 2.576
+[speed] S.2 streams 1: per stream 97.72 tok/s (85.65-118.46), combined 97.72, ITL p99 32.68 ms, chunk gap p99 23.51 ms (max 103.24), CJK share 0.614 MTP passes 1516 accept 0.507 tokens/pass 2.013
+[speed] S.2 streams 2: per stream 68.98 tok/s (62.51-81.68), combined 138.71, ITL p99 103.97 ms, chunk gap p99 90.74 ms (max 149.49), CJK share 0.614 MTP passes 1516 accept 0.507 tokens/pass 2.013
+[23:06:10 +1207s] vLLM requests running after S.2: 0
+[23:06:11 +1208s] min MemAvailable MB (time MB; KILLED count) (sp-S.2): 23:02:35 48147 0 
+[23:06:13 +1210s] serve arm sp-P.2: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 2 --mtp-draft-vocab 131072
+[23:07:00 +1257s] serve sp-P.2 up; MemAvailable MB: 49012; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off;batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps);loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 43.7s, context 32768 tokens;
+[23:07:00 +1257s] vLLM requests running before P.2: 0
+[speed] P.2 streams 1: per stream 100.45 tok/s (73.88-130.98), combined 100.45, ITL p99 89.99 ms, chunk gap p99 78.37 ms (max 153.34), CJK share 0.073 MTP passes 1434 accept 0.523 tokens/pass 2.045
+[speed] P.2 streams 2: per stream 68.7 tok/s (54.93-88.92), combined 139.4, ITL p99 44.4 ms, chunk gap p99 35.38 ms (max 255.75), CJK share 0.073 MTP passes 1434 accept 0.523 tokens/pass 2.045
+[speed] P.2 streams 1: per stream 109.47 tok/s (95.24-126.29), combined 109.47, ITL p99 50.55 ms, chunk gap p99 50.55 ms (max 132.74), CJK share 0.0 MTP passes 1318 accept 0.657 tokens/pass 2.313
+[speed] P.2 streams 2: per stream 74.09 tok/s (68.82-87.69), combined 152.0, ITL p99 34.35 ms, chunk gap p99 34.35 ms (max 160.49), CJK share 0.0 MTP passes 1318 accept 0.657 tokens/pass 2.313
+[speed] P.2 streams 1: per stream 124.44 tok/s (111.7-131.47), combined 124.44, ITL p99 23.61 ms, chunk gap p99 23.61 ms (max 154.75), CJK share 0.0 MTP passes 1139 accept 0.839 tokens/pass 2.676
+[speed] P.2 streams 2: per stream 85.97 tok/s (76.25-91.27), combined 174.92, ITL p99 87.21 ms, chunk gap p99 87.21 ms (max 263.64), CJK share 0.0 MTP passes 1139 accept 0.839 tokens/pass 2.676
+[speed] P.2 streams 1: per stream 98.26 tok/s (86.64-119.01), combined 98.26, ITL p99 38.01 ms, chunk gap p99 24.22 ms (max 129.79), CJK share 0.614 MTP passes 1474 accept 0.538 tokens/pass 2.075
+[speed] P.2 streams 2: per stream 68.92 tok/s (62.46-81.09), combined 138.6, ITL p99 46.45 ms, chunk gap p99 33.94 ms (max 128.16), CJK share 0.614 MTP passes 1474 accept 0.538 tokens/pass 2.075
+[23:10:45 +1482s] vLLM requests running after P.2: 0
+[23:10:46 +1483s] min MemAvailable MB (time MB; KILLED count) (sp-P.2): 23:07:02 48220 0 
+[23:10:48 +1485s] end
+fleetq: #9573 done (exit 0)

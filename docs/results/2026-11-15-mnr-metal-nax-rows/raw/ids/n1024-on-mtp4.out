@@ -1,0 +1,19 @@
+
+
+Here is an explanation of the article, tailored for a new engineer.
+
+### 1. The Core Problem: Why "Fast" is Dangerous
+
+Imagine a factory assembly line.
+*   **Stage 1 (The Parser):** Can process 200,000 items per second.
+*   **Stage 2 (The Enricher):** Calls a slow API. Can only process 4,000 items per second.
+*   **Stage 3 (The Writer):** Writes to a database. Can only process 500 items per second.
+
+If Stage 1 pushes data into Stage 2 without limit, Stage 2 gets overwhelmed. The data piles up in a "queue" (a waiting line) between them.
+*   **The Result:** The queue grows infinitely. Memory fills up. The computer crashes. Even if it doesn't crash, the data sits in memory for minutes before being processed, making your system "stale" and slow.
+
+**Backpressure** is the mechanism that tells Stage 1: *"Hey, I'm slow. Stop sending me data until I'm ready."*
+
+---
+
+### 2. A Concrete Example: The "Unbounded" vs. "B
