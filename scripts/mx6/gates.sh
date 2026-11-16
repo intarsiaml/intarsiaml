@@ -52,7 +52,11 @@ for part in ${PARTS:-plan ids}; do
     repro)
       arm_setup MM
       if start_serve "repro-main" "$ENVS" --max-batch 2 $ARGS; then
-        log "first request on main with the opt-in set: HTTP $(curl -s -m 60 -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{"model":"guidance","prompt":"Hello, my name is","max_tokens":16,"temperature":0}' http://$HN:$PORT/v1/completions)"
+        # two requests at once: a lone sequence verifies solo (3 rows), only two drafting sequences make the 6-row batched pass
+        for q in 1 2; do
+          curl -s -m 90 -o /dev/null -w "request $q: HTTP %{http_code}\n" -H 'Content-Type: application/json' -d '{"model":"guidance","prompt":"Hello, my name is","max_tokens":64,"temperature":0}' http://$HN:$PORT/v1/completions > "$OUT/repro-req$q.txt" 2>&1 &
+        done
+        wait; log "two concurrent requests on main with the opt-in set: $(cat "$OUT"/repro-req*.txt | tr '\n' ' ')"
         sleep 3; log "server alive after it: $(rsh "kill -0 $SPID && echo yes || echo NO")"
         finish_serve "repro-main"
         log "engine failure line: $(grep -m1 'watchdog' "$OUT/serve-repro-main.log" | cut -c1-300)"

@@ -1,0 +1,10 @@
+811a812,820
+>             "kernel": "matmul_mxfp4_gemv_rows",
+>             "op": "matmul_mxfp4",
+>             "scratch_bytes": 0
+>         },
+>         {
+>             "admitted": true,
+>             "backend": "cuda",
+>             "calls_per_decode_step": 0,
+>             "exactness": "deterministic",
