@@ -1,2 +1,98 @@
 fleetq: #9405 waiting (#3 in line): in line behind #9393 "dv27: smoke (27B, default vs explicit 65536, V0, b2)" (claude-2ae67a71) on spark1
 fleetq:   #9393 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9393 set, or it will wait for #9393 to be released.
+fleetq: #9405 waiting (#2 in line): in line behind #9395 "flipprep: tp2 gate (35B tp2 cross-host, spec mtp vs off)" (claude-2ae67a71) on spark1
+fleetq:   #9395 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9395 set, or it will wait for #9395 to be released.
+fleetq: #9405 waiting (#1 in line): needs gpu quiet on spark1, but #9395 "flipprep: tp2 gate (35B tp2 cross-host, spec mtp vs off)" (claude-2ae67a71) loads it
+fleetq:   #9395 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9395 set, or it will wait for #9395 to be released.
+fleetq: #9405 running on spark1: env HOST=spark1 EXTRA=/opt/code/intarsiaml/.worktrees/dsubset-data/extra 'PARTS=plan accept' 'ARMS=Q65536 P65536 S65536 P131072 S32768 F' LOGNAME_=w1 bash -c 'REV=c5ce87bc8 OUTBIN=intarsia-main scripts/dsubset/build.sh && scripts/dsubset/build.sh && scripts/dsubset/runs.sh'
+21:04:45
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-engram)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-ui)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-models)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 58s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.2T  288G  92% /
+2.9G	/home/nvidia/intarsia-dsubset
+Mem:             121          39          31           0          51          81
+active
+21:10:44
+git sha c5ce87bc84a1f3c33fce3dfb9ea84f5e7d1ea20e
+21:11:38
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-tui)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-engram)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-dsubset/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 17s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.2T  288G  92% /
+3.0G	/home/nvidia/intarsia-dsubset
+Mem:             121          39          31           0          51          82
+active
+21:16:57
+git sha bd7fa1752923070d0db3f5b2f77c59873a692553
+[21:16:59 +2s] runs start [plan accept]; vLLM: 200; earlyoom: active; Mem:             121          39          31           0          51          82; subsets: prefix-65536.txt sub-32768.txt sub-65536.txt 
+exit 0
+exit 0
+exit 0
+[21:18:59 +122s] plan show json, main vs lane, knob unset: IDENTICAL 15570 
+[21:18:59 +122s] plan show, knob set (stderr lines naming the subset): --mtp-draft-subset /home/nvidia/intarsia-dsubset/subsets/sub-65536.txt: the drafter's head over 65536 of 248320 lm_head rows (75.5 MB gathered, 1.8 s);
+[21:19:00 +123s] serve arm acc-Q65536: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 1 --mtp-draft-subset ~/intarsia-dsubset/subsets/prefix-65536.txt
+[21:19:57 +180s] serve acc-Q65536 up; MemAvailable MB: 58980; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-subset /home/nvidia/intarsia-dsubset/subsets/prefix-65536.txt: the drafter's head over 65536 of 248320 lm_head rows (75.5 MB gathered, 0.2 s);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 53.0s, context 32768 tokens;
+[21:19:57 +180s] draft-head lines of Q65536: --mtp-draft-subset /home/nvidia/intarsia-dsubset/subsets/prefix-65536.txt: the drafter's head over 65536 of 248320 lm_head rows (75.5 MB gathered, 0.2 s);
+[accept] Q65536 en: 2819 tokens, accept 0.6825, tokens/pass 2.364, 133.16 tok/s
+[accept] Q65536 code: 2899 tokens, accept 0.8483, tokens/pass 2.695, 148.76 tok/s
+[accept] Q65536 zh: 2920 tokens, accept 0.3079, tokens/pass 1.615, 86.88 tok/s
+[accept] Q65536 ru: 2846 tokens, accept 0.3457, tokens/pass 1.691, 94.05 tok/s
+[accept] Q65536 ar: 2889 tokens, accept 0.2547, tokens/pass 1.509, 84.28 tok/s
+[accept] Q65536 kj: 2933 tokens, accept 0.3207, tokens/pass 1.641, 91.28 tok/s
+[accept] Q65536 tool: 889 tokens, accept None, tokens/pass None, 70.35 tok/s
+[21:23:02 +365s] min MemAvailable MB (time MB; KILLED count) (acc-Q65536): 21:19:55 58950 0 
+[21:23:04 +367s] serve arm acc-P65536: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 1 --mtp-draft-vocab 65536
+[21:23:48 +411s] serve acc-P65536 up; MemAvailable MB: 60620; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 41.2s, context 32768 tokens;
+[21:23:48 +411s] draft-head lines of P65536: 
+[accept] P65536 en: 2819 tokens, accept 0.6825, tokens/pass 2.364, 131.73 tok/s
+[accept] P65536 code: 2899 tokens, accept 0.8483, tokens/pass 2.695, 148.52 tok/s
+[accept] P65536 zh: 2920 tokens, accept 0.3079, tokens/pass 1.615, 87.38 tok/s
+[accept] P65536 ru: 2846 tokens, accept 0.3457, tokens/pass 1.691, 95.14 tok/s
+[accept] P65536 ar: 2889 tokens, accept 0.2547, tokens/pass 1.509, 85.25 tok/s
+[accept] P65536 kj: 2933 tokens, accept 0.3207, tokens/pass 1.641, 92.41 tok/s
+[accept] P65536 tool: 889 tokens, accept None, tokens/pass None, 70.59 tok/s
+[21:26:53 +596s] min MemAvailable MB (time MB; KILLED count) (acc-P65536): 21:23:49 59768 0 
+[21:26:55 +598s] serve arm acc-S65536: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 1 --mtp-draft-subset ~/intarsia-dsubset/subsets/sub-65536.txt
+[21:27:49 +652s] serve acc-S65536 up; MemAvailable MB: 60583; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-subset /home/nvidia/intarsia-dsubset/subsets/sub-65536.txt: the drafter's head over 65536 of 248320 lm_head rows (75.5 MB gathered, 0.2 s);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 50.9s, context 32768 tokens;
+[21:27:49 +652s] draft-head lines of S65536: --mtp-draft-subset /home/nvidia/intarsia-dsubset/subsets/sub-65536.txt: the drafter's head over 65536 of 248320 lm_head rows (75.5 MB gathered, 0.2 s);
+[accept] S65536 en: 2819 tokens, accept 0.6638, tokens/pass 2.327, 129.33 tok/s
+[accept] S65536 code: 2899 tokens, accept 0.8143, tokens/pass 2.626, 144.79 tok/s
+[accept] S65536 zh: 2920 tokens, accept 0.5319, tokens/pass 2.063, 115.61 tok/s
+[accept] S65536 ru: 2846 tokens, accept 0.5832, tokens/pass 2.165, 123.28 tok/s
+[accept] S65536 ar: 2889 tokens, accept 0.5948, tokens/pass 2.188, 123.97 tok/s
+[accept] S65536 kj: 2933 tokens, accept 0.5344, tokens/pass 2.068, 118.99 tok/s
+[accept] S65536 tool: 889 tokens, accept None, tokens/pass None, 71.09 tok/s
+[21:30:22 +805s] min MemAvailable MB (time MB; KILLED count) (acc-S65536): 21:27:52 59720 0 
+[21:30:24 +807s] serve arm acc-P131072: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 1 --mtp-draft-vocab 131072
+[21:31:18 +861s] serve acc-P131072 up; MemAvailable MB: 60638; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 50.9s, context 32768 tokens;
+[21:31:18 +861s] draft-head lines of P131072: 
+[accept] P131072 en: 2819 tokens, accept 0.6956, tokens/pass 2.391, 129.44 tok/s
+[accept] P131072 code: 2899 tokens, accept 0.87, tokens/pass 2.739, 144.88 tok/s
+[accept] P131072 zh: 2920 tokens, accept 0.6114, tokens/pass 2.222, 120.93 tok/s
+[accept] P131072 ru: 2846 tokens, accept 0.3678, tokens/pass 1.735, 94.69 tok/s
+[accept] P131072 ar: 2889 tokens, accept 0.2791, tokens/pass 1.558, 85.01 tok/s
+[accept] P131072 kj: 2933 tokens, accept 0.393, tokens/pass 1.785, 98.79 tok/s
+[accept] P131072 tool: 889 tokens, accept None, tokens/pass None, 71.42 tok/s
+[21:34:12 +1035s] min MemAvailable MB (time MB; KILLED count) (acc-P131072): 21:31:21 59804 0 
+[21:34:14 +1037s] serve arm acc-S32768: env [X=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --spec mtp --spec-k 2 --max-batch 1 --mtp-draft-subset ~/intarsia-dsubset/subsets/sub-32768.txt
+[21:35:04 +1087s] serve acc-S32768 up; MemAvailable MB: 60603; mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4);--mtp-draft-subset /home/nvidia/intarsia-dsubset/subsets/sub-32768.txt: the drafter's head over 32768 of 248320 lm_head rows (37.7 MB gathered, 0.1 s);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 45.8s, context 32768 tokens;
+[21:35:04 +1087s] draft-head lines of S32768: --mtp-draft-subset /home/nvidia/intarsia-dsubset/subsets/sub-32768.txt: the drafter's head over 32768 of 248320 lm_head rows (37.7 MB gathered, 0.1 s);

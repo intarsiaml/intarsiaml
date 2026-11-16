@@ -1,0 +1,4 @@
+fleetq: #9520 waiting (#5 in line): in line behind #9410 "flipprep: speed ABBA (main defaults vs flip defaults, greedy + T1.0)" (claude-2ae67a71) on spark2
+fleetq:   #9410 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9410 set, or it will wait for #9410 to be released.
+fleetq: #9520 waiting (#4 in line): in line behind #9432 "flipprep: tools + plain mixed pairs (A vs F)" (claude-2ae67a71) on spark2
+fleetq:   #9432 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9432 set, or it will wait for #9432 to be released.
