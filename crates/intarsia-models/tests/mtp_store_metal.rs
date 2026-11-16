@@ -452,4 +452,81 @@ fn mtp_on_store_requests_restore_bitwise_metal() {
     assert!(b_sampled_ok, "batched engine: a restored seeded sampled reply differs from the cold one");
     assert!(o.cached > 0 && rsnap.disk.hits > 0, "restart: the second engine restored from disk: cached {}, {rsnap:?}", o.cached);
     assert!(restart_ok, "restart: the reply restored from disk differs from the reference");
+    assert!(snap.mtp_head_restores > 0 && rsnap.mtp_head_restores > 0, "lane mhkv: the restores brought the MTP head back (single {}, restart {})", snap.mtp_head_restores, rsnap.mtp_head_restores);
+}
+
+/// Lane mhkv (docs/results/2026-11-16-mhkv.md): the entry keeps the MTP head's cache and queued row, so a restored request
+/// drafts as the same request cold. Lane mstore's 4k window case (`scripts/mstore/prompts.py`: P = system + a 4.5k-token
+/// document + a question; Q = P + a fixed reply + a new question; thinking off; 256 tokens, `ignore_eos`): a fresh engine
+/// runs Q cold; another runs P, an unrelated chat (it replaces the held sequence), then Q, which restores P from the store.
+/// Greedy and seeded sampled: the ids are equal, and the acceptance after the restore is within `INTARSIA_TEST_ACC_TOL`
+/// points (default 2) of cold. Before lane mhkv: 60 % cold, 42 % restored on the 35B.
+#[test]
+fn mtp_store_head_acceptance_4k_metal() {
+    if !enabled() {
+        return;
+    }
+    if !model_dir().join("config.json").exists() {
+        eprintln!("SKIP: no model at {}", model_dir().display());
+        return;
+    }
+    if !intarsia_core::spec::mtp_store_for("metal") {
+        eprintln!("SKIP: MTP drafting on store requests is off for Metal (set INTARSIA_MTP_STORE=1)");
+        return;
+    }
+    let tol: f64 = std::env::var("INTARSIA_TEST_ACC_TOL").ok().and_then(|v| v.parse().ok()).unwrap_or(2.0);
+    let docs = include_str!("../../../tools/prompts/corpus_docs.txt");
+    let code = include_str!("../../../tools/prompts/corpus_code.txt");
+    let text: String = format!("{docs}\n\n{code}").chars().take(15000).collect();
+    let sys = json!({"role": "system", "content": "You are a careful technical reader. Answer from the material the user gives you."});
+    let a1 = "The material describes how the project is organised and how its parts are documented: an overview of the goals, a walk through the main components and how they talk to each other, the configuration knobs with their defaults, and the procedures for building, testing and measuring a change. It closes with source code that implements part of what the documents describe. The tone is practical: each section says what to run and what to expect.";
+    let q2 = "Now list eight specific details from the material above, one per line. For each, quote the relevant phrase and explain in two sentences why it matters to someone changing the code.";
+    let p_msgs = vec![sys, json!({"role": "user", "content": format!("{text}\n\nSummarise the material above in one paragraph.")})];
+    let mut q_msgs = p_msgs.clone();
+    q_msgs.push(json!({"role": "assistant", "content": a1}));
+    q_msgs.push(json!({"role": "user", "content": q2}));
+    let u_msgs = vec![json!({"role": "user", "content": format!("{}\n\nWhat is this text about?", corpus(60_000, 3000))})];
+    let nothink = |e: &dyn Engine, msgs: &[Value]| -> Vec<u32> {
+        let opts = ChatOpts { add_generation_prompt: true, enable_thinking: Some(false), ..Default::default() };
+        e.tokenize(&e.apply_chat_template(msgs, &opts).unwrap(), false).unwrap()
+    };
+    let n = 256;
+    let g = |p: &[u32]| GenRequest { ignore_eos: true, ..greedy(p, n) };
+    let sm = |p: &[u32]| GenRequest { ignore_eos: true, ..sampled(p, n, 7) };
+    let t0 = Instant::now();
+    let mut ok = true;
+    for (kind, mk) in [("greedy", &g as &dyn Fn(&[u32]) -> GenRequest), ("sampled", &sm)] {
+        let cold = engine(host_store(), true, 1);
+        let q = nothink(&*cold, &q_msgs);
+        let (c, cs) = run_req(&*cold, mk(&q));
+        line(&format!("4k cold {kind}"), 0, &c, cs);
+        assert_eq!(c.cached, 0);
+        drop(cold);
+        let e = engine(host_store(), true, 1);
+        let p = nothink(&*e, &p_msgs);
+        let u = nothink(&*e, &u_msgs);
+        let (o, s) = run_req(&*e, mk(&p));
+        line(&format!("4k P {kind}"), 0, &o, s);
+        let (o, s) = run_req(&*e, greedy(&u, 32));
+        line("4k U greedy", 0, &o, s);
+        let (r, rs) = run_req(&*e, mk(&q));
+        line(&format!("4k restored {kind}"), 0, &r, rs);
+        let sn = e.telemetry().prefix_store.unwrap();
+        drop(e);
+        let (ac, ar) = (100.0 * rate(cs), 100.0 * rate(rs));
+        let same = r.ids == c.ids;
+        println!(
+            "MTP-STORE-METAL 4k {kind}: ids restored == cold {same}; cached {} of {}; acceptance cold {ac:.1} % restored {ar:.1} % (delta {:+.1} points); head restores {}",
+            r.cached,
+            r.prompt,
+            ar - ac,
+            sn.mtp_head_restores
+        );
+        if !same {
+            println!("MTP-STORE-METAL MISMATCH 4k {kind}: first differing token {:?}", first_diff(&r.ids, &c.ids));
+        }
+        ok &= same && r.cached > 4000 && sn.mtp_head_restores > 0 && (ar - ac).abs() <= tol && cs.1 > 0;
+    }
+    println!("MTP-STORE-METAL 4k verdict {ok} ({:.0} s)", t0.elapsed().as_secs_f64());
+    assert!(ok, "4k: restored ids == cold, the head restored, acceptance within {tol} points of cold (see the lines above)");
 }

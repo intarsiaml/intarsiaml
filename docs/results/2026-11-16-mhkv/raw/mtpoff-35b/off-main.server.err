@@ -1,0 +1,10 @@
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+intarsia-backend-metal: keep-warm: registered the file at 0x77dc000000, 10.01 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x7000000000, 3.41 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x7a30750000, 10.00 GB
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 24 kernel(s) checked, 402 case(s) run, 0 cached
+prefix store: on (build edc3f518ec03cb12, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+loaded Qwen3.6-35B-A3B-NVFP4 on metal (Apple M5 Max) in 7.2s, context 40000 tokens
+sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /Users/josef/models/Qwen3.6-35B-A3B-NVFP4/generation_config.json; a request's own values win)
+intarsia server listening on http://127.0.0.1:18642
