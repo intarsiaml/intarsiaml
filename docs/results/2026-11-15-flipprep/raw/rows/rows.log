@@ -1,0 +1,1 @@
+[22:22:48 +0s] serve arm rows-k2: env [INTARSIA_CB_TRACE=1 INTARSIA_SPEC_TRACE=1] serve --backend cuda --model <HF snapshot 1355db6a> --max-seq 32768 --mem-budget 40 --profile-every 0 --max-batch 2
