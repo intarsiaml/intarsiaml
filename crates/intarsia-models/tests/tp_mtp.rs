@@ -617,10 +617,14 @@ fn single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_n
     let env_store_metal = mtp_default(&auto, &with_metal, "metal", 1, true);
     std::env::remove_var("INTARSIA_PREFIX_STORE");
     assert_eq!(env_store, Some(2), "INTARSIA_PREFIX_STORE=on: the default stays on CUDA");
-    // elsewhere a drafting request still bypasses the store, so a store still skips the default
+    // lane mstore: on Metal too a drafting request uses the store, so the store does not skip the default
     assert_eq!(mtp_default(&auto, &with_metal, "metal", 1, true), Some(2), "metal, no store: the default");
-    assert_eq!(mtp_default(&stored, &with_metal, "metal", 1, true), None, "--prefix-store on: no default on metal");
-    assert_eq!(env_store_metal, None, "INTARSIA_PREFIX_STORE=on: no default on metal");
+    assert_eq!(mtp_default(&stored, &with_metal, "metal", 1, true), Some(2), "--prefix-store on: the default stays on metal");
+    assert_eq!(env_store_metal, Some(2), "INTARSIA_PREFIX_STORE=on: the default stays on metal");
+    // elsewhere a drafting request still bypasses the store, so a store still skips the default
+    let with_hip = intarsia_models::parse_recipe(&format!("{base}\n[tuning.hip]\nmtp_default_k = 2\n")).unwrap();
+    assert_eq!(mtp_default(&auto, &with_hip, "hip", 1, true), Some(2), "hip, no store: the default");
+    assert_eq!(mtp_default(&stored, &with_hip, "hip", 1, true), None, "--prefix-store on: no default on hip");
     assert_eq!(mtp_default(&auto, &with, "cuda", 1, true), Some(2), "and back on once it is unset");
     single_rank_loader_default_matches_off();
     std::env::set_var("INTARSIA_SPEC_DEFAULT", "0");

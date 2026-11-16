@@ -625,7 +625,7 @@ pub fn mtp_default(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe,
 }
 
 /// The k of the recipe default for this group (`mtp_default_tp_k` at `world > 1`, `mtp_default_k` at one rank), or `None`. With
-/// `store_blocks` and MTP drafting on store requests off for the backend (`INTARSIA_MTP_STORE=0`, or unset off CUDA) a configured prefix store (`--prefix-store`, `INTARSIA_PREFIX_STORE`) means `None`: that is
+/// `store_blocks` and MTP drafting on store requests off for the backend (`INTARSIA_MTP_STORE=0`, or unset off CUDA and Metal) a configured prefix store (`--prefix-store`, `INTARSIA_PREFIX_STORE`) means `None`: that is
 /// explicit caching intent, and a drafting request then bypasses the store. Without it the answer is what the default would be were no
 /// store given (the loader's skip note). On CUDA by default (lane mtp-store) a drafting request uses the store, so the store blocks nothing.
 fn default_k(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backend: &str, world: usize, local: bool, store_blocks: bool) -> Option<usize> {
@@ -707,7 +707,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     // without --spec, on in-process ranks, at one sequence (MTP does not batch), unless INTARSIA_SPEC_DEFAULT=0.
     let defaulted;
     let local = matches!(group, Group::Local(..));
-    // MTP drafting on store requests off (`INTARSIA_MTP_STORE=0`, or unset off CUDA): a prefix store means explicit caching intent, and a
+    // MTP drafting on store requests off (`INTARSIA_MTP_STORE=0`, or unset off CUDA and Metal): a prefix store means explicit caching intent, and a
     // drafting request bypasses the store: the default is skipped, with one line. Otherwise (lane mtp-store) a drafting request uses the
     // store and the default applies
     let mut skipped_by_store = false;

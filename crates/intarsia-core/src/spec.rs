@@ -247,10 +247,12 @@ pub fn residual(p: &crate::sampler::Dist, q: &crate::sampler::Dist) -> Option<cr
 /// store in the batching engine, and a configured store no longer skips a recipe's MTP default. Off: as before the lane (a
 /// drafting request bypasses the store, the batching engine refuses the pair, the store skips the default).
 ///
-/// The default when `INTARSIA_MTP_STORE` is unset: on for the CUDA backend (gated there on the Qwen3.6-35B-A3B, spark1), off
-/// elsewhere (the cpu reference passes the same gates in `tests/mtp.rs`; Metal and HIP were not measured).
+/// The default when `INTARSIA_MTP_STORE` is unset: on for the CUDA backend (gated there on the Qwen3.6-35B-A3B, spark1) and the
+/// Metal backend (lane mstore, docs/results/2026-11-15-mstore-metal.md: the Qwen3.6-35B-A3B and the Qwen3.8-27B on endor, greedy
+/// and seeded sampled replies restored == cold, single and batched, and after a restart), off elsewhere (the cpu reference passes
+/// the same gates in `tests/mtp.rs`; HIP was not measured).
 pub fn mtp_store_default_for(backend: &str) -> bool {
-    backend == "cuda"
+    matches!(backend, "cuda" | "metal")
 }
 
 /// `INTARSIA_MTP_STORE` (read once): `0` / `off` or `1` / `on`; `None` when unset, empty or unknown (with a warning).

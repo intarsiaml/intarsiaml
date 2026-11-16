@@ -2995,4 +2995,5 @@ fn batched_store_with_mtp_is_refused_with_the_knob_off() {
     let e = intarsia_core::BatchedEngine::new(m, Arc::new(ByteCodec), meta, tel, o).err().map(|e| e.to_string()).unwrap_or_default();
     assert!(e.contains("prefix store") && e.contains("INTARSIA_MTP_STORE"), "{e}");
     assert!(!intarsia_core::spec::mtp_store_default_for("cpu") && intarsia_core::spec::mtp_store_default_for("cuda"));
+    assert!(intarsia_core::spec::mtp_store_default_for("metal") && !intarsia_core::spec::mtp_store_default_for("hip"));
 }
