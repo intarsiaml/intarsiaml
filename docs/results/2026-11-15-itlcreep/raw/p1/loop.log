@@ -1,0 +1,13 @@
+[loop A] start 20:05:14 end 20:27:14 url http://127.0.0.1:8191/v1 only=both ignore=0
+[loop A] seed 401 done 20:07:25: [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988424, 'cached_tokens': 723530, 'ttft_s_sum': 76.94, 'decode_tok_s_median': 40.5, 'completion_tokens': 7456, 'agg_output_tok_s': 57.15}
+[loop A] seed 402 done 20:09:31: [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 987697, 'cached_tokens': 722885, 'ttft_s_sum': 65.12, 'decode_tok_s_median': 40.5, 'completion_tokens': 7388, 'agg_output_tok_s': 59.39}
+[loop A] seed 403 done 20:11:37: [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988383, 'cached_tokens': 723404, 'ttft_s_sum': 65.03, 'decode_tok_s_median': 40.8, 'completion_tokens': 7472, 'agg_output_tok_s': 59.93}
+[loop A] seed 404 done 20:13:42: [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988205, 'cached_tokens': 723292, 'ttft_s_sum': 65.45, 'decode_tok_s_median': 41.2, 'completion_tokens': 7300, 'agg_output_tok_s': 59.2} 
+[loop A] seed 405 done 20:15:47: [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988850, 'cached_tokens': 723783, 'ttft_s_sum': 66.41, 'decode_tok_s_median': 41.9, 'completion_tokens': 7462, 'agg_output_tok_s': 60.22}
+[loop A] seed 406 done 20:17:52: [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988363, 'cached_tokens': 723371, 'ttft_s_sum': 64.11, 'decode_tok_s_median': 40.8, 'completion_tokens': 7454, 'agg_output_tok_s': 59.98}
+[loop A] seed 407 done 20:19:58: [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988501, 'cached_tokens': 723521, 'ttft_s_sum': 65.99, 'decode_tok_s_median': 41.2, 'completion_tokens': 7475, 'agg_output_tok_s': 60.32}
+[loop A] seed 408 done 20:22:04: [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988751, 'cached_tokens': 723645, 'ttft_s_sum': 66.37, 'decode_tok_s_median': 40.7, 'completion_tokens': 7400, 'agg_output_tok_s': 59.34}
+[loop A] seed 409 done 20:24:10: [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988739, 'cached_tokens': 723710, 'ttft_s_sum': 65.23, 'decode_tok_s_median': 41.1, 'completion_tokens': 7438, 'agg_output_tok_s': 59.63}
+[loop A] seed 410 done 20:26:15: [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988602, 'cached_tokens': 723566, 'ttft_s_sum': 67.02, 'decode_tok_s_median': 41.6, 'completion_tokens': 7480, 'agg_output_tok_s': 60.26}
+[loop A] seed 411 done 20:28:20: [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988774, 'cached_tokens': 723685, 'ttft_s_sum': 65.79, 'decode_tok_s_median': 41.1, 'completion_tokens': 7423, 'agg_output_tok_s': 60.06}
+[loop A] done 20:28:20, 11 replays
