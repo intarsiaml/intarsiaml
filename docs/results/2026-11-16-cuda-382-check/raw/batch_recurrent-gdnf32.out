@@ -1,0 +1,56 @@
+
+running 15 tests
+test alternating_rows_and_batches_do_not_recapture ... ok
+test batched_engine_equals_solo_over_128_tokens ... ok
+test batched_engine_with_macro_prefill_equals_plain_solo ... FAILED
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... ok
+test batched_engine_with_packed_prefill_equals_solo ... FAILED
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... ok
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... ok
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test macro_forward_equals_chunked_forward ... FAILED
+test macro_prefill_equals_the_plain_chunk_schedule ... FAILED
+test macro_prefill_keeps_chunk_snapshots_for_reuse ... FAILED
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+
+failures:
+
+---- batched_engine_with_macro_prefill_equals_plain_solo stdout ----
+
+thread 'batched_engine_with_macro_prefill_equals_plain_solo' panicked at crates/intarsia-models/tests/batch_recurrent.rs:941:17:
+Dense macro 32: no macro pass ran in the batched engine
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- batched_engine_with_packed_prefill_equals_solo stdout ----
+
+thread 'batched_engine_with_packed_prefill_equals_solo' panicked at crates/intarsia-models/tests/batch_recurrent.rs:791:5:
+no prompts were packed: BatchMetrics { iterations: 679, decode_steps: 678, batch_hist: [0, 132, 546, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], verify_steps: 0, verify_rows: 0, verify_hist: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], prefill_chunks: 9, prefill_tokens: 193, pack_passes: 0, packed_chunks: 0, mixed_iterations: 8, paused_steps: 0, queue_depth: 0, queue_depth_max: 9, running: 0, submitted: 9, admitted: 9, finished: 9, cancelled: 0, rejected: 0, failed: 0, cached_tokens: 0, ttft: LatencyHist { counts: [0, 0, 1, 1, 0, 0, 0, 0, 0, 2, 1, 4, 0, 0], count: 9, sum_ms: 1989.976252, max_ms: 485.693111 }, itl: LatencyHist { counts: [1163, 56, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], count: 1224, sum_ms: 1015.2375209999993, max_ms: 3.280091 }, chunk: LatencyHist { counts: [0, 7, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], count: 9, sum_ms: 12.668157999999998, max_ms: 2.201245 }, step: LatencyHist { counts: [643, 34, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], count: 678, sum_ms: 526.8889729999992, max_ms: 2.296045 }, step_ewma_ms: 0.19243951508668666 }
+
+---- macro_forward_equals_chunked_forward stdout ----
+
+thread 'macro_forward_equals_chunked_forward' panicked at crates/intarsia-models/tests/batch_recurrent.rs:894:13:
+Dense: the macro schedule ran
+
+---- macro_prefill_equals_the_plain_chunk_schedule stdout ----
+
+thread 'macro_prefill_equals_the_plain_chunk_schedule' panicked at crates/intarsia-models/tests/batch_recurrent.rs:846:13:
+Dense, macro 32 rows: no macro pass ran
+
+---- macro_prefill_keeps_chunk_snapshots_for_reuse stdout ----
+
+thread 'macro_prefill_keeps_chunk_snapshots_for_reuse' panicked at crates/intarsia-models/tests/batch_recurrent.rs:984:13:
+Dense, macro 32 rows: no macro pass ran
+
+
+failures:
+    batched_engine_with_macro_prefill_equals_plain_solo
+    batched_engine_with_packed_prefill_equals_solo
+    macro_forward_equals_chunked_forward
+    macro_prefill_equals_the_plain_chunk_schedule
+    macro_prefill_keeps_chunk_snapshots_for_reuse
+
+test result: FAILED. 10 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 43.87s
+
