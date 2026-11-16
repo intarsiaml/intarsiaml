@@ -1,0 +1,2 @@
+fleetq: #9764 running on endor: zsh -c 'zsh scripts/msmallm/window.sh > /opt/code/intarsiaml/.worktrees/msmallm/docs/results/2026-11-16-msmallm/raw/window.txt 2>&1; zsh scripts/msmallm/bench.sh /opt/code/intarsiaml/.worktrees/msmallm/docs/results/2026-11-16-msmallm/raw/bench-smallm.txt NAXD_M=9,16,32,64,96,128,160,192,256 NAXD_SHAPES=17408x5120,5120x17408,10240x5120,5120x6144,6144x5120,12288x5120 NAXD_ROUNDS=5'
+fleetq: #9764 done (exit 0)

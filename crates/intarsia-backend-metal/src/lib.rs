@@ -481,6 +481,27 @@ impl MetalBackend {
         self.with_encoder_opt(false, f)
     }
 
+    /// Several dispatches of one launch, in order. Normally one [`Self::with_encoder`] call (counted as one dispatch, as
+    /// before); when profiling with `INTARSIA_METAL_COMMIT_EVERY=1` each part gets its own call, so each lands in its own
+    /// command buffer and the trace records them as `<kernel>`, `<kernel>#1`, ... (lane mprefill: weight decode vs GEMM).
+    pub(crate) fn with_encoder_parts(
+        &self,
+        parts: &[&dyn Fn(&ProtocolObject<dyn MTLComputeCommandEncoder>)],
+    ) -> Result<()> {
+        let split = {
+            let st = self.stream.lock().unwrap();
+            st.prof.is_some() && st.commit_every == 1
+        };
+        if split {
+            for p in parts {
+                self.with_encoder(|e| p(e))?;
+            }
+            Ok(())
+        } else {
+            self.with_encoder(|e| parts.iter().for_each(|p| p(e)))
+        }
+    }
+
     /// [`Self::with_encoder`] for a dispatch that reaches buffers through device addresses (row tables): the registered
     /// indirect set is declared resident in the encoder first (once per encoder and per change of the set).
     pub fn with_encoder_ind(&self, f: impl FnOnce(&ProtocolObject<dyn MTLComputeCommandEncoder>)) -> Result<()> {
