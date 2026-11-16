@@ -219,6 +219,15 @@ before they produced data). GPU (`--quiet gpu,cpu`): #9506, #9507, #9508, #9509,
 
 ## Brief + progress (kept for the record)
 
+### Progress
+
+- [x] build, reproduce (does not reproduce on a cool box; reproduces on a hot one, in both arms)
+- [x] bisect cause (hot box; mislabelled arm in #9398)
+- [x] fix: none needed for TTFT; start-up waste in admission fixed, off switch `INTARSIA_METAL_MTP_TTFT_FIX=0`
+- [x] gates (ids, plan show, tests, regression test, speed rule)
+- [x] 27B; first-token emission checked in code; prefix-store numbers left to lane `mstore`
+- [x] LOG row, origin/main merged, PR #393 (not merged), `target/` deleted
+
 ### Coordinator overrides (these win over the brief)
 
 - **Worktree and branch:** `/opt/code/intarsiaml/.worktrees/mtt`, branch `mtt` from origin/main (not the brief's branch name).
