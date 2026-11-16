@@ -1,0 +1,3 @@
+start mac_mid=1794791113.681 box=1794791113.848 offset_mac_minus_box_s=-0.167 rtt_s=0.323
+phase2-start mac_mid=1794792518.443 box=1794792518.604 offset_mac_minus_box_s=-0.161 rtt_s=0.336
+phase2-end mac_mid=1794793793.466 box=1794793793.689 offset_mac_minus_box_s=-0.222 rtt_s=0.451
