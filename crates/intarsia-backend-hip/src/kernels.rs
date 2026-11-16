@@ -694,6 +694,38 @@ mod tests {
         assert_eq!(SPLITKV_MAX_ROWS, 16);
     }
 
+    /// Lane q27-plan: the Qwen3.8-27B's attention (24 query heads, 4 kv heads, head_dim 256) is a shape `attn_decode_bf16_splitkv_rows` takes
+    /// at every row count, and the registry counts it admitted once the kernel it twins is, so the plan description of a speculative 27B
+    /// (the verify probes record the row-table call) lists it as admitted and `qualify`'s plan stage passes (it failed 2026-11-16 on `admitted: false`).
+    #[test]
+    fn the_27b_row_table_attention_is_admitted_through_its_base() {
+        let bf = Some(DType::Bf16);
+        let info = intarsia_core::DeviceInfo {
+            name: "test".into(),
+            backend: "hip".into(),
+            arch: "gfx1201".into(),
+            total_mem: 0,
+            free_mem: 0,
+            unified: false,
+            bandwidth_gbs: None,
+        };
+        let mut reg = intarsia_core::Registry::new("hip", &info, all());
+        let twin = reg.kernel("attn_decode_bf16_splitkv_rows").expect("registered").clone();
+        let base = reg.kernel("attn_decode_bf16_splitkv").expect("registered").clone();
+        assert!(twin.row_table && twin.op == Op::AttnDecode);
+        for m in 1..=ROWS_MAX {
+            let s = ShapeInfo { m, n_heads: 24, n_kv_heads: 4, head_dim: 256, act: bf, out: bf, weight: bf, ..Default::default() };
+            assert!(twin.accepts(&s), "m={m}");
+        }
+        // the one-row decode the twin stands for is the same kernel the registry picks for the solo step
+        let one = ShapeInfo { m: 1, n_heads: 24, n_kv_heads: 4, head_dim: 256, act: bf, out: bf, weight: bf, ..Default::default() };
+        assert!(base.accepts(&one));
+        assert_eq!(pick(Op::AttnDecode, &one).as_deref(), Some("attn_decode_bf16_splitkv"));
+        assert!(!reg.is_admitted("attn_decode_bf16_splitkv_rows"), "nothing admitted yet");
+        reg.set_admission("attn_decode_bf16_splitkv", intarsia_core::Admission::Admitted);
+        assert!(reg.is_admitted("attn_decode_bf16_splitkv_rows"));
+    }
+
     /// Lane dfh: `attn_decode_bf16_window` is `.ext()` and serves exactly the windowed decode calls. A plain call (`window == 0`) keeps the
     /// kernel it had before (split-KV where it applies, `attn_decode_bf16` otherwise), at every head shape.
     #[test]

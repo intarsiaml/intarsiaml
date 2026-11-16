@@ -396,6 +396,35 @@ fn store_shared_pages_keep_their_references_when_demotes_evict_entries() {
     }
 }
 
+/// Lane mstore: dropping a store right after its inserts (no `flush`, as a server that stops after a reply) leaves every
+/// entry whose objects were queued for disk on disk: a new store of the same build restores it.
+#[test]
+fn store_drop_waits_for_the_disk_writer() {
+    let b = cpu();
+    let dir = tmpdir("disk-drop");
+    let mut c = cfg(16);
+    c.disk_dir = Some(dir.clone());
+    c.disk_bytes = 1 << 30;
+    let toks: Vec<Vec<u32>> = (0..6u32).map(|k| (0..200).map(|i| i * 7 + k * 1000 + 1).collect()).collect();
+    let states: Vec<_> = toks.iter().map(|t| fake_state(&*b, t, 256)).collect();
+    {
+        let mut s = PrefixStore::new(c.clone(), &specs(), "build-drop").unwrap();
+        for st in &states {
+            s.insert(&*b, st, 200, None, &[]).unwrap();
+        }
+    }
+    let mut s = PrefixStore::new(c.clone(), &specs(), "build-drop").unwrap();
+    assert_eq!(s.snapshot().entries, toks.len() as u64, "every entry is on disk after the drop");
+    for (t, a) in toks.iter().zip(&states) {
+        let h = s.lookup(t, 200).unwrap();
+        let mut st = SequenceState::new(&*b, &specs(), 256).unwrap();
+        s.restore(&*b, &mut st, h).unwrap();
+        assert_eq!(dump(&*b, &st), dump(&*b, a));
+    }
+    drop(s);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn store_disk_survives_restart_and_rejects_corruption_and_other_builds() {
     let b = cpu();

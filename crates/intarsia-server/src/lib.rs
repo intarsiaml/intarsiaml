@@ -184,10 +184,13 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
         let app = app(state, cfg.ui);
         tracing::info!("intarsia server listening on http://{addr}");
         eprintln!("intarsia server listening on http://{addr}");
-        axum::serve(listener, app)
+        let r = axum::serve(listener, app)
             .with_graceful_shutdown(stop.after(shutdown_signal()))
             .await
-            .map_err(|e| intarsia_core::Error::Other(format!("server: {e}")))
+            .map_err(|e| intarsia_core::Error::Other(format!("server: {e}")));
+        // the watchdog keeps an engine handle, so the store is not dropped at exit: write its queued disk objects now
+        probe.flush_prefix_store();
+        r
     })
 }
 

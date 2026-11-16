@@ -1,0 +1,1 @@
+plan gate first run void: cargo test --workspace rebuilt target/release/intarsia without --features metal mid-run (#9462); scripts now use target/metal/

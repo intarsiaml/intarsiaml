@@ -1069,6 +1069,20 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
                 bo.mtp_max_b.min(bo.spec_off_at.saturating_sub(1))
             );
         }
+        // lane flipprep: the recipe's `[tuning.<backend>] batched_verify` / `verify_topk` apply where the env var is unset or empty
+        // (the env var wins both ways); unset in both: off
+        if intarsia_core::engine::bool_env_opt("INTARSIA_BATCHED_VERIFY").is_none() {
+            bo.batched_verify = recipe.resolve_batched_verify(backend_name).unwrap_or(false);
+        }
+        if intarsia_core::engine::bool_env_opt("INTARSIA_VERIFY_TOPK").is_none() {
+            bo.verify_topk = recipe.resolve_verify_topk(backend_name).unwrap_or(false);
+        }
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && (bo.batched_verify || bo.verify_topk) {
+            eprintln!(
+                "batched MTP verify: batched_verify {} (INTARSIA_BATCHED_VERIFY or recipe [tuning.{backend_name}] batched_verify), verify_topk {} (INTARSIA_VERIFY_TOPK or recipe verify_topk)",
+                bo.batched_verify, bo.verify_topk
+            );
+        }
         if let Some(n) = opts.busy_chunk {
             bo.busy_chunk = n;
         } else if let Some(n) = recipe.resolve_busy_chunk(backend_name) {
