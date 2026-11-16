@@ -1538,7 +1538,7 @@ fn shipped_recipes_default_the_draft_vocab_only_for_the_27b_on_hip() {
     let vl = get("qwen3_5_vl");
     assert_eq!(vl.resolve_mtp_draft_vocab(None, "hip").value, 65536);
     assert_eq!(vl.resolve_mtp_draft_vocab(None, "hip").source, "recipe qwen3_5_vl, hip");
-    assert_eq!(vl.resolve_mtp_draft_vocab(None, "cuda").value, 65536);
+    assert_eq!(vl.resolve_mtp_draft_vocab(None, "cuda").value, 98304);
     assert_eq!(vl.resolve_mtp_draft_vocab(None, "cuda").source, "recipe qwen3_5_vl, cuda");
     assert_eq!(vl.resolve_mtp_draft_vocab(Some(0), "cuda").value, 0, "--mtp-draft-vocab 0 turns it off on cuda too");
     assert_eq!(vl.resolve_mtp_draft_vocab(None, "metal").value, 65536);
