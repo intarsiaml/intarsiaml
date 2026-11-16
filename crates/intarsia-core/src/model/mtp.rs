@@ -1407,7 +1407,7 @@ impl Model {
         let attn = if let Some(sts) = batch {
             // lane mhead: one row per sequence, the projections once on all rows (row-exact kernels), the attention per row on that
             // sequence's cache as its solo one-row pass runs it
-            self.attn_block_batch(&head.attn, sts, &n, &blk, false, false, profile)
+            self.attn_block_batch(&head.attn, sts, &n, &blk, false, true, profile)
         } else {
             self.head_rows_attn.store(t > 1 && t <= Self::VERIFY_MAX_ROWS + 1, std::sync::atomic::Ordering::Relaxed);
             let r = self.attn_block(&head.attn, kv, &n, &blk, t, if dpos.is_some() { 0 } else { kv.len }, dpos, false, profile);
