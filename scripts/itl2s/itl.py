@@ -79,8 +79,12 @@ def main():
     S = load_sets()
     prompts = {"en": S["PROMPTS"], "cjk": S["CJK"], "code": S["CODE"], "mixed": S["MIXED"]}[a.set]
     # warm-up (not recorded): first-request costs
-    w = [None]
-    one(a.url, a.model, prompts[0], 1, a.temperature, a.thinking, 64, w, 0)
+    # (a group of --streams concurrent requests at the cell's temperature, twice: batched verify, sampled top-k rows, graphs)
+    for rep in range(2):
+        w = {}
+        ts = [threading.Thread(target=one, args=(a.url, a.model, prompts[(rep + j) % len(prompts)], 1 + j, a.temperature, a.thinking, 96, w, j)) for j in range(a.streams)]
+        [t.start() for t in ts]
+        [t.join() for t in ts]
     res = []
     t_start = time.time()
     for rnd in range(a.rounds):

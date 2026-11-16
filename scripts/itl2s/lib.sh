@@ -57,9 +57,12 @@ vllm_busy() { curl -s --max-time 4 "http://$HN:$VPORT/metrics" | awk '/^vllm:num
 # run_cells <visit>: the client on the Spark for each cell of $CELLS ("set:temp:thinking ..."), results copied to $OUT/cells/
 run_cells() {
   local v=$1 c set temp th
+  # 1 Hz sample of the neighbour's load: vLLM requests running / waiting on spark2, with the epoch second
+  rsh "rm -f $L/out/vllm-$v.txt; nohup bash $L/scripts/itl2s/vsample.sh $L/out/vllm-$v.txt > /dev/null 2>&1 < /dev/null & echo \$! > $L/out/vllm-$v.pid"
   for c in ${CELLS:?CELLS}; do
     set=${c%%:*}; c=${c#*:}; temp=${c%%:*}; th=${c#*:}
     rsh "python3 $L/scripts/itl2s/itl.py --url http://localhost:$PORT/v1 --model guidance --visit $v --set $set --temperature $temp --thinking $th --streams ${STREAMS:-2} --rounds ${ROUNDS:-2} --gen ${GEN:-384} --out $L/out/cells" 2>&1 | tee -a "$LOG"
   done
+  rsh "kill \$(cat $L/out/vllm-$v.pid) 2>/dev/null; gzip -c $L/out/vllm-$v.txt" > "$OUT/vllm-$v.txt.gz"
   mkdir -p "$OUT/cells"; ssh -o BatchMode=yes "$HOST" "cd $L/out/cells && tar cf - itl-$v-*.json" | tar xf - -C "$OUT/cells"
 }
