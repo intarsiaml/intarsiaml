@@ -1,1 +1,2 @@
 fleetq: #9634 running on endor: sh -c '(cargo build --release --locked -p intarsia-cli --features metal && cargo test --release --locked -p intarsia-backend-metal --no-run && cargo test --release --locked -p intarsia-core --lib --no-run && cd target/base-src && CARGO_TARGET_DIR=/opt/code/intarsiaml/.worktrees/mka/target/base cargo build --release --locked -p intarsia-cli --features metal) > docs/results/2026-11-15-mka-metal-kv-once/raw/build10.log 2>&1; echo exit=$? >> docs/results/2026-11-15-mka-metal-kv-once/raw/build10.log'
+fleetq: #9634 done (exit 0)

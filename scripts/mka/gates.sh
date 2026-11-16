@@ -47,6 +47,13 @@ case ${1:?step} in
     echo "$out"
     [ "$(echo "$out" | grep -c '^SAME')" = 3 ] && touch $R/SMOKE_OK && echo "SMOKE OK"
     ;;
+  confirm)
+    # after merging main: main vs knob unset vs knob set, MTP default, both models
+    ids 35b $M35 4k "$(cat $PR/prompt-4096.txt)" default base off on
+    ids 35b $M35 32k "$(cat $PR/prompt-32768.txt)" default base off on
+    ids 27b $M27 4k "$(cat $PR/prompt-4096.txt)" default base off on
+    ids 27b $M27 short "$SHORT" off base off on
+    ;;
   kernels)
     for arm in off on; do run_arm $arm
       env $E $B kernels test --backend metal > $R/kernels-$arm.out 2> $R/kernels-$arm.err; echo "kernels test $arm exit $? : $(tail -1 $R/kernels-$arm.out)"
