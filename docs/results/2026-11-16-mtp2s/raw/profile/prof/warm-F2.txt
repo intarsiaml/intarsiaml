@@ -1,0 +1,2 @@
+{"streams": 2, "wall": 2.457, "per_stream": [77.54, 92.58], "aggregate": 170.11, "chunks": [128, 128], "overlap_s": 1.372}
+{"streams": 2, "wall": 1.743, "per_stream": [77.83, 92.71], "aggregate": 170.54, "chunks": [128, 128], "overlap_s": 1.37}

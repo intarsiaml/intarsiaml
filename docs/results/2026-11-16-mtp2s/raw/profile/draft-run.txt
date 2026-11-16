@@ -1,0 +1,4 @@
+== up 08:39:08 MemAvailable MB 49838
+{"streams": 2, "wall": 3.728, "per_stream": [79.02, 72.74], "aggregate": 151.76, "chunks": [256, 256], "overlap_s": 3.132}
+min MemAvailable MB: 08:39:11 49803
+289

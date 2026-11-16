@@ -1,0 +1,27 @@
+== F2 up 08:39:55 MemAvailable MB 49755
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+	/home/nvidia/intarsia-mtp2s/out/prof/F2.nsys-rep
+{"streams": 2, "wall": 3.815, "per_stream": [78.83, 69.34], "aggregate": 148.17, "chunks": [256, 256], "overlap_s": 3.235}
+min MemAvailable MB: 08:39:56 48632
+exported 33M
+== FM up 08:40:45 MemAvailable MB 50585
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+	/home/nvidia/intarsia-mtp2s/out/prof/FM.nsys-rep
+{"streams": 2, "wall": 3.565, "long_chunks": 258}
+min MemAvailable MB: 08:40:56 49533
+exported 30M
+== FK1 up 08:41:31 MemAvailable MB 50727
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 1 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+	/home/nvidia/intarsia-mtp2s/out/prof/FK1.nsys-rep
+{"streams": 2, "wall": 3.826, "per_stream": [72.36, 70.46], "aggregate": 142.82, "chunks": [256, 256], "overlap_s": 3.435}
+min MemAvailable MB: 08:41:43 48049
+exported 35M

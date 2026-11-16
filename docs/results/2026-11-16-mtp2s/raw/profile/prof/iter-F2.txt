@@ -1,0 +1,1 @@
+/home/nvidia/intarsia-mtp2s/out/prof/F2.sqlite: 100 iterations; medians: period 31.51 ms, verify span 26.29, draft passes 4 spanning 4.84, D2H copies 5 (0.00 MB, 0.011 ms), GPU idle 4.46 ms (no kernel or copy running)
