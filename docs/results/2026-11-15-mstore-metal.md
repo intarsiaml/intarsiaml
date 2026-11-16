@@ -43,3 +43,13 @@ Progress:
   `raw/gate-27b.log`), all six checks true. Acceptance: cold turns 77.3 %, restored turns with a new turn 61.0 %
   against 66.3 % with the whole head context (store off; not the same tokens), all but 2 restored 45.2 % (sampled) /
   54.4 % (greedy, batched).
+- 22:45 reuse gate 35B #9514 (`raw/reuse/35b-*.out`, chunk 1024, 4k golden): store off (main's default, MTP on, the
+  engine's own hybrid reuse) FAILS `long_code_4k continue` (3 of 32 agree, KL 1.6e-1), the known failure on main (lane hrr,
+  `2026-10-29-hrr-hybrid-reuse.md`). Store on: all 9 rows agree **32 of 32** with the "cold" run, but the gate reports FAIL
+  on its own bookkeeping, not on tokens: "the cold run was not cold" (its cache flush replaces the held sequence, not the
+  store, so the cold run restores too), "reused N > the shared prefix" (an earlier case of the same prompt left a longer
+  entry; the store compares every token id, so it is the same prefix), "reuse covered 1024 < 2000" (the store resumes only
+  at its own cut points). So `accuracy --mode reuse` cannot judge a configured store as written; the store's warm == cold
+  gate is the fresh-engine comparison of `tests/mtp_store_metal.rs`. Leftover: a store-aware reuse mode.
+- 22:40 pinned measurement binary `target/mstore-run/intarsia-measure` from `345aec626` (no local crate changes).
+- PR 2 draft on branch `mstore-default` (worktree `target/pr2wt`): `mtp_store_default_for` = cuda | metal, tests and docs.
