@@ -29,7 +29,18 @@ Lane `mka`, branch `mka`, worktree `/opt/code/intarsiaml/.worktrees/mka`, base `
 - QUEUED 21:30 EST (endor line was ~11 h long; outputs in `raw/q/<name>.out`, fleetq ids in `raw/q/<name>.fleetq`):
   #9519 ksweep, #9536 tests, #9537 smoke (writes `raw/gates/SMOKE_OK`; later jobs skip without it), #9538 kernels,
   #9539 plan, #9540 ids35, #9541 ids27, #9542 served ident, #9543 sp35d, #9544 sp35o, #9545 sp27d, #9546 sp27o, #9547 ce1on.
-- [ ] read the queued results -> sections 3 (kernel), 4 (gates), 5 (speed); LOG row; merge origin/main; PR; unim; rm target/
+- 21:45 EST: origin/main (fd8a3af08, docs / scripts / a hostprof test only) merged, binaries rebuilt (#9555), branch pushed,
+  DRAFT PR opened. The current tree (accumulator instances + policy, after #9477's run) has compiled but has NOT had its
+  GPU bitwise run yet: that is #9536.
+- RESUME HERE when the queue has drained (`ls raw/q/*.out`; each ends with `## done`):
+  1. `raw/q/tests.out`: 7 kv_once lines must say exit 0 / 5 shapes; existing tests exit 0 at kvo=0 and kvo=1.
+  2. `raw/q/smoke.out` (3 x SAME + SMOKE OK), `kernels.out`, `plan.out` (base==off IDENTICAL x 9), `ids35.out`, `ids27.out`
+     (every line SAME), `ident.out` (16 of 16, 24 of 24 twice).
+  3. `raw/q/sp35d|sp35o|sp27d|sp27o.out` -> speed table (off/on/on/off); `raw/ksweep1/ksweep.txt`; `raw/ce1-on/`
+     with `scripts/mka/ce1.py`.
+  4. Write sections 4 (gates), 5 (speed), 6 (verdict + default-flip recommendation); LOG row in `docs/decisions/LOG.md`;
+     mark the PR ready (do not merge); `unim store`; `rm -rf target`.
+- [ ] steps 1 to 4 above
 - [ ] gates 1..7
 - [ ] LOG row, merge origin/main, PR (do not merge)
 

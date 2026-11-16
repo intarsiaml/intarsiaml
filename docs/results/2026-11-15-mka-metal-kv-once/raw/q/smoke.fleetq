@@ -1,2 +1,4 @@
 fleetq: #9537 waiting (#25 in line): in line behind #9487 "mnr: 27B accuracy knob off/on + ids under the knob" (claude-2ae67a71) on endor
 fleetq:   #9487 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9487 set, or it will wait for #9487 to be released.
+fleetq: #9537 waiting (#24 in line): in line behind #9488 "mnr: 27B 8 streams ABBA knob off/on" (claude-2ae67a71) on endor
+fleetq:   #9488 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9488 set, or it will wait for #9488 to be released.
