@@ -15,9 +15,10 @@ for part in ${PARTS:-plan ids}; do
   case $part in
     plan)
       OPT="INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1"
-      declare -A CFG=( [bare]="X=1|" [mb2]="X=1|--max-batch 2" [n]="INTARSIA_BATCHED_MTP=2|--max-batch 2 --spec mtp --spec-k 2" [on]="$OPT|--max-batch 2 --spec mtp --spec-k 2" )
+      # (no associative arrays: this runs under the Mac's bash 3.2)
+      cfg() { case $1 in bare) echo "X=1|" ;; mb2) echo "X=1|--max-batch 2" ;; n) echo "INTARSIA_BATCHED_MTP=2|--max-batch 2 --spec mtp --spec-k 2" ;; on) echo "$OPT|--max-batch 2 --spec mtp --spec-k 2" ;; esac; }
       for c in ${CFGS:-bare mb2 n on}; do
-        e=${CFG[$c]%%|*}; a=${CFG[$c]#*|}
+        v=$(cfg $c); e=${v%%|*}; a=${v#*|}
         for b in main mx6; do
           rsh "env $e $B/intarsia-$b plan show --backend cuda --model $MP --max-seq $MS --mem-budget $MB $a --json > $L/out/plan-$TAG-$c-$b.json 2> $L/out/plan-$TAG-$c-$b.err; echo plan $c $b exit \$?" | tee -a "$LOG"
         done
