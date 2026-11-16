@@ -1,0 +1,21 @@
+base: 1017 verify passes, drafted 2028, accepted 1263; batched drafts 0; multiset differences vs base: 0
+n1: 1016 verify passes, drafted 2026, accepted 1264; batched drafts 308; multiset differences vs base: 9
+   only in n1: ('4', '4195', '2', '2', '3') x1
+   only in n1: ('6', '4201', '2', '2', '3') x1
+   only in n1: ('7', '4198', '2', '0', '1') x1
+   only in n1: ('8', '4199', '2', '2', '3') x1
+   only in base: ('4', '4199', '2', '2', '3') x1
+   only in base: ('6', '4197', '2', '2', '3') x1
+   only in base: ('7', '4202', '2', '0', '1') x1
+   only in base: ('8', '4203', '2', '0', '1') x1
+   only in base: ('9', '4204', '2', '1', '2') x1
+n0: 1016 verify passes, drafted 2026, accepted 1264; batched drafts 0; multiset differences vs base: 9
+   only in n0: ('4', '4195', '2', '2', '3') x1
+   only in n0: ('6', '4201', '2', '2', '3') x1
+   only in n0: ('7', '4198', '2', '0', '1') x1
+   only in n0: ('8', '4199', '2', '2', '3') x1
+   only in base: ('4', '4199', '2', '2', '3') x1
+   only in base: ('6', '4197', '2', '2', '3') x1
+   only in base: ('7', '4202', '2', '0', '1') x1
+   only in base: ('8', '4203', '2', '0', '1') x1
+   only in base: ('9', '4204', '2', '1', '2') x1

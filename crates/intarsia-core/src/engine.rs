@@ -1249,6 +1249,9 @@ pub(crate) enum Prep {
     Plain(u32, HeadMode),
     /// Lane bm: a verify pass over these ids `[tok, drafts...]`, run batched with other sequences' ([`Seq::accept_verify`]).
     Verify(Vec<u32>),
+    /// Lane mdraft ([`Seq::prepare_hold`] only): the sequence drafts `k` tokens after `self.tok` and has not drafted yet; the caller
+    /// drafts (alone, or batched with other sequences, [`Model::mtp_draft_batch`]) and hands the drafts to [`Seq::finish_draft`].
+    Draft(usize),
 }
 
 /// What [`Seq::plan_step`] wants next for a decoding sequence.
@@ -1347,6 +1350,10 @@ pub(crate) struct Seq {
     staged: Option<Staged>,
     /// Lane bm: the drafts of a verify pass handed to the batching engine ([`Prep::Verify`]), and the length it starts at.
     deferred: Option<(usize, Vec<u32>)>,
+    /// Lane mdraft: [`Seq::prepare_hold`] is running, so the MTP draft step of a deferred-verify sequence stops before drafting.
+    hold_draft: bool,
+    /// Lane mdraft: the `(token, k)` of the draft [`Seq::prepare_hold`] stopped before ([`Seq::held_draft`]).
+    held: Option<(u32, usize)>,
 }
 
 /// The outcome of a request of `plen` prompt tokens that ended before it held any state.
@@ -1593,6 +1600,8 @@ impl Seq {
             predraft: None,
             staged: None,
             deferred: None,
+            hold_draft: false,
+            held: None,
         }
     }
 
@@ -2202,7 +2211,47 @@ impl Seq {
             Prep::Ready => Ok(None),
             Prep::Plain(t, m) => Ok(Some((t, m))),
             Prep::Verify(_) => Err(Error::Other("a deferred verify pass outside the batching engine".into())),
+            Prep::Draft(_) => Err(Error::Other("a held draft outside the batching engine".into())),
         }
+    }
+
+    /// The end of a deferred-verify MTP draft step: no drafts (no room for a draft block near the end of the context window) is a
+    /// plain step, else the verify pass's ids `[tok, drafts...]` go to the batching engine ([`Prep::Verify`]).
+    fn deferred_verify(&mut self, st: &SequenceState, drafts: Vec<u32>) -> Result<Prep> {
+        if drafts.is_empty() {
+            self.cost_begin(false);
+            let (t, m) = self.plain_input();
+            return Ok(Prep::Plain(t, m));
+        }
+        let mut ids = Vec::with_capacity(drafts.len() + 1);
+        ids.push(self.tok);
+        ids.extend_from_slice(&drafts);
+        self.deferred = Some((st.len, drafts));
+        Ok(Prep::Verify(ids))
+    }
+
+    /// Lane mdraft: [`Seq::prepare_with`] with `defer_verify` that stops where the sequence is about to draft with the MTP head
+    /// ([`Prep::Draft`], nothing drafted, nothing else changed after the planning every `prepare_with` does first). The caller drafts
+    /// and calls [`Seq::finish_draft`]. Any other outcome is `prepare_with`'s.
+    pub(crate) fn prepare_hold(&mut self, model: &Model, st: &mut SequenceState) -> Result<Prep> {
+        self.hold_draft = true;
+        let r = self.prepare_with(model, st, true);
+        self.hold_draft = false;
+        r
+    }
+
+    /// The `(token, k)` of the held draft ([`Prep::Draft`]): what [`Model::mtp_draft`] is asked for.
+    pub(crate) fn held_draft(&self) -> Option<(u32, usize)> {
+        self.held
+    }
+
+    /// Lane mdraft: the rest of the draft step [`Seq::prepare_hold`] stopped before, given the drafts of [`Model::mtp_draft`] (or
+    /// [`Model::mtp_draft_batch`], which are the same): what `prepare_with` does after drafting.
+    pub(crate) fn finish_draft(&mut self, model: &Model, st: &mut SequenceState, drafts: Vec<u32>) -> Result<Prep> {
+        if self.spec_keyed {
+            return self.keyed_finish(model, st, drafts, true);
+        }
+        self.deferred_verify(st, drafts)
     }
 
     /// [`Seq::prepare`]; with `defer_verify` (lane bm, the batching engine's batched verify pass) an MTP draft is not verified
@@ -2248,23 +2297,17 @@ impl Seq {
                 self.predraft = None;
                 self.staged = None;
                 self.cost_begin(true);
+                if std::mem::take(&mut self.hold_draft) {
+                    self.held = Some((self.tok, k));
+                    return Ok(Prep::Draft(k));
+                }
                 let t_draft = crate::spec::trace_enabled().then(Instant::now);
                 let drafts = model.mtp_draft(st, self.tok, k)?;
                 if let Some(t) = t_draft {
                     // lane mtp2s: the draft ends in a token download, so host time is device time
                     eprintln!("spec: mtp draft (deferred verify) {:.3} ms, {} drafts", t.elapsed().as_secs_f64() * 1e3, drafts.len());
                 }
-                if drafts.is_empty() {
-                    // no room for a draft block near the end of the context window: a plain step
-                    self.cost_begin(false);
-                    let (t, m) = self.plain_input();
-                    return Ok(Prep::Plain(t, m));
-                }
-                let mut ids = Vec::with_capacity(drafts.len() + 1);
-                ids.push(self.tok);
-                ids.extend_from_slice(&drafts);
-                self.deferred = Some((st.len, drafts));
-                return Ok(Prep::Verify(ids));
+                return self.deferred_verify(st, drafts);
             }
             Next::Draft(k)
                 if self.pipe_solo

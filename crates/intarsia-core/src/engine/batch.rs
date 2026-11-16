@@ -26,7 +26,7 @@ use super::{
 use crate::error::{Error, Result};
 use crate::model::{HeadMode, Model, StepOut};
 use crate::scheduler::{
-    BatchEngine, BatchMetrics, BatchModel, BatchSeq, Housekeep, RequestId, Row, SchedulerConfig, SeqStep, Verified, VerifyRows,
+    BatchEngine, BatchMetrics, BatchModel, BatchSeq, Held, Housekeep, RequestId, Row, SchedulerConfig, SeqStep, Verified, VerifyRows,
     MAX_BATCH_CAP, SPEC_OFF_AT_DEFAULT,
 };
 use crate::state::SequenceState;
@@ -512,6 +512,25 @@ impl BatchModel for SlotModel {
         self.batched_verify
     }
 
+    fn batched_draft(&self) -> bool {
+        // the batched draft feeds the batched verify pass (a held draft is only taken where the verify is deferred)
+        self.batched_verify && self.twin.as_ref().unwrap_or(&*self.model).batched_draft_ok()
+    }
+
+    fn draft_batch(&mut self, jobs: &[(usize, u32, usize)]) -> Result<Option<Vec<Vec<u32>>>> {
+        let m: &Model = self.twin.as_ref().unwrap_or(&*self.model);
+        let mut by_slot: Vec<Option<&mut SequenceState>> = self.states.iter_mut().map(Some).collect();
+        let mut refs: Vec<(&mut SequenceState, u32, usize)> = Vec::with_capacity(jobs.len());
+        for &(slot, next, k) in jobs {
+            let st = by_slot
+                .get_mut(slot)
+                .and_then(Option::take)
+                .ok_or_else(|| Error::Other(format!("draft batch names slot {slot} twice or out of range")))?;
+            refs.push((st, next, k));
+        }
+        m.mtp_draft_batch(&mut refs)
+    }
+
     fn verify_step(&mut self, rows: &[VerifyRows<HeadMode>]) -> Result<Vec<Result<Verified<StepOut>>>> {
         let m: &Model = &self.model;
         let mut by_slot: Vec<Option<&mut SequenceState>> = self.states.iter_mut().map(Some).collect();
@@ -649,6 +668,34 @@ impl Drop for SeqAdapter {
 impl SeqAdapter {
     fn seq(&mut self) -> Result<&mut Seq> {
         self.seq.as_mut().ok_or_else(|| Error::Other("request already finished".into()))
+    }
+}
+
+/// What a sequence's [`Prep`] means to the scheduler ([`BatchSeq::prepare`]).
+fn step_of(seq: &mut Seq, model: &Model, prep: Prep, verify_topk: bool) -> SeqStep<HeadMode> {
+    match prep {
+        Prep::Plain(tok, mode) => {
+            // device-side sampling: a sampled row asks for the top-k candidates instead of the whole logits row
+            let mode = match (mode, model.device_sampling()) {
+                (HeadMode::LastLogits, true) => seq.topk_for(seq.generated + 1).map_or(mode, HeadMode::LastTopK),
+                _ => mode,
+            };
+            SeqStep::Plain(tok, mode)
+        }
+        Prep::Ready => SeqStep::Ready,
+        // a sampled sequence draws its own token from every row: its rows come back as logits
+        Prep::Verify(ids) => {
+            // lane mtp2s (`INTARSIA_VERIFY_TOPK=1`, opt-in): a sampled sequence's rows as the device-side
+            // top-k when every row's draw is one a plain batched step would make from it
+            // (`Seq::verify_topk`), else whole logits rows
+            let mode = match (verify_topk && model.device_sampling(), seq.verify_topk(ids.len())) {
+                (true, Some(k)) => HeadMode::LastTopK(k),
+                _ => HeadMode::LastLogits,
+            };
+            SeqStep::Verify(ids, seq.keyed().then_some(mode))
+        }
+        // `prepare_hold` hands a held draft to the scheduler before it gets here
+        Prep::Draft(_) => SeqStep::Ready,
     }
 }
 
@@ -801,28 +848,41 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         // the busy-batch drafter check exists because a solo verify pass beside a batched step is a whole extra weight pass; a
         // batched verify pass shares the weights with the other drafting sequences, so it does not apply there
         seq.set_spec_allowed(spec_allowed, busy && !defer);
-        Ok(match seq.prepare_with(model, &mut states[slot], defer)? {
-            Prep::Plain(tok, mode) => {
-                // device-side sampling: a sampled row asks for the top-k candidates instead of the whole logits row
-                let mode = match (mode, model.device_sampling()) {
-                    (HeadMode::LastLogits, true) => seq.topk_for(seq.generated + 1).map_or(mode, HeadMode::LastTopK),
-                    _ => mode,
-                };
-                SeqStep::Plain(tok, mode)
+        let prep = seq.prepare_with(model, &mut states[slot], defer)?;
+        Ok(step_of(seq, model, prep, *verify_topk))
+    }
+
+    fn prepare_hold(&mut self, model: &mut SlotModel, slot: usize, spec_allowed: bool, busy: bool) -> Result<Held<HeadMode>> {
+        let SlotModel { model, twin, states, batched_verify, verify_topk, .. } = model;
+        let model: &Model = twin.as_ref().unwrap_or(&**model);
+        let defer = *batched_verify && busy;
+        let seq = self.seq()?;
+        seq.set_spec_allowed(spec_allowed, busy && !defer);
+        // a draft is held only where the verify pass is deferred (the batched draft feeds the batched verify)
+        let prep = if defer { seq.prepare_hold(model, &mut states[slot])? } else { seq.prepare_with(model, &mut states[slot], defer)? };
+        Ok(match prep {
+            Prep::Draft(k) => {
+                let (next, _) = seq.held_draft().ok_or_else(|| Error::Other("a held draft without its token".into()))?;
+                Held::Draft { next, k }
             }
-            Prep::Ready => SeqStep::Ready,
-            // a sampled sequence draws its own token from every row: its rows come back as logits
-            Prep::Verify(ids) => {
-                // lane mtp2s (`INTARSIA_VERIFY_TOPK=1`, opt-in): a sampled sequence's rows as the device-side
-                // top-k when every row's draw is one a plain batched step would make from it
-                // (`Seq::verify_topk`), else whole logits rows
-                let mode = match (*verify_topk && model.device_sampling(), seq.verify_topk(ids.len())) {
-                    (true, Some(k)) => HeadMode::LastTopK(k),
-                    _ => HeadMode::LastLogits,
-                };
-                SeqStep::Verify(ids, seq.keyed().then_some(mode))
-            }
+            prep => Held::Step(step_of(seq, model, prep, *verify_topk)),
         })
+    }
+
+    fn prepare_finish(&mut self, model: &mut SlotModel, slot: usize, drafts: Option<Vec<u32>>) -> Result<SeqStep<HeadMode>> {
+        let SlotModel { model, twin, states, verify_topk, .. } = model;
+        let model: &Model = twin.as_ref().unwrap_or(&**model);
+        let seq = self.seq()?;
+        let drafts = match drafts {
+            Some(d) => d,
+            None => {
+                // not batched after all (a lone drafter, or the batched draft did not apply): the sequence's own draft
+                let (next, k) = seq.held_draft().ok_or_else(|| Error::Other("prepare_finish without a held draft".into()))?;
+                model.mtp_draft(&mut states[slot], next, k)?
+            }
+        };
+        let prep = seq.finish_draft(model, &mut states[slot], drafts)?;
+        Ok(step_of(seq, model, prep, *verify_topk))
     }
 
     fn next_ready(&mut self) -> bool {
