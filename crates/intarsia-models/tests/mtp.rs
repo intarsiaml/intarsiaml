@@ -2996,3 +2996,256 @@ fn batched_store_with_mtp_is_refused_with_the_knob_off() {
     assert!(e.contains("prefix store") && e.contains("INTARSIA_MTP_STORE"), "{e}");
     assert!(!intarsia_core::spec::mtp_store_default_for("cpu") && intarsia_core::spec::mtp_store_default_for("cuda"));
 }
+
+// ------------------------------------------------------------------------------------------------------------------
+// lane dsubset: `--mtp-draft-subset`, the drafter's head over a chosen set of lm_head rows (gathered), mapped back to ids
+// ------------------------------------------------------------------------------------------------------------------
+
+fn subset(ids: Vec<u32>) -> Arc<intarsia_core::draft_subset::DraftSubset> {
+    Arc::new(intarsia_core::draft_subset::DraftSubset::from_ids(ids, "test").unwrap())
+}
+
+/// A non-contiguous subset of the 96-token toy vocabulary: three 16-id blocks, the middle one past the 48-id prefix.
+fn scattered() -> Vec<u32> {
+    (0..16).chain(40..56).chain(80..96).collect()
+}
+
+fn load_subset(backend: Arc<dyn Backend>, w: &MemWeights, k: usize, sub: Option<Vec<u32>>, draft_vocab: usize) -> Model {
+    let (recipe, dims) = dims();
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        fp8_act: Some(Fp8Act::None),
+        mtp: true,
+        mtp_draft_vocab: Some(draft_vocab),
+        mtp_draft_subset: sub.map(subset),
+        profile_every: 0,
+        ..Default::default()
+    };
+    let mut m = Model::load(backend, &recipe, &dims, w, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.enable_verify(k + 1).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    m
+}
+
+fn engine_subset(backend: Arc<dyn Backend>, w: &MemWeights, k: usize, sub: Vec<u32>, sampled: Option<intarsia_core::spec::SampledSpec>) -> (LocalEngine, Arc<Telemetry>) {
+    let tel = Arc::new(Telemetry::new());
+    let (recipe, dims) = dims();
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        fp8_act: Some(Fp8Act::None),
+        mtp: true,
+        mtp_draft_subset: Some(subset(sub)),
+        profile_every: 0,
+        ..Default::default()
+    };
+    let mut m = Model::load(backend, &recipe, &dims, w, &opts, tel.clone()).unwrap();
+    m.enable_verify(k + 1).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    m.set_spec_sampled(sampled);
+    let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec: SpecConfig { mode: SpecMode::Mtp, k, k_min: None }, ..Default::default() };
+    (LocalEngine::new(m, Arc::new(ByteCodec), meta, tel.clone()).unwrap(), tel)
+}
+
+/// Greedy output equals spec off for a scattered subset, eager and captured. Sampled requests on the single-sequence engine
+/// draft over the subset head with both sampled-speculation variants (`Match`: the head's argmax chain; `Reject`: draws from the
+/// widened logits row, -inf outside the subset) and reproduce for a seed; that engine's sampled speculation is exact in law,
+/// not per seed (`sampled_speculation_*` above), so seed identity with spec off is gated on the batched engine below.
+#[test]
+fn draft_subset_keeps_greedy_and_sampled_output() {
+    use intarsia_core::spec::SampledSpec;
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    for captured in [false, true] {
+        let backend: Arc<dyn Backend> = if captured { RecCpu::arc() } else { CpuBackend::arc() };
+        let (on, tel) = engine_subset(backend, &w, 2, scattered(), None);
+        for p in PROMPTS {
+            assert_eq!(run(&off, req(p, 160)), run(&on, req(p, 160)), "captured {captured} prompt {p:?}");
+        }
+        assert!(tel.snapshot().spec_proposed > 0);
+    }
+    for variant in [SampledSpec::Match, SampledSpec::Reject] {
+        let (e, tel) = engine_subset(CpuBackend::arc(), &w, 2, scattered(), Some(variant));
+        for p in PROMPTS {
+            assert_eq!(run(&e, req(p, 64)).ids, run(&off, req(p, 64)).ids, "{variant:?}: greedy ids changed");
+        }
+        let before = tel.snapshot().spec_steps;
+        let a = run(&e, sampled_req(PROMPTS[0], 40, 5, 0.8, 0, 1.0));
+        let b = run(&e, sampled_req(PROMPTS[0], 40, 5, 0.8, 0, 1.0));
+        assert_eq!(a.ids, b.ids, "{variant:?}: a seed must reproduce");
+        assert_eq!(a.ids.len(), 40);
+        assert!(tel.snapshot().spec_steps > before, "{variant:?}: sampled requests did not speculate");
+    }
+}
+
+/// The drafts are the argmax over the subset's rows of the full head: always inside the subset, eager == captured, the
+/// sampled drafter's widened row is -inf exactly outside the subset and its argmax is the greedy draft, and a subset that
+/// equals a prefix drafts exactly as that prefix does (the gather and the id map are exact).
+#[test]
+fn draft_subset_drafts_are_the_subset_argmax() {
+    let w = weights(11);
+    let rec = RecCpu::arc();
+    let sub = scattered();
+    let m = load_subset(rec.clone(), &w, 2, Some(sub.clone()), 0);
+    let (mut a, mut b, mut c) = (m.new_state().unwrap(), m.new_state().unwrap(), m.new_state().unwrap());
+    let mut last = 0;
+    for st in [&mut a, &mut b, &mut c] {
+        let StepOut::Token(t) = m.forward(st, PROMPTS[0], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+        last = t;
+    }
+    let mut outside_prefix = 0;
+    for i in 0..30 {
+        let len0 = a.len;
+        let da = m.mtp_draft(&mut a, last, 2).unwrap();
+        // the sampled drafter's row: argmax pick must give the greedy drafts
+        let mut rows = Vec::new();
+        let ds = m
+            .mtp_draft_sampled(&mut c, last, 2, &mut |row: &[f32]| {
+                rows.push(row.to_vec());
+                row.iter().enumerate().fold((0usize, f32::NEG_INFINITY), |bst, (j, &x)| if x > bst.1 { (j, x) } else { bst }).0 as u32
+            })
+            .unwrap();
+        assert_eq!(da, ds, "step {i}: sampled argmax pick == greedy draft");
+        for row in &rows {
+            for (j, x) in row.iter().enumerate() {
+                assert_eq!(x.is_finite(), sub.contains(&(j as u32)), "step {i}: id {j} finite iff in the subset");
+            }
+        }
+        let mut ids = vec![last];
+        ids.extend(&da);
+        let oa = m.forward_verify(&mut a, &ids).unwrap();
+        let p = m.spec_step(&mut b, last, 2).unwrap().expect("captured");
+        assert_eq!(da, p.drafts, "step {i}: eager == captured");
+        assert_eq!(oa, p.out, "step {i}");
+        assert!(da.iter().all(|t| sub.contains(t)), "step {i}: drafts {da:?} outside the subset");
+        outside_prefix += da.iter().filter(|&&t| t >= 16).count();
+        let oc = m.forward_verify(&mut c, &ids).unwrap();
+        assert_eq!(oa, oc);
+        for st in [&mut a, &mut b, &mut c] {
+            st.spec_rollback(len0 + 1, &*rec).unwrap();
+        }
+        last = oa[0];
+    }
+    assert!(outside_prefix > 0, "some drafts come from the subset's later blocks (the map is exercised)");
+    // a subset equal to the 48-id prefix drafts exactly like `--mtp-draft-vocab 48`
+    let ms = load_subset(CpuBackend::arc(), &w, 2, Some((0..48).collect()), 0);
+    let mp = load_subset(CpuBackend::arc(), &w, 2, None, 48);
+    let (mut s, mut q) = (ms.new_state().unwrap(), mp.new_state().unwrap());
+    let StepOut::Token(mut t) = ms.forward(&mut s, PROMPTS[1], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+    let StepOut::Token(t2) = mp.forward(&mut q, PROMPTS[1], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+    assert_eq!(t, t2);
+    for i in 0..20 {
+        let (len0, d1, d2) = (s.len, ms.mtp_draft(&mut s, t, 2).unwrap(), mp.mtp_draft(&mut q, t, 2).unwrap());
+        assert_eq!(d1, d2, "step {i}: subset 0..48 == prefix 48");
+        let mut ids = vec![t];
+        ids.extend(&d1);
+        let o = ms.forward_verify(&mut s, &ids).unwrap();
+        assert_eq!(o, mp.forward_verify(&mut q, &ids).unwrap());
+        s.spec_rollback(len0 + 1, &*CpuBackend::arc()).unwrap();
+        q.spec_rollback(len0 + 1, &*CpuBackend::arc()).unwrap();
+        t = o[0];
+    }
+}
+
+/// The subset head's projection, argmax and id map are recorded by the load-time dry run (kernel selection, admission).
+#[test]
+fn draft_subset_is_in_the_dry_run() {
+    use intarsia_core::plan::Phase;
+    let w = weights(11);
+    let m = load_subset(CpuBackend::arc(), &w, 2, Some(scattered()), 0);
+    let rec = m.dry_run(Phase::Decode, 3, 4).unwrap();
+    assert!(rec.calls.iter().any(|c| c.extra && c.call.op == Op::Embedding && c.call.inputs[1].shape == [48, 1]), "id map recorded");
+    assert!(rec.calls.iter().any(|c| c.extra && c.call.outputs.iter().any(|o| o.shape == [1, 48])), "subset head recorded");
+}
+
+/// Bad subsets are refused at load: ids past the head, as many ids as the head has rows.
+#[test]
+fn draft_subset_refuses_ids_outside_the_head() {
+    let w = weights(11);
+    let (recipe, dims) = dims();
+    for ids in [(88..97).chain(0..7).collect::<Vec<u32>>(), (0..96).collect()] {
+        let mut ids = ids;
+        ids.sort();
+        let opts = LoadOptions {
+            max_seq: 512,
+            prefill_chunk: 8,
+            fp8_act: Some(Fp8Act::None),
+            mtp: true,
+            mtp_draft_subset: Some(subset(ids)),
+            profile_every: 0,
+            ..Default::default()
+        };
+        let e = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts, Arc::new(Telemetry::new())).err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(e.contains("--mtp-draft-subset"), "{e}");
+    }
+}
+
+/// Batched MTP with batched verify (the 2-stream opt-in set) over a subset head: every sequence (greedy and seeded sampled)
+/// equals its solo spec-off run, the two sequences share verify passes, and the sampled one drafts too (run alone).
+#[test]
+fn draft_subset_batched_mtp_equals_solo() {
+    let w = weights(11);
+    let make = |tel: Arc<Telemetry>| {
+        let (recipe, dims) = dims();
+        let opts = LoadOptions {
+            max_seq: 512,
+            prefill_chunk: 8,
+            fp8_act: Some(Fp8Act::None),
+            mtp: true,
+            mtp_draft_subset: Some(subset(scattered())),
+            profile_every: 0,
+            ..Default::default()
+        };
+        let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts, tel.clone()).unwrap();
+        m.enable_verify(3).unwrap();
+        m.allow_recurrent_batch().unwrap();
+        m.enable_batch(2).unwrap();
+        m.configure_plan(&Default::default(), None).unwrap();
+        let mut o = intarsia_core::BatchedOptions::new(2, 64);
+        o.mtp_max_b = 2;
+        o.spec_off_at = 3;
+        o.batched_verify = true;
+        o.mtp_sampled = true;
+        o.hold_start = true;
+        let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec: SpecConfig { mode: SpecMode::Mtp, k: 2, k_min: None }, ..Default::default() };
+        intarsia_core::BatchedEngine::new(m, Arc::new(ByteCodec), meta, tel, o).unwrap()
+    };
+    let solo = solo_off(&w, 8);
+    let sampled = GenRequest { temperature: 0.7, seed: Some(3), ..req(PROMPTS[2], 80) };
+    let reqs = vec![req(PROMPTS[0], 80), sampled.clone()];
+    let want: Vec<Out> = reqs.iter().map(|r| run(&solo, r.clone())).collect();
+    let tel = Arc::new(Telemetry::new());
+    let eng = make(tel.clone());
+    let rxs: Vec<_> = reqs.into_iter().map(|r| eng.submit(r).unwrap()).collect();
+    eng.release();
+    for (i, (rx, w)) in rxs.iter().zip(&want).enumerate() {
+        assert_eq!(&collect_rx(rx), w, "sequence {i}");
+    }
+    let m = eng.metrics();
+    assert!(m.verify_hist[2..].iter().sum::<u64>() > 0, "no batched verify pass of both sequences: {m:?}");
+    // the sampled request alone drafts over the subset head too
+    let tel = Arc::new(Telemetry::new());
+    let eng = make(tel.clone());
+    let rx = eng.submit(sampled).unwrap();
+    eng.release();
+    assert_eq!(collect_rx(&rx), want[1], "sampled alone");
+    assert!(tel.snapshot().spec_proposed > 0, "the sampled request drafted");
+}
+
+/// The single-sequence engine with `SampledSpec::Match` (CUDA's default): seeded top-k sampled output equals spec off with the
+/// subset head, as with the full head. Full-vocabulary sampling (top_k 0) is exact in law only on this engine, with any head:
+/// the full head and the subset head both give 0 of 8 seeds identical to spec off (measured here and in the CUDA ids gate,
+/// arm s1 vs the controls s1f / s1p), so it is asserted only on the batched engine (`draft_subset_batched_mtp_equals_solo`).
+#[test]
+fn draft_subset_single_engine_match_topk_is_seed_exact() {
+    use intarsia_core::spec::SampledSpec;
+    let w = weights(11);
+    let (off, _) = engine_sampled(&w, 2, 0, SampledSpec::Off);
+    let (sub, tel) = engine_subset(CpuBackend::arc(), &w, 2, scattered(), Some(SampledSpec::Match));
+    for s in 0..8 {
+        let r = || sampled_req(PROMPTS[0], 40, s, 0.6, 20, 0.95);
+        assert_eq!(run(&sub, r()).ids, run(&off, r()).ids, "seed {s}");
+    }
+    assert!(tel.snapshot().spec_steps > 0);
+}

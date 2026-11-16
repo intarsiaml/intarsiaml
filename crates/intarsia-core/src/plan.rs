@@ -221,6 +221,7 @@ pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceStat
         dflash: None,
         clean: 0,
         passes: Vec::new(),
+        prefill_snapshots: 0,
         spec_rows: Default::default(),
         replay_from: 0,
     }
@@ -575,7 +576,8 @@ pub fn resolve(model: &mut Model) -> Result<()> {
             kernel: c.kernel.clone(),
             backend: k.backend.clone(),
             exactness: k.exact,
-            admitted: model.registry.admission(&c.kernel) == Some(Admission::Admitted) || k.is_reference,
+            // a row-table kernel is not tested itself: it counts as admitted when the kernel it twins is (what `select` does)
+            admitted: model.registry.is_admitted(&c.kernel) || k.is_reference,
             calls_per_decode_step: 0,
             scratch_bytes: 0,
         });

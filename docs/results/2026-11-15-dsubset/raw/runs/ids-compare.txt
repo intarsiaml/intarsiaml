@@ -1,0 +1,25 @@
+ref      t0.6/b1                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t0.6/b2                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t0.6/b4                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0/b1                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0/b2                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0/b4                  8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      t1.0-fullvocab/b2        8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+ref      mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 0 drafted 0 accepted 0
+s2       t0.6/b1                  8/8 requests identical to ref b1 | verify passes 463 drafted 924 accepted 684 (0.740)
+s2       t0.6/b2                  8/8 requests identical to ref b1 | verify passes 463 drafted 924 accepted 684 (0.740)
+s2       t0.6/b4                  8/8 requests identical to ref b1 | verify passes 463 drafted 924 accepted 684 (0.740)
+s2       t1.0/b1                  8/8 requests identical to ref b1 | verify passes 502 drafted 1001 accepted 646 (0.645)
+s2       t1.0/b2                  8/8 requests identical to ref b1 | verify passes 502 drafted 1001 accepted 646 (0.645)
+s2       t1.0/b4                  8/8 requests identical to ref b1 | verify passes 502 drafted 1001 accepted 646 (0.645)
+s2       t1.0-fullvocab/b2        8/8 requests identical to ref b1 | verify passes 501 drafted 999 accepted 639 (0.640)
+s2       mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 466 drafted 931 accepted 681 (0.731)
+s1       t0.6/b1                  8/8 requests identical to ref b1 | verify passes 463 drafted 924 accepted 684 (0.740)
+s1       t0.6/b2                  8/8 requests identical to ref b1 | verify passes 463 drafted 924 accepted 684 (0.740)
+s1       t0.6/b4                  8/8 requests identical to ref b1 | verify passes 463 drafted 924 accepted 684 (0.740)
+s1       t1.0/b1                  8/8 requests identical to ref b1 | verify passes 502 drafted 1001 accepted 646 (0.645)
+s1       t1.0/b2                  8/8 requests identical to ref b1 | verify passes 502 drafted 1001 accepted 646 (0.645)
+s1       t1.0/b4                  8/8 requests identical to ref b1 | verify passes 502 drafted 1001 accepted 646 (0.645)
+s1       t1.0-fullvocab/b2        0/8 requests identical to ref b1  FIRST DIFFS AT [1, 76, 3, 59, 2, 78, 37, 6] | verify passes 484 drafted 965 accepted 598 (0.620)
+s1       mixed-greedy-t1.0/b4     8/8 requests identical to ref b1 | verify passes 466 drafted 931 accepted 681 (0.731)
+VERDICT: FAIL: 8 requests differ

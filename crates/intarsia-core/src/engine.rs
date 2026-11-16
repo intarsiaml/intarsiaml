@@ -1801,7 +1801,11 @@ impl Seq {
         };
         if n < remaining || prewarm {
             let start = self.pos;
-            match model.forward_prefill(st, &self.req.prompt[self.pos..self.pos + n], HeadMode::None, None)? {
+            // a macro step holds several chunks: keep the snapshots of the chunk ends inside it too (lane a4k-restore)
+            st.prefill_snapshots = crate::state::RECURRENT_SNAPSHOTS;
+            let ran = model.forward_prefill(st, &self.req.prompt[self.pos..self.pos + n], HeadMode::None, None);
+            st.prefill_snapshots = 0;
+            match ran? {
                 StepOut::None => {}
                 _ => return Err(Error::Other("backend returned output for a prefill chunk".into())),
             }

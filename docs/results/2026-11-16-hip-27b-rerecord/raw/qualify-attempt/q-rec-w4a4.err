@@ -1,0 +1,12 @@
+[qualify      0s] Qwen3.8-27B-Quark-AWQ-MXFP4 on hip, report directory /work/.b27-logs/main/q-rec-w4a4
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (AMD Radeon Graphics (gfx1201), 95 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      0s] recipe: PASS in 0.0s (builtin:qwen3_5_vl covers this model (45/45 tensor templates resolve, quant mxfp4))
+[qualify      0s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify    125s] plan: FAIL in 124.4s (1 op(s) selected a kernel that did not pass admission: attn_decode:attn_decode_bf16_splitkv_rows)
+[qualify    125s] gate: blocked by 'plan' (FAIL): 1 op(s) selected a kernel that did not pass admission: attn_decode:attn_decode_bf16_splitkv_rows
+[qualify    125s] acc-short: blocked by 'plan' (FAIL): 1 op(s) selected a kernel that did not pass admission: attn_decode:attn_decode_bf16_splitkv_rows
+[qualify    125s] envelope: blocked by 'plan' (FAIL): 1 op(s) selected a kernel that did not pass admission: attn_decode:attn_decode_bf16_splitkv_rows
+[qualify    125s] tp: blocked by 'plan' (FAIL): 1 op(s) selected a kernel that did not pass admission: attn_decode:attn_decode_bf16_splitkv_rows
+[qualify    125s] exit code 1
