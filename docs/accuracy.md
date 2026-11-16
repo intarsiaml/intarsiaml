@@ -758,6 +758,9 @@ off on the same build (docs/results/2026-11-14-hip-wht6-ar.md): it **fails the c
 4.72e-3, 1.49 x the reference noise, two prompts over 3 x their own noise) and on the long golden (3.38e-2, 1.52 x), and passes the
 vLLM-golden gates (static floor 3e-2 binding). Greedy ids change within the first 15 to 82 tokens. A build or profile that turns it on
 is outside the accuracy gates as they stand; `INTARSIA_HIP_AR_WIRE_MIN_KB` only moves the prompt length from which that applies.
+`INTARSIA_HIP_AR_WIRE=wht8` (the same wire with 8-bit symbols, 4x smaller wire error, docs/results/2026-11-16-hip-wht8-ar.md) fails the same rule by a similar margin (short golden 5.56e-3 = 1.76 x the reference noise, long 3.24e-2 = 1.46 x; wht6 in the same build 1.51 x / 1.42 x) and passes the vLLM-golden gates.
+
+**The change-vs-base rule has a floor that no wire width gets under** (docs/results/2026-11-16-hip-wire-probe.md). The control `INTARSIA_HIP_AR_WIRE=whtf` (rotate, send the rotated f32 values, un-rotate: exact up to f32 rounding) measures prefill mean KL21 3.47e-3 = 1.10 x the reference noise on the short golden and 2.99e-2 = 1.35 x on the long one, 19 / 1596 top-1 flips, so it fails the rule; wht16 / wht12 / wht8 / wht6 give 1.43 / 1.24 / 1.76 / 1.51 x (short) and 1.44 / 1.68 / 1.46 / 1.42 x (long), in no order of their wire error (0.002 % to 1.7 %; the control is below 0.0005 %). On this model any change to the reduction order reaches a floor of about 1.1-1.4 x the reference noise (the chunked GDN delta rule, 3.455e-3, is the same size), so the rule cannot rank or pass a lossy wire; use the `whtf` control as the floor, and the vLLM-golden gates.
 
 ### `--reference`
 

@@ -1,0 +1,2 @@
+hip tp wire: LOSSY (INTARSIA_HIP_AR_WIRE=wht16): all-reduces above 128 KiB and of at least 128 KiB carry a 16-bit rotated code (prefill chunks; a batched decode step whose unfused partial is that large too). Unset the variable for the exact wire.
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
