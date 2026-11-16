@@ -1,0 +1,30 @@
+fleetq: #9755 running on endor: zsh -c 'cd /opt/code/intarsiaml/.worktrees/mprefill && git push -u origin mprefill mprefill-naxd 2>&1 | grep -vE "^\s*(-->|\||=|[0-9]+ \|)|^warning" | tail -40'
+
+
+
+
+...
+...
+
+...
+
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+
+
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+To github.com:intarsiaml/intarsiaml.git
+ * [new branch]          mprefill -> mprefill
+ * [new branch]          mprefill-naxd -> mprefill-naxd
+branch 'mprefill' set up to track 'origin/mprefill'.
+branch 'mprefill-naxd' set up to track 'origin/mprefill-naxd'.
+fleetq: #9755 done (exit 0)
