@@ -1,0 +1,88 @@
+Qwen3.6-35B-A3B-NVFP4-4096-default.jsonl: 34.8 passes, 17.44 ms busy / pass, 0.94 ms idle / pass, 1069 dispatches / pass
+| op | launches / pass | us / pass | share | us / launch |
+|---|---:|---:|---:|---:|
+| matmul_fp8_gemv_rows | 130.0 | 4978 | 28.5 % | 38.3 |
+| moe_experts_bf16_rows | 40.0 | 2263 | 13.0 % | 56.6 |
+| matmul_nvfp4_gemv_rows | 121.0 | 1353 | 7.8 % | 11.2 |
+| moe_experts_bf16_rows#1 | 40.0 | 1345 | 7.7 % | 33.6 |
+| attn_prefill_bf16_splitkv_rows | 10.0 | 1043 | 6.0 % | 104.3 |
+| matmul_nvfp4_gemv | 5.4 | 972 | 5.6 % | 179.9 |
+| gdn_delta_rule_bf16 | 90.0 | 968 | 5.5 % | 10.8 |
+| rmsnorm_add_bf16 | 86.2 | 510 | 2.9 % | 5.9 |
+Qwen3.6-35B-A3B-NVFP4-4096-off.jsonl: 84.9 passes, 8.11 ms busy / pass, 0.52 ms idle / pass, 764 dispatches / pass
+| op | launches / pass | us / pass | share | us / launch |
+|---|---:|---:|---:|---:|
+| matmul_fp8_gemv | 130.0 | 3421 | 42.2 % | 26.3 |
+| moe_experts_bf16 | 40.0 | 954 | 11.8 % | 23.8 |
+| matmul_nvfp4_gemv | 121.0 | 696 | 8.6 % | 5.7 |
+| moe_experts_bf16#1 | 40.0 | 694 | 8.6 % | 17.3 |
+| attn_decode_bf16_splitkv | 10.0 | 444 | 5.5 % | 44.4 |
+| rmsnorm_add_bf16 | 80.0 | 403 | 5.0 % | 5.0 |
+| moe_topk_bf16 | 40.0 | 331 | 4.1 % | 8.3 |
+| gdn_delta_rule_bf16 | 30.0 | 307 | 3.8 % | 10.2 |
+Qwen3.6-35B-A3B-NVFP4-32768-default.jsonl: 34.9 passes, 23.97 ms busy / pass, 2.65 ms idle / pass, 1046 dispatches / pass
+| op | launches / pass | us / pass | share | us / launch |
+|---|---:|---:|---:|---:|
+| attn_prefill_bf16_splitkv_rows | 10.0 | 6527 | 27.2 % | 652.7 |
+| matmul_fp8_gemv_rows | 130.0 | 4535 | 18.9 % | 34.9 |
+| attn_prefill_bf16_flash_nax | 0.8 | 3177 | 13.3 % | 3823.6 |
+| moe_experts_bf16_rows | 40.0 | 2024 | 8.4 % | 50.6 |
+| moe_experts_bf16_rows#1 | 40.0 | 1180 | 4.9 % | 29.5 |
+| matmul_nvfp4_gemv_rows | 121.0 | 1078 | 4.5 % | 8.9 |
+| matmul_nvfp4_gemv | 1.9 | 934 | 3.9 % | 486.8 |
+| gdn_delta_rule_bf16 | 89.1 | 833 | 3.5 % | 9.3 |
+Qwen3.6-35B-A3B-NVFP4-32768-off.jsonl: 84.9 passes, 10.38 ms busy / pass, 2.93 ms idle / pass, 764 dispatches / pass
+| op | launches / pass | us / pass | share | us / launch |
+|---|---:|---:|---:|---:|
+| matmul_fp8_gemv | 130.0 | 3486 | 33.6 % | 26.8 |
+| attn_decode_bf16_splitkv | 10.0 | 2490 | 24.0 % | 249.0 |
+| moe_experts_bf16 | 40.0 | 970 | 9.3 % | 24.2 |
+| matmul_nvfp4_gemv | 121.0 | 754 | 7.3 % | 6.2 |
+| moe_experts_bf16#1 | 40.0 | 704 | 6.8 % | 17.6 |
+| rmsnorm_add_bf16 | 80.0 | 432 | 4.2 % | 5.4 |
+| moe_topk_bf16 | 40.0 | 335 | 3.2 % | 8.4 |
+| gdn_delta_rule_bf16 | 30.0 | 312 | 3.0 % | 10.4 |
+Qwen3.8-27B-Quark-AWQ-MXFP4-4096-default.jsonl: 34.9 passes, 45.14 ms busy / pass, 1.04 ms idle / pass, 1288 dispatches / pass
+| op | launches / pass | us / pass | share | us / launch |
+|---|---:|---:|---:|---:|
+| matmul_mxfp4_gemv | 495.7 | 28549 | 63.2 % | 57.6 |
+| attn_prefill_bf16_splitkv_rows | 16.0 | 2940 | 6.5 % | 183.8 |
+| matmul_fp8_gemv_rows | 1.0 | 2188 | 4.8 % | 2184.2 |
+| gdn_delta_rule_bf16 | 142.5 | 1946 | 4.3 % | 13.7 |
+| rmsnorm_add_bf16 | 131.8 | 1762 | 3.9 % | 13.4 |
+| matmul_bf16_nax | 4.2 | 1160 | 2.6 % | 279.5 |
+| matmul_fp8_gemv | 1.9 | 1139 | 2.5 % | 593.8 |
+| other | 111.2 | 909 | 2.0 % | 8.2 |
+Qwen3.8-27B-Quark-AWQ-MXFP4-4096-off.jsonl: 84.9 passes, 33.46 ms busy / pass, 0.78 ms idle / pass, 948 dispatches / pass
+| op | launches / pass | us / pass | share | us / launch |
+|---|---:|---:|---:|---:|
+| matmul_mxfp4_gemv | 495.9 | 25734 | 76.9 % | 51.9 |
+| matmul_fp8_gemv | 1.0 | 2195 | 6.6 % | 2193.6 |
+| rmsnorm_add_bf16 | 128.0 | 1930 | 5.8 % | 15.1 |
+| attn_decode_bf16_splitkv | 16.0 | 1709 | 5.1 % | 106.8 |
+| gdn_delta_rule_bf16 | 48.0 | 755 | 2.3 % | 15.7 |
+| silu_glu_bf16 | 112.0 | 401 | 1.2 % | 3.6 |
+| gdn_conv_bf16 | 48.0 | 273 | 0.8 % | 5.7 |
+| rmsnorm_bf16 | 49.0 | 188 | 0.6 % | 3.8 |
+Qwen3.8-27B-Quark-AWQ-MXFP4-32768-default.jsonl: 32.2 passes, 66.82 ms busy / pass, 1.03 ms idle / pass, 1288 dispatches / pass
+| op | launches / pass | us / pass | share | us / launch |
+|---|---:|---:|---:|---:|
+| matmul_mxfp4_gemv | 495.3 | 28952 | 43.3 % | 58.5 |
+| attn_prefill_bf16_splitkv_rows | 16.0 | 20389 | 30.5 % | 1274.3 |
+| attn_prefill_bf16_flash_nax | 0.9 | 3280 | 4.9 % | 3777.9 |
+| matmul_fp8_gemv_rows | 1.0 | 2257 | 3.4 % | 2206.0 |
+| gdn_delta_rule_bf16 | 143.7 | 2037 | 3.0 % | 14.2 |
+| rmsnorm_add_bf16 | 131.8 | 1834 | 2.7 % | 13.9 |
+| matmul_bf16_nax | 4.3 | 1209 | 1.8 % | 278.5 |
+| matmul_fp8_gemv | 2.0 | 1179 | 1.8 % | 594.3 |
+Qwen3.8-27B-Quark-AWQ-MXFP4-32768-off.jsonl: 84.9 passes, 40.97 ms busy / pass, 0.96 ms idle / pass, 948 dispatches / pass
+| op | launches / pass | us / pass | share | us / launch |
+|---|---:|---:|---:|---:|
+| matmul_mxfp4_gemv | 495.9 | 25485 | 62.2 % | 51.4 |
+| attn_decode_bf16_splitkv | 16.0 | 9595 | 23.4 % | 599.7 |
+| matmul_fp8_gemv | 1.0 | 2181 | 5.3 % | 2179.5 |
+| rmsnorm_add_bf16 | 128.0 | 1869 | 4.6 % | 14.6 |
+| gdn_delta_rule_bf16 | 48.0 | 729 | 1.8 % | 15.2 |
+| silu_glu_bf16 | 112.0 | 380 | 0.9 % | 3.4 |
+| gdn_conv_bf16 | 48.0 | 267 | 0.7 % | 5.6 |
+| rmsnorm_bf16 | 49.0 | 184 | 0.4 % | 3.8 |

@@ -445,7 +445,24 @@ impl MetalBackend {
         };
         let gp = (grp / hs).next_power_of_two();
         let nsg = MAX_SG.min((TG_FLOATS / (gp.max(hp.gpref) * d)).max(1));
-        let (name1, name2) = (ATTN_ROWTAB_SHADERS[gp.trailing_zeros() as usize], ATTN_ROWTAB_SHADERS[4]);
+        // packed threadgroups (`INTARSIA_METAL_ATTN_KV_ONCE=1`, attn.rs `pack_plan`): the rows fold into grid x, same bits
+        let pack = crate::attn::pack_plan(&hp, rows, nsg, gp, d, true);
+        let (name1, name2) = (
+            match pack {
+                Some(pk) => crate::attn::pack_shader(true, gp, pk.nf),
+                None => ATTN_ROWTAB_SHADERS[gp.trailing_zeros() as usize],
+            },
+            ATTN_ROWTAB_SHADERS[4],
+        );
+        let p1 = match pack {
+            Some(pk) => OpP { skips: [p.skips[0], pk.s1, p.skips[2], p.skips[3], p.skips[4]], ..p },
+            None => p,
+        };
+        let grid1 = match pack {
+            Some(pk) => MTLSize { width: nkv * pk.ntg, height: max_split, depth: 1 },
+            None => MTLSize { width: nkvv, height: max_split, depth: rows },
+        };
+        let threads = pack.map_or(nsg * 32, |pk| pk.threads);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
         self.with_encoder_ind(|enc| {
@@ -456,11 +473,8 @@ impl MetalBackend {
                     enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, idx);
                 }
             }
-            set_bytes(enc, &p, 5);
-            enc.dispatchThreadgroups_threadsPerThreadgroup(
-                MTLSize { width: nkvv, height: max_split, depth: rows },
-                MTLSize { width: nsg * 32, height: 1, depth: 1 },
-            );
+            set_bytes(enc, &p1, 5);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(grid1, MTLSize { width: threads, height: 1, depth: 1 });
             // SAFETY: as above.
             unsafe {
                 enc.setComputePipelineState(pso2);

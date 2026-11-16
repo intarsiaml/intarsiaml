@@ -1,0 +1,41 @@
+[localeval] calibrated: 22.0 tokens/sentence, 52 base tokens, ctx=40000
+[localeval]   4096 tok rep 1/2: prompt=4090 ttft=0.96s prefill=4257 tok/s decode=144.2 tok/s peak=180.5 tok/s out=256
+[localeval]   4096 tok rep 2/2: prompt=4090 ttft=0.86s prefill=4782 tok/s decode=139.5 tok/s peak=187.3 tok/s out=256
+[localeval]  32768 tok rep 1/2: prompt=33927 ttft=10.98s prefill=3090 tok/s decode=93.4 tok/s peak=124.2 tok/s out=256
+[localeval]  32768 tok rep 2/2: prompt=33927 ttft=10.92s prefill=3106 tok/s decode=87.1 tok/s peak=109.5 tok/s out=256
+# localeval: adhoc — 2026-11-15T23:26
+
+- model: `intarsia` on ? (?), url `http://127.0.0.1:18631/v1`
+- thinking: off; run kind: speed; label: mka-35-default-off
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d96f899
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:18631/v1 --model intarsia --sizes 4096,32768 --gen 256 --reps 2 --thinking off --no-unim --label mka-35-default-off --recipe /opt/code/intarsiaml/.worktrees/mka/target/release/intarsia serve --backend metal --model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18631 kvo=off`
+- result file: `results/20261115-232614-adhoc-mka-35-default-off/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+/opt/code/intarsiaml/.worktrees/mka/target/release/intarsia serve --backend metal --model /Users/josef/models/Qwen3.6-35B-A3B-NVFP4 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18631 kvo=off
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 40000, 2 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4090 | 0.91 | 4520 (4257–4782) | - | 141.9 (139.5–144.2) | 183.9 (180.5–187.3) | - | - | 256 |
+| 33927 | 10.95 | 3098 (3090–3106) | 2971 | 90.3 (87.1–93.4) | 116.8 (109.5–124.2) | - | - | 256 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261115-232614-adhoc-mka-35-default-off/result.json
+[localeval] not logged to unanimis (--no-unim)
