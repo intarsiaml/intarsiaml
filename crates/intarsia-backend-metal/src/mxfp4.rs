@@ -380,7 +380,8 @@ impl MetalBackend {
     /// `matmul_mxfp4_nax` in three dispatches: the activations QDQ'd (or copied) as in the GEMV form (`mxfp4_xprep_bf16`),
     /// the weights decoded to bf16 and the scale pair `[1, 0]` (`mxfp4_w_to_bf16`), then the fp8 NAX GEMM (`gemm_nax_fp8_*`,
     /// tile by `gemm_nax::pick_variant`) on those two, which stores bf16 / f32. Scratch: `[xs: M*K bf16]` then, from the next
-    /// 16-byte boundary, `[Wb: N*K bf16][scale pair: 2 f32]`.
+    /// 16-byte boundary, `[Wb: N*K bf16][scale pair: 2 f32]`. A call [`naxd_pick`] sends to an in-kernel decode form (by default
+    /// M <= [`NAXD_SMALL_MAX_M`]) runs as two dispatches instead (`launch_mxfp4_naxd`; the same bits, no `Wb`).
     fn launch_mxfp4_nax(
         &self,
         call: &OpCall,
