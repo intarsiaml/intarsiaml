@@ -521,6 +521,14 @@ pub trait Backend: Send + Sync {
         Err(Error::Unsupported(format!("{}: device-side top-k", self.name())))
     }
 
+    /// Lane mdraft: whether the MTP drafts of several sequences of one scheduler iteration may share their draft lm_head and its
+    /// argmax ([`crate::Model::mtp_draft_batch`]: one multi-row row-exact launch and one token download for the sequences' draft
+    /// steps, each sequence's head layer passes unchanged). Bitwise the per-sequence drafts when the backend's row-exact GEMV is
+    /// bitwise its one-row GEMV per row (`tests/rows_exact.rs` on CUDA). Default false: every backend drafts per sequence.
+    fn batched_draft(&self) -> bool {
+        false
+    }
+
     /// Lane mtp2s: the `t` rows (2..=8) of one sequence's GatedDeltaNet block of a speculative verify pass in two launches: the conv
     /// (rows in order, the conv state advanced) then the delta rule (state kept on chip across the rows), storing the conv state and the
     /// delta-rule state after every row but the last into `snap_conv[r]` / `snap_s[r]` (the pass's rollback saves) and the final ones in

@@ -45,7 +45,16 @@ impl Seq {
     /// [`Seq::accept_verify_rows`]), otherwise it runs here on the sequence's own state.
     pub(super) fn keyed_draft(&mut self, model: &Model, st: &mut SequenceState, k: usize, defer: bool) -> Result<Prep> {
         self.cost_begin(true);
+        if defer && std::mem::take(&mut self.hold_draft) {
+            self.held = Some((self.tok, k));
+            return Ok(Prep::Draft(k));
+        }
         let drafts = model.mtp_draft(st, self.tok, k)?;
+        self.keyed_finish(model, st, drafts, defer)
+    }
+
+    /// [`Seq::keyed_draft`] after the drafts (lane mdraft: they may come from a batched draft).
+    pub(super) fn keyed_finish(&mut self, model: &Model, st: &mut SequenceState, drafts: Vec<u32>, defer: bool) -> Result<Prep> {
         if drafts.is_empty() {
             // no room for a draft block near the end of the context window: a plain step
             self.cost_begin(false);
