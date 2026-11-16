@@ -1,0 +1,43 @@
+[localeval] calibrated: 22.1 tokens/sentence, 52 base tokens, ctx=40000
+[localeval]   4096 tok rep 1/3: prompt=4090 ttft=4.66s prefill=878 tok/s decode=52.0 tok/s peak=64.8 tok/s out=256
+[localeval]   4096 tok rep 2/3: prompt=4089 ttft=5.47s prefill=747 tok/s decode=47.8 tok/s peak=59.2 tok/s out=256
+[localeval]   4096 tok rep 3/3: prompt=4090 ttft=5.84s prefill=701 tok/s decode=47.0 tok/s peak=54.2 tok/s out=256
+# localeval: adhoc — 2026-11-16T10:16
+
+- model: `intarsia` on ? (?), url `http://127.0.0.1:18641/v1`
+- thinking: off; run kind: speed; label: kvq-27-default-A
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git 2c5524c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:18641/v1 --model intarsia --sizes 4096 --gen 256 --reps 3 --thinking off --no-unim --label kvq-27-default-A --recipe /opt/code/intarsiaml/.worktrees/kvq/target/kvq-intarsia serve --backend metal --model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18641 knob=A`
+- result file: `results/20261116-101630-adhoc-kvq-27-default-A/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+/opt/code/intarsiaml/.worktrees/kvq/target/kvq-intarsia serve --backend metal --model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --served-model-name intarsia --max-seq 40000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18641 knob=A
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 40000, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4090 | 5.47 | 747 (701–878) | - | 47.8 (47.0–52.0) | 59.2 (54.2–64.8) | - | - | 256 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 10.4% at 4096 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261116-101630-adhoc-kvq-27-default-A/result.json
+[localeval] not logged to unanimis (--no-unim)

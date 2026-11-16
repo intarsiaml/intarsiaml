@@ -1,0 +1,672 @@
+{
+ "act_dtype": "bf16",
+ "backend": "metal",
+ "device": {
+  "arch": "applegpu_g17s",
+  "mem_total": 115448725504,
+  "name": "Apple M5 Max"
+ },
+ "exactness": "deterministic",
+ "kv_dtype": "bf16",
+ "layers": [
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 0,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 1,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 2,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "attention",
+    "moe"
+   ],
+   "index": 3,
+   "kind": "attention"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 4,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 5,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 6,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "attention",
+    "moe"
+   ],
+   "index": 7,
+   "kind": "attention"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 8,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 9,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 10,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "attention",
+    "moe"
+   ],
+   "index": 11,
+   "kind": "attention"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 12,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 13,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 14,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "attention",
+    "moe"
+   ],
+   "index": 15,
+   "kind": "attention"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 16,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 17,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 18,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "attention",
+    "moe"
+   ],
+   "index": 19,
+   "kind": "attention"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 20,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 21,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 22,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "attention",
+    "moe"
+   ],
+   "index": 23,
+   "kind": "attention"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 24,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 25,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 26,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "attention",
+    "moe"
+   ],
+   "index": 27,
+   "kind": "attention"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 28,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 29,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 30,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "attention",
+    "moe"
+   ],
+   "index": 31,
+   "kind": "attention"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 32,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 33,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 34,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "attention",
+    "moe"
+   ],
+   "index": 35,
+   "kind": "attention"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 36,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 37,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "gated_delta_net",
+    "moe"
+   ],
+   "index": 38,
+   "kind": "gated_delta_net"
+  },
+  {
+   "blocks": [
+    "attention",
+    "moe"
+   ],
+   "index": 39,
+   "kind": "attention"
+  }
+ ],
+ "model": "Qwen3.6-35B-A3B-NVFP4",
+ "ops": [
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 1,
+   "exactness": "exact",
+   "kernel": "embedding_bf16",
+   "op": "embedding",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 31,
+   "exactness": "deterministic",
+   "kernel": "rmsnorm_bf16",
+   "op": "rmsnorm",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 80,
+   "exactness": "deterministic",
+   "kernel": "rmsnorm_add_bf16",
+   "op": "rmsnorm_add",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "add_bf16",
+   "op": "add",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "matmul_bf16_gemv",
+   "op": "matmul",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "matmul_bf16_nax",
+   "op": "matmul",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "attn_prefill_bf16_flash_nax",
+   "op": "attn_prefill",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "attn_prefill_bf16_splitkv_rows",
+   "op": "attn_prefill",
+   "scratch_bytes": 3170304
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 10,
+   "exactness": "deterministic",
+   "kernel": "attn_decode_bf16_splitkv",
+   "op": "attn_decode",
+   "scratch_bytes": 1056768
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 70,
+   "exactness": "deterministic",
+   "kernel": "silu_glu_bf16",
+   "op": "silu_glu",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 1,
+   "exactness": "exact",
+   "kernel": "argmax_f32",
+   "op": "argmax",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 130,
+   "exactness": "deterministic",
+   "kernel": "matmul_fp8_gemv",
+   "op": "matmul_fp8",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "matmul_fp8_gemv_rows",
+   "op": "matmul_fp8",
+   "scratch_bytes": 65552
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "matmul_fp8_mma",
+   "op": "matmul_fp8",
+   "scratch_bytes": 65552
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "matmul_fp8_nax",
+   "op": "matmul_fp8",
+   "scratch_bytes": 50331664
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 121,
+   "exactness": "deterministic",
+   "kernel": "matmul_nvfp4_gemv",
+   "op": "matmul_nvfp4",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "matmul_nvfp4_gemv_rows",
+   "op": "matmul_nvfp4",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "matmul_nvfp4_mma",
+   "op": "matmul_nvfp4",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "matmul_nvfp4_nax",
+   "op": "matmul_nvfp4",
+   "scratch_bytes": 2097176
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 40,
+   "exactness": "deterministic",
+   "kernel": "moe_topk_bf16",
+   "op": "moe_topk",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 40,
+   "exactness": "deterministic",
+   "kernel": "moe_experts_bf16",
+   "op": "moe_experts",
+   "scratch_bytes": 167905792
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "moe_experts_bf16_rows",
+   "op": "moe_experts",
+   "scratch_bytes": 125696
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 40,
+   "exactness": "deterministic",
+   "kernel": "moe_combine_bf16",
+   "op": "moe_combine",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 10,
+   "exactness": "deterministic",
+   "kernel": "gate_split_bf16",
+   "op": "gate_split",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 10,
+   "exactness": "deterministic",
+   "kernel": "sigmoid_mul_bf16",
+   "op": "sigmoid_mul",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 30,
+   "exactness": "deterministic",
+   "kernel": "gdn_conv_bf16",
+   "op": "gdn_conv",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 30,
+   "exactness": "deterministic",
+   "kernel": "gdn_delta_rule_bf16",
+   "op": "gdn_delta_rule",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "gdn_delta_rule_bf16_pre",
+   "op": "gdn_delta_rule",
+   "scratch_bytes": 68157440
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 70,
+   "exactness": "deterministic",
+   "kernel": "matmul_pair_bf16_gemv",
+   "op": "matmul_pair",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "matmul_pair_bf16_gemv_rows",
+   "op": "matmul_pair",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 0,
+   "exactness": "deterministic",
+   "kernel": "matmul_pair_bf16_nax",
+   "op": "matmul_pair",
+   "scratch_bytes": 0
+  },
+  {
+   "admitted": true,
+   "backend": "metal",
+   "calls_per_decode_step": 10,
+   "exactness": "deterministic",
+   "kernel": "qk_norm_rope_kv_bf16",
+   "op": "qk_norm_rope_kv",
+   "scratch_bytes": 0
+  }
+ ],
+ "prefill_chunk": 4096,
+ "prefill_peel": 8,
+ "prefill_peel_period": 2048,
+ "probed_sizes": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  31,
+  32,
+  33,
+  63,
+  64,
+  65,
+  127,
+  128,
+  129,
+  255,
+  256,
+  257,
+  511,
+  512,
+  513,
+  1023,
+  1024,
+  1025,
+  2047,
+  2048,
+  2049,
+  4095,
+  4096
+ ],
+ "reference_only": false,
+ "require_admitted": true,
+ "scratch_bytes": 167905792,
+ "tp": null
+}
