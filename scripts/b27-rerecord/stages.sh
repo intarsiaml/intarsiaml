@@ -2,8 +2,13 @@
 # Lane b27-rerecord, the radiance-down window (STEPS selects; default s1 only; one GPU, tp=1; set O to share a log dir across windows):
 #   s1   the gates with the CURRENT (stale) baselines: first INTARSIA_GDN_CHUNK=0 (expected PASS: old baselines + this setup match),
 #        then the default (chunked GDN on): the 27B change-vs-base numbers
-#   rec  record both baselines + both envelopes from this build (chunk on) into $O/new/ with the original flags
-#   chk  gate with the new files (chunk on); also prints the absolute floors
+#   rec  record the baselines + envelopes from this build (chunk on, the recipe default chunk 2048): W4A4 through `qualify` (its own
+#        plan; the stale W4A4 files are moved away first, acc-short records the baseline, the envelope stage the envelope), W4A16 with the
+#        explicit accuracy command (`--mxfp4-act none`); everything lands in $O/new/ under the canonical file names
+#   chk  gate with the new files: W4A4 `qualify` again (expect PASS), W4A16 the explicit gate; the absolute floors are in the same output
+#   self the change-vs-base number of the GDN flip (method of scripts/gdn-chunk/accuracy-window.sh `self`): per variant, a base run with
+#        INTARSIA_GDN_CHUNK=0 writes a self-golden, the default run is compared to it with --self-vs-ref-noise (W4A4: its hash-bound
+#        sidecar; W4A16 has no sidecar, see the doc), plus a control (the default against itself)
 # The accuracy flags are the ones recorded in the baselines' exec.cmdline (docs/results/2026-10-25-ac-27b-accuracy-gate.md section 7);
 # Two flags the original runs did not need: W4A4 now passes --mxfp4-act dynamic (the Qwen3.8-27B recipe default became none, W4A16, on
 # 2026-10-26), and the stale baselines were recorded at prefill chunk 256 (then the default; the recipe default is now 2048), so s1
@@ -46,21 +51,51 @@ if has s1 && { has rec || has chk; }; then
     if ! grep -aq "baseline verdict.*: PASS" "$O/s1-$v-chunk0.out"; then log "STOP: 1a ($v, INTARSIA_GDN_CHUNK=0) did not PASS; not re-recording"; exit 3; fi
   done
 fi
+SK="--skip kernels --skip bench --skip acc-long --skip acc-4k --skip bench-long --skip ab --skip acc-format --skip acc-oracle"
+QV="qualify --backend hip --golden /work/golden/$BN-top20.safetensors --model $M27 --mem-budget 29 $SK"   # the W4A4 golden; qualify plans chunk + act mode
+qsum() { grep -aE "\] [a-z0-9-]+: (PASS|FAIL|SKIP|ERROR|WARN|MISSING-BASELINE)" "$O/$1.out" | cut -c1-300 | tee -a "$O/steps.log"; }
 if has rec; then
-  for v in w4a16 w4a4; do
-    sv="STEM_$v"; stem=${!sv}; vv="V_$v"
-    run 0 900 "rec-$v-baseline" $BIN accuracy $COMMON ${!vv} --write-baseline $W/new/$stem.baseline.json --write-self-golden $W/new/$v-self.safetensors
-    summ "rec-$v-baseline"
-    run 0 900 "rec-$v-envelope" $BIN accuracy $COMMON ${!vv} --noise-ref $W/new/$stem.baseline.json --noise-perturb chunk --write-noise-envelope $W/new/$stem.envelope.json --allow-same-code
-    summ "rec-$v-envelope"
-  done
+  # W4A4: qualify. The stale files are moved out of the tree so qualify reports MISSING-BASELINE and records its own.
+  mkdir -p "$O/old-baselines"; mv golden/baselines/$STEM_w4a4.baseline.json golden/baselines/$STEM_w4a4.envelope.json "$O/old-baselines/" 2>/dev/null
+  run 0 1800 q-rec-w4a4 $BIN $QV --out $W/q-rec-w4a4
+  qsum q-rec-w4a4
+  cp "$O/q-rec-w4a4/baselines/acc-short.baseline.json" "$O/new/$STEM_w4a4.baseline.json"
+  cp "$O/q-rec-w4a4/baselines/envelope.json" "$O/new/$STEM_w4a4.envelope.json"
+  # W4A16: the explicit accuracy command
+  v=w4a16; stem=$STEM_w4a16; vv="V_$v"
+  # shellcheck disable=SC2086
+  run 0 900 "rec-$v-baseline" $BIN accuracy $COMMON ${!vv} --write-baseline $W/new/$stem.baseline.json --write-self-golden $W/new/$v-self.safetensors
+  summ "rec-$v-baseline"
+  # shellcheck disable=SC2086
+  run 0 900 "rec-$v-envelope" $BIN accuracy $COMMON ${!vv} --noise-ref $W/new/$stem.baseline.json --noise-perturb chunk --write-noise-envelope $W/new/$stem.envelope.json --allow-same-code
+  summ "rec-$v-envelope"
   ls -la "$O/new" | tee -a "$O/steps.log"
 fi
 if has chk; then
-  for v in w4a16 w4a4; do
-    sv="STEM_$v"; stem=${!sv}; vv="V_$v"
-    run 0 900 "chk-$v" $BIN accuracy $COMMON ${!vv} --baseline $W/new/$stem.baseline.json --noise-envelope $W/new/$stem.envelope.json --pre-change "$HEAD7" --allow-same-code
-    summ "chk-$v"
+  cp "$O/new/$STEM_w4a4.baseline.json" "$O/new/$STEM_w4a4.envelope.json" golden/baselines/
+  run 0 1800 q-chk-w4a4 $BIN $QV --out $W/q-chk-w4a4 --skip envelope
+  qsum q-chk-w4a4
+  v=w4a16; stem=$STEM_w4a16; vv="V_$v"
+  # shellcheck disable=SC2086
+  run 0 900 "chk-$v" $BIN accuracy $COMMON ${!vv} --baseline $W/new/$stem.baseline.json --noise-envelope $W/new/$stem.envelope.json --pre-change "$HEAD7" --allow-same-code
+  summ "chk-$v"
+fi
+if has self; then
+  mkdir -p "$O/self"
+  A_w4a4="--mxfp4-act dynamic"; A_w4a16="--mxfp4-act none"
+  NS=/work/golden/ref_noise/$BN-top20.safetensors.json
+  AB="--allow-same-code --allow-config-mismatch"
+  for v in w4a4 w4a16; do
+    av="A_$v"; vv="V_$v"
+    # shellcheck disable=SC2086
+    E="INTARSIA_GDN_CHUNK=0" run 0 900 "self-$v-base" $BIN accuracy $COMMON ${!vv} --write-self-golden $W/self/$v-base.safetensors
+    # shellcheck disable=SC2086
+    E="" run 0 900 "self-$v-change" $BIN accuracy $COMMON ${!av} --self-golden $W/self/$v-base.safetensors $AB --self-vs-ref-noise --ref-noise $NS
+    # shellcheck disable=SC2086
+    E="" run 0 900 "self-$v-plain" $BIN accuracy $COMMON ${!av} --self-golden $W/self/$v-base.safetensors $AB
+    # shellcheck disable=SC2086
+    E="INTARSIA_GDN_CHUNK=0" run 0 900 "self-$v-control" $BIN accuracy $COMMON ${!av} --self-golden $W/self/$v-base.safetensors $AB --self-vs-ref-noise --ref-noise $NS
+    for t in change plain control; do echo "-- self-$v-$t" | tee -a "$O/steps.log"; grep -aE "threshold|mean KL|noise|FAIL|PASS" "$O/self-$v-$t.out" | cut -c1-260 | head -12 | tee -a "$O/steps.log"; done
   done
 fi
 log "stages done"
