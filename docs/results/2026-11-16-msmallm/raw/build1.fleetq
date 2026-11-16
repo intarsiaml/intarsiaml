@@ -1,0 +1,4 @@
+fleetq: #9762 running on endor: zsh -c 'cd /opt/code/intarsiaml/.worktrees/msmallm && cargo build --release -p intarsia-cli --features metal > /opt/code/intarsiaml/.worktrees/msmallm/docs/results/2026-11-16-msmallm/raw/build1.log 2>&1; echo branch $?; cd .worktrees/base-main && CARGO_TARGET_DIR=/opt/code/intarsiaml/.worktrees/msmallm/target/base cargo build --release -p intarsia-cli --features metal > /opt/code/intarsiaml/.worktrees/msmallm/docs/results/2026-11-16-msmallm/raw/build1-base.log 2>&1; echo base $?'
+branch 0
+base 0
+fleetq: #9762 done (exit 0)

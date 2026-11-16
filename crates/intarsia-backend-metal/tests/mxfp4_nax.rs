@@ -243,3 +243,31 @@ fn naxd_forms_are_bitwise_the_scratch_path() {
         }
     }
 }
+
+/// Lane msmallm: with `INTARSIA_METAL_MXFP4_NAXD` unset the NAX op routes M <= `NAXD_SMALL_MAX_M` to form `NAXD_SMALL` and larger M
+/// to the scratch path; at the window's edges (9, 128, 129) and inside it, the routed call is bit for bit the scratch path.
+#[test]
+fn small_m_routing_is_bitwise_the_scratch_path() {
+    use intarsia_backend_metal::mxfp4::{naxd_knob, naxd_pick, with_naxd, NaxdKnob, NAXD_SMALL, NAXD_SMALL_MAX_M};
+    assert_eq!(naxd_pick(NaxdKnob::Auto, 9), Some(NAXD_SMALL));
+    assert_eq!(naxd_pick(NaxdKnob::Auto, NAXD_SMALL_MAX_M), Some(NAXD_SMALL));
+    assert_eq!(naxd_pick(NaxdKnob::Auto, NAXD_SMALL_MAX_M + 1), None);
+    assert_eq!(naxd_pick(NaxdKnob::Off, 9), None);
+    assert_eq!(naxd_pick(NaxdKnob::All(2), 4096), Some(2));
+    if naxd_knob() != NaxdKnob::Auto {
+        eprintln!("INTARSIA_METAL_MXFP4_NAXD is set: the routed half of this test is skipped");
+        return;
+    }
+    let be = backend();
+    for (si, &(m, n, k)) in [(9, 256, 5120), (62, 6144, 5120), (128, 512, 17408), (129, 640, 6144)].iter().enumerate() {
+        let (r, _, _) = Run::new(&be, m + 3, n, k, 950 + si as u64);
+        for act in [0.0f32, 1.0] {
+            for f32_out in [false, true] {
+                let yo = if f32_out { 4 } else { 2 };
+                let want = with_naxd(None, || r.go(NAX, act, 3, m, yo, f32_out, None));
+                let got = r.go(NAX, act, 3, m, yo, f32_out, None);
+                assert!(got == want, "m={m} n={n} k={k} act {act} f32 {f32_out}: the routed call differs from the scratch path");
+            }
+        }
+    }
+}

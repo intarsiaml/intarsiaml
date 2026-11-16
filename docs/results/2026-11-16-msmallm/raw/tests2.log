@@ -1,0 +1,4 @@
+fleetq: #9768 running on endor: zsh -c 'cd /opt/code/intarsiaml/.worktrees/msmallm && for arm in unset 0; do if [ $arm = unset ]; then E=(X=1); else E=(INTARSIA_METAL_MXFP4_NAXD=0); fi; env $E target/release/intarsia kernels test --backend metal > /opt/code/intarsiaml/.worktrees/msmallm/docs/results/2026-11-16-msmallm/raw/kernels-$arm.out 2>&1; echo "kernels test $arm exit $? FAIL lines $(grep -c FAIL /opt/code/intarsiaml/.worktrees/msmallm/docs/results/2026-11-16-msmallm/raw/kernels-$arm.out): $(tail -1 /opt/code/intarsiaml/.worktrees/msmallm/docs/results/2026-11-16-msmallm/raw/kernels-$arm.out)"; done'
+kernels test unset exit 0 FAIL lines 0: 55 kernels, 1276 cases in 40.4s
+kernels test 0 exit 0 FAIL lines 0: 55 kernels, 1276 cases in 41.2s
+fleetq: #9768 done (exit 0)

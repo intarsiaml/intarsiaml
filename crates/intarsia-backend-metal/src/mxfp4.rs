@@ -154,16 +154,52 @@ pub const NAXD_FORMS: [(&str, &str, usize, usize, usize, usize); 4] = [
     ("gemm_naxd_mxfp4_bf16_t64x64k64w2", "gemm_naxd_mxfp4_f32_t64x64k64w2", 64, 64, 64, 2),
 ];
 
-/// `INTARSIA_METAL_MXFP4_NAXD`: unset or `0` = off (the scratch path, bitwise the previous build); `1` = the default
-/// in-kernel decode form for every `matmul_mxfp4_nax` call; `f<i>` = form `NAXD_FORMS[i]` (measurement). Opt-in, numerics
-/// gated (lane mprefill, docs/results/2026-11-16-mprefill.md). `INTARSIA_METAL_MXFP4_NAXD_SWZ=<log2>` sets the grid swizzle.
-pub fn naxd_form() -> Option<usize> {
-    static F: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
-    *F.get_or_init(|| match std::env::var("INTARSIA_METAL_MXFP4_NAXD").ok()?.as_str() {
-        "" | "0" => None,
-        "1" => Some(NAXD_DEFAULT),
-        v => v.strip_prefix('f').and_then(|i| i.parse().ok()).filter(|&i: &usize| i < NAXD_FORMS.len()),
+/// What `INTARSIA_METAL_MXFP4_NAXD` asks of the `matmul_mxfp4_nax` calls.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NaxdKnob {
+    /// unset: calls of at most [`NAXD_SMALL_MAX_M`] rows on form [`NAXD_SMALL`], larger ones on the scratch path (lane msmallm)
+    Auto,
+    /// `0`: the scratch path at every M (the build before lane msmallm)
+    Off,
+    /// `1` / `f<i>`: that form at every M (measurement)
+    All(usize),
+}
+
+/// `INTARSIA_METAL_MXFP4_NAXD`: unset = [`NaxdKnob::Auto`] (small-M calls on the in-kernel decode form, lane msmallm,
+/// docs/results/2026-11-16-msmallm.md); `0` = off (the scratch path at every M); `1` = form [`NAXD_DEFAULT`] at every M;
+/// `f<i>` = form `NAXD_FORMS[i]` at every M (measurement). Every form is bitwise the scratch path (tests/mxfp4_nax.rs), so no
+/// setting changes an output bit (lane mprefill, docs/results/2026-11-16-mprefill.md). `INTARSIA_METAL_MXFP4_NAXD_SWZ=<log2>`
+/// sets the grid swizzle.
+pub fn naxd_knob() -> NaxdKnob {
+    static F: std::sync::OnceLock<NaxdKnob> = std::sync::OnceLock::new();
+    *F.get_or_init(|| match std::env::var("INTARSIA_METAL_MXFP4_NAXD").as_deref() {
+        Err(_) | Ok("") => NaxdKnob::Auto,
+        Ok("0") => NaxdKnob::Off,
+        Ok("1") => NaxdKnob::All(NAXD_DEFAULT),
+        Ok(v) => v
+            .strip_prefix('f')
+            .and_then(|i| i.parse().ok())
+            .filter(|&i: &usize| i < NAXD_FORMS.len())
+            .map_or(NaxdKnob::Off, NaxdKnob::All),
     })
+}
+
+/// Largest M the unset knob sends to the in-kernel decode form. Form [`NAXD_SMALL`] measured 1.24x to 3.5x the scratch path
+/// per call on all six Qwen3.8-27B shapes at M = 9..128 and 0.94x (the 6144 x 5120 GDN z projection) at M = 160 (endor,
+/// docs/results/2026-11-16-msmallm.md, raw/bench-smallm.txt): the scratch path's weight decode is flat in M, the in-kernel
+/// form re-decodes the weights once per 64 output rows.
+pub const NAXD_SMALL_MAX_M: usize = 128;
+/// The form the unset knob uses (64 x 64, BK 64, four simdgroups: the fastest of the four at every M <= 128 measured).
+pub const NAXD_SMALL: usize = 0;
+
+/// The in-kernel decode form a `matmul_mxfp4_nax` call of `m` rows takes under `knob` (`None`: the scratch path). The NAX op
+/// only sees M > 8 (`nax_ok`), so the unset knob's window is M = 9..=[`NAXD_SMALL_MAX_M`].
+pub fn naxd_pick(knob: NaxdKnob, m: usize) -> Option<usize> {
+    match knob {
+        NaxdKnob::Auto => (m <= NAXD_SMALL_MAX_M).then_some(NAXD_SMALL),
+        NaxdKnob::Off => None,
+        NaxdKnob::All(f) => Some(f),
+    }
 }
 /// The form `INTARSIA_METAL_MXFP4_NAXD=1` takes.
 pub const NAXD_DEFAULT: usize = 1;
@@ -177,7 +213,7 @@ thread_local! {
 }
 
 /// Test / bench hook: run `f` with every `matmul_mxfp4_nax` launch of this thread on in-kernel decode form `form` (`None`:
-/// the scratch path) whatever `INTARSIA_METAL_MXFP4_NAXD` says.
+/// the scratch path) whatever `INTARSIA_METAL_MXFP4_NAXD` says and whatever M is.
 pub fn with_naxd<R>(form: Option<usize>, f: impl FnOnce() -> R) -> R {
     NAXD.with(|t| t.set(Some(form)));
     let r = f();
@@ -388,7 +424,7 @@ impl MetalBackend {
         let vi = NAX_VARIANTS.iter().position(|x| x.shader == v.shader).expect("NAX variant table");
         let gemm = crate::fp8::NAX_FP8_SHADERS[vi][f32_out as usize];
         let pso_x = self.pso(XPREP).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP}'")))?;
-        let naxd = NAXD.with(|t| t.get()).unwrap_or_else(naxd_form).filter(|&f| k % NAXD_FORMS[f].4 == 0);
+        let naxd = NAXD.with(|t| t.get()).unwrap_or_else(|| naxd_pick(naxd_knob(), m)).filter(|&f| k % NAXD_FORMS[f].4 == 0);
         if let Some(f) = naxd {
             return self.launch_mxfp4_naxd(f, (xb, wb, sb, ab, ob), &xs, [m, n, k], f32_out);
         }

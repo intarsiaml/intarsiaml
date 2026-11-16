@@ -1,0 +1,51 @@
+short-mtp exit 0 
+## short-mtp.jsonl
+  matmul_mxfp4_gemv        M=1      calls=992
+  matmul_mxfp4_gemv        M=3      calls=1984
+  matmul_mxfp4_gemv        M=6      calls=496
+short-off exit 0 
+## short-off.jsonl
+  matmul_mxfp4_gemv        M=1      calls=3968
+  matmul_mxfp4_gemv        M=6      calls=496
+p2k-off exit 0 
+## p2k-off.jsonl
+  matmul_mxfp4_gemv        M=1      calls=3968
+  matmul_mxfp4_nax         M=267    calls=496
+  matmul_mxfp4_nax         M=2048   calls=496
+p4k-mtp exit 0 
+## p4k-mtp.jsonl
+  matmul_mxfp4_gemv        M=1      calls=992
+  matmul_mxfp4_gemv        M=2      calls=496
+  matmul_mxfp4_gemv        M=3      calls=992
+  matmul_mxfp4_nax         M=2047   calls=496
+  matmul_mxfp4_nax         M=2048   calls=496
+max-batch 16: refused: Error: loading /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4
+    unsupported: a 9-row batched step runs matmul_mxfp4 on matmul_mxfp4_nax, which is not a row-exact (`rows_exact`) kernel and not the solo step's (matmul_mxfp4_gemv): a different kernel reduces in a different order, so rows would not be bitwise the solo step
+mb8-9req-off (9 requests --max-batch 8 --spec off):
+## mb8-9req-off.jsonl
+  matmul_mxfp4_gemv        M=1      calls=13400
+  matmul_mxfp4_gemv        M=2      calls=1000
+  matmul_mxfp4_gemv        M=3      calls=1000
+  matmul_mxfp4_gemv        M=4      calls=1000
+  matmul_mxfp4_gemv        M=5      calls=1000
+  matmul_mxfp4_gemv        M=6      calls=1000
+  matmul_mxfp4_gemv        M=7      calls=1496
+  matmul_mxfp4_gemv        M=8      calls=7944
+  matmul_mxfp4_nax         M=9      calls=8
+  matmul_mxfp4_nax         M=10     calls=8
+  matmul_mxfp4_nax         M=11     calls=8
+  matmul_mxfp4_nax         M=12     calls=8
+  matmul_mxfp4_nax         M=13     calls=8
+  matmul_mxfp4_nax         M=14     calls=8
+  matmul_mxfp4_nax         M=15     calls=8
+  matmul_mxfp4_nax         M=16     calls=8
+  matmul_mxfp4_nax         M=31     calls=8
+  matmul_mxfp4_nax         M=32     calls=8
+  matmul_mxfp4_nax         M=62     calls=4464
+mb1-4req-mtp (4 requests ):
+## mb1-4req-mtp.jsonl
+  matmul_mxfp4_gemv        M=1      calls=1984
+  matmul_mxfp4_gemv        M=2      calls=496
+  matmul_mxfp4_gemv        M=3      calls=15376
+  matmul_mxfp4_nax         M=62     calls=1984
+## done
