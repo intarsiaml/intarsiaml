@@ -174,4 +174,4 @@ lm_head_quant = "fp8"
 # (or `none`, `0`, `bf16`, empty) keeps the bf16 head and wins over this key; an in-process sharded head and an MoE head stay bf16. Metal and HIP do not set it.
 mtp_quant = "mix"
 mtp_default_k = 2
-mtp_draft_vocab = 65536
+mtp_draft_vocab = 98304
