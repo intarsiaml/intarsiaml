@@ -946,3 +946,58 @@ fn batched_engine_with_macro_prefill_equals_plain_solo() {
         }
     }
 }
+
+/// A macro pass keeps the recurrent snapshots of the chunk ends inside it (lane a4k-restore): a prompt that shares a prefix with
+/// an earlier one whose prefill ran as one macro pass resumes at the last chunk end at or below the shared prefix, exactly as
+/// with the plain chunk-by-chunk schedule (before: the only snapshot was at the pass's end, past the shared prefix, so nothing
+/// was reused; `intarsia accuracy --mode reuse` restore / aligned cases on HIP and CUDA). Solo and batched engines.
+#[test]
+fn macro_prefill_keeps_chunk_snapshots_for_reuse() {
+    let _m = MACRO_TESTS.lock().unwrap_or_else(|e| e.into_inner());
+    let _g = serial();
+    if backend().is_none() {
+        return;
+    }
+    // turn 1: the first 2 chunks + 4 rows of the prompt, then 20 other tokens (56 rows: 3 full chunks in one macro pass, a
+    // 7-row tail, the lone last token); turn 2: the whole 64-token prompt. The shared prefix is 36 rows: resume at 32.
+    let full = prompt(500, 4 * CHUNK);
+    let shared = 2 * CHUNK + 4;
+    let mut t1 = full[..shared].to_vec();
+    t1.extend(full[shared..shared + 20].iter().map(|&t| 1 + t % (VOCAB - 2)));
+    let req = |p: &[u32]| GenRequest { prompt: p.to_vec(), max_tokens: 12, ignore_eos: true, ..Default::default() };
+    let warm = |submit: &dyn Fn(GenRequest) -> Out| -> Out {
+        submit(req(&[95, 94, 93]));
+        submit(req(&t1));
+        submit(req(&full))
+    };
+    for v in VARIANTS {
+        let plain = solo(v);
+        let cold = run_solo(&plain, req(&full));
+        let want = warm(&|r| collect(&plain.submit(r).unwrap()).unwrap());
+        assert_eq!(want.cached_tokens, 2 * CHUNK, "{v:?}: plain schedule resumes at the last chunk end in the shared prefix");
+        assert_eq!(want.ids, cold.ids, "{v:?}: plain warm run equals the cold run");
+        for rows in [32usize, 64] {
+            let passes0 = intarsia_core::model::MACRO_PASSES_TOTAL.load(std::sync::atomic::Ordering::Relaxed);
+            let e = solo_macro(v, rows);
+            let got = warm(&|r| collect(&e.submit(r).unwrap()).unwrap());
+            assert_eq!(got, want, "{v:?}, solo, macro {rows} rows: warm run (cached tokens and ids) equals the plain schedule's");
+            assert!(
+                intarsia_core::model::MACRO_PASSES_TOTAL.load(std::sync::atomic::Ordering::Relaxed) > passes0,
+                "{v:?}, macro {rows} rows: no macro pass ran"
+            );
+            let tel = Arc::new(Telemetry::new());
+            let mut m = load_model_cm(v, &tel, CHUNK, Some(rows));
+            m.allow_recurrent_batch().unwrap();
+            m.enable_batch(2).unwrap();
+            m.configure_plan(&Default::default(), None).unwrap();
+            // a batched slot keeps snapshots on the cpu reference only (`Model::batch_snapshots`: 0 on a GPU, no batched reuse)
+            let want_cached = if m.batch_snapshots() > 0 { 2 * CHUNK } else { 0 };
+            let mut o = BatchedOptions::new(2, 64);
+            o.prefix_reuse = true;
+            let eng = BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel.clone(), o).unwrap();
+            let got = warm(&|r| collect(&eng.submit(r).unwrap()).unwrap());
+            assert_eq!(got.cached_tokens, want_cached, "{v:?}, batched, macro {rows} rows: resumes at the last chunk end in the shared prefix");
+            assert_eq!(got.ids, cold.ids, "{v:?}, batched, macro {rows} rows: warm run equals the cold run");
+        }
+    }
+}

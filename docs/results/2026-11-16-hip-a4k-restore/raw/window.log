@@ -1,0 +1,74 @@
+[window] stopping radiance 2026-11-15 19:57:58
+19:58:02 stages start; head=f2b1056 code-tree=a04365425877 dirty=no; STEPS=a4k a4k0 tests
+19:59:07 q-a4k exit 1
+20:00:14 q-a4k-macro0 exit 1 [INTARSIA_PREFILL_MACRO=0]
+20:09:42 hip-tests exit 0
+20:11:26 models-tests exit 101 [INTARSIA_BATCH_TEST_BACKEND=hip]
+20:11:30 models-tests-mtp exit 0 [INTARSIA_BATCH_TEST_BACKEND=hip]
+20:13:15 models-tests-35b exit 0 [INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=/models/Qwen3.6-35B-A3B-NVFP4]
+20:13:24 hybrid-reuse exit 101 [INTARSIA_PROBE_BACKEND=hip INTARSIA_PROBE_DIR=/models/Qwen3.6-35B-A3B-NVFP4 INTARSIA_REQUIRE_GPU=1]
+      1 test engine_hybrid_reuse_equals_cold ... FAILED
+      1 test macro_prefill_keeps_chunk_snapshots_for_reuse ... FAILED
+      1 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 8.94s
+      1 test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 104.08s
+      1 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+      1 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+      1 test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+      1 test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 2 filtered out; finished in 26.95s
+      1 test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 24.85s
+      1 test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 20.56s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.94s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.11s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.12s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.47s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.90s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.27s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.58s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.01s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.21s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.20s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.10s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.26s
+      1 test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.15s
+      1 test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.34s
+      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.22s
+      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s
+      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.55s
+      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 14.76s
+      1 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 3.56s
+      1 test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 44.39s
+      1 test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.00s
+      1 test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+      1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.90s
+      1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.63s
+      1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 104.79s
+      1 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.01s
+      1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+      1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+      1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.57s
+      1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.68s
+      1 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 9.85s
+      1 test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.14s
+      1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s
+      1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s
+      1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.72s
+      1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.17s
+      1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.36s
+      1 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.87s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 100.28s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s
+      1 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.10s
+      1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.51s
+      1 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.99s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 191.64s
+      1 thread 'engine_hybrid_reuse_equals_cold' panicked at crates/intarsia-models/tests/hybrid_reuse_real.rs:286:5:
+      1 thread 'macro_prefill_keeps_chunk_snapshots_for_reuse' panicked at crates/intarsia-models/tests/batch_recurrent.rs:997:13:
+20:13:24 stages done
+[window] stages exit 0 2026-11-15 20:13:24
+[window] starting radiance 2026-11-15 20:13:24
+[window] radiance answers 2026-11-15 20:13:34 (after 15 s)
