@@ -5,7 +5,9 @@
 #   rec  record both baselines + both envelopes from this build (chunk on) into $O/new/ with the original flags
 #   chk  gate with the new files (chunk on); also prints the absolute floors
 # The accuracy flags are the ones recorded in the baselines' exec.cmdline (docs/results/2026-10-25-ac-27b-accuracy-gate.md section 7);
-# W4A4 now needs --mxfp4-act dynamic explicitly (the Qwen3.8-27B recipe default became none, W4A16, on 2026-10-26).
+# Two flags the original runs did not need: W4A4 now passes --mxfp4-act dynamic (the Qwen3.8-27B recipe default became none, W4A16, on
+# 2026-10-26), and the stale baselines were recorded at prefill chunk 256 (then the default; the recipe default is now 2048), so s1
+# passes --prefill-chunk 256 to gate them like for like. rec / chk use no chunk flag, i.e. the recipe default, like qualify.
 set -u
 . "$(dirname "$0")/lib.sh"
 cd "$TREE"
@@ -33,9 +35,15 @@ if has s1; then
       pc=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['code']['head'])" "golden/baselines/$stem.baseline.json")
       # shellcheck disable=SC2086
       E="$e" run 0 900 "s1-$v-$part" $BIN accuracy $COMMON ${!vv} --baseline /work/golden/baselines/$stem.baseline.json \
-        --noise-envelope /work/golden/baselines/$stem.envelope.json --pre-change "$pc" --allow-same-code
+        --noise-envelope /work/golden/baselines/$stem.envelope.json --pre-change "$pc" --allow-same-code --prefill-chunk 256
       summ "s1-$v-$part"
     done
+  done
+fi
+if has s1 && { has rec || has chk; }; then
+  # step 1a (chunk off, the stale baselines) must PASS before anything is re-recorded
+  for v in w4a16 w4a4; do
+    if ! grep -aq "baseline verdict.*: PASS" "$O/s1-$v-chunk0.out"; then log "STOP: 1a ($v, INTARSIA_GDN_CHUNK=0) did not PASS; not re-recording"; exit 3; fi
   done
 fi
 if has rec; then
