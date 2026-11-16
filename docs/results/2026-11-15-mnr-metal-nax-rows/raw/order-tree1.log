@@ -1,0 +1,4 @@
+fleetq: #9455 waiting (#2 in line): in line behind #9453 "mtt: heat then TTFT, lazy admission on/off vs spec off (35B)" (claude-2ae67a71) on endor
+fleetq:   #9453 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9453 set, or it will wait for #9453 to be released.
+fleetq: #9455 waiting (#1 in line): needs gpu quiet on endor, but #9453 "mtt: heat then TTFT, lazy admission on/off vs spec off (35B)" (claude-2ae67a71) loads it
+fleetq:   #9453 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9453 set, or it will wait for #9453 to be released.

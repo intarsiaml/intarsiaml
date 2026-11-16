@@ -288,6 +288,7 @@ pub fn metal4_shaders() -> Vec<&'static str> {
     v.extend(crate::flash_nax::NAX_FLASH_VARIANTS.iter().map(|f| f.name));
     v.extend(crate::fp8::NAX_FP8_SHADERS.iter().flatten());
     v.extend(crate::moe::NAX_MM_GU.iter().chain(&crate::moe::NAX_MM_DN));
+    v.extend(crate::mxfp4::NAXR_FORMS.iter().flat_map(|f| f.shaders));
     v
 }
 
@@ -308,6 +309,8 @@ pub const NAX_KERNELS: &[&str] = &[
     crate::fp8::MATMUL_FP8_NAX,
     crate::nvfp4::MATMUL_NVFP4_NAX,
     crate::mxfp4::MATMUL_MXFP4_NAX,
+    crate::mxfp4::MATMUL_MXFP4_NAXR,
+    crate::mxfp4::MATMUL_MXFP4_NAXR_ROWS,
 ];
 
 pub fn requires_metal4(kernel: &str) -> bool {
@@ -382,6 +385,8 @@ pub const TABLE: &[(&str, Op)] = &[
     (ATTN_PREFILL_BF16_SPLITKV_ROWS, Op::AttnPrefill),
     (crate::mxfp4::MATMUL_MXFP4_GEMV, Op::MatmulMxfp4),
     (crate::mxfp4::MATMUL_MXFP4_NAX, Op::MatmulMxfp4),
+    (crate::mxfp4::MATMUL_MXFP4_NAXR, Op::MatmulMxfp4),
+    (crate::mxfp4::MATMUL_MXFP4_NAXR_ROWS, Op::MatmulMxfp4),
     (GATE_SPLIT_BF16, Op::GateSplit),
     (SIGMOID_MUL_BF16, Op::SigmoidMul),
     (GDN_CONV_BF16, Op::GdnConv),
@@ -595,6 +600,27 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_TOL)
                     .scratch(crate::mxfp4::nax_scratch)
                     .priority(5),
+                // lane mnr, `INTARSIA_METAL_NAX_ROWS=1` only (hidden from `Backend::kernels` otherwise): the weights decoded per tile
+                // inside a NAX kernel. Ordinary calls of M <= 8 above the GEMV; `_rows` is the same launch for verify / batch rows.
+                crate::mxfp4::MATMUL_MXFP4_NAXR => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(crate::mxfp4::naxr_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .scratch(crate::mxfp4::scratch)
+                    .priority(6),
+                crate::mxfp4::MATMUL_MXFP4_NAXR_ROWS => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(crate::mxfp4::naxr_rows_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .scratch(crate::mxfp4::scratch)
+                    .priority(6)
+                    .rows_exact(),
                 // pure bit copy / f32 elementwise, one rounding: the hip entries' tolerance
                 GATE_SPLIT_BF16 | SIGMOID_MUL_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
                 // lane dm (DFlash2 draft, the hip entries): f32 conv along the block rows, one rounding
@@ -944,6 +970,8 @@ mod tests {
         "matmul_fp8_nax:matmul_fp8",
         "matmul_mxfp4_gemv:matmul_mxfp4",
         "matmul_mxfp4_nax:matmul_mxfp4",
+        "matmul_mxfp4_naxr:matmul_mxfp4",
+        "matmul_mxfp4_naxr_rows:matmul_mxfp4",
         "matmul_nvfp4_gemv:matmul_nvfp4",
         "matmul_nvfp4_gemv_rows:matmul_nvfp4",
         "matmul_nvfp4_mma:matmul_nvfp4",

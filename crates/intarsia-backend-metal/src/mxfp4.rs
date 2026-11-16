@@ -17,6 +17,98 @@ pub const MATMUL_MXFP4_GEMV: &str = "matmul_mxfp4_gemv";
 /// (needs the metal4.0 library, `INTARSIA_METAL_MXFP4_NAX`).
 pub const MATMUL_MXFP4_NAX: &str = "matmul_mxfp4_nax";
 
+/// Lane mnr, opt-in (`INTARSIA_METAL_NAX_ROWS=1`): the weights decoded per tile inside a NAX kernel (kernels/metal/mxfp4_naxr.metal,
+/// metal4.0 library), no scratch decode pass. Numerics of the accelerator (not the GEMV's bits), row-invariant: a row's bits depend on
+/// neither M, its index, the other rows, the form nor buffer offsets (tests/mxfp4_naxr.rs). Ordinary calls of M <= 8 (the decode step,
+/// short prefill passes), above the GEMV.
+pub const MATMUL_MXFP4_NAXR: &str = "matmul_mxfp4_naxr";
+/// The same launch for `OpCall::exact_rows` calls (verify and batch rows), any M: `rows_exact`, so with the knob set those calls take
+/// only this kernel (`Registry::select`) and speculative / batched rows are bitwise the knob's own one-row step.
+pub const MATMUL_MXFP4_NAXR_ROWS: &str = "matmul_mxfp4_naxr_rows";
+
+/// A form of the row kernel: `WR` weight rows per threadgroup, K step `BK` (mxfp4_naxr.metal `MX_NAXR`), bf16 then f32 output.
+pub struct NaxrForm {
+    pub wr: usize,
+    pub bk: usize,
+    pub shaders: [&'static str; 2],
+}
+/// Forms of equal `bk` give the same bits (tests/mxfp4_naxr.rs); the launcher uses [`NAXR_DEFAULT`] unless a test or
+/// `INTARSIA_METAL_NAXR_FORM` (A/B only) says otherwise.
+pub const NAXR_FORMS: [NaxrForm; 4] = [
+    NaxrForm { wr: 64, bk: 128, shaders: ["mxfp4_naxr_bf16_w64k128", "mxfp4_naxr_f32_w64k128"] },
+    NaxrForm { wr: 32, bk: 128, shaders: ["mxfp4_naxr_bf16_w32k128", "mxfp4_naxr_f32_w32k128"] },
+    NaxrForm { wr: 32, bk: 256, shaders: ["mxfp4_naxr_bf16_w32k256", "mxfp4_naxr_f32_w32k256"] },
+    // register-fed: 4 simdgroups of 32 weight rows, K runs of 16, no threadgroup memory
+    NaxrForm { wr: 128, bk: 16, shaders: ["mxfp4_naxq_bf16", "mxfp4_naxq_f32"] },
+];
+pub const NAXR_DEFAULT: usize = 0;
+/// Activation rows per grid row of the row kernel (`NR_TM`).
+pub const NAXR_TM: usize = 16;
+
+/// `INTARSIA_METAL_NAX_ROWS=1`: register the row kernels ([`MATMUL_MXFP4_NAXR`], [`MATMUL_MXFP4_NAXR_ROWS`]). Unset (default) they are
+/// neither registered (`Backend::kernels`) nor accepted by their predicates: selection, `plan show` and every output bit are unchanged.
+pub fn naxr_knob() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_METAL_NAX_ROWS").is_ok_and(|v| v.trim() == "1"))
+}
+
+/// Shapes the row kernel can run (W4A16 and W4A4; W4A8 has no Metal kernel): K a multiple of 32.
+pub fn naxr_shape_ok(s: &ShapeInfo) -> bool {
+    !s.mxfp4_a8 && s.m >= 1 && s.k >= 32 && s.k % 32 == 0
+}
+/// Rows of an ordinary call the row kernel takes with the knob set (the GEMV's range; above it the scratch NAX form stays).
+pub const NAXR_MAX_M: usize = 8;
+/// Predicate of [`MATMUL_MXFP4_NAXR`] for a knob value (the registration passes [`naxr_knob`]).
+pub fn naxr_accepts(knob: bool, s: &ShapeInfo) -> bool {
+    knob && naxr_shape_ok(s) && s.m <= NAXR_MAX_M
+}
+/// Predicate of [`MATMUL_MXFP4_NAXR_ROWS`] for a knob value: every M, because a registered `rows_exact` kernel is the only choice of an
+/// `exact_rows` call of its op (a narrower range would leave one-row or > 16-row verify calls without a kernel).
+pub fn naxr_rows_accepts(knob: bool, s: &ShapeInfo) -> bool {
+    knob && naxr_shape_ok(s)
+}
+pub fn naxr_ok(s: &ShapeInfo) -> bool {
+    naxr_accepts(naxr_knob(), s)
+}
+pub fn naxr_rows_ok(s: &ShapeInfo) -> bool {
+    naxr_rows_accepts(naxr_knob(), s)
+}
+
+thread_local! {
+    static NAXR_FORM: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
+    static NAXR_FAULT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Test hook: run `f` with this thread's row-kernel launches on `NAXR_FORMS[form]`.
+pub fn with_naxr_form<R>(form: usize, f: impl FnOnce() -> R) -> R {
+    NAXR_FORM.with(|t| t.set(Some(form)));
+    let r = f();
+    NAXR_FORM.with(|t| t.set(None));
+    r
+}
+
+/// Test hook (planted fault): run `f` with this thread's row-kernel launches told that the call has one row fewer than it has, so the
+/// last row's staged tile stays zero and its output is never written. The row-invariance test must catch it.
+pub fn with_naxr_fault<R>(f: impl FnOnce() -> R) -> R {
+    NAXR_FAULT.with(|t| t.set(true));
+    let r = f();
+    NAXR_FAULT.with(|t| t.set(false));
+    r
+}
+
+fn naxr_form() -> usize {
+    static ENV: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    NAXR_FORM.with(|t| t.get()).unwrap_or_else(|| {
+        *ENV.get_or_init(|| {
+            std::env::var("INTARSIA_METAL_NAXR_FORM")
+                .ok()
+                .and_then(|v| v.trim().parse().ok())
+                .filter(|&i: &usize| i < NAXR_FORMS.len())
+                .unwrap_or(NAXR_DEFAULT)
+        })
+    })
+}
+
 const XPREP: &str = "mxfp4_xprep_bf16";
 /// Weight decode of the NAX form (mxfp4.metal).
 const W_TO_BF16: &str = "mxfp4_w_to_bf16";
@@ -204,6 +296,9 @@ impl MetalBackend {
         if kernel == MATMUL_MXFP4_NAX {
             return self.launch_mxfp4_nax(call, (&xb, &wb, &sb, &ab, &ob), [m, n, k], f32_out);
         }
+        if kernel == MATMUL_MXFP4_NAXR || kernel == MATMUL_MXFP4_NAXR_ROWS {
+            return self.launch_mxfp4_naxr(call, (&xb, &wb, &sb, &ab, &ob), [m, n, k], f32_out);
+        }
         let need = m * k * 2 + 15;
         let scratch = call.scratch.as_ref().ok_or_else(|| {
             Error::invalid("metal matmul_mxfp4_gemv: the scratch workspace (OpCall::scratch) is missing")
@@ -382,6 +477,85 @@ impl MetalBackend {
             enc.dispatchThreadgroups_threadsPerThreadgroup(
                 MTLSize { width: gx, height: gy, depth: 1 },
                 MTLSize { width: v.threads() as usize, height: 1, depth: 1 },
+            );
+        })
+    }
+    /// `matmul_mxfp4_naxr` / `_rows`: one dispatch of `mxfp4_naxr_*` (weights decoded per tile in the kernel) reading the call's x for a
+    /// W4A16 call; a W4A4 call first QDQs x into the scratch (`mxfp4_xprep_bf16`, as the GEMV form) and the kernel reads that.
+    fn launch_mxfp4_naxr(
+        &self,
+        call: &OpCall,
+        (xb, wb, sb, ab, ob): (
+            &crate::dense::Bind,
+            &crate::dense::Bind,
+            &crate::dense::Bind,
+            &crate::dense::Bind,
+            &crate::dense::Bind,
+        ),
+        [m, n, k]: [usize; 3],
+        f32_out: bool,
+    ) -> Result<()> {
+        let form = &NAXR_FORMS[naxr_form()];
+        let name = form.shaders[f32_out as usize];
+        let pso_g = self
+            .pso(name)
+            .ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}' (metal4.0 library not loaded)")))?;
+        let direct = call.attrs.mxfp4_w4a16;
+        let xs = if direct {
+            None
+        } else {
+            let need = m * k * 2 + 15;
+            let scratch = call.scratch.as_ref().ok_or_else(|| {
+                Error::invalid("metal matmul_mxfp4_naxr: the scratch workspace (OpCall::scratch) is missing")
+            })?;
+            if scratch.numel() * scratch.dtype.size_bytes() < need {
+                return Err(Error::invalid(format!(
+                    "metal matmul_mxfp4_naxr: scratch of {} bytes, need {need}",
+                    scratch.numel() * scratch.dtype.size_bytes()
+                )));
+            }
+            let xs = self.bind(scratch, DType::U8, true, "scratch")?;
+            if xs.skip != 0 {
+                return Err(Error::invalid("metal matmul_mxfp4_naxr: the scratch must be 4-byte aligned"));
+            }
+            Some(crate::dense::Bind { mtl: xs.mtl.clone(), off: xs.off.next_multiple_of(16), skip: 0 })
+        };
+        let pso_x = self.pso(XPREP).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP}'")))?;
+        let dims = [u32_of(m, "M")?, u32_of(n, "N")?, u32_of(k, "K")?, 0, 0, 0, 0, 0];
+        let px = OpP { dims, skips: [xb.skip, 0, 0, 0, 0], ..Default::default() };
+        let src = xs.as_ref().unwrap_or(xb);
+        let mut pg = OpP { dims, skips: [sb.skip, ob.skip, src.skip, 0, 0], ..Default::default() };
+        pg.dims[3] = std::env::var("NAXR_DBG").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+        if NAXR_FAULT.with(|t| t.get()) && m > 1 {
+            pg.dims[0] -= 1;
+        }
+        let tx = pso_x.maxTotalThreadsPerThreadgroup().min(256);
+        self.with_encoder(|enc| {
+            if let Some(xs) = &xs {
+                // SAFETY: offsets lie inside the buffers (TensorRef bounds checked by `OpCall::check`, the scratch size above).
+                unsafe {
+                    enc.setComputePipelineState(pso_x);
+                    for (i, b) in [xb, ab, xs].into_iter().enumerate() {
+                        enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                    }
+                }
+                set_bytes(enc, &px, 3);
+                enc.dispatchThreads_threadsPerThreadgroup(
+                    MTLSize { width: m * (k / 32), height: 1, depth: 1 },
+                    MTLSize { width: tx, height: 1, depth: 1 },
+                );
+            }
+            // SAFETY: as above.
+            unsafe {
+                enc.setComputePipelineState(pso_g);
+                for (i, b) in [src, wb, sb, ob].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                }
+            }
+            set_bytes(enc, &pg, 4);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: n.div_ceil(form.wr), height: (pg.dims[0] as usize).div_ceil(NAXR_TM), depth: 1 },
+                MTLSize { width: 128, height: 1, depth: 1 },
             );
         })
     }

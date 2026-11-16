@@ -798,13 +798,15 @@ impl Backend for MetalBackend {
     /// selection nor numerics (`IK_METAL_TRACKED` only toggles hazard tracking, `INTARSIA_METAL_DEBUG` and
     /// `INTARSIA_METAL_PROFILE` only log), so none is folded.
     fn fingerprint(&self) -> String {
+        // `INTARSIA_METAL_NAX_ROWS=1` changes the registered kernels, so it is folded in (unset: the string is unchanged)
         format!(
-            "metal|{}|{}|metallib:{:016x}|metal4:{}|launch:{}",
+            "metal|{}|{}|metallib:{:016x}|metal4:{}|launch:{}{}",
             self.device.name(),
             self.device.architecture().name(),
             metallib_hash(),
             self.metal4 as u8,
-            LAUNCHER_HASH
+            LAUNCHER_HASH,
+            if mxfp4::naxr_knob() { "|naxr:1" } else { "" }
         )
     }
 
@@ -861,6 +863,11 @@ impl Backend for MetalBackend {
         let mut ks = kernels::all();
         if !self.metal4 {
             ks.retain(|k| !kernels::requires_metal4(&k.name));
+        }
+        // lane mnr: the MXFP4 row kernels exist for the registry only with `INTARSIA_METAL_NAX_ROWS=1` (a registered `rows_exact`
+        // kernel would otherwise take the op's verify calls away from the GEMV)
+        if !mxfp4::naxr_knob() {
+            ks.retain(|k| k.name != mxfp4::MATMUL_MXFP4_NAXR && k.name != mxfp4::MATMUL_MXFP4_NAXR_ROWS);
         }
         // The multi-row entries (GEMVs, pair, logits, split-KV attention rows) are `rows_exact`: `Registry::select`
         // gives them only to speculative verify calls (`OpCall::exact_rows`), so listing them changes no ordinary pick.
@@ -1065,7 +1072,11 @@ impl MetalBackend {
         if kernel == kernels::ATTN_PREFILL_BF16_SPLITKV_ROWS && call.op == Op::AttnPrefill {
             return self.launch_attn_rows(call);
         }
-        if matches!(kernel, mxfp4::MATMUL_MXFP4_GEMV | mxfp4::MATMUL_MXFP4_NAX) && call.op == Op::MatmulMxfp4 {
+        if matches!(
+            kernel,
+            mxfp4::MATMUL_MXFP4_GEMV | mxfp4::MATMUL_MXFP4_NAX | mxfp4::MATMUL_MXFP4_NAXR | mxfp4::MATMUL_MXFP4_NAXR_ROWS
+        ) && call.op == Op::MatmulMxfp4
+        {
             return self.launch_mxfp4(kernel, call);
         }
         if kernel == moe::MOE_TOPK_BF16 && call.op == Op::MoeTopk {
