@@ -1,0 +1,141 @@
+
+running 15 tests
+test alternating_rows_and_batches_do_not_recapture ... FAILED
+test batched_engine_equals_solo_over_128_tokens ... FAILED
+test batched_engine_with_macro_prefill_equals_plain_solo ... FAILED
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... FAILED
+test batched_engine_with_packed_prefill_equals_solo ... FAILED
+test batched_engine_with_prefix_reuse_equals_solo ... FAILED
+test batched_hybrid_decode_beside_prefill_chunks ... FAILED
+test batched_hybrid_decode_is_bitwise_the_solo_step ... FAILED
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... FAILED
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test macro_forward_equals_chunked_forward ... FAILED
+test macro_prefill_equals_the_plain_chunk_schedule ... FAILED
+test macro_prefill_keeps_chunk_snapshots_for_reuse ... FAILED
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... FAILED
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+
+failures:
+
+---- alternating_rows_and_batches_do_not_recapture stdout ----
+
+thread 'alternating_rows_and_batches_do_not_recapture' panicked at crates/intarsia-models/tests/batch_recurrent.rs:282:6:
+called `Result::unwrap()` on an `Err` value: Unsupported("delta-rule state dtype bf16 with a key head dim of 32 (the split / decode kernels take 64 and 128)")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- batched_engine_equals_solo_over_128_tokens stdout ----
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=2 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=3 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=4 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=5 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=6 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=7 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=8 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=9 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=10 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=11 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=12 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=13 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=14 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=15 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+batched step: row-table path unavailable for GatedDeltaNet gdn_delta_rule: no kernel for gdn_delta_rule on cuda/sm_121 (m=16 n=16 k=32 act=Some(Bf16) w=Some(Bf16)); per-row launches
+
+thread 'batched_engine_equals_solo_over_128_tokens' panicked at crates/intarsia-models/tests/batch_recurrent.rs:282:6:
+called `Result::unwrap()` on an `Err` value: Unsupported("delta-rule state dtype bf16 with a key head dim of 32 (the split / decode kernels take 64 and 128)")
+
+---- batched_engine_with_macro_prefill_equals_plain_solo stdout ----
+
+thread 'batched_engine_with_macro_prefill_equals_plain_solo' panicked at crates/intarsia-models/tests/batch_recurrent.rs:941:17:
+Dense macro 32: no macro pass ran in the batched engine
+
+---- batched_engine_with_overlap_equals_solo_over_128_tokens stdout ----
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+
+thread 'batched_engine_with_overlap_equals_solo_over_128_tokens' panicked at crates/intarsia-models/tests/batch_recurrent.rs:282:6:
+called `Result::unwrap()` on an `Err` value: Unsupported("delta-rule state dtype bf16 with a key head dim of 32 (the split / decode kernels take 64 and 128)")
+
+---- batched_engine_with_packed_prefill_equals_solo stdout ----
+
+thread 'batched_engine_with_packed_prefill_equals_solo' panicked at crates/intarsia-models/tests/batch_recurrent.rs:791:5:
+no prompts were packed: BatchMetrics { iterations: 679, decode_steps: 678, batch_hist: [0, 132, 546, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], verify_steps: 0, verify_rows: 0, verify_hist: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], prefill_chunks: 9, prefill_tokens: 193, pack_passes: 0, packed_chunks: 0, mixed_iterations: 8, paused_steps: 0, queue_depth: 0, queue_depth_max: 9, running: 0, submitted: 9, admitted: 9, finished: 9, cancelled: 0, rejected: 0, failed: 0, cached_tokens: 0, ttft: LatencyHist { counts: [0, 0, 1, 1, 0, 0, 0, 0, 0, 2, 1, 4, 0, 0], count: 9, sum_ms: 1989.582086, max_ms: 484.921578 }, itl: LatencyHist { counts: [1167, 52, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], count: 1224, sum_ms: 1012.267707000002, max_ms: 3.351438 }, chunk: LatencyHist { counts: [0, 7, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], count: 9, sum_ms: 12.790696, max_ms: 2.2893700000000003 }, step: LatencyHist { counts: [645, 32, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], count: 678, sum_ms: 525.3788219999997, max_ms: 2.3551140000000004 }, step_ewma_ms: 0.19284069989669508 }
+
+---- batched_engine_with_prefix_reuse_equals_solo stdout ----
+
+thread 'batched_engine_with_prefix_reuse_equals_solo' panicked at crates/intarsia-models/tests/batch_recurrent.rs:282:6:
+called `Result::unwrap()` on an `Err` value: Unsupported("delta-rule state dtype bf16 with a key head dim of 32 (the split / decode kernels take 64 and 128)")
+
+---- batched_hybrid_decode_beside_prefill_chunks stdout ----
+
+thread 'batched_hybrid_decode_beside_prefill_chunks' panicked at crates/intarsia-models/tests/batch_recurrent.rs:282:6:
+called `Result::unwrap()` on an `Err` value: Unsupported("delta-rule state dtype bf16 with a key head dim of 32 (the split / decode kernels take 64 and 128)")
+
+---- batched_hybrid_decode_is_bitwise_the_solo_step stdout ----
+Dense matmul: decode ["matmul_bf16_gemv"] | batch(4) ["matmul_bf16_gemv_rows"]
+Dense matmul_fp8: decode [] | batch(4) []
+Dense matmul_nvfp4: decode [] | batch(4) []
+Dense moe_experts: decode [] | batch(4) []
+Dense logits: decode ["logits_bf16_gemv"] | batch(4) ["logits_bf16_gemv_rows"]
+Dense gdn_delta_rule: decode ["gdn_delta_rule_bf16"] | batch(4) ["gdn_delta_rule_bf16"]
+Dense attn_decode: decode ["attn_decode_bf16_splitkv"] | batch(4) ["attn_decode_bf16_splitkv_rows"]
+2 sequences prefilled twice in 0.0 s
+batch 2: 130 steps bitwise in 0.2 s (per step: 0.8 ms batched, 0.4 ms for the 2 solo steps)
+3 sequences prefilled twice in 0.0 s
+batch 3: 130 steps bitwise in 0.2 s (per step: 0.9 ms batched, 0.7 ms for the 3 solo steps)
+4 sequences prefilled twice in 0.0 s
+batch 4: 130 steps bitwise in 0.2 s (per step: 1.0 ms batched, 0.8 ms for the 4 solo steps)
+8 sequences prefilled twice in 0.0 s
+batch 8: 130 steps bitwise in 0.4 s (per step: 1.3 ms batched, 1.6 ms for the 8 solo steps)
+16 sequences prefilled twice in 0.0 s
+batch 16: 130 steps bitwise in 0.7 s (per step: 1.9 ms batched, 3.3 ms for the 16 solo steps)
+
+thread 'batched_hybrid_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/batch_recurrent.rs:282:6:
+called `Result::unwrap()` on an `Err` value: Unsupported("delta-rule state dtype bf16 with a key head dim of 32 (the split / decode kernels take 64 and 128)")
+
+---- decode_twin_beside_a_running_prefill_is_bitwise_solo stdout ----
+batched decode graph: a per-row launch is bound to one sequence's state; batched steps run eagerly
+Dense: 48 decode rows bitwise solo, 16 batched steps begun while a chunk was running
+
+thread 'decode_twin_beside_a_running_prefill_is_bitwise_solo' panicked at crates/intarsia-models/tests/batch_recurrent.rs:282:6:
+called `Result::unwrap()` on an `Err` value: Unsupported("delta-rule state dtype bf16 with a key head dim of 32 (the split / decode kernels take 64 and 128)")
+
+---- macro_forward_equals_chunked_forward stdout ----
+
+thread 'macro_forward_equals_chunked_forward' panicked at crates/intarsia-models/tests/batch_recurrent.rs:894:13:
+Dense: the macro schedule ran
+
+---- macro_prefill_equals_the_plain_chunk_schedule stdout ----
+
+thread 'macro_prefill_equals_the_plain_chunk_schedule' panicked at crates/intarsia-models/tests/batch_recurrent.rs:846:13:
+Dense, macro 32 rows: no macro pass ran
+
+---- macro_prefill_keeps_chunk_snapshots_for_reuse stdout ----
+
+thread 'macro_prefill_keeps_chunk_snapshots_for_reuse' panicked at crates/intarsia-models/tests/batch_recurrent.rs:984:13:
+Dense, macro 32 rows: no macro pass ran
+
+---- memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them stdout ----
+
+thread 'memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them' panicked at crates/intarsia-models/tests/batch_recurrent.rs:282:6:
+called `Result::unwrap()` on an `Err` value: Unsupported("delta-rule state dtype bf16 with a key head dim of 32 (the split / decode kernels take 64 and 128)")
+
+
+failures:
+    alternating_rows_and_batches_do_not_recapture
+    batched_engine_equals_solo_over_128_tokens
+    batched_engine_with_macro_prefill_equals_plain_solo
+    batched_engine_with_overlap_equals_solo_over_128_tokens
+    batched_engine_with_packed_prefill_equals_solo
+    batched_engine_with_prefix_reuse_equals_solo
+    batched_hybrid_decode_beside_prefill_chunks
+    batched_hybrid_decode_is_bitwise_the_solo_step
+    decode_twin_beside_a_running_prefill_is_bitwise_solo
+    macro_forward_equals_chunked_forward
+    macro_prefill_equals_the_plain_chunk_schedule
+    macro_prefill_keeps_chunk_snapshots_for_reuse
+    memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them
+
+test result: FAILED. 2 passed; 13 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.93s
+

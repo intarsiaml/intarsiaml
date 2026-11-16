@@ -1,0 +1,13 @@
+00:10:42 round 1 arm main: serve
+avail after load GB: 48
+00:11:45 round 1 arm main: localeval exit 0
+00:11:46 round 1 arm pr: serve
+avail after load GB: 48
+00:12:51 round 1 arm pr: localeval exit 0
+00:12:52 round 2 arm pr: serve
+avail after load GB: 49
+00:13:46 round 2 arm pr: localeval exit 0
+00:13:46 round 2 arm main: serve
+avail after load GB: 49
+00:14:40 round 2 arm main: localeval exit 0
+00:14:41 done

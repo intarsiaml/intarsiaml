@@ -1,0 +1,22 @@
+23:27:42 batch_recurrent exit 101
+23:27:48 mtp exit 0
+23:34:34 real35b exit 0
+23:35:38 acc4k-reuse-c2048 exit 1
+23:36:47 acc4k-reuse-c1024 exit 1
+23:37:48 acc4k-reuse-c2048-macro0 exit 1
+23:37:48 run done; min avail 48
+23:38:38 batch_recurrent gdn_state=f32 exit 101
+23:39:44 acc4k-reuse-c2048-specoff exit 1
+23:40:48 acc4k-reuse-c1024-specoff exit 1
+23:41:48 acc4k-reuse-c2048-specoff-macro0 exit 1
+23:41:48 run2 done; min avail 48
+23:42:32 acc4k-reuse-c4096-specoff exit 0
+23:43:14 acc4k-reuse-c4096-specoff-macro0 exit 0
+23:43:14 run3 done; min avail 48
+23:44:01 base build exit 0
+23:44:45 base batch_recurrent f32 exit 0
+23:44:45 base done
+23:45:43 base cli build exit 0
+23:46:47 base acc c2048 exit 0
+23:47:52 base acc c1024 exit 0
+23:47:52 base2 done
