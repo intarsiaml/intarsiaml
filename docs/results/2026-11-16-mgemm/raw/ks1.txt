@@ -1,0 +1,399 @@
+gpu idle (ioreg Device Utilization %, 3 samples): [Some(24), Some(0), Some(0)]
+rounds 15, reps 10, pool 0 MiB, splits [1, 2, 4, 6], swz 0
+KSBITS shape=qo M=512 N=4096 K=4096 tile=64x64w2 split=1 passes=1 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=64x64w2 split=2 passes=2 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=64x64w2 split=4 passes=4 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=64x64w2 split=6 passes=6 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=128x64w4 split=1 passes=1 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=128x64w4 split=2 passes=2 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=128x64w4 split=4 passes=4 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=128x64w4 split=6 passes=6 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=32x128w2 split=1 passes=1 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=32x128w2 split=2 passes=2 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=32x128w2 split=4 passes=4 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=32x128w2 split=6 passes=6 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=64x64w4 split=1 passes=1 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=64x64w4 split=2 passes=2 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=64x64w4 split=4 passes=4 diff=0 of 2097152
+KSBITS shape=qo M=512 N=4096 K=4096 tile=64x64w4 split=6 passes=6 diff=0 of 2097152
+KS shape=qo M=512 N=4096 K=4096 cell=shipped:t64x64w2 median_tflops=62.37 p10=62.03 p90=62.53 us_per_call=275.4
+KS shape=qo M=512 N=4096 K=4096 cell=ks64x64w2/s1 median_tflops=62.26 p10=60.69 p90=62.43 us_per_call=276.0
+KS shape=qo M=512 N=4096 K=4096 cell=ks64x64w2/s2 median_tflops=59.90 p10=59.83 p90=60.08 us_per_call=286.8
+KS shape=qo M=512 N=4096 K=4096 cell=ks64x64w2/s4 median_tflops=55.80 p10=55.73 p90=55.89 us_per_call=307.9
+KS shape=qo M=512 N=4096 K=4096 cell=ks64x64w2/s6 median_tflops=52.06 p10=51.91 p90=52.16 us_per_call=330.0
+KS shape=qo M=512 N=4096 K=4096 cell=ks128x64w4/s1 median_tflops=56.24 p10=55.33 p90=56.36 us_per_call=305.5
+KS shape=qo M=512 N=4096 K=4096 cell=ks128x64w4/s2 median_tflops=53.35 p10=52.54 p90=53.39 us_per_call=322.0
+KS shape=qo M=512 N=4096 K=4096 cell=ks128x64w4/s4 median_tflops=48.49 p10=48.43 p90=48.61 us_per_call=354.3
+KS shape=qo M=512 N=4096 K=4096 cell=ks128x64w4/s6 median_tflops=44.38 p10=42.55 p90=44.49 us_per_call=387.1
+KS shape=qo M=512 N=4096 K=4096 cell=ks32x128w2/s1 median_tflops=62.00 p10=61.83 p90=62.14 us_per_call=277.1
+KS shape=qo M=512 N=4096 K=4096 cell=ks32x128w2/s2 median_tflops=59.57 p10=56.22 p90=59.72 us_per_call=288.4
+KS shape=qo M=512 N=4096 K=4096 cell=ks32x128w2/s4 median_tflops=55.13 p10=55.04 p90=55.19 us_per_call=311.6
+KS shape=qo M=512 N=4096 K=4096 cell=ks32x128w2/s6 median_tflops=51.00 p10=49.62 p90=51.06 us_per_call=336.8
+KS shape=qo M=512 N=4096 K=4096 cell=ks64x64w4/s1 median_tflops=54.93 p10=54.53 p90=55.11 us_per_call=312.8
+KS shape=qo M=512 N=4096 K=4096 cell=ks64x64w4/s2 median_tflops=52.86 p10=52.76 p90=53.00 us_per_call=325.0
+KS shape=qo M=512 N=4096 K=4096 cell=ks64x64w4/s4 median_tflops=49.67 p10=49.24 p90=49.75 us_per_call=345.9
+KS shape=qo M=512 N=4096 K=4096 cell=ks64x64w4/s6 median_tflops=46.80 p10=46.61 p90=46.88 us_per_call=367.1
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=64x64w2 split=1 passes=1 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=64x64w2 split=2 passes=2 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=64x64w2 split=4 passes=4 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=64x64w2 split=6 passes=6 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=128x64w4 split=1 passes=1 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=128x64w4 split=2 passes=2 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=128x64w4 split=4 passes=4 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=128x64w4 split=6 passes=6 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=32x128w2 split=1 passes=1 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=32x128w2 split=2 passes=2 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=32x128w2 split=4 passes=4 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=32x128w2 split=6 passes=6 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=64x64w4 split=1 passes=1 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=64x64w4 split=2 passes=2 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=64x64w4 split=4 passes=4 diff=0 of 8388608
+KSBITS shape=qo M=2048 N=4096 K=4096 tile=64x64w4 split=6 passes=6 diff=0 of 8388608
+KS shape=qo M=2048 N=4096 K=4096 cell=shipped:t128x64w4 median_tflops=63.82 p10=62.97 p90=63.86 us_per_call=1076.8
+KS shape=qo M=2048 N=4096 K=4096 cell=ks64x64w2/s1 median_tflops=64.01 p10=63.79 p90=64.12 us_per_call=1073.6
+KS shape=qo M=2048 N=4096 K=4096 cell=ks64x64w2/s2 median_tflops=61.00 p10=60.80 p90=61.08 us_per_call=1126.6
+KS shape=qo M=2048 N=4096 K=4096 cell=ks64x64w2/s4 median_tflops=57.65 p10=57.07 p90=58.15 us_per_call=1192.0
+KS shape=qo M=2048 N=4096 K=4096 cell=ks64x64w2/s6 median_tflops=55.06 p10=54.57 p90=55.45 us_per_call=1248.1
+KS shape=qo M=2048 N=4096 K=4096 cell=ks128x64w4/s1 median_tflops=59.76 p10=59.24 p90=59.80 us_per_call=1149.9
+KS shape=qo M=2048 N=4096 K=4096 cell=ks128x64w4/s2 median_tflops=56.17 p10=55.90 p90=56.20 us_per_call=1223.4
+KS shape=qo M=2048 N=4096 K=4096 cell=ks128x64w4/s4 median_tflops=49.50 p10=49.10 p90=49.80 us_per_call=1388.3
+KS shape=qo M=2048 N=4096 K=4096 cell=ks128x64w4/s6 median_tflops=45.69 p10=45.36 p90=46.63 us_per_call=1504.2
+KS shape=qo M=2048 N=4096 K=4096 cell=ks32x128w2/s1 median_tflops=63.92 p10=63.59 p90=64.04 us_per_call=1075.1
+KS shape=qo M=2048 N=4096 K=4096 cell=ks32x128w2/s2 median_tflops=60.80 p10=60.57 p90=61.06 us_per_call=1130.3
+KS shape=qo M=2048 N=4096 K=4096 cell=ks32x128w2/s4 median_tflops=57.76 p10=55.96 p90=58.16 us_per_call=1189.8
+KS shape=qo M=2048 N=4096 K=4096 cell=ks32x128w2/s6 median_tflops=55.36 p10=54.98 p90=55.61 us_per_call=1241.2
+KS shape=qo M=2048 N=4096 K=4096 cell=ks64x64w4/s1 median_tflops=60.98 p10=60.75 p90=61.14 us_per_call=1126.9
+KS shape=qo M=2048 N=4096 K=4096 cell=ks64x64w4/s2 median_tflops=58.84 p10=58.06 p90=59.23 us_per_call=1168.0
+KS shape=qo M=2048 N=4096 K=4096 cell=ks64x64w4/s4 median_tflops=56.77 p10=56.58 p90=57.08 us_per_call=1210.5
+KS shape=qo M=2048 N=4096 K=4096 cell=ks64x64w4/s6 median_tflops=54.23 p10=54.12 p90=54.38 us_per_call=1267.1
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=64x64w2 split=1 passes=1 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=64x64w2 split=2 passes=2 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=64x64w2 split=4 passes=4 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=64x64w2 split=6 passes=6 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=128x64w4 split=1 passes=1 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=128x64w4 split=2 passes=2 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=128x64w4 split=4 passes=4 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=128x64w4 split=6 passes=6 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=32x128w2 split=1 passes=1 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=32x128w2 split=2 passes=2 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=32x128w2 split=4 passes=4 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=32x128w2 split=6 passes=6 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=64x64w4 split=1 passes=1 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=64x64w4 split=2 passes=2 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=64x64w4 split=4 passes=4 diff=0 of 16777216
+KSBITS shape=qo M=4096 N=4096 K=4096 tile=64x64w4 split=6 passes=6 diff=0 of 16777216
+KS shape=qo M=4096 N=4096 K=4096 cell=shipped:t128x64w4 median_tflops=60.30 p10=52.61 p90=64.04 us_per_call=2279.2
+KS shape=qo M=4096 N=4096 K=4096 cell=ks64x64w2/s1 median_tflops=59.50 p10=53.25 p90=63.38 us_per_call=2309.8
+KS shape=qo M=4096 N=4096 K=4096 cell=ks64x64w2/s2 median_tflops=57.68 p10=49.79 p90=61.11 us_per_call=2382.7
+KS shape=qo M=4096 N=4096 K=4096 cell=ks64x64w2/s4 median_tflops=54.88 p10=47.62 p90=57.55 us_per_call=2504.5
+KS shape=qo M=4096 N=4096 K=4096 cell=ks64x64w2/s6 median_tflops=51.33 p10=46.22 p90=53.96 us_per_call=2677.5
+KS shape=qo M=4096 N=4096 K=4096 cell=ks128x64w4/s1 median_tflops=58.08 p10=49.69 p90=61.91 us_per_call=2366.5
+KS shape=qo M=4096 N=4096 K=4096 cell=ks128x64w4/s2 median_tflops=54.51 p10=47.28 p90=58.48 us_per_call=2521.4
+KS shape=qo M=4096 N=4096 K=4096 cell=ks128x64w4/s4 median_tflops=50.77 p10=44.90 p90=53.53 us_per_call=2707.0
+KS shape=qo M=4096 N=4096 K=4096 cell=ks128x64w4/s6 median_tflops=46.39 p10=42.01 p90=48.73 us_per_call=2962.7
+KS shape=qo M=4096 N=4096 K=4096 cell=ks32x128w2/s1 median_tflops=60.42 p10=52.82 p90=64.52 us_per_call=2274.8
+KS shape=qo M=4096 N=4096 K=4096 cell=ks32x128w2/s2 median_tflops=58.20 p10=50.45 p90=61.66 us_per_call=2361.3
+KS shape=qo M=4096 N=4096 K=4096 cell=ks32x128w2/s4 median_tflops=54.22 p10=48.20 p90=56.93 us_per_call=2535.0
+KS shape=qo M=4096 N=4096 K=4096 cell=ks32x128w2/s6 median_tflops=50.53 p10=45.16 p90=52.31 us_per_call=2720.1
+KS shape=qo M=4096 N=4096 K=4096 cell=ks64x64w4/s1 median_tflops=59.19 p10=53.44 p90=62.29 us_per_call=2321.9
+KS shape=qo M=4096 N=4096 K=4096 cell=ks64x64w4/s2 median_tflops=56.44 p10=48.97 p90=59.36 us_per_call=2435.2
+KS shape=qo M=4096 N=4096 K=4096 cell=ks64x64w4/s4 median_tflops=54.05 p10=47.57 p90=57.14 us_per_call=2543.0
+KS shape=qo M=4096 N=4096 K=4096 cell=ks64x64w4/s6 median_tflops=52.48 p10=46.76 p90=55.04 us_per_call=2618.8
+KSBITS shape=down M=512 N=4096 K=12288 tile=64x64w2 split=1 passes=1 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=64x64w2 split=2 passes=2 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=64x64w2 split=4 passes=4 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=64x64w2 split=6 passes=6 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=128x64w4 split=1 passes=1 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=128x64w4 split=2 passes=2 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=128x64w4 split=4 passes=4 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=128x64w4 split=6 passes=6 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=32x128w2 split=1 passes=1 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=32x128w2 split=2 passes=2 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=32x128w2 split=4 passes=4 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=32x128w2 split=6 passes=6 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=64x64w4 split=1 passes=1 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=64x64w4 split=2 passes=2 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=64x64w4 split=4 passes=4 diff=0 of 2097152
+KSBITS shape=down M=512 N=4096 K=12288 tile=64x64w4 split=6 passes=6 diff=0 of 2097152
+KS shape=down M=512 N=4096 K=12288 cell=shipped:t64x64w2 median_tflops=58.37 p10=50.56 p90=62.13 us_per_call=883.0
+KS shape=down M=512 N=4096 K=12288 cell=ks64x64w2/s1 median_tflops=58.61 p10=50.72 p90=62.01 us_per_call=879.3
+KS shape=down M=512 N=4096 K=12288 cell=ks64x64w2/s2 median_tflops=57.37 p10=49.78 p90=61.11 us_per_call=898.3
+KS shape=down M=512 N=4096 K=12288 cell=ks64x64w2/s4 median_tflops=56.38 p10=49.50 p90=60.58 us_per_call=914.2
+KS shape=down M=512 N=4096 K=12288 cell=ks64x64w2/s6 median_tflops=55.06 p10=48.76 p90=59.20 us_per_call=936.1
+KS shape=down M=512 N=4096 K=12288 cell=ks128x64w4/s1 median_tflops=54.52 p10=50.16 p90=58.34 us_per_call=945.3
+KS shape=down M=512 N=4096 K=12288 cell=ks128x64w4/s2 median_tflops=53.19 p10=48.87 p90=56.88 us_per_call=969.1
+KS shape=down M=512 N=4096 K=12288 cell=ks128x64w4/s4 median_tflops=51.40 p10=50.80 p90=55.02 us_per_call=1002.7
+KS shape=down M=512 N=4096 K=12288 cell=ks128x64w4/s6 median_tflops=50.06 p10=46.48 p90=53.54 us_per_call=1029.5
+KS shape=down M=512 N=4096 K=12288 cell=ks32x128w2/s1 median_tflops=58.29 p10=53.70 p90=61.52 us_per_call=884.2
+KS shape=down M=512 N=4096 K=12288 cell=ks32x128w2/s2 median_tflops=57.50 p10=49.80 p90=61.04 us_per_call=896.3
+KS shape=down M=512 N=4096 K=12288 cell=ks32x128w2/s4 median_tflops=56.27 p10=48.80 p90=60.07 us_per_call=916.0
+KS shape=down M=512 N=4096 K=12288 cell=ks32x128w2/s6 median_tflops=54.57 p10=47.96 p90=58.67 us_per_call=944.5
+KS shape=down M=512 N=4096 K=12288 cell=ks64x64w4/s1 median_tflops=50.82 p10=45.25 p90=53.79 us_per_call=1014.1
+KS shape=down M=512 N=4096 K=12288 cell=ks64x64w4/s2 median_tflops=50.54 p10=44.40 p90=54.02 us_per_call=1019.8
+KS shape=down M=512 N=4096 K=12288 cell=ks64x64w4/s4 median_tflops=49.65 p10=43.58 p90=52.61 us_per_call=1038.0
+KS shape=down M=512 N=4096 K=12288 cell=ks64x64w4/s6 median_tflops=47.98 p10=42.26 p90=50.95 us_per_call=1074.1
+KSBITS shape=down M=2048 N=4096 K=12288 tile=64x64w2 split=1 passes=1 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=64x64w2 split=2 passes=2 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=64x64w2 split=4 passes=4 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=64x64w2 split=6 passes=6 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=128x64w4 split=1 passes=1 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=128x64w4 split=2 passes=2 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=128x64w4 split=4 passes=4 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=128x64w4 split=6 passes=6 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=32x128w2 split=1 passes=1 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=32x128w2 split=2 passes=2 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=32x128w2 split=4 passes=4 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=32x128w2 split=6 passes=6 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=64x64w4 split=1 passes=1 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=64x64w4 split=2 passes=2 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=64x64w4 split=4 passes=4 diff=0 of 8388608
+KSBITS shape=down M=2048 N=4096 K=12288 tile=64x64w4 split=6 passes=6 diff=0 of 8388608
+KS shape=down M=2048 N=4096 K=12288 cell=shipped:t128x64w4 median_tflops=52.07 p10=47.15 p90=56.91 us_per_call=3959.3
+KS shape=down M=2048 N=4096 K=12288 cell=ks64x64w2/s1 median_tflops=53.80 p10=48.54 p90=57.85 us_per_call=3832.3
+KS shape=down M=2048 N=4096 K=12288 cell=ks64x64w2/s2 median_tflops=53.11 p10=49.40 p90=57.94 us_per_call=3881.6
+KS shape=down M=2048 N=4096 K=12288 cell=ks64x64w2/s4 median_tflops=51.38 p10=48.71 p90=55.57 us_per_call=4012.5
+KS shape=down M=2048 N=4096 K=12288 cell=ks64x64w2/s6 median_tflops=50.27 p10=47.27 p90=54.82 us_per_call=4101.1
+KS shape=down M=2048 N=4096 K=12288 cell=ks128x64w4/s1 median_tflops=51.07 p10=48.75 p90=55.39 us_per_call=4036.5
+KS shape=down M=2048 N=4096 K=12288 cell=ks128x64w4/s2 median_tflops=50.45 p10=46.97 p90=54.82 us_per_call=4086.6
+KS shape=down M=2048 N=4096 K=12288 cell=ks128x64w4/s4 median_tflops=48.66 p10=44.55 p90=52.94 us_per_call=4236.5
+KS shape=down M=2048 N=4096 K=12288 cell=ks128x64w4/s6 median_tflops=48.27 p10=43.48 p90=51.80 us_per_call=4271.0
+KS shape=down M=2048 N=4096 K=12288 cell=ks32x128w2/s1 median_tflops=52.44 p10=49.21 p90=58.93 us_per_call=3931.5
+KS shape=down M=2048 N=4096 K=12288 cell=ks32x128w2/s2 median_tflops=51.22 p10=48.75 p90=57.34 us_per_call=4025.1
+KS shape=down M=2048 N=4096 K=12288 cell=ks32x128w2/s4 median_tflops=49.60 p10=46.27 p90=54.93 us_per_call=4156.1
+KS shape=down M=2048 N=4096 K=12288 cell=ks32x128w2/s6 median_tflops=49.32 p10=45.59 p90=53.90 us_per_call=4180.4
+KS shape=down M=2048 N=4096 K=12288 cell=ks64x64w4/s1 median_tflops=50.00 p10=44.65 p90=55.51 us_per_call=4123.2
+KS shape=down M=2048 N=4096 K=12288 cell=ks64x64w4/s2 median_tflops=49.77 p10=44.76 p90=54.72 us_per_call=4142.5
+KS shape=down M=2048 N=4096 K=12288 cell=ks64x64w4/s4 median_tflops=50.08 p10=44.10 p90=54.43 us_per_call=4116.2
+KS shape=down M=2048 N=4096 K=12288 cell=ks64x64w4/s6 median_tflops=49.44 p10=44.33 p90=54.23 us_per_call=4170.2
+KSBITS shape=down M=4096 N=4096 K=12288 tile=64x64w2 split=1 passes=1 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=64x64w2 split=2 passes=2 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=64x64w2 split=4 passes=4 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=64x64w2 split=6 passes=6 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=128x64w4 split=1 passes=1 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=128x64w4 split=2 passes=2 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=128x64w4 split=4 passes=4 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=128x64w4 split=6 passes=6 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=32x128w2 split=1 passes=1 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=32x128w2 split=2 passes=2 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=32x128w2 split=4 passes=4 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=32x128w2 split=6 passes=6 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=64x64w4 split=1 passes=1 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=64x64w4 split=2 passes=2 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=64x64w4 split=4 passes=4 diff=0 of 16777216
+KSBITS shape=down M=4096 N=4096 K=12288 tile=64x64w4 split=6 passes=6 diff=0 of 16777216
+KS shape=down M=4096 N=4096 K=12288 cell=shipped:t128x64w4 median_tflops=47.35 p10=42.34 p90=48.44 us_per_call=8707.0
+KS shape=down M=4096 N=4096 K=12288 cell=ks64x64w2/s1 median_tflops=46.42 p10=42.98 p90=48.85 us_per_call=8882.5
+KS shape=down M=4096 N=4096 K=12288 cell=ks64x64w2/s2 median_tflops=46.58 p10=44.54 p90=49.18 us_per_call=8851.5
+KS shape=down M=4096 N=4096 K=12288 cell=ks64x64w2/s4 median_tflops=45.29 p10=43.92 p90=47.66 us_per_call=9103.9
+KS shape=down M=4096 N=4096 K=12288 cell=ks64x64w2/s6 median_tflops=44.90 p10=41.97 p90=47.08 us_per_call=9182.5
+KS shape=down M=4096 N=4096 K=12288 cell=ks128x64w4/s1 median_tflops=46.22 p10=42.26 p90=48.67 us_per_call=8921.7
+KS shape=down M=4096 N=4096 K=12288 cell=ks128x64w4/s2 median_tflops=46.09 p10=38.37 p90=48.06 us_per_call=8945.6
+KS shape=down M=4096 N=4096 K=12288 cell=ks128x64w4/s4 median_tflops=44.22 p10=40.92 p90=45.85 us_per_call=9324.5
+KS shape=down M=4096 N=4096 K=12288 cell=ks128x64w4/s6 median_tflops=43.45 p10=39.93 p90=44.75 us_per_call=9489.2
+KS shape=down M=4096 N=4096 K=12288 cell=ks32x128w2/s1 median_tflops=46.43 p10=42.60 p90=48.44 us_per_call=8880.4
+KS shape=down M=4096 N=4096 K=12288 cell=ks32x128w2/s2 median_tflops=46.45 p10=43.69 p90=48.91 us_per_call=8876.2
+KS shape=down M=4096 N=4096 K=12288 cell=ks32x128w2/s4 median_tflops=45.45 p10=43.85 p90=47.56 us_per_call=9072.1
+KS shape=down M=4096 N=4096 K=12288 cell=ks32x128w2/s6 median_tflops=44.72 p10=41.93 p90=46.67 us_per_call=9220.6
+KS shape=down M=4096 N=4096 K=12288 cell=ks64x64w4/s1 median_tflops=39.30 p10=35.73 p90=41.52 us_per_call=10490.4
+KS shape=down M=4096 N=4096 K=12288 cell=ks64x64w4/s2 median_tflops=40.46 p10=38.33 p90=42.22 us_per_call=10191.1
+KS shape=down M=4096 N=4096 K=12288 cell=ks64x64w4/s4 median_tflops=41.63 p10=41.20 p90=42.79 us_per_call=9904.5
+KS shape=down M=4096 N=4096 K=12288 cell=ks64x64w4/s6 median_tflops=41.04 p10=40.39 p90=42.30 us_per_call=10047.5
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=64x64w2 split=1 passes=1 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=64x64w2 split=2 passes=2 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=64x64w2 split=4 passes=4 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=64x64w2 split=6 passes=6 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=128x64w4 split=1 passes=1 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=128x64w4 split=2 passes=2 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=128x64w4 split=4 passes=4 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=128x64w4 split=6 passes=6 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=32x128w2 split=1 passes=1 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=32x128w2 split=2 passes=2 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=32x128w2 split=4 passes=4 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=32x128w2 split=6 passes=6 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=64x64w4 split=1 passes=1 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=64x64w4 split=2 passes=2 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=64x64w4 split=4 passes=4 diff=0 of 2621440
+KSBITS shape=d27 M=512 N=5120 K=17408 tile=64x64w4 split=6 passes=6 diff=0 of 2621440
+KS shape=d27 M=512 N=5120 K=17408 cell=shipped:t64x64w2 median_tflops=49.14 p10=44.92 p90=49.39 us_per_call=1857.5
+KS shape=d27 M=512 N=5120 K=17408 cell=ks64x64w2/s1 median_tflops=49.03 p10=42.77 p90=49.78 us_per_call=1861.3
+KS shape=d27 M=512 N=5120 K=17408 cell=ks64x64w2/s2 median_tflops=47.95 p10=43.23 p90=49.19 us_per_call=1903.3
+KS shape=d27 M=512 N=5120 K=17408 cell=ks64x64w2/s4 median_tflops=47.98 p10=42.85 p90=48.46 us_per_call=1902.1
+KS shape=d27 M=512 N=5120 K=17408 cell=ks64x64w2/s6 median_tflops=47.11 p10=42.17 p90=48.65 us_per_call=1937.3
+KS shape=d27 M=512 N=5120 K=17408 cell=ks128x64w4/s1 median_tflops=48.47 p10=43.85 p90=49.25 us_per_call=1883.0
+KS shape=d27 M=512 N=5120 K=17408 cell=ks128x64w4/s2 median_tflops=47.73 p10=42.58 p90=48.41 us_per_call=1912.0
+KS shape=d27 M=512 N=5120 K=17408 cell=ks128x64w4/s4 median_tflops=47.09 p10=41.01 p90=48.04 us_per_call=1938.1
+KS shape=d27 M=512 N=5120 K=17408 cell=ks128x64w4/s6 median_tflops=46.32 p10=40.18 p90=47.25 us_per_call=1970.2
+KS shape=d27 M=512 N=5120 K=17408 cell=ks32x128w2/s1 median_tflops=48.94 p10=42.22 p90=50.11 us_per_call=1864.7
+KS shape=d27 M=512 N=5120 K=17408 cell=ks32x128w2/s2 median_tflops=48.44 p10=46.75 p90=49.09 us_per_call=1884.2
+KS shape=d27 M=512 N=5120 K=17408 cell=ks32x128w2/s4 median_tflops=47.65 p10=45.19 p90=48.92 us_per_call=1915.5
+KS shape=d27 M=512 N=5120 K=17408 cell=ks32x128w2/s6 median_tflops=47.36 p10=45.39 p90=48.08 us_per_call=1927.1
+KS shape=d27 M=512 N=5120 K=17408 cell=ks64x64w4/s1 median_tflops=43.74 p10=42.82 p90=46.58 us_per_call=2086.5
+KS shape=d27 M=512 N=5120 K=17408 cell=ks64x64w4/s2 median_tflops=44.59 p10=39.43 p90=45.68 us_per_call=2046.7
+KS shape=d27 M=512 N=5120 K=17408 cell=ks64x64w4/s4 median_tflops=45.81 p10=38.95 p90=46.71 us_per_call=1992.1
+KS shape=d27 M=512 N=5120 K=17408 cell=ks64x64w4/s6 median_tflops=45.34 p10=41.36 p90=46.40 us_per_call=2013.2
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=64x64w2 split=1 passes=1 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=64x64w2 split=2 passes=2 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=64x64w2 split=4 passes=4 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=64x64w2 split=6 passes=6 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=128x64w4 split=1 passes=1 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=128x64w4 split=2 passes=2 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=128x64w4 split=4 passes=4 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=128x64w4 split=6 passes=6 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=32x128w2 split=1 passes=1 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=32x128w2 split=2 passes=2 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=32x128w2 split=4 passes=4 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=32x128w2 split=6 passes=6 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=64x64w4 split=1 passes=1 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=64x64w4 split=2 passes=2 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=64x64w4 split=4 passes=4 diff=0 of 10485760
+KSBITS shape=d27 M=2048 N=5120 K=17408 tile=64x64w4 split=6 passes=6 diff=0 of 10485760
+KS shape=d27 M=2048 N=5120 K=17408 cell=shipped:t128x64w4 median_tflops=46.30 p10=43.64 p90=48.11 us_per_call=7885.5
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks64x64w2/s1 median_tflops=46.31 p10=43.33 p90=49.59 us_per_call=7883.7
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks64x64w2/s2 median_tflops=47.69 p10=43.64 p90=50.21 us_per_call=7655.5
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks64x64w2/s4 median_tflops=47.11 p10=42.53 p90=49.64 us_per_call=7749.3
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks64x64w2/s6 median_tflops=46.37 p10=42.77 p90=48.31 us_per_call=7873.5
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks128x64w4/s1 median_tflops=47.22 p10=45.37 p90=49.23 us_per_call=7730.8
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks128x64w4/s2 median_tflops=46.52 p10=45.27 p90=48.89 us_per_call=7846.9
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks128x64w4/s4 median_tflops=45.82 p10=43.39 p90=48.21 us_per_call=7966.9
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks128x64w4/s6 median_tflops=43.65 p10=42.58 p90=47.41 us_per_call=8363.2
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks32x128w2/s1 median_tflops=47.85 p10=45.96 p90=50.82 us_per_call=7629.4
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks32x128w2/s2 median_tflops=46.29 p10=45.78 p90=48.45 us_per_call=7885.8
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks32x128w2/s4 median_tflops=46.80 p10=44.98 p90=48.75 us_per_call=7801.2
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks32x128w2/s6 median_tflops=46.25 p10=44.53 p90=49.30 us_per_call=7893.0
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks64x64w4/s1 median_tflops=45.64 p10=42.36 p90=49.31 us_per_call=7999.2
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks64x64w4/s2 median_tflops=45.96 p10=41.23 p90=47.86 us_per_call=7942.4
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks64x64w4/s4 median_tflops=45.61 p10=43.08 p90=46.76 us_per_call=8004.7
+KS shape=d27 M=2048 N=5120 K=17408 cell=ks64x64w4/s6 median_tflops=44.62 p10=42.37 p90=46.99 us_per_call=8182.0
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=64x64w2 split=1 passes=1 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=64x64w2 split=2 passes=2 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=64x64w2 split=4 passes=4 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=64x64w2 split=6 passes=6 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=128x64w4 split=1 passes=1 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=128x64w4 split=2 passes=2 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=128x64w4 split=4 passes=4 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=128x64w4 split=6 passes=6 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=32x128w2 split=1 passes=1 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=32x128w2 split=2 passes=2 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=32x128w2 split=4 passes=4 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=32x128w2 split=6 passes=6 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=64x64w4 split=1 passes=1 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=64x64w4 split=2 passes=2 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=64x64w4 split=4 passes=4 diff=0 of 20971520
+KSBITS shape=d27 M=4096 N=5120 K=17408 tile=64x64w4 split=6 passes=6 diff=0 of 20971520
+KS shape=d27 M=4096 N=5120 K=17408 cell=shipped:t128x64w4 median_tflops=45.66 p10=35.60 p90=48.75 us_per_call=15991.1
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks64x64w2/s1 median_tflops=44.40 p10=38.96 p90=50.43 us_per_call=16443.2
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks64x64w2/s2 median_tflops=47.71 p10=42.15 p90=50.08 us_per_call=15304.8
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks64x64w2/s4 median_tflops=44.62 p10=40.72 p90=49.48 us_per_call=16362.5
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks64x64w2/s6 median_tflops=46.23 p10=41.84 p90=48.55 us_per_call=15795.1
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks128x64w4/s1 median_tflops=45.54 p10=38.24 p90=50.18 us_per_call=16031.5
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks128x64w4/s2 median_tflops=43.29 p10=40.26 p90=49.63 us_per_call=16867.3
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks128x64w4/s4 median_tflops=45.35 p10=41.03 p90=48.03 us_per_call=16101.9
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks128x64w4/s6 median_tflops=44.44 p10=40.55 p90=47.19 us_per_call=16430.2
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks32x128w2/s1 median_tflops=45.27 p10=42.41 p90=49.47 us_per_call=16129.3
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks32x128w2/s2 median_tflops=47.63 p10=42.81 p90=49.07 us_per_call=15330.5
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks32x128w2/s4 median_tflops=44.28 p10=40.79 p90=46.65 us_per_call=16491.1
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks32x128w2/s6 median_tflops=44.48 p10=39.87 p90=47.94 us_per_call=16415.3
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks64x64w4/s1 median_tflops=37.62 p10=34.25 p90=40.49 us_per_call=19407.5
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks64x64w4/s2 median_tflops=40.44 p10=36.68 p90=43.30 us_per_call=18056.8
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks64x64w4/s4 median_tflops=42.93 p10=39.44 p90=45.62 us_per_call=17009.5
+KS shape=d27 M=4096 N=5120 K=17408 cell=ks64x64w4/s6 median_tflops=42.88 p10=39.37 p90=45.27 us_per_call=17026.7
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=64x64w2 split=1 passes=1 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=64x64w2 split=2 passes=2 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=64x64w2 split=4 passes=4 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=64x64w2 split=6 passes=6 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=128x64w4 split=1 passes=1 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=128x64w4 split=2 passes=2 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=128x64w4 split=4 passes=4 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=128x64w4 split=6 passes=6 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=32x128w2 split=1 passes=1 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=32x128w2 split=2 passes=2 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=32x128w2 split=4 passes=4 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=32x128w2 split=6 passes=6 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=64x64w4 split=1 passes=1 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=64x64w4 split=2 passes=2 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=64x64w4 split=4 passes=4 diff=0 of 2621440
+KSBITS shape=sq27 M=512 N=5120 K=5120 tile=64x64w4 split=6 passes=6 diff=0 of 2621440
+KS shape=sq27 M=512 N=5120 K=5120 cell=shipped:t64x64w2 median_tflops=50.03 p10=40.79 p90=58.51 us_per_call=536.6
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks64x64w2/s1 median_tflops=50.16 p10=40.56 p90=57.82 us_per_call=535.2
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks64x64w2/s2 median_tflops=48.64 p10=39.29 p90=57.33 us_per_call=551.9
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks64x64w2/s4 median_tflops=45.90 p10=37.40 p90=54.42 us_per_call=584.8
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks64x64w2/s6 median_tflops=43.85 p10=35.87 p90=50.26 us_per_call=612.2
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks128x64w4/s1 median_tflops=47.66 p10=38.97 p90=57.94 us_per_call=563.2
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks128x64w4/s2 median_tflops=45.74 p10=37.99 p90=54.05 us_per_call=586.9
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks128x64w4/s4 median_tflops=42.86 p10=35.47 p90=49.68 us_per_call=626.3
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks128x64w4/s6 median_tflops=39.82 p10=33.34 p90=46.01 us_per_call=674.2
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks32x128w2/s1 median_tflops=50.51 p10=41.13 p90=58.45 us_per_call=531.4
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks32x128w2/s2 median_tflops=48.49 p10=39.07 p90=56.88 us_per_call=553.6
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks32x128w2/s4 median_tflops=45.44 p10=36.94 p90=52.71 us_per_call=590.8
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks32x128w2/s6 median_tflops=42.57 p10=34.86 p90=49.04 us_per_call=630.6
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks64x64w4/s1 median_tflops=42.79 p10=35.01 p90=50.55 us_per_call=627.3
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks64x64w4/s2 median_tflops=44.62 p10=36.83 p90=51.21 us_per_call=601.7
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks64x64w4/s4 median_tflops=44.88 p10=36.87 p90=51.06 us_per_call=598.1
+KS shape=sq27 M=512 N=5120 K=5120 cell=ks64x64w4/s6 median_tflops=42.90 p10=35.33 p90=48.52 us_per_call=625.8
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=64x64w2 split=1 passes=1 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=64x64w2 split=2 passes=2 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=64x64w2 split=4 passes=4 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=64x64w2 split=6 passes=6 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=128x64w4 split=1 passes=1 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=128x64w4 split=2 passes=2 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=128x64w4 split=4 passes=4 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=128x64w4 split=6 passes=6 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=32x128w2 split=1 passes=1 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=32x128w2 split=2 passes=2 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=32x128w2 split=4 passes=4 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=32x128w2 split=6 passes=6 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=64x64w4 split=1 passes=1 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=64x64w4 split=2 passes=2 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=64x64w4 split=4 passes=4 diff=0 of 10485760
+KSBITS shape=sq27 M=2048 N=5120 K=5120 tile=64x64w4 split=6 passes=6 diff=0 of 10485760
+KS shape=sq27 M=2048 N=5120 K=5120 cell=shipped:t128x64w4 median_tflops=49.61 p10=41.40 p90=50.76 us_per_call=2164.3
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks64x64w2/s1 median_tflops=49.54 p10=41.13 p90=51.18 us_per_call=2167.6
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks64x64w2/s2 median_tflops=48.17 p10=39.50 p90=51.09 us_per_call=2229.3
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks64x64w2/s4 median_tflops=46.89 p10=41.00 p90=49.32 us_per_call=2290.1
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks64x64w2/s6 median_tflops=45.26 p10=38.78 p90=46.31 us_per_call=2372.3
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks128x64w4/s1 median_tflops=47.58 p10=40.11 p90=48.92 us_per_call=2256.9
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks128x64w4/s2 median_tflops=45.71 p10=38.27 p90=47.67 us_per_call=2348.9
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks128x64w4/s4 median_tflops=43.10 p10=37.39 p90=44.77 us_per_call=2491.3
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks128x64w4/s6 median_tflops=40.64 p10=35.39 p90=41.90 us_per_call=2642.1
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks32x128w2/s1 median_tflops=49.64 p10=41.83 p90=52.21 us_per_call=2163.1
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks32x128w2/s2 median_tflops=48.39 p10=41.35 p90=50.60 us_per_call=2219.1
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks32x128w2/s4 median_tflops=45.44 p10=39.16 p90=48.59 us_per_call=2363.1
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks32x128w2/s6 median_tflops=41.66 p10=37.91 p90=47.26 us_per_call=2577.2
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks64x64w4/s1 median_tflops=46.36 p10=39.06 p90=48.46 us_per_call=2316.1
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks64x64w4/s2 median_tflops=46.73 p10=38.79 p90=48.29 us_per_call=2297.8
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks64x64w4/s4 median_tflops=46.90 p10=37.42 p90=48.06 us_per_call=2289.4
+KS shape=sq27 M=2048 N=5120 K=5120 cell=ks64x64w4/s6 median_tflops=45.14 p10=36.42 p90=46.54 us_per_call=2378.5
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=64x64w2 split=1 passes=1 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=64x64w2 split=2 passes=2 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=64x64w2 split=4 passes=4 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=64x64w2 split=6 passes=6 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=128x64w4 split=1 passes=1 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=128x64w4 split=2 passes=2 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=128x64w4 split=4 passes=4 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=128x64w4 split=6 passes=6 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=32x128w2 split=1 passes=1 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=32x128w2 split=2 passes=2 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=32x128w2 split=4 passes=4 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=32x128w2 split=6 passes=6 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=64x64w4 split=1 passes=1 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=64x64w4 split=2 passes=2 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=64x64w4 split=4 passes=4 diff=0 of 20971520
+KSBITS shape=sq27 M=4096 N=5120 K=5120 tile=64x64w4 split=6 passes=6 diff=0 of 20971520
+KS shape=sq27 M=4096 N=5120 K=5120 cell=shipped:t128x64w4 median_tflops=47.97 p10=39.26 p90=51.19 us_per_call=4476.9
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks64x64w2/s1 median_tflops=47.93 p10=39.20 p90=52.34 us_per_call=4480.5
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks64x64w2/s2 median_tflops=42.97 p10=40.33 p90=50.20 us_per_call=4997.3
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks64x64w2/s4 median_tflops=44.81 p10=37.52 p90=49.56 us_per_call=4792.6
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks64x64w2/s6 median_tflops=43.52 p10=37.20 p90=48.26 us_per_call=4934.1
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks128x64w4/s1 median_tflops=43.48 p10=38.43 p90=50.26 us_per_call=4939.4
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks128x64w4/s2 median_tflops=41.29 p10=37.35 p90=48.27 us_per_call=5200.5
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks128x64w4/s4 median_tflops=39.71 p10=36.01 p90=46.23 us_per_call=5407.4
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks128x64w4/s6 median_tflops=40.87 p10=35.09 p90=43.85 us_per_call=5254.0
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks32x128w2/s1 median_tflops=47.76 p10=40.20 p90=51.61 us_per_call=4496.4
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks32x128w2/s2 median_tflops=46.86 p10=41.21 p90=51.76 us_per_call=4582.9
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks32x128w2/s4 median_tflops=45.06 p10=38.25 p90=48.77 us_per_call=4766.2
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks32x128w2/s6 median_tflops=45.37 p10=36.97 p90=47.05 us_per_call=4733.5
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks64x64w4/s1 median_tflops=47.21 p10=39.35 p90=49.01 us_per_call=4548.6
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks64x64w4/s2 median_tflops=47.73 p10=39.33 p90=49.66 us_per_call=4499.4
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks64x64w4/s4 median_tflops=46.15 p10=39.39 p90=48.78 us_per_call=4653.1
+KS shape=sq27 M=4096 N=5120 K=5120 cell=ks64x64w4/s6 median_tflops=42.90 p10=37.37 p90=47.60 us_per_call=5005.5
+exit 0
