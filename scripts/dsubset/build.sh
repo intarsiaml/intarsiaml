@@ -5,12 +5,13 @@
 set -euo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 REPO="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
-H=spark1; L='~/intarsia-dsubset'; R="$L/src"
+H=${HOST:-spark1}; L='~/intarsia-dsubset'; R="$L/src"
 RPATH='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'
+SEED=${SEED:-~/intarsia-interleave/src/target}  # a target dir to seed the first build from (another lane's)
 rsh() { ssh -n -o BatchMode=yes $H "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 SHA=$(git -C "$REPO" rev-parse "${REV:-HEAD}"); STAMP="dsubset-${SHA:0:12}"
 rsh "mkdir -p $R $L/bin $L/out"
-rsh "[ -d $R/target ] || { [ -d ~/intarsia-interleave/src/target ] && cp -a ~/intarsia-interleave/src/target $R/target; true; }"
+rsh "[ -d $R/target ] || { [ -d $SEED ] && cp -a $SEED $R/target; true; }"
 rsh "rm -rf $L/stage && mkdir -p $L/stage"
 git -C "$REPO" archive "$SHA" | ssh -o BatchMode=yes $H "tar -x -C $L/stage"
 rsh "rsync -a --delete --exclude target --exclude golden --exclude tools/.venv --exclude out $L/stage/ $R/ && rm -rf $L/stage"
