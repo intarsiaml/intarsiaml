@@ -47,13 +47,15 @@ for part in ${PARTS:?PARTS}; do
           ref) e="X=1"; args="--spec off --max-batch 2" ;;
           s2)  e="$OPT"; args="--spec mtp --spec-k 2 $(head_args S65536) --max-batch 2" ;;
           s1)  e="X=1"; args="--spec mtp --spec-k 2 $(head_args S65536) --max-batch 1" ;;
+          s1f) e="X=1"; args="--spec mtp --spec-k 2 $(head_args F) --max-batch 1" ;;          # controls: the single-sequence engine
+          s1p) e="X=1"; args="--spec mtp --spec-k 2 $(head_args P131072) --max-batch 1" ;;    # with the full / prefix head
         esac
         if start_serve "ids-$a" "$e" $args; then
           python3 "$S/ids.py" "$URL" guidance "$OUT/ids-$a.json" "http://$HN:$PORT/metrics" 2>&1 | tee -a "$LOG"
           finish_serve "ids-$a"
         fi
       done
-      python3 "$S/ids_compare.py" "$OUT" ${IDARMS:-ref s2 s1} 2>&1 | tee -a "$LOG" "$OUT/ids-compare.txt"
+      python3 "$S/ids_compare.py" "$OUT" ${IDCMP:-${IDARMS:-ref s2 s1}} 2>&1 | tee -a "$LOG" "$OUT/ids-compare${IDTAG:-}.txt"
       ;;
     accept)
       for a in ${ARMS:-F P65536 P131072 S32768 S65536}; do
