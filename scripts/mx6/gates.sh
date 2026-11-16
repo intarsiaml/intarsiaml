@@ -8,6 +8,7 @@
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 LOGNAME_=gates-${PARTS_TAG:-all}; source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+rsh "test -x $B/intarsia-main && test -x $B/intarsia-mx6" || { echo "binaries missing in $B on $HOST (scripts/mx6/build.sh has not finished)"; exit 3; }
 scp -q -o BatchMode=yes "$S/memwatch.sh" $HOST:intarsia-mx6/memwatch.sh
 log "gates start ($TAG on $HOST); vLLM: $(curl -s -o /dev/null -w '%{http_code}' http://$HN:$VPORT/v1/models); earlyoom: $(rsh 'systemctl is-active earlyoom'); $(rsh 'free -g | sed -n 2p'); binaries: $(rsh "$B/intarsia-main --version | head -1; $B/intarsia-mx6 --version | head -1" | tr '\n' ' ')"
 for part in ${PARTS:-plan ids}; do

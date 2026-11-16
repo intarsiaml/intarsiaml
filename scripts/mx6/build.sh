@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# mx6: build the CUDA CLI of origin/main and of the mx6 branch on spark1 into ~/intarsia-mx6/bin, copy both to spark2. REVS="main=<sha> mx6=<sha>". Seeded from another lane's target dir. Run under:
-#   fleetq run --host spark1 --load cpu --mem 34 --expect 60 --label "mx6: build" -- env REVS="main=<sha> mx6=<sha>" scripts/mx6/build.sh
+# mx6: build the CUDA CLI of the mx6 branch on BUILD_HOST (default spark2) into ~/intarsia-mx6/bin, take lane flipprep's origin/main binary as `main`, copy both to the other Spark. REVS="main=<sha> mx6=<sha>". Seeded from another lane's target dir. Run under:
+#   fleetq run --host spark2 --load cpu --mem 34 --expect 25 --label "mx6: build" -- env REVS="main=<sha> mx6=<sha>" scripts/mx6/build.sh
 set -euo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 REPO="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
-H=spark1; L='~/intarsia-mx6'; R="$L/src"
+H=${BUILD_HOST:-spark2}; O=$([ "$H" = spark1 ] && echo spark2 || echo spark1); L='~/intarsia-mx6'; R="$L/src"
 RPATH='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'
 rsh() { ssh -n -o BatchMode=yes $H "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 rsh "mkdir -p $R $L/bin $L/out"
-rsh "[ -d $R/target ] || { [ -d ~/intarsia-stream-burst/src/target ] && cp -a ~/intarsia-stream-burst/src/target $R/target; true; }"
+rsh "[ -d $R/target ] || { d=\$(ls -d ~/intarsia-flipprep/src/target ~/intarsia-stream-burst/src/target 2>/dev/null | head -1); [ -n \"\$d\" ] && cp -a \$d $R/target; true; }"
 scp -q -o BatchMode=yes "$REPO/scripts/mx6/memwatch.sh" $H:intarsia-mx6/memwatch.sh
 for spec in ${REVS:?REVS}; do
   name=${spec%%=*}; SHA=$(git -C "$REPO" rev-parse "${spec#*=}"); STAMP="mx6-$name-${SHA:0:12}"
@@ -24,7 +24,7 @@ done
 # crates/intarsia-core/src/hostprof.rs, a test, since: `git diff c5ce87bc8 origin/main -- crates kernels recipes Cargo.toml Cargo.lock`)
 rsh "[ -f $L/bin/intarsia-main ] || cp -p ~/intarsia-flipprep/bin/intarsia-main $L/bin/intarsia-main; ls -la $L/bin; sha256sum $L/bin/intarsia-main | cut -c1-16"
 rsh "df -h ~ | tail -1; du -sh $L; free -g | sed -n 2p; systemctl is-active earlyoom"
-ssh -n -o BatchMode=yes spark2 "mkdir -p ~/intarsia-mx6/bin ~/intarsia-mx6/out"
-for n in main mx6; do rsh "scp -q -o BatchMode=yes $L/bin/intarsia-$n spark2:intarsia-mx6/bin/intarsia-$n"; done
-scp -q -o BatchMode=yes "$REPO/scripts/mx6/memwatch.sh" spark2:intarsia-mx6/memwatch.sh
-ssh -n -o BatchMode=yes spark2 "ls -la ~/intarsia-mx6/bin"
+ssh -n -o BatchMode=yes $O "mkdir -p ~/intarsia-mx6/bin ~/intarsia-mx6/out"
+for n in main mx6; do rsh "scp -q -o BatchMode=yes $L/bin/intarsia-$n $O:intarsia-mx6/bin/intarsia-$n"; done
+scp -q -o BatchMode=yes "$REPO/scripts/mx6/memwatch.sh" $O:intarsia-mx6/memwatch.sh
+ssh -n -o BatchMode=yes $O "ls -la ~/intarsia-mx6/bin"
