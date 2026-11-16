@@ -1,0 +1,52 @@
+[localeval] calibrated: 22.1 tokens/sentence, 53 base tokens, ctx=18432
+[localeval]   4096 tok rep 1/5: prompt=4085 ttft=0.34s prefill=11932 tok/s decode=213.3 tok/s peak=233.4 tok/s out=64
+[localeval]   4096 tok rep 2/5: prompt=4088 ttft=0.34s prefill=11938 tok/s decode=228.4 tok/s peak=242.0 tok/s out=64
+[localeval]   4096 tok rep 3/5: prompt=4089 ttft=0.35s prefill=11774 tok/s decode=223.2 tok/s peak=244.0 tok/s out=64
+[localeval]   4096 tok rep 4/5: prompt=4090 ttft=0.34s prefill=11950 tok/s decode=216.3 tok/s peak=270.6 tok/s out=64
+[localeval]   4096 tok rep 5/5: prompt=4093 ttft=0.34s prefill=11901 tok/s decode=176.5 tok/s peak=203.6 tok/s out=64
+[localeval]  16384 tok rep 1/5: prompt=16656 ttft=1.56s prefill=10674 tok/s decode=169.3 tok/s peak=217.9 tok/s out=64
+[localeval]  16384 tok rep 2/5: prompt=16658 ttft=1.56s prefill=10648 tok/s decode=201.3 tok/s peak=228.7 tok/s out=64
+[localeval]  16384 tok rep 3/5: prompt=16655 ttft=1.57s prefill=10600 tok/s decode=132.1 tok/s peak=164.1 tok/s out=64
+[localeval]  16384 tok rep 4/5: prompt=16652 ttft=1.57s prefill=10615 tok/s decode=154.1 tok/s peak=234.6 tok/s out=64
+[localeval]  16384 tok rep 5/5: prompt=16657 ttft=1.65s prefill=10124 tok/s decode=182.8 tok/s peak=276.7 tok/s out=64
+# localeval: adhoc — 2026-11-16T00:10
+
+- model: `qwen36-35b` on ? (?), url `http://tatooine:8090/v1`
+- thinking: off; run kind: speed; label: mtpsnap-pr-r4
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d96f899
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8090/v1 --model qwen36-35b --label mtpsnap-pr-r4 --sizes 4096,16384 --gen 64 --reps 5 --thinking off --wait-idle 60 --recipe HIP_VISIBLE_DEVICES=0 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b --spec mtp --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor (tree mtpsnap-gpu, bin pr, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)`
+- result file: `results/20261116-001036-adhoc-mtpsnap-pr-r4/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b --spec mtp --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor (tree mtpsnap-gpu, bin pr, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)
+````
+
+## Speed sweep
+
+served `qwen36-35b`, fingerprint `None`, ctx 18432, 5 reps, 64 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4089 | 0.34 | 11932 (11774–11950) | - | 216.3 (176.5–228.4) | 242.0 (203.6–270.6) | - | - | 64 |
+| 16656 | 1.57 | 10615 (10124–10674) | 10242 | 169.3 (132.1–201.3) | 228.7 (164.1–276.7) | - | - | 64 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 24.0% at 4096 tokens: noisy; rerun before comparing
+- decode spread 40.9% at 16384 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261116-001036-adhoc-mtpsnap-pr-r4/result.json
+[localeval] logged to unanimis: 3808ecfa-695b-482e-bee1-df856cd6950b

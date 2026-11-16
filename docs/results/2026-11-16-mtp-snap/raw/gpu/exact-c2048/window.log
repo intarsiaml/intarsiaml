@@ -1,0 +1,27 @@
+fleetq: #9628 running on tatooine-r9700, tatooine-r9700-2: scripts/mtp-snap-gpu/exact-window.sh
+23:53:07 guard: [guard] radiance stopped 2026-11-15 23:53:07
+23:53:07 serve pr-c2048-default-warm: bin=pr extra='--prefill-chunk 2048' env=''
+23:53:29 serve pr-c2048-default-warm: up after 24 s
+A c2048 prompt 4500 cached 0 completion 32 spec delta {'intarsia_spec_steps_total': 15.0, 'intarsia_spec_proposed_tokens_total': 29.0, 'intarsia_spec_accepted_tokens_total': 15.0, 'intarsia_tokens_cached_total': 0.0}
+B c2048 prompt 3000 cached 2048 completion 128 spec delta {'intarsia_spec_steps_total': 47.0, 'intarsia_spec_proposed_tokens_total': 94.0, 'intarsia_spec_accepted_tokens_total': 80.0, 'intarsia_tokens_cached_total': 2048.0}
+23:53:33 serve pr-c2048-exact-warm: bin=pr extra='--prefill-chunk 2048' env='INTARSIA_PREFIX_REUSE=exact'
+23:53:51 serve pr-c2048-exact-warm: up after 21 s
+A c2048 prompt 4500 cached 0 completion 32 spec delta {'intarsia_spec_steps_total': 15.0, 'intarsia_spec_proposed_tokens_total': 29.0, 'intarsia_spec_accepted_tokens_total': 15.0, 'intarsia_tokens_cached_total': 0.0}
+B c2048 prompt 3000 cached 2048 completion 128 spec delta {'intarsia_spec_steps_total': 47.0, 'intarsia_spec_proposed_tokens_total': 94.0, 'intarsia_spec_accepted_tokens_total': 80.0, 'intarsia_tokens_cached_total': 2048.0}
+23:53:54 serve main-c2048-default-warm: bin=main extra='--prefill-chunk 2048' env=''
+23:54:15 serve main-c2048-default-warm: up after 24 s
+A c2048 prompt 4500 cached 0 completion 32 spec delta {'intarsia_spec_steps_total': 15.0, 'intarsia_spec_proposed_tokens_total': 29.0, 'intarsia_spec_accepted_tokens_total': 15.0, 'intarsia_tokens_cached_total': 0.0}
+B c2048 prompt 3000 cached 0 completion 128 spec delta {'intarsia_spec_steps_total': 47.0, 'intarsia_spec_proposed_tokens_total': 94.0, 'intarsia_spec_accepted_tokens_total': 80.0, 'intarsia_tokens_cached_total': 0.0}
+23:54:18 serve main-c2048-macro0-warm: bin=main extra='--prefill-chunk 2048' env='INTARSIA_PREFILL_MACRO=0'
+23:54:40 serve main-c2048-macro0-warm: up after 24 s
+A c2048 prompt 4500 cached 0 completion 32 spec delta {'intarsia_spec_steps_total': 15.0, 'intarsia_spec_proposed_tokens_total': 29.0, 'intarsia_spec_accepted_tokens_total': 15.0, 'intarsia_tokens_cached_total': 0.0}
+B c2048 prompt 3000 cached 2048 completion 128 spec delta {'intarsia_spec_steps_total': 47.0, 'intarsia_spec_proposed_tokens_total': 94.0, 'intarsia_spec_accepted_tokens_total': 80.0, 'intarsia_tokens_cached_total': 2048.0}
+23:54:42 serve pr-c2048-cold: bin=pr extra='--prefill-chunk 2048' env=''
+23:55:01 serve pr-c2048-cold: up after 21 s
+B c2048 prompt 3000 cached 0 completion 128 spec delta {'intarsia_spec_steps_total': 47.0, 'intarsia_spec_proposed_tokens_total': 94.0, 'intarsia_spec_accepted_tokens_total': 80.0, 'intarsia_tokens_cached_total': 0.0}
+23:55:03 serve main-c2048-cold: bin=main extra='--prefill-chunk 2048' env=''
+23:55:24 serve main-c2048-cold: up after 24 s
+B c2048 prompt 3000 cached 0 completion 128 spec delta {'intarsia_spec_steps_total': 47.0, 'intarsia_spec_proposed_tokens_total': 94.0, 'intarsia_spec_accepted_tokens_total': 80.0, 'intarsia_tokens_cached_total': 0.0}
+23:55:26 done, time left 2257s
+23:55:36 guard: [guard] radiance answers 2026-11-15 23:55:36 (after 15 s)
+fleetq: #9628 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

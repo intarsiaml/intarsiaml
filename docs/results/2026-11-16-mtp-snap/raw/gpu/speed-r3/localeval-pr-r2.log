@@ -1,0 +1,55 @@
+[localeval] calibrated: 22.0 tokens/sentence, 52 base tokens, ctx=18432
+[localeval]   1024 tok rep 1/3: prompt=995 ttft=0.12s prefill=8560 tok/s decode=182.4 tok/s peak=274.6 tok/s out=64
+[localeval]   1024 tok rep 2/3: prompt=992 ttft=0.12s prefill=8214 tok/s decode=206.8 tok/s peak=228.5 tok/s out=64
+[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.12s prefill=8074 tok/s decode=187.1 tok/s peak=249.3 tok/s out=64
+[localeval]   4096 tok rep 1/3: prompt=4092 ttft=0.35s prefill=11758 tok/s decode=236.8 tok/s peak=264.4 tok/s out=64
+[localeval]   4096 tok rep 2/3: prompt=4088 ttft=0.35s prefill=11836 tok/s decode=213.5 tok/s peak=283.3 tok/s out=64
+[localeval]   4096 tok rep 3/3: prompt=4090 ttft=0.35s prefill=11846 tok/s decode=240.2 tok/s peak=265.5 tok/s out=64
+[localeval]  16384 tok rep 1/3: prompt=16677 ttft=1.57s prefill=10646 tok/s decode=181.5 tok/s peak=229.5 tok/s out=64
+[localeval]  16384 tok rep 2/3: prompt=16678 ttft=1.57s prefill=10609 tok/s decode=181.9 tok/s peak=213.6 tok/s out=64
+[localeval]  16384 tok rep 3/3: prompt=16679 ttft=1.57s prefill=10625 tok/s decode=162.8 tok/s peak=214.4 tok/s out=64
+# localeval: adhoc — 2026-11-16T00:03
+
+- model: `qwen36-35b` on ? (?), url `http://tatooine:8090/v1`
+- thinking: off; run kind: speed; label: mtpsnap-pr-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d96f899
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8090/v1 --model qwen36-35b --label mtpsnap-pr-r2 --sizes 1024,4096,16384 --gen 64 --reps 3 --thinking off --wait-idle 60 --recipe HIP_VISIBLE_DEVICES=0 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b --spec mtp --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor (tree mtpsnap-gpu, bin pr, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)`
+- result file: `results/20261116-000349-adhoc-mtpsnap-pr-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0 intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b --spec mtp --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor (tree mtpsnap-gpu, bin pr, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)
+````
+
+## Speed sweep
+
+served `qwen36-35b`, fingerprint `None`, ctx 18432, 3 reps, 64 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.12 | 8214 (8074–8560) * | - | 187.1 (182.4–206.8) | 249.3 (228.5–274.6) | - | - | 64 |
+| 4090 | 0.34 | 11836 (11758–11846) | 13830 | 236.8 (213.5–240.2) | 265.5 (264.4–283.3) | - | - | 64 |
+| 16678 | 1.57 | 10625 (10609–10646) | 10276 | 181.5 (162.8–181.9) | 214.4 (213.6–229.5) | - | - | 64 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 13.0% at 1024 tokens: noisy; rerun before comparing
+- decode spread 11.3% at 4096 tokens: noisy; rerun before comparing
+- decode spread 10.5% at 16384 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261116-000349-adhoc-mtpsnap-pr-r2/result.json
+[localeval] logged to unanimis: 164431ef-210c-41fe-a66e-c7ff066e1cd7

@@ -1,0 +1,23 @@
+fleetq: #9631 running on tatooine-r9700, tatooine-r9700-2: scripts/mtp-snap-gpu/speed-window.sh
+23:59:16 guard: [guard] radiance stopped 2026-11-15 23:59:16
+23:59:16 serve main-r1: bin=main extra='' env=''
+23:59:38 serve main-r1: up after 24 s
+23:59:43 round 1 arm main: localeval exit 0 - result file: `results/20261115-235938-adhoc-mtpsnap-main-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261115-235938-adhoc-mtpsnap-main-r1/result.json|
+23:59:44 serve pr-r1: bin=pr extra='' env=''
+00:00:05 serve pr-r1: up after 24 s
+00:00:12 round 1 arm pr: localeval exit 0 - result file: `results/20261116-000006-adhoc-mtpsnap-pr-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261116-000006-adhoc-mtpsnap-pr-r1/result.json|
+00:00:12 serve pr-r2: bin=pr extra='' env=''
+00:00:31 serve pr-r2: up after 21 s
+00:00:37 round 2 arm pr: localeval exit 0 - result file: `results/20261116-000032-adhoc-mtpsnap-pr-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261116-000032-adhoc-mtpsnap-pr-r2/result.json|
+00:00:38 serve main-r2: bin=main extra='' env=''
+00:00:59 serve main-r2: up after 24 s
+00:01:05 round 2 arm main: localeval exit 0 - result file: `results/20261116-000100-adhoc-mtpsnap-main-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261116-000100-adhoc-mtpsnap-main-r2/result.json|
+00:01:06 serve main-r3: bin=main extra='' env=''
+00:01:27 serve main-r3: up after 24 s
+00:01:33 round 3 arm main: localeval exit 0 - result file: `results/20261116-000128-adhoc-mtpsnap-main-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261116-000128-adhoc-mtpsnap-main-r3/result.json|
+00:01:34 serve pr-r3: bin=pr extra='' env=''
+00:01:55 serve pr-r3: up after 24 s
+00:02:01 round 3 arm pr: localeval exit 0 - result file: `results/20261116-000156-adhoc-mtpsnap-pr-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261116-000156-adhoc-mtpsnap-pr-r3/result.json|
+00:02:02 done, time left 2231s
+00:02:12 guard: [guard] radiance answers 2026-11-16 00:02:12 (after 15 s)
+fleetq: #9631 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
