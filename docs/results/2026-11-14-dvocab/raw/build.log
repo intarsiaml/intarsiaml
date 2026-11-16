@@ -1,0 +1,21 @@
+fleetq: #9320 running on spark2: scripts/dvocab/build.sh
+01:52:56
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-dvocab/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-dvocab/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsia-dvocab/src/crates/intarsia-ui)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsia-dvocab/src/crates/intarsia-bench)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsia-dvocab/src/crates/intarsia-tui)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsia-dvocab/src/crates/intarsia-engram)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-dvocab/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsia-dvocab/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsia-dvocab/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsia-dvocab/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 05s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  190G  95% /
+3.1G	/home/nvidia/intarsia-dvocab
+Mem:             121          49          26           0          47          72
+active
+01:58:04
+git sha 4a62a9743818898dda506b26c3490da78feffd65
+fleetq: #9320 done (exit 0)
