@@ -1689,6 +1689,17 @@ fn prefill_steps(ids: &[u32], from: usize, chunk: usize) -> Vec<ScriptStep> {
     steps
 }
 
+/// The steps that prefill the reused part `turn2[..cached]` with no logits on the last one, or `None` when `cached` is 0 (an empty
+/// step would make `forward_script` fail with "empty token list").
+fn prefilled_reply_steps(turn2: &[u32], cached: usize, chunk: usize) -> Option<Vec<ScriptStep>> {
+    if cached == 0 {
+        return None;
+    }
+    let mut steps = prefill_steps(&turn2[..cached], 0, chunk);
+    steps.last_mut()?.logits = false;
+    Some(steps)
+}
+
 /// The last `m` logits rows of a script's result.
 fn last_rows(res: Vec<Option<Vec<f32>>>, m: usize) -> Vec<Vec<f32>> {
     let rows: Vec<Vec<f32>> = res.into_iter().flatten().collect();
@@ -1771,9 +1782,11 @@ fn reuse_dump(engine: &dyn Engine, vocab: usize, chunk: usize, turn1: &[u32], fe
     let own_rows = t.lock().unwrap().clone();
     let stream: Vec<u32> = forced.as_ref().map_or_else(|| own.clone(), |f| f.2.clone());
     let (cold_s, warm_s) = continue_rows(engine, chunk, turn1, fed, turn2, cached, &stream, m)?;
-    let mut prefilled = prefill_steps(&turn2[..cached], 0, chunk);
-    prefilled.last_mut().unwrap().logits = false;
-    let warm_pf = script_rows(engine, prefilled, turn2, cached, chunk, &stream, m)?;
+    // nothing reused (`cached` 0): no reply rows to prefill, and the prefilled-reply run is the cold run itself
+    let warm_pf = match prefilled_reply_steps(turn2, cached, chunk) {
+        Some(prefilled) => script_rows(engine, prefilled, turn2, cached, chunk, &stream, m)?,
+        None => cold_s.clone(),
+    };
     std::fs::create_dir_all(dir)?;
     write_rows(&dir.join("cold.f32"), &cold_s)?;
     write_rows(&dir.join("warm.f32"), &warm_s)?;
@@ -1847,12 +1860,15 @@ fn reuse_diag(engine: &dyn Engine, vocab: usize, chunk: usize, turn1: &[u32], fe
         let other = script_rows(engine, Vec::new(), turn2, 0, c2, &c1_tok, m)?;
         print_cmp(&format!("cold chunk {chunk} vs cold chunk {c2}"), &cmp_rows(&cold_s, &other));
     }
-    // reply rows prefilled instead of decoded, then turn 2 at the warm boundaries: splits warm-vs-cold in two causes
-    let mut prefilled = prefill_steps(&turn2[..cached], 0, chunk);
-    prefilled.last_mut().unwrap().logits = false;
-    let warm_pf = script_rows(engine, prefilled, turn2, cached, chunk, &c1_tok, m)?;
-    print_cmp("cold vs warm with prefilled (not decoded) reply", &cmp_rows(&cold_s, &warm_pf));
-    print_cmp("warm vs warm with prefilled reply (decode-KV only)", &cmp_rows(&warm_s, &warm_pf));
+    // reply rows prefilled instead of decoded, then turn 2 at the warm boundaries: splits warm-vs-cold in two causes.
+    // Nothing was reused (`cached` 0) means no reply rows to prefill: the comparison is the cold run itself, and an empty step would fail
+    if let Some(prefilled) = prefilled_reply_steps(turn2, cached, chunk) {
+        let warm_pf = script_rows(engine, prefilled, turn2, cached, chunk, &c1_tok, m)?;
+        print_cmp("cold vs warm with prefilled (not decoded) reply", &cmp_rows(&cold_s, &warm_pf));
+        print_cmp("warm vs warm with prefilled reply (decode-KV only)", &cmp_rows(&warm_s, &warm_pf));
+    } else {
+        println!("    (nothing reused: the prefilled-reply comparisons are skipped)");
+    }
     // first divergence of the engine streams, with the margin the two tokens had in each run
     if let Some(d) = first_divergence(&w1_tok, &c1_tok).filter(|&d| d < w1.len().min(c1.len())) {
         let (w, c) = (w1_tok[d] as usize, c1_tok[d] as usize);
@@ -3455,6 +3471,18 @@ pub fn run(mut args: AccuracyArgs) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn prefilled_reply_steps_skips_the_empty_case() {
+        let ids: Vec<u32> = (0..10).collect();
+        // nothing reused: the old code built one empty step, which the engine rejects as "empty token list"
+        assert!(super::prefilled_reply_steps(&ids, 0, 4).is_none());
+        assert!(super::prefill_steps(&ids[..0], 0, 4).iter().any(|s| s.ids.is_empty()));
+        let s = super::prefilled_reply_steps(&ids, 6, 4).unwrap();
+        assert!(s.iter().all(|x| !x.ids.is_empty()));
+        assert_eq!(s.iter().map(|x| x.ids.len()).sum::<usize>(), 6);
+        assert!(!s.last().unwrap().logits);
+    }
+
     #[test]
     fn golden_dirs_env_var_comes_first() {
         let dirs = super::golden_dirs_with(Some("/elsewhere/golden".into()), Some("/co/golden".into()));
