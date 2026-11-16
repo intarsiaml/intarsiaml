@@ -3344,6 +3344,8 @@ fn draft_subset_batched_mtp_equals_solo() {
         m.enable_verify(3).unwrap();
         m.allow_recurrent_batch().unwrap();
         m.enable_batch(2).unwrap();
+        // lane mx6: the engine runs batched verify only where the plan covers its row counts
+        m.enable_verify_batch(2).unwrap();
         m.configure_plan(&Default::default(), None).unwrap();
         let mut o = intarsia_core::BatchedOptions::new(2, 64);
         o.mtp_max_b = 2;
