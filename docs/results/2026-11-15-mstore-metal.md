@@ -242,3 +242,5 @@ byte-identical to the pinned main-equivalent binary on the 8B, 27B and 35B (#959
   `Engine::flush_prefix_store` after the HTTP server stops. New test `store_drop_waits_for_the_disk_writer` fails without
   it, passes with it. CPU suites on the branch (#9592): core lib 204, `prefix_store` 34, `mtp` 51, `batch_engine` 9,
   server 53 / 58 / 3, `docs_env_vars` 2, all passed. `plan show --json` check queued (#9594).
+- 01:0x PR 1 = #398 (this branch: gate, fix, results; default unchanged). PR 2 = #399 (`mstore-default`, based on
+  `mstore`: `INTARSIA_MTP_STORE` unset = on for Metal; USER DECISION, do not merge). No store-on default proposed.
