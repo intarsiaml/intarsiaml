@@ -1782,9 +1782,11 @@ fn reuse_dump(engine: &dyn Engine, vocab: usize, chunk: usize, turn1: &[u32], fe
     let own_rows = t.lock().unwrap().clone();
     let stream: Vec<u32> = forced.as_ref().map_or_else(|| own.clone(), |f| f.2.clone());
     let (cold_s, warm_s) = continue_rows(engine, chunk, turn1, fed, turn2, cached, &stream, m)?;
-    let mut prefilled = prefill_steps(&turn2[..cached], 0, chunk);
-    prefilled.last_mut().unwrap().logits = false;
-    let warm_pf = script_rows(engine, prefilled, turn2, cached, chunk, &stream, m)?;
+    // nothing reused (`cached` 0): no reply rows to prefill, and the prefilled-reply run is the cold run itself
+    let warm_pf = match prefilled_reply_steps(turn2, cached, chunk) {
+        Some(prefilled) => script_rows(engine, prefilled, turn2, cached, chunk, &stream, m)?,
+        None => cold_s.clone(),
+    };
     std::fs::create_dir_all(dir)?;
     write_rows(&dir.join("cold.f32"), &cold_s)?;
     write_rows(&dir.join("warm.f32"), &warm_s)?;
