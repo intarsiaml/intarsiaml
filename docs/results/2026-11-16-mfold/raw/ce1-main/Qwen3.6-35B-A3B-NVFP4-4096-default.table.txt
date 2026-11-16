@@ -1,0 +1,36 @@
+Qwen3.6-35B-A3B-NVFP4-4096-default.jsonl: 34.8 passes, 15.85 ms busy / pass, 0.88 ms idle / pass, 1069 dispatches / pass
+| op | launches / pass | us / pass | share | us / launch |
+|---|---:|---:|---:|---:|
+| matmul_fp8_gemv_rows | 130.0 | 4576 | 28.9 % | 35.2 |
+| moe_experts_bf16_rows | 40.0 | 2169 | 13.7 % | 54.2 |
+| moe_experts_bf16_rows#1 | 40.0 | 1201 | 7.6 % | 30.0 |
+| matmul_nvfp4_gemv_rows | 121.0 | 1133 | 7.2 % | 9.4 |
+| matmul_nvfp4_gemv | 5.4 | 976 | 6.2 % | 180.7 |
+| attn_prefill_bf16_splitkv_rows | 10.0 | 900 | 5.7 % | 90.0 |
+| gdn_delta_rule_bf16 | 90.0 | 827 | 5.2 % | 9.2 |
+| gdn_conv_bf16 | 90.0 | 464 | 2.9 % | 5.2 |
+| rmsnorm_add_bf16 | 86.2 | 453 | 2.9 % | 5.3 |
+| other | 70.7 | 414 | 2.6 % | 5.9 |
+| attn_prefill_bf16_flash_nax | 0.8 | 408 | 2.6 % | 507.1 |
+| moe_topk_bf16 | 43.1 | 364 | 2.3 % | 8.4 |
+| matmul_pair_bf16_gemv_rows | 70.0 | 339 | 2.1 % | 4.8 |
+| matmul_bf16_nax | 5.6 | 258 | 1.6 % | 45.8 |
+| moe_experts_bf16_rows#2 | 40.0 | 202 | 1.3 % | 5.0 |
+| matmul_bf16_gemv | 7.9 | 160 | 1.0 % | 20.2 |
+| moe_combine_bf16 | 43.1 | 124 | 0.8 % | 2.9 |
+| rmsnorm_bf16 | 37.7 | 118 | 0.7 % | 3.1 |
+| matmul_fp8_gemv | 3.7 | 99 | 0.6 % | 26.6 |
+| moe_experts_bf16#1 | 3.1 | 98 | 0.6 % | 31.8 |
+| qk_norm_rope_kv_bf16 | 12.2 | 95 | 0.6 % | 7.8 |
+| silu_glu_bf16 | 74.0 | 83 | 0.5 % | 1.1 |
+| moe_experts_bf16 | 3.1 | 73 | 0.5 % | 23.8 |
+| attn_decode_bf16_splitkv | 1.4 | 63 | 0.4 % | 44.5 |
+| matmul_pair_bf16_nax | 1.6 | 58 | 0.4 % | 36.1 |
+| argmax_f32 | 3.0 | 58 | 0.4 % | 19.4 |
+| gate_split_bf16 | 12.2 | 44 | 0.3 % | 3.6 |
+| moe_experts_bf16#2 | 0.7 | 33 | 0.2 % | 45.7 |
+| sigmoid_mul_bf16 | 12.2 | 27 | 0.2 % | 2.2 |
+| matmul_pair_bf16_gemv | 4.3 | 18 | 0.1 % | 4.2 |
+| embedding_bf16 | 3.0 | 8 | 0.1 % | 2.8 |
+| add_bf16 | 2.0 | 4 | 0.0 % | 2.1 |
+| moe_experts_bf16#3 | 0.7 | 4 | 0.0 % | 5.2 |

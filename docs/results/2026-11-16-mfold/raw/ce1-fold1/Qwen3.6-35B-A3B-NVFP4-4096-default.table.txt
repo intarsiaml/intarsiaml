@@ -1,0 +1,40 @@
+Qwen3.6-35B-A3B-NVFP4-4096-default.jsonl: 34.8 passes, 15.90 ms busy / pass, 0.93 ms idle / pass, 945 dispatches / pass
+| op | launches / pass | us / pass | share | us / launch |
+|---|---:|---:|---:|---:|
+| matmul_fp8_gemv_rows | 129.9 | 4658 | 29.3 % | 35.8 |
+| moe_experts_bf16_rows | 40.0 | 2142 | 13.5 % | 53.5 |
+| moe_experts_bf16_rows#1 | 40.0 | 1206 | 7.6 % | 30.1 |
+| matmul_nvfp4_gemv | 2.0 | 974 | 6.1 % | 498.3 |
+| attn_prefill_bf16_splitkv_rows | 10.0 | 901 | 5.7 % | 90.1 |
+| matmul_nvfp4_gemv_rows | 1.0 | 889 | 5.6 % | 884.4 |
+| gdn_delta_rule_bf16 | 90.0 | 837 | 5.3 % | 9.3 |
+| gdn_conv_bf16 | 90.0 | 468 | 2.9 % | 5.2 |
+| rmsnorm_add_bf16 | 86.1 | 456 | 2.9 % | 5.3 |
+| other | 70.7 | 416 | 2.6 % | 5.9 |
+| attn_prefill_bf16_flash_nax | 0.8 | 405 | 2.5 % | 503.4 |
+| moe_topk_bf16 | 43.1 | 369 | 2.3 % | 8.6 |
+| matmul_pair_bf16_gemv_rows | 70.0 | 347 | 2.2 % | 5.0 |
+| shared_down_combine_gemv_rows | 40.0 | 300 | 1.9 % | 7.5 |
+| matmul_bf16_nax | 5.6 | 261 | 1.6 % | 46.3 |
+| moe_experts_bf16_rows#2 | 40.0 | 203 | 1.3 % | 5.1 |
+| matmul_bf16_gemv | 7.9 | 161 | 1.0 % | 20.4 |
+| rmsnorm_bf16 | 37.7 | 120 | 0.8 % | 3.2 |
+| matmul_fp8_gemv | 3.7 | 101 | 0.6 % | 27.1 |
+| moe_experts_bf16#1 | 3.1 | 98 | 0.6 % | 31.8 |
+| qk_norm_rope_kv_bf16 | 12.2 | 89 | 0.6 % | 7.2 |
+| silu_glu_bf16 | 32.8 | 86 | 0.5 % | 2.6 |
+| moe_experts_bf16 | 3.1 | 74 | 0.5 % | 24.0 |
+| attn_decode_bf16_splitkv | 1.4 | 63 | 0.4 % | 44.9 |
+| argmax_f32 | 3.0 | 61 | 0.4 % | 20.7 |
+| matmul_pair_bf16_nax | 1.6 | 58 | 0.4 % | 36.1 |
+| gate_split_bf16 | 12.2 | 45 | 0.3 % | 3.7 |
+| moe_experts_bf16#2 | 0.7 | 33 | 0.2 % | 45.5 |
+| sigmoid_mul_bf16 | 12.2 | 26 | 0.2 % | 2.1 |
+| matmul_pair_bf16_gemv | 4.3 | 18 | 0.1 % | 4.3 |
+| embedding_bf16 | 3.0 | 9 | 0.1 % | 3.0 |
+| shared_down_combine_gemv | 1.1 | 9 | 0.1 % | 7.5 |
+| add_bf16 | 2.0 | 6 | 0.0 % | 3.3 |
+| moe_combine_bf16 | 1.9 | 6 | 0.0 % | 3.0 |
+| moe_experts_bf16#3 | 0.7 | 4 | 0.0 % | 5.2 |
+| matmul_nvfp4_glu_gemv_rows | 40.0 | 1 | 0.0 % | 0.0 |
+| matmul_nvfp4_glu_gemv | 1.1 | 0 | 0.0 % | 0.0 |
