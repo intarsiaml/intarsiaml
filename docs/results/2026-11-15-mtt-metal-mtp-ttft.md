@@ -163,7 +163,7 @@ size and mtime (35B 15 to 16 s, 27B 88 s). CUDA and HIP run the same eager loop;
 | 1. MTP counters (`intarsia_spec_steps / proposed / accepted`) identical, fix on against off | **PASS** 35B and 27B (e.g. 35B 4k 95 passes, 190 proposed, 159 accepted in both) | same |
 | 2. `plan show --backend metal` byte-identical to main: 8B, 27B, 35B x default / `--spec off` / `--spec mtp`, each also with `--admit` | **PASS** 18 / 18 (8B `--spec mtp`: the same refusal from both) | #9484; `raw/gate-plan.log`, `raw/plan/` |
 | 3. `cargo test --workspace --release --locked` on the merged tree | **PASS** 1495 passed, 0 failed, 33 ignored | #9486; `raw/test-workspace.log` |
-| 3. `crates/intarsia-models/tests/batch_metal_real.rs` (35B) | TBDBATCH | TBDBATCHJOB; `raw/test-batch-metal-real.log` |
+| 3. `crates/intarsia-models/tests/batch_metal_real.rs` (35B) | **PASS** both 35B tests (`real_35b_batched_decode_is_bitwise_the_solo_step`, `real_35b_batched_engine_equals_the_local_engine`). The file's LFM2 test reports FAILED only because the run set `INTARSIA_REQUIRE_GPU=1` and there is no LFM2 checkpoint on endor (`SKIPPED: INTARSIA_LFM2_DIR not set`) | #9534; `raw/test-batch-metal-real.log` |
 | 4. Regression test on CPU | **PASS** `lazy_admission_cases_build_nothing_when_cached_and_keep_the_data_of_those_that_run` (`crates/intarsia-models/tests/plan.rs`) and `plan::tests::lazy_admission_cases_default_to_metal_and_follow_the_switches` | #9446, #9448 |
 | 5. Speed rule, TTFT | **PASS** (section 3; already true on main) | #9506, #9507, #9509 |
 | 5. Speed rule, decode, no cell below 0.98 | **PASS** lowest cell 1.03 (table below) | #9511, #9512; `raw/decode-*.log`, `raw/decode/` |
@@ -213,7 +213,7 @@ Builds and CPU tests (`--load cpu`): #9411, #9446, #9448, #9449, #9451, #9454, #
 `docs/tuning.md` rows, fixed). GPU (`--quiet gpu`): #9413 (knobs), #9418 (ABBA + traces), #9430, #9442, #9453 (hot box),
 #9437 (start-up `sample`), #9461, #9463 (ids), #9462 (void), #9484 (plan show), #9486 (workspace tests, in line),
 #9470 (ABBA beside other jobs' builds, kept as `raw/busy-abba-35b-4k.log`), #9471 to #9473 (stopped or released by this lane
-before they produced data). GPU (`--quiet gpu,cpu`): #9506, #9507, #9508, #9509, #9510 (TTFT), #9511, #9512 (decode check, localeval).
+before they produced data). GPU (`--quiet gpu,cpu`): #9506, #9507, #9508, #9509, #9510 (TTFT), #9511, #9512 (decode check, localeval). GPU (`--quiet gpu`): #9534 (35B batch test).
 
 ---
 
