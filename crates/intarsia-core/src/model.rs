@@ -626,6 +626,10 @@ pub struct Model {
     verify_tile: Option<Buffer>,
     /// Most rows of a verify pass; 0 = speculative verify off (the default: plan and kernels as without it).
     verify_rows: usize,
+    /// Lane mx6: most sequences of a batched verify pass ([`Model::forward_verify_batch`]) the plan covers
+    /// ([`Model::enable_verify_batch`]); 0 = batched verify not planned (the default: plan and kernels as without it). The plan
+    /// switches it off again when a row count of such a pass finds no admitted row-exact kernel.
+    verify_batch_seqs: std::sync::atomic::AtomicUsize,
     /// Most sequences of a batched decode step ([`Model::forward_batch`]); 0 = batching off (the default).
     batch_rows: usize,
     /// Opt-in (`Model::allow_recurrent_batch`, cpu backend only): batched decode of hybrid models, i.e. GatedDeltaNet
@@ -1850,6 +1854,7 @@ impl Model {
             verify_tok: None,
             verify_tile: None,
             verify_rows: 0,
+            verify_batch_seqs: std::sync::atomic::AtomicUsize::new(0),
             batch_rows: 0,
             recurrent_batch: false,
             batch_tok: None,
@@ -1927,7 +1932,8 @@ impl Model {
         let ids = vec![0u32; t];
         let verify = phase == crate::plan::Phase::Verify;
         let batch = phase == crate::plan::Phase::Batch;
-        if verify || batch {
+        let verify_batch = phase == crate::plan::Phase::VerifyBatch;
+        if verify || batch || verify_batch {
             self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         }
         // a prefill probe records the calls a row-invariant prefill pass makes (`Model::forward_prefill`), when that is on
@@ -1937,6 +1943,10 @@ impl Model {
             if batch {
                 // `t` sequences, each `pos0` tokens long: the real batched pass, recorded
                 return self.batch_probe(t, pos0);
+            }
+            if verify_batch {
+                // `t` rows of several sequences' verify runs, one ragged pass: the real batched verify pass, recorded
+                return self.verify_batch_probe(t, pos0);
             }
             let hn = self.run_chunk(&st, &ids, false)?;
             // the MTP drafter head runs after every pass (catch-up over up to t rows, chained drafts of one row)
@@ -1964,6 +1974,108 @@ impl Model {
         let rec = self.recorder.lock().unwrap().take().unwrap_or_default();
         run?;
         Ok(rec)
+    }
+
+    /// Lane mx6: plan batched verify passes ([`Model::forward_verify_batch`], `INTARSIA_BATCHED_VERIFY`) of up to `max_seqs`
+    /// sequences, each running a verify run of 2..=[`Model::verify_rows`] rows. Call after [`Model::enable_verify`] and before
+    /// [`Model::configure_plan`]: plan resolution then dry-runs [`crate::plan::Phase::VerifyBatch`] passes for every row count
+    /// such a pass can have (a pass over `n` sequences has `2n..=n * verify_rows` rows, so the projections, the MoE and the
+    /// head run at row counts above a single verify pass's), admission tests the kernels picked for them, and a row count with
+    /// no admitted row-exact kernel switches batched verify off (`verify_batch_seqs` reads 0, the batching engine then verifies
+    /// per sequence) instead of failing the first request. Errors where [`Model::forward_verify_batch`] would.
+    pub fn enable_verify_batch(&mut self, max_seqs: usize) -> Result<()> {
+        if self.verify_rows < 2 || self.verify_tok.is_none() {
+            return Err(Error::invalid("enable_verify_batch before enable_verify"));
+        }
+        if !(2..=crate::scheduler::MAX_BATCH_CAP).contains(&max_seqs) {
+            return Err(Error::invalid(format!("enable_verify_batch for {max_seqs} sequences (2..={})", crate::scheduler::MAX_BATCH_CAP)));
+        }
+        if let Some(why) = self.verify_batch_unsupported() {
+            return Err(Error::Unsupported(why.into()));
+        }
+        self.verify_batch_seqs.store(max_seqs, std::sync::atomic::Ordering::Relaxed);
+        Ok(())
+    }
+
+    /// Why this model cannot run a batched verify pass, if it cannot.
+    fn verify_batch_unsupported(&self) -> Option<&'static str> {
+        if !self.peers.is_empty() || self.remote.is_some() || self.tp.world > 1 {
+            return Some("a batched verify pass under tensor parallelism");
+        }
+        if self.layers.iter().flatten().any(|b| matches!(b, Block::Conv(_) | Block::Gemma(_))) || self.dflash.is_some() {
+            return Some("a batched verify pass of short-conv / Gemma layers or with a DFlash draft");
+        }
+        None
+    }
+
+    /// Most sequences of a batched verify pass the plan covers (0: batched verify is not planned, or the plan found a gap).
+    pub fn verify_batch_seqs(&self) -> usize {
+        self.verify_batch_seqs.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Switch batched verify off (the plan found a row count without an admitted row-exact kernel).
+    pub(crate) fn disable_verify_batch(&self) {
+        self.verify_batch_seqs.store(0, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Most rows of one batched verify pass the plan covers (0: not planned): the pass's logits rows and workspace bound it.
+    pub fn verify_batch_rows(&self) -> usize {
+        match self.verify_batch_seqs() {
+            0 => 0,
+            n => (n * self.verify_rows).min(Self::VERIFY_MAX_ROWS).min(self.ws.max_tokens),
+        }
+    }
+
+    /// Every row count a planned batched verify pass can have: `n` sequences (2..=`verify_batch_seqs`) of 2..=`verify_rows`
+    /// rows each, `2n..=n * verify_rows` in all, up to [`Model::verify_batch_rows`]. Empty when not planned.
+    pub(crate) fn verify_batch_totals(&self) -> Vec<usize> {
+        let (cap, v) = (self.verify_batch_rows(), self.verify_rows);
+        let mut out = std::collections::BTreeSet::new();
+        for n in 2..=self.verify_batch_seqs() {
+            if 2 * n <= cap {
+                out.extend(2 * n..=(n * v).min(cap));
+            }
+        }
+        out.into_iter().collect()
+    }
+
+    /// The runs of the segments of a recorded batched verify pass of `total` rows: the fewest sequences that can hold them, each of
+    /// 2..=`verify_rows` rows, as even as possible.
+    fn verify_batch_lens(&self, total: usize) -> Vec<usize> {
+        let v = self.verify_rows.max(2);
+        let n = total.div_ceil(v).max(2);
+        (0..n).map(|i| total / n + usize::from(i < total % n)).collect()
+    }
+
+    /// Whether the plan covers a batched verify pass of these runs: 2 or more sequences, each of 2..=`verify_rows` rows, at most
+    /// `verify_batch_seqs` of them and `verify_batch_rows` rows in all.
+    fn verify_batch_covers(&self, lens: &[usize]) -> bool {
+        (2..=self.verify_batch_seqs()).contains(&lens.len())
+            && lens.iter().all(|l| (2..=self.verify_rows).contains(l))
+            && lens.iter().sum::<usize>() <= self.verify_batch_rows()
+    }
+
+    /// Plan recording of a batched verify pass ([`crate::plan::Phase::VerifyBatch`]): `total` rows over phantom sequences of `pos0` tokens,
+    /// the real ragged pass ([`Model::forward_verify_batch`]) with nothing launched. The `exact_rows` mark is set by [`Model::dry_run`].
+    pub(super) fn verify_batch_probe(&self, total: usize, pos0: usize) -> Result<()> {
+        let lens = self.verify_batch_lens(total);
+        let sts: Vec<SequenceState> =
+            lens.iter().map(|_| crate::plan::phantom_state(&self.slot_specs, self.plan.kv_cap_tokens, pos0)).collect();
+        let mut lo = 0;
+        let segs: Vec<Seg<'_>> = sts
+            .iter()
+            .zip(&lens)
+            .map(|(st, &len)| {
+                let s = Seg { st, lo, len, pos: st.len };
+                lo += len;
+                s
+            })
+            .collect();
+        let hn = self.run_layers(Seqs::Packed(&segs), &vec![0u32; total], false, None, true, None)?;
+        if self.lm_head.is_some() {
+            self.verify_head(&hn, total, false)?;
+        }
+        Ok(())
     }
 
     /// Most rows a verify pass ([`Model::forward_verify`]) takes: one logits buffer of rows.
@@ -2212,11 +2324,8 @@ impl Model {
         let Some(tok) = &self.verify_tok else {
             return Err(Error::invalid("forward_verify_batch before enable_verify"));
         };
-        if !self.peers.is_empty() || self.remote.is_some() || self.tp.world > 1 {
-            return Err(Error::Unsupported("a batched verify pass under tensor parallelism".into()));
-        }
-        if self.layers.iter().flatten().any(|b| matches!(b, Block::Conv(_) | Block::Gemma(_))) || self.dflash.is_some() {
-            return Err(Error::Unsupported("a batched verify pass of short-conv / Gemma layers or with a DFlash draft".into()));
+        if let Some(why) = self.verify_batch_unsupported() {
+            return Err(Error::Unsupported(why.into()));
         }
         let total: usize = ids.iter().map(Vec::len).sum();
         if n == 0 || ids.len() != n || total > Self::VERIFY_MAX_ROWS.min(self.ws.max_tokens) {
@@ -2242,6 +2351,18 @@ impl Model {
             }
         }
         let mode = |i: usize| want.and_then(|w| w[i]);
+        // lane mx6: with the plan on batched verify, a pass whose row counts it did not cover (`Model::verify_batch_covers`) runs
+        // as one solo verify pass per sequence, which leaves every state as the batched pass would (the pass's own contract)
+        let lens: Vec<usize> = ids.iter().map(Vec::len).collect();
+        if n >= 2 && self.verify_batch_seqs() > 0 && !self.verify_batch_covers(&lens) && lens.iter().all(|&l| l >= 2) {
+            let (mut toks, mut rows) = (Vec::with_capacity(n), Vec::with_capacity(n));
+            for (i, st) in states.iter_mut().enumerate() {
+                let (t, r) = self.forward_verify_batch_run(std::slice::from_mut(st), &ids[i..=i], want.map(|w| &w[i..=i]))?;
+                toks.extend(t);
+                rows.extend(r);
+            }
+            return Ok((toks, rows));
+        }
         if n == 1 && ids[0].len() >= 2 {
             if mode(0).is_some() {
                 let (t, rows) = self.forward_verify_logits(states[0], &ids[0])?;

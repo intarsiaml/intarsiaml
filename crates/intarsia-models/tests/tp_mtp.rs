@@ -869,3 +869,24 @@ fn mtp_tp2_draft_subset_drafts_equal_tp1() {
     }
     assert!(outside > 0, "some drafts past rank 0's vocab-parallel share");
 }
+
+/// Lane mx6: the plan and the engine read ONE batched-verify value (`load::batched_verify_for`): `INTARSIA_BATCHED_VERIFY` wins both ways where set and
+/// non-empty (`1` on, anything else off), else the recipe's `[tuning.<backend>] batched_verify`, else off.
+#[test]
+fn batched_verify_for_reads_the_env_first_then_the_recipe() {
+    use intarsia_models::load::batched_verify_for;
+    let mut moe = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5_moe.toml")).unwrap();
+    std::env::remove_var("INTARSIA_BATCHED_VERIFY");
+    assert!(!batched_verify_for(&moe, "cuda"), "no recipe key: off");
+    moe.tuning.backends.get_mut("cuda").unwrap().batched_verify = Some(true);
+    assert!(batched_verify_for(&moe, "cuda"), "the recipe turns it on");
+    assert!(!batched_verify_for(&moe, "metal"), "per backend");
+    std::env::set_var("INTARSIA_BATCHED_VERIFY", "");
+    assert!(batched_verify_for(&moe, "cuda"), "empty: the recipe applies");
+    std::env::set_var("INTARSIA_BATCHED_VERIFY", "0");
+    assert!(!batched_verify_for(&moe, "cuda"), "the env var wins off");
+    moe.tuning.backends.get_mut("cuda").unwrap().batched_verify = None;
+    std::env::set_var("INTARSIA_BATCHED_VERIFY", "1");
+    assert!(batched_verify_for(&moe, "cuda"), "the env var wins on");
+    std::env::remove_var("INTARSIA_BATCHED_VERIFY");
+}

@@ -1,0 +1,9 @@
+[01:16:59 +2s] gates start (27b on spark1); vLLM: 200; earlyoom: active; Mem:             121          39          32           0          51          82; binaries: intarsia 0.0.1 intarsia 0.0.1 
+[01:16:59 +2s] serve arm repro-main: env [INTARSIA_BATCHED_MTP=2 INTARSIA_BATCHED_VERIFY=1 INTARSIA_VERIFY_TOPK=1] ~/intarsia-mx6/bin/intarsia-main serve --backend cuda --model <27b> --max-seq 8192 --mem-budget 30 --profile-every 0 --max-batch 2 --spec mtp --spec-k 2 --mtp-draft-vocab 65536
+[01:17:39 +42s] serve repro-main up; MemAvailable MB: 63769
+[01:17:39 +42s] load lines (repro-main): speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_mr_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 rms|admission on plan shapes: 28 kernel(s) checked, 0 case(s) run, 547 cached|batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off|batched verify: sampled rows as the device-side top-k when the request samples from it (INTARSIA_VERIFY_TOPK=1)|batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)|
+[01:17:40 +43s] two concurrent requests on main with the opt-in set: request 1: HTTP 500 request 2: HTTP 500 
+[01:17:43 +46s] server alive after it: yes
+[01:17:44 +47s] min MemAvailable MB (time MB; KILLED count) (repro-main): 01:17:38 63756 0 
+[01:17:46 +49s] engine failure line: [watchdog] engine failed (no kernel for matmul_mxfp4 on cuda/sm_121 (m=6 n=10240 k=5120 act=Some(Bf16) w=Some(U8)) [admitted kernels only] [row-exact verify kernels only]); exiting for restart
+[01:17:46 +49s] end

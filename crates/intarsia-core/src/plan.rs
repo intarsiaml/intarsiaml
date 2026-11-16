@@ -78,6 +78,9 @@ pub enum Phase {
     /// Batched decode step (`Model::forward_batch`, only when `Model::enable_batch` was called): `t` is the number of
     /// sequences, `pos0` the length of each.
     Batch,
+    /// Batched verify pass (`Model::forward_verify_batch`, only when `Model::enable_verify_batch` was called): `t` is the number of
+    /// rows of all the sequences' verify runs together, `pos0` the length of each sequence.
+    VerifyBatch,
 }
 
 /// One op call of the plan with the kernel the registry selected for it.
@@ -301,6 +304,16 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
         probes.push((Phase::Batch, t, 0));
         probes.push((Phase::Batch, t, cap - 1));
     }
+    // batched verify passes (lane mx6; only when `Model::enable_verify_batch` planned them): every row count a pass over several
+    // sequences' verify runs can have, at both ends of the context. The projections, the MoE and the head run once over all the
+    // rows, so they see row counts above a single verify pass's (`2..=verify_rows`) and need an admitted row-exact kernel for each.
+    // Nothing is added when batched verify is not planned (the plan is then byte-for-byte what it was)
+    for t in model.verify_batch_totals() {
+        if t < cap {
+            probes.push((Phase::VerifyBatch, t, 0));
+            probes.push((Phase::VerifyBatch, t, cap - t));
+        }
+    }
     // lane rip: row-invariant prefill needs a `row_invariant` kernel for every op of a prefill pass (a one-row pass, the last
     // token of a resumed prompt, included); a model with an op that has none (MoE, fp8 / quantised GEMMs, Gemma-4's extended
     // attention, ...) keeps the ordinary prefill and the backend's reuse rule
@@ -341,6 +354,11 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
     let mut decode0: Vec<(Op, String)> = Vec::new();
     // op -> (shapes without a kernel, first description, where it is needed, weight tensors of the dtype no kernel takes)
     let mut missing: BTreeMap<Op, MissingOp> = BTreeMap::new();
+    // lane mx6: the batched verify probes' calls and gaps are kept apart. A row count of a batched verify pass without an admitted
+    // row-exact kernel does not fail the load (as the same gap in a decode, verify or prefill pass does): batched verify is
+    // switched off (the engine verifies per sequence, bitwise the same rows) and the plan holds none of its calls
+    let mut vb_calls = Vec::new();
+    let mut vb_gaps: BTreeSet<String> = BTreeSet::new();
     for (phase, t, pos0, plain) in probes {
         // a batch step appends one token to each of its sequences
         if pos0 + if phase == Phase::Batch { 1 } else { t } > cap {
@@ -352,6 +370,16 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
         let rec = model.dry_run(phase, t, pos0);
         if plain {
             model.set_row_invariant_prefill(true);
+        }
+        if phase == Phase::VerifyBatch {
+            match rec {
+                Ok(rec) if rec.missing.is_empty() => vb_calls.extend(rec.calls),
+                Ok(rec) => vb_gaps.extend(rec.missing.into_iter().map(|(op, m, _)| format!("{op} ({m}) in a {t}-row pass"))),
+                Err(e) => {
+                    vb_gaps.insert(format!("a {t}-row pass: {e}"));
+                }
+            }
+            continue;
         }
         let rec = rec.map_err(|e| Error::invalid(format!("plan probe {phase:?} t={t} pos0={pos0}{}: {e}", if plain { " (ordinary)" } else { "" })))?;
         if phase == Phase::Decode && pos0 == 0 {
@@ -382,6 +410,17 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
             }
         }
         calls.extend(rec.calls);
+    }
+    if vb_gaps.is_empty() {
+        calls.extend(vb_calls);
+    } else {
+        model.disable_verify_batch();
+        let total = vb_gaps.len();
+        eprintln!(
+            "intarsia: batched verify off for this model: no admitted row-exact kernel for {}{}; verify passes run per sequence",
+            vb_gaps.iter().take(3).cloned().collect::<Vec<_>>().join("; "),
+            if total > 3 { format!("; ... ({total} in all)") } else { String::new() }
+        );
     }
     if !missing.is_empty() {
         let b = model.backend.info();
