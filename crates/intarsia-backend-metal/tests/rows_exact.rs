@@ -1221,3 +1221,80 @@ fn timing_mxfp4_rows() {
         }
     }
 }
+
+/// Every split of `m` rows into launches of 2..=`max` rows, largest first.
+fn partitions(m: usize, max: usize, cur: &mut Vec<usize>, out: &mut Vec<Vec<usize>>) {
+    if m == 0 {
+        out.push(cur.clone());
+        return;
+    }
+    for n in (2..=max.min(m)).rev() {
+        cur.push(n);
+        partitions(m - n, n, cur, out);
+        cur.pop();
+    }
+}
+
+/// `cargo test --release --test rows_exact -- --ignored --nocapture timing_mxfp4_plans` (lane mchunk4): the cost of every split of
+/// M = 5..=16 rows into launches of 2..=4 rows (what `MXFP4_ROWS_PLAN` picks from), one 27B layer's six W4A16 projections per
+/// pass, launched chunk by chunk as `row_chunks` does. Run in a quiet fleetq slot.
+#[test]
+#[ignore]
+fn timing_mxfp4_plans() {
+    let be = backend();
+    let shapes = [(12288usize, 5120usize), (1024, 5120), (5120, 6144), (17408, 5120), (17408, 5120), (5120, 17408)];
+    let mut ws = Vec::new();
+    for (si, &(n, k)) in shapes.iter().enumerate() {
+        let mut r = Rng(1500 + si as u64);
+        let w: Vec<u8> = (0..n * k / 2).map(|_| (r.next_u64() >> 40) as u8).collect();
+        let sc: Vec<u8> = (0..n * k / 32).map(|_| 119 + ((r.next_u64() >> 40) % 12) as u8).collect();
+        ws.push((t(&put_bytes(&be, 0, &w), 0, DType::U8, &[n, k / 2]), t(&put_bytes(&be, 0, &sc), 0, DType::U8, &[n, k / 32])));
+    }
+    let at = t(&put_bytes(&be, 0, &0f32.to_le_bytes()), 0, DType::F32, &[1]);
+    for m in 5..=16usize {
+        let mut calls = Vec::new();
+        for (&(n, k), wt) in shapes.iter().zip(&ws) {
+            let xt = t(&put_bytes(&be, 0, &bf16_bytes(&act_rows(m, k, 9))), 0, DType::Bf16, &[m, k]);
+            let yt = t(&guarded(&be, 0, m * n * 2), 0, DType::Bf16, &[m, n]);
+            let mut c = OpCall::new(
+                Op::MatmulMxfp4,
+                vec![xt, wt.0.clone(), wt.1.clone(), at.clone()],
+                vec![yt],
+                OpAttrs { mxfp4_w4a16: true, ..OpAttrs::default() },
+            );
+            let need = mxfp4::scratch(&ShapeInfo::from_call(&c));
+            c.scratch = Some(TensorRef::new(be.alloc(need + 32, MemKind::Device).unwrap(), DType::U8, &[need]));
+            calls.push(c);
+        }
+        let mut plans = Vec::new();
+        partitions(m, 4, &mut Vec::new(), &mut plans);
+        let mut res: Vec<(f64, Vec<usize>)> = Vec::new();
+        for plan in plans {
+            let chunked: Vec<OpCall> = calls
+                .iter()
+                .flat_map(|c| {
+                    let mut start = 0;
+                    plan.iter()
+                        .map(|&n| {
+                            let mut q = c.clone();
+                            q.inputs[0] = q.inputs[0].rows(start, n);
+                            q.outputs[0] = q.outputs[0].rows(start, n);
+                            start += n;
+                            q
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect();
+            // the chunks of one projection run back to back, as in `launch`
+            let us = time_us(&be, 20, || {
+                for q in &chunked {
+                    be.launch("matmul_mxfp4_gemv_rows", q, 0).unwrap();
+                }
+            });
+            res.push((us, plan));
+        }
+        res.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        let line: Vec<String> = res.iter().map(|(us, p)| format!("{p:?}={us:.0}")).collect();
+        eprintln!("PLANS M={m} (us per layer, best first): {}", line.join("  "));
+    }
+}
