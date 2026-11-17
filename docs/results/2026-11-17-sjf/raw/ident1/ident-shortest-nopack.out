@@ -1,0 +1,15 @@
+solo s100 48
+solo s300 48
+solo m1k 48
+solo m2k 48
+solo l6k 48
+solo l15k 48
+contend round 0 {'s100': 48, 'm1k': 48, 's300': 48, 'l15k': 48}
+contend round 1 {'l6k': 48, 's100': 48, 'm2k': 48, 'l15k': 48}
+contend round 2 {'m2k': 48, 's300': 48, 's100': 48, 'l15k': 48}
+contend round 3 {'m1k': 48, 'm2k': 48, 'l6k': 48, 'l15k': 48}
+contend round 4 {'s100': 48, 'm1k': 48, 's300': 48, 'l15k': 48}
+contend round 5 {'l6k': 48, 's100': 48, 'm2k': 48, 'l15k': 48}
+contend round 6 {'m2k': 48, 's300': 48, 's100': 48, 'l15k': 48}
+contend round 7 {'m1k': 48, 'm2k': 48, 'l6k': 48, 'l15k': 48}
+reordered prefill decisions during the contention rounds: 30.0

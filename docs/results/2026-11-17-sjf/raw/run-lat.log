@@ -1,0 +1,14 @@
+[09:56:54] phase lat start; earlyoom: active; vLLM: 200; bin: intarsia 0.0.1
+[09:56:54] serve lat-fifo-1: env [] serve --backend cuda --max-seq 49152 --mem-budget 40 --max-batch 4 
+[09:57:32] serve lat-fifo-1 up; MemAvailable MB 52203
+[09:58:59] min MemAvailable MB (lat-fifo-1): 09:57:43 51417, killed: 0
+[09:59:00] serve lat-shortest-2: env [INTARSIA_PREFILL_ORDER=shortest] serve --backend cuda --max-seq 49152 --mem-budget 40 --max-batch 4 
+[09:59:38] serve lat-shortest-2 up; MemAvailable MB 52268
+[10:01:06] min MemAvailable MB (lat-shortest-2): 09:59:44 51460, killed: 0
+[10:01:08] serve lat-shortest-3: env [INTARSIA_PREFILL_ORDER=shortest] serve --backend cuda --max-seq 49152 --mem-budget 40 --max-batch 4 
+[10:01:45] serve lat-shortest-3 up; MemAvailable MB 52322
+[10:03:13] min MemAvailable MB (lat-shortest-3): 10:02:15 51461, killed: 0
+[10:03:14] serve lat-fifo-4: env [] serve --backend cuda --max-seq 49152 --mem-budget 40 --max-batch 4 
+[10:03:52] serve lat-fifo-4 up; MemAvailable MB 52281
+[10:05:19] min MemAvailable MB (lat-fifo-4): 10:05:12 51712, killed: 0
+[10:05:21] phase lat done

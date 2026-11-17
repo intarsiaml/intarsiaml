@@ -399,6 +399,37 @@ pub struct SchedulerConfig {
     /// A packed pass takes at most half (rounded up) of the prompts waiting to prefill (`INTARSIA_PACK_HALF`): every prompt of a
     /// pass gets its first token when the pass ends, so packing a short queue whole delays its median first token.
     pub pack_half: bool,
+    /// Which prefilling sequence gets the next chunk (`INTARSIA_PREFILL_ORDER`). Default [`PrefillOrder::Fifo`].
+    pub prefill_order: PrefillOrder,
+    /// With [`PrefillOrder::Shortest`]: a prefilling sequence that was passed over this many prefill decisions in a row (a decision
+    /// is one chunk or one packed pass) gets the next chunk before any shorter one (`INTARSIA_PREFILL_AGE`). At least 1.
+    pub prefill_age: usize,
+}
+
+/// Which prefilling sequence the scheduler gives the next prefill chunk (step 4). Only the order between requests changes: every
+/// request keeps its own chunk schedule, so its output is bit for bit the same either way.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum PrefillOrder {
+    /// The oldest prefilling sequence (the 2026-10-15 decision, docs/decisions/LOG.md). Default.
+    #[default]
+    Fifo,
+    /// The prefilling sequence with the fewest prompt tokens left, so a short request that arrives during a long prefill does not
+    /// wait for all of it. Aging: a sequence passed over [`SchedulerConfig::prefill_age`] decisions in a row goes first (the one passed
+    /// over longest, then the oldest), so a long prompt still gets a chunk at least every `prefill_age + max_batch - 1` decisions (it
+    /// ages in `prefill_age` passes, then waits behind at most `max_batch - 1` other aged sequences).
+    Shortest,
+}
+
+/// Default [`SchedulerConfig::prefill_age`]: 8 decisions, about 1.6 s of 256-row chunks on the Spark 35B (a 2048-row chunk is ~0.25 s).
+pub const PREFILL_AGE_DEFAULT: usize = 8;
+
+/// Parse `INTARSIA_PREFILL_ORDER`: `fifo` (or unset / empty) or `shortest`.
+pub fn parse_prefill_order(v: Option<&str>) -> Result<PrefillOrder> {
+    match v.map(str::trim) {
+        None | Some("") | Some("fifo") => Ok(PrefillOrder::Fifo),
+        Some("shortest") => Ok(PrefillOrder::Shortest),
+        Some(o) => Err(Error::BadRequest(format!("INTARSIA_PREFILL_ORDER `{o}`: expected fifo or shortest"))),
+    }
 }
 
 impl Default for SchedulerConfig {
@@ -417,6 +448,8 @@ impl Default for SchedulerConfig {
             pack_prefill: false,
             pack_rows: 0,
             pack_half: false,
+            prefill_order: PrefillOrder::Fifo,
+            prefill_age: PREFILL_AGE_DEFAULT,
         }
     }
 }
@@ -428,6 +461,9 @@ impl SchedulerConfig {
         }
         if self.solo_chunk == 0 || self.busy_chunk == 0 || self.busy_chunks_per_iter == 0 {
             return Err(Error::BadRequest("prefill chunk sizes and chunks per iteration must be >= 1".into()));
+        }
+        if self.prefill_age == 0 {
+            return Err(Error::BadRequest("prefill_age must be >= 1".into()));
         }
         if self.spec_off_at > MAX_BATCH_CAP + 1 {
             return Err(Error::BadRequest(format!(
@@ -749,6 +785,9 @@ pub struct BatchMetrics {
     /// Packed prefill passes (`pack_prefill`) and the chunks they carried; a chunk run alone counts in neither.
     pub pack_passes: u64,
     pub packed_chunks: u64,
+    /// Prefill decisions (a chunk or a packed pass) that went to a sequence other than the oldest prefilling one
+    /// (`INTARSIA_PREFILL_ORDER=shortest`; always 0 with fifo).
+    pub reordered_chunks: u64,
     /// Iterations that ran a decode phase and a prefill chunk (the decode rows stalled behind the chunk). Iterations
     /// with a decode step and no chunk are `decode_steps - mixed_iterations` (spec-only decode phases aside).
     pub mixed_iterations: u64,
@@ -818,6 +857,9 @@ struct Active<S> {
     phase: Phase,
     t_submit: Instant,
     t_last: Option<Instant>,
+    /// `Scheduler::pf_turn` after the prefill decision that last ran a chunk of this sequence (at admission: the current turn). The
+    /// decisions since then are the times it was passed over (`PrefillOrder::Shortest` aging).
+    last_turn: u64,
 }
 
 struct Waiting<S> {
@@ -853,6 +895,8 @@ pub struct Scheduler<M: BatchModel, S: BatchSeq<M>> {
     /// A prefill chunk is parked between layers and this is its decode phase ([`Scheduler::prefill_paused`]): no sequence
     /// drafts in it (lane mtp-store).
     parked: bool,
+    /// Prefill decisions made so far (one per chunk or packed pass; [`Active::last_turn`], `PrefillOrder::Shortest` aging).
+    pf_turn: u64,
     next_id: RequestId,
     failed: Option<String>,
     /// The same, published before any request hears of the failure ([`BatchEngine::failed`] reads it).
@@ -894,6 +938,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             last_used: vec![0; n],
             iter: 0,
             parked: false,
+            pf_turn: 0,
             next_id: 0,
             failed: None,
             failed_shared: Arc::new(Mutex::new(None)),
@@ -1194,6 +1239,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                         phase: Phase::Prefilling { pos: cached, chunk: None },
                         t_submit: w.t_submit,
                         t_last: None,
+                        last_turn: self.pf_turn,
                     });
                     if !go {
                         let i = self.active.len() - 1;
@@ -1215,8 +1261,8 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let overlap_chunk = self.model.overlap()
             && self.cfg.busy_chunks_per_iter == 1
             && decoding_n > 0
-            && self.active.iter().find(|a| matches!(a.phase, Phase::Prefilling { .. })).is_some_and(|a| {
-                matches!(a.phase, Phase::Prefilling { chunk: Some(_), .. }) || self.cfg.busy_chunk == self.cfg.solo_chunk
+            && self.pick_prefill().is_some_and(|i| {
+                matches!(self.active[i].phase, Phase::Prefilling { chunk: Some(_), .. }) || self.cfg.busy_chunk == self.cfg.solo_chunk
             });
         if !overlap_chunk {
             let out = self.decode_phase();
@@ -1234,7 +1280,8 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
         }
 
-        // 4. prefill: the oldest prefilling sequence gets its next chunk(s)
+        // 4. prefill: the sequence `pick_prefill` names (the oldest prefilling one, or with `INTARSIA_PREFILL_ORDER=shortest` the one with
+        // the fewest tokens left, aged) gets its next chunk(s)
         let n_decoding = self.active.iter().filter(|a| matches!(a.phase, Phase::Decoding)).count();
         let per_iter = if n_decoding > 0 { self.cfg.busy_chunks_per_iter } else { 1 };
         let mut chunked = false;
@@ -1242,9 +1289,10 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             // the chunk runs on its own thread and stream while the decode rows keep stepping; the schedule (which chunk, how
             // long, with what head) is the one `prefill_one` would run, and the chunk is the same call, so the prefill is
             // bit for bit what it is without overlap
-            let i = self.active.iter().position(|a| matches!(a.phase, Phase::Prefilling { .. })).expect("checked above");
+            let i = self.pick_prefill().expect("checked above");
             did = true;
             chunked = true;
+            self.note_decision(i);
             let (slot, c, mode) = self.prefill_plan(i, n_decoding);
             let id = c.id;
             let begun = {
@@ -1273,16 +1321,20 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             };
             let i = self.index_of(id).expect("a prefilling request stays live while its chunk runs");
             self.prefill_finish(i, c, res);
+            self.pf_turn += 1;
             if self.failed.is_some() {
                 return true;
             }
         }
         let t_prefill = self.cfg.trace_stderr.then(Instant::now);
         for _ in 0..if overlap_chunk { 0 } else { per_iter } {
-            let Some(i) = self.active.iter().position(|a| matches!(a.phase, Phase::Prefilling { .. })) else { break };
+            let Some(i) = self.pick_prefill() else { break };
             did = true;
             chunked = true;
-            if self.prefill_one(i, n_decoding) {
+            self.note_decision(i);
+            let ended = self.prefill_one(i, n_decoding);
+            self.pf_turn += 1;
+            if ended {
                 break;
             }
             if self.failed.is_some() {
@@ -1607,6 +1659,42 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         }
     }
 
+    /// Prefilling sequences in the order they get the next chunk, first one first. Fifo: oldest first (admission order). Shortest: a
+    /// sequence passed over `prefill_age` decisions or more first (the one passed over longest, then the oldest), then the fewest
+    /// prompt tokens left (ties: the oldest).
+    fn prefill_ranking(&self) -> Vec<usize> {
+        let mut v: Vec<usize> = (0..self.active.len()).filter(|&j| matches!(self.active[j].phase, Phase::Prefilling { .. })).collect();
+        if self.cfg.prefill_order == PrefillOrder::Shortest {
+            let age = self.cfg.prefill_age as u64;
+            v.sort_by_key(|&j| {
+                let a = &self.active[j];
+                let passed = self.pf_turn.saturating_sub(a.last_turn);
+                let Phase::Prefilling { pos, .. } = a.phase else { unreachable!() };
+                if passed >= age {
+                    (0u8, u64::MAX - passed, j)
+                } else {
+                    (1u8, (a.seq.prompt().len() - pos) as u64, j)
+                }
+            });
+        }
+        v
+    }
+
+    /// The prefilling sequence that gets the next chunk (see [`Scheduler::prefill_ranking`]); `None` when nothing prefills.
+    fn pick_prefill(&self) -> Option<usize> {
+        if self.cfg.prefill_order == PrefillOrder::Fifo {
+            return self.active.iter().position(|a| matches!(a.phase, Phase::Prefilling { .. }));
+        }
+        self.prefill_ranking().first().copied()
+    }
+
+    /// Count a prefill decision for request `i` that went to a sequence other than the oldest prefilling one.
+    fn note_decision(&mut self, i: usize) {
+        if self.active.iter().position(|a| matches!(a.phase, Phase::Prefilling { .. })).is_some_and(|first| first != i) {
+            self.metrics.lock().unwrap().reordered_chunks += 1;
+        }
+    }
+
     /// Run the next chunk of active request `i`. Returns true when this ended its prefill (first token taken or
     /// the request ended), so a following chunk of this iteration goes to the next prefilling request only from the
     /// next iteration on (one request's prefill completion per iteration).
@@ -1705,7 +1793,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let mut picked: Vec<usize> = Vec::new();
         let mut bodies: Vec<usize> = Vec::new();
         let mut rows = 0usize;
-        let order = std::iter::once(i).chain((0..self.active.len()).filter(|&j| j != i && matches!(self.active[j].phase, Phase::Prefilling { .. })));
+        let order = std::iter::once(i).chain(self.prefill_ranking().into_iter().filter(|&j| j != i));
         for j in order {
             let Some(body) = self.pack_body_rows(j, n_decoding) else { break };
             if picked.len() == most || body < min || rows + body > cap {
@@ -1801,6 +1889,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let last = len == plen - pos;
         let mode = if last { Some(self.active[i].seq.first_mode()) } else { None };
         let id = self.active[i].id;
+        self.active[i].last_turn = self.pf_turn + 1;
         self.ev(TraceEvent::Chunk { iter: self.iter, id, start: pos, len, last });
         (slot, Chunk { id, pos, len, last, chunk, t0: Instant::now() }, mode)
     }
