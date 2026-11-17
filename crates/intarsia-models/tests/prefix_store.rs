@@ -1329,6 +1329,49 @@ fn batched_dense_herd_followers_restore_from_the_leader() {
     herd_identity(Kind::Dense);
 }
 
+/// The leader of a herd cancelled at a few moments (before admission, during its prefill, after it): every follower still finishes
+/// within the timeout, with the reply a cold single-sequence run with the store on gives, whatever the leader had captured when it
+/// left (a restore of that, or a cold start). The property holds wherever the cancel lands, so the delays only vary where.
+#[test]
+fn batched_herd_cancelled_leader_releases_followers() {
+    let (kind, chunk, n_gen) = (Kind::Hybrid, 8, 6);
+    let ps = herd_prompts(kind, 4, 96, 20);
+    let solo: Vec<Out> = ps.iter().map(|p| run(&engine(kind, chunk, Some(store_cfg())), p, n_gen)).collect();
+    for delay_ms in [0u64, 3, 12, 40, 120] {
+        let eng = herd_engine(kind, chunk, true);
+        let flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut pending = Vec::new();
+        for (i, p) in ps.iter().enumerate() {
+            let (mut req, trace) = traced(p, n_gen);
+            if i == 0 {
+                req.cancel = Some(flag.clone());
+            }
+            pending.push((eng.submit(req).unwrap(), trace));
+        }
+        eng.release();
+        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+        flag.store(true, std::sync::atomic::Ordering::SeqCst);
+        for (i, (rx, trace)) in pending.into_iter().enumerate() {
+            let (mut ids, mut done) = (vec![], false);
+            while !done {
+                match rx.recv_timeout(std::time::Duration::from_secs(120)) {
+                    Ok(GenEvent::Token { id, .. }) => ids.push(id),
+                    Ok(GenEvent::Done { .. }) => done = true,
+                    Ok(GenEvent::Error { message }) => panic!("delay {delay_ms} ms, request {i}: {message}"),
+                    Err(e) => panic!("delay {delay_ms} ms, request {i}: no reply ({e}): a follower waits for a cancelled leader"),
+                }
+            }
+            if i > 0 {
+                let out = Out { ids, logits: trace.lock().unwrap().clone(), cached: 0 };
+                same_bits(&out, &solo[i], &format!("delay {delay_ms} ms, follower {i}"));
+            }
+        }
+        let m = eng.metrics();
+        println!("delay {delay_ms} ms: cancelled {}, herd restores {} ({} tokens), prefill rows {}", m.cancelled, m.herd_restores, m.herd_tokens, m.prefill_tokens);
+        assert!(eng.failed().is_none());
+    }
+}
+
 /// The herd on with distinct prompts changes nothing: no holds, no restores, the same prefill rows as with it off.
 #[test]
 fn batched_herd_distinct_prompts_are_untouched() {
