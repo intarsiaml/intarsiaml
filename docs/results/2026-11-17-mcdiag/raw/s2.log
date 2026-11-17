@@ -6,3 +6,6 @@ chain r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9e
 cu r1 up 18:34:31 free: 45 GB
 cu r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 0
 eg r1 up 18:35:13 free: 44 GB
+eg r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 0
+eg r2 up 18:35:55 free: 44 GB
+fleetq: #9962 done (exit 255)

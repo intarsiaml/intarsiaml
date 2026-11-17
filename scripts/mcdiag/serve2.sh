@@ -12,7 +12,7 @@ M35=$(ls -d $H/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/* | head -1)
 BIN=${BIN:-$R/bin/intarsia}; PORT=${PORT:-8197}; ROUNDS=${ROUNDS:-2}; REPS=${REPS:-3}
 PRE=${PRE:-6}; POST=${POST:-6}; ARMS=${ARMS:?ARMS}; C=$R/src/scripts/mcopy/cell.py
 python3 $R/src/scripts/mcopy/prompts.py $R/cells > /dev/null
-stop() { pkill -f "intarsia[a-z-]* serve.*--port $PORT" 2>/dev/null; for i in $(seq 1 30); do pgrep -f "intarsia[a-z-]* serve.*--port $PORT" >/dev/null || break; sleep 1; done; }
+stop() { pkill -f "intarsia[a-z0-9-]* serve.*--port $PORT" 2>/dev/null; for i in $(seq 1 30); do pgrep -f "intarsia[a-z0-9-]* serve.*--port $PORT" >/dev/null || break; sleep 1; done; }
 trap stop EXIT
 python3 - $R/cells <<'EOP'
 import json, sys
@@ -24,9 +24,10 @@ for r in $(seq 1 $ROUNDS); do
   for spec in $order; do
     a=${spec%%:*}; e=${spec#*:}
     stop
+    curl -sf -m 2 http://127.0.0.1:$PORT/health >/dev/null 2>&1 && { echo "port $PORT already answers (a server of another run?): stopping"; exit 1; }
     env ${e//+/ } INTARSIA_SPEC_TRACE=1 nohup $BIN serve --backend cuda --model $M35 --model-id m --max-batch 1 --max-seq 8192 --spec mtp --spec-k 2 --profile-every 0 --mem-budget 40 \
       --no-supervisor --host 127.0.0.1 --port $PORT > $O/serve-$a-r$r.log 2>&1 < /dev/null &
-    for i in $(seq 1 120); do pgrep -f "intarsia[a-z-]* serve.*--port $PORT" >/dev/null || { echo "serve died ($a)"; tail -5 $O/serve-$a-r$r.log; exit 1; }; curl -sf -m 3 http://127.0.0.1:$PORT/health >/dev/null 2>&1 && break; sleep 3; done
+    for i in $(seq 1 120); do pgrep -f "intarsia[a-z0-9-]* serve.*--port $PORT" >/dev/null || { echo "serve died ($a)"; tail -5 $O/serve-$a-r$r.log; exit 1; }; curl -sf -m 3 http://127.0.0.1:$PORT/health >/dev/null 2>&1 && break; sleep 3; done
     echo "$a r$r up $(date +%T) free: $(free -g | awk 'NR==2{print $7}') GB"
     python3 $C $PORT $R/cells/chat-short.json 2 warm$r > /dev/null 2>&1
     python3 $C $PORT $R/cells/code-gen300.json $PRE pre$r --out $O/txt-$a-r$r >> $O/$a-r$r.jsonl 2>&1
