@@ -274,7 +274,7 @@ pub trait Backend: Send + Sync {
 
     /// Most sequences one batched decode step may carry on this backend (`Model::enable_batch`, `--max-batch`): the number of
     /// rows its row-exact multi-row kernels are registered and proven for (G-B: row r of an M-row call is bitwise the one-row
-    /// kernel). Default 8 (Metal's, and what the cpu backend serves in tests); the CUDA backend proves 16. Never above
+    /// kernel). Default 8 (what the cpu backend serves in tests); the Metal, CUDA and HIP backends state 16. Never above
     /// [`crate::scheduler::MAX_BATCH_CAP`].
     fn batch_row_cap(&self) -> usize {
         crate::engine::SERVE_MAX_BATCH
