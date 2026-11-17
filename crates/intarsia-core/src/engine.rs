@@ -1272,6 +1272,15 @@ pub(crate) enum Prep {
     Draft(usize),
 }
 
+/// What the interval the measured-cost gate times ran ([`Seq::cost_mark`]): an MTP speculative pass, a plain step, or a copy chain
+/// pass (not sampled).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CostKind {
+    Spec,
+    Plain,
+    Copy,
+}
+
 /// What [`Seq::plan_step`] wants next for a decoding sequence.
 pub(crate) enum Next {
     /// A token already known (a verified speculative run): no forward pass.
@@ -1330,6 +1339,8 @@ pub(crate) struct Seq {
     copy: Option<crate::spec::CopyCfg>,
     /// The verify pass running is a copy chain, not the MTP head's drafts: the adaptive depth and the back-off gate do not see it.
     copy_pass: bool,
+    /// Back-off for missed copy chains (lane mcopy2), per request.
+    copy_backoff: crate::spec::CopyBackoff,
     /// Adaptive draft depth in `[INTARSIA_SPEC_K_MIN, spec_k]` (MTP drafts only); `None`: every pass drafts `spec_k`.
     depth: Option<crate::spec::Depth>,
     /// Speculation for this sampled request ([`crate::spec::SampledSpec`]; `Off` for greedy requests, which keep the greedy
@@ -1355,7 +1366,7 @@ pub(crate) struct Seq {
     gate: crate::spec::SpecGate,
     /// Start of the last step the measured-cost gate times (`spec::CostParams`): when it began, whether it was a
     /// speculative pass, and the tokens generated before it.
-    cost_mark: Option<(Instant, bool, usize)>,
+    cost_mark: Option<(Instant, CostKind, usize)>,
     /// The request's constraint state (`GenRequest::constraint`), or why it could not start (reported by `admit`).
     cons: Option<std::result::Result<crate::constrain::ConstraintRun, String>>,
     /// The prefix store's view of this request (single-sequence engine with the store on); `None`: the store is off and
@@ -1603,6 +1614,7 @@ impl Seq {
             spec_k,
             copy: None,
             copy_pass: false,
+            copy_backoff: Default::default(),
             depth: if spec_mtp && !spec_dflash { crate::spec::k_min_for(&env.spec).and_then(|m| crate::spec::Depth::new(m, spec_k)) } else { None },
             spec_sampled: crate::spec::SampledSpec::Off,
             spec_keyed: false,
@@ -2014,14 +2026,26 @@ impl Seq {
     /// before it, from its start to now, token emission included, over the tokens it yielded. Beside other sequences
     /// (`spec_busy`) the time is shared, so nothing is timed.
     fn cost_begin(&mut self, spec: bool) {
+        self.cost_mark_begin(if spec { CostKind::Spec } else { CostKind::Plain });
+    }
+
+    /// A copy chain pass is about to run (lane mcopy2): it is not one of the MTP drafter's passes, so the cost gate gets no sample of
+    /// it. The step before it is still closed and sampled; the chain's own interval (the pass and the emission of its tokens, up to
+    /// the next step that calls [`Seq::cost_begin`]) is dropped.
+    fn cost_begin_copy(&mut self) {
+        self.cost_mark_begin(CostKind::Copy);
+    }
+
+    fn cost_mark_begin(&mut self, kind: CostKind) {
         if !self.spec_mtp || !self.spec_on || !self.gate.cost_enabled() {
             return;
         }
         let now = Instant::now();
-        let prev = self.cost_mark.replace((now, spec, self.generated));
-        if let Some((t0, was_spec, g0)) = prev {
+        let prev = self.cost_mark.replace((now, kind, self.generated));
+        if let Some((t0, was, g0)) = prev {
             let tokens = self.generated.saturating_sub(g0);
-            if tokens > 0 && !self.spec_busy {
+            let was_spec = was == CostKind::Spec;
+            if tokens > 0 && !self.spec_busy && was != CostKind::Copy {
                 let ms = now.duration_since(t0).as_secs_f64() * 1e3;
                 if crate::spec::trace_enabled() {
                     eprintln!("spec: cost sample {} {tokens} tokens {ms:.2} ms", if was_spec { "pass" } else { "plain" });
@@ -2059,9 +2083,10 @@ impl Seq {
                 if k > 0 && (self.generated >= self.req.min_tokens || self.stop_ids.is_empty()) {
                     // lane mcopy: the last `n` tokens occurred earlier: verify the text that followed as one chain (a pass of up to
                     // 1 + len rows, eager) instead of the head's `k` drafts. Same room and min_tokens rules as the head's drafts.
+                    // A chain that missed (accepted fewer than `COPY_MIN_ACCEPT` drafts) backs the request off ([`CopyBackoff`]).
                     if let Some(c) = self.copy {
                         let len = c.len.min(room).min(self.max_new.saturating_sub(self.generated + 1));
-                        if len >= crate::spec::COPY_MIN_CHAIN {
+                        if len >= crate::spec::COPY_MIN_CHAIN && self.copy_backoff.ready() {
                             let drafts = crate::spec::propose_copy(&self.ctx, crate::spec::CopyCfg { len, ..c });
                             if !drafts.is_empty() {
                                 return Next::Verify(drafts);
@@ -2204,9 +2229,13 @@ impl Seq {
 
     /// Telemetry, gate and the queue of tokens a verify pass yields.
     fn account_verify(&mut self, pos: usize, drafts: &[u32], step: SpecStep) {
-        self.telemetry.spec_step(drafts.len(), step.accepted);
-        // a copy chain says nothing about the MTP head's acceptance: neither the back-off gate nor the adaptive depth see it
-        if !self.copy_pass {
+        // a copy chain says nothing about the MTP head's acceptance: neither the MTP telemetry (it has its own counters), the back-off
+        // gate nor the adaptive depth see it; the chain's own back-off does
+        if self.copy_pass {
+            self.telemetry.copy_step(drafts.len(), step.accepted);
+            self.copy_backoff.record(step.accepted);
+        } else {
+            self.telemetry.spec_step(drafts.len(), step.accepted);
             self.gate.record(step.accepted);
             if let Some(d) = self.depth.as_mut().filter(|_| self.spec_mtp) {
                 d.update(drafts.len(), step.accepted_exact);
@@ -2311,20 +2340,27 @@ impl Seq {
                 return Ok(Prep::Ready);
             }
             Next::Verify(drafts) => {
-                // lane mcopy: a copy chain is a speculative pass of the MTP request (the cost gate times it as one)
+                // lane mcopy: a copy chain is a speculative pass of the MTP request; the cost gate does not time it (lane mcopy2)
                 self.copy_pass = self.copy.is_some();
                 if self.copy_pass {
                     self.predraft = None;
                     self.staged = None;
-                    self.cost_begin(true);
+                    self.cost_begin_copy();
                     // the chain's rows only queue for the head (a verify pass never catches up): catch it up before the queue could overflow
                     if model.mtp_queue_room(st) < 2 * (drafts.len() + 1) {
                         model.mtp_catch_up(st)?;
                     }
                 }
+                let was_copy = self.copy_pass;
                 let r = self.verify(model, st, &drafts);
                 self.copy_pass = false;
                 r?;
+                if was_copy {
+                    // (lane mcopy2) the accepted rows of the chain sit in the head's queue (up to `len + 1`): catch the head up now, so the
+                    // next MTP step finds one queued row and replays its captured graph (`Model::spec_step_ok` wants `1..=k + 1`) instead of
+                    // running eagerly. The work is the catch-up that eager step would do first; drafts only propose, so ids do not change.
+                    model.mtp_catch_up(st)?;
+                }
                 if let Some(t) = self.pending.pop_front() {
                     self.tok = t;
                     return Ok(Prep::Ready);

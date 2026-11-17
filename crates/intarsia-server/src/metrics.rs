@@ -471,6 +471,27 @@ pub fn render(snap: &TelemetrySnapshot, info: &ModelInfo, m: &Metrics) -> String
     );
     metric(
         &mut o,
+        "intarsia_spec_copy_steps_total",
+        "counter",
+        "Copy-chain verify passes (INTARSIA_SPEC_COPY), not counted in intarsia_spec_steps_total.",
+        snap.spec_copy_steps,
+    );
+    metric(
+        &mut o,
+        "intarsia_spec_copy_proposed_tokens_total",
+        "counter",
+        "Chain tokens proposed to copy-chain verify passes.",
+        snap.spec_copy_proposed,
+    );
+    metric(
+        &mut o,
+        "intarsia_spec_copy_accepted_tokens_total",
+        "counter",
+        "Chain tokens accepted by copy-chain verify passes.",
+        snap.spec_copy_accepted,
+    );
+    metric(
+        &mut o,
         "intarsia_spec_costgate_off_total",
         "counter",
         "Times the measured-cost gate switched a request from speculation to plain decode.",

@@ -607,12 +607,8 @@ fn copy_drafts_beside_the_mtp_head_keep_greedy_output_identical() {
     let prompts: Vec<Vec<u32>> = vec![rep, PROMPTS[0].to_vec(), PROMPTS[2].to_vec(), [PROMPTS[1], PROMPTS[1], PROMPTS[1], PROMPTS[1]].concat()];
     for (n, len, k) in [(1, 5, 2), (2, 7, 2), (1, 3, 1), (2, 7, 3)] {
         let (on, tel) = engine_copy(&w, k, intarsia_core::spec::CopyCfg { n, len });
-        // the first request alone: a pass with more than `k` drafts is a copy chain (the last pass of a request may be cut short by
-        // max_tokens, at most k - 1 drafts)
         let (a, b) = (run(&off, req(&prompts[0], 200)), run(&on, req(&prompts[0], 200)));
         assert_eq!(a, b, "copy n {n} len {len} k {k} first request");
-        let t = tel.snapshot();
-        assert!(t.spec_proposed + (k as u64 - 1) > k as u64 * t.spec_steps, "copy n {n} len {len} k {k}: no chain was verified ({} passes, {} drafted)", t.spec_steps, t.spec_proposed);
         for p in &prompts {
             let (a, b) = (run(&off, req(p, 200)), run(&on, req(p, 200)));
             assert_eq!(a, b, "copy n {n} len {len} k {k} prompt {p:?}");
@@ -627,7 +623,13 @@ fn copy_drafts_beside_the_mtp_head_keep_greedy_output_identical() {
             }
         }
         let t = tel.snapshot();
-        eprintln!("copy n {n} len {len} k {k}: {} passes, {} drafted, {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
+        // a copy chain is counted apart from the head's passes (the back-off after a missed chain thins them out, so over all runs)
+        assert!(t.spec_copy_steps > 0 && t.spec_copy_proposed >= t.spec_copy_steps * 3, "copy n {n} len {len} k {k}: no chain was verified ({t:?})");
+        assert!(t.spec_proposed <= k as u64 * t.spec_steps, "copy n {n} len {len} k {k}: a chain was counted as an MTP pass");
+        eprintln!(
+            "copy n {n} len {len} k {k}: {} mtp passes, {} drafted, {} accepted; {} chains, {} drafted, {} accepted",
+            t.spec_steps, t.spec_proposed, t.spec_accepted, t.spec_copy_steps, t.spec_copy_proposed, t.spec_copy_accepted
+        );
     }
 }
 

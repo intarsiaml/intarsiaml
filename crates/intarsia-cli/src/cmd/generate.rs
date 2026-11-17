@@ -253,6 +253,9 @@ pub fn run(args: GenerateArgs) -> Result<()> {
             c.time_ms * 1e3 / c.timed_calls.max(1) as f64
         );
     }
+    if t.spec_copy_steps > 0 {
+        eprintln!("spec: copy chain passes={} proposed={} accepted={} (not in the verify passes below)", t.spec_copy_steps, t.spec_copy_proposed, t.spec_copy_accepted);
+    }
     if t.spec_steps > 0 || args.model.spec_mode() != "off" {
         eprintln!(
             "spec: verify passes={} proposed={} accepted={} (acceptance {:.1}%, {:.2} tokens per pass)",

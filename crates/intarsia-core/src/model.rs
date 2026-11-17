@@ -1508,7 +1508,7 @@ impl Model {
         let mt = chunk.max(macro_rows) + tail_merge;
         let esz = act.size_bytes();
         // the MTP drafter head (`--spec mtp`): read only when asked for, so without it the model is unchanged
-        let mtp_k = if opts.mtp_k == 0 { crate::spec::SPEC_K_MAX } else { opts.mtp_k.min(crate::spec::SPEC_K_MAX) };
+        let mtp_k = if opts.mtp_k == 0 { crate::spec::SPEC_K_MAX } else { opts.mtp_k.min(crate::spec::DFLASH_K_MAX) };
         // an MoE head under tensor parallelism (lane mt2) runs whole on rank 0: unsharded against the global dims, no collective; the
         // other ranks keep no head (`mtp::load_head`)
         // (a dense head too when `LoadOptions::mtp_whole` asks: a group with a rank in another process, lane d2r)
@@ -1654,7 +1654,7 @@ impl Model {
         ws_bytes += moe_bytes;
         ws_bytes += rec_bytes * (1 + crate::state::RECURRENT_SNAPSHOTS as u64);
         if mtp_head.is_some() {
-            // per-row recurrent states of a verify pass (up to SPEC_K_MAX saved rows) and the drafter's hidden-row queue
+            // per-row recurrent states of a verify pass (up to `mtp_k` saved rows: `--spec-k`, or the copy chain's `len` with `INTARSIA_SPEC_COPY`) and the drafter's hidden-row queue
             ws_bytes += rec_bytes * mtp_k as u64;
             ws_bytes += ((mt + Self::VERIFY_MAX_ROWS + 1) * dims.hidden * esz) as u64;
             ws_bytes += mtp_head.as_ref().map_or(0, |h| h.scratch_bytes());
