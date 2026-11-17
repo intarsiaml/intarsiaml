@@ -340,6 +340,20 @@ pub trait BatchSeq<M: BatchModel>: Send {
     fn own_chunk(&self) -> Option<usize> {
         None
     }
+    /// Prefix herd (lane herd, [`SchedulerConfig::prefix_herd`]): `Some(min_tokens)` when this request uses the prefix store, so it may
+    /// wait for another request that is prefilling a prompt prefix it shares (at least `min_tokens` leading tokens, the store's
+    /// threshold) instead of prefilling that prefix itself. Default `None`: never waits.
+    fn herd_min(&self) -> Option<usize> {
+        None
+    }
+    /// Prefix herd: a held request is about to prefill its next chunk at `pos` (the leader it waited for has passed their shared
+    /// prefix, or left): look the store up again and restore the longest stored prefix of the prompt that is longer than `pos` into
+    /// `slot`, as [`BatchSeq::restore`] does at admission. Returns the length the slot now holds and the prefill resumes from: `pos`
+    /// when nothing longer is stored (the slot untouched), `0` when a restore failed and the slot was reset (the prefill starts over).
+    /// `Err`: the request fails. Default: `pos`.
+    fn herd_resume(&mut self, _model: &mut M, _slot: usize, pos: usize) -> Result<usize> {
+        Ok(pos)
+    }
     /// A prefill chunk `[start, end)` of this request ran in `slot` (`last`: the final one, before its output is accepted).
     /// The prefix store captures the slot's state here. Default: nothing. `Err` fails the request.
     fn on_chunk(&mut self, _model: &mut M, _slot: usize, _start: usize, _end: usize, _last: bool) -> Result<()> {
@@ -399,6 +413,12 @@ pub struct SchedulerConfig {
     /// A packed pass takes at most half (rounded up) of the prompts waiting to prefill (`INTARSIA_PACK_HALF`): every prompt of a
     /// pass gets its first token when the pass ends, so packing a short queue whole delays its median first token.
     pub pack_half: bool,
+    /// Prefix herd (lane herd, `INTARSIA_PREFIX_HERD=1`, opt-in): a store request whose prompt shares at least the store's
+    /// `min_tokens` leading tokens with an older request that is still prefilling does not prefill them itself. It waits until that
+    /// leader has prefilled past their shared prefix (or left: finished, cancelled, failed), then looks the store up again
+    /// ([`BatchSeq::herd_resume`]) and prefills only what no stored prefix covers. Tokens are unchanged, bit for bit (the restore is
+    /// the one admission does). Off: a request looks the store up at admission only.
+    pub prefix_herd: bool,
 }
 
 impl Default for SchedulerConfig {
@@ -417,6 +437,7 @@ impl Default for SchedulerConfig {
             pack_prefill: false,
             pack_rows: 0,
             pack_half: false,
+            prefix_herd: false,
         }
     }
 }
@@ -769,6 +790,11 @@ pub struct BatchMetrics {
     pub failed: u64,
     /// Tokens of reused prefixes at admission.
     pub cached_tokens: u64,
+    /// Prefix herd: times a prefilling request was passed over because it waits for a leader (counted at each pick), prefills that
+    /// resumed from a longer stored prefix after a hold, and the prompt tokens those restores skipped.
+    pub herd_holds: u64,
+    pub herd_restores: u64,
+    pub herd_tokens: u64,
     /// Submit to first token.
     pub ttft: LatencyHist,
     /// Between consecutive tokens of one request.
@@ -818,6 +844,8 @@ struct Active<S> {
     phase: Phase,
     t_submit: Instant,
     t_last: Option<Instant>,
+    /// Prefix herd: held back for a leader at least once since its last lookup; it looks the store up again before its next chunk.
+    herd_wait: bool,
 }
 
 struct Waiting<S> {
@@ -1194,6 +1222,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                         phase: Phase::Prefilling { pos: cached, chunk: None },
                         t_submit: w.t_submit,
                         t_last: None,
+                        herd_wait: false,
                     });
                     if !go {
                         let i = self.active.len() - 1;
@@ -1279,7 +1308,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         }
         let t_prefill = self.cfg.trace_stderr.then(Instant::now);
         for _ in 0..if overlap_chunk { 0 } else { per_iter } {
-            let Some(i) = self.active.iter().position(|a| matches!(a.phase, Phase::Prefilling { .. })) else { break };
+            let Some(i) = self.prefill_pick() else { break };
             did = true;
             chunked = true;
             if self.prefill_one(i, n_decoding) {
@@ -1605,6 +1634,99 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             Ok(true) => self.end_active(i, false),
             Err(e) => self.fail_active(i, e),
         }
+    }
+
+    /// The prefilling request that runs the next chunk: the oldest one, except (prefix herd) a request held back for a leader. A held
+    /// request that has been released looks the store up again first ([`BatchSeq::herd_resume`]). Without the herd, the oldest
+    /// prefilling request.
+    fn prefill_pick(&mut self) -> Option<usize> {
+        if !self.cfg.prefix_herd {
+            return self.active.iter().position(|a| matches!(a.phase, Phase::Prefilling { .. }));
+        }
+        loop {
+            let mut first = None;
+            let mut pick = None;
+            for i in 0..self.active.len() {
+                if !matches!(self.active[i].phase, Phase::Prefilling { .. }) {
+                    continue;
+                }
+                first.get_or_insert(i);
+                if self.herd_held(i) {
+                    if !self.active[i].herd_wait {
+                        self.active[i].herd_wait = true;
+                    }
+                    self.metrics.lock().unwrap().herd_holds += 1;
+                } else if pick.is_none() {
+                    pick = Some(i);
+                }
+            }
+            // the oldest prefilling request is never held (a leader is always older), so `pick` exists; never stall regardless
+            let Some(i) = pick.or(first) else { return None };
+            if !self.active[i].herd_wait {
+                return Some(i);
+            }
+            self.active[i].herd_wait = false;
+            let id = self.active[i].id;
+            if self.herd_resume(i) {
+                return Some(i);
+            }
+            if self.failed.is_some() {
+                return None;
+            }
+            // the request failed and left; pick again among the rest
+            debug_assert!(self.index_of(id).is_none());
+        }
+    }
+
+    /// Prefix herd: whether prefilling request `i` waits for a leader: an older request that is still prefilling, whose prompt shares
+    /// at least the store's `min_tokens` leading tokens with it, and which has not prefilled past that shared prefix, while `i` has
+    /// not either. A leader is always older (lower id), so the oldest prefilling request is never held and a held request never
+    /// waits in a cycle; a leader that finishes, is cancelled or fails stops prefilling and releases it, and then it prefills whatever
+    /// no stored prefix covers on its own.
+    fn herd_held(&self, i: usize) -> bool {
+        let a = &self.active[i];
+        let Some(min) = a.seq.herd_min() else { return false };
+        let Phase::Prefilling { pos, .. } = a.phase else { return false };
+        let prompt = a.seq.prompt();
+        self.active.iter().any(|b| {
+            let Phase::Prefilling { pos: lead, .. } = b.phase else { return false };
+            if b.id >= a.id || b.seq.herd_min().is_none() {
+                return false;
+            }
+            let shared = common_prefix(prompt, b.seq.prompt());
+            shared >= min && lead < shared && pos < shared
+        })
+    }
+
+    /// Prefix herd: request `i`, released from a hold, looks the store up again ([`BatchSeq::herd_resume`]) and resumes its prefill from
+    /// the longest stored prefix. Returns false when the request failed (it has been removed, or the engine failed).
+    fn herd_resume(&mut self, i: usize) -> bool {
+        let Phase::Prefilling { pos, chunk } = self.active[i].phase else { return true };
+        let slot = self.active[i].slot;
+        if pos + 1 >= self.active[i].seq.prompt().len() {
+            return true;
+        }
+        let to = match self.active[i].seq.herd_resume(&mut self.model, slot, pos) {
+            Ok(to) => to,
+            Err(e) => {
+                self.fail_active(i, e);
+                return false;
+            }
+        };
+        if to == pos {
+            return true;
+        }
+        if let Err(e) = self.model.truncate(slot, to) {
+            self.fail_active(i, e);
+            return false;
+        }
+        self.active[i].phase = Phase::Prefilling { pos: to, chunk };
+        if to > pos {
+            let mut m = self.metrics.lock().unwrap();
+            m.herd_restores += 1;
+            m.herd_tokens += (to - pos) as u64;
+        }
+        true
     }
 
     /// Run the next chunk of active request `i`. Returns true when this ended its prefill (first token taken or
