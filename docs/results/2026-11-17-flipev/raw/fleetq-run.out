@@ -1,0 +1,2 @@
+fleetq: #9911 waiting (#1 in line): needs gpu quiet on spark2, but #9891 "SenseNova-Loop-9B: serve (vLLM PR 64832) + localeval run" (claude-b1ac2344) loads it
+fleetq: #9911 is cancelled, so it will not run: scripts/flipev/run.sh
