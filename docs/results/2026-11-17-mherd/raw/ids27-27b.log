@@ -1,0 +1,22 @@
+fleetq: #9920 running on endor: scripts/mherd/ids27.sh
+== visit A1 env - cooled 70s thermal 0
+{"arm": "A", "visit": "A1", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 121.763, "ttft_p50_s": 15.048, "ttft_last_s": 26.148, "wall_s": 29.168, "cached_tokens": [2048, 2048, 2048, 2048, 2048, 2048, 0, 2048]}
+{"arm": "A", "visit": "A1", "mode": "distinct", "seed": 11, "ok": 0, "ttft_sum_s": null, "ttft_p50_s": null, "ttft_last_s": null, "wall_s": 0.006, "cached_tokens": [null, null, null, null, null, null, null, null]}
+{"arm": "A", "visit": "A1", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 4.961, "ttft_p50_s": 0.593, "ttft_last_s": 0.853, "wall_s": 17.454, "cached_tokens": [4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096]}
+rss MB 8061
+== visit B1 env INTARSIA_PREFIX_HERD=1 cooled 90s thermal 2
+{"arm": "B", "visit": "B1", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 63.236, "ttft_p50_s": 7.871, "ttft_last_s": 10.067, "wall_s": 14.186, "cached_tokens": [4096, 4096, 4096, 4096, 4096, 4096, 4096, 0]}
+{"arm": "B", "visit": "B1", "mode": "distinct", "seed": 11, "ok": 0, "ttft_sum_s": null, "ttft_p50_s": null, "ttft_last_s": null, "wall_s": 0.005, "cached_tokens": [null, null, null, null, null, null, null, null]}
+{"arm": "B", "visit": "B1", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 4.29, "ttft_p50_s": 0.534, "ttft_last_s": 0.555, "wall_s": 15.625, "cached_tokens": [4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096]}
+rss MB 7708
+## done
+== visit A1 env - cooled 0s thermal 0
+{"arm": "A", "visit": "A1", "mode": "pair", "seed": 1, "long": {"ok": true, "ttft_s": 13.932, "end_s": 17.145, "prompt_tokens": 12000, "error": null}, "short": {"ok": true, "ttft_s": 13.586, "end_s": 15.259, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 17.27, "t": "15:20:41"}
+{"arm": "A", "visit": "A1", "mode": "solo", "seed": 1, "long": {"ok": true, "ttft_s": 15.496, "end_s": 16.979, "prompt_tokens": 12000, "error": null}, "short": {"ok": true, "ttft_s": 1.598, "end_s": 3.048, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 20.029, "t": "15:21:01"}
+rss MB 3866
+== visit B1 env INTARSIA_PREFILL_ORDER=shortest cooled 60s thermal 0
+{"arm": "B", "visit": "B1", "mode": "pair", "seed": 1, "long": {"ok": true, "ttft_s": 15.046, "end_s": 16.609, "prompt_tokens": 12000, "error": null}, "short": {"ok": true, "ttft_s": 3.382, "end_s": 14.227, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 16.611, "t": "15:22:28"}
+{"arm": "B", "visit": "B1", "mode": "solo", "seed": 1, "long": {"ok": true, "ttft_s": 14.043, "end_s": 15.482, "prompt_tokens": 12000, "error": null}, "short": {"ok": true, "ttft_s": 1.344, "end_s": 2.743, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 18.228, "t": "15:22:46"}
+rss MB 3820
+## done
+fleetq: #9920 done (exit 0)
