@@ -1,0 +1,26 @@
+fleetq: #9907 running on spark1: ssh spark1 'bash -s'
+main: exit 0 15570 bytes sha c446afdca09ab0ec
+new: exit 0 15570 bytes sha c446afdca09ab0ec
+new-n20: exit 0 15570 bytes sha 6d41b725ee00056a
+new-n20L15: exit 0 15571 bytes sha 77ef14e7eff8f76c
+new-n20L3: exit 0 15570 bytes sha f1d684834e88b451
+main-n20: exit 0 15570 bytes sha 6d41b725ee00056a
+main2: exit 0 15570 bytes sha c446afdca09ab0ec
+main twice: byte-identical (plan show is deterministic)
+PASS plan show knob unset: main and new byte-identical
+584c584
+<             "scratch_bytes": 24576
+---
+>             "scratch_bytes": 65536
+--- main vs new n20L3
+584c584
+<             "scratch_bytes": 24576
+---
+>             "scratch_bytes": 32768
+--- main vs new n20L15
+584c584
+<             "scratch_bytes": 24576
+---
+>             "scratch_bytes": 131072
+--- main n20 vs new n20 (rows only widened by verify_rows before)
+fleetq: #9907 done (exit 0)

@@ -1,0 +1,3 @@
+{"cell": "code-gen", "tag": "c2", "rep": 0, "toks": 800, "chunks": 800, "ttft": 0.092, "dec_tps": 154.1, "wall": 5.277, "sha": "9881f3eda5fa"}
+{"cell": "code-gen", "tag": "c2", "rep": 1, "toks": 800, "chunks": 800, "ttft": 0.076, "dec_tps": 154.09, "wall": 5.261, "sha": "95d78b4e86dc"}
+{"cell": "code-gen", "tag": "c2", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 154.47, "wall": 5.251, "sha": "501f32a24c8e"}

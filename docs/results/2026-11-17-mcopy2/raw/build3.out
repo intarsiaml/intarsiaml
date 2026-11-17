@@ -1,0 +1,19 @@
+fleetq: #9921 running on spark1: bash /private/tmp/claude-501/-opt-code-intarsiaml/a9e6e738-26f8-4e34-872e-c7d989747c74/scratchpad/build3.sh
+15:23:53
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-tui)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-engram)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 22s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.2T  288G  92% /
+3.1G	/home/nvidia/intarsiaml-mcopy2
+Mem:             121          43          71           0           8          78
+15:29:17
+fleetq: #9921 done (exit 0)

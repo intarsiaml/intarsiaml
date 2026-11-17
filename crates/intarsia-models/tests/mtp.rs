@@ -574,8 +574,20 @@ fn mtp_head_drafts_keep_greedy_output_identical_over_256_tokens() {
 
 /// An MTP engine with copy drafts (lane mcopy): verify passes of `1 + max(k, copy.len)` rows, `EngineMeta::spec_copy`.
 fn engine_copy(w: &MemWeights, k: usize, copy: intarsia_core::spec::CopyCfg) -> (LocalEngine, Arc<Telemetry>) {
+    engine_copy_cost(w, k, copy, None)
+}
+
+/// [`engine_copy`] with the measured-cost gate parameters `(min_speedup, window, probe_every, reprobe_tokens)`.
+fn engine_copy_cost(w: &MemWeights, k: usize, copy: intarsia_core::spec::CopyCfg, cost: Option<(f64, u32, u32, u32)>) -> (LocalEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
-    let (recipe, dims) = dims();
+    let (mut recipe, dims) = dims();
+    if let Some((sp, win, probe, re)) = cost {
+        let m = recipe.mtp.as_mut().expect("recipe has [mtp]");
+        m.cost_min_speedup = Some(sp);
+        m.cost_window = Some(win);
+        m.cost_probe_every = Some(probe);
+        m.cost_reprobe_tokens = Some(re);
+    }
     let opts = LoadOptions { max_seq: 512, prefill_chunk: 8, fp8_act: Some(Fp8Act::None), mtp: true, mtp_draft_vocab: Some(0), profile_every: 0, ..Default::default() };
     let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, w, &opts, tel.clone()).unwrap();
     m.enable_verify(1 + k.max(copy.len)).unwrap();
@@ -607,12 +619,8 @@ fn copy_drafts_beside_the_mtp_head_keep_greedy_output_identical() {
     let prompts: Vec<Vec<u32>> = vec![rep, PROMPTS[0].to_vec(), PROMPTS[2].to_vec(), [PROMPTS[1], PROMPTS[1], PROMPTS[1], PROMPTS[1]].concat()];
     for (n, len, k) in [(1, 5, 2), (2, 7, 2), (1, 3, 1), (2, 7, 3)] {
         let (on, tel) = engine_copy(&w, k, intarsia_core::spec::CopyCfg { n, len });
-        // the first request alone: a pass with more than `k` drafts is a copy chain (the last pass of a request may be cut short by
-        // max_tokens, at most k - 1 drafts)
         let (a, b) = (run(&off, req(&prompts[0], 200)), run(&on, req(&prompts[0], 200)));
         assert_eq!(a, b, "copy n {n} len {len} k {k} first request");
-        let t = tel.snapshot();
-        assert!(t.spec_proposed + (k as u64 - 1) > k as u64 * t.spec_steps, "copy n {n} len {len} k {k}: no chain was verified ({} passes, {} drafted)", t.spec_steps, t.spec_proposed);
         for p in &prompts {
             let (a, b) = (run(&off, req(p, 200)), run(&on, req(p, 200)));
             assert_eq!(a, b, "copy n {n} len {len} k {k} prompt {p:?}");
@@ -627,7 +635,37 @@ fn copy_drafts_beside_the_mtp_head_keep_greedy_output_identical() {
             }
         }
         let t = tel.snapshot();
-        eprintln!("copy n {n} len {len} k {k}: {} passes, {} drafted, {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
+        // a copy chain is counted apart from the head's passes (the back-off after a missed chain thins them out, so over all runs)
+        assert!(t.spec_copy_steps > 0 && t.spec_copy_proposed >= t.spec_copy_steps * 3, "copy n {n} len {len} k {k}: no chain was verified ({t:?})");
+        assert!(t.spec_proposed <= k as u64 * t.spec_steps, "copy n {n} len {len} k {k}: a chain was counted as an MTP pass");
+        eprintln!(
+            "copy n {n} len {len} k {k}: {} mtp passes, {} drafted, {} accepted; {} chains, {} drafted, {} accepted",
+            t.spec_steps, t.spec_proposed, t.spec_accepted, t.spec_copy_steps, t.spec_copy_proposed, t.spec_copy_accepted
+        );
+    }
+}
+
+/// Copy chains next to the measured-cost gate flipping between speculation and plain decode (a chain pass is not one of the gate's
+/// samples, lane mcopy2): greedy ids stay equal to spec off, the chains still run, and the gate still flips.
+#[test]
+fn copy_drafts_with_the_cost_gate_flipping_keep_greedy_output_identical() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    let span: Vec<u32> = vec![5, 17, 29, 41, 53, 65, 77, 89, 3, 15, 27, 39];
+    let mut rep = span.clone();
+    rep.extend([1, 2, 3]);
+    rep.extend(&span);
+    rep.extend([9, 8, 7]);
+    rep.extend(&span[..4]);
+    for k in 1..=3 {
+        let (on, tel) = engine_copy_cost(&w, k, intarsia_core::spec::CopyCfg { n: 1, len: 5 }, Some((1e9, 1, 2, 5)));
+        for p in [&rep[..], PROMPTS[0], PROMPTS[2]] {
+            let (a, b) = (run(&off, req(p, 256)), run(&on, req(p, 256)));
+            assert_eq!(a, b, "k {k} prompt {p:?}");
+        }
+        let t = tel.snapshot();
+        assert!(t.spec_copy_steps > 0, "k {k}: chains ran");
+        assert!(t.spec_cost_off > 2 && t.spec_cost_on > 2, "k {k}: the gate flipped: off {} on {}", t.spec_cost_off, t.spec_cost_on);
     }
 }
 

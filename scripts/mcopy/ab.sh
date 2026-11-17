@@ -5,7 +5,7 @@
 # ARMS "name:ENV=val[+ENV2=val]" (X=1: none; BIN=<path> picks another binary; an arm named `off` serves --spec off; values may hold commas, INTARSIA_SPEC_COPY=20,15); CELLS (default: all five of prompts.py); ROUNDS (2); REPS (3).
 set -uo pipefail
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
-R=$HOME/intarsiaml-mcopy; W=${W:?W}; O=$R/out/$W; mkdir -p $O
+R=$HOME/intarsiaml-mcopy2; W=${W:?W}; O=$R/out/$W; mkdir -p $O
 H=/home/nvidia/.cache/huggingface/hub
 M35=$(ls -d $H/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/* | head -1)
 BIN=${BIN:-$R/bin/intarsia}; PORT=${PORT:-8097}; ROUNDS=${ROUNDS:-2}; REPS=${REPS:-3}
@@ -26,7 +26,7 @@ for r in $(seq 1 $ROUNDS); do
     echo "$a r$r up $(date +%T) free: $(free -g | awk 'NR==2{print $7}') GB"
     python3 $C $PORT $R/cells/chat-short.json 2 warm$r > /dev/null 2>&1
     for c in $CELLS; do python3 $C $PORT $R/cells/$c.json $REPS c$r --out $O/txt-$a-r$r >> $O/$a-r$r.jsonl 2>&1; echo "$a r$r $c: $(tail -1 $O/$a-r$r.jsonl | cut -c1-160)"; done
-    curl -s http://127.0.0.1:$PORT/metrics | grep -E '^intarsia_spec_(steps|proposed|accepted)' | sed 's/{[^}]*}//' | tr '\n' ' ' > $O/metrics-$a-r$r.txt
+    curl -s http://127.0.0.1:$PORT/metrics | grep -E '^intarsia_(spec_(steps|proposed|accepted|copy)|graph_|decode_eager)' | sed 's/{[^}]*}//' | tr '\n' ' ' > $O/metrics-$a-r$r.txt
     echo "$a r$r metrics: $(cat $O/metrics-$a-r$r.txt)"
   done
 done
