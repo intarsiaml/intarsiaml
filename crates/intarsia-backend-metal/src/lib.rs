@@ -285,12 +285,50 @@ pub fn with_mxfp4_rows_chunk<R>(on: bool, f: impl FnOnce() -> R) -> R {
     r
 }
 
+/// Chunk plan of a row-exact `matmul_fp8_gemv_rows` call (lane mfp8split), by rows `m` (index `m`, 2..=[`CHUNK_ROWS_MAX`]): the launch
+/// sizes, largest first, or empty where the kernel keeps its old rule (one launch up to [`CHUNK_TILE`] rows, halves above 13..=16). The
+/// kernel's 5..=8-row form (simdgroup-matrix) costs the same at every M from 5 to 8 (35B layers 4503 us per step, the 27B's fp8 head 3436 us),
+/// so the halves of 9..=12 rows (5+4, 5+5, 6+5, 6+6) pay that price twice; one 8-row launch and a 2..=4-row tail (the 4-row `_xd` form is cheaper:
+/// 2303 us for the head) costs 0.82-0.92 of the halves on the 35B shapes and 0.75-0.91 on the head (docs/results/2026-11-17-mchunkx.md
+/// table B), 9 rows 7+2 (0.89; a 1-row tail is not an option for a `_rows` kernel). 13..=16 rows show no gain (8+5 / 8+6 are 1.00, 8+7 / 8+8
+/// are the halves). Every row of the kernel is bitwise the one-row launch (tests/rows_exact.rs), so every plan is bitwise the same.
+pub const FP8_ROWS_PLAN: [&[usize]; CHUNK_ROWS_MAX + 1] =
+    [&[], &[], &[], &[], &[], &[], &[], &[], &[], &[7, 2], &[8, 2], &[8, 3], &[8, 4], &[], &[], &[], &[]];
+
+/// `INTARSIA_METAL_FP8_ROWS_SPLIT`: `0` takes back the old halves for 9..=12 rows of `matmul_fp8_gemv_rows`; any other value, or unset,
+/// runs [`FP8_ROWS_PLAN`] (lane mfp8split). Bitwise the same output either way.
+pub fn fp8_rows_split_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let forced = FP8_ROWS_SPLIT_FORCE.with(|t| t.get());
+    forced.unwrap_or_else(|| *ON.get_or_init(|| std::env::var("INTARSIA_METAL_FP8_ROWS_SPLIT").map_or(DEFAULT_FP8_ROWS_SPLIT, |v| v.trim() != "0")))
+}
+
+/// Whether [`FP8_ROWS_PLAN`] runs when the env var is unset.
+const DEFAULT_FP8_ROWS_SPLIT: bool = true;
+
+thread_local! {
+    static FP8_ROWS_SPLIT_FORCE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Test hook: run `f` with this thread's `matmul_fp8_gemv_rows` split forced on (the plan) or off (the old halves), whatever the env says.
+pub fn with_fp8_rows_split<R>(on: bool, f: impl FnOnce() -> R) -> R {
+    FP8_ROWS_SPLIT_FORCE.with(|t| t.set(Some(on)));
+    let r = f();
+    FP8_ROWS_SPLIT_FORCE.with(|t| t.set(None));
+    r
+}
+
 /// Launch sizes of a row-exact multi-row call of `m` rows on `kernel`, or `None` for one launch: [`MXFP4_ROWS_PLAN`] for the MXFP4
-/// twin (when the knob is on), else the old rule: more than [`CHUNK_TILE`] rows are halved into `ceil(m / 2)` and `floor(m / 2)`.
+/// twin (when the knob is on), [`FP8_ROWS_PLAN`] for the fp8 kernel at 9..=12 rows (when its knob is on), else the old rule: more than [`CHUNK_TILE`] rows are halved into `ceil(m / 2)` and `floor(m / 2)`.
 fn chunk_sizes(kernel: &str, m: usize) -> Option<Vec<usize>> {
     if kernel == mxfp4::MATMUL_MXFP4_GEMV_ROWS && mxfp4_rows_chunk_enabled() {
         let plan = MXFP4_ROWS_PLAN.get(m).copied().filter(|p| p.len() > 1)?;
         return Some(plan.to_vec());
+    }
+    if kernel == fp8::MATMUL_FP8_GEMV_ROWS && fp8_rows_split_enabled() {
+        if let Some(plan) = FP8_ROWS_PLAN.get(m).copied().filter(|p| !p.is_empty()) {
+            return Some(plan.to_vec());
+        }
     }
     (m > CHUNK_TILE && m <= CHUNK_ROWS_MAX).then(|| vec![m.div_ceil(2), m / 2])
 }
@@ -391,10 +429,36 @@ mod chunk_tests {
         });
         // other kernels keep the halves whatever the knob says
         with_mxfp4_rows_chunk(true, || {
-            for k in [fp8::MATMUL_FP8_GEMV_ROWS, nvfp4::MATMUL_NVFP4_GEMV_ROWS, multirow::MATMUL_BF16_GEMV_ROWS] {
-                assert_eq!(chunk_sizes(k, 8), None);
-                assert_eq!(chunk_sizes(k, 9), Some(vec![5, 4]));
-                assert_eq!(chunk_sizes(k, 16), Some(vec![8, 8]));
+            with_fp8_rows_split(true, || {
+                for k in [nvfp4::MATMUL_NVFP4_GEMV_ROWS, multirow::MATMUL_BF16_GEMV_ROWS] {
+                    assert_eq!(chunk_sizes(k, 8), None);
+                    assert_eq!(chunk_sizes(k, 9), Some(vec![5, 4]));
+                    assert_eq!(chunk_sizes(k, 16), Some(vec![8, 8]));
+                }
+            });
+        });
+    }
+
+    #[test]
+    fn fp8_plan_is_a_valid_split_and_only_9_to_12() {
+        let k = fp8::MATMUL_FP8_GEMV_ROWS;
+        for m in 2..=CHUNK_ROWS_MAX {
+            let p = FP8_ROWS_PLAN[m];
+            if p.is_empty() {
+                continue;
+            }
+            assert!((9..=12).contains(&m), "plan only for 9..=12 rows, got {m}");
+            assert_eq!(p.iter().sum::<usize>(), m);
+            assert!(p.iter().all(|&n| (2..=CHUNK_TILE).contains(&n)) && p.windows(2).all(|w| w[0] >= w[1]), "{p:?}");
+        }
+        with_fp8_rows_split(true, || {
+            for (m, want) in [(2, None), (5, None), (8, None), (9, Some(vec![7, 2])), (10, Some(vec![8, 2])), (11, Some(vec![8, 3])), (12, Some(vec![8, 4])), (13, Some(vec![7, 6])), (16, Some(vec![8, 8]))] {
+                assert_eq!(chunk_sizes(k, m), want, "M = {m}");
+            }
+        });
+        with_fp8_rows_split(false, || {
+            for (m, want) in [(8, None), (9, Some(vec![5, 4])), (10, Some(vec![5, 5])), (12, Some(vec![6, 6])), (16, Some(vec![8, 8]))] {
+                assert_eq!(chunk_sizes(k, m), want, "M = {m}, knob 0");
             }
         });
     }

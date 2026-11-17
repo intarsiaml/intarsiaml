@@ -1,0 +1,22 @@
+fleetq: #9870 waiting (#1 in line): #9865 "fadv gates" (claude-222947e6) needs cpu quiet on spark2, and this job loads it
+fleetq:   #9865 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9865 set, or it will wait for #9865 to be released.
+fleetq: #9870 running on spark2: bash scripts/herd/build.sh
+09:53:12
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsiaml-herd/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsiaml-herd/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsiaml-herd/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsiaml-herd/src/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsiaml-herd/src/crates/intarsia-tui)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsiaml-herd/src/crates/intarsia-engram)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsiaml-herd/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsiaml-herd/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsiaml-herd/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsiaml-herd/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 10s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  186G  95% /
+2.8G	/home/nvidia/intarsiaml-herd
+Mem:             121          47          43           0          32          74
+09:58:23
+git sha 0e147aff37606043680b80a025bd7622a61b4730
+fleetq: #9870 done (exit 0)

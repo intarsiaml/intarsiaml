@@ -1,0 +1,25 @@
+fleetq: #9857 running on endor: ./scripts/mfp8split/test-rows.sh
+running 4 tests
+test chunk_tests::mxfp4_plan_is_a_valid_split_of_every_row_count ... ok
+test chunk_tests::mxfp4_plan_is_the_cheapest_split_of_the_measured_launch_costs ... ok
+test chunk_tests::chunk_sizes_by_kernel_and_knob ... ok
+test chunk_tests::fp8_plan_is_a_valid_split_and_only_9_to_12 ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+running 15 tests
+test timing_chunkx ... ignored
+test timing_mxfp4_plans ... ignored
+test timing_mxfp4_rows ... ignored
+test timing_rows ... ignored
+test rows_exact_registrations_are_pinned ... ok
+test mxfp4_nax_rows_differ_from_the_one_row_gemv ... ok
+test bf16_pair_rows_at_the_35b_pairs ... ok
+test negative_controls_differ_from_the_one_row_calls ... ok
+test row_parallel_kernels_do_not_depend_on_the_row_count ... ok
+test moe_experts_rows_are_bitwise_the_one_token_call ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test mxfp4_row_chunks_are_bitwise_the_one_row_gemv ... ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test fp8_row_splits_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test result: ok. 11 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 2.34s
+fleetq: #9857 done (exit 0)

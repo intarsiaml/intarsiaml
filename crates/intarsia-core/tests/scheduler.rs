@@ -17,8 +17,8 @@ use std::time::Duration;
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::scheduler::{
     chunk_schedule, chunk_schedule_tm, effective_tail_merge, next_prefill_chunk, next_prefill_chunk_tm, parse_peel,
-    parse_peel_period, parse_tail_merge, peel_tail, BatchEngine, BatchModel, BatchSeq, EndKind, Housekeep, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
-    TraceEvent, Verified, VerifyRows,
+    parse_peel_period, parse_prefill_order, parse_tail_merge, peel_tail, BatchEngine, BatchModel, BatchSeq, EndKind, Housekeep, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
+    PrefillOrder, TraceEvent, Verified, VerifyRows,
 };
 use intarsia_core::{Error, FinishReason, Result};
 
@@ -983,7 +983,10 @@ fn check_trace(run: &BatchRun, cfg: &SchedulerConfig) {
     }
     // FIFO: admission and prefill start in submit (= id) order
     assert!(admitted.windows(2).all(|w| w[0] < w[1]), "admission not FIFO: {admitted:?}");
-    assert!(started.windows(2).all(|w| w[0] < w[1]), "prefill start not FIFO: {started:?}");
+    // (prefill start follows the prefill order: only fifo starts in submit order)
+    if cfg.prefill_order == PrefillOrder::Fifo {
+        assert!(started.windows(2).all(|w| w[0] < w[1]), "prefill start not FIFO: {started:?}");
+    }
     // decode-first: once decoding, a request gets a row every iteration until it ends
     for (id, its) in &decode_iters {
         assert!(its.windows(2).all(|w| w[1] == w[0] + 1), "request {id} skipped a decode iteration: {its:?}");
@@ -991,11 +994,14 @@ fn check_trace(run: &BatchRun, cfg: &SchedulerConfig) {
     // prefill budget while others decode: an iteration whose prefill stalls a stream that decodes before and after it (a packed
     // pass holds one chunk of each prompt it packs)
     let per_pass = if cfg.pack_prefill { cfg.max_batch } else { 1 };
+    // under shortest a prompt that began prefilling in a quiet engine (the solo chunk is sticky) can still be mid-prefill when a short
+    // one finished first and started decoding: its next solo-size chunk then runs beside decode rows (fifo never has that)
+    let chunk_bound = if cfg.prefill_order == PrefillOrder::Shortest { cfg.busy_chunk.max(cfg.solo_chunk) } else { cfg.busy_chunk };
     for (iter, tok) in &prefill_tokens_in_iter {
         let (Some(now), Some(next)) = (decode_in_iter.get(iter), decode_in_iter.get(&(iter + 1))) else { continue };
         if now.iter().any(|id| next.contains(id)) {
             assert!(
-                *tok <= cfg.busy_chunk * cfg.busy_chunks_per_iter * per_pass,
+                *tok <= chunk_bound * cfg.busy_chunks_per_iter * per_pass,
                 "iter {iter}: {tok} prefill tokens beside decode"
             );
         }
@@ -2777,4 +2783,168 @@ fn seeded_sampled_drafting_equals_drafting_off_in_any_batch() {
     assert!(accepted > 1000 && proposed - accepted > 1000, "drafts accepted and rejected ({accepted} of {proposed})");
     assert!(mixed_passes > 100 && wide_passes > 100, "batched verify passes of mixed and of several sampled sequences");
     assert!(mutants > 20, "the mutant acceptance went unnoticed ({mutants})");
+}
+
+// ---- lane sjf: `PrefillOrder::Shortest` (INTARSIA_PREFILL_ORDER=shortest) ----
+
+/// The prefill chunks of a trace in run order: `(request, start, len, last)`.
+fn chunk_events(tr: &[TraceEvent]) -> Vec<(RequestId, usize, usize, bool)> {
+    tr.iter().filter_map(|e| if let TraceEvent::Chunk { id, start, len, last, .. } = e { Some((*id, *start, *len, *last)) } else { None }).collect()
+}
+
+#[test]
+fn prefill_order_knob_parse() {
+    assert_eq!(parse_prefill_order(None).unwrap(), PrefillOrder::Fifo);
+    assert_eq!(parse_prefill_order(Some("")).unwrap(), PrefillOrder::Fifo);
+    assert_eq!(parse_prefill_order(Some("fifo")).unwrap(), PrefillOrder::Fifo);
+    assert_eq!(parse_prefill_order(Some(" shortest ")).unwrap(), PrefillOrder::Shortest);
+    assert!(parse_prefill_order(Some("sjf")).is_err());
+    assert_eq!(SchedulerConfig::default().prefill_order, PrefillOrder::Fifo);
+    assert!(SchedulerConfig { prefill_age: 0, ..Default::default() }.validate().is_err());
+}
+
+/// A short prompt that arrives while a long one is mid-prefill: fifo finishes the long prefill first, shortest the short one.
+/// Both prompts keep their own chunk schedule and tokens either way.
+#[test]
+fn shortest_lets_a_short_prompt_overtake_a_long_prefill() {
+    let mut rng = SplitMix64::new(11);
+    let long_p = random_prompt(&mut rng, 6000);
+    let short_p = random_prompt(&mut rng, 100);
+    let run = |order: PrefillOrder| {
+        let cfg = SchedulerConfig { max_batch: 2, trace: true, prefill_order: order, ..Default::default() };
+        let mut s = Scheduler::new(MockModel::new(2, 8192), cfg).unwrap();
+        let (l, rxl, _) = submit(&mut s, greedy(long_p.clone(), 6));
+        s.step(); // the long prompt's first chunk
+        let (sh, rxs, _) = submit(&mut s, greedy(short_p.clone(), 6));
+        run_to_end(&mut s);
+        let m = s.metrics();
+        (l, sh, chunk_events(&s.take_trace()), tokens(&collect(&rxl)), tokens(&collect(&rxs)), m.reordered_chunks)
+    };
+    let (l, sh, fifo, fifo_l, fifo_s, fifo_re) = run(PrefillOrder::Fifo);
+    let (l2, sh2, short, short_l, short_s, short_re) = run(PrefillOrder::Shortest);
+    assert_eq!((l, sh), (l2, sh2));
+    let last_of = |ev: &[(RequestId, usize, usize, bool)], id| ev.iter().position(|e| e.0 == id && e.3).unwrap();
+    // fifo: the whole long prefill, then the short prompt
+    assert!(last_of(&fifo, l) < last_of(&fifo, sh), "fifo: {fifo:?}");
+    assert_eq!(fifo_re, 0);
+    // shortest: the short prompt right after the long one's first chunk, then the rest of the long prefill
+    assert!(last_of(&short, sh) < last_of(&short, l), "shortest: {short:?}");
+    assert_eq!(short[1], (sh, 0, 100, true), "the short prompt takes the second chunk: {short:?}");
+    assert!(short_re >= 1);
+    // per-request chunk schedules are the plain ones, and the same in both orders
+    for ev in [&fifo, &short] {
+        let of = |id| ev.iter().filter(|e| e.0 == id).map(|e| (e.1, e.2)).collect::<Vec<_>>();
+        assert_eq!(of(l), chunk_schedule(0, 6000, 2048, false));
+        assert_eq!(of(sh), chunk_schedule(0, 100, 2048, false));
+    }
+    // same tokens in both orders (the long prompt still completes)
+    assert_eq!(fifo_l.len(), 6);
+    assert_eq!(fifo_l, short_l);
+    assert_eq!(fifo_s, short_s);
+}
+
+/// Aging: a stream of short prompts never lets a long prefill starve. With `prefill_age` = A and B slots the long prompt gets a
+/// chunk at least every A + B - 1 prefill decisions (A passes to age, then behind the other aged prompts, at most B - 1); with a huge
+/// age (the negative control) it waits for the whole stream.
+#[test]
+fn shortest_aging_bounds_the_wait_of_a_long_prefill() {
+    let mut rng = SplitMix64::new(12);
+    let long_p = random_prompt(&mut rng, 20_000); // 10 chunks of 2048
+    let mut gaps = |age: usize| -> (Vec<usize>, usize, bool) {
+        let cfg = SchedulerConfig { max_batch: 4, max_queue: 1000, trace: true, prefill_order: PrefillOrder::Shortest, prefill_age: age, ..Default::default() };
+        let mut s = Scheduler::new(MockModel::new(4, 32768), cfg).unwrap();
+        let (l, rxl, _) = submit(&mut s, greedy(long_p.clone(), 4));
+        s.step();
+        let mut rxs = Vec::new();
+        // a new short prompt every iteration for 80 iterations: there is always one prefilling
+        for _ in 0..80 {
+            let (_, rx, _) = submit(&mut s, greedy(random_prompt(&mut rng, 60), 2));
+            rxs.push(rx);
+            s.step();
+        }
+        run_to_end(&mut s);
+        let ev = chunk_events(&s.take_trace());
+        // the number of decisions between consecutive long-prompt chunks (chunks of other prompts in between)
+        let mut gaps = Vec::new();
+        let mut since = 0usize;
+        for e in &ev {
+            if e.0 == l {
+                gaps.push(since);
+                since = 0;
+            } else {
+                since += 1;
+            }
+        }
+        let done = tokens(&collect(&rxl)).len() == 4;
+        (gaps, since, done)
+    };
+    for age in [1usize, 3, 8] {
+        let (g, _, done) = gaps(age);
+        assert!(done, "age {age}: the long prompt completed");
+        assert_eq!(g.len(), 10, "age {age}: the long prompt ran its 10 chunks: {g:?}");
+        // gap 0 for the chunk that ran straight after the first step
+        assert!(g.iter().all(|&n| n < age + 4), "age {age}: gaps {g:?}");
+        assert!(g.iter().any(|&n| n >= age), "age {age}: aging never had to force a chunk: {g:?}");
+    }
+    // negative control: no practical aging, the long prompt waits for (nearly) every short one
+    let (g, _, _) = gaps(100_000);
+    assert!(g.iter().any(|&n| n > 8), "without aging the long prompt should wait: {g:?}");
+}
+
+/// Shortest, all the engine's modes: every request still equals its solo reference (same chunk schedule, same tokens), with
+/// packed passes, paused chunks and overlap, and with several chunks per iteration; and the order really changed in these runs.
+#[test]
+fn batched_equals_solo_randomized_with_shortest_prefill() {
+    let cap = 4096;
+    let mut reordered = 0u64;
+    let mut cov = Cov::default();
+    // (pack rows, pause rows, overlap, chunks per iteration)
+    for (pack, pause, overlap, per_iter) in [(0usize, 0usize, false, 1usize), (0, 0, false, 3), (1024, 0, false, 1), (0, 100, false, 1), (0, 0, true, 1)] {
+        for flag in [false, true] {
+            with_avoid(flag, || {
+                with_pack(pack, || {
+                    with_pause(pause, || {
+                        with_overlap(overlap, || {
+                            for &b in &[2usize, 4, 8] {
+                                for age in [2usize, 8] {
+                                    for seed in 0..3u64 {
+                                        let mut rng = SplitMix64::new(seed * 1000 + b as u64 + 4242);
+                                        let mut reqs = random_reqs(&mut rng, 24, cap);
+                                        if pack > 0 {
+                                            // a packed pass fails as a whole (every prompt in it fails)
+                                            reqs.iter_mut().for_each(|r| r.fail_prefill = false);
+                                        }
+                                        let cfg = SchedulerConfig {
+                                            max_batch: b,
+                                            max_queue: 1000,
+                                            busy_chunk: if pause > 0 { 2048 } else { 256 },
+                                            busy_chunks_per_iter: per_iter,
+                                            pack_prefill: pack > 0,
+                                            prefill_order: PrefillOrder::Shortest,
+                                            prefill_age: age,
+                                            ..Default::default()
+                                        };
+                                        let run = run_batched(cfg.clone(), cap, &reqs, false);
+                                        if pause == 0 {
+                                            // (a parked chunk's decode phase never speculates, which the gate check does not know)
+                                            check_trace(&run, &cfg);
+                                        }
+                                        let mm = check_identity_cov(&run, &reqs, &cfg, cap, &mut cov);
+                                        assert_eq!(
+                                            mm, 0,
+                                            "shortest, pack {pack}, pause {pause}, overlap {overlap}, per_iter {per_iter}, B = {b}, age {age}, seed {seed}"
+                                        );
+                                        reordered += run.metrics.reordered_chunks;
+                                    }
+                                }
+                            }
+                        })
+                    })
+                })
+            });
+        }
+    }
+    eprintln!("shortest coverage: {cov:?}, {reordered} reordered decisions");
+    assert!(reordered >= 200, "the randomized runs rarely reordered ({reordered})");
+    assert!(cov.exact >= 100 && cov.multi_chunk >= 50, "{cov:?}");
 }

@@ -22,6 +22,10 @@ pub trait WeightSource: Send + Sync {
     fn host_memory(&self, _name: &str) -> Option<(Arc<dyn HostMemory>, usize, usize)> {
         None
     }
+    /// Ask the OS to drop the checkpoint files' page cache (`posix_fadvise(DONTNEED)`). Called once the weights are on the
+    /// device; only for a backend that copied them (a zero-copy `wrap_host` buffer still reads the mapping). A hint: no effect on
+    /// results.
+    fn release_page_cache(&self) {}
     /// The quantisation scheme the checkpoint declares (`hf_quant_config.json`), when the source knows it.
     /// `Model::load` checks every linear layer against it.
     fn quant_scheme(&self) -> Option<&crate::quant::scheme::QuantScheme> {

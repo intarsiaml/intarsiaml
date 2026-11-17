@@ -1,0 +1,42 @@
+fleetq: #9876 waiting (#1 in line): needs gpu quiet on spark2, but #9873 "fadv gate d 4k" (claude-222947e6) loads it
+fleetq:   #9873 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9873 set, or it will wait for #9873 to be released.
+fleetq: #9876 running on spark2: bash scripts/herd/window.sh A B B A
+[10:00:19] window start: arms A B B A; earlyoom active; vLLM /v1/models 200; Mem:             121          47          43           0          32          74
+[10:00:19] visit A1: serve (herd off) Mem:             121          47          43           0          32          74
+[10:01:12] serve A1 up; Mem:             121          75          18           0          29          46
+{"arm": "A", "visit": "A1", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 108.203, "ttft_p50_s": 13.634, "ttft_last_s": 24.033, "wall_s": 24.559, "cached_tokens": [2048, 2048, 2048, 2048, 0, 2048, 2048, 2048]}
+{"arm": "A", "visit": "A1", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 108.199, "ttft_p50_s": 13.65, "ttft_last_s": 24.031, "wall_s": 24.59, "cached_tokens": [2048, 2048, 2048, 2048, 0, 2048, 2048, 2048]}
+{"arm": "A", "visit": "A1", "mode": "herd8", "seed": 3, "ok": 8, "ttft_sum_s": 108.086, "ttft_p50_s": 13.64, "ttft_last_s": 23.949, "wall_s": 24.404, "cached_tokens": [2048, 2048, 2048, 0, 2048, 2048, 2048, 2048]}
+{"arm": "A", "visit": "A1", "mode": "distinct", "seed": 11, "ok": 8, "ttft_sum_s": 57.729, "ttft_p50_s": 7.268, "ttft_last_s": 13.386, "wall_s": 14.155, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "A", "visit": "A1", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.79, "ttft_p50_s": 0.222, "ttft_last_s": 0.261, "wall_s": 5.742, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "A", "visit": "A1", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.64, "ttft_p50_s": 0.194, "ttft_last_s": 0.253, "wall_s": 5.678, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "A", "visit": "A1", "mode": "solo", "seed": 3, "ok": 8, "ttft_sum_s": 1.646, "ttft_p50_s": 0.197, "ttft_last_s": 0.258, "wall_s": 5.372, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+min MemAvailable MB (time MB; KILLED count) (A1): 10:02:57 43553 0 [10:03:25] visit B2: serve (herd ON) Mem:             121          47          46           0          29          74
+[10:04:01] serve B2 up; Mem:             121          74          19           0          29          47
+{"arm": "B", "visit": "B2", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 27.469, "ttft_p50_s": 3.427, "ttft_last_s": 4.012, "wall_s": 6.182, "cached_tokens": [16384, 16384, 16384, 16384, 0, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B2", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 27.261, "ttft_p50_s": 3.395, "ttft_last_s": 3.96, "wall_s": 6.108, "cached_tokens": [16384, 16384, 0, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B2", "mode": "herd8", "seed": 3, "ok": 8, "ttft_sum_s": 27.163, "ttft_p50_s": 3.382, "ttft_last_s": 3.945, "wall_s": 6.088, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 0, 16384, 16384]}
+{"arm": "B", "visit": "B2", "mode": "distinct", "seed": 11, "ok": 8, "ttft_sum_s": 57.497, "ttft_p50_s": 7.199, "ttft_last_s": 13.321, "wall_s": 14.034, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "B", "visit": "B2", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.635, "ttft_p50_s": 0.199, "ttft_last_s": 0.234, "wall_s": 5.734, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B2", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.619, "ttft_p50_s": 0.193, "ttft_last_s": 0.236, "wall_s": 5.655, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B2", "mode": "solo", "seed": 3, "ok": 8, "ttft_sum_s": 1.559, "ttft_p50_s": 0.192, "ttft_last_s": 0.215, "wall_s": 5.287, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+min MemAvailable MB (time MB; KILLED count) (B2): 10:04:40 43453 0 [10:05:19] visit B3: serve (herd ON) Mem:             121          47          46           0          29          74
+[10:05:58] serve B3 up; Mem:             121          74          19           0          29          47
+{"arm": "B", "visit": "B3", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 27.427, "ttft_p50_s": 3.422, "ttft_last_s": 4.005, "wall_s": 6.153, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 0, 16384]}
+{"arm": "B", "visit": "B3", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 27.265, "ttft_p50_s": 3.4, "ttft_last_s": 3.967, "wall_s": 6.09, "cached_tokens": [16384, 16384, 16384, 0, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B3", "mode": "herd8", "seed": 3, "ok": 8, "ttft_sum_s": 27.143, "ttft_p50_s": 3.387, "ttft_last_s": 3.948, "wall_s": 6.126, "cached_tokens": [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B3", "mode": "distinct", "seed": 11, "ok": 8, "ttft_sum_s": 57.891, "ttft_p50_s": 7.276, "ttft_last_s": 13.327, "wall_s": 14.019, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "B", "visit": "B3", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.677, "ttft_p50_s": 0.199, "ttft_last_s": 0.26, "wall_s": 5.837, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B3", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.736, "ttft_p50_s": 0.192, "ttft_last_s": 0.273, "wall_s": 5.672, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B3", "mode": "solo", "seed": 3, "ok": 8, "ttft_sum_s": 1.575, "ttft_p50_s": 0.193, "ttft_last_s": 0.226, "wall_s": 5.304, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+min MemAvailable MB (time MB; KILLED count) (B3): 10:06:38 43488 0 [10:07:16] visit A4: serve (herd off) Mem:             121          47          46           0          29          74
+[10:07:55] serve A4 up; Mem:             121          74          19           0          29          47
+{"arm": "A", "visit": "A4", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 108.577, "ttft_p50_s": 13.687, "ttft_last_s": 24.044, "wall_s": 24.617, "cached_tokens": [2048, 2048, 0, 2048, 2048, 2048, 2048, 2048]}
+{"arm": "A", "visit": "A4", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 108.742, "ttft_p50_s": 13.736, "ttft_last_s": 24.058, "wall_s": 24.697, "cached_tokens": [2048, 2048, 2048, 2048, 2048, 2048, 0, 2048]}
+{"arm": "A", "visit": "A4", "mode": "herd8", "seed": 3, "ok": 8, "ttft_sum_s": 108.106, "ttft_p50_s": 13.632, "ttft_last_s": 23.9, "wall_s": 24.42, "cached_tokens": [2048, 2048, 2048, 2048, 2048, 0, 2048, 2048]}
+{"arm": "A", "visit": "A4", "mode": "distinct", "seed": 11, "ok": 8, "ttft_sum_s": 57.453, "ttft_p50_s": 7.206, "ttft_last_s": 13.315, "wall_s": 14.017, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "A", "visit": "A4", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.628, "ttft_p50_s": 0.193, "ttft_last_s": 0.262, "wall_s": 5.714, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "A", "visit": "A4", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.618, "ttft_p50_s": 0.194, "ttft_last_s": 0.261, "wall_s": 5.661, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "A", "visit": "A4", "mode": "solo", "seed": 3, "ok": 8, "ttft_sum_s": 1.63, "ttft_p50_s": 0.195, "ttft_last_s": 0.243, "wall_s": 5.318, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+min MemAvailable MB (time MB; KILLED count) (A4): 10:09:41 43643 0 [10:10:09] window end; Mem:             121          47          46           0          29          74
+fleetq: #9876 done (exit 0)

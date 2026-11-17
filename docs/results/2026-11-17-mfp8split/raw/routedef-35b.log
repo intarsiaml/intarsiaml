@@ -1,0 +1,5 @@
+fleetq: #9901 running on endor: ./scripts/mfp8split/gates.sh 35b routedef
+def-10: streams 10: [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]
+route def-10 (env unset): [(2, 2340), (3, 260), (4, 260), (5, 260), (6, 260), (7, 520), (8, 2080)]
+## done 35b routedef
+fleetq: #9901 done (exit 0)

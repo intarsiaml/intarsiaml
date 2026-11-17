@@ -1,0 +1,4 @@
+/opt/code/intarsiaml/.worktrees/sjf/docs/results/2026-11-17-sjf/raw/ids-fifo.json: reordered decisions 0.0, packed passes 7.0
+/opt/code/intarsiaml/.worktrees/sjf/docs/results/2026-11-17-sjf/raw/ids-shortest.json: reordered decisions 35.0, packed passes 6.0
+/opt/code/intarsiaml/.worktrees/sjf/docs/results/2026-11-17-sjf/raw/ids-shortest-nopack.json: reordered decisions 37.0, packed passes 0.0
+180/180 cells identical

@@ -1,0 +1,29 @@
+fleetq: #9889 waiting (#1 in line): needs gpu quiet on endor, but #9880 "mfp8split negctl on split test" (claude-222947e6) loads it
+fleetq:   #9880 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9880 set, or it will wait for #9880 to be released.
+fleetq: #9889 running on endor: env COOL=120 ./scripts/mfp8split/abba.sh 27b docs/results/2026-11-17-mfp8split/raw/abba-27b 'A1 B1 B2 A2'
+CELL tag=A1 s8 streams=8 requests=16 tokens=4096 wall_s=43.12 agg_tps=95 ttft_p50=0.7946 ttft_mean=0.9231 dec_tps_p50=12.57 prompt_tokens_p50=115.5
+CELL tag=A1 s9 streams=9 requests=18 tokens=4608 wall_s=54.69 agg_tps=84.26 ttft_p50=0.8596 ttft_mean=1.051 dec_tps_p50=9.706 prompt_tokens_p50=115
+CELL tag=A1 s10 streams=10 requests=20 tokens=5120 wall_s=56.21 agg_tps=91.09 ttft_p50=0.8583 ttft_mean=1.117 dec_tps_p50=9.554 prompt_tokens_p50=115.5
+CELL tag=A1 s11 streams=11 requests=22 tokens=5632 wall_s=61.4 agg_tps=91.72 ttft_p50=0.8815 ttft_mean=1.202 dec_tps_p50=8.767 prompt_tokens_p50=116
+CELL tag=A1 s12 streams=12 requests=24 tokens=6144 wall_s=68.69 agg_tps=89.44 ttft_p50=0.8776 ttft_mean=1.335 dec_tps_p50=7.921 prompt_tokens_p50=116.5
+CELL tag=A1 s16 streams=16 requests=32 tokens=8192 wall_s=87.83 agg_tps=93.27 ttft_p50=1.034 ttft_mean=1.704 dec_tps_p50=6.178 prompt_tokens_p50=114.5
+CELL tag=B1 s8 streams=8 requests=16 tokens=4096 wall_s=43.14 agg_tps=94.95 ttft_p50=0.801 ttft_mean=0.9195 dec_tps_p50=12.56 prompt_tokens_p50=115.5
+CELL tag=B1 s9 streams=9 requests=18 tokens=4608 wall_s=54.22 agg_tps=84.99 ttft_p50=0.8499 ttft_mean=1.039 dec_tps_p50=9.733 prompt_tokens_p50=115
+CELL tag=B1 s10 streams=10 requests=20 tokens=5120 wall_s=55.64 agg_tps=92.03 ttft_p50=0.857 ttft_mean=1.114 dec_tps_p50=9.687 prompt_tokens_p50=115.5
+CELL tag=B1 s11 streams=11 requests=22 tokens=5632 wall_s=63.15 agg_tps=89.18 ttft_p50=0.9346 ttft_mean=1.251 dec_tps_p50=8.354 prompt_tokens_p50=116
+CELL tag=B1 s12 streams=12 requests=24 tokens=6144 wall_s=64.13 agg_tps=95.8 ttft_p50=0.92 ttft_mean=1.298 dec_tps_p50=8.387 prompt_tokens_p50=116.5
+CELL tag=B1 s16 streams=16 requests=32 tokens=8192 wall_s=85.81 agg_tps=95.47 ttft_p50=1.005 ttft_mean=1.648 dec_tps_p50=6.274 prompt_tokens_p50=114.5
+CELL tag=B2 s8 streams=8 requests=16 tokens=4096 wall_s=42.95 agg_tps=95.38 ttft_p50=0.8031 ttft_mean=0.9204 dec_tps_p50=12.62 prompt_tokens_p50=115.5
+CELL tag=B2 s9 streams=9 requests=18 tokens=4608 wall_s=54.85 agg_tps=84.01 ttft_p50=0.8927 ttft_mean=1.043 dec_tps_p50=9.611 prompt_tokens_p50=115
+CELL tag=B2 s10 streams=10 requests=20 tokens=5120 wall_s=55.85 agg_tps=91.68 ttft_p50=0.8363 ttft_mean=1.108 dec_tps_p50=9.659 prompt_tokens_p50=115.5
+CELL tag=B2 s11 streams=11 requests=22 tokens=5632 wall_s=60.28 agg_tps=93.43 ttft_p50=0.8957 ttft_mean=1.207 dec_tps_p50=8.945 prompt_tokens_p50=116
+CELL tag=B2 s12 streams=12 requests=24 tokens=6144 wall_s=64.59 agg_tps=95.13 ttft_p50=0.905 ttft_mean=1.29 dec_tps_p50=8.357 prompt_tokens_p50=116.5
+CELL tag=B2 s16 streams=16 requests=32 tokens=8192 wall_s=96.14 agg_tps=85.21 ttft_p50=1.153 ttft_mean=1.852 dec_tps_p50=5.692 prompt_tokens_p50=114.5
+CELL tag=A2 s8 streams=8 requests=16 tokens=4096 wall_s=54.02 agg_tps=75.82 ttft_p50=0.9779 ttft_mean=1.018 dec_tps_p50=9.802 prompt_tokens_p50=115.5
+CELL tag=A2 s9 streams=9 requests=18 tokens=4608 wall_s=53.14 agg_tps=86.71 ttft_p50=0.8295 ttft_mean=1.05 dec_tps_p50=10.15 prompt_tokens_p50=115
+CELL tag=A2 s10 streams=10 requests=20 tokens=5120 wall_s=57.23 agg_tps=89.46 ttft_p50=0.8447 ttft_mean=1.124 dec_tps_p50=9.438 prompt_tokens_p50=115.5
+CELL tag=A2 s11 streams=11 requests=22 tokens=5632 wall_s=64.03 agg_tps=87.96 ttft_p50=0.8929 ttft_mean=1.237 dec_tps_p50=8.245 prompt_tokens_p50=116
+CELL tag=A2 s12 streams=12 requests=24 tokens=6144 wall_s=64.89 agg_tps=94.69 ttft_p50=0.8984 ttft_mean=1.285 dec_tps_p50=8.295 prompt_tokens_p50=116.5
+CELL tag=A2 s16 streams=16 requests=32 tokens=8192 wall_s=85.21 agg_tps=96.13 ttft_p50=0.9569 ttft_mean=1.628 dec_tps_p50=6.299 prompt_tokens_p50=114.5
+## done
+fleetq: #9889 done (exit 0)

@@ -1,0 +1,19 @@
+fleetq: #9896 running on endor: env COOL=120 'CELLS=9 8' ./scripts/mfp8split/abba.sh 35b docs/results/2026-11-17-mfp8split/raw/abba-35b-r3 'A1 B1 B2 A2 B3 A3 A4 B4'
+CELL tag=A1 s9 streams=9 requests=18 tokens=4608 wall_s=14.16 agg_tps=325.5 ttft_p50=0.245 ttft_mean=0.3174 dec_tps_p50=37.54 prompt_tokens_p50=115
+CELL tag=A1 s8 streams=8 requests=16 tokens=4096 wall_s=11.4 agg_tps=359.3 ttft_p50=0.2466 ttft_mean=0.2954 dec_tps_p50=47.29 prompt_tokens_p50=115.5
+CELL tag=B1 s9 streams=9 requests=18 tokens=4608 wall_s=14.12 agg_tps=326.3 ttft_p50=0.2521 ttft_mean=0.3205 dec_tps_p50=38.5 prompt_tokens_p50=115
+CELL tag=B1 s8 streams=8 requests=16 tokens=4096 wall_s=12.78 agg_tps=320.5 ttft_p50=0.2772 ttft_mean=0.3205 dec_tps_p50=42.34 prompt_tokens_p50=115.5
+CELL tag=B2 s9 streams=9 requests=18 tokens=4608 wall_s=15.44 agg_tps=298.4 ttft_p50=0.2764 ttft_mean=0.3338 dec_tps_p50=34.29 prompt_tokens_p50=115
+CELL tag=B2 s8 streams=8 requests=16 tokens=4096 wall_s=12.96 agg_tps=316 ttft_p50=0.2843 ttft_mean=0.3351 dec_tps_p50=41.1 prompt_tokens_p50=115.5
+CELL tag=A2 s9 streams=9 requests=18 tokens=4608 wall_s=16.84 agg_tps=273.7 ttft_p50=0.3041 ttft_mean=0.343 dec_tps_p50=31.83 prompt_tokens_p50=115
+CELL tag=A2 s8 streams=8 requests=16 tokens=4096 wall_s=13.76 agg_tps=297.6 ttft_p50=0.3001 ttft_mean=0.3449 dec_tps_p50=38.89 prompt_tokens_p50=115.5
+CELL tag=B3 s9 streams=9 requests=18 tokens=4608 wall_s=13.9 agg_tps=331.5 ttft_p50=0.2727 ttft_mean=0.4303 dec_tps_p50=38.85 prompt_tokens_p50=115
+CELL tag=B3 s8 streams=8 requests=16 tokens=4096 wall_s=11.35 agg_tps=360.8 ttft_p50=0.2491 ttft_mean=0.2966 dec_tps_p50=47.51 prompt_tokens_p50=115.5
+CELL tag=A3 s9 streams=9 requests=18 tokens=4608 wall_s=14.18 agg_tps=324.9 ttft_p50=0.2447 ttft_mean=0.3178 dec_tps_p50=37.45 prompt_tokens_p50=115
+CELL tag=A3 s8 streams=8 requests=16 tokens=4096 wall_s=11.71 agg_tps=349.8 ttft_p50=0.2488 ttft_mean=0.2968 dec_tps_p50=45.87 prompt_tokens_p50=115.5
+CELL tag=A4 s9 streams=9 requests=18 tokens=4608 wall_s=14.29 agg_tps=322.4 ttft_p50=0.2466 ttft_mean=0.3176 dec_tps_p50=37.39 prompt_tokens_p50=115
+CELL tag=A4 s8 streams=8 requests=16 tokens=4096 wall_s=11.34 agg_tps=361.3 ttft_p50=0.2714 ttft_mean=0.4109 dec_tps_p50=48.14 prompt_tokens_p50=115.5
+CELL tag=B4 s9 streams=9 requests=18 tokens=4608 wall_s=13.69 agg_tps=336.5 ttft_p50=0.2436 ttft_mean=0.3156 dec_tps_p50=38.86 prompt_tokens_p50=115
+CELL tag=B4 s8 streams=8 requests=16 tokens=4096 wall_s=11.59 agg_tps=353.4 ttft_p50=0.2493 ttft_mean=0.2969 dec_tps_p50=46.26 prompt_tokens_p50=115.5
+## done
+fleetq: #9896 done (exit 0)
