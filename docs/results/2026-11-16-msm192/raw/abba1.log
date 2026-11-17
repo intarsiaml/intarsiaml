@@ -1,0 +1,25 @@
+fleetq: #9812 waiting (#1 in line): needs gpu quiet on endor, but #9810 "mb16: served greedy-ids gates 27B, rerun (script fix)" (claude-2ae67a71) loads it
+fleetq:   #9810 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9810 set, or it will wait for #9810 to be released.
+fleetq: #9812 running on endor: env COOL=180 zsh scripts/msm192/abba.sh docs/results/2026-11-16-msm192/raw/abba1 'A1 B1 B2 A2'
+CELL tag=A1 t100 streams=1 requests=8 tokens=128 wall_s=3.423 agg_tps=37.39 ttft_p50=0.2125 ttft_mean=0.2137 dec_tps_p50=74.6 prompt_tokens_p50=100
+CELL tag=A1 t140 streams=1 requests=8 tokens=128 wall_s=4.649 agg_tps=27.54 ttft_p50=0.3457 ttft_mean=0.3468 dec_tps_p50=63.26 prompt_tokens_p50=140
+CELL tag=A1 t170 streams=1 requests=8 tokens=128 wall_s=4.8 agg_tps=26.66 ttft_p50=0.3541 ttft_mean=0.3552 dec_tps_p50=63.81 prompt_tokens_p50=170
+CELL tag=A1 t190 streams=1 requests=8 tokens=128 wall_s=4.878 agg_tps=26.24 ttft_p50=0.3599 ttft_mean=0.3616 dec_tps_p50=59.17 prompt_tokens_p50=190
+CELL tag=A1 null4k streams=1 requests=3 tokens=48 wall_s=17.92 agg_tps=2.679 ttft_p50=5.757 ttft_mean=5.709 dec_tps_p50=52.51 prompt_tokens_p50=4719
+CELL tag=B1 t100 streams=1 requests=8 tokens=128 wall_s=3.422 agg_tps=37.41 ttft_p50=0.2124 ttft_mean=0.2138 dec_tps_p50=74.92 prompt_tokens_p50=100
+CELL tag=B1 t140 streams=1 requests=8 tokens=128 wall_s=4.216 agg_tps=30.36 ttft_p50=0.2918 ttft_mean=0.2931 dec_tps_p50=63.32 prompt_tokens_p50=140
+CELL tag=B1 t170 streams=1 requests=8 tokens=128 wall_s=4.466 agg_tps=28.66 ttft_p50=0.3107 ttft_mean=0.3104 dec_tps_p50=62.84 prompt_tokens_p50=170
+CELL tag=B1 t190 streams=1 requests=8 tokens=128 wall_s=4.576 agg_tps=27.97 ttft_p50=0.3186 ttft_mean=0.3193 dec_tps_p50=59.13 prompt_tokens_p50=190
+CELL tag=B1 null4k streams=1 requests=3 tokens=48 wall_s=17.14 agg_tps=2.8 ttft_p50=5.508 ttft_mean=5.449 dec_tps_p50=53.19 prompt_tokens_p50=4719
+CELL tag=B2 t100 streams=1 requests=8 tokens=128 wall_s=3.456 agg_tps=37.04 ttft_p50=0.2179 ttft_mean=0.217 dec_tps_p50=74.58 prompt_tokens_p50=100
+CELL tag=B2 t140 streams=1 requests=8 tokens=128 wall_s=4.33 agg_tps=29.56 ttft_p50=0.306 ttft_mean=0.3059 dec_tps_p50=63.03 prompt_tokens_p50=140
+CELL tag=B2 t170 streams=1 requests=8 tokens=128 wall_s=4.591 agg_tps=27.88 ttft_p50=0.3269 ttft_mean=0.3265 dec_tps_p50=63.18 prompt_tokens_p50=170
+CELL tag=B2 t190 streams=1 requests=8 tokens=128 wall_s=4.711 agg_tps=27.17 ttft_p50=0.336 ttft_mean=0.3359 dec_tps_p50=58 prompt_tokens_p50=190
+CELL tag=B2 null4k streams=1 requests=3 tokens=48 wall_s=17.92 agg_tps=2.678 ttft_p50=5.642 ttft_mean=5.705 dec_tps_p50=51.12 prompt_tokens_p50=4719
+CELL tag=A2 t100 streams=1 requests=8 tokens=128 wall_s=3.798 agg_tps=33.7 ttft_p50=0.2342 ttft_mean=0.2387 dec_tps_p50=66.92 prompt_tokens_p50=100
+CELL tag=A2 t140 streams=1 requests=8 tokens=128 wall_s=4.912 agg_tps=26.06 ttft_p50=0.3592 ttft_mean=0.3606 dec_tps_p50=57.67 prompt_tokens_p50=140
+CELL tag=A2 t170 streams=1 requests=8 tokens=128 wall_s=4.79 agg_tps=26.72 ttft_p50=0.3518 ttft_mean=0.3553 dec_tps_p50=64.34 prompt_tokens_p50=170
+CELL tag=A2 t190 streams=1 requests=8 tokens=128 wall_s=4.802 agg_tps=26.66 ttft_p50=0.355 ttft_mean=0.3557 dec_tps_p50=59.74 prompt_tokens_p50=190
+CELL tag=A2 null4k streams=1 requests=3 tokens=48 wall_s=16.32 agg_tps=2.942 ttft_p50=5.205 ttft_mean=5.179 dec_tps_p50=53.38 prompt_tokens_p50=4719
+## done
+fleetq: #9812 done (exit 0)

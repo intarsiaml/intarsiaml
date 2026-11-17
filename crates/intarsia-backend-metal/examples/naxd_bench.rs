@@ -137,6 +137,11 @@ mod imp {
                     (v[v.len() / 2], v[0], v[v.len() - 1])
                 };
                 let base = med(&mut us[0].clone()).0;
+                // lane msm192: the per-round times (round order), for the every-round ratio
+                for (ai, a) in arms.iter().enumerate() {
+                    let v: Vec<String> = us[ai].iter().map(|x| format!("{x:.1}")).collect();
+                    println!("ROUNDS n={n} k={k} m={m} arm={} us {}", name(a), v.join(" "));
+                }
                 for (ai, a) in arms.iter().enumerate() {
                     let (md, lo, hi) = med(&mut us[ai]);
                     println!(

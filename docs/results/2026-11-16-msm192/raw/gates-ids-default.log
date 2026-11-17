@@ -1,0 +1,12 @@
+fleetq: #9816 waiting (#2 in line): in line behind #9815 "msm192: gates ids spec=off (27B generate x12)" (claude-2ae67a71) on endor
+fleetq:   #9815 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9815 set, or it will wait for #9815 to be released.
+fleetq: #9816 waiting (#1 in line): needs 40 GB on endor; 20 GB free of 110
+fleetq: #9816 waiting (#1 in line): needs 40 GB on endor; 0 GB free of 110
+fleetq: #9816 waiting (#1 in line): needs 40 GB on endor; 20 GB free of 110
+fleetq: #9816 running on endor: zsh scripts/msm192/gates.sh ids default
+SAME 27b p160 spec=default (prompt: 161 tokens) | base bd1f5b3a n=256 prefill 554 ms | unset bd1f5b3a n=256 prefill 503 ms | zero bd1f5b3a n=256 prefill 550 ms
+SAME 27b p192 spec=default (prompt: 193 tokens) | base 66b0245a n=256 prefill 560 ms | unset 66b0245a n=256 prefill 507 ms | zero 66b0245a n=256 prefill 564 ms
+SAME 27b tail2208 spec=default (prompt: 2209 tokens) | base 26a51e6e n=256 prefill 2600 ms | unset 26a51e6e n=256 prefill 2554 ms | zero 26a51e6e n=256 prefill 2604 ms
+SAME 27b 4k spec=default (prompt: 4096 tokens) | base 418d1c81 n=256 prefill 4555 ms | unset 418d1c81 n=256 prefill 4643 ms | zero 418d1c81 n=256 prefill 4535 ms
+## done ids default
+fleetq: #9816 done (exit 0)
