@@ -439,6 +439,12 @@ pub enum ProbeKind {
     Eager,
 }
 
+/// `INTARSIA_SPEC_COPY_PROBE_ONCE=1` (lane mcdiag, read once): the probe fires once per process, in the first request that reaches it, not once per request.
+pub fn copy_probe_once() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("INTARSIA_SPEC_COPY_PROBE_ONCE").is_ok_and(|v| !v.is_empty() && v != "0"))
+}
+
 /// `INTARSIA_SPEC_COPY_PROBE=<g>[,<what>]` (lane mcdiag, a measurement hook, read once): with copy drafts on, the first MTP step at or
 /// after `g` generated tokens does `what` instead of the usual step, once per request: nothing or a number (a bogus chain of that many
 /// tokens, default the knob's `len`), `c` (only the head catch-up) or `e` (one eager MTP step). Greedy ids do not change (drafts only

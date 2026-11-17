@@ -2100,6 +2100,11 @@ impl Seq {
                             // lane mcdiag: the measurement hook (see `copy_probe_from_env`), once per request
                             let _ = g;
                             self.copy_probe = None;
+                            // once per process (the server's later requests then run chain-free: whether the cost carries over is the question)
+                            static SPENT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                            if crate::spec::copy_probe_once() && SPENT.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                                return Next::Draft(k);
+                            }
                             match kind {
                                 crate::spec::ProbeKind::Chain(l) => {
                                     let l = l.unwrap_or(len).min(room).min(self.max_new.saturating_sub(self.generated + 1));
