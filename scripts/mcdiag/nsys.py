@@ -2,7 +2,8 @@
 """mcdiag: per-kernel time of captured-graph steps, difference-in-differences between a probe run (one chain pass) and a base run of the same
 greedy request, from nsys sqlite exports (`nsys profile --cuda-graph-trace=node`) and the runs' INTARSIA_SPEC_TRACE logs.
 
-A replay = the kernel nodes that share one correlation id of a graph launch. The Nth `spec: mtp graph step` trace line (it carries the position `len`
+A replay = the kernel nodes that share one correlation id of a graph launch; a node is identified by its graphNodeId (a graph's branches run on several streams, so
+start order is not a stable node order). The Nth `spec: mtp graph step` trace line (it carries the position `len`
 and the queued head rows `n`) is matched to the replay with the same index counted from the END of the run (the run may hold a replay or two before
 the first traced step). Only replays of the dominant recording (most replays; same kernel-name sequence) are used, so every node index means the same
 kernel. Steps at positions below the probe chain (minus MARGIN) are PRE, steps after it (plus MARGIN) are POST. For every node index:
@@ -18,6 +19,7 @@ ap.add_argument("--base", nargs=2, required=True)
 ap.add_argument("--margin", type=int, default=15)
 ap.add_argument("--top", type=int, default=15)
 ap.add_argument("--skip-pos", type=int, default=100)
+ap.add_argument("--chain-pos", type=int, help="split position when the probe file has no chain (null comparisons)")
 a = ap.parse_args()
 G = re.compile(r"^spec: mtp graph step ([\d.]+) ms gap ([\d.]+) ms n (\d+) len (\d+)")
 C = re.compile(r"^spec: copy token \d+ pos (\d+)")
@@ -40,7 +42,7 @@ def replays(db):
     launch = {cid for (cid, nm) in con.execute("SELECT correlationId,s.value FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId") if "GraphLaunch" in nm}
     cols = [r[1] for r in con.execute("PRAGMA table_info(CUPTI_ACTIVITY_KIND_KERNEL)")]
     gcol = "k.graphId" if "graphId" in cols else "NULL"
-    rows = con.execute(f"SELECT k.start,k.end,k.correlationId,{gcol},s.value FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName ORDER BY k.start").fetchall()
+    rows = con.execute(f"SELECT k.start,k.end,k.correlationId,{gcol},s.value,k.graphNodeId FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName ORDER BY k.start").fetchall()
     reps, cur = [], None
     for k in rows:
         if k[3] not in (None, 0) or k[2] in launch:
@@ -51,7 +53,7 @@ def replays(db):
                 reps.append(cur)
         else:
             cur = None
-    return [r[1] for r in reps]
+    return [sorted(r[1], key=lambda k: k[5]) for r in reps]
 
 
 def load(pair):
@@ -62,10 +64,12 @@ def load(pair):
 
 
 P, chain, nrp, nsp = load(a.probe)
+chain = chain or a.chain_pos
 B, _, nrb, nsb = load(a.base)
 print(f"probe: {nrp} replays, {nsp} traced steps; base: {nrb} replays, {nsb} traced steps; chain at pos {chain}")
-sig = lambda r: tuple(k[4] for k in r)
-dom = collections.Counter(sig(r) for _, r in P + B).most_common(1)[0][0]
+sig = lambda r: tuple(k[5] for k in r)
+domsig = collections.Counter(sig(r) for _, r in P + B).most_common(1)[0][0]
+dom = [k[4] for k in next(r for _, r in P if sig(r) == domsig)]
 nk = len(dom)
 print("dominant recording:", nk, "nodes")
 
@@ -73,7 +77,7 @@ print("dominant recording:", nk, "nodes")
 def sets(lst):
     pre, post = [], []
     for (pos, n, ms), r in lst:
-        if pos < a.skip_pos or sig(r) != dom:
+        if pos < a.skip_pos or sig(r) != domsig:
             continue
         if pos < chain - a.margin:
             pre.append(r)
@@ -88,7 +92,7 @@ print(f"replays used: probe pre {len(pp)} post {len(pq)}; base pre {len(bp)} pos
 dur = lambda r, j: r[j][1] - r[j][0]
 mean = lambda x: sum(x) / len(x)
 nd = lambda S, j: mean([dur(r, j) for r in S])
-span = lambda r: r[-1][1] - r[0][0]
+span = lambda r: max(k[1] for k in r) - min(k[0] for k in r)
 busy = lambda r: sum(k[1] - k[0] for k in r)
 for name, f in (("span", span), ("kernel time sum", busy)):
     d_p = mean([f(r) for r in pq]) - mean([f(r) for r in pp])
