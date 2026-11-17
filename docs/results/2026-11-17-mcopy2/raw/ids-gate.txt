@@ -1,0 +1,38 @@
+fleetq: #9908 running on spark1: bash /private/tmp/claude-501/-opt-code-intarsiaml/222947e6-ce7c-415f-b3ae-c655ed00b69a/scratchpad/gate2.sh
+== A new: copy3k json-xform
+PASS ids copy3k mtp: 2902 ids identical | graph_steps=968 eager_steps=0 mean_step=19.765 mean_gap=0.003 | spec: verify passes=968 proposed=1936 accepted=1934 (acceptance 99.9%, 3.00 tokens per pass)
+PASS ids copy3k copy=20: 2902 ids identical | copy_passes=359 accepted_hist[count acc]=      1 0       1 2     357 7  graph_steps=14 eager_steps=0 mean_step=20.488 mean_gap=284.070 | spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids copy3k copy=20,15: 2902 ids identical | copy_passes=180 accepted_hist[count acc]=      1 0       1 10     178 15  graph_steps=14 eager_steps=0 mean_step=20.536 mean_gap=239.054 | spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids copy3k copy=4: 2902 ids identical | copy_passes=308 accepted_hist[count acc]=     26 0      20 1       9 2       6 3       6 4       3 5       3 6     235 7  graph_steps=279 eager_steps=0 mean_step=20.498 mean_gap=32.385 | spec: verify passes=279 proposed=558 accepted=557 (acceptance 99.8%, 3.00 tokens per pass)
+PASS ids json-xform mtp: 2600 ids identical | graph_steps=866 eager_steps=0 mean_step=20.078 mean_gap=0.002 | spec: verify passes=866 proposed=1732 accepted=1732 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids json-xform copy=20: 2600 ids identical | copy_passes=316 accepted_hist[count acc]=      2 0       4 1       1 2       5 3       9 4      22 5      11 6     262 7  graph_steps=72 eager_steps=0 mean_step=20.393 mean_gap=125.202 | spec: verify passes=72 proposed=144 accepted=144 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids json-xform copy=20,15: 2600 ids identical | copy_passes=178 accepted_hist[count acc]=      3 0       3 1       6 2      10 3       3 4      15 5       6 6       1 9       1 10       1 14     129 15  graph_steps=95 eager_steps=0 mean_step=20.427 mean_gap=90.665 | spec: verify passes=95 proposed=190 accepted=190 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids json-xform copy=4: 2600 ids identical | copy_passes=247 accepted_hist[count acc]=     50 0      13 1       9 2      33 3      30 4      11 5       3 6      98 7  graph_steps=447 eager_steps=1 mean_step=20.527 mean_gap=17.269 | spec: verify passes=448 proposed=895 accepted=895 (acceptance 100.0%, 3.00 tokens per pass)
+ids fails=0
+== B new: code-gen reason short-3
+PASS ids code-gen mtp: 500 ids identical | graph_steps=180 eager_steps=0 mean_step=18.133 mean_gap=0.004 | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+PASS ids code-gen copy=20: 500 ids identical | copy_passes=0 accepted_hist[count acc]= graph_steps=180 eager_steps=0 mean_step=18.207 mean_gap=0.004 | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+PASS ids code-gen copy=256: 500 ids identical | copy_passes=0 accepted_hist[count acc]= graph_steps=180 eager_steps=0 mean_step=18.193 mean_gap=0.004 | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+PASS ids code-gen copy=20,3: 500 ids identical | copy_passes=0 accepted_hist[count acc]= graph_steps=180 eager_steps=0 mean_step=18.158 mean_gap=0.004 | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+PASS ids reason mtp: 500 ids identical | graph_steps=173 eager_steps=0 mean_step=18.565 mean_gap=0.004 | spec: verify passes=173 proposed=346 accepted=326 (acceptance 94.2%, 2.88 tokens per pass)
+PASS ids reason copy=20: 500 ids identical | copy_passes=0 accepted_hist[count acc]= graph_steps=173 eager_steps=0 mean_step=18.471 mean_gap=0.004 | spec: verify passes=173 proposed=346 accepted=326 (acceptance 94.2%, 2.88 tokens per pass)
+PASS ids reason copy=256: 500 ids identical | copy_passes=0 accepted_hist[count acc]= graph_steps=173 eager_steps=0 mean_step=18.517 mean_gap=0.003 | spec: verify passes=173 proposed=346 accepted=326 (acceptance 94.2%, 2.88 tokens per pass)
+PASS ids reason copy=20,3: 500 ids identical | copy_passes=0 accepted_hist[count acc]= graph_steps=173 eager_steps=0 mean_step=18.536 mean_gap=0.004 | spec: verify passes=173 proposed=346 accepted=326 (acceptance 94.2%, 2.88 tokens per pass)
+PASS ids short-3 mtp: 256 ids identical | graph_steps=92 eager_steps=0 mean_step=18.445 mean_gap=0.767 | spec: verify passes=92 proposed=184 accepted=156 (acceptance 84.8%, 2.70 tokens per pass)
+PASS ids short-3 copy=20: 256 ids identical | copy_passes=11 accepted_hist[count acc]=     11 7  graph_steps=63 eager_steps=0 mean_step=18.343 mean_gap=1.125 | spec: verify passes=63 proposed=126 accepted=98 (acceptance 77.8%, 2.56 tokens per pass)
+PASS ids short-3 copy=256: 256 ids identical | copy_passes=0 accepted_hist[count acc]= graph_steps=92 eager_steps=0 mean_step=18.325 mean_gap=0.775 | spec: verify passes=92 proposed=184 accepted=156 (acceptance 84.8%, 2.70 tokens per pass)
+PASS ids short-3 copy=20,3: 256 ids identical | copy_passes=22 accepted_hist[count acc]=     22 3  graph_steps=63 eager_steps=0 mean_step=18.206 mean_gap=1.115 | spec: verify passes=63 proposed=126 accepted=98 (acceptance 77.8%, 2.56 tokens per pass)
+ids fails=0
+== C main: copy3k code-gen reason
+PASS ids copy3k mtp: 2902 ids identical | graph_steps=968 eager_steps=0 mean_step=19.758 mean_gap=0.003 | spec: verify passes=968 proposed=1936 accepted=1934 (acceptance 99.9%, 3.00 tokens per pass)
+PASS ids code-gen mtp: 500 ids identical | graph_steps=180 eager_steps=0 mean_step=18.150 mean_gap=0.004 | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+PASS ids reason mtp: 500 ids identical | graph_steps=173 eager_steps=0 mean_step=18.602 mean_gap=0.003 | spec: verify passes=173 proposed=346 accepted=326 (acceptance 94.2%, 2.88 tokens per pass)
+ids fails=0
+== cross-check main mtp ids == new mtp ids
+PASS copy3k: main mtp ids == new mtp ids
+PASS copy3k: off ids equal across runs
+PASS code-gen: main mtp ids == new mtp ids
+PASS code-gen: off ids equal across runs
+PASS reason: main mtp ids == new mtp ids
+PASS reason: off ids equal across runs
+fleetq: #9908 done (exit 0)

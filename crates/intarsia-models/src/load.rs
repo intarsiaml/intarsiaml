@@ -316,7 +316,7 @@ pub fn serve_remote_rank(
     let load_opts = LoadOptions {
         prefill_chunk: prefill_chunk.value,
         mtp: opts.load.mtp || mtp,
-        mtp_k: if mtp { opts.spec.k } else { opts.load.mtp_k },
+        mtp_k: if mtp { opts.spec.save_rows() } else { opts.load.mtp_k },
         mtp_whole: true,
         ..opts.load.clone()
     };
@@ -896,7 +896,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let mut load_opts = LoadOptions {
         prefill_chunk: prefill_chunk.value,
         mtp: opts.load.mtp || mtp || spec_auto,
-        mtp_k: if mtp { opts.spec.k } else if spec_auto { intarsia_core::spec::AUTO_MTP_K } else { opts.load.mtp_k },
+        mtp_k: if mtp { opts.spec.save_rows() } else if spec_auto { intarsia_core::spec::AUTO_MTP_K } else { opts.load.mtp_k },
         // a rank in another process (lane d2r): a dense MTP head runs whole on rank 0 (`serve_remote_rank` sets the same)
         mtp_whole: opts.load.mtp_whole || matches!(group, Group::Remote { .. }),
         dflash,

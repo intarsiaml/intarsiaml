@@ -85,6 +85,10 @@ pub struct TelemetrySnapshot {
     pub spec_steps: u64,
     pub spec_proposed: u64,
     pub spec_accepted: u64,
+    /// Copy-chain verify passes (`INTARSIA_SPEC_COPY`), counted apart from the MTP drafter's `spec_*`: passes, chain tokens proposed, accepted.
+    pub spec_copy_steps: u64,
+    pub spec_copy_proposed: u64,
+    pub spec_copy_accepted: u64,
     /// Measured-cost gate (`spec::CostParams`): switches to plain decode, switches back, plain steps it took, of them probes.
     pub spec_cost_off: u64,
     pub spec_cost_on: u64,
@@ -132,6 +136,9 @@ pub struct Telemetry {
     spec_steps: AtomicU64,
     spec_proposed: AtomicU64,
     spec_accepted: AtomicU64,
+    spec_copy_steps: AtomicU64,
+    spec_copy_proposed: AtomicU64,
+    spec_copy_accepted: AtomicU64,
     spec_cost_off: AtomicU64,
     spec_cost_on: AtomicU64,
     spec_cost_plain_steps: AtomicU64,
@@ -179,6 +186,9 @@ impl Telemetry {
             spec_steps: AtomicU64::new(0),
             spec_proposed: AtomicU64::new(0),
             spec_accepted: AtomicU64::new(0),
+            spec_copy_steps: AtomicU64::new(0),
+            spec_copy_proposed: AtomicU64::new(0),
+            spec_copy_accepted: AtomicU64::new(0),
             spec_cost_off: AtomicU64::new(0),
             spec_cost_on: AtomicU64::new(0),
             spec_cost_plain_steps: AtomicU64::new(0),
@@ -240,6 +250,13 @@ impl Telemetry {
         self.spec_steps.fetch_add(1, Ordering::Relaxed);
         self.spec_proposed.fetch_add(proposed as u64, Ordering::Relaxed);
         self.spec_accepted.fetch_add(accepted as u64, Ordering::Relaxed);
+    }
+
+    /// A copy-chain verify pass (lane mcopy2): kept out of [`Telemetry::spec_step`], which is the MTP drafter's.
+    pub fn copy_step(&self, proposed: usize, accepted: usize) {
+        self.spec_copy_steps.fetch_add(1, Ordering::Relaxed);
+        self.spec_copy_proposed.fetch_add(proposed as u64, Ordering::Relaxed);
+        self.spec_copy_accepted.fetch_add(accepted as u64, Ordering::Relaxed);
     }
 
     pub fn steps_total(&self) -> u64 {
@@ -379,6 +396,9 @@ impl Telemetry {
             spec_steps: self.spec_steps.load(Ordering::Relaxed),
             spec_proposed: self.spec_proposed.load(Ordering::Relaxed),
             spec_accepted: self.spec_accepted.load(Ordering::Relaxed),
+            spec_copy_steps: self.spec_copy_steps.load(Ordering::Relaxed),
+            spec_copy_proposed: self.spec_copy_proposed.load(Ordering::Relaxed),
+            spec_copy_accepted: self.spec_copy_accepted.load(Ordering::Relaxed),
             spec_cost_off: self.spec_cost_off.load(Ordering::Relaxed),
             spec_cost_on: self.spec_cost_on.load(Ordering::Relaxed),
             spec_cost_plain_steps: self.spec_cost_plain_steps.load(Ordering::Relaxed),
