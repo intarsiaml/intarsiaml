@@ -1,0 +1,93 @@
+[17:48:53] build d6c2d092815faefdb9b55b0034363115c4864e15; free: Mem:             121          42          70           0           9          78 /dev/nvme0n1p2  3.7T  3.2T  288G  92% / 
+    Finished `release` profile [optimized] target(s) in 5m 04s
+intarsia 0.0.1
+active
+[17:54:44] serve s_def: env [] --max-seq 16384 ; Mem:             121          43          67           0          12          78
+[17:56:11] serve s_def up; Mem:             121          67          43           0          12          54
+[s_def] len 8192 seq seed 71: 8 requests, 0 failed
+[s_def] len 8192 seq seed 72: 8 requests, 0 failed
+[s_def] len 8192 lp seed 75: 4 requests, 0 failed
+[s_def] len 8193 seq seed 81: 8 requests, 0 failed
+[s_def] len 8193 seq seed 82: 8 requests, 0 failed
+[s_def] len 8193 lp seed 85: 4 requests, 0 failed
+[17:57:13] min MemAvailable MB (s_def): 17:56:14 55614, KILLED: 0
+[17:57:15] serve s_spec0: env [] --max-seq 16384 --spec off ; Mem:             121          42          67           0          12          78
+[17:58:25] serve s_spec0 up; Mem:             121          64          45           0          12          56
+[s_spec0] len 8192 seq seed 71: 8 requests, 0 failed
+[s_spec0] len 8192 seq seed 72: 8 requests, 0 failed
+[s_spec0] len 8192 lp seed 75: 4 requests, 0 failed
+[s_spec0] len 8193 seq seed 81: 8 requests, 0 failed
+[s_spec0] len 8193 seq seed 82: 8 requests, 0 failed
+[s_spec0] len 8193 lp seed 85: 4 requests, 0 failed
+[17:59:33] min MemAvailable MB (s_spec0): 17:58:29 57364, KILLED: 0
+[17:59:35] serve s_spec0_nomacro: env [INTARSIA_PREFILL_MACRO=0] --max-seq 16384 --spec off ; Mem:             121          42          68           0          12          79
+[18:00:38] serve s_spec0_nomacro up; Mem:             121          63          46           0          12          57
+[s_spec0_nomacro] len 8192 seq seed 71: 8 requests, 0 failed
+[s_spec0_nomacro] len 8192 seq seed 72: 8 requests, 0 failed
+[s_spec0_nomacro] len 8193 seq seed 81: 8 requests, 0 failed
+[s_spec0_nomacro] len 8193 seq seed 82: 8 requests, 0 failed
+[18:01:40] min MemAvailable MB (s_spec0_nomacro): 18:00:40 58331, KILLED: 0
+[18:01:43] serve s_store: env [] --max-seq 16384 --prefix-store on ; Mem:             121          42          67           0          12          78
+[18:02:49] serve s_store up; Mem:             121          65          44           0          12          55
+[s_store] len 8192 seq seed 71: 8 requests, 0 failed
+[s_store] len 8192 seq seed 72: 8 requests, 0 failed
+[s_store] len 8192 lp seed 75: 4 requests, 0 failed
+[s_store] len 8193 seq seed 81: 8 requests, 0 failed
+[s_store] len 8193 seq seed 82: 8 requests, 0 failed
+[s_store] len 8193 lp seed 85: 4 requests, 0 failed
+[18:04:02] min MemAvailable MB (s_store): 18:03:58 47349, KILLED: 0
+[18:04:05] serve s_store_spec0: env [] --max-seq 16384 --prefix-store on --spec off ; Mem:             121          42          67           0          12          78
+[18:05:15] serve s_store_spec0 up; Mem:             121          64          45           0          12          56
+[s_store_spec0] len 8192 seq seed 71: 8 requests, 0 failed
+[s_store_spec0] len 8192 seq seed 72: 8 requests, 0 failed
+[s_store_spec0] len 8193 seq seed 81: 8 requests, 0 failed
+[s_store_spec0] len 8193 seq seed 82: 8 requests, 0 failed
+[18:06:20] min MemAvailable MB (s_store_spec0): 18:06:19 49206, KILLED: 0
+[18:06:23] serve b_off: env [] --max-seq 16384 --max-batch 8 ; Mem:             121          42          68           0          12          79
+[18:07:43] serve b_off up; Mem:             121          70          40           0          12          51
+[b_off] len 8192 burst seed 71: 8 requests, 0 failed
+[b_off] len 8192 burst seed 72: 8 requests, 0 failed
+[b_off] len 8192 lp seed 75: 4 requests, 0 failed
+[b_off] len 8193 burst seed 81: 8 requests, 0 failed
+[b_off] len 8193 burst seed 82: 8 requests, 0 failed
+[b_off] len 8193 lp seed 85: 4 requests, 0 failed
+[18:08:45] min MemAvailable MB (b_off): 18:07:49 52322, KILLED: 0
+[18:08:48] serve b_store: env [] --max-seq 16384 --max-batch 8 --prefix-store on ; Mem:             121          42          68           0          12          79
+[18:10:01] serve b_store up; Mem:             121          68          42           0          12          53
+[b_store] len 8192 burst seed 71: 8 requests, 0 failed
+[b_store] len 8192 burst seed 72: 8 requests, 0 failed
+[b_store] len 8192 lp seed 75: 4 requests, 0 failed
+[b_store] len 8193 burst seed 81: 8 requests, 0 failed
+[b_store] len 8193 burst seed 82: 8 requests, 0 failed
+[b_store] len 8193 lp seed 85: 4 requests, 0 failed
+[18:11:12] min MemAvailable MB (b_store): 18:11:09 44853, KILLED: 0
+[18:11:15] serve b_off_spec0: env [] --max-seq 16384 --max-batch 8 --spec off ; Mem:             121          42          67           0          12          78
+[18:12:28] serve b_off_spec0 up; Mem:             121          67          43           0          12          54
+[b_off_spec0] len 8192 burst seed 71: 8 requests, 0 failed
+[b_off_spec0] len 8192 burst seed 72: 8 requests, 0 failed
+[b_off_spec0] len 8193 burst seed 81: 8 requests, 0 failed
+[b_off_spec0] len 8193 burst seed 82: 8 requests, 0 failed
+[18:13:20] min MemAvailable MB (b_off_spec0): 18:12:36 54678, KILLED: 0
+[18:13:23] serve b_store_spec0: env [] --max-seq 16384 --max-batch 8 --prefix-store on --spec off ; Mem:             121          42          68           0          12          79
+[18:14:37] serve b_store_spec0 up; Mem:             121          66          44           0          12          55
+[b_store_spec0] len 8192 burst seed 71: 8 requests, 0 failed
+[b_store_spec0] len 8192 burst seed 72: 8 requests, 0 failed
+[b_store_spec0] len 8193 burst seed 81: 8 requests, 0 failed
+[b_store_spec0] len 8193 burst seed 82: 8 requests, 0 failed
+[18:15:35] min MemAvailable MB (b_store_spec0): 18:15:34 47458, KILLED: 0
+[18:15:38] serve b_off_nomacro: env [INTARSIA_PREFILL_MACRO=0] --max-seq 16384 --max-batch 8 ; Mem:             121          42          67           0          12          78
+[18:16:48] serve b_off_nomacro up; Mem:             121          68          42           0          12          53
+[b_off_nomacro] len 8192 burst seed 71: 8 requests, 0 failed
+[b_off_nomacro] len 8192 burst seed 72: 8 requests, 0 failed
+[b_off_nomacro] len 8193 burst seed 81: 8 requests, 0 failed
+[b_off_nomacro] len 8193 burst seed 82: 8 requests, 0 failed
+[18:17:41] min MemAvailable MB (b_off_nomacro): 18:16:56 53627, KILLED: 0
+[18:17:43] serve b_off_plain: env [INTARSIA_PREFILL_MACRO=0 INTARSIA_PACK_PREFILL=0] --max-seq 16384 --max-batch 8 --spec off ; Mem:             121          42          68           0          12          79
+[18:18:53] serve b_off_plain up; Mem:             121          66          44           0          12          55
+[b_off_plain] len 8192 burst seed 71: 8 requests, 0 failed
+[b_off_plain] len 8192 burst seed 72: 8 requests, 0 failed
+[b_off_plain] len 8193 burst seed 81: 8 requests, 0 failed
+[b_off_plain] len 8193 burst seed 82: 8 requests, 0 failed
+[18:19:46] min MemAvailable MB (b_off_plain): 18:19:05 55659, KILLED: 0
+[18:19:48] done
+[18:19:49] removed ~/intarsiaml-storeids
