@@ -384,6 +384,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (ATTN_PREFILL_BF16_SPLITKV_ROWS, Op::AttnPrefill),
     (crate::mxfp4::MATMUL_MXFP4_GEMV, Op::MatmulMxfp4),
     (crate::mxfp4::MATMUL_MXFP4_NAX, Op::MatmulMxfp4),
+    (crate::mxfp4::MATMUL_MXFP4_GEMV_ROWS, Op::MatmulMxfp4),
     (GATE_SPLIT_BF16, Op::GateSplit),
     (SIGMOID_MUL_BF16, Op::SigmoidMul),
     (GDN_CONV_BF16, Op::GdnConv),
@@ -598,6 +599,19 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_TOL)
                     .scratch(crate::mxfp4::nax_scratch)
                     .priority(5),
+                // lane mb16: the row-exact twin for batched decode of the 27B (rows_exact: only `OpCall::exact_rows` calls select
+                // it, so prefill keeps the NAX form): the GEMV's M-row shaders, 2..=16 rows (launches of at most 4 rows, `row_chunks` / `MXFP4_ROWS_PLAN`; `INTARSIA_METAL_MXFP4_ROWS_CHUNK=0`: halves above 8),
+                // row r bitwise the M = 1 GEMV on row r alone (tests/rows_exact.rs).
+                crate::mxfp4::MATMUL_MXFP4_GEMV_ROWS => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(crate::mxfp4::rows_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .scratch(crate::mxfp4::scratch)
+                    .priority(-1)
+                    .rows_exact(),
                 // pure bit copy / f32 elementwise, one rounding: the hip entries' tolerance
                 GATE_SPLIT_BF16 | SIGMOID_MUL_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
                 // lane dm (DFlash2 draft, the hip entries): f32 conv along the block rows, one rounding
@@ -947,6 +961,7 @@ mod tests {
         "matmul_fp8_mma:matmul_fp8",
         "matmul_fp8_nax:matmul_fp8",
         "matmul_mxfp4_gemv:matmul_mxfp4",
+        "matmul_mxfp4_gemv_rows:matmul_mxfp4",
         "matmul_mxfp4_nax:matmul_mxfp4",
         "matmul_nvfp4_gemv:matmul_nvfp4",
         "matmul_nvfp4_gemv_rows:matmul_nvfp4",

@@ -1,0 +1,39 @@
+fleetq: #9832 waiting (#2 in line): in line behind #9831 "mchunk4: gates route trace + mtp ids" (claude-2ae67a71) on endor
+fleetq:   #9831 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9831 set, or it will wait for #9831 to be released.
+fleetq: #9832 waiting (#1 in line): needs gpu quiet on endor, but #9831 "mchunk4: gates route trace + mtp ids" (claude-2ae67a71) loads it
+fleetq:   #9831 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9831 set, or it will wait for #9831 to be released.
+fleetq: #9832 running on endor: env COOL=180 /opt/code/intarsiaml/.worktrees/mchunk4/scripts/mchunk4/abba.sh /opt/code/intarsiaml/.worktrees/mchunk4/docs/results/2026-11-16-mchunk4/raw/abba 'A1 B1 B2 A2'
+CELL tag=A1 null4k streams=1 requests=2 tokens=64 wall_s=11.96 agg_tps=5.35 ttft_p50=5.056 ttft_mean=5.056 dec_tps_p50=33.48 prompt_tokens_p50=4716
+CELL tag=A1 s1 streams=1 requests=2 tokens=512 wall_s=15.73 agg_tps=32.55 ttft_p50=0.2212 ttft_mean=0.2212 dec_tps_p50=33.36 prompt_tokens_p50=115
+CELL tag=A1 s4 streams=4 requests=8 tokens=2048 wall_s=23.16 agg_tps=88.42 ttft_p50=0.6306 ttft_mean=0.5964 dec_tps_p50=23.34 prompt_tokens_p50=113.5
+CELL tag=A1 s6 streams=6 requests=12 tokens=3072 wall_s=43.73 agg_tps=70.25 ttft_p50=0.761 ttft_mean=0.7751 dec_tps_p50=12.15 prompt_tokens_p50=116
+CELL tag=A1 s8 streams=8 requests=16 tokens=4096 wall_s=45.8 agg_tps=89.43 ttft_p50=0.8015 ttft_mean=0.9401 dec_tps_p50=11.81 prompt_tokens_p50=115.5
+CELL tag=A1 s9 streams=9 requests=18 tokens=4608 wall_s=56.46 agg_tps=81.61 ttft_p50=0.8466 ttft_mean=3.4 dec_tps_p50=11.05 prompt_tokens_p50=115
+CELL tag=A1 s12 streams=12 requests=24 tokens=6144 wall_s=69.22 agg_tps=88.77 ttft_p50=1.79 ttft_mean=8.503 dec_tps_p50=11.41 prompt_tokens_p50=116.5
+CELL tag=A1 s16 streams=16 requests=32 tokens=8192 wall_s=93.17 agg_tps=87.93 ttft_p50=23.81 ttft_mean=18.12 dec_tps_p50=11.21 prompt_tokens_p50=114.5
+CELL tag=B1 null4k streams=1 requests=2 tokens=64 wall_s=11.91 agg_tps=5.373 ttft_p50=5.035 ttft_mean=5.035 dec_tps_p50=33.68 prompt_tokens_p50=4716
+CELL tag=B1 s1 streams=1 requests=2 tokens=512 wall_s=15.7 agg_tps=32.62 ttft_p50=0.2214 ttft_mean=0.2214 dec_tps_p50=33.44 prompt_tokens_p50=115
+CELL tag=B1 s4 streams=4 requests=8 tokens=2048 wall_s=23.72 agg_tps=86.33 ttft_p50=0.6319 ttft_mean=0.6018 dec_tps_p50=22.77 prompt_tokens_p50=113.5
+CELL tag=B1 s6 streams=6 requests=12 tokens=3072 wall_s=37.42 agg_tps=82.09 ttft_p50=0.792 ttft_mean=0.7896 dec_tps_p50=14.19 prompt_tokens_p50=116
+CELL tag=B1 s8 streams=8 requests=16 tokens=4096 wall_s=42.91 agg_tps=95.46 ttft_p50=0.7816 ttft_mean=0.9282 dec_tps_p50=12.6 prompt_tokens_p50=115.5
+CELL tag=B1 s9 streams=9 requests=18 tokens=4608 wall_s=53.11 agg_tps=86.77 ttft_p50=0.8294 ttft_mean=1.002 dec_tps_p50=10.14 prompt_tokens_p50=115
+CELL tag=B1 s12 streams=12 requests=24 tokens=6144 wall_s=65.13 agg_tps=94.33 ttft_p50=0.9136 ttft_mean=1.287 dec_tps_p50=8.259 prompt_tokens_p50=116.5
+CELL tag=B1 s16 streams=16 requests=32 tokens=8192 wall_s=88.54 agg_tps=92.53 ttft_p50=0.9643 ttft_mean=1.689 dec_tps_p50=6.178 prompt_tokens_p50=114.5
+CELL tag=B2 null4k streams=1 requests=2 tokens=64 wall_s=12.02 agg_tps=5.325 ttft_p50=5.087 ttft_mean=5.087 dec_tps_p50=33.64 prompt_tokens_p50=4716
+CELL tag=B2 s1 streams=1 requests=2 tokens=512 wall_s=15.7 agg_tps=32.6 ttft_p50=0.2212 ttft_mean=0.2212 dec_tps_p50=33.42 prompt_tokens_p50=115
+CELL tag=B2 s4 streams=4 requests=8 tokens=2048 wall_s=24.08 agg_tps=85.05 ttft_p50=0.6328 ttft_mean=0.596 dec_tps_p50=22.39 prompt_tokens_p50=113.5
+CELL tag=B2 s6 streams=6 requests=12 tokens=3072 wall_s=38.87 agg_tps=79.02 ttft_p50=0.7999 ttft_mean=0.8013 dec_tps_p50=13.73 prompt_tokens_p50=116
+CELL tag=B2 s8 streams=8 requests=16 tokens=4096 wall_s=42.95 agg_tps=95.37 ttft_p50=0.7998 ttft_mean=0.9395 dec_tps_p50=12.61 prompt_tokens_p50=115.5
+CELL tag=B2 s9 streams=9 requests=18 tokens=4608 wall_s=53.3 agg_tps=86.45 ttft_p50=0.8403 ttft_mean=1.01 dec_tps_p50=10.07 prompt_tokens_p50=115
+CELL tag=B2 s12 streams=12 requests=24 tokens=6144 wall_s=65.89 agg_tps=93.25 ttft_p50=0.9098 ttft_mean=1.295 dec_tps_p50=8.218 prompt_tokens_p50=116.5
+CELL tag=B2 s16 streams=16 requests=32 tokens=8192 wall_s=85.7 agg_tps=95.59 ttft_p50=0.9692 ttft_mean=1.637 dec_tps_p50=6.282 prompt_tokens_p50=114.5
+CELL tag=A2 null4k streams=1 requests=2 tokens=64 wall_s=11.96 agg_tps=5.352 ttft_p50=5.056 ttft_mean=5.056 dec_tps_p50=33.59 prompt_tokens_p50=4716
+CELL tag=A2 s1 streams=1 requests=2 tokens=512 wall_s=15.67 agg_tps=32.68 ttft_p50=0.2212 ttft_mean=0.2212 dec_tps_p50=33.5 prompt_tokens_p50=115
+CELL tag=A2 s4 streams=4 requests=8 tokens=2048 wall_s=23.89 agg_tps=85.73 ttft_p50=0.6247 ttft_mean=0.5896 dec_tps_p50=22.56 prompt_tokens_p50=113.5
+CELL tag=A2 s6 streams=6 requests=12 tokens=3072 wall_s=44.46 agg_tps=69.09 ttft_p50=0.7406 ttft_mean=0.7743 dec_tps_p50=11.87 prompt_tokens_p50=116
+CELL tag=A2 s8 streams=8 requests=16 tokens=4096 wall_s=45.83 agg_tps=89.37 ttft_p50=0.8199 ttft_mean=0.9516 dec_tps_p50=11.78 prompt_tokens_p50=115.5
+CELL tag=A2 s9 streams=9 requests=18 tokens=4608 wall_s=56.64 agg_tps=81.36 ttft_p50=0.8762 ttft_mean=3.423 dec_tps_p50=11.11 prompt_tokens_p50=115
+CELL tag=A2 s12 streams=12 requests=24 tokens=6144 wall_s=69.52 agg_tps=88.37 ttft_p50=1.792 ttft_mean=8.549 dec_tps_p50=11.33 prompt_tokens_p50=116.5
+CELL tag=A2 s16 streams=16 requests=32 tokens=8192 wall_s=93.25 agg_tps=87.85 ttft_p50=23.94 ttft_mean=18.19 dec_tps_p50=11.16 prompt_tokens_p50=114.5
+## done
+fleetq: #9832 done (exit 0)

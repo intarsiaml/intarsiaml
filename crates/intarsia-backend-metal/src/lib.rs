@@ -238,8 +238,65 @@ pub const CHUNK_TILE: usize = 8;
 /// Most rows a row-exact multi-row call may have: more than [`CHUNK_TILE`] are launched as two chunks (`row_chunks`).
 pub const CHUNK_ROWS_MAX: usize = 16;
 
-/// Split a row-exact multi-row call of more than [`CHUNK_TILE`] rows into two calls of `ceil(m / 2)` and `floor(m / 2)` rows
-/// (both at least 2, the least a multi-row kernel serves). Every row of such a kernel is bitwise the one-row launch on that
+/// Chunk plan of a row-exact `matmul_mxfp4_gemv_rows` call (lane mchunk4), by rows `m` (index `m`, 2..=[`CHUNK_ROWS_MAX`]): the
+/// launch sizes, each 2..=4 rows, largest first. The 27B's MXFP4 GEMV costs 119 us per row and layer at 4 rows (the M = 4 shader),
+/// 135 at 3, 192 at 2, but 166-175 at 5..=7 (the `_m8` shader) and 131 at 8 (docs/results/2026-11-16-mb16.md section 3.1), so the
+/// cheapest split of `m` rows into launches of 2..=4 rows is a plan of 4s with a balanced 3 / 2 tail. Each plan is the minimum of
+/// the per-launch costs 385 / 406 / 477 us (2 / 3 / 4 rows); a one-row launch is not an option (`_rows` takes 2 rows or more, and
+/// 4 + 4 + one row would cost more than 3 + 3 + 3). Every row of the kernel is bitwise the one-row launch (tests/rows_exact.rs), so
+/// every plan is bitwise the same.
+pub const MXFP4_ROWS_PLAN: [&[usize]; CHUNK_ROWS_MAX + 1] = [
+    &[],
+    &[],
+    &[2],
+    &[3],
+    &[4],
+    &[3, 2],
+    &[3, 3],
+    &[4, 3],
+    &[4, 4],
+    &[3, 3, 3],
+    &[4, 3, 3],
+    &[4, 4, 3],
+    &[4, 4, 4],
+    &[4, 3, 3, 3],
+    &[4, 4, 3, 3],
+    &[4, 4, 4, 3],
+    &[4, 4, 4, 4],
+];
+
+/// `INTARSIA_METAL_MXFP4_ROWS_CHUNK`: `0` takes back the old chunking of `matmul_mxfp4_gemv_rows` (one launch up to 8 rows, two
+/// halves of 9..=16); any other value, or unset, runs [`MXFP4_ROWS_PLAN`] (lane mchunk4). Bitwise the same output either way.
+pub fn mxfp4_rows_chunk_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let forced = MXFP4_ROWS_CHUNK_FORCE.with(|t| t.get());
+    forced.unwrap_or_else(|| *ON.get_or_init(|| std::env::var("INTARSIA_METAL_MXFP4_ROWS_CHUNK").map_or(true, |v| v.trim() != "0")))
+}
+
+thread_local! {
+    static MXFP4_ROWS_CHUNK_FORCE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Test hook: run `f` with this thread's `matmul_mxfp4_gemv_rows` chunking forced on (the plan) or off (the old halves), whatever the env says.
+pub fn with_mxfp4_rows_chunk<R>(on: bool, f: impl FnOnce() -> R) -> R {
+    MXFP4_ROWS_CHUNK_FORCE.with(|t| t.set(Some(on)));
+    let r = f();
+    MXFP4_ROWS_CHUNK_FORCE.with(|t| t.set(None));
+    r
+}
+
+/// Launch sizes of a row-exact multi-row call of `m` rows on `kernel`, or `None` for one launch: [`MXFP4_ROWS_PLAN`] for the MXFP4
+/// twin (when the knob is on), else the old rule: more than [`CHUNK_TILE`] rows are halved into `ceil(m / 2)` and `floor(m / 2)`.
+fn chunk_sizes(kernel: &str, m: usize) -> Option<Vec<usize>> {
+    if kernel == mxfp4::MATMUL_MXFP4_GEMV_ROWS && mxfp4_rows_chunk_enabled() {
+        let plan = MXFP4_ROWS_PLAN.get(m).copied().filter(|p| p.len() > 1)?;
+        return Some(plan.to_vec());
+    }
+    (m > CHUNK_TILE && m <= CHUNK_ROWS_MAX).then(|| vec![m.div_ceil(2), m / 2])
+}
+
+/// Split a row-exact multi-row call into launches ([`chunk_sizes`]; every chunk has at least 2 rows, the least a multi-row kernel
+/// serves). Every row of such a kernel is bitwise the one-row launch on that
 /// row alone, whatever the other rows are (tests/rows_exact.rs), so the split changes no bit. Row tensors are sliced; weights,
 /// scales and the scratch are shared (the launches are stream-ordered).
 fn row_chunks(kernel: &str, call: &OpCall) -> Option<Vec<OpCall>> {
@@ -250,23 +307,25 @@ fn row_chunks(kernel: &str, call: &OpCall) -> Option<Vec<OpCall>> {
             | multirow::LOGITS_BF16_GEMV_ROWS
             | fp8::MATMUL_FP8_GEMV_ROWS
             | nvfp4::MATMUL_NVFP4_GEMV_ROWS
+            | mxfp4::MATMUL_MXFP4_GEMV_ROWS
             | moe::MOE_EXPERTS_BF16_ROWS
     );
     let m = call.inputs.first()?.shape.first().copied()?;
-    if !is_rows || m <= CHUNK_TILE || m > CHUNK_ROWS_MAX || call.rows.is_some() {
+    if !is_rows || m < 2 || m > CHUNK_ROWS_MAX || call.rows.is_some() {
         return None;
     }
     // the per-pair MoE kernels take all rows in one launch (lane mdec): pairs that share an expert read it at about the same time
     if kernel == moe::MOE_EXPERTS_BF16_ROWS && moe::rows_native() {
         return None;
     }
+    let sizes = chunk_sizes(kernel, m)?;
     // inputs that carry the rows (leading dim m): x (and for the experts: ids, weights); outputs: all
     let row_inputs = if call.op == Op::MoeExperts { 3 } else { 1 };
-    let first = m.div_ceil(2);
+    let mut start = 0;
     Some(
-        [(0, first), (first, m - first)]
+        sizes
             .into_iter()
-            .map(|(start, n)| {
+            .map(|n| {
                 let mut c = call.clone();
                 for t in c.inputs.iter_mut().take(row_inputs) {
                     *t = t.rows(start, n);
@@ -274,10 +333,71 @@ fn row_chunks(kernel: &str, call: &OpCall) -> Option<Vec<OpCall>> {
                 for t in c.outputs.iter_mut() {
                     *t = t.rows(start, n);
                 }
+                start += n;
                 c
             })
             .collect(),
     )
+}
+
+#[cfg(test)]
+mod chunk_tests {
+    use super::*;
+
+    #[test]
+    fn mxfp4_plan_is_a_valid_split_of_every_row_count() {
+        for m in 2..=CHUNK_ROWS_MAX {
+            let p = MXFP4_ROWS_PLAN[m];
+            assert_eq!(p.iter().sum::<usize>(), m, "plan of {m} rows sums to {m}: {p:?}");
+            assert!(p.iter().all(|&n| (2..=4).contains(&n)), "plan of {m} rows has a launch outside 2..=4 rows: {p:?}");
+            assert!(p.windows(2).all(|w| w[0] >= w[1]), "plan of {m} rows is not largest first: {p:?}");
+            assert_eq!(p.len() == 1, m <= 4, "only 2..=4 rows run as one launch");
+            // a 2 only closes the plan of 5 rows (3 + 2); it never sits beside a 4
+            assert!(!(p.contains(&2) && p.contains(&4)), "plan of {m} rows mixes 4 and 2: {p:?}");
+        }
+    }
+
+    #[test]
+    fn mxfp4_plan_is_the_cheapest_split_of_the_measured_launch_costs() {
+        // mb16 `timing_mxfp4_rows`, us per launch of 2 / 3 / 4 rows (one 27B layer)
+        let cost = |n: usize| [0, 0, 385, 406, 477][n];
+        let mut best = vec![u32::MAX; CHUNK_ROWS_MAX + 1];
+        best[0] = 0;
+        for m in 2..=CHUNK_ROWS_MAX {
+            for n in 2..=4usize.min(m) {
+                if best[m - n] != u32::MAX {
+                    best[m] = best[m].min(best[m - n] + cost(n));
+                }
+            }
+        }
+        for m in 2..=CHUNK_ROWS_MAX {
+            let got: u32 = MXFP4_ROWS_PLAN[m].iter().map(|&n| cost(n)).sum();
+            assert_eq!(got, best[m], "plan of {m} rows costs {got} us, the cheapest split {}", best[m]);
+        }
+    }
+
+    #[test]
+    fn chunk_sizes_by_kernel_and_knob() {
+        let rows = mxfp4::MATMUL_MXFP4_GEMV_ROWS;
+        with_mxfp4_rows_chunk(true, || {
+            for (m, want) in [(2, None), (4, None), (5, Some(vec![3, 2])), (6, Some(vec![3, 3])), (7, Some(vec![4, 3])), (8, Some(vec![4, 4])), (9, Some(vec![3, 3, 3])), (12, Some(vec![4, 4, 4])), (16, Some(vec![4, 4, 4, 4]))] {
+                assert_eq!(chunk_sizes(rows, m), want, "M = {m}");
+            }
+        });
+        with_mxfp4_rows_chunk(false, || {
+            for (m, want) in [(2, None), (8, None), (9, Some(vec![5, 4])), (12, Some(vec![6, 6])), (16, Some(vec![8, 8]))] {
+                assert_eq!(chunk_sizes(rows, m), want, "M = {m}, knob 0");
+            }
+        });
+        // other kernels keep the halves whatever the knob says
+        with_mxfp4_rows_chunk(true, || {
+            for k in [fp8::MATMUL_FP8_GEMV_ROWS, nvfp4::MATMUL_NVFP4_GEMV_ROWS, multirow::MATMUL_BF16_GEMV_ROWS] {
+                assert_eq!(chunk_sizes(k, 8), None);
+                assert_eq!(chunk_sizes(k, 9), Some(vec![5, 4]));
+                assert_eq!(chunk_sizes(k, 16), Some(vec![8, 8]));
+            }
+        });
+    }
 }
 
 /// The set of indirectly addressed buffers, held weakly (a buffer the model dropped leaves the set).
@@ -905,7 +1025,7 @@ impl Backend for MetalBackend {
     fn launch(&self, kernel: &str, call: &OpCall, s: StreamId) -> Result<()> {
         call.check()?;
         if let Some(chunks) = row_chunks(kernel, call) {
-            // 9..=16 rows of a row-exact multi-row GEMV: two launches of at most 8 rows, each row bitwise the one-row call
+            // a row-exact multi-row GEMV split by `chunk_sizes` (MXFP4: at most 4 rows per launch; others: two halves above 8), each row bitwise the one-row call
             for c in &chunks {
                 self.launch(kernel, c, s)?;
             }
@@ -1096,7 +1216,9 @@ impl MetalBackend {
         if kernel == kernels::ATTN_PREFILL_BF16_SPLITKV_ROWS && call.op == Op::AttnPrefill {
             return self.launch_attn_rows(call);
         }
-        if matches!(kernel, mxfp4::MATMUL_MXFP4_GEMV | mxfp4::MATMUL_MXFP4_NAX) && call.op == Op::MatmulMxfp4 {
+        if matches!(kernel, mxfp4::MATMUL_MXFP4_GEMV | mxfp4::MATMUL_MXFP4_NAX | mxfp4::MATMUL_MXFP4_GEMV_ROWS)
+            && call.op == Op::MatmulMxfp4
+        {
             return self.launch_mxfp4(kernel, call);
         }
         if kernel == moe::MOE_TOPK_BF16 && call.op == Op::MoeTopk {

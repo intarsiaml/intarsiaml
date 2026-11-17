@@ -1,0 +1,33 @@
+1794888474.565032000 cooled 80s thermal 0
+1794888478.710350000 cooled 0s thermal 0
+1794888478.715609000 start null4k thermal 0
+CELL tag=A2 null4k streams=1 requests=2 tokens=64 wall_s=11.96 agg_tps=5.352 ttft_p50=5.056 ttft_mean=5.056 dec_tps_p50=33.59 prompt_tokens_p50=4716
+1794888490.716561000 end null4k thermal 0
+1794888490.725048000 cooled 0s thermal 0
+1794888490.730287000 start s1 thermal 0
+CELL tag=A2 s1 streams=1 requests=2 tokens=512 wall_s=15.67 agg_tps=32.68 ttft_p50=0.2212 ttft_mean=0.2212 dec_tps_p50=33.5 prompt_tokens_p50=115
+1794888506.441934000 end s1 thermal 0
+1794888506.450146000 cooled 0s thermal 0
+1794888506.455115000 start s4 thermal 0
+CELL tag=A2 s4 streams=4 requests=8 tokens=2048 wall_s=23.89 agg_tps=85.73 ttft_p50=0.6247 ttft_mean=0.5896 dec_tps_p50=22.56 prompt_tokens_p50=113.5
+1794888530.390570000 end s4 thermal 0
+1794888530.398072000 cooled 0s thermal 0
+1794888530.402768000 start s6 thermal 0
+CELL tag=A2 s6 streams=6 requests=12 tokens=3072 wall_s=44.46 agg_tps=69.09 ttft_p50=0.7406 ttft_mean=0.7743 dec_tps_p50=11.87 prompt_tokens_p50=116
+1794888574.912133000 end s6 thermal 2
+1794888655.184314000 cooled 80s thermal 0
+1794888655.193844000 start s8 thermal 0
+CELL tag=A2 s8 streams=8 requests=16 tokens=4096 wall_s=45.83 agg_tps=89.37 ttft_p50=0.8199 ttft_mean=0.9516 dec_tps_p50=11.78 prompt_tokens_p50=115.5
+1794888701.082880000 end s8 thermal 0
+1794888701.091230000 cooled 0s thermal 0
+1794888701.096759000 start s9 thermal 0
+CELL tag=A2 s9 streams=9 requests=18 tokens=4608 wall_s=56.64 agg_tps=81.36 ttft_p50=0.8762 ttft_mean=3.423 dec_tps_p50=11.11 prompt_tokens_p50=115
+1794888757.781691000 end s9 thermal 2
+1794888838.045054000 cooled 80s thermal 0
+1794888838.050439000 start s12 thermal 0
+CELL tag=A2 s12 streams=12 requests=24 tokens=6144 wall_s=69.52 agg_tps=88.37 ttft_p50=1.792 ttft_mean=8.549 dec_tps_p50=11.33 prompt_tokens_p50=116.5
+1794888907.620021000 end s12 thermal 1
+1794888977.877859000 cooled 70s thermal 0
+1794888977.886668000 start s16 thermal 0
+CELL tag=A2 s16 streams=16 requests=32 tokens=8192 wall_s=93.25 agg_tps=87.85 ttft_p50=23.94 ttft_mean=18.19 dec_tps_p50=11.16 prompt_tokens_p50=114.5
+1794889071.188571000 end s16 thermal 1

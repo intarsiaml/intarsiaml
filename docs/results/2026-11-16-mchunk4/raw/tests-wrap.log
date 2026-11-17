@@ -1,0 +1,10 @@
+fleetq: #9833 waiting (#3 in line): in line behind #9831 "mchunk4: gates route trace + mtp ids" (claude-2ae67a71) on endor
+fleetq:   #9831 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9831 set, or it will wait for #9831 to be released.
+fleetq: #9833 waiting (#2 in line): in line behind #9832 "mchunk4: ABBA round 1 (A1 B1 B2 A2) 27B mb8/mb16" (claude-2ae67a71) on endor
+fleetq:   #9832 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9832 set, or it will wait for #9832 to be released.
+fleetq: #9833 waiting (#1 in line): #9832 "mchunk4: ABBA round 1 (A1 B1 B2 A2) 27B mb8/mb16" (claude-2ae67a71) needs cpu quiet on endor, and this job loads it
+fleetq:   #9832 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9832 set, or it will wait for #9832 to be released.
+fleetq: #9833 running on endor: zsh -c 'cd /opt/code/intarsiaml/.worktrees/mchunk4 && cargo test --workspace --release > docs/results/2026-11-16-mchunk4/raw/test-workspace-release.log 2>&1; echo release-exit $?; cargo test -p intarsia-backend-metal > docs/results/2026-11-16-mchunk4/raw/test-metal-debug.log 2>&1; echo debug-exit $?'
+release-exit 0
+debug-exit 0
+fleetq: #9833 done (exit 0)
