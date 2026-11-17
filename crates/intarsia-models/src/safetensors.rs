@@ -27,6 +27,8 @@ struct Entry {
 
 pub struct SafeTensors {
     files: Vec<Arc<MmapHost>>,
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    paths: Vec<std::path::PathBuf>,
     entries: BTreeMap<String, Entry>,
 }
 
@@ -72,7 +74,7 @@ impl SafeTensors {
             parse_header(&mm, fi, &mut entries).map_err(|e| Error::model(format!("{}: {e}", p.display())))?;
             files.push(Arc::new(MmapHost(mm)));
         }
-        Ok(SafeTensors { files, entries })
+        Ok(SafeTensors { files, paths, entries })
     }
 
     pub fn total_bytes(&self) -> u64 {
@@ -143,6 +145,21 @@ impl WeightSource for SafeTensors {
         Ok(&self.files[e.file].0[e.begin..e.end])
     }
 
+    /// Unmap the pages this process touched (`MADV_DONTNEED` on a read-only file mapping only drops the page-table entries), then
+    /// `posix_fadvise(DONTNEED)` each file: the kernel skips pages that are still mapped.
+    fn release_page_cache(&self) {
+        #[cfg(target_os = "linux")]
+        for (mm, p) in self.files.iter().zip(&self.paths) {
+            // SAFETY: a read-only shared file mapping: DONTNEED discards no data, a later access faults the page in again.
+            let _ = unsafe { mm.0.unchecked_advise(memmap2::UncheckedAdvice::DontNeed) };
+            if let Ok(f) = std::fs::File::open(p) {
+                use std::os::fd::AsRawFd;
+                // SAFETY: plain syscall on a valid fd; only a hint.
+                unsafe { libc::posix_fadvise(f.as_raw_fd(), 0, 0, libc::POSIX_FADV_DONTNEED) };
+            }
+        }
+    }
+
     fn host_memory(&self, name: &str) -> Option<(Arc<dyn HostMemory>, usize, usize)> {
         let e = self.entries.get(name)?;
         Some((self.files[e.file].clone() as Arc<dyn HostMemory>, e.begin, e.end - e.begin))
@@ -209,6 +226,10 @@ mod tests {
         assert_eq!(st.bytes("a.weight").unwrap(), &a.data[..]);
         assert_eq!(st.bytes("b.weight").unwrap(), &b.data[..]);
         let (mem, off, len) = st.host_memory("b.weight").unwrap();
+        assert_eq!(&mem.as_slice()[off..off + len], &b.data[..]);
+        // dropping the page cache is a hint: the mapping stays valid and reads the same bytes
+        st.release_page_cache();
+        assert_eq!(st.bytes("a.weight").unwrap(), &a.data[..]);
         assert_eq!(&mem.as_slice()[off..off + len], &b.data[..]);
         std::fs::remove_dir_all(&dir).ok();
     }

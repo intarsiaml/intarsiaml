@@ -28,6 +28,17 @@ mod queue_tests {
     use super::*;
 
     #[test]
+    fn load_drop_cache_default_is_cuda_on_integrated_memory_only() {
+        assert!(load_drop_cache_wanted(None, "cuda", true));
+        assert!(!load_drop_cache_wanted(None, "cuda", false));
+        assert!(!load_drop_cache_wanted(None, "metal", true));
+        assert!(!load_drop_cache_wanted(None, "cpu", true));
+        assert!(!load_drop_cache_wanted(Some("0"), "cuda", true));
+        assert!(load_drop_cache_wanted(Some("1"), "cuda", false));
+        assert!(load_drop_cache_wanted(Some(" 1 "), "hip", false));
+    }
+
+    #[test]
     fn engine_queue_holds_everything_the_server_admits() {
         assert_eq!(batch_queue(None, 4), BATCH_QUEUE);
         assert_eq!(batch_queue(Some(64), 4), 68);
@@ -213,8 +224,34 @@ impl WeightSource for SchemedSource {
     fn host_memory(&self, name: &str) -> Option<(Arc<dyn HostMemory>, usize, usize)> {
         self.src().host_memory(name)
     }
+    fn release_page_cache(&self) {
+        self.src().release_page_cache()
+    }
     fn quant_scheme(&self) -> Option<&QuantScheme> {
         self.scheme.as_ref()
+    }
+}
+
+/// Env switch for [`drop_load_cache`]: `0` / `1` force it off / on; unset means on for a CUDA backend on an integrated-memory
+/// device (GB10), off elsewhere.
+pub const LOAD_DROP_CACHE_ENV: &str = "INTARSIA_LOAD_DROP_CACHE";
+
+/// Whether to drop the checkpoint's page cache after the load. A CUDA backend copies every tensor to the device, so the cached
+/// file pages are only a second copy competing for the same unified memory. Metal and the CPU backend wrap the mapping
+/// (`wrap_host`): their buffers are the page cache, so it is never dropped there unless forced (a forced drop only costs re-reads).
+fn load_drop_cache_wanted(env: Option<&str>, backend: &str, unified: bool) -> bool {
+    match env.map(str::trim) {
+        Some("0") => false,
+        Some("1") => true,
+        _ => backend == "cuda" && unified,
+    }
+}
+
+/// After `Model::load*`: drop the checkpoint files' page cache when [`load_drop_cache_wanted`].
+fn drop_load_cache(weights: &dyn WeightSource, backend: &dyn Backend) {
+    let info = backend.info();
+    if load_drop_cache_wanted(std::env::var(LOAD_DROP_CACHE_ENV).ok().as_deref(), &info.backend, info.unified) {
+        weights.release_page_cache();
     }
 }
 
@@ -285,7 +322,9 @@ pub fn serve_remote_rank(
     };
     let group_comm = comm.clone();
     let tp = intarsia_core::model::TpRank { rank, world, comm: Some(comm) };
+    let drop_backend = backend.clone();
     let mut model = Model::load_shard(backend, &recipe, &dims, &weights, &load_opts, Arc::new(Telemetry::new()), tp)?;
+    drop_load_cache(&weights, drop_backend.as_ref());
     if mtp {
         model.enable_verify_served(opts.spec.verify_rows())?;
     }
@@ -877,6 +916,10 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         }
         load_opts.prefill_macro = Some(0);
     }
+    let drop_backend = match &group {
+        Group::Local(backends, _) => backends.first().cloned(),
+        Group::Remote { backend, .. } => Some(backend.clone()),
+    };
     let mut model = match group {
         Group::Local(backends, comms) if backends.len() == 1 => {
             let _ = comms;
@@ -899,6 +942,9 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         }
     };
     // deviations from the declared scheme that are not errors: logged once, at load
+    if let Some(b) = &drop_backend {
+        drop_load_cache(&weights, b.as_ref());
+    }
     if let Some(note) = weights.scheme().and_then(|s| s.kv_note(model.kv)) {
         eprintln!("quantisation scheme note: {note}");
     }
