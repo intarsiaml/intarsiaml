@@ -19,8 +19,8 @@ pub struct ServeArgs {
     /// Requests allowed to wait behind the running one; further requests get HTTP 429.
     #[arg(long, default_value_t = 64)]
     pub max_queue: usize,
-    /// Opt-in continuous batching: decode up to N sequences together (Metal 2..=8, CUDA and HIP 2..=16, capped by the
-    /// recipe's `max_batch`); refused on other backends and with `--spec mtp`. Default 1: the single-sequence engine. Only
+    /// Opt-in continuous batching: decode up to N sequences together (2..=16 on Metal, CUDA and HIP, capped by the recipe's
+    /// `max_batch`; on Metal 16 for the Qwen3.8-27B and 8 for the Qwen3.6-35B-A3B, docs/tuning.md); refused on other backends and with `--spec mtp`. Default 1: the single-sequence engine. Only
     /// `serve` takes this flag.
     #[arg(long)]
     pub max_batch: Option<usize>,

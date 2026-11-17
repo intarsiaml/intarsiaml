@@ -391,6 +391,9 @@ impl<S: WeightSource> WeightSource for MlxAffine<S> {
             Entry::Unshift { .. } | Entry::Quant { .. } => None,
         }
     }
+    fn release_page_cache(&self) {
+        self.inner.release_page_cache();
+    }
     fn quant_scheme(&self) -> Option<&crate::quant::scheme::QuantScheme> {
         None
     }

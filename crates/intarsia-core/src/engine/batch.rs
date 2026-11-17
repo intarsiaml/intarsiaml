@@ -27,7 +27,7 @@ use crate::error::{Error, Result};
 use crate::model::{HeadMode, Model, StepOut};
 use crate::scheduler::{
     BatchEngine, BatchMetrics, BatchModel, BatchSeq, Held, Housekeep, RequestId, Row, SchedulerConfig, SeqStep, Verified, VerifyRows,
-    MAX_BATCH_CAP, SPEC_OFF_AT_DEFAULT,
+    parse_prefill_order, PrefillOrder, MAX_BATCH_CAP, PREFILL_AGE_DEFAULT, SPEC_OFF_AT_DEFAULT,
 };
 use crate::state::SequenceState;
 use crate::telemetry::{Telemetry, TelemetrySnapshot};
@@ -94,6 +94,12 @@ pub struct BatchedOptions {
     /// A packed pass takes at most half of the waiting prompts (default on, `INTARSIA_PACK_HALF=0` off); see
     /// [`SchedulerConfig::pack_half`].
     pub pack_half: bool,
+    /// Which prefilling prompt gets the next chunk (`INTARSIA_PREFILL_ORDER=fifo|shortest`, default fifo); see
+    /// [`SchedulerConfig::prefill_order`].
+    pub prefill_order: PrefillOrder,
+    /// Decisions a prefilling prompt may be passed over under `shortest` before it goes first (`INTARSIA_PREFILL_AGE`, default
+    /// [`PREFILL_AGE_DEFAULT`]); see [`SchedulerConfig::prefill_age`].
+    pub prefill_age: usize,
     /// Batched MTP speculation (lane bm, opt-in, [`batched_mtp_env`]): `--spec mtp` drafts while at most this many sequences
     /// decode (and `spec_off_at` allows it); wider steps run plain batched decode. 0: `--spec mtp` is refused here (the default).
     pub mtp_max_b: usize,
@@ -119,6 +125,10 @@ pub struct BatchedOptions {
     /// right after the `Done`. Meant with [`BatchedOptions::pause_rows`]: without pauses a slice runs only in an iteration where nothing
     /// prefills, so a long prefill beside a pending settle has no relief (captures past the deferral cap then download inside the chunk).
     pub settle_slice_mb: usize,
+    /// Prefix herd (lane herd, `INTARSIA_PREFIX_HERD=1`, opt-in), with the prefix store: requests that share a prompt prefix another
+    /// request is still prefilling wait for it and restore it from the store instead of prefilling it again; see
+    /// [`SchedulerConfig::prefix_herd`].
+    pub prefix_herd: bool,
     /// Tests only: start the scheduler thread held, so that a whole workload is submitted before its first iteration admits
     /// anything (see [`BatchedEngine::release`]). Always false from [`BatchedOptions::new`].
     #[doc(hidden)]
@@ -138,6 +148,14 @@ pub const SETTLE_SLICE_MB_DEFAULT: usize = 0;
 /// (docs/results/2026-10-29-srv16b-pack-latency.md).
 pub const PACK_ROWS_DEFAULT: usize = 3072;
 
+/// `INTARSIA_PREFILL_ORDER` (`fifo`, the default, or `shortest`). An unknown value is reported on stderr and means fifo.
+fn prefill_order_env() -> PrefillOrder {
+    parse_prefill_order(std::env::var("INTARSIA_PREFILL_ORDER").ok().as_deref()).unwrap_or_else(|e| {
+        eprintln!("warning: {e}; using fifo");
+        PrefillOrder::Fifo
+    })
+}
+
 impl BatchedOptions {
     /// The scheduler policy these options select, for a model whose prefill chunk is `solo_chunk`.
     pub fn scheduler_config(&self, solo_chunk: usize) -> SchedulerConfig {
@@ -152,6 +170,9 @@ impl BatchedOptions {
             pack_prefill: self.pack_prefill.unwrap_or(false),
             pack_rows: self.pack_rows,
             pack_half: self.pack_half,
+            prefill_order: self.prefill_order,
+            prefill_age: self.prefill_age,
+            prefix_herd: self.prefix_herd,
             ..SchedulerConfig::default()
         }
     }
@@ -170,6 +191,12 @@ impl BatchedOptions {
             pack_prefill: std::env::var("INTARSIA_PACK_PREFILL").ok().map(|v| v == "1"),
             pack_rows: std::env::var("INTARSIA_PACK_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(PACK_ROWS_DEFAULT),
             pack_half: std::env::var("INTARSIA_PACK_HALF").map(|v| v != "0").unwrap_or(true),
+            prefill_order: prefill_order_env(),
+            prefill_age: std::env::var("INTARSIA_PREFILL_AGE")
+                .ok()
+                .and_then(|v| v.trim().parse().ok())
+                .filter(|&n| n >= 1)
+                .unwrap_or(PREFILL_AGE_DEFAULT),
             mtp_max_b: 0,
             pause_rows: std::env::var("INTARSIA_PREFILL_PAUSE_ROWS").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(PAUSE_ROWS_DEFAULT),
             settle_slice_mb: std::env::var("INTARSIA_SETTLE_SLICE_MB")
@@ -179,6 +206,7 @@ impl BatchedOptions {
             batched_verify: env("INTARSIA_BATCHED_VERIFY"),
             mtp_sampled: batched_mtp_sampled_env(),
             verify_topk: env("INTARSIA_VERIFY_TOPK"),
+            prefix_herd: env("INTARSIA_PREFIX_HERD"),
             hold_start: false,
         }
     }
@@ -787,6 +815,53 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         Ok(p)
     }
 
+    fn herd_min(&self) -> Option<usize> {
+        self.seq.as_ref()?.ps.as_ref().map(|ps| ps.pol.min_tokens)
+    }
+
+    fn herd_resume(&mut self, model: &mut SlotModel, slot: usize, pos: usize) -> Result<usize> {
+        let Some(seq) = self.seq.as_mut() else { return Ok(pos) };
+        let Some(ps) = seq.ps.as_ref() else { return Ok(pos) };
+        let SlotModel { model: m, states, .. } = model;
+        let st = &mut states[slot];
+        if st.len != pos {
+            // the slot holds exactly this request's own rows `0..pos` (the scheduler's `Phase::Prefilling`); anything else: leave it
+            return Ok(pos);
+        }
+        // the same lookup and restore as admission's (`SeqStore::restore`: the request's schedule points, longer than what the slot
+        // holds), now that the leader's captures are in the store; the deferral stays on (this request captures too)
+        let max_reuse = seq.plen.saturating_sub(1);
+        match ps.restore(m, st, &seq.req.prompt, pos, max_reuse, &seq.telemetry) {
+            Ok(Some((len, _took))) => {
+                if st.mtp.as_ref().is_some_and(|h| !h.synced) {
+                    // lane mtp-store, as at admission: the head's context starts over at the resume point
+                    st.truncate(len, &*m.backend)?;
+                    st.mtp_restart(&*m.backend)?;
+                }
+                // everything up to now (the hold included) is not prefill compute: `note_prefill` rates the rows after it
+                seq.restore_time = seq.t0.elapsed();
+                seq.pos = len;
+                seq.cached = len;
+                if let Some(ps) = seq.ps.as_mut() {
+                    ps.last_insert = len;
+                }
+                Ok(len)
+            }
+            Ok(None) => Ok(pos),
+            Err(e) => {
+                // a rejected entry (corrupt file, layout mismatch): the slot was reset; run cold from row 0
+                eprintln!("prefix store: restore failed ({e}); prefilling from scratch");
+                st.truncate(0, &*m.backend)?;
+                seq.pos = 0;
+                seq.cached = 0;
+                if let Some(ps) = seq.ps.as_mut() {
+                    ps.last_insert = 0;
+                }
+                Ok(0)
+            }
+        }
+    }
+
     fn chunk_len(&self, pos: usize, remaining: usize) -> Option<usize> {
         let ps = self.seq.as_ref()?.ps.as_ref()?;
         // the single-sequence engine's store schedule (`Seq::prefill_step`): the model's chunk cut at the next message boundary
@@ -1121,6 +1196,15 @@ impl BatchedEngine {
                 super::announce_mtp_store(true);
             }
         }
+        if cfg.prefix_herd {
+            if store.is_some() {
+                eprintln!(
+                    "prefix herd: on (INTARSIA_PREFIX_HERD=1): a request waits for an older one still prefilling a prefix they share, then restores it from the store"
+                );
+            } else {
+                eprintln!("prefix herd: INTARSIA_PREFIX_HERD=1 has no effect without --prefix-store");
+            }
+        }
         let env = SeqEnv { codec, telemetry, eos: meta.eos_ids, spec: meta.spec };
         let twin = if opts.overlap {
             match model.decode_twin(opts.max_batch) {
@@ -1444,6 +1528,16 @@ mod tests {
         let c = o.scheduler_config(2048);
         assert_eq!((c.spec_off_at, c.max_batch, c.max_queue), (7, 4, 16));
         assert!(!c.trace, "production never stores the trace");
+        assert!(c.validate().is_ok());
+    }
+
+    #[test]
+    fn prefill_order_reaches_the_scheduler_config() {
+        let mut o = BatchedOptions::new(4, 16);
+        o.prefill_order = PrefillOrder::Shortest;
+        o.prefill_age = 3;
+        let c = o.scheduler_config(2048);
+        assert_eq!((c.prefill_order, c.prefill_age), (PrefillOrder::Shortest, 3));
         assert!(c.validate().is_ok());
     }
 
