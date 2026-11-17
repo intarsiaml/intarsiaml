@@ -1,0 +1,90 @@
+fleetq: #9879 running on endor: ./scripts/mfp8split/allgates.sh 27b
+solo p0: prompt: 99 tokens
+solo p1: prompt: 4666 tokens
+solo p2: prompt: 106 tokens
+solo p3: prompt: 4702 tokens
+solo p4: prompt: 111 tokens
+solo p5: prompt: 4719 tokens
+solo p6: prompt: 116 tokens
+solo p7: prompt: 4708 tokens
+solo p8: prompt: 118 tokens
+solo p9: prompt: 4732 tokens
+solo p10: prompt: 113 tokens
+solo p11: prompt: 4729 tokens
+solo p12: prompt: 117 tokens
+solo p13: prompt: 4714 tokens
+solo p14: prompt: 116 tokens
+solo p15: prompt: 4719 tokens
+solo: 16 prompts, lengths [256]
+## done 27b solo
+new-mb16: streams 1: [256]
+new-mb16: streams 4: [256, 256, 256, 256]
+new-mb16: streams 6: [256, 256, 256, 256, 256, 256]
+new-mb16: streams 8: [256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16: streams 10: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16: streams 12: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16-off: streams 1: [256]
+new-mb16-off: streams 4: [256, 256, 256, 256]
+new-mb16-off: streams 6: [256, 256, 256, 256, 256, 256]
+new-mb16-off: streams 8: [256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16-off: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16-off: streams 10: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16-off: streams 12: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16-off: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+base-mb16: streams 1: [256]
+base-mb16: streams 4: [256, 256, 256, 256]
+base-mb16: streams 6: [256, 256, 256, 256, 256, 256]
+base-mb16: streams 8: [256, 256, 256, 256, 256, 256, 256, 256]
+base-mb16: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+base-mb16: streams 10: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+base-mb16: streams 12: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+base-mb16: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb8: streams 1: [256]
+new-mb8: streams 4: [256, 256, 256, 256]
+new-mb8: streams 6: [256, 256, 256, 256, 256, 256]
+new-mb8: streams 8: [256, 256, 256, 256, 256, 256, 256, 256]
+new-mb8: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb8: streams 10: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb8: streams 12: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb8: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+base-mb8: streams 1: [256]
+base-mb8: streams 4: [256, 256, 256, 256]
+base-mb8: streams 6: [256, 256, 256, 256, 256, 256]
+base-mb8: streams 8: [256, 256, 256, 256, 256, 256, 256, 256]
+base-mb8: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+base-mb8: streams 10: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+base-mb8: streams 12: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+base-mb8: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+## done 27b served
+served-base-mb16.json vs solo generate: SAME (66/66 cells; 1:1/1 4:4/4 6:6/6 8:8/8 9:9/9 10:10/10 12:12/12 16:16/16)
+served-base-mb8.json vs solo generate: SAME (66/66 cells; 1:1/1 4:4/4 6:6/6 8:8/8 9:9/9 10:10/10 12:12/12 16:16/16)
+served-new-mb16-off.json vs solo generate: SAME (66/66 cells; 1:1/1 4:4/4 6:6/6 8:8/8 9:9/9 10:10/10 12:12/12 16:16/16)
+served-new-mb16.json vs solo generate: SAME (66/66 cells; 1:1/1 4:4/4 6:6/6 8:8/8 9:9/9 10:10/10 12:12/12 16:16/16)
+served-new-mb8.json vs solo generate: SAME (66/66 cells; 1:1/1 4:4/4 6:6/6 8:8/8 9:9/9 10:10/10 12:12/12 16:16/16)
+served-base-mb16.json vs served-new-mb16.json: SAME (66/66 cells equal)
+served-base-mb8.json vs served-new-mb8.json: SAME (66/66 cells equal)
+served-new-mb16-off.json vs served-new-mb16.json: SAME (66/66 cells equal)
+plan base-mb8 vs new-mb8: 0 differing lines
+plan base-mb8 vs new-mb16: 8 differing lines
+plan base-mb8 vs new-mb16-off: 8 differing lines
+plan base-mb8 vs base-mb16: 8 differing lines
+## done 27b compare
+on-10: streams 10: [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]
+route on-10: [(2, 18), (3, 2), (4, 2), (5, 2), (6, 2), (7, 4), (8, 16)]
+on-12: streams 12: [24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24]
+route on-12: [(2, 6), (3, 4), (4, 14), (5, 2), (6, 2), (7, 4), (8, 18)]
+off-10: streams 10: [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]
+route off-10: [(2, 2), (3, 2), (4, 4), (5, 32), (6, 2), (7, 2), (8, 2)]
+off-12: streams 12: [24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24]
+route off-12: [(2, 2), (3, 2), (4, 4), (5, 10), (6, 28), (7, 2), (8, 2)]
+on-8: streams 8: [24, 24, 24, 24, 24, 24, 24, 24]
+route on-8: [(2, 2), (3, 2), (4, 2), (5, 2), (6, 2), (7, 2), (8, 16)]
+## done 27b route
+mtp p0 base: 9ba316627dad2f2445e58dafb2753f2c speculative decoding: Mtp SAME
+mtp p0 new: 9ba316627dad2f2445e58dafb2753f2c speculative decoding: Mtp SAME
+mtp p1 base: 2c7de3432445a58f09d2eabc3dca11b5 speculative decoding: Mtp SAME
+mtp p1 new: 2c7de3432445a58f09d2eabc3dca11b5 speculative decoding: Mtp SAME
+## done 27b mtp
+fleetq: #9879 done (exit 0)

@@ -1,0 +1,12 @@
+fleetq: #9880 waiting (#1 in line): #9879 "mfp8split gates 27b (solo/served/route/mtp)" (claude-222947e6) needs gpu quiet on endor, and this job loads it
+fleetq:   #9879 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9879 set, or it will wait for #9879 to be released.
+fleetq: #9880 running on endor: ./scripts/mfp8split/negctl.sh
+NEGCTL=none: test fp8_row_splits_are_bitwise_the_one_row_gemv ... ok
+NEGCTL=none: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 1.40s
+NEGCTL=fp8_xd: test fp8_row_splits_are_bitwise_the_one_row_gemv ... FAILED
+NEGCTL=fp8_xd: thread 'fp8_row_splits_are_bitwise_the_one_row_gemv' (24892449) panicked at crates/intarsia-backend-metal/tests/rows_exact.rs:73:9:
+NEGCTL=fp8_xd: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.09s
+NEGCTL=fp8_mmt: test fp8_row_splits_are_bitwise_the_one_row_gemv ... FAILED
+NEGCTL=fp8_mmt: thread 'fp8_row_splits_are_bitwise_the_one_row_gemv' (24892471) panicked at crates/intarsia-backend-metal/tests/rows_exact.rs:73:9:
+NEGCTL=fp8_mmt: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.08s
+fleetq: #9880 done (exit 0)

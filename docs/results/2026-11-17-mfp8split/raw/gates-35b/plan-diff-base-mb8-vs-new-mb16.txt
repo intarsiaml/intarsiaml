@@ -1,0 +1,16 @@
+422c422
+<             "scratch_bytes": 8454144
+---
+>             "scratch_bytes": 16908288
+458c458
+<             "scratch_bytes": 65552
+---
+>             "scratch_bytes": 131088
+539c539
+<             "scratch_bytes": 330496
+---
+>             "scratch_bytes": 658432
+708c708
+<     "max_batch": 8
+---
+>     "max_batch": 16
