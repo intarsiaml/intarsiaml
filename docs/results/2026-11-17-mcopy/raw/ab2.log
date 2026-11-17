@@ -1,0 +1,34 @@
+base r1 up 11:14:28 free: 55 GB
+base r1 copy3k: {"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.434, "dec_tps": 151.77, "wall": 19.555, "sha": "4eb925608b0c"}
+base r1 agent-edit: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 298, "chunks": 297, "ttft": 0.31, "dec_tps": 150.79, "wall": 2.279, "sha": "7c95bbf0cec3"}
+base r1 agent-batch: {"cell": "agent-batch", "tag": "c1", "rep": 2, "toks": 139, "chunks": 138, "ttft": 0.184, "dec_tps": 158.08, "wall": 1.057, "sha": "af4b4d294fc7"}
+base r1 json-xform: {"cell": "json-xform", "tag": "c1", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.434, "dec_tps": 149.74, "wall": 17.791, "sha": "e4cca5268730"}
+base r1 chat-short: {"cell": "chat-short", "tag": "c1", "rep": 2, "toks": 400, "chunks": 400, "ttft": 0.069, "dec_tps": 135.46, "wall": 3.014, "sha": "eb7fb2828a0d"}
+base r1 reason: {"cell": "reason", "tag": "c1", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.078, "dec_tps": 153.79, "wall": 3.322, "sha": "70b15645c822"}
+base r1 metrics: intarsia_spec_steps_total 7470 intarsia_spec_proposed_tokens_total 14938 intarsia_spec_accepted_tokens_total 14375 
+n12 r1 up 11:17:39 free: 55 GB
+n12 r1 copy3k: {"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.432, "dec_tps": 262.52, "wall": 11.486, "sha": "4eb925608b0c"}
+n12 r1 agent-edit: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 298, "chunks": 297, "ttft": 0.305, "dec_tps": 177.96, "wall": 1.974, "sha": "7c95bbf0cec3"}
+n12 r1 agent-batch: {"cell": "agent-batch", "tag": "c1", "rep": 2, "toks": 139, "chunks": 138, "ttft": 0.183, "dec_tps": 163.0, "wall": 1.029, "sha": "af4b4d294fc7"}
+n12 r1 json-xform: {"cell": "json-xform", "tag": "c1", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.436, "dec_tps": 205.99, "wall": 13.053, "sha": "e4cca5268730"}
+n12 r1 chat-short: {"cell": "chat-short", "tag": "c1", "rep": 2, "toks": 400, "chunks": 400, "ttft": 0.069, "dec_tps": 135.87, "wall": 3.005, "sha": "eb7fb2828a0d"}
+n12 r1 reason: {"cell": "reason", "tag": "c1", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.078, "dec_tps": 154.0, "wall": 3.318, "sha": "70b15645c822"}
+n12 r1 metrics: intarsia_spec_steps_total 4280 intarsia_spec_proposed_tokens_total 20477 intarsia_spec_accepted_tokens_total 17568 
+n20 r1 up 11:20:11 free: 55 GB
+n20 r1 copy3k: {"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.433, "dec_tps": 264.71, "wall": 11.396, "sha": "4eb925608b0c"}
+n20 r1 agent-edit: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 298, "chunks": 297, "ttft": 0.307, "dec_tps": 175.36, "wall": 2.001, "sha": "7c95bbf0cec3"}
+n20 r1 agent-batch: {"cell": "agent-batch", "tag": "c1", "rep": 2, "toks": 139, "chunks": 138, "ttft": 0.186, "dec_tps": 160.76, "wall": 1.044, "sha": "af4b4d294fc7"}
+n20 r1 json-xform: {"cell": "json-xform", "tag": "c1", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.439, "dec_tps": 229.81, "wall": 11.749, "sha": "e4cca5268730"}
+n20 r1 chat-short: {"cell": "chat-short", "tag": "c1", "rep": 2, "toks": 400, "chunks": 400, "ttft": 0.069, "dec_tps": 134.46, "wall": 3.036, "sha": "eb7fb2828a0d"}
+n20 r1 reason: {"cell": "reason", "tag": "c1", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.078, "dec_tps": 149.39, "wall": 3.418, "sha": "70b15645c822"}
+n20 r1 metrics: intarsia_spec_steps_total 4177 intarsia_spec_proposed_tokens_total 18779 intarsia_spec_accepted_tokens_total 17671 
+wide r1 up 11:22:37 free: 55 GB
+wide r1 copy3k: {"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.434, "dec_tps": 235.12, "wall": 12.776, "sha": "4eb925608b0c"}
+wide r1 agent-edit: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 298, "chunks": 297, "ttft": 0.311, "dec_tps": 148.7, "wall": 2.308, "sha": "7c95bbf0cec3"}
+wide r1 agent-batch: {"cell": "agent-batch", "tag": "c1", "rep": 2, "toks": 139, "chunks": 138, "ttft": 0.182, "dec_tps": 157.83, "wall": 1.057, "sha": "af4b4d294fc7"}
+wide r1 json-xform: {"cell": "json-xform", "tag": "c1", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.432, "dec_tps": 146.23, "wall": 18.205, "sha": "e4cca5268730"}
+wide r1 chat-short: {"cell": "chat-short", "tag": "c1", "rep": 2, "toks": 400, "chunks": 400, "ttft": 0.068, "dec_tps": 135.33, "wall": 3.016, "sha": "eb7fb2828a0d"}
+wide r1 reason: {"cell": "reason", "tag": "c1", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.078, "dec_tps": 154.04, "wall": 3.318, "sha": "70b15645c822"}
+wide r1 metrics: intarsia_spec_steps_total 5990 intarsia_spec_proposed_tokens_total 16598 intarsia_spec_accepted_tokens_total 15855 
+serve died (n20L15)
+env: ‘15’: No such file or directory

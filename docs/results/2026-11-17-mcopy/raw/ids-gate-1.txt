@@ -1,0 +1,3 @@
+PASS ids copy3k copy=12: 2902 ids identical | copy_passes=367 accepted_hist[count acc]=      4 0       3 1       1 2       1 3       1 4       1 5       1 6     355 7  | spec: verify passes=376 proposed=2587 accepted=2526 (acceptance 97.6%, 7.72 tokens per pass)
+PASS ids chat-short copy=12: 364 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: verify passes=154 proposed=308 accepted=210 (acceptance 68.2%, 2.36 tokens per pass)
+ids fails=0

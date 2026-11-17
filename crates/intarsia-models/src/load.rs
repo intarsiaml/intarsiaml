@@ -981,6 +981,18 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
                 model.tp_world()
             )));
         }
+        // lane mcopy: `INTARSIA_SPEC_COPY` widens the verify passes to the copy chain (`SpecConfig::verify_rows`); only the single-sequence
+        // engine verifies them, on the CUDA backend (and the cpu reference), with one rank and the MTP head
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && intarsia_core::spec::copy_from_env().is_some() {
+            let name = model.backend.name();
+            if max_batch.value > 1 || model.tp_world() > 1 || !matches!(name, "cuda" | "cpu") {
+                return Err(Error::Unsupported(format!(
+                    "INTARSIA_SPEC_COPY needs --spec mtp with --max-batch 1, one rank, on the cuda backend (max batch {}, tp {}, backend {name})",
+                    max_batch.value,
+                    model.tp_world()
+                )));
+            }
+        }
         model.enable_verify(opts.spec.verify_rows())?;
     }
     // lane mx6: batched verify is resolved ONCE, before the plan (below) and used again for the engine's option, so the plan covers
@@ -1076,6 +1088,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             None => intarsia_core::prefix_store::PrefixStoreConfig::from_env()?,
         },
         mtp_store: None,
+        spec_copy: None,
     };
     // the prefix store with `--max-batch` > 1: the store's own chunk schedule, plain decode or `--spec mtp` (lane mtp-store);
     // `BatchedEngine::new` refuses the opt-ins it does not combine with (packed or macro prefill, overlap) and tensor parallelism

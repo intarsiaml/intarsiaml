@@ -75,9 +75,13 @@ impl SpecConfig {
         self.mode != SpecMode::Off
     }
 
-    /// Rows of the largest verify pass (`1 + k`).
+    /// Rows of the largest verify pass (`1 + k`; with `--spec mtp` and `INTARSIA_SPEC_COPY` the longer of the MTP drafts and a
+    /// copy chain, [`CopyCfg`]).
     pub fn verify_rows(&self) -> usize {
-        1 + self.k
+        1 + match (self.mode, copy_from_env()) {
+            (SpecMode::Mtp, Some(c)) => self.k.max(c.len),
+            _ => self.k,
+        }
     }
 
     /// `--spec off|ngram` and `--spec-k`.
@@ -335,6 +339,73 @@ pub fn k_min_for(spec: &SpecConfig) -> Option<usize> {
         Some(n) => Some(n),
         None => spec.k_min,
     }
+}
+
+/// Lane mcopy: copy drafts beside the MTP head (`INTARSIA_SPEC_COPY=<n>[,<len>]`, single-sequence engine, greedy requests, `--spec mtp`).
+/// When the last `n` tokens of prompt + output occurred earlier, the (up to `len`) tokens that followed that occurrence are verified
+/// as one chain by the ordinary verify pass ([`propose_copy`]); otherwise the pass is the usual MTP step.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CopyCfg {
+    /// Suffix length that must match earlier text.
+    pub n: usize,
+    /// Most tokens in a chain; a pass has `1 + len` rows.
+    pub len: usize,
+}
+
+/// Default chain length of [`CopyCfg`] (an 8-row verify pass: the CUDA GatedDeltaNet verify block takes at most 8 rows in one launch).
+pub const COPY_LEN_DEFAULT: usize = 7;
+/// A chain shorter than this is not verified: the MTP step drafts 2 tokens by itself and is a captured graph, the chain's pass is eager.
+pub const COPY_MIN_CHAIN: usize = 3;
+
+impl CopyCfg {
+    /// An `INTARSIA_SPEC_COPY` value `<n>[,<len>]`: `n` in 1..=256 and `len` in [`COPY_MIN_CHAIN`]..=[`DFLASH_K_MAX`] (the verify
+    /// pass's row cap minus the fed token). `None` for anything else.
+    pub fn parse(v: &str) -> Option<CopyCfg> {
+        let (n, len) = match v.split_once(',') {
+            Some((n, l)) => (n.trim().parse::<usize>().ok()?, l.trim().parse::<usize>().ok()?),
+            None => (v.trim().parse::<usize>().ok()?, COPY_LEN_DEFAULT),
+        };
+        ((1..=256).contains(&n) && (COPY_MIN_CHAIN..=DFLASH_K_MAX).contains(&len)).then_some(CopyCfg { n, len })
+    }
+}
+
+/// `INTARSIA_SPEC_COPY` (read once): `None` when unset or empty (off); an unusable value is off with a warning.
+pub fn copy_from_env() -> Option<CopyCfg> {
+    static V: std::sync::OnceLock<Option<CopyCfg>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| {
+        let v = std::env::var("INTARSIA_SPEC_COPY").ok().filter(|v| !v.is_empty() && v != "0")?;
+        let c = CopyCfg::parse(&v);
+        if c.is_none() {
+            eprintln!("INTARSIA_SPEC_COPY={v}: not <n>[,<len>] with n 1..=256 and len {COPY_MIN_CHAIN}..={DFLASH_K_MAX}; copy drafts off");
+        }
+        c
+    })
+}
+
+/// Copy draft: the tokens that followed the most recent earlier occurrence of the last `c.n` tokens of `ctx`, up to `c.len` of them.
+/// The suffix itself is not an earlier occurrence; an occurrence may overlap it. An occurrence with fewer than `c.len` tokens after
+/// it gives way to an older one with `c.len` (repetition runs), else the longest continuation wins. Empty when no occurrence has at
+/// least [`COPY_MIN_CHAIN`] tokens after it. One comparison per context token per call (early exit on the first token).
+pub fn propose_copy(ctx: &[u32], c: CopyCfg) -> Vec<u32> {
+    let (len, n) = (ctx.len(), c.n);
+    if n == 0 || len < n + COPY_MIN_CHAIN {
+        return Vec::new();
+    }
+    let suffix = &ctx[len - n..];
+    let mut best: Option<(usize, usize)> = None; // (start of continuation, its length)
+    // start positions i < len - n, newest first; ctx[i + n] exists for every one of them
+    for i in (0..len - n).rev() {
+        if ctx[i] == suffix[0] && &ctx[i..i + n] == suffix {
+            let got = c.len.min(len - (i + n));
+            if got == c.len {
+                return ctx[i + n..i + n + got].to_vec();
+            }
+            if got >= COPY_MIN_CHAIN && best.is_none_or(|(_, l)| got > l) {
+                best = Some((i + n, got));
+            }
+        }
+    }
+    best.map_or_else(Vec::new, |(s, l)| ctx[s..s + l].to_vec())
 }
 
 /// Adaptive draft depth (after llamAmpere's `common_speculative_adaptive`, `draft-mtp-adaptive`): a per-request depth in
@@ -2119,6 +2190,32 @@ mod tests {
         // with every pass accepted it never closes
         let mut g = SpecGate::new(GateParams::default());
         assert!(run_gate(&mut g, 256, |_| 1).iter().all(|d| *d));
+    }
+
+    #[test]
+    fn copy_cfg_parses_n_and_len() {
+        assert_eq!(CopyCfg::parse("12"), Some(CopyCfg { n: 12, len: COPY_LEN_DEFAULT }));
+        assert_eq!(CopyCfg::parse("8,5"), Some(CopyCfg { n: 8, len: 5 }));
+        assert_eq!(CopyCfg::parse(" 20 , 15 "), Some(CopyCfg { n: 20, len: 15 }));
+        for bad in ["", "0", "x", "12,2", "12,16", "0,8", "257", "12,"] {
+            assert_eq!(CopyCfg::parse(bad), None, "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn propose_copy_follows_the_newest_full_match() {
+        let c = CopyCfg { n: 3, len: 4 };
+        // [1 2 3] earlier twice; the newer one (at 6) has 4 tokens after it
+        let ctx = [1, 2, 3, 9, 9, 9, 1, 2, 3, 5, 6, 7, 8, 0, 1, 2, 3];
+        assert_eq!(propose_copy(&ctx, c), vec![5, 6, 7, 8]);
+        // the suffix itself is no occurrence
+        assert!(propose_copy(&[4, 5, 6, 7], c).is_empty());
+        // a repetition run: only occurrences that overlap the suffix closely, none with COPY_MIN_CHAIN tokens after it
+        assert!(propose_copy(&[7, 7, 7, 7, 7], c).is_empty());
+        // 3 after the oldest one: a short chain is kept when no occurrence has a full one
+        assert_eq!(propose_copy(&[7; 6], c), vec![7, 7, 7]);
+        // an older occurrence with a full chain wins over the newer overlapping ones
+        assert_eq!(propose_copy(&[7; 8], c), vec![7, 7, 7, 7]);
     }
 
     #[test]

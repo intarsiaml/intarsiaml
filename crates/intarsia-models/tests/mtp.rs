@@ -572,6 +572,65 @@ fn mtp_head_drafts_keep_greedy_output_identical_over_256_tokens() {
     }
 }
 
+/// An MTP engine with copy drafts (lane mcopy): verify passes of `1 + max(k, copy.len)` rows, `EngineMeta::spec_copy`.
+fn engine_copy(w: &MemWeights, k: usize, copy: intarsia_core::spec::CopyCfg) -> (LocalEngine, Arc<Telemetry>) {
+    let tel = Arc::new(Telemetry::new());
+    let (recipe, dims) = dims();
+    let opts = LoadOptions { max_seq: 512, prefill_chunk: 8, fp8_act: Some(Fp8Act::None), mtp: true, mtp_draft_vocab: Some(0), profile_every: 0, ..Default::default() };
+    let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, w, &opts, tel.clone()).unwrap();
+    m.enable_verify(1 + k.max(copy.len)).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    let meta = EngineMeta {
+        id: "tiny-mtp".into(),
+        eos_ids: vec![],
+        spec: SpecConfig { mode: SpecMode::Mtp, k, k_min: None },
+        spec_copy: Some(copy),
+        ..Default::default()
+    };
+    (LocalEngine::new(m, Arc::new(ByteCodec), meta, tel.clone()).unwrap(), tel)
+}
+
+/// Copy drafts beside the MTP head keep greedy ids equal to spec off, for prompts that repeat themselves (the chain is proposed
+/// from the prompt, the output, and run into every acceptance pattern: all, some, none), any `max_tokens` inside a chain, and a
+/// follow-up that reuses the prefix. The chain's pass is the verify pass of 1 + len rows; the MTP queue and the recurrent
+/// state roll back after it exactly as after a head-drafted pass.
+#[test]
+fn copy_drafts_beside_the_mtp_head_keep_greedy_output_identical() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    let span: Vec<u32> = vec![5, 17, 29, 41, 53, 65, 77, 89, 3, 15, 27, 39];
+    let mut rep = span.clone();
+    rep.extend([1, 2, 3]);
+    rep.extend(&span);
+    rep.extend([9, 8, 7]);
+    rep.extend(&span[..4]);
+    let prompts: Vec<Vec<u32>> = vec![rep, PROMPTS[0].to_vec(), PROMPTS[2].to_vec(), [PROMPTS[1], PROMPTS[1], PROMPTS[1], PROMPTS[1]].concat()];
+    for (n, len, k) in [(1, 5, 2), (2, 7, 2), (1, 3, 1), (2, 7, 3)] {
+        let (on, tel) = engine_copy(&w, k, intarsia_core::spec::CopyCfg { n, len });
+        // the first request alone: a pass with more than `k` drafts is a copy chain (the last pass of a request may be cut short by
+        // max_tokens, at most k - 1 drafts)
+        let (a, b) = (run(&off, req(&prompts[0], 200)), run(&on, req(&prompts[0], 200)));
+        assert_eq!(a, b, "copy n {n} len {len} k {k} first request");
+        let t = tel.snapshot();
+        assert!(t.spec_proposed + (k as u64 - 1) > k as u64 * t.spec_steps, "copy n {n} len {len} k {k}: no chain was verified ({} passes, {} drafted)", t.spec_steps, t.spec_proposed);
+        for p in &prompts {
+            let (a, b) = (run(&off, req(p, 200)), run(&on, req(p, 200)));
+            assert_eq!(a, b, "copy n {n} len {len} k {k} prompt {p:?}");
+            for m in [1usize, 2, 3, 4, 6, 9, 13] {
+                let (a, b) = (run(&off, req(p, m)), run(&on, req(p, m)));
+                assert_eq!(a, b, "copy n {n} len {len} k {k} max_tokens {m}");
+                let mut next = p.to_vec();
+                next.extend(&a.ids);
+                next.push(11);
+                let (a2, b2) = (run(&off, req(&next, 9)), run(&on, req(&next, 9)));
+                assert_eq!(a2, b2, "copy n {n} len {len} k {k} follow-up after max_tokens {m}");
+            }
+        }
+        let t = tel.snapshot();
+        eprintln!("copy n {n} len {len} k {k}: {} passes, {} drafted, {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
+    }
+}
+
 /// Drafts from the true greedy continuation with a mistake at a pseudo-random offset (or none): every pass accepts
 /// all, some or none of its drafts.
 fn scripted(truth: Arc<Mutex<Vec<Vec<u32>>>>, seed: u64) -> DraftScript {
