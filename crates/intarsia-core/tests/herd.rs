@@ -483,3 +483,83 @@ fn herd_followers_stay_held_under_shortest() {
     assert_eq!(short_rows, fifo_rows, "the followers were held for the leader under shortest too and prefilled only their own tokens");
     assert_eq!(m.herd_restores, 2);
 }
+
+/// Lane hsjf: `herd` and `sjf` together, `n` store requests sharing a prefix at iteration 0 and one unrelated short prompt submitted
+/// at iteration `short_at`. Returns, per request (the short one last), the iteration of its first token and of its last, and its
+/// tokens.
+fn herd_plus_short(slots: usize, herd: bool, order: PrefillOrder, n: usize, short_at: u64) -> (Vec<(u64, u64)>, Vec<Vec<u32>>) {
+    let ps = prompts(n, 320, 8);
+    let short: Vec<u32> = (0..20u32).map(|i| 900 + (i * 3) % 90).collect();
+    assert!(short.iter().all(|t| *t >= 900), "no leading tokens shared with the herd");
+    let (m, _rec) = Model::new(slots, 400);
+    let cfg = SchedulerConfig { max_batch: slots, prefix_reuse: false, prefix_herd: herd, prefill_order: order, ..Default::default() };
+    let mut s = Scheduler::new(m, cfg).unwrap();
+    let store: Store = Arc::new(Mutex::new(Vec::new()));
+    let mut rxs = Vec::new();
+    for p in &ps {
+        let (seq, rx, _) = Seq::new(p.clone(), 5, &store, true);
+        s.submit(seq).unwrap();
+        rxs.push(rx);
+    }
+    let mut toks: Vec<Vec<u32>> = vec![Vec::new(); n + 1];
+    let mut span = vec![(u64::MAX, 0u64); n + 1];
+    let mut it = 0u64;
+    loop {
+        if it == short_at {
+            let (seq, rx, _) = Seq::new(short.clone(), 5, &store, true);
+            s.submit(seq).unwrap();
+            rxs.push(rx);
+        }
+        if it > short_at && !s.has_work() {
+            break;
+        }
+        s.step();
+        for (k, rx) in rxs.iter().enumerate() {
+            let before = toks[k].len();
+            toks[k].extend(collect(rx).0);
+            if toks[k].len() > before {
+                span[k].0 = span[k].0.min(it);
+                span[k].1 = it;
+            }
+        }
+        it += 1;
+        assert!(it < 10_000, "no termination");
+    }
+    (span, toks)
+}
+
+/// Lane hsjf: with herd and sjf both on and a free slot, a short unrelated prompt that arrives while the herd leader is mid-prefill
+/// is prefilled before the leader's remaining tokens (it overtakes the leader; the held followers do not matter), where the herd
+/// alone leaves it behind everyone (fifo). Every reply is the herd-off fifo one.
+#[test]
+fn herd_and_shortest_short_prompt_overtakes_the_leader() {
+    let (n, short_at) = (4usize, 6u64);
+    let (_, base) = herd_plus_short(n + 1, false, PrefillOrder::Fifo, n, short_at);
+    let (fifo, fifo_toks) = herd_plus_short(n + 1, true, PrefillOrder::Fifo, n, short_at);
+    let (both, both_toks) = herd_plus_short(n + 1, true, PrefillOrder::Shortest, n, short_at);
+    // herd alone, fifo: the leader (request 0) prefills its 264 tokens first, the short prompt is last
+    eprintln!("first/last token iteration (short last): fifo {fifo:?}, both {both:?}");
+    assert!(fifo[n].0 > fifo[0].0, "fifo: short {:?} leader {:?}", fifo[n], fifo[0]);
+    // both on: the short prompt (20 tokens) gets its chunks right away, its first token comes long before the leader's
+    assert!(both[n].0 < both[0].0, "both on: short {:?} leader {:?}", both[n], both[0]);
+    assert!(both[n].0 <= short_at + 6, "the short prompt is picked within a few iterations: {:?}", both[n]);
+    assert_eq!(fifo_toks, base, "replies are unchanged (herd, fifo)");
+    assert_eq!(both_toks, base, "replies are unchanged (herd + shortest)");
+}
+
+/// Lane hsjf, the mflip finding (8 herd prompts + 1 short one at `--max-batch 8`: the short prompt's TTFT equalled the herd's end):
+/// with as many slots as herd requests the short prompt has no slot, whatever the prefill order. Admission is FIFO and nobody is
+/// preempted, so it is admitted when the first herd request finishes decoding, after the leader has prefilled. Not a
+/// `prefill_pick` effect: the same run with one more slot has it overtake the leader.
+#[test]
+fn herd_and_shortest_short_prompt_waits_for_a_slot_when_the_herd_fills_them() {
+    let (n, short_at) = (4usize, 6u64);
+    let (full, full_toks) = herd_plus_short(n, true, PrefillOrder::Shortest, n, short_at);
+    let (free, free_toks) = herd_plus_short(n + 1, true, PrefillOrder::Shortest, n, short_at);
+    eprintln!("first/last token iteration (short last): full {full:?}, free {free:?}");
+    let first_herd_end = (0..n).map(|k| full[k].1).min().unwrap();
+    assert!(full[n].0 > first_herd_end, "no slot before a herd request ended: short {:?}, herd {:?}", full[n], &full[..n]);
+    assert!(full[n].0 > full[0].0, "and follows the leader's first token: {:?} vs {:?}", full[n], full[0]);
+    assert!(free[n].0 < free[0].0, "with a free slot it overtakes the leader: {:?} vs {:?}", free[n], free[0]);
+    assert_eq!(full_toks, free_toks, "slot count does not change any reply");
+}
