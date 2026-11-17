@@ -587,8 +587,8 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_TOL)
                     .scratch(crate::mxfp4::scratch),
                 // the prefill form: the weights decoded to bf16 into the scratch per call, then the fp8 NAX GEMM (mxfp4.rs); M > 8,
-                // above the GEMV (which stays for M <= 8 and for what does not fit). At M <= 128 the launch decodes the weights
-                // inside the GEMM instead (`mxfp4::naxd_pick`, bitwise the same). `INTARSIA_METAL_MXFP4_NAX=0` hides it.
+                // above the GEMV (which stays for M <= 8 and for what does not fit). At M <= 128 (up to 192 on some shapes) the launch
+                // decodes the weights inside the GEMM instead (`mxfp4::naxd_pick`, bitwise the same). `INTARSIA_METAL_MXFP4_NAX=0` hides it.
                 crate::mxfp4::MATMUL_MXFP4_NAX => k
                     .acts(bf)
                     .weights([DType::U8])

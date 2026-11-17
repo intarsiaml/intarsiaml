@@ -1,0 +1,6 @@
+fleetq: #9802 waiting (#2 in line): in line behind #9801 "mb16: ABBA A=main mb8 B=mb16 27B (A1 B1 B2 A2)" (claude-2ae67a71) on endor
+fleetq:   #9801 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9801 set, or it will wait for #9801 to be released.
+fleetq: #9802 waiting (#1 in line): needs gpu quiet on endor, but #9801 "mb16: ABBA A=main mb8 B=mb16 27B (A1 B1 B2 A2)" (claude-2ae67a71) loads it
+fleetq:   #9801 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9801 set, or it will wait for #9801 to be released.
+fleetq: #9802 running on endor: zsh scripts/msm192/bench.sh docs/results/2026-11-16-msm192/raw/bench-msm192.txt NAXD_M=128,129,144,160,176,192,193,224,256 NAXD_SHAPES=17408x5120,5120x17408,10240x5120,5120x6144,6144x5120,12288x5120 NAXD_ROUNDS=7
+fleetq: #9802 done (exit 0)
