@@ -78,7 +78,14 @@ impl SpecConfig {
     /// Rows of the largest verify pass (`1 + k`; with `--spec mtp` and `INTARSIA_SPEC_COPY` the longer of the MTP drafts and a
     /// copy chain, [`CopyCfg`]).
     pub fn verify_rows(&self) -> usize {
-        1 + match (self.mode, copy_from_env()) {
+        1 + self.save_rows()
+    }
+
+    /// Per-row recurrent state buffers a sequence keeps for the largest verify pass (`--spec-k`; with `--spec mtp` and
+    /// `INTARSIA_SPEC_COPY` the longer of the MTP drafts and a copy chain). `k` when the variable is unset, so the memory plan is
+    /// the one without it.
+    pub fn save_rows(&self) -> usize {
+        match (self.mode, copy_from_env()) {
             (SpecMode::Mtp, Some(c)) => self.k.max(c.len),
             _ => self.k,
         }
@@ -356,16 +363,55 @@ pub struct CopyCfg {
 pub const COPY_LEN_DEFAULT: usize = 7;
 /// A chain shorter than this is not verified: the MTP step drafts 2 tokens by itself and is a captured graph, the chain's pass is eager.
 pub const COPY_MIN_CHAIN: usize = 3;
+/// Shortest `n` an `INTARSIA_SPEC_COPY` value may ask for: a shorter suffix finds look-alike text, not copies (lane mcopy2).
+pub const COPY_MIN_N: usize = 4;
+/// A chain that accepts fewer drafts than this missed ([`CopyBackoff`]): a chain pass (eager, `1 + len` rows) costs about 1.5 MTP graph
+/// steps, so it needs 3 accepted drafts to break even.
+pub const COPY_MIN_ACCEPT: usize = 3;
+/// Longest skip window of [`CopyBackoff`], in steps.
+pub const COPY_BACKOFF_MAX: usize = 64;
+
+/// Per-request back-off for copy chains (lane mcopy2): after `m` consecutive chains that each accepted fewer than [`COPY_MIN_ACCEPT`]
+/// drafts the next `2^(m-1)` steps propose no chain (the head's drafts run instead), up to [`COPY_BACKOFF_MAX`]; a chain that accepts
+/// [`COPY_MIN_ACCEPT`] or more resets the count. A miss costs about one hit's gain (a chain pass is ~1.5 MTP graph steps), so isolated
+/// misses next to hits (JSON, copied source) skip one step, and only a run of misses (look-alike text) backs off for long. A first
+/// version skipped 4, 8, ... steps after every miss: it lost 5 % of the json-xform gain. The skipped steps also skip the scan.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CopyBackoff {
+    skip: usize,
+    misses: u32,
+}
+
+impl CopyBackoff {
+    /// A step that may propose a chain: false (and one step of the window used up) while backing off.
+    pub fn ready(&mut self) -> bool {
+        if self.skip > 0 {
+            self.skip -= 1;
+            return false;
+        }
+        true
+    }
+
+    /// The result of a chain pass: `accepted` of its drafts were accepted.
+    pub fn record(&mut self, accepted: usize) {
+        if accepted >= COPY_MIN_ACCEPT {
+            *self = CopyBackoff::default();
+        } else {
+            self.misses = (self.misses + 1).min(16);
+            self.skip = (1usize << (self.misses - 1)).min(COPY_BACKOFF_MAX);
+        }
+    }
+}
 
 impl CopyCfg {
-    /// An `INTARSIA_SPEC_COPY` value `<n>[,<len>]`: `n` in 1..=256 and `len` in [`COPY_MIN_CHAIN`]..=[`DFLASH_K_MAX`] (the verify
+    /// An `INTARSIA_SPEC_COPY` value `<n>[,<len>]`: `n` in [`COPY_MIN_N`]..=256 and `len` in [`COPY_MIN_CHAIN`]..=[`DFLASH_K_MAX`] (the verify
     /// pass's row cap minus the fed token). `None` for anything else.
     pub fn parse(v: &str) -> Option<CopyCfg> {
         let (n, len) = match v.split_once(',') {
             Some((n, l)) => (n.trim().parse::<usize>().ok()?, l.trim().parse::<usize>().ok()?),
             None => (v.trim().parse::<usize>().ok()?, COPY_LEN_DEFAULT),
         };
-        ((1..=256).contains(&n) && (COPY_MIN_CHAIN..=DFLASH_K_MAX).contains(&len)).then_some(CopyCfg { n, len })
+        ((COPY_MIN_N..=256).contains(&n) && (COPY_MIN_CHAIN..=DFLASH_K_MAX).contains(&len)).then_some(CopyCfg { n, len })
     }
 }
 
@@ -376,7 +422,7 @@ pub fn copy_from_env() -> Option<CopyCfg> {
         let v = std::env::var("INTARSIA_SPEC_COPY").ok().filter(|v| !v.is_empty() && v != "0")?;
         let c = CopyCfg::parse(&v);
         if c.is_none() {
-            eprintln!("INTARSIA_SPEC_COPY={v}: not <n>[,<len>] with n 1..=256 and len {COPY_MIN_CHAIN}..={DFLASH_K_MAX}; copy drafts off");
+            eprintln!("INTARSIA_SPEC_COPY={v}: not <n>[,<len>] with n {COPY_MIN_N}..=256 and len {COPY_MIN_CHAIN}..={DFLASH_K_MAX}; copy drafts off");
         }
         c
     })
@@ -2196,9 +2242,36 @@ mod tests {
     fn copy_cfg_parses_n_and_len() {
         assert_eq!(CopyCfg::parse("12"), Some(CopyCfg { n: 12, len: COPY_LEN_DEFAULT }));
         assert_eq!(CopyCfg::parse("8,5"), Some(CopyCfg { n: 8, len: 5 }));
+        assert_eq!(CopyCfg::parse("4"), Some(CopyCfg { n: 4, len: COPY_LEN_DEFAULT }));
         assert_eq!(CopyCfg::parse(" 20 , 15 "), Some(CopyCfg { n: 20, len: 15 }));
-        for bad in ["", "0", "x", "12,2", "12,16", "0,8", "257", "12,"] {
+        for bad in ["", "0", "x", "12,2", "12,16", "0,8", "257", "12,", "1", "3", "3,8"] {
             assert_eq!(CopyCfg::parse(bad), None, "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn copy_backoff_doubles_over_consecutive_misses_and_resets_on_a_hit() {
+        let mut b = CopyBackoff::default();
+        assert!(b.ready() && b.ready(), "no skip before the first chain");
+        // consecutive chains that accept too little: 1, 2, 4, ... steps skipped, then ready; capped
+        let mut window = 1;
+        for _ in 0..10 {
+            b.record(COPY_MIN_ACCEPT - 1);
+            for i in 0..window {
+                assert!(!b.ready(), "step {i} of a {window} window");
+            }
+            assert!(b.ready());
+            window = (window * 2).min(COPY_BACKOFF_MAX);
+        }
+        assert_eq!(window, COPY_BACKOFF_MAX);
+        // a hit resets the count: the next miss skips one step again, and a hit between misses keeps them isolated
+        b.record(COPY_MIN_ACCEPT);
+        assert!(b.ready());
+        for _ in 0..3 {
+            b.record(0);
+            assert!(!b.ready() && b.ready());
+            b.record(COPY_MIN_ACCEPT + 4);
+            assert!(b.ready());
         }
     }
 

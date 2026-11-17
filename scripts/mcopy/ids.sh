@@ -6,7 +6,7 @@
 #   fleetq run --host spark1 --quiet gpu,cpu --mem 50 --expect 40 --label "mcopy: ids" -- ssh spark1 'ARMS="off copy=12" bash -s copy3k chat-short' < scripts/mcopy/ids.sh
 set -uo pipefail
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
-R=$HOME/intarsiaml-mcopy
+R=$HOME/intarsiaml-mcopy2
 H=/home/nvidia/.cache/huggingface/hub
 M35=$(ls -d $H/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/* | head -1)
 BIN=${BIN:-$R/bin/intarsia}; O=${O:-$R/out/ids}; mkdir -p "$O"; fails=0
@@ -20,7 +20,7 @@ for n in "$@"; do
   fi
   NT=${NTOK:-$NT}
   for arm in ${ARMS:-off copy=12}; do
-    E=""; case $arm in off) A="--spec off" ;; mtp) A="--spec mtp --spec-k 2" ;; copy=*) A="--spec mtp --spec-k 2"; E="INTARSIA_SPEC_COPY=${arm#copy=} INTARSIA_SPEC_TRACE=1" ;; esac
+    E=""; case $arm in off) A="--spec off" ;; mtp) A="--spec mtp --spec-k 2"; [ -n "${TR:-}" ] && E="INTARSIA_SPEC_TRACE=1" ;; copy=*) A="--spec mtp --spec-k 2"; E="INTARSIA_SPEC_COPY=${arm#copy=} INTARSIA_SPEC_TRACE=1" ;; esac
     f=$O/gen-$n-${arm//[=,]/_}
     env $E $BIN generate -m $M35 --backend cuda --mem-budget 40 --max-seq $MS $A --chat --no-think --temperature 0 --profile-every 0 $IG --show-ids \
       -p "$(cat $P)" --max-tokens $NT < /dev/null > $f.out 2> $f.err
@@ -31,6 +31,9 @@ for n in "$@"; do
     f=$O/gen-$n-${arm//[=,]/_}; extra=""
     cp=$(grep -ac '^spec: copy token' $f.err); acc=$(grep -a '^spec: copy token' $f.err | sed 's/.*accepted \([0-9]*\) emits.*/\1/' | sort -n | uniq -c | tr '\n' ' ')
     [[ $arm == copy=* ]] && extra=" copy_passes=$cp accepted_hist[count acc]=$acc"
+    # per-step host work of the MTP path (trace on): captured-graph steps, eager MTP draft steps (the passes that are not graph steps), mean graph step and mean host gap before it (ms)
+    gs=$(grep -ac '^spec: mtp graph step' $f.err); es=$(( $(grep -ac '^spec: token' $f.err) - gs ))
+    if [ "$gs$es" != 00 ]; then extra="$extra graph_steps=$gs eager_steps=$es $(grep -a '^spec: mtp graph step' $f.err | awk '{s+=$5;g+=$8;n++} END{if(n) printf "mean_step=%.3f mean_gap=%.3f", s/n, g/n}')"; fi
     st=$(grep -a '^spec:' $f.err | grep -av 'spec: copy token\|spec: token\|spec: mtp\|spec: cost' | tail -1 | cut -c1-110)
     if cmp -s $O/gen-$n-off.ids $f.ids && [ -s $O/gen-$n-off.ids ]; then echo "PASS ids $n $arm: $(tr ',' '\n' < $f.ids | wc -l) ids identical |$extra | $st"; else echo "FAIL ids $n $arm: differ/empty |$extra | $st"; fails=$((fails+1)); fi
   done

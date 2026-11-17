@@ -1,0 +1,27 @@
+fleetq: #9925 waiting (#3 in line): in line behind #9923 "mcopy2: ids gate final build" (claude-a9e6e738) on spark1
+fleetq:   #9923 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9923 set, or it will wait for #9923 to be released.
+fleetq: #9925 waiting (#2 in line): in line behind #9924 "mcopy2: A/B2 base n20 n20L15 old20, 7 cells, 2 rounds" (claude-a9e6e738) on spark1
+fleetq:   #9924 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9924 set, or it will wait for #9924 to be released.
+fleetq: #9925 waiting (#1 in line): needs gpu quiet on spark1, but #9924 "mcopy2: A/B2 base n20 n20L15 old20, 7 cells, 2 rounds" (claude-a9e6e738) loads it
+fleetq:   #9924 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9924 set, or it will wait for #9924 to be released.
+fleetq: #9925 running on spark1: bash /private/tmp/claude-501/-opt-code-intarsiaml/a9e6e738-26f8-4e34-872e-c7d989747c74/scratchpad/diag2.sh
+base r1 up 16:28:55 free: 56 GB
+base r1 code-gen: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 153.93, "wall": 5.268, "sha": "454f22a3d8f6"}
+base r1 metrics: intarsia_graph_replays_total 1178 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 1171 intarsia_spec_proposed_tokens_total 2342 intarsia_spec_accepted_tokens_total 1973 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+n256 r1 up 16:30:26 free: 55 GB
+n256 r1 code-gen: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 153.72, "wall": 5.275, "sha": "454f22a3d8f6"}
+n256 r1 metrics: intarsia_graph_replays_total 1178 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 1171 intarsia_spec_proposed_tokens_total 2342 intarsia_spec_accepted_tokens_total 1973 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+n20 r1 up 16:31:58 free: 55 GB
+n20 r1 code-gen: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 153.18, "wall": 5.293, "sha": "454f22a3d8f6"}
+n20 r1 metrics: intarsia_graph_replays_total 1177 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 1170 intarsia_spec_proposed_tokens_total 2340 intarsia_spec_accepted_tokens_total 1969 intarsia_spec_copy_steps_total 2 intarsia_spec_copy_proposed_tokens_total 14 intarsia_spec_copy_accepted_tokens_total 3 
+n20 r2 up 16:33:34 free: 55 GB
+n20 r2 code-gen: {"cell": "code-gen", "tag": "c2", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.076, "dec_tps": 152.34, "wall": 5.321, "sha": "501f32a24c8e"}
+n20 r2 metrics: intarsia_graph_replays_total 1173 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 1168 intarsia_spec_proposed_tokens_total 2335 intarsia_spec_accepted_tokens_total 1971 intarsia_spec_copy_steps_total 4 intarsia_spec_copy_proposed_tokens_total 28 intarsia_spec_copy_accepted_tokens_total 2 
+n256 r2 up 16:35:06 free: 55 GB
+n256 r2 code-gen: {"cell": "code-gen", "tag": "c2", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 154.96, "wall": 5.233, "sha": "501f32a24c8e"}
+n256 r2 metrics: intarsia_graph_replays_total 1175 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 1169 intarsia_spec_proposed_tokens_total 2337 intarsia_spec_accepted_tokens_total 1975 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+base r2 up 16:36:34 free: 56 GB
+base r2 code-gen: {"cell": "code-gen", "tag": "c2", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 154.47, "wall": 5.251, "sha": "501f32a24c8e"}
+base r2 metrics: intarsia_graph_replays_total 1175 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 1169 intarsia_spec_proposed_tokens_total 2337 intarsia_spec_accepted_tokens_total 1975 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+ab done
+fleetq: #9925 done (exit 0)

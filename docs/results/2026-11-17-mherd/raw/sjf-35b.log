@@ -1,0 +1,51 @@
+fleetq: #9918 running on endor: scripts/mherd/sjf.sh 'A1 B1 B2 A2 B3 A3 A4 B4'
+== visit A1 env - cooled 0s thermal 0
+{"arm": "A", "visit": "A1", "mode": "pair", "seed": 1, "long": {"ok": true, "ttft_s": 11.628, "end_s": 12.544, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 9.879, "end_s": 10.56, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.563, "t": "14:59:33"}
+{"arm": "A", "visit": "A1", "mode": "pair", "seed": 2, "long": {"ok": true, "ttft_s": 12.965, "end_s": 13.904, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 11.226, "end_s": 11.914, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.923, "t": "14:59:47"}
+{"arm": "A", "visit": "A1", "mode": "solo", "seed": 1, "long": {"ok": true, "ttft_s": 13.178, "end_s": 13.679, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.239, "end_s": 0.616, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 14.298, "t": "15:00:01"}
+{"arm": "A", "visit": "A1", "mode": "solo", "seed": 2, "long": {"ok": true, "ttft_s": 12.966, "end_s": 13.466, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.238, "end_s": 0.631, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 14.101, "t": "15:00:16"}
+rss MB 34946
+== visit B1 env INTARSIA_PREFILL_ORDER=shortest cooled 80s thermal 0
+{"arm": "B", "visit": "B1", "mode": "pair", "seed": 1, "long": {"ok": true, "ttft_s": 11.639, "end_s": 12.182, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 1.561, "end_s": 9.805, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.185, "t": "15:01:55"}
+{"arm": "B", "visit": "B1", "mode": "pair", "seed": 2, "long": {"ok": true, "ttft_s": 12.241, "end_s": 12.806, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 1.752, "end_s": 10.41, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.809, "t": "15:02:08"}
+{"arm": "B", "visit": "B1", "mode": "solo", "seed": 1, "long": {"ok": true, "ttft_s": 12.153, "end_s": 12.651, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.229, "end_s": 0.6, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.255, "t": "15:02:21"}
+{"arm": "B", "visit": "B1", "mode": "solo", "seed": 2, "long": {"ok": true, "ttft_s": 12.286, "end_s": 12.786, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.233, "end_s": 0.606, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.395, "t": "15:02:34"}
+rss MB 34944
+== visit B2 env INTARSIA_PREFILL_ORDER=shortest cooled 75s thermal 0
+{"arm": "B", "visit": "B2", "mode": "pair", "seed": 1, "long": {"ok": true, "ttft_s": 11.728, "end_s": 12.275, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 1.551, "end_s": 9.886, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.278, "t": "15:04:09"}
+{"arm": "B", "visit": "B2", "mode": "pair", "seed": 2, "long": {"ok": true, "ttft_s": 12.203, "end_s": 12.749, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 1.669, "end_s": 10.361, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.752, "t": "15:04:22"}
+{"arm": "B", "visit": "B2", "mode": "solo", "seed": 1, "long": {"ok": true, "ttft_s": 12.235, "end_s": 12.734, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.23, "end_s": 0.602, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.339, "t": "15:04:35"}
+{"arm": "B", "visit": "B2", "mode": "solo", "seed": 2, "long": {"ok": true, "ttft_s": 12.521, "end_s": 13.02, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.233, "end_s": 0.606, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.629, "t": "15:04:49"}
+rss MB 34949
+== visit A2 env - cooled 70s thermal 0
+{"arm": "A", "visit": "A2", "mode": "pair", "seed": 1, "long": {"ok": true, "ttft_s": 11.289, "end_s": 12.196, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 9.526, "end_s": 10.207, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.216, "t": "15:06:18"}
+{"arm": "A", "visit": "A2", "mode": "pair", "seed": 2, "long": {"ok": true, "ttft_s": 11.799, "end_s": 12.729, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 10.051, "end_s": 10.735, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.748, "t": "15:06:31"}
+{"arm": "A", "visit": "A2", "mode": "solo", "seed": 1, "long": {"ok": true, "ttft_s": 12.173, "end_s": 12.67, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.227, "end_s": 0.596, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.269, "t": "15:06:44"}
+{"arm": "A", "visit": "A2", "mode": "solo", "seed": 2, "long": {"ok": true, "ttft_s": 12.24, "end_s": 12.738, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.23, "end_s": 0.6, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.343, "t": "15:06:57"}
+rss MB 34946
+== visit B3 env INTARSIA_PREFILL_ORDER=shortest cooled 65s thermal 0
+{"arm": "B", "visit": "B3", "mode": "pair", "seed": 1, "long": {"ok": true, "ttft_s": 11.686, "end_s": 12.229, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 1.552, "end_s": 9.842, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.232, "t": "15:08:21"}
+{"arm": "B", "visit": "B3", "mode": "pair", "seed": 2, "long": {"ok": true, "ttft_s": 12.304, "end_s": 12.85, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 1.72, "end_s": 10.462, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.853, "t": "15:08:34"}
+{"arm": "B", "visit": "B3", "mode": "solo", "seed": 1, "long": {"ok": true, "ttft_s": 12.155, "end_s": 12.651, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.23, "end_s": 0.602, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.256, "t": "15:08:48"}
+{"arm": "B", "visit": "B3", "mode": "solo", "seed": 2, "long": {"ok": true, "ttft_s": 12.35, "end_s": 12.85, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.233, "end_s": 0.604, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.458, "t": "15:09:01"}
+rss MB 34944
+== visit A3 env - cooled 75s thermal 0
+{"arm": "A", "visit": "A3", "mode": "pair", "seed": 1, "long": {"ok": true, "ttft_s": 11.205, "end_s": 12.117, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 9.449, "end_s": 10.131, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.136, "t": "15:10:35"}
+{"arm": "A", "visit": "A3", "mode": "pair", "seed": 2, "long": {"ok": true, "ttft_s": 11.859, "end_s": 12.78, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 10.101, "end_s": 10.787, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.799, "t": "15:10:48"}
+{"arm": "A", "visit": "A3", "mode": "solo", "seed": 1, "long": {"ok": true, "ttft_s": 12.085, "end_s": 12.584, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.229, "end_s": 0.606, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.192, "t": "15:11:01"}
+{"arm": "A", "visit": "A3", "mode": "solo", "seed": 2, "long": {"ok": true, "ttft_s": 12.445, "end_s": 12.946, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.233, "end_s": 0.604, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.554, "t": "15:11:15"}
+rss MB 34944
+== visit A4 env - cooled 70s thermal 0
+{"arm": "A", "visit": "A4", "mode": "pair", "seed": 1, "long": {"ok": true, "ttft_s": 11.192, "end_s": 12.107, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 9.433, "end_s": 10.116, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.126, "t": "15:12:44"}
+{"arm": "A", "visit": "A4", "mode": "pair", "seed": 2, "long": {"ok": true, "ttft_s": 11.851, "end_s": 12.772, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 10.101, "end_s": 10.787, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.791, "t": "15:12:57"}
+{"arm": "A", "visit": "A4", "mode": "solo", "seed": 1, "long": {"ok": true, "ttft_s": 12.283, "end_s": 12.781, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.232, "end_s": 0.603, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.387, "t": "15:13:10"}
+{"arm": "A", "visit": "A4", "mode": "solo", "seed": 2, "long": {"ok": true, "ttft_s": 12.605, "end_s": 13.107, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.234, "end_s": 0.607, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.717, "t": "15:13:24"}
+rss MB 34945
+== visit B4 env INTARSIA_PREFILL_ORDER=shortest cooled 80s thermal 0
+{"arm": "B", "visit": "B4", "mode": "pair", "seed": 1, "long": {"ok": true, "ttft_s": 11.655, "end_s": 12.198, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 1.558, "end_s": 9.819, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.201, "t": "15:15:03"}
+{"arm": "B", "visit": "B4", "mode": "pair", "seed": 2, "long": {"ok": true, "ttft_s": 12.292, "end_s": 12.837, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 1.739, "end_s": 10.45, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 12.84, "t": "15:15:16"}
+{"arm": "B", "visit": "B4", "mode": "solo", "seed": 1, "long": {"ok": true, "ttft_s": 12.237, "end_s": 12.734, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.235, "end_s": 0.605, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.343, "t": "15:15:30"}
+{"arm": "B", "visit": "B4", "mode": "solo", "seed": 2, "long": {"ok": true, "ttft_s": 12.685, "end_s": 13.183, "prompt_tokens": 40000, "error": null}, "short": {"ok": true, "ttft_s": 0.237, "end_s": 0.607, "prompt_tokens": 1000, "error": null}, "delay": 2.0, "wall_s": 13.794, "t": "15:15:44"}
+rss MB 34945
+## done
+fleetq: #9918 done (exit 0)
