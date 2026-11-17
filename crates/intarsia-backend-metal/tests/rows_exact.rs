@@ -1137,3 +1137,49 @@ fn timing_rows() {
         }
     }
 }
+
+/// `cargo test --release --test rows_exact -- --ignored --nocapture timing_mxfp4_rows` (lane mb16): cost of one
+/// `matmul_mxfp4_gemv_rows` call of M = 1..=16 rows (9..=16: two chunks, `row_chunks`) at the 27B's W4A16 shapes, summed over the
+/// shapes of one layer's projections. Run in a quiet fleetq slot.
+#[test]
+#[ignore]
+fn timing_mxfp4_rows() {
+    let be = backend();
+    // the 27B (hidden 5120): GDN in_proj_qkvz-like 12288 x 5120, k/v 1024 x 5120, o / out 5120 x 6144, gate+up 2 x 17408 x 5120, down 5120 x 17408
+    let shapes = [(12288usize, 5120usize), (1024, 5120), (5120, 6144), (17408, 5120), (17408, 5120), (5120, 17408)];
+    let mut ws = Vec::new();
+    for (si, &(n, k)) in shapes.iter().enumerate() {
+        let mut r = Rng(1500 + si as u64);
+        let w: Vec<u8> = (0..n * k / 2).map(|_| (r.next_u64() >> 40) as u8).collect();
+        let sc: Vec<u8> = (0..n * k / 32).map(|_| 119 + ((r.next_u64() >> 40) % 12) as u8).collect();
+        ws.push((t(&put_bytes(&be, 0, &w), 0, DType::U8, &[n, k / 2]), t(&put_bytes(&be, 0, &sc), 0, DType::U8, &[n, k / 32])));
+    }
+    let at = t(&put_bytes(&be, 0, &0f32.to_le_bytes()), 0, DType::F32, &[1]);
+    let mut one = 0.0;
+    for m in 1..=16usize {
+        let mut calls = Vec::new();
+        for (&(n, k), wt) in shapes.iter().zip(&ws) {
+            let xt = t(&put_bytes(&be, 0, &bf16_bytes(&act_rows(m, k, 9))), 0, DType::Bf16, &[m, k]);
+            let yt = t(&guarded(&be, 0, m * n * 2), 0, DType::Bf16, &[m, n]);
+            let mut c = OpCall::new(
+                Op::MatmulMxfp4,
+                vec![xt, wt.0.clone(), wt.1.clone(), at.clone()],
+                vec![yt],
+                OpAttrs { mxfp4_w4a16: true, ..OpAttrs::default() },
+            );
+            let need = mxfp4::scratch(&ShapeInfo::from_call(&c));
+            c.scratch = Some(TensorRef::new(be.alloc(need + 32, MemKind::Device).unwrap(), DType::U8, &[need]));
+            calls.push(c);
+        }
+        let kern = if m == 1 { "matmul_mxfp4_gemv" } else { "matmul_mxfp4_gemv_rows" };
+        let us = time_us(&be, 20, || {
+            for c in &calls {
+                be.launch(kern, c, 0).unwrap();
+            }
+        });
+        if m == 1 {
+            one = us;
+        }
+        eprintln!("TIMING mxfp4 27B layer M={m}: {us:.0} us ({:.2}x M=1, {:.0} us per row)", us / one, us / m as f64);
+    }
+}
