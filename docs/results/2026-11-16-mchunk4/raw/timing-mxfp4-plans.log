@@ -1,0 +1,17 @@
+fleetq: #9828 running on endor: zsh -c 'cd /opt/code/intarsiaml/.worktrees/mchunk4 && cargo test --release -p intarsia-backend-metal --test rows_exact --no-run 2>&1 | tail -2 && cargo test --release -p intarsia-backend-metal --test rows_exact -- --ignored --nocapture timing_mxfp4_plans 2>&1 | grep -a '"'"'PLANS\|test result\|error'"'"''
+    Finished `release` profile [optimized] target(s) in 1.35s
+  Executable tests/rows_exact.rs (target/release/deps/rows_exact-6758ef4336abf182)
+PLANS M=5 (us per layer, best first): [3, 2]=688
+PLANS M=6 (us per layer, best first): [3, 3]=747  [4, 2]=752  [2, 2, 2]=941
+PLANS M=7 (us per layer, best first): [4, 3]=816  [3, 2, 2]=980
+PLANS M=8 (us per layer, best first): [4, 4]=920  [3, 3, 2]=1020  [4, 2, 2]=1029  [2, 2, 2, 2]=1211
+PLANS M=9 (us per layer, best first): [3, 3, 3]=1080  [4, 3, 2]=1092  [3, 2, 2, 2]=1239
+PLANS M=10 (us per layer, best first): [4, 3, 3]=1146  [4, 4, 2]=1194  [4, 2, 2, 2]=1304  [3, 3, 2, 2]=1546  [2, 2, 2, 2, 2]=1710
+PLANS M=11 (us per layer, best first): [4, 4, 3]=1473  [3, 3, 3, 2]=1544  [4, 3, 2, 2]=1619  [3, 2, 2, 2, 2]=1695
+PLANS M=12 (us per layer, best first): [4, 4, 4]=1529  [3, 3, 3, 3]=1584  [4, 3, 3, 2]=1637  [4, 4, 2, 2]=1669  [3, 3, 2, 2, 2]=1731  [4, 2, 2, 2, 2]=1791  [2, 2, 2, 2, 2, 2]=1980
+PLANS M=13 (us per layer, best first): [4, 3, 3, 3]=1662  [4, 4, 3, 2]=1697  [4, 3, 2, 2, 2]=1931  [3, 3, 3, 2, 2]=2016  [3, 2, 2, 2, 2, 2]=2234
+PLANS M=14 (us per layer, best first): [4, 4, 3, 3]=1772  [3, 3, 3, 3, 2]=1823  [4, 3, 3, 2, 2]=1888  [4, 4, 2, 2, 2]=1932  [3, 3, 2, 2, 2, 2]=1974  [4, 2, 2, 2, 2, 2]=2026  [4, 4, 4, 2]=2064  [2, 2, 2, 2, 2, 2, 2]=2217
+PLANS M=15 (us per layer, best first): [4, 4, 4, 3]=1818  [3, 3, 3, 3, 3]=1911  [4, 3, 3, 3, 2]=1913  [4, 4, 3, 2, 2]=1949  [3, 3, 3, 2, 2, 2]=2097  [4, 3, 2, 2, 2, 2]=2138  [3, 2, 2, 2, 2, 2, 2]=2243
+PLANS M=16 (us per layer, best first): [4, 4, 4, 4]=1944  [4, 3, 3, 3, 3]=2074  [4, 4, 4, 2, 2]=2091  [3, 3, 3, 3, 2, 2]=2133  [4, 3, 3, 2, 2, 2]=2174  [3, 3, 2, 2, 2, 2, 2]=2273  [4, 2, 2, 2, 2, 2, 2]=2306  [4, 4, 3, 3, 2]=2321  [2, 2, 2, 2, 2, 2, 2, 2]=2518  [4, 4, 2, 2, 2, 2]=2538
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 6.44s
+fleetq: #9828 done (exit 0)

@@ -1,0 +1,8 @@
+
+running 3 tests
+test chunk_tests::mxfp4_plan_is_a_valid_split_of_every_row_count ... ok
+test chunk_tests::mxfp4_plan_is_the_cheapest_split_of_the_measured_launch_costs ... ok
+test chunk_tests::chunk_sizes_by_kernel_and_knob ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+

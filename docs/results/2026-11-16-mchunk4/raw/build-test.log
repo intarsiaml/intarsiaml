@@ -1,0 +1,56 @@
+fleetq: #9823 waiting (#5 in line): in line behind #9818 "msm192: cargo test --workspace --release" (claude-2ae67a71) on endor
+fleetq:   #9818 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9818 set, or it will wait for #9818 to be released.
+fleetq: #9823 running on endor: /opt/code/intarsiaml/.worktrees/mchunk4/scripts/mchunk4/build-test.sh
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 1m 15s
+## build done 417290585fa31fe202af2d9da8a7cbd6
+
+running 3 tests
+test chunk_tests::mxfp4_plan_is_a_valid_split_of_every_row_count ... ok
+test chunk_tests::mxfp4_plan_is_the_cheapest_split_of_the_measured_launch_costs ... ok
+test chunk_tests::chunk_sizes_by_kernel_and_knob ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+running 5 tests
+test a_rows_bits_do_not_depend_on_the_calls_m ... ok
+test an_unaligned_x_takes_the_prepass_and_gives_the_same_bits ... ok
+test gemv_bits_are_pinned ... ok
+test gemv_matches_the_f64_reference ... ok
+test m_row_shaders_are_bitwise_the_one_row_call_per_row ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+running 6 tests
+test nax_is_registered_for_m_above_the_gemv_rows_only ... ok
+test nax_rows_do_not_depend_on_the_call ... ok
+test nax_matches_the_gemv_within_accumulation_order ... ok
+test nax_w4a16_equals_the_bf16_nax_gemm_on_decoded_weights ... ok
+test small_m_routing_is_bitwise_the_scratch_path ... ok
+test naxd_forms_are_bitwise_the_scratch_path ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.79s
+running 12 tests
+test timing_mxfp4_rows ... ignored
+test timing_rows ... ignored
+test rows_exact_registrations_are_pinned ... ok
+mxfp4 control M=9: NAX differs from the one-row GEMVs in 6816 of 36888 bytes
+mxfp4 control M=12: NAX differs from the one-row GEMVs in 7801 of 49176 bytes
+mxfp4 control M=16: NAX differs from the one-row GEMVs in 10731 of 65560 bytes
+test mxfp4_nax_rows_differ_from_the_one_row_gemv ... ok
+test bf16_pair_rows_at_the_35b_pairs ... ok
+test negative_controls_differ_from_the_one_row_calls ... ok
+test row_parallel_kernels_do_not_depend_on_the_row_count ... ok
+test moe_experts_rows_are_bitwise_the_one_token_call ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+mxfp4 chunks: 110 cases, 1078 rows compared bitwise
+test mxfp4_row_chunks_are_bitwise_the_one_row_gemv ... ok
+mxfp4: 379 cases, 3464 rows compared bitwise
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test result: ok. 10 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 3.86s
+bridge_norm    bridge_norm_bf16               24      0    1.188e-7    9.476e-8  ADMITTED
+bridge_code    bridge_code_bf16               24      0     0.000e0     0.000e0  ADMITTED
+bridge_gate    bridge_gate_bf16               24      0     0.000e0     0.000e0  ADMITTED
+bridge_write   bridge_write_bf16              24      0     0.000e0     0.000e0  ADMITTED
+56 kernels, 1330 cases in 44.1s
+## done
+fleetq: #9823 done (exit 0)

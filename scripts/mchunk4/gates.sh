@@ -64,12 +64,12 @@ case ${1:?step} in
     ;;
   route)
     # kernel-mode profile: every launch is its own command buffer, labelled with the kernel and `t` (the launch's rows).
-    # Short prompts only (odd streams' 4k prompts would only add prefill records, which carry other kernels).
+    # Short prompts only (`--short`): with the odd streams' 4k prompts the streams are staggered by long prefills and the decode steps stay at 2-3 rows.
     for spec in mb8-on-6 mb8-on-8 mb8-off-6 mb8-off-8 mb16-on-12 mb16-off-12; do
       MB=${${spec%%-*}#mb}; K=1; [[ $spec == *-off-* ]] && K=0; N=${spec##*-}
       O=$R/route-$spec; mkdir -p $O
       INTARSIA_METAL_MXFP4_ROWS_CHUNK=$K INTARSIA_METAL_PROFILE=kernel:$O/prof.jsonl start $O $NEW --max-batch $MB || continue
-      py run --url http://127.0.0.1:$PORT/v1 --text $TXT --out $O/ids.json --gen 8 --counts $N 2>&1 | sed "s/^/$spec: /"
+      py run --url http://127.0.0.1:$PORT/v1 --text $TXT --out $O/ids.json --gen 24 --short --counts $N 2>&1 | sed "s/^/$spec: /"
       stop
       echo "route $spec: $(python3 -c "
 import json,collections

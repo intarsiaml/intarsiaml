@@ -24,8 +24,11 @@ def post(url, body):
         return json.load(r)
 
 
-def run(url, model, text, out, gen, counts=None):
+def run(url, model, text, out, gen, counts=None, short=False):
     ps = prompts(text)
+    if short:  # every stream a ~100-token prompt (the route trace wants all streams decoding together)
+        t = open(text).read()
+        ps = [t[1500 * i: 1500 * i + CHARS[0]] for i in range(16)]
     res = {}
     for n in counts or COUNTS:
         got = [None] * n
@@ -82,13 +85,14 @@ if __name__ == "__main__":
     ap.add_argument("--out")
     ap.add_argument("--json")
     ap.add_argument("--gen", type=int, default=256)
+    ap.add_argument("--short", action="store_true", help="all prompts ~100 tokens")
     ap.add_argument("--counts", help="comma list of stream counts, default 1,4,6,8,9,12,16")
     a = ap.parse_args()
     if a.cmd == "prompts":
         for i, p in enumerate(prompts(a.text)):
             open(f"{a.dir}/p{i}.txt", "w").write(p)
     elif a.cmd == "run":
-        run(a.url, a.model, a.text, a.out, a.gen, [int(x) for x in a.counts.split(",")] if a.counts else None)
+        run(a.url, a.model, a.text, a.out, a.gen, [int(x) for x in a.counts.split(",")] if a.counts else None, a.short)
     elif a.cmd == "solo":
         solo(a.files, a.json)
     elif a.cmd == "vs-solo":

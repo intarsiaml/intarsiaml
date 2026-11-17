@@ -1,0 +1,18 @@
+fleetq: #9831 waiting (#1 in line): needs gpu quiet on endor, but #9830 "mchunk4: gates solo + served ids (5 arms) + compare" (claude-2ae67a71) loads it
+fleetq:   #9830 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9830 set, or it will wait for #9830 to be released.
+fleetq: #9831 running on endor: zsh -c '/opt/code/intarsiaml/.worktrees/mchunk4/scripts/mchunk4/gates.sh route && /opt/code/intarsiaml/.worktrees/mchunk4/scripts/mchunk4/gates.sh mtp'
+mb8-on-6: streams 6: [8, 8, 8, 8, 8, 8]
+route mb8-on-6: [(('matmul_mxfp4_gemv', 1), 14384), (('matmul_mxfp4_gemv_rows', 2), 992), (('matmul_mxfp4_gemv_rows', 3), 2480), (('matmul_mxfp4_nax', 57), 496), (('matmul_mxfp4_nax', 93), 496), (('matmul_mxfp4_nax', 98), 496), (('matmul_mxfp4_nax', 105), 496), (('matmul_mxfp4_nax', 110), 992), (('matmul_mxfp4_nax', 256), 26784)]
+mb8-on-8: streams 8: [8, 8, 8, 8, 8, 8, 8, 8]
+route mb8-on-8: [(('matmul_mxfp4_gemv', 1), 18848), (('matmul_mxfp4_gemv_rows', 2), 992), (('matmul_mxfp4_gemv_rows', 3), 992), (('matmul_mxfp4_gemv_rows', 4), 1984), (('matmul_mxfp4_nax', 57), 496), (('matmul_mxfp4_nax', 93), 496), (('matmul_mxfp4_nax', 98), 496), (('matmul_mxfp4_nax', 99), 496), (('matmul_mxfp4_nax', 105), 496), (('matmul_mxfp4_nax', 110), 992), (('matmul_mxfp4_nax', 115), 496), (('matmul_mxfp4_nax', 256), 35712)]
+mb8-off-6: streams 6: [8, 8, 8, 8, 8, 8]
+route mb8-off-6: [(('matmul_mxfp4_gemv', 1), 14384), (('matmul_mxfp4_gemv_rows', 2), 992), (('matmul_mxfp4_gemv_rows', 3), 2480), (('matmul_mxfp4_nax', 57), 496), (('matmul_mxfp4_nax', 93), 496), (('matmul_mxfp4_nax', 98), 496), (('matmul_mxfp4_nax', 105), 496), (('matmul_mxfp4_nax', 110), 992), (('matmul_mxfp4_nax', 256), 26784)]
+mb8-off-8: streams 8: [8, 8, 8, 8, 8, 8, 8, 8]
+route mb8-off-8: [(('matmul_mxfp4_gemv', 1), 18848), (('matmul_mxfp4_gemv_rows', 2), 992), (('matmul_mxfp4_gemv_rows', 3), 992), (('matmul_mxfp4_gemv_rows', 4), 1984), (('matmul_mxfp4_nax', 57), 496), (('matmul_mxfp4_nax', 93), 496), (('matmul_mxfp4_nax', 98), 496), (('matmul_mxfp4_nax', 99), 496), (('matmul_mxfp4_nax', 105), 496), (('matmul_mxfp4_nax', 110), 992), (('matmul_mxfp4_nax', 115), 496), (('matmul_mxfp4_nax', 256), 35712)]
+mb16-on-12: streams 12: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
+route mb16-on-12: [(('matmul_mxfp4_gemv', 1), 27776), (('matmul_mxfp4_gemv_rows', 2), 1984), (('matmul_mxfp4_gemv_rows', 3), 3968), (('matmul_mxfp4_gemv_rows', 4), 992), (('matmul_mxfp4_nax', 57), 496), (('matmul_mxfp4_nax', 93), 496), (('matmul_mxfp4_nax', 98), 496), (('matmul_mxfp4_nax', 99), 496), (('matmul_mxfp4_nax', 105), 496), (('matmul_mxfp4_nax', 110), 992), (('matmul_mxfp4_nax', 112), 496), (('matmul_mxfp4_nax', 115), 496), (('matmul_mxfp4_nax', 117), 496), (('matmul_mxfp4_nax', 120), 496), (('matmul_mxfp4_nax', 123), 496), (('matmul_mxfp4_nax', 256), 53568)]
+mb16-off-12: streams 12: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
+route mb16-off-12: [(('matmul_mxfp4_gemv', 1), 27776), (('matmul_mxfp4_gemv_rows', 2), 992), (('matmul_mxfp4_gemv_rows', 3), 992), (('matmul_mxfp4_gemv_rows', 4), 992), (('matmul_mxfp4_gemv_rows', 5), 992), (('matmul_mxfp4_gemv_rows', 6), 992), (('matmul_mxfp4_nax', 57), 496), (('matmul_mxfp4_nax', 93), 496), (('matmul_mxfp4_nax', 98), 496), (('matmul_mxfp4_nax', 99), 496), (('matmul_mxfp4_nax', 105), 496), (('matmul_mxfp4_nax', 110), 992), (('matmul_mxfp4_nax', 112), 496), (('matmul_mxfp4_nax', 115), 496), (('matmul_mxfp4_nax', 117), 496), (('matmul_mxfp4_nax', 120), 496), (('matmul_mxfp4_nax', 123), 496), (('matmul_mxfp4_nax', 256), 53568)]
+## done route
+/opt/code/intarsiaml/.worktrees/mchunk4/scripts/mchunk4/gates.sh:106: unmatched "
+fleetq: #9831 done (exit 1)

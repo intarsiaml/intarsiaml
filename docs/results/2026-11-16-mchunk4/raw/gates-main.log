@@ -1,0 +1,69 @@
+fleetq: #9830 running on endor: zsh -c '/opt/code/intarsiaml/.worktrees/mchunk4/scripts/mchunk4/gates.sh solo && /opt/code/intarsiaml/.worktrees/mchunk4/scripts/mchunk4/gates.sh served && /opt/code/intarsiaml/.worktrees/mchunk4/scripts/mchunk4/gates.sh compare'
+solo p0: prompt: 99 tokens
+solo p1: prompt: 4666 tokens
+solo p2: prompt: 106 tokens
+solo p3: prompt: 4702 tokens
+solo p4: prompt: 111 tokens
+solo p5: prompt: 4719 tokens
+solo p6: prompt: 116 tokens
+solo p7: prompt: 4708 tokens
+solo p8: prompt: 118 tokens
+solo p9: prompt: 4732 tokens
+solo p10: prompt: 113 tokens
+solo p11: prompt: 4729 tokens
+solo p12: prompt: 117 tokens
+solo p13: prompt: 4714 tokens
+solo p14: prompt: 116 tokens
+solo p15: prompt: 4719 tokens
+solo: 16 prompts, lengths [256]
+## done solo
+new-mb16: streams 1: [256]
+new-mb16: streams 4: [256, 256, 256, 256]
+new-mb16: streams 6: [256, 256, 256, 256, 256, 256]
+new-mb16: streams 8: [256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16: streams 12: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb8: streams 1: [256]
+new-mb8: streams 4: [256, 256, 256, 256]
+new-mb8: streams 6: [256, 256, 256, 256, 256, 256]
+new-mb8: streams 8: [256, 256, 256, 256, 256, 256, 256, 256]
+new-mb8: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb8: streams 12: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb8: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16-chunk0: streams 1: [256]
+new-mb16-chunk0: streams 4: [256, 256, 256, 256]
+new-mb16-chunk0: streams 6: [256, 256, 256, 256, 256, 256]
+new-mb16-chunk0: streams 8: [256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16-chunk0: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16-chunk0: streams 12: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb16-chunk0: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb8-chunk0: streams 1: [256]
+new-mb8-chunk0: streams 4: [256, 256, 256, 256]
+new-mb8-chunk0: streams 6: [256, 256, 256, 256, 256, 256]
+new-mb8-chunk0: streams 8: [256, 256, 256, 256, 256, 256, 256, 256]
+new-mb8-chunk0: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb8-chunk0: streams 12: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+new-mb8-chunk0: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+base-mb8: streams 1: [256]
+base-mb8: streams 4: [256, 256, 256, 256]
+base-mb8: streams 6: [256, 256, 256, 256, 256, 256]
+base-mb8: streams 8: [256, 256, 256, 256, 256, 256, 256, 256]
+base-mb8: streams 9: [256, 256, 256, 256, 256, 256, 256, 256, 256]
+base-mb8: streams 12: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+base-mb8: streams 16: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+## done 
+served-base-mb8.json vs solo generate: SAME (56/56 cells; 1:1/1 4:4/4 6:6/6 8:8/8 9:9/9 12:12/12 16:16/16)
+served-new-mb16-chunk0.json vs solo generate: SAME (56/56 cells; 1:1/1 4:4/4 6:6/6 8:8/8 9:9/9 12:12/12 16:16/16)
+served-new-mb16.json vs solo generate: SAME (56/56 cells; 1:1/1 4:4/4 6:6/6 8:8/8 9:9/9 12:12/12 16:16/16)
+served-new-mb8-chunk0.json vs solo generate: SAME (56/56 cells; 1:1/1 4:4/4 6:6/6 8:8/8 9:9/9 12:12/12 16:16/16)
+served-new-mb8.json vs solo generate: SAME (56/56 cells; 1:1/1 4:4/4 6:6/6 8:8/8 9:9/9 12:12/12 16:16/16)
+served-base-mb8.json vs served-new-mb8.json: SAME (56/56 cells equal)
+served-new-mb8.json vs served-new-mb8-chunk0.json: SAME (56/56 cells equal)
+served-new-mb16.json vs served-new-mb16-chunk0.json: SAME (56/56 cells equal)
+plan base-mb8 vs new-mb8: 9 differing lines
+plan base-mb8 vs new-mb8-chunk0: 9 differing lines
+plan base-mb8 vs new-mb16: 15 differing lines
+plan base-mb8 vs new-mb16-chunk0: 15 differing lines
+## done compare
+fleetq: #9830 done (exit 0)
