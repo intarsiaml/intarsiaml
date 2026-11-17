@@ -1,0 +1,469 @@
+fleetq: #9819 waiting (#4 in line): in line behind #9817 "msm192: TTFT ABBA round 2 (B3 A3 A4 B4) 27B" (claude-2ae67a71) on endor
+fleetq:   #9817 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9817 set, or it will wait for #9817 to be released.
+fleetq: #9819 waiting (#2 in line): in line behind #9818 "msm192: cargo test --workspace --release" (claude-2ae67a71) on endor
+fleetq:   #9818 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9818 set, or it will wait for #9818 to be released.
+fleetq: #9819 running on endor: sh -c 'cd /opt/code/intarsiaml/.worktrees/msm192 && cargo test -p intarsia-backend-metal'
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling libc v0.2.190
+   Compiling objc2 v0.6.5
+   Compiling objc2-encode v4.1.0
+   Compiling serde_core v1.0.229
+   Compiling zerocopy v0.8.62
+   Compiling bitflags v2.13.2
+   Compiling zmij v1.0.23
+   Compiling thiserror v2.0.21
+   Compiling serde_json v1.0.154
+   Compiling serde v1.0.229
+   Compiling hashbrown v0.17.1
+   Compiling equivalent v1.0.2
+   Compiling cfg-if v1.0.5
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling foldhash v0.2.0
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/msm192/crates/intarsia-backend-metal)
+   Compiling indexmap v2.14.2
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+   Compiling memmap2 v0.9.11
+   Compiling block2 v0.6.2
+   Compiling objc2-core-foundation v0.3.2
+   Compiling dispatch2 v0.3.1
+   Compiling objc2-foundation v0.3.2
+   Compiling bytemuck_derive v1.12.1
+   Compiling thiserror-impl v2.0.21
+   Compiling serde_derive v1.0.229
+   Compiling zerocopy-derive v0.8.62
+   Compiling bytemuck v1.25.2
+   Compiling half v2.7.1
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/msm192/crates/intarsia-core)
+   Compiling objc2-metal v0.3.2
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 21s
+     Running unittests src/lib.rs (target/debug/deps/intarsia_backend_metal-871ea2e859b4080e)
+
+running 13 tests
+test attn::tests::scratch_bounds_every_context_length ... ok
+test attn::tests::head_split_divides_the_group_and_only_the_35b_shape_splits ... ok
+test flash::tests::every_head_dim_and_group_has_a_variant ... ok
+test flash_nax::tests::every_group_has_a_variant ... ok
+test attn::tests::split_counts_are_bounded_and_monotone ... ok
+test attn::tests::threadgroup_accumulators_fit ... ok
+test kernels::tests::names_unique_and_named_after_their_op ... ok
+test kernels::tests::phase1_folds_are_absent_and_the_unfused_selection_is_pinned ... ok
+test kernels::tests::kernel_list_is_unchanged_by_core_op_fusion_p1 ... ok
+test kernels::tests::phase2_folds_are_absent_and_the_unfused_selection_is_pinned ... ok
+test kernels::tests::moe_block_is_absent_and_the_unfused_selection_is_pinned ... ok
+test kernels::tests::metal4_shaders_are_the_nax_variants_and_not_metal3_shaders ... ok
+test kernels::tests::attention_is_registered_for_both_ops ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/a8_served.rs (target/debug/deps/a8_served-3b2a6af807b8067f)
+
+running 1 test
+test the_metal_table_serves_w4a8_is_false ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/attention.rs (target/debug/deps/attention-63688777c2d6f7f1)
+
+running 10 tests
+test splitkv_predicate_and_scratch_declaration ... ok
+test predicates_accept_bf16_caches_only ... ok
+test splitkv_scratch_is_required_and_checked ... ok
+test decode_device_position ... ok
+test fingerprint_names_device_and_metallib ... ok
+test splitkv_is_deterministic_and_close_to_single_pass ... ok
+test splitkv_device_position ... ok
+test prefill_matches_f64_reference ... ok
+test decode_matches_f64_reference ... ok
+test splitkv_matches_f64_reference ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.36s
+
+     Running tests/dense.rs (target/debug/deps/dense-3e19b7c0f80741d6)
+
+running 10 tests
+test predicates_route_m1_to_gemv ... ok
+test argmax_ties_nan_and_all_neg_inf ... ok
+test upload_after_pending_launch_waits_for_it ... ok
+test elementwise_ops_with_odd_element_offsets ... ok
+test add_bias_matches_reference_in_place_and_at_odd_offsets ... ok
+test device_side_position_matches_host_position ... ok
+test rope_scaled_matches_f64_reference ... ok
+test logits_gemm_and_gemv_match_f64_reference ... ok
+test dependent_launches_are_ordered_across_command_buffers ... ok
+test gemm_matches_f64_reference ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests/df_verify_bench.rs (target/debug/deps/df_verify_bench-72bd6c9f1117d9e2)
+
+running 1 test
+test df_verify_kernels_27b ... ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/dflash2.rs (target/debug/deps/dflash2-ae4a2582a8a61c2d)
+
+running 3 tests
+test window_decode_is_never_picked_by_plain_calls ... ok
+test dyn_conv_matches_the_reference ... ok
+test window_decode_is_bitwise_the_plain_decode_over_the_window ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/dspine.rs (target/debug/deps/dspine-6dade8e513d59fef)
+
+running 3 tests
+test bridge_gate_matches_the_reference ... ok
+test bridge_norm_and_code_match_the_reference ... ok
+test bridge_write_matches_the_reference ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/fault_inject.rs (target/debug/deps/fault_inject-6dcd79c1186137e8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fill.rs (target/debug/deps/fill-a435b53dd8b810e8)
+
+running 7 tests
+test first_buffer_after_synchronize_is_committed_early ... ok
+test overlapping_copy_in_one_buffer_is_a_memmove ... ok
+test copy_and_zero_are_ordered_with_launches_and_do_not_wait ... ok
+test wrapped_host_memory_is_a_source_but_never_a_target ... ok
+test copy_is_byte_exact_for_every_alignment_and_tail ... ok
+test zero_covers_exactly_the_buffer ... ok
+test copy_large_aligned_buffer ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/flash_prefill.rs (target/debug/deps/flash_prefill-a017b2707ece9bfa)
+
+running 4 tests
+test flash_predicate ... ok
+test flash_chunk_invariant ... ok
+test flash_falls_back_on_misaligned_operands ... ok
+Context leak detected, CoreAnalytics returned false
+test flash_matches_f64_reference ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.40s
+
+     Running tests/flash_prefill_nax.rs (target/debug/deps/flash_prefill_nax-bcce7d4209263f58)
+
+running 5 tests
+test flash_predicate ... ok
+test flash_chunk_invariant ... ok
+test registry_splits_are_bitwise_the_single_call ... ok
+test flash_falls_back_on_misaligned_operands ... ok
+test flash_matches_f64_reference ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.18s
+
+     Running tests/fp8_nax.rs (target/debug/deps/fp8_nax-c57bd71e129936c7)
+
+running 6 tests
+test nax_is_registered_for_m_above_the_gemv_rows_only ... ok
+test nax_nan_weight_poisons_its_column_only ... ok
+test nax_is_run_to_run_deterministic ... ok
+test nax_rows_do_not_depend_on_the_call ... ok
+test nax_equals_the_bf16_nax_gemm_on_decoded_weights ... ok
+test nax_scales_the_float_product_and_rounds_once ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running tests/fused.rs (target/debug/deps/fused-f4d4c27d63ee75e2)
+
+running 5 tests
+test output_offsets_with_a_leftover_element ... ok
+test other_alignments_fall_back_to_two_dispatches ... ok
+test odd_sizes_and_unequal_halves ... ok
+test qwen3_8b_shapes_are_bitwise_two_gemvs_in_one_dispatch ... ok
+test eight_byte_aligned_weights_are_one_dispatch_of_the_a8_pair ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+     Running tests/g0b_attn.rs (target/debug/deps/g0b_attn-c74506dd7eba7fa2)
+
+running 7 tests
+test rows_registration_is_below_serving ... ok
+test rows_misaligned_operands_fall_back_to_the_single_pass_rows ... ok
+test rows_device_position_is_the_device_position_one_row_launch ... ok
+test rows_bitwise_with_cache_and_q_offsets ... ok
+test rows_bitwise_other_shapes ... ok
+test rows_bitwise_qwen3_8b_long_context ... ok
+test rows_bitwise_qwen3_8b_all_k ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.66s
+
+     Running tests/g0b_small.rs (target/debug/deps/g0b_small-981ec8e7fac666bf)
+
+running 7 tests
+test add_and_silu_glu_rows ... ok
+test embedding_rows ... ok
+test rmsnorm_add_rows ... ok
+test rmsnorm_rows ... ok
+test argmax_rows ... ok
+test kv_append_rows ... ok
+test qk_norm_rope_kv_rows ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.34s
+
+     Running tests/gdn.rs (target/debug/deps/gdn-8601cc7f15ba417c)
+
+running 9 tests
+test conv_chunked_prefill_equals_one_call_and_the_reference ... ok
+test gate_split_is_an_exact_per_head_split ... ok
+test sigmoid_mul_matches_the_reference ... ok
+test short_conv_chunked_prefill_equals_one_call_and_the_reference ... ok
+test delta_rule_chunked_prefill_equals_one_call_and_the_reference ... ok
+test conv_at_the_35b_channel_count ... ok
+test delta_rule_prep_form_is_bitwise_the_original ... ok
+test delta_rule_long_sequence_stays_within_the_budget ... ok
+test delta_rule_at_the_35b_layer_shape ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.96s
+
+     Running tests/gemm_nax.rs (target/debug/deps/gemm_nax-4554dc915aa8cd92)
+
+running 10 tests
+test nax_tile_pick_is_by_shape ... ok
+test nax_kernels_are_registered_for_prefill_shapes_only ... ok
+test nax_is_run_to_run_deterministic ... ok
+test nax_k_tails ... ok
+test nax_launch_through_the_backend ... ok
+test nax_rows_do_not_depend_on_the_call ... ok
+test nax_mid_size_chunks_keep_row_bits ... ok
+test nax_launch_picks_tiles_without_changing_bits ... ok
+test nax_pair_is_bitwise_two_singles ... ok
+test nax_matches_f64_reference ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.59s
+
+     Running tests/gemv.rs (target/debug/deps/gemv-21ba4a975ca9ed17)
+
+running 6 tests
+test shader_choice_follows_alignment_and_k ... ok
+test every_variant_matches_reference ... ok
+test backend_info_and_alloc_roundtrip ... ok
+test k_not_multiple_of_8_and_odd_n ... ok
+test unaligned_operand_offsets ... ok
+test qwen3_8b_shapes ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.65s
+
+     Running tests/hs_bitwise.rs (target/debug/deps/hs_bitwise-c5da2df467345908)
+
+running 1 test
+test bitwise_head_split_is_bit_identical_to_the_unsplit_launch ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.46s
+
+     Running tests/keepwarm.rs (target/debug/deps/keepwarm-83b6b8f4d7e672e8)
+
+running 7 tests
+test memkind_still_allocates_with_keepwarm_on ... ok
+test turning_it_on_after_wrapping_covers_the_files_already_wrapped_and_off_stops_it ... ok
+test keepwarm_is_off_by_default ... ok
+test dropping_the_backend_right_after_wrapping_joins_the_thread_before_the_mapping_goes ... ok
+test residency_mode_touches_registered_files_and_drops_cleanly ... ok
+test files_are_touched_when_wrapped_and_while_the_engine_is_quiet_and_still_read_back_exactly ... ok
+test a_busy_engine_is_not_touched ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.55s
+
+     Running tests/kv_once.rs (target/debug/deps/kv_once-ca942d8281bd5d7c)
+
+running 1 test
+test packed_launches_are_bit_identical_to_the_unpacked_launches ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.31s
+
+     Running tests/lowlat.rs (target/debug/deps/lowlat-e9a5114b18a0ee8f)
+
+running 5 tests
+test argmax_vector_path_matches_host ... ok
+test low_latency_norms_are_bitwise_the_256_thread_kernels ... ok
+test qk_norm_vector_path_matches_reference ... ok
+test rmsnorm_add_vector_and_scalar_paths_match_reference ... ok
+test rmsnorm_vector_and_scalar_paths_match_reference ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+     Running tests/metal4_fallback.rs (target/debug/deps/metal4_fallback-e401507086f3edda)
+
+running 1 test
+test prefill_runs_without_the_metal4_library ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+
+     Running tests/moe.rs (target/debug/deps/moe-37972df328a700f5)
+
+running 7 tests
+test moe_topk_matches_the_reference_with_ties ... ok
+test moe_combine_matches_the_reference_and_refuses_f32_output ... ok
+test moe_experts_rows_do_not_depend_on_the_tile ... ok
+test moe_experts_odd_scale_offsets_and_f32_output ... ok
+test moe_experts_prefill_chunks_match_the_reference_on_a_token_subset ... ok
+test moe_experts_skewed_routing_runs_several_tiles_per_expert ... ok
+test moe_experts_matches_the_reference_on_both_paths ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.71s
+
+     Running tests/multirow.rs (target/debug/deps/multirow-17d03b80f24c6883)
+
+running 12 tests
+test real_qwen3_8b_weights_bitwise ... ok
+test every_instance_exists ... ok
+test matmul_k_tails_and_odd_n ... ok
+test serving_selection_unchanged ... ok
+test matmul_qwen3_8b_shapes_all_rows ... ok
+test matmul_a8_alignment_and_scalar_fallback ... ok
+test pair_mixed_family_halves_all_rows ... ok
+test all_variants_matmul ... ok
+test pair_qwen3_8b_shapes_all_rows ... ok
+test all_variants_pair ... ok
+test logits_qwen3_8b_shapes_all_rows ... ok
+test all_variants_logits ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.91s
+
+     Running tests/mxfp4_gemv.rs (target/debug/deps/mxfp4_gemv-24eff590795500ab)
+
+running 5 tests
+test a_rows_bits_do_not_depend_on_the_calls_m ... ok
+test an_unaligned_x_takes_the_prepass_and_gives_the_same_bits ... ok
+test gemv_bits_are_pinned ... ok
+test gemv_matches_the_f64_reference ... ok
+test m_row_shaders_are_bitwise_the_one_row_call_per_row ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+     Running tests/mxfp4_nax.rs (target/debug/deps/mxfp4_nax-fd09ec60d938fec1)
+
+running 6 tests
+test nax_is_registered_for_m_above_the_gemv_rows_only ... ok
+test nax_rows_do_not_depend_on_the_call ... ok
+test nax_matches_the_gemv_within_accumulation_order ... ok
+test nax_w4a16_equals_the_bf16_nax_gemm_on_decoded_weights ... ok
+test naxd_forms_are_bitwise_the_scratch_path ... ok
+test small_m_routing_is_bitwise_the_scratch_path ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.87s
+
+     Running tests/qkv_fold.rs (target/debug/deps/qkv_fold-e642e734d6873be1)
+
+running 6 tests
+test a_device_position_past_the_cache_is_dropped_not_written ... ok
+test operands_at_two_byte_offsets ... ok
+test prefill_rows_are_bitwise ... ok
+test head_dims_and_partial_rotary ... ok
+test decode_qwen3_8b_is_bitwise_the_unfused_sequence ... ok
+test prefill_form_head_counts_off_the_threadgroup_group ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
+
+     Running tests/quant.rs (target/debug/deps/quant-10dc5aae5dc02afc)
+
+running 7 tests
+test weights_not_8_byte_aligned_are_refused ... ok
+test nvfp4_nax_rows_do_not_depend_on_the_call ... ok
+test w8a8_quantiser_is_bit_exact_over_every_bf16_pattern ... ok
+test fp8_matches_the_oracle ... ok
+test nvfp4_matches_the_oracle ... ok
+test fp8_at_the_35b_projection_shapes ... ok
+test nvfp4_at_the_35b_projection_shapes ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.69s
+
+     Running tests/quick_coverage.rs (target/debug/deps/quick_coverage-38edbfabb50c14ee)
+
+running 1 test
+test every_metal_kernel_has_a_quick_case ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.05s
+
+     Running tests/row_tables.rs (target/debug/deps/row_tables-c3853287579ac30b)
+
+running 8 tests
+test swapped_state_entries_are_seen ... ok
+test a_swapped_table_entry_is_seen ... ok
+test rope_with_one_position_per_token_is_the_solo_rope ... ok
+test gdn_conv_rows_are_the_solo_conv ... ok
+test gdn_delta_rows_are_the_solo_delta_rule ... ok
+test kv_append_rows_are_the_solo_append ... ok
+test qk_norm_rope_kv_rows_are_the_solo_prologue ... ok
+test attn_decode_rows_are_the_solo_decode ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.90s
+
+     Running tests/rows_exact.rs (target/debug/deps/rows_exact-147ad73b54024d8b)
+
+running 8 tests
+test timing_rows ... ignored
+test rows_exact_registrations_are_pinned ... ok
+test bf16_pair_rows_at_the_35b_pairs ... ok
+test negative_controls_differ_from_the_one_row_calls ... ok
+test row_parallel_kernels_do_not_depend_on_the_row_count ... ok
+test moe_experts_rows_are_bitwise_the_one_token_call ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.16s
+
+     Running tests/token_feedback.rs (target/debug/deps/token_feedback-683befd11e87f9bf)
+
+running 2 tests
+test read_after_reads_the_fenced_copy_and_survives_a_dropped_fence ... ok
+test hold_submits_the_start_and_discard_drops_the_rest ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/wrap_host.rs (target/debug/deps/wrap_host-34e5c4de6fa03be3)
+
+running 3 tests
+test gemv_on_wrapped_weights ... ok
+test wrap_real_safetensors_unaligned_and_last_tensor ... ok
+test wrap_page_rounding_with_synthetic_file ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+   Doc-tests intarsia_backend_metal
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+fleetq: #9819 done (exit 0)

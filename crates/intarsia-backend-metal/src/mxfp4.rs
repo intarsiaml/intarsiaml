@@ -194,19 +194,31 @@ pub fn naxd_knob() -> NaxdKnob {
     })
 }
 
-/// Largest M the unset knob sends to the in-kernel decode form. Form [`NAXD_SMALL`] measured 1.24x to 3.5x the scratch path
-/// per call on all six Qwen3.8-27B shapes at M = 9..128 and 0.94x (the 6144 x 5120 GDN z projection) at M = 160 (endor,
+/// Largest M the unset knob sends to the in-kernel decode form for a shape not in [`NAXD_SHAPE_MAX_M`]. Form [`NAXD_SMALL`]
+/// measured 1.24x to 3.5x the scratch path per call on all six Qwen3.8-27B shapes at M = 9..128 (endor,
 /// docs/results/2026-11-16-msmallm.md, raw/bench-smallm.txt): the scratch path's weight decode is flat in M, the in-kernel
 /// form re-decodes the weights once per 64 output rows.
 pub const NAXD_SMALL_MAX_M: usize = 128;
-/// The form the unset knob uses (64 x 64, BK 64, four simdgroups: the fastest of the four at every M <= 128 measured).
+/// Per-shape limits `(N, K, largest M)` above [`NAXD_SMALL_MAX_M`] for the Qwen3.8-27B's `matmul_mxfp4_nax` shapes: the largest M
+/// of the sweep (129, 144, 160, 176, 192) up to which the form is at least 1.03x the scratch path in every round of two microbench
+/// runs (endor, docs/results/2026-11-16-msm192.md, raw/limits-pooled.txt), 1.06x to 1.33x there. 6144 x 5120 (the GDN z
+/// projection) is at 1.01x to 1.02x at M = 129 and 0.99x at M = 160, so it stays at [`NAXD_SMALL_MAX_M`]; other shapes too. Every
+/// entry is capped at 192 (three 64-row tiles): the sweep above it (193, 224, 256) is at 0.9x to 1.15x.
+pub const NAXD_SHAPE_MAX_M: &[(usize, usize, usize)] =
+    &[(17408, 5120, 192), (5120, 17408, 192), (12288, 5120, 192), (10240, 5120, 160), (5120, 6144, 144)];
+/// The form the unset knob uses (64 x 64, BK 64, four simdgroups: the fastest of the four at every M measured, up to 256).
 pub const NAXD_SMALL: usize = 0;
 
-/// The in-kernel decode form a `matmul_mxfp4_nax` call of `m` rows takes under `knob` (`None`: the scratch path). The NAX op
-/// only sees M > 8 (`nax_ok`), so the unset knob's window is M = 9..=[`NAXD_SMALL_MAX_M`].
-pub fn naxd_pick(knob: NaxdKnob, m: usize) -> Option<usize> {
+/// Largest M the unset knob sends a `matmul_mxfp4_nax` call of N output columns and K inputs to the in-kernel decode form.
+pub fn naxd_max_m(n: usize, k: usize) -> usize {
+    NAXD_SHAPE_MAX_M.iter().find(|&&(sn, sk, _)| sn == n && sk == k).map_or(NAXD_SMALL_MAX_M, |&(_, _, m)| m)
+}
+
+/// The in-kernel decode form a `matmul_mxfp4_nax` call of `m` rows (N = `n`, K = `k`) takes under `knob` (`None`: the scratch
+/// path). The NAX op only sees M > 8 (`nax_ok`), so the unset knob's window is M = 9..=[`naxd_max_m`].
+pub fn naxd_pick(knob: NaxdKnob, m: usize, n: usize, k: usize) -> Option<usize> {
     match knob {
-        NaxdKnob::Auto => (m <= NAXD_SMALL_MAX_M).then_some(NAXD_SMALL),
+        NaxdKnob::Auto => (m <= naxd_max_m(n, k)).then_some(NAXD_SMALL),
         NaxdKnob::Off => None,
         NaxdKnob::All(f) => Some(f),
     }
@@ -398,7 +410,7 @@ impl MetalBackend {
     /// the weights decoded to bf16 and the scale pair `[1, 0]` (`mxfp4_w_to_bf16`), then the fp8 NAX GEMM (`gemm_nax_fp8_*`,
     /// tile by `gemm_nax::pick_variant`) on those two, which stores bf16 / f32. Scratch: `[xs: M*K bf16]` then, from the next
     /// 16-byte boundary, `[Wb: N*K bf16][scale pair: 2 f32]`. A call [`naxd_pick`] sends to an in-kernel decode form (by default
-    /// M <= [`NAXD_SMALL_MAX_M`]) runs as two dispatches instead (`launch_mxfp4_naxd`; the same bits, no `Wb`).
+    /// M <= [`naxd_max_m`] of the shape: 128, up to 192 for some) runs as two dispatches instead (`launch_mxfp4_naxd`; the same bits, no `Wb`).
     fn launch_mxfp4_nax(
         &self,
         call: &OpCall,
@@ -442,7 +454,7 @@ impl MetalBackend {
         let vi = NAX_VARIANTS.iter().position(|x| x.shader == v.shader).expect("NAX variant table");
         let gemm = crate::fp8::NAX_FP8_SHADERS[vi][f32_out as usize];
         let pso_x = self.pso(XPREP).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP}'")))?;
-        let naxd = NAXD.with(|t| t.get()).unwrap_or_else(|| naxd_pick(naxd_knob(), m)).filter(|&f| k % NAXD_FORMS[f].4 == 0);
+        let naxd = NAXD.with(|t| t.get()).unwrap_or_else(|| naxd_pick(naxd_knob(), m, n, k)).filter(|&f| k % NAXD_FORMS[f].4 == 0);
         if let Some(f) = naxd {
             return self.launch_mxfp4_naxd(f, (xb, wb, sb, ab, ob), &xs, [m, n, k], f32_out);
         }

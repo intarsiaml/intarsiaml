@@ -244,22 +244,63 @@ fn naxd_forms_are_bitwise_the_scratch_path() {
     }
 }
 
-/// Lane msmallm: with `INTARSIA_METAL_MXFP4_NAXD` unset the NAX op routes M <= `NAXD_SMALL_MAX_M` to form `NAXD_SMALL` and larger M
-/// to the scratch path; at the window's edges (9, 128, 129) and inside it, the routed call is bit for bit the scratch path.
+/// Lane msmallm / msm192: with `INTARSIA_METAL_MXFP4_NAXD` unset the NAX op routes a call of N x K to form `NAXD_SMALL` up to
+/// `naxd_max_m(N, K)` rows (128, or the shape's `NAXD_SHAPE_MAX_M` entry) and to the scratch path above; at the limits' edges (one
+/// row below, at, one above) and inside the windows, the routed call is bit for bit the scratch path.
 #[test]
 fn small_m_routing_is_bitwise_the_scratch_path() {
-    use intarsia_backend_metal::mxfp4::{naxd_knob, naxd_pick, with_naxd, NaxdKnob, NAXD_SMALL, NAXD_SMALL_MAX_M};
-    assert_eq!(naxd_pick(NaxdKnob::Auto, 9), Some(NAXD_SMALL));
-    assert_eq!(naxd_pick(NaxdKnob::Auto, NAXD_SMALL_MAX_M), Some(NAXD_SMALL));
-    assert_eq!(naxd_pick(NaxdKnob::Auto, NAXD_SMALL_MAX_M + 1), None);
-    assert_eq!(naxd_pick(NaxdKnob::Off, 9), None);
-    assert_eq!(naxd_pick(NaxdKnob::All(2), 4096), Some(2));
+    // N, K, limit of the six Qwen3.8-27B shapes: FFN gate / up, FFN down, GDN in-proj, o / GDN out, GDN z, attn q + gate
+    const EXPECTED_LIMITS: &[(usize, usize, usize)] =
+        &[(17408, 5120, 192), (5120, 17408, 192), (10240, 5120, 160), (5120, 6144, 144), (6144, 5120, 128), (12288, 5120, 192)];
+    use intarsia_backend_metal::mxfp4::{
+        naxd_knob, naxd_max_m, naxd_pick, with_naxd, NaxdKnob, NAXD_SHAPE_MAX_M, NAXD_SMALL, NAXD_SMALL_MAX_M,
+    };
+    // the knob: Auto routes up to the shape's limit, Off never, All(f) always
+    for &(n, k, lim) in NAXD_SHAPE_MAX_M {
+        assert!(lim > NAXD_SMALL_MAX_M && lim <= 192, "{n}x{k}: limit {lim} outside 129..=192");
+        assert_eq!(naxd_max_m(n, k), lim);
+        assert_eq!(naxd_pick(NaxdKnob::Auto, 9, n, k), Some(NAXD_SMALL));
+        assert_eq!(naxd_pick(NaxdKnob::Auto, NAXD_SMALL_MAX_M, n, k), Some(NAXD_SMALL));
+        assert_eq!(naxd_pick(NaxdKnob::Auto, NAXD_SMALL_MAX_M + 1, n, k), Some(NAXD_SMALL), "{n}x{k}: the first row past 128");
+        assert_eq!(naxd_pick(NaxdKnob::Auto, lim - 1, n, k), Some(NAXD_SMALL), "{n}x{k}: one row below the limit");
+        assert_eq!(naxd_pick(NaxdKnob::Auto, lim, n, k), Some(NAXD_SMALL), "{n}x{k}: at the limit");
+        assert_eq!(naxd_pick(NaxdKnob::Auto, lim + 1, n, k), None, "{n}x{k}: one row above the limit");
+        assert_eq!(naxd_pick(NaxdKnob::Auto, 4096, n, k), None);
+        assert_eq!(naxd_pick(NaxdKnob::Off, 9, n, k), None);
+        assert_eq!(naxd_pick(NaxdKnob::All(2), 4096, n, k), Some(2));
+    }
+    // a shape without an entry keeps 128 (the six 27B shapes with one are the table's; these are not)
+    for (n, k) in [(256, 5120), (512, 17408), (640, 6144), (1024, 5120)] {
+        assert_eq!(naxd_max_m(n, k), NAXD_SMALL_MAX_M);
+        assert_eq!(naxd_pick(NaxdKnob::Auto, 9, n, k), Some(NAXD_SMALL));
+        assert_eq!(naxd_pick(NaxdKnob::Auto, NAXD_SMALL_MAX_M, n, k), Some(NAXD_SMALL));
+        assert_eq!(naxd_pick(NaxdKnob::Auto, NAXD_SMALL_MAX_M + 1, n, k), None);
+    }
+    // the 27B shapes (N, K) and the limit each is expected to have (the per-shape numbers of docs/results/2026-11-16-msm192.md)
+    for &(n, k, want) in EXPECTED_LIMITS {
+        assert_eq!(naxd_max_m(n, k), want, "{n}x{k}");
+        assert_eq!(naxd_pick(NaxdKnob::Auto, want - 1, n, k), Some(NAXD_SMALL), "{n}x{k}: one row below the limit");
+        assert_eq!(naxd_pick(NaxdKnob::Auto, want, n, k), Some(NAXD_SMALL), "{n}x{k}: at the limit");
+        assert_eq!(naxd_pick(NaxdKnob::Auto, want + 1, n, k), None, "{n}x{k}: one row above the limit");
+    }
     if naxd_knob() != NaxdKnob::Auto {
         eprintln!("INTARSIA_METAL_MXFP4_NAXD is set: the routed half of this test is skipped");
         return;
     }
     let be = backend();
-    for (si, &(m, n, k)) in [(9, 256, 5120), (62, 6144, 5120), (128, 512, 17408), (129, 640, 6144)].iter().enumerate() {
+    // routed through the unset knob: the window edges of the real 27B shapes with a raised limit, plus the 128 fallback
+    let mut cases: Vec<(usize, usize, usize)> = vec![(9, 256, 5120), (62, 6144, 5120), (128, 512, 17408), (129, 640, 6144)];
+    for &(n, k, lim) in NAXD_SHAPE_MAX_M {
+        // the cheapest shape gets all five edges, the others the first row past 128 and the limit's two edges
+        let cheap = n * k <= 5120 * 6144;
+        let ms: Vec<usize> = if cheap {
+            vec![NAXD_SMALL_MAX_M, NAXD_SMALL_MAX_M + 1, lim - 1, lim, lim + 1]
+        } else {
+            vec![NAXD_SMALL_MAX_M + 1, lim, lim + 1]
+        };
+        cases.extend(ms.into_iter().map(|m| (m, n, k)));
+    }
+    for (si, &(m, n, k)) in cases.iter().enumerate() {
         let (r, _, _) = Run::new(&be, m + 3, n, k, 950 + si as u64);
         for act in [0.0f32, 1.0] {
             for f32_out in [false, true] {

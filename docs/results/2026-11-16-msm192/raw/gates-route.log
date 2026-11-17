@@ -1,0 +1,15 @@
+fleetq: #9813 waiting (#2 in line): in line behind #9812 "msm192: TTFT ABBA A=main B=branch (A1 B1 B2 A2) 27B" (claude-2ae67a71) on endor
+fleetq:   #9812 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9812 set, or it will wait for #9812 to be released.
+fleetq: #9813 waiting (#1 in line): #9812 "msm192: TTFT ABBA A=main B=branch (A1 B1 B2 A2) 27B" (claude-2ae67a71) needs gpu quiet on endor, and this job loads it
+fleetq:   #9812 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9812 set, or it will wait for #9812 to be released.
+fleetq: #9813 running on endor: zsh scripts/msm192/gates.sh route
+route p160 unset: [(('matmul_mxfp4_nax', 160), 496), (('matmul_mxfp4_nax#1', 160), 496), (('matmul_mxfp4_nax#2', 160), 240)]
+route p192 unset: [(('matmul_mxfp4_nax', 192), 496), (('matmul_mxfp4_nax#1', 192), 496), (('matmul_mxfp4_nax#2', 192), 288)]
+route tail2208 unset: [(('matmul_mxfp4_nax', 160), 496), (('matmul_mxfp4_nax', 2048), 496), (('matmul_mxfp4_nax#1', 160), 496), (('matmul_mxfp4_nax#1', 2048), 496), (('matmul_mxfp4_nax#2', 160), 240), (('matmul_mxfp4_nax#2', 2048), 496)]
+route p160 zero: [(('matmul_mxfp4_nax', 160), 496), (('matmul_mxfp4_nax#1', 160), 496), (('matmul_mxfp4_nax#2', 160), 496)]
+route p192 zero: [(('matmul_mxfp4_nax', 192), 496), (('matmul_mxfp4_nax#1', 192), 496), (('matmul_mxfp4_nax#2', 192), 496)]
+route tail2208 zero: [(('matmul_mxfp4_nax', 160), 496), (('matmul_mxfp4_nax', 2048), 496), (('matmul_mxfp4_nax#1', 160), 496), (('matmul_mxfp4_nax#1', 2048), 496), (('matmul_mxfp4_nax#2', 160), 496), (('matmul_mxfp4_nax#2', 2048), 496)]
+## done route
+scripts/msm192/gates.sh:66: command not found: zero
+scripts/msm192/gates.sh:67: spec: parameter not set
+fleetq: #9813 done (exit 127)

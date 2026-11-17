@@ -1,0 +1,7 @@
+fleetq: #9820 running on endor: zsh scripts/msm192/kernels.sh
+fleetq: #9820 went ahead of the line and must end within 19m (by Mon 21:45); it is stopped then
+unset exit 0
+zero exit 0
+unset: 55 kernels, 1276 cases in 43.3s FAIL lines: 0
+zero: 55 kernels, 1276 cases in 42.3s FAIL lines: 0
+fleetq: #9820 done (exit 0)

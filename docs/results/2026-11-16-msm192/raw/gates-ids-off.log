@@ -1,0 +1,8 @@
+fleetq: #9815 waiting (#1 in line): needs 40 GB on endor; 20 GB free of 110
+fleetq: #9815 running on endor: zsh scripts/msm192/gates.sh ids off
+SAME 27b p160 spec=off (prompt: 161 tokens) | base bd1f5b3a n=256 prefill 577 ms | unset bd1f5b3a n=256 prefill 542 ms | zero bd1f5b3a n=256 prefill 574 ms
+SAME 27b p192 spec=off (prompt: 193 tokens) | base 66b0245a n=256 prefill 564 ms | unset 66b0245a n=256 prefill 504 ms | zero 66b0245a n=256 prefill 558 ms
+SAME 27b tail2208 spec=off (prompt: 2209 tokens) | base 26a51e6e n=256 prefill 2661 ms | unset 26a51e6e n=256 prefill 2609 ms | zero 26a51e6e n=256 prefill 2694 ms
+SAME 27b 4k spec=off (prompt: 4096 tokens) | base 418d1c81 n=256 prefill 4579 ms | unset 418d1c81 n=256 prefill 4537 ms | zero 418d1c81 n=256 prefill 4515 ms
+## done ids off
+fleetq: #9815 done (exit 0)
