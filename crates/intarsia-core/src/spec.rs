@@ -428,6 +428,15 @@ pub fn copy_from_env() -> Option<CopyCfg> {
     })
 }
 
+/// `INTARSIA_SPEC_COPY_PROBE=<g>` (lane mcdiag, a measurement hook, read once): with copy drafts on, the first MTP step at or after
+/// `g` generated tokens verifies one bogus chain (`len` copies of token 1, nearly always rejected) instead of the head's drafts, once
+/// per request. Greedy ids do not change (drafts only propose); it makes the "one early chain, then N plain MTP steps" run that
+/// `docs/results/2026-11-17-mcdiag.md` times against a run without it.
+pub fn copy_probe_from_env() -> Option<usize> {
+    static V: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("INTARSIA_SPEC_COPY_PROBE").ok().and_then(|v| v.trim().parse::<usize>().ok()))
+}
+
 /// Copy draft: the tokens that followed the most recent earlier occurrence of the last `c.n` tokens of `ctx`, up to `c.len` of them.
 /// The suffix itself is not an earlier occurrence; an occurrence may overlap it. An occurrence with fewer than `c.len` tokens after
 /// it gives way to an older one with `c.len` (repetition runs), else the longest continuation wins. Empty when no occurrence has at
