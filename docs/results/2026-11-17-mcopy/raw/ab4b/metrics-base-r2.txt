@@ -1,0 +1,1 @@
+intarsia_spec_steps_total 8101 intarsia_spec_proposed_tokens_total 16199 intarsia_spec_accepted_tokens_total 15461 

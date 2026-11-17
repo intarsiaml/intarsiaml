@@ -418,6 +418,9 @@ pub struct EngineMeta {
     /// MTP drafting on prefix-store requests (lane mtp-store): `None` (the default): `INTARSIA_MTP_STORE`, else the backend's
     /// default ([`crate::spec::mtp_store_for`]: on for CUDA); tests set it.
     pub mtp_store: Option<bool>,
+    /// Copy drafts beside the MTP head (lane mcopy): `None` (the default): `INTARSIA_SPEC_COPY`, else off; tests set it. Single-sequence
+    /// engine, `--spec mtp`, greedy requests; the model must have been prepared for `1 + len` verify rows.
+    pub spec_copy: Option<crate::spec::CopyCfg>,
 }
 
 struct Inner {
@@ -437,6 +440,8 @@ struct Shared {
     store: Option<StorePolicy>,
     /// A drafting request uses the store, its MTP head's context restarting where the store restored (`EngineMeta::mtp_store`).
     mtp_store: bool,
+    /// Copy drafts of `--spec mtp` greedy requests ([`EngineMeta::spec_copy`], resolved).
+    copy: Option<crate::spec::CopyCfg>,
 }
 
 /// How the single-sequence engine uses its prefix store.
@@ -793,6 +798,18 @@ impl LocalEngine {
             s.announce(&telemetry);
         }
         let mtp_store = meta.mtp_store.unwrap_or_else(|| crate::spec::mtp_store_for(model.backend.name()));
+        let copy = meta.spec_copy.or_else(crate::spec::copy_from_env).filter(|_| meta.spec.mode == crate::spec::SpecMode::Mtp);
+        if let Some(c) = copy {
+            if model.verify_rows() < 1 + c.len {
+                return Err(Error::invalid(format!(
+                    "copy drafts of {} tokens need verify passes of {} rows; the model was prepared for {}",
+                    c.len,
+                    1 + c.len,
+                    model.verify_rows()
+                )));
+            }
+            eprintln!("spec: copy drafts on: a chain of up to {} tokens when the last {} tokens occurred earlier (INTARSIA_SPEC_COPY)", c.len, c.n);
+        }
         if store.is_some() && meta.spec.mode == crate::spec::SpecMode::Mtp && model.has_mtp() {
             announce_mtp_store(mtp_store);
         }
@@ -815,6 +832,7 @@ impl LocalEngine {
             failed,
             store,
             mtp_store,
+            copy,
         });
         let (tx, rx) = channel::<Job>();
         let sh = shared.clone();
@@ -1308,6 +1326,10 @@ pub(crate) struct Seq {
     /// The model-based drafter is the DFlash block draft (`--spec dflash`), not the MTP head.
     spec_dflash: bool,
     spec_k: usize,
+    /// Copy drafts ([`crate::spec::CopyCfg`]; single-sequence engine, greedy `--spec mtp` requests): set by [`Seq::new`] only.
+    copy: Option<crate::spec::CopyCfg>,
+    /// The verify pass running is a copy chain, not the MTP head's drafts: the adaptive depth and the back-off gate do not see it.
+    copy_pass: bool,
     /// Adaptive draft depth in `[INTARSIA_SPEC_K_MIN, spec_k]` (MTP drafts only); `None`: every pass drafts `spec_k`.
     depth: Option<crate::spec::Depth>,
     /// Speculation for this sampled request ([`crate::spec::SampledSpec`]; `Off` for greedy requests, which keep the greedy
@@ -1422,6 +1444,8 @@ impl Seq {
             // the single-sequence loop times its own steps; the batched scheduler shares one step among sequences
             seq.gate.set_cost(model.spec_cost_params());
         }
+        // lane mcopy: copy drafts for a greedy `--spec mtp` request, this engine only (the batched scheduler never sets it)
+        seq.copy = sh.copy.filter(|_| seq.spec_on && seq.greedy && st.peers.is_empty() && st.remote.is_none());
         if seq.spec_on && sh.env().spec.mode == crate::spec::SpecMode::Auto {
             seq.auto = Some(crate::spec::AutoPolicy::new(model.spec_auto_params()));
         }
@@ -1577,6 +1601,8 @@ impl Seq {
             spec_mtp,
             spec_dflash,
             spec_k,
+            copy: None,
+            copy_pass: false,
             depth: if spec_mtp && !spec_dflash { crate::spec::k_min_for(&env.spec).and_then(|m| crate::spec::Depth::new(m, spec_k)) } else { None },
             spec_sampled: crate::spec::SampledSpec::Off,
             spec_keyed: false,
@@ -2031,6 +2057,17 @@ impl Seq {
                 }
                 let k = k.min(room).min(self.max_new.saturating_sub(self.generated + 1));
                 if k > 0 && (self.generated >= self.req.min_tokens || self.stop_ids.is_empty()) {
+                    // lane mcopy: the last `n` tokens occurred earlier: verify the text that followed as one chain (a pass of up to
+                    // 1 + len rows, eager) instead of the head's `k` drafts. Same room and min_tokens rules as the head's drafts.
+                    if let Some(c) = self.copy {
+                        let len = c.len.min(room).min(self.max_new.saturating_sub(self.generated + 1));
+                        if len >= crate::spec::COPY_MIN_CHAIN {
+                            let drafts = crate::spec::propose_copy(&self.ctx, crate::spec::CopyCfg { len, ..c });
+                            if !drafts.is_empty() {
+                                return Next::Verify(drafts);
+                            }
+                        }
+                    }
                     return Next::Draft(k);
                 }
                 return Next::Plain;
@@ -2168,13 +2205,17 @@ impl Seq {
     /// Telemetry, gate and the queue of tokens a verify pass yields.
     fn account_verify(&mut self, pos: usize, drafts: &[u32], step: SpecStep) {
         self.telemetry.spec_step(drafts.len(), step.accepted);
-        self.gate.record(step.accepted);
-        if let Some(d) = self.depth.as_mut().filter(|_| self.spec_mtp) {
-            d.update(drafts.len(), step.accepted_exact);
+        // a copy chain says nothing about the MTP head's acceptance: neither the back-off gate nor the adaptive depth see it
+        if !self.copy_pass {
+            self.gate.record(step.accepted);
+            if let Some(d) = self.depth.as_mut().filter(|_| self.spec_mtp) {
+                d.update(drafts.len(), step.accepted_exact);
+            }
         }
         if crate::spec::trace_enabled() {
             eprintln!(
-                "spec: token {} pos {} drafted {} accepted {} emits {} drafts {drafts:?}{}",
+                "spec: {}token {} pos {} drafted {} accepted {} emits {} drafts {drafts:?}{}",
+                if self.copy_pass { "copy " } else { "" },
                 self.generated + 1,
                 pos,
                 drafts.len(),
@@ -2270,7 +2311,20 @@ impl Seq {
                 return Ok(Prep::Ready);
             }
             Next::Verify(drafts) => {
-                self.verify(model, st, &drafts)?;
+                // lane mcopy: a copy chain is a speculative pass of the MTP request (the cost gate times it as one)
+                self.copy_pass = self.copy.is_some();
+                if self.copy_pass {
+                    self.predraft = None;
+                    self.staged = None;
+                    self.cost_begin(true);
+                    // the chain's rows only queue for the head (a verify pass never catches up): catch it up before the queue could overflow
+                    if model.mtp_queue_room(st) < 2 * (drafts.len() + 1) {
+                        model.mtp_catch_up(st)?;
+                    }
+                }
+                let r = self.verify(model, st, &drafts);
+                self.copy_pass = false;
+                r?;
                 if let Some(t) = self.pending.pop_front() {
                     self.tok = t;
                     return Ok(Prep::Ready);
