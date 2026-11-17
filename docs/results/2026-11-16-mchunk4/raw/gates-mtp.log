@@ -4,3 +4,10 @@ fleetq: #9838 waiting (#2 in line): in line behind #9837 "mchunk4: route trace v
 fleetq:   #9837 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9837 set, or it will wait for #9837 to be released.
 fleetq: #9838 waiting (#1 in line): needs gpu quiet on endor, but #9837 "mchunk4: route trace v2 (short prompts, 6 servers)" (claude-2ae67a71) loads it
 fleetq:   #9837 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9837 set, or it will wait for #9837 to be released.
+fleetq: #9838 running on endor: zsh -c '/opt/code/intarsiaml/.worktrees/mchunk4/scripts/mchunk4/gates.sh mtp'
+mtp p0 base: 9ba316627dad2f2445e58dafb2753f2c speculative decoding: Mtp SAME
+mtp p0 new: 9ba316627dad2f2445e58dafb2753f2c speculative decoding: Mtp SAME
+mtp p1 base: 2c7de3432445a58f09d2eabc3dca11b5 speculative decoding: Mtp SAME
+mtp p1 new: 2c7de3432445a58f09d2eabc3dca11b5 speculative decoding: Mtp SAME
+## done mtp
+fleetq: #9838 done (exit 0)
