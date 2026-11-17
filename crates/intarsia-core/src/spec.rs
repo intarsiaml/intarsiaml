@@ -368,17 +368,18 @@ pub const COPY_MIN_N: usize = 4;
 /// A chain that accepts fewer drafts than this missed ([`CopyBackoff`]): a chain pass (eager, `1 + len` rows) costs about 1.5 MTP graph
 /// steps, so it needs 3 accepted drafts to break even.
 pub const COPY_MIN_ACCEPT: usize = 3;
-/// First and longest skip window of [`CopyBackoff`], in steps.
-pub const COPY_BACKOFF_FIRST: usize = 4;
+/// Longest skip window of [`CopyBackoff`], in steps.
 pub const COPY_BACKOFF_MAX: usize = 64;
 
-/// Per-request back-off for copy chains (lane mcopy2): after a chain that accepted fewer than [`COPY_MIN_ACCEPT`] drafts the next
-/// [`COPY_BACKOFF_FIRST`] steps propose no chain (the head's drafts run instead), after the next miss twice as many, up to
-/// [`COPY_BACKOFF_MAX`]; a chain that accepts [`COPY_MIN_ACCEPT`] or more resets the window. The skipped steps also skip the scan.
+/// Per-request back-off for copy chains (lane mcopy2): after `m` consecutive chains that each accepted fewer than [`COPY_MIN_ACCEPT`]
+/// drafts the next `2^(m-1)` steps propose no chain (the head's drafts run instead), up to [`COPY_BACKOFF_MAX`]; a chain that accepts
+/// [`COPY_MIN_ACCEPT`] or more resets the count. A miss costs about one hit's gain (a chain pass is ~1.5 MTP graph steps), so isolated
+/// misses next to hits (JSON, copied source) skip one step, and only a run of misses (look-alike text) backs off for long. A first
+/// version skipped 4, 8, ... steps after every miss: it lost 5 % of the json-xform gain. The skipped steps also skip the scan.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CopyBackoff {
     skip: usize,
-    window: usize,
+    misses: u32,
 }
 
 impl CopyBackoff {
@@ -396,8 +397,8 @@ impl CopyBackoff {
         if accepted >= COPY_MIN_ACCEPT {
             *self = CopyBackoff::default();
         } else {
-            self.window = if self.window == 0 { COPY_BACKOFF_FIRST } else { (self.window * 2).min(COPY_BACKOFF_MAX) };
-            self.skip = self.window;
+            self.misses = (self.misses + 1).min(16);
+            self.skip = (1usize << (self.misses - 1)).min(COPY_BACKOFF_MAX);
         }
     }
 }
@@ -2249,12 +2250,12 @@ mod tests {
     }
 
     #[test]
-    fn copy_backoff_skips_a_growing_window_after_a_miss_and_resets_on_a_hit() {
+    fn copy_backoff_doubles_over_consecutive_misses_and_resets_on_a_hit() {
         let mut b = CopyBackoff::default();
         assert!(b.ready() && b.ready(), "no skip before the first chain");
-        // a chain that accepts too little: 4 skipped steps, then ready; the next miss doubles, up to the cap
-        let mut window = COPY_BACKOFF_FIRST;
-        for _ in 0..8 {
+        // consecutive chains that accept too little: 1, 2, 4, ... steps skipped, then ready; capped
+        let mut window = 1;
+        for _ in 0..10 {
             b.record(COPY_MIN_ACCEPT - 1);
             for i in 0..window {
                 assert!(!b.ready(), "step {i} of a {window} window");
@@ -2263,12 +2264,15 @@ mod tests {
             window = (window * 2).min(COPY_BACKOFF_MAX);
         }
         assert_eq!(window, COPY_BACKOFF_MAX);
-        // a hit resets the window: the next miss starts from the first again
+        // a hit resets the count: the next miss skips one step again, and a hit between misses keeps them isolated
         b.record(COPY_MIN_ACCEPT);
         assert!(b.ready());
-        b.record(0);
-        assert_eq!((0..COPY_BACKOFF_FIRST).filter(|_| b.ready()).count(), 0);
-        assert!(b.ready());
+        for _ in 0..3 {
+            b.record(0);
+            assert!(!b.ready() && b.ready());
+            b.record(COPY_MIN_ACCEPT + 4);
+            assert!(b.ready());
+        }
     }
 
     #[test]
