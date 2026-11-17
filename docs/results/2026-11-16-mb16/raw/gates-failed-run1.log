@@ -1,0 +1,64 @@
+fleetq: #9808 running on endor: zsh -c 'cd /opt/code/intarsiaml/.worktrees/mb16 && zsh scripts/mb16/gates.sh solo && zsh scripts/mb16/gates.sh served && zsh scripts/mb16/gates.sh compare'
+scripts/mb16/gates.sh:31: no such file or directory: python3 /opt/code/intarsiaml/.worktrees/mb16/scripts/mb16/served_ids.py
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p0.txt: No such file or directory
+solo p0 FAILED
+solo p0: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p1.txt: No such file or directory
+solo p1 FAILED
+solo p1: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p2.txt: No such file or directory
+solo p2 FAILED
+solo p2: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p3.txt: No such file or directory
+solo p3 FAILED
+solo p3: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p4.txt: No such file or directory
+solo p4 FAILED
+solo p4: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p5.txt: No such file or directory
+solo p5 FAILED
+solo p5: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p6.txt: No such file or directory
+solo p6 FAILED
+solo p6: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p7.txt: No such file or directory
+solo p7 FAILED
+solo p7: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p8.txt: No such file or directory
+solo p8 FAILED
+solo p8: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p9.txt: No such file or directory
+solo p9 FAILED
+solo p9: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p10.txt: No such file or directory
+solo p10 FAILED
+solo p10: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p11.txt: No such file or directory
+solo p11 FAILED
+solo p11: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p12.txt: No such file or directory
+solo p12 FAILED
+solo p12: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p13.txt: No such file or directory
+solo p13 FAILED
+solo p13: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p14.txt: No such file or directory
+solo p14 FAILED
+solo p14: 
+cat: /opt/code/intarsiaml/.worktrees/mb16/docs/results/2026-11-16-mb16/raw/gates/prompts/p15.txt: No such file or directory
+solo p15 FAILED
+solo p15: 
+scripts/mb16/gates.sh:37: no such file or directory: python3 /opt/code/intarsiaml/.worktrees/mb16/scripts/mb16/served_ids.py
+## done solo
+new-mb16: scripts/mb16/gates.sh:44: no such file or directory: python3 /opt/code/intarsiaml/.worktrees/mb16/scripts/mb16/served_ids.py
+new-mb8: scripts/mb16/gates.sh:44: no such file or directory: python3 /opt/code/intarsiaml/.worktrees/mb16/scripts/mb16/served_ids.py
+base-mb8: scripts/mb16/gates.sh:44: no such file or directory: python3 /opt/code/intarsiaml/.worktrees/mb16/scripts/mb16/served_ids.py
+## done served
+scripts/mb16/gates.sh:51: no such file or directory: python3 /opt/code/intarsiaml/.worktrees/mb16/scripts/mb16/served_ids.py
+scripts/mb16/gates.sh:51: no such file or directory: python3 /opt/code/intarsiaml/.worktrees/mb16/scripts/mb16/served_ids.py
+scripts/mb16/gates.sh:51: no such file or directory: python3 /opt/code/intarsiaml/.worktrees/mb16/scripts/mb16/served_ids.py
+scripts/mb16/gates.sh:52: no such file or directory: python3 /opt/code/intarsiaml/.worktrees/mb16/scripts/mb16/served_ids.py
+plan base-mb8 vs new-mb8: 9 differing lines
+plan base-mb8 vs new-mb16: 15 differing lines
+## done compare
+fleetq: #9808 done (exit 0)

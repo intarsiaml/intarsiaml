@@ -1,0 +1,13 @@
+fleetq: #9797 running on endor: zsh scripts/mb16/abba.sh docs/results/2026-11-16-mb16/raw/probe 'A0 B0'
+CELL tag=A0 null4k streams=1 requests=2 tokens=64 wall_s=12.18 agg_tps=5.253 ttft_p50=5.154 ttft_mean=5.154 dec_tps_p50=33.08 prompt_tokens_p50=4716
+CELL tag=A0 s4 streams=4 requests=8 tokens=2048 wall_s=24.9 agg_tps=82.23 ttft_p50=0.6737 ttft_mean=0.6402 dec_tps_p50=21.75 prompt_tokens_p50=113.5
+CELL tag=A0 s9 streams=9 requests=18 tokens=4608 wall_s=62.28 agg_tps=73.98 ttft_p50=0.9681 ttft_mean=3.8 dec_tps_p50=10.1 prompt_tokens_p50=115
+CELL tag=A0 s12 streams=12 requests=24 tokens=6144 wall_s=79.34 agg_tps=77.43 ttft_p50=2.021 ttft_mean=9.896 dec_tps_p50=9.895 prompt_tokens_p50=116.5
+CELL tag=A0 s16 streams=16 requests=32 tokens=8192 wall_s=106 agg_tps=77.26 ttft_p50=26.86 ttft_mean=20.69 dec_tps_p50=9.901 prompt_tokens_p50=114.5
+CELL tag=B0 null4k streams=1 requests=2 tokens=64 wall_s=14.3 agg_tps=4.475 ttft_p50=6.196 ttft_mean=6.196 dec_tps_p50=32.5 prompt_tokens_p50=4716
+CELL tag=B0 s4 streams=4 requests=8 tokens=2048 wall_s=26.63 agg_tps=76.9 ttft_p50=0.7108 ttft_mean=0.6653 dec_tps_p50=20.25 prompt_tokens_p50=113.5
+CELL tag=B0 s9 streams=9 requests=18 tokens=4608 wall_s=65.85 agg_tps=69.97 ttft_p50=0.9372 ttft_mean=1.16 dec_tps_p50=7.982 prompt_tokens_p50=115
+CELL tag=B0 s12 streams=12 requests=24 tokens=6144 wall_s=96.24 agg_tps=63.84 ttft_p50=1.077 ttft_mean=1.475 dec_tps_p50=5.489 prompt_tokens_p50=116.5
+CELL tag=B0 s16 streams=16 requests=32 tokens=8192 wall_s=104.3 agg_tps=78.56 ttft_p50=1.193 ttft_mean=1.964 dec_tps_p50=5.089 prompt_tokens_p50=114.5
+## done
+fleetq: #9797 done (exit 0)

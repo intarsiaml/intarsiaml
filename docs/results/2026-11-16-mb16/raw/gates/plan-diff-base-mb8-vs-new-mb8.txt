@@ -1,0 +1,10 @@
+716a717,725
+>             "kernel": "matmul_mxfp4_gemv_rows",
+>             "backend": "metal",
+>             "exactness": "deterministic",
+>             "admitted": true,
+>             "calls_per_decode_step": 0,
+>             "scratch_bytes": 278544
+>         },
+>         {
+>             "op": "matmul_mxfp4",
