@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Lane mb16 gates (27B, Metal). Run under fleetq. Binaries: NEW = this worktree's target/release/intarsia, BASE = main c60d26caf built
+# Lane mb16 gates (27B, Metal). Run under fleetq. Binaries: NEW = this branch built with --features metal, copied to .base/bin-mb16/intarsia (a later cargo build without the feature overwrites target/release), BASE = main c60d26caf built
 # into .base/target (git archive, scripts/mb16/build-base.sh).
 #   solo     : `generate --spec off --show-ids` (256 tokens, greedy) on each of the 16 prompts of served_ids.py, NEW binary: the
 #              solo reference of every served stream
@@ -12,11 +12,11 @@
 set -u
 [ -n "${FLEETQ_JOB:-}" ] || { echo "not inside a fleetq slot" >&2; exit 2; }
 W=/opt/code/intarsiaml/.worktrees/mb16; R=$W/docs/results/2026-11-16-mb16/raw/gates; mkdir -p $R/prompts
-BASE=$W/.base/target/release/intarsia; NEW=$W/target/release/intarsia
+BASE=$W/.base/target/release/intarsia; NEW=$W/.base/bin-mb16/intarsia
 M27=$HOME/models/Qwen3.8-27B-Quark-AWQ-MXFP4
 TXT=$W/docs/results/raw/2026-10-15-metal-longctx-profile/prompts/prompt-16384.txt
 MAXSEQ=${MAXSEQ:-8192}
-PY="python3 $W/scripts/mb16/served_ids.py"
+py() { python3 $W/scripts/mb16/served_ids.py "$@"; }
 PORT=18675
 start() { local O=$1 B=$2; shift 2; mkdir -p $O
   $B serve --backend metal --model $M27 --served-model-name intarsia --max-seq $MAXSEQ --profile-every 0 --no-supervisor --no-ui \
@@ -28,28 +28,28 @@ start() { local O=$1 B=$2; shift 2; mkdir -p $O
 stop() { kill -INT $TP 2>/dev/null; for i in {1..60}; do kill -0 $TP 2>/dev/null || break; sleep 1; done; kill -9 $TP 2>/dev/null; wait $TP 2>/dev/null; }
 case ${1:?step} in
   solo)
-    $PY prompts --text $TXT --dir $R/prompts
+    py prompts --text $TXT --dir $R/prompts
     for i in {0..15}; do
       $NEW generate --model $M27 --backend metal --max-seq $MAXSEQ --profile-every 0 --temperature 0 --max-tokens 256 --ignore-eos \
         --show-ids --spec off --prompt "$(cat $R/prompts/p$i.txt)" > $R/solo/ids-p$i.out 2> $R/solo/ids-p$i.err || echo "solo p$i FAILED"
       echo "solo p$i: $(grep -aoE '^prompt: [0-9]+ tokens' $R/solo/ids-p$i.err)"
     done 2>&1
-    $PY solo $R/solo/ids-p*.err --json $R/solo.json
+    py solo $R/solo/ids-p*.err --json $R/solo.json
     ;;
   served)
     for arm in new-mb16 new-mb8 base-mb8; do
       B=$NEW; [ ${arm%%-*} = base ] && B=$BASE
       start $R/served-$arm $B --max-batch ${arm##*-mb} || continue
       curl -s http://127.0.0.1:$PORT/v1/intarsia/plan > $R/plan-$arm.json
-      $PY run --url http://127.0.0.1:$PORT/v1 --text $TXT --out $R/served-$arm.json 2>&1 | sed "s/^/$arm: /"
+      py run --url http://127.0.0.1:$PORT/v1 --text $TXT --out $R/served-$arm.json 2>&1 | sed "s/^/$arm: /"
       stop
       grep -a "context clamped\|reserved for the recurrent\|specul" $R/served-$arm/server.err | sed "s/^/$arm: /" | cut -c1-200
       gzip -f $R/served-$arm/server.err
     done
     ;;
   compare)
-    for arm in new-mb16 new-mb8 base-mb8; do $PY vs-solo $R/served-$arm.json $R/solo.json; done
-    $PY compare $R/served-base-mb8.json $R/served-new-mb8.json
+    for arm in new-mb16 new-mb8 base-mb8; do py vs-solo $R/served-$arm.json $R/solo.json; done
+    py compare $R/served-base-mb8.json $R/served-new-mb8.json
     for a in new-mb8 new-mb16; do
       diff <(python3 -m json.tool $R/plan-base-mb8.json) <(python3 -m json.tool $R/plan-$a.json) > $R/plan-diff-base-mb8-vs-$a.txt
       echo "plan base-mb8 vs $a: $(grep -c '^[<>]' $R/plan-diff-base-mb8-vs-$a.txt) differing lines"

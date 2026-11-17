@@ -31,7 +31,7 @@ cell() { # dir tag streams requests chars offset gen
   echo "$(date +%s.%N) end $2 thermal $(th)" >> $1/cells.txt
 }
 for V in ${=VISITS}; do
-  if [ ${V[1]} = A ]; then B=$W/.base/target/release/intarsia; MB=8; else B=$W/target/release/intarsia; MB=16; fi
+  if [ ${V[1]} = A ]; then B=$W/.base/target/release/intarsia; MB=8; else B=$W/.base/bin-mb16/intarsia; MB=16; fi
   D=$O/$V-mb$MB; mkdir -p $D; cool $D; start $D $B --max-batch $MB || continue
   python3 $W/scripts/msmallm/load.py --url http://127.0.0.1:$PORT/v1 --text $TXT --streams 2 --requests 1 --chars 430 --offset 50000 --gen 16 --out $D/warm.json > /dev/null
   cell $D null4k 1 2 17800 20000 32
