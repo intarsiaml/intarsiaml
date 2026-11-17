@@ -1062,10 +1062,21 @@ fn batched_store_opts(
     cfg: Option<PrefixStoreConfig>,
     f: impl FnOnce(&mut BatchedOptions),
 ) -> intarsia_core::Result<BatchedEngine> {
-    let mut o = BatchedOptions::new(2, 64);
+    batched_store_slots(kind, chunk, 2, cfg, f)
+}
+
+/// [`batched_store_opts`] with `slots` slots.
+fn batched_store_slots(
+    kind: Kind,
+    chunk: usize,
+    slots: usize,
+    cfg: Option<PrefixStoreConfig>,
+    f: impl FnOnce(&mut BatchedOptions),
+) -> intarsia_core::Result<BatchedEngine> {
+    let mut o = BatchedOptions::new(slots, 64);
     o.busy_chunk = (chunk / 2).max(1);
     f(&mut o);
-    BatchedEngine::new(planned(kind, chunk, 2), Arc::new(kind.codec()), store_meta(cfg), Arc::new(Telemetry::new()), o)
+    BatchedEngine::new(planned(kind, chunk, slots), Arc::new(kind.codec()), store_meta(cfg), Arc::new(Telemetry::new()), o)
 }
 
 fn traced(prompt: &[u32], n: usize) -> (GenRequest, Arc<Mutex<Vec<Vec<f32>>>>) {
@@ -1089,6 +1100,8 @@ fn run_batched(e: &BatchedEngine, reqs: &[(Vec<u32>, usize)]) -> Vec<Out> {
             (e.submit(req).unwrap(), trace)
         })
         .collect();
+    // an engine built held (`BatchedOptions::hold_start`) sees the whole workload in its first iteration; no effect on any other
+    e.release();
     pending
         .into_iter()
         .map(|(rx, trace)| {
@@ -1239,6 +1252,103 @@ fn batched_store_failed_request_settles_when_idle() {
         }
         assert!(eng.failed().is_none());
     }
+}
+
+// ---------------------------------------------------------------------------------------------- prefix herd (lane herd)
+
+/// `n` prompts sharing `shared` leading tokens (plain ids: no message boundary, so the store captures on its grid) and each with
+/// `own` tokens of its own.
+fn herd_prompts(kind: Kind, n: usize, shared: usize, own: usize) -> Vec<Vec<u32>> {
+    let span = kind.vocab() - 20;
+    let head: Vec<u32> = (0..shared as u32).map(|i| 10 + (i * 7 + 3) % span).collect();
+    (0..n as u32)
+        .map(|k| {
+            let mut p = head.clone();
+            p.extend((0..own as u32).map(|i| 10 + (k * 29 + i * 11 + 5) % span));
+            p
+        })
+        .collect()
+}
+
+/// A 4-slot batched engine with the store, started held so that the 4 requests are admitted together; `herd` is
+/// `INTARSIA_PREFIX_HERD`.
+fn herd_engine(kind: Kind, chunk: usize, herd: bool) -> BatchedEngine {
+    batched_store_slots(kind, chunk, 4, Some(store_cfg()), |o| {
+        o.prefix_herd = herd;
+        o.hold_start = true;
+    })
+    .unwrap()
+}
+
+/// 4 simultaneous requests with one new shared prefix (96 tokens, 12 chunks) and 20 tokens of their own each. With the herd on,
+/// the leader prefills the prefix and the followers restore it from the store and prefill only their own 20 tokens (the prefill
+/// rows are counted); every reply (ids and every step's logits, bitwise) is the same request's cold reply of the single-sequence
+/// engine with the store on. With it off, each request prefills the whole prompt and restores nothing (the baseline).
+fn herd_identity(kind: Kind) {
+    let (chunk, n_gen) = (8, 6);
+    let ps = herd_prompts(kind, 4, 96, 20);
+    let plen = ps[0].len();
+    let reqs: Vec<(Vec<u32>, usize)> = ps.iter().map(|p| (p.clone(), n_gen)).collect();
+    // the reference: each request alone on a fresh single-sequence engine with the store on (a cold run)
+    let solo: Vec<Out> = ps.iter().map(|p| run(&engine(kind, chunk, Some(store_cfg())), p, n_gen)).collect();
+
+    let off = herd_engine(kind, chunk, false);
+    let got = run_batched(&off, &reqs);
+    for (i, (g, s)) in got.iter().zip(&solo).enumerate() {
+        same_bits(g, s, &format!("herd off, request {i}: batched vs single-sequence (store on)"));
+        assert_eq!(g.cached, 0, "herd off, request {i} found a prefix at admission");
+    }
+    let m = off.metrics();
+    assert_eq!(m.prefill_tokens as usize, 4 * plen, "herd off: every request prefills its whole prompt");
+    assert_eq!((m.herd_holds, m.herd_restores, m.herd_tokens), (0, 0, 0));
+
+    let on = herd_engine(kind, chunk, true);
+    let got = run_batched(&on, &reqs);
+    for (i, (g, s)) in got.iter().zip(&solo).enumerate() {
+        same_bits(g, s, &format!("herd on, request {i}: batched vs single-sequence (store on)"));
+    }
+    let m = on.metrics();
+    assert_eq!(m.prefill_tokens as usize, plen + 3 * 20, "herd on: followers prefill only their own tokens");
+    assert_eq!((m.herd_restores, m.herd_tokens), (3, 3 * 96));
+    assert!(m.herd_holds > 0);
+    let mut cached: Vec<usize> = got.iter().map(|g| g.cached).collect();
+    cached.sort();
+    assert_eq!(cached, vec![0, 96, 96, 96], "the followers report the restored prefix as cached");
+    let snap = on.telemetry().prefix_store.unwrap();
+    assert!(snap.hits >= 3, "{snap:?}");
+    assert!(on.failed().is_none());
+}
+
+#[test]
+fn batched_hybrid_herd_followers_restore_from_the_leader() {
+    herd_identity(Kind::Hybrid);
+}
+
+#[test]
+fn batched_dense_herd_followers_restore_from_the_leader() {
+    herd_identity(Kind::Dense);
+}
+
+/// The herd on with distinct prompts changes nothing: no holds, no restores, the same prefill rows as with it off.
+#[test]
+fn batched_herd_distinct_prompts_are_untouched() {
+    let kind = Kind::Hybrid;
+    // 60 plain tokens each, sharing none (the first tokens differ)
+    let ps: Vec<Vec<u32>> = (0..4u32).map(|k| (0..60u32).map(|i| 10 + (k * 19 + i * 13 + k * i) % 76).collect()).collect();
+    assert!(ps.windows(2).all(|w| w[0][..4] != w[1][..4]));
+    let reqs: Vec<(Vec<u32>, usize)> = ps.iter().map(|p| (p.clone(), 5)).collect();
+    let rows = |herd: bool| {
+        let e = herd_engine(kind, 8, herd);
+        let got = run_batched(&e, &reqs);
+        (got, e.metrics())
+    };
+    let (off, m_off) = rows(false);
+    let (on, m_on) = rows(true);
+    for (i, (a, b)) in on.iter().zip(&off).enumerate() {
+        same_bits(a, b, &format!("distinct prompt {i}"));
+    }
+    assert_eq!(m_on.prefill_tokens, m_off.prefill_tokens);
+    assert_eq!((m_on.herd_holds, m_on.herd_restores, m_on.herd_tokens), (0, 0, 0));
 }
 
 #[test]
