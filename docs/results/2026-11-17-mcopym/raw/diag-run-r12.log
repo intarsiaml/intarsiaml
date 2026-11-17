@@ -1,0 +1,33 @@
+fleetq: #9957 running on endor: env W=diag R0=1 ROUNDS=2 REPS=5 'CELLS=code-gen reason chat-short' 'ARMS=base:X=1 n256:INTARSIA_SPEC_COPY=256 n20:INTARSIA_SPEC_COPY=20' scripts/mcopym/ab.sh
+== round 1 arm base env X=1 cooled 55s thermal 0 18:15:35
+base r1 code-gen thermal 0->0: {"cell": "code-gen", "tag": "c1", "rep": 4, "toks": 800, "chunks": 800, "ttft": 0.067, "dec_tps": 196.65, "wall": 4.13, "sha": "fa4d6be38e38"}
+base r1 reason thermal 0->0: {"cell": "reason", "tag": "c1", "rep": 4, "toks": 500, "chunks": 500, "ttft": 0.07, "dec_tps": 196.79, "wall": 2.606, "sha": "b15c549d93c2"}
+base r1 chat-short thermal 0->0: {"cell": "chat-short", "tag": "c1", "rep": 4, "toks": 395, "chunks": 394, "ttft": 0.059, "dec_tps": 176.45, "wall": 2.292, "sha": "af42bdc86957"}
+base r1 metrics: intarsia_spec_steps_total 3400 intarsia_spec_proposed_tokens_total 6796 intarsia_spec_accepted_tokens_total 5769 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+== round 1 arm n256 env INTARSIA_SPEC_COPY=256 cooled 0s thermal 0 18:16:29
+n256 r1 code-gen thermal 1->2: {"cell": "code-gen", "tag": "c1", "rep": 4, "toks": 800, "chunks": 800, "ttft": 0.07, "dec_tps": 194.79, "wall": 4.172, "sha": "fa4d6be38e38"}
+n256 r1 reason thermal 2->2: {"cell": "reason", "tag": "c1", "rep": 4, "toks": 500, "chunks": 500, "ttft": 0.074, "dec_tps": 191.49, "wall": 2.68, "sha": "b15c549d93c2"}
+n256 r1 chat-short thermal 2->2: {"cell": "chat-short", "tag": "c1", "rep": 4, "toks": 395, "chunks": 394, "ttft": 0.06, "dec_tps": 174.33, "wall": 2.32, "sha": "af42bdc86957"}
+n256 r1 metrics: intarsia_spec_steps_total 3400 intarsia_spec_proposed_tokens_total 6796 intarsia_spec_accepted_tokens_total 5769 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+== round 1 arm n20 env INTARSIA_SPEC_COPY=20 cooled 90s thermal 0 18:18:55
+n20 r1 code-gen thermal 0->0: {"cell": "code-gen", "tag": "c1", "rep": 4, "toks": 800, "chunks": 800, "ttft": 0.069, "dec_tps": 195.62, "wall": 4.154, "sha": "fa4d6be38e38"}
+n20 r1 reason thermal 0->0: {"cell": "reason", "tag": "c1", "rep": 4, "toks": 500, "chunks": 500, "ttft": 0.07, "dec_tps": 196.36, "wall": 2.611, "sha": "b15c549d93c2"}
+n20 r1 chat-short thermal 0->0: {"cell": "chat-short", "tag": "c1", "rep": 4, "toks": 395, "chunks": 394, "ttft": 0.061, "dec_tps": 174.98, "wall": 2.313, "sha": "af42bdc86957"}
+n20 r1 metrics: intarsia_spec_steps_total 3396 intarsia_spec_proposed_tokens_total 6788 intarsia_spec_accepted_tokens_total 5759 intarsia_spec_copy_steps_total 7 intarsia_spec_copy_proposed_tokens_total 49 intarsia_spec_copy_accepted_tokens_total 8 
+== round 2 arm n20 env INTARSIA_SPEC_COPY=20 cooled 0s thermal 0 18:19:49
+n20 r2 code-gen thermal 1->1: {"cell": "code-gen", "tag": "c2", "rep": 4, "toks": 800, "chunks": 800, "ttft": 0.067, "dec_tps": 197.05, "wall": 4.122, "sha": "fc83299f289f"}
+n20 r2 reason thermal 1->1: {"cell": "reason", "tag": "c2", "rep": 4, "toks": 500, "chunks": 500, "ttft": 0.074, "dec_tps": 193.26, "wall": 2.656, "sha": "8b095a0fa7a9"}
+n20 r2 chat-short thermal 1->2: {"cell": "chat-short", "tag": "c2", "rep": 4, "toks": 390, "chunks": 389, "ttft": 0.063, "dec_tps": 174.51, "wall": 2.292, "sha": "7c6f89a023a5"}
+n20 r2 metrics: intarsia_spec_steps_total 3383 intarsia_spec_proposed_tokens_total 6758 intarsia_spec_accepted_tokens_total 5750 intarsia_spec_copy_steps_total 3 intarsia_spec_copy_proposed_tokens_total 21 intarsia_spec_copy_accepted_tokens_total 6 
+== round 2 arm n256 env INTARSIA_SPEC_COPY=256 cooled 100s thermal 0 18:22:25
+n256 r2 code-gen thermal 0->0: {"cell": "code-gen", "tag": "c2", "rep": 4, "toks": 800, "chunks": 800, "ttft": 0.064, "dec_tps": 196.21, "wall": 4.136, "sha": "fc83299f289f"}
+n256 r2 reason thermal 0->0: {"cell": "reason", "tag": "c2", "rep": 4, "toks": 500, "chunks": 500, "ttft": 0.071, "dec_tps": 204.24, "wall": 2.515, "sha": "8b095a0fa7a9"}
+n256 r2 chat-short thermal 0->0: {"cell": "chat-short", "tag": "c2", "rep": 4, "toks": 390, "chunks": 389, "ttft": 0.06, "dec_tps": 161.51, "wall": 2.469, "sha": "7c6f89a023a5"}
+n256 r2 metrics: intarsia_spec_steps_total 3386 intarsia_spec_proposed_tokens_total 6764 intarsia_spec_accepted_tokens_total 5756 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+== round 2 arm base env X=1 cooled 0s thermal 0 18:23:20
+base r2 code-gen thermal 0->1: {"cell": "code-gen", "tag": "c2", "rep": 4, "toks": 800, "chunks": 800, "ttft": 0.072, "dec_tps": 188.64, "wall": 4.308, "sha": "fc83299f289f"}
+base r2 reason thermal 1->2: {"cell": "reason", "tag": "c2", "rep": 4, "toks": 500, "chunks": 500, "ttft": 0.069, "dec_tps": 194.63, "wall": 2.632, "sha": "8b095a0fa7a9"}
+base r2 chat-short thermal 2->2: {"cell": "chat-short", "tag": "c2", "rep": 4, "toks": 390, "chunks": 389, "ttft": 0.063, "dec_tps": 175.97, "wall": 2.273, "sha": "7c6f89a023a5"}
+base r2 metrics: intarsia_spec_steps_total 3386 intarsia_spec_proposed_tokens_total 6764 intarsia_spec_accepted_tokens_total 5756 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+ab done
+fleetq: #9957 done (exit 0)

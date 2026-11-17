@@ -1028,12 +1028,12 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             )));
         }
         // lane mcopy: `INTARSIA_SPEC_COPY` widens the verify passes to the copy chain (`SpecConfig::verify_rows`); only the single-sequence
-        // engine verifies them, on the CUDA backend (and the cpu reference), with one rank and the MTP head
+        // engine verifies them, on the CUDA or Metal backend (and the cpu reference), with one rank and the MTP head (Metal: lane mcopym)
         if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && intarsia_core::spec::copy_from_env().is_some() {
             let name = model.backend.name();
-            if max_batch.value > 1 || model.tp_world() > 1 || !matches!(name, "cuda" | "cpu") {
+            if max_batch.value > 1 || model.tp_world() > 1 || !matches!(name, "cuda" | "metal" | "cpu") {
                 return Err(Error::Unsupported(format!(
-                    "INTARSIA_SPEC_COPY needs --spec mtp with --max-batch 1, one rank, on the cuda backend (max batch {}, tp {}, backend {name})",
+                    "INTARSIA_SPEC_COPY needs --spec mtp with --max-batch 1, one rank, on the cuda or metal backend (max batch {}, tp {}, backend {name})",
                     max_batch.value,
                     model.tp_world()
                 )));

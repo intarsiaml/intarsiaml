@@ -1,0 +1,88 @@
+fleetq: #9943 running on endor: env COOL=30 'ARMS=off mtp copy=20 copy=20,7 copy=12 copy=4' scripts/mcopym/ids.sh copy3k json-xform code-gen reason chat-short
+-- copy3k off cooled 25s thermal 0
+exit 0 thermal 0
+-- copy3k mtp cooled 0s thermal 0
+exit 0 thermal 0
+-- copy3k copy=20 cooled 0s thermal 0
+exit 0 thermal 0
+-- copy3k copy=20,7 cooled 0s thermal 0
+exit 0 thermal 1
+-- copy3k copy=12 cooled 30s thermal 2
+exit 0 thermal 2
+-- copy3k copy=4 cooled 30s thermal 1
+exit 0 thermal 1
+PASS ids copy3k mtp: 2902 ids identical | | spec: verify passes=968 proposed=1936 accepted=1935 (acceptance 99.9%, 3.00 tokens per pass)|
+PASS ids copy3k copy=20: 2902 ids identical | copy_passes=359 accepted_hist[count acc]=   1 0    1 2  357 7  | spec: copy chain passes=359 proposed=2513 accepted=2501 (not in the verify passes below)|spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids copy3k copy=20,7: 2902 ids identical | copy_passes=359 accepted_hist[count acc]=   1 0    1 2  357 7  | spec: copy chain passes=359 proposed=2513 accepted=2501 (not in the verify passes below)|spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids copy3k copy=12: 2902 ids identical | copy_passes=363 accepted_hist[count acc]=   2 0    2 1    2 2    1 3    1 4    1 6  354 7  | spec: copy chain passes=363 proposed=2541 accepted=2497 (not in the verify passes below)|spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids copy3k copy=4: 2902 ids identical | copy_passes=389 accepted_hist[count acc]=  31 0    8 1   11 2    5 3    5 4    9 5    5 6  315 7  | spec: copy chain passes=389 proposed=2723 accepted=2345 (not in the verify passes below)|spec: verify passes=56 proposed=112 accepted=112 (acceptance 100.0%, 3.00 tokens per pass)|
+-- json-xform off cooled 20s thermal 0
+exit 0 thermal 0
+-- json-xform mtp cooled 0s thermal 0
+exit 0 thermal 0
+-- json-xform copy=20 cooled 0s thermal 0
+exit 0 thermal 1
+-- json-xform copy=20,7 cooled 30s thermal 2
+exit 0 thermal 2
+-- json-xform copy=12 cooled 30s thermal 1
+exit 0 thermal 1
+-- json-xform copy=4 cooled 15s thermal 0
+exit 0 thermal 0
+PASS ids json-xform mtp: 2600 ids identical | | spec: verify passes=866 proposed=1732 accepted=1732 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids json-xform copy=20: 2600 ids identical | copy_passes=323 accepted_hist[count acc]=   2 0    4 1    5 2    6 3    9 4   22 5   10 6  265 7  | spec: copy chain passes=323 proposed=2260 accepted=2093 (not in the verify passes below)|spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids json-xform copy=20,7: 2600 ids identical | copy_passes=323 accepted_hist[count acc]=   2 0    4 1    5 2    6 3    9 4   22 5   10 6  265 7  | spec: copy chain passes=323 proposed=2260 accepted=2093 (not in the verify passes below)|spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids json-xform copy=12: 2600 ids identical | copy_passes=361 accepted_hist[count acc]=  28 0   15 1   38 2   10 3   18 4   16 5    3 6  233 7  | spec: copy chain passes=361 proposed=2527 accepted=1922 (not in the verify passes below)|spec: verify passes=105 proposed=210 accepted=210 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids json-xform copy=4: 2600 ids identical | copy_passes=406 accepted_hist[count acc]=  79 0   32 1   22 2   27 3   43 4   39 5    4 6  160 7  | spec: copy chain passes=406 proposed=2839 accepted=1668 (not in the verify passes below)|spec: verify passes=175 proposed=350 accepted=350 (acceptance 100.0%, 3.00 tokens per pass)|
+-- code-gen off cooled 0s thermal 0
+exit 0 thermal 0
+-- code-gen mtp cooled 0s thermal 0
+exit 0 thermal 1
+-- code-gen copy=20 cooled 30s thermal 2
+exit 0 thermal 2
+-- code-gen copy=20,7 cooled 30s thermal 1
+exit 0 thermal 1
+-- code-gen copy=12 cooled 30s thermal 0
+exit 0 thermal 0
+-- code-gen copy=4 cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids code-gen mtp: 500 ids identical | | spec: verify passes=177 proposed=354 accepted=321 (acceptance 90.7%, 2.81 tokens per pass)|
+PASS ids code-gen copy=20: 500 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 7 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=177 proposed=354 accepted=321 (acceptance 90.7%, 2.81 tokens per pass)|
+PASS ids code-gen copy=20,7: 500 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 7 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=177 proposed=354 accepted=321 (acceptance 90.7%, 2.81 tokens per pass)|
+PASS ids code-gen copy=12: 500 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 7 tokens when the last 12 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=177 proposed=354 accepted=321 (acceptance 90.7%, 2.81 tokens per pass)|
+PASS ids code-gen copy=4: 500 ids identical | copy_passes=10 accepted_hist[count acc]=   6 0    1 1    2 2    1 3  | spec: copy chain passes=10 proposed=70 accepted=8 (not in the verify passes below)|spec: verify passes=172 proposed=344 accepted=308 (acceptance 89.5%, 2.79 tokens per pass)|
+-- reason off cooled 0s thermal 0
+exit 0 thermal 0
+-- reason mtp cooled 0s thermal 0
+exit 0 thermal 0
+-- reason copy=20 cooled 0s thermal 0
+exit 0 thermal 0
+-- reason copy=20,7 cooled 0s thermal 0
+exit 0 thermal 0
+-- reason copy=12 cooled 0s thermal 0
+exit 0 thermal 0
+-- reason copy=4 cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids reason mtp: 500 ids identical | | spec: verify passes=175 proposed=349 accepted=324 (acceptance 92.8%, 2.85 tokens per pass)|
+PASS ids reason copy=20: 500 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 7 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=175 proposed=349 accepted=324 (acceptance 92.8%, 2.85 tokens per pass)|
+PASS ids reason copy=20,7: 500 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 7 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=175 proposed=349 accepted=324 (acceptance 92.8%, 2.85 tokens per pass)|
+PASS ids reason copy=12: 500 ids identical | copy_passes=2 accepted_hist[count acc]=   1 0    1 6  | spec: copy chain passes=2 proposed=14 accepted=6 (not in the verify passes below)|spec: verify passes=172 proposed=343 accepted=319 (acceptance 93.0%, 2.85 tokens per pass)|
+PASS ids reason copy=4: 500 ids identical | copy_passes=26 accepted_hist[count acc]=   7 0    4 1    3 2    4 3    3 4    2 5    1 6    2 7  | spec: copy chain passes=26 proposed=182 accepted=64 (not in the verify passes below)|spec: verify passes=143 proposed=285 accepted=266 (acceptance 93.3%, 2.86 tokens per pass)|
+-- chat-short off cooled 0s thermal 0
+exit 0 thermal 0
+-- chat-short mtp cooled 0s thermal 0
+exit 0 thermal 0
+-- chat-short copy=20 cooled 0s thermal 0
+exit 0 thermal 1
+-- chat-short copy=20,7 cooled 30s thermal 1
+exit 0 thermal 1
+-- chat-short copy=12 cooled 15s thermal 0
+exit 0 thermal 0
+-- chat-short copy=4 cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids chat-short mtp: 389 ids identical | | spec: verify passes=157 proposed=314 accepted=232 (acceptance 73.9%, 2.48 tokens per pass)|
+PASS ids chat-short copy=20: 389 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 7 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=157 proposed=314 accepted=232 (acceptance 73.9%, 2.48 tokens per pass)|
+PASS ids chat-short copy=20,7: 389 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 7 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=157 proposed=314 accepted=232 (acceptance 73.9%, 2.48 tokens per pass)|
+PASS ids chat-short copy=12: 389 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 7 tokens when the last 12 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=157 proposed=314 accepted=232 (acceptance 73.9%, 2.48 tokens per pass)|
+PASS ids chat-short copy=4: 389 ids identical | copy_passes=1 accepted_hist[count acc]=   1 0  | spec: copy chain passes=1 proposed=7 accepted=0 (not in the verify passes below)|spec: verify passes=156 proposed=312 accepted=232 (acceptance 74.4%, 2.49 tokens per pass)|
+ids fails=0
+fleetq: #9943 done (exit 0)

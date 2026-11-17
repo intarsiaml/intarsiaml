@@ -1,0 +1,8 @@
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.4 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+Error: loading /Users/josef/models/Qwen3.6-35B-A3B-NVFP4
+
+Caused by:
+    no kernel for 1 op(s) of this model have no kernel on metal/applegpu_g17s:
+      - attn_prefill: 16 shape(s) without a kernel, e.g. no kernel for attn_prefill on metal/applegpu_g17s (m=9 n=0 k=256 act=Some(Bf16) w=Some(Bf16)) [row-exact verify kernels only] (heads 16/2 head_dim 256 kv_len 9); needed by Verify t=10, Verify t=11, Verify t=12, Verify t=13, ...
