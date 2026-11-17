@@ -1,0 +1,6 @@
+fleetq: #9843 running on endor: /opt/code/intarsiaml/.worktrees/mchunkx/scripts/mchunkx/build-main.sh
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 13.70s
+## build done 9562cc2ee 0cb7163a18b6b00bb2802bf460b2ae36
+fleetq: #9843 done (exit 0)

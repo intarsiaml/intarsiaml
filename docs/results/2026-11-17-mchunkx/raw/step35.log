@@ -1,0 +1,10 @@
+fleetq: #9853 running on endor: /opt/code/intarsiaml/.worktrees/mchunkx/scripts/mchunkx/step35.sh /opt/code/intarsiaml/.worktrees/mchunkx/docs/results/2026-11-17-mchunkx/raw/step35
+CELL tag=s8 streams=8 requests=16 tokens=4096 wall_s=11.06 agg_tps=370.2 ttft_p50=0.2399 ttft_mean=0.2876 dec_tps_p50=48.25 prompt_tokens_p50=115.5
+CELL tag=s10 streams=10 requests=20 tokens=5120 wall_s=15.36 agg_tps=333.4 ttft_p50=0.2478 ttft_mean=0.3378 dec_tps_p50=34.9 prompt_tokens_p50=115.5
+CELL tag=s12 streams=12 requests=24 tokens=6144 wall_s=17.42 agg_tps=352.8 ttft_p50=0.28 ttft_mean=0.399 dec_tps_p50=30.28 prompt_tokens_p50=116.5
+CELL tag=s16 streams=16 requests=32 tokens=8192 wall_s=21.16 agg_tps=387.2 ttft_p50=0.2771 ttft_mean=0.4933 dec_tps_p50=25.08 prompt_tokens_p50=114.5
+s8: decode iteration ms p50 19.1 (n=519)
+s10: decode iteration ms p50 27.0 (n=521)
+s12: decode iteration ms p50 30.2 (n=523)
+s16: decode iteration ms p50 36.2 (n=527)
+fleetq: #9853 done (exit 0)

@@ -1,0 +1,18 @@
+fleetq: #9854 running on endor: /opt/code/intarsiaml/.worktrees/mchunkx/scripts/mchunkx/test-rows.sh
+running 14 tests
+test timing_chunkx ... ignored
+test timing_mxfp4_plans ... ignored
+test timing_mxfp4_rows ... ignored
+test timing_rows ... ignored
+test rows_exact_registrations_are_pinned ... ok
+test mxfp4_nax_rows_differ_from_the_one_row_gemv ... ok
+test bf16_pair_rows_at_the_35b_pairs ... ok
+test negative_controls_differ_from_the_one_row_calls ... ok
+test row_parallel_kernels_do_not_depend_on_the_row_count ... ok
+test moe_experts_rows_are_bitwise_the_one_token_call ... ok
+test mxfp4_row_chunks_are_bitwise_the_one_row_gemv ... ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test result: ok. 10 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 2.32s
+fleetq: #9854 done (exit 0)

@@ -1,0 +1,1100 @@
+fleetq: #9844 running on endor: /opt/code/intarsiaml/.worktrees/mchunkx/scripts/mchunkx/shapes.sh 35b 8 6
+streams 6: [24, 24, 24, 24, 24, 24]
+attn_decode_bf16_splitkv_rows        t= 2 n=      0 k=     0 count=20
+attn_decode_bf16_splitkv_rows        t= 3 n=      0 k=     0 count=20
+attn_decode_bf16_splitkv_rows        t= 4 n=      0 k=     0 count=20
+attn_decode_bf16_splitkv_rows        t= 5 n=      0 k=     0 count=20
+attn_decode_bf16_splitkv_rows        t= 6 n=      0 k=     0 count=180
+attn_prefill_bf16_splitkv_rows       t= 2 n=      0 k=     0 count=2
+attn_prefill_bf16_splitkv_rows       t= 3 n=      0 k=     0 count=12
+attn_prefill_bf16_splitkv_rows       t= 4 n=      0 k=     0 count=1
+attn_prefill_bf16_splitkv_rows       t= 5 n=      0 k=     0 count=1
+attn_prefill_bf16_splitkv_rows       t= 6 n=      0 k=     0 count=1
+attn_prefill_bf16_splitkv_rows       t= 7 n=      0 k=     0 count=1
+attn_prefill_bf16_splitkv_rows       t= 8 n=      0 k=     0 count=1
+gdn_conv_bf16_rows                   t= 2 n=      0 k=     0 count=60
+gdn_conv_bf16_rows                   t= 3 n=      0 k=     0 count=60
+gdn_conv_bf16_rows                   t= 4 n=      0 k=     0 count=60
+gdn_conv_bf16_rows                   t= 5 n=      0 k=     0 count=60
+gdn_conv_bf16_rows                   t= 6 n=      0 k=     0 count=540
+gdn_delta_rule_bf16_rows             t= 2 n=      0 k=     0 count=60
+gdn_delta_rule_bf16_rows             t= 3 n=      0 k=     0 count=60
+gdn_delta_rule_bf16_rows             t= 4 n=      0 k=     0 count=60
+gdn_delta_rule_bf16_rows             t= 5 n=      0 k=     0 count=60
+gdn_delta_rule_bf16_rows             t= 6 n=      0 k=     0 count=540
+matmul_bf16_gemv                     t= 1 n=    512 k=  2048 count=5
+matmul_bf16_gemv                     t= 1 n=   2048 k=   512 count=3
+matmul_bf16_gemv                     t= 1 n=   2048 k=  2048 count=17
+matmul_bf16_gemv                     t= 1 n=   2048 k=  4096 count=3
+matmul_bf16_gemv                     t= 1 n=   8192 k=  2048 count=3
+matmul_fp8_gemv                      t= 1 n=    512 k=  2048 count=141
+matmul_fp8_gemv                      t= 1 n=   2048 k=  4096 count=281
+matmul_fp8_gemv                      t= 1 n=   4096 k=  2048 count=211
+matmul_fp8_gemv                      t= 1 n=   8192 k=  2048 count=281
+matmul_fp8_gemv                      t= 2 n=    512 k=  2048 count=1
+matmul_fp8_gemv                      t= 2 n=   2048 k=  4096 count=1
+matmul_fp8_gemv                      t= 2 n=   4096 k=  2048 count=1
+matmul_fp8_gemv                      t= 2 n=   8192 k=  2048 count=1
+matmul_fp8_gemv                      t= 3 n=    512 k=  2048 count=1
+matmul_fp8_gemv                      t= 3 n=   2048 k=  4096 count=1
+matmul_fp8_gemv                      t= 3 n=   4096 k=  2048 count=1
+matmul_fp8_gemv                      t= 3 n=   8192 k=  2048 count=1
+matmul_fp8_gemv                      t= 4 n=    512 k=  2048 count=1
+matmul_fp8_gemv                      t= 4 n=   2048 k=  4096 count=1
+matmul_fp8_gemv                      t= 4 n=   4096 k=  2048 count=1
+matmul_fp8_gemv                      t= 4 n=   8192 k=  2048 count=1
+matmul_fp8_gemv                      t= 5 n=    512 k=  2048 count=1
+matmul_fp8_gemv                      t= 5 n=   4096 k=  2048 count=1
+matmul_fp8_gemv                      t= 5 n=   8192 k=  2048 count=1
+matmul_fp8_gemv                      t= 6 n=    512 k=  2048 count=1
+matmul_fp8_gemv                      t= 6 n=   4096 k=  2048 count=1
+matmul_fp8_gemv                      t= 6 n=   8192 k=  2048 count=1
+matmul_fp8_gemv                      t= 7 n=    512 k=  2048 count=1
+matmul_fp8_gemv                      t= 7 n=   4096 k=  2048 count=1
+matmul_fp8_gemv                      t= 7 n=   8192 k=  2048 count=1
+matmul_fp8_gemv                      t= 8 n=    512 k=  2048 count=1
+matmul_fp8_gemv                      t= 8 n=   4096 k=  2048 count=1
+matmul_fp8_gemv                      t= 8 n=   8192 k=  2048 count=1
+matmul_fp8_gemv_rows                 t= 2 n=    512 k=  2048 count=41
+matmul_fp8_gemv_rows                 t= 2 n=   2048 k=  4096 count=81
+matmul_fp8_gemv_rows                 t= 2 n=   4096 k=  2048 count=61
+matmul_fp8_gemv_rows                 t= 2 n=   8192 k=  2048 count=81
+matmul_fp8_gemv_rows                 t= 3 n=    512 k=  2048 count=61
+matmul_fp8_gemv_rows                 t= 3 n=   2048 k=  4096 count=121
+matmul_fp8_gemv_rows                 t= 3 n=   4096 k=  2048 count=91
+matmul_fp8_gemv_rows                 t= 3 n=   8192 k=  2048 count=121
+matmul_fp8_gemv_rows                 t= 4 n=    512 k=  2048 count=41
+matmul_fp8_gemv_rows                 t= 4 n=   2048 k=  4096 count=81
+matmul_fp8_gemv_rows                 t= 4 n=   4096 k=  2048 count=61
+matmul_fp8_gemv_rows                 t= 4 n=   8192 k=  2048 count=81
+matmul_fp8_gemv_rows                 t= 5 n=    512 k=  2048 count=41
+matmul_fp8_gemv_rows                 t= 5 n=   2048 k=  4096 count=81
+matmul_fp8_gemv_rows                 t= 5 n=   4096 k=  2048 count=61
+matmul_fp8_gemv_rows                 t= 5 n=   8192 k=  2048 count=81
+matmul_fp8_gemv_rows                 t= 6 n=    512 k=  2048 count=361
+matmul_fp8_gemv_rows                 t= 6 n=   2048 k=  4096 count=721
+matmul_fp8_gemv_rows                 t= 6 n=   4096 k=  2048 count=541
+matmul_fp8_gemv_rows                 t= 6 n=   8192 k=  2048 count=721
+matmul_fp8_gemv_rows                 t= 7 n=    512 k=  2048 count=1
+matmul_fp8_gemv_rows                 t= 7 n=   2048 k=  4096 count=1
+matmul_fp8_gemv_rows                 t= 7 n=   4096 k=  2048 count=1
+matmul_fp8_gemv_rows                 t= 7 n=   8192 k=  2048 count=1
+matmul_fp8_gemv_rows                 t= 8 n=    512 k=  2048 count=1
+matmul_fp8_gemv_rows                 t= 8 n=   2048 k=  4096 count=1
+matmul_fp8_gemv_rows                 t= 8 n=   4096 k=  2048 count=1
+matmul_fp8_gemv_rows                 t= 8 n=   8192 k=  2048 count=1
+matmul_nvfp4_gemv                    t= 1 n=    512 k=  1024 count=561
+matmul_nvfp4_gemv                    t= 1 n=   2048 k=   256 count=281
+matmul_nvfp4_gemv                    t= 1 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 1 n= 248320 k=  1024 count=9
+matmul_nvfp4_gemv                    t= 2 n=    512 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 2 n=   2048 k=   256 count=1
+matmul_nvfp4_gemv                    t= 2 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 3 n=    512 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 3 n=   2048 k=   256 count=1
+matmul_nvfp4_gemv                    t= 3 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 4 n=    512 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 4 n=   2048 k=   256 count=1
+matmul_nvfp4_gemv                    t= 4 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 5 n=    512 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 5 n=   2048 k=   256 count=1
+matmul_nvfp4_gemv                    t= 5 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 6 n=    512 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 6 n=   2048 k=   256 count=1
+matmul_nvfp4_gemv                    t= 6 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 7 n=    512 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 7 n=   2048 k=   256 count=1
+matmul_nvfp4_gemv                    t= 7 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 8 n=    512 k=  1024 count=1
+matmul_nvfp4_gemv                    t= 8 n=   2048 k=   256 count=1
+matmul_nvfp4_gemv                    t= 8 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv_rows               t= 2 n=    512 k=  1024 count=161
+matmul_nvfp4_gemv_rows               t= 2 n=   2048 k=   256 count=81
+matmul_nvfp4_gemv_rows               t= 2 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv_rows               t= 2 n= 248320 k=  1024 count=2
+matmul_nvfp4_gemv_rows               t= 3 n=    512 k=  1024 count=241
+matmul_nvfp4_gemv_rows               t= 3 n=   2048 k=   256 count=121
+matmul_nvfp4_gemv_rows               t= 3 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv_rows               t= 3 n= 248320 k=  1024 count=3
+matmul_nvfp4_gemv_rows               t= 4 n=    512 k=  1024 count=161
+matmul_nvfp4_gemv_rows               t= 4 n=   2048 k=   256 count=81
+matmul_nvfp4_gemv_rows               t= 4 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv_rows               t= 4 n= 248320 k=  1024 count=2
+matmul_nvfp4_gemv_rows               t= 5 n=    512 k=  1024 count=161
+matmul_nvfp4_gemv_rows               t= 5 n=   2048 k=   256 count=81
+matmul_nvfp4_gemv_rows               t= 5 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv_rows               t= 5 n= 248320 k=  1024 count=2
+matmul_nvfp4_gemv_rows               t= 6 n=    512 k=  1024 count=1441
+matmul_nvfp4_gemv_rows               t= 6 n=   2048 k=   256 count=721
+matmul_nvfp4_gemv_rows               t= 6 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv_rows               t= 6 n= 248320 k=  1024 count=18
+matmul_nvfp4_gemv_rows               t= 7 n=    512 k=  1024 count=1
+matmul_nvfp4_gemv_rows               t= 7 n=   2048 k=   256 count=1
+matmul_nvfp4_gemv_rows               t= 7 n=  16384 k=  1024 count=1
+matmul_nvfp4_gemv_rows               t= 8 n=    512 k=  1024 count=1
+matmul_nvfp4_gemv_rows               t= 8 n=   2048 k=   256 count=1
+matmul_nvfp4_gemv_rows               t= 8 n=  16384 k=  1024 count=1
+matmul_pair_bf16_gemv                t= 1 n=     64 k=  2048 count=211
+matmul_pair_bf16_gemv                t= 1 n=    257 k=  2048 count=283
+matmul_pair_bf16_gemv                t= 1 n=   1024 k=  2048 count=9
+matmul_pair_bf16_gemv_rows           t= 2 n=     64 k=  2048 count=61
+matmul_pair_bf16_gemv_rows           t= 2 n=    257 k=  2048 count=81
+matmul_pair_bf16_gemv_rows           t= 3 n=     64 k=  2048 count=91
+matmul_pair_bf16_gemv_rows           t= 3 n=    257 k=  2048 count=121
+matmul_pair_bf16_gemv_rows           t= 4 n=     64 k=  2048 count=61
+matmul_pair_bf16_gemv_rows           t= 4 n=    257 k=  2048 count=81
+matmul_pair_bf16_gemv_rows           t= 5 n=     64 k=  2048 count=61
+matmul_pair_bf16_gemv_rows           t= 5 n=    257 k=  2048 count=81
+matmul_pair_bf16_gemv_rows           t= 6 n=     64 k=  2048 count=541
+matmul_pair_bf16_gemv_rows           t= 6 n=    257 k=  2048 count=721
+matmul_pair_bf16_gemv_rows           t= 7 n=     64 k=  2048 count=1
+matmul_pair_bf16_gemv_rows           t= 7 n=    257 k=  2048 count=1
+matmul_pair_bf16_gemv_rows           t= 8 n=     64 k=  2048 count=1
+matmul_pair_bf16_gemv_rows           t= 8 n=    257 k=  2048 count=1
+moe_experts_bf16                     t= 1 n=      8 k=     8 count=283
+moe_experts_bf16                     t= 2 n=     13 k=    16 count=1
+moe_experts_bf16                     t= 3 n=     19 k=    24 count=1
+moe_experts_bf16                     t= 4 n=     24 k=    32 count=1
+moe_experts_bf16                     t= 5 n=     25 k=    40 count=1
+moe_experts_bf16                     t= 6 n=     25 k=    48 count=1
+moe_experts_bf16                     t= 7 n=     29 k=    56 count=1
+moe_experts_bf16                     t= 8 n=     28 k=    64 count=1
+moe_experts_bf16                     t= 9 n=     28 k=    72 count=1
+moe_experts_bf16                     t=10 n=     30 k=    80 count=1
+moe_experts_bf16                     t=11 n=     31 k=    88 count=1
+moe_experts_bf16                     t=12 n=     30 k=    96 count=1
+moe_experts_bf16                     t=13 n=     31 k=   104 count=1
+moe_experts_bf16                     t=14 n=     31 k=   112 count=1
+moe_experts_bf16                     t=15 n=     32 k=   120 count=1
+moe_experts_bf16                     t=16 n=     32 k=   128 count=1
+moe_experts_bf16                     t=31 n=     32 k=   248 count=1
+moe_experts_bf16                     t=32 n=     32 k=   256 count=1
+moe_experts_bf16                     t=98 n=     76 k=   784 count=1
+moe_experts_bf16                     t=98 n=     85 k=   784 count=1
+moe_experts_bf16                     t=98 n=     86 k=   784 count=1
+moe_experts_bf16                     t=98 n=     87 k=   784 count=1
+moe_experts_bf16                     t=98 n=     90 k=   784 count=1
+moe_experts_bf16                     t=98 n=     91 k=   784 count=1
+moe_experts_bf16                     t=98 n=     92 k=   784 count=1
+moe_experts_bf16                     t=98 n=     96 k=   784 count=1
+moe_experts_bf16                     t=98 n=     97 k=   784 count=3
+moe_experts_bf16                     t=98 n=    100 k=   784 count=1
+moe_experts_bf16                     t=98 n=    101 k=   784 count=2
+moe_experts_bf16                     t=98 n=    102 k=   784 count=2
+moe_experts_bf16                     t=98 n=    103 k=   784 count=2
+moe_experts_bf16                     t=98 n=    104 k=   784 count=2
+moe_experts_bf16                     t=98 n=    105 k=   784 count=1
+moe_experts_bf16                     t=98 n=    106 k=   784 count=1
+moe_experts_bf16                     t=98 n=    107 k=   784 count=2
+moe_experts_bf16                     t=98 n=    108 k=   784 count=3
+moe_experts_bf16                     t=98 n=    110 k=   784 count=2
+moe_experts_bf16                     t=98 n=    111 k=   784 count=1
+moe_experts_bf16                     t=98 n=    113 k=   784 count=1
+moe_experts_bf16                     t=98 n=    116 k=   784 count=1
+moe_experts_bf16                     t=98 n=    117 k=   784 count=3
+moe_experts_bf16                     t=98 n=    120 k=   784 count=1
+moe_experts_bf16                     t=98 n=    126 k=   784 count=1
+moe_experts_bf16                     t=98 n=    133 k=   784 count=1
+moe_experts_bf16                     t=98 n=    149 k=   784 count=1
+moe_experts_bf16                     t=98 n=    156 k=   784 count=1
+moe_experts_bf16                     t=104 n=     86 k=   832 count=1
+moe_experts_bf16                     t=104 n=     94 k=   832 count=1
+moe_experts_bf16                     t=104 n=     95 k=   832 count=3
+moe_experts_bf16                     t=104 n=     96 k=   832 count=2
+moe_experts_bf16                     t=104 n=     98 k=   832 count=1
+moe_experts_bf16                     t=104 n=    101 k=   832 count=1
+moe_experts_bf16                     t=104 n=    103 k=   832 count=1
+moe_experts_bf16                     t=104 n=    104 k=   832 count=1
+moe_experts_bf16                     t=104 n=    105 k=   832 count=1
+moe_experts_bf16                     t=104 n=    106 k=   832 count=1
+moe_experts_bf16                     t=104 n=    107 k=   832 count=2
+moe_experts_bf16                     t=104 n=    108 k=   832 count=1
+moe_experts_bf16                     t=104 n=    109 k=   832 count=3
+moe_experts_bf16                     t=104 n=    110 k=   832 count=1
+moe_experts_bf16                     t=104 n=    111 k=   832 count=2
+moe_experts_bf16                     t=104 n=    114 k=   832 count=1
+moe_experts_bf16                     t=104 n=    115 k=   832 count=2
+moe_experts_bf16                     t=104 n=    116 k=   832 count=3
+moe_experts_bf16                     t=104 n=    117 k=   832 count=1
+moe_experts_bf16                     t=104 n=    118 k=   832 count=2
+moe_experts_bf16                     t=104 n=    119 k=   832 count=1
+moe_experts_bf16                     t=104 n=    123 k=   832 count=1
+moe_experts_bf16                     t=104 n=    127 k=   832 count=1
+moe_experts_bf16                     t=104 n=    129 k=   832 count=1
+moe_experts_bf16                     t=104 n=    132 k=   832 count=1
+moe_experts_bf16                     t=104 n=    134 k=   832 count=1
+moe_experts_bf16                     t=104 n=    154 k=   832 count=1
+moe_experts_bf16                     t=104 n=    162 k=   832 count=1
+moe_experts_bf16                     t=104 n=    169 k=   832 count=1
+moe_experts_bf16                     t=105 n=     96 k=   840 count=1
+moe_experts_bf16                     t=105 n=     97 k=   840 count=2
+moe_experts_bf16                     t=105 n=    100 k=   840 count=1
+moe_experts_bf16                     t=105 n=    101 k=   840 count=2
+moe_experts_bf16                     t=105 n=    102 k=   840 count=1
+moe_experts_bf16                     t=105 n=    105 k=   840 count=1
+moe_experts_bf16                     t=105 n=    106 k=   840 count=1
+moe_experts_bf16                     t=105 n=    108 k=   840 count=2
+moe_experts_bf16                     t=105 n=    109 k=   840 count=2
+moe_experts_bf16                     t=105 n=    111 k=   840 count=1
+moe_experts_bf16                     t=105 n=    112 k=   840 count=2
+moe_experts_bf16                     t=105 n=    113 k=   840 count=1
+moe_experts_bf16                     t=105 n=    114 k=   840 count=2
+moe_experts_bf16                     t=105 n=    116 k=   840 count=4
+moe_experts_bf16                     t=105 n=    117 k=   840 count=2
+moe_experts_bf16                     t=105 n=    120 k=   840 count=3
+moe_experts_bf16                     t=105 n=    122 k=   840 count=2
+moe_experts_bf16                     t=105 n=    123 k=   840 count=3
+moe_experts_bf16                     t=105 n=    131 k=   840 count=1
+moe_experts_bf16                     t=105 n=    132 k=   840 count=1
+moe_experts_bf16                     t=105 n=    136 k=   840 count=2
+moe_experts_bf16                     t=105 n=    140 k=   840 count=1
+moe_experts_bf16                     t=105 n=    149 k=   840 count=1
+moe_experts_bf16                     t=105 n=    163 k=   840 count=1
+moe_experts_bf16                     t=109 n=     97 k=   872 count=2
+moe_experts_bf16                     t=109 n=    101 k=   872 count=2
+moe_experts_bf16                     t=109 n=    102 k=   872 count=2
+moe_experts_bf16                     t=109 n=    104 k=   872 count=1
+moe_experts_bf16                     t=109 n=    107 k=   872 count=7
+moe_experts_bf16                     t=109 n=    108 k=   872 count=2
+moe_experts_bf16                     t=109 n=    109 k=   872 count=1
+moe_experts_bf16                     t=109 n=    110 k=   872 count=2
+moe_experts_bf16                     t=109 n=    111 k=   872 count=2
+moe_experts_bf16                     t=109 n=    112 k=   872 count=1
+moe_experts_bf16                     t=109 n=    113 k=   872 count=2
+moe_experts_bf16                     t=109 n=    115 k=   872 count=1
+moe_experts_bf16                     t=109 n=    116 k=   872 count=1
+moe_experts_bf16                     t=109 n=    118 k=   872 count=2
+moe_experts_bf16                     t=109 n=    119 k=   872 count=1
+moe_experts_bf16                     t=109 n=    120 k=   872 count=2
+moe_experts_bf16                     t=109 n=    121 k=   872 count=1
+moe_experts_bf16                     t=109 n=    125 k=   872 count=1
+moe_experts_bf16                     t=109 n=    126 k=   872 count=1
+moe_experts_bf16                     t=109 n=    127 k=   872 count=1
+moe_experts_bf16                     t=109 n=    133 k=   872 count=1
+moe_experts_bf16                     t=109 n=    142 k=   872 count=1
+moe_experts_bf16                     t=109 n=    154 k=   872 count=1
+moe_experts_bf16                     t=109 n=    166 k=   872 count=1
+moe_experts_bf16                     t=109 n=    173 k=   872 count=1
+moe_experts_bf16                     t=110 n=     94 k=   880 count=1
+moe_experts_bf16                     t=110 n=     97 k=   880 count=1
+moe_experts_bf16                     t=110 n=    100 k=   880 count=1
+moe_experts_bf16                     t=110 n=    101 k=   880 count=1
+moe_experts_bf16                     t=110 n=    104 k=   880 count=1
+moe_experts_bf16                     t=110 n=    108 k=   880 count=2
+moe_experts_bf16                     t=110 n=    109 k=   880 count=1
+moe_experts_bf16                     t=110 n=    110 k=   880 count=1
+moe_experts_bf16                     t=110 n=    111 k=   880 count=2
+moe_experts_bf16                     t=110 n=    112 k=   880 count=1
+moe_experts_bf16                     t=110 n=    114 k=   880 count=4
+moe_experts_bf16                     t=110 n=    115 k=   880 count=2
+moe_experts_bf16                     t=110 n=    117 k=   880 count=3
+moe_experts_bf16                     t=110 n=    119 k=   880 count=1
+moe_experts_bf16                     t=110 n=    120 k=   880 count=1
+moe_experts_bf16                     t=110 n=    121 k=   880 count=1
+moe_experts_bf16                     t=110 n=    122 k=   880 count=2
+moe_experts_bf16                     t=110 n=    123 k=   880 count=1
+moe_experts_bf16                     t=110 n=    124 k=   880 count=3
+moe_experts_bf16                     t=110 n=    125 k=   880 count=2
+moe_experts_bf16                     t=110 n=    129 k=   880 count=1
+moe_experts_bf16                     t=110 n=    130 k=   880 count=1
+moe_experts_bf16                     t=110 n=    136 k=   880 count=1
+moe_experts_bf16                     t=110 n=    142 k=   880 count=1
+moe_experts_bf16                     t=110 n=    145 k=   880 count=1
+moe_experts_bf16                     t=110 n=    157 k=   880 count=1
+moe_experts_bf16                     t=110 n=    161 k=   880 count=1
+moe_experts_bf16                     t=110 n=    172 k=   880 count=1
+moe_experts_bf16                     t=116 n=    105 k=   928 count=1
+moe_experts_bf16                     t=116 n=    106 k=   928 count=1
+moe_experts_bf16                     t=116 n=    108 k=   928 count=2
+moe_experts_bf16                     t=116 n=    109 k=   928 count=1
+moe_experts_bf16                     t=116 n=    111 k=   928 count=1
+moe_experts_bf16                     t=116 n=    112 k=   928 count=1
+moe_experts_bf16                     t=116 n=    113 k=   928 count=2
+moe_experts_bf16                     t=116 n=    114 k=   928 count=2
+moe_experts_bf16                     t=116 n=    115 k=   928 count=3
+moe_experts_bf16                     t=116 n=    116 k=   928 count=2
+moe_experts_bf16                     t=116 n=    117 k=   928 count=1
+moe_experts_bf16                     t=116 n=    118 k=   928 count=2
+moe_experts_bf16                     t=116 n=    119 k=   928 count=2
+moe_experts_bf16                     t=116 n=    120 k=   928 count=1
+moe_experts_bf16                     t=116 n=    121 k=   928 count=3
+moe_experts_bf16                     t=116 n=    122 k=   928 count=2
+moe_experts_bf16                     t=116 n=    123 k=   928 count=1
+moe_experts_bf16                     t=116 n=    126 k=   928 count=1
+moe_experts_bf16                     t=116 n=    127 k=   928 count=2
+moe_experts_bf16                     t=116 n=    129 k=   928 count=1
+moe_experts_bf16                     t=116 n=    130 k=   928 count=1
+moe_experts_bf16                     t=116 n=    131 k=   928 count=1
+moe_experts_bf16                     t=116 n=    136 k=   928 count=1
+moe_experts_bf16                     t=116 n=    137 k=   928 count=1
+moe_experts_bf16                     t=116 n=    149 k=   928 count=1
+moe_experts_bf16                     t=116 n=    154 k=   928 count=1
+moe_experts_bf16                     t=116 n=    159 k=   928 count=1
+moe_experts_bf16                     t=116 n=    170 k=   928 count=1
+moe_experts_bf16#1                   t= 1 n=      8 k=     8 count=283
+moe_experts_bf16#1                   t= 2 n=     13 k=    16 count=1
+moe_experts_bf16#1                   t= 3 n=     19 k=    24 count=1
+moe_experts_bf16#1                   t= 4 n=     24 k=    32 count=1
+moe_experts_bf16#1                   t= 5 n=     25 k=    40 count=1
+moe_experts_bf16#1                   t= 6 n=     25 k=    48 count=1
+moe_experts_bf16#1                   t= 7 n=     29 k=    56 count=1
+moe_experts_bf16#1                   t= 8 n=     28 k=    64 count=1
+moe_experts_bf16#1                   t= 9 n=     28 k=    72 count=1
+moe_experts_bf16#1                   t=10 n=     30 k=    80 count=1
+moe_experts_bf16#1                   t=11 n=     31 k=    88 count=1
+moe_experts_bf16#1                   t=12 n=     30 k=    96 count=1
+moe_experts_bf16#1                   t=13 n=     31 k=   104 count=1
+moe_experts_bf16#1                   t=14 n=     31 k=   112 count=1
+moe_experts_bf16#1                   t=15 n=     32 k=   120 count=1
+moe_experts_bf16#1                   t=16 n=     32 k=   128 count=1
+moe_experts_bf16#1                   t=31 n=     32 k=   248 count=1
+moe_experts_bf16#1                   t=32 n=     32 k=   256 count=1
+moe_experts_bf16#1                   t=98 n=     76 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=     85 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=     86 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=     87 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=     90 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=     91 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=     92 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=     96 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=     97 k=   784 count=3
+moe_experts_bf16#1                   t=98 n=    100 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=    101 k=   784 count=2
+moe_experts_bf16#1                   t=98 n=    102 k=   784 count=2
+moe_experts_bf16#1                   t=98 n=    103 k=   784 count=2
+moe_experts_bf16#1                   t=98 n=    104 k=   784 count=2
+moe_experts_bf16#1                   t=98 n=    105 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=    106 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=    107 k=   784 count=2
+moe_experts_bf16#1                   t=98 n=    108 k=   784 count=3
+moe_experts_bf16#1                   t=98 n=    110 k=   784 count=2
+moe_experts_bf16#1                   t=98 n=    111 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=    113 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=    116 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=    117 k=   784 count=3
+moe_experts_bf16#1                   t=98 n=    120 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=    126 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=    133 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=    149 k=   784 count=1
+moe_experts_bf16#1                   t=98 n=    156 k=   784 count=1
+moe_experts_bf16#1                   t=104 n=     86 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=     94 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=     95 k=   832 count=3
+moe_experts_bf16#1                   t=104 n=     96 k=   832 count=2
+moe_experts_bf16#1                   t=104 n=     98 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    101 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    103 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    104 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    105 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    106 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    107 k=   832 count=2
+moe_experts_bf16#1                   t=104 n=    108 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    109 k=   832 count=3
+moe_experts_bf16#1                   t=104 n=    110 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    111 k=   832 count=2
+moe_experts_bf16#1                   t=104 n=    114 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    115 k=   832 count=2
+moe_experts_bf16#1                   t=104 n=    116 k=   832 count=3
+moe_experts_bf16#1                   t=104 n=    117 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    118 k=   832 count=2
+moe_experts_bf16#1                   t=104 n=    119 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    123 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    127 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    129 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    132 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    134 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    154 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    162 k=   832 count=1
+moe_experts_bf16#1                   t=104 n=    169 k=   832 count=1
+moe_experts_bf16#1                   t=105 n=     96 k=   840 count=1
+moe_experts_bf16#1                   t=105 n=     97 k=   840 count=2
+moe_experts_bf16#1                   t=105 n=    100 k=   840 count=1
+moe_experts_bf16#1                   t=105 n=    101 k=   840 count=2
+moe_experts_bf16#1                   t=105 n=    102 k=   840 count=1
+moe_experts_bf16#1                   t=105 n=    105 k=   840 count=1
+moe_experts_bf16#1                   t=105 n=    106 k=   840 count=1
+moe_experts_bf16#1                   t=105 n=    108 k=   840 count=2
+moe_experts_bf16#1                   t=105 n=    109 k=   840 count=2
+moe_experts_bf16#1                   t=105 n=    111 k=   840 count=1
+moe_experts_bf16#1                   t=105 n=    112 k=   840 count=2
+moe_experts_bf16#1                   t=105 n=    113 k=   840 count=1
+moe_experts_bf16#1                   t=105 n=    114 k=   840 count=2
+moe_experts_bf16#1                   t=105 n=    116 k=   840 count=4
+moe_experts_bf16#1                   t=105 n=    117 k=   840 count=2
+moe_experts_bf16#1                   t=105 n=    120 k=   840 count=3
+moe_experts_bf16#1                   t=105 n=    122 k=   840 count=2
+moe_experts_bf16#1                   t=105 n=    123 k=   840 count=3
+moe_experts_bf16#1                   t=105 n=    131 k=   840 count=1
+moe_experts_bf16#1                   t=105 n=    132 k=   840 count=1
+moe_experts_bf16#1                   t=105 n=    136 k=   840 count=2
+moe_experts_bf16#1                   t=105 n=    140 k=   840 count=1
+moe_experts_bf16#1                   t=105 n=    149 k=   840 count=1
+moe_experts_bf16#1                   t=105 n=    163 k=   840 count=1
+moe_experts_bf16#1                   t=109 n=     97 k=   872 count=2
+moe_experts_bf16#1                   t=109 n=    101 k=   872 count=2
+moe_experts_bf16#1                   t=109 n=    102 k=   872 count=2
+moe_experts_bf16#1                   t=109 n=    104 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    107 k=   872 count=7
+moe_experts_bf16#1                   t=109 n=    108 k=   872 count=2
+moe_experts_bf16#1                   t=109 n=    109 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    110 k=   872 count=2
+moe_experts_bf16#1                   t=109 n=    111 k=   872 count=2
+moe_experts_bf16#1                   t=109 n=    112 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    113 k=   872 count=2
+moe_experts_bf16#1                   t=109 n=    115 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    116 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    118 k=   872 count=2
+moe_experts_bf16#1                   t=109 n=    119 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    120 k=   872 count=2
+moe_experts_bf16#1                   t=109 n=    121 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    125 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    126 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    127 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    133 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    142 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    154 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    166 k=   872 count=1
+moe_experts_bf16#1                   t=109 n=    173 k=   872 count=1
+moe_experts_bf16#1                   t=110 n=     94 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=     97 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    100 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    101 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    104 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    108 k=   880 count=2
+moe_experts_bf16#1                   t=110 n=    109 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    110 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    111 k=   880 count=2
+moe_experts_bf16#1                   t=110 n=    112 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    114 k=   880 count=4
+moe_experts_bf16#1                   t=110 n=    115 k=   880 count=2
+moe_experts_bf16#1                   t=110 n=    117 k=   880 count=3
+moe_experts_bf16#1                   t=110 n=    119 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    120 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    121 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    122 k=   880 count=2
+moe_experts_bf16#1                   t=110 n=    123 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    124 k=   880 count=3
+moe_experts_bf16#1                   t=110 n=    125 k=   880 count=2
+moe_experts_bf16#1                   t=110 n=    129 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    130 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    136 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    142 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    145 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    157 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    161 k=   880 count=1
+moe_experts_bf16#1                   t=110 n=    172 k=   880 count=1
+moe_experts_bf16#1                   t=116 n=    105 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    106 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    108 k=   928 count=2
+moe_experts_bf16#1                   t=116 n=    109 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    111 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    112 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    113 k=   928 count=2
+moe_experts_bf16#1                   t=116 n=    114 k=   928 count=2
+moe_experts_bf16#1                   t=116 n=    115 k=   928 count=3
+moe_experts_bf16#1                   t=116 n=    116 k=   928 count=2
+moe_experts_bf16#1                   t=116 n=    117 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    118 k=   928 count=2
+moe_experts_bf16#1                   t=116 n=    119 k=   928 count=2
+moe_experts_bf16#1                   t=116 n=    120 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    121 k=   928 count=3
+moe_experts_bf16#1                   t=116 n=    122 k=   928 count=2
+moe_experts_bf16#1                   t=116 n=    123 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    126 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    127 k=   928 count=2
+moe_experts_bf16#1                   t=116 n=    129 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    130 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    131 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    136 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    137 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    149 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    154 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    159 k=   928 count=1
+moe_experts_bf16#1                   t=116 n=    170 k=   928 count=1
+moe_experts_bf16#2                   t= 3 n=     19 k=    24 count=1
+moe_experts_bf16#2                   t= 4 n=     24 k=    32 count=1
+moe_experts_bf16#2                   t= 5 n=     25 k=    40 count=1
+moe_experts_bf16#2                   t= 6 n=     25 k=    48 count=1
+moe_experts_bf16#2                   t= 7 n=     29 k=    56 count=1
+moe_experts_bf16#2                   t= 8 n=     28 k=    64 count=1
+moe_experts_bf16#2                   t= 9 n=     28 k=    72 count=1
+moe_experts_bf16#2                   t=10 n=     30 k=    80 count=1
+moe_experts_bf16#2                   t=11 n=     31 k=    88 count=1
+moe_experts_bf16#2                   t=12 n=     30 k=    96 count=1
+moe_experts_bf16#2                   t=13 n=     31 k=   104 count=1
+moe_experts_bf16#2                   t=14 n=     31 k=   112 count=1
+moe_experts_bf16#2                   t=15 n=     32 k=   120 count=1
+moe_experts_bf16#2                   t=16 n=     32 k=   128 count=1
+moe_experts_bf16#2                   t=31 n=     32 k=   248 count=1
+moe_experts_bf16#2                   t=32 n=     32 k=   256 count=1
+moe_experts_bf16#2                   t=98 n=     76 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=     85 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=     86 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=     87 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=     90 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=     91 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=     92 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=     96 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=     97 k=   784 count=3
+moe_experts_bf16#2                   t=98 n=    100 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=    101 k=   784 count=2
+moe_experts_bf16#2                   t=98 n=    102 k=   784 count=2
+moe_experts_bf16#2                   t=98 n=    103 k=   784 count=2
+moe_experts_bf16#2                   t=98 n=    104 k=   784 count=2
+moe_experts_bf16#2                   t=98 n=    105 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=    106 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=    107 k=   784 count=2
+moe_experts_bf16#2                   t=98 n=    108 k=   784 count=3
+moe_experts_bf16#2                   t=98 n=    110 k=   784 count=2
+moe_experts_bf16#2                   t=98 n=    111 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=    113 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=    116 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=    117 k=   784 count=3
+moe_experts_bf16#2                   t=98 n=    120 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=    126 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=    133 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=    149 k=   784 count=1
+moe_experts_bf16#2                   t=98 n=    156 k=   784 count=1
+moe_experts_bf16#2                   t=104 n=     86 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=     94 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=     95 k=   832 count=3
+moe_experts_bf16#2                   t=104 n=     96 k=   832 count=2
+moe_experts_bf16#2                   t=104 n=     98 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    101 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    103 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    104 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    105 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    106 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    107 k=   832 count=2
+moe_experts_bf16#2                   t=104 n=    108 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    109 k=   832 count=3
+moe_experts_bf16#2                   t=104 n=    110 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    111 k=   832 count=2
+moe_experts_bf16#2                   t=104 n=    114 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    115 k=   832 count=2
+moe_experts_bf16#2                   t=104 n=    116 k=   832 count=3
+moe_experts_bf16#2                   t=104 n=    117 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    118 k=   832 count=2
+moe_experts_bf16#2                   t=104 n=    119 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    123 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    127 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    129 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    132 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    134 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    154 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    162 k=   832 count=1
+moe_experts_bf16#2                   t=104 n=    169 k=   832 count=1
+moe_experts_bf16#2                   t=105 n=     96 k=   840 count=1
+moe_experts_bf16#2                   t=105 n=     97 k=   840 count=2
+moe_experts_bf16#2                   t=105 n=    100 k=   840 count=1
+moe_experts_bf16#2                   t=105 n=    101 k=   840 count=2
+moe_experts_bf16#2                   t=105 n=    102 k=   840 count=1
+moe_experts_bf16#2                   t=105 n=    105 k=   840 count=1
+moe_experts_bf16#2                   t=105 n=    106 k=   840 count=1
+moe_experts_bf16#2                   t=105 n=    108 k=   840 count=2
+moe_experts_bf16#2                   t=105 n=    109 k=   840 count=2
+moe_experts_bf16#2                   t=105 n=    111 k=   840 count=1
+moe_experts_bf16#2                   t=105 n=    112 k=   840 count=2
+moe_experts_bf16#2                   t=105 n=    113 k=   840 count=1
+moe_experts_bf16#2                   t=105 n=    114 k=   840 count=2
+moe_experts_bf16#2                   t=105 n=    116 k=   840 count=4
+moe_experts_bf16#2                   t=105 n=    117 k=   840 count=2
+moe_experts_bf16#2                   t=105 n=    120 k=   840 count=3
+moe_experts_bf16#2                   t=105 n=    122 k=   840 count=2
+moe_experts_bf16#2                   t=105 n=    123 k=   840 count=3
+moe_experts_bf16#2                   t=105 n=    131 k=   840 count=1
+moe_experts_bf16#2                   t=105 n=    132 k=   840 count=1
+moe_experts_bf16#2                   t=105 n=    136 k=   840 count=2
+moe_experts_bf16#2                   t=105 n=    140 k=   840 count=1
+moe_experts_bf16#2                   t=105 n=    149 k=   840 count=1
+moe_experts_bf16#2                   t=105 n=    163 k=   840 count=1
+moe_experts_bf16#2                   t=109 n=     97 k=   872 count=2
+moe_experts_bf16#2                   t=109 n=    101 k=   872 count=2
+moe_experts_bf16#2                   t=109 n=    102 k=   872 count=2
+moe_experts_bf16#2                   t=109 n=    104 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    107 k=   872 count=7
+moe_experts_bf16#2                   t=109 n=    108 k=   872 count=2
+moe_experts_bf16#2                   t=109 n=    109 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    110 k=   872 count=2
+moe_experts_bf16#2                   t=109 n=    111 k=   872 count=2
+moe_experts_bf16#2                   t=109 n=    112 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    113 k=   872 count=2
+moe_experts_bf16#2                   t=109 n=    115 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    116 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    118 k=   872 count=2
+moe_experts_bf16#2                   t=109 n=    119 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    120 k=   872 count=2
+moe_experts_bf16#2                   t=109 n=    121 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    125 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    126 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    127 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    133 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    142 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    154 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    166 k=   872 count=1
+moe_experts_bf16#2                   t=109 n=    173 k=   872 count=1
+moe_experts_bf16#2                   t=110 n=     94 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=     97 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    100 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    101 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    104 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    108 k=   880 count=2
+moe_experts_bf16#2                   t=110 n=    109 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    110 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    111 k=   880 count=2
+moe_experts_bf16#2                   t=110 n=    112 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    114 k=   880 count=4
+moe_experts_bf16#2                   t=110 n=    115 k=   880 count=2
+moe_experts_bf16#2                   t=110 n=    117 k=   880 count=3
+moe_experts_bf16#2                   t=110 n=    119 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    120 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    121 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    122 k=   880 count=2
+moe_experts_bf16#2                   t=110 n=    123 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    124 k=   880 count=3
+moe_experts_bf16#2                   t=110 n=    125 k=   880 count=2
+moe_experts_bf16#2                   t=110 n=    129 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    130 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    136 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    142 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    145 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    157 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    161 k=   880 count=1
+moe_experts_bf16#2                   t=110 n=    172 k=   880 count=1
+moe_experts_bf16#2                   t=116 n=    105 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    106 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    108 k=   928 count=2
+moe_experts_bf16#2                   t=116 n=    109 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    111 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    112 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    113 k=   928 count=2
+moe_experts_bf16#2                   t=116 n=    114 k=   928 count=2
+moe_experts_bf16#2                   t=116 n=    115 k=   928 count=3
+moe_experts_bf16#2                   t=116 n=    116 k=   928 count=2
+moe_experts_bf16#2                   t=116 n=    117 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    118 k=   928 count=2
+moe_experts_bf16#2                   t=116 n=    119 k=   928 count=2
+moe_experts_bf16#2                   t=116 n=    120 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    121 k=   928 count=3
+moe_experts_bf16#2                   t=116 n=    122 k=   928 count=2
+moe_experts_bf16#2                   t=116 n=    123 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    126 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    127 k=   928 count=2
+moe_experts_bf16#2                   t=116 n=    129 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    130 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    131 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    136 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    137 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    149 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    154 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    159 k=   928 count=1
+moe_experts_bf16#2                   t=116 n=    170 k=   928 count=1
+moe_experts_bf16#3                   t= 3 n=     19 k=    24 count=1
+moe_experts_bf16#3                   t= 4 n=     24 k=    32 count=1
+moe_experts_bf16#3                   t= 5 n=     25 k=    40 count=1
+moe_experts_bf16#3                   t= 6 n=     25 k=    48 count=1
+moe_experts_bf16#3                   t= 7 n=     29 k=    56 count=1
+moe_experts_bf16#3                   t= 8 n=     28 k=    64 count=1
+moe_experts_bf16#3                   t= 9 n=     28 k=    72 count=1
+moe_experts_bf16#3                   t=10 n=     30 k=    80 count=1
+moe_experts_bf16#3                   t=11 n=     31 k=    88 count=1
+moe_experts_bf16#3                   t=12 n=     30 k=    96 count=1
+moe_experts_bf16#3                   t=13 n=     31 k=   104 count=1
+moe_experts_bf16#3                   t=14 n=     31 k=   112 count=1
+moe_experts_bf16#3                   t=15 n=     32 k=   120 count=1
+moe_experts_bf16#3                   t=16 n=     32 k=   128 count=1
+moe_experts_bf16#3                   t=31 n=     32 k=   248 count=1
+moe_experts_bf16#3                   t=32 n=     32 k=   256 count=1
+moe_experts_bf16#3                   t=98 n=     76 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=     85 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=     86 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=     87 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=     90 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=     91 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=     92 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=     96 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=     97 k=   784 count=3
+moe_experts_bf16#3                   t=98 n=    100 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=    101 k=   784 count=2
+moe_experts_bf16#3                   t=98 n=    102 k=   784 count=2
+moe_experts_bf16#3                   t=98 n=    103 k=   784 count=2
+moe_experts_bf16#3                   t=98 n=    104 k=   784 count=2
+moe_experts_bf16#3                   t=98 n=    105 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=    106 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=    107 k=   784 count=2
+moe_experts_bf16#3                   t=98 n=    108 k=   784 count=3
+moe_experts_bf16#3                   t=98 n=    110 k=   784 count=2
+moe_experts_bf16#3                   t=98 n=    111 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=    113 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=    116 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=    117 k=   784 count=3
+moe_experts_bf16#3                   t=98 n=    120 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=    126 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=    133 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=    149 k=   784 count=1
+moe_experts_bf16#3                   t=98 n=    156 k=   784 count=1
+moe_experts_bf16#3                   t=104 n=     86 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=     94 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=     95 k=   832 count=3
+moe_experts_bf16#3                   t=104 n=     96 k=   832 count=2
+moe_experts_bf16#3                   t=104 n=     98 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    101 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    103 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    104 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    105 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    106 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    107 k=   832 count=2
+moe_experts_bf16#3                   t=104 n=    108 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    109 k=   832 count=3
+moe_experts_bf16#3                   t=104 n=    110 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    111 k=   832 count=2
+moe_experts_bf16#3                   t=104 n=    114 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    115 k=   832 count=2
+moe_experts_bf16#3                   t=104 n=    116 k=   832 count=3
+moe_experts_bf16#3                   t=104 n=    117 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    118 k=   832 count=2
+moe_experts_bf16#3                   t=104 n=    119 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    123 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    127 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    129 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    132 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    134 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    154 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    162 k=   832 count=1
+moe_experts_bf16#3                   t=104 n=    169 k=   832 count=1
+moe_experts_bf16#3                   t=105 n=     96 k=   840 count=1
+moe_experts_bf16#3                   t=105 n=     97 k=   840 count=2
+moe_experts_bf16#3                   t=105 n=    100 k=   840 count=1
+moe_experts_bf16#3                   t=105 n=    101 k=   840 count=2
+moe_experts_bf16#3                   t=105 n=    102 k=   840 count=1
+moe_experts_bf16#3                   t=105 n=    105 k=   840 count=1
+moe_experts_bf16#3                   t=105 n=    106 k=   840 count=1
+moe_experts_bf16#3                   t=105 n=    108 k=   840 count=2
+moe_experts_bf16#3                   t=105 n=    109 k=   840 count=2
+moe_experts_bf16#3                   t=105 n=    111 k=   840 count=1
+moe_experts_bf16#3                   t=105 n=    112 k=   840 count=2
+moe_experts_bf16#3                   t=105 n=    113 k=   840 count=1
+moe_experts_bf16#3                   t=105 n=    114 k=   840 count=2
+moe_experts_bf16#3                   t=105 n=    116 k=   840 count=4
+moe_experts_bf16#3                   t=105 n=    117 k=   840 count=2
+moe_experts_bf16#3                   t=105 n=    120 k=   840 count=3
+moe_experts_bf16#3                   t=105 n=    122 k=   840 count=2
+moe_experts_bf16#3                   t=105 n=    123 k=   840 count=3
+moe_experts_bf16#3                   t=105 n=    131 k=   840 count=1
+moe_experts_bf16#3                   t=105 n=    132 k=   840 count=1
+moe_experts_bf16#3                   t=105 n=    136 k=   840 count=2
+moe_experts_bf16#3                   t=105 n=    140 k=   840 count=1
+moe_experts_bf16#3                   t=105 n=    149 k=   840 count=1
+moe_experts_bf16#3                   t=105 n=    163 k=   840 count=1
+moe_experts_bf16#3                   t=109 n=     97 k=   872 count=2
+moe_experts_bf16#3                   t=109 n=    101 k=   872 count=2
+moe_experts_bf16#3                   t=109 n=    102 k=   872 count=2
+moe_experts_bf16#3                   t=109 n=    104 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    107 k=   872 count=7
+moe_experts_bf16#3                   t=109 n=    108 k=   872 count=2
+moe_experts_bf16#3                   t=109 n=    109 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    110 k=   872 count=2
+moe_experts_bf16#3                   t=109 n=    111 k=   872 count=2
+moe_experts_bf16#3                   t=109 n=    112 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    113 k=   872 count=2
+moe_experts_bf16#3                   t=109 n=    115 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    116 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    118 k=   872 count=2
+moe_experts_bf16#3                   t=109 n=    119 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    120 k=   872 count=2
+moe_experts_bf16#3                   t=109 n=    121 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    125 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    126 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    127 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    133 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    142 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    154 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    166 k=   872 count=1
+moe_experts_bf16#3                   t=109 n=    173 k=   872 count=1
+moe_experts_bf16#3                   t=110 n=     94 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=     97 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    100 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    101 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    104 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    108 k=   880 count=2
+moe_experts_bf16#3                   t=110 n=    109 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    110 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    111 k=   880 count=2
+moe_experts_bf16#3                   t=110 n=    112 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    114 k=   880 count=4
+moe_experts_bf16#3                   t=110 n=    115 k=   880 count=2
+moe_experts_bf16#3                   t=110 n=    117 k=   880 count=3
+moe_experts_bf16#3                   t=110 n=    119 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    120 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    121 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    122 k=   880 count=2
+moe_experts_bf16#3                   t=110 n=    123 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    124 k=   880 count=3
+moe_experts_bf16#3                   t=110 n=    125 k=   880 count=2
+moe_experts_bf16#3                   t=110 n=    129 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    130 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    136 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    142 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    145 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    157 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    161 k=   880 count=1
+moe_experts_bf16#3                   t=110 n=    172 k=   880 count=1
+moe_experts_bf16#3                   t=116 n=    105 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    106 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    108 k=   928 count=2
+moe_experts_bf16#3                   t=116 n=    109 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    111 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    112 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    113 k=   928 count=2
+moe_experts_bf16#3                   t=116 n=    114 k=   928 count=2
+moe_experts_bf16#3                   t=116 n=    115 k=   928 count=3
+moe_experts_bf16#3                   t=116 n=    116 k=   928 count=2
+moe_experts_bf16#3                   t=116 n=    117 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    118 k=   928 count=2
+moe_experts_bf16#3                   t=116 n=    119 k=   928 count=2
+moe_experts_bf16#3                   t=116 n=    120 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    121 k=   928 count=3
+moe_experts_bf16#3                   t=116 n=    122 k=   928 count=2
+moe_experts_bf16#3                   t=116 n=    123 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    126 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    127 k=   928 count=2
+moe_experts_bf16#3                   t=116 n=    129 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    130 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    131 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    136 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    137 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    149 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    154 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    159 k=   928 count=1
+moe_experts_bf16#3                   t=116 n=    170 k=   928 count=1
+moe_experts_bf16_rows                t= 2 n=     12 k=    16 count=2
+moe_experts_bf16_rows                t= 2 n=     13 k=    16 count=2
+moe_experts_bf16_rows                t= 2 n=     14 k=    16 count=9
+moe_experts_bf16_rows                t= 2 n=     15 k=    16 count=18
+moe_experts_bf16_rows                t= 2 n=     16 k=    16 count=50
+moe_experts_bf16_rows                t= 3 n=     13 k=    24 count=3
+moe_experts_bf16_rows                t= 3 n=     14 k=    24 count=5
+moe_experts_bf16_rows                t= 3 n=     15 k=    24 count=5
+moe_experts_bf16_rows                t= 3 n=     16 k=    24 count=14
+moe_experts_bf16_rows                t= 3 n=     17 k=    24 count=6
+moe_experts_bf16_rows                t= 3 n=     18 k=    24 count=7
+moe_experts_bf16_rows                t= 3 n=     19 k=    24 count=11
+moe_experts_bf16_rows                t= 3 n=     20 k=    24 count=16
+moe_experts_bf16_rows                t= 3 n=     21 k=    24 count=10
+moe_experts_bf16_rows                t= 3 n=     22 k=    24 count=20
+moe_experts_bf16_rows                t= 3 n=     23 k=    24 count=14
+moe_experts_bf16_rows                t= 3 n=     24 k=    24 count=10
+moe_experts_bf16_rows                t= 4 n=     19 k=    32 count=1
+moe_experts_bf16_rows                t= 4 n=     21 k=    32 count=5
+moe_experts_bf16_rows                t= 4 n=     22 k=    32 count=7
+moe_experts_bf16_rows                t= 4 n=     23 k=    32 count=10
+moe_experts_bf16_rows                t= 4 n=     24 k=    32 count=10
+moe_experts_bf16_rows                t= 4 n=     25 k=    32 count=12
+moe_experts_bf16_rows                t= 4 n=     26 k=    32 count=13
+moe_experts_bf16_rows                t= 4 n=     27 k=    32 count=7
+moe_experts_bf16_rows                t= 4 n=     28 k=    32 count=6
+moe_experts_bf16_rows                t= 4 n=     29 k=    32 count=4
+moe_experts_bf16_rows                t= 4 n=     30 k=    32 count=3
+moe_experts_bf16_rows                t= 4 n=     31 k=    32 count=3
+moe_experts_bf16_rows                t= 5 n=     22 k=    40 count=2
+moe_experts_bf16_rows                t= 5 n=     23 k=    40 count=2
+moe_experts_bf16_rows                t= 5 n=     24 k=    40 count=8
+moe_experts_bf16_rows                t= 5 n=     25 k=    40 count=3
+moe_experts_bf16_rows                t= 5 n=     26 k=    40 count=4
+moe_experts_bf16_rows                t= 5 n=     27 k=    40 count=2
+moe_experts_bf16_rows                t= 5 n=     28 k=    40 count=3
+moe_experts_bf16_rows                t= 5 n=     29 k=    40 count=3
+moe_experts_bf16_rows                t= 5 n=     30 k=    40 count=5
+moe_experts_bf16_rows                t= 5 n=     31 k=    40 count=6
+moe_experts_bf16_rows                t= 5 n=     32 k=    40 count=7
+moe_experts_bf16_rows                t= 5 n=     33 k=    40 count=9
+moe_experts_bf16_rows                t= 5 n=     34 k=    40 count=7
+moe_experts_bf16_rows                t= 5 n=     35 k=    40 count=6
+moe_experts_bf16_rows                t= 5 n=     36 k=    40 count=5
+moe_experts_bf16_rows                t= 5 n=     37 k=    40 count=5
+moe_experts_bf16_rows                t= 5 n=     38 k=    40 count=2
+moe_experts_bf16_rows                t= 5 n=     39 k=    40 count=2
+moe_experts_bf16_rows                t= 6 n=     22 k=    48 count=1
+moe_experts_bf16_rows                t= 6 n=     23 k=    48 count=1
+moe_experts_bf16_rows                t= 6 n=     25 k=    48 count=3
+moe_experts_bf16_rows                t= 6 n=     26 k=    48 count=8
+moe_experts_bf16_rows                t= 6 n=     27 k=    48 count=2
+moe_experts_bf16_rows                t= 6 n=     28 k=    48 count=11
+moe_experts_bf16_rows                t= 6 n=     29 k=    48 count=27
+moe_experts_bf16_rows                t= 6 n=     30 k=    48 count=31
+moe_experts_bf16_rows                t= 6 n=     31 k=    48 count=32
+moe_experts_bf16_rows                t= 6 n=     32 k=    48 count=51
+moe_experts_bf16_rows                t= 6 n=     33 k=    48 count=57
+moe_experts_bf16_rows                t= 6 n=     34 k=    48 count=61
+moe_experts_bf16_rows                t= 6 n=     35 k=    48 count=67
+moe_experts_bf16_rows                t= 6 n=     36 k=    48 count=70
+moe_experts_bf16_rows                t= 6 n=     37 k=    48 count=52
+moe_experts_bf16_rows                t= 6 n=     38 k=    48 count=52
+moe_experts_bf16_rows                t= 6 n=     39 k=    48 count=54
+moe_experts_bf16_rows                t= 6 n=     40 k=    48 count=42
+moe_experts_bf16_rows                t= 6 n=     41 k=    48 count=32
+moe_experts_bf16_rows                t= 6 n=     42 k=    48 count=25
+moe_experts_bf16_rows                t= 6 n=     43 k=    48 count=18
+moe_experts_bf16_rows                t= 6 n=     44 k=    48 count=6
+moe_experts_bf16_rows                t= 6 n=     45 k=    48 count=9
+moe_experts_bf16_rows                t= 6 n=     46 k=    48 count=5
+moe_experts_bf16_rows                t= 6 n=     47 k=    48 count=3
+moe_experts_bf16_rows                t= 6 n=     48 k=    48 count=1
+moe_experts_bf16_rows                t= 7 n=     27 k=    56 count=1
+moe_experts_bf16_rows                t= 8 n=     30 k=    64 count=1
+moe_experts_bf16_rows#1              t= 2 n=     12 k=    16 count=2
+moe_experts_bf16_rows#1              t= 2 n=     13 k=    16 count=2
+moe_experts_bf16_rows#1              t= 2 n=     14 k=    16 count=9
+moe_experts_bf16_rows#1              t= 2 n=     15 k=    16 count=18
+moe_experts_bf16_rows#1              t= 2 n=     16 k=    16 count=50
+moe_experts_bf16_rows#1              t= 3 n=     13 k=    24 count=3
+moe_experts_bf16_rows#1              t= 3 n=     14 k=    24 count=5
+moe_experts_bf16_rows#1              t= 3 n=     15 k=    24 count=5
+moe_experts_bf16_rows#1              t= 3 n=     16 k=    24 count=14
+moe_experts_bf16_rows#1              t= 3 n=     17 k=    24 count=6
+moe_experts_bf16_rows#1              t= 3 n=     18 k=    24 count=7
+moe_experts_bf16_rows#1              t= 3 n=     19 k=    24 count=11
+moe_experts_bf16_rows#1              t= 3 n=     20 k=    24 count=16
+moe_experts_bf16_rows#1              t= 3 n=     21 k=    24 count=10
+moe_experts_bf16_rows#1              t= 3 n=     22 k=    24 count=20
+moe_experts_bf16_rows#1              t= 3 n=     23 k=    24 count=14
+moe_experts_bf16_rows#1              t= 3 n=     24 k=    24 count=10
+moe_experts_bf16_rows#1              t= 4 n=     19 k=    32 count=1
+moe_experts_bf16_rows#1              t= 4 n=     21 k=    32 count=5
+moe_experts_bf16_rows#1              t= 4 n=     22 k=    32 count=7
+moe_experts_bf16_rows#1              t= 4 n=     23 k=    32 count=10
+moe_experts_bf16_rows#1              t= 4 n=     24 k=    32 count=10
+moe_experts_bf16_rows#1              t= 4 n=     25 k=    32 count=12
+moe_experts_bf16_rows#1              t= 4 n=     26 k=    32 count=13
+moe_experts_bf16_rows#1              t= 4 n=     27 k=    32 count=7
+moe_experts_bf16_rows#1              t= 4 n=     28 k=    32 count=6
+moe_experts_bf16_rows#1              t= 4 n=     29 k=    32 count=4
+moe_experts_bf16_rows#1              t= 4 n=     30 k=    32 count=3
+moe_experts_bf16_rows#1              t= 4 n=     31 k=    32 count=3
+moe_experts_bf16_rows#1              t= 5 n=     22 k=    40 count=2
+moe_experts_bf16_rows#1              t= 5 n=     23 k=    40 count=2
+moe_experts_bf16_rows#1              t= 5 n=     24 k=    40 count=8
+moe_experts_bf16_rows#1              t= 5 n=     25 k=    40 count=3
+moe_experts_bf16_rows#1              t= 5 n=     26 k=    40 count=4
+moe_experts_bf16_rows#1              t= 5 n=     27 k=    40 count=2
+moe_experts_bf16_rows#1              t= 5 n=     28 k=    40 count=3
+moe_experts_bf16_rows#1              t= 5 n=     29 k=    40 count=3
+moe_experts_bf16_rows#1              t= 5 n=     30 k=    40 count=5
+moe_experts_bf16_rows#1              t= 5 n=     31 k=    40 count=6
+moe_experts_bf16_rows#1              t= 5 n=     32 k=    40 count=7
+moe_experts_bf16_rows#1              t= 5 n=     33 k=    40 count=9
+moe_experts_bf16_rows#1              t= 5 n=     34 k=    40 count=7
+moe_experts_bf16_rows#1              t= 5 n=     35 k=    40 count=6
+moe_experts_bf16_rows#1              t= 5 n=     36 k=    40 count=5
+moe_experts_bf16_rows#1              t= 5 n=     37 k=    40 count=5
+moe_experts_bf16_rows#1              t= 5 n=     38 k=    40 count=2
+moe_experts_bf16_rows#1              t= 5 n=     39 k=    40 count=2
+moe_experts_bf16_rows#1              t= 6 n=     22 k=    48 count=1
+moe_experts_bf16_rows#1              t= 6 n=     23 k=    48 count=1
+moe_experts_bf16_rows#1              t= 6 n=     25 k=    48 count=3
+moe_experts_bf16_rows#1              t= 6 n=     26 k=    48 count=8
+moe_experts_bf16_rows#1              t= 6 n=     27 k=    48 count=2
+moe_experts_bf16_rows#1              t= 6 n=     28 k=    48 count=11
+moe_experts_bf16_rows#1              t= 6 n=     29 k=    48 count=27
+moe_experts_bf16_rows#1              t= 6 n=     30 k=    48 count=31
+moe_experts_bf16_rows#1              t= 6 n=     31 k=    48 count=32
+moe_experts_bf16_rows#1              t= 6 n=     32 k=    48 count=51
+moe_experts_bf16_rows#1              t= 6 n=     33 k=    48 count=57
+moe_experts_bf16_rows#1              t= 6 n=     34 k=    48 count=61
+moe_experts_bf16_rows#1              t= 6 n=     35 k=    48 count=67
+moe_experts_bf16_rows#1              t= 6 n=     36 k=    48 count=70
+moe_experts_bf16_rows#1              t= 6 n=     37 k=    48 count=52
+moe_experts_bf16_rows#1              t= 6 n=     38 k=    48 count=52
+moe_experts_bf16_rows#1              t= 6 n=     39 k=    48 count=54
+moe_experts_bf16_rows#1              t= 6 n=     40 k=    48 count=42
+moe_experts_bf16_rows#1              t= 6 n=     41 k=    48 count=32
+moe_experts_bf16_rows#1              t= 6 n=     42 k=    48 count=25
+moe_experts_bf16_rows#1              t= 6 n=     43 k=    48 count=18
+moe_experts_bf16_rows#1              t= 6 n=     44 k=    48 count=6
+moe_experts_bf16_rows#1              t= 6 n=     45 k=    48 count=9
+moe_experts_bf16_rows#1              t= 6 n=     46 k=    48 count=5
+moe_experts_bf16_rows#1              t= 6 n=     47 k=    48 count=3
+moe_experts_bf16_rows#1              t= 6 n=     48 k=    48 count=1
+moe_experts_bf16_rows#1              t= 7 n=     27 k=    56 count=1
+moe_experts_bf16_rows#1              t= 8 n=     30 k=    64 count=1
+moe_experts_bf16_rows#2              t= 2 n=     12 k=    16 count=2
+moe_experts_bf16_rows#2              t= 2 n=     13 k=    16 count=2
+moe_experts_bf16_rows#2              t= 2 n=     14 k=    16 count=9
+moe_experts_bf16_rows#2              t= 2 n=     15 k=    16 count=18
+moe_experts_bf16_rows#2              t= 2 n=     16 k=    16 count=50
+moe_experts_bf16_rows#2              t= 3 n=     13 k=    24 count=3
+moe_experts_bf16_rows#2              t= 3 n=     14 k=    24 count=5
+moe_experts_bf16_rows#2              t= 3 n=     15 k=    24 count=5
+moe_experts_bf16_rows#2              t= 3 n=     16 k=    24 count=14
+moe_experts_bf16_rows#2              t= 3 n=     17 k=    24 count=6
+moe_experts_bf16_rows#2              t= 3 n=     18 k=    24 count=7
+moe_experts_bf16_rows#2              t= 3 n=     19 k=    24 count=11
+moe_experts_bf16_rows#2              t= 3 n=     20 k=    24 count=16
+moe_experts_bf16_rows#2              t= 3 n=     21 k=    24 count=10
+moe_experts_bf16_rows#2              t= 3 n=     22 k=    24 count=20
+moe_experts_bf16_rows#2              t= 3 n=     23 k=    24 count=14
+moe_experts_bf16_rows#2              t= 3 n=     24 k=    24 count=10
+moe_experts_bf16_rows#2              t= 4 n=     19 k=    32 count=1
+moe_experts_bf16_rows#2              t= 4 n=     21 k=    32 count=5
+moe_experts_bf16_rows#2              t= 4 n=     22 k=    32 count=7
+moe_experts_bf16_rows#2              t= 4 n=     23 k=    32 count=10
+moe_experts_bf16_rows#2              t= 4 n=     24 k=    32 count=10
+moe_experts_bf16_rows#2              t= 4 n=     25 k=    32 count=12
+moe_experts_bf16_rows#2              t= 4 n=     26 k=    32 count=13
+moe_experts_bf16_rows#2              t= 4 n=     27 k=    32 count=7
+moe_experts_bf16_rows#2              t= 4 n=     28 k=    32 count=6
+moe_experts_bf16_rows#2              t= 4 n=     29 k=    32 count=4
+moe_experts_bf16_rows#2              t= 4 n=     30 k=    32 count=3
+moe_experts_bf16_rows#2              t= 4 n=     31 k=    32 count=3
+moe_experts_bf16_rows#2              t= 5 n=     22 k=    40 count=2
+moe_experts_bf16_rows#2              t= 5 n=     23 k=    40 count=2
+moe_experts_bf16_rows#2              t= 5 n=     24 k=    40 count=8
+moe_experts_bf16_rows#2              t= 5 n=     25 k=    40 count=3
+moe_experts_bf16_rows#2              t= 5 n=     26 k=    40 count=4
+moe_experts_bf16_rows#2              t= 5 n=     27 k=    40 count=2
+moe_experts_bf16_rows#2              t= 5 n=     28 k=    40 count=3
+moe_experts_bf16_rows#2              t= 5 n=     29 k=    40 count=3
+moe_experts_bf16_rows#2              t= 5 n=     30 k=    40 count=5
+moe_experts_bf16_rows#2              t= 5 n=     31 k=    40 count=6
+moe_experts_bf16_rows#2              t= 5 n=     32 k=    40 count=7
+moe_experts_bf16_rows#2              t= 5 n=     33 k=    40 count=9
+moe_experts_bf16_rows#2              t= 5 n=     34 k=    40 count=7
+moe_experts_bf16_rows#2              t= 5 n=     35 k=    40 count=6
+moe_experts_bf16_rows#2              t= 5 n=     36 k=    40 count=5
+moe_experts_bf16_rows#2              t= 5 n=     37 k=    40 count=5
+moe_experts_bf16_rows#2              t= 5 n=     38 k=    40 count=2
+moe_experts_bf16_rows#2              t= 5 n=     39 k=    40 count=2
+moe_experts_bf16_rows#2              t= 6 n=     22 k=    48 count=1
+moe_experts_bf16_rows#2              t= 6 n=     23 k=    48 count=1
+moe_experts_bf16_rows#2              t= 6 n=     25 k=    48 count=3
+moe_experts_bf16_rows#2              t= 6 n=     26 k=    48 count=8
+moe_experts_bf16_rows#2              t= 6 n=     27 k=    48 count=2
+moe_experts_bf16_rows#2              t= 6 n=     28 k=    48 count=11
+moe_experts_bf16_rows#2              t= 6 n=     29 k=    48 count=27
+moe_experts_bf16_rows#2              t= 6 n=     30 k=    48 count=31
+moe_experts_bf16_rows#2              t= 6 n=     31 k=    48 count=32
+moe_experts_bf16_rows#2              t= 6 n=     32 k=    48 count=51
+moe_experts_bf16_rows#2              t= 6 n=     33 k=    48 count=57
+moe_experts_bf16_rows#2              t= 6 n=     34 k=    48 count=61
+moe_experts_bf16_rows#2              t= 6 n=     35 k=    48 count=67
+moe_experts_bf16_rows#2              t= 6 n=     36 k=    48 count=70
+moe_experts_bf16_rows#2              t= 6 n=     37 k=    48 count=52
+moe_experts_bf16_rows#2              t= 6 n=     38 k=    48 count=52
+moe_experts_bf16_rows#2              t= 6 n=     39 k=    48 count=54
+moe_experts_bf16_rows#2              t= 6 n=     40 k=    48 count=42
+moe_experts_bf16_rows#2              t= 6 n=     41 k=    48 count=32
+moe_experts_bf16_rows#2              t= 6 n=     42 k=    48 count=25
+moe_experts_bf16_rows#2              t= 6 n=     43 k=    48 count=18
+moe_experts_bf16_rows#2              t= 6 n=     44 k=    48 count=6
+moe_experts_bf16_rows#2              t= 6 n=     45 k=    48 count=9
+moe_experts_bf16_rows#2              t= 6 n=     46 k=    48 count=5
+moe_experts_bf16_rows#2              t= 6 n=     47 k=    48 count=3
+moe_experts_bf16_rows#2              t= 6 n=     48 k=    48 count=1
+moe_experts_bf16_rows#2              t= 7 n=     27 k=    56 count=1
+moe_experts_bf16_rows#2              t= 8 n=     30 k=    64 count=1
+qk_norm_rope_kv_bf16_rows            t= 2 n=      0 k=     0 count=20
+qk_norm_rope_kv_bf16_rows            t= 3 n=      0 k=     0 count=20
+qk_norm_rope_kv_bf16_rows            t= 4 n=      0 k=     0 count=20
+qk_norm_rope_kv_bf16_rows            t= 5 n=      0 k=     0 count=20
+qk_norm_rope_kv_bf16_rows            t= 6 n=      0 k=     0 count=180
+fleetq: #9844 done (exit 0)
