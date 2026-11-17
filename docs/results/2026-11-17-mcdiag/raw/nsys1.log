@@ -1,0 +1,2 @@
+fleetq: #9952 waiting (#1 in line): needs gpu quiet on spark1, but #9951 "storeids: build main + store on/off id bisect (35B NVFP4, 11 serve visits)" (claude-a9e6e738) loads it
+fleetq:   #9951 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9951 set, or it will wait for #9951 to be released.

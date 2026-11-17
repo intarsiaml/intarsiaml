@@ -1344,7 +1344,9 @@ pub(crate) struct Seq {
     /// A copy chain left its accepted rows queued for the head: catch the head up before the next MTP draft (lane mcopy2).
     copy_behind: bool,
     /// Lane mcdiag: `INTARSIA_SPEC_COPY_PROBE` not yet spent (one bogus chain per request at this many generated tokens).
-    copy_probe: Option<usize>,
+    copy_probe: Option<(usize, crate::spec::ProbeKind)>,
+    /// Lane mcdiag: the next captured-graph-eligible MTP step runs eagerly (probe kind `e`).
+    probe_eager: bool,
     /// Adaptive draft depth in `[INTARSIA_SPEC_K_MIN, spec_k]` (MTP drafts only); `None`: every pass drafts `spec_k`.
     depth: Option<crate::spec::Depth>,
     /// Speculation for this sampled request ([`crate::spec::SampledSpec`]; `Off` for greedy requests, which keep the greedy
@@ -1622,6 +1624,7 @@ impl Seq {
             copy_backoff: Default::default(),
             copy_behind: false,
             copy_probe: None,
+            probe_eager: false,
             depth: if spec_mtp && !spec_dflash { crate::spec::k_min_for(&env.spec).and_then(|m| crate::spec::Depth::new(m, spec_k)) } else { None },
             spec_sampled: crate::spec::SampledSpec::Off,
             spec_keyed: false,
@@ -2093,10 +2096,20 @@ impl Seq {
                     // A chain that missed (accepted fewer than `COPY_MIN_ACCEPT` drafts) backs the request off ([`CopyBackoff`]).
                     if let Some(c) = self.copy {
                         let len = c.len.min(room).min(self.max_new.saturating_sub(self.generated + 1));
-                        if len >= crate::spec::COPY_MIN_CHAIN && self.copy_probe.is_some_and(|g| self.generated >= g) {
-                            // lane mcdiag: the measurement hook, one bogus chain (see `copy_probe_from_env`)
+                        if let Some((g, kind)) = self.copy_probe.filter(|&(g, _)| self.generated >= g) {
+                            // lane mcdiag: the measurement hook (see `copy_probe_from_env`), once per request
+                            let _ = g;
                             self.copy_probe = None;
-                            return Next::Verify(vec![1; len]);
+                            match kind {
+                                crate::spec::ProbeKind::Chain(l) => {
+                                    let l = l.unwrap_or(len).min(room).min(self.max_new.saturating_sub(self.generated + 1));
+                                    if l >= 2 {
+                                        return Next::Verify(vec![1; l]);
+                                    }
+                                }
+                                crate::spec::ProbeKind::CatchUp => self.copy_behind = true,
+                                crate::spec::ProbeKind::Eager => self.probe_eager = true,
+                            }
                         }
                         if len >= crate::spec::COPY_MIN_CHAIN && self.copy_backoff.ready() {
                             let drafts = crate::spec::propose_copy(&self.ctx, crate::spec::CopyCfg { len, ..c });
@@ -2459,7 +2472,8 @@ impl Seq {
             Next::Draft(k)
                 if (self.auto.is_none() || self.drafter == crate::spec::Drafter::Mtp)
                     && !mtp_verify_check()
-                    && model.spec_step_ok(st, self.tok, k) =>
+                    && model.spec_step_ok(st, self.tok, k)
+                    && !std::mem::take(&mut self.probe_eager) =>
             {
                 self.predraft = None;
                 self.staged = None;

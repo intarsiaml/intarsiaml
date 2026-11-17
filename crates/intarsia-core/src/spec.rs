@@ -428,13 +428,35 @@ pub fn copy_from_env() -> Option<CopyCfg> {
     })
 }
 
-/// `INTARSIA_SPEC_COPY_PROBE=<g>` (lane mcdiag, a measurement hook, read once): with copy drafts on, the first MTP step at or after
-/// `g` generated tokens verifies one bogus chain (`len` copies of token 1, nearly always rejected) instead of the head's drafts, once
-/// per request. Greedy ids do not change (drafts only propose); it makes the "one early chain, then N plain MTP steps" run that
-/// `docs/results/2026-11-17-mcdiag.md` times against a run without it.
-pub fn copy_probe_from_env() -> Option<usize> {
-    static V: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
-    *V.get_or_init(|| std::env::var("INTARSIA_SPEC_COPY_PROBE").ok().and_then(|v| v.trim().parse::<usize>().ok()))
+/// What [`copy_probe_from_env`] does once per request (lane mcdiag, a measurement hook).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProbeKind {
+    /// One bogus copy chain of this many tokens (`None`: the knob's `len`; nearly always rejected).
+    Chain(Option<usize>),
+    /// Only the head catch-up a chain makes the next MTP step do (`Model::mtp_catch_up`), no chain pass.
+    CatchUp,
+    /// One MTP step run eagerly (the draft and the verify pass outside the captured graph), no chain.
+    Eager,
+}
+
+/// `INTARSIA_SPEC_COPY_PROBE=<g>[,<what>]` (lane mcdiag, a measurement hook, read once): with copy drafts on, the first MTP step at or
+/// after `g` generated tokens does `what` instead of the usual step, once per request: nothing or a number (a bogus chain of that many
+/// tokens, default the knob's `len`), `c` (only the head catch-up) or `e` (one eager MTP step). Greedy ids do not change (drafts only
+/// propose). It makes the "one early event, then N plain MTP steps" run that `docs/results/2026-11-17-mcdiag.md` times against a run
+/// without it.
+pub fn copy_probe_from_env() -> Option<(usize, ProbeKind)> {
+    static V: std::sync::OnceLock<Option<(usize, ProbeKind)>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| {
+        let v = std::env::var("INTARSIA_SPEC_COPY_PROBE").ok()?;
+        let (g, w) = v.split_once(',').map_or((v.as_str(), ""), |(g, w)| (g, w));
+        let kind = match w.trim() {
+            "" => ProbeKind::Chain(None),
+            "c" => ProbeKind::CatchUp,
+            "e" => ProbeKind::Eager,
+            n => ProbeKind::Chain(Some(n.parse().ok()?)),
+        };
+        Some((g.trim().parse().ok()?, kind))
+    })
 }
 
 /// Copy draft: the tokens that followed the most recent earlier occurrence of the last `c.n` tokens of `ctx`, up to `c.len` of them.
