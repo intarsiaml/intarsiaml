@@ -17,7 +17,7 @@ pub const MATMUL_MXFP4_GEMV: &str = "matmul_mxfp4_gemv";
 /// (needs the metal4.0 library, `INTARSIA_METAL_MXFP4_NAX`).
 pub const MATMUL_MXFP4_NAX: &str = "matmul_mxfp4_nax";
 /// Lane mb16: the row-exact twin of [`MATMUL_MXFP4_GEMV`] for batched decode (`rows_exact`: only `OpCall::exact_rows` calls select it,
-/// so prefill keeps [`MATMUL_MXFP4_NAX`]). 2..=`CHUNK_ROWS_MAX` rows: more than 8 run as two launches (`row_chunks`), each on the
+/// so prefill keeps [`MATMUL_MXFP4_NAX`]). 2..=`CHUNK_ROWS_MAX` rows: more than 4 run as several launches of 2..=4 rows (`row_chunks`, `MXFP4_ROWS_PLAN`), each on the
 /// GEMV's own M-row shaders (never the MMA ones), so row r is bitwise the M = 1 `matmul_mxfp4_gemv` launch on row r alone
 /// (tests/rows_exact.rs, tests/mxfp4_gemv.rs).
 pub const MATMUL_MXFP4_GEMV_ROWS: &str = "matmul_mxfp4_gemv_rows";
@@ -317,7 +317,7 @@ impl MetalBackend {
         }
         let rows = kernel == MATMUL_MXFP4_GEMV_ROWS;
         if rows && !(2..=M_BLOCK).contains(&m) {
-            // `row_chunks` splits 9..=16 rows into two launches of at most 8
+            // `row_chunks` splits more than 4 rows into launches of at most 4 (`INTARSIA_METAL_MXFP4_ROWS_CHUNK=0`: halves above 8)
             return Err(Error::invalid(format!("metal {MATMUL_MXFP4_GEMV_ROWS}: M = {m} (2..=8 rows per launch)")));
         }
         let need = m * k * 2 + 15;

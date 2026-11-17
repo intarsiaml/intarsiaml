@@ -1025,7 +1025,7 @@ impl Backend for MetalBackend {
     fn launch(&self, kernel: &str, call: &OpCall, s: StreamId) -> Result<()> {
         call.check()?;
         if let Some(chunks) = row_chunks(kernel, call) {
-            // 9..=16 rows of a row-exact multi-row GEMV: two launches of at most 8 rows, each row bitwise the one-row call
+            // a row-exact multi-row GEMV split by `chunk_sizes` (MXFP4: at most 4 rows per launch; others: two halves above 8), each row bitwise the one-row call
             for c in &chunks {
                 self.launch(kernel, c, s)?;
             }
