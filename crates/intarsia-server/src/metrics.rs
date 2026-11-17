@@ -224,6 +224,7 @@ pub fn render_batch(b: &intarsia_core::scheduler::BatchMetrics) -> String {
     metric(&mut o, "intarsia_batch_prefill_chunks_total", "counter", "Prefill chunks run.", b.prefill_chunks);
     metric(&mut o, "intarsia_batch_pack_passes_total", "counter", "Packed prefill passes (several prompts' chunks in one pass).", b.pack_passes);
     metric(&mut o, "intarsia_batch_packed_chunks_total", "counter", "Prefill chunks run inside packed passes.", b.packed_chunks);
+    metric(&mut o, "intarsia_batch_prefill_reordered_total", "counter", "Prefill decisions that went to a prompt other than the oldest prefilling one (INTARSIA_PREFILL_ORDER=shortest).", b.reordered_chunks);
     metric(&mut o, "intarsia_batch_prefill_tokens_total", "counter", "Prompt tokens prefilled.", b.prefill_tokens);
     metric(
         &mut o,

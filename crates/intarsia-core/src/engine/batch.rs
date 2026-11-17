@@ -27,7 +27,7 @@ use crate::error::{Error, Result};
 use crate::model::{HeadMode, Model, StepOut};
 use crate::scheduler::{
     BatchEngine, BatchMetrics, BatchModel, BatchSeq, Held, Housekeep, RequestId, Row, SchedulerConfig, SeqStep, Verified, VerifyRows,
-    MAX_BATCH_CAP, SPEC_OFF_AT_DEFAULT,
+    parse_prefill_order, PrefillOrder, MAX_BATCH_CAP, PREFILL_AGE_DEFAULT, SPEC_OFF_AT_DEFAULT,
 };
 use crate::state::SequenceState;
 use crate::telemetry::{Telemetry, TelemetrySnapshot};
@@ -94,6 +94,12 @@ pub struct BatchedOptions {
     /// A packed pass takes at most half of the waiting prompts (default on, `INTARSIA_PACK_HALF=0` off); see
     /// [`SchedulerConfig::pack_half`].
     pub pack_half: bool,
+    /// Which prefilling prompt gets the next chunk (`INTARSIA_PREFILL_ORDER=fifo|shortest`, default fifo); see
+    /// [`SchedulerConfig::prefill_order`].
+    pub prefill_order: PrefillOrder,
+    /// Decisions a prefilling prompt may be passed over under `shortest` before it goes first (`INTARSIA_PREFILL_AGE`, default
+    /// [`PREFILL_AGE_DEFAULT`]); see [`SchedulerConfig::prefill_age`].
+    pub prefill_age: usize,
     /// Batched MTP speculation (lane bm, opt-in, [`batched_mtp_env`]): `--spec mtp` drafts while at most this many sequences
     /// decode (and `spec_off_at` allows it); wider steps run plain batched decode. 0: `--spec mtp` is refused here (the default).
     pub mtp_max_b: usize,
@@ -142,6 +148,14 @@ pub const SETTLE_SLICE_MB_DEFAULT: usize = 0;
 /// (docs/results/2026-10-29-srv16b-pack-latency.md).
 pub const PACK_ROWS_DEFAULT: usize = 3072;
 
+/// `INTARSIA_PREFILL_ORDER` (`fifo`, the default, or `shortest`). An unknown value is reported on stderr and means fifo.
+fn prefill_order_env() -> PrefillOrder {
+    parse_prefill_order(std::env::var("INTARSIA_PREFILL_ORDER").ok().as_deref()).unwrap_or_else(|e| {
+        eprintln!("warning: {e}; using fifo");
+        PrefillOrder::Fifo
+    })
+}
+
 impl BatchedOptions {
     /// The scheduler policy these options select, for a model whose prefill chunk is `solo_chunk`.
     pub fn scheduler_config(&self, solo_chunk: usize) -> SchedulerConfig {
@@ -156,6 +170,8 @@ impl BatchedOptions {
             pack_prefill: self.pack_prefill.unwrap_or(false),
             pack_rows: self.pack_rows,
             pack_half: self.pack_half,
+            prefill_order: self.prefill_order,
+            prefill_age: self.prefill_age,
             prefix_herd: self.prefix_herd,
             ..SchedulerConfig::default()
         }
@@ -175,6 +191,12 @@ impl BatchedOptions {
             pack_prefill: std::env::var("INTARSIA_PACK_PREFILL").ok().map(|v| v == "1"),
             pack_rows: std::env::var("INTARSIA_PACK_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(PACK_ROWS_DEFAULT),
             pack_half: std::env::var("INTARSIA_PACK_HALF").map(|v| v != "0").unwrap_or(true),
+            prefill_order: prefill_order_env(),
+            prefill_age: std::env::var("INTARSIA_PREFILL_AGE")
+                .ok()
+                .and_then(|v| v.trim().parse().ok())
+                .filter(|&n| n >= 1)
+                .unwrap_or(PREFILL_AGE_DEFAULT),
             mtp_max_b: 0,
             pause_rows: std::env::var("INTARSIA_PREFILL_PAUSE_ROWS").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(PAUSE_ROWS_DEFAULT),
             settle_slice_mb: std::env::var("INTARSIA_SETTLE_SLICE_MB")
@@ -1506,6 +1528,16 @@ mod tests {
         let c = o.scheduler_config(2048);
         assert_eq!((c.spec_off_at, c.max_batch, c.max_queue), (7, 4, 16));
         assert!(!c.trace, "production never stores the trace");
+        assert!(c.validate().is_ok());
+    }
+
+    #[test]
+    fn prefill_order_reaches_the_scheduler_config() {
+        let mut o = BatchedOptions::new(4, 16);
+        o.prefill_order = PrefillOrder::Shortest;
+        o.prefill_age = 3;
+        let c = o.scheduler_config(2048);
+        assert_eq!((c.prefill_order, c.prefill_age), (PrefillOrder::Shortest, 3));
         assert!(c.validate().is_ok());
     }
 

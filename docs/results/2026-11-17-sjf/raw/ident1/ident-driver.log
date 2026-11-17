@@ -1,0 +1,29 @@
+fleetq: #9867 running on spark1: scripts/sjf/run.sh ident
+[09:43:02] phase ident start; earlyoom: active; vLLM: 200; bin: intarsia 0.0.1
+[09:43:02] serve ident-fifo: env [INTARSIA_CB_NO_REUSE=1] serve --backend cuda --max-seq 49152 --mem-budget 40 --max-batch 4 
+[09:43:58] serve ident-fifo up; MemAvailable MB 48144
+contend round 5 {'l6k': 48, 'l15k': 48, 's100': 48, 'm2k': 48}
+contend round 6 {'m2k': 48, 'l15k': 48, 's300': 48, 's100': 48}
+contend round 7 {'l15k': 48, 'l6k': 48, 'm1k': 48, 'm2k': 48}
+reordered prefill decisions during the contention rounds: 0.0
+[09:44:57] min MemAvailable MB (ident-fifo): 09:44:01 48087, killed: 0
+[09:44:59] serve ident-shortest: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest] serve --backend cuda --max-seq 49152 --mem-budget 40 --max-batch 4 
+[09:45:37] serve ident-shortest up; MemAvailable MB 52278
+contend round 5 {'l6k': 48, 's100': 48, 'm2k': 48, 'l15k': 48}
+contend round 6 {'m2k': 48, 's300': 48, 's100': 48, 'l15k': 48}
+contend round 7 {'m1k': 48, 'm2k': 48, 'l6k': 48, 'l15k': 48}
+reordered prefill decisions during the contention rounds: 30.0
+[09:46:37] min MemAvailable MB (ident-shortest): 09:45:47 51318, killed: 0
+[09:46:39] serve ident-shortest-nopack: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PACK_PREFILL=0] serve --backend cuda --max-seq 49152 --mem-budget 40 --max-batch 4 
+[09:47:16] serve ident-shortest-nopack up; MemAvailable MB 52313
+contend round 5 {'l6k': 48, 's100': 48, 'm2k': 48, 'l15k': 48}
+contend round 6 {'m2k': 48, 's300': 48, 's100': 48, 'l15k': 48}
+contend round 7 {'m1k': 48, 'm2k': 48, 'l6k': 48, 'l15k': 48}
+reordered prefill decisions during the contention rounds: 30.0
+[09:48:16] min MemAvailable MB (ident-shortest-nopack): 09:47:26 51370, killed: 0
+/opt/code/intarsiaml/.worktrees/sjf/docs/results/2026-11-17-sjf/raw/ids-fifo.json: reordered decisions 0.0
+/opt/code/intarsiaml/.worktrees/sjf/docs/results/2026-11-17-sjf/raw/ids-shortest.json: reordered decisions 30.0
+/opt/code/intarsiaml/.worktrees/sjf/docs/results/2026-11-17-sjf/raw/ids-shortest-nopack.json: reordered decisions 30.0
+108/108 cells identical
+[09:48:18] phase ident done
+fleetq: #9867 done (exit 0)

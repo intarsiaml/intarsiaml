@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
-use intarsia_core::scheduler::{BatchModel, BatchSeq, RequestId, Row, Scheduler, SchedulerConfig, SeqStep};
+use intarsia_core::scheduler::{BatchModel, BatchSeq, PrefillOrder, RequestId, Row, Scheduler, SchedulerConfig, SeqStep};
 use intarsia_core::{Error, FinishReason, Result};
 
 const CHUNK: usize = 8;
@@ -438,4 +438,48 @@ fn herd_late_follower_restores_twice() {
     let m = s.metrics();
     assert_eq!(m.herd_restores, 1, "one mid-prefill restore, after the admission one");
     assert_eq!(m.herd_tokens, 64 - 32);
+}
+
+/// Lane sjf with the herd: under `PrefillOrder::Shortest` a follower with far fewer tokens left than its leader is still held for the
+/// leader (never picked just because it is shorter), restores the shared prefix when released, and every reply is the herd-off one.
+#[test]
+fn herd_followers_stay_held_under_shortest() {
+    let shared = prompts(1, 64, 0).remove(0);
+    let mut ps = Vec::new();
+    for (k, own) in [(0u32, 240usize), (1, 2), (2, 3)] {
+        let mut p = shared.clone();
+        p.extend((0..own as u32).map(|i| 600 + (k * 53 + i * 11 + 1) % 300));
+        ps.push(p);
+    }
+    let go = |herd: bool, order: PrefillOrder| {
+        let (m, rec) = Model::new(3, 400);
+        let cfg = SchedulerConfig { max_batch: 3, prefix_reuse: false, prefix_herd: herd, prefill_order: order, ..Default::default() };
+        let mut s = Scheduler::new(m, cfg).unwrap();
+        let store: Store = Arc::new(Mutex::new(Vec::new()));
+        let rxs: Vec<_> = ps
+            .iter()
+            .map(|p| {
+                let (seq, rx, _) = Seq::new(p.clone(), 5, &store, true);
+                s.submit(seq).unwrap();
+                rx
+            })
+            .collect();
+        let mut it = 0;
+        while s.has_work() {
+            s.step();
+            it += 1;
+            assert!(it < 10_000, "no termination");
+        }
+        let toks: Vec<_> = rxs.iter().map(|r| collect(r).0).collect();
+        let rows: Vec<usize> = (0..3u64).map(|id| rec.lock().unwrap().rows.get(&id).copied().unwrap_or(0)).collect();
+        (toks, rows, s.metrics())
+    };
+    let (off_toks, _, _) = go(false, PrefillOrder::Fifo);
+    let (fifo_toks, fifo_rows, _) = go(true, PrefillOrder::Fifo);
+    let (short_toks, short_rows, m) = go(true, PrefillOrder::Shortest);
+    assert_eq!(fifo_toks, off_toks);
+    assert_eq!(short_toks, off_toks, "replies are unchanged");
+    assert_eq!(fifo_rows, vec![304, 2, 3]);
+    assert_eq!(short_rows, fifo_rows, "the followers were held for the leader under shortest too and prefilled only their own tokens");
+    assert_eq!(m.herd_restores, 2);
 }
