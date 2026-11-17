@@ -380,6 +380,39 @@ fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
     report("mxfp4");
 }
 
+/// Lane mchunk4: the chunk plan (`MXFP4_ROWS_PLAN`, launches of at most 4 rows) and the old halves (`INTARSIA_METAL_MXFP4_ROWS_CHUNK=0`)
+/// give every row the bits of the one-row launch, at the row counts the plan splits (5, 6, 7, 8, 9, 12, 16 named, then all of 5..=16),
+/// at the 27B's shapes and tails, f32 and bf16 out, W4A16 and W4A4, x aligned and not. A control in the same loop: the two settings
+/// produce the same bytes as each other.
+#[test]
+fn mxfp4_row_chunks_are_bitwise_the_one_row_gemv() {
+    let be = backend();
+    let named = [5usize, 6, 7, 8, 9, 12, 16];
+    let ms: Vec<usize> = named.iter().copied().chain((5..=16).filter(|m| !named.contains(m))).collect();
+    for (si, &(n, k)) in MX_SHAPES.iter().enumerate() {
+        let mut r = Rng(1700 + si as u64);
+        let w: Vec<u8> = (0..n * k / 2).map(|_| (r.next_u64() >> 40) as u8).collect();
+        let sc: Vec<u8> = (0..n * k / 32).map(|_| 119 + ((r.next_u64() >> 40) % 12) as u8).collect();
+        let wt = (t(&put_bytes(&be, 16, &w), 16, DType::U8, &[n, k / 2]), t(&put_bytes(&be, 3, &sc), 3, DType::U8, &[n, k / 32]));
+        for &m in &ms {
+            for (f32_out, act) in [(false, 0.0f32), (false, 1.0), (true, 0.0), (true, 1.0)] {
+                let x_off = if m % 2 == 0 { 0 } else { 2 };
+                let mut outs = Vec::new();
+                for on in [true, false] {
+                    let (one, rows) = intarsia_backend_metal::with_mxfp4_rows_chunk(on, || {
+                        mx_pair(&be, &wt, "matmul_mxfp4_gemv_rows", n, k, m, f32_out, act, x_off, 2700 + (si * 100 + m) as u64)
+                    });
+                    same(&one, &rows, &format!("chunked matmul_mxfp4 N={n} K={k} M={m} f32_out={f32_out} act={act} plan={on}"));
+                    outs.push(rows);
+                }
+                same(&outs[0], &outs[1], &format!("plan vs halves N={n} K={k} M={m} f32_out={f32_out} act={act}"));
+                tally(m);
+            }
+        }
+    }
+    report("mxfp4 chunks");
+}
+
 /// Negative control: the prefill form (`matmul_mxfp4_nax`, the kernel a 9-row batched step would take without the row-exact
 /// twin) on the same 9..=16 rows does NOT match the one-row GEMVs bit for bit at f32 output, so the comparison above (whose
 /// f32-output cases are the sharp ones) can see a wrong pick.
@@ -1139,8 +1172,9 @@ fn timing_rows() {
 }
 
 /// `cargo test --release --test rows_exact -- --ignored --nocapture timing_mxfp4_rows` (lane mb16): cost of one
-/// `matmul_mxfp4_gemv_rows` call of M = 1..=16 rows (9..=16: two chunks, `row_chunks`) at the 27B's W4A16 shapes, summed over the
-/// shapes of one layer's projections. Run in a quiet fleetq slot.
+/// `matmul_mxfp4_gemv_rows` call of M = 1..=16 rows at the 27B's W4A16 shapes, summed over the shapes of one layer's projections,
+/// with the old chunking (`halves`: one launch up to 8 rows, two above) and the plan (`plan`: launches of at most 4 rows,
+/// lane mchunk4, `MXFP4_ROWS_PLAN`). Run in a quiet fleetq slot.
 #[test]
 #[ignore]
 fn timing_mxfp4_rows() {
@@ -1172,14 +1206,18 @@ fn timing_mxfp4_rows() {
             calls.push(c);
         }
         let kern = if m == 1 { "matmul_mxfp4_gemv" } else { "matmul_mxfp4_gemv_rows" };
-        let us = time_us(&be, 20, || {
-            for c in &calls {
-                be.launch(kern, c, 0).unwrap();
+        for (label, on) in [("halves", false), ("plan", true)] {
+            let us = intarsia_backend_metal::with_mxfp4_rows_chunk(on, || {
+                time_us(&be, 20, || {
+                    for c in &calls {
+                        be.launch(kern, c, 0).unwrap();
+                    }
+                })
+            });
+            if m == 1 && !on {
+                one = us;
             }
-        });
-        if m == 1 {
-            one = us;
+            eprintln!("TIMING mxfp4 27B layer {label} M={m}: {us:.0} us ({:.2}x M=1, {:.0} us per row)", us / one, us / m as f64);
         }
-        eprintln!("TIMING mxfp4 27B layer M={m}: {us:.0} us ({:.2}x M=1, {:.0} us per row)", us / one, us / m as f64);
     }
 }

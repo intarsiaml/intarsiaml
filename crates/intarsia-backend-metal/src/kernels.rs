@@ -600,7 +600,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .scratch(crate::mxfp4::nax_scratch)
                     .priority(5),
                 // lane mb16: the row-exact twin for batched decode of the 27B (rows_exact: only `OpCall::exact_rows` calls select
-                // it, so prefill keeps the NAX form): the GEMV's M-row shaders, 2..=16 rows (two launches above 8, `row_chunks`),
+                // it, so prefill keeps the NAX form): the GEMV's M-row shaders, 2..=16 rows (launches of at most 4 rows, `row_chunks` / `MXFP4_ROWS_PLAN`; `INTARSIA_METAL_MXFP4_ROWS_CHUNK=0`: halves above 8),
                 // row r bitwise the M = 1 GEMV on row r alone (tests/rows_exact.rs).
                 crate::mxfp4::MATMUL_MXFP4_GEMV_ROWS => k
                     .acts(bf)
