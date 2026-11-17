@@ -1,0 +1,8 @@
+fleetq: #9804 waiting (#3 in line): in line behind #9802 "msm192: naxd microbench M=128..256 six 27B shapes, 7 rounds" (claude-2ae67a71) on endor
+fleetq:   #9802 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9802 set, or it will wait for #9802 to be released.
+fleetq: #9804 waiting (#2 in line): in line behind #9803 "mcatch: push branch" (claude-2ae67a71) on endor
+fleetq:   #9803 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9803 set, or it will wait for #9803 to be released.
+fleetq: #9804 running on endor: bash -c 'cd /opt/code/intarsiaml/.worktrees/mb16 && cargo build --release -p intarsia-cli --features metal 2>&1 | tail -1 && mkdir -p .base/bin-mb16 && cp target/release/intarsia .base/bin-mb16/intarsia && .base/bin-mb16/intarsia kernels list --backend metal 2>&1 | grep -c mxfp4'
+    Finished `release` profile [optimized] target(s) in 0.24s
+3
+fleetq: #9804 done (exit 0)

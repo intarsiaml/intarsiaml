@@ -1,0 +1,5 @@
+fleetq: #9793 running on endor: bash -c 'cd /opt/code/intarsiaml/.worktrees/mb16/.base/src && CARGO_TARGET_DIR=/opt/code/intarsiaml/.worktrees/mb16/.base/target cargo build --release -p intarsia-cli 2>&1 | tail -3'
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 21.27s
+fleetq: #9793 done (exit 0)
