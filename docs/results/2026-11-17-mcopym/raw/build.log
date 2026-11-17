@@ -1,0 +1,164 @@
+fleetq: #9939 waiting (#4 in line): in line behind #9933 "mflip cell3 herd16 mb16" (claude-a9e6e738) on endor
+fleetq:   #9933 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9933 set, or it will wait for #9933 to be released.
+fleetq: #9939 waiting (#3 in line): in line behind #9934 "mflip cell3 sjf mb16" (claude-a9e6e738) on endor
+fleetq:   #9934 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9934 set, or it will wait for #9934 to be released.
+fleetq: #9939 waiting (#2 in line): in line behind #9935 "mflip cell4 staggered herd" (claude-a9e6e738) on endor
+fleetq:   #9935 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9935 set, or it will wait for #9935 to be released.
+fleetq: #9939 waiting (#1 in line): #9935 "mflip cell4 staggered herd" (claude-a9e6e738) needs cpu quiet on endor, and this job loads it
+fleetq:   #9935 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9935 set, or it will wait for #9935 to be released.
+fleetq: #9939 running on endor: scripts/mcopym/build.sh
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/target/base-src/crates/intarsia-core)
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/target/base-src/crates/intarsia-backend-metal)
+   Compiling intarsia-bench v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/target/base-src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/target/base-src/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/target/base-src/crates/intarsia-tui)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/target/base-src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/target/base-src/crates/intarsia-engram)
+   Compiling intarsia-server v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/target/base-src/crates/intarsia-server)
+warning: function `split_calls` is never used
+   --> crates/intarsia-server/src/structured.rs:223:8
+    |
+223 | pub fn split_calls(text: &str, format: ToolFormat, tools: &[Tool]) -> (Option<String>, Vec<(String, Value)>) {
+    |        ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated functions `new`, `parse_all`, and `parse_all_with` are never used
+    --> crates/intarsia-server/src/structured.rs:930:12
+     |
+ 928 | impl ToolParser {
+     | --------------- associated functions in this implementation
+ 929 |     /// A parser for one response; `tools` are the request's (only the XML format reads them).
+ 930 |     pub fn new(format: ToolFormat, tools: &[Tool]) -> ToolParser {
+     |            ^^^
+...
+1045 |     pub fn parse_all(text: &str, format: ToolFormat, tools: &[Tool]) -> Vec<Piece> {
+     |            ^^^^^^^^^
+...
+1049 |     pub fn parse_all_with(text: &str, format: ToolFormat, tools: &[Tool], mode: ToolMode) -> Vec<Piece> {
+     |            ^^^^^^^^^^^^^^
+
+warning: associated function `parse_all` is never used
+    --> crates/intarsia-server/src/structured.rs:1424:12
+     |
+1329 | impl ReasoningParser {
+     | -------------------- associated function in this implementation
+...
+1424 |     pub fn parse_all(text: &str) -> (Option<String>, Option<String>) {
+     |            ^^^^^^^^^
+
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/target/base-src/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/target/base-src/crates/intarsia-cli)
+warning: `intarsia-server` (lib) generated 3 warnings
+warning: variable does not need to be mutable
+    --> crates/intarsia-cli/src/cmd/qualify.rs:1889:13
+     |
+1889 |         let mut v: Vec<String> = vec![
+     |             ----^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 15.81s
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/crates/intarsia-backend-metal)
+warning: function `split_calls` is never used
+   --> crates/intarsia-server/src/structured.rs:223:8
+    |
+223 | pub fn split_calls(text: &str, format: ToolFormat, tools: &[Tool]) -> (Option<String>, Vec<(String, Value)>) {
+    |        ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated functions `new`, `parse_all`, and `parse_all_with` are never used
+    --> crates/intarsia-server/src/structured.rs:930:12
+     |
+ 928 | impl ToolParser {
+     | --------------- associated functions in this implementation
+ 929 |     /// A parser for one response; `tools` are the request's (only the XML format reads them).
+ 930 |     pub fn new(format: ToolFormat, tools: &[Tool]) -> ToolParser {
+     |            ^^^
+...
+1045 |     pub fn parse_all(text: &str, format: ToolFormat, tools: &[Tool]) -> Vec<Piece> {
+     |            ^^^^^^^^^
+...
+1049 |     pub fn parse_all_with(text: &str, format: ToolFormat, tools: &[Tool], mode: ToolMode) -> Vec<Piece> {
+     |            ^^^^^^^^^^^^^^
+
+warning: associated function `parse_all` is never used
+    --> crates/intarsia-server/src/structured.rs:1424:12
+     |
+1329 | impl ReasoningParser {
+     | -------------------- associated function in this implementation
+...
+1424 |     pub fn parse_all(text: &str) -> (Option<String>, Option<String>) {
+     |            ^^^^^^^^^
+
+warning: `intarsia-server` (lib) generated 3 warnings
+   Compiling intarsia-cli v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/crates/intarsia-cli)
+warning: variable does not need to be mutable
+    --> crates/intarsia-cli/src/cmd/qualify.rs:1889:13
+     |
+1889 |         let mut v: Vec<String> = vec![
+     |             ----^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 9.91s
+-rwxr-xr-x@ 1 josef  staff  29680640 Nov 17 17:16 /opt/code/intarsiaml/.worktrees/mcopym/target/intarsia-base
+-rwxr-xr-x@ 1 josef  staff  29680624 Nov 17 17:16 /opt/code/intarsiaml/.worktrees/mcopym/target/intarsia-new
+fleetq: #9939 done (exit 0)

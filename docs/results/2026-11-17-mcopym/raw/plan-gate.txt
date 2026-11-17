@@ -1,0 +1,42 @@
+fleetq: #9942 running on endor: scripts/mcopym/plan.sh
+base: exit 0 13188 bytes sha a3bb42031070215f
+new: exit 0 13188 bytes sha a3bb42031070215f
+base2: exit 0 13188 bytes sha a3bb42031070215f
+new-n20: exit 0 13188 bytes sha cc3a803ba2f21696
+new-n20L15: exit 1 0 bytes sha e3b0c44298fc1c14
+new-n20L7: exit 0 13188 bytes sha cc3a803ba2f21696
+base twice: byte-identical (deterministic)
+PASS plan show knob unset: base and new byte-identical
+--- base vs new-n20
+530c530
+<             "scratch_bytes": 125696
+---
+>             "scratch_bytes": 330496
+--- base vs new-n20L15
+Expecting value: line 1 column 1 (char 0)
+1,673d0
+< {
+<     "model": "Qwen3.6-35B-A3B-NVFP4",
+<     "backend": "metal",
+<     "device": {
+<         "name": "Apple M5 Max",
+<         "mem_total": 115448725504,
+<         "arch": "applegpu_g17s"
+<     },
+<     "tp": null,
+<     "exactness": "deterministic",
+<     "layers": [
+<         {
+<             "index": 0,
+<             "kind": "gated_delta_net",
+<             "blocks": [
+<                 "gated_delta_net",
+<                 "moe"
+<             ]
+<         },
+--- base vs new-n20L7
+530c530
+<             "scratch_bytes": 125696
+---
+>             "scratch_bytes": 330496
+fleetq: #9942 done (exit 0)
