@@ -5,6 +5,7 @@
 //! output buffers, guards included.
 //!
 //!  * `matmul_fp8_gemv_rows`, `matmul_nvfp4_gemv_rows`, `moe_experts_bf16_rows`: the three new `rows_exact` kernels.
+//!  * `matmul_mxfp4_gemv_rows` (lane mb16): the 27B's batched decode, 2..=16 rows, against the M = 1 `matmul_mxfp4_gemv`.
 //!  * the existing `rows_exact` bf16 pair kernel at the 35B's router / shared-gate / GDN a-b pairs.
 //!  * the kernels a batched step shares with the solo step because they are row-parallel (rmsnorm, rmsnorm_add, silu_glu,
 //!    embedding, gate_split, sigmoid_mul, moe_topk, moe_combine, argmax): same kernel for M rows and for 1 row, so the claim
@@ -17,7 +18,7 @@
 mod common;
 use common::*;
 use intarsia_backend_metal::bench::{f32_to_bf16, Rng};
-use intarsia_backend_metal::MetalBackend;
+use intarsia_backend_metal::{mxfp4, MetalBackend};
 use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
 use intarsia_core::quant::cases::{random_experts, random_routing};
 use intarsia_core::rng::SplitMix64;
@@ -298,6 +299,109 @@ fn nvfp4_rows_are_bitwise_the_one_row_gemv() {
         }
     }
     report("nvfp4");
+}
+
+// ---- mxfp4 (lane mb16: the 27B's batched decode) --------------------------------------------------------------------
+
+/// The 27B's (N, K) (hidden 5120): GDN in_proj_a/b, k/v_proj, o_proj / out_proj, gate/up, down; then tails (N not a multiple
+/// of the 4 rows per threadgroup, K of one group / with a group tail).
+const MX_SHAPES: &[(usize, usize)] =
+    &[(48, 5120), (1024, 5120), (5120, 6144), (17408, 5120), (5120, 17408), (130, 544), (33, 32)];
+
+/// Output bytes (guards included) of `matmul_mxfp4_gemv` on each row alone and of `kernel` on all `m` rows: `(one-row, m-row)`.
+#[allow(clippy::too_many_arguments)]
+fn mx_pair(
+    be: &MetalBackend,
+    wt: &(TensorRef, TensorRef),
+    kernel: &str,
+    n: usize,
+    k: usize,
+    m: usize,
+    f32_out: bool,
+    act: f32,
+    x_off: usize,
+    seed: u64,
+) -> (Vec<u8>, Vec<u8>) {
+    let x = act_rows(m, k, seed);
+    let xb = put_bytes(be, x_off, &bf16_bytes(&x));
+    let (odt, esz) = if f32_out { (DType::F32, 4) } else { (DType::Bf16, 2) };
+    let yo = 8usize;
+    let (ys, ym) = (guarded(be, yo, m * n * esz), guarded(be, yo, m * n * esz));
+    let xt = t(&xb, x_off, DType::Bf16, &[m, k]);
+    let at = t(&put_bytes(be, 4, &act.to_le_bytes()), 4, DType::F32, &[1]);
+    let (yst, ymt) = (t(&ys, yo, odt, &[m, n]), t(&ym, yo, odt, &[m, n]));
+    let call = |kern: &str, x: TensorRef, y: TensorRef| {
+        // the model marks W4A16 calls (act 0): the GEMV then reads x itself when it is 16-byte aligned (the fused form)
+        let mut c = OpCall::new(
+            Op::MatmulMxfp4,
+            vec![x, wt.0.clone(), wt.1.clone(), at.clone()],
+            vec![y],
+            OpAttrs { mxfp4_w4a16: act == 0.0, ..OpAttrs::default() },
+        );
+        let need = be.kernels().iter().find(|q| q.name == kern).unwrap().scratch_bytes(&ShapeInfo::from_call(&c));
+        let sb = be.alloc(need + 32, MemKind::Device).unwrap();
+        c.scratch = Some(t(&sb, 0, DType::U8, &[need]));
+        c
+    };
+    for r in 0..m {
+        be.launch("matmul_mxfp4_gemv", &call("matmul_mxfp4_gemv", xt.rows(r, 1), yst.rows(r, 1)), 0).unwrap();
+    }
+    be.launch(kernel, &call(kernel, xt.clone(), ymt), 0).unwrap();
+    let tot = yo + m * n * esz + 16;
+    (dl(be, &ys, tot), dl(be, &ym, tot))
+}
+
+#[test]
+fn mxfp4_rows_are_bitwise_the_one_row_gemv() {
+    let be = backend();
+    for (si, &(n, k)) in MX_SHAPES.iter().enumerate() {
+        let mut r = Rng(1300 + si as u64);
+        let w: Vec<u8> = (0..n * k / 2).map(|_| (r.next_u64() >> 40) as u8).collect();
+        // scale bytes 2^-8 .. 2^3 (tests/mxfp4_gemv.rs)
+        let sc: Vec<u8> = (0..n * k / 32).map(|_| 119 + ((r.next_u64() >> 40) % 12) as u8).collect();
+        let wt = (t(&put_bytes(&be, 16, &w), 16, DType::U8, &[n, k / 2]), t(&put_bytes(&be, 3, &sc), 3, DType::U8, &[n, k / 32]));
+        // every MR setting on the small shapes (auto, the `_m8` shader, P = 2 / 4, and 8, which the rows kernel must not take);
+        // the 27B's shapes at the shipped auto setting
+        let mrs: &[usize] = if n * k <= 1 << 20 { &[1, 0, 2, 4, 8] } else { &[1] };
+        for &mr in mrs {
+            for m in 2..=16usize {
+                for (f32_out, act) in [(false, 0.0f32), (false, 1.0), (true, 0.0), (true, 1.0)] {
+                    // x 16-byte aligned (the fused W4A16 read) and not (the pre-pass copy)
+                    let x_off = if m % 2 == 0 { 0 } else { 2 };
+                    let (one, rows) = mxfp4::with_mr(mr, || {
+                        mx_pair(&be, &wt, "matmul_mxfp4_gemv_rows", n, k, m, f32_out, act, x_off, 2300 + (si * 100 + m) as u64)
+                    });
+                    same(&one, &rows, &format!("matmul_mxfp4 N={n} K={k} M={m} f32_out={f32_out} act={act} mr={mr} x_off={x_off}"));
+                    tally(m);
+                }
+            }
+        }
+    }
+    report("mxfp4");
+}
+
+/// Negative control: the prefill form (`matmul_mxfp4_nax`, the kernel a 9-row batched step would take without the row-exact
+/// twin) on the same 9..=16 rows does NOT match the one-row GEMVs bit for bit at f32 output, so the comparison above (whose
+/// f32-output cases are the sharp ones) can see a wrong pick.
+#[test]
+fn mxfp4_nax_rows_differ_from_the_one_row_gemv() {
+    let be = backend();
+    if !be.has_metal4() {
+        eprintln!("no metal4.0 library: matmul_mxfp4_nax not registered, control skipped");
+        return;
+    }
+    let (n, k) = (1024usize, 5120usize);
+    let mut r = Rng(1400);
+    let w: Vec<u8> = (0..n * k / 2).map(|_| (r.next_u64() >> 40) as u8).collect();
+    let sc: Vec<u8> = (0..n * k / 32).map(|_| 119 + ((r.next_u64() >> 40) % 12) as u8).collect();
+    let wt = (t(&put_bytes(&be, 0, &w), 0, DType::U8, &[n, k / 2]), t(&put_bytes(&be, 0, &sc), 0, DType::U8, &[n, k / 32]));
+    for m in [9usize, 12, 16] {
+        // f32 output: a bf16 output rounds most reduction-order differences away (measured: 0 of 18456 bytes differ at M = 9)
+        let (one, nax) = mx_pair(&be, &wt, "matmul_mxfp4_nax", n, k, m, true, 0.0, 0, 2400 + m as u64);
+        let d = differing(&one, &nax);
+        eprintln!("mxfp4 control M={m}: NAX differs from the one-row GEMVs in {d} of {} bytes", one.len());
+        assert!(d > 0, "matmul_mxfp4_nax M={m} matched the one-row GEMVs bit for bit: the rows test could not see a wrong pick");
+    }
 }
 
 // ---- moe_experts ----------------------------------------------------------------------------------------------------
@@ -826,6 +930,7 @@ fn rows_exact_registrations_are_pinned() {
             "logits_bf16_gemv_rows",
             "matmul_bf16_gemv_rows",
             "matmul_fp8_gemv_rows",
+            "matmul_mxfp4_gemv_rows",
             "matmul_nvfp4_gemv_rows",
             "matmul_pair_bf16_gemv_rows",
             "moe_experts_bf16_rows",
@@ -836,6 +941,7 @@ fn rows_exact_registrations_are_pinned() {
         ("matmul_fp8_gemv_rows", Op::MatmulFp8, 2048usize, DType::Fp8E4m3),
         ("matmul_fp8_gemv_rows", Op::MatmulFp8, 4096, DType::Fp8E4m3),
         ("matmul_nvfp4_gemv_rows", Op::MatmulNvfp4, 2048, DType::U8),
+        ("matmul_mxfp4_gemv_rows", Op::MatmulMxfp4, 5120, DType::U8),
         ("moe_experts_bf16_rows", Op::MoeExperts, 2048, DType::U8),
     ] {
         let kern = be.kernels().into_iter().find(|x| x.name == name).unwrap();

@@ -16,6 +16,11 @@ pub const MATMUL_MXFP4_GEMV: &str = "matmul_mxfp4_gemv";
 /// The prefill form (M > 8): the weights decoded to bf16 into the scratch, then the fp8 NAX GEMM on the neural accelerators
 /// (needs the metal4.0 library, `INTARSIA_METAL_MXFP4_NAX`).
 pub const MATMUL_MXFP4_NAX: &str = "matmul_mxfp4_nax";
+/// Lane mb16: the row-exact twin of [`MATMUL_MXFP4_GEMV`] for batched decode (`rows_exact`: only `OpCall::exact_rows` calls select it,
+/// so prefill keeps [`MATMUL_MXFP4_NAX`]). 2..=`CHUNK_ROWS_MAX` rows: more than 8 run as two launches (`row_chunks`), each on the
+/// GEMV's own M-row shaders (never the MMA ones), so row r is bitwise the M = 1 `matmul_mxfp4_gemv` launch on row r alone
+/// (tests/rows_exact.rs, tests/mxfp4_gemv.rs).
+pub const MATMUL_MXFP4_GEMV_ROWS: &str = "matmul_mxfp4_gemv_rows";
 
 const XPREP: &str = "mxfp4_xprep_bf16";
 /// Weight decode of the NAX form (mxfp4.metal).
@@ -133,6 +138,11 @@ pub fn xfuse_enabled() -> bool {
 /// The NAX form serves the calls above the GEMV's 8 rows with K % 32 == 0 and a weight that fits [`NAX_MAX_W`].
 pub fn nax_ok(s: &ShapeInfo) -> bool {
     nax_enabled() && !s.mxfp4_a8 && s.m > GEMV_MB && s.k >= 32 && s.k % 32 == 0 && s.n * s.k <= NAX_MAX_W
+}
+
+/// The calls [`MATMUL_MXFP4_GEMV_ROWS`] serves: the GEMV's (no W4A8, K % 32 == 0) at 2..=`CHUNK_ROWS_MAX` rows.
+pub fn rows_ok(s: &ShapeInfo) -> bool {
+    !s.mxfp4_a8 && (2..=crate::CHUNK_ROWS_MAX).contains(&s.m) && s.k > 0 && s.k % 32 == 0
 }
 
 /// NAX scratch: the QDQ'd activations (bf16 `[M,K]`), then, from the next 16-byte boundary, the decoded weights (bf16 `[N,K]`)
@@ -293,6 +303,11 @@ impl MetalBackend {
         if kernel == MATMUL_MXFP4_NAX {
             return self.launch_mxfp4_nax(call, (&xb, &wb, &sb, &ab, &ob), [m, n, k], f32_out);
         }
+        let rows = kernel == MATMUL_MXFP4_GEMV_ROWS;
+        if rows && !(2..=M_BLOCK).contains(&m) {
+            // `row_chunks` splits 9..=16 rows into two launches of at most 8
+            return Err(Error::invalid(format!("metal {MATMUL_MXFP4_GEMV_ROWS}: M = {m} (2..=8 rows per launch)")));
+        }
         let need = m * k * 2 + 15;
         let scratch = call.scratch.as_ref().ok_or_else(|| {
             Error::invalid("metal matmul_mxfp4_gemv: the scratch workspace (OpCall::scratch) is missing")
@@ -314,6 +329,8 @@ impl MetalBackend {
             1 => mr_auto(m, n),
             p => p,
         };
+        // the row-exact twin never takes the MMA shaders (bitwise the `_m1` shader only on some archs): auto instead
+        let mr = if rows && mr == 8 { mr_auto(m, n) } else { mr };
         let mr = if (2..=M_BLOCK).contains(&m) && matches!(mr, 2 | 4 | 8) { mr } else { 0 };
         let gemv = match (f32_out, m == 1) {
             _ if mr == 8 => MMA_SHADERS[usize::from(f32_out)],

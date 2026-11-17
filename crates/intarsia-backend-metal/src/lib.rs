@@ -250,6 +250,7 @@ fn row_chunks(kernel: &str, call: &OpCall) -> Option<Vec<OpCall>> {
             | multirow::LOGITS_BF16_GEMV_ROWS
             | fp8::MATMUL_FP8_GEMV_ROWS
             | nvfp4::MATMUL_NVFP4_GEMV_ROWS
+            | mxfp4::MATMUL_MXFP4_GEMV_ROWS
             | moe::MOE_EXPERTS_BF16_ROWS
     );
     let m = call.inputs.first()?.shape.first().copied()?;
@@ -1096,7 +1097,9 @@ impl MetalBackend {
         if kernel == kernels::ATTN_PREFILL_BF16_SPLITKV_ROWS && call.op == Op::AttnPrefill {
             return self.launch_attn_rows(call);
         }
-        if matches!(kernel, mxfp4::MATMUL_MXFP4_GEMV | mxfp4::MATMUL_MXFP4_NAX) && call.op == Op::MatmulMxfp4 {
+        if matches!(kernel, mxfp4::MATMUL_MXFP4_GEMV | mxfp4::MATMUL_MXFP4_NAX | mxfp4::MATMUL_MXFP4_GEMV_ROWS)
+            && call.op == Op::MatmulMxfp4
+        {
             return self.launch_mxfp4(kernel, call);
         }
         if kernel == moe::MOE_TOPK_BF16 && call.op == Op::MoeTopk {
