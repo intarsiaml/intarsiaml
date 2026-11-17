@@ -1,0 +1,2 @@
+greedy ids short: identical (5-token prompt, 64 tokens)
+greedy ids 4k: identical (3806-token prompt, 64 tokens; rerun by gate_d4k.sh, the first gates.sh 4k prompt was 10083 tokens and exceeded --max-seq 8192)
