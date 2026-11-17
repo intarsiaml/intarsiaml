@@ -1,0 +1,15 @@
+1794875767.454752000 start null4k thermal 0
+CELL tag=A0 null4k streams=1 requests=2 tokens=64 wall_s=12.18 agg_tps=5.253 ttft_p50=5.154 ttft_mean=5.154 dec_tps_p50=33.08 prompt_tokens_p50=4716
+1794875779.683978000 end null4k thermal 0
+1794875779.692863000 start s4 thermal 0
+CELL tag=A0 s4 streams=4 requests=8 tokens=2048 wall_s=24.9 agg_tps=82.23 ttft_p50=0.6737 ttft_mean=0.6402 dec_tps_p50=21.75 prompt_tokens_p50=113.5
+1794875804.651441000 end s4 thermal 0
+1794875804.659957000 start s9 thermal 0
+CELL tag=A0 s9 streams=9 requests=18 tokens=4608 wall_s=62.28 agg_tps=73.98 ttft_p50=0.9681 ttft_mean=3.8 dec_tps_p50=10.1 prompt_tokens_p50=115
+1794875866.992628000 end s9 thermal 0
+1794875867.000976000 start s12 thermal 0
+CELL tag=A0 s12 streams=12 requests=24 tokens=6144 wall_s=79.34 agg_tps=77.43 ttft_p50=2.021 ttft_mean=9.896 dec_tps_p50=9.895 prompt_tokens_p50=116.5
+1794875946.389150000 end s12 thermal 2
+1794875946.397054000 start s16 thermal 2
+CELL tag=A0 s16 streams=16 requests=32 tokens=8192 wall_s=106 agg_tps=77.26 ttft_p50=26.86 ttft_mean=20.69 dec_tps_p50=9.901 prompt_tokens_p50=114.5
+1794876052.468947000 end s16 thermal 2

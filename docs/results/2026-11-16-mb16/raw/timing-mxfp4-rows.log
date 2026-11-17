@@ -1,0 +1,56 @@
+fleetq: #9807 waiting (#2 in line): in line behind #9806 "msm192: naxd microbench rerun cooled M=128..256 six 27B shapes, 7 rounds" (claude-2ae67a71) on endor
+fleetq:   #9806 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9806 set, or it will wait for #9806 to be released.
+fleetq: #9807 waiting (#1 in line): needs gpu quiet on endor, but #9806 "msm192: naxd microbench rerun cooled M=128..256 six 27B shapes, 7 rounds" (claude-2ae67a71) loads it
+fleetq:   #9806 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9806 set, or it will wait for #9806 to be released.
+fleetq: #9807 running on endor: bash -c 'cd /opt/code/intarsiaml/.worktrees/mb16 && cargo test --release -p intarsia-backend-metal --test rows_exact -- --ignored --nocapture timing_mxfp4_rows 2>&1'
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mb16/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 1.73s
+     Running tests/rows_exact.rs (target/release/deps/rows_exact-6758ef4336abf182)
+
+running 1 test
+TIMING mxfp4 27B layer M=1: 362 us (1.00x M=1, 362 us per row)
+TIMING mxfp4 27B layer M=2: 385 us (1.06x M=1, 192 us per row)
+TIMING mxfp4 27B layer M=3: 406 us (1.12x M=1, 135 us per row)
+TIMING mxfp4 27B layer M=4: 477 us (1.32x M=1, 119 us per row)
+TIMING mxfp4 27B layer M=5: 877 us (2.42x M=1, 175 us per row)
+TIMING mxfp4 27B layer M=6: 1019 us (2.81x M=1, 170 us per row)
+TIMING mxfp4 27B layer M=7: 1161 us (3.20x M=1, 166 us per row)
+TIMING mxfp4 27B layer M=8: 1046 us (2.89x M=1, 131 us per row)
+TIMING mxfp4 27B layer M=9: 1313 us (3.62x M=1, 146 us per row)
+TIMING mxfp4 27B layer M=10: 1706 us (4.71x M=1, 171 us per row)
+TIMING mxfp4 27B layer M=11: 1850 us (5.10x M=1, 168 us per row)
+TIMING mxfp4 27B layer M=12: 1991 us (5.49x M=1, 166 us per row)
+TIMING mxfp4 27B layer M=13: 2136 us (5.89x M=1, 164 us per row)
+TIMING mxfp4 27B layer M=14: 2283 us (6.30x M=1, 163 us per row)
+TIMING mxfp4 27B layer M=15: 2164 us (5.97x M=1, 144 us per row)
+TIMING mxfp4 27B layer M=16: 2058 us (5.68x M=1, 129 us per row)
+test timing_mxfp4_rows ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 1.68s
+
+fleetq: #9807 done (exit 0)

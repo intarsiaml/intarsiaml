@@ -1,0 +1,25 @@
+fleetq: #9805 waiting (#1 in line): needs cpu quiet on endor, but #9803 "mcatch: push branch" (claude-2ae67a71) loads it
+fleetq:   #9803 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9803 set, or it will wait for #9803 to be released.
+fleetq: #9805 running on endor: env COOL=180 zsh scripts/mb16/abba.sh docs/results/2026-11-16-mb16/raw/abba 'B1 A3 A4 B2'
+CELL tag=B1 null4k streams=1 requests=2 tokens=64 wall_s=12.08 agg_tps=5.299 ttft_p50=5.106 ttft_mean=5.106 dec_tps_p50=33.26 prompt_tokens_p50=4716
+CELL tag=B1 s4 streams=4 requests=8 tokens=2048 wall_s=23.61 agg_tps=86.74 ttft_p50=0.6312 ttft_mean=0.5941 dec_tps_p50=22.83 prompt_tokens_p50=113.5
+CELL tag=B1 s9 streams=9 requests=18 tokens=4608 wall_s=60.45 agg_tps=76.23 ttft_p50=0.8753 ttft_mean=1.077 dec_tps_p50=8.732 prompt_tokens_p50=115
+CELL tag=B1 s12 streams=12 requests=24 tokens=6144 wall_s=85.3 agg_tps=72.03 ttft_p50=0.9495 ttft_mean=1.332 dec_tps_p50=6.228 prompt_tokens_p50=116.5
+CELL tag=B1 s16 streams=16 requests=32 tokens=8192 wall_s=91.63 agg_tps=89.4 ttft_p50=1.06 ttft_mean=1.703 dec_tps_p50=5.816 prompt_tokens_p50=114.5
+CELL tag=A3 null4k streams=1 requests=2 tokens=64 wall_s=12.12 agg_tps=5.28 ttft_p50=5.118 ttft_mean=5.118 dec_tps_p50=32.89 prompt_tokens_p50=4716
+CELL tag=A3 s4 streams=4 requests=8 tokens=2048 wall_s=24.02 agg_tps=85.28 ttft_p50=0.6597 ttft_mean=0.6284 dec_tps_p50=22.37 prompt_tokens_p50=113.5
+CELL tag=A3 s9 streams=9 requests=18 tokens=4608 wall_s=57.02 agg_tps=80.81 ttft_p50=0.8859 ttft_mean=3.455 dec_tps_p50=10.93 prompt_tokens_p50=115
+CELL tag=A3 s12 streams=12 requests=24 tokens=6144 wall_s=69.34 agg_tps=88.6 ttft_p50=1.79 ttft_mean=8.519 dec_tps_p50=11.4 prompt_tokens_p50=116.5
+CELL tag=A3 s16 streams=16 requests=32 tokens=8192 wall_s=93.64 agg_tps=87.48 ttft_p50=23.94 ttft_mean=18.22 dec_tps_p50=11.15 prompt_tokens_p50=114.5
+CELL tag=A4 null4k streams=1 requests=2 tokens=64 wall_s=11.95 agg_tps=5.355 ttft_p50=5.052 ttft_mean=5.052 dec_tps_p50=33.56 prompt_tokens_p50=4716
+CELL tag=A4 s4 streams=4 requests=8 tokens=2048 wall_s=23.18 agg_tps=88.36 ttft_p50=0.6365 ttft_mean=0.6024 dec_tps_p50=23.33 prompt_tokens_p50=113.5
+CELL tag=A4 s9 streams=9 requests=18 tokens=4608 wall_s=56.5 agg_tps=81.55 ttft_p50=0.8627 ttft_mean=3.416 dec_tps_p50=11.07 prompt_tokens_p50=115
+CELL tag=A4 s12 streams=12 requests=24 tokens=6144 wall_s=69.57 agg_tps=88.31 ttft_p50=1.82 ttft_mean=8.56 dec_tps_p50=11.31 prompt_tokens_p50=116.5
+CELL tag=A4 s16 streams=16 requests=32 tokens=8192 wall_s=94.11 agg_tps=87.05 ttft_p50=24.01 ttft_mean=18.29 dec_tps_p50=11.1 prompt_tokens_p50=114.5
+CELL tag=B2 null4k streams=1 requests=2 tokens=64 wall_s=11.85 agg_tps=5.402 ttft_p50=5.002 ttft_mean=5.002 dec_tps_p50=33.66 prompt_tokens_p50=4716
+CELL tag=B2 s4 streams=4 requests=8 tokens=2048 wall_s=23.29 agg_tps=87.92 ttft_p50=0.621 ttft_mean=0.5867 dec_tps_p50=23.16 prompt_tokens_p50=113.5
+CELL tag=B2 s9 streams=9 requests=18 tokens=4608 wall_s=59.91 agg_tps=76.92 ttft_p50=0.905 ttft_mean=1.074 dec_tps_p50=8.814 prompt_tokens_p50=115
+CELL tag=B2 s12 streams=12 requests=24 tokens=6144 wall_s=88.1 agg_tps=69.74 ttft_p50=1.016 ttft_mean=1.354 dec_tps_p50=6.097 prompt_tokens_p50=116.5
+CELL tag=B2 s16 streams=16 requests=32 tokens=8192 wall_s=91.7 agg_tps=89.33 ttft_p50=1.065 ttft_mean=1.714 dec_tps_p50=5.824 prompt_tokens_p50=114.5
+## done
+fleetq: #9805 done (exit 0)
