@@ -2385,9 +2385,14 @@ impl Seq {
                     }
                 }
                 let was_copy = self.copy_pass;
+                let t_copy = (was_copy && crate::spec::trace_enabled()).then(Instant::now);
                 let r = self.verify(model, st, &drafts);
                 self.copy_pass = false;
                 r?;
+                if let Some(t) = t_copy {
+                    // lane mcdiag: the chain pass ends in a token download, so host time is device time (accepting and rolling back included)
+                    eprintln!("spec: copy pass {} rows {:.3} ms", drafts.len() + 1, t.elapsed().as_secs_f64() * 1e3);
+                }
                 // the accepted rows of the chain sit in the head's queue (up to `len + 1`); see `copy_behind` below
                 self.copy_behind |= was_copy;
                 if let Some(t) = self.pending.pop_front() {
