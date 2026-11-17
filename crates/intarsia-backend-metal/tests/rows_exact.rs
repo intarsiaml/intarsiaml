@@ -225,6 +225,53 @@ fn fp8_rows_are_bitwise_the_one_row_gemv() {
     report("fp8");
 }
 
+/// Lane mfp8split: the 9..=16-row fp8 call under the split plan (`FP8_ROWS_PLAN`: 7+2, 8+2, 8+3, 8+4 at 9..=12) and under the old halves
+/// (`INTARSIA_METAL_FP8_ROWS_SPLIT=0`) is each row bitwise the one-row launch (`fp8_case` compares them), at every fp8 shape, both
+/// weight layouts (the second with NaN codes), f32 and bf16 out, aligned and unaligned x. Control at the end: a plan whose tail chunk reads the
+/// wrong rows (a wrong slice) does NOT match, so the comparison can see a wrong split.
+#[test]
+fn fp8_row_splits_are_bitwise_the_one_row_gemv() {
+    let be = backend();
+    for (si, &(n, k)) in FP8_SHAPES.iter().enumerate() {
+        for (wi, w_off) in [8usize, 16].into_iter().enumerate() {
+            let w = rand_e4m3(n * k, 60 + si as u64, if wi == 1 { 997 } else { 0 });
+            let wb = put_bytes(&be, w_off, &w);
+            for m in 9..=16usize {
+                for (ii, is) in [0.0f32, 0.37].into_iter().enumerate() {
+                    for f32_out in [false, true] {
+                        for on in [true, false] {
+                            let x_off = if (m + ii) % 2 == 0 { 0 } else { 2 };
+                            intarsia_backend_metal::with_fp8_rows_split(on, || {
+                                fp8_case(&be, &wb, w_off, n, k, m, is, f32_out, x_off, 900 + (si * 100 + m * 10 + ii) as u64)
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    report("fp8 splits");
+    // control: m = 10 as 8 + 2 with the tail reading rows 0..2 instead of 8..10 must differ from the one-row launches
+    let (n, k, m) = (4096usize, 2048usize, 10usize);
+    let w = rand_e4m3(n * k, 77, 0);
+    let wb = put_bytes(&be, 8, &w);
+    let x = act_rows(m, k, 78);
+    let xb = put_bytes(&be, 0, &bf16_bytes(&x));
+    let sb = put_bytes(&be, 4, &f32_bytes(&[0.0123, 0.37]));
+    let (ya, yb) = (guarded(&be, 8, m * n * 2), guarded(&be, 8, m * n * 2));
+    let xt = t(&xb, 0, DType::Bf16, &[m, k]);
+    let (wt, st) = (t(&wb, 8, DType::Fp8E4m3, &[n, k]), t(&sb, 4, DType::F32, &[2]));
+    let (yat, ybt) = (t(&ya, 8, DType::Bf16, &[m, n]), t(&yb, 8, DType::Bf16, &[m, n]));
+    let call = |x: TensorRef, y: TensorRef| OpCall::new(Op::MatmulFp8, vec![x, wt.clone(), st.clone()], vec![y], OpAttrs::default());
+    for r in 0..m {
+        be.launch("matmul_fp8_gemv", &call(xt.rows(r, 1), yat.rows(r, 1)), 0).unwrap();
+    }
+    be.launch("matmul_fp8_gemv_rows", &call(xt.rows(0, 8), ybt.rows(0, 8)), 0).unwrap();
+    be.launch("matmul_fp8_gemv_rows", &call(xt.rows(0, 2), ybt.rows(8, 2)), 0).unwrap(); // wrong rows
+    let tot = 8 + m * n * 2 + 16;
+    assert!(differing(&dl(&be, &ya, tot), &dl(&be, &yb, tot)) > 0, "a wrong tail slice must not match the one-row launches");
+}
+
 // ---- matmul_nvfp4 ---------------------------------------------------------------------------------------------------
 
 /// (N, K): shared expert gate / up (512 x 2048) and down (2048 x 512), lm_head (248320 x 2048, f32 logits), odd shapes.

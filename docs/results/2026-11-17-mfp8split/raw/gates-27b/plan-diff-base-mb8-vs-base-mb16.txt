@@ -1,0 +1,16 @@
+578c578
+<             "scratch_bytes": 12681216
+---
+>             "scratch_bytes": 25362432
+614c614
+<             "scratch_bytes": 81936
+---
+>             "scratch_bytes": 163856
+722c722
+<             "scratch_bytes": 278544
+---
+>             "scratch_bytes": 557072
+779c779
+<     "max_batch": 8
+---
+>     "max_batch": 16

@@ -1,0 +1,58 @@
+fleetq: #9856 running on endor: ./scripts/mfp8split/build.sh
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 23.74s
+   Compiling serde_core v1.0.229
+   Compiling hashbrown v0.17.1
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.154
+   Compiling memchr v2.8.3
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+   Compiling objc2-core-foundation v0.3.2
+   Compiling indexmap v2.14.2
+   Compiling objc2-foundation v0.3.2
+   Compiling bytemuck_derive v1.12.1
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling zerocopy-derive v0.8.62
+   Compiling bytemuck v1.25.2
+   Compiling thiserror v2.0.21
+   Compiling zerocopy v0.8.62
+   Compiling half v2.7.1
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/mfp8split/crates/intarsia-core)
+   Compiling objc2-metal v0.3.2
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mfp8split/crates/intarsia-backend-metal)
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 13.16s
+  Executable tests/rows_exact.rs (target/release/deps/rows_exact-6758ef4336abf182)
+## new built eddf0518c5556906a18919c465b40dce
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 20.95s
+## main built b9e400f20 1e3eb926d38f8f07334c1c7434836a16
+fleetq: #9856 done (exit 0)
