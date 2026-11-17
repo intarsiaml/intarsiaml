@@ -1341,6 +1341,8 @@ pub(crate) struct Seq {
     copy_pass: bool,
     /// Back-off for missed copy chains (lane mcopy2), per request.
     copy_backoff: crate::spec::CopyBackoff,
+    /// A copy chain left its accepted rows queued for the head: catch the head up before the next MTP draft (lane mcopy2).
+    copy_behind: bool,
     /// Adaptive draft depth in `[INTARSIA_SPEC_K_MIN, spec_k]` (MTP drafts only); `None`: every pass drafts `spec_k`.
     depth: Option<crate::spec::Depth>,
     /// Speculation for this sampled request ([`crate::spec::SampledSpec`]; `Off` for greedy requests, which keep the greedy
@@ -1615,6 +1617,7 @@ impl Seq {
             copy: None,
             copy_pass: false,
             copy_backoff: Default::default(),
+            copy_behind: false,
             depth: if spec_mtp && !spec_dflash { crate::spec::k_min_for(&env.spec).and_then(|m| crate::spec::Depth::new(m, spec_k)) } else { None },
             spec_sampled: crate::spec::SampledSpec::Off,
             spec_keyed: false,
@@ -2334,6 +2337,14 @@ impl Seq {
             self.predraft = None;
             self.staged = None;
         }
+        if self.copy_behind && matches!(plan, Next::Draft(_)) {
+            // (lane mcopy2) the next step drafts with the head after a copy chain: catch the head up over the chain's accepted rows first,
+            // so the step finds one queued row and replays its captured graph (`Model::spec_step_ok` wants `1..=k + 1`) instead of running
+            // eagerly. It is the catch-up the eager step would do first, run only when an MTP step follows (back-to-back chains leave the
+            // rows queued, as before); drafts only propose, so ids do not change.
+            self.copy_behind = false;
+            model.mtp_catch_up(st)?;
+        }
         match plan {
             Next::Emit(t) => {
                 self.tok = t;
@@ -2355,12 +2366,8 @@ impl Seq {
                 let r = self.verify(model, st, &drafts);
                 self.copy_pass = false;
                 r?;
-                if was_copy {
-                    // (lane mcopy2) the accepted rows of the chain sit in the head's queue (up to `len + 1`): catch the head up now, so the
-                    // next MTP step finds one queued row and replays its captured graph (`Model::spec_step_ok` wants `1..=k + 1`) instead of
-                    // running eagerly. The work is the catch-up that eager step would do first; drafts only propose, so ids do not change.
-                    model.mtp_catch_up(st)?;
-                }
+                // the accepted rows of the chain sit in the head's queue (up to `len + 1`); see `copy_behind` below
+                self.copy_behind |= was_copy;
                 if let Some(t) = self.pending.pop_front() {
                     self.tok = t;
                     return Ok(Prep::Ready);
