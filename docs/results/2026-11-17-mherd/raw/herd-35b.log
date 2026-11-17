@@ -1,0 +1,59 @@
+fleetq: #9916 running on endor: scripts/mherd/herd.sh 'A1 B1 B2 A2 B3 A3 A4 B4'
+== visit A1 env - cooled 0s thermal 0
+{"arm": "A", "visit": "A1", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 115.007, "ttft_p50_s": 14.282, "ttft_last_s": 25.556, "wall_s": 26.144, "cached_tokens": [4096, 4096, 4096, 4096, 0, 4096, 4096, 4096]}
+{"arm": "A", "visit": "A1", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 125.847, "ttft_p50_s": 15.731, "ttft_last_s": 27.778, "wall_s": 28.329, "cached_tokens": [4096, 4096, 4096, 4096, 4096, 4096, 0, 4096]}
+{"arm": "A", "visit": "A1", "mode": "distinct", "seed": 11, "ok": 8, "ttft_sum_s": 65.44, "ttft_p50_s": 8.143, "ttft_last_s": 14.767, "wall_s": 15.339, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "A", "visit": "A1", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.163, "ttft_p50_s": 0.142, "ttft_last_s": 0.165, "wall_s": 4.582, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "A", "visit": "A1", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.113, "ttft_p50_s": 0.139, "ttft_last_s": 0.158, "wall_s": 4.519, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+rss MB 40444
+== visit B1 env INTARSIA_PREFIX_HERD=1 cooled 0s thermal 0
+{"arm": "B", "visit": "B1", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 32.458, "ttft_p50_s": 4.049, "ttft_last_s": 4.566, "wall_s": 6.25, "cached_tokens": [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B1", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 33.241, "ttft_p50_s": 4.147, "ttft_last_s": 4.664, "wall_s": 6.347, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 0, 16384]}
+{"arm": "B", "visit": "B1", "mode": "distinct", "seed": 11, "ok": 8, "ttft_sum_s": 65.566, "ttft_p50_s": 8.148, "ttft_last_s": 14.787, "wall_s": 15.38, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "B", "visit": "B1", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.129, "ttft_p50_s": 0.139, "ttft_last_s": 0.155, "wall_s": 4.509, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B1", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.092, "ttft_p50_s": 0.134, "ttft_last_s": 0.151, "wall_s": 4.475, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+rss MB 40438
+== visit B2 env INTARSIA_PREFIX_HERD=1 cooled 60s thermal 0
+{"arm": "B", "visit": "B2", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 31.814, "ttft_p50_s": 3.968, "ttft_last_s": 4.484, "wall_s": 6.151, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 0, 16384, 16384]}
+{"arm": "B", "visit": "B2", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 31.72, "ttft_p50_s": 3.956, "ttft_last_s": 4.471, "wall_s": 6.13, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "B", "visit": "B2", "mode": "distinct", "seed": 11, "ok": 8, "ttft_sum_s": 59.958, "ttft_p50_s": 7.431, "ttft_last_s": 13.681, "wall_s": 14.256, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "B", "visit": "B2", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.129, "ttft_p50_s": 0.14, "ttft_last_s": 0.152, "wall_s": 4.512, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B2", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.112, "ttft_p50_s": 0.136, "ttft_last_s": 0.159, "wall_s": 4.489, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+rss MB 40439
+== visit A2 env - cooled 0s thermal 0
+{"arm": "A", "visit": "A2", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 117.011, "ttft_p50_s": 14.507, "ttft_last_s": 26.172, "wall_s": 26.722, "cached_tokens": [4096, 4096, 4096, 0, 4096, 4096, 4096, 4096]}
+{"arm": "A", "visit": "A2", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 124.726, "ttft_p50_s": 15.616, "ttft_last_s": 27.286, "wall_s": 27.849, "cached_tokens": [4096, 0, 4096, 4096, 4096, 4096, 4096, 4096]}
+{"arm": "A", "visit": "A2", "mode": "distinct", "seed": 11, "ok": 8, "ttft_sum_s": 62.723, "ttft_p50_s": 7.789, "ttft_last_s": 14.301, "wall_s": 14.879, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "A", "visit": "A2", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.145, "ttft_p50_s": 0.14, "ttft_last_s": 0.166, "wall_s": 4.517, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "A", "visit": "A2", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.113, "ttft_p50_s": 0.136, "ttft_last_s": 0.162, "wall_s": 4.491, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+rss MB 40441
+== visit B3 env INTARSIA_PREFIX_HERD=1 cooled 70s thermal 0
+{"arm": "B", "visit": "B3", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 31.778, "ttft_p50_s": 3.964, "ttft_last_s": 4.478, "wall_s": 6.142, "cached_tokens": [16384, 16384, 16384, 0, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B3", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 31.969, "ttft_p50_s": 3.987, "ttft_last_s": 4.503, "wall_s": 6.171, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "B", "visit": "B3", "mode": "distinct", "seed": 11, "ok": 8, "ttft_sum_s": 61.978, "ttft_p50_s": 7.613, "ttft_last_s": 14.345, "wall_s": 15.083, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "B", "visit": "B3", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.211, "ttft_p50_s": 0.143, "ttft_last_s": 0.198, "wall_s": 4.748, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B3", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.15, "ttft_p50_s": 0.141, "ttft_last_s": 0.165, "wall_s": 4.539, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+rss MB 40440
+== visit A3 env - cooled 0s thermal 0
+{"arm": "A", "visit": "A3", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 117.903, "ttft_p50_s": 14.62, "ttft_last_s": 26.377, "wall_s": 26.93, "cached_tokens": [4096, 4096, 4096, 4096, 4096, 4096, 0, 4096]}
+{"arm": "A", "visit": "A3", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 138.277, "ttft_p50_s": 17.074, "ttft_last_s": 30.795, "wall_s": 31.399, "cached_tokens": [4096, 4096, 0, 4096, 4096, 0, 4096, 4096]}
+{"arm": "A", "visit": "A3", "mode": "distinct", "seed": 11, "ok": 8, "ttft_sum_s": 71.523, "ttft_p50_s": 8.947, "ttft_last_s": 15.966, "wall_s": 16.569, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "A", "visit": "A3", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.211, "ttft_p50_s": 0.147, "ttft_last_s": 0.182, "wall_s": 4.674, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "A", "visit": "A3", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.191, "ttft_p50_s": 0.143, "ttft_last_s": 0.181, "wall_s": 4.644, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+rss MB 40440
+== visit A4 env - cooled 85s thermal 0
+{"arm": "A", "visit": "A4", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 114.246, "ttft_p50_s": 14.212, "ttft_last_s": 25.361, "wall_s": 25.912, "cached_tokens": [4096, 4096, 4096, 4096, 0, 4096, 4096, 4096]}
+{"arm": "A", "visit": "A4", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 120.585, "ttft_p50_s": 15.079, "ttft_last_s": 26.569, "wall_s": 27.12, "cached_tokens": [4096, 4096, 4096, 4096, 4096, 0, 4096, 4096]}
+{"arm": "A", "visit": "A4", "mode": "distinct", "seed": 11, "ok": 8, "ttft_sum_s": 63.507, "ttft_p50_s": 7.867, "ttft_last_s": 14.37, "wall_s": 14.946, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "A", "visit": "A4", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.134, "ttft_p50_s": 0.14, "ttft_last_s": 0.157, "wall_s": 4.51, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "A", "visit": "A4", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.107, "ttft_p50_s": 0.135, "ttft_last_s": 0.166, "wall_s": 4.478, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+rss MB 40438
+== visit B4 env INTARSIA_PREFIX_HERD=1 cooled 65s thermal 0
+{"arm": "B", "visit": "B4", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 31.812, "ttft_p50_s": 3.968, "ttft_last_s": 4.483, "wall_s": 6.153, "cached_tokens": [16384, 16384, 0, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B4", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 31.844, "ttft_p50_s": 3.972, "ttft_last_s": 4.486, "wall_s": 6.147, "cached_tokens": [16384, 0, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B4", "mode": "distinct", "seed": 11, "ok": 8, "ttft_sum_s": 60.551, "ttft_p50_s": 7.517, "ttft_last_s": 13.782, "wall_s": 14.376, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "B", "visit": "B4", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.134, "ttft_p50_s": 0.139, "ttft_last_s": 0.161, "wall_s": 4.516, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "B", "visit": "B4", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.097, "ttft_p50_s": 0.136, "ttft_last_s": 0.155, "wall_s": 4.467, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+rss MB 40439
+## done
+fleetq: #9916 done (exit 0)
