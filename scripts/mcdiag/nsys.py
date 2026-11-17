@@ -1,98 +1,109 @@
 #!/usr/bin/env python3
-"""mcdiag: per-kernel time of captured-graph steps before and after a chain pass, from an nsys sqlite export of a `generate` run
-(`nsys profile --cuda-graph-trace=node`). A replay = the kernel nodes sharing one correlation id of a graph launch; replays with the same node-name
-sequence are one recording (n queued head rows). The chain pass = the first run of >= EAGER_MIN eager (non-graph) kernels between two replays
-after the warm-up. Prints, per recording: replays before / after, mean span (first node start to last node end) and the sum of node durations,
-then the kernels whose mean duration moved most, and the gaps between nodes. Also prints how the time between replays splits.
-usage: nsys.py FILE.sqlite [--skip N] [--top N] [--csv OUT.csv]"""
-import sqlite3, sys, argparse, collections, hashlib, csv
+"""mcdiag: per-kernel time of captured-graph steps, difference-in-differences between a probe run (one chain pass) and a base run of the same
+greedy request, from nsys sqlite exports (`nsys profile --cuda-graph-trace=node`) and the runs' INTARSIA_SPEC_TRACE logs.
+
+A replay = the kernel nodes that share one correlation id of a graph launch. The Nth `spec: mtp graph step` trace line (it carries the position `len`
+and the queued head rows `n`) is matched to the replay with the same index counted from the END of the run (the run may hold a replay or two before
+the first traced step). Only replays of the dominant recording (most replays; same kernel-name sequence) are used, so every node index means the same
+kernel. Steps at positions below the probe chain (minus MARGIN) are PRE, steps after it (plus MARGIN) are POST. For every node index:
+  DiD = (probe POST - probe PRE) - (base POST - base PRE)     mean ns per node
+which cancels the growth of the attention with the position (base has the same positions). Prints the span of the replays the same way, the
+node durations summed by kernel name, and the largest single nodes.
+usage: nsys.py --probe P.sqlite P.err --base B.sqlite B.err [--margin 15] [--top 15]"""
+import sqlite3, re, sys, argparse, collections
 
 ap = argparse.ArgumentParser()
-ap.add_argument("db")
-ap.add_argument("--skip", type=int, default=6, help="replays dropped at the start (capture, warm-up)")
-ap.add_argument("--top", type=int, default=14)
-ap.add_argument("--csv")
-ap.add_argument("--eager-min", type=int, default=300)
+ap.add_argument("--probe", nargs=2, required=True)
+ap.add_argument("--base", nargs=2, required=True)
+ap.add_argument("--margin", type=int, default=15)
+ap.add_argument("--top", type=int, default=15)
+ap.add_argument("--skip-pos", type=int, default=100)
 a = ap.parse_args()
-con = sqlite3.connect(a.db)
-cols = [r[1] for r in con.execute("PRAGMA table_info(CUPTI_ACTIVITY_KIND_KERNEL)")]
-print("kernel table columns:", " ".join(cols))
-gcol = "graphId" if "graphId" in cols else None
-gn = "graphNodeId" if "graphNodeId" in cols else None
-q = f"SELECT k.start,k.end,k.correlationId,{gcol or 'NULL'},{gn or 'NULL'},s.value,k.gridX,k.gridY,k.gridZ,k.blockX,k.sharedMemoryExecuted,k.dynamicSharedMemory,k.staticSharedMemory,k.registersPerThread FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName ORDER BY k.start"
-rows = con.execute(q).fetchall()
-print("kernels:", len(rows))
-# runtime launches of graphs: correlation id -> launch time
-launch = {}
-for cid, st, nm in con.execute("SELECT correlationId,start,s.value FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId"):
-    if "GraphLaunch" in nm:
-        launch[cid] = st
-print("graph launches:", len(launch))
-# split into graph replays and eager runs, in time order
-seq = []  # ("g", corr, [kernels]) or ("e", None, [kernels])
-for k in rows:
-    isg = (k[3] not in (None, 0)) or (k[2] in launch)
-    if isg:
-        if seq and seq[-1][0] == "g" and seq[-1][1] == k[2]:
-            seq[-1][2].append(k)
+G = re.compile(r"^spec: mtp graph step ([\d.]+) ms gap ([\d.]+) ms n (\d+) len (\d+)")
+C = re.compile(r"^spec: copy token \d+ pos (\d+)")
+
+
+def trace(fn):
+    steps, chain = [], None
+    for l in open(fn, errors="replace"):
+        m = G.match(l)
+        if m:
+            steps.append((int(m.group(4)), int(m.group(3)), float(m.group(1))))
+        m = C.match(l)
+        if m and chain is None:
+            chain = int(m.group(1))
+    return steps, chain
+
+
+def replays(db):
+    con = sqlite3.connect(db)
+    launch = {cid for (cid, nm) in con.execute("SELECT correlationId,s.value FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId") if "GraphLaunch" in nm}
+    cols = [r[1] for r in con.execute("PRAGMA table_info(CUPTI_ACTIVITY_KIND_KERNEL)")]
+    gcol = "k.graphId" if "graphId" in cols else "NULL"
+    rows = con.execute(f"SELECT k.start,k.end,k.correlationId,{gcol},s.value FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName ORDER BY k.start").fetchall()
+    reps, cur = [], None
+    for k in rows:
+        if k[3] not in (None, 0) or k[2] in launch:
+            if cur is not None and cur[0] == k[2]:
+                cur[1].append(k)
+            else:
+                cur = [k[2], [k]]
+                reps.append(cur)
         else:
-            seq.append(["g", k[2], [k]])
-    else:
-        if seq and seq[-1][0] == "e":
-            seq[-1][2].append(k)
-        else:
-            seq.append(["e", None, [k]])
-reps = [(i, s) for i, s in enumerate(seq) if s[0] == "g"]
-print("replays:", len(reps), "eager runs:", sum(1 for s in seq if s[0] == "e"), "eager sizes >=%d:" % a.eager_min, [len(s[2]) for s in seq if s[0] == "e" and len(s[2]) >= a.eager_min][:10])
-# first chain pass after the warm-up
-chain_at = None
-for ri, (i, s) in enumerate(reps):
-    if ri < a.skip:
-        continue
-    nxt = seq[i + 1] if i + 1 < len(seq) else None
-    if nxt and nxt[0] == "e" and len(nxt[2]) >= a.eager_min:
-        chain_at = ri
-        break
-print("first chain pass after replay #", chain_at, "(eager kernels:", len(seq[reps[chain_at][0] + 1][2]) if chain_at is not None else None, ")")
-sig_of = lambda s: hashlib.md5("|".join(k[5] for k in s[2]).encode()).hexdigest()[:8]
-groups = collections.defaultdict(lambda: ([], []))
-for ri, (i, s) in enumerate(reps):
-    if ri < a.skip:
-        continue
-    pre = chain_at is None or ri <= chain_at
-    if not pre and ri <= chain_at + 3:
-        continue  # the replays right after the chain pass (n, catch-up) are their own thing
-    groups[sig_of(s)][0 if pre else 1].append(s)
-out = []
-for sig, (pre, post) in sorted(groups.items(), key=lambda kv: -len(kv[1][0]) - len(kv[1][1])):
-    nk = len((pre or post)[0][2])
-    if len(pre) < 3 or len(post) < 3:
-        print(f"recording {sig}: {nk} nodes, replays pre {len(pre)} post {len(post)} (too few to compare)")
-        continue
-    span = lambda r: (r[2][-1][1] - r[2][0][0]) / 1e3
-    busy = lambda r: sum(k[1] - k[0] for k in r[2]) / 1e3
-    m = lambda f, x: sum(f(r) for r in x) / len(x)
-    print(f"recording {sig}: {nk} nodes, replays pre {len(pre)} post {len(post)}: span {m(span, pre):.1f} -> {m(span, post):.1f} us ({m(span, post) - m(span, pre):+.1f}), kernel time sum {m(busy, pre):.1f} -> {m(busy, post):.1f} us ({m(busy, post) - m(busy, pre):+.1f}), gaps {m(span, pre) - m(busy, pre):.1f} -> {m(span, post) - m(busy, post):.1f}")
-    delta = []
-    for j in range(nk):
-        dp = sum(r[2][j][1] - r[2][j][0] for r in pre) / len(pre)
-        dq = sum(r[2][j][1] - r[2][j][0] for r in post) / len(post)
-        delta.append((dq - dp, j, pre[0][2][j][5], dp, dq, pre[0][2][j][6:9], pre[0][2][j][9], post[0][2][j][11], pre[0][2][j][11], post[0][2][j][13], pre[0][2][j][13]))
-        out.append((sig, j, pre[0][2][j][5], dp, dq, dq - dp))
-    delta.sort(key=lambda d: -abs(d[0]))
-    for d in delta[: a.top]:
-        print(f"   node {d[1]:4d} {d[2][:60]:60s} {d[3]:9.0f} -> {d[4]:9.0f} ns ({d[0]:+7.0f}) grid {d[5]} blk {d[6]} dynsmem {d[8]}->{d[7]} regs {d[10]}->{d[9]}")
-    # by kernel name
-    byname = collections.defaultdict(lambda: [0, 0, 0])
-    for d in delta:
-        b = byname[d[2]]
-        b[0] += d[3]; b[1] += d[4]; b[2] += 1
-    tot = sorted(byname.items(), key=lambda kv: -abs(kv[1][1] - kv[1][0]))[:8]
-    print("   by kernel name (sum over nodes, per replay):")
-    for nm, b in tot:
-        print(f"      {nm[:60]:60s} x{b[2]:3d}  {b[0] / 1e3:8.1f} -> {b[1] / 1e3:8.1f} us ({(b[1] - b[0]) / 1e3:+7.1f})")
-if a.csv:
-    with open(a.csv, "w", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(["recording", "node", "kernel", "pre_ns", "post_ns", "delta_ns"])
-        w.writerows(out)
+            cur = None
+    return [r[1] for r in reps]
+
+
+def load(pair):
+    steps, chain = trace(pair[1])
+    reps = replays(pair[0])
+    off = len(reps) - len(steps)
+    return [(steps[i], reps[i + off]) for i in range(len(steps)) if i + off >= 0], chain, len(reps), len(steps)
+
+
+P, chain, nrp, nsp = load(a.probe)
+B, _, nrb, nsb = load(a.base)
+print(f"probe: {nrp} replays, {nsp} traced steps; base: {nrb} replays, {nsb} traced steps; chain at pos {chain}")
+sig = lambda r: tuple(k[4] for k in r)
+dom = collections.Counter(sig(r) for _, r in P + B).most_common(1)[0][0]
+nk = len(dom)
+print("dominant recording:", nk, "nodes")
+
+
+def sets(lst):
+    pre, post = [], []
+    for (pos, n, ms), r in lst:
+        if pos < a.skip_pos or sig(r) != dom:
+            continue
+        if pos < chain - a.margin:
+            pre.append(r)
+        elif pos > chain + a.margin:
+            post.append(r)
+    return pre, post
+
+
+pp, pq = sets(P)
+bp, bq = sets(B)
+print(f"replays used: probe pre {len(pp)} post {len(pq)}; base pre {len(bp)} post {len(bq)}")
+dur = lambda r, j: r[j][1] - r[j][0]
+mean = lambda x: sum(x) / len(x)
+nd = lambda S, j: mean([dur(r, j) for r in S])
+span = lambda r: r[-1][1] - r[0][0]
+busy = lambda r: sum(k[1] - k[0] for k in r)
+for name, f in (("span", span), ("kernel time sum", busy)):
+    d_p = mean([f(r) for r in pq]) - mean([f(r) for r in pp])
+    d_b = mean([f(r) for r in bq]) - mean([f(r) for r in bp])
+    print(f"{name}: probe post-pre {d_p / 1e3:+.1f} us, base post-pre {d_b / 1e3:+.1f} us, DiD {(d_p - d_b) / 1e3:+.1f} us per replay")
+did = []
+for j in range(nk):
+    did.append(((nd(pq, j) - nd(pp, j)) - (nd(bq, j) - nd(bp, j)), j))
+byname = collections.defaultdict(float)
+for d, j in did:
+    byname[dom[j]] += d
+print("DiD by kernel name (ns per replay, sum over nodes):")
+for nm, d in sorted(byname.items(), key=lambda kv: -abs(kv[1]))[: a.top]:
+    print(f"   {nm[:70]:70s} {d:+9.0f}  ({sum(1 for x in dom if x == nm)} nodes, base mean {sum(nd(bp, j) for j in range(nk) if dom[j] == nm) / 1e3:.1f} us per replay)")
+print("largest single nodes:")
+for d, j in sorted(did, key=lambda x: -abs(x[0]))[: a.top]:
+    print(f"   node {j:4d} {dom[j][:60]:60s} DiD {d:+8.0f} ns (probe pre {nd(pp, j):.0f} post {nd(pq, j):.0f}; base pre {nd(bp, j):.0f} post {nd(bq, j):.0f})")
+print("total DiD over nodes: %+.1f us" % (sum(d for d, _ in did) / 1e3))

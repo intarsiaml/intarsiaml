@@ -19,8 +19,15 @@ for r in $(seq 1 $ROUNDS); do
     f=$O/$a-r$r; extra=""
     [ -n "${SMI:-}" ] && { nvidia-smi --query-gpu=timestamp,clocks.sm,clocks.mem,power.draw,temperature.gpu,utilization.gpu --format=csv,noheader -lms 200 > $f.smi 2>&1 & SP=$!; }
     pre=""; [ -n "${NSYS:-}" ] && pre="nsys profile --cuda-graph-trace=node -t cuda --stats=false -f true -o $f"
+    # TASKSET=<cpu list> in an arm's env pins the process (cpu 5-9, 15-19 are the Cortex-X925 cores, 0-4, 10-14 the A725 ones)
+    ts=$(echo " $e " | sed -n 's/.* TASKSET=\([^ ]*\).*/\1/p'); [ -n "$ts" ] && pre="taskset -c $ts $pre"
     env $e INTARSIA_SPEC_TRACE=1 $pre $BIN generate -m $M35 --backend cuda --mem-budget 40 --max-seq 4096 --spec mtp --spec-k 2 --chat --no-think --temperature 0 \
-      --profile-every 0 --show-ids -p "$(cat $P)" --max-tokens $NTOK < /dev/null > $f.out 2> $f.err
+      --profile-every 0 --show-ids -p "$(cat $P)" --max-tokens $NTOK < /dev/null > $f.out 2> $f.err &
+    GP=$!
+    # CPUS=1: which core the busiest thread runs on, every 100 ms (not with NSYS)
+    [ -n "${CPUS:-}" ] && [ -z "${NSYS:-}" ] && { python3 $R/src/scripts/mcdiag/cpusample.py $GP 0.1 > $f.cpu 2>/dev/null & CP=$!; }
+    wait $GP
+    [ -n "${CPUS:-}" ] && kill $CP 2>/dev/null
     [ -n "${SMI:-}" ] && kill $SP 2>/dev/null
     grep -a '^ids:' $f.err > $f.ids
     [ -n "${NSYS:-}" ] && [ -f $f.nsys-rep ] && nsys export --type sqlite --force-overwrite true -o $f.sqlite $f.nsys-rep > /dev/null 2>&1

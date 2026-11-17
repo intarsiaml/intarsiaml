@@ -2396,7 +2396,12 @@ impl Seq {
                 r?;
                 if let Some(t) = t_copy {
                     // lane mcdiag: the chain pass ends in a token download, so host time is device time (accepting and rolling back included)
-                    eprintln!("spec: copy pass {} rows {:.3} ms", drafts.len() + 1, t.elapsed().as_secs_f64() * 1e3);
+                    eprintln!(
+                        "spec: copy pass {} rows {:.3} ms at {:.3}",
+                        drafts.len() + 1,
+                        t.elapsed().as_secs_f64() * 1e3,
+                        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64())
+                    );
                 }
                 // the accepted rows of the chain sit in the head's queue (up to `len + 1`); see `copy_behind` below
                 self.copy_behind |= was_copy;
@@ -2509,10 +2514,11 @@ impl Seq {
                             let mut last = LAST.lock().unwrap();
                             let gap = last.map_or(0.0, |l| t0.duration_since(l).as_secs_f64() * 1e3);
                             eprintln!(
-                                "spec: mtp graph step {:.3} ms gap {:.3} ms n {n_rows} len {len0} captures {}",
+                                "spec: mtp graph step {:.3} ms gap {:.3} ms n {n_rows} len {len0} captures {} at {:.3}",
                                 t0.elapsed().as_secs_f64() * 1e3,
                                 gap,
-                                model.graph_stats().spec_captures
+                                model.graph_stats().spec_captures,
+                                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64())
                             );
                             *last = Some(Instant::now());
                         }
