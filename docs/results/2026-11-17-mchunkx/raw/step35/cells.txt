@@ -1,0 +1,12 @@
+1794892803.512288000 start s8
+CELL tag=s8 streams=8 requests=16 tokens=4096 wall_s=11.06 agg_tps=370.2 ttft_p50=0.2399 ttft_mean=0.2876 dec_tps_p50=48.25 prompt_tokens_p50=115.5
+1794892814.616669000 end s8
+1794892814.619064000 start s10
+CELL tag=s10 streams=10 requests=20 tokens=5120 wall_s=15.36 agg_tps=333.4 ttft_p50=0.2478 ttft_mean=0.3378 dec_tps_p50=34.9 prompt_tokens_p50=115.5
+1794892830.019200000 end s10
+1794892830.021595000 start s12
+CELL tag=s12 streams=12 requests=24 tokens=6144 wall_s=17.42 agg_tps=352.8 ttft_p50=0.28 ttft_mean=0.399 dec_tps_p50=30.28 prompt_tokens_p50=116.5
+1794892847.481052000 end s12
+1794892847.483559000 start s16
+CELL tag=s16 streams=16 requests=32 tokens=8192 wall_s=21.16 agg_tps=387.2 ttft_p50=0.2771 ttft_mean=0.4933 dec_tps_p50=25.08 prompt_tokens_p50=114.5
+1794892868.690121000 end s16

@@ -1,0 +1,4 @@
+s8: decode iteration ms p50 19.1 (n=519)
+s10: decode iteration ms p50 27.0 (n=521)
+s12: decode iteration ms p50 30.2 (n=523)
+s16: decode iteration ms p50 36.2 (n=527)

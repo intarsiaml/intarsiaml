@@ -1298,3 +1298,233 @@ fn timing_mxfp4_plans() {
         eprintln!("PLANS M={m} (us per layer, best first): {}", line.join("  "));
     }
 }
+
+// ---- lane mchunkx: every split of M rows, per row-exact multi-row kernel, at the real decode shapes ------------------------------
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Kx {
+    Fp8,
+    Nv,
+    Pair,
+    Bf16,
+    Logits,
+}
+
+/// One projection of a decode step: `count` launches per step on `count.min(variants)` distinct weight copies (so the weights are
+/// not cache-hot, as in the 40 layers of a step). `n1` is the second matrix of a pair. `f32o`: f32 output (a head).
+struct KxEnt {
+    kx: Kx,
+    n: usize,
+    n1: usize,
+    k: usize,
+    f32o: bool,
+    count: usize,
+}
+
+/// `len` bytes from a 1 MiB random block repeated (a 1.3 GB head's weights without generating 1.3 G random numbers).
+fn kx_tiled(be: &MetalBackend, len: usize, block: &[u8]) -> Buffer {
+    let b = be.alloc(len + 16, MemKind::Device).unwrap();
+    let mut off = 0;
+    while off < len {
+        let n = block.len().min(len - off);
+        be.upload(&b, off, &block[..n], 0).unwrap();
+        off += n;
+    }
+    b
+}
+
+fn kx_name(kx: Kx) -> &'static str {
+    match kx {
+        Kx::Fp8 => "matmul_fp8_gemv_rows",
+        Kx::Nv => "matmul_nvfp4_gemv_rows",
+        Kx::Pair => "matmul_pair_bf16_gemv_rows",
+        Kx::Bf16 => "matmul_bf16_gemv_rows",
+        Kx::Logits => "logits_bf16_gemv_rows",
+    }
+}
+
+/// `m` of the 16 rows of `c`: input 0 and every output sliced (what `row_chunks` does).
+fn kx_rows(c: &OpCall, start: usize, n: usize) -> OpCall {
+    let mut q = c.clone();
+    q.inputs[0] = q.inputs[0].rows(start, n);
+    for o in q.outputs.iter_mut() {
+        *o = o.rows(start, n);
+    }
+    q
+}
+
+/// The calls (16 rows) of one entry, one per weight variant.
+fn kx_calls(be: &MetalBackend, e: &KxEnt, ei: usize) -> Vec<OpCall> {
+    let (n, k) = (e.n, e.k);
+    let bytes = match e.kx {
+        Kx::Fp8 => n * k,
+        Kx::Nv => n * k / 2,
+        Kx::Pair => (n + e.n1) * k * 2,
+        Kx::Bf16 | Kx::Logits => n * k * 2,
+    };
+    let variants = e.count.min((400usize << 20) / bytes.max(1)).max(1);
+    let m = 16usize;
+    let xt = t(&put_bytes(be, 0, &bf16_bytes(&act_rows(m, k, 9000 + ei as u64))), 0, DType::Bf16, &[m, k]);
+    let (odt, esz) = if e.f32o { (DType::F32, 4) } else { (DType::Bf16, 2) };
+    let yt = t(&guarded(be, 0, m * n * esz), 0, odt, &[m, n]);
+    let y1 = t(&guarded(be, 0, m * e.n1.max(1) * 2), 0, DType::Bf16, &[m, e.n1.max(1)]);
+    let sc = t(&put_bytes(be, 0, &f32_bytes(&[0.0123, 0.37])), 0, DType::F32, &[2]);
+    let g = t(&put_bytes(be, 0, &0.00071f32.to_le_bytes()), 0, DType::F32, &[1]);
+    let mut r = Rng(70 + ei as u64);
+    let blk8: Vec<u8> = rand_e4m3(1 << 20, 71 + ei as u64, 0);
+    let blk: Vec<u8> = (0..1 << 20).map(|_| (r.next_u64() >> 32) as u8).collect();
+    let blkbf: Vec<u8> = bf16_bytes(&rand_bf16(1 << 19, 72 + ei as u64));
+    let bs = rand_block_scales(if e.kx == Kx::Nv { n * k / 16 } else { 1 }, 73 + ei as u64);
+    let bst = t(&put_bytes(be, 0, &bs), 0, DType::Fp8E4m3, &[n, k / 16]);
+    let mut out = Vec::new();
+    for _ in 0..variants {
+        let c = match e.kx {
+            Kx::Fp8 => {
+                let w = t(&kx_tiled(be, n * k, &blk8), 0, DType::Fp8E4m3, &[n, k]);
+                let mut c =
+                    OpCall::new(Op::MatmulFp8, vec![xt.clone(), w, sc.clone()], vec![yt.clone()], OpAttrs::default());
+                let need = m.max(8) * k * 2 + 16;
+                c.scratch = Some(TensorRef::new(be.alloc(need + 32, MemKind::Device).unwrap(), DType::U8, &[need]));
+                c
+            }
+            Kx::Nv => {
+                let w = t(&kx_tiled(be, n * k / 2, &blk), 0, DType::U8, &[n, k / 2]);
+                OpCall::new(
+                    Op::MatmulNvfp4,
+                    vec![xt.clone(), w, bst.clone(), g.clone()],
+                    vec![yt.clone()],
+                    OpAttrs::default(),
+                )
+            }
+            Kx::Pair => {
+                let w0 = t(&kx_tiled(be, n * k * 2, &blkbf), 0, DType::Bf16, &[n, k]);
+                let w1 = t(&kx_tiled(be, e.n1 * k * 2, &blkbf), 0, DType::Bf16, &[e.n1, k]);
+                let y0 = t(&guarded(be, 0, m * n * 2), 0, DType::Bf16, &[m, n]);
+                OpCall::new(Op::MatmulPair, vec![xt.clone(), w0, w1], vec![y0, y1.clone()], OpAttrs::default())
+            }
+            Kx::Bf16 => {
+                let w = t(&kx_tiled(be, n * k * 2, &blkbf), 0, DType::Bf16, &[n, k]);
+                OpCall::new(Op::Matmul, vec![xt.clone(), w], vec![yt.clone()], OpAttrs::default())
+            }
+            Kx::Logits => {
+                let w = t(&kx_tiled(be, n * k * 2, &blkbf), 0, DType::Bf16, &[n, k]);
+                OpCall::new(Op::Logits, vec![xt.clone(), w], vec![yt.clone()], OpAttrs::default())
+            }
+        };
+        out.push(c);
+    }
+    out
+}
+
+/// `CHUNKX_GROUPS=fp8_35b,... cargo test --release --test rows_exact -- --ignored --nocapture timing_chunkx` (lane mchunkx): per row-exact
+/// multi-row kernel, one decode step's launches of that kernel at the real shapes of the 35B (Qwen3.6-35B-A3B-NVFP4) and the 27B
+/// (docs/results/2026-11-17-mchunkx/raw/shapes/, kernel-mode profile of `serve --max-batch 8`), for M = 2..=16 rows run as every split into
+/// launches of 2..=8 rows (`CHUNKX_PARTS` caps the launch size, default 8) and as today's rule (`cur`: the full M-row call through
+/// `launch`, which splits as `row_chunks` does). Lines `CHUNKX group=g m=M plan=a+b+c us=U` (us = one step's launches of the kernel).
+/// Weights are cycled through up to 400 MB of distinct copies so they are not cache-hot. Run in a quiet fleetq slot.
+#[test]
+#[ignore]
+fn timing_chunkx() {
+    let be = backend();
+    let e = |kx, n, n1, k, f32o, count| KxEnt { kx, n, n1, k, f32o, count };
+    // (group, entries, reps per timing round): counts are one decode step's launches (40 layers: 30 GDN + 10 attention)
+    let groups: Vec<(&str, Vec<KxEnt>, usize)> = vec![
+        // 35B fp8: GDN in_qkv 8192, in_z 4096, out 2048 x 4096 (30 layers); attention q+gate 8192, k and v 512, o (10 layers)
+        (
+            "fp8_35b",
+            vec![
+                e(Kx::Fp8, 8192, 0, 2048, false, 40),
+                e(Kx::Fp8, 4096, 0, 2048, false, 30),
+                e(Kx::Fp8, 2048, 0, 4096, false, 40),
+                e(Kx::Fp8, 512, 0, 2048, false, 20),
+            ],
+            6,
+        ),
+        // 27B fp8 head (the quantised lm_head), f32 logits
+        ("fp8_head_27b", vec![e(Kx::Fp8, 248320, 0, 5120, true, 1)], 12),
+        // 35B nvfp4: shared expert gate / up (512 x 2048, 2 per layer), down (2048 x 512); the lm_head (f32 logits)
+        ("nvfp4_35b", vec![e(Kx::Nv, 512, 0, 2048, false, 80), e(Kx::Nv, 2048, 0, 512, false, 40)], 6),
+        ("nvfp4_head_35b", vec![e(Kx::Nv, 248320, 0, 2048, true, 1)], 12),
+        // 35B bf16 pairs: router + shared-expert gate logit (256 + 1, 40 layers), GDN in_b + in_a (32 + 32, 30 layers)
+        ("pair_35b", vec![e(Kx::Pair, 256, 1, 2048, false, 40), e(Kx::Pair, 32, 32, 2048, false, 30)], 6),
+        // bf16 matmul / logits: no default served decode dispatches them (the 27B head is fp8, the 35B's is nvfp4); a bf16 27B-sized step and head for the record
+        (
+            "bf16_27bshapes",
+            vec![
+                e(Kx::Bf16, 5120, 0, 5120, false, 16),
+                e(Kx::Bf16, 1024, 0, 5120, false, 16),
+                e(Kx::Bf16, 12288, 0, 5120, false, 8),
+            ],
+            6,
+        ),
+        (
+            "bf16_35bshapes",
+            vec![
+                e(Kx::Bf16, 2048, 0, 2048, false, 40),
+                e(Kx::Bf16, 512, 0, 2048, false, 20),
+                e(Kx::Bf16, 2048, 0, 4096, false, 40),
+            ],
+            6,
+        ),
+        ("logits_bf16_27b", vec![e(Kx::Logits, 248320, 0, 5120, true, 1)], 12),
+        ("logits_bf16_35b", vec![e(Kx::Logits, 248320, 0, 2048, true, 1)], 12),
+    ];
+    let want: Vec<String> = std::env::var("CHUNKX_GROUPS")
+        .map(|s| s.split(',').filter(|g| !g.is_empty()).map(str::to_string).collect())
+        .unwrap_or_default();
+    let max_part: usize = std::env::var("CHUNKX_PARTS").ok().and_then(|s| s.parse().ok()).unwrap_or(8);
+    let max_m: usize = std::env::var("CHUNKX_MAXM").ok().and_then(|s| s.parse().ok()).unwrap_or(16);
+    for (name, ents, reps) in &groups {
+        if !want.is_empty() && !want.iter().any(|w| w == name) {
+            continue;
+        }
+        let calls: Vec<Vec<OpCall>> = ents.iter().enumerate().map(|(i, en)| kx_calls(&be, en, i)).collect();
+        let kern = kx_name(ents[0].kx);
+        for m in 2..=max_m {
+            // today's rule: the m-row call through `launch`
+            let cur_calls: Vec<Vec<OpCall>> =
+                calls.iter().map(|vs| vs.iter().map(|c| kx_rows(c, 0, m)).collect()).collect();
+            let run_cur = || {
+                for (en, vs) in ents.iter().zip(&cur_calls) {
+                    for i in 0..en.count {
+                        be.launch(kern, &vs[i % vs.len()], 0).unwrap();
+                    }
+                }
+            };
+            let us = time_us(&be, *reps, run_cur);
+            eprintln!("CHUNKX group={name} m={m} plan=cur us={us:.1}");
+            let mut plans = Vec::new();
+            partitions(m, max_part, &mut Vec::new(), &mut plans);
+            for plan in plans {
+                let chunked: Vec<Vec<Vec<OpCall>>> = calls
+                    .iter()
+                    .map(|vs| {
+                        vs.iter()
+                            .map(|c| {
+                                let mut s = 0;
+                                plan.iter()
+                                    .map(|&n| {
+                                        let q = kx_rows(c, s, n);
+                                        s += n;
+                                        q
+                                    })
+                                    .collect()
+                            })
+                            .collect()
+                    })
+                    .collect();
+                let us = time_us(&be, *reps, || {
+                    for (en, vs) in ents.iter().zip(&chunked) {
+                        for i in 0..en.count {
+                            for q in &vs[i % vs.len()] {
+                                be.launch(kern, q, 0).unwrap();
+                            }
+                        }
+                    }
+                });
+                let p: Vec<String> = plan.iter().map(|n| n.to_string()).collect();
+                eprintln!("CHUNKX group={name} m={m} plan={} us={us:.1}", p.join("+"));
+            }
+        }
+    }
+}
