@@ -1,0 +1,20 @@
+fleetq: #9917 waiting (#1 in line): #9909 "mcopy2: A/B base n20 n20L15 old20, 7 cells, 3 rounds" (claude-222947e6) needs cpu quiet on spark1, and this job loads it
+fleetq: #9917 running on spark1: bash scripts/mcopy/build.sh
+15:17:52
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-tui)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-engram)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsiaml-mcopy2/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 07s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.2T  288G  92% /
+3.0G	/home/nvidia/intarsiaml-mcopy2
+Mem:             121          43          71           0           7          78
+15:23:00
+fleetq: #9917 done (exit 0)

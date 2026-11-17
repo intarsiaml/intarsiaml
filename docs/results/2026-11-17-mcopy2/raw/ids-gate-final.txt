@@ -1,0 +1,17 @@
+fleetq: #9923 waiting (#1 in line): needs cpu quiet on spark1, but #9921 "mcopy2: rebuild new (lazy catch-up)" (claude-a9e6e738) loads it
+fleetq:   #9921 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9921 set, or it will wait for #9921 to be released.
+fleetq: #9923 running on spark1: bash /private/tmp/claude-501/-opt-code-intarsiaml/a9e6e738-26f8-4e34-872e-c7d989747c74/scratchpad/gate3.sh
+== A final: copy3k json-xform
+PASS ids copy3k copy=20: 2902 ids identical | copy_passes=359 accepted_hist[count acc]=      1 0       1 2     357 7  graph_steps=14 eager_steps=0 mean_step=20.532 mean_gap=280.992 | spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids copy3k copy=20,15: 2902 ids identical | copy_passes=180 accepted_hist[count acc]=      1 0       1 10     178 15  graph_steps=14 eager_steps=0 mean_step=20.588 mean_gap=234.829 | spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids copy3k copy=4: 2902 ids identical | copy_passes=389 accepted_hist[count acc]=     31 0       8 1      11 2       5 3       5 4       9 5       5 6     315 7  graph_steps=56 eager_steps=0 mean_step=20.131 mean_gap=202.574 | spec: verify passes=56 proposed=112 accepted=112 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids json-xform copy=20: 2600 ids identical | copy_passes=323 accepted_hist[count acc]=      2 0       4 1       5 2       6 3       9 4      22 5      10 6     265 7  graph_steps=61 eager_steps=0 mean_step=20.330 mean_gap=150.782 | spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids json-xform copy=20,15: 2600 ids identical | copy_passes=183 accepted_hist[count acc]=      3 0       4 1      13 2       6 3       2 4       6 5       9 6       1 9       1 14     138 15  graph_steps=61 eager_steps=0 mean_step=20.408 mean_gap=144.845 | spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids json-xform copy=4: 2600 ids identical | copy_passes=406 accepted_hist[count acc]=     79 0      32 1      22 2      27 3      43 4      39 5       4 6     160 7  graph_steps=175 eager_steps=0 mean_step=20.567 mean_gap=72.298 | spec: verify passes=175 proposed=350 accepted=350 (acceptance 100.0%, 3.00 tokens per pass)
+ids fails=0
+== B final: code-gen
+PASS ids code-gen mtp: 500 ids identical | graph_steps=180 eager_steps=0 mean_step=18.140 mean_gap=0.004 | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+PASS ids code-gen copy=20: 500 ids identical | copy_passes=0 accepted_hist[count acc]= graph_steps=180 eager_steps=0 mean_step=18.113 mean_gap=0.004 | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+PASS ids code-gen copy=256: 500 ids identical | copy_passes=0 accepted_hist[count acc]= graph_steps=180 eager_steps=0 mean_step=18.165 mean_gap=0.004 | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+ids fails=0
+fleetq: #9923 done (exit 0)
