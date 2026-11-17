@@ -1,0 +1,9 @@
+== gates a,b 09:37:37 earlyoom=active vllm_cache_noise: 28355 28356
+cold1-drop1 drop=1 cold cache_before_mb=7621 cache_after_mb=7623 delta_mb=2 avail_after_mb=76439 wall_s=69.802479313 rc=0
+cold2-drop0 drop=0 cold cache_before_mb=7623 cache_after_mb=29152 delta_mb=21529 avail_after_mb=76401 wall_s=69.450083744 rc=0
+cold3-drop0 drop=0 cold cache_before_mb=7628 cache_after_mb=29161 delta_mb=21533 avail_after_mb=76368 wall_s=64.901938265 rc=0
+cold4-drop1 drop=1 cold cache_before_mb=7637 cache_after_mb=7637 delta_mb=0 avail_after_mb=76468 wall_s=61.907989726 rc=0
+warm1-drop1 drop=1 warm cache_before_mb=29976 cache_after_mb=7637 delta_mb=-22339 avail_after_mb=76189 wall_s=31.373761631 rc=0
+warm2-drop0 drop=0 warm cache_before_mb=29976 cache_after_mb=29976 delta_mb=0 avail_after_mb=76288 wall_s=37.436475079 rc=0
+warm3-drop0 drop=0 warm cache_before_mb=29976 cache_after_mb=29976 delta_mb=0 avail_after_mb=76304 wall_s=36.839986421 rc=0
+warm4-drop1 drop=1 warm cache_before_mb=29976 cache_after_mb=7637 delta_mb=-22339 avail_after_mb=76291 wall_s=33.762102104 rc=0
