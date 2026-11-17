@@ -2,7 +2,7 @@
 # storeids: why do `serve --max-batch 8 --prefix-store on` and store off give different greedy ids? (CUDA, Qwen3.6-35B-A3B NVFP4, spark1)
 # Builds origin/main (BASE) into ~/intarsiaml-storeids, then one server visit per config (see VISITS), each running scripts/storeids/ids_bench.py.
 # Run under: fleetq run --host spark1 --expect 80 --mem 62 --quiet gpu,cpu --label "storeids ..." -- scripts/storeids/run.sh
-# KEEP=1 keeps ~/intarsiaml-storeids at the end. ONLY="name name" runs just those visits (the build is skipped when the binary exists).
+# SETS="LEN:SEEDS:LPSEED;..." overrides the prompt sets (ids_bench --sets). KEEP=1 keeps ~/intarsiaml-storeids at the end. ONLY="name name" runs just those visits (the build is skipped when the binary exists).
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 REPO="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
@@ -74,8 +74,8 @@ for v in "${VISITS[@]}"; do
   IFS='|' read -r name envs sargs modes <<< "$v"
   if [[ -n "${ONLY:-}" ]] && [[ " $ONLY " != *" $name "* ]]; then continue; fi
   start_serve "$name" "$envs" $sargs || continue
-  python3 "$S/ids_bench.py" --url "http://$HN:$PORT" --visit "$name" --modes "$modes" --out "$OUT/ids.jsonl" 2>&1 | tee -a "$OUT/run.log"
+  python3 "$S/ids_bench.py" --url "http://$HN:$PORT" --visit "$name" --modes "$modes" ${SETS:+--sets "$SETS"} --out "$OUT/ids.jsonl" 2>&1 | tee -a "$OUT/run.log"
   finish_serve "$name"
 done
 log "done"
-if [[ -z "${KEEP:-}" && -z "${ONLY:-}" ]]; then rsh "rm -rf $L"; log "removed ~/intarsiaml-storeids"; fi
+if [[ -z "${KEEP:-}" ]]; then rsh "rm -rf $L"; log "removed ~/intarsiaml-storeids"; fi
