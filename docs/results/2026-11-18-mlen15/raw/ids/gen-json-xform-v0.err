@@ -1,0 +1,501 @@
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.4 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: copy drafts on: a chain of up to 15 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)
+loaded Qwen3.6-35B-A3B-NVFP4 on Apple M5 Max in 3.0s: 40 layers, hidden 2048, act bf16, kv bf16, weights 21.36 GB, context 8192 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 2997 tokens
+spec: token 2 pos 2997 drafted 2 accepted 2 emits 3 drafts [2164, 198]
+spec: mtp pipe step 19.060 ms (drafted ahead false), next draft submitted in 0.088 ms (true)
+spec: token 5 pos 3000 drafted 2 accepted 2 emits 3 drafts [198, 220]
+spec: mtp pipe step 13.606 ms (drafted ahead true), next draft submitted in 0.057 ms (true)
+spec: token 8 pos 3003 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp pipe step 13.639 ms (drafted ahead true), next draft submitted in 0.053 ms (true)
+spec: token 11 pos 3006 drafted 2 accepted 2 emits 3 drafts [306, 763]
+spec: mtp pipe step 13.689 ms (drafted ahead true), next draft submitted in 0.048 ms (true)
+spec: token 14 pos 3009 drafted 2 accepted 2 emits 3 drafts [16, 15]
+spec: mtp pipe step 13.638 ms (drafted ahead true), next draft submitted in 0.054 ms (true)
+spec: token 17 pos 3012 drafted 2 accepted 2 emits 3 drafts [15, 11]
+spec: mtp pipe step 13.590 ms (drafted ahead true), next draft submitted in 0.051 ms (true)
+spec: copy token 20 pos 3015 drafted 15 accepted 15 emits 16 drafts [262, 328, 591, 763, 328, 9505, 12, 15, 15, 15, 487, 198, 262, 328, 3810]
+spec: copy pass 16 rows 51.265 ms at 1795023926.405
+spec: copy token 36 pos 3031 drafted 15 accepted 9 emits 10 drafts [328, 19515, 487, 198, 262, 328, 2738, 763, 328, 2932, 487, 198, 262, 328, 13679]
+spec: copy pass 16 rows 35.017 ms at 1795023926.440
+spec: token 46 pos 3041 drafted 2 accepted 2 emits 3 drafts [2150, 487]
+spec: mtp pipe step 13.781 ms (drafted ahead false), next draft submitted in 0.117 ms (true)
+spec: token 49 pos 3044 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: mtp pipe step 13.739 ms (drafted ahead true), next draft submitted in 0.084 ms (true)
+spec: token 52 pos 3047 drafted 2 accepted 2 emits 3 drafts [763, 498]
+spec: mtp pipe step 13.673 ms (drafted ahead true), next draft submitted in 0.059 ms (true)
+spec: token 55 pos 3050 drafted 2 accepted 2 emits 3 drafts [406, 328]
+spec: mtp pipe step 13.749 ms (drafted ahead true), next draft submitted in 0.052 ms (true)
+spec: token 58 pos 3053 drafted 2 accepted 2 emits 3 drafts [15, 487]
+spec: mtp pipe step 13.722 ms (drafted ahead true), next draft submitted in 0.051 ms (true)
+spec: token 61 pos 3056 drafted 2 accepted 2 emits 3 drafts [406, 328]
+spec: mtp pipe step 13.914 ms (drafted ahead true), next draft submitted in 0.048 ms (true)
+spec: token 64 pos 3059 drafted 2 accepted 2 emits 3 drafts [15, 1]
+spec: mtp pipe step 13.813 ms (drafted ahead true), next draft submitted in 0.072 ms (true)
+spec: copy token 67 pos 3062 drafted 15 accepted 15 emits 16 drafts [262, 10339, 198, 262, 328, 6352, 763, 220, 24, 13, 20, 11, 198, 262, 328]
+spec: copy pass 16 rows 37.229 ms at 1795023926.575
+spec: copy token 83 pos 3078 drafted 15 accepted 15 emits 16 drafts [763, 220, 19, 15, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763]
+spec: copy pass 16 rows 35.609 ms at 1795023926.611
+spec: copy token 99 pos 3094 drafted 15 accepted 15 emits 16 drafts [16, 15, 15, 22, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15]
+spec: copy pass 16 rows 35.374 ms at 1795023926.646
+spec: copy token 115 pos 3110 drafted 15 accepted 15 emits 16 drafts [487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328]
+spec: copy pass 16 rows 35.173 ms at 1795023926.681
+spec: copy token 131 pos 3126 drafted 15 accepted 15 emits 16 drafts [487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 16, 487, 198, 406]
+spec: copy pass 16 rows 35.404 ms at 1795023926.717
+spec: copy token 147 pos 3142 drafted 15 accepted 1 emits 2 drafts [83, 17, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 23, 13]
+spec: copy pass 16 rows 35.534 ms at 1795023926.752
+spec: token 149 pos 3144 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.053 ms (drafted ahead false), next draft submitted in 0.057 ms (true)
+spec: copy token 152 pos 3147 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 16, 15, 13, 22, 20, 11, 198, 262]
+spec: copy pass 16 rows 37.307 ms at 1795023926.804
+spec: copy token 168 pos 3163 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 20, 18, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306]
+spec: copy pass 16 rows 35.492 ms at 1795023926.840
+spec: copy token 184 pos 3179 drafted 15 accepted 15 emits 16 drafts [220, 16, 15, 16, 19, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15]
+spec: copy pass 16 rows 35.370 ms at 1795023926.875
+spec: copy token 200 pos 3195 drafted 15 accepted 15 emits 16 drafts [17, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738]
+spec: copy pass 16 rows 35.466 ms at 1795023926.911
+spec: copy token 216 pos 3211 drafted 15 accepted 15 emits 16 drafts [328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 17, 487]
+spec: copy pass 16 rows 35.294 ms at 1795023926.946
+spec: copy token 232 pos 3227 drafted 15 accepted 3 emits 4 drafts [406, 328, 83, 20, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19]
+spec: copy pass 16 rows 35.535 ms at 1795023926.982
+spec: copy token 236 pos 3231 drafted 15 accepted 15 emits 16 drafts [1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 17, 13, 15, 11]
+spec: copy pass 16 rows 35.650 ms at 1795023927.017
+spec: copy token 252 pos 3247 drafted 15 accepted 15 emits 16 drafts [262, 328, 13091, 763, 220, 21, 21, 198, 220, 2390, 198, 220, 313, 198, 262]
+spec: copy pass 16 rows 35.532 ms at 1795023927.053
+spec: copy token 268 pos 3263 drafted 15 accepted 15 emits 16 drafts [306, 763, 220, 16, 15, 17, 16, 11, 198, 262, 328, 591, 763, 328, 9505]
+spec: copy pass 16 rows 35.617 ms at 1795023927.088
+spec: copy token 284 pos 3279 drafted 15 accepted 15 emits 16 drafts [15, 15, 18, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328]
+spec: copy pass 16 rows 35.259 ms at 1795023927.124
+spec: copy token 300 pos 3295 drafted 15 accepted 2 emits 3 drafts [763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 18]
+spec: copy pass 16 rows 35.218 ms at 1795023927.159
+spec: token 303 pos 3298 drafted 2 accepted 2 emits 3 drafts [2150, 487]
+spec: mtp pipe step 13.915 ms (drafted ahead false), next draft submitted in 0.059 ms (true)
+spec: token 306 pos 3301 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: mtp pipe step 13.927 ms (drafted ahead true), next draft submitted in 0.067 ms (true)
+spec: copy token 309 pos 3304 drafted 15 accepted 6 emits 7 drafts [763, 498, 198, 406, 328, 83, 15, 487, 198, 406, 328, 83, 15, 1, 198]
+spec: copy pass 16 rows 37.099 ms at 1795023927.225
+spec: token 316 pos 3311 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: mtp pipe step 13.975 ms (drafted ahead false), next draft submitted in 0.051 ms (true)
+spec: token 319 pos 3314 drafted 2 accepted 2 emits 3 drafts [328, 83]
+spec: mtp pipe step 13.917 ms (drafted ahead true), next draft submitted in 0.051 ms (true)
+spec: token 322 pos 3317 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 13.850 ms (drafted ahead true), next draft submitted in 0.050 ms (true)
+spec: copy token 325 pos 3320 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 16, 18, 13, 17, 20, 11, 198, 262]
+spec: copy pass 16 rows 37.378 ms at 1795023927.304
+spec: copy token 341 pos 3336 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 22, 24, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306]
+spec: copy pass 16 rows 35.421 ms at 1795023927.340
+spec: copy token 357 pos 3352 drafted 15 accepted 15 emits 16 drafts [220, 16, 15, 17, 23, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15]
+spec: copy pass 16 rows 35.399 ms at 1795023927.375
+spec: copy token 373 pos 3368 drafted 15 accepted 15 emits 16 drafts [19, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763]
+spec: copy pass 16 rows 35.485 ms at 1795023927.411
+spec: copy token 389 pos 3384 drafted 15 accepted 15 emits 16 drafts [2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 19, 487, 198]
+spec: copy pass 16 rows 35.522 ms at 1795023927.446
+spec: copy token 405 pos 3400 drafted 15 accepted 2 emits 3 drafts [328, 83, 17, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 18, 24]
+spec: copy pass 16 rows 35.844 ms at 1795023927.482
+spec: token 408 pos 3403 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.197 ms (drafted ahead false), next draft submitted in 0.088 ms (true)
+spec: copy token 411 pos 3406 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 16, 19, 13, 20, 11, 198, 262, 328]
+spec: copy pass 16 rows 37.442 ms at 1795023927.534
+spec: copy token 427 pos 3422 drafted 15 accepted 15 emits 16 drafts [763, 220, 24, 17, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763]
+spec: copy pass 16 rows 35.682 ms at 1795023927.570
+spec: copy token 443 pos 3438 drafted 15 accepted 15 emits 16 drafts [16, 15, 18, 20, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15]
+spec: copy pass 16 rows 35.669 ms at 1795023927.606
+spec: copy token 459 pos 3454 drafted 15 accepted 15 emits 16 drafts [487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763]
+spec: copy pass 16 rows 35.403 ms at 1795023927.641
+spec: copy token 475 pos 3470 drafted 15 accepted 15 emits 16 drafts [27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 15, 487, 198]
+spec: copy pass 16 rows 35.433 ms at 1795023927.677
+spec: copy token 491 pos 3486 drafted 15 accepted 2 emits 3 drafts [328, 83, 20, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 15]
+spec: copy pass 16 rows 35.689 ms at 1795023927.712
+spec: token 494 pos 3489 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.154 ms (drafted ahead false), next draft submitted in 0.080 ms (true)
+spec: copy token 497 pos 3492 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 16, 20, 13, 22, 20, 11, 198, 262]
+spec: copy pass 16 rows 37.339 ms at 1795023927.764
+spec: copy token 513 pos 3508 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 16, 15, 20, 198, 220, 2390, 198, 220, 313, 198, 262, 328]
+spec: copy pass 16 rows 35.922 ms at 1795023927.800
+spec: copy token 529 pos 3524 drafted 15 accepted 15 emits 16 drafts [763, 220, 16, 15, 19, 17, 11, 198, 262, 328, 591, 763, 328, 9505, 12]
+spec: copy pass 16 rows 35.669 ms at 1795023927.836
+spec: copy token 545 pos 3540 drafted 15 accepted 15 emits 16 drafts [15, 21, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738]
+spec: copy pass 16 rows 35.588 ms at 1795023927.872
+spec: copy token 561 pos 3556 drafted 15 accepted 1 emits 2 drafts [328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 16, 487]
+spec: copy pass 16 rows 35.529 ms at 1795023927.907
+spec: token 563 pos 3558 drafted 2 accepted 2 emits 3 drafts [2150, 487]
+spec: mtp pipe step 13.889 ms (drafted ahead false), next draft submitted in 0.076 ms (true)
+spec: token 566 pos 3561 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: mtp pipe step 14.037 ms (drafted ahead true), next draft submitted in 0.075 ms (true)
+spec: copy token 569 pos 3564 drafted 15 accepted 6 emits 7 drafts [763, 498, 198, 406, 328, 83, 18, 487, 198, 406, 328, 83, 17, 1, 198]
+spec: copy pass 16 rows 37.295 ms at 1795023927.973
+spec: token 576 pos 3571 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: mtp pipe step 14.015 ms (drafted ahead false), next draft submitted in 0.097 ms (true)
+spec: token 579 pos 3574 drafted 2 accepted 2 emits 3 drafts [328, 83]
+spec: mtp pipe step 14.000 ms (drafted ahead true), next draft submitted in 0.099 ms (true)
+spec: token 582 pos 3577 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.102 ms (drafted ahead true), next draft submitted in 0.105 ms (true)
+spec: copy token 585 pos 3580 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 16, 22, 13, 15, 11, 198, 262, 328]
+spec: copy pass 16 rows 37.607 ms at 1795023928.054
+spec: copy token 601 pos 3596 drafted 15 accepted 15 emits 16 drafts [763, 220, 16, 16, 23, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306]
+spec: copy pass 16 rows 35.836 ms at 1795023928.089
+spec: copy token 617 pos 3612 drafted 15 accepted 15 emits 16 drafts [220, 16, 15, 19, 24, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15]
+spec: copy pass 16 rows 35.743 ms at 1795023928.125
+spec: copy token 633 pos 3628 drafted 15 accepted 15 emits 16 drafts [22, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763]
+spec: copy pass 16 rows 35.912 ms at 1795023928.161
+spec: copy token 649 pos 3644 drafted 15 accepted 15 emits 16 drafts [27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 17, 487, 198]
+spec: copy pass 16 rows 35.885 ms at 1795023928.197
+spec: copy token 665 pos 3660 drafted 15 accepted 2 emits 3 drafts [328, 83, 19, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 18]
+spec: copy pass 16 rows 36.105 ms at 1795023928.233
+spec: token 668 pos 3663 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.312 ms (drafted ahead false), next draft submitted in 0.122 ms (true)
+spec: copy token 671 pos 3666 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 16, 23, 13, 17, 20, 11, 198, 262]
+spec: copy pass 16 rows 37.731 ms at 1795023928.286
+spec: copy token 687 pos 3682 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 19, 16, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306]
+spec: copy pass 16 rows 36.004 ms at 1795023928.322
+spec: copy token 703 pos 3698 drafted 15 accepted 15 emits 16 drafts [220, 16, 15, 20, 21, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15]
+spec: copy pass 16 rows 35.819 ms at 1795023928.358
+spec: copy token 719 pos 3714 drafted 15 accepted 15 emits 16 drafts [23, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738]
+spec: copy pass 16 rows 35.754 ms at 1795023928.394
+spec: copy token 735 pos 3730 drafted 15 accepted 15 emits 16 drafts [328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 18, 487]
+spec: copy pass 16 rows 35.676 ms at 1795023928.429
+spec: copy token 751 pos 3746 drafted 15 accepted 3 emits 4 drafts [406, 328, 83, 15, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19]
+spec: copy pass 16 rows 36.021 ms at 1795023928.465
+spec: copy token 755 pos 3750 drafted 15 accepted 15 emits 16 drafts [1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 24, 13, 20, 11]
+spec: copy pass 16 rows 36.105 ms at 1795023928.502
+spec: copy token 771 pos 3766 drafted 15 accepted 15 emits 16 drafts [262, 328, 13091, 763, 220, 20, 19, 198, 220, 2390, 198, 220, 313, 198, 262]
+spec: copy pass 16 rows 35.987 ms at 1795023928.538
+spec: copy token 787 pos 3782 drafted 15 accepted 15 emits 16 drafts [306, 763, 220, 16, 15, 21, 18, 11, 198, 262, 328, 591, 763, 328, 9505]
+spec: copy pass 16 rows 35.812 ms at 1795023928.573
+spec: copy token 803 pos 3798 drafted 15 accepted 15 emits 16 drafts [15, 15, 24, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328]
+spec: copy pass 16 rows 35.834 ms at 1795023928.609
+spec: copy token 819 pos 3814 drafted 15 accepted 2 emits 3 drafts [763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 19]
+spec: copy pass 16 rows 35.725 ms at 1795023928.645
+spec: token 822 pos 3817 drafted 2 accepted 2 emits 3 drafts [2150, 487]
+spec: mtp pipe step 14.020 ms (drafted ahead false), next draft submitted in 0.056 ms (true)
+spec: token 825 pos 3820 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: mtp pipe step 14.077 ms (drafted ahead true), next draft submitted in 0.051 ms (true)
+spec: copy token 828 pos 3823 drafted 15 accepted 6 emits 7 drafts [763, 498, 198, 406, 328, 83, 16, 487, 198, 406, 328, 83, 19, 1, 198]
+spec: copy pass 16 rows 37.524 ms at 1795023928.711
+spec: token 835 pos 3830 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: mtp pipe step 13.930 ms (drafted ahead false), next draft submitted in 0.054 ms (true)
+spec: token 838 pos 3833 drafted 2 accepted 2 emits 3 drafts [328, 83]
+spec: mtp pipe step 13.866 ms (drafted ahead true), next draft submitted in 0.054 ms (true)
+spec: token 841 pos 3836 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.064 ms (drafted ahead true), next draft submitted in 0.050 ms (true)
+spec: copy token 844 pos 3839 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 17, 15, 13, 22, 20, 11, 198, 262]
+spec: copy pass 16 rows 37.946 ms at 1795023928.792
+spec: copy token 860 pos 3855 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 21, 22, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306]
+spec: copy pass 16 rows 36.149 ms at 1795023928.828
+spec: copy token 876 pos 3871 drafted 15 accepted 15 emits 16 drafts [220, 16, 15, 22, 15, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15]
+spec: copy pass 16 rows 35.958 ms at 1795023928.864
+spec: copy token 892 pos 3887 drafted 15 accepted 15 emits 16 drafts [15, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763]
+spec: copy pass 16 rows 35.980 ms at 1795023928.900
+spec: copy token 908 pos 3903 drafted 15 accepted 15 emits 16 drafts [2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 15, 487, 198]
+spec: copy pass 16 rows 36.025 ms at 1795023928.936
+spec: copy token 924 pos 3919 drafted 15 accepted 2 emits 3 drafts [328, 83, 21, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 22]
+spec: copy pass 16 rows 36.089 ms at 1795023928.972
+spec: token 927 pos 3922 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.237 ms (drafted ahead false), next draft submitted in 0.057 ms (true)
+spec: copy token 930 pos 3925 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 17, 17, 13, 15, 11, 198, 262, 328]
+spec: copy pass 16 rows 37.892 ms at 1795023929.025
+spec: copy token 946 pos 3941 drafted 15 accepted 15 emits 16 drafts [763, 220, 23, 15, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763]
+spec: copy pass 16 rows 36.055 ms at 1795023929.061
+spec: copy token 962 pos 3957 drafted 15 accepted 15 emits 16 drafts [16, 15, 22, 22, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 16]
+spec: copy pass 16 rows 36.171 ms at 1795023929.097
+spec: copy token 978 pos 3973 drafted 15 accepted 15 emits 16 drafts [487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763]
+spec: copy pass 16 rows 36.350 ms at 1795023929.133
+spec: copy token 994 pos 3989 drafted 15 accepted 15 emits 16 drafts [27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 16, 487, 198]
+spec: copy pass 16 rows 36.130 ms at 1795023929.170
+spec: copy token 1010 pos 4005 drafted 15 accepted 2 emits 3 drafts [328, 83, 18, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 15]
+spec: copy pass 16 rows 36.223 ms at 1795023929.206
+spec: token 1013 pos 4008 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.277 ms (drafted ahead false), next draft submitted in 0.096 ms (true)
+spec: copy token 1016 pos 4011 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 17, 18, 13, 17, 20, 11, 198, 262]
+spec: copy pass 16 rows 37.967 ms at 1795023929.259
+spec: copy token 1032 pos 4027 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 24, 18, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306]
+spec: copy pass 16 rows 36.209 ms at 1795023929.295
+spec: copy token 1048 pos 4043 drafted 15 accepted 15 emits 16 drafts [220, 16, 15, 23, 19, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15]
+spec: copy pass 16 rows 36.003 ms at 1795023929.331
+spec: copy token 1064 pos 4059 drafted 15 accepted 15 emits 16 drafts [17, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763]
+spec: copy pass 16 rows 35.912 ms at 1795023929.367
+spec: copy token 1080 pos 4075 drafted 15 accepted 0 emits 1 drafts [2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 17, 487, 198]
+spec: copy pass 16 rows 35.970 ms at 1795023929.403
+spec: token 1081 pos 4076 drafted 2 accepted 2 emits 3 drafts [2150, 487]
+spec: mtp pipe step 14.109 ms (drafted ahead false), next draft submitted in 0.070 ms (true)
+spec: token 1084 pos 4079 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: mtp pipe step 14.192 ms (drafted ahead true), next draft submitted in 0.056 ms (true)
+spec: copy token 1087 pos 4082 drafted 15 accepted 6 emits 7 drafts [763, 498, 198, 406, 328, 83, 19, 487, 198, 406, 328, 83, 21, 1, 198]
+spec: copy pass 16 rows 37.808 ms at 1795023929.470
+spec: token 1094 pos 4089 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: mtp pipe step 14.045 ms (drafted ahead false), next draft submitted in 0.055 ms (true)
+spec: token 1097 pos 4092 drafted 2 accepted 2 emits 3 drafts [328, 83]
+spec: mtp pipe step 13.995 ms (drafted ahead true), next draft submitted in 0.051 ms (true)
+spec: token 1100 pos 4095 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.105 ms (drafted ahead true), next draft submitted in 0.049 ms (true)
+spec: copy token 1103 pos 4098 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 17, 19, 13, 20, 11, 198, 262, 328]
+spec: copy pass 16 rows 38.024 ms at 1795023929.550
+spec: copy token 1119 pos 4114 drafted 15 accepted 15 emits 16 drafts [763, 220, 16, 15, 21, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306]
+spec: copy pass 16 rows 36.241 ms at 1795023929.587
+spec: copy token 1135 pos 4130 drafted 15 accepted 15 emits 16 drafts [220, 16, 15, 24, 16, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15]
+spec: copy pass 16 rows 36.090 ms at 1795023929.623
+spec: copy token 1151 pos 4146 drafted 15 accepted 15 emits 16 drafts [18, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763]
+spec: copy pass 16 rows 35.984 ms at 1795023929.659
+spec: copy token 1167 pos 4162 drafted 15 accepted 15 emits 16 drafts [27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 18, 487, 198]
+spec: copy pass 16 rows 36.021 ms at 1795023929.695
+spec: copy token 1183 pos 4178 drafted 15 accepted 2 emits 3 drafts [328, 83, 16, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 20, 15]
+spec: copy pass 16 rows 36.403 ms at 1795023929.731
+spec: token 1186 pos 4181 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.253 ms (drafted ahead false), next draft submitted in 0.059 ms (true)
+spec: copy token 1189 pos 4184 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 17, 20, 13, 22, 20, 11, 198, 262]
+spec: copy pass 16 rows 38.093 ms at 1795023929.784
+spec: copy token 1205 pos 4200 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 16, 16, 24, 198, 220, 2390, 198, 220, 313, 198, 262, 328]
+spec: copy pass 16 rows 36.284 ms at 1795023929.820
+spec: copy token 1221 pos 4216 drafted 15 accepted 15 emits 16 drafts [763, 220, 16, 15, 24, 23, 11, 198, 262, 328, 591, 763, 328, 9505, 12]
+spec: copy pass 16 rows 36.210 ms at 1795023929.857
+spec: copy token 1237 pos 4232 drafted 15 accepted 15 emits 16 drafts [16, 19, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328]
+spec: copy pass 16 rows 36.071 ms at 1795023929.893
+spec: copy token 1253 pos 4248 drafted 15 accepted 15 emits 16 drafts [763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 19]
+spec: copy pass 16 rows 35.979 ms at 1795023929.929
+spec: copy token 1269 pos 4264 drafted 15 accepted 4 emits 5 drafts [198, 406, 328, 83, 20, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220]
+spec: copy pass 16 rows 36.199 ms at 1795023929.965
+spec: copy token 1274 pos 4269 drafted 15 accepted 15 emits 16 drafts [1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 17, 22, 13, 15, 11]
+spec: copy pass 16 rows 36.417 ms at 1795023930.001
+spec: copy token 1290 pos 4285 drafted 15 accepted 15 emits 16 drafts [262, 328, 13091, 763, 220, 19, 17, 198, 220, 2390, 198, 220, 313, 198, 262]
+spec: copy pass 16 rows 36.379 ms at 1795023930.038
+spec: copy token 1306 pos 4301 drafted 15 accepted 15 emits 16 drafts [306, 763, 220, 16, 16, 15, 20, 11, 198, 262, 328, 591, 763, 328, 9505]
+spec: copy pass 16 rows 36.141 ms at 1795023930.074
+spec: copy token 1322 pos 4317 drafted 15 accepted 15 emits 16 drafts [15, 16, 20, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328]
+spec: copy pass 16 rows 36.246 ms at 1795023930.110
+spec: copy token 1338 pos 4333 drafted 15 accepted 2 emits 3 drafts [763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 15]
+spec: copy pass 16 rows 36.293 ms at 1795023930.147
+spec: token 1341 pos 4336 drafted 2 accepted 2 emits 3 drafts [2150, 487]
+spec: mtp pipe step 14.151 ms (drafted ahead false), next draft submitted in 0.056 ms (true)
+spec: token 1344 pos 4339 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: mtp pipe step 14.301 ms (drafted ahead true), next draft submitted in 0.048 ms (true)
+spec: copy token 1347 pos 4342 drafted 15 accepted 6 emits 7 drafts [763, 498, 198, 406, 328, 83, 17, 487, 198, 406, 328, 83, 16, 1, 198]
+spec: copy pass 16 rows 38.086 ms at 1795023930.214
+spec: copy token 1354 pos 4349 drafted 15 accepted 5 emits 6 drafts [487, 198, 406, 328, 83, 15, 1, 198, 262, 10339, 198, 262, 328, 6352, 763]
+spec: copy pass 16 rows 36.519 ms at 1795023930.250
+spec: token 1360 pos 4355 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.392 ms (drafted ahead false), next draft submitted in 0.071 ms (true)
+spec: copy token 1363 pos 4358 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 17, 23, 13, 17, 20, 11, 198, 262]
+spec: copy pass 16 rows 38.339 ms at 1795023930.304
+spec: copy token 1379 pos 4374 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 20, 20, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306]
+spec: copy pass 16 rows 36.485 ms at 1795023930.340
+spec: copy token 1395 pos 4390 drafted 15 accepted 15 emits 16 drafts [220, 16, 16, 16, 17, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15]
+spec: copy pass 16 rows 36.406 ms at 1795023930.376
+spec: copy token 1411 pos 4406 drafted 15 accepted 15 emits 16 drafts [21, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763]
+spec: copy pass 16 rows 36.316 ms at 1795023930.413
+spec: copy token 1427 pos 4422 drafted 15 accepted 15 emits 16 drafts [2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 16, 487, 198]
+spec: copy pass 16 rows 36.269 ms at 1795023930.449
+spec: copy token 1443 pos 4438 drafted 15 accepted 2 emits 3 drafts [328, 83, 16, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 17]
+spec: copy pass 16 rows 36.572 ms at 1795023930.486
+spec: token 1446 pos 4441 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.213 ms (drafted ahead false), next draft submitted in 0.054 ms (true)
+spec: copy token 1449 pos 4444 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 17, 24, 13, 20, 11, 198, 262, 328]
+spec: copy pass 16 rows 38.342 ms at 1795023930.539
+spec: copy token 1465 pos 4460 drafted 15 accepted 15 emits 16 drafts [763, 220, 21, 23, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763]
+spec: copy pass 16 rows 36.704 ms at 1795023930.576
+spec: copy token 1481 pos 4476 drafted 15 accepted 15 emits 16 drafts [16, 16, 16, 24, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 16]
+spec: copy pass 16 rows 36.752 ms at 1795023930.612
+spec: copy token 1497 pos 4492 drafted 15 accepted 15 emits 16 drafts [487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763]
+spec: copy pass 16 rows 36.750 ms at 1795023930.649
+spec: copy token 1513 pos 4508 drafted 15 accepted 15 emits 16 drafts [27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 17, 487, 198]
+spec: copy pass 16 rows 36.735 ms at 1795023930.686
+spec: copy token 1529 pos 4524 drafted 15 accepted 2 emits 3 drafts [328, 83, 15, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 23]
+spec: copy pass 16 rows 36.946 ms at 1795023930.723
+spec: token 1532 pos 4527 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.622 ms (drafted ahead false), next draft submitted in 0.105 ms (true)
+spec: copy token 1535 pos 4530 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 18, 15, 13, 22, 20, 11, 198, 262]
+spec: copy pass 16 rows 38.609 ms at 1795023930.777
+spec: copy token 1551 pos 4546 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 23, 16, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306]
+spec: copy pass 16 rows 36.763 ms at 1795023930.813
+spec: copy token 1567 pos 4562 drafted 15 accepted 15 emits 16 drafts [220, 16, 16, 17, 21, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15]
+spec: copy pass 16 rows 36.672 ms at 1795023930.850
+spec: copy token 1583 pos 4578 drafted 15 accepted 15 emits 16 drafts [23, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763]
+spec: copy pass 16 rows 36.798 ms at 1795023930.887
+spec: copy token 1599 pos 4594 drafted 15 accepted 0 emits 1 drafts [2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 18, 487, 198]
+spec: copy pass 16 rows 36.685 ms at 1795023930.924
+spec: token 1600 pos 4595 drafted 2 accepted 2 emits 3 drafts [2150, 487]
+spec: mtp pipe step 14.258 ms (drafted ahead false), next draft submitted in 0.104 ms (true)
+spec: token 1603 pos 4598 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: mtp pipe step 14.258 ms (drafted ahead true), next draft submitted in 0.093 ms (true)
+spec: copy token 1606 pos 4601 drafted 15 accepted 6 emits 7 drafts [763, 498, 198, 406, 328, 83, 15, 487, 198, 406, 328, 83, 18, 1, 198]
+spec: copy pass 16 rows 38.240 ms at 1795023930.991
+spec: copy token 1613 pos 4608 drafted 15 accepted 5 emits 6 drafts [487, 198, 406, 328, 83, 17, 1, 198, 262, 10339, 198, 262, 328, 6352, 763]
+spec: copy pass 16 rows 36.747 ms at 1795023931.028
+spec: token 1619 pos 4614 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.563 ms (drafted ahead false), next draft submitted in 0.069 ms (true)
+spec: copy token 1622 pos 4617 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 18, 17, 13, 15, 11, 198, 262, 328]
+spec: copy pass 16 rows 38.342 ms at 1795023931.081
+spec: copy token 1638 pos 4633 drafted 15 accepted 15 emits 16 drafts [763, 220, 24, 19, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763]
+spec: copy pass 16 rows 36.574 ms at 1795023931.118
+spec: copy token 1654 pos 4649 drafted 15 accepted 15 emits 16 drafts [16, 16, 18, 18, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 16]
+spec: copy pass 16 rows 36.556 ms at 1795023931.155
+spec: copy token 1670 pos 4665 drafted 15 accepted 15 emits 16 drafts [487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328]
+spec: copy pass 16 rows 36.449 ms at 1795023931.191
+spec: copy token 1686 pos 4681 drafted 15 accepted 15 emits 16 drafts [487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 19, 487, 198, 406]
+spec: copy pass 16 rows 36.773 ms at 1795023931.228
+spec: copy token 1702 pos 4697 drafted 15 accepted 1 emits 2 drafts [83, 18, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 20, 13]
+spec: copy pass 16 rows 36.820 ms at 1795023931.265
+spec: token 1704 pos 4699 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.423 ms (drafted ahead false), next draft submitted in 0.059 ms (true)
+spec: copy token 1707 pos 4702 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 18, 18, 13, 17, 20, 11, 198, 262]
+spec: copy pass 16 rows 38.462 ms at 1795023931.318
+spec: copy token 1723 pos 4718 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 16, 15, 22, 198, 220, 2390, 198, 220, 313, 198, 262, 328]
+spec: copy pass 16 rows 36.967 ms at 1795023931.355
+spec: copy token 1739 pos 4734 drafted 15 accepted 15 emits 16 drafts [763, 220, 16, 16, 19, 15, 11, 198, 262, 328, 591, 763, 328, 9505, 12]
+spec: copy pass 16 rows 36.818 ms at 1795023931.392
+spec: copy token 1755 pos 4750 drafted 15 accepted 15 emits 16 drafts [17, 15, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328]
+spec: copy pass 16 rows 36.774 ms at 1795023931.429
+spec: copy token 1771 pos 4766 drafted 15 accepted 15 emits 16 drafts [763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 15]
+spec: copy pass 16 rows 36.588 ms at 1795023931.466
+spec: copy token 1787 pos 4782 drafted 15 accepted 4 emits 5 drafts [198, 406, 328, 83, 17, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220]
+spec: copy pass 16 rows 36.860 ms at 1795023931.502
+spec: copy token 1792 pos 4787 drafted 15 accepted 15 emits 16 drafts [1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 18, 19, 13, 20, 11]
+spec: copy pass 16 rows 37.311 ms at 1795023931.540
+spec: copy token 1808 pos 4803 drafted 15 accepted 15 emits 16 drafts [262, 328, 13091, 763, 220, 16, 17, 15, 198, 220, 2390, 198, 220, 313, 198]
+spec: copy pass 16 rows 37.239 ms at 1795023931.577
+spec: copy token 1824 pos 4819 drafted 15 accepted 15 emits 16 drafts [328, 306, 763, 220, 16, 16, 19, 22, 11, 198, 262, 328, 591, 763, 328]
+spec: copy pass 16 rows 37.108 ms at 1795023931.614
+spec: copy token 1840 pos 4835 drafted 15 accepted 15 emits 16 drafts [12, 15, 17, 16, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262]
+spec: copy pass 16 rows 37.159 ms at 1795023931.651
+spec: copy token 1856 pos 4851 drafted 15 accepted 3 emits 4 drafts [2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83]
+spec: copy pass 16 rows 37.114 ms at 1795023931.689
+spec: token 1860 pos 4855 drafted 2 accepted 2 emits 3 drafts [2150, 487]
+spec: mtp pipe step 14.776 ms (drafted ahead false), next draft submitted in 0.336 ms (true)
+spec: token 1863 pos 4858 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: mtp pipe step 14.571 ms (drafted ahead true), next draft submitted in 0.193 ms (true)
+spec: copy token 1866 pos 4861 drafted 15 accepted 6 emits 7 drafts [763, 498, 198, 406, 328, 83, 18, 487, 198, 406, 328, 83, 20, 1, 198]
+spec: copy pass 16 rows 39.044 ms at 1795023931.758
+spec: copy token 1873 pos 4868 drafted 15 accepted 5 emits 6 drafts [487, 198, 406, 328, 83, 19, 1, 198, 262, 10339, 198, 262, 328, 6352, 763]
+spec: copy pass 16 rows 37.303 ms at 1795023931.796
+spec: token 1879 pos 4874 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.518 ms (drafted ahead false), next draft submitted in 0.109 ms (true)
+spec: copy token 1882 pos 4877 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 18, 20, 13, 22, 20, 11, 198, 262]
+spec: copy pass 16 rows 38.717 ms at 1795023931.849
+spec: copy token 1898 pos 4893 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 19, 18, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306]
+spec: copy pass 16 rows 37.386 ms at 1795023931.887
+spec: copy token 1914 pos 4909 drafted 15 accepted 15 emits 16 drafts [220, 16, 16, 20, 19, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15]
+spec: copy pass 16 rows 37.115 ms at 1795023931.924
+spec: copy token 1930 pos 4925 drafted 15 accepted 15 emits 16 drafts [17, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763]
+spec: copy pass 16 rows 37.094 ms at 1795023931.961
+spec: copy token 1946 pos 4941 drafted 15 accepted 15 emits 16 drafts [2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 17, 487, 198]
+spec: copy pass 16 rows 37.253 ms at 1795023931.998
+spec: copy token 1962 pos 4957 drafted 15 accepted 2 emits 3 drafts [328, 83, 21, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 17]
+spec: copy pass 16 rows 37.370 ms at 1795023932.036
+spec: token 1965 pos 4960 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.546 ms (drafted ahead false), next draft submitted in 0.095 ms (true)
+spec: copy token 1968 pos 4963 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 18, 22, 13, 15, 11, 198, 262, 328]
+spec: copy pass 16 rows 38.948 ms at 1795023932.090
+spec: copy token 1984 pos 4979 drafted 15 accepted 15 emits 16 drafts [763, 220, 20, 21, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763]
+spec: copy pass 16 rows 37.278 ms at 1795023932.127
+spec: copy token 2000 pos 4995 drafted 15 accepted 15 emits 16 drafts [16, 16, 21, 16, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 17]
+spec: copy pass 16 rows 37.389 ms at 1795023932.165
+spec: copy token 2016 pos 5011 drafted 15 accepted 15 emits 16 drafts [487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763]
+spec: copy pass 16 rows 37.406 ms at 1795023932.202
+spec: copy token 2032 pos 5027 drafted 15 accepted 15 emits 16 drafts [27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 18, 487, 198]
+spec: copy pass 16 rows 37.360 ms at 1795023932.239
+spec: copy token 2048 pos 5043 drafted 15 accepted 2 emits 3 drafts [328, 83, 19, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 17, 20]
+spec: copy pass 16 rows 37.600 ms at 1795023932.277
+spec: token 2051 pos 5046 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.614 ms (drafted ahead false), next draft submitted in 0.089 ms (true)
+spec: copy token 2054 pos 5049 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 18, 23, 13, 17, 20, 11, 198, 262]
+spec: copy pass 16 rows 39.049 ms at 1795023932.331
+spec: copy token 2070 pos 5065 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 21, 24, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306]
+spec: copy pass 16 rows 37.277 ms at 1795023932.369
+spec: copy token 2086 pos 5081 drafted 15 accepted 15 emits 16 drafts [220, 16, 16, 21, 23, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15]
+spec: copy pass 16 rows 37.348 ms at 1795023932.406
+spec: copy token 2102 pos 5097 drafted 15 accepted 15 emits 16 drafts [19, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763]
+spec: copy pass 16 rows 37.224 ms at 1795023932.443
+spec: copy token 2118 pos 5113 drafted 15 accepted 0 emits 1 drafts [2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 19, 487, 198]
+spec: copy pass 16 rows 37.471 ms at 1795023932.481
+spec: token 2119 pos 5114 drafted 2 accepted 2 emits 3 drafts [2150, 487]
+spec: mtp pipe step 14.380 ms (drafted ahead false), next draft submitted in 0.071 ms (true)
+spec: token 2122 pos 5117 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: mtp pipe step 14.438 ms (drafted ahead true), next draft submitted in 0.056 ms (true)
+spec: copy token 2125 pos 5120 drafted 15 accepted 6 emits 7 drafts [763, 498, 198, 406, 328, 83, 16, 487, 198, 406, 328, 83, 15, 1, 198]
+spec: copy pass 16 rows 38.622 ms at 1795023932.549
+spec: copy token 2132 pos 5127 drafted 15 accepted 5 emits 6 drafts [487, 198, 406, 328, 83, 21, 1, 198, 262, 10339, 198, 262, 328, 6352, 763]
+spec: copy pass 16 rows 37.347 ms at 1795023932.586
+spec: token 2138 pos 5133 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.379 ms (drafted ahead false), next draft submitted in 0.056 ms (true)
+spec: copy token 2141 pos 5136 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 18, 24, 13, 20, 11, 198, 262, 328]
+spec: copy pass 16 rows 38.815 ms at 1795023932.640
+spec: copy token 2157 pos 5152 drafted 15 accepted 15 emits 16 drafts [763, 220, 23, 17, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763]
+spec: copy pass 16 rows 37.167 ms at 1795023932.677
+spec: copy token 2173 pos 5168 drafted 15 accepted 15 emits 16 drafts [16, 16, 22, 20, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 17]
+spec: copy pass 16 rows 37.379 ms at 1795023932.714
+spec: copy token 2189 pos 5184 drafted 15 accepted 15 emits 16 drafts [487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328]
+spec: copy pass 16 rows 37.200 ms at 1795023932.752
+spec: copy token 2205 pos 5200 drafted 15 accepted 15 emits 16 drafts [487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 15, 487, 198, 406]
+spec: copy pass 16 rows 37.401 ms at 1795023932.789
+spec: copy token 2221 pos 5216 drafted 15 accepted 1 emits 2 drafts [83, 16, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 20, 13]
+spec: copy pass 16 rows 37.586 ms at 1795023932.827
+spec: token 2223 pos 5218 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.534 ms (drafted ahead false), next draft submitted in 0.061 ms (true)
+spec: copy token 2226 pos 5221 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 19, 15, 13, 22, 20, 11, 198, 262]
+spec: copy pass 16 rows 39.156 ms at 1795023932.881
+spec: copy token 2242 pos 5237 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 24, 20, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306]
+spec: copy pass 16 rows 37.530 ms at 1795023932.918
+spec: copy token 2258 pos 5253 drafted 15 accepted 15 emits 16 drafts [220, 16, 16, 23, 17, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15]
+spec: copy pass 16 rows 37.499 ms at 1795023932.956
+spec: copy token 2274 pos 5269 drafted 15 accepted 15 emits 16 drafts [21, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738]
+spec: copy pass 16 rows 37.480 ms at 1795023932.993
+spec: copy token 2290 pos 5285 drafted 15 accepted 15 emits 16 drafts [328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 16, 487]
+spec: copy pass 16 rows 37.458 ms at 1795023933.031
+spec: copy token 2306 pos 5301 drafted 15 accepted 3 emits 4 drafts [406, 328, 83, 21, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 17]
+spec: copy pass 16 rows 37.750 ms at 1795023933.069
+spec: copy token 2310 pos 5305 drafted 15 accepted 15 emits 16 drafts [1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 17, 13, 15, 11]
+spec: copy pass 16 rows 37.825 ms at 1795023933.107
+spec: copy token 2326 pos 5321 drafted 15 accepted 15 emits 16 drafts [262, 328, 13091, 763, 220, 16, 15, 23, 198, 220, 2390, 198, 220, 313, 198]
+spec: copy pass 16 rows 37.809 ms at 1795023933.144
+spec: copy token 2342 pos 5337 drafted 15 accepted 15 emits 16 drafts [328, 306, 763, 220, 16, 16, 23, 24, 11, 198, 262, 328, 591, 763, 328]
+spec: copy pass 16 rows 37.705 ms at 1795023933.182
+spec: copy token 2358 pos 5353 drafted 15 accepted 15 emits 16 drafts [12, 15, 17, 22, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262]
+spec: copy pass 16 rows 37.817 ms at 1795023933.220
+spec: copy token 2374 pos 5369 drafted 15 accepted 3 emits 4 drafts [2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83]
+spec: copy pass 16 rows 37.684 ms at 1795023933.258
+spec: token 2378 pos 5373 drafted 2 accepted 2 emits 3 drafts [2150, 487]
+spec: mtp pipe step 14.935 ms (drafted ahead false), next draft submitted in 0.108 ms (true)
+spec: token 2381 pos 5376 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: mtp pipe step 14.791 ms (drafted ahead true), next draft submitted in 0.108 ms (true)
+spec: copy token 2384 pos 5379 drafted 15 accepted 6 emits 7 drafts [763, 498, 198, 406, 328, 83, 19, 487, 198, 406, 328, 83, 17, 1, 198]
+spec: copy pass 16 rows 39.101 ms at 1795023933.327
+spec: copy token 2391 pos 5386 drafted 15 accepted 5 emits 6 drafts [487, 198, 406, 328, 83, 16, 1, 198, 262, 10339, 198, 262, 328, 6352, 763]
+spec: copy pass 16 rows 37.810 ms at 1795023933.365
+spec: token 2397 pos 5392 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: mtp pipe step 14.828 ms (drafted ahead false), next draft submitted in 0.125 ms (true)
+spec: copy token 2400 pos 5395 drafted 15 accepted 15 emits 16 drafts [10339, 198, 262, 328, 6352, 763, 220, 19, 18, 13, 17, 20, 11, 198, 262]
+spec: copy pass 16 rows 39.855 ms at 1795023933.420
+spec: copy token 2416 pos 5411 drafted 15 accepted 15 emits 16 drafts [13091, 763, 220, 16, 17, 16, 198, 220, 2390, 198, 220, 313, 198, 262, 328]
+spec: copy pass 16 rows 37.671 ms at 1795023933.458
+spec: copy token 2432 pos 5427 drafted 15 accepted 15 emits 16 drafts [763, 220, 16, 16, 24, 21, 11, 198, 262, 328, 591, 763, 328, 9505, 12]
+spec: copy pass 16 rows 37.904 ms at 1795023933.496
+spec: copy token 2448 pos 5443 drafted 15 accepted 15 emits 16 drafts [17, 23, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738]
+spec: copy pass 16 rows 37.784 ms at 1795023933.534
+spec: copy token 2464 pos 5459 drafted 15 accepted 15 emits 16 drafts [328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 18, 487]
+spec: copy pass 16 rows 37.833 ms at 1795023933.572
+spec: copy token 2480 pos 5475 drafted 15 accepted 3 emits 4 drafts [406, 328, 83, 18, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16]
+spec: copy pass 16 rows 37.970 ms at 1795023933.610
+spec: copy token 2484 pos 5479 drafted 15 accepted 15 emits 16 drafts [1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 19, 13, 20, 11]
+spec: copy pass 16 rows 41.082 ms at 1795023933.651
+spec: copy token 2500 pos 5495 drafted 15 accepted 15 emits 16 drafts [262, 328, 13091, 763, 220, 19, 19, 198, 220, 2390, 198, 220, 313, 198, 262]
+spec: copy pass 16 rows 38.485 ms at 1795023933.690
+spec: copy token 2516 pos 5511 drafted 15 accepted 15 emits 16 drafts [306, 763, 220, 16, 17, 15, 18, 11, 198, 262, 328, 591, 763, 328, 9505]
+spec: copy pass 16 rows 37.801 ms at 1795023933.727
+spec: copy token 2532 pos 5527 drafted 15 accepted 15 emits 16 drafts [15, 17, 24, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262]
+spec: copy pass 16 rows 37.831 ms at 1795023933.765
+spec: copy token 2548 pos 5543 drafted 15 accepted 15 emits 16 drafts [2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83]
+spec: copy pass 16 rows 37.871 ms at 1795023933.803
+spec: copy token 2564 pos 5559 drafted 15 accepted 5 emits 6 drafts [487, 198, 406, 328, 83, 16, 1, 198, 262, 10339, 198, 262, 328, 6352, 763]
+spec: copy pass 16 rows 38.099 ms at 1795023933.841
+spec: copy token 2570 pos 5565 drafted 15 accepted 15 emits 16 drafts [1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 20, 13, 22, 20]
+spec: copy pass 16 rows 38.195 ms at 1795023933.880
+spec: copy token 2586 pos 5581 drafted 14 accepted 14 emits 15 drafts [198, 262, 328, 13091, 763, 220, 20, 22, 198, 220, 2390, 198, 220, 313]
+spec: copy pass 15 rows 36.747 ms at 1795023933.916
+ids: [71093, 2164, 198, 58, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 15, 15, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 15, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763, 328, 1077, 2150, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 15, 487, 198, 406, 328, 83, 15, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 24, 13, 20, 11, 198, 262, 328, 13091, 763, 220, 19, 15, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 15, 22, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 16, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 16, 487, 198, 406, 328, 83, 18, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 15, 13, 22, 20, 11, 198, 262, 328, 13091, 763, 220, 20, 18, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 16, 19, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 17, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 17, 487, 198, 406, 328, 83, 21, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 17, 13, 15, 11, 198, 262, 328, 13091, 763, 220, 21, 21, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 17, 16, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 18, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763, 328, 1077, 2150, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 18, 487, 198, 406, 328, 83, 17, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 18, 13, 17, 20, 11, 198, 262, 328, 13091, 763, 220, 22, 24, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 17, 23, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 19, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 19, 487, 198, 406, 328, 83, 20, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 19, 13, 20, 11, 198, 262, 328, 13091, 763, 220, 24, 17, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 18, 20, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 20, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 15, 487, 198, 406, 328, 83, 16, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 20, 13, 22, 20, 11, 198, 262, 328, 13091, 763, 220, 16, 15, 20, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 19, 17, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 21, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763, 328, 1077, 2150, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 16, 487, 198, 406, 328, 83, 19, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 22, 13, 15, 11, 198, 262, 328, 13091, 763, 220, 16, 16, 23, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 19, 24, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 22, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 17, 487, 198, 406, 328, 83, 15, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 23, 13, 17, 20, 11, 198, 262, 328, 13091, 763, 220, 19, 16, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 20, 21, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 23, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 18, 487, 198, 406, 328, 83, 18, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 24, 13, 20, 11, 198, 262, 328, 13091, 763, 220, 20, 19, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 21, 18, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 24, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763, 328, 1077, 2150, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 19, 487, 198, 406, 328, 83, 21, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 17, 15, 13, 22, 20, 11, 198, 262, 328, 13091, 763, 220, 21, 22, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 22, 15, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 16, 15, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 15, 487, 198, 406, 328, 83, 17, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 17, 17, 13, 15, 11, 198, 262, 328, 13091, 763, 220, 23, 15, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 22, 22, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 16, 16, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 16, 487, 198, 406, 328, 83, 20, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 17, 18, 13, 17, 20, 11, 198, 262, 328, 13091, 763, 220, 24, 18, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 23, 19, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 16, 17, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763, 328, 1077, 2150, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 17, 487, 198, 406, 328, 83, 16, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 17, 19, 13, 20, 11, 198, 262, 328, 13091, 763, 220, 16, 15, 21, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 24, 16, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 16, 18, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 18, 487, 198, 406, 328, 83, 19, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 17, 20, 13, 22, 20, 11, 198, 262, 328, 13091, 763, 220, 16, 16, 24, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 24, 23, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 16, 19, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 19, 487, 198, 406, 328, 83, 15, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 17, 22, 13, 15, 11, 198, 262, 328, 13091, 763, 220, 19, 17, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 15, 20, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 16, 20, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763, 328, 1077, 2150, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 15, 487, 198, 406, 328, 83, 18, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 17, 23, 13, 17, 20, 11, 198, 262, 328, 13091, 763, 220, 20, 20, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 16, 17, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 16, 21, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 16, 487, 198, 406, 328, 83, 21, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 17, 24, 13, 20, 11, 198, 262, 328, 13091, 763, 220, 21, 23, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 16, 24, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 16, 22, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 17, 487, 198, 406, 328, 83, 17, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 18, 15, 13, 22, 20, 11, 198, 262, 328, 13091, 763, 220, 23, 16, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 17, 21, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 16, 23, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763, 328, 1077, 2150, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 18, 487, 198, 406, 328, 83, 20, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 18, 17, 13, 15, 11, 198, 262, 328, 13091, 763, 220, 24, 19, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 18, 18, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 16, 24, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 19, 487, 198, 406, 328, 83, 16, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 18, 18, 13, 17, 20, 11, 198, 262, 328, 13091, 763, 220, 16, 15, 22, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 19, 15, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 17, 15, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 15, 487, 198, 406, 328, 83, 19, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 18, 19, 13, 20, 11, 198, 262, 328, 13091, 763, 220, 16, 17, 15, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 19, 22, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 17, 16, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763, 328, 1077, 2150, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 16, 487, 198, 406, 328, 83, 15, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 18, 20, 13, 22, 20, 11, 198, 262, 328, 13091, 763, 220, 19, 18, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 20, 19, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 17, 17, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 17, 487, 198, 406, 328, 83, 18, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 18, 22, 13, 15, 11, 198, 262, 328, 13091, 763, 220, 20, 21, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 21, 16, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 17, 18, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 18, 487, 198, 406, 328, 83, 21, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 18, 23, 13, 17, 20, 11, 198, 262, 328, 13091, 763, 220, 21, 24, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 21, 23, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 17, 19, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763, 328, 1077, 2150, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 19, 487, 198, 406, 328, 83, 17, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 18, 24, 13, 20, 11, 198, 262, 328, 13091, 763, 220, 23, 17, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 22, 20, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 17, 20, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 15, 487, 198, 406, 328, 83, 20, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 15, 13, 22, 20, 11, 198, 262, 328, 13091, 763, 220, 24, 20, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 23, 17, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 17, 21, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 16, 487, 198, 406, 328, 83, 16, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 17, 13, 15, 11, 198, 262, 328, 13091, 763, 220, 16, 15, 23, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 23, 24, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 17, 22, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763, 328, 1077, 2150, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 17, 487, 198, 406, 328, 83, 19, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 18, 13, 17, 20, 11, 198, 262, 328, 13091, 763, 220, 16, 17, 16, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 16, 24, 21, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 17, 23, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 18, 487, 198, 406, 328, 83, 15, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 19, 13, 20, 11, 198, 262, 328, 13091, 763, 220, 19, 19, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 17, 15, 18, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 17, 24, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 19, 487, 198, 406, 328, 83, 18, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 19, 20, 13, 22, 20, 11, 198, 262, 328, 13091, 763, 220, 20, 22, 198, 220, 2390, 198, 220, 313, 198]
+finish=length prompt=2997 (cached 0) completion=2600 | prefill 665 ms (4507.8 tok/s) | decode 7650 ms (339.73 tok/s)
+spec: copy chain passes=183 proposed=2744 accepted=2233 (not in the verify passes below)
+spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)
+steps=246 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/222 argmax=0ms/433 attn_decode=0ms/137 attn_prefill=0ms/2511 embedding=0ms/468
