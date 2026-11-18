@@ -94,7 +94,7 @@ pub struct BatchedOptions {
     /// A packed pass takes at most half of the waiting prompts (default on, `INTARSIA_PACK_HALF=0` off); see
     /// [`SchedulerConfig::pack_half`].
     pub pack_half: bool,
-    /// Which prefilling prompt gets the next chunk (`INTARSIA_PREFILL_ORDER=fifo|shortest`, default fifo); see
+    /// Which prefilling prompt gets the next chunk (`INTARSIA_PREFILL_ORDER=shortest|fifo`, default shortest since lane sjfflip); see
     /// [`SchedulerConfig::prefill_order`].
     pub prefill_order: PrefillOrder,
     /// Decisions a prefilling prompt may be passed over under `shortest` before it goes first (`INTARSIA_PREFILL_AGE`, default
@@ -148,11 +148,16 @@ pub const SETTLE_SLICE_MB_DEFAULT: usize = 0;
 /// (docs/results/2026-10-29-srv16b-pack-latency.md).
 pub const PACK_ROWS_DEFAULT: usize = 3072;
 
-/// `INTARSIA_PREFILL_ORDER` (`fifo`, the default, or `shortest`). An unknown value is reported on stderr and means fifo.
+/// `INTARSIA_PREFILL_ORDER` (`shortest`, the default since lane sjfflip, or `fifo`). An unknown value is reported on stderr and means
+/// the default.
 fn prefill_order_env() -> PrefillOrder {
-    parse_prefill_order(std::env::var("INTARSIA_PREFILL_ORDER").ok().as_deref()).unwrap_or_else(|e| {
-        eprintln!("warning: {e}; using fifo");
-        PrefillOrder::Fifo
+    prefill_order_from(std::env::var("INTARSIA_PREFILL_ORDER").ok().as_deref())
+}
+
+fn prefill_order_from(v: Option<&str>) -> PrefillOrder {
+    parse_prefill_order(v).unwrap_or_else(|e| {
+        eprintln!("warning: {e}; using shortest");
+        PrefillOrder::Shortest
     })
 }
 
@@ -1529,6 +1534,16 @@ mod tests {
         assert_eq!((c.spec_off_at, c.max_batch, c.max_queue), (7, 4, 16));
         assert!(!c.trace, "production never stores the trace");
         assert!(c.validate().is_ok());
+    }
+
+    #[test]
+    fn prefill_order_env_default_is_shortest() {
+        // lane sjfflip: unset = shortest, `fifo` = opt-out, `shortest` accepted, an unknown value means the default
+        assert_eq!(prefill_order_from(None), PrefillOrder::Shortest);
+        assert_eq!(prefill_order_from(Some("")), PrefillOrder::Shortest);
+        assert_eq!(prefill_order_from(Some("shortest")), PrefillOrder::Shortest);
+        assert_eq!(prefill_order_from(Some("fifo")), PrefillOrder::Fifo);
+        assert_eq!(prefill_order_from(Some("sjf")), PrefillOrder::Shortest);
     }
 
     #[test]
