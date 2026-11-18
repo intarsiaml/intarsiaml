@@ -1,0 +1,45 @@
+```python
+"""
+LRU Cache implementation using a doubly linked list and a dictionary.
+"""
+
+
+class Node:
+    """A node in the doubly linked list."""
+    
+    def __init__(self, key=None, value=None):
+        self.key = key
+        self.value = value
+        self.prev = None
+        self.next = None
+
+
+class DoublyLinkedList:
+    """Doubly linked list with sentinel head and tail nodes."""
+    
+    def __init__(self):
+        self.head = Node()  # Sentinel head
+        self.tail = Node()  # Sentinel tail
+        self.head.next = self.tail
+        self.tail.prev = self.head
+        self.size = 0
+    
+    def add_to_front(self, node):
+        """Add a node right after the head (most recently used position)."""
+        node.prev = self.head
+        node.next = self.head.next
+        self.head.next.prev = node
+        self.head.next = node
+        self.size += 1
+    
+    def remove(self, node):
+        """Remove a node from the list."""
+        node.prev.next = node.next
+        node.next.prev = node.prev
+        node.prev = None
+        node.next = None
+        self.size -= 1
+    
+    def remove_last(self):
+        """Remove and return the node just before the tail (least recently used)."""
+        if self.size == 0:

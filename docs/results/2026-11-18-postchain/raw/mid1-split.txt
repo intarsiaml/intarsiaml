@@ -1,0 +1,6 @@
+  a7 mean MID1-minus-PRE: total +0.018 pre-launch +0.000 launch..download +0.017 post-download -0.000 accept +0.002 launch-call +nan
+  cap mean MID1-minus-PRE: total +0.185 pre-launch -0.000 launch..download +0.186 post-download -0.000 accept -0.001 launch-call +nan
+  n20 mean MID1-minus-PRE: total -3.298 pre-launch -0.000 launch..download -3.297 post-download -0.000 accept -0.000 launch-call +nan
+  L7 mean MID1-minus-PRE: total +0.133 pre-launch -0.000 launch..download +0.140 post-download -0.000 accept -0.007 launch-call -0.000
+  a7 mean MID1-minus-PRE: total +0.158 pre-launch -0.000 launch..download +0.162 post-download -0.000 accept -0.004 launch-call -0.000
+  n20 mean MID1-minus-PRE: total +0.278 pre-launch -0.000 launch..download +0.282 post-download -0.000 accept -0.004 launch-call -0.000

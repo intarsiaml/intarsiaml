@@ -437,18 +437,60 @@ pub enum ProbeKind {
     CatchUp,
     /// One MTP step run eagerly (the draft and the verify pass outside the captured graph), no chain.
     Eager,
+    /// Lane postchain: a chain of this many tokens (`None`: the knob's `len`) taken from the longest finished request's context
+    /// ([`probe_ref_set`]) where the current context is a prefix of it: under greedy decoding of the same prompt every draft is
+    /// accepted. No chain when no reference matches.
+    Accept(Option<usize>),
+    /// Lane postchain: one K / V-only pass of the MTP head over this many rows written past its cache length and not committed
+    /// (`Model::mtp_probe_head_rows`): the head's kernels at that row count, no chain, no state change.
+    HeadRows(usize),
 }
 
-/// `INTARSIA_SPEC_COPY_PROBE_ONCE=1` (lane mcdiag, read once): the probe fires once per process, in the first request that reaches it, not once per request.
-pub fn copy_probe_once() -> bool {
-    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *V.get_or_init(|| std::env::var("INTARSIA_SPEC_COPY_PROBE_ONCE").is_ok_and(|v| !v.is_empty() && v != "0"))
+/// `INTARSIA_SPEC_COPY_PROBE_ONCE=<i>` (lane mcdiag, read once): the probe fires once per process, in the `i`-th request that reaches
+/// it (lane postchain; `1`: the first), not once per request. 0 (unset, empty, `0` or not a number): once per request.
+pub fn copy_probe_once() -> usize {
+    static V: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("INTARSIA_SPEC_COPY_PROBE_ONCE").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(0))
+}
+
+/// Lane postchain: the longest context (prompt + output) of a finished request so far, the reference of probe kind `a`.
+static PROBE_REF: std::sync::Mutex<Vec<u32>> = std::sync::Mutex::new(Vec::new());
+
+/// Lane postchain: keep `ctx` as the reference of probe kind `a` ([`ProbeKind::Accept`]) when it is longer than the one kept (so shorter
+/// requests in between do not replace a long reference).
+pub fn probe_ref_set(ctx: &[u32]) {
+    let mut r = PROBE_REF.lock().unwrap_or_else(|e| e.into_inner());
+    if ctx.len() > r.len() {
+        r.clear();
+        r.extend_from_slice(ctx);
+    }
+}
+
+/// Lane postchain: the `l` tokens that followed `ctx` in the reference context, when `ctx` is a prefix of it and `l` tokens follow.
+pub fn probe_ref_drafts(ctx: &[u32], l: usize) -> Option<Vec<u32>> {
+    let r = PROBE_REF.lock().unwrap_or_else(|e| e.into_inner());
+    (l > 0 && r.len() >= ctx.len() + l && r[..ctx.len()] == *ctx).then(|| r[ctx.len()..ctx.len() + l].to_vec())
+}
+
+/// `INTARSIA_SPEC_COPY_CATCHUP=<rows>` (lane postchain, read once): the MTP head's catch-up after a copy chain runs in passes of at
+/// most this many rows (1..=16) instead of one pass over every queued row. `None` (unset, or unusable): one pass, as before.
+pub fn copy_catchup_rows() -> Option<usize> {
+    static V: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| {
+        let v = std::env::var("INTARSIA_SPEC_COPY_CATCHUP").ok().filter(|v| !v.is_empty() && v != "0")?;
+        let r = v.trim().parse::<usize>().ok().filter(|r| (1..=16).contains(r));
+        if r.is_none() {
+            eprintln!("INTARSIA_SPEC_COPY_CATCHUP={v}: not a row count 1..=16; ignored");
+        }
+        r
+    })
 }
 
 /// `INTARSIA_SPEC_COPY_PROBE=<g>[,<what>]` (lane mcdiag, a measurement hook, read once): with copy drafts on, the first MTP step at or
 /// after `g` generated tokens does `what` instead of the usual step, once per request: nothing or a number (a bogus chain of that many
-/// tokens, default the knob's `len`), `c` (only the head catch-up) or `e` (one eager MTP step). Greedy ids do not change (drafts only
-/// propose). It makes the "one early event, then N plain MTP steps" run that `docs/results/2026-11-17-mcdiag.md` times against a run
+/// tokens, default the knob's `len`), `c` (only the head catch-up), `e` (one eager MTP step), `a[<l>]` (an accepted chain from the
+/// longest finished request's context, lane postchain) or `k<m>` (one head pass of `m` rows, lane postchain). Greedy ids do not change (drafts
+/// only propose). It makes the "one early event, then N plain MTP steps" run that `docs/results/2026-11-17-mcdiag.md` times against a run
 /// without it.
 pub fn copy_probe_from_env() -> Option<(usize, ProbeKind)> {
     static V: std::sync::OnceLock<Option<(usize, ProbeKind)>> = std::sync::OnceLock::new();
@@ -459,6 +501,9 @@ pub fn copy_probe_from_env() -> Option<(usize, ProbeKind)> {
             "" => ProbeKind::Chain(None),
             "c" => ProbeKind::CatchUp,
             "e" => ProbeKind::Eager,
+            "a" => ProbeKind::Accept(None),
+            w if w.starts_with('a') => ProbeKind::Accept(Some(w[1..].parse().ok()?)),
+            w if w.starts_with('k') => ProbeKind::HeadRows(w[1..].parse().ok().filter(|&m: &usize| m >= 1)?),
             n => ProbeKind::Chain(Some(n.parse().ok()?)),
         };
         Some((g.trim().parse().ok()?, kind))
@@ -2310,6 +2355,16 @@ mod tests {
             b.record(COPY_MIN_ACCEPT + 4);
             assert!(b.ready());
         }
+    }
+
+    #[test]
+    fn probe_ref_drafts_continue_a_matching_prefix() {
+        probe_ref_set(&[1, 2, 3, 4, 5, 6]);
+        probe_ref_set(&[7, 8]); // shorter: kept the longer one
+        assert_eq!(probe_ref_drafts(&[1, 2, 3], 2), Some(vec![4, 5]));
+        assert_eq!(probe_ref_drafts(&[1, 2, 3], 3), Some(vec![4, 5, 6]));
+        assert_eq!(probe_ref_drafts(&[1, 2, 3], 4), None);
+        assert_eq!(probe_ref_drafts(&[1, 9, 3], 2), None);
     }
 
     #[test]

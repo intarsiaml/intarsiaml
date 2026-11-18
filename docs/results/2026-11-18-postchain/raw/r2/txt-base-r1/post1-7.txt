@@ -1,0 +1,44 @@
+```python
+# lru_cache.py
+"""LRU Cache implementation using a doubly linked list and a dictionary."""
+
+
+class Node:
+    """A node in the doubly linked list."""
+
+    def __init__(self, key=None, value=None):
+        self.key = key
+        self.value = value
+        self.prev = None
+        self.next = None
+
+
+class DoublyLinkedList:
+    """Doubly linked list with sentinel head and tail nodes."""
+
+    def __init__(self):
+        self.head = Node()  # Sentinel head
+        self.tail = Node()  # Sentinel tail
+        self.head.next = self.tail
+        self.tail.prev = self.head
+        self.size = 0
+
+    def _insert_after(self, node, new_node):
+        """Insert new_node after the given node."""
+        next_node = node.next
+        new_node.prev = node
+        new_node.next = next_node
+        node.next = new_node
+        next_node.prev = new_node
+
+    def _remove(self, node):
+        """Remove the given node from the list."""
+        prev_node = node.prev
+        next_node = node.next
+        prev_node.next = next_node
+        next_node.prev = prev_node
+        node.prev = None
+        node.next = None
+
+    def add_to_front(self, node):
+        """Add a node right after the head (most recently used position)."""
