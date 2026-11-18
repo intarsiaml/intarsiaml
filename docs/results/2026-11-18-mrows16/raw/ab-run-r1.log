@@ -1,0 +1,21 @@
+fleetq: #9989 running on endor: env W=ab R0=1 ROUNDS=1 REPS=3 'CELLS=copy3k json-xform agent-edit code-gen' 'ARMS=base:X=1 n20L7:INTARSIA_SPEC_COPY=20,7 n20L15:INTARSIA_SPEC_COPY=20,15' scripts/mrows16/ab.sh
+== round 1 arm base env X=1 cooled 0s thermal 0 21:41:24
+base r1 copy3k thermal 0->1: {"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.683, "dec_tps": 188.07, "wall": 16.114, "sha": "4eb925608b0c"}
+base r1 json-xform thermal 1->2: {"cell": "json-xform", "tag": "c1", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.684, "dec_tps": 185.93, "wall": 14.662, "sha": "e4cca5268730"}
+base r1 agent-edit thermal 2->2: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 167, "chunks": 166, "ttft": 0.435, "dec_tps": 181.97, "wall": 1.348, "sha": "d96cf1e67a5c"}
+base r1 code-gen thermal 2->2: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.067, "dec_tps": 187.37, "wall": 4.331, "sha": "2f57b1dc22d5"}
+base r1 metrics: intarsia_spec_steps_total 6930 intarsia_spec_proposed_tokens_total 13858 intarsia_spec_accepted_tokens_total 13483 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+== round 1 arm n20L7 env INTARSIA_SPEC_COPY=20,7 cooled 75s thermal 0 21:44:51
+n20L7 r1 copy3k thermal 0->0: {"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.58, "dec_tps": 337.36, "wall": 9.183, "sha": "4eb925608b0c"}
+n20L7 r1 json-xform thermal 0->1: {"cell": "json-xform", "tag": "c1", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.598, "dec_tps": 300.48, "wall": 9.248, "sha": "e4cca5268730"}
+n20L7 r1 agent-edit thermal 1->1: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 167, "chunks": 166, "ttft": 0.432, "dec_tps": 205.53, "wall": 1.24, "sha": "d96cf1e67a5c"}
+n20L7 r1 code-gen thermal 1->2: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.066, "dec_tps": 193.59, "wall": 4.193, "sha": "2f57b1dc22d5"}
+n20L7 r1 metrics: intarsia_spec_steps_total 1563 intarsia_spec_proposed_tokens_total 3124 intarsia_spec_accepted_tokens_total 2750 intarsia_spec_copy_steps_total 2085 intarsia_spec_copy_proposed_tokens_total 14592 intarsia_spec_copy_accepted_tokens_total 14015 
+== round 1 arm n20L15 env INTARSIA_SPEC_COPY=20,15 cooled 90s thermal 0 21:47:51
+n20L15 r1 copy3k thermal 0->0: {"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.589, "dec_tps": 371.35, "wall": 8.404, "sha": "4eb925608b0c"}
+n20L15 r1 json-xform thermal 0->1: {"cell": "json-xform", "tag": "c1", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.649, "dec_tps": 291.21, "wall": 9.574, "sha": "e4cca5268730"}
+n20L15 r1 agent-edit thermal 1->1: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 167, "chunks": 166, "ttft": 0.448, "dec_tps": 223.17, "wall": 1.192, "sha": "d96cf1e67a5c"}
+n20L15 r1 code-gen thermal 1->1: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.07, "dec_tps": 190.86, "wall": 4.256, "sha": "2f57b1dc22d5"}
+n20L15 r1 metrics: intarsia_spec_steps_total 1563 intarsia_spec_proposed_tokens_total 3124 intarsia_spec_accepted_tokens_total 2750 intarsia_spec_copy_steps_total 1111 intarsia_spec_copy_proposed_tokens_total 16656 intarsia_spec_copy_accepted_tokens_total 14989 
+ab done
+fleetq: #9989 done (exit 0)

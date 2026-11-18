@@ -1,0 +1,87 @@
+fleetq: #9981 waiting (#1 in line): #9980 "mrows16: ids gate" (claude-a9e6e738) needs gpu quiet on endor, and this job loads it
+fleetq:   #9980 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9980 set, or it will wait for #9980 to be released.
+fleetq: #9981 running on endor: scripts/mrows16/tests.sh
+
+warning: `intarsia-core` (lib) generated 3 warnings
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mrows16/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 16.49s
+     Running unittests src/lib.rs (target/release/deps/intarsia_backend_metal-52ae18ab87ff48e8)
+
+running 5 tests
+test attn::row_group_tests::row_groups_cover_every_call_in_groups_of_two_to_eight ... ok
+test attn::tests::head_split_divides_the_group_and_only_the_35b_shape_splits ... ok
+test attn::tests::scratch_bounds_every_context_length ... ok
+test attn::tests::threadgroup_accumulators_fit ... ok
+test attn::tests::split_counts_are_bounded_and_monotone ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 3.35s
+     Running tests/g0b_attn.rs (target/release/deps/g0b_attn-7e8e122df58b32d6)
+
+running 10 tests
+test rows_above_the_chain_cap_or_with_a_device_position_are_refused ... ok
+test rows_bitwise_9_to_16_rows ... g0b attn: 32/8/128 cap 4096: 2772 (k, pos0) windows bitwise equal to the 1-row launches
+ok
+test rows_bitwise_9_to_16_rows_other_shapes_and_offsets ... g0b attn: 8/8/64 cap 2304: 285 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 8/2/64 cap 2304: 285 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 16/2/256 cap 2304: 285 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 12/4/32 cap 2304: 285 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 6/2/128 cap 2304: 285 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 8/1/16 cap 2304: 285 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 32/8/128 cap 2048: 209 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 32/8/128 cap 16384: 643 (k, pos0) windows bitwise equal to the 1-row launches
+ok
+test rows_bitwise_other_shapes ... g0b attn: 8/8/64 cap 2304: 183 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 8/2/64 cap 2304: 183 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 16/2/256 cap 2304: 183 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 12/4/32 cap 2304: 183 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 6/2/128 cap 2304: 183 (k, pos0) windows bitwise equal to the 1-row launches
+g0b attn: 8/1/16 cap 2304: 183 (k, pos0) windows bitwise equal to the 1-row launches
+ok
+test rows_bitwise_qwen3_8b_all_k ... g0b attn: 32/8/128 cap 4096: 1218 (k, pos0) windows bitwise equal to the 1-row launches
+ok
+test rows_bitwise_qwen3_8b_long_context ... g0b attn: 32/8/128 cap 16384: 812 (k, pos0) windows bitwise equal to the 1-row launches
+ok
+test rows_bitwise_with_cache_and_q_offsets ... g0b attn: 32/8/128 cap 2048: 102 (k, pos0) windows bitwise equal to the 1-row launches
+ok
+test rows_device_position_is_the_device_position_one_row_launch ... ok
+test rows_misaligned_operands_fall_back_to_the_single_pass_rows ... ok
+test rows_registration_is_below_serving ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.09s
+
+     Running tests/hs_bitwise.rs (target/release/deps/hs_bitwise-a8552225156e16c1)
+
+running 1 test
+test bitwise_head_split_is_bit_identical_to_the_unsplit_launch ... hs_bitwise: 675 row-table (rows, positions, HSB) windows bit-identical to the unsplit row-table launch
+hs_bitwise: 1080 (pos, HSB) windows bit-identical to the unsplit 24/4/256 launch
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.58s
+
+     Running tests/kv_once.rs (target/release/deps/kv_once-284166581f049af1)
+
+running 1 test
+test packed_launches_are_bit_identical_to_the_unpacked_launches ... kv_once 16/2/256: bit-identical packed vs unpacked: 322 1-row, 742 verify-rows, 647 row-table, 398 one-cache-table launches (guards included); planted fault seen [5, 5, 5] of 5
+kv_once 24/4/256: bit-identical packed vs unpacked: 442 1-row, 1022 verify-rows, 887 row-table, 548 one-cache-table launches (guards included); planted fault seen [5, 5, 5] of 5
+kv_once 32/8/128: bit-identical packed vs unpacked: 322 1-row, 742 verify-rows, 647 row-table, 398 one-cache-table launches (guards included); planted fault seen [5, 5, 5] of 5
+kv_once 8/2/64: bit-identical packed vs unpacked: 288 1-row, 660 verify-rows, 576 row-table, 354 one-cache-table launches (guards included); planted fault seen [5, 5, 5] of 5
+kv_once 12/2/128: bit-identical packed vs unpacked: 288 1-row, 660 verify-rows, 576 row-table, 354 one-cache-table launches (guards included); planted fault seen [5, 5, 5] of 5
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.62s
+
+     Running tests/docs_env_vars.rs (target/release/deps/docs_env_vars-5e4b3f73da3d8d3a)
+
+running 2 tests
+test name_scanner_skips_prefixes_and_placeholders ... ok
+test every_env_var_in_the_code_has_a_row_in_docs_tuning_md ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+fleetq: #9981 done (exit 0)

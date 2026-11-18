@@ -151,7 +151,7 @@ fn positions(cap: usize, k: usize) -> Vec<usize> {
 
 fn sweep(n: usize, nkv: usize, d: usize, cap: usize, ks: &[usize], off: usize, qoff: usize, stride: usize) {
     let c = Cache::new(n, nkv, d, cap, off, 4242 + (n + d + cap) as u64);
-    let q = rand_bf16(8 * n * d, 99 + d as u64);
+    let q = rand_bf16(16 * n * d, 99 + d as u64);
     let qb = upload_at(&c.be, qoff, &q);
     let mut checked = 0;
     for &k in ks {
@@ -170,6 +170,46 @@ fn sweep(n: usize, nkv: usize, d: usize, cap: usize, ks: &[usize], off: usize, q
 fn rows_bitwise_qwen3_8b_all_k() {
     // 32 q heads / 8 kv heads / head_dim 128, k = 2..=8, every boundary window of a 4096-key cache
     sweep(32, 8, 128, 4096, &[2, 3, 4, 5, 6, 7, 8], 0, 0, 1);
+}
+
+#[test]
+fn rows_bitwise_9_to_16_rows() {
+    // lane mrows16: a call of 9..=16 rows (a copy-draft chain of 8..=15 tokens plus the root) runs as 2 launches of the
+    // multi-row kernel on equal row groups, every row bitwise the 1-row launch at its position
+    sweep(32, 8, 128, 4096, &[9, 10, 11, 12, 13, 14, 15, 16], 0, 0, 1);
+}
+
+#[test]
+fn rows_bitwise_9_to_16_rows_other_shapes_and_offsets() {
+    for (n, nkv, d) in [(8, 8, 64), (8, 2, 64), (16, 2, 256), (12, 4, 32), (6, 2, 128), (8, 1, 16)] {
+        sweep(n, nkv, d, 2304, &[9, 12, 16], 0, 0, 3);
+    }
+    sweep(32, 8, 128, 2048, &[9, 13, 16], 32, 48, 4);
+    sweep(32, 8, 128, 16384, &[9, 15, 16], 0, 0, 2);
+}
+
+#[test]
+fn rows_above_the_chain_cap_or_with_a_device_position_are_refused() {
+    let c = Cache::new(32, 8, 128, 2048, 0, 5);
+    let q = rand_bf16(17 * 32 * 128, 6);
+    let qb = upload_at(&c.be, 0, &q);
+    let mk = |k: usize, with_pos: bool| {
+        let out = c.be.alloc(k * 32 * 128 * 2, MemKind::Device).unwrap();
+        let mut inputs = vec![tr(&qb, 0, &[k, 32, 128])];
+        inputs.extend(c.kv());
+        let mut cl = OpCall::new(Op::AttnPrefill, inputs, vec![tr(&out, 0, &[k, 32, 128])], c.attrs(10));
+        cl.scratch = scratch_for(&c.be, ATTN_PREFILL_BF16_SPLITKV_ROWS, &cl);
+        if with_pos {
+            let pb = c.be.alloc(4, MemKind::Device).unwrap();
+            c.be.upload(&pb, 0, &10i32.to_le_bytes(), 0).unwrap();
+            cl.pos = Some(TensorRef { buf: pb, offset: 0, dtype: DType::I32, shape: vec![1] });
+        }
+        cl
+    };
+    assert!(c.be.launch_attn_rows(&mk(17, false)).is_err(), "17 rows");
+    assert!(c.be.launch_attn_rows(&mk(12, true)).is_err(), "12 rows, device position");
+    c.be.launch_attn_rows(&mk(12, false)).unwrap();
+    c.be.synchronize(0).unwrap();
 }
 
 #[test]
@@ -272,14 +312,19 @@ fn rows_registration_is_below_serving() {
         weight: Some(DType::Bf16),
         ..Default::default()
     };
-    for m in 2..=8 {
+    for m in 2..=16 {
         assert!(k.accepts(&shape(m, 32, 8, 128)), "m {m}");
     }
-    for (s, why) in
-        [(shape(1, 32, 8, 128), "one row"), (shape(9, 32, 8, 128), "nine rows"), (shape(4, 32, 8, 96), "D = 96")]
+    for (s, why) in [
+        (shape(1, 32, 8, 128), "one row"),
+        (shape(17, 32, 8, 128), "seventeen rows"),
+        (shape(4, 32, 8, 96), "D = 96"),
+    ]
     {
         assert!(!k.accepts(&s), "{why}");
     }
     assert_eq!(k.scratch_bytes(&shape(4, 32, 8, 128)), 4 * 32 * 64 * 130 * 4);
+    // 9..=16 rows reuse the scratch of one 8-row launch
+    assert_eq!(k.scratch_bytes(&shape(12, 32, 8, 128)), 8 * 32 * 64 * 130 * 4);
     let _ = ATTN_DECODE_BF16;
 }
