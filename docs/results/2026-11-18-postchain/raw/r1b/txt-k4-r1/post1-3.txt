@@ -1,0 +1,40 @@
+```python
+# lru_cache.py
+"""LRU Cache implementation using a doubly linked list and a dictionary."""
+
+
+class _Node:
+    """A node in the doubly linked list."""
+    
+    def __init__(self, key=None, value=None):
+        self.key = key
+        self.value = value
+        self.prev = None
+        self.next = None
+
+
+class LRUCache:
+    """
+    LRU Cache implementation using a doubly linked list and a dictionary.
+    
+    Supports:
+    - get(key): Retrieve value by key, moves node to head (most recently used)
+    - put(key, value): Insert or update key-value pair, moves to head
+    - delete(key): Remove key from cache
+    - __len__(): Return number of items in cache
+    """
+    
+    def __init__(self, capacity: int):
+        if capacity <= 0:
+            raise ValueError("Capacity must be positive")
+        self.capacity = capacity
+        self.cache = {}  # key -> Node
+        # Sentinel nodes for head and tail
+        self.head = _Node()  # Most recently used side
+        self.tail = _Node()  # Least recently used side
+        self.head.next = self.tail
+        self.tail.prev = self.head
+        self.size = 0
+    
+    def _add_to_head(self, node: _Node):
+        """Add a node right

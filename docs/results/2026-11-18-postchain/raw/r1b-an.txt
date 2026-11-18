@@ -1,0 +1,53 @@
+normal (median base PRE request) 17.593 ms; requests per server: a7-r1:21 a7-r2:21 a7-r3:21 a7-r4:21 base-r1:21 base-r2:21 base-r3:21 base-r4:21 cap-r1:21 cap-r2:21 cap-r3:21 cap-r4:21 k4-r1:21 k4-r2:21 k4-r3:21 k4-r4:21 k8-r1:21 k8-r2:21 k8-r3:21 k8-r4:21 n20-r1:21 n20-r2:21 n20-r3:21 n20-r4:21
+  a7 r1: chains (request, pos, accepted) []; probes [(9, 'accept chain: no reference at token 450')]
+  a7 r2: chains (request, pos, accepted) []; probes [(9, 'accept chain: no reference at token 450')]
+  a7 r3: chains (request, pos, accepted) []; probes [(9, 'accept chain: no reference at token 450')]
+  a7 r4: chains (request, pos, accepted) []; probes [(9, 'accept chain: no reference at token 450')]
+  cap r1: chains (request, pos, accepted) [(9, 828, 2), (10, 665, 1)]; probes []
+  cap r2: chains (request, pos, accepted) [(9, 828, 2), (10, 665, 1)]; probes []
+  cap r3: chains (request, pos, accepted) [(9, 828, 2), (10, 665, 1)]; probes []
+  cap r4: chains (request, pos, accepted) [(9, 828, 2), (10, 665, 1)]; probes []
+  k4 r1: chains (request, pos, accepted) []; probes [(9, 'head pass of 4 rows at token 450 ran true')]
+  k4 r2: chains (request, pos, accepted) []; probes [(9, 'head pass of 4 rows at token 450 ran true')]
+  k4 r3: chains (request, pos, accepted) []; probes [(9, 'head pass of 4 rows at token 450 ran true')]
+  k4 r4: chains (request, pos, accepted) []; probes [(9, 'head pass of 4 rows at token 450 ran true')]
+  k8 r1: chains (request, pos, accepted) []; probes [(9, 'head pass of 8 rows at token 450 ran true')]
+  k8 r2: chains (request, pos, accepted) []; probes [(9, 'head pass of 8 rows at token 450 ran true')]
+  k8 r3: chains (request, pos, accepted) []; probes [(9, 'head pass of 8 rows at token 450 ran true')]
+  k8 r4: chains (request, pos, accepted) []; probes [(9, 'head pass of 8 rows at token 450 ran true')]
+  n20 r1: chains (request, pos, accepted) [(9, 828, 2), (10, 665, 1)]; probes []
+  n20 r2: chains (request, pos, accepted) [(9, 828, 2), (10, 665, 1)]; probes []
+  n20 r3: chains (request, pos, accepted) [(9, 828, 2), (10, 665, 1)]; probes []
+  n20 r4: chains (request, pos, accepted) [(9, 828, 2), (10, 665, 1)]; probes []
+
+arm minus base, ms per graph step; carry = post - pre (later requests); mid = after minus before the event inside the event request
+a7:
+   r1: pre -0.038 post -0.105 carry -0.068 | mid -0.169
+   r2: pre +0.064 post +0.052 carry -0.012 | mid +0.086
+   r3: pre -0.018 post -0.032 carry -0.014 | mid -0.003
+   r4: pre -0.105 post -0.026 carry +0.079 | mid -0.119
+   carry -0.004 (SE 0.030, 4 rounds)   mid -0.051 (SE 0.057, 4 rounds)
+cap:
+   r1: pre -0.225 post -0.035 carry +0.190 | mid +0.088
+   r2: pre +0.325 post +0.173 carry -0.152 | mid +0.491
+   r3: pre +0.014 post +0.066 carry +0.052 | mid +0.184
+   r4: pre -0.044 post +0.017 carry +0.061 | mid -0.053
+   carry +0.038 (SE 0.071, 4 rounds)   mid +0.178 (SE 0.115, 4 rounds)
+k4:
+   r1: pre -0.072 post -0.055 carry +0.017 | mid +0.067
+   r2: pre -0.042 post -0.023 carry +0.018 | mid +0.262
+   r3: pre +0.018 post -0.063 carry -0.081 | mid +0.199
+   r4: pre -0.021 post -0.037 carry -0.017 | mid -0.155
+   carry -0.016 (SE 0.023, 4 rounds)   mid +0.093 (SE 0.092, 4 rounds)
+k8:
+   r1: pre -0.181 post -0.169 carry +0.012 | mid +0.101
+   r2: pre +0.088 post +0.092 carry +0.004 | mid +0.303
+   r3: pre -0.037 post -0.040 carry -0.003 | mid -0.133
+   r4: pre -0.231 post -0.197 carry +0.034 | mid +0.049
+   carry +0.012 (SE 0.008, 4 rounds)   mid +0.080 (SE 0.090, 4 rounds)
+n20:
+   r1: pre +0.054 post +0.018 carry -0.036 | mid -0.096
+   r2: pre +13.836 post +0.033 carry -13.803 | mid +0.613  VOID (outside load)
+   r3: pre +0.040 post -0.041 carry -0.081 | mid +0.113
+   r4: pre -0.030 post +0.032 carry +0.061 | mid +0.238
+   carry -0.019 (SE 0.042, 3 rounds)   mid +0.085 (SE 0.097, 3 rounds)

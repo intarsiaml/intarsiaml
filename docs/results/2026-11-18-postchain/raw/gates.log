@@ -1,0 +1,14 @@
+fleetq: #10074 running on spark1: ssh -n spark1 'bash ~/intarsiaml-postchain/src/scripts/postchain/gates.sh'
+plan main: exit 0 15570 bytes sha c446afdca09ab0ec
+plan new: exit 0 15570 bytes sha c446afdca09ab0ec
+plan main2: exit 0 15570 bytes sha c446afdca09ab0ec
+main twice: byte-identical
+PASS plan show knobs unset: main and lane byte-identical
+PASS ids copy3k: 2902 ids identical (main vs lane)
+PASS ids json-xform: 2600 ids identical (main vs lane)
+PASS ids chat-short: 364 ids identical (main vs lane)
+PASS ids reason: 500 ids identical (main vs lane)
+PASS ids code-gen: 500 ids identical (main vs lane)
+gates ids fails=0
+fleetq: #10074 done (exit 0)
+exit 0

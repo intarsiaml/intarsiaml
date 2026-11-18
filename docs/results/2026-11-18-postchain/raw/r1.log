@@ -1,0 +1,52 @@
+fleetq: #10032 running on spark1: ssh spark1 'W=r1b ROUNDS=4 ARMS='"'"'n20:INTARSIA_SPEC_COPY=20 base:X=1 a7:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=450,a7 k4:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=450,k4 k8:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=450,k8 cap:INTARSIA_SPEC_COPY=20+INTARSIA_SPEC_COPY_CATCHUP=3'"'"' bash -s'
+n20 r1 up 00:39:40 free: 57 GB
+n20 r1: 19 requests, shas d33d bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 2, probes: 
+base r1 up 00:42:06 free: 57 GB
+base r1: 19 requests, shas d33d bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 0, probes: 
+a7 r1 up 00:44:13 free: 57 GB
+a7 r1: 19 requests, shas d33d bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 0, probes: spec: probe accept chain: no reference at token 450;
+k4 r1 up 00:46:33 free: 57 GB
+k4 r1: 19 requests, shas d33d bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 0, probes: spec: probe head pass of 4 rows at token 450 ran true;
+k8 r1 up 00:48:50 free: 57 GB
+k8 r1: 19 requests, shas d33d bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 0, probes: spec: probe head pass of 8 rows at token 450 ran true;
+cap r1 up 00:51:12 free: 57 GB
+cap r1: 19 requests, shas d33d bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 2, probes: 
+cap r2 up 00:53:29 free: 57 GB
+cap r2: 19 requests, shas d33d 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 2, probes: 
+k8 r2 up 00:55:44 free: 57 GB
+k8 r2: 19 requests, shas d33d 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 0, probes: spec: probe head pass of 8 rows at token 450 ran true;
+k4 r2 up 00:58:06 free: 57 GB
+k4 r2: 19 requests, shas d33d 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 0, probes: spec: probe head pass of 4 rows at token 450 ran true;
+a7 r2 up 01:00:14 free: 57 GB
+a7 r2: 19 requests, shas d33d 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 0, probes: spec: probe accept chain: no reference at token 450;
+base r2 up 01:02:37 free: 57 GB
+base r2: 19 requests, shas d33d 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 0, probes: 
+n20 r2 up 01:04:42 free: 57 GB
+n20 r2: 19 requests, shas d33d 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 2, probes: 
+n20 r3 up 01:07:29 free: 57 GB
+n20 r3: 19 requests, shas d33d 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 2, probes: 
+base r3 up 01:09:34 free: 57 GB
+base r3: 19 requests, shas d33d 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 0, probes: 
+a7 r3 up 01:11:57 free: 57 GB
+a7 r3: 19 requests, shas d33d 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 0, probes: spec: probe accept chain: no reference at token 450;
+k4 r3 up 01:14:02 free: 57 GB
+k4 r3: 19 requests, shas d33d 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 0, probes: spec: probe head pass of 4 rows at token 450 ran true;
+k8 r3 up 01:16:22 free: 57 GB
+k8 r3: 19 requests, shas d33d 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 0, probes: spec: probe head pass of 8 rows at token 450 ran true;
+cap r3 up 01:18:33 free: 57 GB
+cap r3: 19 requests, shas d33d 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 2, probes: 
+cap r4 up 01:20:53 free: 57 GB
+cap r4: 19 requests, shas d33d 0e6e 1f3c 9e72 f916 3afa 1653 c8f0 d0c9 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 2, probes: 
+k8 r4 up 01:23:16 free: 57 GB
+k8 r4: 19 requests, shas d33d 0e6e 1f3c 9e72 f916 3afa 1653 c8f0 d0c9 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 0, probes: spec: probe head pass of 8 rows at token 450 ran true;
+k4 r4 up 01:25:41 free: 57 GB
+k4 r4: 19 requests, shas d33d 0e6e 1f3c 9e72 f916 3afa 1653 c8f0 d0c9 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 0, probes: spec: probe head pass of 4 rows at token 450 ran true;
+a7 r4 up 01:28:03 free: 57 GB
+a7 r4: 19 requests, shas d33d 0e6e 1f3c 9e72 f916 3afa 1653 c8f0 d0c9 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 0, probes: spec: probe accept chain: no reference at token 450;
+base r4 up 01:30:28 free: 57 GB
+base r4: 19 requests, shas d33d 0e6e 1f3c 9e72 f916 3afa 1653 c8f0 d0c9 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 0, probes: 
+n20 r4 up 01:32:48 free: 57 GB
+n20 r4: 19 requests, shas d33d 0e6e 1f3c 9e72 f916 3afa 1653 c8f0 d0c9 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 2, probes: 
+serve2 done
+fleetq: #10032 done (exit 0)
+exit 0
