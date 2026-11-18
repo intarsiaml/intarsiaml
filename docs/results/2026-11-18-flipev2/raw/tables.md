@@ -229,10 +229,10 @@ runs dropped: 0 with an error, 0 void (a decoder finished before the long prompt
 
 | decoders | scenario | arm | runs | gaps n | mean ms | p99 ms | max ms | gaps >200 ms | long TTFT s | short TTFT s (s1 / s2) | dec tokens in window | dec tok/s/stream | window s |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2 | longburst | fifo | 4 | 824 | 330.0 | 793.0 | 815.6 | 472 | 33.98 (33.88 to 34.08) | mean 36.67 / max 39.14 (12 shorts) | 206 | 3.0 | 33.98 |
-| 2 | longburst | sjf age 2 | 4 | 795 | 422.3 | 1772.5 | 1792.5 | 517 | 42.19 (42.10 to 42.26) | mean 6.16 / max 9.35 (12 shorts) | 199 | 2.4 | 42.19 |
-| 2 | longburst | sjf age 8 | 4 | 806 | 416.8 | 1779.1 | 1788.6 | 518 | 42.14 (42.05 to 42.19) | mean 5.41 / max 7.86 (12 shorts) | 202 | 2.4 | 42.14 |
-| 2 | longburst | sjf age 32 | 4 | 807 | 417.6 | 1775.4 | 1801.9 | 519 | 42.20 (42.04 to 42.36) | mean 5.42 / max 7.88 (12 shorts) | 202 | 2.4 | 42.20 |
+| 2 | longburst | fifo | 4 | 824 | 330.0 | 793.0 | 815.6 | 472 | 33.98 (33.88 to 34.08) | burst mean 36.59 / max 39.14 (11 shorts; s2 37.57) | 206 | 3.0 | 33.98 |
+| 2 | longburst | sjf age 2 | 4 | 795 | 422.3 | 1772.5 | 1792.5 | 517 | 42.19 (42.10 to 42.26) | burst mean 6.02 / max 9.35 (11 shorts; s2 7.76) | 199 | 2.4 | 42.19 |
+| 2 | longburst | sjf age 8 | 4 | 806 | 416.8 | 1779.1 | 1788.6 | 518 | 42.14 (42.05 to 42.19) | burst mean 5.33 / max 7.86 (11 shorts; s2 6.27) | 202 | 2.4 | 42.14 |
+| 2 | longburst | sjf age 32 | 4 | 807 | 417.6 | 1775.4 | 1801.9 | 519 | 42.20 (42.04 to 42.36) | burst mean 5.34 / max 7.88 (11 shorts; s2 6.28) | 202 | 2.4 | 42.20 |
 
 per-run (arm visit rep): long TTFT / short TTFTs / dec tokens in window / max window gap ms
 

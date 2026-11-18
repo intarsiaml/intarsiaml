@@ -122,7 +122,8 @@ def q4(name, label):
         gw = [x for r in rs for x in r["gaps_window"]]
         sh = [r["short_ttft"] for r in rs if r["short_ttft"]]
         if sh and len(sh[0]) > 2:
-            s = f"mean {M([M(list(x.values())) for x in sh]):.2f} / max {M([max(x.values()) for x in sh]):.2f} ({len(sh[0])} shorts)"
+            ex = [[v for k, v in x.items() if k != "s2"] for x in sh]  # s2 is released 2.5 s later than the burst (q4.py keeps longshort's s2 delay)
+            s = f"burst mean {M([M(e) for e in ex]):.2f} / max {M([max(e) for e in ex]):.2f} ({len(ex[0])} shorts; s2 {M([x['s2'] for x in sh]):.2f})"
         else:
             s = f"{M([x['s1'] for x in sh]):.2f} / {M([x['s2'] for x in sh]):.2f}" if sh else "-"
         al = {"F": "fifo", "S": "sjf (age 8)"}.get(arm, f"sjf age {arm}")
