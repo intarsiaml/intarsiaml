@@ -975,7 +975,7 @@ impl Backend for MetalBackend {
 
     /// The GPU address of byte 0 of `buf`; the buffer joins the set declared resident for row-table dispatches.
     /// Lane mgdnv: the speculative-verify GatedDeltaNet rows with their rollback saves in two dispatches (opt-in:
-    /// `INTARSIA_METAL_GDN_VERIFY_FUSE=1`; see `gdn.rs`). `Ok(false)` otherwise, nothing encoded.
+    /// `INTARSIA_METAL_GDN_VERIFY_FUSE`, on unless `0`; see `gdn.rs`). `Ok(false)` otherwise, nothing encoded.
     fn gdn_verify_rows(&self, call: &intarsia_core::GdnVerifyRows<'_>, _stream: StreamId) -> Result<bool> {
         self.gdn_verify_rows_impl(call)
     }

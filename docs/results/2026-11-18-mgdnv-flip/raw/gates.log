@@ -1,0 +1,37 @@
+fleetq: #10129 running on endor: scripts/mgdnv-flip/gates.sh
+base: exit 0 13188 bytes sha a3bb42031070215f
+new: exit 0 13188 bytes sha a3bb42031070215f
+new0: exit 0 13188 bytes sha a3bb42031070215f
+plan: base == new default (byte-identical)
+-- chat-short off
+exit 0
+finish=stop prompt=36 (cached 0) completion=390 | prefill 821 ms (43.8 tok/s) | decode 3106 ms (125.23 tok/s)
+-- chat-short def
+exit 0
+finish=stop prompt=36 (cached 0) completion=390 | prefill 400 ms (89.9 tok/s) | decode 2053 ms (189.46 tok/s)
+-- chat-short zero
+exit 0
+finish=stop prompt=36 (cached 0) completion=390 | prefill 414 ms (86.9 tok/s) | decode 2114 ms (184.05 tok/s)
+PASS ids chat-short: 389 ids identical (off = default = 0)
+-- code-gen off
+exit 0
+finish=length prompt=69 (cached 0) completion=500 | prefill 422 ms (163.3 tok/s) | decode 3994 ms (124.94 tok/s)
+-- code-gen def
+exit 0
+finish=length prompt=69 (cached 0) completion=500 | prefill 394 ms (174.9 tok/s) | decode 2326 ms (214.49 tok/s)
+-- code-gen zero
+exit 0
+finish=length prompt=69 (cached 0) completion=500 | prefill 412 ms (167.3 tok/s) | decode 2405 ms (207.49 tok/s)
+PASS ids code-gen: 500 ids identical (off = default = 0)
+-- copy3k off
+exit 0
+finish=stop prompt=2969 (cached 0) completion=2903 | prefill 671 ms (4426.6 tok/s) | decode 24124 ms (120.30 tok/s)
+-- copy3k def
+exit 0
+finish=stop prompt=2969 (cached 0) completion=2903 | prefill 707 ms (4197.4 tok/s) | decode 16285 ms (178.20 tok/s)
+-- copy3k zero
+exit 0
+finish=stop prompt=2969 (cached 0) completion=2903 | prefill 862 ms (3444.0 tok/s) | decode 16581 ms (175.02 tok/s)
+PASS ids copy3k: 2902 ids identical (off = default = 0)
+gate fails=0
+fleetq: #10129 done (exit 0)
