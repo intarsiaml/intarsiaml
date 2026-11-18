@@ -49,7 +49,7 @@ const DN_P: &str = "moe_dec_dn_p";
 const GU_P_NEG: &str = "moe_dec_gu_p_neg";
 const DN_P_NEG: &str = "moe_dec_dn_p_neg";
 const PR: usize = 2;
-/// The fat kernels with the arithmetic e2m1 decode, for 9..=16-token calls under `INTARSIA_METAL_VERIFY16=1` (lane mmoe16).
+/// The fat kernels with the arithmetic e2m1 decode, for 9..=16-token calls unless `INTARSIA_METAL_VERIFY16=0` (lane mmoe16, default-on since lane mlen15).
 const GU_A: &str = "moe_dec_gu_a";
 const DN_A: &str = "moe_dec_dn_a";
 
@@ -234,7 +234,7 @@ impl MetalBackend {
             ..Default::default()
         };
         let hb = at(&sc, o_h);
-        // the arithmetic-decode kernels: 9..=16 tokens under INTARSIA_METAL_VERIFY16=1 (lane mmoe16), 1..=8 under
+        // the arithmetic-decode kernels: 9..=16 tokens unless INTARSIA_METAL_VERIFY16=0 (lane mmoe16, default-on since lane mlen15), 1..=8 under
         // INTARSIA_METAL_MOE_BITDEC=1 (lane mmoedec; one token runs the rows path: 8 pairs, gather in k order)
         let arith = if (9..=crate::CHUNK_ROWS_MAX).contains(&t) {
             rows && crate::verify16_enabled()
