@@ -1,0 +1,83 @@
+fleetq: #10171 running on endor: sh -c 'cargo test --release -p intarsia-backend-metal --test moe_verify16 -- --nocapture --test-threads 1 && cargo test --release -p intarsia-backend-metal --test moe_verify16 -- --ignored --nocapture timing_moe_verify16'
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mmoe16/crates/intarsia-backend-metal)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 10.70s
+     Running tests/moe_verify16.rs (target/release/deps/moe_verify16-a6d08e5b5223e612)
+
+running 3 tests
+test timing_moe_verify16 ... ignored
+test verify16_moe_rows_are_bitwise_the_one_token_call ... MMOE16 bitwise: 224 cases, 2800 token rows equal (knob on == knob off == one-token calls)
+ok
+test verify16_negative_control ... MMOE16 negctl T=9: 1893 of 36880 bytes differ, first at byte 32768 (last token starts at 32768)
+MMOE16 negctl T=12: 1889 of 49168 bytes differ, first at byte 45056 (last token starts at 45056)
+MMOE16 negctl T=16: 1907 of 65552 bytes differ, first at byte 61440 (last token starts at 61440)
+ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.74s
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/moe_verify16.rs (target/release/deps/moe_verify16-a6d08e5b5223e612)
+
+running 1 test
+TIMING moe_verify16 T=8 routing=pool72 distinct=43.3: off 184.6 us, on/row-major 179.0 us (1.031x), on/pair-major 178.2 us (1.036x)
+TIMING moe_verify16 T=8 routing=random distinct=57.6: off 281.0 us, on/row-major 282.3 us (0.996x), on/pair-major 278.9 us (1.008x)
+TIMING moe_verify16 T=9 routing=pool72 distinct=47.2: off 299.5 us, on/row-major 273.3 us (1.096x), on/pair-major 294.5 us (1.017x)
+TIMING moe_verify16 T=9 routing=random distinct=63.0: off 300.0 us, on/row-major 283.7 us (1.058x), on/pair-major 290.8 us (1.032x)
+TIMING moe_verify16 T=12 routing=pool72 distinct=53.8: off 381.6 us, on/row-major 339.5 us (1.124x), on/pair-major 358.4 us (1.065x)
+TIMING moe_verify16 T=12 routing=random distinct=82.0: off 371.7 us, on/row-major 346.7 us (1.072x), on/pair-major 356.5 us (1.043x)
+TIMING moe_verify16 T=16 routing=pool72 distinct=61.1: off 456.0 us, on/row-major 411.8 us (1.107x), on/pair-major 436.1 us (1.046x)
+TIMING moe_verify16 T=16 routing=random distinct=101.9: off 480.4 us, on/row-major 424.5 us (1.132x), on/pair-major 448.4 us (1.072x)
+test timing_moe_verify16 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 9.50s
+
+fleetq: #10171 done (exit 0)
