@@ -191,6 +191,9 @@ async fn chat_inner(
         o.insert("content".into(), Value::String(content));
         messages.push(Value::Object(o));
     }
+    let mid_mode = crate::midsystem::Mode::from_env();
+    let had_mid_system = crate::midsystem::has_mid_system(&messages);
+    let messages = crate::midsystem::rewrite(messages, mid_mode);
     let mut opts = ChatOpts { add_generation_prompt: true, tools: req.tools.clone(), ..Default::default() };
     if let Some(kw) = &req.chat_template_kwargs {
         for (k, v) in kw {
@@ -207,7 +210,7 @@ async fn chat_inner(
     let enable_thinking = opts.enable_thinking;
     let has_reasoning_parser = info.reasoning_parser.is_some();
     let (think, prompt) = blocking_as(&st.engine, F, move |e| {
-        let text = e.apply_chat_template(&messages, &opts)?;
+        let text = e.apply_chat_template(&messages, &opts).map_err(|err| crate::midsystem::explain(err, had_mid_system))?;
         Ok((structured::splits_reasoning(enable_thinking, has_reasoning_parser, &text), e.tokenize(&text, false)?))
     })
     .await?;

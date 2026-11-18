@@ -15,6 +15,7 @@ mod anthropic;
 mod api;
 pub mod health;
 mod metrics;
+mod midsystem;
 mod openai;
 mod prefix;
 mod structured;
