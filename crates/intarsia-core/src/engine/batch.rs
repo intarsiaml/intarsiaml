@@ -125,7 +125,7 @@ pub struct BatchedOptions {
     /// right after the `Done`. Meant with [`BatchedOptions::pause_rows`]: without pauses a slice runs only in an iteration where nothing
     /// prefills, so a long prefill beside a pending settle has no relief (captures past the deferral cap then download inside the chunk).
     pub settle_slice_mb: usize,
-    /// Prefix herd (lane herd, `INTARSIA_PREFIX_HERD=1`, opt-in), with the prefix store: requests that share a prompt prefix another
+    /// Prefix herd (lane herd; `INTARSIA_PREFIX_HERD`, unset: on, `0`: off, lane herdflip), with the prefix store: requests that share a prompt prefix another
     /// request is still prefilling wait for it and restore it from the store instead of prefilling it again; see
     /// [`SchedulerConfig::prefix_herd`].
     pub prefix_herd: bool,
@@ -206,7 +206,7 @@ impl BatchedOptions {
             batched_verify: env("INTARSIA_BATCHED_VERIFY"),
             mtp_sampled: batched_mtp_sampled_env(),
             verify_topk: env("INTARSIA_VERIFY_TOPK"),
-            prefix_herd: env("INTARSIA_PREFIX_HERD"),
+            prefix_herd: std::env::var("INTARSIA_PREFIX_HERD").map(|v| v != "0").unwrap_or(true),
             hold_start: false,
         }
     }
@@ -1199,10 +1199,10 @@ impl BatchedEngine {
         if cfg.prefix_herd {
             if store.is_some() {
                 eprintln!(
-                    "prefix herd: on (INTARSIA_PREFIX_HERD=1): a request waits for an older one still prefilling a prefix they share, then restores it from the store"
+                    "prefix herd: on (default, INTARSIA_PREFIX_HERD=0 turns it off): a request waits for an older one still prefilling a prefix they share, then restores it from the store"
                 );
-            } else {
-                eprintln!("prefix herd: INTARSIA_PREFIX_HERD=1 has no effect without --prefix-store");
+            } else if std::env::var_os("INTARSIA_PREFIX_HERD").is_some() {
+                eprintln!("prefix herd: INTARSIA_PREFIX_HERD is set but has no effect without --prefix-store");
             }
         }
         let env = SeqEnv { codec, telemetry, eos: meta.eos_ids, spec: meta.spec };

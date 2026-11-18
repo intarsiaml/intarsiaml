@@ -413,7 +413,7 @@ pub struct SchedulerConfig {
     /// A packed pass takes at most half (rounded up) of the prompts waiting to prefill (`INTARSIA_PACK_HALF`): every prompt of a
     /// pass gets its first token when the pass ends, so packing a short queue whole delays its median first token.
     pub pack_half: bool,
-    /// Prefix herd (lane herd, `INTARSIA_PREFIX_HERD=1`, opt-in): a store request whose prompt shares at least the store's
+    /// Prefix herd (lane herd; the engine reads `INTARSIA_PREFIX_HERD`, unset: on, `0`: off, lane herdflip; this field's own default is off): a store request whose prompt shares at least the store's
     /// `min_tokens` leading tokens with an older request that is still prefilling does not prefill them itself. It waits until that
     /// leader has prefilled past their shared prefix (or left: finished, cancelled, failed), then looks the store up again
     /// ([`BatchSeq::herd_resume`]) and prefills only what no stored prefix covers. Tokens are unchanged, bit for bit (the restore is
