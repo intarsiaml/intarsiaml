@@ -1,0 +1,34 @@
+{"i": 0, "cell": "chat-short", "toks": 300, "sha": "336007c340e7"}
+{"i": 1, "cell": "code-gen", "toks": 300, "sha": "c51166fdd2a9"}
+{"i": 2, "cell": "reason", "toks": 300, "sha": "2fe573ac7c05"}
+{"i": 3, "cell": "agent-edit", "toks": 91, "sha": "2f787f6f6fe0"}
+{"i": 4, "cell": "chat-short", "toks": 300, "sha": "a7ecda08bbd3"}
+{"i": 5, "cell": "code-gen", "toks": 300, "sha": "99e4853bc3a1"}
+{"i": 6, "cell": "reason", "toks": 300, "sha": "45fb29aa8955"}
+{"i": 7, "cell": "agent-edit", "toks": 78, "sha": "7e8aaf132494"}
+{"i": 8, "cell": "chat-short", "toks": 300, "sha": "069ad01abde6"}
+{"i": 9, "cell": "code-gen", "toks": 300, "sha": "7c93364a1577"}
+{"i": 10, "cell": "reason", "toks": 300, "sha": "4505f082bcd7"}
+{"i": 11, "cell": "agent-edit", "toks": 179, "sha": "67ba45c985cc"}
+{"i": 12, "cell": "chat-short", "toks": 300, "sha": "40a73bd597ee"}
+{"i": 13, "cell": "code-gen", "toks": 300, "sha": "8c0abb6e0aa4"}
+{"i": 14, "cell": "reason", "toks": 300, "sha": "13f9a0d09bac"}
+{"i": 15, "cell": "agent-edit", "toks": 97, "sha": "e55160cc69f2"}
+AGG {"tag": "w1", "n": 16, "toks": 4045, "wall": 63.05, "agg_tps": 64.15}
+{"i": 0, "cell": "chat-short", "toks": 300, "sha": "eb741ef9e196"}
+{"i": 1, "cell": "code-gen", "toks": 300, "sha": "4c07867aed93"}
+{"i": 2, "cell": "reason", "toks": 300, "sha": "8daf7a7cb18d"}
+{"i": 3, "cell": "agent-edit", "toks": 100, "sha": "d76377d12fc9"}
+{"i": 4, "cell": "chat-short", "toks": 300, "sha": "93b7f727c110"}
+{"i": 5, "cell": "code-gen", "toks": 300, "sha": "8b6e0ebea08f"}
+{"i": 6, "cell": "reason", "toks": 300, "sha": "0dbd14e5441c"}
+{"i": 7, "cell": "agent-edit", "toks": 119, "sha": "1eb980e4e1cd"}
+{"i": 8, "cell": "chat-short", "toks": 300, "sha": "fd30225fa0f6"}
+{"i": 9, "cell": "code-gen", "toks": 300, "sha": "ae35e67349ab"}
+{"i": 10, "cell": "reason", "toks": 300, "sha": "d3be1d7cbd91"}
+{"i": 11, "cell": "agent-edit", "toks": 42, "sha": "537af298aa56"}
+{"i": 12, "cell": "chat-short", "toks": 300, "sha": "6ed2577af179"}
+{"i": 13, "cell": "code-gen", "toks": 300, "sha": "f34d282321b4"}
+{"i": 14, "cell": "reason", "toks": 300, "sha": "71f3d4166b2b"}
+{"i": 15, "cell": "agent-edit", "toks": 108, "sha": "affd65597139"}
+AGG {"tag": "w2", "n": 16, "toks": 3969, "wall": 62.22, "agg_tps": 63.79}

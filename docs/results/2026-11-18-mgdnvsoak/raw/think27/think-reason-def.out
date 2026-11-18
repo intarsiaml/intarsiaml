@@ -1,0 +1,44 @@
+We need answer user's simple arithmetic. Need produce final with step-by-step arithmetic. Let's compute carefully.
+
+Train leaves 9:10. Travels 84 km at 60 km/h. Time = distance/speed = 84/60 = 1.4 h = 1 h 24 min. Arrive at first stop? 9:10 + 1:24 = 10:34. Stops 12 min -> 10:46. Travels 45 km at 90 km/h = 0.5 h = 30 min. Arrival = 10:46 + 0:30 = 11:16.
+
+Need show arithmetic. Could also total: 1h24 + 12m + 30m = 2h6m? 1h24+12=1h36, +30=2h6. 9:10+2:06=11:16. Yes.
+
+Final concise but detailed.
+</think>
+
+Step 1: First leg  
+\[
+\text{Time}=\frac{84\text{ km}}{60\text{ km/h}}=1.4\text{ h}
+\]
+\[
+0.4\text{ h}=0.4\times 60=24\text{ min}
+\]
+So the first leg takes **1 hour 24 minutes**.
+
+Step 2: Add stop time  
+Stop = **12 minutes**.
+
+Step 3: Second leg  
+\[
+\text{Time}=\frac{45\text{ km}}{90\text{ km/h}}=0.5\text{ h}=30\text{ min}
+\]
+
+Step 4: Total time  
+\[
+1\text{ h }24\text{ min}+12\text{ min}+30\text{ min}
+\]
+\[
+24+12+30=66\text{ min}=1\text{ h }6\text{ min}
+\]
+\[
+1\text{ h}+1\text{ h }6\text{ min}=2\text{ h }6\text{ min}
+\]
+
+Step 5: Add to departure time  
+Departure: **9:10**  
+\[
+9:10+2\text{ h }6\text{ min}=11:16
+\]
+
+The train arrives at **11:16**.
