@@ -178,6 +178,7 @@ impl Model {
         };
         *self.capture_ops.lock().unwrap() = Some(Vec::new());
         self.capture_comms.store(0, Ordering::Relaxed);
+        let _capture = crate::model::CaptureGuard::enter();
         let graph = self.backend.graph_capture(self.stream, &mut || {
             if let Some((head, m)) = head {
                 let pending = TensorRef::new(m.pending.clone(), self.act, &[m.cap_rows, h]);
@@ -468,6 +469,7 @@ impl Model {
         };
         *self.capture_ops.lock().unwrap() = Some(Vec::new());
         self.capture_comms.store(0, Ordering::Relaxed);
+        let _capture = crate::model::CaptureGuard::enter();
         let graph = self.backend.graph_capture(self.stream, &mut || {
             // catch-up: the head over the n queued rows -> draft 1
             let pending = TensorRef::new(m.pending.clone(), self.act, &[m.cap_rows, h]);
@@ -665,6 +667,7 @@ impl Model {
         *self.capture_ops.lock().unwrap() = Some(Vec::new());
         self.capture_comms.store(0, Ordering::Relaxed);
         let mut out = None;
+        let _capture = crate::model::CaptureGuard::enter();
         let graph = self.backend.graph_capture(self.stream, &mut || {
             self.exact_rows.store(true, Ordering::Relaxed);
             let run = (|| -> Result<TensorRef> {

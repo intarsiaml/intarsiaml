@@ -1,0 +1,56 @@
+normal base PRE request 17.679 ms
+arm minus base, minus the same over PRE (ms per graph step)
+  L2 r1: MID1 +0.321  POST0 +0.076  POST1-9 +0.041
+  L2 r2: MID1 +0.459  POST0 +0.299  POST1-9 +0.091
+  L2 r3: MID1 +0.269  POST0 +0.018  POST1-9 -0.010
+L2: MID1 +0.350 (SE 0.057, 3/3 rounds > 0) | POST0 +0.131 (SE 0.086, 3/3 rounds > 0) | POST1-9 +0.041 (SE 0.029, 2/3 rounds > 0)
+  L7 r1: MID1 +0.308  POST0 -0.026  POST1-9 -0.076
+  L7 r2: MID1 +0.391  POST0 +0.047  POST1-9 +0.105
+  L7 r3: MID1 +0.146  POST0 -0.068  POST1-9 -0.063
+L7: MID1 +0.281 (SE 0.072, 3/3 rounds > 0) | POST0 -0.016 (SE 0.034, 1/3 rounds > 0) | POST1-9 -0.011 (SE 0.058, 1/3 rounds > 0)
+  a7 r1: MID1 +0.308  POST0 +0.026  POST1-9 +0.078
+  a7 r2: MID1 +0.174  POST0 +0.095  POST1-9 +0.046
+  a7 r3: MID1 +0.113  POST0 +0.030  POST1-9 -0.017
+a7: MID1 +0.198 (SE 0.058, 3/3 rounds > 0) | POST0 +0.050 (SE 0.022, 3/3 rounds > 0) | POST1-9 +0.035 (SE 0.028, 2/3 rounds > 0)
+  c3 r1: MID1 -0.004  POST0 +0.298  POST1-9 -0.005
+  c3 r2: MID1 +0.445  POST0 +0.028  POST1-9 +0.185
+  c3 r3: MID1 +0.286  POST0 -0.030  POST1-9 -0.162
+c3: MID1 +0.242 (SE 0.131, 2/3 rounds > 0) | POST0 +0.098 (SE 0.101, 2/3 rounds > 0) | POST1-9 +0.006 (SE 0.100, 1/3 rounds > 0)
+  e r1: MID1 +0.290  POST0 -0.009  POST1-9 -0.064
+  e r2: MID1 +0.422  POST0 +0.070  POST1-9 +0.182
+  e r3: MID1 +0.368  POST0 +0.032  POST1-9 -0.086
+e: MID1 +0.360 (SE 0.038, 3/3 rounds > 0) | POST0 +0.031 (SE 0.023, 2/3 rounds > 0) | POST1-9 +0.010 (SE 0.086, 1/3 rounds > 0)
+  n20 r1: MID1 +0.336  POST0 +0.213  POST1-9 -0.010
+  n20 r2: MID1 +0.086  POST0 +0.339  POST1-9 +0.034
+  n20 r3: MID1 +0.265  POST0 -0.058  POST1-9 -0.167
+n20: MID1 +0.229 (SE 0.074, 3/3 rounds > 0) | POST0 +0.164 (SE 0.117, 2/3 rounds > 0) | POST1-9 -0.048 (SE 0.061, 1/3 rounds > 0)
+  nc r1: MID1 +0.029  POST0 +0.022  POST1-9 +0.012
+  nc r2: MID1 +0.109  POST0 +0.028  POST1-9 +0.116
+  nc r3: MID1 -0.008  POST0 -0.060  POST1-9 -0.075
+nc: MID1 +0.043 (SE 0.034, 2/3 rounds > 0) | POST0 -0.003 (SE 0.028, 2/3 rounds > 0) | POST1-9 +0.017 (SE 0.055, 2/3 rounds > 0)
+
+arm minus the null arm `nc` of the same round (each already minus base and minus PRE): MID1 | POST0 | POST1-9
+  L2 r1: MID1 +0.292  POST0 +0.054  POST1-9 +0.029
+  L2 r2: MID1 +0.350  POST0 +0.271  POST1-9 -0.025
+  L2 r3: MID1 +0.277  POST0 +0.078  POST1-9 +0.066
+L2 - nc: MID1 +0.307 (SE 0.022, 3/3 rounds > 0) | POST0 +0.134 (SE 0.069, 3/3 rounds > 0) | POST1-9 +0.023 (SE 0.026, 2/3 rounds > 0)
+  L7 r1: MID1 +0.279  POST0 -0.048  POST1-9 -0.088
+  L7 r2: MID1 +0.282  POST0 +0.019  POST1-9 -0.011
+  L7 r3: MID1 +0.154  POST0 -0.009  POST1-9 +0.013
+L7 - nc: MID1 +0.238 (SE 0.042, 3/3 rounds > 0) | POST0 -0.012 (SE 0.019, 1/3 rounds > 0) | POST1-9 -0.029 (SE 0.030, 1/3 rounds > 0)
+  a7 r1: MID1 +0.279  POST0 +0.004  POST1-9 +0.066
+  a7 r2: MID1 +0.065  POST0 +0.067  POST1-9 -0.070
+  a7 r3: MID1 +0.121  POST0 +0.090  POST1-9 +0.058
+a7 - nc: MID1 +0.155 (SE 0.064, 3/3 rounds > 0) | POST0 +0.054 (SE 0.026, 3/3 rounds > 0) | POST1-9 +0.018 (SE 0.044, 2/3 rounds > 0)
+  c3 r1: MID1 -0.033  POST0 +0.276  POST1-9 -0.017
+  c3 r2: MID1 +0.336  POST0 +0.000  POST1-9 +0.069
+  c3 r3: MID1 +0.294  POST0 +0.029  POST1-9 -0.087
+c3 - nc: MID1 +0.199 (SE 0.116, 2/3 rounds > 0) | POST0 +0.102 (SE 0.087, 3/3 rounds > 0) | POST1-9 -0.012 (SE 0.045, 1/3 rounds > 0)
+  e r1: MID1 +0.261  POST0 -0.030  POST1-9 -0.075
+  e r2: MID1 +0.313  POST0 +0.042  POST1-9 +0.066
+  e r3: MID1 +0.376  POST0 +0.092  POST1-9 -0.011
+e - nc: MID1 +0.316 (SE 0.033, 3/3 rounds > 0) | POST0 +0.034 (SE 0.035, 2/3 rounds > 0) | POST1-9 -0.007 (SE 0.041, 1/3 rounds > 0)
+  n20 r1: MID1 +0.308  POST0 +0.191  POST1-9 -0.022
+  n20 r2: MID1 -0.023  POST0 +0.311  POST1-9 -0.082
+  n20 r3: MID1 +0.273  POST0 +0.001  POST1-9 -0.092
+n20 - nc: MID1 +0.186 (SE 0.105, 2/3 rounds > 0) | POST0 +0.168 (SE 0.090, 3/3 rounds > 0) | POST1-9 -0.065 (SE 0.022, 0/3 rounds > 0)

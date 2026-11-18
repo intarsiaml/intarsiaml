@@ -1,0 +1,39 @@
+fleetq: #10082 waiting (#1 in line): needs gpu quiet on spark1, but #10081 "postchain2: nsys smoke (1 base server)" (claude-a9e6e738) loads it
+fleetq:   #10081 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10081 set, or it will wait for #10081 to be released.
+fleetq: #10082 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10082 running on spark1: ssh spark1 'W=r RSTART=1 ROUNDS=2 REFCELL=code-gen.json ARMS='"'"'base:X=1 nc:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=9999,7 n20:INTARSIA_SPEC_COPY=20 L7:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=754,7 a7:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=754,a7 e:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=754,e L2:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=754,2 c3:INTARSIA_SPEC_COPY=20,3'"'"' bash -s'
+base r1 up 03:18:25 free: 57 GB
+base r1: 19 requests, shas c8f0 bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 0, probes: 
+nc r1 up 03:20:46 free: 56 GB
+nc r1: 19 requests, shas c8f0 bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 0, probes: 
+n20 r1 up 03:22:55 free: 57 GB
+n20 r1: 19 requests, shas c8f0 bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 3, probes: 
+L7 r1 up 03:25:20 free: 57 GB
+L7 r1: 19 requests, shas c8f0 bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 1, probes: 
+a7 r1 up 03:27:45 free: 57 GB
+a7 r1: 19 requests, shas c8f0 bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 1, probes: spec: probe accept chain of 7 at token 755;
+e r1 up 03:30:01 free: 57 GB
+e r1: 19 requests, shas c8f0 bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 0, probes: 
+L2 r1 up 03:32:25 free: 57 GB
+L2 r1: 19 requests, shas c8f0 bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 1, probes: 
+fleetq: checking on #10082 failed (fleetq server http://fleetq:8470 unreachable: timed out); the command keeps running
+c3 r1 up 03:34:44 free: 57 GB
+c3 r1: 19 requests, shas c8f0 bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 3, probes: 
+c3 r2 up 03:36:57 free: 57 GB
+c3 r2: 19 requests, shas c8f0 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 3, probes: 
+L2 r2 up 03:39:03 free: 57 GB
+L2 r2: 19 requests, shas c8f0 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 1, probes: 
+e r2 up 03:41:28 free: 57 GB
+e r2: 19 requests, shas c8f0 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 0, probes: 
+a7 r2 up 03:43:56 free: 57 GB
+a7 r2: 19 requests, shas c8f0 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 1, probes: spec: probe accept chain of 7 at token 755;
+L7 r2 up 03:46:21 free: 57 GB
+L7 r2: 19 requests, shas c8f0 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 1, probes: 
+n20 r2 up 03:48:43 free: 57 GB
+n20 r2: 19 requests, shas c8f0 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 3, probes: 
+nc r2 up 03:51:08 free: 57 GB
+nc r2: 19 requests, shas c8f0 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 0, probes: 
+base r2 up 03:53:27 free: 57 GB
+base r2: 19 requests, shas c8f0 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 0, probes: 
+serve2 done
+fleetq: #10082 done (exit 0)

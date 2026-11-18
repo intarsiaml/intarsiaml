@@ -1,0 +1,129 @@
+fleetq: #10040 waiting (#4 in line): in line behind #10037 "flipev2 mixd: mixed-burst cell, fixed arrival order (35B, ~40 min)" (claude-a9e6e738) on spark2
+fleetq:   #10037 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10037 set, or it will wait for #10037 to be released.
+fleetq: #10040 waiting (#3 in line): in line behind #10038 "flipev2 age: INTARSIA_PREFILL_AGE 4/8/16 + fifo (35B, ~60 min)" (claude-a9e6e738) on spark2
+fleetq:   #10038 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10038 set, or it will wait for #10038 to be released.
+fleetq: #10040 waiting (#2 in line): in line behind #10039 "flipev2 diag: cold 16K prefill speed vs max-batch (35B, ~15 min)" (claude-a9e6e738) on spark2
+fleetq:   #10039 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10039 set, or it will wait for #10039 to be released.
+fleetq: #10040 waiting (#1 in line): needs gpu quiet on spark2, but #10039 "flipev2 diag: cold 16K prefill speed vs max-batch (35B, ~15 min)" (claude-a9e6e738) loads it
+fleetq:   #10039 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10039 set, or it will wait for #10039 to be released.
+fleetq: #10040 waiting (#1 in line): needs spark2 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10040 waiting (#1 in line): needs 62 GB on spark2; the box reports only 53 GB actually free (memory used by something fleetq does not track)
+fleetq: #10040 running on spark2: scripts/flipev2/run3.sh dec
+[03:23:04] serve dec-F1: env [INTARSIA_CB_NO_REUSE=1] --max-seq 49152 --max-batch 8 ; Mem:             121          44          68           0           9          76
+[03:24:47] serve dec-F1 up; Mem:             121          77          36           0           9          44
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "long", "arm": "F", "d": 3, "rep": 1, "long_ttft": 33.794, "short_ttft": {}, "dec_tok_s_in_window": 1.81, "itl_window": {"n": 184, "p50": 0.5592810640009702, "p99": 0.7868243089978932, "max": 0.7874021149982582, "mean": 0.5443914756684812}, "itl_base": {"n": 42, "p50": 0.03848587899847189, "p99": 0.04042705599931651, "max": 0.04042705599931651, "mean": 0.0385090663333228}, "ids_n": {"d0": 
+{"scn": "longshort", "arm": "F", "d": 3, "rep": 1, "long_ttft": 33.748, "short_ttft": {"s1": 33.053, "s2": 31.371}, "dec_tok_s_in_window": 1.79, "itl_window": {"n": 181, "p50": 0.5670967440019012, "p99": 0.7846689319994766, "max": 0.7854449439983, "mean": 0.5524442401325982}, "itl_base": {"n": 42, "p50": 0.038663871000608196, "p99": 0.039460781001253054, "max": 0.039460781001253054, "mean": 0.0385
+{"scn": "long", "arm": "F", "d": 4, "rep": 1, "long_ttft": 33.977, "short_ttft": {}, "dec_tok_s_in_window": 1.78, "itl_window": {"n": 242, "p50": 0.5718915589968674, "p99": 0.7841372250004497, "max": 0.7843596719976631, "mean": 0.5566236903264363}, "itl_base": {"n": 40, "p50": 0.04297055300048669, "p99": 0.04394483900250634, "max": 0.04394483900250634, "mean": 0.04289105797497541}, "ids_n": {"d0":
+{"scn": "longshort", "arm": "F", "d": 4, "rep": 1, "long_ttft": 33.837, "short_ttft": {"s1": 33.135, "s2": 31.461}, "dec_tok_s_in_window": 1.82, "itl_window": {"n": 247, "p50": 0.5610445249985787, "p99": 0.7787781420011015, "max": 0.77984300299795, "mean": 0.5459810803643741}, "itl_base": {"n": 40, "p50": 0.04255118599758134, "p99": 0.043696446999092586, "max": 0.043696446999092586, "mean": 0.0425
+{"scn": "long", "arm": "F", "d": 3, "rep": 2, "long_ttft": 33.656, "short_ttft": {}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 182, "p50": 0.5629170860011072, "p99": 0.7768172399992181, "max": 0.7770896879992506, "mean": 0.5516411476977997}, "itl_base": {"n": 42, "p50": 0.038551395999093074, "p99": 0.03952758599916706, "max": 0.03952758599916706, "mean": 0.03843429078577693}, "ids_n": {"d0":
+{"scn": "longshort", "arm": "F", "d": 3, "rep": 2, "long_ttft": 33.668, "short_ttft": {"s1": 32.954, "s2": 31.255}, "dec_tok_s_in_window": 1.84, "itl_window": {"n": 186, "p50": 0.5576594260019192, "p99": 0.7779251719985041, "max": 0.7785756019984547, "mean": 0.5436082636290174}, "itl_base": {"n": 42, "p50": 0.03796389900162467, "p99": 0.039145160000771284, "max": 0.039145160000771284, "mean": 0.03
+{"scn": "long", "arm": "F", "d": 4, "rep": 2, "long_ttft": 33.951, "short_ttft": {}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 244, "p50": 0.5711735980003141, "p99": 0.7834316900007252, "max": 0.7839310169983946, "mean": 0.5571476535901564}, "itl_base": {"n": 40, "p50": 0.042315571998187806, "p99": 0.0448929890008003, "max": 0.0448929890008003, "mean": 0.04263654339993082}, "ids_n": {"d0": 8
+ssh: connect to host spark-fa00 port 22: Operation timed out
+fleetq: checking on #10040 failed (fleetq server http://fleetq:8470 unreachable: timed out); the command keeps running
+ssh: connect to host spark-fa00 port 22: Operation timed out
+ssh: connect to host spark-fa00 port 22: Operation timed out
+ssh: connect to host spark-fa00 port 22: Operation timed out
+[03:38:17] min MemAvailable MB (dec-F1): , KILLED: 
+[03:38:23] serve dec-S2: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 49152 --max-batch 8 ; Mem:             121          44          68           0           9          76
+[03:40:05] serve dec-S2 up; Mem:             121          77          36           0           9          44
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "long", "arm": "S", "d": 3, "rep": 1, "long_ttft": 33.598, "short_ttft": {}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 181, "p50": 0.564150777998293, "p99": 0.7790974010022182, "max": 0.7793679440001142, "mean": 0.5499225327955841}, "itl_base": {"n": 42, "p50": 0.03818972899898654, "p99": 0.03947287799746846, "max": 0.03947287799746846, "mean": 0.03820457345231955}, "ids_n": {"d0": 8
+{"scn": "longshort", "arm": "S", "d": 3, "rep": 1, "long_ttft": 35.22, "short_ttft": {"s1": 1.921, "s2": 1.584}, "dec_tok_s_in_window": 1.87, "itl_window": {"n": 198, "p50": 0.547935005997715, "p99": 0.7799022910003259, "max": 0.7806607849997818, "mean": 0.5341712466969961}, "itl_base": {"n": 42, "p50": 0.038305795002088416, "p99": 0.039151984001364326, "max": 0.039151984001364326, "mean": 0.03827
+{"scn": "long", "arm": "S", "d": 4, "rep": 1, "long_ttft": 33.92, "short_ttft": {}, "dec_tok_s_in_window": 1.82, "itl_window": {"n": 247, "p50": 0.564977257999999, "p99": 0.7834420110011706, "max": 0.784234385999298, "mean": 0.5472873859595013}, "itl_base": {"n": 40, "p50": 0.04232199100079015, "p99": 0.0446436279999034, "max": 0.0446436279999034, "mean": 0.04251057045003108}, "ids_n": {"d0": 800,
+{"scn": "longshort", "arm": "S", "d": 4, "rep": 1, "long_ttft": 35.644, "short_ttft": {"s1": 1.961, "s2": 1.652}, "dec_tok_s_in_window": 1.84, "itl_window": {"n": 263, "p50": 0.5535838219984726, "p99": 0.7834967779999715, "max": 0.7850854660027835, "mean": 0.5402763919505784}, "itl_base": {"n": 40, "p50": 0.042220360999635886, "p99": 0.04390207100004773, "max": 0.04390207100004773, "mean": 0.04237
+{"scn": "long", "arm": "S", "d": 3, "rep": 2, "long_ttft": 33.617, "short_ttft": {}, "dec_tok_s_in_window": 1.81, "itl_window": {"n": 183, "p50": 0.5655492980004055, "p99": 0.7826782150004874, "max": 0.7838700280008197, "mean": 0.551566530573767}, "itl_base": {"n": 42, "p50": 0.03826516100161825, "p99": 0.03907611300019198, "max": 0.03907611300019198, "mean": 0.03822675833336169}, "ids_n": {"d0": 
+{"scn": "longshort", "arm": "S", "d": 3, "rep": 2, "long_ttft": 35.272, "short_ttft": {"s1": 1.914, "s2": 1.577}, "dec_tok_s_in_window": 1.82, "itl_window": {"n": 193, "p50": 0.5533428359995014, "p99": 0.7739998629986076, "max": 0.7745950100033951, "mean": 0.5419346899119104}, "itl_base": {"n": 42, "p50": 0.03819800899873371, "p99": 0.039170945001387736, "max": 0.039170945001387736, "mean": 0.0382
+{"scn": "long", "arm": "S", "d": 4, "rep": 2, "long_ttft": 34.046, "short_ttft": {}, "dec_tok_s_in_window": 1.79, "itl_window": {"n": 244, "p50": 0.5644789940015471, "p99": 0.7837345490006555, "max": 0.7843410399982531, "mean": 0.5480054886885362}, "itl_base": {"n": 40, "p50": 0.04252805000214721, "p99": 0.04380269700050121, "max": 0.04380269700050121, "mean": 0.04259088979997614}, "ids_n": {"d0":
+{"scn": "longshort", "arm": "S", "d": 4, "rep": 2, "long_ttft": 35.906, "short_ttft": {"s1": 2.023, "s2": 1.73}, "dec_tok_s_in_window": 1.82, "itl_window": {"n": 262, "p50": 0.557227564000641, "p99": 0.7867430400001467, "max": 0.7870735020005668, "mean": 0.5437898981984894}, "itl_base": {"n": 40, "p50": 0.04293055599919171, "p99": 0.0453170830005547, "max": 0.0453170830005547, "mean": 0.0428904814
+[03:51:15] min MemAvailable MB (dec-S2): 03:47:22 44363, KILLED: 0
+[03:51:21] serve dec-S3: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 49152 --max-batch 8 ; Mem:             121          44          68           0           9          76
+[03:53:03] serve dec-S3 up; Mem:             121          77          36           0           9          44
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "long", "arm": "S", "d": 3, "rep": 1, "long_ttft": 33.629, "short_ttft": {}, "dec_tok_s_in_window": 1.79, "itl_window": {"n": 181, "p50": 0.564292351999029, "p99": 0.7760399850012618, "max": 0.7766086379997432, "mean": 0.5504775555801036}, "itl_base": {"n": 42, "p50": 0.03811251599836396, "p99": 0.0391373750026105, "max": 0.0391373750026105, "mean": 0.038142533666662835}, "ids_n": {"d0": 8
+{"scn": "longshort", "arm": "S", "d": 3, "rep": 1, "long_ttft": 35.354, "short_ttft": {"s1": 1.916, "s2": 1.587}, "dec_tok_s_in_window": 1.84, "itl_window": {"n": 195, "p50": 0.5509811019983317, "p99": 0.7770238600023731, "max": 0.7776360809984908, "mean": 0.5443590805846048}, "itl_base": {"n": 42, "p50": 0.03818454300198937, "p99": 0.03955434499948751, "max": 0.03955434499948751, "mean": 0.038239
+{"scn": "long", "arm": "S", "d": 4, "rep": 1, "long_ttft": 33.85, "short_ttft": {}, "dec_tok_s_in_window": 1.81, "itl_window": {"n": 245, "p50": 0.5597660269995686, "p99": 0.7817790770022839, "max": 0.7820080359997519, "mean": 0.5453880746122622}, "itl_base": {"n": 40, "p50": 0.04249997400256689, "p99": 0.04366214399851742, "max": 0.04366214399851742, "mean": 0.042493975499928636}, "ids_n": {"d0":
+{"scn": "longshort", "arm": "S", "d": 4, "rep": 1, "long_ttft": 35.428, "short_ttft": {"s1": 1.944, "s2": 1.627}, "dec_tok_s_in_window": 1.83, "itl_window": {"n": 259, "p50": 0.555147262999526, "p99": 0.7769957019991125, "max": 0.7775236039997253, "mean": 0.5447721975057928}, "itl_base": {"n": 44, "p50": 0.0424230409989832, "p99": 0.043628379000438144, "max": 0.043628379000438144, "mean": 0.042353
+{"scn": "long", "arm": "S", "d": 3, "rep": 2, "long_ttft": 33.488, "short_ttft": {}, "dec_tok_s_in_window": 1.82, "itl_window": {"n": 183, "p50": 0.562208928000473, "p99": 0.7727641479978047, "max": 0.7735208649974084, "mean": 0.5490656402841518}, "itl_base": {"n": 45, "p50": 0.037654253999789944, "p99": 0.03868890599915176, "max": 0.03868890599915176, "mean": 0.03777255464438996}, "ids_n": {"d0":
+{"scn": "longshort", "arm": "S", "d": 3, "rep": 2, "long_ttft": 35.168, "short_ttft": {"s1": 1.914, "s2": 1.559}, "dec_tok_s_in_window": 1.87, "itl_window": {"n": 197, "p50": 0.5502796649998345, "p99": 0.7733711740002036, "max": 0.7738087399993674, "mean": 0.5327981820558533}, "itl_base": {"n": 42, "p50": 0.0379691880007158, "p99": 0.03901716800100985, "max": 0.03901716800100985, "mean": 0.0380417
+{"scn": "long", "arm": "S", "d": 4, "rep": 2, "long_ttft": 33.8, "short_ttft": {}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 244, "p50": 0.5581161039990548, "p99": 0.7817149030015571, "max": 0.7819157819976681, "mean": 0.5441127891639195}, "itl_base": {"n": 40, "p50": 0.04228359300032025, "p99": 0.04391489900081069, "max": 0.04391489900081069, "mean": 0.04231143342494761}, "ids_n": {"d0": 80
+{"scn": "longshort", "arm": "S", "d": 4, "rep": 2, "long_ttft": 35.517, "short_ttft": {"s1": 1.952, "s2": 1.632}, "dec_tok_s_in_window": 1.83, "itl_window": {"n": 260, "p50": 0.5586598549998598, "p99": 0.7809416230011266, "max": 0.7817912990030891, "mean": 0.5464968648923016}, "itl_base": {"n": 44, "p50": 0.04236742300054175, "p99": 0.043274506999296136, "max": 0.043274506999296136, "mean": 0.0423
+[04:04:11] min MemAvailable MB (dec-S3): 03:57:51 44330, KILLED: 0
+[04:04:16] serve dec-F4: env [INTARSIA_CB_NO_REUSE=1] --max-seq 49152 --max-batch 8 ; Mem:             121          44          68           0           9          76
+[04:06:03] serve dec-F4 up; Mem:             121          77          36           0           9          44
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "long", "arm": "F", "d": 3, "rep": 1, "long_ttft": 33.539, "short_ttft": {}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 181, "p50": 0.5629366890025267, "p99": 0.7736645820004924, "max": 0.7739958760030277, "mean": 0.5489302664806541}, "itl_base": {"n": 42, "p50": 0.03824414200062165, "p99": 0.03979648899985477, "max": 0.03979648899985477, "mean": 0.03832773342860275}, "ids_n": {"d0": 
+{"scn": "longshort", "arm": "F", "d": 3, "rep": 1, "long_ttft": 33.513, "short_ttft": {"s1": 32.812, "s2": 31.123}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 181, "p50": 0.5620395760015526, "p99": 0.7781190960013191, "max": 0.7782536230006372, "mean": 0.548665243154669}, "itl_base": {"n": 42, "p50": 0.03842350500053726, "p99": 0.0395710999982839, "max": 0.0395710999982839, "mean": 0.03842219
+{"scn": "long", "arm": "F", "d": 4, "rep": 1, "long_ttft": 33.89, "short_ttft": {}, "dec_tok_s_in_window": 1.81, "itl_window": {"n": 246, "p50": 0.5607559499985655, "p99": 0.7829810449984507, "max": 0.7839015379977354, "mean": 0.5463551182560988}, "itl_base": {"n": 40, "p50": 0.04262070800177753, "p99": 0.04420809500152245, "max": 0.04420809500152245, "mean": 0.04272572515001229}, "ids_n": {"d0": 
+{"scn": "longshort", "arm": "F", "d": 4, "rep": 1, "long_ttft": 33.903, "short_ttft": {"s1": 33.202, "s2": 31.53}, "dec_tok_s_in_window": 1.83, "itl_window": {"n": 248, "p50": 0.568468612000288, "p99": 0.7849059910004144, "max": 0.7849451269976271, "mean": 0.5475131707822555}, "itl_base": {"n": 40, "p50": 0.04259197500141454, "p99": 0.04394499499903759, "max": 0.04394499499903759, "mean": 0.042538
+{"scn": "long", "arm": "F", "d": 3, "rep": 2, "long_ttft": 33.537, "short_ttft": {}, "dec_tok_s_in_window": 1.82, "itl_window": {"n": 183, "p50": 0.5600497519990313, "p99": 0.7791776429985475, "max": 0.7792589239979861, "mean": 0.5503001404590254}, "itl_base": {"n": 42, "p50": 0.03802258300129324, "p99": 0.03886464500101283, "max": 0.03886464500101283, "mean": 0.03805578240479961}, "ids_n": {"d0":
+{"scn": "longshort", "arm": "F", "d": 3, "rep": 2, "long_ttft": 33.606, "short_ttft": {"s1": 32.895, "s2": 31.197}, "dec_tok_s_in_window": 1.81, "itl_window": {"n": 182, "p50": 0.5631056840029487, "p99": 0.7778298529992753, "max": 0.7783139159982966, "mean": 0.5506744368241605}, "itl_base": {"n": 42, "p50": 0.03866997499790159, "p99": 0.03920184600065113, "max": 0.03920184600065113, "mean": 0.0386
+{"scn": "long", "arm": "F", "d": 4, "rep": 2, "long_ttft": 33.822, "short_ttft": {}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 243, "p50": 0.5684060550011054, "p99": 0.7839697629970033, "max": 0.7844536980010162, "mean": 0.5545925107242645}, "itl_base": {"n": 40, "p50": 0.04240298900185735, "p99": 0.04369144899828825, "max": 0.04369144899828825, "mean": 0.04243075920003321}, "ids_n": {"d0": 
+{"scn": "longshort", "arm": "F", "d": 4, "rep": 2, "long_ttft": 34.02, "short_ttft": {"s1": 33.326, "s2": 31.646}, "dec_tok_s_in_window": 1.77, "itl_window": {"n": 241, "p50": 0.5732774009993591, "p99": 0.7861407560012594, "max": 0.7865565149986651, "mean": 0.5569995758630748}, "itl_base": {"n": 40, "p50": 0.04299465200165287, "p99": 0.04390434499873663, "max": 0.04390434499873663, "mean": 0.04289
+[04:17:15] min MemAvailable MB (dec-F4): 04:11:50 44367, KILLED: 0
+[04:17:19] done
+fleetq: #10040 done (exit 0)

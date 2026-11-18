@@ -1,0 +1,20 @@
+fleetq: #10095 waiting (#1 in line): needs gpu quiet on spark1, but #10090 "postchain2: nsys MID1 base/e/n20 x7" (claude-a9e6e738) loads it
+fleetq:   #10090 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10090 set, or it will wait for #10090 to be released.
+fleetq: #10095 running on spark1: ssh spark1 'W=r RSTART=3 ROUNDS=3 REFCELL=code-gen.json ARMS='"'"'base:X=1 nc:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=9999,7 n20:INTARSIA_SPEC_COPY=20 L7:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=754,7 a7:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=754,a7 e:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=754,e L2:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=754,2 c3:INTARSIA_SPEC_COPY=20,3'"'"' bash -s'
+base r3 up 04:10:49 free: 57 GB
+base r3: 19 requests, shas c8f0 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 0, probes: 
+nc r3 up 04:13:11 free: 57 GB
+nc r3: 19 requests, shas c8f0 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 0, probes: 
+n20 r3 up 04:15:17 free: 57 GB
+n20 r3: 19 requests, shas c8f0 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 3, probes: 
+L7 r3 up 04:17:36 free: 57 GB
+L7 r3: 19 requests, shas c8f0 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 1, probes: 
+a7 r3 up 04:19:46 free: 57 GB
+a7 r3: 19 requests, shas c8f0 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 1, probes: spec: probe accept chain of 7 at token 755;
+e r3 up 04:22:05 free: 57 GB
+e r3: 19 requests, shas c8f0 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 0, probes: 
+L2 r3 up 04:24:24 free: 57 GB
+L2 r3: 19 requests, shas c8f0 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 1, probes: 
+c3 r3 up 04:26:45 free: 57 GB
+c3 r3: 19 requests, shas c8f0 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 3, probes: 
+fleetq: #10095 done (exit 255)

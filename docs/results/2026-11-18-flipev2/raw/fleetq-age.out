@@ -1,0 +1,113 @@
+fleetq: #10038 waiting (#2 in line): in line behind #10037 "flipev2 mixd: mixed-burst cell, fixed arrival order (35B, ~40 min)" (claude-a9e6e738) on spark2
+fleetq:   #10037 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10037 set, or it will wait for #10037 to be released.
+fleetq: #10038 waiting (#1 in line): needs gpu quiet on spark2, but #10037 "flipev2 mixd: mixed-burst cell, fixed arrival order (35B, ~40 min)" (claude-a9e6e738) loads it
+fleetq:   #10037 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10037 set, or it will wait for #10037 to be released.
+fleetq: #10038 waiting (#1 in line): needs spark2 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10038 waiting (#1 in line): needs 62 GB on spark2; the box reports only 37 GB actually free (memory used by something fleetq does not track)
+fleetq: #10038 running on spark2: scripts/flipev2/run3.sh age
+[02:18:34] serve age-F1: env [INTARSIA_CB_NO_REUSE=1] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:20:41] serve age-F1 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "F", "d": 2, "rep": 1, "long_ttft": 33.908, "short_ttft": {"s1": 33.196, "s2": 32.093}, "dec_tok_s_in_window": 3.01, "itl_window": {"n": 204, "p50": 0.4545635449976544, "p99": 0.7864179159987543, "max": 0.806504539999878, "mean": 0.3260796177352912}, "itl_base": {"n": 78, "p50": 2.7760001103160903e-05, "p99": 0.06882360799863818, "max": 0.06891245500082732, "mean": 0.02
+{"scn": "longshort", "arm": "F", "d": 2, "rep": 2, "long_ttft": 33.911, "short_ttft": {"s1": 33.187, "s2": 32.086}, "dec_tok_s_in_window": 3.02, "itl_window": {"n": 205, "p50": 0.45478445700064185, "p99": 0.7891633440012811, "max": 0.8065183329999854, "mean": 0.3278354670048873}, "itl_base": {"n": 78, "p50": 2.7343998226569965e-05, "p99": 0.06808530799753498, "max": 0.06835831399803283, "mean": 0.
+{"scn": "longshort", "arm": "F", "d": 2, "rep": 3, "long_ttft": 33.914, "short_ttft": {"s1": 33.192, "s2": 32.095}, "dec_tok_s_in_window": 3.04, "itl_window": {"n": 206, "p50": 0.4541204130000551, "p99": 0.793762378001702, "max": 0.8082142940002086, "mean": 0.32938004095146944}, "itl_base": {"n": 78, "p50": 2.043200220214203e-05, "p99": 0.0683070660015801, "max": 0.06843900099920575, "mean": 0.022
+[02:25:04] min MemAvailable MB (age-F1): 02:24:41 49493, KILLED: 0
+[02:25:09] serve age-42: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=4] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:26:52] serve age-42 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "4", "d": 2, "rep": 1, "long_ttft": 35.464, "short_ttft": {"s1": 2.054, "s2": 7.63}, "dec_tok_s_in_window": 2.65, "itl_window": {"n": 188, "p50": 0.48768428600305924, "p99": 0.7943434029984928, "max": 0.8088669649987423, "mean": 0.37800159895745156}, "itl_base": {"n": 72, "p50": 2.131200017174706e-05, "p99": 0.06920835900018574, "max": 0.06963056499807863, "mean": 0.022
+{"scn": "longshort", "arm": "4", "d": 2, "rep": 2, "long_ttft": 35.432, "short_ttft": {"s1": 2.014, "s2": 7.587}, "dec_tok_s_in_window": 2.65, "itl_window": {"n": 188, "p50": 0.48269159000119544, "p99": 0.7936399339996569, "max": 0.8089364849984122, "mean": 0.3776435685000019}, "itl_base": {"n": 72, "p50": 2.211199898738414e-05, "p99": 0.06959891700171283, "max": 0.06968738000068697, "mean": 0.022
+{"scn": "longshort", "arm": "4", "d": 2, "rep": 3, "long_ttft": 35.42, "short_ttft": {"s1": 1.99, "s2": 7.541}, "dec_tok_s_in_window": 2.54, "itl_window": {"n": 180, "p50": 0.48451582100096857, "p99": 0.7917177359995549, "max": 0.8138443019997794, "mean": 0.3864502495889004}, "itl_base": {"n": 78, "p50": 2.7760001103160903e-05, "p99": 0.06827461899956688, "max": 0.06880028000159655, "mean": 0.0225
+[02:31:15] min MemAvailable MB (age-42): 02:30:03 49513, KILLED: 0
+[02:31:21] serve age-83: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:33:03] serve age-83 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "8", "d": 2, "rep": 1, "long_ttft": 35.442, "short_ttft": {"s1": 2.044, "s2": 7.626}, "dec_tok_s_in_window": 2.55, "itl_window": {"n": 181, "p50": 0.4876624320022529, "p99": 0.7889329009994981, "max": 0.8092465970003104, "mean": 0.38809375730938905}, "itl_base": {"n": 78, "p50": 2.459199822624214e-05, "p99": 0.06851484200160485, "max": 0.06860813700041035, "mean": 0.022
+{"scn": "longshort", "arm": "8", "d": 2, "rep": 2, "long_ttft": 35.362, "short_ttft": {"s1": 2.007, "s2": 7.577}, "dec_tok_s_in_window": 2.56, "itl_window": {"n": 181, "p50": 0.4870637780004472, "p99": 0.7936119830010284, "max": 0.8096675540000433, "mean": 0.3872389746077147}, "itl_base": {"n": 78, "p50": 1.8512000679038465e-05, "p99": 0.0687300729987328, "max": 0.06903863200204796, "mean": 0.0226
+{"scn": "longshort", "arm": "8", "d": 2, "rep": 3, "long_ttft": 35.514, "short_ttft": {"s1": 2.032, "s2": 7.634}, "dec_tok_s_in_window": 2.62, "itl_window": {"n": 186, "p50": 0.477652975001547, "p99": 0.7939449529985723, "max": 0.8098070550004195, "mean": 0.37569480419892165}, "itl_base": {"n": 72, "p50": 2.8352002118481323e-05, "p99": 0.069151857001998, "max": 0.06922734799809405, "mean": 0.02264
+[02:37:26] min MemAvailable MB (age-83): 02:35:35 49505, KILLED: 0
+[02:37:32] serve age-164: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=16] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:39:22] serve age-164 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "16", "d": 2, "rep": 1, "long_ttft": 35.574, "short_ttft": {"s1": 2.021, "s2": 7.603}, "dec_tok_s_in_window": 2.54, "itl_window": {"n": 181, "p50": 0.49190043899943703, "p99": 0.7978523450001376, "max": 0.8167383010004414, "mean": 0.3901340046464229}, "itl_base": {"n": 72, "p50": 2.460799805703573e-05, "p99": 0.06875959999888437, "max": 0.06886214699989068, "mean": 0.02
+{"scn": "longshort", "arm": "16", "d": 2, "rep": 2, "long_ttft": 35.561, "short_ttft": {"s1": 2.02, "s2": 7.62}, "dec_tok_s_in_window": 2.64, "itl_window": {"n": 188, "p50": 0.4861333730004844, "p99": 0.7956365280006139, "max": 0.8129920410028717, "mean": 0.37901931304257114}, "itl_base": {"n": 72, "p50": 1.886499740066938e-05, "p99": 0.06884621899735066, "max": 0.0691024620027747, "mean": 0.02271
+{"scn": "longshort", "arm": "16", "d": 2, "rep": 3, "long_ttft": 35.445, "short_ttft": {"s1": 2.014, "s2": 7.614}, "dec_tok_s_in_window": 2.57, "itl_window": {"n": 182, "p50": 0.48920286700013094, "p99": 0.7933780169987585, "max": 0.8163601180021942, "mean": 0.3895866916758038}, "itl_base": {"n": 78, "p50": 2.215999847976491e-05, "p99": 0.06859150200034492, "max": 0.06889301000046544, "mean": 0.02
+[02:43:46] min MemAvailable MB (age-164): 02:41:50 49471, KILLED: 0
+[02:43:51] serve age-165: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=16] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:45:38] serve age-165 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "16", "d": 2, "rep": 1, "long_ttft": 35.421, "short_ttft": {"s1": 2.03, "s2": 7.607}, "dec_tok_s_in_window": 2.55, "itl_window": {"n": 181, "p50": 0.4860219149995828, "p99": 0.7933344909979496, "max": 0.8099984709988348, "mean": 0.387878957110496}, "itl_base": {"n": 78, "p50": 2.702399797271937e-05, "p99": 0.06877149200226995, "max": 0.06891944399831118, "mean": 0.02258
+{"scn": "longshort", "arm": "16", "d": 2, "rep": 2, "long_ttft": 35.435, "short_ttft": {"s1": 1.985, "s2": 7.561}, "dec_tok_s_in_window": 2.55, "itl_window": {"n": 181, "p50": 0.4843549519973749, "p99": 0.7916743800014956, "max": 0.8156975480014808, "mean": 0.38804031741989164}, "itl_base": {"n": 78, "p50": 2.0800001948373392e-05, "p99": 0.06905177299995557, "max": 0.06927246199848014, "mean": 0.0
+{"scn": "longshort", "arm": "16", "d": 2, "rep": 3, "long_ttft": 35.389, "short_ttft": {"s1": 2.017, "s2": 7.585}, "dec_tok_s_in_window": 2.64, "itl_window": {"n": 187, "p50": 0.475855421002052, "p99": 0.7884841830018559, "max": 0.8065166960004717, "mean": 0.3757310771657808}, "itl_base": {"n": 72, "p50": 2.4704000679776073e-05, "p99": 0.06843906299764058, "max": 0.06863290299952496, "mean": 0.022
+[02:50:01] min MemAvailable MB (age-165): 02:49:02 49497, KILLED: 0
+[02:50:06] serve age-86: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:51:53] serve age-86 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "8", "d": 2, "rep": 1, "long_ttft": 35.504, "short_ttft": {"s1": 2.062, "s2": 7.654}, "dec_tok_s_in_window": 2.63, "itl_window": {"n": 187, "p50": 0.48243234300025506, "p99": 0.7934692029994039, "max": 0.81016465400171, "mean": 0.3769561096310026}, "itl_base": {"n": 72, "p50": 2.081600177916698e-05, "p99": 0.0700770770017698, "max": 0.07009344499965664, "mean": 0.022675
+{"scn": "longshort", "arm": "8", "d": 2, "rep": 2, "long_ttft": 35.436, "short_ttft": {"s1": 2.013, "s2": 7.622}, "dec_tok_s_in_window": 2.55, "itl_window": {"n": 181, "p50": 0.48765111900138436, "p99": 0.7894097299977147, "max": 0.810927429000003, "mean": 0.38806361593368777}, "itl_base": {"n": 78, "p50": 2.0608000340871513e-05, "p99": 0.06878387699907762, "max": 0.0688489970016235, "mean": 0.022
+{"scn": "longshort", "arm": "8", "d": 2, "rep": 3, "long_ttft": 35.389, "short_ttft": {"s1": 2.014, "s2": 7.588}, "dec_tok_s_in_window": 2.56, "itl_window": {"n": 181, "p50": 0.48733147500024643, "p99": 0.7900897899999109, "max": 0.8136361299984856, "mean": 0.38749193987846986}, "itl_base": {"n": 78, "p50": 2.5471999833825976e-05, "p99": 0.06896641300045303, "max": 0.06897010999819031, "mean": 0.0
+[02:56:18] min MemAvailable MB (age-86): 02:55:39 49492, KILLED: 0
+[02:56:23] serve age-47: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=4] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:58:10] serve age-47 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "4", "d": 2, "rep": 1, "long_ttft": 35.578, "short_ttft": {"s1": 2.071, "s2": 7.674}, "dec_tok_s_in_window": 2.64, "itl_window": {"n": 188, "p50": 0.4899564629995439, "p99": 0.7913224719995924, "max": 0.8139433319993259, "mean": 0.3791666174202158}, "itl_base": {"n": 72, "p50": 2.8384001780068502e-05, "p99": 0.06867114799752017, "max": 0.06874393299949588, "mean": 0.022
+{"scn": "longshort", "arm": "4", "d": 2, "rep": 2, "long_ttft": 35.533, "short_ttft": {"s1": 2.008, "s2": 7.624}, "dec_tok_s_in_window": 2.56, "itl_window": {"n": 182, "p50": 0.48703012599798967, "p99": 0.7942382719993475, "max": 0.8172088879982766, "mean": 0.3905320095054776}, "itl_base": {"n": 78, "p50": 2.7760001103160903e-05, "p99": 0.06882412800041493, "max": 0.06905393499982893, "mean": 0.02
+{"scn": "longshort", "arm": "4", "d": 2, "rep": 3, "long_ttft": 35.46, "short_ttft": {"s1": 2.016, "s2": 7.587}, "dec_tok_s_in_window": 2.62, "itl_window": {"n": 186, "p50": 0.47806702100206167, "p99": 0.7961465810003574, "max": 0.8119243219989585, "mean": 0.37507659166668195}, "itl_base": {"n": 72, "p50": 3.440000000409782e-05, "p99": 0.06976758900054847, "max": 0.06977837299928069, "mean": 0.022
+[03:02:33] min MemAvailable MB (age-47): 03:02:24 49489, KILLED: 0
+[03:02:39] serve age-F8: env [INTARSIA_CB_NO_REUSE=1] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[03:04:25] serve age-F8 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "F", "d": 2, "rep": 1, "long_ttft": 34.065, "short_ttft": {"s1": 33.358, "s2": 32.258}, "dec_tok_s_in_window": 2.99, "itl_window": {"n": 204, "p50": 0.4546632880010293, "p99": 0.788557440002478, "max": 0.8131671160008409, "mean": 0.32756976591176057}, "itl_base": {"n": 78, "p50": 2.0815998141188174e-05, "p99": 0.0688327810021292, "max": 0.06934252499922877, "mean": 0.02
+{"scn": "longshort", "arm": "F", "d": 2, "rep": 2, "long_ttft": 33.934, "short_ttft": {"s1": 33.213, "s2": 32.122}, "dec_tok_s_in_window": 3.02, "itl_window": {"n": 205, "p50": 0.4546358389998204, "p99": 0.7889737090008566, "max": 0.8077708690034342, "mean": 0.32798317413169836}, "itl_base": {"n": 78, "p50": 2.0560000848490745e-05, "p99": 0.06849663000321016, "max": 0.0686046789996908, "mean": 0.0
+{"scn": "longshort", "arm": "F", "d": 2, "rep": 3, "long_ttft": 34.094, "short_ttft": {"s1": 33.376, "s2": 32.285}, "dec_tok_s_in_window": 3.09, "itl_window": {"n": 211, "p50": 0.44355979800093337, "p99": 0.792231825998897, "max": 0.8133132100010698, "mean": 0.3206868929383913}, "itl_base": {"n": 72, "p50": 2.4864002625690773e-05, "p99": 0.06960723399970448, "max": 0.07028961800097022, "mean": 0.0
+[03:08:48] min MemAvailable MB (age-F8): 03:07:09 49479, KILLED: 0
+[03:08:52] done
+fleetq: #10038 done (exit 0)
