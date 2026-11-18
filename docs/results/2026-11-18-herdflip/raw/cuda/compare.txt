@@ -1,0 +1,30 @@
+PASS group on: arms ['on_base', 'on_new', 'on_one', 'on_zero'], 192 replies, 48 prompts, 0 differences
+    info: burst reply == solo reply (first arm seen): 24 of 24 prompts
+PASS group off: arms ['off_base', 'off_new'], 96 replies, 48 prompts, 0 differences
+    info: burst reply == solo reply (first arm seen): 24 of 24 prompts
+PASS inert on_base: cached_tokens of the stagger-0 cell [2048, 2048, 2048, 2048, 2048, 0, 2048, 2048] (sum 14336)
+PASS inert on_zero: cached_tokens of the stagger-0 cell [2048, 2048, 0, 2048, 2048, 2048, 2048, 2048] (sum 14336)
+PASS inert off_new: cached_tokens of the stagger-0 cell [0, 0, 0, 0, 0, 0, 0, 0] (sum 0, must be 0: no store)
+PASS inert off_base: cached_tokens of the stagger-0 cell [0, 0, 0, 0, 0, 0, 0, 0] (sum 0, must be 0: no store)
+PASS engaged on_new: cached_tokens of the stagger-0 cell [16384, 16384, 16384, 16384, 16384, 16384, 0, 16384] (sum 114688 > herd-off store-on max 14336)
+PASS engaged on_one: cached_tokens of the stagger-0 cell [16384, 16384, 0, 16384, 16384, 16384, 16384, 16384] (sum 114688 > herd-off store-on max 14336)
+-- TTFT (burst cells; sum / p50 / last of the requests, seconds)
+on_new     seed 1 stagger/gap 0.0: n 8 sum 26.84 p50 3.35 last 3.92  cached [16384, 16384, 16384, 16384, 16384, 16384, 0, 16384]
+on_new     seed 2 stagger/gap 0.5: n 8 sum 12.96 p50 1.62 last 2.82  cached [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]
+on_new     seed 3 stagger/gap 2.0: n 8 sum 4.88 p50 0.17 last 2.78  cached [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]
+on_base    seed 1 stagger/gap 0.0: n 8 sum 106.86 p50 13.47 last 23.73  cached [2048, 2048, 2048, 2048, 2048, 0, 2048, 2048]
+on_base    seed 2 stagger/gap 0.5: n 8 sum 45.08 p50 6.06 last 6.94  cached [0, 6144, 8192, 12288, 14336, 16384, 16384, 16384]
+on_base    seed 3 stagger/gap 2.0: n 8 sum 5.55 p50 0.17 last 2.80  cached [0, 14336, 16384, 16384, 16384, 16384, 16384, 16384]
+on_zero    seed 1 stagger/gap 0.0: n 8 sum 107.01 p50 13.50 last 23.72  cached [2048, 2048, 0, 2048, 2048, 2048, 2048, 2048]
+on_zero    seed 2 stagger/gap 0.5: n 8 sum 44.94 p50 6.03 last 6.90  cached [0, 6144, 8192, 12288, 14336, 16384, 16384, 16384]
+on_zero    seed 3 stagger/gap 2.0: n 8 sum 5.54 p50 0.17 last 2.79  cached [0, 14336, 16384, 16384, 16384, 16384, 16384, 16384]
+on_one     seed 1 stagger/gap 0.0: n 8 sum 26.90 p50 3.36 last 3.93  cached [16384, 16384, 0, 16384, 16384, 16384, 16384, 16384]
+on_one     seed 2 stagger/gap 0.5: n 8 sum 12.90 p50 1.62 last 2.81  cached [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]
+on_one     seed 3 stagger/gap 2.0: n 8 sum 4.86 p50 0.17 last 2.78  cached [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]
+off_new    seed 1 stagger/gap 0.0: n 8 sum 112.34 p50 14.05 last 25.43  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_new    seed 2 stagger/gap 0.5: n 8 sum 98.73 p50 12.33 last 22.05  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_new    seed 3 stagger/gap 2.0: n 8 sum 54.91 p50 6.85 last 11.26  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_base   seed 1 stagger/gap 0.0: n 8 sum 112.65 p50 14.10 last 25.46  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_base   seed 2 stagger/gap 0.5: n 8 sum 98.81 p50 12.34 last 22.06  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_base   seed 3 stagger/gap 2.0: n 8 sum 55.03 p50 6.86 last 11.28  cached [0, 0, 0, 0, 0, 0, 0, 0]
+gate fails=0
