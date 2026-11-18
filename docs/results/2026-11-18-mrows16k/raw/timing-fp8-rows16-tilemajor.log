@@ -1,0 +1,17 @@
+fleetq: #10060 running on endor: sh -c 'cargo test --release -p intarsia-backend-metal --test rows_exact fp8 -- --nocapture --test-threads 1 2>&1 | grep -a "^test \|fp8\|NEGATIVE\|panicked\|test result\|^error"; cargo test --release -p intarsia-backend-metal --test rows_exact -- --ignored --nocapture timing_fp8_rows16 2>&1 | grep -a "ROWS16 m=\(8\|9\|12\|16\) \|panicked\|test result\|error"'
+test fp8_row_splits_are_bitwise_the_one_row_gemv ... fp8 splits: 2304 cases, 28800 rows compared bitwise
+test fp8_rows16_is_bitwise_the_one_row_gemv ... fp8 rows16: 960 cases, 12000 rows compared bitwise
+NEGATIVE CONTROL fp8 rows16 with rows 11 and 12 swapped: 16336 of 106496 output bytes differ
+NEGATIVE CONTROL fp8 rows16 with q(x) skipped (is = 0): 64292 of 106496 output bytes differ
+test fp8_rows_are_bitwise_the_one_row_gemv ... fp8: 3240 cases, 29160 rows compared bitwise
+test timing_fp8_rows16 ... ignored
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 13 filtered out; finished in 3.93s
+ROWS16 m=8 form=split us=4585 (8192x2048:2138 4096x2048:918 2048x4096:1325 512x2048:204)
+ROWS16 m=9 form=split us=7348 (8192x2048:3405 4096x2048:1490 2048x4096:2099 512x2048:355)
+ROWS16 m=9 form=r16 us=10542 (8192x2048:5030 4096x2048:2144 2048x4096:3100 512x2048:268)
+ROWS16 m=12 form=split us=8252 (8192x2048:3827 4096x2048:1672 2048x4096:2353 512x2048:400)
+ROWS16 m=12 form=r16 us=10502 (8192x2048:5034 4096x2048:2126 2048x4096:3076 512x2048:266)
+ROWS16 m=16 form=split us=8986 (8192x2048:4227 4096x2048:1812 2048x4096:2591 512x2048:356)
+ROWS16 m=16 form=r16 us=10484 (8192x2048:4996 4096x2048:2135 2048x4096:3084 512x2048:270)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 3.20s
+fleetq: #10060 done (exit 0)

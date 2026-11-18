@@ -1,0 +1,338 @@
+diff --git a/crates/intarsia-backend-metal/src/fp8.rs b/crates/intarsia-backend-metal/src/fp8.rs
+index a8688dcd8..2afe38379 100644
+--- a/crates/intarsia-backend-metal/src/fp8.rs
++++ b/crates/intarsia-backend-metal/src/fp8.rs
+@@ -22,7 +22,7 @@ pub const MATMUL_FP8_GEMV_ROWS: &str = "matmul_fp8_gemv_rows";
+ const XPREP: &str = "fp8_xprep_bf16";
+ const XPREP_T: &str = "fp8_xprep_t";
+ /// Shader entry points (kernels/metal/fp8.metal).
+-pub const SHADERS: [&str; 19] = [
++pub const SHADERS: [&str; 21] = [
+     XPREP,
+     "fp8_gemv_bf16_m1",
+     "fp8_gemv_bf16_m8",
+@@ -42,6 +42,9 @@ pub const SHADERS: [&str; 19] = [
+     "fp8_rows_mmt_bf16_neg",
+     "fp8_rows_mmt_f32_neg",
+     W_TO_BF16,
++    // the 16-row tile (R = 2) of the simdgroup-matrix form, `INTARSIA_METAL_FP8_ROWS16` (lane mrows16k)
++    "fp8_rows_mmt_bf16_r2",
++    "fp8_rows_mmt_f32_r2",
+ ];
+ 
+ const W_TO_BF16: &str = "fp8_w_to_bf16";
+@@ -366,8 +369,9 @@ impl MetalBackend {
+         f32_out: bool,
+     ) -> Result<()> {
+         let (m, n, k) = (pdims[0] as usize, pdims[1] as usize, pdims[2] as usize);
+-        if !(2..=GEMV_MB).contains(&m) {
+-            return Err(Error::invalid(format!("metal {MATMUL_FP8_GEMV_ROWS}: M = {m} (2..=8 rows)")));
++        let most = if rows16_active() { 2 * MMT_ROWS } else { GEMV_MB };
++        if !(2..=most).contains(&m) {
++            return Err(Error::invalid(format!("metal {MATMUL_FP8_GEMV_ROWS}: M = {m} (2..={most} rows)")));
+         }
+         let scratch = call.scratch.as_ref().expect("checked by the caller");
+         let xs = self.bind(scratch, DType::U8, true, "scratch")?;
+@@ -440,13 +444,17 @@ impl MetalBackend {
+         f32_out: bool,
+     ) -> Result<()> {
+         let (m, n, k) = (pdims[0] as usize, pdims[1] as usize, pdims[2] as usize);
+-        debug_assert!(m <= MMT_ROWS);
+-        pdims[3] = MMT_ROWS as u32;
+-        let name = match (f32_out, mmt_neg()) {
+-            (false, false) => SHADERS[14],
+-            (true, false) => SHADERS[15],
+-            (false, true) => SHADERS[16],
+-            (true, true) => SHADERS[17],
++        // 9..=16 rows (opt-in): the R = 2 form, q(x) padded to 16 rows
++        let mp = if m > MMT_ROWS { 2 * MMT_ROWS } else { MMT_ROWS };
++        debug_assert!(m <= mp && (mp == MMT_ROWS || rows16_active()));
++        pdims[3] = mp as u32;
++        let name = match (f32_out, mmt_neg(), mp > MMT_ROWS) {
++            (false, false, false) => SHADERS[14],
++            (true, false, false) => SHADERS[15],
++            (false, true, false) => SHADERS[16],
++            (true, true, false) => SHADERS[17],
++            (false, _, true) => SHADERS[19],
++            (true, _, true) => SHADERS[20],
+         };
+         let pso_x = self.pso(XPREP_T).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP_T}'")))?;
+         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
+@@ -466,7 +474,7 @@ impl MetalBackend {
+             }
+             set_bytes(enc, &px, 3);
+             enc.dispatchThreads_threadsPerThreadgroup(
+-                MTLSize { width: k * MMT_ROWS / 2, height: 1, depth: 1 },
++                MTLSize { width: k * mp / 2, height: 1, depth: 1 },
+                 MTLSize { width: tx, height: 1, depth: 1 },
+             );
+             // SAFETY: as above.
+@@ -525,7 +533,9 @@ fn mmt_neg() -> bool {
+ 
+ /// q(x) bytes the `matmul_fp8_gemv_rows` form for M rows reads from the scratch (without the 16 bytes of alignment slack).
+ fn rows_scratch_q(m: usize, k: usize) -> usize {
+-    if m >= mmt_min() {
++    if m > MMT_ROWS {
++        2 * MMT_ROWS * k * 2
++    } else if m >= mmt_min() {
+         MMT_ROWS * k * 2
+     } else {
+         m * k * 2
+@@ -540,7 +550,36 @@ fn xd_on() -> bool {
+ 
+ /// Scratch of `matmul_fp8_gemv_rows`: the q(x) rows (`_xd` form: M rows; simdgroup-matrix form: padded to 8).
+ pub fn rows_scratch(s: &ShapeInfo) -> usize {
+-    s.m.max(MMT_ROWS) * s.k * 2 + 16
++    // 9..=15 rows of the opt-in 16-row form are padded to 16 (only then does the plan's scratch differ from the knob-unset one)
++    let rows = if s.m > MMT_ROWS && rows16_active() { 2 * MMT_ROWS } else { s.m.max(MMT_ROWS) };
++    rows * s.k * 2 + 16
++}
++
++/// `INTARSIA_METAL_FP8_ROWS16=1` (lane mrows16k, opt-in, off by default): a 9..=16-row `matmul_fp8_gemv_rows` call is ONE launch of the
++/// 16-row tile of the simdgroup-matrix form (`fp8_rows_mmt_*_r2`; every row bitwise the one-row launch, tests/rows_exact.rs) instead of the
++/// split of `chunk_sizes` (two launches of 8 or the `FP8_ROWS_PLAN`). Needs the simdgroup-matrix form (`INTARSIA_METAL_FP8_ROWS_MMT` not 0).
++/// The weight pass of the 5..=8-row form costs the same at every M, so the second 8 rows share it.
++pub(crate) fn rows16_enabled() -> bool {
++    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
++    let forced = ROWS16_FORCE.with(|t| t.get());
++    forced.unwrap_or_else(|| *ON.get_or_init(|| std::env::var("INTARSIA_METAL_FP8_ROWS16").is_ok_and(|v| v.trim() == "1")))
++}
++
++/// [`rows16_enabled`] and the simdgroup-matrix form is on (`mmt_min() <= 8`).
++pub(crate) fn rows16_active() -> bool {
++    rows16_enabled() && mmt_min() <= MMT_ROWS
++}
++
++thread_local! {
++    static ROWS16_FORCE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
++}
++
++/// Test hook: run `f` with this thread's 16-row fp8 form forced on or off, whatever the env says.
++pub fn with_fp8_rows16<R>(on: bool, f: impl FnOnce() -> R) -> R {
++    ROWS16_FORCE.with(|t| t.set(Some(on)));
++    let r = f();
++    ROWS16_FORCE.with(|t| t.set(None));
++    r
+ }
+ 
+ /// `INTARSIA_METAL_NEGCTL=fp8_xd`: the `_xd` GEMV with another association on odd blocks (tests only: NOT the solo bits).
+diff --git a/crates/intarsia-backend-metal/src/lib.rs b/crates/intarsia-backend-metal/src/lib.rs
+index 9eb3e7c19..76981e669 100644
+--- a/crates/intarsia-backend-metal/src/lib.rs
++++ b/crates/intarsia-backend-metal/src/lib.rs
+@@ -325,6 +325,9 @@ fn chunk_sizes(kernel: &str, m: usize) -> Option<Vec<usize>> {
+         let plan = MXFP4_ROWS_PLAN.get(m).copied().filter(|p| p.len() > 1)?;
+         return Some(plan.to_vec());
+     }
++    if kernel == fp8::MATMUL_FP8_GEMV_ROWS && m > CHUNK_TILE && fp8::rows16_active() {
++        return None; // one launch of the 16-row tile (INTARSIA_METAL_FP8_ROWS16, lane mrows16k)
++    }
+     if kernel == fp8::MATMUL_FP8_GEMV_ROWS && fp8_rows_split_enabled() {
+         if let Some(plan) = FP8_ROWS_PLAN.get(m).copied().filter(|p| !p.is_empty()) {
+             return Some(plan.to_vec());
+diff --git a/crates/intarsia-backend-metal/tests/rows_exact.rs b/crates/intarsia-backend-metal/tests/rows_exact.rs
+index 160d0784c..a650feefe 100644
+--- a/crates/intarsia-backend-metal/tests/rows_exact.rs
++++ b/crates/intarsia-backend-metal/tests/rows_exact.rs
+@@ -163,6 +163,24 @@ fn fp8_case(
+     f32_out: bool,
+     x_off: usize,
+     seed: u64,
++) {
++    fp8_case_forms(be, w, w_off, n, k, m, is, f32_out, x_off, seed, &[false, true]);
++}
++
++/// [`fp8_case`] over the given forms of the rows kernel (`false`: staged, no scratch; `true`: q(x) prep in the scratch).
++#[allow(clippy::too_many_arguments)]
++fn fp8_case_forms(
++    be: &MetalBackend,
++    w: &Buffer,
++    w_off: usize,
++    n: usize,
++    k: usize,
++    m: usize,
++    is: f32,
++    f32_out: bool,
++    x_off: usize,
++    seed: u64,
++    forms: &[bool],
+ ) {
+     let x = act_rows(m, k, seed);
+     let xb = put_bytes(be, x_off, &bf16_bytes(&x));
+@@ -182,14 +200,15 @@ fn fp8_case(
+     }
+     let tot = yo + m * n * esz + 16;
+     // both forms of the rows kernel: staged (no scratch) and `_xd` (the q(x) prep in the scratch, at a 16-byte offset)
+-    for xd in [false, true] {
++    for &xd in forms {
+         if !xd && 4 * k * 2 > 32768 {
+             continue; // the staged form cannot hold 4 rows of K = 5120
+         }
+         be.upload(&ym, 0, &vec![0xEEu8; tot], 0).unwrap();
+         let mut rows = call(xt.clone(), ymt.clone());
+         if xd {
+-            let need = m.max(8) * k * 2 + 16;
++            // the scratch the launcher needs: q(x) padded to 8 rows, or to 16 for 9..=16 rows (INTARSIA_METAL_FP8_ROWS16)
++            let need = m.next_multiple_of(8) * k * 2 + 16;
+             let sb = be.alloc(need + 32, MemKind::Device).unwrap();
+             // an offset that is 4- but not 16-byte aligned (the launcher realigns inside the 16 bytes of slack)
+             rows.scratch = Some(TensorRef { buf: sb, offset: 4 + 4 * (m % 3), dtype: DType::U8, shape: vec![need] });
+@@ -272,6 +291,68 @@ fn fp8_row_splits_are_bitwise_the_one_row_gemv() {
+     assert!(differing(&dl(&be, &ya, tot), &dl(&be, &yb, tot)) > 0, "a wrong tail slice must not match the one-row launches");
+ }
+ 
++/// Lane mrows16k: the opt-in 16-row form (`INTARSIA_METAL_FP8_ROWS16`: one launch of the R = 2 tile of the simdgroup-matrix kernel for 9..=16
++/// rows) is each row bitwise the one-row launch, at every fp8 shape, both weight layouts (the second with NaN codes), f32 and bf16 out, aligned
++/// and unaligned x, a scratch at an offset that is 4- but not 16-byte aligned, M = 9..=16 (the rows past M of the padded tile must not leak).
++/// Controls: the same launch with two input rows swapped, and with the activation quantisation skipped (is = 0), must NOT match the
++/// is = 0.37 one-row launches, so the comparison can see a wrong 16-row kernel.
++#[test]
++fn fp8_rows16_is_bitwise_the_one_row_gemv() {
++    let be = backend();
++    for (si, &(n, k)) in FP8_SHAPES.iter().enumerate() {
++        for (wi, w_off) in [8usize, 16].into_iter().enumerate() {
++            let w = rand_e4m3(n * k, 80 + si as u64, if wi == 1 { 997 } else { 0 });
++            let wb = put_bytes(&be, w_off, &w);
++            for m in 9..=16usize {
++                for (ii, is) in [0.0f32, 0.37, 2.0].into_iter().enumerate() {
++                    for f32_out in [false, true] {
++                        let x_off = if (m + ii) % 2 == 0 { 0 } else { 2 };
++                        intarsia_backend_metal::fp8::with_fp8_rows16(true, || {
++                            fp8_case_forms(&be, &wb, w_off, n, k, m, is, f32_out, x_off, 1100 + (si * 100 + m * 10 + ii) as u64, &[true])
++                        });
++                    }
++                }
++            }
++        }
++    }
++    report("fp8 rows16");
++    // controls at M = 13 on the 35B's 4096 x 2048
++    let (n, k, m) = (4096usize, 2048usize, 13usize);
++    let wb = put_bytes(&be, 8, &rand_e4m3(n * k, 91, 0));
++    let wt = t(&wb, 8, DType::Fp8E4m3, &[n, k]);
++    let x = act_rows(m, k, 92);
++    let mut xsw = x.clone();
++    xsw[11 * k..12 * k].copy_from_slice(&x[12 * k..13 * k]); // rows 11 and 12 (both in the second 8-row tile) swapped
++    xsw[12 * k..13 * k].copy_from_slice(&x[11 * k..12 * k]);
++    let xt = t(&put_bytes(&be, 0, &bf16_bytes(&x)), 0, DType::Bf16, &[m, k]);
++    let xswt = t(&put_bytes(&be, 0, &bf16_bytes(&xsw)), 0, DType::Bf16, &[m, k]);
++    let st = t(&put_bytes(&be, 4, &f32_bytes(&[0.0123, 0.37])), 4, DType::F32, &[2]);
++    let st0 = t(&put_bytes(&be, 4, &f32_bytes(&[0.0123, 0.0])), 4, DType::F32, &[2]);
++    let run = |x: &TensorRef, sc: &TensorRef, solo: bool| -> Vec<u8> {
++        let y = guarded(&be, 0, m * n * 2);
++        let yt = t(&y, 0, DType::Bf16, &[m, n]);
++        if solo {
++            for r in 0..m {
++                let c = OpCall::new(Op::MatmulFp8, vec![x.rows(r, 1), wt.clone(), sc.clone()], vec![yt.rows(r, 1)], OpAttrs::default());
++                be.launch("matmul_fp8_gemv", &c, 0).unwrap();
++            }
++        } else {
++            let mut c = OpCall::new(Op::MatmulFp8, vec![x.clone(), wt.clone(), sc.clone()], vec![yt], OpAttrs::default());
++            let need = 16 * k * 2 + 16;
++            c.scratch = Some(TensorRef::new(be.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
++            intarsia_backend_metal::fp8::with_fp8_rows16(true, || be.launch("matmul_fp8_gemv_rows", &c, 0).unwrap());
++        }
++        dl(&be, &y, m * n * 2)
++    };
++    let solo = run(&xt, &st, true);
++    assert_eq!(differing(&solo, &run(&xt, &st, false)), 0, "the control setup itself");
++    for (what, got) in [("rows 11 and 12 swapped", run(&xswt, &st, false)), ("q(x) skipped (is = 0)", run(&xt, &st0, false))] {
++        let d = differing(&solo, &got);
++        eprintln!("NEGATIVE CONTROL fp8 rows16 with {what}: {d} of {} output bytes differ", solo.len());
++        assert!(d > 0, "{what}: bitwise equal to the one-row launches, so the gate could not see it");
++    }
++}
++
+ // ---- matmul_nvfp4 ---------------------------------------------------------------------------------------------------
+ 
+ /// (N, K): shared expert gate / up (512 x 2048) and down (2048 x 512), lm_head (248320 x 2048, f32 logits), odd shapes.
+@@ -1575,3 +1656,43 @@ fn timing_chunkx() {
+         }
+     }
+ }
++
++/// Lane mrows16k: `cargo test --release --test rows_exact -- --ignored --nocapture timing_fp8_rows16`: one decode step's `matmul_fp8_gemv_rows`
++/// launches of the 35B (40 x 8192x2048, 30 x 4096x2048, 40 x 2048x4096, 20 x 512x2048; weights cycled through up to 400 MB of copies so they are
++/// not cache-hot) at M = 5..=16 rows through `launch`: today's rule (`split`: halves, or `FP8_ROWS_PLAN` at 9..=12) against the opt-in
++/// 16-row tile (`r16`: one launch). Lines `ROWS16 m=M form=split|r16 us=U` (us per step), then per shape. Run in a quiet fleetq slot.
++#[test]
++#[ignore]
++fn timing_fp8_rows16() {
++    let be = backend();
++    let e = |kx, n, n1, k, f32o, count| KxEnt { kx, n, n1, k, f32o, count };
++    let ents = vec![
++        e(Kx::Fp8, 8192, 0, 2048, false, 40),
++        e(Kx::Fp8, 4096, 0, 2048, false, 30),
++        e(Kx::Fp8, 2048, 0, 4096, false, 40),
++        e(Kx::Fp8, 512, 0, 2048, false, 20),
++    ];
++    let calls: Vec<Vec<OpCall>> = ents.iter().enumerate().map(|(i, en)| kx_calls(&be, en, i)).collect();
++    for m in 5..=16usize {
++        let cur: Vec<Vec<OpCall>> = calls.iter().map(|vs| vs.iter().map(|c| kx_rows(c, 0, m)).collect()).collect();
++        for (form, on) in [("split", false), ("r16", true)] {
++            if on && m <= 8 {
++                continue;
++            }
++            let mut per = Vec::new();
++            let mut tot = 0.0;
++            for (en, vs) in ents.iter().zip(&cur) {
++                let us = intarsia_backend_metal::fp8::with_fp8_rows16(on, || {
++                    time_us(&be, 6, || {
++                        for i in 0..en.count {
++                            be.launch("matmul_fp8_gemv_rows", &vs[i % vs.len()], 0).unwrap();
++                        }
++                    })
++                });
++                tot += us;
++                per.push(format!("{}x{}:{us:.0}", en.n, en.k));
++            }
++            eprintln!("ROWS16 m={m} form={form} us={tot:.0} ({})", per.join(" "));
++        }
++    }
++}
+diff --git a/kernels/metal/fp8.metal b/kernels/metal/fp8.metal
+index 18e6456cc..429cda3be 100644
+--- a/kernels/metal/fp8.metal
++++ b/kernels/metal/fp8.metal
+@@ -279,7 +279,8 @@ FP8_GEMV_XDN(fp8_gemv_f32_m4_xd_neg, 4, 2, 2, float, true)
+ // adjacent rows of one k of the block-transposed q(x) xt[u][k][m] (bf16, MP = 8 R rows, zero padded; fp8_xprep_t).
+ // Layout of a lane's 2 elements of an 8x8 matrix (measured): row (lane & 16 ? 4 : 0) + ((lane >> 1) & 3), columns
+ // ((lane >> 3) & 1) * 4 + (lane & 1) * 2 and + 1. One threadgroup per 8 outputs, all rows; padded to 8 rows, so it costs
+-// the same at M = 2 as at 8 and the launcher keeps the `_xd` form below 5 rows. R = 2 (16 rows) is not instantiated.
++// the same at M = 2 as at 8 and the launcher keeps the `_xd` form below 5 rows. R = 2 (9..=16 rows, MP = 16, lane mrows16k, opt-in
++// `INTARSIA_METAL_FP8_ROWS16`) shares each block's weight decode between 16 rows: the second 8-row tile only adds its MMAs.
+ // NEG (negative control only): the two MMAs of a block in the other order.
+ kernel void fp8_xprep_t(device const ushort* x [[buffer(0)]], device const float* sc [[buffer(1)]],
+                         device uint* xt [[buffer(2)]], constant OpP& p [[buffer(3)]], uint g [[thread_position_in_grid]]) {
+@@ -298,7 +299,10 @@ kernel void fp8_xprep_t(device const ushort* x [[buffer(0)]], device const float
+         }
+         v[i] = b;
+     }
+-    xt[g] = v[0] | (v[1] << 16);
++    // layout xt[u][m / 8][k][m % 8] (tile-major: at MP = 8 this is xt[u][k][m], the same bytes as before; at MP = 16 each 8-row tile of a
++    // block is contiguous, so a lane group's loads stay in 128 contiguous bytes as with one tile)
++    const uint u = kk / 16, k16 = kk % 16;
++    xt[(u * 16 * MP + (m / 8) * 128 + k16 * 8 + (m % 8)) / 2] = v[0] | (v[1] << 16);
+ }
+ 
+ template <typename OutT, bool NEG, int R>
+@@ -339,8 +343,8 @@ inline void fp8_rows_mmt_impl(device const ushort* xt, device const uchar* w, de
+             a2m.thread_elements()[1] = wb[c].y;
+             for (int r = 0; r < R; ++r) {
+                 simdgroup_float8x8 b1m, b2m;
+-                device const ushort* xb = xt + (ulong)u * 16 * MP + fm * MP + fn + 8 * r;
+-                const uint x1 = *(device const uint*)xb, x2 = *(device const uint*)(xb + 8 * MP);
++                device const ushort* xb = xt + (ulong)u * 16 * MP + r * 128 + fm * 8 + fn;
++                const uint x1 = *(device const uint*)xb, x2 = *(device const uint*)(xb + 64);
+                 b1m.thread_elements()[0] = as_type<float>(x1 << 16);  // (k = fm, m = fn), (k = fm, m = fn + 1)
+                 b1m.thread_elements()[1] = as_type<float>(x1 & 0xFFFF0000u);
+                 b2m.thread_elements()[0] = as_type<float>(x2 << 16);  // k = 8 + fm
+@@ -395,6 +399,8 @@ FP8_ROWS_MMT(fp8_rows_mmt_bf16, ushort, false, 1)
+ FP8_ROWS_MMT(fp8_rows_mmt_f32, float, false, 1)
+ FP8_ROWS_MMT(fp8_rows_mmt_bf16_neg, ushort, true, 1)
+ FP8_ROWS_MMT(fp8_rows_mmt_f32_neg, float, true, 1)
++FP8_ROWS_MMT(fp8_rows_mmt_bf16_r2, ushort, false, 2)
++FP8_ROWS_MMT(fp8_rows_mmt_f32_r2, float, false, 2)
+ 
+ // ---- GEMM -------------------------------------------------------------------------------------------------------------
+ 
