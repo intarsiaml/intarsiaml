@@ -24,6 +24,7 @@ for r in $(seq 1 $ROUNDS); do
   for spec in $order; do
     a=${spec%%:*}; e=${spec#*:}
     stop
+    for i in $(seq 1 40); do curl -sf -m 2 http://127.0.0.1:$PORT/health >/dev/null 2>&1 || break; sleep 1; done
     curl -sf -m 2 http://127.0.0.1:$PORT/health >/dev/null 2>&1 && { echo "port $PORT already answers (a server of another run?): stopping"; exit 1; }
     env ${e//+/ } INTARSIA_SPEC_TRACE=1 nohup $BIN serve --backend cuda --model $M35 --model-id m --max-batch 1 --max-seq 8192 --spec mtp --spec-k 2 --profile-every 0 --mem-budget 40 \
       --no-supervisor --host 127.0.0.1 --port $PORT > $O/serve-$a-r$r.log 2>&1 < /dev/null &

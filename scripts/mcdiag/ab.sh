@@ -18,6 +18,7 @@ for r in $(seq 1 $ROUNDS); do
   for spec in $order; do
     a=${spec%%:*}; e=${spec#*:}
     B=$BIN; case $e in *BIN=*) B=$(echo "$e" | tr "+" "\n" | sed -n "s/^BIN=//p"); e=$(echo "$e" | tr "+" "\n" | grep -v "^BIN=" | tr "\n" "+"); [ -n "$e" ] || e=X=1 ;; esac
+    for i in $(seq 1 40); do curl -sf -m 2 http://127.0.0.1:$PORT/health >/dev/null 2>&1 || break; sleep 1; done
     curl -sf -m 2 http://127.0.0.1:$PORT/health >/dev/null 2>&1 && { echo "port $PORT already answers: stopping"; exit 1; }
     SA="--spec mtp --spec-k 2"; [ "$a" = off ] && SA="--spec off"
     env ${e//+/ } nohup $B serve --backend cuda --model $M35 --model-id m --max-batch 1 --max-seq 8192 $SA --profile-every 0 --mem-budget 40 \
