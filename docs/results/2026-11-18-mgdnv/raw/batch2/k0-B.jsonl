@@ -1,0 +1,4 @@
+{"cell": "reason", "tag": "bB1", "rep": 0, "toks": 500, "chunks": 500, "ttft": 0.073, "dec_tps": 127.18, "wall": 3.997, "sha": "7ae37434ccbd"}
+{"cell": "reason", "tag": "bB1", "rep": 1, "toks": 500, "chunks": 500, "ttft": 0.092, "dec_tps": 125.8, "wall": 4.059, "sha": "e54a5640b657"}
+{"cell": "reason", "tag": "bB2", "rep": 0, "toks": 500, "chunks": 500, "ttft": 0.152, "dec_tps": 130.61, "wall": 3.973, "sha": "cc9c34109c01"}
+{"cell": "reason", "tag": "bB2", "rep": 1, "toks": 500, "chunks": 500, "ttft": 0.092, "dec_tps": 125.97, "wall": 4.053, "sha": "c8c3a740f10b"}

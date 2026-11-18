@@ -224,3 +224,94 @@ fn verify_rows_are_bitwise_the_row_by_row_launches_and_saves() {
     }
     println!("MGDNVHASH {hash:016x} saves={saves} calls={calls}");
 }
+
+/// Timing (opt-in: `--ignored`): wall microseconds per layer of the row-by-row verify block (T x conv + delta rule, T - 1 slot copies) against
+/// `gdn_verify_rows`, on the 35B GatedDeltaNet layout (hk 16, hv 32, dv = dk = 128, K = 4), 200 back-to-back calls and one synchronise.
+/// The host encode cost of the one-row calls is included (the engine pays it too). Prints `GDNTIME T rows_us fused_us`.
+#[test]
+#[ignore]
+fn timing_fused_vs_rows() {
+    std::env::set_var("INTARSIA_METAL_GDN_VERIFY_FUSE", "1");
+    let be = backend();
+    let (hk, hv, dv, dk, ks) = (16usize, 32usize, 128usize, 128usize, 4usize);
+    let c = 2 * hk * dk + hv * dv;
+    let mut rng = SplitMix64::new(77);
+    let conv_bytes = c * (ks - 1) * 4;
+    let s_off = conv_bytes.div_ceil(256) * 256;
+    let rec_bytes = s_off + hv * dv * dk * 4;
+    let mut bf = |shape: &[usize], scale: f32| {
+        let n: usize = shape.iter().product();
+        let h = HostTensor::from_f32_as(DType::Bf16, shape, &rng.normal_vec(n, scale));
+        let buf = be.alloc(h.data.len() + 16, MemKind::Device).unwrap();
+        be.upload(&buf, 0, &h.data, 0).unwrap();
+        TensorRef::new(buf, DType::Bf16, shape)
+    };
+    for t in [2usize, 3, 4, 8, 16] {
+        let x = bf(&[t, c], 1.0);
+        let taps = bf(&[c, ks], 0.5);
+        let (a, b) = (bf(&[t, hv], 1.0), bf(&[t, hv], 1.0));
+        let (al, db) = (bf(&[hv], 0.5), bf(&[hv], 0.5));
+        let mk = |n: usize| {
+            let buf = be.alloc(n + 16, MemKind::Device).unwrap();
+            be.zero(&buf, 0).unwrap();
+            buf
+        };
+        let rec = mk(rec_bytes);
+        let conv = TensorRef::new(rec.clone(), DType::F32, &[c, ks - 1]);
+        let mut st = TensorRef::new(rec.clone(), DType::F32, &[hv, dv, dk]);
+        st.offset = s_off;
+        let y = TensorRef::new(mk(t * c * 2), DType::Bf16, &[t, c]);
+        let o = TensorRef::new(mk(t * hv * dv * 2), DType::Bf16, &[t, hv, dv]);
+        let saves: Vec<Buffer> = (0..t - 1).map(|_| mk(rec_bytes)).collect();
+        let sc: Vec<TensorRef> = saves.iter().map(|s| TensorRef::new(s.clone(), DType::F32, &[c, ks - 1])).collect();
+        let ss: Vec<TensorRef> = saves
+            .iter()
+            .map(|s| {
+                let mut w = TensorRef::new(s.clone(), DType::F32, &[hv, dv, dk]);
+                w.offset = s_off;
+                w
+            })
+            .collect();
+        let attrs = OpAttrs { eps: 1e-6, ..Default::default() };
+        let rows = || {
+            for r in 0..t {
+                let cc = OpCall::new(Op::GdnConv, vec![x.rows(r, 1), taps.clone()], vec![y.rows(r, 1), conv.clone()], OpAttrs::default());
+                be.launch("gdn_conv_bf16", &cc, 0).unwrap();
+                let dc = OpCall::new(
+                    Op::GdnDeltaRule,
+                    vec![y.rows(r, 1), a.rows(r, 1), b.rows(r, 1), al.clone(), db.clone()],
+                    vec![o.rows(r, 1), st.clone()],
+                    attrs.clone(),
+                );
+                be.launch("gdn_delta_rule_bf16", &dc, 0).unwrap();
+                if r + 1 < t {
+                    be.copy(&saves[r], 0, &rec, 0, rec_bytes, 0).unwrap();
+                }
+            }
+        };
+        let call = GdnVerifyRows {
+            x: &x, taps: &taps, y: &y, a: &a, b: &b, a_log: &al, dt_bias: &db, eps: 1e-6, o: &o, conv_state: &conv, state: &st,
+            snap_conv: &sc, snap_s: &ss,
+        };
+        let fused = || assert!(be.gdn_verify_rows(&call, 0).unwrap());
+        let time = |f: &dyn Fn()| {
+            let mut best = f64::MAX;
+            for _ in 0..5 {
+                let t0 = std::time::Instant::now();
+                for _ in 0..200 {
+                    f();
+                }
+                be.synchronize(0).unwrap();
+                best = best.min(t0.elapsed().as_secs_f64() * 1e6 / 200.0);
+            }
+            best
+        };
+        rows();
+        fused();
+        be.synchronize(0).unwrap();
+        // alternate so that neither owns the warm-up or a thermal drift
+        let (r1, f1) = (time(&rows), time(&fused));
+        let (f2, r2) = (time(&fused), time(&rows));
+        println!("GDNTIME T={t} rows_us={:.1} fused_us={:.1} ratio={:.2}", r1.min(r2), f1.min(f2), r1.min(r2) / f1.min(f2));
+    }
+}

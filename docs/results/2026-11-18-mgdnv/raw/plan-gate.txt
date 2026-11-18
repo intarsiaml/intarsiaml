@@ -1,0 +1,32 @@
+fleetq: #10068 running on endor: scripts/mgdnv/plan.sh
+base: exit 0 13188 bytes sha a3bb42031070215f
+new: exit 0 13188 bytes sha a3bb42031070215f
+base2: exit 0 13188 bytes sha a3bb42031070215f
+new-n20: exit 0 13188 bytes sha cc3a803ba2f21696
+new-n20L15: exit 0 13189 bytes sha ca5d52ba7fc2f435
+new-n20L7: exit 0 13188 bytes sha cc3a803ba2f21696
+new-on: exit 0 13188 bytes sha a3bb42031070215f
+new-on-n20L15: exit 0 13189 bytes sha ca5d52ba7fc2f435
+base twice: byte-identical (deterministic)
+PASS plan show knob unset: base and new byte-identical
+PASS plan show knob ON: byte-identical to base
+--- base vs new-n20
+530c530
+<             "scratch_bytes": 125696
+---
+>             "scratch_bytes": 330496
+--- base vs new-n20L15
+449c449
+<             "scratch_bytes": 65552
+---
+>             "scratch_bytes": 131088
+530c530
+<             "scratch_bytes": 125696
+---
+>             "scratch_bytes": 658432
+--- base vs new-n20L7
+530c530
+<             "scratch_bytes": 125696
+---
+>             "scratch_bytes": 330496
+fleetq: #10068 done (exit 0)

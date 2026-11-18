@@ -1,0 +1,363 @@
+```json
+[
+  {
+    "id": 1000,
+    "name": "widget-000",
+    "region": "eu",
+    "status": "archived",
+    "tags": [
+      "t0",
+      "t0"
+    ],
+    "price": 9.5,
+    "stock": 40
+  },
+  {
+    "id": 1007,
+    "name": "widget-001",
+    "region": "us",
+    "status": "pending",
+    "tags": [
+      "t1",
+      "t3"
+    ],
+    "price": 10.75,
+    "stock": 53
+  },
+  {
+    "id": 1014,
+    "name": "widget-002",
+    "region": "apac",
+    "status": "active",
+    "tags": [
+      "t2",
+      "t6"
+    ],
+    "price": 12.0,
+    "stock": 66
+  },
+  {
+    "id": 1021,
+    "name": "widget-003",
+    "region": "eu",
+    "status": "archived",
+    "tags": [
+      "t3",
+      "t2"
+    ],
+    "price": 13.25,
+    "stock": 79
+  },
+  {
+    "id": 1028,
+    "name": "widget-004",
+    "region": "us",
+    "status": "active",
+    "tags": [
+      "t4",
+      "t5"
+    ],
+    "price": 14.5,
+    "stock": 92
+  },
+  {
+    "id": 1035,
+    "name": "widget-005",
+    "region": "apac",
+    "status": "pending",
+    "tags": [
+      "t0",
+      "t1"
+    ],
+    "price": 15.75,
+    "stock": 105
+  },
+  {
+    "id": 1042,
+    "name": "widget-006",
+    "region": "eu",
+    "status": "archived",
+    "tags": [
+      "t1",
+      "t4"
+    ],
+    "price": 17.0,
+    "stock": 118
+  },
+  {
+    "id": 1049,
+    "name": "widget-007",
+    "region": "us",
+    "status": "pending",
+    "tags": [
+      "t2",
+      "t0"
+    ],
+    "price": 18.25,
+    "stock": 41
+  },
+  {
+    "id": 1056,
+    "name": "widget-008",
+    "region": "apac",
+    "status": "active",
+    "tags": [
+      "t3",
+      "t3"
+    ],
+    "price": 19.5,
+    "stock": 54
+  },
+  {
+    "id": 1063,
+    "name": "widget-009",
+    "region": "eu",
+    "status": "archived",
+    "tags": [
+      "t4",
+      "t6"
+    ],
+    "price": 20.75,
+    "stock": 67
+  },
+  {
+    "id": 1070,
+    "name": "widget-010",
+    "region": "us",
+    "status": "active",
+    "tags": [
+      "t0",
+      "t2"
+    ],
+    "price": 22.0,
+    "stock": 80
+  },
+  {
+    "id": 1077,
+    "name": "widget-011",
+    "region": "apac",
+    "status": "pending",
+    "tags": [
+      "t1",
+      "t5"
+    ],
+    "price": 23.25,
+    "stock": 93
+  },
+  {
+    "id": 1084,
+    "name": "widget-012",
+    "region": "eu",
+    "status": "archived",
+    "tags": [
+      "t2",
+      "t1"
+    ],
+    "price": 24.5,
+    "stock": 106
+  },
+  {
+    "id": 1091,
+    "name": "widget-013",
+    "region": "us",
+    "status": "pending",
+    "tags": [
+      "t3",
+      "t4"
+    ],
+    "price": 25.75,
+    "stock": 119
+  },
+  {
+    "id": 1098,
+    "name": "widget-014",
+    "region": "apac",
+    "status": "active",
+    "tags": [
+      "t4",
+      "t0"
+    ],
+    "price": 27.0,
+    "stock": 42
+  },
+  {
+    "id": 1105,
+    "name": "widget-015",
+    "region": "eu",
+    "status": "archived",
+    "tags": [
+      "t0",
+      "t3"
+    ],
+    "price": 28.25,
+    "stock": 55
+  },
+  {
+    "id": 1112,
+    "name": "widget-016",
+    "region": "us",
+    "status": "active",
+    "tags": [
+      "t1",
+      "t6"
+    ],
+    "price": 29.5,
+    "stock": 68
+  },
+  {
+    "id": 1119,
+    "name": "widget-017",
+    "region": "apac",
+    "status": "pending",
+    "tags": [
+      "t2",
+      "t2"
+    ],
+    "price": 30.75,
+    "stock": 81
+  },
+  {
+    "id": 1126,
+    "name": "widget-018",
+    "region": "eu",
+    "status": "archived",
+    "tags": [
+      "t3",
+      "t5"
+    ],
+    "price": 32.0,
+    "stock": 94
+  },
+  {
+    "id": 1133,
+    "name": "widget-019",
+    "region": "us",
+    "status": "pending",
+    "tags": [
+      "t4",
+      "t1"
+    ],
+    "price": 33.25,
+    "stock": 107
+  },
+  {
+    "id": 1140,
+    "name": "widget-020",
+    "region": "apac",
+    "status": "active",
+    "tags": [
+      "t0",
+      "t4"
+    ],
+    "price": 34.5,
+    "stock": 120
+  },
+  {
+    "id": 1147,
+    "name": "widget-021",
+    "region": "eu",
+    "status": "archived",
+    "tags": [
+      "t1",
+      "t0"
+    ],
+    "price": 35.75,
+    "stock": 43
+  },
+  {
+    "id": 1154,
+    "name": "widget-022",
+    "region": "us",
+    "status": "active",
+    "tags": [
+      "t2",
+      "t3"
+    ],
+    "price": 37.0,
+    "stock": 56
+  },
+  {
+    "id": 1161,
+    "name": "widget-023",
+    "region": "apac",
+    "status": "pending",
+    "tags": [
+      "t3",
+      "t6"
+    ],
+    "price": 38.25,
+    "stock": 69
+  },
+  {
+    "id": 1168,
+    "name": "widget-024",
+    "region": "eu",
+    "status": "archived",
+    "tags": [
+      "t4",
+      "t2"
+    ],
+    "price": 39.5,
+    "stock": 82
+  },
+  {
+    "id": 1175,
+    "name": "widget-025",
+    "region": "us",
+    "status": "pending",
+    "tags": [
+      "t0",
+      "t5"
+    ],
+    "price": 40.75,
+    "stock": 95
+  },
+  {
+    "id": 1182,
+    "name": "widget-026",
+    "region": "apac",
+    "status": "active",
+    "tags": [
+      "t1",
+      "t1"
+    ],
+    "price": 42.0,
+    "stock": 108
+  },
+  {
+    "id": 1189,
+    "name": "widget-027",
+    "region": "eu",
+    "status": "archived",
+    "tags": [
+      "t2",
+      "t4"
+    ],
+    "price": 43.25,
+    "stock": 121
+  },
+  {
+    "id": 1196,
+    "name": "widget-028",
+    "region": "us",
+    "status": "active",
+    "tags": [
+      "t3",
+      "t0"
+    ],
+    "price": 44.5,
+    "stock": 44
+  },
+  {
+    "id": 1203,
+    "name": "widget-029",
+    "region": "apac",
+    "status": "pending",
+    "tags": [
+      "t4",
+      "t3"
+    ],
+    "price": 45.75,
+    "stock": 57
+  },
+  {
