@@ -1,0 +1,15 @@
+{"cell": "chat-short", "tag": "c3", "rep": 0, "toks": 400, "chunks": 400, "ttft": 0.063, "dec_tps": 180.64, "wall": 2.272, "sha": "0bd964f1fb18"}
+{"cell": "chat-short", "tag": "c3", "rep": 1, "toks": 371, "chunks": 370, "ttft": 0.057, "dec_tps": 181.78, "wall": 2.092, "sha": "63700ffee21f"}
+{"cell": "chat-short", "tag": "c3", "rep": 2, "toks": 369, "chunks": 368, "ttft": 0.057, "dec_tps": 184.06, "wall": 2.057, "sha": "a5121dc2a2c9"}
+{"cell": "code-gen", "tag": "c3", "rep": 0, "toks": 800, "chunks": 800, "ttft": 0.074, "dec_tps": 212.28, "wall": 3.838, "sha": "ee6f34e3a7a3"}
+{"cell": "code-gen", "tag": "c3", "rep": 1, "toks": 800, "chunks": 800, "ttft": 0.063, "dec_tps": 215.16, "wall": 3.776, "sha": "1b99eddd6a40"}
+{"cell": "code-gen", "tag": "c3", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.063, "dec_tps": 210.74, "wall": 3.854, "sha": "078fb1f5583b"}
+{"cell": "reason", "tag": "c3", "rep": 0, "toks": 500, "chunks": 500, "ttft": 0.077, "dec_tps": 218.67, "wall": 2.359, "sha": "8b095a0fa7a9"}
+{"cell": "reason", "tag": "c3", "rep": 1, "toks": 500, "chunks": 500, "ttft": 0.064, "dec_tps": 217.92, "wall": 2.354, "sha": "fcb5df3a74f6"}
+{"cell": "reason", "tag": "c3", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.064, "dec_tps": 217.62, "wall": 2.357, "sha": "1cebe0ba3dc2"}
+{"cell": "agent-edit", "tag": "c3", "rep": 0, "toks": 1200, "chunks": 1200, "ttft": 0.38, "dec_tps": 217.02, "wall": 5.905, "sha": "ceb3d6078b54"}
+{"cell": "agent-edit", "tag": "c3", "rep": 1, "toks": 308, "chunks": 307, "ttft": 0.369, "dec_tps": 215.61, "wall": 1.793, "sha": "d3d0c16ac43c"}
+{"cell": "agent-edit", "tag": "c3", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.369, "dec_tps": 213.86, "wall": 1.804, "sha": "d3d0c16ac43c"}
+{"cell": "copy3k", "tag": "c3", "rep": 0, "toks": 2903, "chunks": 128, "ttft": 0.539, "dec_tps": 211.79, "wall": 14.241, "sha": "4eb925608b0c"}
+{"cell": "copy3k", "tag": "c3", "rep": 1, "toks": 2903, "chunks": 128, "ttft": 0.568, "dec_tps": 210.0, "wall": 14.388, "sha": "4eb925608b0c"}
+{"cell": "copy3k", "tag": "c3", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.596, "dec_tps": 205.88, "wall": 14.692, "sha": "4eb925608b0c"}

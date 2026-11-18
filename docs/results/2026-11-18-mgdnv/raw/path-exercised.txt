@@ -1,0 +1,8 @@
+fleetq: #10072 running on endor: /private/tmp/claude-501/-opt-code-intarsiaml/a9e6e738-26f8-4e34-872e-c7d989747c74/scratchpad/dbgrun.sh
+```mgdnvdbg fused calls 1 by rows [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    "status": "mgdnvdbg fused calls 3000 by rows [0, 0, 0, 990, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2010]
+1200 | prefill 1300 ms (2304.9 tok/s) | decode 4580 ms (261.81 tok/s)
+knob=1 done
+664 ms (4513.6 tok/s) | decode 4047 ms (296.27 tok/s)
+knob=0 done
+fleetq: #10072 done (exit 0)

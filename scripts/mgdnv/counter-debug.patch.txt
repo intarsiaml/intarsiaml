@@ -1,0 +1,15 @@
+Temporary patch (never committed) used for docs/results/2026-11-18-mgdnv/raw/path-exercised.txt and raw/batch2*: in
+crates/intarsia-backend-metal/src/gdn.rs, `gdn_verify_rows_impl`, just before the final `Ok(true)`:
+
+        {
+            static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+            static H: [std::sync::atomic::AtomicUsize; 17] = [const { std::sync::atomic::AtomicUsize::new(0) }; 17];
+            H[t].fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+            if n % 3000 == 0 || n == 1 {
+                let h: Vec<usize> = H.iter().map(|a| a.load(std::sync::atomic::Ordering::Relaxed)).collect();
+                eprintln!("mgdnvdbg fused calls {n} by rows {h:?}");
+            }
+        }
+
+built into a separate target dir (CARGO_TARGET_DIR=target-mgdnv-dbg); the measured A/B and ids runs used the unpatched binary.

@@ -1,0 +1,4 @@
+{"cell": "code-gen", "tag": "bA1", "rep": 0, "toks": 800, "chunks": 800, "ttft": 0.15, "dec_tps": 125.0, "wall": 6.542, "sha": "bdbca1ec7479"}
+{"cell": "code-gen", "tag": "bA1", "rep": 1, "toks": 800, "chunks": 800, "ttft": 0.091, "dec_tps": 171.17, "wall": 4.759, "sha": "7823645111ba"}
+{"cell": "code-gen", "tag": "bA2", "rep": 0, "toks": 800, "chunks": 800, "ttft": 0.075, "dec_tps": 123.03, "wall": 6.57, "sha": "15122490d861"}
+{"cell": "code-gen", "tag": "bA2", "rep": 1, "toks": 800, "chunks": 800, "ttft": 0.091, "dec_tps": 173.19, "wall": 4.705, "sha": "7778442de18e"}
