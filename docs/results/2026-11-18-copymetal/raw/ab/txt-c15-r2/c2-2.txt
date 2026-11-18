@@ -1,0 +1,109 @@
+```python
+# lru_cache.py
+
+class Node:
+    """A node in the doubly linked list."""
+    def __init__(self, key=None, value=None):
+        self.key = key
+        self.value = value
+        self.prev = None
+        self.next = None
+
+
+class LRUCache:
+    """
+    LRU Cache implementation using a doubly linked list and a dictionary.
+    
+    The doubly linked list maintains the order of usage, with the most recently
+    used item at the head and the least recently used item at the tail.
+    The dictionary maps keys to nodes for O(1) access.
+    """
+    
+    def __init__(self, capacity: int):
+        """Initialize the LRU cache with a given capacity."""
+        self.capacity = capacity
+        self.cache = {}  # key -> Node
+        
+        # Sentinel nodes for the doubly linked list
+        self.head = Node()  # Dummy head (most recently used side)
+        self.tail = Node()  # Dummy tail (least recently used side)
+        self.head.next = self.tail
+        self.tail.prev = self.head
+    
+    def _add_to_head(self, node: Node):
+        """Add a node right after the head (most recently used position)."""
+        node.prev = self.head
+        node.next = self.head.next
+        self.head.next.prev = node
+        self.head.next = node
+    
+    def _remove_node(self, node: Node):
+        """Remove a node from the doubly linked list."""
+        prev_node = node.prev
+        next_node = node.next
+        prev_node.next = next_node
+        next_node.prev = prev_node
+    
+    def _move_to_head(self, node: Node):
+        """Move an existing node to the head (most recently used position)."""
+        self._remove_node(node)
+        self._add_to_head(node)
+    
+    def _pop_tail(self) -> Node:
+        """Remove and return the node before the tail (least recently used)."""
+        node = self.tail.prev
+        self._remove_node(node)
+        return node
+    
+    def get(self, key) -> any:
+        """
+        Get the value for the given key.
+        Returns -1 if the key is not present.
+        Marks the key as recently used.
+        """
+        if key in self.cache:
+            node = self.cache[key]
+            self._move_to_head(node)
+            return node.value
+        return -1
+    
+    def put(self, key, value):
+        """
+        Insert or update the key-value pair.
+        If the cache is at capacity, evict the least recently used item.
+        """
+        if key in self.cache:
+            # Update existing key
+            node = self.cache[key]
+            node.value = value
+            self._move_to_head(node)
+        else:
+            # Create new node
+            node = Node(key, value)
+            self.cache[key] = node
+            self._add_to_head(node)
+            
+            # If capacity exceeded, remove the least recently used item
+            if len(self.cache) > self.capacity:
+                lru_node = self._pop_tail()
+                del self.cache[lru_node.key]
+    
+    def delete(self, key):
+        """Delete the key from the cache if it exists."""
+        if key in self.cache:
+            node = self.cache[key]
+            self._remove_node(node)
+            del self.cache[key]
+    
+    def __len__(self):
+        """Return the number of items in the cache."""
+        return len(self.cache)
+```
+
+```python
+# test_lru_cache.py
+
+import pytest
+from lru_cache import LRUCache
+
+
