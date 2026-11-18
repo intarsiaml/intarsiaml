@@ -49,7 +49,7 @@ const DN_P: &str = "moe_dec_dn_p";
 const GU_P_NEG: &str = "moe_dec_gu_p_neg";
 const DN_P_NEG: &str = "moe_dec_dn_p_neg";
 const PR: usize = 2;
-/// The fat kernels with the arithmetic e2m1 decode, for 9..=16-token calls under `INTARSIA_METAL_VERIFY16=1` (lane mmoe16).
+/// The fat kernels with the arithmetic e2m1 decode, for 9..=16-token calls unless `INTARSIA_METAL_VERIFY16=0` (lane mmoe16, default-on since lane mlen15).
 const GU_A: &str = "moe_dec_gu_a";
 const DN_A: &str = "moe_dec_dn_a";
 
@@ -238,7 +238,7 @@ impl MetalBackend {
             // no sort pass: a threadgroup row per pair, the first pair of each expert serves all the pairs of that expert (two
             // kernels read each expert's weights once for all of them), moe_gather sums per token in k order (as moe_dec_dn does)
             let yb = at(&sc, o_y);
-            // 9..=16 tokens under INTARSIA_METAL_VERIFY16=1: the same kernels with the arithmetic e2m1 decode (bitwise equal)
+            // 9..=16 tokens unless INTARSIA_METAL_VERIFY16=0: the same kernels with the arithmetic e2m1 decode (bitwise equal)
             let ((gu, rg), (dn, rd)) = if (9..=crate::CHUNK_ROWS_MAX).contains(&t) && crate::verify16_enabled() {
                 ((GU_A, PR), (DN_A, PR))
             } else {

@@ -285,13 +285,13 @@ pub fn with_mxfp4_rows_chunk<R>(on: bool, f: impl FnOnce() -> R) -> R {
     r
 }
 
-/// `INTARSIA_METAL_VERIFY16=1` (lane mmoe16, opt-in): 9..=16-row calls (the copy-chain verify pass of up to 16 rows) take the
+/// `INTARSIA_METAL_VERIFY16` (lane mmoe16; on since lane mlen15: unset: on, `0`: off, `1`: on): 9..=16-row calls (the copy-chain verify pass of up to 16 rows) take the
 /// cheaper bitwise-equal kernels: `moe_experts_bf16_rows` decodes the e2m1 codes by bit arithmetic instead of a constant table
-/// (`moe_dec_gu_a` / `moe_dec_dn_a`). Unset or anything but `1`: today's kernels. Read once per process.
+/// (`moe_dec_gu_a` / `moe_dec_dn_a`). `0`: the old kernels. Read once per process.
 pub fn verify16_enabled() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     let forced = VERIFY16_FORCE.with(|t| t.get());
-    forced.unwrap_or_else(|| *ON.get_or_init(|| std::env::var("INTARSIA_METAL_VERIFY16").is_ok_and(|v| v == "1")))
+    forced.unwrap_or_else(|| *ON.get_or_init(|| std::env::var("INTARSIA_METAL_VERIFY16").map_or(true, |v| v != "0")))
 }
 
 thread_local! {
