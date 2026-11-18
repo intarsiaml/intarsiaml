@@ -1,4 +1,4 @@
-fleetq: #10274 running on endor: scripts/copyflipm/plan.sh
+fleetq: #10303 running on endor: scripts/copyflipm/plan.sh
 base-mb1: exit 0 13188 bytes sha a3bb42031070215f
 new-mb1: exit 0 13189 bytes sha ca5d52ba7fc2f435
 base-mb1-c20: exit 0 13189 bytes sha ca5d52ba7fc2f435
@@ -21,8 +21,9 @@ new-ns-c0: exit 0 13188 bytes sha a3bb42031070215f
 base-ns-sd0: exit 0 11384 bytes sha c61acc4d0bbc1c31
 new-ns-sd0: exit 0 11384 bytes sha c61acc4d0bbc1c31
 base-27-ns: exit 0 15041 bytes sha 4895faa3e1ab140e
-new-27-ns: exit 0 15042 bytes sha 1a60de602dc6738e
+new-27-ns: exit 0 15041 bytes sha 4895faa3e1ab140e
 base-27-ns-c20: exit 0 15042 bytes sha 1a60de602dc6738e
+new-27-ns-c20: exit 0 15042 bytes sha 1a60de602dc6738e
 new-27-ns-c0: exit 0 15041 bytes sha 4895faa3e1ab140e
 base-27-off: exit 0 13242 bytes sha ca0092409c462a5d
 new-27-off: exit 0 13242 bytes sha ca0092409c462a5d
@@ -39,9 +40,9 @@ PASS plan (f) no --spec (recipe MTP default), 35B: default == base =20: base-ns-
 PASS plan (f2) no --spec, 35B: default differs from base unset: base-ns != new-ns (as intended)
 PASS plan (f3) no --spec, 35B: =0 == base unset: base-ns == new-ns-c0 (exit 0)
 PASS plan (g) INTARSIA_SPEC_DEFAULT=0, 35B: unchanged: base-ns-sd0 == new-ns-sd0 (exit 0)
-PASS plan (h) no --spec, Qwen3.8-27B: default == base =20: base-27-ns-c20 json == new-27-ns json
-PASS plan (h2) no --spec, 27B: default differs from base unset: base-27-ns != new-27-ns (as intended)
+PASS plan (h) no --spec, Qwen3.8-27B: unset byte-identical to base unset (the recipe does not opt in): base-27-ns == new-27-ns (exit 0)
+PASS plan (h2) 27B explicit =20 unchanged: base-27-ns-c20 == new-27-ns-c20 (exit 0)
 PASS plan (h3) no --spec, 27B: =0 == base unset: base-27-ns == new-27-ns-c0 (exit 0)
 PASS plan (h4) --spec off, 27B: unchanged: base-27-off == new-27-off (exit 0)
 plan fails=0; cpu exit base/new 0/0
-fleetq: #10274 done (exit 0)
+fleetq: #10303 done (exit 0)

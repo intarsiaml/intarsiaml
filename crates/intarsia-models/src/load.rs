@@ -824,8 +824,14 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let backend_cap = backends.first().map_or(intarsia_core::engine::SERVE_MAX_BATCH, |b| b.batch_row_cap());
     let max_batch = recipe.resolve_max_batch(opts.max_batch, if opts.max_batch.is_some() { backend_cap } else { 1 })?;
     // lane copyflipm: with `INTARSIA_SPEC_COPY` unset, copy drafts are on exactly where `copy_default_applies` says (Metal, one sequence,
-    // one rank); anywhere else unset stays off, silently. Recorded here, where `max_batch` is known and before any `SpecConfig::verify_rows`.
-    intarsia_core::spec::set_copy_default(intarsia_core::spec::copy_default_applies(backend_name, max_batch.value, if local { backends.len() } else { 2 /* a group with a rank in another process is tp > 1 */ }));
+    // one rank, and the recipe's `[tuning.metal] copy_default`: the Qwen3.6-35B-A3B); anywhere else unset stays off, silently. Recorded here,
+    // where `max_batch` is known and before any `SpecConfig::verify_rows`.
+    intarsia_core::spec::set_copy_default(intarsia_core::spec::copy_default_applies(
+        backend_name,
+        max_batch.value,
+        if local { backends.len() } else { 2 /* a group with a rank in another process is tp > 1 */ },
+        recipe.resolve_copy_default(backend_name),
+    ));
     // Hybrid models (GatedDeltaNet, MoE, gated attention) batch on CUDA and HIP whenever `--max-batch N` asks (its `_rows` kernels are
     // proven row-exact, docs/results/2026-10-23-rb2-cuda-batching.md); the cpu reference needs the explicit opt-in
     // `INTARSIA_RECURRENT_BATCH=1` (docs/results/2026-10-23-rb-recurrent-batching.md). Every other backend is refused.

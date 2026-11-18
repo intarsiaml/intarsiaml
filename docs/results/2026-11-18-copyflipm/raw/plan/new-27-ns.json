@@ -638,7 +638,7 @@
       "exactness": "deterministic",
       "admitted": false,
       "calls_per_decode_step": 0,
-      "scratch_bytes": 163856
+      "scratch_bytes": 81936
     },
     {
       "op": "matmul_fp8",
@@ -737,7 +737,7 @@
       "exactness": "deterministic",
       "admitted": false,
       "calls_per_decode_step": 0,
-      "scratch_bytes": 557072
+      "scratch_bytes": 104464
     },
     {
       "op": "matmul_mxfp4",

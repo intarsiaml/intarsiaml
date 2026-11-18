@@ -520,10 +520,12 @@ pub const COPY_DEFAULT_VALUE: &str = "20";
 static COPY_DEFAULT_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Whether an unset `INTARSIA_SPEC_COPY` means copy drafts on for the model being loaded (lane copyflipm): Metal, one sequence at a time
-/// (`max_batch` 1), one rank (`tp` 1). Anywhere else the variable unset is off, as before. Pure; the loader passes its answer to
-/// [`set_copy_default`].
-pub fn copy_default_applies(backend: &str, max_batch: usize, tp: usize) -> bool {
-    backend == "metal" && max_batch == 1 && tp == 1
+/// (`max_batch` 1), one rank (`tp` 1), and the model's recipe opts in (`recipe_opt_in`: `[tuning.metal] copy_default = true`, the
+/// Qwen3.6-35B-A3B only; a recipe without the key is off). Anywhere else the variable unset is off, as before. Pure; the loader passes its
+/// answer to [`set_copy_default`]. (`--spec mtp` is not an input: [`SpecConfig::verify_rows`] and the engine already ignore copy drafts
+/// without it.)
+pub fn copy_default_applies(backend: &str, max_batch: usize, tp: usize, recipe_opt_in: bool) -> bool {
+    backend == "metal" && max_batch == 1 && tp == 1 && recipe_opt_in
 }
 
 /// Record whether the load qualifies for the default ([`copy_default_applies`]). Off until the loader says otherwise, so any other
@@ -2475,13 +2477,14 @@ mod tests {
     }
 
     #[test]
-    fn copy_default_applies_only_to_metal_one_sequence_one_rank() {
-        assert!(copy_default_applies("metal", 1, 1));
-        assert!(!copy_default_applies("metal", 2, 1));
-        assert!(!copy_default_applies("metal", 8, 1));
-        assert!(!copy_default_applies("metal", 1, 2));
+    fn copy_default_applies_only_to_metal_one_sequence_one_rank_and_an_opted_in_recipe() {
+        assert!(copy_default_applies("metal", 1, 1, true));
+        assert!(!copy_default_applies("metal", 1, 1, false), "a recipe without the key: off");
+        assert!(!copy_default_applies("metal", 2, 1, true));
+        assert!(!copy_default_applies("metal", 8, 1, true));
+        assert!(!copy_default_applies("metal", 1, 2, true));
         for b in ["cuda", "hip", "cpu"] {
-            assert!(!copy_default_applies(b, 1, 1), "{b}");
+            assert!(!copy_default_applies(b, 1, 1, true), "{b}");
         }
     }
 

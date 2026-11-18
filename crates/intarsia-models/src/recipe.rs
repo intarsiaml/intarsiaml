@@ -133,6 +133,19 @@ mod tests {
         assert_eq!(select_recipe(&cfg, &[]).unwrap().0, "builtin:qwen3_5");
     }
 
+    /// Lane copyflipm: the copy-draft default (`[tuning.<backend>] copy_default`) is opted into by the Qwen3.6-35B-A3B recipe on Metal and by no other
+    /// built-in recipe or backend (the Qwen3.8-27B, `qwen3_5_vl`, was measured and left out).
+    #[test]
+    fn only_the_35b_recipe_opts_into_the_copy_default_on_metal() {
+        for (name, text) in BUILTIN_RECIPES {
+            let r = parse_recipe(text).unwrap();
+            for backend in ["metal", "cuda", "hip", "cpu"] {
+                let want = *name == "qwen3_5_moe" && backend == "metal";
+                assert_eq!(r.resolve_copy_default(backend), want, "{name} on {backend}");
+            }
+        }
+    }
+
     #[test]
     fn unknown_recipe_key_is_rejected_naming_the_key_and_the_valid_ones() {
         let text = include_str!("../../../recipes/qwen3.toml").replace("kv_dtype =", "kv_dtyp =");

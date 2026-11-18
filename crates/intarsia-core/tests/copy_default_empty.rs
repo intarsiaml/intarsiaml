@@ -5,6 +5,6 @@ use intarsia_core::spec::{copy_default_applies, copy_from_env, set_copy_backend,
 fn empty_is_off_on_metal_one_sequence() {
     std::env::set_var("INTARSIA_SPEC_COPY", "");
     set_copy_backend("metal");
-    set_copy_default(copy_default_applies("metal", 1, 1));
+    set_copy_default(copy_default_applies("metal", 1, 1, true));
     assert!(copy_from_env().is_none());
 }
