@@ -1,0 +1,79 @@
+base: exit 0 13188 bytes sha a3bb42031070215f
+new: exit 0 13188 bytes sha a3bb42031070215f
+base-c20: exit 0 13188 bytes sha cc3a803ba2f21696
+base-c20-15: exit 0 13189 bytes sha ca5d52ba7fc2f435
+new-c20: exit 0 13189 bytes sha ca5d52ba7fc2f435
+new-c20-15: exit 0 13189 bytes sha ca5d52ba7fc2f435
+new-c20-7: exit 0 13188 bytes sha cc3a803ba2f21696
+base-c20-7: exit 0 13188 bytes sha cc3a803ba2f21696
+PASS plan: base == new
+PASS plan: base-c20 != new-c20 (as intended)
+PASS plan: base-c20-15 == new-c20
+PASS plan: base-c20-15 == new-c20-15
+PASS plan: base-c20-7 == new-c20-7
+PASS plan: base-c20 == new-c20-7
+plan fails=0
+-- copy3k off
+exit 0
+finish=stop prompt=2969 (cached 0) completion=2903 | prefill 999 ms (2970.9 tok/s) | decode 24056 ms (120.64 tok/s)
+-- copy3k def
+exit 0
+PASS len copy3k def: chain of up to 15 tokens
+spec: copy pass 16 rows 37.762 ms at 1795023861.651
+spec: copy chain passes=180 proposed=2700 accepted=2680 (not in the verify passes below)
+finish=stop prompt=2969 (cached 0) completion=2903 | prefill 651 ms (4558.3 tok/s) | decode 6578 ms (441.14 tok/s)
+-- copy3k v0
+exit 0
+PASS len copy3k v0: chain of up to 15 tokens
+spec: copy pass 16 rows 41.519 ms at 1795023872.766
+spec: copy chain passes=180 proposed=2700 accepted=2680 (not in the verify passes below)
+finish=stop prompt=2969 (cached 0) completion=2903 | prefill 670 ms (4430.0 tok/s) | decode 7121 ms (407.53 tok/s)
+-- copy3k base20
+exit 0
+PASS len copy3k base20: chain of up to 7 tokens
+spec: copy pass 8 rows 22.490 ms at 1795023884.682
+spec: copy chain passes=359 proposed=2513 accepted=2501 (not in the verify passes below)
+finish=stop prompt=2969 (cached 0) completion=2903 | prefill 691 ms (4294.0 tok/s) | decode 7843 ms (370.00 tok/s)
+PASS ids copy3k: 2902 ids identical (off = default = VERIFY16=0 = base len7)
+-- json-xform off
+exit 0
+finish=length prompt=2997 (cached 0) completion=2600 | prefill 698 ms (4290.7 tok/s) | decode 21790 ms (119.27 tok/s)
+-- json-xform def
+exit 0
+PASS len json-xform def: chain of up to 15 tokens
+spec: copy pass 15 rows 38.318 ms at 1795023922.298
+spec: copy chain passes=183 proposed=2744 accepted=2233 (not in the verify passes below)
+finish=length prompt=2997 (cached 0) completion=2600 | prefill 697 ms (4297.5 tok/s) | decode 8200 ms (316.94 tok/s)
+-- json-xform v0
+exit 0
+PASS len json-xform v0: chain of up to 15 tokens
+spec: copy pass 15 rows 36.747 ms at 1795023933.916
+spec: copy chain passes=183 proposed=2744 accepted=2233 (not in the verify passes below)
+finish=length prompt=2997 (cached 0) completion=2600 | prefill 665 ms (4507.8 tok/s) | decode 7650 ms (339.73 tok/s)
+-- json-xform base20
+exit 0
+PASS len json-xform base20: chain of up to 7 tokens
+spec: copy pass 7 rows 22.827 ms at 1795023945.544
+spec: copy chain passes=323 proposed=2260 accepted=2093 (not in the verify passes below)
+finish=length prompt=2997 (cached 0) completion=2600 | prefill 651 ms (4603.0 tok/s) | decode 7757 ms (335.05 tok/s)
+PASS ids json-xform: 2600 ids identical (off = default = VERIFY16=0 = base len7)
+-- code-gen off
+exit 0
+finish=length prompt=69 (cached 0) completion=500 | prefill 398 ms (173.2 tok/s) | decode 3996 ms (124.87 tok/s)
+-- code-gen def
+exit 0
+PASS len code-gen def: chain of up to 15 tokens
+spec: copy drafts on: a chain of up to 15 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)
+finish=length prompt=69 (cached 0) completion=500 | prefill 428 ms (161.4 tok/s) | decode 2448 ms (203.82 tok/s)
+-- code-gen v0
+exit 0
+PASS len code-gen v0: chain of up to 15 tokens
+spec: copy drafts on: a chain of up to 15 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)
+finish=length prompt=69 (cached 0) completion=500 | prefill 2126 ms (32.5 tok/s) | decode 2340 ms (213.27 tok/s)
+-- code-gen base20
+exit 0
+PASS len code-gen base20: chain of up to 7 tokens
+spec: copy drafts on: a chain of up to 7 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)
+finish=length prompt=69 (cached 0) completion=500 | prefill 429 ms (160.9 tok/s) | decode 2440 ms (204.51 tok/s)
+PASS ids code-gen: 500 ids identical (off = default = VERIFY16=0 = base len7)
+gate fails=0 plan_fails=0
