@@ -543,6 +543,15 @@ impl MetalBackend {
         }
     }
 
+    /// Profiling only: label the dispatch about to be encoded outside [`Backend::launch`] (which labels every ordinary
+    /// launch), so the trace does not charge it to a stale or missing label. `t` = rows. A no-op when profiling is off.
+    pub(crate) fn prof_label(&self, op: &str, t: usize) {
+        let mut st = self.stream.lock().unwrap();
+        if st.prof.is_some() {
+            st.label = Some(profile::Label { op: op.to_string(), t, ..Default::default() });
+        }
+    }
+
     pub fn new() -> Result<MetalBackend> {
         Self::with_metal4(std::env::var_os("INTARSIA_METAL_NO_METAL4").is_none_or(|v| v.is_empty() || v == "0"))
     }
@@ -996,7 +1005,7 @@ impl Backend for MetalBackend {
 
     /// The GPU address of byte 0 of `buf`; the buffer joins the set declared resident for row-table dispatches.
     /// Lane mgdnv: the speculative-verify GatedDeltaNet rows with their rollback saves in two dispatches (opt-in:
-    /// `INTARSIA_METAL_GDN_VERIFY_FUSE=1`; see `gdn.rs`). `Ok(false)` otherwise, nothing encoded.
+    /// `INTARSIA_METAL_GDN_VERIFY_FUSE`, on unless `0`; see `gdn.rs`). `Ok(false)` otherwise, nothing encoded.
     fn gdn_verify_rows(&self, call: &intarsia_core::GdnVerifyRows<'_>, _stream: StreamId) -> Result<bool> {
         self.gdn_verify_rows_impl(call)
     }
