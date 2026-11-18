@@ -5,6 +5,14 @@ Prints mean step ms before / after the split (the first --skip steps dropped: th
 the mean step by windows of --win steps. usage: steps.py [--at POS] [--skip N] [--win N] FILE..."""
 import re, sys, argparse
 
+import gzip
+
+
+def opn(fn):
+    return gzip.open(fn, "rt", errors="replace") if fn.endswith(".gz") else open(fn, errors="replace")
+
+
+
 ap = argparse.ArgumentParser()
 ap.add_argument("files", nargs="+")
 ap.add_argument("--at", type=int)
@@ -15,7 +23,7 @@ G = re.compile(r"^spec: mtp graph step ([\d.]+) ms gap ([\d.]+) ms n (\d+) len (
 C = re.compile(r"^spec: copy token \d+ pos (\d+)")
 for fn in a.files:
     steps, chains = [], []
-    for l in open(fn, errors="replace"):
+    for l in opn(fn):
         m = G.match(l)
         if m:
             steps.append((float(m.group(1)), float(m.group(2)), int(m.group(3)), int(m.group(4)), int(m.group(5))))

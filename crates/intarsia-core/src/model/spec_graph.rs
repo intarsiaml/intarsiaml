@@ -578,8 +578,9 @@ impl Model {
             && self.graphs.usable(self)
             && self.graphs.spec_fail.load(Ordering::Relaxed) < SPEC_CAPTURE_FAILURES_MAX
             && self.backend.verify_attn_per_row()
-            // HIP only so far: there it is measured (lane dfh window 2); CUDA and Metal keep the eager pass until someone measures them
-            && self.backend.name() == "hip"
+            // HIP (measured, lane dfh window 2) and, opt-in like everything behind `INTARSIA_VERIFY_GRAPH`, CUDA (lane mcdiag: the copy chains'
+            // 8-row pass, which the captured MTP step does not cover); Metal keeps the eager pass
+            && matches!(self.backend.name(), "hip" | "cuda")
             && self.recorder.lock().unwrap().is_none()
             && self.tp.world == 1
             && self.peers.is_empty()

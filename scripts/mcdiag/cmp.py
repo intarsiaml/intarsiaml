@@ -6,6 +6,14 @@ position of the first `spec: copy token` line of the first probe file when omitt
 usage: cmp.py --base F1 [F2..] --probe G1 [G2..] [--bin 50] [--chain-pos P]"""
 import re, sys, argparse, collections
 
+import gzip
+
+
+def opn(fn):
+    return gzip.open(fn, "rt", errors="replace") if fn.endswith(".gz") else open(fn, errors="replace")
+
+
+
 ap = argparse.ArgumentParser()
 ap.add_argument("--base", nargs="+", required=True)
 ap.add_argument("--probe", nargs="+", required=True)
@@ -19,7 +27,7 @@ C = re.compile(r"^spec: copy token \d+ pos (\d+)")
 
 def load(fn):
     st, ch = [], None
-    for l in open(fn, errors="replace"):
+    for l in opn(fn):
         m = G.match(l)
         if m:
             st.append((int(m.group(4)), float(m.group(1))))

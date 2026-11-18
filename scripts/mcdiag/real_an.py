@@ -6,6 +6,11 @@ server of the round (same prompt, greedy: same tokens and positions; a bin is co
 slowdown of the issue would show as n20 `seen` bins well above n20 `not seen` bins and above n256.
 usage: real_an.py DIR [--bin 50] [--lo 100] [--hi 800] [--warm 2] [--base base]"""
 import re, sys, glob, argparse, collections, statistics as st
+import gzip
+
+
+def opn(fn):
+    return gzip.open(fn, "rt", errors="replace") if fn.endswith(".gz") else open(fn, errors="replace")
 
 ap = argparse.ArgumentParser()
 ap.add_argument("dir")
@@ -24,7 +29,7 @@ def parse(fn):
     reqs, last, chains_before = [], -1, 0
     cur = None
     seen_total = 0
-    for l in open(fn, errors="replace"):
+    for l in opn(fn):
         g = G.match(l)
         if g:
             pos = int(g.group(4))
@@ -54,8 +59,8 @@ def parse(fn):
 
 
 runs = {}
-for fn in sorted(glob.glob(f"{a.dir}/serve-*-r*.log")):
-    m = re.search(r"serve-(.+)-r(\d+)\.log$", fn)
+for fn in sorted(glob.glob(f"{a.dir}/serve-*-r*.log*")):
+    m = re.search(r"serve-(.+)-r(\d+)\.log(?:\.gz)?$", fn)
     runs[(m.group(1), int(m.group(2)))] = parse(fn)[a.warm:]
 arms = sorted({k[0] for k in runs} - {a.base})
 binmean = lambda steps: {b: (sum(x) / len(x), len(x), seen[-1]) for b, (x, seen) in

@@ -5,6 +5,11 @@
 the same positions), averaged over PRE requests, over POST requests, and their difference (the carry-over of the event, in ms per step).
 usage: serve2_an.py DIR [--base base] [--pre 6] [--post 6] [--lo 100] [--hi 370]"""
 import re, sys, glob, argparse, collections, statistics as st
+import gzip
+
+
+def opn(fn):
+    return gzip.open(fn, "rt", errors="replace") if fn.endswith(".gz") else open(fn, errors="replace")
 
 ap = argparse.ArgumentParser()
 ap.add_argument("dir")
@@ -16,11 +21,11 @@ ap.add_argument("--hi", type=int, default=370)
 a = ap.parse_args()
 G = re.compile(r"^spec: mtp graph step ([\d.]+) ms gap ([\d.]+) ms n (\d+) len (\d+)")
 data = {}  # (arm, round) -> list of per-request mean ms over [lo, hi)
-for fn in sorted(glob.glob(f"{a.dir}/serve-*-r*.log")):
-    m = re.search(r"serve-(.+)-r(\d+)\.log$", fn)
+for fn in sorted(glob.glob(f"{a.dir}/serve-*-r*.log*")):
+    m = re.search(r"serve-(.+)-r(\d+)\.log(?:\.gz)?$", fn)
     arm, rnd = m.group(1), int(m.group(2))
     reqs, last = [[]], -1
-    for l in open(fn, errors="replace"):
+    for l in opn(fn):
         g = G.match(l)
         if g:
             pos = int(g.group(4))
