@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# sjfflip: build the CUDA CLI of a git ref on spark1 into ~/intarsiaml-sjfflip/bin/intarsia-<tag> (one src dir and one target dir, so the
-# second build is incremental). Run under: fleetq run --host spark1 --load cpu --mem 40 --expect 45 --label "sjfflip build <tag>" -- scripts/sjfflip/build.sh <tag> <ref>
+# sjfflip: build the CUDA CLI of a git ref on spark1 into ~/intarsiaml-sjf/bin/intarsia-<tag> (the warm src and target dir of lane sjf,
+# so the builds are incremental). Run under: fleetq run --host spark1 --load cpu --mem 40 --expect 45 --label "sjfflip build <tag>" -- scripts/sjfflip/build.sh <tag> <ref>
 #   tag main: ref origin/main (the merge base of the branch), tag new: HEAD.
 set -euo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 TAG=${1:?tag}; REF=${2:?git ref}
 REPO="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
-L='~/intarsiaml-sjfflip'; R="$L/src"
+L='~/intarsiaml-sjf'; R="$L/src"
 RPATH='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'
 rsh() { ssh -n -o BatchMode=yes spark1 "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 SHA=$(git -C "$REPO" rev-parse "$REF"); STAMP="sjfflip-$TAG-${SHA:0:12}"
