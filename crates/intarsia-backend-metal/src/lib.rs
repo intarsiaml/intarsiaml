@@ -522,6 +522,15 @@ impl MetalBackend {
         }
     }
 
+    /// Profiling only: label the dispatch about to be encoded outside [`Backend::launch`] (which labels every ordinary
+    /// launch), so the trace does not charge it to a stale or missing label. `t` = rows. A no-op when profiling is off.
+    pub(crate) fn prof_label(&self, op: &str, t: usize) {
+        let mut st = self.stream.lock().unwrap();
+        if st.prof.is_some() {
+            st.label = Some(profile::Label { op: op.to_string(), t, ..Default::default() });
+        }
+    }
+
     pub fn new() -> Result<MetalBackend> {
         Self::with_metal4(std::env::var_os("INTARSIA_METAL_NO_METAL4").is_none_or(|v| v.is_empty() || v == "0"))
     }
