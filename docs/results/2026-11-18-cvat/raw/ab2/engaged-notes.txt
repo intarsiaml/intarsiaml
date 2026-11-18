@@ -1,0 +1,8 @@
+serve-basec-r1.log:       1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-basec-r2.log:       1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-basec-r3.log:       1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-basec-r4.log:       1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-vatc-r1.log:       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-vatc-r2.log:       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-vatc-r3.log:       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-vatc-r4.log:       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);

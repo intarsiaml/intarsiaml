@@ -1,0 +1,6 @@
+{
+  "tool": "edit_file",
+  "path": "scripts/ab35b/sampled.py",
+  "old_string": "def scrape(url):",
+  "new_string": "def one_stream(url):"
+}

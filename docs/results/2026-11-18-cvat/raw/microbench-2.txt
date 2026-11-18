@@ -1,0 +1,32 @@
+fleetq: #10290 running on spark1: ssh -n spark1 'cd ~/intarsiaml-cvat && INTARSIA_CVAT_TIMING=1 INTARSIA_REQUIRE_GPU=1 ./bin/verify_attn_rows-test --nocapture --test-threads=1 2>&1'
+
+running 3 tests
+test captured_rows_launch_is_the_captured_per_row_launches ... cvat verify_attn_rows (captured, device positions, two states): 1622016 bytes identical (3 shapes, 12 replays each)
+ok
+test timing_captured_attention_layers ... cvat timing t=2 pos0=200: 10 layers per-row 207 us, row-table 102 us, saved 104 us (50.5 %)
+cvat timing t=2 pos0=600: 10 layers per-row 221 us, row-table 110 us, saved 111 us (50.1 %)
+cvat timing t=2 pos0=1500: 10 layers per-row 333 us, row-table 261 us, saved 71 us (21.5 %)
+cvat timing t=2 pos0=3000: 10 layers per-row 640 us, row-table 482 us, saved 159 us (24.8 %)
+cvat timing t=2 pos0=6000: 10 layers per-row 1065 us, row-table 837 us, saved 227 us (21.4 %)
+cvat timing t=3 pos0=200: 10 layers per-row 309 us, row-table 103 us, saved 206 us (66.6 %)
+cvat timing t=3 pos0=600: 10 layers per-row 330 us, row-table 182 us, saved 148 us (45.0 %)
+cvat timing t=3 pos0=1500: 10 layers per-row 459 us, row-table 337 us, saved 122 us (26.6 %)
+cvat timing t=3 pos0=3000: 10 layers per-row 888 us, row-table 630 us, saved 258 us (29.1 %)
+cvat timing t=3 pos0=6000: 10 layers per-row 1466 us, row-table 1079 us, saved 388 us (26.4 %)
+cvat timing t=4 pos0=200: 10 layers per-row 420 us, row-table 104 us, saved 315 us (75.1 %)
+cvat timing t=4 pos0=600: 10 layers per-row 444 us, row-table 184 us, saved 260 us (58.6 %)
+cvat timing t=4 pos0=1500: 10 layers per-row 588 us, row-table 413 us, saved 175 us (29.8 %)
+cvat timing t=4 pos0=3000: 10 layers per-row 1124 us, row-table 777 us, saved 347 us (30.9 %)
+cvat timing t=4 pos0=6000: 10 layers per-row 1846 us, row-table 1330 us, saved 517 us (28.0 %)
+cvat timing t=8 pos0=200: 10 layers per-row 821 us, row-table 176 us, saved 645 us (78.5 %)
+cvat timing t=8 pos0=600: 10 layers per-row 898 us, row-table 341 us, saved 557 us (62.1 %)
+cvat timing t=8 pos0=1500: 10 layers per-row 1086 us, row-table 718 us, saved 369 us (33.9 %)
+cvat timing t=8 pos0=3000: 10 layers per-row 2128 us, row-table 1384 us, saved 745 us (35.0 %)
+cvat timing t=8 pos0=6000: 10 layers per-row 3464 us, row-table 2392 us, saved 1072 us (30.9 %)
+ok
+test verify_rows_launch_is_the_per_row_launches ... cvat verify_attn_rows (host positions): 2478080 bytes identical to the per-row launches (3 shapes, 14 passes each, t 2..=16)
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.80s
+
+fleetq: #10290 done (exit 0)

@@ -1,0 +1,14 @@
+fleetq: #10293 waiting (#1 in line): needs gpu quiet on spark1, but #10292 "cvat plan show gate" (claude-0b386a17-cvat) loads it
+fleetq:   #10292 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10292 set, or it will wait for #10292 to be released.
+fleetq: #10293 running on spark1: bash scripts/cvat/gates_ids.sh
+PASS ids chat-short mtp: 364 ids identical | | spec: verify passes=154 proposed=308 accepted=210 (acceptance 68.2%, 2.36 tokens per pass)
+PASS ids chat-short vat: 364 ids identical | graph_steps=154 eager_steps=0 mean_step=17.310 mean_gap=0.005 | spec: verify passes=154 proposed=308 accepted=210 (acceptance 68.2%, 2.36 tokens per pass)
+PASS ids code-gen mtp: 500 ids identical | | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+PASS ids code-gen vat: 500 ids identical | graph_steps=180 eager_steps=0 mean_step=17.232 mean_gap=0.004 | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+ids fails=0
+PASS ids copy3k mtp: 2902 ids identical | | spec: verify passes=968 proposed=1936 accepted=1934 (acceptance 99.9%, 3.00 tokens per pass)
+PASS ids copy3k vat: 2902 ids identical | graph_steps=968 eager_steps=0 mean_step=18.977 mean_gap=0.003 | spec: verify passes=968 proposed=1936 accepted=1934 (acceptance 99.9%, 3.00 tokens per pass)
+PASS ids copy3k copy=20: 2902 ids identical | copy_passes=359 accepted_hist[count acc]=      1 0       1 2     357 7  graph_steps=14 eager_steps=0 mean_step=19.821 mean_gap=280.362 | spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids copy3k vatcopy=20: 2902 ids identical | copy_passes=359 accepted_hist[count acc]=      1 0       1 2     357 7  graph_steps=14 eager_steps=0 mean_step=19.617 mean_gap=279.333 | spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)
+ids fails=0
+fleetq: #10293 done (exit 0)

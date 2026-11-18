@@ -1,0 +1,62 @@
+fleetq: #10286 running on spark1: ssh -n spark1 'cd ~/intarsiaml-cvat && INTARSIA_REQUIRE_GPU=1 timeout 200 /usr/local/cuda/bin/compute-sanitizer --print-limit 6 ./bin/verify_attn_rows-test --nocapture --test-threads=1 captured_rows 2>&1 | head -60'
+========= COMPUTE-SANITIZER
+
+running 1 test
+test captured_rows_launch_is_the_captured_per_row_launches ... ========= Invalid __global__ write of size 4 bytes
+=========     at void <unnamed>::splitkv_kernel<(int)8, (int)32, (int)2, __nv_bfloat16, (bool)0>(const __nv_bfloat16 *, const T4 *, const T4 *, float *, float2 *, int, int, long, long, float, int, long, const int *, const unsigned char *, long, long)+0x5580 in attention_splitkv.cu:340
+=========     by thread (64,0,0) in block (0,0,0)
+=========     Access to 0xebeb2e200100 is out of bounds
+=========     and is 561,409 bytes after the nearest allocation at 0xebeb2e000000 of size 1,536,000 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e23] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::hcbf29ab12e038c3c [0x62993] in verify_attn_rows-test
+=========         Host Frame: core::ops::function::FnOnce::call_once::hc84092b8a5a89ac4 [0x403f3] in verify_attn_rows-test
+=========         Host Frame: test::__rust_begin_short_backtrace::hab1532bd8947f827 [0x2980af] in verify_attn_rows-test
+=========         Host Frame: test::run_test::_$u7b$$u7b$closure$u7d$$u7d$::h1b82078b246605f9 [0x297393] in verify_attn_rows-test
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::h003559075decd9e1 [0x266dc7] in verify_attn_rows-test
+=========         Host Frame: core::ops::function::FnOnce::call_once$u7b$$u7b$vtable.shim$u7d$$u7d$::h386209b3bb37a615 [0x26a147] in verify_attn_rows-test
+=========         Host Frame: std::sys::pal::unix::thread::Thread::new::thread_start::hc19e229732012ef9 [0x2da427] in verify_attn_rows-test
+=========         Host Frame: start_thread in pthread_create.c:447 [0x8582b] in libc.so.6
+=========         Host Frame: thread_start in clone3.S:76 [0xebb4b] in libc.so.6
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at void <unnamed>::splitkv_kernel<(int)8, (int)32, (int)2, __nv_bfloat16, (bool)0>(const __nv_bfloat16 *, const T4 *, const T4 *, float *, float2 *, int, int, long, long, float, int, long, const int *, const unsigned char *, long, long)+0x5580 in attention_splitkv.cu:340
+=========     by thread (65,0,0) in block (0,0,0)
+=========     Access to 0xebeb2e200104 is out of bounds
+=========     and is 561,413 bytes after the nearest allocation at 0xebeb2e000000 of size 1,536,000 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e23] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::hcbf29ab12e038c3c [0x62993] in verify_attn_rows-test
+=========         Host Frame: core::ops::function::FnOnce::call_once::hc84092b8a5a89ac4 [0x403f3] in verify_attn_rows-test
+=========         Host Frame: test::__rust_begin_short_backtrace::hab1532bd8947f827 [0x2980af] in verify_attn_rows-test
+=========         Host Frame: test::run_test::_$u7b$$u7b$closure$u7d$$u7d$::h1b82078b246605f9 [0x297393] in verify_attn_rows-test
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::h003559075decd9e1 [0x266dc7] in verify_attn_rows-test
+=========         Host Frame: core::ops::function::FnOnce::call_once$u7b$$u7b$vtable.shim$u7d$$u7d$::h386209b3bb37a615 [0x26a147] in verify_attn_rows-test
+=========         Host Frame: std::sys::pal::unix::thread::Thread::new::thread_start::hc19e229732012ef9 [0x2da427] in verify_attn_rows-test
+=========         Host Frame: start_thread in pthread_create.c:447 [0x8582b] in libc.so.6
+=========         Host Frame: thread_start in clone3.S:76 [0xebb4b] in libc.so.6
+========= 
+========= Invalid __global__ write of size 4 bytes
+=========     at void <unnamed>::splitkv_kernel<(int)8, (int)32, (int)2, __nv_bfloat16, (bool)0>(const __nv_bfloat16 *, const T4 *, const T4 *, float *, float2 *, int, int, long, long, float, int, long, const int *, const unsigned char *, long, long)+0x5580 in attention_splitkv.cu:340
+=========     by thread (66,0,0) in block (0,0,0)
+=========     Access to 0xebeb2e200108 is out of bounds
+=========     and is 561,417 bytes after the nearest allocation at 0xebeb2e000000 of size 1,536,000 bytes
+=========     Saved host backtrace up to driver entry point at kernel launch time
+=========         Host Frame: cuGraphLaunch [0x361e23] in libcuda.so.1
+=========         Host Frame:  [0x23ffb] in libcudart.so.13
+=========         Host Frame: cudaGraphLaunch [0x6e953] in libcudart.so.13
+=========         Host Frame: _$LT$intarsia_backend_cuda..device..CudaBackend$u20$as$u20$intarsia_core..backend..Backend$GT$::graph_replay::hcbf29ab12e038c3c [0x62993] in verify_attn_rows-test
+=========         Host Frame: core::ops::function::FnOnce::call_once::hc84092b8a5a89ac4 [0x403f3] in verify_attn_rows-test
+=========         Host Frame: test::__rust_begin_short_backtrace::hab1532bd8947f827 [0x2980af] in verify_attn_rows-test
+=========         Host Frame: test::run_test::_$u7b$$u7b$closure$u7d$$u7d$::h1b82078b246605f9 [0x297393] in verify_attn_rows-test
+=========         Host Frame: std::sys::backtrace::__rust_begin_short_backtrace::h003559075decd9e1 [0x266dc7] in verify_attn_rows-test
+=========         Host Frame: core::ops::function::FnOnce::call_once$u7b$$u7b$vtable.shim$u7d$$u7d$::h386209b3bb37a615 [0x26a147] in verify_attn_rows-test
+=========         Host Frame: std::sys::pal::unix::thread::Thread::new::thread_start::hc19e229732012ef9 [0x2da427] in verify_attn_rows-test
+=========         Host Frame: start_thread in pthread_create.c:447 [0x8582b] in libc.so.6
+=========         Host Frame: thread_start in clone3.S:76 [0xebb4b] in libc.so.6
+========= 
+fleetq: #10286 done (exit 0)

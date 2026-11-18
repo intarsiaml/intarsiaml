@@ -1,0 +1,11 @@
+fleetq: #10291 waiting (#1 in line): #10289 "copyflipm: 27B A/B round 2" (claude-0b386a17-copyflipm) needs cpu quiet on endor, and this job loads it
+fleetq: #10291 running on endor: bash -c 'cargo test -p intarsia-cli --test docs_env_vars 2>&1 | tail -8'
+     Running tests/docs_env_vars.rs (target-endor/debug/deps/docs_env_vars-ad7fa66dc6419a7b)
+
+running 2 tests
+test name_scanner_skips_prefixes_and_placeholders ... ok
+test every_env_var_in_the_code_has_a_row_in_docs_tuning_md ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+fleetq: #10291 done (exit 0)

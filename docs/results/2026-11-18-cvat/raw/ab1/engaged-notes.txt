@@ -1,0 +1,8 @@
+serve-base-r1.log:       1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-base-r2.log:       1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-base-r3.log:       1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-base-r4.log:       1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-vat-r1.log:       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-vat-r2.log:       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-vat-r3.log:       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);
+serve-vat-r4.log:       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);
