@@ -23,12 +23,12 @@ decode step (1 row) or a row-exact verify pass (`verifying()`, at most 16 rows),
 |---|---|---|---|
 | solo decode step not replayed from a graph (graph disabled, not yet captured, or the request's last 1-draft MTP step) | `forward` / `graph_decode_step` fallback | `--max-batch` 1; also a 1-sequence batch (`forward_batch` with b = 1 is the solo step) | yes: 32-64 fork points ("1row" below) |
 | solo verify pass (a copy chain's verify, a 1-sequence MTP verify) | `forward_verify` | `--max-batch` 1; in the batching engine for a lone drafting sequence | yes (inside the "verify" count) |
-| batched ragged MTP verify pass: one pass over the drafting sequences' rows, split at 16 rows | `forward_verify_batch*` (`INTARSIA_BATCHED_MTP`, `INTARSIA_BATCHED_VERIFY`; the 35B CUDA recipe has both on, N = 2) | **yes, the batched eager path** | yes: 4.8K-7.2K fork points (lower bound) per server |
+| batched ragged MTP verify pass: one pass over the drafting sequences' rows, split at 16 rows | `forward_verify_batch*` (`INTARSIA_BATCHED_MTP`, `INTARSIA_BATCHED_VERIFY`; the 35B CUDA recipe has both on, N = 2) | **yes, the batched eager path** | yes: ran in every batched-MTP server (98-142 passes, below); its share of the 4.8K-7.2K verify fork points is not separated from solo verifies |
 | batched plain decode step not replayed from a graph (`INTARSIA_BATCH_GRAPHS=0` or a capture that failed) | `forward_batch` eager fallback | yes | no: `intarsia_decode_eager_steps_total` 0 in every server; not exercised |
 | the MTP drafter head's own steps and a 1-row prefill tail chunk | head layers and chunk through the same blocks | yes | inside the "1row" count, not separated |
 | inside a graph capture (a batched step's first use of a row count, the MTP step, the spec / catch-up captures) | all `CaptureGuard` sites | yes | forks kept in captures by design; the replays are not eager |
 
-So at `--max-batch` > 1 the knob's eager path is, in practice, the ragged batched verify pass. A sequence drafts while at most N sequences decode, so with 8 streams of different
+So at `--max-batch` > 1 the knob's eager paths are, in practice, the MTP verify passes (ragged multi-sequence and solo) and the few 1-row eager steps. A sequence drafts while at most N sequences decode, so with 8 streams of different
 lengths it runs at the tails of the waves (N = 2: last 2 sequences; N = 8: all of them, up to 5 sequences per 16-row pass).
 
 ## 2. Method
@@ -46,7 +46,7 @@ json-xform, chat-short, reason, code-gen x2; every request has a nonce prefix, t
 | `g8` | 8 concurrent greedy streams, max_tokens 300-700 (so they finish at different times and the tails draft) |
 | `g8s` | 8 greedy, starts staggered by 0.35 s, max_tokens reversed |
 | `s8` | 8 sampled, T 0.7, top_p 0.95, seeds 1000 + i |
-| `long` | one prompt of 16799 tokens (docs/tuning.md, cut), 512 tokens, greedy |
+| `long` | one prompt of 16799 tokens (docs/tuning.md, cut), 512 tokens, greedy (all four servers: 512 tokens generated, `length` finish; `longmix`: prompt 16800) |
 | `longmix` | the same long prompt beside 4 decoding streams (the prefill parks between layers while they decode) |
 
 Arms: `u` (knob unset, recipe default: `--spec mtp --spec-k 2`, batched MTP N = 2, batched verify on), `e0` (`INTARSIA_SIDE_EAGER=0`), `off` (`--spec off`, knob unset), `ubm` /
@@ -77,9 +77,15 @@ line are the MoE-expert and projection fork points, in a 1-row pass and in a row
 | `ubm` | 64 / 64 | 7172 / 7172 (taken) | N = 8 |
 | `e0bm` | 32 / 32 | 6009 / 6009 (SUPPRESSED) | same path, fork suppressed |
 
+The counter's "verify" bucket counts every row-exact multi-row pass, solo (`forward_verify`, a lone drafting sequence) and ragged (`forward_verify_batch`) alike, so it does not by itself
+count the ragged passes. The server's own `intarsia_batch_verify_passes_total` / `_rows_total` do (summed over their labelled series; the labels were stripped when the metrics were saved): `u` 98 passes /
+583 rows, `e0` 96 / 569, `ubm` 140 / 981, `e0bm` 142 / 1001, `off` none. About 6-7 rows per pass is two or more sequences of 3 rows each, so multi-sequence ragged passes ran in every batched-MTP server,
+with the knob unset and set. That they ran inside the knob-suppressed region is an inference from the code (the pass is eager, `verifying()`, at most 16 rows, so `side_fork` is reached and, with the knob, returns
+`None`), not a separate count.
+
 Server counters (`raw/g1/metrics-*.txt`, `raw/g3/metrics-*.txt`): `u` ran 530 MTP steps (1057 drafts proposed, 931 accepted), `ubm` 675 (1342 / 1187), `e0bm` 680 (1354 / 1196);
 `intarsia_decode_eager_steps_total` is 0 in every server (no plain batched step ran eagerly). So in each batched cell the knob suppressed thousands of eager fork points (at
-`--max-batch` 8, in the ragged verify passes), and the replies did not change. Fork points inside graph captures are not counted.
+`--max-batch` 8, in verify passes of both kinds), and the replies did not change. Fork points inside graph captures are not counted.
 
 ## 5. Secondary: on / off wall time (spark2 is slow and has live vLLM traffic: ratios only, never absolute)
 
