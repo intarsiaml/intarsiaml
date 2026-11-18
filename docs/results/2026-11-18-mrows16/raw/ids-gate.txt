@@ -1,0 +1,43 @@
+fleetq: #9980 running on endor: env 'ARMS=off copy=20,15 copy=20,12' scripts/mrows16/ids.sh copy3k json-xform code-gen reason chat-short
+-- copy3k off cooled 40s thermal 0
+exit 0 thermal 0
+-- copy3k copy=20,15 cooled 0s thermal 0
+exit 0 thermal 0
+-- copy3k copy=20,12 cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids copy3k copy=20,15: 2902 ids identical | copy_passes=180 accepted_hist[count acc]=   1 0    1 10  178 15  | spec: copy chain passes=180 proposed=2700 accepted=2680 (not in the verify passes below)|spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids copy3k copy=20,12: 2902 ids identical | copy_passes=221 accepted_hist[count acc]=   1 5    1 6  219 12  | spec: copy chain passes=221 proposed=2652 accepted=2639 (not in the verify passes below)|spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)|
+-- json-xform off cooled 0s thermal 0
+exit 0 thermal 1
+-- json-xform copy=20,15 cooled 65s thermal 0
+exit 0 thermal 0
+-- json-xform copy=20,12 cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids json-xform copy=20,15: 2600 ids identical | copy_passes=183 accepted_hist[count acc]=   3 0    4 1   13 2    6 3    2 4    6 5    9 6    1 9    1 14  138 15  | spec: copy chain passes=183 proposed=2744 accepted=2233 (not in the verify passes below)|spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids json-xform copy=20,12: 2600 ids identical | copy_passes=215 accepted_hist[count acc]=   7 1   10 2    5 3    6 4    8 5    9 6    2 8    4 9    1 10    1 11  162 12  | spec: copy chain passes=215 proposed=2579 accepted=2177 (not in the verify passes below)|spec: verify passes=69 proposed=138 accepted=138 (acceptance 100.0%, 3.00 tokens per pass)|
+-- code-gen off cooled 0s thermal 0
+exit 0 thermal 0
+-- code-gen copy=20,15 cooled 0s thermal 0
+exit 0 thermal 0
+-- code-gen copy=20,12 cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids code-gen copy=20,15: 500 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 15 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=177 proposed=354 accepted=321 (acceptance 90.7%, 2.81 tokens per pass)|
+PASS ids code-gen copy=20,12: 500 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 12 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=177 proposed=354 accepted=321 (acceptance 90.7%, 2.81 tokens per pass)|
+-- reason off cooled 0s thermal 0
+exit 0 thermal 0
+-- reason copy=20,15 cooled 0s thermal 0
+exit 0 thermal 1
+-- reason copy=20,12 cooled 50s thermal 0
+exit 0 thermal 0
+PASS ids reason copy=20,15: 500 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 15 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=175 proposed=349 accepted=324 (acceptance 92.8%, 2.85 tokens per pass)|
+PASS ids reason copy=20,12: 500 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 12 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=175 proposed=349 accepted=324 (acceptance 92.8%, 2.85 tokens per pass)|
+-- chat-short off cooled 0s thermal 0
+exit 0 thermal 0
+-- chat-short copy=20,15 cooled 0s thermal 0
+exit 0 thermal 0
+-- chat-short copy=20,12 cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids chat-short copy=20,15: 389 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 15 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=157 proposed=314 accepted=232 (acceptance 73.9%, 2.48 tokens per pass)|
+PASS ids chat-short copy=20,12: 389 ids identical | copy_passes=0 accepted_hist[count acc]= | spec: copy drafts on: a chain of up to 12 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)|spec: verify passes=157 proposed=314 accepted=232 (acceptance 73.9%, 2.48 tokens per pass)|
+ids fails=0
+fleetq: #9980 done (exit 0)
