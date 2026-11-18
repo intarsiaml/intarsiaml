@@ -1,0 +1,43 @@
+fleetq: #10169 running on endor: cargo test --release -p intarsia-backend-metal --test moe_verify16 -- --ignored --nocapture timing_moe_verify16
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/moe_verify16.rs (target/release/deps/moe_verify16-a6d08e5b5223e612)
+
+running 1 test
+TIMING moe_verify16 T=8 routing=pool72 distinct=43.3: off 173.3 us, on 173.4 us (0.999x), x40 off 6.93 ms on 6.94 ms
+TIMING moe_verify16 T=8 routing=random distinct=57.6: off 204.1 us, on 203.8 us (1.002x), x40 off 8.17 ms on 8.15 ms
+TIMING moe_verify16 T=9 routing=pool72 distinct=47.2: off 194.3 us, on 181.7 us (1.069x), x40 off 7.77 ms on 7.27 ms
+TIMING moe_verify16 T=9 routing=random distinct=63.0: off 242.2 us, on 235.2 us (1.030x), x40 off 9.69 ms on 9.41 ms
+TIMING moe_verify16 T=12 routing=pool72 distinct=53.8: off 334.2 us, on 313.0 us (1.068x), x40 off 13.37 ms on 12.52 ms
+TIMING moe_verify16 T=12 routing=random distinct=82.0: off 361.8 us, on 343.7 us (1.053x), x40 off 14.47 ms on 13.75 ms
+TIMING moe_verify16 T=16 routing=pool72 distinct=61.1: off 481.1 us, on 422.7 us (1.138x), x40 off 19.24 ms on 16.91 ms
+TIMING moe_verify16 T=16 routing=random distinct=101.9: off 462.6 us, on 420.3 us (1.101x), x40 off 18.51 ms on 16.81 ms
+test timing_moe_verify16 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 3.93s
+
+fleetq: #10169 done (exit 0)

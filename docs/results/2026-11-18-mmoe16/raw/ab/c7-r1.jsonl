@@ -1,0 +1,6 @@
+{"cell": "copy3k", "tag": "c1", "rep": 0, "toks": 2903, "chunks": 128, "ttft": 0.535, "dec_tps": 388.66, "wall": 8.001, "sha": "4eb925608b0c"}
+{"cell": "copy3k", "tag": "c1", "rep": 1, "toks": 2903, "chunks": 128, "ttft": 0.563, "dec_tps": 376.21, "wall": 8.277, "sha": "4eb925608b0c"}
+{"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.578, "dec_tps": 368.04, "wall": 8.463, "sha": "4eb925608b0c"}
+{"cell": "json-xform", "tag": "c1", "rep": 0, "toks": 2600, "chunks": 2600, "ttft": 0.673, "dec_tps": 309.76, "wall": 9.063, "sha": "e4cca5268730"}
+{"cell": "json-xform", "tag": "c1", "rep": 1, "toks": 2600, "chunks": 2600, "ttft": 0.722, "dec_tps": 304.47, "wall": 9.258, "sha": "e4cca5268730"}
+{"cell": "json-xform", "tag": "c1", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.714, "dec_tps": 304.97, "wall": 9.236, "sha": "e4cca5268730"}
