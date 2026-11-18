@@ -17,6 +17,15 @@ show base-off $BASE "" metal --spec off;            show new-off $NEW "" metal -
 show base-off-c20 $BASE INTARSIA_SPEC_COPY=20 metal --spec off; show new-off-c20 $NEW INTARSIA_SPEC_COPY=20 metal --spec off
 show base-cpu $BASE "" cpu $MTP;                    show new-cpu $NEW "" cpu $MTP
 show base-cpu-c20 $BASE INTARSIA_SPEC_COPY=20 cpu $MTP; show new-cpu-c20 $NEW INTARSIA_SPEC_COPY=20 cpu $MTP
+# no --spec at all (the recipe's MTP default applies on Metal at tp 1: the most common config the default reaches), the 35B and the Qwen3.8-27B
+show base-ns $BASE "" metal;                        show new-ns $NEW "" metal
+show base-ns-c20 $BASE INTARSIA_SPEC_COPY=20 metal; show new-ns-c0 $NEW INTARSIA_SPEC_COPY=0 metal
+show base-ns-sd0 $BASE INTARSIA_SPEC_DEFAULT=0 metal; show new-ns-sd0 $NEW INTARSIA_SPEC_DEFAULT=0 metal
+M=$HOME/models/Qwen3.8-27B-Quark-AWQ-MXFP4
+show base-27-ns $BASE "" metal;                     show new-27-ns $NEW "" metal
+show base-27-ns-c20 $BASE INTARSIA_SPEC_COPY=20 metal; show new-27-ns-c0 $NEW INTARSIA_SPEC_COPY=0 metal
+show base-27-off $BASE "" metal --spec off;         show new-27-off $NEW "" metal --spec off
+M=$HOME/models/Qwen3.6-35B-A3B-NVFP4
 pf=0
 # chk A B same|diff LABEL: stdout, normalised stderr and exit code all equal / not all equal
 chk() { local s=1; for x in json err exit; do cmp -s $RAW/plan/$1.$x $RAW/plan/$2.$x || s=0; done
@@ -33,4 +42,12 @@ chk base-off new-off same "(d) --spec off unchanged"
 chk base-off-c20 new-off-c20 same "--spec off with explicit =20 unchanged"
 chk base-cpu new-cpu same "(e) cpu unset unchanged"
 chk base-cpu-c20 new-cpu-c20 same "cpu explicit =20 unchanged"
+cj base-ns-c20 new-ns "(f) no --spec (recipe MTP default), 35B: default == base =20"
+chk base-ns new-ns diff "(f2) no --spec, 35B: default differs from base unset"
+chk base-ns new-ns-c0 same "(f3) no --spec, 35B: =0 == base unset"
+chk base-ns-sd0 new-ns-sd0 same "(g) INTARSIA_SPEC_DEFAULT=0, 35B: unchanged"
+cj base-27-ns-c20 new-27-ns "(h) no --spec, Qwen3.8-27B: default == base =20"
+chk base-27-ns new-27-ns diff "(h2) no --spec, 27B: default differs from base unset"
+chk base-27-ns new-27-ns-c0 same "(h3) no --spec, 27B: =0 == base unset"
+chk base-27-off new-27-off same "(h4) --spec off, 27B: unchanged"
 echo "plan fails=$pf; cpu exit base/new $(cat $RAW/plan/base-cpu.exit)/$(cat $RAW/plan/new-cpu.exit)"

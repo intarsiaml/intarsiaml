@@ -1,0 +1,60 @@
+fleetq: #10276 waiting (#2 in line): in line behind #10275 "copyflipm memory (chains firing, serve metrics)" (claude-0b386a17-copyflipm) on endor
+fleetq:   #10275 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10275 set, or it will wait for #10275 to be released.
+fleetq: #10276 waiting (#1 in line): needs gpu quiet on endor, but #10275 "copyflipm memory (chains firing, serve metrics)" (claude-0b386a17-copyflipm) loads it
+fleetq:   #10275 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10275 set, or it will wait for #10275 to be released.
+fleetq: #10276 running on endor: scripts/copyflipm/gates27.sh
+-- copy3k off
+exit 0
+PASS chain copy3k off: copy drafts off
+tok/s copy3k off: finish=length prompt=2969 (cached 0) completion=1000 | prefill 5030 ms (590.2 tok/s) | decode 31327 ms (31.89 tok/s)
+-- copy3k def
+exit 0
+PASS chain copy3k def: on, len 15, by default
+spec: copy chain passes=62 proposed=919 accepted=919 (not in the verify passes below)
+tok/s copy3k def: finish=length prompt=2969 (cached 0) completion=1000 | prefill 4163 ms (713.1 tok/s) | decode 10977 ms (91.01 tok/s)
+-- copy3k zero
+exit 0
+PASS chain copy3k zero: copy drafts off
+tok/s copy3k zero: finish=length prompt=2969 (cached 0) completion=1000 | prefill 3865 ms (768.2 tok/s) | decode 16248 ms (61.48 tok/s)
+-- copy3k base
+exit 0
+PASS chain copy3k base: copy drafts off
+tok/s copy3k base: finish=length prompt=2969 (cached 0) completion=1000 | prefill 3774 ms (786.7 tok/s) | decode 16239 ms (61.52 tok/s)
+PASS ids copy3k: 1000 ids identical (off = default = =0 = base)
+-- json-xform off
+exit 0
+PASS chain json-xform off: copy drafts off
+tok/s json-xform off: finish=length prompt=2997 (cached 0) completion=1000 | prefill 3751 ms (799.0 tok/s) | decode 33583 ms (29.75 tok/s)
+-- json-xform def
+exit 0
+PASS chain json-xform def: on, len 15, by default
+spec: copy chain passes=67 proposed=996 accepted=833 (not in the verify passes below)
+tok/s json-xform def: finish=length prompt=2997 (cached 0) completion=1000 | prefill 3832 ms (782.1 tok/s) | decode 13679 ms (73.03 tok/s)
+-- json-xform zero
+exit 0
+PASS chain json-xform zero: copy drafts off
+tok/s json-xform zero: finish=length prompt=2997 (cached 0) completion=1000 | prefill 3754 ms (798.3 tok/s) | decode 15861 ms (62.98 tok/s)
+-- json-xform base
+exit 0
+PASS chain json-xform base: copy drafts off
+tok/s json-xform base: finish=length prompt=2997 (cached 0) completion=1000 | prefill 3782 ms (792.4 tok/s) | decode 15787 ms (63.28 tok/s)
+PASS ids json-xform: 1000 ids identical (off = default = =0 = base)
+-- code-gen off
+exit 0
+PASS chain code-gen off: copy drafts off
+tok/s code-gen off: finish=length prompt=69 (cached 0) completion=300 | prefill 424 ms (162.8 tok/s) | decode 9544 ms (31.33 tok/s)
+-- code-gen def
+exit 0
+PASS chain code-gen def: on, len 15, by default
+tok/s code-gen def: finish=length prompt=69 (cached 0) completion=300 | prefill 416 ms (166.1 tok/s) | decode 4534 ms (65.95 tok/s)
+-- code-gen zero
+exit 0
+PASS chain code-gen zero: copy drafts off
+tok/s code-gen zero: finish=length prompt=69 (cached 0) completion=300 | prefill 420 ms (164.2 tok/s) | decode 4617 ms (64.76 tok/s)
+-- code-gen base
+exit 0
+PASS chain code-gen base: copy drafts off
+tok/s code-gen base: finish=length prompt=69 (cached 0) completion=300 | prefill 418 ms (164.9 tok/s) | decode 4610 ms (64.87 tok/s)
+PASS ids code-gen: 300 ids identical (off = default = =0 = base)
+gate27 fails=0
+fleetq: #10276 done (exit 0)
