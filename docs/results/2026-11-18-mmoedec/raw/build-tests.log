@@ -1,0 +1,65 @@
+fleetq: #10192 running on endor: sh -c 'cd /opt/code/intarsiaml/.worktrees/mmoedec && CARGO_TARGET_DIR=/opt/code/intarsiaml/.worktrees/mmoedec/target-mmoedec cargo test --release -p intarsia-backend-metal --test moe_bitdec --no-run'
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.27
+   Compiling quote v1.0.47
+   Compiling libc v0.2.190
+   Compiling objc2 v0.6.5
+   Compiling objc2-encode v4.1.0
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling zerocopy v0.8.62
+   Compiling bitflags v2.13.2
+   Compiling serde_json v1.0.154
+   Compiling hashbrown v0.17.1
+   Compiling equivalent v1.0.2
+   Compiling serde v1.0.229
+   Compiling thiserror v2.0.21
+   Compiling cfg-if v1.0.5
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling foldhash v0.2.0
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mmoedec/crates/intarsia-backend-metal)
+   Compiling indexmap v2.14.2
+   Compiling memmap2 v0.9.11
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+   Compiling block2 v0.6.2
+   Compiling objc2-core-foundation v0.3.2
+   Compiling dispatch2 v0.3.1
+   Compiling objc2-foundation v0.3.2
+   Compiling bytemuck_derive v1.12.1
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling zerocopy-derive v0.8.62
+   Compiling bytemuck v1.25.2
+   Compiling half v2.7.1
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/mmoedec/crates/intarsia-core)
+   Compiling objc2-metal v0.3.2
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 12.15s
+  Executable tests/moe_bitdec.rs (target-mmoedec/release/deps/moe_bitdec-c0c7c4f765bdf45e)
+fleetq: #10192 done (exit 0)

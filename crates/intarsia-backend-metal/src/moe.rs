@@ -234,12 +234,19 @@ impl MetalBackend {
             ..Default::default()
         };
         let hb = at(&sc, o_h);
-        if rows {
+        // the arithmetic-decode kernels: 9..=16 tokens under INTARSIA_METAL_VERIFY16=1 (lane mmoe16), 1..=8 under
+        // INTARSIA_METAL_MOE_BITDEC=1 (lane mmoedec; one token runs the rows path: 8 pairs, gather in k order)
+        let arith = if (9..=crate::CHUNK_ROWS_MAX).contains(&t) {
+            rows && crate::verify16_enabled()
+        } else {
+            t <= ROWS_MAX && crate::moe_bitdec_enabled()
+        };
+        if rows || (arith && t == 1) {
             // no sort pass: a threadgroup row per pair, the first pair of each expert serves all the pairs of that expert (two
             // kernels read each expert's weights once for all of them), moe_gather sums per token in k order (as moe_dec_dn does)
             let yb = at(&sc, o_y);
-            // 9..=16 tokens under INTARSIA_METAL_VERIFY16=1: the same kernels with the arithmetic e2m1 decode (bitwise equal)
-            let ((gu, rg), (dn, rd)) = if (9..=crate::CHUNK_ROWS_MAX).contains(&t) && crate::verify16_enabled() {
+            // the same kernels with the arithmetic e2m1 decode (bitwise equal)
+            let ((gu, rg), (dn, rd)) = if arith {
                 ((GU_A, PR), (DN_A, PR))
             } else {
                 rows_shaders()

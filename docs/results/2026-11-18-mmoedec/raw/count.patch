@@ -1,0 +1,20 @@
+diff --git a/crates/intarsia-backend-metal/src/moe.rs b/crates/intarsia-backend-metal/src/moe.rs
+index bb4d2490a..2c3dd327a 100644
+--- a/crates/intarsia-backend-metal/src/moe.rs
++++ b/crates/intarsia-backend-metal/src/moe.rs
+@@ -251,6 +251,7 @@ impl MetalBackend {
+             } else {
+                 rows_shaders()
+             };
++            if std::env::var_os("MOECNT").is_some() { eprintln!("MOECNT rows={rows} t={t} gu={gu} dn={dn}"); }
+             let g1 = MTLSize { width: i.div_ceil(DEC_SG * rg), height: pairs, depth: 1 };
+             self.moe_dispatch(gu, &[&xb, &ib, &guwb, &gusb, &gb, &hb], &p, g1, DEC_SG * 32)?;
+             let g2 = MTLSize { width: h.div_ceil(DEC_SG * rd), height: pairs, depth: 1 };
+@@ -258,6 +259,7 @@ impl MetalBackend {
+             let gg = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };
+             return self.moe_dispatch(GATHER[o32], &[&yb, &ib, &wb, &ob], &p, gg, 256);
+         }
++        if std::env::var_os("MOECNT").is_some() { eprintln!("MOECNT rows={rows} t={t} gu={}", if pairs <= DECODE_MAX_PAIRS { "moe_dec_gu(solo)" } else { "grouped(moe_mm)" }); }
+         if pairs <= DECODE_MAX_PAIRS {
+             let g1 = MTLSize { width: i.div_ceil(DEC_SG), height: pairs, depth: 1 };
+             self.moe_dispatch(DEC_GU, &[&xb, &ib, &guwb, &gusb, &gb, &hb], &p, g1, DEC_SG * 32)?;

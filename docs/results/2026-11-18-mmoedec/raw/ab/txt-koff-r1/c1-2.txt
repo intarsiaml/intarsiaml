@@ -1,0 +1,6 @@
+{
+  "tool": "edit_file",
+  "path": "scripts/ab35b/sampled.py",
+  "old_string": "def one_stream():\n    v = [x for x in v if x is not None]\n    return {\"median\": round(statistics.median(v), 3), \"min\": round(min(v), 3), \"max\": round(max(v), 3)} if v else None",
+  "new_string": "def one_stream():\n    v = [x for x in v if x is not None]\n    return {\"median\": round(statistics.median(v), 3), \"min\": round(min(v), 3), \"max\": round(max(v), 3)} if v else None"
+}
