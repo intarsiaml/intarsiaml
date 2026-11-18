@@ -1,0 +1,10 @@
+fleetq: #10023 running on spark2: scripts/flipev2/run.sh build
+[00:01:26] build 6196faa46f9fdef763061778f762ac7670a99dcc; free: Mem:             121          44          53           0          24          77 /dev/nvme0n1p2  3.7T  3.4T  159G  96% / 43755 bash -c export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; export FLEETQ_JOB=10023; free -g | sed -n 2p; df -h ~ | tail -1; pgrep -fa 'intarsia.* serve' | head -3 
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 15m 13s
+exit 0
+0
+00:12:36 73968
+intarsia 0.0.1
+[00:18:18] done
+fleetq: #10023 done (exit 0)
