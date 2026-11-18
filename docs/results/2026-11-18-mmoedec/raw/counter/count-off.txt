@@ -1,0 +1,6 @@
+ 178 MOECNT rows=false t=1 gu=moe_dec_gu(solo)
+  29 MOECNT rows=false t=2 gu=moe_dec_gu(solo)
+  74 MOECNT rows=false t=3 gu=grouped(moe_mm)
+  40 MOECNT rows=false t=35 gu=grouped(moe_mm)
+  40 MOECNT rows=true t=2 gu=moe_dec_gu_p dn=moe_dec_dn_p
+4800 MOECNT rows=true t=3 gu=moe_dec_gu_p dn=moe_dec_dn_p

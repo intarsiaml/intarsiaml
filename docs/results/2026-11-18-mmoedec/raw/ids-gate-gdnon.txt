@@ -1,0 +1,35 @@
+fleetq: #10205 running on endor: env O=/opt/code/intarsiaml/.worktrees/mmoedec/docs/results/2026-11-18-mmoedec/raw/ids-gdnon NTOK=500 XE=INTARSIA_METAL_GDN_VERIFY_FUSE=1 'ARMS=off mtp mtp+on' scripts/mmoedec/ids.sh chat-short code-gen reason copy3k
+-- chat-short off cooled 0s thermal 0
+exit 0 thermal 0
+-- chat-short mtp cooled 0s thermal 0
+exit 0 thermal 0
+-- chat-short mtp+on cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids chat-short mtp: 389 ids identical | | spec: verify passes=157 proposed=314 accepted=232 (acceptance 73.9%, 2.48 tokens per pass)|
+PASS ids chat-short mtp+on: 389 ids identical | | spec: verify passes=157 proposed=314 accepted=232 (acceptance 73.9%, 2.48 tokens per pass)|
+-- code-gen off cooled 0s thermal 0
+exit 0 thermal 0
+-- code-gen mtp cooled 0s thermal 0
+exit 0 thermal 0
+-- code-gen mtp+on cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids code-gen mtp: 500 ids identical | | spec: verify passes=177 proposed=354 accepted=321 (acceptance 90.7%, 2.81 tokens per pass)|
+PASS ids code-gen mtp+on: 500 ids identical | | spec: verify passes=177 proposed=354 accepted=321 (acceptance 90.7%, 2.81 tokens per pass)|
+-- reason off cooled 0s thermal 0
+exit 0 thermal 0
+-- reason mtp cooled 0s thermal 0
+exit 0 thermal 0
+-- reason mtp+on cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids reason mtp: 500 ids identical | | spec: verify passes=175 proposed=349 accepted=324 (acceptance 92.8%, 2.85 tokens per pass)|
+PASS ids reason mtp+on: 500 ids identical | | spec: verify passes=175 proposed=349 accepted=324 (acceptance 92.8%, 2.85 tokens per pass)|
+-- copy3k off cooled 0s thermal 0
+exit 0 thermal 0
+-- copy3k mtp cooled 0s thermal 0
+exit 0 thermal 0
+-- copy3k mtp+on cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids copy3k mtp: 500 ids identical | | spec: verify passes=166 proposed=332 accepted=332 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids copy3k mtp+on: 500 ids identical | | spec: verify passes=166 proposed=332 accepted=332 (acceptance 100.0%, 3.00 tokens per pass)|
+ids fails=0
+fleetq: #10205 done (exit 0)

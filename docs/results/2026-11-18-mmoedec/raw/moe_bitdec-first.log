@@ -1,0 +1,49 @@
+fleetq: #10194 running on endor: sh -c 'cd /opt/code/intarsiaml/.worktrees/mmoedec && CARGO_TARGET_DIR=/opt/code/intarsiaml/.worktrees/mmoedec/target-mmoedec cargo test --release -p intarsia-backend-metal --test moe_bitdec -- --nocapture --test-threads 1'
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mmoedec/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 0.53s
+     Running tests/moe_bitdec.rs (target-mmoedec/release/deps/moe_bitdec-c0c7c4f765bdf45e)
+
+running 4 tests
+test bitdec_knob_selects_arith_kernels ... MMOEDEC selects T=1: 0 bytes differ with a 2^120 activation
+MMOEDEC selects T=2: 0 bytes differ with a 2^120 activation
+MMOEDEC selects T=3: 0 bytes differ with a 2^120 activation
+MMOEDEC selects T=8: 0 bytes differ with a 2^120 activation
+MMOEDEC selects T=9: 0 bytes differ with a 2^120 activation
+ok
+test bitdec_moe_calls_are_bitwise_the_one_token_call ... MMOEDEC bitwise: 224 cases, 1008 token rows equal (knob on == knob off == one-token calls)
+ok
+test bitdec_negative_control ... MMOEDEC negctl T=1: 1916 of 4112 bytes differ, first at byte 0 (last token starts at 0)
+MMOEDEC negctl T=2: 1959 of 8208 bytes differ, first at byte 4098 (last token starts at 4096)
+MMOEDEC negctl T=3: 1912 of 12304 bytes differ, first at byte 8194 (last token starts at 8192)
+MMOEDEC negctl T=8: 1930 of 32784 bytes differ, first at byte 28672 (last token starts at 28672)
+ok
+test timing_moe_bitdec ... ignored
+
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.49s
+
+fleetq: #10194 done (exit 0)

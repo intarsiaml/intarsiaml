@@ -306,6 +306,27 @@ pub fn with_verify16<R>(on: bool, f: impl FnOnce() -> R) -> R {
     r
 }
 
+/// `INTARSIA_METAL_MOE_BITDEC=1` (lane mmoedec, opt-in): 1..=8-token `moe_experts_bf16` / `moe_experts_bf16_rows` calls (plain decode,
+/// the MTP draft step and the verify pass of up to 8 rows) take the same bitwise-equal arithmetic-decode kernels as
+/// `INTARSIA_METAL_VERIFY16` gives 9..=16 rows (`moe_dec_gu_a` / `moe_dec_dn_a`). Unset or anything but `1`: today's kernels. Read once per process.
+pub fn moe_bitdec_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let forced = MOE_BITDEC_FORCE.with(|t| t.get());
+    forced.unwrap_or_else(|| *ON.get_or_init(|| std::env::var("INTARSIA_METAL_MOE_BITDEC").is_ok_and(|v| v == "1")))
+}
+
+thread_local! {
+    static MOE_BITDEC_FORCE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Test hook: run `f` with this thread's `INTARSIA_METAL_MOE_BITDEC` forced on or off, whatever the env says.
+pub fn with_moe_bitdec<R>(on: bool, f: impl FnOnce() -> R) -> R {
+    MOE_BITDEC_FORCE.with(|t| t.set(Some(on)));
+    let r = f();
+    MOE_BITDEC_FORCE.with(|t| t.set(None));
+    r
+}
+
 /// Chunk plan of a row-exact `matmul_fp8_gemv_rows` call (lane mfp8split), by rows `m` (index `m`, 2..=[`CHUNK_ROWS_MAX`]): the launch
 /// sizes, largest first, or empty where the kernel keeps its old rule (one launch up to [`CHUNK_TILE`] rows, halves above 13..=16). The
 /// kernel's 5..=8-row form (simdgroup-matrix) costs the same at every M from 5 to 8 (35B layers 4503 us per step, the 27B's fp8 head 3436 us),
