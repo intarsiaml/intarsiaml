@@ -1,0 +1,49 @@
+decode tok/s, median of the reps per server (reps in brackets):
+ chat-short
+  base   r1 140.87 [142.4 134.8 140.9]  r2 137.40 [141.5 136.6 137.4]
+  n20    r1 141.30 [142.7 135.0 141.3]  r2 137.32 [141.1 136.2 137.3]
+ code-gen
+  base   r1 160.85 [160.8 161.0 160.1]  r2 160.36 [160.3 160.4 161.3]
+  n20    r1 160.27 [160.0 160.3 160.3]  r2 158.75 [158.8 158.5 160.9]
+ reason
+  base   r1 162.19 [163.5 162.2 159.9]  r2 161.42 [160.3 161.6 161.4]
+  n20    r1 162.58 [163.6 162.6 160.5]  r2 161.12 [160.2 161.3 161.1]
+ agent-edit
+  base   r1 156.77 [159.4 146.7 156.8]  r2 158.31 [158.3 158.9 156.2]
+  n20    r1 159.18 [159.2 146.5 184.9]  r2 184.98 [186.7 185.0 181.5]
+ agent-batch
+  base   r1 164.39 [164.5 164.4 163.5]  r2 164.66 [164.9 164.0 164.7]
+  n20    r1 171.35 [171.5 171.3 171.3]  r2 171.23 [170.9 171.5 171.2]
+ copy3k
+  base   r1 157.35 [157.3 157.3 157.4]  r2 157.77 [157.9 157.7 157.8]
+  n20    r1 266.97 [266.9 267.4 267.0]  r2 266.00 [266.3 266.0 265.8]
+ json-xform
+  base   r1 155.25 [155.0 155.2 155.4]  r2 155.50 [155.6 155.5 155.5]
+  n20    r1 234.78 [234.5 234.8 234.8]  r2 233.91 [233.7 233.9 234.2]
+replies chat-short r1: equal across arms (3 reps)
+replies chat-short r2: equal across arms (3 reps)
+replies code-gen r1: equal across arms (3 reps)
+replies code-gen r2: equal across arms (3 reps)
+replies reason r1: equal across arms (3 reps)
+replies reason r2: equal across arms (3 reps)
+replies agent-edit r1: equal across arms (3 reps)
+replies agent-edit r2: equal across arms (3 reps)
+replies agent-batch r1: equal across arms (3 reps)
+replies agent-batch r2: equal across arms (3 reps)
+replies copy3k r1: equal across arms (3 reps)
+replies copy3k r2: equal across arms (3 reps)
+replies json-xform r1: equal across arms (3 reps)
+replies json-xform r2: equal across arms (3 reps)
+ratios of per-round medians:
+ n20/base chat-short  1.0031 0.9994  median 1.0012  mean 1.0012 (SE 0.0018)  >1: 1/2
+ n20/base code-gen    0.9964 0.9900  median 0.9932  mean 0.9932 (SE 0.0032)  >1: 0/2
+ n20/base reason      1.0024 0.9981  median 1.0003  mean 1.0003 (SE 0.0021)  >1: 1/2
+ n20/base agent-edit  1.0154 1.1685  median 1.0919  mean 1.0919 (SE 0.0765)  >1: 2/2
+ n20/base agent-batch 1.0423 1.0399  median 1.0411  mean 1.0411 (SE 0.0012)  >1: 2/2
+ n20/base copy3k      1.6967 1.6860  median 1.6913  mean 1.6913 (SE 0.0053)  >1: 2/2
+ n20/base json-xform  1.5123 1.5042  median 1.5083  mean 1.5083 (SE 0.0040)  >1: 2/2
+ n20/base ALL         1.1812 1.1980  median 1.1896  mean 1.1896 (SE 0.0084)  >1: 2/2
+per server, mean over cells of tok/s / the arm's own mean over rounds (a server slow in every request shows well below 1):
+  base   r1 1.0012  r2 0.9988
+  n20    r1 0.9932  r2 1.0068
+mean graph step (ms, positions >= 100) per cell, and eager steps (token lines without a graph step) per cell, per server; requests are mapped by order: 2 warm-ups then the cells x reps:
