@@ -1,5 +1,5 @@
 #![cfg(target_os = "macos")]
-//! Lane mgdnv: with `INTARSIA_METAL_GDN_VERIFY_FUSE` unset (the default) `Backend::gdn_verify_rows` answers `Ok(false)` and encodes
+//! Lane mgdnv: with `INTARSIA_METAL_GDN_VERIFY_FUSE=0` `Backend::gdn_verify_rows` answers `Ok(false)` and encodes
 //! nothing: the verify pass runs row by row exactly as before. (Own file: the knob is read once per process.)
 
 mod common;
@@ -8,8 +8,8 @@ use intarsia_core::backend::{Backend, MemKind, TensorRef};
 use intarsia_core::{DType, GdnVerifyRows};
 
 #[test]
-fn off_by_default_encodes_nothing() {
-    std::env::remove_var("INTARSIA_METAL_GDN_VERIFY_FUSE");
+fn knob_zero_encodes_nothing() {
+    std::env::set_var("INTARSIA_METAL_GDN_VERIFY_FUSE", "0");
     let be = backend();
     let (t, c, k, hv, dv, dk) = (3usize, 2 * 128 + 4 * 32, 4usize, 4usize, 32usize, 128usize);
     let mk = |dt: DType, shape: &[usize]| {
@@ -29,5 +29,5 @@ fn off_by_default_encodes_nothing() {
         x: &x, taps: &taps, y: &y, a: &a, b: &b, a_log: &al, dt_bias: &db, eps: 1e-6, o: &o, conv_state: &cs, state: &st,
         snap_conv: &sc, snap_s: &ss,
     };
-    assert!(!be.gdn_verify_rows(&call, 0).unwrap(), "the knob is off: the call must be refused");
+    assert!(!be.gdn_verify_rows(&call, 0).unwrap(), "the knob is 0: the call must be refused");
 }
