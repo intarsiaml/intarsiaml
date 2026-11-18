@@ -1,0 +1,35 @@
+fleetq: #10003 running on spark1: ssh spark1 'W=sw1 ROUNDS=4 PRE=6 POST=10 ARMS='"'"'base:X=1 L3:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=450,3 L5:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=450,5 L8:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=450,8'"'"' bash ~/intarsiaml-cpupin/src/scripts/cpupin/serve2.sh'
+base r1 up 22:20:51 free: 58 GB
+base r1: 17 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 0
+L3 r1 up 22:23:03 free: 57 GB
+L3 r1: 17 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 1
+L5 r1 up 22:25:14 free: 57 GB
+L5 r1: 17 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 1
+L8 r1 up 22:27:26 free: 57 GB
+L8 r1: 17 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 585c d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 0
+L8 r2 up 22:29:41 free: 57 GB
+L8 r2: 17 requests, shas 1bd2 5155 ca89 680a 1f3c f916 dc25 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 0
+L5 r2 up 22:31:56 free: 57 GB
+L5 r2: 17 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 1
+L3 r2 up 22:34:05 free: 57 GB
+L3 r2: 17 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 1
+base r2 up 22:36:17 free: 58 GB
+base r2: 17 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 0
+base r3 up 22:38:16 free: 58 GB
+base r3: 17 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 0
+L3 r3 up 22:40:31 free: 57 GB
+L3 r3: 17 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 1
+L5 r3 up 22:42:49 free: 57 GB
+L5 r3: 17 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 1
+L8 r3 up 22:45:01 free: 57 GB
+L8 r3: 17 requests, shas 8f5f b17a f916 51c2 75a2 d833 06bb c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 0
+L8 r4 up 22:47:16 free: 57 GB
+L8 r4: 17 requests, shas 0e6e 1f3c 9e72 f916 3afa 1653 7d5f 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 0
+L5 r4 up 22:49:31 free: 57 GB
+L5 r4: 17 requests, shas 0e6e 1f3c 9e72 f916 3afa 1653 a266 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 1
+L3 r4 up 22:51:42 free: 57 GB
+L3 r4: 17 requests, shas 0e6e 1f3c 9e72 f916 3afa 1653 a266 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 1
+base r4 up 22:53:47 free: 57 GB
+base r4: 17 requests, shas 0e6e 1f3c 9e72 f916 3afa 1653 a266 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 0
+serve2 done
+fleetq: #10003 done (exit 0)

@@ -1,0 +1,30 @@
+fleetq: #10020 running on spark1: ssh spark1 'bash ~/intarsiaml-cpupin/bin/gates.sh'
+Traceback (most recent call last):
+  File "/home/nvidia/intarsiaml-cpupin/bin/prompts.py", line 26, in <module>
+    src = (REPO / "scripts/ab35b/toolsmoke.py").read_text()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pathlib.py", line 1029, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pathlib.py", line 1015, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/nvidia/scripts/ab35b/toolsmoke.py'
+plan main: exit 0 15570 bytes sha c446afdca09ab0ec
+plan new: exit 0 15570 bytes sha c446afdca09ab0ec
+plan main2: exit 0 15570 bytes sha c446afdca09ab0ec
+main twice: byte-identical
+PASS plan show knobs unset: main and lane byte-identical
+PASS ids copy3k: 2902 ids identical (main vs lane)
+cat: /home/nvidia/intarsiaml-cpupin/cells/agent-batch.txt: No such file or directory
+cat: /home/nvidia/intarsiaml-cpupin/cells/agent-batch.txt: No such file or directory
+PASS ids agent-batch: 11 ids identical (main vs lane)
+cat: /home/nvidia/intarsiaml-cpupin/cells/agent-edit.txt: No such file or directory
+cat: /home/nvidia/intarsiaml-cpupin/cells/agent-edit.txt: No such file or directory
+PASS ids agent-edit: 11 ids identical (main vs lane)
+PASS ids json-xform: 2600 ids identical (main vs lane)
+PASS ids chat-short: 364 ids identical (main vs lane)
+PASS ids reason: 500 ids identical (main vs lane)
+PASS ids code-gen: 500 ids identical (main vs lane)
+gates ids fails=0
+fleetq: #10020 done (exit 0)

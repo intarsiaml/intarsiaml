@@ -1,0 +1,20 @@
+fleetq: #10022 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10022 running on spark1: ssh spark1 'W=sw2 ROUNDS=4 PRE=6 POST=10 ARMS='"'"'base:X=1 L7:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=450,7'"'"' bash ~/intarsiaml-cpupin/src/scripts/cpupin/serve2.sh'
+base r1 up 23:35:30 free: 57 GB
+base r1: 17 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 0
+L7 r1 up 23:37:30 free: 57 GB
+L7 r1: 17 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 1
+L7 r2 up 23:39:33 free: 57 GB
+L7 r2: 17 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 1
+base r2 up 23:41:47 free: 57 GB
+base r2: 17 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 0
+base r3 up 23:44:02 free: 57 GB
+base r3: 17 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 0
+L7 r3 up 23:46:04 free: 57 GB
+L7 r3: 17 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 1
+L7 r4 up 23:48:40 free: 57 GB
+L7 r4: 17 requests, shas 0e6e 1f3c 9e72 f916 3afa 1653 a266 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 1
+base r4 up 23:50:39 free: 57 GB
+base r4: 17 requests, shas 0e6e 1f3c 9e72 f916 3afa 1653 a266 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 0
+serve2 done
+fleetq: #10022 done (exit 0)
