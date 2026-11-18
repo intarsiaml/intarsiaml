@@ -66,7 +66,7 @@ With the default the load reserves 15 per-row recurrent-state buffers instead of
 
 ## Gates
 
-Binaries: `base` = origin/main `70e39e19d` (the branch point, #456 merged), `new` = this branch's code; built by `scripts/copyflipm/build.sh`, **before the rebase onto #459** (`1be12e565`), which touched no `crates/`, `kernels/` or Cargo file (`git diff 70e39e19d origin/main -- crates kernels Cargo.toml Cargo.lock` is empty), so the gated code is the code in this PR. Every gate ran in a fleetq slot on endor (`--load cpu` for builds and tests, `--quiet gpu,cpu` for the model runs). Scripts: `scripts/copyflipm/{build,tests,plan,gates,gates27,serve,mem}.sh`; raw logs in `docs/results/2026-11-18-copyflipm/raw/`.
+Binaries: `base` = origin/main `70e39e19d` (the branch point, #456 merged), `new` = this branch's code; built by `scripts/copyflipm/build.sh`, **before the rebase onto #459** (`1be12e565`), which touched no `crates/`, `kernels/` or Cargo file (`git diff 70e39e19d origin/main -- crates kernels Cargo.toml Cargo.lock` is empty), so the gated code is the code in this PR. Main then moved again (#457, the shortest-first scheduler default: `crates/intarsia-core/src/scheduler.rs`, `engine/batch.rs` and the scheduler test); this branch was rebased onto it after the Metal gates, and CI ran on the rebased head, not the Metal gates. Nothing in #457 touches `spec.rs`, `engine.rs` or `load.rs`. Every gate ran in a fleetq slot on endor (`--load cpu` for builds and tests, `--quiet gpu,cpu` for the model runs). Scripts: `scripts/copyflipm/{build,tests,plan,gates,gates27,serve,mem}.sh`; raw logs in `docs/results/2026-11-18-copyflipm/raw/`.
 
 | Gate | Result | Evidence |
 |---|---|---|
