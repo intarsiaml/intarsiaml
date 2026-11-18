@@ -19,7 +19,9 @@ for n in copy3k json-xform code-gen; do
     case $arm in off) A=(--spec off); E=(X=1); B=$NEW ;; def) A=(--spec mtp --spec-k 2); E=(INTARSIA_SPEC_COPY=20); B=$NEW ;; v0) A=(--spec mtp --spec-k 2); E=(INTARSIA_SPEC_COPY=20 INTARSIA_METAL_VERIFY16=0); B=$NEW ;; base20) A=(--spec mtp --spec-k 2); E=(INTARSIA_SPEC_COPY=20); B=$BASE ;; esac
     f=$RAW/ids/gen-$n-$arm; echo "-- $n $arm"
     env $E INTARSIA_SPEC_TRACE=1 $B generate -m $M --backend metal --max-seq $MS $A --chat --no-think --temperature 0 --profile-every 0 --show-ids -p "$(cat $CELLS/$n.txt)" --max-tokens $NT < /dev/null > $f.out 2> $f.err
-    echo "exit $?"; grep -a '^ids:' $f.err > $f.ids; grep -a "spec: copy" $f.err | tail -2 | cut -c1-200; grep -a "tok/s" $f.err | tail -1 | cut -c1-200
+    echo "exit $?"; want=15; [ $arm = base20 ] && want=7; [ $arm = off ] && want=0
+    if [ $want -gt 0 ]; then grep -aq "chain of up to $want tokens" $f.err && echo "PASS len $n $arm: chain of up to $want tokens" || { echo "FAIL len $n $arm: not a chain of up to $want tokens"; fails=$((fails+1)); }; fi
+    grep -a '^ids:' $f.err > $f.ids; grep -a "spec: copy" $f.err | tail -2 | cut -c1-200; grep -a "tok/s" $f.err | tail -1 | cut -c1-200
   done
   if [ -s $RAW/ids/gen-$n-off.ids ] && cmp -s $RAW/ids/gen-$n-off.ids $RAW/ids/gen-$n-def.ids && cmp -s $RAW/ids/gen-$n-def.ids $RAW/ids/gen-$n-v0.ids && cmp -s $RAW/ids/gen-$n-def.ids $RAW/ids/gen-$n-base20.ids; then echo "PASS ids $n: $(tr ',' '\n' < $RAW/ids/gen-$n-def.ids | wc -l | tr -d ' ') ids identical (off = default = VERIFY16=0 = base len7)"; else echo "FAIL ids $n"; fails=$((fails+1)); fi
 done
