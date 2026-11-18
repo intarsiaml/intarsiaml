@@ -119,8 +119,9 @@ MW
     finish_serve "$name"
   done
   rsh "cat $L/out/herd.jsonl" > "$OUT/herd.jsonl"
-  python3 "$S/compare.py" "$OUT/herd.jsonl" --groups on:on_new,on_base,on_zero,on_one off:off_new,off_base 2>&1 | tee "$OUT/compare.txt" | tee -a "$OUT/run.log"
+  python3 "$S/compare.py" "$OUT/herd.jsonl" --groups on:on_new,on_base,on_zero,on_one off:off_new,off_base --engaged on_new,on_one --inert on_base,on_zero,off_new,off_base 2>&1 | tee "$OUT/compare.txt" | tee -a "$OUT/run.log"
 fi
 
+for f in "$OUT"/serve-*.log; do echo "$(basename "$f"): $(grep -a "prefix herd" "$f" | head -1 | cut -c1-120)"; done | tee -a "$OUT/run.log"
 log "done"
 if has clean; then rsh "rm -rf $L"; log "removed ~/intarsiaml-herdflip"; fi

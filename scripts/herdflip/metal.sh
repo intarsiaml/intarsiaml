@@ -47,4 +47,6 @@ for v in $VISITS; do
   grep -ai "spec\|mtp\|herd\|prefill order\|prefix store" $D/server.err 2>/dev/null | head -12 > $D/startup-lines.txt
   kill -INT $TP 2>/dev/null; for i in {1..60}; do kill -0 $TP 2>/dev/null || break; sleep 1; done; kill -9 $TP 2>/dev/null; wait $TP 2>/dev/null; gzip -f $D/server.err
 done
-python3 $S/compare.py $RAW/herd.jsonl --groups on:on_new,on_base,on_zero,on_one off:off_new,off_base | tee $RAW/compare.txt
+python3 $S/compare.py $RAW/herd.jsonl --groups on:on_new,on_base,on_zero,on_one off:off_new,off_base --engaged on_new,on_one --inert on_base,on_zero,off_new,off_base | tee $RAW/compare.txt
+
+for n in on_new on_base on_zero on_one off_new off_base; do echo "$n: $(grep -ai "prefix herd" $RAW/$n/startup-lines.txt | head -1 | cut -c1-120)"; done | tee -a $RAW/compare.txt
