@@ -38,6 +38,8 @@ finish_serve() {
   stop_server
 }
 scp -q "$S/memwatch.sh" $HOST:$L/memwatch.sh
+# the new binary must be the rebuilt one (the first build skipped recompiling: stale source mtimes)
+rsh "strings -n 6 $L/bin/intarsia-new | grep -c 'using shortest'" | grep -q '^[1-9]' || { log "intarsia-new is stale (no 'using shortest')"; exit 3; }
 log "start; earlyoom: $(rsh 'systemctl is-active earlyoom'); vLLM: $(curl -s -o /dev/null -w '%{http_code}' http://$HN:8000/v1/models); main: $(rsh "$L/bin/intarsia-main --version | head -1"); new: $(rsh "$L/bin/intarsia-new --version | head -1")"
 for t in main new; do
   rsh "$L/bin/intarsia-$t plan show --backend cuda --model $M35 --max-seq 8192 --mem-budget 30 --json < /dev/null > $L/out/plan-$t.json 2> $L/out/plan-$t.err"
