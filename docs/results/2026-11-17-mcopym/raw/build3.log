@@ -1,0 +1,6 @@
+fleetq: #9941 running on endor: sh -c 'export CARGO_TARGET_DIR=$PWD/target; cargo clean --release -p intarsia-models -p intarsia-cli 2>&1 | tail -1; INTARSIA_BUILD_STAMP=mcopym-new cargo build --release -p intarsia-cli --features metal 2>&1 | grep -E "Compiling intarsia|Finished|^error"; cp target/release/intarsia target/intarsia-new'
+     Removed 25 files, 90.0MiB total
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 12.37s
+fleetq: #9941 done (exit 0)

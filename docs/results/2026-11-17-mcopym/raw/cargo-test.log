@@ -1,0 +1,22 @@
+fleetq: #9961 running on endor: sh -c 'export CARGO_TARGET_DIR=$PWD/target; cargo test -p intarsia-cli --test docs_env_vars 2>&1 | tail -8; cargo test -p intarsia-models --test mtp copy 2>&1 | tail -12'
+     Running tests/docs_env_vars.rs (target/debug/deps/docs_env_vars-ad7fa66dc6419a7b)
+
+running 2 tests
+test name_scanner_skips_prefixes_and_placeholders ... ok
+test every_env_var_in_the_code_has_a_row_in_docs_tuning_md ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+   Compiling intarsia-engram v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/crates/intarsia-engram)
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.worktrees/mcopym/crates/intarsia-models)
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 24.14s
+     Running tests/mtp.rs (target/debug/deps/mtp-dd48fef34955f33d)
+
+running 2 tests
+test copy_drafts_with_the_cost_gate_flipping_keep_greedy_output_identical ... ok
+test copy_drafts_beside_the_mtp_head_keep_greedy_output_identical ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 65 filtered out; finished in 35.97s
+
+fleetq: #9961 done (exit 0)

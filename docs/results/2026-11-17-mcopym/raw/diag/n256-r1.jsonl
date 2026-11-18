@@ -1,0 +1,15 @@
+{"cell": "code-gen", "tag": "c1", "rep": 0, "toks": 800, "chunks": 800, "ttft": 0.069, "dec_tps": 195.16, "wall": 4.163, "sha": "e72a726f2de6"}
+{"cell": "code-gen", "tag": "c1", "rep": 1, "toks": 800, "chunks": 800, "ttft": 0.064, "dec_tps": 193.29, "wall": 4.198, "sha": "d742a648c3d7"}
+{"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.065, "dec_tps": 197.25, "wall": 4.116, "sha": "2f57b1dc22d5"}
+{"cell": "code-gen", "tag": "c1", "rep": 3, "toks": 800, "chunks": 800, "ttft": 0.068, "dec_tps": 193.55, "wall": 4.196, "sha": "d27c28e95169"}
+{"cell": "code-gen", "tag": "c1", "rep": 4, "toks": 800, "chunks": 800, "ttft": 0.07, "dec_tps": 194.79, "wall": 4.172, "sha": "fa4d6be38e38"}
+{"cell": "reason", "tag": "c1", "rep": 0, "toks": 500, "chunks": 500, "ttft": 0.079, "dec_tps": 195.91, "wall": 2.626, "sha": "d997c2b60c78"}
+{"cell": "reason", "tag": "c1", "rep": 1, "toks": 500, "chunks": 500, "ttft": 0.067, "dec_tps": 199.2, "wall": 2.572, "sha": "58afb08a92c6"}
+{"cell": "reason", "tag": "c1", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.072, "dec_tps": 191.17, "wall": 2.682, "sha": "cc9c34109c01"}
+{"cell": "reason", "tag": "c1", "rep": 3, "toks": 500, "chunks": 500, "ttft": 0.068, "dec_tps": 197.88, "wall": 2.589, "sha": "4e4baf7dd8f5"}
+{"cell": "reason", "tag": "c1", "rep": 4, "toks": 500, "chunks": 500, "ttft": 0.074, "dec_tps": 191.49, "wall": 2.68, "sha": "b15c549d93c2"}
+{"cell": "chat-short", "tag": "c1", "rep": 0, "toks": 400, "chunks": 400, "ttft": 0.065, "dec_tps": 174.25, "wall": 2.355, "sha": "de889f59409c"}
+{"cell": "chat-short", "tag": "c1", "rep": 1, "toks": 353, "chunks": 352, "ttft": 0.06, "dec_tps": 165.57, "wall": 2.186, "sha": "4e97ee29c792"}
+{"cell": "chat-short", "tag": "c1", "rep": 2, "toks": 400, "chunks": 400, "ttft": 0.06, "dec_tps": 168.69, "wall": 2.425, "sha": "27312bb9798e"}
+{"cell": "chat-short", "tag": "c1", "rep": 3, "toks": 400, "chunks": 400, "ttft": 0.064, "dec_tps": 169.89, "wall": 2.413, "sha": "22ccdd746128"}
+{"cell": "chat-short", "tag": "c1", "rep": 4, "toks": 395, "chunks": 394, "ttft": 0.06, "dec_tps": 174.33, "wall": 2.32, "sha": "af42bdc86957"}
