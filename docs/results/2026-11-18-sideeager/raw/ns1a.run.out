@@ -1,0 +1,10 @@
+fleetq: #10155 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10155 running on spark1: ssh spark1 'W=ns1 ARMS="b1:X=1 k1:INTARSIA_SIDE_EAGER=0 k2:INTARSIA_SIDE_EAGER=0 b2:X=1 b3:X=1 k3:INTARSIA_SIDE_EAGER=0" bash -s'
+b1 up 06:41:17 free: 57 GB
+b1: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113467392 bytes sqlite
+k1 up 06:43:03 free: 56 GB
+k1: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113897472 bytes sqlite
+serve died (k2)
+Session name 'sek2830135' is already in use. Run `nsys sessions list` to list your active sessions.
+fleetq: #10155 done (exit 1)
+exit 1

@@ -1,0 +1,52 @@
+fleetq: #10153 running on spark1: ssh spark1 'W=ab1 ROUNDS=4 REPS=3 SAMPLE=1 CELLS="chat-short code-gen reason agent-edit" ARMS="base:X=1 bk:INTARSIA_SIDE_EAGER=0" bash ~/intarsiaml-sideeager/src/scripts/sideeager/ab.sh'
+base r1 up 06:22:53 free: 55 GB
+base r1 chat-short: {"cell": "chat-short", "tag": "c1", "rep": 2, "toks": 400, "chunks": 400, "ttft": 0.07, "dec_tps": 140.67, "wall": 2.906, "sha": "eb7fb2828a0d"}
+base r1 code-gen: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 159.43, "wall": 5.088, "sha": "454f22a3d8f6"}
+base r1 reason: {"cell": "reason", "tag": "c1", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.078, "dec_tps": 159.39, "wall": 3.209, "sha": "70b15645c822"}
+base r1 agent-edit: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 298, "chunks": 297, "ttft": 0.303, "dec_tps": 153.96, "wall": 2.232, "sha": "7c95bbf0cec3"}
+base r1 metrics: intarsia_graph_replays_total 2699 intarsia_graph_captures_total 5 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2682 intarsia_spec_proposed_tokens_total 5362 intarsia_spec_accepted_tokens_total 4644 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+bk r1 up 06:25:11 free: 57 GB
+bk r1 chat-short: {"cell": "chat-short", "tag": "c1", "rep": 2, "toks": 400, "chunks": 400, "ttft": 0.068, "dec_tps": 139.09, "wall": 2.937, "sha": "eb7fb2828a0d"}
+bk r1 code-gen: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 157.84, "wall": 5.14, "sha": "454f22a3d8f6"}
+bk r1 reason: {"cell": "reason", "tag": "c1", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.08, "dec_tps": 157.82, "wall": 3.242, "sha": "70b15645c822"}
+bk r1 agent-edit: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 298, "chunks": 297, "ttft": 0.306, "dec_tps": 153.96, "wall": 2.235, "sha": "7c95bbf0cec3"}
+bk r1 metrics: intarsia_graph_replays_total 2699 intarsia_graph_captures_total 5 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2682 intarsia_spec_proposed_tokens_total 5362 intarsia_spec_accepted_tokens_total 4644 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+bk r2 up 06:27:26 free: 57 GB
+bk r2 chat-short: {"cell": "chat-short", "tag": "c2", "rep": 2, "toks": 344, "chunks": 343, "ttft": 0.069, "dec_tps": 135.95, "wall": 2.592, "sha": "9614bb5f2bb5"}
+bk r2 code-gen: {"cell": "code-gen", "tag": "c2", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 159.64, "wall": 5.082, "sha": "501f32a24c8e"}
+bk r2 reason: {"cell": "reason", "tag": "c2", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.078, "dec_tps": 159.63, "wall": 3.204, "sha": "07eab7ebe507"}
+bk r2 agent-edit: {"cell": "agent-edit", "tag": "c2", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.304, "dec_tps": 154.98, "wall": 2.285, "sha": "df0fbac8b7f2"}
+bk r2 metrics: intarsia_graph_replays_total 2475 intarsia_graph_captures_total 5 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2461 intarsia_spec_proposed_tokens_total 4919 intarsia_spec_accepted_tokens_total 4187 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+base r2 up 06:29:40 free: 57 GB
+base r2 chat-short: {"cell": "chat-short", "tag": "c2", "rep": 2, "toks": 344, "chunks": 343, "ttft": 0.07, "dec_tps": 136.25, "wall": 2.587, "sha": "9614bb5f2bb5"}
+base r2 code-gen: {"cell": "code-gen", "tag": "c2", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.079, "dec_tps": 159.94, "wall": 5.074, "sha": "501f32a24c8e"}
+base r2 reason: {"cell": "reason", "tag": "c2", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.077, "dec_tps": 159.67, "wall": 3.202, "sha": "07eab7ebe507"}
+base r2 agent-edit: {"cell": "agent-edit", "tag": "c2", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.303, "dec_tps": 155.6, "wall": 2.276, "sha": "df0fbac8b7f2"}
+base r2 metrics: intarsia_graph_replays_total 2475 intarsia_graph_captures_total 5 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2461 intarsia_spec_proposed_tokens_total 4919 intarsia_spec_accepted_tokens_total 4187 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+base r3 up 06:31:54 free: 57 GB
+base r3 chat-short: {"cell": "chat-short", "tag": "c3", "rep": 2, "toks": 380, "chunks": 379, "ttft": 0.069, "dec_tps": 138.78, "wall": 2.8, "sha": "478b38ce218f"}
+base r3 code-gen: {"cell": "code-gen", "tag": "c3", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 159.16, "wall": 5.097, "sha": "35d159a2c1d1"}
+base r3 reason: {"cell": "reason", "tag": "c3", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.079, "dec_tps": 159.62, "wall": 3.205, "sha": "753355a5f831"}
+base r3 agent-edit: {"cell": "agent-edit", "tag": "c3", "rep": 2, "toks": 43, "chunks": 42, "ttft": 0.308, "dec_tps": 160.84, "wall": 0.57, "sha": "7c882bd90517"}
+base r3 metrics: intarsia_graph_replays_total 2707 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2693 intarsia_spec_proposed_tokens_total 5383 intarsia_spec_accepted_tokens_total 4675 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+bk r3 up 06:34:13 free: 57 GB
+bk r3 chat-short: {"cell": "chat-short", "tag": "c3", "rep": 2, "toks": 380, "chunks": 379, "ttft": 0.07, "dec_tps": 139.44, "wall": 2.788, "sha": "478b38ce218f"}
+bk r3 code-gen: {"cell": "code-gen", "tag": "c3", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 159.15, "wall": 5.098, "sha": "35d159a2c1d1"}
+bk r3 reason: {"cell": "reason", "tag": "c3", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.078, "dec_tps": 160.27, "wall": 3.192, "sha": "753355a5f831"}
+bk r3 agent-edit: {"cell": "agent-edit", "tag": "c3", "rep": 2, "toks": 43, "chunks": 42, "ttft": 0.308, "dec_tps": 162.84, "wall": 0.566, "sha": "7c882bd90517"}
+bk r3 metrics: intarsia_graph_replays_total 2707 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2693 intarsia_spec_proposed_tokens_total 5383 intarsia_spec_accepted_tokens_total 4675 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+bk r4 up 06:36:28 free: 57 GB
+bk r4 chat-short: {"cell": "chat-short", "tag": "c4", "rep": 2, "toks": 355, "chunks": 354, "ttft": 0.068, "dec_tps": 137.77, "wall": 2.638, "sha": "d575e30ec959"}
+bk r4 code-gen: {"cell": "code-gen", "tag": "c4", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.076, "dec_tps": 159.89, "wall": 5.073, "sha": "700a5b366c8f"}
+bk r4 reason: {"cell": "reason", "tag": "c4", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.078, "dec_tps": 159.6, "wall": 3.205, "sha": "dba7e32e9723"}
+bk r4 agent-edit: {"cell": "agent-edit", "tag": "c4", "rep": 2, "toks": 1200, "chunks": 1200, "ttft": 0.305, "dec_tps": 158.99, "wall": 7.846, "sha": "6a9a78c75256"}
+bk r4 metrics: intarsia_graph_replays_total 2650 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2633 intarsia_spec_proposed_tokens_total 5265 intarsia_spec_accepted_tokens_total 4576 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+base r4 up 06:38:45 free: 57 GB
+base r4 chat-short: {"cell": "chat-short", "tag": "c4", "rep": 2, "toks": 355, "chunks": 354, "ttft": 0.069, "dec_tps": 137.69, "wall": 2.64, "sha": "d575e30ec959"}
+base r4 code-gen: {"cell": "code-gen", "tag": "c4", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.076, "dec_tps": 160.28, "wall": 5.061, "sha": "700a5b366c8f"}
+base r4 reason: {"cell": "reason", "tag": "c4", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.077, "dec_tps": 160.08, "wall": 3.195, "sha": "dba7e32e9723"}
+base r4 agent-edit: {"cell": "agent-edit", "tag": "c4", "rep": 2, "toks": 1200, "chunks": 1200, "ttft": 0.303, "dec_tps": 159.22, "wall": 7.833, "sha": "6a9a78c75256"}
+base r4 metrics: intarsia_graph_replays_total 2650 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2633 intarsia_spec_proposed_tokens_total 5265 intarsia_spec_accepted_tokens_total 4576 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+ab done
+fleetq: #10153 done (exit 0)
+exit 0

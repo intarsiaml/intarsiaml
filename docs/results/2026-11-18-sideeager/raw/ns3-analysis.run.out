@@ -1,0 +1,17 @@
+fleetq: #10189 waiting (#1 in line): #10185 "sideeager: nsys 12 more servers, 6 base 6 knob (part 2)" (claude-a9e6e738) needs cpu quiet on spark1, and this job loads it
+fleetq:   #10185 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10185 set, or it will wait for #10185 to be released.
+fleetq: #10189 running on spark1: ssh spark1 'cd ~/intarsiaml-sideeager/out && for f in ns3/*.sqlite; do python3 ~/intarsiaml-sideeager/src/scripts/sideeager/nsys_req.py $f < /dev/null > ${f%.sqlite}.req.txt 2>&1; done; ls ns3/*.req.txt'
+ns3/b4.req.txt
+ns3/b5.req.txt
+ns3/b6.req.txt
+ns3/b7.req.txt
+ns3/b8.req.txt
+ns3/b9.req.txt
+ns3/k10.req.txt
+ns3/k11.req.txt
+ns3/k12.req.txt
+ns3/k13.req.txt
+ns3/k8.req.txt
+ns3/k9.req.txt
+fleetq: #10189 done (exit 0)
+exit 0

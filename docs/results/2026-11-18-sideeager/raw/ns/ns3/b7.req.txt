@@ -1,0 +1,10 @@
+ns3/b7.sqlite: 1191 graph launches, slow 301, 7 requests (gap > 60 ms), main eager stream 13
+ req 0:  147 launches, slow    0, runs -; median idle 68.6 us, span 17.464 ms, launch gap 492.6 us (launch-to-launch 18.04 ms); eager before [M 1415 S 0] inside [M 0 S 0]
+ req 1:  150 launches, slow    0, runs -; median idle 68.7 us, span 17.527 ms, launch gap 490.7 us (launch-to-launch 18.10 ms); eager before [M 1415 S 0] inside [M 0 S 0]
+ req 2:  110 launches, slow    0, runs -; median idle 68.7 us, span 17.532 ms, launch gap 477.7 us (launch-to-launch 18.04 ms); eager before [M 1375 S 0] inside [M 0 S 0]
+ req 3:  108 launches, slow    0, runs -; median idle 68.7 us, span 17.546 ms, launch gap 483.0 us (launch-to-launch 18.10 ms); eager before [M 1392 S 0] inside [M 0 S 0]
+ req 4:  108 launches, slow  108, runs 0-107; median idle 324.6 us, span 17.943 ms, launch gap 506.2 us (launch-to-launch 18.48 ms); eager before [M 2018 S 280] inside [M 0 S 0]
+ req 5:  284 launches, slow  193, runs 0-192; median idle 323.4 us, span 17.886 ms, launch gap 493.1 us (launch-to-launch 18.44 ms); eager before [M 2018 S 280] inside [M 0 S 0]
+ req 6:  284 launches, slow    0, runs -; median idle 69.1 us, span 17.661 ms, launch gap 498.9 us (launch-to-launch 18.18 ms); eager before [M 1392 S 0] inside [M 0 S 0]
+first slow launch: request 4, launch 0 of 108; eager kernels since the session start [M 7615 S 280], since the previous request's end [M 2018 S 280]
+side-stream eager kernels before it: 280, last at 79.7 ms before it
