@@ -94,11 +94,11 @@ pub static MACRO_PASSES_TOTAL: std::sync::atomic::AtomicU64 = std::sync::atomic:
 /// default-on knobs `INTARSIA_MOE_SHARED_STREAM` / `INTARSIA_SIDE_PROJ` engage. A captured graph replays its forks without
 /// counting them again.
 pub static SIDE_FORKS_TOTAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-/// Lane postchain2: graph captures in progress on this thread ([`CaptureGuard`]), so that `INTARSIA_SIDE_EAGER` (default: eager passes
-/// do not fork) keeps an eager pass on one stream while a capture still records its side-stream forks. Lane sideflip: per thread, not
-/// per process, so an eager pass on another thread is not treated as captured while some capture runs (a capture records on the
-/// thread that runs its body).
 thread_local! {
+    /// Lane postchain2: graph captures in progress on this thread ([`CaptureGuard`]), so that `INTARSIA_SIDE_EAGER` (default: eager passes
+    /// do not fork) keeps an eager pass on one stream while a capture still records its side-stream forks. Lane sideflip: per thread, not
+    /// per process, so an eager pass on another thread is not treated as captured while some capture runs (a capture records on the
+    /// thread that runs its body).
     pub(crate) static CAPTURES_ACTIVE: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 /// Lane postchain2: counts a graph capture in [`CAPTURES_ACTIVE`] for its scope.
