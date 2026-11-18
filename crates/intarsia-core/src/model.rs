@@ -94,20 +94,24 @@ pub static MACRO_PASSES_TOTAL: std::sync::atomic::AtomicU64 = std::sync::atomic:
 /// default-on knobs `INTARSIA_MOE_SHARED_STREAM` / `INTARSIA_SIDE_PROJ` engage. A captured graph replays its forks without
 /// counting them again.
 pub static SIDE_FORKS_TOTAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-/// Lane postchain2: graph captures in progress in this process ([`CaptureGuard`]), so that `INTARSIA_SIDE_EAGER=0` can keep an
-/// eager pass on one stream while a capture still records its side-stream forks.
-pub(crate) static CAPTURES_ACTIVE: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+thread_local! {
+    /// Lane postchain2: graph captures in progress on this thread ([`CaptureGuard`]), so that `INTARSIA_SIDE_EAGER` (default: eager passes
+    /// do not fork) keeps an eager pass on one stream while a capture still records its side-stream forks. Lane sideflip: per thread, not
+    /// per process, so an eager pass on another thread is not treated as captured while some capture runs (a capture records on the
+    /// thread that runs its body).
+    pub(crate) static CAPTURES_ACTIVE: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
 /// Lane postchain2: counts a graph capture in [`CAPTURES_ACTIVE`] for its scope.
 pub(crate) struct CaptureGuard;
 impl CaptureGuard {
     pub(crate) fn enter() -> CaptureGuard {
-        CAPTURES_ACTIVE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        CAPTURES_ACTIVE.with(|c| c.set(c.get() + 1));
         CaptureGuard
     }
 }
 impl Drop for CaptureGuard {
     fn drop(&mut self) {
-        CAPTURES_ACTIVE.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+        CAPTURES_ACTIVE.with(|c| c.set(c.get() - 1));
     }
 }
 
@@ -3657,11 +3661,13 @@ impl Model {
         } else {
             *MOE.get_or_init(|| knob("INTARSIA_MOE_SHARED_STREAM"))
         };
-        // lane postchain2: `INTARSIA_SIDE_EAGER=0` forks only inside a graph capture; an eager pass runs its side launches in order
-        // on its own stream (on CUDA an eager pass that used the side stream left the next 100-200 graph replays slower: every
-        // dependent node started ~0.4 us later, docs/results/2026-11-18-postchain2.md)
+        // lane postchain2: an eager pass that used the side stream left the next 100-200 graph replays slower on CUDA (every
+        // dependent node started ~0.4 us later, docs/results/2026-11-18-postchain2.md). Lane sideflip (user decision 2026-11-18,
+        // default-on): fork only inside a graph capture; an eager pass runs its side launches in order on its own stream.
+        // `INTARSIA_SIDE_EAGER=1` restores eager forks; unset / anything else = capture-only.
         static EAGER: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        if !*EAGER.get_or_init(|| knob("INTARSIA_SIDE_EAGER")) && CAPTURES_ACTIVE.load(std::sync::atomic::Ordering::Relaxed) == 0 {
+        let eager_fork = *EAGER.get_or_init(|| std::env::var("INTARSIA_SIDE_EAGER").is_ok_and(|v| v.trim() == "1"));
+        if !eager_fork && CAPTURES_ACTIVE.with(|c| c.get()) == 0 {
             return Ok(None);
         }
         if !on
