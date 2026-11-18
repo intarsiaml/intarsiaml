@@ -639,6 +639,10 @@ pub struct Model {
     /// keeps the per-row launches) and the tables it reads ([`verify_attn`]).
     verify_attn_rows: bool,
     verify_tab: Mutex<verify_attn::VerifyAttnTab>,
+    /// Lane cvat: `INTARSIA_CUDA_VERIFY_ATTN_ROWS=1` (CUDA, off by default): captured verify passes also take the row-table launch, with
+    /// the tables of [`verify_attn::VerifyCapTab`].
+    cuda_verify_attn_rows: bool,
+    verify_cap_tab: Mutex<verify_attn::VerifyCapTab>,
     /// `i32 [max rows]` argmax output of a verify pass; allocated by [`Model::enable_verify`] (spec on only).
     verify_tok: Option<Buffer>,
     /// Verify passes with a vocab-parallel head (every rank): the gather tile `f32 [world, VERIFY_MAX_ROWS * V / world]`,
@@ -1804,6 +1808,8 @@ impl Model {
             crate::spec::CostParams::for_backend(b.name()).with_recipe(recipe.mtp.as_ref())
         }
         .with_env(std::env::var("INTARSIA_SPEC_COSTGATE").ok().as_deref());
+        // lane cvat: captured verify passes on CUDA take the row-table attention launch too (opt-in)
+        let cuda_verify_attn_rows = b.name() == "cuda" && std::env::var("INTARSIA_CUDA_VERIFY_ATTN_ROWS").is_ok_and(|v| v == "1");
         // `--spec mtp`: verify attention per row where the multi-row call is not bitwise the decode step (CUDA; the user can opt out)
         if mtp_head.is_some() || mtp_whole {
             b.prefer_verify_attn_per_row();
@@ -1871,6 +1877,8 @@ impl Model {
             verify_rows_attn: dflash_head.is_some(),
             verify_attn_rows: std::env::var("INTARSIA_HIP_VERIFY_ATTN_ROWS").map_or(true, |v| v != "0"),
             verify_tab: Mutex::new(Default::default()),
+            cuda_verify_attn_rows,
+            verify_cap_tab: Mutex::new(Default::default()),
             verify_tok: None,
             verify_tile: None,
             verify_rows: 0,
@@ -4613,9 +4621,9 @@ impl Model {
             && (self.verifying() || dpos.is_some() || self.head_rows_attn.load(std::sync::atomic::Ordering::Relaxed))
             && (self.backend.verify_attn_per_row() || self.verify_rows_attn)
         {
-            // lane vat: all rows of the layer in one row-table launch (bitwise the per-row launches below); eager passes only
-            if dpos.is_none()
-                && self.verify_attn_rows(a, slot, &bufs.q[qc], &kcache, &vcache, &attn_out, &attrs, t, pos0, profile)?
+            // lane vat: all rows of the layer in one row-table launch (bitwise the per-row launches below); eager passes (and, CUDA with
+            // INTARSIA_CUDA_VERIFY_ATTN_ROWS=1, captured ones, lane cvat)
+            if self.verify_attn_rows(a, slot, &bufs.q[qc], &kcache, &vcache, &attn_out, &attrs, t, pos0, dpos, profile)?
             {
                 return Ok((attn_out, qc));
             }

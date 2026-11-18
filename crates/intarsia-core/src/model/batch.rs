@@ -1151,6 +1151,8 @@ impl Model {
             verify_rows_attn: false,
             verify_attn_rows: false,
             verify_tab: Mutex::new(Default::default()),
+            cuda_verify_attn_rows: false,
+            verify_cap_tab: Mutex::new(Default::default()),
             verify_tok: None,
             verify_tile: None,
             verify_rows: 0,

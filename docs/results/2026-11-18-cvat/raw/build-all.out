@@ -1,0 +1,46 @@
+fleetq: #10287 running on spark1: bash -c 'TESTS=verify_attn_rows bash scripts/cvat/build.sh && bash scripts/cvat/build.sh && REF=origin/main OUT=intarsia-main bash scripts/cvat/build.sh'
+16:47:10
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 5m 02s
+  Executable tests/verify_attn_rows.rs (target/release/deps/verify_attn_rows-843e8ff47c908217)
+copied /home/nvidia/intarsiaml-cvat/src/target/release/deps/verify_attn_rows-843e8ff47c908217
+/dev/nvme0n1p2  3.7T  3.3T  287G  92% /
+Mem:             121          42          68           0          11          79
+16:52:13
+16:52:19
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-engram)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-ui)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-server)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-tui)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 6m 07s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  286G  92% /
+1.8G	/home/nvidia/intarsiaml-cvat
+Mem:             121          41          68           0          12          79
+16:58:27
+16:58:32
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-bench)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-engram)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-ui)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-server)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-tui)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsiaml-cvat/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 29s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.2T  290G  92% /
+1.9G	/home/nvidia/intarsiaml-cvat
+Mem:             121          41          72           0           9          79
+17:04:02
+fleetq: #10287 done (exit 0)

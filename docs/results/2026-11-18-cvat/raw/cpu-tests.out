@@ -1,0 +1,26 @@
+fleetq: #10288 waiting (#2 in line): in line behind #10283 "copycuda: docs_env_vars drift test" (claude-0b386a17-copycuda) on endor
+fleetq: #10288 running on endor: bash -c 'cargo test -p intarsia-cli --test docs_env_vars 2>&1 | tail -15; cargo test -p intarsia-core --lib verify_attn 2>&1 | tail -8'
+
+---- every_env_var_in_the_code_has_a_row_in_docs_tuning_md stdout ----
+
+thread 'every_env_var_in_the_code_has_a_row_in_docs_tuning_md' (37717361) panicked at crates/intarsia-cli/tests/docs_env_vars.rs:90:5:
+INTARSIA_* variables in the code but missing from the table in docs/tuning.md; add a row for each (read-at file:line, default, effect, numerics yes/no/n/a/unverified):
+  INTARSIA_CVAT_TIMING (first seen in crates/intarsia-backend-cuda/tests/verify_attn_rows.rs)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    every_env_var_in_the_code_has_a_row_in_docs_tuning_md
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p intarsia-cli --test docs_env_vars`
+warning: `intarsia-core` (lib test) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.79s
+     Running unittests src/lib.rs (target-endor/debug/deps/intarsia_core-fab101dd321d85e6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 221 filtered out; finished in 0.00s
+
+fleetq: #10288 done (exit 0)

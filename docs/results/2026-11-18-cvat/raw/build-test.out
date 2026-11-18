@@ -1,0 +1,12 @@
+fleetq: #10281 running on spark1: bash scripts/cvat/build.sh
+16:40:39
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 5m 10s
+  Executable tests/verify_attn_rows.rs (target/release/deps/verify_attn_rows-843e8ff47c908217)
+copied /home/nvidia/intarsiaml-cvat/src/target/release/deps/verify_attn_rows-843e8ff47c908217
+/dev/nvme0n1p2  3.7T  3.3T  285G  93% /
+Mem:             121          41          67           0          13          80
+16:45:51
+fleetq: #10281 done (exit 0)
