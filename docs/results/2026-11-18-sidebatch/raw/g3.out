@@ -1,0 +1,7 @@
+fleetq: #10190 running on spark2: ssh spark2 'W=g3 ARMS="ubm:INTARSIA_BATCHED_MTP=8:--spec,mtp,--spec-k,2 e0bm:INTARSIA_BATCHED_MTP=8+INTARSIA_SIDE_EAGER=0:--spec,mtp,--spec-k,2" bash -s'
+ubm up 07:45:39 free: 48 GB env=[INTARSIA_BATCHED_MTP=8] args=[--spec,mtp,--spec-k,2]
+ubm done 07:48:44: 30 requests, errors 0; counters: sidebatch: eager fork points (taken) moe/1row=64 proj/1row=64 moe/verify=7172 proj/verify=7172
+e0bm up 07:50:23 free: 49 GB env=[INTARSIA_BATCHED_MTP=8+INTARSIA_SIDE_EAGER=0] args=[--spec,mtp,--spec-k,2]
+e0bm done 07:53:30: 30 requests, errors 0; counters: sidebatch: eager fork points (SUPPRESSED) moe/1row=32 proj/1row=32 moe/verify=6009 proj/verify=6009
+serve done
+fleetq: #10190 done (exit 0)

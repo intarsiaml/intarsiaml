@@ -1,0 +1,19 @@
+fleetq: #10160 running on spark2: bash scripts/sidebatch/build.sh
+07:04:39
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsiaml-sidebatch/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsiaml-sidebatch/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsiaml-sidebatch/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsiaml-sidebatch/src/crates/intarsia-engram)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsiaml-sidebatch/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsiaml-sidebatch/src/crates/intarsia-ui)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsiaml-sidebatch/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsiaml-sidebatch/src/crates/intarsia-server)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsiaml-sidebatch/src/crates/intarsia-tui)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsiaml-sidebatch/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 18m 10s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.4T  156G  96% /
+2.9G	/home/nvidia/intarsiaml-sidebatch
+Mem:             121          45          67           0           9          76
+07:22:52
+fleetq: #10160 done (exit 0)

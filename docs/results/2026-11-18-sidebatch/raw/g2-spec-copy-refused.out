@@ -1,0 +1,11 @@
+fleetq: #10186 waiting (#1 in line): needs gpu quiet on spark2, but #10183 "sidebatch: gates default-MTP arms u e0 off" (claude-a9e6e738) loads it
+fleetq:   #10183 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10183 set, or it will wait for #10183 to be released.
+fleetq: #10186 waiting (#1 in line): needs spark2 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10186 running on spark2: ssh spark2 'W=g2 ARMS="ubm:INTARSIA_BATCHED_MTP=8+INTARSIA_SPEC_COPY=20:--spec,mtp,--spec-k,2 e0bm:INTARSIA_BATCHED_MTP=8+INTARSIA_SPEC_COPY=20+INTARSIA_SIDE_EAGER=0:--spec,mtp,--spec-k,2" bash -s'
+serve died (ubm)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+Error: loading /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
+
+Caused by:
+    unsupported: INTARSIA_SPEC_COPY needs --spec mtp with --max-batch 1, one rank, on the cuda or metal backend (max batch 8, tp 1, backend cuda)
+fleetq: #10186 done (exit 1)
