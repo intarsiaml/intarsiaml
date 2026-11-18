@@ -1,0 +1,5 @@
+fleetq: #10296 waiting (#2 in line): in line behind #10295 "cvat mb8 gate" (claude-0b386a17-cvat) on spark1
+fleetq:   #10295 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10295 set, or it will wait for #10295 to be released.
+fleetq: #10296 waiting (#1 in line): needs gpu quiet on spark1, but #10295 "cvat mb8 gate" (claude-0b386a17-cvat) loads it
+fleetq:   #10295 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10295 set, or it will wait for #10295 to be released.
+fleetq: #10296 running on spark1: ssh -n spark1 'W=ab1 ROUNDS=4 REPS=3 CELLS="chat-short code-gen reason agent-edit" ARMS="base:X=1 vat:INTARSIA_CUDA_VERIFY_ATTN_ROWS=1" bash ~/intarsiaml-cvat/src/scripts/cvat/ab.sh'

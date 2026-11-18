@@ -467,6 +467,8 @@ impl Model {
             v.offset = 4 * i;
             v
         };
+        // lane cvat: the K / V table regions of this sequence's caches exist before the recording starts (INTARSIA_CUDA_VERIFY_ATTN_ROWS=1)
+        self.register_verify_cap_tabs(st, Some(&m.kv))?;
         *self.capture_ops.lock().unwrap() = Some(Vec::new());
         self.capture_comms.store(0, Ordering::Relaxed);
         let _capture = crate::model::CaptureGuard::enter();
