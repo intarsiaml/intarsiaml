@@ -1,4 +1,4 @@
-fleetq: #10012 running on endor: scripts/mcopylen/plan.sh
+fleetq: #10050 running on endor: scripts/mcopylen/plan.sh
 base: exit 0 13188 bytes sha a3bb42031070215f
 new: exit 0 13188 bytes sha a3bb42031070215f
 base2: exit 0 13188 bytes sha a3bb42031070215f
@@ -28,4 +28,4 @@ PASS plan show knob unset: base and new byte-identical
 <             "scratch_bytes": 125696
 ---
 >             "scratch_bytes": 330496
-fleetq: #10012 done (exit 0)
+fleetq: #10050 done (exit 0)
