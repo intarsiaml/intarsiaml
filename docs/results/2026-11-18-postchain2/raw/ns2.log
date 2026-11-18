@@ -1,0 +1,17 @@
+fleetq: #10106 waiting (#1 in line): needs cpu quiet on spark1, but #10105 "postchain2: build main + lane (merged)" (claude-a9e6e738) loads it
+fleetq:   #10105 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10105 set, or it will wait for #10105 to be released.
+fleetq: #10106 running on spark1: ssh spark1 'W=ns2 ARMS='"'"'e1:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=754,e ex1:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=754,e+INTARSIA_SIDE_EAGER=0 nx1:INTARSIA_SPEC_COPY=20+INTARSIA_SIDE_EAGER=0 ex2:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=754,e+INTARSIA_SIDE_EAGER=0 nx2:INTARSIA_SPEC_COPY=20+INTARSIA_SIDE_EAGER=0 e2:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=754,e'"'"' bash -s'
+e1 up 04:42:15 free: 55 GB
+e1: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 0, 25501696 bytes sqlite
+ex1 up 04:44:18 free: 57 GB
+ex1: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 0, 25075712 bytes sqlite
+nx1 up 04:46:25 free: 56 GB
+nx1: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 2, 25440256 bytes sqlite
+ex2 up 04:48:32 free: 56 GB
+ex2: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 0, 25485312 bytes sqlite
+nx2 up 04:50:35 free: 56 GB
+nx2: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 2, 25632768 bytes sqlite
+e2 up 04:52:45 free: 57 GB
+e2: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 0, 25501696 bytes sqlite
+nsys done
+fleetq: #10106 done (exit 0)

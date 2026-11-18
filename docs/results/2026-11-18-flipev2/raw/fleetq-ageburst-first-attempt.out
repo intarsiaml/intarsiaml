@@ -1,0 +1,7 @@
+fleetq: #10079 waiting (#3 in line): in line behind #10039 "flipev2 diag: cold 16K prefill speed vs max-batch (35B, ~15 min)" (claude-a9e6e738) on spark2
+fleetq:   #10039 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10039 set, or it will wait for #10039 to be released.
+fleetq: #10079 waiting (#2 in line): in line behind #10040 "flipev2 dec: 3-4 decoders + shorts at max-batch 8 (35B, ~55 min)" (claude-a9e6e738) on spark2
+fleetq:   #10040 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10040 set, or it will wait for #10040 to be released.
+fleetq: #10079 waiting (#1 in line): needs gpu quiet on spark2, but #10040 "flipev2 dec: 3-4 decoders + shorts at max-batch 8 (35B, ~55 min)" (claude-a9e6e738) loads it
+fleetq:   #10040 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10040 set, or it will wait for #10040 to be released.
+fleetq: fleetq server http://fleetq:8470 unreachable: timed out

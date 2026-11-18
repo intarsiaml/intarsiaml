@@ -1,0 +1,38 @@
+```python
+# lru_cache.py
+"""LRU Cache implementation using a doubly linked list and a dictionary."""
+
+
+class _Node:
+    """A node in the doubly linked list."""
+    __slots__ = ('key', 'value', 'prev', 'next')
+
+    def __init__(self, key=None, value=None):
+        self.key = key
+        self.value = value
+        self.prev = None
+        self.next = None
+
+
+class LRUCache:
+    """
+    LRU Cache built on a doubly linked list and a dict.
+    
+    Supports:
+    - put(key, value): Insert or update a key-value pair.
+    - get(key): Retrieve the value for a key, moving it to the front (most recently used).
+    - delete(key): Remove a key from the cache.
+    - __len__(): Return the number of items in the cache.
+    """
+
+    def __init__(self, capacity: int):
+        if capacity <= 0:
+            raise ValueError("Capacity must be positive")
+        self.capacity = capacity
+        self.size = 0
+        # Dict mapping key -> Node
+        self.cache = {}
+        # Dummy head and tail nodes to simplify list operations
+        self.head = _Node()  # Most recently used end
+        self.tail = _Node()  # Least recently used end
+        self.head.next = self.tail

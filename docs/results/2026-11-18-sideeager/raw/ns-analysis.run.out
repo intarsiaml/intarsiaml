@@ -1,0 +1,19 @@
+fleetq: #10159 waiting (#2 in line): in line behind #10158 "sideeager: gates (ids base vs INTARSIA_SIDE_EAGER=0)" (claude-a9e6e738) on spark1
+fleetq:   #10158 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10158 set, or it will wait for #10158 to be released.
+fleetq: #10159 waiting (#2 in line): in line behind #10158 "sideeager: gates (ids base vs INTARSIA_SIDE_EAGER=0)" (claude-a9e6e738) on spark1; #10158 has no estimated start, so nothing can go first by ending before it
+fleetq:   #10158 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10158 set, or it will wait for #10158 to be released.
+fleetq: #10159 waiting (#1 in line): #10158 "sideeager: gates (ids base vs INTARSIA_SIDE_EAGER=0)" (claude-a9e6e738) needs cpu quiet on spark1, and this job loads it
+fleetq:   #10158 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10158 set, or it will wait for #10158 to be released.
+fleetq: #10159 running on spark1: ssh spark1 'cd ~/intarsiaml-sideeager/out && for d in ns1 ns2; do for f in $d/*.sqlite; do python3 ~/intarsiaml-sideeager/src/scripts/sideeager/nsys_req.py $f < /dev/null > ${f%.sqlite}.req.txt 2>&1; done; done; ls ns1/*.req.txt ns2/*.req.txt'
+ns1/b1.req.txt
+ns1/k1.req.txt
+ns2/b2.req.txt
+ns2/b3.req.txt
+ns2/k2.req.txt
+ns2/k3.req.txt
+ns2/k4.req.txt
+ns2/k5.req.txt
+ns2/k6.req.txt
+ns2/k7.req.txt
+fleetq: #10159 done (exit 0)
+exit 0

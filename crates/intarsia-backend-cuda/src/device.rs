@@ -430,7 +430,8 @@ impl Backend for CudaBackend {
         if !*ON.get_or_init(|| std::env::var_os("INTARSIA_CUDA_GDN_VERIFY_FUSE").map_or(true, |v| v != "0")) {
             return Ok(false);
         }
-        if c.snap_conv.is_empty() || c.snap_conv.len() != c.snap_s.len() {
+        // the kernel takes 2..=8 rows (the caller passes up to 16 since lane mgdnv)
+        if c.snap_conv.is_empty() || c.snap_conv.len() > 7 || c.snap_conv.len() != c.snap_s.len() {
             return Ok(false);
         }
         self.bind()?;

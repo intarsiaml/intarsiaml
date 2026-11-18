@@ -1,0 +1,31 @@
+fleetq: #10185 waiting (#1 in line): needs gpu quiet on spark1, but #10176 "sideeager: ABBA replicate (4 default cells)" (claude-a9e6e738) loads it
+fleetq:   #10176 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10176 set, or it will wait for #10176 to be released.
+fleetq: #10185 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10185 running on spark1: ssh spark1 'W=ns3 ARMS="k8:INTARSIA_SIDE_EAGER=0 b4:X=1 b5:X=1 k9:INTARSIA_SIDE_EAGER=0 k10:INTARSIA_SIDE_EAGER=0 b6:X=1 b7:X=1 k11:INTARSIA_SIDE_EAGER=0 k12:INTARSIA_SIDE_EAGER=0 b8:X=1 b9:X=1 k13:INTARSIA_SIDE_EAGER=0" bash -s'
+k8 up 07:43:29 free: 57 GB
+k8: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113418240 bytes sqlite
+b4 up 07:45:28 free: 57 GB
+b4: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113479680 bytes sqlite
+b5 up 07:47:21 free: 57 GB
+b5: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113471488 bytes sqlite
+k9 up 07:49:23 free: 57 GB
+k9: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113418240 bytes sqlite
+k10 up 07:51:23 free: 57 GB
+k10: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113418240 bytes sqlite
+b6 up 07:53:20 free: 56 GB
+b6: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113475584 bytes sqlite
+b7 up 07:55:02 free: 56 GB
+b7: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113471488 bytes sqlite
+k11 up 07:56:59 free: 57 GB
+k11: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113410048 bytes sqlite
+k12 up 07:58:44 free: 57 GB
+k12: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113418240 bytes sqlite
+b8 up 08:00:43 free: 57 GB
+b8: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113475584 bytes sqlite
+b9 up 08:02:42 free: 57 GB
+b9: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113471488 bytes sqlite
+k13 up 08:04:39 free: 57 GB
+k13: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113418240 bytes sqlite
+nsys done
+fleetq: #10185 done (exit 0)
+exit 0

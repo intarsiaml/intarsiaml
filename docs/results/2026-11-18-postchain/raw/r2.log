@@ -1,0 +1,44 @@
+fleetq: #10044 running on spark1: ssh spark1 'W=r2 ROUNDS=5 ARMS='"'"'a7:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=450,a7 base:X=1 n20:INTARSIA_SPEC_COPY=20 L7:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=450,7'"'"' bash -s'
+a7 r1 up 01:41:32 free: 56 GB
+a7 r1: 19 requests, shas d33d bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 1, probes: spec: probe accept chain of 7 at token 450;
+base r1 up 01:43:54 free: 57 GB
+base r1: 19 requests, shas d33d bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 0, probes: 
+n20 r1 up 01:46:14 free: 57 GB
+n20 r1: 19 requests, shas d33d bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 2, probes: 
+L7 r1 up 01:48:21 free: 57 GB
+L7 r1: 19 requests, shas d33d bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 1, probes: 
+L7 r2 up 01:50:23 free: 57 GB
+L7 r2: 19 requests, shas d33d 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 1, probes: 
+n20 r2 up 01:52:40 free: 57 GB
+n20 r2: 19 requests, shas d33d 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 2, probes: 
+base r2 up 01:54:36 free: 57 GB
+base r2: 19 requests, shas d33d 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 0, probes: 
+a7 r2 up 01:56:59 free: 57 GB
+a7 r2: 19 requests, shas d33d 1bd2 5155 ca89 680a 1f3c f916 c8f0 d0c9 c7e5 da24 c7e5 f54c d59a 517a c7e5 f13d 1f3c d339, chains 1, probes: spec: probe accept chain of 7 at token 450;
+a7 r3 up 01:59:19 free: 57 GB
+a7 r3: 19 requests, shas d33d 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 1, probes: spec: probe accept chain of 7 at token 450;
+base r3 up 02:01:43 free: 57 GB
+base r3: 19 requests, shas d33d 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 0, probes: 
+n20 r3 up 02:04:06 free: 57 GB
+n20 r3: 19 requests, shas d33d 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 2, probes: 
+L7 r3 up 02:06:29 free: 57 GB
+L7 r3: 19 requests, shas d33d 8f5f b17a f916 51c2 75a2 d833 c8f0 d0c9 c7e5 f54c f54c 4656 86c3 c7e5 0d7a 1b36 e1a1 3d9d, chains 1, probes: 
+L7 r4 up 02:08:52 free: 57 GB
+L7 r4: 19 requests, shas d33d 0e6e 1f3c 9e72 f916 3afa 1653 c8f0 d0c9 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 1, probes: 
+n20 r4 up 02:11:15 free: 57 GB
+n20 r4: 19 requests, shas d33d 0e6e 1f3c 9e72 f916 3afa 1653 c8f0 d0c9 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 2, probes: 
+base r4 up 02:13:37 free: 57 GB
+base r4: 19 requests, shas d33d 0e6e 1f3c 9e72 f916 3afa 1653 c8f0 d0c9 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 0, probes: 
+a7 r4 up 02:16:02 free: 57 GB
+a7 r4: 19 requests, shas d33d 0e6e 1f3c 9e72 f916 3afa 1653 c8f0 d0c9 3b2f bf09 5155 75a2 88be 3b4d 7010 6557 b1aa cb72, chains 1, probes: spec: probe accept chain of 7 at token 450;
+a7 r5 up 02:18:25 free: 57 GB
+a7 r5: 19 requests, shas d33d 66e9 f916 5155 9e72 8896 f035 c8f0 d0c9 7692 6557 3b33 c7e5 7cd9 cb72 b1aa f54c 1bd2 a9cd, chains 1, probes: spec: probe accept chain of 7 at token 450;
+base r5 up 02:20:44 free: 57 GB
+base r5: 19 requests, shas d33d 66e9 f916 5155 9e72 8896 f035 c8f0 d0c9 7692 6557 3b33 c7e5 7cd9 cb72 b1aa f54c 1bd2 a9cd, chains 0, probes: 
+n20 r5 up 02:23:10 free: 57 GB
+n20 r5: 19 requests, shas d33d 66e9 f916 5155 9e72 8896 f035 c8f0 d0c9 7692 6557 3b33 c7e5 7cd9 cb72 b1aa f54c 1bd2 a9cd, chains 2, probes: 
+L7 r5 up 02:25:32 free: 57 GB
+L7 r5: 19 requests, shas d33d 66e9 f916 5155 9e72 8896 f035 c8f0 d0c9 7692 6557 3b33 c7e5 7cd9 cb72 b1aa f54c 1bd2 a9cd, chains 1, probes: 
+serve2 done
+fleetq: #10044 done (exit 0)
+exit 0

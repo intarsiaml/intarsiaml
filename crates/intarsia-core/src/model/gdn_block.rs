@@ -377,7 +377,7 @@ impl Model {
         Ok(())
     }
 
-    /// Lane mtp2s: rows `lo .. lo + len` (2..=8) of a speculative verify pass's GatedDeltaNet block as [`Backend::gdn_verify_rows`] (CUDA:
+    /// Lane mtp2s: rows `lo .. lo + len` (2..=16: CUDA 2..=8, Metal 2..=16) of a speculative verify pass's GatedDeltaNet block as [`Backend::gdn_verify_rows`] (CUDA:
     /// the conv in one launch and the delta rule in another, the state saved after every row but the last into the pass's save buffers
     /// `st.spec_rows.bufs[r]`, at this slot's offset `off`), instead of three launches and a copy of the whole slot per row. Bitwise the
     /// row loop of the callers (the backend's device test pins it) and not a registered op, so the plan is the same with it on or off.
@@ -400,7 +400,7 @@ impl Model {
         let l = &g.lin;
         let conv_dt = self.backend.gdn_conv_dtype();
         let s_off = state_s_offset(l, conv_dt);
-        if !(2..=8).contains(&len) || st.spec_rows.bufs.len() < len - 1 || off % 16 != 0 || slot_bytes % 16 != 0 || s_off % 16 != 0 {
+        if !(2..=16).contains(&len) || st.spec_rows.bufs.len() < len - 1 || off % 16 != 0 || slot_bytes % 16 != 0 || s_off % 16 != 0 {
             return Ok(false);
         }
         let (c, hv, dv, dk, ks) = (l.conv_dim(), l.v_heads, l.v_head_dim, l.k_head_dim, l.conv_kernel);

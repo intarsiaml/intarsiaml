@@ -1,0 +1,83 @@
+fleetq: #10170 running on endor: sh -c 'cargo test --release -p intarsia-backend-metal --test moe_verify16 -- --nocapture --test-threads 1 && cargo test --release -p intarsia-backend-metal --test moe_verify16 -- --ignored --nocapture timing_moe_verify16'
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mmoe16/crates/intarsia-backend-metal)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 5.59s
+     Running tests/moe_verify16.rs (target/release/deps/moe_verify16-a6d08e5b5223e612)
+
+running 3 tests
+test timing_moe_verify16 ... ignored
+test verify16_moe_rows_are_bitwise_the_one_token_call ... MMOE16 bitwise: 224 cases, 2800 token rows equal (knob on == knob off == one-token calls)
+ok
+test verify16_negative_control ... MMOE16 negctl T=9: 1893 of 36880 bytes differ, first at byte 32768 (last token starts at 32768)
+MMOE16 negctl T=12: 1889 of 49168 bytes differ, first at byte 45056 (last token starts at 45056)
+MMOE16 negctl T=16: 1907 of 65552 bytes differ, first at byte 61440 (last token starts at 61440)
+ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.28s
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running tests/moe_verify16.rs (target/release/deps/moe_verify16-a6d08e5b5223e612)
+
+running 1 test
+TIMING moe_verify16 T=8 routing=pool72 distinct=43.3: off 173.7 us, on 173.3 us (1.002x), x40 off 6.95 ms on 6.93 ms
+TIMING moe_verify16 T=8 routing=random distinct=57.6: off 200.1 us, on 200.1 us (1.000x), x40 off 8.00 ms on 8.00 ms
+TIMING moe_verify16 T=9 routing=pool72 distinct=47.2: off 190.6 us, on 203.0 us (0.939x), x40 off 7.62 ms on 8.12 ms
+TIMING moe_verify16 T=9 routing=random distinct=63.0: off 218.6 us, on 223.9 us (0.976x), x40 off 8.74 ms on 8.96 ms
+TIMING moe_verify16 T=12 routing=pool72 distinct=53.8: off 243.3 us, on 279.5 us (0.871x), x40 off 9.73 ms on 11.18 ms
+TIMING moe_verify16 T=12 routing=random distinct=82.0: off 333.3 us, on 323.4 us (1.030x), x40 off 13.33 ms on 12.94 ms
+TIMING moe_verify16 T=16 routing=pool72 distinct=61.1: off 418.6 us, on 396.2 us (1.057x), x40 off 16.74 ms on 15.85 ms
+TIMING moe_verify16 T=16 routing=random distinct=101.9: off 407.3 us, on 401.5 us (1.015x), x40 off 16.29 ms on 16.06 ms
+test timing_moe_verify16 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 3.80s
+
+fleetq: #10170 done (exit 0)

@@ -1,0 +1,79 @@
+fleetq: #10085 running on endor: sh -c 'cargo test --release -p intarsia-backend-metal -- --test-threads 1 2>&1 | grep -E '"'"'Running|test result|FAILED|panicked|failed'"'"' ; cargo test --release -p intarsia-cli --test docs_env_vars 2>&1 | grep -E '"'"'test result'"'"'; cargo check -p intarsia-backend-cuda 2>&1 | tail -3'
+     Running unittests src/lib.rs (target-mgdnv/release/deps/intarsia_backend_metal-52ae18ab87ff48e8)
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/a8_served.rs (target-mgdnv/release/deps/a8_served-8cd1cb275b059175)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/attention.rs (target-mgdnv/release/deps/attention-40e36ee8e323d673)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.75s
+     Running tests/dense.rs (target-mgdnv/release/deps/dense-47cd4391fbbd53e2)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+     Running tests/df_verify_bench.rs (target-mgdnv/release/deps/df_verify_bench-a952650ea5b143b5)
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/dflash2.rs (target-mgdnv/release/deps/dflash2-c3f49dbf26c78a2f)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/dspine.rs (target-mgdnv/release/deps/dspine-e168242ec56d2118)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/fault_inject.rs (target-mgdnv/release/deps/fault_inject-5612fb4feafa3b9d)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/fill.rs (target-mgdnv/release/deps/fill-4db218041191d730)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+     Running tests/flash_prefill.rs (target-mgdnv/release/deps/flash_prefill-a4ca651389fa32ab)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.01s
+     Running tests/flash_prefill_nax.rs (target-mgdnv/release/deps/flash_prefill_nax-5de2430e2d22e85c)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.93s
+     Running tests/fp8_nax.rs (target-mgdnv/release/deps/fp8_nax-5b5b84acde770431)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+     Running tests/fused.rs (target-mgdnv/release/deps/fused-823c490addbf32a8)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+     Running tests/g0b_attn.rs (target-mgdnv/release/deps/g0b_attn-7e8e122df58b32d6)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 27.72s
+     Running tests/g0b_small.rs (target-mgdnv/release/deps/g0b_small-330875c341f9b76c)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s
+     Running tests/gdn.rs (target-mgdnv/release/deps/gdn-d969434792818de1)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.19s
+     Running tests/gdn_verify_snap.rs (target-mgdnv/release/deps/gdn_verify_snap-139a30ae1d5a5c01)
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.70s
+     Running tests/gdn_verify_snap_off.rs (target-mgdnv/release/deps/gdn_verify_snap_off-6bbc1729d43f2787)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/gemm_nax.rs (target-mgdnv/release/deps/gemm_nax-f5f99ff887e947b0)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.62s
+     Running tests/gemv.rs (target-mgdnv/release/deps/gemv-8de932ff068fd763)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.56s
+     Running tests/hs_bitwise.rs (target-mgdnv/release/deps/hs_bitwise-a8552225156e16c1)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.85s
+     Running tests/keepwarm.rs (target-mgdnv/release/deps/keepwarm-c0c4d5c81bcfe080)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.81s
+     Running tests/kv_once.rs (target-mgdnv/release/deps/kv_once-284166581f049af1)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.29s
+     Running tests/lowlat.rs (target-mgdnv/release/deps/lowlat-477295aafabb81bd)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+     Running tests/metal4_fallback.rs (target-mgdnv/release/deps/metal4_fallback-30b296953ce63c14)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+     Running tests/moe.rs (target-mgdnv/release/deps/moe-a8752d3bfed60c08)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.96s
+     Running tests/multirow.rs (target-mgdnv/release/deps/multirow-eac1f81ffb2317b5)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.44s
+     Running tests/mxfp4_gemv.rs (target-mgdnv/release/deps/mxfp4_gemv-2801c5c214c9c653)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s
+     Running tests/mxfp4_nax.rs (target-mgdnv/release/deps/mxfp4_nax-aa68146d6e519445)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.94s
+     Running tests/qkv_fold.rs (target-mgdnv/release/deps/qkv_fold-0e8bc77809137a00)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.34s
+     Running tests/quant.rs (target-mgdnv/release/deps/quant-7644efe241bd070c)
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.80s
+     Running tests/quick_coverage.rs (target-mgdnv/release/deps/quick_coverage-99be3c348c7f0ee5)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.00s
+     Running tests/row_tables.rs (target-mgdnv/release/deps/row_tables-46d607405fb71997)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.49s
+     Running tests/rows_exact.rs (target-mgdnv/release/deps/rows_exact-6758ef4336abf182)
+test result: ok. 11 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 7.32s
+     Running tests/token_feedback.rs (target-mgdnv/release/deps/token_feedback-640e7d2e7d25d6a0)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests/wrap_host.rs (target-mgdnv/release/deps/wrap_host-e885a833ce1a07bb)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.46s
+fleetq: #10085 done (exit 0)

@@ -1,0 +1,40 @@
+```python
+# lru_cache.py
+
+class _Node:
+    """Doubly linked list node."""
+    __slots__ = ('key', 'value', 'prev', 'next')
+
+    def __init__(self, key=None, value=None):
+        self.key = key
+        self.value = value
+        self.prev = None
+        self.next = None
+
+
+class LRUCache:
+    """LRU Cache built on a doubly linked list and a dict."""
+
+    def __init__(self, capacity: int):
+        if capacity <= 0:
+            raise ValueError("Capacity must be positive")
+        self.capacity = capacity
+        self.size = 0
+        # Dict mapping key -> Node
+        self.cache = {}
+        # Sentinel head and tail nodes
+        self.head = _Node()  # head is the most recent end
+        self.tail = _Node()  # tail is the least recent end
+        self.head.next = self.tail
+        self.tail.prev = self.head
+
+    def _remove(self, node: _Node):
+        """Remove a node from the doubly linked list."""
+        prev_node = node.prev
+        next_node = node.next
+        prev_node.next = next_node
+        next_node.prev = prev_node
+
+    def _add_to_front(self, node: _Node):
+        """Add a node right after the head (most recent position)."""
+       

@@ -285,6 +285,27 @@ pub fn with_mxfp4_rows_chunk<R>(on: bool, f: impl FnOnce() -> R) -> R {
     r
 }
 
+/// `INTARSIA_METAL_VERIFY16=1` (lane mmoe16, opt-in): 9..=16-row calls (the copy-chain verify pass of up to 16 rows) take the
+/// cheaper bitwise-equal kernels: `moe_experts_bf16_rows` decodes the e2m1 codes by bit arithmetic instead of a constant table
+/// (`moe_dec_gu_a` / `moe_dec_dn_a`). Unset or anything but `1`: today's kernels. Read once per process.
+pub fn verify16_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let forced = VERIFY16_FORCE.with(|t| t.get());
+    forced.unwrap_or_else(|| *ON.get_or_init(|| std::env::var("INTARSIA_METAL_VERIFY16").is_ok_and(|v| v == "1")))
+}
+
+thread_local! {
+    static VERIFY16_FORCE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Test hook: run `f` with this thread's `INTARSIA_METAL_VERIFY16` forced on or off, whatever the env says.
+pub fn with_verify16<R>(on: bool, f: impl FnOnce() -> R) -> R {
+    VERIFY16_FORCE.with(|t| t.set(Some(on)));
+    let r = f();
+    VERIFY16_FORCE.with(|t| t.set(None));
+    r
+}
+
 /// Chunk plan of a row-exact `matmul_fp8_gemv_rows` call (lane mfp8split), by rows `m` (index `m`, 2..=[`CHUNK_ROWS_MAX`]): the launch
 /// sizes, largest first, or empty where the kernel keeps its old rule (one launch up to [`CHUNK_TILE`] rows, halves above 13..=16). The
 /// kernel's 5..=8-row form (simdgroup-matrix) costs the same at every M from 5 to 8 (35B layers 4503 us per step, the 27B's fp8 head 3436 us),
@@ -953,6 +974,12 @@ impl Backend for MetalBackend {
     }
 
     /// The GPU address of byte 0 of `buf`; the buffer joins the set declared resident for row-table dispatches.
+    /// Lane mgdnv: the speculative-verify GatedDeltaNet rows with their rollback saves in two dispatches (opt-in:
+    /// `INTARSIA_METAL_GDN_VERIFY_FUSE`, on unless `0`; see `gdn.rs`). `Ok(false)` otherwise, nothing encoded.
+    fn gdn_verify_rows(&self, call: &intarsia_core::GdnVerifyRows<'_>, _stream: StreamId) -> Result<bool> {
+        self.gdn_verify_rows_impl(call)
+    }
+
     fn device_address(&self, buf: &Buffer) -> Option<u64> {
         let mb = self.mbuf(buf).ok()?;
         let key = mb.mtl.gpuAddress();

@@ -1,0 +1,11 @@
+fleetq: #10127 running on endor: scripts/mgdnv27/path27.sh
+== 27B generate default recipe knob=1
+        next_node = nodemgdnvdbg fused calls 5100 by rows [0, 0, 12, 5088, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+== 27B generate default recipe knob=0
+== 35B serve mb4 batched MTP N=4 knob=1, 4 concurrent
+AGG {"tag": "p", "n": 4, "toks": 800, "wall": 3.6, "agg_tps": 221.91}
+mgdnvdbg fused calls 8400 by rows [0, 0, 30, 8370, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+== 35B serve mb16 batched MTP N=8 knob=1, 8 concurrent
+AGG {"tag": "p", "n": 8, "toks": 1600, "wall": 6.87, "agg_tps": 232.85}
+mgdnvdbg fused calls 16800 by rows [0, 0, 60, 16740, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+fleetq: #10127 done (exit 0)

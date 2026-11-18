@@ -1,0 +1,48 @@
+Based on the provided source code from `intarsia-core`, here is a detailed technical overview of the inference engine's architecture, focusing on the admission testing harness, backend abstraction, and execution flow.
+
+### 1. High-Level Architecture
+
+The codebase implements a modular inference engine designed for high-performance LLM serving. It separates **kernel implementation** (backend-specific) from **kernel selection** (registry-based) and **validation** (admission testing). The system supports multiple backends (CPU, CUDA, HIP, Metal) via a unified `Backend` trait, allowing the same model graph to run on different hardware with bitwise correctness guarantees.
+
+### 2. Main Modules and Components
+
+#### A. Admission Testing (`admission.rs`)
+This module is the quality assurance and kernel selection engine. It ensures that any new kernel implementation is mathematically correct before it is allowed to serve requests.
+
+*   **`SweepConfig`**: Defines the test parameters (hidden size, heads, vocab, etc.) based on a target model (e.g., Qwen3-0.6B). It supports a `quick` mode for faster CI checks.
+*   **`Case`**: Represents a single test input/output specification (`HostCall`) with a label.
+*   **`sweep(op, cfg)`**: The core generator. It creates a comprehensive set of test cases for every `Op` (Operation).
+    *   It handles special cases for quantized ops (`crate::quant::cases::sweep`) and specific hardware ops (`crate::dsv41::cases::sweep`).
+    *   It generates random tensors using `SplitMix64` RNG to ensure reproducibility.
+    *   It covers various shapes, data types (`Bf16`, `F32`, `Fp8E4m3`), and attributes (RoPE scaling, window sizes, etc.).
+*   **`run_admission(reference, candidate, opts)`**: The main execution function.
+    1.  Iterates through all kernels registered by the `candidate` backend.
+    2.  Finds the corresponding reference implementation (usually CPU-based) from the `reference` backend.
+    3.  Runs the `sweep` to generate test cases.
+    4.  Filters cases based on whether the candidate kernel `accepts` the shape.
+    5.  Executes both the reference and candidate kernels via `run_host`.
+    6.  Compares outputs using `compare()`, calculating `max_abs` and `rel_l2` errors.
+    7.  Determines pass/fail based on tolerances (`tol.max_abs`, `tol.rel_l2`).
+    8.  Returns an `AdmissionReport` containing detailed rows and kernel summaries.
+*   **`AdmissionReport`**: Aggregates results.
+    *   `apply(reg)`: Updates the global `Registry` to mark kernels as `Admitted`, `Rejected`, or `Untested`.
+    *   `render()`: Formats the report for CLI output.
+*   **`case_from_call(call, caps, rng)`**: A specialized function for "plan-time" admission. It takes a planned `OpCall` (from the model graph) and generates a valid test case that exercises the same kernel path, clamping dimensions (rows, vocab) to fit within memory/cost caps while preserving critical attributes (K, head dims, dtypes).
+
+#### B. Backend Abstraction (`backend.rs`)
+This module defines the hardware abstraction layer (HAL). It decouples the engine's logic from specific GPU/CPU implementations.
+
+*   **`Backend` Trait**: The central interface.
+    *   **Memory Management**: `alloc`, `upload`, `download`, `copy`, `zero`.
+    *   **Kernel Launch**: `launch(kernel_name, call, stream)`.
+    *   **Device Info**: `info()` returns `DeviceInfo` (name, arch, memory, bandwidth).
+    *   **Behavioral Flags**:
+        *   `avoid_single_row_prefill`: Optimizes chunking for certain GPUs.
+        *   `prefix_reuse_any_cut`: Controls KV cache reuse strategies.
+        *   `pack_split_gemms`: Controls how GEMMs are packed for multi-prompt prefill.
+        *   `fusion_under_tp`: Controls operator fusion under Tensor Parallelism.
+    *   **Stream Management**: `stream_record`, `stream_wait`, `fence` for asynchronous execution and overlap.
+    *   **Graph Support**: `supports_graphs`, `graph_capture` for CUDA/HIP graph replay.
+*   **`Buffer` & `TensorRef`**:
+    *   `Buffer`: A reference-counted handle to device memory (`Arc<dyn BufferImpl>`).
+    *   `TensorRef`: A view into a

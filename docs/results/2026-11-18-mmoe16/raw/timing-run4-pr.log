@@ -1,0 +1,44 @@
+fleetq: #10173 running on endor: sh -c 'cargo test --release -p intarsia-backend-metal --test moe_verify16 -- --ignored --nocapture timing_moe_verify16'
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mmoe16/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 0.51s
+     Running tests/moe_verify16.rs (target/release/deps/moe_verify16-a6d08e5b5223e612)
+
+running 1 test
+TIMING moe_verify16 T=8 routing=pool72 distinct=43.3: off 175.5 us, gu2/dn2 175.9 (0.998x), gu4/dn2 175.4 (1.000x), gu2/dn4 175.1 (1.002x), gu4/dn4 175.6 (0.999x)
+TIMING moe_verify16 T=8 routing=random distinct=57.6: off 204.8 us, gu2/dn2 204.9 (1.000x), gu4/dn2 205.5 (0.997x), gu2/dn4 204.8 (1.000x), gu4/dn4 204.6 (1.001x)
+TIMING moe_verify16 T=9 routing=pool72 distinct=47.2: off 193.4 us, gu2/dn2 182.3 (1.061x), gu4/dn2 188.6 (1.025x), gu2/dn4 184.9 (1.046x), gu4/dn4 190.0 (1.018x)
+TIMING moe_verify16 T=9 routing=random distinct=63.0: off 221.2 us, gu2/dn2 212.9 (1.039x), gu4/dn2 218.2 (1.014x), gu2/dn4 212.0 (1.043x), gu4/dn4 217.2 (1.018x)
+TIMING moe_verify16 T=12 routing=pool72 distinct=53.8: off 244.3 us, gu2/dn2 225.5 (1.083x), gu4/dn2 233.9 (1.044x), gu2/dn4 226.9 (1.077x), gu4/dn4 236.6 (1.033x)
+TIMING moe_verify16 T=12 routing=random distinct=82.0: off 283.7 us, gu2/dn2 274.1 (1.035x), gu4/dn2 278.2 (1.020x), gu2/dn4 272.8 (1.040x), gu4/dn4 277.0 (1.024x)
+TIMING moe_verify16 T=16 routing=pool72 distinct=61.1: off 359.8 us, gu2/dn2 323.5 (1.112x), gu4/dn2 342.5 (1.050x), gu2/dn4 324.3 (1.110x), gu4/dn4 345.2 (1.042x)
+TIMING moe_verify16 T=16 routing=random distinct=101.9: off 395.5 us, gu2/dn2 368.3 (1.074x), gu4/dn2 394.3 (1.003x), gu2/dn4 388.8 (1.017x), gu4/dn4 399.1 (0.991x)
+test timing_moe_verify16 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 9.96s
+
+fleetq: #10173 done (exit 0)

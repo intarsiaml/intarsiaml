@@ -1,0 +1,6 @@
+fleetq: #10147 running on endor: zsh /opt/code/intarsiaml/.worktrees/mgdnvsoak/scripts/mgdnvsoak/run4.sh
+== soak start 05:50:36 thermal 0
+soak done
+server alive at end
+soak finished 06:11:06
+fleetq: #10147 done (exit 0)

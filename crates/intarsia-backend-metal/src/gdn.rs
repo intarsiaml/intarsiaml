@@ -5,7 +5,7 @@
 use crate::dense::{Grid, OpP};
 use crate::kernels::*;
 use crate::MetalBackend;
-use intarsia_core::{DType, Error, Op, OpCall, Result, ShapeInfo};
+use intarsia_core::{DType, Error, Op, OpCall, Result, ShapeInfo, TensorRef};
 
 /// Tokens per thread of `gdn_conv_bf16_k*` (`GDN_CONV_TILE` in gdn.metal) and its threadgroup width (`GDN_CONV_TG`).
 const CONV_TILE: usize = 32;
@@ -57,8 +57,37 @@ pub const DELTA_PRE_SHADERS: [(usize, &str, &str); 4] = [
 /// Fewest tokens of a call the prep form serves (shorter ones, decode and the MTP verify rows included, run the original).
 pub const PRE_MIN_T: usize = 64;
 
+/// Lane mgdnv: the verify-rows kernels (conv, delta rule) that also store the per-row rollback snapshots, by K = 2..=8 / by dk.
+pub const CONV_SNAP_SHADERS: [&str; 7] = [
+    "gdn_conv_snap_bf16_k2",
+    "gdn_conv_snap_bf16_k3",
+    "gdn_conv_snap_bf16_k4",
+    "gdn_conv_snap_bf16_k5",
+    "gdn_conv_snap_bf16_k6",
+    "gdn_conv_snap_bf16_k7",
+    "gdn_conv_snap_bf16_k8",
+];
+pub const DELTA_SNAP_SHADERS: [(usize, &str); 4] = [
+    (32, "gdn_delta_snap_bf16_dk32"),
+    (64, "gdn_delta_snap_bf16_dk64"),
+    (128, "gdn_delta_snap_bf16_dk128"),
+    (256, "gdn_delta_snap_bf16_dk256"),
+];
+/// Most rows `gdn_verify_rows` takes (`GDN_CONV_TILE` is 32, so one conv tile; the kernels bind `VERIFY_MAX_ROWS - 1` saves).
+pub const VERIFY_MAX_ROWS: usize = 16;
+/// Save bindings of the verify-rows kernels (the kernels declare this many).
+const SNAP_SLOTS: usize = 15;
+
+/// `INTARSIA_METAL_GDN_VERIFY_FUSE` (lane mgdnv; unset: on, `0`: off, as `INTARSIA_CUDA_GDN_VERIFY_FUSE`): `Backend::gdn_verify_rows`.
+pub fn verify_fuse_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_METAL_GDN_VERIFY_FUSE").map_or(true, |v| v != "0"))
+}
+
 pub fn shader_names() -> Vec<&'static str> {
     let mut v = vec![GATE_SPLIT_BF16, SIGMOID_MUL_BF16, CONV_STATE, SHORT_CONV_STATE];
+    v.extend(CONV_SNAP_SHADERS);
+    v.extend(DELTA_SNAP_SHADERS.iter().map(|d| d.1));
     v.extend(CONV_SHADERS);
     v.extend(SHORT_CONV_SHADERS);
     v.extend(DELTA_SHADERS.iter().map(|d| d.1));
@@ -116,7 +145,128 @@ fn dim(v: usize, what: &str) -> Result<u32> {
     u32::try_from(v).map_err(|_| Error::invalid(format!("metal: {what} = {v} exceeds u32")))
 }
 
+/// The `SNAP_SLOTS` save bindings of a verify-rows dispatch: the real saves, then `fallback` (never touched) for the unused ones.
+fn fill_saves<'a>(binds: &'a [crate::dense::Bind], fallback: &'a crate::dense::Bind) -> Vec<&'a crate::dense::Bind> {
+    (0..SNAP_SLOTS).map(|i| binds.get(i).unwrap_or(fallback)).collect()
+}
+
 impl MetalBackend {
+    /// Lane mgdnv: `Backend::gdn_verify_rows` (see kernels/metal/gdn.metal, "Speculative-verify rows"): the conv of the `T` rows in one
+    /// dispatch and the delta rule in another, each storing its state after every row but the last into the row's save buffer.
+    /// Bitwise the `T` one-row `gdn_conv_bf16` + `gdn_delta_rule_bf16` dispatches and the slot copies the caller would otherwise
+    /// make. `Ok(false)`: off (`INTARSIA_METAL_GDN_VERIFY_FUSE=0`) or arguments the kernels do not take; nothing was encoded.
+    pub(crate) fn gdn_verify_rows_impl(&self, c: &intarsia_core::GdnVerifyRows<'_>) -> Result<bool> {
+        if !verify_fuse_enabled() {
+            return Ok(false);
+        }
+        let bf = DType::Bf16;
+        let f = DType::F32;
+        let (Some(&[t, ch]), Some(&[tc, k]), Some(&[hv, dv, dk])) = (
+            c.x.shape.as_slice().get(..2).map(|s| <&[usize; 2]>::try_from(s).unwrap()),
+            c.taps.shape.as_slice().get(..2).map(|s| <&[usize; 2]>::try_from(s).unwrap()),
+            c.state.shape.as_slice().get(..3).map(|s| <&[usize; 3]>::try_from(s).unwrap()),
+        ) else {
+            return Ok(false);
+        };
+        let n = t.wrapping_sub(1);
+        if !(2..=VERIFY_MAX_ROWS).contains(&t)
+            || c.x.shape.len() != 2
+            || c.taps.shape.len() != 2
+            || c.state.shape.len() != 3
+            || c.snap_conv.len() != n
+            || c.snap_s.len() != n
+            || tc != ch
+            || !(2..=CONV_SHADERS.len() + 1).contains(&k)
+            || c.x.dtype != bf
+            || c.taps.dtype != bf
+            || c.y.dtype != bf
+            || c.a.dtype != bf
+            || c.b.dtype != bf
+            || c.a_log.dtype != bf
+            || c.dt_bias.dtype != bf
+            || c.o.dtype != bf
+            || c.conv_state.dtype != f
+            || c.state.dtype != f
+            || c.snap_conv.iter().any(|v| v.dtype != f)
+            || c.snap_s.iter().any(|v| v.dtype != f)
+        {
+            return Ok(false);
+        }
+        let Some(&(_, delta)) = DELTA_SNAP_SHADERS.iter().find(|s| s.0 == dk) else { return Ok(false) };
+        if hv == 0 || dv == 0 || ch < hv * dv {
+            return Ok(false);
+        }
+        let qk = ch - hv * dv;
+        if qk == 0 || qk % (2 * dk) != 0 {
+            return Ok(false);
+        }
+        let hk = qk / (2 * dk);
+        if hv % hk != 0 {
+            return Ok(false);
+        }
+        // shapes of everything else (a, b are [T, Hv]; a_log / dt_bias [Hv]; y [T, C]; o [T, Hv, dv]; the states and saves)
+        let numel = |v: &TensorRef| v.shape.iter().product::<usize>();
+        if numel(c.y) != t * ch
+            || numel(c.a) != t * hv
+            || numel(c.b) != t * hv
+            || numel(c.a_log) != hv
+            || numel(c.dt_bias) != hv
+            || numel(c.o) != t * hv * dv
+            || numel(c.conv_state) != ch * (k - 1)
+            || numel(c.x) != t * ch
+            || numel(c.taps) != ch * k
+            || c.snap_conv.iter().any(|v| numel(v) != ch * (k - 1))
+            || c.snap_s.iter().any(|v| numel(v) != hv * dv * dk)
+        {
+            return Ok(false);
+        }
+        for v in [c.x, c.taps, c.y, c.a, c.b, c.a_log, c.dt_bias, c.o, c.conv_state, c.state].into_iter().chain(c.snap_conv).chain(c.snap_s) {
+            v.check_bounds()?;
+        }
+        dim(t * ch, "T*C")?;
+        dim(ch * k, "C*K")?;
+        dim(t * hv * dv, "T*Hv*dv")?;
+        let (x, w, y) = (
+            self.bind(c.x, bf, false, "x")?,
+            self.bind(c.taps, bf, false, "taps")?,
+            self.bind(c.y, bf, true, "y")?,
+        );
+        let cst = self.bind(c.conv_state, f, true, "conv state")?;
+        let snap_c: Vec<_> = c.snap_conv.iter().map(|v| self.bind(v, f, true, "conv save")).collect::<Result<_>>()?;
+        let snap_s: Vec<_> = c.snap_s.iter().map(|v| self.bind(v, f, true, "state save")).collect::<Result<_>>()?;
+        let (a, b, al, db) = (
+            self.bind(c.a, bf, false, "a")?,
+            self.bind(c.b, bf, false, "b")?,
+            self.bind(c.a_log, bf, false, "A_log")?,
+            self.bind(c.dt_bias, bf, false, "dt_bias")?,
+        );
+        let (o, st) = (self.bind(c.o, bf, true, "o")?, self.bind(c.state, f, true, "state")?);
+        // unused save bindings alias the state (never touched: the kernels stop at nsnap)
+        let conv_saves = fill_saves(&snap_c, &cst);
+        let delta_saves = fill_saves(&snap_s, &st);
+        let p = OpP {
+            dims: [dim(t, "T")?, dim(ch, "C")?, dim(k, "K")?, 1, dim(n, "saves")?, 0, 0, 0],
+            skips: [x.skip, w.skip, y.skip, 0, 0],
+            ..Default::default()
+        };
+        let mut cb: Vec<&crate::dense::Bind> = vec![&x, &w, &y, &cst];
+        cb.extend(conv_saves.iter().copied());
+        self.dispatch(CONV_SNAP_SHADERS[k - 2], &cb, &p, Grid::Groups { x: ch.div_ceil(CONV_TG), y: 1, threads: CONV_TG })?;
+        let dp = DeltaP {
+            t: dim(t, "T")?,
+            hk: dim(hk, "Hk")?,
+            hv: dim(hv, "Hv")?,
+            dv: dim(dv, "dv")?,
+            skips: [y.skip, a.skip, b.skip, al.skip, db.skip, o.skip],
+            eps: c.eps,
+            pad: dim(n, "saves")?,
+        };
+        let mut db_: Vec<&crate::dense::Bind> = vec![&y, &a, &b, &al, &db, &o, &st];
+        db_.extend(delta_saves.iter().copied());
+        self.dispatch(delta, &db_, &dp, Grid::Groups { x: dv.div_ceil(DELTA_SG), y: hv, threads: 32 * DELTA_SG })?;
+        Ok(true)
+    }
+
     pub(crate) fn launch_gdn(&self, kernel: &str, call: &OpCall) -> Result<()> {
         let (i, o) = (&call.inputs, &call.outputs);
         let bf = DType::Bf16;

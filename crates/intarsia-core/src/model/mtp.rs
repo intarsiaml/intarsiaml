@@ -777,6 +777,52 @@ impl Model {
         self.note_tp_pass(out)
     }
 
+    /// Lane postchain: [`Model::mtp_catch_up`] in passes of at most `rows` rows (one rank, or a head whole on rank 0; under
+    /// tensor parallelism otherwise the one-pass catch-up). Drafts only propose, so this changes no token.
+    pub fn mtp_catch_up_capped(&self, st: &mut SequenceState, rows: usize) -> Result<()> {
+        if !self.peers.is_empty() && !self.mtp.as_ref().is_some_and(|h| h.whole()) {
+            return self.mtp_catch_up(st);
+        }
+        let Some(m) = st.mtp.as_ref() else { return Ok(()) };
+        if !m.active || !m.synced || m.pending_rows < 2 {
+            return Ok(());
+        }
+        let mut left = m.pending_rows - 1;
+        while left > 0 {
+            let c = rows.max(1).min(left);
+            if let Err(e) = self.mtp_run_pending(st, c, None, false, None) {
+                if let Some(m) = st.mtp.as_mut() {
+                    m.synced = false;
+                }
+                return Err(e);
+            }
+            left -= c;
+        }
+        Ok(())
+    }
+
+    /// Lane postchain, a measurement hook (`INTARSIA_SPEC_COPY_PROBE=<g>,k<m>`): one K / V-only pass of the head over `rows` rows (token 1,
+    /// the queue's first rows as hidden input) written at the head cache's rows `kv.len ..` and not committed: those rows are written
+    /// again before anything reads them. It runs the head's kernels at that row count and changes no state. `Ok(false)`: not applicable
+    /// (no head, tensor parallelism, an unsynced head, too many rows), nothing ran.
+    pub fn mtp_probe_head_rows(&self, st: &mut SequenceState, rows: usize) -> Result<bool> {
+        let Some(head) = self.mtp.as_ref() else { return Ok(false) };
+        let Some(m) = st.mtp.as_ref() else { return Ok(false) };
+        if self.is_tp()
+            || !m.active
+            || !m.synced
+            || rows == 0
+            || rows > m.cap_rows
+            || rows > head.whole_rows.unwrap_or(self.ws.max_tokens)
+            || m.kv.len + rows > m.kv.cap
+        {
+            return Ok(false);
+        }
+        let hid = TensorRef::new(m.pending.clone(), self.act, &[m.cap_rows, self.dims.hidden]).rows(0, rows);
+        self.mtp_layer_kv_only(head, &m.kv, &vec![1u32; rows], &hid, false)?;
+        Ok(true)
+    }
+
     fn mtp_catch_up_rank(&self, st: &mut SequenceState) -> Result<()> {
         let Some(m) = st.mtp.as_ref() else { return Ok(()) };
         if !m.active || !m.synced || m.pending_rows < 2 {

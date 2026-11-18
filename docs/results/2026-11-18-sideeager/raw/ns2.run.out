@@ -1,0 +1,20 @@
+fleetq: #10156 running on spark1: ssh spark1 'W=ns2 ARMS="b2:X=1 k2:INTARSIA_SIDE_EAGER=0 k3:INTARSIA_SIDE_EAGER=0 b3:X=1 k4:INTARSIA_SIDE_EAGER=0 k5:INTARSIA_SIDE_EAGER=0 k6:INTARSIA_SIDE_EAGER=0 k7:INTARSIA_SIDE_EAGER=0" bash -s'
+b2 up 06:45:51 free: 57 GB
+b2: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113475584 bytes sqlite
+k2 up 06:47:44 free: 57 GB
+k2: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113426432 bytes sqlite
+k3 up 06:49:44 free: 57 GB
+k3: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113422336 bytes sqlite
+b3 up 06:51:44 free: 57 GB
+b3: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113475584 bytes sqlite
+k4 up 06:53:38 free: 56 GB
+k4: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113422336 bytes sqlite
+k5 up 06:55:23 free: 57 GB
+k5: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113410048 bytes sqlite
+k6 up 06:57:23 free: 57 GB
+k6: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113418240 bytes sqlite
+k7 up 06:59:20 free: 57 GB
+k7: 7 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9, 113422336 bytes sqlite
+nsys done
+fleetq: #10156 done (exit 0)
+exit 0

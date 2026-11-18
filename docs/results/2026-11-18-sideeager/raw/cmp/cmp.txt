@@ -1,0 +1,57 @@
+
+== v1006_c780d5d8: 1006 nodes; launches used per server b1:555 b2:555 b3:555 n1:555 n2:555 n3:555
+  median span ms: b1 17.4912  b2 17.5025  b3 17.5512  n1 17.6511  n2 17.6898  n3 17.6296
+  median busy ms: b1 22.3216  b2 22.3993  b3 22.4210  n1 22.5193  n2 22.6191  n3 22.5311
+  span, group mean - base mean (ms): n +0.1419 | nulls b2-b1 +0.0113 n2-n1 +0.0387
+  [n - b] sum of per-node median differences, us per launch: +220.0; nulls b2-b1 +132.6 n2-n1 +115.4
+  [n - b] per kernel name (nodes per launch, base us per launch, effect us, nulls us), top 12 by |effect|:
+    fp8_gemv_rows_full_kernel                                    x130 base   6104.2  eff   +90.8  nulls   +6.7  +29.3
+    gemv_split_kernel                                            x140 base   2136.0  eff   +76.6  nulls  +38.5  +21.3
+    nvfp4_gemv_split_kernel                                      x 80 base    666.1  eff   +29.4  nulls   -1.2  +26.7
+    moe_dec_gate_up_kernel                                       x 41 base   4024.4  eff   +21.7  nulls  -13.4   -9.2
+    silu_glu_kernel                                              x 42 base     67.3  eff   +17.8  nulls   +8.0   +6.2
+    nvfp4_gemv_kernel                                            x 43 base   4317.4  eff   -17.0  nulls  +39.8   -8.1
+    moe_dec_down_dd_kernel                                       x 40 base   2128.9  eff   -10.7  nulls  +44.8  +28.5
+    gdn_delta_snap_kernel                                        x 30 base    575.5  eff    +5.0  nulls   +2.0  +13.9
+    gdn_conv_snap_kernel                                         x 30 base    153.2  eff    +4.6  nulls   +2.7   +7.6
+    moe_topk_kernel                                              x 42 base    167.5  eff    +2.9  nulls   -0.2   -2.2
+    kv_append_kernel                                             x 24 base     42.3  eff    -2.6  nulls   +7.6   +3.6
+    rmsnorm_kernel                                               x115 base    225.1  eff    +2.4  nulls   +3.8   -0.2
+
+== v1004_ea953c0a: 1004 nodes; launches used per server b1:96 b2:96 b3:96 n1:96 n2:96 n3:96
+  median span ms: b1 17.1361  b2 17.1704  b3 17.2712  n1 17.2588  n2 17.3998  n3 17.3314
+  median busy ms: b1 21.8155  b2 21.9148  b3 22.0516  n1 21.9839  n2 22.1916  n3 22.1746
+  span, group mean - base mean (ms): n +0.1374 | nulls b2-b1 +0.0343 n2-n1 +0.1410
+  [n - b] sum of per-node median differences, us per launch: +204.0; nulls b2-b1 +161.0 n2-n1 +123.7
+  [n - b] per kernel name (nodes per launch, base us per launch, effect us, nulls us), top 12 by |effect|:
+    fp8_gemv_rows_full_kernel                                    x130 base   6097.9  eff   +87.2  nulls  +14.7  +27.2
+    gemv_split_kernel                                            x140 base   2143.4  eff   +76.0  nulls  +64.0  +21.4
+    nvfp4_gemv_split_kernel                                      x 80 base    652.2  eff   +28.8  nulls   +1.2  +23.5
+    moe_dec_gate_up_kernel                                       x 41 base   3858.7  eff   +17.5  nulls  -24.1   -2.6
+    silu_glu_kernel                                              x 42 base     70.2  eff   +15.5  nulls   +9.7   +3.7
+    nvfp4_gemv_kernel                                            x 43 base   4254.4  eff   -14.8  nulls  +27.9   +4.1
+    moe_dec_down_dd_kernel                                       x 40 base   2043.8  eff   -13.3  nulls  +44.1  +32.3
+    moe_topk_kernel                                              x 42 base    167.2  eff    +3.0  nulls   +0.0   -2.2
+    gdn_delta_snap_kernel                                        x 30 base    574.3  eff    +2.5  nulls   +4.3  +13.3
+    kv_append_kernel                                             x 24 base     43.5  eff    -2.1  nulls   +7.3   +3.3
+    rmsnorm_kernel                                               x115 base    226.2  eff    +1.7  nulls   +2.6   -0.1
+    memcpy                                                       x  4 base      3.4  eff    +1.1  nulls   +0.0   +1.8
+
+== v998_bcb0d3b8: 998 nodes; launches used per server b1:64 b2:64 b3:64 n1:64 n2:64 n3:64
+  median span ms: b1 16.9910  b2 16.9744  b3 17.0557  n1 17.3591  n2 17.2287  n3 17.1021
+  median busy ms: b1 21.7037  b2 21.8117  b3 21.9111  n1 22.2371  n2 22.0793  n3 21.9038
+  span, group mean - base mean (ms): n +0.2229 | nulls b2-b1 -0.0166 n2-n1 -0.1304
+  [n - b] sum of per-node median differences, us per launch: +224.7; nulls b2-b1 +122.9 n2-n1 +14.5
+  [n - b] per kernel name (nodes per launch, base us per launch, effect us, nulls us), top 12 by |effect|:
+    fp8_gemv_rows_full_kernel                                    x130 base   6097.1  eff   +92.8  nulls   +9.8  +11.0
+    gemv_split_kernel                                            x140 base   2139.0  eff   +80.5  nulls  +49.0   -3.0
+    nvfp4_gemv_split_kernel                                      x 80 base    648.0  eff   +29.7  nulls   -4.2  +19.9
+    moe_dec_gate_up_kernel                                       x 42 base   3861.4  eff   +23.5  nulls  -29.5  -38.4
+    silu_glu_kernel                                              x 42 base     72.3  eff   +19.4  nulls   +3.5   +7.0
+    nvfp4_gemv_kernel                                            x 43 base   4225.0  eff   -15.9  nulls  +23.6   -7.3
+    moe_dec_down_dd_kernel                                       x 40 base   2011.6  eff   -11.2  nulls  +48.7  +18.0
+    gdn_delta_snap_kernel                                        x 30 base    575.7  eff    +3.6  nulls   +3.9  +13.2
+    kv_append_kernel                                             x 24 base     43.5  eff    -2.3  nulls   +7.2   +2.8
+    gemv_kernel                                                  x 14 base    669.0  eff    +1.5  nulls   -0.8   -6.6
+    moe_topk_kernel                                              x 42 base    169.6  eff    +1.0  nulls   +2.5   -2.7
+    rmsnorm_kernel                                               x115 base    227.3  eff    +0.9  nulls   +3.3   -0.2

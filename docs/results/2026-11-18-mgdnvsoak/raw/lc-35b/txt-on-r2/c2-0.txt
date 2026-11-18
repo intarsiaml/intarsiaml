@@ -1,0 +1,44 @@
+Based on the provided source code, here is a detailed technical overview of the **Intarsia Core** inference engine module. This code represents the "kernel admission" and "backend abstraction" layers of a high-performance, multi-backend LLM inference engine designed for heterogeneous hardware (CPU, CUDA, HIP/ROCm, Metal).
+
+### 1. Architectural Overview
+
+The system is built around a **Registry-Driven Kernel Selection** model. Instead of hardcoding which GPU/CPU kernel runs for which operation, the engine maintains a registry of `KernelImpl` structs. Each kernel declares its supported operations (`Op`), shape predicates, and tolerance levels.
+
+The core workflow involves:
+1.  **Admission Testing:** Running a candidate backend's kernels against a reference (CPU) implementation to verify numerical correctness.
+2.  **Shape Sweeping:** Generating test cases across various tensor dimensions (batch size, hidden dim, head count, etc.) to ensure kernels handle edge cases.
+3.  **Execution:** The `Backend` trait abstracts hardware-specific memory management and kernel launching, allowing the higher-level model logic to remain hardware-agnostic.
+
+---
+
+### 2. Main Modules and Components
+
+#### A. Admission & Testing (`admission.rs`)
+This module is responsible for verifying that a backend's implementation of an operation is numerically correct before it is allowed to serve requests.
+
+*   **`SweepConfig`**: Defines the dimensions for testing (e.g., `hidden`, `n_heads`, `head_dim`, `vocab`). It supports a `quick` mode for faster CI checks and a full mode for comprehensive validation.
+*   **`Case`**: Represents a single test instance, containing a label and a `HostCall` (the input/output specification).
+*   **`sweep(op, cfg)`**: The central generator function. It creates a `Vec<Case>` for a specific operation (`Op`).
+    *   It handles special cases for quantized ops (`crate::quant::cases::sweep`) and specific hardware ops (`crate::dsv41::cases::sweep`).
+    *   It generates random tensors using `SplitMix64` RNG.
+    *   It covers various operations: `Embedding`, `RmsNorm`, `Matmul`, `AttnPrefill`, `AttnDecode`, `GdnConv` (Gated Delta Net Convolution), etc.
+*   **`run_admission(reference, candidate, opts)`**: The main entry point for testing.
+    *   Iterates through all kernels registered by the `candidate` backend.
+    *   Finds the corresponding reference implementation (usually CPU) from the `reference` backend.
+    *   For each case in the sweep, it runs both the reference and candidate implementations via `run_host`.
+    *   Compares outputs using `compare()`, calculating `max_abs` and `rel_l2` errors.
+    *   Generates an `AdmissionReport` containing `AdmissionRow` (per-case results) and `KernelSummary` (per-kernel aggregates).
+*   **`judge(kern, got, want)`**: Applies the kernel's specific tolerance (`tol_for`) to determine if a case passes. Integer outputs (like `Argmax`) require exact bitwise matches; floating-point outputs allow small numerical errors.
+*   **`case_from_call(call, caps, rng)`**: A utility to generate a test case from a planned model operation (`OpCall`), clamping dimensions (like row count) to fit within memory/cost caps while preserving critical attributes (like head dimensions and dtypes).
+
+#### B. Backend Abstraction (`backend.rs`)
+This module defines the `Backend` trait, which is the interface between the engine's model logic and the hardware.
+
+*   **`Backend` Trait**:
+    *   **Memory Management**: `alloc`, `upload`, `download`, `copy`, `zero`. Handles device memory (`MemKind::Device`) and pinned host memory (`MemKind::Pinned`).
+    *   **Kernel Launching**: `launch(kernel_name, call, stream)`. The engine passes a string name and an `OpCall` descriptor; the backend resolves the name to a function pointer and launches it.
+    *   **Stream Management**: `synchronize`, `stream_wait`, `stream_record`. Supports asynchronous execution and stream ordering.
+    *   **Feature Flags**: Methods like `avoid_single_row_prefill`, `prefix_reuse_any_cut`, `pack_split_gemms` allow backends to declare hardware-specific behaviors regarding memory reuse, chunking, and tensor parallelism.
+    *   **GDN Specifics**: `gdn_conv_dtype`, `gdn_state_supported` for Gated Delta Net optimizations.
+*   **`Buffer` & `TensorRef`**:
+    *   `Buffer`: A reference-counted handle to device memory (`Arc<dyn

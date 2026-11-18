@@ -1,0 +1,2 @@
+{"cell": "long16k", "tag": "c2", "rep": 0, "toks": 1024, "ptoks": 14173, "chunks": 1023, "ttft": 16.357, "dec_tps": 49.53, "wall": 37.011, "sha": "fb293d3344e9"}
+{"cell": "long32k", "tag": "c2", "rep": 0, "toks": 1024, "ptoks": 29834, "chunks": 1023, "ttft": 26.702, "dec_tps": 42.68, "wall": 50.672, "sha": "befd2822b2da"}

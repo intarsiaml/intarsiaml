@@ -1,0 +1,37 @@
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+intarsia-backend-metal: keep-warm: registered the file at 0x7000000000, 10.01 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x74d677c000, 3.41 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x72815c8000, 10.00 GB
+mtp: drafter head 'mtp' loaded in 0.3 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+batched verify: the plan covers passes of up to 2 sequences (6 rows)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+admission on plan shapes: 32 kernel(s) checked, 0 case(s) run, 594 cached
+batched MTP N=2 (INTARSIA_BATCHED_MTP): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.metal] batched_verify), verify_topk false (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 2048
+batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+loaded Qwen3.6-35B-A3B-NVFP4 on metal (Apple M5 Max) in 3.0s, context 8192 tokens
+sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /Users/josef/models/Qwen3.6-35B-A3B-NVFP4/generation_config.json; a request's own values win)
+intarsia server listening on http://127.0.0.1:18697
+mgdnvdbg fused calls 1 by rows [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 3000 by rows [0, 0, 0, 3000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 6000 by rows [0, 0, 0, 6000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 9000 by rows [0, 0, 0, 9000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 12000 by rows [0, 0, 0, 12000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 15000 by rows [0, 0, 30, 14970, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 18000 by rows [0, 0, 30, 17970, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 21000 by rows [0, 0, 30, 20970, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 24000 by rows [0, 0, 30, 23970, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 27000 by rows [0, 0, 30, 26970, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 30000 by rows [0, 0, 30, 29970, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 33000 by rows [0, 0, 30, 32970, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 36000 by rows [0, 0, 30, 35970, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 39000 by rows [0, 0, 30, 38970, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 42000 by rows [0, 0, 30, 41970, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 45000 by rows [0, 0, 30, 44970, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 48000 by rows [0, 0, 30, 47970, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 51000 by rows [0, 0, 60, 50940, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 54000 by rows [0, 0, 60, 53940, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+mgdnvdbg fused calls 57000 by rows [0, 0, 60, 56940, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]

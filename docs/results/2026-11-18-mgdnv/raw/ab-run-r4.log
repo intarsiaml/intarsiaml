@@ -1,0 +1,26 @@
+fleetq: #10078 running on endor: scripts/mgdnv/round.sh 4
+== round 4 arm knon env INTARSIA_METAL_GDN_VERIFY_FUSE=1 cooled 80s thermal 0 03:05:37
+knon r4 chat-short thermal 0->0: {"cell": "chat-short", "tag": "c4", "rep": 2, "toks": 361, "chunks": 360, "ttft": 0.057, "dec_tps": 181.19, "wall": 2.044, "sha": "98a4ef32f738"}
+knon r4 code-gen thermal 0->0: {"cell": "code-gen", "tag": "c4", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.063, "dec_tps": 214.38, "wall": 3.79, "sha": "4842a7c726dc"}
+knon r4 reason thermal 0->0: {"cell": "reason", "tag": "c4", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.064, "dec_tps": 216.15, "wall": 2.372, "sha": "cc9c34109c01"}
+knon r4 agent-edit thermal 0->0: {"cell": "agent-edit", "tag": "c4", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.409, "dec_tps": 212.53, "wall": 1.854, "sha": "d3d0c16ac43c"}
+knon r4 copy3k thermal 0->1: {"cell": "copy3k", "tag": "c4", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.675, "dec_tps": 201.38, "wall": 15.086, "sha": "4eb925608b0c"}
+knon r4 metrics: intarsia_spec_steps_total 5668 intarsia_spec_proposed_tokens_total 11334 intarsia_spec_accepted_tokens_total 10570 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+== round 4 arm knoff env X=1 cooled 95s thermal 0 03:08:42
+knoff r4 chat-short thermal 0->0: {"cell": "chat-short", "tag": "c4", "rep": 2, "toks": 361, "chunks": 360, "ttft": 0.057, "dec_tps": 175.74, "wall": 2.105, "sha": "98a4ef32f738"}
+knoff r4 code-gen thermal 0->0: {"cell": "code-gen", "tag": "c4", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.063, "dec_tps": 207.01, "wall": 3.923, "sha": "4842a7c726dc"}
+knoff r4 reason thermal 0->0: {"cell": "reason", "tag": "c4", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.064, "dec_tps": 210.78, "wall": 2.432, "sha": "cc9c34109c01"}
+knoff r4 agent-edit thermal 0->0: {"cell": "agent-edit", "tag": "c4", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.371, "dec_tps": 208.39, "wall": 1.844, "sha": "d3d0c16ac43c"}
+knoff r4 copy3k thermal 0->2: {"cell": "copy3k", "tag": "c4", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.616, "dec_tps": 196.89, "wall": 15.355, "sha": "4eb925608b0c"}
+knoff r4 metrics: intarsia_spec_steps_total 5668 intarsia_spec_proposed_tokens_total 11334 intarsia_spec_accepted_tokens_total 10570 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+ab done
+== round 4 arm c15on env INTARSIA_SPEC_COPY=20,15+INTARSIA_METAL_GDN_VERIFY_FUSE=1 cooled 80s thermal 0 03:11:31
+c15on r4 copy3k thermal 0->0: {"cell": "copy3k", "tag": "c4", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.549, "dec_tps": 417.38, "wall": 7.502, "sha": "4eb925608b0c"}
+c15on r4 json-xform thermal 0->1: {"cell": "json-xform", "tag": "c4", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.59, "dec_tps": 324.22, "wall": 8.606, "sha": "e4cca5268730"}
+c15on r4 metrics: intarsia_spec_steps_total 549 intarsia_spec_proposed_tokens_total 1098 intarsia_spec_accepted_tokens_total 889 intarsia_spec_copy_steps_total 1089 intarsia_spec_copy_proposed_tokens_total 16332 intarsia_spec_copy_accepted_tokens_total 14739 
+== round 4 arm c15off env INTARSIA_SPEC_COPY=20,15 cooled 75s thermal 0 03:13:43
+c15off r4 copy3k thermal 0->0: {"cell": "copy3k", "tag": "c4", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.563, "dec_tps": 377.16, "wall": 8.257, "sha": "4eb925608b0c"}
+c15off r4 json-xform thermal 0->0: {"cell": "json-xform", "tag": "c4", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.63, "dec_tps": 295.7, "wall": 9.419, "sha": "e4cca5268730"}
+c15off r4 metrics: intarsia_spec_steps_total 549 intarsia_spec_proposed_tokens_total 1098 intarsia_spec_accepted_tokens_total 889 intarsia_spec_copy_steps_total 1089 intarsia_spec_copy_proposed_tokens_total 16332 intarsia_spec_copy_accepted_tokens_total 14739 
+ab done
+fleetq: #10078 done (exit 0)

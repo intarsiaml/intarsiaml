@@ -1,0 +1,42 @@
+```python
+#!/usr/bin/env python3
+"""ab35b run 3b: tool-call smoke against one OpenAI-compatible endpoint, each engine with its own tool parser.
+
+Plain stdlib (no localeval): the checks are on the response shape, not timing.
+  per scenario, N reps at temperature 0, thinking off, tool_choice auto:
+    - tool call: `tool_calls` present, finish_reason `tool_calls`, function name right, `arguments` strict JSON
+      (json.loads, no trailing text) and every required key present with the right type/value, no raw `<tool_call>`
+      markup left in `content`;
+    - tool receipt: the tool result goes back as role `tool`, the final reply must contain the result value;
+    - stream: the same request with stream=true; the tool_call deltas are assembled and checked the same way;
+    - JSON mode: response_format json_schema, the reply must be strict JSON with the required keys.
+  python3 scripts/ab35b/toolsmoke.py --url http://spark-fa00:8000/v1 --model guidance --arm A --out DIR
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import pathlib
+import sys
+import time
+import urllib.error
+import urllib.request
+
+TOOLS = [
+    {"type": "function", "function": {"name": "get_weather", "description": "Current weather for a city.",
+     "parameters": {"type": "object", "properties": {"city": {"type": "string"}, "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}},
+                    "required": ["city", "unit"]}}},
+    {"type": "function", "function": {"name": "add_numbers", "description": "Add two integers.",
+     "parameters": {"type": "object", "properties": {"a": {"type": "integer"}, "b": {"type": "integer"}}, "required": ["a", "b"]}}},
+    {"type": "function", "function": {"name": "create_event", "description": "Create a calendar event.",
+     "parameters": {"type": "object", "properties": {
+         "title": {"type": "string"}, "attendees": {"type": "array", "items": {"type": "string"}},
+         "when": {"type": "object", "properties": {"date": {"type": "string"}, "hour": {"type": "integer"}}, "required": ["date", "hour"]}},
+         "required": ["title", "attendees", "when"]}}},
+]
+# (prompt, tool name, arg checker, tool result text, value the final reply must contain)
+SCEN = [
+    ("What is the weather in Paris right now? Use celsius.", "get_weather",
+     lambda a: isinstance(a.get("city"), str) and "paris" in a["city"].lower() and a.get("unit") == "celsius", '{"temp": 17, "sky": "rain"}', "17"),
+    ("Please add 417 and 285 with the tool.", "add_numbers",
+     lambda
