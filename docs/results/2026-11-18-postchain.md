@@ -5,7 +5,23 @@ with vLLM up beside it (fleetq `--quiet gpu,cpu` for every timing run, `--load c
 free-memory watchdog `scripts/postchain/wd.sh` on every build and serve). Raw output: `docs/results/2026-11-18-postchain/raw/`; scripts: `scripts/postchain/`.
 Nothing default-on.
 
-(Result section: filled in at the end.)
+**Result: cause not found; narrowed. No fix.** Two hypothesis rounds, then the stop rule.
+
+- **The trigger is the chain pass itself, accepted or rejected.** With an instrument whose positive control works (the 800-token request right after the event,
+  "MID1", against the arm's own PRE requests), a single bogus 8-row chain that is rejected (`L7`) leaves +0.133 ms per graph step (5 of 5 rounds > 0, 2.6 SE),
+  a single accepted 7-draft chain (`a7`, new probe) +0.158 (5 of 5 > 0, 1.7 SE), real n20 chains +0.278 (5 of 5, 3.0 SE). cpupin's "a rejected chain does not
+  reproduce it" came from its 300-token later-request window, which does not see real chains either (+-0.04 here).
+- **Not the head.** A head K / V-only pass of 4 or 8 rows (`k4`, `k8`, no chain; 4 rows = the bf16 GEMV path, 8 = cuBLAS) leaves nothing (-0.008 +- 0.030,
+  +0.005 +- 0.021); capping the head's post-chain catch-up at 3 rows (`INTARSIA_SPEC_COPY_CATCHUP=3`, opt-in, new) leaves real chains as slow (+0.185, 4 of 4).
+- **Not host time, not different work.** Base and n20 run identical drafts at every matched step; the whole difference is between the graph launch and the
+  outputs' download (device time), not in any host segment of the step (all under 0.002 ms) and not in the launch call.
+- **It fades.** The offset is in the request right after a request with a chain pass, and gone two requests later (POST1-9: n20 +0.067 +- 0.076, L7 +0.018, a7 +0.059).
+  In the workloads that made the 0.984x (800-token code-gen, a chain in most requests) that is the same as permanent.
+- The remaining suspect is what the eager `1 + len`-row verify pass of the main model does that a 3-row captured step does not: its 8-row kernel variants, the GDN
+  verify writing save rows 2..6 (the whole recurrent state per row; about 60 MB each by my estimate of 30 GDN layers, not measured; rows that only chains touch), and the eager launches on the model's stream. Not separated here.
+- Code-gen stays at about 0.984x of MTP base (cpupin, mcdiag; not re-measured); the 0.995x bar is not met; nothing default-on. A full fix of the offset would give
+  about 0.9965x (estimated from pin1 / real3, not measured).
+
 
 ## Step 1: what an accepted chain does that a rejected one does not (code reading, no hardware)
 
@@ -31,7 +47,7 @@ cuBLAS `matmul_bf16` above, `crates/intarsia-backend-cuda/src/kernels.rs`; NVFP4
 Re-analysis of mcdiag `raw/real3` and cpupin `raw/pin1` (same deterministic chains, 4 rounds each; base vs n20 of the same round):
 
 - **The work is identical.** At every graph step matched by (request, position, catch-up rows `n`), base and n20 have the same drafts and the same accepted
-  count, before and after the first chain (`scripts/postchain/drafts_id.py`: 0 differing steps of 13 077). So the same work runs slower; the head's state is not
+  count, before and after the first chain (`scripts/postchain/drafts_id.py`: 0 differing steps of 8 885 in each of pin1 and real3). So the same work runs slower; the head's state is not
   different in any way that changes a draft.
 - **Not the rollback copy.** Split by the step's own outcome (`scripts/postchain/outcome_an.py`), the post-chain offset is as large in steps that accept both drafts
   (no rollback at all: pin1 +0.240, real3 +0.185 ms) as in steps that roll back from save row 0 or 1. It is in the replay (or its download), not in the rollback.
@@ -80,6 +96,82 @@ MID1 per round: n20 +0.34 +0.24 -0.02 (r2 void); cap -0.06 +0.47 +0.13 +0.30; a7
 - **No host cause inside the timed step.** Every host segment of the split differs by under 0.002 ms between arms; all of the step-time difference is in launch-to-download
   (`scripts/postchain/split_an.py`). (This holds for every comparison of round 1; it does not locate a real offset by itself, since most of them are at noise level.)
 
+## Round 2: accepted vs rejected, on the MID1 instrument (`raw/r2/`, `raw/r2.log`, `raw/r2-an.txt`)
+
+Primary measure, fixed before the run (`scripts/postchain/r2_an.py`): per arm and round, (arm - base) over MID1 positions 100-640 (before MID1's own n20 chain at 665)
+minus (arm - base) over the PRE requests; steps matched by (request, position, n) with the same drafts. Positive: > 0 in at least 4 of 5 rounds and mean > 2 SE.
+Arms, 5 rounds ABBA: `base`, `n20`, `a7` (fixed: "probe accept chain of 7 at token 450", accepted 7 of 7 at position 523 in every round), `L7` (bogus chain of 7 at 450,
+accepted 0 at position 523 in every round). Greedy replies equal across arms in every round. No void round.
+
+The same measure over round 1's arms is in the table too (`raw/r1b-r2an.txt`; n20 r2 void):
+
+| arm | event in MID0 | MID1 per round | MID1 mean (SE) | POST0 mean | POST1-9 mean |
+|---|---|---|---|---|---|
+| base | none | | 0 | 0 | 0 |
+| a7, round 1 (fired nothing) | none | +0.033 +0.040 -0.028 +0.028 | +0.018 (0.016) | -0.004 | -0.004 |
+| k4, round 1 | head pass, 4 rows | +0.010 +0.055 -0.089 -0.006 | -0.008 (0.030) | -0.026 | -0.014 |
+| k8, round 1 | head pass, 8 rows | -0.023 +0.051 -0.038 +0.031 | +0.005 (0.021) | -0.005 | +0.014 |
+| cap, round 1 | real chains, catch-up <= 3 rows | +0.168 +0.103 +0.117 +0.351 | **+0.185 (0.057)** | +0.243 | +0.015 |
+| n20, round 1 | real chains | +0.286 (void) +0.201 +0.019 | +0.169 (0.079) | +0.134 | -0.035 |
+| **L7**, round 2 | bogus chain, rejected | +0.037 +0.268 +0.053 +0.062 +0.246 | **+0.133 (0.051)** | +0.057 | +0.018 |
+| **a7**, round 2 | accepted chain of 7 | +0.079 +0.536 +0.034 +0.047 +0.092 | +0.158 (0.095) | +0.074 | +0.059 |
+| **n20**, round 2 | real chains | +0.343 +0.580 +0.041 +0.146 +0.281 | **+0.278 (0.092)** | **+0.240** | +0.067 |
+
+(Round 2's r2 base server is slow in its later requests: every arm is high in r2. Without r2: L7 +0.10, a7 +0.06, n20 +0.20.)
+
+Reading (the advisor's table, decided before the run): n20 +, a7 +, L7 + -> **any chain pass**; acceptance is not what matters. POST0 is high for n20 only, because
+MID1 has its own n20 chain (at 665), so POST0 is again "the request after a chain"; for a7 and L7 POST0 is two requests after the event. **Hypothesis round 2
+(accepted-only trigger): null.** Stop rule reached; no third probe round.
+
+What this does not settle: whether a7 differs from L7 (they are within 1 SE of each other); whether the 8-row verify pass or the rollback is the trigger (L7 rolls
+back from save row 0, as a plain MTP step does, so a rollback from rows 2+ is not needed); why the offset reaches the next request and not the one after.
+
+## What is now ruled out (with the earlier lanes)
+
+| candidate | evidence |
+|---|---|
+| graph re-capture / eager fallback, clocks, core placement | mcdiag, cpupin |
+| different work after the chain | identical drafts and accepted counts at all 8 885 matched steps of pin1 and of real3 |
+| the rollback copy | the offset is as large in steps with no rollback |
+| host time inside the step | the split: under 0.002 ms in every host segment, 0 in the launch call |
+| the head's large post-chain catch-up (row count, GEMV vs cuBLAS) | k4, k8 null; cap (no head pass above 3 rows) as slow as n20 |
+| acceptance (a commit from save row j >= 2, the position jump, the accepted head rows) | a rejected bogus chain (L7) is positive too |
+
+## Next measurement, if any (not run)
+
+All on the MID1 instrument (it costs about 2.4 min per server; 5 rounds of 4 arms is 50 minutes):
+1. Split the verify pass: probe `e` (one eager 3-row MTP step: eager launches, no 8-row kernels, save rows 0..1 only), `L2` (a 3-row bogus chain) and `L7`. If `e` is
+   null and `L2` is positive, the trigger is the eager verify pass, not the row count; if only `L7`, the 8-row variants or save rows 3..6.
+2. Real chains with `INTARSIA_SPEC_COPY=20,3` (4-row passes) vs `20` (8-row): the same split with real text.
+3. Only then nsys: kernel times of MID1's ~280 replays in an n20 server vs a base server (many replays of one request, matched by position), to name the kernels.
+
+## Gates (`raw/gates.log`, `scripts/postchain/gates.sh`; main = origin/main `835796344` with #439 merged, built as `intarsia-main`)
+
+| gate | result |
+|---|---|
+| `plan show --json`, every new knob unset, `--spec mtp --spec-k 2 --mem-budget 40 --max-seq 8192`: main vs lane | **PASS** byte-identical (15570 bytes, sha `c446afdca09ab0ec`; main twice identical) |
+| greedy ids, `generate --spec mtp --spec-k 2`, knobs unset, main vs lane | **PASS** copy3k 2902, json-xform 2600, chat-short 364, reason 500, code-gen 500 ids identical (the agent cells have no `.txt` prompt for `generate`; not run) |
+| greedy replies with the hooks on: every arm of every round (n20, cap = n20 + `INTARSIA_SPEC_COPY_CATCHUP=3`, a7, L7, k4, k8) vs base | equal sha for all 19 requests per server (`raw/r1.log`, `raw/r2.log`) |
+| `cargo test -p intarsia-cli --test docs_env_vars`; `cargo test -p intarsia-core --lib spec::` (incl. the new `probe_ref_drafts_continue_a_matching_prefix`) | PASS (Mac, after the merge of origin/main) |
+
+Not run: the repo's full CUDA test suite; a speed ABBA of the task cells (there is no fix to time); the `--spec off` ids gate (no change on the decode path besides the
+`Instant` stamps of the split).
+
+## Verdict and revert
+
+The copy knob stays opt-in on CUDA; nothing default-on. This PR adds measurement hooks and one experiment knob, all off by default: probe kinds `a<l>` and `k<m>`,
+`INTARSIA_SPEC_COPY_PROBE_ONCE=<i>`, `INTARSIA_SPEC_COPY_CATCHUP=<rows>` (it does not fix the offset; kept as the record of the `cap` arm, removable), the step split
+on the `INTARSIA_SPEC_TRACE` graph-step line, and `scripts/postchain/`. Revert: revert the PR's commits.
+
 ## Instructions received
 
 None beyond the brief (lane rules `/opt/code/intarsiaml/.worktrees/scan/lane-rules.md`, including the 21:40 spark1 build caps and free-memory watchdog).
+
+## Files
+
+`scripts/postchain/`: `build.sh`, `wd.sh` (free-memory watchdog, never fired: 54-57 GB available at every server start), `serve.sh` (the REF / PRE / MID / POST design),
+`gen.sh` (generate runs, prepared, not used), `gates.sh`; analyzers `r2_an.py` (the primary measure), `an.py`, `midmatch.py`, `split_an.py` (host/device split),
+`drafts_id.py`, `outcome_an.py`, `segments.py`, `perreq.py`, `ceiling.py` (the re-analyses of pin1 / real3). Raw: `raw/r1b/` and `raw/r1.log` (round 1; `raw/r0-aborted.log`
+is a first start of round 1 stopped after two servers because its MID prompt made no n20 chains), `raw/r2/` and `raw/r2.log` (round 2), `raw/*-an.txt`, `raw/gates/`,
+`raw/gates.log`, `raw/build*.out`. Serve logs are gzipped; the analyzers read `.gz`. spark1's `~/intarsiaml-postchain` is removed.
+
