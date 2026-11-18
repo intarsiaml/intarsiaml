@@ -1,0 +1,13 @@
+fleetq: #10248 waiting (#2 in line): in line behind #10247 "sjfflip build main + new (CUDA, MAX_JOBS=4)" (claude-0b386a17-sjfflip) on spark1
+fleetq: #10248 waiting (#1 in line): needs cpu quiet on spark1, but #10242 "herdflip cuda build" (claude-0b386a17-herdflip) loads it
+fleetq: #10248 waiting (#1 in line): needs cpu quiet on spark1, but #10247 "sjfflip build main + new (CUDA, MAX_JOBS=4)" (claude-0b386a17-sjfflip) loads it
+fleetq: #10248 waiting (#1 in line): needs cpu quiet on spark1, but #10251 "sjfflip cpu tests (intarsia-core, docs_env_vars)" (claude-0b386a17-sjfflip) loads it
+fleetq: #10248 running on spark1: ssh spark1 'ARMS="off mtp copy=20" bash -s copy3k code-gen json-xform'
+PASS ids copy3k mtp: 2902 ids identical | | spec: verify passes=968 proposed=1936 accepted=1934 (acceptance 99.9%, 3.00 tokens per pass)
+PASS ids copy3k copy=20: 2902 ids identical | copy_passes=359 accepted_hist[count acc]=      1 0       1 2     357 7  graph_steps=14 eager_steps=0 mean_step=19.703 mean_gap=279.048 | spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids code-gen mtp: 500 ids identical | | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+PASS ids code-gen copy=20: 500 ids identical | copy_passes=0 accepted_hist[count acc]= graph_steps=180 eager_steps=0 mean_step=17.413 mean_gap=0.004 | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+PASS ids json-xform mtp: 2600 ids identical | | spec: verify passes=866 proposed=1732 accepted=1732 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids json-xform copy=20: 2600 ids identical | copy_passes=323 accepted_hist[count acc]=      2 0       4 1       5 2       6 3       9 4      22 5      10 6     265 7  graph_steps=61 eager_steps=0 mean_step=19.357 mean_gap=149.691 | spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)
+ids fails=0
+fleetq: #10248 done (exit 0)
