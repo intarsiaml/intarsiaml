@@ -1,0 +1,8 @@
+fleetq: #10300 waiting (#1 in line): #10298 "copyflipm: 27B A/B round 4" (claude-0b386a17-copyflipm) needs cpu quiet on endor, and this job loads it
+fleetq: #10300 running on endor: bash -c 'INTARSIA_CUDA_CHECK_ONLY=1 cargo check --workspace --tests 2>&1 | grep -E "^error|Finished" | head; cargo test -p intarsia-core --lib 2>&1 | grep -E "test result|FAILED|failed" | head'
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.04s
+test engine::batch::tests::failed_request_counts_its_generated_tokens ... ok
+test engine::batch::tests::queued_then_failed_request_stays_counted ... ok
+test tp_remote::serve_tests::a_failed_pass_is_answered_and_ends_serving ... ok
+test result: ok. 219 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 19.55s
+fleetq: #10300 done (exit 0)

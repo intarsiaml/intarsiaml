@@ -1,0 +1,11 @@
+gen-chat-short-mtp.err:       1 verify attention rows: engaged (one row-table attention launch per layer);
+gen-chat-short-off.err: 
+gen-chat-short-vat.err:       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);
+gen-code-gen-mtp.err:       1 verify attention rows: engaged (one row-table attention launch per layer);
+gen-code-gen-off.err: 
+gen-code-gen-vat.err:       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);
+gen-copy3k-copy_20.err:       1 verify attention rows: engaged (one row-table attention launch per layer);
+gen-copy3k-mtp.err:       1 verify attention rows: engaged (one row-table attention launch per layer);
+gen-copy3k-off.err: 
+gen-copy3k-vatcopy_20.err:       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);
+gen-copy3k-vat.err:       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);

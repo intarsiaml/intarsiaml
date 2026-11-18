@@ -3,3 +3,53 @@ fleetq:   #10295 has your owner name. If this work belongs inside it, stop and r
 fleetq: #10296 waiting (#1 in line): needs gpu quiet on spark1, but #10295 "cvat mb8 gate" (claude-0b386a17-cvat) loads it
 fleetq:   #10295 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10295 set, or it will wait for #10295 to be released.
 fleetq: #10296 running on spark1: ssh -n spark1 'W=ab1 ROUNDS=4 REPS=3 CELLS="chat-short code-gen reason agent-edit" ARMS="base:X=1 vat:INTARSIA_CUDA_VERIFY_ATTN_ROWS=1" bash ~/intarsiaml-cvat/src/scripts/cvat/ab.sh'
+base r1 up 17:36:44 free: 57 GB
+base r1 chat-short: {"cell": "chat-short", "tag": "c1", "rep": 2, "toks": 400, "chunks": 400, "ttft": 0.069, "dec_tps": 141.58, "wall": 2.887, "sha": "eb7fb2828a0d"}
+base r1 code-gen: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 160.73, "wall": 5.048, "sha": "454f22a3d8f6"}
+base r1 reason: {"cell": "reason", "tag": "c1", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.078, "dec_tps": 160.63, "wall": 3.185, "sha": "70b15645c822"}
+base r1 agent-edit: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 298, "chunks": 297, "ttft": 0.307, "dec_tps": 157.04, "wall": 2.198, "sha": "7c95bbf0cec3"}
+base r1 metrics: intarsia_graph_replays_total 2699 intarsia_graph_captures_total 5 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2682 intarsia_spec_proposed_tokens_total 5362 intarsia_spec_accepted_tokens_total 4644 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+vat r1 up 17:38:59 free: 57 GB
+vat r1 chat-short: {"cell": "chat-short", "tag": "c1", "rep": 2, "toks": 400, "chunks": 400, "ttft": 0.069, "dec_tps": 143.09, "wall": 2.858, "sha": "eb7fb2828a0d"}
+vat r1 code-gen: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.076, "dec_tps": 162.08, "wall": 5.006, "sha": "454f22a3d8f6"}
+vat r1 reason: {"cell": "reason", "tag": "c1", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.077, "dec_tps": 161.88, "wall": 3.16, "sha": "70b15645c822"}
+vat r1 agent-edit: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 298, "chunks": 297, "ttft": 0.303, "dec_tps": 158.46, "wall": 2.178, "sha": "7c95bbf0cec3"}
+vat r1 metrics: intarsia_graph_replays_total 2699 intarsia_graph_captures_total 5 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2682 intarsia_spec_proposed_tokens_total 5362 intarsia_spec_accepted_tokens_total 4644 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+vat r2 up 17:41:13 free: 57 GB
+vat r2 chat-short: {"cell": "chat-short", "tag": "c2", "rep": 2, "toks": 344, "chunks": 343, "ttft": 0.069, "dec_tps": 139.33, "wall": 2.53, "sha": "9614bb5f2bb5"}
+vat r2 code-gen: {"cell": "code-gen", "tag": "c2", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.075, "dec_tps": 162.57, "wall": 4.99, "sha": "501f32a24c8e"}
+vat r2 reason: {"cell": "reason", "tag": "c2", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.077, "dec_tps": 163.51, "wall": 3.129, "sha": "07eab7ebe507"}
+vat r2 agent-edit: {"cell": "agent-edit", "tag": "c2", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.304, "dec_tps": 158.66, "wall": 2.239, "sha": "df0fbac8b7f2"}
+vat r2 metrics: intarsia_graph_replays_total 2475 intarsia_graph_captures_total 5 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2461 intarsia_spec_proposed_tokens_total 4919 intarsia_spec_accepted_tokens_total 4187 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+base r2 up 17:43:26 free: 57 GB
+base r2 chat-short: {"cell": "chat-short", "tag": "c2", "rep": 2, "toks": 344, "chunks": 343, "ttft": 0.07, "dec_tps": 137.35, "wall": 2.567, "sha": "9614bb5f2bb5"}
+base r2 code-gen: {"cell": "code-gen", "tag": "c2", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 160.7, "wall": 5.049, "sha": "501f32a24c8e"}
+base r2 reason: {"cell": "reason", "tag": "c2", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.078, "dec_tps": 161.25, "wall": 3.172, "sha": "07eab7ebe507"}
+base r2 agent-edit: {"cell": "agent-edit", "tag": "c2", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.303, "dec_tps": 155.98, "wall": 2.271, "sha": "df0fbac8b7f2"}
+base r2 metrics: intarsia_graph_replays_total 2475 intarsia_graph_captures_total 5 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2461 intarsia_spec_proposed_tokens_total 4919 intarsia_spec_accepted_tokens_total 4187 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+base r3 up 17:45:21 free: 57 GB
+base r3 chat-short: {"cell": "chat-short", "tag": "c3", "rep": 2, "toks": 380, "chunks": 379, "ttft": 0.068, "dec_tps": 140.14, "wall": 2.772, "sha": "478b38ce218f"}
+base r3 code-gen: {"cell": "code-gen", "tag": "c3", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 160.61, "wall": 5.052, "sha": "35d159a2c1d1"}
+base r3 reason: {"cell": "reason", "tag": "c3", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.078, "dec_tps": 161.08, "wall": 3.176, "sha": "753355a5f831"}
+base r3 agent-edit: {"cell": "agent-edit", "tag": "c3", "rep": 2, "toks": 43, "chunks": 42, "ttft": 0.303, "dec_tps": 163.84, "wall": 0.56, "sha": "7c882bd90517"}
+base r3 metrics: intarsia_graph_replays_total 2707 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2693 intarsia_spec_proposed_tokens_total 5383 intarsia_spec_accepted_tokens_total 4675 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+vat r3 up 17:47:36 free: 57 GB
+vat r3 chat-short: {"cell": "chat-short", "tag": "c3", "rep": 2, "toks": 380, "chunks": 379, "ttft": 0.069, "dec_tps": 142.05, "wall": 2.737, "sha": "478b38ce218f"}
+vat r3 code-gen: {"cell": "code-gen", "tag": "c3", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 162.56, "wall": 4.992, "sha": "35d159a2c1d1"}
+vat r3 reason: {"cell": "reason", "tag": "c3", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.079, "dec_tps": 163.58, "wall": 3.129, "sha": "753355a5f831"}
+vat r3 agent-edit: {"cell": "agent-edit", "tag": "c3", "rep": 2, "toks": 43, "chunks": 42, "ttft": 0.304, "dec_tps": 165.56, "wall": 0.558, "sha": "7c882bd90517"}
+vat r3 metrics: intarsia_graph_replays_total 2707 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2693 intarsia_spec_proposed_tokens_total 5383 intarsia_spec_accepted_tokens_total 4675 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+vat r4 up 17:49:48 free: 57 GB
+vat r4 chat-short: {"cell": "chat-short", "tag": "c4", "rep": 2, "toks": 355, "chunks": 354, "ttft": 0.07, "dec_tps": 140.47, "wall": 2.59, "sha": "d575e30ec959"}
+vat r4 code-gen: {"cell": "code-gen", "tag": "c4", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 163.09, "wall": 4.976, "sha": "700a5b366c8f"}
+vat r4 reason: {"cell": "reason", "tag": "c4", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.078, "dec_tps": 163.04, "wall": 3.138, "sha": "dba7e32e9723"}
+vat r4 agent-edit: {"cell": "agent-edit", "tag": "c4", "rep": 2, "toks": 1200, "chunks": 1200, "ttft": 0.302, "dec_tps": 161.66, "wall": 7.719, "sha": "6a9a78c75256"}
+vat r4 metrics: intarsia_graph_replays_total 2650 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2633 intarsia_spec_proposed_tokens_total 5265 intarsia_spec_accepted_tokens_total 4576 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+base r4 up 17:52:04 free: 57 GB
+base r4 chat-short: {"cell": "chat-short", "tag": "c4", "rep": 2, "toks": 355, "chunks": 354, "ttft": 0.07, "dec_tps": 138.26, "wall": 2.631, "sha": "d575e30ec959"}
+base r4 code-gen: {"cell": "code-gen", "tag": "c4", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.076, "dec_tps": 160.86, "wall": 5.043, "sha": "700a5b366c8f"}
+base r4 reason: {"cell": "reason", "tag": "c4", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.078, "dec_tps": 160.21, "wall": 3.193, "sha": "dba7e32e9723"}
+base r4 agent-edit: {"cell": "agent-edit", "tag": "c4", "rep": 2, "toks": 1200, "chunks": 1200, "ttft": 0.304, "dec_tps": 159.67, "wall": 7.814, "sha": "6a9a78c75256"}
+base r4 metrics: intarsia_graph_replays_total 2650 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2633 intarsia_spec_proposed_tokens_total 5265 intarsia_spec_accepted_tokens_total 4576 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+ab done
+fleetq: #10296 done (exit 0)
