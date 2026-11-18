@@ -1,0 +1,19 @@
+fleetq: #10019 running on spark1: bash scripts/cpupin/build.sh
+22:55:34
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsiaml-cpupin/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsiaml-cpupin/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsiaml-cpupin/src/crates/intarsia-bench)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsiaml-cpupin/src/crates/intarsia-engram)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsiaml-cpupin/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsiaml-cpupin/src/crates/intarsia-ui)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsiaml-cpupin/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsiaml-cpupin/src/crates/intarsia-server)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsiaml-cpupin/src/crates/intarsia-tui)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsiaml-cpupin/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 30s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.2T  289G  92% /
+3.0G	/home/nvidia/intarsiaml-cpupin
+Mem:             121          41          72           0           8          79
+23:01:06
+fleetq: #10019 done (exit 0)

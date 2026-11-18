@@ -1,0 +1,47 @@
+fleetq: #10115 running on endor: env MODEL=/Users/josef/models/Qwen3.6-35B-A3B-NVFP4 SAMPLED=1 SEED=7 'ARMS=def def+on' TAGP=s7 O=docs/results/2026-11-18-mgdnv27/raw/sampled scripts/mgdnv27/ids.sh chat-short code-gen reason copy3k
+-- chat-short def cooled 0s thermal 0
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=164 proposed=328 accepted=219 (acceptance 66.8%, 2.34 tokens per pass)
+-- chat-short def+on cooled 0s thermal 0
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=164 proposed=328 accepted=219 (acceptance 66.8%, 2.34 tokens per pass)
+PASS sampled chat-short def+on: 383 ids == knob-off twin
+-- code-gen def cooled 0s thermal 0
+exit 0 thermal 2
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=179 proposed=358 accepted=319 (acceptance 89.1%, 2.78 tokens per pass)
+-- code-gen def+on cooled 60s thermal 0
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=179 proposed=358 accepted=319 (acceptance 89.1%, 2.78 tokens per pass)
+PASS sampled code-gen def+on: 500 ids == knob-off twin
+-- reason def cooled 0s thermal 0
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=177 proposed=353 accepted=321 (acceptance 90.9%, 2.81 tokens per pass)
+-- reason def+on cooled 0s thermal 0
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=177 proposed=353 accepted=321 (acceptance 90.9%, 2.81 tokens per pass)
+PASS sampled reason def+on: 500 ids == knob-off twin
+-- copy3k def cooled 0s thermal 0
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=968 proposed=1936 accepted=1935 (acceptance 99.9%, 3.00 tokens per pass)
+-- copy3k def+on cooled 0s thermal 0
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=968 proposed=1936 accepted=1935 (acceptance 99.9%, 3.00 tokens per pass)
+PASS sampled copy3k def+on: 2902 ids == knob-off twin
+ids fails=0
+fleetq: #10115 done (exit 0)

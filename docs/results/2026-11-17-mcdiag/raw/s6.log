@@ -1,0 +1,33 @@
+fleetq: #9971 running on spark1: ssh spark1 'W=s6 BIN=/home/nvidia/intarsiaml-mcdiag/bin/intarsia-b ROUNDS=3 ARMS="base:X=1 eg:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=450,e baseP:TASKSET=5-9 egP:TASKSET=5-9+INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=450,e baseA:TASKSET=0-4" bash -s'
+base r1 up 20:17:30 free: 58 GB
+base r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 0
+eg r1 up 20:19:18 free: 57 GB
+eg r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 0
+baseP r1 up 20:21:27 free: 58 GB
+baseP r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 0
+egP r1 up 20:23:40 free: 58 GB
+egP r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 0
+baseA r1 up 20:25:28 free: 58 GB
+baseA r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 0
+baseA r2 up 20:27:14 free: 58 GB
+baseA r2: 13 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a, chains 0
+egP r2 up 20:29:23 free: 58 GB
+egP r2: 13 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a, chains 0
+baseP r2 up 20:31:36 free: 58 GB
+baseP r2: 13 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a, chains 0
+eg r2 up 20:33:39 free: 57 GB
+eg r2: 13 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a, chains 0
+base r2 up 20:35:43 free: 58 GB
+base r2: 13 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a, chains 0
+base r3 up 20:37:52 free: 58 GB
+base r3: 13 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5, chains 0
+eg r3 up 20:39:56 free: 57 GB
+eg r3: 13 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5, chains 0
+baseP r3 up 20:42:09 free: 58 GB
+baseP r3: 13 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5, chains 0
+egP r3 up 20:44:19 free: 58 GB
+egP r3: 13 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5, chains 0
+baseA r3 up 20:45:58 free: 58 GB
+baseA r3: 13 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5, chains 0
+serve2 done
+fleetq: #9971 done (exit 0)

@@ -1,0 +1,39 @@
+fleetq: #9967 running on spark1: ssh spark1 'W=real3 BIN=/home/nvidia/intarsiaml-mcdiag/bin/intarsia-b ROUNDS=4 REPS=8 CELLS=code-gen ARMS="base:INTARSIA_SPEC_TRACE=1 n256:INTARSIA_SPEC_TRACE=1+INTARSIA_SPEC_COPY=256 n20:INTARSIA_SPEC_TRACE=1+INTARSIA_SPEC_COPY=20" bash -s'
+base r1 up 19:05:40 free: 56 GB
+base r1 code-gen: {"cell": "code-gen", "tag": "c1", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 153.91, "wall": 5.268, "sha": "0fea34450c47"}
+base r1 metrics: intarsia_graph_replays_total 2613 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2601 intarsia_spec_proposed_tokens_total 5200 intarsia_spec_accepted_tokens_total 4536 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+n256 r1 up 19:07:44 free: 55 GB
+n256 r1 code-gen: {"cell": "code-gen", "tag": "c1", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.079, "dec_tps": 151.36, "wall": 5.358, "sha": "0fea34450c47"}
+n256 r1 metrics: intarsia_graph_replays_total 2613 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2601 intarsia_spec_proposed_tokens_total 5200 intarsia_spec_accepted_tokens_total 4536 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+n20 r1 up 19:09:48 free: 55 GB
+n20 r1 code-gen: {"cell": "code-gen", "tag": "c1", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 152.27, "wall": 5.324, "sha": "0fea34450c47"}
+n20 r1 metrics: intarsia_graph_replays_total 2607 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2596 intarsia_spec_proposed_tokens_total 5190 intarsia_spec_accepted_tokens_total 4524 intarsia_spec_copy_steps_total 6 intarsia_spec_copy_proposed_tokens_total 41 intarsia_spec_copy_accepted_tokens_total 12 
+n20 r2 up 19:11:44 free: 55 GB
+n20 r2 code-gen: {"cell": "code-gen", "tag": "c2", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 149.87, "wall": 5.41, "sha": "bde73b230fa8"}
+n20 r2 metrics: intarsia_graph_replays_total 2601 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2590 intarsia_spec_proposed_tokens_total 5178 intarsia_spec_accepted_tokens_total 4531 intarsia_spec_copy_steps_total 8 intarsia_spec_copy_proposed_tokens_total 54 intarsia_spec_copy_accepted_tokens_total 9 
+n256 r2 up 19:13:49 free: 55 GB
+n256 r2 code-gen: {"cell": "code-gen", "tag": "c2", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 150.88, "wall": 5.373, "sha": "bde73b230fa8"}
+n256 r2 metrics: intarsia_graph_replays_total 2607 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2595 intarsia_spec_proposed_tokens_total 5188 intarsia_spec_accepted_tokens_total 4542 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+base r2 up 19:15:47 free: 56 GB
+base r2 code-gen: {"cell": "code-gen", "tag": "c2", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 150.45, "wall": 5.387, "sha": "bde73b230fa8"}
+base r2 metrics: intarsia_graph_replays_total 2607 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2595 intarsia_spec_proposed_tokens_total 5188 intarsia_spec_accepted_tokens_total 4542 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+base r3 up 19:17:49 free: 55 GB
+base r3 code-gen: {"cell": "code-gen", "tag": "c3", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 151.39, "wall": 5.355, "sha": "095def6dc0cd"}
+base r3 metrics: intarsia_graph_replays_total 2615 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2604 intarsia_spec_proposed_tokens_total 5205 intarsia_spec_accepted_tokens_total 4582 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+n256 r3 up 19:19:50 free: 55 GB
+n256 r3 code-gen: {"cell": "code-gen", "tag": "c3", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 151.97, "wall": 5.336, "sha": "095def6dc0cd"}
+n256 r3 metrics: intarsia_graph_replays_total 2615 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2604 intarsia_spec_proposed_tokens_total 5205 intarsia_spec_accepted_tokens_total 4582 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+n20 r3 up 19:21:43 free: 55 GB
+n20 r3 code-gen: {"cell": "code-gen", "tag": "c3", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 147.8, "wall": 5.485, "sha": "095def6dc0cd"}
+n20 r3 metrics: intarsia_graph_replays_total 2604 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2594 intarsia_spec_proposed_tokens_total 5185 intarsia_spec_accepted_tokens_total 4566 intarsia_spec_copy_steps_total 8 intarsia_spec_copy_proposed_tokens_total 53 intarsia_spec_copy_accepted_tokens_total 19 
+n20 r4 up 19:23:45 free: 55 GB
+n20 r4 code-gen: {"cell": "code-gen", "tag": "c4", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 149.9, "wall": 5.408, "sha": "c8b62fda2d13"}
+n20 r4 metrics: intarsia_graph_replays_total 2569 intarsia_graph_captures_total 5 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2556 intarsia_spec_proposed_tokens_total 5110 intarsia_spec_accepted_tokens_total 4489 intarsia_spec_copy_steps_total 13 intarsia_spec_copy_proposed_tokens_total 91 intarsia_spec_copy_accepted_tokens_total 15 
+n256 r4 up 19:25:56 free: 55 GB
+n256 r4 code-gen: {"cell": "code-gen", "tag": "c4", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.076, "dec_tps": 154.36, "wall": 5.252, "sha": "c8b62fda2d13"}
+n256 r4 metrics: intarsia_graph_replays_total 2574 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2561 intarsia_spec_proposed_tokens_total 5121 intarsia_spec_accepted_tokens_total 4512 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+base r4 up 19:27:59 free: 56 GB
+base r4 code-gen: {"cell": "code-gen", "tag": "c4", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 153.76, "wall": 5.274, "sha": "c8b62fda2d13"}
+base r4 metrics: intarsia_graph_replays_total 2574 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2561 intarsia_spec_proposed_tokens_total 5121 intarsia_spec_accepted_tokens_total 4512 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+ab done
+fleetq: #9967 done (exit 0)

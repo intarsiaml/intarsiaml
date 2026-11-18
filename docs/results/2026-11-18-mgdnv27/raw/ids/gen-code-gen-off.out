@@ -1,0 +1,65 @@
+```python
+# lru_cache.py
+"""
+LRU Cache implementation using a doubly linked list and a dictionary.
+"""
+
+class _Node:
+    """A node in the doubly linked list."""
+    __slots__ = ('key', 'value', 'prev', 'next')
+
+    def __init__(self, key=None, value=None):
+        self.key = key
+        self.value = value
+        self.prev = None
+        self.next = None
+
+
+class LRUCache:
+    """
+    An LRU (Least Recently Used) cache with O(1) get, put, and delete operations.
+    
+    Uses a doubly linked list to maintain order of access and a dictionary
+    for O(1) lookup.
+    """
+
+    def __init__(self, capacity: int):
+        if capacity <= 0:
+            raise ValueError("Capacity must be positive")
+        self.capacity = capacity
+        self.cache = {}  # key -> Node
+        # Dummy head and tail nodes to simplify edge cases
+        self.head = _Node()
+        self.tail = _Node()
+        self.head.next = self.tail
+        self.tail.prev = self.head
+        self._size = 0
+
+    def _remove_node(self, node: _Node) -> None:
+        """Remove a node from the linked list."""
+        prev_node = node.prev
+        next_node = node.next
+        prev_node.next = next_node
+        next_node.prev = prev_node
+        node.prev = None
+        node.next = None
+
+    def _add_to_front(self, node: _Node) -> None:
+        """Add a node to the front of the linked list (most recently used)."""
+        node.prev = self.head
+        node.next = self.head.next
+        self.head.next.prev = node
+        self.head.next = node
+
+    def _move_to_front(self, node: _Node) -> None:
+        """Move a node to the front of the linked list."""
+        self._remove_node(node)
+        self._add_to_front(node)
+
+    def get(self, key) -> object:
+        """
+        Get the value associated with the key. If the key exists, mark it as
+        recently used and return its value. Otherwise, return None.
+        """
+        if key not in self.cache:
+

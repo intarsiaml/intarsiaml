@@ -1,0 +1,84 @@
+# probe-r1 vs base-r1 (DiD post-pre, chain-pos 168)
+probe: 181 replays, 180 traced steps; base: 181 replays, 180 traced steps; chain at pos 168
+dominant recording: 1002 nodes
+replays used: probe pre 17 post 115; base pre 17 post 115
+span: probe post-pre -194.2 us, base post-pre -597.9 us, DiD +403.6 us per replay
+kernel time sum: probe post-pre -487.8 us, base post-pre -804.6 us, DiD +316.9 us per replay
+DiD by kernel name (ns per replay, sum over nodes):
+   fp8_gemv_rows_full_kernel                                                 +89680  (130 nodes, base mean 6653.6 us per replay)
+   moe_dec_gate_up_kernel                                                    +64517  (41 nodes, base mean 4380.8 us per replay)
+   nvfp4_gemv_kernel                                                         +44563  (43 nodes, base mean 4699.1 us per replay)
+   nvfp4_gemv_split_kernel                                                   +41352  (80 nodes, base mean 835.4 us per replay)
+   moe_dec_down_dd_kernel                                                    +24713  (40 nodes, base mean 2336.2 us per replay)
+   gemv_split_kernel                                                         +22438  (140 nodes, base mean 2435.6 us per replay)
+largest single nodes:
+   node 1000 nvfp4_gemv_kernel                                            DiD   +35389 ns (probe pre 1247541 post 1240990; base pre 1272420 post 1230480)
+   node   76 nvfp4_gemv_kernel                                            DiD   +12712 ns (probe pre 600002 post 609720; base pre 616181 post 613187)
+   node   82 gemv_split_kernel                                            DiD    -9834 ns (probe pre 34003 post 31385; base pre 25276 post 32492)
+   node  358 gemv_split_kernel                                            DiD    -9743 ns (probe pre 27219 post 20167; base pre 19612 post 22304)
+   node  194 gemv_split_kernel                                            DiD    +9625 ns (probe pre 20702 post 25883; base pre 31499 post 27056)
+   node  132 moe_dec_down_dd_kernel                                       DiD    +8971 ns (probe pre 62645 post 63724; base pre 72824 post 64932)
+total DiD over nodes: +316.9 us
+# probe-r2 vs base-r2 (DiD post-pre, chain-pos 168)
+probe: 181 replays, 180 traced steps; base: 181 replays, 180 traced steps; chain at pos 168
+dominant recording: 1002 nodes
+replays used: probe pre 17 post 115; base pre 17 post 115
+span: probe post-pre +119.7 us, base post-pre -111.5 us, DiD +231.2 us per replay
+kernel time sum: probe post-pre -364.9 us, base post-pre -145.9 us, DiD -219.1 us per replay
+DiD by kernel name (ns per replay, sum over nodes):
+   gemv_split_kernel                                                         -84747  (140 nodes, base mean 2292.7 us per replay)
+   fp8_gemv_rows_full_kernel                                                 -22786  (130 nodes, base mean 6437.3 us per replay)
+   nvfp4_gemv_kernel                                                         -22681  (43 nodes, base mean 4557.4 us per replay)
+   silu_glu_kernel                                                           -19499  (42 nodes, base mean 111.6 us per replay)
+   nvfp4_gemv_split_kernel                                                   -19273  (80 nodes, base mean 732.9 us per replay)
+   moe_dec_down_dd_kernel                                                    -15108  (40 nodes, base mean 2241.3 us per replay)
+largest single nodes:
+   node  468 fp8_gemv_rows_full_kernel                                    DiD   +12468 ns (probe pre 76309 post 75647; base pre 88341 post 75211)
+   node  398 gemv_split_kernel                                            DiD    -8946 ns (probe pre 27590 post 20221; base pre 18291 post 19868)
+   node  451 gemv_split_kernel                                            DiD    -8149 ns (probe pre 44536 post 40178; base pre 39272 post 43062)
+   node 1000 nvfp4_gemv_kernel                                            DiD    -7689 ns (probe pre 1231676 post 1215319; base pre 1225884 post 1217216)
+   node  950 gemv_split_kernel                                            DiD    -7010 ns (probe pre 27016 post 21360; base pre 19162 post 20517)
+   node  459 moe_dec_gate_up_kernel                                       DiD    +6894 ns (probe pre 97830 post 94736; base pre 103518 post 93530)
+total DiD over nodes: -219.1 us
+# base-r1 vs base-r2 (DiD post-pre, chain-pos 168)
+probe: 181 replays, 180 traced steps; base: 181 replays, 180 traced steps; chain at pos 168
+dominant recording: 1002 nodes
+replays used: probe pre 17 post 115; base pre 17 post 115
+span: probe post-pre -597.9 us, base post-pre -111.5 us, DiD -486.4 us per replay
+kernel time sum: probe post-pre -804.6 us, base post-pre -145.9 us, DiD -658.8 us per replay
+DiD by kernel name (ns per replay, sum over nodes):
+   fp8_gemv_rows_full_kernel                                                -122040  (130 nodes, base mean 6437.3 us per replay)
+   gemv_split_kernel                                                         -95198  (140 nodes, base mean 2292.7 us per replay)
+   moe_dec_gate_up_kernel                                                    -76060  (41 nodes, base mean 4269.2 us per replay)
+   nvfp4_gemv_kernel                                                         -75218  (43 nodes, base mean 4557.4 us per replay)
+   nvfp4_gemv_split_kernel                                                   -68370  (80 nodes, base mean 732.9 us per replay)
+   moe_dec_down_dd_kernel                                                    -66399  (40 nodes, base mean 2241.3 us per replay)
+largest single nodes:
+   node 1000 nvfp4_gemv_kernel                                            DiD   -33272 ns (probe pre 1272420 post 1230480; base pre 1225884 post 1217216)
+   node  468 fp8_gemv_rows_full_kernel                                    DiD   +13224 ns (probe pre 76804 post 76899; base pre 88341 post 75211)
+   node  766 gemv_split_kernel                                            DiD   -11841 ns (probe pre 28145 post 20834; base pre 16975 post 21505)
+   node  571 moe_dec_gate_up_kernel                                       DiD   -10631 ns (probe pre 113182 post 100812; base pre 102829 post 101090)
+   node  132 moe_dec_down_dd_kernel                                       DiD   -10266 ns (probe pre 72824 post 64932; base pre 60463 post 62837)
+   node  471 gemv_split_kernel                                            DiD    +9938 ns (probe pre 37453 post 40059; base pre 46562 post 39230)
+total DiD over nodes: -658.8 us
+# probe-r2 vs base-r1 (DiD post-pre, chain-pos 168)
+probe: 181 replays, 180 traced steps; base: 181 replays, 180 traced steps; chain at pos 168
+dominant recording: 1002 nodes
+replays used: probe pre 17 post 115; base pre 17 post 115
+span: probe post-pre +119.7 us, base post-pre -597.9 us, DiD +717.6 us per replay
+kernel time sum: probe post-pre -364.9 us, base post-pre -804.6 us, DiD +439.7 us per replay
+DiD by kernel name (ns per replay, sum over nodes):
+   fp8_gemv_rows_full_kernel                                                 +99255  (130 nodes, base mean 6653.6 us per replay)
+   moe_dec_gate_up_kernel                                                    +70884  (41 nodes, base mean 4380.8 us per replay)
+   nvfp4_gemv_kernel                                                         +52538  (43 nodes, base mean 4699.1 us per replay)
+   moe_dec_down_dd_kernel                                                    +51291  (40 nodes, base mean 2336.2 us per replay)
+   nvfp4_gemv_split_kernel                                                   +49098  (80 nodes, base mean 835.4 us per replay)
+   rmsnorm_kernel                                                            +21993  (115 nodes, base mean 261.3 us per replay)
+largest single nodes:
+   node 1000 nvfp4_gemv_kernel                                            DiD   +25582 ns (probe pre 1231676 post 1215319; base pre 1272420 post 1230480)
+   node  571 moe_dec_gate_up_kernel                                       DiD   +11699 ns (probe pre 99637 post 98966; base pre 113182 post 100812)
+   node  132 moe_dec_down_dd_kernel                                       DiD   +10545 ns (probe pre 61367 post 64020; base pre 72824 post 64932)
+   node  175 gemv_split_kernel                                            DiD   -10037 ns (probe pre 41901 post 36929; base pre 31174 post 36238)
+   node   76 nvfp4_gemv_kernel                                            DiD    +9904 ns (probe pre 596184 post 603095; base pre 616181 post 613187)
+   node  136 nvfp4_gemv_kernel                                            DiD    +9417 ns (probe pre 58594 post 60257; base pre 68546 post 60792)
+total DiD over nodes: +439.7 us

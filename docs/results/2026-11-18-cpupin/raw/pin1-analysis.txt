@@ -1,0 +1,27 @@
+server    cpu  steps  mean_graph_step_ms  median_dec_tps
+base-r1    15   2599             17.456          160.2
+base-r2    15   2593             17.490          160.0
+base-r3    15   2601             17.652          158.4
+base-r4     8   2560             17.688          158.4
+baseP-r1    5   2599             17.612          159.1
+baseP-r2   19   2593             17.597          159.0
+baseP-r3    9   2601             17.662          158.0
+baseP-r4   16   2560             17.644          159.1
+n20-r1      5   2594             17.700          157.1
+n20-r2      5   2588             17.949          155.5
+n20-r3      8   2591             17.572          157.8
+n20-r4     15   2555             17.726          156.2
+n20P-r1    16   2594             17.651          157.8
+n20P-r2     5   2588             17.483          159.9
+n20P-r3    19   2591             17.791          156.8
+n20P-r4     9   2555             17.603          157.3
+
+round medians of decode tok/s (code-gen 800 tokens, 8 reps)
+base    160.2  160.0  158.4  158.4   mean 159.23
+baseP   159.1  159.0  158.0  159.1   mean 158.78
+n20     157.1  155.5  157.8  156.2   mean 156.63
+n20P    157.8  159.9  156.8  157.3   mean 157.94
+n20/base: tok/s ratio per round 0.9808 0.9715 0.9965 0.9860  mean 0.9837; mean graph step difference per round (ms) +0.243 +0.459 -0.080 +0.038  mean +0.165
+n20P/baseP: tok/s ratio per round 0.9921 1.0057 0.9921 0.9889  mean 0.9947; mean graph step difference per round (ms) +0.040 -0.114 +0.129 -0.041  mean +0.004
+baseP/base: tok/s ratio per round 0.9932 0.9932 0.9980 1.0044  mean 0.9972; mean graph step difference per round (ms) +0.156 +0.107 +0.010 -0.045  mean +0.057
+n20P/base: tok/s ratio per round 0.9854 0.9988 0.9901 0.9933  mean 0.9919; mean graph step difference per round (ms) +0.195 -0.007 +0.140 -0.085  mean +0.061

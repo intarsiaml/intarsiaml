@@ -1,0 +1,4 @@
+fleetq: #9972 running on spark1: env OUT=intarsia-vg bash scripts/mcdiag/build.sh
+20:50:37
+ssh: connect to host spark-4e77 port 22: Operation timed out
+fleetq: #9972 done (exit 255)

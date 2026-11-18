@@ -1343,6 +1343,12 @@ pub(crate) struct Seq {
     copy_backoff: crate::spec::CopyBackoff,
     /// A copy chain left its accepted rows queued for the head: catch the head up before the next MTP draft (lane mcopy2).
     copy_behind: bool,
+    /// Lane mcdiag: `INTARSIA_SPEC_COPY_PROBE` not yet spent (one bogus chain per request at this many generated tokens).
+    copy_probe: Option<(usize, crate::spec::ProbeKind)>,
+    /// Lane mcdiag: the next captured-graph-eligible MTP step runs eagerly (probe kind `e`).
+    probe_eager: bool,
+    /// Lane postchain: before the next MTP step, one head pass of this many rows (probe kind `k<m>`, `Model::mtp_probe_head_rows`); 0: none.
+    probe_head_rows: usize,
     /// Adaptive draft depth in `[INTARSIA_SPEC_K_MIN, spec_k]` (MTP drafts only); `None`: every pass drafts `spec_k`.
     depth: Option<crate::spec::Depth>,
     /// Speculation for this sampled request ([`crate::spec::SampledSpec`]; `Off` for greedy requests, which keep the greedy
@@ -1459,6 +1465,7 @@ impl Seq {
         }
         // lane mcopy: copy drafts for a greedy `--spec mtp` request, this engine only (the batched scheduler never sets it)
         seq.copy = sh.copy.filter(|_| seq.spec_on && seq.greedy && st.peers.is_empty() && st.remote.is_none());
+        seq.copy_probe = seq.copy.and(crate::spec::copy_probe_from_env());
         if seq.spec_on && sh.env().spec.mode == crate::spec::SpecMode::Auto {
             seq.auto = Some(crate::spec::AutoPolicy::new(model.spec_auto_params()));
         }
@@ -1618,6 +1625,9 @@ impl Seq {
             copy_pass: false,
             copy_backoff: Default::default(),
             copy_behind: false,
+            copy_probe: None,
+            probe_eager: false,
+            probe_head_rows: 0,
             depth: if spec_mtp && !spec_dflash { crate::spec::k_min_for(&env.spec).and_then(|m| crate::spec::Depth::new(m, spec_k)) } else { None },
             spec_sampled: crate::spec::SampledSpec::Off,
             spec_keyed: false,
@@ -2089,6 +2099,42 @@ impl Seq {
                     // A chain that missed (accepted fewer than `COPY_MIN_ACCEPT` drafts) backs the request off ([`CopyBackoff`]).
                     if let Some(c) = self.copy {
                         let len = c.len.min(room).min(self.max_new.saturating_sub(self.generated + 1));
+                        if let Some((g, kind)) = self.copy_probe.filter(|&(g, _)| self.generated >= g) {
+                            // lane mcdiag: the measurement hook (see `copy_probe_from_env`), once per request
+                            let _ = g;
+                            self.copy_probe = None;
+                            // once per process, in the nth request that reaches it (the server's other requests then run chain-free:
+                            // whether the cost carries over is the question)
+                            static REACHED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+                            let nth = crate::spec::copy_probe_once();
+                            if nth > 0 && REACHED.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1 != nth {
+                                return Next::Draft(k);
+                            }
+                            match kind {
+                                crate::spec::ProbeKind::Chain(l) => {
+                                    let l = l.unwrap_or(len).min(room).min(self.max_new.saturating_sub(self.generated + 1));
+                                    if l >= 2 {
+                                        return Next::Verify(vec![1; l]);
+                                    }
+                                }
+                                crate::spec::ProbeKind::Accept(l) => {
+                                    // lane postchain: a chain every draft of which greedy decoding accepts (the previous request's text)
+                                    let l = l.unwrap_or(len).min(room).min(self.max_new.saturating_sub(self.generated + 1));
+                                    if let Some(d) = crate::spec::probe_ref_drafts(&self.ctx, l).filter(|_| l >= 2) {
+                                        if crate::spec::trace_enabled() {
+                                            eprintln!("spec: probe accept chain of {l} at token {}", self.generated);
+                                        }
+                                        return Next::Verify(d);
+                                    }
+                                    if crate::spec::trace_enabled() {
+                                        eprintln!("spec: probe accept chain: no reference at token {}", self.generated);
+                                    }
+                                }
+                                crate::spec::ProbeKind::HeadRows(m) => self.probe_head_rows = m,
+                                crate::spec::ProbeKind::CatchUp => self.copy_behind = true,
+                                crate::spec::ProbeKind::Eager => self.probe_eager = true,
+                            }
+                        }
                         if len >= crate::spec::COPY_MIN_CHAIN && self.copy_backoff.ready() {
                             let drafts = crate::spec::propose_copy(&self.ctx, crate::spec::CopyCfg { len, ..c });
                             if !drafts.is_empty() {
@@ -2343,7 +2389,21 @@ impl Seq {
             // eagerly. It is the catch-up the eager step would do first, run only when an MTP step follows (back-to-back chains leave the
             // rows queued, as before); drafts only propose, so ids do not change.
             self.copy_behind = false;
-            model.mtp_catch_up(st)?;
+            match crate::spec::copy_catchup_rows() {
+                // lane postchain: in passes of at most this many rows
+                Some(r) => model.mtp_catch_up_capped(st, r)?,
+                None => model.mtp_catch_up(st)?,
+            }
+        }
+        if self.probe_head_rows > 0 && matches!(plan, Next::Draft(_)) {
+            // lane postchain: the measurement hook's head pass (probe kind `k<m>`); it runs on the workspace
+            let m = std::mem::take(&mut self.probe_head_rows);
+            self.predraft = None;
+            self.staged = None;
+            let ran = model.mtp_probe_head_rows(st, m)?;
+            if crate::spec::trace_enabled() {
+                eprintln!("spec: probe head pass of {m} rows at token {} ran {ran}", self.generated);
+            }
         }
         match plan {
             Next::Emit(t) => {
@@ -2359,13 +2419,26 @@ impl Seq {
                     self.cost_begin_copy();
                     // the chain's rows only queue for the head (a verify pass never catches up): catch it up before the queue could overflow
                     if model.mtp_queue_room(st) < 2 * (drafts.len() + 1) {
-                        model.mtp_catch_up(st)?;
+                        match crate::spec::copy_catchup_rows() {
+                            Some(r) => model.mtp_catch_up_capped(st, r)?,
+                            None => model.mtp_catch_up(st)?,
+                        }
                     }
                 }
                 let was_copy = self.copy_pass;
+                let t_copy = (was_copy && crate::spec::trace_enabled()).then(Instant::now);
                 let r = self.verify(model, st, &drafts);
                 self.copy_pass = false;
                 r?;
+                if let Some(t) = t_copy {
+                    // lane mcdiag: the chain pass ends in a token download, so host time is device time (accepting and rolling back included)
+                    eprintln!(
+                        "spec: copy pass {} rows {:.3} ms at {:.3}",
+                        drafts.len() + 1,
+                        t.elapsed().as_secs_f64() * 1e3,
+                        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64())
+                    );
+                }
                 // the accepted rows of the chain sit in the head's queue (up to `len + 1`); see `copy_behind` below
                 self.copy_behind |= was_copy;
                 if let Some(t) = self.pending.pop_front() {
@@ -2450,7 +2523,8 @@ impl Seq {
             Next::Draft(k)
                 if (self.auto.is_none() || self.drafter == crate::spec::Drafter::Mtp)
                     && !mtp_verify_check()
-                    && model.spec_step_ok(st, self.tok, k) =>
+                    && model.spec_step_ok(st, self.tok, k)
+                    && !std::mem::take(&mut self.probe_eager) =>
             {
                 self.predraft = None;
                 self.staged = None;
@@ -2458,9 +2532,13 @@ impl Seq {
                 self.cost_begin(true);
                 let t0 = Instant::now();
                 let len0 = st.len;
+                let n_rows = st.mtp.as_ref().map_or(0, |m| m.pending_rows);
                 match model.spec_step(st, self.tok, k)? {
                     Some(pass) => {
+                        let split = pass.split;
+                        let t_acc = Instant::now();
                         self.verify_pass(model, st, len0, &pass.drafts, pass.out)?;
+                        let acc_ms = t_acc.elapsed().as_secs_f64() * 1e3;
                         if let Some(a) = self.auto.as_mut() {
                             let ms = t0.elapsed().as_secs_f64() * 1e3;
                             a.record(crate::spec::Drafter::Mtp, self.pending.len(), ms);
@@ -2474,7 +2552,19 @@ impl Seq {
                             static LAST: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
                             let mut last = LAST.lock().unwrap();
                             let gap = last.map_or(0.0, |l| t0.duration_since(l).as_secs_f64() * 1e3);
-                            eprintln!("spec: mtp graph step {:.3} ms gap {:.3} ms", t0.elapsed().as_secs_f64() * 1e3, gap);
+                            // split (lane postchain): host before the launch / launch to download done / host after it / acceptance and rollback; launch call alone
+                            eprintln!(
+                                "spec: mtp graph step {:.3} ms gap {:.3} ms n {n_rows} len {len0} captures {} at {:.3} split {:.3} {:.3} {:.3} {:.3} launch {:.3}",
+                                t0.elapsed().as_secs_f64() * 1e3,
+                                gap,
+                                model.graph_stats().spec_captures,
+                                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64()),
+                                split[0],
+                                split[1],
+                                split[2],
+                                acc_ms,
+                                split[3]
+                            );
                             *last = Some(Instant::now());
                         }
                         if let Some(t) = self.pending.pop_front() {
@@ -2661,6 +2751,10 @@ impl Seq {
     /// Roll the KV back, release held-back text and report. Call once [`Seq::on_token`] returned true.
     pub(crate) fn finish(mut self, model: &Model, st: &mut SequenceState) -> Result<Outcome> {
         let mut reason = self.reason.expect("finish before the sequence ended");
+        if self.copy.is_some() && matches!(crate::spec::copy_probe_from_env(), Some((_, crate::spec::ProbeKind::Accept(_)))) {
+            // lane postchain: the reference text of probe kind `a`
+            crate::spec::probe_ref_set(&self.ctx);
+        }
         if let Some(a) = self.auto.as_ref().filter(|a| a.params().log) {
             eprintln!("spec auto: {} tokens, {}", self.generated, a.summary());
         }

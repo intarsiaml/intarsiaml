@@ -1,0 +1,33 @@
+fleetq: #10096 waiting (#1 in line): needs gpu quiet on endor, but #10094 "mgdnv27: 27B A/B round 1" (claude-a9e6e738) loads it
+fleetq:   #10094 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10094 set, or it will wait for #10094 to be released.
+fleetq: #10096 running on endor: env O=docs/results/2026-11-18-mgdnv27/raw/ids27c 'ARMS=off copy copy+on' scripts/mgdnv27/ids.sh copy3k json-xform
+-- copy3k off cooled 60s thermal 0
+exit 0 thermal 1
+-- copy3k copy cooled 60s thermal 0
+exit 0 thermal 0
+spec: copy pass 16 rows 171.732 ms at 1794992853.254
+spec: copy chain passes=180 proposed=2700 accepted=2680 (not in the verify passes below)
+spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)
+-- copy3k copy+on cooled 0s thermal 0
+exit 0 thermal 1
+spec: copy pass 16 rows 152.908 ms at 1794992888.053
+spec: copy chain passes=180 proposed=2700 accepted=2680 (not in the verify passes below)
+spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids copy3k copy: 2902 ids == off
+PASS ids copy3k copy+on: 2902 ids == off and knob-off twin
+-- json-xform off cooled 70s thermal 0
+exit 0 thermal 1
+-- json-xform copy cooled 70s thermal 0
+exit 0 thermal 0
+spec: copy pass 15 rows 150.475 ms at 1794993153.477
+spec: copy chain passes=183 proposed=2744 accepted=2233 (not in the verify passes below)
+spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)
+-- json-xform copy+on cooled 0s thermal 0
+exit 0 thermal 1
+spec: copy pass 15 rows 153.634 ms at 1794993190.989
+spec: copy chain passes=183 proposed=2744 accepted=2233 (not in the verify passes below)
+spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids json-xform copy: 2600 ids == off
+PASS ids json-xform copy+on: 2600 ids == off and knob-off twin
+ids fails=0
+fleetq: #10096 done (exit 0)

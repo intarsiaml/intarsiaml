@@ -1,0 +1,7 @@
+bins of 50 positions in [100,800); difference to base of the same round, request and bin (ms per step)
+baseP : chains 0; chain not yet seen: +0.060 (sd 0.151, n 448); chain seen: n/a
+        per round (not seen | seen): r1: +0.160 | +nan; r2: +0.113 | +nan; r3: +0.010 | +nan; r4: -0.043 | +nan
+n20   : chains 35; chain not yet seen: -0.062 (sd 0.207, n 81); chain seen: +0.233 (sd 0.319, n 367)
+        per round (not seen | seen): r1: +0.114 | +0.273; r2: +0.218 | +0.529; r3: -0.191 | -0.041; r4: -0.131 | +0.104
+n20P  : chains 35; chain not yet seen: -0.055 (sd 0.147, n 81); chain seen: +0.093 (sd 0.210, n 367)
+        per round (not seen | seen): r1: +0.062 | +0.227; r2: -0.053 | +0.003; r3: +0.055 | +0.186; r4: -0.226 | -0.046

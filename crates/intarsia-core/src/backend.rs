@@ -537,7 +537,7 @@ pub trait Backend: Send + Sync {
         false
     }
 
-    /// Lane mtp2s: the `t` rows (2..=8) of one sequence's GatedDeltaNet block of a speculative verify pass in two launches: the conv
+    /// Lane mtp2s: the `t` rows (2..=8; Metal, lane mgdnv, takes 2..=16) of one sequence's GatedDeltaNet block of a speculative verify pass in two launches: the conv
     /// (rows in order, the conv state advanced) then the delta rule (state kept on chip across the rows), storing the conv state and the
     /// delta-rule state after every row but the last into `snap_conv[r]` / `snap_s[r]` (the pass's rollback saves) and the final ones in
     /// place. BITWISE the row-by-row `GdnConv` + `GdnDeltaRule` calls of the verify pass and the copies of the slot after each row (the

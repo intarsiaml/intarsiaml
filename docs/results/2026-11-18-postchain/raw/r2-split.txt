@@ -1,0 +1,6 @@
+  L7 mean carry: total +0.022 pre-launch -0.000 launch..download +0.024 post-download -0.000 accept -0.001 launch-call +0.000
+  L7 mean in-request: total +0.035 pre-launch +0.000 launch..download +0.033 post-download +0.000 accept +0.002 launch-call +0.000
+  a7 mean carry: total +0.060 pre-launch +0.000 launch..download +0.056 post-download +0.000 accept +0.004 launch-call +0.000
+  a7 mean in-request: total +0.193 pre-launch +0.000 launch..download +0.190 post-download +0.000 accept +0.003 launch-call +0.000
+  n20 mean carry: total +0.084 pre-launch +0.000 launch..download +0.082 post-download +0.000 accept +0.002 launch-call +0.000
+  n20 mean in-request: total -0.044 pre-launch -0.000 launch..download -0.043 post-download +0.000 accept -0.000 launch-call +0.000

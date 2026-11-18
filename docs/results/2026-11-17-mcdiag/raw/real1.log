@@ -1,0 +1,6 @@
+fleetq: #9965 running on spark1: ssh spark1 'W=real1 BIN=/home/nvidia/intarsiaml-mcdiag/bin/intarsia-b ROUNDS=4 REPS=8 CELLS=code-gen ARMS="base:INTARSIA_SPEC_TRACE=1 n256:INTARSIA_SPEC_TRACE=1+INTARSIA_SPEC_COPY=256 n20:INTARSIA_SPEC_TRACE=1+INTARSIA_SPEC_COPY=20" bash -s'
+base r1 up 18:59:42 free: 56 GB
+base r1 code-gen: {"cell": "code-gen", "tag": "c1", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 150.16, "wall": 5.398, "sha": "0fea34450c47"}
+base r1 metrics: intarsia_graph_replays_total 2613 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 2601 intarsia_spec_proposed_tokens_total 5200 intarsia_spec_accepted_tokens_total 4536 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+port 8197 already answers: stopping
+fleetq: #9965 done (exit 1)
