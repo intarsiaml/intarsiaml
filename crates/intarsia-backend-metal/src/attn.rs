@@ -425,17 +425,39 @@ impl MetalBackend {
     }
 }
 
-/// Most verification rows `launch_attn_rows` takes (G0b).
+/// Most verification rows one launch of the multi-row kernel takes (G0b).
 pub const ROWS_MAX: usize = 8;
 
-/// Shapes `attn_prefill_bf16_splitkv_rows` takes: 2..=8 query rows, the split-KV decode shapes otherwise.
+/// Most verification rows `launch_attn_rows` takes (lane mrows16): 9..=16 rows (a copy-draft chain longer than 7,
+/// `INTARSIA_SPEC_COPY=n,len` with `len` 8..=15) run as `ceil(rows / ROWS_MAX)` consecutive launches of the multi-row kernel on
+/// equal-sized row groups (each group bitwise the 1-row split-KV decode per row, so the whole call is), not a different kernel.
+pub const ROWS_CHAIN_MAX: usize = 16;
+
+/// Shapes `attn_prefill_bf16_splitkv_rows` takes: 2..=16 query rows, the split-KV decode shapes otherwise.
 pub fn rows_ok(s: &ShapeInfo) -> bool {
-    (2..=ROWS_MAX).contains(&s.m) && splitkv_ok(&ShapeInfo { m: 1, ..s.clone() })
+    (2..=ROWS_CHAIN_MAX).contains(&s.m) && splitkv_ok(&ShapeInfo { m: 1, ..s.clone() })
 }
 
-/// Scratch of the multi-row kernels: one `splitkv_scratch` slab per row.
+/// Scratch of the multi-row kernels: one `splitkv_scratch` slab per row, for the rows of one launch (a call of more than
+/// [`ROWS_MAX`] rows reuses it for its row groups, the encoder is serial).
 pub fn rows_scratch(s: &ShapeInfo) -> usize {
     splitkv_scratch(s) * s.m.clamp(1, ROWS_MAX)
+}
+
+/// Row groups of a `t`-row call: `ceil(t / ROWS_MAX)` groups of `t / groups` or one more rows (never a 1-row group, the
+/// multi-row kernel takes 2..=8). `(first row, rows)` per group.
+pub fn row_groups(t: usize) -> Vec<(usize, usize)> {
+    let g = t.div_ceil(ROWS_MAX).max(1);
+    let (base, extra) = (t / g, t % g);
+    let mut at = 0;
+    (0..g)
+        .map(|k| {
+            let n = base + usize::from(k < extra);
+            let r = (at, n);
+            at += n;
+            r
+        })
+        .collect()
 }
 
 /// Simdgroups per threadgroup of the 1-row launch (`launch_attn_splitkv`) that holds `nsplit` splits: the multi-row
@@ -458,6 +480,25 @@ impl MetalBackend {
         let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
         let (nkv, cap) = (i[1].shape[0], i[1].shape[1]);
         if t * n * d == 0 {
+            return Ok(());
+        }
+        if t > ROWS_MAX {
+            // 9..=16 rows: consecutive row groups of the multi-row kernel, row `r` at position `pos0 + r` in each, bitwise
+            // the 1-row decode per row like a call of up to 8 rows. A device position holds one value for the whole call, so
+            // it cannot be advanced per group: refused (the eager verify pass passes the host position).
+            if t > ROWS_CHAIN_MAX || call.pos.is_some() {
+                return Err(Error::invalid(format!(
+                    "metal attn_prefill_bf16_splitkv_rows: {t} rows{} (at most {ROWS_CHAIN_MAX}, host position only above {ROWS_MAX})",
+                    if call.pos.is_some() { " with a device position" } else { "" }
+                )));
+            }
+            for (r0, len) in row_groups(t) {
+                let mut sub = call.clone();
+                sub.inputs[0] = i[0].rows(r0, len);
+                sub.outputs[0] = o[0].rows(r0, len);
+                sub.attrs.pos0 = a.pos0 + r0;
+                self.launch_attn_rows(&sub)?;
+            }
             return Ok(());
         }
         let shape_ok = (2..=ROWS_MAX).contains(&t)
@@ -632,6 +673,26 @@ mod tests {
             for d in [8, 16, 32, 64, 128, 256] {
                 assert!((TG_FLOATS / (gp * d)).clamp(1, MAX_SG) * gp * d <= TG_FLOATS, "gp {gp} d {d}");
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod row_group_tests {
+    use super::*;
+
+    #[test]
+    fn row_groups_cover_every_call_in_groups_of_two_to_eight() {
+        for t in 2..=ROWS_CHAIN_MAX {
+            let g = row_groups(t);
+            assert_eq!(g.len(), t.div_ceil(ROWS_MAX), "t {t}");
+            let mut at = 0;
+            for (r0, n) in g {
+                assert_eq!(r0, at, "t {t}: contiguous");
+                assert!((2..=ROWS_MAX).contains(&n), "t {t}: group of {n} rows");
+                at += n;
+            }
+            assert_eq!(at, t, "t {t}");
         }
     }
 }

@@ -1,0 +1,43 @@
+To determine the arrival time, we need to calculate the duration of each segment of the journey and add them to the departure time.
+
+**Step 1: Calculate the time for the first leg of the trip.**
+*   Distance: $84 \text{ km}$
+*   Speed: $60 \text{ km/h}$
+*   Time formula: $\text{Time} = \frac{\text{Distance}}{\text{Speed}}$
+
+$$ t_1 = \frac{84}{60} \text{ hours} $$
+
+Simplify the fraction:
+$$ \frac{84}{60} = \frac{7}{5} = 1.4 \text{ hours} $$
+
+Convert $0.4$ hours to minutes:
+$$ 0.4 \times 60 = 24 \text{ minutes} $$
+
+So, $t_1 = 1 \text{ hour and } 24 \text{ minutes}$.
+
+**Step 2: Identify the stop duration.**
+*   Stop time ($t_{stop}$): $12 \text{ minutes}$
+
+**Step 3: Calculate the time for the second leg of the trip.**
+*   Distance: $45 \text{ km}$
+*   Speed: $90 \text{ km/h}$
+
+$$ t_2 = \frac{45}{90} \text{ hours} $$
+
+Simplify the fraction:
+$$ \frac{45}{90} = 0.5 \text{ hours} $$
+
+Convert $0.5$ hours to minutes:
+$$ 0.5 \times 60 = 30 \text{ minutes} $$
+
+So, $t_2 = 30 \text{ minutes}$.
+
+**Step 4: Calculate the total travel time.**
+$$ \text{Total Time} = t_1 + t_{stop} + t_2 $$
+$$ \text{Total Time} = (1 \text{ hour } 24 \text{ min}) + (12 \text{ min}) + (30 \text{ min}) $$
+
+Add the minutes first:
+$$ 24 + 12 + 30 = 66 \text{ minutes} $$
+
+Convert 66 minutes to hours and minutes:
+$$
