@@ -1,0 +1,1 @@
+fleetq: #10018 waiting (#1 in line): needs gpu quiet on endor, but #10017 "SenseNova-Loop-9B GGUF on endor Metal: Q4_K_M/BF16/Q8_0 speed + quality" (claude-b1ac2344) loads it

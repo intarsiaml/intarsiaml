@@ -808,7 +808,7 @@ impl LocalEngine {
                     model.verify_rows()
                 )));
             }
-            eprintln!("spec: copy drafts on: a chain of up to {} tokens when the last {} tokens occurred earlier (INTARSIA_SPEC_COPY)", c.len, c.n);
+            eprintln!("spec: copy drafts on: a chain of up to {} tokens{} when the last {} tokens occurred earlier (INTARSIA_SPEC_COPY)", c.len, if c.adapt { " (adaptive: short until a long copy run)" } else { "" }, c.n);
         }
         if store.is_some() && meta.spec.mode == crate::spec::SpecMode::Mtp && model.has_mtp() {
             announce_mtp_store(mtp_store);
@@ -1341,6 +1341,9 @@ pub(crate) struct Seq {
     copy_pass: bool,
     /// Back-off for missed copy chains (lane mcopy2), per request.
     copy_backoff: crate::spec::CopyBackoff,
+    /// Adaptive chain length (lane mcopylen, `CopyCfg::adapt`), per request; `copy_cap` is the cap the chain running was proposed with.
+    copy_run: crate::spec::CopyRun,
+    copy_cap: usize,
     /// A copy chain left its accepted rows queued for the head: catch the head up before the next MTP draft (lane mcopy2).
     copy_behind: bool,
     /// Adaptive draft depth in `[INTARSIA_SPEC_K_MIN, spec_k]` (MTP drafts only); `None`: every pass drafts `spec_k`.
@@ -1617,6 +1620,8 @@ impl Seq {
             copy: None,
             copy_pass: false,
             copy_backoff: Default::default(),
+            copy_run: Default::default(),
+            copy_cap: 0,
             copy_behind: false,
             depth: if spec_mtp && !spec_dflash { crate::spec::k_min_for(&env.spec).and_then(|m| crate::spec::Depth::new(m, spec_k)) } else { None },
             spec_sampled: crate::spec::SampledSpec::Off,
@@ -2088,13 +2093,17 @@ impl Seq {
                     // 1 + len rows, eager) instead of the head's `k` drafts. Same room and min_tokens rules as the head's drafts.
                     // A chain that missed (accepted fewer than `COPY_MIN_ACCEPT` drafts) backs the request off ([`CopyBackoff`]).
                     if let Some(c) = self.copy {
-                        let len = c.len.min(room).min(self.max_new.saturating_sub(self.generated + 1));
+                        let cap = self.copy_run.cap(c);
+                        let len = cap.min(room).min(self.max_new.saturating_sub(self.generated + 1));
                         if len >= crate::spec::COPY_MIN_CHAIN && self.copy_backoff.ready() {
                             let drafts = crate::spec::propose_copy(&self.ctx, crate::spec::CopyCfg { len, ..c });
                             if !drafts.is_empty() {
+                                self.copy_cap = cap;
                                 return Next::Verify(drafts);
                             }
                         }
+                        // no chain this step: the copy (if any) ended, so the adaptive length starts short again
+                        self.copy_run.reset();
                     }
                     return Next::Draft(k);
                 }
@@ -2237,6 +2246,7 @@ impl Seq {
         if self.copy_pass {
             self.telemetry.copy_step(drafts.len(), step.accepted);
             self.copy_backoff.record(step.accepted);
+            self.copy_run.record(drafts.len(), step.accepted);
         } else {
             self.telemetry.spec_step(drafts.len(), step.accepted);
             self.gate.record(step.accepted);
@@ -2246,13 +2256,14 @@ impl Seq {
         }
         if crate::spec::trace_enabled() {
             eprintln!(
-                "spec: {}token {} pos {} drafted {} accepted {} emits {} drafts {drafts:?}{}",
+                "spec: {}token {} pos {} drafted {} accepted {} emits {}{} drafts {drafts:?}{}",
                 if self.copy_pass { "copy " } else { "" },
                 self.generated + 1,
                 pos,
                 drafts.len(),
                 step.accepted,
                 step.emit.len(),
+                if self.copy_pass && self.copy.is_some_and(|c| c.adapt) { format!(" cap {}", self.copy_cap) } else { String::new() },
                 if step.plain_next { " (min_tokens cut: next token by a plain step)" } else { "" }
             );
         }

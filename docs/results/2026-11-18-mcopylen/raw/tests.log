@@ -1,0 +1,55 @@
+fleetq: #10008 running on endor: scripts/mcopylen/tests.sh
+test spec::tests::propose_copy_follows_the_newest_full_match ... ok
+test spec::tests::mb_rescues_likely_drafts ... ok
+test spec::tests::propose_falls_back_to_shorter_suffixes ... ok
+test spec::tests::propose_longest_suffix_most_recent ... ok
+test spec::tests::propose_min_skips_short_suffixes ... ok
+test spec::tests::propose_never_proposes_the_suffix_position_itself ... ok
+test spec::tests::propose_overlapping_repetition ... ok
+test spec::tests::sampled_spec_enumeration_catches_a_wrong_residual ... ok
+test spec::tests::sampled_spec_parse ... ok
+test spec::tests::mb_row_law_matches_the_driver ... ok
+test spec::tests::sampled_spec_driver_samples_the_target_law ... ok
+test spec::tests::sampled_spec_law_is_the_target_law_exactly ... ok
+
+test result: ok. 46 passed; 0 failed; 1 ignored; 0 measured; 171 filtered out; finished in 6.77s
+
+running 2 tests
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+spec: copy drafts on: a chain of up to 5 tokens when the last 1 tokens occurred earlier (INTARSIA_SPEC_COPY)
+spec: copy drafts on: a chain of up to 5 tokens when the last 1 tokens occurred earlier (INTARSIA_SPEC_COPY)
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+spec: copy drafts on: a chain of up to 5 tokens when the last 1 tokens occurred earlier (INTARSIA_SPEC_COPY)
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+spec: copy drafts on: a chain of up to 5 tokens when the last 1 tokens occurred earlier (INTARSIA_SPEC_COPY)
+copy n 1 len 5 k 2: 311 mtp passes, 587 drafted, 4 accepted; 46 chains, 205 drafted, 1 accepted
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+spec: copy drafts on: a chain of up to 7 tokens when the last 2 tokens occurred earlier (INTARSIA_SPEC_COPY)
+test copy_drafts_with_the_cost_gate_flipping_keep_greedy_output_identical ... ok
+copy n 2 len 7 k 2: 317 mtp passes, 617 drafted, 4 accepted; 4 chains, 25 drafted, 1 accepted
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+spec: copy drafts on: a chain of up to 3 tokens when the last 1 tokens occurred earlier (INTARSIA_SPEC_COPY)
+copy n 1 len 3 k 1: 311 mtp passes, 311 drafted, 4 accepted; 46 chains, 138 drafted, 1 accepted
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+spec: copy drafts on: a chain of up to 7 tokens when the last 2 tokens occurred earlier (INTARSIA_SPEC_COPY)
+copy n 2 len 7 k 3: 317 mtp passes, 879 drafted, 4 accepted; 4 chains, 25 drafted, 1 accepted
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+spec: copy drafts on: a chain of up to 7 tokens (adaptive: short until a long copy run) when the last 1 tokens occurred earlier (INTARSIA_SPEC_COPY)
+copy n 1 len 7 k 2: 311 mtp passes, 587 drafted, 4 accepted; 46 chains, 248 drafted, 1 accepted
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+spec: copy drafts on: a chain of up to 5 tokens (adaptive: short until a long copy run) when the last 2 tokens occurred earlier (INTARSIA_SPEC_COPY)
+copy n 2 len 5 k 1: 317 mtp passes, 317 drafted, 4 accepted; 4 chains, 19 drafted, 1 accepted
+test copy_drafts_beside_the_mtp_head_keep_greedy_output_identical ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 65 filtered out; finished in 50.62s
+
+     Running tests/docs_env_vars.rs (target/release/deps/docs_env_vars-5e4b3f73da3d8d3a)
+
+running 2 tests
+test name_scanner_skips_prefixes_and_placeholders ... ok
+test every_env_var_in_the_code_has_a_row_in_docs_tuning_md ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+fleetq: #10008 done (exit 0)

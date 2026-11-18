@@ -348,7 +348,7 @@ pub fn k_min_for(spec: &SpecConfig) -> Option<usize> {
     }
 }
 
-/// Lane mcopy: copy drafts beside the MTP head (`INTARSIA_SPEC_COPY=<n>[,<len>]`, single-sequence engine, greedy requests, `--spec mtp`).
+/// Lane mcopy: copy drafts beside the MTP head (`INTARSIA_SPEC_COPY=<n>[,<len>[,a]]`, single-sequence engine, greedy requests, `--spec mtp`).
 /// When the last `n` tokens of prompt + output occurred earlier, the (up to `len`) tokens that followed that occurrence are verified
 /// as one chain by the ordinary verify pass ([`propose_copy`]); otherwise the pass is the usual MTP step.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -357,6 +357,10 @@ pub struct CopyCfg {
     pub n: usize,
     /// Most tokens in a chain; a pass has `1 + len` rows.
     pub len: usize,
+    /// Adaptive chain length (lane mcopylen, third field `a` of the value): chains stay at [`COPY_LEN_DEFAULT`] tokens until
+    /// [`COPY_ADAPT_RUN`] copied tokens in a row were accepted, then use `len`; a chain that accepts fewer than it proposed, or
+    /// a step without a chain, goes back to the short length ([`CopyRun`]). Never above `len`. False: every chain is `len` long.
+    pub adapt: bool,
 }
 
 /// Default chain length of [`CopyCfg`] (an 8-row verify pass: the CUDA GatedDeltaNet verify block takes at most 8 rows in one launch).
@@ -370,6 +374,41 @@ pub const COPY_MIN_N: usize = 4;
 pub const COPY_MIN_ACCEPT: usize = 3;
 /// Longest skip window of [`CopyBackoff`], in steps.
 pub const COPY_BACKOFF_MAX: usize = 64;
+/// Copied tokens a request must accept in a row, in whole chains, before an adaptive copy chain ([`CopyCfg::adapt`]) goes past
+/// [`COPY_LEN_DEFAULT`]. On Metal a 9..=16-row verify pass costs about 1.9x an 8-row one (two launches), so the extra rows gain about 7 %
+/// when the whole chain is accepted and lose about 90 % of a short pass when it is not: they pay only inside a long verbatim copy. A
+/// run of 128 tokens (8 full 16-token chains) says the copy is long; json-xform's records, about 70 to 110 tokens apart, never get there
+/// (tuned on that cell, lane mcopylen).
+pub const COPY_ADAPT_RUN: usize = 128;
+
+/// Per-request chain length of an adaptive copy run (lane mcopylen, [`CopyCfg::adapt`]): short ([`COPY_LEN_DEFAULT`], or `len` when
+/// smaller) until [`COPY_ADAPT_RUN`] tokens of whole chains were accepted in a row, then `len`. Any chain that accepted fewer drafts
+/// than it proposed, and any step that proposed no chain (the copy ended, or the back-off), restarts the count.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CopyRun {
+    run: usize,
+}
+
+impl CopyRun {
+    /// The most tokens the next chain may have under `c`: `c.len` without `c.adapt`, else short or long as above. Never above `c.len`.
+    pub fn cap(&self, c: CopyCfg) -> usize {
+        if c.adapt && self.run < COPY_ADAPT_RUN {
+            c.len.min(COPY_LEN_DEFAULT)
+        } else {
+            c.len
+        }
+    }
+
+    /// The result of a chain pass: `accepted` of its `proposed` drafts were accepted.
+    pub fn record(&mut self, proposed: usize, accepted: usize) {
+        self.run = if accepted >= proposed { self.run + accepted } else { 0 };
+    }
+
+    /// A step proposed no chain.
+    pub fn reset(&mut self) {
+        self.run = 0;
+    }
+}
 
 /// Per-request back-off for copy chains (lane mcopy2): after `m` consecutive chains that each accepted fewer than [`COPY_MIN_ACCEPT`]
 /// drafts the next `2^(m-1)` steps propose no chain (the head's drafts run instead), up to [`COPY_BACKOFF_MAX`]; a chain that accepts
@@ -404,14 +443,24 @@ impl CopyBackoff {
 }
 
 impl CopyCfg {
-    /// An `INTARSIA_SPEC_COPY` value `<n>[,<len>]`: `n` in [`COPY_MIN_N`]..=256 and `len` in [`COPY_MIN_CHAIN`]..=[`DFLASH_K_MAX`] (the verify
+    /// An `INTARSIA_SPEC_COPY` value `<n>[,<len>[,a]]` (`a` or `adapt`: [`CopyCfg::adapt`]): `n` in [`COPY_MIN_N`]..=256 and `len` in [`COPY_MIN_CHAIN`]..=[`DFLASH_K_MAX`] (the verify
     /// pass's row cap minus the fed token). `None` for anything else.
     pub fn parse(v: &str) -> Option<CopyCfg> {
-        let (n, len) = match v.split_once(',') {
-            Some((n, l)) => (n.trim().parse::<usize>().ok()?, l.trim().parse::<usize>().ok()?),
-            None => (v.trim().parse::<usize>().ok()?, COPY_LEN_DEFAULT),
+        let mut it = v.split(',').map(str::trim);
+        let n = it.next()?.parse::<usize>().ok()?;
+        let len = match it.next() {
+            Some(l) => l.parse::<usize>().ok()?,
+            None => COPY_LEN_DEFAULT,
         };
-        ((COPY_MIN_N..=256).contains(&n) && (COPY_MIN_CHAIN..=DFLASH_K_MAX).contains(&len)).then_some(CopyCfg { n, len })
+        let adapt = match it.next() {
+            None => false,
+            Some("a" | "adapt") => true,
+            Some(_) => return None,
+        };
+        if it.next().is_some() {
+            return None;
+        }
+        ((COPY_MIN_N..=256).contains(&n) && (COPY_MIN_CHAIN..=DFLASH_K_MAX).contains(&len)).then_some(CopyCfg { n, len, adapt })
     }
 }
 
@@ -422,7 +471,7 @@ pub fn copy_from_env() -> Option<CopyCfg> {
         let v = std::env::var("INTARSIA_SPEC_COPY").ok().filter(|v| !v.is_empty() && v != "0")?;
         let c = CopyCfg::parse(&v);
         if c.is_none() {
-            eprintln!("INTARSIA_SPEC_COPY={v}: not <n>[,<len>] with n {COPY_MIN_N}..=256 and len {COPY_MIN_CHAIN}..={DFLASH_K_MAX}; copy drafts off");
+            eprintln!("INTARSIA_SPEC_COPY={v}: not <n>[,<len>[,a]] with n {COPY_MIN_N}..=256 and len {COPY_MIN_CHAIN}..={DFLASH_K_MAX}; copy drafts off");
         }
         c
     })
@@ -2240,13 +2289,55 @@ mod tests {
 
     #[test]
     fn copy_cfg_parses_n_and_len() {
-        assert_eq!(CopyCfg::parse("12"), Some(CopyCfg { n: 12, len: COPY_LEN_DEFAULT }));
-        assert_eq!(CopyCfg::parse("8,5"), Some(CopyCfg { n: 8, len: 5 }));
-        assert_eq!(CopyCfg::parse("4"), Some(CopyCfg { n: 4, len: COPY_LEN_DEFAULT }));
-        assert_eq!(CopyCfg::parse(" 20 , 15 "), Some(CopyCfg { n: 20, len: 15 }));
-        for bad in ["", "0", "x", "12,2", "12,16", "0,8", "257", "12,", "1", "3", "3,8"] {
+        assert_eq!(CopyCfg::parse("12"), Some(CopyCfg { n: 12, len: COPY_LEN_DEFAULT, adapt: false }));
+        assert_eq!(CopyCfg::parse("8,5"), Some(CopyCfg { n: 8, len: 5, adapt: false }));
+        assert_eq!(CopyCfg::parse("4"), Some(CopyCfg { n: 4, len: COPY_LEN_DEFAULT, adapt: false }));
+        assert_eq!(CopyCfg::parse(" 20 , 15 "), Some(CopyCfg { n: 20, len: 15, adapt: false }));
+        assert_eq!(CopyCfg::parse("20,15,a"), Some(CopyCfg { n: 20, len: 15, adapt: true }));
+        assert_eq!(CopyCfg::parse(" 20 , 15 , adapt "), Some(CopyCfg { n: 20, len: 15, adapt: true }));
+        for bad in ["", "0", "x", "12,2", "12,16", "0,8", "257", "12,", "1", "3", "3,8", "20,15,", "20,15,x", "20,15,a,a", "20,15,1", "20,,a"] {
             assert_eq!(CopyCfg::parse(bad), None, "{bad:?}");
         }
+    }
+
+    #[test]
+    fn copy_run_goes_long_after_a_long_clean_run_and_back_after_any_miss() {
+        let long = CopyCfg { n: 20, len: 15, adapt: true };
+        let fixed = CopyCfg { adapt: false, ..long };
+        let mut r = CopyRun::default();
+        // starts short; stays short until COPY_ADAPT_RUN tokens of whole chains
+        assert_eq!(r.cap(long), COPY_LEN_DEFAULT);
+        assert_eq!(r.cap(fixed), 15, "without the flag the cap is len");
+        let mut got = 0;
+        while r.cap(long) == COPY_LEN_DEFAULT {
+            r.record(COPY_LEN_DEFAULT, COPY_LEN_DEFAULT);
+            got += COPY_LEN_DEFAULT;
+            assert!(got < COPY_ADAPT_RUN + COPY_LEN_DEFAULT, "never went long");
+        }
+        assert!(got >= COPY_ADAPT_RUN);
+        assert_eq!(r.cap(long), 15);
+        r.record(15, 15);
+        assert_eq!(r.cap(long), 15, "whole long chains keep it long");
+        assert_eq!(r.cap(fixed), 15);
+        // a partly accepted chain, however much it accepted, goes back to short and restarts the count
+        r.record(15, 14);
+        assert_eq!(r.cap(long), COPY_LEN_DEFAULT);
+        r.record(COPY_LEN_DEFAULT, COPY_LEN_DEFAULT);
+        assert_eq!(r.cap(long), COPY_LEN_DEFAULT);
+        // a step with no chain restarts it too
+        for _ in 0..(COPY_ADAPT_RUN / 8 + 1) {
+            r.record(8, 8);
+        }
+        assert_eq!(r.cap(long), 15);
+        r.reset();
+        assert_eq!(r.cap(long), COPY_LEN_DEFAULT);
+        // never above len: a short len is its own cap before and after
+        let small = CopyCfg { n: 20, len: 5, adapt: true };
+        assert_eq!(r.cap(small), 5);
+        for _ in 0..40 {
+            r.record(5, 5);
+        }
+        assert_eq!(r.cap(small), 5);
     }
 
     #[test]
@@ -2277,7 +2368,7 @@ mod tests {
 
     #[test]
     fn propose_copy_follows_the_newest_full_match() {
-        let c = CopyCfg { n: 3, len: 4 };
+        let c = CopyCfg { n: 3, len: 4, adapt: false };
         // [1 2 3] earlier twice; the newer one (at 6) has 4 tokens after it
         let ctx = [1, 2, 3, 9, 9, 9, 1, 2, 3, 5, 6, 7, 8, 0, 1, 2, 3];
         assert_eq!(propose_copy(&ctx, c), vec![5, 6, 7, 8]);
