@@ -1,0 +1,61 @@
+```python
+# lru_cache.py
+
+class Node:
+    """A node in the doubly linked list."""
+    def __init__(self, key=None, value=None):
+        self.key = key
+        self.value = value
+        self.prev = None
+        self.next = None
+
+
+class LRUCache:
+    """
+    LRU Cache implemented using a doubly linked list and a dictionary.
+    
+    - get(key): Returns the value if key exists, else -1. Moves accessed node to head.
+    - put(key, value): Inserts or updates the key-value pair. Moves to head. Evicts LRU if at capacity.
+    - delete(key): Removes the key from the cache.
+    - __len__(): Returns the number of items in the cache.
+    """
+    
+    def __init__(self, capacity: int):
+        if capacity <= 0:
+            raise ValueError("Capacity must be positive")
+        self.capacity = capacity
+        self.cache = {}  # key -> Node
+        # Dummy head and tail nodes to simplify boundary conditions
+        self.head = Node()  # Most recently used side
+        self.tail = Node()  # Least recently used side
+        self.head.next = self.tail
+        self.tail.prev = self.head
+    
+    def _add_to_head(self, node: Node):
+        """Add a node right after the head (most recent position)."""
+        node.prev = self.head
+        node.next = self.head.next
+        self.head.next.prev = node
+        self.head.next = node
+    
+    def _remove_node(self, node: Node):
+        """Remove a node from the linked list."""
+        prev_node = node.prev
+        next_node = node.next
+        prev_node.next = next_node
+        next_node.prev = prev_node
+    
+    def _move_to_head(self, node: Node):
+        """Remove node and add it to the head (most recent)."""
+        self._remove_node(node)
+        self._add_to_head(node)
+    
+    def _pop_tail(self) -> Node:
+        """Remove and return the node before the tail (least recently used)."""
+        node = self.tail.prev
+        self._remove_node(node)
+        return node
+    
+    def get(self, key: int) -> int:
+        if key in self.cache:
+           

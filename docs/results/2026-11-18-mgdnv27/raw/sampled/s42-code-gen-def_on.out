@@ -1,0 +1,69 @@
+```python
+"""
+LRU Cache implementation using a doubly linked list and a dictionary.
+"""
+
+from typing import Optional, Any
+
+
+class Node:
+    """A node in the doubly linked list."""
+    
+    def __init__(self, key: Any, value: Any):
+        self.key = key
+        self.value = value
+        self.prev: Optional[Node] = None
+        self.next: Optional[Node] = None
+
+
+class LRUCache:
+    """
+    LRU Cache implementation using a doubly linked list and a dictionary.
+    
+    Supports O(1) get and put operations.
+    """
+    
+    def __init__(self, capacity: int):
+        """
+        Initialize the LRU cache with a given capacity.
+        
+        Args:
+            capacity: Maximum number of items the cache can hold.
+        """
+        if capacity <= 0:
+            raise ValueError("Capacity must be positive")
+        self.capacity = capacity
+        self.cache: dict[Any, Node] = {}
+        
+        # Dummy head and tail nodes to simplify edge cases
+        self.head = Node(None, None)  # Head is the most recent end
+        self.tail = Node(None, None)  # Tail is the least recent end
+        self.head.next = self.tail
+        self.tail.prev = self.head
+    
+    def _remove(self, node: Node) -> None:
+        """Remove a node from the doubly linked list."""
+        prev_node = node.prev
+        next_node = node.next
+        prev_node.next = next_node
+        next_node.prev = prev_node
+    
+    def _add_to_front(self, node: Node) -> None:
+        """Add a node right after the head (most recent position)."""
+        node.prev = self.head
+        node.next = self.head.next
+        self.head.next.prev = node
+        self.head.next = node
+    
+    def _move_to_front(self, node: Node) -> None:
+        """Move an existing node to the front (most recent position)."""
+        self._remove(node)
+        self._add_to_front(node)
+    
+    def _pop_tail(self) -> Node:
+        """Remove and return the node just before the tail (least recent)."""
+        node = self.tail.prev
+        self._remove(node)
+        return node
+    
+    def get

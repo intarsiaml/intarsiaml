@@ -1,0 +1,17 @@
+fleetq: #10094 waiting (#1 in line): needs gpu quiet on endor, but #10093 "mgdnv27: 27B ids" (claude-a9e6e738) loads it
+fleetq:   #10093 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10093 set, or it will wait for #10093 to be released.
+fleetq: #10094 running on endor: env R=1 scripts/mgdnv27/ab27.sh
+== round 1 arm off cooled 70s thermal 0 03:58:29
+off r1 chat-short thermal 0->0: {"cell": "chat-short", "tag": "c1", "rep": 2, "toks": 400, "chunks": 400, "ttft": 0.162, "dec_tps": 55.33, "wall": 7.374, "sha": "078764f88030"}
+off r1 code-gen thermal 0->0: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.253, "dec_tps": 64.6, "wall": 12.621, "sha": "561f45f93500"}
+off r1 reason thermal 0->0: {"cell": "reason", "tag": "c1", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.25, "dec_tps": 62.29, "wall": 8.261, "sha": "01711ff586d0"}
+off r1 agent-edit thermal 0->0: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 77, "chunks": 76, "ttft": 2.521, "dec_tps": 60.46, "wall": 3.778, "sha": "6076712aaca7"}
+off r1 metrics: intarsia_spec_steps_total 2178 intarsia_spec_proposed_tokens_total 4353 intarsia_spec_accepted_tokens_total 3671 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 
+== round 1 arm on cooled 0s thermal 0 04:01:34
+on r1 chat-short thermal 2->2: {"cell": "chat-short", "tag": "c1", "rep": 2, "toks": 400, "chunks": 400, "ttft": 0.184, "dec_tps": 53.84, "wall": 7.596, "sha": "078764f88030"}
+on r1 code-gen thermal 2->2: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.243, "dec_tps": 65.77, "wall": 12.391, "sha": "561f45f93500"}
+on r1 reason thermal 2->2: {"cell": "reason", "tag": "c1", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.234, "dec_tps": 66.93, "wall": 7.69, "sha": "01711ff586d0"}
+on r1 agent-edit thermal 2->2: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 77, "chunks": 76, "ttft": 2.546, "dec_tps": 65.89, "wall": 3.699, "sha": "6076712aaca7"}
+on r1 metrics: intarsia_spec_steps_total 2178 intarsia_spec_proposed_tokens_total 4353 intarsia_spec_accepted_tokens_total 3671 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 
+ab27 done
+fleetq: #10094 done (exit 0)

@@ -1,0 +1,15 @@
+fleetq: #10099 running on endor: env R=3 scripts/mgdnv27/ab27.sh
+== round 3 arm off cooled 65s thermal 0 04:20:44
+off r3 chat-short thermal 0->0: {"cell": "chat-short", "tag": "c3", "rep": 2, "toks": 383, "chunks": 382, "ttft": 0.16, "dec_tps": 55.17, "wall": 7.085, "sha": "138ed676c69e"}
+off r3 code-gen thermal 0->1: {"cell": "code-gen", "tag": "c3", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.238, "dec_tps": 65.94, "wall": 12.355, "sha": "27711138bd9b"}
+off r3 reason thermal 1->1: {"cell": "reason", "tag": "c3", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.245, "dec_tps": 65.8, "wall": 7.83, "sha": "0e7086daab63"}
+off r3 agent-edit thermal 1->2: {"cell": "agent-edit", "tag": "c3", "rep": 2, "toks": 77, "chunks": 76, "ttft": 2.288, "dec_tps": 65.49, "wall": 3.448, "sha": "6076712aaca7"}
+off r3 metrics: intarsia_spec_steps_total 2232 intarsia_spec_proposed_tokens_total 4459 intarsia_spec_accepted_tokens_total 3720 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 
+== round 3 arm on cooled 65s thermal 0 04:23:36
+on r3 chat-short thermal 0->0: {"cell": "chat-short", "tag": "c3", "rep": 2, "toks": 383, "chunks": 382, "ttft": 0.161, "dec_tps": 55.98, "wall": 6.985, "sha": "138ed676c69e"}
+on r3 code-gen thermal 0->1: {"cell": "code-gen", "tag": "c3", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.215, "dec_tps": 67.64, "wall": 12.028, "sha": "27711138bd9b"}
+on r3 reason thermal 1->1: {"cell": "reason", "tag": "c3", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.218, "dec_tps": 67.52, "wall": 7.608, "sha": "0e7086daab63"}
+on r3 agent-edit thermal 1->1: {"cell": "agent-edit", "tag": "c3", "rep": 2, "toks": 77, "chunks": 76, "ttft": 2.398, "dec_tps": 64.8, "wall": 3.571, "sha": "6076712aaca7"}
+on r3 metrics: intarsia_spec_steps_total 2232 intarsia_spec_proposed_tokens_total 4459 intarsia_spec_accepted_tokens_total 3720 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 
+ab27 done
+fleetq: #10099 done (exit 0)
