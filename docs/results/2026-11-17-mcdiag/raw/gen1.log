@@ -1,0 +1,27 @@
+fleetq: #9949 running on spark1: ssh spark1 'W=gen1 SMI=1 ROUNDS=2 ARMS="base:X=1 probe:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE=150 probeg0:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE=150+INTARSIA_SPEC_GRAPH=0" bash -s'
+base r1: 800 ids sha 7cb35c74b65d graph_steps=283 chains=0 mean_step=18.274
+finish=length prompt=69 (cached 0) completion=800 | prefill 704 ms (98.0 tok/s) | decode 5175 ms (154.38 tok/s)
+spec: verify passes=283 proposed=566 accepted=516 (acceptance 91.2%, 2.82 tokens per pass)
+steps=285 graph replays=284 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/568 argmax=0ms/850 attn_decode=0ms/9580 attn_prefill=0ms/10 embedding=0ms/853
+probe r1: 800 ids sha 7cb35c74b65d graph_steps=282 chains=1 mean_step=18.263
+spec: copy chain passes=1 proposed=7 accepted=0 (not in the verify passes below)
+spec: verify passes=282 proposed=564 accepted=516 (acceptance 91.5%, 2.83 tokens per pass)
+steps=285 graph replays=283 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/567 argmax=0ms/848 attn_decode=0ms/9556 attn_prefill=0ms/10 embedding=0ms/852
+probeg0 r1: 800 ids sha 7cb35c74b65d graph_steps=0 chains=1 
+spec: copy chain passes=1 proposed=7 accepted=0 (not in the verify passes below)
+spec: verify passes=282 proposed=564 accepted=516 (acceptance 91.5%, 2.83 tokens per pass)
+steps=285 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/567 argmax=0ms/848 attn_decode=0ms/3404 attn_prefill=0ms/10 embedding=0ms/852
+probeg0 r2: 800 ids sha 7cb35c74b65d graph_steps=0 chains=1 
+spec: copy chain passes=1 proposed=7 accepted=0 (not in the verify passes below)
+spec: verify passes=282 proposed=564 accepted=516 (acceptance 91.5%, 2.83 tokens per pass)
+steps=285 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/567 argmax=0ms/848 attn_decode=0ms/3404 attn_prefill=0ms/10 embedding=0ms/852
+probe r2: 800 ids sha 7cb35c74b65d graph_steps=282 chains=1 mean_step=18.548
+spec: copy chain passes=1 proposed=7 accepted=0 (not in the verify passes below)
+spec: verify passes=282 proposed=564 accepted=516 (acceptance 91.5%, 2.83 tokens per pass)
+steps=285 graph replays=283 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/567 argmax=0ms/848 attn_decode=0ms/9556 attn_prefill=0ms/10 embedding=0ms/852
+base r2: 800 ids sha 7cb35c74b65d graph_steps=283 chains=0 mean_step=18.226
+finish=length prompt=69 (cached 0) completion=800 | prefill 615 ms (112.2 tok/s) | decode 5162 ms (154.79 tok/s)
+spec: verify passes=283 proposed=566 accepted=516 (acceptance 91.2%, 2.82 tokens per pass)
+steps=285 graph replays=284 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/568 argmax=0ms/850 attn_decode=0ms/9580 attn_prefill=0ms/10 embedding=0ms/853
+gen done
+fleetq: #9949 done (exit 0)

@@ -1,0 +1,4 @@
+base thermal (before->after, per cell): 7 0->0; 3 0->1; 4 1->1; 2 1->2;
+n20L7 thermal (before->after, per cell): 3 0->0; 3 0->1; 5 1->1; 1 1->2; 4 2->2;
+n20L15 thermal (before->after, per cell): 5 0->0; 4 0->1; 7 1->1;
+n20L15a thermal (before->after, per cell): 6 0->0; 4 0->1; 6 1->1;

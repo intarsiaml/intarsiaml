@@ -1,0 +1,17 @@
+server       thread            ticks  chain@  BIG% before  BIG% after  big<->little moves/10s busy  cpus(after)
+base-r1      intarsia-engine    4615       - 100.0 (4615)           -                         0.00  {15: 4615}
+base-r2      intarsia-engine    4669       - 100.0 (4669)           -                         0.00  {15: 4669}
+base-r3      intarsia-engine    4728       - 100.0 (4728)           -                         0.00  {15: 4728}
+base-r4      intarsia-engine    4660       - 100.0 (4660)           -                         0.00  {8: 4660}
+baseP-r1     intarsia-engine    4714       - 100.0 (4714)           -                         0.00  {5: 4714}
+baseP-r2     intarsia-engine    4699       - 100.0 (4699)           -                         0.00  {19: 4699}
+baseP-r3     intarsia-engine    4735       - 100.0 (4735)           -                         0.00  {9: 4735}
+baseP-r4     intarsia-engine    4649       - 100.0 (4649)           -                         0.00  {16: 4078, 15: 571}
+n20-r1       intarsia-engine    4712     976 100.0 (1071) 100.0 (3641)                         0.00  {5: 3641}
+n20-r2       intarsia-engine    4807     387 100.0 (1031) 100.0 (3776)                         0.00  {5: 3776}
+n20-r3       intarsia-engine    4715      44 100.0 (1620) 100.0 (3095)                         0.00  {8: 3095}
+n20-r4       intarsia-engine    4697     464 100.0 (1568) 100.0 (3129)                         0.00  {15: 3129}
+n20P-r1      intarsia-engine    4730     115 100.0 (1109) 100.0 (3621)                         0.00  {16: 3621}
+n20P-r2      intarsia-engine    4683     249 100.0 (1012) 100.0 (3671)                         0.00  {5: 3671}
+n20P-r3      intarsia-engine    4762     185 100.0 (1633) 100.0 (3129)                         0.00  {19: 3129}
+n20P-r4      intarsia-engine    4670     323 100.0 (1565) 100.0 (3105)                         0.00  {9: 3105}

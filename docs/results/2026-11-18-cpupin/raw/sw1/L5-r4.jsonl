@@ -1,0 +1,17 @@
+{"cell": "code-gen300", "tag": "pre4", "rep": 0, "toks": 300, "chunks": 300, "ttft": 0.093, "dec_tps": 157.9, "wall": 1.987, "sha": "0e6e75ee9184"}
+{"cell": "code-gen300", "tag": "pre4", "rep": 1, "toks": 300, "chunks": 300, "ttft": 0.078, "dec_tps": 159.16, "wall": 1.957, "sha": "1f3c92a195c4"}
+{"cell": "code-gen300", "tag": "pre4", "rep": 2, "toks": 300, "chunks": 300, "ttft": 0.081, "dec_tps": 151.57, "wall": 2.053, "sha": "9e724da08162"}
+{"cell": "code-gen300", "tag": "pre4", "rep": 3, "toks": 300, "chunks": 300, "ttft": 0.079, "dec_tps": 153.97, "wall": 2.021, "sha": "f916bc4e07b6"}
+{"cell": "code-gen300", "tag": "pre4", "rep": 4, "toks": 300, "chunks": 300, "ttft": 0.078, "dec_tps": 154.23, "wall": 2.017, "sha": "3afa66fdc809"}
+{"cell": "code-gen300", "tag": "pre4", "rep": 5, "toks": 300, "chunks": 300, "ttft": 0.078, "dec_tps": 152.69, "wall": 2.036, "sha": "16533471589a"}
+{"cell": "code-gen", "tag": "mid4", "rep": 0, "toks": 800, "chunks": 800, "ttft": 0.092, "dec_tps": 157.22, "wall": 5.174, "sha": "a2660a9dcc54"}
+{"cell": "code-gen300", "tag": "post4", "rep": 0, "toks": 300, "chunks": 300, "ttft": 0.093, "dec_tps": 155.13, "wall": 2.021, "sha": "3b2f2ad41a1b"}
+{"cell": "code-gen300", "tag": "post4", "rep": 1, "toks": 300, "chunks": 300, "ttft": 0.08, "dec_tps": 152.52, "wall": 2.04, "sha": "bf095d65eb3b"}
+{"cell": "code-gen300", "tag": "post4", "rep": 2, "toks": 300, "chunks": 300, "ttft": 0.079, "dec_tps": 158.08, "wall": 1.97, "sha": "5155d8e9a6d2"}
+{"cell": "code-gen300", "tag": "post4", "rep": 3, "toks": 300, "chunks": 300, "ttft": 0.078, "dec_tps": 152.61, "wall": 2.038, "sha": "75a2a2cf5554"}
+{"cell": "code-gen300", "tag": "post4", "rep": 4, "toks": 300, "chunks": 300, "ttft": 0.08, "dec_tps": 154.07, "wall": 2.02, "sha": "88be1fc5ab16"}
+{"cell": "code-gen300", "tag": "post4", "rep": 5, "toks": 300, "chunks": 300, "ttft": 0.077, "dec_tps": 156.52, "wall": 1.987, "sha": "3b4d10dfec08"}
+{"cell": "code-gen300", "tag": "post4", "rep": 6, "toks": 300, "chunks": 300, "ttft": 0.079, "dec_tps": 151.43, "wall": 2.054, "sha": "70104d3125a1"}
+{"cell": "code-gen300", "tag": "post4", "rep": 7, "toks": 300, "chunks": 300, "ttft": 0.077, "dec_tps": 154.21, "wall": 2.016, "sha": "655737740646"}
+{"cell": "code-gen300", "tag": "post4", "rep": 8, "toks": 300, "chunks": 300, "ttft": 0.079, "dec_tps": 159.24, "wall": 1.957, "sha": "b1aac494e1f3"}
+{"cell": "code-gen300", "tag": "post4", "rep": 9, "toks": 300, "chunks": 300, "ttft": 0.077, "dec_tps": 157.63, "wall": 1.974, "sha": "cb72e17985c3"}

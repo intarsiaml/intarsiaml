@@ -1,0 +1,21 @@
+fleetq: #9945 waiting (#1 in line): #9937 "flipev: build main + pack + herd sweep + sjf ITL (ABBA)" (claude-a9e6e738) needs cpu quiet on spark1, and this job loads it
+fleetq:   #9937 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9937 set, or it will wait for #9937 to be released.
+fleetq: #9945 running on spark1: bash scripts/mcdiag/build.sh
+17:35:09
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsiaml-mcdiag/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsiaml-mcdiag/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsiaml-mcdiag/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsiaml-mcdiag/src/crates/intarsia-engram)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsiaml-mcdiag/src/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsiaml-mcdiag/src/crates/intarsia-ui)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsiaml-mcdiag/src/crates/intarsia-models)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsiaml-mcdiag/src/crates/intarsia-tui)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsiaml-mcdiag/src/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsiaml-mcdiag/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 48s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.2T  288G  92% /
+2.8G	/home/nvidia/intarsiaml-mcdiag
+Mem:             121          43          69           0           9          78
+17:40:59
+fleetq: #9945 done (exit 0)

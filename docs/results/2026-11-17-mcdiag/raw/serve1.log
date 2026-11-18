@@ -1,0 +1,7 @@
+fleetq: #9955 waiting (#3 in line): in line behind #9952 "mcdiag: nsys one-chain (generate)" (claude-a9e6e738) on spark1
+fleetq:   #9952 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9952 set, or it will wait for #9952 to be released.
+fleetq: #9955 waiting (#2 in line): in line behind #9954 "mcdiag: build CUDA CLI (probe kinds)" (claude-a9e6e738) on spark1
+fleetq:   #9954 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9954 set, or it will wait for #9954 to be released.
+fleetq: #9955 waiting (#1 in line): needs cpu quiet on spark1, but #9954 "mcdiag: build CUDA CLI (probe kinds)" (claude-a9e6e738) loads it
+fleetq:   #9954 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=9954 set, or it will wait for #9954 to be released.
+fleetq: #9955 is cancelled, so it will not run: ssh spark1 'W=serve1 ROUNDS=2 REPS=4 CELLS=code-gen ARMS="base:INTARSIA_SPEC_TRACE=1 probe:INTARSIA_SPEC_TRACE=1+INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE=250" bash -s'
