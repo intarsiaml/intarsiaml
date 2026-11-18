@@ -56,6 +56,10 @@ pub struct SpecPass {
     pub drafts: Vec<u32>,
     /// The verify pass's greedy token of each of the `k + 1` rows.
     pub out: Vec<u32>,
+    /// Lane postchain (the `INTARSIA_SPEC_TRACE` step line): ms on the host before the replay is launched (uploads, the recording's lookup),
+    /// from the launch until the outputs' download returned (the device's time plus the launch), after it until the step returns, and the
+    /// launch call alone (until `graph_replay` returned).
+    pub split: [f64; 4],
 }
 
 impl Model {
@@ -269,6 +273,7 @@ impl Model {
         if next as usize >= self.dims.vocab {
             return Err(Error::BadRequest(format!("token id {next} >= vocab {}", self.dims.vocab)));
         }
+        let t_in = std::time::Instant::now();
         let q = k + 1;
         let p = st.len;
         // `hb`: the head's cache row 0 is position `hb` (`MtpState::base`), so its rows sit at positions relative to it
@@ -324,6 +329,8 @@ impl Model {
 
         let key = (st.id, n, q, scripted.is_some());
         let tp = !self.peers.is_empty();
+        let (t_launch, t_launched, t_done) =
+            (std::sync::Mutex::new(None::<std::time::Instant>), std::sync::Mutex::new(None::<std::time::Instant>), std::sync::Mutex::new(None::<std::time::Instant>));
         let run = (|| -> Result<Option<Vec<u8>>> {
             let mut cache = self.graphs.spec.lock().unwrap();
             if !cache.contains_key(&key) {
@@ -358,7 +365,9 @@ impl Model {
                     return Ok(None);
                 }
             } else {
+                *t_launch.lock().unwrap() = Some(std::time::Instant::now());
                 self.backend.graph_replay(&c.graph, self.stream)?;
+                *t_launched.lock().unwrap() = Some(std::time::Instant::now());
             }
             self.graphs.spec_replays.fetch_add(1, Ordering::Relaxed);
             self.telemetry.graph_event(true);
@@ -373,6 +382,7 @@ impl Model {
             let tok = self.verify_tok.as_ref().expect("checked by spec_step_ok");
             let mut b = vec![0u8; (Self::VERIFY_MAX_ROWS + q) * 4];
             self.backend.download(tok, 0, &mut b, self.stream)?;
+            *t_done.lock().unwrap() = Some(std::time::Instant::now());
             Ok(Some(b))
         })();
         let b = match run {
@@ -421,7 +431,12 @@ impl Model {
         // recording holds the tap launches), so the draft's context takes the rows as after an eager verify pass. Nothing
         // without the draft.
         self.dflash_after_forward(st, q, false)?;
-        Ok(Some(SpecPass { drafts, out }))
+        let ms = |a: std::time::Instant, b: std::time::Instant| b.saturating_duration_since(a).as_secs_f64() * 1e3;
+        let now = std::time::Instant::now();
+        let tl = t_launch.into_inner().unwrap().unwrap_or(t_in);
+        let td = t_done.into_inner().unwrap().unwrap_or(now);
+        let tr = t_launched.into_inner().unwrap().unwrap_or(tl);
+        Ok(Some(SpecPass { drafts, out, split: [ms(t_in, tl), ms(tl, td), ms(td, now), ms(tl, tr)] }))
     }
 
     /// Record the step for (`st`, `n` catch-up rows, `k` drafts). Executes nothing.

@@ -1,0 +1,3 @@
+fleetq: #10044 running on spark1: ssh spark1 'W=r2 ROUNDS=5 ARMS='"'"'a7:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=450,a7 base:X=1 n20:INTARSIA_SPEC_COPY=20 L7:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=2+INTARSIA_SPEC_COPY_PROBE=450,7'"'"' bash -s'
+a7 r1 up 01:41:32 free: 56 GB
+a7 r1: 19 requests, shas d33d bcd0 9e72 e3f1 247a 8e58 e3f1 c8f0 d0c9 d5e7 d0e9 f54c 9ee4 39e3 f54c 942b 4d8a 3cd7 1f0f, chains 1, probes: spec: probe accept chain of 7 at token 450;
