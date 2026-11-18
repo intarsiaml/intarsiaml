@@ -1,0 +1,13 @@
+decode tok/s, median of the code-gen reps (mean graph step ms):
+  base   r1 158.88 (17.618)  r2 159.88 (17.495)  r3 159.25 (17.542)  r4 160.43 (17.456)
+  bx     r1 159.09 (17.566)  r2 160.25 (17.464)  r3 156.30 (17.812)  r4 159.79 (17.527)
+  n20    r1 157.38 (17.671)  r2 158.24 (17.636)  r3 157.84 (17.700)  r4 156.60 (17.739)
+  nx     r1 159.81 (17.460)  r2 159.40 (17.552)  r3 159.10 (17.516)  r4 158.05 (17.555)
+round 1: replies equal across arms
+round 2: replies equal across arms
+round 3: replies equal across arms
+round 4: replies equal across arms
+n20/base: 0.9906 0.9897 0.9911 0.9762  mean 0.9869 (SE 0.0036)
+nx/bx: 1.0045 0.9947 1.0179 0.9891  mean 1.0016 (SE 0.0063)
+nx/base: 1.0059 0.9969 0.9990 0.9852  mean 0.9968 (SE 0.0043)
+bx/base: 1.0014 1.0023 0.9814 0.9960  mean 0.9953 (SE 0.0048)
