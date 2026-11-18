@@ -1,0 +1,68 @@
+-- copy3k off
+exit 0
+PASS chain copy3k off: copy drafts off
+tok/s copy3k off: finish=stop prompt=2969 (cached 0) completion=2903 | prefill 1014 ms (2927.4 tok/s) | decode 24061 ms (120.61 tok/s)
+-- copy3k def
+exit 0
+PASS chain copy3k def: on, len 15, by default
+spec: copy pass 16 rows 36.829 ms at 1795035214.688
+spec: copy chain passes=180 proposed=2700 accepted=2680 (not in the verify passes below)
+tok/s copy3k def: finish=stop prompt=2969 (cached 0) completion=2903 | prefill 661 ms (4488.9 tok/s) | decode 6521 ms (445.03 tok/s)
+-- copy3k zero
+exit 0
+PASS chain copy3k zero: copy drafts off
+tok/s copy3k zero: finish=stop prompt=2969 (cached 0) completion=2903 | prefill 667 ms (4449.1 tok/s) | decode 13709 ms (211.69 tok/s)
+-- copy3k base
+exit 0
+PASS chain copy3k base: copy drafts off
+tok/s copy3k base: finish=stop prompt=2969 (cached 0) completion=2903 | prefill 690 ms (4304.3 tok/s) | decode 13853 ms (209.48 tok/s)
+PASS ids copy3k: 2902 ids identical (off = default = =0 = base)
+-- json-xform off
+exit 0
+PASS chain json-xform off: copy drafts off
+tok/s json-xform off: finish=length prompt=2997 (cached 0) completion=2600 | prefill 686 ms (4368.6 tok/s) | decode 21844 ms (118.98 tok/s)
+-- json-xform def
+exit 0
+PASS chain json-xform def: on, len 15, by default
+spec: copy pass 15 rows 40.772 ms at 1795035288.335
+spec: copy chain passes=183 proposed=2744 accepted=2233 (not in the verify passes below)
+tok/s json-xform def: finish=length prompt=2997 (cached 0) completion=2600 | prefill 672 ms (4458.4 tok/s) | decode 8799 ms (295.37 tok/s)
+-- json-xform zero
+exit 0
+PASS chain json-xform zero: copy drafts off
+tok/s json-xform zero: finish=length prompt=2997 (cached 0) completion=2600 | prefill 663 ms (4517.6 tok/s) | decode 12828 ms (202.60 tok/s)
+-- json-xform base
+exit 0
+PASS chain json-xform base: copy drafts off
+tok/s json-xform base: finish=length prompt=2997 (cached 0) completion=2600 | prefill 677 ms (4426.4 tok/s) | decode 12917 ms (201.21 tok/s)
+PASS ids json-xform: 2600 ids identical (off = default = =0 = base)
+-- code-gen off
+exit 0
+PASS chain code-gen off: copy drafts off
+tok/s code-gen off: finish=length prompt=69 (cached 0) completion=500 | prefill 406 ms (169.9 tok/s) | decode 4004 ms (124.61 tok/s)
+-- code-gen def
+exit 0
+PASS chain code-gen def: on, len 15, by default
+spec: copy drafts on: a chain of up to 15 tokens when the last 20 tokens occurred earlier (default on Metal at one sequence; INTARSIA_SPEC_COPY=0 turns it off)
+tok/s code-gen def: finish=length prompt=69 (cached 0) completion=500 | prefill 395 ms (174.9 tok/s) | decode 2335 ms (213.66 tok/s)
+-- code-gen zero
+exit 0
+PASS chain code-gen zero: copy drafts off
+tok/s code-gen zero: finish=length prompt=69 (cached 0) completion=500 | prefill 398 ms (173.4 tok/s) | decode 2504 ms (199.25 tok/s)
+-- code-gen base
+exit 0
+PASS chain code-gen base: copy drafts off
+tok/s code-gen base: finish=length prompt=69 (cached 0) completion=500 | prefill 414 ms (166.5 tok/s) | decode 2334 ms (213.77 tok/s)
+PASS ids code-gen: 500 ids identical (off = default = =0 = base)
+-- sampled def
+exit 0
+copy chain passes: 0
+tok/s sampled def: finish=length prompt=2997 (cached 0) completion=600 | prefill 661 ms (4536.9 tok/s) | decode 3677 ms (162.92 tok/s)
+-- sampled zero
+exit 0
+copy chain passes: 0
+tok/s sampled zero: finish=length prompt=2997 (cached 0) completion=600 | prefill 1461 ms (2052.0 tok/s) | decode 3686 ms (162.51 tok/s)
+PASS sampled: ids and text identical default vs =0
+PASS sampled: no copy chain ran
+gate fails=0 plan_fails=8
+fleetq: #10266 done (exit 0)

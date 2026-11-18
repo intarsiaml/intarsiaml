@@ -1,0 +1,6 @@
+fleetq: #10272 running on endor: scripts/copyflipm/mem.sh
+zero r1:  41743187968 maximum resident set size; 21835954992 peak memory footprint;
+def r1:  41779691520 maximum resident set size; 21993651112 peak memory footprint;
+zero r2:  41803300864 maximum resident set size; 22103456584 peak memory footprint;
+def r2:  41770237952 maximum resident set size; 21968223192 peak memory footprint;
+fleetq: #10272 done (exit 0)

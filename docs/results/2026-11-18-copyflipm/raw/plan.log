@@ -1,0 +1,27 @@
+fleetq: #10268 running on endor: scripts/copyflipm/plan.sh
+base-mb1: exit 0 13188 bytes sha a3bb42031070215f
+new-mb1: exit 0 13189 bytes sha ca5d52ba7fc2f435
+base-mb1-c20: exit 0 13189 bytes sha ca5d52ba7fc2f435
+new-mb1-c0: exit 0 13188 bytes sha a3bb42031070215f
+new-mb1-cempty: exit 0 13188 bytes sha a3bb42031070215f
+base-mb1-c20-7: exit 0 13188 bytes sha cc3a803ba2f21696
+new-mb1-c20-7: exit 0 13188 bytes sha cc3a803ba2f21696
+base-off: exit 0 11384 bytes sha c61acc4d0bbc1c31
+new-off: exit 0 11384 bytes sha c61acc4d0bbc1c31
+base-off-c20: exit 0 11384 bytes sha c61acc4d0bbc1c31
+new-off-c20: exit 0 11384 bytes sha c61acc4d0bbc1c31
+base-cpu: exit 0 11473 bytes sha 36f5a5d6bbcb6ee2
+new-cpu: exit 0 11473 bytes sha 36f5a5d6bbcb6ee2
+base-cpu-c20: exit 0 11473 bytes sha 36f5a5d6bbcb6ee2
+new-cpu-c20: exit 0 11473 bytes sha 36f5a5d6bbcb6ee2
+PASS plan (a) default mb1 == base =20: base-mb1-c20 json == new-mb1 json
+PASS plan (a') default differs from base unset: base-mb1 != new-mb1 (as intended)
+PASS plan (b) =0 == base unset (byte-identical): base-mb1 == new-mb1-c0 (exit 0)
+PASS plan (b') empty == base unset: base-mb1 == new-mb1-cempty (exit 0)
+PASS plan explicit =20,7 unchanged: base-mb1-c20-7 == new-mb1-c20-7 (exit 0)
+PASS plan (d) --spec off unchanged: base-off == new-off (exit 0)
+PASS plan --spec off with explicit =20 unchanged: base-off-c20 == new-off-c20 (exit 0)
+PASS plan (e) cpu unset unchanged: base-cpu == new-cpu (exit 0)
+PASS plan cpu explicit =20 unchanged: base-cpu-c20 == new-cpu-c20 (exit 0)
+plan fails=0; cpu exit base/new 0/0
+fleetq: #10268 done (exit 0)
