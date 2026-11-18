@@ -1,0 +1,15 @@
+fleetq: #10116 waiting (#1 in line): #10106 "postchain2: nsys fix test e/ex/nx x6" (claude-a9e6e738) needs gpu quiet on spark1, and this job loads it
+fleetq:   #10106 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10106 set, or it will wait for #10106 to be released.
+fleetq: #10116 running on spark1: ssh spark1 'bash ~/intarsiaml-postchain2/src/scripts/postchain2/gates.sh'
+plan main: exit 0 15570 bytes sha c446afdca09ab0ec
+plan new: exit 0 15570 bytes sha c446afdca09ab0ec
+plan main2: exit 0 15570 bytes sha c446afdca09ab0ec
+main twice: byte-identical
+PASS plan show knobs unset: main and lane byte-identical
+PASS ids copy3k: 2902 ids identical (main, lane SIDE_EAGER=0, + COPY=20, lane --spec off); copy chains in xc: 720
+PASS ids json-xform: 2600 ids identical (main, lane SIDE_EAGER=0, + COPY=20, lane --spec off); copy chains in xc: 648
+PASS ids chat-short: 364 ids identical (main, lane SIDE_EAGER=0, + COPY=20, lane --spec off); copy chains in xc: 1
+PASS ids reason: 500 ids identical (main, lane SIDE_EAGER=0, + COPY=20, lane --spec off); copy chains in xc: 1
+PASS ids code-gen: 500 ids identical (main, lane SIDE_EAGER=0, + COPY=20, lane --spec off); copy chains in xc: 1
+gates ids fails=0
+fleetq: #10116 done (exit 0)

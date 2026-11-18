@@ -336,6 +336,7 @@ impl Model {
             self.capture_comms.store(0, Ordering::Relaxed);
             self.graphs.state_bound.store(false, Ordering::Relaxed);
             let zeros = vec![0u32; b];
+            let _capture = crate::model::CaptureGuard::enter();
             let graph = self.backend.graph_capture(self.stream, &mut || {
                 // only the row count matters: tokens are read from ws.ids, state buffers and positions from the tables
                 let refs: Vec<&SequenceState> = states.to_vec();
@@ -402,6 +403,7 @@ impl Model {
         let pos = self.view(&self.ws.pos, DType::I32, &[1]);
         *self.capture_ops.lock().unwrap() = Some(Vec::new());
         self.capture_comms.store(0, Ordering::Relaxed);
+        let _capture = crate::model::CaptureGuard::enter();
         let graph = self.backend.graph_capture(self.stream, &mut || {
             // only the length of `ids` matters: the token is read from ws.ids, the position from ws.pos
             let hn = self.run_chunk_at(st, &[0], false, Some(&pos), false)?;
