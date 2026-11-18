@@ -1,0 +1,12 @@
+[16:02:49] start; earlyoom: active; vLLM: 200; main: intarsia 0.0.1; new: intarsia 0.0.1
+[16:05:49] PLAN: plan show --json byte-identical (   15570 bytes)
+[16:05:49] serve main: intarsia-main env [INTARSIA_CB_NO_REUSE=1] serve --backend cuda --max-seq 49152 --mem-budget 40 --max-batch 8
+[16:07:34] serve main up; MemAvailable MB 47925
+[16:08:28] min MemAvailable MB (main): 16:07:45 47749, killed: 0
+[16:08:30] serve default: intarsia-new env [INTARSIA_CB_NO_REUSE=1] serve --backend cuda --max-seq 49152 --mem-budget 40 --max-batch 8
+[16:10:03] serve default up; MemAvailable MB 47864
+[16:10:57] min MemAvailable MB (default): 16:10:05 47774, killed: 0
+[16:10:59] serve fifo: intarsia-new env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=fifo] serve --backend cuda --max-seq 49152 --mem-budget 40 --max-batch 8
+[16:12:25] serve fifo up; MemAvailable MB 49246
+[16:13:20] min MemAvailable MB (fifo): 16:12:56 48178, killed: 0
+[16:13:21] done
