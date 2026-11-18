@@ -248,6 +248,185 @@ INST_DELTA(64)
 INST_DELTA(128)
 INST_DELTA(256)
 
+// ---- Speculative-verify rows with the rollback snapshots (lane mgdnv) ----------------------------------------------------------
+// `Backend::gdn_verify_rows`: the T (2..=16) rows of one sequence's verify pass in two dispatches (conv, delta rule) that also store
+// the conv state / the delta-rule state after every row but the last into per-row save buffers (the verify pass's rollback saves),
+// instead of T x (conv + delta rule + whole-slot copy). Each kernel is the body of `gdn_conv_t<K, false>` / `gdn_delta_rule_t<DK>`
+// above, token for token (T <= GDN_CONV_TILE, so one conv tile and the state update fused at its end), plus the snapshot stores:
+// the conv state after token t is the history registers `h` after their shift, the delta-rule state after token t is `s`. The
+// arithmetic is untouched, so the outputs, the final states and the saves are bitwise the T one-row launches and slot copies.
+// Metal has no arrays of buffers, so the (up to 15) save buffers are 15 consecutive bindings; unused ones alias a live
+// buffer and are never touched (the host passes nsnap = T - 1).
+constant constexpr uint GDN_SNAP_MAX = 15;
+
+#define GDN_SNAP_PICK(r)                                                                                                \
+    ((r) == 0 ? s0 : (r) == 1 ? s1 : (r) == 2 ? s2 : (r) == 3 ? s3 : (r) == 4 ? s4 : (r) == 5 ? s5 : (r) == 6 ? s6 :   \
+     (r) == 7 ? s7 : (r) == 8 ? s8 : (r) == 9 ? s9 : (r) == 10 ? s10 : (r) == 11 ? s11 : (r) == 12 ? s12 :              \
+     (r) == 13 ? s13 : s14)
+
+// bind: 0 x [T,C], 1 w [C,K], 2 y [T,C], 3 state f32 [C,K-1], 4..18 snapshots f32 [C,K-1], 19 OpP (a = T, b = C, c = K, e = T - 1
+// snapshots, s0..s2 skips of x / w / y). Groups (ceil(C / 128), 1) of 128 threads.
+template <uint K>
+kernel void gdn_conv_snap_t(device const ushort* x [[buffer(0)]],
+                            device const ushort* w [[buffer(1)]],
+                            device ushort* y [[buffer(2)]],
+                            device float* state [[buffer(3)]],
+                            device float* s0 [[buffer(4)]], device float* s1 [[buffer(5)]], device float* s2 [[buffer(6)]],
+                            device float* s3 [[buffer(7)]], device float* s4 [[buffer(8)]], device float* s5 [[buffer(9)]],
+                            device float* s6 [[buffer(10)]], device float* s7 [[buffer(11)]], device float* s8 [[buffer(12)]],
+                            device float* s9 [[buffer(13)]], device float* s10 [[buffer(14)]], device float* s11 [[buffer(15)]],
+                            device float* s12 [[buffer(16)]], device float* s13 [[buffer(17)]], device float* s14 [[buffer(18)]],
+                            constant OpP& p [[buffer(19)]],
+                            uint2 tg [[threadgroup_position_in_grid]],
+                            uint2 lt2 [[thread_position_in_threadgroup]]) {
+    const uint C = p.b;
+    const uint c = tg.x * GDN_CONV_TG + lt2.x;
+    if (c >= C) return;
+    float taps[K], h[K - 1];
+#pragma unroll
+    for (uint j = 0; j < K; ++j) taps[j] = bf2f(w[p.s1 + (ulong)c * K + j]);
+#pragma unroll
+    for (uint j = 0; j < K - 1; ++j) {
+        const long pos = (long)j - (long)(K - 1);
+        h[j] = state[(ulong)c * (K - 1) + (K - 1) + pos];
+    }
+    for (long t = 0; t < (long)p.a; ++t) {
+        const float cur = gdn_conv_in<false>(x, p.s0, (ulong)t, C, c);
+        float acc = taps[K - 1] * cur;
+#pragma unroll
+        for (uint j = 0; j < K - 1; ++j) acc += taps[j] * h[j];
+        y[p.s2 + (ulong)t * C + c] = f2bf(gdn_silu(acc));
+#pragma unroll
+        for (uint j = 0; j + 2 < K; ++j) h[j] = h[j + 1];
+        h[K - 2] = cur;
+        if ((uint)t < p.e) {
+            device float* sn = GDN_SNAP_PICK((uint)t);
+#pragma unroll
+            for (uint j = 0; j + 1 < K; ++j) sn[(ulong)c * (K - 1) + j] = h[j];
+        }
+    }
+    gdn_conv_state_update<false>(x, state, c, p.a, C, K, p.s0);
+}
+
+#define INST_CONV_SNAP(K)                                                                                               \
+    template [[host_name("gdn_conv_snap_bf16_k" #K)]] kernel void gdn_conv_snap_t<K>(                                   \
+        device const ushort*, device const ushort*, device ushort*, device float*,                                      \
+        device float*, device float*, device float*, device float*, device float*, device float*, device float*,        \
+        device float*, device float*, device float*, device float*, device float*, device float*, device float*,        \
+        device float*, constant OpP&, uint2, uint2);
+INST_CONV_SNAP(2)
+INST_CONV_SNAP(3)
+INST_CONV_SNAP(4)
+INST_CONV_SNAP(5)
+INST_CONV_SNAP(6)
+INST_CONV_SNAP(7)
+INST_CONV_SNAP(8)
+
+// bind: 0..6 as `gdn_delta_rule_t` (qkv, a, b, A_log, dt_bias, o, state), 7..21 snapshots f32 [Hv,dv,dk] (the state after token r,
+// r < p.pad = T - 1), 22 params (`GdnDeltaP`, pad = the snapshot count). Groups (ceil(dv / GDN_DELTA_SG), Hv) of GDN_DELTA_SG simdgroups.
+template <uint DK>
+kernel void gdn_delta_snap_t(device const ushort* qkv [[buffer(0)]],
+                             device const ushort* ga [[buffer(1)]],
+                             device const ushort* gb [[buffer(2)]],
+                             device const ushort* alog [[buffer(3)]],
+                             device const ushort* dtb [[buffer(4)]],
+                             device ushort* o [[buffer(5)]],
+                             device float* state [[buffer(6)]],
+                             device float* s0 [[buffer(7)]], device float* s1 [[buffer(8)]], device float* s2 [[buffer(9)]],
+                             device float* s3 [[buffer(10)]], device float* s4 [[buffer(11)]], device float* s5 [[buffer(12)]],
+                             device float* s6 [[buffer(13)]], device float* s7 [[buffer(14)]], device float* s8 [[buffer(15)]],
+                             device float* s9 [[buffer(16)]], device float* s10 [[buffer(17)]], device float* s11 [[buffer(18)]],
+                             device float* s12 [[buffer(19)]], device float* s13 [[buffer(20)]], device float* s14 [[buffer(21)]],
+                             constant GdnDeltaP& p [[buffer(22)]],
+                             uint2 tg [[threadgroup_position_in_grid]],
+                             uint sg [[simdgroup_index_in_threadgroup]],
+                             uint lane [[thread_index_in_simdgroup]]) {
+    constexpr uint PL = DK / 32;
+    const uint h = tg.y;
+    const uint j = tg.x * GDN_DELTA_SG + sg;
+    if (j >= p.dv) return;  // whole simdgroup
+    const uint kh = h / (p.hv / p.hk);
+    const ulong C = 2ul * p.hk * DK + (ulong)p.hv * p.dv;
+    const float scale = 1.0f / precise::sqrt((float)DK);
+    const float neg_a = -precise::exp(bf2f(alog[p.s_alog + h]));
+    const float dtbias = bf2f(dtb[p.s_dtb + h]);
+
+    device float* srow = state + ((ulong)h * p.dv + j) * DK;
+    float s[PL];
+    for (uint i = 0; i < PL; ++i) s[i] = srow[lane + 32 * i];
+
+    device const ushort* qp = qkv + p.s_qkv + (ulong)kh * DK + lane;
+    device const ushort* kp = qkv + p.s_qkv + ((ulong)p.hk + kh) * DK + lane;
+    device const ushort* vp = qkv + p.s_qkv + 2ul * p.hk * DK + (ulong)h * p.dv + j;
+
+    ushort cq[PL], ck[PL], cv, ca, cb;
+    for (uint i = 0; i < PL; ++i) { cq[i] = qp[32 * i]; ck[i] = kp[32 * i]; }
+    cv = *vp;
+    ca = ga[p.s_a + h];
+    cb = gb[p.s_b + h];
+    for (uint t = 0; t < p.t; ++t) {
+        const uint tn = min(t + 1, p.t - 1);
+        ushort nq[PL], nk[PL];
+        for (uint i = 0; i < PL; ++i) { nq[i] = qp[tn * C + 32 * i]; nk[i] = kp[tn * C + 32 * i]; }
+        const ushort nv = vp[tn * C];
+        const ushort na = ga[p.s_a + (ulong)tn * p.hv + h];
+        const ushort nb = gb[p.s_b + (ulong)tn * p.hv + h];
+
+        float qn[PL], kn[PL], qq = 0.0f, kk = 0.0f;
+        for (uint i = 0; i < PL; ++i) {
+            qn[i] = bf2f(cq[i]);
+            kn[i] = bf2f(ck[i]);
+            qq += qn[i] * qn[i];
+            kk += kn[i] * kn[i];
+        }
+        qq = simd_sum(qq);
+        kk = simd_sum(kk);
+        const float qr = (1.0f / precise::sqrt(qq + p.eps)) * scale;
+        const float kr = 1.0f / precise::sqrt(kk + p.eps);
+        const float beta = gdn_sigmoid(bf2f(cb));
+        const float decay = precise::exp(neg_a * gdn_softplus(bf2f(ca) + dtbias));
+
+        float kv = 0.0f;
+        for (uint i = 0; i < PL; ++i) {
+            kn[i] *= kr;
+            qn[i] *= qr;
+            s[i] *= decay;
+            kv += s[i] * kn[i];
+        }
+        kv = simd_sum(kv);
+        const float delta = (bf2f(cv) - kv) * beta;
+        float out = 0.0f;
+        for (uint i = 0; i < PL; ++i) {
+            s[i] += kn[i] * delta;
+            out += s[i] * qn[i];
+        }
+        out = simd_sum(out);
+        if (lane == 0) o[p.s_o + ((ulong)t * p.hv + h) * p.dv + j] = f2bf(out);
+        if (t < p.pad) {
+            device float* sn = GDN_SNAP_PICK(t) + ((ulong)h * p.dv + j) * DK;
+            for (uint i = 0; i < PL; ++i) sn[lane + 32 * i] = s[i];
+        }
+
+        for (uint i = 0; i < PL; ++i) { cq[i] = nq[i]; ck[i] = nk[i]; }
+        cv = nv;
+        ca = na;
+        cb = nb;
+    }
+    for (uint i = 0; i < PL; ++i) srow[lane + 32 * i] = s[i];
+}
+
+#define INST_DELTA_SNAP(DK)                                                                                             \
+    template [[host_name("gdn_delta_snap_bf16_dk" #DK)]] kernel void gdn_delta_snap_t<DK>(                              \
+        device const ushort*, device const ushort*, device const ushort*, device const ushort*, device const ushort*,   \
+        device ushort*, device float*,                                                                                  \
+        device float*, device float*, device float*, device float*, device float*, device float*, device float*,        \
+        device float*, device float*, device float*, device float*, device float*, device float*, device float*,        \
+        device float*, constant GdnDeltaP&, uint2, uint, uint);
+INST_DELTA_SNAP(32)
+INST_DELTA_SNAP(64)
+INST_DELTA_SNAP(128)
+INST_DELTA_SNAP(256)
+
 // ---- GdnDeltaRule, prefill form with a prep pass (lane MGD) ----------------------------------------------------------------
 // Bitwise `gdn_delta_rule_t`. That kernel recomputes, in every one of the dv rows of a head, the per-token work that does not
 // depend on the state: the l2 norms of q and k (two simd_sums), the reciprocal square roots, sigmoid(b), softplus / exp(a). The
