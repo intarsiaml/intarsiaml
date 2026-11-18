@@ -40,7 +40,7 @@ With `INTARSIA_SPEC_COPY` unset, copy drafts are **on as if `INTARSIA_SPEC_COPY=
 
 ### Which runs this reaches (read before deciding)
 
-The default is defined by backend, batch size, tp and `--spec mtp`, as the brief asks, **not by model and not by an explicit `--spec` flag**. On Metal at tp 1 and one sequence the recipe turns `--spec mtp` on by itself (`[tuning.metal] mtp_default_k`: the Qwen3.6-35B-A3B, lane mpf / 2026-11-05; the Qwen3.8-27B, lane m27), and the default is read after that, so **a bare `serve` or `generate` (no `--spec` flag) on either model now has copy drafts on**, and so does any other model with an MTP head on Metal that a user runs with `--spec mtp`. `INTARSIA_SPEC_DEFAULT=0` (no recipe MTP) or `--spec off` still means no copy drafts, since the chain needs `--spec mtp`. Only the 35B has the A/B speed evidence (#459). The Qwen3.8-27B has the ids gate below (3 cells, greedy ids equal `--spec off`) and one sanity tok/s line per arm, no A/B; any other MTP model has neither. Restricting the default per recipe (for example a `[tuning.metal]` key) is a choice for the user; this PR does not narrow it.
+The default is defined by backend, batch size, tp and `--spec mtp`, as the brief asks, **not by model and not by an explicit `--spec` flag**. On Metal at tp 1 and one sequence the recipe turns `--spec mtp` on by itself (`[tuning.metal] mtp_default_k`: the Qwen3.6-35B-A3B, lane mpf / 2026-11-05; the Qwen3.8-27B, lane m27), and the default is read after that, so **a bare `serve` or `generate` (no `--spec` flag) on either model now has copy drafts on**, and so does any other model with an MTP head on Metal that a user runs with `--spec mtp`. `INTARSIA_SPEC_DEFAULT=0` (no recipe MTP) or `--spec off` still means no copy drafts, since the chain needs `--spec mtp`. The 35B has the A/B speed evidence (#459). The Qwen3.8-27B has the ids gate below and a 4-round served A/B (follow-up section) that **fails the bar on 3 of 7 cells** (agent-edit 1.019x, agent-batch 0.989x, code-gen 0.993x; copy3k 1.455x, json-xform 1.175x), so the recommendation is to narrow the default to the 35B recipe; any other MTP model has neither evidence. Restricting the default per recipe (for example a `[tuning.metal]` key) is a choice for the user; this PR does not narrow it.
 
 ## Evidence (not re-measured here)
 
@@ -103,10 +103,43 @@ Sanity tok/s (decode, one run per arm, `generate`; not an A/B). Single-run noise
 
 An earlier draft of `gates.sh` also ran the `plan show` comparison; that part gave 8 FAIL lines because it compared timing-bearing stderr and passed a `--max-batch` flag `plan show` does not take. It was moved to `plan.sh` with those two fixed (rerun above, all PASS) and cut from `gates.sh`; the ids and sampled half of `raw/gates.log` is from the run of that earlier draft, whose ids section is unchanged.
 
+## Follow-up brief
+
+(Coordinator message to lane copyflipm, 2026-11-18, written here verbatim so it survives compaction.)
+
+Follow-up for lane copyflipm: add a served speed A/B on the Qwen3.8-27B before the user decides #460. First write this request into docs/results/2026-11-18-copyflipm.md (a "Follow-up brief" section) so it survives compaction.
+
+Why: the default reaches the 27B on Metal (recipe turns MTP on), but only the 35B has A/B evidence. Run the copymetal harness (scripts/copymetal/, as in docs/results/2026-11-18-copymetal.md) on the 27B: 4 ABBA rounds, arms = your #460 binary with INTARSIA_SPEC_COPY unset (default on) vs =0, all 7 cells, --max-batch 1, the 27B's recipe MTP defaults. Same bar: no cell below 0.995x, agent cells >= 1.03x. Report medians + round spread per cell, pass/fail, and whether to keep the 27B in the default or narrow it to the 35B recipe. Same fleetq rules as before (endor, --quiet gpu,cpu, --expect high, FLEETQ_OWNER=claude-0b386a17-copyflipm, release slots). Rebuild target dirs as needed inside .worktrees/copyflipm and delete them when done. Commit the results to the #460 branch (docs only; commit trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`), wait for CI green, do not merge. Also confirm CI on 2a920f2fd went green first.
+
+## Follow-up: served speed A/B on the Qwen3.8-27B (4 ABBA rounds, 7 cells)
+
+Date 2026-11-18, endor (Apple silicon, Metal), `~/models/Qwen3.8-27B-Quark-AWQ-MXFP4`, `serve --max-batch 1 --max-seq 8192` **without `--spec`** (the 27B's recipe MTP default: the startup line says "Mtp, up to 2 drafts per verify pass"). One binary, the #460 code (head `2a920f2fd`, docs aside); arms differ by environment only: `def` = `INTARSIA_SPEC_COPY` unset (copy drafts on by default, chain 15), `zero` = `INTARSIA_SPEC_COPY=0` (the reference). The harness is `scripts/copymetal/ab.sh` of #459 adapted to the 27B (`scripts/copyflipm/ab27.sh`, `run27.sh`): a fresh server per arm and round, arm order reversed on even rounds (zero, def on odd rounds), 3 reps per cell, a 2-rep warm-up, the seven cells of `scripts/mcopy/prompts.py`. Four rounds, each its own fleetq slot (`--quiet gpu,cpu`, #10282, #10289 and the next two). Raw: `raw/ab27/`, `raw/ab27-run-r{1..4}.log`, table `raw/ab27-table.txt`.
+
+Cell value = median decode tok/s over all reps of all rounds [min-max]; ratio = median over rounds of the round's median ratio to `zero`; the four per-round ratios (rounds 1 to 4) in brackets.
+
+| cell | `=0` (reference) | default (copy on) | ratio, rounds 1-4 | bar |
+|---|---|---|---|---|
+| copy3k | 65.7 [62-67] | 95.5 [83-98] | **1.455x** (1.414, 1.451, 1.459, 1.467) | PASS |
+| json-xform | 63.8 [61-65] | 75.8 [69-79] | **1.175x** (1.140, 1.180, 1.192, 1.170) | PASS |
+| agent-edit (agent, >= 1.03) | 62.8 [59-68] | 65.2 [56-68] | **1.019x** (1.013, 0.988, 1.024, 1.046) | **FAIL** (< 1.03) |
+| agent-batch (agent, >= 1.03) | 66.8 [65-68] | 66.6 [62-69] | **0.989x** (0.967, 0.982, 0.995, 1.023) | **FAIL** (< 0.995 and < 1.03) |
+| chat-short | 51.2 [48-53] | 52.1 [49-55] | **1.021x** (1.045, 1.019, 1.022, 1.008) | PASS |
+| reason | 62.7 [62-64] | 63.5 [62-66] | **1.018x** (1.025, 1.027, 1.012, 1.011) | PASS |
+| code-gen | 62.9 [61-65] | 61.8 [58-63] | **0.993x** (1.000, 0.996, 0.990, 0.946) | **FAIL** (< 0.995) |
+
+Bar (the #459 bar: no cell below 0.995x, agent cells at least 1.03x): **the 27B passes 4 of 7 cells and fails 3** (agent-edit, agent-batch, code-gen). Lowest cell ratio 0.989 (agent-batch). Round 4 code-gen is 0.946 and round 1 agent-batch 0.967: single-round dips, but the medians of both sit under 0.995 as well.
+
+- **Ids: PASS.** Every served reply has the same sha in both arms (84 reply groups, 0 differ; `tables.py` prints no `IDS DIFFER`), in addition to the `generate` ids gate above.
+- **Copy chains did fire as designed.** Default arm per round: 1134 to 1135 chain passes, 15107 to 15120 of about 17005 chain-proposed tokens accepted (89 %), and the MTP step count falls from about 8950 to about 3500; the reference arm ran no chain (`raw/ab27/metrics-*`).
+- **Thermal level was 2 in 48 of 56 cells and 0 to 2 in the other 8, in both arms** (the 27B is dense and runs hotter than the 35B in #459; the harness's 120 s cool-down does not reach level 0). The arms alternate within each round, so it affects both alike, but the control cells carry about 1 to 2 percent of noise either way (the 27B reference arm's own range on code-gen is 61 to 65).
+- **Against the 35B (#459):** the gain on copy-heavy cells is smaller (copy3k 1.455x against 2.10x, json-xform 1.175x against 1.64x) (the cause was not investigated); the agent-edit / agent-batch / code-gen cells sit at or just under 1.0 where the 35B had 1.02 to 1.22.
+
+**Recommendation: narrow the default to the 35B recipe** (keep the Metal copy-draft default for the Qwen3.6-35B-A3B only, and leave the Qwen3.8-27B at `INTARSIA_SPEC_COPY` unset = off, opt-in with `INTARSIA_SPEC_COPY=20`). By the stated bar the 27B fails three cells, two of them the agent cells the bar was written for, and the best case for keeping it is a large win on copy-heavy text (1.46x, 1.18x) against a loss of about 1 percent on code-gen and agent-batch. If the user prefers the wider default anyway, `INTARSIA_SPEC_COPY=0` reverts it per process. The narrowing is not in this PR (this follow-up is docs only): it would be a recipe key read by the loader where it calls `set_copy_default` (`crates/intarsia-models/src/load.rs:828`), for example `[tuning.metal] spec_copy_default = true` in `recipes/qwen3_5_moe.toml` and nothing in `recipes/qwen3_5_vl.toml`; any other MTP model on Metal would then also stay off. That change needs its own plan gates (the 27B plan unchanged against base, the 35B plan equal to `=20`) and is a follow-up for the coordinator or the user to order.
+
 ## What is not covered
 
 - Sampled, thinking and real-agent-transcript speed were not measured (see Caveats); sampled output equality is shown for one request, and by the code path above.
-- Speed of the Qwen3.8-27B and of any other MTP model on Metal: one tok/s line per arm only (27B), nothing for others.
+- Speed of any other MTP model on Metal: nothing. The Qwen3.8-27B has the A/B above (it fails the bar on 3 of 7 cells).
 - CUDA and HIP behaviour is unchanged by construction (plan equal on cpu as a stand-in, the loader sets the default only for Metal); not run on a CUDA box.
 - This lane did not run an A/B: the speed claim is #459's.
 
