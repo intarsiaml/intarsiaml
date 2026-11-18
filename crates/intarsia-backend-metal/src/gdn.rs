@@ -241,6 +241,7 @@ impl MetalBackend {
             self.bind(c.dt_bias, bf, false, "dt_bias")?,
         );
         let (o, st) = (self.bind(c.o, bf, true, "o")?, self.bind(c.state, f, true, "state")?);
+        // (the saved slot's padding bytes between the conv and delta regions are not copied: documented as harmless)
         // unused save bindings alias the state (never touched: the kernels stop at nsnap)
         let conv_saves = fill_saves(&snap_c, &cst);
         let delta_saves = fill_saves(&snap_s, &st);
@@ -251,6 +252,7 @@ impl MetalBackend {
         };
         let mut cb: Vec<&crate::dense::Bind> = vec![&x, &w, &y, &cst];
         cb.extend(conv_saves.iter().copied());
+        self.prof_label("gdn_conv_snap", t);
         self.dispatch(CONV_SNAP_SHADERS[k - 2], &cb, &p, Grid::Groups { x: ch.div_ceil(CONV_TG), y: 1, threads: CONV_TG })?;
         let dp = DeltaP {
             t: dim(t, "T")?,
@@ -263,6 +265,7 @@ impl MetalBackend {
         };
         let mut db_: Vec<&crate::dense::Bind> = vec![&y, &a, &b, &al, &db, &o, &st];
         db_.extend(delta_saves.iter().copied());
+        self.prof_label("gdn_delta_snap", t);
         self.dispatch(delta, &db_, &dp, Grid::Groups { x: dv.div_ceil(DELTA_SG), y: hv, threads: 32 * DELTA_SG })?;
         Ok(true)
     }
