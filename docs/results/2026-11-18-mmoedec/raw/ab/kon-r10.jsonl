@@ -1,0 +1,12 @@
+{"cell": "chat-short", "tag": "c10", "rep": 0, "toks": 400, "chunks": 400, "ttft": 0.072, "dec_tps": 173.18, "wall": 2.376, "sha": "6b29c864706e"}
+{"cell": "chat-short", "tag": "c10", "rep": 1, "toks": 359, "chunks": 358, "ttft": 0.059, "dec_tps": 183.04, "wall": 2.015, "sha": "7d5d6dff291b"}
+{"cell": "chat-short", "tag": "c10", "rep": 2, "toks": 376, "chunks": 375, "ttft": 0.061, "dec_tps": 179.21, "wall": 2.154, "sha": "817f0fa8b9d5"}
+{"cell": "code-gen", "tag": "c10", "rep": 0, "toks": 800, "chunks": 800, "ttft": 0.07, "dec_tps": 207.53, "wall": 3.92, "sha": "512f31a319c2"}
+{"cell": "code-gen", "tag": "c10", "rep": 1, "toks": 800, "chunks": 800, "ttft": 0.068, "dec_tps": 206.1, "wall": 3.945, "sha": "e6314942913f"}
+{"cell": "code-gen", "tag": "c10", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.07, "dec_tps": 202.59, "wall": 4.014, "sha": "0c77b09d91fb"}
+{"cell": "reason", "tag": "c10", "rep": 0, "toks": 500, "chunks": 500, "ttft": 0.084, "dec_tps": 202.06, "wall": 2.554, "sha": "49fb8f168bf9"}
+{"cell": "reason", "tag": "c10", "rep": 1, "toks": 500, "chunks": 500, "ttft": 0.072, "dec_tps": 205.2, "wall": 2.503, "sha": "a2cb8d9a6397"}
+{"cell": "reason", "tag": "c10", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.072, "dec_tps": 197.39, "wall": 2.6, "sha": "cab61e07403d"}
+{"cell": "agent-edit", "tag": "c10", "rep": 0, "toks": 54, "chunks": 53, "ttft": 0.472, "dec_tps": 194.21, "wall": 0.745, "sha": "1021f15792af"}
+{"cell": "agent-edit", "tag": "c10", "rep": 1, "toks": 308, "chunks": 307, "ttft": 0.467, "dec_tps": 203.0, "wall": 1.979, "sha": "df0fbac8b7f2"}
+{"cell": "agent-edit", "tag": "c10", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.469, "dec_tps": 200.44, "wall": 2.001, "sha": "df0fbac8b7f2"}

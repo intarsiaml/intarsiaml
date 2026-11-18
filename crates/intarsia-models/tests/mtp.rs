@@ -617,8 +617,8 @@ fn copy_drafts_beside_the_mtp_head_keep_greedy_output_identical() {
     rep.extend([9, 8, 7]);
     rep.extend(&span[..4]);
     let prompts: Vec<Vec<u32>> = vec![rep, PROMPTS[0].to_vec(), PROMPTS[2].to_vec(), [PROMPTS[1], PROMPTS[1], PROMPTS[1], PROMPTS[1]].concat()];
-    for (n, len, k) in [(1, 5, 2), (2, 7, 2), (1, 3, 1), (2, 7, 3)] {
-        let (on, tel) = engine_copy(&w, k, intarsia_core::spec::CopyCfg { n, len });
+    for (n, len, k, adapt) in [(1, 5, 2, false), (2, 7, 2, false), (1, 3, 1, false), (2, 7, 3, false), (1, 7, 2, true), (2, 5, 1, true)] {
+        let (on, tel) = engine_copy(&w, k, intarsia_core::spec::CopyCfg { n, len, adapt });
         let (a, b) = (run(&off, req(&prompts[0], 200)), run(&on, req(&prompts[0], 200)));
         assert_eq!(a, b, "copy n {n} len {len} k {k} first request");
         for p in &prompts {
@@ -658,7 +658,7 @@ fn copy_drafts_with_the_cost_gate_flipping_keep_greedy_output_identical() {
     rep.extend([9, 8, 7]);
     rep.extend(&span[..4]);
     for k in 1..=3 {
-        let (on, tel) = engine_copy_cost(&w, k, intarsia_core::spec::CopyCfg { n: 1, len: 5 }, Some((1e9, 1, 2, 5)));
+        let (on, tel) = engine_copy_cost(&w, k, intarsia_core::spec::CopyCfg { n: 1, len: 5, adapt: false }, Some((1e9, 1, 2, 5)));
         for p in [&rep[..], PROMPTS[0], PROMPTS[2]] {
             let (a, b) = (run(&off, req(p, 256)), run(&on, req(p, 256)));
             assert_eq!(a, b, "k {k} prompt {p:?}");

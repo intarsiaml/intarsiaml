@@ -1,0 +1,43 @@
+fleetq: #10197 running on endor: sh -c 'cd /opt/code/intarsiaml/.worktrees/mmoedec && CARGO_TARGET_DIR=/opt/code/intarsiaml/.worktrees/mmoedec/target-mmoedec cargo test --release -p intarsia-backend-metal --test moe_bitdec -- --ignored --nocapture timing_moe_bitdec'
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1251:4
+     |
+1251 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/moe_bitdec.rs (target-mmoedec/release/deps/moe_bitdec-c0c7c4f765bdf45e)
+
+running 1 test
+TIMING moe_bitdec T=1 routing=pool72 distinct=8.0: off 39.9 us, on 39.6 us (1.007x), x40 layers off 1.59 ms on 1.58 ms
+TIMING moe_bitdec T=1 routing=random distinct=8.0: off 40.4 us, on 39.7 us (1.018x), x40 layers off 1.62 ms on 1.59 ms
+TIMING moe_bitdec T=2 routing=pool72 distinct=15.3: off 63.9 us, on 62.6 us (1.019x), x40 layers off 2.55 ms on 2.51 ms
+TIMING moe_bitdec T=2 routing=random distinct=15.9: off 65.9 us, on 64.6 us (1.021x), x40 layers off 2.64 ms on 2.58 ms
+TIMING moe_bitdec T=3 routing=pool72 distinct=21.6: off 84.9 us, on 83.1 us (1.021x), x40 layers off 3.40 ms on 3.33 ms
+TIMING moe_bitdec T=3 routing=random distinct=23.3: off 89.1 us, on 88.2 us (1.010x), x40 layers off 3.56 ms on 3.53 ms
+TIMING moe_bitdec T=8 routing=pool72 distinct=43.7: off 174.6 us, on 165.8 us (1.053x), x40 layers off 6.98 ms on 6.63 ms
+TIMING moe_bitdec T=8 routing=random distinct=57.4: off 199.4 us, on 193.3 us (1.032x), x40 layers off 7.98 ms on 7.73 ms
+test timing_moe_bitdec ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 2.39s
+
+fleetq: #10197 done (exit 0)

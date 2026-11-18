@@ -1,0 +1,9 @@
+fleetq: #10203 running on endor: scripts/mmoedec/plan.sh
+base: exit 0 13188 bytes sha a3bb42031070215f
+new: exit 0 13188 bytes sha a3bb42031070215f
+base2: exit 0 13188 bytes sha a3bb42031070215f
+new-on: exit 0 13188 bytes sha a3bb42031070215f
+base twice: byte-identical (deterministic)
+PASS plan show knob unset: base and new byte-identical
+PASS plan show knob ON: byte-identical to base
+fleetq: #10203 done (exit 0)

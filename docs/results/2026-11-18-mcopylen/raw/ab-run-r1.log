@@ -1,0 +1,27 @@
+fleetq: #10014 running on endor: env W=ab R0=1 ROUNDS=1 REPS=3 'CELLS=copy3k json-xform agent-edit code-gen' 'ARMS=base:X=1 n20L7:INTARSIA_SPEC_COPY=20,7 n20L15:INTARSIA_SPEC_COPY=20,15 n20L15a:INTARSIA_SPEC_COPY=20,15,a' scripts/mcopylen/ab.sh
+== round 1 arm base env X=1 cooled 0s thermal 0 22:36:06
+base r1 copy3k thermal 0->0: {"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.691, "dec_tps": 194.14, "wall": 15.639, "sha": "4eb925608b0c"}
+base r1 json-xform thermal 0->0: {"cell": "json-xform", "tag": "c1", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.67, "dec_tps": 181.69, "wall": 14.975, "sha": "e4cca5268730"}
+base r1 agent-edit thermal 0->0: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 167, "chunks": 166, "ttft": 0.42, "dec_tps": 181.63, "wall": 1.334, "sha": "d96cf1e67a5c"}
+base r1 code-gen thermal 0->0: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.067, "dec_tps": 194.05, "wall": 4.185, "sha": "2f57b1dc22d5"}
+base r1 metrics: intarsia_spec_steps_total 6930 intarsia_spec_proposed_tokens_total 13858 intarsia_spec_accepted_tokens_total 13483 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+== round 1 arm n20L7 env INTARSIA_SPEC_COPY=20,7 cooled 0s thermal 0 22:38:14
+n20L7 r1 copy3k thermal 2->2: {"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.722, "dec_tps": 325.12, "wall": 9.648, "sha": "4eb925608b0c"}
+n20L7 r1 json-xform thermal 2->2: {"cell": "json-xform", "tag": "c1", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.66, "dec_tps": 289.63, "wall": 9.634, "sha": "e4cca5268730"}
+n20L7 r1 agent-edit thermal 2->2: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 167, "chunks": 166, "ttft": 0.425, "dec_tps": 205.91, "wall": 1.231, "sha": "d96cf1e67a5c"}
+n20L7 r1 code-gen thermal 2->2: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.066, "dec_tps": 192.64, "wall": 4.213, "sha": "2f57b1dc22d5"}
+n20L7 r1 metrics: intarsia_spec_steps_total 1563 intarsia_spec_proposed_tokens_total 3124 intarsia_spec_accepted_tokens_total 2750 intarsia_spec_copy_steps_total 2085 intarsia_spec_copy_proposed_tokens_total 14592 intarsia_spec_copy_accepted_tokens_total 14015 
+== round 1 arm n20L15 env INTARSIA_SPEC_COPY=20,15 cooled 55s thermal 0 22:40:43
+n20L15 r1 copy3k thermal 0->0: {"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.55, "dec_tps": 389.28, "wall": 8.005, "sha": "4eb925608b0c"}
+n20L15 r1 json-xform thermal 0->0: {"cell": "json-xform", "tag": "c1", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.581, "dec_tps": 301.98, "wall": 9.188, "sha": "e4cca5268730"}
+n20L15 r1 agent-edit thermal 0->1: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 167, "chunks": 166, "ttft": 0.396, "dec_tps": 229.65, "wall": 1.119, "sha": "d96cf1e67a5c"}
+n20L15 r1 code-gen thermal 1->1: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.064, "dec_tps": 203.53, "wall": 3.989, "sha": "2f57b1dc22d5"}
+n20L15 r1 metrics: intarsia_spec_steps_total 1563 intarsia_spec_proposed_tokens_total 3124 intarsia_spec_accepted_tokens_total 2750 intarsia_spec_copy_steps_total 1111 intarsia_spec_copy_proposed_tokens_total 16656 intarsia_spec_copy_accepted_tokens_total 14989 
+== round 1 arm n20L15a env INTARSIA_SPEC_COPY=20,15,a cooled 75s thermal 0 22:43:26
+n20L15a r1 copy3k thermal 0->0: {"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.551, "dec_tps": 382.41, "wall": 8.139, "sha": "4eb925608b0c"}
+n20L15a r1 json-xform thermal 0->1: {"cell": "json-xform", "tag": "c1", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.593, "dec_tps": 314.85, "wall": 8.848, "sha": "e4cca5268730"}
+n20L15a r1 agent-edit thermal 1->1: {"cell": "agent-edit", "tag": "c1", "rep": 2, "toks": 167, "chunks": 166, "ttft": 0.42, "dec_tps": 225.48, "wall": 1.156, "sha": "d96cf1e67a5c"}
+n20L15a r1 code-gen thermal 1->1: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.065, "dec_tps": 204.2, "wall": 3.978, "sha": "2f57b1dc22d5"}
+n20L15a r1 metrics: intarsia_spec_steps_total 1563 intarsia_spec_proposed_tokens_total 3124 intarsia_spec_accepted_tokens_total 2750 intarsia_spec_copy_steps_total 1605 intarsia_spec_copy_proposed_tokens_total 15096 intarsia_spec_copy_accepted_tokens_total 14495 
+ab done
+fleetq: #10014 done (exit 0)
