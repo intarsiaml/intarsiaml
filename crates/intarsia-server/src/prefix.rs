@@ -66,6 +66,8 @@ async fn prefill_inner(
                 o.insert("content".into(), Value::String(content));
                 messages.push(Value::Object(o));
             }
+            let had_mid_system = crate::midsystem::has_mid_system(&messages);
+            let messages = crate::midsystem::rewrite(messages, crate::midsystem::Mode::from_env());
             let mut opts =
                 ChatOpts { add_generation_prompt: req.add_generation_prompt, tools: req.tools.clone(), ..Default::default() };
             if let Some(kw) = &req.chat_template_kwargs {
@@ -78,7 +80,7 @@ async fn prefill_inner(
                 }
             }
             blocking_as(&st.engine, F, move |e| {
-                let mut text = e.apply_chat_template(&messages, &opts)?;
+                let mut text = e.apply_chat_template(&messages, &opts).map_err(|err| crate::midsystem::explain(err, had_mid_system))?;
                 if partial {
                     // the message is not finished: cut the end-of-message suffix the template added (ChatML)
                     for suffix in ["<|im_end|>\n", "<|im_end|>"] {
