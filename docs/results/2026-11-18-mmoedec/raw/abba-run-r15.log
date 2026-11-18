@@ -1,0 +1,27 @@
+fleetq: #10223 running on endor: scripts/mmoedec/round-abba.sh 15
+== round 15 arm offA env INTARSIA_METAL_GDN_VERIFY_FUSE=1 cooled 80s thermal 0 08:49:08
+offA r15 chat-short thermal 0->0: {"cell": "chat-short", "tag": "c15", "rep": 2, "toks": 377, "chunks": 376, "ttft": 0.058, "dec_tps": 185.04, "wall": 2.09, "sha": "2f5a9702b4f4"}
+offA r15 code-gen thermal 0->0: {"cell": "code-gen", "tag": "c15", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.064, "dec_tps": 211.15, "wall": 3.848, "sha": "ff9c29a0c0df"}
+offA r15 reason thermal 0->0: {"cell": "reason", "tag": "c15", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.065, "dec_tps": 216.88, "wall": 2.366, "sha": "ab36a1d0be5e"}
+offA r15 agent-edit thermal 0->0: {"cell": "agent-edit", "tag": "c15", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.371, "dec_tps": 213.53, "wall": 1.809, "sha": "df0fbac8b7f2"}
+offA r15 metrics: intarsia_spec_steps_total 2788 intarsia_spec_proposed_tokens_total 5575 intarsia_spec_accepted_tokens_total 4847 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+== round 15 arm onB env INTARSIA_METAL_GDN_VERIFY_FUSE=1+INTARSIA_METAL_MOE_BITDEC=1 cooled 0s thermal 0 08:49:51
+onB r15 chat-short thermal 0->1: {"cell": "chat-short", "tag": "c15", "rep": 2, "toks": 377, "chunks": 376, "ttft": 0.059, "dec_tps": 185.03, "wall": 2.091, "sha": "2f5a9702b4f4"}
+onB r15 code-gen thermal 1->1: {"cell": "code-gen", "tag": "c15", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.065, "dec_tps": 208.82, "wall": 3.891, "sha": "ff9c29a0c0df"}
+onB r15 reason thermal 1->1: {"cell": "reason", "tag": "c15", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.068, "dec_tps": 212.32, "wall": 2.418, "sha": "ab36a1d0be5e"}
+onB r15 agent-edit thermal 1->1: {"cell": "agent-edit", "tag": "c15", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.447, "dec_tps": 207.18, "wall": 1.929, "sha": "df0fbac8b7f2"}
+onB r15 metrics: intarsia_spec_steps_total 2788 intarsia_spec_proposed_tokens_total 5575 intarsia_spec_accepted_tokens_total 4847 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+== round 15 arm onC env INTARSIA_METAL_GDN_VERIFY_FUSE=1+INTARSIA_METAL_MOE_BITDEC=1 cooled 85s thermal 0 08:52:02
+onC r15 chat-short thermal 0->0: {"cell": "chat-short", "tag": "c15", "rep": 2, "toks": 377, "chunks": 376, "ttft": 0.058, "dec_tps": 186.35, "wall": 2.076, "sha": "2f5a9702b4f4"}
+onC r15 code-gen thermal 0->0: {"cell": "code-gen", "tag": "c15", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.064, "dec_tps": 212.39, "wall": 3.826, "sha": "ff9c29a0c0df"}
+onC r15 reason thermal 0->0: {"cell": "reason", "tag": "c15", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.065, "dec_tps": 218.23, "wall": 2.352, "sha": "ab36a1d0be5e"}
+onC r15 agent-edit thermal 0->0: {"cell": "agent-edit", "tag": "c15", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.407, "dec_tps": 213.71, "wall": 1.843, "sha": "df0fbac8b7f2"}
+onC r15 metrics: intarsia_spec_steps_total 2788 intarsia_spec_proposed_tokens_total 5575 intarsia_spec_accepted_tokens_total 4847 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+== round 15 arm offD env INTARSIA_METAL_GDN_VERIFY_FUSE=1 cooled 0s thermal 0 08:52:45
+offD r15 chat-short thermal 1->1: {"cell": "chat-short", "tag": "c15", "rep": 2, "toks": 377, "chunks": 376, "ttft": 0.061, "dec_tps": 175.54, "wall": 2.203, "sha": "2f5a9702b4f4"}
+offD r15 code-gen thermal 1->1: {"cell": "code-gen", "tag": "c15", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.072, "dec_tps": 193.77, "wall": 4.196, "sha": "ff9c29a0c0df"}
+offD r15 reason thermal 1->1: {"cell": "reason", "tag": "c15", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.07, "dec_tps": 196.72, "wall": 2.607, "sha": "ab36a1d0be5e"}
+offD r15 agent-edit thermal 1->2: {"cell": "agent-edit", "tag": "c15", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.482, "dec_tps": 190.89, "wall": 2.091, "sha": "df0fbac8b7f2"}
+offD r15 metrics: intarsia_spec_steps_total 2788 intarsia_spec_proposed_tokens_total 5575 intarsia_spec_accepted_tokens_total 4847 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+ab done
+fleetq: #10223 done (exit 0)
