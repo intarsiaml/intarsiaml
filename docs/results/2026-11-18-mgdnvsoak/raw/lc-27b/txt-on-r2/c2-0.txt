@@ -1,0 +1,49 @@
+Based on the provided source code, here is a detailed technical overview of the `intarsia` inference engine’s core architecture, focusing on the admission testing harness and the backend abstraction layer.
+
+### 1. High-Level Architecture
+
+The engine is built around a **Backend Abstraction** (`backend.rs`) that decouples the execution of operations (kernels) from the specific hardware (CPU, CUDA, HIP, Metal). A **Registry** (referenced but not fully shown, implied by `registry.rs`) manages which kernel implementations are available for each operation on a specific device.
+
+The `admission.rs` module serves as the **Quality Assurance and Selection Harness**. It does not run inference for production; rather, it runs a suite of "admission tests" to verify that a candidate backend's kernels produce results that match a reference implementation within defined tolerances. Only kernels that pass these tests are marked as `Admitted` and become selectable by the engine for actual inference.
+
+### 2. Key Modules and Components
+
+#### A. `admission.rs`: The Testing and Selection Harness
+
+This module is responsible for validating kernel correctness and determining which kernels are safe to use.
+
+**1. Configuration and Sweeping (`SweepConfig`, `sweep`)**
+*   **`SweepConfig`**: Defines the dimensions of the test cases (e.g., `hidden`, `n_heads`, `vocab`). It supports a `quick` mode for faster, smaller-scale testing.
+*   **`sweep(op, cfg)`**: The core generator. For a given `Op` (e.g., `Matmul`, `AttnDecode`, `RmsNorm`), it generates a `Vec<Case>`. Each `Case` contains:
+    *   A `label` for reporting.
+    *   A `HostCall` describing the operation: inputs (randomly generated `HostTensor`s), expected output specs (`OutSpec`), and attributes (`OpAttrs`).
+    *   The logic is highly specialized per operation. For example:
+        *   **`Op::Matmul`**: Sweeps various `M, N, K` dimensions, including edge cases like `N=0` (skipped) and mixed dtypes (e.g., `bf16` activations with `f16` weights).
+        *   **`Op::AttnDecode`**: Tests various context lengths (`pos0`), head dimensions, and KV cache capacities. It specifically includes cases for "windowed" attention and "split-KV" kernels.
+        *   **`Op::GdnDeltaRule`**: Tests Gated Delta Net layers with various chunk sizes and initial states (zero vs. random).
+
+**2. Execution and Comparison (`run_admission`, `compare`)**
+*   **`run_admission(reference, candidate, opts)`**:
+    *   Iterates through all kernels registered by the `candidate` backend.
+    *   For each kernel, it finds the corresponding `reference` implementation.
+    *   It generates test cases using `sweep()`.
+    *   It filters cases based on the kernel's `accepts()` predicate (shape compatibility).
+    *   It executes the call on both the `reference` and `candidate` backends using `run_host`.
+    *   It compares the outputs using `compare()`.
+*   **`compare(cand, refr)`**:
+    *   Computes `max_abs` (maximum absolute difference) and `rel_l2` (relative L2 norm).
+    *   Handles integer outputs (e.g., `Argmax`) by requiring exact matches.
+    *   Handles floating-point outputs by checking against tolerances.
+    *   Returns a tuple `(scaled_max_abs, rel_l2, is_finite)`.
+
+**3. Tolerance and Admission Logic**
+*   **`AdmissionRow`**: Records the result of a single test case (pass/fail, error message, metrics).
+*   **`KernelSummary`**: Aggregates results for a specific kernel implementation. A kernel is `admitted` if it has at least one test case and **zero** failures.
+*   **`AdmissionReport`**: The final report containing all rows and summaries.
+    *   **`apply(reg)`**: Updates the `Registry` to mark kernels as `Admitted` or `Rejected`. Rejected kernels are effectively disabled for inference.
+    *   **`render()`**: Generates a human-readable table for CLI output.
+
+**4. Model-Specific Case Generation (`case_from_call`)**
+*   This function bridges the gap between a planned inference call (from the model scheduler) and a test case.
+*   It takes an `OpCall` and `ShapeCaps` (limits on rows, N, etc., to keep test time reasonable).
+*   It clamps the dimensions of the call
