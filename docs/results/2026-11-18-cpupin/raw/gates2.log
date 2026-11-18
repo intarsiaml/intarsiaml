@@ -1,0 +1,16 @@
+fleetq: #10021 running on spark1: ssh spark1 'bash ~/intarsiaml-cpupin/bin/gates2.sh'
+main up 23:29:50 free: 56 GB
+new up 23:32:22 free: 57 GB
+PASS served agent-edit rep 0 43 tokens 7c882bd90517 7c882bd90517
+PASS served agent-edit rep 1 297 tokens 69d9daf8f276 69d9daf8f276
+PASS served agent-edit rep 2 156 tokens 189d80ce4485 189d80ce4485
+PASS served agent-batch rep 0 139 tokens af4b4d294fc7 af4b4d294fc7
+PASS served agent-batch rep 1 139 tokens af4b4d294fc7 af4b4d294fc7
+PASS served agent-batch rep 2 139 tokens af4b4d294fc7 af4b4d294fc7
+PASS served copy3k rep 0 2903 tokens 4eb925608b0c 4eb925608b0c
+PASS served json-xform rep 0 2600 tokens e4cca5268730 e4cca5268730
+PASS served chat-short rep 0 395 tokens 21de9c064017 21de9c064017
+PASS served reason rep 0 500 tokens e871e3efa6e8 e871e3efa6e8
+PASS served code-gen rep 0 800 tokens 50d2a37580f0 50d2a37580f0
+served sha gate: pairs 11 11 fails 0
+fleetq: #10021 done (exit 0)

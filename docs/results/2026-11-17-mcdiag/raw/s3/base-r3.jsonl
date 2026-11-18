@@ -1,0 +1,13 @@
+{"cell": "code-gen300", "tag": "pre3", "rep": 0, "toks": 300, "chunks": 300, "ttft": 0.094, "dec_tps": 148.72, "wall": 2.104, "sha": "8f5fc7db065f"}
+{"cell": "code-gen300", "tag": "pre3", "rep": 1, "toks": 300, "chunks": 300, "ttft": 0.077, "dec_tps": 148.58, "wall": 2.09, "sha": "b17afd3e2929"}
+{"cell": "code-gen300", "tag": "pre3", "rep": 2, "toks": 300, "chunks": 300, "ttft": 0.078, "dec_tps": 146.47, "wall": 2.119, "sha": "f916bc4e07b6"}
+{"cell": "code-gen300", "tag": "pre3", "rep": 3, "toks": 300, "chunks": 300, "ttft": 0.077, "dec_tps": 149.31, "wall": 2.08, "sha": "51c236d791d6"}
+{"cell": "code-gen300", "tag": "pre3", "rep": 4, "toks": 300, "chunks": 300, "ttft": 0.079, "dec_tps": 151.73, "wall": 2.05, "sha": "75a2a2cf5554"}
+{"cell": "code-gen300", "tag": "pre3", "rep": 5, "toks": 300, "chunks": 300, "ttft": 0.079, "dec_tps": 144.65, "wall": 2.146, "sha": "d83318728a1a"}
+{"cell": "code-gen", "tag": "mid3", "rep": 0, "toks": 800, "chunks": 800, "ttft": 0.093, "dec_tps": 151.24, "wall": 5.376, "sha": "c7554a715a12"}
+{"cell": "code-gen300", "tag": "post3", "rep": 0, "toks": 300, "chunks": 300, "ttft": 0.093, "dec_tps": 149.81, "wall": 2.089, "sha": "c7e598b0c1d2"}
+{"cell": "code-gen300", "tag": "post3", "rep": 1, "toks": 300, "chunks": 300, "ttft": 0.076, "dec_tps": 146.07, "wall": 2.123, "sha": "f54cd69228fa"}
+{"cell": "code-gen300", "tag": "post3", "rep": 2, "toks": 300, "chunks": 300, "ttft": 0.079, "dec_tps": 147.53, "wall": 2.106, "sha": "f54cd69228fa"}
+{"cell": "code-gen300", "tag": "post3", "rep": 3, "toks": 300, "chunks": 300, "ttft": 0.079, "dec_tps": 145.65, "wall": 2.132, "sha": "4656398ebc87"}
+{"cell": "code-gen300", "tag": "post3", "rep": 4, "toks": 300, "chunks": 300, "ttft": 0.078, "dec_tps": 148.37, "wall": 2.093, "sha": "86c376c8cb22"}
+{"cell": "code-gen300", "tag": "post3", "rep": 5, "toks": 300, "chunks": 300, "ttft": 0.076, "dec_tps": 148.1, "wall": 2.095, "sha": "c7e598b0c1d2"}

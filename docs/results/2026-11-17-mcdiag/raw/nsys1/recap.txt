@@ -1,0 +1,8 @@
+# probe-r1
+chain at pos 168 | trace captures field first/last: 1 3 | graph launches: 181 replays: 181
+distinct recordings (node ids + grid/block/dynsmem/regs): pre 3 post 3 | post recordings not seen pre: 0 (counts pre [2, 4, 29] post [11, 16, 118] )
+eager kernels in gaps between replays (replay index, count): [(0, 16), (35, 891)] ... total gaps with eager kernels 2
+# probe-r2
+chain at pos 168 | trace captures field first/last: 1 3 | graph launches: 181 replays: 181
+distinct recordings (node ids + grid/block/dynsmem/regs): pre 3 post 3 | post recordings not seen pre: 0 (counts pre [2, 4, 29] post [11, 16, 118] )
+eager kernels in gaps between replays (replay index, count): [(0, 16), (35, 891)] ... total gaps with eager kernels 2

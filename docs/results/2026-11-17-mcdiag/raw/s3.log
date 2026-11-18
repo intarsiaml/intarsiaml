@@ -1,0 +1,27 @@
+fleetq: #9964 running on spark1: ssh spark1 'W=s3 BIN=/home/nvidia/intarsiaml-mcdiag/bin/intarsia-b ROUNDS=3 ARMS="base:X=1 chain:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=450 cu:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=450,c eg:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=450,e" bash -s'
+base r1 up 18:37:25 free: 56 GB
+base r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 0
+chain r1 up 18:39:23 free: 55 GB
+chain r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 1
+cu r1 up 18:41:12 free: 55 GB
+cu r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 0
+eg r1 up 18:42:59 free: 55 GB
+eg r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 0
+eg r2 up 18:44:48 free: 55 GB
+eg r2: 13 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a, chains 0
+cu r2 up 18:46:32 free: 55 GB
+cu r2: 13 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a, chains 0
+chain r2 up 18:48:19 free: 55 GB
+chain r2: 13 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a, chains 1
+base r2 up 18:49:59 free: 56 GB
+base r2: 13 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a, chains 0
+base r3 up 18:51:52 free: 56 GB
+base r3: 13 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5, chains 0
+chain r3 up 18:53:42 free: 55 GB
+chain r3: 13 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5, chains 1
+cu r3 up 18:55:32 free: 55 GB
+cu r3: 13 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5, chains 0
+eg r3 up 18:57:19 free: 55 GB
+eg r3: 13 requests, shas 8f5f b17a f916 51c2 75a2 d833 c755 c7e5 f54c f54c 4656 86c3 c7e5, chains 0
+serve2 done
+fleetq: #9964 done (exit 0)

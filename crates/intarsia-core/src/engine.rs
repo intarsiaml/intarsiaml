@@ -1343,6 +1343,10 @@ pub(crate) struct Seq {
     copy_backoff: crate::spec::CopyBackoff,
     /// A copy chain left its accepted rows queued for the head: catch the head up before the next MTP draft (lane mcopy2).
     copy_behind: bool,
+    /// Lane mcdiag: `INTARSIA_SPEC_COPY_PROBE` not yet spent (one bogus chain per request at this many generated tokens).
+    copy_probe: Option<(usize, crate::spec::ProbeKind)>,
+    /// Lane mcdiag: the next captured-graph-eligible MTP step runs eagerly (probe kind `e`).
+    probe_eager: bool,
     /// Adaptive draft depth in `[INTARSIA_SPEC_K_MIN, spec_k]` (MTP drafts only); `None`: every pass drafts `spec_k`.
     depth: Option<crate::spec::Depth>,
     /// Speculation for this sampled request ([`crate::spec::SampledSpec`]; `Off` for greedy requests, which keep the greedy
@@ -1459,6 +1463,7 @@ impl Seq {
         }
         // lane mcopy: copy drafts for a greedy `--spec mtp` request, this engine only (the batched scheduler never sets it)
         seq.copy = sh.copy.filter(|_| seq.spec_on && seq.greedy && st.peers.is_empty() && st.remote.is_none());
+        seq.copy_probe = seq.copy.and(crate::spec::copy_probe_from_env());
         if seq.spec_on && sh.env().spec.mode == crate::spec::SpecMode::Auto {
             seq.auto = Some(crate::spec::AutoPolicy::new(model.spec_auto_params()));
         }
@@ -1618,6 +1623,8 @@ impl Seq {
             copy_pass: false,
             copy_backoff: Default::default(),
             copy_behind: false,
+            copy_probe: None,
+            probe_eager: false,
             depth: if spec_mtp && !spec_dflash { crate::spec::k_min_for(&env.spec).and_then(|m| crate::spec::Depth::new(m, spec_k)) } else { None },
             spec_sampled: crate::spec::SampledSpec::Off,
             spec_keyed: false,
@@ -2089,6 +2096,26 @@ impl Seq {
                     // A chain that missed (accepted fewer than `COPY_MIN_ACCEPT` drafts) backs the request off ([`CopyBackoff`]).
                     if let Some(c) = self.copy {
                         let len = c.len.min(room).min(self.max_new.saturating_sub(self.generated + 1));
+                        if let Some((g, kind)) = self.copy_probe.filter(|&(g, _)| self.generated >= g) {
+                            // lane mcdiag: the measurement hook (see `copy_probe_from_env`), once per request
+                            let _ = g;
+                            self.copy_probe = None;
+                            // once per process (the server's later requests then run chain-free: whether the cost carries over is the question)
+                            static SPENT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                            if crate::spec::copy_probe_once() && SPENT.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                                return Next::Draft(k);
+                            }
+                            match kind {
+                                crate::spec::ProbeKind::Chain(l) => {
+                                    let l = l.unwrap_or(len).min(room).min(self.max_new.saturating_sub(self.generated + 1));
+                                    if l >= 2 {
+                                        return Next::Verify(vec![1; l]);
+                                    }
+                                }
+                                crate::spec::ProbeKind::CatchUp => self.copy_behind = true,
+                                crate::spec::ProbeKind::Eager => self.probe_eager = true,
+                            }
+                        }
                         if len >= crate::spec::COPY_MIN_CHAIN && self.copy_backoff.ready() {
                             let drafts = crate::spec::propose_copy(&self.ctx, crate::spec::CopyCfg { len, ..c });
                             if !drafts.is_empty() {
@@ -2363,9 +2390,19 @@ impl Seq {
                     }
                 }
                 let was_copy = self.copy_pass;
+                let t_copy = (was_copy && crate::spec::trace_enabled()).then(Instant::now);
                 let r = self.verify(model, st, &drafts);
                 self.copy_pass = false;
                 r?;
+                if let Some(t) = t_copy {
+                    // lane mcdiag: the chain pass ends in a token download, so host time is device time (accepting and rolling back included)
+                    eprintln!(
+                        "spec: copy pass {} rows {:.3} ms at {:.3}",
+                        drafts.len() + 1,
+                        t.elapsed().as_secs_f64() * 1e3,
+                        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64())
+                    );
+                }
                 // the accepted rows of the chain sit in the head's queue (up to `len + 1`); see `copy_behind` below
                 self.copy_behind |= was_copy;
                 if let Some(t) = self.pending.pop_front() {
@@ -2450,7 +2487,8 @@ impl Seq {
             Next::Draft(k)
                 if (self.auto.is_none() || self.drafter == crate::spec::Drafter::Mtp)
                     && !mtp_verify_check()
-                    && model.spec_step_ok(st, self.tok, k) =>
+                    && model.spec_step_ok(st, self.tok, k)
+                    && !std::mem::take(&mut self.probe_eager) =>
             {
                 self.predraft = None;
                 self.staged = None;
@@ -2458,6 +2496,7 @@ impl Seq {
                 self.cost_begin(true);
                 let t0 = Instant::now();
                 let len0 = st.len;
+                let n_rows = st.mtp.as_ref().map_or(0, |m| m.pending_rows);
                 match model.spec_step(st, self.tok, k)? {
                     Some(pass) => {
                         self.verify_pass(model, st, len0, &pass.drafts, pass.out)?;
@@ -2474,7 +2513,13 @@ impl Seq {
                             static LAST: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
                             let mut last = LAST.lock().unwrap();
                             let gap = last.map_or(0.0, |l| t0.duration_since(l).as_secs_f64() * 1e3);
-                            eprintln!("spec: mtp graph step {:.3} ms gap {:.3} ms", t0.elapsed().as_secs_f64() * 1e3, gap);
+                            eprintln!(
+                                "spec: mtp graph step {:.3} ms gap {:.3} ms n {n_rows} len {len0} captures {} at {:.3}",
+                                t0.elapsed().as_secs_f64() * 1e3,
+                                gap,
+                                model.graph_stats().spec_captures,
+                                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64())
+                            );
                             *last = Some(Instant::now());
                         }
                         if let Some(t) = self.pending.pop_front() {
