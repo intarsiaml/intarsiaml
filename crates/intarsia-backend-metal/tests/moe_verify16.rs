@@ -1,4 +1,4 @@
-//! Lane mmoe16: `INTARSIA_METAL_VERIFY16=1` gives 9..=16-token `moe_experts_bf16_rows` calls (the copy-chain verify pass of up to
+//! Lane mmoe16: `INTARSIA_METAL_VERIFY16` (default-on since lane mlen15; `with_verify16` forces it here) gives 9..=16-token `moe_experts_bf16_rows` calls (the copy-chain verify pass of up to
 //! 16 rows) the arithmetic-decode kernels `moe_dec_gu_a` / `moe_dec_dn_a`. Claim: bitwise the bytes of today's path, i.e. of
 //! the T one-token `moe_experts_bf16` calls (which the knob-off rows call already equals, tests/rows_exact.rs).
 //!

@@ -1,0 +1,12 @@
+PASS group off: arms ['off_base', 'off_new'], 96 replies, 48 prompts, 0 differences
+    info: burst reply == solo reply (first arm seen): 24 of 24 prompts
+PASS inert off_base: cached_tokens of the stagger-0 cell [0, 0, 0, 0, 0, 0, 0, 0] (sum 0, must be 0: no store)
+PASS inert off_new: cached_tokens of the stagger-0 cell [0, 0, 0, 0, 0, 0, 0, 0] (sum 0, must be 0: no store)
+-- TTFT (burst cells; sum / p50 / last of the requests, seconds)
+off_base   seed 1 stagger/gap 0.0: n 8 sum 144.08 p50 17.86 last 32.91  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_base   seed 2 stagger/gap 0.5: n 8 sum 139.07 p50 17.36 last 30.98  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_base   seed 3 stagger/gap 2.0: n 8 sum 97.36 p50 12.16 last 20.50  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_new    seed 1 stagger/gap 0.0: n 8 sum 143.27 p50 17.82 last 32.71  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_new    seed 2 stagger/gap 0.5: n 8 sum 136.92 p50 17.07 last 30.61  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_new    seed 3 stagger/gap 2.0: n 8 sum 96.42 p50 12.04 last 20.28  cached [0, 0, 0, 0, 0, 0, 0, 0]
+gate fails=0

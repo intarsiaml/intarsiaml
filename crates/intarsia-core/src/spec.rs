@@ -365,6 +365,28 @@ pub struct CopyCfg {
 
 /// Default chain length of [`CopyCfg`] (an 8-row verify pass: the CUDA GatedDeltaNet verify block takes at most 8 rows in one launch).
 pub const COPY_LEN_DEFAULT: usize = 7;
+/// Default chain length of [`CopyCfg`] on Metal (a 16-row verify pass; lane mlen15): the Metal verify kernels take 16 rows
+/// (`INTARSIA_METAL_VERIFY16` makes the 9..=16-row MoE call cheap) and the chain gains 6 to 14 % on long copies.
+pub const COPY_LEN_METAL: usize = 15;
+
+/// The chain length `INTARSIA_SPEC_COPY=<n>` (no `,<len>`) means on `backend`: [`COPY_LEN_METAL`] on Metal, else [`COPY_LEN_DEFAULT`].
+pub fn copy_len_default_for(backend: &str) -> usize {
+    if backend == "metal" {
+        COPY_LEN_METAL
+    } else {
+        COPY_LEN_DEFAULT
+    }
+}
+
+/// The backend's default chain length ([`copy_len_default_for`]) the loader recorded; [`COPY_LEN_DEFAULT`] until it does. It is the ONE
+/// place the backend enters a copy length: [`copy_from_env`] reads it for the load-time verify-row width ([`SpecConfig::verify_rows`])
+/// and for the engine's chain alike, so they cannot disagree.
+static COPY_LEN_BACKEND: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(COPY_LEN_DEFAULT);
+
+/// Record the backend a model is being loaded on (the loader calls it once the backend is known, before any [`SpecConfig::verify_rows`]).
+pub fn set_copy_backend(backend: &str) {
+    COPY_LEN_BACKEND.store(copy_len_default_for(backend), std::sync::atomic::Ordering::Relaxed);
+}
 /// A chain shorter than this is not verified: the MTP step drafts 2 tokens by itself and is a captured graph, the chain's pass is eager.
 pub const COPY_MIN_CHAIN: usize = 3;
 /// Shortest `n` an `INTARSIA_SPEC_COPY` value may ask for: a shorter suffix finds look-alike text, not copies (lane mcopy2).
@@ -446,11 +468,16 @@ impl CopyCfg {
     /// An `INTARSIA_SPEC_COPY` value `<n>[,<len>[,a]]` (`a` or `adapt`: [`CopyCfg::adapt`]): `n` in [`COPY_MIN_N`]..=256 and `len` in [`COPY_MIN_CHAIN`]..=[`DFLASH_K_MAX`] (the verify
     /// pass's row cap minus the fed token). `None` for anything else.
     pub fn parse(v: &str) -> Option<CopyCfg> {
+        CopyCfg::parse_with(v, COPY_LEN_DEFAULT)
+    }
+
+    /// [`CopyCfg::parse`] with `default_len` the chain length of a value without `,<len>` (an explicit `<len>` always wins).
+    pub fn parse_with(v: &str, default_len: usize) -> Option<CopyCfg> {
         let mut it = v.split(',').map(str::trim);
         let n = it.next()?.parse::<usize>().ok()?;
         let len = match it.next() {
             Some(l) => l.parse::<usize>().ok()?,
-            None => COPY_LEN_DEFAULT,
+            None => default_len,
         };
         let adapt = match it.next() {
             None => false,
@@ -464,17 +491,19 @@ impl CopyCfg {
     }
 }
 
-/// `INTARSIA_SPEC_COPY` (read once): `None` when unset or empty (off); an unusable value is off with a warning.
+/// `INTARSIA_SPEC_COPY` (the text is read once): `None` when unset or empty (off); an unusable value is off with a warning. A value
+/// without `,<len>` gets the recorded backend's default length ([`set_copy_backend`]).
 pub fn copy_from_env() -> Option<CopyCfg> {
-    static V: std::sync::OnceLock<Option<CopyCfg>> = std::sync::OnceLock::new();
-    *V.get_or_init(|| {
+    static V: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    let v = V.get_or_init(|| {
         let v = std::env::var("INTARSIA_SPEC_COPY").ok().filter(|v| !v.is_empty() && v != "0")?;
-        let c = CopyCfg::parse(&v);
-        if c.is_none() {
+        if CopyCfg::parse(&v).is_none() {
             eprintln!("INTARSIA_SPEC_COPY={v}: not <n>[,<len>[,a]] with n {COPY_MIN_N}..=256 and len {COPY_MIN_CHAIN}..={DFLASH_K_MAX}; copy drafts off");
+            return None;
         }
-        c
-    })
+        Some(v)
+    });
+    CopyCfg::parse_with(v.as_deref()?, COPY_LEN_BACKEND.load(std::sync::atomic::Ordering::Relaxed))
 }
 
 /// What [`copy_probe_from_env`] does once per request (lane mcdiag, a measurement hook).
@@ -2367,6 +2396,26 @@ mod tests {
         // with every pass accepted it never closes
         let mut g = SpecGate::new(GateParams::default());
         assert!(run_gate(&mut g, 256, |_| 1).iter().all(|d| *d));
+    }
+
+    #[test]
+    fn copy_len_default_is_the_backends_and_an_explicit_len_always_wins() {
+        assert_eq!(copy_len_default_for("metal"), 15);
+        for b in ["cuda", "hip", "cpu"] {
+            assert_eq!(copy_len_default_for(b), COPY_LEN_DEFAULT, "{b}");
+        }
+        // no `,<len>`: the default asked for; an explicit len is the same on every backend
+        assert_eq!(CopyCfg::parse_with("20", 15).map(|c| (c.n, c.len)), Some((20, 15)));
+        assert_eq!(CopyCfg::parse_with("20", 7).map(|c| (c.n, c.len)), Some((20, 7)));
+        for d in [7, 15] {
+            assert_eq!(CopyCfg::parse_with("20,7", d).map(|c| c.len), Some(7));
+            assert_eq!(CopyCfg::parse_with("20,15", d).map(|c| c.len), Some(15));
+            assert_eq!(CopyCfg::parse_with("20,3", d).map(|c| c.len), Some(3));
+        }
+        // 15 is a valid default (the cap is DFLASH_K_MAX)
+        assert!(COPY_LEN_METAL <= DFLASH_K_MAX && COPY_LEN_METAL >= COPY_MIN_CHAIN);
+        // `parse` keeps the old default
+        assert_eq!(CopyCfg::parse("20").map(|c| c.len), Some(COPY_LEN_DEFAULT));
     }
 
     #[test]

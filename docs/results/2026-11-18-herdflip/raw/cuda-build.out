@@ -1,0 +1,18 @@
+fleetq: #10242 waiting (#1 in line): needs 55 GB on spark1; 27 GB free of 116
+fleetq: #10242 running on spark1: scripts/herdflip/cuda.sh build
+[14:35:31] build base from 11cb82fe43e2b1b857e09b72f45d28378554e955; free: Mem:             121          41          69           0          11          79 /dev/nvme0n1p2  3.7T  3.3T  287G  92% / 
+    Finished `release` profile [optimized] target(s) in 5m 06s
+exit 0
+0
+14:39:40 78037
+intarsia 0.0.1
+[14:41:33] build new from a0e80fee2151bd45a3febdd609a550ccc09287c5; free: Mem:             121          42          67           0          13          79 /dev/nvme0n1p2  3.7T  3.3T  285G  93% / 
+    Finished `release` profile [optimized] target(s) in 5m 33s
+exit 0
+0
+14:46:07 76946
+intarsia 0.0.1
+grep: /opt/code/intarsiaml/.worktrees/herdflip/docs/results/2026-11-18-herdflip/raw/cuda/serve-*.log: No such file or directory
+serve-*.log: 
+[14:48:02] done
+fleetq: #10242 done (exit 0)
