@@ -1,0 +1,15 @@
+fleetq: #9968 running on spark1: ssh spark1 'W=s4 BIN=/home/nvidia/intarsiaml-mcdiag/bin/intarsia-b ROUNDS=4 ARMS="base:X=1 n256:INTARSIA_SPEC_COPY=256 n20:INTARSIA_SPEC_COPY=20 bogus:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=450" bash -s'
+base r1 up 19:30:40 free: 56 GB
+base r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 0
+n256 r1 up 19:32:33 free: 55 GB
+n256 r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 0
+n20 r1 up 19:34:29 free: 55 GB
+n20 r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 0
+bogus r1 up 19:36:15 free: 55 GB
+bogus r1: 13 requests, shas bcd0 9e72 e3f1 247a 8e58 e3f1 883d d5e7 d0e9 f54c 9ee4 39e3 f54c, chains 1
+bogus r2 up 19:38:11 free: 55 GB
+bogus r2: 13 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a, chains 1
+n20 r2 up 19:40:07 free: 55 GB
+n20 r2: 13 requests, shas 1bd2 5155 ca89 680a 1f3c f916 043b c7e5 da24 c7e5 f54c d59a 517a, chains 2
+fleetq: #9968 was released while its command ran (now done), so it holds no slot: stopping the command (SIGTERM, SIGKILL after 30s)
+fleetq: #9968 stopped (exit 255): #9968 was released while its command ran (now done), so it holds no slot; a command run over ssh may still be running on the remote side: check and stop it there

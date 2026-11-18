@@ -26,7 +26,9 @@ for r in $(seq 1 $ROUNDS); do
     stop
     for i in $(seq 1 40); do curl -sf -m 2 http://127.0.0.1:$PORT/health >/dev/null 2>&1 || break; sleep 1; done
     curl -sf -m 2 http://127.0.0.1:$PORT/health >/dev/null 2>&1 && { echo "port $PORT already answers (a server of another run?): stopping"; exit 1; }
-    env ${e//+/ } INTARSIA_SPEC_TRACE=1 nohup $BIN serve --backend cuda --model $M35 --model-id m --max-batch 1 --max-seq 8192 --spec mtp --spec-k 2 --profile-every 0 --mem-budget 40 \
+    # TASKSET=<cpu list> in an arm's env pins the server (cpu 5-9, 15-19: Cortex-X925, 0-4, 10-14: Cortex-A725)
+    ts=$(echo " ${e//+/ } " | sed -n 's/.* TASKSET=\([^ ]*\).*/\1/p'); pre=""; [ -n "$ts" ] && pre="taskset -c $ts"
+    env ${e//+/ } INTARSIA_SPEC_TRACE=1 $pre nohup $BIN serve --backend cuda --model $M35 --model-id m --max-batch 1 --max-seq 8192 --spec mtp --spec-k 2 --profile-every 0 --mem-budget 40 \
       --no-supervisor --host 127.0.0.1 --port $PORT > $O/serve-$a-r$r.log 2>&1 < /dev/null &
     for i in $(seq 1 120); do pgrep -f "intarsia[a-z0-9-]* serve.*--port $PORT" >/dev/null || { echo "serve died ($a)"; tail -5 $O/serve-$a-r$r.log; exit 1; }; curl -sf -m 3 http://127.0.0.1:$PORT/health >/dev/null 2>&1 && break; sleep 3; done
     echo "$a r$r up $(date +%T) free: $(free -g | awk 'NR==2{print $7}') GB"
