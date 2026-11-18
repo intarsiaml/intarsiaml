@@ -1,0 +1,11 @@
+fleetq: #10111 running on endor: env MB=16 N=8 R=1 scripts/mgdnv27/batch.sh
+== mb16 n8 round 1 arm off cooled 0s thermal 0 04:31:55
+off r1 rep1: AGG {"tag": "w1", "n": 8, "toks": 2400, "wall": 11.96, "agg_tps": 200.64}
+off r1 rep2: AGG {"tag": "w2", "n": 8, "toks": 2398, "wall": 11.93, "agg_tps": 201.04}
+off r1 metrics: intarsia_spec_steps_total 1958 intarsia_spec_proposed_tokens_total 3911 intarsia_spec_accepted_tokens_total 3362 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 intarsia_batc
+== mb16 n8 round 1 arm on cooled 55s thermal 0 04:33:31
+on r1 rep1: AGG {"tag": "w1", "n": 8, "toks": 2400, "wall": 9.67, "agg_tps": 248.15}
+on r1 rep2: AGG {"tag": "w2", "n": 8, "toks": 2398, "wall": 9.77, "agg_tps": 245.54}
+on r1 metrics: intarsia_spec_steps_total 1960 intarsia_spec_proposed_tokens_total 3915 intarsia_spec_accepted_tokens_total 3360 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 intarsia_batc
+batch done
+fleetq: #10111 done (exit 0)

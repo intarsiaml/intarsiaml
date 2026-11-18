@@ -1,0 +1,656 @@
+[00:01:26] build 6196faa46f9fdef763061778f762ac7670a99dcc; free: Mem:             121          44          53           0          24          77 /dev/nvme0n1p2  3.7T  3.4T  159G  96% / 43755 bash -c export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; export FLEETQ_JOB=10023; free -g | sed -n 2p; df -h ~ | tail -1; pgrep -fa 'intarsia.* serve' | head -3 
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 15m 13s
+exit 0
+0
+00:12:36 73968
+intarsia 0.0.1
+[00:18:18] done
+[00:18:30] serve hs-N1: env [] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          48           0          29          76
+[00:20:30] serve hs-N1 up; Mem:             121          77          35           0           9          43
+{"arm": "N", "visit": "N1", "mode": "hs", "seed": 111, "ok": 9, "ttft_sum_s": 487.662, "ttft_p50_s": 55.774, "ttft_last_s": 88.585, "wall_s": 91.027, "cached_tokens": [2048, 2048, 2048, 2048, 2048, 2048, 2048, 0, 0]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 111, "ok": 9, "ttft_sum_s": 5.492, "ttft_p50_s": 0.6, "ttft_last_s": 0.712, "wall_s": 15.306, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "N", "visit": "N1", "mode": "hs", "seed": 112, "ok": 9, "ttft_sum_s": 486.165, "ttft_p50_s": 55.649, "ttft_last_s": 88.127, "wall_s": 90.445, "cached_tokens": [2048, 2048, 2048, 2048, 0, 2048, 2048, 2048, 0]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 112, "ok": 9, "ttft_sum_s": 5.426, "ttft_p50_s": 0.59, "ttft_last_s": 0.705, "wall_s": 14.433, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "N", "visit": "N1", "mode": "hs", "seed": 113, "ok": 9, "ttft_sum_s": 486.451, "ttft_p50_s": 55.62, "ttft_last_s": 88.342, "wall_s": 90.85, "cached_tokens": [2048, 2048, 0, 2048, 2048, 2048, 2048, 2048, 0]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 113, "ok": 9, "ttft_sum_s": 5.375, "ttft_p50_s": 0.584, "ttft_last_s": 0.705, "wall_s": 14.665, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "N", "visit": "N1", "mode": "herd8", "seed": 121, "ok": 16, "ttft_sum_s": 1489.576, "ttft_p50_s": 93.104, "ttft_last_s": 174.861, "wall_s": 175.889, "cached_tokens": [2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 0, 2048]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 121, "ok": 16, "ttft_sum_s": 9.359, "ttft_p50_s": 0.585, "ttft_last_s": 0.588, "wall_s": 24.89, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "N", "visit": "N1", "mode": "herd8", "seed": 122, "ok": 16, "ttft_sum_s": 1501.337, "ttft_p50_s": 93.981, "ttft_last_s": 175.932, "wall_s": 177.024, "cached_tokens": [2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 0, 2048, 2048]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 122, "ok": 16, "ttft_sum_s": 9.375, "ttft_p50_s": 0.585, "ttft_last_s": 0.589, "wall_s": 25.902, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "N", "visit": "N1", "mode": "herd8", "seed": 123, "ok": 16, "ttft_sum_s": 1493.996, "ttft_p50_s": 93.363, "ttft_last_s": 175.295, "wall_s": 176.496, "cached_tokens": [2048, 2048, 2048, 2048, 2048, 0, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 123, "ok": 16, "ttft_sum_s": 9.346, "ttft_p50_s": 0.584, "ttft_last_s": 0.589, "wall_s": 25.126, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 131, "ok": 6, "ttft_sum_s": 183.716, "ttft_p50_s": 29.87, "ttft_last_s": 60.458, "wall_s": 61.553, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 131, "ok": 6, "ttft_sum_s": 5.092, "ttft_p50_s": 0.587, "ttft_last_s": 1.377, "wall_s": 11.244, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 132, "ok": 6, "ttft_sum_s": 190.408, "ttft_p50_s": 29.819, "ttft_last_s": 60.344, "wall_s": 61.619, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 132, "ok": 6, "ttft_sum_s": 5.088, "ttft_p50_s": 0.587, "ttft_last_s": 1.373, "wall_s": 11.589, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 133, "ok": 6, "ttft_sum_s": 203.512, "ttft_p50_s": 36.235, "ttft_last_s": 60.578, "wall_s": 61.818, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 133, "ok": 6, "ttft_sum_s": 5.092, "ttft_p50_s": 0.585, "ttft_last_s": 1.381, "wall_s": 11.803, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 134, "ok": 6, "ttft_sum_s": 197.031, "ttft_p50_s": 32.969, "ttft_last_s": 60.542, "wall_s": 61.585, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 134, "ok": 6, "ttft_sum_s": 5.11, "ttft_p50_s": 0.591, "ttft_last_s": 1.378, "wall_s": 11.712, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+[00:41:20] min MemAvailable MB (hs-N1): 00:40:22 35737, KILLED: 0
+[00:41:26] serve hs-H2: env [INTARSIA_PREFIX_HERD=1] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[00:43:10] serve hs-H2 up; Mem:             121          77          36           0           9          44
+{"arm": "H", "visit": "H2", "mode": "hs", "seed": 111, "ok": 9, "ttft_sum_s": 119.756, "ttft_p50_s": 13.469, "ttft_last_s": 15.229, "wall_s": 21.404, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 0, 16384, 0]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 111, "ok": 9, "ttft_sum_s": 5.491, "ttft_p50_s": 0.598, "ttft_last_s": 0.718, "wall_s": 15.294, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "H", "visit": "H2", "mode": "hs", "seed": 112, "ok": 9, "ttft_sum_s": 118.94, "ttft_p50_s": 13.384, "ttft_last_s": 15.116, "wall_s": 21.314, "cached_tokens": [16384, 16384, 0, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 112, "ok": 9, "ttft_sum_s": 5.41, "ttft_p50_s": 0.588, "ttft_last_s": 0.712, "wall_s": 14.399, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "H", "visit": "H2", "mode": "hs", "seed": 113, "ok": 9, "ttft_sum_s": 118.614, "ttft_p50_s": 13.349, "ttft_last_s": 15.073, "wall_s": 21.341, "cached_tokens": [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 113, "ok": 9, "ttft_sum_s": 5.404, "ttft_p50_s": 0.586, "ttft_last_s": 0.716, "wall_s": 14.71, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "H", "visit": "H2", "mode": "herd8", "seed": 121, "ok": 16, "ttft_sum_s": 247.077, "ttft_p50_s": 15.324, "ttft_last_s": 20.102, "wall_s": 27.862, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0, 16384, 16384, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 121, "ok": 16, "ttft_sum_s": 9.365, "ttft_p50_s": 0.584, "ttft_last_s": 0.599, "wall_s": 24.795, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "H", "visit": "H2", "mode": "herd8", "seed": 122, "ok": 16, "ttft_sum_s": 247.097, "ttft_p50_s": 15.344, "ttft_last_s": 20.072, "wall_s": 27.936, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0, 16384, 16384, 16384, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 122, "ok": 16, "ttft_sum_s": 9.38, "ttft_p50_s": 0.586, "ttft_last_s": 0.589, "wall_s": 25.889, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "H", "visit": "H2", "mode": "herd8", "seed": 123, "ok": 16, "ttft_sum_s": 247.512, "ttft_p50_s": 15.372, "ttft_last_s": 20.094, "wall_s": 27.949, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 123, "ok": 16, "ttft_sum_s": 9.363, "ttft_p50_s": 0.585, "ttft_last_s": 0.592, "wall_s": 25.079, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 131, "ok": 6, "ttft_sum_s": 113.821, "ttft_p50_s": 24.081, "ttft_last_s": 25.494, "wall_s": 28.495, "cached_tokens": [16384, 0, 16384, 16384, 0, 0]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 131, "ok": 6, "ttft_sum_s": 5.081, "ttft_p50_s": 0.588, "ttft_last_s": 1.369, "wall_s": 11.206, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 132, "ok": 6, "ttft_sum_s": 121.29, "ttft_p50_s": 24.193, "ttft_last_s": 25.655, "wall_s": 28.536, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 132, "ok": 6, "ttft_sum_s": 5.086, "ttft_p50_s": 0.589, "ttft_last_s": 1.369, "wall_s": 11.55, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 133, "ok": 6, "ttft_sum_s": 96.246, "ttft_p50_s": 15.131, "ttft_last_s": 24.609, "wall_s": 27.866, "cached_tokens": [16384, 0, 0, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 133, "ok": 6, "ttft_sum_s": 5.066, "ttft_p50_s": 0.584, "ttft_last_s": 1.369, "wall_s": 11.74, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 134, "ok": 6, "ttft_sum_s": 114.863, "ttft_p50_s": 21.086, "ttft_last_s": 25.517, "wall_s": 28.276, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 134, "ok": 6, "ttft_sum_s": 5.089, "ttft_p50_s": 0.59, "ttft_last_s": 1.369, "wall_s": 11.65, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+[00:50:53] min MemAvailable MB (hs-H2): 00:50:30 35513, KILLED: 0
+[00:51:00] serve hs-S3: env [ INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[00:52:48] serve hs-S3 up; Mem:             121          77          36           0           9          44
+{"arm": "S", "visit": "S3", "mode": "hs", "seed": 111, "ok": 9, "ttft_sum_s": 422.5, "ttft_p50_s": 47.367, "ttft_last_s": 90.938, "wall_s": 92.416, "cached_tokens": [0, 2048, 2048, 0, 2048, 2048, 2048, 2048, 0]}
+{"arm": "S", "visit": "S3", "mode": "solo", "seed": 111, "ok": 9, "ttft_sum_s": 5.483, "ttft_p50_s": 0.599, "ttft_last_s": 0.711, "wall_s": 15.241, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "S", "visit": "S3", "mode": "hs", "seed": 112, "ok": 9, "ttft_sum_s": 411.916, "ttft_p50_s": 45.86, "ttft_last_s": 89.383, "wall_s": 90.603, "cached_tokens": [2048, 2048, 2048, 0, 2048, 2048, 2048, 2048, 0]}
+{"arm": "S", "visit": "S3", "mode": "solo", "seed": 112, "ok": 9, "ttft_sum_s": 5.395, "ttft_p50_s": 0.588, "ttft_last_s": 0.7, "wall_s": 14.375, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "S", "visit": "S3", "mode": "hs", "seed": 113, "ok": 9, "ttft_sum_s": 413.192, "ttft_p50_s": 46.06, "ttft_last_s": 89.601, "wall_s": 90.775, "cached_tokens": [2048, 2048, 2048, 2048, 2048, 2048, 0, 2048, 0]}
+{"arm": "S", "visit": "S3", "mode": "solo", "seed": 113, "ok": 9, "ttft_sum_s": 5.385, "ttft_p50_s": 0.585, "ttft_last_s": 0.705, "wall_s": 14.689, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+[00:58:22] min MemAvailable MB (hs-S3): 00:56:53 41627, KILLED: 0
+[00:58:27] serve hs-B4: env [INTARSIA_PREFIX_HERD=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[01:00:14] serve hs-B4 up; Mem:             121          77          36           0           9          44
+{"arm": "B", "visit": "B4", "mode": "hs", "seed": 111, "ok": 9, "ttft_sum_s": 117.691, "ttft_p50_s": 14.096, "ttft_last_s": 16.457, "wall_s": 21.748, "cached_tokens": [16384, 16384, 16384, 0, 16384, 16384, 16384, 16384, 0]}
+{"arm": "B", "visit": "B4", "mode": "solo", "seed": 111, "ok": 9, "ttft_sum_s": 5.472, "ttft_p50_s": 0.596, "ttft_last_s": 0.722, "wall_s": 15.227, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "B", "visit": "B4", "mode": "hs", "seed": 112, "ok": 9, "ttft_sum_s": 116.398, "ttft_p50_s": 13.952, "ttft_last_s": 16.264, "wall_s": 21.487, "cached_tokens": [16384, 16384, 16384, 16384, 0, 16384, 16384, 16384, 0]}
+{"arm": "B", "visit": "B4", "mode": "solo", "seed": 112, "ok": 9, "ttft_sum_s": 5.405, "ttft_p50_s": 0.586, "ttft_last_s": 0.712, "wall_s": 14.303, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "B", "visit": "B4", "mode": "hs", "seed": 113, "ok": 9, "ttft_sum_s": 116.023, "ttft_p50_s": 13.907, "ttft_last_s": 16.21, "wall_s": 21.356, "cached_tokens": [16384, 16384, 16384, 16384, 0, 16384, 16384, 16384, 0]}
+{"arm": "B", "visit": "B4", "mode": "solo", "seed": 113, "ok": 9, "ttft_sum_s": 5.374, "ttft_p50_s": 0.583, "ttft_last_s": 0.713, "wall_s": 14.65, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+[01:02:19] min MemAvailable MB (hs-B4): 01:01:56 41739, KILLED: 0
+[01:02:25] serve hs-B5: env [INTARSIA_PREFIX_HERD=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[01:04:11] serve hs-B5 up; Mem:             121          77          36           0           9          44
+{"arm": "B", "visit": "B5", "mode": "hs", "seed": 111, "ok": 9, "ttft_sum_s": 116.951, "ttft_p50_s": 14.012, "ttft_last_s": 16.365, "wall_s": 21.994, "cached_tokens": [16384, 16384, 16384, 0, 16384, 16384, 16384, 16384, 0]}
+{"arm": "B", "visit": "B5", "mode": "solo", "seed": 111, "ok": 9, "ttft_sum_s": 5.469, "ttft_p50_s": 0.596, "ttft_last_s": 0.715, "wall_s": 15.202, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "B", "visit": "B5", "mode": "hs", "seed": 112, "ok": 9, "ttft_sum_s": 116.07, "ttft_p50_s": 13.912, "ttft_last_s": 16.233, "wall_s": 21.479, "cached_tokens": [16384, 16384, 0, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "B", "visit": "B5", "mode": "solo", "seed": 112, "ok": 9, "ttft_sum_s": 5.404, "ttft_p50_s": 0.587, "ttft_last_s": 0.709, "wall_s": 14.324, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "B", "visit": "B5", "mode": "hs", "seed": 113, "ok": 9, "ttft_sum_s": 116.084, "ttft_p50_s": 13.913, "ttft_last_s": 16.223, "wall_s": 21.507, "cached_tokens": [16384, 16384, 16384, 0, 16384, 16384, 16384, 16384, 0]}
+{"arm": "B", "visit": "B5", "mode": "solo", "seed": 113, "ok": 9, "ttft_sum_s": 5.403, "ttft_p50_s": 0.586, "ttft_last_s": 0.717, "wall_s": 14.712, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+[01:06:16] min MemAvailable MB (hs-B5): 01:05:53 41615, KILLED: 0
+[01:06:22] serve hs-S6: env [ INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[01:08:10] serve hs-S6 up; Mem:             121          77          36           0           9          44
+{"arm": "S", "visit": "S6", "mode": "hs", "seed": 111, "ok": 9, "ttft_sum_s": 414.267, "ttft_p50_s": 46.2, "ttft_last_s": 89.826, "wall_s": 90.891, "cached_tokens": [2048, 2048, 2048, 2048, 2048, 0, 2048, 2048, 0]}
+{"arm": "S", "visit": "S6", "mode": "solo", "seed": 111, "ok": 9, "ttft_sum_s": 5.483, "ttft_p50_s": 0.598, "ttft_last_s": 0.71, "wall_s": 15.212, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "S", "visit": "S6", "mode": "hs", "seed": 112, "ok": 9, "ttft_sum_s": 419.708, "ttft_p50_s": 46.976, "ttft_last_s": 90.395, "wall_s": 91.552, "cached_tokens": [0, 0, 2048, 2048, 2048, 2048, 2048, 2048, 0]}
+{"arm": "S", "visit": "S6", "mode": "solo", "seed": 112, "ok": 9, "ttft_sum_s": 5.394, "ttft_p50_s": 0.587, "ttft_last_s": 0.701, "wall_s": 14.286, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "S", "visit": "S6", "mode": "hs", "seed": 113, "ok": 9, "ttft_sum_s": 412.218, "ttft_p50_s": 45.974, "ttft_last_s": 89.4, "wall_s": 90.427, "cached_tokens": [2048, 2048, 0, 2048, 2048, 2048, 2048, 2048, 0]}
+{"arm": "S", "visit": "S6", "mode": "solo", "seed": 113, "ok": 9, "ttft_sum_s": 5.371, "ttft_p50_s": 0.584, "ttft_last_s": 0.702, "wall_s": 14.602, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+[01:13:44] min MemAvailable MB (hs-S6): 01:12:08 42123, KILLED: 0
+[01:13:50] serve hs-H7: env [INTARSIA_PREFIX_HERD=1] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[01:15:36] serve hs-H7 up; Mem:             121          77          36           0           9          44
+{"arm": "H", "visit": "H7", "mode": "hs", "seed": 111, "ok": 9, "ttft_sum_s": 119.187, "ttft_p50_s": 13.406, "ttft_last_s": 15.165, "wall_s": 21.342, "cached_tokens": [16384, 0, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "H", "visit": "H7", "mode": "solo", "seed": 111, "ok": 9, "ttft_sum_s": 5.466, "ttft_p50_s": 0.594, "ttft_last_s": 0.715, "wall_s": 15.204, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "H", "visit": "H7", "mode": "hs", "seed": 112, "ok": 9, "ttft_sum_s": 118.352, "ttft_p50_s": 13.317, "ttft_last_s": 15.046, "wall_s": 21.233, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 0, 0]}
+{"arm": "H", "visit": "H7", "mode": "solo", "seed": 112, "ok": 9, "ttft_sum_s": 5.405, "ttft_p50_s": 0.587, "ttft_last_s": 0.71, "wall_s": 14.347, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "H", "visit": "H7", "mode": "hs", "seed": 113, "ok": 9, "ttft_sum_s": 118.317, "ttft_p50_s": 13.312, "ttft_last_s": 15.038, "wall_s": 21.18, "cached_tokens": [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "H", "visit": "H7", "mode": "solo", "seed": 113, "ok": 9, "ttft_sum_s": 5.378, "ttft_p50_s": 0.584, "ttft_last_s": 0.71, "wall_s": 14.673, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "H", "visit": "H7", "mode": "herd8", "seed": 121, "ok": 16, "ttft_sum_s": 247.049, "ttft_p50_s": 15.324, "ttft_last_s": 20.102, "wall_s": 27.893, "cached_tokens": [16384, 0, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "H", "visit": "H7", "mode": "solo", "seed": 121, "ok": 16, "ttft_sum_s": 9.351, "ttft_p50_s": 0.584, "ttft_last_s": 0.596, "wall_s": 24.782, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "H", "visit": "H7", "mode": "herd8", "seed": 122, "ok": 16, "ttft_sum_s": 247.282, "ttft_p50_s": 15.356, "ttft_last_s": 20.09, "wall_s": 27.996, "cached_tokens": [16384, 0, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "H", "visit": "H7", "mode": "solo", "seed": 122, "ok": 16, "ttft_sum_s": 9.363, "ttft_p50_s": 0.585, "ttft_last_s": 0.59, "wall_s": 25.82, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "H", "visit": "H7", "mode": "herd8", "seed": 123, "ok": 16, "ttft_sum_s": 246.87, "ttft_p50_s": 15.329, "ttft_last_s": 20.043, "wall_s": 27.815, "cached_tokens": [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "H", "visit": "H7", "mode": "solo", "seed": 123, "ok": 16, "ttft_sum_s": 9.315, "ttft_p50_s": 0.582, "ttft_last_s": 0.586, "wall_s": 25.005, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "H", "visit": "H7", "mode": "mix", "seed": 131, "ok": 6, "ttft_sum_s": 121.231, "ttft_p50_s": 24.198, "ttft_last_s": 25.65, "wall_s": 28.553, "cached_tokens": [16384, 0, 16384, 16384, 0, 0]}
+{"arm": "H", "visit": "H7", "mode": "solo", "seed": 131, "ok": 6, "ttft_sum_s": 5.065, "ttft_p50_s": 0.586, "ttft_last_s": 1.365, "wall_s": 11.186, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H7", "mode": "mix", "seed": 132, "ok": 6, "ttft_sum_s": 121.187, "ttft_p50_s": 22.795, "ttft_last_s": 24.183, "wall_s": 28.008, "cached_tokens": [16384, 0, 16384, 16384, 0, 0]}
+{"arm": "H", "visit": "H7", "mode": "solo", "seed": 132, "ok": 6, "ttft_sum_s": 5.072, "ttft_p50_s": 0.586, "ttft_last_s": 1.367, "wall_s": 11.501, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H7", "mode": "mix", "seed": 133, "ok": 6, "ttft_sum_s": 105.747, "ttft_p50_s": 17.548, "ttft_last_s": 24.254, "wall_s": 27.758, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H7", "mode": "solo", "seed": 133, "ok": 6, "ttft_sum_s": 5.073, "ttft_p50_s": 0.585, "ttft_last_s": 1.371, "wall_s": 11.751, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H7", "mode": "mix", "seed": 134, "ok": 6, "ttft_sum_s": 114.717, "ttft_p50_s": 24.29, "ttft_last_s": 25.746, "wall_s": 28.439, "cached_tokens": [16384, 0, 16384, 0, 0, 16384]}
+{"arm": "H", "visit": "H7", "mode": "solo", "seed": 134, "ok": 6, "ttft_sum_s": 5.104, "ttft_p50_s": 0.59, "ttft_last_s": 1.375, "wall_s": 11.674, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+[01:23:19] min MemAvailable MB (hs-H7): 01:22:53 35986, KILLED: 0
+[01:23:25] serve hs-N8: env [] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[01:25:13] serve hs-N8 up; Mem:             121          77          36           0           9          44
+{"arm": "N", "visit": "N8", "mode": "hs", "seed": 111, "ok": 9, "ttft_sum_s": 486.994, "ttft_p50_s": 55.726, "ttft_last_s": 88.366, "wall_s": 90.868, "cached_tokens": [2048, 0, 2048, 2048, 2048, 2048, 2048, 2048, 0]}
+{"arm": "N", "visit": "N8", "mode": "solo", "seed": 111, "ok": 9, "ttft_sum_s": 5.465, "ttft_p50_s": 0.596, "ttft_last_s": 0.707, "wall_s": 15.197, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "N", "visit": "N8", "mode": "hs", "seed": 112, "ok": 9, "ttft_sum_s": 483.988, "ttft_p50_s": 55.351, "ttft_last_s": 87.866, "wall_s": 90.163, "cached_tokens": [2048, 0, 2048, 2048, 2048, 2048, 2048, 2048, 0]}
+{"arm": "N", "visit": "N8", "mode": "solo", "seed": 112, "ok": 9, "ttft_sum_s": 5.4, "ttft_p50_s": 0.587, "ttft_last_s": 0.702, "wall_s": 14.392, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "N", "visit": "N8", "mode": "hs", "seed": 113, "ok": 9, "ttft_sum_s": 484.296, "ttft_p50_s": 55.322, "ttft_last_s": 87.98, "wall_s": 90.395, "cached_tokens": [2048, 0, 2048, 2048, 2048, 2048, 2048, 2048, 0]}
+{"arm": "N", "visit": "N8", "mode": "solo", "seed": 113, "ok": 9, "ttft_sum_s": 5.371, "ttft_p50_s": 0.584, "ttft_last_s": 0.701, "wall_s": 14.642, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 0]}
+{"arm": "N", "visit": "N8", "mode": "herd8", "seed": 121, "ok": 16, "ttft_sum_s": 1490.595, "ttft_p50_s": 93.308, "ttft_last_s": 174.551, "wall_s": 175.623, "cached_tokens": [2048, 2048, 2048, 2048, 2048, 2048, 2048, 0, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048]}
+{"arm": "N", "visit": "N8", "mode": "solo", "seed": 121, "ok": 16, "ttft_sum_s": 9.344, "ttft_p50_s": 0.584, "ttft_last_s": 0.589, "wall_s": 24.749, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "N", "visit": "N8", "mode": "herd8", "seed": 122, "ok": 16, "ttft_sum_s": 1516.104, "ttft_p50_s": 94.972, "ttft_last_s": 176.678, "wall_s": 177.66, "cached_tokens": [2048, 2048, 2048, 2048, 2048, 0, 2048, 2048, 2048, 2048, 2048, 2048, 0, 2048, 2048, 2048]}
+{"arm": "N", "visit": "N8", "mode": "solo", "seed": 122, "ok": 16, "ttft_sum_s": 9.371, "ttft_p50_s": 0.586, "ttft_last_s": 0.589, "wall_s": 25.892, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "N", "visit": "N8", "mode": "herd8", "seed": 123, "ok": 16, "ttft_sum_s": 1495.585, "ttft_p50_s": 93.567, "ttft_last_s": 175.293, "wall_s": 176.416, "cached_tokens": [2048, 2048, 2048, 2048, 2048, 0, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048]}
+{"arm": "N", "visit": "N8", "mode": "solo", "seed": 123, "ok": 16, "ttft_sum_s": 9.351, "ttft_p50_s": 0.584, "ttft_last_s": 0.591, "wall_s": 25.106, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "N", "visit": "N8", "mode": "mix", "seed": 131, "ok": 6, "ttft_sum_s": 196.657, "ttft_p50_s": 30.942, "ttft_last_s": 56.433, "wall_s": 57.636, "cached_tokens": [2048, 0, 2048, 2048, 0, 0]}
+{"arm": "N", "visit": "N8", "mode": "solo", "seed": 131, "ok": 6, "ttft_sum_s": 5.108, "ttft_p50_s": 0.588, "ttft_last_s": 1.384, "wall_s": 11.253, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N8", "mode": "mix", "seed": 132, "ok": 6, "ttft_sum_s": 203.875, "ttft_p50_s": 36.358, "ttft_last_s": 60.775, "wall_s": 62.03, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N8", "mode": "solo", "seed": 132, "ok": 6, "ttft_sum_s": 5.098, "ttft_p50_s": 0.589, "ttft_last_s": 1.375, "wall_s": 11.587, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N8", "mode": "mix", "seed": 133, "ok": 6, "ttft_sum_s": 214.465, "ttft_p50_s": 35.406, "ttft_last_s": 57.662, "wall_s": 59.185, "cached_tokens": [2048, 0, 2048, 0, 0, 0]}
+{"arm": "N", "visit": "N8", "mode": "solo", "seed": 133, "ok": 6, "ttft_sum_s": 5.068, "ttft_p50_s": 0.583, "ttft_last_s": 1.372, "wall_s": 11.752, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N8", "mode": "mix", "seed": 134, "ok": 6, "ttft_sum_s": 197.55, "ttft_p50_s": 33.191, "ttft_last_s": 60.527, "wall_s": 61.656, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N8", "mode": "solo", "seed": 134, "ok": 6, "ttft_sum_s": 5.133, "ttft_p50_s": 0.593, "ttft_last_s": 1.385, "wall_s": 11.767, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+[01:45:57] min MemAvailable MB (hs-N8): 01:44:59 35720, KILLED: 0
+[01:46:03] done
+[01:46:34] serve mixd-N1: env [] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[01:48:20] serve mixd-N1 up; Mem:             121          77          36           0           9          44
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 141, "ok": 6, "ttft_sum_s": 198.327, "ttft_p50_s": 34.152, "ttft_last_s": 56.553, "wall_s": 58.117, "cached_tokens": [0, 0, 2048, 2048, 0, 2048]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 141, "ok": 6, "ttft_sum_s": 5.139, "ttft_p50_s": 0.599, "ttft_last_s": 1.382, "wall_s": 11.535, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 142, "ok": 6, "ttft_sum_s": 197.593, "ttft_p50_s": 34.107, "ttft_last_s": 56.439, "wall_s": 57.794, "cached_tokens": [0, 0, 2048, 2048, 0, 2048]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 142, "ok": 6, "ttft_sum_s": 5.124, "ttft_p50_s": 0.593, "ttft_last_s": 1.389, "wall_s": 11.694, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 143, "ok": 6, "ttft_sum_s": 198.515, "ttft_p50_s": 34.194, "ttft_last_s": 56.646, "wall_s": 58.231, "cached_tokens": [0, 0, 2048, 2048, 0, 2048]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 143, "ok": 6, "ttft_sum_s": 5.096, "ttft_p50_s": 0.587, "ttft_last_s": 1.375, "wall_s": 11.782, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 151, "ok": 6, "ttft_sum_s": 183.664, "ttft_p50_s": 30.024, "ttft_last_s": 60.19, "wall_s": 61.318, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 151, "ok": 6, "ttft_sum_s": 5.077, "ttft_p50_s": 0.586, "ttft_last_s": 1.373, "wall_s": 10.756, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 152, "ok": 6, "ttft_sum_s": 180.959, "ttft_p50_s": 29.308, "ttft_last_s": 59.642, "wall_s": 60.996, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 152, "ok": 6, "ttft_sum_s": 5.082, "ttft_p50_s": 0.586, "ttft_last_s": 1.369, "wall_s": 11.84, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 153, "ok": 6, "ttft_sum_s": 183.353, "ttft_p50_s": 29.952, "ttft_last_s": 60.146, "wall_s": 61.755, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 153, "ok": 6, "ttft_sum_s": 5.107, "ttft_p50_s": 0.588, "ttft_last_s": 1.383, "wall_s": 11.783, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+[01:55:53] min MemAvailable MB (mixd-N1): 01:54:55 37570, KILLED: 0
+[01:55:59] serve mixd-H2: env [INTARSIA_PREFIX_HERD=1] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[01:57:43] serve mixd-H2 up; Mem:             121          77          36           0           9          44
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 141, "ok": 6, "ttft_sum_s": 111.704, "ttft_p50_s": 17.709, "ttft_last_s": 24.388, "wall_s": 28.305, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 141, "ok": 6, "ttft_sum_s": 5.148, "ttft_p50_s": 0.601, "ttft_last_s": 1.382, "wall_s": 11.558, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 142, "ok": 6, "ttft_sum_s": 111.564, "ttft_p50_s": 17.692, "ttft_last_s": 24.336, "wall_s": 28.214, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 142, "ok": 6, "ttft_sum_s": 5.129, "ttft_p50_s": 0.599, "ttft_last_s": 1.385, "wall_s": 11.711, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 143, "ok": 6, "ttft_sum_s": 111.054, "ttft_p50_s": 17.58, "ttft_last_s": 24.263, "wall_s": 28.059, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 143, "ok": 6, "ttft_sum_s": 5.118, "ttft_p50_s": 0.599, "ttft_last_s": 1.373, "wall_s": 11.841, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 151, "ok": 6, "ttft_sum_s": 113.476, "ttft_p50_s": 24.013, "ttft_last_s": 25.386, "wall_s": 28.284, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 151, "ok": 6, "ttft_sum_s": 5.105, "ttft_p50_s": 0.59, "ttft_last_s": 1.379, "wall_s": 10.808, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 152, "ok": 6, "ttft_sum_s": 114.6, "ttft_p50_s": 24.287, "ttft_last_s": 25.688, "wall_s": 28.549, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 152, "ok": 6, "ttft_sum_s": 5.085, "ttft_p50_s": 0.588, "ttft_last_s": 1.372, "wall_s": 11.866, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 153, "ok": 6, "ttft_sum_s": 115.061, "ttft_p50_s": 24.389, "ttft_last_s": 25.802, "wall_s": 28.533, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 153, "ok": 6, "ttft_sum_s": 5.09, "ttft_p50_s": 0.589, "ttft_last_s": 1.372, "wall_s": 11.754, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+[02:02:07] min MemAvailable MB (mixd-H2): 02:01:44 37187, KILLED: 0
+[02:02:14] serve mixd-H3: env [INTARSIA_PREFIX_HERD=1] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[02:03:58] serve mixd-H3 up; Mem:             121          77          36           0           9          44
+{"arm": "H", "visit": "H3", "mode": "mix", "seed": 141, "ok": 6, "ttft_sum_s": 111.096, "ttft_p50_s": 17.57, "ttft_last_s": 24.288, "wall_s": 28.085, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H3", "mode": "solo", "seed": 141, "ok": 6, "ttft_sum_s": 5.13, "ttft_p50_s": 0.596, "ttft_last_s": 1.377, "wall_s": 11.552, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H3", "mode": "mix", "seed": 142, "ok": 6, "ttft_sum_s": 110.971, "ttft_p50_s": 17.617, "ttft_last_s": 24.172, "wall_s": 27.401, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H3", "mode": "solo", "seed": 142, "ok": 6, "ttft_sum_s": 5.128, "ttft_p50_s": 0.601, "ttft_last_s": 1.384, "wall_s": 11.719, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H3", "mode": "mix", "seed": 143, "ok": 6, "ttft_sum_s": 110.524, "ttft_p50_s": 17.457, "ttft_last_s": 24.186, "wall_s": 27.966, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H3", "mode": "solo", "seed": 143, "ok": 6, "ttft_sum_s": 5.131, "ttft_p50_s": 0.596, "ttft_last_s": 1.385, "wall_s": 11.882, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H3", "mode": "mix", "seed": 151, "ok": 6, "ttft_sum_s": 113.441, "ttft_p50_s": 24.017, "ttft_last_s": 25.394, "wall_s": 28.26, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H3", "mode": "solo", "seed": 151, "ok": 6, "ttft_sum_s": 5.101, "ttft_p50_s": 0.59, "ttft_last_s": 1.379, "wall_s": 10.81, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H3", "mode": "mix", "seed": 152, "ok": 6, "ttft_sum_s": 115.369, "ttft_p50_s": 24.471, "ttft_last_s": 25.873, "wall_s": 28.735, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H3", "mode": "solo", "seed": 152, "ok": 6, "ttft_sum_s": 5.102, "ttft_p50_s": 0.59, "ttft_last_s": 1.377, "wall_s": 11.922, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H3", "mode": "mix", "seed": 153, "ok": 6, "ttft_sum_s": 115.259, "ttft_p50_s": 24.435, "ttft_last_s": 25.85, "wall_s": 28.591, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H3", "mode": "solo", "seed": 153, "ok": 6, "ttft_sum_s": 5.107, "ttft_p50_s": 0.589, "ttft_last_s": 1.377, "wall_s": 11.833, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+[02:08:22] min MemAvailable MB (mixd-H3): 02:07:59 37394, KILLED: 0
+[02:08:29] serve mixd-N4: env [] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[02:10:17] serve mixd-N4 up; Mem:             121          77          36           0           9          44
+{"arm": "N", "visit": "N4", "mode": "mix", "seed": 141, "ok": 6, "ttft_sum_s": 197.709, "ttft_p50_s": 33.999, "ttft_last_s": 56.432, "wall_s": 57.999, "cached_tokens": [0, 0, 2048, 2048, 0, 2048]}
+{"arm": "N", "visit": "N4", "mode": "solo", "seed": 141, "ok": 6, "ttft_sum_s": 5.138, "ttft_p50_s": 0.601, "ttft_last_s": 1.382, "wall_s": 11.533, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N4", "mode": "mix", "seed": 142, "ok": 6, "ttft_sum_s": 197.611, "ttft_p50_s": 34.07, "ttft_last_s": 56.492, "wall_s": 57.844, "cached_tokens": [0, 0, 2048, 2048, 0, 2048]}
+{"arm": "N", "visit": "N4", "mode": "solo", "seed": 142, "ok": 6, "ttft_sum_s": 5.123, "ttft_p50_s": 0.594, "ttft_last_s": 1.388, "wall_s": 11.679, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N4", "mode": "mix", "seed": 143, "ok": 6, "ttft_sum_s": 197.881, "ttft_p50_s": 34.096, "ttft_last_s": 56.366, "wall_s": 57.95, "cached_tokens": [0, 0, 2048, 2048, 0, 2048]}
+{"arm": "N", "visit": "N4", "mode": "solo", "seed": 143, "ok": 6, "ttft_sum_s": 5.101, "ttft_p50_s": 0.591, "ttft_last_s": 1.375, "wall_s": 11.803, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N4", "mode": "mix", "seed": 151, "ok": 6, "ttft_sum_s": 182.768, "ttft_p50_s": 29.808, "ttft_last_s": 59.982, "wall_s": 61.107, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N4", "mode": "solo", "seed": 151, "ok": 6, "ttft_sum_s": 5.083, "ttft_p50_s": 0.585, "ttft_last_s": 1.375, "wall_s": 10.768, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N4", "mode": "mix", "seed": 152, "ok": 6, "ttft_sum_s": 184.431, "ttft_p50_s": 30.081, "ttft_last_s": 60.621, "wall_s": 61.99, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N4", "mode": "solo", "seed": 152, "ok": 6, "ttft_sum_s": 5.108, "ttft_p50_s": 0.589, "ttft_last_s": 1.381, "wall_s": 11.895, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N4", "mode": "mix", "seed": 153, "ok": 6, "ttft_sum_s": 181.737, "ttft_p50_s": 29.512, "ttft_last_s": 59.76, "wall_s": 61.369, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N4", "mode": "solo", "seed": 153, "ok": 6, "ttft_sum_s": 5.088, "ttft_p50_s": 0.588, "ttft_last_s": 1.371, "wall_s": 11.757, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+[02:17:49] min MemAvailable MB (mixd-N4): 02:16:52 37497, KILLED: 0
+[02:17:54] done
+[02:18:34] serve age-F1: env [INTARSIA_CB_NO_REUSE=1] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:20:41] serve age-F1 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "F", "d": 2, "rep": 1, "long_ttft": 33.908, "short_ttft": {"s1": 33.196, "s2": 32.093}, "dec_tok_s_in_window": 3.01, "itl_window": {"n": 204, "p50": 0.4545635449976544, "p99": 0.7864179159987543, "max": 0.806504539999878, "mean": 0.3260796177352912}, "itl_base": {"n": 78, "p50": 2.7760001103160903e-05, "p99": 0.06882360799863818, "max": 0.06891245500082732, "mean": 0.02255731546154913}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "F", "d": 2, "rep": 2, "long_ttft": 33.911, "short_ttft": {"s1": 33.187, "s2": 32.086}, "dec_tok_s_in_window": 3.02, "itl_window": {"n": 205, "p50": 0.45478445700064185, "p99": 0.7891633440012811, "max": 0.8065183329999854, "mean": 0.3278354670048873}, "itl_base": {"n": 78, "p50": 2.7343998226569965e-05, "p99": 0.06808530799753498, "max": 0.06835831399803283, "mean": 0.022507356961562974}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "F", "d": 2, "rep": 3, "long_ttft": 33.914, "short_ttft": {"s1": 33.192, "s2": 32.095}, "dec_tok_s_in_window": 3.04, "itl_window": {"n": 206, "p50": 0.4541204130000551, "p99": 0.793762378001702, "max": 0.8082142940002086, "mean": 0.32938004095146944}, "itl_base": {"n": 78, "p50": 2.043200220214203e-05, "p99": 0.0683070660015801, "max": 0.06843900099920575, "mean": 0.022526926730745637}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+[02:25:04] min MemAvailable MB (age-F1): 02:24:41 49493, KILLED: 0
+[02:25:09] serve age-42: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=4] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:26:52] serve age-42 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "4", "d": 2, "rep": 1, "long_ttft": 35.464, "short_ttft": {"s1": 2.054, "s2": 7.63}, "dec_tok_s_in_window": 2.65, "itl_window": {"n": 188, "p50": 0.48768428600305924, "p99": 0.7943434029984928, "max": 0.8088669649987423, "mean": 0.37800159895745156}, "itl_base": {"n": 72, "p50": 2.131200017174706e-05, "p99": 0.06920835900018574, "max": 0.06963056499807863, "mean": 0.02263656111113556}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "4", "d": 2, "rep": 2, "long_ttft": 35.432, "short_ttft": {"s1": 2.014, "s2": 7.587}, "dec_tok_s_in_window": 2.65, "itl_window": {"n": 188, "p50": 0.48269159000119544, "p99": 0.7936399339996569, "max": 0.8089364849984122, "mean": 0.3776435685000019}, "itl_base": {"n": 72, "p50": 2.211199898738414e-05, "p99": 0.06959891700171283, "max": 0.06968738000068697, "mean": 0.022737046638920018}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "4", "d": 2, "rep": 3, "long_ttft": 35.42, "short_ttft": {"s1": 1.99, "s2": 7.541}, "dec_tok_s_in_window": 2.54, "itl_window": {"n": 180, "p50": 0.48451582100096857, "p99": 0.7917177359995549, "max": 0.8138443019997794, "mean": 0.3864502495889004}, "itl_base": {"n": 78, "p50": 2.7760001103160903e-05, "p99": 0.06827461899956688, "max": 0.06880028000159655, "mean": 0.02257977170516731}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+[02:31:15] min MemAvailable MB (age-42): 02:30:03 49513, KILLED: 0
+[02:31:21] serve age-83: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:33:03] serve age-83 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "8", "d": 2, "rep": 1, "long_ttft": 35.442, "short_ttft": {"s1": 2.044, "s2": 7.626}, "dec_tok_s_in_window": 2.55, "itl_window": {"n": 181, "p50": 0.4876624320022529, "p99": 0.7889329009994981, "max": 0.8092465970003104, "mean": 0.38809375730938905}, "itl_base": {"n": 78, "p50": 2.459199822624214e-05, "p99": 0.06851484200160485, "max": 0.06860813700041035, "mean": 0.022588063782024666}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "8", "d": 2, "rep": 2, "long_ttft": 35.362, "short_ttft": {"s1": 2.007, "s2": 7.577}, "dec_tok_s_in_window": 2.56, "itl_window": {"n": 181, "p50": 0.4870637780004472, "p99": 0.7936119830010284, "max": 0.8096675540000433, "mean": 0.3872389746077147}, "itl_base": {"n": 78, "p50": 1.8512000679038465e-05, "p99": 0.0687300729987328, "max": 0.06903863200204796, "mean": 0.022607442576909074}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "8", "d": 2, "rep": 3, "long_ttft": 35.514, "short_ttft": {"s1": 2.032, "s2": 7.634}, "dec_tok_s_in_window": 2.62, "itl_window": {"n": 186, "p50": 0.477652975001547, "p99": 0.7939449529985723, "max": 0.8098070550004195, "mean": 0.37569480419892165}, "itl_base": {"n": 72, "p50": 2.8352002118481323e-05, "p99": 0.069151857001998, "max": 0.06922734799809405, "mean": 0.022644134277824277}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+[02:37:26] min MemAvailable MB (age-83): 02:35:35 49505, KILLED: 0
+[02:37:32] serve age-164: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=16] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:39:22] serve age-164 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "16", "d": 2, "rep": 1, "long_ttft": 35.574, "short_ttft": {"s1": 2.021, "s2": 7.603}, "dec_tok_s_in_window": 2.54, "itl_window": {"n": 181, "p50": 0.49190043899943703, "p99": 0.7978523450001376, "max": 0.8167383010004414, "mean": 0.3901340046464229}, "itl_base": {"n": 72, "p50": 2.460799805703573e-05, "p99": 0.06875959999888437, "max": 0.06886214699989068, "mean": 0.022688700069415466}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "16", "d": 2, "rep": 2, "long_ttft": 35.561, "short_ttft": {"s1": 2.02, "s2": 7.62}, "dec_tok_s_in_window": 2.64, "itl_window": {"n": 188, "p50": 0.4861333730004844, "p99": 0.7956365280006139, "max": 0.8129920410028717, "mean": 0.37901931304257114}, "itl_base": {"n": 72, "p50": 1.886499740066938e-05, "p99": 0.06884621899735066, "max": 0.0691024620027747, "mean": 0.022711181611056317}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "16", "d": 2, "rep": 3, "long_ttft": 35.445, "short_ttft": {"s1": 2.014, "s2": 7.614}, "dec_tok_s_in_window": 2.57, "itl_window": {"n": 182, "p50": 0.48920286700013094, "p99": 0.7933780169987585, "max": 0.8163601180021942, "mean": 0.3895866916758038}, "itl_base": {"n": 78, "p50": 2.215999847976491e-05, "p99": 0.06859150200034492, "max": 0.06889301000046544, "mean": 0.022574286141044026}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+[02:43:46] min MemAvailable MB (age-164): 02:41:50 49471, KILLED: 0
+[02:43:51] serve age-165: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=16] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:45:38] serve age-165 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "16", "d": 2, "rep": 1, "long_ttft": 35.421, "short_ttft": {"s1": 2.03, "s2": 7.607}, "dec_tok_s_in_window": 2.55, "itl_window": {"n": 181, "p50": 0.4860219149995828, "p99": 0.7933344909979496, "max": 0.8099984709988348, "mean": 0.387878957110496}, "itl_base": {"n": 78, "p50": 2.702399797271937e-05, "p99": 0.06877149200226995, "max": 0.06891944399831118, "mean": 0.022585633551268705}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "16", "d": 2, "rep": 2, "long_ttft": 35.435, "short_ttft": {"s1": 1.985, "s2": 7.561}, "dec_tok_s_in_window": 2.55, "itl_window": {"n": 181, "p50": 0.4843549519973749, "p99": 0.7916743800014956, "max": 0.8156975480014808, "mean": 0.38804031741989164}, "itl_base": {"n": 78, "p50": 2.0800001948373392e-05, "p99": 0.06905177299995557, "max": 0.06927246199848014, "mean": 0.02258174833332305}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "16", "d": 2, "rep": 3, "long_ttft": 35.389, "short_ttft": {"s1": 2.017, "s2": 7.585}, "dec_tok_s_in_window": 2.64, "itl_window": {"n": 187, "p50": 0.475855421002052, "p99": 0.7884841830018559, "max": 0.8065166960004717, "mean": 0.3757310771657808}, "itl_base": {"n": 72, "p50": 2.4704000679776073e-05, "p99": 0.06843906299764058, "max": 0.06863290299952496, "mean": 0.02262650355558233}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+[02:50:01] min MemAvailable MB (age-165): 02:49:02 49497, KILLED: 0
+[02:50:06] serve age-86: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:51:53] serve age-86 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "8", "d": 2, "rep": 1, "long_ttft": 35.504, "short_ttft": {"s1": 2.062, "s2": 7.654}, "dec_tok_s_in_window": 2.63, "itl_window": {"n": 187, "p50": 0.48243234300025506, "p99": 0.7934692029994039, "max": 0.81016465400171, "mean": 0.3769561096310026}, "itl_base": {"n": 72, "p50": 2.081600177916698e-05, "p99": 0.0700770770017698, "max": 0.07009344499965664, "mean": 0.022675075458310958}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "8", "d": 2, "rep": 2, "long_ttft": 35.436, "short_ttft": {"s1": 2.013, "s2": 7.622}, "dec_tok_s_in_window": 2.55, "itl_window": {"n": 181, "p50": 0.48765111900138436, "p99": 0.7894097299977147, "max": 0.810927429000003, "mean": 0.38806361593368777}, "itl_base": {"n": 78, "p50": 2.0608000340871513e-05, "p99": 0.06878387699907762, "max": 0.0688489970016235, "mean": 0.0225976753974511}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "8", "d": 2, "rep": 3, "long_ttft": 35.389, "short_ttft": {"s1": 2.014, "s2": 7.588}, "dec_tok_s_in_window": 2.56, "itl_window": {"n": 181, "p50": 0.48733147500024643, "p99": 0.7900897899999109, "max": 0.8136361299984856, "mean": 0.38749193987846986}, "itl_base": {"n": 78, "p50": 2.5471999833825976e-05, "p99": 0.06896641300045303, "max": 0.06897010999819031, "mean": 0.022598298192277957}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+[02:56:18] min MemAvailable MB (age-86): 02:55:39 49492, KILLED: 0
+[02:56:23] serve age-47: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=4] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[02:58:10] serve age-47 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "4", "d": 2, "rep": 1, "long_ttft": 35.578, "short_ttft": {"s1": 2.071, "s2": 7.674}, "dec_tok_s_in_window": 2.64, "itl_window": {"n": 188, "p50": 0.4899564629995439, "p99": 0.7913224719995924, "max": 0.8139433319993259, "mean": 0.3791666174202158}, "itl_base": {"n": 72, "p50": 2.8384001780068502e-05, "p99": 0.06867114799752017, "max": 0.06874393299949588, "mean": 0.0226980379721782}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "4", "d": 2, "rep": 2, "long_ttft": 35.533, "short_ttft": {"s1": 2.008, "s2": 7.624}, "dec_tok_s_in_window": 2.56, "itl_window": {"n": 182, "p50": 0.48703012599798967, "p99": 0.7942382719993475, "max": 0.8172088879982766, "mean": 0.3905320095054776}, "itl_base": {"n": 78, "p50": 2.7760001103160903e-05, "p99": 0.06882412800041493, "max": 0.06905393499982893, "mean": 0.022607047320539444}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "4", "d": 2, "rep": 3, "long_ttft": 35.46, "short_ttft": {"s1": 2.016, "s2": 7.587}, "dec_tok_s_in_window": 2.62, "itl_window": {"n": 186, "p50": 0.47806702100206167, "p99": 0.7961465810003574, "max": 0.8119243219989585, "mean": 0.37507659166668195}, "itl_base": {"n": 72, "p50": 3.440000000409782e-05, "p99": 0.06976758900054847, "max": 0.06977837299928069, "mean": 0.022753271041640093}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+[03:02:33] min MemAvailable MB (age-47): 03:02:24 49489, KILLED: 0
+[03:02:39] serve age-F8: env [INTARSIA_CB_NO_REUSE=1] --max-seq 49152 --max-batch 4 ; Mem:             121          44          68           0           9          76
+[03:04:25] serve age-F8 up; Mem:             121          72          41           0           9          49
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+{"scn": "longshort", "arm": "F", "d": 2, "rep": 1, "long_ttft": 34.065, "short_ttft": {"s1": 33.358, "s2": 32.258}, "dec_tok_s_in_window": 2.99, "itl_window": {"n": 204, "p50": 0.4546632880010293, "p99": 0.788557440002478, "max": 0.8131671160008409, "mean": 0.32756976591176057}, "itl_base": {"n": 78, "p50": 2.0815998141188174e-05, "p99": 0.0688327810021292, "max": 0.06934252499922877, "mean": 0.022546939153844738}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "F", "d": 2, "rep": 2, "long_ttft": 33.934, "short_ttft": {"s1": 33.213, "s2": 32.122}, "dec_tok_s_in_window": 3.02, "itl_window": {"n": 205, "p50": 0.4546358389998204, "p99": 0.7889737090008566, "max": 0.8077708690034342, "mean": 0.32798317413169836}, "itl_base": {"n": 78, "p50": 2.0560000848490745e-05, "p99": 0.06849663000321016, "max": 0.0686046789996908, "mean": 0.022601611589776346}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+{"scn": "longshort", "arm": "F", "d": 2, "rep": 3, "long_ttft": 34.094, "short_ttft": {"s1": 33.376, "s2": 32.285}, "dec_tok_s_in_window": 3.09, "itl_window": {"n": 211, "p50": 0.44355979800093337, "p99": 0.792231825998897, "max": 0.8133132100010698, "mean": 0.3206868929383913}, "itl_base": {"n": 72, "p50": 2.4864002625690773e-05, "p99": 0.06960723399970448, "max": 0.07028961800097022, "mean": 0.022690093027752784}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true}}
+[03:08:48] min MemAvailable MB (age-F8): 03:07:09 49479, KILLED: 0
+[03:08:52] done
+[03:09:04] serve diag-mb16-store: env [] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[03:10:51] serve diag-mb16-store up; Mem:             121          77          36           0           9          44
+    0     11     43      -     96      0      0      0      0      0 
+    0     11     43      -     96      0      0      0      0      0 
+    0     12     43      -     96      0      0      0      0      0 
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 308075 nvidia    20   0 1013108 166848  67844 S   0.0   0.1   0:00.17 intarsia
+{"arm": "mb16-store", "visit": "mb16-store", "mode": "distinct", "seed": 701, "ok": 3, "ttft_sum_s": 70.595, "ttft_p50_s": 23.365, "ttft_last_s": 36.286, "wall_s": 37.982, "cached_tokens": [0, 0, 0]}
+    0     12     44      -     96      0      0      0      0      0 
+    0     11     44      -     61      0      0      0      0      0 
+    0     11     43      -     96      0      0      0      0      0 
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 308075 nvidia    20   0 1013108 166848  67844 S   0.0   0.1   0:00.19 intarsia
+{"arm": "mb16-store", "visit": "mb16-store", "mode": "distinct", "seed": 702, "ok": 3, "ttft_sum_s": 71.137, "ttft_p50_s": 23.521, "ttft_last_s": 36.735, "wall_s": 38.666, "cached_tokens": [0, 0, 0]}
+[03:12:19] min MemAvailable MB (diag-mb16-store): 03:12:14 40852, KILLED: 0
+[03:12:26] serve diag-mb8-store: env [] --max-seq 24576 --max-batch 8 --prefix-store on ; Mem:             121          44          68           0           9          76
+[03:14:08] serve diag-mb8-store up; Mem:             121          71          41           0           9          49
+    0     11     42      -     96      0      0      0      0      0 
+    0     11     42      -     96      0      0      0      0      0 
+    0     11     43      -     56      0      0      0      0      0 
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 316645 nvidia    20   0 1013108 166840  67836 S   0.0   0.1   0:00.27 intarsia
+{"arm": "mb8-store", "visit": "mb8-store", "mode": "distinct", "seed": 701, "ok": 3, "ttft_sum_s": 70.726, "ttft_p50_s": 23.461, "ttft_last_s": 36.321, "wall_s": 37.799, "cached_tokens": [0, 0, 0]}
+    0     11     43      -     96      0      0      0      0      0 
+    0     11     43      -     96      0      0      0      0      0 
+    0     11     43      -     69      0      0      0      0      0 
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 316645 nvidia    20   0 1013108 166840  67836 S   0.0   0.1   0:00.28 intarsia
+{"arm": "mb8-store", "visit": "mb8-store", "mode": "distinct", "seed": 702, "ok": 3, "ttft_sum_s": 71.724, "ttft_p50_s": 23.66, "ttft_last_s": 37.174, "wall_s": 39.086, "cached_tokens": [0, 0, 0]}
+[03:15:37] min MemAvailable MB (diag-mb8-store): 03:15:34 46231, KILLED: 0
+[03:15:42] serve diag-mb16: env [] --max-seq 24576 --max-batch 16 ; Mem:             121          44          68           0           9          76
+[03:17:50] serve diag-mb16 up; Mem:             121          78          34           0           9          43
+    0     12     42      -     96      0      0      0      0      0 
+    0     12     42      -     96      0      0      0      0      0 
+    0     12     42      -     96      0      0      0      0      0 
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 324828 nvidia    20   0 1013108 166836  67836 S   0.0   0.1   0:00.17 intarsia
+{"arm": "mb16", "visit": "mb16", "mode": "distinct", "seed": 701, "ok": 3, "ttft_sum_s": 67.331, "ttft_p50_s": 22.441, "ttft_last_s": 34.31, "wall_s": 35.436, "cached_tokens": [0, 0, 0]}
+    0     12     43      -     96      0      0      0      0      0 
+    0     12     43      -     96      0      0      0      0      0 
+    0     12     43      -     96      0      0      0      0      0 
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 324828 nvidia    20   0 1013108 166836  67836 S   0.0   0.1   0:00.19 intarsia
+{"arm": "mb16", "visit": "mb16", "mode": "distinct", "seed": 702, "ok": 3, "ttft_sum_s": 67.198, "ttft_p50_s": 22.367, "ttft_last_s": 34.303, "wall_s": 35.817, "cached_tokens": [0, 0, 0]}
+[03:19:12] min MemAvailable MB (diag-mb16): 03:19:07 43241, KILLED: 0
+[03:19:17] serve diag-mb1: env [] --max-seq 24576 ; Mem:             121          44          68           0           9          76
+[03:21:01] serve diag-mb1 up; Mem:             121          68          45           0           9          53
+    0     12     42      -     96      0      0      0      0      0 
+    0     12     42      -     96      0      0      0      0      0 
+    0     12     43      -     96      0      0      0      0      0 
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 334335 nvidia    20   0 1013108 166780  67780 S   0.0   0.1   0:00.24 intarsia
+{"arm": "mb1", "visit": "mb1", "mode": "distinct", "seed": 701, "ok": 3, "ttft_sum_s": 62.343, "ttft_p50_s": 20.837, "ttft_last_s": 31.593, "wall_s": 32.55, "cached_tokens": [0, 0, 0]}
+    0     12     44      -     96      0      0      0      0      0 
+    0     12     43      -     96      0      0      0      0      0 
+    0     12     43      -     96      0      0      0      0      0 
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 334335 nvidia    20   0 1013108 166780  67780 S   0.0   0.1   0:00.25 intarsia
+{"arm": "mb1", "visit": "mb1", "mode": "distinct", "seed": 702, "ok": 3, "ttft_sum_s": 62.461, "ttft_p50_s": 20.954, "ttft_last_s": 31.681, "wall_s": 32.901, "cached_tokens": [0, 0, 0]}
+[03:22:18] min MemAvailable MB (diag-mb1): 03:21:53 53745, KILLED: 0
+[03:22:22] done
+[03:23:04] serve dec-F1: env [INTARSIA_CB_NO_REUSE=1] --max-seq 49152 --max-batch 8 ; Mem:             121          44          68           0           9          76
+[03:24:47] serve dec-F1 up; Mem:             121          77          36           0           9          44
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "long", "arm": "F", "d": 3, "rep": 1, "long_ttft": 33.794, "short_ttft": {}, "dec_tok_s_in_window": 1.81, "itl_window": {"n": 184, "p50": 0.5592810640009702, "p99": 0.7868243089978932, "max": 0.7874021149982582, "mean": 0.5443914756684812}, "itl_base": {"n": 42, "p50": 0.03848587899847189, "p99": 0.04042705599931651, "max": 0.04042705599931651, "mean": 0.0385090663333228}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true}}
+{"scn": "longshort", "arm": "F", "d": 3, "rep": 1, "long_ttft": 33.748, "short_ttft": {"s1": 33.053, "s2": 31.371}, "dec_tok_s_in_window": 1.79, "itl_window": {"n": 181, "p50": 0.5670967440019012, "p99": 0.7846689319994766, "max": 0.7854449439983, "mean": 0.5524442401325982}, "itl_base": {"n": 42, "p50": 0.038663871000608196, "p99": 0.039460781001253054, "max": 0.039460781001253054, "mean": 0.038540287119065486}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true, "s1": true, "s2": true}}
+{"scn": "long", "arm": "F", "d": 4, "rep": 1, "long_ttft": 33.977, "short_ttft": {}, "dec_tok_s_in_window": 1.78, "itl_window": {"n": 242, "p50": 0.5718915589968674, "p99": 0.7841372250004497, "max": 0.7843596719976631, "mean": 0.5566236903264363}, "itl_base": {"n": 40, "p50": 0.04297055300048669, "p99": 0.04394483900250634, "max": 0.04394483900250634, "mean": 0.04289105797497541}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true}}
+{"scn": "longshort", "arm": "F", "d": 4, "rep": 1, "long_ttft": 33.837, "short_ttft": {"s1": 33.135, "s2": 31.461}, "dec_tok_s_in_window": 1.82, "itl_window": {"n": 247, "p50": 0.5610445249985787, "p99": 0.7787781420011015, "max": 0.77984300299795, "mean": 0.5459810803643741}, "itl_base": {"n": 40, "p50": 0.04255118599758134, "p99": 0.043696446999092586, "max": 0.043696446999092586, "mean": 0.04251881569998659}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true, "s1": true, "s2": true}}
+{"scn": "long", "arm": "F", "d": 3, "rep": 2, "long_ttft": 33.656, "short_ttft": {}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 182, "p50": 0.5629170860011072, "p99": 0.7768172399992181, "max": 0.7770896879992506, "mean": 0.5516411476977997}, "itl_base": {"n": 42, "p50": 0.038551395999093074, "p99": 0.03952758599916706, "max": 0.03952758599916706, "mean": 0.03843429078577693}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true}}
+{"scn": "longshort", "arm": "F", "d": 3, "rep": 2, "long_ttft": 33.668, "short_ttft": {"s1": 32.954, "s2": 31.255}, "dec_tok_s_in_window": 1.84, "itl_window": {"n": 186, "p50": 0.5576594260019192, "p99": 0.7779251719985041, "max": 0.7785756019984547, "mean": 0.5436082636290174}, "itl_base": {"n": 42, "p50": 0.03796389900162467, "p99": 0.039145160000771284, "max": 0.039145160000771284, "mean": 0.03789249869052063}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true, "s1": true, "s2": true}}
+{"scn": "long", "arm": "F", "d": 4, "rep": 2, "long_ttft": 33.951, "short_ttft": {}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 244, "p50": 0.5711735980003141, "p99": 0.7834316900007252, "max": 0.7839310169983946, "mean": 0.5571476535901564}, "itl_base": {"n": 40, "p50": 0.042315571998187806, "p99": 0.0448929890008003, "max": 0.0448929890008003, "mean": 0.04263654339993082}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true}}
+ssh: connect to host spark-fa00 port 22: Operation timed out
+[03:38:17] min MemAvailable MB (dec-F1): , KILLED: 
+[03:38:23] serve dec-S2: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 49152 --max-batch 8 ; Mem:             121          44          68           0           9          76
+[03:40:05] serve dec-S2 up; Mem:             121          77          36           0           9          44
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "long", "arm": "S", "d": 3, "rep": 1, "long_ttft": 33.598, "short_ttft": {}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 181, "p50": 0.564150777998293, "p99": 0.7790974010022182, "max": 0.7793679440001142, "mean": 0.5499225327955841}, "itl_base": {"n": 42, "p50": 0.03818972899898654, "p99": 0.03947287799746846, "max": 0.03947287799746846, "mean": 0.03820457345231955}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true}}
+{"scn": "longshort", "arm": "S", "d": 3, "rep": 1, "long_ttft": 35.22, "short_ttft": {"s1": 1.921, "s2": 1.584}, "dec_tok_s_in_window": 1.87, "itl_window": {"n": 198, "p50": 0.547935005997715, "p99": 0.7799022910003259, "max": 0.7806607849997818, "mean": 0.5341712466969961}, "itl_base": {"n": 42, "p50": 0.038305795002088416, "p99": 0.039151984001364326, "max": 0.039151984001364326, "mean": 0.038277541595172285}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true, "s1": true, "s2": true}}
+{"scn": "long", "arm": "S", "d": 4, "rep": 1, "long_ttft": 33.92, "short_ttft": {}, "dec_tok_s_in_window": 1.82, "itl_window": {"n": 247, "p50": 0.564977257999999, "p99": 0.7834420110011706, "max": 0.784234385999298, "mean": 0.5472873859595013}, "itl_base": {"n": 40, "p50": 0.04232199100079015, "p99": 0.0446436279999034, "max": 0.0446436279999034, "mean": 0.04251057045003108}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true}}
+{"scn": "longshort", "arm": "S", "d": 4, "rep": 1, "long_ttft": 35.644, "short_ttft": {"s1": 1.961, "s2": 1.652}, "dec_tok_s_in_window": 1.84, "itl_window": {"n": 263, "p50": 0.5535838219984726, "p99": 0.7834967779999715, "max": 0.7850854660027835, "mean": 0.5402763919505784}, "itl_base": {"n": 40, "p50": 0.042220360999635886, "p99": 0.04390207100004773, "max": 0.04390207100004773, "mean": 0.0423750734749774}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true, "s1": true, "s2": true}}
+{"scn": "long", "arm": "S", "d": 3, "rep": 2, "long_ttft": 33.617, "short_ttft": {}, "dec_tok_s_in_window": 1.81, "itl_window": {"n": 183, "p50": 0.5655492980004055, "p99": 0.7826782150004874, "max": 0.7838700280008197, "mean": 0.551566530573767}, "itl_base": {"n": 42, "p50": 0.03826516100161825, "p99": 0.03907611300019198, "max": 0.03907611300019198, "mean": 0.03822675833336169}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true}}
+{"scn": "longshort", "arm": "S", "d": 3, "rep": 2, "long_ttft": 35.272, "short_ttft": {"s1": 1.914, "s2": 1.577}, "dec_tok_s_in_window": 1.82, "itl_window": {"n": 193, "p50": 0.5533428359995014, "p99": 0.7739998629986076, "max": 0.7745950100033951, "mean": 0.5419346899119104}, "itl_base": {"n": 42, "p50": 0.03819800899873371, "p99": 0.039170945001387736, "max": 0.039170945001387736, "mean": 0.03829956647617413}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true, "s1": true, "s2": true}}
+{"scn": "long", "arm": "S", "d": 4, "rep": 2, "long_ttft": 34.046, "short_ttft": {}, "dec_tok_s_in_window": 1.79, "itl_window": {"n": 244, "p50": 0.5644789940015471, "p99": 0.7837345490006555, "max": 0.7843410399982531, "mean": 0.5480054886885362}, "itl_base": {"n": 40, "p50": 0.04252805000214721, "p99": 0.04380269700050121, "max": 0.04380269700050121, "mean": 0.04259088979997614}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true}}
+{"scn": "longshort", "arm": "S", "d": 4, "rep": 2, "long_ttft": 35.906, "short_ttft": {"s1": 2.023, "s2": 1.73}, "dec_tok_s_in_window": 1.82, "itl_window": {"n": 262, "p50": 0.557227564000641, "p99": 0.7867430400001467, "max": 0.7870735020005668, "mean": 0.5437898981984894}, "itl_base": {"n": 40, "p50": 0.04293055599919171, "p99": 0.0453170830005547, "max": 0.0453170830005547, "mean": 0.04289048149994414}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true, "s1": true, "s2": true}}
+[03:51:15] min MemAvailable MB (dec-S2): 03:47:22 44363, KILLED: 0
+[03:51:21] serve dec-S3: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 49152 --max-batch 8 ; Mem:             121          44          68           0           9          76
+[03:53:03] serve dec-S3 up; Mem:             121          77          36           0           9          44
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "long", "arm": "S", "d": 3, "rep": 1, "long_ttft": 33.629, "short_ttft": {}, "dec_tok_s_in_window": 1.79, "itl_window": {"n": 181, "p50": 0.564292351999029, "p99": 0.7760399850012618, "max": 0.7766086379997432, "mean": 0.5504775555801036}, "itl_base": {"n": 42, "p50": 0.03811251599836396, "p99": 0.0391373750026105, "max": 0.0391373750026105, "mean": 0.038142533666662835}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true}}
+{"scn": "longshort", "arm": "S", "d": 3, "rep": 1, "long_ttft": 35.354, "short_ttft": {"s1": 1.916, "s2": 1.587}, "dec_tok_s_in_window": 1.84, "itl_window": {"n": 195, "p50": 0.5509811019983317, "p99": 0.7770238600023731, "max": 0.7776360809984908, "mean": 0.5443590805846048}, "itl_base": {"n": 42, "p50": 0.03818454300198937, "p99": 0.03955434499948751, "max": 0.03955434499948751, "mean": 0.038239531642916734}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true, "s1": true, "s2": true}}
+{"scn": "long", "arm": "S", "d": 4, "rep": 1, "long_ttft": 33.85, "short_ttft": {}, "dec_tok_s_in_window": 1.81, "itl_window": {"n": 245, "p50": 0.5597660269995686, "p99": 0.7817790770022839, "max": 0.7820080359997519, "mean": 0.5453880746122622}, "itl_base": {"n": 40, "p50": 0.04249997400256689, "p99": 0.04366214399851742, "max": 0.04366214399851742, "mean": 0.042493975499928636}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true}}
+{"scn": "longshort", "arm": "S", "d": 4, "rep": 1, "long_ttft": 35.428, "short_ttft": {"s1": 1.944, "s2": 1.627}, "dec_tok_s_in_window": 1.83, "itl_window": {"n": 259, "p50": 0.555147262999526, "p99": 0.7769957019991125, "max": 0.7775236039997253, "mean": 0.5447721975057928}, "itl_base": {"n": 44, "p50": 0.0424230409989832, "p99": 0.043628379000438144, "max": 0.043628379000438144, "mean": 0.04235369538632354}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true, "s1": true, "s2": true}}
+{"scn": "long", "arm": "S", "d": 3, "rep": 2, "long_ttft": 33.488, "short_ttft": {}, "dec_tok_s_in_window": 1.82, "itl_window": {"n": 183, "p50": 0.562208928000473, "p99": 0.7727641479978047, "max": 0.7735208649974084, "mean": 0.5490656402841518}, "itl_base": {"n": 45, "p50": 0.037654253999789944, "p99": 0.03868890599915176, "max": 0.03868890599915176, "mean": 0.03777255464438996}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true}}
+{"scn": "longshort", "arm": "S", "d": 3, "rep": 2, "long_ttft": 35.168, "short_ttft": {"s1": 1.914, "s2": 1.559}, "dec_tok_s_in_window": 1.87, "itl_window": {"n": 197, "p50": 0.5502796649998345, "p99": 0.7733711740002036, "max": 0.7738087399993674, "mean": 0.5327981820558533}, "itl_base": {"n": 42, "p50": 0.0379691880007158, "p99": 0.03901716800100985, "max": 0.03901716800100985, "mean": 0.03804177064289217}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true, "s1": true, "s2": true}}
+{"scn": "long", "arm": "S", "d": 4, "rep": 2, "long_ttft": 33.8, "short_ttft": {}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 244, "p50": 0.5581161039990548, "p99": 0.7817149030015571, "max": 0.7819157819976681, "mean": 0.5441127891639195}, "itl_base": {"n": 40, "p50": 0.04228359300032025, "p99": 0.04391489900081069, "max": 0.04391489900081069, "mean": 0.04231143342494761}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true}}
+{"scn": "longshort", "arm": "S", "d": 4, "rep": 2, "long_ttft": 35.517, "short_ttft": {"s1": 1.952, "s2": 1.632}, "dec_tok_s_in_window": 1.83, "itl_window": {"n": 260, "p50": 0.5586598549998598, "p99": 0.7809416230011266, "max": 0.7817912990030891, "mean": 0.5464968648923016}, "itl_base": {"n": 44, "p50": 0.04236742300054175, "p99": 0.043274506999296136, "max": 0.043274506999296136, "mean": 0.042339191340943216}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true, "s1": true, "s2": true}}
+[04:04:11] min MemAvailable MB (dec-S3): 03:57:51 44330, KILLED: 0
+[04:04:16] serve dec-F4: env [INTARSIA_CB_NO_REUSE=1] --max-seq 49152 --max-batch 8 ; Mem:             121          44          68           0           9          76
+[04:06:03] serve dec-F4 up; Mem:             121          77          36           0           9          44
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "long", "arm": "F", "d": 3, "rep": 1, "long_ttft": 33.539, "short_ttft": {}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 181, "p50": 0.5629366890025267, "p99": 0.7736645820004924, "max": 0.7739958760030277, "mean": 0.5489302664806541}, "itl_base": {"n": 42, "p50": 0.03824414200062165, "p99": 0.03979648899985477, "max": 0.03979648899985477, "mean": 0.03832773342860275}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true}}
+{"scn": "longshort", "arm": "F", "d": 3, "rep": 1, "long_ttft": 33.513, "short_ttft": {"s1": 32.812, "s2": 31.123}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 181, "p50": 0.5620395760015526, "p99": 0.7781190960013191, "max": 0.7782536230006372, "mean": 0.548665243154669}, "itl_base": {"n": 42, "p50": 0.03842350500053726, "p99": 0.0395710999982839, "max": 0.0395710999982839, "mean": 0.038422198190563084}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true, "s1": true, "s2": true}}
+{"scn": "long", "arm": "F", "d": 4, "rep": 1, "long_ttft": 33.89, "short_ttft": {}, "dec_tok_s_in_window": 1.81, "itl_window": {"n": 246, "p50": 0.5607559499985655, "p99": 0.7829810449984507, "max": 0.7839015379977354, "mean": 0.5463551182560988}, "itl_base": {"n": 40, "p50": 0.04262070800177753, "p99": 0.04420809500152245, "max": 0.04420809500152245, "mean": 0.04272572515001229}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true}}
+{"scn": "longshort", "arm": "F", "d": 4, "rep": 1, "long_ttft": 33.903, "short_ttft": {"s1": 33.202, "s2": 31.53}, "dec_tok_s_in_window": 1.83, "itl_window": {"n": 248, "p50": 0.568468612000288, "p99": 0.7849059910004144, "max": 0.7849451269976271, "mean": 0.5475131707822555}, "itl_base": {"n": 40, "p50": 0.04259197500141454, "p99": 0.04394499499903759, "max": 0.04394499499903759, "mean": 0.042538800074999016}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true, "s1": true, "s2": true}}
+{"scn": "long", "arm": "F", "d": 3, "rep": 2, "long_ttft": 33.537, "short_ttft": {}, "dec_tok_s_in_window": 1.82, "itl_window": {"n": 183, "p50": 0.5600497519990313, "p99": 0.7791776429985475, "max": 0.7792589239979861, "mean": 0.5503001404590254}, "itl_base": {"n": 42, "p50": 0.03802258300129324, "p99": 0.03886464500101283, "max": 0.03886464500101283, "mean": 0.03805578240479961}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true}}
+{"scn": "longshort", "arm": "F", "d": 3, "rep": 2, "long_ttft": 33.606, "short_ttft": {"s1": 32.895, "s2": 31.197}, "dec_tok_s_in_window": 1.81, "itl_window": {"n": 182, "p50": 0.5631056840029487, "p99": 0.7778298529992753, "max": 0.7783139159982966, "mean": 0.5506744368241605}, "itl_base": {"n": 42, "p50": 0.03866997499790159, "p99": 0.03920184600065113, "max": 0.03920184600065113, "mean": 0.038625285309535684}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "long": true, "s1": true, "s2": true}}
+{"scn": "long", "arm": "F", "d": 4, "rep": 2, "long_ttft": 33.822, "short_ttft": {}, "dec_tok_s_in_window": 1.8, "itl_window": {"n": 243, "p50": 0.5684060550011054, "p99": 0.7839697629970033, "max": 0.7844536980010162, "mean": 0.5545925107242645}, "itl_base": {"n": 40, "p50": 0.04240298900185735, "p99": 0.04369144899828825, "max": 0.04369144899828825, "mean": 0.04243075920003321}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true}}
+{"scn": "longshort", "arm": "F", "d": 4, "rep": 2, "long_ttft": 34.02, "short_ttft": {"s1": 33.326, "s2": 31.646}, "dec_tok_s_in_window": 1.77, "itl_window": {"n": 241, "p50": 0.5732774009993591, "p99": 0.7861407560012594, "max": 0.7865565149986651, "mean": 0.5569995758630748}, "itl_base": {"n": 40, "p50": 0.04299465200165287, "p99": 0.04390434499873663, "max": 0.04390434499873663, "mean": 0.04289244512492587}, "ids_n": {"d0": 800, "d1": 800, "d2": 800, "d3": 800, "long": 16, "s1": 16, "s2": 16}, "ids_eq_solo": {"d0": true, "d1": true, "d2": true, "d3": true, "long": true, "s1": true, "s2": true}}
+[04:17:15] min MemAvailable MB (dec-F4): 04:11:50 44367, KILLED: 0
+[04:17:19] done
+[04:18:10] serve ageburst-F1: env [INTARSIA_CB_NO_REUSE=1] --max-seq 49152 --max-batch 16 ; Mem:             121          44          68           0           9          76
+[04:19:52] serve ageburst-F1 up; Mem:             121          86          26           0           9          34
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "longburst", "arm": "F", "d": 2, "rep": 1, "long_ttft": 33.88, "short_ttft": {"s1": 37.717, "s2": 37.481, "s3": 35.912, "s4": 34.14, "s5": 35.912, "s6": 37.717, "s7": 34.141, "s8": 35.917, "s9": 39.039, "s10": 39.043, "s11": 34.141, "s12": 37.714}, "dec_tok_s_in_window": 3.04, "itl_window": {"n": 206, "p50": 0.45619809499839903, "p99": 0.7857598409973434, "max": 0.806742798002233, "mean": 0.32900429427668887}, "itl_base": {"n": 78, "p50": 2.6511999749345705e-05, "p99": 0.06841458099734155, "max": 0.06870721999803209, "mean": 0.022518499423079985}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+{"scn": "longburst", "arm": "F", "d": 2, "rep": 2, "long_ttft": 33.907, "short_ttft": {"s1": 34.162, "s2": 37.463, "s3": 34.16, "s4": 35.929, "s5": 34.164, "s6": 39.036, "s7": 37.713, "s8": 37.707, "s9": 35.927, "s10": 35.928, "s11": 39.038, "s12": 37.711}, "dec_tok_s_in_window": 3.04, "itl_window": {"n": 206, "p50": 0.4545016689990007, "p99": 0.7906076019971806, "max": 0.8092856129987922, "mean": 0.3292558294611561}, "itl_base": {"n": 78, "p50": 2.5424000341445208e-05, "p99": 0.06831246799993096, "max": 0.0684980030018778, "mean": 0.022541196461530397}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+[04:23:41] min MemAvailable MB (ageburst-F1): 04:23:10 34177, KILLED: 0
+[04:23:46] serve ageburst-22: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=2] --max-seq 49152 --max-batch 16 ; Mem:             121          44          68           0           9          76
+[04:25:33] serve ageburst-22 up; Mem:             121          86          26           0           9          34
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "longburst", "arm": "2", "d": 2, "rep": 1, "long_ttft": 42.263, "short_ttft": {"s1": 3.024, "s2": 7.8, "s3": 8.042, "s4": 3.023, "s5": 8.045, "s6": 9.371, "s7": 4.796, "s8": 3.025, "s9": 4.795, "s10": 4.79, "s11": 9.373, "s12": 8.043}, "dec_tok_s_in_window": 2.33, "itl_window": {"n": 197, "p50": 0.5296958530016127, "p99": 1.7709233660025347, "max": 1.79245026100034, "mean": 0.425864929700525}, "itl_base": {"n": 78, "p50": 3.2399002520833164e-05, "p99": 0.06878042900279979, "max": 0.06885532500018599, "mean": 0.022533805871810333}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+{"scn": "longburst", "arm": "2", "d": 2, "rep": 2, "long_ttft": 42.156, "short_ttft": {"s1": 9.318, "s2": 7.718, "s3": 9.317, "s4": 4.756, "s5": 4.754, "s6": 7.999, "s7": 2.996, "s8": 8.004, "s9": 4.753, "s10": 2.995, "s11": 8.002, "s12": 2.998}, "dec_tok_s_in_window": 2.42, "itl_window": {"n": 204, "p50": 0.5212109570020402, "p99": 1.7604071449968615, "max": 1.783121172000392, "mean": 0.4139933841274529}, "itl_base": {"n": 72, "p50": 2.5855999410850927e-05, "p99": 0.06860499699905631, "max": 0.06868088500050362, "mean": 0.02261389348617134}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+[04:29:22] min MemAvailable MB (ageburst-22): 04:28:06 34159, KILLED: 0
+[04:29:27] serve ageburst-83: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 49152 --max-batch 16 ; Mem:             121          44          68           0           9          76
+[04:31:14] serve ageburst-83 up; Mem:             121          86          26           0           9          34
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "longburst", "arm": "8", "d": 2, "rep": 1, "long_ttft": 42.126, "short_ttft": {"s1": 6.552, "s2": 6.291, "s3": 7.873, "s4": 4.781, "s5": 3.015, "s6": 7.875, "s7": 4.779, "s8": 3.015, "s9": 3.011, "s10": 6.557, "s11": 4.777, "s12": 6.559}, "dec_tok_s_in_window": 2.4, "itl_window": {"n": 202, "p50": 0.5181871269996918, "p99": 1.765986395002983, "max": 1.7793407329991169, "mean": 0.41719680144553134}, "itl_base": {"n": 78, "p50": 2.473600034136325e-05, "p99": 0.06826882899986231, "max": 0.06827476500257035, "mean": 0.022467556589757666}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+{"scn": "longburst", "arm": "8", "d": 2, "rep": 2, "long_ttft": 42.052, "short_ttft": {"s1": 4.742, "s2": 6.223, "s3": 2.985, "s4": 4.74, "s5": 6.52, "s6": 7.823, "s7": 2.986, "s8": 6.518, "s9": 7.826, "s10": 2.988, "s11": 6.52, "s12": 4.739}, "dec_tok_s_in_window": 2.39, "itl_window": {"n": 201, "p50": 0.5169665510002233, "p99": 1.7557289459982712, "max": 1.7794821390016295, "mean": 0.41530038967162974}, "itl_base": {"n": 78, "p50": 2.2608001017943025e-05, "p99": 0.06841291200180422, "max": 0.06847411200214992, "mean": 0.022533331525641513}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+[04:35:04] min MemAvailable MB (ageburst-83): 04:33:24 34196, KILLED: 0
+[04:35:10] serve ageburst-324: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=32] --max-seq 49152 --max-batch 16 ; Mem:             121          44          68           0           9          76
+[04:36:56] serve ageburst-324 up; Mem:             121          86          26           0           9          34
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "longburst", "arm": "32", "d": 2, "rep": 1, "long_ttft": 42.252, "short_ttft": {"s1": 4.8, "s2": 6.339, "s3": 6.6, "s4": 6.598, "s5": 7.92, "s6": 6.593, "s7": 3.026, "s8": 4.802, "s9": 3.026, "s10": 3.022, "s11": 4.801, "s12": 7.924}, "dec_tok_s_in_window": 2.39, "itl_window": {"n": 202, "p50": 0.5220427330023085, "p99": 1.7790664519998245, "max": 1.7956490340002347, "mean": 0.4184073736336413}, "itl_base": {"n": 78, "p50": 2.5696001102915034e-05, "p99": 0.0683078040019609, "max": 0.06858250699951896, "mean": 0.022496664269242617}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+{"scn": "longburst", "arm": "32", "d": 2, "rep": 2, "long_ttft": 42.15, "short_ttft": {"s1": 4.742, "s2": 6.229, "s3": 6.516, "s4": 7.835, "s5": 4.738, "s6": 6.522, "s7": 7.834, "s8": 2.987, "s9": 6.521, "s10": 2.986, "s11": 4.74, "s12": 2.984}, "dec_tok_s_in_window": 2.38, "itl_window": {"n": 201, "p50": 0.5186652689990296, "p99": 1.7547385539983225, "max": 1.777427610999439, "mean": 0.416283718039801}, "itl_base": {"n": 78, "p50": 2.6879999495577067e-05, "p99": 0.06817625499752467, "max": 0.06828260600013891, "mean": 0.022530491448775045}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+[04:40:46] min MemAvailable MB (ageburst-324): 04:40:19 34187, KILLED: 0
+[04:40:51] serve ageburst-325: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=32] --max-seq 49152 --max-batch 16 ; Mem:             121          44          68           0           9          76
+[04:42:38] serve ageburst-325 up; Mem:             121          86          26           0           9          34
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "longburst", "arm": "32", "d": 2, "rep": 1, "long_ttft": 42.356, "short_ttft": {"s1": 4.821, "s2": 6.358, "s3": 3.048, "s4": 3.049, "s5": 7.948, "s6": 6.62, "s7": 6.619, "s8": 6.624, "s9": 4.822, "s10": 4.817, "s11": 7.948, "s12": 3.051}, "dec_tok_s_in_window": 2.38, "itl_window": {"n": 202, "p50": 0.5210773039980268, "p99": 1.771740996002336, "max": 1.8018728930001089, "mean": 0.4194383811732628}, "itl_base": {"n": 78, "p50": 2.5040000764420256e-05, "p99": 0.0682143250014633, "max": 0.06831578000128502, "mean": 0.02253576762818855}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+{"scn": "longburst", "arm": "32", "d": 2, "rep": 2, "long_ttft": 42.042, "short_ttft": {"s1": 2.964, "s2": 6.202, "s3": 4.717, "s4": 6.491, "s5": 7.802, "s6": 4.722, "s7": 6.49, "s8": 6.495, "s9": 2.964, "s10": 4.718, "s11": 2.964, "s12": 7.802}, "dec_tok_s_in_window": 2.4, "itl_window": {"n": 202, "p50": 0.5186105049979233, "p99": 1.7560763229994336, "max": 1.775364864999574, "mean": 0.4163836089455709}, "itl_base": {"n": 78, "p50": 2.7583999326452613e-05, "p99": 0.06829270899834228, "max": 0.06839648399909493, "mean": 0.022502255230695784}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+[04:46:27] min MemAvailable MB (ageburst-325): 04:44:48 34177, KILLED: 0
+[04:46:32] serve ageburst-86: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=8] --max-seq 49152 --max-batch 16 ; Mem:             121          44          68           0           9          76
+[04:48:19] serve ageburst-86 up; Mem:             121          86          26           0           9          34
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "longburst", "arm": "8", "d": 2, "rep": 1, "long_ttft": 42.173, "short_ttft": {"s1": 7.877, "s2": 6.286, "s3": 2.989, "s4": 2.988, "s5": 6.561, "s6": 6.557, "s7": 7.876, "s8": 4.77, "s9": 2.989, "s10": 4.772, "s11": 6.561, "s12": 4.772}, "dec_tok_s_in_window": 2.39, "itl_window": {"n": 202, "p50": 0.5202604879996215, "p99": 1.7824035260018718, "max": 1.7886207060000743, "mean": 0.41816096146038323}, "itl_base": {"n": 72, "p50": 2.7504000172484666e-05, "p99": 0.06906070900004124, "max": 0.06915669299996807, "mean": 0.022673153152835666}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+{"scn": "longburst", "arm": "8", "d": 2, "rep": 2, "long_ttft": 42.19, "short_ttft": {"s1": 4.77, "s2": 6.266, "s3": 6.55, "s4": 7.864, "s5": 3.007, "s6": 4.766, "s7": 6.556, "s8": 7.867, "s9": 3.005, "s10": 3.006, "s11": 6.552, "s12": 4.767}, "dec_tok_s_in_window": 2.38, "itl_window": {"n": 201, "p50": 0.519545326998923, "p99": 1.7635354590020142, "max": 1.7850802190005197, "mean": 0.4166359578756154}, "itl_base": {"n": 78, "p50": 2.761599898803979e-05, "p99": 0.06838821600103984, "max": 0.06883952600037446, "mean": 0.022580154179498397}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+[04:52:09] min MemAvailable MB (ageburst-86): 04:51:01 34200, KILLED: 0
+[04:52:15] serve ageburst-27: env [INTARSIA_CB_NO_REUSE=1 INTARSIA_PREFILL_ORDER=shortest INTARSIA_PREFILL_AGE=2] --max-seq 49152 --max-batch 16 ; Mem:             121          44          68           0           9          76
+[04:54:02] serve ageburst-27 up; Mem:             121          86          26           0           9          34
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "longburst", "arm": "2", "d": 2, "rep": 1, "long_ttft": 42.236, "short_ttft": {"s1": 8.089, "s2": 7.827, "s3": 4.833, "s4": 8.086, "s5": 9.417, "s6": 8.084, "s7": 3.062, "s8": 9.409, "s9": 3.057, "s10": 3.062, "s11": 4.829, "s12": 4.832}, "dec_tok_s_in_window": 2.32, "itl_window": {"n": 196, "p50": 0.5279366340000706, "p99": 1.7724594270002854, "max": 1.790882582001359, "mean": 0.4244084391581723}, "itl_base": {"n": 78, "p50": 2.6064000849146396e-05, "p99": 0.06852969499959727, "max": 0.06860316600068472, "mean": 0.022553706051276563}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+{"scn": "longburst", "arm": "2", "d": 2, "rep": 2, "long_ttft": 42.102, "short_ttft": {"s1": 7.996, "s2": 7.712, "s3": 4.748, "s4": 4.748, "s5": 4.754, "s6": 7.994, "s7": 7.995, "s8": 2.99, "s9": 9.307, "s10": 2.992, "s11": 2.993, "s12": 9.31}, "dec_tok_s_in_window": 2.35, "itl_window": {"n": 198, "p50": 0.5266634830004477, "p99": 1.7609125439994386, "max": 1.7835453329971642, "mean": 0.4253568623434231}, "itl_base": {"n": 78, "p50": 1.8303999240742996e-05, "p99": 0.06811603200185345, "max": 0.0682455360001768, "mean": 0.02255765482056095}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+[04:57:52] min MemAvailable MB (ageburst-27): 04:57:07 34187, KILLED: 0
+[04:57:58] serve ageburst-F8: env [INTARSIA_CB_NO_REUSE=1] --max-seq 49152 --max-batch 16 ; Mem:             121          44          68           0           9          76
+[04:59:45] serve ageburst-F8 up; Mem:             121          86          26           0           9          34
+d0 800 None
+d1 800 None
+d2 800 None
+d3 800 None
+long 16 None
+s1 16 None
+s2 16 None
+s3 16 None
+s4 16 None
+s5 16 None
+s6 16 None
+s7 16 None
+s8 16 None
+s9 16 None
+s10 16 None
+s11 16 None
+s12 16 None
+{"scn": "longburst", "arm": "F", "d": 2, "rep": 1, "long_ttft": 34.077, "short_ttft": {"s1": 37.916, "s2": 37.692, "s3": 34.34, "s4": 39.253, "s5": 34.34, "s6": 36.122, "s7": 36.118, "s8": 36.118, "s9": 37.914, "s10": 37.918, "s11": 34.339, "s12": 39.25}, "dec_tok_s_in_window": 3.02, "itl_window": {"n": 206, "p50": 0.4561204599995108, "p99": 0.7929994570004055, "max": 0.810029961001419, "mean": 0.3309104203446481}, "itl_base": {"n": 78, "p50": 2.696000228752382e-05, "p99": 0.06862086100227316, "max": 0.06863271699694451, "mean": 0.02258019612823913}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+{"scn": "longburst", "arm": "F", "d": 2, "rep": 2, "long_ttft": 34.059, "short_ttft": {"s1": 34.321, "s2": 37.65, "s3": 37.892, "s4": 37.897, "s5": 39.217, "s6": 34.321, "s7": 36.102, "s8": 36.104, "s9": 34.323, "s10": 39.217, "s11": 37.891, "s12": 36.104}, "dec_tok_s_in_window": 3.02, "itl_window": {"n": 206, "p50": 0.4558998519969464, "p99": 0.792292288999306, "max": 0.8156108530019992, "mean": 0.3307010175825233}, "itl_base": {"n": 78, "p50": 2.142400262528099e-05, "p99": 0.0687642369994137, "max": 0.06884902000092552, "mean": 0.022563566576933133}, "ids_n": {"d0": 800, "d1": 800, "long": 16, "s1": 16, "s2": 16, "s3": 16, "s4": 16, "s5": 16, "s6": 16, "s7": 16, "s8": 16, "s9": 16, "s10": 16, "s11": 16, "s12": 16}, "ids_eq_solo": {"d0": true, "d1": true, "long": true, "s1": true, "s2": true, "s3": true, "s4": true, "s5": true, "s6": true, "s7": true, "s8": true, "s9": true, "s10": true, "s11": true, "s12": true}}
+[05:03:36] min MemAvailable MB (ageburst-F8): 05:02:20 34170, KILLED: 0
+[05:03:40] done
+[05:04:05] done
+[05:04:08] removed ~/intarsiaml-flipev2

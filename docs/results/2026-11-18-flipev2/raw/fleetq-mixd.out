@@ -1,0 +1,66 @@
+fleetq: #10037 waiting (#1 in line): needs gpu quiet on spark2, but #10025 "flipev2 hs: herd/sjf cells at max-batch 16 (35B, ~90 min)" (claude-a9e6e738) loads it
+fleetq:   #10025 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10025 set, or it will wait for #10025 to be released.
+fleetq: #10037 waiting (#1 in line): needs spark2 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10037 running on spark2: scripts/flipev2/run2.sh mixd
+[01:46:34] serve mixd-N1: env [] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[01:48:20] serve mixd-N1 up; Mem:             121          77          36           0           9          44
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 141, "ok": 6, "ttft_sum_s": 198.327, "ttft_p50_s": 34.152, "ttft_last_s": 56.553, "wall_s": 58.117, "cached_tokens": [0, 0, 2048, 2048, 0, 2048]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 141, "ok": 6, "ttft_sum_s": 5.139, "ttft_p50_s": 0.599, "ttft_last_s": 1.382, "wall_s": 11.535, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 142, "ok": 6, "ttft_sum_s": 197.593, "ttft_p50_s": 34.107, "ttft_last_s": 56.439, "wall_s": 57.794, "cached_tokens": [0, 0, 2048, 2048, 0, 2048]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 142, "ok": 6, "ttft_sum_s": 5.124, "ttft_p50_s": 0.593, "ttft_last_s": 1.389, "wall_s": 11.694, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 143, "ok": 6, "ttft_sum_s": 198.515, "ttft_p50_s": 34.194, "ttft_last_s": 56.646, "wall_s": 58.231, "cached_tokens": [0, 0, 2048, 2048, 0, 2048]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 143, "ok": 6, "ttft_sum_s": 5.096, "ttft_p50_s": 0.587, "ttft_last_s": 1.375, "wall_s": 11.782, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 151, "ok": 6, "ttft_sum_s": 183.664, "ttft_p50_s": 30.024, "ttft_last_s": 60.19, "wall_s": 61.318, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 151, "ok": 6, "ttft_sum_s": 5.077, "ttft_p50_s": 0.586, "ttft_last_s": 1.373, "wall_s": 10.756, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 152, "ok": 6, "ttft_sum_s": 180.959, "ttft_p50_s": 29.308, "ttft_last_s": 59.642, "wall_s": 60.996, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 152, "ok": 6, "ttft_sum_s": 5.082, "ttft_p50_s": 0.586, "ttft_last_s": 1.369, "wall_s": 11.84, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N1", "mode": "mix", "seed": 153, "ok": 6, "ttft_sum_s": 183.353, "ttft_p50_s": 29.952, "ttft_last_s": 60.146, "wall_s": 61.755, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N1", "mode": "solo", "seed": 153, "ok": 6, "ttft_sum_s": 5.107, "ttft_p50_s": 0.588, "ttft_last_s": 1.383, "wall_s": 11.783, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+[01:55:53] min MemAvailable MB (mixd-N1): 01:54:55 37570, KILLED: 0
+[01:55:59] serve mixd-H2: env [INTARSIA_PREFIX_HERD=1] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[01:57:43] serve mixd-H2 up; Mem:             121          77          36           0           9          44
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 141, "ok": 6, "ttft_sum_s": 111.704, "ttft_p50_s": 17.709, "ttft_last_s": 24.388, "wall_s": 28.305, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 141, "ok": 6, "ttft_sum_s": 5.148, "ttft_p50_s": 0.601, "ttft_last_s": 1.382, "wall_s": 11.558, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 142, "ok": 6, "ttft_sum_s": 111.564, "ttft_p50_s": 17.692, "ttft_last_s": 24.336, "wall_s": 28.214, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 142, "ok": 6, "ttft_sum_s": 5.129, "ttft_p50_s": 0.599, "ttft_last_s": 1.385, "wall_s": 11.711, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 143, "ok": 6, "ttft_sum_s": 111.054, "ttft_p50_s": 17.58, "ttft_last_s": 24.263, "wall_s": 28.059, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 143, "ok": 6, "ttft_sum_s": 5.118, "ttft_p50_s": 0.599, "ttft_last_s": 1.373, "wall_s": 11.841, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 151, "ok": 6, "ttft_sum_s": 113.476, "ttft_p50_s": 24.013, "ttft_last_s": 25.386, "wall_s": 28.284, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 151, "ok": 6, "ttft_sum_s": 5.105, "ttft_p50_s": 0.59, "ttft_last_s": 1.379, "wall_s": 10.808, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 152, "ok": 6, "ttft_sum_s": 114.6, "ttft_p50_s": 24.287, "ttft_last_s": 25.688, "wall_s": 28.549, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 152, "ok": 6, "ttft_sum_s": 5.085, "ttft_p50_s": 0.588, "ttft_last_s": 1.372, "wall_s": 11.866, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H2", "mode": "mix", "seed": 153, "ok": 6, "ttft_sum_s": 115.061, "ttft_p50_s": 24.389, "ttft_last_s": 25.802, "wall_s": 28.533, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H2", "mode": "solo", "seed": 153, "ok": 6, "ttft_sum_s": 5.09, "ttft_p50_s": 0.589, "ttft_last_s": 1.372, "wall_s": 11.754, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+[02:02:07] min MemAvailable MB (mixd-H2): 02:01:44 37187, KILLED: 0
+[02:02:14] serve mixd-H3: env [INTARSIA_PREFIX_HERD=1] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[02:03:58] serve mixd-H3 up; Mem:             121          77          36           0           9          44
+{"arm": "H", "visit": "H3", "mode": "mix", "seed": 141, "ok": 6, "ttft_sum_s": 111.096, "ttft_p50_s": 17.57, "ttft_last_s": 24.288, "wall_s": 28.085, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H3", "mode": "solo", "seed": 141, "ok": 6, "ttft_sum_s": 5.13, "ttft_p50_s": 0.596, "ttft_last_s": 1.377, "wall_s": 11.552, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H3", "mode": "mix", "seed": 142, "ok": 6, "ttft_sum_s": 110.971, "ttft_p50_s": 17.617, "ttft_last_s": 24.172, "wall_s": 27.401, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H3", "mode": "solo", "seed": 142, "ok": 6, "ttft_sum_s": 5.128, "ttft_p50_s": 0.601, "ttft_last_s": 1.384, "wall_s": 11.719, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H3", "mode": "mix", "seed": 143, "ok": 6, "ttft_sum_s": 110.524, "ttft_p50_s": 17.457, "ttft_last_s": 24.186, "wall_s": 27.966, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H3", "mode": "solo", "seed": 143, "ok": 6, "ttft_sum_s": 5.131, "ttft_p50_s": 0.596, "ttft_last_s": 1.385, "wall_s": 11.882, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H3", "mode": "mix", "seed": 151, "ok": 6, "ttft_sum_s": 113.441, "ttft_p50_s": 24.017, "ttft_last_s": 25.394, "wall_s": 28.26, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H3", "mode": "solo", "seed": 151, "ok": 6, "ttft_sum_s": 5.101, "ttft_p50_s": 0.59, "ttft_last_s": 1.379, "wall_s": 10.81, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H3", "mode": "mix", "seed": 152, "ok": 6, "ttft_sum_s": 115.369, "ttft_p50_s": 24.471, "ttft_last_s": 25.873, "wall_s": 28.735, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H3", "mode": "solo", "seed": 152, "ok": 6, "ttft_sum_s": 5.102, "ttft_p50_s": 0.59, "ttft_last_s": 1.377, "wall_s": 11.922, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "H", "visit": "H3", "mode": "mix", "seed": 153, "ok": 6, "ttft_sum_s": 115.259, "ttft_p50_s": 24.435, "ttft_last_s": 25.85, "wall_s": 28.591, "cached_tokens": [0, 0, 16384, 16384, 0, 16384]}
+{"arm": "H", "visit": "H3", "mode": "solo", "seed": 153, "ok": 6, "ttft_sum_s": 5.107, "ttft_p50_s": 0.589, "ttft_last_s": 1.377, "wall_s": 11.833, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+[02:08:22] min MemAvailable MB (mixd-H3): 02:07:59 37394, KILLED: 0
+[02:08:29] serve mixd-N4: env [] --max-seq 24576 --max-batch 16 --prefix-store on ; Mem:             121          44          68           0           9          76
+[02:10:17] serve mixd-N4 up; Mem:             121          77          36           0           9          44
+{"arm": "N", "visit": "N4", "mode": "mix", "seed": 141, "ok": 6, "ttft_sum_s": 197.709, "ttft_p50_s": 33.999, "ttft_last_s": 56.432, "wall_s": 57.999, "cached_tokens": [0, 0, 2048, 2048, 0, 2048]}
+{"arm": "N", "visit": "N4", "mode": "solo", "seed": 141, "ok": 6, "ttft_sum_s": 5.138, "ttft_p50_s": 0.601, "ttft_last_s": 1.382, "wall_s": 11.533, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N4", "mode": "mix", "seed": 142, "ok": 6, "ttft_sum_s": 197.611, "ttft_p50_s": 34.07, "ttft_last_s": 56.492, "wall_s": 57.844, "cached_tokens": [0, 0, 2048, 2048, 0, 2048]}
+{"arm": "N", "visit": "N4", "mode": "solo", "seed": 142, "ok": 6, "ttft_sum_s": 5.123, "ttft_p50_s": 0.594, "ttft_last_s": 1.388, "wall_s": 11.679, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N4", "mode": "mix", "seed": 143, "ok": 6, "ttft_sum_s": 197.881, "ttft_p50_s": 34.096, "ttft_last_s": 56.366, "wall_s": 57.95, "cached_tokens": [0, 0, 2048, 2048, 0, 2048]}
+{"arm": "N", "visit": "N4", "mode": "solo", "seed": 143, "ok": 6, "ttft_sum_s": 5.101, "ttft_p50_s": 0.591, "ttft_last_s": 1.375, "wall_s": 11.803, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N4", "mode": "mix", "seed": 151, "ok": 6, "ttft_sum_s": 182.768, "ttft_p50_s": 29.808, "ttft_last_s": 59.982, "wall_s": 61.107, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N4", "mode": "solo", "seed": 151, "ok": 6, "ttft_sum_s": 5.083, "ttft_p50_s": 0.585, "ttft_last_s": 1.375, "wall_s": 10.768, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N4", "mode": "mix", "seed": 152, "ok": 6, "ttft_sum_s": 184.431, "ttft_p50_s": 30.081, "ttft_last_s": 60.621, "wall_s": 61.99, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N4", "mode": "solo", "seed": 152, "ok": 6, "ttft_sum_s": 5.108, "ttft_p50_s": 0.589, "ttft_last_s": 1.381, "wall_s": 11.895, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+{"arm": "N", "visit": "N4", "mode": "mix", "seed": 153, "ok": 6, "ttft_sum_s": 181.737, "ttft_p50_s": 29.512, "ttft_last_s": 59.76, "wall_s": 61.369, "cached_tokens": [0, 0, 0, 0, 0, 0]}
+{"arm": "N", "visit": "N4", "mode": "solo", "seed": 153, "ok": 6, "ttft_sum_s": 5.088, "ttft_p50_s": 0.588, "ttft_last_s": 1.371, "wall_s": 11.757, "cached_tokens": [16384, 6144, 16384, 16384, 6144, 16384]}
+[02:17:49] min MemAvailable MB (mixd-N4): 02:16:52 37497, KILLED: 0
+[02:17:54] done
+fleetq: #10037 done (exit 0)

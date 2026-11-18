@@ -1,0 +1,15 @@
+fleetq: #10187 running on endor: scripts/mmoe16/round.sh 2
+== round 2 arm c15on env INTARSIA_METAL_GDN_VERIFY_FUSE=1+INTARSIA_SPEC_COPY=20,15+INTARSIA_METAL_VERIFY16=1 cooled 105s thermal 0 07:33:25
+c15on r2 copy3k thermal 0->0: {"cell": "copy3k", "tag": "c2", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.625, "dec_tps": 409.54, "wall": 7.711, "sha": "4eb925608b0c"}
+c15on r2 json-xform thermal 0->1: {"cell": "json-xform", "tag": "c2", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.659, "dec_tps": 313.01, "wall": 8.962, "sha": "e4cca5268730"}
+c15on r2 metrics: intarsia_spec_steps_total 545 intarsia_spec_proposed_tokens_total 1089 intarsia_spec_accepted_tokens_total 899 intarsia_spec_copy_steps_total 1089 intarsia_spec_copy_proposed_tokens_total 16332 intarsia_spec_copy_accepted_tokens_total 14739 
+== round 2 arm c15off env INTARSIA_METAL_GDN_VERIFY_FUSE=1+INTARSIA_SPEC_COPY=20,15 cooled 100s thermal 0 07:36:04
+c15off r2 copy3k thermal 0->0: {"cell": "copy3k", "tag": "c2", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.62, "dec_tps": 412.23, "wall": 7.66, "sha": "4eb925608b0c"}
+c15off r2 json-xform thermal 0->1: {"cell": "json-xform", "tag": "c2", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.67, "dec_tps": 309.88, "wall": 9.057, "sha": "e4cca5268730"}
+c15off r2 metrics: intarsia_spec_steps_total 545 intarsia_spec_proposed_tokens_total 1089 intarsia_spec_accepted_tokens_total 899 intarsia_spec_copy_steps_total 1089 intarsia_spec_copy_proposed_tokens_total 16332 intarsia_spec_copy_accepted_tokens_total 14739 
+== round 2 arm c7 env INTARSIA_METAL_GDN_VERIFY_FUSE=1+INTARSIA_SPEC_COPY=20,7 cooled 95s thermal 0 07:38:38
+c7 r2 copy3k thermal 0->0: {"cell": "copy3k", "tag": "c2", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.578, "dec_tps": 374.84, "wall": 8.32, "sha": "4eb925608b0c"}
+c7 r2 json-xform thermal 0->1: {"cell": "json-xform", "tag": "c2", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 0.614, "dec_tps": 321.61, "wall": 8.695, "sha": "e4cca5268730"}
+c7 r2 metrics: intarsia_spec_steps_total 545 intarsia_spec_proposed_tokens_total 1089 intarsia_spec_accepted_tokens_total 899 intarsia_spec_copy_steps_total 2046 intarsia_spec_copy_proposed_tokens_total 14319 intarsia_spec_copy_accepted_tokens_total 13782 
+ab done
+fleetq: #10187 done (exit 0)

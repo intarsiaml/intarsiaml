@@ -1,0 +1,47 @@
+decode tok/s, median of the reps per server (reps in brackets):
+ chat-short
+  base   r1 140.67 [142.3 134.8 140.7]  r2 136.25 [140.4 135.5 136.2]  r3 138.20 [134.8 138.2 138.8]  r4 137.57 [137.6 137.2 137.7]
+  bk     r1 139.09 [140.7 133.1 139.1]  r2 135.95 [140.4 135.5 135.9]  r3 137.98 [135.9 138.0 139.4]  r4 137.25 [137.2 136.8 137.8]
+ code-gen
+  base   r1 160.45 [160.4 160.7 159.4]  r2 159.33 [158.9 159.3 159.9]  r3 159.16 [162.3 157.1 159.2]  r4 160.28 [161.1 159.5 160.3]
+  bk     r1 158.40 [158.4 158.5 157.8]  r2 158.95 [158.9 158.7 159.6]  r3 159.15 [162.6 158.2 159.2]  r4 159.89 [160.8 159.0 159.9]
+ reason
+  base   r1 161.20 [163.2 161.2 159.4]  r2 159.56 [156.7 159.6 159.7]  r3 158.40 [158.4 156.3 159.6]  r4 160.08 [158.9 161.7 160.1]
+  bk     r1 159.72 [161.2 159.7 157.8]  r2 159.63 [159.2 160.5 159.6]  r3 158.45 [158.4 156.5 160.3]  r4 159.60 [158.6 161.0 159.6]
+ agent-edit
+  base   r1 153.96 [159.7 144.2 154.0]  r2 157.38 [157.4 157.7 155.6]  r3 158.58 [155.5 158.6 160.8]  r4 159.22 [163.3 157.2 159.2]
+  bk     r1 153.96 [157.4 144.1 154.0]  r2 157.70 [157.7 158.0 155.0]  r3 159.01 [155.1 159.0 162.8]  r4 158.99 [162.7 157.1 159.0]
+replies chat-short r1: equal across arms (3 reps)
+replies chat-short r2: equal across arms (3 reps)
+replies chat-short r3: equal across arms (3 reps)
+replies chat-short r4: equal across arms (3 reps)
+replies code-gen r1: equal across arms (3 reps)
+replies code-gen r2: equal across arms (3 reps)
+replies code-gen r3: equal across arms (3 reps)
+replies code-gen r4: equal across arms (3 reps)
+replies reason r1: equal across arms (3 reps)
+replies reason r2: equal across arms (3 reps)
+replies reason r3: equal across arms (3 reps)
+replies reason r4: equal across arms (3 reps)
+replies agent-edit r1: equal across arms (3 reps)
+replies agent-edit r2: equal across arms (3 reps)
+replies agent-edit r3: equal across arms (3 reps)
+replies agent-edit r4: equal across arms (3 reps)
+ratios of per-round medians:
+ bk/base chat-short  0.9888 0.9978 0.9984 0.9977  median 0.9977  mean 0.9957 (SE 0.0023)  >1: 0/4
+ bk/base code-gen    0.9872 0.9976 0.9999 0.9976  median 0.9976  mean 0.9956 (SE 0.0028)  >1: 0/4
+ bk/base reason      0.9908 1.0004 1.0003 0.9970  median 0.9987  mean 0.9971 (SE 0.0023)  >1: 2/4
+ bk/base agent-edit  1.0000 1.0020 1.0027 0.9986  median 1.0010  mean 1.0008 (SE 0.0010)  >1: 2/4
+ bk/base ALL         0.9917 0.9995 1.0003 0.9977  median 0.9986  mean 0.9973 (SE 0.0019)  >1: 1/4
+per server, mean over cells of tok/s / the arm's own mean over rounds (a server slow in every request shows well below 1):
+  base   r1 1.0024  r2 0.9955  r3 0.9989  r4 1.0032
+  bk     r1 0.9968  r2 0.9977  r3 1.0020  r4 1.0036
+mean graph step (ms, positions >= 100) per cell, and eager steps (token lines without a graph step) per cell, per server; requests are mapped by order: 2 warm-ups then the cells x reps:
+  base   r1: all steps 17.792 ms, eager 1, requests 12
+  base   r2: all steps 17.744 ms, eager 2, requests 13
+  base   r3: all steps 17.859 ms, eager 3, requests 13
+  base   r4: all steps 17.806 ms, eager 1, requests 12
+  bk     r1: all steps 18.000 ms, eager 1, requests 12
+  bk     r2: all steps 17.737 ms, eager 2, requests 13
+  bk     r3: all steps 17.813 ms, eager 3, requests 13
+  bk     r4: all steps 17.847 ms, eager 1, requests 12

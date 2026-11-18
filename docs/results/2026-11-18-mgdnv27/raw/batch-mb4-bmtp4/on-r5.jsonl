@@ -1,0 +1,10 @@
+{"i": 0, "cell": "chat-short", "toks": 300, "sha": "fb10be202263"}
+{"i": 1, "cell": "code-gen", "toks": 300, "sha": "5b4ebbd8140d"}
+{"i": 2, "cell": "reason", "toks": 300, "sha": "f4e852605e17"}
+{"i": 3, "cell": "agent-edit", "toks": 300, "sha": "9326d0ed8044"}
+AGG {"tag": "w1", "n": 4, "toks": 1200, "wall": 5.16, "agg_tps": 232.69}
+{"i": 0, "cell": "chat-short", "toks": 300, "sha": "8daca11964c3"}
+{"i": 1, "cell": "code-gen", "toks": 300, "sha": "f91f7908dcc9"}
+{"i": 2, "cell": "reason", "toks": 300, "sha": "1a65d0628588"}
+{"i": 3, "cell": "agent-edit", "toks": 298, "sha": "7c95bbf0cec3"}
+AGG {"tag": "w2", "n": 4, "toks": 1198, "wall": 5.12, "agg_tps": 233.97}

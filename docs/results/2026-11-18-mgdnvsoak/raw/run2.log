@@ -1,0 +1,45 @@
+fleetq: #10149 running on endor: zsh /opt/code/intarsiaml/.worktrees/mgdnvsoak/scripts/mgdnvsoak/lc.sh
+== 27b round 1 arm off cooled 50s thermal 0 06:11:57
+off r1 long16k thermal 0->0: {"cell": "long16k", "tag": "c1", "rep": 0, "toks": 1024, "ptoks": 14173, "chunks": 1023, "ttft": 16.316, "dec_tps": 51.19, "wall": 36.301, "sha": "95e49034ce56"}
+off r1 long32k thermal 0->2: {"cell": "long32k", "tag": "c1", "rep": 0, "toks": 1024, "ptoks": 29834, "chunks": 1023, "ttft": 26.267, "dec_tps": 41.64, "wall": 50.834, "sha": "9159f7989885"}
+off r1 metrics: intarsia_spec_steps_total 975 intarsia_spec_proposed_tokens_total 1948 intarsia_spec_accepted_tokens_total 1413 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 
+== 27b round 1 arm on cooled 65s thermal 0 06:14:39
+on r1 long16k thermal 0->0: {"cell": "long16k", "tag": "c1", "rep": 0, "toks": 1024, "ptoks": 14173, "chunks": 1023, "ttft": 16.224, "dec_tps": 51.31, "wall": 36.163, "sha": "95e49034ce56"}
+on r1 long32k thermal 0->2: {"cell": "long32k", "tag": "c1", "rep": 0, "toks": 1024, "ptoks": 29834, "chunks": 1023, "ttft": 26.939, "dec_tps": 42.3, "wall": 51.123, "sha": "9159f7989885"}
+on r1 metrics: intarsia_spec_steps_total 975 intarsia_spec_proposed_tokens_total 1948 intarsia_spec_accepted_tokens_total 1413 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 
+lc done
+fleetq: #10149 done (exit 0)
+fleetq: #10151 running on endor: zsh /opt/code/intarsiaml/.worktrees/mgdnvsoak/scripts/mgdnvsoak/lc.sh
+== 35b round 1 arm off cooled 70s thermal 0 06:17:27
+off r1 long16k thermal 0->0: {"cell": "long16k", "tag": "c1", "rep": 0, "toks": 1024, "ptoks": 14173, "chunks": 1023, "ttft": 2.877, "dec_tps": 148.28, "wall": 9.776, "sha": "85769fe5572c"}
+off r1 long32k thermal 0->0: {"cell": "long32k", "tag": "c1", "rep": 0, "toks": 1024, "ptoks": 29834, "chunks": 1024, "ttft": 5.147, "dec_tps": 123.01, "wall": 13.464, "sha": "169ea776f446"}
+off r1 metrics: intarsia_spec_steps_total 979 intarsia_spec_proposed_tokens_total 1958 intarsia_spec_accepted_tokens_total 1442 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 
+== 35b round 1 arm on cooled 0s thermal 0 06:18:09
+on r1 long16k thermal 0->0: {"cell": "long16k", "tag": "c1", "rep": 0, "toks": 1024, "ptoks": 14173, "chunks": 1023, "ttft": 2.925, "dec_tps": 151.23, "wall": 9.689, "sha": "85769fe5572c"}
+on r1 long32k thermal 0->1: {"cell": "long32k", "tag": "c1", "rep": 0, "toks": 1024, "ptoks": 29834, "chunks": 1024, "ttft": 5.941, "dec_tps": 122.8, "wall": 14.271, "sha": "169ea776f446"}
+on r1 metrics: intarsia_spec_steps_total 979 intarsia_spec_proposed_tokens_total 1958 intarsia_spec_accepted_tokens_total 1442 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 
+lc done
+fleetq: #10151 done (exit 0)
+fleetq: #10152 running on endor: zsh /opt/code/intarsiaml/.worktrees/mgdnvsoak/scripts/mgdnvsoak/lc.sh
+== 27b round 2 arm on cooled 85s thermal 0 06:20:05
+on r2 long16k thermal 0->1: {"cell": "long16k", "tag": "c2", "rep": 0, "toks": 1024, "ptoks": 14173, "chunks": 1023, "ttft": 16.403, "dec_tps": 49.63, "wall": 37.013, "sha": "fb293d3344e9"}
+on r2 long32k thermal 1->2: {"cell": "long32k", "tag": "c2", "rep": 0, "toks": 1024, "ptoks": 29834, "chunks": 1023, "ttft": 28.753, "dec_tps": 40.13, "wall": 54.246, "sha": "befd2822b2da"}
+on r2 metrics: intarsia_spec_steps_total 1017 intarsia_spec_proposed_tokens_total 2033 intarsia_spec_accepted_tokens_total 1424 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 
+== 27b round 2 arm off cooled 75s thermal 0 06:23:03
+off r2 long16k thermal 0->0: {"cell": "long16k", "tag": "c2", "rep": 0, "toks": 1024, "ptoks": 14173, "chunks": 1023, "ttft": 16.357, "dec_tps": 49.53, "wall": 37.011, "sha": "fb293d3344e9"}
+off r2 long32k thermal 0->2: {"cell": "long32k", "tag": "c2", "rep": 0, "toks": 1024, "ptoks": 29834, "chunks": 1023, "ttft": 26.702, "dec_tps": 42.68, "wall": 50.672, "sha": "befd2822b2da"}
+off r2 metrics: intarsia_spec_steps_total 1017 intarsia_spec_proposed_tokens_total 2033 intarsia_spec_accepted_tokens_total 1424 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 
+lc done
+fleetq: #10152 done (exit 0)
+fleetq: #10154 running on endor: zsh /opt/code/intarsiaml/.worktrees/mgdnvsoak/scripts/mgdnvsoak/lc.sh
+== 35b round 2 arm on cooled 70s thermal 0 06:25:53
+on r2 long16k thermal 0->0: {"cell": "long16k", "tag": "c2", "rep": 0, "toks": 1024, "ptoks": 14173, "chunks": 1023, "ttft": 2.88, "dec_tps": 149.44, "wall": 9.726, "sha": "7476578b9bbb"}
+on r2 long32k thermal 0->0: {"cell": "long32k", "tag": "c2", "rep": 0, "toks": 1024, "ptoks": 29834, "chunks": 1023, "ttft": 5.166, "dec_tps": 121.39, "wall": 13.594, "sha": "c45de7124997"}
+on r2 metrics: intarsia_spec_steps_total 1009 intarsia_spec_proposed_tokens_total 2016 intarsia_spec_accepted_tokens_total 1435 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 
+== 35b round 2 arm off cooled 0s thermal 0 06:26:23
+off r2 long16k thermal 0->0: {"cell": "long16k", "tag": "c2", "rep": 0, "toks": 1024, "ptoks": 14173, "chunks": 1023, "ttft": 2.881, "dec_tps": 145.73, "wall": 9.901, "sha": "7476578b9bbb"}
+off r2 long32k thermal 0->0: {"cell": "long32k", "tag": "c2", "rep": 0, "toks": 1024, "ptoks": 29834, "chunks": 1023, "ttft": 5.437, "dec_tps": 118.31, "wall": 14.084, "sha": "c45de7124997"}
+off r2 metrics: intarsia_spec_steps_total 1009 intarsia_spec_proposed_tokens_total 2016 intarsia_spec_accepted_tokens_total 1435 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 intarsia_spec_costgate_off_total 0 intarsia_spec_costgate_on_total 0 intarsia_spec_costgate_plain_steps_total 0 intarsia_spec_costgate_probe_steps_total 0 
+lc done
+fleetq: #10154 done (exit 0)
+RESTDONE

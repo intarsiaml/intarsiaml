@@ -1,0 +1,49 @@
+fleetq: #10146 running on endor: zsh /opt/code/intarsiaml/.worktrees/mgdnvsoak/scripts/mgdnvsoak/run3.sh
+-- chat-short def cooled 65s thermal 0
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=168 proposed=336 accepted=199 (acceptance 59.2%, 2.18 tokens per pass)
+-- chat-short def+on cooled 0s thermal 0
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=168 proposed=336 accepted=199 (acceptance 59.2%, 2.18 tokens per pass)
+PASS sampled chat-short def+on: 367 ids == knob-off twin
+-- reason def cooled 0s thermal 0
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=210 proposed=420 accepted=356 (acceptance 84.8%, 2.70 tokens per pass)
+-- reason def+on cooled 0s thermal 0
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=210 proposed=420 accepted=356 (acceptance 84.8%, 2.70 tokens per pass)
+PASS sampled reason def+on: 566 ids == knob-off twin
+-- code-gen def cooled 0s thermal 0
+exit 0 thermal 1
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=277 proposed=553 accepted=422 (acceptance 76.3%, 2.52 tokens per pass)
+-- code-gen def+on cooled 75s thermal 0
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=277 proposed=553 accepted=422 (acceptance 76.3%, 2.52 tokens per pass)
+PASS sampled code-gen def+on: 700 ids == knob-off twin
+-- agent-edit def cooled 0s thermal 0
+cat: /opt/code/intarsiaml/.worktrees/mgdnvsoak/target-mgdnvsoak/cells/agent-edit.txt: No such file or directory
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=4 proposed=8 accepted=6 (acceptance 75.0%, 2.50 tokens per pass)
+-- agent-edit def+on cooled 0s thermal 0
+cat: /opt/code/intarsiaml/.worktrees/mgdnvsoak/target-mgdnvsoak/cells/agent-edit.txt: No such file or directory
+exit 0 thermal 0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_d
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+spec: verify passes=4 proposed=8 accepted=6 (acceptance 75.0%, 2.50 tokens per pass)
+PASS sampled agent-edit def+on: 10 ids == knob-off twin
+ids fails=0
+fleetq: #10146 done (exit 0)

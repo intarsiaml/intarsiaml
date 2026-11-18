@@ -1,0 +1,30 @@
+We need answer user: "Write a Python module with an LRU cache class (get, put, delete, __len__) built on a doubly linked list and a dict, followed by a pytest file with six small tests that each construct the cache, call put and get a few times and assert the result."
+
+Need provide code. Need likely include module and pytest file. Need ensure LRU cache semantics. Need maybe include __len__. Need tests six small tests each construct cache, call put and get a few times and assert result. Need maybe file names: lru_cache.py and test_lru_cache.py. Need be careful: LRU cache with get, put, delete, __len__. Built on doubly linked list and dict. Need maybe capacity? LRU cache usually capacity. User didn't specify capacity but LRU implies evict least recently used when capacity exceeded. Need include capacity in constructor. Methods: get(key, default=None), put(key, value), delete(key), __len__. Need maybe __contains__? Not required. Need implement Node class. Need ensure get updates recency. put updates if exists, else insert and evict if over capacity. delete removes. __len__ returns len(dict). Need maybe capacity positive. Need tests: six small tests each construct cache, call put and get a few times and assert result. They specifically say each construct the cache, call put and get a few times and assert the result. Could include delete tests? They say call put and get a few times; maybe tests can include delete? But requirement says each construct cache, call put and get a few times and assert result. We can make six tests mostly put/get, maybe one delete? But "each construct the cache, call put and get a few times" maybe all tests should include put/get. We can include delete in one? It says followed by pytest file with six small tests that each construct the cache, call put and get a few times and assert the result. So tests should construct cache, call put and get a few times, assert result. Could avoid delete in tests? But class has delete. Maybe include delete in one test? But phrase says call put and get a few times, not necessarily only. To be safe, six tests all include put and get; maybe one includes delete but still put/get. But "each construct the cache, call put and get a few times" likely okay. Need small tests.
+
+Need maybe include code blocks. Need final answer only. Need think about implementation details.
+
+LRU cache:
+class _Node:
+    __slots__ = ('key','value','prev','next')
+    def __init__(self, key=None, value=None): ...
+
+class LRUCache:
+    def __init__(self, capacity: int):
+        if capacity <= 0: raise ValueError
+        self.capacity = capacity
+        self._map = {}
+        self._head = _Node()
+        self._tail = _Node()
+        self._head.next = self._tail
+        self._tail.prev = self._head
+
+    def _remove(self, node):
+        node.prev.next = node.next
+        node.next.prev = node.prev
+        node.prev = node.next = None
+
+    def _add_front(self, node):
+        node.prev = self._head
+        node.next = self._head.next
+        self._head

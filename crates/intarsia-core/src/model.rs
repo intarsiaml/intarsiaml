@@ -94,6 +94,22 @@ pub static MACRO_PASSES_TOTAL: std::sync::atomic::AtomicU64 = std::sync::atomic:
 /// default-on knobs `INTARSIA_MOE_SHARED_STREAM` / `INTARSIA_SIDE_PROJ` engage. A captured graph replays its forks without
 /// counting them again.
 pub static SIDE_FORKS_TOTAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// Lane postchain2: graph captures in progress in this process ([`CaptureGuard`]), so that `INTARSIA_SIDE_EAGER=0` can keep an
+/// eager pass on one stream while a capture still records its side-stream forks.
+pub(crate) static CAPTURES_ACTIVE: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+/// Lane postchain2: counts a graph capture in [`CAPTURES_ACTIVE`] for its scope.
+pub(crate) struct CaptureGuard;
+impl CaptureGuard {
+    pub(crate) fn enter() -> CaptureGuard {
+        CAPTURES_ACTIVE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        CaptureGuard
+    }
+}
+impl Drop for CaptureGuard {
+    fn drop(&mut self) {
+        CAPTURES_ACTIVE.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+    }
+}
 
 /// The ops a macro pass runs once per chunk ([`Model::macro_split`]): `INTARSIA_PREFILL_MACRO_SPLIT=<op,op,..>` (op names as
 /// `Op::parse`; `none` = nothing) replaces the default, the vendor-GEMM matmul family. A diagnostic knob for bisecting a row-variant op.
@@ -3641,6 +3657,13 @@ impl Model {
         } else {
             *MOE.get_or_init(|| knob("INTARSIA_MOE_SHARED_STREAM"))
         };
+        // lane postchain2: `INTARSIA_SIDE_EAGER=0` forks only inside a graph capture; an eager pass runs its side launches in order
+        // on its own stream (on CUDA an eager pass that used the side stream left the next 100-200 graph replays slower: every
+        // dependent node started ~0.4 us later, docs/results/2026-11-18-postchain2.md)
+        static EAGER: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if !*EAGER.get_or_init(|| knob("INTARSIA_SIDE_EAGER")) && CAPTURES_ACTIVE.load(std::sync::atomic::Ordering::Relaxed) == 0 {
+            return Ok(None);
+        }
         if !on
             || rows > SIDE_MAX_ROWS
             || (rows > 1 && !self.verifying())

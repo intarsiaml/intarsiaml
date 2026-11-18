@@ -1,0 +1,23 @@
+fleetq: #10090 waiting (#2 in line): in line behind #10089 "postchain2: rounds 3-5 (8 arms)" (claude-a9e6e738) on spark1
+fleetq:   #10089 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10089 set, or it will wait for #10089 to be released.
+fleetq: #10090 waiting (#1 in line): needs gpu quiet on spark1, but #10082 "postchain2: rounds 1-2 (8 arms)" (claude-a9e6e738) loads it
+fleetq:   #10082 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10082 set, or it will wait for #10082 to be released.
+fleetq: #10090 waiting (#1 in line): needs spark1 quiet, but its GPU is 95% busy with work fleetq does not track
+fleetq: #10090 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10090 running on spark1: ssh spark1 'W=ns1 ARMS='"'"'b1:X=1 e1:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=754,e n1:INTARSIA_SPEC_COPY=20 b2:X=1 n2:INTARSIA_SPEC_COPY=20 e2:INTARSIA_SPEC_COPY=256+INTARSIA_SPEC_COPY_PROBE_ONCE=1+INTARSIA_SPEC_COPY_PROBE=754,e b3:X=1'"'"' bash -s'
+b1 up 03:56:31 free: 57 GB
+b1: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 0, 25481216 bytes sqlite
+e1 up 03:58:38 free: 56 GB
+e1: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 0, 25497600 bytes sqlite
+n1 up 04:00:41 free: 56 GB
+n1: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 2, 25350144 bytes sqlite
+b2 up 04:02:51 free: 57 GB
+b2: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 0, 25079808 bytes sqlite
+n2 up 04:04:43 free: 57 GB
+n2: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 2, 25673728 bytes sqlite
+e2 up 04:06:47 free: 57 GB
+e2: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 0, 25489408 bytes sqlite
+b3 up 04:08:51 free: 57 GB
+b3: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 0, 25481216 bytes sqlite
+nsys done
+fleetq: #10090 done (exit 0)

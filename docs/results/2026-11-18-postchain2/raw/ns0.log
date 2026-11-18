@@ -1,0 +1,5 @@
+fleetq: #10081 running on spark1: ssh spark1 'W=ns0 ARMS="b0:X=1" bash -s'
+b0 up 03:16:23 free: 55 GB
+b0: 9 requests, shas d33d 1a69 1bd2 6557 7f9e 9719 16b2 c8f0 d0c9, chains 0, 25075712 bytes sqlite
+nsys done
+fleetq: #10081 done (exit 0)

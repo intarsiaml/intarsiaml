@@ -1,0 +1,8 @@
+{"cell": "code-gen", "tag": "c4", "rep": 0, "toks": 800, "chunks": 800, "ttft": 0.094, "dec_tps": 161.53, "wall": 5.04, "sha": "16d7a130dbc2"}
+{"cell": "code-gen", "tag": "c4", "rep": 1, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 160.04, "wall": 5.07, "sha": "5c5519cc773b"}
+{"cell": "code-gen", "tag": "c4", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 161.04, "wall": 5.04, "sha": "700a5b366c8f"}
+{"cell": "code-gen", "tag": "c4", "rep": 3, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 160.85, "wall": 5.044, "sha": "4ebc6e452736"}
+{"cell": "code-gen", "tag": "c4", "rep": 4, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 159.22, "wall": 5.095, "sha": "3469f6cc1ba0"}
+{"cell": "code-gen", "tag": "c4", "rep": 5, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 160.31, "wall": 5.062, "sha": "207704a4be89"}
+{"cell": "code-gen", "tag": "c4", "rep": 6, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 160.45, "wall": 5.057, "sha": "20a0e95694b2"}
+{"cell": "code-gen", "tag": "c4", "rep": 7, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 160.4, "wall": 5.059, "sha": "c8b62fda2d13"}

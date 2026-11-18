@@ -1,0 +1,6 @@
+base r1 eager steps (token line without graph step) at pos: 372 372 372 372 372 372 372 372 
+base r2 eager steps (token line without graph step) at pos: 372 372 372 372 372 372 372 372 372 
+base r3 eager steps (token line without graph step) at pos: 438 372 372 372 372 372 372 372 372 
+nc r1 eager steps (token line without graph step) at pos: 372 372 372 372 372 372 372 372 
+nc r2 eager steps (token line without graph step) at pos: 372 372 372 372 372 372 372 372 372 
+nc r3 eager steps (token line without graph step) at pos: 438 372 372 372 372 372 372 372 372 

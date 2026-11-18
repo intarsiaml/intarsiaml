@@ -1,0 +1,36 @@
+fleetq: #10105 running on spark1: bash -c 'REF=origin/main OUT=intarsia-main bash scripts/postchain2/build.sh && bash scripts/postchain2/build.sh'
+04:28:56
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-bench)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-engram)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-ui)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-server)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-tui)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 19s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.2T  288G  92% /
+3.3G	/home/nvidia/intarsiaml-postchain2
+Mem:             121          42          67           0          13          79
+04:34:16
+04:35:09
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-backend-cuda)
+   Compiling intarsia-bench v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-bench)
+   Compiling intarsia-engram v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-engram)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-backend-cpu)
+   Compiling intarsia-ui v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-ui)
+   Compiling intarsia-models v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-server)
+   Compiling intarsia-tui v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-tui)
+   Compiling intarsia-cli v0.0.1 (/home/nvidia/intarsiaml-postchain2/src/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 5m 33s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.2T  288G  92% /
+3.3G	/home/nvidia/intarsiaml-postchain2
+Mem:             121          42          67           0          13          79
+04:40:43
+fleetq: #10105 done (exit 0)

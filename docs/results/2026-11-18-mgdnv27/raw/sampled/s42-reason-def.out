@@ -1,0 +1,48 @@
+To determine the arrival time of the train, we need to calculate the duration of each segment of the journey and add them to the departure time.
+
+**Given:**
+*   Departure Time: 9:10
+*   Segment 1: Distance = 84 km, Speed = 60 km/h
+*   Stop: Duration = 12 minutes
+*   Segment 2: Distance = 45 km, Speed = 90 km/h
+
+### Step 1: Calculate the time for the first segment
+
+The formula for time is:
+$$ t = \frac{d}{v} $$
+
+For the first segment:
+$$ t_1 = \frac{84 \text{ km}}{60 \text{ km/h}} $$
+
+$$ t_1 = 1.4 \text{ hours} $$
+
+To convert 1.4 hours into hours and minutes:
+$$ 0.4 \text{ hours} \times 60 \text{ minutes/hour} = 24 \text{ minutes} $$
+
+So, $t_1 = 1 \text{ hour and } 24 \text{ minutes}$.
+
+### Step 2: Account for the stop
+
+The stop duration is given directly:
+$$ t_{stop} = 12 \text{ minutes} $$
+
+### Step 3: Calculate the time for the second segment
+
+For the second segment:
+$$ t_2 = \frac{45 \text{ km}}{90 \text{ km/h}} $$
+
+$$ t_2 = 0.5 \text{ hours} $$
+
+To convert 0.5 hours into minutes:
+$$ 0.5 \text{ hours} \times 60 \text{ minutes/hour} = 30 \text{ minutes} $$
+
+So, $t_2 = 30 \text{ minutes}$.
+
+### Step 4: Calculate the total travel time
+
+Sum the durations calculated in the previous steps:
+$$ \text{Total Time} = t_1 + t_{stop} + t_2 $$
+$$ \text{Total Time} = (1 \text{ hour } 24 \text{ min}) + (12 \text{ min}) + (30 \text{ min}) $$
+
+Add the minutes first:
+$$ 
