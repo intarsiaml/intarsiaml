@@ -1,0 +1,98 @@
+fleetq: #10243 waiting (#1 in line): needs cpu quiet on endor, but #10240 "herdflip tests" (claude-0b386a17-herdflip) loads it
+fleetq:   #10240 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10240 set, or it will wait for #10240 to be released.
+fleetq: #10243 running on endor: scripts/herdflip/metal.sh
+plan base: exit 0 13188 bytes sha a3bb42031070215f
+plan new: exit 0 13188 bytes sha a3bb42031070215f
+plan new0: exit 0 13188 bytes sha a3bb42031070215f
+plan base_st: exit 0 13188 bytes sha a3bb42031070215f
+plan new_st: exit 0 13188 bytes sha a3bb42031070215f
+plan new0_st: exit 0 13188 bytes sha a3bb42031070215f
+plan: base == new (byte-identical)
+plan: base == new0 (byte-identical)
+plan: base_st == new_st (byte-identical)
+plan: base_st == new0_st (byte-identical)
+== visit on_new env X=1 cooled 0s thermal 0
+{"arm": "on_new", "visit": "on_new", "cell": "herd", "mode": "burst", "seed": 1, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [4.684, 3.661, 3.942, 3.806, 4.084, 4.229, 4.53, 4.38], "cached": [16384, 0, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 6.394, "t": "14:37:45"}
+{"arm": "on_new", "visit": "on_new", "cell": "herd", "mode": "burst", "seed": 2, "n": 8, "gap": 0.5, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [3.649, 3.307, 2.944, 2.582, 2.224, 1.868, 1.514, 1.163], "cached": [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 6.35, "t": "14:37:51"}
+{"arm": "on_new", "visit": "on_new", "cell": "herd", "mode": "burst", "seed": 3, "n": 8, "gap": 2.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [3.63, 1.766, 0.155, 0.378, 0.413, 0.4, 0.223, 0.388], "cached": [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 14.828, "t": "14:38:06"}
+{"arm": "on_new", "visit": "on_new", "cell": "herd", "mode": "solo", "seed": 1, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [0.162, 0.156, 0.157, 0.157, 0.153, 0.142, 0.153, 0.142], "cached": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 3.897, "t": "14:38:10"}
+{"arm": "on_new", "visit": "on_new", "cell": "herd", "mode": "solo", "seed": 2, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [0.151, 0.14, 0.14, 0.141, 0.141, 0.145, 0.139, 0.14], "cached": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 3.879, "t": "14:38:14"}
+{"arm": "on_new", "visit": "on_new", "cell": "herd", "mode": "solo", "seed": 3, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [0.148, 0.141, 0.14, 0.141, 0.141, 0.141, 0.14, 0.141], "cached": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 3.861, "t": "14:38:18"}
+rss MB 42484
+== visit on_base env X=1 cooled 0s thermal 0
+{"arm": "on_base", "visit": "on_base", "cell": "herd", "mode": "burst", "seed": 1, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [6.78, 26.869, 19.944, 23.32, 9.992, 16.606, 13.295, 3.634], "cached": [4096, 4096, 4096, 4096, 4096, 4096, 4096, 0], "errors": [null, null, null, null, null, null, null, null], "wall_s": 27.418, "t": "14:39:02"}
+{"arm": "on_base", "visit": "on_base", "cell": "herd", "mode": "burst", "seed": 2, "n": 8, "gap": 0.5, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [3.953, 6.734, 8.687, 10.667, 11.578, 12.475, 12.131, 11.789], "cached": [0, 4096, 8192, 8192, 12288, 12288, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 16.446, "t": "14:39:18"}
+{"arm": "on_base", "visit": "on_base", "cell": "herd", "mode": "burst", "seed": 3, "n": 8, "gap": 2.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [3.948, 3.278, 1.418, 0.17, 0.329, 0.463, 0.442, 0.247], "cached": [0, 12288, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 14.687, "t": "14:39:33"}
+{"arm": "on_base", "visit": "on_base", "cell": "herd", "mode": "solo", "seed": 1, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [0.161, 0.152, 0.153, 0.154, 0.152, 0.156, 0.144, 0.154], "cached": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 3.96, "t": "14:39:37"}
+{"arm": "on_base", "visit": "on_base", "cell": "herd", "mode": "solo", "seed": 2, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [0.156, 0.145, 0.147, 0.144, 0.147, 0.147, 0.15, 0.153], "cached": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 4.029, "t": "14:39:41"}
+{"arm": "on_base", "visit": "on_base", "cell": "herd", "mode": "solo", "seed": 3, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [0.154, 0.147, 0.15, 0.148, 0.16, 0.147, 0.143, 0.146], "cached": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 4.014, "t": "14:39:45"}
+rss MB 43819
+== visit on_zero env INTARSIA_PREFIX_HERD=0 cooled 70s thermal 0
+{"arm": "on_zero", "visit": "on_zero", "cell": "herd", "mode": "burst", "seed": 1, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [9.737, 20.027, 16.71, 13.289, 23.315, 3.59, 6.551, 26.738], "cached": [4096, 4096, 4096, 4096, 4096, 0, 4096, 4096], "errors": [null, null, null, null, null, null, null, null], "wall_s": 27.271, "t": "14:41:28"}
+{"arm": "on_zero", "visit": "on_zero", "cell": "herd", "mode": "burst", "seed": 2, "n": 8, "gap": 0.5, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [3.993, 6.855, 8.897, 10.903, 11.779, 12.744, 12.409, 12.088], "cached": [0, 4096, 8192, 8192, 12288, 12288, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 16.792, "t": "14:41:45"}
+{"arm": "on_zero", "visit": "on_zero", "cell": "herd", "mode": "burst", "seed": 3, "n": 8, "gap": 2.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [4.422, 3.785, 1.927, 0.182, 0.186, 0.474, 0.273, 0.476], "cached": [0, 12288, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 14.911, "t": "14:42:00"}
+{"arm": "on_zero", "visit": "on_zero", "cell": "herd", "mode": "solo", "seed": 1, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [0.17, 0.162, 0.153, 0.153, 0.153, 0.153, 0.154, 0.142], "cached": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 3.893, "t": "14:42:04"}
+{"arm": "on_zero", "visit": "on_zero", "cell": "herd", "mode": "solo", "seed": 2, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [0.173, 0.152, 0.152, 0.147, 0.143, 0.15, 0.149, 0.152], "cached": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 3.955, "t": "14:42:08"}
+{"arm": "on_zero", "visit": "on_zero", "cell": "herd", "mode": "solo", "seed": 3, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [0.144, 0.145, 0.153, 0.15, 0.144, 0.142, 0.153, 0.165], "cached": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 3.995, "t": "14:42:12"}
+rss MB 43173
+== visit on_one env INTARSIA_PREFIX_HERD=1 cooled 70s thermal 0
+{"arm": "on_one", "visit": "on_one", "cell": "herd", "mode": "burst", "seed": 1, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [3.982, 3.842, 4.273, 4.126, 3.563, 4.422, 4.576, 3.705], "cached": [16384, 16384, 16384, 16384, 0, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 6.273, "t": "14:43:34"}
+{"arm": "on_one", "visit": "on_one", "cell": "herd", "mode": "burst", "seed": 2, "n": 8, "gap": 0.5, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [3.57, 3.209, 2.847, 2.48, 2.126, 1.768, 1.412, 1.064], "cached": [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 6.28, "t": "14:43:41"}
+{"arm": "on_one", "visit": "on_one", "cell": "herd", "mode": "burst", "seed": 3, "n": 8, "gap": 2.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [3.903, 2.042, 0.183, 0.182, 0.491, 0.459, 0.459, 0.424], "cached": [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 14.867, "t": "14:43:56"}
+{"arm": "on_one", "visit": "on_one", "cell": "herd", "mode": "solo", "seed": 1, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [0.169, 0.153, 0.153, 0.156, 0.154, 0.152, 0.156, 0.154], "cached": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 3.905, "t": "14:44:00"}
+{"arm": "on_one", "visit": "on_one", "cell": "herd", "mode": "solo", "seed": 2, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [0.164, 0.146, 0.151, 0.158, 0.144, 0.147, 0.148, 0.158], "cached": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 3.956, "t": "14:44:04"}
+{"arm": "on_one", "visit": "on_one", "cell": "herd", "mode": "solo", "seed": 3, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [0.149, 0.142, 0.145, 0.162, 0.145, 0.142, 0.145, 0.158], "cached": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384], "errors": [null, null, null, null, null, null, null, null], "wall_s": 3.894, "t": "14:44:08"}
+rss MB 43169
+== visit off_new env X=1 cooled 0s thermal 0
+{"arm": "off_new", "visit": "off_new", "cell": "herd", "mode": "burst", "seed": 1, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [38.043, 23.11, 18.15, 28.173, 8.291, 33.04, 3.758, 13.163], "cached": [0, 0, 0, 0, 0, 0, 0, 0], "errors": [null, null, null, null, null, null, null, null], "wall_s": 38.499, "t": "14:44:52"}
+{"arm": "off_new", "visit": "off_new", "cell": "herd", "mode": "burst", "seed": 2, "n": 8, "gap": 0.5, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [4.354, 8.625, 13.101, 17.57, 21.961, 26.504, 30.955, 35.384], "cached": [0, 0, 0, 0, 0, 0, 0, 0], "errors": [null, null, null, null, null, null, null, null], "wall_s": 39.369, "t": "14:45:31"}
+{"arm": "off_new", "visit": "off_new", "cell": "herd", "mode": "burst", "seed": 3, "n": 8, "gap": 2.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [4.463, 7.34, 10.247, 13.249, 16.158, 19.104, 22.026, 25.009], "cached": [0, 0, 0, 0, 0, 0, 0, 0], "errors": [null, null, null, null, null, null, null, null], "wall_s": 39.502, "t": "14:46:11"}
+{"arm": "off_new", "visit": "off_new", "cell": "herd", "mode": "solo", "seed": 1, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [4.246, 4.489, 4.249, 4.421, 4.153, 4.477, 4.383, 4.389], "cached": [0, 0, 0, 0, 0, 0, 0, 0], "errors": [null, null, null, null, null, null, null, null], "wall_s": 37.655, "t": "14:46:48"}
+{"arm": "off_new", "visit": "off_new", "cell": "herd", "mode": "solo", "seed": 2, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [4.342, 4.364, 4.354, 4.274, 4.416, 4.206, 4.412, 4.29], "cached": [0, 0, 0, 0, 0, 0, 0, 0], "errors": [null, null, null, null, null, null, null, null], "wall_s": 37.595, "t": "14:47:26"}
+{"arm": "off_new", "visit": "off_new", "cell": "herd", "mode": "solo", "seed": 3, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [4.337, 4.172, 4.381, 4.286, 4.32, 4.308, 4.336, 4.204], "cached": [0, 0, 0, 0, 0, 0, 0, 0], "errors": [null, null, null, null, null, null, null, null], "wall_s": 37.012, "t": "14:48:03"}
+rss MB 37998
+== visit off_base env X=1 cooled 40s thermal 0
+{"arm": "off_base", "visit": "off_base", "cell": "herd", "mode": "burst", "seed": 1, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [33.091, 24.387, 28.747, 15.757, 20.014, 3.723, 7.651, 11.72], "cached": [0, 0, 0, 0, 0, 0, 0, 0], "errors": [null, null, null, null, null, null, null, null], "wall_s": 33.535, "t": "14:49:23"}
+{"arm": "off_base", "visit": "off_base", "cell": "herd", "mode": "burst", "seed": 2, "n": 8, "gap": 0.5, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [3.842, 7.667, 11.545, 15.553, 19.476, 23.439, 27.373, 31.308], "cached": [0, 0, 0, 0, 0, 0, 0, 0], "errors": [null, null, null, null, null, null, null, null], "wall_s": 35.279, "t": "14:49:58"}
+{"arm": "off_base", "visit": "off_base", "cell": "herd", "mode": "burst", "seed": 3, "n": 8, "gap": 2.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [3.821, 6.166, 8.662, 11.025, 13.506, 15.911, 18.426, 20.832], "cached": [0, 0, 0, 0, 0, 0, 0, 0], "errors": [null, null, null, null, null, null, null, null], "wall_s": 35.301, "t": "14:50:33"}
+{"arm": "off_base", "visit": "off_base", "cell": "herd", "mode": "solo", "seed": 1, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [3.843, 4.056, 4.056, 4.042, 3.946, 4.114, 4.029, 4.018], "cached": [0, 0, 0, 0, 0, 0, 0, 0], "errors": [null, null, null, null, null, null, null, null], "wall_s": 34.79, "t": "14:51:08"}
+{"arm": "off_base", "visit": "off_base", "cell": "herd", "mode": "solo", "seed": 2, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [4.052, 4.041, 4.024, 3.921, 3.98, 3.85, 3.961, 3.941], "cached": [0, 0, 0, 0, 0, 0, 0, 0], "errors": [null, null, null, null, null, null, null, null], "wall_s": 34.575, "t": "14:51:43"}
+{"arm": "off_base", "visit": "off_base", "cell": "herd", "mode": "solo", "seed": 3, "n": 8, "gap": 0.0, "short_len": 0, "short_at": 2.0, "ok": 8, "ttft": [3.987, 3.943, 3.984, 3.961, 3.962, 3.896, 3.927, 3.967], "cached": [0, 0, 0, 0, 0, 0, 0, 0], "errors": [null, null, null, null, null, null, null, null], "wall_s": 34.198, "t": "14:52:17"}
+rss MB 37988
+PASS group on: arms ['on_base', 'on_new', 'on_one', 'on_zero'], 192 replies, 48 prompts, 0 differences
+    info: burst reply == solo reply (first arm seen): 24 of 24 prompts
+PASS group off: arms ['off_base', 'off_new'], 96 replies, 48 prompts, 0 differences
+    info: burst reply == solo reply (first arm seen): 24 of 24 prompts
+PASS inert on_base: cached_tokens of the stagger-0 cell [4096, 4096, 4096, 4096, 4096, 4096, 4096, 0] (sum 28672)
+PASS inert on_zero: cached_tokens of the stagger-0 cell [4096, 4096, 4096, 4096, 4096, 0, 4096, 4096] (sum 28672)
+PASS inert off_new: cached_tokens of the stagger-0 cell [0, 0, 0, 0, 0, 0, 0, 0] (sum 0, must be 0: no store)
+PASS inert off_base: cached_tokens of the stagger-0 cell [0, 0, 0, 0, 0, 0, 0, 0] (sum 0, must be 0: no store)
+PASS engaged on_new: cached_tokens of the stagger-0 cell [16384, 0, 16384, 16384, 16384, 16384, 16384, 16384] (sum 114688 > herd-off store-on max 28672)
+PASS engaged on_one: cached_tokens of the stagger-0 cell [16384, 16384, 16384, 16384, 0, 16384, 16384, 16384] (sum 114688 > herd-off store-on max 28672)
+-- TTFT (burst cells; sum / p50 / last of the requests, seconds)
+on_new     seed 1 stagger/gap 0.0: n 8 sum 33.32 p50 4.16 last 4.68  cached [16384, 0, 16384, 16384, 16384, 16384, 16384, 16384]
+on_new     seed 2 stagger/gap 0.5: n 8 sum 19.25 p50 2.40 last 3.65  cached [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]
+on_new     seed 3 stagger/gap 2.0: n 8 sum 7.35 p50 0.39 last 3.63  cached [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]
+on_base    seed 1 stagger/gap 0.0: n 8 sum 120.44 p50 14.95 last 26.87  cached [4096, 4096, 4096, 4096, 4096, 4096, 4096, 0]
+on_base    seed 2 stagger/gap 0.5: n 8 sum 78.01 p50 11.12 last 12.47  cached [0, 4096, 8192, 8192, 12288, 12288, 16384, 16384]
+on_base    seed 3 stagger/gap 2.0: n 8 sum 10.29 p50 0.45 last 3.95  cached [0, 12288, 16384, 16384, 16384, 16384, 16384, 16384]
+on_zero    seed 1 stagger/gap 0.0: n 8 sum 119.96 p50 15.00 last 26.74  cached [4096, 4096, 4096, 4096, 4096, 0, 4096, 4096]
+on_zero    seed 2 stagger/gap 0.5: n 8 sum 79.67 p50 11.34 last 12.74  cached [0, 4096, 8192, 8192, 12288, 12288, 16384, 16384]
+on_zero    seed 3 stagger/gap 2.0: n 8 sum 11.73 p50 0.47 last 4.42  cached [0, 12288, 16384, 16384, 16384, 16384, 16384, 16384]
+on_one     seed 1 stagger/gap 0.0: n 8 sum 32.49 p50 4.05 last 4.58  cached [16384, 16384, 16384, 16384, 0, 16384, 16384, 16384]
+on_one     seed 2 stagger/gap 0.5: n 8 sum 18.48 p50 2.30 last 3.57  cached [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]
+on_one     seed 3 stagger/gap 2.0: n 8 sum 8.14 p50 0.46 last 3.90  cached [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]
+off_new    seed 1 stagger/gap 0.0: n 8 sum 165.73 p50 20.63 last 38.04  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_new    seed 2 stagger/gap 0.5: n 8 sum 158.45 p50 19.77 last 35.38  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_new    seed 3 stagger/gap 2.0: n 8 sum 117.60 p50 14.70 last 25.01  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_base   seed 1 stagger/gap 0.0: n 8 sum 145.09 p50 17.89 last 33.09  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_base   seed 2 stagger/gap 0.5: n 8 sum 140.20 p50 17.51 last 31.31  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_base   seed 3 stagger/gap 2.0: n 8 sum 98.35 p50 12.27 last 20.83  cached [0, 0, 0, 0, 0, 0, 0, 0]
+gate fails=0
+on_new: prefix herd: on (default, INTARSIA_PREFIX_HERD=0 turns it off): a request waits for an older one still prefilling a pref
+on_base: 
+on_zero: 
+on_one: prefix herd: on (default, INTARSIA_PREFIX_HERD=0 turns it off): a request waits for an older one still prefilling a pref
+off_new: 
+off_base: 
+fleetq: #10243 done (exit 0)

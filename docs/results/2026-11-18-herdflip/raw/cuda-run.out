@@ -1,0 +1,109 @@
+fleetq: #10252 waiting (#4 in line): in line behind #10248 "copycuda: ids gate" (claude-0b386a17-copycuda) on spark1
+fleetq: #10252 waiting (#2 in line): in line behind #10250 "copycuda: A/B half 1 (2 rounds ABBA)" (claude-0b386a17-copycuda) on spark1
+fleetq: #10252 waiting (#1 in line): needs gpu quiet on spark1, but #10250 "copycuda: A/B half 1 (2 rounds ABBA)" (claude-0b386a17-copycuda) loads it
+fleetq: #10252 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10252 running on spark1: scripts/herdflip/cuda.sh plan run clean
+[15:24:28] plan base (bin base, env [ ]): exit 0 15570 bytes sha c446afdca09ab0ec
+[15:25:45] plan new (bin new, env [ ]): exit 0 15570 bytes sha c446afdca09ab0ec
+[15:27:14] plan new0 (bin new, env [INTARSIA_PREFIX_HERD=0 ]): exit 0 15570 bytes sha c446afdca09ab0ec
+[15:28:44] plan base_st (bin base, env [ INTARSIA_PREFIX_STORE=on]): exit 0 15570 bytes sha c446afdca09ab0ec
+[15:30:17] plan new_st (bin new, env [ INTARSIA_PREFIX_STORE=on]): exit 0 15570 bytes sha c446afdca09ab0ec
+[15:31:50] plan new0_st (bin new, env [INTARSIA_PREFIX_HERD=0 INTARSIA_PREFIX_STORE=on]): exit 0 15570 bytes sha c446afdca09ab0ec
+[15:31:50] plan: base == new (byte-identical, no store)
+[15:31:50] plan: base == new0 (byte-identical, no store, HERD=0)
+[15:31:50] plan: base == new (byte-identical, INTARSIA_PREFIX_STORE=on)
+[15:31:50] plan: base == new0 (byte-identical, INTARSIA_PREFIX_STORE=on, HERD=0)
+active
+[15:31:52] serve on_new: bin new env [] --max-seq 17408 --max-batch 8 --prefix-store on ; Mem:             121          41          58           0          22          80
+[15:33:35] serve on_new up; Mem:             121          68          31           0          22          53
+{"arm": "on_new", "visit": "on_new", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 26.845, "ttft_p50_s": 3.351, "ttft_last_s": 3.918, "wall_s": 6.074, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 0, 16384]}
+{"arm": "on_new", "visit": "on_new", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 12.957, "ttft_p50_s": 1.624, "ttft_last_s": 2.82, "wall_s": 6.029, "cached_tokens": [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_new", "visit": "on_new", "mode": "herd8", "seed": 3, "ok": 8, "ttft_sum_s": 4.88, "ttft_p50_s": 0.173, "ttft_last_s": 2.777, "wall_s": 14.726, "cached_tokens": [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_new", "visit": "on_new", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.343, "ttft_p50_s": 0.167, "ttft_last_s": 0.176, "wall_s": 5.21, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_new", "visit": "on_new", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.347, "ttft_p50_s": 0.168, "ttft_last_s": 0.171, "wall_s": 5.148, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_new", "visit": "on_new", "mode": "solo", "seed": 3, "ok": 8, "ttft_sum_s": 1.335, "ttft_p50_s": 0.167, "ttft_last_s": 0.169, "wall_s": 4.888, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+[15:34:22] min MemAvailable MB (on_new): 15:33:53 52293, KILLED: 0
+[15:34:24] serve on_base: bin base env [] --max-seq 17408 --max-batch 8 --prefix-store on ; Mem:             121          41          58           0          22          80
+[15:36:04] serve on_base up; Mem:             121          68          31           0          22          53
+{"arm": "on_base", "visit": "on_base", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 106.863, "ttft_p50_s": 13.474, "ttft_last_s": 23.728, "wall_s": 24.385, "cached_tokens": [2048, 2048, 2048, 2048, 2048, 0, 2048, 2048]}
+{"arm": "on_base", "visit": "on_base", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 45.082, "ttft_p50_s": 6.062, "ttft_last_s": 6.938, "wall_s": 10.749, "cached_tokens": [0, 6144, 8192, 12288, 14336, 16384, 16384, 16384]}
+{"arm": "on_base", "visit": "on_base", "mode": "herd8", "seed": 3, "ok": 8, "ttft_sum_s": 5.55, "ttft_p50_s": 0.168, "ttft_last_s": 2.802, "wall_s": 14.705, "cached_tokens": [0, 14336, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_base", "visit": "on_base", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.338, "ttft_p50_s": 0.167, "ttft_last_s": 0.168, "wall_s": 5.189, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_base", "visit": "on_base", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.35, "ttft_p50_s": 0.169, "ttft_last_s": 0.171, "wall_s": 5.129, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_base", "visit": "on_base", "mode": "solo", "seed": 3, "ok": 8, "ttft_sum_s": 1.335, "ttft_p50_s": 0.167, "ttft_last_s": 0.169, "wall_s": 4.874, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+[15:37:14] min MemAvailable MB (on_base): 15:36:45 52578, KILLED: 0
+[15:37:16] serve on_zero: bin new env [INTARSIA_PREFIX_HERD=0] --max-seq 17408 --max-batch 8 --prefix-store on ; Mem:             121          41          58           0          22          80
+[15:38:43] serve on_zero up; Mem:             121          67          33           0          22          54
+{"arm": "on_zero", "visit": "on_zero", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 107.004, "ttft_p50_s": 13.497, "ttft_last_s": 23.724, "wall_s": 24.237, "cached_tokens": [2048, 2048, 0, 2048, 2048, 2048, 2048, 2048]}
+{"arm": "on_zero", "visit": "on_zero", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 44.935, "ttft_p50_s": 6.026, "ttft_last_s": 6.9, "wall_s": 10.71, "cached_tokens": [0, 6144, 8192, 12288, 14336, 16384, 16384, 16384]}
+{"arm": "on_zero", "visit": "on_zero", "mode": "herd8", "seed": 3, "ok": 8, "ttft_sum_s": 5.545, "ttft_p50_s": 0.17, "ttft_last_s": 2.79, "wall_s": 14.724, "cached_tokens": [0, 14336, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_zero", "visit": "on_zero", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.344, "ttft_p50_s": 0.168, "ttft_last_s": 0.17, "wall_s": 5.207, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_zero", "visit": "on_zero", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.348, "ttft_p50_s": 0.168, "ttft_last_s": 0.17, "wall_s": 5.147, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_zero", "visit": "on_zero", "mode": "solo", "seed": 3, "ok": 8, "ttft_sum_s": 1.338, "ttft_p50_s": 0.167, "ttft_last_s": 0.17, "wall_s": 4.882, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+[15:39:53] min MemAvailable MB (on_zero): 15:39:23 52686, KILLED: 0
+[15:39:55] serve on_one: bin new env [INTARSIA_PREFIX_HERD=1] --max-seq 17408 --max-batch 8 --prefix-store on ; Mem:             121          41          58           0          22          80
+[15:41:21] serve on_one up; Mem:             121          67          33           0          22          54
+{"arm": "on_one", "visit": "on_one", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 26.895, "ttft_p50_s": 3.359, "ttft_last_s": 3.927, "wall_s": 6.032, "cached_tokens": [16384, 16384, 0, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_one", "visit": "on_one", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 12.895, "ttft_p50_s": 1.615, "ttft_last_s": 2.812, "wall_s": 5.996, "cached_tokens": [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_one", "visit": "on_one", "mode": "herd8", "seed": 3, "ok": 8, "ttft_sum_s": 4.855, "ttft_p50_s": 0.174, "ttft_last_s": 2.783, "wall_s": 14.725, "cached_tokens": [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_one", "visit": "on_one", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 1.344, "ttft_p50_s": 0.168, "ttft_last_s": 0.175, "wall_s": 5.21, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_one", "visit": "on_one", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 1.346, "ttft_p50_s": 0.168, "ttft_last_s": 0.169, "wall_s": 5.15, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+{"arm": "on_one", "visit": "on_one", "mode": "solo", "seed": 3, "ok": 8, "ttft_sum_s": 1.333, "ttft_p50_s": 0.167, "ttft_last_s": 0.169, "wall_s": 4.885, "cached_tokens": [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384]}
+[15:42:08] min MemAvailable MB (on_one): 15:42:04 52776, KILLED: 0
+[15:42:11] serve off_new: bin new env [] --max-seq 17408 --max-batch 8 ; Mem:             121          41          58           0          22          80
+[15:43:37] serve off_new up; Mem:             121          68          31           0          22          53
+{"arm": "off_new", "visit": "off_new", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 112.344, "ttft_p50_s": 14.045, "ttft_last_s": 25.433, "wall_s": 25.876, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "off_new", "visit": "off_new", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 98.728, "ttft_p50_s": 12.328, "ttft_last_s": 22.054, "wall_s": 26.106, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "off_new", "visit": "off_new", "mode": "herd8", "seed": 3, "ok": 8, "ttft_sum_s": 54.915, "ttft_p50_s": 6.845, "ttft_last_s": 11.257, "wall_s": 25.822, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "off_new", "visit": "off_new", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 20.155, "ttft_p50_s": 2.518, "ttft_last_s": 2.53, "wall_s": 23.82, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "off_new", "visit": "off_new", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 20.144, "ttft_p50_s": 2.518, "ttft_last_s": 2.523, "wall_s": 24.06, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "off_new", "visit": "off_new", "mode": "solo", "seed": 3, "ok": 8, "ttft_sum_s": 20.149, "ttft_p50_s": 2.518, "ttft_last_s": 2.524, "wall_s": 23.728, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+[15:46:12] min MemAvailable MB (off_new): 15:46:00 53630, KILLED: 0
+[15:46:14] serve off_base: bin base env [] --max-seq 17408 --max-batch 8 ; Mem:             121          41          58           0          22          80
+[15:47:48] serve off_base up; Mem:             121          68          31           0          22          53
+{"arm": "off_base", "visit": "off_base", "mode": "herd8", "seed": 1, "ok": 8, "ttft_sum_s": 112.646, "ttft_p50_s": 14.099, "ttft_last_s": 25.463, "wall_s": 25.902, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "off_base", "visit": "off_base", "mode": "herd8", "seed": 2, "ok": 8, "ttft_sum_s": 98.815, "ttft_p50_s": 12.337, "ttft_last_s": 22.061, "wall_s": 26.112, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "off_base", "visit": "off_base", "mode": "herd8", "seed": 3, "ok": 8, "ttft_sum_s": 55.029, "ttft_p50_s": 6.861, "ttft_last_s": 11.277, "wall_s": 25.835, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "off_base", "visit": "off_base", "mode": "solo", "seed": 1, "ok": 8, "ttft_sum_s": 20.229, "ttft_p50_s": 2.527, "ttft_last_s": 2.54, "wall_s": 23.879, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "off_base", "visit": "off_base", "mode": "solo", "seed": 2, "ok": 8, "ttft_sum_s": 20.248, "ttft_p50_s": 2.531, "ttft_last_s": 2.536, "wall_s": 24.148, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+{"arm": "off_base", "visit": "off_base", "mode": "solo", "seed": 3, "ok": 8, "ttft_sum_s": 20.237, "ttft_p50_s": 2.531, "ttft_last_s": 2.535, "wall_s": 23.796, "cached_tokens": [0, 0, 0, 0, 0, 0, 0, 0]}
+[15:50:23] min MemAvailable MB (off_base): 15:50:12 53621, KILLED: 0
+PASS group on: arms ['on_base', 'on_new', 'on_one', 'on_zero'], 192 replies, 48 prompts, 0 differences
+    info: burst reply == solo reply (first arm seen): 24 of 24 prompts
+PASS group off: arms ['off_base', 'off_new'], 96 replies, 48 prompts, 0 differences
+    info: burst reply == solo reply (first arm seen): 24 of 24 prompts
+PASS inert on_base: cached_tokens of the stagger-0 cell [2048, 2048, 2048, 2048, 2048, 0, 2048, 2048] (sum 14336)
+PASS inert on_zero: cached_tokens of the stagger-0 cell [2048, 2048, 0, 2048, 2048, 2048, 2048, 2048] (sum 14336)
+PASS inert off_new: cached_tokens of the stagger-0 cell [0, 0, 0, 0, 0, 0, 0, 0] (sum 0, must be 0: no store)
+PASS inert off_base: cached_tokens of the stagger-0 cell [0, 0, 0, 0, 0, 0, 0, 0] (sum 0, must be 0: no store)
+PASS engaged on_new: cached_tokens of the stagger-0 cell [16384, 16384, 16384, 16384, 16384, 16384, 0, 16384] (sum 114688 > herd-off store-on max 14336)
+PASS engaged on_one: cached_tokens of the stagger-0 cell [16384, 16384, 0, 16384, 16384, 16384, 16384, 16384] (sum 114688 > herd-off store-on max 14336)
+-- TTFT (burst cells; sum / p50 / last of the requests, seconds)
+on_new     seed 1 stagger/gap 0.0: n 8 sum 26.84 p50 3.35 last 3.92  cached [16384, 16384, 16384, 16384, 16384, 16384, 0, 16384]
+on_new     seed 2 stagger/gap 0.5: n 8 sum 12.96 p50 1.62 last 2.82  cached [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]
+on_new     seed 3 stagger/gap 2.0: n 8 sum 4.88 p50 0.17 last 2.78  cached [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]
+on_base    seed 1 stagger/gap 0.0: n 8 sum 106.86 p50 13.47 last 23.73  cached [2048, 2048, 2048, 2048, 2048, 0, 2048, 2048]
+on_base    seed 2 stagger/gap 0.5: n 8 sum 45.08 p50 6.06 last 6.94  cached [0, 6144, 8192, 12288, 14336, 16384, 16384, 16384]
+on_base    seed 3 stagger/gap 2.0: n 8 sum 5.55 p50 0.17 last 2.80  cached [0, 14336, 16384, 16384, 16384, 16384, 16384, 16384]
+on_zero    seed 1 stagger/gap 0.0: n 8 sum 107.01 p50 13.50 last 23.72  cached [2048, 2048, 0, 2048, 2048, 2048, 2048, 2048]
+on_zero    seed 2 stagger/gap 0.5: n 8 sum 44.94 p50 6.03 last 6.90  cached [0, 6144, 8192, 12288, 14336, 16384, 16384, 16384]
+on_zero    seed 3 stagger/gap 2.0: n 8 sum 5.54 p50 0.17 last 2.79  cached [0, 14336, 16384, 16384, 16384, 16384, 16384, 16384]
+on_one     seed 1 stagger/gap 0.0: n 8 sum 26.90 p50 3.36 last 3.93  cached [16384, 16384, 0, 16384, 16384, 16384, 16384, 16384]
+on_one     seed 2 stagger/gap 0.5: n 8 sum 12.90 p50 1.62 last 2.81  cached [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]
+on_one     seed 3 stagger/gap 2.0: n 8 sum 4.86 p50 0.17 last 2.78  cached [0, 16384, 16384, 16384, 16384, 16384, 16384, 16384]
+off_new    seed 1 stagger/gap 0.0: n 8 sum 112.34 p50 14.05 last 25.43  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_new    seed 2 stagger/gap 0.5: n 8 sum 98.73 p50 12.33 last 22.05  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_new    seed 3 stagger/gap 2.0: n 8 sum 54.91 p50 6.85 last 11.26  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_base   seed 1 stagger/gap 0.0: n 8 sum 112.65 p50 14.10 last 25.46  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_base   seed 2 stagger/gap 0.5: n 8 sum 98.81 p50 12.34 last 22.06  cached [0, 0, 0, 0, 0, 0, 0, 0]
+off_base   seed 3 stagger/gap 2.0: n 8 sum 55.03 p50 6.86 last 11.28  cached [0, 0, 0, 0, 0, 0, 0, 0]
+gate fails=0
+serve-off_base.log: 
+serve-off_new.log: 
+serve-on_base.log: 
+serve-on_new.log: prefix herd: on (default, INTARSIA_PREFIX_HERD=0 turns it off): a request waits for an older one still prefilling a pref
+serve-on_one.log: prefix herd: on (default, INTARSIA_PREFIX_HERD=0 turns it off): a request waits for an older one still prefilling a pref
+serve-on_zero.log: 
+[15:50:25] done
+[15:50:26] removed ~/intarsiaml-herdflip
+fleetq: #10252 done (exit 0)
