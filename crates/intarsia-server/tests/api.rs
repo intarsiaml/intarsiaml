@@ -2505,3 +2505,31 @@ async fn completions_logprobs_do_not_stall_the_async_threads() {
         assert!(stall < total / 3, "the timer stood still for {stall:?} beyond its {best:?} period, of the request's {total:?}");
     }
 }
+
+/// `INTARSIA_SYSTEM_MIDCONV` (lane sysmsg): a non-leading system message reaches the template rewritten; unset, the
+/// request is untouched. One test sets the variable, so no other test in this binary sees it.
+#[tokio::test]
+async fn system_midconv_rewrites_only_when_asked() {
+    let msgs = json!([
+        {"role": "system", "content": "S"}, {"role": "user", "content": "u"},
+        {"role": "system", "content": "n"}, {"role": "user", "content": "v"}
+    ]);
+    let roles = |m: &Arc<Mock>| {
+        let (t, _) = m.templated.lock().unwrap().last().unwrap().clone();
+        t.iter().map(|x| x["role"].as_str().unwrap().to_string()).collect::<Vec<_>>()
+    };
+    std::env::remove_var("INTARSIA_SYSTEM_MIDCONV");
+    let (app, mock) = app();
+    let (st, _, _) = call(&app, "POST", "/v1/chat/completions", Some(json!({"messages": msgs, "max_tokens": 1}))).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(roles(&mock), ["system", "user", "system", "user"]);
+    std::env::set_var("INTARSIA_SYSTEM_MIDCONV", "user");
+    let (st, _, b) = call(&app, "POST", "/v1/chat/completions", Some(json!({"messages": msgs, "max_tokens": 1}))).await;
+    assert_eq!(st, StatusCode::OK, "{b}");
+    assert_eq!(roles(&mock), ["system", "user", "user", "user"]);
+    std::env::set_var("INTARSIA_SYSTEM_MIDCONV", "merge");
+    let (st, _, _) = call(&app, "POST", "/v1/chat/completions", Some(json!({"messages": msgs, "max_tokens": 1}))).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(roles(&mock), ["system", "user", "user"]);
+    std::env::remove_var("INTARSIA_SYSTEM_MIDCONV");
+}
