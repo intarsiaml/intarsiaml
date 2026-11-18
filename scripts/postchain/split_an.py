@@ -42,9 +42,13 @@ for (arm, rnd), reqs in sorted(runs.items()):
         d = [[A - Bv for A, Bv in zip(reqs[I_MID][k][1], B[I_MID][k][1])] for k in reqs[I_MID] if k in B[I_MID] and reqs[I_MID][k][0] == B[I_MID][k][0] and sel(k[0])]
         return [st.mean(x[j] for x in d) for j in range(6)] if d else [float("nan")] * 6
     m = [p - q for p, q in zip(mseg(lambda p: p >= a.event + 10), mseg(lambda p: 100 <= p < a.event))]
-    agg[arm].append((c, m))
+    I_M1 = I_MID + 1  # MID1 over [100, 640) minus PRE: the primary window of r2_an.py
+    d1 = [[A - Bv for A, Bv in zip(reqs[I_M1][k][1], B[I_M1][k][1])] for k in reqs[I_M1] if k in B[I_M1] and reqs[I_M1][k][0] == B[I_M1][k][0] and 100 <= k[0] < 640]
+    m1 = [st.mean(x[j] for x in d1) - pre[j] for j in range(6)] if d1 else [float("nan")] * 6
+    agg[arm].append((c, m, m1))
+    print(f"{arm} r{rnd}: MID1-minus-PRE " + " ".join(f"{n} {v:+.3f}" for n, v in zip(names, m1)))
     print(f"{arm} r{rnd}: carry " + " ".join(f"{n} {v:+.3f}" for n, v in zip(names, c)))
     print(f"{arm} r{rnd}: in-request " + " ".join(f"{n} {v:+.3f}" for n, v in zip(names, m)))
 for arm, v in agg.items():
-    for i, lab in ((0, "carry"), (1, "in-request")):
+    for i, lab in ((0, "carry"), (1, "in-request"), (2, "MID1-minus-PRE")):
         print(f"  {arm} mean {lab}: " + " ".join(f"{n} {st.mean(x[i][j] for x in v):+.3f}" for j, n in enumerate(names)))

@@ -7,21 +7,28 @@ Nothing default-on.
 
 **Result: cause not found; narrowed. No fix.** Two hypothesis rounds, then the stop rule.
 
-- **The trigger is the chain pass itself, accepted or rejected.** With an instrument whose positive control works (the 800-token request right after the event,
-  "MID1", against the arm's own PRE requests), a single bogus 8-row chain that is rejected (`L7`) leaves +0.133 ms per graph step (5 of 5 rounds > 0, 2.6 SE),
-  a single accepted 7-draft chain (`a7`, new probe) +0.158 (5 of 5 > 0, 1.7 SE), real n20 chains +0.278 (5 of 5, 3.0 SE). cpupin's "a rejected chain does not
-  reproduce it" came from its 300-token later-request window, which does not see real chains either (+-0.04 here).
-- **Not the head.** A head K / V-only pass of 4 or 8 rows (`k4`, `k8`, no chain; 4 rows = the bf16 GEMV path, 8 = cuBLAS) leaves nothing (-0.008 +- 0.030,
-  +0.005 +- 0.021); capping the head's post-chain catch-up at 3 rows (`INTARSIA_SPEC_COPY_CATCHUP=3`, opt-in, new) leaves real chains as slow (+0.185, 4 of 4).
-- **Not host time, not different work.** Base and n20 run identical drafts at every matched step; the whole difference is between the graph launch and the
-  outputs' download (device time), not in any host segment of the step (all under 0.002 ms) and not in the launch call.
-- **It fades.** The offset is in the request right after a request with a chain pass, and gone two requests later (POST1-9: n20 +0.067 +- 0.076, L7 +0.018, a7 +0.059).
-  In the workloads that made the 0.984x (800-token code-gen, a chain in most requests) that is the same as permanent.
-- The remaining suspect is what the eager `1 + len`-row verify pass of the main model does that a 3-row captured step does not: its 8-row kernel variants, the GDN
-  verify writing save rows 2..6 (the whole recurrent state per row; about 60 MB each by my estimate of 30 GDN layers, not measured; rows that only chains touch), and the eager launches on the model's stream. Not separated here.
+- **A real chain leaves the offset in the next request.** The instrument whose positive control works is the 800-token request right after the event request
+  ("MID1", positions 100-640, minus the arm's own PRE requests, vs base). Real chains at position 828 of the request before: `cap` +0.185 ms per graph step
+  (4 of 4 rounds, every round above the largest no-event value), `n20` +0.169 (round 1, 3 valid rounds) and +0.278 (round 2, 5 of 5, 3.0 SE); no-event arms in
+  the same window: -0.089 .. +0.055 per round (means +0.018, -0.008, +0.005).
+- **It is not the head's catch-up.** `cap` runs the same real chains with the head's post-chain catch-up capped at 3 rows (`INTARSIA_SPEC_COPY_CATCHUP=3`, new,
+  opt-in), so no head pass above 3 rows, and is as slow as n20. (A head pass of 4 / 8 rows on its own, `k4` / `k8`, left nothing either, but it fired at
+  position ~523, earlier than the real chains: see the next point.)
+- **Whether acceptance matters is not settled.** A single bogus 8-row chain that is rejected (`L7`) gives +0.133 (5 of 5 > 0, 2.6 SE) and a single accepted
+  7-draft chain (`a7`, new probe) +0.158 (5 of 5 > 0, 1.7 SE, below the 2 SE bar fixed before the run); they are within 1 SE of each other, but 3 of 5 rounds of
+  each are inside the no-event range and the means rest on two rounds (r2, r5) in which every arm was high against that round's base server. Round 2 had no
+  no-event arm of its own, and the probes fire at position ~523 (about 120 steps before MID0 ends) while the real chains fire at 828 (about 15 steps before);
+  since the offset fades, the probes are not a like-for-like test. So a single probe chain is not shown to trigger it, accepted or rejected. cpupin's "a rejected
+  chain does not reproduce it" came from a 300-token later-request window that does not see real chains either (+-0.04 here), so it says nothing about this.
+- **Not host time, not different work.** Base and n20 run identical drafts at every matched step; in the MID1 window the whole difference is between the graph
+  launch and the outputs' download (device time: cap +0.186, n20 round 2 +0.282), none in any host segment of the step (all under 0.01 ms) and none in the launch call.
+- **It fades.** The offset is in the request right after a request with a chain, and gone two requests later (POST1-9: n20 +0.067 +- 0.076, cap +0.015). In the
+  workloads that made the 0.984x (800-token code-gen, a chain in most requests) that is the same as permanent.
+- Suspects left: what the eager `1 + len`-row verify pass of the main model does that a 3-row captured step does not (its 8-row kernel variants; the GDN verify
+  writing save rows 2..6, the whole recurrent state per row, about 60 MB each by my estimate of 30 GDN layers, not measured; the eager launches), and, since
+  acceptance is not settled, what an accepted chain commits. Not separated here.
 - Code-gen stays at about 0.984x of MTP base (cpupin, mcdiag; not re-measured); the 0.995x bar is not met; nothing default-on. A full fix of the offset would give
   about 0.9965x (estimated from pin1 / real3, not measured).
-
 
 ## Step 1: what an accepted chain does that a rejected one does not (code reading, no hardware)
 
@@ -94,7 +101,7 @@ MID1 per round: n20 +0.34 +0.24 -0.02 (r2 void); cap -0.06 +0.47 +0.13 +0.30; a7
   nothing in later requests" says nothing about chains either. MID1 is the one window of this design where the positive control is positive (n20 r1: +0.34 after pin1 r1's
   exact chain; pin1 r1 measured +0.41 for the steps after that chain).
 - **No host cause inside the timed step.** Every host segment of the split differs by under 0.002 ms between arms; all of the step-time difference is in launch-to-download
-  (`scripts/postchain/split_an.py`). (This holds for every comparison of round 1; it does not locate a real offset by itself, since most of them are at noise level.)
+  (`scripts/postchain/split_an.py`). (On round 1's carry and in-request windows most values are at noise level, so this alone locates nothing; in the MID1 window, where the offset is robust, it is device time too: `raw/mid1-split.txt`.)
 
 ## Round 2: accepted vs rejected, on the MID1 instrument (`raw/r2/`, `raw/r2.log`, `raw/r2-an.txt`)
 
@@ -119,12 +126,14 @@ The same measure over round 1's arms is in the table too (`raw/r1b-r2an.txt`; n2
 
 (Round 2's r2 base server is slow in its later requests: every arm is high in r2. Without r2: L7 +0.10, a7 +0.06, n20 +0.20.)
 
-Reading (the advisor's table, decided before the run): n20 +, a7 +, L7 + -> **any chain pass**; acceptance is not what matters. POST0 is high for n20 only, because
-MID1 has its own n20 chain (at 665), so POST0 is again "the request after a chain"; for a7 and L7 POST0 is two requests after the event. **Hypothesis round 2
-(accepted-only trigger): null.** Stop rule reached; no third probe round.
+Reading. The table decided before the run read "n20 +, a7 +, L7 + -> any chain pass". That reading does not hold: a7 misses the 2 SE bar; round 2 has no
+no-event arm, so a drift of a round's base server moves all three arms together (r2: every arm high); against round 1's no-event arms (-0.089 .. +0.055 per round)
+3 of 5 rounds of L7 and of a7 are null-sized; and the probes fire at ~523, not at 828 like the real chains, in an offset that fades. What round 2 does show: n20 again
+(+0.278, 5 of 5), the robust signal. **Hypothesis round 2 (an accepted-only trigger): inconclusive**, not "any chain pass". POST0 is high for n20 only, because MID1
+has its own n20 chain (at 665), so POST0 is again "the request after a chain". Stop rule reached; no third probe round.
 
-What this does not settle: whether a7 differs from L7 (they are within 1 SE of each other); whether the 8-row verify pass or the rollback is the trigger (L7 rolls
-back from save row 0, as a plain MTP step does, so a rollback from rows 2+ is not needed); why the offset reaches the next request and not the one after.
+What this does not settle: whether a single chain (accepted or rejected) triggers it at all when fired where the real chains are; whether the 8-row verify pass,
+the rollback or the commit of accepted rows is the trigger; why the offset reaches the next request and not the one after.
 
 ## What is now ruled out (with the earlier lanes)
 
@@ -134,15 +143,16 @@ back from save row 0, as a plain MTP step does, so a rollback from rows 2+ is no
 | different work after the chain | identical drafts and accepted counts at all 8 885 matched steps of pin1 and of real3 |
 | the rollback copy | the offset is as large in steps with no rollback |
 | host time inside the step | the split: under 0.002 ms in every host segment, 0 in the launch call |
-| the head's large post-chain catch-up (row count, GEMV vs cuBLAS) | k4, k8 null; cap (no head pass above 3 rows) as slow as n20 |
-| acceptance (a commit from save row j >= 2, the position jump, the accepted head rows) | a rejected bogus chain (L7) is positive too |
+| the head's large post-chain catch-up (row count, GEMV vs cuBLAS) | cap (real chains, no head pass above 3 rows) as slow as n20, 4 of 4 rounds; k4 / k8 null (fired earlier, at ~523) |
+| acceptance (a commit from save row j >= 2, the position jump, the accepted head rows) | **not shown either way**: L7 and a7 are within 1 SE, but both rest on two rounds, round 2 has no no-event arm, and the probes fire at ~523 vs the real chains' 828 |
 
 ## Next measurement, if any (not run)
 
-All on the MID1 instrument (it costs about 2.4 min per server; 5 rounds of 4 arms is 50 minutes):
-1. Split the verify pass: probe `e` (one eager 3-row MTP step: eager launches, no 8-row kernels, save rows 0..1 only), `L2` (a 3-row bogus chain) and `L7`. If `e` is
-   null and `L2` is positive, the trigger is the eager verify pass, not the row count; if only `L7`, the 8-row variants or save rows 3..6.
-2. Real chains with `INTARSIA_SPEC_COPY=20,3` (4-row passes) vs `20` (8-row): the same split with real text.
+All on the MID1 instrument (it costs about 2.4 min per server; 5 rounds of 5 arms is an hour):
+1. Like-for-like first: fire `L7`, `a7` and `e` (one eager 3-row MTP step) at g = 754 generated tokens (where n20's chain is, `INTARSIA_SPEC_COPY_PROBE=754,<what>`
+   with `ONCE=2` and REF made long enough for `a7`, e.g. 800 tokens with a chain-free knob) and keep a no-event arm (knob on, nothing fires) in every round beside
+   `base` and `n20`. That settles whether one chain, accepted or rejected, is enough, against a null of the same round.
+2. Then split the verify pass: `L2` (a 3-row bogus chain) vs `L7`; real chains with `INTARSIA_SPEC_COPY=20,3` (4-row passes) vs `20` (8-row).
 3. Only then nsys: kernel times of MID1's ~280 replays in an n20 server vs a base server (many replays of one request, matched by position), to name the kernels.
 
 ## Gates (`raw/gates.log`, `scripts/postchain/gates.sh`; main = origin/main `835796344` with #439 merged, built as `intarsia-main`)
