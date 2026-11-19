@@ -112,7 +112,8 @@ impl Model {
     /// Give every attention cache of `st` (and of the MTP head `head_kv`) its K / V table region, before a graph capture starts
     /// (CUDA, `INTARSIA_CUDA_VERIFY_ATTN_ROWS` not `0`). A pair already registered keeps its region; at most [`CAP_REGIONS_MAX`] exist.
     pub(super) fn register_verify_cap_tabs(&self, st: &SequenceState, head_kv: Option<&SequenceState>) -> Result<()> {
-        if !self.cuda_verify_attn_rows {
+        // tp > 1 never takes the captured row launch (see `verify_attn_rows_captured`): no table, no device allocation
+        if !self.cuda_verify_attn_rows || self.tp.world != 1 || !self.peers.is_empty() {
             return Ok(());
         }
         let mut tab = self.verify_cap_tab.lock().unwrap();
