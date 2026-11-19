@@ -1,0 +1,7 @@
+up 19:32:01 free: 55 GB
+requests ok: 50 of 50
+table size lines (count, line):
+      4 verify attention rows: captured table regions 11 of 1024
+first / last: verify attention rows: captured table regions 11 of 1024 / verify attention rows: captured table regions 11 of 1024
+notes:       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);
+metrics: intarsia_graph_replays_total 888 intarsia_graph_captures_total 5 intarsia_spec_steps_total 851 intarsia_spec_accepted_tokens_total 1492 
