@@ -1,0 +1,10 @@
+19:16:30
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 5m 23s
+  Executable tests/verify_attn_rows.rs (target/release/deps/verify_attn_rows-843e8ff47c908217)
+copied /home/nvidia/intarsiaml-cvatflip/src/target/release/deps/verify_attn_rows-843e8ff47c908217
+/dev/nvme0n1p2  3.7T  3.2T  290G  92% /
+Mem:             121          42          71           0           9          79
+19:21:54

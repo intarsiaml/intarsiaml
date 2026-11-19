@@ -1,0 +1,8 @@
+
+running 3 tests
+test timing_captured_attention_layers ... ok
+test verify_rows_launch_is_the_per_row_launches ... ok
+test captured_rows_launch_is_the_captured_per_row_launches ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+

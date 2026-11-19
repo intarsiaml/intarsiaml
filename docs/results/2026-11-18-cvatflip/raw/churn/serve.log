@@ -1,0 +1,1719 @@
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+mtp: drafter head 'mtp' loaded in 1.2 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head)
+verify attention rows: engaged (one row-table attention launch per layer)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_decode_v2_rows_bf16 matmul_nvfp4=matmul_nvfp4_gemv_rows silu_glu=silu_glu_bf16 moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 moe_experts=moe_experts_bf16 matmul_nvfp4=matmul_nvfp4_gemv argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+admission on plan shapes: 42 kernel(s) checked, 641 case(s) run, 0 cached
+loaded m on cuda (NVIDIA GB10) in 106.5s, context 8192 tokens
+sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_config.json; a request's own values win)
+intarsia server listening on http://127.0.0.1:8299
+verify attention rows: captured table regions 11 of 1024
+verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+spec: token 2 pos 43 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 21.458 ms gap 0.000 ms n 1 len 43 captures 1 at 1795048321.881 split 4.646 16.778 0.002 0.030 launch 0.180
+verify attention rows: captured table regions 11 of 1024
+spec: token 5 pos 46 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 22.023 ms gap 0.016 ms n 3 len 46 captures 2 at 1795048321.903 split 4.073 17.917 0.001 0.031 launch 0.185
+spec: token 8 pos 49 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.336 ms gap 0.013 ms n 3 len 49 captures 2 at 1795048321.921 split 0.008 18.309 0.003 0.015 launch 0.003
+spec: token 11 pos 52 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.185 ms gap 0.006 ms n 3 len 52 captures 2 at 1795048321.938 split 0.004 17.165 0.000 0.015 launch 0.003
+spec: token 14 pos 55 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 18.202 ms gap 0.005 ms n 3 len 55 captures 2 at 1795048321.957 split 0.004 18.183 0.000 0.015 launch 0.002
+spec: token 17 pos 58 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 18.491 ms gap 0.005 ms n 3 len 58 captures 2 at 1795048321.975 split 0.004 18.249 0.000 0.237 launch 0.002
+verify attention rows: captured table regions 11 of 1024
+spec: token 19 pos 60 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 21.905 ms gap 0.009 ms n 2 len 60 captures 3 at 1795048321.997 split 3.906 17.968 0.005 0.025 launch 0.440
+spec: token 22 pos 63 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 17.546 ms gap 0.012 ms n 3 len 63 captures 3 at 1795048322.015 split 0.008 17.522 0.000 0.015 launch 0.004
+spec: token 25 pos 66 drafted 2 accepted 2 emits 3 drafts [31634, 46932]
+spec: mtp graph step 18.306 ms gap 0.006 ms n 3 len 66 captures 3 at 1795048322.033 split 0.004 18.286 0.000 0.015 launch 0.002
+spec: token 28 pos 69 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.924 ms gap 0.005 ms n 3 len 69 captures 3 at 1795048322.051 split 0.004 17.904 0.000 0.015 launch 0.002
+spec: token 31 pos 72 drafted 2 accepted 1 emits 2 drafts [256, 84457]
+spec: mtp graph step 18.087 ms gap 0.004 ms n 3 len 72 captures 3 at 1795048322.069 split 0.004 17.896 0.000 0.187 launch 0.002
+spec: token 33 pos 74 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.529 ms gap 0.011 ms n 2 len 74 captures 3 at 1795048322.087 split 0.008 17.511 0.000 0.010 launch 0.004
+spec: token 36 pos 77 drafted 2 accepted 1 emits 2 drafts [1500, 1149]
+spec: mtp graph step 17.738 ms gap 0.005 ms n 3 len 77 captures 3 at 1795048322.104 split 0.004 17.606 0.000 0.127 launch 0.002
+spec: token 38 pos 79 drafted 2 accepted 2 emits 3 drafts [9321, 1500]
+spec: mtp graph step 17.337 ms gap 0.003 ms n 2 len 79 captures 3 at 1795048322.122 split 0.007 17.320 0.000 0.009 launch 0.004
+spec: token 41 pos 82 drafted 2 accepted 2 emits 3 drafts [9321, 1500]
+spec: mtp graph step 17.927 ms gap 0.003 ms n 3 len 82 captures 3 at 1795048322.140 split 0.004 17.912 0.001 0.009 launch 0.002
+spec: token 44 pos 85 drafted 2 accepted 2 emits 3 drafts [9321, 1500]
+spec: mtp graph step 18.520 ms gap 0.003 ms n 3 len 85 captures 3 at 1795048322.158 split 0.004 18.506 0.001 0.009 launch 0.002
+spec: token 47 pos 88 drafted 1 accepted 1 emits 2 drafts [9321]
+spec: mtp draft 1.310 ms, verify + rollback 16.098 ms
+spec: token 2 pos 64 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 17.030 ms gap 115.739 ms n 1 len 64 captures 3 at 1795048322.291 split 0.010 16.992 0.001 0.026 launch 0.015
+spec: token 5 pos 67 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.771 ms gap 0.007 ms n 3 len 67 captures 3 at 1795048322.308 split 0.004 16.756 0.000 0.011 launch 0.008
+spec: token 8 pos 70 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 19.198 ms gap 0.005 ms n 3 len 70 captures 3 at 1795048322.327 split 0.004 19.183 0.000 0.010 launch 0.002
+spec: token 11 pos 73 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.113 ms gap 0.005 ms n 3 len 73 captures 3 at 1795048322.344 split 0.004 17.099 0.000 0.010 launch 0.002
+spec: token 14 pos 76 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.532 ms gap 0.005 ms n 3 len 76 captures 3 at 1795048322.362 split 0.004 17.517 0.000 0.010 launch 0.002
+spec: token 17 pos 79 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.367 ms gap 0.005 ms n 3 len 79 captures 3 at 1795048322.379 split 0.003 17.353 0.000 0.010 launch 0.002
+spec: token 20 pos 82 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.501 ms gap 0.005 ms n 3 len 82 captures 3 at 1795048322.397 split 0.004 17.487 0.000 0.010 launch 0.002
+spec: token 23 pos 85 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.986 ms gap 0.005 ms n 3 len 85 captures 3 at 1795048322.414 split 0.004 16.972 0.001 0.010 launch 0.002
+spec: token 26 pos 88 drafted 2 accepted 2 emits 3 drafts [26912, 13]
+spec: mtp graph step 18.317 ms gap 0.005 ms n 3 len 88 captures 3 at 1795048322.432 split 0.003 18.302 0.000 0.010 launch 0.002
+spec: token 29 pos 91 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.716 ms gap 0.004 ms n 3 len 91 captures 3 at 1795048322.451 split 0.004 18.702 0.000 0.010 launch 0.002
+spec: token 32 pos 94 drafted 2 accepted 2 emits 3 drafts [9321, 25]
+spec: mtp graph step 17.567 ms gap 0.003 ms n 3 len 94 captures 3 at 1795048322.468 split 0.004 17.552 0.000 0.010 launch 0.002
+spec: token 35 pos 97 drafted 2 accepted 2 emits 3 drafts [1905, 1500]
+spec: mtp graph step 17.082 ms gap 0.005 ms n 3 len 97 captures 3 at 1795048322.486 split 0.003 17.066 0.000 0.012 launch 0.002
+spec: token 38 pos 100 drafted 2 accepted 2 emits 3 drafts [11173, 1599]
+spec: mtp graph step 17.353 ms gap 0.005 ms n 3 len 100 captures 3 at 1795048322.503 split 0.003 17.337 0.000 0.012 launch 0.002
+spec: token 41 pos 103 drafted 2 accepted 2 emits 3 drafts [13, 1061]
+spec: mtp graph step 17.573 ms gap 0.005 ms n 3 len 103 captures 3 at 1795048322.520 split 0.003 17.558 0.000 0.010 launch 0.002
+spec: token 44 pos 106 drafted 2 accepted 2 emits 3 drafts [14378, 264]
+spec: mtp graph step 16.848 ms gap 0.004 ms n 3 len 106 captures 3 at 1795048322.537 split 0.003 16.834 0.000 0.009 launch 0.002
+spec: token 47 pos 109 drafted 1 accepted 1 emits 2 drafts [466]
+spec: mtp draft 1.346 ms, verify + rollback 15.859 ms
+spec: token 2 pos 85 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.258 ms gap 118.967 ms n 1 len 85 captures 3 at 1795048322.673 split 0.011 16.222 0.001 0.024 launch 0.025
+spec: token 5 pos 88 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.596 ms gap 0.007 ms n 3 len 88 captures 3 at 1795048322.689 split 0.004 16.581 0.000 0.011 launch 0.008
+spec: token 8 pos 91 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.640 ms gap 0.004 ms n 3 len 91 captures 3 at 1795048322.708 split 0.004 18.625 0.000 0.010 launch 0.002
+spec: token 11 pos 94 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.753 ms gap 0.005 ms n 3 len 94 captures 3 at 1795048322.726 split 0.003 17.739 0.000 0.010 launch 0.002
+spec: token 14 pos 97 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.631 ms gap 0.006 ms n 3 len 97 captures 3 at 1795048322.743 split 0.004 17.617 0.000 0.010 launch 0.002
+spec: token 17 pos 100 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.557 ms gap 0.005 ms n 3 len 100 captures 3 at 1795048322.761 split 0.003 17.459 0.000 0.094 launch 0.002
+spec: token 19 pos 102 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.355 ms gap 0.011 ms n 2 len 102 captures 3 at 1795048322.778 split 0.005 17.339 0.000 0.010 launch 0.021
+spec: token 22 pos 105 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.724 ms gap 0.004 ms n 3 len 105 captures 3 at 1795048322.795 split 0.004 16.710 0.000 0.010 launch 0.002
+spec: token 25 pos 108 drafted 2 accepted 2 emits 3 drafts [40554, 12269]
+spec: mtp graph step 17.740 ms gap 0.005 ms n 3 len 108 captures 3 at 1795048322.813 split 0.003 17.726 0.000 0.010 launch 0.002
+spec: token 28 pos 111 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 18.822 ms gap 0.004 ms n 3 len 111 captures 3 at 1795048322.832 split 0.003 18.808 0.001 0.010 launch 0.002
+spec: token 31 pos 114 drafted 2 accepted 1 emits 2 drafts [256, 84457]
+spec: mtp graph step 18.629 ms gap 0.003 ms n 3 len 114 captures 3 at 1795048322.850 split 0.003 18.545 0.000 0.079 launch 0.002
+spec: token 33 pos 116 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.523 ms gap 0.004 ms n 2 len 116 captures 3 at 1795048322.868 split 0.005 17.507 0.000 0.010 launch 0.002
+spec: token 36 pos 119 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 16.955 ms gap 0.004 ms n 3 len 119 captures 3 at 1795048322.885 split 0.004 16.940 0.000 0.010 launch 0.002
+spec: token 39 pos 122 drafted 2 accepted 0 emits 1 drafts [220, 16]
+spec: mtp graph step 17.276 ms gap 0.005 ms n 3 len 122 captures 3 at 1795048322.902 split 0.003 17.185 0.000 0.086 launch 0.002
+spec: token 40 pos 123 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.273 ms gap 0.009 ms n 1 len 123 captures 3 at 1795048322.920 split 0.004 17.258 0.000 0.010 launch 0.003
+spec: token 43 pos 126 drafted 2 accepted 0 emits 1 drafts [369, 264]
+spec: mtp graph step 16.887 ms gap 0.005 ms n 3 len 126 captures 3 at 1795048322.936 split 0.004 16.804 0.000 0.079 launch 0.002
+spec: token 44 pos 127 drafted 2 accepted 1 emits 2 drafts [14378, 279]
+spec: mtp graph step 17.028 ms gap 0.003 ms n 1 len 127 captures 3 at 1795048322.954 split 0.005 16.942 0.000 0.081 launch 0.003
+spec: token 46 pos 129 drafted 2 accepted 2 emits 3 drafts [5696, 466]
+spec: mtp graph step 17.239 ms gap 0.007 ms n 2 len 129 captures 3 at 1795048322.971 split 0.004 17.224 0.000 0.010 launch 0.003
+spec: token 2 pos 106 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.886 ms gap 107.179 ms n 1 len 106 captures 3 at 1795048323.095 split 0.016 16.845 0.001 0.023 launch 0.009
+spec: token 5 pos 109 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.592 ms gap 0.007 ms n 3 len 109 captures 3 at 1795048323.112 split 0.004 16.577 0.000 0.010 launch 0.008
+spec: token 8 pos 112 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.652 ms gap 0.005 ms n 3 len 112 captures 3 at 1795048323.129 split 0.004 17.638 0.000 0.010 launch 0.002
+spec: token 11 pos 115 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.985 ms gap 0.005 ms n 3 len 115 captures 3 at 1795048323.146 split 0.003 16.971 0.000 0.010 launch 0.002
+spec: token 14 pos 118 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 18.530 ms gap 0.006 ms n 3 len 118 captures 3 at 1795048323.165 split 0.004 18.516 0.000 0.009 launch 0.002
+spec: token 17 pos 121 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 18.050 ms gap 0.005 ms n 3 len 121 captures 3 at 1795048323.183 split 0.004 17.925 0.001 0.120 launch 0.002
+spec: token 19 pos 123 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.631 ms gap 0.008 ms n 2 len 123 captures 3 at 1795048323.201 split 0.005 17.616 0.000 0.010 launch 0.014
+spec: token 22 pos 126 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.780 ms gap 0.004 ms n 3 len 126 captures 3 at 1795048323.217 split 0.004 16.766 0.000 0.009 launch 0.002
+spec: token 25 pos 129 drafted 2 accepted 2 emits 3 drafts [34103, 6852]
+spec: mtp graph step 17.569 ms gap 0.005 ms n 3 len 129 captures 3 at 1795048323.235 split 0.004 17.555 0.000 0.009 launch 0.002
+spec: token 28 pos 132 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.886 ms gap 0.005 ms n 3 len 132 captures 3 at 1795048323.253 split 0.004 17.872 0.000 0.009 launch 0.002
+spec: token 31 pos 135 drafted 2 accepted 1 emits 2 drafts [256, 84457]
+spec: mtp graph step 17.813 ms gap 0.003 ms n 3 len 135 captures 3 at 1795048323.271 split 0.004 17.696 0.001 0.112 launch 0.002
+spec: token 33 pos 137 drafted 2 accepted 1 emits 2 drafts [25, 328]
+spec: mtp graph step 17.554 ms gap 0.006 ms n 2 len 137 captures 3 at 1795048323.288 split 0.006 17.441 0.000 0.106 launch 0.002
+spec: token 35 pos 139 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.284 ms gap 0.008 ms n 2 len 139 captures 3 at 1795048323.306 split 0.005 17.269 0.001 0.010 launch 0.003
+spec: token 38 pos 142 drafted 2 accepted 0 emits 1 drafts [10632, 1103]
+spec: mtp graph step 16.668 ms gap 0.004 ms n 3 len 142 captures 3 at 1795048323.322 split 0.003 16.559 0.000 0.104 launch 0.002
+spec: token 39 pos 143 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 16.842 ms gap 0.004 ms n 1 len 143 captures 3 at 1795048323.339 split 0.006 16.826 0.000 0.009 launch 0.006
+spec: token 42 pos 146 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 16.978 ms gap 0.004 ms n 3 len 146 captures 3 at 1795048323.356 split 0.004 16.963 0.000 0.010 launch 0.002
+spec: token 45 pos 149 drafted 2 accepted 2 emits 3 drafts [1599, 2942]
+spec: mtp graph step 16.565 ms gap 0.005 ms n 3 len 149 captures 3 at 1795048323.373 split 0.004 16.551 0.000 0.010 launch 0.002
+spec: token 2 pos 126 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.266 ms gap 120.795 ms n 1 len 126 captures 3 at 1795048323.510 split 0.012 16.226 0.001 0.027 launch 0.011
+spec: token 5 pos 129 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.630 ms gap 0.007 ms n 3 len 129 captures 3 at 1795048323.527 split 0.004 16.614 0.000 0.011 launch 0.008
+spec: token 8 pos 132 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.657 ms gap 0.005 ms n 3 len 132 captures 3 at 1795048323.544 split 0.003 17.642 0.000 0.010 launch 0.002
+spec: token 11 pos 135 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.968 ms gap 0.005 ms n 3 len 135 captures 3 at 1795048323.561 split 0.004 16.953 0.000 0.010 launch 0.002
+spec: token 14 pos 138 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.535 ms gap 0.005 ms n 3 len 138 captures 3 at 1795048323.579 split 0.003 17.512 0.000 0.019 launch 0.002
+spec: token 17 pos 141 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.381 ms gap 0.004 ms n 3 len 141 captures 3 at 1795048323.596 split 0.004 17.368 0.000 0.009 launch 0.002
+spec: token 20 pos 144 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 18.096 ms gap 0.005 ms n 3 len 144 captures 3 at 1795048323.614 split 0.003 18.082 0.000 0.010 launch 0.002
+spec: token 23 pos 147 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.907 ms gap 0.005 ms n 3 len 147 captures 3 at 1795048323.631 split 0.003 16.893 0.001 0.010 launch 0.002
+spec: token 26 pos 150 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 17.705 ms gap 0.005 ms n 3 len 150 captures 3 at 1795048323.649 split 0.004 17.691 0.000 0.009 launch 0.002
+spec: token 29 pos 153 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.607 ms gap 0.003 ms n 3 len 153 captures 3 at 1795048323.668 split 0.003 18.593 0.000 0.009 launch 0.002
+spec: token 32 pos 156 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.260 ms gap 0.004 ms n 3 len 156 captures 3 at 1795048323.685 split 0.004 17.246 0.001 0.009 launch 0.002
+spec: token 35 pos 159 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.394 ms gap 0.004 ms n 3 len 159 captures 3 at 1795048323.702 split 0.003 17.380 0.000 0.010 launch 0.002
+spec: token 38 pos 162 drafted 2 accepted 0 emits 1 drafts [220, 16]
+spec: mtp graph step 17.644 ms gap 0.005 ms n 3 len 162 captures 3 at 1795048323.720 split 0.003 17.522 0.001 0.117 launch 0.002
+spec: token 39 pos 163 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.254 ms gap 0.002 ms n 1 len 163 captures 3 at 1795048323.737 split 0.006 17.238 0.000 0.009 launch 0.004
+spec: token 42 pos 166 drafted 2 accepted 2 emits 3 drafts [5686, 1040]
+spec: mtp graph step 16.928 ms gap 0.004 ms n 3 len 166 captures 3 at 1795048323.754 split 0.004 16.914 0.001 0.009 launch 0.002
+spec: token 45 pos 169 drafted 2 accepted 2 emits 3 drafts [5696, 466]
+spec: mtp graph step 17.002 ms gap 0.004 ms n 3 len 169 captures 3 at 1795048323.771 split 0.003 16.989 0.000 0.009 launch 0.002
+spec: token 2 pos 148 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.340 ms gap 129.331 ms n 1 len 148 captures 3 at 1795048323.917 split 0.011 16.302 0.001 0.024 launch 0.008
+spec: token 5 pos 151 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.591 ms gap 0.007 ms n 3 len 151 captures 3 at 1795048323.934 split 0.004 16.576 0.000 0.011 launch 0.008
+spec: token 8 pos 154 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.822 ms gap 0.005 ms n 3 len 154 captures 3 at 1795048323.951 split 0.004 17.808 0.000 0.010 launch 0.002
+spec: token 11 pos 157 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.675 ms gap 0.005 ms n 3 len 157 captures 3 at 1795048323.969 split 0.003 17.661 0.000 0.010 launch 0.002
+spec: token 14 pos 160 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.378 ms gap 0.006 ms n 3 len 160 captures 3 at 1795048323.986 split 0.003 17.364 0.001 0.010 launch 0.002
+spec: token 17 pos 163 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.459 ms gap 0.005 ms n 3 len 163 captures 3 at 1795048324.004 split 0.003 17.444 0.000 0.010 launch 0.002
+spec: token 20 pos 166 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.363 ms gap 0.004 ms n 3 len 166 captures 3 at 1795048324.021 split 0.004 17.348 0.000 0.010 launch 0.002
+spec: token 23 pos 169 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 17.034 ms gap 0.006 ms n 3 len 169 captures 3 at 1795048324.038 split 0.004 17.020 0.000 0.010 launch 0.002
+spec: token 26 pos 172 drafted 2 accepted 2 emits 3 drafts [46328, 13]
+spec: mtp graph step 17.614 ms gap 0.005 ms n 3 len 172 captures 3 at 1795048324.056 split 0.004 17.599 0.001 0.010 launch 0.002
+spec: token 29 pos 175 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.613 ms gap 0.004 ms n 3 len 175 captures 3 at 1795048324.075 split 0.004 18.599 0.000 0.009 launch 0.002
+spec: token 32 pos 178 drafted 2 accepted 0 emits 1 drafts [5396, 25]
+spec: mtp graph step 17.657 ms gap 0.004 ms n 3 len 178 captures 3 at 1795048324.092 split 0.003 17.561 0.000 0.092 launch 0.002
+spec: token 33 pos 179 drafted 2 accepted 0 emits 1 drafts [3766, 25]
+spec: mtp graph step 17.067 ms gap 0.003 ms n 1 len 179 captures 3 at 1795048324.109 split 0.004 16.974 0.000 0.088 launch 0.004
+spec: token 34 pos 180 drafted 2 accepted 0 emits 1 drafts [328, 87855]
+spec: mtp graph step 17.722 ms gap 0.003 ms n 1 len 180 captures 3 at 1795048324.127 split 0.004 17.629 0.000 0.088 launch 0.002
+spec: token 35 pos 181 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.141 ms gap 0.006 ms n 1 len 181 captures 3 at 1795048324.144 split 0.005 17.125 0.001 0.010 launch 0.003
+spec: token 38 pos 184 drafted 2 accepted 1 emits 2 drafts [10632, 2424]
+spec: mtp graph step 17.202 ms gap 0.004 ms n 3 len 184 captures 3 at 1795048324.162 split 0.004 17.110 0.000 0.088 launch 0.002
+spec: token 40 pos 186 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 17.013 ms gap 0.009 ms n 2 len 186 captures 3 at 1795048324.179 split 0.005 16.997 0.000 0.010 launch 0.023
+spec: token 43 pos 189 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.013 ms gap 0.004 ms n 3 len 189 captures 3 at 1795048324.196 split 0.004 16.999 0.000 0.010 launch 0.002
+spec: token 46 pos 192 drafted 2 accepted 0 emits 1 drafts [30705, 13]
+spec: mtp graph step 17.503 ms gap 0.006 ms n 3 len 192 captures 3 at 1795048324.213 split 0.004 17.421 0.000 0.078 launch 0.002
+verify attention rows: captured table regions 11 of 1024
+spec: token 47 pos 193 drafted 1 accepted 1 emits 2 drafts [2942]
+spec: mtp graph step 19.643 ms gap 0.004 ms n 1 len 193 captures 4 at 1795048324.233 split 4.946 14.672 0.001 0.022 launch 0.127
+spec: token 2 pos 169 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.362 ms gap 119.446 ms n 1 len 169 captures 4 at 1795048324.369 split 0.014 16.323 0.001 0.023 launch 0.010
+spec: token 5 pos 172 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.767 ms gap 0.006 ms n 3 len 172 captures 4 at 1795048324.386 split 0.004 16.752 0.000 0.011 launch 0.008
+spec: token 8 pos 175 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.935 ms gap 0.005 ms n 3 len 175 captures 4 at 1795048324.404 split 0.004 17.920 0.000 0.010 launch 0.002
+spec: token 11 pos 178 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.993 ms gap 0.005 ms n 3 len 178 captures 4 at 1795048324.421 split 0.003 16.978 0.000 0.010 launch 0.002
+spec: token 14 pos 181 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.267 ms gap 0.005 ms n 3 len 181 captures 4 at 1795048324.438 split 0.003 17.252 0.000 0.010 launch 0.002
+spec: token 17 pos 184 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.587 ms gap 0.005 ms n 3 len 184 captures 4 at 1795048324.455 split 0.003 17.573 0.000 0.010 launch 0.002
+spec: token 20 pos 187 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.418 ms gap 0.004 ms n 3 len 187 captures 4 at 1795048324.473 split 0.008 17.399 0.000 0.010 launch 0.002
+spec: token 23 pos 190 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.997 ms gap 0.005 ms n 3 len 190 captures 4 at 1795048324.490 split 0.003 16.983 0.000 0.010 launch 0.002
+spec: token 26 pos 193 drafted 2 accepted 2 emits 3 drafts [14834, 13]
+spec: mtp graph step 17.790 ms gap 0.006 ms n 3 len 193 captures 4 at 1795048324.508 split 0.003 17.775 0.000 0.010 launch 0.002
+spec: token 29 pos 196 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.624 ms gap 0.004 ms n 3 len 196 captures 4 at 1795048324.526 split 0.003 18.610 0.000 0.010 launch 0.002
+spec: token 32 pos 199 drafted 2 accepted 0 emits 1 drafts [84457, 25]
+spec: mtp graph step 17.727 ms gap 0.003 ms n 3 len 199 captures 4 at 1795048324.544 split 0.004 17.632 0.000 0.091 launch 0.002
+spec: token 33 pos 200 drafted 2 accepted 1 emits 2 drafts [25, 328]
+spec: mtp graph step 17.433 ms gap 0.002 ms n 1 len 200 captures 4 at 1795048324.562 split 0.004 17.337 0.001 0.091 launch 0.005
+spec: token 35 pos 202 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.263 ms gap 0.008 ms n 2 len 202 captures 4 at 1795048324.579 split 0.005 17.248 0.000 0.010 launch 0.023
+spec: token 38 pos 205 drafted 2 accepted 2 emits 3 drafts [10632, 1103]
+spec: mtp graph step 16.497 ms gap 0.005 ms n 3 len 205 captures 4 at 1795048324.595 split 0.004 16.483 0.000 0.010 launch 0.002
+spec: token 41 pos 208 drafted 2 accepted 2 emits 3 drafts [328, 1905]
+spec: mtp graph step 17.415 ms gap 0.005 ms n 3 len 208 captures 4 at 1795048324.613 split 0.004 17.401 0.000 0.010 launch 0.002
+spec: token 44 pos 211 drafted 2 accepted 2 emits 3 drafts [1149, 11173]
+spec: mtp graph step 17.297 ms gap 0.005 ms n 3 len 211 captures 4 at 1795048324.630 split 0.003 17.284 0.000 0.009 launch 0.002
+spec: token 47 pos 214 drafted 1 accepted 1 emits 2 drafts [2942]
+spec: mtp draft 1.297 ms, verify + rollback 15.630 ms
+spec: token 2 pos 192 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 17.044 ms gap 142.784 ms n 1 len 192 captures 4 at 1795048324.790 split 0.015 17.003 0.001 0.024 launch 0.007
+spec: token 5 pos 195 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.627 ms gap 0.007 ms n 3 len 195 captures 4 at 1795048324.807 split 0.004 16.612 0.000 0.011 launch 0.007
+spec: token 8 pos 198 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.196 ms gap 0.004 ms n 3 len 198 captures 4 at 1795048324.825 split 0.004 18.181 0.000 0.010 launch 0.002
+spec: token 11 pos 201 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.065 ms gap 0.005 ms n 3 len 201 captures 4 at 1795048324.842 split 0.003 17.050 0.000 0.010 launch 0.002
+spec: token 14 pos 204 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.428 ms gap 0.006 ms n 3 len 204 captures 4 at 1795048324.860 split 0.003 17.414 0.000 0.010 launch 0.002
+spec: token 17 pos 207 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.456 ms gap 0.004 ms n 3 len 207 captures 4 at 1795048324.877 split 0.003 17.442 0.001 0.010 launch 0.002
+spec: token 20 pos 210 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.374 ms gap 0.004 ms n 3 len 210 captures 4 at 1795048324.894 split 0.003 17.359 0.000 0.010 launch 0.002
+spec: token 23 pos 213 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.935 ms gap 0.006 ms n 3 len 213 captures 4 at 1795048324.911 split 0.003 16.921 0.000 0.010 launch 0.002
+spec: token 26 pos 216 drafted 2 accepted 2 emits 3 drafts [6579, 294]
+spec: mtp graph step 16.478 ms gap 0.005 ms n 3 len 216 captures 4 at 1795048324.928 split 0.003 16.464 0.001 0.010 launch 0.002
+spec: token 29 pos 219 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 17.666 ms gap 0.005 ms n 3 len 219 captures 4 at 1795048324.946 split 0.003 17.652 0.000 0.010 launch 0.002
+spec: token 32 pos 222 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.208 ms gap 0.003 ms n 3 len 222 captures 4 at 1795048324.964 split 0.003 18.194 0.000 0.010 launch 0.002
+spec: token 35 pos 225 drafted 2 accepted 1 emits 2 drafts [25, 328]
+spec: mtp graph step 17.498 ms gap 0.004 ms n 3 len 225 captures 4 at 1795048324.981 split 0.003 17.397 0.001 0.096 launch 0.002
+spec: token 37 pos 227 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.327 ms gap 0.007 ms n 2 len 227 captures 4 at 1795048324.999 split 0.004 17.312 0.000 0.010 launch 0.016
+spec: token 40 pos 230 drafted 2 accepted 2 emits 3 drafts [10632, 1103]
+spec: mtp graph step 16.479 ms gap 0.004 ms n 3 len 230 captures 4 at 1795048325.015 split 0.004 16.464 0.000 0.010 launch 0.002
+spec: token 43 pos 233 drafted 2 accepted 2 emits 3 drafts [328, 1905]
+spec: mtp graph step 17.324 ms gap 0.004 ms n 3 len 233 captures 4 at 1795048325.033 split 0.004 17.310 0.001 0.010 launch 0.002
+spec: token 46 pos 236 drafted 2 accepted 2 emits 3 drafts [1149, 11173]
+spec: mtp graph step 17.285 ms gap 0.005 ms n 3 len 236 captures 4 at 1795048325.050 split 0.003 17.271 0.000 0.010 launch 0.002
+spec: token 2 pos 210 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.987 ms gap 126.788 ms n 1 len 210 captures 4 at 1795048325.194 split 0.011 16.945 0.001 0.030 launch 0.010
+spec: token 5 pos 213 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.305 ms gap 0.007 ms n 3 len 213 captures 4 at 1795048325.211 split 0.004 17.290 0.000 0.011 launch 0.009
+spec: token 8 pos 216 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.531 ms gap 0.004 ms n 3 len 216 captures 4 at 1795048325.229 split 0.004 17.517 0.000 0.010 launch 0.002
+spec: token 11 pos 219 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.988 ms gap 0.005 ms n 3 len 219 captures 4 at 1795048325.246 split 0.003 16.974 0.000 0.010 launch 0.002
+spec: token 14 pos 222 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.364 ms gap 0.006 ms n 3 len 222 captures 4 at 1795048325.263 split 0.003 17.350 0.000 0.010 launch 0.002
+spec: token 17 pos 225 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.748 ms gap 0.006 ms n 3 len 225 captures 4 at 1795048325.281 split 0.003 17.734 0.000 0.010 launch 0.002
+spec: token 20 pos 228 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.691 ms gap 0.006 ms n 3 len 228 captures 4 at 1795048325.298 split 0.003 17.677 0.000 0.010 launch 0.002
+spec: token 23 pos 231 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.981 ms gap 0.006 ms n 3 len 231 captures 4 at 1795048325.315 split 0.004 16.966 0.001 0.010 launch 0.002
+spec: token 26 pos 234 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 17.823 ms gap 0.006 ms n 3 len 234 captures 4 at 1795048325.333 split 0.004 17.809 0.000 0.010 launch 0.002
+spec: token 29 pos 237 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.199 ms gap 0.003 ms n 3 len 237 captures 4 at 1795048325.352 split 0.004 18.184 0.000 0.010 launch 0.002
+spec: token 32 pos 240 drafted 2 accepted 1 emits 2 drafts [25, 328]
+spec: mtp graph step 17.458 ms gap 0.006 ms n 3 len 240 captures 4 at 1795048325.369 split 0.003 17.303 0.000 0.150 launch 0.002
+spec: token 34 pos 242 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.912 ms gap 0.010 ms n 2 len 242 captures 4 at 1795048325.387 split 0.004 17.897 0.000 0.010 launch 0.017
+spec: token 37 pos 245 drafted 2 accepted 2 emits 3 drafts [10632, 1103]
+spec: mtp graph step 16.532 ms gap 0.006 ms n 3 len 245 captures 4 at 1795048325.404 split 0.006 16.515 0.000 0.010 launch 0.002
+spec: token 40 pos 248 drafted 2 accepted 2 emits 3 drafts [328, 1905]
+spec: mtp graph step 17.300 ms gap 0.006 ms n 3 len 248 captures 4 at 1795048325.421 split 0.004 17.286 0.000 0.010 launch 0.002
+spec: token 43 pos 251 drafted 2 accepted 0 emits 1 drafts [1, 4965]
+spec: mtp graph step 16.551 ms gap 0.006 ms n 3 len 251 captures 4 at 1795048325.437 split 0.004 16.414 0.000 0.133 launch 0.002
+spec: token 44 pos 252 drafted 2 accepted 2 emits 3 drafts [11173, 1599]
+spec: mtp graph step 17.129 ms gap 0.006 ms n 1 len 252 captures 4 at 1795048325.455 split 0.005 17.114 0.000 0.010 launch 0.003
+spec: token 47 pos 255 drafted 1 accepted 1 emits 2 drafts [13]
+spec: mtp draft 1.292 ms, verify + rollback 15.892 ms
+spec: token 2 pos 232 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.684 ms gap 150.695 ms n 1 len 232 captures 4 at 1795048325.622 split 0.012 16.647 0.001 0.024 launch 0.014
+spec: token 5 pos 235 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.932 ms gap 0.007 ms n 3 len 235 captures 4 at 1795048325.639 split 0.004 16.916 0.000 0.010 launch 0.009
+spec: token 8 pos 238 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.912 ms gap 0.005 ms n 3 len 238 captures 4 at 1795048325.657 split 0.004 17.899 0.000 0.009 launch 0.002
+spec: token 11 pos 241 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.000 ms gap 0.005 ms n 3 len 241 captures 4 at 1795048325.674 split 0.004 16.986 0.000 0.010 launch 0.002
+spec: token 14 pos 244 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.351 ms gap 0.005 ms n 3 len 244 captures 4 at 1795048325.691 split 0.004 17.337 0.000 0.010 launch 0.002
+spec: token 17 pos 247 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.375 ms gap 0.005 ms n 3 len 247 captures 4 at 1795048325.709 split 0.003 17.361 0.000 0.010 launch 0.002
+spec: token 20 pos 250 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.500 ms gap 0.004 ms n 3 len 250 captures 4 at 1795048325.726 split 0.003 17.487 0.000 0.010 launch 0.002
+spec: token 23 pos 253 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.963 ms gap 0.005 ms n 3 len 253 captures 4 at 1795048325.743 split 0.003 16.950 0.001 0.009 launch 0.002
+spec: token 26 pos 256 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 17.773 ms gap 0.005 ms n 3 len 256 captures 4 at 1795048325.761 split 0.003 17.760 0.000 0.009 launch 0.002
+spec: token 29 pos 259 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.155 ms gap 0.003 ms n 3 len 259 captures 4 at 1795048325.779 split 0.003 18.142 0.000 0.010 launch 0.002
+spec: token 32 pos 262 drafted 2 accepted 1 emits 2 drafts [25, 328]
+spec: mtp graph step 17.413 ms gap 0.004 ms n 3 len 262 captures 4 at 1795048325.797 split 0.003 17.313 0.000 0.096 launch 0.002
+spec: token 34 pos 264 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.227 ms gap 0.009 ms n 2 len 264 captures 4 at 1795048325.814 split 0.006 17.211 0.000 0.009 launch 0.022
+spec: token 37 pos 267 drafted 2 accepted 1 emits 2 drafts [10632, 3202]
+spec: mtp graph step 16.430 ms gap 0.004 ms n 3 len 267 captures 4 at 1795048325.830 split 0.004 16.348 0.000 0.078 launch 0.002
+spec: token 39 pos 269 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 16.963 ms gap 0.004 ms n 2 len 269 captures 4 at 1795048325.847 split 0.005 16.949 0.000 0.009 launch 0.002
+spec: token 42 pos 272 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.047 ms gap 0.004 ms n 3 len 272 captures 4 at 1795048325.864 split 0.004 17.033 0.000 0.009 launch 0.002
+spec: token 45 pos 275 drafted 2 accepted 0 emits 1 drafts [13, 1061]
+spec: mtp graph step 18.380 ms gap 0.004 ms n 3 len 275 captures 4 at 1795048325.883 split 0.003 18.297 0.000 0.079 launch 0.002
+spec: token 46 pos 276 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 18.113 ms gap 0.005 ms n 1 len 276 captures 4 at 1795048325.901 split 0.005 18.098 0.000 0.009 launch 0.002
+spec: token 2 pos 254 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.311 ms gap 127.002 ms n 1 len 254 captures 4 at 1795048326.044 split 0.016 16.272 0.001 0.021 launch 0.009
+spec: token 5 pos 257 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.059 ms gap 0.007 ms n 3 len 257 captures 4 at 1795048326.061 split 0.004 17.043 0.000 0.011 launch 0.008
+spec: token 8 pos 260 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.056 ms gap 0.004 ms n 3 len 260 captures 4 at 1795048326.080 split 0.003 18.041 0.000 0.010 launch 0.002
+spec: token 11 pos 263 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.014 ms gap 0.005 ms n 3 len 263 captures 4 at 1795048326.097 split 0.003 17.000 0.000 0.010 launch 0.002
+spec: token 14 pos 266 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.343 ms gap 0.005 ms n 3 len 266 captures 4 at 1795048326.114 split 0.003 17.329 0.000 0.010 launch 0.002
+spec: token 17 pos 269 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.326 ms gap 0.005 ms n 3 len 269 captures 4 at 1795048326.131 split 0.004 17.304 0.000 0.018 launch 0.002
+spec: token 20 pos 272 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 18.093 ms gap 0.005 ms n 3 len 272 captures 4 at 1795048326.149 split 0.004 18.080 0.000 0.010 launch 0.002
+spec: token 23 pos 275 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 17.470 ms gap 0.005 ms n 3 len 275 captures 4 at 1795048326.167 split 0.003 17.456 0.001 0.010 launch 0.002
+spec: token 26 pos 278 drafted 2 accepted 2 emits 3 drafts [46932, 13]
+spec: mtp graph step 17.536 ms gap 0.005 ms n 3 len 278 captures 4 at 1795048326.184 split 0.004 17.522 0.000 0.009 launch 0.002
+spec: token 29 pos 281 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.689 ms gap 0.003 ms n 3 len 281 captures 4 at 1795048326.203 split 0.003 18.675 0.000 0.009 launch 0.002
+spec: token 32 pos 284 drafted 2 accepted 2 emits 3 drafts [9321, 25]
+spec: mtp graph step 17.969 ms gap 0.004 ms n 3 len 284 captures 4 at 1795048326.221 split 0.004 17.956 0.000 0.009 launch 0.002
+spec: token 35 pos 287 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.327 ms gap 0.004 ms n 3 len 287 captures 4 at 1795048326.239 split 0.004 17.313 0.000 0.010 launch 0.002
+spec: token 38 pos 290 drafted 2 accepted 2 emits 3 drafts [10632, 1103]
+spec: mtp graph step 16.534 ms gap 0.004 ms n 3 len 290 captures 4 at 1795048326.255 split 0.004 16.521 0.000 0.009 launch 0.002
+spec: token 41 pos 293 drafted 2 accepted 2 emits 3 drafts [328, 1905]
+spec: mtp graph step 18.086 ms gap 0.005 ms n 3 len 293 captures 4 at 1795048326.273 split 0.003 18.072 0.000 0.009 launch 0.002
+spec: token 44 pos 296 drafted 2 accepted 2 emits 3 drafts [1149, 11173]
+spec: mtp graph step 17.981 ms gap 0.004 ms n 3 len 296 captures 4 at 1795048326.291 split 0.003 17.967 0.000 0.009 launch 0.002
+spec: token 47 pos 299 drafted 1 accepted 1 emits 2 drafts [2942]
+spec: mtp draft 1.319 ms, verify + rollback 15.611 ms
+spec: token 2 pos 275 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.311 ms gap 146.843 ms n 1 len 275 captures 4 at 1795048326.454 split 0.015 16.273 0.001 0.020 launch 0.009
+spec: token 5 pos 278 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.290 ms gap 0.006 ms n 3 len 278 captures 4 at 1795048326.472 split 0.004 17.274 0.000 0.011 launch 0.008
+spec: token 8 pos 281 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.901 ms gap 0.004 ms n 3 len 281 captures 4 at 1795048326.490 split 0.004 17.887 0.000 0.010 launch 0.002
+spec: token 11 pos 284 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.055 ms gap 0.005 ms n 3 len 284 captures 4 at 1795048326.507 split 0.004 17.041 0.000 0.010 launch 0.002
+spec: token 14 pos 287 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.350 ms gap 0.006 ms n 3 len 287 captures 4 at 1795048326.524 split 0.004 17.336 0.000 0.010 launch 0.002
+spec: token 17 pos 290 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.415 ms gap 0.005 ms n 3 len 290 captures 4 at 1795048326.542 split 0.003 17.400 0.000 0.010 launch 0.002
+spec: token 20 pos 293 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.393 ms gap 0.004 ms n 3 len 293 captures 4 at 1795048326.559 split 0.004 17.378 0.000 0.010 launch 0.002
+spec: token 23 pos 296 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.966 ms gap 0.005 ms n 3 len 296 captures 4 at 1795048326.576 split 0.004 16.951 0.001 0.010 launch 0.002
+spec: token 26 pos 299 drafted 2 accepted 2 emits 3 drafts [26912, 13]
+spec: mtp graph step 17.606 ms gap 0.005 ms n 3 len 299 captures 4 at 1795048326.594 split 0.004 17.592 0.000 0.010 launch 0.002
+spec: token 29 pos 302 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.720 ms gap 0.004 ms n 3 len 302 captures 4 at 1795048326.612 split 0.004 18.705 0.000 0.010 launch 0.002
+spec: token 32 pos 305 drafted 2 accepted 0 emits 1 drafts [5396, 25]
+spec: mtp graph step 17.594 ms gap 0.004 ms n 3 len 305 captures 4 at 1795048326.630 split 0.003 17.460 0.000 0.129 launch 0.002
+spec: token 33 pos 306 drafted 2 accepted 1 emits 2 drafts [25, 2532]
+spec: mtp graph step 17.592 ms gap 0.002 ms n 1 len 306 captures 4 at 1795048326.648 split 0.006 17.481 0.000 0.105 launch 0.004
+spec: token 35 pos 308 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.786 ms gap 0.008 ms n 2 len 308 captures 4 at 1795048326.665 split 0.004 17.771 0.000 0.009 launch 0.023
+spec: token 38 pos 311 drafted 2 accepted 1 emits 2 drafts [10632, 3202]
+spec: mtp graph step 16.460 ms gap 0.004 ms n 3 len 311 captures 4 at 1795048326.682 split 0.004 16.352 0.000 0.104 launch 0.002
+spec: token 40 pos 313 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 16.975 ms gap 0.010 ms n 2 len 313 captures 4 at 1795048326.699 split 0.004 16.960 0.000 0.009 launch 0.003
+spec: token 43 pos 316 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.220 ms gap 0.005 ms n 3 len 316 captures 4 at 1795048326.716 split 0.004 17.207 0.000 0.009 launch 0.002
+spec: token 46 pos 319 drafted 2 accepted 0 emits 1 drafts [13, 1061]
+spec: mtp graph step 17.950 ms gap 0.005 ms n 3 len 319 captures 4 at 1795048326.734 split 0.004 17.840 0.000 0.105 launch 0.002
+spec: token 47 pos 320 drafted 1 accepted 1 emits 2 drafts [2942]
+spec: mtp graph step 14.379 ms gap 0.003 ms n 1 len 320 captures 4 at 1795048326.749 split 0.006 14.363 0.000 0.009 launch 0.019
+spec: token 2 pos 296 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.660 ms gap 134.538 ms n 1 len 296 captures 4 at 1795048326.900 split 0.013 16.624 0.001 0.022 launch 0.011
+spec: token 5 pos 299 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.061 ms gap 0.007 ms n 3 len 299 captures 4 at 1795048326.917 split 0.004 17.046 0.000 0.011 launch 0.008
+spec: token 8 pos 302 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.669 ms gap 0.005 ms n 3 len 302 captures 4 at 1795048326.935 split 0.004 17.654 0.000 0.010 launch 0.002
+spec: token 11 pos 305 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.986 ms gap 0.005 ms n 3 len 305 captures 4 at 1795048326.952 split 0.004 16.972 0.000 0.010 launch 0.002
+spec: token 14 pos 308 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.295 ms gap 0.006 ms n 3 len 308 captures 4 at 1795048326.969 split 0.004 17.281 0.000 0.010 launch 0.002
+spec: token 17 pos 311 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.431 ms gap 0.005 ms n 3 len 311 captures 4 at 1795048326.986 split 0.004 17.416 0.000 0.010 launch 0.002
+spec: token 20 pos 314 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.941 ms gap 0.005 ms n 3 len 314 captures 4 at 1795048327.004 split 0.004 17.927 0.000 0.010 launch 0.002
+spec: token 23 pos 317 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 17.061 ms gap 0.005 ms n 3 len 317 captures 4 at 1795048327.021 split 0.004 17.047 0.000 0.010 launch 0.002
+spec: token 26 pos 320 drafted 2 accepted 2 emits 3 drafts [12269, 13]
+spec: mtp graph step 17.681 ms gap 0.005 ms n 3 len 320 captures 4 at 1795048327.039 split 0.003 17.667 0.000 0.010 launch 0.002
+spec: token 29 pos 323 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.684 ms gap 0.004 ms n 3 len 323 captures 4 at 1795048327.058 split 0.004 18.670 0.000 0.010 launch 0.002
+spec: token 32 pos 326 drafted 2 accepted 2 emits 3 drafts [9321, 25]
+spec: mtp graph step 18.070 ms gap 0.003 ms n 3 len 326 captures 4 at 1795048327.076 split 0.004 18.056 0.000 0.010 launch 0.002
+spec: token 35 pos 329 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.092 ms gap 0.004 ms n 3 len 329 captures 4 at 1795048327.093 split 0.004 17.076 0.001 0.010 launch 0.002
+spec: token 38 pos 332 drafted 2 accepted 1 emits 2 drafts [10632, 3202]
+spec: mtp graph step 16.443 ms gap 0.004 ms n 3 len 332 captures 4 at 1795048327.110 split 0.004 16.312 0.000 0.127 launch 0.002
+spec: token 40 pos 334 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 16.987 ms gap 0.008 ms n 2 len 334 captures 4 at 1795048327.127 split 0.007 16.970 0.001 0.009 launch 0.018
+spec: token 43 pos 337 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.055 ms gap 0.004 ms n 3 len 337 captures 4 at 1795048327.144 split 0.004 17.040 0.000 0.010 launch 0.002
+spec: token 46 pos 340 drafted 2 accepted 2 emits 3 drafts [13, 1061]
+spec: mtp graph step 18.320 ms gap 0.005 ms n 3 len 340 captures 4 at 1795048327.162 split 0.004 18.306 0.000 0.010 launch 0.002
+spec: token 2 pos 317 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.262 ms gap 137.564 ms n 1 len 317 captures 4 at 1795048327.316 split 0.014 16.225 0.001 0.021 launch 0.011
+spec: token 5 pos 320 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.353 ms gap 0.007 ms n 3 len 320 captures 4 at 1795048327.333 split 0.004 17.338 0.000 0.011 launch 0.008
+spec: token 8 pos 323 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.472 ms gap 0.004 ms n 3 len 323 captures 4 at 1795048327.351 split 0.004 17.458 0.000 0.010 launch 0.002
+spec: token 11 pos 326 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.951 ms gap 0.005 ms n 3 len 326 captures 4 at 1795048327.368 split 0.004 16.936 0.000 0.010 launch 0.002
+spec: token 14 pos 329 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.298 ms gap 0.005 ms n 3 len 329 captures 4 at 1795048327.385 split 0.004 17.284 0.000 0.010 launch 0.002
+spec: token 17 pos 332 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.577 ms gap 0.005 ms n 3 len 332 captures 4 at 1795048327.403 split 0.003 17.456 0.000 0.116 launch 0.002
+spec: token 19 pos 334 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.961 ms gap 0.007 ms n 2 len 334 captures 4 at 1795048327.421 split 0.006 17.944 0.000 0.010 launch 0.021
+spec: token 22 pos 337 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 17.020 ms gap 0.004 ms n 3 len 337 captures 4 at 1795048327.438 split 0.004 17.005 0.000 0.010 launch 0.002
+spec: token 25 pos 340 drafted 2 accepted 2 emits 3 drafts [34103, 6852]
+spec: mtp graph step 17.506 ms gap 0.006 ms n 3 len 340 captures 4 at 1795048327.455 split 0.004 17.491 0.000 0.010 launch 0.002
+spec: token 28 pos 343 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.952 ms gap 0.004 ms n 3 len 343 captures 4 at 1795048327.473 split 0.004 17.938 0.001 0.010 launch 0.002
+spec: token 31 pos 346 drafted 2 accepted 1 emits 2 drafts [256, 42794]
+spec: mtp graph step 17.788 ms gap 0.002 ms n 3 len 346 captures 4 at 1795048327.491 split 0.003 17.659 0.000 0.125 launch 0.002
+spec: token 33 pos 348 drafted 2 accepted 1 emits 2 drafts [25, 328]
+spec: mtp graph step 18.506 ms gap 0.009 ms n 2 len 348 captures 4 at 1795048327.510 split 0.005 18.410 0.000 0.090 launch 0.004
+spec: token 35 pos 350 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.660 ms gap 0.004 ms n 2 len 350 captures 4 at 1795048327.527 split 0.005 17.642 0.000 0.012 launch 0.003
+spec: token 38 pos 353 drafted 2 accepted 1 emits 2 drafts [10632, 2424]
+spec: mtp graph step 16.715 ms gap 0.004 ms n 3 len 353 captures 4 at 1795048327.544 split 0.004 16.593 0.000 0.118 launch 0.002
+spec: token 40 pos 355 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 16.999 ms gap 0.009 ms n 2 len 355 captures 4 at 1795048327.561 split 0.004 16.984 0.000 0.010 launch 0.003
+spec: token 43 pos 358 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.078 ms gap 0.004 ms n 3 len 358 captures 4 at 1795048327.578 split 0.004 17.063 0.000 0.010 launch 0.002
+spec: token 46 pos 361 drafted 2 accepted 0 emits 1 drafts [13, 1061]
+spec: mtp graph step 18.036 ms gap 0.005 ms n 3 len 361 captures 4 at 1795048327.596 split 0.004 17.893 0.000 0.139 launch 0.002
+spec: token 47 pos 362 drafted 1 accepted 1 emits 2 drafts [2942]
+spec: mtp graph step 14.643 ms gap 0.005 ms n 1 len 362 captures 4 at 1795048327.611 split 0.006 14.620 0.000 0.016 launch 0.014
+spec: token 2 pos 337 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.257 ms gap 129.924 ms n 1 len 337 captures 4 at 1795048327.757 split 0.014 16.213 0.001 0.027 launch 0.008
+spec: token 5 pos 340 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.490 ms gap 0.007 ms n 3 len 340 captures 4 at 1795048327.775 split 0.004 17.474 0.000 0.011 launch 0.008
+spec: token 8 pos 343 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.566 ms gap 0.004 ms n 3 len 343 captures 4 at 1795048327.792 split 0.004 17.552 0.000 0.010 launch 0.002
+spec: token 11 pos 346 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.011 ms gap 0.005 ms n 3 len 346 captures 4 at 1795048327.809 split 0.004 16.997 0.000 0.010 launch 0.002
+spec: token 14 pos 349 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.352 ms gap 0.006 ms n 3 len 349 captures 4 at 1795048327.827 split 0.003 17.338 0.000 0.010 launch 0.002
+spec: token 17 pos 352 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.313 ms gap 0.005 ms n 3 len 352 captures 4 at 1795048327.844 split 0.003 17.299 0.000 0.010 launch 0.002
+spec: token 20 pos 355 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.392 ms gap 0.004 ms n 3 len 355 captures 4 at 1795048327.861 split 0.004 17.377 0.001 0.010 launch 0.002
+spec: token 23 pos 358 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.909 ms gap 0.005 ms n 3 len 358 captures 4 at 1795048327.878 split 0.003 16.894 0.000 0.010 launch 0.002
+spec: token 26 pos 361 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 17.702 ms gap 0.006 ms n 3 len 361 captures 4 at 1795048327.896 split 0.004 17.687 0.000 0.010 launch 0.002
+spec: token 29 pos 364 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.060 ms gap 0.003 ms n 3 len 364 captures 4 at 1795048327.914 split 0.003 18.045 0.001 0.010 launch 0.002
+spec: token 32 pos 367 drafted 2 accepted 1 emits 2 drafts [25, 2532]
+spec: mtp graph step 17.497 ms gap 0.004 ms n 3 len 367 captures 4 at 1795048327.932 split 0.003 17.394 0.000 0.098 launch 0.002
+spec: token 34 pos 369 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.229 ms gap 0.011 ms n 2 len 369 captures 4 at 1795048327.949 split 0.004 17.214 0.000 0.010 launch 0.022
+spec: token 37 pos 372 drafted 2 accepted 1 emits 2 drafts [10632, 3202]
+spec: mtp graph step 16.439 ms gap 0.004 ms n 3 len 372 captures 4 at 1795048327.965 split 0.008 16.340 0.000 0.090 launch 0.002
+spec: token 39 pos 374 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 17.059 ms gap 0.011 ms n 2 len 374 captures 4 at 1795048327.983 split 0.004 17.043 0.000 0.010 launch 0.003
+spec: token 42 pos 377 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 16.989 ms gap 0.005 ms n 3 len 377 captures 4 at 1795048328.000 split 0.004 16.975 0.000 0.010 launch 0.002
+spec: token 45 pos 380 drafted 2 accepted 0 emits 1 drafts [13, 1061]
+spec: mtp graph step 17.926 ms gap 0.005 ms n 3 len 380 captures 4 at 1795048328.018 split 0.003 17.830 0.000 0.092 launch 0.002
+spec: token 46 pos 381 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.317 ms gap 0.004 ms n 1 len 381 captures 4 at 1795048328.035 split 0.005 17.301 0.000 0.010 launch 0.003
+spec: token 2 pos 359 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 17.003 ms gap 143.390 ms n 1 len 359 captures 4 at 1795048328.195 split 0.007 16.973 0.001 0.021 launch 0.009
+spec: token 5 pos 362 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.308 ms gap 0.007 ms n 3 len 362 captures 4 at 1795048328.213 split 0.004 17.293 0.000 0.011 launch 0.008
+spec: token 8 pos 365 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.562 ms gap 0.005 ms n 3 len 365 captures 4 at 1795048328.230 split 0.003 17.547 0.000 0.010 launch 0.002
+spec: token 11 pos 368 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.024 ms gap 0.005 ms n 3 len 368 captures 4 at 1795048328.247 split 0.004 17.010 0.000 0.010 launch 0.002
+spec: token 14 pos 371 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.241 ms gap 0.005 ms n 3 len 371 captures 4 at 1795048328.265 split 0.003 17.228 0.000 0.009 launch 0.002
+spec: token 17 pos 374 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.368 ms gap 0.005 ms n 3 len 374 captures 4 at 1795048328.282 split 0.003 17.354 0.000 0.009 launch 0.002
+spec: token 20 pos 377 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.469 ms gap 0.005 ms n 3 len 377 captures 4 at 1795048328.299 split 0.007 17.452 0.000 0.010 launch 0.002
+spec: token 23 pos 380 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 17.695 ms gap 0.005 ms n 3 len 380 captures 4 at 1795048328.317 split 0.003 17.681 0.001 0.010 launch 0.002
+spec: token 26 pos 383 drafted 2 accepted 2 emits 3 drafts [46328, 13]
+spec: mtp graph step 17.615 ms gap 0.005 ms n 3 len 383 captures 4 at 1795048328.335 split 0.004 17.601 0.000 0.010 launch 0.002
+spec: token 29 pos 386 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.660 ms gap 0.004 ms n 3 len 386 captures 4 at 1795048328.353 split 0.004 18.647 0.000 0.009 launch 0.002
+spec: token 32 pos 389 drafted 2 accepted 2 emits 3 drafts [5396, 25]
+spec: mtp graph step 17.540 ms gap 0.004 ms n 3 len 389 captures 4 at 1795048328.371 split 0.004 17.527 0.000 0.009 launch 0.002
+spec: token 35 pos 392 drafted 2 accepted 2 emits 3 drafts [1835, 220]
+spec: mtp graph step 16.801 ms gap 0.004 ms n 3 len 392 captures 4 at 1795048328.388 split 0.004 16.787 0.000 0.010 launch 0.002
+spec: token 38 pos 395 drafted 2 accepted 2 emits 3 drafts [21, 25]
+spec: mtp graph step 17.199 ms gap 0.004 ms n 3 len 395 captures 4 at 1795048328.405 split 0.004 17.185 0.000 0.010 launch 0.002
+spec: token 41 pos 398 drafted 2 accepted 2 emits 3 drafts [264, 2716]
+spec: mtp graph step 17.743 ms gap 0.004 ms n 3 len 398 captures 4 at 1795048328.423 split 0.004 17.729 0.000 0.010 launch 0.002
+spec: token 44 pos 401 drafted 2 accepted 2 emits 3 drafts [883, 35997]
+spec: mtp graph step 17.411 ms gap 0.003 ms n 3 len 401 captures 4 at 1795048328.440 split 0.004 17.397 0.000 0.010 launch 0.002
+spec: token 47 pos 404 drafted 1 accepted 0 emits 1 drafts [13]
+spec: mtp draft 1.316 ms, verify + rollback 15.937 ms
+spec: token 2 pos 380 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.819 ms gap 165.018 ms n 1 len 380 captures 4 at 1795048328.622 split 0.013 16.778 0.001 0.026 launch 0.019
+spec: token 5 pos 383 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.027 ms gap 0.007 ms n 3 len 383 captures 4 at 1795048328.639 split 0.004 17.011 0.000 0.011 launch 0.008
+spec: token 8 pos 386 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.330 ms gap 0.005 ms n 3 len 386 captures 4 at 1795048328.658 split 0.003 18.315 0.000 0.010 launch 0.002
+spec: token 11 pos 389 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.998 ms gap 0.005 ms n 3 len 389 captures 4 at 1795048328.675 split 0.004 16.983 0.000 0.010 launch 0.002
+spec: token 14 pos 392 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.321 ms gap 0.006 ms n 3 len 392 captures 4 at 1795048328.692 split 0.004 17.306 0.000 0.010 launch 0.002
+spec: token 17 pos 395 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.483 ms gap 0.005 ms n 3 len 395 captures 4 at 1795048328.709 split 0.003 17.469 0.001 0.010 launch 0.002
+spec: token 20 pos 398 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.339 ms gap 0.004 ms n 3 len 398 captures 4 at 1795048328.727 split 0.004 17.325 0.000 0.010 launch 0.002
+spec: token 23 pos 401 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.981 ms gap 0.006 ms n 3 len 401 captures 4 at 1795048328.744 split 0.004 16.966 0.000 0.010 launch 0.002
+spec: token 26 pos 404 drafted 2 accepted 2 emits 3 drafts [14834, 13]
+spec: mtp graph step 17.799 ms gap 0.005 ms n 3 len 404 captures 4 at 1795048328.762 split 0.004 17.784 0.001 0.010 launch 0.002
+spec: token 29 pos 407 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.628 ms gap 0.004 ms n 3 len 407 captures 4 at 1795048328.780 split 0.003 18.614 0.000 0.009 launch 0.002
+spec: token 32 pos 410 drafted 2 accepted 0 emits 1 drafts [84457, 25]
+spec: mtp graph step 17.755 ms gap 0.004 ms n 3 len 410 captures 4 at 1795048328.798 split 0.003 17.633 0.000 0.118 launch 0.002
+spec: token 33 pos 411 drafted 2 accepted 1 emits 2 drafts [25, 2532]
+spec: mtp graph step 17.589 ms gap 0.008 ms n 1 len 411 captures 4 at 1795048328.816 split 0.004 17.468 0.000 0.116 launch 0.006
+spec: token 35 pos 413 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.213 ms gap 0.003 ms n 2 len 413 captures 4 at 1795048328.833 split 0.009 17.194 0.001 0.009 launch 0.022
+spec: token 38 pos 416 drafted 2 accepted 2 emits 3 drafts [10632, 1103]
+spec: mtp graph step 16.399 ms gap 0.005 ms n 3 len 416 captures 4 at 1795048328.849 split 0.004 16.385 0.000 0.009 launch 0.004
+spec: token 41 pos 419 drafted 2 accepted 2 emits 3 drafts [328, 1905]
+spec: mtp graph step 17.407 ms gap 0.005 ms n 3 len 419 captures 4 at 1795048328.867 split 0.004 17.393 0.000 0.009 launch 0.002
+spec: token 44 pos 422 drafted 2 accepted 1 emits 2 drafts [1149, 11173]
+spec: mtp graph step 17.437 ms gap 0.005 ms n 3 len 422 captures 4 at 1795048328.884 split 0.004 17.319 0.001 0.113 launch 0.002
+spec: token 46 pos 424 drafted 2 accepted 2 emits 3 drafts [13, 1061]
+spec: mtp graph step 17.949 ms gap 0.007 ms n 2 len 424 captures 4 at 1795048328.902 split 0.006 17.933 0.000 0.010 launch 0.003
+spec: token 2 pos 43 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.981 ms gap 94.225 ms n 1 len 43 captures 4 at 1795048329.014 split 0.012 16.942 0.001 0.024 launch 0.008
+spec: token 5 pos 46 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.305 ms gap 0.007 ms n 3 len 46 captures 4 at 1795048329.031 split 0.004 17.290 0.000 0.011 launch 0.008
+spec: token 8 pos 49 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.960 ms gap 0.004 ms n 3 len 49 captures 4 at 1795048329.049 split 0.003 17.945 0.000 0.010 launch 0.002
+spec: token 11 pos 52 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.653 ms gap 0.005 ms n 3 len 52 captures 4 at 1795048329.067 split 0.004 17.639 0.000 0.010 launch 0.002
+spec: token 14 pos 55 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.488 ms gap 0.005 ms n 3 len 55 captures 4 at 1795048329.084 split 0.004 17.473 0.000 0.010 launch 0.002
+spec: token 17 pos 58 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.930 ms gap 0.005 ms n 3 len 58 captures 4 at 1795048329.102 split 0.003 17.799 0.000 0.126 launch 0.002
+spec: token 19 pos 60 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.683 ms gap 0.008 ms n 2 len 60 captures 4 at 1795048329.120 split 0.005 17.667 0.000 0.010 launch 0.021
+spec: token 22 pos 63 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.787 ms gap 0.004 ms n 3 len 63 captures 4 at 1795048329.137 split 0.004 16.772 0.000 0.010 launch 0.002
+spec: token 25 pos 66 drafted 2 accepted 2 emits 3 drafts [37714, 6579]
+spec: mtp graph step 17.862 ms gap 0.005 ms n 3 len 66 captures 4 at 1795048329.154 split 0.004 17.847 0.000 0.010 launch 0.002
+spec: token 28 pos 69 drafted 2 accepted 2 emits 3 drafts [4635, 13]
+spec: mtp graph step 18.008 ms gap 0.005 ms n 3 len 69 captures 4 at 1795048329.172 split 0.004 17.993 0.001 0.010 launch 0.002
+spec: token 31 pos 72 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.634 ms gap 0.003 ms n 3 len 72 captures 4 at 1795048329.191 split 0.004 18.620 0.000 0.010 launch 0.002
+spec: token 34 pos 75 drafted 2 accepted 2 emits 3 drafts [84457, 25]
+spec: mtp graph step 18.384 ms gap 0.004 ms n 3 len 75 captures 4 at 1795048329.210 split 0.003 18.360 0.000 0.019 launch 0.002
+spec: token 37 pos 78 drafted 2 accepted 0 emits 1 drafts [12115, 13901]
+spec: mtp graph step 17.499 ms gap 0.004 ms n 3 len 78 captures 4 at 1795048329.227 split 0.004 17.382 0.000 0.112 launch 0.002
+spec: token 38 pos 79 drafted 2 accepted 1 emits 2 drafts [1500, 1]
+spec: mtp graph step 17.163 ms gap 0.006 ms n 1 len 79 captures 4 at 1795048329.244 split 0.005 17.051 0.000 0.106 launch 0.002
+spec: token 40 pos 81 drafted 2 accepted 2 emits 3 drafts [9321, 1500]
+spec: mtp graph step 17.078 ms gap 0.008 ms n 2 len 81 captures 4 at 1795048329.261 split 0.006 17.061 0.000 0.009 launch 0.006
+spec: token 43 pos 84 drafted 2 accepted 2 emits 3 drafts [9321, 1500]
+spec: mtp graph step 17.311 ms gap 0.003 ms n 3 len 84 captures 4 at 1795048329.279 split 0.004 17.297 0.000 0.009 launch 0.002
+spec: token 46 pos 87 drafted 2 accepted 2 emits 3 drafts [9321, 1500]
+spec: mtp graph step 17.593 ms gap 0.003 ms n 3 len 87 captures 4 at 1795048329.296 split 0.004 17.579 0.000 0.009 launch 0.002
+spec: token 2 pos 61 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.252 ms gap 88.125 ms n 1 len 61 captures 4 at 1795048329.401 split 0.006 16.223 0.001 0.020 launch 0.016
+spec: token 5 pos 64 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.683 ms gap 0.006 ms n 3 len 64 captures 4 at 1795048329.417 split 0.004 16.668 0.000 0.010 launch 0.007
+spec: token 8 pos 67 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.034 ms gap 0.005 ms n 3 len 67 captures 4 at 1795048329.436 split 0.004 18.020 0.000 0.009 launch 0.002
+spec: token 11 pos 70 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.738 ms gap 0.005 ms n 3 len 70 captures 4 at 1795048329.453 split 0.004 17.724 0.000 0.010 launch 0.002
+spec: token 14 pos 73 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.424 ms gap 0.005 ms n 3 len 73 captures 4 at 1795048329.471 split 0.003 17.410 0.000 0.010 launch 0.002
+spec: token 17 pos 76 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.484 ms gap 0.005 ms n 3 len 76 captures 4 at 1795048329.488 split 0.003 17.366 0.000 0.113 launch 0.002
+spec: token 19 pos 78 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.833 ms gap 0.010 ms n 2 len 78 captures 4 at 1795048329.506 split 0.004 17.818 0.000 0.009 launch 0.019
+spec: token 22 pos 81 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.688 ms gap 0.004 ms n 3 len 81 captures 4 at 1795048329.523 split 0.004 16.674 0.000 0.010 launch 0.002
+spec: token 25 pos 84 drafted 2 accepted 2 emits 3 drafts [91420, 13]
+spec: mtp graph step 17.971 ms gap 0.005 ms n 3 len 84 captures 4 at 1795048329.541 split 0.003 17.957 0.000 0.010 launch 0.002
+spec: token 28 pos 87 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.662 ms gap 0.004 ms n 3 len 87 captures 4 at 1795048329.560 split 0.003 18.648 0.000 0.010 launch 0.002
+spec: token 31 pos 90 drafted 2 accepted 0 emits 1 drafts [84457, 25]
+spec: mtp graph step 17.747 ms gap 0.004 ms n 3 len 90 captures 4 at 1795048329.577 split 0.003 17.651 0.001 0.091 launch 0.002
+spec: token 32 pos 91 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.436 ms gap 0.011 ms n 1 len 91 captures 4 at 1795048329.595 split 0.005 17.420 0.000 0.010 launch 0.003
+spec: token 35 pos 94 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.010 ms gap 0.004 ms n 3 len 94 captures 4 at 1795048329.612 split 0.004 16.995 0.000 0.010 launch 0.002
+spec: token 38 pos 97 drafted 2 accepted 2 emits 3 drafts [220, 16]
+spec: mtp graph step 17.222 ms gap 0.005 ms n 3 len 97 captures 4 at 1795048329.629 split 0.003 17.208 0.000 0.010 launch 0.002
+spec: token 41 pos 100 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.419 ms gap 0.003 ms n 3 len 100 captures 4 at 1795048329.646 split 0.003 17.405 0.000 0.010 launch 0.002
+spec: token 44 pos 103 drafted 2 accepted 2 emits 3 drafts [369, 264]
+spec: mtp graph step 17.400 ms gap 0.004 ms n 3 len 103 captures 4 at 1795048329.664 split 0.003 17.386 0.000 0.009 launch 0.002
+spec: token 47 pos 106 drafted 1 accepted 1 emits 2 drafts [5215]
+spec: mtp draft 1.297 ms, verify + rollback 15.494 ms
+spec: token 2 pos 82 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.372 ms gap 120.332 ms n 1 len 82 captures 4 at 1795048329.801 split 0.012 16.333 0.001 0.025 launch 0.013
+spec: token 5 pos 85 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.690 ms gap 0.007 ms n 3 len 85 captures 4 at 1795048329.817 split 0.004 16.675 0.000 0.011 launch 0.008
+spec: token 8 pos 88 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.524 ms gap 0.005 ms n 3 len 88 captures 4 at 1795048329.835 split 0.004 17.510 0.000 0.010 launch 0.002
+spec: token 11 pos 91 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.696 ms gap 0.005 ms n 3 len 91 captures 4 at 1795048329.853 split 0.003 17.681 0.000 0.010 launch 0.002
+spec: token 14 pos 94 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.456 ms gap 0.005 ms n 3 len 94 captures 4 at 1795048329.870 split 0.003 17.442 0.000 0.010 launch 0.002
+spec: token 17 pos 97 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 18.239 ms gap 0.005 ms n 3 len 97 captures 4 at 1795048329.888 split 0.003 18.225 0.000 0.010 launch 0.002
+spec: token 20 pos 100 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.408 ms gap 0.005 ms n 3 len 100 captures 4 at 1795048329.906 split 0.003 17.393 0.000 0.010 launch 0.002
+spec: token 23 pos 103 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.978 ms gap 0.005 ms n 3 len 103 captures 4 at 1795048329.923 split 0.003 16.963 0.001 0.010 launch 0.002
+spec: token 26 pos 106 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 17.760 ms gap 0.005 ms n 3 len 106 captures 4 at 1795048329.941 split 0.003 17.746 0.000 0.010 launch 0.002
+spec: token 29 pos 109 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.114 ms gap 0.003 ms n 3 len 109 captures 4 at 1795048329.959 split 0.004 18.099 0.000 0.010 launch 0.002
+spec: token 32 pos 112 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.221 ms gap 0.004 ms n 3 len 112 captures 4 at 1795048329.976 split 0.003 17.207 0.000 0.010 launch 0.002
+spec: token 35 pos 115 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.003 ms gap 0.005 ms n 3 len 115 captures 4 at 1795048329.993 split 0.004 16.989 0.001 0.010 launch 0.002
+spec: token 38 pos 118 drafted 2 accepted 0 emits 1 drafts [220, 16]
+spec: mtp graph step 17.796 ms gap 0.005 ms n 3 len 118 captures 4 at 1795048330.011 split 0.003 17.701 0.000 0.090 launch 0.002
+spec: token 39 pos 119 drafted 2 accepted 1 emits 2 drafts [2942, 13]
+spec: mtp graph step 17.327 ms gap 0.005 ms n 1 len 119 captures 4 at 1795048330.028 split 0.004 17.240 0.000 0.082 launch 0.003
+spec: token 41 pos 121 drafted 2 accepted 2 emits 3 drafts [17, 15]
+spec: mtp graph step 17.105 ms gap 0.010 ms n 2 len 121 captures 4 at 1795048330.045 split 0.005 17.089 0.000 0.010 launch 0.022
+spec: token 44 pos 124 drafted 2 accepted 1 emits 2 drafts [553, 198]
+spec: mtp graph step 17.239 ms gap 0.004 ms n 3 len 124 captures 4 at 1795048330.063 split 0.004 17.155 0.000 0.079 launch 0.002
+spec: token 46 pos 126 drafted 2 accepted 0 emits 1 drafts [369, 264]
+spec: mtp graph step 17.431 ms gap 0.006 ms n 2 len 126 captures 4 at 1795048330.080 split 0.005 17.343 0.000 0.083 launch 0.003
+spec: token 47 pos 127 drafted 1 accepted 1 emits 2 drafts [1040]
+spec: mtp graph step 14.587 ms gap 0.007 ms n 1 len 127 captures 4 at 1795048330.095 split 0.004 14.573 0.000 0.009 launch 0.016
+spec: token 2 pos 104 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.874 ms gap 98.917 ms n 1 len 104 captures 4 at 1795048330.211 split 0.011 16.838 0.001 0.023 launch 0.008
+spec: token 5 pos 107 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.508 ms gap 0.007 ms n 3 len 107 captures 4 at 1795048330.227 split 0.004 16.485 0.000 0.017 launch 0.008
+spec: token 8 pos 110 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.475 ms gap 0.004 ms n 3 len 110 captures 4 at 1795048330.246 split 0.003 18.461 0.000 0.010 launch 0.002
+spec: token 11 pos 113 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.004 ms gap 0.005 ms n 3 len 113 captures 4 at 1795048330.263 split 0.003 16.990 0.000 0.010 launch 0.002
+spec: token 14 pos 116 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.496 ms gap 0.005 ms n 3 len 116 captures 4 at 1795048330.280 split 0.003 17.482 0.000 0.010 launch 0.002
+spec: token 17 pos 119 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.507 ms gap 0.005 ms n 3 len 119 captures 4 at 1795048330.298 split 0.004 17.376 0.000 0.126 launch 0.002
+spec: token 19 pos 121 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.379 ms gap 0.007 ms n 2 len 121 captures 4 at 1795048330.315 split 0.007 17.361 0.000 0.010 launch 0.020
+spec: token 22 pos 124 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.773 ms gap 0.005 ms n 3 len 124 captures 4 at 1795048330.332 split 0.004 16.759 0.000 0.010 launch 0.002
+spec: token 25 pos 127 drafted 2 accepted 2 emits 3 drafts [31634, 46932]
+spec: mtp graph step 17.462 ms gap 0.005 ms n 3 len 127 captures 4 at 1795048330.349 split 0.004 17.448 0.000 0.010 launch 0.002
+spec: token 28 pos 130 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.969 ms gap 0.004 ms n 3 len 130 captures 4 at 1795048330.367 split 0.004 17.956 0.000 0.009 launch 0.002
+spec: token 31 pos 133 drafted 2 accepted 1 emits 2 drafts [256, 42794]
+spec: mtp graph step 17.825 ms gap 0.003 ms n 3 len 133 captures 4 at 1795048330.385 split 0.004 17.706 0.000 0.114 launch 0.002
+spec: token 33 pos 135 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.510 ms gap 0.010 ms n 2 len 135 captures 4 at 1795048330.403 split 0.004 17.496 0.000 0.009 launch 0.005
+spec: token 36 pos 138 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.025 ms gap 0.004 ms n 3 len 138 captures 4 at 1795048330.420 split 0.004 17.011 0.001 0.010 launch 0.002
+spec: token 39 pos 141 drafted 2 accepted 0 emits 1 drafts [220, 16]
+spec: mtp graph step 17.233 ms gap 0.005 ms n 3 len 141 captures 4 at 1795048330.437 split 0.004 17.118 0.000 0.111 launch 0.002
+spec: token 40 pos 142 drafted 2 accepted 1 emits 2 drafts [2942, 13]
+spec: mtp graph step 17.399 ms gap 0.009 ms n 1 len 142 captures 4 at 1795048330.455 split 0.004 17.279 0.000 0.114 launch 0.004
+spec: token 42 pos 144 drafted 2 accepted 1 emits 2 drafts [17, 15]
+spec: mtp graph step 17.207 ms gap 0.010 ms n 2 len 144 captures 4 at 1795048330.472 split 0.004 17.124 0.000 0.079 launch 0.006
+spec: token 44 pos 146 drafted 2 accepted 2 emits 3 drafts [2942, 553]
+spec: mtp graph step 17.556 ms gap 0.007 ms n 2 len 146 captures 4 at 1795048330.489 split 0.005 17.541 0.000 0.009 launch 0.002
+spec: token 47 pos 149 drafted 1 accepted 0 emits 1 drafts [369]
+spec: mtp draft 1.352 ms, verify + rollback 15.619 ms
+spec: token 2 pos 125 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.973 ms gap 139.201 ms n 1 len 125 captures 4 at 1795048330.646 split 0.011 16.936 0.001 0.024 launch 0.015
+spec: token 5 pos 128 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.851 ms gap 0.007 ms n 3 len 128 captures 4 at 1795048330.664 split 0.004 17.835 0.000 0.011 launch 0.008
+spec: token 8 pos 131 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.583 ms gap 0.005 ms n 3 len 131 captures 4 at 1795048330.682 split 0.004 18.569 0.000 0.010 launch 0.002
+spec: token 11 pos 134 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.311 ms gap 0.006 ms n 3 len 134 captures 4 at 1795048330.699 split 0.003 17.297 0.000 0.010 launch 0.002
+spec: token 14 pos 137 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.514 ms gap 0.007 ms n 3 len 137 captures 4 at 1795048330.717 split 0.003 17.500 0.000 0.010 launch 0.002
+spec: token 17 pos 140 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.539 ms gap 0.005 ms n 3 len 140 captures 4 at 1795048330.735 split 0.003 17.444 0.000 0.091 launch 0.002
+spec: token 19 pos 142 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.401 ms gap 0.008 ms n 2 len 142 captures 4 at 1795048330.752 split 0.004 17.383 0.000 0.013 launch 0.017
+spec: token 22 pos 145 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.714 ms gap 0.004 ms n 3 len 145 captures 4 at 1795048330.769 split 0.004 16.701 0.000 0.009 launch 0.002
+spec: token 25 pos 148 drafted 2 accepted 2 emits 3 drafts [15530, 26912]
+spec: mtp graph step 18.298 ms gap 0.006 ms n 3 len 148 captures 4 at 1795048330.787 split 0.004 18.285 0.000 0.009 launch 0.002
+spec: token 28 pos 151 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 18.789 ms gap 0.004 ms n 3 len 151 captures 4 at 1795048330.806 split 0.004 18.774 0.001 0.010 launch 0.002
+spec: token 31 pos 154 drafted 2 accepted 1 emits 2 drafts [256, 84457]
+spec: mtp graph step 18.007 ms gap 0.003 ms n 3 len 154 captures 4 at 1795048330.824 split 0.003 17.925 0.000 0.078 launch 0.002
+spec: token 33 pos 156 drafted 2 accepted 0 emits 1 drafts [3766, 25]
+spec: mtp graph step 17.177 ms gap 0.010 ms n 2 len 156 captures 4 at 1795048330.841 split 0.004 17.092 0.000 0.081 launch 0.002
+spec: token 34 pos 157 drafted 2 accepted 2 emits 3 drafts [328, 1905]
+spec: mtp graph step 17.427 ms gap 0.005 ms n 1 len 157 captures 4 at 1795048330.859 split 0.006 17.411 0.000 0.009 launch 0.002
+spec: token 37 pos 160 drafted 2 accepted 2 emits 3 drafts [1149, 11173]
+spec: mtp graph step 17.385 ms gap 0.004 ms n 3 len 160 captures 4 at 1795048330.876 split 0.004 17.371 0.001 0.009 launch 0.002
+spec: token 40 pos 163 drafted 2 accepted 1 emits 2 drafts [2942, 13]
+spec: mtp graph step 17.383 ms gap 0.005 ms n 3 len 163 captures 4 at 1795048330.893 split 0.004 17.296 0.000 0.082 launch 0.002
+spec: token 42 pos 165 drafted 2 accepted 1 emits 2 drafts [17, 15]
+spec: mtp graph step 17.288 ms gap 0.010 ms n 2 len 165 captures 4 at 1795048330.911 split 0.004 17.197 0.000 0.086 launch 0.003
+spec: token 44 pos 167 drafted 2 accepted 2 emits 3 drafts [2942, 553]
+spec: mtp graph step 17.499 ms gap 0.009 ms n 2 len 167 captures 4 at 1795048330.928 split 0.004 17.484 0.000 0.010 launch 0.003
+spec: token 47 pos 170 drafted 1 accepted 0 emits 1 drafts [369]
+spec: mtp draft 1.353 ms, verify + rollback 15.727 ms
+spec: token 2 pos 146 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.282 ms gap 134.975 ms n 1 len 146 captures 4 at 1795048331.080 split 0.010 16.247 0.001 0.023 launch 0.014
+spec: token 5 pos 149 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.552 ms gap 0.007 ms n 3 len 149 captures 4 at 1795048331.096 split 0.004 16.536 0.000 0.012 launch 0.008
+spec: token 8 pos 152 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.767 ms gap 0.005 ms n 3 len 152 captures 4 at 1795048331.114 split 0.004 17.752 0.000 0.010 launch 0.002
+spec: token 11 pos 155 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.901 ms gap 0.006 ms n 3 len 155 captures 4 at 1795048331.131 split 0.003 16.886 0.000 0.010 launch 0.002
+spec: token 14 pos 158 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.355 ms gap 0.005 ms n 3 len 158 captures 4 at 1795048331.148 split 0.003 17.341 0.000 0.010 launch 0.002
+spec: token 17 pos 161 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 18.157 ms gap 0.006 ms n 3 len 161 captures 4 at 1795048331.166 split 0.003 18.064 0.000 0.089 launch 0.002
+spec: token 19 pos 163 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.433 ms gap 0.009 ms n 2 len 163 captures 4 at 1795048331.184 split 0.005 17.417 0.000 0.010 launch 0.022
+spec: token 22 pos 166 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.716 ms gap 0.006 ms n 3 len 166 captures 4 at 1795048331.201 split 0.004 16.702 0.000 0.010 launch 0.002
+spec: token 25 pos 169 drafted 2 accepted 2 emits 3 drafts [40554, 12269]
+spec: mtp graph step 17.736 ms gap 0.006 ms n 3 len 169 captures 4 at 1795048331.218 split 0.003 17.723 0.000 0.009 launch 0.002
+spec: token 28 pos 172 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 18.764 ms gap 0.005 ms n 3 len 172 captures 4 at 1795048331.237 split 0.003 18.750 0.001 0.010 launch 0.002
+spec: token 31 pos 175 drafted 2 accepted 1 emits 2 drafts [256, 42794]
+spec: mtp graph step 17.817 ms gap 0.003 ms n 3 len 175 captures 4 at 1795048331.255 split 0.003 17.735 0.000 0.079 launch 0.002
+spec: token 33 pos 177 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.548 ms gap 0.010 ms n 2 len 177 captures 4 at 1795048331.273 split 0.004 17.534 0.000 0.009 launch 0.002
+spec: token 36 pos 180 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 16.951 ms gap 0.004 ms n 3 len 180 captures 4 at 1795048331.290 split 0.004 16.937 0.000 0.010 launch 0.002
+spec: token 39 pos 183 drafted 2 accepted 0 emits 1 drafts [220, 17]
+spec: mtp graph step 17.291 ms gap 0.005 ms n 3 len 183 captures 4 at 1795048331.307 split 0.003 17.207 0.000 0.080 launch 0.002
+spec: token 40 pos 184 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.303 ms gap 0.004 ms n 1 len 184 captures 4 at 1795048331.324 split 0.004 17.289 0.000 0.009 launch 0.004
+spec: token 43 pos 187 drafted 2 accepted 0 emits 1 drafts [369, 264]
+spec: mtp graph step 16.790 ms gap 0.004 ms n 3 len 187 captures 4 at 1795048331.341 split 0.004 16.708 0.000 0.077 launch 0.002
+spec: token 44 pos 188 drafted 2 accepted 2 emits 3 drafts [14378, 264]
+spec: mtp graph step 16.922 ms gap 0.003 ms n 1 len 188 captures 4 at 1795048331.358 split 0.004 16.907 0.000 0.009 launch 0.002
+spec: token 47 pos 191 drafted 1 accepted 1 emits 2 drafts [466]
+spec: mtp draft 1.338 ms, verify + rollback 15.832 ms
+spec: token 2 pos 167 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.975 ms gap 134.473 ms n 1 len 167 captures 4 at 1795048331.510 split 0.006 16.946 0.001 0.022 launch 0.008
+spec: token 5 pos 170 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.334 ms gap 0.006 ms n 3 len 170 captures 4 at 1795048331.527 split 0.004 17.320 0.000 0.010 launch 0.004
+spec: token 8 pos 173 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.146 ms gap 0.005 ms n 3 len 173 captures 4 at 1795048331.545 split 0.004 18.131 0.000 0.010 launch 0.002
+spec: token 11 pos 176 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.092 ms gap 0.004 ms n 3 len 176 captures 4 at 1795048331.562 split 0.003 17.078 0.000 0.010 launch 0.002
+spec: token 14 pos 179 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.352 ms gap 0.004 ms n 3 len 179 captures 4 at 1795048331.580 split 0.003 17.338 0.000 0.010 launch 0.002
+spec: token 17 pos 182 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.472 ms gap 0.004 ms n 3 len 182 captures 4 at 1795048331.597 split 0.003 17.388 0.000 0.080 launch 0.002
+spec: token 19 pos 184 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.422 ms gap 0.005 ms n 2 len 184 captures 4 at 1795048331.615 split 0.005 17.407 0.000 0.010 launch 0.012
+spec: token 22 pos 187 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.709 ms gap 0.004 ms n 3 len 187 captures 4 at 1795048331.631 split 0.004 16.695 0.000 0.009 launch 0.002
+spec: token 25 pos 190 drafted 2 accepted 2 emits 3 drafts [34103, 6852]
+spec: mtp graph step 17.562 ms gap 0.006 ms n 3 len 190 captures 4 at 1795048331.649 split 0.004 17.548 0.000 0.009 launch 0.002
+spec: token 28 pos 193 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 18.475 ms gap 0.005 ms n 3 len 193 captures 4 at 1795048331.667 split 0.004 18.461 0.001 0.010 launch 0.002
+spec: token 31 pos 196 drafted 2 accepted 1 emits 2 drafts [256, 42794]
+spec: mtp graph step 17.704 ms gap 0.003 ms n 3 len 196 captures 4 at 1795048331.685 split 0.003 17.622 0.000 0.077 launch 0.002
+spec: token 33 pos 198 drafted 2 accepted 1 emits 2 drafts [25, 328]
+spec: mtp graph step 17.558 ms gap 0.009 ms n 2 len 198 captures 4 at 1795048331.703 split 0.005 17.481 0.000 0.071 launch 0.003
+spec: token 35 pos 200 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.778 ms gap 0.004 ms n 2 len 200 captures 4 at 1795048331.721 split 0.005 17.763 0.000 0.009 launch 0.002
+spec: token 38 pos 203 drafted 2 accepted 2 emits 3 drafts [10632, 1103]
+spec: mtp graph step 16.859 ms gap 0.005 ms n 3 len 203 captures 4 at 1795048331.737 split 0.004 16.845 0.000 0.010 launch 0.002
+spec: token 41 pos 206 drafted 2 accepted 2 emits 3 drafts [328, 1905]
+spec: mtp graph step 17.273 ms gap 0.005 ms n 3 len 206 captures 4 at 1795048331.755 split 0.003 17.260 0.000 0.010 launch 0.002
+spec: token 44 pos 209 drafted 2 accepted 2 emits 3 drafts [1149, 11173]
+spec: mtp graph step 17.255 ms gap 0.004 ms n 3 len 209 captures 4 at 1795048331.772 split 0.003 17.241 0.000 0.010 launch 0.002
+spec: token 47 pos 212 drafted 1 accepted 1 emits 2 drafts [2942]
+spec: mtp draft 1.291 ms, verify + rollback 15.709 ms
+spec: token 2 pos 187 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.277 ms gap 130.907 ms n 1 len 187 captures 4 at 1795048331.919 split 0.014 16.230 0.001 0.030 launch 0.010
+spec: token 5 pos 190 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.631 ms gap 0.007 ms n 3 len 190 captures 4 at 1795048331.936 split 0.004 16.615 0.000 0.011 launch 0.008
+spec: token 8 pos 193 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.401 ms gap 0.005 ms n 3 len 193 captures 4 at 1795048331.954 split 0.003 18.386 0.000 0.010 launch 0.002
+spec: token 11 pos 196 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.005 ms gap 0.005 ms n 3 len 196 captures 4 at 1795048331.971 split 0.003 16.990 0.000 0.010 launch 0.002
+spec: token 14 pos 199 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.420 ms gap 0.005 ms n 3 len 199 captures 4 at 1795048331.989 split 0.004 17.406 0.000 0.010 launch 0.002
+spec: token 17 pos 202 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 18.043 ms gap 0.005 ms n 3 len 202 captures 4 at 1795048332.007 split 0.004 18.028 0.000 0.010 launch 0.002
+spec: token 20 pos 205 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.529 ms gap 0.005 ms n 3 len 205 captures 4 at 1795048332.024 split 0.004 17.514 0.000 0.010 launch 0.002
+spec: token 23 pos 208 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 17.335 ms gap 0.005 ms n 3 len 208 captures 4 at 1795048332.042 split 0.004 17.320 0.001 0.010 launch 0.002
+spec: token 26 pos 211 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 18.007 ms gap 0.005 ms n 3 len 211 captures 4 at 1795048332.060 split 0.003 17.992 0.000 0.010 launch 0.002
+spec: token 29 pos 214 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.087 ms gap 0.004 ms n 3 len 214 captures 4 at 1795048332.078 split 0.004 18.073 0.000 0.010 launch 0.002
+spec: token 32 pos 217 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.250 ms gap 0.004 ms n 3 len 217 captures 4 at 1795048332.095 split 0.003 17.235 0.001 0.010 launch 0.002
+spec: token 35 pos 220 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.012 ms gap 0.004 ms n 3 len 220 captures 4 at 1795048332.112 split 0.004 16.998 0.001 0.010 launch 0.002
+spec: token 38 pos 223 drafted 2 accepted 0 emits 1 drafts [220, 16]
+spec: mtp graph step 17.176 ms gap 0.005 ms n 3 len 223 captures 4 at 1795048332.129 split 0.003 17.068 0.001 0.103 launch 0.002
+spec: token 39 pos 224 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.269 ms gap 0.007 ms n 1 len 224 captures 4 at 1795048332.147 split 0.005 17.253 0.000 0.010 launch 0.003
+spec: token 42 pos 227 drafted 2 accepted 0 emits 1 drafts [369, 4222]
+spec: mtp graph step 16.911 ms gap 0.004 ms n 3 len 227 captures 4 at 1795048332.164 split 0.004 16.821 0.001 0.086 launch 0.002
+spec: token 43 pos 228 drafted 2 accepted 2 emits 3 drafts [1040, 264]
+spec: mtp graph step 16.550 ms gap 0.004 ms n 1 len 228 captures 4 at 1795048332.180 split 0.005 16.535 0.000 0.009 launch 0.003
+spec: token 46 pos 231 drafted 2 accepted 2 emits 3 drafts [24277, 466]
+spec: mtp graph step 16.778 ms gap 0.004 ms n 3 len 231 captures 4 at 1795048332.197 split 0.003 16.764 0.001 0.010 launch 0.002
+spec: token 2 pos 209 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.329 ms gap 120.049 ms n 1 len 209 captures 4 at 1795048332.334 split 0.015 16.287 0.001 0.026 launch 0.009
+spec: token 5 pos 212 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.334 ms gap 0.007 ms n 3 len 212 captures 4 at 1795048332.351 split 0.004 17.319 0.000 0.011 launch 0.008
+spec: token 8 pos 215 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.707 ms gap 0.005 ms n 3 len 215 captures 4 at 1795048332.369 split 0.003 17.693 0.000 0.010 launch 0.002
+spec: token 11 pos 218 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.984 ms gap 0.005 ms n 3 len 218 captures 4 at 1795048332.386 split 0.003 16.970 0.000 0.010 launch 0.002
+spec: token 14 pos 221 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.331 ms gap 0.006 ms n 3 len 221 captures 4 at 1795048332.403 split 0.004 17.316 0.000 0.010 launch 0.002
+spec: token 17 pos 224 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.433 ms gap 0.005 ms n 3 len 224 captures 4 at 1795048332.420 split 0.004 17.418 0.000 0.010 launch 0.002
+spec: token 20 pos 227 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.373 ms gap 0.005 ms n 3 len 227 captures 4 at 1795048332.438 split 0.003 17.359 0.000 0.010 launch 0.002
+spec: token 23 pos 230 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 17.079 ms gap 0.005 ms n 3 len 230 captures 4 at 1795048332.455 split 0.004 17.064 0.001 0.010 launch 0.002
+spec: token 26 pos 233 drafted 2 accepted 2 emits 3 drafts [46328, 13]
+spec: mtp graph step 17.617 ms gap 0.005 ms n 3 len 233 captures 4 at 1795048332.473 split 0.004 17.603 0.000 0.010 launch 0.002
+spec: token 29 pos 236 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.723 ms gap 0.004 ms n 3 len 236 captures 4 at 1795048332.491 split 0.004 18.708 0.000 0.011 launch 0.002
+spec: token 32 pos 239 drafted 2 accepted 2 emits 3 drafts [9321, 25]
+spec: mtp graph step 17.689 ms gap 0.004 ms n 3 len 239 captures 4 at 1795048332.509 split 0.004 17.674 0.000 0.010 launch 0.002
+spec: token 35 pos 242 drafted 2 accepted 2 emits 3 drafts [1905, 1500]
+spec: mtp graph step 17.085 ms gap 0.004 ms n 3 len 242 captures 4 at 1795048332.526 split 0.004 17.069 0.001 0.010 launch 0.002
+spec: token 38 pos 245 drafted 2 accepted 2 emits 3 drafts [11173, 1599]
+spec: mtp graph step 17.320 ms gap 0.005 ms n 3 len 245 captures 4 at 1795048332.544 split 0.004 17.304 0.000 0.011 launch 0.002
+spec: token 41 pos 248 drafted 2 accepted 2 emits 3 drafts [318, 20]
+spec: mtp graph step 17.627 ms gap 0.005 ms n 3 len 248 captures 4 at 1795048332.561 split 0.004 17.610 0.001 0.012 launch 0.002
+spec: token 44 pos 251 drafted 2 accepted 2 emits 3 drafts [2942, 553]
+spec: mtp graph step 17.311 ms gap 0.005 ms n 3 len 251 captures 4 at 1795048332.579 split 0.004 17.296 0.000 0.010 launch 0.002
+spec: token 47 pos 254 drafted 1 accepted 0 emits 1 drafts [369]
+spec: mtp draft 1.348 ms, verify + rollback 15.711 ms
+spec: token 2 pos 230 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.304 ms gap 153.247 ms n 1 len 230 captures 4 at 1795048332.748 split 0.013 16.258 0.001 0.031 launch 0.011
+spec: token 5 pos 233 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.780 ms gap 0.007 ms n 3 len 233 captures 4 at 1795048332.765 split 0.004 16.764 0.000 0.011 launch 0.008
+spec: token 8 pos 236 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.968 ms gap 0.005 ms n 3 len 236 captures 4 at 1795048332.783 split 0.004 17.954 0.000 0.010 launch 0.002
+spec: token 11 pos 239 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.986 ms gap 0.005 ms n 3 len 239 captures 4 at 1795048332.800 split 0.003 16.972 0.000 0.009 launch 0.002
+spec: token 14 pos 242 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.325 ms gap 0.005 ms n 3 len 242 captures 4 at 1795048332.817 split 0.004 17.311 0.000 0.010 launch 0.002
+spec: token 17 pos 245 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.424 ms gap 0.005 ms n 3 len 245 captures 4 at 1795048332.835 split 0.003 17.317 0.001 0.102 launch 0.002
+spec: token 19 pos 247 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.394 ms gap 0.009 ms n 2 len 247 captures 4 at 1795048332.852 split 0.004 17.380 0.000 0.009 launch 0.021
+spec: token 22 pos 250 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.729 ms gap 0.004 ms n 3 len 250 captures 4 at 1795048332.869 split 0.004 16.715 0.000 0.009 launch 0.002
+spec: token 25 pos 253 drafted 2 accepted 2 emits 3 drafts [32671, 14834]
+spec: mtp graph step 17.808 ms gap 0.006 ms n 3 len 253 captures 4 at 1795048332.887 split 0.004 17.795 0.000 0.009 launch 0.002
+spec: token 28 pos 256 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 18.079 ms gap 0.005 ms n 3 len 256 captures 4 at 1795048332.905 split 0.003 18.065 0.000 0.010 launch 0.002
+spec: token 31 pos 259 drafted 2 accepted 1 emits 2 drafts [256, 42794]
+spec: mtp graph step 17.780 ms gap 0.003 ms n 3 len 259 captures 4 at 1795048332.923 split 0.003 17.691 0.001 0.084 launch 0.002
+spec: token 33 pos 261 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.528 ms gap 0.004 ms n 2 len 261 captures 4 at 1795048332.940 split 0.004 17.514 0.000 0.009 launch 0.004
+spec: token 36 pos 264 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.027 ms gap 0.005 ms n 3 len 264 captures 4 at 1795048332.957 split 0.004 17.013 0.000 0.010 launch 0.002
+spec: token 39 pos 267 drafted 2 accepted 0 emits 1 drafts [220, 16]
+spec: mtp graph step 17.191 ms gap 0.005 ms n 3 len 267 captures 4 at 1795048332.974 split 0.003 17.100 0.000 0.086 launch 0.002
+spec: token 40 pos 268 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.366 ms gap 0.007 ms n 1 len 268 captures 4 at 1795048332.992 split 0.005 17.351 0.001 0.009 launch 0.003
+spec: token 43 pos 271 drafted 2 accepted 2 emits 3 drafts [5686, 1040]
+spec: mtp graph step 16.997 ms gap 0.004 ms n 3 len 271 captures 4 at 1795048333.009 split 0.004 16.983 0.000 0.010 launch 0.002
+spec: token 46 pos 274 drafted 2 accepted 2 emits 3 drafts [9640, 24277]
+spec: mtp graph step 16.569 ms gap 0.005 ms n 3 len 274 captures 4 at 1795048333.026 split 0.003 16.548 0.000 0.016 launch 0.002
+spec: token 2 pos 253 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.845 ms gap 128.178 ms n 1 len 253 captures 4 at 1795048333.171 split 0.014 16.793 0.001 0.034 launch 0.008
+spec: token 5 pos 256 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.291 ms gap 0.007 ms n 3 len 256 captures 4 at 1795048333.188 split 0.004 17.271 0.000 0.015 launch 0.007
+spec: token 8 pos 259 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.142 ms gap 0.004 ms n 3 len 259 captures 4 at 1795048333.206 split 0.004 18.123 0.000 0.015 launch 0.002
+spec: token 11 pos 262 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.120 ms gap 0.005 ms n 3 len 262 captures 4 at 1795048333.223 split 0.004 17.101 0.000 0.015 launch 0.002
+spec: token 14 pos 265 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.265 ms gap 0.005 ms n 3 len 265 captures 4 at 1795048333.241 split 0.003 17.245 0.000 0.015 launch 0.002
+spec: token 17 pos 268 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.415 ms gap 0.004 ms n 3 len 268 captures 4 at 1795048333.258 split 0.004 17.386 0.001 0.024 launch 0.002
+spec: token 20 pos 271 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.414 ms gap 0.004 ms n 3 len 271 captures 4 at 1795048333.275 split 0.003 17.400 0.000 0.009 launch 0.002
+spec: token 23 pos 274 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.914 ms gap 0.005 ms n 3 len 274 captures 4 at 1795048333.292 split 0.003 16.901 0.000 0.009 launch 0.002
+spec: token 26 pos 277 drafted 2 accepted 2 emits 3 drafts [6579, 294]
+spec: mtp graph step 16.476 ms gap 0.005 ms n 3 len 277 captures 4 at 1795048333.309 split 0.004 16.461 0.001 0.010 launch 0.002
+spec: token 29 pos 280 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 17.558 ms gap 0.005 ms n 3 len 280 captures 4 at 1795048333.326 split 0.004 17.544 0.000 0.009 launch 0.002
+spec: token 32 pos 283 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.198 ms gap 0.004 ms n 3 len 283 captures 4 at 1795048333.345 split 0.004 18.184 0.000 0.010 launch 0.002
+spec: token 35 pos 286 drafted 2 accepted 1 emits 2 drafts [25, 2532]
+spec: mtp graph step 17.449 ms gap 0.004 ms n 3 len 286 captures 4 at 1795048333.362 split 0.004 17.328 0.001 0.116 launch 0.002
+spec: token 37 pos 288 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.314 ms gap 0.007 ms n 2 len 288 captures 4 at 1795048333.380 split 0.005 17.299 0.000 0.009 launch 0.017
+spec: token 40 pos 291 drafted 2 accepted 2 emits 3 drafts [10632, 1103]
+spec: mtp graph step 16.476 ms gap 0.004 ms n 3 len 291 captures 4 at 1795048333.396 split 0.004 16.462 0.000 0.010 launch 0.002
+spec: token 43 pos 294 drafted 2 accepted 2 emits 3 drafts [328, 1905]
+spec: mtp graph step 17.315 ms gap 0.006 ms n 3 len 294 captures 4 at 1795048333.413 split 0.004 17.301 0.001 0.010 launch 0.002
+spec: token 46 pos 297 drafted 2 accepted 2 emits 3 drafts [1149, 11173]
+spec: mtp graph step 17.255 ms gap 0.004 ms n 3 len 297 captures 4 at 1795048333.431 split 0.004 17.241 0.000 0.009 launch 0.002
+spec: token 2 pos 271 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.642 ms gap 129.304 ms n 1 len 271 captures 4 at 1795048333.577 split 0.016 16.596 0.001 0.028 launch 0.008
+spec: token 5 pos 274 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.328 ms gap 0.007 ms n 3 len 274 captures 4 at 1795048333.594 split 0.004 17.312 0.000 0.011 launch 0.008
+spec: token 8 pos 277 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.416 ms gap 0.005 ms n 3 len 277 captures 4 at 1795048333.611 split 0.004 17.401 0.000 0.010 launch 0.002
+spec: token 11 pos 280 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.936 ms gap 0.005 ms n 3 len 280 captures 4 at 1795048333.628 split 0.007 16.918 0.000 0.010 launch 0.002
+spec: token 14 pos 283 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.306 ms gap 0.005 ms n 3 len 283 captures 4 at 1795048333.646 split 0.003 17.292 0.000 0.010 launch 0.002
+spec: token 17 pos 286 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.820 ms gap 0.005 ms n 3 len 286 captures 4 at 1795048333.664 split 0.003 17.806 0.001 0.010 launch 0.002
+spec: token 20 pos 289 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.459 ms gap 0.004 ms n 3 len 289 captures 4 at 1795048333.681 split 0.004 17.444 0.001 0.010 launch 0.002
+spec: token 23 pos 292 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.894 ms gap 0.005 ms n 3 len 292 captures 4 at 1795048333.698 split 0.004 16.879 0.001 0.010 launch 0.002
+spec: token 26 pos 295 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 17.963 ms gap 0.005 ms n 3 len 295 captures 4 at 1795048333.716 split 0.004 17.949 0.001 0.010 launch 0.002
+spec: token 29 pos 298 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.191 ms gap 0.003 ms n 3 len 298 captures 4 at 1795048333.734 split 0.003 18.176 0.001 0.010 launch 0.002
+spec: token 32 pos 301 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.090 ms gap 0.004 ms n 3 len 301 captures 4 at 1795048333.751 split 0.004 17.076 0.001 0.009 launch 0.002
+spec: token 35 pos 304 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: mtp graph step 16.964 ms gap 0.004 ms n 3 len 304 captures 4 at 1795048333.768 split 0.003 16.950 0.001 0.009 launch 0.002
+spec: token 38 pos 307 drafted 2 accepted 2 emits 3 drafts [25, 3165]
+spec: mtp graph step 16.945 ms gap 0.004 ms n 3 len 307 captures 4 at 1795048333.785 split 0.004 16.931 0.001 0.010 launch 0.002
+spec: token 41 pos 310 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 17.122 ms gap 0.003 ms n 3 len 310 captures 4 at 1795048333.802 split 0.004 17.108 0.001 0.009 launch 0.002
+spec: token 44 pos 313 drafted 2 accepted 2 emits 3 drafts [91420, 13]
+spec: mtp graph step 17.436 ms gap 0.003 ms n 3 len 313 captures 4 at 1795048333.820 split 0.004 17.422 0.001 0.009 launch 0.002
+spec: token 47 pos 316 drafted 1 accepted 1 emits 2 drafts [1500]
+spec: mtp draft 1.320 ms, verify + rollback 15.603 ms
+spec: token 2 pos 292 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 17.014 ms gap 148.547 ms n 1 len 292 captures 4 at 1795048333.985 split 0.011 16.973 0.001 0.028 launch 0.012
+spec: token 5 pos 295 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.729 ms gap 0.006 ms n 3 len 295 captures 4 at 1795048334.002 split 0.004 16.713 0.000 0.010 launch 0.007
+spec: token 8 pos 298 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.455 ms gap 0.004 ms n 3 len 298 captures 4 at 1795048334.020 split 0.004 17.440 0.000 0.011 launch 0.002
+spec: token 11 pos 301 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.953 ms gap 0.005 ms n 3 len 301 captures 4 at 1795048334.037 split 0.004 16.939 0.000 0.010 launch 0.002
+spec: token 14 pos 304 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.312 ms gap 0.005 ms n 3 len 304 captures 4 at 1795048334.054 split 0.004 17.297 0.000 0.010 launch 0.002
+spec: token 17 pos 307 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.285 ms gap 0.005 ms n 3 len 307 captures 4 at 1795048334.071 split 0.004 17.270 0.001 0.010 launch 0.002
+spec: token 20 pos 310 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.444 ms gap 0.004 ms n 3 len 310 captures 4 at 1795048334.089 split 0.003 17.429 0.000 0.010 launch 0.002
+spec: token 23 pos 313 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.952 ms gap 0.005 ms n 3 len 313 captures 4 at 1795048334.106 split 0.004 16.938 0.000 0.010 launch 0.002
+spec: token 26 pos 316 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 17.768 ms gap 0.005 ms n 3 len 316 captures 4 at 1795048334.123 split 0.004 17.753 0.001 0.010 launch 0.002
+spec: token 29 pos 319 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.143 ms gap 0.003 ms n 3 len 319 captures 4 at 1795048334.142 split 0.004 18.129 0.000 0.010 launch 0.002
+spec: token 32 pos 322 drafted 2 accepted 1 emits 2 drafts [25, 328]
+spec: mtp graph step 17.887 ms gap 0.004 ms n 3 len 322 captures 4 at 1795048334.160 split 0.003 17.777 0.000 0.106 launch 0.002
+spec: token 34 pos 324 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.225 ms gap 0.009 ms n 2 len 324 captures 4 at 1795048334.177 split 0.005 17.209 0.000 0.010 launch 0.021
+spec: token 37 pos 327 drafted 2 accepted 1 emits 2 drafts [10632, 3202]
+spec: mtp graph step 16.443 ms gap 0.005 ms n 3 len 327 captures 4 at 1795048334.193 split 0.004 16.338 0.000 0.100 launch 0.002
+spec: token 39 pos 329 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 17.018 ms gap 0.006 ms n 2 len 329 captures 4 at 1795048334.210 split 0.006 17.002 0.000 0.010 launch 0.004
+spec: token 42 pos 332 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.051 ms gap 0.005 ms n 3 len 332 captures 4 at 1795048334.227 split 0.004 17.037 0.000 0.010 launch 0.002
+spec: token 45 pos 335 drafted 2 accepted 0 emits 1 drafts [13, 1061]
+spec: mtp graph step 17.968 ms gap 0.005 ms n 3 len 335 captures 4 at 1795048334.245 split 0.004 17.862 0.001 0.101 launch 0.002
+spec: token 46 pos 336 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.323 ms gap 0.008 ms n 1 len 336 captures 4 at 1795048334.263 split 0.004 17.309 0.000 0.009 launch 0.004
+spec: token 2 pos 314 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.382 ms gap 136.426 ms n 1 len 314 captures 4 at 1795048334.416 split 0.012 16.338 0.001 0.029 launch 0.009
+spec: token 5 pos 317 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.376 ms gap 0.007 ms n 3 len 317 captures 4 at 1795048334.433 split 0.004 17.361 0.000 0.011 launch 0.009
+spec: token 8 pos 320 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.526 ms gap 0.005 ms n 3 len 320 captures 4 at 1795048334.451 split 0.004 17.511 0.000 0.010 launch 0.002
+spec: token 11 pos 323 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.988 ms gap 0.005 ms n 3 len 323 captures 4 at 1795048334.468 split 0.004 16.973 0.000 0.010 launch 0.002
+spec: token 14 pos 326 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.376 ms gap 0.005 ms n 3 len 326 captures 4 at 1795048334.485 split 0.004 17.361 0.000 0.010 launch 0.002
+spec: token 17 pos 329 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.802 ms gap 0.005 ms n 3 len 329 captures 4 at 1795048334.503 split 0.004 17.787 0.001 0.010 launch 0.002
+spec: token 20 pos 332 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.722 ms gap 0.004 ms n 3 len 332 captures 4 at 1795048334.521 split 0.003 17.708 0.000 0.010 launch 0.002
+spec: token 23 pos 335 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 17.104 ms gap 0.005 ms n 3 len 335 captures 4 at 1795048334.538 split 0.004 17.089 0.000 0.010 launch 0.002
+spec: token 26 pos 338 drafted 2 accepted 2 emits 3 drafts [46932, 13]
+spec: mtp graph step 17.619 ms gap 0.005 ms n 3 len 338 captures 4 at 1795048334.555 split 0.004 17.604 0.001 0.010 launch 0.002
+spec: token 29 pos 341 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.745 ms gap 0.004 ms n 3 len 341 captures 4 at 1795048334.574 split 0.004 18.731 0.000 0.010 launch 0.002
+spec: token 32 pos 344 drafted 2 accepted 2 emits 3 drafts [9321, 25]
+spec: mtp graph step 18.356 ms gap 0.003 ms n 3 len 344 captures 4 at 1795048334.593 split 0.003 18.342 0.000 0.010 launch 0.002
+spec: token 35 pos 347 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.214 ms gap 0.004 ms n 3 len 347 captures 4 at 1795048334.610 split 0.004 17.198 0.001 0.010 launch 0.002
+spec: token 38 pos 350 drafted 2 accepted 2 emits 3 drafts [10632, 1103]
+spec: mtp graph step 17.309 ms gap 0.004 ms n 3 len 350 captures 4 at 1795048334.627 split 0.004 17.295 0.000 0.010 launch 0.002
+spec: token 41 pos 353 drafted 2 accepted 2 emits 3 drafts [328, 1905]
+spec: mtp graph step 17.425 ms gap 0.005 ms n 3 len 353 captures 4 at 1795048334.645 split 0.004 17.411 0.000 0.010 launch 0.002
+spec: token 44 pos 356 drafted 2 accepted 2 emits 3 drafts [1149, 11173]
+spec: mtp graph step 17.957 ms gap 0.005 ms n 3 len 356 captures 4 at 1795048334.663 split 0.004 17.942 0.001 0.010 launch 0.002
+spec: token 47 pos 359 drafted 1 accepted 1 emits 2 drafts [2942]
+spec: mtp draft 1.313 ms, verify + rollback 15.585 ms
+spec: token 2 pos 335 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.428 ms gap 147.160 ms n 1 len 335 captures 4 at 1795048334.826 split 0.007 16.391 0.001 0.028 launch 0.009
+spec: token 5 pos 338 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.491 ms gap 0.007 ms n 3 len 338 captures 4 at 1795048334.844 split 0.004 17.474 0.000 0.011 launch 0.009
+spec: token 8 pos 341 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.820 ms gap 0.004 ms n 3 len 341 captures 4 at 1795048334.862 split 0.004 17.805 0.000 0.010 launch 0.002
+spec: token 11 pos 344 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.274 ms gap 0.005 ms n 3 len 344 captures 4 at 1795048334.879 split 0.003 17.259 0.000 0.010 launch 0.002
+spec: token 14 pos 347 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.566 ms gap 0.005 ms n 3 len 347 captures 4 at 1795048334.896 split 0.004 17.552 0.000 0.009 launch 0.002
+spec: token 17 pos 350 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.602 ms gap 0.005 ms n 3 len 350 captures 4 at 1795048334.914 split 0.004 17.588 0.000 0.010 launch 0.002
+spec: token 20 pos 353 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.566 ms gap 0.004 ms n 3 len 353 captures 4 at 1795048334.932 split 0.004 17.550 0.000 0.012 launch 0.002
+spec: token 23 pos 356 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 17.292 ms gap 0.005 ms n 3 len 356 captures 4 at 1795048334.949 split 0.004 17.276 0.001 0.011 launch 0.002
+spec: token 26 pos 359 drafted 2 accepted 2 emits 3 drafts [26912, 13]
+spec: mtp graph step 17.750 ms gap 0.005 ms n 3 len 359 captures 4 at 1795048334.967 split 0.003 17.734 0.000 0.011 launch 0.002
+spec: token 29 pos 362 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.677 ms gap 0.003 ms n 3 len 362 captures 4 at 1795048334.985 split 0.004 18.662 0.000 0.010 launch 0.002
+spec: token 32 pos 365 drafted 2 accepted 2 emits 3 drafts [5396, 25]
+spec: mtp graph step 17.529 ms gap 0.003 ms n 3 len 365 captures 4 at 1795048335.003 split 0.004 17.514 0.000 0.010 launch 0.002
+spec: token 35 pos 368 drafted 2 accepted 2 emits 3 drafts [1835, 220]
+spec: mtp graph step 16.887 ms gap 0.004 ms n 3 len 368 captures 4 at 1795048335.020 split 0.004 16.872 0.000 0.010 launch 0.002
+spec: token 38 pos 371 drafted 2 accepted 2 emits 3 drafts [17, 25]
+spec: mtp graph step 16.582 ms gap 0.004 ms n 3 len 371 captures 4 at 1795048335.036 split 0.004 16.567 0.000 0.010 launch 0.002
+spec: token 41 pos 374 drafted 2 accepted 2 emits 3 drafts [264, 2716]
+spec: mtp graph step 17.433 ms gap 0.003 ms n 3 len 374 captures 4 at 1795048335.054 split 0.004 17.419 0.000 0.010 launch 0.002
+spec: token 44 pos 377 drafted 2 accepted 2 emits 3 drafts [883, 15530]
+spec: mtp graph step 17.416 ms gap 0.002 ms n 3 len 377 captures 4 at 1795048335.071 split 0.003 17.401 0.000 0.010 launch 0.002
+spec: token 47 pos 380 drafted 1 accepted 0 emits 1 drafts [13]
+spec: mtp draft 1.290 ms, verify + rollback 16.030 ms
+spec: token 2 pos 356 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.926 ms gap 163.296 ms n 1 len 356 captures 4 at 1795048335.252 split 0.013 16.886 0.001 0.024 launch 0.008
+spec: token 5 pos 359 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.261 ms gap 0.007 ms n 3 len 359 captures 4 at 1795048335.269 split 0.004 17.245 0.000 0.011 launch 0.008
+spec: token 8 pos 362 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.394 ms gap 0.005 ms n 3 len 362 captures 4 at 1795048335.287 split 0.003 18.379 0.000 0.010 launch 0.002
+spec: token 11 pos 365 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.007 ms gap 0.007 ms n 3 len 365 captures 4 at 1795048335.304 split 0.004 16.992 0.000 0.011 launch 0.002
+spec: token 14 pos 368 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.280 ms gap 0.006 ms n 3 len 368 captures 4 at 1795048335.322 split 0.003 17.265 0.000 0.010 launch 0.002
+spec: token 17 pos 371 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.364 ms gap 0.005 ms n 3 len 371 captures 4 at 1795048335.339 split 0.004 17.349 0.000 0.010 launch 0.002
+spec: token 20 pos 374 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.422 ms gap 0.005 ms n 3 len 374 captures 4 at 1795048335.357 split 0.004 17.408 0.000 0.010 launch 0.002
+spec: token 23 pos 377 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.976 ms gap 0.005 ms n 3 len 377 captures 4 at 1795048335.374 split 0.004 16.952 0.001 0.020 launch 0.002
+spec: token 26 pos 380 drafted 2 accepted 2 emits 3 drafts [12269, 13]
+spec: mtp graph step 17.686 ms gap 0.005 ms n 3 len 380 captures 4 at 1795048335.391 split 0.003 17.672 0.000 0.010 launch 0.002
+spec: token 29 pos 383 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.589 ms gap 0.004 ms n 3 len 383 captures 4 at 1795048335.410 split 0.003 18.575 0.000 0.010 launch 0.002
+spec: token 32 pos 386 drafted 2 accepted 2 emits 3 drafts [9321, 25]
+spec: mtp graph step 17.558 ms gap 0.004 ms n 3 len 386 captures 4 at 1795048335.427 split 0.004 17.544 0.001 0.009 launch 0.002
+spec: token 35 pos 389 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.128 ms gap 0.005 ms n 3 len 389 captures 4 at 1795048335.445 split 0.004 17.114 0.000 0.009 launch 0.002
+spec: token 38 pos 392 drafted 2 accepted 1 emits 2 drafts [10632, 3202]
+spec: mtp graph step 16.469 ms gap 0.005 ms n 3 len 392 captures 4 at 1795048335.461 split 0.004 16.330 0.001 0.134 launch 0.002
+spec: token 40 pos 394 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 16.965 ms gap 0.011 ms n 2 len 394 captures 4 at 1795048335.478 split 0.005 16.950 0.000 0.010 launch 0.023
+spec: token 43 pos 397 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.076 ms gap 0.006 ms n 3 len 397 captures 4 at 1795048335.495 split 0.004 17.061 0.001 0.010 launch 0.002
+spec: token 46 pos 400 drafted 2 accepted 2 emits 3 drafts [13, 1061]
+spec: mtp graph step 17.789 ms gap 0.006 ms n 3 len 400 captures 4 at 1795048335.513 split 0.004 17.775 0.000 0.009 launch 0.002
+spec: token 2 pos 377 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 17.423 ms gap 135.223 ms n 1 len 377 captures 4 at 1795048335.666 split 0.012 17.381 0.001 0.028 launch 0.014
+spec: token 5 pos 380 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.817 ms gap 0.006 ms n 3 len 380 captures 4 at 1795048335.683 split 0.004 16.802 0.000 0.010 launch 0.008
+spec: token 8 pos 383 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.483 ms gap 0.004 ms n 3 len 383 captures 4 at 1795048335.700 split 0.003 17.468 0.000 0.011 launch 0.002
+spec: token 11 pos 386 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.042 ms gap 0.006 ms n 3 len 386 captures 4 at 1795048335.717 split 0.004 17.028 0.000 0.010 launch 0.002
+spec: token 14 pos 389 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.260 ms gap 0.005 ms n 3 len 389 captures 4 at 1795048335.734 split 0.003 17.245 0.000 0.010 launch 0.002
+spec: token 17 pos 392 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.522 ms gap 0.005 ms n 3 len 392 captures 4 at 1795048335.752 split 0.003 17.402 0.000 0.116 launch 0.002
+spec: token 19 pos 394 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.407 ms gap 0.010 ms n 2 len 394 captures 4 at 1795048335.769 split 0.005 17.391 0.000 0.010 launch 0.019
+spec: token 22 pos 397 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.796 ms gap 0.004 ms n 3 len 397 captures 4 at 1795048335.786 split 0.004 16.780 0.000 0.011 launch 0.002
+spec: token 25 pos 400 drafted 2 accepted 2 emits 3 drafts [34103, 6852]
+spec: mtp graph step 17.541 ms gap 0.005 ms n 3 len 400 captures 4 at 1795048335.804 split 0.004 17.526 0.000 0.010 launch 0.002
+spec: token 28 pos 403 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.899 ms gap 0.005 ms n 3 len 403 captures 4 at 1795048335.822 split 0.004 17.884 0.000 0.010 launch 0.002
+spec: token 31 pos 406 drafted 2 accepted 1 emits 2 drafts [256, 42794]
+spec: mtp graph step 17.687 ms gap 0.003 ms n 3 len 406 captures 4 at 1795048335.839 split 0.003 17.578 0.000 0.104 launch 0.002
+spec: token 33 pos 408 drafted 2 accepted 1 emits 2 drafts [25, 2532]
+spec: mtp graph step 17.647 ms gap 0.009 ms n 2 len 408 captures 4 at 1795048335.857 split 0.006 17.521 0.000 0.119 launch 0.006
+spec: token 35 pos 410 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.152 ms gap 0.009 ms n 2 len 410 captures 4 at 1795048335.874 split 0.004 17.138 0.000 0.009 launch 0.003
+spec: token 38 pos 413 drafted 2 accepted 1 emits 2 drafts [10632, 3202]
+spec: mtp graph step 16.435 ms gap 0.005 ms n 3 len 413 captures 4 at 1795048335.891 split 0.004 16.326 0.000 0.105 launch 0.002
+spec: token 40 pos 415 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 17.050 ms gap 0.010 ms n 2 len 415 captures 4 at 1795048335.908 split 0.005 17.034 0.000 0.010 launch 0.004
+spec: token 43 pos 418 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.109 ms gap 0.005 ms n 3 len 418 captures 4 at 1795048335.925 split 0.004 17.095 0.000 0.009 launch 0.002
+spec: token 46 pos 421 drafted 2 accepted 0 emits 1 drafts [30705, 13]
+spec: mtp graph step 17.577 ms gap 0.005 ms n 3 len 421 captures 4 at 1795048335.943 split 0.004 17.459 0.000 0.114 launch 0.002
+spec: token 47 pos 422 drafted 1 accepted 1 emits 2 drafts [2942]
+spec: mtp graph step 14.410 ms gap 0.005 ms n 1 len 422 captures 4 at 1795048335.957 split 0.007 14.394 0.001 0.008 launch 0.014
+spec: token 2 pos 37 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.218 ms gap 82.090 ms n 1 len 37 captures 4 at 1795048336.055 split 0.011 16.177 0.001 0.028 launch 0.014
+spec: token 5 pos 40 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.625 ms gap 0.007 ms n 3 len 40 captures 4 at 1795048336.072 split 0.006 16.607 0.000 0.011 launch 0.008
+spec: token 8 pos 43 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.600 ms gap 0.004 ms n 3 len 43 captures 4 at 1795048336.091 split 0.003 18.585 0.000 0.011 launch 0.002
+spec: token 11 pos 46 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.161 ms gap 0.005 ms n 3 len 46 captures 4 at 1795048336.108 split 0.004 17.145 0.000 0.011 launch 0.002
+spec: token 14 pos 49 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.553 ms gap 0.005 ms n 3 len 49 captures 4 at 1795048336.125 split 0.003 17.539 0.000 0.010 launch 0.002
+spec: token 17 pos 52 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.999 ms gap 0.005 ms n 3 len 52 captures 4 at 1795048336.144 split 0.003 17.903 0.001 0.092 launch 0.002
+spec: token 19 pos 54 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 18.100 ms gap 0.007 ms n 2 len 54 captures 4 at 1795048336.162 split 0.005 18.083 0.000 0.010 launch 0.018
+spec: token 22 pos 57 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.669 ms gap 0.004 ms n 3 len 57 captures 4 at 1795048336.178 split 0.004 16.654 0.000 0.010 launch 0.002
+spec: token 25 pos 60 drafted 2 accepted 2 emits 3 drafts [92954, 13]
+spec: mtp graph step 17.693 ms gap 0.005 ms n 3 len 60 captures 4 at 1795048336.196 split 0.003 17.679 0.000 0.010 launch 0.002
+spec: token 28 pos 63 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.551 ms gap 0.004 ms n 3 len 63 captures 4 at 1795048336.215 split 0.003 18.536 0.000 0.010 launch 0.002
+spec: token 31 pos 66 drafted 2 accepted 2 emits 3 drafts [84457, 25]
+spec: mtp graph step 17.678 ms gap 0.003 ms n 3 len 66 captures 4 at 1795048336.232 split 0.003 17.663 0.001 0.010 launch 0.002
+spec: token 34 pos 69 drafted 2 accepted 0 emits 1 drafts [12115, 13901]
+spec: mtp graph step 17.402 ms gap 0.005 ms n 3 len 69 captures 4 at 1795048336.250 split 0.003 17.319 0.000 0.080 launch 0.002
+spec: token 35 pos 70 drafted 2 accepted 1 emits 2 drafts [1500, 1]
+spec: mtp graph step 17.828 ms gap 0.008 ms n 1 len 70 captures 4 at 1795048336.268 split 0.004 17.743 0.001 0.080 launch 0.003
+spec: token 37 pos 72 drafted 2 accepted 2 emits 3 drafts [9321, 1500]
+spec: mtp graph step 17.009 ms gap 0.006 ms n 2 len 72 captures 4 at 1795048336.285 split 0.004 16.993 0.000 0.010 launch 0.003
+spec: token 40 pos 75 drafted 2 accepted 2 emits 3 drafts [9321, 1500]
+spec: mtp graph step 17.165 ms gap 0.004 ms n 3 len 75 captures 4 at 1795048336.302 split 0.004 17.151 0.000 0.010 launch 0.002
+spec: token 43 pos 78 drafted 2 accepted 2 emits 3 drafts [9321, 1500]
+spec: mtp graph step 17.503 ms gap 0.003 ms n 3 len 78 captures 4 at 1795048336.319 split 0.004 17.489 0.000 0.009 launch 0.002
+spec: token 46 pos 81 drafted 2 accepted 2 emits 3 drafts [9321, 1500]
+spec: mtp graph step 17.376 ms gap 0.003 ms n 3 len 81 captures 4 at 1795048336.337 split 0.003 17.362 0.000 0.010 launch 0.002
+spec: token 2 pos 59 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.230 ms gap 88.546 ms n 1 len 59 captures 4 at 1795048336.442 split 0.006 16.193 0.001 0.029 launch 0.011
+spec: token 5 pos 62 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.649 ms gap 0.007 ms n 3 len 62 captures 4 at 1795048336.458 split 0.004 16.633 0.000 0.010 launch 0.007
+spec: token 8 pos 65 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.036 ms gap 0.004 ms n 3 len 65 captures 4 at 1795048336.476 split 0.004 18.022 0.000 0.010 launch 0.002
+spec: token 11 pos 68 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.820 ms gap 0.005 ms n 3 len 68 captures 4 at 1795048336.494 split 0.004 17.806 0.000 0.010 launch 0.002
+spec: token 14 pos 71 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.323 ms gap 0.006 ms n 3 len 71 captures 4 at 1795048336.512 split 0.003 17.309 0.000 0.010 launch 0.002
+spec: token 17 pos 74 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.655 ms gap 0.004 ms n 3 len 74 captures 4 at 1795048336.529 split 0.004 17.555 0.000 0.095 launch 0.002
+spec: token 19 pos 76 drafted 2 accepted 1 emits 2 drafts [25, 5952]
+spec: mtp graph step 17.593 ms gap 0.011 ms n 2 len 76 captures 4 at 1795048336.547 split 0.006 17.501 0.000 0.085 launch 0.015
+spec: token 21 pos 78 drafted 2 accepted 2 emits 3 drafts [264, 2716]
+spec: mtp graph step 17.103 ms gap 0.003 ms n 2 len 78 captures 4 at 1795048336.564 split 0.004 17.088 0.000 0.010 launch 0.004
+spec: token 24 pos 81 drafted 2 accepted 2 emits 3 drafts [883, 35997]
+spec: mtp graph step 17.724 ms gap 0.006 ms n 3 len 81 captures 4 at 1795048336.582 split 0.004 17.709 0.000 0.010 launch 0.002
+spec: token 27 pos 84 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 17.713 ms gap 0.005 ms n 3 len 84 captures 4 at 1795048336.600 split 0.004 17.698 0.000 0.010 launch 0.002
+spec: token 30 pos 87 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.091 ms gap 0.004 ms n 3 len 87 captures 4 at 1795048336.618 split 0.004 18.077 0.000 0.010 launch 0.002
+spec: token 33 pos 90 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.203 ms gap 0.005 ms n 3 len 90 captures 4 at 1795048336.635 split 0.004 17.189 0.001 0.010 launch 0.002
+spec: token 36 pos 93 drafted 2 accepted 2 emits 3 drafts [1500, 1]
+spec: mtp graph step 16.966 ms gap 0.004 ms n 3 len 93 captures 4 at 1795048336.652 split 0.004 16.951 0.001 0.010 launch 0.002
+spec: token 39 pos 96 drafted 2 accepted 2 emits 3 drafts [220, 16]
+spec: mtp graph step 18.037 ms gap 0.005 ms n 3 len 96 captures 4 at 1795048336.670 split 0.003 18.022 0.001 0.010 launch 0.002
+spec: token 42 pos 99 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.280 ms gap 0.003 ms n 3 len 99 captures 4 at 1795048336.687 split 0.004 17.265 0.001 0.010 launch 0.002
+spec: token 45 pos 102 drafted 2 accepted 0 emits 1 drafts [369, 264]
+spec: mtp graph step 16.915 ms gap 0.004 ms n 3 len 102 captures 4 at 1795048336.704 split 0.003 16.812 0.001 0.098 launch 0.002
+spec: token 46 pos 103 drafted 2 accepted 2 emits 3 drafts [14378, 264]
+spec: mtp graph step 17.060 ms gap 0.006 ms n 1 len 103 captures 4 at 1795048336.721 split 0.005 17.045 0.000 0.010 launch 0.002
+spec: token 2 pos 80 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.299 ms gap 98.714 ms n 1 len 80 captures 4 at 1795048336.836 split 0.006 16.258 0.001 0.033 launch 0.009
+spec: token 5 pos 83 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.502 ms gap 0.007 ms n 3 len 83 captures 4 at 1795048336.854 split 0.004 17.473 0.000 0.025 launch 0.009
+spec: token 8 pos 86 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.951 ms gap 0.005 ms n 3 len 86 captures 4 at 1795048336.873 split 0.004 18.937 0.000 0.010 launch 0.002
+spec: token 11 pos 89 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.005 ms gap 0.005 ms n 3 len 89 captures 4 at 1795048336.890 split 0.003 16.991 0.000 0.009 launch 0.002
+spec: token 14 pos 92 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.369 ms gap 0.005 ms n 3 len 92 captures 4 at 1795048336.907 split 0.004 17.355 0.000 0.009 launch 0.002
+spec: token 17 pos 95 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.615 ms gap 0.005 ms n 3 len 95 captures 4 at 1795048336.925 split 0.004 17.491 0.000 0.119 launch 0.002
+spec: token 19 pos 97 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.359 ms gap 0.011 ms n 2 len 97 captures 4 at 1795048336.942 split 0.007 17.342 0.000 0.010 launch 0.021
+spec: token 22 pos 100 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.677 ms gap 0.004 ms n 3 len 100 captures 4 at 1795048336.959 split 0.004 16.663 0.000 0.010 launch 0.002
+spec: token 25 pos 103 drafted 2 accepted 2 emits 3 drafts [32671, 14834]
+spec: mtp graph step 17.771 ms gap 0.006 ms n 3 len 103 captures 4 at 1795048336.977 split 0.004 17.757 0.000 0.010 launch 0.002
+spec: token 28 pos 106 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 18.030 ms gap 0.004 ms n 3 len 106 captures 4 at 1795048336.995 split 0.004 18.015 0.001 0.009 launch 0.002
+spec: token 31 pos 109 drafted 2 accepted 1 emits 2 drafts [256, 42794]
+spec: mtp graph step 18.700 ms gap 0.003 ms n 3 len 109 captures 4 at 1795048337.014 split 0.004 18.579 0.000 0.117 launch 0.002
+spec: token 33 pos 111 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.512 ms gap 0.010 ms n 2 len 111 captures 4 at 1795048337.031 split 0.006 17.496 0.000 0.010 launch 0.006
+spec: token 36 pos 114 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.003 ms gap 0.004 ms n 3 len 114 captures 4 at 1795048337.048 split 0.004 16.989 0.000 0.009 launch 0.002
+spec: token 39 pos 117 drafted 2 accepted 0 emits 1 drafts [220, 16]
+spec: mtp graph step 17.263 ms gap 0.005 ms n 3 len 117 captures 4 at 1795048337.065 split 0.004 17.130 0.000 0.129 launch 0.002
+spec: token 40 pos 118 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.303 ms gap 0.008 ms n 1 len 118 captures 4 at 1795048337.083 split 0.004 17.288 0.000 0.010 launch 0.005
+spec: token 43 pos 121 drafted 2 accepted 0 emits 1 drafts [369, 264]
+spec: mtp graph step 16.762 ms gap 0.005 ms n 3 len 121 captures 4 at 1795048337.100 split 0.004 16.682 0.000 0.076 launch 0.002
+spec: token 44 pos 122 drafted 2 accepted 2 emits 3 drafts [1040, 264]
+spec: mtp graph step 16.622 ms gap 0.002 ms n 1 len 122 captures 4 at 1795048337.116 split 0.005 16.606 0.000 0.012 launch 0.002
+spec: token 47 pos 125 drafted 1 accepted 1 emits 2 drafts [24277]
+spec: mtp draft 1.331 ms, verify + rollback 15.484 ms
+spec: token 2 pos 103 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.222 ms gap 116.841 ms n 1 len 103 captures 4 at 1795048337.249 split 0.014 16.174 0.001 0.032 launch 0.010
+spec: token 5 pos 106 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.553 ms gap 0.007 ms n 3 len 106 captures 4 at 1795048337.266 split 0.004 16.538 0.000 0.011 launch 0.008
+spec: token 8 pos 109 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.444 ms gap 0.005 ms n 3 len 109 captures 4 at 1795048337.284 split 0.004 18.429 0.000 0.010 launch 0.002
+spec: token 11 pos 112 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.081 ms gap 0.005 ms n 3 len 112 captures 4 at 1795048337.302 split 0.003 17.066 0.000 0.010 launch 0.002
+spec: token 14 pos 115 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.379 ms gap 0.006 ms n 3 len 115 captures 4 at 1795048337.319 split 0.003 17.352 0.000 0.022 launch 0.002
+spec: token 17 pos 118 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.422 ms gap 0.005 ms n 3 len 118 captures 4 at 1795048337.336 split 0.003 17.327 0.001 0.091 launch 0.002
+spec: token 19 pos 120 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.377 ms gap 0.006 ms n 2 len 120 captures 4 at 1795048337.354 split 0.005 17.362 0.000 0.010 launch 0.018
+spec: token 22 pos 123 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.720 ms gap 0.004 ms n 3 len 123 captures 4 at 1795048337.371 split 0.004 16.706 0.000 0.009 launch 0.002
+spec: token 25 pos 126 drafted 2 accepted 2 emits 3 drafts [37714, 6579]
+spec: mtp graph step 17.739 ms gap 0.005 ms n 3 len 126 captures 4 at 1795048337.388 split 0.004 17.724 0.001 0.010 launch 0.002
+spec: token 28 pos 129 drafted 2 accepted 2 emits 3 drafts [4635, 13]
+spec: mtp graph step 17.554 ms gap 0.005 ms n 3 len 129 captures 4 at 1795048337.406 split 0.003 17.540 0.000 0.009 launch 0.002
+spec: token 31 pos 132 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.612 ms gap 0.004 ms n 3 len 132 captures 4 at 1795048337.425 split 0.003 18.598 0.000 0.009 launch 0.002
+spec: token 34 pos 135 drafted 2 accepted 2 emits 3 drafts [9321, 25]
+spec: mtp graph step 17.571 ms gap 0.003 ms n 3 len 135 captures 4 at 1795048337.442 split 0.003 17.557 0.001 0.009 launch 0.002
+spec: token 37 pos 138 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.135 ms gap 0.004 ms n 3 len 138 captures 4 at 1795048337.459 split 0.004 17.121 0.001 0.009 launch 0.002
+spec: token 40 pos 141 drafted 2 accepted 2 emits 3 drafts [1905, 1500]
+spec: mtp graph step 16.950 ms gap 0.005 ms n 3 len 141 captures 4 at 1795048337.476 split 0.003 16.936 0.001 0.010 launch 0.002
+spec: token 43 pos 144 drafted 2 accepted 2 emits 3 drafts [11173, 1599]
+spec: mtp graph step 16.947 ms gap 0.005 ms n 3 len 144 captures 4 at 1795048337.493 split 0.003 16.934 0.001 0.009 launch 0.002
+spec: token 46 pos 147 drafted 2 accepted 0 emits 1 drafts [13, 1061]
+spec: mtp graph step 18.482 ms gap 0.005 ms n 3 len 147 captures 4 at 1795048337.512 split 0.003 18.399 0.000 0.079 launch 0.002
+spec: token 47 pos 148 drafted 1 accepted 1 emits 2 drafts [17]
+spec: mtp graph step 14.650 ms gap 0.002 ms n 1 len 148 captures 4 at 1795048337.526 split 0.005 14.635 0.000 0.008 launch 0.019
+spec: token 2 pos 121 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.975 ms gap 102.766 ms n 1 len 121 captures 4 at 1795048337.646 split 0.014 16.932 0.001 0.027 launch 0.008
+spec: token 5 pos 124 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.180 ms gap 0.007 ms n 3 len 124 captures 4 at 1795048337.663 split 0.004 17.164 0.000 0.011 launch 0.008
+spec: token 8 pos 127 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.287 ms gap 0.005 ms n 3 len 127 captures 4 at 1795048337.682 split 0.004 18.272 0.000 0.010 launch 0.002
+spec: token 11 pos 130 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.254 ms gap 0.005 ms n 3 len 130 captures 4 at 1795048337.699 split 0.003 17.240 0.000 0.010 launch 0.002
+spec: token 14 pos 133 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.504 ms gap 0.006 ms n 3 len 133 captures 4 at 1795048337.717 split 0.004 17.490 0.000 0.010 launch 0.002
+spec: token 17 pos 136 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.496 ms gap 0.005 ms n 3 len 136 captures 4 at 1795048337.734 split 0.003 17.372 0.001 0.119 launch 0.002
+spec: token 19 pos 138 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.370 ms gap 0.010 ms n 2 len 138 captures 4 at 1795048337.751 split 0.007 17.352 0.000 0.010 launch 0.019
+spec: token 22 pos 141 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.685 ms gap 0.005 ms n 3 len 141 captures 4 at 1795048337.768 split 0.004 16.671 0.000 0.010 launch 0.002
+spec: token 25 pos 144 drafted 2 accepted 2 emits 3 drafts [91420, 13]
+spec: mtp graph step 18.718 ms gap 0.006 ms n 3 len 144 captures 4 at 1795048337.787 split 0.003 18.703 0.001 0.010 launch 0.002
+spec: token 28 pos 147 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.674 ms gap 0.004 ms n 3 len 147 captures 4 at 1795048337.806 split 0.004 18.660 0.000 0.010 launch 0.002
+spec: token 31 pos 150 drafted 2 accepted 2 emits 3 drafts [9321, 25]
+spec: mtp graph step 17.567 ms gap 0.003 ms n 3 len 150 captures 4 at 1795048337.823 split 0.004 17.553 0.000 0.010 launch 0.002
+spec: token 34 pos 153 drafted 2 accepted 2 emits 3 drafts [1905, 1500]
+spec: mtp graph step 17.084 ms gap 0.005 ms n 3 len 153 captures 4 at 1795048337.840 split 0.004 17.070 0.001 0.009 launch 0.002
+spec: token 37 pos 156 drafted 2 accepted 2 emits 3 drafts [11173, 1599]
+spec: mtp graph step 17.325 ms gap 0.005 ms n 3 len 156 captures 4 at 1795048337.858 split 0.004 17.311 0.001 0.009 launch 0.002
+spec: token 40 pos 159 drafted 2 accepted 2 emits 3 drafts [13, 1061]
+spec: mtp graph step 17.594 ms gap 0.005 ms n 3 len 159 captures 4 at 1795048337.875 split 0.004 17.580 0.001 0.009 launch 0.002
+spec: token 43 pos 162 drafted 2 accepted 2 emits 3 drafts [1040, 264]
+spec: mtp graph step 16.673 ms gap 0.005 ms n 3 len 162 captures 4 at 1795048337.892 split 0.004 16.659 0.001 0.009 launch 0.002
+spec: token 46 pos 165 drafted 2 accepted 2 emits 3 drafts [466, 264]
+spec: mtp graph step 16.692 ms gap 0.004 ms n 3 len 165 captures 4 at 1795048337.909 split 0.004 16.678 0.001 0.010 launch 0.002
+spec: token 2 pos 142 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.264 ms gap 109.018 ms n 1 len 142 captures 4 at 1795048338.034 split 0.014 16.226 0.001 0.021 launch 0.008
+spec: token 5 pos 145 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.310 ms gap 0.006 ms n 3 len 145 captures 4 at 1795048338.051 split 0.006 17.296 0.000 0.008 launch 0.008
+spec: token 8 pos 148 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.231 ms gap 0.004 ms n 3 len 148 captures 4 at 1795048338.070 split 0.003 18.219 0.000 0.008 launch 0.004
+spec: token 11 pos 151 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.969 ms gap 0.005 ms n 3 len 151 captures 4 at 1795048338.087 split 0.003 16.957 0.000 0.008 launch 0.002
+spec: token 14 pos 154 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.357 ms gap 0.005 ms n 3 len 154 captures 4 at 1795048338.104 split 0.004 17.345 0.000 0.007 launch 0.002
+spec: token 17 pos 157 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.463 ms gap 0.005 ms n 3 len 157 captures 4 at 1795048338.121 split 0.004 17.349 0.000 0.109 launch 0.002
+spec: token 19 pos 159 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.460 ms gap 0.006 ms n 2 len 159 captures 4 at 1795048338.139 split 0.009 17.443 0.000 0.007 launch 0.020
+spec: token 22 pos 162 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.712 ms gap 0.004 ms n 3 len 162 captures 4 at 1795048338.156 split 0.004 16.700 0.000 0.008 launch 0.002
+spec: token 25 pos 165 drafted 2 accepted 2 emits 3 drafts [34343, 13]
+spec: mtp graph step 18.371 ms gap 0.006 ms n 3 len 165 captures 4 at 1795048338.174 split 0.004 18.360 0.000 0.007 launch 0.002
+spec: token 28 pos 168 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.657 ms gap 0.004 ms n 3 len 168 captures 4 at 1795048338.193 split 0.004 18.644 0.001 0.008 launch 0.002
+spec: token 31 pos 171 drafted 2 accepted 0 emits 1 drafts [5396, 25]
+spec: mtp graph step 17.588 ms gap 0.003 ms n 3 len 171 captures 4 at 1795048338.210 split 0.003 17.511 0.000 0.072 launch 0.002
+spec: token 32 pos 172 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.383 ms gap 0.007 ms n 1 len 172 captures 4 at 1795048338.228 split 0.004 17.370 0.001 0.007 launch 0.002
+spec: token 35 pos 175 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 16.964 ms gap 0.004 ms n 3 len 175 captures 4 at 1795048338.245 split 0.004 16.942 0.000 0.017 launch 0.002
+spec: token 38 pos 178 drafted 2 accepted 0 emits 1 drafts [220, 16]
+spec: mtp graph step 17.597 ms gap 0.006 ms n 3 len 178 captures 4 at 1795048338.262 split 0.003 17.524 0.001 0.068 launch 0.002
+spec: token 39 pos 179 drafted 2 accepted 1 emits 2 drafts [2942, 13]
+spec: mtp graph step 17.656 ms gap 0.009 ms n 1 len 179 captures 4 at 1795048338.280 split 0.004 17.586 0.000 0.066 launch 0.003
+spec: token 41 pos 181 drafted 2 accepted 0 emits 1 drafts [17, 15]
+spec: mtp graph step 17.219 ms gap 0.009 ms n 2 len 181 captures 4 at 1795048338.297 split 0.007 17.146 0.000 0.066 launch 0.002
+spec: token 42 pos 182 drafted 2 accepted 0 emits 1 drafts [15, 2942]
+spec: mtp graph step 16.618 ms gap 0.002 ms n 1 len 182 captures 4 at 1795048338.314 split 0.004 16.547 0.001 0.066 launch 0.003
+spec: token 43 pos 183 drafted 2 accepted 2 emits 3 drafts [2942, 553]
+spec: mtp graph step 17.465 ms gap 0.006 ms n 1 len 183 captures 4 at 1795048338.331 split 0.005 17.452 0.000 0.007 launch 0.002
+spec: token 46 pos 186 drafted 2 accepted 0 emits 1 drafts [369, 264]
+spec: mtp graph step 16.862 ms gap 0.004 ms n 3 len 186 captures 4 at 1795048338.348 split 0.004 16.790 0.001 0.068 launch 0.002
+spec: token 47 pos 187 drafted 1 accepted 1 emits 2 drafts [1040]
+spec: mtp graph step 14.258 ms gap 0.004 ms n 1 len 187 captures 4 at 1795048338.363 split 0.005 14.246 0.000 0.006 launch 0.020
+spec: token 2 pos 164 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.330 ms gap 111.440 ms n 1 len 164 captures 4 at 1795048338.490 split 0.010 16.293 0.001 0.024 launch 0.008
+spec: token 5 pos 167 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.266 ms gap 0.007 ms n 3 len 167 captures 4 at 1795048338.508 split 0.004 17.251 0.000 0.011 launch 0.008
+spec: token 8 pos 170 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.402 ms gap 0.005 ms n 3 len 170 captures 4 at 1795048338.526 split 0.003 18.385 0.000 0.013 launch 0.002
+spec: token 11 pos 173 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.042 ms gap 0.005 ms n 3 len 173 captures 4 at 1795048338.543 split 0.003 17.027 0.000 0.010 launch 0.002
+spec: token 14 pos 176 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.349 ms gap 0.005 ms n 3 len 176 captures 4 at 1795048338.560 split 0.003 17.335 0.000 0.010 launch 0.002
+spec: token 17 pos 179 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.299 ms gap 0.006 ms n 3 len 179 captures 4 at 1795048338.578 split 0.003 17.284 0.000 0.010 launch 0.002
+spec: token 20 pos 182 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.419 ms gap 0.005 ms n 3 len 182 captures 4 at 1795048338.595 split 0.003 17.405 0.000 0.010 launch 0.002
+spec: token 23 pos 185 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.947 ms gap 0.005 ms n 3 len 185 captures 4 at 1795048338.612 split 0.004 16.932 0.001 0.010 launch 0.002
+spec: token 26 pos 188 drafted 2 accepted 2 emits 3 drafts [46932, 13]
+spec: mtp graph step 17.542 ms gap 0.005 ms n 3 len 188 captures 4 at 1795048338.630 split 0.004 17.527 0.000 0.010 launch 0.002
+spec: token 29 pos 191 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.670 ms gap 0.004 ms n 3 len 191 captures 4 at 1795048338.648 split 0.003 18.656 0.000 0.010 launch 0.002
+spec: token 32 pos 194 drafted 2 accepted 2 emits 3 drafts [9321, 25]
+spec: mtp graph step 18.089 ms gap 0.004 ms n 3 len 194 captures 4 at 1795048338.667 split 0.004 18.074 0.001 0.010 launch 0.002
+spec: token 35 pos 197 drafted 2 accepted 2 emits 3 drafts [1905, 1500]
+spec: mtp graph step 17.087 ms gap 0.004 ms n 3 len 197 captures 4 at 1795048338.684 split 0.004 17.073 0.001 0.010 launch 0.002
+spec: token 38 pos 200 drafted 2 accepted 2 emits 3 drafts [11173, 1599]
+spec: mtp graph step 17.281 ms gap 0.005 ms n 3 len 200 captures 4 at 1795048338.701 split 0.003 17.266 0.001 0.010 launch 0.002
+spec: token 41 pos 203 drafted 2 accepted 2 emits 3 drafts [13, 1061]
+spec: mtp graph step 17.759 ms gap 0.005 ms n 3 len 203 captures 4 at 1795048338.719 split 0.003 17.745 0.001 0.010 launch 0.002
+spec: token 44 pos 206 drafted 2 accepted 2 emits 3 drafts [1040, 264]
+spec: mtp graph step 16.619 ms gap 0.004 ms n 3 len 206 captures 4 at 1795048338.735 split 0.003 16.605 0.001 0.010 launch 0.002
+spec: token 47 pos 209 drafted 1 accepted 1 emits 2 drafts [24277]
+spec: mtp draft 1.333 ms, verify + rollback 15.441 ms
+spec: token 2 pos 185 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.743 ms gap 130.155 ms n 1 len 185 captures 4 at 1795048338.882 split 0.012 16.697 0.001 0.032 launch 0.013
+spec: token 5 pos 188 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 16.987 ms gap 0.006 ms n 3 len 188 captures 4 at 1795048338.899 split 0.004 16.971 0.000 0.011 launch 0.008
+spec: token 8 pos 191 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.863 ms gap 0.004 ms n 3 len 191 captures 4 at 1795048338.917 split 0.003 17.849 0.000 0.010 launch 0.002
+spec: token 11 pos 194 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.074 ms gap 0.005 ms n 3 len 194 captures 4 at 1795048338.934 split 0.004 17.059 0.000 0.010 launch 0.002
+spec: token 14 pos 197 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.392 ms gap 0.005 ms n 3 len 197 captures 4 at 1795048338.952 split 0.003 17.377 0.000 0.010 launch 0.002
+spec: token 17 pos 200 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.508 ms gap 0.005 ms n 3 len 200 captures 4 at 1795048338.969 split 0.003 17.416 0.001 0.088 launch 0.002
+spec: token 19 pos 202 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 18.203 ms gap 0.005 ms n 2 len 202 captures 4 at 1795048338.988 split 0.005 18.186 0.000 0.010 launch 0.019
+spec: token 22 pos 205 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.766 ms gap 0.005 ms n 3 len 205 captures 4 at 1795048339.004 split 0.004 16.751 0.000 0.010 launch 0.002
+spec: token 25 pos 208 drafted 2 accepted 2 emits 3 drafts [15530, 26912]
+spec: mtp graph step 17.538 ms gap 0.005 ms n 3 len 208 captures 4 at 1795048339.022 split 0.003 17.524 0.000 0.010 launch 0.002
+spec: token 28 pos 211 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 18.142 ms gap 0.005 ms n 3 len 211 captures 4 at 1795048339.040 split 0.004 18.127 0.000 0.010 launch 0.002
+spec: token 31 pos 214 drafted 2 accepted 1 emits 2 drafts [256, 84457]
+spec: mtp graph step 17.843 ms gap 0.003 ms n 3 len 214 captures 4 at 1795048339.058 split 0.003 17.756 0.001 0.083 launch 0.002
+spec: token 33 pos 216 drafted 2 accepted 1 emits 2 drafts [25, 328]
+spec: mtp graph step 17.518 ms gap 0.010 ms n 2 len 216 captures 4 at 1795048339.076 split 0.004 17.435 0.000 0.078 launch 0.002
+spec: token 35 pos 218 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.289 ms gap 0.007 ms n 2 len 218 captures 4 at 1795048339.093 split 0.004 17.274 0.001 0.010 launch 0.002
+spec: token 38 pos 221 drafted 2 accepted 1 emits 2 drafts [10632, 2424]
+spec: mtp graph step 17.278 ms gap 0.005 ms n 3 len 221 captures 4 at 1795048339.110 split 0.004 17.197 0.000 0.077 launch 0.002
+spec: token 40 pos 223 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 17.032 ms gap 0.006 ms n 2 len 223 captures 4 at 1795048339.127 split 0.005 17.016 0.001 0.010 launch 0.003
+spec: token 43 pos 226 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.084 ms gap 0.005 ms n 3 len 226 captures 4 at 1795048339.144 split 0.003 17.069 0.000 0.010 launch 0.002
+spec: token 46 pos 229 drafted 2 accepted 0 emits 1 drafts [13, 1061]
+spec: mtp graph step 18.497 ms gap 0.005 ms n 3 len 229 captures 4 at 1795048339.163 split 0.003 18.407 0.000 0.086 launch 0.002
+spec: token 47 pos 230 drafted 1 accepted 1 emits 2 drafts [2942]
+spec: mtp graph step 14.367 ms gap 0.006 ms n 1 len 230 captures 4 at 1795048339.177 split 0.005 14.351 0.001 0.009 launch 0.016
+spec: token 2 pos 206 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.305 ms gap 118.047 ms n 1 len 206 captures 4 at 1795048339.312 split 0.014 16.269 0.001 0.020 launch 0.008
+spec: token 5 pos 209 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.274 ms gap 0.007 ms n 3 len 209 captures 4 at 1795048339.329 split 0.004 17.261 0.000 0.008 launch 0.008
+spec: token 8 pos 212 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.704 ms gap 0.004 ms n 3 len 212 captures 4 at 1795048339.347 split 0.003 17.692 0.000 0.008 launch 0.002
+spec: token 11 pos 215 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.972 ms gap 0.005 ms n 3 len 215 captures 4 at 1795048339.364 split 0.003 16.960 0.000 0.008 launch 0.002
+spec: token 14 pos 218 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.367 ms gap 0.005 ms n 3 len 218 captures 4 at 1795048339.381 split 0.004 17.355 0.000 0.008 launch 0.002
+spec: token 17 pos 221 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.412 ms gap 0.005 ms n 3 len 221 captures 4 at 1795048339.399 split 0.003 17.303 0.000 0.104 launch 0.002
+spec: token 19 pos 223 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.402 ms gap 0.009 ms n 2 len 223 captures 4 at 1795048339.416 split 0.005 17.389 0.000 0.007 launch 0.017
+spec: token 22 pos 226 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.700 ms gap 0.004 ms n 3 len 226 captures 4 at 1795048339.433 split 0.004 16.688 0.000 0.007 launch 0.002
+spec: token 25 pos 229 drafted 2 accepted 2 emits 3 drafts [40554, 12269]
+spec: mtp graph step 17.676 ms gap 0.005 ms n 3 len 229 captures 4 at 1795048339.450 split 0.004 17.664 0.000 0.007 launch 0.002
+spec: token 28 pos 232 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 18.084 ms gap 0.005 ms n 3 len 232 captures 4 at 1795048339.468 split 0.004 18.072 0.001 0.008 launch 0.002
+spec: token 31 pos 235 drafted 2 accepted 1 emits 2 drafts [256, 42794]
+spec: mtp graph step 17.826 ms gap 0.003 ms n 3 len 235 captures 4 at 1795048339.486 split 0.004 17.723 0.000 0.098 launch 0.002
+spec: token 33 pos 237 drafted 2 accepted 2 emits 3 drafts [25, 328]
+spec: mtp graph step 17.491 ms gap 0.004 ms n 2 len 237 captures 4 at 1795048339.504 split 0.005 17.478 0.000 0.007 launch 0.003
+spec: token 36 pos 240 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 16.934 ms gap 0.004 ms n 3 len 240 captures 4 at 1795048339.521 split 0.004 16.922 0.000 0.007 launch 0.002
+spec: token 39 pos 243 drafted 2 accepted 0 emits 1 drafts [220, 17]
+spec: mtp graph step 17.308 ms gap 0.006 ms n 3 len 243 captures 4 at 1795048339.538 split 0.004 17.204 0.000 0.099 launch 0.002
+spec: token 40 pos 244 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.294 ms gap 0.003 ms n 1 len 244 captures 4 at 1795048339.555 split 0.006 17.280 0.000 0.008 launch 0.004
+spec: token 43 pos 247 drafted 2 accepted 0 emits 1 drafts [369, 264]
+spec: mtp graph step 16.885 ms gap 0.004 ms n 3 len 247 captures 4 at 1795048339.572 split 0.004 16.781 0.000 0.099 launch 0.002
+spec: token 44 pos 248 drafted 2 accepted 2 emits 3 drafts [14378, 264]
+spec: mtp graph step 16.900 ms gap 0.008 ms n 1 len 248 captures 4 at 1795048339.589 split 0.005 16.887 0.000 0.008 launch 0.006
+spec: token 47 pos 251 drafted 1 accepted 1 emits 2 drafts [466]
+spec: mtp draft 1.348 ms, verify + rollback 15.845 ms
+spec: token 2 pos 227 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.267 ms gap 140.896 ms n 1 len 227 captures 4 at 1795048339.746 split 0.008 16.237 0.001 0.020 launch 0.016
+spec: token 5 pos 230 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.024 ms gap 0.007 ms n 3 len 230 captures 4 at 1795048339.764 split 0.004 17.012 0.000 0.008 launch 0.008
+spec: token 8 pos 233 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.699 ms gap 0.004 ms n 3 len 233 captures 4 at 1795048339.781 split 0.003 17.686 0.001 0.008 launch 0.002
+spec: token 11 pos 236 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.926 ms gap 0.005 ms n 3 len 236 captures 4 at 1795048339.798 split 0.004 16.914 0.000 0.007 launch 0.002
+spec: token 14 pos 239 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.290 ms gap 0.006 ms n 3 len 239 captures 4 at 1795048339.815 split 0.003 17.279 0.000 0.007 launch 0.002
+spec: token 17 pos 242 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.403 ms gap 0.005 ms n 3 len 242 captures 4 at 1795048339.833 split 0.003 17.323 0.000 0.075 launch 0.002
+spec: token 19 pos 244 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.480 ms gap 0.007 ms n 2 len 244 captures 4 at 1795048339.850 split 0.005 17.466 0.000 0.007 launch 0.016
+spec: token 22 pos 247 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.775 ms gap 0.005 ms n 3 len 247 captures 4 at 1795048339.867 split 0.004 16.763 0.000 0.007 launch 0.002
+spec: token 25 pos 250 drafted 2 accepted 2 emits 3 drafts [34103, 6852]
+spec: mtp graph step 17.585 ms gap 0.005 ms n 3 len 250 captures 4 at 1795048339.885 split 0.003 17.573 0.001 0.007 launch 0.002
+spec: token 28 pos 253 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.883 ms gap 0.005 ms n 3 len 253 captures 4 at 1795048339.903 split 0.003 17.871 0.000 0.007 launch 0.002
+spec: token 31 pos 256 drafted 2 accepted 1 emits 2 drafts [256, 42794]
+spec: mtp graph step 17.675 ms gap 0.003 ms n 3 len 256 captures 4 at 1795048339.920 split 0.003 17.603 0.000 0.068 launch 0.002
+spec: token 33 pos 258 drafted 2 accepted 1 emits 2 drafts [25, 328]
+spec: mtp graph step 17.583 ms gap 0.007 ms n 2 len 258 captures 4 at 1795048339.938 split 0.004 17.512 0.000 0.066 launch 0.002
+spec: token 35 pos 260 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.327 ms gap 0.006 ms n 2 len 260 captures 4 at 1795048339.955 split 0.007 17.311 0.000 0.008 launch 0.003
+spec: token 38 pos 263 drafted 2 accepted 2 emits 3 drafts [10632, 1103]
+spec: mtp graph step 16.540 ms gap 0.005 ms n 3 len 263 captures 4 at 1795048339.972 split 0.003 16.528 0.001 0.007 launch 0.002
+spec: token 41 pos 266 drafted 2 accepted 2 emits 3 drafts [328, 1905]
+spec: mtp graph step 17.315 ms gap 0.005 ms n 3 len 266 captures 4 at 1795048339.989 split 0.003 17.304 0.001 0.007 launch 0.002
+spec: token 44 pos 269 drafted 2 accepted 2 emits 3 drafts [1149, 11173]
+spec: mtp graph step 17.274 ms gap 0.005 ms n 3 len 269 captures 4 at 1795048340.007 split 0.003 17.262 0.001 0.007 launch 0.002
+spec: token 47 pos 272 drafted 1 accepted 1 emits 2 drafts [2942]
+spec: mtp draft 1.297 ms, verify + rollback 15.688 ms
+spec: token 2 pos 247 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.808 ms gap 140.282 ms n 1 len 247 captures 4 at 1795048340.164 split 0.013 16.776 0.001 0.018 launch 0.012
+spec: token 5 pos 250 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.033 ms gap 0.007 ms n 3 len 250 captures 4 at 1795048340.181 split 0.004 17.020 0.000 0.008 launch 0.009
+spec: token 8 pos 253 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.850 ms gap 0.005 ms n 3 len 253 captures 4 at 1795048340.199 split 0.004 17.838 0.000 0.008 launch 0.002
+spec: token 11 pos 256 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.006 ms gap 0.005 ms n 3 len 256 captures 4 at 1795048340.216 split 0.004 16.994 0.000 0.008 launch 0.002
+spec: token 14 pos 259 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.309 ms gap 0.005 ms n 3 len 259 captures 4 at 1795048340.233 split 0.004 17.297 0.000 0.008 launch 0.002
+spec: token 17 pos 262 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.235 ms gap 0.005 ms n 3 len 262 captures 4 at 1795048340.250 split 0.003 17.223 0.000 0.007 launch 0.002
+spec: token 20 pos 265 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.375 ms gap 0.005 ms n 3 len 265 captures 4 at 1795048340.268 split 0.003 17.364 0.000 0.007 launch 0.002
+spec: token 23 pos 268 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.954 ms gap 0.005 ms n 3 len 268 captures 4 at 1795048340.285 split 0.003 16.943 0.001 0.007 launch 0.002
+spec: token 26 pos 271 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 17.638 ms gap 0.005 ms n 3 len 271 captures 4 at 1795048340.302 split 0.003 17.626 0.000 0.007 launch 0.002
+spec: token 29 pos 274 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.041 ms gap 0.003 ms n 3 len 274 captures 4 at 1795048340.320 split 0.003 18.029 0.000 0.007 launch 0.002
+spec: token 32 pos 277 drafted 2 accepted 1 emits 2 drafts [25, 328]
+spec: mtp graph step 17.381 ms gap 0.004 ms n 3 len 277 captures 4 at 1795048340.338 split 0.004 17.302 0.000 0.075 launch 0.002
+spec: token 34 pos 279 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.324 ms gap 0.003 ms n 2 len 279 captures 4 at 1795048340.355 split 0.005 17.310 0.000 0.009 launch 0.015
+spec: token 37 pos 282 drafted 2 accepted 1 emits 2 drafts [10632, 3202]
+spec: mtp graph step 16.364 ms gap 0.005 ms n 3 len 282 captures 4 at 1795048340.371 split 0.004 16.293 0.001 0.067 launch 0.002
+spec: token 39 pos 284 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 17.090 ms gap 0.007 ms n 2 len 284 captures 4 at 1795048340.389 split 0.005 17.077 0.000 0.008 launch 0.002
+spec: token 42 pos 287 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.059 ms gap 0.005 ms n 3 len 287 captures 4 at 1795048340.406 split 0.004 17.047 0.001 0.007 launch 0.002
+spec: token 45 pos 290 drafted 2 accepted 0 emits 1 drafts [4965, 13]
+spec: mtp graph step 17.447 ms gap 0.005 ms n 3 len 290 captures 4 at 1795048340.423 split 0.003 17.369 0.001 0.073 launch 0.002
+spec: token 46 pos 291 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.345 ms gap 0.003 ms n 1 len 291 captures 4 at 1795048340.440 split 0.004 17.333 0.000 0.007 launch 0.002
+spec: token 2 pos 269 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 17.057 ms gap 128.198 ms n 1 len 269 captures 4 at 1795048340.586 split 0.013 17.020 0.001 0.022 launch 0.011
+spec: token 5 pos 272 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.068 ms gap 0.007 ms n 3 len 272 captures 4 at 1795048340.603 split 0.004 17.055 0.000 0.008 launch 0.007
+spec: token 8 pos 275 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.155 ms gap 0.005 ms n 3 len 275 captures 4 at 1795048340.621 split 0.004 18.143 0.000 0.008 launch 0.002
+spec: token 11 pos 278 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.039 ms gap 0.005 ms n 3 len 278 captures 4 at 1795048340.638 split 0.004 17.027 0.000 0.008 launch 0.002
+spec: token 14 pos 281 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.237 ms gap 0.005 ms n 3 len 281 captures 4 at 1795048340.655 split 0.003 17.225 0.000 0.008 launch 0.002
+spec: token 17 pos 284 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.961 ms gap 0.005 ms n 3 len 284 captures 4 at 1795048340.673 split 0.004 17.847 0.001 0.109 launch 0.002
+spec: token 19 pos 286 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.443 ms gap 0.010 ms n 2 len 286 captures 4 at 1795048340.691 split 0.006 17.429 0.000 0.007 launch 0.020
+spec: token 22 pos 289 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.743 ms gap 0.004 ms n 3 len 289 captures 4 at 1795048340.707 split 0.004 16.731 0.001 0.007 launch 0.002
+spec: token 25 pos 292 drafted 2 accepted 2 emits 3 drafts [35997, 46328]
+spec: mtp graph step 17.659 ms gap 0.005 ms n 3 len 292 captures 4 at 1795048340.725 split 0.004 17.647 0.000 0.008 launch 0.002
+spec: token 28 pos 295 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 18.051 ms gap 0.004 ms n 3 len 295 captures 4 at 1795048340.743 split 0.003 18.039 0.001 0.007 launch 0.002
+spec: token 31 pos 298 drafted 2 accepted 1 emits 2 drafts [256, 42794]
+spec: mtp graph step 17.844 ms gap 0.003 ms n 3 len 298 captures 4 at 1795048340.761 split 0.004 17.753 0.000 0.086 launch 0.002
+spec: token 33 pos 300 drafted 2 accepted 1 emits 2 drafts [25, 2532]
+spec: mtp graph step 17.690 ms gap 0.004 ms n 2 len 300 captures 4 at 1795048340.779 split 0.005 17.598 0.000 0.086 launch 0.002
+spec: token 35 pos 302 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.301 ms gap 0.003 ms n 2 len 302 captures 4 at 1795048340.796 split 0.005 17.288 0.000 0.007 launch 0.003
+spec: token 38 pos 305 drafted 2 accepted 2 emits 3 drafts [10632, 1103]
+spec: mtp graph step 17.243 ms gap 0.004 ms n 3 len 305 captures 4 at 1795048340.813 split 0.004 17.231 0.001 0.007 launch 0.002
+spec: token 41 pos 308 drafted 2 accepted 2 emits 3 drafts [328, 1905]
+spec: mtp graph step 17.374 ms gap 0.005 ms n 3 len 308 captures 4 at 1795048340.831 split 0.004 17.363 0.000 0.007 launch 0.002
+spec: token 44 pos 311 drafted 2 accepted 2 emits 3 drafts [1149, 11173]
+spec: mtp graph step 17.256 ms gap 0.004 ms n 3 len 311 captures 4 at 1795048340.848 split 0.004 17.245 0.001 0.007 launch 0.002
+spec: token 47 pos 314 drafted 1 accepted 1 emits 2 drafts [2942]
+spec: mtp draft 1.311 ms, verify + rollback 16.475 ms
+spec: token 2 pos 290 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.971 ms gap 150.126 ms n 1 len 290 captures 4 at 1795048341.015 split 0.013 16.930 0.001 0.025 launch 0.008
+spec: token 5 pos 293 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.424 ms gap 0.006 ms n 3 len 293 captures 4 at 1795048341.033 split 0.004 17.411 0.000 0.008 launch 0.009
+spec: token 8 pos 296 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.948 ms gap 0.004 ms n 3 len 296 captures 4 at 1795048341.051 split 0.003 17.936 0.000 0.008 launch 0.002
+spec: token 11 pos 299 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.014 ms gap 0.005 ms n 3 len 299 captures 4 at 1795048341.068 split 0.003 17.002 0.000 0.008 launch 0.002
+spec: token 14 pos 302 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.319 ms gap 0.005 ms n 3 len 302 captures 4 at 1795048341.085 split 0.006 17.298 0.006 0.008 launch 0.002
+spec: token 17 pos 305 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.336 ms gap 0.005 ms n 3 len 305 captures 4 at 1795048341.102 split 0.004 17.324 0.000 0.008 launch 0.002
+spec: token 20 pos 308 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.401 ms gap 0.004 ms n 3 len 308 captures 4 at 1795048341.120 split 0.004 17.388 0.000 0.008 launch 0.002
+spec: token 23 pos 311 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 17.037 ms gap 0.005 ms n 3 len 311 captures 4 at 1795048341.137 split 0.004 17.025 0.001 0.008 launch 0.002
+spec: token 26 pos 314 drafted 2 accepted 2 emits 3 drafts [14834, 13]
+spec: mtp graph step 17.788 ms gap 0.005 ms n 3 len 314 captures 4 at 1795048341.155 split 0.003 17.776 0.000 0.008 launch 0.002
+spec: token 29 pos 317 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 19.205 ms gap 0.004 ms n 3 len 317 captures 4 at 1795048341.174 split 0.004 19.193 0.000 0.008 launch 0.002
+spec: token 32 pos 320 drafted 2 accepted 2 emits 3 drafts [9321, 25]
+spec: mtp graph step 17.545 ms gap 0.003 ms n 3 len 320 captures 4 at 1795048341.191 split 0.004 17.533 0.001 0.008 launch 0.002
+spec: token 35 pos 323 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.105 ms gap 0.004 ms n 3 len 323 captures 4 at 1795048341.209 split 0.004 17.093 0.000 0.008 launch 0.002
+spec: token 38 pos 326 drafted 2 accepted 2 emits 3 drafts [10632, 1103]
+spec: mtp graph step 16.443 ms gap 0.004 ms n 3 len 326 captures 4 at 1795048341.225 split 0.004 16.431 0.001 0.008 launch 0.002
+spec: token 41 pos 329 drafted 2 accepted 2 emits 3 drafts [328, 1905]
+spec: mtp graph step 17.407 ms gap 0.005 ms n 3 len 329 captures 4 at 1795048341.242 split 0.004 17.395 0.000 0.008 launch 0.002
+spec: token 44 pos 332 drafted 2 accepted 1 emits 2 drafts [1149, 11173]
+spec: mtp graph step 17.363 ms gap 0.004 ms n 3 len 332 captures 4 at 1795048341.260 split 0.004 17.252 0.001 0.106 launch 0.002
+spec: token 46 pos 334 drafted 2 accepted 2 emits 3 drafts [13, 1061]
+spec: mtp graph step 17.953 ms gap 0.006 ms n 2 len 334 captures 4 at 1795048341.278 split 0.006 17.939 0.000 0.007 launch 0.021
+spec: token 2 pos 313 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.365 ms gap 135.489 ms n 1 len 313 captures 4 at 1795048341.430 split 0.015 16.318 0.001 0.029 launch 0.008
+spec: token 5 pos 316 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.357 ms gap 0.007 ms n 3 len 316 captures 4 at 1795048341.447 split 0.004 17.341 0.000 0.011 launch 0.008
+spec: token 8 pos 319 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.569 ms gap 0.004 ms n 3 len 319 captures 4 at 1795048341.465 split 0.004 17.554 0.000 0.010 launch 0.002
+spec: token 11 pos 322 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.034 ms gap 0.005 ms n 3 len 322 captures 4 at 1795048341.482 split 0.003 17.020 0.000 0.010 launch 0.002
+spec: token 14 pos 325 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.252 ms gap 0.005 ms n 3 len 325 captures 4 at 1795048341.499 split 0.003 17.233 0.001 0.015 launch 0.002
+spec: token 17 pos 328 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.286 ms gap 0.005 ms n 3 len 328 captures 4 at 1795048341.516 split 0.004 17.272 0.000 0.010 launch 0.002
+spec: token 20 pos 331 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.410 ms gap 0.004 ms n 3 len 331 captures 4 at 1795048341.534 split 0.004 17.395 0.001 0.010 launch 0.002
+spec: token 23 pos 334 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.944 ms gap 0.005 ms n 3 len 334 captures 4 at 1795048341.551 split 0.004 16.929 0.000 0.010 launch 0.002
+spec: token 26 pos 337 drafted 2 accepted 2 emits 3 drafts [6579, 294]
+spec: mtp graph step 16.456 ms gap 0.005 ms n 3 len 337 captures 4 at 1795048341.567 split 0.003 16.442 0.000 0.010 launch 0.002
+spec: token 29 pos 340 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 17.526 ms gap 0.005 ms n 3 len 340 captures 4 at 1795048341.585 split 0.004 17.511 0.001 0.010 launch 0.002
+spec: token 32 pos 343 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.250 ms gap 0.003 ms n 3 len 343 captures 4 at 1795048341.603 split 0.003 18.235 0.000 0.010 launch 0.002
+spec: token 35 pos 346 drafted 2 accepted 1 emits 2 drafts [25, 2532]
+spec: mtp graph step 17.499 ms gap 0.004 ms n 3 len 346 captures 4 at 1795048341.621 split 0.004 17.377 0.000 0.117 launch 0.002
+spec: token 37 pos 348 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.277 ms gap 0.009 ms n 2 len 348 captures 4 at 1795048341.638 split 0.009 17.257 0.000 0.010 launch 0.018
+spec: token 40 pos 351 drafted 2 accepted 2 emits 3 drafts [10632, 1103]
+spec: mtp graph step 16.421 ms gap 0.004 ms n 3 len 351 captures 4 at 1795048341.654 split 0.004 16.407 0.000 0.010 launch 0.002
+spec: token 43 pos 354 drafted 2 accepted 2 emits 3 drafts [328, 1905]
+spec: mtp graph step 17.910 ms gap 0.005 ms n 3 len 354 captures 4 at 1795048341.672 split 0.003 17.896 0.000 0.010 launch 0.002
+spec: token 46 pos 357 drafted 2 accepted 2 emits 3 drafts [1149, 11173]
+spec: mtp graph step 17.265 ms gap 0.005 ms n 3 len 357 captures 4 at 1795048341.690 split 0.004 17.250 0.000 0.010 launch 0.002
+spec: token 2 pos 331 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.428 ms gap 126.810 ms n 1 len 331 captures 4 at 1795048341.833 split 0.013 16.387 0.001 0.026 launch 0.009
+spec: token 5 pos 334 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.364 ms gap 0.007 ms n 3 len 334 captures 4 at 1795048341.850 split 0.005 17.350 0.000 0.009 launch 0.008
+spec: token 8 pos 337 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 17.579 ms gap 0.005 ms n 3 len 337 captures 4 at 1795048341.868 split 0.004 17.554 0.000 0.021 launch 0.002
+spec: token 11 pos 340 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 16.963 ms gap 0.005 ms n 3 len 340 captures 4 at 1795048341.885 split 0.004 16.951 0.000 0.008 launch 0.002
+spec: token 14 pos 343 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.301 ms gap 0.006 ms n 3 len 343 captures 4 at 1795048341.902 split 0.003 17.290 0.000 0.007 launch 0.002
+spec: token 17 pos 346 drafted 2 accepted 1 emits 2 drafts [256, 31819]
+spec: mtp graph step 17.386 ms gap 0.005 ms n 3 len 346 captures 4 at 1795048341.920 split 0.004 17.270 0.001 0.111 launch 0.002
+spec: token 19 pos 348 drafted 2 accepted 2 emits 3 drafts [25, 9357]
+spec: mtp graph step 17.438 ms gap 0.008 ms n 2 len 348 captures 4 at 1795048341.937 split 0.004 17.426 0.000 0.007 launch 0.023
+spec: token 22 pos 351 drafted 2 accepted 2 emits 3 drafts [2716, 13901]
+spec: mtp graph step 16.731 ms gap 0.005 ms n 3 len 351 captures 4 at 1795048341.954 split 0.004 16.719 0.000 0.007 launch 0.002
+spec: token 25 pos 354 drafted 2 accepted 2 emits 3 drafts [91420, 13]
+spec: mtp graph step 18.022 ms gap 0.006 ms n 3 len 354 captures 4 at 1795048341.972 split 0.004 18.010 0.000 0.007 launch 0.002
+spec: token 28 pos 357 drafted 2 accepted 2 emits 3 drafts [262, 348]
+spec: mtp graph step 18.660 ms gap 0.004 ms n 3 len 357 captures 4 at 1795048341.990 split 0.004 18.648 0.000 0.008 launch 0.002
+spec: token 31 pos 360 drafted 2 accepted 0 emits 1 drafts [5396, 25]
+spec: mtp graph step 18.329 ms gap 0.004 ms n 3 len 360 captures 4 at 1795048342.009 split 0.004 18.227 0.001 0.097 launch 0.002
+spec: token 32 pos 361 drafted 2 accepted 1 emits 2 drafts [25, 328]
+spec: mtp graph step 17.507 ms gap 0.003 ms n 1 len 361 captures 4 at 1795048342.026 split 0.006 17.406 0.000 0.094 launch 0.002
+spec: token 34 pos 363 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.304 ms gap 0.007 ms n 2 len 363 captures 4 at 1795048342.044 split 0.006 17.291 0.000 0.007 launch 0.003
+spec: token 37 pos 366 drafted 2 accepted 1 emits 2 drafts [10632, 3202]
+spec: mtp graph step 16.469 ms gap 0.005 ms n 3 len 366 captures 4 at 1795048342.060 split 0.004 16.369 0.000 0.095 launch 0.002
+spec: token 39 pos 368 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 17.047 ms gap 0.006 ms n 2 len 368 captures 4 at 1795048342.077 split 0.005 17.033 0.000 0.007 launch 0.004
+spec: token 42 pos 371 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.107 ms gap 0.005 ms n 3 len 371 captures 4 at 1795048342.094 split 0.004 17.095 0.000 0.008 launch 0.002
+spec: token 45 pos 374 drafted 2 accepted 0 emits 1 drafts [13, 1061]
+spec: mtp graph step 17.928 ms gap 0.006 ms n 3 len 374 captures 4 at 1795048342.112 split 0.004 17.831 0.000 0.093 launch 0.002
+spec: token 46 pos 375 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.421 ms gap 0.006 ms n 1 len 375 captures 4 at 1795048342.130 split 0.004 17.408 0.001 0.007 launch 0.004
+spec: token 2 pos 352 drafted 2 accepted 2 emits 3 drafts [8340, 25]
+spec: mtp graph step 16.320 ms gap 128.167 ms n 1 len 352 captures 4 at 1795048342.274 split 0.013 16.276 0.001 0.029 launch 0.009
+spec: token 5 pos 355 drafted 2 accepted 2 emits 3 drafts [16, 13]
+spec: mtp graph step 17.379 ms gap 0.007 ms n 3 len 355 captures 4 at 1795048342.292 split 0.004 17.363 0.000 0.011 launch 0.009
+spec: token 8 pos 358 drafted 2 accepted 2 emits 3 drafts [2972, 1847]
+spec: mtp graph step 18.222 ms gap 0.004 ms n 3 len 358 captures 4 at 1795048342.310 split 0.004 18.208 0.000 0.010 launch 0.002
+spec: token 11 pos 361 drafted 2 accepted 2 emits 3 drafts [279, 5952]
+spec: mtp graph step 17.747 ms gap 0.005 ms n 3 len 361 captures 4 at 1795048342.328 split 0.004 17.732 0.000 0.010 launch 0.002
+spec: token 14 pos 364 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp graph step 17.970 ms gap 0.005 ms n 3 len 364 captures 4 at 1795048342.346 split 0.004 17.955 0.000 0.010 launch 0.002
+spec: token 17 pos 367 drafted 2 accepted 2 emits 3 drafts [256, 38622]
+spec: mtp graph step 17.418 ms gap 0.005 ms n 3 len 367 captures 4 at 1795048342.363 split 0.004 17.404 0.000 0.010 launch 0.002
+spec: token 20 pos 370 drafted 2 accepted 2 emits 3 drafts [9357, 264]
+spec: mtp graph step 17.396 ms gap 0.004 ms n 3 len 370 captures 4 at 1795048342.381 split 0.003 17.383 0.000 0.010 launch 0.002
+spec: token 23 pos 373 drafted 2 accepted 2 emits 3 drafts [13901, 883]
+spec: mtp graph step 16.953 ms gap 0.005 ms n 3 len 373 captures 4 at 1795048342.398 split 0.003 16.939 0.001 0.010 launch 0.002
+spec: token 26 pos 376 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: mtp graph step 17.813 ms gap 0.005 ms n 3 len 376 captures 4 at 1795048342.415 split 0.004 17.799 0.000 0.010 launch 0.002
+spec: token 29 pos 379 drafted 2 accepted 2 emits 3 drafts [348, 256]
+spec: mtp graph step 18.139 ms gap 0.003 ms n 3 len 379 captures 4 at 1795048342.434 split 0.004 18.125 0.000 0.010 launch 0.002
+spec: token 32 pos 382 drafted 2 accepted 1 emits 2 drafts [25, 328]
+spec: mtp graph step 17.383 ms gap 0.005 ms n 3 len 382 captures 4 at 1795048342.451 split 0.004 17.245 0.001 0.133 launch 0.002
+spec: token 34 pos 384 drafted 2 accepted 2 emits 3 drafts [1156, 3766]
+spec: mtp graph step 17.215 ms gap 0.003 ms n 2 len 384 captures 4 at 1795048342.468 split 0.006 17.199 0.000 0.009 launch 0.019
+spec: token 37 pos 387 drafted 2 accepted 1 emits 2 drafts [10632, 3202]
+spec: mtp graph step 16.472 ms gap 0.004 ms n 3 len 387 captures 4 at 1795048342.485 split 0.003 16.354 0.001 0.114 launch 0.002
+spec: token 39 pos 389 drafted 2 accepted 2 emits 3 drafts [314, 328]
+spec: mtp graph step 17.021 ms gap 0.009 ms n 2 len 389 captures 4 at 1795048342.502 split 0.004 17.006 0.000 0.010 launch 0.005
+spec: token 42 pos 392 drafted 2 accepted 2 emits 3 drafts [1500, 1149]
+spec: mtp graph step 17.020 ms gap 0.004 ms n 3 len 392 captures 4 at 1795048342.519 split 0.004 17.005 0.001 0.010 launch 0.002
+spec: token 45 pos 395 drafted 2 accepted 0 emits 1 drafts [13, 1061]
+spec: mtp graph step 17.979 ms gap 0.005 ms n 3 len 395 captures 4 at 1795048342.537 split 0.004 17.857 0.001 0.117 launch 0.002
+spec: token 46 pos 396 drafted 2 accepted 2 emits 3 drafts [2942, 13]
+spec: mtp graph step 17.335 ms gap 0.003 ms n 1 len 396 captures 4 at 1795048342.554 split 0.005 17.320 0.000 0.010 launch 0.006
