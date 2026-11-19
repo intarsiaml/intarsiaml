@@ -1,0 +1,596 @@
+{
+  "model": "Qwen3.6-35B-A3B-NVFP4",
+  "backend": "cpu",
+  "device": {
+    "name": "cpu-ref (Apple M5 Max)",
+    "mem_total": 137438953472,
+    "arch": "any"
+  },
+  "tp": null,
+  "exactness": "deterministic",
+  "layers": [
+    {
+      "index": 0,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 1,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 2,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 3,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "moe"
+      ]
+    },
+    {
+      "index": 4,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 5,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 6,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 7,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "moe"
+      ]
+    },
+    {
+      "index": 8,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 9,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 10,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 11,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "moe"
+      ]
+    },
+    {
+      "index": 12,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 13,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 14,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 15,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "moe"
+      ]
+    },
+    {
+      "index": 16,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 17,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 18,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 19,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "moe"
+      ]
+    },
+    {
+      "index": 20,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 21,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 22,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 23,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "moe"
+      ]
+    },
+    {
+      "index": 24,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 25,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 26,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 27,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "moe"
+      ]
+    },
+    {
+      "index": 28,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 29,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 30,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 31,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "moe"
+      ]
+    },
+    {
+      "index": 32,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 33,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 34,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 35,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "moe"
+      ]
+    },
+    {
+      "index": 36,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 37,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 38,
+      "kind": "gated_delta_net",
+      "blocks": [
+        "gated_delta_net",
+        "moe"
+      ]
+    },
+    {
+      "index": 39,
+      "kind": "attention",
+      "blocks": [
+        "attention",
+        "moe"
+      ]
+    }
+  ],
+  "ops": [
+    {
+      "op": "embedding",
+      "kernel": "cpu_f32_embedding",
+      "backend": "cpu",
+      "exactness": "exact",
+      "admitted": false,
+      "calls_per_decode_step": 1,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "rmsnorm",
+      "kernel": "cpu_f32_rmsnorm",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 1,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "rmsnorm_add",
+      "kernel": "cpu_f32_rmsnorm_add",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 1,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "add",
+      "kernel": "cpu_f32_add",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "matmul",
+      "kernel": "cpu_f32_matmul",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "attn_prefill",
+      "kernel": "cpu_f32_attn_prefill",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "attn_decode",
+      "kernel": "cpu_f32_attn_decode",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 10,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "silu_glu",
+      "kernel": "cpu_f32_silu_glu",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "argmax",
+      "kernel": "cpu_f32_argmax",
+      "backend": "cpu",
+      "exactness": "exact",
+      "admitted": false,
+      "calls_per_decode_step": 1,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "matmul_fp8",
+      "kernel": "cpu_f32_matmul_fp8",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 10,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "matmul_nvfp4",
+      "kernel": "cpu_f32_matmul_nvfp4",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 1,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "moe_topk",
+      "kernel": "cpu_f32_moe_topk",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "moe_experts",
+      "kernel": "cpu_f32_moe_experts",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "moe_combine",
+      "kernel": "cpu_f32_moe_combine",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "sigmoid_mul",
+      "kernel": "cpu_f32_sigmoid_mul",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "matmul_pair",
+      "kernel": "cpu_f32_matmul_pair",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 1,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "matmul_fp8_pair",
+      "kernel": "cpu_f32_matmul_fp8_pair",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 30,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "gated_rmsnorm",
+      "kernel": "cpu_f32_gated_rmsnorm",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 0,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "rmsnorm_add_matmul_pair",
+      "kernel": "cpu_f32_rmsnorm_add_matmul_pair",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 69,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "gated_rmsnorm_matmul_fp8",
+      "kernel": "cpu_f32_gated_rmsnorm_matmul_fp8",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 30,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "rmsnorm_add_matmul_fp8_pair",
+      "kernel": "cpu_f32_rmsnorm_add_matmul_fp8_pair",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 10,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "sigmoid_mul_matmul_fp8",
+      "kernel": "cpu_f32_sigmoid_mul_matmul_fp8",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 10,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "gate_split_qk_norm_rope_kv",
+      "kernel": "cpu_f32_gate_split_qk_norm_rope_kv",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 10,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "gdn_conv_delta",
+      "kernel": "cpu_f32_gdn_conv_delta",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 30,
+      "scratch_bytes": 0
+    },
+    {
+      "op": "moe_block",
+      "kernel": "cpu_f32_moe_block",
+      "backend": "cpu",
+      "exactness": "deterministic",
+      "admitted": false,
+      "calls_per_decode_step": 40,
+      "scratch_bytes": 0
+    }
+  ],
+  "act_dtype": "bf16",
+  "kv_dtype": "bf16",
+  "scratch_bytes": 0,
+  "prefill_chunk": 256,
+  "probed_sizes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    31,
+    32,
+    33,
+    63,
+    64,
+    65,
+    127,
+    128,
+    129,
+    255,
+    256
+  ],
+  "require_admitted": false,
+  "reference_only": false,
+  "prefill_chunk_source": "default"
+}

@@ -401,6 +401,11 @@ pub struct BackendTuning {
     /// step verify in ONE ragged pass. Unset: off. `INTARSIA_BATCHED_VERIFY` wins both ways (`1` on, `0` off). Per backend only, set
     /// only where measured (docs/results/2026-11-14-mtp2s.md).
     pub batched_verify: Option<bool>,
+    /// Copy drafts on by default on this backend (lane copyflipm, [`Recipe::resolve_copy_default`]): with `INTARSIA_SPEC_COPY` unset, `--spec mtp`
+    /// at one sequence (`--max-batch 1`) and tp 1 verify copy chains ([`crate::spec::copy_default_applies`]). Unset: off. An explicit
+    /// `INTARSIA_SPEC_COPY` (also `0`) wins. Per backend only, set only where measured (the Qwen3.6-35B-A3B on Metal, docs/results/2026-11-18-copymetal.md;
+    /// the Qwen3.8-27B was measured and left out: docs/results/2026-11-18-copyflipm.md).
+    pub copy_default: Option<bool>,
     /// Sampled rows of a batched verify pass as the device-side top-k (lane mtp2s, [`Recipe::resolve_verify_topk`]); needs
     /// `batched_verify`. Unset: off. `INTARSIA_VERIFY_TOPK` wins both ways (`1` on, `0` off). Per backend only, set only where measured.
     pub verify_topk: Option<bool>,
@@ -529,6 +534,11 @@ impl Recipe {
     pub fn resolve_batched_mtp(&self, backend: &str) -> Option<usize> {
         self.mtp.as_ref()?;
         self.tuning.backends.get(backend).and_then(|b| b.batched_mtp).filter(|&n| n > 0)
+    }
+
+    /// Whether the recipe opts this backend into copy drafts by default (`[tuning.<backend>] copy_default`, lane copyflipm); unset: `false`.
+    pub fn resolve_copy_default(&self, backend: &str) -> bool {
+        self.tuning.backends.get(backend).and_then(|b| b.copy_default).unwrap_or(false)
     }
 
     /// The recipe's batched verify setting for `backend` (`[tuning.<backend>] batched_verify`); `None`: not set (off). `INTARSIA_BATCHED_VERIFY` wins.
@@ -1230,6 +1240,15 @@ mod tests {
         assert_eq!(r("metal"), (Some(false), None));
         assert_eq!(r("hip"), (None, None), "a backend without a table: unset, so off");
         assert!(serde_json::from_value::<Tuning>(json!({"cuda": {"batched_verify": "yes"}})).is_err(), "a boolean, not a string");
+    }
+
+    #[test]
+    fn copy_default_is_a_per_backend_recipe_key_unset_means_off() {
+        let t: Tuning = serde_json::from_value(json!({"metal": {"copy_default": true}, "cuda": {"copy_default": false}, "hip": {}})).unwrap();
+        let r = |backend: &str| t.backends.get(backend).and_then(|b| b.copy_default).unwrap_or(false);
+        assert!(r("metal"));
+        assert!(!r("cuda") && !r("hip") && !r("cpu"), "false, an empty table and no table are all off");
+        assert!(serde_json::from_value::<Tuning>(json!({"metal": {"copy_default": "yes"}})).is_err(), "a boolean, not a string");
     }
 
     #[test]

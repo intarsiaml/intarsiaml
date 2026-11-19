@@ -1,0 +1,7 @@
+prefill chunk 256 (default)
+mtp: drafter head 'mtp' loaded in T (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+--spec mtp on cpu: no row-exact verify kernels here, so greedy output can differ from --spec off where a verify row's argmax differs from the single-row decode's
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=cpu_f32_embedding rmsnorm=cpu_f32_rmsnorm matmul_fp8_pair=cpu_f32_matmul_fp8_pair matmul_pair=cpu_f32_matmul_pair gdn_conv_delta=cpu_f32_gdn_conv_delta gated_rmsnorm=cpu_f32_gated_rmsnorm matmul_fp8=cpu_f32_matmul_fp8 rmsnorm_add_matmul_pair=cpu_f32_rmsnorm_add_matmul_pair moe_block=cpu_f32_moe_block rmsnorm_add_matmul_fp8_pair=cpu_f32_rmsnorm_add_matmul_fp8_pair gate_split_qk_norm_rope_kv=cpu_f32_gate_split_qk_norm_rope_kv attn_prefill=cpu_f32_attn_prefill sigmoid_mul_matmul_fp8=cpu_f32_sigmoid_mul_matmul_fp8 rmsnorm_add=cpu_f32_rmsnorm_add matmul=cpu_f32_matmul add=cpu_f32_add sigmoid_mul=cpu_f32_sigmoid_mul moe_topk=cpu_f32_moe_topk moe_experts=cpu_f32_moe_experts silu_glu=cpu_f32_silu_glu moe_combine=cpu_f32_moe_combine matmul_nvfp4=cpu_f32_matmul_nvfp4 argmax=cpu_f32_argmax
+sampled requests (temperature > 0): speculation Off (default; single sequence, one rank)
+spec: copy drafts on: a chain of up to 7 tokens when the last 20 tokens occurred earlier (INTARSIA_SPEC_COPY)

@@ -491,19 +491,77 @@ impl CopyCfg {
     }
 }
 
-/// `INTARSIA_SPEC_COPY` (the text is read once): `None` when unset or empty (off); an unusable value is off with a warning. A value
-/// without `,<len>` gets the recorded backend's default length ([`set_copy_backend`]).
-pub fn copy_from_env() -> Option<CopyCfg> {
-    static V: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
-    let v = V.get_or_init(|| {
-        let v = std::env::var("INTARSIA_SPEC_COPY").ok().filter(|v| !v.is_empty() && v != "0")?;
-        if CopyCfg::parse(&v).is_none() {
+/// `INTARSIA_SPEC_COPY` as the environment holds it (read once).
+enum CopyEnv {
+    /// Not set: the loader's default ([`set_copy_default`]) decides.
+    Unset,
+    /// `0`, empty or an unusable value (that one with a warning): off, whatever the default.
+    Off,
+    /// A usable `<n>[,<len>[,a]]`.
+    Value(String),
+}
+
+fn copy_env() -> &'static CopyEnv {
+    static V: std::sync::OnceLock<CopyEnv> = std::sync::OnceLock::new();
+    V.get_or_init(|| match std::env::var("INTARSIA_SPEC_COPY") {
+        Err(_) => CopyEnv::Unset,
+        Ok(v) if v.is_empty() || v == "0" => CopyEnv::Off,
+        Ok(v) if CopyCfg::parse(&v).is_none() => {
             eprintln!("INTARSIA_SPEC_COPY={v}: not <n>[,<len>[,a]] with n {COPY_MIN_N}..=256 and len {COPY_MIN_CHAIN}..={DFLASH_K_MAX}; copy drafts off");
-            return None;
+            CopyEnv::Off
         }
-        Some(v)
-    });
-    CopyCfg::parse_with(v.as_deref()?, COPY_LEN_BACKEND.load(std::sync::atomic::Ordering::Relaxed))
+        Ok(v) => CopyEnv::Value(v),
+    })
+}
+
+/// The `INTARSIA_SPEC_COPY` value copy drafts take when it is unset and [`set_copy_default`] said the load qualifies (lane copyflipm).
+pub const COPY_DEFAULT_VALUE: &str = "20";
+
+static COPY_DEFAULT_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether an unset `INTARSIA_SPEC_COPY` means copy drafts on for the model being loaded (lane copyflipm): Metal, one sequence at a time
+/// (`max_batch` 1), one rank (`tp` 1), and the model's recipe opts in (`recipe_opt_in`: `[tuning.metal] copy_default = true`, the
+/// Qwen3.6-35B-A3B only; a recipe without the key is off). Anywhere else the variable unset is off, as before. Pure; the loader passes its
+/// answer to [`set_copy_default`]. (`--spec mtp` is not an input: [`SpecConfig::verify_rows`] and the engine already ignore copy drafts
+/// without it.)
+pub fn copy_default_applies(backend: &str, max_batch: usize, tp: usize, recipe_opt_in: bool) -> bool {
+    backend == "metal" && max_batch == 1 && tp == 1 && recipe_opt_in
+}
+
+/// Record whether the load qualifies for the default ([`copy_default_applies`]). Off until the loader says otherwise, so any other
+/// entry point (a tensor-parallel rank, a test) keeps copy drafts off with the variable unset. It is read by [`copy_from_env`] alone,
+/// so the load-time verify-row width ([`SpecConfig::verify_rows`]) and the engine's chain cannot disagree.
+pub fn set_copy_default(on: bool) {
+    COPY_DEFAULT_ON.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The chain config `env` (the variable's state), `default_on` and `default_len` give: an explicit value wins, `0` / empty is off, and
+/// unset is [`COPY_DEFAULT_VALUE`] when `default_on`.
+fn resolve_copy(env: &CopyEnv, default_on: bool, default_len: usize) -> Option<CopyCfg> {
+    match env {
+        CopyEnv::Value(v) => CopyCfg::parse_with(v, default_len),
+        CopyEnv::Unset if default_on => CopyCfg::parse_with(COPY_DEFAULT_VALUE, default_len),
+        CopyEnv::Unset | CopyEnv::Off => None,
+    }
+}
+
+/// Copy drafts as the user asked with `INTARSIA_SPEC_COPY=<n>[,<len>[,a]]`: `None` when unset, `0`, empty or unusable (the last with a
+/// warning). The load-time refusal of an unsupported config looks at this, not at [`copy_from_env`], so the default never refuses.
+pub fn copy_explicit_from_env() -> Option<CopyCfg> {
+    resolve_copy(copy_env(), false, COPY_LEN_BACKEND.load(std::sync::atomic::Ordering::Relaxed))
+}
+
+/// Whether copy drafts are on by the default alone (the variable unset, [`set_copy_default`] true).
+pub fn copy_is_default() -> bool {
+    matches!(copy_env(), CopyEnv::Unset) && COPY_DEFAULT_ON.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// The ONE place copy drafts are resolved (the text of `INTARSIA_SPEC_COPY` is read once): an explicit value (the backend's default length
+/// when it has no `,<len>`, [`set_copy_backend`]); `None` for `0`, empty or an unusable value; with the variable unset, `20` on a load
+/// that qualifies ([`set_copy_default`]: Metal, one sequence, one rank; lane copyflipm), else `None`. The load-time verify-row width and
+/// the engine's chain both call it.
+pub fn copy_from_env() -> Option<CopyCfg> {
+    resolve_copy(copy_env(), COPY_DEFAULT_ON.load(std::sync::atomic::Ordering::Relaxed), COPY_LEN_BACKEND.load(std::sync::atomic::Ordering::Relaxed))
 }
 
 /// What [`copy_probe_from_env`] does once per request (lane mcdiag, a measurement hook).
@@ -2416,6 +2474,38 @@ mod tests {
         assert!(COPY_LEN_METAL <= DFLASH_K_MAX && COPY_LEN_METAL >= COPY_MIN_CHAIN);
         // `parse` keeps the old default
         assert_eq!(CopyCfg::parse("20").map(|c| c.len), Some(COPY_LEN_DEFAULT));
+    }
+
+    #[test]
+    fn copy_default_applies_only_to_metal_one_sequence_one_rank_and_an_opted_in_recipe() {
+        assert!(copy_default_applies("metal", 1, 1, true));
+        assert!(!copy_default_applies("metal", 1, 1, false), "a recipe without the key: off");
+        assert!(!copy_default_applies("metal", 2, 1, true));
+        assert!(!copy_default_applies("metal", 8, 1, true));
+        assert!(!copy_default_applies("metal", 1, 2, true));
+        for b in ["cuda", "hip", "cpu"] {
+            assert!(!copy_default_applies(b, 1, 1, true), "{b}");
+        }
+    }
+
+    #[test]
+    fn copy_resolves_unset_to_the_default_only_when_it_applies() {
+        let len = |c: Option<CopyCfg>| c.map(|c| (c.n, c.len, c.adapt));
+        // unset: 20 at the backend's length when the load qualifies, off otherwise (never an error)
+        assert_eq!(len(resolve_copy(&CopyEnv::Unset, true, COPY_LEN_METAL)), Some((20, 15, false)));
+        assert_eq!(len(resolve_copy(&CopyEnv::Unset, false, COPY_LEN_METAL)), None);
+        assert_eq!(len(resolve_copy(&CopyEnv::Unset, false, COPY_LEN_DEFAULT)), None);
+        // `0` / empty / unusable (CopyEnv::Off): off even where the default applies
+        assert_eq!(len(resolve_copy(&CopyEnv::Off, true, COPY_LEN_METAL)), None);
+        assert_eq!(len(resolve_copy(&CopyEnv::Off, false, COPY_LEN_METAL)), None);
+        // an explicit value wins over the default, with or without it
+        for on in [true, false] {
+            assert_eq!(len(resolve_copy(&CopyEnv::Value("12".into()), on, COPY_LEN_METAL)), Some((12, 15, false)));
+            assert_eq!(len(resolve_copy(&CopyEnv::Value("12,7".into()), on, COPY_LEN_METAL)), Some((12, 7, false)));
+            assert_eq!(len(resolve_copy(&CopyEnv::Value("20,15,a".into()), on, COPY_LEN_DEFAULT)), Some((20, 15, true)));
+        }
+        // the default value is a valid `INTARSIA_SPEC_COPY` value
+        assert!(CopyCfg::parse(COPY_DEFAULT_VALUE).is_some());
     }
 
     #[test]
