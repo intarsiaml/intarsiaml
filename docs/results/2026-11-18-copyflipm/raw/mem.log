@@ -1,0 +1,15 @@
+fleetq: #10275 waiting (#1 in line): needs cpu quiet on endor, but #10274 "copyflipm plan show gates v2 (no --spec, 27B)" (claude-0b386a17-copyflipm) loads it
+fleetq:   #10274 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10274 set, or it will wait for #10274 to be released.
+fleetq: #10275 running on endor: scripts/copyflipm/mem.sh
+generate zero r1: chains 0;  41740402688 maximum resident set size; 21843130680 peak memory footprint;
+generate def r1: chains 37;  41735290880 maximum resident set size; 21927212480 peak memory footprint;
+generate zero r2: chains 0;  41746923520 maximum resident set size; 22003628800 peak memory footprint;
+generate def r2: chains 37;  41616523264 maximum resident set size; 21907977616 peak memory footprint;
+serve zero: rss 39455680 KiB; intarsia_kv_bytes_total 233635840;intarsia_kv_tokens_capacity 8192;
+serve def: rss 38792720 KiB; intarsia_kv_bytes_total 233635840;intarsia_kv_tokens_capacity 8192;
+metrics differ:
+7c7
+< intarsia_device_memory_free_bytes 72314847232
+---
+> intarsia_device_memory_free_bytes 71458619392
+fleetq: #10275 done (exit 0)

@@ -1,0 +1,411 @@
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.3 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+loaded Qwen3.6-35B-A3B-NVFP4 on Apple M5 Max in 2.8s: 40 layers, hidden 2048, act bf16, kv bf16, weights 21.36 GB, context 8192 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 2997 tokens
+spec: sampled Match draft 4.921 ms, verify 13.943 ms, accept + rollback 2.860 ms, mb rescued 0
+spec: token 2 pos 2997 drafted 2 accepted 2 emits 3 drafts [2164, 198]
+spec: sampled Match draft 3.220 ms, verify 11.941 ms, accept + rollback 2.841 ms, mb rescued 0
+spec: token 5 pos 3000 drafted 2 accepted 2 emits 3 drafts [198, 220]
+spec: sampled Match draft 3.074 ms, verify 12.092 ms, accept + rollback 2.843 ms, mb rescued 0
+spec: token 8 pos 3003 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 3.001 ms, verify 12.060 ms, accept + rollback 2.826 ms, mb rescued 0
+spec: token 11 pos 3006 drafted 2 accepted 2 emits 3 drafts [306, 763]
+spec: sampled Match draft 3.085 ms, verify 12.073 ms, accept + rollback 2.852 ms, mb rescued 0
+spec: token 14 pos 3009 drafted 2 accepted 2 emits 3 drafts [16, 15]
+spec: sampled Match draft 3.073 ms, verify 11.958 ms, accept + rollback 2.861 ms, mb rescued 0
+spec: token 17 pos 3012 drafted 2 accepted 2 emits 3 drafts [15, 11]
+spec: sampled Match draft 3.050 ms, verify 12.263 ms, accept + rollback 2.831 ms, mb rescued 0
+spec: token 20 pos 3015 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.129 ms, verify 12.068 ms, accept + rollback 2.836 ms, mb rescued 0
+spec: token 23 pos 3018 drafted 2 accepted 2 emits 3 drafts [763, 328]
+spec: sampled Match draft 3.052 ms, verify 12.206 ms, accept + rollback 2.863 ms, mb rescued 0
+spec: token 26 pos 3021 drafted 2 accepted 2 emits 3 drafts [12, 15]
+spec: sampled Match draft 3.040 ms, verify 12.154 ms, accept + rollback 2.871 ms, mb rescued 0
+spec: token 29 pos 3024 drafted 2 accepted 2 emits 3 drafts [15, 487]
+spec: sampled Match draft 3.073 ms, verify 12.411 ms, accept + rollback 2.845 ms, mb rescued 0
+spec: token 32 pos 3027 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.101 ms, verify 11.986 ms, accept + rollback 2.837 ms, mb rescued 0
+spec: token 35 pos 3030 drafted 2 accepted 2 emits 3 drafts [763, 328]
+spec: sampled Match draft 3.192 ms, verify 12.085 ms, accept + rollback 2.836 ms, mb rescued 0
+spec: token 38 pos 3033 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: sampled Match draft 3.063 ms, verify 12.142 ms, accept + rollback 2.837 ms, mb rescued 0
+spec: token 41 pos 3036 drafted 2 accepted 2 emits 3 drafts [328, 2738]
+spec: sampled Match draft 3.005 ms, verify 12.213 ms, accept + rollback 2.828 ms, mb rescued 0
+spec: token 44 pos 3039 drafted 2 accepted 2 emits 3 drafts [328, 1077]
+spec: sampled Match draft 3.096 ms, verify 12.113 ms, accept + rollback 2.797 ms, mb rescued 0
+spec: token 47 pos 3042 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: sampled Match draft 3.376 ms, verify 12.128 ms, accept + rollback 2.822 ms, mb rescued 0
+spec: token 50 pos 3045 drafted 2 accepted 2 emits 3 drafts [328, 13679]
+spec: sampled Match draft 3.540 ms, verify 12.040 ms, accept + rollback 2.817 ms, mb rescued 0
+spec: token 53 pos 3048 drafted 2 accepted 2 emits 3 drafts [498, 198]
+spec: sampled Match draft 3.427 ms, verify 11.939 ms, accept + rollback 2.808 ms, mb rescued 0
+spec: token 56 pos 3051 drafted 2 accepted 2 emits 3 drafts [328, 83]
+spec: sampled Match draft 3.216 ms, verify 11.983 ms, accept + rollback 2.790 ms, mb rescued 0
+spec: token 59 pos 3054 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: sampled Match draft 3.441 ms, verify 12.160 ms, accept + rollback 4.042 ms, mb rescued 0
+spec: token 62 pos 3057 drafted 2 accepted 2 emits 3 drafts [328, 83]
+spec: sampled Match draft 3.056 ms, verify 12.033 ms, accept + rollback 3.977 ms, mb rescued 0
+spec: token 65 pos 3060 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: sampled Match draft 3.581 ms, verify 11.999 ms, accept + rollback 2.797 ms, mb rescued 0
+spec: token 68 pos 3063 drafted 2 accepted 2 emits 3 drafts [10339, 198]
+spec: sampled Match draft 3.399 ms, verify 12.304 ms, accept + rollback 3.983 ms, mb rescued 0
+spec: token 71 pos 3066 drafted 2 accepted 2 emits 3 drafts [328, 6352]
+spec: sampled Match draft 3.454 ms, verify 12.259 ms, accept + rollback 2.811 ms, mb rescued 0
+spec: token 74 pos 3069 drafted 2 accepted 2 emits 3 drafts [220, 24]
+spec: sampled Match draft 3.477 ms, verify 12.169 ms, accept + rollback 2.802 ms, mb rescued 0
+spec: token 77 pos 3072 drafted 2 accepted 2 emits 3 drafts [20, 11]
+spec: sampled Match draft 3.468 ms, verify 12.432 ms, accept + rollback 2.785 ms, mb rescued 0
+spec: token 80 pos 3075 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.418 ms, verify 12.252 ms, accept + rollback 2.786 ms, mb rescued 0
+spec: token 83 pos 3078 drafted 2 accepted 2 emits 3 drafts [763, 220]
+spec: sampled Match draft 3.464 ms, verify 12.187 ms, accept + rollback 2.800 ms, mb rescued 0
+spec: token 86 pos 3081 drafted 2 accepted 2 emits 3 drafts [15, 198]
+spec: sampled Match draft 3.366 ms, verify 12.007 ms, accept + rollback 2.799 ms, mb rescued 0
+spec: token 89 pos 3084 drafted 2 accepted 2 emits 3 drafts [2390, 198]
+spec: sampled Match draft 3.377 ms, verify 12.048 ms, accept + rollback 2.803 ms, mb rescued 0
+spec: token 92 pos 3087 drafted 2 accepted 2 emits 3 drafts [313, 198]
+spec: sampled Match draft 3.403 ms, verify 12.304 ms, accept + rollback 2.795 ms, mb rescued 0
+spec: token 95 pos 3090 drafted 2 accepted 2 emits 3 drafts [328, 306]
+spec: sampled Match draft 3.366 ms, verify 12.168 ms, accept + rollback 2.793 ms, mb rescued 0
+spec: token 98 pos 3093 drafted 2 accepted 2 emits 3 drafts [220, 16]
+spec: sampled Match draft 3.100 ms, verify 12.223 ms, accept + rollback 2.792 ms, mb rescued 0
+spec: token 101 pos 3096 drafted 2 accepted 2 emits 3 drafts [15, 22]
+spec: sampled Match draft 3.344 ms, verify 12.257 ms, accept + rollback 2.785 ms, mb rescued 0
+spec: token 104 pos 3099 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 3.622 ms, verify 12.201 ms, accept + rollback 2.817 ms, mb rescued 0
+spec: token 107 pos 3102 drafted 2 accepted 2 emits 3 drafts [591, 763]
+spec: sampled Match draft 3.518 ms, verify 12.094 ms, accept + rollback 2.781 ms, mb rescued 0
+spec: token 110 pos 3105 drafted 2 accepted 2 emits 3 drafts [9505, 12]
+spec: sampled Match draft 3.353 ms, verify 12.278 ms, accept + rollback 2.790 ms, mb rescued 0
+spec: token 113 pos 3108 drafted 2 accepted 2 emits 3 drafts [15, 16]
+spec: sampled Match draft 3.100 ms, verify 12.198 ms, accept + rollback 2.788 ms, mb rescued 0
+spec: token 116 pos 3111 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 3.334 ms, verify 12.208 ms, accept + rollback 2.778 ms, mb rescued 0
+spec: token 119 pos 3114 drafted 2 accepted 2 emits 3 drafts [3810, 763]
+spec: sampled Match draft 3.344 ms, verify 12.228 ms, accept + rollback 2.792 ms, mb rescued 0
+spec: token 122 pos 3117 drafted 2 accepted 2 emits 3 drafts [350, 487]
+spec: sampled Match draft 3.422 ms, verify 12.211 ms, accept + rollback 2.983 ms, mb rescued 0
+spec: token 125 pos 3120 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.400 ms, verify 11.965 ms, accept + rollback 2.968 ms, mb rescued 0
+spec: token 128 pos 3123 drafted 2 accepted 2 emits 3 drafts [763, 328]
+spec: sampled Match draft 3.534 ms, verify 12.166 ms, accept + rollback 2.964 ms, mb rescued 0
+spec: token 131 pos 3126 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: sampled Match draft 3.304 ms, verify 12.185 ms, accept + rollback 2.952 ms, mb rescued 0
+spec: token 134 pos 3129 drafted 2 accepted 2 emits 3 drafts [328, 13679]
+spec: sampled Match draft 3.283 ms, verify 12.051 ms, accept + rollback 2.776 ms, mb rescued 0
+spec: token 137 pos 3132 drafted 2 accepted 2 emits 3 drafts [498, 198]
+spec: sampled Match draft 3.315 ms, verify 12.157 ms, accept + rollback 4.011 ms, mb rescued 0
+spec: token 140 pos 3135 drafted 2 accepted 2 emits 3 drafts [328, 83]
+spec: sampled Match draft 3.096 ms, verify 12.116 ms, accept + rollback 2.818 ms, mb rescued 0
+spec: token 143 pos 3138 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: sampled Match draft 3.296 ms, verify 12.247 ms, accept + rollback 2.792 ms, mb rescued 0
+spec: token 146 pos 3141 drafted 2 accepted 2 emits 3 drafts [328, 83]
+spec: sampled Match draft 3.346 ms, verify 12.148 ms, accept + rollback 3.985 ms, mb rescued 0
+spec: token 149 pos 3144 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: sampled Match draft 3.267 ms, verify 12.141 ms, accept + rollback 2.824 ms, mb rescued 0
+spec: token 152 pos 3147 drafted 2 accepted 2 emits 3 drafts [10339, 198]
+spec: sampled Match draft 3.017 ms, verify 12.507 ms, accept + rollback 2.851 ms, mb rescued 0
+spec: token 155 pos 3150 drafted 2 accepted 2 emits 3 drafts [328, 6352]
+spec: sampled Match draft 3.120 ms, verify 12.311 ms, accept + rollback 2.809 ms, mb rescued 0
+spec: token 158 pos 3153 drafted 2 accepted 2 emits 3 drafts [220, 16]
+spec: sampled Match draft 3.300 ms, verify 12.027 ms, accept + rollback 2.799 ms, mb rescued 0
+spec: token 161 pos 3156 drafted 2 accepted 2 emits 3 drafts [13, 22]
+spec: sampled Match draft 3.341 ms, verify 12.339 ms, accept + rollback 2.830 ms, mb rescued 0
+spec: token 164 pos 3159 drafted 2 accepted 2 emits 3 drafts [11, 198]
+spec: sampled Match draft 3.311 ms, verify 12.217 ms, accept + rollback 2.779 ms, mb rescued 0
+spec: token 167 pos 3162 drafted 2 accepted 2 emits 3 drafts [328, 13091]
+spec: sampled Match draft 3.025 ms, verify 12.129 ms, accept + rollback 2.822 ms, mb rescued 0
+spec: token 170 pos 3165 drafted 2 accepted 2 emits 3 drafts [220, 20]
+spec: sampled Match draft 3.117 ms, verify 12.244 ms, accept + rollback 2.789 ms, mb rescued 0
+spec: token 173 pos 3168 drafted 2 accepted 2 emits 3 drafts [198, 220]
+spec: sampled Match draft 3.567 ms, verify 11.980 ms, accept + rollback 2.626 ms, mb rescued 0
+spec: token 176 pos 3171 drafted 2 accepted 2 emits 3 drafts [198, 220]
+spec: sampled Match draft 3.154 ms, verify 12.379 ms, accept + rollback 2.918 ms, mb rescued 0
+spec: token 179 pos 3174 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 3.068 ms, verify 12.351 ms, accept + rollback 2.872 ms, mb rescued 0
+spec: token 182 pos 3177 drafted 2 accepted 2 emits 3 drafts [306, 763]
+spec: sampled Match draft 3.134 ms, verify 12.347 ms, accept + rollback 2.876 ms, mb rescued 0
+spec: token 185 pos 3180 drafted 2 accepted 2 emits 3 drafts [16, 15]
+spec: sampled Match draft 3.207 ms, verify 12.243 ms, accept + rollback 2.944 ms, mb rescued 0
+spec: token 188 pos 3183 drafted 2 accepted 2 emits 3 drafts [19, 11]
+spec: sampled Match draft 3.237 ms, verify 12.259 ms, accept + rollback 2.858 ms, mb rescued 0
+spec: token 191 pos 3186 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.093 ms, verify 12.366 ms, accept + rollback 2.698 ms, mb rescued 0
+spec: token 194 pos 3189 drafted 2 accepted 2 emits 3 drafts [763, 328]
+spec: sampled Match draft 3.085 ms, verify 12.357 ms, accept + rollback 2.955 ms, mb rescued 0
+spec: token 197 pos 3192 drafted 2 accepted 2 emits 3 drafts [12, 15]
+spec: sampled Match draft 3.302 ms, verify 12.463 ms, accept + rollback 2.663 ms, mb rescued 0
+spec: token 200 pos 3195 drafted 2 accepted 2 emits 3 drafts [17, 487]
+spec: sampled Match draft 3.328 ms, verify 12.342 ms, accept + rollback 2.851 ms, mb rescued 0
+spec: token 203 pos 3198 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.064 ms, verify 12.177 ms, accept + rollback 2.840 ms, mb rescued 0
+spec: token 206 pos 3201 drafted 2 accepted 2 emits 3 drafts [763, 328]
+spec: sampled Match draft 3.273 ms, verify 11.973 ms, accept + rollback 2.857 ms, mb rescued 0
+spec: token 209 pos 3204 drafted 2 accepted 2 emits 3 drafts [565, 487]
+spec: sampled Match draft 3.060 ms, verify 12.180 ms, accept + rollback 2.852 ms, mb rescued 0
+spec: token 212 pos 3207 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.096 ms, verify 12.093 ms, accept + rollback 2.846 ms, mb rescued 0
+spec: token 215 pos 3210 drafted 2 accepted 2 emits 3 drafts [763, 328]
+spec: sampled Match draft 3.272 ms, verify 12.266 ms, accept + rollback 2.847 ms, mb rescued 0
+spec: token 218 pos 3213 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: sampled Match draft 3.095 ms, verify 12.237 ms, accept + rollback 2.865 ms, mb rescued 0
+spec: token 221 pos 3216 drafted 2 accepted 2 emits 3 drafts [328, 13679]
+spec: sampled Match draft 3.097 ms, verify 12.322 ms, accept + rollback 2.870 ms, mb rescued 0
+spec: token 224 pos 3219 drafted 2 accepted 2 emits 3 drafts [498, 198]
+spec: sampled Match draft 3.159 ms, verify 12.140 ms, accept + rollback 2.804 ms, mb rescued 0
+spec: token 227 pos 3222 drafted 2 accepted 2 emits 3 drafts [328, 83]
+spec: sampled Match draft 3.390 ms, verify 12.050 ms, accept + rollback 2.823 ms, mb rescued 0
+spec: token 230 pos 3225 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: sampled Match draft 3.345 ms, verify 12.262 ms, accept + rollback 2.797 ms, mb rescued 0
+spec: token 233 pos 3228 drafted 2 accepted 2 emits 3 drafts [328, 83]
+spec: sampled Match draft 3.334 ms, verify 12.324 ms, accept + rollback 2.815 ms, mb rescued 0
+spec: token 236 pos 3231 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: sampled Match draft 2.989 ms, verify 12.044 ms, accept + rollback 2.785 ms, mb rescued 0
+spec: token 239 pos 3234 drafted 2 accepted 2 emits 3 drafts [10339, 198]
+spec: sampled Match draft 3.451 ms, verify 12.356 ms, accept + rollback 2.795 ms, mb rescued 0
+spec: token 242 pos 3237 drafted 2 accepted 2 emits 3 drafts [328, 6352]
+spec: sampled Match draft 3.447 ms, verify 12.250 ms, accept + rollback 2.783 ms, mb rescued 0
+spec: token 245 pos 3240 drafted 2 accepted 2 emits 3 drafts [220, 16]
+spec: sampled Match draft 3.495 ms, verify 12.739 ms, accept + rollback 2.801 ms, mb rescued 0
+spec: token 248 pos 3243 drafted 2 accepted 2 emits 3 drafts [13, 15]
+spec: sampled Match draft 3.292 ms, verify 12.304 ms, accept + rollback 2.798 ms, mb rescued 0
+spec: token 251 pos 3246 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 3.356 ms, verify 12.396 ms, accept + rollback 2.797 ms, mb rescued 0
+spec: token 254 pos 3249 drafted 2 accepted 2 emits 3 drafts [13091, 763]
+spec: sampled Match draft 3.439 ms, verify 12.351 ms, accept + rollback 2.798 ms, mb rescued 0
+spec: token 257 pos 3252 drafted 2 accepted 2 emits 3 drafts [21, 21]
+spec: sampled Match draft 3.595 ms, verify 12.255 ms, accept + rollback 2.856 ms, mb rescued 0
+spec: token 260 pos 3255 drafted 2 accepted 2 emits 3 drafts [220, 2390]
+spec: sampled Match draft 3.519 ms, verify 12.133 ms, accept + rollback 2.812 ms, mb rescued 0
+spec: token 263 pos 3258 drafted 2 accepted 2 emits 3 drafts [220, 313]
+spec: sampled Match draft 3.484 ms, verify 12.315 ms, accept + rollback 2.792 ms, mb rescued 0
+spec: token 266 pos 3261 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.560 ms, verify 12.185 ms, accept + rollback 2.782 ms, mb rescued 0
+spec: token 269 pos 3264 drafted 2 accepted 2 emits 3 drafts [763, 220]
+spec: sampled Match draft 3.310 ms, verify 12.101 ms, accept + rollback 2.787 ms, mb rescued 0
+spec: token 272 pos 3267 drafted 2 accepted 2 emits 3 drafts [15, 17]
+spec: sampled Match draft 3.463 ms, verify 12.241 ms, accept + rollback 2.813 ms, mb rescued 0
+spec: token 275 pos 3270 drafted 2 accepted 2 emits 3 drafts [11, 198]
+spec: sampled Match draft 3.033 ms, verify 12.238 ms, accept + rollback 2.650 ms, mb rescued 0
+spec: token 278 pos 3273 drafted 2 accepted 2 emits 3 drafts [328, 591]
+spec: sampled Match draft 3.277 ms, verify 12.185 ms, accept + rollback 2.801 ms, mb rescued 0
+spec: token 281 pos 3276 drafted 2 accepted 2 emits 3 drafts [328, 9505]
+spec: sampled Match draft 3.462 ms, verify 12.272 ms, accept + rollback 2.838 ms, mb rescued 0
+spec: token 284 pos 3279 drafted 2 accepted 2 emits 3 drafts [15, 15]
+spec: sampled Match draft 3.100 ms, verify 12.313 ms, accept + rollback 2.794 ms, mb rescued 0
+spec: token 287 pos 3282 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: sampled Match draft 3.585 ms, verify 12.276 ms, accept + rollback 2.800 ms, mb rescued 0
+spec: token 290 pos 3285 drafted 2 accepted 2 emits 3 drafts [328, 3810]
+spec: sampled Match draft 3.087 ms, verify 12.218 ms, accept + rollback 2.800 ms, mb rescued 0
+spec: token 293 pos 3288 drafted 2 accepted 2 emits 3 drafts [328, 19515]
+spec: sampled Match draft 3.353 ms, verify 12.323 ms, accept + rollback 2.782 ms, mb rescued 0
+spec: token 296 pos 3291 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 3.205 ms, verify 12.187 ms, accept + rollback 2.611 ms, mb rescued 0
+spec: token 299 pos 3294 drafted 2 accepted 2 emits 3 drafts [2738, 763]
+spec: sampled Match draft 3.403 ms, verify 12.190 ms, accept + rollback 2.827 ms, mb rescued 0
+spec: token 302 pos 3297 drafted 2 accepted 2 emits 3 drafts [1077, 2150]
+spec: sampled Match draft 3.369 ms, verify 12.385 ms, accept + rollback 2.639 ms, mb rescued 0
+spec: token 305 pos 3300 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 3.350 ms, verify 12.269 ms, accept + rollback 2.791 ms, mb rescued 0
+spec: token 308 pos 3303 drafted 2 accepted 2 emits 3 drafts [13679, 763]
+spec: sampled Match draft 3.284 ms, verify 12.088 ms, accept + rollback 2.811 ms, mb rescued 0
+spec: token 311 pos 3306 drafted 2 accepted 2 emits 3 drafts [198, 406]
+spec: sampled Match draft 3.250 ms, verify 12.370 ms, accept + rollback 2.622 ms, mb rescued 0
+spec: token 314 pos 3309 drafted 2 accepted 2 emits 3 drafts [83, 18]
+spec: sampled Match draft 3.259 ms, verify 12.108 ms, accept + rollback 2.793 ms, mb rescued 0
+spec: token 317 pos 3312 drafted 2 accepted 2 emits 3 drafts [198, 406]
+spec: sampled Match draft 3.237 ms, verify 12.259 ms, accept + rollback 2.804 ms, mb rescued 0
+spec: token 320 pos 3315 drafted 2 accepted 2 emits 3 drafts [83, 17]
+spec: sampled Match draft 2.607 ms, verify 12.157 ms, accept + rollback 2.617 ms, mb rescued 0
+spec: token 323 pos 3318 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 3.319 ms, verify 12.274 ms, accept + rollback 2.822 ms, mb rescued 0
+spec: token 326 pos 3321 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 3.285 ms, verify 12.170 ms, accept + rollback 2.826 ms, mb rescued 0
+spec: token 329 pos 3324 drafted 2 accepted 2 emits 3 drafts [6352, 763]
+spec: sampled Match draft 3.222 ms, verify 12.219 ms, accept + rollback 2.848 ms, mb rescued 0
+spec: token 332 pos 3327 drafted 2 accepted 2 emits 3 drafts [16, 18]
+spec: sampled Match draft 3.152 ms, verify 12.262 ms, accept + rollback 2.811 ms, mb rescued 0
+spec: token 335 pos 3330 drafted 2 accepted 2 emits 3 drafts [17, 20]
+spec: sampled Match draft 3.192 ms, verify 12.426 ms, accept + rollback 2.788 ms, mb rescued 0
+spec: token 338 pos 3333 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 3.248 ms, verify 12.297 ms, accept + rollback 2.789 ms, mb rescued 0
+spec: token 341 pos 3336 drafted 2 accepted 2 emits 3 drafts [13091, 763]
+spec: sampled Match draft 3.361 ms, verify 12.256 ms, accept + rollback 2.795 ms, mb rescued 0
+spec: token 344 pos 3339 drafted 2 accepted 2 emits 3 drafts [22, 24]
+spec: sampled Match draft 3.559 ms, verify 12.126 ms, accept + rollback 2.790 ms, mb rescued 0
+spec: token 347 pos 3342 drafted 2 accepted 2 emits 3 drafts [220, 2390]
+spec: sampled Match draft 3.430 ms, verify 12.035 ms, accept + rollback 2.624 ms, mb rescued 0
+spec: token 350 pos 3345 drafted 2 accepted 2 emits 3 drafts [220, 313]
+spec: sampled Match draft 3.066 ms, verify 12.177 ms, accept + rollback 2.782 ms, mb rescued 0
+spec: token 353 pos 3348 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.397 ms, verify 12.295 ms, accept + rollback 2.635 ms, mb rescued 0
+spec: token 356 pos 3351 drafted 2 accepted 2 emits 3 drafts [763, 220]
+spec: sampled Match draft 3.406 ms, verify 12.133 ms, accept + rollback 2.793 ms, mb rescued 0
+spec: token 359 pos 3354 drafted 2 accepted 2 emits 3 drafts [15, 17]
+spec: sampled Match draft 3.221 ms, verify 12.214 ms, accept + rollback 2.789 ms, mb rescued 0
+spec: token 362 pos 3357 drafted 2 accepted 2 emits 3 drafts [11, 198]
+spec: sampled Match draft 3.325 ms, verify 12.322 ms, accept + rollback 2.785 ms, mb rescued 0
+spec: token 365 pos 3360 drafted 2 accepted 2 emits 3 drafts [328, 591]
+spec: sampled Match draft 3.382 ms, verify 12.339 ms, accept + rollback 2.625 ms, mb rescued 0
+spec: token 368 pos 3363 drafted 2 accepted 2 emits 3 drafts [328, 9505]
+spec: sampled Match draft 3.299 ms, verify 12.221 ms, accept + rollback 2.875 ms, mb rescued 0
+spec: token 371 pos 3366 drafted 2 accepted 2 emits 3 drafts [15, 15]
+spec: sampled Match draft 3.004 ms, verify 12.382 ms, accept + rollback 2.820 ms, mb rescued 0
+spec: token 374 pos 3369 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: sampled Match draft 3.302 ms, verify 12.367 ms, accept + rollback 2.803 ms, mb rescued 0
+spec: token 377 pos 3372 drafted 2 accepted 2 emits 3 drafts [328, 3810]
+spec: sampled Match draft 3.273 ms, verify 12.165 ms, accept + rollback 2.783 ms, mb rescued 0
+spec: token 380 pos 3375 drafted 2 accepted 2 emits 3 drafts [328, 350]
+spec: sampled Match draft 3.378 ms, verify 12.338 ms, accept + rollback 2.620 ms, mb rescued 0
+spec: token 383 pos 3378 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 3.430 ms, verify 12.304 ms, accept + rollback 2.798 ms, mb rescued 0
+spec: token 386 pos 3381 drafted 2 accepted 2 emits 3 drafts [2738, 763]
+spec: sampled Match draft 3.371 ms, verify 12.479 ms, accept + rollback 2.828 ms, mb rescued 0
+spec: token 389 pos 3384 drafted 2 accepted 2 emits 3 drafts [2932, 487]
+spec: sampled Match draft 3.181 ms, verify 12.320 ms, accept + rollback 2.834 ms, mb rescued 0
+spec: token 392 pos 3387 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.117 ms, verify 12.176 ms, accept + rollback 2.836 ms, mb rescued 0
+spec: token 395 pos 3390 drafted 2 accepted 2 emits 3 drafts [763, 498]
+spec: sampled Match draft 3.095 ms, verify 12.389 ms, accept + rollback 2.826 ms, mb rescued 0
+spec: token 398 pos 3393 drafted 2 accepted 2 emits 3 drafts [406, 328]
+spec: sampled Match draft 3.064 ms, verify 12.347 ms, accept + rollback 3.618 ms, mb rescued 0
+spec: token 401 pos 3396 drafted 2 accepted 2 emits 3 drafts [19, 487]
+spec: sampled Match draft 3.087 ms, verify 12.195 ms, accept + rollback 2.826 ms, mb rescued 0
+spec: token 404 pos 3399 drafted 2 accepted 2 emits 3 drafts [406, 328]
+spec: sampled Match draft 3.034 ms, verify 12.327 ms, accept + rollback 2.852 ms, mb rescued 0
+spec: token 407 pos 3402 drafted 2 accepted 2 emits 3 drafts [20, 1]
+spec: sampled Match draft 3.026 ms, verify 12.342 ms, accept + rollback 2.834 ms, mb rescued 0
+spec: token 410 pos 3405 drafted 2 accepted 2 emits 3 drafts [262, 10339]
+spec: sampled Match draft 3.028 ms, verify 12.585 ms, accept + rollback 2.836 ms, mb rescued 0
+spec: token 413 pos 3408 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.174 ms, verify 12.218 ms, accept + rollback 2.827 ms, mb rescued 0
+spec: token 416 pos 3411 drafted 2 accepted 2 emits 3 drafts [763, 220]
+spec: sampled Match draft 3.146 ms, verify 12.346 ms, accept + rollback 2.829 ms, mb rescued 0
+spec: token 419 pos 3414 drafted 2 accepted 2 emits 3 drafts [19, 13]
+spec: sampled Match draft 2.996 ms, verify 12.485 ms, accept + rollback 2.840 ms, mb rescued 0
+spec: token 422 pos 3417 drafted 2 accepted 2 emits 3 drafts [11, 198]
+spec: sampled Match draft 3.002 ms, verify 12.350 ms, accept + rollback 2.839 ms, mb rescued 0
+spec: token 425 pos 3420 drafted 2 accepted 2 emits 3 drafts [328, 13091]
+spec: sampled Match draft 3.033 ms, verify 12.229 ms, accept + rollback 2.845 ms, mb rescued 0
+spec: token 428 pos 3423 drafted 2 accepted 2 emits 3 drafts [220, 24]
+spec: sampled Match draft 3.101 ms, verify 12.389 ms, accept + rollback 2.833 ms, mb rescued 0
+spec: token 431 pos 3426 drafted 2 accepted 2 emits 3 drafts [198, 220]
+spec: sampled Match draft 3.127 ms, verify 12.104 ms, accept + rollback 2.843 ms, mb rescued 0
+spec: token 434 pos 3429 drafted 2 accepted 2 emits 3 drafts [198, 220]
+spec: sampled Match draft 3.080 ms, verify 12.359 ms, accept + rollback 2.795 ms, mb rescued 0
+spec: token 437 pos 3432 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 3.458 ms, verify 12.337 ms, accept + rollback 2.833 ms, mb rescued 0
+spec: token 440 pos 3435 drafted 2 accepted 2 emits 3 drafts [306, 763]
+spec: sampled Match draft 3.226 ms, verify 12.263 ms, accept + rollback 2.810 ms, mb rescued 0
+spec: token 443 pos 3438 drafted 2 accepted 2 emits 3 drafts [16, 15]
+spec: sampled Match draft 3.377 ms, verify 12.232 ms, accept + rollback 2.795 ms, mb rescued 0
+spec: token 446 pos 3441 drafted 2 accepted 2 emits 3 drafts [20, 11]
+spec: sampled Match draft 3.534 ms, verify 12.250 ms, accept + rollback 2.638 ms, mb rescued 0
+spec: token 449 pos 3444 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.415 ms, verify 12.292 ms, accept + rollback 2.816 ms, mb rescued 0
+spec: token 452 pos 3447 drafted 2 accepted 2 emits 3 drafts [763, 328]
+spec: sampled Match draft 3.248 ms, verify 12.309 ms, accept + rollback 2.638 ms, mb rescued 0
+spec: token 455 pos 3450 drafted 2 accepted 2 emits 3 drafts [12, 15]
+spec: sampled Match draft 3.219 ms, verify 12.402 ms, accept + rollback 2.784 ms, mb rescued 0
+spec: token 458 pos 3453 drafted 2 accepted 2 emits 3 drafts [20, 487]
+spec: sampled Match draft 3.162 ms, verify 12.294 ms, accept + rollback 4.019 ms, mb rescued 0
+spec: token 461 pos 3456 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.480 ms, verify 12.053 ms, accept + rollback 2.621 ms, mb rescued 0
+spec: token 464 pos 3459 drafted 2 accepted 2 emits 3 drafts [763, 328]
+spec: sampled Match draft 3.325 ms, verify 12.351 ms, accept + rollback 2.805 ms, mb rescued 0
+spec: token 467 pos 3462 drafted 2 accepted 2 emits 3 drafts [565, 487]
+spec: sampled Match draft 3.221 ms, verify 12.497 ms, accept + rollback 2.784 ms, mb rescued 0
+spec: token 470 pos 3465 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.181 ms, verify 12.047 ms, accept + rollback 2.802 ms, mb rescued 0
+spec: token 473 pos 3468 drafted 2 accepted 2 emits 3 drafts [763, 328]
+spec: sampled Match draft 3.290 ms, verify 12.144 ms, accept + rollback 2.781 ms, mb rescued 0
+spec: token 476 pos 3471 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: sampled Match draft 3.305 ms, verify 12.481 ms, accept + rollback 2.826 ms, mb rescued 0
+spec: token 479 pos 3474 drafted 2 accepted 2 emits 3 drafts [328, 13679]
+spec: sampled Match draft 3.104 ms, verify 12.119 ms, accept + rollback 2.835 ms, mb rescued 0
+spec: token 482 pos 3477 drafted 2 accepted 2 emits 3 drafts [498, 198]
+spec: sampled Match draft 3.042 ms, verify 12.201 ms, accept + rollback 2.842 ms, mb rescued 0
+spec: token 485 pos 3480 drafted 2 accepted 2 emits 3 drafts [328, 83]
+spec: sampled Match draft 3.153 ms, verify 12.209 ms, accept + rollback 2.846 ms, mb rescued 0
+spec: token 488 pos 3483 drafted 2 accepted 2 emits 3 drafts [487, 198]
+spec: sampled Match draft 3.574 ms, verify 12.272 ms, accept + rollback 2.813 ms, mb rescued 0
+spec: token 491 pos 3486 drafted 2 accepted 2 emits 3 drafts [328, 83]
+spec: sampled Match draft 3.358 ms, verify 12.410 ms, accept + rollback 2.815 ms, mb rescued 0
+spec: token 494 pos 3489 drafted 2 accepted 2 emits 3 drafts [1, 198]
+spec: sampled Match draft 3.382 ms, verify 12.042 ms, accept + rollback 2.821 ms, mb rescued 0
+spec: token 497 pos 3492 drafted 2 accepted 2 emits 3 drafts [10339, 198]
+spec: sampled Match draft 3.362 ms, verify 12.549 ms, accept + rollback 2.799 ms, mb rescued 0
+spec: token 500 pos 3495 drafted 2 accepted 2 emits 3 drafts [328, 6352]
+spec: sampled Match draft 3.522 ms, verify 12.160 ms, accept + rollback 2.795 ms, mb rescued 0
+spec: token 503 pos 3498 drafted 2 accepted 2 emits 3 drafts [220, 16]
+spec: sampled Match draft 3.226 ms, verify 12.298 ms, accept + rollback 2.802 ms, mb rescued 0
+spec: token 506 pos 3501 drafted 2 accepted 2 emits 3 drafts [13, 22]
+spec: sampled Match draft 3.151 ms, verify 12.398 ms, accept + rollback 4.034 ms, mb rescued 0
+spec: token 509 pos 3504 drafted 2 accepted 2 emits 3 drafts [11, 198]
+spec: sampled Match draft 3.085 ms, verify 12.317 ms, accept + rollback 2.760 ms, mb rescued 0
+spec: token 512 pos 3507 drafted 2 accepted 2 emits 3 drafts [328, 13091]
+spec: sampled Match draft 3.166 ms, verify 12.240 ms, accept + rollback 2.816 ms, mb rescued 0
+spec: token 515 pos 3510 drafted 2 accepted 2 emits 3 drafts [220, 16]
+spec: sampled Match draft 3.197 ms, verify 12.389 ms, accept + rollback 2.795 ms, mb rescued 0
+spec: token 518 pos 3513 drafted 2 accepted 2 emits 3 drafts [20, 198]
+spec: sampled Match draft 3.210 ms, verify 12.088 ms, accept + rollback 2.813 ms, mb rescued 0
+spec: token 521 pos 3516 drafted 2 accepted 2 emits 3 drafts [2390, 198]
+spec: sampled Match draft 3.032 ms, verify 12.373 ms, accept + rollback 2.621 ms, mb rescued 0
+spec: token 524 pos 3519 drafted 2 accepted 2 emits 3 drafts [313, 198]
+spec: sampled Match draft 3.408 ms, verify 12.362 ms, accept + rollback 2.803 ms, mb rescued 0
+spec: token 527 pos 3522 drafted 2 accepted 2 emits 3 drafts [328, 306]
+spec: sampled Match draft 3.437 ms, verify 12.212 ms, accept + rollback 2.792 ms, mb rescued 0
+spec: token 530 pos 3525 drafted 2 accepted 2 emits 3 drafts [220, 16]
+spec: sampled Match draft 3.297 ms, verify 12.073 ms, accept + rollback 2.781 ms, mb rescued 0
+spec: token 533 pos 3528 drafted 2 accepted 2 emits 3 drafts [19, 17]
+spec: sampled Match draft 3.386 ms, verify 12.336 ms, accept + rollback 2.617 ms, mb rescued 0
+spec: token 536 pos 3531 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 2.666 ms, verify 12.506 ms, accept + rollback 2.636 ms, mb rescued 0
+spec: token 539 pos 3534 drafted 2 accepted 2 emits 3 drafts [591, 763]
+spec: sampled Match draft 3.173 ms, verify 12.363 ms, accept + rollback 2.800 ms, mb rescued 0
+spec: token 542 pos 3537 drafted 2 accepted 2 emits 3 drafts [9505, 12]
+spec: sampled Match draft 3.431 ms, verify 12.394 ms, accept + rollback 2.785 ms, mb rescued 0
+spec: token 545 pos 3540 drafted 2 accepted 2 emits 3 drafts [15, 21]
+spec: sampled Match draft 3.432 ms, verify 12.355 ms, accept + rollback 2.827 ms, mb rescued 0
+spec: token 548 pos 3543 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: sampled Match draft 3.331 ms, verify 12.233 ms, accept + rollback 2.783 ms, mb rescued 0
+spec: token 551 pos 3546 drafted 2 accepted 2 emits 3 drafts [3810, 763]
+spec: sampled Match draft 3.342 ms, verify 12.281 ms, accept + rollback 2.808 ms, mb rescued 0
+spec: token 554 pos 3549 drafted 2 accepted 2 emits 3 drafts [19515, 487]
+spec: sampled Match draft 3.322 ms, verify 12.282 ms, accept + rollback 2.838 ms, mb rescued 0
+spec: token 557 pos 3552 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.399 ms, verify 12.184 ms, accept + rollback 2.782 ms, mb rescued 0
+spec: token 560 pos 3555 drafted 2 accepted 2 emits 3 drafts [763, 328]
+spec: sampled Match draft 3.314 ms, verify 12.055 ms, accept + rollback 2.782 ms, mb rescued 0
+spec: token 563 pos 3558 drafted 2 accepted 2 emits 3 drafts [2150, 487]
+spec: sampled Match draft 3.258 ms, verify 12.338 ms, accept + rollback 2.796 ms, mb rescued 0
+spec: token 566 pos 3561 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.401 ms, verify 12.264 ms, accept + rollback 2.623 ms, mb rescued 0
+spec: token 569 pos 3564 drafted 2 accepted 2 emits 3 drafts [763, 498]
+spec: sampled Match draft 3.631 ms, verify 12.253 ms, accept + rollback 2.795 ms, mb rescued 0
+spec: token 572 pos 3567 drafted 2 accepted 2 emits 3 drafts [406, 328]
+spec: sampled Match draft 3.589 ms, verify 12.160 ms, accept + rollback 2.802 ms, mb rescued 0
+spec: token 575 pos 3570 drafted 2 accepted 2 emits 3 drafts [16, 487]
+spec: sampled Match draft 3.536 ms, verify 12.202 ms, accept + rollback 2.798 ms, mb rescued 0
+spec: token 578 pos 3573 drafted 2 accepted 2 emits 3 drafts [406, 328]
+spec: sampled Match draft 3.428 ms, verify 12.458 ms, accept + rollback 2.635 ms, mb rescued 0
+spec: token 581 pos 3576 drafted 2 accepted 2 emits 3 drafts [19, 1]
+spec: sampled Match draft 3.524 ms, verify 12.197 ms, accept + rollback 2.790 ms, mb rescued 0
+spec: token 584 pos 3579 drafted 2 accepted 2 emits 3 drafts [262, 10339]
+spec: sampled Match draft 3.496 ms, verify 12.383 ms, accept + rollback 2.792 ms, mb rescued 0
+spec: token 587 pos 3582 drafted 2 accepted 2 emits 3 drafts [262, 328]
+spec: sampled Match draft 3.366 ms, verify 12.220 ms, accept + rollback 2.787 ms, mb rescued 0
+spec: token 590 pos 3585 drafted 2 accepted 2 emits 3 drafts [763, 220]
+spec: sampled Match draft 3.166 ms, verify 12.262 ms, accept + rollback 2.787 ms, mb rescued 0
+spec: token 593 pos 3588 drafted 2 accepted 2 emits 3 drafts [22, 13]
+spec: sampled Match draft 3.045 ms, verify 12.463 ms, accept + rollback 2.833 ms, mb rescued 0
+spec: token 596 pos 3591 drafted 2 accepted 2 emits 3 drafts [11, 198]
+spec: sampled Match draft 2.011 ms, verify 10.578 ms, accept + rollback 1.859 ms, mb rescued 0
+spec: token 599 pos 3594 drafted 1 accepted 1 emits 2 drafts [328]
+ids: [71093, 2164, 198, 58, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 15, 15, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 15, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763, 328, 1077, 2150, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 15, 487, 198, 406, 328, 83, 15, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 24, 13, 20, 11, 198, 262, 328, 13091, 763, 220, 19, 15, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 15, 22, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 16, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 16, 487, 198, 406, 328, 83, 18, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 15, 13, 22, 20, 11, 198, 262, 328, 13091, 763, 220, 20, 18, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 16, 19, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 17, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 17, 487, 198, 406, 328, 83, 21, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 17, 13, 15, 11, 198, 262, 328, 13091, 763, 220, 21, 21, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 17, 16, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 18, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763, 328, 1077, 2150, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 18, 487, 198, 406, 328, 83, 17, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 18, 13, 17, 20, 11, 198, 262, 328, 13091, 763, 220, 22, 24, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 17, 23, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 19, 487, 198, 262, 328, 3810, 763, 328, 350, 487, 198, 262, 328, 2738, 763, 328, 2932, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 19, 487, 198, 406, 328, 83, 20, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 19, 13, 20, 11, 198, 262, 328, 13091, 763, 220, 24, 17, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 18, 20, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 20, 487, 198, 262, 328, 3810, 763, 328, 385, 565, 487, 198, 262, 328, 2738, 763, 328, 27293, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 15, 487, 198, 406, 328, 83, 16, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 20, 13, 22, 20, 11, 198, 262, 328, 13091, 763, 220, 16, 15, 20, 198, 220, 2390, 198, 220, 313, 198, 262, 328, 306, 763, 220, 16, 15, 19, 17, 11, 198, 262, 328, 591, 763, 328, 9505, 12, 15, 15, 21, 487, 198, 262, 328, 3810, 763, 328, 19515, 487, 198, 262, 328, 2738, 763, 328, 1077, 2150, 487, 198, 262, 328, 13679, 763, 498, 198, 406, 328, 83, 16, 487, 198, 406, 328, 83, 19, 1, 198, 262, 10339, 198, 262, 328, 6352, 763, 220, 16, 22, 13, 15, 11, 198, 262, 328, 13091]
+finish=length prompt=2997 (cached 0) completion=600 | prefill 1461 ms (2052.0 tok/s) | decode 3686 ms (162.51 tok/s)
+spec: verify passes=200 proposed=399 accepted=399 (acceptance 100.0%, 3.00 tokens per pass)
+steps=202 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/401 argmax=0ms/599 attn_decode=0ms/210 attn_prefill=0ms/2209 embedding=0ms/603

@@ -137,6 +137,10 @@ prefill_peel_period = 2048
 # (`INTARSIA_METAL_MTP_GPU_ACCEPT`, docs/results/2026-10-29-mmtp-metal-gpu-accept.md) is on by default. Speed, prefill cost, memory and the greedy-id check against
 # `--spec off`: docs/results/2026-11-05-metal35-mtp-default.md.
 mtp_default_k = 2
+# Copy drafts on by default with `--spec mtp` at one sequence (`--max-batch 1`, tp 1) when `INTARSIA_SPEC_COPY` is unset (lane copyflipm, #460, accepted by user 2026-11-18):
+# `INTARSIA_SPEC_COPY=0` opts out. Set only for the Qwen3.6-35B-A3B, where it was measured (docs/results/2026-11-18-copymetal.md: copy3k 2.10x, json-xform 1.64x, agent-edit 1.22x, no cell below 0.995x).
+# The Qwen3.8-27B (`recipes/qwen3_5_vl.toml`) was measured and left out: code-gen 0.993x, agent-batch 0.989x, agent-edit 1.019x (docs/results/2026-11-18-copyflipm.md).
+copy_default = true
 
 # 4096 on HIP: every MoE layer reads all 256 experts once per chunk, so at 256 tokens a 4k prompt re-reads the expert weights 16
 # times. 35B prefill on one R9700 at 128 / 1024 / 4096 tokens goes 1254 / 2112 / 2033 tok/s (256) to 1231 / 3094 / 3585 (4096), 3058

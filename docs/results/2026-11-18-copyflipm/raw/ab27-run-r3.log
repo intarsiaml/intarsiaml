@@ -1,0 +1,24 @@
+fleetq: #10294 waiting (#1 in line): needs cpu quiet on endor, but #10291 "cvat docs_env_vars" (claude-0b386a17-cvat) loads it
+fleetq: #10294 running on endor: env R0=3 ROUNDS=1 REPS=3 scripts/copyflipm/ab27.sh
+== round 3 arm zero env INTARSIA_SPEC_COPY=0 cooled 120s thermal 0 17:17:51
+zero r3 startup: speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16|
+zero r3 copy3k thermal 0->2: {"cell": "copy3k", "tag": "c3", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 3.745, "dec_tps": 65.64, "wall": 47.958, "sha": "4eb925608b0c"}
+zero r3 agent-edit thermal 2->2: {"cell": "agent-edit", "tag": "c3", "rep": 2, "toks": 77, "chunks": 76, "ttft": 2.47, "dec_tps": 61.75, "wall": 3.7, "sha": "6076712aaca7"}
+zero r3 agent-batch thermal 2->2: {"cell": "agent-batch", "tag": "c3", "rep": 2, "toks": 1159, "chunks": 1158, "ttft": 1.112, "dec_tps": 66.6, "wall": 18.499, "sha": "ed9a1f4d0ec2"}
+zero r3 json-xform thermal 2->2: {"cell": "json-xform", "tag": "c3", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 3.882, "dec_tps": 63.37, "wall": 44.895, "sha": "e4cca5268730"}
+zero r3 chat-short thermal 2->2: {"cell": "chat-short", "tag": "c3", "rep": 2, "toks": 383, "chunks": 382, "ttft": 0.17, "dec_tps": 51.08, "wall": 7.647, "sha": "138ed676c69e"}
+zero r3 reason thermal 2->2: {"cell": "reason", "tag": "c3", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.275, "dec_tps": 62.64, "wall": 8.242, "sha": "0e7086daab63"}
+zero r3 code-gen thermal 2->2: {"cell": "code-gen", "tag": "c3", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.269, "dec_tps": 62.88, "wall": 12.976, "sha": "27711138bd9b"}
+zero r3 metrics: intarsia_spec_steps_total 8934 intarsia_spec_proposed_tokens_total 17863 intarsia_spec_accepted_tokens_total 16992 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+== round 3 arm def env X=1 cooled 90s thermal 0 17:26:47
+def r3 startup: speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16|spec: copy drafts on: a chain of up to 15 tokens when the last 20 tokens occurred earlier (default on Metal at one seque|
+def r3 copy3k thermal 0->2: {"cell": "copy3k", "tag": "c3", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 3.624, "dec_tps": 95.25, "wall": 34.092, "sha": "4eb925608b0c"}
+def r3 agent-edit thermal 2->2: {"cell": "agent-edit", "tag": "c3", "rep": 2, "toks": 77, "chunks": 76, "ttft": 2.446, "dec_tps": 60.37, "wall": 3.705, "sha": "6076712aaca7"}
+def r3 agent-batch thermal 2->2: {"cell": "agent-batch", "tag": "c3", "rep": 2, "toks": 1159, "chunks": 1158, "ttft": 1.106, "dec_tps": 66.49, "wall": 18.523, "sha": "ed9a1f4d0ec2"}
+def r3 json-xform thermal 2->2: {"cell": "json-xform", "tag": "c3", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 3.752, "dec_tps": 75.95, "wall": 37.97, "sha": "e4cca5268730"}
+def r3 chat-short thermal 2->2: {"cell": "chat-short", "tag": "c3", "rep": 2, "toks": 383, "chunks": 382, "ttft": 0.188, "dec_tps": 51.7, "wall": 7.576, "sha": "138ed676c69e"}
+def r3 reason thermal 2->2: {"cell": "reason", "tag": "c3", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.262, "dec_tps": 63.4, "wall": 8.132, "sha": "0e7086daab63"}
+def r3 code-gen thermal 2->2: {"cell": "code-gen", "tag": "c3", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.263, "dec_tps": 62.26, "wall": 13.097, "sha": "27711138bd9b"}
+def r3 metrics: intarsia_spec_steps_total 3484 intarsia_spec_proposed_tokens_total 6964 intarsia_spec_accepted_tokens_total 6203 intarsia_spec_copy_steps_total 1134 intarsia_spec_copy_proposed_tokens_total 17005 intarsia_spec_copy_accepted_tokens_total 15108 
+ab done
+fleetq: #10294 done (exit 0)
