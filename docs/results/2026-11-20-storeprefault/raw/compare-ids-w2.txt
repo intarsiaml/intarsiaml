@@ -1,0 +1,4 @@
+w2-v1-smacro-ids.json: identical 24 of 24; cached tokens on the 'again' sends: 1
+w2-v2-pf-ids.json: identical 24 of 24; cached tokens on the 'again' sends: 1500:
+base w2-v1-smacro-ids.json: 24 replies, 24 ok; cached tokens on the 'again' sends: 1500:1441, 3000:2920, 4300:4243, 6200:6173, 8300:8322, 10300:10392, 12500:12638, 16500:16704, 20500:20808, 24600:25133, 28700:29450, 33000:34064
+w2-v2-pf-ids.json: identical 24 of 24; cached tokens on the 'again' sends: 1500:1441, 3000:2920, 4300:4243, 6200:6173, 8300:8322, 10300:10392, 12500:12638, 16500:16704, 20500:20808, 24600:25133, 28700:29450, 33000:34064

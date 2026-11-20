@@ -461,7 +461,7 @@ impl Tier {
 enum Mem {
     /// A range of a device allocation (one per insert, shared by that insert's objects) starting at the offset.
     Device(Buffer, usize),
-    Host(Arc<Vec<u8>>),
+    Host(Arc<HostBuf>),
 }
 
 struct Obj {
@@ -469,7 +469,7 @@ struct Obj {
     mem: Option<Mem>,
     /// On disk (or queued for the writer, whose staged copy `staged` holds until it confirms).
     disk: Option<PathBuf>,
-    staged: Option<Arc<Vec<u8>>>,
+    staged: Option<Arc<HostBuf>>,
     last_use: u64,
     /// Entries referencing it, and how many of those are pinned.
     refs: u32,
@@ -628,7 +628,7 @@ pub struct PrefixStore {
     /// Pre-faulted host buffers freed by host-tier eviction, kept for the next demote (or host capture) of the same size
     /// (objects come in a few sizes; a fresh buffer costs a page fault per 4 KiB, a recycled one nothing). Counted with
     /// `used[1]` against the host budget: `enforce` drops pooled buffers first when the two together exceed it.
-    host_free: Vec<Vec<u8>>,
+    host_free: Vec<HostBuf>,
     host_free_bytes: u64,
     /// Device slab the deferred captures of the current request are carved from (`bytes used` of it taken), and the
     /// slabs of this request it has outgrown; see [`PrefixStore::slab`].
@@ -703,7 +703,7 @@ const SLAB_POOL_CAP: usize = 256 << 20;
 
 struct DiskWriter {
     dir: PathBuf,
-    tx: Sender<(Key, PathBuf, Arc<Vec<u8>>)>,
+    tx: Sender<(Key, PathBuf, Arc<HostBuf>)>,
     /// `(key, written, bytes)` per queued write, in queue order.
     done: Receiver<(Key, bool, usize)>,
     _thread: std::thread::JoinHandle<()>,
@@ -1208,14 +1208,14 @@ impl PrefixStore {
         let head = e.head.clone().filter(|_| self.head.as_ref().is_some_and(|h| st.mtp.as_ref().is_some_and(|m| h.fits(m))));
         let head_keys: Vec<Key> = head.iter().flat_map(|h| h.pages.iter().chain(std::iter::once(&h.tail))).copied().collect();
         // load what is on disk only, verified, before anything is written
-        let mut loaded: HashMap<Key, Arc<Vec<u8>>> = HashMap::new();
+        let mut loaded: HashMap<Key, Arc<HostBuf>> = HashMap::new();
         for k in rec.iter().chain(pages.iter()).chain(head_keys.iter()) {
             let o = self.objs.get(k).ok_or_else(|| Error::invalid("prefix store: object gone"))?;
             if o.mem.is_none() {
                 let data = match &o.staged {
                     Some(s) => Ok(s.clone()),
                     None => match &o.disk {
-                        Some(p) => read_obj(p, self.build, *k, o.bytes).map(Arc::new),
+                        Some(p) => read_obj(p, self.build, *k, o.bytes).map(|v| Arc::new(v.into())),
                         None => Err(Error::invalid("prefix store: object without a copy")),
                     },
                 };
@@ -1567,7 +1567,7 @@ impl PrefixStore {
     }
 
     /// Keep a host buffer nobody else holds for [`PrefixStore::take_host_buf`], if it fits the host budget.
-    fn release_host(&mut self, v: Arc<Vec<u8>>) {
+    fn release_host(&mut self, v: Arc<HostBuf>) {
         if let Ok(v) = Arc::try_unwrap(v) {
             if self.used[1] + self.host_free_bytes + v.len() as u64 <= self.cfg.host_bytes {
                 self.host_free_bytes += v.len() as u64;
@@ -1578,7 +1578,7 @@ impl PrefixStore {
 
     /// A host buffer of `n` bytes, every page touched: a recycled one (stale bytes: the caller overwrites all of it), else
     /// a new one ([`host_buf`]) after giving back pooled buffers the budget needs.
-    fn take_host_buf(&mut self, n: usize) -> Vec<u8> {
+    fn take_host_buf(&mut self, n: usize) -> HostBuf {
         if let Some(i) = self.host_free.iter().position(|v| v.len() == n) {
             self.host_free_bytes -= n as u64;
             return self.host_free.swap_remove(i);
@@ -1587,7 +1587,7 @@ impl PrefixStore {
             let Some(v) = self.host_free.pop() else { break };
             self.host_free_bytes -= v.len() as u64;
         }
-        host_buf(n)
+        new_host_buf(n, host_prefault())
     }
 
     fn lru(&self, f: impl Fn(&Obj) -> bool) -> Option<Key> {
@@ -1654,7 +1654,7 @@ impl PrefixStore {
 
     // ------------------------------------------------------------------------------------------------- disk
 
-    fn queue_write(&mut self, k: Key, o: &mut Obj, data: Arc<Vec<u8>>) {
+    fn queue_write(&mut self, k: Key, o: &mut Obj, data: Arc<HostBuf>) {
         let Some(w) = &self.writer else { return };
         if self.cfg.disk_bytes < o.bytes as u64 {
             return;
@@ -1897,7 +1897,7 @@ impl PrefixStore {
 
 /// Write the object's bytes into the state segments: a device copy, an upload from host memory, or the bytes loaded from
 /// disk.
-fn put(backend: &dyn Backend, o: &Obj, loaded: Option<&Arc<Vec<u8>>>, segs: &[(&Buffer, usize, usize)]) -> Result<()> {
+fn put(backend: &dyn Backend, o: &Obj, loaded: Option<&Arc<HostBuf>>, segs: &[(&Buffer, usize, usize)]) -> Result<()> {
     let total: usize = segs.iter().map(|s| s.2).sum();
     if total != o.bytes {
         return Err(Error::invalid("prefix store: object size does not match the state layout"));
@@ -1968,7 +1968,7 @@ fn write_atomic(path: &Path, parts: &[&[u8]]) -> std::io::Result<()> {
 
 impl DiskWriter {
     fn spawn(dir: PathBuf, build: u64) -> Result<DiskWriter> {
-        let (tx, rx) = channel::<(Key, PathBuf, Arc<Vec<u8>>)>();
+        let (tx, rx) = channel::<(Key, PathBuf, Arc<HostBuf>)>();
         let (dtx, done) = channel();
         let thread = std::thread::Builder::new()
             .name("intarsia-prefix-store-writer".into())
@@ -1979,7 +1979,7 @@ impl DiskWriter {
 }
 
 /// The disk writer thread: each queued object written (header with its checksum, then the bytes) and confirmed in order.
-fn run_writer(rx: Receiver<(Key, PathBuf, Arc<Vec<u8>>)>, dtx: Sender<(Key, bool, usize)>, build: u64) {
+fn run_writer(rx: Receiver<(Key, PathBuf, Arc<HostBuf>)>, dtx: Sender<(Key, bool, usize)>, build: u64) {
     let dbg = debug();
     for (k, path, data) in rx.iter() {
         let t0 = Instant::now();
@@ -2098,7 +2098,7 @@ mod tests {
         assert_ne!(checksum(b"abcdefgh1"), checksum(b"abcdefgh2"));
     }
 
-    fn test_store(cfg: PrefixStoreConfig) -> PrefixStore {
+    pub(super) fn test_store(cfg: PrefixStoreConfig) -> PrefixStore {
         PrefixStore::new(cfg, &[crate::state::SlotSpec::Recurrent { bytes: 64 }], "unit").unwrap()
     }
 
@@ -2109,7 +2109,7 @@ mod tests {
         let cfg = PrefixStoreConfig { host_bytes, disk_bytes, disk_dir: Some(root), ..Default::default() };
         let mut s = test_store(cfg);
         let dir = s.writer.as_ref().unwrap().dir.clone();
-        let (tx, rx) = channel::<(Key, PathBuf, Arc<Vec<u8>>)>();
+        let (tx, rx) = channel::<(Key, PathBuf, Arc<HostBuf>)>();
         let (gated_tx, gated) = channel();
         let (gate_tx, gate) = channel::<()>();
         let (dtx, done) = channel();
@@ -2135,7 +2135,7 @@ mod tests {
         let mib = MIB as usize;
         let (mut s, gate, dir) = stalled_store("bound", 4 * MIB, 1 << 30);
         for k in 1..=6u128 {
-            s.add_obj(k, mib, Mem::Host(Arc::new(vec![k as u8; mib])), k as u64, false);
+            s.add_obj(k, mib, Mem::Host(Arc::new(vec![k as u8; mib].into())), k as u64, false);
         }
         // four 1 MiB writes fill the 4 MiB limit; the rest stay host-only
         assert_eq!(s.pending_write_bytes, 4 * MIB);
@@ -2146,7 +2146,7 @@ mod tests {
         for k in 1..=4u128 {
             s.drop_obj(k);
         }
-        s.add_obj(7, mib, Mem::Host(Arc::new(vec![7; mib])), 7, false);
+        s.add_obj(7, mib, Mem::Host(Arc::new(vec![7; mib].into())), 7, false);
         assert!(s.objs[&7].disk.is_none());
         assert_eq!(s.pending_write_bytes, 4 * MIB);
         // the disk catches up: nothing pending, and no file for the objects dropped while queued
@@ -2156,7 +2156,7 @@ mod tests {
         s.flush();
         assert_eq!(s.pending_write_bytes, 0);
         assert!((1..=4).all(|k| !obj_path(&dir, k).exists()));
-        s.add_obj(8, mib, Mem::Host(Arc::new(vec![8; mib])), 8, false);
+        s.add_obj(8, mib, Mem::Host(Arc::new(vec![8; mib].into())), 8, false);
         assert!(s.objs[&8].disk.is_some());
         gate.send(()).unwrap();
         s.flush();
@@ -2170,7 +2170,7 @@ mod tests {
         let mib = MIB as usize;
         let (mut s, gate, dir) = stalled_store("evict", 64 * MIB, 2 * MIB);
         for k in 1..=3u128 {
-            s.add_obj(k, mib, Mem::Host(Arc::new(vec![k as u8; mib])), k as u64, false);
+            s.add_obj(k, mib, Mem::Host(Arc::new(vec![k as u8; mib].into())), k as u64, false);
         }
         assert_eq!(s.used[2], 3 * MIB);
         // over the disk budget before anything was written: the oldest loses its (not yet existing) file, keeps its host copy
@@ -2242,4 +2242,184 @@ fn host_buf(n: usize) -> Vec<u8> {
         unsafe { std::ptr::write_volatile(p.add(i), 0) };
     }
     v
+}
+
+/// How the store allocates a NEW host buffer (`INTARSIA_PREFIX_STORE_PREFAULT`, lane storeprefault, opt-in, default off).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Prefault {
+    /// `vec![0u8; n]` plus a write per 4 KiB page ([`host_buf`]): the allocator puts a 16-byte header in front of a large block,
+    /// so the data starts 16 bytes into a page.
+    Off,
+    /// A mapping of its own, starting on a page (`4k`).
+    Aligned,
+    /// As `Aligned`, starting on a 2 MiB boundary with `MADV_HUGEPAGE` over its whole 2 MiB blocks (`1`).
+    Huge,
+}
+
+/// `INTARSIA_PREFIX_STORE_PREFAULT`: `1` = [`Prefault::Huge`], `4k` = [`Prefault::Aligned`], unset or anything else = off.
+/// Measured on the GB10 (`scripts/storeprefault/d2h4.cu`): the first device-to-host copy into a new buffer that starts 16 bytes
+/// into a page runs at about 1.3 GB/s (5 MiB in 3.9 ms, 32 MiB in 4.2 ms), into a page-aligned one at 54 GB/s (0.10 / 0.56 ms),
+/// and later copies are fast either way, which is why a recycled host buffer was fast and a fresh server's settle slow
+/// (lane storettft, cause C). Touching the pages costs about 3.5 GB/s with 4 KiB pages and 13 to 25 GB/s with huge ones.
+fn host_prefault() -> Prefault {
+    static P: std::sync::OnceLock<Prefault> = std::sync::OnceLock::new();
+    *P.get_or_init(|| match std::env::var("INTARSIA_PREFIX_STORE_PREFAULT").as_deref().map(str::trim) {
+        Ok("1") => Prefault::Huge,
+        Ok("4k") => Prefault::Aligned,
+        _ => Prefault::Off,
+    })
+}
+
+/// Smallest new host buffer that gets a mapping of its own under [`host_prefault`]: every non-empty one. The first window (wd,
+/// `INTARSIA_PREFIX_STORE_DEBUG=1`) had this at 1 MiB, and the first download into a new misaligned `Vec` was slow at every size
+/// the store makes (4 KiB in 0.6 ms, 512 KiB in 1.4 ms: 406 such objects were half of a 885 MiB settle's 300 ms), not only the
+/// large ones. A mapping is a VMA, two from 2 MiB up (the `madvise` splits off the 4 KiB tail; `vm.max_map_count` is 65530 by
+/// default): the 8 GiB default host tier of the 35B holds about 3000 objects, about 4500 VMAs.
+const MAPPED_MIN: usize = 1;
+const HUGE: usize = 2 << 20;
+
+/// A new host buffer of `n` bytes for a download, every page touched (see [`host_buf`] and [`Prefault`]).
+fn new_host_buf(n: usize, mode: Prefault) -> HostBuf {
+    if mode != Prefault::Off && n >= MAPPED_MIN {
+        if let Some(b) = HostBuf::mapped(n, mode == Prefault::Huge) {
+            return b;
+        }
+    }
+    HostBuf::Vec(host_buf(n))
+}
+
+/// Bytes of an object in host memory: a `Vec` (disk loads, tests, small buffers, the default), or an anonymous mapping of its
+/// own that starts on a page or a 2 MiB boundary ([`Prefault`]). Derefs to the `n` bytes.
+pub(crate) enum HostBuf {
+    Vec(Vec<u8>),
+    /// `ptr` .. `ptr + len` (the object's bytes) inside the mapping `ptr` .. `ptr + map_len`.
+    Mapped { ptr: std::ptr::NonNull<u8>, len: usize, map_len: usize },
+}
+
+// SAFETY: a `Mapped` buffer owns its mapping exclusively (nothing else holds the pointer), like a `Vec` owns its allocation.
+unsafe impl Send for HostBuf {}
+// SAFETY: shared access only reads through `&[u8]`.
+unsafe impl Sync for HostBuf {}
+
+impl HostBuf {
+    /// Map `n` bytes (rounded up to the page) at a page boundary, or at a 2 MiB boundary with `MADV_HUGEPAGE` on its whole
+    /// 2 MiB blocks when `huge`, and touch every page. `None` when the mapping fails (the caller falls back to a `Vec`).
+    fn mapped(n: usize, huge: bool) -> Option<HostBuf> {
+        // SAFETY: plain libc call.
+        let page = (unsafe { libc::sysconf(libc::_SC_PAGESIZE) }).max(4096) as usize;
+        let len_map = n.next_multiple_of(page);
+        let slack = if huge && n >= HUGE { HUGE } else { 0 };
+        // SAFETY: an anonymous private mapping, no address hint; checked for MAP_FAILED.
+        let p = unsafe {
+            libc::mmap(std::ptr::null_mut(), len_map + slack, libc::PROT_READ | libc::PROT_WRITE, libc::MAP_PRIVATE | libc::MAP_ANONYMOUS, -1, 0)
+        };
+        if p == libc::MAP_FAILED {
+            return None;
+        }
+        let base = p as usize;
+        let start = if slack > 0 { base.next_multiple_of(HUGE) } else { base };
+        // SAFETY: both ranges lie inside the mapping just made (start - base < slack, start + len_map <= base + len_map + slack)
+        // and are page multiples; nothing else uses them.
+        unsafe {
+            if start > base {
+                libc::munmap(p, start - base);
+            }
+            let end = start + len_map;
+            if base + len_map + slack > end {
+                libc::munmap(end as *mut libc::c_void, base + len_map + slack - end);
+            }
+            #[cfg(target_os = "linux")]
+            if slack > 0 {
+                // best effort: without transparent huge pages (or with `never`) the pages are 4 KiB, which is only slower to touch
+                libc::madvise(start as *mut libc::c_void, n / HUGE * HUGE, libc::MADV_HUGEPAGE);
+            }
+        }
+        let ptr = std::ptr::NonNull::new(start as *mut u8)?;
+        for i in (0..len_map).step_by(page) {
+            // SAFETY: i < len_map, inside the mapping; a volatile write so the touch happens now, on this thread.
+            unsafe { std::ptr::write_volatile(ptr.as_ptr().add(i), 0) };
+        }
+        Some(HostBuf::Mapped { ptr, len: n, map_len: len_map })
+    }
+}
+
+impl From<Vec<u8>> for HostBuf {
+    fn from(v: Vec<u8>) -> HostBuf {
+        HostBuf::Vec(v)
+    }
+}
+
+impl std::ops::Deref for HostBuf {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        match self {
+            HostBuf::Vec(v) => v,
+            // SAFETY: the mapping holds `len` initialised (zero-filled, then written) bytes for as long as `self` lives.
+            HostBuf::Mapped { ptr, len, .. } => unsafe { std::slice::from_raw_parts(ptr.as_ptr(), *len) },
+        }
+    }
+}
+
+impl std::ops::DerefMut for HostBuf {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        match self {
+            HostBuf::Vec(v) => v,
+            // SAFETY: as in `deref`, and `&mut self` makes this the only access.
+            HostBuf::Mapped { ptr, len, .. } => unsafe { std::slice::from_raw_parts_mut(ptr.as_ptr(), *len) },
+        }
+    }
+}
+
+impl Drop for HostBuf {
+    fn drop(&mut self) {
+        if let HostBuf::Mapped { ptr, map_len, .. } = self {
+            // SAFETY: the mapping `HostBuf::mapped` made (after its trims), unmapped once, here.
+            unsafe { libc::munmap(ptr.as_ptr() as *mut libc::c_void, *map_len) };
+        }
+    }
+}
+
+#[cfg(test)]
+mod host_buf_tests {
+    use super::*;
+
+    #[test]
+    fn mapped_buffers_are_aligned_zeroed_and_writable() {
+        for (n, mode) in [(5 << 20, Prefault::Huge), (32160 << 10, Prefault::Huge), (5 << 20, Prefault::Aligned), ((1 << 20) + 3, Prefault::Aligned), (512 << 10, Prefault::Huge), (6 << 10, Prefault::Huge)] {
+            let mut b = new_host_buf(n, mode);
+            assert!(matches!(b, HostBuf::Mapped { .. }), "{n} {mode:?}");
+            assert_eq!(b.len(), n);
+            let align = if mode == Prefault::Huge && n >= HUGE { HUGE } else { 4096 }; // (at least: the page size)
+            assert_eq!(b.as_ptr() as usize % align, 0, "{n} {mode:?}");
+            assert!(b.iter().all(|&x| x == 0));
+            for (i, x) in b.iter_mut().enumerate() {
+                *x = i as u8;
+            }
+            assert!(b.iter().enumerate().all(|(i, &x)| x == i as u8));
+            let shared = Arc::new(b);
+            let c = shared.clone();
+            assert_eq!(std::thread::spawn(move || c[n - 1]).join().unwrap(), (n - 1) as u8);
+        }
+    }
+
+    #[test]
+    fn empty_or_off_buffers_stay_vecs() {
+        assert!(matches!(new_host_buf(0, Prefault::Huge), HostBuf::Vec(_)));
+        assert!(matches!(new_host_buf(4 << 10, Prefault::Aligned), HostBuf::Mapped { .. }));
+        assert!(matches!(new_host_buf(5 << 20, Prefault::Off), HostBuf::Vec(_)));
+        assert_eq!(new_host_buf(5 << 20, Prefault::Off).len(), 5 << 20);
+    }
+
+    /// With the knob on, the store's whole host path (capture to host, demote, recycle, restore) works on mapped buffers.
+    #[test]
+    fn take_host_buf_recycles_mapped_buffers_by_size() {
+        let mut s = super::tests::test_store(PrefixStoreConfig { host_bytes: 64 << 20, ..Default::default() });
+        let b = HostBuf::mapped(5 << 20, true).unwrap();
+        let p = b.as_ptr();
+        s.release_host(Arc::new(b));
+        assert_eq!(s.host_free_bytes, 5 << 20);
+        let again = s.take_host_buf(5 << 20);
+        assert_eq!(again.as_ptr(), p);
+        assert_eq!(s.host_free_bytes, 0);
+    }
 }

@@ -1,0 +1,12 @@
+fleetq: #10364 running on spark2: ssh -n -o BatchMode=yes spark2 bash intarsiaml-storeprefault/out/rtest.sh
+cargo test exit 0
+test prefix_store::tests::deferred_slabs_stay_within_the_cap ... ok
+test prefix_store::tests::keys_depend_on_tokens_length_and_build ... ok
+test prefix_store::tests::parse_spec ... ok
+test prefix_store::host_buf_tests::take_host_buf_recycles_mapped_buffers_by_size ... ok
+test prefix_store::host_buf_tests::empty_or_off_buffers_stay_vecs ... ok
+test prefix_store::tests::disk_eviction_of_a_queued_write_leaves_no_file ... ok
+test prefix_store::tests::disk_writes_stop_queueing_past_the_host_budget ... ok
+test prefix_store::host_buf_tests::mapped_buffers_are_aligned_zeroed_and_writable ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 225 filtered out; finished in 0.03s
+fleetq: #10364 done (exit 0)
