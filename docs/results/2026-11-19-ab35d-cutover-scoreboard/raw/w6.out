@@ -1,0 +1,23 @@
+fleetq: #10326 waiting (#4 in line): in line behind #10323 "ab35d w3 GSM8K n=200 paired (A vLLM x2, B)" (claude-overnight-ab35d) on spark2
+fleetq:   #10323 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10323 set, or it will wait for #10323 to be released.
+fleetq: #10326 waiting (#3 in line): in line behind #10324 "ab35d w4 soak 25 min mixed greedy/T=1 at current main (B only)" (claude-overnight-ab35d) on spark2
+fleetq:   #10324 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10324 set, or it will wait for #10324 to be released.
+fleetq: #10326 waiting (#2 in line): in line behind #10325 "ab35d w5 control: speed with store off (A vLLM vs N max-batch 2 no store, ABBA)" (claude-overnight-ab35d) on spark2
+fleetq:   #10325 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10325 set, or it will wait for #10325 to be released.
+fleetq: #10326 waiting (#1 in line): needs gpu quiet on spark2, but #10325 "ab35d w5 control: speed with store off (A vLLM vs N max-batch 2 no store, ABBA)" (claude-overnight-ab35d) loads it
+fleetq:   #10325 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10325 set, or it will wait for #10325 to be released.
+fleetq: #10326 running on spark2: bash scripts/ab35d/window-ctl.sh w6 sampled
+[22:53:05 +0s] window w6 cells: sampled; fleetq job 10326
+[22:53:08 +3s] vLLM /v1/models: 200; counters 641 54494; earlyoom active; free: Mem:             121          46          68           0           7          75
+[22:53:08 +3s] binary: intarsia 0.0.1
+[22:53:08 +3s] serve B: ~/intarsiaml-ab35d/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on --kv-dtype fp8
+[22:54:38 +93s] serve B up; MemAvailable MB: 51420; --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)|--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off|batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 57e17b35902c0c8f, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)|batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 88.4s, context 131072 tokens|
+[22:54:38 +93s] B /v1/models: {"object":"list","data":[{"id":"guidance","object":"model","created":1795146877,"owned_by":"intarsia","max_model_len":131072,"root":"nvidia/Qwen3.6-35B-A3B-NVFP4"}]}
+[22:54:38 +93s] B chat with model=guidance: HTTP 400 B chat with model=guidance: HTTP 400 B chat with model=guidance: HTTP 400 B chat with model=guidance: HTTP 400
+[22:54:38 +93s] B chat with model=capcom: HTTP 400 B chat with model=capcom: HTTP 400 B chat with model=capcom: HTTP 400 B chat with model=capcom: HTTP 400
+[22:54:38 +93s] B chat with model=no-such-model: HTTP 400 B chat with model=no-such-model: HTTP 400 B chat with model=no-such-model: HTTP 400 B chat with model=no-such-model: HTTP 400
+[22:54:38 +93s] A /v1/models: {"object":"list","data":[{"id":"guidance","object":"model","created":1795146878,"owned_by":"vllm","root":"nvidia/Qwen3.6-35B-A3B-NVFP4","parent":null,"max_model_len":131072,"permission":[{"id":"modelperm-9269df189fe43ac6","object":"model_permission","created":1795146878,"allow_create_engine":false,"allow_sampling":true,"allow_logprobs":true,"allow_search_indices":false,"allow_view":true,"allow_fin
+scripts/ab35d/window-ctl.sh: line 146: unexpected EOF while looking for matching `"'
+scripts/ab35d/window-ctl.sh: line 148: syntax error: unexpected end of file
+[22:55:05 +120s] window end
+fleetq: #10326 done (exit 2)

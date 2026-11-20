@@ -1,0 +1,83 @@
+fleetq: #10321 running on spark2: bash scripts/ab35d/window.sh w1 tools replay
+[21:43:49 +0s] window w1 cells: tools replay; fleetq job 10321
+[21:43:51 +2s] vLLM /v1/models: 200; counters 1 1500; earlyoom active; free: Mem:             121          45          50           0          27          76
+[21:43:52 +3s] binary: intarsia 0.0.1
+[21:43:52 +3s] serve B: ~/intarsiaml-ab35d/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[21:44:49 +60s] serve B up; MemAvailable MB: 48894; --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)|--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off|batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 66146b66a1b4fc39, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)|batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 55.0s, context 131072 tokens|
+[21:44:50 +61s] cell tools start; vLLM counters (success gen_tokens): 1 1500; 2398 MHz, 12.19 W, 0 %, 45
+[tools] get_weather: call 3/5, receipt 3/5, stream call 0/2, stream receipt 0/2; fails=['call: ["0 tool_calls; finish_reason stop; content \'The current weather in Paris is 15°C.\'"]', 'call: ["0 tool_calls; finish_reason stop; content \'The current weather in Paris is 15°C.\'"]', 'stream_call: ["0 tool_calls; finish_reason stop; content \'The current weather in Paris is 15°C.\'"]']
+[tools] add_numbers: call 5/5, receipt 5/5, stream call 2/2, stream receipt 2/2; fails=[]
+[tools] create_event: call 5/5, receipt 5/5, stream call 2/2, stream receipt 2/2; fails=[]
+[tools] json_schema response_format: 5/5; fails=[]
+[tools] get_weather: call 3/3, receipt 3/3, stream call 2/2, stream receipt 2/2; fails=[]
+[tools] add_numbers: call 3/3, receipt 3/3, stream call 2/2, stream receipt 2/2; fails=[]
+[tools] create_event: call 3/3, receipt 3/3, stream call 2/2, stream receipt 2/2; fails=[]
+[tools] json_schema response_format: 3/3; fails=[]
+[tools] get_weather: call 5/5, receipt 5/5, stream call 2/2, stream receipt 2/2; fails=[]
+[tools] add_numbers: call 5/5, receipt 5/5, stream call 2/2, stream receipt 2/2; fails=[]
+[tools] create_event: call 5/5, receipt 5/5, stream call 2/2, stream receipt 2/2; fails=[]
+[tools] json_schema response_format: 5/5; fails=[]
+[tools] get_weather: call 3/3, receipt 3/3, stream call 2/2, stream receipt 2/2; fails=[]
+[tools] add_numbers: call 3/3, receipt 3/3, stream call 2/2, stream receipt 2/2; fails=[]
+[tools] create_event: call 3/3, receipt 3/3, stream call 2/2, stream receipt 2/2; fails=[]
+[tools] json_schema response_format: 3/3; fails=[]
+[21:48:52 +303s] cell tools end: clock guard: 119 samples, 108 at util>90, 0 of those SM<2000 MHz, min SM 2392, mean SM 2401, max power 43 W; SW power cap delta 0 us; vLLM delta success 76 gen_tokens 9228
+[21:48:53 +304s] cell replay-A-s0 start; vLLM counters (success gen_tokens): 77 10728; 2405 MHz, 14.50 W, 0 %, 60
+[replay2] w1 c5 t6 prompt=33177 cached=27248 ttft=2.72s decode=54.6 out=160 
+[replay2] w1 c7 t6 prompt=33146 cached=27248 ttft=2.61s decode=54.3 out=159 
+[replay2] w0 c6 t6 prompt=33134 cached=27248 ttft=2.45s decode=49.5 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8045 | 0 (0.0) | 2.15 (1.234-2.386) | 56.3 (40.6-62.9) |
+| 2 | 13068 | 6288 (0.481) | 1.196 (1.183-2.157) | 43.0 (41.9-60.2) |
+| 3 | 18092 | 12576 (0.695) | 1.154 (1.121-2.051) | 49.1 (33.8-59.9) |
+| 4 | 23116 | 16768 (0.725) | 2.455 (1.321-2.512) | 55.8 (39.5-57.1) |
+| 5 | 28139 | 23056 (0.819) | 2.095 (1.222-2.207) | 52.6 (38.0-55.7) |
+| 6 | 33160 | 27248 (0.822) | 2.475 (1.476-2.9) | 52.2 (37.6-59.7) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 17.35, 'itl_ms_p99_median': 212.27, 'itl_ms_p99_max': 1890.28, 'itl_cv_median': 1.432}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988922, 'cached_tokens': 687488, 'ttft_s_sum': 89.55, 'decode_tok_s_median': 54.3, 'completion_tokens': 7578, 'agg_output_tok_s': 61.92} wall 122.4s
+[21:50:58 +429s] cell replay-A-s0 end: clock guard: 61 samples, 59 at util>90, 0 of those SM<2000 MHz, min SM 2385, mean SM 2395, max power 76 W; SW power cap delta 0 us; vLLM delta success 49 gen_tokens 7586
+[21:50:59 +430s] cell replay-B-s0 start; vLLM counters (success gen_tokens): 126 18314; 2405 MHz, 15.57 W, 0 %, 63
+[replay2] w1 c5 t6 prompt=33177 cached=28156 ttft=1.59s decode=41.9 out=160 
+[replay2] w0 c6 t6 prompt=33134 cached=28106 ttft=1.56s decode=41.4 out=160 
+[replay2] w1 c7 t6 prompt=33146 cached=28106 ttft=1.56s decode=65.5 out=159 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8045 | 44 (0.005) | 1.722 (1.527-2.991) | 44.2 (38.8-62.9) |
+| 2 | 13068 | 8041 (0.615) | 1.362 (1.317-1.692) | 48.3 (43.3-54.3) |
+| 3 | 18092 | 13064 (0.722) | 1.49 (1.409-1.751) | 48.0 (43.3-67.1) |
+| 4 | 23116 | 18088 (0.783) | 1.745 (1.325-2.341) | 50.1 (43.9-53.6) |
+| 5 | 28139 | 23112 (0.821) | 1.57 (1.471-2.113) | 43.6 (43.2-52.3) |
+| 6 | 33160 | 28135 (0.849) | 1.599 (1.544-1.668) | 41.9 (41.0-65.5) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.03, 'itl_ms_p99_median': 212.04, 'itl_ms_p99_max': 1354.35, 'itl_cv_median': 2.007}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988922, 'cached_tokens': 723809, 'ttft_s_sum': 79.39, 'decode_tok_s_median': 46.0, 'completion_tokens': 7589, 'agg_output_tok_s': 62.75} wall 120.9s
+[21:53:02 +553s] cell replay-B-s0 end: clock guard: 61 samples, 56 at util>90, 0 of those SM<2000 MHz, min SM 2366, mean SM 2389, max power 86 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[21:53:07 +558s] cell replay-B-s1 start; vLLM counters (success gen_tokens): 126 18314; 2405 MHz, 15.42 W, 0 %, 62
+[replay2] w0 c4 t6 prompt=33140 cached=28120 ttft=1.55s decode=44.7 out=159 
+[replay2] w1 c7 t6 prompt=33160 cached=28147 ttft=1.7s decode=44.0 out=160 
+[replay2] w0 c6 t6 prompt=33155 cached=28135 ttft=1.59s decode=76.8 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8042 | 44 (0.005) | 1.558 (1.247-2.857) | 47.1 (43.9-76.5) |
+| 2 | 13076 | 8038 (0.615) | 1.203 (1.175-1.207) | 48.6 (43.6-52.9) |
+| 3 | 18090 | 13072 (0.723) | 1.304 (1.252-1.45) | 50.0 (44.0-69.8) |
+| 4 | 23108 | 18086 (0.783) | 1.746 (1.288-2.374) | 52.6 (45.5-72.0) |
+| 5 | 28132 | 23104 (0.821) | 1.496 (1.354-2.542) | 45.7 (43.4-68.6) |
+| 6 | 33146 | 28128 (0.849) | 1.563 (1.509-1.703) | 43.7 (40.6-76.8) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.04, 'itl_ms_p99_median': 292.08, 'itl_ms_p99_max': 1142.43, 'itl_cv_median': 2.241}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988463, 'cached_tokens': 723520, 'ttft_s_sum': 75.13, 'decode_tok_s_median': 47.8, 'completion_tokens': 7318, 'agg_output_tok_s': 65.09} wall 112.4s
+[21:55:01 +672s] cell replay-B-s1 end: clock guard: 56 samples, 49 at util>90, 0 of those SM<2000 MHz, min SM 2379, mean SM 2390, max power 85 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[21:55:06 +677s] cell replay-A-s1 start; vLLM counters (success gen_tokens): 126 18314; 2405 MHz, 15.63 W, 0 %, 63
+[replay2] w0 c4 t6 prompt=33140 cached=27248 ttft=1.49s decode=37.6 out=159 
+[replay2] w1 c7 t6 prompt=33160 cached=27248 ttft=1.55s decode=37.9 out=160 
+[replay2] w0 c6 t6 prompt=33155 cached=27248 ttft=1.51s decode=61.7 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8042 | 0 (0.0) | 2.219 (2.122-2.387) | 59.4 (56.1-63.5) |
+| 2 | 13076 | 6288 (0.481) | 1.211 (1.184-2.134) | 42.2 (32.6-61.7) |
+| 3 | 18090 | 12576 (0.695) | 1.117 (1.11-2.028) | 42.5 (40.3-58.8) |
+| 4 | 23108 | 16768 (0.726) | 1.363 (1.311-2.011) | 39.6 (39.3-56.8) |
+| 5 | 28132 | 23056 (0.82) | 1.234 (1.228-1.306) | 40.1 (37.7-40.5) |
+| 6 | 33146 | 27248 (0.822) | 1.496 (1.474-1.549) | 37.5 (34.9-61.7) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 17.23, 'itl_ms_p99_median': 355.82, 'itl_ms_p99_max': 1914.42, 'itl_cv_median': 2.536}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988463, 'cached_tokens': 687488, 'ttft_s_sum': 73.72, 'decode_tok_s_median': 40.9, 'completion_tokens': 7338, 'agg_output_tok_s': 60.43} wall 121.4s
+[21:57:09 +800s] cell replay-A-s1 end: clock guard: 61 samples, 59 at util>90, 0 of those SM<2000 MHz, min SM 2392, mean SM 2396, max power 73 W; SW power cap delta 0 us; vLLM delta success 49 gen_tokens 7346
+[21:57:13 +804s] min MemAvailable MB (time MB): 21:54:29 36507; KILLED lines: 0; warn/error lines in serve log: 0
+[21:57:40 +831s] window end
+fleetq: #10321 done (exit 0)
