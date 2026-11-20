@@ -1,0 +1,41 @@
+samples 82; phases (min from start): base=-1.5, start=0.0, settle=1.4, load=3.4, trim=33.4, idle=33.8, stop=36.8, after=39.4
+host tier first >= 95% of its 8589.9 MB budget at +1.7 min of load
+
+phase means (MB)
+phase	avail	held	Cached	Anon	Shmem	Slab	gpu_i	gpu_v	devfree	RssAnon	RssFile	PssAnon	Pss	host	hostobj	evict	v_cg	v_rss	reqs
+base	82242	33801	9555	6279	110	1591	0	26768	nan	nan	nan	nan	nan	nan	nan	nan	8253	3312	nan
+settle	54020	60863	9598	7229	152	1754	26824	26768	56636	905	109	905	1015	0	0	0	8253	3312	0
+idle	44590	61177	9599	16321	152	1758	27140	26768	46761	9993	197	9993	10190	8559	1784	3634	8253	3312	3052
+after	82314	33780	9557	6228	110	1591	0	26768	nan	nan	nan	nan	nan	nan	nan	nan	8253	3312	nan
+
+load phase, mean per 10 min (MB)
+min	avail	held	Cached	Anon	Shmem	Slab	gpu_i	gpu_v	devfree	RssAnon	RssFile	PssAnon	Pss	host	hostobj	evict	v_cg	v_rss	reqs
+0-10	44602	61265	9598	16224	152	1757	27186	26768	46761	9890	197	9891	10088	7896	1642	487	8253	3312	501
+10-20	43673	61199	9598	17216	152	1758	27140	26768	45792	10890	197	10890	11087	8547	1783	1741	8253	3312	1531
+20-30	43452	61202	9599	17435	152	1758	27140	26768	45560	11108	197	11108	11305	8556	1780	3022	8253	3312	2561
+30-30	44584	61185	9599	16319	152	1758	27140	26768	46751	9992	197	9992	10189	8559	1784	3634	8253	3312	3052
+
+slopes, MB per hour +- SE (autocorrelation-corrected), over windows of the load phase
+window	mi_MemAvailable	driver_held	mi_Cached	mi_AnonPages	gpu_mb_intarsia	gpu_mb_vllm	device_memory_free_bytes	st_RssAnon	sm_Pss_Anon	sm_Pss	host_tier_mb	vllm_cg_current	vllm_rss_engine
+all load	-3746+-1716	-203+-73	+2+-1	+3941+-1715	-158+-66	+0+-0	-3905+-1769	+3961+-1712	+3956+-1709	+3956+-1709	+2448+-1585	+1+-0	+0+-0
+load, from +10 min	-757+-405	+5+-19	+4+-1	+748+-402	+0+-0	+0+-0	-783+-433	+747+-403	+747+-403	+745+-403	+15+-53	+0+-1	+0+-0
+load, from +20 min	+1768+-1027	-15+-57	+8+-3	-1767+-996	+0+-0	+0+-0	+1908+-1090	-1769+-997	-1769+-997	-1773+-996	-190+-121	-2+-3	+0+-0
+load, from +30 min	+nan+-nan	+nan+-nan	+nan+-nan	+nan+-nan	+nan+-nan	+nan+-nan	+nan+-nan	+nan+-nan	+nan+-nan	+nan+-nan	+nan+-nan	+nan+-nan	+nan+-nan
+first half	-12169+-6474	-667+-271	+0+-0	+12812+-6385	-584+-249	+0+-0	-12675+-6658	+12864+-6357	+12843+-6346	+12847+-6348	+9782+-6199	+1+-1	+0+-0
+second half	+87+-588	-10+-28	+6+-2	-85+-577	+0+-0	+0+-0	+108+-628	-85+-579	-85+-579	-87+-579	+1+-76	-1+-1	+0+-0
+idle phase	+274+-180	-102+-102	+0+-0	-196+-151	+0+-0	+0+-0	+224+-191	+27+-9	+27+-9	+0+-0	+0+-0	-7+-16	+0+-0
+
+RssAnon slope with the host-tier sawtooth regressed out (RssAnon = a + b * host_tier + c * t), c in MB/h
+all load	RssAnon c = +1466 +- 316	MemAvailable c = -1338 +- 318
+load, from +10 min	RssAnon c = +735 +- 389	MemAvailable c = -745 +- 391
+load, from +20 min	RssAnon c = -1982 +- 1078	MemAvailable c = +1963 +- 1114
+load, from +30 min	RssAnon c = +nan +- nan	MemAvailable c = +nan +- nan
+second half	RssAnon c = -86 +- 568	MemAvailable c = +88 +- 576
+
+bracket: MemAvailable / driver_held / gpu_vllm before the server (base) vs after it stopped (after)
+mi_MemAvailable: base 82242  after 82314  delta +72
+driver_held: base 33801  after 33780  delta -21
+gpu_mb_vllm: base 26768  after 26768  delta +0
+mi_Cached: base 9555  after 9557  delta +2
+mi_AnonPages: base 6279  after 6228  delta -51
+vllm_cg_current: base 8253  after 8253  delta +0

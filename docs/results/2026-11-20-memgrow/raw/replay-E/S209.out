@@ -1,0 +1,16 @@
+[replay2] arm=S209 order=interleaved seed=209 streams=2 plan={'per_sentence': 22.06, 'base_tokens': 52, 'sentences': [357, 218, 218, 218, 218, 218]} trace=RECORD
+[replay2] warmup ok=True prompt=6701
+[replay2] w1 c1 t1 prompt=8067 cached=0 ttft=1.43s decode=45.7 out=156 
+[replay2] w0 c0 t1 prompt=8050 cached=44 ttft=2.86s decode=50.3 out=160 
+[replay2] w1 c3 t1 prompt=8055 cached=44 ttft=1.81s decode=43.3 out=154 
+[replay2] w0 c2 t1 prompt=8064 cached=44 ttft=2.07s decode=42.3 out=160 
+[replay2] w1 c5 t1 prompt=8030 cached=44 ttft=1.59s decode=44.3 out=160 
+[replay2] w0 c4 t1 prompt=8055 cached=44 ttft=1.5s decode=68.2 out=160 
+[replay2] w1 c7 t1 prompt=8028 cached=44 ttft=1.38s decode=44.6 out=160 
+[replay2] w0 c6 t1 prompt=8056 cached=44 ttft=2.49s decode=45.8 out=160 
+[replay2] w0 c0 t2 prompt=13071 cached=8046 ttft=1.25s decode=78.2 out=160 
+[replay2] w1 c1 t2 prompt=13092 cached=8063 ttft=1.28s decode=45.7 out=160 
+[replay2] w0 c2 t2 prompt=13089 cached=8060 ttft=1.07s decode=43.4 out=135 
+[replay2] w1 c3 t2 prompt=13079 cached=8051 ttft=2.13s decode=46.7 out=160 
+[replay2] w0 c4 t2 prompt=13084 cached=8051 ttft=1.33s decode=50.4 out=160 
+[replay2] w1 c5 t2 prompt=13058 cached=8026 ttft=1.27s decode=51.2 out=152 

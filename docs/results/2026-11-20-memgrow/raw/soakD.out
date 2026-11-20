@@ -1,0 +1,22 @@
+fleetq: #10360 running on spark1: bash scripts/memgrow/soak-d.sh D
+[03:45:05 +3s] tag D; fleetq job 10360; earlyoom active; avail 80 GB; binary intarsia 0.0.1
+[03:45:05 +3s] serve args: --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on  ; env: LD_PRELOAD=/home/nvidia/intarsiaml-memgrow/out/libmemstat.so MEMSTAT_PERIOD=120 MEMSTAT_TRIGGER=/tmp/memstat-trigger-D 
+[03:45:07 +5s] mark base
+[03:46:37 +95s] mark start
+[03:46:37 +95s] server pid 260980
+[03:47:59 +177s] server up, avail 52 GB
+[03:47:59 +177s] mark settle
+[03:49:59 +297s] mark load
+[03:49:59 +297s] tiny load for 30 min (scripts/memgrow/mixed.py, 2 streams, seed 11)
+{"seed": 11, "profile": "tiny", "minutes": 30.0, "streams": 2, "requests": 3052, "kinds": {"chat": 1162, "multiturn": 617, "abort_decode": 333, "schema": 273, "tool": 502, "abort_prefill": 165}, "ok": 3052, "bad": 0, "errors": {}}
+[04:20:02 +2100s] engine pid 260989; malloc_trim trigger
+[04:20:02 +2100s] mark trim
+[04:20:27 +2125s] load done: 0 replays in 30 min
+[04:20:27 +2125s] mark idle
+[04:23:27 +2305s] mark stop
+[04:23:30 +2308s] after stop, processes of ours left: [352525 ]
+[04:26:00 +2458s] mark after
+[04:26:01 +2459s] server stopped, avail 80 GB
+[04:26:02 +2460s] warn/error lines in serve log: 0; watchdog kills: 0; min avail GB (time GB): 03:53:26 42
+[04:26:03 +2461s] window end
+fleetq: #10360 done (exit 0)

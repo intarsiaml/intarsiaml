@@ -1,0 +1,1396 @@
+[supervisor] started server pid 260989
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+mtp: drafter head 'mtp' loaded in 1.1 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head)
+verify attention rows: engaged (one row-table attention launch per layer)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+batched verify: the plan covers passes of up to 2 sequences (6 rows)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_decode_v2_rows_bf16 matmul_nvfp4=matmul_nvfp4_gemv_rows silu_glu=silu_glu_bf16 moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 moe_experts=moe_experts_bf16 matmul_nvfp4=matmul_nvfp4_gemv argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+admission on plan shapes: 42 kernel(s) checked, 0 case(s) run, 685 cached
+batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 2048
+prefix store with --max-batch > 1: workspace 678 MiB
+prefix store: the backend's packed prefill is off with --max-batch > 1
+prefix store: on (build 8212919b1dc93a4b, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+prefix herd: on (default, INTARSIA_PREFIX_HERD=0 turns it off): a request waits for an older one still prefilling a prefix they share, then restores it from the store
+batched verify: sampled rows as the device-side top-k when the request samples from it (INTARSIA_VERIFY_TOPK=1)
+batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 81.7s, context 131072 tokens
+sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_config.json; a request's own values win)
+intarsia server listening on http://0.0.0.0:8191
+[memstat] pid=260980 t=1795164517 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795164517 periodic
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   83775632
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =      10592
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     =   42082304
+in use bytes     =       3440
+Arena 6:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 7:
+system bytes     =   42082304
+in use bytes     =       2784
+Arena 8:
+system bytes     =   42082304
+in use bytes     =       5824
+Arena 9:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       3616
+Arena 11:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 15:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     =  865345536
+in use bytes     =   99831712
+max mmap regions =         19
+max mmap bytes   =  452218880
+verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+[memstat] pid=260980 t=1795164637 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795164637 periodic
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   94313616
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     182576
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 2053591040
+in use bytes     = 2051864976
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     212656
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     199312
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     124704
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121849280
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =       8160
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =       8080
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     254400
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 1841418240
+in use bytes     = 1087314432
+max mmap regions =         97
+max mmap bytes   = 3113234432
+[memstat] pid=260980 t=1795164757 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795164757 periodic
+Arena 0:
+system bytes     =  302891008
+in use bytes     =  170870864
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     236336
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 1123237888
+in use bytes     = 1065044528
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     387056
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     282064
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     231136
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121972608
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      21232
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      16128
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       6432
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     388608
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 2125082624
+in use bytes     = 1264637296
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795164877 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795164877 periodic
+Arena 0:
+system bytes     =  302891008
+in use bytes     =  100084288
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     283376
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 2915770368
+in use bytes     = 2698934976
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     232848
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     279168
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     171632
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121967552
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      21232
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      15840
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       5664
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     392000
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 2369626112
+in use bytes     = 1279579888
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795164997 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795164997 periodic
+Arena 0:
+system bytes     =  302891008
+in use bytes     =   89599792
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     235408
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 4002455552
+in use bytes     = 3676914416
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     232208
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     274816
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     186240
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121908256
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      21232
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      19168
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       8048
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     400464
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 2501169152
+in use bytes     = 1291849216
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795165117 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795165117 periodic
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   83835200
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     299904
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     =  530968576
+in use bytes     = 3984304208
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     234544
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     363760
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     245840
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121983664
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      21232
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      19120
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       5616
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     406864
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 2901094400
+in use bytes     = 1297345696
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795165237 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795165237 periodic
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   83842016
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     272096
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     =  497901568
+in use bytes     = 4184390160
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     234832
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     434304
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     275888
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121921616
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      21232
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      21536
+Arena 14:
+system bytes     =   42082304
+in use bytes     =      10912
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     402720
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 2670411776
+in use bytes     = 1299837440
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795165357 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795165357 periodic
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   83847280
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     224592
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     =  893108224
+in use bytes     =  178725392
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     236224
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     364736
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     247600
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121915568
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      23024
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      27600
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       5616
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     404544
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 2769195008
+in use bytes     = 1292576176
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795165477 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795165477 periodic
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   83847008
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     292768
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 1090711552
+in use bytes     =  216357344
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     236320
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     425888
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     280192
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121920368
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      27584
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      25856
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       5616
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     410240
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 2933862400
+in use bytes     = 1297447248
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795165597 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795165597 periodic
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   83842464
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     340048
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 1090711552
+in use bytes     =  280961296
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     236480
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     289664
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     230784
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  122021520
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      31824
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      54608
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       5616
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     411792
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 2867990528
+in use bytes     = 1296172288
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795165718 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795165718 periodic
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   83842576
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     247984
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 1485918208
+in use bytes     =  452201600
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     245024
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     362336
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     359424
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121992320
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      28064
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      27488
+Arena 14:
+system bytes     =   42082304
+in use bytes     =      11232
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     593008
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 3065581568
+in use bytes     = 1270041632
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795165838 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795165838 periodic
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   83843200
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     189776
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 1518985216
+in use bytes     =  469986720
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     241904
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     300704
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     292736
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121928176
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      28016
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      27488
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       7984
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     408912
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 3098648576
+in use bytes     = 1287386192
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260989 t=1795165958 periodic
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   83842784
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     360336
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 1485918208
+in use bytes     =  456931712
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     239696
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     416912
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     329104
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  122058944
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      27968
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      29168
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       8720
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     414928
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 3065581568
+in use bytes     = 1274790848
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795165958 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795166078 periodic
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   83845040
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     317408
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 1420050432
+in use bytes     =  477240224
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     244688
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     442320
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     288384
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121929184
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      30464
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      29168
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       7296
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     438992
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 2999713792
+in use bytes     = 1294943744
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795166078 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795166198 periodic
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   83856048
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     325936
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 1485918208
+in use bytes     =  451597648
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     244976
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     431232
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     369904
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  122061232
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      29456
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      29168
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       7392
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     410832
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 3065581568
+in use bytes     = 1269494400
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795166198 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260980 t=1795166318 periodic
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795166318 periodic
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   83843168
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     462928
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 1485918208
+in use bytes     =  464675472
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     243872
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     311552
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     193520
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  122137552
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      27968
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      29216
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       7344
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     416624
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 3065581568
+in use bytes     = 1282479792
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795166403 before trim
+Arena 0:
+system bytes     =    7249920
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7413760
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260980 malloc_trim(0)=1
+Arena 0:
+system bytes     =    7139328
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7303168
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795166403 before trim
+Arena 0:
+system bytes     =  175759360
+in use bytes     =   83822656
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     181792
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 1485918208
+in use bytes     =  448470656
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     241376
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     301040
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     256400
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121942192
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      28016
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      29216
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       7344
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     410784
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 3065581568
+in use bytes     = 1265822048
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260989 malloc_trim(0)=1
+Arena 0:
+system bytes     =  175628288
+in use bytes     =   83822656
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     181792
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 1485918208
+in use bytes     =  448470656
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     241376
+Arena 7:
+system bytes     =   42082304
+in use bytes     =     301040
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     256400
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121942192
+Arena 10:
+system bytes     =   42082304
+in use bytes     =       9968
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      28016
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      29216
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       7344
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     410784
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 3065450496
+in use bytes     = 1265822048
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[memstat] pid=260980 t=1795166523 periodic
+Arena 0:
+system bytes     =    7139328
+in use bytes     =    6624992
+Total (incl. mmap):
+system bytes     =    7303168
+in use bytes     =    6788832
+max mmap regions =          1
+max mmap bytes   =     163840
+[memstat] pid=260989 t=1795166523 periodic
+Arena 0:
+system bytes     =  175628288
+in use bytes     =   83817440
+Arena 1:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 2:
+system bytes     =   42082304
+in use bytes     =     173568
+Arena 3:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 4:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 5:
+system bytes     = 1485918208
+in use bytes     =  448469280
+Arena 6:
+system bytes     =   42082304
+in use bytes     =     241376
+Arena 7:
+system bytes     =   42082304
+in use bytes     =      90992
+Arena 8:
+system bytes     =   42082304
+in use bytes     =     250416
+Arena 9:
+system bytes     =  204378112
+in use bytes     =  121713888
+Arena 10:
+system bytes     =   42082304
+in use bytes     =      25712
+Arena 11:
+system bytes     =   42082304
+in use bytes     =      28016
+Arena 12:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 13:
+system bytes     =   42082304
+in use bytes     =      29216
+Arena 14:
+system bytes     =   42082304
+in use bytes     =       7344
+Arena 15:
+system bytes     =   42082304
+in use bytes     =     410784
+Arena 16:
+system bytes     =   42082304
+in use bytes     =       2256
+Arena 17:
+system bytes     =     135168
+in use bytes     =       3088
+Arena 18:
+system bytes     =     135168
+in use bytes     =       2944
+Total (incl. mmap):
+system bytes     = 3065450496
+in use bytes     = 1265378640
+max mmap regions =        179
+max mmap bytes   = 5813981184
+[supervisor] signal 15: stopping the server

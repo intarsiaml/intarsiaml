@@ -1,0 +1,32 @@
+fleetq: #10331 running on spark1: bash scripts/memgrow/build.sh
+build start 23:34:52 sha 6d2eda2e4da8c94e207c7e4f63ef30d650c34394
+cargo pgid 4020442
+23:34:53 avail 79 GB
+23:35:14 avail 78 GB
+23:35:35 avail 78 GB
+23:35:55 avail 78 GB
+23:36:16 avail 78 GB
+23:36:37 avail 78 GB
+23:36:58 avail 79 GB
+23:37:18 avail 79 GB
+23:37:39 avail 79 GB
+23:38:00 avail 79 GB
+23:38:21 avail 77 GB
+23:38:42 avail 77 GB
+23:39:03 avail 77 GB
+23:39:23 avail 79 GB
+23:39:44 avail 78 GB
+23:40:05 avail 79 GB
+23:40:26 avail 79 GB
+23:40:46 avail 79 GB
+23:41:07 avail 78 GB
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 6m 26s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.2T  289G  92% /
+Mem:             121          42          70           0          10          79
+build end 23:41:28 stamp memgrow-6d2eda2e4da8
+fleetq: #10331 done (exit 0)
