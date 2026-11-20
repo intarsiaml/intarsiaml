@@ -1,0 +1,6 @@
+{"cell": "code-gen", "tag": "c1", "rep": 0, "toks": 800, "chunks": 800, "ttft": 0.092, "dec_tps": 161.96, "wall": 5.026, "sha": "c8f08361125f"}
+{"cell": "code-gen", "tag": "c1", "rep": 1, "toks": 800, "chunks": 800, "ttft": 0.076, "dec_tps": 161.61, "wall": 5.02, "sha": "d0c9f350a3e3"}
+{"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 161.59, "wall": 5.023, "sha": "454f22a3d8f6"}
+{"cell": "copy3k", "tag": "c1", "rep": 0, "toks": 2903, "chunks": 128, "ttft": 0.452, "dec_tps": 280.18, "wall": 10.81, "sha": "4eb925608b0c"}
+{"cell": "copy3k", "tag": "c1", "rep": 1, "toks": 2903, "chunks": 128, "ttft": 0.432, "dec_tps": 279.77, "wall": 10.805, "sha": "4eb925608b0c"}
+{"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.432, "dec_tps": 279.75, "wall": 10.806, "sha": "4eb925608b0c"}

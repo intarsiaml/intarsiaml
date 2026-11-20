@@ -1,0 +1,309 @@
+fleetq: #10430 running on endor: zsh scripts/copyflipc/tests.sh
+     Running unittests src/lib.rs (target-cfc-test/debug/deps/intarsia_cli-bbd47969148a299d)
+running 197 tests
+test result: ok. 196 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running unittests src/main.rs (target-cfc-test/debug/deps/intarsia-a225b257f3b5b137)
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/deploy_keeps_runs.rs (target-cfc-test/debug/deps/deploy_keeps_runs-03b4edf135c3a328)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests/docs_env_vars.rs (target-cfc-test/debug/deps/docs_env_vars-a1c3d073448239d1)
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+     Running tests/real_model.rs (target-cfc-test/debug/deps/real_model-9296a1c6dcefff0c)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/serve_bind.rs (target-cfc-test/debug/deps/serve_bind-5cfdbd601c11bfec)
+running 3 tests
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.33s
+     Running unittests src/lib.rs (target-cfc-test/debug/deps/intarsia_core-d0a0e431e1db38c1)
+running 234 tests
+test result: ok. 232 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 20.02s
+     Running tests/copy_default_empty.rs (target-cfc-test/debug/deps/copy_default_empty-22c5869a0ed12acc)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/copy_default_explicit.rs (target-cfc-test/debug/deps/copy_default_explicit-9a43f9637a0dae9f)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/copy_default_unset.rs (target-cfc-test/debug/deps/copy_default_unset-a9edfc4c19086b60)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/copy_default_zero.rs (target-cfc-test/debug/deps/copy_default_zero-240a5068c277fd09)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/cvat_default.rs (target-cfc-test/debug/deps/cvat_default-2c5e02a0281a0468)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/cvat_one.rs (target-cfc-test/debug/deps/cvat_one-9a23457bcb08c471)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/cvat_zero.rs (target-cfc-test/debug/deps/cvat_zero-68d5a9646de1bed0)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/fault_inject.rs (target-cfc-test/debug/deps/fault_inject-db5f8bba19106609)
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/gdn_hf.rs (target-cfc-test/debug/deps/gdn_hf-202e43dd12e07209)
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/herd.rs (target-cfc-test/debug/deps/herd-e4ae1999d0e0a858)
+running 11 tests
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/prefix_herd_default.rs (target-cfc-test/debug/deps/prefix_herd_default-5e05460873419faa)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/prefix_herd_one.rs (target-cfc-test/debug/deps/prefix_herd_one-aec82beee310c68e)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/prefix_herd_zero.rs (target-cfc-test/debug/deps/prefix_herd_zero-18cf29ec220ad900)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/scheduler.rs (target-cfc-test/debug/deps/scheduler-351dc1e52ad77eba)
+running 52 tests
+test result: ok. 52 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+     Running unittests src/lib.rs (target-cfc-test/debug/deps/intarsia_models-75397085a0ba2f32)
+running 74 tests
+dsv41: the tensor-parallel group failed (backend error: dsv41 engine worker panicked: scripted panic); aborting the communicator and marking the engine failed
+dsv41: the tensor-parallel group failed (backend error: dsv41 engine worker panicked: scripted panic); aborting the communicator and marking the engine failed
+test result: ok. 74 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.74s
+     Running tests/batch.rs (target-cfc-test/debug/deps/batch-b32fd15224aeb649)
+running 6 tests
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+     Running tests/batch_cuda_real.rs (target-cfc-test/debug/deps/batch_cuda_real-ead8a209e4cd9418)
+running 27 tests
+test result: ok. 12 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/batch_engine.rs (target-cfc-test/debug/deps/batch_engine-e7b872858378cf32)
+running 9 tests
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.65s
+     Running tests/batch_metal.rs (target-cfc-test/debug/deps/batch_metal-d184b393320dc432)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/batch_metal_real.rs (target-cfc-test/debug/deps/batch_metal_real-a530f7779bb5329b)
+running 8 tests
+test result: ok. 3 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/batch_recurrent.rs (target-cfc-test/debug/deps/batch_recurrent-a12bcee7f315ab95)
+running 15 tests
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 53.14s
+     Running tests/batch_recurrent_load.rs (target-cfc-test/debug/deps/batch_recurrent_load-51f1759d04968da6)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+     Running tests/chat_templates_real.rs (target-cfc-test/debug/deps/chat_templates_real-ea1b694a87d589c2)
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/compressed_tensors.rs (target-cfc-test/debug/deps/compressed_tensors-1c0cc5ba52f46958)
+running 6 tests
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/config.rs (target-cfc-test/debug/deps/config-e0ab013dd6d53265)
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/constrain.rs (target-cfc-test/debug/deps/constrain-9ac13d086fdd2864)
+running 7 tests
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+     Running tests/dflash2_cpu.rs (target-cfc-test/debug/deps/dflash2_cpu-94a485399becd310)
+running 13 tests
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 86.88s
+     Running tests/dflash2_real.rs (target-cfc-test/debug/deps/dflash2_real-82e2fd1f0855dc37)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/dflash_cpu.rs (target-cfc-test/debug/deps/dflash_cpu-9b9e614ffd97ab85)
+running 7 tests
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.34s
+     Running tests/dflash_fixture.rs (target-cfc-test/debug/deps/dflash_fixture-4c029acc78773354)
+running 3 tests
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/dspine_cpu.rs (target-cfc-test/debug/deps/dspine_cpu-f097196218964702)
+running 6 tests
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.89s
+     Running tests/dsv41.rs (target-cfc-test/debug/deps/dsv41-abc196820211fb97)
+running 11 tests
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+     Running tests/dsv41_cache.rs (target-cfc-test/debug/deps/dsv41_cache-763a9fb6a3bd7e24)
+running 5 tests
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.48s
+     Running tests/dsv41_layers.rs (target-cfc-test/debug/deps/dsv41_layers-d1698ff25cd43d44)
+running 5 tests
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/dsv41_replay.rs (target-cfc-test/debug/deps/dsv41_replay-062a91814e953c29)
+running 9 tests
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/dsv41_runtime.rs (target-cfc-test/debug/deps/dsv41_runtime-ba6fe202797488db)
+running 8 tests
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/engine.rs (target-cfc-test/debug/deps/engine-6b7c6fdf10740c81)
+running 10 tests
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+     Running tests/engine_localfail.rs (target-cfc-test/debug/deps/engine_localfail-00728a31ab92bb6f)
+running 9 tests
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests/engine_panic.rs (target-cfc-test/debug/deps/engine_panic-fe1b0460e0dbf2a8)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/engine_robust.rs (target-cfc-test/debug/deps/engine_robust-f81cd9285bae9b4c)
+running 3 tests
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/exact_reuse.rs (target-cfc-test/debug/deps/exact_reuse-189f27266308c86f)
+running 8 tests
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.26s
+     Running tests/exl3_model.rs (target-cfc-test/debug/deps/exl3_model-2fd372804a08eab3)
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/fusion_p1.rs (target-cfc-test/debug/deps/fusion_p1-d6c86d9eb25fcced)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+     Running tests/fusion_p2.rs (target-cfc-test/debug/deps/fusion_p2-be2a705af1ec39d6)
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+     Running tests/fusion_p2prime.rs (target-cfc-test/debug/deps/fusion_p2prime-d5c79afdaf2f9620)
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+     Running tests/gdn_verify_metal.rs (target-cfc-test/debug/deps/gdn_verify_metal-4b95c0d5206ba3f4)
+running 2 tests
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.31s
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.30s
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.32s
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.30s
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.30s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s
+     Running tests/gemma4_real.rs (target-cfc-test/debug/deps/gemma4_real-8932d10c2462fbfb)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/gemma4_tiny.rs (target-cfc-test/debug/deps/gemma4_tiny-c43b4f6992332b23)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+     Running tests/graphs.rs (target-cfc-test/debug/deps/graphs-f570f6c0ceb7dac6)
+running 7 tests
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+     Running tests/head_and_scheme.rs (target-cfc-test/debug/deps/head_and_scheme-34e419ed7d1bf98a)
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/head_quant.rs (target-cfc-test/debug/deps/head_quant-af1fab94471f4afe)
+running 4 tests
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+     Running tests/hybrid.rs (target-cfc-test/debug/deps/hybrid-dd34d495bc340765)
+running 13 tests
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
+     Running tests/hybrid_mxfp4.rs (target-cfc-test/debug/deps/hybrid_mxfp4-65992d15b9dcfc75)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+     Running tests/hybrid_real.rs (target-cfc-test/debug/deps/hybrid_real-8c0ec2698c7868ba)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/hybrid_reuse_real.rs (target-cfc-test/debug/deps/hybrid_reuse_real-5158d2e895d8be19)
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running tests/lfm2.rs (target-cfc-test/debug/deps/lfm2-a8272aba5b9d949d)
+running 10 tests
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s
+     Running tests/min_tokens.rs (target-cfc-test/debug/deps/min_tokens-27d6c44ac599db70)
+running 3 tests
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running tests/mlx_affine_real.rs (target-cfc-test/debug/deps/mlx_affine_real-0aacd53248097282)
+running 2 tests
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/model.rs (target-cfc-test/debug/deps/model-bda33db0115628f3)
+running 5 tests
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests/mtp.rs (target-cfc-test/debug/deps/mtp-9d3c9444cacc33dc)
+running 68 tests
+test result: ok. 67 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 55.40s
+     Running tests/mtp_store_cuda.rs (target-cfc-test/debug/deps/mtp_store_cuda-a7afee5b10a3b0be)
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/mtp_store_metal.rs (target-cfc-test/debug/deps/mtp_store_metal-9613ef3acc49244c)
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/plan.rs (target-cfc-test/debug/deps/plan-1acada19cc5b0544)
+running 10 tests
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+     Running tests/prefix_boundaries_template.rs (target-cfc-test/debug/deps/prefix_boundaries_template-ba5b0d2e9ad1d477)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+     Running tests/prefix_reuse_real.rs (target-cfc-test/debug/deps/prefix_reuse_real-b021afa35f1b307d)
+running 6 tests
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+     Running tests/prefix_store.rs (target-cfc-test/debug/deps/prefix_store-eacd31119566df88)
+running 38 tests
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.43s
+     Running tests/prefix_store_cuda.rs (target-cfc-test/debug/deps/prefix_store_cuda-b52e99df7e91bfba)
+running 0 tests
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/prefix_store_metal.rs (target-cfc-test/debug/deps/prefix_store_metal-cb63d63aabe825c6)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/quark_scheme.rs (target-cfc-test/debug/deps/quark_scheme-0020a2c86d53b969)
+running 3 tests
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/qwen36_prompt_ids.rs (target-cfc-test/debug/deps/qwen36_prompt_ids-61120917a549038d)
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/recipe_27b_chunk.rs (target-cfc-test/debug/deps/recipe_27b_chunk-342047f4c696170b)
+running 4 tests
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/recipe_gdn_state.rs (target-cfc-test/debug/deps/recipe_gdn_state-c2a6bf7663757a72)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/recipe_macro.rs (target-cfc-test/debug/deps/recipe_macro-0f70a2eac6fa5e99)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/recipes_doc.rs (target-cfc-test/debug/deps/recipes_doc-74c8aa8f309a9971)
+running 3 tests
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/rope_bias.rs (target-cfc-test/debug/deps/rope_bias-15b2ae310fd73b33)
+running 8 tests
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/sampled_spec_real.rs (target-cfc-test/debug/deps/sampled_spec_real-c28055b32a9a5cb8)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/spec.rs (target-cfc-test/debug/deps/spec-b1ddfea5f3605237)
+running 4 tests
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 27.63s
+     Running tests/tail_merge.rs (target-cfc-test/debug/deps/tail_merge-30edc010895a865b)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests/token_feedback.rs (target-cfc-test/debug/deps/token_feedback-f6b3be435e20b92d)
+running 8 tests
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+     Running tests/tp.rs (target-cfc-test/debug/deps/tp-ade49a474dc2ee98)
+running 5 tests
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+     Running tests/tp_arnorm.rs (target-cfc-test/debug/deps/tp_arnorm-1f36a34512a02fd3)
+running 5 tests
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+     Running tests/tp_batch.rs (target-cfc-test/debug/deps/tp_batch-8961b02aff11ab6a)
+running 15 tests
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.76s
+     Running tests/tp_hybrid.rs (target-cfc-test/debug/deps/tp_hybrid-0ac95a146a75a7b6)
+running 10 tests
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+     Running tests/tp_mtp.rs (target-cfc-test/debug/deps/tp_mtp-6ff36809bbf5c629)
+running 16 tests
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 37.37s
+     Running tests/tp_mxfp4.rs (target-cfc-test/debug/deps/tp_mxfp4-727f90d35f2443de)
+running 6 tests
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+     Running tests/tp_remote_acks.rs (target-cfc-test/debug/deps/tp_remote_acks-cae9d6f99389d1c0)
+running 5 tests
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/tp_spec_graph.rs (target-cfc-test/debug/deps/tp_spec_graph-e8a472c5a431f3e9)
+running 2 tests
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 52.67s
+     Running tests/tp_test_bug.rs (target-cfc-test/debug/deps/tp_test_bug-738ffdff391e6e4b)
+running 3 tests
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+     Running tests/tp_vocab.rs (target-cfc-test/debug/deps/tp_vocab-d9e948cabaf28282)
+running 5 tests
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+     Running tests/verify16_cuda_real.rs (target-cfc-test/debug/deps/verify16_cuda_real-40f747db3da73327)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/verify_rows_real.rs (target-cfc-test/debug/deps/verify_rows_real-415d8ced5f7c92b8)
+running 1 test
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+exit=0
+fleetq: #10430 done (exit 0)

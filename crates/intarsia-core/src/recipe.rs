@@ -403,8 +403,9 @@ pub struct BackendTuning {
     pub batched_verify: Option<bool>,
     /// Copy drafts on by default on this backend (lane copyflipm, [`Recipe::resolve_copy_default`]): with `INTARSIA_SPEC_COPY` unset, `--spec mtp`
     /// at one sequence (`--max-batch 1`) and tp 1 verify copy chains ([`crate::spec::copy_default_applies`]). Unset: off. An explicit
-    /// `INTARSIA_SPEC_COPY` (also `0`) wins. Per backend only, set only where measured (the Qwen3.6-35B-A3B on Metal, docs/results/2026-11-18-copymetal.md;
-    /// the Qwen3.8-27B was measured and left out: docs/results/2026-11-18-copyflipm.md).
+    /// `INTARSIA_SPEC_COPY` (also `0`) wins. Per backend only, set only where measured (the Qwen3.6-35B-A3B on Metal, docs/results/2026-11-18-copymetal.md,
+    /// and on CUDA, docs/results/2026-11-18-copycuda.md, lane copyflipc; the Qwen3.8-27B was measured on Metal and left out:
+    /// docs/results/2026-11-18-copyflipm.md). Honoured on Metal and CUDA only.
     pub copy_default: Option<bool>,
     /// Sampled rows of a batched verify pass as the device-side top-k (lane mtp2s, [`Recipe::resolve_verify_topk`]); needs
     /// `batched_verify`. Unset: off. `INTARSIA_VERIFY_TOPK` wins both ways (`1` on, `0` off). Per backend only, set only where measured.

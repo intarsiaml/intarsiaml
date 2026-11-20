@@ -825,8 +825,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     intarsia_core::prefix_store::set_backend(backend_name);
     let backend_cap = backends.first().map_or(intarsia_core::engine::SERVE_MAX_BATCH, |b| b.batch_row_cap());
     let max_batch = recipe.resolve_max_batch(opts.max_batch, if opts.max_batch.is_some() { backend_cap } else { 1 })?;
-    // lane copyflipm: with `INTARSIA_SPEC_COPY` unset, copy drafts are on exactly where `copy_default_applies` says (Metal, one sequence,
-    // one rank, and the recipe's `[tuning.metal] copy_default`: the Qwen3.6-35B-A3B); anywhere else unset stays off, silently. Recorded here,
+    // lane copyflipm / copyflipc: with `INTARSIA_SPEC_COPY` unset, copy drafts are on exactly where `copy_default_applies` says (Metal or CUDA,
+    // one sequence, one rank, and the recipe's `[tuning.<backend>] copy_default`: the Qwen3.6-35B-A3B); anywhere else unset stays off, silently. Recorded here,
     // where `max_batch` is known and before any `SpecConfig::verify_rows`.
     intarsia_core::spec::set_copy_default(intarsia_core::spec::copy_default_applies(
         backend_name,

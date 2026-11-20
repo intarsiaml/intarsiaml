@@ -7,4 +7,8 @@ fn empty_is_off_on_metal_one_sequence() {
     set_copy_backend("metal");
     set_copy_default(copy_default_applies("metal", 1, 1, true));
     assert!(copy_from_env().is_none());
+    // lane copyflipc: CUDA too
+    set_copy_backend("cuda");
+    set_copy_default(copy_default_applies("cuda", 1, 1, true));
+    assert!(copy_from_env().is_none());
 }
