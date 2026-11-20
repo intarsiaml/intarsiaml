@@ -1,0 +1,36 @@
+fleetq: #10433 running on spark1: bash scripts/kvflip/build.sh
+fleetq: #10433 went ahead of the line and must end within 43m (by Fri 15:42); it is stopped then
+build start 15:00:26 sha 0aec6062b42e11ec988c101d84ec152a65f6da5f
+15:00:26 cargo pgid 1379574: cargo test --release --locked -p intarsia-backend-cuda  --test kv_once --test attention --test verify_attn_rows --test row_tables --no-run
+15:00:27 avail 78 GB
+15:00:48 avail 76 GB
+15:01:09 avail 77 GB
+15:01:29 avail 77 GB
+15:01:50 avail 77 GB
+15:02:11 avail 76 GB
+15:02:32 avail 76 GB
+15:02:53 avail 75 GB
+15:03:14 avail 75 GB
+15:03:34 avail 75 GB
+15:03:55 avail 76 GB
+15:04:16 avail 78 GB
+15:04:37 avail 77 GB
+15:04:58 avail 78 GB
+15:05:18 avail 78 GB
+15:05:39 avail 78 GB
+    Finished `release` profile [optimized] target(s) in 5m 27s
+copied /home/nvidia/intarsiaml-kvflip/src/target/release/deps/kv_once-04f73fe85dae7a3b
+copied /home/nvidia/intarsiaml-kvflip/src/target/release/deps/attention-24b34efa3ea7b126
+copied /home/nvidia/intarsiaml-kvflip/src/target/release/deps/verify_attn_rows-843e8ff47c908217
+copied /home/nvidia/intarsiaml-kvflip/src/target/release/deps/row_tables-4078706fd089b268
+15:06:02 cargo pgid 1389933: env INTARSIA_BUILD_STAMP='kvflip-0aec6062b42e' cargo build --release --locked --features cuda -p intarsia-cli
+15:06:03 avail 79 GB
+15:06:23 avail 78 GB
+15:06:44 avail 79 GB
+    Finished `release` profile [optimized] target(s) in 42.11s
+intarsia 0.0.1
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  284G  93% /
+Mem:             121          41          64           0          16          79
+build end 15:07:09 stamp kvflip-0aec6062b42e
+fleetq: #10433 done (exit 0)

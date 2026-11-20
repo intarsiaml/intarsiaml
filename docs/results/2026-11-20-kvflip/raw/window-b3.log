@@ -1,0 +1,29 @@
+[15:07:09 +0s] window b3 env='INTARSIA_CUDA_ATTN_KV_ONCE=1' cells: 0.7:4096,32768,65536:5 0:4096,32768,65536:5; fleetq job 10432
+[15:07:13 +4s] free: spark1 Mem:             121          41          64           0          16          79 | spark2 Mem:             121          46          70           0           5          74; earlyoom active active; vLLM 200 200; binary: intarsia 0.0.1
+[15:07:54 +45s] serve up; MemAvailable MB spark1 67659 spark2 63884; mtp: drafter head 'mtp' loaded in 1.1 s (routed experts quantised to nvfp4);--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);--spec mtp on cuda with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;sampled requests (temperature > 0): speculation Match (default; single sequence, one rank);
+[15:07:56 +47s] cell b3-T0.7 start; 2398 MHz, 9.76 W, 0 % | 2411 MHz, 11.90 W, 0 %
+[sampled] 65536 rep2: prompt=68863 cached=0 ttft=11.19s decode=70.6 peak=86.0 out=256
+[sampled] 65536 rep3: prompt=68910 cached=0 ttft=11.17s decode=70.0 peak=83.6 out=256
+[sampled] 65536 rep4: prompt=68923 cached=0 ttft=11.16s decode=70.8 peak=83.8 out=256
+[sampled] 65536 rep5: prompt=68891 cached=0 ttft=11.17s decode=72.1 peak=86.4 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4070 | 0.527 | 95.575 (92.757-96.07) | None |
+| 32768 | 33899 | 4.806 | 79.575 (79.211-80.997) | None |
+| 65536 | 68910 | 11.168 | 70.839 (70.008-73.255) | None |
+[15:10:11 +182s] cell b3-T0.7 end spark1: 67 samples, 64 at util>50, 0 of those SM<2300 MHz, min SM 2392, mean SM 2429, max power 82 W
+[15:10:11 +182s] cell b3-T0.7 end spark2: 67 samples, 63 at util>50, 0 of those SM<2300 MHz, min SM 2379, mean SM 2388, max power 74 W
+[15:10:11 +182s] cell b3-T0.7 SW power cap delta spark1 0 us spark2 0 us
+[15:10:13 +184s] cell b3-T0 start; 2411 MHz, 12.50 W, 0 % | 2405 MHz, 13.93 W, 0 %
+[sampled] 65536 rep2: prompt=68888 cached=0 ttft=11.25s decode=102.6 peak=139.6 out=256
+[sampled] 65536 rep3: prompt=68940 cached=0 ttft=11.25s decode=94.4 peak=139.2 out=256
+[sampled] 65536 rep4: prompt=68941 cached=0 ttft=11.27s decode=99.4 peak=143.3 out=256
+[sampled] 65536 rep5: prompt=68917 cached=0 ttft=11.27s decode=102.8 peak=174.0 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4068 | 0.525 | 123.183 (118.619-126.886) | 0.602 |
+| 32768 | 33902 | 4.856 | 113.184 (111.521-118.981) | 0.631 |
+| 65536 | 68940 | 11.267 | 99.37 (94.353-102.83) | 0.584 |
+[15:12:14 +305s] cell b3-T0 end spark1: 60 samples, 57 at util>50, 0 of those SM<2300 MHz, min SM 2379, mean SM 2410, max power 83 W
+[15:12:14 +305s] cell b3-T0 end spark2: 61 samples, 58 at util>50, 0 of those SM<2300 MHz, min SM 2379, mean SM 2383, max power 74 W
+[15:12:14 +305s] cell b3-T0 SW power cap delta spark1 0 us spark2 0 us
+[15:12:19 +310s] min MemAvailable MB: spark1 15:08:21 65301 spark2 15:11:22 61545; KILLED lines: 0 0
+[15:12:24 +315s] window end

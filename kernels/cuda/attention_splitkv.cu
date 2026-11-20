@@ -358,7 +358,7 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const K
 // KT = uint8_t (fp8_e4m3 cache): the same schedule with 8-byte K / V loads and splitkv_step's e4m3 unpack, so every partial is
 // bitwise splitkv_kernel<8, TPK, 2, uint8_t, true>'s block, as the bf16 instantiation is the bf16 one's.
 //
-// ONCE (INTARSIA_CUDA_ATTN_KV_ONCE, lane kvonce, opt-in): the same items, numbered so that the rows of one sequence read each K / V
+// ONCE (INTARSIA_CUDA_ATTN_KV_ONCE, lane kvonce, default on since lane kvflip): the same items, numbered so that the rows of one sequence read each K / V
 // line together. A GROUP is a run of consecutive table rows with the same K and V cache addresses, the same split count and the same
 // chunk (a verify pass: rows at consecutive positions of one cache); its items are numbered kv head, then split, then row, so the
 // group's rows of one (kv head, split) are consecutive items, dealt to blocks that run at the same time and stream the same K / V
@@ -774,16 +774,19 @@ inline int rows_persist() {
     return v;
 }
 
-// INTARSIA_CUDA_ATTN_KV_ONCE (lane kvonce, opt-in): 1 numbers the persistent kernel's items so that the rows of one sequence read
-// each K / V line together (splitkv_rows_persist_kernel's ONCE), 2 the same with plain loads (diagnostic), unset / anything else
-// the default numbering. Read once per process; tests override it with ik_attn_kv_once_for_test. The bits do not depend on it.
+// INTARSIA_CUDA_ATTN_KV_ONCE (lane kvonce; DEFAULT ON since lane kvflip): unset or 1 numbers the persistent kernel's items so that the
+// rows of one sequence read each K / V line together (splitkv_rows_persist_kernel's ONCE), 0 the default (row by row) numbering, 2 the same
+// as 1 with plain loads (diagnostic). Read once per process; tests override it with ik_attn_kv_once_for_test. The bits do not depend on it.
+// The full-grid fallback (INTARSIA_ATTN_ROWS_PERSIST=0) never reads it.
 int g_kv_once_test = -1;  // -1: the variable; else the mode
 int g_kv_once_fault = 0;  // tests: the planted fault (see splitkv_rows_persist_kernel)
 inline int kv_once_mode() {
     static const int v = [] {
         const char* e = getenv("INTARSIA_CUDA_ATTN_KV_ONCE");
-        if (e && (e[0] == '1' || e[0] == '2') && !e[1]) return e[0] - '0';
-        return 0;
+        if (!e) return 1;
+        if (e[0] == '0' && !e[1]) return 0;
+        if (e[0] == '2' && !e[1]) return 2;
+        return 1;
     }();
     return g_kv_once_test >= 0 ? g_kv_once_test : v;
 }
@@ -1025,6 +1028,11 @@ int ik_attn_prefill_f8kv_splitkv(const ik_tensor* q, const ik_tensor* kc, const 
 void ik_attn_kv_once_for_test(int mode, int fault) {
     g_kv_once_test = mode;
     g_kv_once_fault = fault;
+}
+
+// the mode the row-table launches will use (startup log): 0 off, 1 on, 2 on with plain loads; 0 when the full-grid fallback is selected
+int ik_attn_kv_once_mode() {
+    return rows_persist() ? kv_once_mode() : 0;
 }
 
 // the row-table decode launch over fp8_e4m3 caches: row r bitwise ik_attn_decode_f8kv_splitkv on row r alone

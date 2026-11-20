@@ -1,0 +1,187 @@
+fleetq: #10438 running on spark2: bash scripts/kvflip/tests2.sh
+#### knob env: ''
+== kv_once 15:31:32 env=''
+running 3 tests
+test kv_once_launches_are_bit_identical_to_the_default_launches ... cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+kv_once 16/2/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 116 wide tables (M 20 / 33 / 64), 9 mixed tables, 26 captured replays, mode 2 x5; 1084 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 24/4/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 116 wide tables (M 20 / 33 / 64), 9 mixed tables, 26 captured replays, mode 2 x5; 1084 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 16/2/256 fp8_e4m3: knob on bit-identical to off: 1057 one-cache verify tables (M 1..=16), 116 wide tables (M 20 / 33 / 64), 9 mixed tables, 26 captured replays, mode 2 x5; 547 rows equal to their solo launch; planted fault seen 7 of 7
+ok
+test kv_once_long_positions_are_bit_identical ... kv_once long 16/2/256: knob on bit-identical to off at 52 tables up to 132000 keys
+kv_once long 24/4/256: knob on bit-identical to off at 52 tables up to 132000 keys
+ok
+test timing_kv_once_layers ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 75.34s
+== kv_once exit 0
+== attention 15:32:49 env=''
+running 2 tests
+test attention_kernels_match_reference_on_random_shapes ... cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+cases per kernel: {"attn_decode_bf16": 48, "attn_decode_bf16_ext": 48, "attn_decode_bf16_splitkv": 48, "attn_decode_bf16_splitkv_ext": 48, "attn_prefill_bf16": 149, "attn_prefill_bf16_ext": 149, "attn_prefill_bf16_flash": 53, "attn_prefill_bf16_splitkv": 88, "attn_prefill_bf16_splitkv_ext": 88}
+ok
+test attention_throughput ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 17.65s
+== attention exit 0
+== verify_attn_rows 15:33:07 env=''
+running 3 tests
+test captured_rows_launch_is_the_captured_per_row_launches ... cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+cvat verify_attn_rows (captured, device positions, two states): 1622016 bytes identical (3 shapes, 12 replays each)
+ok
+test timing_captured_attention_layers ... ok
+test verify_rows_launch_is_the_per_row_launches ... cvat verify_attn_rows (host positions): 2478080 bytes identical to the per-row launches (3 shapes, 14 passes each, t 2..=16)
+ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.92s
+== verify_attn_rows exit 0
+== row_tables 15:33:10 env=''
+running 9 tests
+test attn_decode_f8kv_rows_are_the_solo_decode ... cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+G-B attn_decode_f8kv_splitkv_rows: 3220480 bytes identical to the solo launches (M 1..=16, 7 shapes, positions 0..1199)
+ok
+test attn_decode_rows_are_the_solo_decode ... G-B attn_decode_bf16_splitkv_rows: 3220480 bytes identical to the solo launches (M 1..=16, 7 shapes, positions 0..1199)
+ok
+test device_topk_is_the_host_candidate_order ... G-B topk_f32: 8180 (id, value) pairs equal to the host order (V 248320 / 151936 / 1000 / 70, R <= 16, k <= 64), NaN row flagged
+ok
+test gdn_conv_rows_are_the_solo_conv ... G-B gdn_conv_bf16_rows: 27472544 bytes identical to the solo launches (M 1..=16, 3 shapes)
+ok
+test gdn_delta_rows_are_the_solo_delta_rule ... G-B gdn_delta_rule_bf16_split_rows: 305405952 bytes identical to the solo launches (M 1..=16, dk 128 and 64)
+ok
+test kv_append_rows_are_the_solo_append ... G-B kv_append_bf16_rows: 33423360 bytes identical to the solo launches (M 1..=16, 2 shapes)
+ok
+test rope_with_one_position_per_row_is_the_solo_rope ... G-B rope_bf16 (one position per row): 2350080 bytes identical to the solo launches (M 2..=16, 3 shapes)
+ok
+test timing_attn_rows ... ignored
+test timing_gdn_rows ... ignored
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 69.77s
+== row_tables exit 0
+#### knob env: 'INTARSIA_CUDA_ATTN_KV_ONCE=0'
+== kv_once 15:34:21 env='INTARSIA_CUDA_ATTN_KV_ONCE=0'
+running 3 tests
+test kv_once_launches_are_bit_identical_to_the_default_launches ... cuda attention: verify rows of one sequence read the KV cache once: off (INTARSIA_CUDA_ATTN_KV_ONCE=0, or INTARSIA_ATTN_ROWS_PERSIST=0)
+kv_once 16/2/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 116 wide tables (M 20 / 33 / 64), 9 mixed tables, 26 captured replays, mode 2 x5; 1084 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 24/4/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 116 wide tables (M 20 / 33 / 64), 9 mixed tables, 26 captured replays, mode 2 x5; 1084 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 16/2/256 fp8_e4m3: knob on bit-identical to off: 1057 one-cache verify tables (M 1..=16), 116 wide tables (M 20 / 33 / 64), 9 mixed tables, 26 captured replays, mode 2 x5; 547 rows equal to their solo launch; planted fault seen 7 of 7
+ok
+test kv_once_long_positions_are_bit_identical ... kv_once long 16/2/256: knob on bit-identical to off at 52 tables up to 132000 keys
+kv_once long 24/4/256: knob on bit-identical to off at 52 tables up to 132000 keys
+ok
+test timing_kv_once_layers ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 29.34s
+== kv_once exit 0
+== attention 15:34:51 env='INTARSIA_CUDA_ATTN_KV_ONCE=0'
+running 2 tests
+test attention_kernels_match_reference_on_random_shapes ... cuda attention: verify rows of one sequence read the KV cache once: off (INTARSIA_CUDA_ATTN_KV_ONCE=0, or INTARSIA_ATTN_ROWS_PERSIST=0)
+cases per kernel: {"attn_decode_bf16": 48, "attn_decode_bf16_ext": 48, "attn_decode_bf16_splitkv": 48, "attn_decode_bf16_splitkv_ext": 48, "attn_prefill_bf16": 149, "attn_prefill_bf16_ext": 149, "attn_prefill_bf16_flash": 53, "attn_prefill_bf16_splitkv": 88, "attn_prefill_bf16_splitkv_ext": 88}
+ok
+test attention_throughput ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 7.32s
+== attention exit 0
+== verify_attn_rows 15:34:58 env='INTARSIA_CUDA_ATTN_KV_ONCE=0'
+running 3 tests
+test captured_rows_launch_is_the_captured_per_row_launches ... cuda attention: verify rows of one sequence read the KV cache once: off (INTARSIA_CUDA_ATTN_KV_ONCE=0, or INTARSIA_ATTN_ROWS_PERSIST=0)
+cvat verify_attn_rows (captured, device positions, two states): 1622016 bytes identical (3 shapes, 12 replays each)
+ok
+test timing_captured_attention_layers ... ok
+test verify_rows_launch_is_the_per_row_launches ... cvat verify_attn_rows (host positions): 2478080 bytes identical to the per-row launches (3 shapes, 14 passes each, t 2..=16)
+ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+== verify_attn_rows exit 0
+== row_tables 15:35:00 env='INTARSIA_CUDA_ATTN_KV_ONCE=0'
+running 9 tests
+test attn_decode_f8kv_rows_are_the_solo_decode ... cuda attention: verify rows of one sequence read the KV cache once: off (INTARSIA_CUDA_ATTN_KV_ONCE=0, or INTARSIA_ATTN_ROWS_PERSIST=0)
+G-B attn_decode_f8kv_splitkv_rows: 3220480 bytes identical to the solo launches (M 1..=16, 7 shapes, positions 0..1199)
+ok
+test attn_decode_rows_are_the_solo_decode ... G-B attn_decode_bf16_splitkv_rows: 3220480 bytes identical to the solo launches (M 1..=16, 7 shapes, positions 0..1199)
+ok
+test device_topk_is_the_host_candidate_order ... G-B topk_f32: 8180 (id, value) pairs equal to the host order (V 248320 / 151936 / 1000 / 70, R <= 16, k <= 64), NaN row flagged
+ok
+test gdn_conv_rows_are_the_solo_conv ... G-B gdn_conv_bf16_rows: 27472544 bytes identical to the solo launches (M 1..=16, 3 shapes)
+ok
+test gdn_delta_rows_are_the_solo_delta_rule ... G-B gdn_delta_rule_bf16_split_rows: 305405952 bytes identical to the solo launches (M 1..=16, dk 128 and 64)
+ok
+test kv_append_rows_are_the_solo_append ... G-B kv_append_bf16_rows: 33423360 bytes identical to the solo launches (M 1..=16, 2 shapes)
+ok
+test rope_with_one_position_per_row_is_the_solo_rope ... G-B rope_bf16 (one position per row): 2350080 bytes identical to the solo launches (M 2..=16, 3 shapes)
+ok
+test timing_attn_rows ... ignored
+test timing_gdn_rows ... ignored
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 70.47s
+== row_tables exit 0
+#### knob env: 'INTARSIA_CUDA_ATTN_KV_ONCE=1'
+== kv_once 15:36:11 env='INTARSIA_CUDA_ATTN_KV_ONCE=1'
+running 3 tests
+test kv_once_launches_are_bit_identical_to_the_default_launches ... cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+kv_once 16/2/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 116 wide tables (M 20 / 33 / 64), 9 mixed tables, 26 captured replays, mode 2 x5; 1084 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 24/4/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 116 wide tables (M 20 / 33 / 64), 9 mixed tables, 26 captured replays, mode 2 x5; 1084 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 16/2/256 fp8_e4m3: knob on bit-identical to off: 1057 one-cache verify tables (M 1..=16), 116 wide tables (M 20 / 33 / 64), 9 mixed tables, 26 captured replays, mode 2 x5; 547 rows equal to their solo launch; planted fault seen 7 of 7
+ok
+test kv_once_long_positions_are_bit_identical ... kv_once long 16/2/256: knob on bit-identical to off at 52 tables up to 132000 keys
+kv_once long 24/4/256: knob on bit-identical to off at 52 tables up to 132000 keys
+ok
+test timing_kv_once_layers ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 31.08s
+== kv_once exit 0
+== attention 15:36:42 env='INTARSIA_CUDA_ATTN_KV_ONCE=1'
+running 2 tests
+test attention_kernels_match_reference_on_random_shapes ... cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+cases per kernel: {"attn_decode_bf16": 48, "attn_decode_bf16_ext": 48, "attn_decode_bf16_splitkv": 48, "attn_decode_bf16_splitkv_ext": 48, "attn_prefill_bf16": 149, "attn_prefill_bf16_ext": 149, "attn_prefill_bf16_flash": 53, "attn_prefill_bf16_splitkv": 88, "attn_prefill_bf16_splitkv_ext": 88}
+ok
+test attention_throughput ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 7.20s
+== attention exit 0
+== verify_attn_rows 15:36:50 env='INTARSIA_CUDA_ATTN_KV_ONCE=1'
+running 3 tests
+test captured_rows_launch_is_the_captured_per_row_launches ... cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+cvat verify_attn_rows (captured, device positions, two states): 1622016 bytes identical (3 shapes, 12 replays each)
+ok
+test timing_captured_attention_layers ... ok
+test verify_rows_launch_is_the_per_row_launches ... cvat verify_attn_rows (host positions): 2478080 bytes identical to the per-row launches (3 shapes, 14 passes each, t 2..=16)
+ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+== verify_attn_rows exit 0
+== row_tables 15:36:51 env='INTARSIA_CUDA_ATTN_KV_ONCE=1'
+running 9 tests
+test attn_decode_f8kv_rows_are_the_solo_decode ... cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+G-B attn_decode_f8kv_splitkv_rows: 3220480 bytes identical to the solo launches (M 1..=16, 7 shapes, positions 0..1199)
+ok
+test attn_decode_rows_are_the_solo_decode ... G-B attn_decode_bf16_splitkv_rows: 3220480 bytes identical to the solo launches (M 1..=16, 7 shapes, positions 0..1199)
+ok
+test device_topk_is_the_host_candidate_order ... G-B topk_f32: 8180 (id, value) pairs equal to the host order (V 248320 / 151936 / 1000 / 70, R <= 16, k <= 64), NaN row flagged
+ok
+test gdn_conv_rows_are_the_solo_conv ... G-B gdn_conv_bf16_rows: 27472544 bytes identical to the solo launches (M 1..=16, 3 shapes)
+ok
+test gdn_delta_rows_are_the_solo_delta_rule ... G-B gdn_delta_rule_bf16_split_rows: 305405952 bytes identical to the solo launches (M 1..=16, dk 128 and 64)
+ok
+test kv_append_rows_are_the_solo_append ... G-B kv_append_bf16_rows: 33423360 bytes identical to the solo launches (M 1..=16, 2 shapes)
+ok
+test rope_with_one_position_per_row_is_the_solo_rope ... G-B rope_bf16 (one position per row): 2350080 bytes identical to the solo launches (M 2..=16, 3 shapes)
+ok
+test timing_attn_rows ... ignored
+test timing_gdn_rows ... ignored
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 71.23s
+== row_tables exit 0
+#### KVONCE_TIMING=1 kv_once (both tests in one process, no filter: the lock must serialise them)
+== kv_once 15:38:03 env='KVONCE_TIMING=1'
+running 3 tests
+test kv_once_launches_are_bit_identical_to_the_default_launches ... cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+kv_once 16/2/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 116 wide tables (M 20 / 33 / 64), 9 mixed tables, 26 captured replays, mode 2 x5; 1084 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 24/4/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 116 wide tables (M 20 / 33 / 64), 9 mixed tables, 26 captured replays, mode 2 x5; 1084 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 16/2/256 fp8_e4m3: knob on bit-identical to off: 1057 one-cache verify tables (M 1..=16), 116 wide tables (M 20 / 33 / 64), 9 mixed tables, 26 captured replays, mode 2 x5; 547 rows equal to their solo launch; planted fault seen 7 of 7
+ok
+test kv_once_long_positions_are_bit_identical ... kv_once long 16/2/256: knob on bit-identical to off at 52 tables up to 132000 keys
+kv_once long 24/4/256: knob on bit-identical to off at 52 tables up to 132000 keys
+ok
+test timing_kv_once_layers ... kvonce timing t=1 ctx=4096:  mode 0 451 us (186 GB/s unique)  mode 1 455 us (184 GB/s unique)  mode 2 473 us (178 GB/s unique)
+kvonce timing t=1 ctx=32768:  mode 0 2750 us (244 GB/s unique)  mode 1 2750 us (244 GB/s unique)  mode 2 2792 us (240 GB/s unique)
+kvonce timing t=1 ctx=65536:  mode 0 5385 us (249 GB/s unique)  mode 1 5386 us (249 GB/s unique)  mode 2 5473 us (245 GB/s unique)
+kvonce timing t=2 ctx=4096:  mode 0 668 us (126 GB/s unique)  mode 1 573 us (147 GB/s unique)  mode 2 587 us (143 GB/s unique)
+kvonce timing t=2 ctx=32768:  mode 0 5435 us (123 GB/s unique)  mode 1 2991 us (224 GB/s unique)  mode 2 3076 us (218 GB/s unique)
+kvonce timing t=2 ctx=65536:  mode 0 10767 us (125 GB/s unique)  mode 1 5717 us (235 GB/s unique)  mode 2 5848 us (230 GB/s unique)
+kvonce timing t=3 ctx=4096:  mode 0 821 us (102 GB/s unique)  mode 1 677 us (124 GB/s unique)  mode 2 694 us (121 GB/s unique)
+kvonce timing t=3 ctx=32768:  mode 0 8009 us (84 GB/s unique)  mode 1 3089 us (217 GB/s unique)  mode 2 3234 us (208 GB/s unique)
+kvonce timing t=3 ctx=65536:  mode 0 15911 us (84 GB/s unique)  mode 1 5907 us (227 GB/s unique)  mode 2 6037 us (222 GB/s unique)
+kvonce timing t=4 ctx=4096:  mode 0 1045 us (80 GB/s unique)  mode 1 894 us (94 GB/s unique)  mode 2 912 us (92 GB/s unique)
+kvonce timing t=4 ctx=32768:  mode 0 10642 us (63 GB/s unique)  mode 1 3976 us (169 GB/s unique)  mode 2 4144 us (162 GB/s unique)
+kvonce timing t=4 ctx=65536:  mode 0 21076 us (64 GB/s unique)  mode 1 7534 us (178 GB/s unique)  mode 2 7705 us (174 GB/s unique)
+ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 49.39s
+== kv_once exit 0
+fleetq: #10438 done (exit 0)

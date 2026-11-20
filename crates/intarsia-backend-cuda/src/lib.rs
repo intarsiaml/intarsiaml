@@ -71,12 +71,33 @@ pub const AVAILABLE: bool = cfg!(ik_cuda);
 #[cfg(ik_cuda)]
 pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {
     disable::check_env()?;
+    log_attn_kv_once();
     Ok(Arc::new(device::CudaBackend::new(ordinal)?))
+}
+
+/// One startup line per process: whether the row-table attention reads each sequence's KV cache once per verify pass
+/// (`INTARSIA_CUDA_ATTN_KV_ONCE`, default on since lane kvflip; `=0` turns it off).
+#[cfg(ik_cuda)]
+fn log_attn_kv_once() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        // SAFETY: reads the kernel library's process-wide mode.
+        let mode = unsafe { ffi::ik_attn_kv_once_mode() };
+        let state = match mode {
+            0 => "off (INTARSIA_CUDA_ATTN_KV_ONCE=0, or INTARSIA_ATTN_ROWS_PERSIST=0)",
+            2 => "on, plain loads (INTARSIA_CUDA_ATTN_KV_ONCE=2, diagnostic)",
+            _ => "on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)",
+        };
+        eprintln!("cuda attention: verify rows of one sequence read the KV cache once: {state}");
+    });
 }
 
 /// Tests only (lane kvonce, `tests/kv_once.rs`): override `INTARSIA_CUDA_ATTN_KV_ONCE` for the row-table attention launches of this
 /// process (`None` = the variable, `Some(0)` = off, `Some(1)` = on, `Some(2)` = on with plain loads) and plant the persistent
-/// kernel's test fault (every row of a group gets the group leader's end of keys; only under an on mode). Process-wide.
+/// kernel's test fault (every row of a group gets the group leader's end of keys; only under an on mode, and captured graphs bake it in).
+/// Process-wide. Not an API: it is public only because the integration tests live outside the crate, so it is hidden from the docs
+/// and must never be called by the engine (the fault is an intentional wrong answer).
+#[doc(hidden)]
 #[cfg(ik_cuda)]
 pub fn set_attn_kv_once_for_test(mode: Option<u8>, fault: bool) {
     // SAFETY: two plain ints in the kernel library, read by the host launcher.
