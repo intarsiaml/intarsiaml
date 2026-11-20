@@ -110,6 +110,9 @@ pub struct BatchedOptions {
     /// (temperature > 0) draft too, with seed-exact acceptance (`engine/keyed.rs`): a seeded request's ids are the same with it on
     /// or off. Off: sampled requests take plain steps.
     pub mtp_sampled: bool,
+    /// Lane samp64 (`INTARSIA_SPEC_SAMPLED_MAX_CTX`, [`crate::spec::sampled_max_ctx`]): with batched MTP, a sampled request drafts only
+    /// while its context is at most this many tokens, then takes plain steps. 0: no limit (the default).
+    pub sampled_max_ctx: usize,
     /// Lane mtp2s (`INTARSIA_VERIFY_TOPK=1`, opt-in): in a batched verify pass, a sampled sequence's rows come
     /// back as the device-side top-k of each row (`HeadMode::LastTopK`, the candidates a plain batched decode step
     /// samples from) instead of whole logits rows, when its sampler takes the top-k in a plain step for every row
@@ -210,6 +213,7 @@ impl BatchedOptions {
                 .unwrap_or(SETTLE_SLICE_MB_DEFAULT),
             batched_verify: env("INTARSIA_BATCHED_VERIFY"),
             mtp_sampled: batched_mtp_sampled_env(),
+            sampled_max_ctx: crate::spec::sampled_max_ctx(),
             verify_topk: env("INTARSIA_VERIFY_TOPK"),
             prefix_herd: std::env::var("INTARSIA_PREFIX_HERD").map(|v| v != "0").unwrap_or(true),
             hold_start: false,
@@ -1087,6 +1091,8 @@ pub struct BatchedEngine {
     recurrent: bool,
     /// Lane mtp-sampled: sampled requests draft too ([`BatchedOptions::mtp_sampled`] under `--spec mtp`).
     mtp_sampled: bool,
+    /// Lane samp64: a sampled request drafts only up to this many tokens of context (0: no limit; [`BatchedOptions::sampled_max_ctx`]).
+    sampled_max_ctx: usize,
     /// The prefix store (`EngineMeta::prefix_store`); with `--spec mtp` a restore restarts the slot's MTP head context
     /// (`SeqAdapter::restore`, lane mtp-store). Any other speculation is refused with it (`BatchedEngine::new`).
     store: Option<StorePolicy>,
@@ -1258,6 +1264,12 @@ impl BatchedEngine {
                 if mtp_sampled { "draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)" } else { "take plain steps (INTARSIA_BATCHED_MTP_SAMPLED=0)" }
             );
         }
+        let sampled_max_ctx = if mtp_sampled { opts.sampled_max_ctx } else { 0 };
+        if sampled_max_ctx > 0 {
+            eprintln!(
+                "batched MTP: sampled requests draft only up to {sampled_max_ctx} tokens of context, then take plain steps (INTARSIA_SPEC_SAMPLED_MAX_CTX)"
+            );
+        }
         let store_slot = vec![false; states.len()];
         let slots =
             SlotModel {
@@ -1275,7 +1287,7 @@ impl BatchedEngine {
                 store_slot,
             };
         let engine = if opts.hold_start { BatchEngine::spawn_held(slots, cfg)? } else { BatchEngine::spawn(slots, cfg)? };
-        Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent, store, solo_chunk, mtp_sampled })
+        Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent, store, solo_chunk, mtp_sampled, sampled_max_ctx })
     }
 
     /// Let an engine built with [`BatchedOptions::hold_start`] start scheduling (no effect on any other engine).
@@ -1367,6 +1379,7 @@ impl Engine for BatchedEngine {
         if self.mtp_sampled {
             // lane mtp-sampled: a sampled request drafts too, seed-exact (`engine/keyed.rs`)
             seq.enable_keyed(self.env.spec.mode, self.verify_rows);
+            seq.keyed_max_ctx = self.sampled_max_ctx;
         }
         if let Some(pol) = &self.store {
             // every request runs the store's schedule, drafting or not (`--spec mtp`, lane mtp-store)

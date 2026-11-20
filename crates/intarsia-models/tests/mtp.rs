@@ -1949,6 +1949,9 @@ thread_local! {
     /// Lane mtp-sampled: [`batched_mtp`] engines built on this test thread keep sampled requests on plain steps
     /// (`BatchedOptions::mtp_sampled = false`).
     static SAMPLED_OFF: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// Lane samp64: [`batched_mtp`] engines built on this test thread draft sampled requests only up to this many tokens of context
+    /// (`BatchedOptions::sampled_max_ctx`; 0: no limit).
+    static SAMPLED_MAX_CTX: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 /// A batching engine of `rows` slots with `--spec mtp --spec-k k`, drafting while at most `mtp_max_b` sequences decode, on the
@@ -1985,6 +1988,7 @@ fn batched_mtp(
     o.pack_half = false;
     o.batched_verify = verify;
     o.mtp_sampled = !SAMPLED_OFF.with(|c| c.get());
+    o.sampled_max_ctx = SAMPLED_MAX_CTX.with(|c| c.get());
     // every request is queued before the first iteration admits anything, so the sequences decode side by side
     o.hold_start = true;
     let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec: SpecConfig { mode: SpecMode::Mtp, k, k_min: None }, ..Default::default() };
@@ -2298,6 +2302,41 @@ fn batched_mtp_sampled_requests_equal_spec_off_for_a_seed() {
     SAMPLED_OFF.with(|c| c.set(false));
     assert!(on.spec_steps > 0 && off.spec_steps == 0, "sampled requests draft only with the switch on ({} / {})", on.spec_steps, off.spec_steps);
     assert!(off_all.spec_steps > 0, "greedy requests draft either way");
+}
+
+/// Lane samp64 (`BatchedOptions::sampled_max_ctx`): a sampled request drafts only while its context is at most the limit and takes plain
+/// steps after it, which changes no token: seeded sampled requests next to greedy ones equal their spec-off solo runs at limits that cut
+/// the requests short of, in the middle of and long after their prompts, with scripted and with the head's own drafts, solo and batched
+/// verify. A limit below every prompt means sampled requests never draft; a limit inside the run means fewer verify passes than none; the
+/// greedy requests are never limited.
+#[test]
+fn batched_mtp_sampled_context_limit_keeps_seeded_output_and_cuts_drafting() {
+    let w = weights(11);
+    let reqs = sampled_mixed_reqs(6, &[13, 6, 21, 30, 9, 17], 400);
+    let truth = truth_of(&w, &reqs, 16);
+    let sampled: Vec<GenRequest> = reqs.iter().filter(|r| r.temperature > 0.0).cloned().collect();
+    let run = |limit: usize, set: &[GenRequest], verify: bool| {
+        SAMPLED_MAX_CTX.with(|c| c.set(limit));
+        let t = check_batched_mtp_v(&w, set.to_vec(), 16, 4, 2, 4, Some(scripted(truth.clone(), 9)), false, verify);
+        SAMPLED_MAX_CTX.with(|c| c.set(0));
+        t
+    };
+    let free = run(0, &sampled, false);
+    assert!(free.spec_steps > 0, "sampled requests draft without a limit");
+    for &limit in &[1usize, 8, 40, 120, 1000] {
+        // (batched verify is only checked where several sequences still draft together: it demands such passes)
+        for verify in [false, limit >= 1000] {
+            // `check_batched_mtp_v` compares every request's ids and finish reason with its spec-off solo run
+            let t = run(limit, &reqs, verify);
+            assert!(t.spec_steps > 0, "limit {limit}: the greedy requests still draft");
+        }
+    }
+    let none = run(1, &sampled, false);
+    assert_eq!(none.spec_steps, 0, "a limit below every context: sampled requests never draft");
+    let mid = run(60, &sampled, false);
+    assert!(mid.spec_steps > 0 && mid.spec_steps < free.spec_steps, "a limit inside the run: fewer verify passes ({} / {})", mid.spec_steps, free.spec_steps);
+    let high = run(100_000, &sampled, false);
+    assert_eq!(high.spec_steps, free.spec_steps, "a limit past every context changes nothing");
 }
 
 /// `Model::forward_verify_batch_logits`: the logits rows a sampled sequence draws from are bitwise the logits of plain decode

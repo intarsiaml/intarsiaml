@@ -1,0 +1,26 @@
+[08:01:34 +0s] window w1 extra='' env='' cells: 0.7:4096,32768,65536:5 0:4096,32768,65536:5; fleetq job 10385
+[08:01:36 +2s] free: Mem:             121          46          63           0          12          75; earlyoom active; binary: intarsia 0.0.1
+[08:01:36 +2s] serve:  ${SAMP64_BIN:-~/intarsiaml-samp64/bin/intarsia} serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[08:03:13 +99s] serve up; MemAvailable MB: 47098
+[08:03:14 +100s] cell w1-T0.7 start; 2398 MHz, 12.42 W, 0 %, 47
+[sampled] 65536 rep2: prompt=68866 cached=0 ttft=16.06s decode=53.8 peak=61.5 out=256
+[sampled] 65536 rep3: prompt=68914 cached=0 ttft=15.97s decode=51.2 peak=61.0 out=256
+[sampled] 65536 rep4: prompt=68922 cached=0 ttft=15.96s decode=51.1 peak=65.4 out=256
+[sampled] 65536 rep5: prompt=68894 cached=0 ttft=15.79s decode=52.0 peak=62.1 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4069 | 0.753 | 95.368 (92.146-96.811) | 0.565 |
+| 32768 | 33895 | 7.161 | 69.145 (68.075-72.668) | 0.553 |
+| 65536 | 68914 | 15.968 | 51.958 (51.116-53.782) | 0.543 |
+[08:06:13 +279s] cell w1-T0.7 end: clock guard: 88 samples, 62 at util>90, 0 of those SM<2000 MHz, min SM 2333, mean SM 2376, max power 92 W; SW power cap delta 0 us
+[08:06:13 +279s] cell w1-T0 start; 2405 MHz, 16.08 W, 0 %, 65
+[sampled] 65536 rep2: prompt=68912 cached=0 ttft=15.70s decode=60.0 peak=81.9 out=256
+[sampled] 65536 rep3: prompt=68961 cached=0 ttft=15.70s decode=63.3 peak=80.0 out=256
+[sampled] 65536 rep4: prompt=68968 cached=0 ttft=15.73s decode=60.4 peak=75.6 out=256
+[sampled] 65536 rep5: prompt=68941 cached=0 ttft=15.82s decode=62.5 peak=82.2 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4072 | 0.672 | 120.338 (115.637-146.273) | 0.638 |
+| 32768 | 33920 | 6.296 | 81.276 (79.231-86.17) | 0.584 |
+| 65536 | 68961 | 15.731 | 60.383 (59.682-63.266) | 0.612 |
+[08:08:57 +443s] cell w1-T0 end: clock guard: 80 samples, 75 at util>90, 0 of those SM<2000 MHz, min SM 2327, mean SM 2373, max power 92 W; SW power cap delta 0 us
+[08:09:01 +447s] min MemAvailable MB: 08:07:24 37380; KILLED lines: 0; warn/error lines in serve log: 0
+[08:09:04 +450s] window end

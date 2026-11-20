@@ -285,6 +285,22 @@ pub fn mtp_store_for(backend: &str) -> bool {
     mtp_store_from_env().unwrap_or_else(|| mtp_store_default_for(backend))
 }
 
+/// Lane samp64 (`INTARSIA_SPEC_SAMPLED_MAX_CTX=<tokens>`, read once, opt-in): a sampled request (temperature > 0) drafts with the
+/// MTP head only while its context (prompt + output) is at most this many tokens; past it the request takes plain steps. A verify
+/// pass reads the whole KV cache once per row, so at long context a 2-draft pass costs about 2.3 plain steps for about 2.1 tokens
+/// (docs/results/2026-11-20-samp64.md). `0`, unset, empty or unparsable: no limit. Seeded output is unchanged (every token takes
+/// the same draw whichever step makes it, `engine/keyed.rs`).
+pub fn sampled_max_ctx() -> usize {
+    static V: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *V.get_or_init(|| match std::env::var("INTARSIA_SPEC_SAMPLED_MAX_CTX") {
+        Ok(v) if v.trim().is_empty() => 0,
+        Ok(v) => v.trim().parse().unwrap_or_else(|_| {
+            eprintln!("INTARSIA_SPEC_SAMPLED_MAX_CTX={v}: not a token count; no limit");
+            0
+        }),
+        Err(_) => 0,
+    })
+}
 /// mb-MTP ("mode-biased", after llamAmpere v0.6, `common_sampler_verify_pq`): on a rejected draft, keep the draft instead of
 /// the replacement token when the target rates it at least as likely, `p(d) >= p(replacement)`, and neither is a stop token.
 /// Not exact: the output leans toward the target's likelier tokens (llamAmpere measured 0.009 KL per token at draft depth 6),
