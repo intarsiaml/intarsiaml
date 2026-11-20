@@ -1,0 +1,10 @@
+oracle n= 42
+engine                 p_digit   meanKL  |dlogit|  top1agr
+oracle                   0.553
+vllm (3 passes avg)      0.700   0.2072     0.874 [25, 25, 27]
+nostore-p1               0.576   0.0845     0.523 31/42
+store-p1                 0.623   0.0981     0.557 31/42
+nostore-c128-p1          0.574   0.0921     0.520 31/42
+nostore-fp8kv-p1         0.648   0.1455     0.706 28/42
+store-fp8kv-p1           0.622   0.1267     0.636 28/42
+nostore-c128-fp8kv-p1    0.617   0.1337     0.622 25/42

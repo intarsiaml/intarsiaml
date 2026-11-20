@@ -1,0 +1,6 @@
+gsm8k-00000 ours prompt_tokens 495 vllm /tokenize 495 MATCH
+gsm8k-00065 ours prompt_tokens 478 vllm /tokenize 478 MATCH
+gsm8k-00087 ours prompt_tokens 510 vllm /tokenize 510 MATCH
+gsm8k-00128 ours prompt_tokens 516 vllm /tokenize 516 MATCH
+gsm8k-00159 ours prompt_tokens 489 vllm /tokenize 489 MATCH
+gsm8k-00199 ours prompt_tokens 509 vllm /tokenize 509 MATCH

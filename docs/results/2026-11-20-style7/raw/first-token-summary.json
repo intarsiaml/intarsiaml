@@ -1,0 +1,74 @@
+[
+ {
+  "config": "vllm-p1",
+  "digit_top1": 155,
+  "mean_p_digit": 0.6828,
+  "mean_KL_vs_vllm_passes": 0.0515,
+  "style_differs_vs_vllm_passes_mean": 16,
+  "mean_logit_shift_vllm_minus_this": 0.004
+ },
+ {
+  "config": "vllm-p2",
+  "digit_top1": 159,
+  "mean_p_digit": 0.6892,
+  "mean_KL_vs_vllm_passes": 0.0534,
+  "style_differs_vs_vllm_passes_mean": 14.7,
+  "mean_logit_shift_vllm_minus_this": -0.022
+ },
+ {
+  "config": "vllm-p3",
+  "digit_top1": 155,
+  "mean_p_digit": 0.6818,
+  "mean_KL_vs_vllm_passes": 0.0511,
+  "style_differs_vs_vllm_passes_mean": 16,
+  "mean_logit_shift_vllm_minus_this": 0.019
+ },
+ {
+  "config": "nostore-p1",
+  "digit_top1": 120,
+  "mean_p_digit": 0.5859,
+  "mean_KL_vs_vllm_passes": 0.1497,
+  "style_differs_vs_vllm_passes_mean": 48.3,
+  "mean_logit_shift_vllm_minus_this": 0.521
+ },
+ {
+  "config": "store-p1",
+  "digit_top1": 130,
+  "mean_p_digit": 0.6091,
+  "mean_KL_vs_vllm_passes": 0.1325,
+  "style_differs_vs_vllm_passes_mean": 38.3,
+  "mean_logit_shift_vllm_minus_this": 0.423
+ },
+ {
+  "config": "nostore-c128-p1",
+  "digit_top1": 121,
+  "mean_p_digit": 0.5783,
+  "mean_KL_vs_vllm_passes": 0.1537,
+  "style_differs_vs_vllm_passes_mean": 42.7,
+  "mean_logit_shift_vllm_minus_this": 0.558
+ },
+ {
+  "config": "nostore-fp8kv-p1",
+  "digit_top1": 140,
+  "mean_p_digit": 0.6445,
+  "mean_KL_vs_vllm_passes": 0.1205,
+  "style_differs_vs_vllm_passes_mean": 31.7,
+  "mean_logit_shift_vllm_minus_this": 0.224
+ },
+ {
+  "config": "store-fp8kv-p1",
+  "digit_top1": 132,
+  "mean_p_digit": 0.6229,
+  "mean_KL_vs_vllm_passes": 0.1366,
+  "style_differs_vs_vllm_passes_mean": 39,
+  "mean_logit_shift_vllm_minus_this": 0.346
+ },
+ {
+  "config": "nostore-c128-fp8kv-p1",
+  "digit_top1": 131,
+  "mean_p_digit": 0.6202,
+  "mean_KL_vs_vllm_passes": 0.1355,
+  "style_differs_vs_vllm_passes_mean": 42,
+  "mean_logit_shift_vllm_minus_this": 0.365
+ }
+]

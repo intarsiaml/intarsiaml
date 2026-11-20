@@ -1,0 +1,6 @@
+prefill chunk 256 (--prefill-chunk)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 18 kernel(s) checked, 0 case(s) run, 292 cached
+loaded nvfp4 on cpu (cpu-ref (Apple M5 Max)) in 4.3s, context 2048 tokens
+sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /opt/code/intarsiaml/.worktrees/style7/scratch/models/nvfp4/generation_config.json; a request's own values win)
+intarsia server listening on http://127.0.0.1:8195
