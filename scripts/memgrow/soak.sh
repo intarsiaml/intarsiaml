@@ -2,7 +2,7 @@
 # memgrow: long soak of the shipping config on spark1 with a 30 s memory sampler; vLLM stays up and is sampled too.
 #   FLEETQ_OWNER=claude-overnight-memgrow fleetq run --host spark1 --mem 52 --expect 150 --label "memgrow soak" -- bash scripts/memgrow/soak.sh <tag> [extra serve args]
 # Env: SOAKMIN (load minutes, default 105), IDLEMIN (idle minutes after the load, default 10), SEED0 (first replay seed, default 201),
-#      SERVE_EXTRA (extra `intarsia serve` args, e.g. "--prefix-store off"), INTARSIA_ENV (env assignments for the server, e.g. "INTARSIA_BATCHED_MTP=0").
+#      SERVE_EXTRA (extra `intarsia serve` args, e.g. "--prefix-store off"), SERVER_ENV (env assignments for the server, e.g. "INTARSIA_BATCHED_MTP=0").
 # Phases (marks in $OUT/marks-<tag>.tsv): base (keepalive sampler only, no server) -> start -> settle (server idle) -> load -> idle -> stop -> after.
 # Binary: ~/intarsiaml-memgrow/bin/intarsia (scripts/memgrow/build.sh). Remove ~/intarsiaml-memgrow when the lane is done.
 set -uo pipefail
@@ -36,7 +36,7 @@ trap 'stop_all; log "window end"' EXIT; trap 'exit 130' INT TERM
 scp -q -o BatchMode=yes "$REPO/scripts/memgrow/sampler.sh" "$HOST:intarsiaml-memgrow/out/" || { log "sampler copy failed"; exit 1; }
 rsh "ss -ltn | grep -q ':$PORT '" && { log "port $PORT busy, abort"; exit 1; }
 log "tag $TAG; fleetq job $FLEETQ_JOB; earlyoom $(rsh 'systemctl is-active earlyoom'); avail $(avail) GB; binary $(rsh "$BIN --version | head -1")"
-log "serve args: $SERVE_ARGS; env: ${INTARSIA_ENV:-none}"
+log "serve args: $SERVE_ARGS; env: ${SERVER_ENV:-none}"
 # keepalive + watchdog (kills the server below 15 GB available) + sampler, all tied to the keepalive
 KA=$(rsh "nohup sleep 20000 > /dev/null 2>&1 < /dev/null & echo \$!")
 rsh "rm -f $W/ipid-$TAG $CSV"
@@ -56,7 +56,7 @@ SAMP=$(rsh "IPIDFILE=$W/ipid-$TAG nohup bash $W/sampler.sh $KA $PORT $CSV 30 > /
 mark base; sleep 90
 
 mark start
-SPID=$(rsh "env ${INTARSIA_ENV:-} nohup $BIN serve $SERVE_ARGS > $W/serve-$TAG.log 2>&1 < /dev/null & echo \$!")
+SPID=$(rsh "env ${SERVER_ENV:-} nohup $BIN serve $SERVE_ARGS > $W/serve-$TAG.log 2>&1 < /dev/null & echo \$!")
 rsh "echo $SPID > $W/ipid-$TAG"
 log "server pid $SPID"
 up=0; for i in $(seq 1 200); do curl -sf "http://$HN:$PORT/health" > /dev/null && { up=1; break; }; rsh "kill -0 $SPID" 2>/dev/null || break; sleep 2; done
