@@ -1,0 +1,9 @@
+round 0    512 KiB x64  ms/buf (prep on helper thread | copy1 | copy2):  A  0.188| 0.017| 0.015  H  0.156| 0.016| 0.015  P  1.835| 0.020| 0.015  R  1.793| 0.018| 0.015  G  0.176| 0.015| 0.014  Q  1.291| 0.017| 0.015
+round 0   5120 KiB x64  ms/buf (prep on helper thread | copy1 | copy2):  A  1.596| 3.644| 0.097  H  0.880| 0.097| 0.096  P  4.821| 0.099| 0.095  R  4.785| 0.096| 0.095  G  1.832| 0.095| 0.095  Q  4.347| 0.096| 0.096
+round 0  32160 KiB x32  ms/buf (prep on helper thread | copy1 | copy2):  A  9.137| 3.989| 0.564  H  5.712| 0.563| 0.579  P 11.633| 0.565| 0.562  R 11.576| 0.563| 0.562  G 11.357| 0.564| 0.562  Q  7.836| 0.562| 0.561
+round 1    512 KiB x64  ms/buf (prep on helper thread | copy1 | copy2):  A  0.014| 0.015| 0.016  H  0.010| 0.015| 0.015  P  0.022| 0.015| 0.015  R  0.023| 0.015| 0.015  G  0.081| 0.015| 0.014  Q  0.022| 0.015| 0.015
+round 1   5120 KiB x64  ms/buf (prep on helper thread | copy1 | copy2):  A  1.387| 0.099| 0.095  H  0.691| 0.097| 0.096  P  3.938| 0.096| 0.095  R  3.951| 0.096| 0.095  G  1.798| 0.096| 0.095  Q  3.549| 0.099| 0.096
+round 1  32160 KiB x32  ms/buf (prep on helper thread | copy1 | copy2):  A  8.612| 0.563| 0.562  H  9.654| 0.563| 0.562  P 10.059| 0.563| 0.562  R  9.612| 0.566| 0.561  G 11.094| 0.563| 0.561  Q  9.533| 0.563| 0.562
+contention rep 0: 40 x 512 MiB D2D on stream A alone 184.3 ms, with helper priming 197.8 ms (helper made 19 x 5 MiB = 95 MiB in 199 ms)
+contention rep 1: 40 x 512 MiB D2D on stream A alone 182.4 ms, with helper priming 198.2 ms (helper made 19 x 5 MiB = 95 MiB in 200 ms)
+2411 MHz, 19.25 W
