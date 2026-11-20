@@ -1,0 +1,23 @@
+decode tok/s, median of the reps per server (reps in brackets):
+ code-gen
+  def    r1 161.61 [162.0 161.6 161.6]  r2 159.95 [159.0 159.9 162.9]  r3 161.25 [164.9 160.1 161.2]  r4 163.14 [163.9 161.7 163.1]
+  zero   r1 163.17 [163.2 163.3 162.2]  r2 162.17 [162.0 162.2 162.5]  r3 162.17 [165.1 161.0 162.2]  r4 162.38 [162.9 161.5 162.4]
+ copy3k
+  def    r1 279.77 [280.2 279.8 279.8]  r2 277.14 [277.1 279.4 275.9]  r3 279.75 [279.8 280.0 279.5]  r4 281.41 [281.7 281.4 281.3]
+  zero   r1 162.05 [162.1 162.0 162.1]  r2 161.93 [161.9 161.9 161.9]  r3 161.96 [162.0 162.0 161.9]  r4 161.25 [161.2 161.2 161.4]
+replies code-gen r1: equal across arms (3 reps)
+replies code-gen r2: equal across arms (3 reps)
+replies code-gen r3: equal across arms (3 reps)
+replies code-gen r4: equal across arms (3 reps)
+replies copy3k r1: equal across arms (3 reps)
+replies copy3k r2: equal across arms (3 reps)
+replies copy3k r3: equal across arms (3 reps)
+replies copy3k r4: equal across arms (3 reps)
+ratios of per-round medians:
+ def/zero code-gen    0.9904 0.9863 0.9943 1.0047  median 0.9924  mean 0.9939 (SE 0.0039)  >1: 1/4
+ def/zero copy3k      1.7264 1.7115 1.7273 1.7452  median 1.7269  mean 1.7276 (SE 0.0069)  >1: 4/4
+ def/zero ALL         1.3584 1.3489 1.3608 1.3749  median 1.3596  mean 1.3608 (SE 0.0054)  >1: 4/4
+per server, mean over cells of tok/s / the arm's own mean over rounds (a server slow in every request shows well below 1):
+  def    r1 1.0008  r2 0.9910  r3 0.9997  r4 1.0085
+  zero   r1 1.0029  r2 0.9995  r3 0.9996  r4 0.9980
+mean graph step (ms, positions >= 100) per cell, and eager steps (token lines without a graph step) per cell, per server; requests are mapped by order: 2 warm-ups then the cells x reps:

@@ -1,0 +1,8 @@
+def-r1   busy samples   26  median 2437 MHz  min 2418  ok
+def-r2   busy samples   26  median 2437 MHz  min 2418  ok
+def-r3   busy samples   26  median 2437 MHz  min 2418  ok
+def-r4   busy samples   25  median 2437 MHz  min 2418  ok
+zero-r1  busy samples   37  median 2444 MHz  min 2444  ok
+zero-r2  busy samples   37  median 2444 MHz  min 2444  ok
+zero-r3  busy samples   37  median 2444 MHz  min 2411  ok
+zero-r4  busy samples   37  median 2444 MHz  min 2444  ok
