@@ -1,0 +1,9 @@
+fleetq: #10183 running on spark2: ssh spark2 'W=g1 ARMS="u:X=1: e0:INTARSIA_SIDE_EAGER=0: off:X=1:--spec,off" bash -s'
+u up 07:26:52 free: 48 GB env=[X=1] args=[]
+u done 07:29:58: 30 requests, errors 0; counters: sidebatch: eager fork points (taken) moe/1row=32 proj/1row=32 moe/verify=4814 proj/verify=4814
+e0 up 07:31:39 free: 49 GB env=[INTARSIA_SIDE_EAGER=0] args=[]
+e0 done 07:34:46: 30 requests, errors 0; counters: sidebatch: eager fork points (SUPPRESSED) moe/1row=32 proj/1row=32 moe/verify=4772 proj/verify=4772
+off up 07:36:22 free: 51 GB env=[X=1] args=[--spec,off]
+off done 07:39:35: 30 requests, errors 0; counters: 
+serve done
+fleetq: #10183 done (exit 0)
