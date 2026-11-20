@@ -418,7 +418,7 @@ pub struct EngineMeta {
     /// MTP drafting on prefix-store requests (lane mtp-store): `None` (the default): `INTARSIA_MTP_STORE`, else the backend's
     /// default ([`crate::spec::mtp_store_for`]: on for CUDA); tests set it.
     pub mtp_store: Option<bool>,
-    /// Copy drafts beside the MTP head (lane mcopy): `None` (the default): `INTARSIA_SPEC_COPY`, else the Metal single-sequence default (lane copyflipm), else off; tests set it. Single-sequence
+    /// Copy drafts beside the MTP head (lane mcopy): `None` (the default): `INTARSIA_SPEC_COPY`, else the Metal / CUDA single-sequence default of an opted-in recipe (lanes copyflipm, copyflipc), else off; tests set it. Single-sequence
     /// engine, `--spec mtp`, greedy requests; the model must have been prepared for `1 + len` verify rows.
     pub spec_copy: Option<crate::spec::CopyCfg>,
 }
@@ -830,7 +830,7 @@ impl LocalEngine {
                     model.verify_rows()
                 )));
             }
-            let by = if meta.spec_copy.is_none() && crate::spec::copy_is_default() { "default on Metal at one sequence; INTARSIA_SPEC_COPY=0 turns it off" } else { "INTARSIA_SPEC_COPY" };
+            let by = if meta.spec_copy.is_none() && crate::spec::copy_is_default() { "default for this recipe on Metal / CUDA at one sequence; INTARSIA_SPEC_COPY=0 turns it off" } else { "INTARSIA_SPEC_COPY" };
             eprintln!("spec: copy drafts on: a chain of up to {} tokens{} when the last {} tokens occurred earlier ({by})", c.len, if c.adapt { " (adaptive: short until a long copy run)" } else { "" }, c.n);
         }
         if store.is_some() && meta.spec.mode == crate::spec::SpecMode::Mtp && model.has_mtp() {

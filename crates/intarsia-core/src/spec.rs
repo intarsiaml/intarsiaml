@@ -555,13 +555,14 @@ pub const COPY_DEFAULT_VALUE: &str = "20";
 
 static COPY_DEFAULT_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// Whether an unset `INTARSIA_SPEC_COPY` means copy drafts on for the model being loaded (lane copyflipm): Metal, one sequence at a time
-/// (`max_batch` 1), one rank (`tp` 1), and the model's recipe opts in (`recipe_opt_in`: `[tuning.metal] copy_default = true`, the
-/// Qwen3.6-35B-A3B only; a recipe without the key is off). Anywhere else the variable unset is off, as before. Pure; the loader passes its
+/// Whether an unset `INTARSIA_SPEC_COPY` means copy drafts on for the model being loaded (lane copyflipm, Metal; lane copyflipc, CUDA): Metal or
+/// CUDA, one sequence at a time (`max_batch` 1), one rank (`tp` 1), and the model's recipe opts in for that backend (`recipe_opt_in`:
+/// `[tuning.metal]` / `[tuning.cuda] copy_default = true`, the Qwen3.6-35B-A3B only; a recipe without the key is off). HIP, cpu and everything
+/// else: the variable unset is off, as before. Pure; the loader passes its
 /// answer to [`set_copy_default`]. (`--spec mtp` is not an input: [`SpecConfig::verify_rows`] and the engine already ignore copy drafts
 /// without it.)
 pub fn copy_default_applies(backend: &str, max_batch: usize, tp: usize, recipe_opt_in: bool) -> bool {
-    backend == "metal" && max_batch == 1 && tp == 1 && recipe_opt_in
+    matches!(backend, "metal" | "cuda") && max_batch == 1 && tp == 1 && recipe_opt_in
 }
 
 /// Record whether the load qualifies for the default ([`copy_default_applies`]). Off until the loader says otherwise, so any other
@@ -594,7 +595,7 @@ pub fn copy_is_default() -> bool {
 
 /// The ONE place copy drafts are resolved (the text of `INTARSIA_SPEC_COPY` is read once): an explicit value (the backend's default length
 /// when it has no `,<len>`, [`set_copy_backend`]); `None` for `0`, empty or an unusable value; with the variable unset, `20` on a load
-/// that qualifies ([`set_copy_default`]: Metal, one sequence, one rank; lane copyflipm), else `None`. The load-time verify-row width and
+/// that qualifies ([`set_copy_default`]: Metal or CUDA, one sequence, one rank, an opted-in recipe; lanes copyflipm, copyflipc), else `None`. The load-time verify-row width and
 /// the engine's chain both call it.
 pub fn copy_from_env() -> Option<CopyCfg> {
     resolve_copy(copy_env(), COPY_DEFAULT_ON.load(std::sync::atomic::Ordering::Relaxed), COPY_LEN_BACKEND.load(std::sync::atomic::Ordering::Relaxed))
@@ -2523,13 +2524,17 @@ mod tests {
     }
 
     #[test]
-    fn copy_default_applies_only_to_metal_one_sequence_one_rank_and_an_opted_in_recipe() {
+    fn copy_default_applies_only_to_metal_and_cuda_one_sequence_one_rank_and_an_opted_in_recipe() {
         assert!(copy_default_applies("metal", 1, 1, true));
+        assert!(copy_default_applies("cuda", 1, 1, true));
+        assert!(!copy_default_applies("cuda", 1, 1, false), "a recipe without the key: off");
+        assert!(!copy_default_applies("cuda", 2, 1, true));
+        assert!(!copy_default_applies("cuda", 1, 2, true));
         assert!(!copy_default_applies("metal", 1, 1, false), "a recipe without the key: off");
         assert!(!copy_default_applies("metal", 2, 1, true));
         assert!(!copy_default_applies("metal", 8, 1, true));
         assert!(!copy_default_applies("metal", 1, 2, true));
-        for b in ["cuda", "hip", "cpu"] {
+        for b in ["hip", "cpu"] {
             assert!(!copy_default_applies(b, 1, 1, true), "{b}");
         }
     }

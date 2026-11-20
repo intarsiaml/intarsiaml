@@ -101,6 +101,10 @@ mtp_draft_vocab = 131072
 # `INTARSIA_GDN_STATE=f32` turns it off (the env var wins over this key); the debug switches `INTARSIA_CUDA_GDN_SPLIT=0`, `INTARSIA_CUDA_GDN_LANES=1`
 # and `INTARSIA_CUDA_FAST_PREFILL=1` select f32-only kernels and then need `INTARSIA_GDN_STATE=f32` as well (else the load refuses).
 gdn_state = "bf16"
+# Copy drafts on by default with `--spec mtp` at one sequence (`--max-batch 1`, tp 1) when `INTARSIA_SPEC_COPY` is unset (lane copyflipc, user decision #9, 2026-11-20; the Metal
+# flip is lane copyflipm, #460): `INTARSIA_SPEC_COPY=0` opts out. Chain length 7 (`COPY_LEN_DEFAULT`), the value measured in docs/results/2026-11-18-copycuda.md (35B NVFP4 on a GB10: copy3k 1.69x,
+# json-xform 1.51x, agent-edit 1.09x, agent-batch 1.041x, code-gen 0.992x: the trade the user accepted). The Qwen3.8-27B (`recipes/qwen3_5_vl.toml`) does not opt in.
+copy_default = true
 
 # 4096 on Metal (lane chunk4k, 2026-10-29): 4096-row chunks give the MoE expert GEMMs 128 rows per expert (64 at 2048) and
 # amortise the fp8 weight decode over twice the rows: served 35B prefill about +7.5 % at 4k (best start against best start; paired median
