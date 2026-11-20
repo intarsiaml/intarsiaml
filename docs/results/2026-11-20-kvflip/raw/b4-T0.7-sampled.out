@@ -1,0 +1,20 @@
+[sampled] calibrated 22.06 tok/sentence base=52 ctx=70000
+[sampled] 4096 rep1: prompt=4089 cached=0 ttft=0.53s decode=95.0 peak=121.4 out=256
+[sampled] 4096 rep2: prompt=4068 cached=0 ttft=0.52s decode=94.3 peak=120.7 out=256
+[sampled] 4096 rep3: prompt=4071 cached=0 ttft=0.53s decode=95.9 peak=122.4 out=256
+[sampled] 4096 rep4: prompt=4098 cached=0 ttft=0.58s decode=97.2 peak=137.6 out=256
+[sampled] 4096 rep5: prompt=4067 cached=0 ttft=0.52s decode=96.3 peak=120.8 out=256
+[sampled] 32768 rep1: prompt=33905 cached=0 ttft=4.83s decode=83.5 peak=101.2 out=256
+[sampled] 32768 rep2: prompt=33900 cached=0 ttft=4.80s decode=80.6 peak=98.9 out=256
+[sampled] 32768 rep3: prompt=33893 cached=0 ttft=4.81s decode=80.1 peak=112.3 out=256
+[sampled] 32768 rep4: prompt=33898 cached=0 ttft=4.79s decode=81.6 peak=107.9 out=256
+[sampled] 32768 rep5: prompt=33950 cached=0 ttft=4.81s decode=80.9 peak=114.7 out=256
+[sampled] 65536 rep1: prompt=68932 cached=0 ttft=11.15s decode=71.1 peak=83.8 out=256
+[sampled] 65536 rep2: prompt=68866 cached=0 ttft=11.17s decode=71.2 peak=84.9 out=256
+[sampled] 65536 rep3: prompt=68911 cached=0 ttft=11.17s decode=71.3 peak=87.7 out=256
+[sampled] 65536 rep4: prompt=68920 cached=0 ttft=11.18s decode=70.9 peak=84.1 out=256
+[sampled] 65536 rep5: prompt=68893 cached=0 ttft=11.18s decode=72.8 peak=89.1 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4071 | 0.53 | 95.949 (94.253-97.211) | None |
+| 32768 | 33900 | 4.812 | 80.86 (80.137-83.526) | None |
+| 65536 | 68911 | 11.173 | 71.226 (70.901-72.81) | None |

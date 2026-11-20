@@ -167,6 +167,8 @@ extern "C" {
     ) -> c_int;
     /// Tests only (lane kvonce): override `INTARSIA_CUDA_ATTN_KV_ONCE` (-1 = the variable) and plant the test fault.
     pub fn ik_attn_kv_once_for_test(mode: c_int, fault: c_int);
+    /// The KV-once mode in effect (0 off, 1 on, 2 on with plain loads).
+    pub fn ik_attn_kv_once_mode() -> c_int;
     pub fn ik_attn_prefill_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
     pub fn ik_attn_decode_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, pos: T, s: S) -> c_int;
     pub fn ik_attn_decode_bf16_splitkv(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, scratch: SC, pos: T, s: S) -> c_int;
