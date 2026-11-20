@@ -1,0 +1,9 @@
+pid 871806; 7 blocks (other pids: 871794)
+min	kind	arenas	aspace	rw_part	free	live(rw-free)	mmap_n	mmap_MB
+2.6	periodic	19	1442	1442	774	667	20	550
+7.6	periodic	19	1442	1442	770	672	20	550
+8.1	before trim	19	1442	1442	766	675	20	550
+8.1	after trim	19	1441	1441	766	675	20	550
+13.1	periodic	19	1430	1453	756	697	20	550
+17.4	before trim	19	1378	1480	706	774	20	550
+17.4	after trim	19	1378	1480	706	774	20	550
