@@ -1,0 +1,36 @@
+[09:34:42 +0s] window w9 extra='' env='INTARSIA_SPEC_SAMPLED_CTX_K=16384:1' cells: seeded 0.7:4096,32768,65536:5 0:4096,32768,65536:5; fleetq job 10400
+[09:34:44 +2s] free: Mem:             121          46          63           0          12          75; earlyoom active; binary: intarsia 0.0.1
+[09:34:45 +3s] serve: INTARSIA_SPEC_SAMPLED_CTX_K=16384:1 ~/intarsiaml-samp64/bin/intarsia-fix serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[09:35:58 +76s] serve up; MemAvailable MB: 48475
+[09:35:59 +77s] cell w9-seeded start; 2398 MHz, 13.22 W, 0 %, 52
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/lib/python3.12/urllib/request.py", line 639, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 400: Bad Request
+[09:36:55 +133s] cell w9-seeded end: clock guard: 28 samples, 13 at util>90, 0 of those SM<2000 MHz, min SM 2366, mean SM 2375, max power 86 W; SW power cap delta 0 us
+[09:36:56 +134s] cell w9-T0.7 start; 2405 MHz, 15.08 W, 0 %, 61
+[sampled] 65536 rep2: prompt=68887 cached=0 ttft=15.96s decode=55.1 peak=65.0 out=256
+[sampled] 65536 rep3: prompt=68934 cached=0 ttft=15.84s decode=55.4 peak=61.4 out=256
+[sampled] 65536 rep4: prompt=68947 cached=0 ttft=15.77s decode=55.9 peak=61.7 out=256
+[sampled] 65536 rep5: prompt=68917 cached=0 ttft=15.83s decode=54.9 peak=61.5 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4070 | 0.759 | 98.097 (92.69-99.225) | 0.592 |
+| 32768 | 33901 | 6.992 | 70.99 (69.912-77.007) | 0.733 |
+| 65536 | 68934 | 15.84 | 55.443 (54.916-56.161) | 0.706 |
+[09:39:50 +308s] cell w9-T0.7 end: clock guard: 86 samples, 56 at util>90, 0 of those SM<2000 MHz, min SM 2320, mean SM 2370, max power 92 W; SW power cap delta 0 us
+[09:39:51 +309s] cell w9-T0 start; 2405 MHz, 16.18 W, 0 %, 65
+[sampled] 65536 rep2: prompt=68841 cached=0 ttft=15.62s decode=60.8 peak=78.2 out=256
+[sampled] 65536 rep3: prompt=68891 cached=0 ttft=15.66s decode=63.0 peak=91.6 out=256
+[sampled] 65536 rep4: prompt=68900 cached=0 ttft=15.63s decode=61.0 peak=81.4 out=256
+[sampled] 65536 rep5: prompt=68869 cached=0 ttft=15.62s decode=67.3 peak=94.4 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4069 | 0.67 | 122.349 (113.83-149.234) | 0.656 |
+| 32768 | 33876 | 6.303 | 81.875 (78.126-105.416) | 0.631 |
+| 65536 | 68891 | 15.628 | 61.041 (60.633-67.312) | 0.647 |
+[09:42:33 +471s] cell w9-T0 end: clock guard: 80 samples, 75 at util>90, 0 of those SM<2000 MHz, min SM 2327, mean SM 2376, max power 92 W; SW power cap delta 0 us
+[09:42:37 +475s] min MemAvailable MB: 09:41:37 37529; KILLED lines: 0; warn/error lines in serve log: 0
+[09:42:40 +478s] window end
