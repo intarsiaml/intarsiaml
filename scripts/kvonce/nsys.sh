@@ -40,5 +40,6 @@ for c in $CELLS; do
   ( cd /opt/code/deepeval && uv run python "$S/sampled.py" --url "http://$HN:$PORT/v1" --model $MODEL --arm "$name" --out "$OUT" --metrics "http://$HN:$PORT/metrics" --sizes "$SZ" --reps 2 --temperature "$T" ) > "$OUT/$name-sampled.out" 2>&1
   rsh "nsys stop --session=$SESS" > "$OUT/$name-stop.out" 2>&1; tail -3 "$OUT/$name-sampled.out" | tee -a "$OUT/window.log"
   rsh "cd $N && nsys stats --force-export=true -r cuda_gpu_kern_sum,cuda_api_sum -f csv -o $name $name.nsys-rep > /dev/null 2>&1; ls -la $N | tail -5"
+  scp -q -o BatchMode=yes "$HOST:intarsiaml-kvonce/out/nsys-$WN/${name}_cuda_gpu_kern_sum.csv" "$OUT/" || log "csv copy failed"
 done
 rsh "cat $W/serve-nsys-$WN.log" > "$OUT/serve.log"; log "min MemAvailable MB: $(rsh "sort -k2 -n $W/mem-nsys-$WN.txt | head -1")"
