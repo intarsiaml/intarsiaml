@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # kvonce nsys window: kernel-level attribution of single-stream decode. One server under `nsys launch` (CUDA trace, graph nodes), one capture per cell.
 #   FLEETQ_OWNER=claude-kvonce fleetq run --host spark2 --quiet gpu,cpu --mem 55 --expect N --label "kvonce nsys" -- bash scripts/kvonce/nsys.sh <wname> "<extra serve args>" <cell>...
+# SERVE_ENV="A=1 ..." sets the server environment.
 # cell = <temperature>:<size>   e.g. 0.7:65536 0:65536   (2 reps each, the first warms nothing special: the capture covers the whole sampled.py run of that cell)
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
@@ -24,8 +25,8 @@ trap 'stop_all; log "nsys window end"' EXIT; trap 'exit 130' INT TERM
 rsh "mkdir -p $N && rm -f $W/mem-nsys-$WN.txt"
 scp -q -o BatchMode=yes "$SC/memwatch.sh" "$HOST:intarsiaml-kvonce/out/"
 rsh "ss -ltn | grep -q ':$PORT '" && { log "port busy"; exit 1; }
-log "serve under nsys: $BIN serve $SERVE_ARGS"
-rsh "nohup nsys launch --session-new=$SESS --trace=cuda --cuda-graph-trace=node $BIN serve $SERVE_ARGS > $W/serve-nsys-$WN.log 2>&1 < /dev/null &"
+log "serve under nsys: ${SERVE_ENV:-} $BIN serve $SERVE_ARGS"
+rsh "nohup env ${SERVE_ENV:-} nsys launch --session-new=$SESS --trace=cuda --cuda-graph-trace=node $BIN serve $SERVE_ARGS > $W/serve-nsys-$WN.log 2>&1 < /dev/null &"
 sleep 5
 PID=""; for i in $(seq 1 20); do PID=$(rsh "pgrep -f 'bin/intarsia serve.*--port $PORT' | head -1"); [[ -n $PID ]] && break; sleep 1; done
 [[ -n $PID ]] || { log "no server pid"; exit 1; }
