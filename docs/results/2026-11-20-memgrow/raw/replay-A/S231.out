@@ -1,0 +1,59 @@
+[replay2] arm=S231 order=interleaved seed=231 streams=2 plan={'per_sentence': 22.06, 'base_tokens': 52, 'sentences': [357, 218, 218, 218, 218, 218]} trace=RECORD
+[replay2] warmup ok=True prompt=6699
+[replay2] w1 c1 t1 prompt=8040 cached=0 ttft=1.35s decode=46.6 out=160 
+[replay2] w0 c0 t1 prompt=8047 cached=44 ttft=2.81s decode=46.2 out=160 
+[replay2] w1 c3 t1 prompt=8033 cached=44 ttft=1.45s decode=43.7 out=160 
+[replay2] w0 c2 t1 prompt=8053 cached=44 ttft=1.51s decode=44.4 out=160 
+[replay2] w1 c5 t1 prompt=8056 cached=44 ttft=1.52s decode=48.9 out=160 
+[replay2] w0 c4 t1 prompt=8039 cached=44 ttft=1.46s decode=46.5 out=158 
+[replay2] w1 c7 t1 prompt=8060 cached=44 ttft=1.56s decode=47.0 out=160 
+[replay2] w0 c6 t1 prompt=8042 cached=44 ttft=1.49s decode=48.0 out=160 
+[replay2] w1 c1 t2 prompt=13069 cached=8036 ttft=1.19s decode=48.6 out=160 
+[replay2] w0 c0 t2 prompt=13078 cached=8043 ttft=1.21s decode=47.3 out=158 
+[replay2] w1 c3 t2 prompt=13052 cached=8029 ttft=1.21s decode=43.6 out=160 
+[replay2] w0 c2 t2 prompt=13094 cached=8049 ttft=1.23s decode=51.1 out=160 
+[replay2] w1 c5 t2 prompt=13081 cached=8052 ttft=1.2s decode=50.9 out=160 
+[replay2] w0 c4 t2 prompt=13070 cached=8035 ttft=1.35s decode=49.0 out=160 
+[replay2] w1 c7 t2 prompt=13079 cached=8056 ttft=1.22s decode=48.9 out=160 
+[replay2] w0 c6 t2 prompt=13054 cached=8038 ttft=1.31s decode=53.3 out=160 
+[replay2] w1 c1 t3 prompt=18089 cached=13065 ttft=1.32s decode=51.1 out=160 
+[replay2] w0 c0 t3 prompt=18090 cached=13074 ttft=1.44s decode=69.7 out=160 
+[replay2] w1 c3 t3 prompt=18090 cached=13048 ttft=1.22s decode=47.5 out=160 
+[replay2] w0 c2 t3 prompt=18116 cached=13090 ttft=2.08s decode=49.6 out=156 
+[replay2] w1 c5 t3 prompt=18117 cached=13077 ttft=1.38s decode=48.7 out=160 
+[replay2] w0 c4 t3 prompt=18103 cached=13066 ttft=1.45s decode=77.7 out=159 
+[replay2] w1 c7 t3 prompt=18094 cached=13075 ttft=1.2s decode=48.9 out=160 
+[replay2] w0 c6 t3 prompt=18070 cached=13050 ttft=2.33s decode=57.0 out=160 
+[replay2] w1 c1 t4 prompt=23117 cached=18085 ttft=1.35s decode=48.4 out=160 
+[replay2] w0 c0 t4 prompt=23118 cached=18086 ttft=1.91s decode=73.6 out=160 
+[replay2] w1 c3 t4 prompt=23114 cached=18086 ttft=1.28s decode=48.2 out=157 
+[replay2] w0 c2 t4 prompt=23149 cached=18112 ttft=2.46s decode=40.7 out=143 
+[replay2] w1 c5 t4 prompt=23140 cached=18113 ttft=1.41s decode=46.9 out=160 
+[replay2] w0 c4 t4 prompt=23138 cached=18099 ttft=1.4s decode=58.9 out=160 
+[replay2] w0 c6 t4 prompt=23092 cached=18066 ttft=1.83s decode=70.2 out=160 
+[replay2] w1 c7 t4 prompt=23128 cached=18090 ttft=1.37s decode=42.6 out=160 
+[replay2] w0 c0 t5 prompt=28140 cached=23114 ttft=1.36s decode=46.3 out=160 
+[replay2] w1 c1 t5 prompt=28146 cached=23113 ttft=2.54s decode=53.1 out=160 
+[replay2] w0 c2 t5 prompt=28165 cached=23145 ttft=1.46s decode=45.6 out=159 
+[replay2] w1 c3 t5 prompt=28144 cached=23110 ttft=1.96s decode=61.5 out=160 
+[replay2] w0 c4 t5 prompt=28172 cached=23134 ttft=1.42s decode=45.9 out=159 
+[replay2] w1 c5 t5 prompt=28176 cached=23136 ttft=2.31s decode=53.6 out=160 
+[replay2] w0 c6 t5 prompt=28117 cached=23088 ttft=1.47s decode=44.6 out=160 
+[replay2] w1 c7 t5 prompt=28148 cached=23124 ttft=1.81s decode=41.7 out=160 
+[replay2] w0 c0 t6 prompt=33160 cached=28136 ttft=1.57s decode=43.5 out=160 
+[replay2] w1 c1 t6 prompt=33172 cached=28142 ttft=1.58s decode=44.5 out=160 
+[replay2] w0 c2 t6 prompt=33194 cached=28161 ttft=1.6s decode=37.7 out=142 
+[replay2] w1 c3 t6 prompt=33141 cached=28140 ttft=1.59s decode=49.8 out=160 
+[replay2] w0 c4 t6 prompt=33202 cached=28168 ttft=1.56s decode=43.8 out=160 
+[replay2] w1 c5 t6 prompt=33188 cached=28172 ttft=2.03s decode=65.7 out=160 
+[replay2] w0 c6 t6 prompt=33131 cached=28113 ttft=1.48s decode=42.8 out=160 
+[replay2] w1 c7 t6 prompt=33166 cached=28144 ttft=2.6s decode=59.9 out=160 
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8044 | 44 (0.005) | 1.503 (1.346-2.807) | 46.6 (43.7-48.9) |
+| 2 | 13074 | 8040 (0.615) | 1.214 (1.189-1.353) | 49.0 (43.6-53.3) |
+| 3 | 18092 | 13070 (0.722) | 1.409 (1.199-2.328) | 50.3 (47.5-77.7) |
+| 4 | 23123 | 18088 (0.782) | 1.402 (1.277-2.462) | 48.3 (40.7-73.6) |
+| 5 | 28147 | 23119 (0.821) | 1.641 (1.357-2.535) | 46.1 (41.7-61.5) |
+| 6 | 33169 | 28143 (0.849) | 1.587 (1.482-2.605) | 44.1 (37.7-65.7) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.02, 'itl_ms_p99_median': 172.24, 'itl_ms_p99_max': 787.0, 'itl_cv_median': 1.757}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989274, 'cached_tokens': 724068, 'ttft_s_sum': 76.86, 'decode_tok_s_median': 48.3, 'completion_tokens': 7631, 'agg_output_tok_s': 65.73} wall 116.1s
