@@ -1,0 +1,1 @@
+{"seed": 7, "minutes": 60.0, "streams": 2, "requests": 996, "kinds": {"chat": 376, "abort_prefill": 91, "multiturn": 140, "abort_decode": 103, "tool": 96, "long": 49, "schema": 46, "longgen": 95}, "ok": 996, "bad": 0, "errors": {}}

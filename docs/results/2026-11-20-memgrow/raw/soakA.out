@@ -1,0 +1,73 @@
+fleetq: #10334 running on spark1: bash scripts/memgrow/soak.sh A
+[23:41:38 +2s] tag A; fleetq job 10334; earlyoom active; avail 79 GB; binary intarsia 0.0.1
+[23:41:38 +2s] serve args: --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on  ; env: none
+[23:41:40 +4s] mark base
+[23:43:10 +94s] mark start
+[23:43:11 +95s] server pid 4039211
+[23:44:52 +196s] server up, avail 51 GB
+[23:44:52 +196s] mark settle
+[23:46:52 +316s] mark load
+[23:46:52 +316s] load: no new replay after 01:31:52
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988266, 'cached_tokens': 723388, 'ttft_s_sum': 77.22, 'decode_tok_s_median': 43.3, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 987869, 'cached_tokens': 723060, 'ttft_s_sum': 74.12, 'decode_tok_s_median': 45.7, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988118, 'cached_tokens': 723343, 'ttft_s_sum': 70.03, 'decode_tok_s_median': 45.7, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 987933, 'cached_tokens': 723179, 'ttft_s_sum': 76.54, 'decode_tok_s_median': 45.2, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988403, 'cached_tokens': 723567, 'ttft_s_sum': 73.7, 'decode_tok_s_median': 46.9, 'completion_to
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988478, 'cached_tokens': 723558, 'ttft_s_sum': 73.25, 'decode_tok_s_median': 46.1, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988801, 'cached_tokens': 723682, 'ttft_s_sum': 74.62, 'decode_tok_s_median': 46.4, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988962, 'cached_tokens': 723844, 'ttft_s_sum': 75.86, 'decode_tok_s_median': 47.3, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989347, 'cached_tokens': 724181, 'ttft_s_sum': 71.53, 'decode_tok_s_median': 46.8, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988513, 'cached_tokens': 723543, 'ttft_s_sum': 82.54, 'decode_tok_s_median': 49.0, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989344, 'cached_tokens': 724149, 'ttft_s_sum': 71.9, 'decode_tok_s_median': 46.8, 'completion_to
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988937, 'cached_tokens': 723867, 'ttft_s_sum': 73.02, 'decode_tok_s_median': 46.4, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988650, 'cached_tokens': 723665, 'ttft_s_sum': 71.15, 'decode_tok_s_median': 46.9, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989022, 'cached_tokens': 723927, 'ttft_s_sum': 76.18, 'decode_tok_s_median': 47.3, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988155, 'cached_tokens': 723395, 'ttft_s_sum': 78.63, 'decode_tok_s_median': 47.0, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988114, 'cached_tokens': 723215, 'ttft_s_sum': 70.68, 'decode_tok_s_median': 46.6, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989411, 'cached_tokens': 724228, 'ttft_s_sum': 71.37, 'decode_tok_s_median': 46.9, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988173, 'cached_tokens': 723257, 'ttft_s_sum': 74.35, 'decode_tok_s_median': 46.7, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 987633, 'cached_tokens': 722957, 'ttft_s_sum': 77.29, 'decode_tok_s_median': 46.4, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988335, 'cached_tokens': 723424, 'ttft_s_sum': 70.47, 'decode_tok_s_median': 45.9, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 987950, 'cached_tokens': 723137, 'ttft_s_sum': 73.36, 'decode_tok_s_median': 46.8, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989109, 'cached_tokens': 723929, 'ttft_s_sum': 76.49, 'decode_tok_s_median': 47.1, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988113, 'cached_tokens': 723200, 'ttft_s_sum': 69.76, 'decode_tok_s_median': 46.2, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988683, 'cached_tokens': 723678, 'ttft_s_sum': 70.55, 'decode_tok_s_median': 45.5, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988011, 'cached_tokens': 723219, 'ttft_s_sum': 73.39, 'decode_tok_s_median': 46.0, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988569, 'cached_tokens': 723601, 'ttft_s_sum': 78.48, 'decode_tok_s_median': 47.4, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988262, 'cached_tokens': 723423, 'ttft_s_sum': 79.31, 'decode_tok_s_median': 46.2, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988035, 'cached_tokens': 723158, 'ttft_s_sum': 75.97, 'decode_tok_s_median': 46.3, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988674, 'cached_tokens': 723655, 'ttft_s_sum': 75.85, 'decode_tok_s_median': 46.8, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988724, 'cached_tokens': 723733, 'ttft_s_sum': 71.82, 'decode_tok_s_median': 46.2, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989274, 'cached_tokens': 724068, 'ttft_s_sum': 76.86, 'decode_tok_s_median': 48.3, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989194, 'cached_tokens': 724067, 'ttft_s_sum': 80.18, 'decode_tok_s_median': 48.7, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988709, 'cached_tokens': 723673, 'ttft_s_sum': 73.87, 'decode_tok_s_median': 47.4, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989194, 'cached_tokens': 723982, 'ttft_s_sum': 70.32, 'decode_tok_s_median': 46.3, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988696, 'cached_tokens': 723578, 'ttft_s_sum': 73.15, 'decode_tok_s_median': 45.8, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988928, 'cached_tokens': 723847, 'ttft_s_sum': 75.51, 'decode_tok_s_median': 46.2, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988734, 'cached_tokens': 723745, 'ttft_s_sum': 75.01, 'decode_tok_s_median': 46.0, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988379, 'cached_tokens': 723484, 'ttft_s_sum': 71.92, 'decode_tok_s_median': 46.9, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988058, 'cached_tokens': 723282, 'ttft_s_sum': 69.98, 'decode_tok_s_median': 46.0, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988105, 'cached_tokens': 723313, 'ttft_s_sum': 76.31, 'decode_tok_s_median': 46.3, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988667, 'cached_tokens': 723660, 'ttft_s_sum': 72.57, 'decode_tok_s_median': 46.4, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988291, 'cached_tokens': 723419, 'ttft_s_sum': 72.53, 'decode_tok_s_median': 45.3, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988041, 'cached_tokens': 723214, 'ttft_s_sum': 73.51, 'decode_tok_s_median': 46.7, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 987931, 'cached_tokens': 723191, 'ttft_s_sum': 70.5, 'decode_tok_s_median': 45.9, 'completion_to
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988518, 'cached_tokens': 723531, 'ttft_s_sum': 74.69, 'decode_tok_s_median': 47.0, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988781, 'cached_tokens': 723651, 'ttft_s_sum': 76.1, 'decode_tok_s_median': 46.4, 'completion_to
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988768, 'cached_tokens': 723683, 'ttft_s_sum': 71.55, 'decode_tok_s_median': 46.7, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988678, 'cached_tokens': 723663, 'ttft_s_sum': 79.33, 'decode_tok_s_median': 47.2, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988574, 'cached_tokens': 723640, 'ttft_s_sum': 72.47, 'decode_tok_s_median': 46.4, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988369, 'cached_tokens': 723416, 'ttft_s_sum': 69.96, 'decode_tok_s_median': 46.1, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988076, 'cached_tokens': 723209, 'ttft_s_sum': 71.97, 'decode_tok_s_median': 46.0, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988875, 'cached_tokens': 723751, 'ttft_s_sum': 73.05, 'decode_tok_s_median': 46.9, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988851, 'cached_tokens': 723728, 'ttft_s_sum': 72.27, 'decode_tok_s_median': 46.0, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988449, 'cached_tokens': 723507, 'ttft_s_sum': 70.66, 'decode_tok_s_median': 45.7, 'completion_t
+[01:32:48 +6672s] load done: 54 replays in 105 min
+[01:32:48 +6672s] mark idle
+[01:42:48 +7272s] mark stop
+[01:42:51 +7275s] after stop, processes of ours left: [48222 ]
+[01:45:21 +7425s] mark after
+[01:45:22 +7426s] server stopped, avail 80 GB
+[01:45:23 +7427s] warn/error lines in serve log: 0; watchdog kills: 0; min avail GB (time GB): 00:22:20 39
+[01:45:24 +7428s] window end
+fleetq: #10334 done (exit 0)

@@ -1,0 +1,18 @@
+{
+ "seed": 11,
+ "profile": "tiny",
+ "minutes": 30.0,
+ "streams": 2,
+ "requests": 3052,
+ "kinds": {
+  "chat": 1162,
+  "multiturn": 617,
+  "abort_decode": 333,
+  "schema": 273,
+  "tool": 502,
+  "abort_prefill": 165
+ },
+ "ok": 3052,
+ "bad": 0,
+ "errors": {}
+}

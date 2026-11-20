@@ -1,0 +1,18 @@
+[01:46:32 +2s] tag B; fleetq job 10347; earlyoom active; avail 80 GB; binary intarsia 0.0.1
+[01:46:32 +2s] serve args: --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on  ; env: none
+[01:46:34 +4s] mark base
+[01:48:04 +94s] mark start
+[01:48:05 +95s] server pid 54090
+[01:49:27 +177s] server up, avail 52 GB
+[01:49:27 +177s] mark settle
+[01:51:27 +297s] mark load
+[01:51:27 +297s] mixed load for 60 min (scripts/memgrow/mixed.py, 2 streams, seed 7)
+{"seed": 7, "minutes": 60.0, "streams": 2, "requests": 996, "kinds": {"chat": 376, "abort_prefill": 91, "multiturn": 140, "abort_decode": 103, "tool": 96, "long": 49, "schema": 46, "longgen": 95}, "ok": 996, "bad": 0, "errors": {}}
+[02:51:41 +3911s] load done: 0 replays in 60 min
+[02:51:41 +3911s] mark idle
+[02:56:41 +4211s] mark stop
+[02:56:44 +4214s] after stop, processes of ours left: [215555 ]
+[02:59:14 +4364s] mark after
+[02:59:15 +4365s] server stopped, avail 80 GB
+[02:59:16 +4366s] warn/error lines in serve log: 0; watchdog kills: 0; min avail GB (time GB): 01:55:54 41
+[02:59:17 +4367s] window end
