@@ -14,14 +14,14 @@ CELLS=${CELLS:-"copy3k agent-edit json-xform chat-short reason"}; ARMS=${ARMS:?A
 python3 $R/src/scripts/mcopy/prompts.py $R/cells > /dev/null
 pat() { echo "$R/bin/[a-z0-9-]+ serve.*--port $PORT"; }
 stop() { pkill -f "$(pat)" 2>/dev/null; for i in $(seq 1 30); do pgrep -f "$(pat)" >/dev/null || break; sleep 1; done; }
-SPID=""
+SPID=""; CK=""
 # free-memory watchdog (kills this lane's processes when available memory < 15 GB), always on while the script runs
 nohup bash $R/src/scripts/copyflipc/wd.sh > $O/wd.log 2>&1 < /dev/null &
 WD=$!
 # copyflipc: log the co-resident vLLM's request counters every second (unix time, running, waiting, prompt / generation token totals)
 ( while :; do echo "$(date +%s.%N) $(curl -s -m 1 http://100.120.88.104:8000/metrics | grep -E '^vllm:(num_requests_running|num_requests_waiting|prompt_tokens_total|generation_tokens_total)\{' | awk '{printf "%s ", $2}')"; sleep 1; done ) > $O/vllm-${W}.log 2>&1 < /dev/null &
 VP=$!
-trap 'stop; kill $SPID $WD $VP 2>/dev/null' EXIT
+trap 'stop; kill $SPID $CK $WD $VP 2>/dev/null' EXIT
 for r in $(seq 1 $ROUNDS); do
   order="$ARMS"; [ $((r % 2)) = 0 ] && order=$(echo $ARMS | awk '{for (i=NF;i>=1;i--) printf "%s ", $i}')
   for spec in $order; do

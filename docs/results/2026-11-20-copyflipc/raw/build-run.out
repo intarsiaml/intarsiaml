@@ -1,1 +1,3 @@
 fleetq: #10431 waiting (#1 in line): #10429 "kvflip tp2 ABBA" (claude-kvflip) needs cpu quiet on spark1, and this job loads it
+fleetq: #10431 running on spark1: bash scripts/copyflipc/build.sh
+14:58:42
