@@ -1,0 +1,10 @@
+base w3-v1-smacro-interleaved-seed0-k2.jsonl: 48 requests, 48 ok
+w3-v2-pf-interleaved-seed0-k2.jsonl: identical 48 of 48, different 0
+w3-v3-pf-interleaved-seed0-k2.jsonl: identical 48 of 48, different 0
+w3-v4-smacro-interleaved-seed0-k2.jsonl: identical 48 of 48, different 0
+../../2026-11-20-storettft/raw/w10-v2-smacro-interleaved-seed0-k2.jsonl: identical 48 of 48, different 0
+base w3-v1-smacro-interleaved-seed1-k2.jsonl: 48 requests, 48 ok
+w3-v2-pf-interleaved-seed1-k2.jsonl: identical 48 of 48, different 0
+w3-v3-pf-interleaved-seed1-k2.jsonl: identical 48 of 48, different 0
+w3-v4-smacro-interleaved-seed1-k2.jsonl: identical 48 of 48, different 0
+../../2026-11-20-storettft/raw/w10-v2-smacro-interleaved-seed1-k2.jsonl: identical 48 of 48, different 0
