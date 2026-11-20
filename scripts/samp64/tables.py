@@ -85,3 +85,24 @@ print("| window | 8k | 16k | 24k | 32k | 49k |\n|---|---|---|---|---|---|")
 for lab, ws in [("none, w12", ["w12"]), ("k=1 everywhere (`1:1`), w15", ["w15"])]:
     print(line(lab, ws, "0.7", MS))
 print(line("`16384:1,40000:0`, w10 (32k, 49k only)", ["w10"], "0.7", MS))
+
+# ---- final gate (u1..u4, schedule 28000:1,56000:0 against none, ABBA) -------------------------------------------------------------------------
+print("\n### Final gate: schedule `28000:1,56000:0` against none, ABBA (u1 none, u2 S, u3 S, u4 none)\n")
+print("sampled T=0.7 decode tok/s: mean of all reps (window median, n reps)\n")
+print("| window | 4k | 32k | 64k |\n|---|---|---|---|")
+for lab, ws in [("none u1", ["u1"]), ("S u2", ["u2"]), ("S u3", ["u3"]), ("none u4", ["u4"]), ("none pooled (u1 + u4)", ["u1", "u4"]), ("S pooled (u2 + u3)", ["u2", "u3"])]:
+    print(line(lab, ws, "0.7", G))
+base = {s: [x for w in ("u1", "u4") for x in reps(w, "0.7", s)] for s in G}
+cand = {s: [x for w in ("u2", "u3") for x in reps(w, "0.7", s)] for s in G}
+if all(base[s] and cand[s] for s in G):
+    def se(v):
+        return statistics.pstdev(v) / len(v) ** 0.5
+    print("\n| sampled | change of the mean (S over none) | 2 SE of the difference |\n|---|---|---|")
+    for s, lab in zip(G, ["4k", "32k", "64k"]):
+        d = statistics.mean(cand[s]) / statistics.mean(base[s]) - 1
+        e = 2 * (se(cand[s]) ** 2 + se(base[s]) ** 2) ** 0.5 / statistics.mean(base[s])
+        print(f"| {lab} | {d:+.1%} | {e:.1%} |")
+print("\ngreedy decode tok/s (not limited by the schedule): mean of reps (window median, n reps)\n")
+print("| window | 4k | 32k | 64k |\n|---|---|---|---|")
+for lab, ws in [("none u1", ["u1"]), ("S u2", ["u2"])]:
+    print(line(lab, ws, "0", G))

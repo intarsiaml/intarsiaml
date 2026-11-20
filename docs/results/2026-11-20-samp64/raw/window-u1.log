@@ -1,0 +1,5 @@
+[10:57:04 +0s] window u1 extra='' env='' cells: seeded:4096,27700,55700,68000 0.7:4096,32768,65536:8 0:4096,32768,65536:5; fleetq job 10416
+[10:57:06 +2s] free: Mem:             121          46          66           0           9          74; earlyoom active; binary: intarsia 0.0.1
+[10:57:07 +3s] serve:  ~/intarsiaml-samp64/bin/intarsia-fix serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[10:58:27 +83s] serve up; MemAvailable MB: 48465
+[10:58:28 +84s] cell u1-seeded start; 2398 MHz, 12.27 W, 0 %, 44
