@@ -2273,8 +2273,8 @@ fn host_prefault() -> Prefault {
 /// Smallest new host buffer that gets a mapping of its own under [`host_prefault`]: every non-empty one. The first window (wd,
 /// `INTARSIA_PREFIX_STORE_DEBUG=1`) had this at 1 MiB, and the first download into a new misaligned `Vec` was slow at every size
 /// the store makes (4 KiB in 0.6 ms, 512 KiB in 1.4 ms: 406 such objects were half of a 885 MiB settle's 300 ms), not only the
-/// large ones. A mapping is a VMA (`vm.max_map_count`, 65530 by default): the 8 GiB default host tier of the 35B holds about
-/// 3000 objects.
+/// large ones. A mapping is a VMA, two from 2 MiB up (the `madvise` splits off the 4 KiB tail; `vm.max_map_count` is 65530 by
+/// default): the 8 GiB default host tier of the 35B holds about 3000 objects, about 4500 VMAs.
 const MAPPED_MIN: usize = 1;
 const HUGE: usize = 2 << 20;
 
