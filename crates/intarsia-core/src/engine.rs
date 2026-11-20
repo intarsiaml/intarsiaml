@@ -1383,6 +1383,9 @@ pub(crate) struct Seq {
     /// Lane mtp-sampled: this sampled request drafts in the batching engine with seed-exact acceptance (`engine/keyed.rs`).
     /// Set by [`Seq::enable_keyed`], never by [`Seq::new`].
     spec_keyed: bool,
+    /// Lane samp64: the draft length a keyed request is allowed by its context ([`crate::spec::ctx_k_cap`]); empty: no schedule. Set from
+    /// `BatchedOptions::sampled_ctx_k` where the batching engine enables keyed drafting.
+    pub(crate) keyed_ctx_k: Vec<(usize, usize)>,
     /// `--spec auto` (lane asp): picks the drafter of every pass; `None` for every other mode.
     auto: Option<crate::spec::AutoPolicy>,
     /// The drafter of the pass [`Seq::plan_step`] planned last (`--spec auto`; the fixed one otherwise).
@@ -1659,6 +1662,7 @@ impl Seq {
             depth: if spec_mtp && !spec_dflash { crate::spec::k_min_for(&env.spec).and_then(|m| crate::spec::Depth::new(m, spec_k)) } else { None },
             spec_sampled: crate::spec::SampledSpec::Off,
             spec_keyed: false,
+            keyed_ctx_k: Vec::new(),
             auto: None,
             drafter: if spec_dflash { crate::spec::Drafter::Dflash } else { crate::spec::Drafter::Mtp },
             spec_paused: false,
@@ -2120,7 +2124,11 @@ impl Seq {
                         k = k.min(crate::spec::AUTO_MTP_K);
                     }
                 }
-                let k = k.min(room).min(self.max_new.saturating_sub(self.generated + 1));
+                let mut k = k.min(room).min(self.max_new.saturating_sub(self.generated + 1));
+                // lane samp64 (`INTARSIA_SPEC_SAMPLED_CTX_K`, opt-in): a sampled request drafts fewer tokens, or none, at long context
+                if let Some(cap) = self.spec_keyed.then(|| crate::spec::ctx_k_cap(&self.keyed_ctx_k, st.len)).flatten() {
+                    k = k.min(cap);
+                }
                 if k > 0 && (self.generated >= self.req.min_tokens || self.stop_ids.is_empty()) {
                     // lane mcopy: the last `n` tokens occurred earlier: verify the text that followed as one chain (a pass of up to
                     // 1 + len rows, eager) instead of the head's `k` drafts. Same room and min_tokens rules as the head's drafts.

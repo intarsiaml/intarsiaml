@@ -1,0 +1,16 @@
+[09:49:16 +0s] window w11 extra='' env='' cells: 0.7:4096,32768,65536:5; fleetq job 10400
+[09:49:18 +2s] free: Mem:             121          46          66           0           9          75; earlyoom active; binary: intarsia 0.0.1
+[09:49:19 +3s] serve:  ~/intarsiaml-samp64/bin/intarsia-fix serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[09:50:40 +84s] serve up; MemAvailable MB: 48480
+[09:50:41 +85s] cell w11-T0.7 start; 2398 MHz, 13.18 W, 0 %, 52
+[sampled] 65536 rep2: prompt=68796 cached=0 ttft=15.98s decode=51.3 peak=61.8 out=256
+[sampled] 65536 rep3: prompt=68844 cached=0 ttft=16.05s decode=51.8 peak=83.1 out=256
+[sampled] 65536 rep4: prompt=68848 cached=0 ttft=16.00s decode=47.7 peak=64.4 out=256
+[sampled] 65536 rep5: prompt=68818 cached=0 ttft=15.86s decode=52.8 peak=71.1 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4068 | 0.727 | 94.112 (88.281-99.399) | 0.551 |
+| 32768 | 33851 | 7.23 | 72.749 (68.098-85.556) | 0.622 |
+| 65536 | 68844 | 15.998 | 51.823 (47.748-53.984) | 0.533 |
+[09:53:40 +264s] cell w11-T0.7 end: clock guard: 88 samples, 55 at util>90, 0 of those SM<2000 MHz, min SM 2333, mean SM 2373, max power 92 W; SW power cap delta 0 us
+[09:53:44 +268s] min MemAvailable MB: 09:53:28 37861; KILLED lines: 0; warn/error lines in serve log: 0
+[09:53:47 +271s] window end

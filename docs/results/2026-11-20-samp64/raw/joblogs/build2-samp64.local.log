@@ -1,0 +1,35 @@
+fleetq: #10397 waiting (#8 in line): in line behind #10388 "storeflip w1 restore-point dflt zero zero dflt" (claude-storeflip) on spark2
+fleetq: #10397 waiting (#5 in line): in line behind #10389 "storeflip w2 ids dflt ref zero" (claude-storeflip) on spark2
+fleetq: #10397 waiting (#3 in line): in line behind #10390 "storeflip w3 cold TTFT ABBA dflt zero zero dflt" (claude-storeflip) on spark2
+fleetq: #10397 waiting (#2 in line): in line behind #10391 "storeflip w4 replay dflt ref" (claude-storeflip) on spark2
+fleetq: #10397 waiting (#1 in line): #10391 "storeflip w4 replay dflt ref" (claude-storeflip) needs cpu quiet on spark2, and this job loads it
+fleetq: #10397 waiting (#1 in line): needs 55 GB on spark2; the box reports only 37 GB actually free (memory used by something fleetq does not track)
+fleetq: #10397 running on spark2: bash scripts/samp64/build.sh
+build start 09:20:48 sha d29dcbb07485b0a1c97dd3709171c81306dc68ba
+cargo pgid 2455185
+09:20:49 avail 73 GB
+09:21:10 avail 72 GB
+09:21:31 avail 73 GB
+09:21:52 avail 73 GB
+09:22:13 avail 73 GB
+09:22:33 avail 73 GB
+09:22:54 avail 73 GB
+09:23:15 avail 72 GB
+09:23:35 avail 72 GB
+09:23:56 avail 71 GB
+09:24:17 avail 74 GB
+09:24:38 avail 73 GB
+09:24:58 avail 74 GB
+09:25:19 avail 74 GB
+09:25:40 avail 73 GB
+09:26:00 avail 74 GB
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5m 17s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.4T  183G  95% /
+Mem:             121          47          63           0          12          74
+build end 09:26:22 stamp samp64-d29dcbb07485
+fleetq: #10397 done (exit 0)

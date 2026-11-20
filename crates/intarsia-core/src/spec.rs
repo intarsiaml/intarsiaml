@@ -285,6 +285,42 @@ pub fn mtp_store_for(backend: &str) -> bool {
     mtp_store_from_env().unwrap_or_else(|| mtp_store_default_for(backend))
 }
 
+/// Lane samp64 (`INTARSIA_SPEC_SAMPLED_CTX_K=<ctx>:<k>[,<ctx>:<k>...]`, read once, opt-in): a context-length schedule for the draft
+/// length of sampled requests in the batching engine. A request whose context (prompt + output) is above `ctx` drafts at most `k` tokens
+/// per verify pass (`k` = 0: no drafting, plain steps); of the entries it is past, the one with the largest `ctx` applies. A verify pass
+/// reads the whole KV cache once per row, so at long context a 2-draft pass costs about 2.3 plain steps for about 2.1 tokens
+/// (docs/results/2026-11-20-samp64.md). Unset or empty: no schedule. Seeded output is unchanged (every token takes the same draw whichever
+/// step makes it, `engine/keyed.rs`).
+pub fn parse_ctx_k(v: &str) -> std::result::Result<Vec<(usize, usize)>, String> {
+    let mut t = Vec::new();
+    for part in v.split(',').map(str::trim).filter(|p| !p.is_empty()) {
+        let (c, k) = part.split_once(':').ok_or_else(|| format!("`{part}`: want <ctx>:<k>"))?;
+        let c = c.trim().parse::<usize>().map_err(|_| format!("`{part}`: ctx is not a token count"))?;
+        let k = k.trim().parse::<usize>().map_err(|_| format!("`{part}`: k is not a draft length"))?;
+        t.push((c, k));
+    }
+    t.sort_by_key(|&(c, _)| c);
+    Ok(t)
+}
+
+/// [`parse_ctx_k`] of `INTARSIA_SPEC_SAMPLED_CTX_K` (read once; an unparsable value is reported and ignored).
+pub fn sampled_ctx_k() -> Vec<(usize, usize)> {
+    static V: std::sync::OnceLock<Vec<(usize, usize)>> = std::sync::OnceLock::new();
+    V.get_or_init(|| match std::env::var("INTARSIA_SPEC_SAMPLED_CTX_K") {
+        Ok(v) => parse_ctx_k(&v).unwrap_or_else(|e| {
+            eprintln!("INTARSIA_SPEC_SAMPLED_CTX_K={v}: {e}; no schedule");
+            Vec::new()
+        }),
+        Err(_) => Vec::new(),
+    })
+    .clone()
+}
+
+/// The draft length a schedule ([`parse_ctx_k`], sorted by context) allows at `len` tokens of context; `None` below every entry.
+pub fn ctx_k_cap(table: &[(usize, usize)], len: usize) -> Option<usize> {
+    table.iter().rev().find(|&&(c, _)| len > c).map(|&(_, k)| k)
+}
+
 /// mb-MTP ("mode-biased", after llamAmpere v0.6, `common_sampler_verify_pq`): on a rejected draft, keep the draft instead of
 /// the replacement token when the target rates it at least as likely, `p(d) >= p(replacement)`, and neither is a stop token.
 /// Not exact: the output leans toward the target's likelier tokens (llamAmpere measured 0.009 KL per token at draft depth 6),
@@ -1678,6 +1714,16 @@ pub fn trace_enabled() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ctx_k_schedule_parses_sorts_and_caps_by_the_largest_entry_passed() {
+        assert_eq!(parse_ctx_k(""), Ok(vec![]));
+        assert_eq!(parse_ctx_k(" 40000:0 , 16384:1 "), Ok(vec![(16384, 1), (40000, 0)]));
+        assert!(parse_ctx_k("16384").is_err() && parse_ctx_k("a:1").is_err() && parse_ctx_k("5:-1").is_err());
+        let t = parse_ctx_k("16384:1,40000:0").unwrap();
+        assert_eq!([ctx_k_cap(&t, 100), ctx_k_cap(&t, 16384), ctx_k_cap(&t, 16385), ctx_k_cap(&t, 40000), ctx_k_cap(&t, 40001)], [None, None, Some(1), Some(1), Some(0)]);
+        assert_eq!(ctx_k_cap(&[], 1_000_000), None);
+    }
 
     // ---------------------------------------------------------------------------------------------------------------
     // sampled speculation: exactness in law
