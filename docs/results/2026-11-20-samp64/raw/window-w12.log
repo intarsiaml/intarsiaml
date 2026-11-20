@@ -1,0 +1,22 @@
+[10:24:31 +0s] window w12 extra='' env='' cells: seeded 0.7:8192,16384,24576,32768,49152:8; fleetq job 10409
+[10:24:33 +2s] free: Mem:             121          46          67           0           8          75; earlyoom active; binary: intarsia 0.0.1
+[10:24:33 +2s] serve:  ~/intarsiaml-samp64/bin/intarsia-fix serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[10:25:53 +82s] serve up; MemAvailable MB: 48430
+[10:25:54 +83s] cell w12-seeded start; 2398 MHz, 12.53 W, 0 %, 48
+[seeded] size 4096 seed 11: prompt 4103 out 700 length 3083 chars
+[seeded] size 16000 seed 11: prompt 16010 out 700 length 3123 chars
+[seeded] size 40200 seed 11: prompt 40256 out 700 length 3033 chars
+[seeded] size 68000 seed 11: prompt 68033 out 700 length 3144 chars
+[10:27:04 +153s] cell w12-seeded end: clock guard: 35 samples, 18 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2383, max power 84 W; SW power cap delta 0 us
+[10:27:05 +154s] cell w12-T0.7 start; 2405 MHz, 14.44 W, 0 %, 59
+[sampled] 49152 rep7: prompt=51376 cached=0 ttft=10.65s decode=62.0 peak=88.7 out=256
+[sampled] 49152 rep8: prompt=51361 cached=0 ttft=10.66s decode=61.7 peak=102.3 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 8192 | 8278 | 1.611 | 95.49 (86.675-106.617) | 0.607 |
+| 16384 | 16647 | 2.948 | 84.17 (81.98-89.892) | 0.591 |
+| 24576 | 25152 | 4.524 | 77.482 (74.457-80.905) | 0.58 |
+| 32768 | 33884 | 6.352 | 70.168 (67.05-74.146) | 0.557 |
+| 49152 | 51392 | 10.69 | 61.793 (60.731-63.865) | 0.576 |
+[10:32:52 +501s] cell w12-T0.7 end: clock guard: 171 samples, 110 at util>90, 0 of those SM<2000 MHz, min SM 2320, mean SM 2377, max power 91 W; SW power cap delta 0 us
+[10:32:56 +505s] min MemAvailable MB: 10:31:33 36970; KILLED lines: 0; warn/error lines in serve log: 0
+[10:32:59 +508s] window end

@@ -1,0 +1,32 @@
+[10:57:04 +0s] window u1 extra='' env='' cells: seeded:4096,27700,55700,68000 0.7:4096,32768,65536:8 0:4096,32768,65536:5; fleetq job 10416
+[10:57:06 +2s] free: Mem:             121          46          66           0           9          74; earlyoom active; binary: intarsia 0.0.1
+[10:57:07 +3s] serve:  ~/intarsiaml-samp64/bin/intarsia-fix serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[10:58:27 +83s] serve up; MemAvailable MB: 48465
+[10:58:28 +84s] cell u1-seeded start; 2398 MHz, 12.27 W, 0 %, 44
+[seeded] size 4096 seed 11: prompt 4103 out 700 length 3083 chars
+[seeded] size 27700 seed 11: prompt 27762 out 700 length 3156 chars
+[seeded] size 55700 seed 11: prompt 55736 out 700 length 3083 chars
+[seeded] size 68000 seed 11: prompt 68033 out 700 length 3144 chars
+[10:59:48 +164s] cell u1-seeded end: clock guard: 39 samples, 23 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2384, max power 83 W; SW power cap delta 0 us
+[10:59:49 +165s] cell u1-T0.7 start; 2405 MHz, 14.27 W, 0 %, 58
+[sampled] 65536 rep5: prompt=68891 cached=0 ttft=15.83s decode=52.6 peak=77.0 out=256
+[sampled] 65536 rep6: prompt=68934 cached=0 ttft=16.07s decode=52.3 peak=65.5 out=256
+[sampled] 65536 rep7: prompt=68918 cached=0 ttft=15.76s decode=50.9 peak=60.6 out=256
+[sampled] 65536 rep8: prompt=68877 cached=0 ttft=15.68s decode=52.6 peak=73.1 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4077 | 0.742 | 98.777 (94.028-110.343) | 0.61 |
+| 32768 | 33904 | 6.499 | 70.655 (67.817-76.573) | 0.575 |
+| 65536 | 68914 | 15.813 | 52.579 (50.056-54.877) | 0.562 |
+[11:04:25 +441s] cell u1-T0.7 end: clock guard: 136 samples, 101 at util>90, 0 of those SM<2000 MHz, min SM 2327, mean SM 2372, max power 93 W; SW power cap delta 0 us
+[11:04:26 +442s] cell u1-T0 start; 2405 MHz, 16.20 W, 0 %, 65
+[sampled] 65536 rep2: prompt=68863 cached=0 ttft=15.65s decode=61.3 peak=87.2 out=256
+[sampled] 65536 rep3: prompt=68916 cached=0 ttft=15.65s decode=56.2 peak=71.5 out=256
+[sampled] 65536 rep4: prompt=68919 cached=0 ttft=15.66s decode=77.8 peak=103.2 out=256
+[sampled] 65536 rep5: prompt=68890 cached=0 ttft=15.65s decode=59.3 peak=77.1 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4071 | 0.671 | 119.038 (110.868-122.441) | 0.592 |
+| 32768 | 33898 | 6.291 | 80.484 (78.464-88.01) | 0.591 |
+| 65536 | 68916 | 15.648 | 59.274 (56.192-77.849) | 0.635 |
+[11:07:09 +605s] cell u1-T0 end: clock guard: 80 samples, 77 at util>90, 0 of those SM<2000 MHz, min SM 2340, mean SM 2378, max power 92 W; SW power cap delta 0 us
+[11:07:13 +609s] min MemAvailable MB: 11:03:29 35938; KILLED lines: 0; warn/error lines in serve log: 0
+[11:07:16 +612s] window end

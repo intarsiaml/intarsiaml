@@ -1,0 +1,36 @@
+[09:26:22 +0s] window w8 extra='' env='' cells: seeded 0.7:4096,32768,65536:5 0:4096,32768,65536:5; fleetq job 10400
+[09:26:24 +2s] free: Mem:             121          47          63           0          12          74; earlyoom active; binary: intarsia 0.0.1
+[09:26:25 +3s] serve:  ~/intarsiaml-samp64/bin/intarsia-fix serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[09:28:00 +98s] serve up; MemAvailable MB: 46914
+[09:28:01 +99s] cell w8-seeded start; 2398 MHz, 12.16 W, 0 %, 45
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/lib/python3.12/urllib/request.py", line 639, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 400: Bad Request
+[09:28:56 +154s] cell w8-seeded end: clock guard: 28 samples, 15 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2382, max power 85 W; SW power cap delta 0 us
+[09:28:57 +155s] cell w8-T0.7 start; 2405 MHz, 14.02 W, 0 %, 57
+[sampled] 65536 rep2: prompt=68911 cached=0 ttft=15.98s decode=52.5 peak=61.1 out=256
+[sampled] 65536 rep3: prompt=68959 cached=0 ttft=15.85s decode=51.8 peak=78.7 out=256
+[sampled] 65536 rep4: prompt=68966 cached=0 ttft=15.73s decode=52.7 peak=73.9 out=256
+[sampled] 65536 rep5: prompt=68941 cached=0 ttft=15.80s decode=53.5 peak=64.4 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4070 | 0.755 | 96.811 (88.132-103.177) | 0.571 |
+| 32768 | 33922 | 7.069 | 73.576 (67.195-78.383) | 0.611 |
+| 65536 | 68959 | 15.847 | 52.683 (51.831-55.832) | 0.577 |
+[09:31:52 +330s] cell w8-T0.7 end: clock guard: 86 samples, 59 at util>90, 0 of those SM<2000 MHz, min SM 2327, mean SM 2376, max power 93 W; SW power cap delta 0 us
+[09:31:53 +331s] cell w8-T0 start; 2405 MHz, 16.14 W, 0 %, 65
+[sampled] 65536 rep2: prompt=68891 cached=0 ttft=15.73s decode=76.2 peak=101.1 out=256
+[sampled] 65536 rep3: prompt=68935 cached=0 ttft=15.72s decode=58.1 peak=77.0 out=256
+[sampled] 65536 rep4: prompt=68943 cached=0 ttft=15.69s decode=61.3 peak=84.2 out=256
+[sampled] 65536 rep5: prompt=68915 cached=0 ttft=15.69s decode=61.3 peak=86.4 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4072 | 0.67 | 122.131 (120.276-148.686) | 0.715 |
+| 32768 | 33900 | 6.289 | 82.21 (78.62-84.362) | 0.594 |
+| 65536 | 68935 | 15.693 | 61.255 (56.924-76.179) | 0.647 |
+[09:34:35 +493s] cell w8-T0 end: clock guard: 80 samples, 75 at util>90, 0 of those SM<2000 MHz, min SM 2320, mean SM 2372, max power 93 W; SW power cap delta 0 us
+[09:34:39 +497s] min MemAvailable MB: 09:32:30 37305; KILLED lines: 0; warn/error lines in serve log: 0
+[09:34:42 +500s] window end
