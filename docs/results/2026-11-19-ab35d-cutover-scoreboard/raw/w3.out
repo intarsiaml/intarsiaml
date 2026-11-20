@@ -1,0 +1,32 @@
+fleetq: #10323 waiting (#1 in line): needs gpu quiet on spark2, but #10322 "ab35d w2 greedy speed + sampled decode (A vLLM vs B, ABBA)" (claude-overnight-ab35d) loads it
+fleetq:   #10322 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10322 set, or it will wait for #10322 to be released.
+fleetq: #10323 running on spark2: bash scripts/ab35d/window.sh w3 gsm8k
+[22:10:45 +0s] window w3 cells: gsm8k; fleetq job 10323
+[22:10:47 +2s] vLLM /v1/models: 200; counters 219 34884; earlyoom active; free: Mem:             121          46          68           0           7          75
+[22:10:48 +3s] binary: intarsia 0.0.1
+[22:10:48 +3s] serve B: ~/intarsiaml-ab35d/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[22:12:11 +86s] serve B up; MemAvailable MB: 48707; --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)|--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off|batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 66146b66a1b4fc39, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)|batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 80.0s, context 131072 tokens|
+[22:12:12 +87s] cell gsm8k-A1 start; vLLM counters (success gen_tokens): 219 34884; 2398 MHz, 12.47 W, 0 %, 48
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261119-221213-adhoc-ab35d-A1-gsm8k/result.json
+[localeval] logged to unanimis: 07ef9dd0-bc77-4f2d-b7ee-276cdaf96c7a
+A1-gsm8k run_id=20261119-221213-adhoc-ab35d-A1-gsm8k
+[22:14:30 +225s] cell gsm8k-A1 end: clock guard: 68 samples, 51 at util>90, 0 of those SM<2000 MHz, min SM 2392, mean SM 2402, max power 45 W; SW power cap delta 0 us; vLLM delta success 200 gen_tokens 8545
+[22:14:31 +226s] cell gsm8k-B1 start; vLLM counters (success gen_tokens): 419 43429; 2405 MHz, 13.45 W, 0 %, 53
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261119-221432-adhoc-ab35d-B1-gsm8k/result.json
+[localeval] logged to unanimis: b520b7e8-c7c1-47c8-9d19-2dfc6eaa53d2
+B1-gsm8k run_id=20261119-221432-adhoc-ab35d-B1-gsm8k
+[22:16:56 +371s] cell gsm8k-B1 end: clock guard: 71 samples, 51 at util>90, 0 of those SM<2000 MHz, min SM 2392, mean SM 2393, max power 54 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[22:16:57 +372s] cell gsm8k-A2 start; vLLM counters (success gen_tokens): 419 43429; 2405 MHz, 14.26 W, 0 %, 58
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261119-221658-adhoc-ab35d-A2-gsm8k/result.json
+[localeval] logged to unanimis: 391aeb86-3662-473a-8feb-d1c9c42e6cc6
+A2-gsm8k run_id=20261119-221658-adhoc-ab35d-A2-gsm8k
+[22:18:48 +483s] cell gsm8k-A2 end: clock guard: 55 samples, 45 at util>90, 0 of those SM<2000 MHz, min SM 2392, mean SM 2402, max power 46 W; SW power cap delta 0 us; vLLM delta success 200 gen_tokens 6453
+[22:18:52 +487s] min MemAvailable MB (time MB): 22:17:10 39529; KILLED lines: 0; warn/error lines in serve log: 0
+[22:19:18 +513s] window end
+fleetq: #10323 done (exit 0)

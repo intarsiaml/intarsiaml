@@ -1,0 +1,217 @@
+{
+ "run_id": "20261119-225132-adhoc-ab35d-ctl-A2-speed",
+ "kind": "speed",
+ "label": "ab35d-ctl-A2-speed",
+ "started_at": "2026-11-19T22:51:32-05:00",
+ "finished_at": "2026-11-19T22:52:32-05:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-fa00:8000/v1",
+  "model": "guidance",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "prompt",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "/opt/code/intarsiaml/.worktrees/ab35d/docs/results/2026-11-19-ab35d-cutover-scoreboard/raw/recipes/A.txt",
+   "text": "production vLLM (missioncntrl-guidance, image missioncntrl/vllm-openai:65b7662d): vllm serve nvidia/Qwen3.6-35B-A3B-NVFP4 --quantization modelopt_fp4 --max-model-len 131072 --max-num-seqs 2 --max-num-batched-tokens 8192 --kv-cache-dtype fp8 --kv-cache-memory-bytes 8589934592 --gpu-memory-utilization 0.32 --enable-prefix-caching --enable-prompt-tokens-details --enable-chunked-prefill --enable-auto-tool-choice --tool-call-parser qwen3_xml --reasoning-parser qwen3 (env VLLM_USE_FLASHINFER_MOE_FP4=0 VLLM_DISABLED_KERNELS=FlashInferFP8ScaledMMLinearKernel; vllm 0.26.1rc1.dev602; no speculative config; spark2 retro role)\n"
+  },
+  "server_reported": {
+   "version": {
+    "version": "0.26.1rc1.dev602+g65b7662d3"
+   }
+  }
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8000/v1 --model guidance --thinking off --structured prompt --wait-idle 600 --recipe /opt/code/intarsiaml/.worktrees/ab35d/docs/results/2026-11-19-ab35d-cutover-scoreboard/raw/recipes/A.txt --sizes 4096,16384,32768 --gen 256 --reps 3 --label ab35d-ctl-A2-speed",
+  "git": "2c5524c"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "guidance",
+    "capcom"
+   ],
+   "root": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+   "owned_by": "vllm",
+   "max_model_len": 131072
+  },
+  "gen_tokens": 256,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.07,
+  "rows": [
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4090,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.635,
+     "min": 0.635,
+     "max": 0.696,
+     "n": 3,
+     "spread_pct": 9.6
+    },
+    "prefill_tok_s": {
+     "median": 6437.638,
+     "min": 5882.298,
+     "max": 6443.821,
+     "n": 3,
+     "spread_pct": 8.7
+    },
+    "decode_tok_s": {
+     "median": 78.911,
+     "min": 78.683,
+     "max": 79.11,
+     "n": 3,
+     "spread_pct": 0.5
+    },
+    "peak_decode_tok_s": {
+     "median": 95.6,
+     "min": 94.9,
+     "max": 95.7,
+     "n": 3,
+     "spread_pct": 0.8
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null
+   },
+   {
+    "target_prompt_tokens": 16384,
+    "prompt_tokens": 16657,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 2.62,
+     "min": 2.612,
+     "max": 2.623,
+     "n": 3,
+     "spread_pct": 0.4
+    },
+    "prefill_tok_s": {
+     "median": 6358.368,
+     "min": 6351.318,
+     "max": 6376.566,
+     "n": 3,
+     "spread_pct": 0.4
+    },
+    "decode_tok_s": {
+     "median": 75.481,
+     "min": 75.178,
+     "max": 76.036,
+     "n": 3,
+     "spread_pct": 1.1
+    },
+    "peak_decode_tok_s": {
+     "median": 92.1,
+     "min": 91.2,
+     "max": 92.7,
+     "n": 3,
+     "spread_pct": 1.6
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 6331.0
+   },
+   {
+    "target_prompt_tokens": 32768,
+    "prompt_tokens": 33878,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 6.094,
+     "min": 6.089,
+     "max": 6.096,
+     "n": 3,
+     "spread_pct": 0.1
+    },
+    "prefill_tok_s": {
+     "median": 5558.861,
+     "min": 5557.336,
+     "max": 5564.901,
+     "n": 3,
+     "spread_pct": 0.1
+    },
+    "decode_tok_s": {
+     "median": 72.417,
+     "min": 71.342,
+     "max": 72.665,
+     "n": 3,
+     "spread_pct": 1.8
+    },
+    "peak_decode_tok_s": {
+     "median": 90.0,
+     "min": 85.3,
+     "max": 96.0,
+     "n": 3,
+     "spread_pct": 11.9
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 4957.1
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": "vllm-0.26.1rc1.dev602+g65b7662d3-9e4897ff",
+  "served_model": "guidance",
+  "activity_checks": {
+   "idle": 10,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

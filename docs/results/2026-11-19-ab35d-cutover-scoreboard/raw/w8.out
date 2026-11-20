@@ -1,0 +1,48 @@
+fleetq: #10328 waiting (#1 in line): needs gpu quiet on spark2, but #10327 "ab35d w7 control: 1-stream interleaved replay, store on (A vLLM vs B, ABBA)" (claude-overnight-ab35d) loads it
+fleetq:   #10327 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10327 set, or it will wait for #10327 to be released.
+fleetq: #10328 running on spark2: bash scripts/ab35d/window-ctl.sh w8 sampled
+[23:06:40 +0s] window w8 cells: sampled; fleetq job 10328
+[23:06:43 +3s] vLLM /v1/models: 200; counters 739 69449; earlyoom active; free: Mem:             121          46          68           0           7          75
+[23:06:43 +3s] binary: intarsia 0.0.1
+[23:06:43 +3s] serve B: ~/intarsiaml-ab35d/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on --kv-dtype fp8
+[23:08:01 +81s] serve B up; MemAvailable MB: 51546; --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)|--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off|batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 57e17b35902c0c8f, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)|batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 75.9s, context 131072 tokens|
+[23:08:02 +82s] B /v1/models: {"object":"list","data":[{"id":"guidance","object":"model","created":1795147680,"owned_by":"intarsia","max_model_len":131072,"root":"nvidia/Qwen3.6-35B-A3B-NVFP4"}]}
+[23:08:02 +82s] B chat with model=guidance -> {"id":"chatcmpl-d2b8199d0000","object":"chat.completion","created":1795147682,"model":"guidance","choices":[{"index":0,"message":{"role":"assistant","content":"","reasoning_content":"Here's a thinking"},"finish_reason":"length"}],"usage":{"prompt_tokens":11,"completion_tokens":4,"total_tokens":15,"p
+[23:08:02 +82s] B chat with model=capcom -> {"id":"chatcmpl-d2b8199d0001","object":"chat.completion","created":1795147682,"model":"guidance","choices":[{"index":0,"message":{"role":"assistant","content":"","reasoning_content":"Here's a thinking"},"finish_reason":"length"}],"usage":{"prompt_tokens":11,"completion_tokens":4,"total_tokens":15,"p
+[23:08:02 +82s] B chat with model=no-such-model -> {"id":"chatcmpl-d2b8199d0002","object":"chat.completion","created":1795147682,"model":"guidance","choices":[{"index":0,"message":{"role":"assistant","content":"","reasoning_content":"Here's a thinking"},"finish_reason":"length"}],"usage":{"prompt_tokens":11,"completion_tokens":4,"total_tokens":15,"p
+[23:08:02 +82s] A /v1/models: {"object":"list","data":[{"id":"guidance","object":"model","created":1795147682,"owned_by":"vllm","root":"nvidia/Qwen3.6-35B-A3B-NVFP4","parent":null,"max_model_len":131072,"permission":[{"id":"modelperm-99a11cceed5096a1","object":"model_permission","created":1795147682,"allow_create_engine":false,"allow_sampling":true,"allow_logprobs":true,"allow_search_indices":false,"allow_view":true,"allow_fin
+[23:08:03 +83s] cell ctlsampled-A1 start; vLLM counters (success gen_tokens): 739 69449; 2398 MHz, 13.58 W, 0 %, 47
+[sampled] 65536 rep1: prompt=68954 cached=0 ttft=15.89s decode=65.6 peak=84.9 out=256
+[sampled] 65536 rep2: prompt=68888 cached=0 ttft=15.85s decode=65.0 peak=82.3 out=256
+[sampled] 65536 rep3: prompt=68936 cached=0 ttft=15.86s decode=65.1 peak=81.6 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 32768 | 33899 | 6.087 | 71.675 (71.559-71.748) | None |
+| 65536 | 68936 | 15.864 | 65.143 (65.038-65.644) | None |
+[23:09:34 +174s] cell ctlsampled-A1 end: clock guard: 45 samples, 44 at util>90, 0 of those SM<2000 MHz, min SM 2385, mean SM 2395, max power 78 W; SW power cap delta 0 us; vLLM delta success 8 gen_tokens 1538
+[23:09:35 +175s] cell ctlsampled-N1 start; vLLM counters (success gen_tokens): 747 70987; 2405 MHz, 14.38 W, 0 %, 59
+[sampled] 65536 rep1: prompt=68859 cached=0 ttft=18.74s decode=68.7 peak=91.6 out=256
+[sampled] 65536 rep2: prompt=68792 cached=0 ttft=18.69s decode=69.6 peak=94.4 out=256
+[sampled] 65536 rep3: prompt=68844 cached=0 ttft=18.80s decode=69.4 peak=90.5 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 32768 | 33852 | 7.431 | 83.192 (81.284-86.618) | 0.583 |
+| 65536 | 68844 | 18.736 | 69.445 (68.734-69.581) | 0.56 |
+[23:11:15 +275s] cell ctlsampled-N1 end: clock guard: 50 samples, 33 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2387, max power 87 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[23:11:17 +277s] cell ctlsampled-N2 start; vLLM counters (success gen_tokens): 747 70987; 2405 MHz, 15.67 W, 0 %, 63
+[sampled] 65536 rep1: prompt=68909 cached=0 ttft=17.96s decode=71.8 peak=102.9 out=256
+[sampled] 65536 rep2: prompt=68842 cached=0 ttft=17.11s decode=91.4 peak=125.2 out=256
+[sampled] 65536 rep3: prompt=68888 cached=0 ttft=17.35s decode=68.5 peak=85.8 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 32768 | 33874 | 6.587 | 81.967 (80.692-86.445) | 0.566 |
+| 65536 | 68888 | 17.348 | 71.847 (68.453-91.409) | 0.676 |
+[23:12:50 +370s] cell ctlsampled-N2 end: clock guard: 47 samples, 32 at util>90, 0 of those SM<2000 MHz, min SM 2379, mean SM 2386, max power 89 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[23:12:51 +371s] cell ctlsampled-A2 start; vLLM counters (success gen_tokens): 747 70987; 2405 MHz, 16.20 W, 0 %, 66
+[sampled] 65536 rep1: prompt=68859 cached=0 ttft=15.90s decode=66.3 peak=82.9 out=256
+[sampled] 65536 rep2: prompt=68793 cached=0 ttft=15.81s decode=65.6 peak=81.4 out=256
+[sampled] 65536 rep3: prompt=68843 cached=0 ttft=15.83s decode=65.2 peak=80.6 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 32768 | 33871 | 6.077 | 71.575 (71.038-71.873) | None |
+| 65536 | 68843 | 15.825 | 65.559 (65.244-66.309) | None |
+[23:14:22 +462s] cell ctlsampled-A2 end: clock guard: 45 samples, 43 at util>90, 0 of those SM<2000 MHz, min SM 2392, mean SM 2398, max power 84 W; SW power cap delta 0 us; vLLM delta success 8 gen_tokens 1538
+[23:14:26 +466s] min MemAvailable MB (time MB): 23:12:35 40995; KILLED lines: 0; warn/error lines in serve log: 0
+[23:14:52 +492s] window end
+fleetq: #10328 done (exit 0)

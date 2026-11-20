@@ -1,0 +1,11 @@
+A1-speed run_id=20261119-215906-adhoc-ab35d-A1-speed
+B1-speed run_id=20261119-220011-adhoc-ab35d-B1-speed
+B2-speed run_id=20261119-220115-adhoc-ab35d-B2-speed
+A2-speed run_id=20261119-220215-adhoc-ab35d-A2-speed
+A1-gsm8k run_id=20261119-221213-adhoc-ab35d-A1-gsm8k
+B1-gsm8k run_id=20261119-221432-adhoc-ab35d-B1-gsm8k
+A2-gsm8k run_id=20261119-221658-adhoc-ab35d-A2-gsm8k
+ctl-A1-speed run_id=20261119-224838-adhoc-ab35d-ctl-A1-speed
+ctl-N1-speed run_id=20261119-224942-adhoc-ab35d-ctl-N1-speed
+ctl-N2-speed run_id=20261119-225038-adhoc-ab35d-ctl-N2-speed
+ctl-A2-speed run_id=20261119-225132-adhoc-ab35d-ctl-A2-speed
