@@ -1,0 +1,69 @@
+fleetq: #10422 waiting (#1 in line): needs cpu quiet on spark2, but #10421 "kvonce build2" (claude-kvonce) loads it
+fleetq:   #10421 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10421 set, or it will wait for #10421 to be released.
+fleetq: #10422 running on spark2: bash scripts/kvonce/jobN.sh
+== kv_once 12:07:54 env=''
+test kv_once_launches_are_bit_identical_to_the_default_launches ... kv_once 16/2/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 7 mixed tables, 26 captured replays, mode 2 x5; 1036 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 24/4/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 7 mixed tables, 26 captured replays, mode 2 x5; 1036 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 16/2/256 fp8_e4m3: knob on bit-identical to off: 1057 one-cache verify tables (M 1..=16), 7 mixed tables, 0 captured replays, mode 2 x5; 499 rows equal to their solo launch; planted fault seen 7 of 7
+ok
+test timing_kv_once_layers ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.62s
+== kv_once exit 0
+[12:08:18] serve under nsys:  ~/intarsiaml-kvonce/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[12:09:51] serve up (pid 3008251); MemAvailable MB 45687
+[sampled] 4096 rep2: prompt=4065 cached=0 ttft=0.68s decode=97.2 peak=141.2 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4078 | 0.696 | 109.141 (97.182-121.101) | 0.724 |
+drwxrwxr-x 3 nvidia nvidia     4096 Nov 20 12:08 ..
+-rw-rw-r-- 1 nvidia nvidia     1689 Nov 20 12:10 nsys-off-T0.7-4096_cuda_api_sum.csv
+-rw-rw-r-- 1 nvidia nvidia    18016 Nov 20 12:10 nsys-off-T0.7-4096_cuda_gpu_kern_sum.csv
+-rw-rw-r-- 1 nvidia nvidia 14194124 Nov 20 12:10 nsys-off-T0.7-4096.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 35962880 Nov 20 12:10 nsys-off-T0.7-4096.sqlite
+[sampled] 32768 rep2: prompt=33903 cached=0 ttft=6.34s decode=72.2 peak=102.1 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 32768 | 33902 | 6.337 | 71.219 (70.265-72.174) | 0.595 |
+-rw-r--r-- 1 nvidia nvidia 47542272 Nov 20 12:10 nsys-off-T0.7-32768.sqlite
+-rw-rw-r-- 1 nvidia nvidia     1689 Nov 20 12:10 nsys-off-T0.7-4096_cuda_api_sum.csv
+-rw-rw-r-- 1 nvidia nvidia    18016 Nov 20 12:10 nsys-off-T0.7-4096_cuda_gpu_kern_sum.csv
+-rw-rw-r-- 1 nvidia nvidia 14194124 Nov 20 12:10 nsys-off-T0.7-4096.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 35962880 Nov 20 12:10 nsys-off-T0.7-4096.sqlite
+[sampled] 65536 rep2: prompt=68817 cached=0 ttft=15.78s decode=51.8 peak=65.5 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 65536 | 68850 | 15.803 | 52.909 (51.802-54.017) | 0.571 |
+-rw-r--r-- 1 nvidia nvidia 35962880 Nov 20 12:10 nsys-off-T0.7-4096.sqlite
+-rw-rw-r-- 1 nvidia nvidia     1223 Nov 20 12:11 nsys-off-T0.7-65536_cuda_api_sum.csv
+-rw-rw-r-- 1 nvidia nvidia    19380 Nov 20 12:11 nsys-off-T0.7-65536_cuda_gpu_kern_sum.csv
+-rw-rw-r-- 1 nvidia nvidia 22067985 Nov 20 12:11 nsys-off-T0.7-65536.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 57667584 Nov 20 12:11 nsys-off-T0.7-65536.sqlite
+[12:11:25] min MemAvailable MB: 12:11:12 37081
+[12:11:30] nsys window end
+[12:11:32] serve under nsys: INTARSIA_CUDA_ATTN_KV_ONCE=1 ~/intarsiaml-kvonce/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[12:12:50] serve up (pid 3024232); MemAvailable MB 47829
+[sampled] 4096 rep2: prompt=4067 cached=0 ttft=0.67s decode=98.9 peak=172.9 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4078 | 0.67 | 97.981 (97.022-98.939) | 0.585 |
+drwxrwxr-x 4 nvidia nvidia     4096 Nov 20 12:11 ..
+-rw-rw-r-- 1 nvidia nvidia     1716 Nov 20 12:13 nsys-on-T0.7-4096_cuda_api_sum.csv
+-rw-rw-r-- 1 nvidia nvidia    18262 Nov 20 12:13 nsys-on-T0.7-4096_cuda_gpu_kern_sum.csv
+-rw-rw-r-- 1 nvidia nvidia 15802487 Nov 20 12:13 nsys-on-T0.7-4096.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 40259584 Nov 20 12:13 nsys-on-T0.7-4096.sqlite
+[sampled] 32768 rep2: prompt=33901 cached=0 ttft=6.31s decode=84.1 peak=111.0 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 32768 | 33900 | 6.322 | 87.777 (84.12-91.433) | 0.6 |
+-rw-r--r-- 1 nvidia nvidia 47177728 Nov 20 12:13 nsys-on-T0.7-32768.sqlite
+-rw-rw-r-- 1 nvidia nvidia     1716 Nov 20 12:13 nsys-on-T0.7-4096_cuda_api_sum.csv
+-rw-rw-r-- 1 nvidia nvidia    18262 Nov 20 12:13 nsys-on-T0.7-4096_cuda_gpu_kern_sum.csv
+-rw-rw-r-- 1 nvidia nvidia 15802487 Nov 20 12:13 nsys-on-T0.7-4096.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 40259584 Nov 20 12:13 nsys-on-T0.7-4096.sqlite
+[sampled] 65536 rep2: prompt=68823 cached=0 ttft=15.74s decode=74.4 peak=101.8 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 65536 | 68853 | 15.761 | 73.822 (73.294-74.351) | 0.58 |
+-rw-r--r-- 1 nvidia nvidia 40259584 Nov 20 12:13 nsys-on-T0.7-4096.sqlite
+-rw-rw-r-- 1 nvidia nvidia     1227 Nov 20 12:14 nsys-on-T0.7-65536_cuda_api_sum.csv
+-rw-rw-r-- 1 nvidia nvidia    18779 Nov 20 12:14 nsys-on-T0.7-65536_cuda_gpu_kern_sum.csv
+-rw-rw-r-- 1 nvidia nvidia 21951774 Nov 20 12:14 nsys-on-T0.7-65536.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 57303040 Nov 20 12:14 nsys-on-T0.7-65536.sqlite
+[12:14:21] min MemAvailable MB: 12:14:12 37248
+[12:14:26] nsys window end
+fleetq: #10422 done (exit 0)
+exit 0
