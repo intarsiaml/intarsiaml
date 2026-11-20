@@ -7,3 +7,11 @@
 [04:29:10 +179s] mark settle
 [04:31:10 +299s] mark load
 [04:31:10 +299s] load: no new replay after 05:11:10
+[05:11:42 +2731s] load done: 20 replays in 40 min
+[05:11:42 +2731s] mark idle
+[05:14:42 +2911s] mark stop
+[05:14:45 +2914s] after stop, processes of ours left: [452585 ]
+[05:17:15 +3064s] mark after
+[05:17:16 +3065s] server stopped, avail 80 GB
+[05:17:17 +3066s] warn/error lines in serve log: 0; watchdog kills: 0; min avail GB (time GB): 04:33:55 43
+[05:17:18 +3067s] window end

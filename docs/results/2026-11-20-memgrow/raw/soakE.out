@@ -16,3 +16,24 @@ fleetq: #10368 running on spark1: bash scripts/memgrow/soak.sh E
 [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988773, 'cached_tokens': 723739, 'ttft_s_sum': 71.28, 'decode_tok_s_median': 44.2, 'completion_t
 [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988774, 'cached_tokens': 723688, 'ttft_s_sum': 71.47, 'decode_tok_s_median': 45.5, 'completion_t
 [replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988620, 'cached_tokens': 723630, 'ttft_s_sum': 71.4, 'decode_tok_s_median': 43.4, 'completion_to
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989034, 'cached_tokens': 723979, 'ttft_s_sum': 76.3, 'decode_tok_s_median': 44.6, 'completion_to
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988167, 'cached_tokens': 723358, 'ttft_s_sum': 71.71, 'decode_tok_s_median': 44.3, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989368, 'cached_tokens': 724144, 'ttft_s_sum': 76.74, 'decode_tok_s_median': 46.2, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988810, 'cached_tokens': 723758, 'ttft_s_sum': 73.86, 'decode_tok_s_median': 43.3, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988690, 'cached_tokens': 723687, 'ttft_s_sum': 72.94, 'decode_tok_s_median': 44.4, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989121, 'cached_tokens': 724010, 'ttft_s_sum': 72.89, 'decode_tok_s_median': 43.7, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988110, 'cached_tokens': 723336, 'ttft_s_sum': 77.51, 'decode_tok_s_median': 45.2, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 987806, 'cached_tokens': 723040, 'ttft_s_sum': 72.21, 'decode_tok_s_median': 44.3, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 989545, 'cached_tokens': 724308, 'ttft_s_sum': 72.75, 'decode_tok_s_median': 44.6, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988366, 'cached_tokens': 723373, 'ttft_s_sum': 75.01, 'decode_tok_s_median': 43.8, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 987977, 'cached_tokens': 723179, 'ttft_s_sum': 75.84, 'decode_tok_s_median': 46.4, 'completion_t
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988570, 'cached_tokens': 723551, 'ttft_s_sum': 76.91, 'decode_tok_s_median': 45.8, 'completion_t
+[05:11:42 +2731s] load done: 20 replays in 40 min
+[05:11:42 +2731s] mark idle
+[05:14:42 +2911s] mark stop
+[05:14:45 +2914s] after stop, processes of ours left: [452585 ]
+[05:17:15 +3064s] mark after
+[05:17:16 +3065s] server stopped, avail 80 GB
+[05:17:17 +3066s] warn/error lines in serve log: 0; watchdog kills: 0; min avail GB (time GB): 04:33:55 43
+[05:17:18 +3067s] window end
+fleetq: #10368 done (exit 0)
