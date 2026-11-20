@@ -687,9 +687,9 @@ impl CaptureTimes {
 /// resets it), and past it inserts download to host synchronously, inside the prefill.
 pub const DEFER_CAP: u64 = 1 << 30;
 
-/// Whether the model is loaded on the CUDA backend: the two prefix-store knobs below that are default-on (lane storeflip, the user's
-/// decision 2026-11-20) are on by default there only, because both were measured on CUDA (GB10) only. The loader calls
-/// [`set_backend`] once the backend is known, before any store is built or any [`store_macro`] answer is used.
+/// Whether the model is loaded on the CUDA backend: the host-buffer knob `INTARSIA_PREFIX_STORE_PREFAULT` below is on by default there
+/// only (lane storeflip, the user's decision 2026-11-20), because it was measured on CUDA (GB10) only. The loader calls [`set_backend`]
+/// once the backend is known, before any store is built.
 static BACKEND_CUDA: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Record the backend a model is being loaded on (see [`BACKEND_CUDA`]).
@@ -697,23 +697,14 @@ pub fn set_backend(backend: &str) {
     BACKEND_CUDA.store(backend == "cuda", std::sync::atomic::Ordering::Relaxed);
 }
 
-/// `INTARSIA_PREFIX_STORE_MACRO` (lane storettft; default-on on CUDA since lane storeflip): with `--prefix-store` and `--max-batch` > 1
-/// the recipe's macro prefill stays on: a request that prefills alone runs up to a macro pass of consecutive chunks of ITS OWN store
-/// schedule (the model's chunk, cut at message boundaries) as one layer-by-layer pass, which is bitwise those chunks one by one, and the
-/// store captures at the pass's end and at message cuts instead of after every chunk (`SeqStore::macro_len`). `1`: on, `0` (or any other
-/// value): off, unset: on on CUDA ([`set_backend`]), off elsewhere.
+/// `INTARSIA_PREFIX_STORE_MACRO=1` (lane storettft, opt-in, default off on every backend; lane storeflip measured it and left it off, its
+/// restore-point gate failed: docs/results/2026-11-20-storeflip.md): with `--prefix-store` and `--max-batch` > 1 the recipe's macro prefill
+/// stays on: a request that prefills alone runs up to a macro pass of consecutive chunks of ITS OWN store schedule (the model's chunk, cut
+/// at message boundaries) as one layer-by-layer pass, which is bitwise those chunks one by one, and the store captures at the pass's end
+/// and at message cuts instead of after every chunk (`SeqStore::macro_len`).
 pub fn store_macro() -> bool {
-    static ENV: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
-    let env = ENV.get_or_init(|| std::env::var("INTARSIA_PREFIX_STORE_MACRO").ok());
-    resolve_macro(env.as_deref(), BACKEND_CUDA.load(std::sync::atomic::Ordering::Relaxed))
-}
-
-/// [`store_macro`]'s rule on its inputs: the variable's text (`None`: unset) and whether the backend is CUDA.
-fn resolve_macro(env: Option<&str>, cuda: bool) -> bool {
-    match env.map(str::trim) {
-        None => cuda,
-        Some(v) => v == "1",
-    }
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_PREFIX_STORE_MACRO").is_ok_and(|v| v.trim() == "1"))
 }
 
 /// Device slabs the deferred captures are carved from: a new slab is at least this big (rounded up to the next multiple
@@ -2420,21 +2411,20 @@ impl Drop for HostBuf {
 mod host_buf_tests {
     use super::*;
 
-    /// Lane storeflip: both knobs are on by default on CUDA only; `0` is off everywhere; an explicit value wins on every backend.
+    /// Lane storeflip: PREFAULT is on by default on CUDA only; `0` is off everywhere; an explicit value wins on every backend.
     #[test]
-    fn prefix_store_knob_defaults_are_cuda_only_and_zero_is_off() {
-        for (env, cuda, macro_on, prefault) in [
-            (None, true, true, Prefault::Huge),
-            (None, false, false, Prefault::Off),
-            (Some("1"), true, true, Prefault::Huge),
-            (Some("1"), false, true, Prefault::Huge),
-            (Some("0"), true, false, Prefault::Off),
-            (Some("0"), false, false, Prefault::Off),
-            (Some(" 1 "), true, true, Prefault::Huge),
-            (Some("off"), true, false, Prefault::Off),
-            (Some(""), true, false, Prefault::Off),
+    fn prefix_store_prefault_default_is_cuda_only_and_zero_is_off() {
+        for (env, cuda, prefault) in [
+            (None, true, Prefault::Huge),
+            (None, false, Prefault::Off),
+            (Some("1"), true, Prefault::Huge),
+            (Some("1"), false, Prefault::Huge),
+            (Some("0"), true, Prefault::Off),
+            (Some("0"), false, Prefault::Off),
+            (Some(" 1 "), true, Prefault::Huge),
+            (Some("off"), true, Prefault::Off),
+            (Some(""), true, Prefault::Off),
         ] {
-            assert_eq!(resolve_macro(env, cuda), macro_on, "macro {env:?} cuda {cuda}");
             assert_eq!(resolve_prefault(env, cuda), prefault, "prefault {env:?} cuda {cuda}");
         }
         assert_eq!(resolve_prefault(Some("4k"), true), Prefault::Aligned);

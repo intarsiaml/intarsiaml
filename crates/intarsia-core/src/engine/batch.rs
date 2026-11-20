@@ -1305,21 +1305,24 @@ fn store_combinations(model: &mut Model, opts: &BatchedOptions) -> Result<()> {
     let env = crate::scheduler::parse_macro_env(std::env::var(crate::scheduler::MACRO_ENV).ok().as_deref())?;
     let store_macro = crate::prefix_store::store_macro();
     if env.is_some_and(|n| n > 0) && !store_macro {
-        return refuse("macro prefill (INTARSIA_PREFILL_MACRO; INTARSIA_PREFIX_STORE_MACRO=1, the default on CUDA, allows it)");
+        return refuse("macro prefill (INTARSIA_PREFILL_MACRO; INTARSIA_PREFIX_STORE_MACRO=1 allows it)");
     }
     if store_macro {
         if model.macro_rows() > 0 {
             eprintln!(
-                "prefix store: macro prefill ({} rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACRO, on by default on CUDA; =0 turns it off): the store captures at the macro pass's end and at message cuts, not after every chunk",
+                "prefix store: macro prefill ({} rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACRO=1): the store captures at the macro pass's end and at message cuts, not after every chunk",
                 model.macro_rows()
             );
-        } else if std::env::var("INTARSIA_PREFIX_STORE_MACRO").is_ok_and(|v| v.trim() == "1") {
+        } else {
             eprintln!("prefix store: INTARSIA_PREFIX_STORE_MACRO=1 has no effect here (the model runs no macro prefill pass)");
         }
     } else if model.macro_rows() > 0 {
         // `load_engine` turns the recipe's macro prefill off before the weights are read (the workspace is then planned without it);
         // a model loaded another way keeps the workspace sized for the macro pass (`Model::set_macro_rows` only changes the schedule)
-        eprintln!("prefix store: the recipe's macro prefill ({} rows) is off with --max-batch > 1", model.macro_rows());
+        eprintln!(
+            "prefix store: recipe's macro prefill ({} rows) off with --max-batch > 1 (the workspace is planned without it; INTARSIA_PREFIX_STORE_MACRO=1 keeps it on)",
+            model.macro_rows()
+        );
         model.set_macro_rows(0);
     }
     eprintln!("prefix store with --max-batch > 1: workspace {} MiB", model.plan.workspace_bytes >> 20);

@@ -5,7 +5,7 @@
 #     bash scripts/storeflip/window.sh <wname> <visit>...      visit = <arm> (e.g. dflt zero) ; a visit may repeat an arm
 # arms (all serve `--max-batch 2`; extra args | extra env):
 #   off    store off                                                     the control
-#   dflt   --prefix-store on | nothing set                               THIS PR's default (MACRO and PREFAULT on on CUDA)
+#   dflt   --prefix-store on | nothing set                               what ships (narrowed PR): PREFAULT on on CUDA, MACRO off (the flip measured in w1-w5 had MACRO on too)
 #   zero   --prefix-store on | INTARSIA_PREFIX_STORE_MACRO=0 INTARSIA_PREFIX_STORE_PREFAULT=0     the old default (revert)
 #   ref    --prefix-store on | INTARSIA_PREFIX_STORE_MACRO=1 INTARSIA_PREFIX_STORE_PREFAULT=1     #467's explicit arm (the reference for the replies)
 #   m0     --prefix-store on | INTARSIA_PREFIX_STORE_MACRO=0            macro off, prefault default

@@ -22,5 +22,6 @@ while rsh "pgrep -f '[i]ntarsiaml-storeflip/out/rbuild.sh' > /dev/null"; do
 done
 rsh "cat $L/out/rbuild.log"
 # gate 5 (Linux): the prefix store unit tests on the Spark, in the same --load cpu slot (no server beside them)
+[[ ${NOTEST:-0} == 1 ]] && { echo "build done; tests skipped (NOTEST=1)"; exit 0; }
 scp -q -o BatchMode=yes "$REPO/scripts/storeflip/rtest.sh" "$BH:intarsiaml-storeflip/out/rtest.sh"
 rsh "bash $L/out/rtest.sh"

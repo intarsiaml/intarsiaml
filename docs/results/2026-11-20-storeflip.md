@@ -1,12 +1,22 @@
-# storeflip: `INTARSIA_PREFIX_STORE_PREFAULT` and `INTARSIA_PREFIX_STORE_MACRO` default-on on CUDA
+# storeflip: `INTARSIA_PREFIX_STORE_PREFAULT` default-on on CUDA (shipped); `INTARSIA_PREFIX_STORE_MACRO` default-on measured, NOT shipped
 
 Lane `storeflip`, branch `storeflip` from origin/main `a2c83ca47`, 2026-11-20 06:55 to 10:30 EST, fleetq owner `claude-storeflip`, box spark2 (GB10, vLLM `retro` resident and untouched, 0 vLLM requests in every cell), Qwen3.6-35B-A3B NVFP4, `serve --max-batch 2 --prefix-store on` (+ `--max-seq 131072 --mem-budget 40 --profile-every 0`). Raw: `docs/results/2026-11-20-storeflip/raw/`. Scripts: `scripts/storeflip/` (copies of `scripts/storeprefault/` with arms `dflt` / `zero` / `ref` and a `restore` mode).
 
-The user approved the flip (2026-11-20 ~06:55 EST, "yes flip prefault and macro"). This lane made it and ran the gates. **Gate 3's restore-point check shows a cost of the MACRO half the user may not have in mind, so the PR is NOT merged; see Verdict 2.**
+The user approved the flip (2026-11-20 ~06:55 EST, "yes flip prefault and macro"). This lane made it and ran the gates. **Gate 3's restore-point check shows a cost of the MACRO half that the user's yes did not assume, so PR #470 was narrowed to PREFAULT only; MACRO stays opt-in and its default is the user's call. The sections below measure the full flip (the "default" arm = both on); see "Shipped" for what merged.**
+
+## Shipped (PR #470 as merged)
+
+- **`INTARSIA_PREFIX_STORE_PREFAULT`: unset = `1` (huge-page mode) on CUDA**, `=0` off (the old `vec`), `4k` kept; Metal, HIP and cpu stay off by default (measured on CUDA / GB10 only; the loader records the backend via `prefix_store::set_backend`); an explicit `1` still works on any backend. New startup line `prefix store: new host buffers: ...`.
+- **`INTARSIA_PREFIX_STORE_MACRO`: unchanged, default off on every backend, only `=1` turns it on.** The startup log reports it off (`prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 ...`) and the workspace stays 678 MiB.
+- **Expected effect of what ships**: the measured `m0` arm (`MACRO=0`, PREFAULT default; windows w6, w7 below): cold TTFT **0.865 / 0.853 / 0.873** of the old default at 4k / 16k / 32k (-13 to -15 %), every restore point kept (the `=0` column of the gate-3 table), no extra workspace. The numbers of the "default" arm in gate 4 include MACRO and do not apply to what shipped.
+- **For the user to decide** (not shipped): MACRO default-on (cold TTFT a further -8 % at 16k and 32k, 0.786 / 0.798, +1049 MiB workspace, but restore points only every 8192 tokens: the gate-3 table, reuse 2051 -> 0 and 4099 -> 0, 12291 -> 8195), or `INTARSIA_PREFILL_MACRO=4096` with MACRO on (cold 0.865 / 0.811 / 0.824, keeps shares of 4992 tokens and up). Both are env-only changes today: `INTARSIA_PREFIX_STORE_MACRO=1` (and `INTARSIA_PREFILL_MACRO=4096`).
+- Startup-log check of the narrowed build on spark2: STARTUPLOG_PLACEHOLDER
+
+> **Coordinator instruction (2026-11-20, after gate 3 failed): narrow PR #470.** PREFAULT default-on (CUDA), MACRO stays opt-in (default off everywhere, only `=1` turns it on); keep the startup line but report macro off by default; fix every string / doc / LOG row / PR text that says MACRO is default-on; add a "shipped" section; Mac tests + one spark2 startup-log check (unset: macro off + huge-page buffers; `MACRO=1`: macro on); push; `zsh /opt/code/intarsiaml/.worktrees/scan/bin/merge-when-green.sh 470`. MACRO, MACRO=4096 and the gate-3 table go to the user as a decision. Progress: code, tuning.md, results doc and LOG row narrowed; checks and merge below.
 
 ## Verdict
 
-1. **The code does what was asked.** Unset = on on CUDA for both knobs (`PREFAULT` unset = `1`, huge-page mode), `=0` = off (the old behaviour), `PREFAULT=4k` kept. On Metal, HIP and cpu the unset default stays OFF: both knobs were measured on CUDA / GB10 only, and the loader records the backend (`prefix_store::set_backend`, same pattern as `spec::set_copy_backend`) before any store or macro plan is made. An explicit `1` still turns either on on any backend.
+1. **The code, as first written (the full flip), did what was asked; the merged PR keeps only the PREFAULT half (see Shipped).** Unset = on on CUDA for both knobs (`PREFAULT` unset = `1`, huge-page mode), `=0` = off (the old behaviour), `PREFAULT=4k` kept. On Metal, HIP and cpu the unset default stays OFF: both knobs were measured on CUDA / GB10 only, and the loader records the backend (`prefix_store::set_backend`, same pattern as `spec::set_copy_backend`) before any store or macro plan is made. An explicit `1` still turns either on on any backend.
 2. **Gate 3 (MACRO's restore-point check) is the problem.** With MACRO on, a cold single long message leaves entries only every 8192 tokens (the macro pass ends), not every 2048. A later prompt that shares only the first part of that message restores to the last entry at or below the shared length:
 
    | shared prefix (tokens) | cached, `=0` (entries every 2048) | cached, default (MACRO) | TTFT `=0` | TTFT default |
@@ -107,7 +117,7 @@ The default adds the macro workspace (+1049 MiB: 1727 against 678 MiB). Lowest M
 
 ## Revert
 
-`INTARSIA_PREFIX_STORE_MACRO=0` and / or `INTARSIA_PREFIX_STORE_PREFAULT=0` in the server environment, or `git revert` of the PR (the code change is the two resolvers and the backend hook; the knobs themselves stay).
+As shipped: `INTARSIA_PREFIX_STORE_PREFAULT=0` in the server environment, or `git revert` of the PR. (For the full flip as measured: `INTARSIA_PREFIX_STORE_MACRO=0` and / or `INTARSIA_PREFIX_STORE_PREFAULT=0` in the server environment, or `git revert` of the PR (the code change is the PREFAULT resolver and the backend hook; the knobs themselves stay).
 
 ## Raw
 
