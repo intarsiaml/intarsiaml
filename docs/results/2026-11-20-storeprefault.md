@@ -11,7 +11,7 @@ Lane `storeprefault`, branch `storeprefault` stacked on `storettft` (PR #466, no
 5. **Gate 4 met:** 2-stream replay TTFT sum, both seeds, pf 144.0 s against smacro 152.1 s (-5.3 %); decode and combined output not worse (combined 66.5 / 65.7 against 62.7 / 65.3 tok/s).
 6. **Gate 5 met:** MemAvailable floor of pf not lower than smacro's in any cell (speed 41.1 to 41.7 GB vs 41.2 to 41.6; replay 37.4 vs 35.9 to 36.0); nothing pinned; never under 15 GB.
 7. **Gate 6 met:** `cargo test -p intarsia-core -p intarsia-models` and `-p intarsia-cli --lib --tests` on the Mac: 1042 passed, 0 failed, 28 ignored; the prefix store tests on spark2 (Linux, where the `MADV_HUGEPAGE` branch compiles): 8 of 8. Three new tests (`host_buf_tests`).
-8. Also measured: with a warm host tier pf is the same as smacro (not slower); `pf4k` (alignment without huge pages) gets most of the gain (+13.1 / +7.0 / +4.2 %). @@W7V@@
+8. Also measured: with a warm host tier pf is the same as smacro (not slower); `pf4k` (alignment without huge pages) gets most of the gain (+13.1 / +7.0 / +4.2 %). Without #466's knob (plain `--prefix-store on`), `PREFAULT=1` alone cuts TTFT by 10 / 15 / 13 % (w7).
 9. Opt-in only, default off (lane rules); flipping it is the user's call. It pairs with #466's knob but does not need it.
 
 ## What the slow "fresh host page" really is (refines storettft's cause C)
@@ -103,7 +103,7 @@ Steady state as in a long-running server: 8 requests of 32k before the measured 
 
 ### Shipping store without the macro knob (window w7)
 
-@@W7@@
+`--prefix-store on` alone (captures after every 2048-token chunk, no macro knob) without / with `INTARSIA_PREFIX_STORE_PREFAULT=1`, ABBA `on onpf onpf on` (`raw/tables-w7.md`): TTFT on 0.765 / 3.335 / 7.300 s, **onpf 0.685 / 2.840 / 6.345 s (-10 / -15 / -13 %)**; settle per cell 4.17 / 4.09 s against 0.51 / 0.51 s (88 inserts each). Against the store-off control of w1 / w4 (other windows, same box and binary): on 1.29 / 1.33 / 1.28, onpf 1.16 / 1.13 / 1.11. The knob helps the shipping store by itself; with #466's knob as well, both gaps (cause A and C) close and 16k / 32k reach the gate.
 
 ## Not verified / limits
 
