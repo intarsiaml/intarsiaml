@@ -4,7 +4,15 @@ Lane `storeprefault`, branch `storeprefault` stacked on `storettft` (PR #466, no
 
 ## Verdict
 
-@@VERDICT@@
+1. **Gate 1 met.** Fresh server, back-to-back cold prompts, `INTARSIA_PREFIX_STORE_MACRO=1` + **`INTARSIA_PREFIX_STORE_PREFAULT=1`** against store off, 4 ABBA visits per arm, 3 reps each: TTFT **+13.1 / +4.6 / +2.2 %** at 4k / 16k / 32k (16k and 32k within 5 %; 4k recorded: cause B, the store's schedule, plus no macro step at 4k). #466 alone (smacro) in the same windows: +29.1 / +21.1 / +16.4 %.
+2. **The cause, found by microbenchmark:** the store's host buffers are `vec![0u8; n]`, whose data starts 16 bytes into a page, and on the GB10 the FIRST device-to-host copy into such a new buffer runs at about 1.3 GB/s (into a page-aligned one: 54 GB/s, first copy or not). That, plus 4 KiB page faults, was storettft's cause C ("fresh host pages"). The knob gives every new host buffer its own page-aligned mapping, 2 MiB-aligned with `MADV_HUGEPAGE` when it is 2 MiB or more. The settle of a cell of 11 requests: **5.0 s to 0.54 s**. No helper thread, no pool, no pinned memory, no change to when bytes land (so no landing / restore ordering to get wrong; no concurrency test needed: nothing concurrent was added).
+3. **Gate 2 met:** back-to-back (the w1 / w4 cell itself) pf is 12 / 14 / 12 % faster in TTFT than #466 alone (0.670 / 2.625 / 5.840 against 0.765 / 3.040 / 6.655 s). A fresh server now matches storettft's warm-host-tier numbers.
+4. **Gate 3 met:** replies identical to store-on (smacro): ab35d replay seeds 0 and 1, 48 of 48 in all 8 comparisons; storettft's 12-size cold + restored greedy set 24 of 24, identical cached-token counts.
+5. **Gate 4 met:** 2-stream replay TTFT sum, both seeds, pf 144.0 s against smacro 152.1 s (-5.3 %); decode and combined output not worse (combined 66.5 / 65.7 against 62.7 / 65.3 tok/s).
+6. **Gate 5 met:** MemAvailable floor of pf not lower than smacro's in any cell (speed 41.1 to 41.7 GB vs 41.2 to 41.6; replay 37.4 vs 35.9 to 36.0); nothing pinned; never under 15 GB.
+7. **Gate 6 met:** `cargo test -p intarsia-core -p intarsia-models` and `-p intarsia-cli --lib --tests` on the Mac: 1042 passed, 0 failed, 28 ignored; the prefix store tests on spark2 (Linux, where the `MADV_HUGEPAGE` branch compiles): 8 of 8. Three new tests (`host_buf_tests`).
+8. Also measured: with a warm host tier pf is the same as smacro (not slower); `pf4k` (alignment without huge pages) gets most of the gain (+13.1 / +7.0 / +4.2 %). @@W7V@@
+9. Opt-in only, default off (lane rules); flipping it is the user's call. It pairs with #466's knob but does not need it.
 
 ## What the slow "fresh host page" really is (refines storettft's cause C)
 
@@ -28,7 +36,7 @@ storettft measured that a never-used host buffer cost about 3.6 GB/s to populate
 
 - Cell: storettft's and ab35d's. `localeval speed --structured prompt --thinking off --sizes 4096,16384,32768 --gen 256 --reps 3` (localeval 0.4.0), nonce first in every prompt (no prefix reuse), one request at a time, **back-to-back** (the next request goes out the moment the previous stream ends: the regime where the previous request's settle lands in the next TTFT). Every visit is a FRESH `intarsia serve` (this branch's binary, CUDA, `--max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2` plus the arm's flags / env; MTP N=2 is the recipe default), the visit's value is the median of its 3 reps, the arm's the mean of its visits, visits in ABBA order. Serve line and env of every visit: `raw/recipes/*.txt`.
 - Arms: `off` (store off: the control), `smacro` (`--prefix-store on` + `INTARSIA_PREFIX_STORE_MACRO=1`, i.e. #466 alone), `pf` (smacro + `INTARSIA_PREFIX_STORE_PREFAULT=1`, this lane), `pf4k` (smacro + `INTARSIA_PREFIX_STORE_PREFAULT=4k`), `on` / `onpf` (the shipping store without / with `PREFAULT=1`, no macro knob), `pfdbg` (pf + `INTARSIA_PREFIX_STORE_DEBUG=1`, timings only).
-- Clock guard (lane rules, 2026-11-19 addendum) on every cell: SM clock / util / power every 2 s, SW power capping counter before and after, vLLM request counters before and after. No cell tripped: @@CLOCK@@
+- Clock guard (lane rules, 2026-11-19 addendum) on every cell: SM clock / util / power every 2 s, SW power capping counter before and after, vLLM request counters before and after. No cell tripped: SM min 2353 MHz, 2372 MHz in all other cells, mean 2384 to 2391 MHz at > 90 % util, max power 83 to 92 W, SW power cap delta 0 us in every cell, vLLM request delta 0 in every cell (`raw/window-*.log`, `raw/marks-*.tsv`, `raw/clk-*.tsv`).
 - Memory: `memwatch.sh` logs MemAvailable every 2 s per visit and kills the server under 15 GB (no KILLED line anywhere); builds ran under the Spark-side watchdog (lowest 73 GB available). THP counters (`thp_fault_alloc`, `thp_fault_fallback`, `compact_stall` from `/proc/vmstat`) logged at the start and end of every cell, and the server's `AnonHugePages` (window2.sh onwards; in w1 the line read the supervisor process, not the server).
 - Two binaries: build 1 (mapped buffers only from 1 MiB; window `wd`, diagnostic only) and build 2 (this PR's code, every new buffer mapped): all other windows.
 
@@ -77,6 +85,39 @@ Both seeds summed, mean of the 2 visits: **pf 144.0 s against smacro 152.1 s (-5
 
 Lowest MemAvailable per visit (`raw/mem-*.txt`, 2 s samples): speed cells pf 41.1 / 41.7 / 41.7 / 41.7 GB, smacro 41.6 / 41.2 GB, pf4k 41.7 / 41.7 GB, off 46.2 to 46.6 GB; ids cells pf 41.6, smacro 41.6 GB; replay pf 37.4 / 37.4 GB, smacro 36.0 / 35.9 GB. **pf's floor is not lower than smacro's anywhere**; no pool is pinned (nothing is pinned or locked: the buffers are ordinary anonymous memory, the same bytes the host tier held before), never under 15 GB, no KILLED line. Server RSS after a speed cell: pf 6.86 / 6.83 GB (of which `AnonHugePages` 3.7 GB), smacro 6.97 GB (w2: smacro 6.97 GB, 0 huge; pf 7.05 GB, 3.86 GB huge). THP: `thp_fault_fallback` 0 and `compact_stall` 0 in every cell (spark2, 70+ GB free; with a fragmented box the huge-page fault can stall on compaction, `defrag=madvise`: not seen here, not tested under fragmentation).
 
-@@MORE2@@
+### Not slower with a warm host tier (window w6)
 
+Steady state as in a long-running server: 8 requests of 32k before the measured cell, `--prefix-store on,host_mb=4096` (host tier at 3.46 GiB after the fill, then evicting and recycling), ABBA `smacro pf pf smacro`: TTFT smacro 0.675 / 2.630 / 5.850 s, **pf 0.675 / 2.630 / 5.820 s** (`raw/tables-w6.md`). With recycled buffers the knob has nothing left to do, and costs nothing. A fresh server with `pf` (w1 / w4: 0.670 / 2.625 / 5.840) now matches this warm state.
 
+### Where the settle went (windows wd and w5, `INTARSIA_PREFIX_STORE_DEBUG=1`, timings only)
+
+| | storettft fresh (`on`, w1 there) | build 1, mapped from 1 MiB (wd) | build 2, every buffer mapped (w5) |
+|---|---|---|---|
+| settle after a 16k request | 641 MiB in 600 to 618 ms | 452 MiB in 147 to 153 ms | 452 MiB in 48 to 52 ms |
+| settle after a 32k request | - | 885 MiB in 296 to 299 ms | 885 MiB in 97 to 104 ms |
+| demote 5120 KiB (KV page): alloc + download | 0.85 + 4.0 ms | 0.32 + 0.10 ms | 0.32 + 0.11 ms |
+| demote 32160 KiB (recurrent blob) | 8.0 + 4.1 ms | 0.91 + 0.59 ms | 0.91 + 0.57 ms |
+| demote 512 KiB (MTP head page) | - | 0.13 + 1.43 ms | 0.13 + 0.02 ms |
+
+(storettft's cell had 2048-token captures, these have `INTARSIA_PREFIX_STORE_MACRO=1`, so the settle sizes differ; the per-object lines compare like for like.) With the macro knob no capture of these cells went past the 1 GiB deferral cap (all 33 inserts `deferred`, w5), so cause C1 does not occur in this regime; captures to host (`insert ... host`) take buffers from the same `take_host_buf`, so they get the same allocation when they happen. What remains of the settle (about 9 GB/s) is mostly the page touch (0.32 of each 5 MiB page's 0.43 ms: a 5 MiB page object is 2 huge pages plus a 1 MiB tail of 4 KiB pages), then the copies; it is now 0.54 s per cell of 11 requests against 5.0 s.
+
+### Shipping store without the macro knob (window w7)
+
+@@W7@@
+
+## Not verified / limits
+
+- One model (35B NVFP4, MTP N=2), one box (spark2, THP `madvise`, `defrag=madvise`, 70+ GB free), CUDA only. HIP (`ik_rt_memcpy_d2h_pinned` staging there) and Metal were not run; the knob only changes how host memory is allocated, which they also use, but whether misaligned first copies are slow there is not measured.
+- Huge pages under memory fragmentation: `compact_stall` and `thp_fault_fallback` stayed 0 in every cell here. On a fragmented box a `MADV_HUGEPAGE` fault with `defrag=madvise` can stall on direct compaction; `4k` avoids that and keeps most of the gain.
+- Why the driver's first copy into a misaligned pageable buffer is slow (and later ones fast) is not known; measured, not explained. The 4 KiB / 6 KiB objects stay at 0.35 to 0.5 ms per first download even mapped (33 + 22 per cell, negligible).
+- The disk tier (off by default) was not exercised; disk loads come back as plain `Vec` buffers (`HostBuf::Vec`), unchanged.
+- Not verified with `--max-batch 1`, packed prefill, or another model's object sizes; `vm.max_map_count` headroom was reasoned (about 3000 mappings for the 8 GiB tier of this model), not measured at a full 8 GiB tier with small objects.
+- Cause C1 (captures past the 1 GiB deferral cap, synchronous inside the prefill) did not occur in these cells with the macro knob; with the plain store (`on`, captures every 2048 tokens) it does at 32k, and the knob gives those buffers the same fast allocation (w7), but a larger deferral cap was not re-tested now that the settle is cheap.
+
+## Revert
+
+Unset `INTARSIA_PREFIX_STORE_PREFAULT` (default): `new_host_buf` then makes the same `vec![0u8; n]` + page touch as before (`HostBuf::Vec`). `git revert` of this branch's commits removes the knob, `HostBuf` and the tests; the host tier's type goes back to `Vec<u8>`.
+
+## Raw
+
+`raw/window-*.log` (run logs, clock guard and THP lines), `raw/recipes/*.txt`, `raw/w*-speed.out` and `raw/2026*/summary.md` (localeval cells), `raw/tables-w*.md` (`scripts/storeprefault/tables.py`), `raw/store-counters-w1.md`, `raw/w2-*-ids.json` and `raw/compare-ids-w2.txt`, `raw/w3-*` and `raw/replay-table-w3.md`, `raw/compare-replay-w3.txt`, `raw/serve-*.log` (wd and w5 with the debug lines), `raw/mem-*.txt`, `raw/clk-*.tsv`, `raw/snap-*` (metrics before / after each cell), `raw/d2h3.txt`, `raw/d2h3-calloc.txt` (flawed first run), `raw/d2h4.txt`, `raw/rtest-linux.txt`, `raw/run-*.txt` and `raw/build2.txt` (fleetq job output).

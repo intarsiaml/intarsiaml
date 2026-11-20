@@ -12,3 +12,7 @@ w4-v2-pf run_id=20261120-043418-adhoc-storeprefault-w4-v2-pf
 w4-v3-pf run_id=20261120-043641-adhoc-storeprefault-w4-v3-pf
 w4-v4-off run_id=20261120-043908-adhoc-storeprefault-w4-v4-off
 w5-v1-pfdbg run_id=20261120-050358-adhoc-storeprefault-w5-v1-pfdbg
+w6-v1-smacro run_id=20261120-050755-adhoc-storeprefault-w6-v1-smacro
+w6-v2-pf run_id=20261120-051112-adhoc-storeprefault-w6-v2-pf
+w6-v3-pf run_id=20261120-051427-adhoc-storeprefault-w6-v3-pf
+w6-v4-smacro run_id=20261120-051746-adhoc-storeprefault-w6-v4-smacro
