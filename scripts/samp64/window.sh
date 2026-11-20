@@ -53,9 +53,9 @@ up=0; for i in $(seq 1 200); do curl -sf "http://$HN:$PORT/health" >/dev/null &&
 log "serve up; MemAvailable MB: $(rsh "awk '/MemAvailable/ {print int(\$2/1024)}' /proc/meminfo")"
 curl -sf "http://$HN:$PORT/metrics" > "$OUT/serve-$WN.metrics.before" 2>/dev/null
 for c in $CELLS; do
-  if [[ $c == seeded ]]; then   # byte-for-byte reply comparison between windows (scripts/samp64/seeded.py)
+  if [[ $c == seeded || $c == seeded:* ]]; then   # byte-for-byte reply comparison between windows (scripts/samp64/seeded.py); seeded:<sizes> picks the prompt sizes
     guard_start "$WN-seeded"
-    ( cd /opt/code/deepeval && uv run python "$SC/seeded.py" --url "$UB" --model $MODEL --arm "$WN" --out "$OUT" ) > "$OUT/$WN-seeded.out" 2>&1
+    ( cd /opt/code/deepeval && uv run python "$SC/seeded.py" --url "$UB" --model $MODEL --arm "$WN" --out "$OUT" $( [[ $c == seeded:* ]] && echo "--sizes ${c#seeded:}" ) ) > "$OUT/$WN-seeded.out" 2>&1
     tail -8 "$OUT/$WN-seeded.out" | tee -a "$WLOG"; guard_end "$WN-seeded"; continue
   fi
   IFS=: read -r T SZ RP <<< "$c"; RP=${RP:-3}; name="$WN-T$T"
