@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
+# memlong: sync this worktree to spark1 ~/intarsiaml-memlong/src and build the CUDA CLI, with a free-memory watchdog.
 #   fleetq run --host spark1 --load cpu --mem 55 --expect 30 --label "memlong build" -- bash scripts/memlong/build.sh
-#   FLEETQ_OWNER=claude-overnight-memlong fleetq run --host spark1 --load cpu --mem 55 --expect 25 --label "memlong build" -- bash scripts/memlong/build.sh
 # Watchdog: polls MemAvailable every 20 s; kills the build's process group (by PGID) below 15 GB. Remove ~/intarsiaml-memlong when the lane is done.
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
