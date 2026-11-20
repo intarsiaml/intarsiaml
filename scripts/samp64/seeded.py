@@ -16,11 +16,15 @@ def main():
 
     def call(body):
         req = urllib.request.Request(a.url.rstrip("/") + "/chat/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})
-        return json.load(urllib.request.urlopen(req, timeout=900))
+        try:
+            return json.load(urllib.request.urlopen(req, timeout=900))
+        except urllib.error.HTTPError as e:
+            print(f"[seeded] HTTP {e.code}: {e.read().decode()[:600]}", flush=True)
+            raise
 
     for size in [int(s) for s in a.sizes.split(",")]:
-        # size = target prompt tokens: one probe (max_tokens 1) at a first guess of 12 tokens per sentence, then the sentence count is scaled once
-        n = max(1, round(size / 12))
+        # size = target prompt tokens: one probe (max_tokens 1) at a first guess of 24 tokens per sentence (measured: 23 to 24), then the sentence count is scaled once
+        n = max(1, round(size / 24))
         probe = call({"model": a.model, "messages": [{"role": "user", "content": filler(n, seed=size) + INSTRUCTION}], "max_tokens": 1, "temperature": 0,
                       "chat_template_kwargs": {"enable_thinking": False}})["usage"]["prompt_tokens"]
         n = max(1, round(n * size / probe))
@@ -32,6 +36,8 @@ def main():
             ch = r["choices"][0]
             res.append({"size": size, "seed": seed, "prompt_tokens": r["usage"]["prompt_tokens"], "completion_tokens": r["usage"]["completion_tokens"],
                         "finish": ch["finish_reason"], "text": ch["message"].get("content")})
+            out = pathlib.Path(a.out); out.mkdir(parents=True, exist_ok=True)
+            (out / f"{a.arm}-seeded.json").write_text(json.dumps(res, indent=1))   # partial results survive a later failure
             print(f"[seeded] size {size} seed {seed}: prompt {r['usage']['prompt_tokens']} out {r['usage']['completion_tokens']} {ch['finish_reason']} {len(res[-1]['text'] or '')} chars", flush=True)
     out = pathlib.Path(a.out); out.mkdir(parents=True, exist_ok=True)
     (out / f"{a.arm}-seeded.json").write_text(json.dumps(res, indent=1))
