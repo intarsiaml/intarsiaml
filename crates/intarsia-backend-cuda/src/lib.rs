@@ -74,6 +74,15 @@ pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {
     Ok(Arc::new(device::CudaBackend::new(ordinal)?))
 }
 
+/// Tests only (lane kvonce, `tests/kv_once.rs`): override `INTARSIA_CUDA_ATTN_KV_ONCE` for the row-table attention launches of this
+/// process (`None` = the variable, `Some(0)` = off, `Some(1)` = on, `Some(2)` = on with plain loads) and plant the persistent
+/// kernel's test fault (every row of a group gets the group leader's end of keys; only under an on mode). Process-wide.
+#[cfg(ik_cuda)]
+pub fn set_attn_kv_once_for_test(mode: Option<u8>, fault: bool) {
+    // SAFETY: two plain ints in the kernel library, read by the host launcher.
+    unsafe { ffi::ik_attn_kv_once_for_test(mode.map_or(-1, i32::from), i32::from(fault)) }
+}
+
 /// Open CUDA device `ordinal` (stub: this build has no CUDA toolkit).
 #[cfg(not(ik_cuda))]
 pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {

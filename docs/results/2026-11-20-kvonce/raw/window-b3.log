@@ -1,0 +1,26 @@
+[12:36:26 +0s] window b3 extra='' env='INTARSIA_CUDA_ATTN_KV_ONCE=1' cells: 0.7:4096,32768,65536:3 0:4096,32768,65536:3; fleetq job 10423
+[12:36:28 +2s] free: Mem:             121          46          66           0           9          74; earlyoom active; binary: intarsia 0.0.1
+[12:36:28 +2s] serve: INTARSIA_CUDA_ATTN_KV_ONCE=1 ~/intarsiaml-kvonce/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[12:37:51 +85s] serve up; MemAvailable MB: 48410
+[12:37:52 +86s] cell b3-T0.7 start; 2398 MHz, 13.27 W, 0 %, 52
+[sampled] 32768 rep3: prompt=33895 cached=0 ttft=6.34s decode=87.8 peak=137.2 out=256
+[sampled] 65536 rep1: prompt=68930 cached=0 ttft=15.76s decode=80.3 peak=110.9 out=256
+[sampled] 65536 rep2: prompt=68868 cached=0 ttft=15.76s decode=73.7 peak=109.4 out=256
+[sampled] 65536 rep3: prompt=68913 cached=0 ttft=15.81s decode=72.5 peak=92.6 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4073 | 0.67 | 105.702 (98.938-128.519) | 0.708 |
+| 32768 | 33901 | 6.33 | 86.304 (86.084-87.844) | 0.593 |
+| 65536 | 68913 | 15.762 | 73.67 (72.474-80.346) | 0.6 |
+[12:39:29 +183s] cell b3-T0.7 end: clock guard: 48 samples, 30 at util>90, 0 of those SM<2300 MHz, min SM 2333, mean SM 2367, max power 92 W; SW power cap delta 0 us
+[12:39:30 +184s] cell b3-T0 start; 2405 MHz, 16.43 W, 0 %, 67
+[sampled] 32768 rep3: prompt=33849 cached=0 ttft=6.33s decode=108.5 peak=173.9 out=256
+[sampled] 65536 rep1: prompt=68860 cached=0 ttft=15.90s decode=85.9 peak=116.6 out=256
+[sampled] 65536 rep2: prompt=68795 cached=0 ttft=15.80s decode=84.7 peak=117.3 out=256
+[sampled] 65536 rep3: prompt=68846 cached=0 ttft=15.80s decode=88.7 peak=132.0 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4069 | 0.666 | 121.924 (119.722-122.575) | 0.606 |
+| 32768 | 33851 | 6.316 | 104.469 (101.52-108.507) | 0.619 |
+| 65536 | 68846 | 15.805 | 85.925 (84.678-88.68) | 0.585 |
+[12:41:03 +277s] cell b3-T0 end: clock guard: 46 samples, 42 at util>90, 0 of those SM<2300 MHz, min SM 2327, mean SM 2371, max power 92 W; SW power cap delta 0 us
+[12:41:07 +281s] min MemAvailable MB: 12:40:22 38162; KILLED lines: 0; warn/error lines in serve log: 0
+[12:41:09 +283s] window end

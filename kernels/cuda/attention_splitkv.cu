@@ -357,31 +357,84 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const K
 // as streaming (`__ldcs`, evict first) so they do not push the partials out of L2 before the combine reads them.
 // KT = uint8_t (fp8_e4m3 cache): the same schedule with 8-byte K / V loads and splitkv_step's e4m3 unpack, so every partial is
 // bitwise splitkv_kernel<8, TPK, 2, uint8_t, true>'s block, as the bf16 instantiation is the bf16 one's.
-template <int TPK, typename KT = ik_bf16>
+//
+// ONCE (INTARSIA_CUDA_ATTN_KV_ONCE, lane kvonce, opt-in): the same items, numbered so that the rows of one sequence read each K / V
+// line together. A GROUP is a run of consecutive table rows with the same K and V cache addresses, the same split count and the same
+// chunk (a verify pass: rows at consecutive positions of one cache); its items are numbered kv head, then split, then row, so the
+// group's rows of one (kv head, split) are consecutive items, dealt to blocks that run at the same time and stream the same K / V
+// lines in step: one DRAM read, the L2 serves the other rows. The loads stay streaming (`__ldcs`): the rows run in step closely
+// enough that evict-first lines are still in L2 for them, and plain loads (ONCE = 2, a diagnostic) measured 1 to 3 % slower
+// (tests/kv_once.rs timing). What an item computes (its row, kv
+// head, split, keys, q, partial slot) is what it computes without ONCE, so every partial is bitwise the same. `fault` (tests only)
+// gives every row of a group the leader row's end of keys, the bug a shared read would have; tests/kv_once.rs must see it.
+template <int TPK, typename KT = ik_bf16, int ONCE = 0>
 __global__ void __launch_bounds__(kBlock)
 splitkv_rows_persist_kernel(const ik_bf16* __restrict__ q, float* __restrict__ pacc, float2* __restrict__ pml, int N, int G,
                             int NKV, int64_t cap, float qscale, int nsplit, int R, const int32_t* __restrict__ pos_dev,
-                            const uint8_t* __restrict__ tab, int64_t tstride, int64_t tindex) {
+                            const uint8_t* __restrict__ tab, int64_t tstride, int64_t tindex, int fault = 0) {
     constexpr int GP = kMaxGroup, KB = 2;  // dispatch_group's (8, 2) case
     constexpr int D = TPK * 8;
     constexpr int NG = kBlock / TPK;
     using L = KvLoad<KT>;
     __shared__ __align__(16) float s_acc[NG * D];
     __shared__ float s_m[NG], s_l[NG];
-    __shared__ int s_first[kMaxRows + 1];  // first item of row r; s_first[R] = the item count
+    __shared__ int s_first[kMaxRows + 1];  // first item of row r (ONCE: of group r); s_first[R] (ONCE: [groups]) = the item count
     __shared__ int s_pos[kMaxRows];
-    if ((int)threadIdx.x < R) {
-        const int p = pos_dev[threadIdx.x];
-        s_pos[threadIdx.x] = p;
-        s_first[threadIdx.x + 1] = splitkv_count((int64_t)p + 1, NKV, 1) * NKV;
+    __shared__ int s_g0[ONCE ? kMaxRows + 1 : 1];  // ONCE: first row of group g; s_g0[groups] = R
+    __shared__ int s_lead[ONCE ? kMaxRows : 1];    // ONCE: 1 if row r starts a group
+    int ngroups = R;
+    if constexpr (ONCE != 0) {
+        __shared__ int s_ns[kMaxRows];
+        __shared__ int64_t s_chunk[kMaxRows];
+        __shared__ uint64_t s_ka[kMaxRows], s_va[kMaxRows];
+        __shared__ int s_ng;
+        if ((int)threadIdx.x < R) {
+            const int r = threadIdx.x;
+            const int p = pos_dev[r];
+            const int ns = splitkv_count((int64_t)p + 1, NKV, 1);
+            const uint64_t* tp = reinterpret_cast<const uint64_t*>(tab) + (int64_t)r * tstride + tindex;
+            s_pos[r] = p;
+            s_ns[r] = ns;
+            s_chunk[r] = splitkv_chunk((int64_t)p + 1, ns);
+            s_ka[r] = tp[0];
+            s_va[r] = tp[1];
+        }
+        __syncthreads();
+        if ((int)threadIdx.x < R) {
+            const int r = threadIdx.x;
+            s_lead[r] = r == 0 || s_ka[r] != s_ka[r - 1] || s_va[r] != s_va[r - 1] || s_ns[r] != s_ns[r - 1] || s_chunk[r] != s_chunk[r - 1];
+        }
+        __syncthreads();
+        if (threadIdx.x == 0) {
+            int g = 0, acc = 0;
+            for (int r = 0; r < R; ++r) {
+                if (s_lead[r]) {
+                    s_g0[g] = r;
+                    s_first[g] = acc;
+                    ++g;
+                }
+                acc += s_ns[r] * NKV;
+            }
+            s_g0[g] = R;
+            s_first[g] = acc;
+            s_ng = g;
+        }
+        __syncthreads();
+        ngroups = s_ng;
+    } else {
+        if ((int)threadIdx.x < R) {
+            const int p = pos_dev[threadIdx.x];
+            s_pos[threadIdx.x] = p;
+            s_first[threadIdx.x + 1] = splitkv_count((int64_t)p + 1, NKV, 1) * NKV;
+        }
+        __syncthreads();
+        if (threadIdx.x == 0) {
+            s_first[0] = 0;
+            for (int r = 0; r < R; ++r) s_first[r + 1] += s_first[r];
+        }
+        __syncthreads();
     }
-    __syncthreads();
-    if (threadIdx.x == 0) {
-        s_first[0] = 0;
-        for (int r = 0; r < R; ++r) s_first[r + 1] += s_first[r];
-    }
-    __syncthreads();
-    const int items = s_first[R];
+    const int items = s_first[ngroups];
     const int c = threadIdx.x % TPK, gk = threadIdx.x / TPK;
 
     struct Item {
@@ -389,17 +442,24 @@ splitkv_rows_persist_kernel(const ik_bf16* __restrict__ q, float* __restrict__ p
         int64_t start, end;
         const KT *kb, *vb;  // this thread's 8 dims of key 0 of the kv head
     };
-    // item `it`, `t` the row of the block's previous item (a block's items increase, so its row only moves forward)
+    // item `it`, `t` the row (ONCE: the group) of the block's previous item (a block's items increase, so it only moves forward)
     auto describe = [&](int it, int& t, Item& d) {
         while (it >= s_first[t + 1]) ++t;
-        const int64_t kv_len = (int64_t)s_pos[t] + 1;
+        int row = t, local = it - s_first[t];
+        int64_t end_len = 0;
+        if constexpr (ONCE != 0) {
+            const int n = s_g0[t + 1] - s_g0[t];
+            row = s_g0[t] + local % n;
+            local /= n;
+            end_len = fault ? (int64_t)s_pos[s_g0[t]] + 1 : 0;
+        }
+        const int64_t kv_len = (int64_t)s_pos[row] + 1;
         const int nsplit_eff = splitkv_count(kv_len, NKV, 1);
-        const int local = it - s_first[t];
-        d.t = t;
+        d.t = row;
         d.sp = local % nsplit_eff;
         d.kvh = local / nsplit_eff;
-        splitkv_range(d.sp, splitkv_chunk(kv_len, nsplit_eff), 0, kv_len, d.start, d.end);
-        const uint64_t* tp = reinterpret_cast<const uint64_t*>(tab) + (int64_t)t * tstride + tindex;
+        splitkv_range(d.sp, splitkv_chunk(kv_len, nsplit_eff), 0, end_len ? end_len : kv_len, d.start, d.end);
+        const uint64_t* tp = reinterpret_cast<const uint64_t*>(tab) + (int64_t)row * tstride + tindex;
         d.kb = reinterpret_cast<const KT*>(tp[0]) + (int64_t)d.kvh * cap * D + c * 8;
         d.vb = reinterpret_cast<const KT*>(tp[1]) + (int64_t)d.kvh * cap * D + c * 8;
     };
@@ -411,8 +471,13 @@ splitkv_rows_persist_kernel(const ik_bf16* __restrict__ q, float* __restrict__ p
             nk[u] = L::zero();
             nv[u] = L::zero();
             if (j < d.end) {
-                nk[u] = L::load_cs(d.kb + j * D);
-                nv[u] = L::load_cs(d.vb + j * D);
+                if constexpr (ONCE == 2) {
+                    nk[u] = L::load(d.kb + j * D);
+                    nv[u] = L::load(d.vb + j * D);
+                } else {
+                    nk[u] = L::load_cs(d.kb + j * D);
+                    nv[u] = L::load_cs(d.vb + j * D);
+                }
             }
         }
     };
@@ -477,10 +542,11 @@ splitkv_rows_persist_kernel(const ik_bf16* __restrict__ q, float* __restrict__ p
     }
 }
 
-template <int TPK, typename KT>
+template <int TPK, typename KT, int ONCE = 0>
 int launch_rows_persist(const ik_bf16* q, float* pacc, float2* pml, int64_t R, int64_t N, int64_t NKV, int64_t cap, float qscale,
-                        int nsplit, const int32_t* pos_dev, cudaStream_t s, const uint8_t* tab, int64_t tstride, int64_t tindex) {
-    auto kern = splitkv_rows_persist_kernel<TPK, KT>;
+                        int nsplit, const int32_t* pos_dev, cudaStream_t s, const uint8_t* tab, int64_t tstride, int64_t tindex,
+                        int fault = 0) {
+    auto kern = splitkv_rows_persist_kernel<TPK, KT, ONCE>;
     static int grid = 0;  // SMs x resident blocks, once per process
     if (!grid) {
         int occ = 0, sms = 0, d = 0;
@@ -490,7 +556,7 @@ int launch_rows_persist(const ik_bf16* q, float* pacc, float2* pml, int64_t R, i
         grid = sms * occ;
     }
     kern<<<grid, kBlock, 0, s>>>(q, pacc, pml, (int)N, (int)(N / NKV), (int)NKV, cap, qscale, nsplit, (int)R, pos_dev, tab, tstride,
-                                 tindex);
+                                 tindex, fault);
     return IK_OK;
 }
 
@@ -708,6 +774,20 @@ inline int rows_persist() {
     return v;
 }
 
+// INTARSIA_CUDA_ATTN_KV_ONCE (lane kvonce, opt-in): 1 numbers the persistent kernel's items so that the rows of one sequence read
+// each K / V line together (splitkv_rows_persist_kernel's ONCE), 2 the same with plain loads (diagnostic), unset / anything else
+// the default numbering. Read once per process; tests override it with ik_attn_kv_once_for_test. The bits do not depend on it.
+int g_kv_once_test = -1;  // -1: the variable; else the mode
+int g_kv_once_fault = 0;  // tests: the planted fault (see splitkv_rows_persist_kernel)
+inline int kv_once_mode() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_CUDA_ATTN_KV_ONCE");
+        if (e && (e[0] == '1' || e[0] == '2') && !e[1]) return e[0] - '0';
+        return 0;
+    }();
+    return g_kv_once_test >= 0 ? g_kv_once_test : v;
+}
+
 template <int TPK, typename KT, bool ROWS = false>
 int dispatch_group(int G, const ik_bf16* q, const KT* kc, const KT* vc, float* pacc, float2* pml,
                    int64_t T, int64_t N, int64_t NKV, int64_t cap, int64_t pos0, float qscale, int nsplit,
@@ -804,12 +884,23 @@ int rows_stage1(bool persist, const ik_bf16* qp, const ik_tensor* kc0, const ik_
     const KT* vp = (const KT*)vc0->data;
     int rc = IK_ERR_SHAPE;
     if (persist) {
+        const int once = kv_once_mode(), fault = g_kv_once_fault;
+#define IK_PERSIST_CASE(DV, TPKV)                                                                                                     \
+    case DV:                                                                                                                       \
+        if (once == 1)                                                                                                             \
+            rc = launch_rows_persist<TPKV, KT, 1>(qp, pacc, pml, R, N, NKV, cap, qscale, nsplit, pos_dev, s, tp, stride, index, fault);  \
+        else if (once == 2)                                                                                                        \
+            rc = launch_rows_persist<TPKV, KT, 2>(qp, pacc, pml, R, N, NKV, cap, qscale, nsplit, pos_dev, s, tp, stride, index, fault);  \
+        else                                                                                                                       \
+            rc = launch_rows_persist<TPKV, KT>(qp, pacc, pml, R, N, NKV, cap, qscale, nsplit, pos_dev, s, tp, stride, index);           \
+        break;
         switch (D) {
-            case 32: rc = launch_rows_persist<4, KT>(qp, pacc, pml, R, N, NKV, cap, qscale, nsplit, pos_dev, s, tp, stride, index); break;
-            case 64: rc = launch_rows_persist<8, KT>(qp, pacc, pml, R, N, NKV, cap, qscale, nsplit, pos_dev, s, tp, stride, index); break;
-            case 128: rc = launch_rows_persist<16, KT>(qp, pacc, pml, R, N, NKV, cap, qscale, nsplit, pos_dev, s, tp, stride, index); break;
-            case 256: rc = launch_rows_persist<32, KT>(qp, pacc, pml, R, N, NKV, cap, qscale, nsplit, pos_dev, s, tp, stride, index); break;
+            IK_PERSIST_CASE(32, 4)
+            IK_PERSIST_CASE(64, 8)
+            IK_PERSIST_CASE(128, 16)
+            IK_PERSIST_CASE(256, 32)
         }
+#undef IK_PERSIST_CASE
     } else {
 #define IK_ROWS_DISPATCH(DV, TPKV)                                                                                          \
     case DV: rc = dispatch_group<TPKV, KT, true>((int)(N / NKV), qp, kp, vp, pacc, pml, R, N, NKV, cap, 0, qscale, nsplit,  \
@@ -928,6 +1019,12 @@ int ik_attn_decode_f8kv_splitkv(const ik_tensor* q, const ik_tensor* kc, const i
 int ik_attn_prefill_f8kv_splitkv(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
                                  ik_tensor* out, const ik_scratch* scratch, void* stream) {
     return splitkv_launch(q, kc, vc, pos0, scale, out, scratch, nullptr, stream, false, true);
+}
+
+// tests (tests/kv_once.rs): mode -1 = INTARSIA_CUDA_ATTN_KV_ONCE, 0 = off, 1 / 2 = on; fault != 0 plants the kernel's test fault (ONCE only)
+void ik_attn_kv_once_for_test(int mode, int fault) {
+    g_kv_once_test = mode;
+    g_kv_once_fault = fault;
 }
 
 // the row-table decode launch over fp8_e4m3 caches: row r bitwise ik_attn_decode_f8kv_splitkv on row r alone

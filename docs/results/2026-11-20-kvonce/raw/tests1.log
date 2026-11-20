@@ -1,0 +1,102 @@
+fleetq: #10420 waiting (#1 in line): needs cpu quiet on spark2, but #10419 "kvonce build tests+cli" (claude-kvonce) loads it
+fleetq:   #10419 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10419 set, or it will wait for #10419 to be released.
+fleetq: #10420 running on spark2: bash scripts/kvonce/jobT.sh
+== kv_once 11:56:00 env=''
+running 2 tests
+test kv_once_launches_are_bit_identical_to_the_default_launches ... kv_once 16/2/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 7 mixed tables, 26 captured replays, mode 2 x5; 1036 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 24/4/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 7 mixed tables, 26 captured replays, mode 2 x5; 1036 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 16/2/256 fp8_e4m3: knob on bit-identical to off: 1057 one-cache verify tables (M 1..=16), 7 mixed tables, 0 captured replays, mode 2 x5; 499 rows equal to their solo launch; planted fault seen 7 of 7
+ok
+test timing_kv_once_layers ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.46s
+== kv_once exit 0
+== verify_attn_rows 11:56:22 env=''
+running 3 tests
+test captured_rows_launch_is_the_captured_per_row_launches ... cvat verify_attn_rows (captured, device positions, two states): 1622016 bytes identical (3 shapes, 12 replays each)
+ok
+test timing_captured_attention_layers ... ok
+test verify_rows_launch_is_the_per_row_launches ... cvat verify_attn_rows (host positions): 2478080 bytes identical to the per-row launches (3 shapes, 14 passes each, t 2..=16)
+ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+== verify_attn_rows exit 0
+== row_tables 11:56:23 env=''
+ok
+test kv_append_rows_are_the_solo_append ... G-B kv_append_bf16_rows: 33423360 bytes identical to the solo launches (M 1..=16, 2 shapes)
+ok
+test rope_with_one_position_per_row_is_the_solo_rope ... G-B rope_bf16 (one position per row): 2350080 bytes identical to the solo launches (M 2..=16, 3 shapes)
+ok
+test timing_attn_rows ... ignored
+test timing_gdn_rows ... ignored
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 68.93s
+== row_tables exit 0
+== attention 11:57:32 env=''
+running 2 tests
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 48, "attn_decode_bf16_ext": 48, "attn_decode_bf16_splitkv": 48, "attn_decode_bf16_splitkv_ext": 48, "attn_prefill_bf16": 149, "attn_prefill_bf16_ext": 149, "attn_prefill_bf16_flash": 53, "attn_prefill_bf16_splitkv": 88, "attn_prefill_bf16_splitkv_ext": 88}
+ok
+test attention_throughput ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 7.22s
+== attention exit 0
+== attn_f8kv 11:57:40 env=''
+running 4 tests
+test f8kv_graph_replay_is_bitwise_the_eager_bf16_kernel ... ok
+test f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache ... bitwise cases: {"attn_decode_f8kv_splitkv": 128, "attn_prefill_f8kv_flash": 56, "attn_prefill_f8kv_splitkv": 104}
+ok
+test f8kv_matches_with_nan_past_the_end ... ok
+test f8kv_timing ... ignored
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 20.93s
+== attn_f8kv exit 0
+== verify_attn_rows 11:58:01 env='INTARSIA_CUDA_ATTN_KV_ONCE=1'
+running 3 tests
+test captured_rows_launch_is_the_captured_per_row_launches ... cvat verify_attn_rows (captured, device positions, two states): 1622016 bytes identical (3 shapes, 12 replays each)
+ok
+test timing_captured_attention_layers ... ok
+test verify_rows_launch_is_the_per_row_launches ... cvat verify_attn_rows (host positions): 2478080 bytes identical to the per-row launches (3 shapes, 14 passes each, t 2..=16)
+ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.79s
+== verify_attn_rows exit 0
+== row_tables 11:58:03 env='INTARSIA_CUDA_ATTN_KV_ONCE=1'
+ok
+test kv_append_rows_are_the_solo_append ... G-B kv_append_bf16_rows: 33423360 bytes identical to the solo launches (M 1..=16, 2 shapes)
+ok
+test rope_with_one_position_per_row_is_the_solo_rope ... G-B rope_bf16 (one position per row): 2350080 bytes identical to the solo launches (M 2..=16, 3 shapes)
+ok
+test timing_attn_rows ... ignored
+test timing_gdn_rows ... ignored
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 67.96s
+== row_tables exit 0
+== attention 11:59:11 env='INTARSIA_CUDA_ATTN_KV_ONCE=1'
+running 2 tests
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 48, "attn_decode_bf16_ext": 48, "attn_decode_bf16_splitkv": 48, "attn_decode_bf16_splitkv_ext": 48, "attn_prefill_bf16": 149, "attn_prefill_bf16_ext": 149, "attn_prefill_bf16_flash": 53, "attn_prefill_bf16_splitkv": 88, "attn_prefill_bf16_splitkv_ext": 88}
+ok
+test attention_throughput ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 7.00s
+== attention exit 0
+== attn_f8kv 11:59:19 env='INTARSIA_CUDA_ATTN_KV_ONCE=1'
+running 4 tests
+test f8kv_graph_replay_is_bitwise_the_eager_bf16_kernel ... ok
+test f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache ... bitwise cases: {"attn_decode_f8kv_splitkv": 128, "attn_prefill_f8kv_flash": 56, "attn_prefill_f8kv_splitkv": 104}
+ok
+test f8kv_matches_with_nan_past_the_end ... ok
+test f8kv_timing ... ignored
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 21.19s
+== attn_f8kv exit 0
+== kv_once 11:59:40 env='KVONCE_TIMING=1'
+running 1 test
+test timing_kv_once_layers ... kvonce timing t=1 ctx=4096:  mode 0 453 us (185 GB/s unique)  mode 1 474 us (177 GB/s unique)  mode 2 458 us (183 GB/s unique)
+kvonce timing t=1 ctx=32768:  mode 0 2762 us (243 GB/s unique)  mode 1 2819 us (238 GB/s unique)  mode 2 2746 us (244 GB/s unique)
+kvonce timing t=1 ctx=65536:  mode 0 5366 us (250 GB/s unique)  mode 1 5484 us (245 GB/s unique)  mode 2 5406 us (248 GB/s unique)
+kvonce timing t=2 ctx=4096:  mode 0 670 us (125 GB/s unique)  mode 1 587 us (143 GB/s unique)  mode 2 572 us (147 GB/s unique)
+kvonce timing t=2 ctx=32768:  mode 0 5438 us (123 GB/s unique)  mode 1 3084 us (218 GB/s unique)  mode 2 3008 us (223 GB/s unique)
+kvonce timing t=2 ctx=65536:  mode 0 10716 us (125 GB/s unique)  mode 1 5871 us (229 GB/s unique)  mode 2 5750 us (233 GB/s unique)
+kvonce timing t=3 ctx=4096:  mode 0 821 us (102 GB/s unique)  mode 1 692 us (121 GB/s unique)  mode 2 675 us (124 GB/s unique)
+kvonce timing t=3 ctx=32768:  mode 0 7949 us (84 GB/s unique)  mode 1 3214 us (209 GB/s unique)  mode 2 3125 us (215 GB/s unique)
+kvonce timing t=3 ctx=65536:  mode 0 15872 us (85 GB/s unique)  mode 1 6034 us (222 GB/s unique)  mode 2 5904 us (227 GB/s unique)
+kvonce timing t=4 ctx=4096:  mode 0 1043 us (80 GB/s unique)  mode 1 912 us (92 GB/s unique)  mode 2 894 us (94 GB/s unique)
+kvonce timing t=4 ctx=32768:  mode 0 10629 us (63 GB/s unique)  mode 1 4061 us (165 GB/s unique)  mode 2 4014 us (167 GB/s unique)
+kvonce timing t=4 ctx=65536:  mode 0 21071 us (64 GB/s unique)  mode 1 7629 us (176 GB/s unique)  mode 2 7540 us (178 GB/s unique)
+ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 20.61s
+== kv_once exit 0
+jobT rc=0
+fleetq: #10420 done (exit 0)
+exit 0

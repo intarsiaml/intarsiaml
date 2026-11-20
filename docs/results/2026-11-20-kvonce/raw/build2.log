@@ -1,0 +1,32 @@
+fleetq: #10421 running on spark2: bash scripts/kvonce/build.sh
+build start 12:01:17 sha 502b570f3e476a1e0c87bd58edb03a074ebb720f
+12:01:17 cargo pgid 2988520: cargo test --release --locked -p intarsia-backend-cuda  --test kv_once --no-run
+12:01:18 avail 73 GB
+12:01:39 avail 72 GB
+12:02:00 avail 73 GB
+12:02:20 avail 73 GB
+12:02:41 avail 73 GB
+12:03:02 avail 73 GB
+12:03:23 avail 73 GB
+12:03:43 avail 73 GB
+12:04:04 avail 72 GB
+12:04:25 avail 72 GB
+12:04:45 avail 71 GB
+12:05:06 avail 72 GB
+12:05:27 avail 73 GB
+12:05:48 avail 73 GB
+12:06:08 avail 73 GB
+12:06:29 avail 73 GB
+    Finished `release` profile [optimized] target(s) in 5m 23s
+copied /home/nvidia/intarsiaml-kvonce/src/target/release/deps/kv_once-04f73fe85dae7a3b
+12:06:51 cargo pgid 3003249: env INTARSIA_BUILD_STAMP='kvonce-502b570f3e47' cargo build --release --locked --features cuda -p intarsia-cli
+12:06:51 avail 74 GB
+12:07:12 avail 73 GB
+12:07:33 avail 74 GB
+    Finished `release` profile [optimized] target(s) in 41.90s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  186G  95% /
+Mem:             121          47          66           0           9          74
+build end 12:07:54 stamp kvonce-502b570f3e47
+fleetq: #10421 done (exit 0)
+exit 0
