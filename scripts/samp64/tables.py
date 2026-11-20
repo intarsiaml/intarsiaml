@@ -50,3 +50,38 @@ for T, name in [("0.7", "sampled"), ("0", "greedy")]:
     print(f"| {name} spec pass, ms | " + " | ".join(row_p) + " |")
     print(f"| {name} plain step, ms | " + " | ".join(row_s) + " |")
     print(f"| {name} pass / plain step (tokens per pass needed to break even, got) | " + " | ".join(row_r) + " |")
+
+# ---- gate run (fixed binary, windows w8..w15) -------------------------------------------------------------------------------------------------
+import statistics
+
+def reps(win, T, size):
+    f = raw / f"{win}-T{T}-sampled.json"
+    if not f.exists():
+        return []
+    for r in json.load(open(f))["rows"]:
+        if r.get("size") == size and "decode_each" in r:
+            return r["decode_each"]
+    return []
+
+def line(label, wins, T, sizes):
+    cells = []
+    for s in sizes:
+        v = [x for w in wins for x in reps(w, T, s)]
+        cells.append(f"{statistics.mean(v):.1f} (med {statistics.median(v):.1f}, n {len(v)})" if v else "-")
+    return f"| {label} | " + " | ".join(cells) + " |"
+
+print("\n### Gate run: sampled T=0.7 decode tok/s, mean of all reps (window median, n reps)\n")
+G = [4096, 32768, 65536]
+print("| window | 4k | 32k | 64k |\n|---|---|---|---|")
+for lab, ws in [("none, w8", ["w8"]), ("none again, w11", ["w11"]), ("none, w8 + w11 pooled", ["w8", "w11"]), ("`16384:1`, w9", ["w9"]), ("`16384:1,40000:0`, w10 (32k, 64k only)", ["w10"])]:
+    print(line(lab, ws, "0.7", G))
+print("\n### Gate run: greedy decode tok/s (not limited by the schedule)\n")
+print("| window | 4k | 32k | 64k |\n|---|---|---|---|")
+for lab, ws in [("none, w8", ["w8"]), ("`16384:1`, w9", ["w9"])]:
+    print(line(lab, ws, "0", G))
+print("\n### Mid-context sampled cells (follow-up job)\n")
+MS = [8192, 16384, 24576, 32768, 49152]
+print("| window | 8k | 16k | 24k | 32k | 49k |\n|---|---|---|---|---|---|")
+for lab, ws in [("none, w12", ["w12"]), ("k=1 everywhere (`1:1`), w15", ["w15"])]:
+    print(line(lab, ws, "0.7", MS))
+print(line("`16384:1,40000:0`, w10 (32k, 49k only)", ["w10"], "0.7", MS))
