@@ -1,0 +1,9 @@
+[03:55:44 +2s] visit wd-v1-pfdbg: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          70           0           5          75
+[03:55:44 +2s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=1 INTARSIA_PREFIX_STORE_PREFAULT=1 INTARSIA_PREFIX_STORE_DEBUG=1
+[03:57:25 +103s] serve up; MemAvailable MB 45945; prefix store: macro prefill (8192 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build dcc9719f29d0d1fa, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 96.8s, context 131072 tokens|
+[03:57:26 +104s] thp before: compact_stall 0 thp_fault_alloc 4921 thp_fault_fallback 0 
+[03:57:59 +137s] thp after: compact_stall 0 thp_fault_alloc 6031 thp_fault_fallback 0 ; server Rss: 166720 kB AnonHugePages: 0 kB 
+[03:57:59 +137s] cell wd-v1-pfdbg end: clock guard: 17 samples, 13 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2384, max power 85 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[03:58:01 +139s] visit wd-v1-pfdbg done; min MemAvailable MB (time MB) 03:57:58 43401; KILLED lines 0; warn/error lines in serve log 0
+[03:58:03 +141s] window wd done: visits pfdbg; fleetq job 10362
+[03:58:03 +141s] window end

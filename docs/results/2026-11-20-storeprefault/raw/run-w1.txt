@@ -1,0 +1,92 @@
+fleetq: #10365 running on spark2: bash scripts/storeprefault/window.sh w1 off smacro pf pf4k pf4k pf smacro off
+[04:05:44 +2s] visit w1-v1-off: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          69           0           6          74
+[04:05:45 +3s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2; env none
+[04:07:23 +101s] serve up; MemAvailable MB 46186; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 94.6s, context 131072 tokens|
+[04:07:24 +102s] thp before: compact_stall 0 thp_fault_alloc 6050 thp_fault_fallback 0 
+
+[localeval] saved /opt/code/deepeval/results/20261120-040724-adhoc-storeprefault-w1-v1-off/result.json
+[localeval] logged to unanimis: a44d1c75-7b26-43d6-af17-5d618a404e5d
+w1-v1-off run_id=20261120-040724-adhoc-storeprefault-w1-v1-off
+[04:08:19 +157s] thp after: compact_stall 0 thp_fault_alloc 6050 thp_fault_fallback 0 ; server Rss: 166716 kB AnonHugePages: 0 kB 
+[04:08:20 +158s] cell w1-v1-off end: clock guard: 28 samples, 25 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2386, max power 88 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[04:08:21 +159s] visit w1-v1-off done; min MemAvailable MB (time MB) 04:07:22 46188; KILLED lines 0; warn/error lines in serve log 0
+[04:08:25 +163s] visit w1-v2-smacro: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          70           0           6          75
+[04:08:25 +163s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=1
+[04:09:44 +242s] serve up; MemAvailable MB 47522; prefix store: macro prefill (8192 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 4c04c9eda3052d44, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 75.5s, context 131072 tokens|
+[04:09:45 +243s] thp before: compact_stall 0 thp_fault_alloc 6050 thp_fault_fallback 0 
+
+[localeval] saved /opt/code/deepeval/results/20261120-040945-adhoc-storeprefault-w1-v2-smacro/result.json
+[localeval] logged to unanimis: e4e3df29-b54a-447f-9dd0-2f9830608846
+w1-v2-smacro run_id=20261120-040945-adhoc-storeprefault-w1-v2-smacro
+[04:10:43 +301s] thp after: compact_stall 0 thp_fault_alloc 6050 thp_fault_fallback 0 ; server Rss: 166720 kB AnonHugePages: 0 kB 
+[04:10:43 +301s] cell w1-v2-smacro end: clock guard: 29 samples, 26 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2385, max power 88 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[04:10:45 +303s] visit w1-v2-smacro done; min MemAvailable MB (time MB) 04:10:41 41565; KILLED lines 0; warn/error lines in serve log 0
+[04:10:50 +308s] visit w1-v3-pf: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          70           0           6          75
+[04:10:50 +308s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=1 INTARSIA_PREFIX_STORE_PREFAULT=1
+[04:12:13 +391s] serve up; MemAvailable MB 47502; prefix store: macro prefill (8192 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 4c04c9eda3052d44, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 79.3s, context 131072 tokens|
+[04:12:14 +392s] thp before: compact_stall 0 thp_fault_alloc 6050 thp_fault_fallback 0 
+
+[localeval] saved /opt/code/deepeval/results/20261120-041215-adhoc-storeprefault-w1-v3-pf/result.json
+[localeval] logged to unanimis: 8ad740b5-c424-4522-bf77-4ce1907bf87c
+w1-v3-pf run_id=20261120-041215-adhoc-storeprefault-w1-v3-pf
+[04:13:09 +447s] thp after: compact_stall 0 thp_fault_alloc 7861 thp_fault_fallback 0 ; server Rss: 166720 kB AnonHugePages: 0 kB 
+[04:13:10 +448s] cell w1-v3-pf end: clock guard: 28 samples, 25 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2385, max power 89 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[04:13:11 +449s] visit w1-v3-pf done; min MemAvailable MB (time MB) 04:13:07 41090; KILLED lines 0; warn/error lines in serve log 0
+[04:13:15 +453s] visit w1-v4-pf4k: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          70           0           6          75
+[04:13:16 +454s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=1 INTARSIA_PREFIX_STORE_PREFAULT=4k
+[04:14:37 +535s] serve up; MemAvailable MB 47561; prefix store: macro prefill (8192 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 4c04c9eda3052d44, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 77.7s, context 131072 tokens|
+[04:14:38 +536s] thp before: compact_stall 0 thp_fault_alloc 7861 thp_fault_fallback 0 
+
+[localeval] saved /opt/code/deepeval/results/20261120-041438-adhoc-storeprefault-w1-v4-pf4k/result.json
+[localeval] logged to unanimis: dbe3cbb9-d305-4d4d-a0e0-d886f3e727e5
+w1-v4-pf4k run_id=20261120-041438-adhoc-storeprefault-w1-v4-pf4k
+[04:15:34 +592s] thp after: compact_stall 0 thp_fault_alloc 7861 thp_fault_fallback 0 ; server Rss: 166708 kB AnonHugePages: 0 kB 
+[04:15:35 +593s] cell w1-v4-pf4k end: clock guard: 28 samples, 24 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2386, max power 89 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[04:15:36 +594s] visit w1-v4-pf4k done; min MemAvailable MB (time MB) 04:15:33 41731; KILLED lines 0; warn/error lines in serve log 0
+[04:15:41 +599s] visit w1-v5-pf4k: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          70           0           6          75
+[04:15:42 +600s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=1 INTARSIA_PREFIX_STORE_PREFAULT=4k
+[04:17:03 +681s] serve up; MemAvailable MB 47533; prefix store: macro prefill (8192 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 4c04c9eda3052d44, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 77.5s, context 131072 tokens|
+[04:17:04 +682s] thp before: compact_stall 0 thp_fault_alloc 7861 thp_fault_fallback 0 
+
+[localeval] saved /opt/code/deepeval/results/20261120-041704-adhoc-storeprefault-w1-v5-pf4k/result.json
+[localeval] logged to unanimis: 264f23ba-c0ca-4f5a-ba1d-97f9eb4133d3
+w1-v5-pf4k run_id=20261120-041704-adhoc-storeprefault-w1-v5-pf4k
+[04:17:59 +737s] thp after: compact_stall 0 thp_fault_alloc 7861 thp_fault_fallback 0 ; server Rss: 166720 kB AnonHugePages: 0 kB 
+[04:18:00 +738s] cell w1-v5-pf4k end: clock guard: 28 samples, 24 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2385, max power 88 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[04:18:01 +739s] visit w1-v5-pf4k done; min MemAvailable MB (time MB) 04:17:59 41710; KILLED lines 0; warn/error lines in serve log 0
+[04:18:06 +744s] visit w1-v6-pf: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          70           0           6          75
+[04:18:07 +745s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=1 INTARSIA_PREFIX_STORE_PREFAULT=1
+[04:19:20 +818s] serve up; MemAvailable MB 47551; prefix store: macro prefill (8192 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 4c04c9eda3052d44, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 71.0s, context 131072 tokens|
+[04:19:21 +819s] thp before: compact_stall 0 thp_fault_alloc 7861 thp_fault_fallback 0 
+
+[localeval] saved /opt/code/deepeval/results/20261120-041922-adhoc-storeprefault-w1-v6-pf/result.json
+[localeval] logged to unanimis: db5574ed-0734-4230-abae-3b5cbd1e75ab
+w1-v6-pf run_id=20261120-041922-adhoc-storeprefault-w1-v6-pf
+[04:20:16 +874s] thp after: compact_stall 0 thp_fault_alloc 9672 thp_fault_fallback 0 ; server Rss: 166712 kB AnonHugePages: 0 kB 
+[04:20:17 +875s] cell w1-v6-pf end: clock guard: 28 samples, 25 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2384, max power 89 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[04:20:18 +876s] visit w1-v6-pf done; min MemAvailable MB (time MB) 04:20:16 41724; KILLED lines 0; warn/error lines in serve log 0
+[04:20:22 +880s] visit w1-v7-smacro: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          70           0           6          75
+[04:20:22 +880s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=1
+[04:21:38 +956s] serve up; MemAvailable MB 47524; prefix store: macro prefill (8192 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 4c04c9eda3052d44, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 74.1s, context 131072 tokens|
+[04:21:39 +957s] thp before: compact_stall 0 thp_fault_alloc 9672 thp_fault_fallback 0 
+
+[localeval] saved /opt/code/deepeval/results/20261120-042140-adhoc-storeprefault-w1-v7-smacro/result.json
+[localeval] logged to unanimis: ed63acea-6140-452c-b9a9-fd0467fa97ab
+w1-v7-smacro run_id=20261120-042140-adhoc-storeprefault-w1-v7-smacro
+[04:22:37 +1015s] thp after: compact_stall 0 thp_fault_alloc 9672 thp_fault_fallback 0 ; server Rss: 166704 kB AnonHugePages: 0 kB 
+[04:22:38 +1016s] cell w1-v7-smacro end: clock guard: 29 samples, 24 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2385, max power 90 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[04:22:39 +1017s] visit w1-v7-smacro done; min MemAvailable MB (time MB) 04:22:36 41159; KILLED lines 0; warn/error lines in serve log 0
+[04:22:44 +1022s] visit w1-v8-off: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          70           0           6          75
+[04:22:45 +1023s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2; env none
+[04:24:05 +1103s] serve up; MemAvailable MB 47574; loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 79.2s, context 131072 tokens|
+[04:24:06 +1104s] thp before: compact_stall 0 thp_fault_alloc 9672 thp_fault_fallback 0 
+
+[localeval] saved /opt/code/deepeval/results/20261120-042407-adhoc-storeprefault-w1-v8-off/result.json
+[localeval] logged to unanimis: 0a6bee0a-29ea-4871-89a8-2d527c3af8c8
+w1-v8-off run_id=20261120-042407-adhoc-storeprefault-w1-v8-off
+[04:24:59 +1157s] thp after: compact_stall 0 thp_fault_alloc 9672 thp_fault_fallback 0 ; server Rss: 166720 kB AnonHugePages: 0 kB 
+[04:25:00 +1158s] cell w1-v8-off end: clock guard: 27 samples, 23 at util>90, 0 of those SM<2000 MHz, min SM 2353, mean SM 2384, max power 90 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[04:25:01 +1159s] visit w1-v8-off done; min MemAvailable MB (time MB) 04:24:14 46611; KILLED lines 0; warn/error lines in serve log 0
+[04:25:03 +1162s] window w1 done: visits off smacro pf pf4k pf4k pf smacro off; fleetq job 10365
+[04:25:04 +1162s] window end
+fleetq: #10365 done (exit 0)

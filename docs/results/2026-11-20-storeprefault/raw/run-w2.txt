@@ -1,0 +1,27 @@
+fleetq: #10366 waiting (#1 in line): needs gpu quiet on spark2, but #10365 "storeprefault w1 speed ABBA off smacro pf pf4k" (claude-overnight-storeprefault) loads it
+fleetq:   #10365 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10365 set, or it will wait for #10365 to be released.
+fleetq: #10366 waiting (#1 in line): needs spark2 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10366 running on spark2: bash scripts/storeprefault/window2.sh w2 smacro pf
+[04:25:33 +2s] visit w2-v1-smacro: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          70           0           6          75
+[04:25:33 +2s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=1
+[04:26:56 +85s] serve up; MemAvailable MB 47530; prefix store: macro prefill (8192 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 4c04c9eda3052d44, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 80.3s, context 131072 tokens|
+[04:26:57 +86s] thp before: compact_stall 0 thp_fault_alloc 9672 thp_fault_fallback 0 
+[ids] w2-v1-smacro 28700 again: prompt=29454 cached=29450 out=64 ttft=1.02s
+[ids] w2-v1-smacro 33000 cold: prompt=34068 cached=0 out=64 ttft=5.86s
+[ids] w2-v1-smacro 33000 again: prompt=34068 cached=34064 out=64 ttft=1.12s
+[04:27:47 +136s] thp after: compact_stall 0 thp_fault_alloc 9672 thp_fault_fallback 0 ; server pid 1529664 Rss: 166720 kB AnonHugePages: 0 kB pid 1529674 Rss: 6973776 kB AnonHugePages: 0 kB 
+[04:27:48 +137s] cell w2-v1-smacro end: clock guard: 26 samples, 24 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2385, max power 89 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[04:27:49 +138s] visit w2-v1-smacro done; min MemAvailable MB (time MB) 04:27:48 41630; KILLED lines 0; warn/error lines in serve log 0
+[04:27:54 +143s] visit w2-v2-pf: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          70           0           6          75
+[04:27:55 +144s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=1 INTARSIA_PREFIX_STORE_PREFAULT=1
+[04:29:15 +224s] serve up; MemAvailable MB 47524; prefix store: macro prefill (8192 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 4c04c9eda3052d44, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 77.9s, context 131072 tokens|
+[04:29:16 +225s] thp before: compact_stall 0 thp_fault_alloc 9672 thp_fault_fallback 0 
+[ids] w2-v2-pf 28700 again: prompt=29454 cached=29450 out=64 ttft=0.16s
+[ids] w2-v2-pf 33000 cold: prompt=34068 cached=0 out=64 ttft=5.85s
+[ids] w2-v2-pf 33000 again: prompt=34068 cached=34064 out=64 ttft=0.20s
+[04:30:02 +271s] thp after: compact_stall 0 thp_fault_alloc 11555 thp_fault_fallback 0 ; server pid 1543900 Rss: 166720 kB AnonHugePages: 0 kB pid 1543907 Rss: 7046624 kB AnonHugePages: 3856384 kB 
+[04:30:03 +272s] cell w2-v2-pf end: clock guard: 23 samples, 20 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2383, max power 91 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[04:30:04 +273s] visit w2-v2-pf done; min MemAvailable MB (time MB) 04:30:02 41572; KILLED lines 0; warn/error lines in serve log 0
+[04:30:06 +275s] window w2 done: visits smacro pf; fleetq job 10366
+[04:30:06 +275s] window end
+fleetq: #10366 done (exit 0)
