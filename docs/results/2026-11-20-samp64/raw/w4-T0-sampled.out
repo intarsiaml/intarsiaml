@@ -1,0 +1,12 @@
+[sampled] calibrated 22.08 tok/sentence base=51 ctx=131072
+[sampled] 4096 rep1: prompt=4090 cached=0 ttft=0.67s decode=116.3 peak=184.7 out=256
+[sampled] 4096 rep2: prompt=4064 cached=0 ttft=0.66s decode=138.3 peak=265.5 out=256
+[sampled] 4096 rep3: prompt=4071 cached=0 ttft=0.67s decode=112.1 peak=156.5 out=256
+[sampled] 4096 rep4: prompt=4096 cached=0 ttft=0.68s decode=118.9 peak=167.6 out=256
+[sampled] 4096 rep5: prompt=4063 cached=0 ttft=0.67s decode=150.8 peak=232.3 out=256
+[sampled] 32768 rep1: prompt=33881 cached=0 ttft=6.28s decode=82.9 peak=123.0 out=256
+[sampled] 32768 rep2: prompt=33876 cached=0 ttft=6.33s decode=81.0 peak=107.2 out=256
+[sampled] 32768 rep3: prompt=33870 cached=0 ttft=6.30s decode=84.9 peak=111.7 out=256
+[sampled] 32768 rep4: prompt=33873 cached=0 ttft=6.27s decode=80.8 peak=115.2 out=256
+[sampled] 32768 rep5: prompt=33926 cached=0 ttft=6.29s decode=82.6 peak=113.3 out=256
+[sampled] 65536 rep1: prompt=68885 cached=0 ttft=15.64s decode=57.4 peak=74.3 out=256

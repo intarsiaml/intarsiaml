@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """samp64: seeded sampled requests (T=0.7, top_p 0.95, fixed seed, fixed prompt, no nonce) at several prompt sizes; saves the exact reply text
-and token counts so two server configurations (INTARSIA_SPEC_SAMPLED_MAX_CTX set / unset) can be compared byte for byte.
+and token counts so two server configurations (INTARSIA_SPEC_SAMPLED_CTX_K set / unset) can be compared byte for byte.
   uv run --project /opt/code/deepeval python scripts/samp64/seeded.py --url URL --model guidance --arm w8 --out DIR --sizes 4096,32300,68000 --gen 700
-A prompt of 32300 tokens with --gen 700 crosses a 32768 limit inside the decode; 68000 sits past it from the first token; 4096 never reaches it."""
+A prompt of 32300 tokens with --gen 700 crosses a 32768-token schedule entry inside the decode; 68000 sits past it from the first token; 4096 never reaches it."""
 import argparse, json, pathlib, sys, urllib.request
 from localeval.speed import INSTRUCTION, filler
 
