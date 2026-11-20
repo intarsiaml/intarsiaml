@@ -8,7 +8,7 @@ senv() { case $1 in base) echo "";; amax) echo "MALLOC_ARENA_MAX=2";; prefault) 
 ARMS=("$@"); [[ ${#ARMS[@]} -gt 0 ]] || ARMS=(base amax prefault trimthr)
 for a in "${ARMS[@]}"; do
   echo "[$(date +%T)] env arm $a: '$(senv "$a")'"
-  fleetq run --host $ENVHOST --mem 52 --expect 40 --label "memmix env arm $a (25 min, trim /8 min)" -- \
-    env HOST=$ENVHOST PROFILE=mixed SOAKMIN=25 IDLEMIN=1 TRIMEVERY=8 SEED0=7 BASESEC=45 SETTLESEC=60 AFTERSEC=30 SERVER_ENV="$(senv "$a")" bash scripts/memmix/run-env.sh "env-$a"
+  fleetq run --host $ENVHOST --mem 52 --expect ${ENV_EXPECT:-40} --label "memmix env arm $a (${ENV_SOAKMIN:-25} min, trim /8 min)" -- \
+    env HOST=$ENVHOST PROFILE=mixed SOAKMIN=${ENV_SOAKMIN:-25} IDLEMIN=1 TRIMEVERY=8 SEED0=7 BASESEC=45 SETTLESEC=60 AFTERSEC=30 SERVER_ENV="$(senv "$a")" bash scripts/memmix/run-env.sh "env-$a"
   echo "[$(date +%T)] env arm $a exit $?"
 done

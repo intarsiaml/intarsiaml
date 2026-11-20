@@ -50,9 +50,14 @@ def fit(xs, ys):
     return b, math.sqrt(sum(e * e for e in res) / (n - 2) / sxx)
 
 
-print(f"\nslopes from minute {skip:.0f} of load (MB per hour +- SE)")
-for label, sel in [("all blocks", lambda b: True), ("blocks after a trim", lambda b: b["kind"] == "after trim"), ("periodic blocks", lambda b: b["kind"] == "periodic"), ("blocks before a trim", lambda b: b["kind"] == "before trim")]:
-    s = [b for b in blocks if b["min"] >= skip and sel(b)]
-    for name, key in [("live total (arena live + mmapped)", "tot"), ("non-store live heap (live total - host gauge)", "nonstore"), ("free chunks in arenas (logical, not resident)", "free"), ("RssAnon (nearest sample)", "anon")]:
-        b, se = fit([x["min"] / 60 for x in s], [x[key] for x in s])
-        print(f"  {label} (n={len(s)}): {name}: {b:+.0f} +- {se:.0f}")
+print("\nslopes (MB per hour +- SE of the least-squares fit)")
+# a "before trim" block and the "after trim" block of the same trim are the same numbers (a trim does not change the chunk accounting), so the fits use
+# the periodic blocks and the after-trim blocks only; each fit is also given from later start minutes (the committed size is what an un-trimmed process can hold)
+for start in (skip, 60.0, 90.0):
+    for label, sel in [("periodic + after-trim blocks", lambda b: b["kind"] in ("periodic", "after trim")), ("after-trim blocks", lambda b: b["kind"] == "after trim"), ("periodic blocks", lambda b: b["kind"] == "periodic")]:
+        s = [b for b in blocks if b["min"] >= start and sel(b)]
+        if len(s) < 4:
+            continue
+        for name, key in [("live total (arena live + mmapped)", "tot"), ("arena committed size (rw part)", "rw"), ("free chunks in arenas (logical, not resident)", "free")]:
+            b, se = fit([x["min"] / 60 for x in s], [x[key] for x in s])
+            print(f"  from minute {start:.0f}, {label} (n={len(s)}): {name}: {b:+.0f} +- {se:.0f}")

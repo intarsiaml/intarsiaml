@@ -1,0 +1,3 @@
+[memtrim] pid=783088 t=1795183048 ret=1 before_rssanon_kb=11098188 before_vmrss_kb=11343792 after_rssanon_kb=9635836 after_vmrss_kb=9881440 rssfile_kb=202404 trim_ms=152.2
+[memtrim] pid=783088 t=1795183526 ret=1 before_rssanon_kb=10473924 before_vmrss_kb=10719528 after_rssanon_kb=9643700 after_vmrss_kb=9889304 rssfile_kb=202404 trim_ms=174.3
+[memtrim] pid=783088 t=1795184079 ret=1 before_rssanon_kb=10845020 before_vmrss_kb=11090624 after_rssanon_kb=9644076 after_vmrss_kb=9889680 rssfile_kb=202404 trim_ms=118.8
