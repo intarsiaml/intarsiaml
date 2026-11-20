@@ -1,0 +1,23 @@
+[06:41:29 +2s] tag arm-tools host spark2; fleetq job 10380; earlyoom active; avail 75 GB; binary intarsia 0.0.1
+[06:41:29 +2s] serve args: --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on  ; env: LD_PRELOAD=/home/nvidia/intarsiaml-memmix/out/libmemstat.so MEMSTAT_PERIOD=300 MEMSTAT_TRIGGER=/tmp/memstat-trigger-arm-tools ; profile mixed weights 'tool=1' seed 7 load 25 min trim every 5 min
+[06:41:31 +4s] mark base
+[06:43:01 +94s] mark start
+[06:43:02 +95s] server pid 1972905
+[06:44:21 +174s] server up, avail 47 GB
+[06:44:21 +174s] mark settle
+[06:46:21 +294s] mark load
+[06:46:21 +294s] mixed load for 25 min (pid 11629)
+[06:51:23 +596s] mark trim1
+[06:56:25 +898s] mark trim2
+[07:01:22 +1195s] mark trim3
+[07:06:23 +1496s] mark trim4
+{"seed": 7, "profile": "mixed", "weights": "tool=1", "minutes": 25.0, "streams": 2, "requests": 2148, "kinds": {"tool": 2148}, "ok": 2148, "bad": 0, "errors": {}}
+[07:11:29 +1802s] load done after 25 min; 4 trims
+[07:11:30 +1803s] mark trimend
+[07:12:10 +1843s] mark idle
+[07:14:10 +1963s] mark stop
+[07:14:13 +1966s] after stop, processes of ours left: [2033495 ]
+[07:16:13 +2086s] mark after
+[07:16:14 +2087s] server stopped, avail 75 GB
+[07:16:15 +2088s] warn/error lines in serve log: 0; watchdog kills: 0; min avail GB (time GB): 06:49:11 38
+[07:16:16 +2089s] window end

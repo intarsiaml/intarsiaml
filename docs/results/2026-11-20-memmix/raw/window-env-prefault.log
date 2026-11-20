@@ -1,0 +1,22 @@
+[09:17:15 +2s] tag env-prefault host spark1; fleetq job 10405; earlyoom active; avail 80 GB; binary intarsia 0.0.1
+[09:17:15 +2s] serve args: --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on  ; env: LD_PRELOAD=/home/nvidia/intarsiaml-memmix/out/libmemstat.so MEMSTAT_PERIOD=300 MEMSTAT_TRIGGER=/tmp/memstat-trigger-env-prefault INTARSIA_PREFIX_STORE_PREFAULT=1; profile mixed weights '' seed 7 load 17 min trim every 8 min
+[09:17:18 +5s] mark base
+[09:18:03 +50s] mark start
+[09:18:03 +50s] server pid 871794
+[09:19:26 +133s] server up, avail 52 GB
+[09:19:26 +133s] mark settle
+[09:20:26 +193s] mark load
+[09:20:26 +193s] mixed load for 17 min (pid 85045)
+[09:20:27 +194s] swcap loadstart:         SW Power Capping                               : 5835030 us         Sync Boost                                     : 0 us 
+[09:28:29 +676s] mark trim1
+[09:37:47 +1234s] swcap loadend:         SW Power Capping                               : 5835030 us         Sync Boost                                     : 0 us 
+{"seed": 7, "profile": "mixed", "weights": "", "minutes": 17.0, "streams": 2, "requests": 311, "kinds": {"chat": 128, "abort_prefill": 25, "multiturn": 44, "abort_decode": 30, "tool": 31, "long": 8, "schema": 17, "longgen": 28}, "ok": 311, "bad": 0, "errors": {}}
+[09:37:47 +1234s] load done after 17 min; 1 trims
+[09:37:47 +1234s] mark trimend
+[09:38:27 +1274s] mark idle
+[09:39:27 +1334s] mark stop
+[09:39:29 +1336s] after stop, processes of ours left: [891193 ]
+[09:40:00 +1367s] mark after
+[09:40:00 +1367s] server stopped, avail 80 GB
+[09:40:02 +1369s] warn/error lines in serve log: 0; watchdog kills: 0; min avail GB (time GB): 09:21:37 42
+[09:40:03 +1370s] window end

@@ -1,0 +1,2 @@
+[memtrim] pid=871806 t=1795184909 ret=1 before_rssanon_kb=10414288 before_vmrss_kb=10659892 after_rssanon_kb=10198744 after_vmrss_kb=10444348 rssfile_kb=202404 trim_ms=22.8
+[memtrim] pid=871806 t=1795185468 ret=1 before_rssanon_kb=10174964 before_vmrss_kb=10420568 after_rssanon_kb=10137016 after_vmrss_kb=10382620 rssfile_kb=202404 trim_ms=4.0
