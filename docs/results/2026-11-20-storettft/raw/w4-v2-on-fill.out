@@ -1,0 +1,48 @@
+[localeval] calibrated: 22.0 tokens/sentence, 55 base tokens, ctx=131072
+[localeval]  32768 tok rep 1/8: prompt=33929 ttft=6.79s prefill=4994 tok/s decode=75.6 tok/s peak=0.0 tok/s out=16
+[localeval]  32768 tok rep 2/8: prompt=33924 ttft=7.18s prefill=4726 tok/s decode=58.0 tok/s peak=0.0 tok/s out=16
+[localeval]  32768 tok rep 3/8: prompt=33924 ttft=7.15s prefill=4746 tok/s decode=83.7 tok/s peak=0.0 tok/s out=16
+[localeval]  32768 tok rep 4/8: prompt=33927 ttft=7.17s prefill=4729 tok/s decode=112.2 tok/s peak=0.0 tok/s out=16
+[localeval]  32768 tok rep 5/8: prompt=33924 ttft=6.43s prefill=5279 tok/s decode=91.5 tok/s peak=0.0 tok/s out=16
+[localeval]  32768 tok rep 6/8: prompt=33925 ttft=6.42s prefill=5288 tok/s decode=85.5 tok/s peak=0.0 tok/s out=16
+[localeval]  32768 tok rep 7/8: prompt=33928 ttft=6.37s prefill=5328 tok/s decode=70.6 tok/s peak=0.0 tok/s out=16
+[localeval]  32768 tok rep 8/8: prompt=33928 ttft=6.35s prefill=5347 tok/s decode=84.6 tok/s peak=0.0 tok/s out=16
+# localeval: adhoc — 2026-11-20T00:44
+
+- model: `guidance` on ? (?), url `http://spark-fa00:8191/v1`
+- thinking: off; run kind: speed; label: storettft-w4-v2-on-fill
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git 2c5524c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8191/v1 --model guidance --thinking off --structured prompt --wait-idle 600 --recipe /opt/code/intarsiaml/.worktrees/storettft/docs/results/2026-11-20-storettft/raw/recipes/w4-v2-on.txt --sizes 32768 --gen 16 --reps 8 --label storettft-w4-v2-on-fill`
+- result file: `results/20261120-004411-adhoc-storettft-w4-v2-on-fill/result.json`
+
+## Launch recipe
+
+from `/opt/code/intarsiaml/.worktrees/storettft/docs/results/2026-11-20-storettft/raw/recipes/w4-v2-on.txt` (secrets redacted):
+
+````
+intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on,host_mb=4096   (env: none)
+````
+
+## Speed sweep
+
+served `guidance`, fingerprint `None`, ctx 131072, 8 reps, 16 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 33926 | 6.61 | 5136 (4726–5347) | - | 84.2 (58.0–112.2) | - | - | - | 16 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 64.5% at 32768 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261120-004411-adhoc-storettft-w4-v2-on-fill/result.json
+[localeval] logged to unanimis: 305cd07c-01c8-4965-b182-5310c0da051c

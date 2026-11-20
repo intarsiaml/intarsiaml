@@ -594,6 +594,27 @@ impl SeqStore {
         SeqStore { pol, boundaries, headers, messages: starts, points, last_insert: 0, chunk }
     }
 
+    /// Rows of the next macro step of a request on the store's schedule (`INTARSIA_PREFIX_STORE_MACRO`): the chunks of its own schedule
+    /// from `pos` that are plain full chunks (`self.chunk` rows, no message cut inside), none of them the prompt's last (that one
+    /// runs whole with the head), at most `max_rows` rows in all, and ending at the first chunk end that is a message cut or an entry
+    /// point (where the store captures, so no capture is skipped there). `None` below two chunks. The model runs the rows as ONE pass of
+    /// those same chunks (bitwise), so every state byte is the schedule's.
+    pub(crate) fn macro_len(&self, pos: usize, plen: usize, max_rows: usize) -> Option<usize> {
+        let (chunk, mut p, mut k) = (self.chunk, pos, 0usize);
+        while k < max_rows / chunk.max(1) {
+            let e = Self::chunk_end(&self.boundaries, p, (plen - p).min(chunk), chunk);
+            if e - p != chunk || e >= plen {
+                break;
+            }
+            p = e;
+            k += 1;
+            if self.boundaries.binary_search(&p).is_ok() || self.headers.binary_search(&p).is_ok() {
+                break;
+            }
+        }
+        (k >= 2).then_some(p - pos)
+    }
+
     /// A length `st` can return to bitwise, at most `cap` (already capped at the prefill-clean watermark): on a
     /// chunk-sensitive backend a point of this prompt's schedule only.
     fn local_reuse(&self, st: &SequenceState, cap: usize) -> usize {
@@ -2878,4 +2899,108 @@ fn run_seq(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<O
         seq.advance(model, st)?;
     }
     Ok(None)
+}
+
+#[cfg(test)]
+mod store_macro_tests {
+    use super::*;
+
+    /// A store request's schedule over `prompt` with `<|im_start|>` = 1 and `\n` = 2 as the boundary and header-end ids.
+    fn seq_store(prompt: &[u32], chunk: usize) -> SeqStore {
+        let store = crate::prefix_store::PrefixStore::new(crate::prefix_store::PrefixStoreConfig::default(), &[], "store-macro-test").unwrap();
+        let pol = StorePolicy {
+            store: Arc::new(Mutex::new(store)),
+            boundary_ids: vec![1],
+            header_end_ids: vec![2],
+            cut_roles: Vec::new(),
+            chunk_invariant: false,
+            min_tokens: 32,
+            grid_tokens: 2048,
+        };
+        SeqStore::new(pol, prompt, true, chunk)
+    }
+
+    /// The chunk ends of the store's schedule over the whole prompt (what a one-chunk-at-a-time run cuts).
+    fn plain_ends(ps: &SeqStore, plen: usize) -> Vec<usize> {
+        let (mut pos, mut out) = (0, Vec::new());
+        while pos < plen {
+            pos = SeqStore::chunk_end(&ps.boundaries, pos, (plen - pos).min(ps.chunk), ps.chunk);
+            out.push(pos);
+        }
+        out
+    }
+
+    /// `macro_len` steps cover whole chunks of the store schedule, stop at a message cut so that the store still captures there,
+    /// and never take the prompt's last chunk: following macro steps (then single chunks) reproduces the schedule's chunk ends.
+    #[test]
+    fn macro_len_follows_the_store_schedule() {
+        // a single message: 0 start, body, then `<|im_start|> assistant \n` + a short tail (the cuts of a thinking-off prompt)
+        let mut prompt = vec![1u32, 5, 2];
+        prompt.extend(std::iter::repeat(7).take(20_000));
+        prompt.extend([1, 9, 2, 3, 3, 3]);
+        let ps = seq_store(&prompt, 2048);
+        let plen = prompt.len();
+        let ends = plain_ends(&ps, plen);
+        // walk it the way the scheduler does: a macro step when there is one, else the schedule's next chunk
+        let (mut pos, mut walked, mut steps) = (0, Vec::new(), Vec::new());
+        while pos < plen {
+            let n = ps.macro_len(pos, plen, 8192).unwrap_or_else(|| SeqStore::chunk_end(&ps.boundaries, pos, (plen - pos).min(2048), 2048) - pos);
+            assert!(pos + n <= plen);
+            steps.push(n);
+            // the chunk ends inside the step are the schedule's
+            let mut p = pos;
+            while p < pos + n {
+                p = SeqStore::chunk_end(&ps.boundaries, p, (pos + n - p).min(2048), 2048);
+                walked.push(p);
+            }
+            pos += n;
+        }
+        assert_eq!(walked, ends, "the steps cover exactly the schedule's chunks");
+        assert!(steps.iter().any(|&n| n == 8192), "a long single-message body takes full 4-chunk steps: {steps:?}");
+        assert!(steps.iter().all(|&n| n <= 8192), "{steps:?}");
+        // never the last chunk: no step reaches the end of the prompt unless it is a single schedule chunk
+        let big: Vec<usize> = steps.iter().copied().filter(|&n| n > 2048).collect();
+        let mut at = 0;
+        for &n in &steps {
+            if n > 2048 {
+                assert!(at + n < plen, "a macro step took the prompt's last chunk");
+            }
+            at += n;
+        }
+        assert!(!big.is_empty());
+    }
+
+    #[test]
+    fn macro_len_is_none_without_two_whole_chunks() {
+        // a 5000-token prompt with no cut: chunk ends 2048, 4096, then the 904-row last chunk (whole, with the head)
+        let ps = seq_store(&vec![7u32; 5000], 2048);
+        assert_eq!(ps.macro_len(0, 5000, 8192), Some(4096));
+        assert_eq!(ps.macro_len(0, 5000, 2048), None, "a one-chunk cap is the plain schedule");
+        assert_eq!(ps.macro_len(4096, 5000, 8192), None, "the last chunk is never a macro step");
+        assert_eq!(ps.macro_len(0, 4096, 8192), None, "the second of two chunks is the last: one chunk is left");
+    }
+
+    /// A message cut inside the span ends the step before it; a cut exactly at a chunk end ends the step there (the store captures at
+    /// cuts, so none is skipped).
+    #[test]
+    fn macro_len_stops_at_message_cuts() {
+        let mut prompt = vec![7u32; 12_000];
+        prompt[3000] = 1; // a message start (only the second start is a cut)
+        prompt[3001] = 2; // its header end: a cut at 3002
+        let ps = seq_store(&prompt, 2048);
+        assert_eq!(ps.boundaries, vec![3002]);
+        // 0..2048 is a plain chunk, 2048..3002 is cut short: one whole chunk before the cut, so no step
+        assert_eq!(ps.macro_len(0, 12_000, 8192), None);
+        // after the cut the schedule is plain again: a full 4-chunk step
+        assert_eq!(ps.macro_len(3002, 12_000, 8192), Some(8192));
+        // a cut exactly at a chunk end (4096): the step takes the two chunks and stops there
+        let mut prompt = vec![7u32; 12_000];
+        prompt[100] = 1;
+        prompt[4096] = 1; // the second message start: a cut at 4096
+        let ps = seq_store(&prompt, 2048);
+        assert_eq!(ps.boundaries, vec![4096]);
+        assert_eq!(ps.macro_len(0, 12_000, 8192), Some(4096));
+        // 4096..12000 holds three whole chunks and the 1760-row last chunk, which stays out
+        assert_eq!(ps.macro_len(4096, 12_000, 8192), Some(3 * 2048));
+    }
 }

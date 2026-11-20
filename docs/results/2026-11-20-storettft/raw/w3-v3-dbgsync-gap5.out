@@ -1,0 +1,15 @@
+[gap] w3-v3-dbgsync gap=5.0 4096 rep0: prompt=4091 cached=0 ttft=0.705s decode=118.7 out=256
+[gap] w3-v3-dbgsync gap=5.0 4096 rep1: prompt=4091 cached=0 ttft=0.674s decode=121.0 out=256
+[gap] w3-v3-dbgsync gap=5.0 4096 rep2: prompt=4091 cached=0 ttft=0.715s decode=126.4 out=256
+[gap] w3-v3-dbgsync gap=5.0 4096 rep3: prompt=4089 cached=0 ttft=0.671s decode=139.2 out=256
+[gap] w3-v3-dbgsync gap=5.0 16384 rep0: prompt=16658 cached=0 ttft=2.922s decode=98.8 out=256
+[gap] w3-v3-dbgsync gap=5.0 16384 rep1: prompt=16654 cached=0 ttft=2.853s decode=107.1 out=256
+[gap] w3-v3-dbgsync gap=5.0 16384 rep2: prompt=16656 cached=0 ttft=2.843s decode=96.8 out=256
+[gap] w3-v3-dbgsync gap=5.0 16384 rep3: prompt=16654 cached=0 ttft=2.864s decode=98.8 out=256
+[gap] w3-v3-dbgsync gap=5.0 32768 rep0: prompt=33880 cached=0 ttft=6.814s decode=84.1 out=256
+[gap] w3-v3-dbgsync gap=5.0 32768 rep1: prompt=33881 cached=0 ttft=6.803s decode=80.8 out=256
+[gap] w3-v3-dbgsync gap=5.0 32768 rep2: prompt=33880 cached=0 ttft=6.850s decode=84.7 out=256
+[gap] w3-v3-dbgsync gap=5.0 32768 rep3: prompt=33881 cached=0 ttft=6.834s decode=90.9 out=256
+| 4096 | 4091 | 0.674 | [0.674, 0.715, 0.671] | cached max 0 |
+| 16384 | 16654 | 2.853 | [2.853, 2.843, 2.864] | cached max 0 |
+| 32768 | 33881 | 6.834 | [6.803, 6.85, 6.834] | cached max 0 |
