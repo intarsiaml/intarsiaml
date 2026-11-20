@@ -1,0 +1,46 @@
+diff --git a/crates/intarsia-core/src/model.rs b/crates/intarsia-core/src/model.rs
+index fdd002175..a14c766cc 100644
+--- a/crates/intarsia-core/src/model.rs
++++ b/crates/intarsia-core/src/model.rs
+@@ -3661,10 +3661,9 @@ impl Model {
+         // on its own stream (on CUDA an eager pass that used the side stream left the next 100-200 graph replays slower: every
+         // dependent node started ~0.4 us later, docs/results/2026-11-18-postchain2.md)
+         static EAGER: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+-        if !*EAGER.get_or_init(|| knob("INTARSIA_SIDE_EAGER")) && CAPTURES_ACTIVE.load(std::sync::atomic::Ordering::Relaxed) == 0 {
+-            return Ok(None);
+-        }
+-        if !on
++        let eager_forks = *EAGER.get_or_init(|| knob("INTARSIA_SIDE_EAGER"));
++        let in_capture = CAPTURES_ACTIVE.load(std::sync::atomic::Ordering::Relaxed) != 0;
++        let blocked = !on
+             || rows > SIDE_MAX_ROWS
+             || (rows > 1 && !self.verifying())
+             || profile
+@@ -3672,8 +3671,25 @@ impl Model {
+             || !self.backend.stream_fork()
+             || self.pipe_active.load(std::sync::atomic::Ordering::Relaxed)
+             || self.launch_on.load(std::sync::atomic::Ordering::Relaxed) != u32::MAX
+-            || self.recorder.lock().unwrap().is_some()
+-        {
++            || self.recorder.lock().unwrap().is_some();
++        // TEMP sidebatch counter (uncommitted): fork points that an eager pass takes (knob unset) or would take (knob 0, suppressed)
++        if !blocked && !in_capture {
++            use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
++            static N: [AtomicU64; 4] = [AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0)];
++            let k = (if rows > 1 { 2 } else { 0 }) + usize::from(proj);
++            let n = N[k].fetch_add(1, Relaxed) + 1;
++            if n.is_power_of_two() || n % 4096 == 0 {
++                eprintln!(
++                    "sidebatch: eager fork points ({}) moe/1row={} proj/1row={} moe/verify={} proj/verify={}",
++                    if eager_forks { "taken" } else { "SUPPRESSED" },
++                    N[0].load(Relaxed), N[1].load(Relaxed), N[2].load(Relaxed), N[3].load(Relaxed)
++                );
++            }
++        }
++        if !eager_forks && !in_capture {
++            return Ok(None);
++        }
++        if blocked {
+             return Ok(None);
+         }
+         SIDE_FORKS_TOTAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
