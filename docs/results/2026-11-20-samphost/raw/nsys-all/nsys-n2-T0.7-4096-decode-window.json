@@ -1,0 +1,147 @@
+{
+ "decode_wall_ms": 2376.391648,
+ "gpu_busy_ms": 2232.983282,
+ "kernels": 118694,
+ "d2h_copies": 524,
+ "d2h_bytes": 159501432,
+ "d2h_ms": 22.282496,
+ "by_category_ms": {
+  "matmul / GEMV (dense, lm head)": 1719.393374,
+  "MoE experts + routing": 795.388702,
+  "attention (KV read)": 105.909151,
+  "GatedDeltaNet / conv": 95.063967,
+  "norm / rope / elementwise / copy": 81.719658,
+  "sampling (top-k, argmax, softmax)": 14.525632,
+  "other": 9.688447
+ },
+ "argmax_launches": {
+  "void <unnamed>::argmax_kernel<float>(const T1 *, int *, long)": 364
+ },
+ "top_kernels": [
+  [
+   "void <unnamed>::fp8_gemv_rows_full_kernel<(int)3, (int)2, (int)16, __nv_bfloat16>(const __nv_bfloat16 *, const",
+   737.259869,
+   15730
+  ],
+  [
+   "void <unnamed>::moe_dec_gate_up_kernel<(int)2, (bool)0>(const __nv_bfloat16 *, const unsigned char *, const un",
+   482.670976,
+   5041
+  ],
+  [
+   "void <unnamed>::gemv_split_kernel<(int)1, __nv_bfloat16>(const __nv_bfloat16 *, const __nv_bfloat16 *, T2 *, l",
+   262.471046,
+   16940
+  ],
+  [
+   "void <unnamed>::moe_dec_down_dd_kernel<(int)4, (int)4>(const __nv_bfloat16 *, const unsigned char *, const uns",
+   249.145888,
+   4840
+  ],
+  [
+   "void <unnamed>::nvfp4_gemv_kernel<(int)3, __nv_bfloat16>(const __nv_bfloat16 *, const unsigned char *, const u",
+   231.367422,
+   4960
+  ],
+  [
+   "void <unnamed>::nvfp4_gemv_kernel<(int)1, float>(const __nv_bfloat16 *, const unsigned char *, const unsigned ",
+   153.039104,
+   244
+  ],
+  [
+   "void <unnamed>::nvfp4_gemv_kernel<(int)3, float>(const __nv_bfloat16 *, const unsigned char *, const unsigned ",
+   139.646336,
+   121
+  ],
+  [
+   "void <unnamed>::splitkv_rows_persist_kernel<(int)32, __nv_bfloat16, (int)1>(const __nv_bfloat16 *, float *, fl",
+   96.379071,
+   1291
+  ],
+  [
+   "void <unnamed>::nvfp4_gemv_split_kernel<(int)2, (int)2, __nv_bfloat16>(const __nv_bfloat16 *, const unsigned c",
+   82.036606,
+   9680
+  ],
+  [
+   "void <unnamed>::gdn_delta_snap_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_",
+   73.545119,
+   3630
+  ],
+  [
+   "void <unnamed>::gemv_kernel<(int)1, __nv_bfloat16, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, T2 *",
+   53.508927,
+   1127
+  ],
+  [
+   "void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bflo",
+   22.869662,
+   10337
+  ],
+  [
+   "<unnamed>::moe_topk_kernel(const __nv_bfloat16 *, int, int, int, int, float *, int *)",
+   21.598464,
+   5203
+  ],
+  [
+   "void <unnamed>::gdn_conv_snap_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat1",
+   20.105216,
+   3630
+  ],
+  [
+   "void <unnamed>::gemv_kernel<(int)3, __nv_bfloat16, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, T2 *",
+   18.410208,
+   698
+  ],
+  [
+   "<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, ",
+   15.99152,
+   2970
+  ],
+  [
+   "void <unnamed>::moe_gate_up_kernel<(bool)0>(const __nv_bfloat16 *, const unsigned char *, const unsigned char ",
+   15.21616,
+   161
+  ],
+  [
+   "void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)",
+   12.350158,
+   5162
+  ],
+  [
+   "void <unnamed>::gemv_kernel<(int)2, __nv_bfloat16, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, T2 *",
+   11.34832,
+   341
+  ],
+  [
+   "<unnamed>::moe_down_kernel(const __nv_bfloat16 *, const unsigned char *, const unsigned char *, const float *,",
+   10.75216,
+   161
+  ],
+  [
+   "void <unnamed>::splitkv_kernel<(int)8, (int)32, (int)2, __nv_bfloat16, (bool)0>(const __nv_bfloat16 *, const T",
+   9.53008,
+   191
+  ],
+  [
+   "void <unnamed>::fp8_gemv_kernel<(int)4, __nv_bfloat16>(const __nv_bfloat16 *, const unsigned char *, const flo",
+   8.702688,
+   130
+  ],
+  [
+   "<unnamed>::topk_stage1(const float *, long, int, float *, int *, int *)",
+   8.022336,
+   121
+  ],
+  [
+   "void <unnamed>::combine_kernel<(int)256, (bool)1, (bool)1>(const float *, const float2 *, __nv_bfloat16 *, int",
+   7.970912,
+   1291
+  ],
+  [
+   "void <unnamed>::gated_rmsnorm_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat1",
+   7.598527,
+   3690
+  ]
+ ]
+}
