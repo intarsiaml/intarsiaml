@@ -1,0 +1,32 @@
+fleetq: #10381 waiting (#1 in line): needs 55 GB on spark2; 26 GB free of 116
+fleetq: #10381 running on spark2: bash scripts/samp64/build.sh
+build start 07:17:02 sha a2c83ca47aec69fb96bb4397011c777538a7bdfc
+cargo pgid 2039423
+07:17:03 avail 73 GB
+07:17:23 avail 73 GB
+07:17:44 avail 72 GB
+07:18:05 avail 73 GB
+07:18:26 avail 73 GB
+07:18:46 avail 73 GB
+07:19:07 avail 73 GB
+07:19:28 avail 73 GB
+07:19:48 avail 73 GB
+07:20:09 avail 74 GB
+07:20:30 avail 72 GB
+07:20:51 avail 72 GB
+07:21:11 avail 70 GB
+07:21:32 avail 73 GB
+07:21:53 avail 73 GB
+07:22:13 avail 74 GB
+07:22:34 avail 73 GB
+07:22:55 avail 74 GB
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 6m 09s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.4T  185G  95% /
+Mem:             121          47          64           0          10          74
+build end 07:23:16 stamp samp64-a2c83ca47aec
+fleetq: #10381 done (exit 0)
