@@ -413,13 +413,15 @@ pub struct SchedulerConfig {
     /// A packed pass takes at most half (rounded up) of the prompts waiting to prefill (`INTARSIA_PACK_HALF`): every prompt of a
     /// pass gets its first token when the pass ends, so packing a short queue whole delays its median first token.
     pub pack_half: bool,
-    /// Prefix herd (lane herd, `INTARSIA_PREFIX_HERD=1`, opt-in): a store request whose prompt shares at least the store's
+    /// Prefix herd (lane herd; the engine reads `INTARSIA_PREFIX_HERD`, unset: on, `0`: off, lane herdflip; this field's own default is off): a store request whose prompt shares at least the store's
     /// `min_tokens` leading tokens with an older request that is still prefilling does not prefill them itself. It waits until that
     /// leader has prefilled past their shared prefix (or left: finished, cancelled, failed), then looks the store up again
     /// ([`BatchSeq::herd_resume`]) and prefills only what no stored prefix covers. Tokens are unchanged, bit for bit (the restore is
     /// the one admission does). Off: a request looks the store up at admission only.
     pub prefix_herd: bool,
-    /// Which prefilling sequence gets the next chunk (`INTARSIA_PREFILL_ORDER`). Default [`PrefillOrder::Fifo`].
+    /// Which prefilling sequence gets the next chunk (`INTARSIA_PREFILL_ORDER`). `SchedulerConfig::default()` is [`PrefillOrder::Fifo`]
+    /// (the neutral baseline the scheduler tests build on); the shipped default, [`PrefillOrder::Shortest`] since lane sjfflip, comes
+    /// from [`parse_prefill_order`] (`BatchedOptions::new`).
     pub prefill_order: PrefillOrder,
     /// With [`PrefillOrder::Shortest`]: a prefilling sequence that was passed over this many prefill decisions in a row (a decision
     /// is one chunk or one packed pass) gets the next chunk before any shorter one (`INTARSIA_PREFILL_AGE`). At least 1.
@@ -430,24 +432,26 @@ pub struct SchedulerConfig {
 /// request keeps its own chunk schedule, so its output is bit for bit the same either way.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum PrefillOrder {
-    /// The oldest prefilling sequence (the 2026-10-15 decision, docs/decisions/LOG.md). Default.
+    /// The oldest prefilling sequence (the 2026-10-15 decision, docs/decisions/LOG.md). `INTARSIA_PREFILL_ORDER=fifo` (opt-out since
+    /// lane sjfflip) and the [`SchedulerConfig::default`] baseline.
     #[default]
     Fifo,
     /// The prefilling sequence with the fewest prompt tokens left, so a short request that arrives during a long prefill does not
     /// wait for all of it. Aging: a sequence passed over [`SchedulerConfig::prefill_age`] decisions in a row goes first (the one passed
     /// over longest, then the oldest), so a long prompt still gets a chunk at least every `prefill_age + max_batch - 1` decisions (it
-    /// ages in `prefill_age` passes, then waits behind at most `max_batch - 1` other aged sequences).
+    /// ages in `prefill_age` passes, then waits behind at most `max_batch - 1` other aged sequences). The default of the served
+    /// engine since lane sjfflip (user decision 2026-11-18).
     Shortest,
 }
 
 /// Default [`SchedulerConfig::prefill_age`]: 8 decisions, about 1.6 s of 256-row chunks on the Spark 35B (a 2048-row chunk is ~0.25 s).
 pub const PREFILL_AGE_DEFAULT: usize = 8;
 
-/// Parse `INTARSIA_PREFILL_ORDER`: `fifo` (or unset / empty) or `shortest`.
+/// Parse `INTARSIA_PREFILL_ORDER`: `shortest` (or unset / empty: the default since lane sjfflip) or `fifo` (opt-out).
 pub fn parse_prefill_order(v: Option<&str>) -> Result<PrefillOrder> {
     match v.map(str::trim) {
-        None | Some("") | Some("fifo") => Ok(PrefillOrder::Fifo),
-        Some("shortest") => Ok(PrefillOrder::Shortest),
+        None | Some("") | Some("shortest") => Ok(PrefillOrder::Shortest),
+        Some("fifo") => Ok(PrefillOrder::Fifo),
         Some(o) => Err(Error::BadRequest(format!("INTARSIA_PREFILL_ORDER `{o}`: expected fifo or shortest"))),
     }
 }

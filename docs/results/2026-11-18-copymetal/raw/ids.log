@@ -1,0 +1,22 @@
+fleetq: #10246 waiting (#3 in line): in line behind #10243 "herdflip metal gates" (claude-0b386a17-herdflip) on endor
+fleetq: #10246 waiting (#2 in line): in line behind #10245 "sjfflip cpu tests (cargo test intarsia-core, docs_env_vars)" (claude-0b386a17-sjfflip) on endor
+fleetq: #10246 waiting (#1 in line): needs gpu quiet on endor, but #10243 "herdflip metal gates" (claude-0b386a17-herdflip) loads it
+fleetq: #10246 running on endor: env 'ARMS=off copy=20 copy=20,7' scripts/copymetal/ids.sh copy3k json-xform
+-- copy3k off cooled 60s thermal 0
+exit 0 thermal 0
+-- copy3k copy=20 cooled 0s thermal 0
+exit 0 thermal 0
+-- copy3k copy=20,7 cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids copy3k copy=20: 2902 ids identical | copy_passes=180 accepted_hist[count acc]=   1 0    1 10  178 15  | spec: copy chain passes=180 proposed=2700 accepted=2680 (not in the verify passes below)|spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids copy3k copy=20,7: 2902 ids identical | copy_passes=359 accepted_hist[count acc]=   1 0    1 2  357 7  | spec: copy chain passes=359 proposed=2513 accepted=2501 (not in the verify passes below)|spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)|
+-- json-xform off cooled 0s thermal 0
+exit 0 thermal 0
+-- json-xform copy=20 cooled 0s thermal 0
+exit 0 thermal 1
+-- json-xform copy=20,7 cooled 70s thermal 0
+exit 0 thermal 0
+PASS ids json-xform copy=20: 2600 ids identical | copy_passes=183 accepted_hist[count acc]=   3 0    4 1   13 2    6 3    2 4    6 5    9 6    1 9    1 14  138 15  | spec: copy chain passes=183 proposed=2744 accepted=2233 (not in the verify passes below)|spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids json-xform copy=20,7: 2600 ids identical | copy_passes=323 accepted_hist[count acc]=   2 0    4 1    5 2    6 3    9 4   22 5   10 6  265 7  | spec: copy chain passes=323 proposed=2260 accepted=2093 (not in the verify passes below)|spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)|
+ids fails=0
+fleetq: #10246 done (exit 0)

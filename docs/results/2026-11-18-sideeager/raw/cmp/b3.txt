@@ -1,0 +1,3 @@
+v1006_c780d5d8: 1006 nodes, 925 launches (555 used), median span 17.551 ms, busy 22.421 ms
+v1004_ea953c0a: 1004 nodes, 159 launches (96 used), median span 17.281 ms, busy 22.060 ms
+v998_bcb0d3b8: 998 nodes, 107 launches (64 used), median span 17.065 ms, busy 21.937 ms

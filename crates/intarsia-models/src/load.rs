@@ -301,6 +301,8 @@ pub fn serve_remote_rank(
         return crate::dsv41_engine::serve_rank(dir, backend, comm, stream, opts.prefill_chunk);
     }
     let (rank, world) = (comm.rank(), comm.world());
+    intarsia_core::spec::set_copy_backend(backend.name());
+    intarsia_core::spec::set_copy_default(false);
     if rank == 0 || world < 2 {
         return Err(Error::invalid(format!("a served rank is rank 1.. of a group (got rank {rank} of {world})")));
     }
@@ -817,8 +819,19 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     // Batching is opt-in: without `--max-batch` the engine decodes one sequence at a time whatever the recipe declares.
     // The most rows are the backend's (`Backend::batch_row_cap`: Metal 16, CUDA 16).
     let backend_name = backends.first().map_or("cpu", |b| b.name());
+    // lane mlen15: `INTARSIA_SPEC_COPY=<n>` without a length means this backend's default; recorded before any `SpecConfig::verify_rows`
+    intarsia_core::spec::set_copy_backend(backend_name);
     let backend_cap = backends.first().map_or(intarsia_core::engine::SERVE_MAX_BATCH, |b| b.batch_row_cap());
     let max_batch = recipe.resolve_max_batch(opts.max_batch, if opts.max_batch.is_some() { backend_cap } else { 1 })?;
+    // lane copyflipm: with `INTARSIA_SPEC_COPY` unset, copy drafts are on exactly where `copy_default_applies` says (Metal, one sequence,
+    // one rank, and the recipe's `[tuning.metal] copy_default`: the Qwen3.6-35B-A3B); anywhere else unset stays off, silently. Recorded here,
+    // where `max_batch` is known and before any `SpecConfig::verify_rows`.
+    intarsia_core::spec::set_copy_default(intarsia_core::spec::copy_default_applies(
+        backend_name,
+        max_batch.value,
+        if local { backends.len() } else { 2 /* a group with a rank in another process is tp > 1 */ },
+        recipe.resolve_copy_default(backend_name),
+    ));
     // Hybrid models (GatedDeltaNet, MoE, gated attention) batch on CUDA and HIP whenever `--max-batch N` asks (its `_rows` kernels are
     // proven row-exact, docs/results/2026-10-23-rb2-cuda-batching.md); the cpu reference needs the explicit opt-in
     // `INTARSIA_RECURRENT_BATCH=1` (docs/results/2026-10-23-rb-recurrent-batching.md). Every other backend is refused.
@@ -1029,7 +1042,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         }
         // lane mcopy: `INTARSIA_SPEC_COPY` widens the verify passes to the copy chain (`SpecConfig::verify_rows`); only the single-sequence
         // engine verifies them, on the CUDA or Metal backend (and the cpu reference), with one rank and the MTP head (Metal: lane mcopym)
-        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && intarsia_core::spec::copy_from_env().is_some() {
+        // (only an explicit value refuses: the default of lane copyflipm is set just where this check would pass)
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && intarsia_core::spec::copy_explicit_from_env().is_some() {
             let name = model.backend.name();
             if max_batch.value > 1 || model.tp_world() > 1 || !matches!(name, "cuda" | "metal" | "cpu") {
                 return Err(Error::Unsupported(format!(

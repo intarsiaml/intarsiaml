@@ -1,0 +1,4 @@
+base  previous request ended on an eager step: False n  16  mean tok/s 155.84  median 156.01
+base  previous request ended on an eager step: True  n  16  mean tok/s 153.82  median 153.24
+bk    previous request ended on an eager step: False n  16  mean tok/s 156.06  median 156.14
+bk    previous request ended on an eager step: True  n  16  mean tok/s 156.05  median 155.63

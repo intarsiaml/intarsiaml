@@ -1,0 +1,11 @@
+b1.sqlite: 2261 graph launches, slow 0, 9 requests (gap > 60 ms), main eager stream 13
+ req 0:  147 launches, slow    0, runs -; median idle 68.5 us, span 17.327 ms, launch gap 499.4 us (launch-to-launch 17.95 ms); eager before [M 1415 S 0] inside [M 0 S 0]
+ req 1:  150 launches, slow    0, runs -; median idle 68.5 us, span 17.456 ms, launch gap 497.5 us (launch-to-launch 18.00 ms); eager before [M 1415 S 0] inside [M 0 S 0]
+ req 2:  110 launches, slow    0, runs -; median idle 68.5 us, span 17.357 ms, launch gap 482.4 us (launch-to-launch 17.87 ms); eager before [M 1375 S 0] inside [M 0 S 0]
+ req 3:  108 launches, slow    0, runs -; median idle 68.7 us, span 17.462 ms, launch gap 485.8 us (launch-to-launch 18.00 ms); eager before [M 1392 S 0] inside [M 0 S 0]
+ req 4:  108 launches, slow    0, runs -; median idle 68.6 us, span 17.437 ms, launch gap 486.7 us (launch-to-launch 17.95 ms); eager before [M 2298 S 0] inside [M 0 S 0]
+ req 5:  284 launches, slow    0, runs -; median idle 68.7 us, span 17.503 ms, launch gap 488.0 us (launch-to-launch 18.06 ms); eager before [M 2298 S 0] inside [M 0 S 0]
+ req 6:  284 launches, slow    0, runs -; median idle 68.9 us, span 17.509 ms, launch gap 486.1 us (launch-to-launch 18.01 ms); eager before [M 1392 S 0] inside [M 0 S 0]
+ req 7:  101 launches, slow    0, runs -; median idle 68.9 us, span 18.783 ms, launch gap 480.8 us (launch-to-launch 19.29 ms); eager before [M 1212 S 0] inside [M 0 S 0]
+ req 8:  969 launches, slow    0, runs -; median idle 69.2 us, span 19.137 ms, launch gap 479.1 us (launch-to-launch 19.62 ms); eager before [M 1932 S 0] inside [M 0 S 0]
+no slow launch in the session

@@ -1,0 +1,16 @@
+fleetq: #10220 running on endor: scripts/mmoedec/round.sh 10
+== round 10 arm kon env INTARSIA_METAL_GDN_VERIFY_FUSE=1+INTARSIA_METAL_MOE_BITDEC=1 cooled 0s thermal 0 08:32:22
+kon r10 chat-short thermal 0->1: {"cell": "chat-short", "tag": "c10", "rep": 2, "toks": 376, "chunks": 375, "ttft": 0.061, "dec_tps": 179.21, "wall": 2.154, "sha": "817f0fa8b9d5"}
+kon r10 code-gen thermal 1->1: {"cell": "code-gen", "tag": "c10", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.07, "dec_tps": 202.59, "wall": 4.014, "sha": "0c77b09d91fb"}
+kon r10 reason thermal 1->1: {"cell": "reason", "tag": "c10", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.072, "dec_tps": 197.39, "wall": 2.6, "sha": "cab61e07403d"}
+kon r10 agent-edit thermal 1->1: {"cell": "agent-edit", "tag": "c10", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.469, "dec_tps": 200.44, "wall": 2.001, "sha": "df0fbac8b7f2"}
+kon r10 metrics: intarsia_spec_steps_total 2412 intarsia_spec_proposed_tokens_total 4822 intarsia_spec_accepted_tokens_total 4055 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+== round 10 arm koff env INTARSIA_METAL_GDN_VERIFY_FUSE=1 cooled 95s thermal 0 08:34:38
+koff r10 chat-short thermal 0->0: {"cell": "chat-short", "tag": "c10", "rep": 2, "toks": 376, "chunks": 375, "ttft": 0.06, "dec_tps": 179.6, "wall": 2.148, "sha": "817f0fa8b9d5"}
+koff r10 code-gen thermal 0->0: {"cell": "code-gen", "tag": "c10", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.065, "dec_tps": 210.76, "wall": 3.856, "sha": "0c77b09d91fb"}
+koff r10 reason thermal 0->0: {"cell": "reason", "tag": "c10", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.065, "dec_tps": 207.86, "wall": 2.465, "sha": "cab61e07403d"}
+koff r10 agent-edit thermal 0->0: {"cell": "agent-edit", "tag": "c10", "rep": 2, "toks": 308, "chunks": 307, "ttft": 0.386, "dec_tps": 209.19, "wall": 1.854, "sha": "df0fbac8b7f2"}
+koff r10 metrics: intarsia_spec_steps_total 2412 intarsia_spec_proposed_tokens_total 4822 intarsia_spec_accepted_tokens_total 4055 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+ab done
+fleetq: #10220 done (exit 0)
+AB_ALL_DONE

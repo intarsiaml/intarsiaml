@@ -2794,11 +2794,15 @@ fn chunk_events(tr: &[TraceEvent]) -> Vec<(RequestId, usize, usize, bool)> {
 
 #[test]
 fn prefill_order_knob_parse() {
-    assert_eq!(parse_prefill_order(None).unwrap(), PrefillOrder::Fifo);
-    assert_eq!(parse_prefill_order(Some("")).unwrap(), PrefillOrder::Fifo);
+    // lane sjfflip: unset / empty = shortest (the default), `fifo` = opt-out, `shortest` still accepted
+    assert_eq!(parse_prefill_order(None).unwrap(), PrefillOrder::Shortest);
+    assert_eq!(parse_prefill_order(Some("")).unwrap(), PrefillOrder::Shortest);
     assert_eq!(parse_prefill_order(Some("fifo")).unwrap(), PrefillOrder::Fifo);
+    assert_eq!(parse_prefill_order(Some(" fifo ")).unwrap(), PrefillOrder::Fifo);
+    assert_eq!(parse_prefill_order(Some("shortest")).unwrap(), PrefillOrder::Shortest);
     assert_eq!(parse_prefill_order(Some(" shortest ")).unwrap(), PrefillOrder::Shortest);
     assert!(parse_prefill_order(Some("sjf")).is_err());
+    // the bare `SchedulerConfig::default()` stays the fifo baseline the other scheduler tests build on; the served default is the parse
     assert_eq!(SchedulerConfig::default().prefill_order, PrefillOrder::Fifo);
     assert!(SchedulerConfig { prefill_age: 0, ..Default::default() }.validate().is_err());
 }
@@ -2841,6 +2845,37 @@ fn shortest_lets_a_short_prompt_overtake_a_long_prefill() {
     assert_eq!(fifo_l.len(), 6);
     assert_eq!(fifo_l, short_l);
     assert_eq!(fifo_s, short_s);
+}
+
+/// Lane sjfflip: the order the knob selects when `INTARSIA_PREFILL_ORDER` is unset is shortest-first (the short prompt that arrives
+/// during a long prefill takes the next chunk), and `fifo` gives the old order (the whole long prefill first). Tokens are the same.
+#[test]
+fn unset_prefill_order_picks_shortest_and_fifo_opts_out() {
+    let mut rng = SplitMix64::new(11);
+    let long_p = random_prompt(&mut rng, 6000);
+    let short_p = random_prompt(&mut rng, 100);
+    let run = |knob: Option<&str>| {
+        let order = parse_prefill_order(knob).unwrap();
+        let cfg = SchedulerConfig { max_batch: 2, trace: true, prefill_order: order, ..Default::default() };
+        let mut s = Scheduler::new(MockModel::new(2, 8192), cfg).unwrap();
+        let (l, rxl, _) = submit(&mut s, greedy(long_p.clone(), 6));
+        s.step(); // the long prompt's first chunk
+        let (sh, rxs, _) = submit(&mut s, greedy(short_p.clone(), 6));
+        run_to_end(&mut s);
+        let re = s.metrics().reordered_chunks;
+        (l, sh, chunk_events(&s.take_trace()), tokens(&collect(&rxl)), tokens(&collect(&rxs)), re)
+    };
+    let last_of = |ev: &[(RequestId, usize, usize, bool)], id| ev.iter().position(|e| e.0 == id && e.3).unwrap();
+    let (l, sh, unset, unset_l, unset_s, unset_re) = run(None);
+    assert!(last_of(&unset, sh) < last_of(&unset, l), "unset: the short prompt finishes prefill first: {unset:?}");
+    assert_eq!(unset[1], (sh, 0, 100, true), "unset: the short prompt takes the second chunk: {unset:?}");
+    assert!(unset_re >= 1);
+    let (_, _, fifo, fifo_l, fifo_s, fifo_re) = run(Some("fifo"));
+    assert!(last_of(&fifo, l) < last_of(&fifo, sh), "fifo: the long prefill first: {fifo:?}");
+    assert_eq!(fifo_re, 0);
+    let (_, _, explicit, ..) = run(Some("shortest"));
+    assert_eq!(unset, explicit, "unset == shortest");
+    assert_eq!((unset_l, unset_s), (fifo_l, fifo_s), "same tokens either way");
 }
 
 /// Aging: a stream of short prompts never lets a long prefill starve. With `prefill_age` = A and B slots the long prompt gets a

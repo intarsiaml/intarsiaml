@@ -1,0 +1,23 @@
+decode tok/s, median of the reps per server (reps in brackets):
+ code-gen300
+  base   r1 153.12 [157.2 154.8 152.5 154.6 153.5 151.4 151.2 152.7]  r2 156.45 [158.4 156.0 153.9 158.7 160.1 156.4 156.5 151.2]  r3 153.50 [158.3 152.4 153.2 158.0 155.5 152.9 148.9 153.8]  r4 154.51 [158.1 153.9 154.9 153.8 158.2 154.1 151.8 157.5]
+  bk     r1 155.00 [157.6 154.5 153.7 155.8 155.5 154.2 154.1 155.6]  r2 158.02 [157.9 158.5 154.6 158.1 159.4 158.7 156.5 152.3]  r3 155.67 [161.0 155.7 155.4 158.9 155.8 155.7 151.7 153.5]  r4 157.11 [157.6 156.8 157.7 154.1 158.2 153.4 154.0 157.4]
+replies code-gen300 r1: equal across arms (8 reps)
+replies code-gen300 r2: equal across arms (8 reps)
+replies code-gen300 r3: equal across arms (8 reps)
+replies code-gen300 r4: equal across arms (8 reps)
+ratios of per-round medians:
+ bk/base code-gen300 1.0122 1.0100 1.0141 1.0168  median 1.0132  mean 1.0133 (SE 0.0014)  >1: 4/4
+ bk/base ALL         1.0122 1.0100 1.0141 1.0168  median 1.0132  mean 1.0133 (SE 0.0014)  >1: 4/4
+per server, mean over cells of tok/s / the arm's own mean over rounds (a server slow in every request shows well below 1):
+  base   r1 0.9918  r2 1.0133  r3 0.9942  r4 1.0008
+  bk     r1 0.9907  r2 1.0101  r3 0.9950  r4 1.0042
+mean graph step (ms, positions >= 100) per cell, and eager steps (token lines without a graph step) per cell, per server; requests are mapped by order: 2 warm-ups then the cells x reps:
+  base   r1: all steps 17.621 ms, eager 6, requests 10 | code-gen300 17.664 e6
+  base   r2: all steps 17.425 ms, eager 4, requests 10 | code-gen300 17.448 e4
+  base   r3: all steps 17.495 ms, eager 5, requests 10 | code-gen300 17.534 e4
+  base   r4: all steps 17.432 ms, eager 3, requests 10 | code-gen300 17.449 e3
+  bk     r1: all steps 17.482 ms, eager 6, requests 10 | code-gen300 17.474 e6
+  bk     r2: all steps 17.392 ms, eager 4, requests 10 | code-gen300 17.382 e4
+  bk     r3: all steps 17.333 ms, eager 5, requests 10 | code-gen300 17.329 e4
+  bk     r4: all steps 17.366 ms, eager 3, requests 10 | code-gen300 17.362 e3

@@ -1,0 +1,31 @@
+fleetq: #10284 running on spark1: ssh -n spark1 'cd ~/intarsiaml-cvat && INTARSIA_CVAT_TIMING=1 INTARSIA_REQUIRE_GPU=1 ./bin/verify_attn_rows-test --nocapture --test-threads=1 2>&1'
+
+running 3 tests
+test captured_rows_launch_is_the_captured_per_row_launches ... 
+thread 'captured_rows_launch_is_the_captured_per_row_launches' panicked at crates/intarsia-backend-cuda/tests/verify_attn_rows.rs:62:32:
+called `Result::unwrap()` on an `Err` value: Backend("stream synchronize: an illegal memory access was encountered (cudaError 700)")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test timing_captured_attention_layers ... SKIPPED: verify_attn_rows: no usable CUDA device (backend error: device init: an illegal memory access was encountered (cudaError 700))
+SKIPPED: verify_attn_rows: no usable CUDA device (backend error: device init: an illegal memory access was encountered (cudaError 700))
+
+thread 'timing_captured_attention_layers' panicked at crates/intarsia-backend-cuda/tests/common/mod.rs:19:9:
+verify_attn_rows was SKIPPED (no usable CUDA device (backend error: device init: an illegal memory access was encountered (cudaError 700))) but this run requires a GPU (CI / INTARSIA_REQUIRE_GPU is set)
+FAILED
+test verify_rows_launch_is_the_per_row_launches ... SKIPPED: verify_attn_rows: no usable CUDA device (backend error: device init: an illegal memory access was encountered (cudaError 700))
+SKIPPED: verify_attn_rows: no usable CUDA device (backend error: device init: an illegal memory access was encountered (cudaError 700))
+
+thread 'verify_rows_launch_is_the_per_row_launches' panicked at crates/intarsia-backend-cuda/tests/common/mod.rs:19:9:
+verify_attn_rows was SKIPPED (no usable CUDA device (backend error: device init: an illegal memory access was encountered (cudaError 700))) but this run requires a GPU (CI / INTARSIA_REQUIRE_GPU is set)
+FAILED
+
+failures:
+
+failures:
+    captured_rows_launch_is_the_captured_per_row_launches
+    timing_captured_attention_layers
+    verify_rows_launch_is_the_per_row_launches
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+fleetq: #10284 done (exit 101)

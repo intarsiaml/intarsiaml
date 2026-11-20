@@ -1,0 +1,21 @@
+fleetq: #10304 waiting (#1 in line): needs cpu quiet on endor, but #10301 "copyflipm cargo test gates (narrowing)" (claude-0b386a17-copyflipm) loads it
+fleetq:   #10301 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10301 set, or it will wait for #10301 to be released.
+fleetq: #10304 waiting (#1 in line): needs cpu quiet on endor, but #10303 "copyflipm plan show gates (narrowing)" (claude-0b386a17-copyflipm) loads it
+fleetq:   #10303 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10303 set, or it will wait for #10303 to be released.
+fleetq: #10304 running on endor: scripts/copyflipm/gates_narrow.sh
+base27 copy3k: exit 0 finish=length prompt=2969 (cached 0) completion=1000 (70.24 tok/s)
+new27 copy3k: exit 0 finish=length prompt=2969 (cached 0) completion=1000 (65.12 tok/s)
+PASS 27B copy3k: 1000 ids identical, new unset == base unset
+PASS 27B copy3k: copy drafts off in the log
+base27 code-gen: exit 0 finish=length prompt=69 (cached 0) completion=300 (66.11 tok/s)
+new27 code-gen: exit 0 finish=length prompt=69 (cached 0) completion=300 (67.18 tok/s)
+PASS 27B code-gen: 300 ids identical, new unset == base unset
+PASS 27B code-gen: copy drafts off in the log
+off35 copy3k: exit 0 finish=stop prompt=2969 (cached 0) completion=2903 (116.12 tok/s)
+new35 copy3k: exit 0 finish=stop prompt=2969 (cached 0) completion=2903 (402.40 tok/s)
+PASS 35B copy3k: 2902 ids identical, new unset == --spec off
+PASS 35B copy3k: copy drafts on by default, chain 15
+newns35 code-gen: exit 0 finish=length prompt=69 (cached 0) completion=200 (203.97 tok/s)
+PASS 35B no --spec: copy drafts on by default
+narrow gate fails=0
+fleetq: #10304 done (exit 0)

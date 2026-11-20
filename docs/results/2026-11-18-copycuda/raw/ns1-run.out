@@ -1,0 +1,12 @@
+fleetq: #10278 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10278 running on spark1: ssh spark1 'W=ns1 EXTRA='"'"'agent-edit copy3k'"'"' ARMS='"'"'b1:X=1 c1:INTARSIA_SPEC_COPY=20+X=1 c2:INTARSIA_SPEC_COPY=20+X=1 b2:X=1'"'"' bash ~/intarsiaml-copycuda/src/scripts/copycuda/nsys2.sh'
+b1 up 16:29:53 free: 56 GB
+b1: 9 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9 69d9 4eb9, 207040512 bytes sqlite
+c1 up 16:32:22 free: 56 GB
+c1: 9 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9 69d9 4eb9, 173932544 bytes sqlite
+c2 up 16:34:39 free: 56 GB
+c2: 9 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9 69d9 4eb9, 173940736 bytes sqlite
+b2 up 16:36:57 free: 56 GB
+b2: 9 requests, shas d488 f6cd 1a69 1bd2 6557 c8f0 d0c9 69d9 4eb9, 207044608 bytes sqlite
+nsys done
+fleetq: #10278 done (exit 0)

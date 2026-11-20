@@ -1,0 +1,30 @@
+fleetq: #10295 waiting (#1 in line): needs gpu quiet on spark1, but #10293 "cvat ids gate" (claude-0b386a17-cvat) loads it
+fleetq:   #10293 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10293 set, or it will wait for #10293 to be released.
+fleetq: #10295 running on spark1: ssh spark1 'bash -s'
+base up 17:33:42 free: 53 GB
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+ls: cannot access '/home/nvidia/intarsiaml-cvat/out/mb8/txt-base': No such file or directory
+base: 0 replies;       1 verify attention rows: engaged (one row-table attention launch per layer);
+vat up 17:35:12 free: 55 GB
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+bash: line 27: k: unbound variable
+ls: cannot access '/home/nvidia/intarsiaml-cvat/out/mb8/txt-vat': No such file or directory
+vat: 0 replies;       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);
+ls: cannot access '/home/nvidia/intarsiaml-cvat/out/mb8/txt-base': No such file or directory
+ls: cannot access '/home/nvidia/intarsiaml-cvat/out/mb8/txt-base': No such file or directory
+mb8 gate fails=0 (replies base 0, vat 0)
+ls: cannot access '/home/nvidia/intarsiaml-cvat/out/mb8/txt-vat': No such file or directory
+fleetq: #10295 done (exit 0)

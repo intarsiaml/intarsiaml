@@ -1,0 +1,3 @@
+{"scn": "pair", "arm": "main", "cpt": 3.419, "wall": 8.49, "short_ttft": 6.216052293777466, "long_ttft": 7.981377124786377, "short_prompt": 1061, "long_prompt": 41733, "short_end": 6.488739013671875, "long_end": 8.414716243743896}
+{"scn": "pair", "arm": "default", "cpt": 3.419, "wall": 8.16, "short_ttft": 0.636955976486206, "long_ttft": 7.989868879318237, "short_prompt": 1060, "long_prompt": 41739, "short_end": 2.0796170234680176, "long_end": 8.15523099899292}
+{"scn": "pair", "arm": "fifo", "cpt": 3.419, "wall": 8.43, "short_ttft": 6.148335933685303, "long_ttft": 7.915102958679199, "short_prompt": 1060, "long_prompt": 41738, "short_end": 6.428613901138306, "long_end": 8.378904819488525}

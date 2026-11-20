@@ -1,0 +1,19 @@
+fleetq: #10271 running on endor: scripts/copyflipm/serve.sh
+base-mb8: up, reply: 24 tokens: Here's a thinking process:  1.  **Analyze User Inp
+base-mb8: log copy lines: 0
+base-mb8: up=1
+new-mb8: up, reply: 24 tokens: Here's a thinking process:  1.  **Analyze User Inp
+new-mb8: log copy lines: 0
+new-mb8: up=1
+new-mb8-bm: up, reply: 24 tokens: Here's a thinking process:  1.  **Analyze User Inp
+new-mb8-bm: log copy lines: 0
+new-mb8-bm: up=1
+new-mb1: up, reply: 24 tokens: Here's a thinking process:  1.  **Analyze User Inp
+new-mb1: log copy lines: 1
+new-mb1: up=1
+PASS serve mb8: new up=1 as base
+PASS serve mb8: no copy drafts at mb8
+PASS serve mb1: up, copy drafts on by default
+PASS serve mb8: startup lines equal base (14 lines)
+serve fails=0
+fleetq: #10271 done (exit 0)

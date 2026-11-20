@@ -1,0 +1,25 @@
+fleetq: #10289 waiting (#1 in line): needs cpu quiet on endor, but #10283 "copycuda: docs_env_vars drift test" (claude-0b386a17-copycuda) loads it
+fleetq: #10289 waiting (#1 in line): needs cpu quiet on endor, but #10288 "cvat cpu tests" (claude-0b386a17-cvat) loads it
+fleetq: #10289 running on endor: env R0=2 ROUNDS=1 REPS=3 scripts/copyflipm/ab27.sh
+== round 2 arm def env X=1 cooled 90s thermal 0 17:00:34
+def r2 startup: speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16|spec: copy drafts on: a chain of up to 15 tokens when the last 20 tokens occurred earlier (default on Metal at one seque|
+def r2 copy3k thermal 0->2: {"cell": "copy3k", "tag": "c2", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 3.531, "dec_tps": 95.05, "wall": 34.063, "sha": "4eb925608b0c"}
+def r2 agent-edit thermal 2->2: {"cell": "agent-edit", "tag": "c2", "rep": 2, "toks": 77, "chunks": 76, "ttft": 2.407, "dec_tps": 61.74, "wall": 3.638, "sha": "6076712aaca7"}
+def r2 agent-batch thermal 2->2: {"cell": "agent-batch", "tag": "c2", "rep": 2, "toks": 1159, "chunks": 1158, "ttft": 1.122, "dec_tps": 65.8, "wall": 18.722, "sha": "ed9a1f4d0ec2"}
+def r2 json-xform thermal 2->2: {"cell": "json-xform", "tag": "c2", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 3.81, "dec_tps": 75.75, "wall": 38.12, "sha": "e4cca5268730"}
+def r2 chat-short thermal 2->2: {"cell": "chat-short", "tag": "c2", "rep": 2, "toks": 374, "chunks": 373, "ttft": 0.181, "dec_tps": 52.84, "wall": 7.24, "sha": "60276ea77176"}
+def r2 reason thermal 2->2: {"cell": "reason", "tag": "c2", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.258, "dec_tps": 63.79, "wall": 8.081, "sha": "0f81a0a8524f"}
+def r2 code-gen thermal 2->2: {"cell": "code-gen", "tag": "c2", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.261, "dec_tps": 62.54, "wall": 13.037, "sha": "561f45f93500"}
+def r2 metrics: intarsia_spec_steps_total 3503 intarsia_spec_proposed_tokens_total 7003 intarsia_spec_accepted_tokens_total 6223 intarsia_spec_copy_steps_total 1134 intarsia_spec_copy_proposed_tokens_total 17007 intarsia_spec_copy_accepted_tokens_total 15107 
+== round 2 arm zero env INTARSIA_SPEC_COPY=0 cooled 85s thermal 0 17:08:24
+zero r2 startup: speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16|
+zero r2 copy3k thermal 0->2: {"cell": "copy3k", "tag": "c2", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 3.833, "dec_tps": 65.47, "wall": 48.16, "sha": "4eb925608b0c"}
+zero r2 agent-edit thermal 2->2: {"cell": "agent-edit", "tag": "c2", "rep": 2, "toks": 77, "chunks": 76, "ttft": 2.385, "dec_tps": 62.53, "wall": 3.6, "sha": "6076712aaca7"}
+zero r2 agent-batch thermal 2->2: {"cell": "agent-batch", "tag": "c2", "rep": 2, "toks": 1159, "chunks": 1158, "ttft": 1.133, "dec_tps": 66.84, "wall": 18.457, "sha": "ed9a1f4d0ec2"}
+zero r2 json-xform thermal 2->2: {"cell": "json-xform", "tag": "c2", "rep": 2, "toks": 2600, "chunks": 2600, "ttft": 4.005, "dec_tps": 63.13, "wall": 45.177, "sha": "e4cca5268730"}
+zero r2 chat-short thermal 2->2: {"cell": "chat-short", "tag": "c2", "rep": 2, "toks": 374, "chunks": 373, "ttft": 0.195, "dec_tps": 51.52, "wall": 7.434, "sha": "60276ea77176"}
+zero r2 reason thermal 2->2: {"cell": "reason", "tag": "c2", "rep": 2, "toks": 500, "chunks": 500, "ttft": 0.271, "dec_tps": 62.9, "wall": 8.204, "sha": "0f81a0a8524f"}
+zero r2 code-gen thermal 2->2: {"cell": "code-gen", "tag": "c2", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.274, "dec_tps": 62.13, "wall": 13.134, "sha": "561f45f93500"}
+zero r2 metrics: intarsia_spec_steps_total 8952 intarsia_spec_proposed_tokens_total 17901 intarsia_spec_accepted_tokens_total 17012 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+ab done
+fleetq: #10289 done (exit 0)

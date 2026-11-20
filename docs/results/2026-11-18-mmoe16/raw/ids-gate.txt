@@ -1,0 +1,37 @@
+fleetq: #10179 running on endor: sh -c 'env ARMS="off copy=20,15 copy=20,15+on" O=$PWD/docs/results/2026-11-18-mmoe16/raw/ids-gdnoff scripts/mmoe16/ids.sh copy3k json-xform; env INTARSIA_METAL_GDN_VERIFY_FUSE=1 ARMS="off copy=20,15 copy=20,15+on" O=$PWD/docs/results/2026-11-18-mmoe16/raw/ids-gdnon scripts/mmoe16/ids.sh copy3k json-xform'
+-- copy3k off cooled 0s thermal 0
+exit 0 thermal 0
+-- copy3k copy=20,15 cooled 0s thermal 0
+exit 0 thermal 0
+-- copy3k copy=20,15+on cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids copy3k copy=20,15: 2902 ids identical | copy_passes=180 accepted_hist[count acc]=   1 0    1 10  178 15  | spec: copy chain passes=180 proposed=2700 accepted=2680 (not in the verify passes below)|spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids copy3k copy=20,15+on: 2902 ids identical | copy_passes=180 accepted_hist[count acc]=   1 0    1 10  178 15  | spec: copy chain passes=180 proposed=2700 accepted=2680 (not in the verify passes below)|spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)|
+-- json-xform off cooled 0s thermal 0
+exit 0 thermal 0
+-- json-xform copy=20,15 cooled 0s thermal 0
+exit 0 thermal 0
+-- json-xform copy=20,15+on cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids json-xform copy=20,15: 2600 ids identical | copy_passes=183 accepted_hist[count acc]=   3 0    4 1   13 2    6 3    2 4    6 5    9 6    1 9    1 14  138 15  | spec: copy chain passes=183 proposed=2744 accepted=2233 (not in the verify passes below)|spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids json-xform copy=20,15+on: 2600 ids identical | copy_passes=183 accepted_hist[count acc]=   3 0    4 1   13 2    6 3    2 4    6 5    9 6    1 9    1 14  138 15  | spec: copy chain passes=183 proposed=2744 accepted=2233 (not in the verify passes below)|spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)|
+ids fails=0
+-- copy3k off cooled 0s thermal 0
+exit 0 thermal 2
+-- copy3k copy=20,15 cooled 75s thermal 0
+exit 0 thermal 0
+-- copy3k copy=20,15+on cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids copy3k copy=20,15: 2902 ids identical | copy_passes=180 accepted_hist[count acc]=   1 0    1 10  178 15  | spec: copy chain passes=180 proposed=2700 accepted=2680 (not in the verify passes below)|spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids copy3k copy=20,15+on: 2902 ids identical | copy_passes=180 accepted_hist[count acc]=   1 0    1 10  178 15  | spec: copy chain passes=180 proposed=2700 accepted=2680 (not in the verify passes below)|spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)|
+-- json-xform off cooled 0s thermal 0
+exit 0 thermal 0
+-- json-xform copy=20,15 cooled 0s thermal 0
+exit 0 thermal 0
+-- json-xform copy=20,15+on cooled 0s thermal 0
+exit 0 thermal 0
+PASS ids json-xform copy=20,15: 2600 ids identical | copy_passes=183 accepted_hist[count acc]=   3 0    4 1   13 2    6 3    2 4    6 5    9 6    1 9    1 14  138 15  | spec: copy chain passes=183 proposed=2744 accepted=2233 (not in the verify passes below)|spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)|
+PASS ids json-xform copy=20,15+on: 2600 ids identical | copy_passes=183 accepted_hist[count acc]=   3 0    4 1   13 2    6 3    2 4    6 5    9 6    1 9    1 14  138 15  | spec: copy chain passes=183 proposed=2744 accepted=2233 (not in the verify passes below)|spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)|
+ids fails=0
+fleetq: #10179 done (exit 0)
+exit 0

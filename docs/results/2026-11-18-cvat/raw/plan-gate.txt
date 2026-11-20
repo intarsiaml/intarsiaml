@@ -1,0 +1,12 @@
+fleetq: #10292 running on spark1: ssh spark1 'bash -s'
+main: exit 0 15570 bytes sha c446afdca09ab0ec
+main-copy: exit 0 15570 bytes sha 6d41b725ee00056a
+new: exit 0 15570 bytes sha c446afdca09ab0ec
+new-on: exit 0 15570 bytes sha c446afdca09ab0ec
+new-copy: exit 0 15570 bytes sha 6d41b725ee00056a
+new-on-copy: exit 0 15570 bytes sha 6d41b725ee00056a
+PASS plan show new == main (byte-identical)
+PASS plan show new-on == main (byte-identical)
+PASS plan show new-copy == main with INTARSIA_SPEC_COPY=20 (byte-identical)
+PASS plan show new-on-copy == main with INTARSIA_SPEC_COPY=20 (byte-identical)
+fleetq: #10292 done (exit 0)

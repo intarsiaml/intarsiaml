@@ -78,10 +78,10 @@ pub const VERIFY_MAX_ROWS: usize = 16;
 /// Save bindings of the verify-rows kernels (the kernels declare this many).
 const SNAP_SLOTS: usize = 15;
 
-/// `INTARSIA_METAL_GDN_VERIFY_FUSE=1` (lane mgdnv; unset or anything else: off): `Backend::gdn_verify_rows`.
+/// `INTARSIA_METAL_GDN_VERIFY_FUSE` (lane mgdnv; unset: on, `0`: off, as `INTARSIA_CUDA_GDN_VERIFY_FUSE`): `Backend::gdn_verify_rows`.
 pub fn verify_fuse_enabled() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| std::env::var("INTARSIA_METAL_GDN_VERIFY_FUSE").map_or(false, |v| v == "1"))
+    *ON.get_or_init(|| std::env::var("INTARSIA_METAL_GDN_VERIFY_FUSE").map_or(true, |v| v != "0"))
 }
 
 pub fn shader_names() -> Vec<&'static str> {
@@ -154,7 +154,7 @@ impl MetalBackend {
     /// Lane mgdnv: `Backend::gdn_verify_rows` (see kernels/metal/gdn.metal, "Speculative-verify rows"): the conv of the `T` rows in one
     /// dispatch and the delta rule in another, each storing its state after every row but the last into the row's save buffer.
     /// Bitwise the `T` one-row `gdn_conv_bf16` + `gdn_delta_rule_bf16` dispatches and the slot copies the caller would otherwise
-    /// make. `Ok(false)`: off (`INTARSIA_METAL_GDN_VERIFY_FUSE` not `1`) or arguments the kernels do not take; nothing was encoded.
+    /// make. `Ok(false)`: off (`INTARSIA_METAL_GDN_VERIFY_FUSE=0`) or arguments the kernels do not take; nothing was encoded.
     pub(crate) fn gdn_verify_rows_impl(&self, c: &intarsia_core::GdnVerifyRows<'_>) -> Result<bool> {
         if !verify_fuse_enabled() {
             return Ok(false);
@@ -241,6 +241,7 @@ impl MetalBackend {
             self.bind(c.dt_bias, bf, false, "dt_bias")?,
         );
         let (o, st) = (self.bind(c.o, bf, true, "o")?, self.bind(c.state, f, true, "state")?);
+        // (the saved slot's padding bytes between the conv and delta regions are not copied: documented as harmless)
         // unused save bindings alias the state (never touched: the kernels stop at nsnap)
         let conv_saves = fill_saves(&snap_c, &cst);
         let delta_saves = fill_saves(&snap_s, &st);
@@ -251,6 +252,7 @@ impl MetalBackend {
         };
         let mut cb: Vec<&crate::dense::Bind> = vec![&x, &w, &y, &cst];
         cb.extend(conv_saves.iter().copied());
+        self.prof_label("gdn_conv_snap", t);
         self.dispatch(CONV_SNAP_SHADERS[k - 2], &cb, &p, Grid::Groups { x: ch.div_ceil(CONV_TG), y: 1, threads: CONV_TG })?;
         let dp = DeltaP {
             t: dim(t, "T")?,
@@ -263,6 +265,7 @@ impl MetalBackend {
         };
         let mut db_: Vec<&crate::dense::Bind> = vec![&y, &a, &b, &al, &db, &o, &st];
         db_.extend(delta_saves.iter().copied());
+        self.prof_label("gdn_delta_snap", t);
         self.dispatch(delta, &db_, &dp, Grid::Groups { x: dv.div_ceil(DELTA_SG), y: hv, threads: 32 * DELTA_SG })?;
         Ok(true)
     }

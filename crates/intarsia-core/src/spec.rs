@@ -348,7 +348,7 @@ pub fn k_min_for(spec: &SpecConfig) -> Option<usize> {
     }
 }
 
-/// Lane mcopy: copy drafts beside the MTP head (`INTARSIA_SPEC_COPY=<n>[,<len>]`, single-sequence engine, greedy requests, `--spec mtp`).
+/// Lane mcopy: copy drafts beside the MTP head (`INTARSIA_SPEC_COPY=<n>[,<len>[,a]]`, single-sequence engine, greedy requests, `--spec mtp`).
 /// When the last `n` tokens of prompt + output occurred earlier, the (up to `len`) tokens that followed that occurrence are verified
 /// as one chain by the ordinary verify pass ([`propose_copy`]); otherwise the pass is the usual MTP step.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -357,10 +357,36 @@ pub struct CopyCfg {
     pub n: usize,
     /// Most tokens in a chain; a pass has `1 + len` rows.
     pub len: usize,
+    /// Adaptive chain length (lane mcopylen, third field `a` of the value): chains stay at [`COPY_LEN_DEFAULT`] tokens until
+    /// [`COPY_ADAPT_RUN`] copied tokens in a row were accepted, then use `len`; a chain that accepts fewer than it proposed, or
+    /// a step without a chain, goes back to the short length ([`CopyRun`]). Never above `len`. False: every chain is `len` long.
+    pub adapt: bool,
 }
 
 /// Default chain length of [`CopyCfg`] (an 8-row verify pass: the CUDA GatedDeltaNet verify block takes at most 8 rows in one launch).
 pub const COPY_LEN_DEFAULT: usize = 7;
+/// Default chain length of [`CopyCfg`] on Metal (a 16-row verify pass; lane mlen15): the Metal verify kernels take 16 rows
+/// (`INTARSIA_METAL_VERIFY16` makes the 9..=16-row MoE call cheap) and the chain gains 6 to 14 % on long copies.
+pub const COPY_LEN_METAL: usize = 15;
+
+/// The chain length `INTARSIA_SPEC_COPY=<n>` (no `,<len>`) means on `backend`: [`COPY_LEN_METAL`] on Metal, else [`COPY_LEN_DEFAULT`].
+pub fn copy_len_default_for(backend: &str) -> usize {
+    if backend == "metal" {
+        COPY_LEN_METAL
+    } else {
+        COPY_LEN_DEFAULT
+    }
+}
+
+/// The backend's default chain length ([`copy_len_default_for`]) the loader recorded; [`COPY_LEN_DEFAULT`] until it does. It is the ONE
+/// place the backend enters a copy length: [`copy_from_env`] reads it for the load-time verify-row width ([`SpecConfig::verify_rows`])
+/// and for the engine's chain alike, so they cannot disagree.
+static COPY_LEN_BACKEND: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(COPY_LEN_DEFAULT);
+
+/// Record the backend a model is being loaded on (the loader calls it once the backend is known, before any [`SpecConfig::verify_rows`]).
+pub fn set_copy_backend(backend: &str) {
+    COPY_LEN_BACKEND.store(copy_len_default_for(backend), std::sync::atomic::Ordering::Relaxed);
+}
 /// A chain shorter than this is not verified: the MTP step drafts 2 tokens by itself and is a captured graph, the chain's pass is eager.
 pub const COPY_MIN_CHAIN: usize = 3;
 /// Shortest `n` an `INTARSIA_SPEC_COPY` value may ask for: a shorter suffix finds look-alike text, not copies (lane mcopy2).
@@ -370,6 +396,41 @@ pub const COPY_MIN_N: usize = 4;
 pub const COPY_MIN_ACCEPT: usize = 3;
 /// Longest skip window of [`CopyBackoff`], in steps.
 pub const COPY_BACKOFF_MAX: usize = 64;
+/// Copied tokens a request must accept in a row, in whole chains, before an adaptive copy chain ([`CopyCfg::adapt`]) goes past
+/// [`COPY_LEN_DEFAULT`]. On Metal a 9..=16-row verify pass costs about 1.9x an 8-row one (two launches), so the extra rows gain about 7 %
+/// when the whole chain is accepted and lose about 90 % of a short pass when it is not: they pay only inside a long verbatim copy. A
+/// run of 128 tokens (8 full 16-token chains) says the copy is long; json-xform's records, about 70 to 110 tokens apart, never get there
+/// (tuned on that cell, lane mcopylen).
+pub const COPY_ADAPT_RUN: usize = 128;
+
+/// Per-request chain length of an adaptive copy run (lane mcopylen, [`CopyCfg::adapt`]): short ([`COPY_LEN_DEFAULT`], or `len` when
+/// smaller) until [`COPY_ADAPT_RUN`] tokens of whole chains were accepted in a row, then `len`. Any chain that accepted fewer drafts
+/// than it proposed, and any step that proposed no chain (the copy ended, or the back-off), restarts the count.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CopyRun {
+    run: usize,
+}
+
+impl CopyRun {
+    /// The most tokens the next chain may have under `c`: `c.len` without `c.adapt`, else short or long as above. Never above `c.len`.
+    pub fn cap(&self, c: CopyCfg) -> usize {
+        if c.adapt && self.run < COPY_ADAPT_RUN {
+            c.len.min(COPY_LEN_DEFAULT)
+        } else {
+            c.len
+        }
+    }
+
+    /// The result of a chain pass: `accepted` of its `proposed` drafts were accepted.
+    pub fn record(&mut self, proposed: usize, accepted: usize) {
+        self.run = if accepted >= proposed { self.run + accepted } else { 0 };
+    }
+
+    /// A step proposed no chain.
+    pub fn reset(&mut self) {
+        self.run = 0;
+    }
+}
 
 /// Per-request back-off for copy chains (lane mcopy2): after `m` consecutive chains that each accepted fewer than [`COPY_MIN_ACCEPT`]
 /// drafts the next `2^(m-1)` steps propose no chain (the head's drafts run instead), up to [`COPY_BACKOFF_MAX`]; a chain that accepts
@@ -404,28 +465,103 @@ impl CopyBackoff {
 }
 
 impl CopyCfg {
-    /// An `INTARSIA_SPEC_COPY` value `<n>[,<len>]`: `n` in [`COPY_MIN_N`]..=256 and `len` in [`COPY_MIN_CHAIN`]..=[`DFLASH_K_MAX`] (the verify
+    /// An `INTARSIA_SPEC_COPY` value `<n>[,<len>[,a]]` (`a` or `adapt`: [`CopyCfg::adapt`]): `n` in [`COPY_MIN_N`]..=256 and `len` in [`COPY_MIN_CHAIN`]..=[`DFLASH_K_MAX`] (the verify
     /// pass's row cap minus the fed token). `None` for anything else.
     pub fn parse(v: &str) -> Option<CopyCfg> {
-        let (n, len) = match v.split_once(',') {
-            Some((n, l)) => (n.trim().parse::<usize>().ok()?, l.trim().parse::<usize>().ok()?),
-            None => (v.trim().parse::<usize>().ok()?, COPY_LEN_DEFAULT),
+        CopyCfg::parse_with(v, COPY_LEN_DEFAULT)
+    }
+
+    /// [`CopyCfg::parse`] with `default_len` the chain length of a value without `,<len>` (an explicit `<len>` always wins).
+    pub fn parse_with(v: &str, default_len: usize) -> Option<CopyCfg> {
+        let mut it = v.split(',').map(str::trim);
+        let n = it.next()?.parse::<usize>().ok()?;
+        let len = match it.next() {
+            Some(l) => l.parse::<usize>().ok()?,
+            None => default_len,
         };
-        ((COPY_MIN_N..=256).contains(&n) && (COPY_MIN_CHAIN..=DFLASH_K_MAX).contains(&len)).then_some(CopyCfg { n, len })
+        let adapt = match it.next() {
+            None => false,
+            Some("a" | "adapt") => true,
+            Some(_) => return None,
+        };
+        if it.next().is_some() {
+            return None;
+        }
+        ((COPY_MIN_N..=256).contains(&n) && (COPY_MIN_CHAIN..=DFLASH_K_MAX).contains(&len)).then_some(CopyCfg { n, len, adapt })
     }
 }
 
-/// `INTARSIA_SPEC_COPY` (read once): `None` when unset or empty (off); an unusable value is off with a warning.
-pub fn copy_from_env() -> Option<CopyCfg> {
-    static V: std::sync::OnceLock<Option<CopyCfg>> = std::sync::OnceLock::new();
-    *V.get_or_init(|| {
-        let v = std::env::var("INTARSIA_SPEC_COPY").ok().filter(|v| !v.is_empty() && v != "0")?;
-        let c = CopyCfg::parse(&v);
-        if c.is_none() {
-            eprintln!("INTARSIA_SPEC_COPY={v}: not <n>[,<len>] with n {COPY_MIN_N}..=256 and len {COPY_MIN_CHAIN}..={DFLASH_K_MAX}; copy drafts off");
+/// `INTARSIA_SPEC_COPY` as the environment holds it (read once).
+enum CopyEnv {
+    /// Not set: the loader's default ([`set_copy_default`]) decides.
+    Unset,
+    /// `0`, empty or an unusable value (that one with a warning): off, whatever the default.
+    Off,
+    /// A usable `<n>[,<len>[,a]]`.
+    Value(String),
+}
+
+fn copy_env() -> &'static CopyEnv {
+    static V: std::sync::OnceLock<CopyEnv> = std::sync::OnceLock::new();
+    V.get_or_init(|| match std::env::var("INTARSIA_SPEC_COPY") {
+        Err(_) => CopyEnv::Unset,
+        Ok(v) if v.is_empty() || v == "0" => CopyEnv::Off,
+        Ok(v) if CopyCfg::parse(&v).is_none() => {
+            eprintln!("INTARSIA_SPEC_COPY={v}: not <n>[,<len>[,a]] with n {COPY_MIN_N}..=256 and len {COPY_MIN_CHAIN}..={DFLASH_K_MAX}; copy drafts off");
+            CopyEnv::Off
         }
-        c
+        Ok(v) => CopyEnv::Value(v),
     })
+}
+
+/// The `INTARSIA_SPEC_COPY` value copy drafts take when it is unset and [`set_copy_default`] said the load qualifies (lane copyflipm).
+pub const COPY_DEFAULT_VALUE: &str = "20";
+
+static COPY_DEFAULT_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether an unset `INTARSIA_SPEC_COPY` means copy drafts on for the model being loaded (lane copyflipm): Metal, one sequence at a time
+/// (`max_batch` 1), one rank (`tp` 1), and the model's recipe opts in (`recipe_opt_in`: `[tuning.metal] copy_default = true`, the
+/// Qwen3.6-35B-A3B only; a recipe without the key is off). Anywhere else the variable unset is off, as before. Pure; the loader passes its
+/// answer to [`set_copy_default`]. (`--spec mtp` is not an input: [`SpecConfig::verify_rows`] and the engine already ignore copy drafts
+/// without it.)
+pub fn copy_default_applies(backend: &str, max_batch: usize, tp: usize, recipe_opt_in: bool) -> bool {
+    backend == "metal" && max_batch == 1 && tp == 1 && recipe_opt_in
+}
+
+/// Record whether the load qualifies for the default ([`copy_default_applies`]). Off until the loader says otherwise, so any other
+/// entry point (a tensor-parallel rank, a test) keeps copy drafts off with the variable unset. It is read by [`copy_from_env`] alone,
+/// so the load-time verify-row width ([`SpecConfig::verify_rows`]) and the engine's chain cannot disagree.
+pub fn set_copy_default(on: bool) {
+    COPY_DEFAULT_ON.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The chain config `env` (the variable's state), `default_on` and `default_len` give: an explicit value wins, `0` / empty is off, and
+/// unset is [`COPY_DEFAULT_VALUE`] when `default_on`.
+fn resolve_copy(env: &CopyEnv, default_on: bool, default_len: usize) -> Option<CopyCfg> {
+    match env {
+        CopyEnv::Value(v) => CopyCfg::parse_with(v, default_len),
+        CopyEnv::Unset if default_on => CopyCfg::parse_with(COPY_DEFAULT_VALUE, default_len),
+        CopyEnv::Unset | CopyEnv::Off => None,
+    }
+}
+
+/// Copy drafts as the user asked with `INTARSIA_SPEC_COPY=<n>[,<len>[,a]]`: `None` when unset, `0`, empty or unusable (the last with a
+/// warning). The load-time refusal of an unsupported config looks at this, not at [`copy_from_env`], so the default never refuses.
+pub fn copy_explicit_from_env() -> Option<CopyCfg> {
+    resolve_copy(copy_env(), false, COPY_LEN_BACKEND.load(std::sync::atomic::Ordering::Relaxed))
+}
+
+/// Whether copy drafts are on by the default alone (the variable unset, [`set_copy_default`] true).
+pub fn copy_is_default() -> bool {
+    matches!(copy_env(), CopyEnv::Unset) && COPY_DEFAULT_ON.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// The ONE place copy drafts are resolved (the text of `INTARSIA_SPEC_COPY` is read once): an explicit value (the backend's default length
+/// when it has no `,<len>`, [`set_copy_backend`]); `None` for `0`, empty or an unusable value; with the variable unset, `20` on a load
+/// that qualifies ([`set_copy_default`]: Metal, one sequence, one rank; lane copyflipm), else `None`. The load-time verify-row width and
+/// the engine's chain both call it.
+pub fn copy_from_env() -> Option<CopyCfg> {
+    resolve_copy(copy_env(), COPY_DEFAULT_ON.load(std::sync::atomic::Ordering::Relaxed), COPY_LEN_BACKEND.load(std::sync::atomic::Ordering::Relaxed))
 }
 
 /// What [`copy_probe_from_env`] does once per request (lane mcdiag, a measurement hook).
@@ -2321,14 +2457,108 @@ mod tests {
     }
 
     #[test]
+    fn copy_len_default_is_the_backends_and_an_explicit_len_always_wins() {
+        assert_eq!(copy_len_default_for("metal"), 15);
+        for b in ["cuda", "hip", "cpu"] {
+            assert_eq!(copy_len_default_for(b), COPY_LEN_DEFAULT, "{b}");
+        }
+        // no `,<len>`: the default asked for; an explicit len is the same on every backend
+        assert_eq!(CopyCfg::parse_with("20", 15).map(|c| (c.n, c.len)), Some((20, 15)));
+        assert_eq!(CopyCfg::parse_with("20", 7).map(|c| (c.n, c.len)), Some((20, 7)));
+        for d in [7, 15] {
+            assert_eq!(CopyCfg::parse_with("20,7", d).map(|c| c.len), Some(7));
+            assert_eq!(CopyCfg::parse_with("20,15", d).map(|c| c.len), Some(15));
+            assert_eq!(CopyCfg::parse_with("20,3", d).map(|c| c.len), Some(3));
+        }
+        // 15 is a valid default (the cap is DFLASH_K_MAX)
+        assert!(COPY_LEN_METAL <= DFLASH_K_MAX && COPY_LEN_METAL >= COPY_MIN_CHAIN);
+        // `parse` keeps the old default
+        assert_eq!(CopyCfg::parse("20").map(|c| c.len), Some(COPY_LEN_DEFAULT));
+    }
+
+    #[test]
+    fn copy_default_applies_only_to_metal_one_sequence_one_rank_and_an_opted_in_recipe() {
+        assert!(copy_default_applies("metal", 1, 1, true));
+        assert!(!copy_default_applies("metal", 1, 1, false), "a recipe without the key: off");
+        assert!(!copy_default_applies("metal", 2, 1, true));
+        assert!(!copy_default_applies("metal", 8, 1, true));
+        assert!(!copy_default_applies("metal", 1, 2, true));
+        for b in ["cuda", "hip", "cpu"] {
+            assert!(!copy_default_applies(b, 1, 1, true), "{b}");
+        }
+    }
+
+    #[test]
+    fn copy_resolves_unset_to_the_default_only_when_it_applies() {
+        let len = |c: Option<CopyCfg>| c.map(|c| (c.n, c.len, c.adapt));
+        // unset: 20 at the backend's length when the load qualifies, off otherwise (never an error)
+        assert_eq!(len(resolve_copy(&CopyEnv::Unset, true, COPY_LEN_METAL)), Some((20, 15, false)));
+        assert_eq!(len(resolve_copy(&CopyEnv::Unset, false, COPY_LEN_METAL)), None);
+        assert_eq!(len(resolve_copy(&CopyEnv::Unset, false, COPY_LEN_DEFAULT)), None);
+        // `0` / empty / unusable (CopyEnv::Off): off even where the default applies
+        assert_eq!(len(resolve_copy(&CopyEnv::Off, true, COPY_LEN_METAL)), None);
+        assert_eq!(len(resolve_copy(&CopyEnv::Off, false, COPY_LEN_METAL)), None);
+        // an explicit value wins over the default, with or without it
+        for on in [true, false] {
+            assert_eq!(len(resolve_copy(&CopyEnv::Value("12".into()), on, COPY_LEN_METAL)), Some((12, 15, false)));
+            assert_eq!(len(resolve_copy(&CopyEnv::Value("12,7".into()), on, COPY_LEN_METAL)), Some((12, 7, false)));
+            assert_eq!(len(resolve_copy(&CopyEnv::Value("20,15,a".into()), on, COPY_LEN_DEFAULT)), Some((20, 15, true)));
+        }
+        // the default value is a valid `INTARSIA_SPEC_COPY` value
+        assert!(CopyCfg::parse(COPY_DEFAULT_VALUE).is_some());
+    }
+
+    #[test]
     fn copy_cfg_parses_n_and_len() {
-        assert_eq!(CopyCfg::parse("12"), Some(CopyCfg { n: 12, len: COPY_LEN_DEFAULT }));
-        assert_eq!(CopyCfg::parse("8,5"), Some(CopyCfg { n: 8, len: 5 }));
-        assert_eq!(CopyCfg::parse("4"), Some(CopyCfg { n: 4, len: COPY_LEN_DEFAULT }));
-        assert_eq!(CopyCfg::parse(" 20 , 15 "), Some(CopyCfg { n: 20, len: 15 }));
-        for bad in ["", "0", "x", "12,2", "12,16", "0,8", "257", "12,", "1", "3", "3,8"] {
+        assert_eq!(CopyCfg::parse("12"), Some(CopyCfg { n: 12, len: COPY_LEN_DEFAULT, adapt: false }));
+        assert_eq!(CopyCfg::parse("8,5"), Some(CopyCfg { n: 8, len: 5, adapt: false }));
+        assert_eq!(CopyCfg::parse("4"), Some(CopyCfg { n: 4, len: COPY_LEN_DEFAULT, adapt: false }));
+        assert_eq!(CopyCfg::parse(" 20 , 15 "), Some(CopyCfg { n: 20, len: 15, adapt: false }));
+        assert_eq!(CopyCfg::parse("20,15,a"), Some(CopyCfg { n: 20, len: 15, adapt: true }));
+        assert_eq!(CopyCfg::parse(" 20 , 15 , adapt "), Some(CopyCfg { n: 20, len: 15, adapt: true }));
+        for bad in ["", "0", "x", "12,2", "12,16", "0,8", "257", "12,", "1", "3", "3,8", "20,15,", "20,15,x", "20,15,a,a", "20,15,1", "20,,a"] {
             assert_eq!(CopyCfg::parse(bad), None, "{bad:?}");
         }
+    }
+
+    #[test]
+    fn copy_run_goes_long_after_a_long_clean_run_and_back_after_any_miss() {
+        let long = CopyCfg { n: 20, len: 15, adapt: true };
+        let fixed = CopyCfg { adapt: false, ..long };
+        let mut r = CopyRun::default();
+        // starts short; stays short until COPY_ADAPT_RUN tokens of whole chains
+        assert_eq!(r.cap(long), COPY_LEN_DEFAULT);
+        assert_eq!(r.cap(fixed), 15, "without the flag the cap is len");
+        let mut got = 0;
+        while r.cap(long) == COPY_LEN_DEFAULT {
+            r.record(COPY_LEN_DEFAULT, COPY_LEN_DEFAULT);
+            got += COPY_LEN_DEFAULT;
+            assert!(got < COPY_ADAPT_RUN + COPY_LEN_DEFAULT, "never went long");
+        }
+        assert!(got >= COPY_ADAPT_RUN);
+        assert_eq!(r.cap(long), 15);
+        r.record(15, 15);
+        assert_eq!(r.cap(long), 15, "whole long chains keep it long");
+        assert_eq!(r.cap(fixed), 15);
+        // a partly accepted chain, however much it accepted, goes back to short and restarts the count
+        r.record(15, 14);
+        assert_eq!(r.cap(long), COPY_LEN_DEFAULT);
+        r.record(COPY_LEN_DEFAULT, COPY_LEN_DEFAULT);
+        assert_eq!(r.cap(long), COPY_LEN_DEFAULT);
+        // a step with no chain restarts it too
+        for _ in 0..(COPY_ADAPT_RUN / 8 + 1) {
+            r.record(8, 8);
+        }
+        assert_eq!(r.cap(long), 15);
+        r.reset();
+        assert_eq!(r.cap(long), COPY_LEN_DEFAULT);
+        // never above len: a short len is its own cap before and after
+        let small = CopyCfg { n: 20, len: 5, adapt: true };
+        assert_eq!(r.cap(small), 5);
+        for _ in 0..40 {
+            r.record(5, 5);
+        }
+        assert_eq!(r.cap(small), 5);
     }
 
     #[test]
@@ -2369,7 +2599,7 @@ mod tests {
 
     #[test]
     fn propose_copy_follows_the_newest_full_match() {
-        let c = CopyCfg { n: 3, len: 4 };
+        let c = CopyCfg { n: 3, len: 4, adapt: false };
         // [1 2 3] earlier twice; the newer one (at 6) has 4 tokens after it
         let ctx = [1, 2, 3, 9, 9, 9, 1, 2, 3, 5, 6, 7, 8, 0, 1, 2, 3];
         assert_eq!(propose_copy(&ctx, c), vec![5, 6, 7, 8]);

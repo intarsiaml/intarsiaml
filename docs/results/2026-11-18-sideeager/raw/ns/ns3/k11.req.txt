@@ -1,0 +1,9 @@
+ns3/k11.sqlite: 1191 graph launches, slow 0, 7 requests (gap > 60 ms), main eager stream 13
+ req 0:  147 launches, slow    0, runs -; median idle 68.6 us, span 17.318 ms, launch gap 491.1 us (launch-to-launch 17.93 ms); eager before [M 1415 S 0] inside [M 0 S 0]
+ req 1:  150 launches, slow    0, runs -; median idle 68.7 us, span 17.397 ms, launch gap 492.7 us (launch-to-launch 17.98 ms); eager before [M 1415 S 0] inside [M 0 S 0]
+ req 2:  110 launches, slow    0, runs -; median idle 68.8 us, span 17.464 ms, launch gap 482.3 us (launch-to-launch 18.00 ms); eager before [M 1375 S 0] inside [M 0 S 0]
+ req 3:  108 launches, slow    0, runs -; median idle 68.7 us, span 17.483 ms, launch gap 481.2 us (launch-to-launch 18.04 ms); eager before [M 1392 S 0] inside [M 0 S 0]
+ req 4:  108 launches, slow    0, runs -; median idle 68.7 us, span 17.477 ms, launch gap 486.7 us (launch-to-launch 17.99 ms); eager before [M 2298 S 0] inside [M 0 S 0]
+ req 5:  284 launches, slow    0, runs -; median idle 68.9 us, span 17.568 ms, launch gap 486.4 us (launch-to-launch 18.12 ms); eager before [M 2298 S 0] inside [M 0 S 0]
+ req 6:  284 launches, slow    0, runs -; median idle 69.1 us, span 17.564 ms, launch gap 486.1 us (launch-to-launch 18.06 ms); eager before [M 1392 S 0] inside [M 0 S 0]
+no slow launch in the session

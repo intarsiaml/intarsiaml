@@ -49,11 +49,14 @@ const DN_P: &str = "moe_dec_dn_p";
 const GU_P_NEG: &str = "moe_dec_gu_p_neg";
 const DN_P_NEG: &str = "moe_dec_dn_p_neg";
 const PR: usize = 2;
+/// The fat kernels with the arithmetic e2m1 decode, for 9..=16-token calls unless `INTARSIA_METAL_VERIFY16=0` (lane mmoe16, default-on since lane mlen15).
+const GU_A: &str = "moe_dec_gu_a";
+const DN_A: &str = "moe_dec_dn_a";
 
 /// Shader entry points (kernels/metal/moe.metal).
-pub const SHADERS: [&str; 23] = [
+pub const SHADERS: [&str; 25] = [
     TOPK_BF16, TOPK_F32, COMBINE, DEC_GU, DEC_DN[0], DEC_DN[1], GROUP, MM_GU[0], MM_GU[1], MM_GU[2], MM_GU[3],
-    MM_DN[0], MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1], DEC_GU_X, DEC_DN_X, GU_P, DN_P, GU_P_NEG, DN_P_NEG,
+    MM_DN[0], MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1], DEC_GU_X, DEC_DN_X, GU_P, DN_P, GU_P_NEG, DN_P_NEG, GU_A, DN_A,
 ];
 
 /// The rows path's gate+up and down shaders with their rows per simdgroup: the fat-threadgroup kernels unless
@@ -231,11 +234,23 @@ impl MetalBackend {
             ..Default::default()
         };
         let hb = at(&sc, o_h);
-        if rows {
+        // the arithmetic-decode kernels: 9..=16 tokens unless INTARSIA_METAL_VERIFY16=0 (lane mmoe16, default-on since lane mlen15), 1..=8 under
+        // INTARSIA_METAL_MOE_BITDEC=1 (lane mmoedec; one token runs the rows path: 8 pairs, gather in k order)
+        let arith = if (9..=crate::CHUNK_ROWS_MAX).contains(&t) {
+            rows && crate::verify16_enabled()
+        } else {
+            t <= ROWS_MAX && crate::moe_bitdec_enabled()
+        };
+        if rows || (arith && t == 1) {
             // no sort pass: a threadgroup row per pair, the first pair of each expert serves all the pairs of that expert (two
             // kernels read each expert's weights once for all of them), moe_gather sums per token in k order (as moe_dec_dn does)
             let yb = at(&sc, o_y);
-            let ((gu, rg), (dn, rd)) = rows_shaders();
+            // the same kernels with the arithmetic e2m1 decode (bitwise equal)
+            let ((gu, rg), (dn, rd)) = if arith {
+                ((GU_A, PR), (DN_A, PR))
+            } else {
+                rows_shaders()
+            };
             let g1 = MTLSize { width: i.div_ceil(DEC_SG * rg), height: pairs, depth: 1 };
             self.moe_dispatch(gu, &[&xb, &ib, &guwb, &gusb, &gb, &hb], &p, g1, DEC_SG * 32)?;
             let g2 = MTLSize { width: h.div_ceil(DEC_SG * rd), height: pairs, depth: 1 };

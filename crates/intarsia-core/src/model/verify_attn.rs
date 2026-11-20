@@ -8,10 +8,11 @@
 //! The tables are small and almost constant: each attention layer owns a 16-row region of device addresses (rewritten only when the
 //! layer's cache buffers change), and one `i32` position vector is shared by all layers (rewritten when `(pos0, t)` changes, i.e.
 //! once per pass, by the pass's first attention layer). Eager passes only: a captured pass (device positions) keeps the per-row
-//! launches. `INTARSIA_HIP_VERIFY_ATTN_ROWS=0` keeps them everywhere.
+//! launches (CUDA: `INTARSIA_CUDA_VERIFY_ATTN_ROWS`, default on, also takes them, see [`VerifyCapTab`]). `INTARSIA_HIP_VERIFY_ATTN_ROWS=0` keeps them everywhere.
 
 use super::*;
 use crate::state::AttnKvState;
+use std::collections::HashMap;
 
 /// Most rows one verify launch covers (the row-table kernels' `ROWS_MAX`).
 pub(super) const VERIFY_ATTN_ROWS_MAX: usize = 16;
@@ -28,6 +29,32 @@ pub(super) struct VerifyAttnTab {
     filled: Vec<Option<(u64, u64)>>,
     /// `(pos0, t)` the position vector holds.
     pos_key: Option<(usize, usize)>,
+}
+
+/// Lane cvat (CUDA, `INTARSIA_CUDA_VERIFY_ATTN_ROWS`, default on): the tables of CAPTURED passes. A recording bakes the address of its K / V table
+/// region into the graph, so a region must never be rewritten while a graph that names it can still be replayed: regions are keyed by
+/// the (K, V) cache addresses they hold and allocated once, in a buffer of its own, before the capture starts
+/// ([`Model::register_verify_cap_tabs`]); a capture that meets a cache pair without a region keeps the per-row launches. Positions are
+/// the capture's own device position table (row `r` reads entry `r`), nothing is uploaded in a capture.
+#[derive(Default)]
+pub(super) struct VerifyCapTab {
+    buf: Option<Buffer>,
+    regions: HashMap<(u64, u64), usize>,
+}
+
+/// Regions of [`VerifyCapTab`] (16 rows of (K, V) addresses each): 256 KiB of device memory at most.
+const CAP_REGIONS_MAX: usize = 1024;
+
+/// Whether captured verify passes take the row-table launch (lane cvat; default on since lane cvatflip): only on the CUDA backend
+/// (`backend`, `Backend::name`: HIP and Metal never read the variable; HIP's eager path has its own `INTARSIA_HIP_VERIFY_ATTN_ROWS`);
+/// `var` is the value of `INTARSIA_CUDA_VERIFY_ATTN_ROWS`: unset = on, `0` = off, anything else (`1`) = on.
+pub fn cuda_verify_attn_rows_on(backend: &str, var: Option<&str>) -> bool {
+    backend == "cuda" && var.map_or(true, |v| v != "0")
+}
+
+/// [`cuda_verify_attn_rows_on`] with the variable read from the environment.
+pub fn cuda_verify_attn_rows_env(backend: &str) -> bool {
+    cuda_verify_attn_rows_on(backend, std::env::var("INTARSIA_CUDA_VERIFY_ATTN_ROWS").ok().as_deref())
 }
 
 /// Planted faults for the byte-equality test (`INTARSIA_HIP_VAT_MUT`): 1 = every row reads `pos0` (no `+ r`); 2 = the last row's
@@ -82,6 +109,96 @@ fn note_once(what: &str) {
 }
 
 impl Model {
+    /// Give every attention cache of `st` (and of the MTP head `head_kv`) its K / V table region, before a graph capture starts
+    /// (CUDA, `INTARSIA_CUDA_VERIFY_ATTN_ROWS` not `0`). A pair already registered keeps its region; at most [`CAP_REGIONS_MAX`] exist.
+    pub(super) fn register_verify_cap_tabs(&self, st: &SequenceState, head_kv: Option<&SequenceState>) -> Result<()> {
+        // tp > 1 never takes the captured row launch (see `verify_attn_rows_captured`): no table, no device allocation
+        if !self.cuda_verify_attn_rows || self.tp.world != 1 || !self.peers.is_empty() {
+            return Ok(());
+        }
+        let mut tab = self.verify_cap_tab.lock().unwrap();
+        for s in st.slots.iter().chain(head_kv.into_iter().flat_map(|h| h.slots.iter())) {
+            let StateSlot::AttnKv(kv) = s else { continue };
+            let (Some(ka), Some(va)) = (self.backend.device_address(&kv.k), self.backend.device_address(&kv.v)) else { continue };
+            if tab.regions.contains_key(&(ka, va)) {
+                continue;
+            }
+            if tab.regions.len() >= CAP_REGIONS_MAX {
+                note_once("captured: all table regions taken, per-row launches for caches registered later");
+                continue;
+            }
+            if tab.buf.is_none() {
+                tab.buf = Some(self.backend.alloc(CAP_REGIONS_MAX * REGION_BYTES, MemKind::Device)?);
+            }
+            let buf = tab.buf.clone().expect("allocated above");
+            let idx = tab.regions.len();
+            self.backend.upload(&buf, idx * REGION_BYTES, &verify_rows_tab_bytes(ka, va, VERIFY_ATTN_ROWS_MAX), self.stream)?;
+            tab.regions.insert((ka, va), idx);
+        }
+        if crate::spec::trace_enabled() {
+            eprintln!("verify attention rows: captured table regions {} of {CAP_REGIONS_MAX}", tab.regions.len());
+        }
+        Ok(())
+    }
+
+    /// A captured verify pass's `t` attention rows of one layer as one row-table launch (CUDA, `INTARSIA_CUDA_VERIFY_ATTN_ROWS` not `0`): row `r`
+    /// reads entry `r` of the capture's device position table `dpos` and the cache pair's region of [`VerifyCapTab`]. `Ok(false)`
+    /// (nothing recorded): the knob is off, the pass is outside the table's reach or the pair has no region; the caller records per-row launches.
+    #[allow(clippy::too_many_arguments)]
+    fn verify_attn_rows_captured(
+        &self,
+        slot: &AttnKvState,
+        q: &TensorRef,
+        kcache: &TensorRef,
+        vcache: &TensorRef,
+        out: &TensorRef,
+        attrs: &OpAttrs,
+        t: usize,
+        dpos: &TensorRef,
+        profile: bool,
+    ) -> Result<bool> {
+        if !self.cuda_verify_attn_rows || t < 2 || t > VERIFY_ATTN_ROWS_MAX || dpos.dtype != DType::I32 || self.tp.world != 1 || !self.peers.is_empty() {
+            return Ok(false);
+        }
+        let (Some(ka), Some(va)) = (self.backend.device_address(&slot.k), self.backend.device_address(&slot.v)) else {
+            return Ok(false);
+        };
+        let (buf, idx) = {
+            let tab = self.verify_cap_tab.lock().unwrap();
+            match (tab.buf.clone(), tab.regions.get(&(ka, va))) {
+                (Some(b), Some(&i)) => (b, i),
+                _ => {
+                    note_once("captured: a cache without a table region, per-row launches");
+                    return Ok(false);
+                }
+            }
+        };
+        let mut tab = self.view(&buf, DType::U8, &[t, 2, 8]);
+        tab.offset = idx * REGION_BYTES;
+        let mut pos = dpos.clone();
+        pos.shape = vec![t];
+        let mut at = attrs.clone();
+        at.pos0 = 0;
+        let mut call = OpCall::new(Op::AttnDecode, vec![q.clone(), kcache.clone(), vcache.clone()], vec![out.clone()], at);
+        call.pos = Some(pos);
+        call.rows = Some(crate::ops::RowTab { ptrs: tab, rows: t, stride: 2, index: 0, byte_off: 0 });
+        call.exact_rows = self.verifying();
+        let need = match call.check().and_then(|_| self.registry.select(&call).map(|k| k.scratch_bytes(&ShapeInfo::from_call(&call)))) {
+            Ok(n) => n,
+            Err(e) => {
+                note_once(&format!("captured: no kernel for row-table call: {e}"));
+                return Ok(false);
+            }
+        };
+        if need > self.scratch.as_ref().map_or(0, |b| b.bytes()) {
+            note_once("captured: scratch smaller than the row-table call needs");
+            return Ok(false);
+        }
+        note_once("captured: engaged (one row-table attention launch per layer in the graph)");
+        self.exec_call(call, profile)?;
+        Ok(true)
+    }
+
     /// The verify pass's `t` attention rows of layer `a` as one row-table launch. `Ok(false)` (nothing launched): the knob is off, the
     /// backend has no such kernel, or the pass is captured or exceeds the table; the caller launches per row.
     #[allow(clippy::too_many_arguments)]
@@ -96,9 +213,15 @@ impl Model {
         attrs: &OpAttrs,
         t: usize,
         pos0: usize,
+        dpos: Option<&TensorRef>,
         profile: bool,
     ) -> Result<bool> {
+        let capturing = self.capture_ops.lock().unwrap().is_some();
+        if let (Some(d), true) = (dpos, capturing) {
+            return self.verify_attn_rows_captured(slot, q, kcache, vcache, out, attrs, t, d, profile);
+        }
         if !self.verify_attn_rows
+            || dpos.is_some()
             || t < 2
             || t > VERIFY_ATTN_ROWS_MAX
             || !self.backend.verify_attn_per_row()
@@ -162,5 +285,27 @@ impl Model {
         note_once("engaged (one row-table attention launch per layer)");
         self.exec_call(call, profile)?;
         Ok(true)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::cuda_verify_attn_rows_on as on;
+
+    #[test]
+    fn cuda_knob_unset_on_zero_off_one_on() {
+        assert!(on("cuda", None));
+        assert!(!on("cuda", Some("0")));
+        assert!(on("cuda", Some("1")));
+        assert!(on("cuda", Some("")));
+    }
+
+    #[test]
+    fn other_backends_never_read_it() {
+        for b in ["hip", "metal", "cpu"] {
+            for v in [None, Some("0"), Some("1")] {
+                assert!(!on(b, v), "{b} {v:?}");
+            }
+        }
     }
 }

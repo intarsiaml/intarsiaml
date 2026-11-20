@@ -1,0 +1,10 @@
+main: exit 0 15570 bytes sha c446afdca09ab0ec
+main-copy: exit 0 15570 bytes sha 6d41b725ee00056a
+new: exit 0 15570 bytes sha c446afdca09ab0ec
+new-zero: exit 0 15570 bytes sha c446afdca09ab0ec
+new-copy: exit 0 15570 bytes sha 6d41b725ee00056a
+new-zero-copy: exit 0 15570 bytes sha 6d41b725ee00056a
+PASS plan show new == main (byte-identical)
+PASS plan show new-zero == main (byte-identical)
+PASS plan show new-copy == main with INTARSIA_SPEC_COPY=20 (byte-identical)
+PASS plan show new-zero-copy == main with INTARSIA_SPEC_COPY=20 (byte-identical)

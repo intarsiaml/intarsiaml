@@ -1,0 +1,11 @@
+base: 7 replies;       1 verify attention rows: engaged (one row-table attention launch per layer);
+vat up 18:18:32 free: 55 GB
+vat: 7 replies;       1 verify attention rows: captured: engaged (one row-table attention launch per layer in the graph);      1 verify attention rows: engaged (one row-table attention launch per layer);
+PASS g-agent-batch-1-0.txt identical (455 bytes)
+PASS g-agent-edit-1-0.txt identical (139 bytes)
+PASS g-chat-short-1-0.txt identical (1861 bytes)
+PASS g-code-gen-1-0.txt identical (3181 bytes)
+PASS g-copy3k-1-0.txt identical (512 bytes)
+PASS g-json-xform-1-0.txt identical (5306 bytes)
+PASS g-reason-1-0.txt identical (1305 bytes)
+mb8 gate fails=0 (replies base 7, vat 7)

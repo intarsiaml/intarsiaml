@@ -1,0 +1,4 @@
+/opt/code/intarsiaml/.worktrees/sjfflip/docs/results/2026-11-18-sjfflip/raw/ids-main.json: reordered decisions 0.0, packed passes 4.0
+/opt/code/intarsiaml/.worktrees/sjfflip/docs/results/2026-11-18-sjfflip/raw/ids-default.json: reordered decisions 18.0, packed passes 3.0
+/opt/code/intarsiaml/.worktrees/sjfflip/docs/results/2026-11-18-sjfflip/raw/ids-fifo.json: reordered decisions 0.0, packed passes 4.0
+96/96 cells identical

@@ -1,0 +1,42 @@
+```python
+# lru_cache.py
+"""
+LRU Cache implementation using a doubly linked list and a dictionary.
+"""
+
+class _Node:
+    """A node in the doubly linked list."""
+    __slots__ = ('key', 'value', 'prev', 'next')
+
+    def __init__(self, key=None, value=None):
+        self.key = key
+        self.value = value
+        self.prev = None
+        self.next = None
+
+
+class LRUCache:
+    """
+    An LRU (Least Recently Used) cache with O(1) get, put, and delete operations.
+    
+    Uses a doubly linked list to maintain order of access and a dictionary
+    for O(1) lookup.
+    """
+
+    def __init__(self, capacity: int):
+        if capacity <= 0:
+            raise ValueError("Capacity must be positive")
+        self.capacity = capacity
+        self.cache = {}  # key -> Node
+        # Dummy head and tail nodes to simplify edge cases
+        self.head = _Node()
+        self.tail = _Node()
+        self.head.next = self.tail
+        self.tail.prev = self.head
+        self._size = 0
+
+    def _remove_node(self, node: _Node) -> None:
+        """Remove a node from the linked list."""
+        prev_node = node.prev
+        next_node = node.next
+

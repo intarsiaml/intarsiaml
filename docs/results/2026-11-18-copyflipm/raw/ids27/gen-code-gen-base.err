@@ -1,0 +1,229 @@
+--spec mtp --spec-k 2: the default of recipe qwen3_5_vl on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe qwen3_5_vl, metal)
+lm_head quantised to fp8 (248320 rows x 5120, 1.27 GB, was bf16 2.54 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.9 s)
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, metal; --mtp-draft-vocab 0 drafts with the full head)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (the recipe's default, chosen for accuracy (Qwen3.8-27B, full MMLU n=1425: W4A16 0.822 vs W4A4 0.802, docs/results/2026-10-27-act27-27b-w4a16-mmlu.md; costs prefill and decode speed); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (recipe qwen3_5_vl [defaults] mxfp4_act)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax matmul_fp8=matmul_fp8_gemv argmax=argmax_f32 matmul_fp8=matmul_fp8_gemv_rows
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on Apple M5 Max in 2.4s: 64 layers, hidden 5120, act bf16, kv bf16, weights 17.61 GB, context 4096 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 69 tokens
+spec: token 2 pos 69 drafted 2 accepted 2 emits 3 drafts [12305, 198]
+spec: mtp pipe step 45.974 ms (drafted ahead false), next draft submitted in 0.095 ms (true)
+spec: token 5 pos 72 drafted 2 accepted 2 emits 3 drafts [324, 2585]
+spec: mtp pipe step 39.562 ms (drafted ahead true), next draft submitted in 0.070 ms (true)
+spec: token 8 pos 75 drafted 2 accepted 2 emits 3 drafts [6971, 198]
+spec: mtp pipe step 39.547 ms (drafted ahead true), next draft submitted in 0.080 ms (true)
+spec: token 11 pos 78 drafted 2 accepted 2 emits 3 drafts [198, 19504]
+spec: mtp pipe step 39.732 ms (drafted ahead true), next draft submitted in 0.077 ms (true)
+spec: token 14 pos 81 drafted 2 accepted 1 emits 2 drafts [18887, 523]
+spec: mtp pipe step 39.355 ms (drafted ahead true), next draft submitted in 0.068 ms (true)
+spec: token 16 pos 83 drafted 2 accepted 2 emits 3 drafts [1608, 264]
+spec: mtp pipe step 39.925 ms (drafted ahead true), next draft submitted in 0.068 ms (true)
+spec: token 19 pos 86 drafted 2 accepted 2 emits 3 drafts [10278, 1103]
+spec: mtp pipe step 39.512 ms (drafted ahead true), next draft submitted in 0.052 ms (true)
+spec: token 22 pos 89 drafted 2 accepted 2 emits 3 drafts [264, 10675]
+spec: mtp pipe step 39.313 ms (drafted ahead true), next draft submitted in 0.046 ms (true)
+spec: token 25 pos 92 drafted 2 accepted 2 emits 3 drafts [198, 12237]
+spec: mtp pipe step 39.209 ms (drafted ahead true), next draft submitted in 0.055 ms (true)
+spec: token 28 pos 95 drafted 2 accepted 0 emits 1 drafts [1445, 1259]
+spec: mtp pipe step 39.214 ms (drafted ahead true), next draft submitted in 0.034 ms (true)
+spec: token 29 pos 96 drafted 2 accepted 2 emits 3 drafts [696, 1888]
+spec: mtp pipe step 39.173 ms (drafted ahead true), next draft submitted in 0.047 ms (true)
+spec: token 32 pos 99 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp pipe step 39.394 ms (drafted ahead true), next draft submitted in 0.054 ms (true)
+spec: token 35 pos 102 drafted 2 accepted 2 emits 3 drafts [32, 2357]
+spec: mtp pipe step 39.517 ms (drafted ahead true), next draft submitted in 0.049 ms (true)
+spec: token 38 pos 105 drafted 2 accepted 1 emits 2 drafts [279, 1923]
+spec: mtp pipe step 39.358 ms (drafted ahead true), next draft submitted in 0.036 ms (true)
+spec: token 40 pos 107 drafted 2 accepted 2 emits 3 drafts [10278, 1103]
+spec: mtp pipe step 39.890 ms (drafted ahead true), next draft submitted in 0.073 ms (true)
+spec: token 43 pos 110 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp pipe step 39.396 ms (drafted ahead true), next draft submitted in 0.053 ms (true)
+spec: token 46 pos 113 drafted 2 accepted 2 emits 3 drafts [48093, 548]
+spec: mtp pipe step 39.391 ms (drafted ahead true), next draft submitted in 0.049 ms (true)
+spec: token 49 pos 116 drafted 2 accepted 2 emits 3 drafts [4178, 767]
+spec: mtp pipe step 39.516 ms (drafted ahead true), next draft submitted in 0.099 ms (true)
+spec: token 52 pos 119 drafted 2 accepted 2 emits 3 drafts [359, 927]
+spec: mtp pipe step 39.562 ms (drafted ahead true), next draft submitted in 0.099 ms (true)
+spec: token 55 pos 122 drafted 2 accepted 2 emits 3 drafts [359, 9590]
+spec: mtp pipe step 39.387 ms (drafted ahead true), next draft submitted in 0.098 ms (true)
+spec: token 58 pos 125 drafted 2 accepted 2 emits 3 drafts [359, 3480]
+spec: mtp pipe step 39.409 ms (drafted ahead true), next draft submitted in 0.116 ms (true)
+spec: token 61 pos 128 drafted 2 accepted 2 emits 3 drafts [271, 262]
+spec: mtp pipe step 39.943 ms (drafted ahead true), next draft submitted in 0.088 ms (true)
+spec: token 64 pos 131 drafted 2 accepted 2 emits 3 drafts [1259, 2251]
+spec: mtp pipe step 39.725 ms (drafted ahead true), next draft submitted in 0.092 ms (true)
+spec: token 67 pos 134 drafted 2 accepted 2 emits 3 drafts [701, 11]
+spec: mtp pipe step 40.176 ms (drafted ahead true), next draft submitted in 0.091 ms (true)
+spec: token 70 pos 137 drafted 2 accepted 2 emits 3 drafts [5675, 11]
+spec: mtp pipe step 40.061 ms (drafted ahead true), next draft submitted in 0.086 ms (true)
+spec: token 73 pos 140 drafted 2 accepted 2 emits 3 drafts [5675, 1590]
+spec: mtp pipe step 39.740 ms (drafted ahead true), next draft submitted in 0.110 ms (true)
+spec: token 76 pos 143 drafted 2 accepted 2 emits 3 drafts [285, 638]
+spec: mtp pipe step 39.822 ms (drafted ahead true), next draft submitted in 0.069 ms (true)
+spec: token 79 pos 146 drafted 2 accepted 2 emits 3 drafts [283, 1328]
+spec: mtp pipe step 40.057 ms (drafted ahead true), next draft submitted in 0.087 ms (true)
+spec: token 82 pos 149 drafted 2 accepted 2 emits 3 drafts [285, 638]
+spec: mtp pipe step 39.901 ms (drafted ahead true), next draft submitted in 0.085 ms (true)
+spec: token 85 pos 152 drafted 2 accepted 2 emits 3 drafts [283, 869]
+spec: mtp pipe step 39.506 ms (drafted ahead true), next draft submitted in 0.054 ms (true)
+spec: token 88 pos 155 drafted 2 accepted 2 emits 3 drafts [285, 638]
+spec: mtp pipe step 39.925 ms (drafted ahead true), next draft submitted in 0.078 ms (true)
+spec: token 91 pos 158 drafted 2 accepted 2 emits 3 drafts [283, 2168]
+spec: mtp pipe step 39.567 ms (drafted ahead true), next draft submitted in 0.085 ms (true)
+spec: token 94 pos 161 drafted 2 accepted 2 emits 3 drafts [285, 638]
+spec: mtp pipe step 39.624 ms (drafted ahead true), next draft submitted in 0.104 ms (true)
+spec: token 97 pos 164 drafted 2 accepted 2 emits 3 drafts [283, 2168]
+spec: mtp pipe step 40.082 ms (drafted ahead true), next draft submitted in 0.099 ms (true)
+spec: token 100 pos 167 drafted 2 accepted 2 emits 3 drafts [1005, 43072]
+spec: mtp pipe step 39.868 ms (drafted ahead true), next draft submitted in 0.098 ms (true)
+spec: token 103 pos 170 drafted 2 accepted 2 emits 3 drafts [1714, 25]
+spec: mtp pipe step 39.619 ms (drafted ahead true), next draft submitted in 0.098 ms (true)
+spec: token 106 pos 173 drafted 2 accepted 2 emits 3 drafts [262, 4071]
+spec: mtp pipe step 39.538 ms (drafted ahead true), next draft submitted in 0.086 ms (true)
+spec: token 109 pos 176 drafted 2 accepted 2 emits 3 drafts [262, 1473]
+spec: mtp pipe step 39.666 ms (drafted ahead true), next draft submitted in 0.094 ms (true)
+spec: token 112 pos 179 drafted 2 accepted 1 emits 2 drafts [34810, 6297]
+spec: mtp pipe step 39.645 ms (drafted ahead true), next draft submitted in 0.086 ms (true)
+spec: token 114 pos 181 drafted 2 accepted 0 emits 1 drafts [5661, 733]
+spec: mtp pipe step 40.560 ms (drafted ahead true), next draft submitted in 0.084 ms (true)
+spec: token 115 pos 182 drafted 2 accepted 2 emits 3 drafts [39642, 11851]
+spec: mtp pipe step 39.463 ms (drafted ahead true), next draft submitted in 0.084 ms (true)
+spec: token 118 pos 185 drafted 2 accepted 2 emits 3 drafts [6297, 440]
+spec: mtp pipe step 39.347 ms (drafted ahead true), next draft submitted in 0.092 ms (true)
+spec: token 121 pos 188 drafted 2 accepted 2 emits 3 drafts [7, 16]
+spec: mtp pipe step 39.776 ms (drafted ahead true), next draft submitted in 0.080 ms (true)
+spec: token 124 pos 191 drafted 2 accepted 2 emits 3 drafts [615, 11]
+spec: mtp pipe step 40.058 ms (drafted ahead true), next draft submitted in 0.055 ms (true)
+spec: token 127 pos 194 drafted 2 accepted 2 emits 3 drafts [11, 321]
+spec: mtp pipe step 40.332 ms (drafted ahead true), next draft submitted in 0.059 ms (true)
+spec: token 130 pos 197 drafted 2 accepted 2 emits 3 drafts [7289, 13]
+spec: mtp pipe step 40.464 ms (drafted ahead true), next draft submitted in 0.049 ms (true)
+spec: token 133 pos 200 drafted 2 accepted 2 emits 3 drafts [1031, 262]
+spec: mtp pipe step 40.639 ms (drafted ahead true), next draft submitted in 0.045 ms (true)
+spec: token 136 pos 203 drafted 2 accepted 1 emits 2 drafts [264, 10675]
+spec: mtp pipe step 40.857 ms (drafted ahead true), next draft submitted in 0.040 ms (true)
+spec: token 138 pos 205 drafted 2 accepted 2 emits 3 drafts [10278, 1103]
+spec: mtp pipe step 41.245 ms (drafted ahead true), next draft submitted in 0.082 ms (true)
+spec: token 141 pos 208 drafted 2 accepted 2 emits 3 drafts [10000, 1906]
+spec: mtp pipe step 40.381 ms (drafted ahead true), next draft submitted in 0.084 ms (true)
+spec: token 144 pos 211 drafted 2 accepted 2 emits 3 drafts [2528, 321]
+spec: mtp pipe step 41.209 ms (drafted ahead true), next draft submitted in 0.094 ms (true)
+spec: token 147 pos 214 drafted 2 accepted 2 emits 3 drafts [10675, 198]
+spec: mtp pipe step 41.648 ms (drafted ahead true), next draft submitted in 0.081 ms (true)
+spec: token 150 pos 217 drafted 2 accepted 2 emits 3 drafts [364, 496]
+spec: mtp pipe step 42.171 ms (drafted ahead true), next draft submitted in 0.070 ms (true)
+spec: token 153 pos 220 drafted 2 accepted 2 emits 3 drafts [16, 8]
+spec: mtp pipe step 43.043 ms (drafted ahead true), next draft submitted in 0.064 ms (true)
+spec: token 156 pos 223 drafted 2 accepted 0 emits 1 drafts [539, 1328]
+spec: mtp pipe step 42.667 ms (drafted ahead true), next draft submitted in 0.076 ms (true)
+spec: token 157 pos 224 drafted 2 accepted 2 emits 3 drafts [198, 262]
+spec: mtp pipe step 41.533 ms (drafted ahead true), next draft submitted in 0.142 ms (true)
+spec: token 160 pos 227 drafted 2 accepted 2 emits 3 drafts [271, 262]
+spec: mtp pipe step 41.534 ms (drafted ahead true), next draft submitted in 0.125 ms (true)
+spec: token 163 pos 230 drafted 2 accepted 2 emits 3 drafts [1259, 2251]
+spec: mtp pipe step 42.186 ms (drafted ahead true), next draft submitted in 0.084 ms (true)
+spec: token 166 pos 233 drafted 2 accepted 2 emits 3 drafts [701, 11]
+spec: mtp pipe step 42.011 ms (drafted ahead true), next draft submitted in 0.056 ms (true)
+spec: token 169 pos 236 drafted 2 accepted 2 emits 3 drafts [25, 514]
+spec: mtp pipe step 41.658 ms (drafted ahead true), next draft submitted in 0.099 ms (true)
+spec: token 172 pos 239 drafted 2 accepted 2 emits 3 drafts [198, 285]
+spec: mtp pipe step 41.575 ms (drafted ahead true), next draft submitted in 0.109 ms (true)
+spec: token 175 pos 242 drafted 2 accepted 1 emits 2 drafts [8390, 369]
+spec: mtp pipe step 42.237 ms (drafted ahead true), next draft submitted in 0.066 ms (true)
+spec: token 177 pos 244 drafted 2 accepted 2 emits 3 drafts [220, 15]
+spec: mtp pipe step 42.549 ms (drafted ahead true), next draft submitted in 0.074 ms (true)
+spec: token 180 pos 247 drafted 2 accepted 2 emits 3 drafts [198, 309]
+spec: mtp pipe step 42.400 ms (drafted ahead true), next draft submitted in 0.058 ms (true)
+spec: token 183 pos 250 drafted 2 accepted 2 emits 3 drafts [14953, 437]
+spec: mtp pipe step 42.447 ms (drafted ahead true), next draft submitted in 0.057 ms (true)
+spec: token 186 pos 253 drafted 2 accepted 2 emits 3 drafts [1902, 381]
+spec: mtp pipe step 42.492 ms (drafted ahead true), next draft submitted in 0.050 ms (true)
+spec: token 189 pos 256 drafted 2 accepted 2 emits 3 drafts [871, 198]
+spec: mtp pipe step 42.806 ms (drafted ahead true), next draft submitted in 0.048 ms (true)
+spec: token 192 pos 259 drafted 2 accepted 2 emits 3 drafts [638, 57167]
+spec: mtp pipe step 41.953 ms (drafted ahead true), next draft submitted in 0.049 ms (true)
+spec: token 195 pos 262 drafted 2 accepted 2 emits 3 drafts [8390, 198]
+spec: mtp pipe step 42.944 ms (drafted ahead true), next draft submitted in 0.046 ms (true)
+spec: token 198 pos 265 drafted 2 accepted 1 emits 2 drafts [638, 2406]
+spec: mtp pipe step 42.914 ms (drafted ahead true), next draft submitted in 0.036 ms (true)
+spec: token 200 pos 267 drafted 2 accepted 2 emits 3 drafts [283, 4535]
+spec: mtp pipe step 43.635 ms (drafted ahead true), next draft submitted in 0.052 ms (true)
+spec: token 203 pos 270 drafted 2 accepted 1 emits 2 drafts [653, 6249]
+spec: mtp pipe step 43.236 ms (drafted ahead true), next draft submitted in 0.041 ms (true)
+spec: token 205 pos 272 drafted 2 accepted 1 emits 2 drafts [1411, 2357]
+spec: mtp pipe step 43.885 ms (drafted ahead true), next draft submitted in 0.034 ms (true)
+spec: token 207 pos 274 drafted 2 accepted 2 emits 3 drafts [198, 285]
+spec: mtp pipe step 43.562 ms (drafted ahead true), next draft submitted in 0.050 ms (true)
+spec: token 210 pos 277 drafted 2 accepted 1 emits 2 drafts [48864, 7552]
+spec: mtp pipe step 43.398 ms (drafted ahead true), next draft submitted in 0.102 ms (true)
+spec: token 212 pos 279 drafted 2 accepted 2 emits 3 drafts [321, 9495]
+spec: mtp pipe step 45.397 ms (drafted ahead true), next draft submitted in 0.091 ms (true)
+spec: token 215 pos 282 drafted 2 accepted 2 emits 3 drafts [310, 38406]
+spec: mtp pipe step 45.265 ms (drafted ahead true), next draft submitted in 0.095 ms (true)
+spec: token 218 pos 285 drafted 2 accepted 2 emits 3 drafts [4886, 198]
+spec: mtp pipe step 45.645 ms (drafted ahead true), next draft submitted in 0.105 ms (true)
+spec: token 221 pos 288 drafted 2 accepted 2 emits 3 drafts [638, 15569]
+spec: mtp pipe step 46.866 ms (drafted ahead true), next draft submitted in 0.107 ms (true)
+spec: token 224 pos 291 drafted 2 accepted 2 emits 3 drafts [696, 1888]
+spec: mtp pipe step 47.489 ms (drafted ahead true), next draft submitted in 0.099 ms (true)
+spec: token 227 pos 294 drafted 2 accepted 0 emits 1 drafts [220, 653]
+spec: mtp pipe step 48.322 ms (drafted ahead true), next draft submitted in 0.086 ms (true)
+spec: token 228 pos 295 drafted 2 accepted 2 emits 3 drafts [285, 638]
+spec: mtp pipe step 48.832 ms (drafted ahead true), next draft submitted in 0.098 ms (true)
+spec: token 231 pos 298 drafted 2 accepted 2 emits 3 drafts [283, 696]
+spec: mtp pipe step 53.027 ms (drafted ahead true), next draft submitted in 0.064 ms (true)
+spec: token 234 pos 301 drafted 2 accepted 2 emits 3 drafts [363, 198]
+spec: mtp pipe step 54.724 ms (drafted ahead true), next draft submitted in 0.073 ms (true)
+spec: token 237 pos 304 drafted 2 accepted 2 emits 3 drafts [638, 15569]
+spec: mtp pipe step 52.900 ms (drafted ahead true), next draft submitted in 0.066 ms (true)
+spec: token 240 pos 307 drafted 2 accepted 2 emits 3 drafts [283, 638]
+spec: mtp pipe step 47.456 ms (drafted ahead true), next draft submitted in 0.078 ms (true)
+spec: token 243 pos 310 drafted 2 accepted 2 emits 3 drafts [198, 285]
+spec: mtp pipe step 46.963 ms (drafted ahead true), next draft submitted in 0.062 ms (true)
+spec: token 246 pos 313 drafted 2 accepted 2 emits 3 drafts [37429, 28044]
+spec: mtp pipe step 46.496 ms (drafted ahead true), next draft submitted in 0.050 ms (true)
+spec: token 249 pos 316 drafted 2 accepted 2 emits 3 drafts [638, 15569]
+spec: mtp pipe step 47.309 ms (drafted ahead true), next draft submitted in 0.046 ms (true)
+spec: token 252 pos 319 drafted 2 accepted 2 emits 3 drafts [285, 638]
+spec: mtp pipe step 45.035 ms (drafted ahead true), next draft submitted in 0.102 ms (true)
+spec: token 255 pos 322 drafted 2 accepted 2 emits 3 drafts [2073, 283]
+spec: mtp pipe step 46.547 ms (drafted ahead true), next draft submitted in 0.104 ms (true)
+spec: token 258 pos 325 drafted 2 accepted 2 emits 3 drafts [15, 271]
+spec: mtp pipe step 46.846 ms (drafted ahead true), next draft submitted in 0.094 ms (true)
+spec: token 261 pos 328 drafted 2 accepted 2 emits 3 drafts [687, 696]
+spec: mtp pipe step 47.489 ms (drafted ahead true), next draft submitted in 0.096 ms (true)
+spec: token 264 pos 331 drafted 2 accepted 2 emits 3 drafts [4922, 1153]
+spec: mtp pipe step 47.769 ms (drafted ahead true), next draft submitted in 0.101 ms (true)
+spec: token 267 pos 334 drafted 2 accepted 2 emits 3 drafts [2357, 25]
+spec: mtp pipe step 48.089 ms (drafted ahead true), next draft submitted in 0.097 ms (true)
+spec: token 270 pos 337 drafted 2 accepted 2 emits 3 drafts [1888, 8]
+spec: mtp pipe step 48.340 ms (drafted ahead true), next draft submitted in 0.085 ms (true)
+spec: token 273 pos 340 drafted 2 accepted 2 emits 3 drafts [2168, 25]
+spec: mtp pipe step 51.326 ms (drafted ahead true), next draft submitted in 0.085 ms (true)
+spec: token 276 pos 343 drafted 2 accepted 2 emits 3 drafts [285, 4071]
+spec: mtp pipe step 53.446 ms (drafted ahead true), next draft submitted in 0.071 ms (true)
+spec: token 279 pos 346 drafted 2 accepted 2 emits 3 drafts [264, 2357]
+spec: mtp pipe step 52.818 ms (drafted ahead true), next draft submitted in 0.057 ms (true)
+spec: token 282 pos 349 drafted 2 accepted 2 emits 3 drafts [279, 10278]
+spec: mtp pipe step 52.206 ms (drafted ahead true), next draft submitted in 0.048 ms (true)
+spec: token 285 pos 352 drafted 2 accepted 0 emits 1 drafts [318, 28049]
+spec: mtp pipe step 49.511 ms (drafted ahead true), next draft submitted in 0.037 ms (true)
+spec: token 286 pos 353 drafted 2 accepted 2 emits 3 drafts [198, 285]
+spec: mtp pipe step 46.408 ms (drafted ahead true), next draft submitted in 0.049 ms (true)
+spec: token 289 pos 356 drafted 2 accepted 0 emits 1 drafts [283, 638]
+spec: mtp pipe step 43.666 ms (drafted ahead true), next draft submitted in 0.088 ms (true)
+spec: token 290 pos 357 drafted 2 accepted 2 emits 3 drafts [283, 2357]
+spec: mtp pipe step 42.855 ms (drafted ahead true), next draft submitted in 0.093 ms (true)
+spec: token 293 pos 360 drafted 2 accepted 2 emits 3 drafts [198, 285]
+spec: mtp pipe step 48.240 ms (drafted ahead true), next draft submitted in 0.062 ms (true)
+spec: token 296 pos 363 drafted 2 accepted 2 emits 3 drafts [4922, 283]
+spec: mtp pipe step 49.500 ms (drafted ahead true), next draft submitted in 0.000 ms (false)
+spec: token 299 pos 366 drafted 1 accepted 1 emits 2 drafts [4381]
+spec: mtp draft 4.906 ms, verify + rollback 36.307 ms
+ids: [71093, 12305, 198, 2, 324, 2585, 11198, 6971, 198, 12237, 198, 19504, 52, 18887, 7873, 1608, 264, 90651, 10278, 1103, 321, 264, 10675, 13, 198, 12237, 271, 1005, 696, 1888, 25, 198, 262, 4071, 32, 2357, 303, 279, 90651, 10278, 1103, 71483, 198, 262, 1259, 48093, 548, 283, 4178, 767, 504, 359, 927, 504, 359, 9590, 504, 359, 3480, 837, 271, 262, 687, 1259, 2251, 3676, 701, 11, 1328, 5675, 11, 869, 5675, 1590, 198, 285, 638, 4582, 283, 1328, 198, 285, 638, 2733, 283, 869, 198, 285, 638, 28044, 283, 2168, 198, 285, 638, 4381, 283, 2168, 1358, 1005, 43072, 5287, 1714, 25, 198, 262, 4071, 198, 262, 1473, 436, 34810, 318, 78994, 39642, 11851, 8, 6297, 440, 496, 7, 16, 8, 615, 11, 2113, 11, 321, 3572, 7289, 13, 198, 1031, 262, 37539, 264, 90651, 10278, 1103, 310, 10000, 1906, 314, 2528, 321, 264, 10675, 198, 262, 364, 496, 7, 16, 8, 18054, 13, 198, 262, 4071, 271, 262, 687, 1259, 2251, 3676, 701, 11, 8390, 25, 514, 1590, 198, 285, 413, 8390, 2564, 220, 15, 25, 198, 309, 4673, 14953, 437, 28432, 1902, 381, 6572, 871, 198, 285, 638, 57167, 283, 8390, 198, 285, 638, 19474, 283, 4535, 220, 653, 1328, 1411, 5829, 198, 285, 653, 48864, 1901, 321, 9495, 7552, 310, 38406, 6607, 4886, 198, 285, 638, 15569, 283, 696, 1888, 363, 198, 285, 638, 37429, 283, 696, 1888, 363, 198, 285, 638, 15569, 4381, 283, 638, 37429, 198, 285, 638, 37429, 28044, 283, 638, 15569, 198, 285, 638, 1385, 2073, 283, 220, 15, 271, 262, 687, 696, 5231, 4922, 1153, 11, 2357, 25, 696, 1888, 8, 1411, 2168, 25, 198, 285, 4071, 12648, 264, 2357, 494, 279, 10278, 1103, 71483, 198, 285, 7624, 4922, 283, 2357, 28044, 198, 285, 1727, 4922, 283, 2357, 4381, 198]
+finish=length prompt=69 (cached 0) completion=300 | prefill 418 ms (164.9 tok/s) | decode 4610 ms (64.87 tok/s)
+spec: verify passes=107 proposed=213 accepted=192 (acceptance 90.1%, 2.79 tokens per pass)
+steps=109 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/215 argmax=0ms/321 attn_decode=0ms/129 attn_prefill=0ms/1828 embedding=0ms/324

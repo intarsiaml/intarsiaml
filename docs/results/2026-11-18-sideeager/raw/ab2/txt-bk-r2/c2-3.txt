@@ -1,0 +1,40 @@
+```python
+# lru_cache.py
+
+class _Node:
+    """A node in the doubly linked list."""
+    __slots__ = ('key', 'value', 'prev', 'next')
+
+    def __init__(self, key=None, value=None):
+        self.key = key
+        self.value = value
+        self.prev = None
+        self.next = None
+
+
+class LRUCache:
+    """
+    LRU Cache implementation using a doubly linked list and a dictionary.
+    
+    The doubly linked list maintains the order of usage (most recently used at the head,
+    least recently used at the tail). The dictionary provides O(1) lookup by key.
+    """
+
+    def __init__(self, capacity: int):
+        if capacity <= 0:
+            raise ValueError("Capacity must be positive")
+        self.capacity = capacity
+        self.size = 0
+        # Dictionary mapping key -> Node
+        self.cache = {}
+        
+        # Sentinel nodes for the doubly linked list
+        self.head = _Node()  # Most recently used end
+        self.tail = _Node()  # Least recently used end
+        self.head.next = self.tail
+        self.tail.prev = self.head
+
+    def _add_to_head(self, node: _Node):
+        """Add a node right after the head (most recently used position)."""
+        node.prev = self.head
+        node

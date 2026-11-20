@@ -1,0 +1,22 @@
+decode tok/s, median of the reps per server (reps in brackets):
+ copy3k
+  basec  r1 266.60 [266.8 266.6 266.6]  r2 266.20 [266.5 265.6 266.2]  r3 267.59 [267.2 267.6 267.7]  r4 267.13 [267.1 267.1 267.1]
+  vatc   r1 266.94 [266.9 266.9 266.1]  r2 266.86 [266.9 266.5 266.9]  r3 267.24 [267.2 266.9 267.5]  r4 266.64 [266.8 266.6 266.6]
+ json-xform
+  basec  r1 234.21 [233.7 234.2 234.5]  r2 233.65 [233.7 233.7 233.5]  r3 234.58 [234.6 234.6 234.5]  r4 234.59 [234.6 234.5 234.7]
+  vatc   r1 234.32 [234.2 234.6 234.3]  r2 234.44 [234.4 234.6 234.4]  r3 234.40 [234.4 234.6 234.2]  r4 234.19 [234.1 234.2 234.3]
+replies copy3k r1: equal across arms (3 reps)
+replies copy3k r2: equal across arms (3 reps)
+replies copy3k r3: equal across arms (3 reps)
+replies copy3k r4: equal across arms (3 reps)
+replies json-xform r1: equal across arms (3 reps)
+replies json-xform r2: equal across arms (3 reps)
+replies json-xform r3: equal across arms (3 reps)
+replies json-xform r4: equal across arms (3 reps)
+ratios of per-round medians:
+ vatc/basec copy3k      1.0013 1.0025 0.9987 0.9982  median 1.0000  mean 1.0002 (SE 0.0010)  >1: 2/4
+ vatc/basec json-xform  1.0005 1.0034 0.9992 0.9983  median 0.9999  mean 1.0003 (SE 0.0011)  >1: 2/4
+ vatc/basec ALL         1.0009 1.0029 0.9990 0.9982  median 0.9999  mean 1.0002 (SE 0.0011)  >1: 2/4
+per server, mean over cells of tok/s / the arm's own mean over rounds (a server slow in every request shows well below 1):
+  basec  r1 0.9994  r2 0.9974  r3 1.0020  r4 1.0012
+  vatc   r1 1.0000  r2 1.0001  r3 1.0007  r4 0.9992
