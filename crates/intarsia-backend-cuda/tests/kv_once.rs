@@ -9,7 +9,7 @@
 //!    unrelated positions, 16 rows over three caches;
 //!  * a captured CUDA graph (device positions) replayed at many positions, knob on against knob off;
 //!  * the fp8_e4m3-cache twin on the 35B shape;
-//!  * mode 2 (the same numbering with streaming loads);
+//!  * mode 2 (the same numbering with plain loads);
 //!  * a planted fault (every row of a group gets the group leader's end of keys) that must be seen at every position tried.
 //!
 //! Shapes: Qwen3.6-35B-A3B (16 / 2 / 256) and Qwen3.8-27B (24 / 4 / 256), caches of 66000 keys (so 64k contexts are covered).
@@ -310,7 +310,7 @@ fn kv_once_launches_are_bit_identical_to_the_default_launches() {
             n_mixed += 1;
         }
 
-        // 3. mode 2 (streaming loads): a sample of verify passes
+        // 3. mode 2 (plain loads): a sample of verify passes
         for (m, p0) in [(3usize, 4095usize), (3, 65530), (8, 127), (16, 20000), (2, 63)] {
             let pos: Vec<usize> = (p0..p0 + m).collect();
             let (a, b) = off_on(2, || c.rowtab(&pos, &vec![0; m]));

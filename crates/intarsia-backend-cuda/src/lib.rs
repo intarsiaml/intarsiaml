@@ -75,7 +75,7 @@ pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {
 }
 
 /// Tests only (lane kvonce, `tests/kv_once.rs`): override `INTARSIA_CUDA_ATTN_KV_ONCE` for the row-table attention launches of this
-/// process (`None` = the variable, `Some(0)` = off, `Some(1)` = on, `Some(2)` = on with streaming loads) and plant the persistent
+/// process (`None` = the variable, `Some(0)` = off, `Some(1)` = on, `Some(2)` = on with plain loads) and plant the persistent
 /// kernel's test fault (every row of a group gets the group leader's end of keys; only under an on mode). Process-wide.
 #[cfg(ik_cuda)]
 pub fn set_attn_kv_once_for_test(mode: Option<u8>, fault: bool) {

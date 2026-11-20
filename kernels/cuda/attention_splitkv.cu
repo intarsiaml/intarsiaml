@@ -362,8 +362,9 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const K
 // line together. A GROUP is a run of consecutive table rows with the same K and V cache addresses, the same split count and the same
 // chunk (a verify pass: rows at consecutive positions of one cache); its items are numbered kv head, then split, then row, so the
 // group's rows of one (kv head, split) are consecutive items, dealt to blocks that run at the same time and stream the same K / V
-// lines in step: one DRAM read, the L2 serves the other rows. The loads are plain (`__ldg`) instead of streaming, which would evict
-// the lines before the other rows read them (ONCE = 2 keeps the streaming loads, a diagnostic). What an item computes (its row, kv
+// lines in step: one DRAM read, the L2 serves the other rows. The loads stay streaming (`__ldcs`): the rows run in step closely
+// enough that evict-first lines are still in L2 for them, and plain loads (ONCE = 2, a diagnostic) measured 1 to 3 % slower
+// (tests/kv_once.rs timing). What an item computes (its row, kv
 // head, split, keys, q, partial slot) is what it computes without ONCE, so every partial is bitwise the same. `fault` (tests only)
 // gives every row of a group the leader row's end of keys, the bug a shared read would have; tests/kv_once.rs must see it.
 template <int TPK, typename KT = ik_bf16, int ONCE = 0>
@@ -470,7 +471,7 @@ splitkv_rows_persist_kernel(const ik_bf16* __restrict__ q, float* __restrict__ p
             nk[u] = L::zero();
             nv[u] = L::zero();
             if (j < d.end) {
-                if constexpr (ONCE == 1) {
+                if constexpr (ONCE == 2) {
                     nk[u] = L::load(d.kb + j * D);
                     nv[u] = L::load(d.vb + j * D);
                 } else {
@@ -774,7 +775,7 @@ inline int rows_persist() {
 }
 
 // INTARSIA_CUDA_ATTN_KV_ONCE (lane kvonce, opt-in): 1 numbers the persistent kernel's items so that the rows of one sequence read
-// each K / V line together (splitkv_rows_persist_kernel's ONCE), 2 the same with streaming loads (diagnostic), unset / anything else
+// each K / V line together (splitkv_rows_persist_kernel's ONCE), 2 the same with plain loads (diagnostic), unset / anything else
 // the default numbering. Read once per process; tests override it with ik_attn_kv_once_for_test. The bits do not depend on it.
 int g_kv_once_test = -1;  // -1: the variable; else the mode
 int g_kv_once_fault = 0;  // tests: the planted fault (see splitkv_rows_persist_kernel)
