@@ -1,0 +1,1450 @@
+[supervisor] started server pid 3797056
+cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+mtp: drafter head 'mtp' loaded in 1.1 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head)
+verify attention rows: engaged (one row-table attention launch per layer)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+batched verify: the plan covers passes of up to 2 sequences (6 rows)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_decode_v2_rows_bf16 matmul_nvfp4=matmul_nvfp4_gemv_rows silu_glu=silu_glu_bf16 moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 moe_experts=moe_experts_bf16 matmul_nvfp4=matmul_nvfp4_gemv argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+admission on plan shapes: 42 kernel(s) checked, 0 case(s) run, 685 cached
+batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 2048
+prefix store with --max-batch > 1: workspace 678 MiB
+prefix store: the backend's packed prefill is off with --max-batch > 1
+prefix store: on (build 6c6dac20c1267412, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+prefix herd: on (default, INTARSIA_PREFIX_HERD=0 turns it off): a request waits for an older one still prefilling a prefix they share, then restores it from the store
+batched verify: sampled rows as the device-side top-k when the request samples from it (INTARSIA_VERIFY_TOPK=1)
+batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 79.4s, context 131072 tokens
+sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_config.json; a request's own values win)
+intarsia server listening on http://0.0.0.0:8197
+spec: keyed draft 3.806 ms, 2 drafts
+spec: token 2 pos 4092 drafted 2 accepted 2 emits 3 drafts [220, 23]
+spec: keyed verify 3 rows (logits) 20.120 ms, accept 1.194 ms
+spec: keyed draft 2.552 ms, 2 drafts
+spec: token 5 pos 4095 drafted 2 accepted 2 emits 3 drafts [17, 66]
+spec: keyed verify 3 rows (logits) 19.004 ms, accept 1.242 ms
+spec: keyed draft 2.650 ms, 2 drafts
+spec: token 8 pos 4098 drafted 2 accepted 2 emits 3 drafts [16, 21]
+spec: keyed verify 3 rows (logits) 18.286 ms, accept 1.132 ms
+spec: keyed draft 2.468 ms, 2 drafts
+spec: token 11 pos 4101 drafted 2 accepted 2 emits 3 drafts [22, 21]
+spec: keyed verify 3 rows (logits) 18.465 ms, accept 1.160 ms
+spec: keyed draft 2.485 ms, 2 drafts
+spec: token 14 pos 4104 drafted 2 accepted 2 emits 3 drafts [15, 19]
+spec: keyed verify 3 rows (logits) 18.745 ms, accept 1.154 ms
+spec: keyed draft 2.490 ms, 2 drafts
+spec: token 17 pos 4107 drafted 2 accepted 2 emits 3 drafts [23, 65]
+spec: keyed verify 3 rows (logits) 18.724 ms, accept 1.119 ms
+spec: keyed draft 2.513 ms, 2 drafts
+spec: token 20 pos 4110 drafted 2 accepted 2 emits 3 drafts [6687, 22]
+spec: keyed verify 3 rows (logits) 18.742 ms, accept 1.080 ms
+spec: keyed draft 2.508 ms, 2 drafts
+spec: token 23 pos 4113 drafted 2 accepted 2 emits 3 drafts [65, 16]
+spec: keyed verify 3 rows (logits) 19.044 ms, accept 1.201 ms
+spec: keyed draft 2.521 ms, 2 drafts
+spec: token 26 pos 4116 drafted 2 accepted 2 emits 3 drafts [16, 22]
+spec: keyed verify 3 rows (logits) 18.816 ms, accept 1.079 ms
+spec: keyed draft 2.824 ms, 2 drafts
+spec: token 29 pos 4119 drafted 2 accepted 2 emits 3 drafts [17, 64]
+spec: keyed verify 3 rows (logits) 19.484 ms, accept 1.146 ms
+spec: keyed draft 2.620 ms, 2 drafts
+spec: token 32 pos 4122 drafted 2 accepted 2 emits 3 drafts [19, 22]
+spec: keyed verify 3 rows (logits) 17.638 ms, accept 1.113 ms
+spec: keyed draft 2.541 ms, 2 drafts
+spec: token 35 pos 4125 drafted 2 accepted 2 emits 3 drafts [220, 16]
+spec: keyed verify 3 rows (logits) 17.702 ms, accept 1.244 ms
+spec: keyed draft 2.507 ms, 2 drafts
+spec: token 38 pos 4128 drafted 2 accepted 2 emits 3 drafts [19, 25]
+spec: keyed verify 3 rows (logits) 17.897 ms, accept 1.197 ms
+spec: keyed draft 2.555 ms, 2 drafts
+spec: token 41 pos 4131 drafted 2 accepted 1 emits 2 drafts [65326, 1830]
+spec: keyed verify 3 rows (logits) 17.899 ms, accept 0.945 ms
+spec: keyed draft 2.645 ms, 2 drafts
+spec: token 43 pos 4133 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 19.023 ms, accept 0.899 ms
+spec: keyed draft 2.668 ms, 2 drafts
+spec: token 45 pos 4135 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 18.467 ms, accept 0.921 ms
+spec: keyed draft 2.669 ms, 2 drafts
+spec: token 47 pos 4137 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed verify 3 rows (logits) 17.826 ms, accept 0.504 ms
+spec: keyed draft 2.594 ms, 2 drafts
+spec: token 48 pos 4138 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.157 ms, accept 1.125 ms
+spec: keyed draft 2.558 ms, 2 drafts
+spec: token 51 pos 4141 drafted 2 accepted 0 emits 1 drafts [92701, 1518]
+spec: keyed verify 3 rows (logits) 17.606 ms, accept 0.497 ms
+spec: keyed draft 2.566 ms, 2 drafts
+spec: token 52 pos 4142 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 17.532 ms, accept 0.869 ms
+spec: keyed draft 2.669 ms, 2 drafts
+spec: token 54 pos 4144 drafted 2 accepted 0 emits 1 drafts [11012, 13]
+spec: keyed verify 3 rows (logits) 18.611 ms, accept 0.520 ms
+spec: keyed draft 2.623 ms, 2 drafts
+spec: token 55 pos 4145 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.740 ms, accept 1.194 ms
+spec: keyed draft 2.559 ms, 2 drafts
+spec: token 58 pos 4148 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed verify 3 rows (logits) 18.516 ms, accept 1.157 ms
+spec: keyed draft 2.505 ms, 2 drafts
+spec: token 61 pos 4151 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 17.901 ms, accept 1.180 ms
+spec: keyed draft 2.545 ms, 2 drafts
+spec: token 64 pos 4154 drafted 2 accepted 2 emits 3 drafts [54517, 668]
+spec: keyed verify 3 rows (logits) 17.862 ms, accept 1.174 ms
+spec: keyed draft 2.554 ms, 2 drafts
+spec: token 67 pos 4157 drafted 2 accepted 1 emits 2 drafts [279, 11012]
+spec: keyed verify 3 rows (logits) 17.678 ms, accept 0.935 ms
+spec: keyed draft 2.643 ms, 2 drafts
+spec: token 69 pos 4159 drafted 2 accepted 0 emits 1 drafts [92701, 3043]
+spec: keyed verify 3 rows (logits) 17.764 ms, accept 0.520 ms
+spec: keyed draft 2.583 ms, 2 drafts
+spec: token 70 pos 4160 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.281 ms, accept 1.170 ms
+spec: keyed draft 2.527 ms, 2 drafts
+spec: token 73 pos 4163 drafted 2 accepted 0 emits 1 drafts [6000, 3043]
+spec: keyed verify 3 rows (logits) 17.968 ms, accept 0.481 ms
+spec: keyed draft 2.600 ms, 2 drafts
+spec: token 74 pos 4164 drafted 2 accepted 1 emits 2 drafts [1518, 16602]
+spec: keyed verify 3 rows (logits) 17.553 ms, accept 0.877 ms
+spec: keyed draft 2.692 ms, 2 drafts
+spec: token 76 pos 4166 drafted 2 accepted 0 emits 1 drafts [5979, 13]
+spec: keyed verify 3 rows (logits) 18.372 ms, accept 0.494 ms
+spec: keyed draft 2.609 ms, 2 drafts
+spec: token 77 pos 4167 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.555 ms, accept 1.195 ms
+spec: keyed draft 2.857 ms, 2 drafts
+spec: token 80 pos 4170 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed verify 3 rows (logits) 19.331 ms, accept 1.081 ms
+spec: keyed draft 2.497 ms, 2 drafts
+spec: token 83 pos 4173 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 18.632 ms, accept 1.172 ms
+spec: keyed draft 2.653 ms, 2 drafts
+spec: token 86 pos 4176 drafted 2 accepted 0 emits 1 drafts [54517, 668]
+spec: keyed verify 3 rows (logits) 17.734 ms, accept 0.551 ms
+spec: keyed draft 2.581 ms, 2 drafts
+spec: token 87 pos 4177 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 17.816 ms, accept 0.885 ms
+spec: keyed draft 2.695 ms, 2 drafts
+spec: token 89 pos 4179 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.881 ms, accept 0.868 ms
+spec: keyed draft 2.701 ms, 2 drafts
+spec: token 91 pos 4181 drafted 2 accepted 0 emits 1 drafts [6297, 3043]
+spec: keyed verify 3 rows (logits) 18.611 ms, accept 0.506 ms
+spec: keyed draft 2.615 ms, 2 drafts
+spec: token 92 pos 4182 drafted 2 accepted 2 emits 3 drafts [5662, 3043]
+spec: keyed verify 3 rows (logits) 18.425 ms, accept 1.087 ms
+spec: keyed draft 2.556 ms, 2 drafts
+spec: token 95 pos 4185 drafted 2 accepted 0 emits 1 drafts [10725, 70676]
+spec: keyed verify 3 rows (logits) 17.799 ms, accept 0.581 ms
+spec: keyed draft 2.594 ms, 2 drafts
+spec: token 96 pos 4186 drafted 2 accepted 0 emits 1 drafts [6000, 1518]
+spec: keyed verify 3 rows (logits) 17.705 ms, accept 0.499 ms
+spec: keyed draft 2.625 ms, 2 drafts
+spec: token 97 pos 4187 drafted 2 accepted 1 emits 2 drafts [1518, 50255]
+spec: keyed verify 3 rows (logits) 18.105 ms, accept 0.869 ms
+spec: keyed draft 2.695 ms, 2 drafts
+spec: token 99 pos 4189 drafted 2 accepted 0 emits 1 drafts [54517, 13]
+spec: keyed verify 3 rows (logits) 18.398 ms, accept 0.511 ms
+spec: keyed draft 2.601 ms, 2 drafts
+spec: token 100 pos 4190 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.493 ms, accept 1.269 ms
+spec: keyed draft 2.562 ms, 2 drafts
+spec: token 103 pos 4193 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed verify 3 rows (logits) 19.009 ms, accept 1.133 ms
+spec: keyed draft 2.496 ms, 2 drafts
+spec: token 106 pos 4196 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 18.245 ms, accept 1.141 ms
+spec: keyed draft 2.549 ms, 2 drafts
+spec: token 109 pos 4199 drafted 2 accepted 0 emits 1 drafts [40423, 668]
+spec: keyed verify 3 rows (logits) 17.678 ms, accept 0.518 ms
+spec: keyed draft 2.567 ms, 2 drafts
+spec: token 110 pos 4200 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 17.764 ms, accept 0.909 ms
+spec: keyed draft 2.699 ms, 2 drafts
+spec: token 112 pos 4202 drafted 2 accepted 2 emits 3 drafts [279, 11012]
+spec: keyed verify 3 rows (logits) 17.965 ms, accept 1.092 ms
+spec: keyed draft 2.548 ms, 2 drafts
+spec: token 115 pos 4205 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.287 ms, accept 1.145 ms
+spec: keyed draft 2.546 ms, 2 drafts
+spec: token 118 pos 4208 drafted 2 accepted 0 emits 1 drafts [65326, 3043]
+spec: keyed verify 3 rows (logits) 17.919 ms, accept 0.557 ms
+spec: keyed draft 2.562 ms, 2 drafts
+spec: token 119 pos 4209 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 17.743 ms, accept 0.896 ms
+spec: keyed draft 2.679 ms, 2 drafts
+spec: token 121 pos 4211 drafted 2 accepted 0 emits 1 drafts [65326, 6297]
+spec: keyed verify 3 rows (logits) 17.412 ms, accept 0.460 ms
+spec: keyed draft 2.627 ms, 2 drafts
+spec: token 122 pos 4212 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.616 ms, accept 1.165 ms
+spec: keyed draft 2.579 ms, 2 drafts
+spec: token 125 pos 4215 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed verify 3 rows (logits) 19.070 ms, accept 1.085 ms
+spec: keyed draft 2.563 ms, 2 drafts
+spec: token 128 pos 4218 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 19.133 ms, accept 1.129 ms
+spec: keyed draft 2.775 ms, 2 drafts
+spec: token 131 pos 4221 drafted 2 accepted 0 emits 1 drafts [4368, 668]
+spec: keyed verify 3 rows (logits) 18.066 ms, accept 0.533 ms
+spec: keyed draft 2.562 ms, 2 drafts
+spec: token 132 pos 4222 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 17.917 ms, accept 0.908 ms
+spec: keyed draft 2.694 ms, 2 drafts
+spec: token 134 pos 4224 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.898 ms, accept 0.849 ms
+spec: keyed draft 2.708 ms, 2 drafts
+spec: token 136 pos 4226 drafted 2 accepted 0 emits 1 drafts [65326, 3043]
+spec: keyed verify 3 rows (logits) 17.867 ms, accept 0.504 ms
+spec: keyed draft 2.622 ms, 2 drafts
+spec: token 137 pos 4227 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 19.020 ms, accept 1.092 ms
+spec: keyed draft 2.544 ms, 2 drafts
+spec: token 140 pos 4230 drafted 2 accepted 0 emits 1 drafts [65326, 3043]
+spec: keyed verify 3 rows (logits) 18.127 ms, accept 0.489 ms
+spec: keyed draft 2.626 ms, 2 drafts
+spec: token 141 pos 4231 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 17.882 ms, accept 0.978 ms
+spec: keyed draft 2.705 ms, 2 drafts
+spec: token 143 pos 4233 drafted 2 accepted 0 emits 1 drafts [54517, 13]
+spec: keyed verify 3 rows (logits) 18.866 ms, accept 0.590 ms
+spec: keyed draft 2.561 ms, 2 drafts
+spec: token 144 pos 4234 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.727 ms, accept 1.239 ms
+spec: keyed draft 2.560 ms, 2 drafts
+spec: token 147 pos 4237 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed verify 3 rows (logits) 19.361 ms, accept 1.184 ms
+spec: keyed draft 2.517 ms, 2 drafts
+spec: token 150 pos 4240 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 18.320 ms, accept 1.115 ms
+spec: keyed draft 2.579 ms, 2 drafts
+spec: token 153 pos 4243 drafted 2 accepted 0 emits 1 drafts [54517, 668]
+spec: keyed verify 3 rows (logits) 17.945 ms, accept 0.532 ms
+spec: keyed draft 2.570 ms, 2 drafts
+spec: token 154 pos 4244 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 17.970 ms, accept 0.951 ms
+spec: keyed draft 2.650 ms, 2 drafts
+spec: token 156 pos 4246 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.649 ms, accept 0.930 ms
+spec: keyed draft 2.710 ms, 2 drafts
+spec: token 158 pos 4248 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed verify 3 rows (logits) 18.140 ms, accept 0.523 ms
+spec: keyed draft 2.565 ms, 2 drafts
+spec: token 159 pos 4249 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.688 ms, accept 1.230 ms
+spec: keyed draft 2.607 ms, 2 drafts
+spec: token 162 pos 4252 drafted 2 accepted 2 emits 3 drafts [1830, 1518]
+spec: keyed verify 3 rows (logits) 18.030 ms, accept 1.174 ms
+spec: keyed draft 2.592 ms, 2 drafts
+spec: token 165 pos 4255 drafted 2 accepted 0 emits 1 drafts [90533, 13]
+spec: keyed verify 3 rows (logits) 19.388 ms, accept 0.596 ms
+spec: keyed draft 2.582 ms, 2 drafts
+spec: token 166 pos 4256 drafted 2 accepted 2 emits 3 drafts [5662, 13]
+spec: keyed verify 3 rows (logits) 19.509 ms, accept 1.250 ms
+spec: keyed draft 2.626 ms, 2 drafts
+spec: token 169 pos 4259 drafted 2 accepted 2 emits 3 drafts [220, 16]
+spec: keyed verify 3 rows (logits) 19.098 ms, accept 1.170 ms
+spec: keyed draft 2.573 ms, 2 drafts
+spec: token 172 pos 4262 drafted 2 accepted 2 emits 3 drafts [15, 25]
+spec: keyed verify 3 rows (logits) 18.591 ms, accept 1.182 ms
+spec: keyed draft 2.578 ms, 2 drafts
+spec: token 175 pos 4265 drafted 2 accepted 0 emits 1 drafts [4368, 1830]
+spec: keyed verify 3 rows (logits) 17.992 ms, accept 0.558 ms
+spec: keyed draft 2.556 ms, 2 drafts
+spec: token 176 pos 4266 drafted 2 accepted 0 emits 1 drafts [16602, 668]
+spec: keyed verify 3 rows (logits) 18.011 ms, accept 0.532 ms
+spec: keyed draft 2.588 ms, 2 drafts
+spec: token 177 pos 4267 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 17.909 ms, accept 0.930 ms
+spec: keyed draft 2.644 ms, 2 drafts
+spec: token 179 pos 4269 drafted 2 accepted 1 emits 2 drafts [279, 14527]
+spec: keyed verify 3 rows (logits) 17.912 ms, accept 0.929 ms
+spec: keyed draft 2.699 ms, 2 drafts
+spec: token 181 pos 4271 drafted 2 accepted 0 emits 1 drafts [1830, 1518]
+spec: keyed verify 3 rows (logits) 19.428 ms, accept 0.480 ms
+spec: keyed draft 3.106 ms, 2 drafts
+spec: token 182 pos 4272 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 20.255 ms, accept 1.150 ms
+spec: keyed draft 3.094 ms, 2 drafts
+spec: token 185 pos 4275 drafted 2 accepted 0 emits 1 drafts [92701, 11012]
+spec: keyed verify 3 rows (logits) 17.411 ms, accept 0.528 ms
+spec: keyed draft 2.590 ms, 2 drafts
+spec: token 186 pos 4276 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 17.539 ms, accept 0.872 ms
+spec: keyed draft 2.688 ms, 2 drafts
+spec: token 188 pos 4278 drafted 2 accepted 0 emits 1 drafts [1830, 13]
+spec: keyed verify 3 rows (logits) 18.595 ms, accept 0.484 ms
+spec: keyed draft 2.615 ms, 2 drafts
+spec: token 189 pos 4279 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.479 ms, accept 1.246 ms
+spec: keyed draft 2.559 ms, 2 drafts
+spec: token 192 pos 4282 drafted 2 accepted 2 emits 3 drafts [16, 24]
+spec: keyed verify 3 rows (logits) 18.888 ms, accept 1.142 ms
+spec: keyed draft 2.503 ms, 2 drafts
+spec: token 195 pos 4285 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 19.018 ms, accept 1.127 ms
+spec: keyed draft 2.570 ms, 2 drafts
+spec: token 198 pos 4288 drafted 2 accepted 0 emits 1 drafts [1830, 668]
+spec: keyed verify 3 rows (logits) 17.777 ms, accept 0.529 ms
+spec: keyed draft 2.582 ms, 2 drafts
+spec: token 199 pos 4289 drafted 2 accepted 2 emits 3 drafts [5662, 668]
+spec: keyed verify 3 rows (logits) 17.945 ms, accept 1.133 ms
+spec: keyed draft 2.581 ms, 2 drafts
+spec: token 202 pos 4292 drafted 2 accepted 2 emits 3 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.934 ms, accept 1.132 ms
+spec: keyed draft 2.550 ms, 2 drafts
+spec: token 205 pos 4295 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.347 ms, accept 1.124 ms
+spec: keyed draft 2.544 ms, 2 drafts
+spec: token 208 pos 4298 drafted 2 accepted 0 emits 1 drafts [4011, 1518]
+spec: keyed verify 3 rows (logits) 17.738 ms, accept 0.521 ms
+spec: keyed draft 2.553 ms, 2 drafts
+spec: token 209 pos 4299 drafted 2 accepted 1 emits 2 drafts [1518, 92701]
+spec: keyed verify 3 rows (logits) 17.950 ms, accept 0.904 ms
+spec: keyed draft 2.670 ms, 2 drafts
+spec: token 211 pos 4301 drafted 2 accepted 0 emits 1 drafts [92701, 13]
+spec: keyed verify 3 rows (logits) 18.476 ms, accept 0.507 ms
+spec: keyed draft 2.604 ms, 2 drafts
+spec: token 212 pos 4302 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.690 ms, accept 1.204 ms
+spec: keyed draft 2.569 ms, 2 drafts
+spec: token 215 pos 4305 drafted 2 accepted 2 emits 3 drafts [16, 24]
+spec: keyed verify 3 rows (logits) 17.889 ms, accept 1.151 ms
+spec: keyed draft 2.523 ms, 2 drafts
+spec: token 218 pos 4308 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 18.266 ms, accept 1.245 ms
+spec: keyed draft 2.570 ms, 2 drafts
+spec: token 221 pos 4311 drafted 2 accepted 2 emits 3 drafts [54517, 668]
+spec: keyed verify 3 rows (logits) 18.004 ms, accept 1.129 ms
+spec: keyed draft 2.563 ms, 2 drafts
+spec: token 224 pos 4314 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.993 ms, accept 0.899 ms
+spec: keyed draft 2.638 ms, 2 drafts
+spec: token 226 pos 4316 drafted 2 accepted 0 emits 1 drafts [9849, 3043]
+spec: keyed verify 3 rows (logits) 18.134 ms, accept 0.516 ms
+spec: keyed draft 2.582 ms, 2 drafts
+spec: token 227 pos 4317 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.493 ms, accept 1.151 ms
+spec: keyed draft 2.548 ms, 2 drafts
+spec: token 230 pos 4320 drafted 2 accepted 0 emits 1 drafts [5979, 1518]
+spec: keyed verify 3 rows (logits) 17.899 ms, accept 0.532 ms
+spec: keyed draft 2.589 ms, 2 drafts
+spec: token 231 pos 4321 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 17.989 ms, accept 0.906 ms
+spec: keyed draft 2.655 ms, 2 drafts
+spec: token 233 pos 4323 drafted 2 accepted 2 emits 3 drafts [1830, 13]
+spec: keyed verify 3 rows (logits) 18.478 ms, accept 1.179 ms
+spec: keyed draft 3.171 ms, 2 drafts
+spec: token 236 pos 4326 drafted 2 accepted 2 emits 3 drafts [220, 16]
+spec: keyed verify 3 rows (logits) 18.970 ms, accept 1.200 ms
+spec: keyed draft 2.544 ms, 2 drafts
+spec: token 239 pos 4329 drafted 2 accepted 2 emits 3 drafts [18, 25]
+spec: keyed verify 3 rows (logits) 19.106 ms, accept 1.194 ms
+spec: keyed draft 2.775 ms, 2 drafts
+spec: token 242 pos 4332 drafted 2 accepted 0 emits 1 drafts [11012, 54517]
+spec: keyed verify 3 rows (logits) 18.864 ms, accept 0.499 ms
+spec: keyed draft 2.852 ms, 2 drafts
+spec: token 243 pos 4333 drafted 2 accepted 0 emits 1 drafts [11012, 668]
+spec: keyed verify 3 rows (logits) 17.709 ms, accept 0.503 ms
+spec: keyed draft 2.613 ms, 2 drafts
+spec: token 244 pos 4334 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 18.012 ms, accept 0.876 ms
+spec: keyed draft 2.707 ms, 2 drafts
+spec: token 246 pos 4336 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.798 ms, accept 0.890 ms
+spec: keyed draft 2.690 ms, 2 drafts
+spec: token 248 pos 4338 drafted 2 accepted 0 emits 1 drafts [1830, 3043]
+spec: keyed verify 3 rows (logits) 17.824 ms, accept 0.471 ms
+spec: keyed draft 2.607 ms, 2 drafts
+spec: token 249 pos 4339 drafted 2 accepted 2 emits 3 drafts [5662, 3043]
+spec: keyed verify 3 rows (logits) 18.286 ms, accept 1.128 ms
+spec: keyed draft 2.581 ms, 2 drafts
+spec: token 252 pos 4342 drafted 2 accepted 0 emits 1 drafts [7915, 4368]
+spec: keyed verify 3 rows (logits) 17.846 ms, accept 0.488 ms
+spec: keyed draft 2.631 ms, 2 drafts
+spec: token 253 pos 4343 drafted 2 accepted 0 emits 1 drafts [65326, 1830]
+spec: keyed verify 3 rows (logits) 17.607 ms, accept 0.490 ms
+spec: keyed draft 2.606 ms, 2 drafts
+spec: token 254 pos 4344 drafted 2 accepted 1 emits 2 drafts [1518, 14527]
+spec: keyed verify 3 rows (logits) 17.921 ms, accept 0.874 ms
+spec: keyed draft 2.410 ms, 2 drafts
+spec: token 2 pos 4070 drafted 2 accepted 2 emits 3 drafts [220, 24]
+spec: keyed verify 3 rows (logits) 18.983 ms, accept 1.243 ms
+spec: keyed draft 2.512 ms, 2 drafts
+spec: token 5 pos 4073 drafted 2 accepted 2 emits 3 drafts [15, 67]
+spec: keyed verify 3 rows (logits) 18.236 ms, accept 1.249 ms
+spec: keyed draft 2.969 ms, 2 drafts
+spec: token 8 pos 4076 drafted 2 accepted 2 emits 3 drafts [442, 21]
+spec: keyed verify 3 rows (logits) 18.032 ms, accept 1.193 ms
+spec: keyed draft 2.584 ms, 2 drafts
+spec: token 11 pos 4079 drafted 2 accepted 2 emits 3 drafts [16, 18]
+spec: keyed verify 3 rows (logits) 19.322 ms, accept 1.146 ms
+spec: keyed draft 2.700 ms, 2 drafts
+spec: token 14 pos 4082 drafted 2 accepted 2 emits 3 drafts [19, 64]
+spec: keyed verify 3 rows (logits) 18.411 ms, accept 1.155 ms
+spec: keyed draft 2.492 ms, 2 drafts
+spec: token 17 pos 4085 drafted 2 accepted 2 emits 3 drafts [69, 23]
+spec: keyed verify 3 rows (logits) 18.768 ms, accept 1.149 ms
+spec: keyed draft 2.521 ms, 2 drafts
+spec: token 20 pos 4088 drafted 2 accepted 2 emits 3 drafts [68, 24]
+spec: keyed verify 3 rows (logits) 18.362 ms, accept 1.125 ms
+spec: keyed draft 2.504 ms, 2 drafts
+spec: token 23 pos 4091 drafted 2 accepted 2 emits 3 drafts [15, 22]
+spec: keyed verify 3 rows (logits) 18.710 ms, accept 1.081 ms
+spec: keyed draft 2.482 ms, 2 drafts
+spec: token 26 pos 4094 drafted 2 accepted 2 emits 3 drafts [23, 64]
+spec: keyed verify 3 rows (logits) 19.159 ms, accept 1.151 ms
+spec: keyed draft 2.523 ms, 2 drafts
+spec: token 29 pos 4097 drafted 2 accepted 2 emits 3 drafts [24, 21]
+spec: keyed verify 3 rows (logits) 18.464 ms, accept 1.200 ms
+spec: keyed draft 2.467 ms, 2 drafts
+spec: token 32 pos 4100 drafted 2 accepted 2 emits 3 drafts [17, 66]
+spec: keyed verify 3 rows (logits) 19.595 ms, accept 1.235 ms
+spec: keyed draft 2.962 ms, 2 drafts
+spec: token 35 pos 4103 drafted 2 accepted 2 emits 3 drafts [220, 16]
+spec: keyed verify 3 rows (logits) 17.829 ms, accept 1.168 ms
+spec: keyed draft 2.516 ms, 2 drafts
+spec: token 38 pos 4106 drafted 2 accepted 2 emits 3 drafts [19, 25]
+spec: keyed verify 3 rows (logits) 17.962 ms, accept 1.163 ms
+spec: keyed draft 2.557 ms, 2 drafts
+spec: token 41 pos 4109 drafted 2 accepted 0 emits 1 drafts [13437, 668]
+spec: keyed verify 3 rows (logits) 17.935 ms, accept 0.596 ms
+spec: keyed draft 2.533 ms, 2 drafts
+spec: token 42 pos 4110 drafted 2 accepted 0 emits 1 drafts [65326, 668]
+spec: keyed verify 3 rows (logits) 17.633 ms, accept 0.538 ms
+spec: keyed draft 2.591 ms, 2 drafts
+spec: token 43 pos 4111 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 17.438 ms, accept 0.916 ms
+spec: keyed draft 2.656 ms, 2 drafts
+spec: token 45 pos 4113 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.552 ms, accept 0.884 ms
+spec: keyed draft 2.713 ms, 2 drafts
+spec: token 47 pos 4115 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed verify 3 rows (logits) 17.776 ms, accept 0.505 ms
+spec: keyed draft 2.618 ms, 2 drafts
+spec: token 48 pos 4116 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.037 ms, accept 1.129 ms
+spec: keyed draft 2.535 ms, 2 drafts
+spec: token 51 pos 4119 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed verify 3 rows (logits) 18.555 ms, accept 0.512 ms
+spec: keyed draft 2.610 ms, 2 drafts
+spec: token 52 pos 4120 drafted 2 accepted 1 emits 2 drafts [1518, 27786]
+spec: keyed verify 3 rows (logits) 18.399 ms, accept 0.895 ms
+spec: keyed draft 2.671 ms, 2 drafts
+spec: token 54 pos 4122 drafted 2 accepted 0 emits 1 drafts [54517, 13]
+spec: keyed verify 3 rows (logits) 18.534 ms, accept 0.504 ms
+spec: keyed draft 2.606 ms, 2 drafts
+spec: token 55 pos 4123 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.676 ms, accept 1.202 ms
+spec: keyed draft 2.552 ms, 2 drafts
+spec: token 58 pos 4126 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed verify 3 rows (logits) 18.252 ms, accept 1.128 ms
+spec: keyed draft 2.507 ms, 2 drafts
+spec: token 61 pos 4129 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 18.652 ms, accept 1.132 ms
+spec: keyed draft 2.942 ms, 2 drafts
+spec: token 64 pos 4132 drafted 2 accepted 0 emits 1 drafts [1830, 668]
+spec: keyed verify 3 rows (logits) 20.681 ms, accept 0.533 ms
+spec: keyed draft 2.682 ms, 2 drafts
+spec: token 65 pos 4133 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 18.500 ms, accept 0.936 ms
+spec: keyed draft 2.659 ms, 2 drafts
+spec: token 67 pos 4135 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.661 ms, accept 0.900 ms
+spec: keyed draft 2.686 ms, 2 drafts
+spec: token 69 pos 4137 drafted 2 accepted 0 emits 1 drafts [92701, 6000]
+spec: keyed verify 3 rows (logits) 17.220 ms, accept 0.531 ms
+spec: keyed draft 2.608 ms, 2 drafts
+spec: token 70 pos 4138 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.078 ms, accept 1.165 ms
+spec: keyed draft 2.552 ms, 2 drafts
+spec: token 73 pos 4141 drafted 2 accepted 0 emits 1 drafts [5979, 1518]
+spec: keyed verify 3 rows (logits) 17.655 ms, accept 0.513 ms
+spec: keyed draft 2.581 ms, 2 drafts
+spec: token 74 pos 4142 drafted 2 accepted 1 emits 2 drafts [1518, 27786]
+spec: keyed verify 3 rows (logits) 17.565 ms, accept 0.873 ms
+spec: keyed draft 2.676 ms, 2 drafts
+spec: token 76 pos 4144 drafted 2 accepted 0 emits 1 drafts [70676, 13]
+spec: keyed verify 3 rows (logits) 18.386 ms, accept 0.468 ms
+spec: keyed draft 2.635 ms, 2 drafts
+spec: token 77 pos 4145 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.607 ms, accept 1.190 ms
+spec: keyed draft 2.564 ms, 2 drafts
+spec: token 80 pos 4148 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed verify 3 rows (logits) 19.030 ms, accept 1.219 ms
+spec: keyed draft 2.505 ms, 2 drafts
+spec: token 83 pos 4151 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 18.103 ms, accept 1.143 ms
+spec: keyed draft 2.561 ms, 2 drafts
+spec: token 86 pos 4154 drafted 2 accepted 0 emits 1 drafts [39926, 668]
+spec: keyed verify 3 rows (logits) 17.704 ms, accept 0.539 ms
+spec: keyed draft 2.550 ms, 2 drafts
+spec: token 87 pos 4155 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 18.241 ms, accept 0.894 ms
+spec: keyed draft 2.848 ms, 2 drafts
+spec: token 89 pos 4157 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.660 ms, accept 0.859 ms
+spec: keyed draft 2.692 ms, 2 drafts
+spec: token 91 pos 4159 drafted 2 accepted 0 emits 1 drafts [22270, 3043]
+spec: keyed verify 3 rows (logits) 17.773 ms, accept 0.496 ms
+spec: keyed draft 2.624 ms, 2 drafts
+spec: token 92 pos 4160 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 19.061 ms, accept 1.167 ms
+spec: keyed draft 2.563 ms, 2 drafts
+spec: token 95 pos 4163 drafted 2 accepted 0 emits 1 drafts [70676, 1518]
+spec: keyed verify 3 rows (logits) 17.585 ms, accept 0.475 ms
+spec: keyed draft 2.621 ms, 2 drafts
+spec: token 96 pos 4164 drafted 2 accepted 1 emits 2 drafts [1518, 27786]
+spec: keyed verify 3 rows (logits) 17.654 ms, accept 0.838 ms
+spec: keyed draft 2.683 ms, 2 drafts
+spec: token 98 pos 4166 drafted 2 accepted 0 emits 1 drafts [70676, 13]
+spec: keyed verify 3 rows (logits) 18.335 ms, accept 0.531 ms
+spec: keyed draft 2.633 ms, 2 drafts
+spec: token 99 pos 4167 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.579 ms, accept 1.165 ms
+spec: keyed draft 2.556 ms, 2 drafts
+spec: token 102 pos 4170 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed verify 3 rows (logits) 19.159 ms, accept 1.075 ms
+spec: keyed draft 2.512 ms, 2 drafts
+spec: token 105 pos 4173 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 18.155 ms, accept 1.073 ms
+spec: keyed draft 2.564 ms, 2 drafts
+spec: token 108 pos 4176 drafted 2 accepted 2 emits 3 drafts [45366, 668]
+spec: keyed verify 3 rows (logits) 18.313 ms, accept 1.109 ms
+spec: keyed draft 2.531 ms, 2 drafts
+spec: token 111 pos 4179 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.509 ms, accept 0.923 ms
+spec: keyed draft 2.667 ms, 2 drafts
+spec: token 113 pos 4181 drafted 2 accepted 0 emits 1 drafts [1830, 3043]
+spec: keyed verify 3 rows (logits) 17.915 ms, accept 0.510 ms
+spec: keyed draft 2.601 ms, 2 drafts
+spec: token 114 pos 4182 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.165 ms, accept 1.171 ms
+spec: keyed draft 2.544 ms, 2 drafts
+spec: token 117 pos 4185 drafted 2 accepted 0 emits 1 drafts [22270, 1518]
+spec: keyed verify 3 rows (logits) 17.719 ms, accept 0.502 ms
+spec: keyed draft 2.583 ms, 2 drafts
+spec: token 118 pos 4186 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 17.608 ms, accept 0.937 ms
+spec: keyed draft 2.626 ms, 2 drafts
+spec: token 120 pos 4188 drafted 2 accepted 0 emits 1 drafts [16602, 13]
+spec: keyed verify 3 rows (logits) 18.389 ms, accept 0.517 ms
+spec: keyed draft 2.612 ms, 2 drafts
+spec: token 121 pos 4189 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.567 ms, accept 1.219 ms
+spec: keyed draft 2.567 ms, 2 drafts
+spec: token 124 pos 4192 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed verify 3 rows (logits) 18.643 ms, accept 1.127 ms
+spec: keyed draft 2.521 ms, 2 drafts
+spec: token 127 pos 4195 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 18.289 ms, accept 1.070 ms
+spec: keyed draft 2.569 ms, 2 drafts
+spec: token 130 pos 4198 drafted 2 accepted 0 emits 1 drafts [16602, 668]
+spec: keyed verify 3 rows (logits) 17.624 ms, accept 0.550 ms
+spec: keyed draft 2.571 ms, 2 drafts
+spec: token 131 pos 4199 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 17.693 ms, accept 0.862 ms
+spec: keyed draft 2.689 ms, 2 drafts
+spec: token 133 pos 4201 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.682 ms, accept 0.894 ms
+spec: keyed draft 2.701 ms, 2 drafts
+spec: token 135 pos 4203 drafted 2 accepted 0 emits 1 drafts [22270, 3043]
+spec: keyed verify 3 rows (logits) 17.973 ms, accept 0.543 ms
+spec: keyed draft 2.609 ms, 2 drafts
+spec: token 136 pos 4204 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.221 ms, accept 1.072 ms
+spec: keyed draft 2.544 ms, 2 drafts
+spec: token 139 pos 4207 drafted 2 accepted 0 emits 1 drafts [9705, 1518]
+spec: keyed verify 3 rows (logits) 17.672 ms, accept 0.514 ms
+spec: keyed draft 2.584 ms, 2 drafts
+spec: token 140 pos 4208 drafted 2 accepted 1 emits 2 drafts [1518, 70676]
+spec: keyed verify 3 rows (logits) 18.501 ms, accept 0.927 ms
+spec: keyed draft 2.710 ms, 2 drafts
+spec: token 142 pos 4210 drafted 2 accepted 2 emits 3 drafts [552, 70676]
+spec: keyed verify 3 rows (logits) 17.479 ms, accept 1.145 ms
+spec: keyed draft 2.588 ms, 2 drafts
+spec: token 145 pos 4213 drafted 2 accepted 2 emits 3 drafts [6817, 220]
+spec: keyed verify 3 rows (logits) 19.624 ms, accept 1.138 ms
+spec: keyed draft 2.572 ms, 2 drafts
+spec: token 148 pos 4216 drafted 2 accepted 2 emits 3 drafts [23, 24]
+spec: keyed verify 3 rows (logits) 19.373 ms, accept 1.163 ms
+spec: keyed draft 2.543 ms, 2 drafts
+spec: token 151 pos 4219 drafted 2 accepted 2 emits 3 drafts [279, 92701]
+spec: keyed verify 3 rows (logits) 18.213 ms, accept 1.048 ms
+spec: keyed draft 2.549 ms, 2 drafts
+spec: token 154 pos 4222 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 17.721 ms, accept 0.942 ms
+spec: keyed draft 2.516 ms, 2 drafts
+spec: token 156 pos 4224 drafted 2 accepted 1 emits 2 drafts [279, 11012]
+spec: keyed verify 3 rows (logits) 17.720 ms, accept 0.903 ms
+spec: keyed draft 2.682 ms, 2 drafts
+spec: token 158 pos 4226 drafted 2 accepted 2 emits 3 drafts [4471, 3043]
+spec: keyed verify 3 rows (logits) 18.361 ms, accept 1.180 ms
+spec: keyed draft 2.585 ms, 2 drafts
+spec: token 161 pos 4229 drafted 2 accepted 0 emits 1 drafts [8028, 11012]
+spec: keyed verify 3 rows (logits) 17.836 ms, accept 0.554 ms
+spec: keyed draft 2.578 ms, 2 drafts
+spec: token 162 pos 4230 drafted 2 accepted 2 emits 3 drafts [11012, 1518]
+spec: keyed verify 3 rows (logits) 17.777 ms, accept 1.151 ms
+spec: keyed draft 2.533 ms, 2 drafts
+spec: token 165 pos 4233 drafted 2 accepted 2 emits 3 drafts [5979, 13]
+spec: keyed verify 3 rows (logits) 18.414 ms, accept 1.167 ms
+spec: keyed draft 2.570 ms, 2 drafts
+spec: token 168 pos 4236 drafted 2 accepted 2 emits 3 drafts [220, 16]
+spec: keyed verify 3 rows (logits) 18.685 ms, accept 1.093 ms
+spec: keyed draft 2.557 ms, 2 drafts
+spec: token 171 pos 4239 drafted 2 accepted 2 emits 3 drafts [15, 25]
+spec: keyed verify 3 rows (logits) 18.483 ms, accept 1.088 ms
+spec: keyed draft 2.565 ms, 2 drafts
+spec: token 174 pos 4242 drafted 2 accepted 0 emits 1 drafts [7335, 668]
+spec: keyed verify 3 rows (logits) 18.623 ms, accept 0.509 ms
+spec: keyed draft 2.971 ms, 2 drafts
+spec: token 175 pos 4243 drafted 2 accepted 0 emits 1 drafts [1830, 668]
+spec: keyed verify 3 rows (logits) 17.915 ms, accept 0.518 ms
+spec: keyed draft 2.576 ms, 2 drafts
+spec: token 176 pos 4244 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 17.840 ms, accept 0.923 ms
+spec: keyed draft 2.674 ms, 2 drafts
+spec: token 178 pos 4246 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 18.224 ms, accept 0.839 ms
+spec: keyed draft 2.824 ms, 2 drafts
+spec: token 180 pos 4248 drafted 2 accepted 0 emits 1 drafts [70676, 3043]
+spec: keyed verify 3 rows (logits) 17.778 ms, accept 0.494 ms
+spec: keyed draft 2.628 ms, 2 drafts
+spec: token 181 pos 4249 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.361 ms, accept 1.137 ms
+spec: keyed draft 2.570 ms, 2 drafts
+spec: token 184 pos 4252 drafted 2 accepted 0 emits 1 drafts [9705, 1518]
+spec: keyed verify 3 rows (logits) 17.833 ms, accept 0.486 ms
+spec: keyed draft 2.606 ms, 2 drafts
+spec: token 185 pos 4253 drafted 2 accepted 1 emits 2 drafts [1518, 27786]
+spec: keyed verify 3 rows (logits) 17.605 ms, accept 0.869 ms
+spec: keyed draft 2.683 ms, 2 drafts
+spec: token 187 pos 4255 drafted 2 accepted 0 emits 1 drafts [70676, 13]
+spec: keyed verify 3 rows (logits) 18.593 ms, accept 0.524 ms
+spec: keyed draft 2.628 ms, 2 drafts
+spec: token 188 pos 4256 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.638 ms, accept 1.246 ms
+spec: keyed draft 2.559 ms, 2 drafts
+spec: token 191 pos 4259 drafted 2 accepted 2 emits 3 drafts [16, 24]
+spec: keyed verify 3 rows (logits) 18.577 ms, accept 1.123 ms
+spec: keyed draft 2.509 ms, 2 drafts
+spec: token 194 pos 4262 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 18.373 ms, accept 1.154 ms
+spec: keyed draft 2.557 ms, 2 drafts
+spec: token 197 pos 4265 drafted 2 accepted 0 emits 1 drafts [54517, 668]
+spec: keyed verify 3 rows (logits) 17.831 ms, accept 0.518 ms
+spec: keyed draft 2.552 ms, 2 drafts
+spec: token 198 pos 4266 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 17.729 ms, accept 0.891 ms
+spec: keyed draft 2.670 ms, 2 drafts
+spec: token 200 pos 4268 drafted 2 accepted 2 emits 3 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.775 ms, accept 1.154 ms
+spec: keyed draft 2.548 ms, 2 drafts
+spec: token 203 pos 4271 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.393 ms, accept 1.182 ms
+spec: keyed draft 2.557 ms, 2 drafts
+spec: token 206 pos 4274 drafted 2 accepted 0 emits 1 drafts [4471, 3043]
+spec: keyed verify 3 rows (logits) 17.869 ms, accept 0.557 ms
+spec: keyed draft 2.586 ms, 2 drafts
+spec: token 207 pos 4275 drafted 2 accepted 1 emits 2 drafts [1518, 27786]
+spec: keyed verify 3 rows (logits) 18.245 ms, accept 0.839 ms
+spec: keyed draft 2.674 ms, 2 drafts
+spec: token 209 pos 4277 drafted 2 accepted 0 emits 1 drafts [9705, 13]
+spec: keyed verify 3 rows (logits) 18.231 ms, accept 0.520 ms
+spec: keyed draft 2.613 ms, 2 drafts
+spec: token 210 pos 4278 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.573 ms, accept 1.223 ms
+spec: keyed draft 2.579 ms, 2 drafts
+spec: token 213 pos 4281 drafted 2 accepted 2 emits 3 drafts [16, 24]
+spec: keyed verify 3 rows (logits) 18.958 ms, accept 1.164 ms
+spec: keyed draft 2.522 ms, 2 drafts
+spec: token 216 pos 4284 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 18.296 ms, accept 1.106 ms
+spec: keyed draft 2.553 ms, 2 drafts
+spec: token 219 pos 4287 drafted 2 accepted 0 emits 1 drafts [11012, 668]
+spec: keyed verify 3 rows (logits) 17.571 ms, accept 0.526 ms
+spec: keyed draft 2.595 ms, 2 drafts
+spec: token 220 pos 4288 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 17.901 ms, accept 0.895 ms
+spec: keyed draft 2.680 ms, 2 drafts
+spec: token 222 pos 4290 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.876 ms, accept 0.868 ms
+spec: keyed draft 2.729 ms, 2 drafts
+spec: token 224 pos 4292 drafted 2 accepted 0 emits 1 drafts [11012, 54517]
+spec: keyed verify 3 rows (logits) 17.381 ms, accept 0.512 ms
+spec: keyed draft 2.592 ms, 2 drafts
+spec: token 225 pos 4293 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.569 ms, accept 1.169 ms
+spec: keyed draft 2.550 ms, 2 drafts
+spec: token 228 pos 4296 drafted 2 accepted 2 emits 3 drafts [4368, 1518]
+spec: keyed verify 3 rows (logits) 17.788 ms, accept 1.117 ms
+spec: keyed draft 2.544 ms, 2 drafts
+spec: token 231 pos 4299 drafted 2 accepted 0 emits 1 drafts [54517, 13]
+spec: keyed verify 3 rows (logits) 18.434 ms, accept 0.546 ms
+spec: keyed draft 2.600 ms, 2 drafts
+spec: token 232 pos 4300 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 18.545 ms, accept 1.203 ms
+spec: keyed draft 2.555 ms, 2 drafts
+spec: token 235 pos 4303 drafted 2 accepted 2 emits 3 drafts [16, 24]
+spec: keyed verify 3 rows (logits) 18.894 ms, accept 1.085 ms
+spec: keyed draft 2.520 ms, 2 drafts
+spec: token 238 pos 4306 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 19.167 ms, accept 1.123 ms
+spec: keyed draft 2.569 ms, 2 drafts
+spec: token 241 pos 4309 drafted 2 accepted 0 emits 1 drafts [5979, 668]
+spec: keyed verify 3 rows (logits) 17.718 ms, accept 0.531 ms
+spec: keyed draft 2.568 ms, 2 drafts
+spec: token 242 pos 4310 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 17.690 ms, accept 0.850 ms
+spec: keyed draft 2.690 ms, 2 drafts
+spec: token 244 pos 4312 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 17.642 ms, accept 0.881 ms
+spec: keyed draft 2.685 ms, 2 drafts
+spec: token 246 pos 4314 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed verify 3 rows (logits) 17.944 ms, accept 0.502 ms
+spec: keyed draft 2.611 ms, 2 drafts
+spec: token 247 pos 4315 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 18.247 ms, accept 1.118 ms
+spec: keyed draft 2.565 ms, 2 drafts
+spec: token 250 pos 4318 drafted 2 accepted 1 emits 2 drafts [13437, 54517]
+spec: keyed verify 3 rows (logits) 17.390 ms, accept 0.925 ms
+spec: keyed draft 2.667 ms, 2 drafts
+spec: token 252 pos 4320 drafted 2 accepted 2 emits 3 drafts [8028, 18612]
+spec: keyed verify 3 rows (logits) 17.897 ms, accept 1.158 ms
+spec: keyed draft 1.396 ms, 1 drafts
+spec: token 255 pos 4323 drafted 1 accepted 1 emits 2 drafts [6817]
+spec: keyed verify 2 rows (logits) 16.708 ms, accept 0.767 ms
+spec: keyed draft 3.533 ms, 2 drafts
+spec: token 2 pos 68929 drafted 2 accepted 1 emits 2 drafts [220, 21]
+spec: keyed verify 3 rows (logits) 23.669 ms, accept 1.028 ms
+spec: keyed draft 3.760 ms, 2 drafts
+spec: token 4 pos 68931 drafted 2 accepted 2 emits 3 drafts [24, 21]
+spec: keyed verify 3 rows (logits) 22.511 ms, accept 1.188 ms
+spec: keyed draft 3.615 ms, 2 drafts
+spec: token 7 pos 68934 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 24.708 ms, accept 1.203 ms
+spec: keyed draft 3.679 ms, 2 drafts
+spec: token 10 pos 68937 drafted 2 accepted 0 emits 1 drafts [92701, 668]
+spec: keyed verify 3 rows (logits) 24.396 ms, accept 0.612 ms
+spec: keyed draft 3.578 ms, 2 drafts
+spec: token 11 pos 68938 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 24.907 ms, accept 0.942 ms
+spec: keyed draft 4.008 ms, 2 drafts
+spec: token 13 pos 68940 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.741 ms, accept 0.888 ms
+spec: keyed draft 3.805 ms, 2 drafts
+spec: token 15 pos 68942 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed verify 3 rows (logits) 24.288 ms, accept 0.480 ms
+spec: keyed draft 3.706 ms, 2 drafts
+spec: token 16 pos 68943 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 23.997 ms, accept 1.181 ms
+spec: keyed draft 3.671 ms, 2 drafts
+spec: token 19 pos 68946 drafted 2 accepted 2 emits 3 drafts [45366, 1518]
+spec: keyed verify 3 rows (logits) 23.412 ms, accept 1.134 ms
+spec: keyed draft 3.639 ms, 2 drafts
+spec: token 22 pos 68949 drafted 2 accepted 2 emits 3 drafts [4368, 13]
+spec: keyed verify 3 rows (logits) 24.324 ms, accept 1.202 ms
+spec: keyed draft 3.670 ms, 2 drafts
+spec: token 25 pos 68952 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: keyed verify 3 rows (logits) 24.571 ms, accept 1.162 ms
+spec: keyed draft 3.620 ms, 2 drafts
+spec: token 28 pos 68955 drafted 2 accepted 2 emits 3 drafts [22, 15]
+spec: keyed verify 3 rows (logits) 23.437 ms, accept 1.189 ms
+spec: keyed draft 4.082 ms, 2 drafts
+spec: token 31 pos 68958 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 24.305 ms, accept 0.985 ms
+spec: keyed draft 3.774 ms, 2 drafts
+spec: token 33 pos 68960 drafted 2 accepted 0 emits 1 drafts [22270, 668]
+spec: keyed verify 3 rows (logits) 24.191 ms, accept 0.495 ms
+spec: keyed draft 3.705 ms, 2 drafts
+spec: token 34 pos 68961 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 23.403 ms, accept 0.894 ms
+spec: keyed draft 3.917 ms, 2 drafts
+spec: token 36 pos 68963 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 27.232 ms, accept 0.902 ms
+spec: keyed draft 3.834 ms, 2 drafts
+spec: token 38 pos 68965 drafted 2 accepted 0 emits 1 drafts [4368, 3043]
+spec: keyed verify 3 rows (logits) 23.563 ms, accept 0.474 ms
+spec: keyed draft 3.691 ms, 2 drafts
+spec: token 39 pos 68966 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 23.861 ms, accept 1.219 ms
+spec: keyed draft 3.672 ms, 2 drafts
+spec: token 42 pos 68969 drafted 2 accepted 0 emits 1 drafts [4368, 1518]
+spec: keyed verify 3 rows (logits) 23.354 ms, accept 0.535 ms
+spec: keyed draft 3.664 ms, 2 drafts
+spec: token 43 pos 68970 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 24.284 ms, accept 0.885 ms
+spec: keyed draft 3.820 ms, 2 drafts
+spec: token 45 pos 68972 drafted 2 accepted 0 emits 1 drafts [9705, 13]
+spec: keyed verify 3 rows (logits) 24.116 ms, accept 0.508 ms
+spec: keyed draft 3.731 ms, 2 drafts
+spec: token 46 pos 68973 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 24.684 ms, accept 1.336 ms
+spec: keyed draft 3.659 ms, 2 drafts
+spec: token 49 pos 68976 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed verify 3 rows (logits) 24.444 ms, accept 1.073 ms
+spec: keyed draft 3.595 ms, 2 drafts
+spec: token 52 pos 68979 drafted 2 accepted 2 emits 3 drafts [16, 25]
+spec: keyed verify 3 rows (logits) 23.997 ms, accept 1.217 ms
+spec: keyed draft 3.685 ms, 2 drafts
+spec: token 55 pos 68982 drafted 2 accepted 0 emits 1 drafts [21030, 22979]
+spec: keyed verify 3 rows (logits) 23.807 ms, accept 0.515 ms
+spec: keyed draft 3.670 ms, 2 drafts
+spec: token 56 pos 68983 drafted 2 accepted 2 emits 3 drafts [4368, 668]
+spec: keyed verify 3 rows (logits) 23.362 ms, accept 1.172 ms
+spec: keyed draft 3.670 ms, 2 drafts
+spec: token 59 pos 68986 drafted 2 accepted 1 emits 2 drafts [279, 7915]
+spec: keyed verify 3 rows (logits) 24.179 ms, accept 0.904 ms
+spec: keyed draft 3.770 ms, 2 drafts
+spec: token 61 pos 68988 drafted 2 accepted 0 emits 1 drafts [9705, 3043]
+spec: keyed verify 3 rows (logits) 23.620 ms, accept 0.509 ms
+spec: keyed draft 3.701 ms, 2 drafts
+spec: token 62 pos 68989 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 23.790 ms, accept 1.210 ms
+spec: keyed draft 3.650 ms, 2 drafts
+spec: token 65 pos 68992 drafted 2 accepted 0 emits 1 drafts [9705, 1518]
+spec: keyed verify 3 rows (logits) 24.147 ms, accept 0.512 ms
+spec: keyed draft 3.704 ms, 2 drafts
+spec: token 66 pos 68993 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 23.862 ms, accept 0.925 ms
+spec: keyed draft 3.788 ms, 2 drafts
+spec: token 68 pos 68995 drafted 2 accepted 0 emits 1 drafts [70676, 13]
+spec: keyed verify 3 rows (logits) 24.929 ms, accept 0.476 ms
+spec: keyed draft 3.706 ms, 2 drafts
+spec: token 69 pos 68996 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 24.235 ms, accept 1.208 ms
+spec: keyed draft 3.670 ms, 2 drafts
+spec: token 72 pos 68999 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed verify 3 rows (logits) 24.571 ms, accept 1.115 ms
+spec: keyed draft 3.594 ms, 2 drafts
+spec: token 75 pos 69002 drafted 2 accepted 2 emits 3 drafts [17, 25]
+spec: keyed verify 3 rows (logits) 24.673 ms, accept 1.154 ms
+spec: keyed draft 3.797 ms, 2 drafts
+spec: token 78 pos 69005 drafted 2 accepted 1 emits 2 drafts [18612, 6805]
+spec: keyed verify 3 rows (logits) 23.629 ms, accept 0.931 ms
+spec: keyed draft 3.810 ms, 2 drafts
+spec: token 80 pos 69007 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 23.622 ms, accept 0.915 ms
+spec: keyed draft 4.237 ms, 2 drafts
+spec: token 82 pos 69009 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 24.650 ms, accept 0.889 ms
+spec: keyed draft 3.797 ms, 2 drafts
+spec: token 84 pos 69011 drafted 2 accepted 2 emits 3 drafts [54517, 3043]
+spec: keyed verify 3 rows (logits) 23.482 ms, accept 1.151 ms
+spec: keyed draft 4.061 ms, 2 drafts
+spec: token 87 pos 69014 drafted 2 accepted 0 emits 1 drafts [13437, 5979]
+spec: keyed verify 3 rows (logits) 24.529 ms, accept 0.562 ms
+spec: keyed draft 3.687 ms, 2 drafts
+spec: token 88 pos 69015 drafted 2 accepted 1 emits 2 drafts [5662, 70676]
+spec: keyed verify 3 rows (logits) 22.963 ms, accept 0.806 ms
+spec: keyed draft 3.803 ms, 2 drafts
+spec: token 90 pos 69017 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 23.535 ms, accept 0.840 ms
+spec: keyed draft 3.811 ms, 2 drafts
+spec: token 92 pos 69019 drafted 2 accepted 0 emits 1 drafts [7915, 13]
+spec: keyed verify 3 rows (logits) 25.015 ms, accept 0.492 ms
+spec: keyed draft 3.740 ms, 2 drafts
+spec: token 93 pos 69020 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 24.388 ms, accept 1.208 ms
+spec: keyed draft 3.980 ms, 2 drafts
+spec: token 96 pos 69023 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed verify 3 rows (logits) 24.859 ms, accept 1.116 ms
+spec: keyed draft 3.608 ms, 2 drafts
+spec: token 99 pos 69026 drafted 2 accepted 2 emits 3 drafts [18, 25]
+spec: keyed verify 3 rows (logits) 24.560 ms, accept 1.107 ms
+spec: keyed draft 3.670 ms, 2 drafts
+spec: token 102 pos 69029 drafted 2 accepted 1 emits 2 drafts [13437, 668]
+spec: keyed verify 3 rows (logits) 24.231 ms, accept 0.922 ms
+spec: keyed draft 3.787 ms, 2 drafts
+spec: token 104 pos 69031 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 23.637 ms, accept 0.927 ms
+spec: keyed draft 3.794 ms, 2 drafts
+spec: token 106 pos 69033 drafted 2 accepted 1 emits 2 drafts [279, 11012]
+spec: keyed verify 3 rows (logits) 23.486 ms, accept 0.947 ms
+spec: keyed draft 3.788 ms, 2 drafts
+spec: token 108 pos 69035 drafted 2 accepted 0 emits 1 drafts [70676, 3043]
+spec: keyed verify 3 rows (logits) 23.731 ms, accept 0.497 ms
+spec: keyed draft 3.729 ms, 2 drafts
+spec: token 109 pos 69036 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 23.894 ms, accept 1.114 ms
+spec: keyed draft 3.656 ms, 2 drafts
+spec: token 112 pos 69039 drafted 2 accepted 0 emits 1 drafts [70676, 1518]
+spec: keyed verify 3 rows (logits) 23.510 ms, accept 0.523 ms
+spec: keyed draft 3.728 ms, 2 drafts
+spec: token 113 pos 69040 drafted 2 accepted 2 emits 3 drafts [552, 1518]
+spec: keyed verify 3 rows (logits) 23.977 ms, accept 1.171 ms
+spec: keyed draft 3.656 ms, 2 drafts
+spec: token 116 pos 69043 drafted 2 accepted 0 emits 1 drafts [5979, 13]
+spec: keyed verify 3 rows (logits) 24.103 ms, accept 0.498 ms
+spec: keyed draft 3.736 ms, 2 drafts
+spec: token 117 pos 69044 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 24.392 ms, accept 1.241 ms
+spec: keyed draft 3.695 ms, 2 drafts
+spec: token 120 pos 69047 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed verify 3 rows (logits) 24.532 ms, accept 1.135 ms
+spec: keyed draft 3.607 ms, 2 drafts
+spec: token 123 pos 69050 drafted 2 accepted 2 emits 3 drafts [19, 25]
+spec: keyed verify 3 rows (logits) 24.945 ms, accept 1.141 ms
+spec: keyed draft 3.672 ms, 2 drafts
+spec: token 126 pos 69053 drafted 2 accepted 0 emits 1 drafts [14590, 4368]
+spec: keyed verify 3 rows (logits) 23.652 ms, accept 0.549 ms
+spec: keyed draft 3.671 ms, 2 drafts
+spec: token 127 pos 69054 drafted 2 accepted 0 emits 1 drafts [9705, 668]
+spec: keyed verify 3 rows (logits) 23.415 ms, accept 0.461 ms
+spec: keyed draft 3.739 ms, 2 drafts
+spec: token 128 pos 69055 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 23.464 ms, accept 0.942 ms
+spec: keyed draft 3.802 ms, 2 drafts
+spec: token 130 pos 69057 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.287 ms, accept 0.907 ms
+spec: keyed draft 3.819 ms, 2 drafts
+spec: token 132 pos 69059 drafted 2 accepted 0 emits 1 drafts [9705, 3043]
+spec: keyed verify 3 rows (logits) 23.843 ms, accept 0.501 ms
+spec: keyed draft 3.705 ms, 2 drafts
+spec: token 133 pos 69060 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 23.930 ms, accept 1.137 ms
+spec: keyed draft 3.651 ms, 2 drafts
+spec: token 136 pos 69063 drafted 2 accepted 0 emits 1 drafts [5979, 1518]
+spec: keyed verify 3 rows (logits) 23.349 ms, accept 0.497 ms
+spec: keyed draft 3.693 ms, 2 drafts
+spec: token 137 pos 69064 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 23.264 ms, accept 0.912 ms
+spec: keyed draft 3.765 ms, 2 drafts
+spec: token 139 pos 69066 drafted 2 accepted 1 emits 2 drafts [435, 5979]
+spec: keyed verify 3 rows (logits) 23.309 ms, accept 0.884 ms
+spec: keyed draft 3.823 ms, 2 drafts
+spec: token 141 pos 69068 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 24.265 ms, accept 1.222 ms
+spec: keyed draft 3.673 ms, 2 drafts
+spec: token 144 pos 69071 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed verify 3 rows (logits) 24.330 ms, accept 1.079 ms
+spec: keyed draft 3.626 ms, 2 drafts
+spec: token 147 pos 69074 drafted 2 accepted 2 emits 3 drafts [20, 25]
+spec: keyed verify 3 rows (logits) 24.408 ms, accept 1.139 ms
+spec: keyed draft 3.659 ms, 2 drafts
+spec: token 150 pos 69077 drafted 2 accepted 1 emits 2 drafts [14590, 6805]
+spec: keyed verify 3 rows (logits) 23.725 ms, accept 0.890 ms
+spec: keyed draft 3.781 ms, 2 drafts
+spec: token 152 pos 69079 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 23.580 ms, accept 0.868 ms
+spec: keyed draft 3.820 ms, 2 drafts
+spec: token 154 pos 69081 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 24.316 ms, accept 0.913 ms
+spec: keyed draft 3.779 ms, 2 drafts
+spec: token 156 pos 69083 drafted 2 accepted 0 emits 1 drafts [5979, 3043]
+spec: keyed verify 3 rows (logits) 23.712 ms, accept 0.508 ms
+spec: keyed draft 3.722 ms, 2 drafts
+spec: token 157 pos 69084 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 24.015 ms, accept 1.173 ms
+spec: keyed draft 4.137 ms, 2 drafts
+spec: token 160 pos 69087 drafted 2 accepted 2 emits 3 drafts [13437, 1518]
+spec: keyed verify 3 rows (logits) 25.138 ms, accept 1.162 ms
+spec: keyed draft 3.631 ms, 2 drafts
+spec: token 163 pos 69090 drafted 2 accepted 0 emits 1 drafts [5979, 13]
+spec: keyed verify 3 rows (logits) 24.122 ms, accept 0.557 ms
+spec: keyed draft 4.050 ms, 2 drafts
+spec: token 164 pos 69091 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 25.538 ms, accept 1.190 ms
+spec: keyed draft 3.675 ms, 2 drafts
+spec: token 167 pos 69094 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed verify 3 rows (logits) 24.309 ms, accept 1.091 ms
+spec: keyed draft 3.687 ms, 2 drafts
+spec: token 170 pos 69097 drafted 2 accepted 2 emits 3 drafts [21, 25]
+spec: keyed verify 3 rows (logits) 25.188 ms, accept 1.156 ms
+spec: keyed draft 3.681 ms, 2 drafts
+spec: token 173 pos 69100 drafted 2 accepted 0 emits 1 drafts [22270, 668]
+spec: keyed verify 3 rows (logits) 24.307 ms, accept 0.516 ms
+spec: keyed draft 3.700 ms, 2 drafts
+spec: token 174 pos 69101 drafted 2 accepted 0 emits 1 drafts [22270, 668]
+spec: keyed verify 3 rows (logits) 23.480 ms, accept 0.462 ms
+spec: keyed draft 3.729 ms, 2 drafts
+spec: token 175 pos 69102 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 23.603 ms, accept 0.931 ms
+spec: keyed draft 3.824 ms, 2 drafts
+spec: token 177 pos 69104 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.331 ms, accept 0.874 ms
+spec: keyed draft 3.835 ms, 2 drafts
+spec: token 179 pos 69106 drafted 2 accepted 0 emits 1 drafts [5979, 3043]
+spec: keyed verify 3 rows (logits) 23.645 ms, accept 0.506 ms
+spec: keyed draft 3.716 ms, 2 drafts
+spec: token 180 pos 69107 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 23.896 ms, accept 1.235 ms
+spec: keyed draft 3.737 ms, 2 drafts
+spec: token 183 pos 69110 drafted 2 accepted 2 emits 3 drafts [92701, 1518]
+spec: keyed verify 3 rows (logits) 24.241 ms, accept 1.216 ms
+spec: keyed draft 3.729 ms, 2 drafts
+spec: token 186 pos 69113 drafted 2 accepted 0 emits 1 drafts [5979, 13]
+spec: keyed verify 3 rows (logits) 28.071 ms, accept 0.522 ms
+spec: keyed draft 4.185 ms, 2 drafts
+spec: token 187 pos 69114 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 24.179 ms, accept 1.160 ms
+spec: keyed draft 3.678 ms, 2 drafts
+spec: token 190 pos 69117 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed verify 3 rows (logits) 24.724 ms, accept 1.194 ms
+spec: keyed draft 3.638 ms, 2 drafts
+spec: token 193 pos 69120 drafted 2 accepted 2 emits 3 drafts [22, 25]
+spec: keyed verify 3 rows (logits) 24.353 ms, accept 1.171 ms
+spec: keyed draft 3.655 ms, 2 drafts
+spec: token 196 pos 69123 drafted 2 accepted 0 emits 1 drafts [6805, 668]
+spec: keyed verify 3 rows (logits) 24.210 ms, accept 0.575 ms
+spec: keyed draft 3.684 ms, 2 drafts
+spec: token 197 pos 69124 drafted 2 accepted 0 emits 1 drafts [1830, 668]
+spec: keyed verify 3 rows (logits) 24.003 ms, accept 0.519 ms
+spec: keyed draft 3.694 ms, 2 drafts
+spec: token 198 pos 69125 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 23.854 ms, accept 0.912 ms
+spec: keyed draft 3.794 ms, 2 drafts
+spec: token 200 pos 69127 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.369 ms, accept 0.902 ms
+spec: keyed draft 3.786 ms, 2 drafts
+spec: token 202 pos 69129 drafted 2 accepted 0 emits 1 drafts [5979, 3043]
+spec: keyed verify 3 rows (logits) 23.637 ms, accept 0.519 ms
+spec: keyed draft 3.712 ms, 2 drafts
+spec: token 203 pos 69130 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 23.896 ms, accept 1.210 ms
+spec: keyed draft 3.648 ms, 2 drafts
+spec: token 206 pos 69133 drafted 2 accepted 0 emits 1 drafts [5979, 1518]
+spec: keyed verify 3 rows (logits) 23.422 ms, accept 0.503 ms
+spec: keyed draft 3.709 ms, 2 drafts
+spec: token 207 pos 69134 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 24.127 ms, accept 0.850 ms
+spec: keyed draft 3.806 ms, 2 drafts
+spec: token 209 pos 69136 drafted 2 accepted 0 emits 1 drafts [54517, 13]
+spec: keyed verify 3 rows (logits) 24.435 ms, accept 0.481 ms
+spec: keyed draft 4.067 ms, 2 drafts
+spec: token 210 pos 69137 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 24.060 ms, accept 1.225 ms
+spec: keyed draft 3.660 ms, 2 drafts
+spec: token 213 pos 69140 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed verify 3 rows (logits) 24.585 ms, accept 1.068 ms
+spec: keyed draft 3.600 ms, 2 drafts
+spec: token 216 pos 69143 drafted 2 accepted 2 emits 3 drafts [23, 25]
+spec: keyed verify 3 rows (logits) 24.423 ms, accept 1.146 ms
+spec: keyed draft 3.673 ms, 2 drafts
+spec: token 219 pos 69146 drafted 2 accepted 0 emits 1 drafts [9705, 668]
+spec: keyed verify 3 rows (logits) 24.382 ms, accept 0.539 ms
+spec: keyed draft 3.684 ms, 2 drafts
+spec: token 220 pos 69147 drafted 2 accepted 0 emits 1 drafts [9705, 668]
+spec: keyed verify 3 rows (logits) 23.894 ms, accept 0.506 ms
+spec: keyed draft 3.666 ms, 2 drafts
+spec: token 221 pos 69148 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 24.538 ms, accept 0.900 ms
+spec: keyed draft 3.827 ms, 2 drafts
+spec: token 223 pos 69150 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.979 ms, accept 0.884 ms
+spec: keyed draft 4.502 ms, 2 drafts
+spec: token 225 pos 69152 drafted 2 accepted 0 emits 1 drafts [1830, 3043]
+spec: keyed verify 3 rows (logits) 25.064 ms, accept 0.496 ms
+spec: keyed draft 3.692 ms, 2 drafts
+spec: token 226 pos 69153 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 24.910 ms, accept 1.135 ms
+spec: keyed draft 3.657 ms, 2 drafts
+spec: token 229 pos 69156 drafted 2 accepted 0 emits 1 drafts [13437, 1518]
+spec: keyed verify 3 rows (logits) 24.129 ms, accept 0.536 ms
+spec: keyed draft 3.694 ms, 2 drafts
+spec: token 230 pos 69157 drafted 2 accepted 1 emits 2 drafts [1518, 16602]
+spec: keyed verify 3 rows (logits) 25.893 ms, accept 0.837 ms
+spec: keyed draft 3.943 ms, 2 drafts
+spec: token 232 pos 69159 drafted 2 accepted 2 emits 3 drafts [4368, 13]
+spec: keyed verify 3 rows (logits) 24.285 ms, accept 1.205 ms
+spec: keyed draft 3.699 ms, 2 drafts
+spec: token 235 pos 69162 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: keyed verify 3 rows (logits) 24.639 ms, accept 1.250 ms
+spec: keyed draft 3.614 ms, 2 drafts
+spec: token 238 pos 69165 drafted 2 accepted 2 emits 3 drafts [22, 24]
+spec: keyed verify 3 rows (logits) 25.584 ms, accept 1.157 ms
+spec: keyed draft 3.629 ms, 2 drafts
+spec: token 241 pos 69168 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 24.039 ms, accept 0.963 ms
+spec: keyed draft 4.005 ms, 2 drafts
+spec: token 243 pos 69170 drafted 2 accepted 0 emits 1 drafts [9849, 668]
+spec: keyed verify 3 rows (logits) 23.718 ms, accept 0.558 ms
+spec: keyed draft 3.677 ms, 2 drafts
+spec: token 244 pos 69171 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 23.636 ms, accept 0.873 ms
+spec: keyed draft 3.819 ms, 2 drafts
+spec: token 246 pos 69173 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.430 ms, accept 0.853 ms
+spec: keyed draft 3.808 ms, 2 drafts
+spec: token 248 pos 69175 drafted 2 accepted 2 emits 3 drafts [1830, 3043]
+spec: keyed verify 3 rows (logits) 23.651 ms, accept 1.177 ms
+spec: keyed draft 3.665 ms, 2 drafts
+spec: token 251 pos 69178 drafted 2 accepted 1 emits 2 drafts [4471, 13437]
+spec: keyed verify 3 rows (logits) 23.540 ms, accept 0.855 ms
+spec: keyed draft 3.804 ms, 2 drafts
+spec: token 253 pos 69180 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 23.517 ms, accept 0.880 ms
+spec: keyed draft 2.083 ms, 1 drafts
+spec: token 255 pos 69182 drafted 1 accepted 1 emits 2 drafts [15746]
+spec: keyed verify 2 rows (logits) 21.705 ms, accept 0.776 ms
+spec: keyed draft 3.513 ms, 2 drafts
+spec: token 2 pos 68866 drafted 2 accepted 1 emits 2 drafts [220, 18]
+spec: keyed verify 3 rows (logits) 24.219 ms, accept 1.030 ms
+spec: keyed draft 3.946 ms, 2 drafts
+spec: token 4 pos 68868 drafted 2 accepted 2 emits 3 drafts [24, 21]
+spec: keyed verify 3 rows (logits) 23.839 ms, accept 1.253 ms
+spec: keyed draft 3.592 ms, 2 drafts
+spec: token 7 pos 68871 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 23.825 ms, accept 1.215 ms
+spec: keyed draft 3.676 ms, 2 drafts
+spec: token 10 pos 68874 drafted 2 accepted 0 emits 1 drafts [4368, 668]
+spec: keyed verify 3 rows (logits) 23.209 ms, accept 0.537 ms
+spec: keyed draft 3.649 ms, 2 drafts
+spec: token 11 pos 68875 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 23.351 ms, accept 0.986 ms
+spec: keyed draft 3.776 ms, 2 drafts
+spec: token 13 pos 68877 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.209 ms, accept 0.987 ms
+spec: keyed draft 4.237 ms, 2 drafts
+spec: token 15 pos 68879 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed verify 3 rows (logits) 24.816 ms, accept 0.514 ms
+spec: keyed draft 3.663 ms, 2 drafts
+spec: token 16 pos 68880 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 23.881 ms, accept 1.214 ms
+spec: keyed draft 3.914 ms, 2 drafts
+spec: token 19 pos 68883 drafted 2 accepted 0 emits 1 drafts [54517, 1518]
+spec: keyed verify 3 rows (logits) 23.907 ms, accept 0.520 ms
+spec: keyed draft 3.692 ms, 2 drafts
+spec: token 20 pos 68884 drafted 2 accepted 1 emits 2 drafts [1518, 4368]
+spec: keyed verify 3 rows (logits) 23.189 ms, accept 0.939 ms
+spec: keyed draft 3.754 ms, 2 drafts
+spec: token 22 pos 68886 drafted 2 accepted 0 emits 1 drafts [54517, 13]
+spec: keyed verify 3 rows (logits) 24.365 ms, accept 0.514 ms
+spec: keyed draft 3.693 ms, 2 drafts
+spec: token 23 pos 68887 drafted 2 accepted 1 emits 2 drafts [13, 6817]
+spec: keyed verify 3 rows (logits) 24.283 ms, accept 0.947 ms
+spec: keyed draft 3.780 ms, 2 drafts
+spec: token 25 pos 68889 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed verify 3 rows (logits) 24.858 ms, accept 1.174 ms
+spec: keyed draft 3.673 ms, 2 drafts
+spec: token 28 pos 68892 drafted 2 accepted 1 emits 2 drafts [24, 21]
+spec: keyed verify 3 rows (logits) 24.123 ms, accept 0.897 ms
+spec: keyed draft 3.745 ms, 2 drafts
+spec: token 30 pos 68894 drafted 2 accepted 2 emits 3 drafts [15, 25]
+spec: keyed verify 3 rows (logits) 23.374 ms, accept 1.242 ms
+spec: keyed draft 3.671 ms, 2 drafts
+spec: token 33 pos 68897 drafted 2 accepted 1 emits 2 drafts [6278, 1830]
+spec: keyed verify 3 rows (logits) 23.546 ms, accept 0.941 ms
+spec: keyed draft 3.754 ms, 2 drafts
+spec: token 35 pos 68899 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 23.460 ms, accept 0.855 ms
+spec: keyed draft 3.789 ms, 2 drafts
+spec: token 37 pos 68901 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.375 ms, accept 0.910 ms
+spec: keyed draft 3.771 ms, 2 drafts
+spec: token 39 pos 68903 drafted 2 accepted 0 emits 1 drafts [5979, 3043]
+spec: keyed verify 3 rows (logits) 23.479 ms, accept 0.495 ms
+spec: keyed draft 3.702 ms, 2 drafts
+spec: token 40 pos 68904 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 23.850 ms, accept 1.262 ms
+spec: keyed draft 3.650 ms, 2 drafts
+spec: token 43 pos 68907 drafted 2 accepted 2 emits 3 drafts [92701, 1518]
+spec: keyed verify 3 rows (logits) 23.362 ms, accept 1.144 ms
+spec: keyed draft 3.634 ms, 2 drafts
+spec: token 46 pos 68910 drafted 2 accepted 0 emits 1 drafts [50255, 13]
+spec: keyed verify 3 rows (logits) 24.169 ms, accept 0.534 ms
+spec: keyed draft 3.673 ms, 2 drafts
+spec: token 47 pos 68911 drafted 2 accepted 2 emits 3 drafts [552, 13]
+spec: keyed verify 3 rows (logits) 24.138 ms, accept 1.219 ms
+spec: keyed draft 3.662 ms, 2 drafts
+spec: token 50 pos 68914 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed verify 3 rows (logits) 24.274 ms, accept 1.186 ms
+spec: keyed draft 3.677 ms, 2 drafts
+spec: token 53 pos 68917 drafted 2 accepted 2 emits 3 drafts [24, 22]
+spec: keyed verify 3 rows (logits) 24.163 ms, accept 1.062 ms
+spec: keyed draft 3.605 ms, 2 drafts
+spec: token 56 pos 68920 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 23.747 ms, accept 1.231 ms
+spec: keyed draft 3.677 ms, 2 drafts
+spec: token 59 pos 68923 drafted 2 accepted 0 emits 1 drafts [54517, 668]
+spec: keyed verify 3 rows (logits) 23.432 ms, accept 0.572 ms
+spec: keyed draft 3.640 ms, 2 drafts
+spec: token 60 pos 68924 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 24.315 ms, accept 0.913 ms
+spec: keyed draft 3.776 ms, 2 drafts
+spec: token 62 pos 68926 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.343 ms, accept 0.955 ms
+spec: keyed draft 3.795 ms, 2 drafts
+spec: token 64 pos 68928 drafted 2 accepted 0 emits 1 drafts [70676, 3043]
+spec: keyed verify 3 rows (logits) 24.304 ms, accept 0.511 ms
+spec: keyed draft 3.870 ms, 2 drafts
+spec: token 65 pos 68929 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 25.104 ms, accept 1.153 ms
+spec: keyed draft 3.672 ms, 2 drafts
+spec: token 68 pos 68932 drafted 2 accepted 0 emits 1 drafts [14527, 1518]
+spec: keyed verify 3 rows (logits) 23.305 ms, accept 0.512 ms
+spec: keyed draft 3.679 ms, 2 drafts
+spec: token 69 pos 68933 drafted 2 accepted 1 emits 2 drafts [1518, 11012]
+spec: keyed verify 3 rows (logits) 23.309 ms, accept 0.913 ms
+spec: keyed draft 3.784 ms, 2 drafts
+spec: token 71 pos 68935 drafted 2 accepted 0 emits 1 drafts [6420, 13]
+spec: keyed verify 3 rows (logits) 24.100 ms, accept 0.513 ms
+spec: keyed draft 3.709 ms, 2 drafts
+spec: token 72 pos 68936 drafted 2 accepted 2 emits 3 drafts [5662, 13]
+spec: keyed verify 3 rows (logits) 24.020 ms, accept 1.215 ms
+spec: keyed draft 3.680 ms, 2 drafts
+spec: token 75 pos 68939 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed verify 3 rows (logits) 24.909 ms, accept 1.175 ms
+spec: keyed draft 3.647 ms, 2 drafts
+spec: token 78 pos 68942 drafted 2 accepted 2 emits 3 drafts [24, 22]
+spec: keyed verify 3 rows (logits) 24.183 ms, accept 1.175 ms
+spec: keyed draft 3.649 ms, 2 drafts
+spec: token 81 pos 68945 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed verify 3 rows (logits) 23.921 ms, accept 1.211 ms
+spec: keyed draft 3.731 ms, 2 drafts
+spec: token 84 pos 68948 drafted 2 accepted 0 emits 1 drafts [80329, 668]
+spec: keyed verify 3 rows (logits) 23.486 ms, accept 0.548 ms
+spec: keyed draft 3.634 ms, 2 drafts
+spec: token 85 pos 68949 drafted 2 accepted 1 emits 2 drafts [668, 9845]
+spec: keyed verify 3 rows (logits) 24.053 ms, accept 0.918 ms
+spec: keyed draft 3.746 ms, 2 drafts
+spec: token 87 pos 68951 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.382 ms, accept 0.919 ms
+spec: keyed draft 3.776 ms, 2 drafts
+spec: token 89 pos 68953 drafted 2 accepted 0 emits 1 drafts [92701, 1518]
+spec: keyed verify 3 rows (logits) 23.675 ms, accept 0.538 ms
+spec: keyed draft 3.677 ms, 2 drafts
+spec: token 90 pos 68954 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 23.933 ms, accept 1.164 ms
+spec: keyed draft 3.662 ms, 2 drafts
+spec: token 93 pos 68957 drafted 2 accepted 0 emits 1 drafts [65326, 1518]
+spec: keyed verify 3 rows (logits) 23.448 ms, accept 0.498 ms
+spec: keyed draft 3.701 ms, 2 drafts
+spec: token 94 pos 68958 drafted 2 accepted 1 emits 2 drafts [1518, 11012]
+spec: keyed verify 3 rows (logits) 23.322 ms, accept 0.921 ms
+spec: keyed draft 3.774 ms, 2 drafts
+spec: token 96 pos 68960 drafted 2 accepted 0 emits 1 drafts [23839, 13]
+spec: keyed verify 3 rows (logits) 24.183 ms, accept 0.554 ms
+spec: keyed draft 3.706 ms, 2 drafts
+spec: token 97 pos 68961 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed verify 3 rows (logits) 23.985 ms, accept 1.212 ms
+spec: keyed draft 3.663 ms, 2 drafts
+spec: token 100 pos 68964 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: keyed verify 3 rows (logits) 25.116 ms, accept 1.128 ms
+spec: keyed draft 3.640 ms, 2 drafts
+spec: token 103 pos 68967 drafted 2 accepted 2 emits 3 drafts [22, 18]
+spec: keyed verify 3 rows (logits) 24.688 ms, accept 1.120 ms
+spec: keyed draft 3.651 ms, 2 drafts
+spec: token 106 pos 68970 drafted 2 accepted 1 emits 2 drafts [279, 9705]
+spec: keyed verify 3 rows (logits) 23.902 ms, accept 0.957 ms
+spec: keyed draft 3.757 ms, 2 drafts
+spec: token 108 pos 68972 drafted 2 accepted 0 emits 1 drafts [54517, 668]
+spec: keyed verify 3 rows (logits) 23.538 ms, accept 0.549 ms
+spec: keyed draft 3.666 ms, 2 drafts
+spec: token 109 pos 68973 drafted 2 accepted 1 emits 2 drafts [668, 9845]
+spec: keyed verify 3 rows (logits) 23.931 ms, accept 0.881 ms
+spec: keyed draft 3.784 ms, 2 drafts
+spec: token 111 pos 68975 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.509 ms, accept 0.890 ms
+spec: keyed draft 3.780 ms, 2 drafts
+spec: token 113 pos 68977 drafted 2 accepted 2 emits 3 drafts [54517, 3043]
+spec: keyed verify 3 rows (logits) 24.460 ms, accept 1.188 ms
+spec: keyed draft 4.324 ms, 2 drafts
+spec: token 116 pos 68980 drafted 2 accepted 0 emits 1 drafts [13437, 24674]
+spec: keyed verify 3 rows (logits) 26.446 ms, accept 0.543 ms
+spec: keyed draft 3.667 ms, 2 drafts
+spec: token 117 pos 68981 drafted 2 accepted 1 emits 2 drafts [435, 14527]
+spec: keyed verify 3 rows (logits) 23.030 ms, accept 0.887 ms
+spec: keyed draft 3.803 ms, 2 drafts
+spec: token 119 pos 68983 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 23.483 ms, accept 0.854 ms
+spec: keyed draft 3.783 ms, 2 drafts
+spec: token 121 pos 68985 drafted 2 accepted 0 emits 1 drafts [1830, 13]
+spec: keyed verify 3 rows (logits) 24.204 ms, accept 0.494 ms
+spec: keyed draft 3.704 ms, 2 drafts
+spec: token 122 pos 68986 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed verify 3 rows (logits) 24.047 ms, accept 1.158 ms
+spec: keyed draft 3.744 ms, 2 drafts
+spec: token 125 pos 68989 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: keyed verify 3 rows (logits) 25.882 ms, accept 1.149 ms
+spec: keyed draft 3.615 ms, 2 drafts
+spec: token 128 pos 68992 drafted 2 accepted 2 emits 3 drafts [22, 19]
+spec: keyed verify 3 rows (logits) 24.073 ms, accept 1.130 ms
+spec: keyed draft 3.649 ms, 2 drafts
+spec: token 131 pos 68995 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 24.392 ms, accept 0.880 ms
+spec: keyed draft 3.858 ms, 2 drafts
+spec: token 133 pos 68997 drafted 2 accepted 0 emits 1 drafts [54517, 668]
+spec: keyed verify 3 rows (logits) 23.476 ms, accept 0.531 ms
+spec: keyed draft 3.697 ms, 2 drafts
+spec: token 134 pos 68998 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 24.665 ms, accept 0.878 ms
+spec: keyed draft 4.135 ms, 2 drafts
+spec: token 136 pos 69000 drafted 2 accepted 1 emits 2 drafts [279, 11012]
+spec: keyed verify 3 rows (logits) 23.647 ms, accept 0.910 ms
+spec: keyed draft 3.834 ms, 2 drafts
+spec: token 138 pos 69002 drafted 2 accepted 0 emits 1 drafts [5979, 3043]
+spec: keyed verify 3 rows (logits) 23.512 ms, accept 0.539 ms
+spec: keyed draft 3.689 ms, 2 drafts
+spec: token 139 pos 69003 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 23.841 ms, accept 1.146 ms
+spec: keyed draft 3.646 ms, 2 drafts
+spec: token 142 pos 69006 drafted 2 accepted 0 emits 1 drafts [8997, 3043]
+spec: keyed verify 3 rows (logits) 24.008 ms, accept 0.517 ms
+spec: keyed draft 3.673 ms, 2 drafts
+spec: token 143 pos 69007 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 23.426 ms, accept 0.864 ms
+spec: keyed draft 3.732 ms, 2 drafts
+spec: token 145 pos 69009 drafted 2 accepted 0 emits 1 drafts [5979, 13]
+spec: keyed verify 3 rows (logits) 23.953 ms, accept 0.479 ms
+spec: keyed draft 3.722 ms, 2 drafts
+spec: token 146 pos 69010 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed verify 3 rows (logits) 24.039 ms, accept 1.141 ms
+spec: keyed draft 3.652 ms, 2 drafts
+spec: token 149 pos 69013 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: keyed verify 3 rows (logits) 24.550 ms, accept 1.202 ms
+spec: keyed draft 3.711 ms, 2 drafts
+spec: token 152 pos 69016 drafted 2 accepted 2 emits 3 drafts [22, 20]
+spec: keyed verify 3 rows (logits) 24.337 ms, accept 1.168 ms
+spec: keyed draft 3.633 ms, 2 drafts
+spec: token 155 pos 69019 drafted 2 accepted 1 emits 2 drafts [279, 3841]
+spec: keyed verify 3 rows (logits) 23.986 ms, accept 0.951 ms
+spec: keyed draft 3.710 ms, 2 drafts
+spec: token 157 pos 69021 drafted 2 accepted 0 emits 1 drafts [40423, 668]
+spec: keyed verify 3 rows (logits) 23.436 ms, accept 0.537 ms
+spec: keyed draft 3.764 ms, 2 drafts
+spec: token 158 pos 69022 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed verify 3 rows (logits) 24.289 ms, accept 0.962 ms
+spec: keyed draft 3.786 ms, 2 drafts
+spec: token 160 pos 69024 drafted 2 accepted 2 emits 3 drafts [435, 279]
+spec: keyed verify 3 rows (logits) 23.524 ms, accept 1.108 ms
+spec: keyed draft 3.662 ms, 2 drafts
+spec: token 163 pos 69027 drafted 2 accepted 0 emits 1 drafts [70676, 3043]
+spec: keyed verify 3 rows (logits) 24.232 ms, accept 0.525 ms
+spec: keyed draft 3.988 ms, 2 drafts
+spec: token 164 pos 69028 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 24.003 ms, accept 1.191 ms
+spec: keyed draft 3.653 ms, 2 drafts
+spec: token 167 pos 69031 drafted 2 accepted 0 emits 1 drafts [5979, 1518]
+spec: keyed verify 3 rows (logits) 24.220 ms, accept 0.532 ms
+spec: keyed draft 3.679 ms, 2 drafts
+spec: token 168 pos 69032 drafted 2 accepted 2 emits 3 drafts [1518, 92701]
+spec: keyed verify 3 rows (logits) 23.517 ms, accept 1.198 ms
+spec: keyed draft 3.662 ms, 2 drafts
+spec: token 171 pos 69035 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed verify 3 rows (logits) 23.949 ms, accept 1.151 ms
+spec: keyed draft 3.660 ms, 2 drafts
+spec: token 174 pos 69038 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: keyed verify 3 rows (logits) 25.554 ms, accept 1.171 ms
+spec: keyed draft 3.667 ms, 2 drafts
+spec: token 177 pos 69041 drafted 2 accepted 2 emits 3 drafts [22, 21]
+spec: keyed verify 3 rows (logits) 24.496 ms, accept 1.196 ms
+spec: keyed draft 3.631 ms, 2 drafts
+spec: token 180 pos 69044 drafted 2 accepted 1 emits 2 drafts [279, 11012]
+spec: keyed verify 3 rows (logits) 24.563 ms, accept 0.970 ms
+spec: keyed draft 3.730 ms, 2 drafts
+spec: token 182 pos 69046 drafted 2 accepted 0 emits 1 drafts [54517, 668]
+spec: keyed verify 3 rows (logits) 23.342 ms, accept 0.548 ms
+spec: keyed draft 3.736 ms, 2 drafts
+spec: token 183 pos 69047 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 23.517 ms, accept 0.908 ms
+spec: keyed draft 3.752 ms, 2 drafts
+spec: token 185 pos 69049 drafted 2 accepted 1 emits 2 drafts [279, 11012]
+spec: keyed verify 3 rows (logits) 23.602 ms, accept 0.984 ms
+spec: keyed draft 3.665 ms, 2 drafts
+spec: token 187 pos 69051 drafted 2 accepted 0 emits 1 drafts [9705, 3043]
+spec: keyed verify 3 rows (logits) 23.526 ms, accept 0.498 ms
+spec: keyed draft 3.680 ms, 2 drafts
+spec: token 188 pos 69052 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 23.828 ms, accept 1.180 ms
+spec: keyed draft 3.664 ms, 2 drafts
+spec: token 191 pos 69055 drafted 2 accepted 2 emits 3 drafts [11012, 1518]
+spec: keyed verify 3 rows (logits) 23.347 ms, accept 1.156 ms
+spec: keyed draft 3.659 ms, 2 drafts
+spec: token 194 pos 69058 drafted 2 accepted 0 emits 1 drafts [40423, 13]
+spec: keyed verify 3 rows (logits) 24.312 ms, accept 0.527 ms
+spec: keyed draft 3.686 ms, 2 drafts
+spec: token 195 pos 69059 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed verify 3 rows (logits) 24.869 ms, accept 1.218 ms
+spec: keyed draft 3.644 ms, 2 drafts
+spec: token 198 pos 69062 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: keyed verify 3 rows (logits) 24.217 ms, accept 1.176 ms
+spec: keyed draft 3.612 ms, 2 drafts
+spec: token 201 pos 69065 drafted 2 accepted 2 emits 3 drafts [22, 22]
+spec: keyed verify 3 rows (logits) 24.399 ms, accept 1.144 ms
+spec: keyed draft 3.657 ms, 2 drafts
+spec: token 204 pos 69068 drafted 2 accepted 1 emits 2 drafts [279, 9705]
+spec: keyed verify 3 rows (logits) 23.780 ms, accept 0.933 ms
+spec: keyed draft 3.707 ms, 2 drafts
+spec: token 206 pos 69070 drafted 2 accepted 0 emits 1 drafts [54517, 668]
+spec: keyed verify 3 rows (logits) 23.363 ms, accept 0.539 ms
+spec: keyed draft 3.677 ms, 2 drafts
+spec: token 207 pos 69071 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed verify 3 rows (logits) 24.787 ms, accept 0.939 ms
+spec: keyed draft 3.920 ms, 2 drafts
+spec: token 209 pos 69073 drafted 2 accepted 2 emits 3 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.323 ms, accept 1.157 ms
+spec: keyed draft 3.652 ms, 2 drafts
+spec: token 212 pos 69076 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 25.427 ms, accept 1.170 ms
+spec: keyed draft 3.644 ms, 2 drafts
+spec: token 215 pos 69079 drafted 2 accepted 0 emits 1 drafts [76990, 1518]
+spec: keyed verify 3 rows (logits) 23.473 ms, accept 0.580 ms
+spec: keyed draft 3.634 ms, 2 drafts
+spec: token 216 pos 69080 drafted 2 accepted 1 emits 2 drafts [1518, 50255]
+spec: keyed verify 3 rows (logits) 23.818 ms, accept 0.868 ms
+spec: keyed draft 3.770 ms, 2 drafts
+spec: token 218 pos 69082 drafted 2 accepted 0 emits 1 drafts [38813, 552]
+spec: keyed verify 3 rows (logits) 23.603 ms, accept 0.484 ms
+spec: keyed draft 3.698 ms, 2 drafts
+spec: token 219 pos 69083 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed verify 3 rows (logits) 23.916 ms, accept 1.192 ms
+spec: keyed draft 3.643 ms, 2 drafts
+spec: token 222 pos 69086 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: keyed verify 3 rows (logits) 24.342 ms, accept 1.207 ms
+spec: keyed draft 3.627 ms, 2 drafts
+spec: token 225 pos 69089 drafted 2 accepted 2 emits 3 drafts [22, 23]
+spec: keyed verify 3 rows (logits) 24.924 ms, accept 1.177 ms
+spec: keyed draft 3.652 ms, 2 drafts
+spec: token 228 pos 69092 drafted 2 accepted 1 emits 2 drafts [279, 7948]
+spec: keyed verify 3 rows (logits) 25.248 ms, accept 0.963 ms
+spec: keyed draft 3.881 ms, 2 drafts
+spec: token 230 pos 69094 drafted 2 accepted 2 emits 3 drafts [9705, 668]
+spec: keyed verify 3 rows (logits) 23.453 ms, accept 1.182 ms
+spec: keyed draft 3.675 ms, 2 drafts
+spec: token 233 pos 69097 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.462 ms, accept 0.909 ms
+spec: keyed draft 3.774 ms, 2 drafts
+spec: token 235 pos 69099 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed verify 3 rows (logits) 23.578 ms, accept 0.502 ms
+spec: keyed draft 3.688 ms, 2 drafts
+spec: token 236 pos 69100 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed verify 3 rows (logits) 24.726 ms, accept 1.152 ms
+spec: keyed draft 3.653 ms, 2 drafts
+spec: token 239 pos 69103 drafted 2 accepted 0 emits 1 drafts [5979, 1518]
+spec: keyed verify 3 rows (logits) 24.274 ms, accept 0.503 ms
+spec: keyed draft 3.699 ms, 2 drafts
+spec: token 240 pos 69104 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed verify 3 rows (logits) 24.247 ms, accept 0.922 ms
+spec: keyed draft 3.799 ms, 2 drafts
+spec: token 242 pos 69106 drafted 2 accepted 0 emits 1 drafts [65326, 13]
+spec: keyed verify 3 rows (logits) 24.812 ms, accept 0.508 ms
+spec: keyed draft 3.713 ms, 2 drafts
+spec: token 243 pos 69107 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed verify 3 rows (logits) 24.038 ms, accept 1.153 ms
+spec: keyed draft 3.650 ms, 2 drafts
+spec: token 246 pos 69110 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: keyed verify 3 rows (logits) 24.656 ms, accept 1.175 ms
+spec: keyed draft 3.631 ms, 2 drafts
+spec: token 249 pos 69113 drafted 2 accepted 2 emits 3 drafts [22, 24]
+spec: keyed verify 3 rows (logits) 25.189 ms, accept 1.133 ms
+spec: keyed draft 3.642 ms, 2 drafts
+spec: token 252 pos 69116 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed verify 3 rows (logits) 23.779 ms, accept 0.913 ms
+spec: keyed draft 3.739 ms, 2 drafts
+spec: token 254 pos 69118 drafted 2 accepted 0 emits 1 drafts [5979, 668]
+spec: keyed verify 3 rows (logits) 23.432 ms, accept 0.512 ms
+spec: keyed draft 1.975 ms, 1 drafts
+spec: token 255 pos 69119 drafted 1 accepted 1 emits 2 drafts [668]
+spec: keyed verify 2 rows (logits) 21.918 ms, accept 0.793 ms

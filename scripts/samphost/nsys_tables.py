@@ -42,7 +42,7 @@ def main():
     for s, e, n, g in win:
         by_cat[cat_of(n)] += e - s; by_name[n] += e - s; cnt[n] += 1
     try:
-        d2h = cur.execute("select count(*), coalesce(sum(bytes), 0), coalesce(sum("end" - start), 0) from CUPTI_ACTIVITY_KIND_MEMCPY where start >= ? and copyKind = 2", (w0,)).fetchone()
+        d2h = cur.execute("select count(*), coalesce(sum(bytes), 0), coalesce(sum([end] - start), 0) from CUPTI_ACTIVITY_KIND_MEMCPY where start >= ? and copyKind = 2", (w0,)).fetchone()
     except sqlite3.Error:
         d2h = (None, None, None)
     passes = {n: c for n, c in cnt.items() if re.search(r"argmax", n, re.I)}
