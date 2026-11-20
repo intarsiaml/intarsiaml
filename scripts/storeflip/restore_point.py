@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """storeflip gate 3: restore-point granularity. One long cold single user message A (default 20k tokens), then prompts that share only the first
-K tokens of A's message (K = --shared) and then diverge, then A again. Records cached tokens and TTFT of every send. A is the same text in every
-arm (no nonce); the others are filler(k) (a prefix of A's text) + a different tail. Greedy, thinking off, one request at a time, a pause after
+K tokens of A's message (K = --shared) and then diverge, then A again. Records cached tokens and TTFT of every send. Per share size K a separate A_k (own filler seed, the same text in every
+arm, no nonce) and a prompt = filler(K tokens) (a prefix of A_k's text) + a different tail. Greedy, thinking off, one request at a time, a pause after
 each request so the store's settle is over.
 
   uv run --project /opt/code/deepeval python scripts/storeflip/restore_point.py --url URL --model guidance --arm NAME --out DIR
@@ -38,7 +38,6 @@ def main():
         raise SystemExit("unreachable")
     client = Client(target)
     n_total = round((a.total - BASE) / PER)
-    full = filler(n_total, SEED)
     rows = []
 
     def send(label, content, shared):
@@ -49,11 +48,14 @@ def main():
         rows.append(row)
         print(f"[restore] {a.arm} {label}: prompt={r.prompt_tokens} cached={r.cached_tokens or 0} ttft={r.ttft_s:.3f}s", flush=True)
 
-    send("A-cold", full + INSTRUCTION, a.total)
-    for k in [int(x) for x in a.shared.split(",")][::-1]:  # long shares first: a later, shorter one cannot find a longer entry of an earlier B
+    # one seed per share size, so a share prompt can only restore from ITS OWN earlier long message A_k (not from another share prompt's entries)
+    for j, k in enumerate(int(x) for x in a.shared.split(",")):
+        seed = SEED + j
+        send(f"A{k}-cold", filler(n_total, seed) + INSTRUCTION, a.total)
         n = round((k - BASE) / PER)
-        send(f"share{k}", filler(n, SEED) + f" Now a different question about topic {k}: list ten harbours." + INSTRUCTION, k)
-    send("A-again", full + INSTRUCTION, a.total)
+        send(f"share{k}", filler(n, seed) + f" Now a different question about topic {k}: list ten harbours." + INSTRUCTION, k)
+        if j == 0:
+            send(f"A{k}-again", filler(n_total, seed) + INSTRUCTION, a.total)
     out = pathlib.Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     (out / f"{a.arm}-restore.json").write_text(json.dumps(rows, indent=1))
