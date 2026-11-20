@@ -1,0 +1,47 @@
+[localeval] calibrated: 22.1 tokens/sentence, 55 base tokens, ctx=131072
+[localeval]   4096 tok rep 1/3: prompt=4091 ttft=0.74s prefill=5525 tok/s decode=118.1 tok/s peak=167.6 tok/s out=256
+[localeval]   4096 tok rep 2/3: prompt=4088 ttft=0.68s prefill=6037 tok/s decode=122.9 tok/s peak=187.3 tok/s out=256
+[localeval]   4096 tok rep 3/3: prompt=4091 ttft=0.67s prefill=6131 tok/s decode=122.5 tok/s peak=165.3 tok/s out=256
+[localeval]  16384 tok rep 1/3: prompt=16658 ttft=2.67s prefill=6250 tok/s decode=106.9 tok/s peak=180.4 tok/s out=256
+[localeval]  16384 tok rep 2/3: prompt=16656 ttft=2.61s prefill=6377 tok/s decode=98.3 tok/s peak=145.5 tok/s out=256
+[localeval]  16384 tok rep 3/3: prompt=16656 ttft=2.62s prefill=6366 tok/s decode=103.0 tok/s peak=136.2 tok/s out=256
+[localeval]  32768 tok rep 1/3: prompt=33904 ttft=5.82s prefill=5827 tok/s decode=82.5 tok/s peak=110.4 tok/s out=256
+[localeval]  32768 tok rep 2/3: prompt=33906 ttft=5.84s prefill=5809 tok/s decode=82.9 tok/s peak=114.0 tok/s out=256
+[localeval]  32768 tok rep 3/3: prompt=33906 ttft=5.82s prefill=5822 tok/s decode=81.9 tok/s peak=102.7 tok/s out=256
+# localeval: adhoc — 2026-11-20T09:07
+
+- model: `guidance` on ? (?), url `http://spark-fa00:8191/v1`
+- thinking: off; run kind: speed; label: storeflip-w3-v4-dflt
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git 2c5524c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8191/v1 --model guidance --thinking off --structured prompt --wait-idle 600 --recipe /opt/code/intarsiaml/.worktrees/storeflip/docs/results/2026-11-20-storeflip/raw/recipes/w3-v4-dflt.txt --sizes 4096,16384,32768 --gen 256 --reps 3 --label storeflip-w3-v4-dflt`
+- result file: `results/20261120-090721-adhoc-storeflip-w3-v4-dflt/result.json`
+
+## Launch recipe
+
+from `/opt/code/intarsiaml/.worktrees/storeflip/docs/results/2026-11-20-storeflip/raw/recipes/w3-v4-dflt.txt` (secrets redacted):
+
+````
+intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on   (env: none)
+````
+
+## Speed sweep
+
+served `guidance`, fingerprint `None`, ctx 131072, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4091 | 0.68 | 6037 (5525–6131) | - | 122.5 (118.1–122.9) | 167.6 (165.3–187.3) | - | - | 256 |
+| 16656 | 2.62 | 6366 (6250–6377) | 6480 | 103.0 (98.3–106.9) | 145.5 (136.2–180.4) | - | - | 256 |
+| 33906 | 5.82 | 5822 (5809–5827) | 5377 | 82.5 (81.9–82.9) | 110.4 (102.7–114.0) | - | - | 256 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261120-090721-adhoc-storeflip-w3-v4-dflt/result.json
+[localeval] logged to unanimis: 11d9319a-0ff6-4518-b04e-f89fabff84f7

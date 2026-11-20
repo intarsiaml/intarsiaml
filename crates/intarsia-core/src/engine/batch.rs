@@ -1332,7 +1332,10 @@ fn store_combinations(model: &mut Model, opts: &BatchedOptions) -> Result<()> {
     } else if model.macro_rows() > 0 {
         // `load_engine` turns the recipe's macro prefill off before the weights are read (the workspace is then planned without it);
         // a model loaded another way keeps the workspace sized for the macro pass (`Model::set_macro_rows` only changes the schedule)
-        eprintln!("prefix store: the recipe's macro prefill ({} rows) is off with --max-batch > 1", model.macro_rows());
+        eprintln!(
+            "prefix store: recipe's macro prefill ({} rows) off with --max-batch > 1 (the workspace is planned without it; INTARSIA_PREFIX_STORE_MACRO=1 keeps it on)",
+            model.macro_rows()
+        );
         model.set_macro_rows(0);
     }
     eprintln!("prefix store with --max-batch > 1: workspace {} MiB", model.plan.workspace_bytes >> 20);

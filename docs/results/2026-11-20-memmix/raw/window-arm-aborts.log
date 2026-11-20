@@ -1,0 +1,23 @@
+[06:06:21 +2s] tag arm-aborts host spark2; fleetq job 10379; earlyoom active; avail 75 GB; binary intarsia 0.0.1
+[06:06:21 +2s] serve args: --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on  ; env: LD_PRELOAD=/home/nvidia/intarsiaml-memmix/out/libmemstat.so MEMSTAT_PERIOD=300 MEMSTAT_TRIGGER=/tmp/memstat-trigger-arm-aborts ; profile mixed weights 'abort_decode=10,abort_prefill=8' seed 7 load 25 min trim every 5 min
+[06:06:23 +4s] mark base
+[06:07:53 +94s] mark start
+[06:07:54 +95s] server pid 1892390
+[06:09:32 +193s] server up, avail 45 GB
+[06:09:32 +193s] mark settle
+[06:11:32 +313s] mark load
+[06:11:32 +313s] mixed load for 25 min (pid 55120)
+[06:16:34 +615s] mark trim1
+[06:21:36 +917s] mark trim2
+[06:26:33 +1214s] mark trim3
+[06:31:34 +1515s] mark trim4
+{"seed": 7, "profile": "mixed", "weights": "abort_decode=10,abort_prefill=8", "minutes": 25.0, "streams": 2, "requests": 1678, "kinds": {"abort_decode": 922, "abort_prefill": 756}, "ok": 1678, "bad": 0, "errors": {}}
+[06:36:40 +1821s] load done after 25 min; 4 trims
+[06:36:41 +1822s] mark trimend
+[06:37:21 +1862s] mark idle
+[06:39:21 +1982s] mark stop
+[06:39:24 +1985s] after stop, processes of ours left: [1963955 ]
+[06:41:24 +2105s] mark after
+[06:41:25 +2106s] server stopped, avail 75 GB
+[06:41:26 +2107s] warn/error lines in serve log: 0; watchdog kills: 0; min avail GB (time GB): 06:12:23 37
+[06:41:27 +2108s] window end

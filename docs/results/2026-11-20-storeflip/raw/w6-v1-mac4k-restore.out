@@ -1,0 +1,11 @@
+[restore] w6-v1-mac4k A3000-cold: prompt=20266 cached=0 ttft=3.954s
+[restore] w6-v1-mac4k share3000: prompt=2930 cached=0 ttft=0.523s
+[restore] w6-v1-mac4k A3000-again: prompt=20266 cached=20262 ttft=0.108s
+[restore] w6-v1-mac4k A5000-cold: prompt=20340 cached=0 ttft=3.314s
+[restore] w6-v1-mac4k share5000: prompt=4992 cached=4099 ttft=0.233s
+[restore] w6-v1-mac4k A9000-cold: prompt=20316 cached=0 ttft=3.322s
+[restore] w6-v1-mac4k share9000: prompt=9078 cached=8195 ttft=0.345s
+[restore] w6-v1-mac4k A13000-cold: prompt=20281 cached=0 ttft=3.309s
+[restore] w6-v1-mac4k share13000: prompt=13160 cached=12291 ttft=0.279s
+[restore] w6-v1-mac4k A17000-cold: prompt=20332 cached=0 ttft=3.319s
+[restore] w6-v1-mac4k share17000: prompt=17276 cached=16387 ttft=0.313s

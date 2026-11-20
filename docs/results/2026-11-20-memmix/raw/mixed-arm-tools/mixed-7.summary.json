@@ -1,0 +1,14 @@
+{
+ "seed": 7,
+ "profile": "mixed",
+ "weights": "tool=1",
+ "minutes": 25.0,
+ "streams": 2,
+ "requests": 2148,
+ "kinds": {
+  "tool": 2148
+ },
+ "ok": 2148,
+ "bad": 0,
+ "errors": {}
+}

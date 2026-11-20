@@ -1,0 +1,11 @@
+[restore] w1-v3-zero A3000-cold: prompt=20266 cached=0 ttft=4.157s
+[restore] w1-v3-zero share3000: prompt=2930 cached=2051 ttft=0.226s
+[restore] w1-v3-zero A3000-again: prompt=20266 cached=20262 ttft=0.113s
+[restore] w1-v3-zero A5000-cold: prompt=20340 cached=0 ttft=3.569s
+[restore] w1-v3-zero share5000: prompt=4992 cached=4099 ttft=0.230s
+[restore] w1-v3-zero A9000-cold: prompt=20316 cached=0 ttft=3.590s
+[restore] w1-v3-zero share9000: prompt=9078 cached=8195 ttft=0.258s
+[restore] w1-v3-zero A13000-cold: prompt=20281 cached=0 ttft=3.582s
+[restore] w1-v3-zero share13000: prompt=13160 cached=12291 ttft=0.286s
+[restore] w1-v3-zero A17000-cold: prompt=20332 cached=0 ttft=3.590s
+[restore] w1-v3-zero share17000: prompt=17276 cached=16387 ttft=0.315s

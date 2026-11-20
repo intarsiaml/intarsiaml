@@ -1,0 +1,10 @@
+[memtrim] pid=562329 t=1795173913 ret=1 before_rssanon_kb=11551408 before_vmrss_kb=11797396 after_rssanon_kb=10559876 after_vmrss_kb=10805864 rssfile_kb=202788 trim_ms=169.1
+[memtrim] pid=562329 t=1795174812 ret=1 before_rssanon_kb=11873508 before_vmrss_kb=12119496 after_rssanon_kb=10666408 after_vmrss_kb=10912396 rssfile_kb=202788 trim_ms=185.5
+[memtrim] pid=562329 t=1795175711 ret=1 before_rssanon_kb=11911932 before_vmrss_kb=12157920 after_rssanon_kb=10641488 after_vmrss_kb=10887476 rssfile_kb=202788 trim_ms=122.3
+[memtrim] pid=562329 t=1795176614 ret=1 before_rssanon_kb=11907816 before_vmrss_kb=12153804 after_rssanon_kb=10685564 after_vmrss_kb=10931552 rssfile_kb=202788 trim_ms=94.5
+[memtrim] pid=562329 t=1795177512 ret=1 before_rssanon_kb=11900844 before_vmrss_kb=12146832 after_rssanon_kb=10652084 after_vmrss_kb=10898072 rssfile_kb=202788 trim_ms=168.5
+[memtrim] pid=562329 t=1795178412 ret=1 before_rssanon_kb=12018096 before_vmrss_kb=12264084 after_rssanon_kb=10639336 after_vmrss_kb=10885324 rssfile_kb=202788 trim_ms=230.6
+[memtrim] pid=562329 t=1795179310 ret=1 before_rssanon_kb=12262736 before_vmrss_kb=12508724 after_rssanon_kb=10667368 after_vmrss_kb=10913356 rssfile_kb=202788 trim_ms=183.7
+[memtrim] pid=562329 t=1795180214 ret=1 before_rssanon_kb=12099572 before_vmrss_kb=12345560 after_rssanon_kb=10664468 after_vmrss_kb=10910456 rssfile_kb=202788 trim_ms=231.0
+[memtrim] pid=562329 t=1795181113 ret=1 before_rssanon_kb=12117668 before_vmrss_kb=12363656 after_rssanon_kb=10682316 after_vmrss_kb=10928304 rssfile_kb=202788 trim_ms=177.2
+[memtrim] pid=562329 t=1795182026 ret=1 before_rssanon_kb=12168752 before_vmrss_kb=12414740 after_rssanon_kb=10706072 after_vmrss_kb=10952060 rssfile_kb=202788 trim_ms=192.2
