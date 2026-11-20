@@ -27,7 +27,7 @@ avail() { rsh "awk '/MemAvailable/ {print int(\$2/1048576)}' /proc/meminfo"; }
 stop_server() { # TERM the supervisor and its child by pid, KILL after 40 s
   [[ -n "$SPID" ]] || return 0
   rsh "ch=\$(pgrep -P $SPID); kill -TERM $SPID \$ch 2>/dev/null; for i in \$(seq 1 40); do n=0; for p in $SPID \$ch; do kill -0 \$p 2>/dev/null && n=1; done; [ \$n = 0 ] && exit 0; sleep 1; done; kill -9 $SPID \$ch 2>/dev/null; sleep 3"
-  SPID=""; log "after stop, serve processes of ours left: [$(rsh "pgrep -f '$BIN serve' | tr '\n' ' '")]"
+  SPID=""; log "after stop, serve processes of ours left: [$(rsh "pgrep -f '[${BIN:0:1}]${BIN:1} serve' | tr '\n' ' '")]"
 }
 collect() { # copy the box files back (cheap, repeatable)
   rsh "cat $W/mem-$TAG.csv" > "$OUT/mem-$TAG.csv.new" 2>/dev/null && mv "$OUT/mem-$TAG.csv.new" "$OUT/mem-$TAG.csv"

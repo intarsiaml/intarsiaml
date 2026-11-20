@@ -106,10 +106,24 @@ def main():
     ser["arena committed"] = [(hrs(b[0]), b[2]) for b in bl]
     ser["arena free chunks"] = [(hrs(b[0]), b[3]) for b in bl]
     ser["mmapped chunks"] = [(hrs(b[0]), b[4]) for b in bl]
+    # outside malloc (approx.): RssAnon at the sample nearest each block minus the arenas' committed size and the mmapped chunks; with the prefault default the store buffers are in here
+    rs = ser["RssAnon"]
+    ser["anon outside malloc"] = [(hrs(b[0]), min(rs, key=lambda p: abs(p[0] - hrs(b[0])))[1] - b[2] - b[4]) for b in bl] if rs else []
     end = max((p[0] for s in ser.values() for p in s), default=0)
     print(f"{tag}: {len(rows)} samples, {len(bl)} malloc_info blocks ({len(bl[0:1]) and bl[0][1]} arenas first block), load {end:.2f} h; marks " + ", ".join(f"{k}={(v - marks['start']) / 60:.1f}min" for k, v in sorted(marks.items(), key=lambda kv: kv[1]) if 'start' in marks))
+    names = ["RssAnon", "live heap", "arena committed", "arena free chunks", "mmapped chunks", "anon outside malloc", "store host tier", "MemAvailable", "engine GPU"]
+    print("\nvalues at minutes of load (nearest sample, MB; RssAnon from the 60 s sampler, malloc numbers from the malloc_info blocks)")
+    print("min\t" + "\t".join(names))
+    for mn in (5, 10, 20, 30, 60, 120, 180, 240, 360, 480, 600, 660):
+        if mn / 60 > end + 0.02:
+            break
+        cells = []
+        for n in names:
+            pts = ser[n]
+            p = min(pts, key=lambda q: abs(q[0] - mn / 60)) if pts else None
+            cells.append(f"{p[1]:.0f}" if p and abs(p[0] - mn / 60) < 0.05 else "-")
+        print(f"{mn}\t" + "\t".join(cells))
     print("\nmean per hour of load (MB)")
-    names = ["RssAnon", "live heap", "arena committed", "arena free chunks", "mmapped chunks", "store host tier", "MemAvailable", "engine GPU"]
     print("hour\t" + "\t".join(names))
     for h in range(int(math.ceil(end))):
         cells = []
@@ -119,13 +133,13 @@ def main():
         print(f"{h}-{h + 1}\t" + "\t".join(cells))
     print("\nslopes MB/h +- SE (autocorrelation-corrected); window = minute 30 / hour 3 of the load to its end")
     print("series\tfrom 30 min\tn\tfrom 3 h\tn")
-    for n in names[:6] + names[6:7]:
+    for n in names[:7] + ["MemAvailable"]:
         (b1, s1), n1 = slope(ser[n], 0.5, 1e9); (b3, s3), n3 = slope(ser[n], 3.0, 1e9)
         print(f"{n}\t{b1:+.0f} +- {s1:.0f}\t{n1}\t" + (f"{b3:+.0f} +- {s3:.0f}\t{n3}" if n3 >= 4 else "-\t-"))
     print("\nplateau test: slope over the first third vs the last third of the window from minute 30 (MB/h +- SE)")
     print("series\tfirst third\tlast third\tverdict")
     span = end - 0.5
-    for n in ("RssAnon", "live heap", "arena committed"):
+    for n in ("RssAnon", "live heap", "arena committed", "anon outside malloc"):
         if span < 0.3:
             print(f"{n}\t-\t-\twindow too short"); continue
         a, b, c = 0.5, 0.5 + span / 3, 0.5 + 2 * span / 3
