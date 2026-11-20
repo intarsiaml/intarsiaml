@@ -1,0 +1,6 @@
+[ids] size 4000 greedy: prompt 4004 out 700 length ids=700
+[ids] size 4000 sampled: prompt 4004 out 700 length ids=700
+[ids] size 32500 greedy: prompt 32554 out 700 length ids=700
+[ids] size 32500 sampled: prompt 32554 out 700 length ids=700
+[ids] size 65300 greedy: prompt 65344 out 700 length ids=700
+[ids] size 65300 sampled: prompt 65344 out 700 length ids=700

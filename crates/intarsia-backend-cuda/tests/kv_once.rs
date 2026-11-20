@@ -1,19 +1,22 @@
-//! Lane kvonce (CUDA): `INTARSIA_CUDA_ATTN_KV_ONCE=1` renumbers the items of the row-table decode attention's persistent kernel
+//! Lane kvonce / kvflip (CUDA): `INTARSIA_CUDA_ATTN_KV_ONCE` (default ON since lane kvflip, `=0` turns it off) renumbers the items of the row-table decode attention's persistent kernel
 //! (`splitkv_rows_persist_kernel`'s ONCE, `kernels/cuda/attention_splitkv.cu`) so that the rows of one sequence read each K / V line
 //! together. The launch with the knob on is BYTE-equal to the launch with it off, and every row is its solo one-row launch.
 //!
 //!  * row tables of M = 1..=16 rows of ONE cache at consecutive positions (a verify pass), started around every change of the
 //!    split count (every 64 keys up to 4096), of the chunk (every 4096 keys above) and of the 16-key iteration, so that the rows of
 //!    a pass straddle them;
+//!  * wide launches of 20, 33 and 64 rows of one cache (more than the 16 a verify pass reaches);
 //!  * mixed tables: two and three sequences of several rows, a cache that comes back after another, rows of one cache at
-//!    unrelated positions, 16 rows over three caches;
-//!  * a captured CUDA graph (device positions) replayed at many positions, knob on against knob off;
+//!    unrelated positions, 16 rows over three caches, two rows of one cache at the SAME position;
+//!  * a captured CUDA graph (device positions) replayed at many positions, knob on against knob off, bf16 and fp8 caches;
+//!  * caches of 132000 keys (positions of 100k and 131k visible keys, past the 66000 of the other tests), both shapes;
 //!  * the fp8_e4m3-cache twin on the 35B shape;
 //!  * mode 2 (the same numbering with plain loads);
 //!  * a planted fault (every row of a group gets the group leader's end of keys) that must be seen at every position tried.
 //!
 //! Shapes: Qwen3.6-35B-A3B (16 / 2 / 256) and Qwen3.8-27B (24 / 4 / 256), caches of 66000 keys (so 64k contexts are covered).
-//! One test function: the knob override is process-wide. Uses about 2 GB of GPU memory.
+//! The knob override is process-wide: every test that sets it holds `OVERRIDE` for its whole body, so the tests run one at a time
+//! whatever the harness's thread count (`KVONCE_TIMING=1` included). Uses about 2 GB of GPU memory (3 GB with the 132000-key caches).
 //!
 //! Needs a GPU: without one the test prints SKIPPED (and fails under CI=1 / INTARSIA_REQUIRE_GPU=1).
 #![cfg(ik_cuda)]
@@ -26,7 +29,7 @@ use intarsia_core::ops::RowTab;
 use intarsia_core::{DType, Op, OpAttrs, OpCall, ShapeInfo};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 /// Fast deterministic bits (xorshift64*).
 struct Bits(u64);
@@ -76,7 +79,14 @@ fn e4m3_bytes(n: usize, seed: u64) -> Vec<u8> {
     out
 }
 
-const MAX_ROWS: usize = 16;
+/// The widest launch any test makes (a verify pass reaches 16 rows; `wide` launches go to 64).
+const MAX_ROWS: usize = 64;
+
+/// `set_attn_kv_once_for_test` is process-wide: tests that set it serialise on this lock (a poisoned lock, from a failed test, is fine).
+static OVERRIDE: Mutex<()> = Mutex::new(());
+fn override_lock() -> MutexGuard<'static, ()> {
+    OVERRIDE.lock().unwrap_or_else(|e| e.into_inner())
+}
 
 struct Case {
     be: Arc<dyn Backend>,
@@ -243,6 +253,7 @@ fn starts(cap: usize, m: usize) -> Vec<usize> {
 
 #[test]
 fn kv_once_launches_are_bit_identical_to_the_default_launches() {
+    let _g = override_lock();
     let ord = std::env::var("INTARSIA_CUDA_DEVICE").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
     let be = match intarsia_backend_cuda::create(ord) {
         Ok(be) => be,
@@ -258,10 +269,10 @@ fn kv_once_launches_are_bit_identical_to_the_default_launches() {
         let fp8 = kvt == DType::Fp8E4m3;
         let tag = format!("{nh}/{nkv}/{d} {kvt}");
         let rb = c.row_bytes();
-        let (mut n_one, mut n_mixed, mut n_solo, mut n_graph) = (0usize, 0usize, 0usize, 0usize);
+        let (mut n_one, mut n_mixed, mut n_solo, mut n_graph, mut n_wide) = (0usize, 0usize, 0usize, 0usize, 0usize);
 
         // 1. one cache, M rows at consecutive positions (the verify pass), M = 1..=16
-        for m in 1..=MAX_ROWS {
+        for m in 1..=16usize {
             let ps = starts(cap, m);
             for (i, &p0) in ps.iter().enumerate() {
                 // every start for the MTP passes (2..=4 rows) on the bf16 shapes, a sample otherwise
@@ -284,6 +295,26 @@ fn kv_once_launches_are_bit_identical_to_the_default_launches() {
             }
         }
 
+        // 1b. wide launches (20, 33, 64 rows of one cache): a sample of starts around the boundaries
+        for m in [20usize, 33, 64] {
+            for (i, &p0) in starts(cap, m).iter().enumerate() {
+                if i % 11 != m % 11 {
+                    continue;
+                }
+                let pos: Vec<usize> = (p0..p0 + m).collect();
+                let (a, b) = off_on(1, || c.rowtab(&pos, &vec![1usize; m]));
+                same(&a, &b, &format!("{tag} wide M={m} pos0 {p0}"));
+                n_wide += 1;
+                if i % 33 == 0 {
+                    for r in [0, m / 2, m - 1] {
+                        let s = c.solo(1, r, pos[r]);
+                        assert!(b[r * rb..(r + 1) * rb] == s[..], "{tag} wide M={m} row {r} pos {}: differs from the solo launch", pos[r]);
+                        n_solo += 1;
+                    }
+                }
+            }
+        }
+
         // 2. mixed tables: (cache, first position, rows) per sequence
         let mixed: Vec<Vec<(usize, usize, usize)>> = vec![
             vec![(0, 4093, 3), (2, 65530, 3)],                     // two verify streams, one straddling a chunk change
@@ -293,6 +324,8 @@ fn kv_once_launches_are_bit_identical_to_the_default_launches() {
             vec![(2, 62, 4), (0, 4094, 4), (1, 12287, 4), (2, 30000, 4)], // 16 rows: split / chunk changes inside every sequence
             vec![(0, 0, 1), (0, 1, 1), (0, 2, 1), (1, 65000, 5)],  // the first keys of a cache, one row per entry
             vec![(2, 49150, 16)],
+            vec![(0, 5000, 1), (0, 5000, 1)],                      // two rows of one cache at the SAME position (one group, equal rows)
+            vec![(1, 65000, 3), (1, 65000, 3), (2, 4095, 2), (2, 4095, 2)], // the same, three rows twice, and across a chunk change
         ];
         for (li, layout) in mixed.iter().enumerate() {
             let (mut pos, mut caches) = (Vec::new(), Vec::new());
@@ -318,7 +351,7 @@ fn kv_once_launches_are_bit_identical_to_the_default_launches() {
         }
 
         // 4. captured graphs (device positions): the launch recorded with the knob on against the one recorded with it off
-        if !fp8 {
+        {
             for m in [3usize, 16] {
                 let pos_buf = c.be.alloc(256, MemKind::Device).unwrap();
                 c.be.zero(&pos_buf, 0).unwrap();
@@ -370,10 +403,63 @@ fn kv_once_launches_are_bit_identical_to_the_default_launches() {
         set_attn_kv_once_for_test(Some(0), false);
         assert_eq!(caught, fps.len(), "{tag}: the planted fault was seen at {caught} of {} positions", fps.len());
         println!(
-            "kv_once {tag}: knob on bit-identical to off: {n_one} one-cache verify tables (M 1..=16), {n_mixed} mixed tables, \
+            "kv_once {tag}: knob on bit-identical to off: {n_one} one-cache verify tables (M 1..=16), {n_wide} wide tables (M 20 / 33 / 64), {n_mixed} mixed tables, \
              {n_graph} captured replays, mode 2 x5; {n_solo} rows equal to their solo launch; planted fault seen {caught} of {}",
             fps.len()
         );
+    }
+    set_attn_kv_once_for_test(None, false);
+}
+
+/// Contexts past the 66000 keys of the main test: caches of 132000 keys, passes whose rows see ~100k and ~131k keys (the 128k configurations of
+/// `serve --max-seq 131072`), one cache at consecutive positions, a mixed table, rows against their solo launches; both bf16 shapes.
+#[test]
+fn kv_once_long_positions_are_bit_identical() {
+    let _g = override_lock();
+    let ord = std::env::var("INTARSIA_CUDA_DEVICE").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let be = match intarsia_backend_cuda::create(ord) {
+        Ok(be) => be,
+        Err(e) => {
+            common::skip("kv_once long", &format!("no usable CUDA device ({e})"));
+            return;
+        }
+    };
+    let cap = 132000usize;
+    for (nh, nkv, d) in [(16usize, 2usize, 256usize), (24, 4, 256)] {
+        let c = Case::new(&be, nh, nkv, d, cap, DType::Bf16, 2);
+        let rb = c.row_bytes();
+        let mut n = 0usize;
+        for m in [1usize, 2, 3, 4, 16] {
+            for p0 in [66000usize, 70000, 98303, 98304, 100000, 114687, 131000, 131071, 131072, cap - m] {
+                if p0 + m > cap {
+                    continue;
+                }
+                let pos: Vec<usize> = (p0..p0 + m).collect();
+                let (a, b) = off_on(1, || c.rowtab(&pos, &vec![1usize; m]));
+                same(&a, &b, &format!("long {nh}/{nkv}/{d} M={m} pos0 {p0}"));
+                for r in [0, m - 1] {
+                    let s = c.solo(1, r, pos[r]);
+                    assert!(b[r * rb..(r + 1) * rb] == s[..], "long {nh}/{nkv}/{d} M={m} row {r} pos {}: differs from the solo launch", pos[r]);
+                }
+                n += 1;
+            }
+        }
+        // two verify streams at 131k and 100k, and two rows of one cache at the same position
+        for layout in [vec![(0usize, 131000usize, 3usize), (1, 100000, 3)], vec![(0, 120000, 1), (0, 120000, 1), (1, cap - 3, 3)]] {
+            let (mut pos, mut caches) = (Vec::new(), Vec::new());
+            for &(ci, p0, k) in &layout {
+                pos.extend(p0..p0 + k);
+                caches.extend(vec![ci; k]);
+            }
+            let (a, b) = off_on(1, || c.rowtab(&pos, &caches));
+            same(&a, &b, &format!("long {nh}/{nkv}/{d} mixed {layout:?}"));
+            for (r, (&p, &ci)) in pos.iter().zip(&caches).enumerate() {
+                let s = c.solo(ci, r, p);
+                assert!(b[r * rb..(r + 1) * rb] == s[..], "long {nh}/{nkv}/{d} mixed row {r} pos {p}: differs from the solo launch");
+            }
+            n += 1;
+        }
+        println!("kv_once long {nh}/{nkv}/{d}: knob on bit-identical to off at {n} tables up to {cap} keys");
     }
     set_attn_kv_once_for_test(None, false);
 }
@@ -386,6 +472,7 @@ fn timing_kv_once_layers() {
     if std::env::var("KVONCE_TIMING").map_or(true, |v| v == "0") {
         return;
     }
+    let _g = override_lock();
     let ord = std::env::var("INTARSIA_CUDA_DEVICE").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
     let Ok(be) = intarsia_backend_cuda::create(ord) else {
         common::skip("kv_once timing", "no usable CUDA device");

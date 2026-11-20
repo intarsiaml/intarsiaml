@@ -1,0 +1,8 @@
+```python
+#!/usr/bin/env python3
+"""ab35b run 3b: tool-call smoke against one OpenAI-compatible endpoint, each engine with its own tool parser.
+
+Plain stdlib (no localeval): the checks are on the response shape, not timing.
+  per scenario, N reps at temperature 0, thinking off, tool_choice auto:
+    - tool call: `tool_calls` present, finish_reason `tool_calls`, function name right, `arguments` strict JSON
+      (json.loads, no trailing text) and every required key present with the right type/value, no raw `

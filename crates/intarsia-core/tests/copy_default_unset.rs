@@ -1,5 +1,5 @@
-//! Lane copyflipm: with `INTARSIA_SPEC_COPY` unset the copy drafts are on exactly where the loader says the default applies (Metal, one
-//! sequence, one rank) and off everywhere else; `copy_from_env` (the one resolution point) answers the load-time verify-row width and the
+//! Lanes copyflipm / copyflipc: with `INTARSIA_SPEC_COPY` unset the copy drafts are on exactly where the loader says the default applies (Metal
+//! or CUDA, one sequence, one rank, a recipe that opts in) and off everywhere else; `copy_from_env` (the one resolution point) answers the load-time verify-row width and the
 //! engine alike. Own test binary: the variable is read once per process.
 use intarsia_core::spec::{
     copy_default_applies, copy_explicit_from_env, copy_from_env, copy_is_default, set_copy_backend, set_copy_default, SpecConfig, SpecMode,
@@ -31,9 +31,31 @@ fn unset_is_on_for_an_opted_in_recipe_on_metal_one_sequence_and_off_elsewhere() 
     // `--spec off` / ngram: the chain never reaches the verify rows
     assert_eq!(SpecConfig { mode: SpecMode::Ngram, k: 2, ..SpecConfig::default() }.verify_rows(), 3);
 
+    // CUDA, max batch 1, tp 1, an opted-in recipe (the 35B, lane copyflipc): `INTARSIA_SPEC_COPY=20` at CUDA's length 7, so 8 verify rows and 7 saved rows
+    set_copy_backend("cuda");
+    set_copy_default(copy_default_applies("cuda", 1, 1, true));
+    let c = copy_from_env().expect("on");
+    assert_eq!((c.n, c.len, c.adapt), (20, 7, false));
+    assert!(copy_is_default());
+    assert_eq!(mtp(2).verify_rows(), 8);
+    assert_eq!(mtp(2).save_rows(), 7);
+    assert!(copy_explicit_from_env().is_none());
+    // `--spec-k` above the chain: the verify rows are the wider of the two
+    assert_eq!(mtp(9).verify_rows(), 10);
+
     // a recipe without the key (the Qwen3.8-27B, every other model) on Metal at one sequence, `--max-batch 8`, tp 2, and other backends: off,
     // unchanged plan, no error
-    for (backend, mb, tp, opt_in) in [("metal", 1, 1, false), ("metal", 8, 1, true), ("metal", 1, 2, true), ("cuda", 1, 1, true), ("hip", 1, 1, true), ("cpu", 1, 1, true)] {
+    for (backend, mb, tp, opt_in) in [
+        ("metal", 1, 1, false),
+        ("metal", 8, 1, true),
+        ("metal", 1, 2, true),
+        ("cuda", 1, 1, false),
+        ("cuda", 2, 1, true),
+        ("cuda", 8, 1, true),
+        ("cuda", 1, 2, true),
+        ("hip", 1, 1, true),
+        ("cpu", 1, 1, true),
+    ] {
         set_copy_backend(backend);
         set_copy_default(copy_default_applies(backend, mb, tp, opt_in));
         assert!(copy_from_env().is_none(), "{backend} mb {mb} tp {tp} recipe key {opt_in}");

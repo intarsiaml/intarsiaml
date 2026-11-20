@@ -1,0 +1,49 @@
+fleetq: #10434 waiting (#2 in line): in line behind #10432 "kvflip tp2 BAAB" (claude-kvflip) on spark1
+fleetq: #10434 waiting (#1 in line): needs gpu quiet on spark1, but #10432 "kvflip tp2 BAAB" (claude-kvflip) loads it
+fleetq: #10434 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10434 running on spark1: bash scripts/copyflipc/gates.sh
+== ids gate 15:28:32
+PASS ids copy3k zero: 2902 ids identical | copy_on_lines=0 default_lines=0 copy_passes=0 accepted_hist[count acc]= graph_steps=968 eager_steps=0 mean_step=19.045 mean_gap=0.003 | spec: verify passes=968 proposed=1936 accepted=1934 (acceptance 99.9%, 3.00 tokens per pass)
+PASS ids copy3k def: 2902 ids identical | copy_on_lines=1 default_lines=1 copy_passes=359 accepted_hist[count acc]=      1 0       1 2     357 7  graph_steps=14 eager_steps=0 mean_step=19.550 mean_gap=279.828 | spec: verify passes=14 proposed=28 accepted=28 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids code-gen zero: 500 ids identical | copy_on_lines=0 default_lines=0 copy_passes=0 accepted_hist[count acc]= graph_steps=180 eager_steps=0 mean_step=17.271 mean_gap=0.004 | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+PASS ids code-gen def: 500 ids identical | copy_on_lines=1 default_lines=1 copy_passes=0 accepted_hist[count acc]= graph_steps=180 eager_steps=0 mean_step=17.243 mean_gap=0.004 | spec: verify passes=180 proposed=360 accepted=319 (acceptance 88.6%, 2.77 tokens per pass)
+PASS ids json-xform zero: 2600 ids identical | copy_on_lines=0 default_lines=0 copy_passes=0 accepted_hist[count acc]= graph_steps=866 eager_steps=0 mean_step=19.374 mean_gap=0.002 | spec: verify passes=866 proposed=1732 accepted=1732 (acceptance 100.0%, 3.00 tokens per pass)
+PASS ids json-xform def: 2600 ids identical | copy_on_lines=1 default_lines=1 copy_passes=323 accepted_hist[count acc]=      2 0       4 1       5 2       6 3       9 4      22 5      10 6     265 7  graph_steps=61 eager_steps=0 mean_step=19.507 mean_gap=149.225 | spec: verify passes=61 proposed=122 accepted=122 (acceptance 100.0%, 3.00 tokens per pass)
+ids fails=0
+== A/B 15:43:46
+def r1 up 15:45:29 free: 55 GB
+def r1 code-gen: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 161.59, "wall": 5.023, "sha": "454f22a3d8f6"}
+def r1 copy3k: {"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.432, "dec_tps": 279.75, "wall": 10.806, "sha": "4eb925608b0c"}
+def r1 metrics: intarsia_graph_replays_total 1222 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 1212 intarsia_spec_proposed_tokens_total 2424 intarsia_spec_accepted_tokens_total 2053 intarsia_spec_copy_steps_total 1079 intarsia_spec_copy_proposed_tokens_total 7553 intarsia_spec_copy_accepted_tokens_total 7506 
+zero r1 up 15:47:50 free: 57 GB
+zero r1 code-gen: {"cell": "code-gen", "tag": "c1", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.078, "dec_tps": 162.16, "wall": 5.005, "sha": "454f22a3d8f6"}
+zero r1 copy3k: {"cell": "copy3k", "tag": "c1", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.435, "dec_tps": 162.05, "wall": 18.343, "sha": "4eb925608b0c"}
+zero r1 metrics: intarsia_graph_replays_total 4086 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 4076 intarsia_spec_proposed_tokens_total 8152 intarsia_spec_accepted_tokens_total 7774 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+zero r2 up 15:50:31 free: 57 GB
+zero r2 code-gen: {"cell": "code-gen", "tag": "c2", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 162.47, "wall": 4.995, "sha": "501f32a24c8e"}
+zero r2 copy3k: {"cell": "copy3k", "tag": "c2", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.428, "dec_tps": 161.93, "wall": 18.349, "sha": "4eb925608b0c"}
+zero r2 metrics: intarsia_graph_replays_total 4082 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 4073 intarsia_spec_proposed_tokens_total 8145 intarsia_spec_accepted_tokens_total 7777 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+def r2 up 15:53:12 free: 56 GB
+def r2 code-gen: {"cell": "code-gen", "tag": "c2", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.076, "dec_tps": 162.93, "wall": 4.98, "sha": "501f32a24c8e"}
+def r2 copy3k: {"cell": "copy3k", "tag": "c2", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.437, "dec_tps": 275.92, "wall": 10.955, "sha": "4eb925608b0c"}
+def r2 metrics: intarsia_graph_replays_total 1218 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 1210 intarsia_spec_proposed_tokens_total 2419 intarsia_spec_accepted_tokens_total 2055 intarsia_spec_copy_steps_total 1081 intarsia_spec_copy_proposed_tokens_total 7567 intarsia_spec_copy_accepted_tokens_total 7505 
+def r3 up 15:55:13 free: 57 GB
+def r3 code-gen: {"cell": "code-gen", "tag": "c3", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 161.25, "wall": 5.032, "sha": "35d159a2c1d1"}
+def r3 copy3k: {"cell": "copy3k", "tag": "c3", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.433, "dec_tps": 279.51, "wall": 10.816, "sha": "4eb925608b0c"}
+def r3 metrics: intarsia_graph_replays_total 1219 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 1212 intarsia_spec_proposed_tokens_total 2422 intarsia_spec_accepted_tokens_total 2102 intarsia_spec_copy_steps_total 1079 intarsia_spec_copy_proposed_tokens_total 7553 intarsia_spec_copy_accepted_tokens_total 7507 
+zero r3 up 15:57:22 free: 57 GB
+zero r3 code-gen: {"cell": "code-gen", "tag": "c3", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.076, "dec_tps": 162.17, "wall": 5.003, "sha": "35d159a2c1d1"}
+zero r3 copy3k: {"cell": "copy3k", "tag": "c3", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.43, "dec_tps": 161.87, "wall": 18.358, "sha": "4eb925608b0c"}
+zero r3 metrics: intarsia_graph_replays_total 4084 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 4077 intarsia_spec_proposed_tokens_total 8152 intarsia_spec_accepted_tokens_total 7823 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+zero r4 up 15:59:54 free: 57 GB
+zero r4 code-gen: {"cell": "code-gen", "tag": "c4", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.076, "dec_tps": 162.38, "wall": 4.997, "sha": "700a5b366c8f"}
+zero r4 copy3k: {"cell": "copy3k", "tag": "c4", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.433, "dec_tps": 161.39, "wall": 18.414, "sha": "4eb925608b0c"}
+zero r4 metrics: intarsia_graph_replays_total 4051 intarsia_graph_captures_total 4 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 4041 intarsia_spec_proposed_tokens_total 8082 intarsia_spec_accepted_tokens_total 7745 intarsia_spec_copy_steps_total 0 intarsia_spec_copy_proposed_tokens_total 0 intarsia_spec_copy_accepted_tokens_total 0 
+def r4 up 16:02:35 free: 57 GB
+def r4 code-gen: {"cell": "code-gen", "tag": "c4", "rep": 2, "toks": 800, "chunks": 800, "ttft": 0.077, "dec_tps": 163.14, "wall": 4.975, "sha": "700a5b366c8f"}
+def r4 copy3k: {"cell": "copy3k", "tag": "c4", "rep": 2, "toks": 2903, "chunks": 128, "ttft": 0.432, "dec_tps": 281.32, "wall": 10.748, "sha": "4eb925608b0c"}
+def r4 metrics: intarsia_graph_replays_total 1183 intarsia_graph_captures_total 5 intarsia_decode_eager_steps_total 0 intarsia_spec_steps_total 1174 intarsia_spec_proposed_tokens_total 2347 intarsia_spec_accepted_tokens_total 2020 intarsia_spec_copy_steps_total 1080 intarsia_spec_copy_proposed_tokens_total 7560 intarsia_spec_copy_accepted_tokens_total 7513 
+ab done
+== fetch 16:03:28
+gates done
+fleetq: #10434 done (exit 0)

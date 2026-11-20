@@ -133,14 +133,14 @@ mod tests {
         assert_eq!(select_recipe(&cfg, &[]).unwrap().0, "builtin:qwen3_5");
     }
 
-    /// Lane copyflipm: the copy-draft default (`[tuning.<backend>] copy_default`) is opted into by the Qwen3.6-35B-A3B recipe on Metal and by no other
-    /// built-in recipe or backend (the Qwen3.8-27B, `qwen3_5_vl`, was measured and left out).
+    /// Lane copyflipm: the copy-draft default (`[tuning.<backend>] copy_default`) is opted into by the Qwen3.6-35B-A3B recipe on Metal and on CUDA (lane
+    /// copyflipc) and by no other built-in recipe or backend (the Qwen3.8-27B, `qwen3_5_vl`, was measured on Metal and left out; HIP is not wired).
     #[test]
-    fn only_the_35b_recipe_opts_into_the_copy_default_on_metal() {
+    fn only_the_35b_recipe_opts_into_the_copy_default_on_metal_and_cuda() {
         for (name, text) in BUILTIN_RECIPES {
             let r = parse_recipe(text).unwrap();
             for backend in ["metal", "cuda", "hip", "cpu"] {
-                let want = *name == "qwen3_5_moe" && backend == "metal";
+                let want = *name == "qwen3_5_moe" && matches!(backend, "metal" | "cuda");
                 assert_eq!(r.resolve_copy_default(backend), want, "{name} on {backend}");
             }
         }
