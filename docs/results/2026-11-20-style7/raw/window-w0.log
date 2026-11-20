@@ -1,0 +1,11 @@
+[15:28:57 +0s] window w0 cfgs: vllm; fleetq job 10436; vLLM models: 200
+200/200 28s
+done 200 -> /opt/code/intarsiaml/.worktrees/style7/docs/results/2026-11-20-style7/raw/ft-vllm-p1.json in 28s
+200/200 28s
+done 200 -> /opt/code/intarsiaml/.worktrees/style7/docs/results/2026-11-20-style7/raw/ft-vllm-p2.json in 28s
+200/200 28s
+done 200 -> /opt/code/intarsiaml/.worktrees/style7/docs/results/2026-11-20-style7/raw/ft-vllm-p3.json in 28s
+
+[localeval] saved /opt/code/deepeval/results/20261120-153022-adhoc-style7-vllm/result.json
+[localeval] logged to unanimis: e4aa08c3-6f44-49d0-9877-d8751dc594c5
+[15:33:23 +266s] window end
