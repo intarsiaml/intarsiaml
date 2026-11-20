@@ -13,3 +13,14 @@
 | 65536 | 68917 | 16.076 | 52.693 (50.418-60.058) | 0.578 |
 [08:28:15 +261s] cell w4-T0.7 end: clock guard: 88 samples, 57 at util>90, 0 of those SM<2000 MHz, min SM 2333, mean SM 2377, max power 93 W; SW power cap delta 0 us
 [08:28:16 +262s] cell w4-T0 start; 2405 MHz, 16.50 W, 0 %, 67
+[sampled] 65536 rep2: prompt=68819 cached=0 ttft=15.61s decode=67.5 peak=85.7 out=256
+[sampled] 65536 rep3: prompt=68867 cached=0 ttft=15.70s decode=62.8 peak=93.8 out=256
+[sampled] 65536 rep4: prompt=68874 cached=0 ttft=15.65s decode=58.2 peak=73.7 out=256
+[sampled] 65536 rep5: prompt=68845 cached=0 ttft=15.71s decode=60.2 peak=78.7 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4071 | 0.666 | 118.866 (112.079-150.79) | 0.682 |
+| 32768 | 33876 | 6.29 | 82.563 (80.751-84.939) | 0.604 |
+| 65536 | 68867 | 15.648 | 60.197 (57.448-67.538) | 0.615 |
+[08:30:58 +424s] cell w4-T0 end: clock guard: 80 samples, 77 at util>90, 0 of those SM<2000 MHz, min SM 2346, mean SM 2378, max power 93 W; SW power cap delta 0 us
+[08:31:02 +428s] min MemAvailable MB: 08:29:05 37382; KILLED lines: 0; warn/error lines in serve log: 0
+[08:31:05 +431s] window end
