@@ -1,0 +1,6 @@
+base w4-v1-dflt-interleaved-seed0-k2.jsonl: 48 requests, 48 ok
+w4-v2-ref-interleaved-seed0-k2.jsonl: identical 48 of 48, different 0
+../../2026-11-20-storeprefault/raw/w3-v2-pf-interleaved-seed0-k2.jsonl: identical 48 of 48, different 0
+base w4-v1-dflt-interleaved-seed1-k2.jsonl: 48 requests, 48 ok
+w4-v2-ref-interleaved-seed1-k2.jsonl: identical 48 of 48, different 0
+../../2026-11-20-storeprefault/raw/w3-v2-pf-interleaved-seed1-k2.jsonl: identical 48 of 48, different 0

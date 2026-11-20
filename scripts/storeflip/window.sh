@@ -10,6 +10,7 @@
 #   ref    --prefix-store on | INTARSIA_PREFIX_STORE_MACRO=1 INTARSIA_PREFIX_STORE_PREFAULT=1     #467's explicit arm (the reference for the replies)
 #   m0     --prefix-store on | INTARSIA_PREFIX_STORE_MACRO=0            macro off, prefault default
 #   p0     --prefix-store on | INTARSIA_PREFIX_STORE_PREFAULT=0         prefault off, macro default
+#   mac4k  --prefix-store on | INTARSIA_PREFILL_MACRO=4096              (option measured for the restore-point finding) macro pass of 2 chunks
 # Env: STOREOPT (the --prefix-store value of the store arms, default on), MODE=speed|replay|ids|restore, SEEDS (replay), REPS (default 3), SIZES (default 4096,16384,32768),
 # TAG (raw-file label suffix), SHARED (restore mode: shared-prefix sizes in tokens).
 set -uo pipefail
@@ -43,6 +44,7 @@ arm_conf() { # sets ARGS and ENVS for an arm name
     zero) ARGS="$base --prefix-store ${STOREOPT:-on}"; ENVS="INTARSIA_PREFIX_STORE_MACRO=0 INTARSIA_PREFIX_STORE_PREFAULT=0" ;;
     ref) ARGS="$base --prefix-store ${STOREOPT:-on}"; ENVS="INTARSIA_PREFIX_STORE_MACRO=1 INTARSIA_PREFIX_STORE_PREFAULT=1" ;;
     m0) ARGS="$base --prefix-store ${STOREOPT:-on}"; ENVS="INTARSIA_PREFIX_STORE_MACRO=0" ;;
+    mac4k) ARGS="$base --prefix-store ${STOREOPT:-on}"; ENVS="INTARSIA_PREFILL_MACRO=4096" ;;   # option, not the default: macro pass of 2 chunks (entries every 4096 tokens)
     p0) ARGS="$base --prefix-store ${STOREOPT:-on}"; ENVS="INTARSIA_PREFIX_STORE_PREFAULT=0" ;;
     *) echo "unknown arm $1"; exit 2 ;;
   esac

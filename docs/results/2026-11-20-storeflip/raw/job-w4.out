@@ -1,0 +1,42 @@
+fleetq: #10391 waiting (#7 in line): in line behind #10385 "samp64 phase1: spec on/off, sampled vs greedy 4k/32k/64k" (claude-samp64) on spark2
+fleetq: #10391 waiting (#6 in line): in line behind #10386 "samp64 nsys attribution 32k/64k sampled vs greedy" (claude-samp64) on spark2
+fleetq: #10391 waiting (#5 in line): in line behind #10387 "samp64 phase2: spec-k 1 / K_MIN / COSTGATE, sampled vs greedy" (claude-samp64) on spark2
+fleetq: #10391 waiting (#4 in line): in line behind #10388 "storeflip w1 restore-point dflt zero zero dflt" (claude-storeflip) on spark2
+fleetq:   #10388 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10388 set, or it will wait for #10388 to be released.
+fleetq: #10391 waiting (#3 in line): in line behind #10389 "storeflip w2 ids dflt ref zero" (claude-storeflip) on spark2
+fleetq:   #10389 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10389 set, or it will wait for #10389 to be released.
+fleetq: #10391 waiting (#2 in line): in line behind #10390 "storeflip w3 cold TTFT ABBA dflt zero zero dflt" (claude-storeflip) on spark2
+fleetq:   #10390 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10390 set, or it will wait for #10390 to be released.
+fleetq: #10391 waiting (#1 in line): needs gpu quiet on spark2, but #10390 "storeflip w3 cold TTFT ABBA dflt zero zero dflt" (claude-storeflip) loads it
+fleetq:   #10390 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10390 set, or it will wait for #10390 to be released.
+fleetq: #10391 waiting (#1 in line): needs spark2 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10391 waiting (#1 in line): needs 50 GB on spark2; the box reports only 41 GB actually free (memory used by something fleetq does not track)
+fleetq: #10391 running on spark2: bash scripts/storeflip/window.sh w4 dflt ref
+[09:09:03 +2s] visit w4-v1-dflt: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          63           0          12          75
+[09:09:03 +2s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env none
+[09:10:24 +83s] serve up; MemAvailable MB 47435; prefix store: macro prefill (8192 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store with --max-batch > 1: workspace 1727 MiB|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build f166bc1133aa17b8, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_S|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 78.2s, context 131072 tokens|
+[09:10:25 +84s] thp before: compact_stall 0 thp_fault_alloc 50600 thp_fault_fallback 0 
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.03, 'itl_ms_p99_median': 186.13, 'itl_ms_p99_max': 938.86, 'itl_cv_median': 1.874}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988922, 'cached_tokens': 723809, 'ttft_s_sum': 69.52, 'decode_tok_s_median': 47.9, 'completion_tokens': 7589, 'agg_output_tok_s': 66.45} wall 114.2s
+[09:12:22 +201s] cell w4-v1-dflt-s0 end: clock guard: 58 samples, 54 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2389, max power 85 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.04, 'itl_ms_p99_median': 343.53, 'itl_ms_p99_max': 819.8, 'itl_cv_median': 2.252}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988463, 'cached_tokens': 723520, 'ttft_s_sum': 73.38, 'decode_tok_s_median': 47.3, 'completion_tokens': 7318, 'agg_output_tok_s': 65.53} wall 111.7s
+[09:14:16 +315s] cell w4-v1-dflt-s1 end: clock guard: 55 samples, 50 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2388, max power 86 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[09:14:17 +316s] thp after: compact_stall 0 thp_fault_alloc 57195 thp_fault_fallback 0 ; server Rss: 166768 kB AnonHugePages: 0 kB 
+[09:14:18 +317s] visit w4-v1-dflt done; min MemAvailable MB (time MB) 09:12:27 37279; KILLED lines 0; warn/error lines in serve log 0
+[09:14:22 +321s] visit w4-v2-ref: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          63           0          12          75
+[09:14:23 +322s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=1 INTARSIA_PREFIX_STORE_PREFAULT=1
+[09:15:44 +403s] serve up; MemAvailable MB 47430; prefix store: macro prefill (8192 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store with --max-batch > 1: workspace 1727 MiB|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build f166bc1133aa17b8, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_S|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 78.3s, context 131072 tokens|
+[09:15:45 +404s] thp before: compact_stall 0 thp_fault_alloc 57195 thp_fault_fallback 0 
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.03, 'itl_ms_p99_median': 184.46, 'itl_ms_p99_max': 751.57, 'itl_cv_median': 1.886}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988922, 'cached_tokens': 723809, 'ttft_s_sum': 73.46, 'decode_tok_s_median': 47.6, 'completion_tokens': 7589, 'agg_output_tok_s': 66.78} wall 113.6s
+[09:17:41 +520s] cell w4-v2-ref-s0 end: clock guard: 56 samples, 49 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2388, max power 84 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.03, 'itl_ms_p99_median': 263.95, 'itl_ms_p99_max': 954.38, 'itl_cv_median': 2.165}
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988463, 'cached_tokens': 723520, 'ttft_s_sum': 74.6, 'decode_tok_s_median': 48.7, 'completion_tokens': 7318, 'agg_output_tok_s': 65.62} wall 111.5s
+[09:19:35 +634s] cell w4-v2-ref-s1 end: clock guard: 57 samples, 51 at util>90, 0 of those SM<2000 MHz, min SM 2379, mean SM 2389, max power 85 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[09:19:36 +635s] thp after: compact_stall 0 thp_fault_alloc 63822 thp_fault_fallback 0 ; server Rss: 166768 kB AnonHugePages: 0 kB 
+[09:19:37 +636s] visit w4-v2-ref done; min MemAvailable MB (time MB) 09:17:46 37230; KILLED lines 0; warn/error lines in serve log 0
+scripts/storeflip/window.sh: line 133: syntax error near unexpected token `('
+scripts/storeflip/window.sh: line 133: `  log "visit $V done; min MemAvailable MB (time MB) $(sort -k2 -n "$OUT/mem-$V.txt" | head -1); KILLED lines $(grep -c KILLED "$OUT/mem-$V.txt"); warn/error lines in serve log $(grep -ciE 'warn|error|panic|fail' "$OUT/serve-$V.log")"'
+[09:19:40 +639s] window end
+fleetq: #10391 done (exit 2)

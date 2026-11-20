@@ -1,0 +1,242 @@
+[
+ {
+  "size": 1500,
+  "kind": "cold",
+  "ok": true,
+  "prompt_tokens": 1445,
+  "cached_tokens": 0,
+  "completion_tokens": 64,
+  "text": "Note 67: the ancient quiet will compile the harbor matrix near the signal amber before vector ledger. Note 68: the signal vector will meadow the quiet report near the anchor compile before harbor thread. Note 69: the harbor thread will amber the compile signal near the meadow anchor before vector quiet",
+  "ttft_s": 0.9063877079752274
+ },
+ {
+  "size": 1500,
+  "kind": "again",
+  "ok": true,
+  "prompt_tokens": 1445,
+  "cached_tokens": 1441,
+  "completion_tokens": 64,
+  "text": "Note 67: the ancient quiet will compile the harbor matrix near the signal amber before vector ledger. Note 68: the signal vector will meadow the quiet report near the anchor compile before harbor thread. Note 69: the harbor thread will amber the compile signal near the meadow anchor before vector quiet",
+  "ttft_s": 0.0343925419729203
+ },
+ {
+  "size": 3000,
+  "kind": "cold",
+  "ok": true,
+  "prompt_tokens": 2924,
+  "cached_tokens": 0,
+  "completion_tokens": 64,
+  "text": "Note 134: the crimson matrix will thread the harbor measure near the ancient vector before quiet ledger. Note 135: the gentle anchor will report the silver compile near the meadow router before violet thread. Note 136: the modern ledger will balance the observe kernel near the buffer signal before",
+  "ttft_s": 0.5204343750374392
+ },
+ {
+  "size": 3000,
+  "kind": "again",
+  "ok": true,
+  "prompt_tokens": 2924,
+  "cached_tokens": 2920,
+  "completion_tokens": 64,
+  "text": "Note 134: the crimson matrix will thread the harbor measure near the ancient vector before quiet ledger. Note 135: the gentle anchor will report the silver compile near the meadow router before violet thread. Note 136: the modern ledger will balance the observe kernel near the buffer signal before",
+  "ttft_s": 0.039487708010710776
+ },
+ {
+  "size": 4300,
+  "kind": "cold",
+  "ok": true,
+  "prompt_tokens": 4247,
+  "cached_tokens": 0,
+  "completion_tokens": 64,
+  "text": "Note 193: the harbor matrix will inspect the rapid ledger near the compile violet before anchor measure. Note 194: the silver thread will gather the quiet anchor near the modern buffer before lantern signal. Note 195: the compile report will vector the ancient socket near the harbor kernel before measure",
+  "ttft_s": 0.7376949170138687
+ },
+ {
+  "size": 4300,
+  "kind": "again",
+  "ok": true,
+  "prompt_tokens": 4247,
+  "cached_tokens": 4243,
+  "completion_tokens": 64,
+  "text": "Note 193: the harbor matrix will inspect the rapid ledger near the compile violet before anchor measure. Note 194: the silver thread will gather the quiet anchor near the modern buffer before lantern signal. Note 195: the compile report will vector the ancient socket near the harbor kernel before measure",
+  "ttft_s": 0.09551233297679573
+ },
+ {
+  "size": 6200,
+  "kind": "cold",
+  "ok": true,
+  "prompt_tokens": 6177,
+  "cached_tokens": 0,
+  "completion_tokens": 64,
+  "text": "Note 279: the matrix thread will anchor the quiet signal near the harbor compile before silver measure. Note 280: the gentle vector will meadow the report kernel near the ancient ledger before crimson packet. Note 281: the harbor inspect will router the balance modern near the thread cache before",
+  "ttft_s": 1.0322350839851424
+ },
+ {
+  "size": 6200,
+  "kind": "again",
+  "ok": true,
+  "prompt_tokens": 6177,
+  "cached_tokens": 6173,
+  "completion_tokens": 64,
+  "text": "Note 279: the matrix thread will anchor the quiet signal near the harbor compile before silver measure. Note 280: the gentle vector will meadow the report kernel near the ancient ledger before crimson packet. Note 281: the harbor inspect will router the balance modern near the thread cache before",
+  "ttft_s": 0.05593804200179875
+ },
+ {
+  "size": 8300,
+  "kind": "cold",
+  "ok": true,
+  "prompt_tokens": 8326,
+  "cached_tokens": 0,
+  "completion_tokens": 64,
+  "text": "Note 374: the quiet ledger will measure the ancient vector near the harbor compile before silver thread. Note 375: the buffer report will anchor the modern kernel near the distant amber before packet restore. Note 376: the silver thread will compile the quiet harbor near the measure ancient before ledger",
+  "ttft_s": 1.2908153749885969
+ },
+ {
+  "size": 8300,
+  "kind": "again",
+  "ok": true,
+  "prompt_tokens": 8326,
+  "cached_tokens": 8322,
+  "completion_tokens": 64,
+  "text": "Note 374: the quiet ledger will measure the ancient vector near the harbor compile before silver thread. Note 375: the buffer report will anchor the modern kernel near the distant amber before packet restore. Note 376: the silver thread will compile the quiet harbor near the measure ancient before ledger",
+  "ttft_s": 0.06395295797847211
+ },
+ {
+  "size": 10300,
+  "kind": "cold",
+  "ok": true,
+  "prompt_tokens": 10396,
+  "cached_tokens": 0,
+  "completion_tokens": 64,
+  "text": "Note 465: the matrix signal will harbor the ancient thread near the quiet ledger before measure anchor. Note 466: the quiet vector will compile the modern harbor near the silver report before canyon inspect. Note 467: the ledger thread will amber the gentle matrix near the rapid orchard before",
+  "ttft_s": 1.6318882499472238
+ },
+ {
+  "size": 10300,
+  "kind": "again",
+  "ok": true,
+  "prompt_tokens": 10396,
+  "cached_tokens": 10392,
+  "completion_tokens": 64,
+  "text": "Note 465: the matrix signal will harbor the ancient thread near the quiet ledger before measure anchor. Note 466: the quiet vector will compile the modern harbor near the silver report before canyon inspect. Note 467: the ledger thread will amber the gentle matrix near the rapid orchard before",
+  "ttft_s": 0.06939733400940895
+ },
+ {
+  "size": 12500,
+  "kind": "cold",
+  "ok": true,
+  "prompt_tokens": 12642,
+  "cached_tokens": 0,
+  "completion_tokens": 64,
+  "text": "Note 564: the quiet matrix will thread the amber report near the signal harbor before compile measure. Note 565: the silver thread will measure the gentle kernel near the rapid anchor before vector ledger. Note 566: the harbor modern will inspect the crimson buffer near the matrix quiet before orch",
+  "ttft_s": 1.9638720839866437
+ },
+ {
+  "size": 12500,
+  "kind": "again",
+  "ok": true,
+  "prompt_tokens": 12642,
+  "cached_tokens": 12638,
+  "completion_tokens": 64,
+  "text": "Note 564: the quiet matrix will thread the amber report near the signal harbor before compile measure. Note 565: the silver thread will measure the gentle kernel near the rapid anchor before vector ledger. Note 566: the harbor modern will inspect the crimson buffer near the matrix quiet before orch",
+  "ttft_s": 0.08100700000068173
+ },
+ {
+  "size": 16500,
+  "kind": "cold",
+  "ok": true,
+  "prompt_tokens": 16708,
+  "cached_tokens": 0,
+  "completion_tokens": 64,
+  "text": "Note 745: the silver thread will vector the quiet harbor near the modern ledger before ancient measure. Note 746: the modern anchor will kernel the report balance near the signal thread before crimson ledger. Note 747: the crimson report will measure the gentle vector near the hollow anchor before rapid",
+  "ttft_s": 2.621084833983332
+ },
+ {
+  "size": 16500,
+  "kind": "again",
+  "ok": true,
+  "prompt_tokens": 16708,
+  "cached_tokens": 16704,
+  "completion_tokens": 64,
+  "text": "Note 745: the silver thread will vector the quiet harbor near the modern ledger before ancient measure. Note 746: the modern anchor will kernel the report balance near the signal thread before crimson ledger. Note 747: the crimson report will measure the gentle vector near the hollow anchor before rapid",
+  "ttft_s": 0.10033041698625311
+ },
+ {
+  "size": 20500,
+  "kind": "cold",
+  "ok": true,
+  "prompt_tokens": 20812,
+  "cached_tokens": 0,
+  "completion_tokens": 64,
+  "text": "Note 926: the matrix ledger will thread the quiet amber near the harbor signal before measure ancient. Note 927: the gentle report will anchor the vector crimson near the compile layer before socket modern. Note 928: the silver buffer will measure the hollow thread near the rapid orchard before",
+  "ttft_s": 3.362422333972063
+ },
+ {
+  "size": 20500,
+  "kind": "again",
+  "ok": true,
+  "prompt_tokens": 20812,
+  "cached_tokens": 20808,
+  "completion_tokens": 64,
+  "text": "Note 926: the matrix ledger will thread the quiet amber near the harbor signal before measure ancient. Note 927: the gentle report will anchor the vector crimson near the compile layer before socket modern. Note 928: the silver buffer will measure the hollow thread near the rapid orchard before",
+  "ttft_s": 0.11707220796961337
+ },
+ {
+  "size": 24600,
+  "kind": "cold",
+  "ok": true,
+  "prompt_tokens": 25137,
+  "cached_tokens": 0,
+  "completion_tokens": 64,
+  "text": "Note 1112: the vector harbor will measure the quiet amber near the compile signal before report kernel. Note 1113: the gentle matrix will socket the distant ledger near the modern thread before anchor survey. Note 1114: the report canyon will lantern the balance packet near the silver",
+  "ttft_s": 4.122044665971771
+ },
+ {
+  "size": 24600,
+  "kind": "again",
+  "ok": true,
+  "prompt_tokens": 25137,
+  "cached_tokens": 25133,
+  "completion_tokens": 64,
+  "text": "Note 1112: the vector harbor will measure the quiet amber near the compile signal before report kernel. Note 1113: the gentle matrix will socket the distant ledger near the modern thread before anchor survey. Note 1114: the report canyon will lantern the balance packet near the silver",
+  "ttft_s": 0.13398470799438655
+ },
+ {
+  "size": 28700,
+  "kind": "cold",
+  "ok": true,
+  "prompt_tokens": 29454,
+  "cached_tokens": 0,
+  "completion_tokens": 64,
+  "text": "Note 1297: the quiet matrix will thread the ancient signal near the harbor compile before measure vector. Note 1298: the report amber will anchor the modern ledger near the silver thread before glacier quiet. Note 1299: the layer signal will measure the crimson harbor near the violet",
+  "ttft_s": 4.9572640839614905
+ },
+ {
+  "size": 28700,
+  "kind": "again",
+  "ok": true,
+  "prompt_tokens": 29454,
+  "cached_tokens": 29450,
+  "completion_tokens": 64,
+  "text": "Note 1297: the quiet matrix will thread the ancient signal near the harbor compile before measure vector. Note 1298: the report amber will anchor the modern ledger near the silver thread before glacier quiet. Note 1299: the layer signal will measure the crimson harbor near the violet",
+  "ttft_s": 0.16004983300808817
+ },
+ {
+  "size": 33000,
+  "kind": "cold",
+  "ok": true,
+  "prompt_tokens": 34068,
+  "cached_tokens": 0,
+  "completion_tokens": 64,
+  "text": "Note 1492: the harbor signal will measure the quiet vector near the ancient ledger before modern thread. Note 1493: the quiet matrix will anchor the report kernel near the silver buffer before crimson hollow. Note 1494: the vector ancient will compile the meadow signal near the",
+  "ttft_s": 5.860198665992357
+ },
+ {
+  "size": 33000,
+  "kind": "again",
+  "ok": true,
+  "prompt_tokens": 34068,
+  "cached_tokens": 34064,
+  "completion_tokens": 64,
+  "text": "Note 1492: the harbor signal will measure the quiet vector near the ancient ledger before modern thread. Note 1493: the quiet matrix will anchor the report kernel near the silver buffer before crimson hollow. Note 1494: the vector ancient will compile the meadow signal near the",
+  "ttft_s": 0.1662680419976823
+ }
+]

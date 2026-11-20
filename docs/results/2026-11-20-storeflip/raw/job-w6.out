@@ -1,0 +1,48 @@
+fleetq: #10403 waiting (#5 in line): in line behind #10397 "samp64 build fix (incremental)" (claude-samp64) on spark2
+fleetq: #10403 waiting (#4 in line): in line behind #10400 "samp64 gate run: schedule none vs 16384:1 vs 16384:1,40000:0" (claude-samp64) on spark2
+fleetq: #10403 waiting (#3 in line): in line behind #10401 "samp64 nsys attribution 4k/64k sampled vs greedy" (claude-samp64) on spark2
+fleetq: #10403 waiting (#2 in line): in line behind #10402 "storeflip w5 cold TTFT ABBA zero dflt dflt zero" (claude-storeflip) on spark2
+fleetq:   #10402 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10402 set, or it will wait for #10402 to be released.
+fleetq: #10403 waiting (#1 in line): needs gpu quiet on spark2, but #10402 "storeflip w5 cold TTFT ABBA zero dflt dflt zero" (claude-storeflip) loads it
+fleetq:   #10402 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10402 set, or it will wait for #10402 to be released.
+fleetq: #10403 waiting (#1 in line): needs spark2 quiet, but its GPU is 95% busy with work fleetq does not track
+fleetq: #10403 running on spark2: bash scripts/storeflip/window.sh w6 mac4k m0
+[10:08:03 +2s] visit w6-v1-mac4k: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          66           0           9          74
+[10:08:03 +2s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFILL_MACRO=4096
+[10:09:33 +92s] serve up; MemAvailable MB 47987; prefix store: macro prefill (4096 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store with --max-batch > 1: workspace 1028 MiB|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build bef1288b62a8f75f, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_S|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 86.1s, context 131072 tokens|
+[10:09:33 +92s] thp before: compact_stall 0 thp_fault_alloc 67441 thp_fault_fallback 0 
+[restore] w6-v1-mac4k A3000-cold: prompt=20266 cached=0 ttft=3.954s
+[restore] w6-v1-mac4k share3000: prompt=2930 cached=0 ttft=0.523s
+[restore] w6-v1-mac4k A3000-again: prompt=20266 cached=20262 ttft=0.108s
+[restore] w6-v1-mac4k A5000-cold: prompt=20340 cached=0 ttft=3.314s
+[restore] w6-v1-mac4k share5000: prompt=4992 cached=4099 ttft=0.233s
+[restore] w6-v1-mac4k A9000-cold: prompt=20316 cached=0 ttft=3.322s
+[restore] w6-v1-mac4k share9000: prompt=9078 cached=8195 ttft=0.345s
+[restore] w6-v1-mac4k A13000-cold: prompt=20281 cached=0 ttft=3.309s
+[restore] w6-v1-mac4k share13000: prompt=13160 cached=12291 ttft=0.279s
+[restore] w6-v1-mac4k A17000-cold: prompt=20332 cached=0 ttft=3.319s
+[restore] w6-v1-mac4k share17000: prompt=17276 cached=16387 ttft=0.313s
+[10:11:01 +180s] thp after: compact_stall 0 thp_fault_alloc 68807 thp_fault_fallback 0 ; server Rss: 166784 kB AnonHugePages: 0 kB 
+[10:11:02 +181s] cell w6-v1-mac4k end: clock guard: 44 samples, 8 at util>90, 0 of those SM<2000 MHz, min SM 2379, mean SM 2379, max power 79 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[10:11:03 +182s] visit w6-v1-mac4k done; min MemAvailable MB (time MB) 10:11:03 43593; KILLED lines 0; warn/error lines in serve log 0
+[10:11:07 +186s] visit w6-v2-m0: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          66           0           9          75
+[10:11:07 +186s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=0
+[10:12:27 +266s] serve up; MemAvailable MB 48473; prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it|prefix store with --max-batch > 1: workspace 678 MiB|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 85e2d8d2c2a9fd03, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_S|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 78.2s, context 131072 tokens|
+[10:12:28 +267s] thp before: compact_stall 0 thp_fault_alloc 68807 thp_fault_fallback 0 
+[restore] w6-v2-m0 A3000-cold: prompt=20266 cached=0 ttft=4.043s
+[restore] w6-v2-m0 share3000: prompt=2930 cached=2051 ttft=0.223s
+[restore] w6-v2-m0 A3000-again: prompt=20266 cached=20262 ttft=0.102s
+[restore] w6-v2-m0 A5000-cold: prompt=20340 cached=0 ttft=3.450s
+[restore] w6-v2-m0 share5000: prompt=4992 cached=4099 ttft=0.265s
+[restore] w6-v2-m0 A9000-cold: prompt=20316 cached=0 ttft=3.438s
+[restore] w6-v2-m0 share9000: prompt=9078 cached=8195 ttft=0.252s
+[restore] w6-v2-m0 A13000-cold: prompt=20281 cached=0 ttft=3.445s
+[restore] w6-v2-m0 share13000: prompt=13160 cached=12291 ttft=0.276s
+[restore] w6-v2-m0 A17000-cold: prompt=20332 cached=0 ttft=3.450s
+[restore] w6-v2-m0 share17000: prompt=17276 cached=16387 ttft=0.302s
+[10:13:56 +355s] thp after: compact_stall 0 thp_fault_alloc 70458 thp_fault_fallback 0 ; server Rss: 166776 kB AnonHugePages: 0 kB 
+[10:13:57 +356s] cell w6-v2-m0 end: clock guard: 45 samples, 9 at util>90, 0 of those SM<2000 MHz, min SM 2379, mean SM 2384, max power 78 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[10:13:58 +357s] visit w6-v2-m0 done; min MemAvailable MB (time MB) 10:13:49 43235; KILLED lines 0; warn/error lines in serve log 0
+[10:14:00 +359s] window w6 done: visits mac4k m0; fleetq job 10403
+[10:14:00 +359s] window end
+fleetq: #10403 done (exit 0)
