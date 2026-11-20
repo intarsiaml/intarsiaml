@@ -1,0 +1,7 @@
+fleetq: #10424 waiting (#1 in line): needs gpu quiet on spark2, but #10423 "kvonce ABBA served" (claude-kvonce) loads it
+fleetq:   #10423 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10423 set, or it will wait for #10423 to be released.
+fleetq: #10424 waiting (#1 in line): needs spark2 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10424 running on spark2: bash scripts/kvonce/jobX.sh
+[13:01:31 +0s] window x1 extra='--spec-k 1' env='INTARSIA_CUDA_ATTN_KV_ONCE=1' cells: 0.7:32768,65536:6; fleetq job 10424
+[13:01:33 +2s] free: Mem:             121          46          66           0           9          74; earlyoom active; binary: intarsia 0.0.1
+[13:01:33 +2s] serve: INTARSIA_CUDA_ATTN_KV_ONCE=1 ~/intarsiaml-kvonce/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on --spec-k 1

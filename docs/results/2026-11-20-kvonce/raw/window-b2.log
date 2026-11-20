@@ -1,0 +1,26 @@
+[12:26:39 +0s] window b2 extra='' env='INTARSIA_CUDA_ATTN_KV_ONCE=1' cells: 0.7:4096,32768,65536:3 0:4096,32768,65536:3; fleetq job 10423
+[12:26:41 +2s] free: Mem:             121          46          66           0           9          74; earlyoom active; binary: intarsia 0.0.1
+[12:26:42 +3s] serve: INTARSIA_CUDA_ATTN_KV_ONCE=1 ~/intarsiaml-kvonce/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[12:28:06 +87s] serve up; MemAvailable MB: 48420
+[12:28:06 +87s] cell b2-T0.7 start; 2398 MHz, 13.12 W, 0 %, 52
+[sampled] 32768 rep3: prompt=33870 cached=0 ttft=6.32s decode=82.2 peak=110.1 out=256
+[sampled] 65536 rep1: prompt=68881 cached=0 ttft=15.82s decode=76.4 peak=105.8 out=256
+[sampled] 65536 rep2: prompt=68818 cached=0 ttft=15.75s decode=73.6 peak=9346.6 out=256
+[sampled] 65536 rep3: prompt=68864 cached=0 ttft=15.80s decode=86.3 peak=139.4 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4071 | 0.669 | 98.838 (97.101-100.325) | 0.569 |
+| 32768 | 33874 | 6.317 | 85.387 (82.207-89.37) | 0.566 |
+| 65536 | 68864 | 15.796 | 76.358 (73.632-86.32) | 0.631 |
+[12:29:45 +186s] cell b2-T0.7 end: clock guard: 48 samples, 30 at util>90, 0 of those SM<2300 MHz, min SM 2333, mean SM 2368, max power 92 W; SW power cap delta 0 us
+[12:29:46 +187s] cell b2-T0 start; 2405 MHz, 16.32 W, 0 %, 66
+[sampled] 32768 rep3: prompt=33873 cached=0 ttft=6.54s decode=103.9 peak=146397.5 out=256
+[sampled] 65536 rep1: prompt=68908 cached=0 ttft=15.82s decode=84.0 peak=202.5 out=256
+[sampled] 65536 rep2: prompt=68840 cached=0 ttft=16.35s decode=88.4 peak=125.5 out=256
+[sampled] 65536 rep3: prompt=68892 cached=0 ttft=15.81s decode=86.1 peak=120.9 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4069 | 0.676 | 121.322 (117.958-123.592) | 0.614 |
+| 32768 | 33876 | 6.544 | 106.637 (103.89-124.869) | 0.593 |
+| 65536 | 68892 | 15.821 | 86.089 (83.958-88.369) | 0.6 |
+[12:31:23 +284s] cell b2-T0 end: clock guard: 48 samples, 44 at util>90, 0 of those SM<2300 MHz, min SM 2320, mean SM 2374, max power 93 W; SW power cap delta 0 us
+[12:31:27 +288s] min MemAvailable MB: 12:31:13 38189; KILLED lines: 0; warn/error lines in serve log: 0
+[12:31:29 +290s] window end

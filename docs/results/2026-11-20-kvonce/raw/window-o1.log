@@ -1,0 +1,26 @@
+[12:55:38 +0s] window o1 extra='--spec off' env='' cells: 0.7:32768,65536:4 0:32768,65536:4; fleetq job 10423
+[12:55:40 +2s] free: Mem:             121          46          66           0           9          74; earlyoom active; binary: intarsia 0.0.1
+[12:55:41 +3s] serve:  ~/intarsiaml-kvonce/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on --spec off
+[12:57:03 +85s] serve up; MemAvailable MB: 50217
+[12:57:04 +86s] cell o1-T0.7 start; 2398 MHz, 13.16 W, 0 %, 52
+[sampled] 32768 rep4: prompt=33894 cached=0 ttft=6.25s decode=69.9 peak=82.3 out=256
+[sampled] 65536 rep1: prompt=68956 cached=0 ttft=15.65s decode=57.0 peak=61.4 out=256
+[sampled] 65536 rep2: prompt=68891 cached=0 ttft=15.67s decode=57.5 peak=63.1 out=256
+[sampled] 65536 rep3: prompt=68936 cached=0 ttft=15.69s decode=56.8 peak=61.2 out=256
+[sampled] 65536 rep4: prompt=68943 cached=0 ttft=15.73s decode=57.4 peak=61.6 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 32768 | 33898 | 6.264 | 69.918 (69.722-70.009) | None |
+| 65536 | 68939 | 15.679 | 57.203 (56.835-57.464) | None |
+[12:59:08 +210s] cell o1-T0.7 end: clock guard: 61 samples, 58 at util>90, 0 of those SM<2300 MHz, min SM 2320, mean SM 2374, max power 92 W; SW power cap delta 0 us
+[12:59:08 +210s] cell o1-T0 start; 2405 MHz, 16.45 W, 0 %, 66
+[sampled] 32768 rep4: prompt=33897 cached=0 ttft=6.29s decode=72.2 peak=85.1 out=256
+[sampled] 65536 rep1: prompt=68953 cached=0 ttft=15.74s decode=58.4 peak=62.7 out=256
+[sampled] 65536 rep2: prompt=68892 cached=0 ttft=15.72s decode=59.3 peak=66.2 out=256
+[sampled] 65536 rep3: prompt=68938 cached=0 ttft=15.68s decode=58.3 peak=61.2 out=256
+[sampled] 65536 rep4: prompt=68943 cached=0 ttft=15.66s decode=58.8 peak=66.3 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 32768 | 33899 | 6.289 | 72.103 (71.959-72.158) | None |
+| 65536 | 68940 | 15.701 | 58.602 (58.309-59.322) | None |
+[13:01:10 +332s] cell o1-T0 end: clock guard: 60 samples, 54 at util>90, 0 of those SM<2300 MHz, min SM 2333, mean SM 2375, max power 92 W; SW power cap delta 0 us
+[13:01:14 +336s] min MemAvailable MB: 12:58:20 39928; KILLED lines: 0; warn/error lines in serve log: 0
+[13:01:17 +339s] window end

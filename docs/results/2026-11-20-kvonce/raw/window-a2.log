@@ -1,0 +1,26 @@
+[12:31:29 +0s] window a2 extra='' env='' cells: 0.7:4096,32768,65536:3 0:4096,32768,65536:3; fleetq job 10423
+[12:31:32 +3s] free: Mem:             121          46          66           0           9          74; earlyoom active; binary: intarsia 0.0.1
+[12:31:32 +3s] serve:  ~/intarsiaml-kvonce/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8192 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[12:32:54 +85s] serve up; MemAvailable MB: 48407
+[12:32:55 +86s] cell a2-T0.7 start; 2398 MHz, 13.21 W, 0 %, 52
+[sampled] 32768 rep3: prompt=33847 cached=0 ttft=6.32s decode=74.9 peak=96.6 out=256
+[sampled] 65536 rep1: prompt=68859 cached=0 ttft=15.79s decode=54.5 peak=65.3 out=256
+[sampled] 65536 rep2: prompt=68794 cached=0 ttft=15.76s decode=54.1 peak=65.9 out=256
+[sampled] 65536 rep3: prompt=68839 cached=0 ttft=15.82s decode=50.9 peak=60.9 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4073 | 0.669 | 96.405 (95.417-100.706) | 0.587 |
+| 32768 | 33851 | 6.324 | 69.589 (68.238-74.918) | 0.571 |
+| 65536 | 68839 | 15.792 | 54.132 (50.945-54.469) | 0.57 |
+[12:34:39 +190s] cell a2-T0.7 end: clock guard: 52 samples, 36 at util>90, 0 of those SM<2300 MHz, min SM 2340, mean SM 2377, max power 92 W; SW power cap delta 0 us
+[12:34:40 +191s] cell a2-T0 start; 2405 MHz, 16.28 W, 0 %, 66
+[sampled] 32768 rep3: prompt=33895 cached=0 ttft=6.35s decode=84.1 peak=137.3 out=256
+[sampled] 65536 rep1: prompt=68954 cached=0 ttft=15.83s decode=56.5 peak=72.5 out=256
+[sampled] 65536 rep2: prompt=68889 cached=0 ttft=15.75s decode=62.1 peak=79.7 out=256
+[sampled] 65536 rep3: prompt=68935 cached=0 ttft=15.86s decode=60.1 peak=83.7 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4071 | 0.676 | 121.222 (119.794-130.471) | 0.644 |
+| 32768 | 33900 | 6.349 | 84.05 (81.929-86.192) | 0.614 |
+| 65536 | 68935 | 15.828 | 60.124 (56.512-62.082) | 0.584 |
+[12:36:19 +290s] cell a2-T0 end: clock guard: 49 samples, 43 at util>90, 0 of those SM<2300 MHz, min SM 2327, mean SM 2376, max power 93 W; SW power cap delta 0 us
+[12:36:23 +294s] min MemAvailable MB: 12:35:15 38207; KILLED lines: 0; warn/error lines in serve log: 0
+[12:36:26 +297s] window end
