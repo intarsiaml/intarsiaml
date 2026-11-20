@@ -132,6 +132,9 @@ int ik_attn_decode_f8kv_splitkv_rows(const ik_tensor* q, const ik_tensor* kc0, c
 int ik_attn_decode_bf16_splitkv_rows(const ik_tensor* q, const ik_tensor* kc0, const ik_tensor* vc0, float scale, ik_tensor* out,
                                      const ik_scratch* scratch, const ik_tensor* tab, int64_t stride, int64_t index,
                                      const ik_tensor* pos, void* stream);
+/* Tests only (lane kvonce): override INTARSIA_CUDA_ATTN_KV_ONCE for the row-table attention launches above (mode -1 = the variable,
+ * 0 = off, 1 = on, 2 = on with streaming loads); fault != 0 plants the persistent kernel's test fault under the override. */
+void ik_attn_kv_once_for_test(int mode, int fault);
 
 /* topk_f32 (R3b, kernels/cuda/topk.cu): the k largest values of each f32 row [R, V] in the sampler's order (value descending, ties by
  * ascending index, -0.0 == +0.0), with their indices: ids i32 [R, k], vals f32 [R, k]; nan i32 [R] is 1 for a row that holds a NaN (its
