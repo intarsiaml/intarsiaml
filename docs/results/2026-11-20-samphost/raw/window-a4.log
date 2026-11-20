@@ -1,0 +1,34 @@
+[18:34:38 +0s] window a4 extra='' env='' cells: seeded:4096,32768,65536 0.7:4096,32768,65536:8 0:4096,32768,65536:3; fleetq job 10464
+[18:34:40 +2s] free: Mem:             121          46          64           0          11          74; earlyoom active; binary: intarsia 0.0.1
+[18:34:41 +3s] serve:  ~/intarsiaml-samphost/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8197 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[18:35:59 +81s] serve up; MemAvailable MB: 48168
+[18:36:00 +82s] cell a4-seeded start; 2398 MHz, 13.22 W, 0 %, 52
+[seeded] size 4096 seed 11: prompt 4103 out 700 length 3083 chars
+[seeded] size 4096 seed 23: prompt 4103 out 700 length 3204 chars
+[seeded] size 32768 seed 11: prompt 32837 out 700 length 3115 chars
+[seeded] size 32768 seed 23: prompt 32837 out 700 length 3343 chars
+[seeded] size 65536 seed 11: prompt 65569 out 700 length 3163 chars
+[seeded] size 65536 seed 23: prompt 65569 out 700 length 4087 chars
+[18:37:13 +155s] cell a4-seeded end: clock guard: 36 samples, 5 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2374, max power 91 W; SW power cap delta 0 us
+[18:37:14 +156s] cell a4-T0.7 start; 2405 MHz, 15.72 W, 0 %, 63
+[sampled] 65536 rep5: prompt=68916 cached=0 ttft=15.81s decode=77.1 peak=127.2 out=256
+[sampled] 65536 rep6: prompt=68961 cached=0 ttft=15.83s decode=71.2 peak=121.3 out=256
+[sampled] 65536 rep7: prompt=68944 cached=0 ttft=15.82s decode=74.1 peak=101.2 out=256
+[sampled] 65536 rep8: prompt=68898 cached=0 ttft=15.85s decode=72.2 peak=96.4 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4076 | 0.68 | 97.44 (93.61-104.837) | 0.57 |
+| 32768 | 33905 | 6.33 | 87.555 (83.869-99.949) | 0.621 |
+| 65536 | 68940 | 15.809 | 74.401 (71.167-91.867) | 0.593 |
+[18:41:31 +413s] cell a4-T0.7 end: clock guard: 127 samples, 84 at util>90, 0 of those SM<2000 MHz, min SM 2327, mean SM 2368, max power 93 W; SW power cap delta 0 us
+[18:41:32 +414s] cell a4-T0 start; 2405 MHz, 16.05 W, 0 %, 65
+[sampled] 32768 rep3: prompt=33870 cached=0 ttft=6.32s decode=102.6 peak=137.6 out=256
+[sampled] 65536 rep1: prompt=68888 cached=0 ttft=15.75s decode=84.9 peak=115.7 out=256
+[sampled] 65536 rep2: prompt=68818 cached=0 ttft=15.72s decode=86.0 peak=137.7 out=256
+[sampled] 65536 rep3: prompt=68870 cached=0 ttft=15.74s decode=86.5 peak=6228.4 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4072 | 0.678 | 121.307 (113.659-121.565) | 0.59 |
+| 32768 | 33875 | 6.32 | 102.558 (98.142-114.522) | 0.619 |
+| 65536 | 68870 | 15.745 | 85.986 (84.933-86.526) | 0.581 |
+[18:43:06 +508s] cell a4-T0 end: clock guard: 46 samples, 41 at util>90, 0 of those SM<2000 MHz, min SM 2346, mean SM 2378, max power 92 W; SW power cap delta 0 us
+[18:43:10 +512s] min MemAvailable MB: 18:42:07 37943; KILLED lines: 0; warn/error lines in serve log: 0
+[18:43:12 +514s] window end

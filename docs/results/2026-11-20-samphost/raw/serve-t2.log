@@ -1,0 +1,952 @@
+[supervisor] started server pid 3906664
+cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+mtp: drafter head 'mtp' loaded in 1.1 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head)
+verify attention rows: engaged (one row-table attention launch per layer)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+batched verify: the plan covers passes of up to 2 sequences (6 rows)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_decode_v2_rows_bf16 matmul_nvfp4=matmul_nvfp4_gemv_rows silu_glu=silu_glu_bf16 moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 moe_experts=moe_experts_bf16 matmul_nvfp4=matmul_nvfp4_gemv argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+admission on plan shapes: 42 kernel(s) checked, 0 case(s) run, 685 cached
+batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 2048
+prefix store with --max-batch > 1: workspace 678 MiB
+prefix store: the backend's packed prefill is off with --max-batch > 1
+prefix store: on (build a6ea74db9c0a31a9, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)
+prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+prefix herd: on (default, INTARSIA_PREFIX_HERD=0 turns it off): a request waits for an older one still prefilling a prefix they share, then restores it from the store
+batched MTP: a sampled request's own verify pass reads its rows back as the device-side top-k (INTARSIA_SAMPLED_VERIFY_FAST=1; device-side sampling on)
+batched verify: sampled rows as the device-side top-k when the request samples from it (INTARSIA_VERIFY_TOPK=1)
+batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 76.2s, context 131072 tokens
+sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_config.json; a request's own values win)
+intarsia server listening on http://0.0.0.0:8197
+verify attention rows: captured table regions 11 of 1024
+verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+spec: token 2 pos 4091 drafted 2 accepted 2 emits 3 drafts [220, 21]
+spec: keyed graph step 3 rows (top-k) 25.580 ms, accept 0.034 ms
+verify attention rows: captured table regions 11 of 1024
+spec: token 5 pos 4094 drafted 2 accepted 2 emits 3 drafts [16, 17]
+spec: keyed graph step 3 rows (top-k) 24.114 ms, accept 0.024 ms
+spec: token 8 pos 4097 drafted 2 accepted 2 emits 3 drafts [16, 24]
+spec: keyed graph step 3 rows (top-k) 18.901 ms, accept 0.011 ms
+spec: token 11 pos 4100 drafted 2 accepted 2 emits 3 drafts [20, 18]
+spec: keyed graph step 3 rows (top-k) 17.872 ms, accept 0.010 ms
+spec: token 14 pos 4103 drafted 2 accepted 2 emits 3 drafts [66, 19]
+spec: keyed graph step 3 rows (top-k) 18.654 ms, accept 0.010 ms
+spec: token 17 pos 4106 drafted 2 accepted 2 emits 3 drafts [16, 17]
+spec: keyed graph step 3 rows (top-k) 18.966 ms, accept 0.010 ms
+spec: token 20 pos 4109 drafted 2 accepted 2 emits 3 drafts [17, 23]
+spec: keyed graph step 3 rows (top-k) 18.834 ms, accept 0.010 ms
+spec: token 23 pos 4112 drafted 2 accepted 2 emits 3 drafts [18, 18]
+spec: keyed graph step 3 rows (top-k) 18.022 ms, accept 0.010 ms
+spec: token 26 pos 4115 drafted 2 accepted 2 emits 3 drafts [23, 17]
+spec: keyed graph step 3 rows (top-k) 18.478 ms, accept 0.010 ms
+spec: token 29 pos 4118 drafted 2 accepted 2 emits 3 drafts [24, 65]
+spec: keyed graph step 3 rows (top-k) 18.734 ms, accept 0.010 ms
+spec: token 32 pos 4121 drafted 2 accepted 1 emits 2 drafts [15, 6817]
+spec: keyed graph step 3 rows (top-k) 18.420 ms, accept 0.209 ms
+verify attention rows: captured table regions 11 of 1024
+spec: token 34 pos 4123 drafted 2 accepted 2 emits 3 drafts [332, 8839]
+spec: keyed graph step 3 rows (top-k) 22.581 ms, accept 0.026 ms
+spec: token 37 pos 4126 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed graph step 3 rows (top-k) 17.979 ms, accept 0.011 ms
+spec: token 40 pos 4129 drafted 2 accepted 1 emits 2 drafts [64700, 561]
+spec: keyed graph step 3 rows (top-k) 18.206 ms, accept 0.171 ms
+spec: token 42 pos 4131 drafted 2 accepted 0 emits 1 drafts [7915, 6000]
+spec: keyed graph step 3 rows (top-k) 17.875 ms, accept 0.139 ms
+spec: token 43 pos 4132 drafted 2 accepted 0 emits 1 drafts [65326, 668]
+spec: keyed graph step 3 rows (top-k) 17.430 ms, accept 0.138 ms
+spec: token 44 pos 4133 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed graph step 3 rows (top-k) 17.459 ms, accept 0.128 ms
+spec: token 46 pos 4135 drafted 2 accepted 1 emits 2 drafts [279, 65326]
+spec: keyed graph step 3 rows (top-k) 17.677 ms, accept 0.129 ms
+spec: token 48 pos 4137 drafted 2 accepted 0 emits 1 drafts [4368, 3043]
+spec: keyed graph step 3 rows (top-k) 17.669 ms, accept 0.116 ms
+spec: token 49 pos 4138 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 17.910 ms, accept 0.011 ms
+spec: token 52 pos 4141 drafted 2 accepted 0 emits 1 drafts [45366, 3043]
+spec: keyed graph step 3 rows (top-k) 17.850 ms, accept 0.122 ms
+spec: token 53 pos 4142 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed graph step 3 rows (top-k) 17.411 ms, accept 0.130 ms
+spec: token 55 pos 4144 drafted 2 accepted 2 emits 3 drafts [45366, 13]
+spec: keyed graph step 3 rows (top-k) 18.718 ms, accept 0.011 ms
+spec: token 58 pos 4147 drafted 2 accepted 2 emits 3 drafts [332, 8839]
+spec: keyed graph step 3 rows (top-k) 18.103 ms, accept 0.010 ms
+spec: token 61 pos 4150 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed graph step 3 rows (top-k) 18.447 ms, accept 0.011 ms
+spec: token 64 pos 4153 drafted 2 accepted 2 emits 3 drafts [64700, 279]
+spec: keyed graph step 3 rows (top-k) 17.656 ms, accept 0.011 ms
+spec: token 67 pos 4156 drafted 2 accepted 0 emits 1 drafts [65326, 668]
+spec: keyed graph step 3 rows (top-k) 17.440 ms, accept 0.135 ms
+spec: token 68 pos 4157 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed graph step 3 rows (top-k) 17.427 ms, accept 0.132 ms
+spec: token 70 pos 4159 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 17.671 ms, accept 0.131 ms
+spec: token 72 pos 4161 drafted 2 accepted 0 emits 1 drafts [4368, 3043]
+spec: keyed graph step 3 rows (top-k) 17.816 ms, accept 0.122 ms
+spec: token 73 pos 4162 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 18.769 ms, accept 0.011 ms
+spec: token 76 pos 4165 drafted 2 accepted 0 emits 1 drafts [76990, 1518]
+spec: keyed graph step 3 rows (top-k) 18.178 ms, accept 0.137 ms
+spec: token 77 pos 4166 drafted 2 accepted 1 emits 2 drafts [1518, 14527]
+spec: keyed graph step 3 rows (top-k) 17.434 ms, accept 0.136 ms
+spec: token 79 pos 4168 drafted 2 accepted 0 emits 1 drafts [6420, 13]
+spec: keyed graph step 3 rows (top-k) 18.267 ms, accept 0.127 ms
+spec: token 80 pos 4169 drafted 2 accepted 1 emits 2 drafts [13, 198]
+spec: keyed graph step 3 rows (top-k) 18.292 ms, accept 0.138 ms
+spec: token 82 pos 4171 drafted 2 accepted 2 emits 3 drafts [332, 8839]
+spec: keyed graph step 3 rows (top-k) 17.879 ms, accept 0.010 ms
+spec: token 85 pos 4174 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed graph step 3 rows (top-k) 18.505 ms, accept 0.010 ms
+spec: token 88 pos 4177 drafted 2 accepted 2 emits 3 drafts [64700, 279]
+spec: keyed graph step 3 rows (top-k) 17.879 ms, accept 0.010 ms
+spec: token 91 pos 4180 drafted 2 accepted 0 emits 1 drafts [4368, 668]
+spec: keyed graph step 3 rows (top-k) 17.535 ms, accept 0.137 ms
+spec: token 92 pos 4181 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 17.800 ms, accept 0.073 ms
+spec: token 94 pos 4183 drafted 2 accepted 1 emits 2 drafts [279, 1830]
+spec: keyed graph step 3 rows (top-k) 17.933 ms, accept 0.124 ms
+spec: token 96 pos 4185 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed graph step 3 rows (top-k) 17.757 ms, accept 0.106 ms
+spec: token 97 pos 4186 drafted 2 accepted 2 emits 3 drafts [5662, 3043]
+spec: keyed graph step 3 rows (top-k) 18.104 ms, accept 0.010 ms
+spec: token 100 pos 4189 drafted 2 accepted 0 emits 1 drafts [18612, 11012]
+spec: keyed graph step 3 rows (top-k) 17.933 ms, accept 0.116 ms
+spec: token 101 pos 4190 drafted 2 accepted 0 emits 1 drafts [6805, 1518]
+spec: keyed graph step 3 rows (top-k) 19.008 ms, accept 0.116 ms
+spec: token 102 pos 4191 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed graph step 3 rows (top-k) 20.257 ms, accept 0.142 ms
+spec: token 104 pos 4193 drafted 2 accepted 0 emits 1 drafts [6000, 13]
+spec: keyed graph step 3 rows (top-k) 18.216 ms, accept 0.128 ms
+spec: token 105 pos 4194 drafted 2 accepted 2 emits 3 drafts [13, 271]
+spec: keyed graph step 3 rows (top-k) 18.558 ms, accept 0.010 ms
+spec: token 108 pos 4197 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 18.735 ms, accept 0.010 ms
+spec: token 111 pos 4200 drafted 2 accepted 2 emits 3 drafts [23, 22]
+spec: keyed graph step 3 rows (top-k) 18.963 ms, accept 0.010 ms
+spec: token 114 pos 4203 drafted 2 accepted 2 emits 3 drafts [279, 50255]
+spec: keyed graph step 3 rows (top-k) 18.061 ms, accept 0.010 ms
+spec: token 117 pos 4206 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed graph step 3 rows (top-k) 17.840 ms, accept 0.140 ms
+spec: token 119 pos 4208 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 17.704 ms, accept 0.140 ms
+spec: token 121 pos 4210 drafted 2 accepted 0 emits 1 drafts [65326, 3043]
+spec: keyed graph step 3 rows (top-k) 17.893 ms, accept 0.138 ms
+spec: token 122 pos 4211 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 18.103 ms, accept 0.010 ms
+spec: token 125 pos 4214 drafted 2 accepted 2 emits 3 drafts [1830, 1518]
+spec: keyed graph step 3 rows (top-k) 17.524 ms, accept 0.010 ms
+spec: token 128 pos 4217 drafted 2 accepted 0 emits 1 drafts [65326, 13]
+spec: keyed graph step 3 rows (top-k) 19.055 ms, accept 0.123 ms
+spec: token 129 pos 4218 drafted 2 accepted 2 emits 3 drafts [13, 271]
+spec: keyed graph step 3 rows (top-k) 18.426 ms, accept 0.010 ms
+spec: token 132 pos 4221 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 18.987 ms, accept 0.010 ms
+spec: token 135 pos 4224 drafted 2 accepted 2 emits 3 drafts [23, 23]
+spec: keyed graph step 3 rows (top-k) 19.015 ms, accept 0.014 ms
+spec: token 138 pos 4227 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 17.942 ms, accept 0.129 ms
+spec: token 140 pos 4229 drafted 2 accepted 0 emits 1 drafts [54517, 668]
+spec: keyed graph step 3 rows (top-k) 17.847 ms, accept 0.129 ms
+spec: token 141 pos 4230 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 17.837 ms, accept 0.138 ms
+spec: token 143 pos 4232 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 17.706 ms, accept 0.138 ms
+spec: token 145 pos 4234 drafted 2 accepted 0 emits 1 drafts [1830, 1518]
+spec: keyed graph step 3 rows (top-k) 17.993 ms, accept 0.129 ms
+spec: token 146 pos 4235 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 18.288 ms, accept 0.010 ms
+spec: token 149 pos 4238 drafted 2 accepted 0 emits 1 drafts [1830, 1518]
+spec: keyed graph step 3 rows (top-k) 17.641 ms, accept 0.123 ms
+spec: token 150 pos 4239 drafted 2 accepted 1 emits 2 drafts [1518, 14527]
+spec: keyed graph step 3 rows (top-k) 18.260 ms, accept 0.132 ms
+spec: token 152 pos 4241 drafted 2 accepted 0 emits 1 drafts [54517, 13]
+spec: keyed graph step 3 rows (top-k) 18.327 ms, accept 0.135 ms
+spec: token 153 pos 4242 drafted 2 accepted 2 emits 3 drafts [13, 271]
+spec: keyed graph step 3 rows (top-k) 18.457 ms, accept 0.010 ms
+spec: token 156 pos 4245 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 19.109 ms, accept 0.010 ms
+spec: token 159 pos 4248 drafted 2 accepted 2 emits 3 drafts [23, 24]
+spec: keyed graph step 3 rows (top-k) 18.772 ms, accept 0.011 ms
+spec: token 162 pos 4251 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 18.076 ms, accept 0.141 ms
+spec: token 164 pos 4253 drafted 2 accepted 0 emits 1 drafts [6000, 668]
+spec: keyed graph step 3 rows (top-k) 17.703 ms, accept 0.138 ms
+spec: token 165 pos 4254 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 17.567 ms, accept 0.147 ms
+spec: token 167 pos 4256 drafted 2 accepted 1 emits 2 drafts [279, 50255]
+spec: keyed graph step 3 rows (top-k) 17.800 ms, accept 0.151 ms
+spec: token 169 pos 4258 drafted 2 accepted 0 emits 1 drafts [4471, 3043]
+spec: keyed graph step 3 rows (top-k) 17.688 ms, accept 0.128 ms
+spec: token 170 pos 4259 drafted 2 accepted 2 emits 3 drafts [5662, 3043]
+spec: keyed graph step 3 rows (top-k) 18.028 ms, accept 0.010 ms
+spec: token 173 pos 4262 drafted 2 accepted 1 emits 2 drafts [4471, 14527]
+spec: keyed graph step 3 rows (top-k) 17.695 ms, accept 0.128 ms
+spec: token 175 pos 4264 drafted 2 accepted 2 emits 3 drafts [1518, 50255]
+spec: keyed graph step 3 rows (top-k) 17.843 ms, accept 0.010 ms
+spec: token 178 pos 4267 drafted 2 accepted 2 emits 3 drafts [13, 271]
+spec: keyed graph step 3 rows (top-k) 18.123 ms, accept 0.010 ms
+spec: token 181 pos 4270 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 18.740 ms, accept 0.010 ms
+spec: token 184 pos 4273 drafted 2 accepted 2 emits 3 drafts [24, 15]
+spec: keyed graph step 3 rows (top-k) 18.409 ms, accept 0.010 ms
+spec: token 187 pos 4276 drafted 2 accepted 2 emits 3 drafts [279, 50255]
+spec: keyed graph step 3 rows (top-k) 18.149 ms, accept 0.010 ms
+spec: token 190 pos 4279 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 17.816 ms, accept 0.119 ms
+spec: token 192 pos 4281 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 17.718 ms, accept 0.123 ms
+spec: token 194 pos 4283 drafted 2 accepted 0 emits 1 drafts [16602, 3043]
+spec: keyed graph step 3 rows (top-k) 17.960 ms, accept 0.126 ms
+spec: token 195 pos 4284 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 18.229 ms, accept 0.010 ms
+spec: token 198 pos 4287 drafted 2 accepted 0 emits 1 drafts [54517, 13437]
+spec: keyed graph step 3 rows (top-k) 17.451 ms, accept 0.125 ms
+spec: token 199 pos 4288 drafted 2 accepted 1 emits 2 drafts [1518, 16602]
+spec: keyed graph step 3 rows (top-k) 17.788 ms, accept 0.113 ms
+spec: token 201 pos 4290 drafted 2 accepted 0 emits 1 drafts [7915, 13]
+spec: keyed graph step 3 rows (top-k) 18.220 ms, accept 0.114 ms
+spec: token 202 pos 4291 drafted 2 accepted 2 emits 3 drafts [13, 271]
+spec: keyed graph step 3 rows (top-k) 18.356 ms, accept 0.010 ms
+spec: token 205 pos 4294 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 19.061 ms, accept 0.010 ms
+spec: token 208 pos 4297 drafted 2 accepted 2 emits 3 drafts [24, 16]
+spec: keyed graph step 3 rows (top-k) 18.666 ms, accept 0.010 ms
+spec: token 211 pos 4300 drafted 2 accepted 2 emits 3 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 18.739 ms, accept 0.010 ms
+spec: token 214 pos 4303 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 17.748 ms, accept 0.116 ms
+spec: token 216 pos 4305 drafted 2 accepted 1 emits 2 drafts [279, 16602]
+spec: keyed graph step 3 rows (top-k) 17.664 ms, accept 0.123 ms
+spec: token 218 pos 4307 drafted 2 accepted 2 emits 3 drafts [16602, 3043]
+spec: keyed graph step 3 rows (top-k) 18.039 ms, accept 0.012 ms
+spec: token 221 pos 4310 drafted 2 accepted 1 emits 2 drafts [7915, 728]
+spec: keyed graph step 3 rows (top-k) 18.012 ms, accept 0.119 ms
+spec: token 223 pos 4312 drafted 2 accepted 1 emits 2 drafts [1518, 4368]
+spec: keyed graph step 3 rows (top-k) 17.902 ms, accept 0.119 ms
+spec: token 225 pos 4314 drafted 2 accepted 2 emits 3 drafts [4368, 13]
+spec: keyed graph step 3 rows (top-k) 18.268 ms, accept 0.010 ms
+spec: token 228 pos 4317 drafted 2 accepted 2 emits 3 drafts [332, 8839]
+spec: keyed graph step 3 rows (top-k) 18.681 ms, accept 0.010 ms
+spec: token 231 pos 4320 drafted 2 accepted 2 emits 3 drafts [16, 24]
+spec: keyed graph step 3 rows (top-k) 18.833 ms, accept 0.010 ms
+spec: token 234 pos 4323 drafted 2 accepted 2 emits 3 drafts [64700, 279]
+spec: keyed graph step 3 rows (top-k) 18.161 ms, accept 0.010 ms
+spec: token 237 pos 4326 drafted 2 accepted 2 emits 3 drafts [4368, 668]
+spec: keyed graph step 3 rows (top-k) 17.597 ms, accept 0.010 ms
+spec: token 240 pos 4329 drafted 2 accepted 1 emits 2 drafts [279, 1830]
+spec: keyed graph step 3 rows (top-k) 17.400 ms, accept 0.116 ms
+spec: token 242 pos 4331 drafted 2 accepted 1 emits 2 drafts [39926, 16602]
+spec: keyed graph step 3 rows (top-k) 17.287 ms, accept 0.116 ms
+spec: token 244 pos 4333 drafted 2 accepted 1 emits 2 drafts [279, 50255]
+spec: keyed graph step 3 rows (top-k) 18.210 ms, accept 0.118 ms
+spec: token 246 pos 4335 drafted 2 accepted 0 emits 1 drafts [50255, 45366]
+spec: keyed graph step 3 rows (top-k) 17.225 ms, accept 0.106 ms
+spec: token 247 pos 4336 drafted 2 accepted 2 emits 3 drafts [1518, 50255]
+spec: keyed graph step 3 rows (top-k) 17.756 ms, accept 0.010 ms
+spec: token 250 pos 4339 drafted 2 accepted 2 emits 3 drafts [13, 271]
+spec: keyed graph step 3 rows (top-k) 18.181 ms, accept 0.010 ms
+spec: token 253 pos 4342 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 18.967 ms, accept 0.010 ms
+verify attention rows: captured table regions 22 of 1024
+spec: token 2 pos 4068 drafted 2 accepted 0 emits 1 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 23.811 ms, accept 0.236 ms
+spec: token 3 pos 4069 drafted 2 accepted 2 emits 3 drafts [220, 18]
+spec: keyed graph step 3 rows (top-k) 18.521 ms, accept 0.012 ms
+verify attention rows: captured table regions 22 of 1024
+spec: token 6 pos 4072 drafted 2 accepted 2 emits 3 drafts [21, 20]
+spec: keyed graph step 3 rows (top-k) 22.305 ms, accept 0.030 ms
+spec: token 9 pos 4075 drafted 2 accepted 2 emits 3 drafts [1323, 17]
+spec: keyed graph step 3 rows (top-k) 18.474 ms, accept 0.011 ms
+spec: token 12 pos 4078 drafted 2 accepted 2 emits 3 drafts [16, 19]
+spec: keyed graph step 3 rows (top-k) 18.765 ms, accept 0.011 ms
+spec: token 15 pos 4081 drafted 2 accepted 2 emits 3 drafts [24, 24]
+spec: keyed graph step 3 rows (top-k) 19.640 ms, accept 0.011 ms
+spec: token 18 pos 4084 drafted 2 accepted 2 emits 3 drafts [24, 20]
+spec: keyed graph step 3 rows (top-k) 19.181 ms, accept 0.011 ms
+spec: token 21 pos 4087 drafted 2 accepted 2 emits 3 drafts [17, 17]
+spec: keyed graph step 3 rows (top-k) 18.762 ms, accept 0.010 ms
+spec: token 24 pos 4090 drafted 2 accepted 2 emits 3 drafts [15, 66]
+spec: keyed graph step 3 rows (top-k) 18.510 ms, accept 0.010 ms
+spec: token 27 pos 4093 drafted 2 accepted 2 emits 3 drafts [23, 15]
+spec: keyed graph step 3 rows (top-k) 18.680 ms, accept 0.010 ms
+spec: token 30 pos 4096 drafted 2 accepted 2 emits 3 drafts [69, 21]
+spec: keyed graph step 3 rows (top-k) 18.264 ms, accept 0.010 ms
+spec: token 33 pos 4099 drafted 2 accepted 2 emits 3 drafts [332, 271]
+spec: keyed graph step 3 rows (top-k) 17.554 ms, accept 0.010 ms
+spec: token 36 pos 4102 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 17.616 ms, accept 0.010 ms
+spec: token 39 pos 4105 drafted 2 accepted 2 emits 3 drafts [23, 19]
+spec: keyed graph step 3 rows (top-k) 17.124 ms, accept 0.010 ms
+spec: token 42 pos 4108 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 18.082 ms, accept 0.161 ms
+verify attention rows: captured table regions 22 of 1024
+spec: token 44 pos 4110 drafted 2 accepted 0 emits 1 drafts [65326, 668]
+spec: keyed graph step 3 rows (top-k) 22.335 ms, accept 0.209 ms
+spec: token 45 pos 4111 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed graph step 3 rows (top-k) 17.386 ms, accept 0.128 ms
+spec: token 47 pos 4113 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 18.290 ms, accept 0.123 ms
+spec: token 49 pos 4115 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed graph step 3 rows (top-k) 17.846 ms, accept 0.134 ms
+spec: token 50 pos 4116 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 17.930 ms, accept 0.011 ms
+spec: token 53 pos 4119 drafted 2 accepted 0 emits 1 drafts [54517, 1518]
+spec: keyed graph step 3 rows (top-k) 17.420 ms, accept 0.113 ms
+spec: token 54 pos 4120 drafted 2 accepted 1 emits 2 drafts [1518, 27786]
+spec: keyed graph step 3 rows (top-k) 17.511 ms, accept 0.135 ms
+spec: token 56 pos 4122 drafted 2 accepted 0 emits 1 drafts [1830, 13]
+spec: keyed graph step 3 rows (top-k) 18.610 ms, accept 0.134 ms
+spec: token 57 pos 4123 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed graph step 3 rows (top-k) 18.399 ms, accept 0.010 ms
+spec: token 60 pos 4126 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 19.398 ms, accept 0.010 ms
+spec: token 63 pos 4129 drafted 2 accepted 2 emits 3 drafts [23, 20]
+spec: keyed graph step 3 rows (top-k) 18.066 ms, accept 0.010 ms
+spec: token 66 pos 4132 drafted 2 accepted 2 emits 3 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 17.749 ms, accept 0.010 ms
+spec: token 69 pos 4135 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 17.602 ms, accept 0.132 ms
+spec: token 71 pos 4137 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 18.450 ms, accept 0.133 ms
+spec: token 73 pos 4139 drafted 2 accepted 2 emits 3 drafts [4368, 3043]
+spec: keyed graph step 3 rows (top-k) 17.653 ms, accept 0.011 ms
+spec: token 76 pos 4142 drafted 2 accepted 1 emits 2 drafts [6278, 5979]
+spec: keyed graph step 3 rows (top-k) 17.509 ms, accept 0.138 ms
+spec: token 78 pos 4144 drafted 2 accepted 1 emits 2 drafts [1518, 27786]
+spec: keyed graph step 3 rows (top-k) 17.512 ms, accept 0.125 ms
+spec: token 80 pos 4146 drafted 2 accepted 0 emits 1 drafts [70676, 13]
+spec: keyed graph step 3 rows (top-k) 18.307 ms, accept 0.133 ms
+spec: token 81 pos 4147 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed graph step 3 rows (top-k) 18.356 ms, accept 0.011 ms
+spec: token 84 pos 4150 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 19.141 ms, accept 0.010 ms
+spec: token 87 pos 4153 drafted 2 accepted 2 emits 3 drafts [23, 21]
+spec: keyed graph step 3 rows (top-k) 19.064 ms, accept 0.020 ms
+spec: token 90 pos 4156 drafted 2 accepted 1 emits 2 drafts [279, 54517]
+spec: keyed graph step 3 rows (top-k) 17.842 ms, accept 0.124 ms
+spec: token 92 pos 4158 drafted 2 accepted 0 emits 1 drafts [54517, 668]
+spec: keyed graph step 3 rows (top-k) 17.631 ms, accept 0.129 ms
+spec: token 93 pos 4159 drafted 2 accepted 1 emits 2 drafts [668, 9845]
+spec: keyed graph step 3 rows (top-k) 17.845 ms, accept 0.126 ms
+spec: token 95 pos 4161 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 17.812 ms, accept 0.127 ms
+spec: token 97 pos 4163 drafted 2 accepted 0 emits 1 drafts [6000, 3043]
+spec: keyed graph step 3 rows (top-k) 17.790 ms, accept 0.116 ms
+spec: token 98 pos 4164 drafted 2 accepted 2 emits 3 drafts [5662, 3043]
+spec: keyed graph step 3 rows (top-k) 18.134 ms, accept 0.010 ms
+spec: token 101 pos 4167 drafted 2 accepted 1 emits 2 drafts [9283, 70676]
+spec: keyed graph step 3 rows (top-k) 17.623 ms, accept 0.113 ms
+spec: token 103 pos 4169 drafted 2 accepted 1 emits 2 drafts [1518, 70676]
+spec: keyed graph step 3 rows (top-k) 17.690 ms, accept 0.111 ms
+spec: token 105 pos 4171 drafted 2 accepted 0 emits 1 drafts [70676, 13]
+spec: keyed graph step 3 rows (top-k) 18.201 ms, accept 0.114 ms
+spec: token 106 pos 4172 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed graph step 3 rows (top-k) 18.136 ms, accept 0.010 ms
+spec: token 109 pos 4175 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 18.575 ms, accept 0.010 ms
+spec: token 112 pos 4178 drafted 2 accepted 2 emits 3 drafts [23, 22]
+spec: keyed graph step 3 rows (top-k) 19.153 ms, accept 0.010 ms
+spec: token 115 pos 4181 drafted 2 accepted 1 emits 2 drafts [279, 54517]
+spec: keyed graph step 3 rows (top-k) 17.892 ms, accept 0.111 ms
+spec: token 117 pos 4183 drafted 2 accepted 0 emits 1 drafts [54517, 668]
+spec: keyed graph step 3 rows (top-k) 17.653 ms, accept 0.120 ms
+spec: token 118 pos 4184 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed graph step 3 rows (top-k) 17.633 ms, accept 0.113 ms
+spec: token 120 pos 4186 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 17.639 ms, accept 0.111 ms
+spec: token 122 pos 4188 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed graph step 3 rows (top-k) 18.467 ms, accept 0.109 ms
+spec: token 123 pos 4189 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 18.199 ms, accept 0.010 ms
+spec: token 126 pos 4192 drafted 2 accepted 0 emits 1 drafts [54517, 1518]
+spec: keyed graph step 3 rows (top-k) 17.616 ms, accept 0.115 ms
+spec: token 127 pos 4193 drafted 2 accepted 1 emits 2 drafts [1518, 54517]
+spec: keyed graph step 3 rows (top-k) 17.394 ms, accept 0.114 ms
+spec: token 129 pos 4195 drafted 2 accepted 0 emits 1 drafts [54517, 13]
+spec: keyed graph step 3 rows (top-k) 18.239 ms, accept 0.122 ms
+spec: token 130 pos 4196 drafted 2 accepted 2 emits 3 drafts [5662, 13]
+spec: keyed graph step 3 rows (top-k) 18.230 ms, accept 0.010 ms
+spec: token 133 pos 4199 drafted 2 accepted 2 emits 3 drafts [332, 8839]
+spec: keyed graph step 3 rows (top-k) 19.110 ms, accept 0.010 ms
+spec: token 136 pos 4202 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed graph step 3 rows (top-k) 18.686 ms, accept 0.010 ms
+spec: token 139 pos 4205 drafted 2 accepted 2 emits 3 drafts [64700, 279]
+spec: keyed graph step 3 rows (top-k) 18.035 ms, accept 0.010 ms
+spec: token 142 pos 4208 drafted 2 accepted 0 emits 1 drafts [4368, 668]
+spec: keyed graph step 3 rows (top-k) 17.528 ms, accept 0.117 ms
+spec: token 143 pos 4209 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 17.552 ms, accept 0.119 ms
+spec: token 145 pos 4211 drafted 2 accepted 1 emits 2 drafts [279, 11012]
+spec: keyed graph step 3 rows (top-k) 17.791 ms, accept 0.118 ms
+spec: token 147 pos 4213 drafted 2 accepted 2 emits 3 drafts [70676, 3043]
+spec: keyed graph step 3 rows (top-k) 17.972 ms, accept 0.010 ms
+spec: token 150 pos 4216 drafted 2 accepted 0 emits 1 drafts [10725, 14527]
+spec: keyed graph step 3 rows (top-k) 17.809 ms, accept 0.126 ms
+spec: token 151 pos 4217 drafted 2 accepted 2 emits 3 drafts [14527, 1518]
+spec: keyed graph step 3 rows (top-k) 17.602 ms, accept 0.010 ms
+spec: token 154 pos 4220 drafted 2 accepted 2 emits 3 drafts [18612, 13]
+spec: keyed graph step 3 rows (top-k) 18.078 ms, accept 0.010 ms
+spec: token 157 pos 4223 drafted 2 accepted 2 emits 3 drafts [332, 8839]
+spec: keyed graph step 3 rows (top-k) 18.436 ms, accept 0.010 ms
+spec: token 160 pos 4226 drafted 2 accepted 2 emits 3 drafts [16, 23]
+spec: keyed graph step 3 rows (top-k) 18.651 ms, accept 0.010 ms
+spec: token 163 pos 4229 drafted 2 accepted 2 emits 3 drafts [64700, 279]
+spec: keyed graph step 3 rows (top-k) 18.166 ms, accept 0.010 ms
+spec: token 166 pos 4232 drafted 2 accepted 0 emits 1 drafts [5979, 668]
+spec: keyed graph step 3 rows (top-k) 17.591 ms, accept 0.120 ms
+spec: token 167 pos 4233 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed graph step 3 rows (top-k) 17.529 ms, accept 0.113 ms
+spec: token 169 pos 4235 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 17.785 ms, accept 0.112 ms
+spec: token 171 pos 4237 drafted 2 accepted 0 emits 1 drafts [39926, 3043]
+spec: keyed graph step 3 rows (top-k) 18.001 ms, accept 0.106 ms
+spec: token 172 pos 4238 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 18.225 ms, accept 0.010 ms
+spec: token 175 pos 4241 drafted 2 accepted 0 emits 1 drafts [5979, 1518]
+spec: keyed graph step 3 rows (top-k) 17.688 ms, accept 0.109 ms
+spec: token 176 pos 4242 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed graph step 3 rows (top-k) 17.659 ms, accept 0.116 ms
+spec: token 178 pos 4244 drafted 2 accepted 0 emits 1 drafts [39926, 13]
+spec: keyed graph step 3 rows (top-k) 18.278 ms, accept 0.114 ms
+spec: token 179 pos 4245 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed graph step 3 rows (top-k) 18.745 ms, accept 0.010 ms
+spec: token 182 pos 4248 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 19.159 ms, accept 0.010 ms
+spec: token 185 pos 4251 drafted 2 accepted 2 emits 3 drafts [24, 15]
+spec: keyed graph step 3 rows (top-k) 18.987 ms, accept 0.010 ms
+spec: token 188 pos 4254 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 17.962 ms, accept 0.108 ms
+spec: token 190 pos 4256 drafted 2 accepted 0 emits 1 drafts [4471, 668]
+spec: keyed graph step 3 rows (top-k) 17.769 ms, accept 0.104 ms
+spec: token 191 pos 4257 drafted 2 accepted 2 emits 3 drafts [5662, 668]
+spec: keyed graph step 3 rows (top-k) 17.725 ms, accept 0.010 ms
+spec: token 194 pos 4260 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 17.597 ms, accept 0.094 ms
+spec: token 196 pos 4262 drafted 2 accepted 2 emits 3 drafts [76990, 3043]
+spec: keyed graph step 3 rows (top-k) 18.236 ms, accept 0.010 ms
+spec: token 199 pos 4265 drafted 2 accepted 1 emits 2 drafts [10725, 1830]
+spec: keyed graph step 3 rows (top-k) 17.832 ms, accept 0.095 ms
+spec: token 201 pos 4267 drafted 2 accepted 1 emits 2 drafts [1518, 27786]
+spec: keyed graph step 3 rows (top-k) 17.733 ms, accept 0.099 ms
+spec: token 203 pos 4269 drafted 2 accepted 0 emits 1 drafts [65326, 13]
+spec: keyed graph step 3 rows (top-k) 18.316 ms, accept 0.088 ms
+spec: token 204 pos 4270 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed graph step 3 rows (top-k) 18.444 ms, accept 0.010 ms
+spec: token 207 pos 4273 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 18.716 ms, accept 0.010 ms
+spec: token 210 pos 4276 drafted 2 accepted 2 emits 3 drafts [24, 16]
+spec: keyed graph step 3 rows (top-k) 18.992 ms, accept 0.010 ms
+spec: token 213 pos 4279 drafted 2 accepted 1 emits 2 drafts [279, 23043]
+spec: keyed graph step 3 rows (top-k) 18.360 ms, accept 0.099 ms
+spec: token 215 pos 4281 drafted 2 accepted 0 emits 1 drafts [1830, 668]
+spec: keyed graph step 3 rows (top-k) 17.776 ms, accept 0.090 ms
+spec: token 216 pos 4282 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 17.744 ms, accept 0.091 ms
+spec: token 218 pos 4284 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 17.965 ms, accept 0.089 ms
+spec: token 220 pos 4286 drafted 2 accepted 0 emits 1 drafts [1830, 3043]
+spec: keyed graph step 3 rows (top-k) 17.873 ms, accept 0.088 ms
+spec: token 221 pos 4287 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 18.309 ms, accept 0.012 ms
+spec: token 224 pos 4290 drafted 2 accepted 0 emits 1 drafts [54517, 11012]
+spec: keyed graph step 3 rows (top-k) 16.988 ms, accept 0.096 ms
+spec: token 225 pos 4291 drafted 2 accepted 1 emits 2 drafts [1518, 70676]
+spec: keyed graph step 3 rows (top-k) 17.617 ms, accept 0.089 ms
+spec: token 227 pos 4293 drafted 2 accepted 0 emits 1 drafts [11012, 13]
+spec: keyed graph step 3 rows (top-k) 18.367 ms, accept 0.097 ms
+spec: token 228 pos 4294 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed graph step 3 rows (top-k) 18.329 ms, accept 0.010 ms
+spec: token 231 pos 4297 drafted 2 accepted 2 emits 3 drafts [8839, 220]
+spec: keyed graph step 3 rows (top-k) 18.673 ms, accept 0.010 ms
+spec: token 234 pos 4300 drafted 2 accepted 2 emits 3 drafts [24, 17]
+spec: keyed graph step 3 rows (top-k) 18.527 ms, accept 0.010 ms
+spec: token 237 pos 4303 drafted 2 accepted 1 emits 2 drafts [279, 5979]
+spec: keyed graph step 3 rows (top-k) 17.941 ms, accept 0.092 ms
+spec: token 239 pos 4305 drafted 2 accepted 2 emits 3 drafts [14527, 668]
+spec: keyed graph step 3 rows (top-k) 17.879 ms, accept 0.010 ms
+spec: token 242 pos 4308 drafted 2 accepted 2 emits 3 drafts [5662, 279]
+spec: keyed graph step 3 rows (top-k) 18.174 ms, accept 0.010 ms
+spec: token 245 pos 4311 drafted 2 accepted 2 emits 3 drafts [9705, 3043]
+spec: keyed graph step 3 rows (top-k) 17.798 ms, accept 0.010 ms
+spec: token 248 pos 4314 drafted 2 accepted 1 emits 2 drafts [8028, 70676]
+spec: keyed graph step 3 rows (top-k) 17.750 ms, accept 0.088 ms
+spec: token 250 pos 4316 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed graph step 3 rows (top-k) 17.741 ms, accept 0.098 ms
+spec: token 252 pos 4318 drafted 2 accepted 0 emits 1 drafts [54517, 13]
+spec: keyed graph step 3 rows (top-k) 18.444 ms, accept 0.090 ms
+spec: token 253 pos 4319 drafted 2 accepted 2 emits 3 drafts [13, 198]
+spec: keyed graph step 3 rows (top-k) 18.446 ms, accept 0.010 ms
+spec: token 2 pos 68933 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: keyed graph step 3 rows (top-k) 24.203 ms, accept 0.036 ms
+spec: token 5 pos 68936 drafted 2 accepted 2 emits 3 drafts [21, 24]
+spec: keyed graph step 3 rows (top-k) 24.532 ms, accept 0.011 ms
+spec: token 8 pos 68939 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 24.892 ms, accept 0.166 ms
+spec: token 10 pos 68941 drafted 2 accepted 0 emits 1 drafts [22270, 668]
+spec: keyed graph step 3 rows (top-k) 24.438 ms, accept 0.111 ms
+spec: token 11 pos 68942 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed graph step 3 rows (top-k) 25.082 ms, accept 0.117 ms
+spec: token 13 pos 68944 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 24.328 ms, accept 0.115 ms
+spec: token 15 pos 68946 drafted 2 accepted 2 emits 3 drafts [54517, 3043]
+spec: keyed graph step 3 rows (top-k) 24.628 ms, accept 0.011 ms
+spec: token 18 pos 68949 drafted 2 accepted 0 emits 1 drafts [6278, 5979]
+spec: keyed graph step 3 rows (top-k) 24.443 ms, accept 0.100 ms
+spec: token 19 pos 68950 drafted 2 accepted 0 emits 1 drafts [5979, 1518]
+spec: keyed graph step 3 rows (top-k) 25.538 ms, accept 0.104 ms
+spec: token 20 pos 68951 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed graph step 3 rows (top-k) 24.719 ms, accept 0.131 ms
+spec: token 22 pos 68953 drafted 2 accepted 0 emits 1 drafts [70676, 13]
+spec: keyed graph step 3 rows (top-k) 25.246 ms, accept 0.109 ms
+spec: token 23 pos 68954 drafted 2 accepted 1 emits 2 drafts [13, 561]
+spec: keyed graph step 3 rows (top-k) 25.774 ms, accept 0.118 ms
+spec: token 25 pos 68956 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: keyed graph step 3 rows (top-k) 25.707 ms, accept 0.010 ms
+spec: token 28 pos 68959 drafted 2 accepted 2 emits 3 drafts [22, 15]
+spec: keyed graph step 3 rows (top-k) 24.353 ms, accept 0.010 ms
+spec: token 31 pos 68962 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 24.951 ms, accept 0.109 ms
+spec: token 33 pos 68964 drafted 2 accepted 0 emits 1 drafts [54517, 668]
+spec: keyed graph step 3 rows (top-k) 26.796 ms, accept 0.126 ms
+spec: token 34 pos 68965 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed graph step 3 rows (top-k) 26.399 ms, accept 0.130 ms
+spec: token 36 pos 68967 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 25.694 ms, accept 0.130 ms
+spec: token 38 pos 68969 drafted 2 accepted 0 emits 1 drafts [92701, 3043]
+spec: keyed graph step 3 rows (top-k) 26.244 ms, accept 0.120 ms
+spec: token 39 pos 68970 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 24.887 ms, accept 0.011 ms
+spec: token 42 pos 68973 drafted 2 accepted 0 emits 1 drafts [4368, 1518]
+spec: keyed graph step 3 rows (top-k) 24.404 ms, accept 0.128 ms
+spec: token 43 pos 68974 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed graph step 3 rows (top-k) 25.171 ms, accept 0.130 ms
+spec: token 45 pos 68976 drafted 2 accepted 1 emits 2 drafts [552, 22270]
+spec: keyed graph step 3 rows (top-k) 26.562 ms, accept 0.130 ms
+spec: token 47 pos 68978 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 26.239 ms, accept 0.011 ms
+spec: token 50 pos 68981 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 25.516 ms, accept 0.010 ms
+spec: token 53 pos 68984 drafted 2 accepted 2 emits 3 drafts [16, 25]
+spec: keyed graph step 3 rows (top-k) 24.898 ms, accept 0.011 ms
+spec: token 56 pos 68987 drafted 2 accepted 0 emits 1 drafts [40423, 668]
+spec: keyed graph step 3 rows (top-k) 25.588 ms, accept 0.127 ms
+spec: token 57 pos 68988 drafted 2 accepted 0 emits 1 drafts [5979, 668]
+spec: keyed graph step 3 rows (top-k) 24.256 ms, accept 0.131 ms
+spec: token 58 pos 68989 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 24.436 ms, accept 0.139 ms
+spec: token 60 pos 68991 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 24.478 ms, accept 0.135 ms
+spec: token 62 pos 68993 drafted 2 accepted 0 emits 1 drafts [7915, 3043]
+spec: keyed graph step 3 rows (top-k) 24.793 ms, accept 0.117 ms
+spec: token 63 pos 68994 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 25.768 ms, accept 0.011 ms
+spec: token 66 pos 68997 drafted 2 accepted 0 emits 1 drafts [13437, 1518]
+spec: keyed graph step 3 rows (top-k) 24.353 ms, accept 0.125 ms
+spec: token 67 pos 68998 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed graph step 3 rows (top-k) 24.342 ms, accept 0.130 ms
+spec: token 69 pos 69000 drafted 2 accepted 0 emits 1 drafts [40423, 13]
+spec: keyed graph step 3 rows (top-k) 25.852 ms, accept 2.642 ms
+spec: token 70 pos 69001 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.874 ms, accept 0.015 ms
+spec: token 73 pos 69004 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 26.393 ms, accept 0.011 ms
+spec: token 76 pos 69007 drafted 2 accepted 2 emits 3 drafts [17, 25]
+spec: keyed graph step 3 rows (top-k) 25.933 ms, accept 0.011 ms
+spec: token 79 pos 69010 drafted 2 accepted 0 emits 1 drafts [6420, 668]
+spec: keyed graph step 3 rows (top-k) 25.946 ms, accept 0.219 ms
+spec: token 80 pos 69011 drafted 2 accepted 0 emits 1 drafts [54517, 668]
+spec: keyed graph step 3 rows (top-k) 24.157 ms, accept 0.128 ms
+spec: token 81 pos 69012 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 24.368 ms, accept 0.140 ms
+spec: token 83 pos 69014 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 24.299 ms, accept 0.163 ms
+spec: token 85 pos 69016 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed graph step 3 rows (top-k) 24.717 ms, accept 0.128 ms
+spec: token 86 pos 69017 drafted 2 accepted 2 emits 3 drafts [552, 3043]
+spec: keyed graph step 3 rows (top-k) 25.161 ms, accept 0.010 ms
+spec: token 89 pos 69020 drafted 2 accepted 1 emits 2 drafts [40423, 6805]
+spec: keyed graph step 3 rows (top-k) 25.371 ms, accept 0.139 ms
+spec: token 91 pos 69022 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed graph step 3 rows (top-k) 24.550 ms, accept 0.131 ms
+spec: token 93 pos 69024 drafted 2 accepted 2 emits 3 drafts [5979, 13]
+spec: keyed graph step 3 rows (top-k) 25.966 ms, accept 0.010 ms
+spec: token 96 pos 69027 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: keyed graph step 3 rows (top-k) 25.341 ms, accept 0.010 ms
+spec: token 99 pos 69030 drafted 2 accepted 2 emits 3 drafts [22, 18]
+spec: keyed graph step 3 rows (top-k) 26.741 ms, accept 0.010 ms
+spec: token 102 pos 69033 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 25.098 ms, accept 0.137 ms
+spec: token 104 pos 69035 drafted 2 accepted 0 emits 1 drafts [1830, 668]
+spec: keyed graph step 3 rows (top-k) 25.277 ms, accept 0.128 ms
+spec: token 105 pos 69036 drafted 2 accepted 1 emits 2 drafts [668, 13437]
+spec: keyed graph step 3 rows (top-k) 24.172 ms, accept 0.138 ms
+spec: token 107 pos 69038 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 25.152 ms, accept 0.131 ms
+spec: token 109 pos 69040 drafted 2 accepted 2 emits 3 drafts [6420, 3043]
+spec: keyed graph step 3 rows (top-k) 24.595 ms, accept 0.010 ms
+spec: token 112 pos 69043 drafted 2 accepted 0 emits 1 drafts [6278, 6000]
+spec: keyed graph step 3 rows (top-k) 24.344 ms, accept 0.127 ms
+spec: token 113 pos 69044 drafted 2 accepted 0 emits 1 drafts [1830, 1518]
+spec: keyed graph step 3 rows (top-k) 24.220 ms, accept 0.128 ms
+spec: token 114 pos 69045 drafted 2 accepted 1 emits 2 drafts [1518, 54517]
+spec: keyed graph step 3 rows (top-k) 24.358 ms, accept 0.134 ms
+spec: token 116 pos 69047 drafted 2 accepted 0 emits 1 drafts [54517, 13]
+spec: keyed graph step 3 rows (top-k) 25.746 ms, accept 0.141 ms
+spec: token 117 pos 69048 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.283 ms, accept 0.010 ms
+spec: token 120 pos 69051 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 25.647 ms, accept 0.010 ms
+spec: token 123 pos 69054 drafted 2 accepted 2 emits 3 drafts [19, 25]
+spec: keyed graph step 3 rows (top-k) 25.621 ms, accept 0.010 ms
+spec: token 126 pos 69057 drafted 2 accepted 0 emits 1 drafts [6420, 1830]
+spec: keyed graph step 3 rows (top-k) 24.504 ms, accept 0.140 ms
+spec: token 127 pos 69058 drafted 2 accepted 0 emits 1 drafts [92701, 668]
+spec: keyed graph step 3 rows (top-k) 24.324 ms, accept 0.137 ms
+spec: token 128 pos 69059 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 24.448 ms, accept 0.150 ms
+spec: token 130 pos 69061 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 24.505 ms, accept 0.142 ms
+spec: token 132 pos 69063 drafted 2 accepted 2 emits 3 drafts [54517, 3043]
+spec: keyed graph step 3 rows (top-k) 24.565 ms, accept 0.010 ms
+spec: token 135 pos 69066 drafted 2 accepted 0 emits 1 drafts [13437, 90533]
+spec: keyed graph step 3 rows (top-k) 24.585 ms, accept 0.128 ms
+spec: token 136 pos 69067 drafted 2 accepted 0 emits 1 drafts [90533, 1518]
+spec: keyed graph step 3 rows (top-k) 24.403 ms, accept 0.131 ms
+spec: token 137 pos 69068 drafted 2 accepted 2 emits 3 drafts [1518, 90533]
+spec: keyed graph step 3 rows (top-k) 24.866 ms, accept 0.011 ms
+spec: token 140 pos 69071 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.777 ms, accept 0.010 ms
+spec: token 143 pos 69074 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 26.007 ms, accept 0.015 ms
+spec: token 146 pos 69077 drafted 2 accepted 2 emits 3 drafts [20, 25]
+spec: keyed graph step 3 rows (top-k) 25.187 ms, accept 0.010 ms
+spec: token 149 pos 69080 drafted 2 accepted 0 emits 1 drafts [13437, 54517]
+spec: keyed graph step 3 rows (top-k) 24.888 ms, accept 0.139 ms
+spec: token 150 pos 69081 drafted 2 accepted 2 emits 3 drafts [1830, 668]
+spec: keyed graph step 3 rows (top-k) 24.396 ms, accept 0.010 ms
+spec: token 153 pos 69084 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 24.373 ms, accept 0.129 ms
+spec: token 155 pos 69086 drafted 2 accepted 0 emits 1 drafts [8028, 3043]
+spec: keyed graph step 3 rows (top-k) 24.669 ms, accept 0.134 ms
+spec: token 156 pos 69087 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 25.419 ms, accept 0.010 ms
+spec: token 159 pos 69090 drafted 2 accepted 0 emits 1 drafts [14527, 1518]
+spec: keyed graph step 3 rows (top-k) 25.016 ms, accept 0.130 ms
+spec: token 160 pos 69091 drafted 2 accepted 1 emits 2 drafts [1518, 70676]
+spec: keyed graph step 3 rows (top-k) 24.455 ms, accept 0.129 ms
+spec: token 162 pos 69093 drafted 2 accepted 1 emits 2 drafts [5662, 70676]
+spec: keyed graph step 3 rows (top-k) 24.418 ms, accept 0.138 ms
+spec: token 164 pos 69095 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.429 ms, accept 0.011 ms
+spec: token 167 pos 69098 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 24.863 ms, accept 0.011 ms
+spec: token 170 pos 69101 drafted 2 accepted 2 emits 3 drafts [21, 25]
+spec: keyed graph step 3 rows (top-k) 26.148 ms, accept 0.010 ms
+spec: token 173 pos 69104 drafted 2 accepted 0 emits 1 drafts [13437, 5979]
+spec: keyed graph step 3 rows (top-k) 25.403 ms, accept 0.126 ms
+spec: token 174 pos 69105 drafted 2 accepted 2 emits 3 drafts [5662, 4368]
+spec: keyed graph step 3 rows (top-k) 24.050 ms, accept 0.010 ms
+spec: token 177 pos 69108 drafted 2 accepted 0 emits 1 drafts [13437, 668]
+spec: keyed graph step 3 rows (top-k) 24.432 ms, accept 0.124 ms
+spec: token 178 pos 69109 drafted 2 accepted 1 emits 2 drafts [279, 11012]
+spec: keyed graph step 3 rows (top-k) 24.332 ms, accept 0.126 ms
+spec: token 180 pos 69111 drafted 2 accepted 0 emits 1 drafts [1830, 1518]
+spec: keyed graph step 3 rows (top-k) 25.483 ms, accept 0.115 ms
+spec: token 181 pos 69112 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 24.877 ms, accept 0.010 ms
+spec: token 184 pos 69115 drafted 2 accepted 0 emits 1 drafts [92701, 1518]
+spec: keyed graph step 3 rows (top-k) 24.440 ms, accept 0.111 ms
+spec: token 185 pos 69116 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed graph step 3 rows (top-k) 24.558 ms, accept 0.129 ms
+spec: token 187 pos 69118 drafted 2 accepted 0 emits 1 drafts [11012, 13]
+spec: keyed graph step 3 rows (top-k) 25.007 ms, accept 0.128 ms
+spec: token 188 pos 69119 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.156 ms, accept 0.011 ms
+spec: token 191 pos 69122 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 25.099 ms, accept 0.010 ms
+spec: token 194 pos 69125 drafted 2 accepted 2 emits 3 drafts [22, 25]
+spec: keyed graph step 3 rows (top-k) 25.690 ms, accept 0.010 ms
+spec: token 197 pos 69128 drafted 2 accepted 0 emits 1 drafts [13437, 1830]
+spec: keyed graph step 3 rows (top-k) 24.692 ms, accept 0.124 ms
+spec: token 198 pos 69129 drafted 2 accepted 0 emits 1 drafts [1830, 668]
+spec: keyed graph step 3 rows (top-k) 25.251 ms, accept 0.114 ms
+spec: token 199 pos 69130 drafted 2 accepted 1 emits 2 drafts [668, 13437]
+spec: keyed graph step 3 rows (top-k) 27.863 ms, accept 0.138 ms
+spec: token 201 pos 69132 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 24.515 ms, accept 0.140 ms
+spec: token 203 pos 69134 drafted 2 accepted 2 emits 3 drafts [54517, 3043]
+spec: keyed graph step 3 rows (top-k) 24.834 ms, accept 0.011 ms
+spec: token 206 pos 69137 drafted 2 accepted 0 emits 1 drafts [13437, 5979]
+spec: keyed graph step 3 rows (top-k) 24.500 ms, accept 0.126 ms
+spec: token 207 pos 69138 drafted 2 accepted 0 emits 1 drafts [9705, 1518]
+spec: keyed graph step 3 rows (top-k) 25.221 ms, accept 0.127 ms
+spec: token 208 pos 69139 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed graph step 3 rows (top-k) 25.261 ms, accept 0.139 ms
+spec: token 210 pos 69141 drafted 2 accepted 0 emits 1 drafts [9705, 13]
+spec: keyed graph step 3 rows (top-k) 25.131 ms, accept 0.129 ms
+spec: token 211 pos 69142 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.209 ms, accept 0.010 ms
+spec: token 214 pos 69145 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 25.029 ms, accept 0.010 ms
+spec: token 217 pos 69148 drafted 2 accepted 2 emits 3 drafts [23, 25]
+spec: keyed graph step 3 rows (top-k) 26.029 ms, accept 0.010 ms
+spec: token 220 pos 69151 drafted 2 accepted 0 emits 1 drafts [7915, 1830]
+spec: keyed graph step 3 rows (top-k) 24.603 ms, accept 0.131 ms
+spec: token 221 pos 69152 drafted 2 accepted 0 emits 1 drafts [45366, 668]
+spec: keyed graph step 3 rows (top-k) 24.519 ms, accept 0.095 ms
+spec: token 222 pos 69153 drafted 2 accepted 1 emits 2 drafts [668, 13437]
+spec: keyed graph step 3 rows (top-k) 24.501 ms, accept 0.132 ms
+spec: token 224 pos 69155 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 24.497 ms, accept 0.132 ms
+spec: token 226 pos 69157 drafted 2 accepted 2 emits 3 drafts [45366, 3043]
+spec: keyed graph step 3 rows (top-k) 24.844 ms, accept 0.010 ms
+spec: token 229 pos 69160 drafted 2 accepted 0 emits 1 drafts [13437, 9705]
+spec: keyed graph step 3 rows (top-k) 24.477 ms, accept 0.119 ms
+spec: token 230 pos 69161 drafted 2 accepted 2 emits 3 drafts [9705, 1518]
+spec: keyed graph step 3 rows (top-k) 24.408 ms, accept 0.010 ms
+spec: token 233 pos 69164 drafted 2 accepted 0 emits 1 drafts [10258, 13]
+spec: keyed graph step 3 rows (top-k) 25.043 ms, accept 0.137 ms
+spec: token 234 pos 69165 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.236 ms, accept 0.010 ms
+spec: token 237 pos 69168 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 26.701 ms, accept 0.010 ms
+spec: token 240 pos 69171 drafted 2 accepted 2 emits 3 drafts [24, 25]
+spec: keyed graph step 3 rows (top-k) 25.969 ms, accept 0.010 ms
+spec: token 243 pos 69174 drafted 2 accepted 0 emits 1 drafts [45366, 1830]
+spec: keyed graph step 3 rows (top-k) 24.610 ms, accept 0.128 ms
+spec: token 244 pos 69175 drafted 2 accepted 2 emits 3 drafts [54517, 668]
+spec: keyed graph step 3 rows (top-k) 24.745 ms, accept 0.010 ms
+spec: token 247 pos 69178 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 25.464 ms, accept 0.133 ms
+spec: token 249 pos 69180 drafted 2 accepted 2 emits 3 drafts [4471, 3043]
+spec: keyed graph step 3 rows (top-k) 24.724 ms, accept 0.010 ms
+spec: token 252 pos 69183 drafted 2 accepted 0 emits 1 drafts [27786, 14527]
+spec: keyed graph step 3 rows (top-k) 24.501 ms, accept 0.116 ms
+spec: token 253 pos 69184 drafted 2 accepted 0 emits 1 drafts [4368, 1518]
+spec: keyed graph step 3 rows (top-k) 24.425 ms, accept 0.117 ms
+spec: token 254 pos 69185 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed graph step 3 rows (top-k) 25.313 ms, accept 0.127 ms
+spec: token 2 pos 68865 drafted 2 accepted 2 emits 3 drafts [220, 17]
+spec: keyed graph step 3 rows (top-k) 24.154 ms, accept 0.034 ms
+spec: token 5 pos 68868 drafted 2 accepted 1 emits 2 drafts [21, 22]
+spec: keyed graph step 3 rows (top-k) 24.195 ms, accept 0.092 ms
+spec: token 7 pos 68870 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed graph step 3 rows (top-k) 24.999 ms, accept 0.016 ms
+spec: token 10 pos 68873 drafted 2 accepted 0 emits 1 drafts [1830, 668]
+spec: keyed graph step 3 rows (top-k) 24.259 ms, accept 0.133 ms
+spec: token 11 pos 68874 drafted 2 accepted 1 emits 2 drafts [668, 16602]
+spec: keyed graph step 3 rows (top-k) 24.459 ms, accept 0.130 ms
+spec: token 13 pos 68876 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 24.533 ms, accept 0.113 ms
+spec: token 15 pos 68878 drafted 2 accepted 2 emits 3 drafts [54517, 3043]
+spec: keyed graph step 3 rows (top-k) 24.693 ms, accept 0.010 ms
+spec: token 18 pos 68881 drafted 2 accepted 2 emits 3 drafts [18612, 6805]
+spec: keyed graph step 3 rows (top-k) 24.804 ms, accept 0.010 ms
+spec: token 21 pos 68884 drafted 2 accepted 2 emits 3 drafts [11012, 23331]
+spec: keyed graph step 3 rows (top-k) 24.709 ms, accept 0.010 ms
+spec: token 24 pos 68887 drafted 2 accepted 2 emits 3 drafts [6817, 220]
+spec: keyed graph step 3 rows (top-k) 24.771 ms, accept 0.010 ms
+spec: token 27 pos 68890 drafted 2 accepted 2 emits 3 drafts [24, 22]
+spec: keyed graph step 3 rows (top-k) 24.924 ms, accept 0.010 ms
+spec: token 30 pos 68893 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed graph step 3 rows (top-k) 24.550 ms, accept 0.010 ms
+spec: token 33 pos 68896 drafted 2 accepted 2 emits 3 drafts [54517, 668]
+spec: keyed graph step 3 rows (top-k) 24.088 ms, accept 0.010 ms
+spec: token 36 pos 68899 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 23.965 ms, accept 0.110 ms
+spec: token 38 pos 68901 drafted 2 accepted 0 emits 1 drafts [1830, 3043]
+spec: keyed graph step 3 rows (top-k) 24.562 ms, accept 0.120 ms
+spec: token 39 pos 68902 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 25.456 ms, accept 0.010 ms
+spec: token 42 pos 68905 drafted 2 accepted 0 emits 1 drafts [70676, 1518]
+spec: keyed graph step 3 rows (top-k) 25.054 ms, accept 0.119 ms
+spec: token 43 pos 68906 drafted 2 accepted 1 emits 2 drafts [1518, 16602]
+spec: keyed graph step 3 rows (top-k) 24.210 ms, accept 0.125 ms
+spec: token 45 pos 68908 drafted 2 accepted 0 emits 1 drafts [70676, 13]
+spec: keyed graph step 3 rows (top-k) 25.641 ms, accept 0.124 ms
+spec: token 46 pos 68909 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.968 ms, accept 0.010 ms
+spec: token 49 pos 68912 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 25.133 ms, accept 0.010 ms
+spec: token 52 pos 68915 drafted 2 accepted 2 emits 3 drafts [16, 25]
+spec: keyed graph step 3 rows (top-k) 24.806 ms, accept 0.010 ms
+spec: token 55 pos 68918 drafted 2 accepted 0 emits 1 drafts [6278, 1830]
+spec: keyed graph step 3 rows (top-k) 24.435 ms, accept 0.121 ms
+spec: token 56 pos 68919 drafted 2 accepted 2 emits 3 drafts [1830, 668]
+spec: keyed graph step 3 rows (top-k) 24.255 ms, accept 0.010 ms
+spec: token 59 pos 68922 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 24.283 ms, accept 0.132 ms
+spec: token 61 pos 68924 drafted 2 accepted 2 emits 3 drafts [8028, 3043]
+spec: keyed graph step 3 rows (top-k) 24.715 ms, accept 0.010 ms
+spec: token 64 pos 68927 drafted 2 accepted 0 emits 1 drafts [27786, 45366]
+spec: keyed graph step 3 rows (top-k) 24.877 ms, accept 0.096 ms
+spec: token 65 pos 68928 drafted 2 accepted 2 emits 3 drafts [4368, 1518]
+spec: keyed graph step 3 rows (top-k) 24.697 ms, accept 0.010 ms
+spec: token 68 pos 68931 drafted 2 accepted 0 emits 1 drafts [22979, 13]
+spec: keyed graph step 3 rows (top-k) 25.039 ms, accept 0.121 ms
+spec: token 69 pos 68932 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.212 ms, accept 0.010 ms
+spec: token 72 pos 68935 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 26.253 ms, accept 0.010 ms
+spec: token 75 pos 68938 drafted 2 accepted 2 emits 3 drafts [17, 25]
+spec: keyed graph step 3 rows (top-k) 25.139 ms, accept 0.010 ms
+spec: token 78 pos 68941 drafted 2 accepted 1 emits 2 drafts [13437, 65326]
+spec: keyed graph step 3 rows (top-k) 24.576 ms, accept 0.118 ms
+spec: token 80 pos 68943 drafted 2 accepted 2 emits 3 drafts [668, 4471]
+spec: keyed graph step 3 rows (top-k) 24.489 ms, accept 0.010 ms
+spec: token 83 pos 68946 drafted 2 accepted 2 emits 3 drafts [11012, 6420]
+spec: keyed graph step 3 rows (top-k) 24.463 ms, accept 0.013 ms
+spec: token 86 pos 68949 drafted 2 accepted 1 emits 2 drafts [279, 70676]
+spec: keyed graph step 3 rows (top-k) 24.760 ms, accept 0.125 ms
+spec: token 88 pos 68951 drafted 2 accepted 0 emits 1 drafts [1830, 1518]
+spec: keyed graph step 3 rows (top-k) 24.939 ms, accept 0.122 ms
+spec: token 89 pos 68952 drafted 2 accepted 1 emits 2 drafts [1518, 70676]
+spec: keyed graph step 3 rows (top-k) 24.284 ms, accept 0.123 ms
+spec: token 91 pos 68954 drafted 2 accepted 1 emits 2 drafts [5662, 38813]
+spec: keyed graph step 3 rows (top-k) 25.112 ms, accept 0.080 ms
+spec: token 93 pos 68956 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.656 ms, accept 0.010 ms
+spec: token 96 pos 68959 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 25.537 ms, accept 0.010 ms
+spec: token 99 pos 68962 drafted 2 accepted 2 emits 3 drafts [18, 25]
+spec: keyed graph step 3 rows (top-k) 25.286 ms, accept 0.010 ms
+spec: token 102 pos 68965 drafted 2 accepted 1 emits 2 drafts [4011, 668]
+spec: keyed graph step 3 rows (top-k) 25.082 ms, accept 0.112 ms
+spec: token 104 pos 68967 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 24.545 ms, accept 0.121 ms
+spec: token 106 pos 68969 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 24.325 ms, accept 0.124 ms
+spec: token 108 pos 68971 drafted 2 accepted 1 emits 2 drafts [4368, 1518]
+spec: keyed graph step 3 rows (top-k) 24.445 ms, accept 0.123 ms
+spec: token 110 pos 68973 drafted 2 accepted 1 emits 2 drafts [279, 14527]
+spec: keyed graph step 3 rows (top-k) 24.762 ms, accept 0.126 ms
+spec: token 112 pos 68975 drafted 2 accepted 0 emits 1 drafts [1830, 1518]
+spec: keyed graph step 3 rows (top-k) 24.298 ms, accept 0.120 ms
+spec: token 113 pos 68976 drafted 2 accepted 1 emits 2 drafts [1518, 13437]
+spec: keyed graph step 3 rows (top-k) 24.384 ms, accept 0.131 ms
+spec: token 115 pos 68978 drafted 2 accepted 0 emits 1 drafts [1830, 13]
+spec: keyed graph step 3 rows (top-k) 25.292 ms, accept 0.124 ms
+spec: token 116 pos 68979 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.215 ms, accept 0.010 ms
+spec: token 119 pos 68982 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 25.355 ms, accept 0.011 ms
+spec: token 122 pos 68985 drafted 2 accepted 2 emits 3 drafts [19, 25]
+spec: keyed graph step 3 rows (top-k) 25.007 ms, accept 0.010 ms
+spec: token 125 pos 68988 drafted 2 accepted 1 emits 2 drafts [8028, 668]
+spec: keyed graph step 3 rows (top-k) 25.157 ms, accept 0.122 ms
+spec: token 127 pos 68990 drafted 2 accepted 1 emits 2 drafts [668, 4368]
+spec: keyed graph step 3 rows (top-k) 24.581 ms, accept 0.125 ms
+spec: token 129 pos 68992 drafted 2 accepted 1 emits 2 drafts [279, 65326]
+spec: keyed graph step 3 rows (top-k) 24.196 ms, accept 0.122 ms
+spec: token 131 pos 68994 drafted 2 accepted 1 emits 2 drafts [54517, 6420]
+spec: keyed graph step 3 rows (top-k) 24.182 ms, accept 0.124 ms
+spec: token 133 pos 68996 drafted 2 accepted 1 emits 2 drafts [279, 6420]
+spec: keyed graph step 3 rows (top-k) 25.519 ms, accept 0.085 ms
+spec: token 135 pos 68998 drafted 2 accepted 2 emits 3 drafts [4368, 1518]
+spec: keyed graph step 3 rows (top-k) 24.874 ms, accept 0.010 ms
+spec: token 138 pos 69001 drafted 2 accepted 1 emits 2 drafts [5662, 45366]
+spec: keyed graph step 3 rows (top-k) 25.121 ms, accept 0.090 ms
+spec: token 140 pos 69003 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.278 ms, accept 0.011 ms
+spec: token 143 pos 69006 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 25.653 ms, accept 0.012 ms
+spec: token 146 pos 69009 drafted 2 accepted 2 emits 3 drafts [20, 25]
+spec: keyed graph step 3 rows (top-k) 25.237 ms, accept 0.011 ms
+spec: token 149 pos 69012 drafted 2 accepted 2 emits 3 drafts [728, 5662]
+spec: keyed graph step 3 rows (top-k) 24.618 ms, accept 0.011 ms
+spec: token 152 pos 69015 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 24.187 ms, accept 0.089 ms
+spec: token 154 pos 69017 drafted 2 accepted 1 emits 2 drafts [279, 11012]
+spec: keyed graph step 3 rows (top-k) 24.434 ms, accept 0.089 ms
+spec: token 156 pos 69019 drafted 2 accepted 2 emits 3 drafts [8028, 3043]
+spec: keyed graph step 3 rows (top-k) 24.695 ms, accept 0.010 ms
+spec: token 159 pos 69022 drafted 2 accepted 0 emits 1 drafts [11012, 5979]
+spec: keyed graph step 3 rows (top-k) 24.437 ms, accept 0.109 ms
+spec: token 160 pos 69023 drafted 2 accepted 2 emits 3 drafts [54517, 1518]
+spec: keyed graph step 3 rows (top-k) 24.480 ms, accept 0.010 ms
+spec: token 163 pos 69026 drafted 2 accepted 0 emits 1 drafts [4011, 13]
+spec: keyed graph step 3 rows (top-k) 25.003 ms, accept 0.100 ms
+spec: token 164 pos 69027 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.256 ms, accept 0.010 ms
+spec: token 167 pos 69030 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 25.243 ms, accept 0.011 ms
+spec: token 170 pos 69033 drafted 2 accepted 2 emits 3 drafts [21, 25]
+spec: keyed graph step 3 rows (top-k) 29.107 ms, accept 0.011 ms
+spec: token 173 pos 69036 drafted 2 accepted 2 emits 3 drafts [11012, 45366]
+spec: keyed graph step 3 rows (top-k) 24.825 ms, accept 0.011 ms
+spec: token 176 pos 69039 drafted 2 accepted 0 emits 1 drafts [13437, 279]
+spec: keyed graph step 3 rows (top-k) 25.091 ms, accept 0.103 ms
+spec: token 177 pos 69040 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 25.152 ms, accept 0.102 ms
+spec: token 179 pos 69042 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed graph step 3 rows (top-k) 24.752 ms, accept 0.108 ms
+spec: token 180 pos 69043 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 24.991 ms, accept 0.010 ms
+spec: token 183 pos 69046 drafted 2 accepted 2 emits 3 drafts [54517, 1518]
+spec: keyed graph step 3 rows (top-k) 24.952 ms, accept 0.011 ms
+spec: token 186 pos 69049 drafted 2 accepted 0 emits 1 drafts [728, 5662]
+spec: keyed graph step 3 rows (top-k) 25.254 ms, accept 0.110 ms
+spec: token 187 pos 69050 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.133 ms, accept 0.010 ms
+spec: token 190 pos 69053 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 25.507 ms, accept 0.011 ms
+spec: token 193 pos 69056 drafted 2 accepted 2 emits 3 drafts [22, 25]
+spec: keyed graph step 3 rows (top-k) 26.076 ms, accept 0.010 ms
+spec: token 196 pos 69059 drafted 2 accepted 2 emits 3 drafts [65326, 54517]
+spec: keyed graph step 3 rows (top-k) 24.720 ms, accept 0.010 ms
+spec: token 199 pos 69062 drafted 2 accepted 2 emits 3 drafts [13437, 279]
+spec: keyed graph step 3 rows (top-k) 24.294 ms, accept 0.011 ms
+spec: token 202 pos 69065 drafted 2 accepted 0 emits 1 drafts [8028, 3043]
+spec: keyed graph step 3 rows (top-k) 25.381 ms, accept 0.104 ms
+spec: token 203 pos 69066 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 24.992 ms, accept 0.011 ms
+spec: token 206 pos 69069 drafted 2 accepted 2 emits 3 drafts [8028, 1518]
+spec: keyed graph step 3 rows (top-k) 24.368 ms, accept 0.011 ms
+spec: token 209 pos 69072 drafted 2 accepted 0 emits 1 drafts [1830, 13]
+spec: keyed graph step 3 rows (top-k) 25.803 ms, accept 0.102 ms
+spec: token 210 pos 69073 drafted 2 accepted 2 emits 3 drafts [13, 6817]
+spec: keyed graph step 3 rows (top-k) 25.199 ms, accept 0.010 ms
+spec: token 213 pos 69076 drafted 2 accepted 2 emits 3 drafts [17, 24]
+spec: keyed graph step 3 rows (top-k) 25.693 ms, accept 0.010 ms
+spec: token 216 pos 69079 drafted 2 accepted 2 emits 3 drafts [23, 25]
+spec: keyed graph step 3 rows (top-k) 25.540 ms, accept 0.010 ms
+spec: token 219 pos 69082 drafted 2 accepted 2 emits 3 drafts [4368, 5979]
+spec: keyed graph step 3 rows (top-k) 24.614 ms, accept 0.011 ms
+spec: token 222 pos 69085 drafted 2 accepted 2 emits 3 drafts [4471, 279]
+spec: keyed graph step 3 rows (top-k) 25.082 ms, accept 0.012 ms
+spec: token 225 pos 69088 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed graph step 3 rows (top-k) 24.483 ms, accept 0.117 ms
+spec: token 226 pos 69089 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed graph step 3 rows (top-k) 24.437 ms, accept 0.113 ms
+spec: token 227 pos 69090 drafted 2 accepted 1 emits 2 drafts [279, 8028]
+spec: keyed graph step 3 rows (top-k) 24.640 ms, accept 0.096 ms
+spec: token 229 pos 69092 drafted 2 accepted 2 emits 3 drafts [8028, 1518]
+spec: keyed graph step 3 rows (top-k) 26.087 ms, accept 0.010 ms
+spec: token 232 pos 69095 drafted 2 accepted 2 emits 3 drafts [5662, 1830]
+spec: keyed graph step 3 rows (top-k) 25.803 ms, accept 0.010 ms
+spec: token 235 pos 69098 drafted 2 accepted 2 emits 3 drafts [6817, 220]
+spec: keyed graph step 3 rows (top-k) 24.900 ms, accept 0.010 ms
+spec: token 238 pos 69101 drafted 2 accepted 2 emits 3 drafts [24, 22]
+spec: keyed graph step 3 rows (top-k) 25.105 ms, accept 0.010 ms
+spec: token 241 pos 69104 drafted 2 accepted 2 emits 3 drafts [25, 279]
+spec: keyed graph step 3 rows (top-k) 24.894 ms, accept 0.010 ms
+spec: token 244 pos 69107 drafted 2 accepted 1 emits 2 drafts [5662, 1830]
+spec: keyed graph step 3 rows (top-k) 24.229 ms, accept 0.101 ms
+spec: token 246 pos 69109 drafted 2 accepted 1 emits 2 drafts [668, 1830]
+spec: keyed graph step 3 rows (top-k) 24.521 ms, accept 0.111 ms
+spec: token 248 pos 69111 drafted 2 accepted 1 emits 2 drafts [279, 13437]
+spec: keyed graph step 3 rows (top-k) 24.598 ms, accept 0.081 ms
+spec: token 250 pos 69113 drafted 2 accepted 0 emits 1 drafts [54517, 3043]
+spec: keyed graph step 3 rows (top-k) 24.661 ms, accept 0.079 ms
+spec: token 251 pos 69114 drafted 2 accepted 2 emits 3 drafts [3043, 279]
+spec: keyed graph step 3 rows (top-k) 24.942 ms, accept 0.010 ms
+spec: token 254 pos 69117 drafted 2 accepted 2 emits 3 drafts [5979, 1518]
+spec: keyed graph step 3 rows (top-k) 24.399 ms, accept 0.010 ms

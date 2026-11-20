@@ -1,0 +1,19 @@
+docs/results/2026-11-20-samphost/raw/a2-seeded.json: size 4096 seed 11 prompt 4103/4103 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a2-seeded.json: size 4096 seed 23 prompt 4103/4103 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a2-seeded.json: size 32768 seed 11 prompt 32837/32837 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a2-seeded.json: size 32768 seed 23 prompt 32837/32837 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a2-seeded.json: size 65536 seed 11 prompt 65569/65569 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a2-seeded.json: size 65536 seed 23 prompt 65569/65569 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a3-seeded.json: size 4096 seed 11 prompt 4103/4103 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a3-seeded.json: size 4096 seed 23 prompt 4103/4103 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a3-seeded.json: size 32768 seed 11 prompt 32837/32837 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a3-seeded.json: size 32768 seed 23 prompt 32837/32837 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a3-seeded.json: size 65536 seed 11 prompt 65569/65569 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a3-seeded.json: size 65536 seed 23 prompt 65569/65569 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a4-seeded.json: size 4096 seed 11 prompt 4103/4103 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a4-seeded.json: size 4096 seed 23 prompt 4103/4103 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a4-seeded.json: size 32768 seed 11 prompt 32837/32837 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a4-seeded.json: size 32768 seed 23 prompt 32837/32837 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a4-seeded.json: size 65536 seed 11 prompt 65569/65569 out 700/700 identical=True
+docs/results/2026-11-20-samphost/raw/a4-seeded.json: size 65536 seed 23 prompt 65569/65569 out 700/700 identical=True
+ALL IDENTICAL

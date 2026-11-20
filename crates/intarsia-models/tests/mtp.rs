@@ -941,8 +941,12 @@ struct RecCpu {
 }
 impl RecCpu {
     fn arc() -> Arc<RecCpu> {
+        Self::arc_on(CpuBackend::arc())
+    }
+    /// Lane samphost: on a given cpu backend (`CpuBackend::arc_topk`: with the host reference of device-side top-k).
+    fn arc_on(inner: Arc<dyn Backend>) -> Arc<RecCpu> {
         Arc::new(RecCpu {
-            inner: CpuBackend::arc(),
+            inner,
             recording: Mutex::new(None),
             captures: Default::default(),
             replays: Default::default(),
@@ -1013,6 +1017,23 @@ impl Backend for RecCpu {
     }
     fn supports_graphs(&self) -> bool {
         true
+    }
+    fn supports_topk(&self) -> bool {
+        self.inner.supports_topk()
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn topk_rows(
+        &self,
+        logits: &intarsia_core::TensorRef,
+        k: usize,
+        ids: &intarsia_core::TensorRef,
+        vals: &intarsia_core::TensorRef,
+        nan: &intarsia_core::TensorRef,
+        scratch: &intarsia_core::TensorRef,
+        s: StreamId,
+    ) -> Result<()> {
+        self.forbid("topk_rows")?;
+        self.inner.topk_rows(logits, k, ids, vals, nan, scratch, s)
     }
     fn verify_attn_per_row(&self) -> bool {
         true
@@ -1952,6 +1973,15 @@ thread_local! {
     /// Lane samp64: [`batched_mtp`] engines built on this test thread give sampled requests this draft-length schedule by context length
     /// (`BatchedOptions::sampled_ctx_k`; empty: none).
     static SAMPLED_CTX_K: std::cell::RefCell<Vec<(usize, usize)>> = const { std::cell::RefCell::new(Vec::new()) };
+    /// Lane samphost: [`batched_mtp`] engines built on this test thread run on the cpu backend with device-side top-k
+    /// (`CpuBackend::arc_topk`), give sampled requests' own verify passes top-k rows (`BatchedOptions::sampled_verify_fast`), and
+    /// ask batched verify passes for top-k rows (`BatchedOptions::verify_topk`).
+    static CPU_TOPK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static VERIFY_FAST: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static VERIFY_TOPK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// Lane samphost: [`batched_mtp`] engines built on this test thread run on [`RecCpu`] (graph capture, so a sampled request's
+    /// own pass can take the captured step), over the cpu backend with or without device-side top-k (`CPU_TOPK`).
+    static REC_GRAPHS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 /// A batching engine of `rows` slots with `--spec mtp --spec-k k`, drafting while at most `mtp_max_b` sequences decode, on the
@@ -1969,7 +1999,11 @@ fn batched_mtp(
     let tel = Arc::new(Telemetry::new());
     let (recipe, dims) = dims();
     let opts = LoadOptions { max_seq: 512, prefill_chunk: chunk, fp8_act: Some(Fp8Act::None), mtp: true, profile_every: 0, ..Default::default() };
-    let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, w, &opts, tel.clone()).unwrap();
+    let mut be = if CPU_TOPK.with(|c| c.get()) { CpuBackend::arc_topk() } else { CpuBackend::arc() };
+    if REC_GRAPHS.with(|c| c.get()) {
+        be = RecCpu::arc_on(be);
+    }
+    let mut m = Model::load(be, &recipe, &dims, w, &opts, tel.clone()).unwrap();
     m.enable_verify(k + 1).unwrap();
     m.allow_recurrent_batch().unwrap();
     m.enable_batch(rows).unwrap();
@@ -1989,6 +2023,8 @@ fn batched_mtp(
     o.batched_verify = verify;
     o.mtp_sampled = !SAMPLED_OFF.with(|c| c.get());
     o.sampled_ctx_k = SAMPLED_CTX_K.with(|c| c.borrow().clone());
+    o.sampled_verify_fast = VERIFY_FAST.with(|c| c.get());
+    o.verify_topk = VERIFY_TOPK.with(|c| c.get());
     // every request is queued before the first iteration admits anything, so the sequences decode side by side
     o.hold_start = true;
     let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec: SpecConfig { mode: SpecMode::Mtp, k, k_min: None }, ..Default::default() };
@@ -2340,6 +2376,132 @@ fn batched_mtp_sampled_context_schedule_keeps_seeded_output_and_cuts_drafting() 
     assert!(free.spec_proposed > free.spec_steps, "without the cap passes draft two ({} in {})", free.spec_proposed, free.spec_steps);
     let high = run(&[(100_000, 0)], &sampled, false);
     assert_eq!(high.spec_steps, free.spec_steps, "a limit past every context changes nothing");
+}
+
+/// Lane samphost (`BatchedOptions::sampled_verify_fast`, `INTARSIA_SAMPLED_VERIFY_FAST`): a sampled request's own verify pass reads its
+/// rows back as the device-side top-k instead of whole logits rows, which changes no token: on the cpu backend with the host reference of
+/// device-side top-k (`CpuBackend::arc_topk`, so plain steps sample from top-k rows too), seeded sampled requests next to greedy ones equal
+/// their spec-off solo runs (host sampling of whole rows), ids and finish reasons, with the switch on and off, at temperatures 0.3 to 1.5,
+/// top-k 1 to 64 and top-p 0.8 to 1, k = 1..3, scripted drafts (every accept pattern) and the head's own; with batched verify passes
+/// whose lone sequences take the same path. The fallback: a request whose plain steps sample whole rows (top-k 0, above 64, a stop-id
+/// mask in its `min_tokens` window) reads whole rows with the switch on, and without device-side top-k every pass does. On a backend
+/// that records graphs (`RecCpu`) the passes run as the captured draft-and-verify step with the rows read from it, same ids.
+#[test]
+fn batched_mtp_sampled_verify_topk_rows_keep_seeded_output() {
+    let w = weights(11);
+    let mut reqs = sampled_mixed_reqs(6, &[13, 6, 21, 30, 9, 17], 400);
+    // more sampling settings on prompts of the mix: (temperature, top_k, top_p, seed)
+    let base = reqs[3].clone();
+    for (i, &(temperature, top_k, top_p)) in [(0.3f32, 5usize, 0.95f32), (1.5, 64, 1.0), (0.7, 65, 0.95), (0.7, 1, 1.0), (0.7, 20, 0.95)].iter().enumerate() {
+        let src = &reqs[i % 6];
+        reqs.push(GenRequest { prompt: src.prompt.clone(), temperature, top_k, top_p, seed: Some(900 + i as u64), ..base.clone() });
+    }
+    let truth = truth_of(&w, &reqs, 16);
+    let run = |topk: bool, fast: bool, vtopk: bool, k: usize, script: Option<DraftScript>, verify: bool| {
+        CPU_TOPK.with(|c| c.set(topk));
+        VERIFY_FAST.with(|c| c.set(fast));
+        VERIFY_TOPK.with(|c| c.set(vtopk));
+        let t = check_batched_mtp_v(&w, reqs.clone(), 16, 4, k, 4, script, false, verify);
+        CPU_TOPK.with(|c| c.set(false));
+        VERIFY_FAST.with(|c| c.set(false));
+        VERIFY_TOPK.with(|c| c.set(false));
+        t
+    };
+    // (scripted drafts at every k, the head's own at k = 2: the test is long)
+    for (k, scripted_run) in [(1, true), (2, true), (3, true), (2, false)] {
+        {
+            let script = || scripted_run.then(|| scripted(truth.clone(), 61 + k as u64));
+            // `check_batched_mtp_v` compares every request's ids and finish reason with its spec-off solo run
+            let on = run(true, true, false, k, script(), false);
+            assert!(on.spec_verify_topk_solo > 0, "k {k}: top-k verify passes ran ({on:?})");
+            assert!(on.spec_verify_topk_fallback > 0, "k {k}: requests that sample whole rows fell back ({on:?})");
+            assert!(!scripted_run || (on.spec_accepted > 0 && on.spec_accepted < on.spec_proposed), "k {k}: drafts accepted and rejected ({on:?})");
+            let off = run(true, false, false, k, script(), false);
+            assert_eq!((off.spec_verify_topk_solo, off.spec_verify_topk_fallback), (0, 0), "k {k}: the switch off reads whole rows");
+            assert_eq!((on.spec_steps, on.spec_proposed, on.spec_accepted), (off.spec_steps, off.spec_proposed, off.spec_accepted), "k {k}: same passes either way");
+            // no device-side top-k on the backend: every sampled pass reads whole rows with the switch on
+            let host = run(false, true, false, k, script(), false);
+            assert!(host.spec_verify_topk_solo == 0 && host.spec_verify_topk_fallback > 0, "k {k}: no device top-k, whole rows ({host:?})");
+        }
+    }
+    // the captured step (a backend that records graphs, as CUDA and HIP): the sampled requests' own passes replay the draft and
+    // verify as one graph and read the rows from it, top-k or whole rows; the same ids, the same passes as the eager switch-off run
+    REC_GRAPHS.with(|c| c.set(true));
+    for (k, scripted_run) in [(1, true), (3, true), (2, false)] {
+        {
+            let script = || scripted_run.then(|| scripted(truth.clone(), 61 + k as u64));
+            for topk in [true, false] {
+                let on = run(topk, true, false, k, script(), false);
+                assert!(on.spec_keyed_graph_steps > 0, "k {k} topk {topk}: captured keyed steps ran ({on:?})");
+                assert_eq!(on.spec_verify_topk_solo > 0, topk, "k {k} topk {topk}: top-k rows only with device top-k ({on:?})");
+                assert!(on.spec_verify_topk_fallback > 0, "k {k} topk {topk}: whole-row requests fell back ({on:?})");
+                let off = run(topk, false, false, k, script(), false);
+                assert_eq!(off.spec_keyed_graph_steps, 0, "k {k}: the switch off keeps sampled passes eager");
+                assert_eq!((on.spec_steps, on.spec_proposed, on.spec_accepted), (off.spec_steps, off.spec_proposed, off.spec_accepted), "k {k} topk {topk}: same passes");
+            }
+        }
+    }
+    REC_GRAPHS.with(|c| c.set(false));
+    // batched verify passes (top-k rows, `verify_topk`): a pass of one sequence takes the solo top-k pass with the switch on
+    for k in 1..=2 {
+        let on = run(true, true, true, k, Some(scripted(truth.clone(), 9)), true);
+        assert!(on.spec_verify_topk_solo > 0, "k {k}: lone sequences' batched verify passes read top-k rows ({on:?})");
+        run(true, false, true, k, Some(scripted(truth.clone(), 9)), true);
+    }
+}
+
+/// `Model::forward_verify_topk`: every row is the host top-k (`sampler::topk_row`) of the logits row `forward_verify_logits` returns
+/// for the same pass on a twin state (ids and value bits), the greedy tokens are the same, and both states go on alike; without
+/// device-side top-k on the backend the rows come back as those logits.
+#[test]
+fn verify_topk_rows_are_the_top_k_of_the_logits_rows() {
+    let w = weights(11);
+    let (recipe, dims) = dims();
+    let opts = LoadOptions { max_seq: 512, prefill_chunk: 16, fp8_act: Some(Fp8Act::None), mtp: true, profile_every: 0, ..Default::default() };
+    for topk in [true, false] {
+        let tel = Arc::new(Telemetry::new());
+        let be = if topk { CpuBackend::arc_topk() } else { CpuBackend::arc() };
+        let mut m = Model::load(be, &recipe, &dims, &w, &opts, tel.clone()).unwrap();
+        m.enable_verify(4).unwrap();
+        m.allow_recurrent_batch().unwrap();
+        m.enable_batch(2).unwrap();
+        m.configure_plan(&Default::default(), None).unwrap();
+        assert_eq!(m.device_sampling(), topk);
+        let (mut a, mut b) = (m.new_state().unwrap(), m.new_state().unwrap());
+        for st in [&mut a, &mut b] {
+            m.forward(st, PROMPTS[1], HeadMode::LastArgmax, None).unwrap();
+        }
+        let mut rng = SplitMix64::new(5);
+        let mut rows_checked = 0;
+        for round in 0..10 {
+            let k = [1usize, 5, 20, 64][round % 4];
+            let ids: Vec<u32> = (0..2 + rng.next_u64() % 3).map(|_| (rng.next_u64() % V as u64) as u32).collect();
+            let (ta, la) = m.forward_verify_logits(&mut a, &ids).unwrap();
+            let (tb, rb) = m.forward_verify_topk(&mut b, &ids, k).unwrap();
+            assert_eq!(ta, tb, "round {round}: greedy tokens");
+            assert_eq!(rb.len(), ids.len());
+            for (r, (l, o)) in la.iter().zip(&rb).enumerate() {
+                match o {
+                    StepOut::TopK { ids: ti, vals: tv } => {
+                        assert!(topk, "round {round} row {r}: top-k rows only with device-side top-k");
+                        let (wi, wv) = intarsia_core::sampler::topk_row(l, k).expect("no NaN");
+                        assert_eq!(ti, &wi, "round {round} row {r}: ids");
+                        assert!(tv.iter().zip(&wv).all(|(x, y)| x.to_bits() == y.to_bits()), "round {round} row {r}: value bits");
+                    }
+                    StepOut::Logits(x) => {
+                        assert!(!topk, "round {round} row {r}: logits rows only without device-side top-k");
+                        assert!(x.iter().zip(l).all(|(p, q)| p.to_bits() == q.to_bits()), "round {round} row {r}: logits bits");
+                    }
+                    o => panic!("round {round} row {r}: {o:?}"),
+                }
+                rows_checked += 1;
+            }
+            assert_eq!(a.len, b.len);
+        }
+        assert!(rows_checked >= 20);
+        let s = tel.snapshot();
+        assert_eq!((s.spec_verify_topk_solo > 0, s.spec_verify_topk_fallback > 0), (topk, !topk), "{s:?}");
+    }
 }
 
 /// `Model::forward_verify_batch_logits`: the logits rows a sampled sequence draws from are bitwise the logits of plain decode

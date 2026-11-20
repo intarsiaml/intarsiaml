@@ -1,0 +1,147 @@
+{
+ "decode_wall_ms": 3102.134944,
+ "gpu_busy_ms": 2998.250321,
+ "kernels": 113918,
+ "d2h_copies": 921,
+ "d2h_bytes": 697377120,
+ "d2h_ms": 28.577376,
+ "by_category_ms": {
+  "matmul / GEMV (dense, lm head)": 1656.943865,
+  "attention (KV read)": 939.662431,
+  "MoE experts + routing": 776.349182,
+  "GatedDeltaNet / conv": 91.017566,
+  "norm / rope / elementwise / copy": 79.551956,
+  "sampling (top-k, argmax, softmax)": 13.933632,
+  "other": 11.443872
+ },
+ "argmax_launches": {
+  "void <unnamed>::argmax_kernel<float>(const T1 *, int *, long)": 349
+ },
+ "top_kernels": [
+  [
+   "void <unnamed>::splitkv_rows_persist_kernel<(int)32, __nv_bfloat16, (int)1>(const __nv_bfloat16 *, float *, fl",
+   799.549951,
+   1242
+  ],
+  [
+   "void <unnamed>::fp8_gemv_rows_full_kernel<(int)3, (int)2, (int)16, __nv_bfloat16>(const __nv_bfloat16 *, const",
+   709.511417,
+   15080
+  ],
+  [
+   "void <unnamed>::moe_dec_gate_up_kernel<(int)2, (bool)0>(const __nv_bfloat16 *, const unsigned char *, const un",
+   469.616991,
+   4830
+  ],
+  [
+   "void <unnamed>::gemv_split_kernel<(int)1, __nv_bfloat16>(const __nv_bfloat16 *, const __nv_bfloat16 *, T2 *, l",
+   250.080804,
+   16240
+  ],
+  [
+   "void <unnamed>::moe_dec_down_dd_kernel<(int)4, (int)4>(const __nv_bfloat16 *, const unsigned char *, const uns",
+   244.380992,
+   4640
+  ],
+  [
+   "void <unnamed>::nvfp4_gemv_kernel<(int)3, __nv_bfloat16>(const __nv_bfloat16 *, const unsigned char *, const u",
+   226.861918,
+   4760
+  ],
+  [
+   "void <unnamed>::nvfp4_gemv_kernel<(int)1, float>(const __nv_bfloat16 *, const unsigned char *, const unsigned ",
+   145.101472,
+   234
+  ],
+  [
+   "void <unnamed>::splitkv_kernel<(int)8, (int)32, (int)2, __nv_bfloat16, (bool)0>(const __nv_bfloat16 *, const T",
+   140.11248,
+   180
+  ],
+  [
+   "void <unnamed>::nvfp4_gemv_kernel<(int)3, float>(const __nv_bfloat16 *, const unsigned char *, const unsigned ",
+   135.351072,
+   116
+  ],
+  [
+   "void <unnamed>::nvfp4_gemv_split_kernel<(int)2, (int)2, __nv_bfloat16>(const __nv_bfloat16 *, const unsigned c",
+   80.949886,
+   9280
+  ],
+  [
+   "void <unnamed>::gdn_delta_snap_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_",
+   70.374528,
+   3480
+  ],
+  [
+   "void <unnamed>::gemv_kernel<(int)1, __nv_bfloat16, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, T2 *",
+   49.181088,
+   1050
+  ],
+  [
+   "void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bflo",
+   22.322752,
+   9917
+  ],
+  [
+   "<unnamed>::moe_topk_kernel(const __nv_bfloat16 *, int, int, int, int, float *, int *)",
+   21.214656,
+   4993
+  ],
+  [
+   "void <unnamed>::gemv_kernel<(int)3, __nv_bfloat16, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, T2 *",
+   20.04432,
+   742
+  ],
+  [
+   "void <unnamed>::gdn_conv_snap_kernel<__nv_bfloat16>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat1",
+   19.305918,
+   3480
+  ],
+  [
+   "void <unnamed>::moe_gate_up_kernel<(bool)0>(const __nv_bfloat16 *, const unsigned char *, const unsigned char ",
+   15.44688,
+   162
+  ],
+  [
+   "<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, ",
+   15.412544,
+   2850
+  ],
+  [
+   "void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)",
+   12.144567,
+   4952
+  ],
+  [
+   "<unnamed>::moe_down_kernel(const __nv_bfloat16 *, const unsigned char *, const unsigned char *, const float *,",
+   10.98752,
+   162
+  ],
+  [
+   "void <unnamed>::gemv_kernel<(int)2, __nv_bfloat16, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, T2 *",
+   10.20944,
+   308
+  ],
+  [
+   "void <unnamed>::combine_kernel<(int)256, (bool)1, (bool)1>(const float *, const float2 *, __nv_bfloat16 *, int",
+   8.515008,
+   1242
+  ],
+  [
+   "void <unnamed>::fp8_gemv_kernel<(int)4, __nv_bfloat16>(const __nv_bfloat16 *, const unsigned char *, const flo",
+   8.499328,
+   130
+  ],
+  [
+   "<unnamed>::topk_stage1(const float *, long, int, float *, int *, int *)",
+   7.685824,
+   116
+  ],
+  [
+   "void <unnamed>::fp8_gemv_kernel<(int)3, __nv_bfloat16>(const __nv_bfloat16 *, const unsigned char *, const flo",
+   7.45024,
+   130
+  ]
+ ]
+}

@@ -89,6 +89,12 @@ pub struct TelemetrySnapshot {
     pub spec_copy_steps: u64,
     pub spec_copy_proposed: u64,
     pub spec_copy_accepted: u64,
+    /// Lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST=1`): sampled verify passes run on their own that read their rows back as the
+    /// device-side top-k, and those that read whole rows although the switch is on (the request's sampling did not allow it).
+    pub spec_verify_topk_solo: u64,
+    pub spec_verify_topk_fallback: u64,
+    /// Lane samphost: of those, the passes that ran as the captured draft-and-verify step (`Model::spec_step_rows`).
+    pub spec_keyed_graph_steps: u64,
     /// Measured-cost gate (`spec::CostParams`): switches to plain decode, switches back, plain steps it took, of them probes.
     pub spec_cost_off: u64,
     pub spec_cost_on: u64,
@@ -137,6 +143,9 @@ pub struct Telemetry {
     spec_proposed: AtomicU64,
     spec_accepted: AtomicU64,
     spec_copy_steps: AtomicU64,
+    spec_verify_topk_solo: AtomicU64,
+    spec_verify_topk_fallback: AtomicU64,
+    spec_keyed_graph_steps: AtomicU64,
     spec_copy_proposed: AtomicU64,
     spec_copy_accepted: AtomicU64,
     spec_cost_off: AtomicU64,
@@ -187,6 +196,9 @@ impl Telemetry {
             spec_proposed: AtomicU64::new(0),
             spec_accepted: AtomicU64::new(0),
             spec_copy_steps: AtomicU64::new(0),
+            spec_verify_topk_solo: AtomicU64::new(0),
+            spec_verify_topk_fallback: AtomicU64::new(0),
+            spec_keyed_graph_steps: AtomicU64::new(0),
             spec_copy_proposed: AtomicU64::new(0),
             spec_copy_accepted: AtomicU64::new(0),
             spec_cost_off: AtomicU64::new(0),
@@ -250,6 +262,21 @@ impl Telemetry {
         self.spec_steps.fetch_add(1, Ordering::Relaxed);
         self.spec_proposed.fetch_add(proposed as u64, Ordering::Relaxed);
         self.spec_accepted.fetch_add(accepted as u64, Ordering::Relaxed);
+    }
+
+    /// Lane samphost: a sampled verify pass that read its rows back as the device-side top-k ([`TelemetrySnapshot::spec_verify_topk_solo`]).
+    pub fn verify_topk_solo(&self) {
+        self.spec_verify_topk_solo.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Lane samphost: [`TelemetrySnapshot::spec_keyed_graph_steps`].
+    pub fn keyed_graph_step(&self) {
+        self.spec_keyed_graph_steps.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Lane samphost: [`TelemetrySnapshot::spec_verify_topk_fallback`].
+    pub fn verify_topk_fallback(&self) {
+        self.spec_verify_topk_fallback.fetch_add(1, Ordering::Relaxed);
     }
 
     /// A copy-chain verify pass (lane mcopy2): kept out of [`Telemetry::spec_step`], which is the MTP drafter's.
@@ -397,6 +424,9 @@ impl Telemetry {
             spec_proposed: self.spec_proposed.load(Ordering::Relaxed),
             spec_accepted: self.spec_accepted.load(Ordering::Relaxed),
             spec_copy_steps: self.spec_copy_steps.load(Ordering::Relaxed),
+            spec_verify_topk_solo: self.spec_verify_topk_solo.load(Ordering::Relaxed),
+            spec_verify_topk_fallback: self.spec_verify_topk_fallback.load(Ordering::Relaxed),
+            spec_keyed_graph_steps: self.spec_keyed_graph_steps.load(Ordering::Relaxed),
             spec_copy_proposed: self.spec_copy_proposed.load(Ordering::Relaxed),
             spec_copy_accepted: self.spec_copy_accepted.load(Ordering::Relaxed),
             spec_cost_off: self.spec_cost_off.load(Ordering::Relaxed),
