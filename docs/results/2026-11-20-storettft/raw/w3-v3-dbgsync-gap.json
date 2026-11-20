@@ -1,0 +1,40 @@
+{
+ "arm": "w3-v3-dbgsync",
+ "gap_s": 5.0,
+ "gen": 256,
+ "rows": [
+  {
+   "size": 4096,
+   "prompt_tokens": 4091,
+   "ttft_each": [
+    0.674,
+    0.715,
+    0.671
+   ],
+   "ttft_median": 0.674,
+   "cached_max": 0
+  },
+  {
+   "size": 16384,
+   "prompt_tokens": 16654,
+   "ttft_each": [
+    2.853,
+    2.843,
+    2.864
+   ],
+   "ttft_median": 2.853,
+   "cached_max": 0
+  },
+  {
+   "size": 32768,
+   "prompt_tokens": 33881,
+   "ttft_each": [
+    6.803,
+    6.85,
+    6.834
+   ],
+   "ttft_median": 6.834,
+   "cached_max": 0
+  }
+ ]
+}

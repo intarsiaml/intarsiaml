@@ -1,0 +1,9 @@
+round 0    512 KiB x40  ms each: A touch+copy   2.892 | B touch+reg+copy+unreg   1.413 | C hostalloc+copy   0.265 | D reused pinned copy   0.015 | E populate+copy   0.144 | F populate+reg+copy+unreg   0.156
+round 0   5120 KiB x40  ms each: A touch+copy   5.139 | B touch+reg+copy+unreg   3.187 | C hostalloc+copy   2.359 | D reused pinned copy   0.096 | E populate+copy   1.273 | F populate+reg+copy+unreg   1.471
+round 0  32160 KiB x32  ms each: A touch+copy  13.800 | B touch+reg+copy+unreg  14.638 | C hostalloc+copy  17.194 | D reused pinned copy   0.561 | E populate+copy   8.779 | F populate+reg+copy+unreg  11.482
+round 0 102400 KiB x10  ms each: A touch+copy  35.598 | B touch+reg+copy+unreg  37.920 | C hostalloc+copy  57.721 | D reused pinned copy   1.777 | E populate+copy  28.190 | F populate+reg+copy+unreg  36.123
+round 1    512 KiB x40  ms each: A touch+copy   2.079 | B touch+reg+copy+unreg   0.049 | C hostalloc+copy   0.243 | D reused pinned copy   0.014 | E populate+copy   0.102 | F populate+reg+copy+unreg   0.130
+round 1   5120 KiB x40  ms each: A touch+copy   4.002 | B touch+reg+copy+unreg   2.852 | C hostalloc+copy   2.220 | D reused pinned copy   0.096 | E populate+copy   1.258 | F populate+reg+copy+unreg   1.459
+round 1  32160 KiB x32  ms each: A touch+copy  13.546 | B touch+reg+copy+unreg  14.278 | C hostalloc+copy  17.131 | D reused pinned copy   0.561 | E populate+copy   8.758 | F populate+reg+copy+unreg  11.317
+round 1 102400 KiB x10  ms each: A touch+copy  34.814 | B touch+reg+copy+unreg  39.552 | C hostalloc+copy  58.219 | D reused pinned copy   1.779 | E populate+copy  28.388 | F populate+reg+copy+unreg  36.697
+2398 MHz, 13.10 W

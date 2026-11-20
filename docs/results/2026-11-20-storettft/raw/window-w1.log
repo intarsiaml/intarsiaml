@@ -1,0 +1,7 @@
+[23:45:16 +2s] visit w1-v1-dbg: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          68           0           7          75
+[23:45:17 +3s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_DEBUG=1
+[23:46:55 +101s] serve up; MemAvailable MB 47043; prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 9ec8407237baccc0, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 95.1s, context 131072 tokens|
+[23:47:38 +144s] cell w1-v1-dbg end: clock guard: 21 samples, 17 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2385, max power 78 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[23:47:39 +145s] visit w1-v1-dbg done; min MemAvailable MB (time MB) 23:47:32 42933; KILLED lines 0; warn/error lines in serve log 0
+[23:47:42 +148s] window w1 done: visits dbg; fleetq job 10336
+[23:47:42 +148s] window end

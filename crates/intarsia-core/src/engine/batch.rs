@@ -321,6 +321,14 @@ impl BatchModel for SlotModel {
     type Mode = HeadMode;
     type Out = StepOut;
 
+    fn store_macro_rows(&self, slot: usize) -> usize {
+        if crate::prefix_store::store_macro() && self.model.macro_rows() > 0 && self.states[slot].has_recurrent() {
+            self.model.macro_rows()
+        } else {
+            0
+        }
+    }
+
     fn macro_step(&self, slot: usize, remaining: usize, chunk: usize) -> Option<usize> {
         let m = &self.model;
         if m.macro_rows() == 0 || chunk != m.prefill_chunk() || !self.states[slot].has_recurrent() || remaining < 2 {
@@ -877,6 +885,10 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         self.seq.as_ref()?.ps.as_ref().map(|ps| ps.chunk)
     }
 
+    fn macro_len(&self, pos: usize, remaining: usize, max_rows: usize) -> Option<usize> {
+        self.seq.as_ref()?.ps.as_ref()?.macro_len(pos, pos + remaining, max_rows)
+    }
+
     fn on_chunk(&mut self, model: &mut SlotModel, slot: usize, start: usize, end: usize, last: bool) -> Result<()> {
         let Some(seq) = self.seq.as_mut() else { return Ok(()) };
         let Some(ps) = seq.ps.as_ref() else { return Ok(()) };
@@ -1291,10 +1303,20 @@ fn store_combinations(model: &mut Model, opts: &BatchedOptions) -> Result<()> {
         return refuse("packed prefill (INTARSIA_PACK_PREFILL=1)");
     }
     let env = crate::scheduler::parse_macro_env(std::env::var(crate::scheduler::MACRO_ENV).ok().as_deref())?;
-    if env.is_some_and(|n| n > 0) {
-        return refuse("macro prefill (INTARSIA_PREFILL_MACRO)");
+    let store_macro = crate::prefix_store::store_macro();
+    if env.is_some_and(|n| n > 0) && !store_macro {
+        return refuse("macro prefill (INTARSIA_PREFILL_MACRO; INTARSIA_PREFIX_STORE_MACRO=1 allows it)");
     }
-    if model.macro_rows() > 0 {
+    if store_macro {
+        if model.macro_rows() > 0 {
+            eprintln!(
+                "prefix store: macro prefill ({} rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACRO=1): the store captures at the macro pass's end and at message cuts, not after every chunk",
+                model.macro_rows()
+            );
+        } else {
+            eprintln!("prefix store: INTARSIA_PREFIX_STORE_MACRO=1 has no effect here (the model runs no macro prefill pass)");
+        }
+    } else if model.macro_rows() > 0 {
         // `load_engine` turns the recipe's macro prefill off before the weights are read (the workspace is then planned without it);
         // a model loaded another way keeps the workspace sized for the macro pass (`Model::set_macro_rows` only changes the schedule)
         eprintln!("prefix store: the recipe's macro prefill ({} rows) is off with --max-batch > 1", model.macro_rows());

@@ -160,6 +160,8 @@ struct MockModel {
     gate: Option<Arc<(Mutex<bool>, Condvar)>>,
     /// `BatchModel::macro_step` pass size in rows (0: off).
     macro_rows: usize,
+    /// `BatchModel::store_macro_rows`: the macro pass size of a request on its own chunk schedule (0: off).
+    store_macro_rows: usize,
     /// `BatchModel::pack_rows_max` (0: the model cannot pack); a packed pass runs its chunks one by one.
     pack: usize,
     /// `BatchModel::pause_rows` (lane interleave); a paused chunk (`prefill_begin_paused`) parks `ceil(len / pause) - 1` times
@@ -191,6 +193,7 @@ impl MockModel {
             leak: false,
             rec: Arc::new(Mutex::new(Rec::default())),
             macro_rows: 0,
+            store_macro_rows: 0,
             pack: PACK.with(|a| a.get()),
             pause: PAUSE.with(|a| a.get()),
             parks: 0,
@@ -269,6 +272,9 @@ impl BatchModel for MockModel {
     }
     fn avoid_single_row_prefill(&self) -> bool {
         self.avoid
+    }
+    fn store_macro_rows(&self, _slot: usize) -> usize {
+        self.store_macro_rows
     }
     fn macro_step(&self, _slot: usize, remaining: usize, chunk: usize) -> Option<usize> {
         let body = remaining.checked_sub(1)?;
@@ -560,6 +566,12 @@ impl BatchSeq<MockModel> for MockSeq {
     }
     fn own_chunk(&self) -> Option<usize> {
         self.p.own_chunk
+    }
+    fn macro_len(&self, _pos: usize, remaining: usize, max_rows: usize) -> Option<usize> {
+        // a store request with no message cuts: whole chunks of its own schedule, never the prompt's last token
+        let c = self.p.own_chunk?;
+        let k = (max_rows / c).min(remaining.saturating_sub(1) / c);
+        (k >= 2).then_some(k * c)
     }
     fn first_mode(&self) -> Mode {
         self.head_mode(1)
@@ -2633,6 +2645,53 @@ fn macro_steps_only_for_a_sole_prefill_with_nothing_decoding() {
     assert_eq!(ca.iter().map(|c| c.1).sum::<usize>(), 12000);
     // B runs alone once A's prefill is done: its whole 3000 rows are one macro step
     assert_eq!(chunks_of(&tr, b), vec![(0, 3000)]);
+}
+
+/// Prefix store with macro prefill (lane storettft, `INTARSIA_PREFIX_STORE_MACRO=1`): a request on its own chunk schedule that
+/// prefills alone takes several of its own chunks per call (never the last, so the prompt ends on the schedule's chunk); beside
+/// a decoder or another prefill it runs its chunks one by one; with the model switch at 0 it never macro-steps.
+#[test]
+fn store_macro_takes_whole_own_chunks_only_for_a_request_that_prefills_alone() {
+    let mut rng = SplitMix64::new(0x57a1);
+    let cfg = || SchedulerConfig { max_batch: 3, trace: true, ..Default::default() };
+    let chunks_of = |tr: &[TraceEvent], who: RequestId| -> Vec<(usize, usize)> {
+        tr.iter()
+            .filter_map(|e| if let TraceEvent::Chunk { id, start, len, .. } = e { (*id == who).then_some((*start, *len)) } else { None })
+            .collect()
+    };
+    let own = |n: usize, rng: &mut SplitMix64| Params { own_chunk: Some(2048), ..greedy(random_prompt(rng, n), 3) };
+    // alone: 16655 tokens, 2048-row own chunks, 8192-row passes: 8192 + 8192 + the 271-row remainder (the last chunk, whole)
+    let mut m = MockModel::new(3, 20000);
+    m.store_macro_rows = 8192;
+    let mut s = Scheduler::new(m, cfg()).unwrap();
+    let (a, rxa, _) = submit(&mut s, own(16655, &mut rng));
+    run_to_end(&mut s);
+    assert_eq!(chunks_of(&s.take_trace(), a), vec![(0, 8192), (8192, 8192), (16384, 271)]);
+    assert_eq!(tokens(&collect(&rxa)).len(), 3);
+    // a prompt of exactly four chunks: the last chunk is never part of a pass
+    let mut m = MockModel::new(3, 20000);
+    m.store_macro_rows = 8192;
+    let mut s = Scheduler::new(m, cfg()).unwrap();
+    let (a, _rx, _) = submit(&mut s, own(8192, &mut rng));
+    run_to_end(&mut s);
+    assert_eq!(chunks_of(&s.take_trace(), a), vec![(0, 6144), (6144, 2048)]);
+    // the model switch off: the request's own chunks, one by one
+    let mut s = Scheduler::new(MockModel::new(3, 20000), cfg()).unwrap();
+    let (a, _rx, _) = submit(&mut s, own(16655, &mut rng));
+    run_to_end(&mut s);
+    let ca = chunks_of(&s.take_trace(), a);
+    assert!(ca.iter().all(|&(_, l)| l <= 2048), "{ca:?}");
+    // a decoder running when the prompt starts: no pass (own chunks, never the busy chunk)
+    let mut m = MockModel::new(3, 20000);
+    m.store_macro_rows = 8192;
+    let mut s = Scheduler::new(m, cfg()).unwrap();
+    let (_d, _rxd, _) = submit(&mut s, greedy(random_prompt(&mut rng, 100), 400));
+    s.step();
+    let (b, _rxb, _) = submit(&mut s, own(6000, &mut rng));
+    run_to_end(&mut s);
+    let cb = chunks_of(&s.take_trace(), b);
+    assert!(cb.iter().all(|&(_, l)| l <= 2048), "{cb:?}");
+    assert_eq!(cb.iter().map(|c| c.1).sum::<usize>(), 6000);
 }
 
 /// Where a cold prefill leaves a recurrent state (`engine::Seq::prefill_step`): every plain chunk, then the token before the

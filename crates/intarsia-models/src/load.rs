@@ -920,6 +920,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     // CUDA). An explicit `INTARSIA_PREFILL_MACRO` or `LoadOptions::prefill_macro` is left alone (the engine refuses a value above 0).
     if max_batch.value > 1
         && prefix_store_given(opts)
+        && !intarsia_core::prefix_store::store_macro()
         && load_opts.prefill_macro.is_none()
         && intarsia_core::scheduler::parse_macro_env(std::env::var(intarsia_core::scheduler::MACRO_ENV).ok().as_deref())?.is_none()
     {

@@ -1,0 +1,15 @@
+[gap] w3-v1-off gap=5.0 4096 rep0: prompt=4090 cached=0 ttft=0.584s decode=122.7 out=256
+[gap] w3-v1-off gap=5.0 4096 rep1: prompt=4089 cached=0 ttft=0.652s decode=121.6 out=256
+[gap] w3-v1-off gap=5.0 4096 rep2: prompt=4093 cached=0 ttft=0.584s decode=121.1 out=256
+[gap] w3-v1-off gap=5.0 4096 rep3: prompt=4087 cached=0 ttft=0.587s decode=113.1 out=256
+[gap] w3-v1-off gap=5.0 16384 rep0: prompt=16652 cached=0 ttft=2.501s decode=98.7 out=256
+[gap] w3-v1-off gap=5.0 16384 rep1: prompt=16655 cached=0 ttft=2.518s decode=98.1 out=256
+[gap] w3-v1-off gap=5.0 16384 rep2: prompt=16656 cached=0 ttft=2.500s decode=93.6 out=256
+[gap] w3-v1-off gap=5.0 16384 rep3: prompt=16653 cached=0 ttft=2.509s decode=105.4 out=256
+[gap] w3-v1-off gap=5.0 32768 rep0: prompt=33879 cached=0 ttft=5.700s decode=78.1 out=256
+[gap] w3-v1-off gap=5.0 32768 rep1: prompt=33878 cached=0 ttft=5.700s decode=92.5 out=256
+[gap] w3-v1-off gap=5.0 32768 rep2: prompt=33879 cached=0 ttft=5.705s decode=88.5 out=256
+[gap] w3-v1-off gap=5.0 32768 rep3: prompt=33882 cached=0 ttft=5.714s decode=80.6 out=256
+| 4096 | 4089 | 0.587 | [0.652, 0.584, 0.587] | cached max 0 |
+| 16384 | 16655 | 2.509 | [2.518, 2.5, 2.509] | cached max 0 |
+| 32768 | 33878 | 5.705 | [5.7, 5.705, 5.714] | cached max 0 |
