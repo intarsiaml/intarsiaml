@@ -1,0 +1,154 @@
+{
+ "arm": "b1-T0",
+ "url": "http://spark-4e77:8193/v1",
+ "temperature": 0.0,
+ "top_p": 0.95,
+ "gen": 256,
+ "reps": 3,
+ "rows": [
+  {
+   "size": 4096,
+   "prompt_tokens": 4072,
+   "ttft_s": {
+    "median": 0.529,
+    "min": 0.523,
+    "max": 0.619
+   },
+   "decode_tok_s": {
+    "median": 128.335,
+    "min": 121.786,
+    "max": 149.406
+   },
+   "peak_decode_tok_s": {
+    "median": 275.9,
+    "min": 167.5,
+    "max": 286.2
+   },
+   "completion_tokens": {
+    "median": 256,
+    "min": 256,
+    "max": 256
+   },
+   "cached_tokens_max": 0,
+   "decode_each": [
+    121.8,
+    149.4,
+    128.3
+   ],
+   "errors": [],
+   "mtp": {
+    "delta": {
+     "intarsia_tokens_cached_total": 0.0,
+     "intarsia_spec_steps_total": 328.0,
+     "intarsia_spec_proposed_tokens_total": 655.0,
+     "intarsia_spec_accepted_tokens_total": 436.0,
+     "intarsia_spec_copy_steps_total": 0.0,
+     "intarsia_spec_copy_proposed_tokens_total": 0.0,
+     "intarsia_spec_copy_accepted_tokens_total": 0.0,
+     "intarsia_spec_costgate_off_total": 0.0,
+     "intarsia_spec_costgate_on_total": 0.0,
+     "intarsia_spec_costgate_plain_steps_total": 0.0,
+     "intarsia_spec_costgate_probe_steps_total": 0.0
+    },
+    "accept_rate": 0.666,
+    "tokens_per_verify": 2.329
+   }
+  },
+  {
+   "size": 32768,
+   "prompt_tokens": 33873,
+   "ttft_s": {
+    "median": 4.822,
+    "min": 4.804,
+    "max": 4.823
+   },
+   "decode_tok_s": {
+    "median": 112.856,
+    "min": 102.251,
+    "max": 120.194
+   },
+   "peak_decode_tok_s": {
+    "median": 174.6,
+    "min": 147.5,
+    "max": 203.2
+   },
+   "completion_tokens": {
+    "median": 256,
+    "min": 256,
+    "max": 256
+   },
+   "cached_tokens_max": 0,
+   "decode_each": [
+    102.3,
+    120.2,
+    112.9
+   ],
+   "errors": [],
+   "mtp": {
+    "delta": {
+     "intarsia_tokens_cached_total": 0.0,
+     "intarsia_spec_steps_total": 353.0,
+     "intarsia_spec_proposed_tokens_total": 704.0,
+     "intarsia_spec_accepted_tokens_total": 411.0,
+     "intarsia_spec_copy_steps_total": 0.0,
+     "intarsia_spec_copy_proposed_tokens_total": 0.0,
+     "intarsia_spec_copy_accepted_tokens_total": 0.0,
+     "intarsia_spec_costgate_off_total": 0.0,
+     "intarsia_spec_costgate_on_total": 0.0,
+     "intarsia_spec_costgate_plain_steps_total": 0.0,
+     "intarsia_spec_costgate_probe_steps_total": 0.0
+    },
+    "accept_rate": 0.584,
+    "tokens_per_verify": 2.164
+   }
+  },
+  {
+   "size": 65536,
+   "prompt_tokens": 68868,
+   "ttft_s": {
+    "median": 11.243,
+    "min": 11.229,
+    "max": 11.248
+   },
+   "decode_tok_s": {
+    "median": 100.643,
+    "min": 95.642,
+    "max": 101.416
+   },
+   "peak_decode_tok_s": {
+    "median": 146.1,
+    "min": 139.0,
+    "max": 147.2
+   },
+   "completion_tokens": {
+    "median": 256,
+    "min": 256,
+    "max": 256
+   },
+   "cached_tokens_max": 0,
+   "decode_each": [
+    95.6,
+    100.6,
+    101.4
+   ],
+   "errors": [],
+   "mtp": {
+    "delta": {
+     "intarsia_tokens_cached_total": 0.0,
+     "intarsia_spec_steps_total": 354.0,
+     "intarsia_spec_proposed_tokens_total": 708.0,
+     "intarsia_spec_accepted_tokens_total": 409.0,
+     "intarsia_spec_copy_steps_total": 0.0,
+     "intarsia_spec_copy_proposed_tokens_total": 0.0,
+     "intarsia_spec_copy_accepted_tokens_total": 0.0,
+     "intarsia_spec_costgate_off_total": 0.0,
+     "intarsia_spec_costgate_on_total": 0.0,
+     "intarsia_spec_costgate_plain_steps_total": 0.0,
+     "intarsia_spec_costgate_probe_steps_total": 0.0
+    },
+    "accept_rate": 0.578,
+    "tokens_per_verify": 2.155
+   }
+  }
+ ]
+}

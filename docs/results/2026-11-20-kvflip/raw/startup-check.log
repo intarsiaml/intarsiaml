@@ -1,0 +1,10 @@
+fleetq: #10440 waiting (#1 in line): needs 34 GB on spark2; 28 GB free of 116
+fleetq: #10440 running on spark2: bash scripts/kvflip/startup.sh
+== unset (env ''): cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+unset ids 128 [271, 248068, 198, 8160, 579, 264]
+== off (env 'INTARSIA_CUDA_ATTN_KV_ONCE=0'): cuda attention: verify rows of one sequence read the KV cache once: off (INTARSIA_CUDA_ATTN_KV_ONCE=0, or INTARSIA_ATTN_ROWS_PERSIST=0)
+off ids 128 [271, 248068, 198, 8160, 579, 264]
+== on (env 'INTARSIA_CUDA_ATTN_KV_ONCE=1'): cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+on ids 128 [271, 248068, 198, 8160, 579, 264]
+ids identical unset/off/on: True 128
+fleetq: #10440 done (exit 0)

@@ -1,0 +1,27 @@
+fleetq: #10426 running on spark1: bash -c 'for t in kv_once attention verify_attn_rows; do bash scripts/kvflip/tests.sh $t; done'
+== kv_once 14:31:15 env=''
+running 2 tests
+test kv_once_launches_are_bit_identical_to_the_default_launches ... kv_once 16/2/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 7 mixed tables, 26 captured replays, mode 2 x5; 1036 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 24/4/256 bf16: knob on bit-identical to off: 2665 one-cache verify tables (M 1..=16), 7 mixed tables, 26 captured replays, mode 2 x5; 1036 rows equal to their solo launch; planted fault seen 7 of 7
+kv_once 16/2/256 fp8_e4m3: knob on bit-identical to off: 1057 one-cache verify tables (M 1..=16), 7 mixed tables, 0 captured replays, mode 2 x5; 499 rows equal to their solo launch; planted fault seen 7 of 7
+ok
+test timing_kv_once_layers ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.60s
+== kv_once exit 0
+== attention 14:31:37 env=''
+running 2 tests
+test attention_kernels_match_reference_on_random_shapes ... cases per kernel: {"attn_decode_bf16": 48, "attn_decode_bf16_ext": 48, "attn_decode_bf16_splitkv": 48, "attn_decode_bf16_splitkv_ext": 48, "attn_prefill_bf16": 149, "attn_prefill_bf16_ext": 149, "attn_prefill_bf16_flash": 53, "attn_prefill_bf16_splitkv": 88, "attn_prefill_bf16_splitkv_ext": 88}
+ok
+test attention_throughput ... ignored
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 6.96s
+== attention exit 0
+== verify_attn_rows 14:31:45 env=''
+running 3 tests
+test captured_rows_launch_is_the_captured_per_row_launches ... cvat verify_attn_rows (captured, device positions, two states): 1622016 bytes identical (3 shapes, 12 replays each)
+ok
+test timing_captured_attention_layers ... ok
+test verify_rows_launch_is_the_per_row_launches ... cvat verify_attn_rows (host positions): 2478080 bytes identical to the per-row launches (3 shapes, 14 passes each, t 2..=16)
+ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+== verify_attn_rows exit 0
+fleetq: #10426 done (exit 0)

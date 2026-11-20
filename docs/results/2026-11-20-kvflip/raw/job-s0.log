@@ -1,0 +1,16 @@
+fleetq: #10428 waiting (#1 in line): needs spark1 quiet, but its GPU is 75% busy with work fleetq does not track
+fleetq: #10428 running on spark1, spark2: bash scripts/kvflip/tp2.sh s0 - 0:4096:1
+[14:35:31 +0s] window s0 env='' cells: 0:4096:1; fleetq job 10428
+[14:35:35 +4s] free: spark1 Mem:             121          41          68           0          12          80 | spark2 Mem:             121          46          70           0           5          74; earlyoom active active; vLLM 200 200; binary: intarsia 0.0.1
+[14:36:33 +62s] serve up; MemAvailable MB spark1 66116 spark2 62975; mtp: drafter head 'mtp' loaded in 1.1 s (routed experts quantised to nvfp4);--mtp-draft-vocab 131072 (recipe qwen3_5_moe, cuda; --mtp-draft-vocab 0 drafts with the full head);--spec mtp on cuda with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row);speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv;sampled requests (temperature > 0): speculation Match (default; single sequence, one rank);
+[14:36:35 +64s] cell s0-T0 start; 2398 MHz, 9.92 W, 0 % | 2411 MHz, 11.80 W, 0 %
+[sampled] calibrated 22.07 tok/sentence base=50 ctx=70000
+[sampled] 4096 rep1: prompt=4090 cached=0 ttft=0.52s decode=123.9 peak=169.2 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4090 | 0.525 | 123.936 (123.936-123.936) | 0.618 |
+[14:36:41 +70s] cell s0-T0 end spark1: 4 samples, 2 at util>50, 0 of those SM<2300 MHz, min SM 2450, mean SM 2463, max power 49 W
+[14:36:41 +70s] cell s0-T0 end spark2: 4 samples, 1 at util>50, 0 of those SM<2300 MHz, min SM 2392, mean SM 2392, max power 33 W
+[14:36:41 +70s] cell s0-T0 SW power cap delta spark1 0 us spark2 0 us
+[14:36:46 +75s] min MemAvailable MB: spark1 14:36:37 64938 spark2 14:36:41 61497; KILLED lines: 0 0
+[14:36:51 +80s] window end
+fleetq: #10428 done (exit 0)
