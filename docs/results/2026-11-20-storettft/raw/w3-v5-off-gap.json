@@ -1,0 +1,40 @@
+{
+ "arm": "w3-v5-off",
+ "gap_s": 5.0,
+ "gen": 256,
+ "rows": [
+  {
+   "size": 4096,
+   "prompt_tokens": 4087,
+   "ttft_each": [
+    0.588,
+    0.588,
+    0.592
+   ],
+   "ttft_median": 0.588,
+   "cached_max": 0
+  },
+  {
+   "size": 16384,
+   "prompt_tokens": 16653,
+   "ttft_each": [
+    2.51,
+    2.513,
+    2.512
+   ],
+   "ttft_median": 2.512,
+   "cached_max": 0
+  },
+  {
+   "size": 32768,
+   "prompt_tokens": 33857,
+   "ttft_each": [
+    5.736,
+    5.696,
+    5.752
+   ],
+   "ttft_median": 5.736,
+   "cached_max": 0
+  }
+ ]
+}

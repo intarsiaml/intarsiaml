@@ -187,6 +187,11 @@ pub trait BatchModel {
     fn macro_step(&self, _slot: usize, _remaining: usize, _chunk: usize) -> Option<usize> {
         None
     }
+    /// Prefix store with macro prefill (lane storettft, `INTARSIA_PREFIX_STORE_MACRO=1`): the most rows of a macro pass a request on its own
+    /// schedule ([`BatchSeq::macro_len`]) may take in `slot`; 0 (default): none.
+    fn store_macro_rows(&self, _slot: usize) -> usize {
+        0
+    }
     /// Trace hook: request `id` was admitted to `slot`, which now holds `cached` reused tokens. No effect on outputs.
     fn on_admit(&mut self, _slot: usize, _id: RequestId, _cached: usize) {}
     /// Lane bm: whether [`BatchModel::verify_step`] runs (a sequence may return [`SeqStep::Verify`] only then).
@@ -333,6 +338,12 @@ pub trait BatchSeq<M: BatchModel>: Send {
     /// (`Some`), whatever the scheduler's chunk size (no busy chunk, macro step or packing): a function of the prompt and `pos`
     /// only, so the slot's history and the other sequences never change its bits. `None` (default): the scheduler's schedule.
     fn chunk_len(&self, _pos: usize, _remaining: usize) -> Option<usize> {
+        None
+    }
+    /// Prefix store with macro prefill (lane storettft): rows of the next call for a request on its own schedule, `remaining` rows left at
+    /// `pos`, at most `max_rows`: several whole chunks of that schedule (run by the model as one pass, bitwise the same chunks), never the
+    /// prompt's last. `None` (default): the request's next own chunk.
+    fn macro_len(&self, _pos: usize, _remaining: usize, _max_rows: usize) -> Option<usize> {
         None
     }
     /// Prefix store: the chunk size of the request's own schedule (what [`TraceEvent::PrefillStart`] reports), `Some` exactly
@@ -2008,6 +2019,15 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         if let Some(n) = own {
             debug_assert!(n >= 1 && n <= plen - pos, "own chunk {n} of {} rows", plen - pos);
             len = n.clamp(1, plen - pos);
+            if n_decoding == 0 && chunk == self.cfg.solo_chunk && plen - pos > len {
+                // prefix store with macro prefill (opt-in): several chunks of its own schedule as one pass, for a request that prefills alone
+                let rows = self.model.store_macro_rows(slot);
+                let sole = rows > 0 && self.active.iter().filter(|a| matches!(a.phase, Phase::Prefilling { .. })).count() == 1;
+                if let Some(m) = self.active[i].seq.macro_len(pos, plen - pos, rows).filter(|_| sole) {
+                    debug_assert!(m >= len && m < plen - pos, "store macro step {m} of {} rows", plen - pos);
+                    len = m.clamp(len, plen - pos - 1);
+                }
+            }
         } else if n_decoding == 0 && chunk == self.cfg.solo_chunk && plen - pos > chunk {
             let sole = self.active.iter().filter(|a| matches!(a.phase, Phase::Prefilling { .. })).count() == 1;
             if let Some(n) = self.model.macro_step(slot, plen - pos, chunk).filter(|_| sole) {

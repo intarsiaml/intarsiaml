@@ -686,6 +686,16 @@ impl CaptureTimes {
 /// single-sequence engine; on the batched engine every request in flight shares it (a settle after any request's `Done`
 /// resets it), and past it inserts download to host synchronously, inside the prefill.
 pub const DEFER_CAP: u64 = 1 << 30;
+
+/// `INTARSIA_PREFIX_STORE_MACRO=1` (lane storettft, opt-in, default off): with `--prefix-store` and `--max-batch` > 1 the recipe's macro prefill
+/// stays on: a request that prefills alone runs up to a macro pass of consecutive chunks of ITS OWN store schedule (the model's chunk, cut
+/// at message boundaries) as one layer-by-layer pass, which is bitwise those chunks one by one, and the store captures at the pass's end
+/// and at message cuts instead of after every chunk (`SeqStore::macro_len`).
+pub fn store_macro() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_PREFIX_STORE_MACRO").is_ok_and(|v| v.trim() == "1"))
+}
+
 /// Device slabs the deferred captures are carved from: a new slab is at least this big (rounded up to the next multiple
 /// of it), and the idle ones the store keeps between requests add up to at most `SLAB_POOL_CAP`.
 const SLAB_MIN: usize = 128 << 20;

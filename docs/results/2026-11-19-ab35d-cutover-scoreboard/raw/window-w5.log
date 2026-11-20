@@ -1,0 +1,20 @@
+[22:47:00 +0s] window w5 cells: speed; fleetq job 10325
+[22:47:02 +2s] vLLM /v1/models: 200; counters 619 49882; earlyoom active; free: Mem:             121          46          68           0           7          75
+[22:47:03 +3s] binary: intarsia 0.0.1
+[22:47:03 +3s] serve B: ~/intarsiaml-ab35d/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2
+[22:48:36 +96s] serve B up; MemAvailable MB: 47518; --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off|batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)|batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 89.3s, context 131072 tokens|
+[22:48:36 +96s] B /v1/models: {"object":"list","data":[{"id":"guidance","object":"model","created":1795146513,"owned_by":"intarsia","max_model_len":131072,"root":"nvidia/Qwen3.6-35B-A3B-NVFP4"}]}
+[22:48:36 +96s] B chat with model=guidance: HTTP 400 B chat with model=guidance: HTTP 400 B chat with model=guidance: HTTP 400 B chat with model=guidance: HTTP 400
+[22:48:36 +96s] B chat with model=capcom: HTTP 400 B chat with model=capcom: HTTP 400 B chat with model=capcom: HTTP 400 B chat with model=capcom: HTTP 400
+[22:48:36 +96s] B chat with model=no-such-model: HTTP 400 B chat with model=no-such-model: HTTP 400 B chat with model=no-such-model: HTTP 400 B chat with model=no-such-model: HTTP 400
+[22:48:36 +96s] A /v1/models: {"object":"list","data":[{"id":"guidance","object":"model","created":1795146516,"owned_by":"vllm","root":"nvidia/Qwen3.6-35B-A3B-NVFP4","parent":null,"max_model_len":131072,"permission":[{"id":"modelperm-99f6c2ca788e0f71","object":"model_permission","created":1795146516,"allow_create_engine":false,"allow_sampling":true,"allow_logprobs":true,"allow_search_indices":false,"allow_view":true,"allow_fin
+[22:48:37 +97s] cell ctlspeed-A1 start; vLLM counters (success gen_tokens): 619 49882; 2398 MHz, 12.72 W, 0 %, 49
+[22:49:41 +161s] cell ctlspeed-A1 end: clock guard: 32 samples, 30 at util>90, 0 of those SM<2000 MHz, min SM 2392, mean SM 2398, max power 72 W; SW power cap delta 0 us; vLLM delta success 11 gen_tokens 2306
+[22:49:42 +162s] cell ctlspeed-N1 start; vLLM counters (success gen_tokens): 630 52188; 2405 MHz, 13.87 W, 0 %, 55
+[22:50:36 +216s] cell ctlspeed-N1 end: clock guard: 27 samples, 24 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2385, max power 91 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[22:50:37 +217s] cell ctlspeed-N2 start; vLLM counters (success gen_tokens): 630 52188; 2405 MHz, 14.85 W, 0 %, 60
+[22:51:31 +271s] cell ctlspeed-N2 end: clock guard: 26 samples, 25 at util>90, 0 of those SM<2000 MHz, min SM 2346, mean SM 2382, max power 91 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[22:51:32 +272s] cell ctlspeed-A2 start; vLLM counters (success gen_tokens): 630 52188; 2405 MHz, 15.59 W, 0 %, 63
+[22:52:35 +335s] cell ctlspeed-A2 end: clock guard: 32 samples, 29 at util>90, 0 of those SM<2000 MHz, min SM 2385, mean SM 2395, max power 74 W; SW power cap delta 0 us; vLLM delta success 11 gen_tokens 2306
+[22:52:39 +339s] min MemAvailable MB (time MB): 22:51:05 46746; KILLED lines: 0; warn/error lines in serve log: 0
+[22:53:05 +365s] window end

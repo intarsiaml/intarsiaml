@@ -1,0 +1,216 @@
+{
+ "run_id": "20261120-013744-adhoc-storettft-w6-v4-smacrodefer",
+ "kind": "speed",
+ "label": "storettft-w6-v4-smacrodefer",
+ "started_at": "2026-11-20T01:37:44-05:00",
+ "finished_at": "2026-11-20T01:38:40-05:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-fa00:8191/v1",
+  "model": "guidance",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "prompt",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "/opt/code/intarsiaml/.worktrees/storettft/docs/results/2026-11-20-storettft/raw/recipes/w6-v4-smacrodefer.txt",
+   "text": "intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on   (env: INTARSIA_PREFIX_STORE_MACRO=1 INTARSIA_PREFIX_STORE_DEFER_MB=4096)\n"
+  },
+  "server_reported": {}
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8191/v1 --model guidance --thinking off --structured prompt --wait-idle 600 --recipe /opt/code/intarsiaml/.worktrees/storettft/docs/results/2026-11-20-storettft/raw/recipes/w6-v4-smacrodefer.txt --sizes 4096,16384,32768 --gen 256 --reps 3 --label storettft-w6-v4-smacrodefer",
+  "git": "2c5524c"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "guidance"
+   ],
+   "root": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+   "owned_by": "intarsia",
+   "max_model_len": 131072
+  },
+  "gen_tokens": 256,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.09,
+  "rows": [
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4087,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.757,
+     "min": 0.749,
+     "max": 0.783,
+     "n": 3,
+     "spread_pct": 4.5
+    },
+    "prefill_tok_s": {
+     "median": 5400.527,
+     "min": 5220.903,
+     "max": 5457.949,
+     "n": 3,
+     "spread_pct": 4.4
+    },
+    "decode_tok_s": {
+     "median": 119.08,
+     "min": 118.746,
+     "max": 125.013,
+     "n": 3,
+     "spread_pct": 5.3
+    },
+    "peak_decode_tok_s": {
+     "median": 196.7,
+     "min": 172.7,
+     "max": 197.3,
+     "n": 3,
+     "spread_pct": 12.5
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null
+   },
+   {
+    "target_prompt_tokens": 16384,
+    "prompt_tokens": 16653,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 2.962,
+     "min": 2.718,
+     "max": 3.073,
+     "n": 3,
+     "spread_pct": 12.0
+    },
+    "prefill_tok_s": {
+     "median": 5622.757,
+     "min": 5419.575,
+     "max": 6126.263,
+     "n": 3,
+     "spread_pct": 12.6
+    },
+    "decode_tok_s": {
+     "median": 100.553,
+     "min": 95.323,
+     "max": 107.221,
+     "n": 3,
+     "spread_pct": 11.8
+    },
+    "peak_decode_tok_s": {
+     "median": 148.7,
+     "min": 141.1,
+     "max": 192.4,
+     "n": 3,
+     "spread_pct": 34.5
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 5698.9
+   },
+   {
+    "target_prompt_tokens": 32768,
+    "prompt_tokens": 33856,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 6.66,
+     "min": 6.246,
+     "max": 6.794,
+     "n": 3,
+     "spread_pct": 8.2
+    },
+    "prefill_tok_s": {
+     "median": 5083.868,
+     "min": 4983.404,
+     "max": 5420.747,
+     "n": 3,
+     "spread_pct": 8.6
+    },
+    "decode_tok_s": {
+     "median": 84.679,
+     "min": 82.945,
+     "max": 85.524,
+     "n": 3,
+     "spread_pct": 3.0
+    },
+    "peak_decode_tok_s": {
+     "median": 113.8,
+     "min": 111.2,
+     "max": 119.3,
+     "n": 3,
+     "spread_pct": 7.1
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 4652.0
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "guidance",
+  "activity_checks": {
+   "idle": 10,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": [
+   "decode spread 11.8% at 16384 tokens: noisy; rerun before comparing"
+  ]
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": [
+  "decode spread 11.8% at 16384 tokens: noisy; rerun before comparing"
+ ]
+}

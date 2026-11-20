@@ -1,0 +1,4 @@
+  1 MiB x1024 GB/s: reuse  32.99 | fresh-touched  35.08 | cycle64  40.21 | pinned  38.93 | fresh+register  39.60 | reuse after D2D write  25.81   (fresh copy 0.03 ms each)
+  5 MiB x204  GB/s: reuse  40.21 | fresh-touched  42.68 | cycle64  51.59 | pinned  51.22 | fresh+register  51.41 | reuse after D2D write  32.97   (fresh copy 0.11 ms each)
+ 32 MiB x32   GB/s: reuse  43.70 | fresh-touched   6.80 | cycle64   7.08 | pinned  54.73 | fresh+register  53.46 | reuse after D2D write  35.63   (fresh copy 4.60 ms each)
+2405 MHz, 14.10 W

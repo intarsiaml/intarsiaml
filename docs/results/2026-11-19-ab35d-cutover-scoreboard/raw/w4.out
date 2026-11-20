@@ -1,0 +1,54 @@
+fleetq: #10324 waiting (#2 in line): in line behind #10323 "ab35d w3 GSM8K n=200 paired (A vLLM x2, B)" (claude-overnight-ab35d) on spark2
+fleetq:   #10323 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10323 set, or it will wait for #10323 to be released.
+fleetq: #10324 waiting (#1 in line): needs gpu quiet on spark2, but #10323 "ab35d w3 GSM8K n=200 paired (A vLLM x2, B)" (claude-overnight-ab35d) loads it
+fleetq:   #10323 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10323 set, or it will wait for #10323 to be released.
+fleetq: #10324 running on spark2: bash scripts/ab35d/window.sh w4 soak
+[22:19:19 +0s] window w4 cells: soak; fleetq job 10324
+[22:19:21 +2s] vLLM /v1/models: 200; counters 619 49882; earlyoom active; free: Mem:             121          46          68           0           7          75
+[22:19:21 +2s] binary: intarsia 0.0.1
+[22:19:21 +2s] serve B: ~/intarsiaml-ab35d/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[22:20:44 +85s] serve B up; MemAvailable MB: 48670; --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)|--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off|batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 66146b66a1b4fc39, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)|batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 80.8s, context 131072 tokens|
+[22:20:45 +86s] soak start, no new replay after 22:45:45; vLLM counters 619 49882
+| 6 | 33143 | 28118 (0.848) | 1.585 (1.561-1.735) | 42.1 (36.3-62.0) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.04, 'itl_ms_p99_median': 244.04, 'itl_ms_p99_max': 1064.
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988238, 'cached_tokens': 723242, 'ttft_s_sum': 76.19, 'decode_tok_s_median': 43.8, 'completion_tokens': 7545, 'agg_output_tok_s': 60.78}
+| 6 | 33130 | 28105 (0.848) | 1.579 (1.36-2.765) | 49.3 (42.5-97.0) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.04, 'itl_ms_p99_median': 285.83, 'itl_ms_p99_max': 896.6
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 987974, 'cached_tokens': 723082, 'ttft_s_sum': 73.16, 'decode_tok_s_median': 46.9, 'completion_tokens': 7484, 'agg_output_tok_s': 64.4} 
+| 6 | 33147 | 28119 (0.849) | 1.559 (1.545-1.603) | 42.6 (36.0-66.9) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.04, 'itl_ms_p99_median': 302.56, 'itl_ms_p99_max': 1063.
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988652, 'cached_tokens': 723740, 'ttft_s_sum': 71.85, 'decode_tok_s_median': 45.0, 'completion_tokens': 7363, 'agg_output_tok_s': 63.09}
+| 6 | 33148 | 28132 (0.849) | 1.574 (1.553-1.606) | 43.5 (39.0-68.7) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.03, 'itl_ms_p99_median': 196.25, 'itl_ms_p99_max': 885.1
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988754, 'cached_tokens': 723751, 'ttft_s_sum': 73.06, 'decode_tok_s_median': 46.3, 'completion_tokens': 7484, 'agg_output_tok_s': 64.55}
+| 6 | 33157 | 28127 (0.848) | 1.611 (1.573-1.667) | 43.7 (41.0-71.9) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.04, 'itl_ms_p99_median': 221.2, 'itl_ms_p99_max': 887.22
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988874, 'cached_tokens': 723799, 'ttft_s_sum': 71.51, 'decode_tok_s_median': 46.5, 'completion_tokens': 7565, 'agg_output_tok_s': 64.9} 
+| 6 | 33153 | 28128 (0.848) | 1.599 (1.555-1.673) | 43.3 (41.1-80.2) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.03, 'itl_ms_p99_median': 204.19, 'itl_ms_p99_max': 787.7
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988811, 'cached_tokens': 723751, 'ttft_s_sum': 73.99, 'decode_tok_s_median': 47.3, 'completion_tokens': 7553, 'agg_output_tok_s': 65.18}
+| 6 | 33134 | 28116 (0.849) | 1.832 (1.381-2.759) | 47.9 (39.5-64.9) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.04, 'itl_ms_p99_median': 235.76, 'itl_ms_p99_max': 840.4
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988450, 'cached_tokens': 723606, 'ttft_s_sum': 76.27, 'decode_tok_s_median': 46.4, 'completion_tokens': 7301, 'agg_output_tok_s': 63.41}
+| 6 | 33150 | 28132 (0.849) | 1.581 (1.569-1.604) | 43.0 (40.6-70.6) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.04, 'itl_ms_p99_median': 241.7, 'itl_ms_p99_max': 968.34
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988592, 'cached_tokens': 723615, 'ttft_s_sum': 71.12, 'decode_tok_s_median': 45.6, 'completion_tokens': 7455, 'agg_output_tok_s': 64.08}
+| 6 | 33122 | 28120 (0.849) | 1.586 (1.331-1.61) | 42.9 (37.4-87.1) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.04, 'itl_ms_p99_median': 252.53, 'itl_ms_p99_max': 935.0
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988821, 'cached_tokens': 723879, 'ttft_s_sum': 74.81, 'decode_tok_s_median': 46.4, 'completion_tokens': 7252, 'agg_output_tok_s': 62.9} 
+| 6 | 33136 | 28118 (0.849) | 1.581 (1.553-1.645) | 43.3 (40.1-78.7) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.04, 'itl_ms_p99_median': 230.3, 'itl_ms_p99_max': 790.03
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988442, 'cached_tokens': 723546, 'ttft_s_sum': 74.66, 'decode_tok_s_median': 46.3, 'completion_tokens': 7410, 'agg_output_tok_s': 64.98}
+| 6 | 33122 | 28120 (0.849) | 1.585 (1.392-2.763) | 44.0 (40.0-82.5) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.05, 'itl_ms_p99_median': 283.42, 'itl_ms_p99_max': 1195.
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988431, 'cached_tokens': 723559, 'ttft_s_sum': 76.47, 'decode_tok_s_median': 46.0, 'completion_tokens': 7336, 'agg_output_tok_s': 63.63}
+| 6 | 33133 | 28112 (0.848) | 1.581 (1.565-1.607) | 42.5 (36.7-77.3) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.05, 'itl_ms_p99_median': 320.77, 'itl_ms_p99_max': 872.9
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988467, 'cached_tokens': 723528, 'ttft_s_sum': 72.84, 'decode_tok_s_median': 45.7, 'completion_tokens': 7331, 'agg_output_tok_s': 63.37}
+| 6 | 33144 | 28130 (0.848) | 1.942 (1.415-2.795) | 52.6 (37.6-66.4) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.04, 'itl_ms_p99_median': 238.99, 'itl_ms_p99_max': 977.0
+[replay2] totals {'requests': 48, 'errors': 0, 'prompt_tokens': 988622, 'cached_tokens': 723626, 'ttft_s_sum': 78.62, 'decode_tok_s_median': 47.5, 'completion_tokens': 7410, 'agg_output_tok_s': 64.31}
+[22:46:23 +1624s] soak done: 13 replays in 25 min; vLLM counters 619 49882
+[22:46:27 +1628s] min MemAvailable MB (time MB): 22:34:45 35746; KILLED lines: 0; warn/error lines in serve log: 0
+[22:46:53 +1654s] window end
+fleetq: #10324 done (exit 0)

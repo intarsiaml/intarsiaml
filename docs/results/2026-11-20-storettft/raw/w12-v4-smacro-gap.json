@@ -1,0 +1,40 @@
+{
+ "arm": "w12-v4-smacro",
+ "gap_s": 5.0,
+ "gen": 256,
+ "rows": [
+  {
+   "size": 4096,
+   "prompt_tokens": 4084,
+   "ttft_each": [
+    0.676,
+    0.675,
+    0.67
+   ],
+   "ttft_median": 0.675,
+   "cached_max": 0
+  },
+  {
+   "size": 16384,
+   "prompt_tokens": 16654,
+   "ttft_each": [
+    2.613,
+    2.624,
+    2.618
+   ],
+   "ttft_median": 2.618,
+   "cached_max": 0
+  },
+  {
+   "size": 32768,
+   "prompt_tokens": 33878,
+   "ttft_each": [
+    5.809,
+    5.824,
+    5.807
+   ],
+   "ttft_median": 5.809,
+   "cached_max": 0
+  }
+ ]
+}

@@ -1,0 +1,13 @@
+fleetq: #10320 running on spark2: bash scripts/ab35d/build.sh
+build start 21:37:23 sha 25489d6aa2f6b7866ce686f324a662bbc40176b0
+scripts/ab35d/build.sh: line 17: ho: command not found
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 6m 15s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  188G  95% /
+Mem:             121          45          49           0          27          76
+build end 21:43:40 stamp ab35d-25489d6aa2f6
+fleetq: #10320 done (exit 0)
