@@ -1,0 +1,5 @@
+[memtrim] pid=1972931 t=1795175484 ret=1 before_rssanon_kb=10333752 before_vmrss_kb=10574424 after_rssanon_kb=10160984 after_vmrss_kb=10401656 rssfile_kb=197472 trim_ms=22.2
+[memtrim] pid=1972931 t=1795175786 ret=1 before_rssanon_kb=10172992 before_vmrss_kb=10413664 after_rssanon_kb=10161640 after_vmrss_kb=10402312 rssfile_kb=197472 trim_ms=6.4
+[memtrim] pid=1972931 t=1795176082 ret=1 before_rssanon_kb=10162812 before_vmrss_kb=10403484 after_rssanon_kb=10160112 after_vmrss_kb=10400784 rssfile_kb=197472 trim_ms=2.2
+[memtrim] pid=1972931 t=1795176384 ret=1 before_rssanon_kb=10162492 before_vmrss_kb=10403164 after_rssanon_kb=10161960 after_vmrss_kb=10402632 rssfile_kb=197472 trim_ms=1.3
+[memtrim] pid=1972931 t=1795176690 ret=1 before_rssanon_kb=10188764 before_vmrss_kb=10429436 after_rssanon_kb=10160672 after_vmrss_kb=10401344 rssfile_kb=197472 trim_ms=5.2

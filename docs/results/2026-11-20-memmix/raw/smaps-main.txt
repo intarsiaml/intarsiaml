@@ -1,0 +1,10 @@
+k=1 06:47:05 anon_mb=11732 heap=452MB/1 arena=10606MB/189 big=665MB/7 small=7MB/344 file=248MB/100
+k=2 06:47:05 anon_mb=11732 heap=452MB/1 arena=10606MB/189 big=665MB/7 small=7MB/346 file=248MB/100
+k=3 06:55:55 anon_mb=10991 heap=452MB/1 arena=9865MB/186 big=665MB/7 small=7MB/341 file=248MB/100
+k=4 07:10:54 anon_mb=11090 heap=452MB/1 arena=9964MB/187 big=665MB/7 small=7MB/346 file=248MB/100
+k=5 07:25:54 anon_mb=10974 heap=452MB/1 arena=9848MB/187 big=665MB/7 small=7MB/344 file=248MB/100
+k=6 07:40:54 anon_mb=10913 heap=452MB/1 arena=9787MB/189 big=665MB/7 small=7MB/346 file=248MB/100
+k=7 07:55:54 anon_mb=11044 heap=452MB/1 arena=9918MB/193 big=665MB/7 small=7MB/350 file=248MB/100
+k=8 08:10:54 anon_mb=11323 heap=452MB/1 arena=10197MB/191 big=665MB/7 small=7MB/348 file=248MB/100
+k=9 08:25:54 anon_mb=11161 heap=452MB/1 arena=10035MB/192 big=665MB/7 small=7MB/353 file=248MB/100
+k=10 08:40:55 anon_mb=10447 heap=734MB/1 arena=9038MB/188 big=665MB/7 small=7MB/339 file=248MB/100
