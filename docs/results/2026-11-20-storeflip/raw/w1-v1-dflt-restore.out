@@ -1,0 +1,11 @@
+[restore] w1-v1-dflt A3000-cold: prompt=20266 cached=0 ttft=3.246s
+[restore] w1-v1-dflt share3000: prompt=2930 cached=0 ttft=0.527s
+[restore] w1-v1-dflt A3000-again: prompt=20266 cached=20262 ttft=0.118s
+[restore] w1-v1-dflt A5000-cold: prompt=20340 cached=0 ttft=3.242s
+[restore] w1-v1-dflt share5000: prompt=4992 cached=0 ttft=0.805s
+[restore] w1-v1-dflt A9000-cold: prompt=20316 cached=0 ttft=3.232s
+[restore] w1-v1-dflt share9000: prompt=9078 cached=8195 ttft=0.269s
+[restore] w1-v1-dflt A13000-cold: prompt=20281 cached=0 ttft=3.227s
+[restore] w1-v1-dflt share13000: prompt=13160 cached=8195 ttft=0.910s
+[restore] w1-v1-dflt A17000-cold: prompt=20332 cached=0 ttft=3.236s
+[restore] w1-v1-dflt share17000: prompt=17276 cached=16387 ttft=0.319s

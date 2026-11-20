@@ -1,0 +1,101 @@
+[
+ {
+  "label": "A3000-cold",
+  "shared_tokens_target": 20000,
+  "ok": true,
+  "prompt_tokens": 20266,
+  "cached_tokens": 0,
+  "ttft_s": 3.9535776669508778,
+  "text": "Note 904: the amber thread will cache the report copper near the"
+ },
+ {
+  "label": "share3000",
+  "shared_tokens_target": 3000,
+  "ok": true,
+  "prompt_tokens": 2930,
+  "cached_tokens": 0,
+  "ttft_s": 0.5228704999899492,
+  "text": "The amber thread will cache the report copper near the balance compass before meadow router"
+ },
+ {
+  "label": "A3000-again",
+  "shared_tokens_target": 20000,
+  "ok": true,
+  "prompt_tokens": 20266,
+  "cached_tokens": 20262,
+  "ttft_s": 0.10771220800234005,
+  "text": "Note 904: the amber thread will cache the report copper near the"
+ },
+ {
+  "label": "A5000-cold",
+  "shared_tokens_target": 20000,
+  "ok": true,
+  "prompt_tokens": 20340,
+  "cached_tokens": 0,
+  "ttft_s": 3.314280584047083,
+  "text": "Note 904: the vector ancient will measure the quiet harbor near the"
+ },
+ {
+  "label": "share5000",
+  "shared_tokens_target": 5000,
+  "ok": true,
+  "prompt_tokens": 4992,
+  "cached_tokens": 4099,
+  "ttft_s": 0.2328384590218775,
+  "text": "The following is a continuation of the surreal, syntactic log entries, maintaining the"
+ },
+ {
+  "label": "A9000-cold",
+  "shared_tokens_target": 20000,
+  "ok": true,
+  "prompt_tokens": 20316,
+  "cached_tokens": 0,
+  "ttft_s": 3.321521959034726,
+  "text": "Note 904: the ancient matrix will thread the quiet harbor near the"
+ },
+ {
+  "label": "share9000",
+  "shared_tokens_target": 9000,
+  "ok": true,
+  "prompt_tokens": 9078,
+  "cached_tokens": 8195,
+  "ttft_s": 0.3453405830077827,
+  "text": "The harbor rapid will meadow the invoice observe near the violet compass before anchor gentle"
+ },
+ {
+  "label": "A13000-cold",
+  "shared_tokens_target": 20000,
+  "ok": true,
+  "prompt_tokens": 20281,
+  "cached_tokens": 0,
+  "ttft_s": 3.3087536669918336,
+  "text": "Note 904: the silver matrix will thread the ancient harbor near the"
+ },
+ {
+  "label": "share13000",
+  "shared_tokens_target": 13000,
+  "ok": true,
+  "prompt_tokens": 13160,
+  "cached_tokens": 12291,
+  "ttft_s": 0.27857937500812113,
+  "text": "The violet amber will signal the harbor token near the balance rapid before measure report."
+ },
+ {
+  "label": "A17000-cold",
+  "shared_tokens_target": 20000,
+  "ok": true,
+  "prompt_tokens": 20332,
+  "cached_tokens": 0,
+  "ttft_s": 3.318773000035435,
+  "text": "The silence that followed the final entry of the ledger was not empty; it was"
+ },
+ {
+  "label": "share17000",
+  "shared_tokens_target": 17000,
+  "ok": true,
+  "prompt_tokens": 17276,
+  "cached_tokens": 16387,
+  "ttft_s": 0.31291049998253584,
+  "text": "The falcon packet will rapid the narrow quiet near the distant matrix before invoice crimson"
+ }
+]

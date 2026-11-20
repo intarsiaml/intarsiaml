@@ -821,6 +821,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let backend_name = backends.first().map_or("cpu", |b| b.name());
     // lane mlen15: `INTARSIA_SPEC_COPY=<n>` without a length means this backend's default; recorded before any `SpecConfig::verify_rows`
     intarsia_core::spec::set_copy_backend(backend_name);
+    // lane storeflip: the prefix store's PREFAULT knob is on by default on CUDA only; decided before any store is built
+    intarsia_core::prefix_store::set_backend(backend_name);
     let backend_cap = backends.first().map_or(intarsia_core::engine::SERVE_MAX_BATCH, |b| b.batch_row_cap());
     let max_batch = recipe.resolve_max_batch(opts.max_batch, if opts.max_batch.is_some() { backend_cap } else { 1 })?;
     // lane copyflipm: with `INTARSIA_SPEC_COPY` unset, copy drafts are on exactly where `copy_default_applies` says (Metal, one sequence,

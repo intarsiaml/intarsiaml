@@ -1,0 +1,59 @@
+fleetq: #10404 waiting (#6 in line): in line behind #10397 "samp64 build fix (incremental)" (claude-samp64) on spark2
+fleetq: #10404 waiting (#5 in line): in line behind #10400 "samp64 gate run: schedule none vs 16384:1 vs 16384:1,40000:0" (claude-samp64) on spark2
+fleetq: #10404 waiting (#4 in line): in line behind #10401 "samp64 nsys attribution 4k/64k sampled vs greedy" (claude-samp64) on spark2
+fleetq: #10404 waiting (#3 in line): in line behind #10402 "storeflip w5 cold TTFT ABBA zero dflt dflt zero" (claude-storeflip) on spark2
+fleetq:   #10402 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10402 set, or it will wait for #10402 to be released.
+fleetq: #10404 waiting (#2 in line): in line behind #10403 "storeflip w6 restore-point mac4k m0" (claude-storeflip) on spark2
+fleetq:   #10403 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10403 set, or it will wait for #10403 to be released.
+fleetq: #10404 waiting (#1 in line): needs gpu quiet on spark2, but #10403 "storeflip w6 restore-point mac4k m0" (claude-storeflip) loads it
+fleetq:   #10403 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10403 set, or it will wait for #10403 to be released.
+fleetq: #10404 waiting (#1 in line): needs 50 GB on spark2; the box reports only 44 GB actually free (memory used by something fleetq does not track)
+fleetq: #10404 waiting (#1 in line): needs 50 GB on spark2; the box reports only 42 GB actually free (memory used by something fleetq does not track)
+fleetq: #10404 running on spark2: bash scripts/storeflip/window.sh w7 m0 mac4k mac4k m0
+[10:14:32 +1s] visit w7-v1-m0: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          66           0           9          75
+[10:14:33 +2s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=0
+[10:15:55 +84s] serve up; MemAvailable MB 48445; prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it|prefix store with --max-batch > 1: workspace 678 MiB|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 85e2d8d2c2a9fd03, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_S|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 79.0s, context 131072 tokens|
+[10:15:56 +85s] thp before: compact_stall 0 thp_fault_alloc 70458 thp_fault_fallback 0 
+
+[localeval] saved /opt/code/deepeval/results/20261120-101556-adhoc-storeflip-w7-v1-m0/result.json
+[localeval] logged to unanimis: 59d0c820-6898-4011-be0a-dbcdb1bfcff6
+w7-v1-m0 run_id=20261120-101556-adhoc-storeflip-w7-v1-m0
+[10:16:53 +142s] thp after: compact_stall 0 thp_fault_alloc 73094 thp_fault_fallback 0 ; server Rss: 166784 kB AnonHugePages: 0 kB 
+[10:16:54 +143s] cell w7-v1-m0 end: clock guard: 28 samples, 24 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2384, max power 86 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[10:16:55 +144s] visit w7-v1-m0 done; min MemAvailable MB (time MB) 10:16:50 40794; KILLED lines 0; warn/error lines in serve log 0
+[10:16:59 +148s] visit w7-v2-mac4k: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          66           0           9          74
+[10:16:59 +148s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFILL_MACRO=4096
+[10:18:12 +221s] serve up; MemAvailable MB 48113; prefix store: macro prefill (4096 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store with --max-batch > 1: workspace 1028 MiB|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build bef1288b62a8f75f, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_S|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 70.7s, context 131072 tokens|
+[10:18:13 +222s] thp before: compact_stall 0 thp_fault_alloc 73094 thp_fault_fallback 0 
+
+[localeval] saved /opt/code/deepeval/results/20261120-101813-adhoc-storeflip-w7-v2-mac4k/result.json
+[localeval] logged to unanimis: c813f7fd-dcc3-4e41-8535-46df0627e35a
+w7-v2-mac4k run_id=20261120-101813-adhoc-storeflip-w7-v2-mac4k
+[10:19:09 +278s] thp after: compact_stall 0 thp_fault_alloc 75172 thp_fault_fallback 0 ; server Rss: 166784 kB AnonHugePages: 0 kB 
+[10:19:09 +278s] cell w7-v2-mac4k end: clock guard: 28 samples, 25 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2385, max power 88 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[10:19:10 +279s] visit w7-v2-mac4k done; min MemAvailable MB (time MB) 10:19:08 41698; KILLED lines 0; warn/error lines in serve log 0
+[10:19:14 +283s] visit w7-v3-mac4k: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          66           0           9          74
+[10:19:15 +284s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFILL_MACRO=4096
+[10:20:37 +366s] serve up; MemAvailable MB 48095; prefix store: macro prefill (4096 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store with --max-batch > 1: workspace 1028 MiB|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build bef1288b62a8f75f, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_S|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 79.7s, context 131072 tokens|
+[10:20:38 +367s] thp before: compact_stall 0 thp_fault_alloc 75172 thp_fault_fallback 0 
+
+[localeval] saved /opt/code/deepeval/results/20261120-102039-adhoc-storeflip-w7-v3-mac4k/result.json
+[localeval] logged to unanimis: b76c8073-5569-4809-9c28-5e8a73ccb0a2
+w7-v3-mac4k run_id=20261120-102039-adhoc-storeflip-w7-v3-mac4k
+[10:21:34 +423s] thp after: compact_stall 0 thp_fault_alloc 77253 thp_fault_fallback 0 ; server Rss: 166768 kB AnonHugePages: 0 kB 
+[10:21:34 +423s] cell w7-v3-mac4k end: clock guard: 28 samples, 24 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2384, max power 86 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[10:21:36 +425s] visit w7-v3-mac4k done; min MemAvailable MB (time MB) 10:21:32 41753; KILLED lines 0; warn/error lines in serve log 0
+[10:21:40 +429s] visit w7-v4-m0: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          66           0           9          74
+[10:21:40 +429s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=0
+[10:23:00 +509s] serve up; MemAvailable MB 48439; prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it|prefix store with --max-batch > 1: workspace 678 MiB|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 85e2d8d2c2a9fd03, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_S|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 77.5s, context 131072 tokens|
+[10:23:01 +510s] thp before: compact_stall 0 thp_fault_alloc 77253 thp_fault_fallback 0 
+
+[localeval] saved /opt/code/deepeval/results/20261120-102302-adhoc-storeflip-w7-v4-m0/result.json
+[localeval] logged to unanimis: 25533f44-f279-4c3c-b92f-ec8eb3be8699
+w7-v4-m0 run_id=20261120-102302-adhoc-storeflip-w7-v4-m0
+[10:23:57 +566s] thp after: compact_stall 0 thp_fault_alloc 79889 thp_fault_fallback 0 ; server Rss: 166784 kB AnonHugePages: 0 kB 
+[10:23:58 +567s] cell w7-v4-m0 end: clock guard: 29 samples, 23 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2386, max power 85 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[10:23:59 +568s] visit w7-v4-m0 done; min MemAvailable MB (time MB) 10:23:55 40722; KILLED lines 0; warn/error lines in serve log 0
+[10:24:01 +570s] window w7 done: visits m0 mac4k mac4k m0; fleetq job 10404
+[10:24:01 +570s] window end
+fleetq: #10404 done (exit 0)

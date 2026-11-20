@@ -1,0 +1,81 @@
+fleetq: #10388 waiting (#4 in line): in line behind #10385 "samp64 phase1: spec on/off, sampled vs greedy 4k/32k/64k" (claude-samp64) on spark2
+fleetq: #10388 waiting (#3 in line): in line behind #10386 "samp64 nsys attribution 32k/64k sampled vs greedy" (claude-samp64) on spark2
+fleetq: #10388 waiting (#2 in line): in line behind #10387 "samp64 phase2: spec-k 1 / K_MIN / COSTGATE, sampled vs greedy" (claude-samp64) on spark2
+fleetq: #10388 waiting (#1 in line): needs gpu quiet on spark2, but #10387 "samp64 phase2: spec-k 1 / K_MIN / COSTGATE, sampled vs greedy" (claude-samp64) loads it
+fleetq: #10388 waiting (#1 in line): needs spark2 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #10388 running on spark2: bash scripts/storeflip/window.sh w1 dflt zero zero dflt
+[08:38:33 +2s] visit w1-v1-dflt: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          63           0          12          75
+[08:38:33 +2s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env none
+[08:40:11 +100s] serve up; MemAvailable MB 45896; prefix store: macro prefill (8192 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store with --max-batch > 1: workspace 1727 MiB|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build f166bc1133aa17b8, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_S|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 94.7s, context 131072 tokens|
+[08:40:11 +100s] thp before: compact_stall 0 thp_fault_alloc 40723 thp_fault_fallback 0 
+[restore] w1-v1-dflt A3000-cold: prompt=20266 cached=0 ttft=3.246s
+[restore] w1-v1-dflt share3000: prompt=2930 cached=0 ttft=0.527s
+[restore] w1-v1-dflt A3000-again: prompt=20266 cached=20262 ttft=0.118s
+[restore] w1-v1-dflt A5000-cold: prompt=20340 cached=0 ttft=3.242s
+[restore] w1-v1-dflt share5000: prompt=4992 cached=0 ttft=0.805s
+[restore] w1-v1-dflt A9000-cold: prompt=20316 cached=0 ttft=3.232s
+[restore] w1-v1-dflt share9000: prompt=9078 cached=8195 ttft=0.269s
+[restore] w1-v1-dflt A13000-cold: prompt=20281 cached=0 ttft=3.227s
+[restore] w1-v1-dflt share13000: prompt=13160 cached=8195 ttft=0.910s
+[restore] w1-v1-dflt A17000-cold: prompt=20332 cached=0 ttft=3.236s
+[restore] w1-v1-dflt share17000: prompt=17276 cached=16387 ttft=0.319s
+[08:41:39 +188s] thp after: compact_stall 0 thp_fault_alloc 41969 thp_fault_fallback 0 ; server Rss: 166784 kB AnonHugePages: 0 kB 
+[08:41:40 +189s] cell w1-v1-dflt end: clock guard: 44 samples, 9 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2373, max power 79 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[08:41:41 +190s] visit w1-v1-dflt done; min MemAvailable MB (time MB) 08:41:41 43068; KILLED lines 0; warn/error lines in serve log 0
+[08:41:45 +194s] visit w1-v2-zero: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          63           0          12          75
+[08:41:46 +195s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=0 INTARSIA_PREFIX_STORE_PREFAULT=0
+[08:43:09 +278s] serve up; MemAvailable MB 48492; prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it|prefix store with --max-batch > 1: workspace 678 MiB|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 85e2d8d2c2a9fd03, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: new host buffers: off (vec, 16 bytes into a page) (INTARSIA_PREFIX_STORE_PREFAULT)|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 80.9s, context 131072 tokens|
+[08:43:10 +279s] thp before: compact_stall 0 thp_fault_alloc 41969 thp_fault_fallback 0 
+[restore] w1-v2-zero A3000-cold: prompt=20266 cached=0 ttft=4.130s
+[restore] w1-v2-zero share3000: prompt=2930 cached=2051 ttft=0.219s
+[restore] w1-v2-zero A3000-again: prompt=20266 cached=20262 ttft=0.102s
+[restore] w1-v2-zero A5000-cold: prompt=20340 cached=0 ttft=3.577s
+[restore] w1-v2-zero share5000: prompt=4992 cached=4099 ttft=0.298s
+[restore] w1-v2-zero A9000-cold: prompt=20316 cached=0 ttft=3.568s
+[restore] w1-v2-zero share9000: prompt=9078 cached=8195 ttft=0.255s
+[restore] w1-v2-zero A13000-cold: prompt=20281 cached=0 ttft=3.547s
+[restore] w1-v2-zero share13000: prompt=13160 cached=12291 ttft=0.283s
+[restore] w1-v2-zero A17000-cold: prompt=20332 cached=0 ttft=3.545s
+[restore] w1-v2-zero share17000: prompt=17276 cached=16387 ttft=0.344s
+[08:44:38 +367s] thp after: compact_stall 0 thp_fault_alloc 41969 thp_fault_fallback 0 ; server Rss: 166784 kB AnonHugePages: 0 kB 
+[08:44:39 +368s] cell w1-v2-zero end: clock guard: 44 samples, 10 at util>90, 0 of those SM<2000 MHz, min SM 2379, mean SM 2379, max power 78 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[08:44:40 +369s] visit w1-v2-zero done; min MemAvailable MB (time MB) 08:44:31 43019; KILLED lines 0; warn/error lines in serve log 0
+[08:44:44 +373s] visit w1-v3-zero: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          63           0          12          75
+[08:44:45 +374s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env INTARSIA_PREFIX_STORE_MACRO=0 INTARSIA_PREFIX_STORE_PREFAULT=0
+[08:46:03 +452s] serve up; MemAvailable MB 48493; prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it|prefix store with --max-batch > 1: workspace 678 MiB|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build 85e2d8d2c2a9fd03, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: new host buffers: off (vec, 16 bytes into a page) (INTARSIA_PREFIX_STORE_PREFAULT)|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 75.6s, context 131072 tokens|
+[08:46:04 +453s] thp before: compact_stall 0 thp_fault_alloc 41969 thp_fault_fallback 0 
+[restore] w1-v3-zero A3000-cold: prompt=20266 cached=0 ttft=4.157s
+[restore] w1-v3-zero share3000: prompt=2930 cached=2051 ttft=0.226s
+[restore] w1-v3-zero A3000-again: prompt=20266 cached=20262 ttft=0.113s
+[restore] w1-v3-zero A5000-cold: prompt=20340 cached=0 ttft=3.569s
+[restore] w1-v3-zero share5000: prompt=4992 cached=4099 ttft=0.230s
+[restore] w1-v3-zero A9000-cold: prompt=20316 cached=0 ttft=3.590s
+[restore] w1-v3-zero share9000: prompt=9078 cached=8195 ttft=0.258s
+[restore] w1-v3-zero A13000-cold: prompt=20281 cached=0 ttft=3.582s
+[restore] w1-v3-zero share13000: prompt=13160 cached=12291 ttft=0.286s
+[restore] w1-v3-zero A17000-cold: prompt=20332 cached=0 ttft=3.590s
+[restore] w1-v3-zero share17000: prompt=17276 cached=16387 ttft=0.315s
+[08:47:33 +542s] thp after: compact_stall 0 thp_fault_alloc 41969 thp_fault_fallback 0 ; server Rss: 166784 kB AnonHugePages: 0 kB 
+[08:47:33 +542s] cell w1-v3-zero end: clock guard: 44 samples, 8 at util>90, 0 of those SM<2000 MHz, min SM 2372, mean SM 2380, max power 76 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[08:47:34 +543s] visit w1-v3-zero done; min MemAvailable MB (time MB) 08:47:34 43382; KILLED lines 0; warn/error lines in serve log 0
+[08:47:39 +548s] visit w1-v4-dflt: vLLM /v1/models 200; counters 853 87536; earlyoom active; free: Mem:             121          46          63           0          12          75
+[08:47:40 +549s] binary: intarsia 0.0.1; serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on; env none
+[08:49:03 +632s] serve up; MemAvailable MB 47384; prefix store: macro prefill (8192 rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACR|prefix store with --max-batch > 1: workspace 1727 MiB|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build f166bc1133aa17b8, 0 entries loaded, boundaries [248045], chunk-invariant backend: fals|prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_S|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; IN|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 79.9s, context 131072 tokens|
+[08:49:04 +633s] thp before: compact_stall 0 thp_fault_alloc 41969 thp_fault_fallback 0 
+[restore] w1-v4-dflt A3000-cold: prompt=20266 cached=0 ttft=3.741s
+[restore] w1-v4-dflt share3000: prompt=2930 cached=0 ttft=0.526s
+[restore] w1-v4-dflt A3000-again: prompt=20266 cached=20262 ttft=0.139s
+[restore] w1-v4-dflt A5000-cold: prompt=20340 cached=0 ttft=3.241s
+[restore] w1-v4-dflt share5000: prompt=4992 cached=0 ttft=0.798s
+[restore] w1-v4-dflt A9000-cold: prompt=20316 cached=0 ttft=3.228s
+[restore] w1-v4-dflt share9000: prompt=9078 cached=8195 ttft=0.256s
+[restore] w1-v4-dflt A13000-cold: prompt=20281 cached=0 ttft=3.219s
+[restore] w1-v4-dflt share13000: prompt=13160 cached=8195 ttft=0.899s
+[restore] w1-v4-dflt A17000-cold: prompt=20332 cached=0 ttft=3.261s
+[restore] w1-v4-dflt share17000: prompt=17276 cached=16387 ttft=0.307s
+[08:50:32 +721s] thp after: compact_stall 0 thp_fault_alloc 43215 thp_fault_fallback 0 ; server Rss: 166768 kB AnonHugePages: 0 kB 
+[08:50:33 +722s] cell w1-v4-dflt end: clock guard: 44 samples, 9 at util>90, 0 of those SM<2000 MHz, min SM 2379, mean SM 2379, max power 79 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[08:50:34 +723s] visit w1-v4-dflt done; min MemAvailable MB (time MB) 08:50:33 43184; KILLED lines 0; warn/error lines in serve log 0
+[08:50:36 +725s] window w1 done: visits dflt zero zero dflt; fleetq job 10388
+[08:50:36 +725s] window end
+fleetq: #10388 done (exit 0)
