@@ -310,6 +310,28 @@ impl Sampler {
     }
 }
 
+/// The host reference of device-side top-k (`Backend::topk_rows`): the `k` largest values of `row` and their indices in the
+/// sampler's order (value descending, ties by ascending index, -0.0 equal to +0.0), i.e. the candidates [`sample_row`] selects
+/// for `top_k == k`. `None` for a row holding a NaN.
+pub fn topk_row(row: &[f32], k: usize) -> Option<(Vec<u32>, Vec<f32>)> {
+    if row.iter().any(|x| x.is_nan()) {
+        return None;
+    }
+    let mut keys: Vec<u64> = row.iter().enumerate().map(|(i, &l)| (order_key(l) as u64) << 32 | i as u64).collect();
+    let k = k.min(keys.len());
+    if k == 0 {
+        return Some((Vec::new(), Vec::new()));
+    }
+    if k < keys.len() {
+        keys.select_nth_unstable(k - 1);
+        keys.truncate(k);
+    }
+    keys.sort_unstable();
+    let ids: Vec<u32> = keys.iter().map(|&x| x as u32).collect();
+    let vals = ids.iter().map(|&i| row[i as usize]).collect();
+    Some((ids, vals))
+}
+
 /// [`sample_row`] on a row whose top-`p.top_k` candidates (best first) are `vals` with token ids `ids`.
 pub fn sample_from_topk(ids: &[u32], vals: &[f32], p: &SamplingParams, u: f32) -> usize {
     if p.temperature <= 0.0 {

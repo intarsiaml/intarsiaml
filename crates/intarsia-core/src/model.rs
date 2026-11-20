@@ -407,6 +407,15 @@ pub enum HeadMode {
     LastTopK(usize),
 }
 
+/// What a solo verify pass reads back of its rows besides the greedy tokens ([`Model::forward_verify_run`]).
+enum VerifyRead<'a> {
+    None,
+    /// Every row's logits ([`Model::forward_verify_logits`]).
+    Logits(&'a mut Vec<Vec<f32>>),
+    /// Every row's device-side top-`k` ([`Model::forward_verify_topk`]).
+    TopK(usize, &'a mut Vec<StepOut>),
+}
+
 #[derive(Debug)]
 pub enum StepOut {
     None,
@@ -553,6 +562,8 @@ pub struct Model {
     ws: Workspace,
     telemetry: Arc<Telemetry>,
     profile_every: u32,
+    /// Lane samphost: [`Model::set_sampled_verify_fast`].
+    sampled_verify_fast: bool,
     /// Kernel scratch workspace shared by all ops (sized by plan resolution; ops run in stream order).
     scratch: Option<Buffer>,
     /// Dense checkpoint tensors by name (`load` / `load_sharded`), to say which tensor an op without a kernel for its weight
@@ -1842,6 +1853,7 @@ impl Model {
             ws,
             telemetry,
             profile_every: opts.profile_every,
+            sampled_verify_fast: false,
             scratch: None,
             recorder: Mutex::new(None),
             resolved: Default::default(),
@@ -2193,7 +2205,7 @@ impl Model {
     pub fn forward_verify(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<u32>> {
         let pos = st.len;
         self.det_tap_begin();
-        let r = self.forward_verify_run(st, ids, None)?;
+        let r = self.forward_verify_run(st, ids, VerifyRead::None)?;
         self.det_tap_flush(pos, ids.len())?;
         Ok(r)
     }
@@ -2205,7 +2217,7 @@ impl Model {
         let pos = st.len;
         self.det_tap_begin();
         let mut rows = Vec::new();
-        let r = self.forward_verify_run(st, ids, Some(&mut rows))?;
+        let r = self.forward_verify_run(st, ids, VerifyRead::Logits(&mut rows))?;
         self.det_tap_flush(pos, ids.len())?;
         if rows.len() != ids.len() {
             return Err(Error::invalid("forward_verify_logits: no logits rows (tensor-parallel verify is not supported)"));
@@ -2213,7 +2225,55 @@ impl Model {
         Ok((r, rows))
     }
 
-    fn forward_verify_run(&self, st: &mut SequenceState, ids: &[u32], rows: Option<&mut Vec<Vec<f32>>>) -> Result<Vec<u32>> {
+    /// Lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST=1`, [`Model::set_sampled_verify_fast`]): [`Model::forward_verify_logits`] with
+    /// every row read back as its device-side top-`k` (`StepOut::TopK`, the `k` largest logits and their ids in the sampler's
+    /// order, `k <= TOPK_MAX`) instead of the whole `[V]` row: what a plain batched decode step with device-side sampling hands
+    /// the sampler for the same logits bits, so `Sampler::sample_topk` draws the token `Sampler::sample` would draw from the
+    /// whole row. A row holding a NaN comes back as its logits (as in batched decode). Without device-side top-k (no
+    /// [`Model::device_sampling`], tensor-parallel or remote ranks, `k` out of range) every row comes back as its logits, as
+    /// [`Model::forward_verify_logits`] returns them.
+    pub fn forward_verify_topk(&self, st: &mut SequenceState, ids: &[u32], k: usize) -> Result<(Vec<u32>, Vec<StepOut>)> {
+        if !self.verify_topk_ok(k) {
+            self.telemetry.verify_topk_fallback();
+            let (t, rows) = self.forward_verify_logits(st, ids)?;
+            return Ok((t, rows.into_iter().map(StepOut::Logits).collect()));
+        }
+        let pos = st.len;
+        self.det_tap_begin();
+        let mut rows = Vec::new();
+        let r = self.forward_verify_run(st, ids, VerifyRead::TopK(k, &mut rows))?;
+        self.det_tap_flush(pos, ids.len())?;
+        if rows.len() != ids.len() {
+            return Err(Error::invalid("forward_verify_topk: no rows"));
+        }
+        self.telemetry.verify_topk_solo();
+        Ok((r, rows))
+    }
+
+    /// Whether a solo verify pass can read its rows back as the device-side top-`k` ([`Model::forward_verify_topk`]).
+    fn verify_topk_ok(&self, k: usize) -> bool {
+        self.device_sampling() && self.peers.is_empty() && self.remote.is_none() && (1..=Self::TOPK_MAX).contains(&k) && k < self.dims.vocab
+    }
+
+    /// Lane samphost: turn on the solo verify pass's top-`k` rows for sampled requests ([`Model::forward_verify_topk`], used by
+    /// the batching engine's keyed drafting and by a batched verify pass of one sequence asking for `HeadMode::LastTopK`).
+    /// Off by default (`INTARSIA_SAMPLED_VERIFY_FAST`, `BatchedOptions::sampled_verify_fast`).
+    pub fn set_sampled_verify_fast(&mut self, on: bool) {
+        self.sampled_verify_fast = on;
+    }
+
+    /// [`Model::set_sampled_verify_fast`].
+    pub fn sampled_verify_fast(&self) -> bool {
+        self.sampled_verify_fast
+    }
+
+    /// Lane samphost: a sampled verify pass under [`Model::set_sampled_verify_fast`] that read whole rows (its sampler takes no
+    /// top-k in a plain step, or one above `TOPK_MAX`, or a stop-id mask, trace or constraint reads the rows).
+    pub fn note_verify_topk_fallback(&self) {
+        self.telemetry.verify_topk_fallback();
+    }
+
+    fn forward_verify_run(&self, st: &mut SequenceState, ids: &[u32], rows: VerifyRead<'_>) -> Result<Vec<u32>> {
         Self::check_forward(st, ids, HeadMode::LastArgmax, false)?;
         let q = ids.len();
         let Some(tok) = &self.verify_tok else {
@@ -2261,13 +2321,31 @@ impl Model {
         };
         let mut b = vec![0u8; q * 4];
         self.backend.download(tok, 0, &mut b, self.stream)?;
-        if let Some(rows) = rows {
-            // pooled buffers, as a decode step's logits row: fresh megabyte allocations page-fault on GB10 (`LOGITS_POOL`)
-            let v = self.dims.vocab;
-            *rows = with_logits_bytes(q * v * 4, |l| -> Result<Vec<Vec<f32>>> {
-                self.backend.download(&self.ws.logits, 0, l, self.stream)?;
-                Ok(l.chunks_exact(v * 4).map(logits_row).collect())
-            })?;
+        let v = self.dims.vocab;
+        match rows {
+            VerifyRead::None => {}
+            VerifyRead::Logits(rows) => {
+                // pooled buffers, as a decode step's logits row: fresh megabyte allocations page-fault on GB10 (`LOGITS_POOL`)
+                *rows = with_logits_bytes(q * v * 4, |l| -> Result<Vec<Vec<f32>>> {
+                    self.backend.download(&self.ws.logits, 0, l, self.stream)?;
+                    Ok(l.chunks_exact(v * 4).map(logits_row).collect())
+                })?;
+            }
+            VerifyRead::TopK(k, rows) => {
+                // lane samphost: the top-k of the q rows in one device call, read before the drafter's hooks reuse `ws.logits`
+                let (tid, tval, nan) = self.batch_topk(q, k)?;
+                *rows = Vec::with_capacity(q);
+                for r in 0..q {
+                    rows.push(if nan[r] != 0 {
+                        StepOut::Logits(with_logits_bytes(v * 4, |l| -> Result<Vec<f32>> {
+                            self.backend.download(&self.ws.logits, r * v * 4, l, self.stream)?;
+                            Ok(logits_row(l))
+                        })?)
+                    } else {
+                        StepOut::TopK { ids: tid[r * k..(r + 1) * k].to_vec(), vals: tval[r * k..(r + 1) * k].to_vec() }
+                    });
+                }
+            }
         }
         st.commit_verify(ids);
         if recurrent {
@@ -2392,6 +2470,11 @@ impl Model {
             return Ok((toks, rows));
         }
         if n == 1 && ids[0].len() >= 2 {
+            if let (true, Some(HeadMode::LastTopK(k))) = (self.sampled_verify_fast, mode(0)) {
+                // lane samphost: a lone sampled sequence's rows as its top-k, as in the ragged pass below
+                let (t, rows) = self.forward_verify_topk(states[0], &ids[0], k)?;
+                return Ok((vec![t], vec![rows]));
+            }
             if mode(0).is_some() {
                 let (t, rows) = self.forward_verify_logits(states[0], &ids[0])?;
                 return Ok((vec![t], vec![rows.into_iter().map(StepOut::Logits).collect()]));

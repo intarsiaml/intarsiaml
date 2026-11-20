@@ -1117,6 +1117,7 @@ impl Model {
             ws,
             telemetry: self.telemetry.clone(),
             profile_every: 0,
+            sampled_verify_fast: self.sampled_verify_fast,
             scratch: None,
             recorder: Mutex::new(None),
             resolved: Default::default(),

@@ -119,6 +119,12 @@ pub struct BatchedOptions {
     /// of the pass (`Seq::verify_topk`). The draws are the same (`Sampler::sample_topk` is exact); a pass
     /// downloads `rows x k` values instead of `rows x vocab`.
     pub verify_topk: bool,
+    /// Lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST=1`, opt-in): a sampled request's verify pass that runs on its own (one decoding
+    /// stream, or a batched verify pass of one sequence) reads its rows back as the device-side top-k (`Model::forward_verify_topk`)
+    /// instead of whole logits rows, when its sampler takes the top-k in a plain step for every row of the pass (`Seq::verify_topk`:
+    /// `1 <= top_k <= 64`, no stop-id mask, trace or constraint) and the backend has device-side sampling; otherwise whole rows, as
+    /// without it. The draws are the same (`Sampler::sample_topk` is exact): a seeded request's ids do not change.
+    pub sampled_verify_fast: bool,
     /// Lane interleave (`INTARSIA_PREFILL_PAUSE_ROWS`, default [`PAUSE_ROWS_DEFAULT`] = 768, 0 off): while other sequences decode, a
     /// prefill chunk of more than this many rows parks between layers about every this many rows and their decode step runs
     /// there ([`BatchModel::pause_rows`]). The chunk schedule and every output are unchanged, bit for bit. Not with `overlap`.
@@ -215,6 +221,7 @@ impl BatchedOptions {
             mtp_sampled: batched_mtp_sampled_env(),
             sampled_ctx_k: crate::spec::sampled_ctx_k(),
             verify_topk: env("INTARSIA_VERIFY_TOPK"),
+            sampled_verify_fast: env("INTARSIA_SAMPLED_VERIFY_FAST"),
             prefix_herd: std::env::var("INTARSIA_PREFIX_HERD").map(|v| v != "0").unwrap_or(true),
             hold_start: false,
         }
@@ -1229,6 +1236,14 @@ impl BatchedEngine {
             }
         }
         let env = SeqEnv { codec, telemetry, eos: meta.eos_ids, spec: meta.spec };
+        // lane samphost: before the decode twin copies it
+        model.set_sampled_verify_fast(opts.sampled_verify_fast && mtp && opts.mtp_sampled);
+        if model.sampled_verify_fast() {
+            eprintln!(
+                "batched MTP: a sampled request's own verify pass reads its rows back as the device-side top-k (INTARSIA_SAMPLED_VERIFY_FAST=1; device-side sampling {})",
+                if model.device_sampling() { "on" } else { "off on this backend: whole rows" }
+            );
+        }
         let twin = if opts.overlap {
             match model.decode_twin(opts.max_batch) {
                 Ok(t) => Some(t),

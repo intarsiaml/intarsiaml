@@ -49,7 +49,12 @@ impl Seq {
             self.held = Some((self.tok, k));
             return Ok(Prep::Draft(k));
         }
+        let t_draft = (!defer && crate::spec::trace_enabled()).then(std::time::Instant::now);
         let drafts = model.mtp_draft(st, self.tok, k)?;
+        if let Some(t) = t_draft {
+            // lane samphost: the eager draft ends in its token download, so host time is device time
+            eprintln!("spec: keyed draft {:.3} ms, {} drafts", t.elapsed().as_secs_f64() * 1e3, drafts.len());
+        }
         self.keyed_finish(model, st, drafts, defer)
     }
 
@@ -69,8 +74,31 @@ impl Seq {
             self.deferred = Some((len0, drafts));
             return Ok(Prep::Verify(ids));
         }
-        let (_, rows) = model.forward_verify_logits(st, &ids)?;
-        self.keyed_accept(model, st, len0, &drafts, rows.into_iter().map(StepOut::Logits).collect())?;
+        let t_pass = crate::spec::trace_enabled().then(std::time::Instant::now);
+        // lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST=1`): the rows as their device-side top-k where every row's plain step
+        // would sample from it (`Seq::verify_topk`), so neither the whole rows nor the host's whole-row selection
+        let fast = model.sampled_verify_fast().then(|| self.verify_topk(ids.len())).flatten();
+        let rows: Vec<StepOut> = match fast {
+            Some(k) => model.forward_verify_topk(st, &ids, k)?.1,
+            None => {
+                if model.sampled_verify_fast() {
+                    model.note_verify_topk_fallback();
+                }
+                model.forward_verify_logits(st, &ids)?.1.into_iter().map(StepOut::Logits).collect()
+            }
+        };
+        let t_acc = t_pass.map(|t| (t, std::time::Instant::now()));
+        self.keyed_accept(model, st, len0, &drafts, rows)?;
+        if let Some((t0, t1)) = t_acc {
+            // lane samphost: the pass (its rows read back included) and the host's acceptance (draws, rollback)
+            eprintln!(
+                "spec: keyed verify {} rows ({}) {:.3} ms, accept {:.3} ms",
+                ids.len(),
+                if fast.is_some() { "top-k" } else { "logits" },
+                (t1 - t0).as_secs_f64() * 1e3,
+                t1.elapsed().as_secs_f64() * 1e3
+            );
+        }
         self.keyed_first()?;
         Ok(Prep::Ready)
     }
