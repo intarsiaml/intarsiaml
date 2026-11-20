@@ -512,6 +512,7 @@ impl StorePolicy {
             self.boundary_ids,
             self.chunk_invariant
         );
+        eprintln!("prefix store: new host buffers: {} (INTARSIA_PREFIX_STORE_PREFAULT)", crate::prefix_store::host_prefault_describe());
     }
 }
 

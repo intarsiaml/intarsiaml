@@ -1305,15 +1305,15 @@ fn store_combinations(model: &mut Model, opts: &BatchedOptions) -> Result<()> {
     let env = crate::scheduler::parse_macro_env(std::env::var(crate::scheduler::MACRO_ENV).ok().as_deref())?;
     let store_macro = crate::prefix_store::store_macro();
     if env.is_some_and(|n| n > 0) && !store_macro {
-        return refuse("macro prefill (INTARSIA_PREFILL_MACRO; INTARSIA_PREFIX_STORE_MACRO=1 allows it)");
+        return refuse("macro prefill (INTARSIA_PREFILL_MACRO; INTARSIA_PREFIX_STORE_MACRO=1, the default on CUDA, allows it)");
     }
     if store_macro {
         if model.macro_rows() > 0 {
             eprintln!(
-                "prefix store: macro prefill ({} rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACRO=1): the store captures at the macro pass's end and at message cuts, not after every chunk",
+                "prefix store: macro prefill ({} rows) stays on for a request that prefills alone (INTARSIA_PREFIX_STORE_MACRO, on by default on CUDA; =0 turns it off): the store captures at the macro pass's end and at message cuts, not after every chunk",
                 model.macro_rows()
             );
-        } else {
+        } else if std::env::var("INTARSIA_PREFIX_STORE_MACRO").is_ok_and(|v| v.trim() == "1") {
             eprintln!("prefix store: INTARSIA_PREFIX_STORE_MACRO=1 has no effect here (the model runs no macro prefill pass)");
         }
     } else if model.macro_rows() > 0 {

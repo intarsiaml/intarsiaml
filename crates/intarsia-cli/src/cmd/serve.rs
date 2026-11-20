@@ -68,7 +68,8 @@ pub struct ServeArgs {
     /// `boundary` (`|`-separated one-token texts that start a message; default `<|im_start|>`), `header` (texts that end
     /// a message header; default a newline), `any_cut=1` (restore at any length: only for chunk-invariant prefill), `roles` (cut only after these
     /// roles' headers, e.g. `assistant`: fewer passes, less reuse inside other messages).
-    /// With `--max-batch` > 1: plain decode (no `--spec`), no prewarm or `--prefix-store-pin`, no packed or macro prefill opt-in, no
+    /// With `--max-batch` > 1: plain decode (no `--spec`), no prewarm or `--prefix-store-pin`, no packed or macro prefill opt-in (on CUDA the store keeps the recipe's macro prefill on for a request that
+    /// prefills alone, `INTARSIA_PREFIX_STORE_MACRO=0` turns that off; new host buffers are page-aligned, `INTARSIA_PREFIX_STORE_PREFAULT=0` turns that off), no
     /// `INTARSIA_OVERLAP` (docs/results/2026-11-13-batch-store.md). A recipe's `--spec mtp` default is not applied when a store is set (a drafting request bypasses
     /// the store; one line says so); an explicit `--spec` with the store is refused at `--max-batch` > 1 before the model loads, and
     /// served at `--max-batch 1` as before.
