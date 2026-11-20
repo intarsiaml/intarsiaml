@@ -2270,9 +2270,12 @@ fn host_prefault() -> Prefault {
     })
 }
 
-/// Below this a new host buffer stays a plain `Vec` whatever [`host_prefault`] says: copies of 512 KiB were as fast into a
-/// misaligned new buffer as into an aligned one (`d2h3.cu`), and every mapping is a VMA (`vm.max_map_count`).
-const MAPPED_MIN: usize = 1 << 20;
+/// Smallest new host buffer that gets a mapping of its own under [`host_prefault`]: every non-empty one. The first window (wd,
+/// `INTARSIA_PREFIX_STORE_DEBUG=1`) had this at 1 MiB, and the first download into a new misaligned `Vec` was slow at every size
+/// the store makes (4 KiB in 0.6 ms, 512 KiB in 1.4 ms: 406 such objects were half of a 885 MiB settle's 300 ms), not only the
+/// large ones. A mapping is a VMA (`vm.max_map_count`, 65530 by default): the 8 GiB default host tier of the 35B holds about
+/// 3000 objects.
+const MAPPED_MIN: usize = 1;
 const HUGE: usize = 2 << 20;
 
 /// A new host buffer of `n` bytes for a download, every page touched (see [`host_buf`] and [`Prefault`]).
@@ -2382,11 +2385,11 @@ mod host_buf_tests {
 
     #[test]
     fn mapped_buffers_are_aligned_zeroed_and_writable() {
-        for (n, mode) in [(5 << 20, Prefault::Huge), (32160 << 10, Prefault::Huge), (5 << 20, Prefault::Aligned), ((1 << 20) + 3, Prefault::Aligned)] {
+        for (n, mode) in [(5 << 20, Prefault::Huge), (32160 << 10, Prefault::Huge), (5 << 20, Prefault::Aligned), ((1 << 20) + 3, Prefault::Aligned), (512 << 10, Prefault::Huge), (6 << 10, Prefault::Huge)] {
             let mut b = new_host_buf(n, mode);
             assert!(matches!(b, HostBuf::Mapped { .. }), "{n} {mode:?}");
             assert_eq!(b.len(), n);
-            let align = if mode == Prefault::Huge { HUGE } else { 4096 }; // (at least: the page size)
+            let align = if mode == Prefault::Huge && n >= HUGE { HUGE } else { 4096 }; // (at least: the page size)
             assert_eq!(b.as_ptr() as usize % align, 0, "{n} {mode:?}");
             assert!(b.iter().all(|&x| x == 0));
             for (i, x) in b.iter_mut().enumerate() {
@@ -2400,8 +2403,9 @@ mod host_buf_tests {
     }
 
     #[test]
-    fn small_or_off_buffers_stay_vecs() {
-        assert!(matches!(new_host_buf(512 << 10, Prefault::Huge), HostBuf::Vec(_)));
+    fn empty_or_off_buffers_stay_vecs() {
+        assert!(matches!(new_host_buf(0, Prefault::Huge), HostBuf::Vec(_)));
+        assert!(matches!(new_host_buf(4 << 10, Prefault::Aligned), HostBuf::Mapped { .. }));
         assert!(matches!(new_host_buf(5 << 20, Prefault::Off), HostBuf::Vec(_)));
         assert_eq!(new_host_buf(5 << 20, Prefault::Off).len(), 5 << 20);
     }
