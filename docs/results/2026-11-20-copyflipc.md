@@ -66,3 +66,5 @@ Not measured: sampled requests (never take a chain), thinking mode, real agent t
 ## Revert
 
 `INTARSIA_SPEC_COPY=0` per process, no rebuild; or delete `copy_default = true` from `[tuning.cuda]` in `recipes/qwen3_5_moe.toml`; or revert this PR.
+
+Post-merge recheck (after merging origin/main `0b417ec2`, which carries PR #473): `docs_env_vars` 2 passed, `intarsia-core --lib` 232 passed (2 ignored), the 4 `copy_default_*` binaries 1 passed each, `intarsia-models --lib` 74 passed, 0 failed.
