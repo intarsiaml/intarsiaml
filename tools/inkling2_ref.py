@@ -840,10 +840,10 @@ def make_tiny(out: Path, seed: int = 0):
         T[a + "attn_sconv.weight"] = rn(D, 1, K, s=0.5).to(bf)
         T[a + "mlp_sconv.weight"] = rn(D, 1, K, s=0.5).to(bf)
         T[a + "mlp_norm.weight"] = un(D).to(bf)
-        # selection mostly by a well-spaced bias (spacing 0.12), still x-dependent (sigmoid spread ~0.1), so
-        # f32 / bf16 backends do not flip top-k on near-ties
-        T[a + "mlp.gate.weight"] = rn(E, D, s=D**-0.5 * 0.15).to(bf)
-        T[a + "mlp.gate.bias"] = 0.12 * torch.randperm(E, generator=g).float()
+        # a spaced selection bias (0.03 apart) plus an x-dependent sigmoid: 14-16 of 16 experts used per visit; the
+        # seed search below maximizes the top-k margin so f32 routing equals f64 routing (asserted)
+        T[a + "mlp.gate.weight"] = rn(E, D, s=D**-0.5 * 1.0).to(bf)
+        T[a + "mlp.gate.bias"] = 0.03 * torch.randperm(E, generator=g).float()
         w13 = rn(E, 2 * I, D, s=D**-0.5 * 1.5)
         w2 = rn(E, D, I, s=I**-0.5 * 0.3)
         x = a + "mlp.experts."
@@ -1037,11 +1037,20 @@ def main():
         # what a bf16-activation backend computes (vLLM's rounding points). A random 16-visit net amplifies bf16
         # noise ~1.6x per visit (measured), so bf16 backends gate on the per-visit f64 dump, not on these logits.
         res["bf16"] = run_chunks(build(out, torch.float32, "vllm"), ids, [len(ids)]).to(torch.float32)
-        r64 = build(out, torch.float64)
-        r64.dump = {}
-        run_chunks(r64, ids, [len(ids)])
-        save_file({k: v.contiguous() for k, v in r64.dump.items()}, str(out / "ref_dump_f64.safetensors"),
-                  metadata={"ids": json.dumps(ids), "dtype": "float64", "note": "values stored as f32"})
+        dumps = {}
+        for name, dt, rnd in (("f64", torch.float64, "none"), ("f32", torch.float32, "none"), ("bf16", torch.float32, "vllm")):
+            r = build(out, dt, rnd)
+            r.dump = {}
+            run_chunks(r, ids, [len(ids)])
+            dumps[name] = r.dump
+        eid = [k for k in dumps["f64"] if k.endswith("expert_ids")]
+        # G1(a) relies on f32 routing = f64 routing at every visit
+        bad = [k for k in eid if not torch.equal(dumps["f64"][k], dumps["f32"][k])]
+        assert not bad, f"f32 routing differs from f64 at {bad}"
+        print("tiny distinct experts per visit:", [torch.unique(dumps["f64"][k]).numel() for k in sorted(eid)])
+        for name in ("f64", "bf16"):  # bf16 = the oracle at vLLM's rounding points: G1(b)'s error budget
+            save_file({k: v.contiguous() for k, v in dumps[name].items()}, str(out / f"ref_dump_{name}.safetensors"),
+                      metadata={"ids": json.dumps(ids), "run": name, "note": "values stored as f32"})
         f64 = res["float64"]
         top2 = torch.topk(f64, 2, dim=-1).values
         margin = (top2[:, 0] - top2[:, 1]).contiguous()

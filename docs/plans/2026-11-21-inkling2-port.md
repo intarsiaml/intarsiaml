@@ -273,16 +273,16 @@ of 100 tokens ≈ 20 s, decode ≈ 1 s/token on endor's CPU.
 | `gen`, `greedycmp --golden greedy.json` | greedy decode (stateful path), first divergence vs vLLM's greedy text |
 | `cmp --golden X.safetensors [--out Y]` | top-1 and 21-way KL vs an `intarsia-golden-topk-v1` file; `--out` writes the oracle's own top-20 golden |
 | `selftest` | whole-sequence prefill vs 3-chunk prefill vs token-by-token decode |
-| `tiny` | writes `golden/inkling2-tiny/` (config, `hf_quant_config.json`, 1.2 MB checkpoint in the real names and formats, `ref_logits.safetensors` with f64 / f32 / bf16-rounded logits and the f64 top-2 margins of a 40-token prompt, `ref_dump_f64.safetensors` with every per-visit activation of the f64 run). The seed is chosen for the widest top-k routing margin (selection bias spaced 0.12 apart) |
+| `tiny` | writes `golden/inkling2-tiny/` (config, `hf_quant_config.json`, 1.2 MB checkpoint in the real names and formats, `ref_logits.safetensors` with f64 / f32 / bf16-rounded logits and the f64 top-2 margins of a 40-token prompt, `ref_dump_{f64,bf16}.safetensors` with every per-visit activation of the f64 run and of the oracle at vLLM's bf16 rounding points). Routing is input-dependent (14-16 of 16 experts used per visit); the seed is the one with the widest top-k margin, and tiny mode asserts f32 routing = f64 routing at every visit |
 | knobs | `--dtype float64`, `--rounding none|vllm`, `--act-quant w4a16|w4a4` |
 
 Checks run:
 - Dequant: NVFP4 (layer 0) and MXFP8 (layer 20) expert 3, w13, bit-identical to `mx.dequantize` (oMLX venv on endor).
 - State: the stateful path keeps an explicit 1024-row ring for SWA KV and 3-tap conv windows. Tiny model (window 8, extent 12,
   n_floor 4 so tau ≠ 1, 40 tokens, full layers 3 (core) and 7, MXFP8 layers 6-7, 3 passes): prefill vs chunked (13/14/13) vs
-  token-by-token agree to **~1e-12 relative in float64** (f32: top-1 identical, max abs 1e-3 vs f64). Real model, 5 tokens: identical top-5.
+  token-by-token agree to **~1e-12 relative in float64** (f32: top-1 identical, max abs 9.4e-4 vs f64). Real model, 5 tokens: identical top-5.
   The tiny random net is chaotic under bf16 activations: per-visit relative error grows ~1.6× per visit (v00 1.0e-2, v03 2.5e-2, …,
-  logits top-1 only 27 % vs f64) without a single routing flip, so bf16 backends cannot gate on its logits (G1 below).
+  logits top-1 only 18 % vs f64) without a single routing flip, so bf16 backends cannot gate on its logits (G1 below).
 - Generation (W4A16, rounding none): raw `"The capital of France is"` → " Paris.\n\nA. Noun clause …"; `"def fibonacci(n):"` → a
   correct recursive body; chat (effort 0) → `<|message_model|><|content_thinking|>The user asks a simple factual question … <|end_message|>
   <|message_model|><|content_text|>The capital of France is Paris.<|end_message|><|content_model_end_sampling|>`.
@@ -313,8 +313,8 @@ continuation stays coherent and on-topic. Divergences are at near-ties (`' ** 0.
 | Gate | Compares | Threshold | Basis |
 |---|---|---|---|
 | G0 op | each new op's kernel vs its f64 cpu reference; R = 1..16 rows | op tolerance; **bitwise rows-exact** (row r of an R-row call = the 1-row call) | engine convention; needed for greedy-exact speculation |
-| G1 tiny | (a) the f32-activation path (cpu reference ops) on `golden/inkling2-tiny` vs `logits_f64`; (b) every backend's bf16 path vs `ref_dump_f64` | (a) top-1 identical at all 40 positions, max abs logit error ≤ 1e-2 (f32 oracle: 1.3e-3); (b) relative error ≤ 2e-2 on every dumped tensor of visits v00-v02, and prefill = chunked = decode (bitwise for rows-exact kernels) | the fixture hits window/extent edges, tau ≠ 1, 3 passes, both full-layer kinds, MXFP8; its logits are chaotic under bf16 (see checks) |
-| G2 oracle | real model, W4A16, vs this oracle's own top-20 (`.scratch/ref-{short,long}-w4a16.safetensors`, rounding none) | top-1 ≥ 98 %, KL21 ≤ 4e-3 mean, short and long | a bf16-activation engine should land near the oracle's own none-vs-vllm-rounding distance (short 98.4 % / 1.5e-3, long 98.8 % / 2.7e-3) |
+| G1 tiny | (a) the f32-activation path (cpu reference ops) on `golden/inkling2-tiny` vs `logits_f64`; (b) every backend's bf16 path vs `ref_dump_f64` | (a) top-1 identical at all 40 positions, max abs logit error ≤ 1e-2 (f32 oracle: 9.4e-4); (b) per dumped tensor of visits v00-v03: rel err(backend, f64) ≤ 2 × rel err(`ref_dump_bf16`, f64) + 1e-3; and prefill = chunked = decode (bitwise for rows-exact kernels) | the fixture hits window/extent edges, tau ≠ 1, 3 passes, both full-layer kinds, MXFP8; its logits are chaotic under bf16 (see checks) |
+| G2 oracle | real model, W4A16, vs this oracle's own top-20 (`golden/oracle/inkling2-mini-oracle-w4a16-{short,long}-top20.safetensors`, rounding none) | top-1 ≥ 98 %, KL21 ≤ 4e-3 mean, short and long | a bf16-activation engine should land near the oracle's own none-vs-vllm-rounding distance (short 98.4 % / 1.5e-3, long 98.8 % / 2.7e-3) |
 | G3 vLLM | real model vs the vLLM W4A4 goldens, short and long | top-1 ≥ 97 %, KL21 ≤ 1.3e-2 mean (long), ≤ 8e-3 (short) | the W4A16 oracle measures 98.2 % / 6.4e-3 and 97.6 % / 1.24e-2; vLLM's concurrent self-noise is 97-98 % / up to 1.2e-2 |
 
 "Exact" therefore means: bitwise rows-exact against our own 1-row path (G0), and within G1-G3 against the references. W4A16 is the
