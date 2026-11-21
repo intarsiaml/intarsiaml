@@ -14,8 +14,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # ROCm 10 (TheRock layout) keeps the version stamp at /opt/rocm/core-10.2/.info/version; `intarsia doctor` (and so every run stamp)
 # reads /opt/rocm/.info/version. Link it so the stamps record the ROCm version instead of null.
+# The 7.2.4 image registers /opt/rocm-7.2.4/lib with the loader (/etc/ld.so.conf.d); the 10.2 one registers nothing, and the
+# intarsia binary has no ROCm rpath (build.rs's -rpath link-arg reaches only intarsia-backend-hip's own targets), so it failed
+# with "libamdhip64.so.7: cannot open shared object file". Register the ROCm lib dir the same way.
 RUN test -e /opt/rocm/.info || ln -s core-10.2/.info /opt/rocm/.info \
- && cat /opt/rocm/.info/version
+ && cat /opt/rocm/.info/version \
+ && echo /opt/rocm/lib > /etc/ld.so.conf.d/rocm.conf && ldconfig \
+ && ldconfig -p | grep -q libamdhip64.so.7
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential pkg-config git curl ca-certificates rsync \
