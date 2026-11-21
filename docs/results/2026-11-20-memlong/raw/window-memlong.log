@@ -1,0 +1,35 @@
+[17:40:50 +3s] tag memlong host spark1; fleetq job 10461; earlyoom active; avail 80 GB; binary intarsia 0.0.1
+[17:40:50 +3s] serve args: --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on ; env: LD_PRELOAD=/home/nvidia/intarsiaml-memlong-run-memlong/libmemstat.so MEMSTAT_PERIOD=60; no trim; duration 39600s; seeds from 7 in 60-minute segments; sampler 60s
+[17:40:52 +5s] mark base
+[17:41:52 +65s] mark start
+[17:41:53 +66s] server pid 1634195
+[17:43:14 +147s] server up, avail 52 GB
+[17:43:14 +147s] mark settle
+[17:45:14 +267s] mark load
+[17:45:14 +267s] segment 0: seed 7, 60 min (pid 76112)
+[18:45:55 +3908s] segment done: {"seed": 7, "profile": "mixed", "weights": "", "minutes": 60.0, "streams": 2, "requests": 1001, "kinds": {"chat": 378, "abort_prefill": 91, "multiturn": 140, "abort_decode": 105, "tool": 96, "long": 49, "schema": 47, "longgen": 95}, "ok": 1001, "bad": 0, "errors": {}}
+[18:45:55 +3908s] segment 1: seed 8, 60 min (pid 83012)
+[19:46:36 +7549s] segment done: {"seed": 8, "profile": "mixed", "weights": "", "minutes": 60.0, "streams": 2, "requests": 1038, "kinds": {"abort_prefill": 90, "abort_decode": 105, "multiturn": 164, "schema": 54, "chat": 377, "tool": 101, "long": 39, "longgen": 108}, "ok": 1038, "bad": 0, "errors": {}}
+[19:46:36 +7549s] segment 2: seed 9, 60 min (pid 87426)
+[20:47:17 +11190s] segment done: {"seed": 9, "profile": "mixed", "weights": "", "minutes": 60.0, "streams": 2, "requests": 931, "kinds": {"chat": 351, "abort_prefill": 70, "multiturn": 129, "abort_decode": 109, "tool": 79, "long": 52, "schema": 47, "longgen": 94}, "ok": 931, "bad": 0, "errors": {}}
+[20:47:17 +11190s] segment 3: seed 10, 60 min (pid 84553)
+[21:47:58 +14831s] segment done: {"seed": 10, "profile": "mixed", "weights": "", "minutes": 60.0, "streams": 2, "requests": 989, "kinds": {"abort_prefill": 79, "chat": 387, "multiturn": 142, "tool": 108, "longgen": 93, "abort_decode": 91, "schema": 41, "long": 48}, "ok": 989, "bad": 0, "errors": {}}
+[21:47:58 +14831s] segment 4: seed 11, 60 min (pid 80831)
+[22:48:43 +18476s] segment done: {"seed": 11, "profile": "mixed", "weights": "", "minutes": 60.0, "streams": 2, "requests": 987, "kinds": {"chat": 374, "tool": 96, "abort_prefill": 85, "long": 58, "abort_decode": 111, "multiturn": 122, "schema": 54, "longgen": 87}, "ok": 987, "bad": 0, "errors": {}}
+[22:48:43 +18476s] segment 5: seed 12, 60 min (pid 90657)
+[23:49:23 +22116s] segment done: {"seed": 12, "profile": "mixed", "weights": "", "minutes": 60.0, "streams": 2, "requests": 1008, "kinds": {"chat": 355, "schema": 64, "longgen": 85, "tool": 110, "multiturn": 159, "abort_decode": 100, "long": 48, "abort_prefill": 87}, "ok": 1008, "bad": 0, "errors": {}}
+[23:49:23 +22116s] segment 6: seed 13, 60 min (pid 89463)
+[00:50:04 +25757s] segment done: {"seed": 13, "profile": "mixed", "weights": "", "minutes": 60.0, "streams": 2, "requests": 970, "kinds": {"abort_prefill": 76, "chat": 371, "multiturn": 135, "tool": 99, "abort_decode": 88, "longgen": 80, "long": 56, "schema": 65}, "ok": 970, "bad": 0, "errors": {}}
+[00:50:04 +25757s] segment 7: seed 14, 60 min (pid 89676)
+[01:50:44 +29397s] segment done: {"seed": 14, "profile": "mixed", "weights": "", "minutes": 60.0, "streams": 2, "requests": 1005, "kinds": {"chat": 357, "tool": 110, "schema": 61, "long": 48, "longgen": 91, "abort_decode": 112, "abort_prefill": 72, "multiturn": 154}, "ok": 1005, "bad": 0, "errors": {}}
+[01:50:44 +29397s] segment 8: seed 15, 60 min (pid 91831)
+[02:51:25 +33038s] segment done: {"seed": 15, "profile": "mixed", "weights": "", "minutes": 60.0, "streams": 2, "requests": 1016, "kinds": {"schema": 57, "longgen": 98, "multiturn": 149, "chat": 394, "abort_decode": 106, "abort_prefill": 75, "long": 47, "tool": 90}, "ok": 1016, "bad": 0, "errors": {}}
+[02:51:25 +33038s] segment 9: seed 16, 60 min (pid 89095)
+[03:52:07 +36680s] segment done: {"seed": 16, "profile": "mixed", "weights": "", "minutes": 60.0, "streams": 2, "requests": 968, "kinds": {"chat": 356, "tool": 100, "multiturn": 135, "abort_prefill": 78, "schema": 50, "abort_decode": 107, "long": 54, "longgen": 88}, "ok": 968, "bad": 0, "errors": {}}
+[03:52:07 +36680s] segment 10: seed 17, 54 min (pid 84093)
+[04:46:43 +39956s] segment done: {"seed": 17, "profile": "mixed", "weights": "", "minutes": 54.0, "streams": 2, "requests": 919, "kinds": {"long": 41, "abort_prefill": 78, "chat": 353, "abort_decode": 101, "multiturn": 121, "longgen": 80, "tool": 94, "schema": 51}, "ok": 919, "bad": 0, "errors": {}}
+[04:46:43 +39956s] stop: completed 39600s
+[04:46:43 +39956s] mark stop
+[04:46:45 +39958s] after stop, serve processes of ours left: []
+[04:46:51 +39964s] box dir removed: ls: cannot access '/home/nvidia/intarsiaml-memlong-run-memlong': No such file or directory
+memlong memlong: stop reason 'completed 39600s'; load 11.02 h, 659 samples, requests 10831, RssAnon 8286 -> 10188 MB, min MemAvailable 42.3 GB, threads 8-13, fds 39-41
