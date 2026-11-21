@@ -1,0 +1,17 @@
+[17:07:06 +3s] tag smoke host spark1; fleetq job 10454; earlyoom active; avail 79 GB; binary intarsia 0.0.1
+[17:07:06 +3s] serve args: --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on ; env: LD_PRELOAD=/home/nvidia/intarsiaml-memlong-run-smoke/libmemstat.so MEMSTAT_PERIOD=60; no trim; duration 1200s; seeds from 7 in 10-minute segments; sampler 60s
+[17:07:07 +4s] mark base
+[17:08:07 +64s] mark start
+[17:08:08 +65s] server pid 1594766
+[17:09:48 +165s] server up, avail 51 GB
+[17:09:48 +165s] mark settle
+[17:11:48 +285s] mark load
+[17:11:48 +285s] segment 0: seed 7, 10 min (pid 15352)
+[17:21:54 +891s] segment done: {"seed": 7, "profile": "mixed", "weights": "", "minutes": 10.0, "streams": 2, "requests": 201, "kinds": {"chat": 84, "abort_prefill": 20, "multiturn": 26, "abort_decode": 20, "tool": 20, "long": 5, "schema": 11, "longgen": 15}, "ok": 201, "bad": 0, "errors": {}}
+[17:21:54 +891s] segment 1: seed 8, 10 min (pid 32348)
+[17:32:00 +1497s] segment done: {"seed": 8, "profile": "mixed", "weights": "", "minutes": 10.0, "streams": 2, "requests": 174, "kinds": {"abort_prefill": 17, "abort_decode": 20, "multiturn": 26, "tool": 15, "schema": 9, "chat": 62, "long": 8, "longgen": 17}, "ok": 174, "bad": 0, "errors": {}}
+[17:32:00 +1497s] stop: completed 1200s
+[17:32:00 +1497s] mark stop
+[17:32:01 +1498s] after stop, serve processes of ours left: [1616418 ]
+[17:32:07 +1504s] box dir removed: ls: cannot access '/home/nvidia/intarsiaml-memlong-run-smoke': No such file or directory
+memlong smoke: stop reason 'completed 1200s'; load 0.32 h, 20 samples, requests 352, RssAnon 5126 -> 10409 MB, min MemAvailable 42.2 GB, threads 30-33, fds 40-41
