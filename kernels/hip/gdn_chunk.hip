@@ -41,12 +41,11 @@ namespace {
 IK_DEVI float gc_softplus(float x) { return x > 20.f ? x : log1pf(expf(x)); }
 IK_DEVI float gc_sigmoid(float x) { return 1.f / (1.f + expf(-x)); }
 
-// Lane rocm102-bisect (docs/results/2026-11-21-hip-rocm102-bisect.md), off by default: IK_GDN_CHUNK_STABLE_LOG=1 makes the
-// norm kernel's logf the same bits on every compiler. It writes out the AMDGPU llvm.log.f32 expansion as ROCm 7.2.4 emits it:
-// v_log_f32 (log2) of the input (scaled by 2^24 below the smallest normal), times ln 2 split hi / lo, with the last add fused
-// into an FMA. ROCm 10.2's compiler ends with a separate add instead, which moves lq / lk by up to half an ulp. Explicit
-// fmaf calls leave the compiler no contraction choice.
-#if defined(IK_GDN_CHUNK_STABLE_LOG) && IK_GDN_CHUNK_STABLE_LOG
+// logf for the norm kernel, the same bits on every compiler (docs/results/2026-11-21-hip-rocm102-bisect.md). This is the
+// AMDGPU llvm.log.f32 expansion as ROCm 7.2.4 emits it: v_log_f32 (log2) of the input, scaled by 2^24 below the smallest
+// normal, times ln 2 split hi / lo, with the last add fused into an FMA. ROCm 10.2's compiler ends with a separate add
+// instead (it follows the FP_CONTRACT OFF pragma above), which moves lq / lk by up to half an ulp and the 35B logits past
+// the same-build gates. Explicit fmaf calls leave the compiler no contraction choice.
 IK_DEVI float gc_logf(float x) {
     const bool small = x < 0x1p-126f;
     const float y = __builtin_amdgcn_logf(small ? x * 0x1p24f : x);
@@ -58,9 +57,6 @@ IK_DEVI float gc_logf(float x) {
     out = __builtin_fabsf(y) < __builtin_inff() ? out : y;
     return out - (small ? __builtin_bit_cast(float, 0x41b17218u) : 0.f);  // 24 ln 2
 }
-#else
-IK_DEVI float gc_logf(float x) { return logf(x); }
-#endif
 
 // ---- gfx1201 wave32 bf16 WMMA fragments (r4d_gdn_wmma.h) -----------------------------------------------------------
 // Layout:  16-bit A/B : idx = lane % 16, k = 8 * (e >> 2) + 4 * (lane >> 4) + (e & 3)   ("two runs of four")

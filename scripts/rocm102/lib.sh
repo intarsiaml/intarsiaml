@@ -4,8 +4,8 @@
 # deploy/tatooine/Dockerfile.hip-dev-rocm10), each with its own cargo target volume (never share one across images).
 # Every run: stdout -> $O/<tag>.out, stderr -> $O/<tag>.err; E="K=V ..." sets its environment.
 TREE=${TREE:-$HOME/intarsiaml-rocm102}
-IMG_r7=intarsia-hip-dev:rocm7.2.4-rust1.90.0;  VOL_r7=intarsia-cargo-target-rocm102-r7
-IMG_r10=intarsia-hip-dev:rocm10.2.0-rust1.90.0; VOL_r10=intarsia-cargo-target-rocm102-r10
+IMG_r7=intarsia-hip-dev:rocm7.2.4-rust1.90.0;  VOL_r7=${VOL_r7:-intarsia-cargo-target-rocm102-r7}
+IMG_r10=intarsia-hip-dev:rocm10.2.0-rust1.90.0; VOL_r10=${VOL_r10:-intarsia-cargo-target-rocm102-r10}
 arm() { # arm r7|r10: point dev.sh at that arm's image and target volume
   local i="IMG_$1" v="VOL_$1"
   export INTARSIA_REPO=$TREE INTARSIA_IMAGE=${!i} INTARSIA_TARGET_VOL=${!v} INTARSIA_CONTAINER_NAME=rocm102-$1-$RANDOM
