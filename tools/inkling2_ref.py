@@ -932,6 +932,54 @@ def kl_top(ref_logits: torch.Tensor, gold: dict) -> tuple[float, float]:
     return kl, float(int(ref_logits.argmax()) == int(ids[int(glp.argmax())]))
 
 
+def kl21(glp: torch.Tensor, gids: torch.Tensor, lp: torch.Tensor) -> torch.Tensor:
+    """Per-row 21-way KL(golden || ref): the golden's top-20 tokens plus one bucket for the rest
+    (both distributions full-vocab log-probs)."""
+    gp = glp.exp()
+    rp = torch.gather(lp, 1, gids.long()).exp()
+    gp = torch.cat((gp, (1 - gp.sum(-1, keepdim=True)).clamp(min=1e-12)), -1)
+    rp = torch.cat((rp, (1 - rp.sum(-1, keepdim=True)).clamp(min=1e-12)), -1)
+    return (gp * (gp.clamp(min=1e-30).log() - rp.clamp(min=1e-30).log())).sum(-1)
+
+
+def cmp_golden(ref: Ref, path: Path, out: Path | None, only: str | None):
+    """top-1 agreement and KL21 against an intarsia-golden-topk-v1 file; with --out, also
+    write this oracle's own top-20 golden in the same format."""
+    f = safe_open(str(path), "pt")
+    meta = f.metadata() or {}
+    names = [p.get("name", str(j)) for j, p in enumerate(json.loads(meta.get("prompts", "[]")))]
+    n_prompts = sum(1 for k in f.keys() if k.startswith("ids_"))
+    mine: dict[str, torch.Tensor] = {}
+    tot_n = tot_agree = 0
+    tot_kl = 0.0
+    for j in range(n_prompts):
+        name = names[j] if j < len(names) else str(j)
+        if only and name not in only.split(","):
+            continue
+        ids = f.get_tensor(f"ids_{j}").long()
+        gids, glp = f.get_tensor(f"topk_ids_{j}"), f.get_tensor(f"topk_logprobs_{j}").double()
+        t1 = time.time()
+        logits = ref.forward(ids, SeqState(ref.c))
+        lp = torch.log_softmax(logits.double(), -1)
+        n = min(lp.shape[0], gids.shape[0])
+        lp, gids, glp = lp[:n], gids[:n], glp[:n]
+        agree = (lp.argmax(-1) == gids[:, 0].long()).sum().item()
+        kl = kl21(glp, gids, lp)
+        tot_n, tot_agree, tot_kl = tot_n + n, tot_agree + agree, tot_kl + kl.sum().item()
+        print(f"{name:20s} n={n:5d} top1 {100 * agree / n:6.2f}%  KL21 mean {kl.mean():.3e} p99 {kl.quantile(0.99):.3e} max {kl.max():.3e}  ({time.time() - t1:.0f}s)", flush=True)
+        top = torch.topk(lp, 20, dim=-1)
+        mine[f"ids_{j}"] = ids.to(torch.int32)
+        mine[f"topk_ids_{j}"] = top.indices.to(torch.int32).contiguous()
+        mine[f"topk_logprobs_{j}"] = top.values.to(torch.float32).contiguous()
+    print(f"OVERALL n={tot_n} top1 {100 * tot_agree / max(tot_n, 1):.2f}%  KL21 mean {tot_kl / max(tot_n, 1):.3e}")
+    if out:
+        m = dict(meta)
+        m.update({"source": "tools/inkling2_ref.py", "engine": "inkling2_ref", "device": "cpu",
+                  "dtype": str(ref.dtype), "rounding": "vllm" if ref.vllm else "none",
+                  "act_quant": "w4a4" if ref.a4 else "w4a16", "format": "intarsia-golden-topk-v1"})
+        save_file(mine, str(out), metadata=m)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("mode", choices=["run", "gen", "selftest", "tiny", "cmp"])
@@ -949,6 +997,7 @@ def main():
     ap.add_argument("--dump", type=Path, default=None, help="write per-visit activations (safetensors) here")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--golden", type=Path, default=None)
+    ap.add_argument("--only", default=None, help="cmp: comma-separated prompt names")
     ap.add_argument("--expert-cache-gb", type=float, default=6.0)
     a = ap.parse_args()
     dtype = getattr(torch, a.dtype)
@@ -1012,8 +1061,7 @@ def main():
             print(repr(tok.decode(ids, skip_special_tokens=False)))
             print(">>>", repr(text))
     elif a.mode == "cmp":
-        gold = json.loads(a.golden.read_text())
-        print(json.dumps(gold)[:300])
+        cmp_golden(ref, a.golden, a.out, a.only)
     print(f"done in {time.time() - t0:.0f}s", file=sys.stderr)
 
 
