@@ -67,16 +67,16 @@ the same bits under both compilers in this model's path, per the swap scan. Some
 different lowering change. A pinned-compiler bit-equality check is the general guard: `qualify`'s same-build gates already
 are one.
 
-## Default-on (`688a4b0`, fleetq #10544 build, #10545 window)
+## Default-on (`688a4b0`; fleetq #10544 / #10546 builds, #10545 / #10547 windows)
 
 `gc_logf` is unconditional. Both images were built from the same tree (head `91b90b6`, code-tree `b115fc08bc5d`, the
 same code as `688a4b0`). They ran `scripts/rocm102/stages.sh` with `STEPS="smoke kern kern7 tests qchk7 qchk10"` (raw:
-`raw/win4/`).
+`raw/win4/`). The 7.2.4 HIP suite ran in a second window (`STEPS=tests7`, a step added for this, at `96303c8`: the same code).
 
 | gate | ROCm 7.2.4 | ROCm 10.2 |
 |---|---|---|
 | `kernels test --backend hip` (2219 cases) | 81 admitted, 0 rejected | 81 admitted, 0 rejected, same max_abs / rel_l2 columns |
-| HIP GPU suite, tiny packed / macro prefill, real-35B batched / macro | not run (main's tested toolchain) | all ok, 0 failed |
+| HIP GPU suite, tiny packed / macro prefill, real-35B batched / macro | all ok, 0 failed (#10547, `raw/win5/`) | all ok, 0 failed |
 | qualify `acc-short` (vs the vLLM golden, and its recorded baseline) | PASS, prefill KL 6.00e-3, decode 1.11e-2 | PASS, the same numbers |
 | qualify `acc-oracle` + drift check (tp1 self-golden) | PASS, "logits unchanged" | PASS, "logits unchanged" |
 | qualify `tp` + tp2 drift check | PASS, "logits unchanged" | PASS, "logits unchanged" |
