@@ -1,0 +1,28 @@
+SNAP label=pre-R2 t=1795255645.528859583 used_mb=42447 avail_mb=82162 cache_mb=14819 swap_mb=0  gpu_apps=5197,26768; listen=0 ours=[] shm=1 vllm_http=000
+RESULT start R2 t_launch=1795255645.584902280 spid=2770059 cpid=2770065 launch_to_listen_s=75.127 launch_to_health_s=75.128 health_to_first_token_s=0.955 first_token_json={"http": 200, "first_content_s": 0.67, "total_s": 0.694, "text": "ok", "error": null}
+SNAP label=up-R2 t=1795255721.676551851 used_mb=71553 avail_mb=53057 cache_mb=14862 swap_mb=0  gpu_apps=5197,26768;2770065,26828; listen=1 ours=[2770059 2770065 ] shm=1 vllm_http=000
+SERVELOG cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+SERVELOG --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+SERVELOG prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+SERVELOG --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+SERVELOG batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+SERVELOG batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+SERVELOG prefix store: the backend's packed prefill is off with --max-batch > 1
+SERVELOG prefix store: on (build 3b31742dbe85838d, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+SERVELOG prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)
+SERVELOG prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+SERVELOG batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+SERVELOG loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 75.0s, context 131072 tokens
+SNAP label=before-R2 t=1795255728.665121628 used_mb=71758 avail_mb=52851 cache_mb=14862 swap_mb=0  gpu_apps=5197,26768;2770065,26958; listen=1 ours=[2770059 2770065 ] shm=1 vllm_http=000
+SIGNAL TERM to [2770059] (spid=2770059 cpid=2770065) at t=1795255728.752816876
+RESULT term R2 sup pid=2770059 exit_after_s=30.768
+RESULT term R2 sup pid=2770065 exit_after_s=30.140
+RESULT term R2 sup port_freed_after_s=0.085
+SNAP label=t0+0-R2 t=1795255759.528602997 used_mb=42454 avail_mb=82155 cache_mb=14820 swap_mb=0  gpu_apps=5197,26768; listen=0 ours=[] shm=1 vllm_http=000
+SNAP label=t0+3-R2 t=1795255762.581837035 used_mb=42435 avail_mb=82174 cache_mb=14820 swap_mb=0  gpu_apps=5197,26768; listen=0 ours=[] shm=1 vllm_http=000
+RESULT term R2 sup leftover ours=[]
+SERVELOG [supervisor] started server pid 2770065
+SERVELOG [supervisor] signal 15: stopping the server
+SERVELOG tail: intarsia server listening on http://0.0.0.0:8191
+SERVELOG tail: verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+SERVELOG tail: [supervisor] signal 15: stopping the server
