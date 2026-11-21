@@ -73,6 +73,10 @@ pub struct ServerConfig {
     pub exit_on_failed: bool,
     /// Exit when this parent process is gone (the supervisor).
     pub parent_pid: Option<u32>,
+    /// Seconds after the stop signal at which every request still running is ended explicitly (a final chunk, an error
+    /// event, `[DONE]`; a non-streaming one gets a 503) and cancelled in the engine, instead of being cut by the supervisor's
+    /// SIGKILL at its grace (see [`supervisor::STOP_GRACE`]). 0 = no deadline: generations finish, as before.
+    pub drain_s: f64,
     /// Serve the built-in web UI at `/` and `/ui/*` (`--no-ui` turns it off).
     pub ui: bool,
     /// Sampling for the fields a request leaves out (default: the built-ins; `serve` fills it from the checkpoint's
@@ -94,6 +98,7 @@ impl Default for ServerConfig {
             exit_on_stall: false,
             exit_on_failed: false,
             parent_pid: None,
+            drain_s: 0.0,
             ui: true,
             sampling_defaults: SamplingDefaults::default(),
         }
@@ -114,21 +119,43 @@ pub fn router_with(engine: Arc<dyn Engine>, cfg: &ServerConfig) -> Router {
 pub fn router_with_shutdown(engine: Arc<dyn Engine>, cfg: &ServerConfig) -> (Router, Shutdown) {
     let name = cfg.served_model_name.clone().unwrap_or_else(|| engine.info().id);
     let state = AppState::new(engine, name, cfg);
-    let stop = Shutdown(state.shutdown.clone());
+    let stop = Shutdown::new(&state, cfg);
     (app(state, cfg.ui), stop)
 }
 
 /// Ends the streams that never finish by themselves when the server is told to stop. axum's graceful shutdown waits for
 /// every open response, and `/events` (held open for good by `intarsia top` and the TUI, which reconnect forever) kept the
 /// process, and the GPU memory it holds, alive until the supervisor's SIGKILL 30 s later. Generations in flight still
-/// finish: their length is bounded.
-pub struct Shutdown(Arc<tokio::sync::watch::Sender<bool>>);
+/// finish: their length is bounded by `max_tokens`, but not by the supervisor's grace, so with [`ServerConfig::drain_s`] the
+/// ones still running at that deadline are ended explicitly (see [`api::SHUTDOWN_CUT`]) before the SIGKILL.
+pub struct Shutdown {
+    stop: Arc<tokio::sync::watch::Sender<bool>>,
+    drain: Arc<tokio::sync::watch::Sender<bool>>,
+    drain_after: Option<Duration>,
+}
 
 impl Shutdown {
-    /// Resolves with `signal`, after ending the `/events` streams: pass it to `with_graceful_shutdown`.
+    fn new(state: &AppState, cfg: &ServerConfig) -> Shutdown {
+        Shutdown {
+            stop: state.shutdown.clone(),
+            drain: state.drain.clone(),
+            drain_after: (cfg.drain_s.is_finite() && cfg.drain_s > 0.0).then(|| Duration::from_secs_f64(cfg.drain_s)),
+        }
+    }
+
+    /// Resolves with `signal`, after ending the `/events` streams and arming the drain deadline: pass it to
+    /// `with_graceful_shutdown`.
     pub async fn after(self, signal: impl std::future::Future<Output = ()>) {
         signal.await;
-        self.0.send_replace(true);
+        self.stop.send_replace(true);
+        if let Some(after) = self.drain_after {
+            let drain = self.drain;
+            tokio::spawn(async move {
+                tokio::time::sleep(after).await;
+                eprintln!("[server] drain deadline ({:.0} s after the stop signal): ending the requests still running", after.as_secs_f64());
+                drain.send_replace(true);
+            });
+        }
     }
 }
 
@@ -166,7 +193,7 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
         let addr = format!("{}:{}", cfg.host, cfg.port);
         let name = cfg.served_model_name.clone().unwrap_or_else(|| engine.info().id);
         let state = AppState::new(engine.clone(), name, &cfg);
-        let stop = Shutdown(state.shutdown.clone());
+        let stop = Shutdown::new(&state, &cfg);
         let probe = engine.clone();
         if wants_watchdog(&cfg) {
             health::spawn_watchdog(

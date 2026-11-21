@@ -147,8 +147,10 @@ pub fn run(args: ServeArgs) -> Result<()> {
     // A supervised child outlasts a server that is stopping (the supervisor's own grace is 30 s) before it gives up; by hand, a taken port is
     // reported at once.
     let bind_retry_s = if child { std::env::var("INTARSIA_BIND_RETRY_S").ok().and_then(|v| v.parse().ok()).unwrap_or(120.0) } else { 0.0 };
+    let drain_s = drain_seconds(child, std::env::var("INTARSIA_DRAIN_S").ok().as_deref());
     let cfg = intarsia_server::ServerConfig {
         bind_retry_s,
+        drain_s,
         host: args.host,
         port: args.port,
         served_model_name: args.served_model_name,
@@ -266,5 +268,31 @@ mod tests {
         // one sequence at a time serves them as before
         assert!(refuse_spec_with_store(Some(1), "mtp", store).is_ok());
         assert!(refuse_spec_with_store(None, "mtp", store).is_ok());
+    }
+}
+
+/// Seconds after the stop signal at which the server ends the requests still running (`ServerConfig::drain_s`). `INTARSIA_DRAIN_S` sets it
+/// (0 = no deadline). Unset, a supervised child ends them 2 s before the supervisor's SIGKILL, so that the client sees an explicit end
+/// instead of a cut connection; by hand nothing kills the server, so it has no deadline and generations finish, as before.
+fn drain_seconds(child: bool, env: Option<&str>) -> f64 {
+    let default = if child { (intarsia_server::supervisor::STOP_GRACE.as_secs_f64() - 2.0).max(0.0) } else { 0.0 };
+    env.and_then(|v| v.trim().parse::<f64>().ok()).filter(|v| v.is_finite() && *v >= 0.0).unwrap_or(default)
+}
+
+#[cfg(test)]
+mod drain_tests {
+    use super::drain_seconds;
+
+    #[test]
+    fn the_supervised_child_drains_2_s_before_the_grace_and_a_server_by_hand_never() {
+        assert_eq!(drain_seconds(true, None), 28.0);
+        assert_eq!(drain_seconds(false, None), 0.0);
+        assert_eq!(drain_seconds(true, Some("5")), 5.0);
+        assert_eq!(drain_seconds(true, Some("0")), 0.0);
+        assert_eq!(drain_seconds(false, Some("12.5")), 12.5);
+        // nonsense is the default, not a deadline of zero or a panic
+        assert_eq!(drain_seconds(true, Some("soon")), 28.0);
+        assert_eq!(drain_seconds(true, Some("-3")), 28.0);
+        assert_eq!(drain_seconds(true, Some("inf")), 28.0);
     }
 }

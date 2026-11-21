@@ -2533,3 +2533,141 @@ async fn system_midconv_rewrites_only_when_asked() {
     assert_eq!(roles(&mock), ["system", "user", "user"]);
     std::env::remove_var("INTARSIA_SYSTEM_MIDCONV");
 }
+
+// ---------------------------------------------------------------------------
+// shutdown drain deadline (`ServerConfig::drain_s`): a request still running when it passes ends explicitly
+// ---------------------------------------------------------------------------
+
+/// The router with a `drain_s` deadline, and the switch that is the stop signal (SIGTERM): until it is sent the deadline is not armed.
+fn draining(mock: Arc<Mock>, drain_s: f64) -> (Router, tokio::sync::oneshot::Sender<()>) {
+    let cfg = intarsia_server::ServerConfig { drain_s, ..Default::default() };
+    let (app, stop) = intarsia_server::router_with_shutdown(mock, &cfg);
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    tokio::spawn(stop.after(async move {
+        let _ = rx.await;
+    }));
+    (app, tx)
+}
+
+async fn within(secs: f64, app: &Router, uri: &str, body: Value) -> Option<(StatusCode, String, String)> {
+    tokio::time::timeout(std::time::Duration::from_secs_f64(secs), call(app, "POST", uri, Some(body))).await.ok()
+}
+
+async fn cancelled(mock: &Mock) -> bool {
+    for _ in 0..200 {
+        if mock.cancelled.load(Ordering::SeqCst) {
+            return true;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    false
+}
+
+#[tokio::test]
+async fn chat_stream_running_at_the_drain_deadline_ends_with_abort_error_and_done() {
+    let mock = Arc::new(Mock { slow: true, ..Default::default() });
+    let (app, stop) = draining(mock.clone(), 0.3);
+    stop.send(()).unwrap();
+    let t0 = std::time::Instant::now();
+    let body = json!({"messages": [{"role": "user", "content": "hi"}], "stream": true, "stream_options": {"include_usage": true}});
+    let (st, _, text) = within(10.0, &app, "/v1/chat/completions", body).await.expect("the stream never ended");
+    assert!(t0.elapsed() >= std::time::Duration::from_millis(250), "cut before the deadline: {:?}", t0.elapsed());
+    assert_eq!(st, StatusCode::OK, "the stream was already open");
+    let data = sse_data(&text);
+    assert_eq!(data.last().map(String::as_str), Some("[DONE]"), "{text}");
+    let v: Vec<Value> = data[..data.len() - 1].iter().map(|d| serde_json::from_str(d).unwrap()).collect();
+    let n = v.len();
+    // ... content chunks, the final chunk with the abort finish_reason, then the error event, then [DONE]
+    assert_eq!(v[n - 2]["choices"][0]["finish_reason"], "abort", "{text}");
+    assert_eq!(v[n - 2]["object"], "chat.completion.chunk");
+    assert_eq!(v[n - 1]["error"]["code"], 503, "{text}");
+    assert_eq!(v[n - 1]["error"]["type"], "server_error");
+    assert!(v[n - 1]["error"]["message"].as_str().unwrap().contains("shutting down"));
+    assert!(v[1..n - 2].iter().all(|c| c["choices"][0]["finish_reason"].is_null()), "no other finish: {text}");
+    assert!(v.iter().any(|c| c["choices"][0]["delta"]["content"] == "x"), "tokens before the cut are delivered");
+    assert!(cancelled(&mock).await, "the engine was not told to stop the request");
+}
+
+#[tokio::test]
+async fn completions_stream_and_non_stream_at_the_drain_deadline() {
+    let mock = Arc::new(Mock { slow: true, ..Default::default() });
+    let (app, stop) = draining(mock.clone(), 0.3);
+    stop.send(()).unwrap();
+    let (st, _, text) =
+        within(10.0, &app, "/v1/completions", json!({"prompt": "hi", "stream": true})).await.expect("the stream never ended");
+    assert_eq!(st, StatusCode::OK);
+    let data = sse_data(&text);
+    assert_eq!(data.last().map(String::as_str), Some("[DONE]"), "{text}");
+    let v: Vec<Value> = data[..data.len() - 1].iter().map(|d| serde_json::from_str(d).unwrap()).collect();
+    assert_eq!(v[v.len() - 2]["choices"][0]["finish_reason"], "abort", "{text}");
+    assert_eq!(v[v.len() - 1]["error"]["code"], 503);
+    // not streaming: a 503 with the OpenAI error body instead of a reply that was never finished
+    let (st, ct, text) = within(10.0, &app, "/v1/chat/completions", json!({"messages": [{"role": "user", "content": "hi"}]}))
+        .await
+        .expect("the request never ended");
+    assert_eq!(st, StatusCode::SERVICE_UNAVAILABLE, "{text}");
+    assert!(ct.starts_with("application/json"), "{ct}");
+    let v: Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(v["error"]["type"], "server_error");
+    assert_eq!(v["error"]["code"], 503);
+    assert!(v["error"]["message"].as_str().unwrap().contains("shutting down"));
+}
+
+#[tokio::test]
+async fn anthropic_requests_at_the_drain_deadline_end_with_an_error() {
+    let mock = Arc::new(Mock { slow: true, ..Default::default() });
+    let (app, stop) = draining(mock.clone(), 0.3);
+    stop.send(()).unwrap();
+    let (st, _, text) = within(10.0, &app, "/v1/messages", msg_body(true)).await.expect("the stream never ended");
+    assert_eq!(st, StatusCode::OK);
+    let ev = sse_events(&text);
+    let names: Vec<&str> = ev.iter().map(|(n, _)| n.as_str()).collect();
+    assert_eq!(names.last(), Some(&"error"), "{names:?}");
+    for bad in ["message_delta", "message_stop"] {
+        assert!(!names.contains(&bad), "{bad} after a cut: {names:?}");
+    }
+    assert_anthropic_error(&ev.last().unwrap().1, "overloaded_error");
+    let (st, _, text) = within(10.0, &app, "/v1/messages", msg_body(false)).await.expect("the request never ended");
+    assert_eq!(st, StatusCode::SERVICE_UNAVAILABLE, "{text}");
+    assert_anthropic_error(&serde_json::from_str(&text).unwrap(), "overloaded_error");
+}
+
+/// A stream that finishes before the deadline, and one whose finished reply was still queued when it passed, are not touched.
+#[tokio::test]
+async fn a_reply_that_finishes_in_time_is_not_cut_by_the_drain() {
+    let (app, stop) = draining(Arc::new(Mock::default()), 0.3);
+    stop.send(()).unwrap();
+    let (_, _, text) = call(&app, "POST", "/v1/chat/completions", Some(json!({"messages": [{"role": "user", "content": "hi"}], "stream": true}))).await;
+    assert!(!text.contains("error") && !text.contains("abort"), "{text}");
+    assert!(text.contains(r#""finish_reason":"stop""#), "{text}");
+    // the client reads the reply after the deadline: the whole finished reply is there
+    let req = slow_post("/v1/chat/completions", json!({"messages": [{"role": "user", "content": "hi"}], "stream": true}));
+    let resp = app.clone().oneshot(req).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    let text = String::from_utf8(resp.into_body().collect().await.unwrap().to_bytes().to_vec()).unwrap();
+    assert!(!text.contains("error") && !text.contains("abort"), "{text}");
+    assert!(text.contains(r#""finish_reason":"stop""#) && text.trim_end().ends_with("data: [DONE]"), "{text}");
+}
+
+/// Without a deadline (`drain_s` 0, the default and what a server without a supervisor runs with) or before it, the stop signal
+/// changes nothing for a request in flight: it is not cut.
+#[tokio::test]
+async fn without_a_drain_deadline_the_stop_signal_cuts_nothing() {
+    for drain_s in [0.0, 60.0] {
+        let mock = Arc::new(Mock { slow: true, ..Default::default() });
+        let (app, stop) = draining(mock.clone(), drain_s);
+        let req = slow_post("/v1/chat/completions", json!({"messages": [{"role": "user", "content": "hi"}], "stream": true}));
+        let resp = app.clone().oneshot(req).await.unwrap();
+        stop.send(()).unwrap();
+        let mut body = resp.into_body();
+        let t0 = std::time::Instant::now();
+        let mut text = String::new();
+        while t0.elapsed() < std::time::Duration::from_millis(800) {
+            let Ok(Some(Ok(f))) = tokio::time::timeout(std::time::Duration::from_millis(100), body.frame()).await else { continue };
+            text.push_str(&String::from_utf8_lossy(f.data_ref().unwrap()));
+        }
+        assert!(text.contains(r#""content":"x""#), "still generating: {text}");
+        assert!(!text.contains("abort") && !text.contains("error") && !text.contains("[DONE]"), "drain_s {drain_s}: {text}");
+        assert!(!mock.cancelled.load(Ordering::SeqCst));
+    }
+}

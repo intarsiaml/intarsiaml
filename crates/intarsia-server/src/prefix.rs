@@ -5,7 +5,7 @@
 //!   far, `partial: true`); a deployment calls it at startup with `pin` for its system prompt and tool schema.
 //! - `GET /v1/intarsia/prefix-store`: counters and entries.
 
-use crate::api::{blocking, blocking_as, flatten_content, start, AppState, ApiError, Flavor};
+use crate::api::{blocking, blocking_as, flatten_content, is_shutdown_cut, start, AppState, ApiError, Flavor};
 use axum::extract::State;
 use axum::response::{IntoResponse, Json, Response};
 use intarsia_core::engine::{ChatOpts, GenEvent, GenRequest, Prewarm};
@@ -123,6 +123,7 @@ async fn prefill_inner(
                 }))
                 .into_response());
             }
+            GenEvent::Error { message } if is_shutdown_cut(&message) => return Err(ApiError::unavailable(F, message)),
             GenEvent::Error { message } => return Err(ApiError::bad_request(F, message)),
             GenEvent::Token { .. } => {}
         }
