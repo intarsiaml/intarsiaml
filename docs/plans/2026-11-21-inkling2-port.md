@@ -219,7 +219,7 @@ within vLLM's own batch noise of the W4A4 golden.
 
 ## g. Byte floor and FLOPs per decode token
 
-From the real tensor sizes (`.scratch/floor.py`, same numbers as Fable's `raw/floor.py`). Per visit: attention projections 53.78 MB bf16;
+From the real tensor sizes (`python3 -I tools/inkling2_floor.py`, same numbers as Fable's `raw/floor.py`). Per visit: attention projections 53.78 MB bf16;
 one NVFP4 expert 4.479 MB, one MXFP8 expert 8.211 MB (×8 per visit, independent per pass); router 0.59 MB; controllers 4.72 MB on the
 24 looped visits; unembed over the 200058 real rows. Unique LLM weights 18.89 GB (experts 15.67 GB).
 
@@ -273,14 +273,16 @@ of 100 tokens ≈ 20 s, decode ≈ 1 s/token on endor's CPU.
 | `gen`, `greedycmp --golden greedy.json` | greedy decode (stateful path), first divergence vs vLLM's greedy text |
 | `cmp --golden X.safetensors [--out Y]` | top-1 and 21-way KL vs an `intarsia-golden-topk-v1` file; `--out` writes the oracle's own top-20 golden |
 | `selftest` | whole-sequence prefill vs 3-chunk prefill vs token-by-token decode |
-| `tiny` | writes `golden/inkling2-tiny/` (config, `hf_quant_config.json`, 1.2 MB checkpoint in the real names and formats, `ref_logits.safetensors` with f64 and f32 logits of a 40-token prompt) |
+| `tiny` | writes `golden/inkling2-tiny/` (config, `hf_quant_config.json`, 1.2 MB checkpoint in the real names and formats, `ref_logits.safetensors` with f64 / f32 / bf16-rounded logits and the f64 top-2 margins of a 40-token prompt, `ref_dump_f64.safetensors` with every per-visit activation of the f64 run). The seed is chosen for the widest top-k routing margin (selection bias spaced 0.12 apart) |
 | knobs | `--dtype float64`, `--rounding none|vllm`, `--act-quant w4a16|w4a4` |
 
 Checks run:
 - Dequant: NVFP4 (layer 0) and MXFP8 (layer 20) expert 3, w13, bit-identical to `mx.dequantize` (oMLX venv on endor).
 - State: the stateful path keeps an explicit 1024-row ring for SWA KV and 3-tap conv windows. Tiny model (window 8, extent 12,
   n_floor 4 so tau ≠ 1, 40 tokens, full layers 3 (core) and 7, MXFP8 layers 6-7, 3 passes): prefill vs chunked (13/14/13) vs
-  token-by-token agree to **1.6e-12 relative in float64** (f32: 6e-4, top-1 identical). Real model, 5 tokens: identical top-5.
+  token-by-token agree to **~1e-12 relative in float64** (f32: top-1 identical, max abs 1e-3 vs f64). Real model, 5 tokens: identical top-5.
+  The tiny random net is chaotic under bf16 activations: per-visit relative error grows ~1.6× per visit (v00 1.0e-2, v03 2.5e-2, …,
+  logits top-1 only 27 % vs f64) without a single routing flip, so bf16 backends cannot gate on its logits (G1 below).
 - Generation (W4A16, rounding none): raw `"The capital of France is"` → " Paris.\n\nA. Noun clause …"; `"def fibonacci(n):"` → a
   correct recursive body; chat (effort 0) → `<|message_model|><|content_thinking|>The user asks a simple factual question … <|end_message|>
   <|message_model|><|content_text|>The capital of France is Paris.<|end_message|><|content_model_end_sampling|>`.
@@ -291,17 +293,19 @@ Against the vLLM goldens (`golden/inkling2-mini-vllm-*`, GB10, W4A4, batch-1 seq
 | Oracle variant | short (569 pos) top-1 / KL21 | long (1569 pos) top-1 / KL21 | 4k |
 |---|---|---|---|
 | W4A16, rounding none (default) | **98.24 % / 6.35e-3** | **97.64 % / 1.24e-2** | 4K_RESULT |
-| W4A16, rounding vllm | 97.72 % / 6.06e-3 | – | – |
+| W4A16, rounding vllm | 97.72 % / 6.06e-3 | 97.51 % / 1.23e-2 | – |
 | W4A4 (inferred quantizer), rounding none | 95.61 % / 1.19e-2 | – | – |
 | W4A4 (inferred), rounding vllm | 97.36 % / 9.62e-3 | – | – |
 
 Oracle variants against each other (short set, `tools/golden_cmp.py`): none vs vllm rounding 98.42 % / 1.5e-3 (pure bf16-activation
-noise); W4A16 vs W4A4 (inferred) 96.7 % / 1.0e-2. Reading: the W4A16 fp32 oracle sits inside vLLM's own batch-composition noise of the
+noise; long set 98.79 % / 2.7e-3); W4A16 vs W4A4 (inferred) 96.7 % / 1.0e-2. Reading: the W4A16 fp32 oracle sits inside vLLM's own batch-composition noise of the
 W4A4 golden; adding my inferred W4A4 quantizer moves it **away** (its noise is not vLLM's noise), so the inferred `fouroversix` rule is
 probably not bit-exact, and reproducing W4A4 is worth nothing until `ops/nvfp4.py` / `ops/mxfp8.py` are extracted. Agreement does not
 degrade with position (long_prose_700 per-100-token top-1 91-100 %, lowest where the golden itself is least confident).
 
-Greedy (48 tokens vs `golden/inkling2-mini-vllm-greedy.json`): GREEDY_RESULT. Divergences are at near-ties (`' ** 0.5'` vs `'**0.5'`,
+Greedy (first 48 tokens vs `golden/inkling2-mini-vllm-greedy.json`, tokens matched before the first divergence): count 48, story 13,
+code 24, science 3, chat_short 17 / 27 (effort none / 0.9), chat_system 6 / 24, chat_multiturn 6 / 47, chat_reasoning 23 / 3; every
+continuation stays coherent and on-topic. Divergences are at near-ties (`' ** 0.5'` vs `'**0.5'`,
 `'heart of the village'` vs `'not just a machine'`), as expected two numerics families apart.
 
 **Gate ("exact") for intarsiaml:**
@@ -309,8 +313,8 @@ Greedy (48 tokens vs `golden/inkling2-mini-vllm-greedy.json`): GREEDY_RESULT. Di
 | Gate | Compares | Threshold | Basis |
 |---|---|---|---|
 | G0 op | each new op's kernel vs its f64 cpu reference; R = 1..16 rows | op tolerance; **bitwise rows-exact** (row r of an R-row call = the 1-row call) | engine convention; needed for greedy-exact speculation |
-| G1 tiny | every backend's full forward on `golden/inkling2-tiny` vs `logits_f64` | top-1 identical at all 40 positions, max abs logit error ≤ 5e-2 (the f32 oracle is at 1.3e-2); prefill = chunked = decode within the same bound | the fixture hits window/extent edges, tau, 3 passes, MXFP8 |
-| G2 oracle | real model, W4A16, vs this oracle's own top-20 (`.scratch/ref-{short,long}-w4a16.safetensors`, rounding none) | top-1 ≥ 98 %, KL21 ≤ 3e-3 mean, short and long | a bf16-activation engine should land near the oracle's own none-vs-vllm-rounding distance (98.4 % / 1.5e-3) |
+| G1 tiny | (a) the f32-activation path (cpu reference ops) on `golden/inkling2-tiny` vs `logits_f64`; (b) every backend's bf16 path vs `ref_dump_f64` | (a) top-1 identical at all 40 positions, max abs logit error ≤ 1e-2 (f32 oracle: 1.3e-3); (b) relative error ≤ 2e-2 on every dumped tensor of visits v00-v02, and prefill = chunked = decode (bitwise for rows-exact kernels) | the fixture hits window/extent edges, tau ≠ 1, 3 passes, both full-layer kinds, MXFP8; its logits are chaotic under bf16 (see checks) |
+| G2 oracle | real model, W4A16, vs this oracle's own top-20 (`.scratch/ref-{short,long}-w4a16.safetensors`, rounding none) | top-1 ≥ 98 %, KL21 ≤ 4e-3 mean, short and long | a bf16-activation engine should land near the oracle's own none-vs-vllm-rounding distance (short 98.4 % / 1.5e-3, long 98.8 % / 2.7e-3) |
 | G3 vLLM | real model vs the vLLM W4A4 goldens, short and long | top-1 ≥ 97 %, KL21 ≤ 1.3e-2 mean (long), ≤ 8e-3 (short) | the W4A16 oracle measures 98.2 % / 6.4e-3 and 97.6 % / 1.24e-2; vLLM's concurrent self-noise is 97-98 % / up to 1.2e-2 |
 
 "Exact" therefore means: bitwise rows-exact against our own 1-row path (G0), and within G1-G3 against the references. W4A16 is the

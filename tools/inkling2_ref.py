@@ -396,6 +396,7 @@ class Ref:
         self.a4 = act_quant == "w4a4"
         self.dump: dict[str, torch.Tensor] | None = None
         self.capture_router = False
+        self.margins: list | None = None
         self.router_log: list = []
         D = self.c.hidden
         # a2: checkpoint queries are raw; vLLM pre-scales them by D**-0.5 at load.
@@ -550,7 +551,10 @@ class Ref:
         logits = x @ w[f"layers.{L}.mlp.gate.weight"].t()  # fp32 router
         sel = torch.sigmoid(logits) + w[f"layers.{L}.mlp.gate.bias"]
         # top-k by sigmoid + bias; ties prefer the lower expert index (stable sort)
-        order = torch.sort(sel, dim=-1, descending=True, stable=True).indices[:, : c.topk]
+        srt = torch.sort(sel, dim=-1, descending=True, stable=True)
+        order = srt.indices[:, : c.topk]
+        if self.margins is not None:  # gap between the k-th and (k+1)-th selection score
+            self.margins.append((srt.values[:, c.topk - 1] - srt.values[:, c.topk]).min().item())
         ls = torch.nn.functional.logsigmoid(torch.gather(logits, 1, order))
         gam = torch.softmax(ls, dim=-1) * c.route_scale  # = sigmoid_i / sum_sel sigmoid * 8
         self.d(f"{tag}.router_logits", logits)
@@ -813,16 +817,16 @@ def make_tiny(out: Path, seed: int = 0):
     for i in range(L):
         a = P + f"layers.{i}."
         ext = t["sliding_window_size"] if i in local else t["rel_extent"]
-        T[a + "attn.wq_du.weight"] = rn(H * Dh, D, s=D**-0.5 * 2).to(bf)
+        T[a + "attn.wq_du.weight"] = rn(H * Dh, D, s=D**-0.5 * 0.8).to(bf)
         T[a + "attn.wr_du.weight"] = rn(H * R, D, s=D**-0.5 * 2).to(bf)
         T[a + "attn.gate_attn.weight"] = rn(H * Dh, D, s=D**-0.5).to(bf)
         T[a + "attn.attn_sink_proj.weight"] = rn(H, D, s=D**-0.5).to(bf)
-        T[a + "attn.wk_dv.weight"] = rn(Hk * Dh, D, s=D**-0.5 * 2).to(bf)
+        T[a + "attn.wk_dv.weight"] = rn(Hk * Dh, D, s=D**-0.5 * 1.0).to(bf)
         T[a + "attn.wv_dv.weight"] = rn(Hk * Dh, D, s=D**-0.5).to(bf)
-        T[a + "attn.wo_ud.weight"] = rn(D, H * Dh, s=(H * Dh) ** -0.5).to(bf)
-        T[a + "attn.q_l2_clip.scale"] = un(H, Dh, lo=0.5, hi=8.0).to(bf)  # some rows clip, some not
-        T[a + "attn.rel_l2_clip.scale"] = un(H, R, lo=0.5, hi=4.0).to(bf)
-        T[a + "attn.rel_logits_proj.proj"] = rn(R, ext, s=0.5).to(bf)
+        T[a + "attn.wo_ud.weight"] = rn(D, H * Dh, s=(H * Dh) ** -0.5 * 0.5).to(bf)
+        T[a + "attn.q_l2_clip.scale"] = un(H, Dh, lo=0.2, hi=3.0).to(bf)  # some heads clip, most not
+        T[a + "attn.rel_l2_clip.scale"] = un(H, R, lo=0.2, hi=1.5).to(bf)
+        T[a + "attn.rel_logits_proj.proj"] = rn(R, ext, s=0.25).to(bf)
         if i in local:
             T[a + "attn_norm.weight"] = un(D).to(bf)
             T[a + "attn.k_sconv.weight"] = rn(Hk * Dh, 1, K, s=0.5).to(bf)
@@ -836,10 +840,12 @@ def make_tiny(out: Path, seed: int = 0):
         T[a + "attn_sconv.weight"] = rn(D, 1, K, s=0.5).to(bf)
         T[a + "mlp_sconv.weight"] = rn(D, 1, K, s=0.5).to(bf)
         T[a + "mlp_norm.weight"] = un(D).to(bf)
-        T[a + "mlp.gate.weight"] = rn(E, D, s=D**-0.5 * 2).to(bf)
-        T[a + "mlp.gate.bias"] = rn(E, s=0.1)
-        w13 = rn(E, 2 * I, D, s=D**-0.5 * 3)
-        w2 = rn(E, D, I, s=I**-0.5)
+        # selection mostly by a well-spaced bias (spacing 0.12), still x-dependent (sigmoid spread ~0.1), so
+        # f32 / bf16 backends do not flip top-k on near-ties
+        T[a + "mlp.gate.weight"] = rn(E, D, s=D**-0.5 * 0.15).to(bf)
+        T[a + "mlp.gate.bias"] = 0.12 * torch.randperm(E, generator=g).float()
+        w13 = rn(E, 2 * I, D, s=D**-0.5 * 1.5)
+        w2 = rn(E, D, I, s=I**-0.5 * 0.3)
         x = a + "mlp.experts."
         if i in mx_layers:
             T[x + "w13_weight"], T[x + "w13_weight_scale"] = quant_mxfp8(w13)
@@ -997,6 +1003,7 @@ def main():
     ap.add_argument("--dump", type=Path, default=None, help="write per-visit activations (safetensors) here")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--golden", type=Path, default=None)
+    ap.add_argument("--seed", type=int, default=0, help="tiny: first seed tried")
     ap.add_argument("--only", default=None, help="cmp: comma-separated prompt names")
     ap.add_argument("--expert-cache-gb", type=float, default=6.0)
     a = ap.parse_args()
@@ -1005,8 +1012,21 @@ def main():
 
     if a.mode == "tiny":
         out = a.out or Path(__file__).resolve().parent.parent / "golden" / "inkling2-tiny"
-        make_tiny(out)
         ids = [(7 * i + 3) % 300 for i in range(40)]  # > window (8) and > extent (12)
+        best = None
+        for seed in range(a.seed, a.seed + 16):  # pick the seed with the widest top-k routing margin
+            make_tiny(out, seed)
+            r64 = build(out, torch.float64)
+            r64.margins = []
+            run_chunks(r64, ids, [len(ids)])
+            m = min(r64.margins)
+            print(f"tiny seed {seed}: min top-k routing margin {m:.3e}")
+            if best is None or m > best[1]:
+                best = (seed, m)
+            if m > 2e-2:
+                break
+        make_tiny(out, best[0])
+        print(f"tiny: using seed {best[0]} (min routing margin {best[1]:.3e})")
         res = {"prompt_ids": ids}
         for dt in ("float64", "float32"):
             ref = build(out, getattr(torch, dt))
@@ -1014,10 +1034,26 @@ def main():
             # f32: a near-tie in the top-k routing can flip between chunkings; f64 must agree
             assert worst < (1e-10 if dt == "float64" else 5e-3), worst
             res[dt] = run_chunks(ref, ids, [len(ids)]).to(torch.float32)
-        save_file({"prompt_ids": torch.tensor(ids, dtype=torch.int64), "logits_f64": res["float64"],
-                   "logits_f32": res["float32"]}, str(out / "ref_logits.safetensors"))
-        d = (res["float64"] - res["float32"]).abs().max().item()
-        print(f"tiny checkpoint + logits written to {out} (f32 vs f64 max|d| {d:.2e})")
+        # what a bf16-activation backend computes (vLLM's rounding points). A random 16-visit net amplifies bf16
+        # noise ~1.6x per visit (measured), so bf16 backends gate on the per-visit f64 dump, not on these logits.
+        res["bf16"] = run_chunks(build(out, torch.float32, "vllm"), ids, [len(ids)]).to(torch.float32)
+        r64 = build(out, torch.float64)
+        r64.dump = {}
+        run_chunks(r64, ids, [len(ids)])
+        save_file({k: v.contiguous() for k, v in r64.dump.items()}, str(out / "ref_dump_f64.safetensors"),
+                  metadata={"ids": json.dumps(ids), "dtype": "float64", "note": "values stored as f32"})
+        f64 = res["float64"]
+        top2 = torch.topk(f64, 2, dim=-1).values
+        margin = (top2[:, 0] - top2[:, 1]).contiguous()
+        save_file({"prompt_ids": torch.tensor(ids, dtype=torch.int64), "logits_f64": f64,
+                   "logits_f32": res["float32"], "logits_bf16": res["bf16"], "top2_margin_f64": margin},
+                  str(out / "ref_logits.safetensors"))
+        for k in ("float32", "bf16"):
+            x = res[k]
+            print(f"tiny {k:7s} vs f64: max|d| {(x - f64).abs().max().item():.2e}, "
+                  f"top-1 agree {(x.argmax(-1) == f64.argmax(-1)).float().mean().item():.3f}")
+        print(f"tiny top-2 margins (f64): min {margin.min().item():.3e}, positions < 0.1: {(margin < 0.1).sum().item()}")
+        print(f"tiny checkpoint + logits written to {out}")
         return
 
     ref = build(a.model, dtype, a.rounding, a.act_quant, a.expert_cache_gb)
