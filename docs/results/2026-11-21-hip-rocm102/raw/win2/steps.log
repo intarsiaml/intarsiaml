@@ -1,0 +1,9 @@
+13:07:38 stages start; head=118abd5 code-tree=21e905384ad1 dirty=no; STEPS=kern7 qchk10 qchk7
+13:09:12 kernels-r7 exit 0
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma      0      0     0.000e0     0.000e0  NO CASES (untested)
+shared_down_combine shared_down_combine_nvfp4_gemv     20      0     0.000e0     0.000e0  ADMITTED
+91 kernels, 2219 cases in 93.1s
+incomplete: 10 kernel(s) had no cases in this sweep (untested, not failed; plan-time admission tests them)
+13:11:12 qchk-r10 exit 1
+13:13:03 qchk-r7 exit 0
+13:13:03 stages done

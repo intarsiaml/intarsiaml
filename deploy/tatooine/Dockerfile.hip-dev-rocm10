@@ -1,0 +1,33 @@
+# IntarsiaML dev image for the R9700 (gfx1201) track, ROCm 10.2.0 TRIAL (lane rocm102, docs/results/2026-11-21-hip-rocm102.md).
+# Same as Dockerfile.hip-dev (Rust 1.90.0, the same unpinned apt build tools) on the ROCm Core SDK 10.2.0 base instead of 7.2.4.
+# The default image stays Dockerfile.hip-dev (7.2.4): dev.sh only uses this one with INTARSIA_IMAGE=intarsia-hip-dev:rocm10.2.0-rust1.90.0.
+# Build:  docker build -t intarsia-hip-dev:rocm10.2.0-rust1.90.0 -f Dockerfile.hip-dev-rocm10 .
+# Base pinned by digest (the tag is mutable). Since 7.14 ROCm ships only the "-full" dev image (hipBLASLt, rocWMMA, profilers included);
+# the HIP backend links none of those libraries (build.rs compiles kernels/hip with hipcc only), so they are present but unused.
+# Re-pin: docker pull rocm/dev-ubuntu-24.04:<tag> && docker image inspect --format '{{index .RepoDigests 0}}' rocm/dev-ubuntu-24.04:<tag>
+FROM rocm/dev-ubuntu-24.04:10.2.0-full@sha256:21801c0ba1bc4aba31f81ab11fe576c43daa7f2c7f42bac7baaa4d2f75273f86
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    RUSTUP_HOME=/opt/rustup \
+    CARGO_HOME=/opt/cargo \
+    PATH=/opt/cargo/bin:/opt/rocm/bin:$PATH
+
+# ROCm 10 (TheRock layout) keeps the version stamp at /opt/rocm/core-10.2/.info/version; `intarsia doctor` (and so every run stamp)
+# reads /opt/rocm/.info/version. Link it so the stamps record the ROCm version instead of null.
+# The 7.2.4 image registers /opt/rocm-7.2.4/lib with the loader (/etc/ld.so.conf.d); the 10.2 one registers nothing, and the
+# intarsia binary has no ROCm rpath (build.rs's -rpath link-arg reaches only intarsia-backend-hip's own targets), so it failed
+# with "libamdhip64.so.7: cannot open shared object file". Register the ROCm lib dir the same way.
+RUN test -e /opt/rocm/.info || ln -s core-10.2/.info /opt/rocm/.info \
+ && cat /opt/rocm/.info/version \
+ && echo /opt/rocm/lib > /etc/ld.so.conf.d/rocm.conf && ldconfig \
+ && ldconfig -p | grep -q libamdhip64.so.7
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential pkg-config git curl ca-certificates rsync \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.90.0 \
+ && chmod -R a+rwX /opt/rustup /opt/cargo \
+ && rustc --version && cargo --version
+
+WORKDIR /work
