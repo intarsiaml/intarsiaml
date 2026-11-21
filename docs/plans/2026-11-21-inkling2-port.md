@@ -215,7 +215,7 @@ switchable mode — agree, **default W4A16** (see gate below); 8 drafter as a se
 reference numerics"; vLLM itself runs W4A16 on Hopper, oMLX is W4A16, and the oracle numbers below show the W4A16 oracle is already
 within vLLM's own batch noise of the W4A4 golden.
 
-**Gate definitions ("exact")**: _filled in section i after the measurements._
+**Gate definitions ("exact")**: section i.
 
 ## g. Byte floor and FLOPs per decode token
 
@@ -261,6 +261,71 @@ fp8 unembed (164) or 4-bit dense. The native path's realistic target on endor is
 - Fable's cost model says a short, confidence-truncated draft (1-3) beats vLLM's fixed 7 on this MoE (verify bytes grow with the expert
   union).
 
-## i. Oracle (`tools/inkling2_ref.py`) and measurements
+## i. Oracle (`tools/inkling2_ref.py`), measurements, gate
 
-_Filled in below._
+Run with `uv run --project tools python tools/inkling2_ref.py <mode>`; real-model runs on endor via `fleetq run --host endor --load cpu
+--mem 30 …`. Peak RSS 18 GB (dense weights fp32, experts read per expert from the mmapped file, 6 GB LRU of dequantized experts). Prefill
+of 100 tokens ≈ 20 s, decode ≈ 1 s/token on endor's CPU.
+
+| Mode | What |
+|---|---|
+| `run --prompt … [--chat] [--dump DIR] [--max-layers N]` | logits; `--dump` writes `promptN.safetensors` with `embed`, `vNN.{partial_in, attn_in_q/k/v, q, k, v, rel, sink, attn_proj, attn_out, mlp_in, router_logits, expert_ids, expert_w, moe_out, partial_out}`, `final_hidden`, `logits` (NN = visit 00..47); `--max-layers N` runs the first N **visits** in execution order, then a16 on the state reached |
+| `gen`, `greedycmp --golden greedy.json` | greedy decode (stateful path), first divergence vs vLLM's greedy text |
+| `cmp --golden X.safetensors [--out Y]` | top-1 and 21-way KL vs an `intarsia-golden-topk-v1` file; `--out` writes the oracle's own top-20 golden |
+| `selftest` | whole-sequence prefill vs 3-chunk prefill vs token-by-token decode |
+| `tiny` | writes `golden/inkling2-tiny/` (config, `hf_quant_config.json`, 1.2 MB checkpoint in the real names and formats, `ref_logits.safetensors` with f64 and f32 logits of a 40-token prompt) |
+| knobs | `--dtype float64`, `--rounding none|vllm`, `--act-quant w4a16|w4a4` |
+
+Checks run:
+- Dequant: NVFP4 (layer 0) and MXFP8 (layer 20) expert 3, w13, bit-identical to `mx.dequantize` (oMLX venv on endor).
+- State: the stateful path keeps an explicit 1024-row ring for SWA KV and 3-tap conv windows. Tiny model (window 8, extent 12,
+  n_floor 4 so tau ≠ 1, 40 tokens, full layers 3 (core) and 7, MXFP8 layers 6-7, 3 passes): prefill vs chunked (13/14/13) vs
+  token-by-token agree to **1.6e-12 relative in float64** (f32: 6e-4, top-1 identical). Real model, 5 tokens: identical top-5.
+- Generation (W4A16, rounding none): raw `"The capital of France is"` → " Paris.\n\nA. Noun clause …"; `"def fibonacci(n):"` → a
+  correct recursive body; chat (effort 0) → `<|message_model|><|content_thinking|>The user asks a simple factual question … <|end_message|>
+  <|message_model|><|content_text|>The capital of France is Paris.<|end_message|><|content_model_end_sampling|>`.
+
+Against the vLLM goldens (`golden/inkling2-mini-vllm-*`, GB10, W4A4, batch-1 sequential; vLLM vs itself concurrent: 97-98 % top-1, KL21
+5e-3..1.2e-2):
+
+| Oracle variant | short (569 pos) top-1 / KL21 | long (1569 pos) top-1 / KL21 | 4k |
+|---|---|---|---|
+| W4A16, rounding none (default) | **98.24 % / 6.35e-3** | **97.64 % / 1.24e-2** | 4K_RESULT |
+| W4A16, rounding vllm | 97.72 % / 6.06e-3 | – | – |
+| W4A4 (inferred quantizer), rounding none | 95.61 % / 1.19e-2 | – | – |
+| W4A4 (inferred), rounding vllm | 97.36 % / 9.62e-3 | – | – |
+
+Oracle variants against each other (short set, `tools/golden_cmp.py`): none vs vllm rounding 98.42 % / 1.5e-3 (pure bf16-activation
+noise); W4A16 vs W4A4 (inferred) 96.7 % / 1.0e-2. Reading: the W4A16 fp32 oracle sits inside vLLM's own batch-composition noise of the
+W4A4 golden; adding my inferred W4A4 quantizer moves it **away** (its noise is not vLLM's noise), so the inferred `fouroversix` rule is
+probably not bit-exact, and reproducing W4A4 is worth nothing until `ops/nvfp4.py` / `ops/mxfp8.py` are extracted. Agreement does not
+degrade with position (long_prose_700 per-100-token top-1 91-100 %, lowest where the golden itself is least confident).
+
+Greedy (48 tokens vs `golden/inkling2-mini-vllm-greedy.json`): GREEDY_RESULT. Divergences are at near-ties (`' ** 0.5'` vs `'**0.5'`,
+`'heart of the village'` vs `'not just a machine'`), as expected two numerics families apart.
+
+**Gate ("exact") for intarsiaml:**
+
+| Gate | Compares | Threshold | Basis |
+|---|---|---|---|
+| G0 op | each new op's kernel vs its f64 cpu reference; R = 1..16 rows | op tolerance; **bitwise rows-exact** (row r of an R-row call = the 1-row call) | engine convention; needed for greedy-exact speculation |
+| G1 tiny | every backend's full forward on `golden/inkling2-tiny` vs `logits_f64` | top-1 identical at all 40 positions, max abs logit error ≤ 5e-2 (the f32 oracle is at 1.3e-2); prefill = chunked = decode within the same bound | the fixture hits window/extent edges, tau, 3 passes, MXFP8 |
+| G2 oracle | real model, W4A16, vs this oracle's own top-20 (`.scratch/ref-{short,long}-w4a16.safetensors`, rounding none) | top-1 ≥ 98 %, KL21 ≤ 3e-3 mean, short and long | a bf16-activation engine should land near the oracle's own none-vs-vllm-rounding distance (98.4 % / 1.5e-3) |
+| G3 vLLM | real model vs the vLLM W4A4 goldens, short and long | top-1 ≥ 97 %, KL21 ≤ 1.3e-2 mean (long), ≤ 8e-3 (short) | the W4A16 oracle measures 98.2 % / 6.4e-3 and 97.6 % / 1.24e-2; vLLM's concurrent self-noise is 97-98 % / up to 1.2e-2 |
+
+"Exact" therefore means: bitwise rows-exact against our own 1-row path (G0), and within G1-G3 against the references. W4A16 is the
+default numerics; a W4A4 mode, if built, must pass the same G3 and is not required for G2.
+
+## j. Open questions
+
+| Question | Why it matters | Pointer |
+|---|---|---|
+| Exact NVFP4 activation quantizer (`fouroversix_mae` tie rules, e2m1/e4m3 rounding, the `FP32_MAX` clamp) and the MXFP8 activation rule | only needed for a bit-faithful W4A4 mode | `ops/nvfp4.py`, `ops/mxfp8.py` missing; used at `ops/moe.py:14-15, 327-342`, `ops/activation.py:10-11, 171-173` |
+| `ops/loop.py` (`pair_rms_norm`, `blend_rms_norm`): exact rounding of the batched controller path | the oracle follows the per-stream reference `Inkling2MessageController.forward` (`loop.py:55-63`); the batched path may round `hidden` differently | `loop.py:31, 112-130` |
+| `ops/linear.py` (`linear_k_groups`, fp32 1024-wide K groups) | summation order only | `sconv.py:100-107`, `loop.py:30` |
+| `ops/block_scales.py`, `ops/gemv.py`, `ops/__init__.py` | SM100 layout / dispatch only | `moe.py:31`, `model.py:67` |
+| Whether the GB10 golden used `moe_backend=humming` (W4A16 on SM12x) or the default (W4A4) | decides which numerics the golden is; the golden doc's launch line has no `--moe-backend`, so presumably the default W4A4 path | `moe.py:150-158`, golden doc "Reference server" |
+| llama.cpp's SITU op and GGUF gate/up order | three-way diff completeness only | `ggml` not in the extract |
+
+Missing vLLM files to extract from the image (one `docker cp` of `vllm/models/inkling2/nvidia/ops/`): `nvfp4.py`, `mxfp8.py`, `loop.py`,
+`linear.py`, `block_scales.py`, `gemv.py`, `__init__.py`.

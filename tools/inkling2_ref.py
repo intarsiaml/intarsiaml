@@ -982,7 +982,7 @@ def cmp_golden(ref: Ref, path: Path, out: Path | None, only: str | None):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("mode", choices=["run", "gen", "selftest", "tiny", "cmp"])
+    ap.add_argument("mode", choices=["run", "gen", "selftest", "tiny", "cmp", "greedycmp"])
     ap.add_argument("--model", type=Path, default=SNAPSHOT)
     ap.add_argument("--dtype", choices=["float32", "float64"], default="float32")
     ap.add_argument("--rounding", choices=["none", "vllm"], default="none")
@@ -1004,7 +1004,7 @@ def main():
     t0 = time.time()
 
     if a.mode == "tiny":
-        out = a.out or Path(__file__).resolve().parent / "inkling2_tiny"
+        out = a.out or Path(__file__).resolve().parent.parent / "golden" / "inkling2-tiny"
         make_tiny(out)
         ids = [(7 * i + 3) % 300 for i in range(40)]  # > window (8) and > extent (12)
         res = {"prompt_ids": ids}
@@ -1060,6 +1060,20 @@ def main():
             print(f"--- {len(ids)} prompt tokens, {len(out)} new in {time.time() - t1:.0f}s (expert dequants {ref.w.dequants})")
             print(repr(tok.decode(ids, skip_special_tokens=False)))
             print(">>>", repr(text))
+    elif a.mode == "greedycmp":
+        gold = json.loads(a.golden.read_text())
+        tok = tok or tokenizer(a.model)
+        for rec in gold["results"]:
+            tag = f"{rec['name']}/{rec.get('reasoning_effort')}"
+            if a.only and rec["name"] not in a.only.split(","):
+                continue
+            want = rec["output_ids"][: a.max_new]
+            got = greedy(ref, rec["prompt_ids"], len(want), {200006})
+            div = next((i for i, (x, y) in enumerate(zip(got, want)) if x != y), min(len(got), len(want)))
+            print(f"{tag:28s} match {div}/{len(want)}", flush=True)
+            if div < len(want):
+                print("   vllm:", repr(tok.decode(want[div : div + 12], skip_special_tokens=False)))
+                print("   ref :", repr(tok.decode(got[div : div + 12], skip_special_tokens=False)))
     elif a.mode == "cmp":
         cmp_golden(ref, a.golden, a.out, a.only)
     print(f"done in {time.time() - t0:.0f}s", file=sys.stderr)
