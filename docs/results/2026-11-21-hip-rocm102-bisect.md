@@ -147,6 +147,8 @@ same FP op counts. They differ only in VOPD dual-issue packing, which does not c
 
 - `crates/intarsia-backend-hip/build.rs`: `INTARSIA_HIP_KERNELS_NOBUNDLE` (opt-in, debugging).
 - `kernels/hip/gdn_chunk.hip`: `gc_logf`, opt-in via `IK_GDN_CHUNK_STABLE_LOG`. The default build is unchanged: `logf`.
+  Checked with fleetq #10543: on both compilers, the edited file's default ISA equals the pre-edit file's except for the
+  `__hip_cuid_*` symbol name, a hash of the source. That gives 0 differing instructions.
 - `scripts/rocm102/bisect/`: `lib.sh`, `mkbins.sh`, `variants.sh`, `relink.sh`, `tu.sh`, `exp1.sh`, `exp2.sh`,
   `stages.sh`, `window.sh`, `sync.sh`, `tapcmp.py`, `kernmap.py`.
 - `raw/`: per-window `batch.log` / `steps.log` and every `*.acc.out` report, CPU job logs, the norm-kernel ISA.
