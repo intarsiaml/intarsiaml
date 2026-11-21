@@ -1,0 +1,4 @@
+start offset_spark_minus_mac_s 0.143 rtt_s 0.357
+before-term-R1 offset_spark_minus_mac_s 0.185 rtt_s 0.429
+before-term-R2 offset_spark_minus_mac_s 0.181 rtt_s 0.438
+before-term-R3 offset_spark_minus_mac_s 0.168 rtt_s 0.408

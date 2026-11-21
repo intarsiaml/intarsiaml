@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # drill: sync this worktree to spark2 ~/intarsiaml-drill/src and build the CUDA CLI, with a free-memory watchdog.
 #   FLEETQ_OWNER=claude-overnight-drill fleetq run --host spark2 --load cpu --mem 55 --expect 15 --label "drill build" -- bash scripts/drill/build.sh
+# DRILL_HOST=spark1 builds on another box (lane drill2).
 # Watchdog: polls MemAvailable every 20 s; kills the build's process group (by PGID) below 15 GB. Remove ~/intarsiaml-drill when the lane is done.
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 REPO="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
-L='~/intarsiaml-drill'; R="$L/src"; BH=spark2
+L='~/intarsiaml-drill'; R="$L/src"; BH=${DRILL_HOST:-spark2}
 rsh() { ssh -n -o BatchMode=yes "$BH" "export PATH=\$HOME/.cargo/bin:/usr/local/cuda/bin:\$PATH; export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 SHA=$(git -C "$REPO" rev-parse HEAD); STAMP="drill-${SHA:0:12}"
 rsh "mkdir -p $R $L/bin $L/out && rm -rf $L/stage && mkdir -p $L/stage"
