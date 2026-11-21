@@ -1,0 +1,6 @@
+12:50:52 stages start; head=91f2b05 code-tree=f3db282f4435 dirty=no; STEPS=smoke kern tests
+12:50:53 smoke-rocminfo exit 0
+gfx1201 lines: 4
+12:50:53 smoke-doctor exit 127
+12:50:53 smoke-kernels exit 127
+12:50:53 SMOKE FAILED, stopping

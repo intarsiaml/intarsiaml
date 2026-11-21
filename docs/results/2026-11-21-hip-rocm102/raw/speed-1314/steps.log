@@ -1,0 +1,51 @@
+13:14:05 guard: [guard] radiance stopped 2026-11-21 13:14:05
+13:14:05 phase tp1 round 1 arm tp1-r7: starting server
+13:14:21 tp1-r7 healthy after ~18 s
+13:14:21 phase tp1 round 1 arm tp1-r7: server up, localeval
+13:14:28 phase tp1 round 1 arm tp1-r7: localeval exit 0 - result file: `results/20261121-131422-adhoc-rocm102-tp1-tp1-r7-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261121-131422-adhoc-rocm102-tp1-tp1-r7-r1/result.json|
+13:14:29 phase tp1 round 1 arm tp1-r10: starting server
+13:14:42 tp1-r10 healthy after ~15 s
+13:14:42 phase tp1 round 1 arm tp1-r10: server up, localeval
+13:14:49 phase tp1 round 1 arm tp1-r10: localeval exit 0 - result file: `results/20261121-131443-adhoc-rocm102-tp1-tp1-r10-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261121-131443-adhoc-rocm102-tp1-tp1-r10-r1/result.json|
+13:14:50 phase tp1 round 2 arm tp1-r10: starting server
+13:15:02 tp1-r10 healthy after ~15 s
+13:15:02 phase tp1 round 2 arm tp1-r10: server up, localeval
+13:15:10 phase tp1 round 2 arm tp1-r10: localeval exit 0 - result file: `results/20261121-131503-adhoc-rocm102-tp1-tp1-r10-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261121-131503-adhoc-rocm102-tp1-tp1-r10-r2/result.json|
+13:15:10 phase tp1 round 2 arm tp1-r7: starting server
+13:15:20 tp1-r7 healthy after ~12 s
+13:15:20 phase tp1 round 2 arm tp1-r7: server up, localeval
+13:15:27 phase tp1 round 2 arm tp1-r7: localeval exit 0 - result file: `results/20261121-131521-adhoc-rocm102-tp1-tp1-r7-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261121-131521-adhoc-rocm102-tp1-tp1-r7-r2/result.json|
+13:15:28 phase tp1 round 3 arm tp1-r7: starting server
+13:15:38 tp1-r7 healthy after ~12 s
+13:15:38 phase tp1 round 3 arm tp1-r7: server up, localeval
+13:15:45 phase tp1 round 3 arm tp1-r7: localeval exit 0 - result file: `results/20261121-131538-adhoc-rocm102-tp1-tp1-r7-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261121-131538-adhoc-rocm102-tp1-tp1-r7-r3/result.json|
+13:15:46 phase tp1 round 3 arm tp1-r10: starting server
+13:15:58 tp1-r10 healthy after ~15 s
+13:15:58 phase tp1 round 3 arm tp1-r10: server up, localeval
+13:16:06 phase tp1 round 3 arm tp1-r10: localeval exit 0 - result file: `results/20261121-131559-adhoc-rocm102-tp1-tp1-r10-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261121-131559-adhoc-rocm102-tp1-tp1-r10-r3/result.json|
+13:16:06 phase tp2 round 1 arm tp2-r7: starting server
+13:16:16 tp2-r7 healthy after ~12 s
+13:16:16 phase tp2 round 1 arm tp2-r7: server up, localeval
+13:16:20 phase tp2 round 1 arm tp2-r7: localeval exit 0 - result file: `results/20261121-131617-adhoc-rocm102-tp2-tp2-r7-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261121-131617-adhoc-rocm102-tp2-tp2-r7-r1/result.json|
+13:16:20 phase tp2 round 1 arm tp2-r10: starting server
+13:16:30 tp2-r10 healthy after ~12 s
+13:16:30 phase tp2 round 1 arm tp2-r10: server up, localeval
+13:16:34 phase tp2 round 1 arm tp2-r10: localeval exit 0 - result file: `results/20261121-131631-adhoc-rocm102-tp2-tp2-r10-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261121-131631-adhoc-rocm102-tp2-tp2-r10-r1/result.json|
+13:16:34 phase tp2 round 2 arm tp2-r10: starting server
+13:16:44 tp2-r10 healthy after ~12 s
+13:16:44 phase tp2 round 2 arm tp2-r10: server up, localeval
+13:16:47 phase tp2 round 2 arm tp2-r10: localeval exit 0 - result file: `results/20261121-131644-adhoc-rocm102-tp2-tp2-r10-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261121-131644-adhoc-rocm102-tp2-tp2-r10-r2/result.json|
+13:16:48 phase tp2 round 2 arm tp2-r7: starting server
+13:16:58 tp2-r7 healthy after ~12 s
+13:16:58 phase tp2 round 2 arm tp2-r7: server up, localeval
+13:17:01 phase tp2 round 2 arm tp2-r7: localeval exit 0 - result file: `results/20261121-131658-adhoc-rocm102-tp2-tp2-r7-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261121-131658-adhoc-rocm102-tp2-tp2-r7-r2/result.json|
+13:17:02 phase tp2 round 3 arm tp2-r7: starting server
+13:17:12 tp2-r7 healthy after ~12 s
+13:17:12 phase tp2 round 3 arm tp2-r7: server up, localeval
+13:17:15 phase tp2 round 3 arm tp2-r7: localeval exit 0 - result file: `results/20261121-131712-adhoc-rocm102-tp2-tp2-r7-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261121-131712-adhoc-rocm102-tp2-tp2-r7-r3/result.json|
+13:17:16 phase tp2 round 3 arm tp2-r10: starting server
+13:17:25 tp2-r10 healthy after ~12 s
+13:17:25 phase tp2 round 3 arm tp2-r10: server up, localeval
+13:17:29 phase tp2 round 3 arm tp2-r10: localeval exit 0 - result file: `results/20261121-131726-adhoc-rocm102-tp2-tp2-r10-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261121-131726-adhoc-rocm102-tp2-tp2-r10-r3/result.json|
+13:17:29 done, time left 2392s
+13:17:45 guard: [guard] radiance answers 2026-11-21 13:17:44 (after 20 s)

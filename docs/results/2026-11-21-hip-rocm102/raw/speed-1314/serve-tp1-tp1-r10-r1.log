@@ -1,0 +1,2 @@
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+admission on plan shapes: 31 kernel(s) checked, 380 case(s) run, 0 cached
