@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Lane rocm102-bisect (ON tatooine, CPU only): relink.sh <name> <base arm> [tu ...]: a CLI whose kernel archive holds the base
-# arm's objects except the named translation units (file stems of kernels/hip/*.hip), which come from the other arm. Re-runs the
+# arm's objects except the named translation units (file stems of kernels/hip/*.hip), which come from the other arm
+# (or stem@dir: from objs/<dir>/, an experiment object of tu.sh). Re-runs the
 # LINK arm's captured link command (LINK=r10 default) with the archive's -L directory and the output swapped, in that arm's image.
 # Out: $B/mix/<name>/intarsia (+ tus.txt). The Rust objects are the LINK arm's; only the kernel archive changes.
 set -u
@@ -13,7 +14,7 @@ dk "$LINK" bash -c '
   m=/work/.bisect/mix/$name; rm -rf "$m"; mkdir -p "$m/o"
   for f in /work/.bisect/objs/$base/*.o; do
     s=$(basename "$f" .o); src=$base
-    for t in "$@"; do [[ $t == "$s" ]] && src=$other; done
+    for t in "$@"; do [[ $t == "$s" ]] && src=$other; [[ $t == "$s@"* ]] && src=${t#*@}; done
     cp /work/.bisect/objs/$src/$s.o "$m/o/$s.o"; echo "$s $src" >> "$m/tus.txt"
   done
   ar rcs "$m/libintarsia_hip_kernels.a" "$m"/o/*.o; rm -rf "$m/o"
