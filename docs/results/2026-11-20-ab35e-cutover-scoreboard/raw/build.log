@@ -1,0 +1,32 @@
+fleetq: #10453 running on spark2: bash scripts/ab35e/build.sh
+build start 17:01:29 sha eeca95f8efecfdc14937b646164a47d490bd65b4
+cargo pgid 3683272
+17:01:30 avail 73 GB
+17:01:51 avail 73 GB
+17:02:12 avail 72 GB
+17:02:32 avail 73 GB
+17:02:53 avail 72 GB
+17:03:14 avail 73 GB
+17:03:35 avail 72 GB
+17:03:56 avail 73 GB
+17:04:16 avail 73 GB
+17:04:37 avail 73 GB
+17:04:58 avail 72 GB
+17:05:18 avail 71 GB
+17:05:39 avail 71 GB
+17:06:00 avail 73 GB
+17:06:21 avail 73 GB
+17:06:41 avail 73 GB
+17:07:02 avail 73 GB
+17:07:23 avail 72 GB
+17:07:44 avail 73 GB
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 6m 16s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  188G  95% /
+Mem:             121          47          67           0           8          74
+build end 17:08:05 stamp ab35e-eeca95f8efec
+fleetq: #10453 done (exit 0)

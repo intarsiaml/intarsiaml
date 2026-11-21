@@ -1,0 +1,42 @@
+{
+ "arm": "A-think",
+ "url": "http://spark-fa00:8000/v1",
+ "thinking": "default",
+ "scenarios": [
+  {
+   "tool": "get_weather",
+   "call_ok": 3,
+   "receipt_ok": 3,
+   "stream_call_ok": 2,
+   "stream_receipt_ok": 2,
+   "fails": [],
+   "reps": 3,
+   "stream_reps": 2
+  },
+  {
+   "tool": "add_numbers",
+   "call_ok": 3,
+   "receipt_ok": 3,
+   "stream_call_ok": 2,
+   "stream_receipt_ok": 2,
+   "fails": [],
+   "reps": 3,
+   "stream_reps": 2
+  },
+  {
+   "tool": "create_event",
+   "call_ok": 3,
+   "receipt_ok": 3,
+   "stream_call_ok": 2,
+   "stream_receipt_ok": 2,
+   "fails": [],
+   "reps": 3,
+   "stream_reps": 2
+  }
+ ],
+ "json_mode": {
+  "ok": 3,
+  "reps": 3,
+  "fails": []
+ }
+}

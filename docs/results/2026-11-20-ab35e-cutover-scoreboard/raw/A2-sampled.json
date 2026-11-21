@@ -1,0 +1,106 @@
+{
+ "arm": "A2",
+ "url": "http://spark-fa00:8000/v1",
+ "temperature": 0.7,
+ "top_p": 0.95,
+ "gen": 256,
+ "reps": 3,
+ "rows": [
+  {
+   "size": 4096,
+   "prompt_tokens": 4072,
+   "ttft_s": {
+    "median": 0.635,
+    "min": 0.635,
+    "max": 0.641
+   },
+   "decode_tok_s": {
+    "median": 76.876,
+    "min": 76.169,
+    "max": 78.108
+   },
+   "peak_decode_tok_s": {
+    "median": 93.2,
+    "min": 91.8,
+    "max": 93.8
+   },
+   "completion_tokens": {
+    "median": 256,
+    "min": 256,
+    "max": 256
+   },
+   "cached_tokens_max": 0,
+   "decode_each": [
+    76.2,
+    76.9,
+    78.1
+   ],
+   "errors": [],
+   "mtp": null
+  },
+  {
+   "size": 32768,
+   "prompt_tokens": 33899,
+   "ttft_s": {
+    "median": 6.081,
+    "min": 6.068,
+    "max": 6.102
+   },
+   "decode_tok_s": {
+    "median": 71.533,
+    "min": 71.476,
+    "max": 71.859
+   },
+   "peak_decode_tok_s": {
+    "median": 85.2,
+    "min": 84.4,
+    "max": 95.9
+   },
+   "completion_tokens": {
+    "median": 256,
+    "min": 256,
+    "max": 256
+   },
+   "cached_tokens_max": 0,
+   "decode_each": [
+    71.5,
+    71.9,
+    71.5
+   ],
+   "errors": [],
+   "mtp": null
+  },
+  {
+   "size": 65536,
+   "prompt_tokens": 68910,
+   "ttft_s": {
+    "median": 15.849,
+    "min": 15.827,
+    "max": 15.881
+   },
+   "decode_tok_s": {
+    "median": 65.309,
+    "min": 65.21,
+    "max": 65.654
+   },
+   "peak_decode_tok_s": {
+    "median": 84.5,
+    "min": 80.6,
+    "max": 89.7
+   },
+   "completion_tokens": {
+    "median": 256,
+    "min": 256,
+    "max": 256
+   },
+   "cached_tokens_max": 0,
+   "decode_each": [
+    65.7,
+    65.2,
+    65.3
+   ],
+   "errors": [],
+   "mtp": null
+  }
+ ]
+}

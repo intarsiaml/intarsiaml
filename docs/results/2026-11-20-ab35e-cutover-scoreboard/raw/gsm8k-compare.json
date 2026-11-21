@@ -1,0 +1,4038 @@
+{
+ "accuracy": {
+  "A1": {
+   "n": 200,
+   "correct": 121,
+   "acc": 0.605,
+   "overall_score": 0.605,
+   "number_only": 154,
+   "number_only_correct": 76,
+   "worked": 46,
+   "worked_correct": 45,
+   "mean_completion_tokens": 40.2,
+   "truncated": 0
+  },
+  "B1": {
+   "n": 200,
+   "correct": 143,
+   "acc": 0.715,
+   "overall_score": 0.715,
+   "number_only": 123,
+   "number_only_correct": 68,
+   "worked": 77,
+   "worked_correct": 75,
+   "mean_completion_tokens": 72.2,
+   "truncated": 2
+  },
+  "A2": {
+   "n": 200,
+   "correct": 125,
+   "acc": 0.625,
+   "overall_score": 0.625,
+   "number_only": 145,
+   "number_only_correct": 70,
+   "worked": 55,
+   "worked_correct": 55,
+   "mean_completion_tokens": 44.3,
+   "truncated": 0
+  },
+  "F8": {
+   "n": 200,
+   "correct": 131,
+   "acc": 0.655,
+   "overall_score": 0.655,
+   "number_only": 127,
+   "number_only_correct": 59,
+   "worked": 73,
+   "worked_correct": 72,
+   "mean_completion_tokens": 56.8,
+   "truncated": 0
+  }
+ },
+ "pairs": {
+  "A1 vs A2": {
+   "common": 200,
+   "identical": 131,
+   "different": 69,
+   "same_correctness": 174,
+   "diffs": [
+    {
+     "id": "gsm8k-00002",
+     "first_diff_char": 0,
+     "len_a": 656,
+     "len_b": 7,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00007",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00011",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 53,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00012",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00013",
+     "first_diff_char": 0,
+     "len_a": 1149,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00017",
+     "first_diff_char": 0,
+     "len_a": 5,
+     "len_b": 5,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00019",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 478,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00020",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00021",
+     "first_diff_char": 79,
+     "len_a": 264,
+     "len_b": 254,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00022",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 229,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00025",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 1,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00029",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 368,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00030",
+     "first_diff_char": 4,
+     "len_a": 319,
+     "len_b": 313,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00031",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 604,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00036",
+     "first_diff_char": 0,
+     "len_a": 299,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00041",
+     "first_diff_char": 3,
+     "len_a": 3,
+     "len_b": 219,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00045",
+     "first_diff_char": 0,
+     "len_a": 557,
+     "len_b": 900,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00046",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00051",
+     "first_diff_char": 19,
+     "len_a": 268,
+     "len_b": 265,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00054",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 269,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00058",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 363,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00067",
+     "first_diff_char": 263,
+     "len_a": 384,
+     "len_b": 382,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00070",
+     "first_diff_char": 1,
+     "len_a": 4,
+     "len_b": 4,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00072",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00073",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00075",
+     "first_diff_char": 2,
+     "len_a": 3,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00076",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 1,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00082",
+     "first_diff_char": 69,
+     "len_a": 102,
+     "len_b": 100,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00086",
+     "first_diff_char": 56,
+     "len_a": 423,
+     "len_b": 440,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00088",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 243,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00090",
+     "first_diff_char": 10,
+     "len_a": 137,
+     "len_b": 179,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00091",
+     "first_diff_char": 206,
+     "len_a": 208,
+     "len_b": 209,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00094",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00095",
+     "first_diff_char": 191,
+     "len_a": 394,
+     "len_b": 400,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00096",
+     "first_diff_char": 0,
+     "len_a": 100,
+     "len_b": 1,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00100",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00101",
+     "first_diff_char": 408,
+     "len_a": 426,
+     "len_b": 412,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00102",
+     "first_diff_char": 107,
+     "len_a": 671,
+     "len_b": 942,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00107",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 1,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00110",
+     "first_diff_char": 11,
+     "len_a": 322,
+     "len_b": 310,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00114",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00115",
+     "first_diff_char": 26,
+     "len_a": 901,
+     "len_b": 757,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00120",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00121",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00122",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 267,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00126",
+     "first_diff_char": 157,
+     "len_a": 190,
+     "len_b": 177,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00137",
+     "first_diff_char": 210,
+     "len_a": 479,
+     "len_b": 525,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00139",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00140",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00144",
+     "first_diff_char": 0,
+     "len_a": 749,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00147",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 1409,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00150",
+     "first_diff_char": 58,
+     "len_a": 779,
+     "len_b": 892,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00151",
+     "first_diff_char": 1,
+     "len_a": 4,
+     "len_b": 295,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00153",
+     "first_diff_char": 928,
+     "len_a": 1454,
+     "len_b": 1467,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00156",
+     "first_diff_char": 0,
+     "len_a": 331,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00157",
+     "first_diff_char": 162,
+     "len_a": 624,
+     "len_b": 623,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00161",
+     "first_diff_char": 58,
+     "len_a": 2185,
+     "len_b": 399,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00166",
+     "first_diff_char": 0,
+     "len_a": 352,
+     "len_b": 1,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00167",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 459,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00171",
+     "first_diff_char": 38,
+     "len_a": 64,
+     "len_b": 78,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00172",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 423,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00178",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 203,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00180",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 317,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00181",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 1119,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00183",
+     "first_diff_char": 65,
+     "len_a": 639,
+     "len_b": 697,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00186",
+     "first_diff_char": 463,
+     "len_a": 742,
+     "len_b": 786,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00188",
+     "first_diff_char": 0,
+     "len_a": 528,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00190",
+     "first_diff_char": 2,
+     "len_a": 3,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00192",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    }
+   ]
+  },
+  "A1 vs B1": {
+   "common": 200,
+   "identical": 111,
+   "different": 89,
+   "same_correctness": 164,
+   "diffs": [
+    {
+     "id": "gsm8k-00002",
+     "first_diff_char": 0,
+     "len_a": 656,
+     "len_b": 6,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00007",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00009",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 223,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00011",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 53,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00013",
+     "first_diff_char": 399,
+     "len_a": 1149,
+     "len_b": 1101,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00017",
+     "first_diff_char": 0,
+     "len_a": 5,
+     "len_b": 203,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00021",
+     "first_diff_char": 79,
+     "len_a": 264,
+     "len_b": 254,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00022",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 1,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00025",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 333,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00026",
+     "first_diff_char": 0,
+     "len_a": 5,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00029",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 368,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00030",
+     "first_diff_char": 4,
+     "len_a": 319,
+     "len_b": 315,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00031",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 604,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00035",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 264,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00036",
+     "first_diff_char": 0,
+     "len_a": 299,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00041",
+     "first_diff_char": 3,
+     "len_a": 3,
+     "len_b": 362,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00046",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00049",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00050",
+     "first_diff_char": 47,
+     "len_a": 154,
+     "len_b": 148,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00051",
+     "first_diff_char": 19,
+     "len_a": 268,
+     "len_b": 265,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00052",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00053",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 604,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00054",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 258,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00060",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00061",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 310,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00065",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 234,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00066",
+     "first_diff_char": 69,
+     "len_a": 337,
+     "len_b": 385,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00067",
+     "first_diff_char": 263,
+     "len_a": 384,
+     "len_b": 382,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00070",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 354,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00072",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00073",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00074",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 427,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00075",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 904,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00076",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 1,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00077",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 307,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00081",
+     "first_diff_char": 69,
+     "len_a": 271,
+     "len_b": 266,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00086",
+     "first_diff_char": 0,
+     "len_a": 423,
+     "len_b": 262,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00087",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 2201,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00088",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 243,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00090",
+     "first_diff_char": 10,
+     "len_a": 137,
+     "len_b": 179,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00091",
+     "first_diff_char": 29,
+     "len_a": 208,
+     "len_b": 211,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00094",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 560,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00095",
+     "first_diff_char": 26,
+     "len_a": 394,
+     "len_b": 652,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00096",
+     "first_diff_char": 0,
+     "len_a": 100,
+     "len_b": 1,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00099",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 364,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00100",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 3288,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00101",
+     "first_diff_char": 179,
+     "len_a": 426,
+     "len_b": 399,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00102",
+     "first_diff_char": 107,
+     "len_a": 671,
+     "len_b": 1034,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00104",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 447,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00110",
+     "first_diff_char": 25,
+     "len_a": 322,
+     "len_b": 217,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00111",
+     "first_diff_char": 1,
+     "len_a": 4,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00115",
+     "first_diff_char": 26,
+     "len_a": 901,
+     "len_b": 960,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00120",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00121",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00122",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 218,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00123",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00128",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 940,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00131",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 147,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00132",
+     "first_diff_char": 150,
+     "len_a": 329,
+     "len_b": 316,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00133",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 302,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00137",
+     "first_diff_char": 0,
+     "len_a": 479,
+     "len_b": 317,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00139",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00141",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 372,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00144",
+     "first_diff_char": 44,
+     "len_a": 749,
+     "len_b": 673,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00147",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00150",
+     "first_diff_char": 174,
+     "len_a": 779,
+     "len_b": 781,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00151",
+     "first_diff_char": 2,
+     "len_a": 4,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00153",
+     "first_diff_char": 560,
+     "len_a": 1454,
+     "len_b": 1462,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00156",
+     "first_diff_char": 81,
+     "len_a": 331,
+     "len_b": 363,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00157",
+     "first_diff_char": 162,
+     "len_a": 624,
+     "len_b": 623,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00158",
+     "first_diff_char": 22,
+     "len_a": 40,
+     "len_b": 53,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00161",
+     "first_diff_char": 299,
+     "len_a": 2185,
+     "len_b": 3630,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00166",
+     "first_diff_char": 0,
+     "len_a": 352,
+     "len_b": 1,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00167",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 396,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00169",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00172",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 423,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00173",
+     "first_diff_char": 0,
+     "len_a": 5,
+     "len_b": 381,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00174",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00176",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 381,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00178",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 203,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00180",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 305,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00181",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 1868,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00183",
+     "first_diff_char": 460,
+     "len_a": 639,
+     "len_b": 654,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00186",
+     "first_diff_char": 5,
+     "len_a": 742,
+     "len_b": 742,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00188",
+     "first_diff_char": 36,
+     "len_a": 528,
+     "len_b": 320,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00189",
+     "first_diff_char": 0,
+     "len_a": 224,
+     "len_b": 638,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00190",
+     "first_diff_char": 2,
+     "len_a": 3,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00192",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00194",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 167,
+     "correct_a": true,
+     "correct_b": true
+    }
+   ]
+  },
+  "A2 vs B1": {
+   "common": 200,
+   "identical": 121,
+   "different": 79,
+   "same_correctness": 168,
+   "diffs": [
+    {
+     "id": "gsm8k-00002",
+     "first_diff_char": 1,
+     "len_a": 7,
+     "len_b": 6,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00009",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 223,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00012",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00013",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 1101,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00017",
+     "first_diff_char": 0,
+     "len_a": 5,
+     "len_b": 203,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00019",
+     "first_diff_char": 0,
+     "len_a": 478,
+     "len_b": 1,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00020",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00022",
+     "first_diff_char": 0,
+     "len_a": 229,
+     "len_b": 1,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00025",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 333,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00026",
+     "first_diff_char": 0,
+     "len_a": 5,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00030",
+     "first_diff_char": 212,
+     "len_a": 313,
+     "len_b": 315,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00035",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 264,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00041",
+     "first_diff_char": 7,
+     "len_a": 219,
+     "len_b": 362,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00045",
+     "first_diff_char": 0,
+     "len_a": 900,
+     "len_b": 557,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00046",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00049",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00050",
+     "first_diff_char": 47,
+     "len_a": 154,
+     "len_b": 148,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00052",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00053",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 604,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00054",
+     "first_diff_char": 14,
+     "len_a": 269,
+     "len_b": 258,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00058",
+     "first_diff_char": 0,
+     "len_a": 363,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00060",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00061",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 310,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00065",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 234,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00066",
+     "first_diff_char": 69,
+     "len_a": 337,
+     "len_b": 385,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00070",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 354,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00072",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00074",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 427,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00075",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 904,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00077",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 307,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00081",
+     "first_diff_char": 69,
+     "len_a": 271,
+     "len_b": 266,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00082",
+     "first_diff_char": 69,
+     "len_a": 100,
+     "len_b": 102,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00086",
+     "first_diff_char": 0,
+     "len_a": 440,
+     "len_b": 262,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00087",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 2201,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00091",
+     "first_diff_char": 29,
+     "len_a": 209,
+     "len_b": 211,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00094",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 560,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00095",
+     "first_diff_char": 26,
+     "len_a": 400,
+     "len_b": 652,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00099",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 364,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00100",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 3288,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00101",
+     "first_diff_char": 179,
+     "len_a": 412,
+     "len_b": 399,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00102",
+     "first_diff_char": 127,
+     "len_a": 942,
+     "len_b": 1034,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00104",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 447,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00107",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 1,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00110",
+     "first_diff_char": 11,
+     "len_a": 310,
+     "len_b": 217,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00111",
+     "first_diff_char": 1,
+     "len_a": 4,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00114",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 1,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00115",
+     "first_diff_char": 33,
+     "len_a": 757,
+     "len_b": 960,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00121",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00122",
+     "first_diff_char": 15,
+     "len_a": 267,
+     "len_b": 218,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00123",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00126",
+     "first_diff_char": 157,
+     "len_a": 177,
+     "len_b": 190,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00128",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 940,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00131",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 147,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00132",
+     "first_diff_char": 150,
+     "len_a": 329,
+     "len_b": 316,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00133",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 302,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00137",
+     "first_diff_char": 0,
+     "len_a": 525,
+     "len_b": 317,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00140",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00141",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 372,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00144",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 673,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00147",
+     "first_diff_char": 0,
+     "len_a": 1409,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00150",
+     "first_diff_char": 58,
+     "len_a": 892,
+     "len_b": 781,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00151",
+     "first_diff_char": 1,
+     "len_a": 295,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00153",
+     "first_diff_char": 560,
+     "len_a": 1467,
+     "len_b": 1462,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00156",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 363,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00158",
+     "first_diff_char": 22,
+     "len_a": 40,
+     "len_b": 53,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00161",
+     "first_diff_char": 58,
+     "len_a": 399,
+     "len_b": 3630,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00167",
+     "first_diff_char": 5,
+     "len_a": 459,
+     "len_b": 396,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00169",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00171",
+     "first_diff_char": 38,
+     "len_a": 78,
+     "len_b": 64,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00173",
+     "first_diff_char": 0,
+     "len_a": 5,
+     "len_b": 381,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00174",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00176",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 381,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00180",
+     "first_diff_char": 4,
+     "len_a": 317,
+     "len_b": 305,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00181",
+     "first_diff_char": 236,
+     "len_a": 1119,
+     "len_b": 1868,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00183",
+     "first_diff_char": 65,
+     "len_a": 697,
+     "len_b": 654,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00186",
+     "first_diff_char": 5,
+     "len_a": 786,
+     "len_b": 742,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00188",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 320,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00189",
+     "first_diff_char": 0,
+     "len_a": 224,
+     "len_b": 638,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00194",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 167,
+     "correct_a": true,
+     "correct_b": true
+    }
+   ]
+  },
+  "A1 vs F8": {
+   "common": 200,
+   "identical": 119,
+   "different": 81,
+   "same_correctness": 160,
+   "diffs": [
+    {
+     "id": "gsm8k-00000",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 259,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00002",
+     "first_diff_char": 0,
+     "len_a": 656,
+     "len_b": 6,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00004",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00007",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00009",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00011",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 53,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00013",
+     "first_diff_char": 236,
+     "len_a": 1149,
+     "len_b": 1142,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00017",
+     "first_diff_char": 0,
+     "len_a": 5,
+     "len_b": 5,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00019",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 478,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00021",
+     "first_diff_char": 79,
+     "len_a": 264,
+     "len_b": 254,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00022",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 229,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00024",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 451,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00029",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 355,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00030",
+     "first_diff_char": 194,
+     "len_a": 319,
+     "len_b": 326,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00031",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 604,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00036",
+     "first_diff_char": 0,
+     "len_a": 299,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00041",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 662,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00044",
+     "first_diff_char": 0,
+     "len_a": 394,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00047",
+     "first_diff_char": 12,
+     "len_a": 495,
+     "len_b": 360,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00049",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 593,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00050",
+     "first_diff_char": 0,
+     "len_a": 154,
+     "len_b": 398,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00052",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00053",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 603,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00054",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 276,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00058",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 267,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00065",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 234,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00066",
+     "first_diff_char": 74,
+     "len_a": 337,
+     "len_b": 327,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00067",
+     "first_diff_char": 0,
+     "len_a": 384,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00070",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 355,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00072",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00074",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 429,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00075",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 861,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00077",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 307,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00081",
+     "first_diff_char": 55,
+     "len_a": 271,
+     "len_b": 316,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00086",
+     "first_diff_char": 0,
+     "len_a": 423,
+     "len_b": 262,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00087",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 664,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00088",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 243,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00090",
+     "first_diff_char": 10,
+     "len_a": 137,
+     "len_b": 180,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00091",
+     "first_diff_char": 206,
+     "len_a": 208,
+     "len_b": 209,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00094",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00095",
+     "first_diff_char": 172,
+     "len_a": 394,
+     "len_b": 365,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00096",
+     "first_diff_char": 0,
+     "len_a": 100,
+     "len_b": 1,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00102",
+     "first_diff_char": 123,
+     "len_a": 671,
+     "len_b": 782,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00108",
+     "first_diff_char": 152,
+     "len_a": 414,
+     "len_b": 422,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00110",
+     "first_diff_char": 24,
+     "len_a": 322,
+     "len_b": 177,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00111",
+     "first_diff_char": 1,
+     "len_a": 4,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00112",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 102,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00115",
+     "first_diff_char": 0,
+     "len_a": 901,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00120",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00122",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 261,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00123",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00125",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 391,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00126",
+     "first_diff_char": 157,
+     "len_a": 190,
+     "len_b": 177,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00128",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 912,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00129",
+     "first_diff_char": 1,
+     "len_a": 5,
+     "len_b": 5,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00132",
+     "first_diff_char": 77,
+     "len_a": 329,
+     "len_b": 367,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00136",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 344,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00137",
+     "first_diff_char": 0,
+     "len_a": 479,
+     "len_b": 4,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00139",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00141",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 372,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00144",
+     "first_diff_char": 44,
+     "len_a": 749,
+     "len_b": 730,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00147",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00149",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 185,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00150",
+     "first_diff_char": 64,
+     "len_a": 779,
+     "len_b": 728,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00151",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 727,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00153",
+     "first_diff_char": 459,
+     "len_a": 1454,
+     "len_b": 1468,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00154",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 805,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00157",
+     "first_diff_char": 143,
+     "len_a": 624,
+     "len_b": 365,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00160",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00161",
+     "first_diff_char": 58,
+     "len_a": 2185,
+     "len_b": 389,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00166",
+     "first_diff_char": 141,
+     "len_a": 352,
+     "len_b": 358,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00172",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 423,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00176",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 381,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00177",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 575,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00178",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 203,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00180",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 405,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00183",
+     "first_diff_char": 65,
+     "len_a": 639,
+     "len_b": 694,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00185",
+     "first_diff_char": 154,
+     "len_a": 157,
+     "len_b": 156,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00186",
+     "first_diff_char": 5,
+     "len_a": 742,
+     "len_b": 742,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00190",
+     "first_diff_char": 2,
+     "len_a": 3,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00198",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 539,
+     "correct_a": false,
+     "correct_b": true
+    }
+   ]
+  },
+  "A2 vs F8": {
+   "common": 200,
+   "identical": 112,
+   "different": 88,
+   "same_correctness": 166,
+   "diffs": [
+    {
+     "id": "gsm8k-00000",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 259,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00002",
+     "first_diff_char": 1,
+     "len_a": 7,
+     "len_b": 6,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00004",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00007",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00009",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00012",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00013",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 1142,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00017",
+     "first_diff_char": 1,
+     "len_a": 5,
+     "len_b": 5,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00019",
+     "first_diff_char": 428,
+     "len_a": 478,
+     "len_b": 478,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00020",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00024",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 451,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00025",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 1,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00029",
+     "first_diff_char": 97,
+     "len_a": 368,
+     "len_b": 355,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00030",
+     "first_diff_char": 4,
+     "len_a": 313,
+     "len_b": 326,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00036",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00041",
+     "first_diff_char": 0,
+     "len_a": 219,
+     "len_b": 662,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00044",
+     "first_diff_char": 0,
+     "len_a": 394,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00045",
+     "first_diff_char": 0,
+     "len_a": 900,
+     "len_b": 557,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00046",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00047",
+     "first_diff_char": 12,
+     "len_a": 495,
+     "len_b": 360,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00049",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 593,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00050",
+     "first_diff_char": 0,
+     "len_a": 154,
+     "len_b": 398,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00051",
+     "first_diff_char": 19,
+     "len_a": 265,
+     "len_b": 268,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00052",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00053",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 603,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00054",
+     "first_diff_char": 14,
+     "len_a": 269,
+     "len_b": 276,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00058",
+     "first_diff_char": 36,
+     "len_a": 363,
+     "len_b": 267,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00065",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 234,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00066",
+     "first_diff_char": 74,
+     "len_a": 337,
+     "len_b": 327,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00067",
+     "first_diff_char": 0,
+     "len_a": 382,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00070",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 355,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00072",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00073",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 4,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00074",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 429,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00075",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 861,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00076",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00077",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 307,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00081",
+     "first_diff_char": 55,
+     "len_a": 271,
+     "len_b": 316,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00082",
+     "first_diff_char": 69,
+     "len_a": 100,
+     "len_b": 102,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00086",
+     "first_diff_char": 0,
+     "len_a": 440,
+     "len_b": 262,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00087",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 664,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00090",
+     "first_diff_char": 176,
+     "len_a": 179,
+     "len_b": 180,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00095",
+     "first_diff_char": 172,
+     "len_a": 400,
+     "len_b": 365,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00100",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00101",
+     "first_diff_char": 408,
+     "len_a": 412,
+     "len_b": 426,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00102",
+     "first_diff_char": 107,
+     "len_a": 942,
+     "len_b": 782,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00107",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 1,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00108",
+     "first_diff_char": 152,
+     "len_a": 414,
+     "len_b": 422,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00110",
+     "first_diff_char": 11,
+     "len_a": 310,
+     "len_b": 177,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00111",
+     "first_diff_char": 1,
+     "len_a": 4,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00112",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 102,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00114",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 1,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00115",
+     "first_diff_char": 0,
+     "len_a": 757,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00121",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00122",
+     "first_diff_char": 226,
+     "len_a": 267,
+     "len_b": 261,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00123",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00125",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 391,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00128",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 912,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00129",
+     "first_diff_char": 1,
+     "len_a": 5,
+     "len_b": 5,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00132",
+     "first_diff_char": 77,
+     "len_a": 329,
+     "len_b": 367,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00136",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 344,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00137",
+     "first_diff_char": 0,
+     "len_a": 525,
+     "len_b": 4,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00140",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00141",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 372,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00144",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 730,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00147",
+     "first_diff_char": 0,
+     "len_a": 1409,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00149",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 185,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00150",
+     "first_diff_char": 58,
+     "len_a": 892,
+     "len_b": 728,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00151",
+     "first_diff_char": 0,
+     "len_a": 295,
+     "len_b": 727,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00153",
+     "first_diff_char": 459,
+     "len_a": 1467,
+     "len_b": 1468,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00154",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 805,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00156",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 331,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00157",
+     "first_diff_char": 143,
+     "len_a": 623,
+     "len_b": 365,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00160",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00161",
+     "first_diff_char": 64,
+     "len_a": 399,
+     "len_b": 389,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00166",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 358,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00167",
+     "first_diff_char": 0,
+     "len_a": 459,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00171",
+     "first_diff_char": 38,
+     "len_a": 78,
+     "len_b": 64,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00176",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 381,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00177",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 575,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00180",
+     "first_diff_char": 20,
+     "len_a": 317,
+     "len_b": 405,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00181",
+     "first_diff_char": 0,
+     "len_a": 1119,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00183",
+     "first_diff_char": 573,
+     "len_a": 697,
+     "len_b": 694,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00185",
+     "first_diff_char": 154,
+     "len_a": 157,
+     "len_b": 156,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00186",
+     "first_diff_char": 5,
+     "len_a": 786,
+     "len_b": 742,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00188",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 528,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00192",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00198",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 539,
+     "correct_a": false,
+     "correct_b": true
+    }
+   ]
+  },
+  "B1 vs F8": {
+   "common": 200,
+   "identical": 114,
+   "different": 86,
+   "same_correctness": 172,
+   "diffs": [
+    {
+     "id": "gsm8k-00000",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 259,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00004",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00007",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00009",
+     "first_diff_char": 0,
+     "len_a": 223,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00013",
+     "first_diff_char": 236,
+     "len_a": 1101,
+     "len_b": 1142,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00017",
+     "first_diff_char": 0,
+     "len_a": 203,
+     "len_b": 5,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00019",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 478,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00022",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 229,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00024",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 451,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00025",
+     "first_diff_char": 0,
+     "len_a": 333,
+     "len_b": 1,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00026",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 5,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00029",
+     "first_diff_char": 97,
+     "len_a": 368,
+     "len_b": 355,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00030",
+     "first_diff_char": 4,
+     "len_a": 315,
+     "len_b": 326,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00035",
+     "first_diff_char": 0,
+     "len_a": 264,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00036",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00041",
+     "first_diff_char": 0,
+     "len_a": 362,
+     "len_b": 662,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00044",
+     "first_diff_char": 0,
+     "len_a": 394,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00046",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00047",
+     "first_diff_char": 12,
+     "len_a": 495,
+     "len_b": 360,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00049",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 593,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00050",
+     "first_diff_char": 0,
+     "len_a": 148,
+     "len_b": 398,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00051",
+     "first_diff_char": 19,
+     "len_a": 265,
+     "len_b": 268,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00053",
+     "first_diff_char": 385,
+     "len_a": 604,
+     "len_b": 603,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00054",
+     "first_diff_char": 105,
+     "len_a": 258,
+     "len_b": 276,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00058",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 267,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00060",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00061",
+     "first_diff_char": 0,
+     "len_a": 310,
+     "len_b": 4,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00066",
+     "first_diff_char": 69,
+     "len_a": 385,
+     "len_b": 327,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00067",
+     "first_diff_char": 0,
+     "len_a": 382,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00070",
+     "first_diff_char": 83,
+     "len_a": 354,
+     "len_b": 355,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00073",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 4,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00074",
+     "first_diff_char": 353,
+     "len_a": 427,
+     "len_b": 429,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00075",
+     "first_diff_char": 790,
+     "len_a": 904,
+     "len_b": 861,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00076",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00081",
+     "first_diff_char": 55,
+     "len_a": 266,
+     "len_b": 316,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00087",
+     "first_diff_char": 248,
+     "len_a": 2201,
+     "len_b": 664,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00090",
+     "first_diff_char": 176,
+     "len_a": 179,
+     "len_b": 180,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00091",
+     "first_diff_char": 29,
+     "len_a": 211,
+     "len_b": 209,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00094",
+     "first_diff_char": 0,
+     "len_a": 560,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00095",
+     "first_diff_char": 26,
+     "len_a": 652,
+     "len_b": 365,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00099",
+     "first_diff_char": 0,
+     "len_a": 364,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00100",
+     "first_diff_char": 0,
+     "len_a": 3288,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00101",
+     "first_diff_char": 179,
+     "len_a": 399,
+     "len_b": 426,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00102",
+     "first_diff_char": 107,
+     "len_a": 1034,
+     "len_b": 782,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00104",
+     "first_diff_char": 0,
+     "len_a": 447,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00108",
+     "first_diff_char": 152,
+     "len_a": 414,
+     "len_b": 422,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00110",
+     "first_diff_char": 24,
+     "len_a": 217,
+     "len_b": 177,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00112",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 102,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00115",
+     "first_diff_char": 0,
+     "len_a": 960,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00121",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00122",
+     "first_diff_char": 15,
+     "len_a": 218,
+     "len_b": 261,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00125",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 391,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00126",
+     "first_diff_char": 157,
+     "len_a": 190,
+     "len_b": 177,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00128",
+     "first_diff_char": 204,
+     "len_a": 940,
+     "len_b": 912,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00129",
+     "first_diff_char": 1,
+     "len_a": 5,
+     "len_b": 5,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00131",
+     "first_diff_char": 0,
+     "len_a": 147,
+     "len_b": 4,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00132",
+     "first_diff_char": 77,
+     "len_a": 316,
+     "len_b": 367,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00133",
+     "first_diff_char": 0,
+     "len_a": 302,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00136",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 344,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00137",
+     "first_diff_char": 2,
+     "len_a": 317,
+     "len_b": 4,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00144",
+     "first_diff_char": 238,
+     "len_a": 673,
+     "len_b": 730,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00149",
+     "first_diff_char": 0,
+     "len_a": 2,
+     "len_b": 185,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00150",
+     "first_diff_char": 64,
+     "len_a": 781,
+     "len_b": 728,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00151",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 727,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00153",
+     "first_diff_char": 459,
+     "len_a": 1462,
+     "len_b": 1468,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00154",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 805,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00156",
+     "first_diff_char": 81,
+     "len_a": 363,
+     "len_b": 331,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00157",
+     "first_diff_char": 143,
+     "len_a": 623,
+     "len_b": 365,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00158",
+     "first_diff_char": 22,
+     "len_a": 53,
+     "len_b": 40,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00160",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00161",
+     "first_diff_char": 58,
+     "len_a": 3630,
+     "len_b": 389,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00166",
+     "first_diff_char": 0,
+     "len_a": 1,
+     "len_b": 358,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00167",
+     "first_diff_char": 0,
+     "len_a": 396,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00169",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00173",
+     "first_diff_char": 0,
+     "len_a": 381,
+     "len_b": 5,
+     "correct_a": true,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00174",
+     "first_diff_char": 1,
+     "len_a": 3,
+     "len_b": 3,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00177",
+     "first_diff_char": 0,
+     "len_a": 4,
+     "len_b": 575,
+     "correct_a": false,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00180",
+     "first_diff_char": 4,
+     "len_a": 305,
+     "len_b": 405,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00181",
+     "first_diff_char": 0,
+     "len_a": 1868,
+     "len_b": 3,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00183",
+     "first_diff_char": 65,
+     "len_a": 654,
+     "len_b": 694,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00185",
+     "first_diff_char": 154,
+     "len_a": 157,
+     "len_b": 156,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00188",
+     "first_diff_char": 36,
+     "len_a": 320,
+     "len_b": 528,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00189",
+     "first_diff_char": 0,
+     "len_a": 638,
+     "len_b": 224,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00192",
+     "first_diff_char": 1,
+     "len_a": 2,
+     "len_b": 2,
+     "correct_a": false,
+     "correct_b": false
+    },
+    {
+     "id": "gsm8k-00194",
+     "first_diff_char": 0,
+     "len_a": 167,
+     "len_b": 2,
+     "correct_a": true,
+     "correct_b": true
+    },
+    {
+     "id": "gsm8k-00198",
+     "first_diff_char": 0,
+     "len_a": 3,
+     "len_b": 539,
+     "correct_a": false,
+     "correct_b": true
+    }
+   ]
+  }
+ }
+}
