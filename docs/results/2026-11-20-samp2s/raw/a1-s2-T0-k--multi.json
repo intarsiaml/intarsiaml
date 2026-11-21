@@ -1,0 +1,240 @@
+{
+ "arm": "a1-s2-T0-k-",
+ "streams": 2,
+ "temperature": 0.0,
+ "top_p": null,
+ "top_k": null,
+ "gen": 512,
+ "warm": false,
+ "rows": [
+  {
+   "size": 4096,
+   "streams": 2,
+   "reps": [
+    {
+     "completion_tokens": [
+      512,
+      512
+     ],
+     "prompt_tokens": [
+      4134,
+      4114
+     ],
+     "per_stream": [
+      79.5,
+      77.7
+     ],
+     "combined_whole": 139.5,
+     "overlap_s": 5.68,
+     "per_stream_overlap": [
+      74.2,
+      88.9
+     ],
+     "combined_overlap": 163.1
+    },
+    {
+     "completion_tokens": [
+      512,
+      512
+     ],
+     "prompt_tokens": [
+      4112,
+      4129
+     ],
+     "per_stream": [
+      69.5,
+      76.0
+     ],
+     "combined_whole": 134.9,
+     "overlap_s": 6.5,
+     "per_stream_overlap": [
+      77.9,
+      74.9
+     ],
+     "combined_overlap": 152.8
+    },
+    {
+     "completion_tokens": [
+      512,
+      512
+     ],
+     "prompt_tokens": [
+      4112,
+      4131
+     ],
+     "per_stream": [
+      68.7,
+      79.3
+     ],
+     "combined_whole": 137.4,
+     "overlap_s": 6.44,
+     "per_stream_overlap": [
+      75.6,
+      79.3
+     ],
+     "combined_overlap": 154.9
+    },
+    {
+     "completion_tokens": [
+      512,
+      512
+     ],
+     "prompt_tokens": [
+      4138,
+      4111
+     ],
+     "per_stream": [
+      80.7,
+      73.8
+     ],
+     "combined_whole": 141.4,
+     "overlap_s": 6.03,
+     "per_stream_overlap": [
+      78.9,
+      83.9
+     ],
+     "combined_overlap": 162.7
+    },
+    {
+     "completion_tokens": [
+      512,
+      512
+     ],
+     "prompt_tokens": [
+      4113,
+      4129
+     ],
+     "per_stream": [
+      95.7,
+      75.3
+     ],
+     "combined_whole": 150.6,
+     "overlap_s": 5.34,
+     "per_stream_overlap": [
+      95.7,
+      77.5
+     ],
+     "combined_overlap": 173.2
+    },
+    {
+     "completion_tokens": [
+      512,
+      512
+     ],
+     "prompt_tokens": [
+      4134,
+      4137
+     ],
+     "per_stream": [
+      79.1,
+      71.8
+     ],
+     "combined_whole": 139.1,
+     "overlap_s": 6.23,
+     "per_stream_overlap": [
+      76.4,
+      81.2
+     ],
+     "combined_overlap": 157.6
+    },
+    {
+     "completion_tokens": [
+      512,
+      512
+     ],
+     "prompt_tokens": [
+      4119,
+      4117
+     ],
+     "per_stream": [
+      79.1,
+      69.3
+     ],
+     "combined_whole": 138.5,
+     "overlap_s": 6.46,
+     "per_stream_overlap": [
+      79.1,
+      77.9
+     ],
+     "combined_overlap": 157.0
+    },
+    {
+     "completion_tokens": [
+      512,
+      512
+     ],
+     "prompt_tokens": [
+      4132,
+      4115
+     ],
+     "per_stream": [
+      77.0,
+      71.4
+     ],
+     "combined_whole": 136.0,
+     "overlap_s": 6.27,
+     "per_stream_overlap": [
+      75.5,
+      80.4
+     ],
+     "combined_overlap": 155.9
+    }
+   ],
+   "counters": {
+    "intarsia_spec_accepted_tokens_total": 4586.0,
+    "intarsia_spec_copy_accepted_tokens_total": 0.0,
+    "intarsia_spec_copy_proposed_tokens_total": 0.0,
+    "intarsia_spec_copy_steps_total": 0.0,
+    "intarsia_spec_costgate_off_total": 0.0,
+    "intarsia_spec_costgate_on_total": 0.0,
+    "intarsia_spec_costgate_plain_steps_total": 0.0,
+    "intarsia_spec_costgate_probe_steps_total": 0.0,
+    "intarsia_spec_keyed_graph_steps_total": 0.0,
+    "intarsia_spec_proposed_tokens_total": 7090.0,
+    "intarsia_spec_steps_total": 3549.0,
+    "intarsia_spec_verify_topk_fallback_total": 0.0,
+    "intarsia_spec_verify_topk_solo_total": 0.0
+   },
+   "tokens_per_verify": 2.292,
+   "combined_whole_each": [
+    139.5,
+    134.9,
+    137.4,
+    141.4,
+    150.6,
+    139.1,
+    138.5,
+    136.0
+   ],
+   "combined_overlap_each": [
+    163.1,
+    152.8,
+    154.9,
+    162.7,
+    173.2,
+    157.6,
+    157.0,
+    155.9
+   ],
+   "per_stream_each": [
+    79.5,
+    77.7,
+    69.5,
+    76.0,
+    68.7,
+    79.3,
+    80.7,
+    73.8,
+    95.7,
+    75.3,
+    79.1,
+    71.8,
+    79.1,
+    69.3,
+    77.0,
+    71.4
+   ],
+   "errors": []
+  }
+ ]
+}

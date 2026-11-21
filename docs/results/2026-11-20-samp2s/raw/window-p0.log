@@ -1,0 +1,25 @@
+[23:13:07 +0s] window p0 extra='' env='INTARSIA_SAMPLED_VERIFY_FAST=1' cells: seeded2:4096 mt:2:0.7:20:4096,65536:2 mt:2:0.7:20:65536:2:warm mt:1:0.7:0:4096:2; fleetq job 10473
+[23:13:10 +3s] free: Mem:             121          48          37           0          38          73; earlyoom active; binary: intarsia 0.0.1
+[23:13:10 +3s] serve: INTARSIA_SAMPLED_VERIFY_FAST=1 ~/intarsiaml-samp2s/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8197 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[23:14:48 +101s] serve up; MemAvailable MB: 46666
+[23:14:48 +101s] cell p0-seeded2 start; 2398 MHz, 12.47 W, 0 %, 47
+[seeded2] a-k20x2 size 4096 seed 11: prompt 4081 out 700 length 3150 chars
+[seeded2] a-k20x2 size 4096 seed 23: prompt 4113 out 700 length 3167 chars
+[seeded2] b-k0x1 size 4096 seed 11: prompt 4092 out 700 length 3525 chars
+[seeded2] b-k0x1 size 4096 seed 23: prompt 4101 out 700 length 3279 chars
+[seeded2] c-k100x1 size 4096 seed 11: prompt 4106 out 700 length 3119 chars
+[seeded2] c-k100x1 size 4096 seed 23: prompt 4085 out 700 length 3062 chars
+[seeded2] counters per cell: {"a-k20x2@4096": {"intarsia_spec_accepted_tokens_total": 797.0, "intarsia_spec_copy_accepted_tokens_total": 0.0, "intarsia_spec_copy_proposed_tokens_total": 0.0, "intarsia_spec_copy_steps_total": 0.0, "intarsia_spec_costgate_off_total": 0.0, "intarsia_spec_costgate_on_total": 0.0, "intarsia_spec_costgate_plain_steps_total": 0.0, "intarsia_spec_costgate_probe_steps_total": 0.0, "intarsia_spec_keyed_graph_steps_total": 39.0, "intarsia_spec_proposed_tokens_total": 1191.0, "intarsia_spec_steps_total": 596.0, "intarsia_spec_verify_topk_fallback_total": 0.0, "intarsia_sp
+[23:15:28 +141s] cell p0-seeded2 end: clock guard: 20 samples, 11 at util>90, 0 of those SM<2000 MHz, min SM 2379, mean SM 2392, max power 67 W; SW power cap delta 0 us
+[23:15:29 +142s] cell p0-s2-T0.7-k20 start; 2405 MHz, 13.78 W, 0 %, 55
+[multi] p0-s2-T0.7-k20 4096: whole 132.65 overlap 149.85 (2/2 reps with overlap) tpv 2.163 counters {'intarsia_spec_accepted_tokens_total': 1093.0, 'intarsia_spec_copy_accepted_tokens_total': 0.0, 'intarsia_spec_copy_proposed_tokens_total': 0.0, 'intarsia_spec_copy_steps_total': 0.0, 'intarsia_spec_costgate_off_total': 0.0, 'intarsia_spec_costgate_on_total': 0.0, 'intarsia_spec_costgate_plain_step
+[multi] p0-s2-T0.7-k20 65536: whole 41.35 overlap 106.94999999999999 (2/2 reps with overlap) tpv 2.298 counters {'intarsia_spec_accepted_tokens_total': 1089.0, 'intarsia_spec_copy_accepted_tokens_total': 0.0, 'intarsia_spec_copy_proposed_tokens_total': 0.0, 'intarsia_spec_copy_steps_total': 0.0, 'intarsia_spec_costgate_off_total': 0.0, 'intarsia_spec_costgate_on_total': 0.0, 'intarsia_spec_costgat
+[23:17:28 +261s] cell p0-s2-T0.7-k20 end: clock guard: 59 samples, 46 at util>90, 0 of those SM<2000 MHz, min SM 2359, mean SM 2381, max power 93 W; SW power cap delta 0 us
+[23:17:29 +262s] cell p0-s2-T0.7-k20-warm start; 2405 MHz, 15.84 W, 0 %, 64
+[multi] p0-s2-T0.7-k20-warm 65536: whole 96.35 overlap 98.35 (2/2 reps with overlap) tpv 2.157 counters {'intarsia_spec_accepted_tokens_total': 1096.0, 'intarsia_spec_copy_accepted_tokens_total': 0.0, 'intarsia_spec_copy_proposed_tokens_total': 0.0, 'intarsia_spec_copy_steps_total': 0.0, 'intarsia_spec_costgate_off_total': 0.0, 'intarsia_spec_costgate_on_total': 0.0, 'intarsia_spec_costgate_plain_
+[23:19:09 +362s] cell p0-s2-T0.7-k20-warm end: clock guard: 49 samples, 43 at util>90, 0 of those SM<2000 MHz, min SM 2340, mean SM 2373, max power 93 W; SW power cap delta 0 us
+[23:19:09 +362s] cell p0-s1-T0.7-k0 start; 2405 MHz, 16.39 W, 0 %, 66
+[multi] p0-s1-T0.7-k0 4096: whole 94.2 overlap 94.25 (2/2 reps with overlap) tpv 2.193 counters {'intarsia_spec_accepted_tokens_total': 556.0, 'intarsia_spec_copy_accepted_tokens_total': 0.0, 'intarsia_spec_copy_proposed_tokens_total': 0.0, 'intarsia_spec_copy_steps_total': 0.0, 'intarsia_spec_costgate_off_total': 0.0, 'intarsia_spec_costgate_on_total': 0.0, 'intarsia_spec_costgate_plain_steps_tot
+[23:19:26 +379s] cell p0-s1-T0.7-k0 end: clock guard: 9 samples, 1 at util>90, 0 of those SM<2000 MHz, min SM 2398, mean SM 2398, max power 66 W; SW power cap delta 0 us
+[23:19:31 +384s] min MemAvailable MB: 23:17:04 37515; KILLED lines: 0; warn/error lines in serve log: 0
+[23:19:33 +386s] window end

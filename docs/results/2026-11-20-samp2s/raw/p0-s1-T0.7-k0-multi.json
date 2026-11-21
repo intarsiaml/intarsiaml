@@ -1,0 +1,80 @@
+{
+ "arm": "p0-s1-T0.7-k0",
+ "streams": 1,
+ "temperature": 0.7,
+ "top_p": 0.95,
+ "top_k": 0,
+ "gen": 512,
+ "warm": false,
+ "rows": [
+  {
+   "size": 4096,
+   "streams": 1,
+   "reps": [
+    {
+     "completion_tokens": [
+      512
+     ],
+     "prompt_tokens": [
+      4134
+     ],
+     "per_stream": [
+      97.0
+     ],
+     "combined_whole": 97.0,
+     "overlap_s": 5.27,
+     "per_stream_overlap": [
+      97.0
+     ],
+     "combined_overlap": 97.0
+    },
+    {
+     "completion_tokens": [
+      512
+     ],
+     "prompt_tokens": [
+      4112
+     ],
+     "per_stream": [
+      91.4
+     ],
+     "combined_whole": 91.4,
+     "overlap_s": 5.59,
+     "per_stream_overlap": [
+      91.5
+     ],
+     "combined_overlap": 91.5
+    }
+   ],
+   "counters": {
+    "intarsia_spec_accepted_tokens_total": 556.0,
+    "intarsia_spec_copy_accepted_tokens_total": 0.0,
+    "intarsia_spec_copy_proposed_tokens_total": 0.0,
+    "intarsia_spec_copy_steps_total": 0.0,
+    "intarsia_spec_costgate_off_total": 0.0,
+    "intarsia_spec_costgate_on_total": 0.0,
+    "intarsia_spec_costgate_plain_steps_total": 0.0,
+    "intarsia_spec_costgate_probe_steps_total": 0.0,
+    "intarsia_spec_keyed_graph_steps_total": 466.0,
+    "intarsia_spec_proposed_tokens_total": 931.0,
+    "intarsia_spec_steps_total": 466.0,
+    "intarsia_spec_verify_topk_fallback_total": 466.0,
+    "intarsia_spec_verify_topk_solo_total": 0.0
+   },
+   "tokens_per_verify": 2.193,
+   "combined_whole_each": [
+    97.0,
+    91.4
+   ],
+   "combined_overlap_each": [
+    97.0,
+    91.5
+   ],
+   "per_stream_each": [
+    97.0,
+    91.4
+   ],
+   "errors": []
+  }
+ ]
+}
