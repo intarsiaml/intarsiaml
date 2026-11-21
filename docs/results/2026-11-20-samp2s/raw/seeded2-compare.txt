@@ -1,0 +1,12 @@
+docs/results/2026-11-20-samp2s/raw/a2-seeded2.json: c-k100x1 size 32768 seed 23 prompt 32837/32837 out 700/700 identical=True
+docs/results/2026-11-20-samp2s/raw/a2-seeded2.json: 12 of 12 identical
+ALL IDENTICAL
+docs/results/2026-11-20-samp2s/raw/a3-seeded2.json: c-k100x1 size 32768 seed 23 prompt 32837/32837 out 700/700 identical=True
+docs/results/2026-11-20-samp2s/raw/a3-seeded2.json: 12 of 12 identical
+ALL IDENTICAL
+docs/results/2026-11-20-samp2s/raw/a4-seeded2.json: c-k100x1 size 32768 seed 23 prompt 32837/32837 out 700/700 identical=True
+docs/results/2026-11-20-samp2s/raw/a4-seeded2.json: 12 of 12 identical
+ALL IDENTICAL
+docs/results/2026-11-20-samp2s/raw/a3-seeded2.json: c-k100x1 size 32768 seed 23 prompt 32837/32837 out 700/700 identical=True
+docs/results/2026-11-20-samp2s/raw/a3-seeded2.json: 12 of 12 identical
+ALL IDENTICAL
