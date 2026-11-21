@@ -50,6 +50,13 @@ fn spec_graph_env_on() -> bool {
 /// the first failure may be transient (a memory spike during capture), the second is taken as the backend's answer.
 const SPEC_CAPTURE_FAILURES_MAX: usize = 2;
 
+/// What [`Model::spec_step_rows`] reads back of the verify rows.
+#[derive(Clone, Copy)]
+enum RowRead {
+    Logits,
+    TopK(usize),
+}
+
 /// What one captured speculative step returns.
 pub struct SpecPass {
     /// The drafts `d_1..d_k` the head produced.
@@ -268,6 +275,40 @@ impl Model {
     /// [`Model::forward_verify`]; the caller accepts and rolls back (`spec_verify`). `Ok(None)`: capture failed, graph
     /// steps are off from here on and nothing ran.
     pub fn spec_step(&self, st: &mut SequenceState, next: u32, k: usize) -> Result<Option<SpecPass>> {
+        Ok(self.spec_step_read(st, next, k, None)?.map(|(p, _)| p))
+    }
+
+    /// Lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST=1`): whether a sampled request's draft and verify pass can run as
+    /// [`Model::spec_step_rows`] (the captured step, one rank, no remote ranks).
+    pub fn spec_step_rows_ok(&self, st: &SequenceState, next: u32, k: usize) -> bool {
+        self.peers.is_empty() && self.remote.is_none() && self.spec_step_ok(st, next, k)
+    }
+
+    /// Lane samphost: [`Model::spec_step`] that also reads the verify rows back for a sampled request's own draws, as
+    /// [`Model::forward_verify_topk`] (`topk` = `Some(k)` and device-side top-k available: each row's top-`k`, a row holding a
+    /// NaN as its logits) or [`Model::forward_verify_logits`] (otherwise: whole logits rows) would after an eager draft and
+    /// verify pass: the replayed verify pass is the eager one bit for bit, and its head leaves the rows' logits in `ws.logits`
+    /// (nothing after it in the recording writes there). Check [`Model::spec_step_rows_ok`] first. `Ok(None)`: capture failed.
+    pub fn spec_step_rows(&self, st: &mut SequenceState, next: u32, k: usize, topk: Option<usize>) -> Result<Option<(SpecPass, Vec<StepOut>)>> {
+        if !self.peers.is_empty() || self.remote.is_some() {
+            return Err(Error::invalid("spec_step_rows: one rank only (check Model::spec_step_rows_ok)"));
+        }
+        let read = match topk {
+            Some(t) if self.verify_topk_ok(t) => RowRead::TopK(t),
+            _ => RowRead::Logits,
+        };
+        let r = self.spec_step_read(st, next, k, Some(read))?;
+        if r.is_some() {
+            match read {
+                RowRead::TopK(_) => self.telemetry.verify_topk_solo(),
+                RowRead::Logits => self.telemetry.verify_topk_fallback(),
+            }
+            self.telemetry.keyed_graph_step();
+        }
+        Ok(r)
+    }
+
+    fn spec_step_read(&self, st: &mut SequenceState, next: u32, k: usize, read: Option<RowRead>) -> Result<Option<(SpecPass, Vec<StepOut>)>> {
         if !self.spec_step_ok(st, next, k) {
             return Err(Error::invalid("spec_step: not applicable (check Model::spec_step_ok)"));
         }
@@ -332,7 +373,7 @@ impl Model {
         let tp = !self.peers.is_empty();
         let (t_launch, t_launched, t_done) =
             (std::sync::Mutex::new(None::<std::time::Instant>), std::sync::Mutex::new(None::<std::time::Instant>), std::sync::Mutex::new(None::<std::time::Instant>));
-        let run = (|| -> Result<Option<Vec<u8>>> {
+        let run = (|| -> Result<Option<(Vec<u8>, Vec<StepOut>)>> {
             let mut cache = self.graphs.spec.lock().unwrap();
             if !cache.contains_key(&key) {
                 if cache.len() >= 96 {
@@ -383,10 +424,34 @@ impl Model {
             let tok = self.verify_tok.as_ref().expect("checked by spec_step_ok");
             let mut b = vec![0u8; (Self::VERIFY_MAX_ROWS + q) * 4];
             self.backend.download(tok, 0, &mut b, self.stream)?;
+            // lane samphost: the verify rows a sampled request draws from, read where the replayed verify head left them
+            let v = self.dims.vocab;
+            let rows = match read {
+                None => Vec::new(),
+                Some(RowRead::Logits) => with_logits_bytes(q * v * 4, |l| -> Result<Vec<StepOut>> {
+                    self.backend.download(&self.ws.logits, 0, l, self.stream)?;
+                    Ok(l.chunks_exact(v * 4).map(|c| StepOut::Logits(logits_row(c))).collect())
+                })?,
+                Some(RowRead::TopK(t)) => {
+                    let (tid, tval, nan) = self.batch_topk(q, t)?;
+                    let mut rows = Vec::with_capacity(q);
+                    for r in 0..q {
+                        rows.push(if nan[r] != 0 {
+                            StepOut::Logits(with_logits_bytes(v * 4, |l| -> Result<Vec<f32>> {
+                                self.backend.download(&self.ws.logits, r * v * 4, l, self.stream)?;
+                                Ok(logits_row(l))
+                            })?)
+                        } else {
+                            StepOut::TopK { ids: tid[r * t..(r + 1) * t].to_vec(), vals: tval[r * t..(r + 1) * t].to_vec() }
+                        });
+                    }
+                    rows
+                }
+            };
             *t_done.lock().unwrap() = Some(std::time::Instant::now());
-            Ok(Some(b))
+            Ok(Some((b, rows)))
         })();
-        let b = match run {
+        let (b, rows) = match run {
             Ok(Some(b)) => b,
             Ok(None) => return Ok(None),
             Err(e) => {
@@ -437,7 +502,7 @@ impl Model {
         let tl = t_launch.into_inner().unwrap().unwrap_or(t_in);
         let td = t_done.into_inner().unwrap().unwrap_or(now);
         let tr = t_launched.into_inner().unwrap().unwrap_or(tl);
-        Ok(Some(SpecPass { drafts, out, split: [ms(t_in, tl), ms(tl, td), ms(td, now), ms(tl, tr)] }))
+        Ok(Some((SpecPass { drafts, out, split: [ms(t_in, tl), ms(tl, td), ms(td, now), ms(tl, tr)] }, rows)))
     }
 
     /// Record the step for (`st`, `n` catch-up rows, `k` drafts). Executes nothing.

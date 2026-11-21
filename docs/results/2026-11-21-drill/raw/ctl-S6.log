@@ -1,0 +1,15 @@
+SNAP label=before-S6 t=1795243121.835532339 used_mb=86009 avail_mb=38600 cache_mb=32008 swap_mb=0  gpu_apps=3946,32342;591187,27132; listen=1 ours=[584317 591187 ] shm=1 vllm_http=000
+SIGNAL TERM to [584317] (spid=584317 cpid=591187) at t=1795243121.903068072
+RESULT term S6 sup pid=584317 exit_after_s=3.559
+RESULT term S6 sup pid=591187 exit_after_s=2.722
+RESULT term S6 sup port_freed_after_s=0.079
+SNAP label=t0+0-S6 t=1795243125.469847630 used_mb=48252 avail_mb=76357 cache_mb=31966 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+SNAP label=t0+3-S6 t=1795243128.523891001 used_mb=48241 avail_mb=76368 cache_mb=31966 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT term S6 sup leftover ours=[]
+SERVELOG [supervisor] started server pid 584323
+SERVELOG [supervisor] server died after 193.4s: killed by signal 9; restart #1 in 1.0s
+SERVELOG [supervisor] started server pid 591187
+SERVELOG [supervisor] signal 15: stopping the server
+SERVELOG tail: intarsia server listening on http://0.0.0.0:8191
+SERVELOG tail: verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+SERVELOG tail: [supervisor] signal 15: stopping the server

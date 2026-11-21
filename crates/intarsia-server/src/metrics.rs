@@ -471,6 +471,27 @@ pub fn render(snap: &TelemetrySnapshot, info: &ModelInfo, m: &Metrics) -> String
     );
     metric(
         &mut o,
+        "intarsia_spec_verify_topk_solo_total",
+        "counter",
+        "Sampled verify passes run on their own that read their rows back as the device-side top-k (INTARSIA_SAMPLED_VERIFY_FAST=1).",
+        snap.spec_verify_topk_solo,
+    );
+    metric(
+        &mut o,
+        "intarsia_spec_verify_topk_fallback_total",
+        "counter",
+        "Sampled verify passes that read whole logits rows although INTARSIA_SAMPLED_VERIFY_FAST=1 is on (the request's sampling did not allow the top-k).",
+        snap.spec_verify_topk_fallback,
+    );
+    metric(
+        &mut o,
+        "intarsia_spec_keyed_graph_steps_total",
+        "counter",
+        "Sampled verify passes of INTARSIA_SAMPLED_VERIFY_FAST=1 that ran with their draft as one captured graph step.",
+        snap.spec_keyed_graph_steps,
+    );
+    metric(
+        &mut o,
         "intarsia_spec_copy_steps_total",
         "counter",
         "Copy-chain verify passes (INTARSIA_SPEC_COPY), not counted in intarsia_spec_steps_total.",

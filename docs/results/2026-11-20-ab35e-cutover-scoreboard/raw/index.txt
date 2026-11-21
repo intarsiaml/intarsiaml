@@ -1,0 +1,8 @@
+A1-speed run_id=20261120-174221-adhoc-ab35e-A1-speed
+B1-speed run_id=20261120-174426-adhoc-ab35e-B1-speed
+B2-speed run_id=20261120-174617-adhoc-ab35e-B2-speed
+A2-speed run_id=20261120-174808-adhoc-ab35e-A2-speed
+A1-gsm8k run_id=20261120-184452-adhoc-ab35e-A1-gsm8k
+B1-gsm8k run_id=20261120-184706-adhoc-ab35e-B1-gsm8k
+A2-gsm8k run_id=20261120-184929-adhoc-ab35e-A2-gsm8k
+B-fp8-gsm8k run_id=20261120-185417-adhoc-ab35e-B-fp8-gsm8k

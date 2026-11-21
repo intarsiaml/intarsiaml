@@ -1,0 +1,200 @@
+{
+ "arm": "a1-s1-T0.7-k0",
+ "streams": 1,
+ "temperature": 0.7,
+ "top_p": 0.95,
+ "top_k": 0,
+ "gen": 512,
+ "warm": false,
+ "rows": [
+  {
+   "size": 4096,
+   "streams": 1,
+   "reps": [
+    {
+     "completion_tokens": [
+      512
+     ],
+     "prompt_tokens": [
+      4132
+     ],
+     "per_stream": [
+      91.3
+     ],
+     "combined_whole": 91.3,
+     "overlap_s": 5.6,
+     "per_stream_overlap": [
+      91.3
+     ],
+     "combined_overlap": 91.3
+    },
+    {
+     "completion_tokens": [
+      512
+     ],
+     "prompt_tokens": [
+      4112
+     ],
+     "per_stream": [
+      81.1
+     ],
+     "combined_whole": 81.1,
+     "overlap_s": 6.3,
+     "per_stream_overlap": [
+      81.1
+     ],
+     "combined_overlap": 81.1
+    },
+    {
+     "completion_tokens": [
+      512
+     ],
+     "prompt_tokens": [
+      4111
+     ],
+     "per_stream": [
+      90.0
+     ],
+     "combined_whole": 90.0,
+     "overlap_s": 5.68,
+     "per_stream_overlap": [
+      89.9
+     ],
+     "combined_overlap": 89.9
+    },
+    {
+     "completion_tokens": [
+      512
+     ],
+     "prompt_tokens": [
+      4144
+     ],
+     "per_stream": [
+      83.0
+     ],
+     "combined_whole": 83.0,
+     "overlap_s": 6.15,
+     "per_stream_overlap": [
+      83.1
+     ],
+     "combined_overlap": 83.1
+    },
+    {
+     "completion_tokens": [
+      512
+     ],
+     "prompt_tokens": [
+      4114
+     ],
+     "per_stream": [
+      86.7
+     ],
+     "combined_whole": 86.7,
+     "overlap_s": 5.89,
+     "per_stream_overlap": [
+      86.7
+     ],
+     "combined_overlap": 86.7
+    },
+    {
+     "completion_tokens": [
+      512
+     ],
+     "prompt_tokens": [
+      4133
+     ],
+     "per_stream": [
+      83.8
+     ],
+     "combined_whole": 83.8,
+     "overlap_s": 6.1,
+     "per_stream_overlap": [
+      83.8
+     ],
+     "combined_overlap": 83.8
+    },
+    {
+     "completion_tokens": [
+      512
+     ],
+     "prompt_tokens": [
+      4118
+     ],
+     "per_stream": [
+      87.6
+     ],
+     "combined_whole": 87.6,
+     "overlap_s": 5.83,
+     "per_stream_overlap": [
+      87.6
+     ],
+     "combined_overlap": 87.6
+    },
+    {
+     "completion_tokens": [
+      512
+     ],
+     "prompt_tokens": [
+      4133
+     ],
+     "per_stream": [
+      81.4
+     ],
+     "combined_whole": 81.4,
+     "overlap_s": 6.28,
+     "per_stream_overlap": [
+      81.4
+     ],
+     "combined_overlap": 81.4
+    }
+   ],
+   "counters": {
+    "intarsia_spec_accepted_tokens_total": 2232.0,
+    "intarsia_spec_copy_accepted_tokens_total": 0.0,
+    "intarsia_spec_copy_proposed_tokens_total": 0.0,
+    "intarsia_spec_copy_steps_total": 0.0,
+    "intarsia_spec_costgate_off_total": 0.0,
+    "intarsia_spec_costgate_on_total": 0.0,
+    "intarsia_spec_costgate_plain_steps_total": 0.0,
+    "intarsia_spec_costgate_probe_steps_total": 0.0,
+    "intarsia_spec_keyed_graph_steps_total": 0.0,
+    "intarsia_spec_proposed_tokens_total": 3704.0,
+    "intarsia_spec_steps_total": 1853.0,
+    "intarsia_spec_verify_topk_fallback_total": 0.0,
+    "intarsia_spec_verify_topk_solo_total": 0.0
+   },
+   "tokens_per_verify": 2.205,
+   "combined_whole_each": [
+    91.3,
+    81.1,
+    90.0,
+    83.0,
+    86.7,
+    83.8,
+    87.6,
+    81.4
+   ],
+   "combined_overlap_each": [
+    91.3,
+    81.1,
+    89.9,
+    83.1,
+    86.7,
+    83.8,
+    87.6,
+    81.4
+   ],
+   "per_stream_each": [
+    91.3,
+    81.1,
+    90.0,
+    83.0,
+    86.7,
+    83.8,
+    87.6,
+    81.4
+   ],
+   "errors": []
+  }
+ ]
+}

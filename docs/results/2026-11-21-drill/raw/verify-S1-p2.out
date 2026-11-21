@@ -1,0 +1,21 @@
+[verify] 0 c0 t1 ok=True prompt=8045 cached=8041 ttft=0.13 out=100 
+[verify] 1 c0 t2 ok=True prompt=13055 cached=13051 ttft=0.07 out=100 
+[verify] 2 c0 t3 ok=True prompt=18083 cached=18079 ttft=0.1 out=100 
+[verify] 3 c0 t4 ok=True prompt=23106 cached=23102 ttft=0.17 out=100 
+[verify] 4 c0 t5 ok=True prompt=28134 cached=28130 ttft=0.13 out=100 
+[verify] 5 c0 t6 ok=True prompt=33156 cached=33152 ttft=0.13 out=100 
+[verify] 6 c1 t1 ok=True prompt=8050 cached=8046 ttft=0.06 out=100 
+[verify] 7 c1 t2 ok=True prompt=13076 cached=13072 ttft=0.15 out=100 
+[verify] 8 c1 t3 ok=True prompt=18103 cached=18099 ttft=0.1 out=100 
+[verify] 9 c1 t4 ok=True prompt=23115 cached=23111 ttft=0.11 out=100 
+[verify] 10 c1 t5 ok=True prompt=28140 cached=28136 ttft=0.12 out=100 
+[verify] 11 c1 t6 ok=True prompt=33164 cached=33160 ttft=0.14 out=100 
+[verify] 12 c2 t1 ok=True prompt=8038 cached=8034 ttft=0.06 out=100 
+[verify] 13 c2 t2 ok=True prompt=13064 cached=13060 ttft=0.08 out=100 
+[verify] 14 c2 t3 ok=True prompt=18088 cached=18084 ttft=0.09 out=100 
+[verify] 15 c2 t4 ok=True prompt=23116 cached=23112 ttft=0.11 out=100 
+[verify] 16 c2 t5 ok=True prompt=28152 cached=28148 ttft=0.12 out=100 
+[verify] 17 c2 t6 ok=True prompt=33166 cached=33162 ttft=0.13 out=100 
+[verify] 18 c3 t1 ok=True prompt=8045 cached=8041 ttft=0.06 out=100 
+[verify] 19 c3 t2 ok=True prompt=13076 cached=13072 ttft=0.08 out=100 
+[verify] done 20 requests, 0 errors, wall 17.2s, cached tokens 391892

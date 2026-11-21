@@ -1,0 +1,23 @@
+[17:41:31 +0s] window w2 cells: speed sampled; fleetq job 10459
+[17:41:33 +2s] vLLM /v1/models: 200; counters 1826 121692; earlyoom active; free: Mem:             121          66          26           0          29          55
+[17:41:34 +3s] binary: intarsia 0.0.1
+[17:41:34 +3s] serve B: ~/intarsiaml-ab35e/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[17:42:19 +48s] serve B up; MemAvailable MB: 48221; --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)|--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off|batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build dba3a4dbac4a3013, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)|prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)|batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 41.4s, context 131072 tokens|
+[17:42:20 +49s] cell speed-A1 start; vLLM counters (success gen_tokens): 1826 121692; 2398 MHz, 12.32 W, 0 %, 46
+[17:44:24 +173s] cell speed-A1 end: clock guard: 61 samples, 58 at util>90, 0 of those SM<2000 MHz, min SM 2392, mean SM 2396, max power 81 W; SW power cap delta 0 us; vLLM delta success 14 gen_tokens 3074
+[17:44:25 +174s] cell speed-B1 start; vLLM counters (success gen_tokens): 1840 124766; 2405 MHz, 14.36 W, 0 %, 59
+[17:46:15 +284s] cell speed-B1 end: clock guard: 55 samples, 47 at util>90, 0 of those SM<2000 MHz, min SM 2327, mean SM 2376, max power 92 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[17:46:16 +285s] cell speed-B2 start; vLLM counters (success gen_tokens): 1840 124766; 2405 MHz, 16.17 W, 0 %, 66
+[17:48:07 +396s] cell speed-B2 end: clock guard: 55 samples, 49 at util>90, 0 of those SM<2000 MHz, min SM 2320, mean SM 2372, max power 92 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[17:48:08 +397s] cell speed-A2 start; vLLM counters (success gen_tokens): 1840 124766; 2405 MHz, 16.21 W, 0 %, 65
+[17:50:10 +519s] cell speed-A2 end: clock guard: 60 samples, 57 at util>90, 0 of those SM<2000 MHz, min SM 2385, mean SM 2396, max power 82 W; SW power cap delta 0 us; vLLM delta success 14 gen_tokens 3074
+[17:50:11 +520s] cell sampled-A1 start; vLLM counters (success gen_tokens): 1854 127840; 2405 MHz, 15.59 W, 0 %, 62
+[17:51:53 +622s] cell sampled-A1 end: clock guard: 50 samples, 49 at util>90, 0 of those SM<2000 MHz, min SM 2385, mean SM 2396, max power 82 W; SW power cap delta 0 us; vLLM delta success 11 gen_tokens 2306
+[17:51:54 +623s] cell sampled-B1 start; vLLM counters (success gen_tokens): 1865 130146; 2405 MHz, 15.73 W, 0 %, 63
+[17:53:32 +721s] cell sampled-B1 end: clock guard: 49 samples, 32 at util>90, 0 of those SM<2000 MHz, min SM 2320, mean SM 2365, max power 92 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[17:53:33 +722s] cell sampled-B2 start; vLLM counters (success gen_tokens): 1865 130146; 2405 MHz, 16.33 W, 0 %, 66
+[17:55:10 +819s] cell sampled-B2 end: clock guard: 48 samples, 29 at util>90, 0 of those SM<2000 MHz, min SM 2340, mean SM 2369, max power 92 W; SW power cap delta 0 us; vLLM delta success 0 gen_tokens 0
+[17:55:11 +820s] cell sampled-A2 start; vLLM counters (success gen_tokens): 1865 130146; 2405 MHz, 15.97 W, 0 %, 64
+[17:56:53 +922s] cell sampled-A2 end: clock guard: 50 samples, 48 at util>90, 0 of those SM<2000 MHz, min SM 2385, mean SM 2397, max power 82 W; SW power cap delta 0 us; vLLM delta success 11 gen_tokens 2306
+[17:56:57 +926s] min MemAvailable MB (time MB): 17:47:14 37926; KILLED lines: 0; warn/error lines in serve log: 0
+[17:57:24 +953s] window end

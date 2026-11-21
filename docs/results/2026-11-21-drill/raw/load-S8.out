@@ -1,0 +1,61 @@
+[replay2] arm=LS8 order=interleaved seed=109 streams=2 plan={'per_sentence': 22.06, 'base_tokens': 52, 'sentences': [357, 218, 218, 218, 218, 218]} trace=RECORD
+[replay2] warmup ok=True prompt=6701
+[replay2] w0 c0 t1 prompt=8049 cached=44 ttft=1.32s decode=47.5 out=155 
+[replay2] w1 c1 t1 prompt=8060 cached=44 ttft=2.76s decode=46.9 out=160 
+[replay2] w0 c2 t1 prompt=8063 cached=44 ttft=1.52s decode=43.2 out=140 
+[replay2] w1 c3 t1 prompt=8052 cached=44 ttft=1.52s decode=44.6 out=160 
+[replay2] w0 c4 t1 prompt=8048 cached=44 ttft=1.51s decode=47.2 out=160 
+[replay2] w1 c5 t1 prompt=8035 cached=44 ttft=1.49s decode=47.0 out=155 
+[replay2] w0 c6 t1 prompt=8017 cached=44 ttft=1.49s decode=46.5 out=160 
+[replay2] w1 c7 t1 prompt=8061 cached=44 ttft=1.53s decode=47.4 out=160 
+[replay2] w0 c0 t2 prompt=13062 cached=8045 ttft=1.23s decode=48.5 out=160 
+[replay2] w1 c1 t2 prompt=13087 cached=8056 ttft=1.2s decode=56.1 out=160 
+[replay2] w0 c2 t2 prompt=13081 cached=8059 ttft=1.24s decode=47.8 out=132 
+[replay2] w1 c3 t2 prompt=13080 cached=8048 ttft=1.22s decode=48.7 out=160 
+[replay2] w0 c4 t2 prompt=13063 cached=8044 ttft=1.22s decode=53.5 out=160 
+[replay2] w1 c5 t2 prompt=13058 cached=8031 ttft=1.2s decode=50.9 out=159 
+[replay2] w0 c6 t2 prompt=13041 cached=8013 ttft=1.19s decode=47.8 out=160 
+[replay2] w1 c7 t2 prompt=13095 cached=8057 ttft=1.22s decode=47.5 out=160 
+[replay2] w0 c0 t3 prompt=18049 cached=13058 ttft=1.3s decode=55.2 out=160 
+[replay2] w1 c1 t3 prompt=18104 cached=13083 ttft=1.29s decode=78.8 out=160 
+[replay2] w0 c2 t3 prompt=18073 cached=13077 ttft=2.25s decode=67.5 out=129 
+[replay2] w0 c4 t3 prompt=None cached=0 ttft=2.92s decode=79.8 out=33 
+[replay2] w1 c3 t3 prompt=None cached=0 ttft=4.51s decode=34.9 out=68 
+[replay2] w0 c6 t3 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t3 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c0 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t3 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c2 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c1 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c4 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c3 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c0 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c2 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c1 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c4 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c3 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c0 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c2 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c1 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c4 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c3 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+Traceback (most recent call last):
+  File "/opt/code/intarsiaml/.worktrees/drill/scripts/soak2/replay2.py", line 164, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opt/code/intarsiaml/.worktrees/drill/scripts/soak2/replay2.py", line 135, in main
+    summ = base.summarize(rows, a.turns)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/code/intarsiaml/.worktrees/drill/scripts/ab35b/replay.py", line 76, in summarize
+    "cached_frac_median": round(statistics.median([x["cached_tokens"] / x["prompt_tokens"] for x in r]), 3),
+                                                   ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+TypeError: unsupported operand type(s) for /: 'int' and 'NoneType'

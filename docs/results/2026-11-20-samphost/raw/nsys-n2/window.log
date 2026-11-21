@@ -1,0 +1,10 @@
+[18:03:53] serve under nsys: INTARSIA_SAMPLED_VERIFY_FAST=1 ~/intarsiaml-samphost/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8197 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on 
+[18:05:35] serve up (pid 3889742); MemAvailable MB 45823
+[sampled] 4096 rep2: prompt=4066 cached=0 ttft=0.67s decode=109.7 peak=186.2 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 4096 | 4077 | 0.67 | 109.622 (109.591-109.653) | 0.548 |
+[sampled] 65536 rep2: prompt=68887 cached=0 ttft=15.77s decode=84.8 peak=121.9 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 65536 | 68920 | 15.765 | 82.779 (80.711-84.846) | 0.565 |
+[18:06:41] min MemAvailable MB: 18:06:35 39660
+[18:06:46] nsys window end

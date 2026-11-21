@@ -27,6 +27,9 @@ use std::sync::{Arc, Mutex};
 pub struct CpuBackend {
     sys: Mutex<sysinfo::System>,
     brand: String,
+    /// The host reference of device-side top-k (`Backend::topk_rows`) is offered ([`CpuBackend::arc_topk`]); off by default, so
+    /// the cpu engine samples whole rows on the host unless a test asks for the device-sampling path.
+    topk: bool,
 }
 
 impl Default for CpuBackend {
@@ -45,11 +48,17 @@ impl CpuBackend {
             .map(|c| c.brand().trim().to_string())
             .filter(|b| !b.is_empty())
             .unwrap_or_else(|| "host cpu".into());
-        CpuBackend { sys: Mutex::new(sys), brand }
+        CpuBackend { sys: Mutex::new(sys), brand, topk: false }
     }
 
     pub fn arc() -> Arc<dyn Backend> {
         Arc::new(CpuBackend::new())
+    }
+
+    /// A cpu backend that offers device-side top-k (`Backend::supports_topk`, `topk_rows` on the host with
+    /// `intarsia_core::sampler::topk_row`), so models built on it take the device-sampling paths (`HeadMode::LastTopK`).
+    pub fn arc_topk() -> Arc<dyn Backend> {
+        Arc::new(CpuBackend { topk: true, ..CpuBackend::new() })
     }
 }
 
@@ -230,6 +239,49 @@ impl Backend for CpuBackend {
             fast::run(call)?;
         }
         fault::apply(self, call)
+    }
+
+    fn supports_topk(&self) -> bool {
+        self.topk
+    }
+
+    fn topk_rows(
+        &self,
+        logits: &intarsia_core::TensorRef,
+        k: usize,
+        ids: &intarsia_core::TensorRef,
+        vals: &intarsia_core::TensorRef,
+        nan: &intarsia_core::TensorRef,
+        _scratch: &intarsia_core::TensorRef,
+        _s: StreamId,
+    ) -> Result<()> {
+        if !self.topk {
+            return Err(Error::Unsupported("cpu: device-side top-k (CpuBackend::arc_topk)".into()));
+        }
+        let l = mem::read_f32(logits)?;
+        let rows = logits.shape.first().copied().unwrap_or(0);
+        let v = if rows == 0 { 0 } else { l.len() / rows };
+        if v == 0 || k == 0 || k > v || ids.numel() < rows * k || vals.numel() < rows * k || nan.numel() < rows {
+            return Err(Error::invalid(format!("cpu topk_rows: {rows} rows of {v}, k {k}")));
+        }
+        let (mut oi, mut ov, mut on) = (vec![0u8; ids.nbytes()], vec![0f32; vals.numel()], vec![0u8; nan.nbytes()]);
+        for r in 0..rows {
+            match intarsia_core::sampler::topk_row(&l[r * v..(r + 1) * v], k) {
+                Some((i, x)) => {
+                    for j in 0..k {
+                        oi[(r * k + j) * 4..(r * k + j + 1) * 4].copy_from_slice(&(i[j] as i32).to_le_bytes());
+                        ov[r * k + j] = x[j];
+                    }
+                }
+                None => on[r * 4..(r + 1) * 4].copy_from_slice(&1i32.to_le_bytes()),
+            }
+        }
+        // SAFETY: the output views are owned by this call.
+        unsafe {
+            mem::bytes_mut(ids)?.copy_from_slice(&oi);
+            mem::bytes_mut(nan)?.copy_from_slice(&on);
+        }
+        mem::write_f32(vals, &ov)
     }
 
     fn synchronize(&self, _s: StreamId) -> Result<()> {

@@ -1,0 +1,5 @@
+[sampled] calibrated 22.05 tok/sentence base=50 ctx=131072
+[sampled] 65536 rep1: prompt=68953 cached=0 ttft=15.76s decode=80.7 peak=116.5 out=256
+[sampled] 65536 rep2: prompt=68887 cached=0 ttft=15.77s decode=84.8 peak=121.9 out=256
+| size | prompt tok | TTFT s | decode tok/s median (min-max) | MTP accept |
+| 65536 | 68920 | 15.765 | 82.779 (80.711-84.846) | 0.565 |
