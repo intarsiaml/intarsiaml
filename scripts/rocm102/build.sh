@@ -8,7 +8,7 @@ for a in ${ARMS:-r7 r10}; do
   t0=$(date +%s)
   "$D" env INTARSIA_BUILD_STAMP="$STAMP" cargo build --release --locked -p intarsia-cli --features hip < /dev/null > "$O/build-$a.log" 2>&1
   echo "BUILD $a cli exit $? ($(( $(date +%s) - t0 )) s)"; grep -aE '^(warning|error)(\[|:)' "$O/build-$a.log" | sort | uniq -c | sort -rn | head -8
-  if [[ $a == r10 ]]; then
+  if [[ $a == r10 || ${TESTS7:-0} == 1 ]]; then  # TESTS7=1: the 7.2.4 arm too (stages.sh tests7)
     "$D" cargo test --release --locked -p intarsia-backend-hip --tests --no-run < /dev/null >> "$O/build-$a.log" 2>&1; echo "BUILD $a hip tests exit $?"
     "$D" cargo test --release --locked -p intarsia-models --test batch_recurrent --test mtp --test batch_cuda_real --no-run < /dev/null >> "$O/build-$a.log" 2>&1; echo "BUILD $a models tests exit $?"
   fi
