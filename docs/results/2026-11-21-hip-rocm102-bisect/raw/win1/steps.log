@@ -1,0 +1,12 @@
+13:42:56 stages start; head=bd15509 code-tree=9712db1e34dc dirty=no; STEPS=cross
+13:44:14 batch r10 exit 0 (4 items)
+13:45:19 batch r7 exit 0 (4 items)
+18:43:19 r10ctl gen=0 acc=1 23s | /work/.bisect/logs/win1/r10ctl.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 8.5756e-3 (limit 1.0000e-4) FAIL; top-1 flips 2.2800e2 (limit 2.7000e1) FAIL;golden gate: FAIL;
+18:43:38 x7on10 gen=0 acc=0 19s | /work/.bisect/logs/win1/x7on10.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 7.3853e-13 (limit 1.0000e-4) ok; top-1 flips 0.0000e0 (limit 2.7000e1) ok;golden gate: PASS;
+18:43:56 mixnone-on10 gen=0 acc=0 18s | /work/.bisect/logs/win1/mixnone-on10.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 7.3853e-13 (limit 1.0000e-4) ok; top-1 flips 0.0000e0 (limit 2.7000e1) ok;golden gate: PASS;
+18:44:14 mixall-on10 gen=0 acc=1 18s | /work/.bisect/logs/win1/mixall-on10.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 8.5756e-3 (limit 1.0000e-4) FAIL; top-1 flips 2.2800e2 (limit 2.7000e1) FAIL;golden gate: FAIL;
+18:44:31 r7ctl gen=0 acc=0 17s | /work/.bisect/logs/win1/r7ctl.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 7.3853e-13 (limit 1.0000e-4) ok; top-1 flips 0.0000e0 (limit 2.7000e1) ok;golden gate: PASS;
+18:44:47 x10on7 gen=0 acc=1 16s | /work/.bisect/logs/win1/x10on7.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 8.5756e-3 (limit 1.0000e-4) FAIL; top-1 flips 2.2800e2 (limit 2.7000e1) FAIL;golden gate: FAIL;
+18:45:03 mixnone-on7 gen=0 acc=0 16s | /work/.bisect/logs/win1/mixnone-on7.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 7.3853e-13 (limit 1.0000e-4) ok; top-1 flips 0.0000e0 (limit 2.7000e1) ok;golden gate: PASS;
+18:45:19 mixall-on7 gen=0 acc=1 16s | /work/.bisect/logs/win1/mixall-on7.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 8.5756e-3 (limit 1.0000e-4) FAIL; top-1 flips 2.2800e2 (limit 2.7000e1) FAIL;golden gate: FAIL;
+13:45:19 stages done

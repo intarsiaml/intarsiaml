@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Lane rocm102-bisect (ON tatooine, CPU only): experiment set 2 on gdn_chunk.hip. nc = -ffp-contract=off; dl7 = 7.2.4's
+# device-library bitcode (exp1 copied it to $B/devlibs7); fix = -DIK_GDN_CHUNK_STABLE_LOG=1 (gdn_chunk.hip's explicit logf). Relinked CLIs x-<variant> (7.2.4 kernels, gdn_chunk from the variant).
+set -u
+. "$(dirname "$0")/lib.sh"
+H="$(dirname "$0")"
+"$H/tu.sh" r7 c7nc gdn_chunk -ffp-contract=off > "$O/tu-c7nc.log" 2>&1; log "tu c7nc exit $?"
+"$H/tu.sh" r10 c10nc gdn_chunk -ffp-contract=off > "$O/tu-c10nc.log" 2>&1; log "tu c10nc exit $?"
+DEVLIBS=/work/.bisect/devlibs7 "$H/tu.sh" r10 c10dl7nc gdn_chunk -ffp-contract=off > "$O/tu-c10dl7nc.log" 2>&1; log "tu c10dl7nc exit $?"
+"$H/tu.sh" r7 c7fix gdn_chunk -DIK_GDN_CHUNK_STABLE_LOG=1 > "$O/tu-c7fix.log" 2>&1; log "tu c7fix exit $?"
+"$H/tu.sh" r10 c10fix gdn_chunk -DIK_GDN_CHUNK_STABLE_LOG=1 > "$O/tu-c10fix.log" 2>&1; log "tu c10fix exit $? $(grep -aE 'error' "$O/tu-c10fix.log" | head -3)"
+for v in c7nc c10nc c10dl7nc c7fix c10fix; do
+  "$H/relink.sh" "x-$v" r7 "gdn_chunk@$v" > "$O/relink-x-$v.log" 2>&1; log "relink x-$v exit $?"
+done
+# The candidate fix on a full build: all-10.2 kernels with gdn_chunk from c10fix (f10), all-7.2.4 with c7fix (f7).
+"$H/relink.sh" f10 r10 "gdn_chunk@c10fix" > "$O/relink-f10.log" 2>&1; log "relink f10 exit $?"
+"$H/relink.sh" f7 r7 "gdn_chunk@c7fix" > "$O/relink-f7.log" 2>&1; log "relink f7 exit $?"
+for v in c7fix c10fix; do cmp -s "$B/objs/$v/gdn_chunk.o" "$B/objs/${v%fix}/gdn_chunk.o" && log "objs $v == ${v%fix}" || log "objs $v != ${v%fix}"; done

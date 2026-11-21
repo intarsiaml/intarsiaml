@@ -41,6 +41,27 @@ namespace {
 IK_DEVI float gc_softplus(float x) { return x > 20.f ? x : log1pf(expf(x)); }
 IK_DEVI float gc_sigmoid(float x) { return 1.f / (1.f + expf(-x)); }
 
+// Lane rocm102-bisect (docs/results/2026-11-21-hip-rocm102-bisect.md), off by default: IK_GDN_CHUNK_STABLE_LOG=1 makes the
+// norm kernel's logf the same bits on every compiler. It writes out the AMDGPU llvm.log.f32 expansion as ROCm 7.2.4 emits it:
+// v_log_f32 (log2) of the input (scaled by 2^24 below the smallest normal), times ln 2 split hi / lo, with the last add fused
+// into an FMA. ROCm 10.2's compiler ends with a separate add instead, which moves lq / lk by up to half an ulp. Explicit
+// fmaf calls leave the compiler no contraction choice.
+#if defined(IK_GDN_CHUNK_STABLE_LOG) && IK_GDN_CHUNK_STABLE_LOG
+IK_DEVI float gc_logf(float x) {
+    const bool small = x < 0x1p-126f;
+    const float y = __builtin_amdgcn_logf(small ? x * 0x1p24f : x);
+    const float c = __builtin_bit_cast(float, 0x3f317217u), cc = __builtin_bit_cast(float, 0x3377d1cfu);  // ln 2 = c + cc
+    const float r = y * c;
+    float e = __builtin_fmaf(y, c, -r);
+    e = __builtin_fmaf(y, cc, e);
+    float out = __builtin_fmaf(y, c, e);
+    out = __builtin_fabsf(y) < __builtin_inff() ? out : y;
+    return out - (small ? __builtin_bit_cast(float, 0x41b17218u) : 0.f);  // 24 ln 2
+}
+#else
+IK_DEVI float gc_logf(float x) { return logf(x); }
+#endif
+
 // ---- gfx1201 wave32 bf16 WMMA fragments (r4d_gdn_wmma.h) -----------------------------------------------------------
 // Layout:  16-bit A/B : idx = lane % 16, k = 8 * (e >> 2) + 4 * (lane >> 4) + (e & 3)   ("two runs of four")
 //          f32   C/D  : n   = lane % 16, m = 8 * (lane >> 4) + e
@@ -169,8 +190,8 @@ __global__ void __launch_bounds__(32) gdn_chunk_norm_kernel(const ik_bf16* __res
     qq = ik_warp_sum(qq);
     kk = ik_warp_sum(kk);
     if (lane == 0) {
-        lq[t * Hk + kh] = logf(rsqrtf(qq + eps) * scale);
-        lk[t * Hk + kh] = logf(rsqrtf(kk + eps));
+        lq[t * Hk + kh] = gc_logf(rsqrtf(qq + eps) * scale);
+        lk[t * Hk + kh] = gc_logf(rsqrtf(kk + eps));
     }
 }
 
