@@ -12,3 +12,7 @@ DEVLIBS=/work/.bisect/devlibs7 "$H/tu.sh" r10 c10dl7nc gdn_chunk -ffp-contract=o
 for v in c7nc c10nc c10dl7nc c7fix c10fix; do
   "$H/relink.sh" "x-$v" r7 "gdn_chunk@$v" > "$O/relink-x-$v.log" 2>&1; log "relink x-$v exit $?"
 done
+# The candidate fix on a full build: all-10.2 kernels with gdn_chunk from c10fix (f10), all-7.2.4 with c7fix (f7).
+"$H/relink.sh" f10 r10 "gdn_chunk@c10fix" > "$O/relink-f10.log" 2>&1; log "relink f10 exit $?"
+"$H/relink.sh" f7 r7 "gdn_chunk@c7fix" > "$O/relink-f7.log" 2>&1; log "relink f7 exit $?"
+for v in c7fix c10fix; do cmp -s "$B/objs/$v/gdn_chunk.o" "$B/objs/${v%fix}/gdn_chunk.o" && log "objs $v == ${v%fix}" || log "objs $v != ${v%fix}"; done
