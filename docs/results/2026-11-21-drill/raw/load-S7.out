@@ -1,0 +1,61 @@
+[replay2] arm=LS7 order=interleaved seed=108 streams=2 plan={'per_sentence': 22.06, 'base_tokens': 52, 'sentences': [357, 218, 218, 218, 218, 218]} trace=RECORD
+[replay2] warmup ok=True prompt=6702
+[replay2] w1 c1 t1 prompt=8024 cached=44 ttft=1.26s decode=48.0 out=160 
+[replay2] w0 c0 t1 prompt=8065 cached=44 ttft=2.72s decode=47.3 out=160 
+[replay2] w0 c2 t1 prompt=8057 cached=44 ttft=1.53s decode=67.4 out=136 
+[replay2] w1 c3 t1 prompt=8038 cached=44 ttft=1.56s decode=40.1 out=160 
+[replay2] w0 c4 t1 prompt=8041 cached=44 ttft=1.43s decode=45.3 out=148 
+[replay2] w1 c5 t1 prompt=8016 cached=44 ttft=2.43s decode=56.3 out=160 
+[replay2] w0 c6 t1 prompt=8048 cached=44 ttft=1.47s decode=48.4 out=160 
+[replay2] w1 c7 t1 prompt=8044 cached=44 ttft=1.95s decode=48.3 out=160 
+[replay2] w0 c0 t2 prompt=13082 cached=8061 ttft=1.22s decode=48.5 out=135 
+[replay2] w1 c1 t2 prompt=13048 cached=8020 ttft=1.19s decode=50.4 out=160 
+[replay2] w0 c2 t2 prompt=13058 cached=8053 ttft=1.21s decode=48.6 out=152 
+[replay2] w1 c3 t2 prompt=13052 cached=8034 ttft=1.22s decode=50.6 out=160 
+[replay2] w0 c4 t2 prompt=13066 cached=8037 ttft=1.21s decode=48.4 out=138 
+[replay2] w1 c5 t2 prompt=13046 cached=8012 ttft=1.21s decode=50.5 out=160 
+[replay2] w0 c6 t2 prompt=13076 cached=8044 ttft=1.21s decode=45.4 out=155 
+[replay2] w1 c7 t2 prompt=13066 cached=8040 ttft=1.23s decode=45.7 out=152 
+[replay2] w0 c0 t3 prompt=18078 cached=13078 ttft=1.31s decode=51.4 out=133 
+[replay2] w1 c1 t3 prompt=18074 cached=13044 ttft=1.29s decode=85.0 out=160 
+[replay2] w0 c2 t3 prompt=18078 cached=13054 ttft=2.76s decode=45.6 out=137 
+[replay2] w1 c3 t3 prompt=None cached=0 ttft=4.43s decode=68.9 out=141 
+[replay2] w0 c4 t3 prompt=None cached=0 ttft=Nones decode=None out=0 ERROR no output tokens (finish_reason=None)
+[replay2] w1 c5 t3 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t3 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t3 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c0 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c1 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c2 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c3 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c4 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c0 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c1 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c2 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c3 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c4 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c0 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c1 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c2 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c3 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c4 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+Traceback (most recent call last):
+  File "/opt/code/intarsiaml/.worktrees/drill/scripts/soak2/replay2.py", line 164, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opt/code/intarsiaml/.worktrees/drill/scripts/soak2/replay2.py", line 135, in main
+    summ = base.summarize(rows, a.turns)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/code/intarsiaml/.worktrees/drill/scripts/ab35b/replay.py", line 76, in summarize
+    "cached_frac_median": round(statistics.median([x["cached_tokens"] / x["prompt_tokens"] for x in r]), 3),
+                                                   ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+TypeError: unsupported operand type(s) for /: 'int' and 'NoneType'

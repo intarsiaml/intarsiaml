@@ -1,0 +1,84 @@
+== S0: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S1: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S1 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S1 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+== S2: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S2 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S2 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+== S3: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S3 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S3 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+== S4: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S4 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S4 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+== S5: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S5 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S5 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+== S6: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S6 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S6 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+== S7: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S7 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S7 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+== S8: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+== S8 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S8 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+== S9: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S9 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S9 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)

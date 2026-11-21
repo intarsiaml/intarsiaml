@@ -1,0 +1,32 @@
+fleetq: #10485 running on spark2: bash scripts/drill/build.sh
+build start 00:48:57 sha 5d78422ae3f5ef9e167d577602afe79f0a3501a3
+cargo pgid 464901
+00:48:58 avail 73 GB
+00:49:19 avail 72 GB
+00:49:40 avail 71 GB
+00:50:00 avail 72 GB
+00:50:21 avail 71 GB
+00:50:42 avail 72 GB
+00:51:03 avail 71 GB
+00:51:23 avail 72 GB
+00:51:44 avail 72 GB
+00:52:05 avail 72 GB
+00:52:26 avail 70 GB
+00:52:46 avail 70 GB
+00:53:07 avail 70 GB
+00:53:28 avail 72 GB
+00:53:49 avail 72 GB
+00:54:09 avail 72 GB
+00:54:30 avail 72 GB
+00:54:51 avail 71 GB
+00:55:11 avail 72 GB
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 6m 16s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.4T  143G  96% /
+Mem:             121          48          41           0          34          73
+build end 00:55:33 stamp drill-5d78422ae3f5
+fleetq: #10485 done (exit 0)

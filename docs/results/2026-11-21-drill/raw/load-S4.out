@@ -1,0 +1,61 @@
+[replay2] arm=LS4 order=interleaved seed=105 streams=2 plan={'per_sentence': 22.06, 'base_tokens': 52, 'sentences': [357, 218, 218, 218, 218, 218]} trace=RECORD
+[replay2] warmup ok=True prompt=6703
+[replay2] w1 c1 t1 prompt=8047 cached=44 ttft=1.26s decode=48.0 out=160 
+[replay2] w0 c0 t1 prompt=8045 cached=44 ttft=2.71s decode=44.7 out=160 
+[replay2] w1 c3 t1 prompt=8036 cached=44 ttft=1.51s decode=43.5 out=151 
+[replay2] w0 c2 t1 prompt=8045 cached=44 ttft=1.52s decode=44.6 out=160 
+[replay2] w1 c5 t1 prompt=8034 cached=44 ttft=1.53s decode=40.7 out=160 
+[replay2] w0 c4 t1 prompt=8045 cached=44 ttft=1.53s decode=40.2 out=147 
+[replay2] w1 c7 t1 prompt=8043 cached=44 ttft=1.49s decode=46.4 out=160 
+[replay2] w0 c6 t1 prompt=8045 cached=44 ttft=1.54s decode=55.5 out=160 
+[replay2] w1 c1 t2 prompt=13090 cached=8043 ttft=1.32s decode=50.8 out=151 
+[replay2] w0 c0 t2 prompt=13065 cached=8041 ttft=1.36s decode=77.1 out=160 
+[replay2] w1 c3 t2 prompt=13047 cached=8032 ttft=1.09s decode=45.3 out=150 
+[replay2] w0 c2 t2 prompt=13069 cached=8041 ttft=2.09s decode=50.6 out=160 
+[replay2] w1 c5 t2 prompt=13057 cached=8030 ttft=1.2s decode=51.5 out=160 
+[replay2] w0 c4 t2 prompt=13062 cached=8041 ttft=1.36s decode=59.0 out=160 
+[replay2] w1 c7 t2 prompt=13078 cached=8039 ttft=1.17s decode=51.1 out=160 
+[replay2] w0 c6 t2 prompt=13073 cached=8041 ttft=1.52s decode=77.3 out=153 
+[replay2] w1 c1 t3 prompt=18102 cached=13086 ttft=1.17s decode=49.5 out=140 
+[replay2] w0 c0 t3 prompt=18083 cached=13061 ttft=2.3s decode=77.6 out=160 
+[replay2] w1 c3 t3 prompt=18066 cached=13043 ttft=1.85s decode=68.4 out=159 
+[replay2] w1 c5 t3 prompt=None cached=0 ttft=Nones decode=None out=0 ERROR no output tokens (finish_reason=None)
+[replay2] w0 c2 t3 prompt=None cached=0 ttft=5.0s decode=31.2 out=35 
+[replay2] w1 c7 t3 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c4 t3 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c1 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t3 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c3 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c0 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c2 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c4 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c1 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c3 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c0 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c2 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c4 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c1 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c3 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c0 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c2 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c4 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+Traceback (most recent call last):
+  File "/opt/code/intarsiaml/.worktrees/drill/scripts/soak2/replay2.py", line 164, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opt/code/intarsiaml/.worktrees/drill/scripts/soak2/replay2.py", line 135, in main
+    summ = base.summarize(rows, a.turns)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/code/intarsiaml/.worktrees/drill/scripts/ab35b/replay.py", line 76, in summarize
+    "cached_frac_median": round(statistics.median([x["cached_tokens"] / x["prompt_tokens"] for x in r]), 3),
+                                                   ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+TypeError: unsupported operand type(s) for /: 'int' and 'NoneType'
