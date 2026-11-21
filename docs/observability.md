@@ -99,7 +99,12 @@ the child dies. The child exits by itself with a distinct code when its watchdog
 | other / signal | crash, OOM kill | restart |
 
 A wedged CUDA context has sticky errors, so a fresh process is the only recovery. SIGTERM to the
-supervisor is forwarded to the child (30 s grace, then SIGKILL). `--no-supervisor` runs the server in
+supervisor is forwarded to the child (30 s grace, then SIGKILL; the supervisor logs `still running 30s after SIGTERM: sending SIGKILL`
+when it comes to that). The child stops listening at once and lets generations in flight finish, but at 28 s
+(`INTARSIA_DRAIN_S`) it ends the ones still running explicitly: a stream gets a final chunk with `finish_reason` `abort`, an
+error event (code 503) and `[DONE]` (Anthropic route: an `error` event), a non-streaming request a 503, and the engine cancels
+the sequences. Without that a cut stream is an HTTP 200 whose chunked body just ends (`docs/results/2026-11-21-drill2.md`).
+`--no-supervisor` runs the server in
 the foreground without restarts, for debugging: the watchdog then only turns `/health` to 503 (with `--tp-remote` or
 `--tp` above 1 it exits 87 on a failed engine, for an init system that restarts it).
 

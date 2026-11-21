@@ -87,8 +87,13 @@ fn finish_str(f: FinishReason) -> &'static str {
     }
 }
 
+/// `finish_reason` of a stream the shutdown's drain deadline ended (vLLM's name for an aborted request; not one of
+/// OpenAI's stop / length / tool_calls / content_filter, so a client that checks it sees a non-normal end).
+const ABORT: &str = "abort";
 fn error_event(message: &str) -> Event {
-    sse_json(None, &json!({"error": {"message": message, "type": "server_error", "param": null, "code": 500}}))
+    // an unfinished request at the shutdown is the server's being unavailable (503), a failed one its fault (500)
+    let code = if is_shutdown_cut(message) { 503 } else { 500 };
+    sse_json(None, &json!({"error": {"message": message, "type": "server_error", "param": null, "code": code}}))
 }
 
 // ---------------------------------------------------------------------------
@@ -341,6 +346,9 @@ async fn chat_inner(
         Some(GenEvent::Error { message }) => {
             done = true;
             let mut out: Vec<Event> = held_reasoning(rp.as_mut()).into_iter().map(|d| sse_json(None, &chunk(d, None, inc))).collect();
+            if is_shutdown_cut(&message) {
+                out.push(sse_json(None, &chunk(json!({}), Some(ABORT), inc)));
+            }
             out.push(error_event(&message));
             out
         }
@@ -586,7 +594,12 @@ async fn completions_inner(
         }
         Some(GenEvent::Error { message }) => {
             done = true;
-            vec![error_event(&message)]
+            let mut out = Vec::new();
+            if is_shutdown_cut(&message) {
+                out.push(sse_json(None, &chunk("", Some(ABORT), inc)));
+            }
+            out.push(error_event(&message));
+            out
         }
         None => {
             let mut out = Vec::new();
