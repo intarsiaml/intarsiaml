@@ -1,0 +1,164 @@
+# Qualification report: Qwen3.6-35B-A3B-NVFP4 on hip (tp variant: 2)
+
+_Full (quick + in-depth) section, generated unix 1795285472, intarsia 0.0.1 build `head=91f2b05 code-tree=f3db282f4435 dirty=no`._
+
+## Headline
+
+**Verdict: FAIL** (15 stages: 4 pass, 3 fail, 0 error, 8 skipped)
+
+| | |
+|---|---|
+| Model | Qwen3.6-35B-A3B-NVFP4 (`/models/Qwen3.6-35B-A3B-NVFP4`) |
+| Backend / device | hip / AMD Radeon AI PRO R9700 (gfx1201) |
+| Recipe | builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8) |
+| Decode | not measured |
+| Prefill | not measured |
+| Accuracy (short golden) | **FAIL** (prefill top-1 98.27% KL 5.71e-3; decode top-1 98.75% KL 1.13e-2) |
+| Accuracy (format reference, same weights) | skipped: no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE) |
+| Accuracy (long golden) | skipped: skipped by --skip |
+| Accuracy (4k golden) | skipped: skipped by --skip |
+| Quick gate | **PASS**: perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows |
+| Wall time | quick 65s, in-depth 56s, total 2m00s |
+
+### Failures
+
+- `acc-short` **FAIL**: baseline gate failed
+- `acc-oracle` **FAIL**: the logits moved against the recorded dump /work/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors: mean KL(21-way)                                 8.5756e-3  (limit 1.0000e-4)  FAIL; max position KL(21-way)                         3.4393e-1  (limit 5.0000e-3)  FAIL; top-1 
+- `tp` **FAIL**: tp=2: the logits moved against the recorded dump /work/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip-tp2.selfgolden.safetensors: mean KL(21-way)                                 8.5879e-3  (limit 1.0000e-4)  FAIL; max position KL(21-way)                         3.9948e-1  (limit 5.0000e-3)  FA
+
+### Skipped
+
+- `kernels`: skipped by --skip
+- `acc-format`: no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE)
+- `bench`: skipped by --skip
+- `acc-long`: skipped by --skip
+- `acc-4k`: skipped by --skip
+- `envelope`: skipped by --skip
+- `bench-long`: skipped by --skip
+- `ab`: skipped by --skip
+
+## Stages
+
+| # | Stage | Section | Verdict | Wall | Result |
+|---|---|---|---|---|---|
+| 1 | `doctor` doctor: host and device fingerprint, known pitfalls | quick | PASS | 0s | AMD Radeon AI PRO R9700 (gfx1201), 95 kernels registered |
+| 2 | `recipe` recipe resolve | quick | PASS | 0s | builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8) |
+| 3 | `plan` plan show: load the model, resolve a kernel per op | quick | PASS | 14s | 31 ops resolved, exactness deterministic, loaded in 13.5s |
+| 4 | `kernels` kernels test on the model's shapes | quick | SKIP | 0s | skipped by --skip |
+| 5 | `gate` quick gate: sanity prompts, perplexity, non-finite | quick | PASS | 7s | perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows |
+| 6 | `acc-format` short accuracy against the format's own reference (same quantized weights) | quick | SKIP | 0s | no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE) |
+| 7 | `acc-short` short accuracy against a golden | quick | FAIL | 8s | baseline gate failed |
+| 8 | `acc-oracle` short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference) | quick | FAIL | 35s | the logits moved against the recorded dump /work/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors: mean KL(21-way)                                 8.5756e-3  (limit 1.0000e-4)  FAIL; max position KL(21-way)                         3.4393e-1  (limit 5.0000e-3)  FAIL; top-1  |
+| 9 | `bench` bench speed 128 / 1024 / 4096 with the byte floor | quick | SKIP | 0s | skipped by --skip |
+| 10 | `acc-long` accuracy --mode all on the long golden (prefill, decode, prefix reuse) | full | SKIP | 0s | skipped by --skip |
+| 11 | `acc-4k` accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048) | full | SKIP | 0s | skipped by --skip |
+| 12 | `envelope` noise envelope and baseline for regression gating | full | SKIP | 0s | skipped by --skip |
+| 13 | `bench-long` long-context bench up to 16k | full | SKIP | 0s | skipped by --skip |
+| 14 | `ab` A/B against the reference server via localeval | full | SKIP | 0s | skipped by --skip |
+| 15 | `tp` tensor-parallel variant | full | FAIL | 56s | tp=2: the logits moved against the recorded dump /work/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip-tp2.selfgolden.safetensors: mean KL(21-way)                                 8.5879e-3  (limit 1.0000e-4)  FAIL; max position KL(21-way)                         3.9948e-1  (limit 5.0000e-3)  FA |
+
+### Notes
+
+- `acc-short`: gated against the recorded baseline /work/golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.hip.baseline.json (commit 4379dd0) and its noise envelope
+
+## Speed
+
+**tensor-parallel bench** (floor: 10.94 GB/token at 627 GB/s; gb/token: busiest tp rank's weights from the plan; bandwidth: 627 GB/s, the R9700 figure of docs/results/2026-10-13-phase2a-hip.md)
+
+| Prompt tokens | TTFT s | Prefill tok/s | Decode tok/s | stdev | Floor tok/s | % of floor |
+|---|---|---|---|---|---|---|
+| 126 | 0.051 | 2444 | 190.92 | - | 57.3 | 333.2 |
+
+## Accuracy
+
+**acc-short** against `/models/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors` (given with --golden; gate class 4bit)
+
+| Mode | Positions | Top-1 % | Top-5 % | Mean KL | Mean KL (21-way) | Max KL (21-way) | |tail diff| | Non-finite | Greedy match % | Floor |
+|---|---|---|---|---|---|---|---|---|---|---|
+| prefill | 1441 | 98.27 | 91.28 | 5.71e-3 | 5.43e-3 | 5.89e-1 | 1.41e-3 | 0 | 6.7 | pass |
+| decode | 160 | 98.75 | 92.62 | 1.13e-2 | 1.13e-2 | 7.31e-1 | 2.28e-3 | 0 | 88.8 | pass |
+
+**tp** against `/models/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors` (given with --golden; gate class 4bit)
+
+| Mode | Positions | Top-1 % | Top-5 % | Mean KL | Mean KL (21-way) | Max KL (21-way) | |tail diff| | Non-finite | Greedy match % | Floor |
+|---|---|---|---|---|---|---|---|---|---|---|
+| prefill | 1441 | 98.40 | 91.87 | 7.67e-3 | 7.36e-3 | 1.11e0 | 1.76e-3 | 0 | 11.9 | pass |
+| decode | 160 | 96.88 | 92.88 | 9.87e-3 | 9.98e-3 | 2.69e-1 | 1.94e-3 | 0 | 73.8 | pass |
+
+**Quick gate**: perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows
+
+## Plan and recipe
+
+- recipe: builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8) (PASS)
+- plan: 31 ops resolved, exactness deterministic, loaded in 13.5s (PASS)
+
+| Op | Kernel | Exactness | Admitted | Calls / decode step |
+|---|---|---|---|---|
+| embedding | embedding_bf16 | exact | yes | 1 |
+| rmsnorm | rmsnorm_bf16 | deterministic | yes | 1 |
+| rmsnorm_add | rmsnorm_add_bf16 | deterministic | yes | 1 |
+| matmul | matmul_bf16 | deterministic | yes | 0 |
+| matmul | matmul_bf16_gemv | deterministic | yes | 0 |
+| attn_prefill | attn_prefill_bf16_flash_v2 | deterministic | yes | 0 |
+| attn_prefill | attn_prefill_bf16_splitkv | deterministic | yes | 0 |
+| attn_decode | attn_decode_bf16_splitkv | deterministic | yes | 10 |
+| silu_glu | silu_glu_bf16 | deterministic | yes | 0 |
+| argmax | argmax_f32 | exact | yes | 1 |
+| matmul_fp8 | matmul_fp8_gemv_v2 | deterministic | yes | 10 |
+| matmul_fp8 | matmul_fp8_mma_f8 | deterministic | yes | 0 |
+| matmul_nvfp4 | matmul_nvfp4_gemv_v2 | deterministic | yes | 1 |
+| matmul_nvfp4 | matmul_nvfp4_mma | deterministic | yes | 0 |
+| moe_topk | moe_topk_bf16_v2 | deterministic | yes | 0 |
+| moe_experts | moe_experts_bf16_v2 | deterministic | yes | 0 |
+| moe_combine | moe_combine_bf16 | deterministic | yes | 0 |
+| sigmoid_mul | sigmoid_mul_bf16 | deterministic | yes | 0 |
+| gdn_conv | gdn_conv_bf16 | deterministic | yes | 0 |
+| gdn_delta_rule | gdn_delta_rule_bf16_chunk | deterministic | yes | 0 |
+| gdn_delta_rule | gdn_delta_rule_bf16_v2 | deterministic | yes | 0 |
+| matmul_pair | matmul_pair_bf16_gemv | deterministic | yes | 1 |
+| matmul_fp8_pair | matmul_fp8_pair_gemv | deterministic | yes | 30 |
+| gated_rmsnorm | gated_rmsnorm_bf16 | deterministic | yes | 0 |
+| rmsnorm_add_matmul_pair | rmsnorm_add_matmul_pair_bf16_gemv | deterministic | yes | 69 |
+| gated_rmsnorm_matmul_fp8 | gated_rmsnorm_matmul_fp8_gemv | deterministic | yes | 30 |
+| rmsnorm_add_matmul_fp8_pair | rmsnorm_add_matmul_fp8_pair_gemv | deterministic | yes | 10 |
+| sigmoid_mul_matmul_fp8 | sigmoid_mul_matmul_fp8_gemv | deterministic | yes | 10 |
+| gate_split_qk_norm_rope_kv | gate_split_qk_norm_rope_kv_bf16 | deterministic | yes | 10 |
+| gdn_conv_delta | gdn_conv_delta_bf16 | deterministic | yes | 30 |
+| moe_block | moe_block_bf16 | deterministic | yes | 40 |
+
+- kernels test: skipped by --skip (SKIP)
+
+## Provenance
+
+| Stage | Build stamp | Host | Started (unix) | Command |
+|---|---|---|---|---|
+| `doctor` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 1795285351 | `/target/release/intarsia doctor --backend hip --device 0 --out /work/.rocm102-logs/1121-1322/qchk-r10/doctor.json` |
+| `recipe` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 1795285351 | `recipe::analyse(/models/Qwen3.6-35B-A3B-NVFP4)` |
+| `plan` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 1795285352 | `/target/release/intarsia plan show --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --admit --json` |
+| `kernels` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 0 | `/target/release/intarsia plan show --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --admit --json` |
+| `gate` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 1795285365 | `/target/release/intarsia accuracy --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --quick --max-seq 2048` |
+| `acc-format` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 1795285372 | `-` |
+| `acc-short` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 1795285372 | `/target/release/intarsia accuracy --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --golden /models/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --decode-positions 16 --max-seq 4096 --write-baseline /work/.rocm102-logs/1121-1322/qchk-r10/baselines/acc-` |
+| `acc-oracle` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 1795285380 | `/target/release/intarsia accuracy --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --self-golden /work/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors --mode prefill --decode-positions 16 --max-seq 4096 --model-id Qwen3.6-35B-A3B-NVFP4 --allo` |
+| `bench` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 0 | `/target/release/intarsia accuracy --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --self-golden /work/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors --mode prefill --decode-positions 16 --max-seq 4096 --model-id Qwen3.6-35B-A3B-NVFP4 --allo` |
+| `acc-long` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 0 | `/target/release/intarsia accuracy --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --self-golden /work/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors --mode prefill --decode-positions 16 --max-seq 4096 --model-id Qwen3.6-35B-A3B-NVFP4 --allo` |
+| `acc-4k` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 0 | `/target/release/intarsia accuracy --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --self-golden /work/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors --mode prefill --decode-positions 16 --max-seq 4096 --model-id Qwen3.6-35B-A3B-NVFP4 --allo` |
+| `envelope` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 0 | `/target/release/intarsia accuracy --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --self-golden /work/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors --mode prefill --decode-positions 16 --max-seq 4096 --model-id Qwen3.6-35B-A3B-NVFP4 --allo` |
+| `bench-long` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 0 | `/target/release/intarsia accuracy --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --self-golden /work/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors --mode prefill --decode-positions 16 --max-seq 4096 --model-id Qwen3.6-35B-A3B-NVFP4 --allo` |
+| `ab` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 0 | `/target/release/intarsia accuracy --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --mem-budget 29 --self-golden /work/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip.selfgolden.safetensors --mode prefill --decode-positions 16 --max-seq 4096 --model-id Qwen3.6-35B-A3B-NVFP4 --allo` |
+| `tp` | head=91f2b05 code-tree=f3db282f4435 dirty=no | tatooine | 1795285416 | `/target/release/intarsia accuracy --model /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --device 0 --tp 2 --devices 0,1 --mem-budget 29 --self-golden /work/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip-tp2.selfgolden.safetensors --mode prefill --decode-positions 16 --max-seq 4096 --model-id Qwe` |
+
+Model fingerprint: `fnv1a64:9ca75aef5131bb81`.
+
+
+## Artifacts
+
+- `doctor.json` (doctor)
+- `plan.json` (plan)
+- `logs/gate.out` (gate)
+- `logs/acc-short.out` (acc-short)
+- `baselines/acc-short.baseline.json` (acc-short)
+- `logs/acc-oracle-drift.out` (acc-oracle)
+- `bench/qualify-Qwen3.6-35B-A3B-NVFP4-hip-tp2.json` (tp)
+- `baselines/tp2-acc.baseline.json` (tp)
+- `state.json` (stage records; `--resume` reads it)
