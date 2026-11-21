@@ -1,0 +1,24 @@
+r7 devlibs /opt/rocm/amdgcn/bitcode
+71
+HIP version: 7.17.26434-0000000
+AMD clang version 24.0.0git (https://github.com/ROCm/llvm-project.git bdc35841c97ff51400273b91d7bc05c96e19c2d9)
+Target: x86_64-unknown-linux-gnu
+r10 devlibs /opt/rocm/amdgcn/bitcode
+-mlink-builtin-bitcode /opt/rocm/core-10.2/lib/llvm/bin/../../../amdgcn/bitcode/ocml.bc
+-mlink-builtin-bitcode /opt/rocm/core-10.2/lib/llvm/bin/../../../amdgcn/bitcode/ockl.bc
+-mlink-builtin-bitcode /opt/rocm/core-10.2/lib/llvm/bin/../../../amdgcn/bitcode/oclc_unsafe_math_off.bc
+-mlink-builtin-bitcode /opt/rocm/core-10.2/lib/llvm/bin/../../../amdgcn/bitcode/oclc_finite_only_off.bc
+-mlink-builtin-bitcode /opt/rocm/core-10.2/lib/llvm/bin/../../../amdgcn/bitcode/oclc_wavefrontsize64_off.bc
+-mlink-builtin-bitcode /opt/rocm/core-10.2/lib/llvm/bin/../../../amdgcn/bitcode/oclc_isa_version_1201.bc
+-mlink-builtin-bitcode /opt/rocm/core-10.2/lib/llvm/bin/../../../amdgcn/bitcode/oclc_abi_version_600.bc
+13:56:22 tu c7 exit 0
+13:56:26 tu c10 exit 0
+13:56:29 tu c10dl7 exit 0 c10dl7: hipcc -O3 -std=c++17 -fPIC -Wall -Wno-unused-function -mcumode --offload-arch=gfx1201 -I /work/kernels --rocm-device-lib-path=/work/.bisect/devlibs7 
+13:56:30 relink x-c7 exit 0
+13:56:30 relink x-c10 exit 0
+13:56:30 relink x-c10dl7 exit 0
+13:56:30 objs c7 != r7
+13:56:30 objs c10 != r10
+13:56:30 isa c7: 9490 v_ insts; v_add3_u32=34 v_add_co_ci_u32_e64=387 v_add_co_u32=387 v_add_f32_e32=507 v_add_lshl_u32=3 v_add_nc_u32_e32=981 v_cvt_f32_i32_e32=1 v_cvt_f64_f32_e32=1 v_cvt_i32_f32_e32=165 v_exp_f32_e32=165 v_fmaak_f32=2 v_fmac_f32_e32=84 v_fma_f32=173 v_fmamk_f32=2 v_frexp_exp_i32_f64_e32=1 v_frexp_mant_f32_e32=1 v_ldexp_f32=173 v_log_f32_e32=2 v_mul_f32_e32=650 v_mul_f32_e64=1 v_mul_i32_i24_e32=6 v_mul_lo_u32=30 v_mul_u32_u24_e32=78 v_rcp_f32_e32=2 v_rcp_iflag_f32_e32=2 v_rsq_f32_e32=2 v_sub_f32_e32=350 v_sub_nc_u32_e32=1 v_subrev_co_ci_u32_e64=1 v_wmma_f32_16x16x16_bf16=260 
+13:56:30 isa c10: 9605 v_ insts; v_add3_u32=25 v_add_co_ci_u32_e64=384 v_add_co_u32=384 v_add_f32_e32=561 v_add_lshl_u32=2 v_add_nc_u32_e32=901 v_cvt_f32_i32_e32=1 v_cvt_i32_f32_e32=165 v_exp_f32_e32=165 v_fmac_f32_e32=135 v_fma_f32=173 v_fmamk_f32=2 v_frexp_exp_i32_f32_e32=1 v_frexp_mant_f32_e32=1 v_ldexp_f32=171 v_log_f32_e32=2 v_mul_f32_e32=595 v_mul_f32_e64=1 v_mul_i32_i24_e32=6 v_mul_lo_u32=30 v_mul_u32_u24_e32=71 v_rcp_f32_e32=2 v_rsq_f32_e32=2 v_sub_f32_e32=371 v_sub_nc_u32_e32=1 v_subrev_co_ci_u32_e64=1 v_wmma_f32_16x16x16_bf16=260 
+13:56:31 isa c10dl7: 9607 v_ insts; v_add3_u32=25 v_add_co_ci_u32_e64=384 v_add_co_u32=384 v_add_f32_e32=562 v_add_lshl_u32=2 v_add_nc_u32_e32=901 v_cvt_f32_i32_e32=1 v_cvt_f64_f32_e32=1 v_cvt_i32_f32_e32=165 v_exp_f32_e32=165 v_fmac_f32_e32=135 v_fma_f32=173 v_fmamk_f32=2 v_frexp_exp_i32_f64_e32=1 v_frexp_mant_f32_e32=1 v_ldexp_f32=171 v_log_f32_e32=2 v_mul_f32_e32=596 v_mul_f32_e64=1 v_mul_i32_i24_e32=6 v_mul_lo_u32=30 v_mul_u32_u24_e32=71 v_rcp_f32_e32=2 v_rsq_f32_e32=2 v_sub_f32_e32=371 v_sub_nc_u32_e32=1 v_subrev_co_ci_u32_e64=1 v_wmma_f32_16x16x16_bf16=260 

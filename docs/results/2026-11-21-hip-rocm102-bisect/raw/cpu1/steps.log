@@ -1,0 +1,33 @@
+13:40:20 mkbins r7 exit 0 (96 s):    Compiling thiserror v2.0.21|   Compiling serde_path_to_error v0.1.20|   Compiling thiserror-impl v2.0.21|OUT_DIR /target/release/build/intarsia-backend-hip-f27e1d0fe3898984/out|28|HIP version: 7.2.53211-97f5574fe2|
+13:42:19 mkbins r10 exit 0 (119 s):    Compiling thiserror v2.0.21|   Compiling serde_path_to_error v0.1.20|   Compiling thiserror-impl v2.0.21|OUT_DIR /target/release/build/intarsia-backend-hip-f27e1d0fe3898984/out|28|HIP version: 7.17.26434-0000000|
+13:42:19 relink none exit 0
+13:42:20 relink all exit 0
+13:42:20 relink s-allreduce exit 0
+13:42:20 relink s-allreduce_wht6 exit 0
+13:42:21 relink s-argmax exit 0
+13:42:21 relink s-ar_norm exit 0
+13:42:22 relink s-attention_flash exit 0
+13:42:22 relink s-attention exit 0
+13:42:22 relink s-attention_splitkv exit 0
+13:42:23 relink s-attention_win_splitkv exit 0
+13:42:23 relink s-bridge exit 0
+13:42:24 relink s-dflash exit 0
+13:42:24 relink s-elementwise exit 0
+13:42:25 relink s-fp8 exit 0
+13:42:25 relink s-gate_qkr exit 0
+13:42:25 relink s-gdn_chunk exit 0
+13:42:26 relink s-gdn_fused exit 0
+13:42:26 relink s-gdn exit 0
+13:42:27 relink s-ik_runtime exit 0
+13:42:27 relink s-matmul exit 0
+13:42:27 relink s-moe_block_grouped exit 0
+13:42:28 relink s-moe_block exit 0
+13:42:28 relink s-moe exit 0
+13:42:29 relink s-moe_shared exit 0
+13:42:29 relink s-mxfp4_a8_gemm exit 0
+13:42:29 relink s-mxfp4_a8 exit 0
+13:42:30 relink s-mxfp4 exit 0
+13:42:30 relink s-norm exit 0
+13:42:31 relink s-nvfp4 exit 0
+13:42:31 relink s-topk exit 0
+2.6G	/home/josef/intarsiaml-rocm102-bisect/.bisect

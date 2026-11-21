@@ -1,0 +1,28 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00  1.106e-15  2.931e-14  2.931e-14  4.189e-15   0.0324   0.0324   100.00     38/38      0
+story                 39    39   100.00  1.089e-15  7.712e-14  7.712e-14  4.523e-15   0.0220   0.0220   100.00     39/39      0
+code                  87    87   100.00   4.847e-4   4.813e-4   4.813e-4   7.878e-3   0.0113   0.0113    97.24     87/87      0
+science               79    79    97.47   2.686e-3   2.663e-3   2.663e-3   2.186e-2   0.0114   0.0116    97.47     36/79      0
+chat_short            18    18   100.00  1.148e-15  7.435e-12  7.435e-12  6.397e-15   0.0296   0.0296   100.00     18/18      0
+chat_system           32    32   100.00  8.515e-16  8.196e-11  8.196e-11  3.444e-15   0.0169   0.0169   100.00     32/32      0
+chat_multiturn        58    58   100.00  7.482e-16  1.323e-11  1.323e-11  8.097e-15   0.0185   0.0185   100.00     58/58      0
+chat_reasoning        90    90    96.67   5.097e-3   5.067e-3   5.067e-3   4.577e-2   0.0143   0.0143    96.89     25/90      0
+long_prose_300       300   300    99.67   2.277e-3   2.217e-3   2.217e-3   2.475e-1   0.0089   0.0089    91.00   211/300      0
+long_prose_700       700   700    99.14   3.361e-3   3.301e-3   3.301e-3   2.513e-1   0.0075   0.0074    90.94    12/700      0
+long_docs_4k        4064  4064    94.69   1.168e-2   1.071e-2   1.071e-2   3.448e-1   0.0579   0.0584    92.89   89/4064      0
+OVERALL                   5505    95.86   9.300e-3   8.576e-3   8.576e-3   3.448e-1   0.0456   0.0459    92.98     11.7%      0
+prefill vs the other build's logits (same weights):
+  mean KL(21-way)                                 8.5756e-3  (limit 1.0000e-4)  FAIL
+  max position KL(21-way)                         3.4393e-1  (limit 5.0000e-3)  FAIL
+  top-1 flips                                      2.2800e2  (limit 2.7000e1)  FAIL
+  mean |tail diff|                                2.8078e-3  (limit 5.0000e-4)  FAIL
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [long_docs_4k]          1.0710e-2  (limit 5.0000e-4)  FAIL
+SELF-STATS mode=prefill positions=5505 mean_kl21=8.575604e-3 max_kl21=3.439305e-1 flips=228 flip_pct=4.1417 tail_abs=2.807782e-3 worst_prompt_kl21=1.070989e-2
+prefill self-golden => FAIL
+greedy-match [prefill]: mean 68.0% of positions before the first argmax divergence, worst prompt 1.7% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): FAIL
+golden gate: FAIL
