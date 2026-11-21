@@ -1,0 +1,1 @@
+{"seed": 9, "profile": "mixed", "weights": "", "minutes": 60.0, "streams": 2, "requests": 931, "kinds": {"chat": 351, "abort_prefill": 70, "multiturn": 129, "abort_decode": 109, "tool": 79, "long": 52, "schema": 47, "longgen": 94}, "ok": 931, "bad": 0, "errors": {}}
