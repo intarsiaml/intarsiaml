@@ -1,0 +1,56 @@
+[replay2] arm=LS6 order=interleaved seed=107 streams=2 plan={'per_sentence': 22.06, 'base_tokens': 52, 'sentences': [357, 218, 218, 218, 218, 218]} trace=RECORD
+[replay2] warmup ok=True prompt=6705
+[replay2] w0 c0 t1 prompt=8047 cached=44 ttft=1.32s decode=50.2 out=160 
+[replay2] w1 c1 t1 prompt=8044 cached=44 ttft=2.69s decode=47.4 out=160 
+[replay2] w0 c2 t1 prompt=8046 cached=44 ttft=1.5s decode=43.9 out=160 
+[replay2] w1 c3 t1 prompt=8033 cached=44 ttft=1.52s decode=57.2 out=142 
+[replay2] w0 c4 t1 prompt=8032 cached=44 ttft=1.46s decode=45.6 out=160 
+[replay2] w1 c5 t1 prompt=8046 cached=44 ttft=2.38s decode=49.9 out=160 
+[replay2] w0 c6 t1 prompt=8033 cached=44 ttft=1.46s decode=41.2 out=160 
+[replay2] w1 c7 t1 prompt=8030 cached=44 ttft=1.88s decode=42.9 out=160 
+[replay2] w0 c0 t2 prompt=13070 cached=8043 ttft=1.22s decode=51.1 out=159 
+[replay2] w1 c1 t2 prompt=13051 cached=8040 ttft=1.21s decode=76.9 out=160 
+[replay2] w0 c2 t2 prompt=13061 cached=8042 ttft=1.12s decode=44.6 out=151 
+[replay2] w1 c3 t2 prompt=13021 cached=8029 ttft=1.95s decode=65.7 out=160 
+[replay2] w0 c4 t2 prompt=13056 cached=8028 ttft=1.11s decode=51.9 out=160 
+[replay2] w1 c5 t2 prompt=13060 cached=8042 ttft=2.05s decode=63.9 out=160 
+[replay2] w1 c7 t2 prompt=13051 cached=8026 ttft=1.73s decode=72.9 out=160 
+[replay2] w0 c6 t2 prompt=13061 cached=8029 ttft=1.15s decode=41.6 out=157 
+[replay2] w1 c1 t3 prompt=18064 cached=13047 ttft=1.22s decode=54.0 out=160 
+[replay2] w0 c0 t3 prompt=18112 cached=13066 ttft=2.02s decode=71.2 out=155 
+[replay2] w1 c3 t3 prompt=18042 cached=13017 ttft=1.74s decode=72.1 out=160 
+[replay2] w0 c2 t3 prompt=18064 cached=13057 ttft=4.85s decode=49.1 out=149 
+[replay2] w0 c4 t3 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t3 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c0 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c2 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c4 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c0 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c2 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c4 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c0 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c2 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c4 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w0 c6 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t3 prompt=18089 cached=13056 ttft=3.04s decode=86.0 out=160 
+[replay2] w1 c7 t3 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c1 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c3 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t4 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c1 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c3 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t5 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c1 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c3 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c5 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+[replay2] w1 c7 t6 prompt=None cached=0 ttft=Nones decode=None out=None ERROR ConnectionRefusedError: [Errno 61] Connection refused
+| turn | prompt tok | cached tok (frac) | TTFT s median (min-max) | decode tok/s median (min-max) |
+| 1 | 8038 | 44 (0.005) | 1.508 (1.325-2.694) | 46.5 (41.2-57.2) |
+| 2 | 13058 | 8034 (0.616) | 1.214 (1.114-2.048) | 57.9 (41.6-76.9) |
+| 3 | 18064 | 13056 (0.722) | 2.021 (1.217-4.846) | 71.2 (49.1-86.0) |
+[replay2] smoothness {'note': 'per-request token-weighted ITL from localeval Client (raw chunk timestamps not exposed)', 'itl_ms_p50_median': 0.01, 'itl_ms_p99_median': 154.59, 'itl_ms_p99_max': 865.98, 'itl_cv_median': 1.797}
+[replay2] totals {'requests': 48, 'errors': 27, 'prompt_tokens': 259113, 'cached_tokens': 129874, 'ttft_s_sum': 38.63, 'decode_tok_s_median': 51.1, 'completion_tokens': 3313, 'agg_output_tok_s': 65.57} wall 50.5s

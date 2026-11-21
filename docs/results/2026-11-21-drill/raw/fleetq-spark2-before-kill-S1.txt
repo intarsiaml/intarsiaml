@@ -1,0 +1,12 @@
+spark2 (spark-fa00) · online · GPU 96% busy
+  memory    116 GB: services 38 · jobs 52 · free 26  (box reports 37.8 free)
+  services
+    + spark2-vllm            retro                        38 GB  up
+  running
+    #10490  drill: restart drill 35B (10 stages: SIGTERM x3, SIGKILL x5 incl. child/supervisor-only, disk-tier)
+            claude-overnight-drill · for 6m · 52 GB
+  queued
+    1. #10491  think2 bbh-A1
+               claude-overnight-think2 · waits: needs gpu quiet on spark2, but #10490 loads it
+  backfill  run jobs with --expect up to 73m fit before #10491 (starts Sat 02:55)
+

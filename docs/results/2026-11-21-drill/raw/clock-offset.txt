@@ -1,0 +1,11 @@
+start offset_spark2_minus_mac_s 0.15 rtt_s 0.346
+before-kill-S0 offset_spark2_minus_mac_s 0.207 rtt_s 0.464
+before-kill-S1 offset_spark2_minus_mac_s 0.21 rtt_s 0.467
+before-kill-S2 offset_spark2_minus_mac_s 0.185 rtt_s 0.414
+before-kill-S3 offset_spark2_minus_mac_s 0.267 rtt_s 0.584
+before-kill-S4 offset_spark2_minus_mac_s 0.169 rtt_s 0.387
+before-kill-S5 offset_spark2_minus_mac_s 0.169 rtt_s 0.383
+before-kill-S6 offset_spark2_minus_mac_s 0.167 rtt_s 0.39
+before-kill-S7 offset_spark2_minus_mac_s 0.191 rtt_s 0.428
+before-kill-S8 offset_spark2_minus_mac_s 0.202 rtt_s 0.453
+before-kill-S9 offset_spark2_minus_mac_s 0.19 rtt_s 0.425

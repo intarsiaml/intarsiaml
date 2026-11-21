@@ -1,0 +1,401 @@
+[01:15:50 +1s] drill start, fleetq job 10490; binary: intarsia 0.0.1
+SNAP label=before-all t=1795241751.871445627 used_mb=48335 avail_mb=76274 cache_mb=31961 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+[01:15:51 +2s] === stage S0 (prefix-store 'on'), then: term sup
+SNAP label=pre-S0 t=1795241752.547969208 used_mb=48330 avail_mb=76279 cache_mb=31961 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT start S0 t_launch=1795241752.597943554 spid=546884 cpid=546890 launch_to_listen_s=74.923 launch_to_health_s=74.923 health_to_first_token_s=0.961 first_token_json={"http": 200, "first_content_s": 0.674, "total_s": 0.699, "text": "ok", "error": null}
+SNAP label=up-S0 t=1795241828.492542442 used_mb=77411 avail_mb=47198 cache_mb=32004 swap_mb=0  gpu_apps=3946,32342;546890,26828; listen=1 ours=[546884 546890 ] shm=1 vllm_http=000
+SERVELOG cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+SERVELOG --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+SERVELOG prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+SERVELOG --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+SERVELOG batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+SERVELOG batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+SERVELOG prefix store: the backend's packed prefill is off with --max-batch > 1
+SERVELOG prefix store: on (build 3feebdc3c32ada02, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+SERVELOG prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)
+SERVELOG prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+SERVELOG batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+SERVELOG loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 74.8s, context 131072 tokens
+[01:17:08 +79s] idle wait before verify: running+waiting=0 after 0 s
+[01:17:48 +119s] verify S0 pass 1: [verify] done 20 requests, 0 errors, wall 39.3s, cached tokens 279478
+[01:18:05 +136s] verify S0 pass 2: [verify] done 20 requests, 0 errors, wall 17.3s, cached tokens 391892
+== S0: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+[01:18:54 +185s] KILL (term sup) at mac epoch 1795241934.565
+SNAP label=before-S0 t=1795241935.003622628 used_mb=86147 avail_mb=38462 cache_mb=32004 swap_mb=0  gpu_apps=3946,32342;546890,27260; listen=1 ours=[546884 546890 ] shm=1 vllm_http=000
+SIGNAL TERM to [546884] (spid=546884 cpid=546890) at t=1795241935.087540319
+RESULT term S0 sup pid=546884 exit_after_s=4.578
+RESULT term S0 sup pid=546890 exit_after_s=3.687
+RESULT term S0 sup port_freed_after_s=0.085
+SNAP label=t0+0-S0 t=1795241939.673398626 used_mb=48289 avail_mb=76320 cache_mb=31962 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+SNAP label=t0+3-S0 t=1795241942.737349920 used_mb=48287 avail_mb=76322 cache_mb=31962 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT term S0 sup leftover ours=[]
+SERVELOG [supervisor] started server pid 546890
+SERVELOG [supervisor] signal 15: stopping the server
+SERVELOG tail: intarsia server listening on http://0.0.0.0:8191
+SERVELOG tail: verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+SERVELOG tail: [supervisor] signal 15: stopping the server
+[01:19:03 +194s] === stage S1 (prefix-store 'on'), then: term group
+SNAP label=pre-S1 t=1795241944.296486657 used_mb=48279 avail_mb=76329 cache_mb=31962 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT start S1 t_launch=1795241944.347368028 spid=554255 cpid=554261 launch_to_listen_s=74.513 launch_to_health_s=74.514 health_to_first_token_s=0.933 first_token_json={"http": 200, "first_content_s": 0.666, "total_s": 0.692, "text": "ok", "error": null}
+SNAP label=up-S1 t=1795242019.802865760 used_mb=77407 avail_mb=47202 cache_mb=32004 swap_mb=0  gpu_apps=3946,32342;554261,26828; listen=1 ours=[554255 554261 ] shm=1 vllm_http=000
+SERVELOG cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+SERVELOG --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+SERVELOG prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+SERVELOG --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+SERVELOG batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+SERVELOG batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+SERVELOG prefix store: the backend's packed prefill is off with --max-batch > 1
+SERVELOG prefix store: on (build 3feebdc3c32ada02, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+SERVELOG prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)
+SERVELOG prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+SERVELOG batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+SERVELOG loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 74.3s, context 131072 tokens
+[01:20:30 +281s] idle wait before verify: running+waiting=0 after 0 s
+[01:21:09 +320s] verify S1 pass 1: [verify] done 20 requests, 0 errors, wall 38.9s, cached tokens 279478
+[01:21:26 +337s] verify S1 pass 2: [verify] done 20 requests, 0 errors, wall 17.2s, cached tokens 391892
+== S1: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S1 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S1 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+[01:22:15 +386s] KILL (term group) at mac epoch 1795242135.608
+SNAP label=before-S1 t=1795242136.053619417 used_mb=86145 avail_mb=38464 cache_mb=32004 swap_mb=0  gpu_apps=3946,32342;554261,27260; listen=1 ours=[554255 554261 ] shm=1 vllm_http=000
+SIGNAL TERM to [554261 554255] (spid=554255 cpid=554261) at t=1795242136.145189378
+RESULT term S1 group pid=554255 exit_after_s=4.435
+RESULT term S1 group pid=554261 exit_after_s=3.598
+RESULT term S1 group port_freed_after_s=0.015
+SNAP label=t0+0-S1 t=1795242140.589019557 used_mb=48249 avail_mb=76360 cache_mb=31962 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+SNAP label=t0+3-S1 t=1795242143.641234670 used_mb=48239 avail_mb=76370 cache_mb=31962 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT term S1 group leftover ours=[]
+SERVELOG [supervisor] started server pid 554261
+SERVELOG [supervisor] signal 15: stopping the server
+SERVELOG tail: intarsia server listening on http://0.0.0.0:8191
+SERVELOG tail: verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+SERVELOG tail: [supervisor] signal 15: stopping the server
+[01:22:24 +395s] === stage S2 (prefix-store 'on'), then: kill9 both
+SNAP label=pre-S2 t=1795242144.983841225 used_mb=48243 avail_mb=76366 cache_mb=31962 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT start S2 t_launch=1795242145.033753018 spid=562208 cpid=562222 launch_to_listen_s=71.117 launch_to_health_s=71.118 health_to_first_token_s=0.854 first_token_json={"http": 200, "first_content_s": 0.574, "total_s": 0.601, "text": "ok", "error": null}
+SNAP label=up-S2 t=1795242217.014462747 used_mb=77417 avail_mb=47192 cache_mb=32005 swap_mb=0  gpu_apps=3946,32342;562222,26828; listen=1 ours=[562208 562222 ] shm=1 vllm_http=000
+SERVELOG cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+SERVELOG --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+SERVELOG prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+SERVELOG --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+SERVELOG batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+SERVELOG batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+SERVELOG prefix store: the backend's packed prefill is off with --max-batch > 1
+SERVELOG prefix store: on (build 3feebdc3c32ada02, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+SERVELOG prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)
+SERVELOG prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+SERVELOG batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+SERVELOG loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 71.0s, context 131072 tokens
+[01:23:47 +478s] idle wait before verify: running+waiting=0 after 0 s
+[01:24:26 +517s] verify S2 pass 1: [verify] done 20 requests, 0 errors, wall 39.0s, cached tokens 279478
+[01:24:44 +535s] verify S2 pass 2: [verify] done 20 requests, 0 errors, wall 17.3s, cached tokens 391892
+== S2: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S2 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S2 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+[01:25:32 +583s] KILL (kill9 both) at mac epoch 1795242332.991
+SNAP label=before-S2 t=1795242333.457290186 used_mb=86388 avail_mb=38221 cache_mb=32005 swap_mb=0  gpu_apps=3946,32342;562222,27514; listen=1 ours=[562208 562222 ] shm=1 vllm_http=000
+SIGNAL KILL to [562222 562208] (spid=562208 cpid=562222) at t=1795242333.532585157
+RESULT kill9 S2 both pid=562208 exit_after_s=0.068
+RESULT kill9 S2 both pid=562222 exit_after_s=0.003
+RESULT kill9 S2 both port_freed_after_s=0.015
+SNAP label=t0+0-S2 t=1795242333.608748238 used_mb=86101 avail_mb=38508 cache_mb=32005 swap_mb=0  gpu_apps=3946,32342;562222,27514; listen=0 ours=[] shm=1 vllm_http=000
+SNAP label=t0+3-S2 t=1795242336.676125285 used_mb=48292 avail_mb=76316 cache_mb=31963 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT kill9 S2 both leftover ours=[]
+SERVELOG [supervisor] started server pid 562222
+SERVELOG tail: sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_confi
+SERVELOG tail: intarsia server listening on http://0.0.0.0:8191
+SERVELOG tail: verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+[01:25:37 +588s] === stage S3 (prefix-store 'on'), then: kill9 both
+SNAP label=pre-S3 t=1795242338.082365969 used_mb=48279 avail_mb=76330 cache_mb=31963 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT start S3 t_launch=1795242338.131072327 spid=569489 cpid=569495 launch_to_listen_s=75.403 launch_to_health_s=75.404 health_to_first_token_s=1.005 first_token_json={"http": 200, "first_content_s": 0.717, "total_s": 0.742, "text": "ok", "error": null}
+SNAP label=up-S3 t=1795242414.549154294 used_mb=77393 avail_mb=47216 cache_mb=32006 swap_mb=0  gpu_apps=3946,32342;569495,26828; listen=1 ours=[569489 569495 ] shm=1 vllm_http=000
+SERVELOG cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+SERVELOG --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+SERVELOG prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+SERVELOG --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+SERVELOG batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+SERVELOG batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+SERVELOG prefix store: the backend's packed prefill is off with --max-batch > 1
+SERVELOG prefix store: on (build 3feebdc3c32ada02, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+SERVELOG prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)
+SERVELOG prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+SERVELOG batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+SERVELOG loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 75.2s, context 131072 tokens
+[01:27:05 +676s] idle wait before verify: running+waiting=0 after 0 s
+[01:27:44 +715s] verify S3 pass 1: [verify] done 20 requests, 0 errors, wall 39.1s, cached tokens 279478
+[01:28:02 +733s] verify S3 pass 2: [verify] done 20 requests, 0 errors, wall 17.4s, cached tokens 391892
+== S3: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S3 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S3 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+[01:28:50 +781s] KILL (kill9 both) at mac epoch 1795242530.906
+SNAP label=before-S3 t=1795242531.327954800 used_mb=86030 avail_mb=38579 cache_mb=32006 swap_mb=0  gpu_apps=3946,32342;569495,27130; listen=1 ours=[569489 569495 ] shm=1 vllm_http=000
+SIGNAL KILL to [569495 569489] (spid=569489 cpid=569495) at t=1795242531.406189221
+RESULT kill9 S3 both pid=569489 exit_after_s=0.069
+RESULT kill9 S3 both pid=569495 exit_after_s=0.003
+RESULT kill9 S3 both port_freed_after_s=0.016
+SNAP label=t0+0-S3 t=1795242531.484826601 used_mb=85668 avail_mb=38940 cache_mb=32006 swap_mb=0  gpu_apps=3946,32342;569495,27130; listen=0 ours=[] shm=1 vllm_http=000
+SNAP label=t0+3-S3 t=1795242534.539703928 used_mb=48298 avail_mb=76311 cache_mb=31964 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT kill9 S3 both leftover ours=[]
+SERVELOG [supervisor] started server pid 569495
+SERVELOG tail: sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_confi
+SERVELOG tail: intarsia server listening on http://0.0.0.0:8191
+SERVELOG tail: verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+[01:28:55 +786s] === stage S4 (prefix-store 'on'), then: kill9 both
+SNAP label=pre-S4 t=1795242536.029269873 used_mb=48288 avail_mb=76321 cache_mb=31964 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT start S4 t_launch=1795242536.078259192 spid=576868 cpid=576874 launch_to_listen_s=76.898 launch_to_health_s=76.899 health_to_first_token_s=0.893 first_token_json={"http": 200, "first_content_s": 0.602, "total_s": 0.627, "text": "ok", "error": null}
+SNAP label=up-S4 t=1795242613.878289318 used_mb=77416 avail_mb=47193 cache_mb=32006 swap_mb=0  gpu_apps=3946,32342;576874,26828; listen=1 ours=[576868 576874 ] shm=1 vllm_http=000
+SERVELOG cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+SERVELOG --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+SERVELOG prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+SERVELOG --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+SERVELOG batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+SERVELOG batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+SERVELOG prefix store: the backend's packed prefill is off with --max-batch > 1
+SERVELOG prefix store: on (build 3feebdc3c32ada02, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+SERVELOG prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)
+SERVELOG prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+SERVELOG batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+SERVELOG loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 76.8s, context 131072 tokens
+[01:30:24 +875s] idle wait before verify: running+waiting=0 after 0 s
+[01:31:03 +914s] verify S4 pass 1: [verify] done 20 requests, 0 errors, wall 39.0s, cached tokens 279478
+[01:31:21 +932s] verify S4 pass 2: [verify] done 20 requests, 0 errors, wall 17.3s, cached tokens 391892
+== S4: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S4 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S4 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+[01:32:09 +980s] KILL (kill9 both) at mac epoch 1795242729.814
+SNAP label=before-S4 t=1795242730.207063994 used_mb=85997 avail_mb=38612 cache_mb=32007 swap_mb=0  gpu_apps=3946,32342;576874,27130; listen=1 ours=[576868 576874 ] shm=1 vllm_http=000
+SIGNAL KILL to [576874 576868] (spid=576868 cpid=576874) at t=1795242730.276743625
+RESULT kill9 S4 both pid=576868 exit_after_s=0.068
+RESULT kill9 S4 both pid=576874 exit_after_s=0.004
+RESULT kill9 S4 both port_freed_after_s=0.015
+SNAP label=t0+0-S4 t=1795242730.352932421 used_mb=85721 avail_mb=38888 cache_mb=32007 swap_mb=0  gpu_apps=3946,32342;576874,27130; listen=0 ours=[] shm=1 vllm_http=000
+SNAP label=t0+3-S4 t=1795242733.412631919 used_mb=48296 avail_mb=76313 cache_mb=31965 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT kill9 S4 both leftover ours=[]
+SERVELOG [supervisor] started server pid 576874
+SERVELOG tail: sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_confi
+SERVELOG tail: intarsia server listening on http://0.0.0.0:8191
+SERVELOG tail: verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+[01:32:14 +985s] === stage S5 (prefix-store 'on'), then: kill9 child
+SNAP label=pre-S5 t=1795242734.888990602 used_mb=48304 avail_mb=76305 cache_mb=31964 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT start S5 t_launch=1795242734.939256846 spid=584317 cpid=584323 launch_to_listen_s=74.648 launch_to_health_s=74.649 health_to_first_token_s=0.891 first_token_json={"http": 200, "first_content_s": 0.603, "total_s": 0.629, "text": "ok", "error": null}
+SNAP label=up-S5 t=1795242810.489378660 used_mb=77389 avail_mb=47220 cache_mb=32007 swap_mb=0  gpu_apps=3946,32342;584323,26828; listen=1 ours=[584317 584323 ] shm=1 vllm_http=000
+SERVELOG cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+SERVELOG --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+SERVELOG prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+SERVELOG --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+SERVELOG batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+SERVELOG batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+SERVELOG prefix store: the backend's packed prefill is off with --max-batch > 1
+SERVELOG prefix store: on (build 3feebdc3c32ada02, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+SERVELOG prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)
+SERVELOG prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+SERVELOG batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+SERVELOG loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 74.5s, context 131072 tokens
+[01:33:41 +1072s] idle wait before verify: running+waiting=0 after 0 s
+[01:34:20 +1111s] verify S5 pass 1: [verify] done 20 requests, 0 errors, wall 39.4s, cached tokens 279478
+[01:34:38 +1129s] verify S5 pass 2: [verify] done 20 requests, 0 errors, wall 17.4s, cached tokens 391892
+== S5: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S5 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S5 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+[01:35:26 +1177s] KILL (kill9 child) at mac epoch 1795242926.942
+SNAP label=before-S5 t=1795242927.325388918 used_mb=86279 avail_mb=38330 cache_mb=32007 swap_mb=0  gpu_apps=3946,32342;584323,27386; listen=1 ours=[584317 584323 ] shm=1 vllm_http=000
+SIGNAL KILL to [584323] (spid=584317 cpid=584323) at t=1795242927.399121610
+RESULT kill9 S5 child pid=584323 exit_after_s=0.003
+SNAP label=t0+0-S5 t=1795242927.419464178 used_mb=86277 avail_mb=38332 cache_mb=32007 swap_mb=0  gpu_apps=3946,32342;584323,27386; listen=0 ours=[584317 ] shm=1 vllm_http=000
+RESULT kill9 S5 child restarted by supervisor: new_child=591187 kill_to_new_child_s=2.015
+SNAP label=t0+restart-S5 t=1795242929.420150996 used_mb=48480 avail_mb=76129 cache_mb=31965 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[584317 591187 ] shm=1 vllm_http=000
+RESULT kill9 S5 child kill_to_listen_s=75.729 kill_to_health_s=75.730 kill_to_first_token_s=76.445 first_token_json={"http": 200, "first_content_s": 0.645, "total_s": 0.671, "text": "ok", "error": null}
+SNAP label=up-after-S5 t=1795243003.855541600 used_mb=77410 avail_mb=47199 cache_mb=32008 swap_mb=0  gpu_apps=3946,32342;591187,26828; listen=1 ours=[584317 591187 ] shm=1 vllm_http=000
+SERVELOG [supervisor] started server pid 584323
+SERVELOG [supervisor] server died after 193.4s: killed by signal 9; restart #1 in 1.0s
+SERVELOG [supervisor] started server pid 591187
+SERVELOG tail: sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_confi
+SERVELOG tail: intarsia server listening on http://0.0.0.0:8191
+SERVELOG tail: verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+[01:36:44 +1255s] === stage S6 (prefix-store 'on'), then: term sup
+[01:36:55 +1266s] idle wait before verify: running+waiting=0 after 0 s
+[01:37:35 +1306s] verify S6 pass 1: [verify] done 20 requests, 0 errors, wall 39.3s, cached tokens 279478
+[01:37:52 +1323s] verify S6 pass 2: [verify] done 20 requests, 0 errors, wall 17.3s, cached tokens 391892
+== S6: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S6 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S6 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+[01:38:41 +1372s] KILL (term sup) at mac epoch 1795243121.454
+SNAP label=before-S6 t=1795243121.835532339 used_mb=86009 avail_mb=38600 cache_mb=32008 swap_mb=0  gpu_apps=3946,32342;591187,27132; listen=1 ours=[584317 591187 ] shm=1 vllm_http=000
+SIGNAL TERM to [584317] (spid=584317 cpid=591187) at t=1795243121.903068072
+RESULT term S6 sup pid=584317 exit_after_s=3.559
+RESULT term S6 sup pid=591187 exit_after_s=2.722
+RESULT term S6 sup port_freed_after_s=0.079
+SNAP label=t0+0-S6 t=1795243125.469847630 used_mb=48252 avail_mb=76357 cache_mb=31966 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+SNAP label=t0+3-S6 t=1795243128.523891001 used_mb=48241 avail_mb=76368 cache_mb=31966 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT term S6 sup leftover ours=[]
+SERVELOG [supervisor] started server pid 584323
+SERVELOG [supervisor] server died after 193.4s: killed by signal 9; restart #1 in 1.0s
+SERVELOG [supervisor] started server pid 591187
+SERVELOG [supervisor] signal 15: stopping the server
+SERVELOG tail: intarsia server listening on http://0.0.0.0:8191
+SERVELOG tail: verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+SERVELOG tail: [supervisor] signal 15: stopping the server
+[01:38:49 +1380s] === stage S7 (prefix-store 'host_mb=8192,disk_mb=20000,dir=/home/nvidia/intarsiaml-drill/storedisk'), then: kill9 both
+SNAP label=pre-S7 t=1795243129.848202053 used_mb=48242 avail_mb=76367 cache_mb=31966 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT start S7 t_launch=1795243129.896906559 spid=599339 cpid=599345 launch_to_listen_s=70.796 launch_to_health_s=70.797 health_to_first_token_s=0.956 first_token_json={"http": 200, "first_content_s": 0.682, "total_s": 0.707, "text": "ok", "error": null}
+SNAP label=up-S7 t=1795243201.661070629 used_mb=77388 avail_mb=47221 cache_mb=32008 swap_mb=0  gpu_apps=3946,32342;599345,26828; listen=1 ours=[599339 599345 ] shm=1 vllm_http=000
+SERVELOG cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+SERVELOG --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+SERVELOG prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+SERVELOG --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+SERVELOG batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+SERVELOG batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+SERVELOG prefix store: the backend's packed prefill is off with --max-batch > 1
+SERVELOG prefix store: on (build 3feebdc3c32ada02, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+SERVELOG prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)
+SERVELOG prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+SERVELOG batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+SERVELOG loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 70.6s, context 131072 tokens
+[01:40:12 +1463s] idle wait before verify: running+waiting=0 after 0 s
+[01:40:51 +1502s] verify S7 pass 1: [verify] done 20 requests, 0 errors, wall 39.0s, cached tokens 279478
+[01:41:08 +1519s] verify S7 pass 2: [verify] done 20 requests, 0 errors, wall 17.3s, cached tokens 391892
+== S7: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S7 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S7 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+[01:41:57 +1568s] KILL (kill9 both) at mac epoch 1795243317.607
+SNAP label=before-S7 t=1795243318.086334848 used_mb=85953 avail_mb=38656 cache_mb=29736 swap_mb=0  gpu_apps=3946,32342;599345,27130; listen=1 ours=[599339 599345 ] shm=1 vllm_http=000
+SIGNAL KILL to [599345 599339] (spid=599339 cpid=599345) at t=1795243318.174851884
+RESULT kill9 S7 both pid=599339 exit_after_s=0.070
+RESULT kill9 S7 both pid=599345 exit_after_s=0.004
+RESULT kill9 S7 both port_freed_after_s=0.017
+SNAP label=t0+0-S7 t=1795243318.254890128 used_mb=85725 avail_mb=38884 cache_mb=29737 swap_mb=0  gpu_apps=3946,32342;599345,27130; listen=0 ours=[] shm=1 vllm_http=000
+SNAP label=t0+3-S7 t=1795243321.312572611 used_mb=48251 avail_mb=76358 cache_mb=29694 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT kill9 S7 both leftover ours=[]
+SERVELOG [supervisor] started server pid 599345
+SERVELOG tail: sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_confi
+SERVELOG tail: intarsia server listening on http://0.0.0.0:8191
+SERVELOG tail: verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+[01:42:02 +1573s] === stage S8 (prefix-store 'host_mb=8192,disk_mb=20000,dir=/home/nvidia/intarsiaml-drill/storedisk'), then: kill9 sup
+SNAP label=pre-S8 t=1795243322.724586918 used_mb=48241 avail_mb=76368 cache_mb=29694 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT start S8 t_launch=1795243322.783939939 spid=606640 cpid=606646 launch_to_listen_s=73.604 launch_to_health_s=73.604 health_to_first_token_s=0.854 first_token_json={"http": 200, "first_content_s": 0.583, "total_s": 0.609, "text": "ok", "error": null}
+SNAP label=up-S8 t=1795243397.250715443 used_mb=77399 avail_mb=47210 cache_mb=29878 swap_mb=0  gpu_apps=3946,32342;606646,26828; listen=1 ours=[606640 606646 ] shm=1 vllm_http=000
+SERVELOG cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+SERVELOG --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+SERVELOG prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+SERVELOG --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+SERVELOG batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+SERVELOG batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+SERVELOG prefix store: the backend's packed prefill is off with --max-batch > 1
+SERVELOG prefix store: on (build 3feebdc3c32ada02, 165 entries loaded, boundaries [248045], chunk-invariant backend: false)
+SERVELOG prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)
+SERVELOG prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+SERVELOG batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+SERVELOG loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 73.4s, context 131072 tokens
+[01:43:27 +1658s] idle wait before verify: running+waiting=0 after 0 s
+[01:43:48 +1679s] verify S8 pass 1: [verify] done 20 requests, 0 errors, wall 20.4s, cached tokens 391892
+[01:44:05 +1696s] verify S8 pass 2: [verify] done 20 requests, 0 errors, wall 17.3s, cached tokens 391892
+== S8: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+== S8 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S8 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+[01:44:54 +1745s] KILL (kill9 sup) at mac epoch 1795243494.571
+SNAP label=before-S8 t=1795243495.040281102 used_mb=86275 avail_mb=38334 cache_mb=32801 swap_mb=0  gpu_apps=3946,32342;606646,27258; listen=1 ours=[606640 606646 ] shm=1 vllm_http=000
+SIGNAL KILL to [606640] (spid=606640 cpid=606646) at t=1795243495.130984789
+RESULT kill9 S8 sup pid=606640 exit_after_s=0.067
+RESULT kill9 S8 sup pid=606646 exit_after_s=0.329
+RESULT kill9 S8 sup port_freed_after_s=0.341
+SNAP label=t0+0-S8 t=1795243495.481091571 used_mb=86194 avail_mb=38415 cache_mb=32801 swap_mb=0  gpu_apps=3946,32342;606646,27258; listen=0 ours=[] shm=1 vllm_http=000
+SNAP label=t0+3-S8 t=1795243498.547171609 used_mb=48228 avail_mb=76381 cache_mb=32759 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT kill9 S8 sup leftover ours=[]
+SERVELOG [supervisor] started server pid 606646
+SERVELOG tail: intarsia server listening on http://0.0.0.0:8191
+SERVELOG tail: verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+SERVELOG tail: [watchdog] supervisor 606640 is gone; exiting
+[01:44:59 +1750s] === stage S9 (prefix-store 'on'), then: term sup
+SNAP label=pre-S9 t=1795243499.917283333 used_mb=48236 avail_mb=76373 cache_mb=32759 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT start S9 t_launch=1795243499.973062684 spid=613508 cpid=613514 launch_to_listen_s=70.659 launch_to_health_s=70.660 health_to_first_token_s=1.065 first_token_json={"http": 200, "first_content_s": 0.775, "total_s": 0.8, "text": "ok", "error": null}
+SNAP label=up-S9 t=1795243571.718227788 used_mb=77417 avail_mb=47192 cache_mb=32598 swap_mb=0  gpu_apps=3946,32342;613514,26828; listen=1 ours=[613508 613514 ] shm=1 vllm_http=000
+SERVELOG cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)
+SERVELOG --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+SERVELOG prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)
+SERVELOG --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+SERVELOG batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+SERVELOG batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)
+SERVELOG prefix store: the backend's packed prefill is off with --max-batch > 1
+SERVELOG prefix store: on (build 3feebdc3c32ada02, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)
+SERVELOG prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)
+SERVELOG prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)
+SERVELOG batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)
+SERVELOG loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 70.5s, context 131072 tokens
+[01:46:22 +1833s] idle wait before verify: running+waiting=0 after 0 s
+[01:47:01 +1872s] verify S9 pass 1: [verify] done 20 requests, 0 errors, wall 39.4s, cached tokens 279478
+[01:47:19 +1890s] verify S9 pass 2: [verify] done 20 requests, 0 errors, wall 17.3s, cached tokens 391892
+== S9: pass1 vs pass2 (same server)
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: False (first request (0, 8041); sum base 279478 other 391892)
+== S9 vs S0: pass1 vs S0 pass1
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (0, 0); sum base 279478 other 279478)
+== S9 vs S0: pass2 vs S0 pass2
+identical 20/20 (base ok 20, other ok 20); different request indexes: []
+cached_tokens per request identical: True (first request (8041, 8041); sum base 391892 other 391892)
+[01:48:08 +1939s] KILL (term sup) at mac epoch 1795243688.019
+SNAP label=before-S9 t=1795243688.468129006 used_mb=86194 avail_mb=38415 cache_mb=32585 swap_mb=0  gpu_apps=3946,32342;613514,27258; listen=1 ours=[613508 613514 ] shm=1 vllm_http=000
+SIGNAL TERM to [613508] (spid=613508 cpid=613514) at t=1795243688.550525900
+RESULT term S9 sup pid=613508 exit_after_s=4.650
+RESULT term S9 sup pid=613514 exit_after_s=3.866
+RESULT term S9 sup port_freed_after_s=0.081
+SNAP label=t0+0-S9 t=1795243693.210238502 used_mb=48320 avail_mb=76289 cache_mb=32543 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+SNAP label=t0+3-S9 t=1795243696.272578960 used_mb=48305 avail_mb=76304 cache_mb=32543 swap_mb=0  gpu_apps=3946,32342; listen=0 ours=[] shm=1 vllm_http=000
+RESULT term S9 sup leftover ours=[]
+SERVELOG [supervisor] started server pid 613514
+SERVELOG [supervisor] signal 15: stopping the server
+SERVELOG tail: intarsia server listening on http://0.0.0.0:8191
+SERVELOG tail: verify attention rows: captured: engaged (one row-table attention launch per layer in the graph)
+SERVELOG tail: [supervisor] signal 15: stopping the server
+[01:48:27 +1958s] all stages done
+[01:48:29 +1960s] window end
