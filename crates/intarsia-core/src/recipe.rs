@@ -532,6 +532,15 @@ impl Recipe {
         self.tuning.backends.get(backend).and_then(|b| b.mtp_default_k_min).filter(|&k| k > 0)
     }
 
+    /// `[tuning.<backend>] mtp_default_k` of a recipe without an `[mtp]` head whose checkpoint carries its own draft model (Inkling-2's
+    /// DSpark, `mtp.safetensors`): the draft length of that draft's single-rank default (`intarsia_models::load`, brief 32).
+    pub fn resolve_draft_default(&self, backend: &str) -> Option<usize> {
+        if self.mtp.is_some() {
+            return None;
+        }
+        self.tuning.backends.get(backend).and_then(|b| b.mtp_default_k).filter(|&k| k > 0)
+    }
+
     /// The recipe's single-rank (tp = 1) MTP default for `backend` (`[tuning.<backend>] mtp_default_k`): `Some(k)` when the recipe has an
     /// `[mtp]` head and sets it for this backend.
     pub fn resolve_mtp_default(&self, backend: &str) -> Option<usize> {

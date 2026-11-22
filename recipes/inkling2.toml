@@ -37,6 +37,11 @@ max_batch = 16                  # the cap of --max-batch (batched decode, lane i
 # "Prefill chunk sweep"). Revert: `--prefill-chunk 256`, or delete this section.
 [tuning.cuda]
 prefill_chunk = 2048
+# DSpark speculation by default on CUDA (brief 32, user decision 5, 2026-11-22): without --spec, one sequence at one rank runs
+# --spec dflash with the model's own draft (mtp.safetensors) at k3, the DSpark gate at its code default; greedy output is
+# --spec off's, sampled requests take plain steps, a batching server has no draft (docs/results/2026-11-21-inkling2-cuda-attn.md).
+# Revert: --spec off, INTARSIA_SPEC_DEFAULT=0, or delete this line.
+mtp_default_k = 3
 
 [accuracy]
 chat_turns = "inkling2"       # one open token per role, <|end_message|> closes (crates/intarsia-cli/src/cmd/accuracy/turns.rs)
