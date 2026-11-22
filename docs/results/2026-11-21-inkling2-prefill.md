@@ -148,3 +148,15 @@ twice; the 128-row forms (m128_*) decode them once: pending (#10875 build, #1088
   `ink_rel_mode` (prologue + NAX attention, mode 1 == mode 0 bitwise at T 17 / 512 / 2048, SWA and full past 8192),
   `ink_attn_decode`, `inkling2_attn` pass; admission with the appended mode-1 cases: ink_kv_prologue 123 cases ADMITTED,
   rel_sink_attn_bf16_nax 15 ADMITTED, rel_sink_attn_bf16 63 and ink_attn_decode 70 ADMITTED (unchanged).
+
+### Gates with the NAX blend default-on (#10883, bin4 at 355791b1a; trace confirms `blend h nax` + `blend gate nax` ran)
+
+| Gate | 21-way KL scored (bound) | ink/metal baseline | confident top-1 misses |
+|---|---:|---:|---:|
+| G2 short (oracle) | 2.087e-3 (4.0e-3) | | 0 / 363 |
+| G2 long (oracle) | 3.239e-3 (6.0e-3) | | 1 / 1206 |
+| G3 short (vLLM, prefill) | 8.420e-3 (1.05e-2) | 8.391e-3 | 0 / 367 |
+| G3 long (vLLM, prefill) | 1.229e-2 (1.65e-2) | 1.248e-2 | 0 / 1211 |
+
+All PASS. Tests: `inkmix` (3, incl. the rows-exact blend at 40 / 300 rows: exact_rows calls keep the GEMV path), `inkmoe` (2),
+`ink_prefill_moe` pass.
