@@ -1256,7 +1256,7 @@ impl Model {
                         t0.elapsed().as_secs_f64()
                     );
                     crate::screen::LOADED.store(true, std::sync::atomic::Ordering::Relaxed);
-                    Some(HeadScreenW { q, beta, a, cand, cnt, cap, rows, ok: std::sync::OnceLock::new(), served: Default::default() })
+                    Some(HeadScreenW { q, beta, a, cand, cnt, cap, rows, ok: std::sync::OnceLock::new(), served: Default::default(), gathers: Default::default(), fallback_passes: Default::default(), disabled: Default::default(), force_fallback: Default::default() })
                 }
             }
         } else {
@@ -5609,7 +5609,7 @@ impl Model {
     fn screened_argmax(&self, x: &TensorRef, c: usize, tok: &TensorRef, profile: bool) -> Result<bool> {
         let Some(hs) = self.head_screen.as_ref() else { return Ok(false) };
         // the screen ops take bf16 activations (their contract); any other row takes the full head
-        if c > hs.rows || self.vocab_par || x.dtype != DType::Bf16 {
+        if c > hs.rows || self.vocab_par || x.dtype != DType::Bf16 || hs.disabled.load(std::sync::atomic::Ordering::Relaxed) {
             return Ok(false);
         }
         // a plan dry run records the screen calls too (so `serve`, admitted kernels only, admits their kernels on the plan
@@ -5678,31 +5678,68 @@ impl Model {
         if mark {
             self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         }
-        let r = (|| -> Result<()> {
+        let r = (|| -> Result<bool> {
             let sc = hs.q.call(x.clone(), a.clone());
             self.exec(sc.op, sc.inputs, sc.outputs, sc.attrs, profile)?;
             // the screen ops are per-row by contract; their Metal kernels are registered rows-exact, which a call selects
             // only with `exact_rows` set (Registry::select)
             let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);
-            let r = (|| -> Result<()> {
+            let r = (|| -> Result<bool> {
                 self.exec(Op::HeadScreen, vec![a, x.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default(), profile)?;
+                // a c-row group (verify) with any row past the candidate path: the caller's full head for all c rows, one
+                // read of the unembed (in LogitsGather each such row would read the whole head by itself); the counts
+                // come back here, before anything is gathered
+                if c > 1 && !recording {
+                    let mut raw = vec![0u8; c * 4];
+                    self.backend.download(&hs.cnt, 0, &mut raw, self.stream)?;
+                    let force = hs.force_fallback.load(std::sync::atomic::Ordering::Relaxed);
+                    let any = raw.chunks_exact(4).enumerate().any(|(i, b)| {
+                        !crate::screen::candidate_path(i32::from_le_bytes([b[0], b[1], b[2], b[3]]), hs.cap) || (i < 64 && (force >> i) & 1 == 1)
+                    });
+                    if any {
+                        hs.fallback_passes.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        return Ok(false);
+                    }
+                }
                 self.exec(Op::LogitsGather, vec![x.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![logits.clone()], OpAttrs::default(), profile)?;
-                self.exec(Op::ScreenArgmax, vec![cand, cnt, logits], vec![tok.clone()], OpAttrs::default(), profile)
+                self.exec(Op::ScreenArgmax, vec![cand, cnt, logits], vec![tok.clone()], OpAttrs::default(), profile)?;
+                Ok(true)
             })();
             self.exact_rows.store(prev, std::sync::atomic::Ordering::Relaxed);
-            r?;
+            if !r? {
+                return Ok(false);
+            }
             if !recording {
                 crate::screen::LAUNCHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                hs.gathers.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             }
             if !recording && !hs.served.swap(true, std::sync::atomic::Ordering::Relaxed) {
                 eprintln!("{}: first screened head step served ({c} row(s))", crate::screen::ENV);
             }
-            Ok(())
+            Ok(true)
         })();
         if mark {
             self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         }
-        r.map(|_| !recording) // recorded only: the caller records the full head too
+        r.map(|served| served && !recording) // recorded only: the caller records the full head too
+    }
+
+    /// The screened head's counters, if it is loaded: (screened calls that gathered, c-row calls handed to the full head
+    /// because a row fell back). Every fallback pass is one read of the unembed for all its rows.
+    pub fn head_screen_stats(&self) -> Option<(u64, u64)> {
+        self.head_screen.as_ref().map(|h| {
+            (h.gathers.load(std::sync::atomic::Ordering::Relaxed), h.fallback_passes.load(std::sync::atomic::Ordering::Relaxed))
+        })
+    }
+
+    /// Test hooks of the screened head: `enabled` false makes every head the full head; bit i of `force_fallback_rows` makes
+    /// row i of a c-row group (c > 1) count as fallen back. No effect without a loaded screen.
+    #[doc(hidden)]
+    pub fn head_screen_test_hooks(&self, enabled: bool, force_fallback_rows: u64) {
+        if let Some(h) = self.head_screen.as_ref() {
+            h.disabled.store(!enabled, std::sync::atomic::Ordering::Relaxed);
+            h.force_fallback.store(force_fallback_rows, std::sync::atomic::Ordering::Relaxed);
+        }
     }
 
     /// The head projection of `c` rows `x`. Replicated head (rank 0): `[c, V]` f32 logits in `ws.logits`. Vocab-parallel
@@ -5903,6 +5940,11 @@ struct HeadScreenW {
     ok: std::sync::OnceLock<bool>,
     /// Set by the first screened step (logged once, so a gate can tell the screen really ran).
     served: std::sync::atomic::AtomicBool,
+    /// Counters ([`Model::head_screen_stats`]) and test hooks ([`Model::head_screen_test_hooks`]).
+    gathers: std::sync::atomic::AtomicU64,
+    fallback_passes: std::sync::atomic::AtomicU64,
+    disabled: std::sync::atomic::AtomicBool,
+    force_fallback: std::sync::atomic::AtomicU64,
 }
 
 impl Drop for HeadScreenW {
