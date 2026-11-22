@@ -209,6 +209,12 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   decode MoE repack (197 vs 273 GB/s), then controllers and router. (3) Gates: rows-exact or tolerance-justified admission,
   G2/G3, greedy md5 unchanged spec off and on, graphed decode tok/s with spread; default candidate only if bitwise or within
   plan tolerances; own commit with a revert switch each. (4) Measure decode spec off and on.
+- (coordinator, 27th) MoE L2 prefetch accepted default-on (+1.9 %, just under the 2 % bar; md5 unchanged, kernel GB/s gains
+  corroborate, revert switch `INTARSIA_INK_MOE_PF=0`). Spec on: the Inkling drafter is on ink/cuda-mtp as DSpark
+  (`--spec dflash --spec-draft <dir>`, not `--spec mtp`); do not merge ink/cuda-mtp here; spec-on md5 / tok/s recorded as
+  pending until both branches are merged (coordinator coordinates). Next: the cheaper row-kernel prefetch, then the
+  thread-block cluster split. W4A4 stays parked until its own tolerance sweep. Confirm ink_fp4_kernel ran before quoting any
+  T=2048 FP4 number.
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
@@ -523,7 +529,7 @@ to the bf16 MMA on the dequantised xq). Default numerics unchanged (act_quant 0 
 
 - Admission (`kernels test --backend cuda`): all expert kernels ADMITTED. Every w4a4 case at T <= 40 is bitwise the f64
   reference (max_abs 0: the GPU quantiser reproduces `actq.rs` bit for bit); T=64 (table path) rel_l2 1.2e-5; T=2048 NVFP4
-  (FP4 tensor core) rel_l2 2.7e-4, MXFP8 T=2048 1.4e-4.
+  rel_l2 2.7e-4 (FP4 tensor-core path not yet confirmed to have run: unquotable until then), MXFP8 T=2048 1.4e-4.
 - `ink_rows` 7/7 with the aq=1 variants: T-row calls bitwise T one-row calls and the `_rows` twins (decode, verify rows, table
   path), chunk-invariant prefill; prefill vs SIMT rel_l2 0 (NVFP4: the W4A4 products are short enough that the f32 sums agree
   on this data) / 8.8e-5 (MXFP8).
@@ -561,7 +567,7 @@ only adds `prefetch.global.L2`, so values are unchanged; the model-level md5 / t
 | 0 | 34.38 / 34.32 / 34.37 | 34.36 | `a0e6f47bc45f` (the gate golden) |
 | 1 (default) | 34.93 / 34.98 / 35.11 | 35.01 (+1.9 %) | `a0e6f47bc45f` |
 
-- Spec on: not measurable on this branch. `--spec mtp` exits with "unsupported: speculative drafters (--spec mtp / dflash)
+- Spec on: **pending** (brief 27: runs after ink/cuda-mtp and this branch are merged, with `--spec dflash`). `--spec mtp` exits with "unsupported: speculative drafters (--spec mtp / dflash)
   on Inkling-2" (the Inkling drafter lives on another lane's branch); the prefetch only adds `prefetch.global.L2`, so verify
   rows cannot change, but the spec-on md5 / tok/s must be rerun where the drafter is.
 - nsys of this run traced only the prompt (decode replays CUDA graphs; the next pass uses `--cuda-graph-trace=node`).
