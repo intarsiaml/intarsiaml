@@ -6,6 +6,7 @@
 //! construction.
 
 use crate::dense::Grid;
+use objc2_metal::MTLComputeCommandEncoder;
 use crate::MetalBackend;
 use intarsia_core::{Exactness, KernelImpl, Tol};
 use intarsia_core::{DType, Error, Op, OpCall, Result};
