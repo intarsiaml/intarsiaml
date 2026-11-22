@@ -124,6 +124,12 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
     commit on ac2371c81: one commit, with per-switch env offs. It merges into ink/metal only after ink-metal's decode G2 is
     fixed or explained.
   - Send R's G2 numbers to ink-metal (af43898d63e5b5190) too, as a data point for their bisect.
+- 2026-11-22 ~03:20 (coordinator): keep the widened F (#11145) and R (#11111) where they are in line; do not requeue or
+  trim them. Requeueing costs about 10 h, and the full-default Metal suite is worth about 25 min more before the flip
+  merges. One guard: a job that starts as a backfill gets SIGTERM at its old --expect, so both scripts must write each
+  step's result to the log as it finishes. Next time a job is widened, put the new --expect in a fresh job, unless that job
+  is deep in a queue like this one. Done 03:25: every step of R and F prints its result as it finishes, and a TERM trap
+  names the step that was cut.
 
 ## Probes (endor, before any code)
 
