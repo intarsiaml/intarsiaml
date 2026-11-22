@@ -103,8 +103,9 @@ fn inkling2_tiny_loads() {
     assert_eq!(rows.len(), ids.len());
 }
 
+/// G1(a): the f32-activation path vs the f64 oracle: top-1 at all 40 positions, max abs logit error <= 1e-2.
 #[test]
-fn inkling2_tiny_probe() {
+fn inkling2_tiny_g1a_f32_vs_f64() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     let m = load_act(&dir, 64, intarsia_backend_cpu::CpuBackend::arc(), Some(intarsia_core::DType::F32)).unwrap();
     let ids = prompt(&dir);
@@ -121,4 +122,268 @@ fn inkling2_tiny_probe() {
     println!("top1 {agree}/{}", ids.len());
     let mx = ours.iter().zip(&r["logits_f64"].1).map(|(a, b)| (a - b).abs()).fold(0f32, f32::max);
     println!("max abs {mx:.3e}");
+    assert_eq!(agree, ids.len());
+    assert!(mx <= 1e-2, "max abs {mx}");
+}
+
+const TF_SKIP: [&str; 6] = ["expert_ids", "blocks", "bank", "partial_in", "partial", "route_margin"];
+const ROUTED: [&str; 3] = ["expert_w", "moe_out", "partial_out"];
+
+/// Rows of an `[R, ...]` tensor selected by `keep`.
+fn select(v: &[f32], shape: &[usize], keep: &[bool]) -> Vec<f64> {
+    let w: usize = shape[1..].iter().product();
+    keep.iter().enumerate().filter(|(_, k)| **k).flat_map(|(r, _)| v[r * w..(r + 1) * w].iter().map(|&x| x as f64)).collect()
+}
+
+/// `expert_w` reordered by expert id per row (slot order is not part of the contract).
+fn by_expert(d: &InkTensors, g: &str) -> Vec<f32> {
+    let (sh, ids) = &d[&format!("{g}.expert_ids")];
+    let w = &d[&format!("{g}.expert_w")].1;
+    let k = sh[1];
+    (0..sh[0])
+        .flat_map(|r| {
+            let mut ix: Vec<usize> = (0..k).collect();
+            ix.sort_by(|&a, &b| ids[r * k + a].partial_cmp(&ids[r * k + b]).unwrap());
+            ix.into_iter().map(move |i| w[r * k + i]).collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+/// G1(b), the oracle's `tf_check` (tools/inkling2_ref.py) with budget `factor` x the oracle's own teacher-forced error.
+fn tf_check(test: &InkTensors, f64d: &InkTensors, oracle: &InkTensors, factor: f64, verbose: bool) -> Vec<String> {
+    let mut fails = Vec::new();
+    let grp = |k: &str| if k.contains('.') { k.split('.').next().unwrap().to_string() } else { "head".into() };
+    let mut groups: Vec<String> = f64d.keys().map(|k| grp(k)).collect();
+    groups.sort();
+    groups.dedup();
+    for g in groups {
+        let mut rows: Option<Vec<bool>> = None;
+        let mut conv_rows: Option<Vec<bool>> = None;
+        if let Some((_, margin)) = f64d.get(&format!("{g}.route_margin")) {
+            let key = format!("{g}.router_sel");
+            let err = oracle[&key].1.iter().zip(&f64d[&key].1).map(|(a, b)| (a - b).abs()).fold(0f32, f32::max);
+            let r: Vec<bool> = margin.iter().map(|m| *m > 5.0 * err).collect();
+            let mut c = r.clone();
+            for lag in 1..4 {
+                for i in (lag..c.len()).rev() {
+                    c[i] = c[i] && r[i - lag];
+                }
+            }
+            let (sh, want) = &f64d[&format!("{g}.expert_ids")];
+            let k = sh[1];
+            let sorted = |v: &[f32], i: usize| {
+                let mut x = v[i * k..(i + 1) * k].to_vec();
+                x.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                x
+            };
+            for (name, d) in [("oracle", oracle), ("test", test)] {
+                let got = &d[&format!("{g}.expert_ids")].1;
+                if (0..sh[0]).any(|i| r[i] && sorted(got, i) != sorted(want, i)) {
+                    fails.push(format!("{g}: {name} expert set differs on routable rows"));
+                }
+            }
+            rows = Some(r);
+            conv_rows = Some(c);
+        }
+        let mut line = Vec::new();
+        for k in f64d.keys().filter(|k| grp(k) == g) {
+            let name = k.splitn(2, '.').last().unwrap();
+            if TF_SKIP.contains(&name) {
+                continue;
+            }
+            let Some(tv) = test.get(k) else {
+                fails.push(format!("{k}: missing from the test dump"));
+                continue;
+            };
+            let (sh, rv) = &f64d[k];
+            let (rv, tv, ov) = if name == "expert_w" { (by_expert(f64d, &g), by_expert(test, &g), by_expert(oracle, &g)) } else { (rv.clone(), tv.1.clone(), oracle[k].1.clone()) };
+            if tv.len() != rv.len() {
+                fails.push(format!("{k}: {} values, expected {}", tv.len(), rv.len()));
+                continue;
+            }
+            let all = vec![true; sh[0]];
+            let keep = match (&rows, ROUTED.contains(&name)) {
+                (Some(r), true) => if name == "partial_out" { conv_rows.as_ref().unwrap() } else { r },
+                _ => &all,
+            };
+            let (r, t, o) = (select(&rv, sh, keep), select(&tv, sh, keep), select(&ov, sh, keep));
+            let nrm = r.iter().map(|x| x * x).sum::<f64>().sqrt().max(1e-30);
+            let e = |a: &[f64]| a.iter().zip(&r).map(|(x, y)| (x - y).powi(2)).sum::<f64>().sqrt() / nrm;
+            let (e_o, e_t) = (e(&o), e(&t));
+            let budget = (factor * e_o).max(1e-3);
+            line.push(format!("{name}={e_t:.1e}/{budget:.1e}"));
+            if e_t > budget {
+                fails.push(format!("{k}: rel err {e_t:.3e} > budget {budget:.3e}"));
+            }
+        }
+        if verbose {
+            let nr = rows.as_ref().map_or(String::new(), |r| format!(" routable {}/{}", r.iter().filter(|x| **x).count(), r.len()));
+            println!("{g}{nr}: {}", line.join(" "));
+        }
+    }
+    fails
+}
+
+/// G1(b): the bf16 path teacher-forced per visit (one 40-token prefill fed the f64 run's partials, blocks and bank).
+#[test]
+fn inkling2_tiny_g1b_teacher_forced_bf16() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let m = load(&dir, 64);
+    let ids = prompt(&dir);
+    let f64d = read_all(&dir.join("ref_dump_f64.safetensors"));
+    let oracle = read_all(&dir.join("ref_dump_bf16_tf.safetensors"));
+    let mut st = m.new_state().unwrap();
+    let test = m.ink_dump(&mut st, &ids, Some(&f64d)).unwrap();
+    let fails = tf_check(&test, &f64d, &oracle, 3.0, true);
+    assert!(fails.is_empty(), "G1(b) failures:\n{}", fails.join("\n"));
+}
+
+fn logits_chunked(dir: &Path, chunk: usize, ids: &[u32]) -> Vec<Vec<f32>> {
+    let m = load(dir, chunk);
+    let mut st = m.new_state().unwrap();
+    all_logits(&m, &mut st, ids)
+}
+
+/// Chunked prefill (chunks of 7 and 13 straddle the window of 8, the rel extent of 12 and the attn-res block edges) and
+/// token-by-token decode give the one-shot prefill's logits bit for bit (the cpu kernels are rows-exact).
+#[test]
+fn inkling2_tiny_chunked_and_decode_match_prefill_bitwise() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let whole = logits_chunked(&dir, 64, &ids);
+    for chunk in [7, 13] {
+        assert_eq!(logits_chunked(&dir, chunk, &ids), whole, "chunk {chunk}");
+    }
+    // prefill 9 (past the window), then decode one token at a time
+    let m = load(&dir, 64);
+    let mut st = m.new_state().unwrap();
+    let mut rows = all_logits(&m, &mut st, &ids[..9]);
+    for &id in &ids[9..] {
+        rows.extend(all_logits(&m, &mut st, &[id]));
+    }
+    assert_eq!(rows, whole, "prefill then decode");
+}
+
+/// Rollback by length (a rejected speculative tail, a prompt edit) within the ring margin, and the refusal past it.
+#[test]
+fn inkling2_tiny_rollback_by_length() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let whole = logits_chunked(&dir, 64, &ids);
+    let m = load(&dir, 64);
+    let mut st = m.new_state().unwrap();
+    all_logits(&m, &mut st, &ids[..30]);
+    // a 5-token "verify" pass with wrong tokens, rolled back to keep 2 of them
+    let wrong: Vec<u32> = ids[30..35].iter().map(|v| (v + 1) % 300).collect();
+    let mut draft = ids[30..32].to_vec();
+    draft.extend(&wrong[2..]);
+    all_logits(&m, &mut st, &draft);
+    st.truncate(32, &*m.backend).unwrap();
+    assert_eq!(all_logits(&m, &mut st, &ids[32..]), whole[32..].to_vec(), "after rollback to 32");
+    // a cut beyond the ring margin (16) is refused, and restorable_len says so
+    assert_eq!(st.restorable_len(10), 0);
+    assert!(st.truncate(10, &*m.backend).is_err());
+    // the empty state always works
+    st.truncate(0, &*m.backend).unwrap();
+    assert_eq!(all_logits(&m, &mut st, &ids), whole, "after a reset to 0");
+}
+
+/// Two sequences interleaved on one model keep their own state (the workspace is per pass, the rings per sequence); batched
+/// decode itself is refused (one sequence per pass for now).
+#[test]
+fn inkling2_tiny_interleaved_sequences_equal_solo() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let other: Vec<u32> = ids.iter().rev().copied().collect();
+    let (wa, wb) = (logits_chunked(&dir, 64, &ids), logits_chunked(&dir, 64, &other));
+    let m = load(&dir, 64);
+    let (mut a, mut b) = (m.new_state().unwrap(), m.new_state().unwrap());
+    let (mut ra, mut rb) = (Vec::new(), Vec::new());
+    for (i, c) in [(0, 11), (11, 20), (20, 33), (33, 40)] {
+        ra.extend(all_logits(&m, &mut a, &ids[i..c]));
+        rb.extend(all_logits(&m, &mut b, &other[i..c]));
+    }
+    assert_eq!(ra, wa);
+    assert_eq!(rb, wb);
+}
+
+use intarsia_core::backend::{Backend, Buffer, DeviceInfo, MemKind, StreamId};
+use intarsia_core::registry::KernelImpl;
+use intarsia_core::{Op, OpCall};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// The cpu backend with the Inkling-2 kernels of `drop` removed (as a backend without them registers), or whose `ConvMix`
+/// launches fail while `fail` is set (a failed pass).
+struct Wrapped {
+    inner: Arc<dyn Backend>,
+    drop: Vec<Op>,
+    fail: Arc<AtomicBool>,
+}
+
+impl Backend for Wrapped {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+    fn info(&self) -> DeviceInfo {
+        self.inner.info()
+    }
+    fn alloc(&self, bytes: usize, kind: MemKind) -> intarsia_core::Result<Buffer> {
+        self.inner.alloc(bytes, kind)
+    }
+    fn upload(&self, dst: &Buffer, o: usize, src: &[u8], s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.upload(dst, o, src, s)
+    }
+    fn download(&self, src: &Buffer, o: usize, dst: &mut [u8], s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.download(src, o, dst, s)
+    }
+    fn copy(&self, d: &Buffer, d_o: usize, s: &Buffer, s_o: usize, n: usize, st: StreamId) -> intarsia_core::Result<()> {
+        self.inner.copy(d, d_o, s, s_o, n, st)
+    }
+    fn kernels(&self) -> Vec<KernelImpl> {
+        self.inner.kernels().into_iter().filter(|k| !self.drop.contains(&k.op)).collect()
+    }
+    fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> intarsia_core::Result<()> {
+        if call.op == Op::ConvMix && self.fail.load(Ordering::SeqCst) {
+            return Err(intarsia_core::Error::invalid("injected failure"));
+        }
+        self.inner.launch(kernel, call, stream)
+    }
+    fn synchronize(&self, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.synchronize(s)
+    }
+}
+
+/// A pass that fails half-way leaves the sequence empty (its rings half-written), and the next prefill is the clean one.
+#[test]
+fn inkling2_tiny_failed_pass_resets_the_sequence() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let whole = logits_chunked(&dir, 64, &ids);
+    let fail = Arc::new(AtomicBool::new(false));
+    let m = load_with(&dir, 64, Arc::new(Wrapped { inner: intarsia_backend_cpu::CpuBackend::arc(), drop: vec![], fail: fail.clone() })).unwrap();
+    let mut st = m.new_state().unwrap();
+    all_logits(&m, &mut st, &ids[..20]);
+    fail.store(true, Ordering::SeqCst);
+    assert!(m.forward(&mut st, &ids[20..], HeadMode::LastLogits, None).is_err());
+    fail.store(false, Ordering::SeqCst);
+    assert_eq!(st.len, 0, "a failed pass resets the sequence");
+    assert_eq!(all_logits(&m, &mut st, &ids), whole);
+}
+
+/// A backend without one of the Inkling-2 kernels refuses the load, naming the op (CUDA and HIP register none of them).
+#[test]
+fn inkling2_tiny_no_kernel_refusal_names_the_op() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    // SconvRes is in the op set for kernels that split ConvMix; the model graph itself emits ConvMix
+    for op in intarsia_core::inkling2::ops::OPS.iter().copied().filter(|&o| o != Op::SconvRes) {
+        let b = Arc::new(Wrapped { inner: intarsia_backend_cpu::CpuBackend::arc(), drop: vec![op], fail: Arc::new(AtomicBool::new(false)) });
+        let e = load_with(&dir, 64, b).err().unwrap_or_else(|| panic!("load without {op} must fail"));
+        let msg = e.to_string();
+        assert!(matches!(e, intarsia_core::Error::NoKernel(_)), "{op}: {msg}");
+        assert!(msg.contains(op.as_str()), "{op}: {msg}");
+    }
+    for op in intarsia_core::inkling2::ops::OPS {
+        assert!(!intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
+        assert!(intarsia_backend_hip::kernels::UNIMPLEMENTED.contains(&op), "hip {op}");
+    }
 }

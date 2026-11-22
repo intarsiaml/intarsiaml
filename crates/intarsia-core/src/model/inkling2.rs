@@ -618,6 +618,9 @@ impl Model {
         let xs = |n: usize| planes(&ws.x, act, 0, n, t, d);
         let msgs = |start: usize, n: usize| planes(&ws.msg, DType::F32, start, n, t, d);
         let bank = planes(&ws.bank, act, 0, 2, t, d);
+        let dumping = dump.is_some();
+        // host-computed dump tensors (router_sel = sigmoid(logits) + bias), merged into the dump at the end
+        let mut extra: Vec<(String, (Vec<usize>, Vec<f32>))> = Vec::new();
         let mut put = |k: String, x: &TensorRef| -> Result<()> {
             if let Some(dm) = dump.as_deref_mut() {
                 let v = self.ink_download(x)?;
@@ -785,6 +788,12 @@ impl Model {
             ra.dsv.score_func = crate::dsv41::ops::ScoreFunc::Sigmoid;
             ex(Op::MoeRoute, vec![rl.clone(), l.router_bias.clone()], vec![rw.clone(), ri.clone()], ra)?;
             put(format!("{tag}.router_logits"), &rl)?;
+            if dumping {
+                let (lg, bias) = (self.ink_download(&rl)?, self.ink_download(&l.router_bias)?);
+                let e = ink.experts;
+                let sel: Vec<f32> = lg.iter().enumerate().map(|(j, z)| 1.0 / (1.0 + (-z).exp()) + bias[j % e]).collect();
+                extra.push((format!("{tag}.router_sel"), (vec![t, e], sel)));
+            }
             put(format!("{tag}.expert_ids"), &ri)?;
             put(format!("{tag}.expert_w"), &rw)?;
             let moe = plane(&ws.moe, act, 0, t, d);
@@ -848,6 +857,9 @@ impl Model {
             ex(Op::AttnResMix, vec![stack(0, nb), p, none(act, &[0]), im.out_q.clone(), im.final_norm.clone()], vec![out.reshaped(&[1, t, d])], a0)?;
         }
         put("final_hidden".into(), out)?;
+        if let Some(dm) = dump {
+            dm.extend(extra);
+        }
         Ok(())
     }
 }
