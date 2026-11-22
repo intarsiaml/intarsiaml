@@ -1046,3 +1046,38 @@ local branch as the record, and the default is unchanged.
 
 If wanted later: PDL limited to T <= 2 (the gain is there, the loss at T >= 4) together with the repack (+1.13 %, stage A). The
 two are independent, so ~+2 % at g256 spec off is plausible, untested.
+
+## Combined gate: repack + PDL at T <= 2 vs default (brief 43; branch `ink/cuda-moe-combo` `ffb086e64`, gate #11674)
+
+Arm A is the default (REPACK=0, PDL=0). Arm B is `INTARSIA_INK_MOE_REPACK=1` plus `INTARSIA_INK_MOE_PDL=1`, with PDL only at
+T <= 2.
+
+| quiet ABBA g256, tok/s | A | B | delta |
+|---|---|---|---|
+| spec off (0 1 1 0 0 1 1 0) | 36.50 / 36.50 / 36.51 / 36.61, mean 36.53 | 37.36 / 37.35 / 37.25 / 37.07, mean 37.26 | **+1.99 %** |
+| spec on (1 0 0 1 1 0 0 1) | 47.15 / 47.14 / 47.08 / 46.99, mean 47.09 | 47.71 / 47.77 / 47.63 / 47.69, mean 47.70 | **+1.30 %** |
+
+Every B run beats every A run in both arms.
+
+| ink_bench nv, 2 passes | A | B |
+|---|---|---|
+| T=1 | 180.1 / 180.3 us | 164.9 / 163.9 us (-8.8 %) |
+| T=2 | 328.9 / 327.7 | 307.8 / 306.7 (-6.4 %) |
+| T=4 | 588.8 / 587.3 | 575.5 / 570.8 (-2.6 %) |
+| T=16 | 1680.7 / 1677.1 | 1641.3 / 1642.3 (-2.2 %) |
+
+The speed rule passes on its second clause (spec on >= +1 %); the spec-off clause is borderline (+1.99 % against +2 %).
+- **Bitwise in decode:** `ink_rows` 9/9 (repack row test included), tiny cuda 17/17 with B, moe_experts admitted. g64 and g256
+  ids are identical A vs B, spec off and on.
+- **Not bitwise in prefill: fails "bitwise as before".** g1.2k gives `4b44e4ab3ff3` with B vs `aaaa65a7ac70` with A, spec off
+  and on.
+- **Prefill is 3.6x slower with B:** 2847 ms vs 796 ms on the 3.6k prompt.
+
+Both prefill effects have one cause. A repacked call cannot take the tensor-core prefill (`ink_moe_mma` / `ink_moe_fp4` read the
+plain layout), so chunks above 512 pairs run the decode kernels on the pair table: another f32 order, and much slower. Stage A
+had the same limit. **Verdict: not kept, no PR.** The decode gain is real, but the change cannot ship until prefill reads the
+repacked layout. Two ways to get there:
+- **(a)** keep a plain copy for prefill: about +19 GB of NVFP4 experts (44 layers x 128 x 3.4 MB), which spark2's vLLM plus a
+  second model cannot hold.
+- **(b)** teach the two tensor-core prefill kernels the repacked address map. Their tile loads would gather the same bytes from
+  the permuted runs, so the same bits by construction. Estimate: half a day plus a gate. Not started (needs a go).
