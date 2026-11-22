@@ -60,6 +60,12 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
    fleetq jobs. Reading files, git and editing locally are fine. (Before this rule this lane ran a few local `cargo check` and
    `xcrun metal -c` checks on endor; from here on they go to bespin.)
 
+7. 2026-11-22 (coordinator, via SendMessage; bug found by ink-dfuse): without metal4 (the no-metal4 tiny suite) ink_in_proj has
+   no kernel at prefill shapes m 31-63 (NoKernel: that range is NAX-only); ink_route correctly falls back to the pair there.
+   Fix: a non-NAX ink_in_proj path for medium m, bitwise with what ink/metal uses today on non-metal4 devices for the
+   neighbouring m, or route m 31-63 to the existing GEMM fallback. Check: the tiny inkling2 suite with metal4 forced off passes
+   on endor, plus rows-exact; default-load slot, no local builds. After the queued jobs; report the hash.
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
