@@ -210,3 +210,11 @@ batched step: queued (quiet slot).
   full visits read up to 2.9k positions), B = 2, 5, 16, 8 steps: batched tokens == solo tokens every step (asserted).
   Its timings were taken under a shared (non-quiet) slot and are not reported as speed.
 * Tiny tests on the same build: cpu 6 / 6, Metal 6 / 6; `rows_exact_registrations_are_pinned` pass after the ink/metal fix.
+
+## 7. Engine path (serve)
+
+First attempt #10811 (22:26) exited 1: `serve --max-batch 16` refused at load, `moe_experts` without an admitted kernel at the
+batch phase's shapes (`Batch t=10..`). It ran before the merge that brought ink/metal 761a1561b (the plan-shape SiTU case,
+merged at 22:27:45) and on the old script that used a prebuilt binary: the known failure, not a batch-specific one. Log kept
+in `.scratch/serve_batch-10811.log` / `serve-10811-prefix/`. Rerun queued with the script that builds the tip at job start; a
+default-load admission probe (`serve --max-batch 16` on the tip until `/v1/models` answers, one chat request) runs first.
