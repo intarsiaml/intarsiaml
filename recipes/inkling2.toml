@@ -26,3 +26,6 @@ lm_head = { tensor = "model.llm.unembed" }   # bf16, not tied; logits = 30 tanh(
 [defaults]
 kv_dtype = "bf16"
 max_batch = 1
+
+[accuracy]
+chat_turns = "inkling2"       # one open token per role, <|end_message|> closes (crates/intarsia-cli/src/cmd/accuracy/turns.rs)
