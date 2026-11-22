@@ -595,8 +595,8 @@ fn ink_mxfp4_head_bitwise_gemv() {
 }
 
 /// The NVFP4 decode staging of the experts kernels (row blocks copied to shared memory, the same chunk loop): BITWISE the unstaged
-/// kernels, ordinary and `_rows`, 16-bit and W4A4 activations, at the real shape (H 2304, I 1152) and a small one, T 1 / 4 / 16 and
-/// 80 (`_rows` takes the pair-table path above 512 pairs).
+/// kernels, ordinary and `_rows`, 16-bit and W4A4 activations, at the real shape (H 2304, I 1152) and a small one, T 1 / 4 / 16
+/// (the decode kernels; larger calls take the tensor-core path, which staging does not touch).
 #[test]
 fn ink_experts_stage_bitwise() {
     let Some(rig) = Rig::new("ink_experts_stage_bitwise") else { return };
@@ -606,7 +606,7 @@ fn ink_experts_stage_bitwise() {
         let k = 8usize;
         let ex = random_experts(&mut rng, e, h, i);
         let w = vec![ex.gate_up_w.clone(), ex.gate_up_s.clone(), ex.down_w.clone(), ex.down_s.clone(), ex.gscales.clone()];
-        for t in [1usize, 4, 16, 80] {
+        for t in [1usize, 4, 16] {
             let (ids, ws) = random_routing(&mut rng, t, e, k);
             let ws = HostTensor::from_f32(&[t, k], &ws.to_f32().iter().map(|v| v * 8.0).collect::<Vec<_>>());
             let x = rnd(&mut rng, DType::Bf16, &[t, h], 1.0);
@@ -614,8 +614,7 @@ fn ink_experts_stage_bitwise() {
                 let mut a = OpAttrs { top_k: k, ..OpAttrs::default() };
                 (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
                 a.ink.act_quant = aq;
-                let names: &[&str] = if t * k > 512 { &["moe_experts_situ_bf16_rows"] } else { &["moe_experts_situ_bf16", "moe_experts_situ_bf16_rows"] };
-                for kn in names {
+                for kn in ["moe_experts_situ_bf16", "moe_experts_situ_bf16_rows"] {
                     let run = || {
                         let mut v: Vec<&HostTensor> = vec![&x, &ids, &ws];
                         v.extend(w.iter());
