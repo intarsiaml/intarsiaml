@@ -28,7 +28,6 @@ const METAL4_SOURCES: &[&str] =
         "moe_nax.metal",
         "mxfp4_naxd.metal",
         "inkling2_attn_nax.metal",
-        "inkling2_attn_nax_int.metal",
         "inkling2_moe_nax.metal",
         "inkling2_moe_nax2.metal",
         "inkling2_moe_nax3.metal",

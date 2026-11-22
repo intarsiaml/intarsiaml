@@ -24,9 +24,6 @@ const DEC: [&str; 3] = ["ink_attn_dec_g1", "ink_attn_dec_g2", "ink_attn_dec_g3"]
 /// `RelSinkAttn` prefill (T > 16) on the neural accelerators (inkling2_attn_nax.metal, metal4.0 library).
 pub const REL_SINK_ATTN_BF16_NAX: &str = "rel_sink_attn_bf16_nax";
 const NAX: [&str; 2] = ["ink_attn_nax_s6", "ink_attn_nax_s12"];
-/// Probe (lane ink-prefill, brief 22): `INTARSIA_INK_NAX_INT=1` the exact interior-tile fast path, `=2` timing only
-/// (interior tiles drop the rel bias: wrong numerics). Unset: `NAX`.
-const NAX_INT: [[&str; 2]; 2] = [["ink_attn_nax_int_s6", "ink_attn_nax_int_s12"], ["ink_attn_nax_intnr_s6", "ink_attn_nax_intnr_s12"]];
 const KV_STAGE: &str = "ink_kv_stage_bf16";
 static NAX_FALLBACKS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
@@ -40,7 +37,7 @@ const NAX_MAX_WINDOW: usize = 4096;
 
 /// The metal4.0 shaders of this module.
 pub fn metal4_shader_names() -> Vec<&'static str> {
-    vec![NAX[0], NAX[1], NAX_INT[0][0], NAX_INT[0][1], NAX_INT[1][0], NAX_INT[1][1], KV_STAGE]
+    vec![NAX[0], NAX[1], KV_STAGE]
 }
 
 /// Shapes `rel_sink_attn_bf16_nax` takes: prefill chunks (more rows than a verify call), head_dim 128, group 3.
@@ -569,11 +566,6 @@ impl MetalBackend {
             *SG.get_or_init(|| std::env::var("INTARSIA_INK_NAX_SG").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(12))
         };
         let (nax, nsg) = if static_sg == 6 { (NAX[0], 6) } else { (NAX[1], 12) };
-        let nax_int = {
-            static INT: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
-            *INT.get_or_init(|| std::env::var("INTARSIA_INK_NAX_INT").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(0))
-        };
-        let nax = if (1..=2).contains(&nax_int) { NAX_INT[nax_int - 1][(nsg == 12) as usize] } else { nax };
         let bq = 16 * (nsg / 3);
         let pso = self.ink_pso(nax)?;
         let wr = self.ink_pso(KV_WRITE)?;

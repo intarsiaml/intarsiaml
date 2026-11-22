@@ -517,7 +517,7 @@ INT 1 both ADMITTED, 7 / 7, identical max_abs 5.464e-3, rel_l2 1.500e-3. **Bitwi
 | full ctx 16k | 12491 | 12491 | 11105 |
 
 **B verdict:** the exact path saves ~1-4 ms per chunk (SWA 0-5 %, full 0-12 %, inside the noise for SWA), under 1 % end to
-end. Below the 2 % bar: no build, no gate; the probe kernel stays opt-in (`INTARSIA_INK_NAX_INT`, default off). The mask
+end. Below the 2 % bar: no build, no gate; the probe kernel and `INTARSIA_INK_NAX_INT` are removed from the branch (brief 23; source at e0f44dd13). The mask
 tests were not the 28 ms: with E 1 the SWA kernel is still ~0.95 ms against a 0.42 ms floor, so that bucket is the softmax /
 exp / rescale work around 32-key tiles, which B does not touch.
 
