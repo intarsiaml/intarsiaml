@@ -491,6 +491,30 @@ Against brief 8: G2 / G3 pass; serve log ok; 4k and 16k prefill faster beyond sp
 - **4k decode, pair 1:** -1.5 % (localeval calls it noise; brief 8 asks for within 1 %). Pair 2 is -0.3 %.
 Recipe committed on the coordinator's call (brief 13): ink/prefill-merge 05f1c702e.
 
+### MoE K-step probe (#11282, brief 17; inkmoe_bench with ink-probe at 62a8b282c, balanced 128 experts, 3 reps)
+
+Device threadgroup memory limit (MTLDevice.maxThreadgroupMemoryLength on endor): **32768 B**.
+
+| Arm | full µs/call | gu only | dn only | output vs normal (no skip) |
+|---|---:|---:|---:|---|
+| a normal (K tile 64, row pad 8) | 6191 / 6202 / 6208 | 4065 / 4096 / 4345 | 2394 / 2392 / 2416 | reference |
+| 0 probe copy (K 64, pad 8) | 6183 / 6193 / 6303 | 4059 / 4200 / 4449 | 2390 / 2394 / 2449 | bitwise |
+| 3 K 64, no pad (pad control) | 6547 / 6557 / 6714 (+6 %) | 4320 / 4471 / 4686 | 2499 / 2503 / 2549 | bitwise |
+| **4 K 128, no pad (2x K tile)** | **12282 / 12299 / 12286 (+98 %)** | 8074 / 8065 / 8079 | 4474 / 4482 / 4473 | bitwise |
+
+(The skip-1 arms differ from the reference by design: gate+up is skipped, so down reads whatever h holds.)
+
+- **2x the K tile is twice as slow**, not faster. The pad accounts for 6 % of that, so most of the loss is not pad bank conflicts.
+- The likely cause is occupancy: 32768 B per threadgroup is the device limit, so a core holds one threadgroup instead of two or more. That is inference, not measured.
+- **4x is not possible:** it would need ~64 KB of threadgroup memory, and 256 does not divide the down's K = 1152.
+- Halving the barriers cannot be tested inside 32 KB without halving occupancy. The ~10 µs per tile stays unexplained and the MoE kernel keeps K tile 64. No default change.
+
+### Prologue split 1k by engine generate timing (#11282, brief 18 / 19; binary 61980c882, 929-token prompt, 3 alternating pairs)
+
+off 1387.5 / 1368.8 / 1363.7, on 1344.2 / 1386.1 / 1378.2 tok/s. All runs exit 0 with non-empty output.
+**Median on / off = 1378.2 / 1368.8 = 1.007x: passes the 1k rule (>= 0.98x).** Cold single-process generate at 1k includes
+the first-chunk page-in, equally in both arms. The 4k pairs (rule >= 1.00x) run in #11290.
+
 ### MoE step-1 probe (#11235, inkmoe_bench with `ink-probe`, built in-slot at 16442b2ff; brief 15)
 
 Balanced routing (128 experts x 128 rows, 256 tiles per call), µs per call, mean of 3 reps (each rep's spread under 0.3 %):
