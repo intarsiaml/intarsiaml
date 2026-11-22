@@ -548,6 +548,45 @@ by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
   g256 md5 61fd59fecb5e0d72ffd08f2c6d07855a (both identical to the pre-merge reference); no screen lines in the logs; merged
   `wanted` has `_ => false`. The ink/fp8 merge is clean on Metal. Reference baseline (a31e2df50, with the B16 box probe) queued as #11387.
 
+## Reference baseline #11387 (a31e2df50 merged-fp8, quiet gpu,cpu, 07:50:42-08:19:22, exit 0)
+
+Pre-checks on the same tree: Metal inkling2_batch 7/7, inkling2 11/11, batched plan configures with P12 dropped; G2 short
+PASS (prefill 2.087e-3, decode 2.928e-3, 0/363 confident misses); greedy g64 / g256 md5 identical to the combined-gate tip.
+
+**A. localeval speed-plain** (`serve --max-batch 1 --max-seq 20480`, chunk 2048; results
+`/opt/code/deepeval/results/20261122-075558-adhoc-endor-intarsia-metal-ink-metal-merged-fp8`; server peak RSS 25.2 GB,
+phys_footprint peak 28 GB):
+
+| prompt tok | decode tok/s median (min-max, n=3) | prefill tok/s | marginal prefill | TTFT s |
+|---:|---:|---:|---:|---:|
+| 128 | 71.0 (68.7-71.3) | - | - | 0.15-0.16 |
+| 1024 | 69.7 (67.5-69.7) | 2029 | 2545 | 0.49-0.51 |
+| 4096 | 67.5 (66.9-68.1) | 2268 | 2357 | 1.75-1.88 |
+| 16384 | 62.4 (62.0-63.7) | 2324 | 2344 | 7.05-7.10 |
+
+Contamination window 07:56:30-45 (ink-dfuse unslotted `cargo check`, CPU only): localeval's server probe / warm-up ran then and
+the first measured rep (128 tok, rep 1) started at 07:56:44.19, so at most its first second overlaps. That rep is 71.3 tok/s
+decode, 0.162 s TTFT: the highest decode of its three reps, TTFT within 7% of the others. Not an outlier; no rerun. Every
+other rep started after 07:56:47.
+
+**B. localeval conc-plain-1k** (`serve --max-batch 16 --max-seq 8192`; results
+`/opt/code/deepeval/results/20261122-075832-adhoc-endor-intarsia-metal-ink-metal-merged-fp8-b16`): batched decode runs since
+the ink/batch merge, so the cell completed (0 errors): aggregate 55.0 tok/s at 1 stream, 97.3 at 4, 127.9 at 16.
+
+**C. batch_step** (`--prompts random --digest`, ctx 1024, 2 x 16 steps; binaries intarsia 8f61cd39635e09d4, batch_step
+369ddee7e352a499). Box probe B16 62.97 ms against the 63.0 limit: **BOX FAST, by 0.03 ms**. Batched step ms per rep:
+
+| B | rep 1 | rep 2 | rep 3 | median | batched tok/s (median) |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 15.45 | 15.42 | 15.38 | 15.42 | 64.9 |
+| 8 | 34.45 | 34.20 | 34.09 | 34.20 | 233.9 |
+| 16 | 63.90 | 65.64 | 66.83 | 65.64 | 243.7 |
+
+Digests identical across the three reps (B1 6d7e5d70e4d0014a, B8 4eceea81c044812c, B16 65fc922062715df4); P12 dropped in the
+batched plan (49 tensors). B1 and B8 are the reference. B16 counts by the probe rule, but its reps climb 63.9 -> 66.8 ms
+(+5% within the section, all three over the 63 ms limit), which looks like the start of the slow state ink-batch described;
+treat B16 65.6 ms as an upper bound of the fast state, not a tight reference.
+
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
 | Tree | KL21 scored | max | chat_system | chat_reasoning |
