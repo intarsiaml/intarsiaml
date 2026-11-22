@@ -575,7 +575,10 @@ recompiled `intarsia-core`, and the binary contains the new switches. Fix for th
 copying `target/` (or build without the copy). Requeued 2026-11-22 02:40 as two jobs: #11152 (`--load cpu`, `.scratch/endorgumbel_build.sh`: touch
 every tracked file under `crates/`, release build, Metal and 8B model test binaries `--no-run`; `.scratch/gmb/prebuild.txt`)
 and #11153 (`--quiet gpu,cpu`, `--expect 90`, `.scratch/endorgumbel2.sh`: sections A / B / C / E of #11037 unchanged, no
-section 7). #11037's own summary and build log are kept as `.scratch/gmb/summary_11037.txt` / `build_11037.log`.
+section 7), plus a section F for the brief's G1-G3 rerun on the `ink/hostgap` code tip (fb38fe4a5, the item 7 binary with its
+switches unset): G2 / G3 short and long, each self-golden compared bitwise with ink-metal's for the same base code (844d81e8b,
+from its 02:29 merge-gate run, copied to `.scratch/gref`; that run's G2 decode rows FAIL, the known ink/metal regression, so
+the test here is bitwise equality, not the limits), and `tests/inkling2.rs` (G1) on cpu and Metal. #11037's own summary and build log are kept as `.scratch/gmb/summary_11037.txt` / `build_11037.log`.
 
 Merge rule (coordinator): at least base and bitwise identical, per switch. Each default-on decision gets its own evidence
 from the cumulative arms.
