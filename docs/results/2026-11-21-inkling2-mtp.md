@@ -457,4 +457,66 @@ Recommendation, not built (superseded by the 2026-11-22 brief: cut built, sweep 
 2. Measure c 0.35 / 0.5 at kmax 3 / 4 against k3 tau 0.8 in one quiet job, with real prose continuations (prose.json).
 3. Add the EMA skip only if a workload with low acceptance (rewrites, code edits) turns out to matter.
 
+### Device ingest: gates A and B (85265f9d5)
+
+**Gate A** (#11184, default load, not timing):
+- Metal tests: `hc_pre_matches_host_sum` passes, the kernel list pin passes, tiny Metal DSpark 3 / 3; `kernels test --op hc_pre`
+  ADMITTED (3 cases, 0 error).
+- Ids: equal to spec off on all 12 greedy golden prompts and both prose prompts x 128, for every policy.
+- Acceptance against the host-ingest runs:
+
+| policy | device ingest | host ingest |
+|---|---:|---:|
+| k3 tau 0.8 | 71.8% | 72.0% |
+| k2 tau 0.6 | 67.5% | 67.5% |
+| k1 tau 0 | 69.4% | 71.1% (earlier run) |
+| prose k3 tau 0.8 | 72.7% | |
+
+  k1 tau 0 is 1.7 pp lower, the only gap over 1 pp; the k2 / k3 policies match within 0.2 pp.
+- Ingest of a prefill chunk: 2.25 ms (synced).
+- serve smoke under admitted kernels only (34 kernels, 221 cases): greedy 1.4k and 9.8k-token requests HTTP 200 with verify
+  passes; a t1.0 request HTTP 200 with no change in the spec counters (sampled requests do not draft).
+- The long-prompt `generate` runs failed: generate's default context is 4096 (fixed with `--max-seq 20480` in later jobs).
+
+**Gate B** (#11186, quiet). localeval speed-plain, both runs valid (no cells rejected); the DSpark arm verified as
+`spec:dspark` from the server counters (1852 passes, 73.8% acceptance, 2.38 tokens per pass). Median (range):
+
+| prompt tok | decode off | decode DSpark | x | prefill off | prefill DSpark | TTFT off / DSpark s |
+|---:|---:|---:|---:|---:|---:|---:|
+| 144 | 63.7 (61.8-64.2) | 74.4 (72.6-74.7) | 1.17 | - | - | 0.15 / 0.15 |
+| 1021 | 61.7 (60.2-62.8) | 76.0 (68.9-82.5) | 1.23 | 1408 (1324-1517) | 1217 (1162-1243) | 0.72 / 0.84 |
+| 4109 | 60.6 (60.5-61.0) | 81.6 (69.6-82.5) | 1.35 | 1460 (1438-1623) | 1377 (1369-1390) | 2.81 / 2.98 |
+| 16456 | 57.1 (55.6-57.8) | 74.2 (72.3-79.2) | 1.30 | 1432 (1386-1462) | 1402 (1376-1441) | 11.49 / 11.74 |
+
+- Prefill: DSpark -14% / -6% / -2% at 1k / 4k / 16k, against -6 / -7% at 4k / 16k with the host ingest (#10991). Off's own
+  1k range is 15% wide.
+- Engine-reported prefill at 1k (generate, 3 reps interleaved): greedy off 825-838 ms vs DSpark 832-835; sampled off 831-844
+  vs DSpark 833-834, so equal within the spread. The 4k / 16k engine runs failed on the 4096 default context; #11226 reruns
+  them.
+- Decode at 144 tokens is lower than #10991's (74.4 vs 80.2) with lower acceptance (73.8% vs 77%: localeval's nonce-first
+  prompts change content). #11226 separates code from content: ABAB decode, the device- vs host-ingest binary, greedy golden.
+- Flip: not yet. The 2% prefill gate is unresolved at 1k (localeval spread) and fails at 4k on localeval; it waits for
+  #11226's engine numbers.
+
+### Experts probe (gate A, default load, real routing from the oracle's expert_ids)
+
+NVFP4, µs per call (mean; the bench's GB/s counts the union's bytes):
+
+| T | union | Auto all | gate+up | down (dn_u + gather) | UnionFused all | Fused all |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 8.0 | 90.5 | 53.9 | 33.0 | - | 87.8 |
+| 2 | 12.7 | 145.0 | 87.9 | 55.8 | 138.1 | 132.2 |
+| 3 | 15.9 | 178.7 | 110.7 | 68.9 | 177.3 | 180.0 |
+| 4 | 19.0 | 247.1 (min 230.0) | 142.8 | 89.0 | 225.1 (min 219.8) | 233.0 |
+
+MXFP8 at T = 4: Auto 333.7, UnionFused 330.9, Pair 405.7.
+
+At 4 rows the down phase is 89 of 232-247 µs (36-38%), far above the brief's 10% threshold, and runs at 318 GB/s against
+gate+up's 397. Down bytes at 19 experts are 28.4 MB: about 52 µs at 550 GB/s, so up to about 30-37 µs per visit is left, or
+1.3-1.6 ms per 4-row verify pass (44 NVFP4 visits, about 6%). Two steps:
+1. Auto -> UnionFused at T 3-4: existing kernels, -9% experts time at T = 4 by the means, within noise at T = 3; needs a quiet
+   A/B, the bench ran under load.
+2. A down kernel that reads each union expert once and keeps the k-order token sum (bitwise): design in the message to the
+   coordinator.
+
 RESULTS_PLACEHOLDER
