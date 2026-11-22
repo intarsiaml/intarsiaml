@@ -508,6 +508,21 @@ by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
   printed first, build, Metal suite, admission of 18 Inkling ops incl. matmul_p12 / gumbel_argmax / the screen ops, greedy md5
   64 / 256 switches unset vs 65cde8f35... / 61fd59fecb...), `--expect 45`.
 
+### #11347 (cb61e0847, p12solo, quiet): item 4 verified; stopped by pk12check's B16 rule (a false positive)
+
+- Guard: B1 batched 64.4 tok/s at 07:08:34, in range (>= 58), no BOX SLOW. The wrapper's end sweep: descendants none.
+- Metal at defaults: inkling2_batch 7/7 (the new test included: "pack12 off: batched plan (max-batch 16); 17 P12 tensors
+  dropped"), inkling2 9/9.
+- Solo with P12 on: G2 short 2.087e-3 / 2.928e-3 PASS, confident misses 0/363; greedy 64 / 256 md5 65cde8f35... / 61fd59fecb...
+  = the combined-gate tip.
+- batch_step, defaults vs `INTARSIA_INK_PACK12=0`, ABAB x3 (batched step ms; median): B1 15.48 vs 15.41, B8 36.18 vs 37.07,
+  B16 74.67 vs 71.52 (reps 78.82 / 69.14 / 74.67 vs 74.78 / 71.52 / 70.14). Defaults configure and run batched. The B16 ratio
+  1.044 tripped the 1.02 rule and the job stopped before localeval. It is noise, not P12: with P12 dropped by enable_batch both
+  arms run the same bf16 code, and each arm's own B16 spread (69-79 ms) is wider than the gap. The rule no longer measures
+  anything (P12 is never used batched) and is removed from the next run. Against the #11266 reference (B8 41.55, B16 76.20)
+  these runs are 11-13 % faster at B8 and level at B16. Aggregate B16 203-231 tok/s.
+- Not run: localeval speed-plain / conc-plain-1k (with memory) and batch_step section C.
+
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
 | Tree | KL21 scored | max | chat_system | chat_reasoning |
