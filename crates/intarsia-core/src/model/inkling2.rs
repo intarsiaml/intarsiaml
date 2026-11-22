@@ -56,6 +56,15 @@ fn ink_attn_fused_env() -> Option<bool> {
     })
 }
 
+/// `INTARSIA_INK_DEBUG_DISPATCHES` (debug only, lane ink-dfuse): `k` adds k tiny dependent `Add` dispatches ([1, 32] bf16)
+/// per solo one-row decode step, spread over the visits right after each attention, to measure what one more transition costs
+/// in the real decode chain. They write only the first 32 elements of `aproj` / `aout`, which wo and the attention-side
+/// ConvMix overwrite right after, so the bits do not change. Unset / 0 = nothing (no effect on plans or bits).
+fn ink_debug_dispatches() -> usize {
+    static V: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("INTARSIA_INK_DEBUG_DISPATCHES").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(0))
+}
+
 /// Whether a visit's attention of `rows` rows ending at context `ctx` (positions `0..ctx`) takes the fused `InkAttnDecode`
 /// instead of the pair, on Metal. From lane ink-m-attn's per-visit timings (docs/results/2026-11-21-inkling2-metal-attn.md),
 /// keyed on the keys a row reads (`ctx`, at most the window on an SWA visit): 1 row fused up to 4096 keys (measured: fused wins at
@@ -1133,6 +1142,20 @@ impl Model {
                 put(format!("{tag}.rel"), &rel)?;
                 put(format!("{tag}.sink"), &pq)?;
                 sx(Op::RelSinkAttn, vec![q, k, vv, kc.clone(), vc.clone(), rel, pq], vec![o.clone(), kc, vc], aa, v.kv_slot)?;
+            }
+            // INTARSIA_INK_DEBUG_DISPATCHES (debug only): this visit's share of k tiny dependent dispatches, a chain that reads
+            // the attention output and ping-pongs through the heads of aproj / aout (both fully overwritten below)
+            let kdbg = ink_debug_dispatches();
+            if kdbg > 0 && t == 1 && batch.is_none() && !dumping && d >= 32 {
+                let n = (vi + 1) * kdbg / n_vis - vi * kdbg / n_vis;
+                let mut osl = TensorRef::new(o.buf.clone(), act, &[1, 32]);
+                osl.offset = o.offset;
+                let pp = [plane(&ws.aproj, act, 0, 1, 32), plane(&ws.aout, act, 0, 1, 32)];
+                let mut prev = osl.clone();
+                for i in 0..n {
+                    ex(Op::Add, vec![prev, osl.clone()], vec![pp[i % 2].clone()], OpAttrs::default())?;
+                    prev = pp[i % 2].clone();
+                }
             }
             let aproj = plane(&ws.aproj, act, 0, t, d);
             {
