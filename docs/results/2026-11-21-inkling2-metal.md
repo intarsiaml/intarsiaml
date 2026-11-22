@@ -179,6 +179,7 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   gave 2k prefill 1163 / 1186 vs 1503 / 1415 tok/s (-20 %), decode after 2k 39.7 / 38.6 vs 60.9 / 54.7 (-35 %): answer
   whether NE 4 is faster because it skips work or NE 3 is genuinely slower; the quiet A/B is #11181. Lane: #11195 released;
   the realtest is #11197 (reserved 03:41).
+- 2026-11-22 (coordinator, SendMessage): ink-batch found an endor slow state that slows B16 by 30-50% while B1 barely moves (same binary: B16 61 ms now, 77-90 ms at 06:49), which the B1 / localeval guard cannot see. For the queued baseline's batch_step section C: take one B16 sample first; if it is more than 5% over about 60 ms (fast-state reference at the final tree), mark the batched numbers BOX SLOW and do not record them as a reference. Solo and localeval parts keep their own guard. Done: `.scratch/serve_le2_body.sh` section C runs a B16 probe (`--batches 16`, same ctx / rounds / steps as the reps), limit 63.0 ms; it prints `BOX FAST|SLOW|UNKNOWN` and tags every rep row `[box ...]`. Only FAST rows count as a reference; UNKNOWN (probe row not parsed) counts as not a reference.
 
 ## NE fix gate #11179 (tree 65dbc2870 = fix 7eca1b012 + test/docs)
 
