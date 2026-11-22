@@ -456,32 +456,31 @@ fn inkling2_tiny_verify_graph_replays_equal_decode_bitwise() {
         let o = LoadOptions { max_seq: 128, prefill_chunk: chunk(), graphs: false, profile_every: 0, ..Default::default() };
         Model::load(backend(), &recipe, &dims, &src, &o, Arc::new(Telemetry::new())).unwrap()
     };
-    // the tests load with graphs off: on for the verify passes, off for the 1-row decode they are compared against
+    // graphs on for the verify passes (turning them off drops the recordings, `Model::set_graphs`); the 1-row decode they
+    // are compared against runs eagerly on a second load (graphs off, as the other tests)
     m.set_graphs(true);
     if !m.graph_stats().enabled {
         return skip("graphs not usable on this backend");
     }
-    m.set_graphs(false);
     m.enable_verify(4).unwrap();
+    let e = load(&dir, chunk());
     let cap = m.dims.ink.as_ref().map_or(0.0, |i| i.softcap);
     for r in 2..=4usize {
         let p0 = 5usize;
         let before = m.graph_stats();
         let mut a = m.new_state().unwrap();
         all_logits(&m, &mut a, &ids[..p0]);
-        let mut b = m.new_state().unwrap();
-        all_logits(&m, &mut b, &ids[..p0]);
+        let mut b = e.new_state().unwrap();
+        all_logits(&e, &mut b, &ids[..p0]);
         let mut p = p0;
         let mut passes = 0u64;
         while p + r <= ids.len() {
-            m.set_graphs(true);
             let (picks, mut rows) = m.forward_verify_logits(&mut a, &ids[p..p + r]).unwrap();
-            m.set_graphs(false);
             if cap > 0.0 {
                 rows.iter_mut().flatten().for_each(|x| *x = cap * (*x / cap).tanh());
             }
             for (j, &id) in ids[p..p + r].iter().enumerate() {
-                let intarsia_core::model::StepOut::Logits(one) = m.forward(&mut b, &[id], HeadMode::LastLogits, None).unwrap() else { panic!() };
+                let intarsia_core::model::StepOut::Logits(one) = e.forward(&mut b, &[id], HeadMode::LastLogits, None).unwrap() else { panic!() };
                 let diff = rows[j].iter().zip(&one).position(|(x, y)| x.to_bits() != y.to_bits());
                 assert!(
                     diff.is_none(),
