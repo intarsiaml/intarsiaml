@@ -33,20 +33,19 @@ fn skip(why: &str) {
 }
 
 fn on_metal() -> bool {
-    matches!(std::env::var("INTARSIA_INKLING2_BACKEND").as_deref(), Ok("metal") | Ok("cuda"))
+    std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() == Ok("metal")
 }
 
 fn backend() -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
         #[cfg(target_os = "macos")]
         Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
-        Ok("cuda") => intarsia_backend_cuda::create(0).unwrap(),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
-        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal or cuda"),
+        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or metal (CUDA registers no row-table kernels for Inkling-2)"),
     }
 }
 
-/// Prefill chunk: one pass on cpu; 16 on Metal and CUDA (passes of 2..=16 rows take the row-exact kernels).
+/// Prefill chunk: one pass on cpu; 16 on Metal (passes of 2..=16 rows take the row-exact kernels).
 fn chunk() -> usize {
     if on_metal() {
         16
