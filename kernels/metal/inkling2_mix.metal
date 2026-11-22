@@ -162,6 +162,130 @@ IP_CFG(3, 3)
 IP_CFG(1, 9)
 
 // ================================================================================================================
+// InkInProj multi-row form for R = 2..16 decode rows (lane ink-batch; the R = 1 instances above stay the T = 1 kernel).
+// The same arithmetic as ink_in_proj_gemv<R, 1, SG, U, R> for every row, so bitwise its 1-row launch:
+//  - the lane -> chunk mapping, the per-(row) accumulator in chunk order, the ip_dot8 fma chain, simd_sum and the sg-order
+//    sum of the partials are unchanged;
+//  - the weight chunk is unpacked to floats once per chunk instead of once per activation row (the unpack is an exact bit
+//    operation, so the products are the same);
+//  - the epilogue sums the partials of row r on thread r only (the same additions in the same order) and that thread
+//    writes row r, instead of every thread summing all R rows and thread 0 writing them.
+// ================================================================================================================
+
+struct IpW8 { float v[8]; };
+
+inline IpW8 ip_unpack8(uint4 w) {
+    IpW8 o;
+    o.v[0] = ip_lo(w.x); o.v[1] = ip_hi(w.x); o.v[2] = ip_lo(w.y); o.v[3] = ip_hi(w.y);
+    o.v[4] = ip_lo(w.z); o.v[5] = ip_hi(w.z); o.v[6] = ip_lo(w.w); o.v[7] = ip_hi(w.w);
+    return o;
+}
+
+// ip_dot8 with the weight already unpacked: the same products and fma order
+inline float ip_dot8w(thread const IpW8& w, uint4 x) {
+    float a = w.v[0] * ip_lo(x.x);
+    a = fma(w.v[1], ip_hi(x.x), a);
+    a = fma(w.v[2], ip_lo(x.y), a);
+    a = fma(w.v[3], ip_hi(x.y), a);
+    a = fma(w.v[4], ip_lo(x.z), a);
+    a = fma(w.v[5], ip_hi(x.z), a);
+    a = fma(w.v[6], ip_lo(x.w), a);
+    a = fma(w.v[7], ip_hi(x.w), a);
+    return a;
+}
+
+// bind and grid as ink_in_proj_gemv with P weight rows per virtual threadgroup and RB = R. P only shares each x chunk load
+// (and its use) between the P weight rows; every (weight row, row) accumulator sees the same chunks in the same order.
+template <int R, int P, int SG, int U>
+kernel void ink_in_proj_gemvx(device const uint4* W [[buffer(0)]],
+                              device const uint4* X [[buffer(1)]],
+                              device ushort* Y0 [[buffer(2)]],
+                              device ushort* Y1 [[buffer(3)]],
+                              device ushort* Y2 [[buffer(4)]],
+                              constant InkProjP& p [[buffer(5)]],
+                              uint2 tg2 [[threadgroup_position_in_grid]],
+                              uint2 ngrid2 [[threadgroups_per_grid]],
+                              uint sg [[simdgroup_index_in_threadgroup]],
+                              uint lane [[thread_index_in_simdgroup]]) {
+    threadgroup float part[P * R * SG];
+    constexpr uint lanes = 32 * SG;
+    constexpr uint block = lanes * U;
+    const uint k8 = p.k / 8;
+    const uint tid = sg * 32 + lane;
+    const uint tg = tg2.x, ngrid = ngrid2.x, r0 = tg2.y * uint(R);
+    for (uint vt = tg; vt < p.gtot; vt += ngrid) {
+        uint lt, n, wrow, xo, ys;
+        device ushort* Y;
+        if (vt < p.g0) {
+            lt = vt; n = p.n0; wrow = 0; xo = 0; Y = Y0; ys = p.ys0;
+        } else if (vt < p.g0 + p.g1) {
+            lt = vt - p.g0; n = p.n1; wrow = p.n0; xo = p.xo1; Y = Y1; ys = p.ys1;
+        } else {
+            lt = vt - p.g0 - p.g1; n = p.n2; wrow = p.n0 + p.n1; xo = p.xo2; Y = Y2; ys = p.ys2;
+        }
+        const uint row0 = lt * P;
+        device const uint4* wr[P];
+        for (int q = 0; q < P; ++q) wr[q] = W + (ulong)wrow * k8 + (ulong)min(row0 + q, n - 1) * k8;
+        device const uint4* Xs = X + xo / 8 + (ulong)r0 * k8;
+        const uint nblk = k8 / block;
+        uint i = tid;
+        float acc[P * R];
+        for (int j = 0; j < P * R; ++j) acc[j] = 0.0f;
+        for (uint b = 0; b < nblk; ++b, i += block) {
+            IpW8 wv[P][U];
+            for (int q = 0; q < P; ++q)
+                for (int u = 0; u < U; ++u) wv[q][u] = ip_unpack8(wr[q][i + lanes * u]);
+            for (int r = 0; r < R; ++r) {
+                uint4 xv[U];
+                for (int u = 0; u < U; ++u) xv[u] = Xs[(ulong)r * k8 + i + lanes * u];
+                for (int q = 0; q < P; ++q)
+                    for (int u = 0; u < U; ++u) acc[q * R + r] += ip_dot8w(wv[q][u], xv[u]);
+            }
+        }
+        for (i = nblk * block + tid; i < k8; i += lanes) {
+            IpW8 wv[P];
+            for (int q = 0; q < P; ++q) wv[q] = ip_unpack8(wr[q][i]);
+            for (int r = 0; r < R; ++r) {
+                const uint4 xv = Xs[(ulong)r * k8 + i];
+                for (int q = 0; q < P; ++q) acc[q * R + r] += ip_dot8w(wv[q], xv);
+            }
+        }
+        // accumulator j = q * R + r: weight row row0 + q, activation row r
+        if (SG == 1) {
+            for (int j = 0; j < P * R; ++j) {
+                const float t = simd_sum(acc[j]);
+                const uint q = uint(j) / uint(R), r = uint(j) % uint(R);
+                if (lane == uint(j) % 32 && row0 + q < n) Y[ys + (ulong)(r0 + r) * n + row0 + q] = f2bf(t);
+            }
+        } else {
+            for (int j = 0; j < P * R; ++j) {
+                const float s = simd_sum(acc[j]);
+                if (lane == 0) part[j * SG + sg] = s;
+            }
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+            if (tid < uint(P * R)) {
+                const uint q = tid / uint(R), r = tid % uint(R);
+                float t = part[tid * SG];
+                for (int k = 1; k < SG; ++k) t += part[tid * SG + k];
+                if (row0 + q < n) Y[ys + (ulong)(r0 + r) * n + row0 + q] = f2bf(t);
+            }
+            threadgroup_barrier(mem_flags::mem_threadgroup);  // `part` is rewritten by the next row
+        }
+    }
+}
+
+#define IPX_INST(R, P, SG, U)                                                                                         \
+    template [[host_name("ink_in_proj_gemvx_r" #R "p" #P "s" #SG "u" #U)]] kernel void                              \
+    ink_in_proj_gemvx<R, P, SG, U>(IP_ARGS);
+#define IPX_CFG(SG, U)                                                                                                \
+    IPX_INST(2, 1, SG, U) IPX_INST(3, 1, SG, U) IPX_INST(4, 1, SG, U) IPX_INST(5, 1, SG, U) IPX_INST(6, 1, SG, U)     \
+    IPX_INST(7, 1, SG, U) IPX_INST(8, 1, SG, U) IPX_INST(9, 1, SG, U) IPX_INST(10, 1, SG, U) IPX_INST(11, 1, SG, U)   \
+    IPX_INST(12, 1, SG, U) IPX_INST(13, 1, SG, U) IPX_INST(14, 1, SG, U) IPX_INST(15, 1, SG, U)                      \
+    IPX_INST(16, 1, SG, U) IPX_INST(4, 2, SG, U) IPX_INST(8, 2, SG, U) IPX_INST(16, 2, SG, U) IPX_INST(4, 4, SG, U)   \
+    IPX_INST(8, 4, SG, U) IPX_INST(16, 4, SG, U)
+IPX_CFG(8, 2)
+
+// ================================================================================================================
 // InkInProj over e4m3 weights (lane ink-fp8, opt-in INTARSIA_INK_ATTN_QUANT=fp8; W8A16): y_j = bf16(scale_j * x . e4m3(W_j)^T).
 // The bf16 GEMV above with 8-byte weight chunks (8 e4m3 codes) against the same 16-byte activation chunks, the same lane ->
 // chunk mapping and reduction tree for every R (rows-exact as the bf16 kernel). e4m3 decodes as value / 256 (the fp8.metal

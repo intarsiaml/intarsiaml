@@ -216,6 +216,79 @@ inline float ink_chunk_dot(thread const InkChunk<FMT>& k, thread const uint* xw,
     }
 }
 
+// lane ink-batch (p.f bit 3, for leaders serving at least p.f bits 4..6 pairs; INTARSIA_INK_MOE_DEC1): a chunk decoded once (the half2 of every element pair, exactly the
+// values ink_chunk_dot forms) for all the pairs a union leader serves; ink_dec_dot is ink_chunk_dot on it, the same
+// products in the same fma order, so the same bits.
+template <uint FMT>
+struct InkDec {
+    half2 c[16];
+    float sc[2];
+};
+
+template <uint FMT>
+inline InkDec<FMT> ink_decode(thread const InkChunk<FMT>& k) {
+    InkDec<FMT> d;
+    if (FMT == 0) {
+        _Pragma("clang loop unroll(full)")
+        for (uint q = 0; q < 4u; ++q) {
+            const uint v = k.w[0][q];
+            _Pragma("clang loop unroll(full)")
+            for (uint n = 0; n < 4u; ++n) {
+                const uint tt = (v >> (4u * n)) & 0x000F000Fu;
+                d.c[q * 4u + n] = as_type<half2>(((tt & 0x00070007u) << 9) | ((tt & 0x00080008u) << 12));
+            }
+        }
+        d.sc[0] = k.sc[0];
+        d.sc[1] = k.sc[1];
+    } else {
+        _Pragma("clang loop unroll(full)")
+        for (uint q = 0; q < 8u; ++q) {
+            const uint v = k.w[q >> 2][q & 3u];
+            _Pragma("clang loop unroll(full)")
+            for (uint n = 0; n < 2u; ++n) {
+                const uint tt = (v >> (8u * n)) & 0x00FF00FFu;
+                d.c[q * 2u + n] = as_type<half2>(((tt & 0x007F007Fu) << 7) | ((tt & 0x00800080u) << 8));
+            }
+        }
+        d.sc[0] = k.sc[0];
+        d.sc[1] = 0.f;
+    }
+    return d;
+}
+
+template <uint FMT>
+inline float ink_dec_dot(thread const InkDec<FMT>& d, thread const uint* xw, float acc) {
+    if (FMT == 0) {
+        _Pragma("clang loop unroll(full)")
+        for (uint b = 0; b < 2u; ++b) {
+            float t = 0.f;
+            _Pragma("clang loop unroll(full)")
+            for (uint q = 2u * b; q < 2u * b + 2u; ++q) {
+                _Pragma("clang loop unroll(full)")
+                for (uint n = 0; n < 4u; ++n) {
+                    const float2 c = float2(d.c[q * 4u + n]);
+                    t = fma(c.x, ink_xe(xw, 8u * q + n), t);
+                    t = fma(c.y, ink_xe(xw, 8u * q + n + 4u), t);
+                }
+            }
+            acc = fma(t, d.sc[b], acc);
+        }
+        return acc;
+    } else {
+        float t = 0.f;
+        _Pragma("clang loop unroll(full)")
+        for (uint q = 0; q < 8u; ++q) {
+            _Pragma("clang loop unroll(full)")
+            for (uint n = 0; n < 2u; ++n) {
+                const float2 c = float2(d.c[q * 2u + n]);
+                t = fma(c.x, ink_xe(xw, 4u * q + n), t);
+                t = fma(c.y, ink_xe(xw, 4u * q + n + 2u), t);
+            }
+        }
+        return fma(t * 256.f, d.sc[0], acc);
+    }
+}
+
 // 32 bf16 activations of chunk c of a row (16-byte aligned rows: 4 vector loads; else bf16 by bf16)
 template <bool AX>
 inline void ink_xload(device const ushort* xr, uint c, thread uint* xw) {
@@ -318,6 +391,20 @@ inline void ink_gu_impl(device const ushort* x, device const int* ids, device co
     }
     // INK_NB chunks per step, all their loads first (more bytes in flight per lane); chunk order per pair unchanged
     uint c = li;
+    if ((p.f & 8u) != 0u && rows >= ((p.f >> 4) & 7u)) {
+        // decode each chunk once for all served pairs (lane ink-batch); every pair's chain is unchanged
+        for (; c < nc; c += INK_LG) {
+            const InkDec<FMT> dg = ink_decode<FMT>(ink_load<FMT, A16>(wg, sgp, c));
+            const InkDec<FMT> du = ink_decode<FMT>(ink_load<FMT, A16>(wu, sup, c));
+            for (uint q = 0; q < INK_XR; ++q) {
+                if (q >= rows) break;
+                uint xw[16];
+                ink_xload<AX>(xr[q], c, xw);
+                ag[q] = ink_dec_dot<FMT>(dg, xw, ag[q]);
+                au[q] = ink_dec_dot<FMT>(du, xw, au[q]);
+            }
+        }
+    }
     for (; c + (INK_NB - 1u) * INK_LG < nc; c += INK_NB * INK_LG) {
         InkChunk<FMT> kg[INK_NB], ku[INK_NB];
         _Pragma("clang loop unroll(full)")
@@ -410,6 +497,29 @@ inline void ink_dn_u_impl(device const ushort* h, device const int* ids, device 
     device const uchar* wr = w2 + rn * (nc * WB);
     device const uchar* sr = s2 + p.s2 + rn * (nc * SB);
     const float g2 = FMT == 0 ? gsc[e * 3u + 2u] : 1.f;
+    if ((p.f & 8u) != 0u && rows >= ((p.f >> 4) & 7u)) {
+        // each chunk loaded and decoded once for all served pairs (lane ink-batch): per pair the chain and the shuffle
+        // reduction of ink_dn_row, unchanged
+        float s[INK_XR];
+        for (uint q = 0; q < INK_XR; ++q) s[q] = 0.f;
+        for (uint c = li; c < nc; c += INK_LD) {
+            const InkDec<FMT> d = ink_decode<FMT>(ink_load<FMT, A16>(wr, sr, c));
+            for (uint q = 0; q < INK_XR; ++q) {
+                if (q >= rows) break;
+                uint xw[16];
+                ink_xload<true>(h + (ulong)pl[q] * I, c, xw);
+                s[q] = ink_dec_dot<FMT>(d, xw, s[q]);
+            }
+        }
+        for (uint q = 0; q < INK_XR; ++q) {
+            if (q >= rows) break;
+            float t = s[q];
+            t += simd_shuffle_xor(t, 1);
+            t += simd_shuffle_xor(t, 2);
+            if (li == 0u && n < H) y[(ulong)pl[q] * H + n] = f2bf(t * g2);
+        }
+        return;
+    }
     for (uint q = 0; q < INK_XR; ++q) {
         if (q >= rows) break;
         const float t = ink_dn_row<FMT, A16>(wr, sr, h + (ulong)pl[q] * I, nc, li);
