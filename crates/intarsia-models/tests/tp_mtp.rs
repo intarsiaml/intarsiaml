@@ -843,13 +843,20 @@ fn shipped_recipes_set_batched_verify_and_verify_topk_only_where_measured() {
             if r.resolve_verify_topk(backend).is_some() {
                 got.push(format!("{} {backend} verify_topk {:?}", r.model.family, r.resolve_verify_topk(backend)));
             }
+            if r.resolve_sampled_verify_fast(backend).is_some() {
+                got.push(format!("{} {backend} sampled_verify_fast {:?}", r.model.family, r.resolve_sampled_verify_fast(backend)));
+            }
         }
     }
     got.sort();
     assert_eq!(
         got,
-        ["qwen3_5_moe cuda batched_verify Some(true)", "qwen3_5_moe cuda verify_topk Some(true)"],
-        "the recipes that set batched verify / verify top-k"
+        [
+            "qwen3_5_moe cuda batched_verify Some(true)",
+            "qwen3_5_moe cuda sampled_verify_fast Some(true)",
+            "qwen3_5_moe cuda verify_topk Some(true)"
+        ],
+        "the recipes that set batched verify / verify top-k / the sampled-verify fast path"
     );
     let moe = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5_moe.toml")).unwrap();
     assert_eq!(moe.resolve_mtp_draft_vocab(None, "cuda").value, 131072, "35B cuda draft head");
