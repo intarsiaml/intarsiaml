@@ -250,6 +250,13 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     12, warm-up then 3 ABAB pairs; (4) rule: bitwise and median >= +1 % end to end -> flip default-on in its own commit with a
     revert env var, a docs/tuning.md row and a LOG row, send the hash; not bitwise -> report, no flip. Then the softmax /
     rescale bucket, bounded first (share of prefill ms at 8k, best-case saving); build only if the bound is >= 3 %.
+26. 2026-11-22 (coordinator, via SendMessage): rerun the NSG 6 vs 12 speed part once, rule as written. (1) Box check first:
+    p8k >= 95 % of 2880 tok/s; log the 1-minute load average and the top 5 CPU processes at start and end (endor load was
+    26.7 at 11:39 with another job's rustc; the Claude app alone uses ~60 % CPU); if the check fails, wait 10 min inside the
+    slot, check once more, then stop and report; no ABAB pairs on a degraded box. (2) Same ABAB rule: flip if the median ratio
+    is >= 1.01 at 4k, 8k and 16k; fleetq `--quiet gpu,cpu`, honest `--expect`. (3) After the result, flip or not, remove the
+    sweep forms s3 / s4 / s8 / s9 / s16 / s18 / s24; keep s6, s12 and the env var. (4) If it flips, land it with the rest of
+    ink/prefill, and report whether ink/prefill has anything else ready for main and what its PR would contain.
 
 ## Status
 
