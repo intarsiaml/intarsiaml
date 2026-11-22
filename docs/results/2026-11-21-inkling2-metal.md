@@ -119,4 +119,23 @@ lighthouse prompt continues into a coherent story.
 
 ## Speed
 
-SPEED_PLACEHOLDER
+### Engine timing (`intarsia generate`, greedy, fleetq #10730 `--quiet gpu,cpu`)
+
+19-token raw prompt, 256 tokens; decode = (tokens - 1) / decode wall time, prefill includes the first-call warm-up.
+
+| Run | prefill | decode tok/s |
+|---|---|---:|
+| default (`INTARSIA_METAL_COMMIT_EVERY` 128), two runs | 467 / 797 ms | 49.9 / 45.5 |
+| `COMMIT_EVERY=512`, two runs | 408 / 416 ms | 48.8 / 51.8 |
+| `COMMIT_EVERY=1024`, two runs | 806 / 432 ms | 39.9 / 51.7 |
+| `INTARSIA_INK_ATTN_FUSED=0` (pair everywhere) | 405 ms | 50.0 |
+| `INTARSIA_INK_ATTN_FUSED=1` | 403 ms | 51.8 |
+| 5051-token prompt, chunk 256 (default), 128 tokens | 4144 ms = **1219 tok/s** | **48.3** |
+| 5051-token prompt, `--prefill-chunk 2048` | 2274 ms = **2221 tok/s** | 48.7 |
+
+Run-to-run spread is about +-5 % (the two default runs: 49.9 and 45.5), so the commit cadence A/B (128 / 512 / 1024) and the
+fused-vs-pair choice are inside the noise at short context; the fused rule saves ~0.35 ms / token by lane ink-m-attn's
+harness, which is ~2 %. A larger prefill chunk is a clear prefill win (1.8x at 5k): the recipe default 256 is a candidate
+for a later lane (memory: the workspace grows with the chunk; not changed here).
+
+SPEED_REST
