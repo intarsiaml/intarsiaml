@@ -32,11 +32,16 @@ pub const INK_RING_MARGIN: usize = 16;
 /// passes (the bank is uploaded per visit) keep the per-visit call.
 pub const INK_MSG_PRE_ROWS: usize = 16;
 
-/// `INTARSIA_INK_MSG_PRE=1` / `on`: the per-pass message `AttnResMix` ([`INK_MSG_PRE_ROWS`]) instead of one per looped visit;
-/// unset / `0` / `off` = per visit (the default until the lane's timing lands). The same bits either way.
-fn ink_msg_pre_on() -> bool {
-    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *V.get_or_init(|| matches!(std::env::var("INTARSIA_INK_MSG_PRE").ok().as_deref().map(str::trim), Some("1") | Some("on")))
+/// `INTARSIA_INK_MSG_PRE`: `1` / `on` = the per-pass message `AttnResMix` ([`INK_MSG_PRE_ROWS`]) instead of one per looped
+/// visit, `0` / `off` = per visit, unset / `auto` = per pass on Metal (lane ink-dfuse: -0.19 ms per decode step, job E #11003),
+/// per visit elsewhere. The same bits either way.
+fn ink_msg_pre_env() -> Option<bool> {
+    static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| match std::env::var("INTARSIA_INK_MSG_PRE").ok().as_deref().map(str::trim) {
+        Some("1") | Some("on") => Some(true),
+        Some("0") | Some("off") => Some(false),
+        _ => None,
+    })
 }
 
 /// `INTARSIA_INK_ATTN_FUSED`: `1` / `on` = `InkAttnDecode` (op 75) on every visit of up to 16 rows the backend admits it for,
@@ -67,15 +72,15 @@ pub(crate) fn ink_attn_fused_rule(rows: usize, local: bool, ctx: usize, window: 
 }
 
 /// `INTARSIA_INK_ROUTE_FUSED`: `1` / `on` = `InkRoute` (op 76: the router GEMV and `MoeRoute` in one launch) on every call of up to
-/// 16 rows the backend admits it for, `auto` = the same on Metal only, unset / `0` / `off` = the router matmul + `MoeRoute` (the
-/// default until the lane's timing lands). Both give the same bits on a backend (the fused kernel is bitwise its pair), so
-/// this only moves time.
+/// 16 rows the backend admits it for, `0` / `off` = the router matmul + `MoeRoute`, unset / `auto` = fused on Metal (lane
+/// ink-dfuse: -0.11 ms per decode step, job E #11003), the pair elsewhere. Both give the same bits on a backend (the fused
+/// kernel is bitwise its pair), so this only moves time.
 fn ink_route_fused_env() -> Option<bool> {
     static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
     *V.get_or_init(|| match std::env::var("INTARSIA_INK_ROUTE_FUSED").ok().as_deref().map(str::trim) {
         Some("1") | Some("on") => Some(true),
-        Some("auto") => None,
-        _ => Some(false),
+        Some("0") | Some("off") => Some(false),
+        _ => None,
     })
 }
 
@@ -746,7 +751,7 @@ impl Model {
         let xs = |n: usize| planes(&ws.x, act, 0, n, t, d);
         let msgs = |start: usize, n: usize| planes(&ws.msg, DType::F32, start, n, t, d);
         // the messages of a whole pass at its restart (INK_MSG_PRE_ROWS): layer l's 4 rows at planes 4 * (l - core_start)
-        let pre = tf.is_none() && t <= INK_MSG_PRE_ROWS && im.msg_q_all.is_some() && ink_msg_pre_on();
+        let pre = tf.is_none() && t <= INK_MSG_PRE_ROWS && im.msg_q_all.is_some() && ink_msg_pre_env().unwrap_or(self.backend.name() == "metal");
         let mbase = |layer: usize| if pre { 4 * (layer - ink.core_start) } else { 0 };
         let bank = planes(&ws.bank, act, 0, 2, t, d);
         let dumping = dump.is_some();

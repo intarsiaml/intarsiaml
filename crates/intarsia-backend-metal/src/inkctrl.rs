@@ -23,17 +23,19 @@ const ROUTE: &str = "ink_route";
 /// Shader entry points of kernels/metal/inkling2_ctrl.metal (all in the metal4.0 library).
 pub const METAL4_SHADERS: [&str; 1] = [ROUTE];
 
-/// A default-off kernel switch of this lane: its environment variable (`1` / `on`: on; unset / `0` / `off`: off), or forced
-/// for this process by [`Switch::set`] (tests and benchmarks; every switch gives the same bits on or off).
+/// A kernel switch of this lane: its environment variable (`1` / `on`: on; `0` / `off`: off; unset or anything else: the
+/// switch's default), or forced for this process by [`Switch::set`] (tests and benchmarks; every switch gives the same bits
+/// on or off).
 pub struct Switch {
     forced: std::sync::atomic::AtomicU8,
     env: &'static str,
+    default: bool,
     val: std::sync::OnceLock<bool>,
 }
 
 impl Switch {
-    const fn new(env: &'static str) -> Self {
-        Self { forced: std::sync::atomic::AtomicU8::new(0), env, val: std::sync::OnceLock::new() }
+    const fn new(env: &'static str, default: bool) -> Self {
+        Self { forced: std::sync::atomic::AtomicU8::new(0), env, default, val: std::sync::OnceLock::new() }
     }
 
     /// Force on or off, `None` = back to the environment.
@@ -45,15 +47,21 @@ impl Switch {
         match self.forced.load(std::sync::atomic::Ordering::Relaxed) {
             1 => true,
             2 => false,
-            _ => *self.val.get_or_init(|| matches!(std::env::var(self.env).ok().as_deref().map(str::trim), Some("1") | Some("on"))),
+            _ => *self.val.get_or_init(|| match std::env::var(self.env).ok().as_deref().map(str::trim) {
+                Some("1") | Some("on") => true,
+                Some("0") | Some("off") => false,
+                _ => self.default,
+            }),
         }
     }
 }
 
-/// `INTARSIA_INK_MIX_HOIST`: the row kernels' `ink_mix_row_h_*` instances (every operand load before its first use).
-pub static MIX_HOIST: Switch = Switch::new("INTARSIA_INK_MIX_HOIST");
-/// `INTARSIA_INK_BLEND_NORM_C`: the blend norm with one channel per thread (`ink_blend_norm_c`).
-pub static BLEND_NORM_C: Switch = Switch::new("INTARSIA_INK_BLEND_NORM_C");
+/// `INTARSIA_INK_MIX_HOIST` (default on: -0.17 ms per decode step, job E #11003): the row kernels' `ink_mix_row_h_*`
+/// instances (every operand load before its first use).
+pub static MIX_HOIST: Switch = Switch::new("INTARSIA_INK_MIX_HOIST", true);
+/// `INTARSIA_INK_BLEND_NORM_C` (default on: -0.29 ms per decode step, job E #11003): the blend norm with one channel per
+/// thread (`ink_blend_norm_c`).
+pub static BLEND_NORM_C: Switch = Switch::new("INTARSIA_INK_BLEND_NORM_C", true);
 
 /// Logits per threadgroup (`RT_SG` in the shader).
 const RT_SG: usize = 4;
