@@ -876,3 +876,5 @@ The binaries differ: different trees (screen commits) and builds. No shell `INTA
 play. **Not settled from the logs.** #11352 now starts with both configs side by side, alternating: X = fp8's saved binary +
 env (x2), Y = #11328's saved binary + env (x2), Z = this tree's bench with the same args + `--prompts random`, no digest;
 then the digest-backed NE arms. The "230 not met" claim is on hold until this is settled.
+
+**27a. Embedded metallibs (07:10).** Carved from the two saved binaries (`MTLB` header, size at +16). Metal-4 lib identical in both (1,752,900 B, sha `f9d9e393bb68cfd5`). Main lib: fp8 #11345 9,203,071 B (`7e2f54d16b093c5e`) vs #11328 9,203,007 B (`119340e9ad7e9551`), 64 B apart, the same 1,064 function names. Consistent with the `screen.metal` diff only (head screen is opt-in and off in both arms). So the GPU code the two runs used is the same apart from an unused kernel; the 63 vs 77-90 ms gap is either host code or box state. The same-slot side-by-side arms X/Y at the head of #11352 decide which.
