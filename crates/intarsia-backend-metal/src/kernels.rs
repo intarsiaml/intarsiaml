@@ -420,6 +420,7 @@ pub const TABLE: &[(&str, Op)] = &[
     // Inkling-2-Mini attention (inkattn.rs, lane ink-m-attn)
     (crate::inkattn::INK_KV_PROLOGUE_BF16, Op::InkKvPrologue),
     (crate::inkattn::REL_SINK_ATTN_BF16, Op::RelSinkAttn),
+    (crate::inkattn::INK_ATTN_DECODE_BF16, Op::InkAttnDecode),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -633,6 +634,13 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .scratch(crate::inkattn::attn_scratch),
+                crate::inkattn::INK_ATTN_DECODE_BF16 => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::inkattn::decode_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .scratch(crate::inkattn::decode_scratch),
                 // the sliding-window decode: the plain decode shaders over the window's keys (dflash.rs). `.ext()`: the only Metal
                 // kernel that takes `OpAttrs::window > 0`; priority -1 keeps every plain call on the kernel it had.
                 crate::dflash::ATTN_DECODE_BF16_WINDOW => k
@@ -960,6 +968,7 @@ mod tests {
         "gdn_delta_rule_bf16:gdn_delta_rule",
         "gdn_delta_rule_bf16_pre:gdn_delta_rule",
         "gdn_delta_rule_bf16_rows:gdn_delta_rule",
+        "ink_attn_decode_bf16:ink_attn_decode",
         "ink_kv_prologue_bf16:ink_kv_prologue",
         "kv_append_bf16:kv_append",
         "kv_append_bf16_rows:kv_append",

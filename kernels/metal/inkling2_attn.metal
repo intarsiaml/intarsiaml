@@ -273,10 +273,169 @@ inline ushort ink_finish(float a, float m, float l, float sink2, float gate) {
     return f2bf(precise::divide(a * sc, lt) * ink_sigmoid(gate));
 }
 
-// bind: 0 q, 1 k (chunk), 2 v (chunk), 3 k cache, 4 v cache, 5 rel, 6 pq, 7 out, 8 pos, 9 scratch, 10 InkP.
-// Grid (Hk, max splits, T), INK_NSG simdgroups. q, k, v and the caches 16-byte aligned (launcher checks), D in {8..128}.
-// U: steps whose loads are issued together (no bit depends on it)
-template <uint GP, uint INK_U>
+// Threadgroup state of a stage-1 threadgroup: q of the GP heads (rounded, before the softmax scale), the rel bias of the split's
+// distances that are < E (log2 domain), and for the fused kernel the K / V rows of the call's own keys in the split.
+template <uint GP>
+struct InkTg {
+    float q[GP][128];
+    float bias[GP][1024];
+    float acc[INK_NSG][GP][128];
+    float ml[INK_NSG][GP][2];
+};
+
+struct InkKvTg {
+    ushort k[16][128];
+    ushort v[16][128];
+};
+
+// Split geometry of row t (function of its position and the window only).
+struct InkSplit {
+    uint pp, lo, ns, ks, ke, dlo, nb;
+};
+
+inline InkSplit ink_split(constant InkP& p, uint pos0, uint t, uint split) {
+    InkSplit g;
+    g.pp = pos0 + t;
+    g.lo = ink_lo(g.pp, p.window);
+    const uint vis = g.pp - g.lo + 1;
+    g.ns = ink_nsplit(vis);
+    const uint chunk = ink_chunk(vis, g.ns);
+    g.ks = min(g.lo + split * chunk, g.pp + 1);
+    g.ke = min(g.ks + chunk, g.pp + 1);
+    // biased distances of the split: pp - (ke - 1) .. pp - ks, those below E
+    g.dlo = g.ke > g.ks ? g.pp - (g.ke - 1) : 0u;
+    g.nb = (g.ke > g.ks && g.dlo < p.e) ? min(g.ke - g.ks, p.e - g.dlo) : 0u;
+    return g;
+}
+
+// The attention of one (kv head, split, row) over keys ks .. ke given the staged q and bias; writes the output (one split) or
+// the partial. KV_TG: the call's own keys (j >= pos0) come from threadgroup rows `kvt` instead of the k / v inputs.
+template <uint GP, bool KV_TG>
+inline void ink_attn_body(threadgroup InkTg<GP>& S, threadgroup InkKvTg* kvt, uint kvoff, InkSplit g, uint kvh, uint split, uint t,
+                          uint pos0, device const ushort* kn, device const ushort* vn, device const ushort* kc,
+                          device const ushort* vc, device const ushort* pq, device ushort* out, device float* scr,
+                          constant InkP& p, uint tid, uint lane, uint sg) {
+    const uint D = p.d, H = p.h, Hk = p.hk, Cr = p.cr;
+    const bool ring = (p.flags & 2u) != 0;
+    const uint lpk = D / 8;     // lanes per key row
+    const uint kps = 32 / lpk;  // keys per simdgroup step
+    const uint slot = lane / lpk, le = lane % lpk;
+    const float qsc = p.scale * INK_LOG2E;
+    float qv[GP][8];
+    for (uint h = 0; h < GP; ++h)
+        for (uint i = 0; i < 8; ++i) qv[h][i] = S.q[h][le * 8 + i] * qsc;
+    float m[GP], l[GP], acc[GP][8];
+    for (uint h = 0; h < GP; ++h) {
+        m[h] = -INFINITY;
+        l[h] = 0.0f;
+        for (uint i = 0; i < 8; ++i) acc[h][i] = 0.0f;
+    }
+    const uint rbase = ring ? g.lo % Cr : 0u;
+    device const ushort* kcb = kc + (ulong)kvh * Cr * D;
+    device const ushort* vcb = vc + (ulong)kvh * Cr * D;
+    for (uint base = g.ks + sg * kps; base < g.ke; base += INK_NSG * kps) {
+        const uint j = base + slot;
+        const bool ok = j < g.ke;
+        uint4 kw = uint4(0), vw = uint4(0);
+        if (ok) {
+            if (j >= pos0) {
+                if (KV_TG) {
+                    kw = *(threadgroup const uint4*)&kvt->k[j - pos0 - kvoff][le * 8];
+                    vw = *(threadgroup const uint4*)&kvt->v[j - pos0 - kvoff][le * 8];
+                } else {
+                    const ulong o = ((ulong)(j - pos0) * Hk + kvh) * D + le * 8;
+                    kw = *(device const uint4*)(kn + o);
+                    vw = *(device const uint4*)(vn + o);
+                }
+            } else {
+                uint row = j;
+                if (ring) {
+                    row = (j - g.lo) + rbase;
+                    if (row >= Cr) row -= Cr;
+                }
+                const ulong o = (ulong)row * D + le * 8;
+                kw = *(device const uint4*)(kcb + o);
+                vw = *(device const uint4*)(vcb + o);
+            }
+        }
+        float kf[8], vf[8];
+        ink_unpack8(kw, kf);
+        ink_unpack8(vw, vf);
+        const uint dist = g.pp - j;
+        const uint bi = dist - g.dlo;
+        for (uint h = 0; h < GP; ++h) {
+            float s = 0.0f;
+            for (uint i = 0; i < 8; ++i) s = fma(qv[h][i], kf[i], s);
+            for (uint o = 1; o < lpk; o <<= 1) s += simd_shuffle_xor(s, (ushort)o);
+            if (!ok) continue;
+            if (bi < g.nb) s += S.bias[h][bi];
+            const float mn = max(m[h], s);
+            const float corr = exp2(m[h] - mn);
+            const float pr = exp2(s - mn);
+            l[h] = l[h] * corr + pr;
+            for (uint i = 0; i < 8; ++i) acc[h][i] = fma(pr, vf[i], acc[h][i] * corr);
+            m[h] = mn;
+        }
+    }
+    // merge the slots of the simdgroup (xor tree over the slot bits; both partners compute the same value)
+    for (uint o = lpk; o < 32; o <<= 1) {
+        for (uint h = 0; h < GP; ++h) {
+            const float m2 = simd_shuffle_xor(m[h], (ushort)o);
+            const float l2 = simd_shuffle_xor(l[h], (ushort)o);
+            float a2[8];
+            for (uint i = 0; i < 8; ++i) a2[i] = simd_shuffle_xor(acc[h][i], (ushort)o);
+            const float mn = max(m[h], m2);
+            if (mn == -INFINITY) continue;
+            const float c1 = exp2(m[h] - mn), c2 = exp2(m2 - mn);
+            l[h] = l[h] * c1 + l2 * c2;
+            for (uint i = 0; i < 8; ++i) acc[h][i] = acc[h][i] * c1 + a2[i] * c2;
+            m[h] = mn;
+        }
+    }
+    if (slot == 0) {
+        for (uint h = 0; h < GP; ++h) {
+            for (uint i = 0; i < 8; ++i) S.acc[sg][h][le * 8 + i] = acc[h][i];
+            if (le == 0) {
+                S.ml[sg][h][0] = m[h];
+                S.ml[sg][h][1] = l[h];
+            }
+        }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (tid >= D) return;
+    const uint i = tid;
+    for (uint hh = 0; hh < GP; ++hh) {
+        const uint h = kvh * GP + hh;
+        float mm = -INFINITY;
+        for (uint s = 0; s < INK_NSG; ++s) mm = max(mm, S.ml[s][hh][0]);
+        float ll = 0.0f, aa = 0.0f;
+        for (uint s = 0; s < INK_NSG; ++s) {
+            const float ms = S.ml[s][hh][0];
+            const float c = ms == -INFINITY ? 0.0f : exp2(ms - mm);
+            ll += S.ml[s][hh][1] * c;
+            aa += S.acc[s][hh][i] * c;
+        }
+        const ulong pr = (ulong)t * p.nq;
+        if (g.ns == 1) {
+            const float sink2 = bf2f(pq[pr + 2 * H * D + H * p.dr + h]) * INK_LOG2E;
+            const float gate = bf2f(pq[pr + H * D + H * p.dr + h * D + i]);
+            out[((ulong)t * H + h) * D + i] = ink_finish(aa, mm, ll, sink2, gate);
+        } else {
+            const ulong slotp = ((ulong)t * H + h) * INK_MAXS + split;
+            scr[slotp * D + i] = aa;
+            if (i == 0) {
+                device float* ml = scr + (ulong)p.t * H * INK_MAXS * D;
+                ml[slotp * 2] = mm;
+                ml[slotp * 2 + 1] = ll;
+            }
+        }
+    }
+}
+
+// RelSinkAttn stage 1. bind: 0 q, 1 k (chunk), 2 v (chunk), 3 k cache, 4 v cache, 5 rel, 6 pq, 7 out, 8 pos, 9 scratch,
+// 10 InkP. Grid (Hk, max splits, T), INK_NSG simdgroups. q, k, v and the caches 16-byte aligned (launcher checks), D in
+// {8..128}, E <= 1024.
+template <uint GP>
 [[kernel, max_total_threads_per_threadgroup(INK_NSG * 32)]] void ink_attn_s1(
     device const ushort* q_ [[buffer(0)]],
     device const ushort* kn_ [[buffer(1)]],
@@ -293,9 +452,8 @@ template <uint GP, uint INK_U>
     uint3 tid3 [[thread_position_in_threadgroup]],
     uint lane [[thread_index_in_simdgroup]],
     uint sg [[simdgroup_index_in_threadgroup]]) {
+    threadgroup InkTg<GP> S;
     const uint tid = tid3.x;
-    threadgroup float accs[INK_NSG][GP][128];
-    threadgroup float mls[INK_NSG][GP][2];
     device const ushort* q = q_ + p.sk[0];
     device const ushort* kn = kn_ + p.sk[1];
     device const ushort* vn = vn_ + p.sk[2];
@@ -309,171 +467,209 @@ template <uint GP, uint INK_U>
     const uint D = p.d, H = p.h, Hk = p.hk, E = p.e, Cr = p.cr;
     const bool ring = (p.flags & 2u) != 0;
     const uint pos0 = ink_pos0(p, pos);
-    const uint pp = pos0 + t;
-    const uint lo = ink_lo(pp, p.window);
-    const uint vis = pp - lo + 1;
-    const uint ns = ink_nsplit(vis);
+    const InkSplit g = ink_split(p, pos0, t, split);
 
     // the cache write of this row when it cannot race the reads (launcher: linear, or a ring with T <= Cr - window + 1)
     if ((p.flags & 4u) != 0 && split == 0 && (!ring || t + Cr >= p.t)) {
-        const uint row = ring ? pp % Cr : pp;
+        const uint row = ring ? g.pp % Cr : g.pp;
         const ulong src = ((ulong)t * Hk + kvh) * D, dst = ((ulong)kvh * Cr + row) * D;
         for (uint i = tid; i < D; i += INK_NSG * 32) {
             kc[dst + i] = kn[src + i];
             vc[dst + i] = vn[src + i];
         }
     }
-    if (split >= ns) return;
-    const uint chunk = ink_chunk(vis, ns);
-    const uint ks = lo + split * chunk;
-    const uint ke = min(ks + chunk, pp + 1);
-
-    const uint lpk = D / 8;      // lanes per key row
-    const uint kps = 32 / lpk;   // keys per simdgroup step
-    const uint slot = lane / lpk, le = lane % lpk;
-    const float qsc = p.scale * INK_LOG2E;
-    float qv[GP][8];
-    for (uint g = 0; g < GP; ++g) {
-        const uint h = kvh * GP + g;
-        float f[8];
-        ink_unpack8(*(device const uint4*)(q + ((ulong)t * H + h) * D + le * 8), f);
-        for (uint i = 0; i < 8; ++i) qv[g][i] = f[i] * qsc;
-    }
-    float m[GP], l[GP], acc[GP][8];
-    for (uint g = 0; g < GP; ++g) {
-        m[g] = -INFINITY;
-        l[g] = 0.0f;
-        for (uint i = 0; i < 8; ++i) acc[g][i] = 0.0f;
-    }
-    device const ushort* relr = rel + ((ulong)t * H + kvh * GP) * E;
-    const uint rbase = ring ? lo % Cr : 0u;
-    device const ushort* kcb = kc + (ulong)kvh * Cr * D;
-    device const ushort* vcb = vc + (ulong)kvh * Cr * D;
-    // rounds of INK_U steps: the K / V rows and the bias of a round are loaded before any of them is used (a load-use chain
-    // per step was latency bound); within a slot the keys are still processed in ascending step order
-    const uint stride = INK_NSG * kps;
-    for (uint base0 = ks + sg * kps; base0 < ke; base0 += stride * INK_U) {
-        uint4 kw[INK_U], vw[INK_U];
-        float bv[INK_U][GP];
-        bool ok[INK_U];
-#pragma unroll
-        for (uint u = 0; u < INK_U; ++u) {
-            const uint j = base0 + u * stride + slot;
-            ok[u] = j < ke;
-            kw[u] = uint4(0);
-            vw[u] = uint4(0);
-            for (uint g = 0; g < GP; ++g) bv[u][g] = 0.0f;
-            if (ok[u]) {
-                device const ushort* kp;
-                device const ushort* vp;
-                if (j >= pos0) {
-                    const ulong o = ((ulong)(j - pos0) * Hk + kvh) * D + le * 8;
-                    kp = kn + o;
-                    vp = vn + o;
-                } else {
-                    uint row = j;
-                    if (ring) {
-                        row = (j - lo) + rbase;
-                        if (row >= Cr) row -= Cr;
-                    }
-                    const ulong o = (ulong)row * D + le * 8;
-                    kp = kcb + o;
-                    vp = vcb + o;
-                }
-                kw[u] = *(device const uint4*)kp;
-                vw[u] = *(device const uint4*)vp;
-                const uint dist = pp - j;
-                if (dist < E)
-                    for (uint g = 0; g < GP; ++g) bv[u][g] = bf2f(relr[g * E + dist]) * INK_LOG2E;
-            }
-        }
-#pragma unroll
-        for (uint u = 0; u < INK_U; ++u) {
-            float kf[8], vf[8];
-            ink_unpack8(kw[u], kf);
-            ink_unpack8(vw[u], vf);
-            for (uint g = 0; g < GP; ++g) {
-                float s = 0.0f;
-                for (uint i = 0; i < 8; ++i) s = fma(qv[g][i], kf[i], s);
-                for (uint o = 1; o < lpk; o <<= 1) s += simd_shuffle_xor(s, (ushort)o);
-                if (!ok[u]) continue;
-                s += bv[u][g];
-                const float mn = max(m[g], s);
-                const float corr = exp2(m[g] - mn);
-                const float pr = exp2(s - mn);
-                l[g] = l[g] * corr + pr;
-                for (uint i = 0; i < 8; ++i) acc[g][i] = fma(pr, vf[i], acc[g][i] * corr);
-                m[g] = mn;
-            }
-        }
-    }
-    // merge the slots of the simdgroup (xor tree over the slot bits; both partners compute the same value)
-    for (uint o = lpk; o < 32; o <<= 1) {
-        for (uint g = 0; g < GP; ++g) {
-            const float m2 = simd_shuffle_xor(m[g], (ushort)o);
-            const float l2 = simd_shuffle_xor(l[g], (ushort)o);
-            float a2[8];
-            for (uint i = 0; i < 8; ++i) a2[i] = simd_shuffle_xor(acc[g][i], (ushort)o);
-            const float mn = max(m[g], m2);
-            if (mn == -INFINITY) continue;
-            const float c1 = exp2(m[g] - mn), c2 = exp2(m2 - mn);
-            l[g] = l[g] * c1 + l2 * c2;
-            for (uint i = 0; i < 8; ++i) acc[g][i] = acc[g][i] * c1 + a2[i] * c2;
-            m[g] = mn;
-        }
-    }
-    if (slot == 0) {
-        for (uint g = 0; g < GP; ++g) {
-            for (uint i = 0; i < 8; ++i) accs[sg][g][le * 8 + i] = acc[g][i];
-            if (le == 0) {
-                mls[sg][g][0] = m[g];
-                mls[sg][g][1] = l[g];
-            }
-        }
+    if (split >= g.ns) return;
+    for (uint x = tid; x < GP * D; x += INK_NSG * 32) S.q[x / D][x % D] = bf2f(q[((ulong)t * H + kvh * GP) * D + x]);
+    for (uint x = tid; x < GP * g.nb; x += INK_NSG * 32) {
+        const uint h = x / g.nb, b = x % g.nb;
+        S.bias[h][b] = bf2f(rel[((ulong)t * H + kvh * GP + h) * E + g.dlo + b]) * INK_LOG2E;
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
-    if (tid >= D) return;
-    const uint i = tid;
-    for (uint g = 0; g < GP; ++g) {
-        const uint h = kvh * GP + g;
-        float mm = -INFINITY;
-        for (uint s = 0; s < INK_NSG; ++s) mm = max(mm, mls[s][g][0]);
-        float ll = 0.0f, aa = 0.0f;
-        for (uint s = 0; s < INK_NSG; ++s) {
-            const float ms = mls[s][g][0];
-            const float c = ms == -INFINITY ? 0.0f : exp2(ms - mm);
-            ll += mls[s][g][1] * c;
-            aa += accs[s][g][i] * c;
-        }
-        const ulong pr = (ulong)t * p.nq;
-        if (ns == 1) {
-            const float sink2 = bf2f(pq[pr + 2 * H * D + H * p.dr + h]) * INK_LOG2E;
-            const float gate = bf2f(pq[pr + H * D + H * p.dr + h * D + i]);
-            out[((ulong)t * H + h) * D + i] = ink_finish(aa, mm, ll, sink2, gate);
-        } else {
-            const ulong slotp = ((ulong)t * H + h) * INK_MAXS + split;
-            scr[slotp * D + i] = aa;
-            if (i == 0) {
-                device float* ml = scr + (ulong)p.t * H * INK_MAXS * D;
-                ml[slotp * 2] = mm;
-                ml[slotp * 2 + 1] = ll;
-            }
-        }
-    }
+    ink_attn_body<GP, false>(S, nullptr, 0, g, kvh, split, t, pos0, kn, vn, kc, vc, pq, out, scr, p, tid, lane, sg);
 }
 
-#define INK_S1(GP, U)                                                                                                      \
-    template [[host_name("ink_attn_s1_g" #GP "_u" #U)]] [[kernel]] void ink_attn_s1<GP, U>(                               \
+#define INK_S1(GP)                                                                                                         \
+    template [[host_name("ink_attn_s1_g" #GP)]] [[kernel]] void ink_attn_s1<GP>(                                          \
         device const ushort*, device const ushort*, device const ushort*, device ushort*, device ushort*,                   \
         device const ushort*, device const ushort*, device ushort*, device const int*, device float*, constant InkP&,       \
         uint3, uint3, uint, uint);
-INK_S1(1, 2)
-INK_S1(2, 2)
-INK_S1(4, 2)
-INK_S1(3, 1)
-INK_S1(3, 2)
-INK_S1(3, 4)
-INK_S1(3, 8)
+INK_S1(1)
+INK_S1(2)
+INK_S1(3)
+
+// ------------------------------------------------------------------------------------------------------------------------
+// InkAttnDecode: InkKvPrologue + RelSinkAttn in one stage-1 threadgroup (1..=16 rows). Each (kv head, split, row) threadgroup
+// recomputes what it needs of the prologue with the prologue's own arithmetic (same thread -> channel map, same reduction
+// order, the same rounding points): q and r of its row's GP heads, the rel bias of its split's distances (the prologue's
+// r . relproj chain per element), and the conv'd, clipped / normalised K / V rows of the call's keys inside its split. So the
+// result is bitwise the unfused pair on this backend (tests/inkling2_attn.rs).
+// ------------------------------------------------------------------------------------------------------------------------
+
+// bind: 0 pq, 1 pk, 2 pv, 3 k taps, 4 v taps, 5 q scale, 6 r scale, 7 rel proj, 8 k cache, 9 v cache, 10 out, 11 k ring,
+// 12 v ring, 13 pos, 14 scratch, 15 InkP. Grid (Hk, max splits, T), INK_NSG simdgroups; D in {8..128}, dr <= 32, E <= 1024.
+// flags: 4 = cache write in-kernel (else into the scratch's staging rows for ink_kv_write_bf16), 16 = conv-ring write in-kernel.
+template <uint GP>
+[[kernel, max_total_threads_per_threadgroup(INK_NSG * 32)]] void ink_attn_dec(
+    device const ushort* pq_ [[buffer(0)]],
+    device const ushort* pk_ [[buffer(1)]],
+    device const ushort* pv_ [[buffer(2)]],
+    device const ushort* kt_ [[buffer(3)]],
+    device const ushort* vt_ [[buffer(4)]],
+    device const ushort* qs_ [[buffer(5)]],
+    device const ushort* rs_ [[buffer(6)]],
+    device const ushort* rp_ [[buffer(7)]],
+    device ushort* kc_ [[buffer(8)]],
+    device ushort* vc_ [[buffer(9)]],
+    device ushort* out_ [[buffer(10)]],
+    device ushort* kr_ [[buffer(11)]],
+    device ushort* vr_ [[buffer(12)]],
+    device const int* pos [[buffer(13)]],
+    device float* scr [[buffer(14)]],
+    constant InkP& p [[buffer(15)]],
+    uint3 tg [[threadgroup_position_in_grid]],
+    uint3 tid3 [[thread_position_in_threadgroup]],
+    uint lane [[thread_index_in_simdgroup]],
+    uint sg [[simdgroup_index_in_threadgroup]]) {
+    threadgroup InkTg<GP> S;
+    threadgroup InkKvTg KV;
+    threadgroup float part[INK_NSG][32];
+    threadgroup float rsh[GP][32];
+    const uint tid = tid3.x;
+    device const ushort* pq = pq_ + p.sk[0];
+    device const ushort* pk = pk_ + p.sk[1];
+    device const ushort* pv = pv_ + p.sk[2];
+    device const ushort* kt = kt_ + p.sk[3];
+    device const ushort* vt = vt_ + p.sk[4];
+    device const ushort* qs = qs_ + p.sk[5];
+    device const ushort* rs = rs_ + p.sk[6];
+    device const ushort* rp = rp_ + p.sk[7];
+    device ushort* kc = kc_ + p.sk[8];
+    device ushort* vc = vc_ + p.sk[9];
+    device ushort* out = out_ + p.sk[10];
+    device ushort* kr = kr_ + p.sk[11];
+    device ushort* vr = vr_ + p.sk[12];
+
+    const uint kvh = tg.x, split = tg.y, t = tg.z;
+    const uint D = p.d, H = p.h, Hk = p.hk, dr = p.dr, E = p.e, Cr = p.cr;
+    const uint ckv = Hk * D;
+    const bool ring = (p.flags & 2u) != 0;
+    const uint pos0 = ink_pos0(p, pos);
+    const InkSplit g = ink_split(p, pos0, t, split);
+    if (split >= g.ns) return;
+    const uint c = tid, ch = kvh * D + c;
+    const ulong qrow = (ulong)t * p.nq;
+
+    // q and r of the row (the prologue's arithmetic)
+    float qv[GP], rv[GP];
+    {
+        float vals[2 * GP];
+        for (uint h = 0; h < GP; ++h) {
+            qv[h] = 0.0f;
+            rv[h] = 0.0f;
+            if (c < D) qv[h] = bf2f(pq[qrow + (kvh * GP + h) * D + c]) * bf2f(qs[(kvh * GP + h) * D + c]);
+            if (c < dr) rv[h] = bf2f(pq[qrow + H * D + (kvh * GP + h) * dr + c]) * bf2f(rs[(kvh * GP + h) * dr + c]);
+            vals[h] = qv[h] * qv[h];
+            vals[GP + h] = rv[h] * rv[h];
+        }
+        for (uint x = 0; x < 2 * GP; ++x) {
+            const float s = simd_sum(vals[x]);
+            if (lane == 0) part[sg][x] = s;
+        }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    {
+        const float tau = ink_tau(p, g.pp);
+        const bool use_tau = p.tau_floor > 0;
+        for (uint h = 0; h < GP; ++h) {
+            float tq = 0.0f, tr = 0.0f;
+            for (uint j = 0; j < INK_NSG; ++j) tq += part[j][h];
+            for (uint j = 0; j < INK_NSG; ++j) tr += part[j][GP + h];
+            if (c < D) {
+                float x = rA(qv[h] * ink_clipf(tq, p.qk_clip));
+                if (use_tau) x = rA(x * tau);
+                S.q[h][c] = x;
+            }
+            if (c < dr) {
+                float x = rA(rv[h] * ink_clipf(tr, p.rel_clip));
+                if (use_tau) x = rA(x * tau);
+                rsh[h][c] = x;
+            }
+        }
+    }
+    // the call's own keys inside the split: rows t0 .. t1 (positions pos0 + t0 ..)
+    const uint jn0 = max(g.ks, pos0), jn1 = g.ke;
+    const uint t0 = jn0 - pos0, nnew = jn1 > jn0 ? jn1 - jn0 : 0u;
+    float kcv[16], vcv[16];
+    for (uint r = 0; r < nnew; ++r) {
+        kcv[r] = 0.0f;
+        vcv[r] = 0.0f;
+        if (c < D) {
+            kcv[r] = ink_conv(pk, kr, kt, t0 + r, pos0, p, ch, kvh);
+            vcv[r] = ink_conv(pv, vr, vt, t0 + r, pos0, p, ch, kvh);
+        }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);  // part reused
+    for (uint r = 0; r < nnew; ++r) {
+        const float a = simd_sum(kcv[r] * kcv[r]);
+        const float b = simd_sum(vcv[r] * vcv[r]);
+        if (lane == 0) {
+            part[sg][2 * r] = a;
+            part[sg][2 * r + 1] = b;
+        }
+    }
+    // the bias of the split's distances (the prologue's rel element: the r . relproj chain, rounded)
+    for (uint x = tid; x < GP * g.nb; x += INK_NSG * 32) {
+        const uint h = x / g.nb, e = g.dlo + x % g.nb;
+        float a = 0.0f;
+        for (uint j = 0; j < dr; ++j) a = fma(rsh[h][j], bf2f(rp[(ulong)j * E + e]), a);
+        S.bias[h][x % g.nb] = rA(a) * INK_LOG2E;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint r = 0; r < nnew; ++r) {
+        float tk = 0.0f, tv = 0.0f;
+        for (uint j = 0; j < INK_NSG; ++j) tk += part[j][2 * r];
+        for (uint j = 0; j < INK_NSG; ++j) tv += part[j][2 * r + 1];
+        if (c < D) {
+            KV.k[r][c] = f2bf(kcv[r] * ink_clipf(tk, p.qk_clip));
+            const float inv = precise::divide(1.0f, precise::sqrt(tv / (float)D + p.eps));
+            KV.v[r][c] = f2bf(vcv[r] * inv);
+        }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    // the threadgroup that holds the row's own key (the split with ke == pp + 1) writes its K / V row and its conv-ring row
+    if (g.ks < g.ke && g.ke == g.pp + 1 && c < D) {
+        const uint r = t - t0;
+        if (!ring || t + Cr >= p.t) {
+            if ((p.flags & 4u) != 0) {
+                const uint row = ring ? g.pp % Cr : g.pp;
+                const ulong dst = ((ulong)kvh * Cr + row) * D + c;
+                kc[dst] = KV.k[r][c];
+                vc[dst] = KV.v[r][c];
+            } else {
+                device ushort* stg = (device ushort*)(scr + (ulong)p.t * H * INK_MAXS * (D + 2));
+                const ulong o = ((ulong)t * Hk + kvh) * D + c;
+                stg[o] = KV.k[r][c];
+                stg[(ulong)p.t * ckv + o] = KV.v[r][c];
+            }
+        }
+        if ((p.flags & 16u) != 0 && t + p.rr >= p.t) {
+            const ulong ro = (ulong)(g.pp % p.rr) * ckv + ch;
+            kr[ro] = pk[(ulong)t * p.pw + ch];
+            vr[ro] = pv[(ulong)t * p.pw + ch];
+        }
+    }
+    // staged row r is the key at position pos0 + t0 + r
+    ink_attn_body<GP, true>(S, &KV, t0, g, kvh, split, t, pos0, pk, pv, kc, vc, pq, out, scr, p, tid, lane, sg);
+}
+
+#define INK_DEC(GP)                                                                                                        \
+    template [[host_name("ink_attn_dec_g" #GP)]] [[kernel]] void ink_attn_dec<GP>(                                        \
+        device const ushort*, device const ushort*, device const ushort*, device const ushort*, device const ushort*,       \
+        device const ushort*, device const ushort*, device const ushort*, device ushort*, device ushort*, device ushort*,   \
+        device ushort*, device ushort*, device const int*, device float*, constant InkP&, uint3, uint3, uint, uint);
+INK_DEC(1)
+INK_DEC(2)
+INK_DEC(3)
 
 // stage 2. bind: 0 pq, 1 out, 2 pos, 3 scratch, 4 InkP. Grid (H, T), threads >= D.
 kernel void ink_attn_comb_bf16(device const ushort* pq_ [[buffer(0)]],

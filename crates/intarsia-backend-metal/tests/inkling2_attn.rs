@@ -95,7 +95,7 @@ fn attrs(l: &Layer, pos0: usize) -> OpAttrs {
 }
 
 /// Run the visit as calls of `rows` rows each (rows divides T); `dev`: device positions.
-fn run(be: &intarsia_backend_metal::MetalBackend, l: &Layer, inp: &Inputs, t: usize, pos0: usize, rows: usize, dev: bool) -> Run {
+fn run(be: &intarsia_backend_metal::MetalBackend, l: &Layer, inp: &Inputs, t: usize, pos0: usize, rows: usize, dev: bool, fused: bool) -> Run {
     let ckv = HK * DH;
     let pw = inp.pk.len() / t;
     let nqw = nq(H, DH, DR);
@@ -115,6 +115,38 @@ fn run(be: &intarsia_backend_metal::MetalBackend, l: &Layer, inp: &Inputs, t: us
         } else {
             None
         };
+        if fused {
+            let mut f = OpCall::new(
+                Op::InkAttnDecode,
+                vec![
+                    tr(&pq, r0 * nqw * 2, &[rows, nqw]),
+                    tr(&pk, r0 * pw * 2, &[rows, pw]),
+                    tr(&pv, r0 * pw * 2, &[rows, pw]),
+                    tr(&w[0], 0, &[K, ckv]),
+                    tr(&w[1], 0, &[K, ckv]),
+                    tr(&w[2], 0, &[H, DH]),
+                    tr(&w[3], 0, &[H, DR]),
+                    tr(&w[4], 0, &[DR, E]),
+                    tr(&st[2], 0, &[HK, l.cr, DH]),
+                    tr(&st[3], 0, &[HK, l.cr, DH]),
+                ],
+                vec![
+                    tr(&o, r0 * H * DH * 2, &[rows, H * DH]),
+                    tr(&st[2], 0, &[HK, l.cr, DH]),
+                    tr(&st[3], 0, &[HK, l.cr, DH]),
+                    tr(&st[0], 0, &[RR, ckv]),
+                    tr(&st[1], 0, &[RR, ckv]),
+                ],
+                a,
+            );
+            f.pos = pos;
+            let need = be.kernels().iter().find(|k| k.name == "ink_attn_decode_bf16").unwrap().scratch_bytes(&ShapeInfo::from_call(&f));
+            let sb = be.alloc(need, MemKind::Device).unwrap();
+            f.scratch = Some(TensorRef { buf: sb, offset: 0, dtype: DType::U8, shape: vec![need] });
+            be.launch("ink_attn_decode_bf16", &f, 0).unwrap();
+            be.synchronize(0).unwrap();
+            continue;
+        }
         let mut pro = OpCall::new(
             Op::InkKvPrologue,
             vec![
@@ -167,6 +199,9 @@ fn run(be: &intarsia_backend_metal::MetalBackend, l: &Layer, inp: &Inputs, t: us
 
 fn same(a: &Run, b: &Run, what: &str) {
     for (i, (x, y)) in a.outs.iter().zip(&b.outs).enumerate() {
+        if i < 4 && (x.iter().all(|&v| v == 0) || y.iter().all(|&v| v == 0)) {
+            continue; // a fused run has no q / rel / k / v
+        }
         let bad = x.iter().zip(y).filter(|(p, q)| p != q).count();
         assert_eq!(bad, 0, "{what}: output {} (q, rel, k, v, o) differs in {bad} of {} values", i, x.len());
     }
@@ -182,16 +217,26 @@ fn rows_exact_real_shapes() {
     let swa = Layer { window: 1024, ring: true, cr: 1040, dynamic: false };
     let full = Layer { window: 0, ring: false, cr: 4096, dynamic: true };
     let mut n = 0;
-    for (l, poss) in [(&swa, [0usize, 1030, 2100, 1020]), (&full, [3, 1018, 3000, 1500])] {
+    // full at 8180..: 32 splits of 288 keys, the trailing ones empty
+    let full_long = Layer { window: 0, ring: false, cr: 8300, dynamic: true };
+    for (l, poss) in [(&swa, vec![0usize, 1030, 2100, 1020]), (&full, vec![3, 1018, 3000, 1500]), (&full_long, vec![8180])] {
         for &t in &[2usize, 4, 7, 16] {
-            for &pos0 in &poss {
+            for &pos0 in poss.iter() {
                 let inp = make(l, t, (t * 977 + pos0) as u64);
-                let multi = run(&be, l, &inp, t, pos0, t, false);
-                let one = run(&be, l, &inp, t, pos0, 1, false);
-                let one_dev = run(&be, l, &inp, t, pos0, 1, true);
+                let multi = run(&be, l, &inp, t, pos0, t, false, false);
+                let one = run(&be, l, &inp, t, pos0, 1, false, false);
+                let one_dev = run(&be, l, &inp, t, pos0, 1, true, false);
                 let what = format!("window {} ring {} T={t} pos0={pos0}", l.window, l.ring);
                 same(&multi, &one, &format!("{what} (host positions)"));
                 same(&multi, &one_dev, &format!("{what} (device position)"));
+                // InkAttnDecode: R rows, R x 1 row (host and device position) all bitwise the unfused pair
+                for (rows, dev) in [(t, false), (1, false), (1, true), (t, true)] {
+                    if dev && rows == t && t > 1 {
+                        continue; // a device position covers the whole call: same as host for R rows
+                    }
+                    let f = run(&be, l, &inp, t, pos0, rows, dev, true);
+                    same(&multi, &f, &format!("{what} (InkAttnDecode, {rows}-row calls, device position {dev})"));
+                }
                 // the attention output is not trivially zero
                 assert!(multi.outs[4].iter().any(|&x| x & 0x7fff != 0), "{what}: zero output");
                 n += 1;

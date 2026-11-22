@@ -1369,7 +1369,7 @@ impl MetalBackend {
         {
             return self.launch_nvfp4(kernel, call);
         }
-        if matches!(kernel, inkattn::INK_KV_PROLOGUE_BF16 | inkattn::REL_SINK_ATTN_BF16) {
+        if matches!(kernel, inkattn::INK_KV_PROLOGUE_BF16 | inkattn::REL_SINK_ATTN_BF16 | inkattn::INK_ATTN_DECODE_BF16) {
             return self.launch_inkattn(kernel, call);
         }
         if bridge::KERNELS.iter().any(|k| k.0 == kernel) {
