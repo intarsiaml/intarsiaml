@@ -474,6 +474,40 @@ impl Dspark {
     }
 }
 
+/// `INTARSIA_DSPARK_PFULL=1` (measurement only, lane ink-spec-land Brief L3; off by default): the gate and the cut read each step's
+/// top-1 probability over the full vocab (the softcapped `base + fold . latent + fold_b` of every token, as mlx-serve's drafter
+/// reports it) instead of over the step's candidates. The drafts are the candidate head's as before; the full sum runs on the host
+/// from the downloaded base rows and the host fold copy, several ms a step, so tok/s under it is not the rule's speed.
+fn dspark_pfull() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_DSPARK_PFULL").is_ok_and(|v| v == "1"))
+}
+
+/// The top-1 probability over the full vocab of the softcapped logits `x_v = bf(base_v + bf(fold_v . latent + fold_b_v))` for the
+/// token whose logit is `xbest` (`INTARSIA_DSPARK_PFULL`). Eight threads, each a contiguous share of the vocab.
+fn full_p1(fold: &[u16], fold_b: &[f32], base: &[f32], latent: &[f32], sc: f32, xbest: f32) -> f32 {
+    let (v, r) = (base.len(), latent.len());
+    let cap = |x: f32| if sc > 0.0 { sc * (x / sc).tanh() } else { x };
+    let per = v.div_ceil(8);
+    let parts: Vec<(f32, f64)> = std::thread::scope(|sp| {
+        let hs: Vec<_> = (0..v)
+            .step_by(per)
+            .map(|lo| {
+                let hi = (lo + per).min(v);
+                sp.spawn(move || {
+                    let c: Vec<f32> = (lo..hi).map(|t| cap(rbf(base[t] + rbf(dot8_bf16(&fold[t * r..(t + 1) * r], latent) + fold_b[t])))).collect();
+                    let m = c.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+                    (m, c.iter().map(|&x| ((x - m) as f64).exp()).sum::<f64>())
+                })
+            })
+            .collect();
+        hs.into_iter().map(|h| h.join().unwrap()).collect()
+    });
+    let m = parts.iter().map(|p| p.0).fold(f32::NEG_INFINITY, f32::max);
+    let z: f64 = parts.iter().map(|&(pm, ps)| ps * ((pm - m) as f64).exp()).sum();
+    (((cap(xbest) - m) as f64).exp() / z) as f32
+}
+
 fn dspark_profile() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var("INTARSIA_DSPARK_PROFILE").is_ok_and(|v| v == "1"))
@@ -785,6 +819,13 @@ impl Model {
         } else {
             Vec::new()
         };
+        // `INTARSIA_DSPARK_PFULL` (measurement only): the base rows of every step, for the full-vocab probability
+        let pfull_base = if dspark_pfull() && ds.cand > 0 {
+            self.backend.synchronize(self.stream)?;
+            Some(self.ds_download(&bf.base, act, 0, kmax * vocab)?)
+        } else {
+            None
+        };
         for i in 0..kmax {
             // [state, w1[prev]] . rnn_proj[:, :2r]^T, eight partial sums per row (vectorises; the draft only needs f32 accuracy)
             let mut inp = Vec::with_capacity(2 * r);
@@ -834,9 +875,14 @@ impl Model {
             let thr = if lo / sc <= -1.0 { f32::NEG_INFINITY } else { sc * (lo / sc).atanh() };
             let z: f32 = xs.iter().filter(|&&v| v > thr).map(|&v| (sc * (v / sc).tanh() - cmax).exp()).sum();
             let p1 = 1.0 / z;
+            let p1f = pfull_base.as_ref().map(|b| full_p1(&ds.fold_host, &ds.fold_b, &b[i * vocab..(i + 1) * vocab], &latent, sc, bx));
             if crate::spec::trace_enabled() {
-                eprintln!("dspark: pos {p0} step {i} draft {best} p1 {p1:.3}");
+                match p1f {
+                    Some(f) => eprintln!("dspark: pos {p0} step {i} draft {best} p1 {p1:.4} p1f {f:.4}"),
+                    None => eprintln!("dspark: pos {p0} step {i} draft {best} p1 {p1:.3}"),
+                }
             }
+            let p1 = p1f.unwrap_or(p1);
             if p1 < ds.tau {
                 break;
             }
@@ -861,5 +907,37 @@ impl Model {
             prev = best;
         }
         Ok(out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `full_p1` (`INTARSIA_DSPARK_PFULL`) is the softcapped softmax over every token, and never above the candidates' p1 (a sum
+    /// over a subset that holds the max).
+    #[test]
+    fn full_p1_matches_naive_and_bounds_the_candidates() {
+        let (v, r, sc) = (1003usize, 16usize, 30.0f32);
+        let mut s = 7u64;
+        let mut rnd = || {
+            s = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            ((s >> 33) as f32 / (1u64 << 31) as f32) - 0.5
+        };
+        let fold: Vec<u16> = (0..v * r).map(|_| bf16_bits(rnd())).collect();
+        let fold_b: Vec<f32> = (0..v).map(|_| rnd()).collect();
+        let base: Vec<f32> = (0..v).map(|_| rbf(20.0 * rnd())).collect();
+        let latent: Vec<f32> = (0..r).map(|_| rnd()).collect();
+        let x: Vec<f32> = (0..v).map(|t| rbf(base[t] + rbf(dot8_bf16(&fold[t * r..(t + 1) * r], &latent) + fold_b[t]))).collect();
+        let cap = |x: f32| sc * (x / sc).tanh();
+        let best = (0..v).max_by(|&a, &b| x[a].total_cmp(&x[b])).unwrap();
+        let m = cap(x[best]) as f64;
+        let naive = 1.0 / x.iter().map(|&y| (cap(y) as f64 - m).exp()).sum::<f64>();
+        let got = full_p1(&fold, &fold_b, &base, &latent, sc, x[best]) as f64;
+        assert!((got - naive).abs() < 1e-5, "full_p1 {got} vs naive {naive}");
+        let mut idx: Vec<usize> = (0..v).collect();
+        idx.sort_by(|&a, &b| x[b].total_cmp(&x[a]));
+        let cand = 1.0 / idx[..64].iter().map(|&t| (cap(x[t]) as f64 - m).exp()).sum::<f64>();
+        assert!(got <= cand + 1e-6, "full {got} above candidates {cand}");
     }
 }
