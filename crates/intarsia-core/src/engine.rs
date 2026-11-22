@@ -159,6 +159,12 @@ pub trait TextCodec: Send + Sync {
     /// `messages` are OpenAI-style JSON objects (`role`, `content`, optional `tool_calls`, ...).
     fn apply_chat_template(&self, messages: &[Value], opts: &ChatOpts) -> Result<String>;
     fn has_chat_template(&self) -> bool;
+    /// The chat prompt as token ids, for a model whose prompt is not a template string tokenized afterwards (Inkling-2: framing
+    /// tokens, with the text of every block encoded without special tokens). `Ok(None)`: this model's prompt is
+    /// [`TextCodec::apply_chat_template`] then [`TextCodec::encode`].
+    fn encode_chat(&self, _messages: &[Value], _opts: &ChatOpts) -> Result<Option<Vec<u32>>> {
+        Ok(None)
+    }
     /// The HF `tokenizer.json` text, from which structured output builds its token table; `None` when the codec has
     /// none (structured output is then unavailable).
     fn tokenizer_json(&self) -> Option<String> {
@@ -201,6 +207,10 @@ pub trait Engine: Send + Sync {
     fn tokenize(&self, text: &str, add_special_tokens: bool) -> Result<Vec<u32>>;
     fn detokenize(&self, ids: &[u32]) -> Result<String>;
     fn apply_chat_template(&self, messages: &[Value], opts: &ChatOpts) -> Result<String>;
+    /// [`TextCodec::encode_chat`]: the chat prompt as ids for a model that has its own renderer, else `None`.
+    fn chat_ids(&self, _messages: &[Value], _opts: &ChatOpts) -> Result<Option<Vec<u32>>> {
+        Ok(None)
+    }
     /// The tokenizer's HF `tokenizer.json` text (structured output builds its token table from it); `None` when the
     /// engine has none.
     fn tokenizer_json(&self) -> Option<String> {
@@ -922,6 +932,9 @@ impl Engine for LocalEngine {
 
     fn apply_chat_template(&self, messages: &[Value], opts: &ChatOpts) -> Result<String> {
         self.shared.codec.apply_chat_template(messages, opts)
+    }
+    fn chat_ids(&self, messages: &[Value], opts: &ChatOpts) -> Result<Option<Vec<u32>>> {
+        self.shared.codec.encode_chat(messages, opts)
     }
     fn tokenizer_json(&self) -> Option<String> {
         self.shared.codec.tokenizer_json()

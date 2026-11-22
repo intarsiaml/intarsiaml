@@ -7,6 +7,14 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 
 - 2026-11-21 (coordinator, SendMessage): ink/skel is done at 46349d879 (G1, G2, G3 short / long / 4k pass on cpu; new: ring-safe prompt reuse, faster cpu experts bitwise the same, the accuracy turn format, recipe coverage, results doc; op contracts unchanged). Merge ink/skel at the next clean point, rerun the Metal gates on the merged tip, and message main with the first endor decode tok/s and the per-op profile.
 
+- 2026-11-21 (coordinator, SendMessage): scope from here: (1) finish the per-dispatch trace (#10756) and the localeval run
+  (speed-plain, conc-plain-1k vs oMLX 20261120-222536); write the trace path into this doc as soon as it lands (the Fable
+  reviewer reads it here). (2) Do not start controller / router fusion or host-gap / command-buffer work (decode graphs
+  included): lanes ink-dfuse (`.worktrees/ink-dfuse`: controllers, router fusion, <= 350 dispatches) and ink-hostgap
+  (`.worktrees/ink-hostgap`: cb pipelining, GPU sampling, encode-ahead) own them, both branched from a88db4620. (3) This
+  lane stays the integration owner: merge lane branches when they report done with passing gates and rerun G1-G3 after each
+  merge; next in line are m-mix's final tip and ink/serve aaad4c9b6 (chat / reasoning / tools).
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
@@ -111,4 +119,31 @@ lighthouse prompt continues into a coherent story.
 
 ## Speed
 
-SPEED_PLACEHOLDER
+**Correction (Fable review, `.worktrees/ink-fable/decode-profile-review.md` section 0):** every `generate` number in the table
+below ran with `generate`'s default `--profile-every 16` on Metal (`crates/intarsia-cli/src/common.rs:357`): every 16th
+decode step runs as ~419 waited command buffers (77-82 ms). So the 19.8 ms / 50-52 tok/s decode figures, and the "about 20 %
+host gap" in my first message, are **profiler-inflated**. Normal steps in the same cb trace are 15.76 ms (about 63.4 tok/s) with
+1 us median GPU idle: no real host gap. The kernel-mode per-op shares are inflated 2.8x and unevenly (small kernels 4-7x);
+the corrected split is the review's section 0.2 and the table under "Per-op profile" below. Decode numbers from here on use
+`--profile-every 0` (serve, and so localeval, already does).
+
+### Engine timing (`intarsia generate`, greedy, fleetq #10730 `--quiet gpu,cpu`, `--profile-every 16`: inflated, see above)
+
+19-token raw prompt, 256 tokens; decode = (tokens - 1) / decode wall time, prefill includes the first-call warm-up.
+
+| Run | prefill | decode tok/s |
+|---|---|---:|
+| default (`INTARSIA_METAL_COMMIT_EVERY` 128), two runs | 467 / 797 ms | 49.9 / 45.5 |
+| `COMMIT_EVERY=512`, two runs | 408 / 416 ms | 48.8 / 51.8 |
+| `COMMIT_EVERY=1024`, two runs | 806 / 432 ms | 39.9 / 51.7 |
+| `INTARSIA_INK_ATTN_FUSED=0` (pair everywhere) | 405 ms | 50.0 |
+| `INTARSIA_INK_ATTN_FUSED=1` | 403 ms | 51.8 |
+| 5051-token prompt, chunk 256 (default), 128 tokens | 4144 ms = **1219 tok/s** | **48.3** |
+| 5051-token prompt, `--prefill-chunk 2048` | 2274 ms = **2221 tok/s** | 48.7 |
+
+Run-to-run spread is about +-5 % (the two default runs: 49.9 and 45.5), so the commit cadence A/B (128 / 512 / 1024) and the
+fused-vs-pair choice are inside the noise at short context; the fused rule saves ~0.35 ms / token by lane ink-m-attn's
+harness, which is ~2 %. A larger prefill chunk is a clear prefill win (1.8x at 5k): the recipe default 256 is a candidate
+for a later lane (memory: the workspace grows with the chunk; not changed here).
+
+SPEED_REST

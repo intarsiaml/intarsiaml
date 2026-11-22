@@ -377,6 +377,26 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     }
                 }
             }
+            if quick {
+                // the quick sweep's case for the prefill kernels (`rel_sink_attn_bf16_nax`): the first mid-size case above
+                for (win, ring, cr, t, pos0) in [(64usize, true, 80usize, 40usize, 0usize)] {
+                    let (h, hk, dh, dr, e) = (6usize, 2usize, 128usize, 16usize, 48usize);
+                    let inputs = vec![
+                        rand_t(rng, W, &[t, h, dh], 1.5),
+                        rand_t(rng, W, &[t, hk, dh], 1.5),
+                        rand_t(rng, W, &[t, hk, dh], 1.0),
+                        rand_t(rng, W, &[hk, cr, dh], 1.5),
+                        rand_t(rng, W, &[hk, cr, dh], 1.0),
+                        rand_t(rng, W, &[t, h, e], 1.0),
+                        rand_t(rng, W, &[t, nq(h, dh, dr)], 2.0),
+                    ];
+                    let outputs = vec![out(W, &[t, h * dh]), inout(inputs[3].clone()), inout(inputs[4].clone())];
+                    let mut a = OpAttrs { pos0, n_heads: h, n_kv_heads: hk, head_dim: dh, window: win, scale: (dh as f32).powf(-0.5), ..a0.clone() };
+                    a.ink.kv_ring = ring;
+                    a.ink.d_rel = dr;
+                    push(format!("mid T={t} H={h} Hk={hk} Dh={dh} W={win} E={e} ring={ring} Cr={cr} pos0={pos0} bf16"), inputs, outputs, a);
+                }
+            }
         }
         Op::InkAttnDecode => {
             // (H, Hk, Dh, dr, E, K, window, ring, cache rows, dyn+tau, positions, qk clip): small shapes and the real model
