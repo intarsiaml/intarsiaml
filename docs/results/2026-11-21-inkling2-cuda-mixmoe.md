@@ -571,3 +571,20 @@ only adds `prefetch.global.L2`, so values are unchanged; the model-level md5 / t
   on Inkling-2" (the Inkling drafter lives on another lane's branch); the prefetch only adds `prefetch.global.L2`, so verify
   rows cannot change, but the spec-on md5 / tok/s must be rerun where the drafter is.
 - nsys of this run traced only the prompt (decode replays CUDA graphs; the next pass uses `--cuda-graph-trace=node`).
+- In-model per-kernel (spark2 #11396, `nsys --cuda-graph-trace=node`, 64 greedy tokens, graphed decode), per token:
+
+| kernel | PF=0 | PF=1 |
+|---|---|---|
+| ink_moe_gu NVFP4 (44 calls) | 127.7 us (5.62 ms) | 118.2 us (5.20 ms) |
+| ink_moe_dn NVFP4 (44 calls) | 73.0 us (3.21 ms) | 66.1 us (2.91 ms) |
+| ink_moe_gu / dn MXFP8 (4 calls) | 205.7 / 107.7 us | 206.5 / 102.8 us |
+| ink_row_kernel<3> (124 calls) | 17.0 us (2.10 ms) | 17.0 us |
+
+  NVFP4 MoE -0.72 ms / token (gu 7.5 %, dn 9.5 % faster), matching the +1.9 % tok/s.
+
+### Row kernel: cheaper prefetch (v1) also no gain (#11396)
+
+One warp per region, 32-bit lane stride, no modulo in the loop: conv_mix N4 Q1 norm 14.3 -> 16.4 us, attn_res_mix 8.2 ->
+8.9 us, the others flat (ink_bench, 2 interleaved reps each). Neither prefetch form helps, so the row kernel is not waiting on
+these loads' DRAM latency; dropped (not committed; scratch copy `.scratch/ink_mix_pf_v1.cu`). Next: the tap-loop hoist
+(bitwise integer change), then the cluster split.

@@ -91,6 +91,7 @@ struct RowArgs {
     int64_t pos0;
     const int* pos;
     float eps;
+    int hoist;  // conv taps outer (one row pointer / ring modulo per tap); set by launch_rows (INTARSIA_INK_ROW_HOIST, default on)
 };
 
 template <int NE>
@@ -115,28 +116,43 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
         const int64_t pos0 = a.pos ? (int64_t)*a.pos : a.pos0;
         const int64_t p = pos0 + t;
         const float sc = rsqrtf((float)(a.K + 1));
-        float yv[NE];
+        float yv[NE], acc[NE];
 #pragma unroll
-        for (int j = 0; j < NE; ++j) {
-            const int c = ix[j];
-            float acc = 0.f;
+        for (int j = 0; j < NE; ++j) acc[j] = 0.f;
+        // taps outer, elements inner: each acc[j] still sums l = 0 .. K-1 in order (bitwise), but the source row of a tap (and
+        // its ring modulo) is formed once per tap instead of once per tap and element (INTARSIA_INK_ROW_HOIST=0: the old loop)
+        if (a.hoist) {
             for (int l = 0; l < a.K; ++l) {
                 const int64_t qp = p - l;
-                float xv = 0.f;
-                if (qp >= pos0) xv = ik_b2f(a.x[(qp - pos0) * D + c]);
-                else if (qp >= 0) xv = ik_b2f(a.ring[(qp % a.Rr) * D + c]);
-                acc = fmaf(ik_b2f(a.taps[(int64_t)l * D + c]), xv, acc);
+                const ik_bf16* row = qp >= pos0 ? a.x + (qp - pos0) * D : qp >= 0 ? a.ring + (int64_t)((int)qp % a.Rr) * D : nullptr;
+                const ik_bf16* tap = a.taps + (int64_t)l * D;
+#pragma unroll
+                for (int j = 0; j < NE; ++j) acc[j] = fmaf(ik_b2f(tap[ix[j]]), row ? ik_b2f(row[ix[j]]) : 0.f, acc[j]);
             }
-            yv[j] = ink_rbf((acc + ik_b2f(a.x[(int64_t)t * D + c])) * sc);
+        } else {
+#pragma unroll
+            for (int j = 0; j < NE; ++j) {
+                const int c = ix[j];
+                for (int l = 0; l < a.K; ++l) {
+                    const int64_t qp = p - l;
+                    float xv = 0.f;
+                    if (qp >= pos0) xv = ik_b2f(a.x[(qp - pos0) * D + c]);
+                    else if (qp >= 0) xv = ik_b2f(a.ring[(qp % a.Rr) * D + c]);
+                    acc[j] = fmaf(ik_b2f(a.taps[(int64_t)l * D + c]), xv, acc[j]);
+                }
+            }
         }
+#pragma unroll
+        for (int j = 0; j < NE; ++j) yv[j] = ink_rbf((acc[j] + ik_b2f(a.x[(int64_t)t * D + ix[j]])) * sc);
         // y, the ring row of this position (no row of the launch reads it), the sum
+        const int64_t ring_off = a.Rr > 0 ? (p % a.Rr) * D : 0;
 #pragma unroll
         for (int j = 0; j < NE; ++j) {
             if (!ok[j]) continue;
             const int c = ix[j];
             const int64_t o = (int64_t)t * D + c;
             a.y[o] = ik_f2b(yv[j]);
-            if (a.ring_now && p >= pos0 + T - a.Rr) a.ring[(p % a.Rr) * D + c] = a.x[o];
+            if (a.ring_now && p >= pos0 + T - a.Rr) a.ring[ring_off + c] = a.x[o];
             if (a.sum) {
                 const float ad = a.add ? ik_b2f(a.add[o]) : 0.f;
                 const float s = ink_rbf((ik_b2f(a.res[o]) + ad) + yv[j]);
@@ -423,8 +439,18 @@ int row_threads(int D, int* ne) {
     return (th + 31) / 32 * 32;
 }
 
-int launch_rows(const RowArgs& a, int rows, cudaStream_t st) {
+int row_hoist_on() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_INK_ROW_HOIST");
+        return e && e[0] == '0' ? 0 : 1;
+    }();
+    return v;
+}
+
+int launch_rows(const RowArgs& a_in, int rows, cudaStream_t st) {
     if (rows <= 0) return IK_OK;
+    RowArgs a = a_in;
+    a.hoist = row_hoist_on();
     int ne = 0;
     const int th = row_threads(a.D, &ne);
     switch (ne) {
