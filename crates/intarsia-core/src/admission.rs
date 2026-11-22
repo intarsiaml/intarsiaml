@@ -1784,6 +1784,31 @@ mod plan_case_tests {
     }
 
     #[test]
+    fn situ_experts_case_keeps_the_ink_attrs() {
+        // Inkling-2's SiTU experts: only `.situ()` kernels accept the call, so its plan-shape case must carry the attrs (else
+        // `require_admitted` finds no admitted kernel for the model's own shapes, as `intarsia serve` did on Metal)
+        let mut a = OpAttrs::default();
+        a.top_k = 4;
+        a.ink.situ = true;
+        a.ink.gate_cap = 4.0;
+        a.ink.up_cap = 25.0;
+        let call = OpCall::new(
+            Op::MoeExperts,
+            vec![t(DType::Bf16, &[1, 64]), t(DType::I32, &[1, 4]), t(DType::F32, &[1, 4]), t(DType::Bf16, &[16, 64, 64])],
+            vec![t(DType::Bf16, &[1, 64])],
+            a,
+        );
+        let caps = ShapeCaps { rows: 32, n: 1024, pos0: 100, emb_vocab: 64 };
+        let (hc, label) = case_from_call(&call, &caps, &mut SplitMix64::new(1)).unwrap();
+        assert!(hc.attrs.ink.situ && hc.attrs.ink.gate_cap == 4.0 && hc.attrs.ink.up_cap == 25.0);
+        assert!(label.ends_with(" situ"), "{label}");
+        let mut plain = call.clone();
+        plain.attrs.ink = Default::default();
+        let (hp, lp) = case_from_call(&plain, &caps, &mut SplitMix64::new(1)).unwrap();
+        assert!(!hp.attrs.ink.situ && !lp.contains("situ"), "{lp}");
+    }
+
+    #[test]
     fn matmul_case_keeps_k_and_clamps_rows_and_n() {
         let call = OpCall::new(
             Op::Matmul,
