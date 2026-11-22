@@ -283,7 +283,7 @@ fp8 unembed (164) or 4-bit dense. The native path's realistic target on endor is
 ## i. Oracle (`tools/inkling2_ref.py`), measurements, gate
 
 Run with `uv run --project tools python tools/inkling2_ref.py <mode>`; real-model runs on endor via `fleetq run --host endor --load cpu
---mem 30 …`. Peak RSS 18-21 GB (dense weights fp32, experts read per expert from the mmapped file, 6 GB LRU of dequantized experts). Prefill
+--mem 30 …`. Peak RSS 18-21 GB for short prompts, 34 GB at 1100 tokens (dense weights fp32, experts read per expert from the mmapped file, 6 GB LRU of dequantized experts). Prefill
 of 100 tokens ≈ 20 s, decode ≈ 1 s/token on endor's CPU.
 
 | Mode | What |
@@ -307,7 +307,8 @@ Checks run:
 - G1(b) mutation check (`tools/inkling2_mutants.py`, one config key changed, teacher-forced bf16 vs the fixture's budget): control 0
   failures; no q/k clip 155, θ_qk 3.3 instead of 3.0: 90, no rel clip 139, up softcap off 32, gate softcap off 32, final softcap off 1,
   tau off 40, route_scale = top-k 48, window 9 instead of 8: 98; eps 1e-5 instead of 1e-6 passes (below bf16 resolution).
-- Ring on real weights: SELFTEST1100.
+- Ring on real weights: 1100 tokens of `docs/ARCHITECTURE.md` as chunks 700 / 399 / 1 (the second chunk crosses position 1024, so ring
+  wrap-around and `[ring tail ‖ chunk]` reads run on all 40 SWA visits) vs one whole prefill: max rel 1.3e-5, top-1 identical; peak RSS 34 GB.
 - Generation (W4A16, rounding none): raw `"The capital of France is"` → " Paris.\n\nA. Noun clause …"; `"def fibonacci(n):"` → a
   correct recursive body; chat (effort 0) → `<|message_model|><|content_thinking|>The user asks a simple factual question … <|end_message|>
   <|message_model|><|content_text|>The capital of France is Paris.<|end_message|><|content_model_end_sampling|>`.
