@@ -278,6 +278,37 @@ and batch 6/6, cuda / hip lib 34 / 31, docs_env_vars 2/2. Combined gate: endor #
   InkRoute, so `ALL` stays 96. Check ink/mtp first (DSpark draft ops said to use 92-95). Add a reserved op slot map here;
   every lane that adds an op claims a slot in it first. The gumbel check asserts `GumbelArgmax == <slot>` and `ALL == 96`.
 
+## Combined gate #11206 (tree 7e5e6010e + docs: NE fix + hostgap / fp8 / prefill / dfuse), PASS
+
+| Check | Result |
+|---|---|
+| Metal crate: rows_exact / inkmix / rows_single / quick_coverage | 11 / 4 / 2 / 1 pass |
+| docs_env_vars | 2/2 |
+| kernels test, Inkling ops (incl. `ink_route`) | 22 ADMITTED lines, no FAIL / REJECT; `ink_route_bf16` 124 cases, max_abs 1.975e-7 |
+| tiny cpu / Metal inkling2, inkling2_batch | 8/8, 6/6 on both |
+| core op ids (InkRoute 76, 77..=95 reserved, ALL 96) | 7/7 |
+| Inkling plan show | `ink_route_bf16` 48 calls / step (moe_route 0), no reserved op |
+| Qwen3-8B plan show | md5 d462e6321837c39701cd0644a6d8eebf, identical to the pre-Inkling baseline |
+| greedy 64 / 256 tokens | 65cde8f35a1802e3e2fadb44d94d080d / 61fd59fecb5e0d72ffd08f2c6d07855a, coherent (raw); chat prompt coherent (three-sentence Rayleigh answer) |
+| dfuse flip: decode G2 short, defaults vs `INTARSIA_INK_MIX_HOIST=0` | 2.928e-3 / 2.928e-3 (limit 4e-3); self-golden tensors identical (the files differ only in metadata: build time, command line) |
+| dfuse flip: decode G2 long, same | 2.761e-3 / 2.761e-3 (limit 6e-3); tensors identical |
+| real decode test (defaults) | executed, 38 steps, worst KL(NE3 \|\| default) 0 |
+| G2 short prefill / decode mode | 2.087e-3 / 2.928e-3 (4e-3); confident misses 0/363 |
+| G2 long prefill / decode mode | 3.239e-3 / 2.761e-3 (6e-3); confident misses 1/1206 (allowance 2) |
+| G3 short / long | 8.420e-3 / 1.229e-2 (1.05e-2 / 1.65e-2); confident misses 0/367, 0/1211 |
+| real-model batched == solo, B 2/5/16 (mixed contexts 600..2850) | ran clean (batched 23.5 / 27.7 / 74.9 ms per step; not a timing slot) |
+
+Greedy md5 changed from the NE-fix tip's 15d62682... to 65cde8f35..., the md5 ink-dfuse reported for its defaults on 00c81dda7
+(job F: every switch setting gives 65cde8f35...), so the change comes from the dfuse merge (its controller kernels), and the
+gates above hold. Decode-mode G2 short moved 2.589e-3 -> 2.928e-3, prefill 2.380e-3 -> 2.087e-3, both inside the limits.
+The dfuse flip stands (no revert).
+
+After the gate: ink/prefill-merge 297cebadc merged (its four tuning rows kept, the duplicates I wrote at 05f1c702e removed),
+then ink/prefill-naxskip 2455b7abc (`INTARSIA_INK_MOE_NAXSKIP` behind the `ink-probe` feature); bespin #11262: docs_env_vars
+2/2, workspace `cargo check --tests` clean, metal `--features ink-probe --examples` clean; the Metal shader build of this tree
+is the first step of the quiet baseline. The pack12 speed arm moved from the baseline into the pack12 job (`pk12check.sh`,
+quiet slot) because pack12 waits for #11194; the baseline no longer waits for it.
+
 ## Reserved op slot map (Inkling-2 block 76..=95, `ALL` = 96)
 
 Claim a slot here before adding an op; replace the placeholder in place (same position in the enum, `ALL`, `as_str`, arity).
