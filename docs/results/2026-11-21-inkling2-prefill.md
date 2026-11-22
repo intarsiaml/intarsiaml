@@ -421,6 +421,23 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### Prologue split default-on gate (#11272, binary 61980c882, serve recipe chunk 2048, localeval speed-plain, order off / on / off / on)
+
+| prompt tok | prefill pair 1 (off -> on) | pair 2 | decode pair 1 | decode pair 2 |
+|---:|---|---|---|---|
+| ~1k | 2166 (1871-2460) -> 2140 (1921-2592), both rejected for spread | 1976 (1424-2363, rejected) -> 2067 (1964-2141) | 62.1 -> 62.3 | 61.3 -> 62.0 |
+| ~4k | 2428 (2184-2464) -> **2548**, above off's range | 2413 (2409-2415) -> **2400 (2337-2500)**, not above | 60.4 -> 60.9 | 60.6 -> 60.7 |
+| ~16k | 2384 (2336-2394) -> **2571**, above | 2449 (2357-2452) -> **2548**, above | 57.5 -> 57.3 | 57.2 -> 57.6 |
+
+8k (engine generate, p8k, 2 alternating pairs; localeval has no 8k cell): off 2759 / 2751, on 2859 / 2853 tok/s (+3.6 %, +3.7 %).
+All runs exited 0 with non-empty output. The serve trace shows the split ran in every on arm and in no off arm.
+
+**Against brief 14: not met at 4k.**
+- Pair 2's on median (2400) is below off's (2413), let alone above its range.
+- 8k (+3.6 %) and 16k (+4 to 8 %) pass, and decode is within 1 % everywhere.
+- Brief 18's 1k step was conditional on pair 2 matching pair 1, which it does not. The p1k generate pairs still run in #11282 as extra data.
+- **The split stays opt-in** (ink/prologue-split-merge 61980c882 is not sent). Reported to the coordinator.
+
 ### Prologue split (#11185, ink/prologue-split 9f925c85e, `INTARSIA_INK_PROLOGUE_SPLIT=1`, default off)
 
 | Check | Result |
