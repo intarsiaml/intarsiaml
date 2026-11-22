@@ -10,6 +10,11 @@ P12 / screen). Never restore an old bench source without `--digest` for a refere
 
 ## Briefs received
 
+- 2026-11-22 ~09:20 (main): the Metal 4 shader-count test (`metal4_shaders_are_the_nax_variants_and_not_metal3_shaders`) fails
+  on any branch carrying d03224697 (ink/prefill's NAX MoE shaders) until it takes ink/metal's one-line test fix 8e0ff6af6.
+  Take it at the next ink/metal merge (or cherry-pick when adding shaders); that failure is not ours. Done: merged ink/metal
+  f2c232423 (includes 8e0ff6af6) into ink/batch.
+
 - 2026-11-22 ~09:00 (main, from ink-dfuse): correction to the in_proj reference. At T=1 the stream runs ink-pack12's
   `ink_in_proj_p12_gemv` (p12.rs); P12 is on by default for in_proj and wo up to 4 rows. Its bf16 twin `ink_in_proj_bf16_gemv`
   (inkmix.rs launch_in_proj_gemv / in_proj_rows) is bitwise equal under pack12's contract. The multi-row kernel must match
