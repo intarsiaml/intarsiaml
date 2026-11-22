@@ -37,6 +37,8 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   kernel, is my call after the profile: build it only if InkInProj is the biggest share and it can stay bitwise per row.
   ink-metal is merging ink/m-mix 47570539e (InkInProj up to 8 rows on the GEMV instead of NAX): re-merge ink/metal before the
   next batch timing.
+- 2026-11-21 (coordinator): ink/metal now has m-mix 47570539e (merge 606fd36e4, tip f55bfe8b7), no default flips: re-merge
+  before the opt-in A/B starts.
 
 ## 1. Design note (contract delta, written before any kernel)
 
