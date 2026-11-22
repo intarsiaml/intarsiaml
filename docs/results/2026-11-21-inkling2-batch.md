@@ -584,3 +584,18 @@ experts `n` and the pairs `k` of each call, `label_moe_routing`):
    step would be several times larger.
 
 Not queued: the step-1 profile as specified (MoE time vs union size) cannot vary the union with this bench. Reported to main.
+
+## 20. Real-text bench prompts: functional test (#11209, default load next to ink-metal's gate #11206: no speed claims)
+
+ink/batch ff9f65bf9 (bench-only: dcff9e8c4 + ff9f65bf9). Corpus `crates/intarsia-models/examples/data/bench_corpus.txt`
+(158 KB frozen snapshot of repo prose, a license, Rust source; 49 909 Inkling-2 tokens, 16 slices of up to 3 119).
+Log `.scratch/benchtest-11209.log`, ctx 512, 1 round x 8 steps.
+
+- Deterministic: two text runs give identical digests at B 1 / 4 / 16 (all 16 per-row digests equal; B 16 combined
+  889a7108a816c248).
+- Rows decode differently on text: 16 distinct per-row digests at B 16. Random ids: at B 16 three rows share one digest
+  (14a607d087669a18) and two rows repeat B 1 / B 4 rows' streams: the rows collapse onto the same tokens.
+- Expert union per MoE call at B 16 (kernel trace, 44 calls per step): text mean 63.5 (median 65, max 83) vs random 27.7
+  (median 27, max 52); independent routing would give ~82. So real text gives ~2.3x the union of the old bench.
+- Timings in this shared slot (indicative only): B 16 batched step text 74.8 / 85.6 ms (214 / 187 tok/s) vs random 66.7 ms
+  (240 tok/s); B 1 and B 4 equal within noise. The quiet job after #11206 measures it properly.
