@@ -157,6 +157,12 @@ Status: #10943 done (items 2 and 3 measured: no regression, sampled decode +2.7-
   tests, which had `--features metal`), and none of the 197 `.out` files in mA / mC / mAB / i7 is empty. #11152 / #11153 run no
   intarsia-cli test and copy each binary right after its build. `endorgumbel2.sh` now counts a match only for exit 0 and
   non-empty output on both sides (INVALID otherwise), plan show included; serve's twice-identical needs non-empty text.
+- 2026-11-22 (coordinator): ink-metal's NE fix gate #11179 holds every merge. Keep #11152; release #11153 and requeue the same
+  script so it lands right behind #11179; section F's self-golden compare targets the post-fix ink-metal tip (NE fix 7eca1b012,
+  NE 3 at D 2304) once #11179 passes. Done (03:40): #11153 released, requeued as #11182 (9th; #11180 / #11181 were queued
+  between). ink/metal 431a68aec merged into ink/hostgap (ff65d7f63); the item 7 tree moved to ff65d7f63, so #11152 builds the
+  branch-tip binary from post-fix code. `.scratch/copyfix.sh` copies #11179's self-goldens and binary to `.scratch/gref_fix` /
+  `.scratch/bin/intarsia-im7ec` when it ends; F compares against those (pre-fix `gref` shown too).
 
 ## Measurement (before)
 
@@ -582,7 +588,7 @@ build), so `intarsia-backend-metal` compiled against an old `Op` without `Gumbel
 recompiled `intarsia-core`, and the binary contains the new switches. Fix for the rerun: touch every workspace source after
 copying `target/` (or build without the copy). Requeued 2026-11-22 02:40 as two jobs: #11152 (`--load cpu`, `.scratch/endorgumbel_build.sh`: touch
 every tracked file under `crates/`, release build, Metal and 8B model test binaries `--no-run`; `.scratch/gmb/prebuild.txt`)
-and #11153 (`--quiet gpu,cpu`, `--expect 90`, `.scratch/endorgumbel2.sh`: sections A / B / C / E of #11037 unchanged, no
+and #11153 (requeued as #11182 behind #11179, see the briefs; `--quiet gpu,cpu`, `--expect 90`, `.scratch/endorgumbel2.sh`: sections A / B / C / E of #11037 unchanged, no
 section 7), plus a section F, run FIRST so a failed side-branch build cannot cost it, for the brief's G1-G3 rerun on the
 `ink/hostgap` code tip (fb38fe4a5, a fresh build `.scratch/i7/intarsia-h7f` from #11152, since h7 came from a cloned `target/`;
 item 7 switches unset): G2 / G3 short and long, each self-golden compared bitwise with ink-metal's for the same base code (844d81e8b,
