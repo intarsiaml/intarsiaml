@@ -193,6 +193,20 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     cover 6 more runs. The p4k pairs go in #11290 (--expect 35). The p1k pairs stay in #11282. The prompt
     .scratch/p4k.txt is the first half of p8k.txt (~4k tokens; generate prints the count).
 
+20. 2026-11-22 (coordinator, via SendMessage): build the blend piece 1024 gate. **Rule, fixed before any runs: default-on
+    only if ALL hold:**
+    (1) G2 and G3, short and long, at chunk 2048: numbers identical to piece 256 (it is bitwise); greedy md5 at 64 and 256
+    tokens identical.
+    (2) Box check first: one default p8k run within 5 % of 2362 tok/s, else BOX SLOW and stop.
+    (3) Speed by engine generate timing, 3 pairs per prompt length, order randomized per pair (recorded): 1k, 4k, 8k. Median
+    ratio 1024 / 256 >= 1.00x at 4k and 8k, >= 0.98x at 1k.
+    All hold: flip in its own commit, INTARSIA_INK_BLEND_PIECE=256 the revert. Any fails: stays opt-in, final, no further
+    round. Job script: body in the background, trap TERM and kill the whole descendant tree, check nothing is left at the end
+    (an orphan of #11314 contaminated #11315 and #11322).
+    Also noted: #11322's 1.6x-slow piece-256 / 1024 traces are most likely the orphaned batch_step of ink-metal's #11314
+    (GPU busy outside fleetq until 06:48:20; the 256 trace ran 06:48:07-06:48:21, the 1024 trace 06:48:21-06:48:32), not a
+    device state as first written. The p8k pairs all started after 06:48:39. The traces are rerun as #11344.
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
@@ -503,7 +517,7 @@ Timing (#11322, p8k, --prefill-chunk 2048):
 - Greedy 8 tokens are identical at pieces 1024 and 2048 vs 256.
 - Dispatches per looped ConvMix call: 32 (piece 256), 8 (1024), 5 (2048).
 - Kernel trace at piece 2048, chunks 1 + 2: **conv_mix 75.7 -> 58.2 ms per chunk (-17.5 ms, -23 %)** against the piece-256 trace .scratch/e2e/ps0.k.jsonl (same op set). The looped part goes 63.7 -> 45.8. The ops this change does not touch run ~3 % slower in this trace than in ps0 (MoE 323 -> 332), so the device ran slightly slower; the real saving is likely a little above 17.5 ms.
-- This job's own piece-256 and piece-1024 traces are **not usable**: every op, untouched ones included, ran ~1.6x slower in those two processes (GPU 1789 / 1030 ms per chunk). That is a device state, not the piece.
+- This job's own piece-256 and piece-1024 traces are **not usable**: every op, untouched ones included, ran ~1.6x slower in those two processes (GPU 1789 / 1030 ms per chunk). Cause: most likely the orphaned batch_step of ink-metal's #11314 (brief 20 note), not a device state; rerun as #11344.
 - p8k tok/s, 3 rounds, order 256 / 1024 / 2048 within each round (position bias possible):
 
 | piece | round 1 | round 2 | round 3 | median | vs 256 |
