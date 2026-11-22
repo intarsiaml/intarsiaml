@@ -235,6 +235,23 @@ impl MetalBackend {
                     Grid::Groups { x: rows, y: 1, threads: ROW_THREADS },
                 )
             }
+            HC_PRE_BF16 => {
+                let (t, sn, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+                if t * d == 0 {
+                    return Ok(());
+                }
+                let (x, mix, out) = (
+                    self.bind(&i[0], bf, false, "x")?,
+                    self.bind(&i[1], DType::F32, false, "mix")?,
+                    self.bind(&o[0], bf, true, "y")?,
+                );
+                let p = OpP {
+                    dims: [dim(t, "rows")?, dim(sn, "streams")?, dim(d, "width")?, 0, 0, 0, 0, 0],
+                    skips: [x.skip, mix.skip, out.skip, 0, 0],
+                    ..Default::default()
+                };
+                self.dispatch(kernel, &[&x, &mix, &out], &p, Grid::Threads(dim(t * d, "elements")? as usize))
+            }
             ADD_BF16 | SILU_GLU_BF16 => {
                 let n = i[0].numel();
                 if n == 0 {

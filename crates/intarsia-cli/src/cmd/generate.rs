@@ -105,7 +105,7 @@ fn run_ids(args: &GenerateArgs, engine: &dyn intarsia_core::engine::Engine, f: &
     if prompts.is_empty() || prompts.iter().any(|p| p.1.is_empty()) {
         bail!("{}: no prompts (or an empty one)", f.display());
     }
-    let (mut toks, mut ms) = (0usize, 0f64);
+    let (mut toks, mut ms, mut ptoks, mut pms) = (0usize, 0f64, 0usize, 0f64);
     for (name, ids) in &prompts {
         engine.forward_script(&[]).map_err(|e| anyhow::anyhow!("{e}"))?;
         let req = GenRequest {
@@ -134,14 +134,18 @@ fn run_ids(args: &GenerateArgs, engine: &dyn intarsia_core::engine::Engine, f: &
         if args.show_ids {
             eprintln!("ids[{name}]: {generated:?}");
         }
-        if let Some(GenEvent::Done { completion_tokens, decode_ms, .. }) = done {
+        if let Some(GenEvent::Done { completion_tokens, decode_ms, prefill_ms, prompt_tokens, cached_tokens, .. }) = done {
             let n = completion_tokens.saturating_sub(1);
             toks += n;
             ms += decode_ms;
+            pms += prefill_ms;
+            ptoks += prompt_tokens - cached_tokens;
             eprintln!("decode[{name}]: {completion_tokens} tokens, {decode_ms:.0} ms ({:.2} tok/s)", n as f64 / (decode_ms / 1e3).max(1e-9));
+            eprintln!("prefill[{name}]: {} tokens, {prefill_ms:.0} ms", prompt_tokens - cached_tokens);
         }
     }
     eprintln!("decode overall: {toks} tokens after the first, {ms:.0} ms ({:.2} tok/s)", toks as f64 / (ms / 1e3).max(1e-9));
+    eprintln!("prefill overall: {ptoks} tokens, {pms:.0} ms ({:.1} tok/s)", ptoks as f64 / (pms / 1e3).max(1e-9));
     let t = engine.telemetry();
     eprintln!(
         "spec: verify passes={} proposed={} accepted={} (acceptance {:.1}%, {:.2} tokens per pass)",

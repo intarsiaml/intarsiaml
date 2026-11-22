@@ -54,6 +54,17 @@ Status: in progress. Branch `ink/mtp` (not pushed, not merged).
   revertable commit; plan show / greedy md5 unchanged with the switch off. If localeval shows on < off at any length, no flip:
   send the table. Also report: verify at T = 3 / 4 per-op profile, whether verify routing changed between #10806 and #10874, and
   verify ms per cycle now; if verify still costs about +4 ms per extra row, that is the next lever before AttnDecode.
+- 2026-11-22 (coordinator, SendMessage): decision (b): make the prompt-time drafter ingest cheaper or deferred first, then flip
+  (16k prompt + 100 tokens is slower end to end with DSpark: 11.97 + 1.39 s vs 11.22 + 1.75 s; the flip is not urgent).
+  (1) Check and say here whether the draft ingests the prompt on requests that can never speculate (sampled, the serve
+  default t1.0, or batched); if so, skip the ingest entirely for them, before any flip (no lazy catch-up: sampling is per
+  request). (2) Greedy: cut the ingest cost, preferring (i) ingest only the rows the draft can attend to if its context is
+  windowed, (ii) fold the ingest into the prefill chunk's command buffer so it overlaps, (iii) defer it to the first decode
+  step; ids identical spec on vs off. (3) Flip gate: localeval speed-plain off vs DSpark k3 tau 0.8 at 142 / 1k / 4k / 16k,
+  quiet slot: prefill within 2% of off at every length with the decode gain kept, plus a sampled (t1.0) run with prefill ==
+  off; fix the run label (not spec:unknown). (4) If (1) is done but (2) cannot get under 2% in about 2 hours of work, report
+  the best number. (5) After the flip: the union-fused experts pass at 2-4 verify rows is this lane's; write a plan and send it
+  before building. Rules: compile on bespin, CPU tests on spark2, GPU only inside endor fleetq slots.
 
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
@@ -296,5 +307,26 @@ Server counters, DSpark arm: 2255 verify passes, 4517 proposed, 3486 accepted (7
   `spec:unknown` because the run was not labelled as a spec lane.
 - Flip: not applied. The brief's "on >= off at every length" holds for decode but not for prefill at 4k / 16k, so it goes to the
   coordinator (f130b8855 stays on `ink/mtp-flip`).
+
+### Prompt-time ingest (brief of 2026-11-22)
+
+(1) Requests that can never speculate. A sampled request (temperature > 0, the serve default t1.0) has `spec_on = false`
+(`engine.rs`: `spec_on` requires `greedy`), so its draft state is admitted with `active = false`, and
+`dflash_after_forward` returns before any ingest. The draft never ingested sampled prompts. A batched server cannot load the
+draft at all (`--spec dflash` with `--max-batch` > 1 is refused, and the default needs `--max-batch` <= 1). One cost did remain:
+`ink_pass` copied the four taps into the staging buffers on every pass whenever the draft was loaded (4 x t x H bf16 per pass).
+These copies now run only when the request drafts.
+
+(2) Greedy. (i) does not apply in full: draft layers 0 and 2 are windowed (1024), but layer 1 attends the whole context, so
+every prompt row needs its layer-1 K/V. Instead the ingest no longer goes through the host:
+- the taps are one tap-major buffer per pass;
+- each layer's mix is `HcPre` with the fixed softmax(fuse_weight) weights, then `RmsNorm` with its `dflare_norm`;
+- `f_rnn` goes into a per-sequence device ring, and the draft reads its row there;
+- the decode-row stash is row-major `[rows, taps, H]`, so a 1-row pass is one copy and a flush is one `HcPre` over the stash.
+
+Before, the ingest was one host sync per prefill chunk, four tap downloads, the host mixes and three uploads; now it is device
+work in the chunk's command stream ((ii)). The new Metal kernel `hc_pre_bf16` serves the existing op `HcPre` (no new op): an
+f32 fma chain over the taps, one bf16 rounding, bitwise the host sum (test `hc_pre_matches_host_sum`). The mix now rounds to
+bf16 once before the norm, which the host version did not; drafts only propose, so this can move acceptance but never a token.
 
 RESULTS_PLACEHOLDER

@@ -7,7 +7,7 @@
 //!           exported by `ink_pass` into the DFlash staging buffers `feat[0..4]`
 //!   context per draft layer i: ctx_i = rms(sum_j softmax(fuse_weight)[i, j] tap_j; dflare_norm_i)
 //!           K_i(p) = rope(k_norm_ctx(k_proj_ctx ctx_i)), V_i(p) = v_proj_ctx ctx_i       (cache slot i, absolute position p)
-//!           f_rnn(p) = rms(sum_j softmax(fuse_weight)[3, j] tap_j; markov dflare_norm)  (kept on the host, a ring by position)
+//!           f_rnn(p) = rms(sum_j softmax(fuse_weight)[3, j] tap_j; markov dflare_norm)  (a device ring by position, per sequence)
 //!   block   rows [embed_norm(embed(anchor)), mask_embed x 7] at positions P .. P + 7 (P = target length); pre-norm dense layers
 //!           with q / k RMSNorm + neox rope (theta 1e6); every row sees all 8 block keys and the context (local layers 0, 2: the
 //!           1024 positions before the block), i.e. one `AttnDecode` per row at P + 7 with window 1032 (0: all keys)
@@ -29,6 +29,8 @@ use crate::state::DflashState;
 pub(super) const FRNN_RING: usize = 64;
 /// Rows of a draft block (anchor + masks); the masks are the proposals.
 pub(super) const BLOCK: usize = 8;
+/// Rows of the device mix weights (`Dspark::mixw`): the most rows a row-major ingest (a flush of stashed decode rows) takes.
+const MIX_ROWS: usize = 512;
 /// Default confidence gate (`INTARSIA_DSPARK_TAU`): measured on the oracle, docs/results/2026-11-21-inkling2-mtp.md.
 const TAU_DEFAULT: f32 = 0.6;
 
@@ -54,7 +56,6 @@ pub struct DsparkConfig {
 pub(super) struct DsLayer {
     ln1: TensorRef,
     ln2: TensorRef,
-    dflare: Vec<f32>,
     wq: QTensor,
     wk: QTensor,
     wv: QTensor,
@@ -76,9 +77,11 @@ pub(super) struct Dspark {
     norm: TensorRef,
     /// `[7, H]` mask rows, copied into block rows 1..8.
     masks: TensorRef,
-    /// softmax(fuse_weight) `[layers + 1, taps]`, host.
-    alpha: Vec<f32>,
-    frnn_norm: Vec<f32>,
+    /// softmax(fuse_weight) as the device `HcPre` mixes: per draft layer and then the Markov head's, f32 `[MIX_ROWS, taps]`
+    /// (the same row repeated, so a row-major call of up to `MIX_ROWS` rows reads its row's weights).
+    mixw: Vec<Buffer>,
+    /// the context `dflare_norm` weights per draft layer, then the Markov head's (device, bf16)
+    dflare: Vec<TensorRef>,
     /// rnn_proj split by columns: `[state | prev]` on the host (f32 `[3r, 2r]`), `hidden` and `f_rnn` on the device (bf16).
     w_sp: Vec<f32>,
     w_h: TensorRef,
@@ -104,6 +107,14 @@ pub(super) struct Dspark {
     bufs: DsBufs,
 }
 
+/// Where a DSpark ingest reads its taps: one pass's staging buffer (tap-major, `Model::ink_pass`) or a sequence's stash of
+/// decode rows (row-major `[rows, taps, H]`, `Model::dflash_stash`).
+#[derive(Clone, Copy)]
+pub(super) enum DsSrc<'a> {
+    Taps(&'a Buffer),
+    Rows(&'a Buffer),
+}
+
 struct DsBufs {
     x: [Buffer; 2],
     n: Buffer,
@@ -116,8 +127,9 @@ struct DsBufs {
     u: Buffer,
     a: Buffer,
     emb: Buffer,
-    /// context ingest: `[rows, H]` mixes (act, one per draft layer), `[rows, kvdim]` k / v
+    /// context ingest: `[rows, H]` mixes (act, one per draft layer), the unnormed mix, `[rows, kvdim]` k / v
     cx: Vec<Buffer>,
+    mx: Buffer,
     ik: [Buffer; 2],
     iv: Buffer,
     /// head: base logits `[7, V]` (act), fold output `[1, V]`, latent `[1, r]`, f_rnn `[1, H]`, context parts (f32)
@@ -283,7 +295,6 @@ pub(super) fn load(
         layers.push(DsLayer {
             ln1: norm_w(&format!("{p}.input_layernorm.weight"), h)?,
             ln2: norm_w(&format!("{p}.post_attention_layernorm.weight"), h)?,
-            dflare: host_f32(src, &format!("{p}.dflare_norm.weight"), &[h])?,
             wq: lin(&format!("{p}.self_attn.q_proj"), qdim, h)?,
             wk: lin(&format!("{p}.self_attn.k_proj"), kvdim, h)?,
             wv: lin(&format!("{p}.self_attn.v_proj"), kvdim, h)?,
@@ -312,7 +323,6 @@ pub(super) fn load(
             *a = (x - m).exp() / s;
         }
     }
-    let frnn_norm = host_f32(src, "markov_head.dflare_norm.weight", &[h])?;
     let wr = host_f32(src, "markov_head.rnn_proj.weight", &[3 * r, 2 * r + 2 * h])?;
     let rnn_bias = host_f32(src, "markov_head.rnn_proj.bias", &[3 * r])?;
     let width = 2 * r + 2 * h;
@@ -386,9 +396,10 @@ pub(super) fn load(
         u: alloc(t * inter)?,
         a: alloc(t * inter)?,
         emb: alloc(h)?,
-        cx: (0..c.n_layers).map(|_| alloc(rows * h)).collect::<Result<_>>()?,
-        ik: [alloc(rows * kvdim)?, alloc(rows * kvdim)?],
-        iv: alloc(rows * kvdim)?,
+        cx: (0..c.n_layers).map(|_| alloc(rows.max(MIX_ROWS) * h)).collect::<Result<_>>()?,
+        mx: alloc(rows.max(MIX_ROWS) * h)?,
+        ik: [alloc(rows.max(MIX_ROWS) * kvdim)?, alloc(rows.max(MIX_ROWS) * kvdim)?],
+        iv: alloc(rows.max(MIX_ROWS) * kvdim)?,
         base: alloc((BLOCK - 1) * dims.vocab)?,
         fold: alloc(dims.vocab)?,
         latent: alloc(r)?,
@@ -397,18 +408,27 @@ pub(super) fn load(
         fw: f32buf(3 * r)?,
         tk: [f32buf((BLOCK - 1) * 64)?, f32buf((BLOCK - 1) * 64)?, f32buf(BLOCK)?, f32buf((BLOCK - 1) * 32 * 64 * 2)?],
     };
-    let mut feat = Vec::with_capacity(nt);
-    for _ in 0..nt {
-        feat.push(alloc(rows * h)?);
+    // the taps of one pass, tap-major: tap j of a `t`-row pass at rows `j * t ..` (`Model::ink_pass`)
+    let feat = vec![alloc(nt * rows * h)?];
+    let mut mixw = Vec::with_capacity(c.n_layers + 1);
+    for a in alpha.chunks(nt) {
+        let rep: Vec<u8> = a.repeat(MIX_ROWS).iter().flat_map(|x| x.to_le_bytes()).collect();
+        add_bytes(rep.len() as u64);
+        mixw.push(crate::backend::upload_new(b, &rep)?);
     }
+    let mut dflare = Vec::with_capacity(c.n_layers + 1);
+    for l in 0..c.n_layers {
+        dflare.push(norm_w(&format!("layers.{l}.dflare_norm.weight"), h)?);
+    }
+    dflare.push(norm_w("markov_head.dflare_norm.weight", h)?);
     let tau = std::env::var("INTARSIA_DSPARK_TAU").ok().and_then(|v| v.trim().parse::<f32>().ok()).unwrap_or(TAU_DEFAULT);
     let ds = Dspark {
         c: c.clone(),
         layers,
         norm,
         masks,
-        alpha,
-        frnn_norm,
+        mixw,
+        dflare,
         w_sp,
         w_h,
         w_f,
@@ -446,20 +466,6 @@ impl Dspark {
 
     pub(super) fn slot_specs(&self) -> Vec<SlotSpec> {
         (0..self.layers.len()).map(|_| SlotSpec::AttnKv { n_kv_heads: self.c.n_kv_heads, head_dim: self.c.head_dim, dtype: DType::Bf16 }).collect()
-    }
-
-    /// `rms(sum_j alpha[row, j] tap_j; w)` of one position (taps `[4][H]` slices).
-    fn mix(&self, row: usize, taps: &[&[f32]], w: &[f32], out: &mut [f32]) {
-        let nt = self.c.taps.len();
-        let a = &self.alpha[row * nt..(row + 1) * nt];
-        for (d, o) in out.iter_mut().enumerate() {
-            *o = taps.iter().zip(a).map(|(t, &al)| t[d] * al).sum();
-        }
-        let ms: f32 = out.iter().map(|x| x * x).sum::<f32>() / out.len() as f32;
-        let inv = 1.0 / (ms + self.c.eps).sqrt();
-        for (o, &g) in out.iter_mut().zip(w) {
-            *o = rbf(*o * inv * g);
-        }
     }
 }
 
@@ -531,53 +537,62 @@ impl Model {
         r
     }
 
-    pub(super) fn dspark_ingest(&self, ds: &Dspark, d: &mut DflashState, src: &[Buffer], t: usize, profile: bool) -> Result<()> {
+    pub(super) fn dspark_ingest(&self, ds: &Dspark, d: &mut DflashState, src: DsSrc, t: usize, profile: bool) -> Result<()> {
         self.ds_rows(t, || self.dspark_ingest_inner(ds, d, src, t, profile))
     }
 
-    fn dspark_ingest_inner(&self, ds: &Dspark, d: &mut DflashState, src: &[Buffer], t: usize, profile: bool) -> Result<()> {
+    /// On the device, in the stream of the target's pass (no host sync, lane ink-mtp): per draft layer the four-tap mix
+    /// (`HcPre` with softmax(fuse_weight), then `RmsNorm` with the layer's `dflare_norm`), `k_proj_ctx` / `v_proj_ctx`, `k_norm_ctx`
+    /// + RoPE, appended to the layer's cache; the Markov head's mix of the last `FRNN_RING` rows into the sequence's device ring.
+    fn dspark_ingest_inner(&self, ds: &Dspark, d: &mut DflashState, src: DsSrc, t: usize, profile: bool) -> Result<()> {
         let (h, act) = (self.dims.hidden, self.act);
-        let (nkv, hd) = (ds.c.n_kv_heads, ds.c.head_dim);
-        // a plan dry run (`Model::dflash_dry_run`) records the device calls only: no taps, host mixes or uploads
-        let rec = self.recorder.lock().unwrap().is_some();
+        let (nkv, hd, nt) = (ds.c.n_kv_heads, ds.c.head_dim, ds.c.taps.len());
+        let prof = dspark_profile() && self.recorder.lock().unwrap().is_none();
         let t0 = Instant::now();
-        if !rec {
+        if prof {
             self.backend.synchronize(self.stream)?;
         }
         let t_sync = t0.elapsed();
-        let taps: Vec<Vec<f32>> = if rec { Vec::new() } else { src.iter().map(|b| self.ds_download(b, act, 0, t * h)).collect::<Result<_>>()? };
         let pos0 = d.kv.len;
-        let row = |p: usize| -> Vec<&[f32]> { taps.iter().map(|x| &x[p * h..(p + 1) * h]).collect() };
-        // f_rnn of the last FRNN_RING rows
-        if d.frnn.len() != FRNN_RING * h {
-            d.frnn = vec![0f32; FRNN_RING * h];
+        // the taps as HcPre's x: tap-major `[1, taps, t * H]` (one pass's staging rows) or row-major `[t, taps, H]` (the stash)
+        let (x, mix, mxo) = match src {
+            DsSrc::Taps(b) => (self.view(b, act, &[1, nt, t * h]), [1, nt], self.view(&ds.bufs.mx, act, &[1, t * h])),
+            DsSrc::Rows(b) => (self.view(b, act, &[t, nt, h]), [t, nt], self.view(&ds.bufs.mx, act, &[t, h])),
+        };
+        if mix[0] > MIX_ROWS {
+            return Err(Error::invalid(format!("DSpark ingest of {t} stashed rows: more than {MIX_ROWS}")));
         }
-        for p in if rec { 0..0 } else { t.saturating_sub(FRNN_RING)..t } {
-            let slot = (pos0 + p) % FRNN_RING;
-            let mut out = vec![0f32; h];
-            ds.mix(ds.c.n_layers, &row(p), &ds.frnn_norm, &mut out);
-            d.frnn[slot * h..(slot + 1) * h].copy_from_slice(&out);
-        }
+        let mx = self.view(&ds.bufs.mx, act, &[t, h]);
+        let eps = OpAttrs { eps: ds.c.eps, w_offset: 0.0, ..Default::default() };
+        let premix = |m: usize| self.exec(Op::HcPre, vec![x.clone(), self.view(&ds.mixw[m], DType::F32, &mix)], vec![mxo.clone()], OpAttrs::default(), profile);
         let k0 = self.view(&ds.bufs.ik[0], act, &[t, nkv, hd]);
         let k1 = self.view(&ds.bufs.ik[1], act, &[t, nkv, hd]);
         let v = self.view(&ds.bufs.iv, act, &[t, nkv, hd]);
-        let mut mixed = vec![0f32; t * h];
         for (li, l) in ds.layers.iter().enumerate() {
-            if !rec {
-                for p in 0..t {
-                    ds.mix(li, &row(p), &l.dflare, &mut mixed[p * h..(p + 1) * h]);
-                }
-                self.ds_upload_bf16(&ds.bufs.cx[li], &mixed)?;
-            }
+            premix(li)?;
             let cx = self.view(&ds.bufs.cx[li], act, &[t, h]);
+            self.exec(Op::RmsNorm, vec![mx.clone(), ds.dflare[li].clone()], vec![cx.clone()], eps.clone(), profile)?;
             let slot = Self::attn_slot_at(&d.kv, li)?;
             self.proj(&cx, &l.wk_ctx, &k0.reshaped(&[t, nkv * hd]), profile)?;
             self.proj(&cx, &l.wv_ctx, &v.reshaped(&[t, nkv * hd]), profile)?;
             self.ds_qk(ds, &k0, &l.k_norm_ctx, &k1, &k0, pos0, profile)?;
             self.d2_append(slot, &k0, &v, pos0, nkv, hd, profile)?;
         }
+        // f_rnn of the last FRNN_RING rows, by position into the ring (at most two runs of rows)
+        if d.frnn.is_none() {
+            d.frnn = Some(self.backend.alloc(FRNN_RING * h * act.size_bytes(), MemKind::Device)?);
+        }
+        let ring = self.view(d.frnn.as_ref().unwrap(), act, &[FRNN_RING, h]);
+        premix(ds.c.n_layers)?;
+        let mut p = t.saturating_sub(FRNN_RING);
+        while p < t {
+            let slot = (pos0 + p) % FRNN_RING;
+            let n = (t - p).min(FRNN_RING - slot);
+            self.exec(Op::RmsNorm, vec![mx.rows(p, n), ds.dflare[ds.c.n_layers].clone()], vec![ring.rows(slot, n)], eps.clone(), profile)?;
+            p += n;
+        }
         d.kv.advance_rows(t);
-        if dspark_profile() && !rec {
+        if prof {
             self.backend.synchronize(self.stream)?;
             eprintln!("dspark: ingest {t} rows ms: target sync {:.2} ingest {:.2}", ms(t_sync), ms(t0.elapsed() - t_sync));
         }
@@ -699,14 +714,14 @@ impl Model {
         self.ds_generic(true, || self.exec(Op::Logits, vec![hs.clone(), ds.w_h.clone()], vec![hw.clone()], OpAttrs::default(), profile))?;
         let dstate = st.dflash.as_ref().unwrap();
         let slot = (p0 - 1) % FRNN_RING;
-        if !rec {
-            if dstate.frnn.len() != FRNN_RING * h {
-                return Ok(Vec::new());
-            }
-            self.ds_upload_bf16(&bf.frnn, &dstate.frnn[slot * h..(slot + 1) * h])?;
-        }
+        // f_rnn of the last committed position: its row of the sequence's device ring (a plan dry run: the scratch row)
+        let frnn = match (&dstate.frnn, rec) {
+            (_, true) => self.view(&bf.frnn, act, &[1, h]),
+            (Some(ring), false) => self.view(ring, act, &[FRNN_RING, h]).rows(slot, 1),
+            (None, false) => return Ok(Vec::new()),
+        };
         let fwv = self.view(&bf.fw, DType::F32, &[1, 3 * r]);
-        self.ds_generic(true, || self.exec(Op::Logits, vec![self.view(&bf.frnn, act, &[1, h]), ds.w_f.clone()], vec![fwv.clone()], OpAttrs::default(), profile))?;
+        self.ds_generic(true, || self.exec(Op::Logits, vec![frnn.clone(), ds.w_f.clone()], vec![fwv.clone()], OpAttrs::default(), profile))?;
         if rec {
             if ds.cand == 0 {
                 // the exact head's per-step fold GEMV

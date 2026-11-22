@@ -430,7 +430,7 @@ impl Model {
     pub(super) fn new_dflash_state(&self, cap: usize) -> Result<Option<Box<DflashState>>> {
         let Some(head) = &self.dflash else { return Ok(None) };
         let specs = self.dflash_slot_specs(head);
-        Ok(Some(Box::new(DflashState { kv: SequenceState::new(&*self.backend, &specs, cap)?, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false, frnn: Vec::new() })))
+        Ok(Some(Box::new(DflashState { kv: SequenceState::new(&*self.backend, &specs, cap)?, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false, frnn: None })))
     }
 
     /// The draft's context cache slots: one attention slot per draft layer, in the draft's own geometry for DFlash2 (activation
@@ -494,6 +494,15 @@ impl Model {
             if d.pending > 0 && d.pending + t > self.dflash_pend_max() {
                 self.dflash_flush(head, &mut d, profile)?;
             }
+            if let Some(ds) = &head.dspark {
+                // DSpark: a decode step's row goes to the stash (one copy); a longer pass flushes the stash first and then goes in
+                // from its own staging rows (the same rows in the same order as one batch)
+                if t == 1 {
+                    return self.dflash_stash(head, &mut d, t);
+                }
+                self.dflash_flush(head, &mut d, profile)?;
+                return self.dspark_ingest(ds, &mut d, super::dspark::DsSrc::Taps(&head.feat[0]), t, profile);
+            }
             if t == 1 || d.pending > 0 || (d.lazy && t <= Self::VERIFY_MAX_ROWS) {
                 // single-token decode steps are stashed (a lazy state stashes every pass); any other pass behind pending rows
                 // goes in with them
@@ -503,9 +512,6 @@ impl Model {
                 }
                 Ok(())
             } else {
-                if let Some(ds) = &head.dspark {
-                    return self.dspark_ingest(ds, &mut d, &head.feat, t, profile);
-                }
                 self.dspine_dump_taps(head, d.kv.len, &head.feat, t)?;
                 self.dflash_ingest(head, &mut d.kv, &head.feat, t, profile)
             }
@@ -528,7 +534,7 @@ impl Model {
         let block = super::dspark::BLOCK;
         let state = |len: usize| {
             let kv = crate::plan::phantom_state(&specs, cap, len);
-            DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false, frnn: Vec::new() }
+            DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false, frnn: None }
         };
         let exact = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
         let extra = self.recorder.lock().unwrap().as_ref().is_some_and(|r| r.extra);
@@ -540,7 +546,12 @@ impl Model {
             let mut ns: Vec<usize> = (1..=16).chain([32, 64, 128, 256, 512]).chain([max]).filter(|&n| n <= max).collect();
             ns.dedup();
             for n in ns {
-                self.dspark_ingest(ds, &mut state(0), &head.feat, n, false)?;
+                self.dspark_ingest(ds, &mut state(0), super::dspark::DsSrc::Taps(&head.feat[0]), n, false)?;
+            }
+            // flushes of stashed decode rows (row-major)
+            let store = self.backend.alloc((max * head.taps.len() * self.dims.hidden * self.act.size_bytes()).max(16), MemKind::Device)?;
+            for n in (1..=16).chain([64, max]).filter(|&n| n <= max) {
+                self.dspark_ingest(ds, &mut state(0), super::dspark::DsSrc::Rows(&store), n, false)?;
             }
             let window = ds.window();
             let mut lens = vec![1];
@@ -571,6 +582,19 @@ impl Model {
     /// Copy the staging rows of the pass just run (`t` rows) behind the pending rows of the store.
     fn dflash_stash(&self, head: &DflashHead, d: &mut DflashState, t: usize) -> Result<()> {
         let (h, esz) = (self.dims.hidden, self.act.size_bytes());
+        if head.dspark.is_some() {
+            // row-major `[PEND_MAX, taps, H]`: a 1-row pass's tap-major staging (`[taps, 1, H]`) is already its row
+            let nt = head.taps.len();
+            if t != 1 {
+                return Err(Error::invalid("DSpark stash of a pass longer than one row"));
+            }
+            if d.store.is_empty() {
+                d.store.push(self.backend.alloc((self.dflash_pend_max() * nt * h * esz).max(16), MemKind::Device)?);
+            }
+            self.backend.copy(&d.store[0], d.pending * nt * h * esz, &head.feat[0], 0, nt * h * esz, self.stream)?;
+            d.pending += 1;
+            return Ok(());
+        }
         if d.store.is_empty() {
             for _ in 0..head.taps.len() {
                 d.store.push(self.backend.alloc((self.dflash_pend_max() * h * esz).max(16), MemKind::Device)?);
@@ -591,7 +615,7 @@ impl Model {
         }
         if let Some(ds) = &head.dspark {
             let store = std::mem::take(&mut d.store);
-            let r = self.dspark_ingest(ds, d, &store, n, profile);
+            let r = self.dspark_ingest(ds, d, super::dspark::DsSrc::Rows(&store[0]), n, profile);
             d.store = store;
             r?;
             d.pending = 0;
@@ -1126,7 +1150,7 @@ impl Model {
         let one = |mut kv: SequenceState, kd: usize| -> Result<()> {
             self.dflash_ingest(head, &mut kv, &head.feat, t, false)?;
             let mut st = crate::plan::phantom_state(&[], cap, kv.len);
-            st.dflash = Some(Box::new(DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false, frnn: Vec::new() }));
+            st.dflash = Some(Box::new(DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false, frnn: None }));
             // a split draft (lane dh): this rank's part as it runs it (rank 0 or a peer), without starting the other ranks
             let link = match (self.dflash_tp, self.tp.rank) {
                 (false, _) => DraftLink2::Solo,

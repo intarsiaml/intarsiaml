@@ -708,7 +708,9 @@ impl Model {
 
         // the attention inputs of the next visit are already in X (the previous MLP-side ConvMix computed them)
         let mut x_ready = false;
-        let (ds_taps, ds_feat): (&[usize], &[Buffer]) = match self.dflash.as_ref().filter(|h| h.dspark.is_some()) {
+        // only for a request that drafts (a sampled or plain request leaves its draft state inactive and never ingests)
+        let drafting = st.dflash.as_ref().is_some_and(|d| d.active && d.synced);
+        let (ds_taps, ds_feat): (&[usize], &[Buffer]) = match self.dflash.as_ref().filter(|h| h.dspark.is_some() && drafting) {
             Some(h) if t <= h.feat_rows => (&h.taps, &h.feat),
             Some(_) => return Err(Error::invalid(format!("inkling2: a pass of {t} rows is longer than the DSpark tap buffers"))),
             None => (&[], &[]),
@@ -733,9 +735,9 @@ impl Model {
                 self.ink_copy(&plane(&ws.bank, act, 0, t, d), &stack(v.bank_stack, 1).reshaped(&[t, d]))?;
                 self.ink_copy(&plane(&ws.bank, act, 1, t, d), &self.ink_loc(v.bank_partial, t))?;
             }
-            // the DSpark draft's taps (`model/dspark.rs`): the partial entering visits 5, 23, 41 of every pass
+            // the DSpark draft's taps (`model/dspark.rs`): the partial entering visits 5, 23, 41 of every pass, tap-major in one buffer
             if let Some(ti) = ds_taps.iter().position(|&x| x == vi) {
-                self.ink_copy(&TensorRef::new(ds_feat[ti].clone(), act, &[t, d]), &partial)?;
+                self.ink_copy(&TensorRef::new(ds_feat[0].clone(), act, &[ds_taps.len() * t, d]).rows(ti * t, t), &partial)?;
             }
             let ctrl = l.ctrl.as_ref();
             if looped && ctrl.is_none() {
@@ -972,7 +974,7 @@ impl Model {
         put("final_hidden".into(), out)?;
         // the DSpark draft's last tap: the final-norm output (`target_layer_ids` 48 = one past the last visit)
         if let Some(ti) = ds_taps.iter().position(|&x| x == n_vis) {
-            self.ink_copy(&TensorRef::new(ds_feat[ti].clone(), act, &[t, d]), out)?;
+            self.ink_copy(&TensorRef::new(ds_feat[0].clone(), act, &[ds_taps.len() * t, d]).rows(ti * t, t), out)?;
         }
         if let Some(dm) = dump {
             dm.extend(extra);

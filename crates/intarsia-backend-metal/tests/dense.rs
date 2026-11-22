@@ -9,7 +9,7 @@ mod common;
 
 use common::*;
 use intarsia_backend_metal::bench::{bf16_to_f32, f32_to_bf16};
-use intarsia_backend_metal::kernels::{ADD_BF16, LOGITS_BF16, LOGITS_BF16_GEMV, MATMUL_BF16, MATMUL_BF16_GEMV};
+use intarsia_backend_metal::kernels::{ADD_BF16, HC_PRE_BF16, LOGITS_BF16, LOGITS_BF16_GEMV, MATMUL_BF16, MATMUL_BF16_GEMV};
 use intarsia_backend_metal::{MetalBackend, MAX_DISPATCHES};
 use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
 use intarsia_core::{DType, Op, OpAttrs, OpCall, ShapeInfo};
@@ -424,5 +424,39 @@ fn add_bias_matches_reference_in_place_and_at_odd_offsets() {
         );
         be.launch("add_bias_bf16", &call, 0).unwrap();
         assert_eq!(read_u16(&be, &out, out_off, x.len()), want, "offsets {xo} {bo} {oo} in_place {in_place}");
+    }
+}
+
+/// `hc_pre_bf16` (lane ink-mtp, the DSpark draft's device tap mix): bitwise the host f32 sum over S in order with one bf16
+/// rounding, at the draft's two layouts (tap-major T = 1, D = rows * H; row-major T = rows, D = H) and odd element offsets.
+#[test]
+fn hc_pre_matches_host_sum() {
+    let be = backend();
+    for (si, &(tn, sn, d, xo)) in [(1usize, 4usize, 3 * 2304usize, 0usize), (1, 4, 256 * 2304, 2), (7, 4, 2304, 0), (16, 4, 64, 2), (3, 1, 33, 2)].iter().enumerate() {
+        let x = rand_bf16(tn * sn * d, 300 + si as u64);
+        let xb = upload_at(&be, xo, &x);
+        let mix: Vec<f32> = (0..tn * sn).map(|i| 0.1 + 0.37 * ((i * 7 + si) % 5) as f32).collect();
+        let mb = be.alloc(mix.len() * 4, MemKind::Device).unwrap();
+        be.upload(&mb, 0, &mix.iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<u8>>(), 0).unwrap();
+        let out = be.alloc(tn * d * 2 + 4, MemKind::Device).unwrap();
+        let call = OpCall::new(
+            Op::HcPre,
+            vec![t(&xb, xo, DType::Bf16, &[tn, sn, d]), t(&mb, 0, DType::F32, &[tn, sn])],
+            vec![t(&out, 2, DType::Bf16, &[tn, d])],
+            OpAttrs::default(),
+        );
+        be.launch(HC_PRE_BF16, &call, 0).unwrap();
+        let got = read_u16(&be, &out, 2, tn * d);
+        let mut want = vec![0u16; tn * d];
+        for r in 0..tn {
+            for e in 0..d {
+                let mut acc = 0f32;
+                for c in 0..sn {
+                    acc = mix[r * sn + c].mul_add(bf16_to_f32(x[(r * sn + c) * d + e]), acc);
+                }
+                want[r * d + e] = f32_to_bf16(acc);
+            }
+        }
+        assert_eq!(got, want, "T={tn} S={sn} D={d}");
     }
 }
