@@ -201,6 +201,25 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
   3 alternating reps against the tip. Each build gets its own commit with an env revert, and stays opt-in until the gates
   pass. Box check first, as in L. Jobs use fleetq --quiet gpu,cpu with an honest --expect; the job script runs its body in
   its own process group and kills the tree on TERM.
+- 2026-11-22 ~07:55 (coordinator, go-ahead): **build approved**, opt-in and T = 1 only (gate+up with one pair per union
+  leader + fused down with 3 chunks ahead), with exactly the gates and decision rule below.
+  - **Speed rule (all endor lanes):** BOX SLOW is a label, not a stop. Run the arms ABAB in one slot after a short warm-up,
+    take the per-pair median, and quote the warm steady-state gain as primary. N2's slots were short (about 2 min) and
+    probably cold, so the gate run is the one that counts against the 0.3 ms bar.
+  - Stay out of ink-prefill's NAX code in the shared launcher. If a merge conflict in that function turns out
+    unavoidable, tell the coordinator before resolving it.
+  - **Decision rule, fixed before any timing:** in-stream ABAB in one slot, per-pair median gain of at least 0.3 ms per
+    token in the warm steady state; otherwise the change stays opt-in or is dropped.
+  - **Gates:**
+    1. greedy md5 at 64 and 256 tokens byte-identical (any difference is a bug: stop);
+    2. G2 / G3 self-goldens byte-equal to the tip's;
+    3. admission at T = 1, 4, 16;
+    4. the Metal tests inkmoe, inkling2_batch and G1 tiny, plus rows-exact checked across the paths (T = 1 on the new
+       kernels against T > 1 on the shipped ones);
+    5. `plan show` for Qwen3-8B and Llama-3.1-8B unchanged.
+
+    The change gets its own commit, an env revert and stays default off. A default-on proposal would report tok/s through
+    localeval.
 
 ## Probes (endor, before any code)
 
