@@ -18,6 +18,12 @@ pub const TABLE: &[(&str, Op)] = &[
 /// bf16 expert outputs: the quantised-MoE budget (quantmoe.rs `TOL`).
 const MOE_TOL: Tol = Tol::new(1.5e-2, 1e-3);
 const F32_TOL: Tol = Tol::new(1e-3, 2e-4);
+/// NVFP4 situ experts: rel_l2 2e-3 (abs as MOE_TOL). Lane ink-cuda-mixmoe swept 600 admission-built situ cases on CUDA
+/// (tests/ink_situ_spread.rs in intarsia-backend-cuda: T 1 and 4, E 32, H 2304, I 1152, judge of plan admission): worst
+/// rel_l2 9.50e-4, every differing output exactly 1 bf16 ulp (~5 % of the elements, scattered), so the error is the bf16
+/// output rounding of the routing-weighted (x 8) sum; a serve plan on spark1 drew a 1.04e-3 case of that tail and refused to
+/// load. Coordinator rule, brief 22 of docs/results/2026-11-21-inkling2-cuda-mixmoe.md.
+const SITU_TOL: Tol = Tol::new(1.5e-2, 2e-3);
 
 pub const MAX_EXPERTS: usize = 1024;
 pub const MAX_K: usize = 64;
@@ -40,7 +46,7 @@ pub fn all() -> Vec<KernelImpl> {
                 .arch([ARCH])
                 .acts(bf)
                 .exact(Exactness::Deterministic)
-                .tol(MOE_TOL)
+                .tol(if name.starts_with("moe_experts_situ") { SITU_TOL } else { MOE_TOL })
                 .tol_f32(F32_TOL);
             // the ordinary kernels take the tensor-core path above 512 pairs (its scratch holds the tile table too) and the
             // SIMT path at or below it, so they reserve the larger of the two layouts

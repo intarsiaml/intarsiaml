@@ -148,6 +148,39 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   4018 at 1k (2.4-3.5x); attention is 6-9 % of it, the rest the MoE and in_proj prefill GEMMs. When the probe reports, give a
   ranked choice between decode MoE (the probe outcome) and prefill GEMMs, each with an estimated tok/s or TTFT gain.
 
+- (coordinator, 18th) Serve-stop hygiene (an endor serve stopped with `kill $SP` lived 2 h holding 11 GB). When #11225 ends:
+  port closed, `pgrep -f 'intarsia serve'` empty on spark2, `free -g`; clean up inside a fleetq slot if anything is left. Future
+  serve scripts: own process group (`set -m` / setsid) and an EXIT trap that TERMs serve, then TERM/KILLs the group, checks the
+  port is closed and prints STOP FAILED otherwise; helper .worktrees/ink-batch/.scratch/serve_lib.sh.
+
+- (coordinator, 19th) #11225 hung: in le.sh's remote command `cd ... && nohup serve ... &` backgrounds the whole `&&` list as a
+  subshell, which held ssh's stdout open, and `echo $!` recorded the subshell (2804215), not serve. The coordinator, inside
+  FLEETQ_JOB=11225 at ~05:22, wrote serve's PID 2804216 to out/serve.pid and killed the subshell; localeval then ran. After
+  le.sh: check port 8090 dead and the --child 2804217 gone with the parent, else clean up in a slot. Future launches:
+  `cd X && { nohup B serve ... >log 2>&1 </dev/null & echo $! >pid; }` or `setsid -f` (this lane: .scratch/serve_remote.sh,
+  setsid with the redirects on the command, stop by process group, STOP FAILED check).
+
+- (coordinator, 20th) After the MoE loads-only probe: profile CUDA prefill (the largest like-for-like gap, marginal 1.44-1.49k vs
+  vLLM 2.8-4.0k tok/s) in one quiet slot on spark2: a 4k-prompt prefill with a per-op breakdown (MoE grouped GEMM, attention,
+  mix/conv, norms, launch gaps) from nsys or the engine's op timers. Report the top 3 costs (ms, share) with a proposed fix
+  each; do not build, the coordinator picks. No decode-vs-vLLM claims until a plain no-spec comparison exists (the reference ran
+  with DSpark MTP).
+
+- (coordinator, 21st) BLOCKER after the prefill profile: CUDA serve does not load on ink/cuda-mtp b1d84ba5b (merged c6680633c)
+  on spark1, with and without --spec: `moe_experts: 12 shape(s) without a kernel (m=1 n=1152 k=2304 act=Bf16 w=U8)`, exit 78;
+  binary built 05:25, after the merge (includes 65daa3e7a). Check (a) stale admission cache on spark1, (c) spark1 source differs
+  from b1d84ba5b first, then (b) a weight-format change at m=1. Reproducer ink-cuda-mtp/.scratch/servediag.sh (~8 min, spark1,
+  own fleetq slot). Report cause and fix commit; the attention lane then reruns servediag, the serve smoke and localeval.
+
+- (coordinator, 22nd) Rule for the situ sweep (600 cases): (1) worst rel_l2 <= 1.5e-3 AND the worst element is plain bf16
+  accumulation noise (no element over ~8 ulps, no structure by expert / row / position) -> raise the situ rel_l2 tol to 2e-3,
+  abs unchanged, on CUDA and Metal, comment citing the sweep; (2) anything else is a kernel error: fix the kernel. Either way
+  seed admission case data from the case key (shape, act, w, situ), not plan-call order, and check Metal and CPU admission
+  still pass. Report the worst case, the branch taken and the commit; then the attention lane reruns servediag. Prefill after
+  the blocker: CUDA prefill chunk 1024 and 2048 vs 256 (the same 4k profile + G2 / greedy md5; Metal runs 2048), budget the
+  activation memory and give the job a --mem peak; if 2048 is bitwise / within tolerance and faster, send numbers (the
+  coordinator decides default-on); then the rest of the top 3.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
@@ -311,3 +344,48 @@ tiny 13/13 (tests/inkling2_capture.rs compiles), core quant::cases 2/2; greedy 2
 | 15 tokens | 98-108 ms | 34.56 / 34.62 | 32.77 / 32.63 |
 | 1261 tokens | 1295 ms (974 tok/s) | 33.98 | 32.31 (#11158) |
 | 6672 tokens | 5775 ms (1155 tok/s) | 33.02 | 31.16 |
+
+## localeval speed: intarsia serve on CUDA vs vLLM (spark2)
+
+intarsia: c6680633c (P12 on, graphs on, no speculation), fleetq #11225, localeval run
+`20261122-051731-adhoc-intarsia-cuda-c6680633c` (unanimis c69bed69), 3 reps, 128 forced tokens, thinking off. vLLM:
+`20261120-192706-spark2-inkling-none-quick-spec-effnone`, NVFP4 image `vllm/vllm-openai:inkling-2-mini`, **DSpark MTP drafter
+on** (`--lane spec:dspark --drafter dspark-mtp7`, probe ratio 1.081; peak decode 63-95 tok/s shows accepted drafts), 254 tokens.
+Not rerun (coordinator). The decode columns are therefore not like for like: vLLM's includes speculation, intarsia's does not.
+
+| prompt tok | TTFT s intarsia / vLLM | marginal prefill tok/s intarsia / vLLM | decode tok/s intarsia / vLLM (spec) | intarsia / vLLM decode |
+|---:|---:|---:|---:|---:|
+| 135 / 144 | 0.24 / 0.21 | - / - | 34.6 / 36.8 | 0.94 |
+| 1037 / 1024 | 0.86 / 0.43 | 1462 / 4018 | 34.5 / 38.4 | 0.90 |
+| 4127 / 4112 | 3.00 / 1.54 | 1441 / 2772 | 33.6 / 42.8 | 0.79 |
+| 16448 / 16456 | 11.27 / 5.79 | 1491 / 2902 | 32.0 / 38.7 | 0.83 |
+
+Serve load: 228 s, admission 26 kernels / 103 cases, none rejected. After the stop: port 8090 closed, no serve process left
+(2804216 and its --child 2804217 gone), memory back to the 41-42 GB baseline (vLLM retro 38 GB).
+
+## MoE decode loads-only probe (brief 16; spark2 #11275, `--quiet gpu,cpu`; probe code env-gated, uncommitted, reverted)
+
+`INTARSIA_INK_MOE_LOADS_ONLY=1` replaced the NVFP4 gu / dn inner loop by the same loads (weights, scales, activations) xor-ed
+together, no fp4 decode and no dot; `=2` also dropped the activation loads. ink_bench moe (128 experts, top-8, realistic union,
+layer copies beyond the cache), GB/s of expert bytes:
+
+| T | union | gate+up normal / loads-only / weights-only | down normal / loads-only / weights-only |
+|---|---|---|---|
+| 1 | 8.0 | 199.7 / 200.1 / 200.9 | 186.1 / 182.8 / 185.5 |
+| 2 | 15.5 | 204.3 / 204.6 / 205.8 | 192.7 / 186.8 / 195.5 |
+| 4 | 29.0 | 205.4 / 205.7 / 206.6 | 192.4 / 192.2 / 195.6 |
+| 16 | 83.0 | 199.3 / 199.2 / 201.3 | 176.5 / 177.9 / 181.5 |
+
+In the model at the #11172 shape (1.2k prompt, P12 on, graphs, nsys, 60 tokens): gu 5893 -> 5840 us / token, dn 3247 -> 3251
+(48 calls each: 44 NVFP4 + 4 MXFP8, the probe touches NVFP4 only; NVFP4 + MXFP8 bytes give ~208 / ~189 GB/s). Decode itself
+33.21 -> 33.42 tok/s.
+
+Reading: removing all arithmetic (and even the activation reads) moves nothing, so the kernels are not compute-bound; GB/s is
+flat from 8 to 83 experts, so it is not a fixed per-launch cost either. The bound is the weight-load pattern (per warp
+instruction: dn 8 rows x 64 B, gu 4 rows x 128 B in two matrices far apart, plus 2-byte scale loads in a separate stream),
+against ~238 GB/s for the bf16 decode GEMV's long contiguous rows. Worse of gu / dn loads-only: 178-192 GB/s (<= 195): by
+the brief-16 rule the route is the load-time weight repack (contiguous per-warp streams, scales interleaved, same lane -> chunk
+map, so bitwise). Estimate at ~235 GB/s: gu + dn 9.1 -> ~7.4 ms / token (~1.7 ms, ~5-6 %), the same rate gain at T = 2..4
+(DSpark verify rows). Cost: the tensor-core prefill path (ink_moe_mma) and the `_rows` twins read the same weights, so they
+move to the new layout too (or the experts are kept twice: ~17 GB more); about 1-1.5 days. Not built: the coordinator picks
+between this and the prefill GEMMs after the prefill profile (brief 20).
