@@ -5,6 +5,12 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 
 ## Briefs received
 
+- 2026-11-22 (main): audit #11181 from its logs (no slot): exact args, env, input type, binary path / hash; --digest per batch vs
+  a normal-speed run of the same tree; steps and rounds run; any skip, fallback or different plan. Digests match = same
+  computation ~25% faster: find what differed, keep the diagnostic and aim it at #11181's conditions. Digests differ /
+  missing or steps / plan differ = #11181 invalid: mark it, list every decision or comparison that used it, cancel the
+  queued diagnostic (release if acquired); the box then matches #10956's GPU-bound ~82 ms at B 16.
+
 - 2026-11-22 (main): accepted, the merges are not the B8/B16 cause: no bisect. Finish the toggles and the second ref / final
   runs, then one diagnostic (same slot if --expect covers it, else a fresh quiet slot): ref 8546d143f, B 1 and B 16, 1 rep each.
   (1) Per step, summed command-buffer GPU time (GPUStartTime..GPUEndTime) vs wall: did the GPU's own time grow or the gaps?
