@@ -5595,26 +5595,37 @@ impl Model {
     /// or the head's `Logits` kernel is not one the gather reproduces (then the caller runs the full head).
     fn screened_argmax(&self, x: &TensorRef, c: usize, tok: &TensorRef, profile: bool) -> Result<bool> {
         let Some(hs) = self.head_screen.as_ref() else { return Ok(false) };
-        if c > hs.rows || self.vocab_par || self.recorder.lock().unwrap().is_some() {
+        if c > hs.rows || self.vocab_par {
             return Ok(false);
         }
+        // a plan dry run records the screen calls too (so `serve`, admitted kernels only, admits their kernels on the plan
+        // shapes), then reports `false` so the full head is recorded as well; the first-use check below runs only for real
+        let recording = self.recorder.lock().unwrap().is_some();
         let (v, d) = (self.dims.vocab, self.dims.hidden);
         let logits = self.view(&self.ws.logits, DType::F32, &[c, v]);
+        let head_kernel = |m: usize, exact: bool| -> String {
+            match self.head() {
+                Ok(head) => {
+                    let mut call = head.call(self.view(&self.ws.n, self.act, &[m, d]), self.view(&self.ws.logits, DType::F32, &[m, v]));
+                    call.exact_rows = exact;
+                    self.registry.select(&call).map(|k| k.name.clone()).unwrap_or_default()
+                }
+                Err(_) => String::new(),
+            }
+        };
+        let good = |n: &str| matches!(n, "logits_bf16_gemv" | "logits_bf16_gemv_rows" | "cpu_f32_logits");
         // the gather repeats these kernels' per-row arithmetic (gemv_f32o_v and its multi-row form, the cpu dot); any other
         // head kernel, and the screen not admitted on this backend: the full head
-        let ok = *hs.ok.get_or_init(|| {
+        // (the one-row head kernel decides once; a `c`-row group checks its own rows-exact kernel below, since `serve` may not
+        // admit `logits_bf16_gemv_rows` when no plan shape takes it)
+        let ok = recording
+            || *hs.ok.get_or_init(|| {
             let head = match self.head() {
                 Ok(h) => h,
                 Err(_) => return false,
             };
             let xs = self.view(&self.ws.n, self.act, &[1, d]);
-            let pick = |m: usize, exact: bool| {
-                let mut call = head.call(self.view(&self.ws.n, self.act, &[m, d]), self.view(&self.ws.logits, DType::F32, &[m, v]));
-                call.exact_rows = exact;
-                self.registry.select(&call).map(|k| k.name.clone()).unwrap_or_default()
-            };
-            let good = |n: &str| matches!(n, "logits_bf16_gemv" | "logits_bf16_gemv_rows" | "cpu_f32_logits");
-            let kernels_ok = good(&pick(1, false)) && (2..=hs.rows).all(|m| good(&pick(m, true)));
+            let kernels_ok = good(&head_kernel(1, false));
             let a = TensorRef::new(hs.a.clone(), DType::F32, &[1, v]);
             let cand = TensorRef::new(hs.cand.clone(), DType::I32, &[1, hs.cap]);
             let cnt = TensorRef::new(hs.cnt.clone(), DType::I32, &[1]);
@@ -5631,11 +5642,17 @@ impl Model {
                 self.registry.select(&c).is_ok()
             });
             if !(kernels_ok && screen_ok) {
-                eprintln!("{}: off (head kernel '{}' or the screen kernels are not available here)", crate::screen::ENV, pick(1, false));
+                eprintln!(
+                    "{}: off (head kernel '{}' {}, screen kernels {})",
+                    crate::screen::ENV,
+                    head_kernel(1, false),
+                    if kernels_ok { "ok" } else { "not one the gather reproduces" },
+                    if screen_ok { "selectable" } else { "not selectable (not registered or not admitted)" }
+                );
             }
             kernels_ok && screen_ok
         });
-        if !ok {
+        if !ok || (c > 1 && !recording && !good(&head_kernel(c, true))) {
             return Ok(false);
         }
         let head = self.head()?;
@@ -5660,7 +5677,7 @@ impl Model {
             })();
             self.exact_rows.store(prev, std::sync::atomic::Ordering::Relaxed);
             r?;
-            if !hs.served.swap(true, std::sync::atomic::Ordering::Relaxed) {
+            if !recording && !hs.served.swap(true, std::sync::atomic::Ordering::Relaxed) {
                 eprintln!("{}: first screened head step served ({c} row(s))", crate::screen::ENV);
             }
             Ok(())
@@ -5668,7 +5685,7 @@ impl Model {
         if mark {
             self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         }
-        r.map(|_| true)
+        r.map(|_| !recording) // recorded only: the caller records the full head too
     }
 
     /// The head projection of `c` rows `x`. Replicated head (rank 0): `[c, V]` f32 logits in `ws.logits`. Vocab-parallel
