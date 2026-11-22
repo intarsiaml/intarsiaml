@@ -668,3 +668,22 @@ MoE mxfp8 3.16 -> 3.82; conv_mix 4.15 -> 3.52; route 0.93 -> 0.73. The traced su
 B 8 to 16, about 14% of the traced step. A rows kernel that reads its weights once for all 16 rows could at best recover
 that growth: ~2.4 traced, ~3 ms real, so B 16 ~81-85 instead of 84-88 ms (~+3%). The same single-read idea gave nothing for
 wo / logits (#10900), so I would not build it without a microbench showing the 8 -> 16 growth is weight reads.
+
+## 22. Batched-decode softcap check (main's priority brief, ink-mtp's suspicion)
+
+**Batched decode applies the cap.** `forward_batch`'s head (`model/batch.rs` ~496-510, since 869be5b87) runs
+`softcap_logits` on both the top-k values (`LastTopK`; the cap is monotone, so the device's ids and order stand) and the
+full logits rows (`LastLogits`, and top-k rows that fall back to logits on a NaN). The uncapped readbacks ink-mtp found are
+in the **verify** paths, not in batched decode: `model.rs` `VerifyRead::Logits` / `VerifyRead::TopK` (~2490-2510),
+`forward_verify_batch_run`'s rows (~2694-2716) and `spec_graph.rs` (~425-447). ink/mtp-softcap 36cbb9536 caps those with
+`Model::softcap_step`; per its commit, sampled requests do not speculate on Inkling today. No fix is needed on ink/batch.
+
+**Test** (70446e0e7, `inkling2_batch_sampler_rows_are_softcapped`): tiny Inkling-2 (`final_logit_softcapping` 30),
+2 / 5 / 16 sequences at mixed positions (before, at and past the SWA window), 3 steps, modes mixed per row (logits, top-k 8,
+top-k 40). Every logits row must be bitwise the solo capped logits; every top-k row's values must be bitwise the solo capped
+logits of its ids and the k largest of them. Device top-k rows are requested only where the backend has them (Metal; the cpu
+backend has no `supports_topk`, so on cpu only logits rows run).
+- cpu (bespin #11310): `inkling2_batch` 7/7 pass, max |d| = 0; G1 (`g1a_f32_vs_f64`, `g1b_teacher_forced_bf16`) 2/2 pass.
+  Mutation (batch.rs without its two `softcap_logits` calls): the new test FAILS at the logits assertion, so it detects a
+  missing cap. (spark2 cannot build this test file: its dev-dependency `intarsia-backend-metal` is macOS-only.)
+- Metal tiny with device top-k: queued (endor, default load).
