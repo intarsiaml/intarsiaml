@@ -14,12 +14,11 @@ Two numerics knobs:
 * `--rounding vllm`: activations are rounded to bf16 at the points vLLM stores
   them in bf16 (residual stack, projections, conv outputs, ...), to get closer
   to vLLM's logits.
-* `--act-quant w4a4`: fake-quantize the expert activations like vLLM's SM100 /
-  SM12x paths (NVFP4 per-token amax / 1536 with the "four over six" block
-  scale choice; MXFP8 per-32 e8m0). The scale *formulas* are from
-  `ops/moe.py:_quantize_x` / `ops/activation.py`; the per-block 4-vs-6 choice
-  and the e2m1 / e4m3 rounding come from `ops/nvfp4.py`, which is NOT in the
-  extracted sources, so that part is inferred (spec section c).
+* `--act-quant w4a4`: fake-quantize the expert activations exactly like vLLM's
+  SM100 / SM12x paths (`ops/nvfp4.py` "fouroversix_mae": per-token amax / 1536,
+  per-16 e4m3 scale 6- or 4-based by smaller error; `ops/mxfp8.py`: per-32
+  round-up power-of-two scale), on the bf16 activation (spec section c). This
+  is what the GB10 goldens ran (SM121, default MoE backend).
 
 Experts stay quantized (read per expert from the mmapped safetensors) and are
 dequantized only when selected, through a small LRU.
@@ -211,40 +210,63 @@ def round_e4m3(x: torch.Tensor) -> torch.Tensor:
     return x.to(torch.float32).clamp(-448, 448).to(torch.float8_e4m3fn).to(torch.float32).to(x.dtype)
 
 
+FP32_MAX = torch.finfo(torch.float32).max
+
+
+def _pair_tree_sum(e: torch.Tensor) -> torch.Tensor:
+    """Sum the last dim (a power of two) by adjacent pairs, as `_block_error` / `_candidate`."""
+    while e.shape[-1] > 1:
+        e = e.reshape(*e.shape[:-1], -1, 2)
+        e = e[..., 0] + e[..., 1]
+    return e
+
+
 def fake_quant_nvfp4_act(x: torch.Tensor) -> torch.Tensor:
-    """Per-token NVFP4 activation QDQ as in vLLM `_quantize_x` (ops/moe.py:307-343): outer
-    scale amax/1536, e4m3 block scales per 16. INFERRED (ops/nvfp4.py not extracted): the
-    `fouroversix_mae` rule picks, per block, the block scale bmax/6 or bmax/4 (in the
-    encoder-scaled domain) with the smaller absolute error."""
+    """Per-token NVFP4 activation QDQ, exactly vLLM `ops/nvfp4.py` `_quantize_row` /
+    `_quantize_block` ("fouroversix_mae"), used by `ops/moe.py:_quantize_x` (gate/up input) and
+    `ops/activation.py:_situ_quantize_kernel` (down input). fp32 math on the bf16 input:
+    enc = min(1536 / amax, FP32_MAX), dec = 1 / enc, outer = amax * (1/1536); per 16-block
+    s6 = e4m3(min(bmax * (enc / 6), 448)), s4 = e4m3(min(bmax * (enc / 4), 448));
+    q = e2m1_rne_satfinite(x * min(1 / (s * dec), FP32_MAX)); err = pairwise-sum |q*s*outer - x|;
+    s4 wins only if err4 < err6 (strict). Returns q * s * outer (the GEMM applies outer through
+    its row scale (x_amax * w_amax) / (1536 * denominator))."""
+    shape, dt = x.shape, x.dtype
+    x = x.to(torch.bfloat16).to(torch.float32)
     amax = x.abs().amax(-1, keepdim=True)
-    enc = torch.clamp(1536.0 / amax, max=torch.finfo(torch.float32).max)
-    xs = x * enc
-    b = xs.reshape(*x.shape[:-1], -1, 16)
+    enc = torch.clamp(torch.tensor(1536.0) / amax, max=FP32_MAX)
+    dec = 1.0 / enc
+    outer = amax * torch.tensor(1.0 / 1536.0, dtype=torch.float32)
+    b = x.reshape(*shape[:-1], -1, 16)
     bmax = b.abs().amax(-1, keepdim=True)
-    best, best_err = None, None
-    for div in (6.0, 4.0):
-        sc = round_e4m3(bmax / div)
-        safe = torch.where(sc == 0, torch.ones_like(sc), sc)
-        q = round_e2m1(b / safe) * sc
-        err = (q - b).abs().sum(-1, keepdim=True)
-        if best is None:
-            best, best_err = q, err
-        else:
-            take = err < best_err
-            best = torch.where(take, q, best)
-            best_err = torch.where(take, err, best_err)
-    return (best.reshape(x.shape) / enc).to(x.dtype)
+    enc_b, dec_b, outer_b = enc[..., None], dec[..., None], outer[..., None]
+    cands = []
+    for factor in (torch.tensor(1.0 / 6.0, dtype=torch.float32), torch.tensor(0.25, dtype=torch.float32)):
+        sc = torch.clamp(bmax * (enc_b * factor), max=448.0).to(torch.float8_e4m3fn).to(torch.float32)
+        inv = torch.clamp(1.0 / (sc * dec_b), max=FP32_MAX)
+        q = round_e2m1(b * inv)
+        rec = (q * sc) * outer_b
+        cands.append((rec, _pair_tree_sum((rec - b).abs())))
+    (rec6, err6), (rec4, err4) = cands
+    rec = torch.where(err4 < err6, rec4, rec6)  # err: [..., blocks, 1]
+    return rec.reshape(shape).to(dt)
 
 
 def fake_quant_mxfp8_act(x: torch.Tensor) -> torch.Tensor:
-    """Per-32 MXFP8 QDQ, OCP MX rule (INFERRED: ops/mxfp8.py not extracted): scale
-    2^(floor(log2 bmax) - 8), values rounded to e4m3."""
-    b = x.reshape(*x.shape[:-1], -1, 32)
-    bmax = b.abs().amax(-1, keepdim=True)
-    e = torch.floor(torch.log2(torch.where(bmax > 0, bmax, torch.ones_like(bmax)))) - 8
-    sc = torch.exp2(e)
-    q = round_e4m3(b / sc) * sc
-    return q.reshape(x.shape).to(x.dtype)
+    """Per-32 MXFP8 QDQ, exactly vLLM `ops/mxfp8.py:_mxfp8_block`: scale = amax / 448 rounded UP
+    to a power of two (bit trick on the fp32 exponent; exponent 0 for scale <= 2^-127, capped at
+    254), values clamp(x / scale, +-448) rounded to e4m3. Input is the bf16 activation."""
+    shape, dt = x.shape, x.dtype
+    x = x.to(torch.bfloat16).to(torch.float32)
+    b = x.reshape(*shape[:-1], -1, 32)
+    raw = b.abs().amax(-1, keepdim=True) * torch.tensor(1.0 / 448.0, dtype=torch.float32)
+    bits = raw.view(torch.int32).to(torch.int64)
+    ex = ((bits + 0x007FFFFF) & 0x7F800000) >> 23
+    ex = torch.where(raw <= 2.0**-127, torch.zeros_like(ex), torch.clamp(ex, max=254))
+    scale = torch.clamp(torch.exp2((ex - 127).to(torch.float32)), min=2.0**-127)
+    scale = torch.where(ex == 0, torch.full_like(scale, 2.0**-127), scale)
+    inv = torch.where(ex == 0, torch.full_like(scale, 2.0**127), 1.0 / scale)
+    v = torch.clamp(b * inv, -448.0, 448.0).to(torch.float8_e4m3fn).to(torch.float32)
+    return (v * scale).reshape(shape).to(dt)
 
 
 # --------------------------------------------------------------------------------------

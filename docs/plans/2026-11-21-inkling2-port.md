@@ -102,8 +102,9 @@ Quant formats (checked bit-exactly against `mx.dequantize` on endor for one expe
 |---|---|---|
 | NVFP4 (`amax_denominator`) | `W[n,k] = e2m1(code) · e4m3(scale[n, k/16]) · (amax[e] / denom)`; low nibble = even column; e2m1 = {0, .5, 1, 1.5, 2, 3, 4, 6} with bit 3 the sign | `denom = 2688 = 6·448`, so `amax/denom` is exactly ModelOpt's `weight_scale_2` (per expert; gate and up share the w13 value). Maps 1:1 onto intarsiaml's `MoeExperts` NVFP4 layout + `gscales [E,3] = (w13_amax, w13_amax, w2_amax)/2688` (`quant/moe.rs:76,511-520`), after de-interleaving w13 rows (and their scale rows) into gate-then-up. Not new. |
 | MXFP8 | `W[n,k] = e4m3(w) · 2^(scale[n, k/32] − 127)` | `hf_quant_config` says `weight_block_shape [32,32]`, but the stored scales are `[N, K/32]` and differ row to row: it is 1×32. **New** format for intarsiaml (no MXFP8 anywhere; `MatmulFp8Block` is 2-D, cpu-only). |
-| Activations, NVFP4 group (vLLM SM100 / SM12x; GB10 is SM121) | per token: `amax = max|x|` over the whole row, `enc = 1536/amax`, block-16 e4m3 scale, e2m1 values; GEMM row scale `(x_amax/1536)·(w_amax/2688)` | `ops/moe.py:307-354`, `ops/activation.py:163-173`. The w2 input is quantized after `·γ`. The per-block rule `fouroversix_mae` (block scale `bmax/6` or `bmax/4`, smaller error; 1536 = 4·384 keeps both ≤ 448) is **inferred**: `ops/nvfp4.py` is not in the extract. |
-| Activations, MXFP8 group | block-32 e8m0 scale, e4m3 values | `ops/mxfp8.py` not in the extract; the oracle uses the OCP rule `2^(floor(log2 bmax) − 8)`. |
+| Activations, NVFP4 group (vLLM SM100 / SM12x; GB10 is SM121) | per token on the **bf16** row, fp32 math: `enc = min(1536/amax, FP32_MAX)`, `dec = 1/enc`, `outer = amax·(1/1536)`; per 16-block `s6 = e4m3(min(bmax·(enc·(1/6)), 448))`, `s4 = e4m3(min(bmax·(enc·0.25), 448))`; `q = e2m1_rne_satfinite(x · min(1/(s·dec), FP32_MAX))` (ties to the even code: 0.25→0, 0.75→1, 1.25→1, 1.75→2, 2.5→2, 3.5→4, 5→4); `err = Σ|q·s·outer − x|` summed by adjacent pairs; **s4 only if err4 < err6**. GEMM: `Σ (q_a s_a)(q_w s_w)` fp32 (`dot_scaled` e2m1) × row scale `(x_amax·w_amax)·rcp(1536·denominator)`, bf16 out | `ops/nvfp4.py:28-130, 189-249` (`_e2m1`, `_block_scales`, `_quantize_block`, `_quantize_columns`, `_quantize_row`), used by `ops/moe.py:307-343` (gate/up input) and `ops/activation.py:62-78, 122-206` (down input = bf16 SiTU·γ). The SiTU there uses an `ex2.approx`/`rcp.approx` sigmoid and `tanh.approx` softcaps (`activation.py:20-58`). |
+| Activations, MXFP8 group | per 32: `scale = amax/448` rounded **up** to a power of two (fp32 bit trick `(bits + 0x7FFFFF) & 0x7F800000`; exponent 0 if `≤ 2^-127`, max 254); `v = e4m3(clamp(x/scale, ±448))`. SM12x GEMM dequantizes both sides to bf16 (exact for e4m3·2^k) and runs a bf16 `tl.dot`, fp32 acc | `ops/mxfp8.py:15-30`, `ops/moe_sm120.py:77-160` |
+| Which path the GB10 goldens ran | **W4A4**: SM121 is capability family 120 → `sm120 = True`; `humming_nvfp4` needs `--moe-backend humming` (default `auto`, `config/vllm.py:1152-1154`), absent from the launch line, so experts run `bmm_sm120` on the quantized rows (`moe.py:153-159, 243-292`). Even `humming` on SM12x consumes the same W4A4 quantized rows (`moe_humming.py:64-73`); only SM90 (Hopper) is W4A16. | |
 | vLLM on SM90 (Hopper) | **W4A16**: Humming GEMMs on bf16 activations (`ops/moe_sm90.py:1-9`, `moe.py:204-224`) | So vLLM itself ships both numerics; oMLX is W4A16 too. |
 
 ## d. Three-way diff: vLLM vs llama.cpp vs oMLX
@@ -294,13 +295,18 @@ Against the vLLM goldens (`golden/inkling2-mini-vllm-*`, GB10, W4A4, batch-1 seq
 |---|---|---|---|
 | W4A16, rounding none (default) | **98.24 % / 6.35e-3** | **97.64 % / 1.24e-2** | **95.87 % / 9.84e-3** (13096 pos) |
 | W4A16, rounding vllm | 97.72 % / 6.06e-3 | 97.51 % / 1.23e-2 | – |
-| W4A4 (inferred quantizer), rounding none | 95.61 % / 1.19e-2 | – | – |
-| W4A4 (inferred), rounding vllm | 97.36 % / 9.62e-3 | – | – |
+| W4A4 exact (`ops/nvfp4.py`, `ops/mxfp8.py`), rounding none | 97.01 % / 1.04e-2 | 96.94 % / 1.54e-2 | – |
+| W4A4 exact, rounding vllm (closest to vLLM's numerics) | 96.31 % / 1.32e-2 | 96.62 % / 1.81e-2 | W4A4_4K |
+| W4A4 with my earlier inferred quantizer (superseded) | none 95.61 % / 1.19e-2, vllm 97.36 % / 9.62e-3 | – | – |
 
-Oracle variants against each other (short set, `tools/golden_cmp.py`): none vs vllm rounding 98.42 % / 1.5e-3 (pure bf16-activation
-noise; long set 98.79 % / 2.7e-3); W4A16 vs W4A4 (inferred) 96.7 % / 1.0e-2. Reading: the W4A16 fp32 oracle sits inside vLLM's own batch-composition noise of the
-W4A4 golden; adding my inferred W4A4 quantizer moves it **away** (its noise is not vLLM's noise), so the inferred `fouroversix` rule is
-probably not bit-exact, and reproducing W4A4 is worth nothing until `ops/nvfp4.py` / `ops/mxfp8.py` are extracted. On the 4k set the oracle is about twice vLLM's own concurrent noise there (97.5-98.3 % / 4.6-5.8e-3), but flat by position:
+Oracle variants against each other (`tools/golden_cmp.py`, long set unless noted): W4A16 none vs vllm rounding 98.79 % / 2.7e-3
+(short 98.42 % / 1.5e-3); W4A16 vs exact W4A4 (none) 98.09 % / 1.16e-2; **exact W4A4 none vs exact W4A4 vllm-rounding 96.94 % /
+1.92e-2**. Reading: with the bit-faithful quantizer, two runs whose activations differ only by bf16 rounding land 1.9e-2 apart, more
+than either is from vLLM. The per-16-block 4-vs-6 choice and the e2m1 codes are discontinuous in the input, so the W4A4 noise
+pattern depends on the exact upstream bits; an engine that is not bitwise identical to vLLM up to each quantizer gets an
+independent noise draw, and W4A4 then sits about one W4A4-noise further from the golden than W4A16 does. So W4A16 stays the
+oracle default and the G2/G3 reference; W4A4 is a selectable mode for speed, not for accuracy against these goldens.
+On the 4k set the oracle is about twice vLLM's own concurrent noise there (97.5-98.3 % / 4.6-5.8e-3), but flat by position:
 per 1024-token bucket 94.4-98.0 % with no step at the SWA window (1024) or the rel extent, so the window / extent / ring logic holds
 on real weights; the gap tracks low-confidence text (golden top-1 p ≈ 0.6-0.7 on docs and chat). Agreement does not
 degrade with position (long_prose_700 per-100-token top-1 91-100 %, lowest where the golden itself is least confident).
@@ -322,16 +328,23 @@ continuation stays coherent and on-topic. Divergences are at near-ties (`' ** 0.
 "Exact" therefore means: bitwise rows-exact against our own 1-row path (G0), and within G1-G3 against the references. W4A16 is the
 default numerics; a W4A4 mode, if built, must pass the same G3 and is not required for G2.
 
-## j. Open questions
+## j. Changes since f38cd515a, open questions
+
+Changes since f38cd515a (the full vLLM `ops/` tree is now in `.worktrees/ink-official/models/inkling2/nvidia/ops/`):
+
+| # | Change | Where |
+|---|---|---|
+| 1 | Exact activation quantizers written out: NVFP4 `fouroversix_mae` (bf16 input, `enc/dec/outer`, e4m3 6- and 4-based block scales, e2m1 RNE-satfinite, pairwise error, strict `err4 < err6`); **MXFP8 scale = amax/448 rounded up to a power of two** (my earlier OCP `floor(log2 amax) − 8` guess was wrong for ~19 % of blocks) | section c |
+| 2 | Settled: the GB10 goldens are **W4A4** (SM121 → family 120 → `bmm_sm120`; no `--moe-backend`, default `auto`; even `humming` on SM12x is W4A4). Only Hopper runs W4A16 | section c |
+| 3 | Oracle `--act-quant w4a4` now implements (1) line for line (`fake_quant_nvfp4_act`, `fake_quant_mxfp8_act`); W4A16 stays the default | `tools/inkling2_ref.py` |
+| 4 | Re-measured: exact W4A4 is **further** from the W4A4 goldens than W4A16 (long 96.6 % / 1.8e-2 vs 97.6 % / 1.2e-2), and two exact-W4A4 runs differing only in bf16 rounding are 1.9e-2 apart. W4A4 noise is a fresh draw per implementation, so G2/G3 keep the W4A16 oracle as reference; thresholds unchanged | section i |
+| 5 | Controller numerics confirmed equal to the oracle: `pair_rms_norm` → bf16 `[rms(dest), rms(msg)]`, bf16 `hidden`, fp32 `gain_forget`, unfused fp32 blend (`enable_fp_fusion=False`), then RMSNorm·w → bf16 (`ops/loop.py:18-132`, `loop.py:112-130`). No oracle change | a12 |
+| 6 | Summation order (informational, oracle unchanged): `linear_k_groups` / `k_group_partials` accumulate fp32 per 1024-wide K group and sum the groups in order (`ops/linear.py:202-290`); used for the router logits (`ops/moe.py:978`, K = 2304 → 3 groups), the dynamic conv taps (`sconv.py:106`) and the per-stream controller `down` (`loop.py:60`, K = 4608 → 5 groups). The batched controller path uses `torch.bmm` instead. Only near-tie top-k routing can notice; port kernels should be rows-exact, not order-matched | a6, a12, a13 |
+
+Still open:
 
 | Question | Why it matters | Pointer |
 |---|---|---|
-| Exact NVFP4 activation quantizer (`fouroversix_mae` tie rules, e2m1/e4m3 rounding, the `FP32_MAX` clamp) and the MXFP8 activation rule | only needed for a bit-faithful W4A4 mode | `ops/nvfp4.py`, `ops/mxfp8.py` missing; used at `ops/moe.py:14-15, 327-342`, `ops/activation.py:10-11, 171-173` |
-| `ops/loop.py` (`pair_rms_norm`, `blend_rms_norm`): exact rounding of the batched controller path | the oracle follows the per-stream reference `Inkling2MessageController.forward` (`loop.py:55-63`); the batched path may round `hidden` differently | `loop.py:31, 112-130` |
-| `ops/linear.py` (`linear_k_groups`, fp32 1024-wide K groups) | summation order only | `sconv.py:100-107`, `loop.py:30` |
-| `ops/block_scales.py`, `ops/gemv.py`, `ops/__init__.py` | SM100 layout / dispatch only | `moe.py:31`, `model.py:67` |
-| Whether the GB10 golden used `moe_backend=humming` (W4A16 on SM12x) or the default (W4A4) | decides which numerics the golden is; the golden doc's launch line has no `--moe-backend`, so presumably the default W4A4 path | `moe.py:150-158`, golden doc "Reference server" |
+| The W4A4 SiTU uses `ex2.approx`/`rcp.approx` sigmoid and `tanh.approx` softcaps; the oracle uses exact functions | only for a bitwise W4A4 mode, which (4) shows is not worth chasing | `ops/activation.py:20-58` |
+| Batched controller (`torch.bmm`, cuBLAS order) vs per-stream `linear_k_groups`: which one the loop model runs at batch 1 | summation order only | `loop.py:60, 112-130` |
 | llama.cpp's SITU op and GGUF gate/up order | three-way diff completeness only | `ggml` not in the extract |
-
-Missing vLLM files to extract from the image (one `docker cp` of `vllm/models/inkling2/nvidia/ops/`): `nvfp4.py`, `mxfp8.py`, `loop.py`,
-`linear.py`, `block_scales.py`, `gemv.py`, `__init__.py`.
