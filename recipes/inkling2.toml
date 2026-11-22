@@ -36,6 +36,10 @@ max_batch = 16                  # the cap of --max-batch (batched decode, lane i
 # (docs/results/2026-11-21-inkling2-prefill.md, fleetq #11109). Unlisted backends keep 256.
 [tuning.metal]
 prefill_chunk = 2048
+# the device sampler (Gumbel-max on the GPU) for plain-temperature requests: same distribution, other tokens for a given seed,
+# sampled decode about 11-12 % faster (user decision 2026-11-22; docs/results/2026-11-21-inkling2-hostgap.md).
+# INTARSIA_GUMBEL_SAMPLING=0 reverts.
+gumbel_sampling = true
 
 [accuracy]
 chat_turns = "inkling2"       # one open token per role, <|end_message|> closes (crates/intarsia-cli/src/cmd/accuracy/turns.rs)

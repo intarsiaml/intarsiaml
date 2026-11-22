@@ -6046,15 +6046,21 @@ impl Model {
         self.gumbel_bufs().is_some()
     }
 
+    /// The device sampler is asked for on this model: `INTARSIA_GUMBEL_SAMPLING`, else the recipe's `[tuning.<backend>]
+    /// gumbel_sampling` ([`crate::gumbel::wanted`]). [`Model::gumbel_ok`] also needs the kernel and one device.
+    pub fn gumbel_wanted(&self) -> bool {
+        crate::gumbel::wanted(self.recipe.gumbel_sampling(self.backend.name()))
+    }
+
     fn gumbel_bufs(&self) -> Option<&GumbelBufs> {
         self.gumbel
             .get_or_init(|| {
                 let r = self.gumbel_init();
                 // one line on stderr when the switch is set at all (so a run can show the sampler it got), none otherwise
-                if std::env::var_os("INTARSIA_GUMBEL_SAMPLING").is_some() {
+                if std::env::var_os("INTARSIA_GUMBEL_SAMPLING").is_some() || self.gumbel_wanted() {
                     match &r {
-                        Ok((_, k)) => eprintln!("device sampler (INTARSIA_GUMBEL_SAMPLING): on, kernel {k}"),
-                        Err(why) => eprintln!("device sampler (INTARSIA_GUMBEL_SAMPLING): off, {why}"),
+                        Ok((_, k)) => eprintln!("device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel {k}"),
+                        Err(why) => eprintln!("device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): off, {why}"),
                     }
                 }
                 r.ok().map(|(b, _)| b)
@@ -6064,8 +6070,8 @@ impl Model {
 
     /// [`Model::gumbel_bufs`]' decision: the buffers and the kernel name, or why the device sampler is off.
     fn gumbel_init(&self) -> std::result::Result<(GumbelBufs, String), String> {
-        if !crate::gumbel::enabled_from_env() {
-            return Err("the switch is not 1".into());
+        if !self.gumbel_wanted() {
+            return Err("INTARSIA_GUMBEL_SAMPLING is not 1 and the recipe does not turn it on".into());
         }
         if self.tp.world != 1 || !self.peers.is_empty() || self.remote.is_some() || self.vocab_par {
             return Err("tensor parallel or remote ranks".into());
