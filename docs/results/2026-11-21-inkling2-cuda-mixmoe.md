@@ -142,6 +142,12 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   equal to the pre-change run, the CUDA test suite green, and an nsys step time showing the gain. Two attempts at one route
   without a gain: stop and report which assumption broke. ink_row stays parked.
 
+- (coordinator, 17th) FYI for ranking after the probe, order unchanged. (1) cuda-attn starts DSpark speculative decode on CUDA
+  (.worktrees/ink-cuda-mtp); its gain depends mostly on MoE cost at 2..4 verify rows: weigh MoE at T = 2..4 with T = 1 when
+  picking the next build. (2) The CUDA prefill gap is this lane's: 1159 tok/s at 6.7k (#11085) vs vLLM 2772-2902 at 4-16k and
+  4018 at 1k (2.4-3.5x); attention is 6-9 % of it, the rest the MoE and in_proj prefill GEMMs. When the probe reports, give a
+  ranked choice between decode MoE (the probe outcome) and prefill GEMMs, each with an estimated tok/s or TTFT gain.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
