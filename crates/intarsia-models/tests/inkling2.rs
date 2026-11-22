@@ -631,7 +631,8 @@ fn inkling2_tiny_p12_forced_on() {
         return;
     }
     let ids = prompt(&dir);
-    let cpu = intarsia_backend_cpu::CpuBackend::arc();
+    // the backend under test (INTARSIA_INKLING2_BACKEND: cpu by default, cuda for lane ink-cuda-p12)
+    let cpu = backend();
     let packed = load_with(&dir, chunk(), cpu.clone()).unwrap();
     let no_p12 = Arc::new(Wrapped { inner: cpu, drop: vec![Op::MatmulP12], fail: Arc::new(AtomicBool::new(false)) });
     let plain = load_with(&dir, chunk(), no_p12).unwrap();
