@@ -657,3 +657,24 @@ ms / token over 44 layers (~0.6 ms if the math overhead scales), **below the 1 m
 Any layout reaches only ~225 GB/s at this geometry (82 % of 273); the remaining gap is the thread geometry / per-SM request
 rate, not the layout. The unroll-by-3 change was reverted (no effect). Next item: the LoopBlend path (deep gemv 0.86 +
 gate 0.49 + norm 0.25 ms / token) and the router (0.38 ms).
+
+### MoE thread-geometry probe (brief 29; spark2, fleetq `--quiet gpu,cpu`; same harness, current layout, no math, 2 passes)
+
+The shipped kernels already load 128 bits per lane per step (one `uint4`). Varied: rows per warp (= contiguous bytes per load
+instruction: 32 / rows lanes per row) and threads per block (CTA count at the same per-warp pattern):
+
+| geometry | gu us / GB/s | geometry | dn us / GB/s |
+|---|---|---|---|
+| 4 rows/warp, 256 thr (shipped) | 114.4-114.6 / 208 | 8 rows/warp, 256 thr (shipped) | 60.8 / 196 |
+| 4 rows/warp, 128 thr (2x CTA) | 113.5-116.1 / 206-210 | 8 rows/warp, 128 thr (2x CTA) | 60.9-64.8 / 184-196 |
+| 4 rows/warp, 64 thr (4x CTA) | 113.3-113.4 / 211 | 8 rows/warp, 64 thr (4x CTA) | 61.0-62.0 / 193-196 |
+| 2 rows/warp, 256 thr | 108.9-109.3 / 219 | 4 rows/warp, 256 thr | 57.3-57.8 / 207-208 |
+| 2 rows/warp, 128 thr | 107.5-109.8 / 218-222 | 4 rows/warp, 128 thr | 55.9-56.0 / 213 |
+| 1 row/warp, 256 thr | 105.9-108.6 / 220-226 | 2 rows/warp, 256 thr | 53.9 / 221 |
+| 8 rows/warp, 256 thr | 118.1-118.7 / 201-202 | 16 rows/warp, 256 thr | 93.9-95.2 / 126-127 |
+
+More CTAs at the same pattern change nothing; longer contiguous runs per instruction (fewer rows per warp) reach the same
+~225 GB/s ceiling as the repacked layout, without a repack. No geometry reaches 250 GB/s: the best saves ~0.5 ms / token
+against the shipped kernel, under the 0.8 ms bar. **MoE at T=1 closed** (brief 29). A low-cost follow-up if wanted later:
+gu at 1-2 rows / warp and dn at 2 rows / warp in the shipped kernels (same layout, ~0.5 ms / token, needs its own bitwise check
+since the lane-to-chunk map and the shuffle tree change).
