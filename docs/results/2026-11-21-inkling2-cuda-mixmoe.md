@@ -166,6 +166,12 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   each; do not build, the coordinator picks. No decode-vs-vLLM claims until a plain no-spec comparison exists (the reference ran
   with DSpark MTP).
 
+- (coordinator, 21st) BLOCKER after the prefill profile: CUDA serve does not load on ink/cuda-mtp b1d84ba5b (merged c6680633c)
+  on spark1, with and without --spec: `moe_experts: 12 shape(s) without a kernel (m=1 n=1152 k=2304 act=Bf16 w=U8)`, exit 78;
+  binary built 05:25, after the merge (includes 65daa3e7a). Check (a) stale admission cache on spark1, (c) spark1 source differs
+  from b1d84ba5b first, then (b) a weight-format change at m=1. Reproducer ink-cuda-mtp/.scratch/servediag.sh (~8 min, spark1,
+  own fleetq slot). Report cause and fix commit; the attention lane then reruns servediag, the serve smoke and localeval.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
