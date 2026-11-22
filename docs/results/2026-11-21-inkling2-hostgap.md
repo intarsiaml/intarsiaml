@@ -130,6 +130,20 @@ Status: #10943 done (items 2 and 3 measured: no regression, sampled decode +2.7-
   `--expect` to the honest estimate. `fleetq update` cannot change `--expect` (it takes --load / --quiet / --mem only), so
   #11033 was released and requeued as #11037 with `--expect 100` (build + Metal suite ~30, ~52 generate runs ~26, serve ~5,
   plan show ~6, 8B tests ~15, plus margin). It was last in line, so it lost no place.
+- 2026-11-22 (coordinator): #10943 accepted (greedy +1.5 %, the pool +2.7-3.6 % sampled, bitwise everywhere). ink-metal will
+  merge ink/hostgap 9a38f0224 once spark2 #11072 and bespin #11073 pass; the lane messages their results. The side branch waits
+  for #11037 as planned.
+- 2026-11-22 (coordinator, next item 7): the host sampler stays the DEFAULT for sampled rows (the device sampler is opt-in and
+  not bitwise), so the 1.33 ms host share at t1.0 is worth cutting.
+  1. Pre-wake the pool when the step's command buffer is committed: spin or futex-wake the workers so they are hot when the
+     logits land (microbench 0.81 ms warm vs the slower in-loop number: about 0.3-0.5 ms per token at stake). Bound the spin,
+     e.g. at most the expected GPU time, then park.
+  2. Soft-cap 0.27 ms: fold it into the GPU unembed epilogue if that is bitwise the host soft-cap; otherwise vectorize it on
+     the pool.
+  3. Correctness: sampled md5 identical to the current path at t0.7 / t1.0, seeds 7 / 11, top-k / top-p.
+  4. Timing: interleaved ABAB at t1.0 and t0.7, short and 5k. Fold it into #11037 if that has not started, else queue one
+     short quiet job.
+  5. Merge rule: >= base and bitwise identical.
 
 ## Measurement (before)
 
