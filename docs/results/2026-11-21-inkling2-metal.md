@@ -255,6 +255,11 @@ and batch 6/6, cuda / hip lib 34 / 31, docs_env_vars 2/2. Combined gate: endor #
   --batches 1,8,16`, 3 reps, median of columns 3 (batched step ms) and 6 (batched tok/s); reference #11181 (tip 8546d143f,
   before the NE fix): B1 16.40 ms / 61.0 tok/s, B8 34.93 / 229.0, B16 59.96 / 266.9; NE 3 measured equal (B16 59.77 / 267.7),
   which confirms the slot-noise reading of #11179's speed rows (NE 3 costs nothing).
+- 2026-11-22 (coordinator): merges and the op 76 resolution accepted. Release #11205 and reserve the gate `--in 1m` (no
+  `--quiet`); add a plan / admission check on Inkling: InkRoute registered as op 76, nothing on 77..=95. Lane: added
+  (`cargo test -p intarsia-core --lib ops::`, `kernels test --op ink_route`, Inkling `plan show` must list `ink_route` and no
+  `ink_reserved`). The reservation was refused twice (409: collides with waiting quiet jobs #11183, then #11185 / #11188 /
+  #11194), so the gate is queued normally as #11206 (9th); the coordinator was told.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
