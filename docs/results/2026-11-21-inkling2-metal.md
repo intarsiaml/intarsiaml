@@ -391,6 +391,18 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
   pack12's share; the combined gate's batched == solo run (7e5e6010e, not a timing slot) logged B16 74.9 ms, consistent with
   #11261.
 
+### Quiet baseline #11266, first half (c918e9fda, with-pack12, quiet gpu,cpu)
+
+- pk12check: G2 short 2.087e-3 prefill / 2.928e-3 decode, PASS, confident misses 0/363; greedy 64 / 256 md5 65cde8f35... /
+  61fd59fecb5... = the combined-gate tip.
+- batch_step (random-id prompts, synthetic) with `INTARSIA_INK_PACK12=0`, batched step ms per rep: B1 15.36 / 15.39 / 15.38
+  (median 15.38), B8 44.72 / 41.25 / 41.55 (41.55), B16 74.45 / 77.93 / 76.20 (76.20). Against #11181 (8546d143f: B1 16.40, B8
+  34.93, B16 59.96): **B8 +19 %, B16 +27 %, B1 -6 %**. The batched regression is confirmed and not pack12; 7e5e6010e (pre-pack12,
+  unquiet) already had B16 74.9 ms, so it came in with hostgap / fp8 / prefill / dfuse.
+- **P12 default-on breaks the batched plan**: batch_step with defaults panics in all 3 reps at batch_step.rs:68
+  (`configure_plan(..).unwrap()` after `enable_batch(16)`). #11194 covered solo paths only. Reported to the coordinator: revert
+  e215c2fca or restrict P12 to R=1; held. The pack12 arm's rule could not apply (no P12-on numbers).
+
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
 | Tree | KL21 scored | max | chat_system | chat_reasoning |
