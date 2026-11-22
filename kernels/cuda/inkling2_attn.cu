@@ -1476,6 +1476,20 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
         }
     }
     const int c0 = jlo / CH, c1 = jhi / CH;
+    // RIN: the relproj columns of a sub-chunk's distances d = pos0 + rb + i - (jb + CH - 1), i in [0, FBR + CH), go through
+    // registers one sub-chunk ahead (loaded before the previous sub-chunk's math, stored after its barrier): x = tid + 384 w
+    // (G = 3 only) -> (j = x / (FBR + CH), i = x % (FBR + CH)); distances outside [0, E) or j >= dr are zero and not loaded
+    constexpr int WN = ((FBR + CH) * 16 + 383) / 384;
+    unsigned short wreg[RIN ? WN : 1];
+    auto wload = [&](int ci) {
+        const int db = pos0 + rb - (ci * CH + CH - 1);
+#pragma unroll
+        for (int w = 0; w < WN; ++w) {
+            const int x = tid + 384 * w, j = x / (FBR + CH), d = db + x % (FBR + CH);
+            wreg[w] = (x < (FBR + CH) * 16 && j < dr && d >= 0 && d < E) ? __ldg((const unsigned short*)p.rp + (size_t)j * E + d) : (unsigned short)0;
+        }
+    };
+    if constexpr (RIN) wload(c0);
     stage(c0, 0);
     cp_commit();
     for (int ci = c0; ci <= c1; ++ci) {
@@ -1483,13 +1497,14 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
         __syncthreads();
         if (ci < c1) stage(ci + 1, buf ^ 1);
         cp_commit();
-        // distances of this sub-chunk: d = pos0 + rb + i - (jb + CH - 1) for i in [0, FBR + CH - 1)
         const int dbase = pos0 + rb - (jb + CH - 1);
         if constexpr (RIN) {
-            for (int x = tid; x < (FBR + CH) * 16; x += blockDim.x) {
-                const int j = x / (FBR + CH), i = x % (FBR + CH), d = dbase + i;
-                wS[i * 16 + j] = (j < dr && d >= 0 && d < E) ? b2f(p.rp[(size_t)j * E + d]) : 0.0f;
+#pragma unroll
+            for (int w = 0; w < WN; ++w) {
+                const int x = tid + 384 * w;
+                if (x < (FBR + CH) * 16) wS[(x % (FBR + CH)) * 16 + x / (FBR + CH)] = __uint_as_float((unsigned)wreg[w] << 16);
             }
+            if (ci < c1) wload(ci + 1);
         }
         cp_wait<1>();
         __syncthreads();
@@ -1501,7 +1516,11 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
             if (jb + kb + 15 < wlo || jb + kb > whi) continue;
             // the bias loads first: they do not depend on the scores, so their latency overlaps the QK^T mma
             float bb[2][4];
-            if constexpr (RIN) {
+            // RIN: the warp's smallest distance in this 16-key step is pos0 + w0 - (jb + kb + 15); at or past E no score is biased
+            if (RIN && pos0 + w0 - (jb + kb + 15) >= E) {
+#pragma unroll
+                for (int nb = 0; nb < 2; ++nb) bb[nb][0] = bb[nb][1] = bb[nb][2] = bb[nb][3] = 0.0f;
+            } else if constexpr (RIN) {
 #pragma unroll
                 for (int k = 0; k < 2; ++k) {
                     const float4* rr4 = (const float4*)(rS + ((rq * 16 + g8 + 8 * k) * G + gh) * 16);
@@ -2058,7 +2077,7 @@ extern "C" int ik_rel_sink_attn_bf16_flash(const ik_tensor* q, const ik_tensor* 
 static int ink_attn_prefill(InkP& p, const ik_ink_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc, const ik_scratch* scratch,
                             const ik_tensor* pos, void* stream) {
     const int G = p.h / p.hk;
-    if (pos || G < 1 || G > 3 || p.dr > 16 || !tile_dims(p.d)) return IK_ERR_SHAPE;
+    if (pos || G != 3 || p.dr > 16 || !tile_dims(p.d)) return IK_ERR_SHAPE;  // G = 3: the RIN staging's thread count
     if (!ik_aligned16(kc->data) || !ik_aligned16(vc->data)) return IK_ERR_INVALID_ARG;
     const size_t nq = (size_t)p.t * p.h * p.d, nkv = (size_t)p.t * p.hk * p.d, nr = (size_t)p.t * p.h * p.dr;
     if (!scratch || !scratch->data || scratch->bytes < (int64_t)((nq + 2 * nkv + nr) * 2) || !ik_aligned16(scratch->data)) return IK_ERR_INVALID_ARG;

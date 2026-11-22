@@ -67,7 +67,7 @@ fn flash_ok(s: &ShapeInfo) -> bool {
 
 /// Prefill chunks of `InkAttnDecode` (brief 30a): the prologue + flash with the rel bias formed in the kernel.
 fn prefill_ok(s: &ShapeInfo) -> bool {
-    flash_ok(s) && s.n_heads / s.n_kv_heads <= 3
+    flash_ok(s) && s.n_heads == 3 * s.n_kv_heads
 }
 
 /// q [T,H,D], k / v [T,Hk,D] and r [T,H,dr] bf16 (dr <= 16 is checked at launch, sized for 32).
