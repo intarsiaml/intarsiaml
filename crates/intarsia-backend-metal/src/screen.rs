@@ -4,7 +4,7 @@
 
 use crate::dense::Grid;
 use crate::MetalBackend;
-use intarsia_core::backend::{Exactness, KernelImpl, Tol};
+use intarsia_core::{Exactness, KernelImpl, Tol};
 use intarsia_core::{DType, Error, Op, OpCall, Result};
 
 pub const HEAD_SCREEN_F32: &str = "head_screen_f32";
