@@ -1254,3 +1254,14 @@ Every correctness gate passes. The speed gain is real but below the 0.3 ms/token
   loading 3 chunks ahead; 44 visits per token.
 - **Lane recommendation:** keep it opt-in. It is bitwise, the code is template parameters on the shipped kernels, and
   the gain is consistent. No default flip unless the coordinator changes the bar.
+
+### Coordinator decisions on job G and the next item (2026-11-22 ~08:55, verbatim in substance)
+
+- **T1 stays opt-in and is kept, not dropped.** The pre-registered rule holds: `INTARSIA_INK_MOE_T1` stays default off.
+- **Bundling candidate.** If a later T = 1 change lands in the same kernels (`inkling2_moe.metal` NVFP4 gate+up / down),
+  gate it together with T1 in one ABAB, so that the two gains are judged as one.
+- **Next: item 2, the decode attention core.** Take its ceiling from roofline L (measured ms per token vs floor, short and
+  5k context). If the ceiling is >= 0.3 ms per token, probe it as for the experts (a no-math stream of the same geometry,
+  then variants) under the same pre-registered rule. If it is under 0.3 ms, report the number and wrap up the lane.
+- **Housekeeping.** Merge ink/metal into ink/dfuse (done: 3d85517f7). Remove finished snapshot worktrees with
+  `git worktree remove` (snap8 and snap9 removed). The merge's compile check runs on bespin or in a slot.
