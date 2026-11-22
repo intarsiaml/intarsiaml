@@ -28,19 +28,14 @@ pub fn run(call: &OpCall, fast: bool) -> Result<()> {
             let (t, v, c) = (i[0].shape[0], i[0].shape[1], o[0].shape[1]);
             let d = i[1].shape[1];
             let (a, h, beta) = (read_f32(&i[0])?, read_f32(&i[1])?, read_f32(&i[2])?);
-            let mut cand = vec![0i32; t * c];
+            let mut cand = vec![-1i32; t * c];
             let cnt: Vec<i32> = cand
                 .par_chunks_mut(c)
                 .enumerate()
                 .map(|(r, cr)| screen_row(&a[r * v..(r + 1) * v], &h[r * d..(r + 1) * d], &beta, cr))
                 .collect();
-            // only the written candidates are defined; keep the rest of cand as it was
-            let mut old = read_i32(&o[0])?;
-            for r in 0..t {
-                let n = if candidate_path(cnt[r], c) { cnt[r] as usize } else { 0 };
-                old[r * c..r * c + n].copy_from_slice(&cand[r * c..r * c + n]);
-            }
-            write_i32(&o[0], &old)?;
+            // every slot is defined: the first min(cnt, C) candidates, -1 elsewhere (screen_row)
+            write_i32(&o[0], &cand)?;
             write_i32(&o[1], &cnt)
         }
         Op::LogitsGather => {

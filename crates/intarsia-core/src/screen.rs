@@ -16,8 +16,8 @@
 //! (`p_l += p_{l^16}`, `^8`, `^4`, `^2`, `^1`, lane 0); `hn = sqrt(ss) * (1 + 2^-11)`; for every row n
 //! `m = fma(hn, beta_n, |a_n|)`, `lo = fma(-C, m, fma(-hn, beta_n, a_n))`, `hi = fma(C, m, fma(hn, beta_n, a_n))` with
 //! `C = 2^-20`; `L = max_n lo`; the candidates are `{n : hi_n >= L}` written in ascending n to `cand[t, ..]` (at most C_cap of
-//! them; C_cap is cand's width), `cnt[t]` their number (which may exceed C_cap). A non-finite `hn`, `a_n` or `L` sets
-//! `cnt[t] = i32::MAX`.
+//! them; C_cap is cand's width), `cnt[t]` their number (which may exceed C_cap); every other slot of `cand[t, ..]` is -1, so
+//! the whole output is defined. A non-finite `hn`, `a_n` or `L` sets `cnt[t] = i32::MAX` and the whole row of `cand` to -1.
 //!
 //! **LogitsGather.** `cnt[t]` in `1..=C_cap`: `y[t, j] = Logits(h_t, W[cand[t, j]])` for `j < cnt[t]`; otherwise (the
 //! fallback) `y[t, n] = Logits(h_t, W_n)` for every n, i.e. the full head row. Each value is bitwise the backend's `Logits`
@@ -174,8 +174,9 @@ pub fn lo_hi(a: f32, hn: f32, beta: f32) -> (f32, f32) {
     (lo, hi)
 }
 
-/// HeadScreen of one row: writes the first `cand.len()` candidates in ascending order, returns `cnt`.
+/// HeadScreen of one row: writes the first `cand.len()` candidates in ascending order and -1 in the other slots, returns `cnt`.
 pub fn screen_row(a: &[f32], h: &[f32], beta: &[f32], cand: &mut [i32]) -> i32 {
+    cand.fill(-1);
     let hn = row_norm(h);
     if !hn.is_finite() {
         return NONFINITE;
