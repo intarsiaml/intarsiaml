@@ -700,3 +700,16 @@ One SM tops out near 57 GB/s. A bitwise kernel (same per-tile mma sequence, a cp
 ms / token. Only more SMs (split-K) go further: ~3-4 us per call, ~0.7 ms / token, but it changes h's bits, so it needs the
 same split and reduction order at every T (decode, verify, prefill) and G2 / G3 + prefill gates. Asked the coordinator which;
 meanwhile the bitwise gate + norm fuse (~0.2 ms).
+
+### Split-N check (brief 30; spark2 fleetq `--quiet gpu,cpu`, same probe, 2 passes agree)
+
+h's N is the controller rank G = 64 per stream: 4 n-tiles of 16, so split-N gives 4 CTAs per call at S=1 and 12 at S=3 (one
+warp each; 24 + 24 calls / token). No-math, shipped register loads:
+
+| | current | split-N (1 warp / CTA) |
+|---|---|---|
+| S=1 (590 KB) | 14.7 us (1 CTA x 4 warps) | 12.9 us (4 CTAs) |
+| S=3 (1.77 MB) | 16.3 us (3 CTAs x 4 warps) | 15.5 us (12 CTAs) |
+
+Spreading the same warps over more SMs gains 5-12 %: each warp's serial load chain (147 KB over 288 k-steps) is the limit,
+not the SM. N is too narrow -> rule 2: split-K as an opt-in (default off), after the gate + norm fuse.
