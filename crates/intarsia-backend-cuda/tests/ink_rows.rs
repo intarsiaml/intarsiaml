@@ -593,3 +593,42 @@ fn ink_mxfp4_head_bitwise_gemv() {
         }
     }
 }
+
+/// The NVFP4 decode staging of the experts kernels (row blocks copied to shared memory, the same chunk loop): BITWISE the unstaged
+/// kernels, ordinary and `_rows`, 16-bit and W4A4 activations, at the real shape (H 2304, I 1152) and a small one, T 1 / 4 / 16 and
+/// 80 (`_rows` takes the pair-table path above 512 pairs).
+#[test]
+fn ink_experts_stage_bitwise() {
+    let Some(rig) = Rig::new("ink_experts_stage_bitwise") else { return };
+    rig.cache_on.set(true);
+    let mut rng = SplitMix64::new(0x57a6e);
+    for &(e, h, i) in &[(32usize, 2304usize, 1152usize), (16, 256, 128)] {
+        let k = 8usize;
+        let ex = random_experts(&mut rng, e, h, i);
+        let w = vec![ex.gate_up_w.clone(), ex.gate_up_s.clone(), ex.down_w.clone(), ex.down_s.clone(), ex.gscales.clone()];
+        for t in [1usize, 4, 16, 80] {
+            let (ids, ws) = random_routing(&mut rng, t, e, k);
+            let ws = HostTensor::from_f32(&[t, k], &ws.to_f32().iter().map(|v| v * 8.0).collect::<Vec<_>>());
+            let x = rnd(&mut rng, DType::Bf16, &[t, h], 1.0);
+            for aq in [0u8, 1] {
+                let mut a = OpAttrs { top_k: k, ..OpAttrs::default() };
+                (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
+                a.ink.act_quant = aq;
+                let names: &[&str] = if t * k > 512 { &["moe_experts_situ_bf16_rows"] } else { &["moe_experts_situ_bf16", "moe_experts_situ_bf16_rows"] };
+                for kn in names {
+                    let run = || {
+                        let mut v: Vec<&HostTensor> = vec![&x, &ids, &ws];
+                        v.extend(w.iter());
+                        rig.run_r(kn, Op::MoeExperts, &v, &[(DType::Bf16, vec![t, h], None)], &a)
+                    };
+                    intarsia_backend_cuda::inkmoe::set_stage(false);
+                    let off = run();
+                    intarsia_backend_cuda::inkmoe::set_stage(true);
+                    let on = run();
+                    assert!(off[0].to_f32().iter().all(|v| v.is_finite()), "{kn} non-finite");
+                    assert_eq!(on[0].data, off[0].data, "{kn} H {h} I {i} T {t} aq {aq}: staged differs from unstaged");
+                }
+            }
+        }
+    }
+}

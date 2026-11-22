@@ -149,6 +149,20 @@ pub fn set_mma_min(pairs: i32) {
     let _ = pairs;
 }
 
+/// Tests: the NVFP4 decode staging of the experts kernels (ink_moe.cu; default on, `INTARSIA_INK_MOE_STAGE=0` off).
+pub fn set_stage(on: bool) {
+    #[cfg(ik_cuda)]
+    {
+        extern "C" {
+            fn ik_ink_moe_set_stage(v: std::ffi::c_int);
+        }
+        // SAFETY: sets a plain int of the kernel library.
+        unsafe { ik_ink_moe_set_stage(on as std::ffi::c_int) }
+    }
+    #[cfg(not(ik_cuda))]
+    let _ = on;
+}
+
 /// Benchmarks only: 1 launches only the gate+up kernel of an experts call, 2 only the down kernel (the output is garbage).
 pub fn set_probe(v: i32) {
     #[cfg(ik_cuda)]

@@ -83,6 +83,8 @@ void ik_ink_moe_probe(int v);
 /* Tests / benchmarks: an ordinary experts call takes the tensor-core path above this many pairs (default 512, env
  * INTARSIA_INK_MOE_MMA_MIN; INT_MAX: never). */
 void ik_ink_moe_set_mma_min(int pairs);
+/* Tests: the NVFP4 decode staging (ink_moe.cu, default on; env INTARSIA_INK_MOE_STAGE=0 off): 0 off, 1 on. */
+void ik_ink_moe_set_stage(int v);
 
 #ifdef __cplusplus
 }

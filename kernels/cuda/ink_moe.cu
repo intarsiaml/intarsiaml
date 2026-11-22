@@ -66,6 +66,18 @@ struct MoeArgs {
     int pf;
 };
 
+// NVFP4 decode staging (INTARSIA_INK_MOE_STAGE, default on; bitwise): a warp copies its expert's row block (gu: the 4 gate and
+// 4 up rows and their scales; dn: the 8 rows and their scales; each block is contiguous in memory) into its shared-memory slice
+// with fully contiguous 16-byte cp.async per lane (512 bytes per warp instruction), then runs the same chunk loop on the slice:
+// the same lanes, chunks, fma chains and reductions, so the same bits. The chunk loop's own loads are 4 / 8 rows x 128 / 64
+// bytes per instruction; the probe (brief 29) measured contiguous runs at ~225 GB/s against ~205 / ~190 for that pattern.
+IK_DEVI int64_t stage_gu_bytes(int H) { return 2 * kGuRows * ((int64_t)H / 2 + H / 16); }
+IK_DEVI int64_t stage_dn_bytes(int I) { return kDnRows * ((int64_t)I / 2 + I / 16); }
+
+IK_DEVI void warp_stage(uint8_t* dst, const uint8_t* src, int64_t bytes, int lane) {
+    for (int64_t o = (int64_t)lane * 16; o < bytes; o += IK_WARP * 16) ik_cp_async16(dst + o, src + o, 16);
+}
+
 // The warp's lanes request every 128-byte line of [p, p + bytes) into L2 at once: DRAM then streams the warp's whole
 // contiguous row block (gu: 4 consecutive gate rows, 4 up rows; dn: 8 consecutive rows; and their scales) instead of the
 // 64 / 128-byte pieces of the chunk loop, which then hit L2.
@@ -184,10 +196,10 @@ struct WChunk {
     float s0, s1;
 };
 
-template <int FMT>
+template <int FMT, bool SM = false>
 IK_DEVI void load_chunk(const uint8_t* __restrict__ wrow, const uint8_t* __restrict__ srow, int ch, WChunk& c) {
     if (FMT == FMT_NV) {
-        const uint4 v = __ldcs(reinterpret_cast<const uint4*>(wrow) + ch);
+        const uint4 v = SM ? reinterpret_cast<const uint4*>(wrow)[ch] : __ldcs(reinterpret_cast<const uint4*>(wrow) + ch);
         ik_fp4x8_to_bf2(v.x, c.w);
         ik_fp4x8_to_bf2(v.y, c.w + 4);
         ik_fp4x8_to_bf2(v.z, c.w + 8);
@@ -245,9 +257,10 @@ template <int FMT>
 IK_DEVI int64_t srow_bytes(int k) { return FMT == FMT_NV ? k / 16 : k / 32; }
 
 // ---- gate + up ---------------------------------------------------------------------------------------------------------
-template <int FMT, int ACT>
+template <int FMT, int ACT, bool STG = false>
 __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
     __shared__ SmemGroups sg;
+    extern __shared__ __align__(16) uint8_t stg_smem[];
     const Groups gr = get_groups(a, sg);
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
     const int q = lane >> 3, sub = lane & 7;
@@ -263,7 +276,32 @@ __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
         const uint8_t* wu = a.guw + ((int64_t)e * 2 * I + I + rr) * wb;
         const uint8_t* sgp = a.gus + ((int64_t)e * 2 * I + rr) * sb;
         const uint8_t* sup = a.gus + ((int64_t)e * 2 * I + I + rr) * sb;
-        if (a.pf) {
+        if (STG) {
+            // slice: gate rows | up rows | gate scales | up scales, nr rows each (row q >= nr reads row nr - 1, as rr does)
+            const int rb = blockIdx.x * kGuRows, nr = min(kGuRows, I - rb);
+            uint8_t* sl = stg_smem + (int64_t)warp * stage_gu_bytes(H);
+            __syncwarp();  // the previous expert's chunk loop is done with the slice
+            warp_stage(sl, a.guw + ((int64_t)e * 2 * I + rb) * wb, nr * wb, lane);
+            warp_stage(sl + kGuRows * wb, a.guw + ((int64_t)e * 2 * I + I + rb) * wb, nr * wb, lane);
+            warp_stage(sl + 2 * kGuRows * wb, a.gus + ((int64_t)e * 2 * I + rb) * sb, nr * sb, lane);
+            warp_stage(sl + 2 * kGuRows * wb + kGuRows * sb, a.gus + ((int64_t)e * 2 * I + I + rb) * sb, nr * sb, lane);
+            ik_cp_async_commit();
+            if (a.pf && d + kWarpsB < gr.nd) {
+                // the warp's next expert into L2 while this one computes
+                const int e2 = gr.dexp[d + kWarpsB];
+                warp_pf_l2(a.guw + ((int64_t)e2 * 2 * I + rb) * wb, nr * wb, lane);
+                warp_pf_l2(a.guw + ((int64_t)e2 * 2 * I + I + rb) * wb, nr * wb, lane);
+                warp_pf_l2(a.gus + ((int64_t)e2 * 2 * I + rb) * sb, nr * sb, lane);
+                warp_pf_l2(a.gus + ((int64_t)e2 * 2 * I + I + rb) * sb, nr * sb, lane);
+            }
+            ik_cp_async_wait_all();
+            __syncwarp();
+            const int qr = min(q, nr - 1);
+            wg = sl + qr * wb;
+            wu = sl + kGuRows * wb + qr * wb;
+            sgp = sl + 2 * kGuRows * wb + qr * sb;
+            sup = sl + 2 * kGuRows * wb + kGuRows * sb + qr * sb;
+        } else if (a.pf) {
             const int rb = blockIdx.x * kGuRows, nr = min(kGuRows, I - rb);
             warp_pf_l2(a.guw + ((int64_t)e * 2 * I + rb) * wb, nr * wb, lane);
             warp_pf_l2(a.guw + ((int64_t)e * 2 * I + I + rb) * wb, nr * wb, lane);
@@ -282,8 +320,8 @@ __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
             }
             for (int ch = sub; ch < nch; ch += 8) {
                 WChunk cg, cu;
-                load_chunk<FMT>(wg, sgp, ch, cg);
-                load_chunk<FMT>(wu, sup, ch, cu);
+                load_chunk<FMT, STG>(wg, sgp, ch, cg);
+                load_chunk<FMT, STG>(wu, sup, ch, cu);
 #pragma unroll
                 for (int b = 0; b < kNB; ++b) {
                     if (b >= nb) break;
@@ -324,10 +362,11 @@ __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
 }
 
 // ---- down + the token sum ----------------------------------------------------------------------------------------------
-template <int FMT, int ACT, typename OutT>
+template <int FMT, int ACT, typename OutT, bool STG = false>
 __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
     __shared__ SmemGroups sg;
     __shared__ float term[kDecPairs * kDnRows];
+    extern __shared__ __align__(16) uint8_t stg_smem[];
     const Groups gr = get_groups(a, sg);
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
     const int q = lane >> 2, sub = lane & 3;
@@ -342,7 +381,25 @@ __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
         const int e = gr.dexp[d];
         const uint8_t* wd = a.dnw + ((int64_t)e * H + rr) * wb;
         const uint8_t* sd = a.dns + ((int64_t)e * H + rr) * sb;
-        if (a.pf) {
+        if (STG) {
+            // slice: rows | scales, nr rows each (row q >= nr reads row nr - 1, as rr does)
+            const int nr = min(kDnRows, H - r0);
+            uint8_t* sl = stg_smem + (int64_t)warp * stage_dn_bytes(I);
+            __syncwarp();
+            warp_stage(sl, a.dnw + ((int64_t)e * H + r0) * wb, nr * wb, lane);
+            warp_stage(sl + kDnRows * wb, a.dns + ((int64_t)e * H + r0) * sb, nr * sb, lane);
+            ik_cp_async_commit();
+            if (a.pf && d + kWarpsB < gr.nd) {
+                const int e2 = gr.dexp[d + kWarpsB];
+                warp_pf_l2(a.dnw + ((int64_t)e2 * H + r0) * wb, nr * wb, lane);
+                warp_pf_l2(a.dns + ((int64_t)e2 * H + r0) * sb, nr * sb, lane);
+            }
+            ik_cp_async_wait_all();
+            __syncwarp();
+            const int qr = min(q, nr - 1);
+            wd = sl + qr * wb;
+            sd = sl + kDnRows * wb + qr * sb;
+        } else if (a.pf) {
             const int nr = min(kDnRows, H - r0);
             warp_pf_l2(a.dnw + ((int64_t)e * H + r0) * wb, nr * wb, lane);
             warp_pf_l2(a.dns + ((int64_t)e * H + r0) * sb, nr * sb, lane);
@@ -359,7 +416,7 @@ __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
             }
             for (int ch = sub; ch < nch; ch += 4) {
                 WChunk c;
-                load_chunk<FMT>(wd, sd, ch, c);
+                load_chunk<FMT, STG>(wd, sd, ch, c);
 #pragma unroll
                 for (int b = 0; b < kNB; ++b) {
                     if (b >= nb) break;
@@ -448,6 +505,34 @@ int fp4_on() {
 // W4A4 scratch in front of the layout below: xq bf16 [T,H] | xo f32 [T] | ho f32 [P] (inkmoe.rs `aq_scratch`)
 int64_t aq_bytes(int64_t T, int64_t P, int64_t H) { return ((T * H * 2 + 255) & ~(int64_t)255) + ((T * 4 + 255) & ~(int64_t)255) + ((P * 4 + 255) & ~(int64_t)255); }
 
+// NVFP4 decode staging (see stage_gu_bytes): INTARSIA_INK_MOE_STAGE=0 turns it off; tests set it with ik_ink_moe_set_stage
+int g_stage = -1;
+int moe_stage_on() {
+    if (g_stage < 0) {
+        const char* e = getenv("INTARSIA_INK_MOE_STAGE");
+        g_stage = e && e[0] == '0' ? 0 : 1;
+    }
+    return g_stage;
+}
+
+// dynamic shared memory of a staged launch, raised once per kernel instance (the default cap is 48 KB); false: not possible
+// (keyed by the kernel: every instance has the same function type)
+bool stage_smem(const void* kern, int64_t bytes) {
+    static const void* keys[32];
+    static int64_t done[32];
+    int i = 0;
+    for (; i < 32 && keys[i] && keys[i] != kern; ++i) {}
+    if (i == 32) return false;
+    if (keys[i] == kern && bytes <= done[i]) return true;
+    if (cudaFuncSetAttribute(kern, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)bytes) != cudaSuccess) {
+        (void)cudaGetLastError();
+        return false;
+    }
+    keys[i] = kern;
+    done[i] = bytes;
+    return true;
+}
+
 int moe_pf_on() {
     static const int v = [] {
         const char* e = getenv("INTARSIA_INK_MOE_PF");
@@ -512,8 +597,19 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool r
         ink_moe_group_kernel<<<1, 1024, 0, st>>>(a);
         IK_TRY(ik_launch_status());
     }
+    // staging: NVFP4, 16-byte aligned row blocks (H, I multiples of 32), within the opt-in shared memory
+    // (H % 256: a gate / up row's scales are 16-byte multiples; full row blocks: I % kGuRows, H % kDnRows)
+    const bool stg = FMT == FMT_NV && moe_stage_on() && a.H % 256 == 0 && a.I % 32 == 0 && a.I % kGuRows == 0 && a.H % kDnRows == 0 &&
+                     (reinterpret_cast<uintptr_t>(a.guw) & 15u) == 0 && (reinterpret_cast<uintptr_t>(a.gus) & 15u) == 0 &&
+                     (reinterpret_cast<uintptr_t>(a.dnw) & 15u) == 0 && (reinterpret_cast<uintptr_t>(a.dns) & 15u) == 0;
+    const int64_t gu_dyn = (int64_t)kWarpsB * 2 * kGuRows * ((int64_t)a.H / 2 + a.H / 16);
+    const int64_t dn_dyn = (int64_t)kWarpsB * kDnRows * ((int64_t)a.I / 2 + a.I / 16);
     if (g_probe != 2) {
-        ink_moe_gu_kernel<FMT, ACT><<<(a.I + kGuRows - 1) / kGuRows, kThreads, 0, st>>>(a);
+        const unsigned g = (unsigned)((a.I + kGuRows - 1) / kGuRows);
+        if (stg && stage_smem((const void*)ink_moe_gu_kernel<FMT, ACT, true>, gu_dyn))
+            ink_moe_gu_kernel<FMT, ACT, true><<<g, kThreads, (size_t)gu_dyn, st>>>(a);
+        else
+            ink_moe_gu_kernel<FMT, ACT><<<g, kThreads, 0, st>>>(a);
         IK_TRY(ik_launch_status());
     }
     if (a.aq) {
@@ -524,7 +620,11 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool r
     }
     if (g_probe != 1) {
         const unsigned g = (unsigned)((a.H + kDnRows - 1) / kDnRows);
-        if (out_f32) ink_moe_dn_kernel<FMT, ACT, float><<<g, kThreads, 0, st>>>(a);
+        if (stg && out_f32 && stage_smem((const void*)ink_moe_dn_kernel<FMT, ACT, float, true>, dn_dyn))
+            ink_moe_dn_kernel<FMT, ACT, float, true><<<g, kThreads, (size_t)dn_dyn, st>>>(a);
+        else if (stg && !out_f32 && stage_smem((const void*)ink_moe_dn_kernel<FMT, ACT, ik_bf16, true>, dn_dyn))
+            ink_moe_dn_kernel<FMT, ACT, ik_bf16, true><<<g, kThreads, (size_t)dn_dyn, st>>>(a);
+        else if (out_f32) ink_moe_dn_kernel<FMT, ACT, float><<<g, kThreads, 0, st>>>(a);
         else ink_moe_dn_kernel<FMT, ACT, ik_bf16><<<g, kThreads, 0, st>>>(a);
         IK_TRY(ik_launch_status());
         if (a.table) {
@@ -558,6 +658,7 @@ int common_checks(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts
 extern "C" {
 
 void ik_ink_moe_probe(int v) { g_probe = v; }
+void ik_ink_moe_set_stage(int v) { g_stage = v ? 1 : 0; }
 void ik_ink_moe_set_mma_min(int pairs) { g_mma_min = pairs; }
 
 }  // extern "C"
