@@ -315,8 +315,32 @@ pub fn run(call: &OpCall) -> Result<()> {
             }
             Ok(())
         }
-        Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => Err(Error::invalid(format!("{}: reserved discriminant", call.op))),
+        Op::GumbelArgmax => gumbel_argmax(call),
+        Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => Err(Error::invalid(format!("{}: reserved discriminant", call.op))),
     }
+}
+
+/// `GumbelArgmax` (the device sampler, lane ink-hostgap): each row's draw is `intarsia_core::gumbel::argmax_row` of its logits
+/// and key, rows in parallel. The fast path shares it (one definition, bit for bit).
+pub fn gumbel_argmax(call: &OpCall) -> Result<()> {
+    let i = &call.inputs;
+    let (r, v) = (i[0].shape[0], i[0].shape[1]);
+    let l = read_f32(&i[0])?;
+    let keys: Vec<i32> = crate::mem::bytes(&i[1])?.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+    let cap = call.attrs.scale;
+    let ids: Vec<i32> = (0..r)
+        .into_par_iter()
+        .map(|ri| {
+            let k = [keys[ri * 4], keys[ri * 4 + 1], keys[ri * 4 + 2], keys[ri * 4 + 3]];
+            intarsia_core::gumbel::argmax_row(&l[ri * v..(ri + 1) * v], cap, k) as i32
+        })
+        .collect();
+    // SAFETY: exclusive output.
+    let ob = unsafe { bytes_mut(&call.outputs[0])? };
+    for (ri, id) in ids.iter().enumerate() {
+        ob[ri * 4..ri * 4 + 4].copy_from_slice(&id.to_le_bytes());
+    }
+    Ok(())
 }
 
 #[cfg(test)]

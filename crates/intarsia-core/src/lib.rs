@@ -18,6 +18,7 @@ pub mod exec;
 pub mod fault;
 pub mod fusion;
 pub mod gdn;
+pub mod gumbel;
 pub mod hostprof;
 pub mod inkling2;
 pub mod memplan;

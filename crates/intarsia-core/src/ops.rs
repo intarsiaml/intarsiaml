@@ -22,6 +22,7 @@
 //! | `GeluGlu` | gate `[T,I]`, up `[T,I]` | `[T,I]` (= `gelu_tanh(gate) * up`, `gelu_pytorch_tanh`: `0.5 x (1 + tanh(sqrt(2/pi) (x + 0.044715 x^3)))`, f32 inside, one rounding) | |
 //! | `Argmax` | logits `[R,V]` | `[R]` i32 | |
 //! | `Sample` | logits `[R,V]`, u `[R]` f32 in [0,1) | `[R]` i32 | temperature, top_k, top_p |
+//! | `GumbelArgmax` | logits `[R,V]` f32, keys `[R,4]` i32 (u32 bits: seed lo, seed hi, position, bits of 1/T) | `[R]` i32 (= argmax of `softcap(l) / T` + Philox Gumbel noise, exactly `gumbel::argmax_row`) | scale (the softcap cap, 0 = none) | device sampler, slot 77 of the Inkling-2 reserved block (lane ink-hostgap) |
 //! | `MatmulFp8` | x `[M,K]`, w `[N,K]` fp8_e4m3, scales `[2]` f32 = (weight_scale, input_scale) | `[M,N]` (bf16/f16/f32) | see `quant::fp8` |
 //! | `MatmulExl3` | x `[M,K]`, trellis `[K/16,N/16,8*k2]` i16, suh `[K]` f16, svh `[N]` f16, codebook `[1]` i32 (0 3inst, 1 mcg, 2 mul1) | `[M,N]` (bf16/f16/f32) | see `quant::exl3` |
 //! | `MatmulNvfp4` | x `[M,K]`, w `[N,K/2]` u8 (e2m1 pairs), block scales `[N,K/16]` fp8_e4m3, global `[1]` f32 | `[M,N]` (bf16/f16/f32) | see `quant::nvfp4` |
@@ -236,8 +237,9 @@ pub enum Op {
     // place, keeping the order. They have no kernels anywhere and are exempt from the kernel-coverage tests (`Op::is_reserved`).
     /// Inkling-2 router: the router GEMV (f32 logits) and `MoeRoute` in one op (lane ink-dfuse, discriminant 76).
     InkRoute,
-    /// Reserved Inkling-2 discriminant 77 (lane ink-dfuse): no semantics yet; `OpCall::check` refuses it.
-    InkReserved77,
+    /// Device sampler (lane ink-hostgap, reserved slot 77 in place of its placeholder): Gumbel-max over `softcap(logits) / T`
+    /// with Philox noise keyed on (seed, position, token id), exactly `gumbel::argmax_row`.
+    GumbelArgmax,
     /// Reserved Inkling-2 discriminant 78 (lane ink-dfuse): no semantics yet; `OpCall::check` refuses it.
     InkReserved78,
     /// Reserved Inkling-2 discriminant 79 (lane ink-dfuse): no semantics yet; `OpCall::check` refuses it.
@@ -360,7 +362,7 @@ impl Op {
         Op::ConvMix,
         Op::InkAttnDecode,
         Op::InkRoute,
-        Op::InkReserved77,
+        Op::GumbelArgmax,
         Op::InkReserved78,
         Op::InkReserved79,
         Op::MatmulP12,
@@ -461,7 +463,7 @@ impl Op {
             Op::ConvMix => "conv_mix",
             Op::InkAttnDecode => "ink_attn_decode",
             Op::InkRoute => "ink_route",
-            Op::InkReserved77 => "ink_reserved_77",
+            Op::GumbelArgmax => "gumbel_argmax",
             Op::InkReserved78 => "ink_reserved_78",
             Op::InkReserved79 => "ink_reserved_79",
             Op::MatmulP12 => "matmul_p12",
@@ -487,7 +489,7 @@ impl Op {
         Op::ALL.iter().copied().find(|o| o.as_str() == s)
     }
 
-    /// A reserved placeholder discriminant (`InkReserved77` ..= `InkReserved95`, less the ones lanes replaced): no kernels, refused by `OpCall::check`, exempt
+    /// A reserved placeholder discriminant (`InkReserved78` ..= `InkReserved95`, less the ones lanes replaced): no kernels, refused by `OpCall::check`, exempt
     /// from every backend's kernel-coverage tests.
     pub fn is_reserved(self) -> bool {
         // by name, so a lane that replaces its placeholder in place does not touch this
@@ -571,11 +573,12 @@ impl Op {
             Op::InkInProj => (2, 3),
             Op::ConvMix => (11, 4),
             Op::InkAttnDecode => (10, 5),
+            Op::GumbelArgmax => (2, 1),
             Op::MatmulP12 => (3, 1),
             Op::HeadScreen => (3, 2),
             Op::LogitsGather => (4, 1),
             Op::ScreenArgmax => (3, 1),
-            Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => (0, 0),
+            Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => (0, 0),
             Op::InkRoute => (3, 3),
         }
     }
@@ -1130,6 +1133,21 @@ impl OpCall {
                     return bad("out must be i32 [R]".into());
                 }
             }
+            Op::GumbelArgmax => {
+                rank(&i[0], 2, "logits")?;
+                if i[0].dtype != DType::F32 {
+                    return bad("logits must be f32".into());
+                }
+                if i[1].dtype != DType::I32 || i[1].shape != [i[0].shape[0], 4] {
+                    return bad("keys must be i32 [R,4]".into());
+                }
+                if o[0].dtype != DType::I32 || o[0].shape != [i[0].shape[0]] {
+                    return bad("out must be i32 [R]".into());
+                }
+                if !(self.attrs.scale >= 0.0 && self.attrs.scale.is_finite()) {
+                    return bad(format!("cap {} must be finite and >= 0", self.attrs.scale));
+                }
+            }
             Op::MatmulFp8
             | Op::MatmulNvfp4
             | Op::MoeTopk
@@ -1153,7 +1171,7 @@ impl OpCall {
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::check(self)?,
             Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode | Op::InkRoute => crate::inkling2::ops::check(self)?,
             Op::HeadScreen | Op::LogitsGather | Op::ScreenArgmax => crate::screen::check(self)?,
-            Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => unreachable!("refused above"),
+            Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => unreachable!("refused above"),
         }
         Ok(())
     }
@@ -1307,7 +1325,7 @@ impl ShapeInfo {
                 s.kv_len = call.attrs.pos0 + s.m;
                 s.weight = Some(i[1].dtype); // kv dtype
             }
-            Op::Argmax | Op::Sample => {
+            Op::Argmax | Op::Sample | Op::GumbelArgmax => {
                 s.m = i[0].shape[0];
                 s.n = i[0].shape[1];
             }
@@ -1334,7 +1352,7 @@ impl ShapeInfo {
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::shape(call, &mut s),
             Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode | Op::InkRoute => crate::inkling2::ops::shape(call, &mut s),
             Op::HeadScreen | Op::LogitsGather | Op::ScreenArgmax => crate::screen::shape(call, &mut s),
-            Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => {}
+            Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => {}
         }
         let _ = o;
         s
@@ -1600,11 +1618,15 @@ mod tests {
         for (j, op) in Op::ALL.iter().enumerate() {
             assert_eq!(*op as usize, j, "{op}");
             if op.is_reserved() {
-                assert!((77..=95).contains(&j), "{op}");
+                assert!((78..=95).contains(&j), "{op}");
                 assert_eq!(op.as_str(), format!("ink_reserved_{j}"));
             }
         }
-        assert!(!Op::InkAttnDecode.is_reserved() && Op::InkReserved77.is_reserved() && !Op::InkRoute.is_reserved());
+        assert!(!Op::InkAttnDecode.is_reserved() && Op::InkReserved78.is_reserved() && !Op::InkRoute.is_reserved());
+        // the device sampler (lane ink-hostgap) in reserved slot 77, so `ALL` stays 96 (ink-metal's reserved op slot map)
+        assert_eq!(Op::GumbelArgmax as usize, 77, "the device sampler, in place of InkReserved77");
+        assert!(!Op::GumbelArgmax.is_reserved());
+        assert_eq!(Op::ALL.len(), 96);
         let r = OpCall::new(Op::InkReserved81, vec![], vec![], OpAttrs::default());
         assert!(r.check().unwrap_err().to_string().contains("reserved"));
         assert_eq!(Op::parse("ink_reserved_95"), Some(Op::InkReserved95));
