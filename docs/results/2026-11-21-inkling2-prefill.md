@@ -26,6 +26,16 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
 3. 2026-11-21 (coordinator, via SendMessage): endor's quiet-GPU line is 14+ jobs (~9 h). Builds, admission and tests go as
    default-load jobs with short honest `--expect` (they backfill); only sweeps and e2e tok/s take `--quiet gpu,cpu`. Merge
    ink/metal at a0751f302 (the rows_exact pin-list test fix).
+4. 2026-11-21 (coordinator, via SendMessage): ink-d1row found inkmoe_bench can draw every call's experts from one 128-expert
+   pool (~570 MB), so ~16% of expert reads hit the system cache, while in the stream each layer has its own pool (hit rate ~0);
+   at 1 row that explains the bench-vs-stream gap fully. Check whether this lane's sweep and the MoE lane's numbers differ in
+   pool / rotation setup; before choosing a default, rotate 24 per-layer pools in the bench or confirm with the in-stream
+   per-chunk time.
+   - Answer: this lane's 2048-row sweep cycles 5 NVFP4 / 3 MXFP8 pools of 573 / 1051 MB (`w[c % layers]`), so a pool comes
+     back only after 2.3-3 GB of other weights: no cross-call cache reuse. At 2048 rows the experts are compute / staging-bound
+     (a pool is ~0.9 ms of DRAM time of a 7.3 ms call). In-stream (8k prompt, kernel trace) the NVFP4 experts take 8.3 ms per
+     visit (gu 5.25, dn 2.79, gather 0.25) vs the bench's 7.3: the stream's routing is less balanced than random. Any MoE
+     default is decided on the in-stream per-chunk time (#10884 profiles m128 in-stream), not on the bench.
 
 ## Status
 
