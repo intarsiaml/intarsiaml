@@ -739,22 +739,31 @@ raw dirs or golden/. spark2 has no /opt/code.
   the per-row form of the same pieces: a device-side token read per row, which `forward_batch` already does with its single
   download per step, and device top-k for sampled rows (`HeadMode::LastTopK`). Metal has `topk_rows` now (ink/mtp c770aaef3),
   but `supports_topk` stays false.
-- **MTP draft verify:** see item 5 (dropped: host time is under 5 % of a cycle).
+- **MTP draft verify:** see item 5 (dropped: host time is under 5 % of a cycle). With the device sampler, a sampled verify
+  could stay on the device: `GumbelArgmax` already takes `[R, V]` rows with one key per row, so verify row k draws with the
+  key of position pos + k, and the accepted length is the longest prefix where the draft token equals the draw. The host then
+  reads R + 1 i32s per cycle. Every emitted token is the target's own seeded draw, so the output law is the target's. The
+  acceptance rate is a different question: it equals the target-rejection rate only if the draft is also drawn with the same
+  keys, and it is below the optimal coupling. Not built; it would need ink-mtp's verify loop and a decision on the law.
+- **Batched decode with the device sampler:** `HeadMode::LastGumbel` already handles batched rows (one key per row, one
+  threadgroup per row, so a row's draw does not depend on B; `model/batch.rs`). The batch lane keeps graphs off, which this
+  needs no change for.
 
-## Not done (lane stopped by the coordinator after the three jobs)
+## Open items (2026-11-22 02:50)
 
-- **localeval:** speed numbers are from `generate` (engine-timed decode tok/s), not localeval. No `localeval speed` run was made.
-  The brief asked for localeval; the coordinator's rescope replaced it with measurement A.
-- **Gates:** G1, G2 long and G3 were not rerun on Metal; only G2 short was (PASS, self-golden bitwise base = branch). The argmax
-  change picks tokens and does not touch logits, the greedy md5s are identical, and the branch adds no other numerics change.
-- **Other-model tests:** the Qwen3 and 35B MoE real-model Metal tests were not run. Instead: `plan show` is identical for Qwen3-8B
-  / 35B / Inkling, Qwen3-8B's greedy md5 is the same at the new default and at `--profile-every 16`, and Qwen3 / the 35B keep
-  `argmax_f32_v4` (V % 4 == 0).
+- **Device sampler (item 6):** Metal gates and the t1.0 timing wait on #11152 / #11153 (the build in #11037 failed, see item 7).
+- **G1-G3 on the branch tip, the 8B Metal model tests, `plan show` on the branch tip:** section F of #11153. Before that, only G2
+  short had been rerun on this branch (PASS, self-golden bitwise base = branch, #10840 era).
+- **35B MoE Metal model tests:** not run on this branch (coordinator's trim: a tight-memory endor job that does not check
+  Inkling). Covered instead by `plan show` identical for the 35B and by the 35B keeping `argmax_f32_v4` (V % 4 == 0).
+- **localeval:** the speed numbers here are `generate`'s engine-timed decode tok/s, not localeval. The coordinator's rescope
+  replaced it with measurement A; the combined gate after the ink-metal merges runs a quiet localeval speed-plain at 142 / 1k /
+  4k / 16k, which becomes the Metal baseline and includes this branch.
 - **Encode-ahead, chunked commits, cheaper encoding, ICB replay:** not built. Greedy decode has no host gap to remove (0.015 ms
   per step), and Metal already commits in chunks (`FIRST_COMMIT` 4, `COMMIT_EVERY` 128).
-- **The sampled path:** not built. It is the remaining real gap, 2.4-3.6 ms per token (item 4). The bitwise option is to split
-  the per-element work (soft-cap, sort keys, exp, divides) across threads, with the radix sort stable per chunk and the f64 sum
-  kept sequential. A device sampler would change the draw and needs a decision.
+- **Sampled decode, target wall <= GPU busy + 0.5 ms:** not met with the default host sampler. Items 3b and 7 cut the host share
+  at t1.0 to 1.33 ms (soft-cap 0.27 + sampler 1.06) and a little more with PQV (+0.45 %). The device sampler removes the
+  readback and the host sampler for plain-temperature rows; it changes the draw, so its default is a separate decision.
 
 ## Defaults and flags
 
@@ -765,6 +774,12 @@ raw dirs or golden/. spark2 has no /opt/code.
   only Inkling-2-Mini has such a head. Qwen3 / the 35B (V % 4 == 0) run the kernel they ran before. `INTARSIA_METAL_ARGMAX_V4T=0`
   turns it off. Same result by construction and by test.
 - **`INTARSIA_HOST_PROFILE`** (e6e5d4314, 6c0f4a5d9, 5b487b79c, cd886d57b): opt-in, measures only.
+- **Host sampler pool** (aed3dc496, 8d8ac6c78, a2f2b87b9): on by default for Inkling-2 only (a per-model switch set at load, the
+  coordinator's approval), off for every other model; bit for bit the one-thread path. **Revert: `INTARSIA_HOST_THREADS=1`.**
+- **Item 7** (fb38fe4a5): `INTARSIA_HOST_PREWAKE`, `INTARSIA_HOST_QOS`, `INTARSIA_SAMPLER_VSORT`, all default off. Bitwise on
+  endor; PQV +0.45 % at t1.0 / t0.7 short. Not flipped: the merge rule needs >= base and bitwise per switch, and pre-wake gives
+  nothing on macOS; a flip of QoS + VSORT alone needs its own arm.
+- **Device sampler** (side branch `ink/hostgap-gumbel`): `INTARSIA_GUMBEL_SAMPLING=1`, default off on every model; not merged.
 
 ## Commits (ink/hostgap, not pushed)
 
