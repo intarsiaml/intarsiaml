@@ -264,6 +264,9 @@ fn conv_mix_rows_exact() {
             }
         }
     }
+    // a chunk longer than the blend's 256-row scratch chunk (two blend chunks, the h GEMV's full 16-row chunks and its tail)
+    conv_case(&be, &mut rng, Op::ConvMix, 300, 64, 7, 2, (true, true, true), (3, 1, false, 3), false);
+    conv_case(&be, &mut rng, Op::ConvMix, 300, 64, 7, 2, (true, false, false), (2, 3, false, 3), false);
     // the device position
     conv_case(&be, &mut rng, Op::ConvMix, 7, 2304, 19, 29, (true, true, true), (4, 1, true, 0), true);
     conv_case(&be, &mut rng, Op::ConvMix, 16, 64, 7, 3, (true, true, true), (3, 1, false, 3), true);
@@ -275,7 +278,7 @@ fn attn_res_mix_and_loop_blend_rows_exact() {
     let mut rng = Rng(0xab5);
     let bf = DType::Bf16;
     for &d in &[2304usize, 64] {
-        for &r in &[2usize, 5, 16, 40] {
+        for &r in &[2usize, 5, 16, 40, 300] {
             if d > 64 && r > 16 {
                 continue;
             }
