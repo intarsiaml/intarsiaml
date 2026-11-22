@@ -514,7 +514,7 @@ kernel void ink_blend_pair(device const float* dest [[buffer(0)]],
 }
 
 // bind: 0 dest f32, 1 msg f32, 2 h bf16 [S, rows, G] (scratch), 3 gain [S, D, G], 4 forget [S, D, G], 5 y f32 [S, rows, D]
-// (scratch), 6 partial f32 [S, rows, nsl] (scratch; nsl = 2 per channel slice, one per simdgroup), 7 InkBlendP. Grid: S *
+// (scratch), 6 partial f32 [S, rows, nsl] (scratch; nsl = one per 32 channels, cs / 32 per channel slice), 7 InkBlendP. Grid: S *
 // slices threadgroups of `cs` = 64 threads (one channel each). The channel's gain / forget rows stay in registers for all
 // rows of the chunk; G % 8 == 0, G <= 8 * GC.
 inline float bl_dot8(uint4 w, uint4 x) {
@@ -528,8 +528,6 @@ inline float bl_dot8(uint4 w, uint4 x) {
     a = fma(ip_hi(w.w), ip_hi(x.w), a);
     return a;
 }
-
-constant uint BLEND_RB = 16;  // rows per gate threadgroup (src/inkmix.rs BLEND_RB)
 
 template <int GC>
 kernel void ink_blend_gate(device const float* dest [[buffer(0)]],
@@ -545,8 +543,9 @@ kernel void ink_blend_gate(device const float* dest [[buffer(0)]],
                            uint lane [[thread_index_in_simdgroup]],
                            uint sg [[simdgroup_index_in_threadgroup]]) {
     const uint gidx = gid2.x, tid = tid2.x;
-    const uint rb0 = gid2.y * BLEND_RB, rb1 = min(rb0 + BLEND_RB, p.rows);  // the rows of this threadgroup
-    const uint nsl = p.nsl / 2;  // channel slices
+    const uint rb0 = gid2.y * p.pad0, rb1 = min(rb0 + p.pad0, p.rows);  // the rows of this threadgroup (pad0 = rows per group)
+    const uint spg = p.cs / 32;          // simdgroups (32-channel partials) per channel slice
+    const uint nsl = p.nsl / spg;        // channel slices
     const uint s = gidx / nsl, sl = gidx % nsl, d = p.d, g8 = p.g / 8;
     const uint c = sl * p.cs + tid;
     const bool on = c < d;
@@ -576,7 +575,7 @@ kernel void ink_blend_gate(device const float* dest [[buffer(0)]],
             yo[((ulong)s * p.rows + r) * d + c] = yv;
         }
         const float ss = simd_sum(yv * yv);
-        if (lane == 0) partial[((ulong)s * p.rows + r) * p.nsl + sl * 2 + sg] = ss;
+        if (lane == 0) partial[((ulong)s * p.rows + r) * p.nsl + sl * spg + sg] = ss;
     }
 }
 template [[host_name("ink_blend_gate_g1")]] kernel void ink_blend_gate<1>(device const float*, device const float*,
