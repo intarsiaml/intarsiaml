@@ -535,6 +535,14 @@ impl MetalBackend {
                 };
                 let pso = self.pso(shader).ok_or_else(|| Error::backend(format!("metal: no pipeline '{shader}'")))?;
                 self.with_encoder(|enc| {
+                    if shader == GEMV_F32O_V {
+                        // the index-mode buffers (cand, cnt) of gemv_f32o_v: bound, never read in the plain launch (pad0 = 0)
+                        // SAFETY: y's own binding, in its buffer.
+                        unsafe {
+                            enc.setBuffer_offset_atIndex(Some(&y.mtl), y.off, 4);
+                            enc.setBuffer_offset_atIndex(Some(&y.mtl), y.off, 5);
+                        }
+                    }
                     crate::encode_gemv(
                         enc,
                         pso,

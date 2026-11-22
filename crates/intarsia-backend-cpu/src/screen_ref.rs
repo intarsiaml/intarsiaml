@@ -40,7 +40,9 @@ pub fn run(call: &OpCall, fast: bool) -> Result<()> {
         }
         Op::LogitsGather => {
             let (_t, d, v, c) = (i[0].shape[0], i[0].shape[1], i[1].shape[0], i[2].shape[1]);
-            let (h, w, cand, cnt) = (read_f32(&i[0])?, read_f32(&i[1])?, read_i32(&i[2])?, read_i32(&i[3])?);
+            // a P12 head (fifth input, aux): decode to the bf16 weight, as every cpu P12 form does (p12_ref)
+            let wt = if i.len() == 5 { crate::p12_ref::decode(&i[1], &i[4], v, d)? } else { i[1].clone() };
+            let (h, w, cand, cnt) = (read_f32(&i[0])?, read_f32(&wt)?, read_i32(&i[2])?, read_i32(&i[3])?);
             let mut y = read_f32(&o[0])?;
             let logit = |r: usize, n: usize| -> f32 {
                 let (hr, wn) = (&h[r * d..(r + 1) * d], &w[n * d..(n + 1) * d]);
