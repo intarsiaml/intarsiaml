@@ -471,6 +471,24 @@ by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
   defaults configure now (no panic). B8 / B16 are ~20 % slower than #11266's P12=0 run (41.55 / 76.20) on the same code path
   for these rows (P12 is dropped in both): the box or the slot was slow in this window; not recorded as a baseline.
 
+- **Incidents (lane's errors), 2026-11-22.** (1) #11314 ended at 06:44:29 on a TERM to serve_le2.sh alone (sender unknown:
+  not main, not the guard, not a fleetq deadline); its child pk12check.sh, not signalled, kept running batch_step on endor's
+  GPU outside fleetq until 06:48:20 (fp8 #11315 fully contaminated, prefill #11322 first 13 s). (2) Testing the new trap, a
+  wrapper ran the real script outside fleetq: ~20 s of cargo build at 06:49:45-06:50:07 (CPU, during ink-batch's control,
+  which passed BOX OK a few % low). Rules since (coordinator): never run the real job script outside a fleetq slot, test or not
+  (traps are tested with dummy children only); `serve_le2.sh` is now a wrapper that runs `serve_le2_body.sh` in the
+  background in its own process group and waits; on TERM / INT / HUP it logs the time, its parent chain and kill-like
+  processes, TERMs the body's group and every descendant PID, checks after 5 s by PID and KILLs what is left; at the normal end
+  it logs the descendant list (the body's group included, so orphans are caught) and stops anything left. Tested with dummy
+  bodies (signal and orphan-at-exit cases: none left). The guard (`slowguard.sh <job>`) logs each action with a timestamp.
+- Known limit (coordinator, item 3): on the tiny fixture, B1 rows of a max-batch > 1 server (P12 dropped) are not guaranteed
+  bitwise those of a max-batch 1 server (P12 on); on the real model they are bitwise (#11194, P12 default == off).
+- 2026-11-22 (coordinator): **ink/fp8 merge rule**: never take 5295a81b4 (with the screen on it makes enable_batch /
+  configure_plan refuse batching: the plan dry run counts the screen's fp8 GEMV in the solo step). Floor 72900194e or later
+  (carries 14821ba77, fallback groups read the unembed once, and 81f07e427, screen off on misaligned heads). Not merged at
+  all until fp8's batch_step requeue passes its box check and #11338 (real-model forced fallback, md5 = off) passes; the test
+  `inkling2_tiny_screen_keeps_batching` has not run yet. The screen stays opt-in either way.
+
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
 | Tree | KL21 scored | max | chat_system | chat_reasoning |
