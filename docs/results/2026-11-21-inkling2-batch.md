@@ -79,6 +79,8 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   row-table mix path now runs at NE 4 (md5s differ from before: reduction order). Merge gate #11048 (default load) reruns
   tiny B 2 / 5 / 16, rows_single, rows_exact, real-model batch_step mixed contexts, G2 / G3. Branch the compile-time
   MX_ROWTAB variant from 8546d143f; its solo ABAB's base arm is 8546d143f (not f55bfe8b7).
+- 2026-11-22 (coordinator): pid 53955 on 8099 was an orphan of ink-dfuse's finished #10882; killed (with parent 53944),
+  8099 free. Keep the port-pick + owner check; no other change.
 
 ## 1. Design note (contract delta, written before any kernel)
 
