@@ -461,6 +461,32 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     }
                 }
             }
+            // lane ink-m-moe: situ (the model's epilogue) at the real H / I: verify rows over 32 experts and a real prefill chunk
+            // (bf16, 128 experts) and a short chunk on the 8-row prefill tile at the real K; appended so the cases above keep their data
+            if !quick {
+                for (t, e) in [(4usize, 32usize), (16, 32), (2048, 128), (64, 128)] {
+                    let (k, hd, i) = (8usize, 2304usize, 1152usize);
+                    let n13 = e * 2 * i * hd;
+                    let w13: Vec<u8> = (0..n13).map(|_| { let r = rng.next_u64(); ((r & 0x80) as u8) | ((4 + (r >> 8) % 7) as u8) << 3 | ((r >> 16) & 7) as u8 }).collect();
+                    let w2: Vec<u8> = (0..e * hd * i).map(|_| { let r = rng.next_u64(); ((r & 0x80) as u8) | ((4 + (r >> 8) % 7) as u8) << 3 | ((r >> 16) & 7) as u8 }).collect();
+                    let s13: Vec<u8> = (0..n13 / 32).map(|_| 116 + (rng.next_u64() % 4) as u8).collect();
+                    let s2: Vec<u8> = (0..e * hd * i / 32).map(|_| 116 + (rng.next_u64() % 4) as u8).collect();
+                    let (ids, ws) = crate::quant::cases::random_routing(rng, t, e, k);
+                    let ws = HostTensor::from_f32(&[t, k], &ws.to_f32().iter().map(|v| v * 8.0).collect::<Vec<_>>());
+                    let inputs = vec![
+                        rand_t(rng, DType::Bf16, &[t, hd], 1.0),
+                        ids,
+                        ws,
+                        HostTensor::new(DType::Fp8E4m3, vec![e, 2 * i, hd], w13).expect("sized"),
+                        HostTensor::new(DType::U8, vec![e, 2 * i, hd / 32], s13).expect("sized"),
+                        HostTensor::new(DType::Fp8E4m3, vec![e, hd, i], w2).expect("sized"),
+                        HostTensor::new(DType::U8, vec![e, hd, i / 32], s2).expect("sized"),
+                    ];
+                    let mut a = OpAttrs { top_k: k, ..a0.clone() };
+                    (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
+                    push(format!("T={t} E={e} K={k} H={hd} I={i} situ bf16 (real)"), inputs, vec![out(DType::Bf16, &[t, hd])], a);
+                }
+            }
         }
         Op::InkInProj => {
             let mut shapes: Vec<(usize, [usize; 3])> = vec![(D, [nq(H, DH, DR), HK * DH, HK * DH]), (D, [nq(H, DH, DR), HK * DH + HK * K, HK * DH + HK * K])];

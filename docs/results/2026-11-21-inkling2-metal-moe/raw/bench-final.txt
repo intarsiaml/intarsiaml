@@ -1,0 +1,41 @@
+fleetq: #10640 waiting (#2 in line): in line behind #10639 "intarsiaml inkling m-attn: fused tests" (claude-57ee98d5) on endor
+fleetq: #10640 waiting (#1 in line): needs gpu quiet on endor, but #10639 "intarsiaml inkling m-attn: fused tests" (claude-57ee98d5) loads it
+fleetq: #10640 running on endor: sh -c 'cargo test --release -p intarsia-backend-metal --test inkmoe -- --test-threads 1 2>&1 | grep -E "INKMOE .*bitwise|test result|panicked"; target/release/examples/inkmoe_bench 1 4 16 2048; INTARSIA_INK_MOE_NAX=0 target/release/examples/inkmoe_bench 32'
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.49s
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T=    1 Auto         all           84.6 us/call (min     81.9)  union   8.0 experts   423.4 GB/s
+nv T=    1 Union        all           85.8 us/call (min     85.0)  union   8.0 experts   417.5 GB/s
+nv T=    1 Pair         all           84.1 us/call (min     83.9)  union   8.0 experts   426.1 GB/s
+nv T=    1 Fused        all           83.7 us/call (min     82.6)  union   8.0 experts   428.2 GB/s
+nv T=    4 Auto         all          268.4 us/call (min    267.1)  union  29.5 experts   492.7 GB/s
+nv T=    4 Union        all          297.9 us/call (min    294.1)  union  29.5 experts   443.9 GB/s
+nv T=    4 Pair         all          299.4 us/call (min    294.9)  union  29.5 experts   441.6 GB/s
+nv T=    4 Fused        all          308.1 us/call (min    306.2)  union  29.5 experts   429.2 GB/s
+nv T=    4 UnionFused   all          312.3 us/call (min    307.1)  union  29.5 experts   423.4 GB/s
+nv T=   16 Auto         all         1134.9 us/call (min   1045.7)  union  83.2 experts   328.6 GB/s
+nv T=   16 Union        all         1038.4 us/call (min   1022.5)  union  83.2 experts   359.1 GB/s
+nv T=   16 Pair         all         1091.7 us/call (min   1082.1)  union  83.2 experts   341.6 GB/s
+nv T=   16 Fused        all         1091.4 us/call (min   1083.8)  union  83.2 experts   341.6 GB/s
+nv T=   16 UnionFused   all         1027.1 us/call (min   1006.6)  union  83.2 experts   363.0 GB/s
+nv T= 2048 Auto         all        11919.7 us/call (min  10850.2)  union 128.0 experts    48.1 GB/s
+== MXFP8 experts, 3 layer copies of 1051 MB
+mx T=    1 Auto         all          134.1 us/call (min    132.0)  union   8.0 experts   489.9 GB/s
+mx T=    1 Union        all          138.5 us/call (min    137.5)  union   8.0 experts   474.3 GB/s
+mx T=    1 Pair         all          139.6 us/call (min    137.9)  union   8.0 experts   470.6 GB/s
+mx T=    1 Fused        all          140.7 us/call (min    138.2)  union   8.0 experts   466.8 GB/s
+mx T=    4 Auto         all          479.6 us/call (min    473.8)  union  29.5 experts   505.4 GB/s
+mx T=    4 Union        all          499.6 us/call (min    493.6)  union  29.5 experts   485.2 GB/s
+mx T=    4 Pair         all          520.1 us/call (min    510.9)  union  29.5 experts   466.1 GB/s
+mx T=    4 Fused        all          515.5 us/call (min    515.1)  union  29.5 experts   470.3 GB/s
+mx T=    4 UnionFused   all          502.2 us/call (min    496.3)  union  29.5 experts   482.7 GB/s
+mx T=   16 Auto         all         1351.1 us/call (min   1330.9)  union  83.2 experts   506.0 GB/s
+mx T=   16 Union        all         1419.6 us/call (min   1336.2)  union  83.2 experts   481.5 GB/s
+mx T=   16 Pair         all         1744.8 us/call (min   1720.3)  union  83.2 experts   391.8 GB/s
+mx T=   16 Fused        all         1747.4 us/call (min   1724.8)  union  83.2 experts   391.2 GB/s
+mx T=   16 UnionFused   all         1381.3 us/call (min   1370.2)  union  83.2 experts   494.9 GB/s
+mx T= 2048 Auto         all        12677.1 us/call (min  11777.6)  union 128.0 experts    82.9 GB/s
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T=   32 Auto         all         1201.6 us/call (min   1199.9)  union 112.6 experts   419.7 GB/s
+== MXFP8 experts, 3 layer copies of 1051 MB
+mx T=   32 Auto         all         2627.6 us/call (min   1818.1)  union 112.6 experts   351.8 GB/s
+fleetq: #10640 done (exit 0)

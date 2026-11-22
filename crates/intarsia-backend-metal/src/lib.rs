@@ -39,6 +39,7 @@ mod gdn;
 pub mod inkattn;
 pub mod gemm_nax;
 mod host;
+pub mod inkmoe;
 pub mod kernels;
 mod moe;
 pub mod multirow;
@@ -1351,6 +1352,9 @@ impl MetalBackend {
         }
         if kernel == moe::MOE_COMBINE_BF16 && call.op == Op::MoeCombine {
             return self.launch_moe_combine(call);
+        }
+        if let Some(r) = self.launch_inkmoe(kernel, call) {
+            return r;
         }
         if matches!(
             kernel,

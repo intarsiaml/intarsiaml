@@ -290,6 +290,7 @@ pub fn metal4_shaders() -> Vec<&'static str> {
     v.extend(crate::moe::NAX_MM_GU.iter().chain(&crate::moe::NAX_MM_DN));
     v.extend(crate::mxfp4::NAXD_FORMS.iter().flat_map(|f| [f.0, f.1]));
     v.extend(crate::inkattn::metal4_shader_names());
+    v.extend(crate::inkmoe::metal4_shaders());
     v
 }
 
@@ -329,6 +330,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
     v.extend(crate::nvfp4::SHADERS);
+    v.extend(crate::inkmoe::SHADERS);
     v.extend(GEMV_A8_VARIANTS.iter().map(|g| g.name));
     v.extend([GEMV_SCALAR.name, COPY_U4, READ_XOR_U4, ZERO_U4, ZERO_BYTES, COPY_BYTES]);
     v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);
@@ -424,6 +426,12 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkattn::REL_SINK_ATTN_BF16, Op::RelSinkAttn),
     (crate::inkattn::INK_ATTN_DECODE_BF16, Op::InkAttnDecode),
     (crate::inkattn::REL_SINK_ATTN_BF16_NAX, Op::RelSinkAttn),
+    // lane ink-m-moe: the Inkling-2-Mini router and experts (inkmoe.rs)
+    (crate::inkmoe::KERNELS[0].0, Op::MoeRoute),
+    (crate::inkmoe::KERNELS[1].0, Op::MoeExperts),
+    (crate::inkmoe::KERNELS[2].0, Op::MoeExperts),
+    (crate::inkmoe::KERNELS[3].0, Op::MoeExpertsMxfp8),
+    (crate::inkmoe::KERNELS[4].0, Op::MoeExpertsMxfp8),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -837,6 +845,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(BF16_TOL)
                     .row_table()
                     .scratch(crate::rowtab::attn_scratch),
+                n if crate::inkmoe::KERNELS.iter().any(|e| e.0 == n) => crate::inkmoe::register(n, k),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -869,6 +878,7 @@ mod tests {
                 + 8
                 + 2 * crate::mxfp4::NAXD_FORMS.len()
                 + crate::inkattn::metal4_shader_names().len()
+                + crate::inkmoe::metal4_shaders().count()
         );
         assert!(!shader_names().iter().any(|n| m4.contains(n)));
         let set: HashSet<_> = m4.iter().collect();
@@ -1009,6 +1019,11 @@ mod tests {
         "moe_combine_bf16:moe_combine",
         "moe_experts_bf16:moe_experts",
         "moe_experts_bf16_rows:moe_experts",
+        "moe_experts_mxfp8_bf16:moe_experts_mxfp8",
+        "moe_experts_mxfp8_bf16_rows:moe_experts_mxfp8",
+        "moe_experts_situ_bf16:moe_experts",
+        "moe_experts_situ_bf16_rows:moe_experts",
+        "moe_route_f32:moe_route",
         "moe_topk_bf16:moe_topk",
         "qk_norm_bf16:qk_norm",
         "qk_norm_rope_kv_bf16:qk_norm_rope_kv",
