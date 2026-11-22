@@ -102,6 +102,16 @@ Status: waiting on endor #10943 (items 2 and 3 timing); code done and CPU-checke
      top_logprobs request (they need host logits), with a test that each keeps the host path.
   3. The chi-square gates run at T 0.7 and T 1.0, with the softcap on.
 
+- 2026-11-21 (coordinator, revising change 2): no `GenRequest::host_sampling`. The engine applies none of min_p, penalties or
+  logit_bias: it drops them on both paths, so excluding those rows from the device sampler changes no output, and the field
+  would touch 7 struct literals in files other lanes edit. Instead: (1) keep the test that logprobs / top_logprobs
+  (`trace_logits`) keep the host path; (2) a comment at the `LastGumbel` eligibility check says any future feature that changes
+  logits before sampling (min_p, penalties, logit_bias) must exclude `LastGumbel`.
+- 2026-11-21 (lane, reported to main): the approved u = ((x >> 8) + 0.5) 2^-24 is not usable in f32. At x >> 8 = 2^24 - 1 the sum
+  16777215.5 rounds to 2^24, so u = 1 and g = +inf: about 1 token in 84 at V = 200058 would be uniform noise. It also leaves only
+  24 bits near u = 1, where the winners come from. The op takes w = (f32(x) + 0.5) 2^-32 (u = 1 - w), E = -ln(1 - w) by its
+  series below w = 1/16 and by `ln` above, g = -ln(E): full relative precision at the top, no u = 1.
+
 ## Measurement (before)
 
 ### The integration trace, re-read (no new GPU run)
