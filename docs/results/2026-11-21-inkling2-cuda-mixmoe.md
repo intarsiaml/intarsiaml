@@ -251,3 +251,12 @@ restructurings (prefetch, persistence) moved nothing; the SIMT kernels are not l
 Reaching ~230 GB/s needs a different inner loop (e.g. tensor-core decode GEMV over the expert rows), which is not bitwise the
 current SIMT chain: a numerics change. (3) moe_route (8 us, one warp) and the blend gate / norm: fusion into neighbours means
 a fused op in core (Metal's InkRoute op 76 is on ink/dfuse, not merged), outside this lane's files now.
+
+## G2 decode KL per row on CUDA (self-goldens of #11079; `2026-11-21-inkling2-cuda-mixmoe-decrows.py`, ink-metal's decrows.py)
+
+Short set (n 128, mean 3.73e-3): the top row carries 29 %, the top 3 50 %, the top 5 62 %; without the top 5 the mean is
+1.46e-3. Long set (n 160, mean 3.15e-3): 28 / 48 / 59 %, 1.32e-3 without the top 5. The large rows are isolated spikes, not
+drift: chat_system pos 47..62 is 0.000 everywhere except pos 57 (0.139, golden margin 0.77) and pos 62 (0.056); chat_short
+pos 34 0.046; chat_multiturn pos 95 0.030 (margin 1.00); chat_reasoning pos 90..105 stays at 0.000-0.028 with no growth
+(Metal's regression grew to 0.431 over those rows). chat_system pos 57 is the row that regressed on Metal too (0.011 -> 0.303).
+Next: per-module replay of chat_system pos 57 against the oracle.
