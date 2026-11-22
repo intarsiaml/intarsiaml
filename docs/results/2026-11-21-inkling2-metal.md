@@ -253,7 +253,7 @@ and batch 6/6, cuda / hip lib 34 / 31, docs_env_vars 2/2. Combined gate: endor #
 
 - 2026-11-22 (ink-batch lane): batched-step baseline for the post-merge quiet run: `batch_step --ctx 1024 --rounds 2 --steps 16
   --batches 1,8,16`, 3 reps, median of columns 3 (batched step ms) and 6 (batched tok/s); reference #11181 (tip 8546d143f,
-  before the NE fix): B1 16.40 ms / 61.0 tok/s, B8 34.93 / 229.0, B16 59.96 / 266.9; NE 3 measured equal (B16 59.77 / 267.7),
+  before the NE fix): B1 16.40 ms / 61.0 tok/s, B8 34.93 / 229.0, B16 59.96 / 266.9 [**invalid as a speed reference**, see the correction below]; NE 3 measured equal (B16 59.77 / 267.7),
   which confirms the slot-noise reading of #11179's speed rows (NE 3 costs nothing).
 - 2026-11-22 (coordinator): merges and the op 76 resolution accepted. Release #11205 and reserve the gate `--in 1m` (no
   `--quiet`); add a plan / admission check on Inkling: InkRoute registered as op 76, nothing on 77..=95. Lane: added
@@ -384,6 +384,125 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
   request returns 200 with text, a sampled stream (temperature 1.0, seed 7) returns tokens, the same seeded request twice
   gives identical text (never ran in #11182). Lane: both added to `gumbelcheck.sh` before #11277 started (serve through
   `serve_lib.sh`, port 8097).
+- 2026-11-22 (coordinator): possible batched decode regression on the merged tree: #11261 (e4ebcfe77) B8 42.79 / B16 74.84 ms
+  vs #11181 (8546d143f) 34.93 / 59.96; B1 faster. #11266's batch_step x3 (c918e9fda) is the confirming run: send its B1 / B8 /
+  B16 step ms to ink-batch (a716d7e057a6fbfc3) and the coordinator. Hold any merge touching the batch head or controllers
+  until settled. Lane: holding; #11266 also carries the P12 on/off batch_step arm (same binary, ABAB x3), which separates
+  pack12's share; the combined gate's batched == solo run (7e5e6010e, not a timing slot) logged B16 74.9 ms, consistent with
+  #11261.
+
+### Quiet baseline #11266, first half (c918e9fda, with-pack12, quiet gpu,cpu)
+
+- pk12check: G2 short 2.087e-3 prefill / 2.928e-3 decode, PASS, confident misses 0/363; greedy 64 / 256 md5 65cde8f35... /
+  61fd59fecb5... = the combined-gate tip.
+- batch_step (random-id prompts, synthetic) with `INTARSIA_INK_PACK12=0`, batched step ms per rep: B1 15.36 / 15.39 / 15.38
+  (median 15.38), B8 44.72 / 41.25 / 41.55 (41.55), B16 74.45 / 77.93 / 76.20 (76.20). Against #11181 (8546d143f: B1 16.40, B8
+  34.93, B16 59.96): **B8 +19 %, B16 +27 %, B1 -6 %** [withdrawn: #11181 is invalid as a reference, see the correction below]. The batched regression is confirmed and not pack12; 7e5e6010e (pre-pack12,
+  unquiet) already had B16 74.9 ms, so it came in with hostgap / fp8 / prefill / dfuse.
+- **P12 default-on breaks the batched plan**: batch_step with defaults panics in all 3 reps at batch_step.rs:68
+  (`configure_plan(..).unwrap()` after `enable_batch(16)`). #11194 covered solo paths only. Reported to the coordinator: revert
+  e215c2fca or restrict P12 to R=1; held. The pack12 arm's rule could not apply (no P12-on numbers).
+- The real error (serve at `--max-batch 16`, #11266 section B, `serve_8099.err`; batch_step's panic is the same call):
+  `unsupported: a 2-row batched step runs logits 1 times where 0 follow from the solo decode step (0): the two would fuse
+  differently, so rows would not be bitwise the solo step` (plan.rs:593, the op-multiset check). The solo step runs the
+  unembed as `MatmulP12` (no `Logits`), the batched step as `Logits`. in_proj / wo would trip the same check above
+  `DENSE_ROWS_MAX` = 4 rows. Not run (job exited with the server): conc-plain-1k and section C. speed-plain exited 3 (NOT
+  COUNTED: the 1024 cell rejected for spread); peak memory invalid (sampled the process-group leader, not the server).
+- 2026-11-22 (coordinator): do not revert e215c2fca; P12 solo-only: decided before the plan, packing kept only for solo
+  plans, a batched plan logs "pack12 off: batched plan (max-batch N)", an explicit `INTARSIA_INK_PACK12=1` with batching warns
+  and stays off, never panics; get the real error first; regression test (Metal, enable_batch(16), default env, batched rows
+  == solo rows, P12 off there and on solo); next endor slot: batch_step B 1/8/16 configures at defaults and matches the P12=0
+  timing, solo md5 and G2 unchanged with P12 on. The B8 / B16 regression is ink-batch's bisect.
+- Lane, 063f7b55f: the decision sits in `Model::enable_batch` (n > 1), not `Model::load`: every library caller (batch_step,
+  the inkling2_batch / gumbel_engine / structured_batch tests, serve) loads with default `LoadOptions` and calls
+  `enable_batch` after, so the loader cannot know the batch size; enable_batch drops the head's and every layer's P12 copies
+  before anything copies the model (buffers freed with their last Arc; the KV budget measured at load is not raised), logs
+  `pack12 off: batched plan (max-batch N); K P12 tensors dropped`, and warns on `INTARSIA_INK_PACK12=1`. A batched server
+  therefore serves B1 requests without P12 too. `Model::has_p12` for tests. Test
+  `inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo` (default env only): solo model has P12 on Metal
+  (asserted, so it is not vacuous), the enable_batch(16) model configures and has none, its 16 batched rows x 4 steps equal
+  the P12 solo model's steps bitwise. bespin #11311: workspace check clean, cpu inkling2_batch 7/7 (P12 is off on cpu, so the
+  Metal half runs on endor), other-model batch 6/6, core lib 255.
+- 2026-11-22 (coordinator): hold the ink/fp8 merge of 5295a81b4 (screened-head default flip) until the fp8 lane's batched
+  B 1/8/16 check (screen off vs on, P12=0) or ink-batch's toggle job clears the screen; the B16 hunt first. Lane: not merged.
+- #11277 pinned (advisor): gumbelcheck.sh now runs in a detached worktree at exactly 3c2d6a732 (HEAD and clean checked), so
+  the P12 commit does not change what it tests.
+- Item-4 job: the quiet baseline rerun on 063f7b55f (tag p12solo): Metal inkling2_batch (with the new test) and inkling2 at
+  defaults, pk12check (G2 short + md5 vs the combined-gate tip, batch_step defaults vs P12=0 ABAB x3), localeval speed-plain
+  and conc-plain-1k (serve PID sampled for peak memory via lsof), batch_step x3.
+
+### Gumbel merge check #11277 (pinned 3c2d6a732), PASS
+
+| Check | Result |
+|---|---|
+| Metal rows_exact / gumbel | 11 / 2 pass |
+| core op ids (GumbelArgmax 77, InkRoute 76, ALL 96) | 7/7 |
+| cpu gumbel reference | 1/1 |
+| hostgap step 5: default path vs c918e9fda, every switch unset | greedy 64 / 256 md5 65cde8f35... / 61fd59fecb5... SAME; G2 short 2.087e-3 / 2.928e-3, self-golden tensors IDENTICAL |
+| `kernels test --op gumbel_argmax` | `gumbel_argmax_f32` 20 cases, max_abs 0, ADMITTED |
+| serve smoke `INTARSIA_GUMBEL_SAMPLING=1` | log `device sampler (INTARSIA_GUMBEL_SAMPLING): on, kernel gumbel_argmax_f32`; default request HTTP 200 with 32 tokens; sampled stream (temperature 1.0, seed 7) 48 tokens; the same seeded stream twice: identical (md5 4b845d3c...) |
+
+The script's own smoke verdict printed "INVALID (empty)": its parser read only `content`, and Inkling's default (thinking)
+template puts the first 32-48 tokens in `reasoning_content`, so `content` was empty. Re-parsed from the saved responses
+(`.scratch/gum/r_*.json|txt`, both fields): the text above. The script now reads both fields. The device sampler stays off
+by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
+
+- 2026-11-22 (coordinator): **slow-box guard for #11314** (130-min quiet baseline): endor ran ~50 % slow 06:27-06:35 (#11297:
+  same binary and inputs as #11261 gave 47-50 tok/s solo instead of 61-65, no other fleetq job; not tensorfold, kev, thermal
+  or power; cause not found). Check the first decode numbers as they land (batch_step B1 in the pk12check arm, then localeval
+  1k decode): B1 < 58 tok/s or 1k decode < 58 tok/s (#11272 gave ~62) -> stop the job, release the slot, report "BOX SLOW"
+  with the numbers, record nothing as a baseline; in range -> let it run and say so here. Lane: a watcher checks the first
+  B1 batched tok/s line and the first localeval 1k decode and stops the job on a miss.
+
+### #11314 (063f7b55f, p12solo): stopped by SIGTERM (exit -15) during pk12check's speed arm; NOT a baseline
+
+- Guard: first B1 batched 63.0 tok/s (>= 58, in range); the job then ended (exit -15) before localeval; the guard did not
+  stop it (it logged "job ended before the 1k decode"); the TERM came from outside the lane.
+- Metal tests at defaults: inkling2 9/9; inkling2_batch 6/7: the batched plan configured ("pack12 off: batched plan
+  (max-batch 16); 17 P12 tensors dropped"), but the new test's cross-model assertion failed: batched (bf16) rows were not
+  bitwise the separate P12 solo model's rows on the tiny fixture. P12 solo is therefore not bitwise the bf16 path at the
+  tiny shapes (on the real model #11194 found P12 default == off bitwise). Fix cb61e0847: the test asserts batched ==
+  the batched model's own solo steps (bitwise) and P12 on solo / off batched, and prints the P12-vs-bf16 row count and max
+  |dlogit| (not asserted). bespin: cpu inkling2_batch 7/7. To the pack12 lane: the "bitwise twin" claim does not hold at
+  tiny shapes.
+- pk12check: G2 short 2.087e-3 / 2.928e-3 PASS, confident misses 0/363; greedy 64 / 256 md5 = the combined-gate tip
+  (solo P12 unchanged).
+- batch_step rep 1 (only rep that ran): defaults B1 15.88 / B8 53.47 / B16 94.83 ms, P12=0 B1 15.49 / B8 49.39 / B16 91.51 ms:
+  defaults configure now (no panic). B8 / B16 are ~20 % slower than #11266's P12=0 run (41.55 / 76.20) on the same code path
+  for these rows (P12 is dropped in both): the box or the slot was slow in this window; not recorded as a baseline.
+
+- **Incidents (lane's errors), 2026-11-22.** (1) #11314 ended at 06:44:29 on a TERM to serve_le2.sh alone (sender unknown:
+  not main, not the guard, not a fleetq deadline); its child pk12check.sh, not signalled, kept running batch_step on endor's
+  GPU outside fleetq until 06:48:20 (fp8 #11315 fully contaminated, prefill #11322 first 13 s). (2) Testing the new trap, a
+  wrapper ran the real script outside fleetq: ~20 s of cargo build at 06:49:45-06:50:07 (CPU, during ink-batch's control,
+  which passed BOX OK a few % low). Rules since (coordinator): never run the real job script outside a fleetq slot, test or not
+  (traps are tested with dummy children only); `serve_le2.sh` is now a wrapper that runs `serve_le2_body.sh` in the
+  background in its own process group and waits; on TERM / INT / HUP it logs the time, its parent chain and kill-like
+  processes, TERMs the body's group and every descendant PID, checks after 5 s by PID and KILLs what is left; at the normal end
+  it logs the descendant list (the body's group included, so orphans are caught) and stops anything left. Tested with dummy
+  bodies (signal and orphan-at-exit cases: none left). The guard (`slowguard.sh <job>`) logs each action with a timestamp.
+- Known limit (coordinator, item 3): on the tiny fixture, B1 rows of a max-batch > 1 server (P12 dropped) are not guaranteed
+  bitwise those of a max-batch 1 server (P12 on); on the real model they are bitwise (#11194, P12 default == off).
+- 2026-11-22 (coordinator): **ink/fp8 merge rule**: never take 5295a81b4 (with the screen on it makes enable_batch /
+  configure_plan refuse batching: the plan dry run counts the screen's fp8 GEMV in the solo step). Floor 72900194e or later
+  (carries 14821ba77, fallback groups read the unembed once, and 81f07e427, screen off on misaligned heads). Not merged at
+  all until fp8's batch_step requeue passes its box check and #11338 (real-model forced fallback, md5 = off) passes; the test
+  `inkling2_tiny_screen_keeps_batching` has not run yet. The screen stays opt-in either way.
+- 2026-11-22 (coordinator): **correction of the batched reference**. #11181 is invalid as a speed reference (no digests,
+  binary gone, the same code measured 79-90 ms at B16 before and after it): drop its 59.96 ms / 266.9 tok/s (and B8 34.93).
+  The batched reference is #11266 (c918e9fda, quiet, random ids, P12=0): B1 15.38, B8 41.55, **B16 76.20 ms**. The "B8 +19 %,
+  B16 +27 %" regression above was measured against #11181 and is withdrawn. B16 aggregate is 194-207 tok/s with random ids
+  (#11328 final) and 182-199 with real text (#11261): **below the 230 tok/s target**. (This doc made no above-230 claim.)
+  #11347's guard and box check are unchanged (B1 and localeval decode).
+- 2026-11-22 (coordinator): ink/fp8 gates passed (#11338 real-model forced fallback md5 identical x5; #11345 quiet, B1 65.0,
+  batched == solo x4 with the screen on): merge 538a9c283 (code final 72900194e), never 5295a81b4, screen opt-in; then build,
+  Metal suite, greedy md5 64 / 256 with every new switch unset unchanged, admission, one fleetq slot (cpu load for build and
+  tests, quiet gpu,cpu for md5), tree-killing job script; report the merge commit, no push. Lane: trial merge found that
+  538a9c283 makes the screen **default on on Metal** (screen.rs `wanted`: unset -> `backend == "metal"`; LOG entry "goes
+  default on on Metal"; tuning row "default on on Metal since 2026-11-22"), against "the screen stays opt-in". Merge aborted,
+  nothing committed, ink/metal unchanged at d14028792.
+- 2026-11-22 (coordinator): HOLD: 538a9c283 contains 89270fb58 (screen default on). ink-fp8 commits a one-commit revert of the
+  default (unset -> off, `=1` -> on) and sends the hash; merge that, with the same post-merge checks.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
