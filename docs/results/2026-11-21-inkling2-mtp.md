@@ -672,8 +672,10 @@ change: DSpark runs only with `--spec dflash --spec-draft <Inkling-2-Mini dir>`;
 ### Gate rules (set before any gate ran)
 
 Checkpoint `Inkling-2-Mini` snapshot b85c3cfa6 (its `mtp.safetensors` is the draft). DSpark arm everywhere:
-`--spec dflash --spec-draft <same dir> --spec-k 3` with `INTARSIA_DSPARK_TAU=0.8` (the code default is 0.6; 0.8 is the flip
-policy measured in #10991). Every `INTARSIA_*` variable is unset in the job scripts first. main = origin/main 1f226a2e3 built
+`--spec dflash --spec-draft <same dir>` at its opt-in defaults, k3 and gate 0.8. Amended before any gate ran (coordinator,
+2026-11-22: the opt-in default must be what the speed table measures): 840adbca6 moves `INTARSIA_DSPARK_TAU`'s default 0.6 -> 0.8
+and gives a DSpark draft its own `--spec-k` default 3 (was the DFlash block's 15, capped at 7); B1 also checks the run's
+"--spec-k defaults to 3" line. Every `INTARSIA_*` variable is unset in the job scripts first. main = origin/main 1f226a2e3 built
 in the same job from `git archive`, branch = this branch's tip built in the same job. A gate fails on any miss; a failed gate
 stops the lane and is reported, never re-ruled.
 
@@ -707,8 +709,8 @@ B. DSpark k3, gate 0.8 (branch, endor, Metal).
 C. The PR's own CI (ubuntu check / test, macOS metal check, cuda / hip cfgs, reproducible build): every job green before merge.
 
 Speed protocol (after A and B pass; branch tip binary, endor, one `--quiet gpu,cpu` slot): `serve --backend metal --max-batch 1
---max-seq 20480` per arm (off, DSpark k3 tau 0.8), localeval `suite --tier adhoc --cells speed-plain` (143 / 1k / 4k / 16k
-prompt tokens, 256 forced output tokens, 3 reps each); the DSpark arm declared `--lane spec:dspark --drafter dspark`, off `--lane
+--max-seq 20480` per arm (off, DSpark), localeval `suite --tier adhoc --cells speed-plain` (143 / 1k / 4k / 16k
+prompt tokens, 256 forced output tokens, 3 reps each), DSpark at its defaults (k3, gate 0.8); the DSpark arm declared `--lane spec:dspark --drafter dspark`, off `--lane
 plain`. Order: one warm-up run (off, `--no-unim`, discarded), then off, DSpark, DSpark, off (ABBA). Reported per length: decode
 tok/s, prefill tok/s and TTFT of each run, the arm means (absolute) and DSpark / off ratios, plus the A-to-A and B-to-B drift.
 
