@@ -965,6 +965,13 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   (inkling2.toml, new), bench 1, Cargo.lock 1, cuda 1 and hip 1 (the op-coverage test list / `UNIMPLEMENTED` list only).
 - No-op checks: Metal on endor fleetq #11440 (plan show and ids for Qwen3-8B and Llama-3.1-8B, kernels test, goldens,
   workspace tests base vs dev); CUDA on spark1 #11441 (plan show json 35B + 8B, kernels test --quick, base vs dev). Pending.
+- Metal #11440 done (exit 0, 09:29:18-09:59:11, quiet gpu,cpu): 256 greedy ids identical base vs dev for Qwen3-8B (short sha
+  d619ede5, 4k feb11f5c) and Llama-3.1-8B-Instruct (short 25bbc20f, 4k eda51e94); `plan show` txt and json byte-identical for
+  both. `kernels test --backend metal` 0 FAIL on both: base 56 kernels / 1335 cases, dev 86 kernels / 2915 cases (the Inkling,
+  P12, screen, gumbel kernels); every base kernel is still ADMITTED in dev (argmax 4 -> 8 cases from the shared V % 4 rows).
+  Goldens on dev: qwen3-8b-fp32 and qwen3-8b-long-fp32 golden gate PASS (teacher-forced greedy match 100%). `cargo test
+  --workspace --release --no-fail-fast`: dev 295 test binaries ok, base 275 ok, 0 failed on either. One visible change, by
+  design: the `generate` stats line prints `top ops: off (pass --profile-every 16)` when no step was profiled (hostgap a).
 - CUDA #11441 done (exit 0, 09:22:06-09:40:46): CUDA release builds of base and dev clean (6 m 11 s, 5 m 16 s); `plan show
   --json` byte-identical for the 35B NVFP4 (15570 B) and Qwen3-8B (8973 B); `kernels test --backend cuda --quick` 106 kernels,
   0 FAIL on both (972 vs 984 cases: dev's shared case lists add 2 argmax_f32 / 2 argmax_bf16 cases (the V % 4 != 0 rows) and
