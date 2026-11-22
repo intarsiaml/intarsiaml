@@ -695,7 +695,15 @@ backend has no `supports_topk`, so on cpu only logits rows run).
 - cpu (bespin #11310): `inkling2_batch` 7/7 pass, max |d| = 0; G1 (`g1a_f32_vs_f64`, `g1b_teacher_forced_bf16`) 2/2 pass.
   Mutation (batch.rs without its two `softcap_logits` calls): the new test FAILS at the logits assertion, so it detects a
   missing cap. (spark2 cannot build this test file: its dev-dependency `intarsia-backend-metal` is macOS-only.)
-- Metal tiny with device top-k: queued (endor, default load).
+- Metal tiny (#11309, default load): Metal has no `supports_topk`, so its sampled batched rows are full logits rows (the host
+  sampler takes the top-k): the test passes with max |d| = 0, and the mutation copy FAILS. Device top-k is a cpu-backend
+  feature (`CpuBackend::arc_topk`) on this model; cuda / hip also have it.
+- Device top-k rows on cpu: the test first ran with the plain cpu backend (no top-k); fixed in cd372d2a7 (the softcap test
+  wraps `CpuBackend::arc_topk` in the `Failing` test backend, which now forwards `supports_topk` / `topk_rows`). bespin
+  #11335-ish run: "device top-k rows tested", 7/7 pass, max |d| = 0, G1 2/2. Mutation with only the top-k softcap removed:
+  FAILS at "row 1 (LastTopK(8)): top-k values are not the solo capped logits of their ids". Both row kinds are covered.
+- Remote-test hazard hit once: `git archive` sets file mtimes to the commit time, older than a previous run's mutated build,
+  so cargo reused a stale mutated `intarsia-core` (every test failed). The bespin script now touches every extracted file.
 
 ## 23. #11297: warm rep + paired auto vs union-fused on real text, BOX-SLOW (not speed); control rule
 
