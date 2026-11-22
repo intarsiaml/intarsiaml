@@ -358,7 +358,7 @@ fn fast_matches_reference_on_random_bf16() {
     let cfg = SweepConfig { quick: true, ..Default::default() };
     let b = CpuBackend::new();
     // the DeepSeek-V4.1 stubs have no reference to compare against (lane 1b)
-    for op in Op::ALL.into_iter().filter(|o| !intarsia_backend_cpu::dsv41_ref::STUBS.contains(o)) {
+    for op in Op::ALL.into_iter().filter(|o| !intarsia_backend_cpu::dsv41_ref::STUBS.contains(o) && !o.is_reserved()) {
         for case in sweep(op, &cfg).into_iter().take(6) {
             let want = run_host(&b, &format!("ref_{}", op.as_str()), &case.call).unwrap();
             let got = run_host(&b, &format!("cpu_f32_{}", op.as_str()), &case.call).unwrap();

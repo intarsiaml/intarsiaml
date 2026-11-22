@@ -22,7 +22,7 @@ fn cpu_fast_kernels_pass_admission_quick_sweep() {
         );
     }
     // every other op has an admitted implementation with at least one case
-    for op in intarsia_core::Op::ALL.into_iter().filter(|o| !stubs.contains(o)) {
+    for op in intarsia_core::Op::ALL.into_iter().filter(|o| !stubs.contains(o) && !o.is_reserved()) {
         assert!(report.kernels.iter().any(|k| k.op == op && k.admitted && k.cases > 0), "{op} has no admitted kernel");
     }
     // applying the report marks kernels admitted in a registry

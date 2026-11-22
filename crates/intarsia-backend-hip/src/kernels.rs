@@ -574,7 +574,8 @@ mod tests {
         let names: HashSet<_> = table.iter().map(|(n, _)| *n).collect();
         assert_eq!(names.len(), table.len());
         // every op is either implemented here or listed as not ported yet
-        for op in Op::ALL {
+        // the reserved placeholder discriminants (`Op::is_reserved`) are exempt
+        for op in Op::ALL.into_iter().filter(|o| !o.is_reserved()) {
             let have = table.iter().any(|(_, o)| *o == op);
             assert!(have != UNIMPLEMENTED.contains(&op), "{op}: implemented = {have}, listed unimplemented = {}", UNIMPLEMENTED.contains(&op));
         }
