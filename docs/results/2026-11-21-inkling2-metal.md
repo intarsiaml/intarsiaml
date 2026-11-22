@@ -299,6 +299,12 @@ Claim a slot here before adding an op; replace the placeholder in place (same po
 Lane note on 77: it is the lowest free slot but sits in dfuse's block; dfuse's current work (dfuse-route 120cfe4b9) adds no op,
 so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need not stay whole; the map is accepted.
 
+- 2026-11-22 (ink-batch lane): ink/batch dcff9e8c4 / ff9f65bf9 (bench only, not on ink/metal) switch batch_step's default
+  prompts to real text (`--prompts text`). The gate and the baseline on ink/metal's own tree keep the random-id reference;
+  if ink/batch is merged before the baseline runs, add `--prompts random` to batch_step to keep the same reference. The
+  real-text number comes from ink-batch's job after #11206. Lane: ink/batch is not merged; `serve_le2.sh` adds
+  `--prompts random` automatically when batch_step knows the flag.
+
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
 | Tree | KL21 scored | max | chat_system | chat_reasoning |
