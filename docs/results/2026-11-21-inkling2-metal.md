@@ -260,6 +260,20 @@ and batch 6/6, cuda / hip lib 34 / 31, docs_env_vars 2/2. Combined gate: endor #
   (`cargo test -p intarsia-core --lib ops::`, `kernels test --op ink_route`, Inkling `plan show` must list `ink_route` and no
   `ink_reserved`). The reservation was refused twice (409: collides with waiting quiet jobs #11183, then #11185 / #11188 /
   #11194), so the gate is queued normally as #11206 (9th); the coordinator was told.
+- 2026-11-22 (coordinator): leave #11206 in line (the jobs ahead are real gates of other lanes). Have the follow-ons ready to
+  queue when their triggers pass: (1) the quiet baseline: localeval plus batch_step B 1/8/16, median of 3; (2) the pack12
+  merge with G2 short (defaults) + md5 against the combined-gate tip, after #11194; (3) the ink-hostgap Gumbel merge check
+  (rows_exact + the gumbel Metal tests on the merged tree), after #11182. No other endor jobs until #11206 passes.
+- 2026-11-22 (coordinator): batch_step's random-id prompts route nearly every row to the same experts (union ~23 per MoE call
+  at B16 vs ~82 for independent routing): record it as "synthetic random-id prompts, regression reference only", not
+  real-traffic speed; the real-traffic number is localeval's concurrent run; ink-batch sends a real-text mode after #11206.
+- Lane, follow-ons ready (not queued): `.scratch/q_baseline.sh` -> `serve_le2.sh` (quiet gpu,cpu, --mem 32, ~80 min: A
+  speed-plain at max-batch 1 / max-seq 20480 with the prefill-chunk line and the server's peak memory, B conc-plain-1k at
+  max-batch 16 / max-seq 8192, C batch_step x3 labelled synthetic); `.scratch/pk12check.sh` (G2 short both modes + confident
+  rows, md5 64 / 256 vs `.scratch/cg/`); `.scratch/gumbelcheck.sh` (metal rows_exact + gumbel, core op ids, cpu gumbel
+  reference). The Gumbel code is on `ink/hostgap-gumbel` (336e20250: `GumbelArgmax = 96`, appended after the reserved block,
+  so `ALL` becomes 97), not on `ink/hostgap`. Trial merges on the current tip: both ink/hostgap-gumbel and ink/pack12
+  conflict only in the op lists (ops.rs, cpu fast / reference / lib, cuda / hip kernels; pack12 also model/inkling2.rs).
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
