@@ -17,6 +17,9 @@ Branch `ink/m-mix` (worktree `.worktrees/ink-m-mix`, base `3feffee6e`). Target e
   holds -> add a commit putting BLEND_RB back to 16, that gets merged; neither -> nothing merged. ink-dfuse replaces the gate +
   norm dispatches with one ticketed dispatch for <= 16 rows (INTARSIA_INK_BLEND_TAIL), so weight the 2048-row line. Record,
   report the table, stop; keep the worktree until the merge.
+- 2026-11-21, coordinator: finish the quiet LoopBlend run (1 / 16 / 2048 rows), report it, then stop editing inkmix.rs;
+  row-kernel work moves to ink-dfuse (splitting the kernels across threadgroups at T = 1). Both defaults hold -> `25ff7864a`
+  merges into ink/metal; only the row-kernel default holds -> revert BLEND_RB to 16 in its own commit and send the hash.
 
 ## 1. What was built
 
