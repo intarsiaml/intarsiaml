@@ -440,6 +440,10 @@ pub struct BackendTuning {
     /// Inkling-2 only: the expert activation mode on this backend (`"w4a16"`, the default, or `"w4a4"`: the checkpoint's NVFP4 /
     /// MXFP8 activation quantisation, `ink.act_quant = 1`) when `INTARSIA_INK_ACT_QUANT` is not set. It changes outputs; opt-in.
     pub act_quant: Option<String>,
+    /// The device sampler ([`crate::gumbel`], `HeadMode::LastGumbel`) for plain-temperature requests on this backend when
+    /// `INTARSIA_GUMBEL_SAMPLING` is not set. It changes which token a given seed draws (same distribution): only
+    /// `recipes/inkling2.toml` sets it, `true` on Metal (user decision 2026-11-22, lane ink-metal).
+    pub gumbel_sampling: Option<bool>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -509,6 +513,11 @@ impl Recipe {
     /// The recipe's Inkling-2 `act_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
     pub fn ink_act_quant(&self, backend: &str) -> Option<&str> {
         self.tuning.backends.get(backend).and_then(|b| b.act_quant.as_deref())
+    }
+
+    /// The recipe's `gumbel_sampling` for `backend` (`[tuning.<backend>]`); the env var is resolved by [`crate::gumbel::wanted`].
+    pub fn gumbel_sampling(&self, backend: &str) -> Option<bool> {
+        self.tuning.backends.get(backend).and_then(|b| b.gumbel_sampling)
     }
 
     /// The recipe's `ink_attn_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.

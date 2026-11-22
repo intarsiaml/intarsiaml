@@ -862,7 +862,7 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
         // the device sampler (lane ink-hostgap, `INTARSIA_GUMBEL_SAMPLING=1`): its head runs outside the planned passes, so no
         // planned call selects its kernel; tested by its op's sweep, as a twin's base is, else `serve` (admitted kernels only)
         // would never run it
-        let extra: BTreeSet<String> = if crate::gumbel::enabled_from_env() {
+        let extra: BTreeSet<String> = if model.gumbel_wanted() {
             cand_kernels
                 .iter()
                 .filter(|k| k.op == Op::GumbelArgmax && model.registry.admission(&k.name) == Some(Admission::Untested))
