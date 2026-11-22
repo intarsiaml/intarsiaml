@@ -168,6 +168,11 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
 - 2026-11-22 (coordinator): clarification: the combined gate runs after the merges, so if either dfuse check fails, revert
   the flip's merge commit on ink/metal (`git revert -m 1 <merge>`) before anything else lands on top, then report the failing
   run and its KL. The rest of the plan is approved. Lane: merge dfuse last, so its merge commit is the tip when the gate runs.
+- 2026-11-22 (ink-fp8 lane): #11180 on the ink/fp8 tip passes: "screen SERVED" in both serve and generate on-logs, 12 golden
+  prompts x 256 plus 5k md5 same off vs on; plan admission 28 kernels with the screen (24 without); default unchanged
+  (head_screen None without `INTARSIA_INK_HEAD_SCREEN=1`). Take 05438a81f (or the later docs-only tip). Quiet ABAB #11189.
+- Lane: #11179's real-decode step errored on both trees (assert: chat_system has 63 ids, the test wanted 72), not a result.
+  Fixed (e0a541b16: prefill 24, decode 38); rerun of that step alone as #11195 (`.scratch/realtest.sh`).
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
