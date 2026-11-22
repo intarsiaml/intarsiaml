@@ -1,0 +1,50 @@
+== per-dispatch off
+30 decode steps: GPU busy 15803 us, span 15741 us, dispatches 543
+| ink_in_proj_bf16_gemv | 3433 | 48 | 71.25 |  |
+| moe_experts_situ_bf16 | 2534 | 44 | 57.50 |  |
+| ink_attn_decode_bf16 | 1657 | 48 | 34.25 |  |
+| conv_mix_bf16 | 1603 | 96 | 16.50 | ctrl |
+| unembed | 1545 | 1 | 1538.67 |  |
+| moe_experts_situ_bf16#1 | 1378 | 44 | 31.25 |  |
+| matmul_bf16_gemv | 1305 | 48 | 27.13 |  |
+| ink_route_bf16 | 592 | 48 | 12.33 | ctrl |
+| conv_mix_bf16#2 | 384 | 46 | 8.21 | ctrl |
+| moe_experts_mxfp8_bf16 | 354 | 4 | 88.23 |  |
+| conv_mix_bf16#1 | 266 | 46 | 5.12 | ctrl |
+| conv_mix_bf16#3 | 212 | 46 | 4.62 | ctrl |
+| moe_experts_mxfp8_bf16#1 | 177 | 4 | 43.98 |  |
+| argmax_f32 | 173 | 1 | 173.52 |  |
+| attn_res_mix_bf16 | 97 | 4 | 24.31 | ctrl |
+| loop_blend_bf16#2 | 18 | 2 | 9.40 | ctrl |
+| loop_blend_bf16 | 14 | 2 | 7.25 | ctrl |
+| loop_blend_bf16#1 | 14 | 2 | 7.13 | ctrl |
+| loop_blend_bf16#3 | 9 | 2 | 4.58 | ctrl |
+| rmsnorm_bf16 | 9 | 2 | 4.54 |  |
+| other | 9 | 4 | 2.17 |  |
+| embedding_bf16 | 3 | 1 | 2.83 |  |
+CONTROLLERS (per-dispatch, pipelined): 3.210 ms per token
+== per-dispatch on
+30 decode steps: GPU busy 16271 us, span 16206 us, dispatches 543
+| ink_in_proj_bf16_gemv | 3556 | 48 | 73.67 |  |
+| moe_experts_situ_bf16 | 2601 | 44 | 58.88 |  |
+| ink_attn_decode_bf16 | 1676 | 48 | 34.63 |  |
+| conv_mix_bf16 | 1629 | 96 | 17.13 | ctrl |
+| unembed | 1591 | 1 | 1590.29 |  |
+| moe_experts_situ_bf16#1 | 1409 | 44 | 31.92 |  |
+| matmul_bf16_gemv | 1348 | 48 | 27.87 |  |
+| ink_route_bf16 | 652 | 48 | 13.58 | ctrl |
+| conv_mix_bf16#2 | 387 | 46 | 8.25 | ctrl |
+| moe_experts_mxfp8_bf16 | 365 | 4 | 90.81 |  |
+| conv_mix_bf16#1 | 272 | 46 | 5.25 | ctrl |
+| conv_mix_bf16#3 | 209 | 46 | 4.50 | ctrl |
+| moe_experts_mxfp8_bf16#1 | 181 | 4 | 45.17 |  |
+| argmax_f32 | 172 | 1 | 172.44 |  |
+| attn_res_mix_bf16 | 97 | 4 | 24.42 | ctrl |
+| loop_blend_bf16#2 | 19 | 2 | 9.62 | ctrl |
+| loop_blend_bf16 | 15 | 2 | 7.29 | ctrl |
+| loop_blend_bf16#1 | 15 | 2 | 7.27 | ctrl |
+| loop_blend_bf16#3 | 9 | 2 | 4.50 | ctrl |
+| rmsnorm_bf16 | 9 | 2 | 4.56 |  |
+| other | 9 | 4 | 2.13 |  |
+| embedding_bf16 | 3 | 1 | 2.87 |  |
+CONTROLLERS (per-dispatch, pipelined): 3.303 ms per token

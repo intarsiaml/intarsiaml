@@ -469,7 +469,7 @@ candidates, in the order to try:
 Measure the same way as the hoist: microbench warm vs rotating sets, the per-dispatch trace, and the normal-step span with
 interleaved reps.
 
-### ink_route candidate 1: preload (branch ink/dfuse-route, 120cfe4b9; not yet timed)
+### ink_route candidate 1: preload (branch ink/dfuse-route, 120cfe4b9; timed in job R #11258: slower, dropped)
 
 - **Kernel.** `ink_route_p9` / `ink_route_p16` (`INTARSIA_INK_ROUTE_PRELOAD`, default off). Each simdgroup loads its whole
   weight row and the x row before the first dot: 9 uint4 per lane at D 2304, up to 16. The dot8 terms are added in the same
@@ -665,3 +665,38 @@ The defaults on Metal are E's best, bit for bit. The full test suite passes with
   - The plain and the hoisted (`ink_mix_row_h_e*`) instances take NE from that same `mix_geom` (inkmix.rs, the pipeline
     table indexed by NE with a hoist offset), so the one fix should cover both. The rerun checks that.
   - inkling2_mix_decode_cpu passed here and on the faulty base, so it is no evidence for this point.
+
+### Job R (#11258, 05:46-05:52, ink/dfuse-route 120cfe4b9; raw/R_*): the preload is bitwise but slower, so it is dropped
+
+off = best (route + msg + hoist + norm_c); on = best + `INTARSIA_INK_ROUTE_PRELOAD=1`.
+
+- **Correctness.**
+  - The Metal tests pass, and so does the stress run with the preload on (4000 calls, all bitwise). With the preload on,
+    ink_route is ADMITTED on all 124 cases.
+  - With the preload on vs off, the real model's 1-row greedy md5 is EQUAL (65cde8f35a1802e3e2fadb44d94d080d) and the
+    16-row self-golden is EQUAL.
+  - The preload kernel really ran: in the bitwise runs it served on 1 and off 0, and in the timing runs on 10 of 10 and
+    off 0 of 10.
+- **G2 on one binary.** All four switches off, best, and best + preload give byte-equal self-goldens in both modes, short
+  and long: prefill 2.719e-3 / 3.544e-3 (pass), decode mode 1.109e-2 / 9.205e-3. So the decode-mode excess comes from the
+  base (m-mix NE 4), whatever the switches.
+- **us per ink_route call**
+
+  | Where | Rows | off | on (preload) |
+  |---|---|---|---|
+  | in the stream (per-dispatch trace, 48 calls per token) | 1 | 12.33 | 13.58 |
+  | microbench, 48 rotating sets | 1 | 8.62 | 9.97 |
+  | microbench, 48 rotating sets | 4 | 8.84 | 9.84 |
+  | microbench, 48 rotating sets | 16 | 13.12 | 12.11 |
+
+  Per-dispatch controllers: 3.210 ms per token (off) vs 3.303 (on).
+- **Normal-step span**, interleaved reps (median ms/step):
+  - short, 6 reps: off 15.054, on 15.090, so +0.036 against an off spread of 0.096.
+  - 5k, 4 reps: off 16.317, on 16.526, so +0.209. This one is noisy (off spread 0.935).
+- **Verdict.** Issuing the whole row's loads up front makes ink_route slower at 1 and 4 rows: +1.3 us per call in the stream
+  and in the microbench. It gains only at 16 rows. Decode runs at 1 row, so candidate 1 is dropped.
+  - ink/dfuse-route (ed14676a6, 120cfe4b9) stays unmerged, and the switch is not on ink/dfuse.
+  - The cold-load gap stays: 12.33 us per call in the stream against 8.62 warm, about 0.18 ms per token.
+  - Candidates 2 (a shorter top-8 tail) and 3 (cross-layer prefetch, which needs a contract note) are unbuilt and wait
+    for the coordinator.
+

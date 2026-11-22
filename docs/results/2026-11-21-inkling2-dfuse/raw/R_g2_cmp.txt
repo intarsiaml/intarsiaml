@@ -1,0 +1,16 @@
+G2 short alloff: prefill KL 2.719e-3 PASS decode KL 1.109e-2 FAIL  EXIT 1
+G2 short off: prefill KL 2.719e-3 PASS decode KL 1.109e-2 FAIL  EXIT 1
+G2 short on: prefill KL 2.719e-3 PASS decode KL 1.109e-2 FAIL  EXIT 1
+G2 short self-golden off vs alloff: EQUAL
+G2 short self-golden on vs alloff: EQUAL
+G2 long alloff: prefill KL 3.544e-3 PASS decode KL 9.205e-3 FAIL  EXIT 1
+G2 long off: prefill KL 3.544e-3 PASS decode KL 9.205e-3 FAIL  EXIT 1
+G2 long on: prefill KL 3.544e-3 PASS decode KL 9.205e-3 FAIL  EXIT 1
+G2 long self-golden off vs alloff: EQUAL
+G2 long self-golden on vs alloff: EQUAL
+== g2-long-alloff: prefill KL 3.544e-3 PASS decode KL 9.205e-3 FAIL  EXIT 1
+== g2-long-off: prefill KL 3.544e-3 PASS decode KL 9.205e-3 FAIL  EXIT 1
+== g2-long-on: prefill KL 3.544e-3 PASS decode KL 9.205e-3 FAIL  EXIT 1
+== g2-short-alloff: prefill KL 2.719e-3 PASS decode KL 1.109e-2 FAIL  EXIT 1
+== g2-short-off: prefill KL 2.719e-3 PASS decode KL 1.109e-2 FAIL  EXIT 1
+== g2-short-on: prefill KL 2.719e-3 PASS decode KL 1.109e-2 FAIL  EXIT 1
