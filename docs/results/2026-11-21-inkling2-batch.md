@@ -1029,3 +1029,31 @@ slow state's cause.** Ten batched-only runs (`batch_prof --b 16 --steps 300 --wa
   not leave the GPU idle. The indirect lever is energy per step: fewer bytes moved and less wasted ALU at B 16 (MoE 52-55%
   of the step) lowers power, which lets the governor hold a higher state. That is the existing optimization work, so no
   separate item. **Topic closed.** Warm steady state (~68-75 ms B 16) is the primary serving number from here on (28b).
+
+## 29. B 16 levers with ceilings (proposal, measure-only basis: #11355 real text, 07:23-07:26, warm box)
+
+B 16 real-text step at the final tree, GPU busy 69.74 of 70.61 ms wall (`.scratch/brk.log`); class ms scaled to busy. Floors
+use dfuse's measured rates (#11336, section 26): NVFP4 experts ~490 GB/s at 16 rows, bf16 GEMV ~560 GB/s, unembed ~580 GB/s;
+compute at the ALU check's 15.6 TFLOP/s. Expert bytes: gate+up+down = 3 x 1152 x 2304 params at NVFP4 (4.5 bits) = 4.48 MB,
+which reproduces m-moe's 750-770 us per visit at union ~83 (372 MB / 0.76 ms = 490 GB/s). Ceilings are measured minus floor;
+they are upper bounds, in warm-state ms.
+
+| class | measured ms | launches | floor (basis) | ceiling | verdict |
+|---|---:|---:|---|---:|---|
+| MoE experts + route | 37.54 | 192 | 25.1 (44 calls x union 62.5 x 4.48 MB at 490 GB/s) | ~12 | **lever 1** |
+| in_proj (q / r / gate / sink / k / v) | 9.80 | 48 | ~1.7 (~0.95 GB bf16 at 560 GB/s; 15 GFLOP = 1.0 ms) | ~8 | **lever 2** |
+| attention decode | 11.14 | 52 | dfuse: separate prologue + attn 97 vs fused 123-131 us per visit at ctx 512 | ~0.7 | below 3 ms |
+| head (unembed) | 4.09 | 2 | 1.6 (0.92 GB at 580 GB/s) | ~2.5 | below 3 ms |
+| mix / blend / norm | 4.10 | 244 | launch-bound (244 x 0.88 us = 0.2 ms dependency) | <3 | below 3 ms |
+| dense GEMV (wo etc.) | 3.04 | 96 | ~0.6 (0.34 GB) | ~2.4 | below 3 ms |
+
+- **Lever 1, MoE at real-text unions (~12 ms ceiling).** Real text gives a union of 62.5 experts per call (random ids: 23), so
+  ~2 pairs per expert. Each call costs 0.85 ms against 0.57 ms at 490 GB/s for the same union: the union kernels lose ~1/3 at
+  low pairs per expert. First step (measure only): MoE time per call against union size and pairs per expert from the
+  existing k16text trace labels, to tell per-expert fixed cost from bandwidth. Then a kernel change only if the fit shows >= 3 ms.
+- **Lever 2, in_proj rows at B 16 (~8 ms ceiling).** 9.8 ms for ~0.95 GB of bf16 rows is ~6x the bandwidth floor and ~10x
+  the compute floor: the B > 1 in_proj kernel does not reuse each weight read across the 16 rows. First step (measure only):
+  in_proj us per call at 1 / 8 / 16 rows on one layer (does time grow linearly with rows?). Coordinate with ink-dfuse first:
+  their roofline covers B 1, and they have nothing in flight on the B > 1 in_proj rows kernel (section 26).
+- Everything else is below the 3 ms bar; none built.
+- Gains are reported per the 28b rule: ABAB pairs in one slot after warm-up, warm number primary.
