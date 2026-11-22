@@ -160,8 +160,15 @@ fn main() {
                 let forms = list("INKMOE_NAX2_FORMS", "0");
                 let skips = list("INKMOE_NAXSKIPS", "0");
                 let flops = (tr * K) as f64 * 2.0 * (H * 2 * I + I * H) as f64;
+                // lane ink-prefill: INKMOE_PROBES=a,0,1,2 (a = the normal kernels; 0..2 the probe copies, `ink-probe` feature)
+                let probes_l = list("INKMOE_PROBES", "a");
                 for form in forms.split(',') {
                     for skip in skips.split(',') {
+                    for pr in probes_l.split(',') {
+                        #[cfg(feature = "ink-probe")]
+                        intarsia_backend_metal::inkprefill::set_moe_probe(pr.parse().ok());
+                        #[cfg(not(feature = "ink-probe"))]
+                        assert!(pr == "a", "INKMOE_PROBES needs the ink-probe feature");
                         set_form(Some(form));
                         set_skip(skip.parse().unwrap());
                         let run = |reps: usize| {
@@ -179,13 +186,16 @@ fn main() {
                         }
                         v.sort_by(|a, b| a.partial_cmp(b).unwrap());
                         println!(
-                            "{fmt} T={tr:5} form {form:14} skip {skip} {:9.1} us/call (min {:8.1})  {:5.1} TFLOP/s of the full call",
+                            "{fmt} T={tr:5} form {form:14} skip {skip} probe {pr} {:9.1} us/call (min {:8.1})  {:5.1} TFLOP/s of the full call",
                             v[2],
                             v[0],
                             flops / (v[2] * 1e-6) / 1e12
                         );
                     }
+                    }
                 }
+                #[cfg(feature = "ink-probe")]
+                intarsia_backend_metal::inkprefill::set_moe_probe(None);
                 set_form(None);
                 set_skip(0);
                 continue;

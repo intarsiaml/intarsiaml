@@ -392,6 +392,11 @@ impl MetalBackend {
                     && (f.bn3.is_none() || self.pso(crate::inkprefill::NAX3_GATHER).is_some())
             });
             let (gu_k, dn_k, tm) = form.map_or((NAX_GU[fi][ti], NAX_DN[fi][ti], tm), |f| (f.gu, f.dn, f.tm));
+            // lane ink-prefill timing probes (bench-only `ink-probe` feature; WRONG RESULTS)
+            let (gu_k, dn_k) = match crate::inkprefill::moe_probe(mx, tm).filter(|_| form.is_none()) {
+                Some((g, d)) => (g, d),
+                None => (gu_k, dn_k),
+            };
             let bn3 = form.and_then(|f| f.bn3);
             let nt = form.map_or(128, |f| f.threads);
             // dequant-once experiment: the weights decoded to bf16 first, the format-2 kernels read them (S unused)

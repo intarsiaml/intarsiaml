@@ -33,6 +33,7 @@ const METAL4_SOURCES: &[&str] =
         "inkling2_moe_nax3.metal",
         "inkling2_blend_nax.metal",
         "inkling2_mix_nax.metal",
+        "inkling2_moe_probe.metal",
     ];
 
 /// Rust sources that decide which kernel a call takes and with which grid / bindings (GEMV variant choice by alignment,
