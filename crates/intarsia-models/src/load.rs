@@ -919,6 +919,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     // `--spec dflash`: the draft checkpoint, read and checked before the target's weights
     let spec_auto = opts.spec.mode == intarsia_core::spec::SpecMode::Auto;
     let dspine_opts: EngineOptions;
+    let dspark_opts: EngineOptions;
     let mut opts = opts;
     let dflash = if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash || spec_auto {
         if max_batch.value > 1 {
@@ -954,6 +955,15 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             o.spec.k = k;
             dspine_opts = o;
             opts = &dspine_opts;
+        }
+        // Inkling-2's DSpark draft: its measured default depth (k3; the 8-row block would otherwise draft up to 7)
+        if dl.config.dspark.is_some() && !opts.spec_k_given && opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
+            let k = intarsia_core::spec::DSPARK_K_DEFAULT;
+            eprintln!("--spec dflash with a DSpark draft: --spec-k defaults to {k}");
+            let mut o = opts.clone();
+            o.spec.k = k;
+            dspark_opts = o;
+            opts = &dspark_opts;
         }
         if dl.config.spine.is_some() && backend_name == "metal" && opts.spec.k + 1 > 8 {
             eprintln!("warning: --spec-k {} runs a {}-row verify with a DSpine draft; the Metal gates cover at most 8 rows and k = 3 measured fastest", opts.spec.k, opts.spec.k + 1);

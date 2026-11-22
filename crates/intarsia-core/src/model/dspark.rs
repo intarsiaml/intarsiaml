@@ -31,8 +31,9 @@ pub(super) const FRNN_RING: usize = 64;
 pub(super) const BLOCK: usize = 8;
 /// Rows of the device mix weights (`Dspark::mixw`): the most rows a row-major ingest (a flush of stashed decode rows) takes.
 const MIX_ROWS: usize = 512;
-/// Default confidence gate (`INTARSIA_DSPARK_TAU`): measured on the oracle, docs/results/2026-11-21-inkling2-mtp.md.
-const TAU_DEFAULT: f32 = 0.6;
+/// Default confidence gate (`INTARSIA_DSPARK_TAU`): 0.8, with k3 the fastest measured on Metal (#10874: 80.6 tok/s greedy against
+/// 80.5 at 0.6, 72% acceptance against 57%), docs/results/2026-11-21-inkling2-mtp.md.
+const TAU_DEFAULT: f32 = 0.8;
 
 /// `mtp_config` of the target's `config.json` (the loader's `open_dflash`).
 #[derive(Clone, Debug, Default, PartialEq)]
