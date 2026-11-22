@@ -4,7 +4,8 @@
 //! batched == solo) and NoKernel refusal on a backend without the Inkling-2 kernels.
 //!
 //! `INTARSIA_INKLING2_BACKEND=metal` runs the bf16 tests (G1(b), the state contract, the failed-pass reset) on the Metal
-//! backend instead (G1 on Metal, lane ink-metal); G1(a) (f32 activations) and the NoKernel refusal stay on cpu.
+//! backend instead (G1 on Metal, lane ink-metal; `cuda`: the same on CUDA, lane ink-cuda-mixmoe); G1(a) (f32 activations) and
+//! the NoKernel refusal stay on cpu.
 //!
 //! Skipped (loudly) when the fixture is missing; fails under `CI=1`.
 
@@ -43,17 +44,19 @@ fn load_act(dir: &Path, chunk: usize, backend: Arc<dyn intarsia_core::Backend>, 
     Model::load(backend, &recipe, &dims, &src, &LoadOptions { max_seq: 128, prefill_chunk: chunk, graphs: false, act_dtype: act, kv_dtype: act, ..Default::default() }, Arc::new(Telemetry::new()))
 }
 
-/// The backend of the bf16 tests: cpu, or Metal with `INTARSIA_INKLING2_BACKEND=metal`.
+/// The backend of the bf16 tests: cpu, or Metal / CUDA with `INTARSIA_INKLING2_BACKEND=metal` / `cuda`.
 fn backend() -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
         Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
+        Ok("cuda") => intarsia_backend_cuda::create(0).unwrap(),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
-        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or metal"),
+        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal or cuda"),
     }
 }
 
+/// A GPU backend (Metal or CUDA): passes of 2..=16 rows take the rows-exact kernels, larger ones the prefill kernels.
 fn on_metal() -> bool {
-    std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() == Ok("metal")
+    matches!(std::env::var("INTARSIA_INKLING2_BACKEND").as_deref(), Ok("metal") | Ok("cuda"))
 }
 
 /// The prefill chunk of the state tests: one pass for the 40-token prompt on cpu (its kernels are rows-exact at any row count);
@@ -298,6 +301,24 @@ fn inkling2_tiny_chunked_and_decode_match_prefill_bitwise() {
         rows.extend(all_logits(&m, &mut st, &[id]));
     }
     assert_eq!(rows, whole, "prefill then decode");
+}
+
+/// The logits of prefill 9 then decode one token at a time, written as raw f32 to `INTARSIA_INKLING2_DUMP` (two runs with
+/// different `INTARSIA_INK_ATTN_FUSED` are compared byte for byte by the caller). No-op without the variable.
+#[test]
+fn inkling2_tiny_logits_dump() {
+    let Some(path) = std::env::var_os("INTARSIA_INKLING2_DUMP") else { return };
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let m = load(&dir, chunk());
+    let mut st = m.new_state().unwrap();
+    let mut rows = all_logits(&m, &mut st, &ids[..9]);
+    for &id in &ids[9..] {
+        rows.extend(all_logits(&m, &mut st, &[id]));
+    }
+    let bytes: Vec<u8> = rows.concat().iter().flat_map(|v| v.to_le_bytes()).collect();
+    std::fs::write(&path, bytes).unwrap();
+    println!("dump: {} rows, top-1 {:?}", rows.len(), rows.iter().map(|r| argmax(r)).collect::<Vec<_>>());
 }
 
 /// Rollback by length (a rejected speculative tail, a prompt edit) within the ring margin, and the refusal past it.
