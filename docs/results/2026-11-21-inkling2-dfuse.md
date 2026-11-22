@@ -1227,3 +1227,30 @@ which predate the NE fix.
 - **Unslotted CPU work on endor:** a 14 s `cargo check` at about 07:56 while ink-metal's quiet baseline #11387 ran, plus a
   few seconds of offline `xcrun metal` / `swiftc -typecheck` earlier. Reported to main; compile checks now go to bespin.
 
+
+### Job G results (#11400, 08:41-08:47, snapshot .scratch/snap9 = fcd05b172; raw/G_*)
+
+Every correctness gate passes. The speed gain is real but below the 0.3 ms/token bar, so by the rule fixed before timing
+`INTARSIA_INK_MOE_T1` **stays opt-in (default off)**. Keeping it opt-in or dropping it is the coordinator's call.
+
+- **Greedy md5, off vs on:** equal at 64 tokens (65cde8f3...) and 256 tokens (61fd59fe...). The on runs served the new
+  instances, the off runs never did.
+- **Tests:** inkmoe 2/2, including the crossed rows-exact sweep (3840 one-row calls took gu1 / dn_f3 when on, 0 when
+  off). G1 tiny + inkling2_batch with the switch on: 16/16.
+- **Admission `moe_experts`:** off and on identical (situ 10/10 and rows 7/7 ADMITTED, same error numbers).
+- **G2 / G3, self-goldens off vs on byte-equal in all four.** Decode-mode G2: 2.928e-3 short, 2.761e-3 long, the same as
+  ink-metal's #11206. G3: 8.420e-3 short, 1.229e-2 long.
+- **`plan show` Qwen3-8B and Llama-3.1-8B:** byte-identical to the base binary.
+- **Box:** median 13.290 ms/step at the start and 13.243 at the end (543 dispatches, 2 buffers per step, idle 0.01 %).
+- **Speed, ABAB in one slot (median span ms/step, off minus on):**
+
+| Prompt | Pairs | Per-pair gain (ms/token) | Median | tok/s on minus off (median) | Bar |
+|---|---|---|---|---|---|
+| short | 4 | 0.275, 0.314, 0.236, 0.270 | **0.272** | +1.52 (75.1 -> 76.6) | below 0.3 |
+| 5k | 3 | 0.293, 0.308, 0.248 | **0.293** | +1.18 (70.1 -> 71.4) | below 0.3 |
+
+  The on side wins all 7 pairs, about 2 %. The microbench predicted 0.29-0.32 ms/token (N2), and the real step lands at
+  the bottom of that range. The difference at 1 row is the one-row gate+up (one pair per leader) plus the down kernel
+  loading 3 chunks ahead; 44 visits per token.
+- **Lane recommendation:** keep it opt-in. It is bitwise, the code is template parameters on the shipped kernels, and
+  the gain is consistent. No default flip unless the coordinator changes the bar.
