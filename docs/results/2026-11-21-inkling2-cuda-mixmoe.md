@@ -87,6 +87,13 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   lossless P12 (ink/pack12, default-on on Metal) for in_proj as the next candidate with an estimate; do not build it.
   (5) Report per op us before/after at T=1/4/16, and eager tok/s short / 5k.
 
+- (coordinator, 11th) cuda-attn's nsys at 8f7d5cd3a (spark1 #11087, its doc 903937e67) confirms: idle gaps 1.47 ms/token (657
+  kernels, 2.2 us mean gap). Per token at 7.9k ctx, measured vs floor: experts gu+dn 9.35 vs 6.30 ms; in_proj 8.71 vs 6.96;
+  unembed 3.75 vs 3.39; 48 tiny 1-3-block ink_mma_gemv calls 1.96 ms (40 us each, ~0 bytes); ink_row single-block conv /
+  res-mix 2.10 ms (124 calls); moe_route 0.4. Order, all bitwise vs the current kernels: (1) the latency-bound tiny ops (~4.5
+  ms: ink_row, the small mma_gemv calls, moe_route; more blocks or fuse into neighbours); (2) MoE experts 170 -> >= 230 GB/s
+  (~2-3 ms); (3) CUDA P12 stays a listed candidate. Per item: us before / after and eager tok/s.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
