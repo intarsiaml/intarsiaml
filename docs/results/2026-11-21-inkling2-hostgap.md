@@ -510,7 +510,7 @@ cycle (`Seq::prepare_with`, the branch DSpark and DFlash take) is its own class 
 
 The S1 / S2 host work inside `draft` is ink-mtp's `INTARSIA_DSPARK_PROFILE` split.
 
-## Item 6: the device sampler (Gumbel-max, opt-in; branch `ink/hostgap-gumbel`, c4c1f48e6)
+## Item 6: the device sampler (Gumbel-max, opt-in; branch `ink/hostgap-gumbel`, a6cb2dce8; spark2 ran the same code as c4c1f48e6 before a rebase)
 
 Built on a side branch so that #10943 still measures the `ink/hostgap` it was queued for (measAB builds b4 from that HEAD). It
 merges into `ink/hostgap` after #10943 has run.
