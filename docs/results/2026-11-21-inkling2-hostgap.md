@@ -115,6 +115,12 @@ Status: waiting on endor #10943 (items 2 and 3 timing); code done and CPU-checke
   rounds to 2^32 for x >= 2^32 - 128 (w = 1, E = inf, g = -inf: harmless, but) so w is clamped to at most 1 - 2^-24 and g is
   always finite, which keeps the admission and NaN / inf checks clean. Two more tests: the x = 2^32 - 1 and x = 0 edge cases,
   and a property test that g is finite for random x. Keys as an i32 `[R,4]` tensor of u32 bit patterns: OK.
+- 2026-11-21 (coordinator, rule for all Inkling lanes): the session and every worktree run on endor, so a local cargo build /
+  check / test or shader compile loads endor's CPU and skews every quiet timing job there (a candidate cause of the 5k / t0.7
+  "run-order confound"). No local builds or tests on endor outside a fleetq slot. macOS compile checks: bespin
+  (`fleetq run --host bespin --load cpu --mem 6 --expect <min>`, a `git archive` copy in `~/intarsiaml-<lane>`, toolchain in
+  `~/.cargo/bin`; no GPU timing or real model there). CPU tests: spark2. GPU work: endor fleetq jobs. Reading, git and editing
+  locally are fine.
 
 ## Measurement (before)
 
