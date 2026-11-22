@@ -388,8 +388,10 @@ accepts the remainder.
   row-parallel accept first runs on Inkling once ink/batch merges. Before then nothing exercises it on the real model.
 - **A possible B = 16 real-model gate:** `batch_metal_real.rs::real_35b_batched_engine_equals_the_local_engine` (BatchedEngine,
   sampled rows, Metal) run with `INTARSIA_HOST_THREADS=8`. Offered to main, not run.
-- **Not tested:** a constrained (json_schema) request through the batched sampled path with the pool on. On the pool, the
-  constraint's mask and apply run on worker threads. The compiler proves `Send`; no test exercises it.
+- **json_schema on the batched sampled path (coordinator item 4):** `structured::batch_tests::json_schema_batched_sampled_equals_solo`
+  (commit 280d8716c) runs the real llguidance constraint on half of 16 sampled requests at B = 4 and 8 against `LocalEngine`.
+  The grammar env is built over the tiny fixture's byte vocabulary. Results on spark2 #10968: bitwise equal with
+  `INTARSIA_HOST_THREADS=8` (the constrained rows' mask, apply, sample and commit on pool workers) and with `=1`; server lib 59/59.
 
 ## Pending: #10943 (endor, quiet, `--expect 35`)
 
