@@ -1189,3 +1189,31 @@ which predate the NE fix.
   4. One env switch to revert. Gates as in the brief: the model step ABAB, 3 alternating reps, is the real measure of the
      gain.
 
+### Build: INTARSIA_INK_MOE_T1 (fcd05b172, default off) and its gate job G (#11400, queued 08:05)
+
+- **fcd05b172** (own commit). kernels/metal/inkling2_moe.metal:
+  - `ink_gu_impl` / `ink_lead` take the pairs per union leader, and `ink_dn_row` / `ink_dn_f_impl` the chunks ahead, as
+    template parameters. The defaults are INK_XR / INK_NB, so the shipped instances are the same code; the explicit
+    shuffle reductions are unchanged.
+  - New NVFP4 instances: `ink_moe_gu1_nv_{a,u}[_x]` (one pair per leader) and `ink_moe_dn_f3_nv_{a,u}_{bf16,f32}` (3 down
+    chunks ahead).
+
+  crates/intarsia-backend-metal/src/inkmoe.rs: `t1_enabled()` (`INTARSIA_INK_MOE_T1=1` / `on`; `set_t1` for tests). A
+  one-row NVFP4 call takes the new instances. The first call prints one stderr line, and `t1_served()` counts the calls.
+  The NAX prefill code is not touched (the switch sits after its early return). docs/tuning.md has the row. bespin
+  #11397 / #11399: the Metal crate's lib, tests and examples check, and docs_env_vars passes.
+- **tests/inkmoe.rs.** The NVFP4 rows-exact sweep now runs twice. With the switch on, the one-row reference calls take the
+  new instances and the T-row calls the shipped ones, so the compare crosses the kernels. The test asserts that the new
+  instances served when on and never when off.
+- **Job G** (raw/G_jobG.sh; one binary, the switch by env; body in its own process group):
+  1. box label;
+  2. greedy md5 at 64 / 256 tokens, off vs on (stop on any difference);
+  3. inkmoe, plus G1 tiny and inkling2_batch on Metal with the switch on;
+  4. admission `--op moe_experts` off and on (the situ sweep has T = 1, 3, 4, 7, 16, 40, 64, 2048);
+  5. G2 (both modes) and G3, short and long, off and on, with the self-goldens byte-compared;
+  6. `plan show` against the base binary;
+  7. speed after a warm-up: ABAB in this slot, 4 pairs at the short prompt and 3 at 5k, per-pair span and tok/s
+     differences, with the decision rule printed.
+- **Unslotted CPU work on endor:** a 14 s `cargo check` at about 07:56 while ink-metal's quiet baseline #11387 ran, plus a
+  few seconds of offline `xcrun metal` / `swiftc -typecheck` earlier. Reported to main; compile checks now go to bespin.
+
