@@ -148,6 +148,18 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   4018 at 1k (2.4-3.5x); attention is 6-9 % of it, the rest the MoE and in_proj prefill GEMMs. When the probe reports, give a
   ranked choice between decode MoE (the probe outcome) and prefill GEMMs, each with an estimated tok/s or TTFT gain.
 
+- (coordinator, 18th) Serve-stop hygiene (an endor serve stopped with `kill $SP` lived 2 h holding 11 GB). When #11225 ends:
+  port closed, `pgrep -f 'intarsia serve'` empty on spark2, `free -g`; clean up inside a fleetq slot if anything is left. Future
+  serve scripts: own process group (`set -m` / setsid) and an EXIT trap that TERMs serve, then TERM/KILLs the group, checks the
+  port is closed and prints STOP FAILED otherwise; helper .worktrees/ink-batch/.scratch/serve_lib.sh.
+
+- (coordinator, 19th) #11225 hung: in le.sh's remote command `cd ... && nohup serve ... &` backgrounds the whole `&&` list as a
+  subshell, which held ssh's stdout open, and `echo $!` recorded the subshell (2804215), not serve. The coordinator, inside
+  FLEETQ_JOB=11225 at ~05:22, wrote serve's PID 2804216 to out/serve.pid and killed the subshell; localeval then ran. After
+  le.sh: check port 8090 dead and the --child 2804217 gone with the parent, else clean up in a slot. Future launches:
+  `cd X && { nohup B serve ... >log 2>&1 </dev/null & echo $! >pid; }` or `setsid -f` (this lane: .scratch/serve_remote.sh,
+  setsid with the redirects on the command, stop by process group, STOP FAILED check).
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
@@ -311,3 +323,21 @@ tiny 13/13 (tests/inkling2_capture.rs compiles), core quant::cases 2/2; greedy 2
 | 15 tokens | 98-108 ms | 34.56 / 34.62 | 32.77 / 32.63 |
 | 1261 tokens | 1295 ms (974 tok/s) | 33.98 | 32.31 (#11158) |
 | 6672 tokens | 5775 ms (1155 tok/s) | 33.02 | 31.16 |
+
+## localeval speed: intarsia serve on CUDA vs vLLM (spark2)
+
+intarsia: c6680633c (P12 on, graphs on, no speculation), fleetq #11225, localeval run
+`20261122-051731-adhoc-intarsia-cuda-c6680633c` (unanimis c69bed69), 3 reps, 128 forced tokens, thinking off. vLLM:
+`20261120-192706-spark2-inkling-none-quick-spec-effnone`, NVFP4 image `vllm/vllm-openai:inkling-2-mini`, **DSpark MTP drafter
+on** (`--lane spec:dspark --drafter dspark-mtp7`, probe ratio 1.081; peak decode 63-95 tok/s shows accepted drafts), 254 tokens.
+Not rerun (coordinator). The decode columns are therefore not like for like: vLLM's includes speculation, intarsia's does not.
+
+| prompt tok | TTFT s intarsia / vLLM | marginal prefill tok/s intarsia / vLLM | decode tok/s intarsia / vLLM (spec) | intarsia / vLLM decode |
+|---:|---:|---:|---:|---:|
+| 135 / 144 | 0.24 / 0.21 | - / - | 34.6 / 36.8 | 0.94 |
+| 1037 / 1024 | 0.86 / 0.43 | 1462 / 4018 | 34.5 / 38.4 | 0.90 |
+| 4127 / 4112 | 3.00 / 1.54 | 1441 / 2772 | 33.6 / 42.8 | 0.79 |
+| 16448 / 16456 | 11.27 / 5.79 | 1491 / 2902 | 32.0 / 38.7 | 0.83 |
+
+Serve load: 228 s, admission 26 kernels / 103 cases, none rejected. After the stop: port 8090 closed, no serve process left
+(2804216 and its --child 2804217 gone), memory back to the 41-42 GB baseline (vLLM retro 38 GB).
