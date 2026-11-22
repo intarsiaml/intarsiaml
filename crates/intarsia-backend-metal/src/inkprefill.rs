@@ -21,6 +21,9 @@ pub const NAX2: &[(usize, usize, &str)] = &[
     (0, 128, "m128_k32_v3"),
     (1, 128, "m128_k64_v1"),
     (1, 128, "m128_k32_v3"),
+    // V & 64: 256 threads, one decoded weight stage shared by the two 64-row halves of a 128-row tile (brief 5 item 5a)
+    (0, 128, "m128_k64_v65"),
+    (1, 128, "m128_k64_v65"),
 ];
 
 const FMT: [&str; 2] = ["nv", "mx"];
@@ -46,6 +49,8 @@ pub struct Form {
     pub dn: &'static str,
     pub tm: usize,
     pub bn3: Option<usize>,
+    /// Threads per threadgroup of the gu / dn kernels.
+    pub threads: usize,
 }
 
 /// (gu, dn) shader names of each `NAX2` entry, then of each `NAX3` entry.
@@ -89,10 +94,11 @@ pub fn moe_nax(mx: bool, tm: usize) -> Option<Form> {
         let _ = tm; // an explicitly selected form runs at any row count (its tile may exceed the mean rows per expert)
         let i = NAX3.iter().position(|&(ff, _, _, s)| ff == f && s == w3)?;
         let (gu, dn) = names()[NAX2.len() + i];
-        return Some(Form { gu, dn, tm: NAX3[i].1, bn3: Some(NAX3[i].2) });
+        return Some(Form { gu, dn, tm: NAX3[i].1, bn3: Some(NAX3[i].2), threads: 128 });
     }
     let i = NAX2.iter().position(|&(ff, _, s)| ff == f && s == want.as_str())?;
-    Some(Form { gu: names()[i].0, dn: names()[i].1, tm: NAX2[i].1, bn3: None })
+    let threads = if NAX2[i].2.rsplit('_').next().and_then(|v| v.strip_prefix('v')).and_then(|v| v.parse::<u32>().ok()).is_some_and(|v| v & 64 != 0) { 256 } else { 128 };
+    Some(Form { gu: names()[i].0, dn: names()[i].1, tm: NAX2[i].1, bn3: None, threads })
 }
 
 /// Timing probe of the grouped prefill path (`INTARSIA_INK_MOE_NAXSKIP`, a bit set; wrong results): 1 skips gate+up, 2 the

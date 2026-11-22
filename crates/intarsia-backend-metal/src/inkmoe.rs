@@ -389,6 +389,7 @@ impl MetalBackend {
             });
             let (gu_k, dn_k, tm) = form.map_or((NAX_GU[fi][ti], NAX_DN[fi][ti], tm), |f| (f.gu, f.dn, f.tm));
             let bn3 = form.and_then(|f| f.bn3);
+            let nt = form.map_or(128, |f| f.threads);
             crate::inkprefill::trace(gu_k);
             let mut pg = p;
             pg.dims[5] = tm as u32;
@@ -416,11 +417,11 @@ impl MetalBackend {
                 at(&xb, 0)
             };
             if skip & 1 == 0 {
-                self.ink_dispatch(gu_k, &[&ab, &pb, &offb, &tb, &w13, &s13, &gb, &wb, &hb], &p, ggu, 128)?;
+                self.ink_dispatch(gu_k, &[&ab, &pb, &offb, &tb, &w13, &s13, &gb, &wb, &hb], &p, ggu, nt)?;
             }
             let gdn = MTLSize { width: h.div_ceil(cd), height: max_tiles, depth: 1 };
             if skip & 2 == 0 {
-                self.ink_dispatch(dn_k, &[&hb, &pb, &offb, &tb, &w2, &s2, &gb, &wb, &yb], &p, gdn, 128)?;
+                self.ink_dispatch(dn_k, &[&hb, &pb, &offb, &tb, &w2, &s2, &gb, &wb, &yb], &p, gdn, nt)?;
             }
             if skip & 4 != 0 {
                 return Ok(());

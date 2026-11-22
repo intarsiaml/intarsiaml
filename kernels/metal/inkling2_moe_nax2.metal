@@ -63,10 +63,10 @@ inline void in2_blk_mx(uint4 v, uint s, threadgroup bfloat* dst) {
     d[1] = uint4(o[4], o[5], o[6], o[7]);
 }
 
-template <uint NA, uint AC, uint BM>
+template <uint NA, uint AC, uint BM, uint NT>
 inline void in2_load_a(device const ushort* const thread* ap, uint tid, uint k0, uint KD, thread uint4* av) {
     for (uint j = 0; j < NA; ++j) {
-        const uint c = tid + 128u * j;
+        const uint c = tid + NT * j;
         uint4 v = uint4(0u);
         if (c < BM * AC && ap[j] != nullptr && k0 + (c % AC) * 8u < KD) {
             device const packed_ushort4* q4 = (device const packed_ushort4*)(ap[j] + k0);
@@ -84,12 +84,17 @@ inline void in2_mm_impl(device const ushort* A, device const int* pairs, device 
     constexpr bool PA = (V & 1u) != 0, DB = (V & 2u) != 0;
     constexpr bool NODEC = (V & 4u) != 0, NOMM = (V & 8u) != 0, NOA = (V & 16u) != 0;
     constexpr uint TM = BM < 16 ? 16 : BM;
-    constexpr uint GM = BM >= 32 ? 2 : 1;
-    constexpr uint SM = TM / GM, SN = MOE_WR / (4 / GM);
+    constexpr uint NT = (V & 64u) != 0 ? 256 : 128;  // V & 64: 8 simdgroups, one B stage shared by 4 row groups
+    constexpr uint NSG = NT / 32;
+    constexpr uint CG = BM >= 32 ? 2 : NSG;           // column groups of simdgroups
+    constexpr uint RG = NSG / CG;                     // row groups
+    constexpr uint SM = TM / RG, SN = MOE_WR / CG;
     constexpr uint LD = BK + 8;
     constexpr uint AC = BK / 8;
-    constexpr uint NA = (BM * AC + 127) / 128;
-    constexpr uint NB = BK / 32;
+    constexpr uint NA = (BM * AC + NT - 1) / NT;
+    constexpr uint TPR = NT / MOE_WR;                 // loader threads per weight row
+    constexpr uint NB = BK / 16 / TPR;
+    static_assert(NB >= 1, "BK too small for the loader");
     constexpr uint NBUF = DB ? 2 : 1;
     constexpr uint ASZ = TM * LD, BSZ = MOE_WR * LD;
     static_assert(!DB || PA, "double buffering needs the A prefetch");
@@ -101,17 +106,17 @@ inline void in2_mm_impl(device const ushort* A, device const int* pairs, device 
     threadgroup bfloat* Bs0 = As0 + NBUF * ASZ;
     if (BM < TM) {
         for (uint b = 0; b < NBUF; ++b)
-            for (uint i = tid; i < (TM - BM) * LD / 8; i += 128u) *(threadgroup uint4*)(As0 + b * ASZ + BM * LD + i * 8u) = uint4(0u);
+            for (uint i = tid; i < (TM - BM) * LD / 8; i += NT) *(threadgroup uint4*)(As0 + b * ASZ + BM * LD + i * 8u) = uint4(0u);
     }
     device const ushort* ap[NA];
     for (uint j = 0; j < NA; ++j) {
-        const uint c = tid + 128u * j, r = c / AC;
+        const uint c = tid + NT * j, r = c / AC;
         ap[j] = nullptr;
         if (c < BM * AC && r < rows)
             ap[j] = MODE == 0 ? A + p.s0 + (ulong)((uint)pairs[s0 + r] / K) * H + (c % AC) * 8u
                               : A + (ulong)(s0 + r) * I + (c % AC) * 8u;
     }
-    const uint br = tid / 2u, bq = (tid % 2u) * NB;
+    const uint br = tid / TPR, bq = (tid % TPR) * NB;
     const uint n0 = tg.x * (MODE == 0 ? MOE_WR / 2 : MOE_WR);
     const uint bn = MODE == 0 ? n0 + br % 32u : n0 + br;
     const bool bok = bn < (MODE == 0 ? I : H);
@@ -124,8 +129,8 @@ inline void in2_mm_impl(device const ushort* A, device const int* pairs, device 
     uint4 av[PA ? NA : 1];
     if (FMT == 0) moe_fetch<NB>(wp, sp, bok, bq, 0u, KD, wv, sv);
     else in2_fetch_mx<NB>(wp, sp, bok, bq, 0u, KD, wx, sv);
-    if (PA) in2_load_a<NA, AC, BM>(ap, tid, 0u, KD, av);
-    const uint sr = (sg / (4 / GM)) * SM, sc = (sg % (4 / GM)) * SN;
+    if (PA) in2_load_a<NA, AC, BM, NT>(ap, tid, 0u, KD, av);
+    const uint sr = (sg / CG) * SM, sc = (sg % CG) * SN;
 
     constexpr auto desc = matmul2d_descriptor(SM, SN, BK, false, true, false, matmul2d_descriptor::mode::multiply_accumulate);
     matmul2d<desc, execution_simdgroup> op;
@@ -143,7 +148,7 @@ inline void in2_mm_impl(device const ushort* A, device const int* pairs, device 
         threadgroup bfloat* Bs = Bs0 + b * BSZ;
         if (!NOA) {
             for (uint j = 0; j < NA; ++j) {
-                const uint c = tid + 128u * j;
+                const uint c = tid + NT * j;
                 if (c >= BM * AC) break;
                 uint4 v;
                 if (PA) {
@@ -174,7 +179,7 @@ inline void in2_mm_impl(device const ushort* A, device const int* pairs, device 
     auto fetch = [&](uint k1) {
         if (FMT == 0) moe_fetch<NB>(wp, sp, bok, bq, k1, KD, wv, sv);
         else in2_fetch_mx<NB>(wp, sp, bok, bq, k1, KD, wx, sv);
-        if (PA) in2_load_a<NA, AC, BM>(ap, tid, k1, KD, av);
+        if (PA) in2_load_a<NA, AC, BM, NT>(ap, tid, k1, KD, av);
     };
     auto mma = [&](uint b) {
         if (NOMM) return;
@@ -222,7 +227,7 @@ inline void in2_mm_impl(device const ushort* A, device const int* pairs, device 
         const uint r0 = hp * EH;
         if (MODE == 0) {
             const float g0 = FMT == 0 ? gsc[e * 3] : 1.f, g1 = FMT == 0 ? gsc[e * 3 + 1] : 1.f;
-            for (uint q = tid; q < EH * 32u; q += 128u) {
+            for (uint q = tid; q < EH * 32u; q += NT) {
                 const uint r = q / 32u, c = q % 32u;
                 if (r0 + r >= rows || r0 + r >= BM || n0 + c >= I) continue;
                 const float g = moe_rb(smem[r * MOE_LC + c] * g0), u = moe_rb(smem[r * MOE_LC + 32 + c] * g1);
@@ -230,7 +235,7 @@ inline void in2_mm_impl(device const ushort* A, device const int* pairs, device 
             }
         } else {
             const float g2 = FMT == 0 ? gsc[e * 3 + 2] : 1.f;
-            for (uint q = tid; q < EH * MOE_WR; q += 128u) {
+            for (uint q = tid; q < EH * MOE_WR; q += NT) {
                 const uint r = q / MOE_WR, c = q % MOE_WR;
                 if (r0 + r >= rows || r0 + r >= BM || n0 + c >= H) continue;
                 out[(ulong)pairs[s0 + r0 + r] * H + n0 + c] = f2bf(smem[r * MOE_LC + c] * g2);
@@ -276,3 +281,5 @@ IN2_SET(nv, 0, 128, 64, 1)
 IN2_SET(nv, 0, 128, 32, 3)
 IN2_SET(mx, 1, 128, 64, 1)
 IN2_SET(mx, 1, 128, 32, 3)
+IN2_SET(nv, 0, 128, 64, 65)
+IN2_SET(mx, 1, 128, 64, 65)

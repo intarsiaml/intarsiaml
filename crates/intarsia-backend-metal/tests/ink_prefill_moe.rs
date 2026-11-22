@@ -99,7 +99,7 @@ fn prefill_forms_match_the_first_generation_at_2048_rows() {
         let f = mx as usize;
         let forms: Vec<String> = NAX2
             .iter()
-            .filter(|&&(ff, _, s)| ff == f && (s.ends_with("_v0") || s.ends_with("_v1") || s.ends_with("_v3")))
+            .filter(|&&(ff, _, s)| ff == f && (s.ends_with("_v0") || s.ends_with("_v1") || s.ends_with("_v3") || s.ends_with("_v65")))
             .map(|&(_, _, s)| s.to_string())
             .chain(NAX3.iter().filter(|&&(ff, ..)| ff == f).map(|&(_, _, _, s)| format!("nax3_{s}")))
             .collect();
