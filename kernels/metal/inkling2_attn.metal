@@ -18,7 +18,6 @@
 #include "common.h"
 
 constant constexpr uint INK_MAXS = 32;        // most splits (scratch stride)
-constant constexpr uint INK_SPLIT_KEYS = 64;  // a split holds at least this many keys
 constant constexpr uint INK_ALIGN = 32;       // split chunks are a multiple of this
 constant constexpr uint INK_NSG = 4;          // simdgroups of a stage-1 threadgroup
 constant constexpr float INK_LOG2E = 1.4426950408889634f;
@@ -52,7 +51,8 @@ inline uint ink_pos0(constant InkP& p, device const int* pos) { return p.use_dev
 
 inline uint ink_lo(uint pp, uint window) { return (window > 0 && pp + 1 > window) ? pp + 1 - window : 0u; }
 
-inline uint ink_nsplit(uint vis) { return clamp((vis + INK_SPLIT_KEYS - 1) / INK_SPLIT_KEYS, 1u, INK_MAXS); }
+// a split holds at least `sk` keys (InkP.f3 bits: the launcher's split policy, one value per process)
+inline uint ink_nsplit(uint vis, uint sk) { return clamp((vis + sk - 1) / sk, 1u, INK_MAXS); }
 
 inline uint ink_chunk(uint vis, uint ns) {
     const uint c = (vis + ns - 1) / ns;
@@ -273,20 +273,16 @@ inline ushort ink_finish(float a, float m, float l, float sink2, float gate) {
     return f2bf(precise::divide(a * sc, lt) * ink_sigmoid(gate));
 }
 
-// Threadgroup state of a stage-1 threadgroup: q of the GP heads (rounded, before the softmax scale), the rel bias of the split's
-// distances that are < E (log2 domain), and for the fused kernel the K / V rows of the call's own keys in the split.
+// Threadgroup state of a stage-1 threadgroup: q of the GP heads (rounded, before the softmax scale) and the merge buffers. The
+// rel bias of the split's distances below E (log2 domain, [GP][nb]) and, in the fused kernel, the K / V rows of the call's
+// own keys in the split ([2][T][D] bf16) live in dynamic threadgroup memory sized by the launcher (threadgroup(0), (1)).
 template <uint GP>
 struct InkTg {
     float q[GP][128];
-    float bias[GP][1024];
     float acc[INK_NSG][GP][128];
     float ml[INK_NSG][GP][2];
 };
 
-struct InkKvTg {
-    ushort k[16][128];
-    ushort v[16][128];
-};
 
 // Split geometry of row t (function of its position and the window only).
 struct InkSplit {
@@ -298,7 +294,7 @@ inline InkSplit ink_split(constant InkP& p, uint pos0, uint t, uint split) {
     g.pp = pos0 + t;
     g.lo = ink_lo(g.pp, p.window);
     const uint vis = g.pp - g.lo + 1;
-    g.ns = ink_nsplit(vis);
+    g.ns = ink_nsplit(vis, as_type<uint>(p.f3));
     const uint chunk = ink_chunk(vis, g.ns);
     g.ks = min(g.lo + split * chunk, g.pp + 1);
     g.ke = min(g.ks + chunk, g.pp + 1);
@@ -311,7 +307,7 @@ inline InkSplit ink_split(constant InkP& p, uint pos0, uint t, uint split) {
 // The attention of one (kv head, split, row) over keys ks .. ke given the staged q and bias; writes the output (one split) or
 // the partial. KV_TG: the call's own keys (j >= pos0) come from threadgroup rows `kvt` instead of the k / v inputs.
 template <uint GP, bool KV_TG>
-inline void ink_attn_body(threadgroup InkTg<GP>& S, threadgroup InkKvTg* kvt, uint kvoff, InkSplit g, uint kvh, uint split, uint t,
+inline void ink_attn_body(threadgroup InkTg<GP>& S, threadgroup const float* bias, threadgroup const ushort* kvt, uint kvoff, InkSplit g, uint kvh, uint split, uint t,
                           uint pos0, device const ushort* kn, device const ushort* vn, device const ushort* kc,
                           device const ushort* vc, device const ushort* pq, device ushort* out, device float* scr,
                           constant InkP& p, uint tid, uint lane, uint sg) {
@@ -340,8 +336,9 @@ inline void ink_attn_body(threadgroup InkTg<GP>& S, threadgroup InkKvTg* kvt, ui
         if (ok) {
             if (j >= pos0) {
                 if (KV_TG) {
-                    kw = *(threadgroup const uint4*)&kvt->k[j - pos0 - kvoff][le * 8];
-                    vw = *(threadgroup const uint4*)&kvt->v[j - pos0 - kvoff][le * 8];
+                    const uint ro = (j - pos0 - kvoff) * D + le * 8;
+                    kw = *(threadgroup const uint4*)(kvt + ro);
+                    vw = *(threadgroup const uint4*)(kvt + p.t * D + ro);
                 } else {
                     const ulong o = ((ulong)(j - pos0) * Hk + kvh) * D + le * 8;
                     kw = *(device const uint4*)(kn + o);
@@ -368,7 +365,7 @@ inline void ink_attn_body(threadgroup InkTg<GP>& S, threadgroup InkKvTg* kvt, ui
             for (uint i = 0; i < 8; ++i) s = fma(qv[h][i], kf[i], s);
             for (uint o = 1; o < lpk; o <<= 1) s += simd_shuffle_xor(s, (ushort)o);
             if (!ok) continue;
-            if (bi < g.nb) s += S.bias[h][bi];
+            if (bi < g.nb) s += bias[h * g.nb + bi];
             const float mn = max(m[h], s);
             const float corr = exp2(m[h] - mn);
             const float pr = exp2(s - mn);
@@ -448,6 +445,7 @@ template <uint GP>
     device const int* pos [[buffer(8)]],
     device float* scr [[buffer(9)]],
     constant InkP& p [[buffer(10)]],
+    threadgroup float* tb [[threadgroup(0)]],
     uint3 tg [[threadgroup_position_in_grid]],
     uint3 tid3 [[thread_position_in_threadgroup]],
     uint lane [[thread_index_in_simdgroup]],
@@ -482,17 +480,17 @@ template <uint GP>
     for (uint x = tid; x < GP * D; x += INK_NSG * 32) S.q[x / D][x % D] = bf2f(q[((ulong)t * H + kvh * GP) * D + x]);
     for (uint x = tid; x < GP * g.nb; x += INK_NSG * 32) {
         const uint h = x / g.nb, b = x % g.nb;
-        S.bias[h][b] = bf2f(rel[((ulong)t * H + kvh * GP + h) * E + g.dlo + b]) * INK_LOG2E;
+        tb[h * g.nb + b] = bf2f(rel[((ulong)t * H + kvh * GP + h) * E + g.dlo + b]) * INK_LOG2E;
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
-    ink_attn_body<GP, false>(S, nullptr, 0, g, kvh, split, t, pos0, kn, vn, kc, vc, pq, out, scr, p, tid, lane, sg);
+    ink_attn_body<GP, false>(S, tb, nullptr, 0, g, kvh, split, t, pos0, kn, vn, kc, vc, pq, out, scr, p, tid, lane, sg);
 }
 
 #define INK_S1(GP)                                                                                                         \
     template [[host_name("ink_attn_s1_g" #GP)]] [[kernel]] void ink_attn_s1<GP>(                                          \
         device const ushort*, device const ushort*, device const ushort*, device ushort*, device ushort*,                   \
         device const ushort*, device const ushort*, device ushort*, device const int*, device float*, constant InkP&,       \
-        uint3, uint3, uint, uint);
+        threadgroup float*, uint3, uint3, uint, uint);
 INK_S1(1)
 INK_S1(2)
 INK_S1(3)
@@ -526,12 +524,13 @@ template <uint GP>
     device const int* pos [[buffer(13)]],
     device float* scr [[buffer(14)]],
     constant InkP& p [[buffer(15)]],
+    threadgroup float* tb [[threadgroup(0)]],
+    threadgroup ushort* tkv [[threadgroup(1)]],
     uint3 tg [[threadgroup_position_in_grid]],
     uint3 tid3 [[thread_position_in_threadgroup]],
     uint lane [[thread_index_in_simdgroup]],
     uint sg [[simdgroup_index_in_threadgroup]]) {
     threadgroup InkTg<GP> S;
-    threadgroup InkKvTg KV;
     threadgroup float part[INK_NSG][32];
     threadgroup float rsh[GP][32];
     const uint tid = tid3.x;
@@ -622,7 +621,7 @@ template <uint GP>
         const uint h = x / g.nb, e = g.dlo + x % g.nb;
         float a = 0.0f;
         for (uint j = 0; j < dr; ++j) a = fma(rsh[h][j], bf2f(rp[(ulong)j * E + e]), a);
-        S.bias[h][x % g.nb] = rA(a) * INK_LOG2E;
+        tb[h * g.nb + x % g.nb] = rA(a) * INK_LOG2E;
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
     for (uint r = 0; r < nnew; ++r) {
@@ -630,9 +629,9 @@ template <uint GP>
         for (uint j = 0; j < INK_NSG; ++j) tk += part[j][2 * r];
         for (uint j = 0; j < INK_NSG; ++j) tv += part[j][2 * r + 1];
         if (c < D) {
-            KV.k[r][c] = f2bf(kcv[r] * ink_clipf(tk, p.qk_clip));
+            tkv[r * D + c] = f2bf(kcv[r] * ink_clipf(tk, p.qk_clip));
             const float inv = precise::divide(1.0f, precise::sqrt(tv / (float)D + p.eps));
-            KV.v[r][c] = f2bf(vcv[r] * inv);
+            tkv[(p.t + r) * D + c] = f2bf(vcv[r] * inv);
         }
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
@@ -643,13 +642,13 @@ template <uint GP>
             if ((p.flags & 4u) != 0) {
                 const uint row = ring ? g.pp % Cr : g.pp;
                 const ulong dst = ((ulong)kvh * Cr + row) * D + c;
-                kc[dst] = KV.k[r][c];
-                vc[dst] = KV.v[r][c];
+                kc[dst] = tkv[r * D + c];
+                vc[dst] = tkv[(p.t + r) * D + c];
             } else {
                 device ushort* stg = (device ushort*)(scr + (ulong)p.t * H * INK_MAXS * (D + 2));
                 const ulong o = ((ulong)t * Hk + kvh) * D + c;
-                stg[o] = KV.k[r][c];
-                stg[(ulong)p.t * ckv + o] = KV.v[r][c];
+                stg[o] = tkv[r * D + c];
+                stg[(ulong)p.t * ckv + o] = tkv[(p.t + r) * D + c];
             }
         }
         if ((p.flags & 16u) != 0 && t + p.rr >= p.t) {
@@ -659,14 +658,15 @@ template <uint GP>
         }
     }
     // staged row r is the key at position pos0 + t0 + r
-    ink_attn_body<GP, true>(S, &KV, t0, g, kvh, split, t, pos0, pk, pv, kc, vc, pq, out, scr, p, tid, lane, sg);
+    ink_attn_body<GP, true>(S, tb, tkv, t0, g, kvh, split, t, pos0, pk, pv, kc, vc, pq, out, scr, p, tid, lane, sg);
 }
 
 #define INK_DEC(GP)                                                                                                        \
     template [[host_name("ink_attn_dec_g" #GP)]] [[kernel]] void ink_attn_dec<GP>(                                        \
         device const ushort*, device const ushort*, device const ushort*, device const ushort*, device const ushort*,       \
         device const ushort*, device const ushort*, device const ushort*, device ushort*, device ushort*, device ushort*,   \
-        device ushort*, device ushort*, device const int*, device float*, constant InkP&, uint3, uint3, uint, uint);
+        device ushort*, device ushort*, device const int*, device float*, constant InkP&, threadgroup float*,               \
+        threadgroup ushort*, uint3, uint3, uint, uint);
 INK_DEC(1)
 INK_DEC(2)
 INK_DEC(3)
@@ -686,7 +686,7 @@ kernel void ink_attn_comb_bf16(device const ushort* pq_ [[buffer(0)]],
     device ushort* out = out_ + p.sk[7];
     const uint pp = ink_pos0(p, pos) + t;
     const uint vis = pp - ink_lo(pp, p.window) + 1;
-    const uint ns = ink_nsplit(vis);
+    const uint ns = ink_nsplit(vis, as_type<uint>(p.f3));
     if (ns == 1) return;
     const ulong base = ((ulong)t * H + h) * INK_MAXS;
     device const float* ml = scr + (ulong)p.t * H * INK_MAXS * D;

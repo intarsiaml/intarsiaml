@@ -59,6 +59,13 @@ const KV_WRITE: &str = "ink_kv_write_bf16";
 /// `INK_MAXS` / `INK_SPLIT_KEYS` / `INK_NSG` of the shader.
 pub const MAX_SPLIT: usize = 32;
 const SPLIT_KEYS: usize = 64;
+
+/// Keys per split of the split policy: `INTARSIA_INK_SPLIT_KEYS` (diagnostic for sweeps; it changes the rounding order of
+/// every call alike, so rows stay exact) or `SPLIT_KEYS`.
+fn split_keys() -> usize {
+    static K: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *K.get_or_init(|| std::env::var("INTARSIA_INK_SPLIT_KEYS").ok().and_then(|v| v.trim().parse().ok()).filter(|&k| k >= 1).unwrap_or(SPLIT_KEYS))
+}
 const NSG: usize = 4;
 
 pub fn shader_names() -> Vec<&'static str> {
@@ -105,7 +112,7 @@ fn u(v: usize, what: &str) -> Result<u32> {
 
 /// Shader: `ink_nsplit`.
 pub fn nsplit(vis: usize) -> usize {
-    vis.div_ceil(SPLIT_KEYS).clamp(1, MAX_SPLIT)
+    vis.div_ceil(split_keys()).clamp(1, MAX_SPLIT)
 }
 
 /// Shapes `ink_kv_prologue_bf16` takes (d_rel <= 32 and the weight dtypes are checked at launch).
@@ -135,6 +142,35 @@ pub fn decode_scratch(s: &ShapeInfo) -> usize {
 /// Scratch of `rel_sink_attn_bf16`: partial accumulators `[T][H][MAX_SPLIT][D]` + `(max, sum)` `[T][H][MAX_SPLIT]`, f32.
 pub fn attn_scratch(s: &ShapeInfo) -> usize {
     s.m * s.n_heads * MAX_SPLIT * (s.head_dim + 2) * 4
+}
+
+/// Most biased distances a split of a call can hold (the dynamic threadgroup bias table): `vis` the most visible keys of a
+/// row of the call (visible counts only grow along the rows).
+fn bias_rows(vis: usize, e: usize) -> usize {
+    let sk = split_keys().next_multiple_of(32);
+    let ns = nsplit(vis);
+    let chunk = vis.div_ceil(ns).next_multiple_of(32);
+    chunk.max(sk).min(e)
+}
+
+fn tg_bytes(n: usize) -> usize {
+    n.max(16).next_multiple_of(16)
+}
+
+fn encode_tg(
+    enc: &objc2::runtime::ProtocolObject<dyn MTLComputeCommandEncoder>,
+    pso: &Pso,
+    binds: &[&Bind],
+    p: &InkP,
+    groups: Option<(usize, usize, usize, usize)>,
+    threads: usize,
+    tgmem: &[usize],
+) {
+    for (i, &n) in tgmem.iter().enumerate() {
+        // SAFETY: lengths are multiples of 16 within the device limit (launcher bounds: E <= 1024, T <= 16).
+        unsafe { enc.setThreadgroupMemoryLength_atIndex(n, i) };
+    }
+    encode(enc, pso, binds, p, groups, threads)
 }
 
 fn encode(
@@ -289,13 +325,16 @@ impl MetalBackend {
             None => self.bind(&i[0], bf, false, "pos (unused)")?,
         };
         // grid height: the most splits a row of the call can have
-        let gy = if use_dev == 1 {
-            nsplit(if a.window > 0 { a.window.min(cr) } else { cr })
+        // the most keys a row of the call can see: the grid height (splits) and the bias table follow from it
+        let vmax = if use_dev == 1 {
+            if a.window > 0 { a.window.min(cr) } else { cr }
         } else {
             let last = a.pos0 + t - 1;
             let lo = if a.window > 0 { (last + 1).saturating_sub(a.window) } else { 0 };
-            nsplit(last - lo + 1)
+            last - lo + 1
         };
+        let gy = nsplit(vmax);
+        let tb = tg_bytes(g * bias_rows(vmax, e) * 4);
         let scratch = match &call.scratch {
             Some(s) => s,
             None if gy == 1 => &i[0],
@@ -323,6 +362,7 @@ impl MetalBackend {
             window: u(a.window, "window")?,
             nq: u(i[6].shape[1], "Nq")?,
             scale: a.scale,
+            f3: f32::from_bits(u(split_keys(), "split keys")?),
             ..Default::default()
         };
         for (s, b) in p.sk.iter_mut().zip([&q, &kn, &vn, &kc, &vc, &rel, &pq, &out]) {
@@ -334,7 +374,7 @@ impl MetalBackend {
         let comb = self.ink_pso(COMB)?;
         let wr = self.ink_pso(KV_WRITE)?;
         self.with_encoder(|enc| {
-            encode(enc, s1, &[&q, &kn, &vn, &kc, &vc, &rel, &pq, &out, &pos_b, &sc], &p, Some((hk, gy, t, NSG * 32)), 0);
+            encode_tg(enc, s1, &[&q, &kn, &vn, &kc, &vc, &rel, &pq, &out, &pos_b, &sc], &p, Some((hk, gy, t, NSG * 32)), 0, &[tb]);
             if gy > 1 {
                 encode(enc, comb, &[&pq, &out, &pos_b, &sc], &p, Some((h, t, 1, d.max(32).next_multiple_of(32))), 0);
             }
@@ -376,13 +416,16 @@ impl MetalBackend {
             Some(b) => b,
             None => self.bind(&i[0], bf, false, "pos (unused)")?,
         };
-        let gy = if use_dev == 1 {
-            nsplit(if a.window > 0 { a.window.min(cr) } else { cr })
+        // the most keys a row of the call can see: the grid height (splits) and the bias table follow from it
+        let vmax = if use_dev == 1 {
+            if a.window > 0 { a.window.min(cr) } else { cr }
         } else {
             let last = a.pos0 + t - 1;
             let lo = if a.window > 0 { (last + 1).saturating_sub(a.window) } else { 0 };
-            nsplit(last - lo + 1)
+            last - lo + 1
         };
+        let gy = nsplit(vmax);
+        let tb = tg_bytes(g * bias_rows(vmax, e) * 4);
         let scratch = call.scratch.as_ref().ok_or_else(|| Error::invalid("metal ink_attn_decode_bf16: the scratch workspace (OpCall::scratch) is missing"))?;
         let need = t * h * MAX_SPLIT * (d + 2) * 4 + 2 * t * hk * d * 2;
         if scratch.numel() * scratch.dtype.size_bytes() < need {
@@ -416,6 +459,7 @@ impl MetalBackend {
             eps: a.eps,
             tau_alpha: ink.tau_alpha,
             scale: a.scale,
+            f3: f32::from_bits(u(split_keys(), "split keys")?),
             cscale: if ink.dyn_conv { ((2 * k + 1) as f32).powf(-0.5) } else { ((k + 1) as f32).powf(-0.5) },
             ..Default::default()
         };
@@ -449,7 +493,7 @@ impl MetalBackend {
         let mut all: Vec<&Bind> = binds[..8].iter().collect();
         all.extend([&binds[8], &binds[9], &binds[10], &binds[11], &binds[12], &pos_b, &sc]);
         self.with_encoder(|enc| {
-            encode(enc, dec, &all, &p, Some((hk, gy, t, NSG * 32)), 0);
+            encode_tg(enc, dec, &all, &p, Some((hk, gy, t, NSG * 32)), 0, &[tb, tg_bytes(2 * t * d * 2)]);
             if gy > 1 {
                 encode(enc, comb, &[&binds[0], &binds[10], &pos_b, &sc], &pc, Some((h, t, 1, d.max(32).next_multiple_of(32))), 0);
             }
@@ -508,6 +552,7 @@ impl MetalBackend {
             window: u(a.window, "window")?,
             nq: u(i[6].shape[1], "Nq")?,
             scale: a.scale,
+            f3: f32::from_bits(u(split_keys(), "split keys")?),
             ..Default::default()
         };
         // the cache write pass (`ink_kv_write_bf16` reads k / v at sk 1, 2 and the caches at sk 3, 4: all 0 here)
