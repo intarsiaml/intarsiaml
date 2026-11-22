@@ -1,6 +1,6 @@
 # Inkling-2-Mini Metal decode: host gap (lane ink-hostgap, 2026-11-21)
 
-Status: waiting on endor #10943 (items 2 and 3 timing); code done and CPU-checked. Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwarded to e61f392fd), not pushed.
+Status: #10943 done (items 2 and 3 measured: no regression, sampled decode +2.7-3.6 %, md5 identical); the device sampler (item 6) waits on endor #11037; ink/metal merge cleared. Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwarded to e61f392fd), not pushed.
 
 ## Briefs received
 
@@ -164,6 +164,15 @@ with Fable's 0.1.
 | wall / busy / idle at a 5051-token prompt, median (mean idle) | not traced | 18.08 / 18.08 / 0.001 ms (0.005; 0.03 %) |
 | greedy decode tok/s, short prompt (`generate`, no profiler) | 50-52 (base binary at p0: 63.1) | 63.7, 64.2 |
 | greedy decode tok/s, 5051-token prompt | 48.3 (base binary at p0: 57.3) | 55.8 |
+| **#10943, quiet ABAB x5, medians:** greedy short, base e61f392fd at p0 vs b1 | 64.32 | 65.27 (+1.48 %) |
+| greedy 5051-token prompt, base at p0 vs b1 | 60.55 | 61.49 (+1.55 %) |
+| sampled t0.7 seed 7, base at p0 vs b1 | 56.18 | 56.26 (+0.14 %) |
+| sampled t0.7 seed 7, b1 vs b4 (host pool) | 56.11 | 57.64 (+2.73 %) |
+| sampled t1.0 seed 7, b1 vs b4 (host pool) | 55.69 (17.96 ms / token) | 57.69 (+3.59 %; 17.33 ms / token) |
+
+The 55.8 vs 57.3 (5k, -2.7 %) and the t0.7 -5.5 % of the earlier runs do not reproduce in #10943's interleaved quiet runs:
+the branch is 1.5 % faster at 5k and level at t0.7. Those earlier runs were not interleaved and ran while local builds loaded
+endor's CPU (the coordinator's no-local-builds rule), which is the likely cause.
 
 Most of the 50 -> 64 is the profiler default: the base binary at `--profile-every 0` already runs at 63.1. The code's own greedy
 gain is about 1 %, the faster argmax.
@@ -420,7 +429,24 @@ accepts the remainder.
   `batched_sampled_equals_solo` failed in setup only (B = 16 refused by the cpu cap).
 - **#10958 (e4299fe24):** the same suites pass, plus `batch_engine` 10/10 with the pool at 8, 3, 1 and the default.
 
-**Endor** (#10943, in-loop host profile, against the <= 1 ms target for soft-cap + sampler at t1.0): ENDOR_SAMPLER_PLACEHOLDER
+**Endor** (#10943, in-loop host profile, against the <= 1 ms target for soft-cap + sampler at t1.0): **not met, 1.33 ms**.
+
+| b4, `INTARSIA_HOST_PROFILE=1`, 255 decode steps | t1.0 seed 7 | t0.7 seed 7 |
+|---|---:|---:|
+| wall per step | 17.24 ms | 17.31 ms |
+| sync (GPU) | 15.02 | 15.05 |
+| soft-cap (pool) | 0.27 | 0.18 |
+| accept (sampler, pool) | 1.06 | 1.20 |
+| soft-cap + sampler | **1.33** | **1.38** |
+| step-setup | 0.85 | 0.84 |
+| GPU idle gap | 1.38 ms (254 gaps) | 1.42 ms |
+
+Host share at t1.0 fell from 3.56 ms (item 4: soft-cap 1.37 + sampler 2.10) to 1.33 ms, and the GPU idle gap is 1.38 ms per
+token (greedy: 0.19). Endor microbench (M5 Max, warm, one thread -> pool): soft-cap 0.60 -> 0.12 ms; sampler T 1 1.41 -> 0.81,
+T 0.7 1.42 -> 0.77, top-p 0.95 1.40 -> 0.80; top-k 20 / 64 rows 0.18 either way (single-threaded by design). Phases: keys
+0.04, radix sort 0.66, exp 0.11, f64 total 0.10, divide 0.04 ms. In the loop the sampler costs 1.06-1.20 ms against 0.77-0.81
+ms warm in the microbench: the pool wakes cold each step, and the row comes back from a GPU buffer. The radix sort is still the
+largest phase. The device sampler (item 6) removes the whole host share for plain-temperature rows instead.
 
 **Gate changes and limits, reported to main:**
 - **B = 16 became B = 8.** The coordinator asked for B = 4 / 16 on the tiny model; the cpu backend allows at most 8 batch rows.
@@ -434,10 +460,22 @@ accepts the remainder.
   The grammar env is built over the tiny fixture's byte vocabulary. Results on spark2 #10968: bitwise equal with
   `INTARSIA_HOST_THREADS=8` (the constrained rows' mask, apply, sample and commit on pool workers) and with `=1`; server lib 59/59.
 
-## Pending: #10943 (endor, quiet, `--expect 35`)
+## Results: #10943 (endor, quiet, 2026-11-22 00:30-00:40)
 
-Results land in `.scratch/mAB/summary.txt`. Script: `.scratch/measAB.sh`. `.scratch/b4.ready` = e4299fe24; the job builds HEAD
-at its start as b4 and refuses a HEAD that lacks e4299fe24.
+Summary: `.scratch/mAB/summary.txt`. Script: `.scratch/measAB.sh`. b4 = ink/hostgap 9a53e7c5e (HEAD at the job's start: the
+e4299fe24 code plus doc commits only; the device sampler lives on `ink/hostgap-gumbel` and was not in it).
+
+- **Merge rule (5k and t0.7 within 1 % or faster, base vs b1): met.** Medians of 5 interleaved reps after a warm-up: short
+  greedy 64.32 -> 65.27 tok/s (+1.48 %), 5k greedy 60.55 -> 61.49 (+1.55 %), t0.7 seed 7 56.18 -> 56.26 (+0.14 %). Greedy md5
+  `d64363ea42448e4985ebc102660c04a8` and 5k md5 `6376fdf5364c9d04ecd4ea3c7c51ae3a` on every run of both arms; t0.7 md5
+  `c10264d09a7612e2e6a69bde93c27fc4` on every run.
+- **Sampled md5 gate, b1 vs b4: identical** at t0.7 and t1.0, seeds 7 and 11, and at t0.7 top-k 20 / top-p 0.95; b4 with the
+  pool vs b4 at `INTARSIA_HOST_THREADS=1`: identical.
+- **b1 vs b4 (the host pool), 5 reps:** 5k greedy 61.53 -> 61.60 (+0.11 %, nothing to gain there), t0.7 56.11 -> 57.64
+  (+2.73 %), t1.0 55.69 -> 57.69 (+3.59 %). top-k 20 rows: 60.52 -> 60.85 (one run each).
+- **Host profile:** see item 4 above (1.33 ms soft-cap + sampler at t1.0, not the <= 1 ms target).
+
+Then (the plan as queued):
 
 1. ABAB base vs b1, 5 reps per arm, after one warm-up per arm: short greedy, 5k greedy, t0.7 seed 7. Medians and deltas, for the
    merge rule (5k and t0.7 within 1 %).
@@ -447,8 +485,7 @@ at its start as b4 and refuses a HEAD that lacks e4299fe24.
 4. The b4 host profile at t1.0 and t0.7 (soft-cap + sampler in the loop, for the <= 1 ms target), the microbench, and the phase
    timing.
 
-Merging ink/metal into this branch is held until #10943 has run, so b4 stays the code the gates measure.
-`git merge-tree HEAD ink/metal` is clean today.
+The ink/metal merge waited for #10943 so that b4 stayed the code the gates measured. It is cleared now (the rule is met).
 
 ## Item 5: the speculative draft cycle without a host round trip (proposal, not built; dropped)
 
