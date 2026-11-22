@@ -167,6 +167,10 @@ Status: #10943 done (items 2 and 3 measured: no regression, sampled decode +2.7-
   decode rows back to 2.589e-3); its self-goldens and binary (03:37, ink-metal 3f7233fa6, whose crate code beyond 431a68aec is one
   test file) copied to `.scratch/gref_fix` and `.scratch/bin/intarsia-im7ec`. `.scratch/copyfix.sh` copies #11179's self-goldens and binary to `.scratch/gref_fix` /
   `.scratch/bin/intarsia-im7ec` when it ends; F compares against those (pre-fix `gref` shown too).
+- 2026-11-22 (coordinator): #11182's `rows_exact_registrations_are_pinned` failure accepted as predating the side branch (its base
+  lacks the pin fix a0751f302, which ink/hostgap has). #11182 therefore does not show the Gumbel commits passing the full Metal
+  suite on a tree with the fix. When the Gumbel work goes to ink-metal (af43898d63e5b5190) for merging, the hand-off note
+  includes a cheap check on the merged tree: `rows_exact` plus the gumbel Metal tests, chi-square included. No separate job now.
 
 ## Measurement (before)
 
