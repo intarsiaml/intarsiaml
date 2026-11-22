@@ -130,3 +130,55 @@ Fixes on the way here: the AllLogits head groups of 2..=16 rows now run the row-
 cuBLAS from 5 rows, so chunks of 5..16 rows scored rows differently from decode steps); the tiny rollback test accepts CUDA's
 conservative `reuse_len`; `ink_rows` serializes the two tests that set the process-wide MoE tensor-core threshold (a parallel-test
 race, not a kernel bug). G3 4k and greedy tok/s (short, 5k) not run yet.
+
+## Real-model decode on CUDA (8f7d5cd3a, spark2)
+
+The first eager 1-row step failed (`ik_moe_experts_situ_bf16` IK_ERR_INVALID_ARG). The ordinary experts kernels reserved only
+the tensor-core scratch layout, which at E = 128 and few pairs is 256 bytes short of the SIMT layout. Fixed by reserving the
+larger of the two; covered by `ink_experts_rows_exact_128_experts` (T 1..16, NVFP4 and MXFP8 situ) and a scratch-size unit test.
+
+Decode gate (fleetq #11079): G2 decode (teacher-forced, 16 positions per prompt) short KL21 3.729e-3 (budget 4e-3), 0 / 96
+confident misses on the decode rows; long 3.145e-3 (budget 6e-3), 0 / 119. Greedy eager, profile off: 64 tokens of raw "The
+capital of France is" and 256 forced tokens of a short prompt, ids md5 identical over 2 runs (and the 256 text over 3 more in
+#11085). G3 4k prefill (#11068): KL21 9.754e-3 (budget 1.4e-2), 5 / 8229 confident misses (budget 9), top-1 95.76 %.
+Metal token comparison: queued on endor.
+
+### Eager greedy speed (fleetq #11085, `--quiet gpu,cpu`, `--profile-every 0`, vLLM retro resident and idle)
+
+| prompt | prefill | decode (256 forced tokens) |
+|---|---|---|
+| 15 tokens | 100 ms | 30.53 / 30.55 / 30.63 tok/s |
+| 6672 tokens | 5758 / 5797 ms (1159 / 1151 tok/s) | 29.19 / 29.17 tok/s |
+
+### Per-op decode profile (128 tokens, short prompt, `--profile-every 1 --op-table`: sync per op, 34.5 ms/step vs 32.7 eager)
+
+| op | ms / step | calls / step | us / call |
+|---|---|---|---|
+| ink_in_proj | 9.22 | 48 | 192 |
+| moe_experts (NVFP4) | 8.77 | 44 | 199 |
+| conv_mix | 5.19 | 96 | 54 |
+| logits (48 router + head) | 4.03 | 49 | 82 |
+| matmul | 2.98 | 48 | 62 |
+| ink_attn_decode | 1.85 | 48 | 39 |
+| moe_experts_mxfp8 | 1.24 | 4 | 310 |
+| moe_route | 0.63 | 48 | 13 |
+| attn_res_mix | 0.36 | 26 | 14 |
+| loop_blend | 0.16 | 2 | 78 |
+
+About 415 launches per token. The profiled run's per-op syncs add only 1.8 ms/step, so the eager step is mostly GPU time per op.
+
+### Perf items
+
+- Graph decode (B = 1, device position): today "unsupported: device-position (graph) decode of Inkling-2", so decode is eager.
+  The CUDA kernels already take a device `pos` (POSITIONED contract); the work is `ink_pass` plumbing (`call.pos` on the 5
+  positioned call sites, `dpos` through model.rs). Estimated gain 1-3 ms/token (host launch and inter-kernel gaps, ~415
+  launches); cost about half a day.
+- Latency-bound small ops (about 10-12 ms/token together): conv_mix with sources (46-53 us GPU at T = 1), loop_blend (35-40
+  us), the router GEMV on 128 outputs (~80 us), the 48 per-visit matmuls (~62 us). These are the larger lever.
+
+### Headroom against Metal (G2 decode short 3.73e-3 CUDA vs 2.59e-3 Metal, budget 4e-3)
+
+Ops whose reduction order differs from Metal's: ink_in_proj (one k16 tensor-core step per 16 inputs, then fp32 adds),
+matmul / logits GEMV (warp-shuffle tree vs simdgroup tree), the MoE SIMT dot products (warp tree per row), the CUDA attention
+kernels (ink-cuda-attn's split and tile order), and the cuBLAS head at prefill. None are approximations (fp32 accumulation
+everywhere, bf16 rounding points as in the contract), but further CUDA changes must not trade accuracy for speed.
