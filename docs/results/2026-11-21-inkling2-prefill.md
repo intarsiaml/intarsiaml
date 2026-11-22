@@ -284,6 +284,20 @@ warmup) does not pay it. Batching prefill command buffers therefore has nothing 
 brief 8's first next item is closed by this measurement. (A cold `generate` pays ~0.2 s once; prefetching the expert weights at load would
 remove that and belongs to the residency / keep-warm owner.)
 
+### Router NAX, v65 and dq1 end to end (#10981 checks, #10982 timing; bin6 = 0d226768c)
+
+- Router NAX `logits_bf16_nax`: f64 check passes (2048 rows max_abs 5.0e-6, rel_l2 3.5e-7), admission passes, and G2/G3 with
+  it on pass (G2 short 1.807e-3, long 3.248e-3; G3 short 6.410e-3, long 1.163e-2). End to end p8k, 3 interleaved rounds of 2:
+  off 2243 / 2639 / 2678 / 2675 / 2667 / 2673, on 2722 / 2697 / 2393 / 2690 / 2712 / 2434 tok/s. Medians 2671 -> 2694 (+0.9 %),
+  inside run-to-run noise. **But it adds a candidate to the shared `Op::Logits`:** the lib test
+  `kernel_list_is_unchanged_by_core_op_fusion_p1` fails (#10981), and other models' Logits calls with M > 16 would see it.
+  That breaks the rule that other models' kernels stay unchanged. **Reverted on ink/prefill (29d90040e)**; the
+  shader-count test fix it carried is kept (87e5dc2c6). It was never in the merge hash 378dc214e. Redoing it would need an
+  Inkling-only route (a hook in the Inkling router call, not a registry entry).
+- v65 (`INTARSIA_INK_MOE_NAX2=m128_k64_v65`, the shared-unpack form): bitwise, admitted, but slower. Bench 11.0 vs 7.3 ms per
+  NVFP4 call; e2e p8k 2406 / 2423 / 2350 / 2421 / 2403 / 2429 tok/s vs ~2670 default (-10 %). Dead end.
+- dq1 (dequant once to bf16, then GEMM): bitwise, but 14.8 ms per call (decode 9.3 ms of it). Dead end.
+
 ### Steady-state ranking vs floors (brief 9; kernel trace .scratch/e2e/profdefault.k.jsonl, chunks 1 + 2 of an 8k prompt, warm)
 
 ms per 2048-row chunk, the mean of chunks 1 and 2 (GPU 651.7 / 660.6 ms; ctx 2k-6k). Floors: NAX bf16 62 TFLOP/s (see Floors);
@@ -291,14 +305,14 @@ memory-bound ops at ~550 GB/s DRAM (assumed, not measured on endor; ops whose op
 
 | Op | ms / chunk | floor ms / chunk | above floor | floor basis | covered by |
 |---|---:|---:|---:|---|---|
-| MoE experts NVFP4 (44 visits) | 323.2 | 185 | **138** | 261 GFLOP / visit | v65 / dq1 (#10982) |
+| MoE experts NVFP4 (44 visits) | 323.2 | 185 | **138** | 261 GFLOP / visit | v65 / dq1 tried: both slower |
 | ConvMix incl. the looped blend | 76.5 | n/m | ~15 (fusion bound) | plain 18.6 ms (96 calls); blend 8 x 4 dispatches per looped call, 1.12 ms per call, already at cache speed per dispatch (blend_pair moves 57 MB in 0.043 ms) | - |
 | RelSinkAttn NAX | 70.3 | 30 | **40** | SWA 25.8 GFLOP x 40, full ~103 GFLOP x 8 (mean 4k keys); 62 TFLOP/s is optimistic for softmax attention | - |
 | InkInProj NAX | 61.6 | 63 | 0 | 81.8 GFLOP / visit | - |
 | InkKvPrologue | 47.9 | 12 | **36** | ~140 MB / visit (rel 100.7 MB written, q 12.6, k / v 8.4, pq 14, pk / pv 8.4) | - |
-| MoE experts MXFP8 (4 visits) | 30.8 | 17 | 14 | as NVFP4 | v65 / dq1 |
+| MoE experts MXFP8 (4 visits) | 30.8 | 17 | 14 | as NVFP4 | v65 / dq1 tried: both slower |
 | wo (matmul_bf16_nax) | 22.7 | 22.5 | 0 | 29 GFLOP / visit | - |
-| router (logits_bf16) | 15.2 | ~1 | 14 | 1.2 GFLOP / visit | router NAX (#10982) |
+| router (logits_bf16) | 15.2 | ~1 | 14 | 1.2 GFLOP / visit | none (router NAX reverted: shared Op::Logits) |
 | attn_res_mix + loop_blend + moe_route + rest | 7.7 | - | - | under 5 ms each | - |
 
 **Pick: InkKvPrologue (36 ms above floor; attention's 40 assumes an unreachable 62 TFLOP/s for softmax attention, and its
