@@ -136,6 +136,11 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
   - The bisect cleared the flip's accuracy question: the decode-mode G2 excess comes from m-mix NE 4 (25ff7864a), not from
     dfuse, and ink-metal is fixing it.
   - The flip 2f952f697 now waits only on that fix and on F (#11145).
+- 2026-11-22 ~03:19 (coordinator): ink-metal's NE fix gate #11179 holds every merge, and the coordinator is clearing the
+  endor line ahead of it. F (#11145) stays in place, because it gates the flip merge. R is not merge-blocking, and F does not
+  need R's output (F's comparison with R's all-off self-goldens is optional and is skipped when the files are missing).
+  So #11111 was released at 03:19 and the same script was requeued at the back as **#11190**, with the same flags and the
+  same log (`.scratch/route/.scratch/jobR.out`) and an honest `--expect 35`.
 
 ## Probes (endor, before any code)
 
@@ -483,7 +488,8 @@ interleaved reps.
   after cloning the target, counts a model-run match only when both runs finished, and reports how many runs the preload
   served (expect on 10 of 10, off 0 of 10). bespin #11163 checked the counter build. Job F got the same touch and run check.
 - Queue at 02:51: R (#11111) is 4th behind #11104 on endor; fleetq estimates a start around 12:30 if the jobs ahead end on
-  time. F (#11145) follows R.
+  time. F (#11145) follows R. At 03:19 R was released and requeued at the back as #11190 (coordinator, above); F now runs
+  first.
 - 03:00: R keeps its slot useful if the preload test fails. The failure is recorded, the preload arms are dropped, and the
   off / all-off G2 comparison still runs. Timing is skipped in that case.
 
