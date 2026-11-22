@@ -956,3 +956,33 @@ continuous GPU jobs from many lanes since 05:00); 07:19-07:23 (#11352 runs 6-11 
 continuous load in that slot). Fast: ~03:15-03:49, 07:01-07:04, 07:15-07:18, 07:24-07:26 (partly). The 07:15 -> 07:22 drift
 under steady load and the recovery by 07:25 look like a load-history (heat) effect rather than a scheduled job; to be
 confirmed by #11375's trace.
+
+**28a. #11375 clock test (07:38-07:47, quiet, 9 min back-to-back load, final tree 80334ed1a batch_step sha 0cde56015c6f06e5;
+`.scratch/clock.log`, P-state trace `.scratch/clock/pstate.log`, 500 ms).** Box check every ~86 s with a B 16 heater run
+(`--rounds 3 --steps 32 --batches 16`) in between:
+
+| check | time | ALU ms med (min-max) | TFLOP/s | P-states under ALU | B 16 sample ms | heater after, B 16 ms |
+|---|---|---:|---:|---|---:|---:|
+| c1 | 07:38:37 | 161.18 (160.8-161.2) | 15.57 | P13 94%, P12 6% | 74.01 | 70.89 |
+| c2 | 07:40:03 | 239.08 (166.9-252.7) | 10.43 | P6 33%, P7 26%, P8 14%, P9-P13 28% | 73.27 | 75.15 |
+| c3 | 07:41:29 | 184.45 (147.4-228.2) | 12.11 | P8 26%, P6 20%, P9 17%, rest P10-P13 | 74.16 | 70.99 |
+| c4 | 07:42:55 | 228.72 (178.0-252.2) | 11.70 | P8 35%, P9 21%, rest P6-P13 | 83.44 | 74.28 |
+| c5 | 07:44:22 | 200.62 (162.8-208.0) | 12.41 | P9 51%, P10 15%, P8 14% | 74.34 | 70.70 |
+| c6 | 07:45:49 | 211.46 (166.6-218.3) | 11.86 | P8 44%, P9 26%, P10 12% | 73.07 | 73.33 |
+
+B 1 stayed at 64.0-65.0 tok/s throughout. `thermal` = fair at every check; `pmset -g therm` recorded no warning before or
+after; no other process used the GPU (< 25 ms each per sample).
+
+- **The GPU does throttle under sustained load:** from ~1.5 min into the slot the ALU kernel, which held P13 at 07:23, 07:25
+  and 07:38, ran at P6-P9 and 25-50% slower (first buffer of each check still ~fast, later buffers slow: a power / thermal
+  governor, with ProcessInfo reporting only "fair").
+- **But the B 16 step did not follow the ALU time:** c1 had the full ALU clock and B 16 was already slow (74.01 ms); c2 had
+  the ALU at 10.4 TFLOP/s and B 16 was the same 73.27. Across the six checks B 16 sat at 73-75 ms (one 83.4) while the ALU
+  ran anywhere from 161 to 239 ms. So "slow state = the clock the ALU sees" does not hold.
+- Under the batch_step load itself the mean P-state index (0 = P1 ... 14 = P15) swung between ~6.5 and 12.95 within seconds
+  in every minute (per-minute means 9.9-11.1). The bench interleaves solo (bandwidth-bound) and batched phases, so at 500 ms
+  the trace cannot say which state the B 16 steps ran at, nor whether a fast-state B 16 runs at a higher P-state. That is
+  the open question: does the GPU performance controller pick a lower P-state for the B 16 workload in the slow state?
+- Next (queued as a measure-only job): B 16 batched-only (`batch_prof --b 16`, a few hundred steps, no solo phases) with a
+  100 ms P-state trace and per-step times, at the start of a slot and again after ~5 min of heating, to correlate step time
+  with P-state directly. MHz per state is still unmapped (15 states; no pmgr table with 15 entries).
