@@ -825,3 +825,33 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
   change (contract note) with the same ceiling, so it is only worth it if the probe shows the split cannot hide the cold
   rounds.
 
+### Probe job P (#11305, queued 06:30, snapshot .scratch/snap6 = afaf4e8c9; measurement only)
+
+- **afaf4e8c9** adds `ink_ctrl_bench --probe [--evict MB,..]`, example code only.
+  - It covers the four ConvMix call sites with the default switches, timed per dispatch label. Each dispatch runs in its
+    own command buffer (`INTARSIA_METAL_COMMIT_EVERY=1`), as in the stream per-dispatch trace, so the row kernel is timed
+    apart from the blend stages and both columns carry the same per-dispatch overhead.
+  - `--evict` streams one shared weight (96 or 256 MB) through `logits_bf16_gemv` before every unit, so the call's operands
+    come cold. That dispatch is reported apart.
+  - raw/ceil.py sums, over the four call sites, (stream row-kernel median - cached bench median) x calls per token. It
+    prints GO (at least 0.3 ms) or STOP.
+  - bespin #11304: the examples cargo-check cleanly.
+- **Job steps:**
+  1. Build.
+  2. Per-dispatch trace on the tip (NE 3), plus 3 normal-step reps.
+  3. The probe at T = 1 with evict 0 / 96 / 256 MB.
+  4. The ceiling.
+
+  No prototype is in this job; step 4 of the go-ahead (the split) is built only if the ceiling clears 0.3 ms. A watcher
+  (.scratch/watchP.sh) reports the start and the build step. fleetq estimates a start around 12:05.
+- **For ink-batch (B16 hunt):** which switch disables which controller change at B > 1. Every change is per row or
+  rows-exact and applies up to 16 rows:
+  - `INTARSIA_INK_ROUTE_FUSED=0`: op 76, the router GEMV + MoeRoute fused, used when t <= 16 rows. B16 decode is t = 16;
+    the microbench at T = 16 has the fused call at 13.1 us against the pair's 23.6.
+  - `INTARSIA_INK_MSG_PRE=0`: loop messages per pass, for passes of up to 16 rows.
+  - `INTARSIA_INK_MIX_HOIST=0`: the hoisted row kernels, including the row-table form. #11104 passed the batch tests with
+    it set to 1 and to 0.
+  - `INTARSIA_INK_BLEND_NORM_C=0`: the one-channel-per-thread blend norm, at any row count.
+
+  All four at `=0` give the pre-dfuse kernels. Bisect order: all off first, then one at a time.
+
