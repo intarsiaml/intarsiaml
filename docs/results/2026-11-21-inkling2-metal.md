@@ -158,6 +158,13 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   +52-70 % at 4k, +69-71 % at 16k; 1k cell rejected for spread in both 2048 runs; 4k decode -1.5 % / -0.3 %). Bespin #11191
   recipe tests pass. Combined gate: confirm serve logs "prefill chunk 2048" without the flag; record peak memory at 16k
   (first measurement). Revert = 05f1c702e alone.
+- 2026-11-22 (coordinator): before the dfuse flip (tip 00c81dda7, doc e75e14206) lands on the NE fix 7eca1b012, check it
+  on the merged tree (NE fix + flip): the flip makes the hoisted row kernels `ink_mix_row_h_e*` the default; both they and
+  the plain ones take NE from `mix_geom`, but that combination has not run. (1) G2 decode mode twice, defaults and
+  `INTARSIA_INK_MIX_HOIST=0`: both within 4e-3 short / 6e-3 long, and byte-identical outputs; (2) inkling2_real_decode_ne.rs
+  with the defaults, confirmed executed (not the skip path); (3) if either fails, do not merge the flip; report the arm and
+  the KL. Fold into #11179 or the post-merge baseline, whichever is first. Lane: #11179 runs on the NE fix alone (no
+  dfuse), so both checks go in the combined gate (`.scratch/combgate.sh`, section "dfuse flip check").
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
