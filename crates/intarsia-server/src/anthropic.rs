@@ -326,6 +326,9 @@ async fn messages_inner(
     if req.messages.is_empty() {
         return Err(ApiError::bad_request(F, "messages must not be empty"));
     }
+    if info.reasoning_parser.as_deref() == Some("inkling") {
+        return Err(ApiError::bad_request(F, "this model (Inkling-2) is served on /v1/chat/completions only"));
+    }
     let bad = |m: String| ApiError::bad_request(F, m);
     let tools = structured::anthropic_tools(&req.tools).map_err(bad)?;
     let choice = structured::anthropic_choice(&req.tool_choice, &tools).map_err(bad)?;

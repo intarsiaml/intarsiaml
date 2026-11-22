@@ -515,6 +515,26 @@ struct PosStat {
     tail_ours: f64,
     /// Our row has a NaN or an infinity: the position fails whatever the other numbers say.
     nonfinite: bool,
+    /// The reference is confident here: its top-1 probability leads its top-2 by at least [`CONFIDENT_MARGIN`]. A top-1 miss on
+    /// such a row is no near-tie (the Inkling-2 gates G2 / G3 allow a handful of them; docs/plans/2026-11-21-inkling2-port.md).
+    confident: bool,
+}
+
+/// `p1 - p2` of the reference at or above which a row counts as confident.
+const CONFIDENT_MARGIN: f64 = 0.5;
+
+/// Whether the two largest of the reference probabilities `p` differ by at least [`CONFIDENT_MARGIN`].
+fn is_confident(p: impl Iterator<Item = f64>) -> bool {
+    let (mut p1, mut p2) = (f64::NEG_INFINITY, f64::NEG_INFINITY);
+    for x in p {
+        if x > p1 {
+            p2 = p1;
+            p1 = x;
+        } else if x > p2 {
+            p2 = x;
+        }
+    }
+    p2.is_finite() && p1 - p2 >= CONFIDENT_MARGIN
 }
 
 /// Support size of the tail bucket for full-vocabulary goldens (a top-k golden uses its own k).
@@ -536,6 +556,9 @@ struct Agg {
     /// Sum over positions of |tail ours - tail reference|.
     tail_abs_sum: f64,
     nonfinite: usize,
+    /// Rows where the reference is confident, and our top-1 misses among them.
+    confident: usize,
+    confident_misses: usize,
 }
 
 impl Agg {
@@ -553,6 +576,8 @@ impl Agg {
         self.tail_ours_sum += p.tail_ours;
         self.tail_abs_sum += (p.tail_ours - p.tail_ref).abs();
         self.nonfinite += p.nonfinite as usize;
+        self.confident += p.confident as usize;
+        self.confident_misses += (p.confident && !p.top1) as usize;
     }
     fn add(&mut self, o: &Agg) {
         self.n += o.n;
@@ -568,6 +593,8 @@ impl Agg {
         self.tail_ours_sum += o.tail_ours_sum;
         self.tail_abs_sum += o.tail_abs_sum;
         self.nonfinite += o.nonfinite;
+        self.confident += o.confident;
+        self.confident_misses += o.confident_misses;
     }
     fn top1_pct(&self) -> f64 {
         100.0 * self.top1 as f64 / self.n.max(1) as f64
@@ -649,7 +676,7 @@ fn kl_partition(p: &[f64], q: &[f64], pt: f64, qt: f64) -> f64 {
 fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
     let finite = is_finite_row(ours);
     let o = || ours.iter().map(|&v| v as f64);
-    let bad = |n_top: usize| PosStat {
+    let bad = |n_top: usize, confident: bool| PosStat {
         top1: false,
         tie: false,
         overlap: 0,
@@ -659,6 +686,7 @@ fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
         tail_ref: 0.0,
         tail_ours: 0.0,
         nonfinite: true,
+        confident,
     };
     match reference {
         RefRow::Full(r) => {
@@ -670,10 +698,11 @@ fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
             }
             let rf = || r.iter().map(|&b| f16_to_f64(b));
             let rt = top_k(rf(), 5);
-            if !finite {
-                return Ok(bad(rt.len()));
-            }
             let (rl, ol) = (lse(rf()), lse(o()));
+            let confident = is_confident(rf().map(|l| (l - rl).exp()));
+            if !finite {
+                return Ok(bad(rt.len(), confident));
+            }
             let mut kl = 0.0;
             for (&rb, &ov) in r.iter().zip(ours) {
                 let lr = f16_to_f64(rb) - rl;
@@ -692,7 +721,7 @@ fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
             let top1 = ot[0] == rt[0];
             let tie = !top1 && f16_to_f64(r[ot[0]]) >= f16_to_f64(r[rt[0]]);
             let overlap = ot.iter().filter(|i| rt.contains(i)).count();
-            Ok(PosStat { top1, tie, overlap, n_top: rt.len(), kl, kl21, tail_ref: p_tail, tail_ours: q_tail, nonfinite: false })
+            Ok(PosStat { top1, tie, overlap, n_top: rt.len(), kl, kl21, tail_ref: p_tail, tail_ours: q_tail, nonfinite: false, confident })
         }
         RefRow::TopK(ids, lps) => {
             let valid: Vec<(usize, f64)> =
@@ -716,8 +745,10 @@ fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
                 v.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap().then(a.0.cmp(&b.0)));
                 v.into_iter().take(5).map(|x| x.0).collect()
             };
+            // the golden's log-probs are full-vocabulary: probabilities as reported
+            let confident = is_confident(valid.iter().map(|v| v.1.exp()));
             if !finite {
-                return Ok(bad(rt.len()));
+                return Ok(bad(rt.len(), confident));
             }
             // distributions over the support, both renormalised there
             let lr_all = lse(valid.iter().map(|v| v.1));
@@ -752,6 +783,7 @@ fn compare_pos(reference: RefRow<'_>, ours: &[f32]) -> Result<PosStat> {
                 tail_ref: p_tail,
                 tail_ours: q_tail,
                 nonfinite: false,
+                confident,
             })
         }
     }
@@ -1316,6 +1348,8 @@ fn run_mode(
             tail_abs: agg.mean_tail_abs(),
             mean_kl21_scored: (agg_sc.n > 0).then(|| agg_sc.mean_kl21()), // a prompt wholly inside system / user turns has none
             scored_positions: Some(agg_sc.n),
+            confident_rows: Some(agg.confident),
+            confident_misses: Some(agg.confident_misses),
         });
         matches.push((ml, stats.len()));
         total.add(&agg);
@@ -1344,6 +1378,8 @@ fn run_mode(
         mean_kl_scored: Some(total_sc.mean_kl()),
         mean_kl21_scored: Some(total_sc.mean_kl21()),
         scored_positions: Some(total_sc.n),
+        confident_rows: Some(total.confident),
+        confident_misses: Some(total.confident_misses),
         gate_definitions: Vec::new(), // filled below, once the gate has judged
     };
     if let Some(b) = self_budget {
@@ -1471,6 +1507,13 @@ fn run_mode(
         total.nonfinite,
         tag(ok_nf),
         if pass { "PASS" } else { "FAIL" },
+    );
+    println!(
+        "{} confident rows (golden p1 - p2 >= {CONFIDENT_MARGIN}, all rows): {} of {}, top-1 misses {} (reported, not gated)",
+        mode.name(),
+        total.confident,
+        total.n,
+        total.confident_misses
     );
     println!("{}", verdict.line());
     for d in &defs {
@@ -3615,6 +3658,38 @@ mod tests {
     }
 
     #[test]
+    fn confident_rows_are_where_the_reference_leads_by_half() {
+        assert!(is_confident([0.75, 0.25, 0.0].into_iter()), "0.5 exactly counts");
+        assert!(!is_confident([0.6, 0.3, 0.1].into_iter()));
+        assert!(!is_confident([1.0].into_iter()), "one entry has no runner-up");
+        // a sharp reference: the row is confident, and a wrong argmax is a confident miss; a flat reference never is
+        let mut sharp = vec![0.0f32; 60];
+        sharp[7] = 9.0;
+        let (ids, lps) = topk_ref(&sharp, 20);
+        let mut wrong = sharp.clone();
+        wrong[7] = 0.0;
+        wrong[8] = 9.0;
+        for (ours, miss) in [(&sharp, false), (&wrong, true)] {
+            for r in [compare_pos(RefRow::TopK(&ids, &lps), ours).unwrap(), compare_pos(RefRow::Full(&full_ref(&sharp)), ours).unwrap()] {
+                assert!(r.confident, "{r:?}");
+                assert_eq!(!r.top1, miss);
+            }
+        }
+        let flat = vec![0.0f32; 60];
+        assert!(!compare_pos(RefRow::Full(&full_ref(&flat)), &flat).unwrap().confident);
+        let mut agg = Agg::default();
+        agg.push(&compare_pos(RefRow::TopK(&ids, &lps), &wrong).unwrap());
+        agg.push(&compare_pos(RefRow::TopK(&ids, &lps), &sharp).unwrap());
+        agg.push(&compare_pos(RefRow::Full(&full_ref(&flat)), &flat).unwrap());
+        assert_eq!((agg.n, agg.confident, agg.confident_misses), (3, 2, 1));
+        // a non-finite row of a confident reference row is a confident miss
+        let mut nan = sharp.clone();
+        nan[0] = f32::NAN;
+        let r = compare_pos(RefRow::TopK(&ids, &lps), &nan).unwrap();
+        assert!(r.confident && !r.top1);
+    }
+
+    #[test]
     fn topk_kl_is_zero_for_equal_and_positive_for_shifted() {
         let l = logits(200);
         let (ids, lps) = topk_ref(&l, 20);
@@ -3637,7 +3712,7 @@ mod tests {
 
     #[test]
     fn greedy_match_length_counts_the_leading_run() {
-        let mk = |ok: bool| PosStat { top1: ok, tie: false, overlap: 5, n_top: 5, kl: 0.0, kl21: 0.0, tail_ref: 0.0, tail_ours: 0.0, nonfinite: false };
+        let mk = |ok: bool| PosStat { top1: ok, tie: false, overlap: 5, n_top: 5, kl: 0.0, kl21: 0.0, tail_ref: 0.0, tail_ours: 0.0, nonfinite: false, confident: false };
         let s: Vec<PosStat> = [true, true, true, false, true].into_iter().map(mk).collect();
         assert_eq!(greedy_match_len(&s), 3);
         assert_eq!(greedy_match_len(&[]), 0);
