@@ -518,3 +518,64 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
         assert!(intarsia_backend_metal::kernels::all().iter().any(|k| k.op == op), "metal {op}");
     }
 }
+
+/// The screened greedy head on a multi-row verify (lane ink-fp8, brief 12): when any row of a c-row group falls back, the
+/// whole group takes the caller's full head (one read of the unembed for all rows, no per-row full row in LogitsGather), and
+/// the tokens are bitwise the full head's. Fallbacks forced on 1, 2 and all rows of a 5- and a 16-row verify.
+#[test]
+fn inkling2_tiny_screened_verify_fallback_reads_the_head_once() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    std::env::set_var("INTARSIA_INK_HEAD_SCREEN", "1");
+    let mut m = load(&dir, chunk());
+    m.enable_verify(16).unwrap();
+    assert!(m.head_screen_stats().is_some(), "INTARSIA_INK_HEAD_SCREEN=1 loads the screen on the tiny model");
+    let ids = prompt(&dir);
+    let run = |m: &Model, rows: usize| -> Vec<u32> {
+        let mut st = m.new_state().unwrap();
+        all_logits(m, &mut st, &ids[..20]);
+        m.forward_verify(&mut st, &ids[20..20 + rows]).unwrap()
+    };
+    // the screen must engage on cpu; on Metal it turns itself off when the gather refuses this head (the fixture's lm_head is
+    // not 16-byte aligned there, so the head runs the scalar GEMV the gather does not repeat): nothing to test then
+    run(&m, 5);
+    let (g, f) = m.head_screen_stats().unwrap();
+    if g + f == 0 {
+        assert!(on_metal(), "the screen did not engage on cpu");
+        return skip("screened verify: the screen is off for the tiny head on this backend (see the load log)");
+    }
+    for rows in [5usize, 16] {
+        m.head_screen_test_hooks(false, 0);
+        let want = run(&m, rows);
+        let all = if rows == 64 { u64::MAX } else { (1u64 << rows) - 1 };
+        for (what, mask) in [("1 row", 1u64 << (rows - 1)), ("2 rows", 0b101), ("all rows", all)] {
+            m.head_screen_test_hooks(true, mask);
+            let (g0, f0) = m.head_screen_stats().unwrap();
+            assert_eq!(run(&m, rows), want, "{rows}-row verify, fallback forced on {what}");
+            let (g1, f1) = m.head_screen_stats().unwrap();
+            assert_eq!((g1 - g0, f1 - f0), (0, 1), "{rows}-row verify, {what}: one full-head pass, nothing gathered");
+        }
+        // unforced: screened (gathered) or, if a row really falls back, the one full-head pass; same tokens either way
+        m.head_screen_test_hooks(true, 0);
+        let (g0, f0) = m.head_screen_stats().unwrap();
+        assert_eq!(run(&m, rows), want, "{rows}-row verify, screened");
+        let (g1, f1) = m.head_screen_stats().unwrap();
+        assert_eq!((g1 - g0) + (f1 - f0), 1, "{rows}-row verify: exactly one screened call");
+    }
+}
+
+/// The screened head never changes what batching accepts (brief 12, endor #11315): its plan-probe calls are recorded as
+/// `extra`, so the solo decode step the batched step is checked against is the full head's. `enable_batch` + `configure_plan`
+/// give the same result with the screen on as off.
+#[test]
+fn inkling2_tiny_screen_keeps_batching() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let plan = |screen: &str| -> std::result::Result<(), String> {
+        std::env::set_var("INTARSIA_INK_HEAD_SCREEN", screen);
+        let mut m = load(&dir, chunk());
+        m.enable_batch(4).map_err(|e| format!("enable_batch: {e}"))?;
+        m.configure_plan(&Default::default(), None).map(|_| ()).map_err(|e| format!("configure_plan: {e}"))
+    };
+    let off = plan("0");
+    let on = plan("1");
+    assert_eq!(on, off, "batching with the screen on vs off");
+}
