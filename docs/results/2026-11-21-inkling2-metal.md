@@ -963,3 +963,9 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   (inkling2.toml, new), bench 1, Cargo.lock 1, cuda 1 and hip 1 (the op-coverage test list / `UNIMPLEMENTED` list only).
 - No-op checks: Metal on endor fleetq #11440 (plan show and ids for Qwen3-8B and Llama-3.1-8B, kernels test, goldens,
   workspace tests base vs dev); CUDA on spark1 #11441 (plan show json 35B + 8B, kernels test --quick, base vs dev). Pending.
+- Widened (coordinator): spark1 #11443, chained after #11441 (waits for its binaries): Qwen3-8B 256 greedy ids short / 4k on
+  CUDA, base vs dev bit for bit; `cargo test --workspace --release` both trees (CARGO_BUILD_JOBS=4, MAX_JOBS=4), failure sets
+  compared; a memory guard logs MemAvailable every 5 s and kills the job's processes under 10 GB; `--mem 36` beside
+  spark1-vllm (34 GB). tatooine #11444 (`--load cpu`, no GPU work, radiance untouched): `--features hip` release build of both
+  trees in the dev image with their own target volumes, then the hip crate's lib unit tests with GPUs hidden
+  (`HIP_VISIBLE_DEVICES=-1`), failure sets compared. Pending.
