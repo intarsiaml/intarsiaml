@@ -153,8 +153,8 @@ twice; the 128-row forms (m128_*) decode them once: pending (#10875 build, #1088
 
 | Gate | 21-way KL scored (bound) | ink/metal baseline | confident top-1 misses |
 |---|---:|---:|---:|
-| G2 short (oracle) | 2.087e-3 (4.0e-3) | | 0 / 363 |
-| G2 long (oracle) | 3.239e-3 (6.0e-3) | | 1 / 1206 |
+| G2 short (oracle) | 2.087e-3 (4.0e-3) | 2.380e-3 | 0 / 363 |
+| G2 long (oracle) | 3.239e-3 (6.0e-3) | 3.418e-3 | 1 / 1206 |
 | G3 short (vLLM, prefill) | 8.420e-3 (1.05e-2) | 8.391e-3 | 0 / 367 |
 | G3 long (vLLM, prefill) | 1.229e-2 (1.65e-2) | 1.248e-2 | 0 / 1211 |
 
