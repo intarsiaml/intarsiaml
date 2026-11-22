@@ -942,4 +942,8 @@ Found by `git log -S` on the shader list, not by a run bisect. These are NAX sha
 test's other two asserts (no overlap with `shader_names()`, no duplicates) are unchanged. Fix 8e0ff6af6 adds the
 `inkprefill` term to the expected count. #11363 missed it because its Metal suite ran named integration tests
 (rows_exact, inkmix, rows_single, quick_coverage, gumbel, inkling2, inkling2_batch), not the backend-metal lib unit tests.
-Full Metal suite at 8e0ff6af6 (backend-metal lib + every integration test, models Metal tests): fleetq #11427, pending.
+Full Metal suite at 8e0ff6af6, fleetq #11427 (09:14:55-09:17:57, exit 0, INTARSIA_* unset): `cargo test --release -p
+intarsia-backend-metal --no-fail-fast` exit 0, 54 test binaries ok, 0 failed, the shader-count test ok; intarsia-models with
+the Inkling backend on metal: inkling2 11/11, inkling2_batch 7/7, batch_metal 1/1, prefix_store_metal 1/1, mtp_store_metal
+2/2, gdn_verify_metal 2/2 (batch_metal, prefix_store_metal and mtp_store_metal finish in 0.00 s: they need a real-model env
+var that was unset, so they ran their skip path). ink/metal's Metal suite is green.
