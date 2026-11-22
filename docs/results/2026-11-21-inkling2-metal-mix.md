@@ -4,7 +4,13 @@ Branch `ink/m-mix` (worktree `.worktrees/ink-m-mix`, base `3feffee6e`). Target e
 
 ## 0. Briefs received
 
-- None after the initial brief (no SendMessage course corrections arrived during the lane).
+- None during the lane itself.
+- 2026-11-21, coordinator, after the final report: ink-metal merges ink/m-mix at `47570539e`. (1) Commit the two better defaults
+  (gate 4 rows per threadgroup, NE 4 for the row kernel) as one separate commit, revertable alone; (2) one short endor job
+  (default load, honest --expect, build from that commit) running tests/inkmix.rs, rows-exact and admission for the affected
+  kernels plus the 1/16/2048-row bench lines before/after; tiny/CPU parts to spark2 if any; (3) report pass/fail and the
+  numbers, ink-metal merges once it passes. Ideas 1-2 are taken (ink-dfuse: gate+norm fusion and one message mix per pass;
+  ink-prefill: blend prefill); idea 3 goes to ink-batch.
 
 ## 1. What was built
 
