@@ -2919,7 +2919,7 @@ impl Model {
         let nv = self.view(&self.ws.n, self.act, &[t, self.dims.hidden]);
         let mut dump = InkTensors::new();
         let pos0 = st.len;
-        self.ink_pass(st, &self.view(&self.ws.ids, DType::I32, &[t]), t, pos0, &nv, false, tf, Some(&mut dump))?;
+        self.ink_pass(st, &self.view(&self.ws.ids, DType::I32, &[t]), t, pos0, &nv, false, tf, Some(&mut dump), None)?;
         let mut logits = Vec::with_capacity(t * self.dims.vocab);
         for r0 in (0..t).step_by(LOGIT_ROWS) {
             logits.extend(self.head_logits(&nv, r0, LOGIT_ROWS.min(t - r0), false)?);
@@ -4074,9 +4074,6 @@ impl Model {
             let Seqs::One(st) = seqs else {
                 return Err(Error::Unsupported("batched or packed passes of Inkling-2".into()));
             };
-            if dpos.is_some() {
-                return Err(Error::Unsupported("device-position (graph) decode of Inkling-2".into()));
-            }
             let ids_t = ids_at.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t]));
             let nv = self.view(&ws.n, act, &[t, h]);
             // passes of 2..=16 rows take the row-exact kernels on Metal (`inkling2::ink_rows_exact`), so any schedule of such
@@ -4085,7 +4082,8 @@ impl Model {
             if mark {
                 self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
             }
-            let r = self.ink_pass(st, &ids_t, t, pos0, &nv, profile, None, None);
+            // a captured decode step (`dpos`): pos0 is 0 and the positioned ops read the device position
+            let r = self.ink_pass(st, &ids_t, t, pos0, &nv, profile, None, None, dpos);
             if mark {
                 self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
             }

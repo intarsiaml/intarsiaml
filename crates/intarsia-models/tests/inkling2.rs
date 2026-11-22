@@ -304,6 +304,44 @@ fn inkling2_tiny_chunked_and_decode_match_prefill_bitwise() {
     assert_eq!(rows, whole, "prefill then decode");
 }
 
+/// The captured decode step (CUDA graph: the positioned ops read the device position) gives the eager decode's logits bit for
+/// bit, token by token after a 9-token prefill, and replays once per step. On a backend without graphs both loads decode
+/// eagerly (the comparison is then trivially equal; the replay count is only checked where graphs are usable).
+#[test]
+fn inkling2_tiny_graph_decode_is_bitwise_the_eager_decode() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let load_g = |graphs: bool| {
+        let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
+        let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
+        let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
+        let src = SafeTensors::open_dir(&dir).unwrap();
+        let o = LoadOptions { max_seq: 128, prefill_chunk: chunk(), graphs, profile_every: 0, ..Default::default() };
+        Model::load(backend(), &recipe, &dims, &src, &o, Arc::new(Telemetry::new())).unwrap()
+    };
+    let run = |m: &Model| {
+        let mut st = m.new_state().unwrap();
+        let mut rows = all_logits(m, &mut st, &ids[..9]);
+        for &id in &ids[9..] {
+            let intarsia_core::model::StepOut::Logits(l) = m.forward(&mut st, &[id], HeadMode::LastLogits, None).unwrap() else { panic!() };
+            rows.push(l);
+        }
+        rows
+    };
+    let eager = load_g(false);
+    let graphed = load_g(true);
+    let (le, lg) = (run(&eager), run(&graphed));
+    assert_eq!(le.len(), lg.len());
+    for (i, (a, b)) in le.iter().zip(&lg).enumerate() {
+        assert!(a == b, "logits of row {i} differ between eager and graph decode");
+    }
+    let gs = graphed.graph_stats();
+    if gs.enabled {
+        assert_eq!(gs.replays as usize, ids.len() - 9, "one replay per decode step");
+    }
+    println!("graph decode: enabled {}, captures {}, replays {}, {} decode steps", gs.enabled, gs.captures, gs.replays, ids.len() - 9);
+}
+
 /// The logits of prefill 9 then decode one token at a time, written as raw f32 to `INTARSIA_INKLING2_DUMP` (two runs with
 /// different `INTARSIA_INK_ATTN_FUSED` are compared byte for byte by the caller). No-op without the variable.
 #[test]
