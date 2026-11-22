@@ -768,6 +768,56 @@ fn mtp_default_allowed(opts: &EngineOptions, local: bool) -> bool {
         && !std::env::var("INTARSIA_SPEC_DEFAULT").is_ok_and(|v| v == "0")
 }
 
+/// The recipe's DSpark default for this group ([`intarsia_core::recipe::Recipe::resolve_dspark_default_k`]; Inkling-2 on Metal):
+/// what `load_engine_group` does with it. `Off`: no default applies (no key, `--spec` / `--mtp` / `--spec-draft` / `--dcoco` given,
+/// tensor parallel, a remote rank, `--max-batch` above 1, `--spec-k 0`, `INTARSIA_SPEC_DEFAULT=0`). `Skipped`: it would apply but
+/// cannot or should not, with the one stderr line that says why (the checkpoint has no draft, or a prefix store is configured,
+/// which a drafting DFlash-family request bypasses). `On(k)`: run `--spec dflash --spec-draft <model dir> --spec-k k`.
+#[derive(Debug, PartialEq, Eq)]
+enum DsparkDefault {
+    Off,
+    Skipped(String),
+    On(usize),
+}
+
+fn dspark_default(
+    opts: &EngineOptions,
+    recipe: &intarsia_core::recipe::Recipe,
+    cfg: &serde_json::Value,
+    dir: &Path,
+    backend: &str,
+    world: usize,
+    local: bool,
+) -> DsparkDefault {
+    let Some(rk) = recipe.resolve_dspark_default_k(backend) else { return DsparkDefault::Off };
+    if !mtp_default_allowed(opts, local)
+        || world != 1
+        || opts.max_batch.is_some_and(|n| n > 1)
+        || opts.spec_draft.is_some()
+        || opts.dcoco
+        || (opts.spec_k_given && opts.spec.k == 0)
+    {
+        return DsparkDefault::Off;
+    }
+    let k = if opts.spec_k_given { opts.spec.k } else { rk };
+    if cfg.get("mtp_config").is_none() || !dir.join("mtp.safetensors").is_file() {
+        return DsparkDefault::Skipped(format!(
+            "--spec dflash (the DSpark default of recipe {} on {backend}, [tuning.{backend}] dspark_default_k = {rk}) not applied: \
+             no draft in {} (needs config.json mtp_config and mtp.safetensors); speculation is off",
+            recipe.model.family,
+            dir.display()
+        ));
+    }
+    if prefix_store_given(opts) {
+        return DsparkDefault::Skipped(format!(
+            "--spec dflash (the DSpark default of recipe {} on {backend}) not applied: --prefix-store (or INTARSIA_PREFIX_STORE) is \
+             set and a drafting request bypasses the store; --spec dflash --spec-draft <model dir> --prefix-store ... asks for both",
+            recipe.model.family
+        ));
+    }
+    DsparkDefault::On(k)
+}
+
 /// Batched MTP (lane bm) for this group: a sequence drafts while at most this many decode (0: `--spec mtp` stays refused with
 /// `--max-batch` > 1). `INTARSIA_BATCHED_MTP` wins (`0` turns it off); else the recipe's `[tuning.<backend>] batched_mtp` at tp = 1
 /// in-process (user decision 2026-11-05 ~19:45 EST "N=1 default": 1 for the 35B on CUDA and Metal); else 0. Never at tp > 1.
@@ -869,7 +919,10 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             &defaulted
         }
         None => {
-            if opts.spec_auto && opts.spec_k_given && opts.spec.mode == intarsia_core::spec::SpecMode::Off && !opts.load.mtp && !skipped_by_store {
+            let dspark = backends
+                .first()
+                .is_some_and(|b0| !matches!(dspark_default(opts, &recipe, &cfg, dir, b0.name(), backends.len(), local), DsparkDefault::Off));
+            if opts.spec_auto && opts.spec_k_given && opts.spec.mode == intarsia_core::spec::SpecMode::Off && !opts.load.mtp && !skipped_by_store && !dspark {
                 eprintln!("warning: --spec-k {} has no effect without --spec here (no recipe speculation default applies); speculation is off", opts.spec.k);
             }
             opts
@@ -920,7 +973,29 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let spec_auto = opts.spec.mode == intarsia_core::spec::SpecMode::Auto;
     let dspine_opts: EngineOptions;
     let dspark_opts: EngineOptions;
+    let dspark_default_opts: EngineOptions;
     let mut opts = opts;
+    // the recipe's DSpark default (Inkling-2 on Metal, user decision 5, 2026-11-22): greedy requests at one sequence speculate with
+    // the checkpoint's own draft; sampled requests take plain steps (and the device sampler where the recipe turns it on)
+    let mut dspark_defaulted = false;
+    match dspark_default(opts, &recipe, &cfg, dir, backend_name, backends.len(), local) {
+        DsparkDefault::Off => {}
+        DsparkDefault::Skipped(why) => eprintln!("{why}"),
+        DsparkDefault::On(k) => {
+            eprintln!(
+                "--spec dflash --spec-draft <model dir> --spec-k {k}{}: the DSpark default of recipe {} on {backend_name} ([tuning.{backend_name}] \
+                 dspark_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)",
+                if opts.spec_k_given { " (k from --spec-k)" } else { "" },
+                recipe.model.family
+            );
+            let mut o = opts.clone();
+            o.spec = intarsia_core::spec::SpecConfig { mode: intarsia_core::spec::SpecMode::Dflash, k, k_min: None };
+            o.spec_draft = Some(dir.to_path_buf());
+            dspark_default_opts = o;
+            opts = &dspark_default_opts;
+            dspark_defaulted = true;
+        }
+    }
     let dflash = if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash || spec_auto {
         if max_batch.value > 1 {
             return Err(Error::Unsupported("--spec dflash with the batching engine (use --max-batch 1)".into()));
@@ -957,7 +1032,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             opts = &dspine_opts;
         }
         // Inkling-2's DSpark draft: its measured default depth (k3; the 8-row block would otherwise draft up to 7)
-        if dl.config.dspark.is_some() && !opts.spec_k_given && opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
+        if dl.config.dspark.is_some() && !opts.spec_k_given && !dspark_defaulted && opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
             let k = intarsia_core::spec::DSPARK_K_DEFAULT;
             eprintln!("--spec dflash with a DSpark draft: --spec-k defaults to {k}");
             let mut o = opts.clone();
@@ -1304,4 +1379,59 @@ fn load_dsv41(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> 
         prefill_chunk: PrefillChunk { value: chunk, source: "INTARSIA_DSV41_CHUNK / --prefill-chunk / 2048".into() },
         chat_template_source: Some(dir.join("chat_template.jinja").display().to_string()),
     })
+}
+
+#[cfg(test)]
+mod dspark_default_tests {
+    use super::*;
+
+    /// The recipe's DSpark default applies only where it was measured: Inkling-2 on Metal (the only recipe and backend with
+    /// `dspark_default_k`), no `--spec`, one rank in process, one sequence, a checkpoint with its draft, no prefix store.
+    /// `golden/inkling2-tiny-dspark` holds an Inkling-2 `config.json` with `mtp_config` and `mtp.safetensors`.
+    #[test]
+    fn dspark_default_only_where_measured() {
+        let g = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../golden");
+        let dir = g.join("inkling2-tiny-dspark");
+        let recipe = crate::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
+        assert_eq!(recipe.resolve_dspark_default_k("metal"), Some(3));
+        for b in ["cpu", "cuda", "hip"] {
+            assert_eq!(recipe.resolve_dspark_default_k(b), None, "Inkling-2 on {b}");
+        }
+        for entry in std::fs::read_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../recipes")).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().is_none_or(|e| e != "toml") || path.file_stem().is_some_and(|s| s == "inkling2") {
+                continue;
+            }
+            let r = crate::parse_recipe(&std::fs::read_to_string(&path).unwrap()).unwrap();
+            for b in ["cpu", "cuda", "hip", "metal"] {
+                assert_eq!(r.resolve_dspark_default_k(b), None, "{}: {b} sets dspark_default_k", path.display());
+            }
+        }
+        if !dir.join("mtp.safetensors").exists() {
+            eprintln!("skipped the checkpoint cases: no tiny fixtures");
+            return;
+        }
+        let cfg = read_json(&dir.join("config.json")).unwrap();
+        let base = EngineOptions { spec_auto: true, ..Default::default() };
+        let d = |o: &EngineOptions, backend: &str, world: usize, local: bool| dspark_default(o, &recipe, &cfg, &dir, backend, world, local);
+        assert_eq!(d(&base, "metal", 1, true), DsparkDefault::On(3));
+        assert_eq!(d(&base, "cpu", 1, true), DsparkDefault::Off);
+        assert_eq!(d(&base, "metal", 2, true), DsparkDefault::Off);
+        assert_eq!(d(&base, "metal", 1, false), DsparkDefault::Off);
+        assert_eq!(d(&EngineOptions { max_batch: Some(4), ..base.clone() }, "metal", 1, true), DsparkDefault::Off);
+        assert_eq!(d(&EngineOptions { max_batch: Some(1), ..base.clone() }, "metal", 1, true), DsparkDefault::On(3));
+        // an explicit --spec (off included) wins
+        assert_eq!(d(&EngineOptions { spec_auto: false, ..base.clone() }, "metal", 1, true), DsparkDefault::Off);
+        let k = |k: usize| EngineOptions { spec_k_given: true, spec: intarsia_core::spec::SpecConfig { k, ..Default::default() }, ..base.clone() };
+        assert_eq!(d(&k(2), "metal", 1, true), DsparkDefault::On(2));
+        assert_eq!(d(&k(0), "metal", 1, true), DsparkDefault::Off);
+        assert_eq!(d(&EngineOptions { spec_draft: Some(dir.clone()), ..base.clone() }, "metal", 1, true), DsparkDefault::Off);
+        // a prefix store: skipped with its line
+        let store = EngineOptions { prefix_store: intarsia_core::prefix_store::PrefixStoreConfig::parse("on").unwrap(), ..base.clone() };
+        assert!(matches!(d(&store, "metal", 1, true), DsparkDefault::Skipped(ref w) if w.contains("prefix-store")));
+        // a checkpoint without the draft: skipped with its line, never an error
+        let plain = g.join("inkling2-tiny");
+        let pcfg = read_json(&plain.join("config.json")).unwrap();
+        assert!(matches!(dspark_default(&base, &recipe, &pcfg, &plain, "metal", 1, true), DsparkDefault::Skipped(ref w) if w.contains("no draft")));
+    }
 }

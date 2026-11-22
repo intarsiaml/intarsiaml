@@ -40,6 +40,10 @@ prefill_chunk = 2048
 # sampled decode about 11-12 % faster (user decision 2026-11-22; docs/results/2026-11-21-inkling2-hostgap.md).
 # INTARSIA_GUMBEL_SAMPLING=0 reverts.
 gumbel_sampling = true
+# speculation with the checkpoint's own DSpark draft (mtp.safetensors) at k 3, gate 0.8, for greedy requests at one sequence
+# (no --max-batch above 1, no prefix store): decode 1.12-1.28x at 141 / 1k / 4k / 16k prompt tokens, prefill within 0.5 %
+# (docs/results/2026-11-21-inkling2-mtp.md). --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off.
+dspark_default_k = 3
 
 [accuracy]
 chat_turns = "inkling2"       # one open token per role, <|end_message|> closes (crates/intarsia-cli/src/cmd/accuracy/turns.rs)

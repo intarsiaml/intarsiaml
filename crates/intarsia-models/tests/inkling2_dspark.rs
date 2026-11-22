@@ -184,3 +184,78 @@ fn dspark_partial_acceptance_keeps_ids_identical() {
         assert!(acc > 0, "k {k}: nothing accepted (vacuous test)");
     }
 }
+
+/// Lane ink-spec-land, Brief L2a: after a request that did not draft (a sampled turn), the draft no longer covers the sequence. A
+/// greedy turn that shares more than `DFLASH_RESYNC_REUSE_MAX` rows with it keeps the KV prefix and runs without drafting (before,
+/// it re-prefilled the whole prompt to draft); its ids equal `--spec off`'s on the same request sequence. A new conversation (a
+/// prompt sharing nothing) drafts again.
+#[test]
+fn dspark_unsynced_draft_keeps_the_prefix_and_skips_drafting() {
+    if dirs().is_none() {
+        eprintln!("skipped: no tiny fixtures");
+        return;
+    }
+    gate_off();
+    let (tdir, ddir) = dirs().unwrap();
+    let mk = |draft: bool| {
+        let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
+        let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(tdir.join("config.json")).unwrap()).unwrap();
+        let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
+        let src = SafeTensors::open_dir(&tdir).unwrap();
+        let dflash = draft.then(|| intarsia_models::load::open_dflash(Some(&ddir), false).unwrap());
+        let tel = Arc::new(Telemetry::new());
+        let opts = LoadOptions { max_seq: 512, prefill_chunk: 16, graphs: false, dflash, ..Default::default() };
+        let mut m = Model::load(backend(), &recipe, &dims, &src, &opts, tel.clone()).unwrap();
+        let spec = if draft {
+            m.enable_verify(4).unwrap();
+            m.configure_plan(&Default::default(), Some(&*intarsia_backend_cpu::CpuBackend::arc())).unwrap();
+            SpecConfig { mode: SpecMode::Dflash, k: 3, k_min: None }
+        } else {
+            SpecConfig::default()
+        };
+        let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-dspark".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
+            .unwrap();
+        (e, tel)
+    };
+    // one request: (ids, cached prompt tokens)
+    let go = |e: &LocalEngine, prompt: &[u32], n: usize, t: f32| {
+        let (mut ids, mut cached) = (vec![], usize::MAX);
+        let req = GenRequest { prompt: prompt.to_vec(), max_tokens: n, temperature: t, seed: Some(7), ignore_eos: true, ..Default::default() };
+        e.generate(req, &mut |ev| match ev {
+            GenEvent::Token { id, .. } => ids.push(id),
+            GenEvent::Done { cached_tokens, .. } => cached = cached_tokens,
+            GenEvent::Error { message } => panic!("engine error: {message}"),
+        })
+        .unwrap();
+        (ids, cached)
+    };
+    let turn1: Vec<u32> = (0..200u32).map(|i| (i * 37 + 11) % 290 + 5).collect();
+    let (off, _) = mk(false);
+    let (on, tel) = mk(true);
+    let mut log = vec![];
+    for (name, e) in [("off", &off), ("on", &on)] {
+        let (g1, _) = go(e, &turn1, 6, 0.0); // greedy: drafts (on)
+        let p1 = tel.snapshot().spec_proposed;
+        let mut turn2 = turn1.clone();
+        turn2.extend_from_slice(&g1);
+        turn2.extend_from_slice(&[17, 18, 19]);
+        let (s2, _) = go(e, &turn2, 4, 1.0); // sampled: no draft, the draft falls out of sync
+        let mut turn3 = turn2.clone();
+        turn3.extend_from_slice(&s2);
+        turn3.extend_from_slice(&[21, 22, 23, 24]);
+        let p2 = tel.snapshot().spec_proposed;
+        let (g3, c3) = go(e, &turn3, 12, 0.0); // greedy, ~210 rows to reuse
+        let p3 = tel.snapshot().spec_proposed;
+        let fresh: Vec<u32> = (0..40u32).map(|i| (i * 53 + 201) % 280 + 2).collect();
+        let (g4, _) = go(e, &fresh, 8, 0.0); // a new conversation
+        let p4 = tel.snapshot().spec_proposed;
+        if name == "on" {
+            assert!(p1 > 0, "the first greedy turn never drafted (vacuous)");
+            assert_eq!(p3, p2, "the greedy turn after the sampled one drafted (it would have re-prefilled)");
+            assert!(p4 > p3, "a new conversation did not draft again");
+        }
+        assert!(c3 > intarsia_core::engine::DFLASH_RESYNC_REUSE_MAX, "{name}: the greedy turn after the sampled one reused only {c3} rows");
+        log.push((g1, s2, g3, c3, g4));
+    }
+    assert_eq!(log[0], log[1], "spec off vs on: ids or reuse differ over the four turns");
+}

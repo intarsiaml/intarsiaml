@@ -181,6 +181,19 @@ main, in a new worktree `.worktrees/ink-spec-flip`, removed after merge.
 - Bar: decode gain kept at every length; serve TTFT and prefill within 2% at every length. Otherwise stop and report.
 - Endor rules unchanged: cargo and git push only inside `--load cpu` slots.
 
+## Brief L2a (coordinator, 2026-11-22 ~15:20), lane ink-spec-land
+
+The flip plan is approved as written, prefix-store skip included (consistent with the MTP default). One change: the re-prefill
+cost is not acceptable as a known cost. A greedy turn after a sampled turn would re-prefill the whole context: at 4k a re-prefill
+costs ~2.1 s while spec saves ~0.85 s over a 256-token reply (65 -> 83 tok/s); at 1k 0.68 s lost against 0.42 s saved, so prefix
+reuse wins at every length.
+- Rule: when the draft is unsynced and a reusable KV prefix exists, run that request without drafting and keep the prefix. Draft
+  again once a request starts with the draft synced, e.g. a fresh conversation.
+- Output is identical either way (spec on == off): this only changes the schedule. Gate: a multi-turn serve test with a sampled
+  turn, then a greedy turn, at ~4k; the greedy turn's TTFT stays at prefix-reuse level and its ids equal `--spec off`.
+- If the rule takes more than half a day in engine.rs, stop and report instead of shipping the cliff.
+- Then run the gate job, and queue the night job at 05:45 as planned.
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
@@ -912,3 +925,46 @@ only later in the stream). Saves at most one chunk's ingest, 4.1 ms: 0.6% of TTF
 overlapping every chunk's ingest (a second Metal queue, event-ordered after the chunk's tap writes) could hide up to 33 ms at 16k
 (0.4%) if the GPU had idle capacity during prefill GEMMs, which it mostly does not; about a day. Neither is worth building: the
 cost they remove is smaller than the TTFT noise of one quiet slot.
+
+## Default-on (Brief L2 / L2a, lane ink-spec-land; branch `ink/spec-flip` from main 22303d704)
+
+What changes:
+- `recipes/inkling2.toml` `[tuning.metal] dspark_default_k = 3` (new recipe key, `Recipe::resolve_dspark_default_k`). Without
+  `--spec`, Inkling-2 on Metal runs `--spec dflash --spec-draft <model dir> --spec-k 3` (gate 0.8, the default since #493) when:
+  one rank in process, `--max-batch` unset or 1, no `--spec-draft` / `--dcoco`, `INTARSIA_SPEC_DEFAULT` not 0. A checkpoint
+  without `mtp_config` + `mtp.safetensors`, or a configured prefix store (a drafting request bypasses it; the MTP default's
+  rule), skips it with one stderr line, never a load error. `--spec off` or `INTARSIA_SPEC_DEFAULT=0` reverts.
+- Sampled requests never draft with DSpark (unchanged) and so keep the device Gumbel sampler (#494).
+- L2a, `engine.rs` (every DFlash-family draft): a greedy request whose draft fell out of sync (a request that did not draft ran,
+  e.g. a sampled turn) and that can reuse more than `DFLASH_RESYNC_REUSE_MAX` = 128 prefix rows keeps the prefix and runs
+  without drafting; before, it re-prefilled the whole prompt to draft. With at most 128 reusable rows (a chat template's
+  preamble: a new conversation) it re-prefills from 0 and drafts, as before. The literal rule ("any reusable prefix") would never
+  draft again on a server whose conversations share a template preamble, hence the threshold. Output is unchanged either way.
+  Test: `tests/inkling2_dspark.rs` `dspark_unsynced_draft_keeps_the_prefix_and_skips_drafting` (tiny fixture, cpu / Metal).
+
+Gate rules (set before the gates ran). Job: endor, default load, flip tip vs main 22303d704 built in the same job; every
+`INTARSIA_*` unset. Any miss fails the gate and stops the lane (reported, never re-ruled).
+- F1: Inkling greedy md5 at 64 / 256 (the A1 prompt): default (no `--spec`) == `--spec off` == main; the default run prints the
+  "DSpark default" line and verify passes > 0; `--spec off` does not.
+- F2: Metal `plan show` text and json byte-identical to main for Qwen3-8B and Llama-3.1-8B.
+- F3: default server (no `--spec`, no `--max-batch`): the ~1.4k greedy request HTTP 200 with verify passes > 0; a t1.0 request
+  HTTP 200 with spec steps unchanged.
+- F4: `serve --max-batch 4`: no draft loaded, admission line equal to main's, greedy reply text equal to main's.
+- F5: a model directory without `mtp.safetensors` (symlinks to the rest): rc 0, exactly one "not applied: no draft" line, no
+  speculation, md5 equal to main's at 64.
+- F6: t=1.0 seed 7, 128 tokens, a 150-token and a 5000-token prompt: ids identical default vs `--spec off` (both the device
+  sampler), no verify pass.
+- F7: tests pass: `intarsia-models --lib dspark_default` and `--lib recipe`, `--test recipes_doc`, `--test recipe_gumbel`,
+  `intarsia-cli --test docs_env_vars`, and on Metal `inkling2_dspark` (with the L2a test), `inkling2_dspark_cut`,
+  `inkling2_verify_softcap`. Before that, bespin (cpu): cargo check workspace + metal CLI, the same cpu tests.
+- F8 (L2a): `serve --max-batch 1`, a ~4k conversation: sampled turn (t1.0, 32 tokens), then a greedy turn on it (+ a short
+  assistant and user message), then a new short greedy conversation. On the default server the greedy turn's reply equals the
+  `--spec off` server's, its TTFT is at most max(1.25 x, +0.05 s) of the `--spec off` server's (prefix reuse level), its cached
+  tokens equal, it runs no verify pass; the new conversation does run verify passes and its reply equals `--spec off`'s. Info:
+  main with opt-in `--spec dflash` (before the rule) on the same flow.
+- Night speed (quiet slot after #11567, `--at 05:45`): box check first (no other intarsia serve / generate; a spec-off greedy
+  256-token decode >= 65 tok/s, up to three tries a minute apart). Default server vs `--spec off` server (both without
+  `--max-batch`), localeval speed-plain (143 / 1k / 4k / 16k, 256 forced tokens, 3 reps), warm-up then (A B B A) x 3. Bar, on arm
+  means of six runs each: decode DSpark / off > 1 at every length; serve TTFT and prefill within 2% of off at 1k, 4k and 16k.
+  Also t=1.0 decode (generate, seed 7, 256 tokens, 150 and 5000 prompt tokens, A B B A): default vs off reported. Otherwise stop
+  and report.

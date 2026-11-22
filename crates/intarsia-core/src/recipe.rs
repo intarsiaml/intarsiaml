@@ -392,6 +392,11 @@ pub struct BackendTuning {
     /// default drafts in `[mtp_default_k_min, k]` ([`crate::spec::Depth`]) instead of a fixed `k`. Not applied when `--spec-k` sets k.
     /// `INTARSIA_SPEC_K_MIN` wins. Per backend only, set only where measured (the Qwen3.8-27B on HIP at tp 2).
     pub mtp_default_k_min: Option<usize>,
+    /// With one rank in process on this backend, `--max-batch` unset or 1, and no `--spec` given: speculate with the checkpoint's own
+    /// DSpark draft (Inkling-2's `mtp.safetensors`, `--spec dflash --spec-draft <model dir>`) at this many drafts per pass
+    /// ([`Recipe::resolve_dspark_default_k`]). Greedy requests only. `--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out. Per backend
+    /// only, set only where measured (Inkling-2-Mini on Metal, k 3: docs/results/2026-11-21-inkling2-mtp.md).
+    pub dspark_default_k: Option<usize>,
     /// Batched MTP default on this backend at tp = 1 (lane bm, user decision 2026-11-05 ~19:45 EST "N=1 default"): `--spec mtp` with
     /// `--max-batch` > 1 drafts while at most this many sequences decode, and the recipe's `mtp_default_k` also applies to a batched
     /// server. `INTARSIA_BATCHED_MTP` wins (`0`: off). Per backend only, set only where measured (the Qwen3.6-35B-A3B on CUDA and Metal:
@@ -543,6 +548,11 @@ impl Recipe {
     /// The adaptive depth floor of `backend`'s MTP default (`[tuning.<backend>] mtp_default_k_min`), if set and nonzero.
     pub fn resolve_mtp_default_k_min(&self, backend: &str) -> Option<usize> {
         self.tuning.backends.get(backend).and_then(|b| b.mtp_default_k_min).filter(|&k| k > 0)
+    }
+
+    /// The recipe's DSpark default for `backend` (`[tuning.<backend>] dspark_default_k`): `Some(k)` when set above 0.
+    pub fn resolve_dspark_default_k(&self, backend: &str) -> Option<usize> {
+        self.tuning.backends.get(backend).and_then(|b| b.dspark_default_k).filter(|&k| k > 0)
     }
 
     /// The recipe's single-rank (tp = 1) MTP default for `backend` (`[tuning.<backend>] mtp_default_k`): `Some(k)` when the recipe has an
