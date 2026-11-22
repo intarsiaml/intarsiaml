@@ -1213,6 +1213,8 @@ impl Model {
                 Some("not with a sharded head")
             } else if head_quant.is_some() {
                 Some("the head itself is quantised (INTARSIA_LMHEAD_QUANT)")
+            } else if act != DType::Bf16 {
+                Some("bf16 activations only")
             } else {
                 None
             };
@@ -5606,7 +5608,8 @@ impl Model {
     /// or the head's `Logits` kernel is not one the gather reproduces (then the caller runs the full head).
     fn screened_argmax(&self, x: &TensorRef, c: usize, tok: &TensorRef, profile: bool) -> Result<bool> {
         let Some(hs) = self.head_screen.as_ref() else { return Ok(false) };
-        if c > hs.rows || self.vocab_par {
+        // the screen ops take bf16 activations (their contract); any other row takes the full head
+        if c > hs.rows || self.vocab_par || x.dtype != DType::Bf16 {
             return Ok(false);
         }
         // a plan dry run records the screen calls too (so `serve`, admitted kernels only, admits their kernels on the plan
