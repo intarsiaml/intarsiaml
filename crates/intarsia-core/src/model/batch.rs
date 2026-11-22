@@ -108,6 +108,9 @@ impl Model {
                 "--max-batch N with --tp needs the vocab-parallel lm_head (INTARSIA_TP_VOCAB=0, or a communicator without all_gather, turns it off)".into(),
             ));
         }
+        if max_rows > 1 {
+            self.drop_p12_for_batch(max_rows);
+        }
         for p in self.peers.iter_mut() {
             p.enable_batch_rank(max_rows)?;
         }
@@ -131,6 +134,37 @@ impl Model {
             return Err(Error::invalid("the ranks of a tensor-parallel group disagree on batched row tables"));
         }
         Ok(())
+    }
+
+    /// P12 (lane ink-pack12) is solo-only: the batched step has no P12 head or row-table P12 projections, so a batched plan
+    /// would run `Logits` where the solo step runs `MatmulP12` and the bitwise plan check refuses it (#11266: "a 2-row batched
+    /// step runs logits 1 times where 0 follow from the solo decode step (0)"). A batched model drops its P12 copies (the
+    /// unembed, in_proj, wo) before the plan is built, so the solo and the batched step both take the bf16 weights; the
+    /// buffers are freed with the last reference (the KV budget measured at load is not raised: conservative). Called once,
+    /// before anything copies the model. An explicit `INTARSIA_INK_PACK12=1` is warned about and still kept off.
+    fn drop_p12_for_batch(&mut self, max_rows: usize) {
+        let mut n = usize::from(self.head_p12.take().is_some());
+        if let Some(ink) = self.ink.as_mut() {
+            for l in ink.layers.iter_mut() {
+                n += usize::from(l.in_p12.take().is_some()) + usize::from(l.wo_p12.take().is_some());
+            }
+        }
+        if n == 0 {
+            return;
+        }
+        eprintln!("pack12 off: batched plan (max-batch {max_rows}); {n} P12 tensors dropped, the bf16 weights serve solo and batched rows");
+        let forced = std::env::var(crate::quant::p12::ENV).is_ok_and(|v| matches!(v.trim(), "1" | "on" | "true"));
+        if forced {
+            eprintln!(
+                "warning: {}=1 is not honoured with batching on (P12 has no batched kernels yet); keeping the bf16 weights",
+                crate::quant::p12::ENV
+            );
+        }
+    }
+
+    /// Whether this model holds any P12 copy (the head or an Inkling-2 layer's in_proj / wo): tests and plan notes.
+    pub fn has_p12(&self) -> bool {
+        self.head_p12.is_some() || self.ink.as_ref().is_some_and(|i| i.layers.iter().any(|l| l.in_p12.is_some() || l.wo_p12.is_some()))
     }
 
     /// One rank's part of [`Model::enable_batch`]: the checks, the memory plan and the buffers of this shard.
