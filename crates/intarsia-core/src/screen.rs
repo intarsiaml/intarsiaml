@@ -423,9 +423,20 @@ pub fn sweep(op: Op, cfg: &crate::admission::SweepConfig) -> Vec<crate::admissio
                         if op == Op::LogitsGather {
                             let h = rng.normal_vec(t * d, 1.0);
                             let w = rng.normal_vec(v * d, (d as f32).powf(-0.5));
-                            let inputs = vec![bf(&h, &[t, d]), bf(&w, &[v, d]), cin, nin];
+                            let inputs = vec![bf(&h, &[t, d]), bf(&w, &[v, d]), cin.clone(), nin.clone()];
                             let outputs = vec![OutSpec::new(DType::F32, &[t, v])];
-                            cases.push(crate::admission::Case { label, call: HostCall { op, inputs, outputs, attrs: Default::default() } });
+                            cases.push(crate::admission::Case { label: label.clone(), call: HostCall { op, inputs, outputs, attrs: Default::default() } });
+                            // the P12 head (inputs [h, codes, cand, cnt, aux]): weight-like rows with their escapes; at the real
+                            // width T = 1 only (the Metal gathers serve 1-row heads; each case packs the whole head)
+                            if t > 1 && d >= 2304 {
+                                continue;
+                            }
+                            let wq = crate::quant::p12::random_weight(&mut rng, v, d, (d as f32).powf(-0.5), false);
+                            let mut parts = crate::quant::p12::pack(&wq, v, d, 0).expect("p12 pack").host_parts().into_iter();
+                            let (codes, aux) = (parts.next().unwrap(), parts.next().unwrap());
+                            let inputs = vec![bf(&h, &[t, d]), codes, cin, nin, aux];
+                            let outputs = vec![OutSpec::new(DType::F32, &[t, v])];
+                            cases.push(crate::admission::Case { label: format!("{label} p12"), call: HostCall { op, inputs, outputs, attrs: Default::default() } });
                         } else {
                             // y with exact ties at the maximum (the lowest index must win) and +-0
                             let mut y = rng.normal_vec(t * v, 1.0);
