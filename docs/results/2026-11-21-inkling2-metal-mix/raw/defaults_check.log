@@ -1,0 +1,42 @@
+fleetq: #10893 running on endor: .scratch/defaults_check.sh
+fleetq: #10893 went ahead of the line and must end within 24m (by Sat 22:56); it is stopped then
+HEAD 25ff7864a
+    Finished `release` profile [optimized] target(s) in 31.97s
+    Finished `release` profile [optimized] target(s) in 6.78s
+== rows-exact tests
+test in_proj_rows_exact ... ok
+test attn_res_mix_and_loop_blend_rows_exact ... ok
+test conv_mix_rows_exact ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s
+== admission
+conv_mix       conv_mix_bf16                 532      0    4.566e-3    1.181e-3  ADMITTED
+attn_res_mix   attn_res_mix_bf16              97      0    2.016e-3    3.402e-5  ADMITTED
+sconv_res      sconv_res_bf16                 64      0    1.880e-3    1.234e-5  ADMITTED
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.640e-4  ADMITTED
+== bench before
+ConvMix N=4 Q=1 norm (plain boundary) R=1         8.55      8.51      8.56
+ConvMix N=4 Q=1 norm (plain boundary) R=16        9.10      9.04      9.16
+ConvMix N=4 Q=1 norm (plain boundary) R=2048    293.70    287.85    296.48
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=1     34.14     34.02     34.41
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=16     71.59     71.35     73.13
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=2048   4575.51   4506.39   4666.66
+AttnResMix N=4 Q=1 norm R=1                       6.36      6.31      6.42
+AttnResMix N=4 Q=1 norm R=16                      6.53      6.50      6.58
+AttnResMix N=4 Q=1 norm R=2048                  172.53    165.95    182.32
+LoopBlend S=3 R=1                                26.31     26.19     26.64
+LoopBlend S=3 R=16                               67.36     67.01     68.03
+LoopBlend S=3 R=2048                           4319.34   4232.67   4410.04
+== bench after
+ConvMix N=4 Q=1 norm (plain boundary) R=1         8.90      8.76      9.01
+ConvMix N=4 Q=1 norm (plain boundary) R=16        9.64      9.55      9.71
+ConvMix N=4 Q=1 norm (plain boundary) R=2048    239.87    239.39    242.81
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=1     36.16     35.76     36.32
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=16     64.99     64.58     65.25
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=2048   4459.02   4370.60   4554.39
+AttnResMix N=4 Q=1 norm R=1                       5.87      5.83      5.91
+AttnResMix N=4 Q=1 norm R=16                      5.92      5.91      5.94
+AttnResMix N=4 Q=1 norm R=2048                  178.24    159.89    260.56
+LoopBlend S=3 R=1                                36.09     32.77     40.63
+LoopBlend S=3 R=16                               83.08     76.15     91.63
+LoopBlend S=3 R=2048                           6751.92   6470.83   6892.97
+fleetq: #10893 done (exit 0)

@@ -1,7 +1,10 @@
 # Inkling-2-Mini end to end on Metal (lane ink-metal, 2026-11-21)
 
-Status: runs end to end on Metal (endor, M5 Max); G1, G2 and G3 short / long pass; first speed numbers and a decode profile
-below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
+Status: Inkling-2-Mini runs end to end on Metal (endor, M5 Max): G1, G2 and G3 short / long pass (last full check #10901 on
+de2b5c9bc; the m-mix final + ink/batch merge gate is #11048, see the end), `intarsia serve` loads and serves chat / reasoning /
+tools / json_schema. Decode 63-64 tok/s at short context (`--profile-every 0`, localeval 63.4), 56.7 at 16k; prefill 1.4-1.7k
+tok/s (chunk 256), 2.3k at chunk 2048. Open: batched decode now merged (ink/batch) but not yet gated here, TP / MTP / prefix store
+refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 
 ## Briefs received
 
@@ -15,6 +18,52 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
   lane stays the integration owner: merge lane branches when they report done with passing gates and rerun G1-G3 after each
   merge; next in line are m-mix's final tip and ink/serve aaad4c9b6 (chat / reasoning / tools).
 
+- 2026-11-21 (coordinator): merge ink/serve (done at b447e3da4, which superseded the aaad4c9b6 the scope brief named);
+  append ink/serve's Metal smoke, the `--profile-every 0` decode runs and ink-hostgap's measurement A to the serve job and
+  release #10812; move the `--no-fail-fast` core / cpu / cli rerun to spark2 (#10868) and keep only the metal crate on endor.
+- 2026-11-21 (coordinator): merge ink/m-mix at 47570539e (InkInProj GEMV up to 8 rows, blend gate knobs, docs / raw) before
+  #10867 starts, record it here, and take no default flips from m-mix (those come later as their own commit). ink-batch
+  merges this lane's 761a1561b (serve admission fix).
+
+- 2026-11-21 (coordinator): merge ink/d1row-doc 5b0b0bd2f (docs only: docs/results/2026-11-21-inkling2-d1row/ and its results
+  doc; the d1row kernels lost and stay unmerged on ink/d1row); check the diff touches only docs/results/; ops 84-87 are free
+  again (mark them free in an op reservation note if ink/metal has one: it has none). Done: merge 2343bb720, 27 files, all under
+  docs/results/.
+- 2026-11-21 (coordinator): guard the two `intarsia_backend_metal` uses in tests/inkling2.rs with `cfg(target_os = "macos")`
+  (Linux test builds of intarsia-models failed), check on spark2, commit separately. Done: e3f92beff; `cargo check --tests -p
+  intarsia-models` EXIT 0 on spark2 and clean on endor.
+
+- 2026-11-21 (coordinator): #10890 is already running (started ~23:14); #10890 and #10901 build from this working tree, so no
+  code changes here until #10901 has finished its build (docs-only commits are fine); when #10890 reports, record which
+  commit it built. Recorded: its `cargo build` ran at 23:14:12 and finished in 0.27 s (nothing to rebuild), so the binary is the
+  one built at 22:32 (#10898) from f55bfe8b7's code; the tree at 23:14 was e3f92beff, which differs from f55bfe8b7 only in
+  `tests/inkling2.rs` and docs. The 2343bb720 merge (23:32) is docs only, so #10890's binary equals the tip's code.
+
+- 2026-11-21 (coordinator, rule for all lanes): this session and every worktree run on endor, so no local cargo build / check /
+  test or shader compile on endor outside a fleetq slot. macOS compile checks: bespin (`fleetq run --host bespin --load cpu
+  --mem 6 --expect <min>`, a `git archive` copy in ~/intarsiaml-<lane>, toolchain in ~/.cargo/bin; no GPU timing or real model
+  there). CPU tests: spark2. GPU work: endor fleetq jobs. Reading files, git and editing locally are fine. For #10890: it ran
+  while other lanes built and tested on endor (ink-pack12 around 23:35); compare its localeval decode numbers with the baseline
+  62.5 / 62.0 / 60.6 / 57.5 tok/s at 142 / 1k / 4k / 16k, and if any length is more than 1 % lower mark the run possibly
+  contaminated and requeue it.
+
+- 2026-11-22 (coordinator): (1) cancel #11023 (done): the coordinator overrides the > 1 % rule; three spec-off runs at 16k are
+  57.5 / 57.4 (mtp 17c67dacf) / 56.7 (#10890) and at 142 62.5 / 63.8 / 63.4, a 1.3 % spread within run-to-run noise; mtp's
+  #10991 off arm gives a fresh baseline. (2) Investigate the `intarsia bench speed` calibration failure now (ink-batch's #10946
+  runs the engine bench at 1-16 streams): compare the calibration call with chat / localeval, repro on a tiny-model serve on
+  spark2 if needed (not endor), fix on ink/metal with a test, send the hash.
+
+- 2026-11-22 (coordinator): m-mix is done (quiet #10909: ConvMix at 2048 rows 15 % faster, blend at 16 rows 13-14 % faster,
+  +0.8 us at 1 row, which dfuse's T=1 split replaces). After #10901, merge ink/m-mix 52b337aa9 (with 25ff7864a, the defaults
+  change: NE 4 row tiling, gate rows) and gate the merged tip (rows-exact kernels test, G2 / G3, greedy md5); #10901 does not
+  cover it. Send the hash; brief here first.
+- 2026-11-22 (coordinator, supersedes the separate m-mix gate): ink/batch passed its criterion (#10914: solo decode -0.62 %,
+  identical output). After #10901 merge m-mix 52b337aa9 first, then ink/batch bbc0bec00 (177cfd2f5 plus docs). Both touch the
+  mix shader / inkmix.rs (m-mix: NE 4 tiling, gate-rows default; batch: the MX_ROWTAB row-table branch, longer InkP / InkMixP
+  params): keep both, a kernel-body conflict is a semantic merge. ONE gate on the merged tip: shader compile, rows-exact
+  kernels test, G2 / G3, greedy md5 against the current tip, ink-batch's batched == solo at B = 2 / 5 / 16. Send the hash to
+  the coordinator and ink-batch (a716d7e057a6fbfc3).
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
@@ -22,7 +71,9 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 | `ink/skel` | b5e283927 | base: cpu port, model block, loader, recipe, tiny tests | - |
 | `ink/m-attn` | 9410a9b67 | InkKvPrologue (70), RelSinkAttn (71, split-KV + NAX prefill), InkAttnDecode (75) | none |
 | `ink/m-moe` | 98317825d | MoeRoute, NVFP4 SiTU experts, MXFP8 experts (decode + NAX prefill) | `build.rs` (metal4 sources, launcher sources), `kernels.rs` (metal4 list, TABLE, the count test): kept both |
-| `ink/m-mix` | d99d2c0fc (in progress) | InkInProj (73), ConvMix (74), AttnResMix (67), LoopBlend (68), SconvRes (69) | `build.rs`, `kernels.rs`, `lib.rs` (module, launch dispatch): kept all three lanes' entries |
+| `ink/batch` | bbc0bec00 (177cfd2f5 + docs), merged at 45887198b after m-mix | batched decode: row-table `conv_mix_bf16_rows`, `MX_ROWTAB` in the mix shader, row-table attention / GEMV rows | no textual conflicts; inkmix.rs and the mix shader changed in disjoint places (m-mix: NE 4 from D 2048 and `BLEND_RB` 4; batch: the row-table kernel, `InkMixP` 112 -> 144 bytes); gated together (merge gate below) |
+| `ink/d1row-doc` | 5b0b0bd2f | d1row results (docs only; kernels not merged) | none; diff only docs/results/ |
+| `ink/m-mix` | 52b337aa9 final, with the defaults change 25ff7864a (merged at 331238a4e; earlier 47570539e at 606fd36e4, 3e14f6aa3, d99d2c0fc) | InkInProj (73), ConvMix (74), AttnResMix (67), LoopBlend (68), SconvRes (69) | `build.rs`, `kernels.rs`, `lib.rs` (module, launch dispatch): kept all three lanes' entries |
 
 `intarsia kernels test --backend metal --op <op>`, every Inkling op (fleetq #10681): all ADMITTED.
 
@@ -83,9 +134,27 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 `plan show --model ~/models/Qwen3-8B --backend metal`: byte-identical stdout and stderr, base (b5e283927, built with
 `--features metal`) vs this branch.
 
+## Tests
+
+| Suite | Where / job | Tree | Result |
+|---|---|---|---|
+| `cargo test --release --no-fail-fast -p intarsia-core -p intarsia-backend-cpu -p intarsia-cli` | spark2 #10868 (`git archive` of 41c93f814) | 41c93f814 | 40 binaries, 0 failed |
+| the same plus `-p intarsia-bench`, rerun on the merged tip | spark2 #11053 | 8546d143f (m-mix 52b337aa9 + ink/batch) | 637 passed, 1 failed: `docs_env_vars` (ink/batch's `INTARSIA_METAL_ROWS_SINGLE` had no row); row added at 9782778c1, `docs_env_vars` then 2 / 2 |
+| `cargo test --release --no-fail-fast -p intarsia-backend-metal` | endor #10867 | f55bfe8b7 (m-mix 47570539e merged) | 46 binaries, 213 passed, 0 failed (incl. `every_metal_kernel_has_a_quick_case`, `rows_exact_registrations_are_pinned`) |
+| `cargo test -p intarsia-models --test inkling2`, cpu and `INTARSIA_INKLING2_BACKEND=metal` | endor #10715 (both); Metal again in #10890 | #10890: e3f92beff (m-mix 47570539e, ink/serve merged) | 8 / 8 each |
+| intarsia-models Metal tests: batch_metal, batch_metal_real, gdn_verify_metal, mtp_store_metal, prefix_store_metal, hybrid_reuse_real, prefix_reuse_real, batch_recurrent | endor #10901 | de2b5c9bc | 1, 3, 7, 2, 1, 2, 6, 15 passed, 0 failed |
+| `cargo check --tests -p intarsia-models` on Linux (cfg guard e3f92beff) | spark2 | e3f92beff | 0 errors |
+| intarsia-bench (calibration probe fix b9dd0d6b4) | spark2 | b9dd0d6b4 | 25 / 25; the new test fails without the fix |
+| `docs_env_vars` | endor #10898 | f55bfe8b7 | 2 / 2 |
+| `admission::plan_case_tests` (new SiTU case test) | endor | 761a1561b | 3 / 3 |
+
+Two failures found and fixed on the way: `quick_coverage` (`rel_sink_attn_bf16_nax` had no quick case; a quick-only copy of
+the first mid-size NAX case, full sweep unchanged) and `rows_exact_registrations_are_pinned` (m-mix's
+`ink_in_proj_bf16_gemv_rows` added to the pin list; its G-B test is `tests/inkmix.rs::in_proj_rows_exact`).
+
 ## Gates
 
-Real-model runs on endor through fleetq (#10690, rerun on the final code #10721, same numbers to the last digit), checkpoint
+Real-model runs on endor through fleetq (#10690, rerun #10721, and rerun on the tip de2b5c9bc in #10901 after the ink/serve, SiTU-admission and m-mix 47570539e merges: the same numbers to the last digit each time), checkpoint
 b85c3cfa, W4A16, bf16, `intarsia accuracy --backend metal --max-seq 4096 --golden ... --write-self-golden`; KL21 = the tool's
 "KL21 scored" column; confident-row misses from the skel lane's side script (`p1 - p2 >= 0.5` on the golden) over the
 self-golden's prefill rows.
@@ -153,7 +222,7 @@ for a later lane (memory: the workspace grows with the chunk; not changed here).
 | `prof_kernel.jsonl` | #10730, `INTARSIA_METAL_PROFILE=kernel`, 33 tokens | op order and labels of a decode step (613 dispatches); durations inflated (one waited command buffer per launch) |
 | `prof_cb.jsonl` | #10730, `cb`, 65 tokens, `--profile-every 16` | normal steps = 2 command buffers (16 + 597 dispatches), 15.8 ms; profiled steps 419 buffers (Fable review section 0.1) |
 | `prof_cb1.jsonl` | #10756, `cb`, `INTARSIA_METAL_COMMIT_EVERY=1`, 33 tokens | **not per dispatch for normal steps**: with token feedback the step is held and committed as 16 + 597 dispatches regardless of the commit cadence; 29 normal steps, median wall 15.86 ms, GPU busy 15.82 ms (the 3034 one-dispatch buffers are the prefill and the profiled steps) |
-| `prof_cb2.jsonl` | #(queued), the same with `INTARSIA_TOKEN_FEEDBACK=0 --profile-every 0` | the per-dispatch timeline of an unprofiled step (labels by position from `prof_kernel.jsonl`, `prof_cb1.py`) |
+| `prof_cb2.jsonl` | #10857, `cb`, `INTARSIA_METAL_COMMIT_EVERY=1 INTARSIA_TOKEN_FEEDBACK=0 --profile-every 0`, 33 tokens | **per-dispatch timeline of unprofiled steps**: every dispatch its own buffer, labelled by the backend; 30 steps x 613 dispatches; GPU busy 16.74 ms / token, span 16.96 ms (the one-dispatch buffers add ~1.5 us each over the normal 15.8 ms step) |
 
 Analysis scripts: `prof.py` (kernel trace per op), `prof_cb1.py` (per-dispatch labels by position).
 
@@ -180,6 +249,28 @@ normal 15.76 ms step. Floor = the term's bytes at 560 GB/s (perf-strategy sectio
 | argmax | 0.17 | 1 % | 0 | 0.17 | 1 |
 | **Total** | **15.76** | | **9.9** | **5.9** | 613 dispatches |
 
+Measured per dispatch (#10857, `prof_cb2.jsonl`, the backend's own labels, mean of 30 unprofiled steps; the sum is 16.74 ms,
+about 1 ms above a normal step from the one-dispatch buffers):
+
+| Kernel | us / token | share | dispatches / token | us / dispatch |
+|---|---:|---:|---:|---:|
+| moe_experts_situ_bf16 | 4057 | 24.2 % | 88 | 46.1 |
+| ink_in_proj_bf16_gemv | 3579 | 21.4 % | 48 | 74.6 |
+| conv_mix_bf16 | 2715 | 16.2 % | 234 | 11.6 |
+| ink_attn_decode_bf16 | 1669 | 10.0 % | 48 | 34.8 |
+| logits_bf16_gemv (unembed) | 1594 | 9.5 % | 1 | 1594 |
+| matmul_bf16_gemv (wo) | 1354 | 8.1 % | 48 | 28.2 |
+| moe_experts_mxfp8_bf16 | 549 | 3.3 % | 8 | 68.6 |
+| moe_route_f32 | 501 | 3.0 % | 48 | 10.4 |
+| attn_res_mix_bf16 | 231 | 1.4 % | 26 | 8.9 |
+| logits_bf16_gemv (router) | 226 | 1.3 % | 48 | 4.7 |
+| argmax_f32 | 174 | 1.0 % | 1 | 174 |
+| loop_blend, rmsnorm, embedding, other | 87 | 0.5 % | 15 | |
+
+It confirms the corrected split above: projections 4.93 ms (floor 4.63), experts 4.61 ms (floor 3.28), controllers
+(ConvMix + MoeRoute + router + AttnResMix + LoopBlend) 3.74 ms (floor 0.25, 364 of the 613 dispatches), attention 1.67 ms,
+unembed 1.59 ms (floor 1.65).
+
 ### Ranked costs (what to attack, by ms over the floor)
 
 1. **Controllers, 2.9 ms over a 0.25 ms floor.** 96 ConvMix (46 blended at ~38 us, 4 dispatches each; 50 plain at ~16 us),
@@ -194,4 +285,72 @@ normal 15.76 ms step. Floor = the term's bytes at 560 GB/s (perf-strategy sectio
 Host-side: no gap at batch 1 in normal steps; the profiler steps (every 16th, `generate` only) and the eager encode are lane
 ink-hostgap's (graph replay / ICB is blocked as described in Changes item 8).
 
-SPEED_REST
+### Against the other engines (localeval speed-plain, decode tok/s / marginal prefill tok/s)
+
+| prompt tok | **intarsia Metal bf16 W4A16** (endor, #10890) | oMLX oQ4e + DSpark (endor) | llama.cpp Q8_0 Metal (endor) | vLLM (spark2, GB10) |
+|---:|---:|---:|---:|---:|
+| ~145 | **63.4** / - | 50.7 / - | 33.0 / - | 36.8 / - |
+| ~1020 | **61.5** / 1689 | 47.7 / - | 32.9 / 122 | 38.4 / 4018 |
+| ~4110 | **60.0** / 1573 | 41.1 / 1368 | 32.8 / 126 | 42.8 / 2772 |
+| ~16455 | **56.7** / 1406 | 44.2 / 1270 | 31.9 / 122 | 38.7 / 2902 |
+
+Runs: ours 20261121-231510-adhoc-endor-intarsia-metal-ink-metal; oMLX 20261120-222536-endor-inkling-omlx-none-endor-omlx-oq4e-dspark
+(its decode includes DSpark speculation; ours is spec-off); llama.cpp 20261120-232156-endor-inkling-llama-none-endor-llama-metal-q8;
+vLLM 20261120-192706-spark2-inkling-none-quick-spec-effnone (another machine, for reference). On endor this is 1.25-1.46x
+oMLX's decode and 1.1x its prefill at 4k-16k, and 1.8-1.9x llama.cpp's decode; vLLM on the GB10 prefills 1.8-2x faster.
+Against the byte floor (102 tok/s at 560 GB/s), 63 tok/s is 62 %.
+
+### localeval (`--tier adhoc --cells speed-plain,conc-plain-1k`, #10890)
+
+`intarsia serve --backend metal --max-batch 1 --max-seq 20480`, run 20261121-231510-adhoc-endor-intarsia-metal-ink-metal in
+/opt/code/deepeval/results (unanimis d9825440). Binary: f55bfe8b7's code (see Briefs). localeval ran inside #10890's slot: it
+detects the inherited `FLEETQ_JOB` and does not queue a second one (`localeval/cli.py:296`).
+
+| prompt tok | TTFT s | marginal prefill tok/s | decode tok/s | vs baseline 62.5 / 62.0 / 60.6 / 57.5 |
+|---:|---:|---:|---:|---:|
+| 146 | 0.15 | - | 63.4 | +1.4 % |
+| 1019 | 0.67 | 1689 | 61.5 | -0.8 % |
+| 4111 | 2.63 | 1573 | 60.0 | -1.0 % |
+| 16455 | 11.41 | 1406 | 56.7 | **-1.4 %** |
+
+The 16k row is 1.4 % under the baseline (other lanes built on endor during the run); the coordinator ruled it within
+run-to-run noise (16k: 57.5 / 57.4 / 56.7 over three spec-off runs) and cancelled the rerun #11023. These numbers stand.
+
+conc-plain-1k: **not supported** (batched decode is refused for Inkling-2; at `--max-batch 1` the server serializes the
+streams): aggregate 50.8 / 51.6 / 50.9 tok/s at 1 / 4 / 16 streams, per-stream 50.8 / 12.9 / 3.2, TTFT 0.86 / 15.5 / 75.9 s.
+
+`intarsia bench speed` against the same server failed at calibration ("no tokens received", `crates/intarsia-bench/src/speed.rs:324`);
+the plain chat request and localeval's streaming requests work, so it is the bench's calibration call, not the server.
+Cause and fix (b9dd0d6b4): the bench sizes prompts with 1-token probes; Inkling-2's first generated token is a block
+marker (`<|content_thinking|>`) the server's text stream drops, so a 1-token request streams only usage, and the bench
+discarded that usage. A probe with usage and no text now counts (measured calls still need text). Test
+`speed::tests::calibration_takes_a_probe_whose_first_token_releases_no_text` (spark2: intarsia-bench 25 / 25; fails without
+the fix). Not rerun against the real server here.
+
+Repeated prompt (prefix reuse path): two identical greedy chat requests gave identical choices.
+
+### `generate` at `--profile-every 0` (#10890, after localeval; the honest engine decode number)
+
+| Run | prefill | decode tok/s |
+|---|---|---:|
+| 19-token raw prompt, 256 tokens, three runs | 283-286 ms | **64.3 / 64.0 / 62.5** |
+| 5051-token prompt, chunk 256 (default), 128 tokens | 3655 ms = **1382 tok/s** | 59.7 |
+| 5051-token prompt, `--prefill-chunk 2048` | 2209 ms = **2286 tok/s** | 60.1 |
+
+ink-hostgap's measurement A in the same slot (`.worktrees/ink-hostgap/.scratch/mA/summary.txt`, copy in `.scratch/`): greedy
+63.9 / 64.1 tok/s (md5 identical), `INTARSIA_TOKEN_FEEDBACK=0` 60.9 (same md5), temperature 0.7 55.8; cb trace of 125 greedy
+steps: 2 buffers / 613 dispatches per step, span 15.55 ms median, GPU idle 1 us per step.
+
+ink/serve's smoke on Metal (`scripts/inkling2-serve-smoke.sh` with `--backend metal`, #10890): every chat / reasoning / tool /
+json_schema case answered correctly (effort none / high, multi-turn system, tool_call, tool result follow-up,
+tool_choice required, json_schema and streamed json_schema); localeval quality smoke gsm8k 2 / 2; ifeval 2 replies truncated
+at the smoke server's default 4096 context (4018 output tokens of thinking), not a correctness signal. G1 tiny on Metal
+rerun in the same slot: 8 / 8.
+
+### Tip check (#10901, tree de2b5c9bc)
+
+G2 / G3 short and long identical to #10721 (above); `kernels test --backend metal` for all 11 Inkling ops: every kernel
+ADMITTED (18 kernels, including m-mix's widened `ink_in_proj_bf16_gemv` at 18 cases); the intarsia-models Metal tests
+(batch_metal 1, batch_metal_real 3, gdn_verify_metal 7, mtp_store_metal 2, prefix_store_metal 1, hybrid_reuse_real 2,
+prefix_reuse_real 6, batch_recurrent 15): all pass; Qwen3-8B `plan show --backend metal`: stdout and stderr byte-identical
+to the base b5e283927.

@@ -332,6 +332,8 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::bridge::shader_names());
     v.extend(crate::inkattn::shader_names());
     v.extend(crate::inkmix::shader_names());
+    v.extend(crate::p12::shader_names());
+    v.extend(crate::screen::shader_names());
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
     v.extend(crate::nvfp4::SHADERS);
@@ -432,6 +434,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkattn::INK_KV_PROLOGUE_BF16, Op::InkKvPrologue),
     (crate::inkattn::REL_SINK_ATTN_BF16, Op::RelSinkAttn),
     (crate::inkattn::INK_ATTN_DECODE_BF16, Op::InkAttnDecode),
+    (crate::inkattn::INK_ATTN_DECODE_BF16_ROWS, Op::InkAttnDecode),
     (crate::inkattn::REL_SINK_ATTN_BF16_NAX, Op::RelSinkAttn),
     // lane ink-m-moe: the Inkling-2-Mini router and experts (inkmoe.rs)
     (crate::inkmoe::KERNELS[0].0, Op::MoeRoute),
@@ -443,10 +446,24 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkmix::INK_IN_PROJ_BF16_GEMV, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_BF16_NAX, Op::InkInProj),
+    (crate::inkmix::INK_IN_PROJ_F8_GEMV, Op::InkInProj),
+    (crate::inkmix::INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj),
     (crate::inkmix::CONV_MIX_BF16, Op::ConvMix),
+    (crate::inkmix::CONV_MIX_BF16_ROWS, Op::ConvMix),
     (crate::inkmix::ATTN_RES_MIX_BF16, Op::AttnResMix),
     (crate::inkmix::SCONV_RES_BF16, Op::SconvRes),
     (crate::inkmix::LOOP_BLEND_BF16, Op::LoopBlend),
+    // lossless 12-bit bf16 weights (lane ink-pack12, p12.rs)
+    (crate::p12::MATMUL_P12_GEMV, Op::MatmulP12),
+    (crate::p12::MATMUL_P12_GEMV_ROWS, Op::MatmulP12),
+    (crate::p12::MATMUL_P12_LOGITS_GEMV, Op::MatmulP12),
+    (crate::p12::MATMUL_P12_LOGITS_GEMV_ROWS, Op::MatmulP12),
+    (crate::p12::INK_IN_PROJ_P12_GEMV, Op::InkInProj),
+    (crate::p12::INK_IN_PROJ_P12_GEMV_ROWS, Op::InkInProj),
+    // lane ink-fp8: the screened greedy head (screen.rs)
+    (crate::screen::KERNELS[0].0, Op::HeadScreen),
+    (crate::screen::KERNELS[1].0, Op::LogitsGather),
+    (crate::screen::KERNELS[2].0, Op::ScreenArgmax),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -669,6 +686,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .scratch(crate::inkattn::decode_scratch),
+                // the row-table form (batched decode, lane ink-batch): row r the T = 1 call of sequence r; inkling2_batch.rs
+                crate::inkattn::INK_ATTN_DECODE_BF16_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::inkattn::decode_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .scratch(crate::inkattn::decode_scratch)
+                    .row_table(),
                 // prefill chunks on the neural accelerators (falls back to the split-KV kernel for what it cannot take)
                 crate::inkattn::REL_SINK_ATTN_BF16_NAX => k
                     .acts(bf)
@@ -864,6 +890,8 @@ pub fn all() -> Vec<KernelImpl> {
                     .scratch(crate::rowtab::attn_scratch),
                 n if crate::inkmoe::KERNELS.iter().any(|e| e.0 == n) => crate::inkmoe::register(n, k),
                 n if crate::inkmix::KERNELS.iter().any(|e| e.0 == n) => crate::inkmix::register(k),
+                n if crate::p12::KERNELS.iter().any(|e| e.0 == n) => crate::p12::register(k),
+                n if crate::screen::KERNELS.iter().any(|e| e.0 == n) => crate::screen::register(k),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -1012,6 +1040,7 @@ mod tests {
         "gdn_delta_rule_bf16_rows:gdn_delta_rule",
         "hc_pre_bf16:hc_pre",
         "ink_attn_decode_bf16:ink_attn_decode",
+        "ink_attn_decode_bf16_rows:ink_attn_decode",
         "ink_kv_prologue_bf16:ink_kv_prologue",
         "kv_append_bf16:kv_append",
         "kv_append_bf16_rows:kv_append",
@@ -1069,6 +1098,10 @@ mod tests {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();
         // the Inkling-2 kernels serve new ops only (inkmix.rs): no existing op gains a candidate
         got.retain(|g| !crate::inkmix::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
+        // the P12 kernels (lane ink-pack12) serve MatmulP12 and the P12 form of InkInProj only: no existing call gains a candidate
+        got.retain(|g| !crate::p12::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
+        // the screened greedy head (screen.rs, lane ink-fp8): new ops only
+        got.retain(|g| !crate::screen::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
         got.sort();
         if MAIN_KERNEL_LIST.is_empty() {
             panic!("LIST {}", got.join(" "));

@@ -1,0 +1,17 @@
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T=    1 Auto         pipe plain all           84.9 us/call (min     83.3)  union   8.0 experts   422.1 GB/s
+nv T=    1 Auto         pipe gu    all           85.7 us/call (min     85.6)  union   8.0 experts   417.9 GB/s
+nv T=    1 Auto         pipe dn    all           83.9 us/call (min     83.3)  union   8.0 experts   426.9 GB/s
+nv T=    1 Auto         pipe both  all           86.0 us/call (min     85.6)  union   8.0 experts   416.8 GB/s
+nv T=    1 Union        pipe plain all           84.3 us/call (min     84.2)  union   8.0 experts   425.2 GB/s
+nv T=    1 Union        pipe gu    all           86.4 us/call (min     86.3)  union   8.0 experts   414.6 GB/s
+nv T=    1 Union        pipe dn    all           83.4 us/call (min     83.3)  union   8.0 experts   429.7 GB/s
+nv T=    1 Union        pipe both  all           85.5 us/call (min     85.4)  union   8.0 experts   418.9 GB/s
+nv T=    1 Pair         pipe plain all           83.8 us/call (min     83.7)  union   8.0 experts   427.7 GB/s
+nv T=    1 Pair         pipe gu    all           84.9 us/call (min     84.7)  union   8.0 experts   422.0 GB/s
+nv T=    1 Pair         pipe dn    all           83.6 us/call (min     83.2)  union   8.0 experts   428.6 GB/s
+nv T=    1 Pair         pipe both  all           85.0 us/call (min     84.1)  union   8.0 experts   421.4 GB/s
+nv T=    1 Fused        pipe plain all           85.0 us/call (min     84.6)  union   8.0 experts   421.7 GB/s
+nv T=    1 Fused        pipe gu    all           86.6 us/call (min     85.8)  union   8.0 experts   413.6 GB/s
+nv T=    1 Fused        pipe dn    all           83.3 us/call (min     83.0)  union   8.0 experts   429.9 GB/s
+nv T=    1 Fused        pipe both  all           84.3 us/call (min     84.2)  union   8.0 experts   425.0 GB/s

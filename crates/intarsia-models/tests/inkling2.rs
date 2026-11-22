@@ -4,7 +4,8 @@
 //! batched == solo) and NoKernel refusal on a backend without the Inkling-2 kernels.
 //!
 //! `INTARSIA_INKLING2_BACKEND=metal` runs the bf16 tests (G1(b), the state contract, the failed-pass reset) on the Metal
-//! backend instead (G1 on Metal, lane ink-metal); G1(a) (f32 activations) and the NoKernel refusal stay on cpu.
+//! backend instead (G1 on Metal, lane ink-metal; `cuda`: the same on CUDA, lane ink-cuda-mixmoe); G1(a) (f32 activations) and
+//! the NoKernel refusal stay on cpu.
 //!
 //! Skipped (loudly) when the fixture is missing; fails under `CI=1`.
 
@@ -43,17 +44,22 @@ fn load_act(dir: &Path, chunk: usize, backend: Arc<dyn intarsia_core::Backend>, 
     Model::load(backend, &recipe, &dims, &src, &LoadOptions { max_seq: 128, prefill_chunk: chunk, graphs: false, act_dtype: act, kv_dtype: act, ..Default::default() }, Arc::new(Telemetry::new()))
 }
 
-/// The backend of the bf16 tests: cpu, or Metal with `INTARSIA_INKLING2_BACKEND=metal`.
+/// The backend of the bf16 tests: cpu, or Metal / CUDA with `INTARSIA_INKLING2_BACKEND=metal` / `cuda`.
 fn backend() -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
+        #[cfg(target_os = "macos")]
         Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
+        #[cfg(not(target_os = "macos"))]
+        Ok("metal") => panic!("INTARSIA_INKLING2_BACKEND=metal: the Metal backend is macOS only"),
+        Ok("cuda") => intarsia_backend_cuda::create(0).unwrap(),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
-        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or metal"),
+        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal or cuda"),
     }
 }
 
+/// A GPU backend (Metal or CUDA): passes of 2..=16 rows take the rows-exact kernels, larger ones the prefill kernels.
 fn on_metal() -> bool {
-    std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() == Ok("metal")
+    matches!(std::env::var("INTARSIA_INKLING2_BACKEND").as_deref(), Ok("metal") | Ok("cuda"))
 }
 
 /// The prefill chunk of the state tests: one pass for the 40-token prompt on cpu (its kernels are rows-exact at any row count);
@@ -301,6 +307,84 @@ fn inkling2_tiny_chunked_and_decode_match_prefill_bitwise() {
     assert!(first.is_none(), "prefill then decode: first differing row {first:?} of {}", rows.len());
 }
 
+/// The captured decode step (CUDA graph: the positioned ops read the device position) gives the eager decode's logits bit for
+/// bit, token by token after a 9-token prefill, and replays once per step. On a backend without graphs both loads decode
+/// eagerly (the comparison is then trivially equal; the replay count is only checked where graphs are usable).
+#[test]
+fn inkling2_tiny_graph_decode_is_bitwise_the_eager_decode() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let load_g = |graphs: bool| {
+        let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
+        let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
+        let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
+        let src = SafeTensors::open_dir(&dir).unwrap();
+        let o = LoadOptions { max_seq: 128, prefill_chunk: chunk(), graphs, profile_every: 0, ..Default::default() };
+        Model::load(backend(), &recipe, &dims, &src, &o, Arc::new(Telemetry::new())).unwrap()
+    };
+    let run = |m: &Model| {
+        let mut st = m.new_state().unwrap();
+        let mut rows = all_logits(m, &mut st, &ids[..9]);
+        for &id in &ids[9..] {
+            let intarsia_core::model::StepOut::Logits(l) = m.forward(&mut st, &[id], HeadMode::LastLogits, None).unwrap() else { panic!() };
+            rows.push(l);
+        }
+        rows
+    };
+    let eager = load_g(false);
+    let graphed = load_g(true);
+    let (le, lg) = (run(&eager), run(&graphed));
+    assert_eq!(le.len(), lg.len());
+    for (i, (a, b)) in le.iter().zip(&lg).enumerate() {
+        assert!(a == b, "logits of row {i} differ between eager and graph decode");
+    }
+    let gs = graphed.graph_stats();
+    if gs.enabled {
+        assert_eq!(gs.replays as usize, ids.len() - 9, "one replay per decode step");
+    }
+    println!("graph decode: enabled {}, captures {}, replays {}, {} decode steps", gs.enabled, gs.captures, gs.replays, ids.len() - 9);
+}
+
+/// The logits of prefill 9 then decode one token at a time, written as raw f32 to `INTARSIA_INKLING2_DUMP` (two runs with
+/// different `INTARSIA_INK_ATTN_FUSED` are compared byte for byte by the caller). No-op without the variable.
+#[test]
+fn inkling2_tiny_logits_dump() {
+    let Some(path) = std::env::var_os("INTARSIA_INKLING2_DUMP") else { return };
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let m = load(&dir, chunk());
+    let mut st = m.new_state().unwrap();
+    let mut rows = all_logits(&m, &mut st, &ids[..9]);
+    for &id in &ids[9..] {
+        rows.extend(all_logits(&m, &mut st, &[id]));
+    }
+    let bytes: Vec<u8> = rows.concat().iter().flat_map(|v| v.to_le_bytes()).collect();
+    std::fs::write(&path, bytes).unwrap();
+    println!("dump: {} rows, top-1 {:?}", rows.len(), rows.iter().map(|r| argmax(r)).collect::<Vec<_>>());
+}
+
+/// Diagnostics (`INTARSIA_INKLING2_CHUNK_SCAN=1`): which prefill chunk sizes give the one-token-at-a-time logits bit for bit,
+/// and the first differing row of the others.
+#[test]
+fn inkling2_tiny_chunk_scan() {
+    if std::env::var_os("INTARSIA_INKLING2_CHUNK_SCAN").is_none() {
+        return;
+    }
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let m = load(&dir, 1);
+    let mut st = m.new_state().unwrap();
+    let mut dec = Vec::new();
+    for &id in &ids {
+        dec.extend(all_logits(&m, &mut st, &[id]));
+    }
+    for chunk in 1..=16 {
+        let got = logits_chunked(&dir, chunk, &ids);
+        let first = got.iter().zip(&dec).position(|(a, b)| a != b);
+        println!("scan chunk {chunk:2}: first row differing from decode {first:?}");
+    }
+}
+
 /// Rollback by length (a rejected speculative tail, a prompt edit) within the ring margin, and the refusal past it.
 #[test]
 fn inkling2_tiny_rollback_by_length() {
@@ -318,7 +402,13 @@ fn inkling2_tiny_rollback_by_length() {
     st.truncate(32, &*m.backend).unwrap();
     assert_eq!(all_logits(&m, &mut st, &ids[32..]), whole[32..].to_vec(), "after rollback to 32");
     // prompt reuse (`Model::reuse_len`): within the margin the prefix is kept, past it the sequence starts over
-    assert_eq!(m.reuse_len(&st, 40, 30), 30);
+    // (CUDA keeps its conservative policy, `prefix_reuse_any_cut` false and no `prefix_reuse_min_pass_rows`: a cut off the
+    // cold-prefill ladder starts over, which is safe; the resume below then prefills the whole prompt)
+    if m.backend.name() == "cuda" {
+        assert!(matches!(m.reuse_len(&st, 40, 30), 0 | 30));
+    } else {
+        assert_eq!(m.reuse_len(&st, 40, 30), 30);
+    }
     assert_eq!(m.reuse_len(&st, 40, 10), 0);
     // a cut beyond the ring margin (16) is refused, and restorable_len says so
     assert_eq!(st.restorable_len(10), 0);
@@ -423,6 +513,87 @@ impl Backend for Wrapped {
     }
 }
 
+/// Records (op, kernel, the first row of output 0 when its leading dim is the pass's rows) of every launch.
+struct Logged {
+    inner: Arc<dyn Backend>,
+    rows: std::sync::atomic::AtomicUsize,
+    log: std::sync::Mutex<Vec<(String, String, Vec<u8>)>>,
+}
+
+impl Backend for Logged {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+    fn info(&self) -> DeviceInfo {
+        self.inner.info()
+    }
+    fn alloc(&self, bytes: usize, kind: MemKind) -> intarsia_core::Result<Buffer> {
+        self.inner.alloc(bytes, kind)
+    }
+    fn upload(&self, dst: &Buffer, o: usize, src: &[u8], s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.upload(dst, o, src, s)
+    }
+    fn download(&self, src: &Buffer, o: usize, dst: &mut [u8], s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.download(src, o, dst, s)
+    }
+    fn copy(&self, d: &Buffer, d_o: usize, s: &Buffer, s_o: usize, n: usize, st: StreamId) -> intarsia_core::Result<()> {
+        self.inner.copy(d, d_o, s, s_o, n, st)
+    }
+    fn kernels(&self) -> Vec<KernelImpl> {
+        self.inner.kernels()
+    }
+    fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> intarsia_core::Result<()> {
+        self.inner.launch(kernel, call, stream)?;
+        let t = self.rows.load(Ordering::SeqCst);
+        let mut row = Vec::new();
+        let shapes: Vec<String> = call.outputs.iter().map(|o| format!("{:?}", o.shape)).collect();
+        if let Some(o) = call.outputs.first() {
+            if o.shape.first() == Some(&t) && t > 0 {
+                self.inner.synchronize(stream)?;
+                let mut data = vec![0u8; o.nbytes() / t];
+                self.inner.download(&o.buf, o.offset, &mut data, stream)?;
+                row = data;
+            }
+        }
+        self.log.lock().unwrap().push((call.op.to_string(), format!("{kernel} out {}", shapes.join(" ")), row));
+        Ok(())
+    }
+    fn synchronize(&self, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.synchronize(s)
+    }
+}
+
+/// Diagnostics (`INTARSIA_INKLING2_CHUNK_SCAN=1`): the launches of a 1-row pass and of a `INTARSIA_INKLING2_SCAN_T`-row pass at
+/// position 0, side by side, with whether output 0's first row is bitwise the same.
+#[test]
+fn inkling2_tiny_launch_diff() {
+    if std::env::var_os("INTARSIA_INKLING2_CHUNK_SCAN").is_none() {
+        return;
+    }
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let t: usize = std::env::var("INTARSIA_INKLING2_SCAN_T").ok().and_then(|v| v.parse().ok()).unwrap_or(2);
+    let mut logs = Vec::new();
+    for n in [1usize, t] {
+        let b = Arc::new(Logged { inner: backend(), rows: std::sync::atomic::AtomicUsize::new(n), log: Default::default() });
+        let m = load_with(&dir, 16, b.clone()).unwrap();
+        b.log.lock().unwrap().clear();
+        let mut st = m.new_state().unwrap();
+        all_logits(&m, &mut st, &ids[..n]);
+        logs.push(b.log.lock().unwrap().clone());
+    }
+    let (a, b) = (&logs[0], &logs[1]);
+    println!("launches: 1 row {}, {t} rows {}", a.len(), b.len());
+    let mut shown = 0;
+    for (i, (x, y)) in a.iter().zip(b.iter()).enumerate() {
+        let same = !x.2.is_empty() && x.2.len() == y.2.len() && x.2 == y.2;
+        if !same && shown < 40 {
+            println!("diff #{i}: {} {} vs {} {} (row bytes {} / {}, equal {})", x.0, x.1, y.0, y.1, x.2.len(), y.2.len(), x.2 == y.2);
+            shown += 1;
+        }
+    }
+}
+
 /// A pass that fails half-way leaves the sequence empty (its rings half-written), and the next prefill is the clean one.
 #[test]
 fn inkling2_tiny_failed_pass_resets_the_sequence() {
@@ -448,6 +619,51 @@ fn inkling2_tiny_failed_pass_resets_the_sequence() {
     assert!(first.is_none(), "after the reset: first differing row {first:?} of {}", again.len());
 }
 
+/// `INTARSIA_INK_PACK12=1` (lane ink-pack12) on cpu, whose reference registers the P12 kernels, packs at load and gives the
+/// bf16 logits bit for bit, over 1-row decode steps and 4- and 5-row passes (both sides of `quant::p12::DENSE_ROWS_MAX`).
+/// On a backend without the P12 kernels (`MatmulP12` dropped, as CUDA and HIP register none) the forced `1` keeps the bf16
+/// weights instead of packing. The variable is read at load, so this runs only when the test binary has it set to `1`.
+#[test]
+fn inkling2_tiny_p12_forced_on() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    if !std::env::var(intarsia_core::quant::p12::ENV).is_ok_and(|v| v.trim() == "1") {
+        eprintln!("inkling2_tiny_p12_forced_on: skipped (run with INTARSIA_INK_PACK12=1)");
+        return;
+    }
+    let ids = prompt(&dir);
+    // the backend under test (INTARSIA_INKLING2_BACKEND: cpu by default, cuda for lane ink-cuda-p12)
+    let cpu = backend();
+    let packed = load_with(&dir, chunk(), cpu.clone()).unwrap();
+    let no_p12 = Arc::new(Wrapped { inner: cpu, drop: vec![Op::MatmulP12], fail: Arc::new(AtomicBool::new(false)) });
+    let plain = load_with(&dir, chunk(), no_p12).unwrap();
+    assert!(
+        packed.weights_bytes > plain.weights_bytes,
+        "the cpu load packs ({} B) and the one without P12 kernels keeps bf16 only ({} B)",
+        packed.weights_bytes,
+        plain.weights_bytes
+    );
+    // 8 one-row steps, then passes of 4 and 5 rows, then one-row steps to the end
+    let mut cuts = vec![0usize];
+    for _ in 0..8 {
+        cuts.push(cuts.last().unwrap() + 1);
+    }
+    for n in [4, 5, 4, 5] {
+        cuts.push(cuts.last().unwrap() + n);
+    }
+    while *cuts.last().unwrap() < ids.len() {
+        cuts.push(cuts.last().unwrap() + 1);
+    }
+    let run = |m: &Model| {
+        let mut st = m.new_state().unwrap();
+        let n = ids.len();
+        cuts.windows(2).filter(|w| w[0] < n).flat_map(|w| all_logits(m, &mut st, &ids[w[0]..w[1].min(n)])).collect::<Vec<_>>()
+    };
+    let (a, b) = (run(&packed), run(&plain));
+    assert_eq!(a.len(), ids.len());
+    let first = (0..a.len()).find(|&i| a[i] != b[i]);
+    assert!(first.is_none(), "P12 vs bf16 logits: first differing row {first:?} of {}", a.len());
+}
+
 /// A backend without one of the Inkling-2 kernels refuses the load, naming the op (CUDA and HIP register none of them).
 #[test]
 fn inkling2_tiny_no_kernel_refusal_names_the_op() {
@@ -462,9 +678,16 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
         assert!(msg.contains(op.as_str()), "{op}: {msg}");
     }
     for op in intarsia_core::inkling2::ops::OPS {
-        assert!(!intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
+        // CUDA: every op has a kernel: the attention ops (lane ink-cuda-attn, inkattn.rs), the in-projection, mix / conv ops and
+        // the MXFP8 experts (lane ink-cuda-mixmoe, inkmix.rs / inkmoe.rs)
+        let on_cuda = |t: &[(&str, Op)]| t.iter().any(|(_, o)| *o == op);
+        let lanes = on_cuda(intarsia_backend_cuda::inkattn::TABLE) || on_cuda(intarsia_backend_cuda::inkmix::TABLE) || on_cuda(intarsia_backend_cuda::inkmoe::TABLE);
+        assert!(lanes, "cuda {op}: no lane table lists it");
+        assert!(intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
         assert!(intarsia_backend_hip::kernels::UNIMPLEMENTED.contains(&op), "hip {op}");
         // Metal: every op has a kernel (lanes ink-m-attn, ink-m-moe, ink-m-mix); the table alone, no device
+        // (a macOS-only dev-dependency, so the check is too)
+        #[cfg(target_os = "macos")]
         assert!(intarsia_backend_metal::kernels::all().iter().any(|k| k.op == op), "metal {op}");
     }
 }
