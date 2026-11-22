@@ -315,7 +315,6 @@ pub const NAX_KERNELS: &[&str] = &[
     crate::mxfp4::MATMUL_MXFP4_NAX,
     crate::inkattn::REL_SINK_ATTN_BF16_NAX,
     crate::inkmix::INK_IN_PROJ_BF16_NAX,
-    crate::inkprefill::LOGITS_BF16_NAX,
 ];
 
 pub fn requires_metal4(kernel: &str) -> bool {
@@ -374,7 +373,6 @@ pub const TABLE: &[(&str, Op)] = &[
     (MATMUL_BF16, Op::Matmul),
     (MATMUL_BF16_GEMV, Op::Matmul),
     (LOGITS_BF16, Op::Logits),
-    (crate::inkprefill::LOGITS_BF16_NAX, Op::Logits),
     (LOGITS_BF16_GEMV, Op::Logits),
     (KV_APPEND_BF16, Op::KvAppend),
     (SILU_GLU_BF16, Op::SiluGlu),
@@ -485,14 +483,6 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(BF16_TOL)
                     .priority(10),
                 LOGITS_BF16 => k.acts(bf).weights(bf).exact(Exactness::Deterministic).tol(F32_TOL).priority(0),
-                // lane ink-prefill: prefill-chunk router logits on the accelerators
-                crate::inkprefill::LOGITS_BF16_NAX => k
-                    .acts(bf)
-                    .weights(bf)
-                    .when(crate::inkprefill::logits_nax_ok)
-                    .exact(Exactness::Deterministic)
-                    .tol(F32_TOL)
-                    .priority(5),
                 LOGITS_BF16_GEMV => {
                     k.acts(bf).weights(bf).when(|s| s.m == 1).exact(Exactness::Deterministic).tol(F32_TOL).priority(10)
                 }
@@ -904,7 +894,6 @@ mod tests {
                 + crate::inkattn::metal4_shader_names().len()
                 + crate::inkmoe::metal4_shaders().count()
                 + crate::inkmix::NAX_SHADERS.len()
-                + crate::inkprefill::metal4_shaders().len()
         );
         assert!(!shader_names().iter().any(|n| m4.contains(n)));
         let set: HashSet<_> = m4.iter().collect();

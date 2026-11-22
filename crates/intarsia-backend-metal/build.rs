@@ -32,7 +32,6 @@ const METAL4_SOURCES: &[&str] =
         "inkling2_moe_nax2.metal",
         "inkling2_moe_nax3.metal",
         "inkling2_blend_nax.metal",
-        "inkling2_router_nax.metal",
         "inkling2_mix_nax.metal",
     ];
 
