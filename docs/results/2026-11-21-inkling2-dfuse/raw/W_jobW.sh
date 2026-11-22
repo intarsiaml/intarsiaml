@@ -3,17 +3,17 @@
 # Arms: A = after = the tip 81bb8c4b8 (snapshot .scratch/snap12) with its defaults;
 #       B = before = the same binary with this lane's four switches off (INTARSIA_INK_ROUTE_FUSED=0 INTARSIA_INK_MSG_PRE=0
 #           INTARSIA_INK_MIX_HOIST=0 INTARSIA_INK_BLEND_NORM_C=0);
-#       C = the brief's base a88db4620 (snapshot .scratch/snapC), defaults (WITH_C=1; 0 skips it).
+#       C = the brief's base a88db4620: dropped by the coordinator (~10:25); WITH_C=1 would build it in .scratch/snapC.
 #   1. builds; 2. Metal tests at the tip (backend-metal Inkling tests, models inkling2 = G1 tiny, inkling2_batch,
 #      inkling2_mix_decode_cpu); 3. greedy md5 A vs B; G2 short / long (decode mode), G3 short / long at the tip, self-goldens
 #      byte-compared with job G's; plan show Qwen3-8B / Llama-3.1-8B against the base binary;
 #   4. traces: normal step (cb, token feedback) and per-dispatch (job E's method: COMMIT_EVERY=1, feedback off, disp.py) for
 #      A, B, C: dispatches per token and controller ms per token;
-#   5. localeval speed, sizes 128 and 5000, gen 128, 3 reps, serve --max-batch 1 --max-seq 8192, order A B C C B A.
+#   5. localeval speed, sizes 128 and 5000, gen 128, 3 reps, serve --max-batch 1 --max-seq 8192, order A B B A.
 # No INTARSIA_* variable is inherited: every run sets its own. The body runs in its own process group; TERM kills the tree.
 W=/opt/code/intarsiaml/.worktrees/ink-dfuse; S=$W/.scratch
 WANT=81bb8c4b8; WANTC=a88db4620
-WITH_C=${WITH_C:-1}
+WITH_C=${WITH_C:-0}   # coordinator ~10:25: arm C dropped (quiet slots are the bottleneck); 1 would bring it back
 L=$S/W; mkdir -p $L
 for v in $(env | grep -oE '^INTARSIA_[A-Z0-9_]+'); do unset $v; done
 OFF4="INTARSIA_INK_ROUTE_FUSED=0 INTARSIA_INK_MSG_PRE=0 INTARSIA_INK_MIX_HOIST=0 INTARSIA_INK_BLEND_NORM_C=0"
@@ -91,9 +91,9 @@ body() {
     echo "per-dispatch $a: $(head -1 $L/disp_$a.txt); $(tail -1 $L/disp_$a.txt)"
   done | tee $L/traces.txt
   echo "traces $(date)" >> $L/times.txt
-  echo "STEP localeval (order A B C C B A)"
+  echo "STEP localeval (order $( [ $WITH_C = 1 ] && echo A B C C B A || echo A B B A ))"
   . $S/serve_lib.sh
-  ORDER="A B A B"; [ $WITH_C = 1 ] && ORDER="A B C C B A"
+  ORDER="A B B A"; [ $WITH_C = 1 ] && ORDER="A B C C B A"
   i=0
   for a in $ORDER; do
     i=$((i + 1)); port=$((8110 + i)); SRV_PORT=$port

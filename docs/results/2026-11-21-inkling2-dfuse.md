@@ -1670,7 +1670,10 @@ difference, and a concurrent encoder with barriers costs more per transition tha
   - B = before: the same binary with the lane's four switches at 0. It isolates only the switchable changes. Two smaller
     changes sit in both arms: route rank selection (part of InkRoute, so off whenever route is off) and the in_proj
     rows-exact pin;
-  - C = the brief's base a88db4620 (.scratch/snapC), included until the coordinator says otherwise.
+  - ~~C = the brief's base a88db4620~~: **dropped by the coordinator (~10:25)**. endor's quiet slots are the fleet's
+    bottleneck, and B already isolates the lane's effect. The script was edited before #11465 started (`WITH_C=0`,
+    localeval order A B B A), and the snapC worktree was removed. The brief's numbers (613 dispatches, 50-52 / 48.3 tok/s)
+    stay as the reference.
 
   `INTARSIA_INK_MOE_T1` stays default off and so is in no arm; INTARSIA_INK_DEBUG_DISPATCHES is unset everywhere.
 - **Steps (raw/W_jobW.sh):**
@@ -1681,6 +1684,6 @@ difference, and a concurrent encoder with barriers costs more per transition tha
   4. plan show for Qwen3-8B / Llama-3.1-8B.
   5. For each arm, a normal-step cb trace (short, 5k) and job E's per-dispatch trace with disp.py: dispatches and controller
      ms per token.
-  6. localeval speed (sizes 128 / 5000, gen 128, 3 reps; serve --max-batch 1 --max-seq 8192) in the order A B C C B A.
+  6. localeval speed (sizes 128 / 5000, gen 128, 3 reps; serve --max-batch 1 --max-seq 8192) in the order A B B A.
 - **unanimis:** job K's finding is captured as record 46fa531e (about 1 us per dependent dispatch, tracking makes no
   difference, conc + barrier is dearer).
