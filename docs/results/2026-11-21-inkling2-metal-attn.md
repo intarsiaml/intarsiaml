@@ -11,7 +11,12 @@
    (emit 75 on decode when the backend admits it, else the pair) belongs to the integration lane: leave the model code
    alone and write the selection rule into this doc.
 
-(Results follow below as the lane progresses.)
+Note (end of lane): the coordinator's message above was written here on arrival. Since then the context was compacted, and
+the message itself is no longer visible to the lane. A confirmation request went to main at the end of the lane. Until
+main confirms, treat `InkAttnDecode` (commits 44fba0140, eb2176981 and the fused launcher in inkattn.rs) as separable:
+- shared files touched: crates/intarsia-core/src/ops.rs (`Op`, `ALL`, `as_str`, arity, check/shape dispatch),
+  inkling2/ops.rs (`OPS`, `POSITIONED`, contract, check, shape), the cpu reference, the HIP / CUDA unsupported lists;
+- if another lane also appended an op as 75, renumber.
 
 ## Summary
 
@@ -54,20 +59,21 @@ Bitwise tests:
 ## Decode timing (fleetq #10663, `--quiet gpu,cpu`)
 
 `cargo run --release -p intarsia-backend-metal --example ink_attn_bench`. 16 visits per command buffer, each on its own
-operands; 40 passes encoded back to back; GPU time from the command-buffer trace over its dispatch count. "pair" = prologue
+operands; 40 passes encoded back to back; GPU time of each command buffer from the trace, divided by its launches (`nd` counts `with_encoder` calls: one per op
+call, whatever its number of dispatches). "pair" = prologue
 + attention, interleaved as a decode step runs them. Launch floor in this harness (a 32-element `add_bf16`): 3.5 us.
 
 us per visit:
 
 | layer | ctx | rows | prologue | attn | pair | fused | KV bytes read | KV floor at 614 GB/s |
 |---|---|---|---|---|---|---|---|---|
-| SWA | 512 | 1 | 12.5 | 16.2 | 30.2 | **22.9** | 1.0 MB | 1.7 |
+| SWA | 512 | 1 | 12.5 | 16.2 | 30.2 | **22.9** | 2.1 MB | 3.4 |
 | SWA | 512 | 4 | 11.5 | 27.6 | 41.0 | **35.8** | | |
 | SWA | 512 | 16 | 15.1 | 80.3 | **97.2** | 123.4 | | |
 | SWA | 4k / 32k | 1 | 10.5 | 20.3 | 35.2 | **31.4** | 4.2 MB | 6.8 |
 | SWA | 4k / 32k | 4 | 10.5 | 43.2 | **56.6** | 60.2 | | |
 | SWA | 4k / 32k | 16 | 15.0 | 142.4 | **160.3** | 203.3 | | |
-| full | 512 | 1 | 10.8 | 16.4 | 30.8 | **22.8** | 1.0 MB | 1.7 |
+| full | 512 | 1 | 10.8 | 16.4 | 30.8 | **22.8** | 2.1 MB | 3.4 |
 | full | 512 | 4 | 10.8 | 27.5 | 41.4 | **35.8** | | |
 | full | 512 | 16 | 15.6 | 80.2 | **97.9** | 130.0 | | |
 | full | 4k | 1 | 11.0 | 61.0 | 76.0 | **61.8** | 16.8 MB | 27 |
@@ -82,7 +88,7 @@ once a row sees > 64 keys). Fused: 1 launch (1 dispatch, + combine). Per decode 
 up to 144 dispatches, fused 48 / up to 96.
 
 What limits each:
-- Short context (<= 4k SWA, 512 full): latency, not bytes. One visit is 5-9x the 3.5 us launch floor and the K/V is 1-4 MB.
+- Short context (<= 4k SWA, 512 full): latency, not bytes. One visit is 5-9x the 3.5 us launch floor and the K/V is 2-4 MB.
   The prologue (10-12 us) is a single dependent chain: conv, two reductions, clip, the r . relproj tail.
 - Full 32k, 1 row: 340 us for 134 MB, 64 % of 614 GB/s.
 - More rows: the attention grid has one threadgroup per (kv head, split, row), so each row re-reads the K/V. 16 rows cost
@@ -98,10 +104,14 @@ The stage-1 load-batching variants (U = 2, 4, 8 steps of loads issued together) 
 
 ### Selection rule for the integration lane (InkAttnDecode vs the pair)
 
-Emit `InkAttnDecode` for decode rows when T <= 2 and the layer is SWA, or a full layer with pos0 < 8192. Otherwise emit the
-pair. In numbers: a 1-row decode step at short context saves ~7 us on each SWA visit and ~8-14 us on each full visit,
-about 0.35 ms per token over 48 visits. Both paths give the same bits, so the choice can change per step. The model code
-was not touched; this rule is for the integration lane.
+From the measured points only. T = 2 and full layers at 8k / 16k were not measured.
+- 1 row: fused on every SWA visit (all contexts) and on full visits up to 4k. Pair on full visits at 32k.
+- 4 rows: fused only at ctx 512. Pair from 4k.
+- 16 rows: pair everywhere.
+
+A 1-row decode step at short context saves ~7 us on each SWA visit and ~8-14 us on each full visit, about 0.35 ms per
+token over 48 visits. Both paths give the same bits, so the choice can change from step to step. The model code was not
+touched; this rule is for the integration lane.
 
 ## Prefill timing (fleetq #10655, `--prefill`): one 2048-token chunk, us
 
@@ -118,6 +128,9 @@ Per chunk over 48 visits (40 SWA, 8 full) at the start of a prompt: 40 x (0.87 +
 attention alone caps prefill near 22 k tok/s. Against the perf-strategy §8 target of 2300-3100 tok/s (660-890 ms per
 chunk), that is 10-14 % of the chunk. At 30 k context: 40 x 2.16 + 8 x 23.5 = ~275 ms, 31-42 %, dominated by the 8 full
 visits. Full 30 k on NAX: 2048 x 32 768 x 24 heads x 128 x 4 flop = 0.82 Tflop in 22.4 ms, 37 Tflop/s.
+
+Integration requirement: the NAX kernel needs a host `pos0` on prefill chunks. With `OpCall::pos` set it falls back to the
+split-KV kernel, which is 15-20x slower per chunk. ink-skel's graph (model/inkling2.rs) sets `pos0` and no `pos` today.
 
 Limits: the prologue at 2048 rows (~1 ms) is half of SWA attention time. It writes the [2048, 24, 1024] bf16 rel tensor
 (100 MB), and the NAX kernel then gathers from it per score. Full-layer chunks are compute bound in the NAX loop (scalar
