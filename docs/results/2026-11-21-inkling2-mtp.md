@@ -65,6 +65,13 @@ Status: in progress. Branch `ink/mtp` (not pushed, not merged).
   off; fix the run label (not spec:unknown). (4) If (1) is done but (2) cannot get under 2% in about 2 hours of work, report
   the best number. (5) After the flip: the union-fused experts pass at 2-4 verify rows is this lane's; write a plan and send it
   before building. Rules: compile on bespin, CPU tests on spark2, GPU only inside endor fleetq slots.
+- 2026-11-22 (coordinator, SendMessage): experts plan approved as proposed. (1) Run the probe: one default-load endor job,
+  per-visit µs at T = 1..4 with real routing plus the gate+up / down split (fold it into #11147 if simpler; do not delay the
+  ingest gates). (2) Build the union-grouped fused down only if gather + dn_u exceed about 10% of the experts time at 4 rows:
+  bitwise, flag default off. (3) skipped for now. Design only while the gates wait: adaptive draft length, k in {0,1,2,3} per
+  cycle from a running acceptance estimate and/or the draft's top-1 confidence, simulated offline on CPU from the oracle
+  acceptance logs (no GPU jobs). Report the expected tokens per pass and tok/s against fixed k3 tau 0.8 on greedy golden and
+  prose, with the measured +2.9 ms per extra verify row; send the table before building anything.
 
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
