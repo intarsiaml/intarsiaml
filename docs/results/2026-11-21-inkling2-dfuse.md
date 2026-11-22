@@ -613,3 +613,44 @@ dfuse, and ink-metal is fixing it.
 Job F (#11145) checks the new defaults on Metal. It merges into ink/metal after ink-metal's decode-mode G2 is fixed or
 explained.
 
+### Job F (#11145, 03:26-03:29, tip 00c81dda7 = the flip + ink/metal dbec19036; raw/F_*)
+
+The defaults on Metal are E's best, bit for bit. The full test suite passes with the defaults and with all four switches off.
+
+| Check | Defaults | All four `=0` |
+|---|---|---|
+| Metal crate: inkload, inkctrl, inkctrl_nometal4, inkmix | 8 / 8 | 8 / 8 |
+| Models on Metal: inkling2 (G1 tiny), inkling2_batch, inkling2_mix_decode_cpu (+ NE 3 child) | 17 / 17 | 17 / 17 |
+
+- **Admission** with the defaults: ink_route (124 cases), conv_mix (532), attn_res_mix (97), sconv_res (64) and loop_blend
+  (27) are all ADMITTED.
+- **`plan show`** for Qwen3-8B and Llama-3.1-8B: stdout and stderr byte-identical to the base binary (f55bfe8b7).
+- **Env matrix** (64 greedy tokens, 1 row). Every arm gives md5 65cde8f35a1802e3e2fadb44d94d080d, which is also E's best and
+  E's off.
+
+  | Arm | Dispatches / step | tok/s (engine, one run) |
+  |---|---|---|
+  | no env (defaults) | 543 | 66.03 |
+  | all `=1` | 543 | 66.05 |
+  | all `=0` | 613 | 63.61 |
+  | route `=0` | 591 | 65.95 |
+  | msg `=0` | 565 | 63.92 |
+  | hoist `=0` | 543 | 65.72 |
+  | norm_c `=0` | 543 | 65.41 |
+
+- **16-row self-golden** with the defaults: byte-equal to E's best.
+- **G1-G3** with the defaults. Each self-golden is byte-equal to E's best, so these are E's numbers.
+
+  | Gate | KL21 (limit) | Confident misses (allowance) | Verdict |
+  |---|---|---|---|
+  | G1 (tiny on Metal) | | | 8 / 8 |
+  | G2 short, prefill | 2.719e-3 (4e-3) | 0 / 363 (1) | pass |
+  | G2 long, prefill | 3.544e-3 (6e-3) | 1 / 1206 (2) | pass |
+  | G2 short, decode mode | 1.109e-2 (4e-3) | | fail: the m-mix NE 4 rows on the ink/metal tip, not dfuse (bisect) |
+  | G2 long, decode mode | 9.205e-3 (6e-3) | | fail: same cause |
+  | G3 short | 8.069e-3 (1.05e-2) | 0 / 367 (1) | pass |
+  | G3 long | 1.227e-2 (1.65e-2) | 0 / 1211 (2) | pass |
+
+  The accuracy tool exits 1 on G2 because the decode-mode rows are above the limit. The prefill rows, which are the gated
+  numbers in ink-metal's table, pass.
+- The flip 2f952f697 (and ink/dfuse up to 00c81dda7) is ready to merge once ink-metal's NE fix lands.
