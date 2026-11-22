@@ -965,6 +965,10 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   (inkling2.toml, new), bench 1, Cargo.lock 1, cuda 1 and hip 1 (the op-coverage test list / `UNIMPLEMENTED` list only).
 - No-op checks: Metal on endor fleetq #11440 (plan show and ids for Qwen3-8B and Llama-3.1-8B, kernels test, goldens,
   workspace tests base vs dev); CUDA on spark1 #11441 (plan show json 35B + 8B, kernels test --quick, base vs dev). Pending.
+- CUDA #11441 done (exit 0, 09:22:06-09:40:46): CUDA release builds of base and dev clean (6 m 11 s, 5 m 16 s); `plan show
+  --json` byte-identical for the 35B NVFP4 (15570 B) and Qwen3-8B (8973 B); `kernels test --backend cuda --quick` 106 kernels,
+  0 FAIL on both (972 vs 984 cases: dev's shared case lists add 2 argmax_f32 / 2 argmax_bf16 cases (the V % 4 != 0 rows) and
+  8 moe_route cases (Inkling's score functions); the same kernels, all ADMITTED, max abs moe_route 2.18e-7).
 - Widened (coordinator): spark1 #11443, chained after #11441 (waits for its binaries): Qwen3-8B 256 greedy ids short / 4k on
   CUDA, base vs dev bit for bit; `cargo test --workspace --release` both trees (CARGO_BUILD_JOBS=4, MAX_JOBS=4), failure sets
   compared; a memory guard logs MemAvailable every 5 s and kills the job's processes under 10 GB; `--mem 36` beside
