@@ -490,6 +490,36 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### NAX attention NSG sweep, mode 0 (brief 25; #11468, 640d1c59f, bench 2048 rows, µs per call, median of 2)
+
+`INTARSIA_INK_NAX_SG`: NSG simdgroups per threadgroup, BQ = 16 x (NSG / 3) query rows; NSG not a multiple of G = 3 leaves
+simdgroups idle (4, 8, 16). All nine forms give the same output hash (fixed seed; SWA and full at ctx 0 / 2k / 4k): bitwise.
+
+| visit | 3 | 4 | 6 | 8 | 9 | 12 (default) | 16 | 18 | 24 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| SWA ctx 2k | 1204 | 1475 | 1171 | 1402 | 1193 | 1316 | 1377 | 1415 | 1386 |
+| SWA ctx 4k | 1218 | 1605 | 1264 | 1469 | 1316 | 1288 | 1446 | 1391 | 1398 |
+| SWA ctx 8k | 1185 | 1482 | 1213 | 1449 | 1210 | 1533 | 1475 | 1307 | 1336 |
+| SWA ctx 14k | 1217 | 1622 | 1196 | 1452 | 1312 | 1383 | 1405 | 1323 | 1405 |
+| full ctx 2k | 2372 | 3220 | 2370 | 3190 | 2599 | 2621 | 2768 | 2789 | 3625 |
+| full ctx 4k | 3656 | 4826 | 3476 | 4831 | 4013 | 4729 | 4176 | 4005 | 6198 |
+| full ctx 8k | 6804 | 8931 | 6464 | 8348 | 7495 | 6703 | 7266 | 7276 | 12247 |
+| full ctx 14k | 10667 | 15145 | 10884 | 13584 | 12430 | 11241 | 13336 | 11962 | 21285 |
+| per chunk (40 SWA + 8 full, mean of ctx 2k / 4k / 8k), ms | 82.3 | 106.1 | **81.5** | 101.3 | 87.2 | 92.6 | 95.2 | 92.4 | 113.8 |
+
+Best: NSG 6 (3 is within noise of it); ~11 ms per chunk under 12 (~1.7 % of a 655 ms chunk). The box was noisy (NSG 12 SWA
+1.29-1.53 ms here vs 1.14-1.23 earlier), so the end-to-end pairs decide.
+
+**Exactness by construction:** each row's online softmax visits the key tiles in the same absolute order (tiles at multiples
+of 32, `full` chosen by kv_len, not by the threadgroup); a smaller BQ only drops key tiles that are fully masked for every row
+the threadgroup has, and a fully masked tile is an exact no-op (m unchanged, rescale factor exp2(0) = 1, P = 0, so O x 1 + 0 x V
+and l x 1 + 0 are exact). Nothing else in a row's arithmetic depends on NSG. To be shown end to end by G2 self-goldens and md5.
+
+**Rule (brief 25, fixed before the runs; rg2.sh, bin12 = 640d1c59f):** G2 self-goldens short and long at NSG 6 byte-identical
+to NSG 12, greedy md5 64 / 256 at NSG 6 identical to NSG 12 (and to a2ab7b3d... / cbd62660...); then warm-up and 3 ABAB pairs
+(12, 6) per prompt at 4k / 8k / 16k, `generate --max-tokens 1`. **Flip NSG 6 default-on** if bitwise and the median pair
+ratio is >= 1.01 at every length. Else report, no flip.
+
 ### rel_mode 2 gate (#11461, bin11 8bef1619a, rule above): quality and decode pass, speed FAILS the bar; stays opt-in
 
 1. Quality (all PASS; mode 0 equals the references exactly):
@@ -513,7 +543,7 @@ the Metal test, I stop and report rather than argue tolerance.
 | 8k (8034) | 1.0086 / 1.0091 / 1.0017 | 1.0086 | 1.02 | 2789 / 2790 / 2788 | 2766 / 2765 / 2783 |
 | 16k (16068) | 1.0099 / 1.0337 / 1.0121 | 1.0121 | 1.00 | 5540 / 5740 / 5638 | 5486 / 5553 / 5570 |
 
-**Verdict:** mode 2 is ~+0.8 % at 4k and 8k and +1.2 % at 16k, consistently the faster arm in all 9 pairs, but below the
+**Verdict (brief 25: rel_mode 2 stays on `ink/prefill-rel2`, not merged into ink/prefill or ink/metal):** mode 2 is ~+0.8 % at 4k and 8k and +1.2 % at 16k, consistently the faster arm in all 9 pairs, but below the
 2 % bar at 4k and 8k: no flip proposed; `INTARSIA_INK_REL_MODE=2` stays opt-in on `ink/prefill-rel2`. Why the bound
 (~3 %) was not reached: the mode-2 attention kernel only breaks even with the device gather on SWA visits, so the gain is the
 prologue's skipped rel write (~0.2 ms x 40 visits = ~8 ms per chunk), and the full layers stay in mode 0.
