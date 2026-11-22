@@ -4072,17 +4072,7 @@ impl Model {
             }
             let ids_t = ids_at.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t]));
             let nv = self.view(&ws.n, act, &[t, h]);
-            // passes of 2..=16 rows take the row-exact kernels on Metal (`inkling2::ink_rows_exact`), so any schedule of such
-            // passes (decode, a small chunk, a rolled-back verify-sized pass) leaves the state a token-by-token decode would
-            let mark = !self.verifying() && inkling2::ink_rows_exact(self.backend.name(), t);
-            if mark {
-                self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
-            }
-            let r = self.ink_pass(st, &ids_t, t, pos0, &nv, profile, None, None);
-            if mark {
-                self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
-            }
-            r?;
+            self.ink_pass(st, &ids_t, t, pos0, &nv, profile, None, None)?;
             return Ok(nv);
         }
 
@@ -5515,7 +5505,17 @@ impl Model {
         let v = self.dims.vocab;
         if !self.vocab_par {
             let logits = self.view(&self.ws.logits, DType::F32, &[c, v]);
-            self.proj(x, self.head()?, &logits, profile)?;
+            // Inkling-2 on Metal: a 2..=16-row head group takes the row-exact kernel like the pass itself
+            // (`inkling2::ink_rows_exact`), so a prefill row scores as its decode step would; no other model has `ink`
+            let mark = self.ink.is_some() && !self.verifying() && inkling2::ink_rows_exact(self.backend.name(), c);
+            if mark {
+                self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+            let r = self.proj(x, self.head()?, &logits, profile);
+            if mark {
+                self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+            }
+            r?;
             return Ok(logits);
         }
         let (w, vh) = (self.tp.world, v / self.tp.world);
