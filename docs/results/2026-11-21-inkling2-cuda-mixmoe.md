@@ -267,6 +267,12 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   expected); then default-on with a one-env revert. Next report: one line with the MoE gu+dn bandwidth floor per token at g256
   (bytes read / measured peak); if 8.8 ms is far above it, name the next lever after the repack. Finish brief 35 first (no-op
   #11498 and re-verify #11502 green, then "your PR"). Box: spark1 via fleetq, same worktree.
+- (coordinator, 36a) PR confirmed in writing: this lane may push `ink/cuda-mixmoe` to origin and open its PR to main once #11498
+  (no-op) and #11502 (Inkling re-verify) are green. Order: wait for PR #489 (Metal head screen) to merge, merge main in again;
+  if that merge touches engine code or recipes, rerun the Inkling CUDA md5s (spec off and on) before pushing. PR body: what
+  changes by default (split-K blend, MX4 draft head, each with its revert env), every gate by job number, the no-op results.
+  Merge only on all-green CI; no force-push; no other lanes' branches. Box: stay on spark2 (`~/intarsiaml-ink-cuda-mixmoe`, its
+  baselines); Stage A runs there.
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
