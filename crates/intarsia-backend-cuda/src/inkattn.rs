@@ -27,7 +27,7 @@ pub const TABLE: &[(&str, Op)] = &[
 const BF16_TOL: Tol = Tol::new(1.5e-2, 6e-3);
 
 /// Scratch stride: the most partials per row (`MAXT` of the tile kernel, >= `MAXS` of the split-KV kernel).
-pub const MAX_SPLIT: usize = 40;
+pub const MAX_SPLIT: usize = 96;
 
 /// Shapes the prologue takes (d_rel <= 32 is checked at launch).
 fn prologue_ok(s: &ShapeInfo) -> bool {
