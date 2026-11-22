@@ -8,7 +8,11 @@
 [model]
 match.architectures = ["Inkling2LoopForConditionalGeneration"]
 family = "inkling2"
-chat_template = "hf"            # chat_template.jinja (spec section e: no generation prompt, the model opens its own turn)
+chat_template = "hf"            # chat_template.jinja (spec section e: no generation prompt, the model opens its own turn). The server renders chats
+                                # through the codec's own Inkling renderer instead (vLLM's, crates/intarsia-models/src/inkling_chat.rs); the template
+                                # stays the reference (tools/inkling2_chat_ref.py) and serves `intarsia generate`.
+reasoning_parser = "inkling"    # blocks by token id: `<|content_thinking|>` -> reasoning_content (crates/intarsia-server/src/inkling.rs)
+tool_parser = "inkling"         # `<|content_invoke_tool_json|>{"name":..,"args":{..}}`; required / named tool_choice are instructions, not grammars (as vLLM)
 
 [layer]
 pattern = ["ink"]
