@@ -119,7 +119,8 @@ pub struct BatchedOptions {
     /// of the pass (`Seq::verify_topk`). The draws are the same (`Sampler::sample_topk` is exact); a pass
     /// downloads `rows x k` values instead of `rows x vocab`.
     pub verify_topk: bool,
-    /// Lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST=1`, opt-in): a sampled request's verify pass that runs on its own (one decoding
+    /// Lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST`; default-on for the Qwen3.6-35B-A3B on CUDA since lane svfflip, set by the loader from the
+    /// recipe's `[tuning.cuda] sampled_verify_fast`; `BatchedOptions::new` itself starts with it off unless the variable says on): a sampled request's verify pass that runs on its own (one decoding
     /// stream, or a batched verify pass of one sequence) reads its rows back as the device-side top-k (`Model::forward_verify_topk`)
     /// instead of whole logits rows, when its sampler takes the top-k in a plain step for every row of the pass (`Seq::verify_topk`:
     /// `1 <= top_k <= 64`, no stop-id mask, trace or constraint) and the backend has device-side sampling; otherwise whole rows, as
@@ -221,7 +222,7 @@ impl BatchedOptions {
             mtp_sampled: batched_mtp_sampled_env(),
             sampled_ctx_k: crate::spec::sampled_ctx_k(),
             verify_topk: env("INTARSIA_VERIFY_TOPK"),
-            sampled_verify_fast: env("INTARSIA_SAMPLED_VERIFY_FAST"),
+            sampled_verify_fast: sampled_verify_fast_env().unwrap_or(false),
             prefix_herd: std::env::var("INTARSIA_PREFIX_HERD").map(|v| v != "0").unwrap_or(true),
             hold_start: false,
         }
@@ -1243,7 +1244,7 @@ impl BatchedEngine {
         model.set_sampled_verify_fast(opts.sampled_verify_fast && mtp && opts.mtp_sampled);
         if model.sampled_verify_fast() {
             eprintln!(
-                "batched MTP: a sampled request's own verify pass reads its rows back as the device-side top-k (INTARSIA_SAMPLED_VERIFY_FAST=1; device-side sampling {})",
+                "batched MTP: a sampled request's own verify pass reads its rows back as the device-side top-k (INTARSIA_SAMPLED_VERIFY_FAST, default for the 35B on CUDA, =0 turns it off; device-side sampling {})",
                 if model.device_sampling() { "on" } else { "off on this backend: whole rows" }
             );
         }
@@ -1476,6 +1477,31 @@ impl Engine for BatchedEngine {
     }
 }
 
+/// `INTARSIA_SAMPLED_VERIFY_FAST` (lane samphost; default-on for the 35B on CUDA by lane svfflip): `Some(false)` for `0` / `false` / `off` / `no`,
+/// `Some(true)` for `1` / `true` / `on` / `yes` (case and surrounding space ignored), `None` when unset, empty or unknown (a warning for an unknown
+/// value): the recipe's `[tuning.<backend>] sampled_verify_fast` then applies, else off. The variable wins both ways.
+pub fn sampled_verify_fast_env() -> Option<bool> {
+    parse_sampled_verify_fast(std::env::var("INTARSIA_SAMPLED_VERIFY_FAST").ok().as_deref())
+}
+
+/// Whether the sampled-verify fast path is asked for (lane svfflip): the variable ([`sampled_verify_fast_env`]) wins both ways; else the recipe's
+/// `[tuning.<backend>] sampled_verify_fast` (the 35B on CUDA); unset in both: off.
+pub fn resolve_sampled_verify_fast(env: Option<bool>, recipe: Option<bool>) -> bool {
+    env.or(recipe).unwrap_or(false)
+}
+
+fn parse_sampled_verify_fast(v: Option<&str>) -> Option<bool> {
+    match v.map(|v| v.trim().to_ascii_lowercase()).as_deref() {
+        None | Some("") => None,
+        Some("0" | "false" | "off" | "no") => Some(false),
+        Some("1" | "true" | "on" | "yes") => Some(true),
+        Some(other) => {
+            eprintln!("INTARSIA_SAMPLED_VERIFY_FAST={other}: unknown (0 / off, 1 / on); the default applies");
+            None
+        }
+    }
+}
+
 /// A boolean opt-in env var read as [`BatchedOptions::new`] reads it (`1` is on, any other value off), `None` when it is unset or empty (the
 /// recipe's `[tuning.<backend>]` value then applies: `INTARSIA_BATCHED_VERIFY` / `batched_verify`, `INTARSIA_VERIFY_TOPK` / `verify_topk`).
 pub fn bool_env_opt(name: &str) -> Option<bool> {
@@ -1485,6 +1511,29 @@ pub fn bool_env_opt(name: &str) -> Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Lane svfflip: `INTARSIA_SAMPLED_VERIFY_FAST` parses `0` / `false` / `off` / `no` as off and `1` / `true` / `on` / `yes` as on (not only `1`),
+    /// unset, empty or unknown as "no answer" (the recipe's default applies); the variable wins both ways over the recipe key.
+    #[test]
+    fn sampled_verify_fast_env_parse_and_resolution() {
+        for v in ["0", "false", "off", "no", "OFF", " Off ", "No"] {
+            assert_eq!(parse_sampled_verify_fast(Some(v)), Some(false), "{v:?}");
+        }
+        for v in ["1", "true", "on", "yes", "ON"] {
+            assert_eq!(parse_sampled_verify_fast(Some(v)), Some(true), "{v:?}");
+        }
+        for v in [None, Some(""), Some("  "), Some("2"), Some("maybe")] {
+            assert_eq!(parse_sampled_verify_fast(v), None, "{v:?}");
+        }
+        // unset: the recipe key (on for the 35B on CUDA), else off
+        assert!(resolve_sampled_verify_fast(None, Some(true)));
+        assert!(!resolve_sampled_verify_fast(None, Some(false)));
+        assert!(!resolve_sampled_verify_fast(None, None), "a recipe without the key (other models, other backends): off");
+        // the variable wins both ways
+        assert!(!resolve_sampled_verify_fast(Some(false), Some(true)), "=0 / off reverts the recipe default");
+        assert!(resolve_sampled_verify_fast(Some(true), None), "=1 forces it on where the recipe does not");
+        assert!(resolve_sampled_verify_fast(Some(true), Some(false)));
+    }
 
     struct NoCodec;
     impl TextCodec for NoCodec {

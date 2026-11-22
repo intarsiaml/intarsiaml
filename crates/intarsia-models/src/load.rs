@@ -1254,6 +1254,12 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         if intarsia_core::engine::bool_env_opt("INTARSIA_VERIFY_TOPK").is_none() {
             bo.verify_topk = recipe.resolve_verify_topk(backend_name).unwrap_or(false);
         }
+        // lane svfflip (user decision #13, 2026-11-22): the sampled-verify fast path is a recipe key too (`[tuning.cuda] sampled_verify_fast`, the 35B only); the env var
+        // (`0` / `off` off, `1` on) wins both ways, and `BatchedEngine::new` applies it only with batched MTP and sampled drafting
+        bo.sampled_verify_fast = intarsia_core::engine::resolve_sampled_verify_fast(
+            intarsia_core::engine::sampled_verify_fast_env(),
+            recipe.resolve_sampled_verify_fast(backend_name),
+        );
         if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && (bo.batched_verify || bo.verify_topk) {
             eprintln!(
                 "batched MTP verify: batched_verify {} (INTARSIA_BATCHED_VERIFY or recipe [tuning.{backend_name}] batched_verify), verify_topk {} (INTARSIA_VERIFY_TOPK or recipe verify_topk)",
