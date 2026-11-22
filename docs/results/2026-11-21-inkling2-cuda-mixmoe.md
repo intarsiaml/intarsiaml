@@ -1010,3 +1010,34 @@ are fixed in `8d3030018`: the DSpark rows were duplicated in `docs/tuning.md` (m
 applied the softcap twice (main now caps verify rows). Endor #11638 passed: workspace check, mtp, dspark, inkling2, plan,
 gumbel, prepush. Spark2 #11637 passed: ink_rows, tiny cuda 17/17, Inkling CUDA md5 unchanged with spec off and on (spec-on
 decode at g256 is now 46.9 tok/s after #493's DSpark defaults).
+
+## gu+dn overlap per layer (brief 42; branch `ink/cuda-moe-fuse` `b8e5cccf2`, gate #11663): +0.90 %, under the 1 % bar, stopped
+
+The form tried is programmatic dependent launch, not one fused kernel. gate_up triggers `griddepcontrol.launch_dependents` at its
+start. down is launched with `cudaLaunchAttributeProgrammaticStreamSerialization`, so its blocks become resident as gate_up's
+blocks exit. In that tail they group the pairs and prefetch their own rows into L2, then wait on `griddepcontrol.wait` before
+reading h. The opt-in switch is `INTARSIA_INK_MOE_PDL=1`, for 16-bit activations only. Both kernels already run as a single
+wave (288 blocks each), so a fused kernel with a ready flag would buy the same overlap: no second launch to remove beyond what
+PDL hides.
+
+Bitwise: `ink_rows` 8/8 with PDL=1, tiny inkling2 cuda 17/17, moe_experts 16 kernels / 121 cases and mxfp8 2 / 45 admitted.
+Greedy ids are identical PDL 0 vs 1 (g64, g256 spec off and on, g1.2k).
+
+| ink_bench, 2 passes | PDL=0 | PDL=1 |
+|---|---|---|
+| nv T=1 | 179.3 / 180.0 us | 173.8 / 171.6 us (-4.0 %) |
+| nv T=2 | 330.4 / 330.3 | 326.5 / 325.3 (-1.3 %) |
+| nv T=4 | 588.3 / 592.6 | 593.0 / 593.1 (+0.4 %) |
+| nv T=16 | 1677.7 / 1677.7 | 1837.8 / 1837.2 (**+9.5 %**) |
+| mx T=1 | 296.6 / 296.3 | 289.2 / 289.6 (-2.4 %) |
+| mx T=16 | 2971.0 / 2970.6 | 3319.0 / 3306.6 (+11.5 %) |
+
+At T=16, down's early-resident blocks hold SM slots, and a 16-row step loses more there than it gains.
+
+g256 spec off, quiet ABBA (0 1 1 0 0 1 1 0), tok/s: PDL=0 36.45 / 36.64 / 36.42 / 36.42 (mean 36.48), PDL=1 36.83 / 36.76 /
+36.79 / 36.86 (mean 36.81): **+0.90 %**, consistent (every PDL=1 run beats every PDL=0 run) but under the 1 % bar. Spec on
+g256: 47.08 both. g1.2k spec off: 35.66 -> 36.23 (single runs). **Verdict: not kept** (brief 42 rule). The commit stays on the
+local branch as the record, and the default is unchanged.
+
+If wanted later: PDL limited to T <= 2 (the gain is there, the loss at T >= 4) together with the repack (+1.13 %, stage A). The
+two are independent, so ~+2 % at g256 spec off is plausible, untested.
