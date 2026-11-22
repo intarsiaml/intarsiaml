@@ -1,0 +1,30 @@
+case                                           us/call       p10       p90     GB/s
+ink_mix_row_e3: max threads 1024 width 32 tg mem 5280
+ink_mix_row_e4: max threads 1024 width 32 tg mem 5280
+ink_mix_row_e9: max threads 1024 width 32 tg mem 5280
+ink_blend_gate_g8: max threads 1024 width 32 tg mem 0
+ink_in_proj_gemv_r1p1s8u2b1: max threads 1024 width 32 tg mem 32
+ink_in_proj_gemv_r16p1s8u2b16: max threads 1024 width 32 tg mem 512
+== NE 3
+ConvMix N=4 Q=1 norm (plain boundary) R=1        16.84     16.81     17.37
+ConvMix N=4 Q=1 norm (plain boundary) R=2048    745.82    736.34    750.60
+AttnResMix N=4 Q=1 norm R=1                      11.16     11.14     11.23
+AttnResMix N=4 Q=1 norm R=2048                  467.15    465.48    473.04
+SconvRes res+add+sum R=1                          6.84      6.83      6.85
+SconvRes res+add+sum R=2048                     151.62    151.42    152.84
+== NE 4
+ConvMix N=4 Q=1 norm (plain boundary) R=1        18.23     18.20     18.36
+ConvMix N=4 Q=1 norm (plain boundary) R=2048    601.99    601.45    602.41
+AttnResMix N=4 Q=1 norm R=1                      10.73     10.71     10.76
+AttnResMix N=4 Q=1 norm R=2048                  415.50    415.29    415.86
+SconvRes res+add+sum R=1                          8.48      8.46      8.52
+SconvRes res+add+sum R=2048                     153.05    152.99    154.67
+== NE 9
+ConvMix N=4 Q=1 norm (plain boundary) R=1        46.16     46.02     46.35
+ConvMix N=4 Q=1 norm (plain boundary) R=2048   1005.92   1003.99   1006.82
+AttnResMix N=4 Q=1 norm R=1                      28.95     28.87     29.20
+AttnResMix N=4 Q=1 norm R=2048                  873.53    871.34    882.13
+SconvRes res+add+sum R=1                         20.07     19.91     20.47
+SconvRes res+add+sum R=2048                     158.66    158.53    158.80
+
+[exited with code 0]

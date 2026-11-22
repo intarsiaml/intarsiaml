@@ -1,0 +1,36 @@
+fleetq: #10675 running on endor: ./target/release/examples/ink_mix_bench --reps 10 --rows 1,4,16 mix
+case                                           us/call       p10       p90     GB/s
+mix case (D 2304)                              us/call       p10       p90
+ConvMix N=4 Q=1 norm (plain boundary) R=1         8.46      8.43      8.49
+ConvMix N=4 Q=1 norm (plain boundary) R=4         8.67      8.65      8.69
+ConvMix N=4 Q=1 norm (plain boundary) R=16        9.04      8.98      9.10
+ConvMix N=4 Q=1 norm (plain boundary) R=2048    274.37    274.22    274.55
+ConvMix N=4 Q=3 norm (into a full layer) R=1     11.36     11.34     11.39
+ConvMix N=4 Q=3 norm (into a full layer) R=4     11.49     11.47     11.53
+ConvMix N=4 Q=3 norm (into a full layer) R=16     12.32     12.30     12.41
+ConvMix N=4 Q=3 norm (into a full layer) R=2048    394.59    394.24    395.01
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=1     35.44     35.09     35.60
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=4     38.99     38.86     39.08
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=16     71.69     71.62     71.87
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=2048   4237.99   4231.08   4256.23
+ConvMix N=3 Q=1 blend S=1 (looped mlp in) R=1     27.65     27.54     27.88
+ConvMix N=3 Q=1 blend S=1 (looped mlp in) R=4     31.33     30.95     31.70
+ConvMix N=3 Q=1 blend S=1 (looped mlp in) R=16     53.88     53.78     54.08
+ConvMix N=3 Q=1 blend S=1 (looped mlp in) R=2048   1790.54   1785.29   1793.13
+AttnResMix N=4 Q=1 norm R=1                       5.60      5.55      5.61
+AttnResMix N=4 Q=1 norm R=4                       5.62      5.61      5.65
+AttnResMix N=4 Q=1 norm R=16                      6.02      6.00      6.03
+AttnResMix N=4 Q=1 norm R=2048                  148.86    148.42    150.71
+AttnResMix N=2 Q=4 f32 (loop messages) R=1        5.18      5.18      5.18
+AttnResMix N=2 Q=4 f32 (loop messages) R=4        5.27      5.25      5.30
+AttnResMix N=2 Q=4 f32 (loop messages) R=16       5.58      5.57      5.61
+AttnResMix N=2 Q=4 f32 (loop messages) R=2048    215.71    215.41    220.01
+LoopBlend S=3 R=1                                25.50     25.41     25.66
+LoopBlend S=3 R=4                                30.36     30.25     30.47
+LoopBlend S=3 R=16                               62.69     62.60     63.03
+LoopBlend S=3 R=2048                           3927.68   3921.01   3932.35
+SconvRes res+add+sum R=1                          4.44      4.42      4.46
+SconvRes res+add+sum R=4                          4.36      4.35      4.37
+SconvRes res+add+sum R=16                         4.60      4.59      4.62
+SconvRes res+add+sum R=2048                     118.43    118.31    119.11
+fleetq: #10675 done (exit 0)
