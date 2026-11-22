@@ -299,6 +299,20 @@ impl MetalBackend {
         let pso_rw = self.ink_pso(RING_WRITE)?;
         let all: Vec<&Bind> = binds.iter().chain(std::iter::once(&pos_b)).collect();
         let rw: Vec<&Bind> = vec![&binds[1], &binds[2], &binds[12], &binds[13], &pos_b];
+        // lane ink-prefill hook: prefill chunks as the prologue without rel + the rel product per 8-row block (inkprefill.rs)
+        if crate::inkprefill::prologue_split(t) {
+            crate::inkprefill::trace("prologue split");
+            let [nr, rl] = crate::inkprefill::SPLIT_SHADERS;
+            let (pso_nr, pso_rl) = (self.ink_pso(nr)?, self.ink_pso(rl)?);
+            let th_nr = d.max(32).next_multiple_of(32);
+            return self.with_encoder(|enc| {
+                encode(enc, pso_nr, &all, &p, Some((hk, t, 1, th_nr)), 0);
+                encode(enc, pso_rl, &all, &p, Some((hk, t.div_ceil(crate::inkprefill::SPLIT_RB), 1, 128)), 0);
+                if !fused {
+                    encode(enc, pso_rw, &rw, &p, None, t * hk * d);
+                }
+            });
+        }
         self.with_encoder(|enc| {
             encode(enc, pso, &all, &p, Some((hk, t, 1, threads)), 0);
             if !fused {

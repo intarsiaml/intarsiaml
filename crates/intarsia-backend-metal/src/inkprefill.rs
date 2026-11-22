@@ -138,6 +138,32 @@ pub fn blend_gate_nax(rows: usize) -> bool {
     blend_nax(rows) && blend_level() >= 2
 }
 
+/// Entry points of inkling2_prologue_split.metal (main library): InkKvPrologue as the prologue without the rel product plus
+/// the rel product per 8-row block, bitwise `ink_kv_prologue_bf16`.
+pub const SPLIT_SHADERS: [&str; 2] = ["ink_kv_prologue_norel_bf16", "ink_rel_proj_bf16"];
+
+/// Rows per `ink_rel_proj_bf16` threadgroup (`PS_RB` in the shader).
+pub const SPLIT_RB: usize = 8;
+
+/// InkKvPrologue of prefill chunks (rows > 16) as the two `SPLIT_SHADERS` kernels: `INTARSIA_INK_PROLOGUE_SPLIT=1`
+/// (default off).
+pub fn prologue_split(rows: usize) -> bool {
+    static L: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    rows > 16
+        && match SPLIT_FORCE.load(std::sync::atomic::Ordering::Relaxed) {
+            0 => false,
+            1 => true,
+            _ => *L.get_or_init(|| std::env::var("INTARSIA_INK_PROLOGUE_SPLIT").is_ok_and(|v| v == "1")),
+        }
+}
+
+static SPLIT_FORCE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0xFF);
+
+/// Tests: force [`prologue_split`] on / off (`None` = the environment).
+pub fn set_prologue_split(v: Option<bool>) {
+    SPLIT_FORCE.store(v.map_or(0xFF, u8::from), std::sync::atomic::Ordering::Relaxed);
+}
+
 fn blend_level() -> u8 {
     static L: std::sync::OnceLock<u8> = std::sync::OnceLock::new();
     // default 2 (lane ink-prefill: admitted, ~2.5x faster blend on 2048-row chunks); 0 restores m-mix's GEMV path

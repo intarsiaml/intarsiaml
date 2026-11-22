@@ -351,6 +351,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::dflash::shader_names());
     v.extend(crate::bridge::shader_names());
     v.extend(crate::inkattn::shader_names());
+    v.extend(crate::inkprefill::SPLIT_SHADERS);
     v.extend(crate::inkmix::shader_names());
     v.extend(crate::p12::shader_names());
     v.extend(crate::screen::shader_names());
