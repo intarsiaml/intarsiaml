@@ -5,6 +5,16 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 
 ## Briefs received
 
+- 2026-11-22 (main): accepted, the merges are not the B8/B16 cause: no bisect. Finish the toggles and the second ref / final
+  runs, then one diagnostic (same slot if --expect covers it, else a fresh quiet slot): ref 8546d143f, B 1 and B 16, 1 rep each.
+  (1) Per step, summed command-buffer GPU time (GPUStartTime..GPUEndTime) vs wall: did the GPU's own time grow or the gaps?
+  (2) Per rep deltas of vm_stat (pageins, decompressions, swapins), the process's fault counts, and IOAccelerator
+  PerformanceStatistics before / after (In use / Alloc system memory, Device Utilization). (3) GPU time grew = GPU slower
+  (clocks, bandwidth, GPU memory management); gaps grew = host side. (4) Place #11181 and #11261 (date/time, setup) in time:
+  60 ms -> 80-88 -> 80-90 at B16. Report which, with numbers; no reboot or endor change proposals (user's call). Main's
+  endor snapshot 06:53-06:56: CPU 90-94% idle, 10 s deltas +938 pageins / +87 decompressions / +4 swapins, swap 21.07 / 21.5 GB,
+  compressor ~29 GB, wired ~41 GB, iogpu.wired_limit_mb 0, uptime 7d18h (no reboot since #11181).
+
 - 2026-11-22 (main): endor checked 06:33-06:40: no tensorfold process, kev idle, no thermal / performance warnings, AC high
   power, no other model server; swap nearly full (21.07 / 21.5 GB), which fits the system page-ins but not our slowness
   (0 major faults, slow in low-page-in runs too). (1) Let #11297 finish; its numbers are labelled "box-slow, not speed".
