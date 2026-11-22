@@ -624,7 +624,8 @@ impl Model {
 
     /// One Inkling-2 pass over `t` rows at positions `pos0..` of `st`, the final normed hidden state into `out` (`[t, D]`).
     /// `tf`: teacher forcing (every visit's blocks / partial / bank and the head's from these tensors, every attention mix
-    /// standalone); `dump`: collect the oracle-named intermediates (tests).
+    /// standalone); `dump`: collect the oracle-named intermediates (tests). `dpos`: the device position (`i32 [1]`) of a
+    /// captured decode step: the positioned ops (`inkling2::ops::POSITIONED`) read it instead of `pos0`.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn ink_pass(
         &self,
@@ -636,6 +637,7 @@ impl Model {
         profile: bool,
         tf: Option<&InkTensors>,
         mut dump: Option<&mut InkTensors>,
+        dpos: Option<&TensorRef>,
     ) -> Result<()> {
         let im = self.ink.as_ref().ok_or_else(|| Error::invalid("inkling2 pass on another model"))?;
         let (ink, ws) = (&im.dims, &im.ws);
@@ -647,6 +649,8 @@ impl Model {
         let act = self.act;
         let eps = self.dims.rms_eps;
         let ex = |op: Op, i: Vec<TensorRef>, o: Vec<TensorRef>, a: OpAttrs| self.exec(op, i, o, a, profile);
+        // the positioned ops: the device position when the step is captured
+        let exp = |op: Op, i: Vec<TensorRef>, o: Vec<TensorRef>, a: OpAttrs| self.exec_pos(op, i, o, a, dpos, profile);
         let a0 = OpAttrs { eps, ..OpAttrs::default() };
         let none = |dt: DType, shape: &[usize]| TensorRef::new(ws.emb.clone(), dt, shape);
         let stack = |start: usize, n: usize| planes(&ws.s, act, start, n, t, d);
@@ -807,12 +811,13 @@ impl Model {
             });
             let fused = fused.map(|mut c| {
                 c.exact_rows = self.verifying();
+                c.pos = dpos.cloned();
                 c
             });
             if let Some(call) = fused.filter(|c| self.registry.select(c).is_ok()) {
                 self.exec_call(call, profile)?;
             } else {
-                ex(
+                exp(
                     Op::InkKvPrologue,
                     vec![pq.clone(), pk, pv, l.ktaps.clone(), l.vtaps.clone(), l.qscale.clone(), l.rscale.clone(), l.relproj.clone()],
                     vec![q.clone(), rel.clone(), k.clone(), vv.clone(), kvc.plane(0), kvc.plane(1)],
@@ -823,7 +828,7 @@ impl Model {
                 put(format!("{tag}.v"), &vv)?;
                 put(format!("{tag}.rel"), &rel)?;
                 put(format!("{tag}.sink"), &pq)?;
-                ex(Op::RelSinkAttn, vec![q, k, vv, kc.clone(), vc.clone(), rel, pq], vec![o.clone(), kc, vc], aa)?;
+                exp(Op::RelSinkAttn, vec![q, k, vv, kc.clone(), vc.clone(), rel, pq], vec![o.clone(), kc, vc], aa)?;
             }
             let aproj = plane(&ws.aproj, act, 0, t, d);
             ex(Op::Matmul, vec![o, l.wo.clone()], vec![aproj.clone()], OpAttrs::default())?;
@@ -846,7 +851,7 @@ impl Model {
             } else {
                 ins.extend([l.mlp_norm.clone(), none(act, &[0]), none(act, &[0]), none(act, &[0]), none(act, &[0])]);
             }
-            ex(Op::ConvMix, ins, vec![aout.clone(), hc.plane(0), none(act, &[0]), mlpin.clone()], pc.clone())?;
+            exp(Op::ConvMix, ins, vec![aout.clone(), hc.plane(0), none(act, &[0]), mlpin.clone()], pc.clone())?;
             put(format!("{tag}.attn_out"), &aout)?;
             let mlpin = mlpin.reshaped(&[t, d]);
             put(format!("{tag}.mlp_in"), &mlpin)?;
@@ -921,7 +926,7 @@ impl Model {
                 ins.extend([TensorRef::new(ws.emb.clone(), DType::F32, &[0, d]), none(act, &[0]), none(act, &[0]), none(act, &[0]), none(act, &[0]), none(act, &[0])]);
                 mix_out = none(act, &[0]);
             }
-            ex(Op::ConvMix, ins, vec![plane(&ws.aproj, act, 0, t, d), hc.plane(1), dest.clone(), mix_out], pc)?;
+            exp(Op::ConvMix, ins, vec![plane(&ws.aproj, act, 0, t, d), hc.plane(1), dest.clone(), mix_out], pc)?;
             put(format!("{tag}.partial_out"), &dest)?;
             x_ready = fuse;
         }
