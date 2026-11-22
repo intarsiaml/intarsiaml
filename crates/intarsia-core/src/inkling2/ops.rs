@@ -39,6 +39,7 @@
 //! | `RelSinkAttn` (71) | q `[T,H,Dh]`, k `[T,Hk,Dh]`, v `[T,Hk,Dh]`, k cache `[Hk,Cr,Dh]`, v cache `[Hk,Cr,Dh]`, rel `[T,H,E]`, pq `[T,Nq]` | o `[T,H*Dh]`, k cache, v cache (**in place**) | pos0, scale, n_heads, n_kv_heads, head_dim, window, ink.{kv_ring, d_rel} |
 //! | `MoeExpertsMxfp8` (72) | x `[T,H]`, ids `[T,K]` i32, weights `[T,K]` f32, w13 `[E,2I,H]` e4m3, w13 scales `[E,2I,H/32]` u8 (E8M0), w2 `[E,H,I]` e4m3, w2 scales `[E,H,I/32]` u8 | `[T,H]` | gelu, ink.{situ, gate_cap, up_cap, act_quant} |
 //! | `InkInProj` (73) | x `[S,T,D]` (S = 1 or 3), w `[Nq+Nk+Nv,D]` | pq `[T,Nq]`, pk `[T,Nk]`, pv `[T,Nv]` | |
+//! | `InkAttnDecode` (75) | pq, pk, pv, k taps, v taps, q scale, r scale, rel proj (as `InkKvPrologue`), k cache `[Hk,Cr,Dh]`, v cache | o `[T,H*Dh]`, k cache, v cache, k ring, v ring (all **in place**) | the union of the two ops' attrs |
 //! | `ConvMix` (74) | x, taps, res, addend (as `SconvRes`), src `[N,T,D]`, queries `[Q,D]` f32 (Q may be 0), norm `[S,D]` or `[0]`, msg `[S,T,D]` f32 or `[0]`, down, gain, forget (as `LoopBlend`) or three `[0]` | y, ring, sum (as `SconvRes`), mix `[S,T,D]` or `[0]` | pos0, eps |
 //!
 //! ## AttnResMix: the depth mix (spec a2, also the loop messages a12 and the output mix a16)
@@ -84,6 +85,12 @@
 //! `o = sum_j e^{s_j} v_j / (sum_j e^{s_j} + e^{sink})` (f32), `out[t, h*Dh + i] = rA(o_i * sigmoid(gate))`. After the
 //! attention the caches get the call's k / v rows: linear rows `pos0 .. pos0+T` (needs `pos0 + T <= Cr`), ring rows by the
 //! ring rule (`window - 1 + T` positions are needed while reading, so for a ring `window <= Cr`).
+//!
+//! ## InkAttnDecode: the fused decode attention (lane ink-m-attn, discriminant 75)
+//!
+//! Exactly `RelSinkAttn(InkKvPrologue(..))`: the prologue's q / rel / k / v are rounded to `A` as that op writes them and
+//! are not outputs; `RelSinkAttn` reads `pq` (gate, sink) and the caches as above. T is 1..=16 (decode and verify rows; the
+//! check refuses more, so a graph falls back to the pair for a chunk). A kernel is rows-exact like the pair.
 //!
 //! ## MoeExpertsMxfp8 and the `situ` activation of `MoeExperts`
 //!
@@ -158,7 +165,7 @@ impl Default for InkAttrs {
 }
 
 /// The Inkling-2 ops, in discriminant order (67 ..).
-pub const OPS: [Op; 8] = [
+pub const OPS: [Op; 9] = [
     Op::AttnResMix,
     Op::LoopBlend,
     Op::SconvRes,
@@ -167,10 +174,39 @@ pub const OPS: [Op; 8] = [
     Op::MoeExpertsMxfp8,
     Op::InkInProj,
     Op::ConvMix,
+    Op::InkAttnDecode,
 ];
 
 /// The ops that take a device position (`OpCall::pos`, `i32 [1]`).
-pub const POSITIONED: [Op; 4] = [Op::SconvRes, Op::InkKvPrologue, Op::RelSinkAttn, Op::ConvMix];
+pub const POSITIONED: [Op; 5] = [Op::SconvRes, Op::InkKvPrologue, Op::RelSinkAttn, Op::ConvMix, Op::InkAttnDecode];
+
+/// Most rows of an `InkAttnDecode` call.
+pub const ATTN_DECODE_MAX_ROWS: usize = 16;
+
+/// The two calls `InkAttnDecode` is defined as (prologue, attention), with `q`, `rel`, `k`, `v` the intermediates (any
+/// buffers of the right shapes; the checks only look at shapes and dtypes).
+pub fn attn_decode_parts(call: &OpCall, q: TensorRef, rel: TensorRef, k: TensorRef, v: TensorRef) -> (OpCall, OpCall) {
+    let (i, o) = (&call.inputs, &call.outputs);
+    let mut pro = OpCall::new(
+        Op::InkKvPrologue,
+        i[..8].to_vec(),
+        vec![q.clone(), rel.clone(), k.clone(), v.clone(), o[3].clone(), o[4].clone()],
+        call.attrs.clone(),
+    );
+    pro.pos = call.pos.clone();
+    let mut att =
+        OpCall::new(Op::RelSinkAttn, vec![q, k, v, i[8].clone(), i[9].clone(), rel, i[0].clone()], o[..3].to_vec(), call.attrs.clone());
+    att.pos = call.pos.clone();
+    (pro, att)
+}
+
+/// Shapes of the intermediates of `InkAttnDecode`: q, rel, k, v.
+pub fn attn_decode_inter(call: &OpCall) -> [Vec<usize>; 4] {
+    let (i, a) = (&call.inputs, &call.attrs);
+    let t = i[0].shape.first().copied().unwrap_or(0);
+    let e = i[7].shape.get(1).copied().unwrap_or(0);
+    [vec![t, a.n_heads, a.head_dim], vec![t, a.n_heads, e], vec![t, a.n_kv_heads, a.head_dim], vec![t, a.n_kv_heads, a.head_dim]]
+}
 
 /// `[q | r | gate | sink]` width of a `pq` row.
 pub fn nq(h: usize, dh: usize, dr: usize) -> usize {
@@ -454,6 +490,18 @@ pub fn check(call: &OpCall) -> Result<()> {
             }
             want(op, &i[1], None, &[ns.iter().sum(), d], "w")?;
         }
+        Op::InkAttnDecode => {
+            let t = i[0].shape.first().copied().unwrap_or(0);
+            if !(1..=ATTN_DECODE_MAX_ROWS).contains(&t) || i[7].shape.len() != 2 {
+                return bad(op, format!("1..={ATTN_DECODE_MAX_ROWS} rows (got {t}) and a [dr,E] rel proj"));
+            }
+            let a = i[0].dtype;
+            let [qs, rs, ks, vs] = attn_decode_inter(call);
+            let ph = |shape: Vec<usize>| TensorRef { buf: i[0].buf.clone(), offset: 0, dtype: a, shape };
+            let (pro, att) = attn_decode_parts(call, ph(qs), ph(rs), ph(ks), ph(vs));
+            check(&pro)?;
+            check(&att)?;
+        }
         _ => return bad(op, "not an Inkling-2 op".into()),
     }
     Ok(())
@@ -498,7 +546,7 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.kv_len = dim(&i[1], 0);
             s.weight = Some(i[1].dtype);
         }
-        Op::InkKvPrologue | Op::RelSinkAttn => {
+        Op::InkKvPrologue | Op::RelSinkAttn | Op::InkAttnDecode => {
             s.m = dim(&i[0], 0);
             s.n_heads = a.n_heads;
             s.n_kv_heads = a.n_kv_heads;
@@ -507,6 +555,9 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.kv_len = a.pos0 + dim(&i[0], 0);
             if call.op == Op::RelSinkAttn {
                 s.weight = Some(i[3].dtype);
+            }
+            if call.op == Op::InkAttnDecode {
+                s.weight = Some(i[8].dtype);
             }
         }
         Op::MoeExpertsMxfp8 => {

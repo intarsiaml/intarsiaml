@@ -342,6 +342,64 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                 }
             }
         }
+        Op::InkAttnDecode => {
+            // (H, Hk, Dh, dr, E, K, window, ring, cache rows, dyn+tau, positions, qk clip): small shapes and the real model
+            type Shape = (usize, usize, usize, usize, usize, usize, usize, bool, usize, bool, Vec<usize>, f32);
+            let mut shapes: Vec<Shape> = vec![
+                (H, HK, DH, DR, 8, K, 8, true, 8 + 4, false, vec![0, 5, 29], 3.0),
+                (H, HK, DH, DR, 12, K, 0, false, 96, true, vec![0, 5, 29], 3.0),
+                (H, HK, DH, DR, 12, K, 8, false, 96, false, vec![3, 29], 3.0),
+            ];
+            if !quick {
+                shapes.push((24, 8, 128, 16, 1024, 4, 1024, true, 1040, false, vec![0, 1023, 1030, 2100], 16.0 * 2f32.sqrt()));
+                shapes.push((24, 8, 128, 16, 1024, 4, 0, false, 8192 + 64, true, vec![1022, 8192], 16.0 * 2f32.sqrt()));
+            }
+            let drows: &[usize] = if quick { &[1, 7] } else { &[1, 3, 4, 7, 16] };
+            for &t in drows {
+                for (h, hk, dh, dr, e, kk, win, ring, cr, dynamic, poss, qkc) in &shapes {
+                    let (h, hk, dh, dr, e, kk, win, ring, cr, dynamic, qkc) = (*h, *hk, *dh, *dr, *e, *kk, *win, *ring, *cr, *dynamic, *qkc);
+                    let ckv = hk * dh;
+                    let rr = if dh > DH { kk - 1 + 16 } else { kk - 1 + 4 };
+                    for &pos0 in poss {
+                        if !ring && pos0 + t > cr {
+                            continue;
+                        }
+                        let pw = if dynamic { ckv + hk * kk } else { ckv };
+                        let kc = rand_t(rng, W, &[hk, cr, dh], 1.5);
+                        let vc = rand_t(rng, W, &[hk, cr, dh], 1.0);
+                        let inputs = vec![
+                            rand_t(rng, W, &[t, nq(h, dh, dr)], 1.0),
+                            rand_t(rng, W, &[t, pw], 1.0),
+                            rand_t(rng, W, &[t, pw], 1.0),
+                            rand_t(rng, W, &[kk, ckv], 0.5),
+                            rand_t(rng, W, &[kk, ckv], 0.5),
+                            pos_t(rng, W, &[h, dh], 0.2, 3.0),
+                            pos_t(rng, W, &[h, dr], 0.2, 1.5),
+                            rand_t(rng, W, &[dr, e], 0.25),
+                            kc.clone(),
+                            vc.clone(),
+                        ];
+                        let outputs = vec![
+                            out(W, &[t, h * dh]),
+                            inout(kc),
+                            inout(vc),
+                            inout(rand_t(rng, W, &[rr, ckv], 1.0)),
+                            inout(rand_t(rng, W, &[rr, ckv], 1.0)),
+                        ];
+                        let mut a = OpAttrs { pos0, n_heads: h, n_kv_heads: hk, head_dim: dh, window: win, scale: (dh as f32).powf(-0.5), ..a0.clone() };
+                        a.ink.qk_clip = qkc;
+                        a.ink.rel_clip = 2.0;
+                        a.ink.dyn_conv = dynamic;
+                        a.ink.d_rel = dr;
+                        a.ink.kv_ring = ring;
+                        if dynamic {
+                            (a.ink.tau_floor, a.ink.tau_alpha) = (if dh > DH { 1024 } else { 4 }, 0.1);
+                        }
+                        push(format!("T={t} H={h} Hk={hk} Dh={dh} E={e} W={win} ring={ring} Cr={cr} Rr={rr} pos0={pos0} dyn={dynamic} bf16"), inputs, outputs, a);
+                    }
+                }
+            }
+        }
         Op::MoeExpertsMxfp8 => {
             let mut shapes: Vec<(usize, usize, usize, usize, usize)> = vec![(1, 16, 4, 64, 32), (7, 16, 4, 64, 64), (16, 16, 4, 128, 32), (40, 16, 4, 64, 32)];
             if !quick {

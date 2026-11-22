@@ -165,6 +165,7 @@ pub const UNIMPLEMENTED: &[Op] = &[
     Op::MoeExpertsMxfp8,
     Op::InkInProj,
     Op::ConvMix,
+    Op::InkAttnDecode,
 ];
 
 /// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the
