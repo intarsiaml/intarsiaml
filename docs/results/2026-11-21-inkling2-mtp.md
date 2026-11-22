@@ -134,4 +134,54 @@ Tests:
   f32 / bf16).
 - Real-model token identity: section 3.
 
+## 3. Metal: token identity and speed (endor, M5 Max)
+
+### Token identity
+
+Every DSpark run below produced the same ids as `--spec off` on all 12 greedy golden prompts x 128 tokens and on both prose
+texts x 128. That covers k 1-7, tau 0.4-0.8, mxfp4 / bf16 heads, fp8 layers, the exact head (`CAND=0`) and the gate-off k1.
+Runs: #10790 (k3 tau 0.6, k1 tau 0) and #10806 (all of the timing table). CPU backend, real model: 2 greedy prompts x 32,
+identical (#10816 on spark2's CPU; 1.21 -> 1.99 tok/s, 3.59 tokens per pass).
+
+Engine acceptance at k1 with the gate off is 71.1%, against the oracle's 72.2% at position 1, so the Rust drafter's numerics
+match vLLM's (#10790, bf16 exact head).
+
+### Decode tok/s (#10806, `--quiet gpu,cpu`, `--profile-every 0`, frozen binary c770aaef3)
+
+Greedy golden, 12 prompts x 128 tokens (1501 tokens after each prompt's first):
+
+| policy | tok/s | vs off | tokens / verify pass | acceptance |
+|---|---:|---:|---:|---:|
+| spec off | 60.21 | 1.00 | - | - |
+| k1, tau 0.6 | 63.71 | 1.06 | 1.80 | 79.6% |
+| **k2, tau 0.6** | **71.27** | **1.18** | 2.23 | 67.4% |
+| k3, tau 0.6 | 68.50 | 1.14 | 2.40 | 56.9% |
+| k3, tau 0.8 | 69.65 | 1.16 | 2.55 | 71.7% |
+| k4, tau 0.6 | 69.24 | 1.15 | 2.53 | 52.0% |
+| k7, tau 0.6 | 63.75 | 1.06 | 2.63 | 42.2% |
+| k3, tau 0.6, bf16 draft head | 67.12 | 1.11 | 2.47 | 59.7% |
+| k3, tau 0.6, fp8 draft layers | 63.98 | 1.06 | 2.41 | 57.5% |
+
+Prose (the two human texts, 128 tokens each):
+
+| policy | tok/s | vs off | tokens / pass |
+|---|---:|---:|---:|
+| spec off | 61.55 | 1.00 | - |
+| k3, tau 0.6 | 66.00 | 1.07 | 2.33 |
+| k7, tau 0.6 | 63.30 | 1.03 | 2.52 |
+
+Drafter profile (k3 tau 0.6, `INTARSIA_DSPARK_PROFILE=1`, ms per cycle, synced; 522 cycles):
+
+| part | ms | where |
+|---|---:|---|
+| ingest (taps down, host mixes, upload, ctx K/V projections) | 0.94 | host + GPU |
+| block pass (3 layers x 8 rows, 24 AttnDecode calls) | 2.64 | GPU |
+| head (MXFP4 base GEMM over k rows + device top-64) | 1.34 | GPU |
+| Markov step 0 + small downloads | 0.70 | host |
+
+The drafter costs about 5 ms a cycle against a 16.6 ms plain step. That is why the gain stops at about 18% while the oracle's
+tokens per pass (2.2-2.6) promised more. Most of it is GPU work (block 2.6 ms, head 1.3 ms), not host syncs (about 1.2 ms of
+host time in total). Verify and the k choice are behind it: k2 is the best fixed setting, and k7 pays for 8-row verifies that
+mostly reject.
+
 RESULTS_PLACEHOLDER
