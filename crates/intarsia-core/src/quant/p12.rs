@@ -312,7 +312,25 @@ pub fn random_weight(rng: &mut crate::rng::SplitMix64, n: usize, k: usize, std: 
 /// 1.2k: 197 vs 182 us per visit; decode-ALU bound), while wo (48 vs 59 us) and the unembed (2873 vs 3756 us) gain. The
 /// kernel stays registered (`INTARSIA_INK_P12_IN_PROJ=1` packs it anyway, for measurement).
 pub fn pack_in_proj(backend: &str) -> bool {
-    backend != "cuda" || std::env::var("INTARSIA_INK_P12_IN_PROJ").is_ok_and(|v| v.trim() == "1")
+    backend != "cuda" || std::env::var("INTARSIA_INK_P12_IN_PROJ").is_ok_and(|v| v.trim() == "1") || in_proj_gemv_env()
+}
+
+/// `INTARSIA_INK_IN_PROJ_GEMV=1` (opt-in, default off; lane ink-cuda-attn): the in-projection at 1..=[`ROWS_MAX`] rows in the
+/// GEMV form (one warp per weight row; on CUDA `ink_in_proj_{bf16,p12}_gemv`, bitwise twins) instead of the mma form, and its
+/// P12 copy packed and used at every such row count. Rows-exact either way; the forms sum in different orders, so the switch
+/// moves the model's output bits. Read once.
+pub fn in_proj_gemv_env() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_INK_IN_PROJ_GEMV").is_ok_and(|v| v.trim() == "1"))
+}
+
+/// Most rows of an in-projection call that take its P12 copy: [`DENSE_ROWS_MAX`], or [`ROWS_MAX`] in the GEMV form.
+pub fn in_proj_rows_max() -> usize {
+    if in_proj_gemv_env() {
+        ROWS_MAX
+    } else {
+        DENSE_ROWS_MAX
+    }
 }
 
 /// What `INTARSIA_INK_PACK12` (`env`) decides on the backend named `backend`, which registers the P12 kernels

@@ -237,6 +237,119 @@ p12_in_proj_kernel(P12Segs sg, const uint8_t* __restrict__ codes, const uint32_t
     }
 }
 
+// ---- InkInProj in the GEMV form (lane ink-cuda-attn, brief 25; opt-in INTARSIA_INK_IN_PROJ_GEMV=1) ------------------------
+// One warp per row of the stacked weight [Nq + Nk + Nv, D], the body of p12_gemv_kernel (M activation rows, each row's sum
+// in the same lane / chunk / warp-sum order whatever M: rows-exact), its segment's activation plane and output. P12 = true
+// decodes the codes, false loads the bf16 weight: the two are bitwise equal (the same words reach the same arithmetic).
+// The mma form tiles 16 weight rows per warp (540 warps at the real shape, one long decode chain per lane); this one has a
+// warp per weight row (8664 warps).
+struct GemvSegs {
+    const ik_bf16* x[3];
+    ik_bf16* out[3];
+    int n[3];
+    int r0[4];
+};
+
+template <int M, bool P12>
+__global__ void __launch_bounds__(kWarpsPerBlock * IK_WARP)
+in_proj_gemv_kernel(GemvSegs sg, const ik_bf16* __restrict__ w, const uint8_t* __restrict__ codes, const uint32_t* __restrict__ aux,
+                    int64_t N, int64_t K) {
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t n = (int64_t)blockIdx.x * kWarpsPerBlock + warp;
+    if (n >= N) return;
+    const int j = n < sg.r0[1] ? 0 : (n < sg.r0[2] ? 1 : 2);
+    const int64_t nn = n - sg.r0[j];
+    float acc[M];
+#pragma unroll
+    for (int m = 0; m < M; ++m) acc[m] = 0.f;
+    const int64_t nv = K / 8;
+    const uint4* x8 = reinterpret_cast<const uint4*>(sg.x[j]);
+    if constexpr (P12) {
+        P12Row wr = p12_row(codes, aux, N, n, K);
+#pragma unroll 4
+        for (int64_t i = lane; i < nv; i += IK_WARP) {
+            float wf[8];
+            ik_unpack8(p12_load(wr, i), wf);
+#pragma unroll
+            for (int m = 0; m < M; ++m) {
+                float xf[8];
+                ik_unpack8(__ldg(x8 + m * nv + i), xf);
+#pragma unroll
+                for (int e = 0; e < 8; ++e) acc[m] += wf[e] * xf[e];
+            }
+        }
+    } else {
+        const uint4* w8 = reinterpret_cast<const uint4*>(w) + n * nv;
+#pragma unroll 4
+        for (int64_t i = lane; i < nv; i += IK_WARP) {
+            float wf[8];
+            ik_unpack8(__ldcs(w8 + i), wf);
+#pragma unroll
+            for (int m = 0; m < M; ++m) {
+                float xf[8];
+                ik_unpack8(__ldg(x8 + m * nv + i), xf);
+#pragma unroll
+                for (int e = 0; e < 8; ++e) acc[m] += wf[e] * xf[e];
+            }
+        }
+    }
+#pragma unroll
+    for (int m = 0; m < M; ++m) {
+        const float s = ik_warp_sum(acc[m]);
+        if (lane == 0) sg.out[j][(int64_t)m * sg.n[j] + nn] = ik_f2b(s);
+    }
+}
+
+template <bool P12>
+int in_proj_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* pq, ik_tensor* pk,
+                 ik_tensor* pv, void* stream) {
+    IK_TRY(ik_check(x, IK_DTYPE_BF16, 3));
+    ik_tensor* o[3] = {pq, pk, pv};
+    const int64_t S = x->shape[0], T = x->shape[1], D = x->shape[2];
+    if (!(S == 1 || S == 3) || T < 1 || T > 16 || D % 16 != 0 || D > 65536) return IK_ERR_SHAPE;
+    GemvSegs sg{};
+    int64_t nsum = 0;
+    const ik_bf16* xp = (const ik_bf16*)x->data;
+    for (int j = 0; j < 3; ++j) {
+        IK_TRY(ik_check(o[j], IK_DTYPE_BF16, 2));
+        if (o[j]->shape[0] != T) return IK_ERR_SHAPE;
+        sg.x[j] = xp + (j < S - 1 ? j : S - 1) * T * D;
+        sg.out[j] = (ik_bf16*)o[j]->data;
+        sg.n[j] = (int)o[j]->shape[1];
+        sg.r0[j] = (int)nsum;
+        nsum += o[j]->shape[1];
+    }
+    sg.r0[3] = (int)nsum;
+    if (nsum == 0) return IK_OK;
+    if (nsum > 0x7fffffff) return IK_ERR_SHAPE;
+    if (!ik_aligned16(x->data)) return IK_ERR_INVALID_ARG;
+    const ik_bf16* wp = nullptr;
+    const uint8_t* cp = nullptr;
+    const uint32_t* ap = nullptr;
+    if (P12) {
+        IK_TRY(check_p12(codes, aux, nsum, D));
+        cp = (const uint8_t*)codes->data;
+        ap = (const uint32_t*)aux->data;
+    } else {
+        IK_TRY(ik_check(w, IK_DTYPE_BF16, 2));
+        if (w->shape[0] != nsum || w->shape[1] != D) return IK_ERR_SHAPE;
+        if (!ik_aligned16(w->data)) return IK_ERR_INVALID_ARG;
+        wp = (const ik_bf16*)w->data;
+    }
+    cudaStream_t s = IK_STREAM(stream);
+    const unsigned grid = (unsigned)((nsum + kWarpsPerBlock - 1) / kWarpsPerBlock);
+    const unsigned block = kWarpsPerBlock * IK_WARP;
+#define IK_IPG_CASE(R) \
+    case R: in_proj_gemv_kernel<R, P12><<<grid, block, 0, s>>>(sg, wp, cp, ap, nsum, D); break;
+    switch (T) {
+        IK_IPG_CASE(1) IK_IPG_CASE(2) IK_IPG_CASE(3) IK_IPG_CASE(4) IK_IPG_CASE(5) IK_IPG_CASE(6) IK_IPG_CASE(7) IK_IPG_CASE(8)
+        IK_IPG_CASE(9) IK_IPG_CASE(10) IK_IPG_CASE(11) IK_IPG_CASE(12) IK_IPG_CASE(13) IK_IPG_CASE(14) IK_IPG_CASE(15) IK_IPG_CASE(16)
+        default: return IK_ERR_SHAPE;
+    }
+#undef IK_IPG_CASE
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
@@ -306,6 +419,14 @@ int ik_ink_in_proj_p12_mma(const ik_tensor* x, const ik_tensor* codes, const ik_
 int ik_ink_in_proj_p12_mma_rows(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* pq, ik_tensor* pk,
                                 ik_tensor* pv, void* stream) {
     return ik_ink_in_proj_p12_mma(x, codes, aux, pq, pk, pv, stream);
+}
+
+int ik_ink_in_proj_bf16_gemv(const ik_tensor* x, const ik_tensor* w, ik_tensor* pq, ik_tensor* pk, ik_tensor* pv, void* stream) {
+    return in_proj_gemv<false>(x, w, nullptr, nullptr, pq, pk, pv, stream);
+}
+int ik_ink_in_proj_p12_gemv(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* pq, ik_tensor* pk,
+                            ik_tensor* pv, void* stream) {
+    return in_proj_gemv<true>(x, nullptr, codes, aux, pq, pk, pv, stream);
 }
 
 }  // extern "C"

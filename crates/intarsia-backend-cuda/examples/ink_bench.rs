@@ -109,7 +109,7 @@ fn bench_proj(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
         for s in [1usize, 3] {
             let xb = bf16_buf(be, &[s, tr, D], 7 + tr as u64, 1.0);
             let outs: Vec<Buffer> = ns.iter().map(|&nn| be.alloc(tr * nn * 2, MemKind::Device).unwrap()).collect();
-            let names: Vec<&str> = if tr <= 16 { vec!["ink_in_proj_bf16_mma"] } else { vec!["ink_in_proj_bf16_cublas", "ink_in_proj_bf16_mma"] };
+            let names: Vec<&str> = if tr <= 16 { vec!["ink_in_proj_bf16_mma", "ink_in_proj_bf16_gemv"] } else { vec!["ink_in_proj_bf16_cublas", "ink_in_proj_bf16_mma"] };
             for kname in names {
                 let k = kern(ks, kname);
                 let calls: Vec<OpCall> = (0..copies)
@@ -130,7 +130,7 @@ fn bench_proj(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
             if tr <= 16 {
                 // lane ink-cuda-attn (brief 24): the P12 copy of the same weights (lossless, 0.75x bytes) through the P12
                 // InkInProj kernel; INTARSIA_INK_P12_CP=0 times the direct kernel, unset the staged (cp.async) one
-                let kname = "ink_in_proj_p12_mma";
+                for kname in ["ink_in_proj_p12_mma", "ink_in_proj_p12_gemv"] {
                 let k = kern(ks, kname);
                 let calls: Vec<OpCall> = (0..copies)
                     .map(|c| {
@@ -149,6 +149,7 @@ fn bench_proj(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
                     p12bytes / (us * 1e-6) / 1e9,
                     wbytes / (us * 1e-6) / 1e9
                 );
+                }
             }
             if s == 1 && tr <= 16 {
                 // the existing best bf16 GEMV over the stacked weight (one launch, `rows_exact` twin) for comparison

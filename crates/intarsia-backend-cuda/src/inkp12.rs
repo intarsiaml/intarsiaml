@@ -22,7 +22,19 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_p12_logits_gemv_rows", Op::MatmulP12),
     ("ink_in_proj_p12_mma", Op::InkInProj),
     ("ink_in_proj_p12_mma_rows", Op::InkInProj),
+    // the GEMV form (lane ink-cuda-attn, brief 25; only under INTARSIA_INK_IN_PROJ_GEMV=1): a bf16 / P12 pair, bitwise twins
+    ("ink_in_proj_bf16_gemv", Op::InkInProj),
+    ("ink_in_proj_bf16_gemv_rows", Op::InkInProj),
+    ("ink_in_proj_p12_gemv", Op::InkInProj),
+    ("ink_in_proj_p12_gemv_rows", Op::InkInProj),
 ];
+
+/// `INTARSIA_INK_IN_PROJ_GEMV=1` (opt-in, default off): InkInProj at 1..=16 rows in the GEMV form (one warp per weight row)
+/// instead of the mma form. Rows-exact either way, but the two forms sum in different orders, so the switch moves the
+/// model's output bits (lane ink-cuda-attn, docs/results/2026-11-21-inkling2-cuda-attn.md).
+pub fn in_proj_gemv_on() -> bool {
+    intarsia_core::quant::p12::in_proj_gemv_env()
+}
 
 const BF16_TOL: Tol = Tol::new(1.5e-2, 6e-3);
 const F32_TOL: Tol = Tol::new(1e-3, 2e-4);
@@ -60,6 +72,15 @@ pub fn all() -> Vec<KernelImpl> {
                 }
                 "ink_in_proj_p12_mma" => k.when(rows_ok).tol(BF16_TOL).priority(10),
                 "ink_in_proj_p12_mma_rows" => k.when(rows_ok).tol(BF16_TOL).priority(-1).rows_exact(),
+                // above the mma form (10 / -1) when the switch is on, never selected otherwise
+                "ink_in_proj_p12_gemv" => k.when(|s| in_proj_gemv_on() && rows_ok(s)).tol(BF16_TOL).priority(20),
+                "ink_in_proj_p12_gemv_rows" => k.when(|s| in_proj_gemv_on() && rows_ok(s)).tol(BF16_TOL).priority(5).rows_exact(),
+                "ink_in_proj_bf16_gemv" => {
+                    k.weights([DType::Bf16]).when(|s| in_proj_gemv_on() && rows_ok(s)).tol(BF16_TOL).priority(20)
+                }
+                "ink_in_proj_bf16_gemv_rows" => {
+                    k.weights([DType::Bf16]).when(|s| in_proj_gemv_on() && rows_ok(s)).tol(BF16_TOL).priority(5).rows_exact()
+                }
                 other => unreachable!("inkp12 kernel {other} has no registration"),
             }
         })
@@ -85,6 +106,8 @@ mod launch {
         fn ik_matmul_p12_logits_gemv_rows(x: T, codes: T, aux: T, out: TM, s: S) -> c_int;
         fn ik_ink_in_proj_p12_mma(x: T, codes: T, aux: T, pq: TM, pk: TM, pv: TM, s: S) -> c_int;
         fn ik_ink_in_proj_p12_mma_rows(x: T, codes: T, aux: T, pq: TM, pk: TM, pv: TM, s: S) -> c_int;
+        fn ik_ink_in_proj_bf16_gemv(x: T, w: T, pq: TM, pk: TM, pv: TM, s: S) -> c_int;
+        fn ik_ink_in_proj_p12_gemv(x: T, codes: T, aux: T, pq: TM, pk: TM, pv: TM, s: S) -> c_int;
     }
 
     impl CudaBackend {
@@ -98,8 +121,9 @@ mod launch {
             if op != call.op {
                 return Err(Error::invalid(format!("kernel '{kernel}' implements {op}, not {}", call.op)));
             }
-            if call.inputs.len() < 3 {
-                return Err(Error::invalid(format!("{kernel}: needs x, codes, aux")));
+            let bf16_w = kernel.starts_with("ink_in_proj_bf16_");
+            if call.inputs.len() < if bf16_w { 2 } else { 3 } {
+                return Err(Error::invalid(format!("{kernel}: needs x and the weight (bf16, or P12 codes and aux)")));
             }
             self.bind()?;
             let s = self.stream(stream)?;
@@ -118,6 +142,8 @@ mod launch {
                     "matmul_p12_logits_gemv_rows" => ik_matmul_p12_logits_gemv_rows(i(0), i(1), i(2), on(0), s),
                     "ink_in_proj_p12_mma" => ik_ink_in_proj_p12_mma(i(0), i(1), i(2), on(0), on(1), on(2), s),
                     "ink_in_proj_p12_mma_rows" => ik_ink_in_proj_p12_mma_rows(i(0), i(1), i(2), on(0), on(1), on(2), s),
+                    "ink_in_proj_bf16_gemv" | "ink_in_proj_bf16_gemv_rows" => ik_ink_in_proj_bf16_gemv(i(0), i(1), on(0), on(1), on(2), s),
+                    "ink_in_proj_p12_gemv" | "ink_in_proj_p12_gemv_rows" => ik_ink_in_proj_p12_gemv(i(0), i(1), i(2), on(0), on(1), on(2), s),
                     other => return Err(Error::NoKernel(format!("cuda kernel '{other}'"))),
                 }
             };

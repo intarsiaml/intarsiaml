@@ -191,6 +191,40 @@ fn in_proj_p12_bitwise_bf16() {
     }
 }
 
+/// The GEMV form of InkInProj (lane ink-cuda-attn, brief 25): the P12 kernel is bitwise its bf16 twin at every row count,
+/// and an R-row call's row t is bitwise the 1-row call on that row (rows-exact). Launched by name: the registry only offers
+/// them under INTARSIA_INK_IN_PROJ_GEMV=1.
+#[test]
+fn in_proj_gemv_twins_rows_exact() {
+    let Some(be) = device() else { return };
+    let be = be.as_ref();
+    let mut rng = SplitMix64::new(0x9e15);
+    let d = 2304usize;
+    for (ns, adv) in [([6552usize, 1056, 1056], false), ([40, 24, 24], true)] {
+        let n: usize = ns.iter().sum();
+        let w = weight(be, &mut rng, n, d, adv, &[(ns[0], 1.0), (ns[1], 0.25), (ns[2], 3.7)]);
+        for s in [1usize, 3] {
+            for r in 1..=16usize {
+                let (x, xv) = x_rows(be, &mut rng, &[s, r, d]);
+                let outs = |r: usize| ns.iter().map(|&k| zeros(be, DType::Bf16, &[r, k])).collect::<Vec<_>>();
+                let bf = launch(be, "ink_in_proj_bf16_gemv", Op::InkInProj, vec![x.clone(), w.bf.clone()], outs(r), false);
+                let pk = launch(be, "ink_in_proj_p12_gemv_rows", Op::InkInProj, vec![x.clone(), w.codes.clone(), w.aux.clone()], outs(r), true);
+                for j in 0..3 {
+                    assert!(bf[j] == pk[j], "N={ns:?} adversarial={adv} S={s} R={r} segment {j}: p12 gemv not bitwise bf16 gemv");
+                }
+                for t in [0, r - 1] {
+                    let row: Vec<u16> = (0..s).flat_map(|a| xv[(a * r + t) * d..(a * r + t + 1) * d].to_vec()).collect();
+                    let x1 = up(be, DType::Bf16, &[s, 1, d], &bytes16(&row));
+                    let one = launch(be, "ink_in_proj_p12_gemv", Op::InkInProj, vec![x1, w.codes.clone(), w.aux.clone()], outs(1), false);
+                    for j in 0..3 {
+                        assert_eq!(&pk[j][t * ns[j] * 2..(t + 1) * ns[j] * 2], &one[j][..], "N={ns:?} S={s} R={r} row {t} segment {j}: rows-exact");
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// The registry picks the P12 kernels exactly where the bf16 call runs the twin GEMV: ordinary calls at 1..=4 rows (Matmul /
 /// Logits) or 1..=16 rows (InkInProj), `exact_rows` calls at 1..=16 rows; nothing else.
 #[test]
