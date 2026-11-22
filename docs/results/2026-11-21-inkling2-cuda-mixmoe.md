@@ -181,6 +181,19 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   activation memory and give the job a --mem peak; if 2048 is bitwise / within tolerance and faster, send numbers (the
   coordinator decides default-on); then the rest of the top 3.
 
+- (coordinator, 23rd) 24ab7961d acked: the 2e-3 NVFP4 situ tol is justified by the 600-case sweep (max 9.5e-4, all 1-ulp bf16;
+  numbers in the "serve on spark1 refused to load" section), passed to the attention lane for the spark1 servediag rerun.
+  (1) The Metal half stays out of the Inkling integration merge until #11301 passes Metal build + admission; if #11301 fails,
+  revert only the Metal constant and report. (2) Go ahead with the CUDA prefill chunk sweep, then the rest of the prefill top 3.
+
+- (coordinator, 24th) Approved: prefill chunk 2048 the CUDA default for Inkling-2 on ink/cuda-mixmoe (1.9x at 4k, md5
+  identical, G2 / G3 pass, RSS unchanged). (1) Make the change, record the revert (`--prefill-chunk 256` or the recipe line),
+  same recipe mechanism as Metal; no push / merge into main. (2) Measure warm serve prefill at 2048 (spark1 or spark2, fleetq
+  `--quiet gpu,cpu`, `--mem` budgeted): one untimed warm request, then ~1k / 4k / 9k prompts x2; check the ~2500 tok/s
+  estimate, report TTFT and decode. (3) Then start prefill MoE MMA W4A4 on the FP4 tensor cores (moe_sm120 way); same gates
+  (rows-exact or tolerance-justified admission, G2 / G3, greedy md5 or explained drift); decode MoE repack after. (4) Metal
+  half of 24ab7961d out of any merge until #11301 passes.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
@@ -389,3 +402,83 @@ map, so bitwise). Estimate at ~235 GB/s: gu + dn 9.1 -> ~7.4 ms / token (~1.7 ms
 (DSpark verify rows). Cost: the tensor-core prefill path (ink_moe_mma) and the `_rows` twins read the same weights, so they
 move to the new layout too (or the experts are kept twice: ~17 GB more); about 1-1.5 days. Not built: the coordinator picks
 between this and the prefill GEMMs after the prefill profile (brief 20).
+
+## serve on spark1 refused to load (brief 21): admission data drawn in plan order (24ab7961d)
+
+ink/cuda-mtp b1d84ba5b on spark1 (`servediag.sh`: --mem-budget 30 --max-seq 12288 --max-batch 1) failed with "moe_experts: 12
+shape(s) without a kernel". Not a stale cache (the failing entry was written by the 05:25 binary itself) and not the source
+(spark1's cases.rs carries situ). It was a real admission failure: `moe_experts_situ_bf16 | T=1 E=32 K=8 H=2304 I=1152 bf16
+situ` at rel_l2 1.041e-3 against tol 1e-3 (max_abs 5e-3, abs tol 1.5e-2); the 33 other situ cases there passed at 2e-5 -
+3e-4. Admission drew each case's data from one generator in plan-call order, so a different plan drew different data.
+
+Sweep (`tests/ink_situ_spread.rs`, env-gated; 600 admission-built cases on spark2, CUDA vs the cpu reference, admission judge):
+
+| T | cases | median | p90 | p99 | max | over 1e-3 |
+|---|---|---|---|---|---|---|
+| 1 | 300 | 0 | 3.14e-4 | 7.80e-4 | 9.50e-4 | 0 |
+| 4 | 300 | 9.78e-5 | 2.84e-4 | 5.01e-4 | 6.21e-4 | 0 |
+
+Worst case: 111 / 2304 outputs differ, each by exactly 1 bf16 ulp (e.g. 8.9375 vs 9.0), at scattered indices; T=4's worst: 175
+/ 9216, also 1 ulp each. That is the bf16 output rounding of the x8-weighted expert sum. Branch 1 of the coordinator's rule:
+`SITU_TOL` rel_l2 2e-3 (abs 1.5e-2 unchanged) on the NVFP4 situ kernels and their `_rows` twins, CUDA and Metal; MXFP8 keeps
+MOE_TOL. And `plan::admit` seeds each case from its label (`case_rng`), so a plan change cannot change a case's data; the cache
+version goes 1 -> 2. Checks on spark2: core plan:: 10/10, admission:: 4/4, quant::cases 2/2, backend-cuda lib 35/35, ink_rows
+7/7; CUDA plan admission with the servediag flags 26/26; CPU plan admission (real model) 14/14; serve with the servediag flags
+loads (26 kernels, 103 cases, none rejected), answers, and stops clean. Metal build + admission: endor #11301, pending.
+
+## CUDA prefill at 4k (brief 20; spark2 #11280, nsys, chunk 256 default, P12 on)
+
+4161-token prompt, prefill 3926 ms (1060 tok/s) profiled (3715 ms unprofiled), 18 481 kernels.
+
+| cost | ms | share | note |
+|---|---|---|---|
+| MoE experts, tensor-core (`ink_moe_mma_kernel`, 1632 launches) | 2526 | 64.4 % | weight-stream bound: see below |
+| idle gaps between kernels | 548 | 14.0 % | ~30 us per launch over 18 481 launches |
+| in_proj / matmul (cuBLAS nvjet 193, ink_mma_gemv 37, ink_mma_sum 25) | ~255 | 6.5 % | cuda-attn's |
+| attention (ink_flash_k 122, ink_prologue_k 122, kv_write 4) | ~249 | 6.3 % | cuda-attn's |
+| mix / conv / blend (ink_row 164, blend_gate 56, blend_norm 11) | 236 | 6.0 % | |
+| other (Kernel2 90, ...) | ~110 | 2.8 % | |
+
+Why the MoE costs this much: at the default prefill chunk of 256 rows a chunk has 2048 pairs over 128 experts (~16 rows per
+expert), so every chunk streams all 128 experts' weights again: 573 MB per visit and chunk, x 48 visits x 17 chunks = ~467 GB
+per 4k prefill, ~2.5 s at ~185 GB/s, which is the measured 2526 ms. The GEMM is starved of rows, not slow per FLOP (25 TFLOP
+of expert math in 2.5 s is 10 TFLOP/s). First fix (brief 22): a larger prefill chunk (1024, 2048; Metal runs 2048).
+
+## Prefill chunk sweep at 4k (spark2 #11318, `--quiet gpu,cpu`, P12 on, 4161-token prompt, 64 greedy tokens)
+
+| chunk | prefill ms (rep 1 / 2) | tok/s | decode tok/s | peak RSS | greedy md5 (64 tok) |
+|---|---|---|---|---|---|
+| 256 (default) | 3704 / 3719 | 1123 / 1119 | 33.30 / 33.29 | 19.44 GB | `cbed4e2c…` |
+| 1024 | 2202 / 2179 | 1889 / 1910 | 33.20 / 33.22 | 19.44 GB | `cbed4e2c…` |
+| 2048 | 1963 / 1946 | 2120 / 2138 | 33.31 / 33.34 | 19.44 GB | `cbed4e2c…` |
+
+Same greedy tokens at every chunk; peak RSS unchanged (the 2048-row scratch fits in the existing pools).
+
+nsys (prefill window only):
+
+| | chunk 1024 | chunk 2048 |
+|---|---|---|
+| span / GPU busy | 2415 / 1885.5 ms | 2177 / 1645.5 ms |
+| idle gaps | 529.5 ms (22%) | 531.5 ms (24%) |
+| kernels | 7549 | 5855 |
+| MoE experts (`ink_moe_mma_kernel`) | 1110.2 ms, 480 launches | 883.1 ms, 288 launches |
+| other | 492.8 ms | 475.2 ms |
+| mix / conv / blend | 240.4 ms, 3548 launches | 243.0 ms, 3108 launches |
+| in_proj / matmul (cuBLAS, mma) | 39.5 ms | 41.6 ms |
+
+Idle-gap breakdown at chunk 2048 (`.scratch/gaps.sh`): 5257 gaps under 5 µs sum to 11.2 ms; 9 gaps over 1 ms sum to 516.1 ms, and two of them are 339.2 ms (`rmsnorm` -> first cuBLAS `nvjet_sm121_tst_mma_192x160x64`) and 150.7 ms (`ink_ring` -> first `nvjet_sm121_tss_mma_64x104x64`). Runtime API in the same window: `cuLibraryLoadData` 31 calls 461 ms, `cuKernelGetFunction` 144 calls 303 ms. These are first-use stalls before the first cuBLAS GEMM shapes, not launch latency. They are not CUDA's lazy module
+loading: `CUDA_MODULE_LOADING=EAGER` leaves the CLI prefill unchanged (#11326: LAZY 1945 ms, EAGER 1945 / 1940 ms, same md5),
+so the stall is inside cuBLAS(Lt) first use (its own library loads / heuristics) or host-side first touch. Whether it recurs
+per request is what the warm serve run (brief 24 item 2) measures.
+
+Gates at chunk 2048: G2 short PASS (KL21 2.376e-3, 0/363 confident misses), G2 long PASS (3.124e-3, 1/1206), G3 4k PASS (9.671e-3, 2/8229).
+
+Prefill ranking after this: chunk 2048 is a 1.9x prefill win with identical tokens and gates, so flip it (coordinator call). After that, MoE experts are 54% of warm GPU time (883 ms); the next prefill lever is the MoE MMA kernel (W4A4 FP4 tensor cores as vLLM's sm120 path does), then "other" (475 ms, unclassified kernels). Decode MoE repack (~9% decode) remains the decode lever.
+
+### Chunk 2048 default (brief 24 item 1)
+
+`recipes/inkling2.toml` gains `[tuning.cuda] prefill_chunk = 2048` (the same `resolve_prefill_chunk` mechanism the other
+families use; other backends keep the default). Revert: `--prefill-chunk 256` per run, or delete that section.
+
+Metal admission #11301 (endor, the Metal half of 24ab7961d: situ tol + per-case seeding): 28 kernels admitted `yes` at both
+`--max-seq 20480` and `--mem-budget 30 --max-seq 12288`, none refused, rc 0. That clears brief 23 / 24 item 4 for the Metal half.
