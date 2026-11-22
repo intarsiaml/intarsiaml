@@ -128,6 +128,12 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
     arms exit 0 with non-empty output; (3) pass: send hash + numbers (ink-metal merges after the current merge); fail: stays
     opt-in, report. Order on endor: #11187 first, the ABAB after, both behind the existing queue. The MoE proposal still goes
     to the coordinator before building.
+    **Status:** flip e7cd4931e on ink/prologue-split. The merge-ready branch ink/prologue-split-merge is 297cebadc + the split +
+    the counter + the flip = **61980c882**. Bespin #11219: check clean, docs_env_vars 2/2, cpu inkling2 8/8. ABAB queued as
+    #11221 behind #11187. The binary builds the tests first and the CLI last (hazard 2). Recipe chunk 2048; 8k comes from p8k
+    generate pairs, since speed-plain has no 8k cell.
+    Also: docs_env_vars would have failed on the merge (this lane's four variables had no rows). ink/prefill-merge is now
+    **297cebadc** with the rows; ink-metal takes it after its combined gate #11206 and keeps this lane's row text.
 
 ## Status
 
