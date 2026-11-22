@@ -475,25 +475,35 @@ rep 1 shown, rep 2 E=1 agrees within 10 %, rep 2 E=1024 ran in a slow GPU clock 
 | full ctx 4k | 1095 | 552 | 4627 | 3507 | 2080 |
 | full ctx 16k | 1144 | 668 | 14805 | 12356 | 7070 |
 
-The bench agrees with the model trace (SWA 1.16 ms, full 2.34 / 3.61 ms at ctx 2k / 4k, `.scratch/bp3/k256a.jsonl`).
-Floor = 4 x rows x keys seen x 128 x 24 heads / 62 TFLOP/s (QK + PV, no softmax).
+SWA visits and the prologue match the model trace (SWA 1.16 ms, prologue ~1.0 ms, `.scratch/bp3/k256a.jsonl`). Full visits
+do **not**: the bench runs 2.81 / 4.63 ms at ctx 2k / 4k against the trace's 2.34 / 3.61 ms (+20 to 28 %), probably because the
+bench cycles 4 distinct K / V + rel operand sets. Full-visit deltas below are therefore discounted. Floor = 4 x rows x keys
+seen x 128 x 24 heads / 62 TFLOP/s (QK + PV, no softmax).
 
-Where the ~40 ms per chunk above floor goes (40 SWA + 8 full visits, chunk at ctx 2k / 4k):
+Two separate buckets per chunk (40 SWA + 8 full visits, chunk at ctx 2k / 4k):
 
-- **rel tensor, prologue write: ~22 ms** (0.98 -> ~0.52 ms per visit x 48). The prologue's bias GEMV writes 100 MB per visit.
-- **rel tensor, attention gather + footprint: ~11 ms at ctx 2k, ~17 ms at ctx 4k** (SWA 0.19 ms x 40; full 0.41 / 1.12 ms
-  x 8). The full-visit part grows with context although the gather only covers distance < 1024, so part of it is the 100 MB
-  scratch per visit evicting K / V from the system-level cache (the scratch note above), not the gather itself.
-- **The rest, ~0.5 ms per SWA visit above floor even without rel:** masking + online softmax + the 32-key tile loop
-  (E 1 SWA runs at ~27 TFLOP/s vs 62). Not attacked: no tight bound.
+- **Attention kernel, ~40 ms above floor (the brief's number; trace ~29 ms SWA + ~9 ms full at ctx 2k):**
+  - rel gather + footprint: **~10 ms** (SWA 0.19 ms x 40 = 7.6 ms; full a few ms, bench-inflated).
+  - **the rest, ~28 ms, is not rel:** with E 1 a SWA visit still takes ~0.95 ms vs its 0.42 ms floor (~27 of 62 TFLOP/s):
+    mask / online softmax / rescale around the 32-key tiles. Not split further yet (probe below).
+- **Prologue, separate from the 40 ms: the 100 MB rel write costs ~22 ms** (0.98 -> ~0.52 ms per visit x 48).
 
-**Bound for step 2:** removing the rel round trip saves at most ~33-39 ms per 655 ms chunk (5-6 %), less whatever computing
-the bias in the attention kernel costs. Earlier `ink.rel_mode` 1 (16 FMAs per score, branch `ink/prefill-rel`) cost more than it
-saved. Proposed build (needs a go-ahead; rel_mode 1 is the already approved contract variant, so no new contract): a mode-1
-NAX kernel that computes the bias per (query tile, key tile) as one 16-deep MMA, q_rel [BQ x 16] x table [16 x (BQ + 31)
-distances], into threadgroup memory (BQ 32: 32 x 63 x 4 B = 8 KB), then gathers from threadgroup memory instead of device
-memory. Extra MMA ~ (BQ + 31) / 32 x 16 / 128 = 25 % of the QK MMA at BQ 32; scratch drops by 100 MB per visit. Ceiling
-after that cost: ~25-30 ms per chunk, ~4 % end to end at 4k and 8k (>= 2 %). Not built yet.
+**Bound for step 2, rel in the kernel (end to end, not GPU-chunk):** removable ~22 (prologue) + ~8 (SWA gather) + ~3 (full,
+discounted) = ~33 ms per chunk, minus the in-kernel cost (~3-5 ms, below) = ~26 ms per chunk. Against the current default's
+generate wall time (blend gate p256: 4k ~1.64 s for 2 chunks, 8k ~2.99 s for 4): **~3 % at 4k, ~3.5 % at 8k** (~2.5 % against
+the older 1980 tok/s 4k runs). Clears 2 %, thinly.
+
+Proposal (sent to the coordinator; not built). Prefill dispatches `ink_attn_nax_s12` (`INTARSIA_INK_NAX_SG` default 12: BQ 64,
+3 heads x 4 query sub-tiles). A rel_mode 1 kernel where each simdgroup forms its own bias tile per key tile as one 16-deep
+MMA, r [16 rows x 16] x proj [16 x 48 distances] (47 needed), stored bf16 in its own threadgroup slice (16 x 48 x 2 B =
+1.5 KB per simdgroup, 18 KB for 12; no threadgroup barriers in the tile loop), then gathers from threadgroup instead of device
+memory. Extra MMA ~48 x 16 / (32 x 128) = 19 % of the QK MMA. The rel_mode 1 operands already match (r [T,H,dr] in the rel
+slot, proj [dr,E] as the 8th input, 7e4699bf6), **but the approved rel_mode 1 promises mode 1 == mode 0 bitwise; an MMA dot
+will not round like the prologue's GEMV**, so this needs a contract amendment: mode 1 within a stated tolerance of the f64
+reference, md5 64 / 256 may change, G2 / G3 short and long decide.
+
+Exact alternative with no contract change (to probe first): skip the per-score window / causal / E tests on interior tiles
+(every key visible, every distance < E), which is most SWA tiles.
 
 ### Prologue split default-on gate (#11272, binary 61980c882, serve recipe chunk 2048, localeval speed-plain, order off / on / off / on)
 
