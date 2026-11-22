@@ -150,6 +150,12 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
     feature in its own target dir and runs arms a / 0 / 1 / 2 x real / balanced-128 x full / gu / dn, 3 reps.
     Before any merge: drop the probe file and hook, or keep them feature-gated (ink/prefill-merge does not contain them).
 
+16. 2026-11-22 (coordinator, via SendMessage): NAXSKIP guard: gate it behind `ink-probe` and remove the env var, as a separate
+    follow-up commit on top of 297cebadc (leave 297cebadc as is; ink-metal has it for the #11206 merge). Before committing,
+    grep scripts / .scratch job files / docs for INTARSIA_INK_MOE_NAXSKIP and move live users to the feature build or note
+    them gone. Checks: builds with and without ink-probe, docs_env_vars passes, cpu inkling2 passes; one endor smoke inside
+    #11235's feature build. Send the hash (small merge after 297cebadc lands). Probe guards for #11235 ok; rule as before.
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
