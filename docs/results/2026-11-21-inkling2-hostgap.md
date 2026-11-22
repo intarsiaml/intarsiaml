@@ -62,6 +62,13 @@ Status: in progress again (coordinator, items 1-3 below). Branch `ink/hostgap` (
      - (b), the device sampler, is out: it is not bitwise.
      Also: say which sampling path real `serve` traffic takes, given the checkpoint's generation config.
 
+- 2026-11-21 (coordinator): #10943 cannot jump the line. fleetq has no reorder, and `--force` / `--no-queue` need the user's
+  OK, which main won't ask for over one job. It stays at #18; its plan is good. Keep the f64 total sequential: don't trade bits
+  for the last 0.26 ms. The per-model default (Inkling on, others off) is approved. Open item: row-parallel sampling for
+  batched serve (B > 1, one row per pool worker), from an earlier coordinator message this lane never received (lost in
+  compaction). Build it now, gated by batched sampled tokens identical at B = 4 / 16 on the tiny model on spark2, so it can
+  ride in #10943 if the build lands before that job starts.
+
 ## Measurement (before)
 
 ### The integration trace, re-read (no new GPU run)
