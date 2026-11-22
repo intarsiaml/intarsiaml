@@ -39,6 +39,9 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   next batch timing.
 - 2026-11-21 (coordinator): ink/metal now has m-mix 47570539e (merge 606fd36e4, tip f55bfe8b7), no default flips: re-merge
   before the opt-in A/B starts.
+- 2026-11-21 (coordinator): when #10845 shows solo tok/s base vs branch within noise (<= 1 % slower, or faster), ink/batch at
+  that tip merges into ink/metal (ink-metal does the merge); report #10845 with the tip hash as soon as it lands. A solo
+  regression above 1 %: find it before anything else.
 
 ## 1. Design note (contract delta, written before any kernel)
 
