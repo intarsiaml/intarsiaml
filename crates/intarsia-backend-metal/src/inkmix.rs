@@ -233,8 +233,27 @@ fn proj_grid_cap() -> usize {
 /// P = 1 for R = 2..=16 and P = 2 / 4 for R = 4, 8, 16. Bitwise `ink_in_proj_gemv_r<R>p1s8u2b<R>` per row (weight chunk
 /// unpacked once for all rows, P weight rows sharing each x load, per-output epilogue on its own thread).
 pub const PROJX_INSTS: [(usize, usize); 21] = [
-    (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (12, 1), (13, 1), (14, 1), (15, 1),
-    (16, 1), (4, 2), (8, 2), (16, 2), (4, 4), (8, 4), (16, 4),
+    (2, 1),
+    (3, 1),
+    (4, 1),
+    (5, 1),
+    (6, 1),
+    (7, 1),
+    (8, 1),
+    (9, 1),
+    (10, 1),
+    (11, 1),
+    (12, 1),
+    (13, 1),
+    (14, 1),
+    (15, 1),
+    (16, 1),
+    (4, 2),
+    (8, 2),
+    (16, 2),
+    (4, 4),
+    (8, 4),
+    (16, 4),
 ];
 
 fn projx_shader_name(r: usize, p: usize) -> &'static str {
