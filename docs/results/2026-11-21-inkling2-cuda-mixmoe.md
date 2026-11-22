@@ -753,3 +753,29 @@ greedy 256 ids md5 `a0e6f47bc45f` in all 6 runs; decode (graphed, spec off, 256 
 
 Default on because it is bitwise (brief 30 rule 2 made split-K opt-in because a split normally changes h's bits; this one does
 not). Branch decode: 34.36 -> ~36.5 tok/s (MoE prefetch, row hoist, controller split-K).
+
+## Merge of ink/cuda-mtp 427652506 (brief 31): `6f77be924`
+
+Clean merge (model.rs, model/inkling2.rs, load.rs auto-merged; no conflicts). Gate #11431 (spark2, `--quiet gpu,cpu`,
+`.scratch/mergegate.sh`) on the merged tree (+ split-K, `9f1abe940`); pre-merge baseline from the `5488b8f6d` binary with
+`INTARSIA_INK_BLEND_SPLITK=0` in the same job.
+
+- Build OK; ink_rows 7/7; tiny `inkling2` 15/15 cpu and 15/15 cuda (incl. `inkling2_tiny_verify_graph_replays_equal_decode_bitwise`;
+  #11460 with --nocapture: cuda R=2/3/4 17 + 11 + 8 verify passes, 1 capture each, every pass replayed); tiny `inkling2_dspark` 3/3
+  cpu, 3/3 cuda.
+- Greedy ids md5 (graphed, 64 France / 256 hash-map / 256 after the 1.2k README prompt, `--ignore-eos`):
+
+| run | g64 | g256 | g1.2k |
+|---|---|---|---|
+| pre-merge, split-K off | `ec9a19c14b2d` | `a0e6f47bc45f` | `aaaa65a7ac70` |
+| merged `--spec off`, split-K off | same | same | same |
+| merged `--spec off` (split-K on) | same | same | same |
+| merged, no `--spec` flag (CUDA default: no drafter) | same | - | - |
+| merged `--spec dflash --spec-draft <model dir>` (verify graph on) | same | same | same |
+
+- Decode tok/s, 256 tokens: g256 spec off 36.47 / 36.50 / 36.58, spec on 40.81 / 40.75 / 41.09 (+11.9 %, acceptance 34.1 %, 132
+  replays / 8 captures); g1.2k spec off 35.93, spec on 42.99 (+19.6 %, acceptance 43.0 %); g64 36.76 vs 36.05 (acceptance 31.6 %).
+- Serve smoke (spec on, `--max-seq 20480`; load 252 s incl. admission of 38 kernels / 231 cases; localeval
+  `20261122-100712-adhoc-intarsia-cuda-mixmoe-merge-mtp-smoke`, 128 forced tokens, 1 rep): 1036 tok prompt TTFT 0.47 s, prefill
+  2200 tok/s, decode 42.2 tok/s (peak 75.3); 9251 tok prompt TTFT 3.59 s, prefill 2578 (marginal 2635), decode 50.4 (peak 84.6).
+  No error / panic / capture-failure lines in the serve log; stopped clean, port closed.
