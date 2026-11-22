@@ -433,6 +433,10 @@ pub struct BackendTuning {
     /// this backend (`"fp8"` or `"mxfp4"`, [`crate::quant::head::HeadQuant`]) when `INTARSIA_INK_ATTN_QUANT` is not set. It changes
     /// outputs; no shipped recipe sets it (lane ink-fp8, `docs/results/2026-11-21-inkling2-fp8.md`).
     pub ink_attn_quant: Option<String>,
+    /// The device sampler ([`crate::gumbel`], `HeadMode::LastGumbel`) for plain-temperature requests on this backend when
+    /// `INTARSIA_GUMBEL_SAMPLING` is not set. It changes which token a given seed draws (same distribution): only
+    /// `recipes/inkling2.toml` sets it, `true` on Metal (user decision 2026-11-22, lane ink-metal).
+    pub gumbel_sampling: Option<bool>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -497,6 +501,11 @@ impl Recipe {
     /// The recipe's `lm_head_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
     pub fn lm_head_quant(&self, backend: &str) -> Option<&str> {
         self.tuning.backends.get(backend).and_then(|b| b.lm_head_quant.as_deref())
+    }
+
+    /// The recipe's `gumbel_sampling` for `backend` (`[tuning.<backend>]`); the env var is resolved by [`crate::gumbel::wanted`].
+    pub fn gumbel_sampling(&self, backend: &str) -> Option<bool> {
+        self.tuning.backends.get(backend).and_then(|b| b.gumbel_sampling)
     }
 
     /// The recipe's `ink_attn_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.

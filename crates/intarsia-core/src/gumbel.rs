@@ -101,16 +101,37 @@ pub fn request_seed(seed: Option<u64>) -> u64 {
     })
 }
 
-/// `INTARSIA_GUMBEL_SAMPLING`: the device sampler for plain-temperature rows, on only when the variable is `1` (default off for
-/// every model: it changes which token a given seed draws).
-pub fn enabled_from_env() -> bool {
-    std::env::var("INTARSIA_GUMBEL_SAMPLING").is_ok_and(|v| v == "1")
+/// The device sampler for plain-temperature rows: `INTARSIA_GUMBEL_SAMPLING` when set (`1` on, anything else off), else the
+/// recipe's `[tuning.<backend>] gumbel_sampling` (`recipe`), else off. Only the Inkling-2 recipe turns it on, on Metal (user
+/// decision 2026-11-22): it changes which token a given seed draws, so every other model keeps the host sampler.
+pub fn wanted(recipe: Option<bool>) -> bool {
+    resolve(std::env::var("INTARSIA_GUMBEL_SAMPLING").ok().as_deref(), recipe)
+}
+
+/// [`wanted`] with the variable passed in.
+pub fn resolve(env: Option<&str>, recipe: Option<bool>) -> bool {
+    match env {
+        Some(v) => v.trim() == "1",
+        None => recipe.unwrap_or(false),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::rng::SplitMix64;
+
+    #[test]
+    fn the_switch_wins_over_the_recipe_and_unset_follows_it() {
+        assert!(!resolve(None, None), "no switch, no recipe key: off");
+        assert!(!resolve(None, Some(false)));
+        assert!(resolve(None, Some(true)), "the recipe turns it on (Inkling-2 on Metal)");
+        for off in ["0", "", "off", "true", "2"] {
+            assert!(!resolve(Some(off), Some(true)), "INTARSIA_GUMBEL_SAMPLING={off:?} reverts the recipe");
+        }
+        assert!(resolve(Some("1"), None), "1 turns it on for any model");
+        assert!(resolve(Some(" 1 "), Some(false)));
+    }
 
     #[test]
     fn philox_matches_the_random123_known_answers() {

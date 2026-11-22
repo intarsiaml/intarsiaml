@@ -1634,7 +1634,9 @@ impl Seq {
         let plen = req.prompt.len();
         let params = SamplingParams { temperature: req.temperature, top_k: req.top_k, top_p: req.top_p };
         let greedy = req.temperature <= 0.0;
-        let gumbel = gumbel_head_for(&req, crate::gumbel::enabled_from_env());
+        // every caller gates it on the model right after (`Seq::gate_gumbel(model.gumbel_ok())`), which reads the switch and the
+        // recipe ([`Model::gumbel_wanted`])
+        let gumbel = gumbel_head_for(&req, true);
         let sampler = Sampler::new(params, req.seed);
         let mut stop_ids: Vec<u32> = req.stop_ids.clone();
         if !req.ignore_eos {
