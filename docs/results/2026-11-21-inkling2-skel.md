@@ -1,6 +1,6 @@
 # Inkling-2-Mini skeleton on cpu (lane ink-skel, 2026-11-21)
 
-Status: cpu skeleton done; G1 and G2 pass, G3 short / long pass (4k: see below). Branch `ink/skel` (not pushed, not merged).
+Status: cpu skeleton done; G1, G2 and G3 (short, long, 4k) pass. Branch `ink/skel` (not pushed, not merged).
 Op contracts unchanged since the first message to main (3feffee6e).
 
 ## Review findings (Fable spec review, `.worktrees/ink-fable/spec-review.md`)
@@ -56,7 +56,7 @@ Op contracts unchanged since the first message to main (3feffee6e).
 | G2 long | KL21 3.879e-3 (<= 6e-3), confident misses 1 / 1206 (<= 2), top-1 99.04 % |
 | G3 short | KL21 9.218e-3 (`accuracy --golden`, <= 1.05e-2; side script 9.06e-3), confident misses 0 / 367, top-1 97.89 % |
 | G3 long | KL21 1.416e-2 (`accuracy --golden`, <= 1.65e-2; side script 1.410e-2), confident misses 0 / 1211, top-1 97.51 % |
-| G3 4k | G3_4K |
+| G3 4k | KL21 9.822e-3 (`accuracy --golden`, <= 1.4e-2; the oracle 9.84e-3), confident misses 2 / 8229 (<= 9), top-1 95.73 %; 51 min on cpu |
 
 KL21 and confident misses: `intarsia accuracy --golden ... --mode prefill --write-self-golden`, the misses (and a KL21 re-check that
 reproduces the tool's 2.994e-3 exactly) from the self-golden with a 30-line script against each golden (scratch, not committed).
