@@ -24,17 +24,6 @@ const DEC: [&str; 3] = ["ink_attn_dec_g1", "ink_attn_dec_g2", "ink_attn_dec_g3"]
 /// `RelSinkAttn` prefill (T > 16) on the neural accelerators (inkling2_attn_nax.metal, metal4.0 library).
 pub const REL_SINK_ATTN_BF16_NAX: &str = "rel_sink_attn_bf16_nax";
 const NAX: [&str; 2] = ["ink_attn_nax_s6", "ink_attn_nax_s12"];
-/// NSG sweep forms (brief 25): `INTARSIA_INK_NAX_SG` in 3 / 4 / 8 / 9 / 16 / 18 / 24 picks one; NSG simdgroups of 32 threads,
-/// BQ = 16 * (NSG / 3) query rows per threadgroup.
-const NAX_SWEEP: [(usize, &str); 7] = [
-    (3, "ink_attn_nax_s3"),
-    (4, "ink_attn_nax_s4"),
-    (8, "ink_attn_nax_s8"),
-    (9, "ink_attn_nax_s9"),
-    (16, "ink_attn_nax_s16"),
-    (18, "ink_attn_nax_s18"),
-    (24, "ink_attn_nax_s24"),
-];
 const KV_STAGE: &str = "ink_kv_stage_bf16";
 static NAX_FALLBACKS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
@@ -48,7 +37,7 @@ const NAX_MAX_WINDOW: usize = 4096;
 
 /// The metal4.0 shaders of this module.
 pub fn metal4_shader_names() -> Vec<&'static str> {
-    [NAX[0], NAX[1]].into_iter().chain(NAX_SWEEP.iter().map(|x| x.1)).chain([KV_STAGE]).collect()
+    vec![NAX[0], NAX[1], KV_STAGE]
 }
 
 /// Shapes `rel_sink_attn_bf16_nax` takes: prefill chunks (more rows than a verify call), head_dim 128, group 3.
@@ -576,10 +565,7 @@ impl MetalBackend {
             static SG: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
             *SG.get_or_init(|| std::env::var("INTARSIA_INK_NAX_SG").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(12))
         };
-        let (nax, nsg) = match static_sg {
-            6 => (NAX[0], 6),
-            n => NAX_SWEEP.iter().find(|x| x.0 == n).map_or((NAX[1], 12), |x| (x.1, x.0)),
-        };
+        let (nax, nsg) = if static_sg == 6 { (NAX[0], 6) } else { (NAX[1], 12) };
         let bq = 16 * (nsg / 3);
         let pso = self.ink_pso(nax)?;
         let wr = self.ink_pso(KV_WRITE)?;

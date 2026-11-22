@@ -314,14 +314,6 @@ template <int NSG>
                                                                uint2, uint2, uint, uint);
 INX_INST("ink_attn_nax_s6", 6)
 INX_INST("ink_attn_nax_s12", 12)
-// NSG sweep forms (lane ink-prefill, brief 25; `INTARSIA_INK_NAX_SG`): NSG not a multiple of G = 3 leaves simdgroups idle
-INX_INST("ink_attn_nax_s3", 3)
-INX_INST("ink_attn_nax_s4", 4)
-INX_INST("ink_attn_nax_s8", 8)
-INX_INST("ink_attn_nax_s9", 9)
-INX_INST("ink_attn_nax_s16", 16)
-INX_INST("ink_attn_nax_s18", 18)
-INX_INST("ink_attn_nax_s24", 24)
 
 // staging of a ring prefill's keys: row r of [Hk, S, D] is absolute key kbase + r: zero below lo (the first row's window),
 // the ring row for lo <= j < pos0, the chunk row for j >= pos0. bind: 0 k chunk, 1 v chunk, 2 k cache, 3 v cache, 4 k stage,
