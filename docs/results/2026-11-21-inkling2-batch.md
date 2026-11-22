@@ -286,3 +286,19 @@ rep 2 of B 16 is 78 ms (204 tok/s), a 10 % spread between reps of the same setti
 work since then, chiefly m-mix 47570539e (InkInProj up to 8 rows on the GEMV instead of the matrix units; the 8-row InkInProj
 was 8.2 ms per step in #10885); unrelated local CPU load on endor during #10773 (the coordinator's build rule) may also have
 inflated it. A full 1 / 2 / 4 / 8 / 16 curve at the tip, two passes, is queued to replace section 4's table.
+
+## 10. Solo path speed: ink/metal f55bfe8b7 vs ink/batch 177cfd2f5 (#10914, quiet)
+
+`intarsia generate --backend metal --max-seq 4096 --max-tokens 256 --temperature 0 --profile-every 0`, both built in the slot,
+6 reps per arm alternating order (base/new, new/base, ...); output text identical.
+
+| arm | mean tok/s | median | min | max |
+|---|---:|---:|---:|---:|
+| base ink/metal f55bfe8b7 | 64.13 | 64.09 | 63.92 | 64.40 |
+| ink/batch 177cfd2f5 | 63.73 | 63.64 | 63.47 | 64.11 |
+
+Branch -0.62 % (mean), -0.70 % (median): inside the <= 1 % merge criterion, but consistent (the branch is slower in 5 of 6
+pairs), about 0.1 ms per token. Suspects, all in code the solo step runs: the `MX_ROWTAB` runtime branch and the now-mutable
+ring pointer in the mix kernel's conv loop, the 32 bytes added to `InkP` / `InkMixP` (set_bytes), and the per-call
+`row-table` checks in `ink_pass` / `OpCall::check`. Not chased here (inside the criterion); a compile-time row-table variant of
+the mix shader would remove the first two if it matters.
