@@ -440,6 +440,86 @@ impl Backend for Wrapped {
     }
 }
 
+/// Records (op, kernel, the first row of output 0 when its leading dim is the pass's rows) of every launch.
+struct Logged {
+    inner: Arc<dyn Backend>,
+    rows: std::sync::atomic::AtomicUsize,
+    log: std::sync::Mutex<Vec<(String, String, Vec<u8>)>>,
+}
+
+impl Backend for Logged {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+    fn info(&self) -> DeviceInfo {
+        self.inner.info()
+    }
+    fn alloc(&self, bytes: usize, kind: MemKind) -> intarsia_core::Result<Buffer> {
+        self.inner.alloc(bytes, kind)
+    }
+    fn upload(&self, dst: &Buffer, o: usize, src: &[u8], s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.upload(dst, o, src, s)
+    }
+    fn download(&self, src: &Buffer, o: usize, dst: &mut [u8], s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.download(src, o, dst, s)
+    }
+    fn copy(&self, d: &Buffer, d_o: usize, s: &Buffer, s_o: usize, n: usize, st: StreamId) -> intarsia_core::Result<()> {
+        self.inner.copy(d, d_o, s, s_o, n, st)
+    }
+    fn kernels(&self) -> Vec<KernelImpl> {
+        self.inner.kernels()
+    }
+    fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> intarsia_core::Result<()> {
+        self.inner.launch(kernel, call, stream)?;
+        let t = self.rows.load(Ordering::SeqCst);
+        let mut row = Vec::new();
+        if let Some(o) = call.outputs.first() {
+            if o.shape.first() == Some(&t) && t > 0 {
+                self.inner.synchronize(stream)?;
+                let mut data = vec![0u8; o.nbytes() / t];
+                self.inner.download(&o.buf, o.offset, &mut data, stream)?;
+                row = data;
+            }
+        }
+        self.log.lock().unwrap().push((call.op.to_string(), kernel.to_string(), row));
+        Ok(())
+    }
+    fn synchronize(&self, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.synchronize(s)
+    }
+}
+
+/// Diagnostics (`INTARSIA_INKLING2_CHUNK_SCAN=1`): the launches of a 1-row pass and of a `INTARSIA_INKLING2_SCAN_T`-row pass at
+/// position 0, side by side, with whether output 0's first row is bitwise the same.
+#[test]
+fn inkling2_tiny_launch_diff() {
+    if std::env::var_os("INTARSIA_INKLING2_CHUNK_SCAN").is_none() {
+        return;
+    }
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let t: usize = std::env::var("INTARSIA_INKLING2_SCAN_T").ok().and_then(|v| v.parse().ok()).unwrap_or(2);
+    let mut logs = Vec::new();
+    for n in [1usize, t] {
+        let b = Arc::new(Logged { inner: backend(), rows: std::sync::atomic::AtomicUsize::new(n), log: Default::default() });
+        let m = load_with(&dir, 16, b.clone()).unwrap();
+        b.log.lock().unwrap().clear();
+        let mut st = m.new_state().unwrap();
+        all_logits(&m, &mut st, &ids[..n]);
+        logs.push(b.log.lock().unwrap().clone());
+    }
+    let (a, b) = (&logs[0], &logs[1]);
+    println!("launches: 1 row {}, {t} rows {}", a.len(), b.len());
+    let mut shown = 0;
+    for (i, (x, y)) in a.iter().zip(b.iter()).enumerate() {
+        let same = !x.2.is_empty() && x.2.len() == y.2.len() && x.2 == y.2;
+        if !same && shown < 12 {
+            println!("diff #{i}: {} {} vs {} {} (row bytes {} / {}, equal {})", x.0, x.1, y.0, y.1, x.2.len(), y.2.len(), x.2 == y.2);
+            shown += 1;
+        }
+    }
+}
+
 /// A pass that fails half-way leaves the sequence empty (its rings half-written), and the next prefill is the clean one.
 #[test]
 fn inkling2_tiny_failed_pass_resets_the_sequence() {
