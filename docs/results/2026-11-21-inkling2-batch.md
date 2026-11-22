@@ -459,3 +459,9 @@ was killed with the server; the script should signal the server pid, not the wra
   The post-merge batched slowdown (B=8 ~39 -> 46-49 ms, B=16 ~71 -> 79-81 ms) is unexplained.
 - 230 tok/s at 16 streams (batch_step) not confirmed: 224.7 / 204 pre-merge, 198-202 post-merge.
 - `plan show` Qwen3-8B Metal byte-identical last checked at a88db4620 (#10785), before the ink/metal merge.
+
+## 16. rtvar correctness (#11104, `.scratch/rtvar_correct.log`)
+
+`ink/batch-rtvar` 2b740dee7 vs merged base 8546d143f: Metal lib / inkmix / mxfp4_gemv / rows_exact tests 18+3+5+11 pass
+(4 ignored); tiny CPU 8+6 pass; tiny Metal 8+6 pass; real model, mixed contexts, batched-token digests at B 2/5/16
+363b4c051e0fbbff / b6691f473fb73a82 / 6c18980dd1c6861f on both: BATCHED TOKENS IDENTICAL base == rtvar.
