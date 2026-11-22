@@ -751,7 +751,7 @@ raw dirs or golden/. spark2 has no /opt/code.
   - The new hostprof test failed: its expected count was wrong (2 gaps, not 1), not the code. Fixed in cd886d57b.
 - **#10899, on cd886d57b:** hostprof 3/3, `dflash_cpu` with the profiler 7/7.
 
-## Gates on the branch tip (endor #11182 section F, 03:49-04:0x, quiet)
+## Gates on the branch tip (endor #11182 section F, 03:49-03:51, quiet)
 
 Binary `.scratch/i7/intarsia-h7f`, a fresh build of ink/hostgap ff65d7f63 (ink/metal 431a68aec with the NE fix 7eca1b012, plus
 this lane's code through fb38fe4a5), every `INTARSIA_*` switch of this lane unset. References: ink-metal's NE fix gate #11179
