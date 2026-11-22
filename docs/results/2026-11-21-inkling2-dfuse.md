@@ -1661,7 +1661,7 @@ difference, and a concurrent encoder with barriers costs more per transition tha
     order. It reaches 0.3 only at ctx 512. Under the rule this is no build.
 - **Decision: wrap up (option a)**, per the coordinator's rule (slope < 1.5 us).
 
-### Wrap-up job W (#see jobW.out, queued ~10:20; estimated start ~12:29)
+### Wrap-up job W (#11465, queued ~10:20; estimated start ~12:29)
 
 - **Merge:** ink/metal bb2edc527 merged into ink/dfuse at 81bb8c4b8. The only code it brings is a test gate in
   inkling2_batch.rs and a HIP kernel, so Metal decode is unchanged. Job W's Metal test step is the check.
