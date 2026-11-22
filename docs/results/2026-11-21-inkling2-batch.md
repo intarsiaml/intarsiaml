@@ -624,3 +624,47 @@ Log `.scratch/benchtest-11209.log`, ctx 512, 1 round x 8 steps.
   (median 27, max 52); independent routing would give ~82. So real text gives ~2.3x the union of the old bench.
 - Timings in this shared slot (indicative only): B 16 batched step text 74.8 / 85.6 ms (214 / 187 tok/s) vs random 66.7 ms
   (240 tok/s); B 1 and B 4 equal within noise. The quiet job after #11206 measures it properly.
+
+## 21. Real-text MoE job (#11261, quiet, tree e4ebcfe77 = ink/metal 7e5e6010e + bench; `.scratch/realmoe-11261.log`)
+
+**auto vs union-fused, real text, batched step ms per rep (order fwd / rev / fwd):**
+
+| B | rep 1 auto / uf | rep 2 uf / auto | rep 3 auto / uf | paired diff uf - auto (ms) |
+|---:|---|---|---|---|
+| 1 | 15.48 / 15.67 | 15.30 / 15.44 | 15.34 / 15.45 | +0.19, -0.14, +0.11 |
+| 8 | 53.30 / 51.32 | 53.14 / 51.09 | 47.40 / 51.50 | -1.98, +2.05, +4.10 |
+| 16 | 87.72 / 88.29 | 84.28 / 84.37 | 80.41 / 91.28 | +0.57, -0.09, +10.87 |
+
+Per-row digests identical across both arms and all reps (B 1 67843d1dbf0249f5, B 8 74478685fe7299e9, B 16
+846a505a4055b0ba): the policies are bitwise as documented. No verdict: auto drifts down rep by rep (87.7 / 84.4 / 80.4 at
+B 16), consistent with mmap'd expert weights being paged in on first use (the bench never enables the keep-warm residency
+set; real text touches ~63 experts per call). Rerun with an untimed warm rep and page-in counts: #11297. auto stays.
+
+Random-prompt continuity run in the same slot: B 1 15.35 / B 8 42.79 / B 16 74.84 ms (65.1 / 187.0 / 213.8 tok/s), vs
+#11181 on 8546d143f 16.40 / 34.93 / 59.96. ink-metal's combined gate on 7e5e6010e (not quiet) logged B 16 74.9 ms, so a B 16
+regression may predate pack12; check pending (#11266, then runtime switches).
+
+**Expert union per MoE call on real text (kernel trace, 44 calls per step):**
+
+| B | union mean / median / max | independent routing | MoE GPU ms/step (traced) | all GPU ms/step (traced) |
+|---:|---|---:|---:|---:|
+| 2 | 14.2 / 15 / 16 | 16 | 8.50 | 21.91 |
+| 4 | 24.8 / 25 / 31 | 29 | 18.22 | 38.82 |
+| 8 | 41.0 / 42.5 / 55 | 52 | 28.09 | 53.14 |
+| 12 | 53.5 / 55 / 71 | 69 | 33.04 | 62.97 |
+| 16 | 62.5 / 64 / 83 | 82 | 32.60 | 61.97 |
+
+**MoE candidate: dropped (< 3 ms rule).** MoE time scales with the union: from B 2 to 12, ~0.62 traced ms per extra expert
+in the union per step (8.5 -> 33.0 ms as the union goes 14 -> 54), with an intercept of ~0. There is no fixed launch part
+to remove; at B 16 MoE is flat (32.6 ms at union 62.5), below that line. Real text's MoE is weight-read work over the
+experts actually touched. Fewer launches would not reduce it.
+
+**B 16 per-op on real text (traced, ms/step, B 8 -> B 16):** MoE situ gate+up 15.93 -> 18.23, down 8.65 -> 10.27, gather
+0.34 -> 0.27; ink_in_proj 6.36 -> 8.76; ink_attn_decode 8.49 -> 9.78; unembed 2.69 -> 3.62; wo / dense GEMV 2.10 -> 2.70;
+MoE mxfp8 3.16 -> 3.82; conv_mix 4.15 -> 3.52; route 0.93 -> 0.73. The traced sum (62 ms) is below the untimed step
+(80-88 ms); the per-launch trace under-counts, as in section 11.
+
+**in_proj option (reported per the rule):** ink_in_proj is the next-largest share that grows with B: +2.40 traced ms from
+B 8 to 16, about 14% of the traced step. A rows kernel that reads its weights once for all 16 rows could at best recover
+that growth: ~2.4 traced, ~3 ms real, so B 16 ~81-85 instead of 84-88 ms (~+3%). The same single-read idea gave nothing for
+wo / logits (#10900), so I would not build it without a microbench showing the 8 -> 16 growth is weight reads.
