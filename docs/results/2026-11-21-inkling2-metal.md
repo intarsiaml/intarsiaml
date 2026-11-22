@@ -68,8 +68,9 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 | `ink/skel` | b5e283927 | base: cpu port, model block, loader, recipe, tiny tests | - |
 | `ink/m-attn` | 9410a9b67 | InkKvPrologue (70), RelSinkAttn (71, split-KV + NAX prefill), InkAttnDecode (75) | none |
 | `ink/m-moe` | 98317825d | MoeRoute, NVFP4 SiTU experts, MXFP8 experts (decode + NAX prefill) | `build.rs` (metal4 sources, launcher sources), `kernels.rs` (metal4 list, TABLE, the count test): kept both |
+| `ink/batch` | bbc0bec00 (177cfd2f5 + docs), merged at 45887198b after m-mix | batched decode: row-table `conv_mix_bf16_rows`, `MX_ROWTAB` in the mix shader, row-table attention / GEMV rows | no textual conflicts; inkmix.rs and the mix shader changed in disjoint places (m-mix: NE 4 from D 2048 and `BLEND_RB` 4; batch: the row-table kernel, `InkMixP` 112 -> 144 bytes); gated together (merge gate below) |
 | `ink/d1row-doc` | 5b0b0bd2f | d1row results (docs only; kernels not merged) | none; diff only docs/results/ |
-| `ink/m-mix` | 47570539e (merged at 606fd36e4; earlier tips 3e14f6aa3, d99d2c0fc) | InkInProj (73), ConvMix (74), AttnResMix (67), LoopBlend (68), SconvRes (69) | `build.rs`, `kernels.rs`, `lib.rs` (module, launch dispatch): kept all three lanes' entries |
+| `ink/m-mix` | 52b337aa9 final, with the defaults change 25ff7864a (merged at 331238a4e; earlier 47570539e at 606fd36e4, 3e14f6aa3, d99d2c0fc) | InkInProj (73), ConvMix (74), AttnResMix (67), LoopBlend (68), SconvRes (69) | `build.rs`, `kernels.rs`, `lib.rs` (module, launch dispatch): kept all three lanes' entries |
 
 `intarsia kernels test --backend metal --op <op>`, every Inkling op (fleetq #10681): all ADMITTED.
 
