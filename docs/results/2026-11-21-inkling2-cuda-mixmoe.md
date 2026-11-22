@@ -550,3 +550,18 @@ Row kernel: prefetch is 2-5 us slower per call (the prologue's address arithmeti
 and the kernel is already register-capped: 80 registers with 228 B spill stores / 680 B spill loads in the widest variant,
 before and after) -> removed. MoE: NVFP4 +6 % at T=1, +10 % at T=4, MXFP8 flat -> kept (`INTARSIA_INK_MOE_PF=0` reverts). It
 only adds `prefetch.global.L2`, so values are unchanged; the model-level md5 / tok/s check is next.
+
+### MoE prefetch gate (spark2 #11388, fresh build of c0b832b2f, `--quiet gpu,cpu`)
+
+- `ink_rows` 7/7. Recipe chunk now resolves: `prefill chunk 2048 (recipe inkling2, cuda)`.
+- Greedy 256 tokens (hash-map prompt, graphed decode, spec off), 3 interleaved reps:
+
+| INTARSIA_INK_MOE_PF | decode tok/s (3 reps) | mean | greedy ids md5 |
+|---|---|---|---|
+| 0 | 34.38 / 34.32 / 34.37 | 34.36 | `a0e6f47bc45f` (the gate golden) |
+| 1 (default) | 34.93 / 34.98 / 35.11 | 35.01 (+1.9 %) | `a0e6f47bc45f` |
+
+- Spec on: not measurable on this branch. `--spec mtp` exits with "unsupported: speculative drafters (--spec mtp / dflash)
+  on Inkling-2" (the Inkling drafter lives on another lane's branch); the prefetch only adds `prefetch.global.L2`, so verify
+  rows cannot change, but the spec-on md5 / tok/s must be rerun where the drafter is.
+- nsys of this run traced only the prompt (decode replays CUDA graphs; the next pass uses `--cuda-graph-trace=node`).
