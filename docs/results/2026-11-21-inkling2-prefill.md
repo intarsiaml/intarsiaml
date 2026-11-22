@@ -491,6 +491,30 @@ Against brief 8: G2 / G3 pass; serve log ok; 4k and 16k prefill faster beyond sp
 - **4k decode, pair 1:** -1.5 % (localeval calls it noise; brief 8 asks for within 1 %). Pair 2 is -0.3 %.
 Recipe committed on the coordinator's call (brief 13): ink/prefill-merge 05f1c702e.
 
+### Blend piece (ink/blend-piece de1e0568a, `INTARSIA_INK_BLEND_PIECE`, default 256 = unchanged; #11290 checks, #11322 timing)
+
+Checks (#11290):
+- tests/ink_blend_piece.rs: pieces 1024 and 2048 are **bitwise** the 256-row pieces on every output of ConvMix (looped blend) and LoopBlend, at D 2304, 3 streams, 2048 / 1890 / 300 rows. The launch counter confirms the larger pieces ran.
+- inkmix rows-exact 3 / 3 at piece 2048.
+- Admission at piece 2048: conv_mix ADMITTED (532 shapes), loop_blend ADMITTED (27).
+- #11290's timing half is void: it ran generate at the 256-row prefill chunk (this tree has no recipe commit and the script passed no --prefill-chunk), so the pieces never mattered. Rerun as #11322 with --prefill-chunk 2048, same binary.
+
+Timing (#11322, p8k, --prefill-chunk 2048):
+- Greedy 8 tokens are identical at pieces 1024 and 2048 vs 256.
+- Dispatches per looped ConvMix call: 32 (piece 256), 8 (1024), 5 (2048).
+- Kernel trace at piece 2048, chunks 1 + 2: **conv_mix 75.7 -> 58.2 ms per chunk (-17.5 ms, -23 %)** against the piece-256 trace .scratch/e2e/ps0.k.jsonl (same op set). The looped part goes 63.7 -> 45.8. The ops this change does not touch run ~3 % slower in this trace than in ps0 (MoE 323 -> 332), so the device ran slightly slower; the real saving is likely a little above 17.5 ms.
+- This job's own piece-256 and piece-1024 traces are **not usable**: every op, untouched ones included, ran ~1.6x slower in those two processes (GPU 1789 / 1030 ms per chunk). That is a device state, not the piece.
+- p8k tok/s, 3 rounds, order 256 / 1024 / 2048 within each round (position bias possible):
+
+| piece | round 1 | round 2 | round 3 | median | vs 256 |
+|---:|---:|---:|---:|---:|---:|
+| 256 | 2492 | 2362 | 2356 | 2362 | |
+| 1024 | 2542 | 2509 | 2521 | 2521 | +6.7 % |
+| 2048 | 2527 | 2476 | 2481 | 2481 | +5.0 % |
+
+- Scratch for the blend: ~21 MB (256), ~85 MB (1024), ~170 MB (2048).
+- Not decided: the default. Proposal to the coordinator: piece 1024 default-on (best tok/s, half the scratch of 2048), after a gate run (G2 / G3 short and long at chunk 2048 plus an interleaved speed check). Bitwise, so G2 / G3 should not move.
+
 ### Prologue split 4k by engine generate timing (#11290, brief 19; binary 61980c882, 3950-token prompt, 3 alternating pairs)
 
 off 1968.3 / 2008.4 / 1979.5, on 1984.5 / 1699.7 / 1891.6 tok/s. All runs exit 0 with non-empty output.
