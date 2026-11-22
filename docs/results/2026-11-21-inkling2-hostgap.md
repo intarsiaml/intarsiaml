@@ -90,6 +90,18 @@ Status: waiting on endor #10943 (items 2 and 3 timing); code done and CPU-checke
        gives the same tokens across runs; batch == solo bitwise.
      - Measure: sampled decode tok/s at t1.0 with the switch on vs off, and vs greedy, in a quiet endor slot.
 
+- 2026-11-21 (coordinator): the `GumbelArgmax` op contract is OK (as the lane proposed: inputs logits `[R,V]` f32 and keys
+  `[R,4]` u32 = (seed lo, seed hi, absolute position, bits of 1/T), output `[R]` i32, attr `scale` = softcap cap; Philox4x32-10
+  with key (seed lo, seed hi) and counter (token id, position, 0, 0), no batch row; u = ((x >> 8) + 0.5) 2^-24; ties go to the
+  smaller id; cpu reference + Metal only, CUDA and HIP fall back to the host path; `INTARSIA_GUMBEL_SAMPLING=1`, default off
+  for every model; work stays on `ink/hostgap-gumbel` until #10943 has run; one endor job queued after #10943), with three
+  changes:
+  1. Discriminant 96, not an append: 96..=99 are reserved for ink-hostgap (76..=95 are reserved for other lanes, so an
+     unnumbered append can collide at merge). The reservation comment says so.
+  2. `LastGumbel` also excludes rows with min_p > 0, any repetition / presence / frequency penalty, a logit_bias, or a logprobs /
+     top_logprobs request (they need host logits), with a test that each keeps the host path.
+  3. The chi-square gates run at T 0.7 and T 1.0, with the softcap on.
+
 ## Measurement (before)
 
 ### The integration trace, re-read (no new GPU run)
