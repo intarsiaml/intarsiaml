@@ -202,13 +202,13 @@ fn dnf_threads() -> usize {
 static T1: AtomicU8 = AtomicU8::new(255);
 static T1_SERVED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
-/// `INTARSIA_INK_MOE_T1=1` (default off, lane ink-dfuse): one-row NVFP4 calls (T = 1, the decode step at one row) take
+/// `INTARSIA_INK_MOE_T1` (lane ink-dfuse; default on since lane ink-batch brief 35, `=0` / `off` reverts): one-row NVFP4 calls (T = 1, the decode step at one row) take
 /// `ink_moe_gu1_nv_*` (one pair per union leader) and `ink_moe_dn_f3_nv_*` (3 down chunks loaded ahead). Same bits as the
 /// shipped instances (kernels/metal/inkling2_moe.metal); T > 1, MXFP8 and the grouped prefill GEMMs are unchanged.
 pub fn t1_enabled() -> bool {
     let v = T1.load(Ordering::Relaxed);
     if v == 255 {
-        let on = matches!(std::env::var("INTARSIA_INK_MOE_T1").as_deref(), Ok("1") | Ok("on"));
+        let on = !matches!(std::env::var("INTARSIA_INK_MOE_T1").as_deref(), Ok("0") | Ok("off"));
         T1.store(on as u8, Ordering::Relaxed);
         on
     } else {
