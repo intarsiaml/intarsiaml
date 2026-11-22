@@ -38,6 +38,7 @@ fn on_metal() -> bool {
 
 fn backend() -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
+        #[cfg(target_os = "macos")]
         Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
         Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or metal"),
