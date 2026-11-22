@@ -1265,3 +1265,58 @@ Every correctness gate passes. The speed gain is real but below the 0.3 ms/token
   then variants) under the same pre-registered rule. If it is under 0.3 ms, report the number and wrap up the lane.
 - **Housekeeping.** Merge ink/metal into ink/dfuse (done: 3d85517f7). Remove finished snapshot worktrees with
   `git worktree remove` (snap8 and snap9 removed). The merge's compile check runs on bespin or in a slot.
+
+### Merge check (bespin #11429): green
+
+ink/metal 5ef24b165 merged into ink/dfuse at 3d85517f7 with no conflicts. On bespin, cargo check passes for the Metal crate
+(examples and tests) and for the models tests. The Metal `kernels::tests` (including ink-metal's new shader-count test) pass
+7/7, the CPU Inkling tests pass 11 + 7, and docs_env_vars passes 2/2.
+
+### Item 2: decode attention core, ceiling from roofline L (no new job)
+
+The attention core is the fused `ink_attn_dec_g3` (H 24 / Hk 8, D 128, d_rel 16, E 1024, K 4, SWA window 1024) plus
+`ink_attn_comb_bf16` when there is more than one split (64 keys per split, at most 32). That is 40 SWA and 8 full visits
+per token. Times are L's `ink_attn_bench --fused`, rows 1, raw/L_b_attn.txt. The floor counts the KV bytes at 614 GB/s:
+4 KiB per key per visit (K and V, 8 kv heads x 128 x bf16); the q / rel-proj bytes are negligible.
+
+| Prompt | Context | Measured (ms / token) | Floor (ms / token) | Gap = ceiling (ms / token) |
+|---|---|---|---|---|
+| short | <= 512 (L's ctx 512 values, an upper bound) | 1.118 (40 x 23.09 + 8 x 24.34 us) | 0.048 | **1.07** |
+| 5k | 5051-5308 (job G's 5k run; mean 5180) | 1.847 (40 x 31.36 + 8 x 74.1 us; full interpolated 4096 -> 32768) | 0.550 (337 MB) | **1.30** (1.20 with full at its ctx-4096 value) |
+
+- **Ceiling >= 0.3 ms at both prompts, so this lane probes it** (coordinator's rule).
+- L's tighter bound for the short prompt (the fused kernel costing no more than the attention alone, or the prologue alone)
+  is 0.33-0.58 ms. That is also >= 0.3.
+- **Cross-check against the real step.** Job G's 5k step is 0.92 ms slower than its short step. The bench's growth is 0.73
+  ms (0.64 lower bound), and more than that from the short prompt's real context (about 150, below the ctx 512 used). The
+  bench may under-count the stream at 5k by up to about 0.2 ms. One likely cause is the bench's 16 reused operand sets: 67
+  MB of SWA KV at ctx 4096 can stay cache-resident. The probe measures in the real step too.
+
+### Item 2: pre-registered rule (written before any timing)
+
+1. **Harness calibration first.** The probe harness's shipped kernel must be within 5 % of L_b_attn's fused times (SWA and
+   full, ctx 512 and 4096), and its output bitwise equal to the backend's for one visit at each. If either check fails, the
+   harness is fixed before any variant number is read.
+2. **Stage 1: no-math kernels of the same geometry, priced per visit.**
+   - Latency skeleton: the dec + comb pair with the same grid (8 x splits x 1, 128 threads), threadgroup memory, barrier
+     sequence and loads, and the arithmetic dropped.
+   - The same skeleton as one dispatch (no comb), to price comb. At 64 keys per split, nearly every decode position has at
+     least 2 splits.
+   - At 5k only: a byte stream of the same bytes on the same grid.
+
+   Ceiling = sum over visits of (shipped - best no-math), at short (ctx about 150 and 512) and at 5k. If it is under 0.3
+   ms/token at both prompts: stop, report, wrap up the lane.
+3. **Stage 2: variants, only where stage 1 >= 0.3.**
+   - Same-bits restructurings first: key-loop lookahead loads, and issuing the first K/V and rel-proj / tap loads before
+     the prologue barriers.
+   - Non-bitwise variants (split keys 16 / 32 / 128 through `INTARSIA_INK_SPLIT_KEYS`; more simdgroups) are measured for
+     information only.
+4. **Build and default rule (as for T1).**
+   - A build is proposed only on a microbench gain >= 0.3 ms/token at its target prompt.
+   - It goes default-on only if the real-step ABAB median gain is >= 0.3 ms/token, warm, at its target prompt, with no
+     regression beyond 0.1 ms/token at the other prompt. Same-bits variants also need equal greedy md5. Otherwise the
+     variant stays opt-in or is dropped.
+5. **Bits.** A split-policy change reorders the rounding, so md5 will differ. Whether non-bitwise variants are in scope,
+   and what replaces md5 for them, is the coordinator's call (asked 2026-11-22 ~09:15).
+6. **State.** InkAttnDecode writes the KV cache and the conv ring, and `ink_attn_dec<GP, RT>` is shared with ink-batch's
+   row-table form. Before any build: message main, and run `inkling2_batch` and the attention rows-exact tests.
