@@ -5,6 +5,12 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 
 ## Briefs received
 
+- 2026-11-22 (main): the steady auto B16 drop across reps (87.7 / 84.4 / 80.4 ms) looks like warm-up: expert weights may be
+  mmap-backed and real text (~63 experts/call vs ~28) pages in never-touched or evicted experts. Check whether weight
+  buffers are mmap'd and resident before timing (page-in / fault counts, vm_stat pageins before / after each rep). If so,
+  rerun the paired comparison next quiet slot: one full untimed real-text warm rep across all B, then 3 paired reps; report
+  pairs within each rep and the mean paired difference. Default-policy decision waits; auto stays.
+
 - 2026-11-22 (main): main killed an orphaned `intarsia serve --port 8131` from this worktree (pids 85506/85510, ppid 1, 11 GB
   RSS, up since ~02:42 EST, no fleetq job) inside slot #11257. (1) Serve job scripts must kill the whole process group
   (set -m or setsid, `kill -- -$PGID` in an EXIT trap) and check the port is closed before exiting. (2) Note next to every
