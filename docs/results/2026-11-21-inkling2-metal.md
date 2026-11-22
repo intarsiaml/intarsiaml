@@ -981,6 +981,9 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   not installed), no load.
 - Linux workspace tests (spark1, metal and hip excluded, cuda kept): base 608bc4408 #11455 174 test binaries ok, 0 failed;
   dev 040748800 #11459 183 ok, 0 failed, 0 build errors; failure sets identical (empty). Memguard minimum 70 GB available.
+- PR #488 opened from 81270f405 (= d111c798a + 040748800 + results doc), without df7eb7f80. spark1 cleanup (#11477 / #11478):
+  ~/intarsiaml-inknoop (23 GB: trees, test targets, binaries) removed, one leftover memguard (pid 1397270) stopped; nothing of
+  this lane left in spark1's home dir.
 - Metal #11440 done (exit 0, 09:29:18-09:59:11, quiet gpu,cpu): 256 greedy ids identical base vs dev for Qwen3-8B (short sha
   d619ede5, 4k feb11f5c) and Llama-3.1-8B-Instruct (short 25bbc20f, 4k eda51e94); `plan show` txt and json byte-identical for
   both. `kernels test --backend metal` 0 FAIL on both: base 56 kernels / 1335 cases, dev 86 kernels / 2915 cases (the Inkling,
