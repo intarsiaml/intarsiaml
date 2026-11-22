@@ -4068,7 +4068,17 @@ impl Model {
             }
             let ids_t = ids_at.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t]));
             let nv = self.view(&ws.n, act, &[t, h]);
-            self.ink_pass(st, &ids_t, t, pos0, &nv, profile, None, None)?;
+            // passes of 2..=16 rows take the row-exact kernels on Metal (`inkling2::ink_rows_exact`), so any schedule of such
+            // passes (decode, a small chunk, a rolled-back verify-sized pass) leaves the state a token-by-token decode would
+            let mark = !self.verifying() && inkling2::ink_rows_exact(self.backend.name(), t);
+            if mark {
+                self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+            let r = self.ink_pass(st, &ids_t, t, pos0, &nv, profile, None, None);
+            if mark {
+                self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+            }
+            r?;
             return Ok(nv);
         }
 

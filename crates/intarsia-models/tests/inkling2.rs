@@ -3,6 +3,9 @@
 //! window and the 6-layer blocks, prefill then decode, snapshot restore, failed-pass reset, speculative rollback by length,
 //! batched == solo) and NoKernel refusal on a backend without the Inkling-2 kernels.
 //!
+//! `INTARSIA_INKLING2_BACKEND=metal` runs the bf16 tests (G1(b), the state contract, the failed-pass reset) on the Metal
+//! backend instead (G1 on Metal, lane ink-metal); G1(a) (f32 activations) and the NoKernel refusal stay on cpu.
+//!
 //! Skipped (loudly) when the fixture is missing; fails under `CI=1`.
 
 use intarsia_core::model::{HeadMode, InkTensors, LoadOptions, Model};
@@ -40,8 +43,32 @@ fn load_act(dir: &Path, chunk: usize, backend: Arc<dyn intarsia_core::Backend>, 
     Model::load(backend, &recipe, &dims, &src, &LoadOptions { max_seq: 128, prefill_chunk: chunk, graphs: false, act_dtype: act, kv_dtype: act, ..Default::default() }, Arc::new(Telemetry::new()))
 }
 
+/// The backend of the bf16 tests: cpu, or Metal with `INTARSIA_INKLING2_BACKEND=metal`.
+fn backend() -> Arc<dyn intarsia_core::Backend> {
+    match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
+        Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
+        Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
+        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or metal"),
+    }
+}
+
+fn on_metal() -> bool {
+    std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() == Ok("metal")
+}
+
+/// The prefill chunk of the state tests: one pass for the 40-token prompt on cpu (its kernels are rows-exact at any row count);
+/// 16 on Metal, where passes of 2..=16 rows take the row-exact kernels (`ink_rows_exact`) and larger ones the fast prefill
+/// kernels, which are not bitwise a decode step's rows.
+fn chunk() -> usize {
+    if on_metal() {
+        16
+    } else {
+        64
+    }
+}
+
 fn load(dir: &Path, chunk: usize) -> Model {
-    load_with(dir, chunk, intarsia_backend_cpu::CpuBackend::arc()).unwrap()
+    load_with(dir, chunk, backend()).unwrap()
 }
 
 /// Every tensor of a safetensors file as f32 (F32 / BF16 / I64 / I32), by name.
@@ -250,12 +277,21 @@ fn logits_chunked(dir: &Path, chunk: usize, ids: &[u32]) -> Vec<Vec<f32>> {
 fn inkling2_tiny_chunked_and_decode_match_prefill_bitwise() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     let ids = prompt(&dir);
-    let whole = logits_chunked(&dir, 64, &ids);
+    let whole = logits_chunked(&dir, chunk(), &ids);
     for chunk in [7, 13] {
         assert_eq!(logits_chunked(&dir, chunk, &ids), whole, "chunk {chunk}");
     }
+    if on_metal() {
+        // one 40-row pass takes the prefill kernels, which are not bitwise a decode step's rows. The tiny random net is chaotic
+        // under bf16 when free-running (spec section i), so the two schedules are not comparable here: the prefill kernels are
+        // gated teacher-forced (G1(b), one 40-row pass) instead. Printed for the record only.
+        let one = logits_chunked(&dir, 64, &ids);
+        let e = rel_l2(&one.concat(), &whole.concat());
+        let agree = one.iter().zip(&whole).filter(|(a, b)| argmax(a) == argmax(b)).count();
+        println!("metal: one 40-row prefill vs 16-row passes (free-running, not gated): rel l2 {e:.3e}, top-1 {agree}/{}", ids.len());
+    }
     // prefill 9 (past the window), then decode one token at a time
-    let m = load(&dir, 64);
+    let m = load(&dir, chunk());
     let mut st = m.new_state().unwrap();
     let mut rows = all_logits(&m, &mut st, &ids[..9]);
     for &id in &ids[9..] {
@@ -269,8 +305,8 @@ fn inkling2_tiny_chunked_and_decode_match_prefill_bitwise() {
 fn inkling2_tiny_rollback_by_length() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     let ids = prompt(&dir);
-    let whole = logits_chunked(&dir, 64, &ids);
-    let m = load(&dir, 64);
+    let whole = logits_chunked(&dir, chunk(), &ids);
+    let m = load(&dir, chunk());
     let mut st = m.new_state().unwrap();
     all_logits(&m, &mut st, &ids[..30]);
     // a 5-token "verify" pass with wrong tokens, rolled back to keep 2 of them
@@ -302,8 +338,8 @@ fn inkling2_tiny_interleaved_sequences_equal_solo() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     let ids = prompt(&dir);
     let other: Vec<u32> = ids.iter().rev().copied().collect();
-    let (wa, wb) = (logits_chunked(&dir, 64, &ids), logits_chunked(&dir, 64, &other));
-    let m = load(&dir, 64);
+    let (wa, wb) = (logits_chunked(&dir, chunk(), &ids), logits_chunked(&dir, chunk(), &other));
+    let m = load(&dir, chunk());
     let (mut a, mut b) = (m.new_state().unwrap(), m.new_state().unwrap());
     let (mut ra, mut rb) = (Vec::new(), Vec::new());
     for (i, c) in [(0, 11), (11, 20), (20, 33), (33, 40)] {
@@ -365,9 +401,9 @@ impl Backend for Wrapped {
 fn inkling2_tiny_failed_pass_resets_the_sequence() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     let ids = prompt(&dir);
-    let whole = logits_chunked(&dir, 64, &ids);
+    let whole = logits_chunked(&dir, chunk(), &ids);
     let fail = Arc::new(AtomicBool::new(false));
-    let m = load_with(&dir, 64, Arc::new(Wrapped { inner: intarsia_backend_cpu::CpuBackend::arc(), drop: vec![], fail: fail.clone() })).unwrap();
+    let m = load_with(&dir, chunk(), Arc::new(Wrapped { inner: backend(), drop: vec![], fail: fail.clone() })).unwrap();
     let mut st = m.new_state().unwrap();
     all_logits(&m, &mut st, &ids[..20]);
     fail.store(true, Ordering::SeqCst);
@@ -381,10 +417,11 @@ fn inkling2_tiny_failed_pass_resets_the_sequence() {
 #[test]
 fn inkling2_tiny_no_kernel_refusal_names_the_op() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
-    // SconvRes is in the op set for kernels that split ConvMix; the model graph itself emits ConvMix
-    for op in intarsia_core::inkling2::ops::OPS.iter().copied().filter(|&o| o != Op::SconvRes) {
+    // SconvRes is in the op set for kernels that split ConvMix; the model graph itself emits ConvMix. InkAttnDecode is optional:
+    // without it the graph runs the InkKvPrologue + RelSinkAttn pair
+    for op in intarsia_core::inkling2::ops::OPS.iter().copied().filter(|&o| o != Op::SconvRes && o != Op::InkAttnDecode) {
         let b = Arc::new(Wrapped { inner: intarsia_backend_cpu::CpuBackend::arc(), drop: vec![op], fail: Arc::new(AtomicBool::new(false)) });
-        let e = load_with(&dir, 64, b).err().unwrap_or_else(|| panic!("load without {op} must fail"));
+        let e = load_with(&dir, chunk(), b).err().unwrap_or_else(|| panic!("load without {op} must fail"));
         let msg = e.to_string();
         assert!(matches!(e, intarsia_core::Error::NoKernel(_)), "{op}: {msg}");
         assert!(msg.contains(op.as_str()), "{op}: {msg}");
@@ -392,7 +429,7 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
     for op in intarsia_core::inkling2::ops::OPS {
         assert!(!intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
         assert!(intarsia_backend_hip::kernels::UNIMPLEMENTED.contains(&op), "hip {op}");
-        // Metal: no kernel yet (the ink/m-* lanes add them); the table alone, no device
-        assert!(!intarsia_backend_metal::kernels::all().iter().any(|k| k.op == op), "metal {op}");
+        // Metal: every op has a kernel (lanes ink-m-attn, ink-m-moe, ink-m-mix); the table alone, no device
+        assert!(intarsia_backend_metal::kernels::all().iter().any(|k| k.op == op), "metal {op}");
     }
 }

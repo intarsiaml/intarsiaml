@@ -25,6 +25,41 @@ use std::collections::BTreeMap;
 /// rollback may cut (spec section f: at least `max verify rows - 1 + rollback depth` = 6).
 pub const INK_RING_MARGIN: usize = 16;
 
+/// `INTARSIA_INK_ATTN_FUSED`: `1` / `on` = `InkAttnDecode` (op 75) on every visit of up to 16 rows the backend admits it for,
+/// `0` / `off` = always the `InkKvPrologue` + `RelSinkAttn` pair, unset / `auto` = [`ink_attn_fused_rule`] on Metal (the pair
+/// elsewhere). Both give the same bits (the fused kernel is bitwise the pair), so this only moves time.
+fn ink_attn_fused_env() -> Option<bool> {
+    static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| match std::env::var("INTARSIA_INK_ATTN_FUSED").ok().as_deref().map(str::trim) {
+        Some("1") | Some("on") => Some(true),
+        Some("0") | Some("off") => Some(false),
+        _ => None,
+    })
+}
+
+/// Whether a visit's attention of `rows` rows ending at context `ctx` (positions `0..ctx`) takes the fused `InkAttnDecode`
+/// instead of the pair, on Metal. From lane ink-m-attn's per-visit timings (docs/results/2026-11-21-inkling2-metal-attn.md),
+/// keyed on the keys a row reads (`ctx`, at most the window on an SWA visit): 1 row fused up to 8192 keys (measured: fused wins at
+/// 512 / 1024 / 4096 keys, the pair at 32768), 2..=4 rows fused up to 512 keys (pair at 1024 SWA), more rows the pair (the
+/// fused threadgroups each redo the row's q / r and their split's bias). A later lane retunes the thresholds here.
+pub(crate) fn ink_attn_fused_rule(rows: usize, local: bool, ctx: usize, window: usize) -> bool {
+    let keys = if local && window > 0 { ctx.min(window) } else { ctx };
+    match rows {
+        1 => keys <= 8192,
+        2..=4 => keys <= 512,
+        _ => false,
+    }
+}
+
+/// Whether an Inkling-2 pass of `t` rows runs under `exact_rows` (the row-exact kernels): on Metal for 2..=16 rows (the 1-row
+/// kernels are the reference the rows kernels are bitwise to), unless `INTARSIA_INK_ROWS_EXACT=0`. Larger passes (prefill
+/// chunks) take the fast kernels and are not bitwise a decode step's rows on Metal.
+pub(crate) fn ink_rows_exact(backend: &str, t: usize) -> bool {
+    static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let off = *OFF.get_or_init(|| std::env::var("INTARSIA_INK_ROWS_EXACT").is_ok_and(|v| v.trim() == "0"));
+    !off && backend == "metal" && (2..=16).contains(&t)
+}
+
 /// Where a partial lives (see the module doc).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Loc {
@@ -725,17 +760,6 @@ impl Model {
                 d_rel: dr,
                 ..InkAttrs::default()
             };
-            ex(
-                Op::InkKvPrologue,
-                vec![pq.clone(), pk, pv, l.ktaps.clone(), l.vtaps.clone(), l.qscale.clone(), l.rscale.clone(), l.relproj.clone()],
-                vec![q.clone(), rel.clone(), k.clone(), vv.clone(), kvc.plane(0), kvc.plane(1)],
-                pa,
-            )?;
-            put(format!("{tag}.q"), &q)?;
-            put(format!("{tag}.k"), &k)?;
-            put(format!("{tag}.v"), &vv)?;
-            put(format!("{tag}.rel"), &rel)?;
-            put(format!("{tag}.sink"), &pq)?;
             let (kc, vc) = match &st.slots[v.kv_slot] {
                 StateSlot::Ring(r) => (r.plane(0).reshaped(&[hk, r.rows, dh]), r.plane(1).reshaped(&[hk, r.rows, dh])),
                 StateSlot::AttnKv(s) => (self.view(&s.k, s.dtype, &[hk, s.cap, dh]), self.view(&s.v, s.dtype, &[hk, s.cap, dh])),
@@ -752,7 +776,55 @@ impl Model {
                 ..a0.clone()
             };
             aa.ink = InkAttrs { kv_ring: l.local, d_rel: dr, ..InkAttrs::default() };
-            ex(Op::RelSinkAttn, vec![q, k, vv, kc.clone(), vc.clone(), rel, pq], vec![o.clone(), kc, vc], aa)?;
+            // decode rows: the fused InkAttnDecode (75) where the selection rule (or INTARSIA_INK_ATTN_FUSED) asks for it and the
+            // backend admits the call, else the pair; a dump needs the pair's q / k / v / rel
+            let want_fused = !dumping
+                && t <= 16
+                && match ink_attn_fused_env() {
+                    Some(f) => f,
+                    None => self.backend.name() == "metal" && ink_attn_fused_rule(t, l.local, pos0 + t, ink.window),
+                };
+            let fused = want_fused.then(|| {
+                let mut fa = aa.clone();
+                fa.ink = InkAttrs { kv_ring: l.local, ..pa.ink };
+                OpCall::new(
+                    Op::InkAttnDecode,
+                    vec![
+                        pq.clone(),
+                        pk.clone(),
+                        pv.clone(),
+                        l.ktaps.clone(),
+                        l.vtaps.clone(),
+                        l.qscale.clone(),
+                        l.rscale.clone(),
+                        l.relproj.clone(),
+                        kc.clone(),
+                        vc.clone(),
+                    ],
+                    vec![o.clone(), kc.clone(), vc.clone(), kvc.plane(0), kvc.plane(1)],
+                    fa,
+                )
+            });
+            let fused = fused.map(|mut c| {
+                c.exact_rows = self.verifying();
+                c
+            });
+            if let Some(call) = fused.filter(|c| self.registry.select(c).is_ok()) {
+                self.exec_call(call, profile)?;
+            } else {
+                ex(
+                    Op::InkKvPrologue,
+                    vec![pq.clone(), pk, pv, l.ktaps.clone(), l.vtaps.clone(), l.qscale.clone(), l.rscale.clone(), l.relproj.clone()],
+                    vec![q.clone(), rel.clone(), k.clone(), vv.clone(), kvc.plane(0), kvc.plane(1)],
+                    pa,
+                )?;
+                put(format!("{tag}.q"), &q)?;
+                put(format!("{tag}.k"), &k)?;
+                put(format!("{tag}.v"), &vv)?;
+                put(format!("{tag}.rel"), &rel)?;
+                put(format!("{tag}.sink"), &pq)?;
+                ex(Op::RelSinkAttn, vec![q, k, vv, kc.clone(), vc.clone(), rel, pq], vec![o.clone(), kc, vc], aa)?;
+            }
             let aproj = plane(&ws.aproj, act, 0, t, d);
             ex(Op::Matmul, vec![o, l.wo.clone()], vec![aproj.clone()], OpAttrs::default())?;
             put(format!("{tag}.attn_proj"), &aproj)?;
@@ -781,7 +853,13 @@ impl Model {
 
             // ---- router (a13) and experts (a14) ----
             let rl = TensorRef::new(ws.rl.clone(), DType::F32, &[t, ink.experts]);
-            ex(Op::Matmul, vec![mlpin.clone(), l.router.clone()], vec![rl.clone()], OpAttrs::default())?;
+            // `Matmul` with an f32 output; a backend without that kernel (Metal) runs the same math as `Logits`
+            let mut rc = OpCall::new(Op::Matmul, vec![mlpin.clone(), l.router.clone()], vec![rl.clone()], OpAttrs::default());
+            rc.exact_rows = self.verifying();
+            if self.registry.select(&rc).is_err() {
+                rc.op = Op::Logits;
+            }
+            ex(rc.op, rc.inputs, rc.outputs, rc.attrs)?;
             let rw = TensorRef::new(ws.rw.clone(), DType::F32, &[t, ink.top_k]);
             let ri = TensorRef::new(ws.ri.clone(), DType::I32, &[t, ink.top_k]);
             let mut ra = OpAttrs { top_k: ink.top_k, scale: ink.route_scale, norm_topk: true, temperature: 1.0, ..OpAttrs::default() };
