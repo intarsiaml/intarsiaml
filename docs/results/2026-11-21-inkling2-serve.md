@@ -34,3 +34,21 @@ Not changed: model math, kernels, op contracts, other models' templates and pars
 - An unparseable tool block is returned as content; a call cut off by `max_tokens` is returned as content, not as a partial call.
 - Streaming tool calls arrive complete in one delta (as every tool parser of this server), not as argument fragments.
 - Only `/v1/chat/completions` (Anthropic route: 400).
+
+## Real model (Metal, endor): not run in this lane
+
+ink/metal (8f23e15ec, merged into this branch, clean) runs the real checkpoint end to end and passes G1-G3 on Metal. The server smoke
+on it was queued (fleetq #10750, `--host endor --expect 25 --mem 25`) but endor's queue had 10 lane jobs ahead (estimated start
+about 2 h away, growing), so the job was cancelled rather than left holding a place with nobody to read it. Everything the server
+does with the model's output is covered by the mock-engine tests and the real-vocabulary grammar test; what is still unmeasured is
+how the real model behaves under the parser (does it emit the block layout, the tool-call JSON, thinking at effort none) and the
+localeval smoke cells.
+
+To run it (one slot: server on the real checkpoint, `tools/inkling2_serve_smoke.py` API smoke with effort none / high, tool call,
+tool-result follow-up, required choice, json_schema full and streamed, then the two localeval smoke cells like the oMLX runs
+`20261120-222246-endor-inkling-omlx-none-smoke-json_schema` / `...-smoke-none`, inside the same slot):
+
+    cargo build --release -p intarsia-cli --features metal      # in .worktrees/ink-serve
+    fleetq run --host endor --expect 25 --mem 25 --label "intarsiaml inkling serve: Metal server smoke + localeval cells" -- scripts/inkling2-serve-smoke.sh
+
+Results land in `.scratch/smoke-out.json`, `.scratch/server.log` and `/opt/code/deepeval/results/*ink-serve-metal-smoke-*`.
