@@ -745,6 +745,28 @@ impl MetalBackend {
         if !pair_done {
             self.dispatch("ink_blend_pair", &[&dest_b, &msg_b, &pair_b], &p, crate::dense::Grid::Groups { x: s * n, y: 1, threads: 256 })?;
         }
+        // decode chunks: h GEMV + gate + norm in one dispatch (inkctrl.rs, lane ink-dfuse), bitwise the three below
+        if crate::inkctrl::blend_tail_on(self, n, g, d) && proj_cfg().sg == PROJ_DEFAULT.sg && proj_cfg().u == PROJ_DEFAULT.u && proj_inst(n).0 == 1 {
+            let dmb = self.mbuf(&down.buf)?;
+            let pmb = self.mbuf(&pair.buf)?;
+            if (dmb.base + down.offset) % 16 == 0 && (pmb.base + pair.offset) % 16 == 0 && (2 * d) % 8 == 0 {
+                let down_b = self.bind(down, bf, false, "down")?;
+                let (gain_b, forget_b) = (self.bind(gain, bf, false, "gain")?, self.bind(forget, bf, false, "forget")?);
+                let (nrm_b, out_b) = (self.bind(norm, bf, false, "norm")?, self.bind(out, bf, true, "out")?);
+                let (h_b, y_b, part_b) = (self.bind(&h, bf, true, "h")?, self.bind(&yv, f32t, true, "y")?, self.bind(&part, f32t, true, "partial")?);
+                let ctr = self.sync_counters(1 + 2 * s)?;
+                let mut pt = p;
+                pt.sk = [gain_b.skip, forget_b.skip, nrm_b.skip, out_b.skip, 0, 0, 0, 0];
+                let name = crate::inkctrl::blend_tail_shader(g);
+                let groups = s * g + s * d.div_ceil(crate::inkctrl::BLEND_TAIL_THREADS);
+                return self.dispatch(
+                    name,
+                    &[&down_b, &pair_b, &dest_b, &msg_b, &gain_b, &forget_b, &nrm_b, &out_b, &h_b, &y_b, &part_b, &ctr],
+                    &pt,
+                    crate::dense::Grid::Groups { x: groups, y: 1, threads: crate::inkctrl::BLEND_TAIL_THREADS },
+                );
+            }
+        }
         // h[j] = rA(pair[j] . down[j]^T): the InkInProj GEMV with the streams as its segments
         let wd = TensorRef { shape: vec![s * g, 2 * d], ..down.clone() };
         let xs = TensorRef { shape: vec![s, n, 2 * d], ..pair.clone() };

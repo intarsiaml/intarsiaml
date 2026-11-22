@@ -7,6 +7,8 @@
 //! - a stress run of many calls in one command buffer across all shapes and row counts (the hand-off counters reset in-kernel
 //!   and a watchdog fails the test instead of hanging the suite). `INK_CTRL_STRESS=<n>` sets the call count (default 2000;
 //!   the lane's gate runs 12000).
+//! - the fused blend tail (`ink_blend_tail_g*`, one dispatch for the h GEMV, gate and norm of a blend chunk of up to 16 rows) is
+//!   bitwise the three dispatches it replaces, for LoopBlend and ConvMix with a blend, and survives the same stress run.
 //!
 //! Numerics against the f64 reference are `intarsia kernels test --backend metal --op ink_route` (the admission sweep).
 
@@ -227,5 +229,173 @@ fn ink_route_stress_no_hang_no_stale_counter() {
             eprintln!("STRESS ink_route: {done} calls, all bitwise; slowest batch of 200 (encode + GPU + wait) {:.2} ms (watchdog {budget:?})", worst.as_secs_f64() * 1e3);
         }
         Err(_) => panic!("ink_route stress: no result within {budget:?} (GPU hang or stall)"),
+    }
+}
+
+// ---- the fused blend tail (ink_blend_tail) == the h GEMV + gate + norm dispatches, bitwise -----------------------------------
+
+fn bf_pos(n: usize, rng: &mut Rng) -> Vec<u8> {
+    (0..n).flat_map(|_| f32_to_bf16(1.0 + 0.5 * rng.unit()).to_le_bytes()).collect()
+}
+
+fn blend_scratch_for(be: &MetalBackend, call: &OpCall) -> TensorRef {
+    let n = intarsia_backend_metal::inkmix::blend_scratch(&intarsia_core::ShapeInfo::from_call(call));
+    let b = be.alloc(n.max(16), MemKind::Device).unwrap();
+    TensorRef { buf: b, offset: 0, dtype: DType::U8, shape: vec![n] }
+}
+
+/// Run `kernel` on `op` (fresh outputs from `outs` bytes) with the tail forced `tail`; returns every output's bytes.
+/// The blend tests flip the process-wide tail switch: one at a time.
+static BLEND_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn run_blend(be: &MetalBackend, kernel: &str, op: Op, ins: &[(DType, Vec<usize>, Vec<u8>)], outs: &[(DType, Vec<usize>, Vec<u8>)], attrs: &OpAttrs, tail: bool) -> Vec<Vec<u8>> {
+    intarsia_backend_metal::inkctrl::set_blend_tail(Some(tail));
+    let it: Vec<TensorRef> = ins.iter().map(|(dt, sh, b)| dev(be, *dt, sh, b, 0)).collect();
+    let ot: Vec<TensorRef> = outs.iter().map(|(dt, sh, b)| dev(be, *dt, sh, b, 0)).collect();
+    let mut call = OpCall::new(op, it, ot.clone(), attrs.clone());
+    call.exact_rows = ins[0].1.len() >= 2 && ins[0].1[0] > 1;
+    call.check().unwrap();
+    call.scratch = Some(blend_scratch_for(be, &call));
+    be.launch(kernel, &call, 0).unwrap();
+    be.synchronize(0).unwrap();
+    intarsia_backend_metal::inkctrl::set_blend_tail(None);
+    ot.iter().map(|t| down(be, t)).collect()
+}
+
+#[test]
+fn blend_tail_is_the_three_dispatches_bitwise() {
+    let Some(be) = be() else { return };
+    let _g = BLEND_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut rng = Rng(0x7a11);
+    let bf = DType::Bf16;
+    let f = DType::F32;
+    let mut n = 0;
+    // (D, G): the model's, a D that is not a multiple of the 256-channel items, the gate's other register widths
+    for &(d, g) in &[(2304usize, 64usize), (200, 64), (256, 8), (320, 128)] {
+        for &r in &[1usize, 2, 3, 4, 7, 16] {
+            for &(s, sd) in &[(3usize, 1usize), (3, 3), (1, 1)] {
+                // LoopBlend: dest, msg, down, gain, forget, norm -> out
+                let ins = vec![
+                    (f, vec![sd, r, d], f32_bytes(sd * r * d, 1.0, &mut rng)),
+                    (f, vec![s, r, d], f32_bytes(s * r * d, 1.0, &mut rng)),
+                    (bf, vec![s, g, 2 * d], bf16_bytes(s * g * 2 * d, (2.0 * d as f32).powf(-0.5), &mut rng)),
+                    (bf, vec![s, d, g], bf16_bytes(s * d * g, 0.25, &mut rng)),
+                    (bf, vec![s, d, g], bf16_bytes(s * d * g, 0.25, &mut rng)),
+                    (bf, vec![s, d], bf_pos(s * d, &mut rng)),
+                ];
+                let outs = vec![(bf, vec![s, r, d], vec![0u8; s * r * d * 2])];
+                let a = OpAttrs { eps: 1e-6, ..OpAttrs::default() };
+                let off = run_blend(&be, "loop_blend_bf16", Op::LoopBlend, &ins, &outs, &a, false);
+                let on = run_blend(&be, "loop_blend_bf16", Op::LoopBlend, &ins, &outs, &a, true);
+                assert_eq!(on, off, "LoopBlend D={d} G={g} R={r} S={s} Sd={sd}");
+                n += 1;
+            }
+            // ConvMix with the blend: x, taps, res, add, src, queries (Q 1), norm [S, D], msg, down, gain, forget ->
+            // y, ring, sum, mix [S, T, D]
+            for &(s, nsrc) in &[(3usize, 3usize), (1, 2)] {
+                const K: usize = 4;
+                let rr = K - 1 + 16;
+                let ins = vec![
+                    (bf, vec![r, d], bf16_bytes(r * d, 1.0, &mut rng)),
+                    (bf, vec![K, d], bf16_bytes(K * d, 0.5, &mut rng)),
+                    (bf, vec![r, d], bf16_bytes(r * d, 1.0, &mut rng)),
+                    (bf, vec![r, d], bf16_bytes(r * d, 1.0, &mut rng)),
+                    (bf, vec![nsrc, r, d], bf16_bytes(nsrc * r * d, 1.5, &mut rng)),
+                    (f, vec![1, d], f32_bytes(d, 0.2, &mut rng)),
+                    (bf, vec![s, d], bf_pos(s * d, &mut rng)),
+                    (f, vec![s, r, d], f32_bytes(s * r * d, 1.0, &mut rng)),
+                    (bf, vec![s, g, 2 * d], bf16_bytes(s * g * 2 * d, (2.0 * d as f32).powf(-0.5), &mut rng)),
+                    (bf, vec![s, d, g], bf16_bytes(s * d * g, 0.25, &mut rng)),
+                    (bf, vec![s, d, g], bf16_bytes(s * d * g, 0.25, &mut rng)),
+                ];
+                let outs = vec![
+                    (bf, vec![r, d], vec![0u8; r * d * 2]),
+                    (bf, vec![rr, d], bf16_bytes(rr * d, 1.0, &mut rng)),
+                    (bf, vec![r, d], vec![0u8; r * d * 2]),
+                    (bf, vec![s, r, d], vec![0u8; s * r * d * 2]),
+                ];
+                let a = OpAttrs { pos0: 5, eps: 1e-6, ..OpAttrs::default() };
+                let off = run_blend(&be, "conv_mix_bf16", Op::ConvMix, &ins, &outs, &a, false);
+                let on = run_blend(&be, "conv_mix_bf16", Op::ConvMix, &ins, &outs, &a, true);
+                assert_eq!(on, off, "ConvMix blend D={d} G={g} R={r} S={s} N={nsrc}");
+                n += 1;
+            }
+        }
+    }
+    eprintln!("{n} blend cases: the fused tail is bitwise the three dispatches");
+}
+
+/// Many fused-tail LoopBlend calls back to back in one stream (no wait between them) over several shapes and row counts, each
+/// checked against the three-dispatch result: a ticket or counter left non-zero would misassign roles or release a gate item
+/// early (wrong bits), a lost wake-up hangs (the watchdog). `INK_CTRL_STRESS` as above.
+#[test]
+fn blend_tail_stress_no_hang_no_stale_counter() {
+    let Some(be) = be() else { return };
+    let _g = BLEND_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let calls: usize = std::env::var("INK_CTRL_STRESS").ok().and_then(|v| v.parse().ok()).unwrap_or(2000);
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let be = be;
+        let mut rng = Rng(0xb1e7d);
+        let (bf, f) = (DType::Bf16, DType::F32);
+        let mut cases = Vec::new();
+        for &(d, g) in &[(2304usize, 64usize), (200, 64), (320, 128)] {
+            for &r in &[1usize, 2, 3, 4, 8, 16] {
+                for &s in &[1usize, 3] {
+                    let ins = vec![
+                        (f, vec![1, r, d], f32_bytes(r * d, 1.0, &mut rng)),
+                        (f, vec![s, r, d], f32_bytes(s * r * d, 1.0, &mut rng)),
+                        (bf, vec![s, g, 2 * d], bf16_bytes(s * g * 2 * d, (2.0 * d as f32).powf(-0.5), &mut rng)),
+                        (bf, vec![s, d, g], bf16_bytes(s * d * g, 0.25, &mut rng)),
+                        (bf, vec![s, d, g], bf16_bytes(s * d * g, 0.25, &mut rng)),
+                        (bf, vec![s, d], bf_pos(s * d, &mut rng)),
+                    ];
+                    let outs = vec![(bf, vec![s, r, d], vec![0u8; s * r * d * 2])];
+                    let a = OpAttrs { eps: 1e-6, ..OpAttrs::default() };
+                    let want = run_blend(&be, "loop_blend_bf16", Op::LoopBlend, &ins, &outs, &a, false);
+                    let it: Vec<TensorRef> = ins.iter().map(|(dt, sh, b)| dev(&be, *dt, sh, b, 0)).collect();
+                    let ot: Vec<TensorRef> = outs.iter().map(|(dt, sh, b)| dev(&be, *dt, sh, b, 0)).collect();
+                    let probe = OpCall::new(Op::LoopBlend, it.clone(), ot, a.clone());
+                    let sc = blend_scratch_for(&be, &probe);
+                    cases.push((it, outs, a, want, sc));
+                }
+            }
+        }
+        intarsia_backend_metal::inkctrl::set_blend_tail(Some(true));
+        let (mut done, mut bad) = (0, 0);
+        let mut worst = Duration::ZERO;
+        while done < calls {
+            let batch = 200.min(calls - done);
+            let t0 = std::time::Instant::now();
+            let mut pend = Vec::with_capacity(batch);
+            for j in 0..batch {
+                let ci = (done + j) * 5 % cases.len();
+                let (it, outs, a, _, sc) = &cases[ci];
+                let ot: Vec<TensorRef> = outs.iter().map(|(dt, sh, b)| dev(&be, *dt, sh, b, 0)).collect();
+                let mut call = OpCall::new(Op::LoopBlend, it.clone(), ot.clone(), a.clone());
+                call.exact_rows = it[0].shape[1] > 1;
+                call.scratch = Some(sc.clone());
+                be.launch("loop_blend_bf16", &call, 0).unwrap();
+                pend.push((ci, ot));
+            }
+            be.synchronize(0).unwrap();
+            worst = worst.max(t0.elapsed());
+            for (ci, ot) in pend {
+                if down(&be, &ot[0]) != cases[ci].3[0] {
+                    bad += 1;
+                }
+            }
+            done += batch;
+        }
+        intarsia_backend_metal::inkctrl::set_blend_tail(None);
+        let _ = tx.send((done, bad, worst));
+    });
+    let budget = Duration::from_secs(60 + calls as u64 / 20);
+    match rx.recv_timeout(budget) {
+        Ok((done, bad, worst)) => {
+            assert_eq!(bad, 0, "{bad} of {done} blend-tail stress calls differ from the three-dispatch result");
+            eprintln!("STRESS blend_tail: {done} calls, all bitwise; slowest batch of 200 (encode + GPU + wait) {:.2} ms (watchdog {budget:?})", worst.as_secs_f64() * 1e3);
+        }
+        Err(_) => panic!("blend tail stress: no result within {budget:?} (GPU hang or stall)"),
     }
 }
