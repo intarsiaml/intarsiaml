@@ -92,6 +92,10 @@ mtp_default_k = 2
 batched_mtp = 2
 batched_verify = true
 verify_topk = true
+# A sampled request's own MTP verify pass runs as the captured draft-and-verify step and reads its rows back as the device-side top-k (lane samphost, #476; default-on by lane svfflip,
+# user decision #13, 2026-11-22): one stream sampled +13 to +18 % (4k / 32k / 64k), two streams neutral, seeded replies byte-identical on or off (docs/results/2026-11-20-samphost.md,
+# docs/results/2026-11-20-samp2s.md; 35B NVFP4 on a GB10, tp 1). `INTARSIA_SAMPLED_VERIFY_FAST=0` turns it off (the env var wins over this key); needs batched MTP and sampled drafting.
+sampled_verify_fast = true
 # The first N token ids of the lm_head draft; the verify pass keeps the full head, so output never changes. 131072 holds all of ASCII / Latin and the
 # 35k commonest Chinese tokens (the first Chinese id is 95726); 65536 holds none and loses 21-24 % on Chinese (docs/results/2026-11-14-dvocab.md).
 mtp_draft_vocab = 131072

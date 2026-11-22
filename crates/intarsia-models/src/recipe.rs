@@ -147,6 +147,19 @@ mod tests {
         }
     }
 
+    /// Lane svfflip (user decision #13): the sampled-verify fast path (`[tuning.<backend>] sampled_verify_fast`) is opted into by the Qwen3.6-35B-A3B recipe on CUDA
+    /// only (the pair measured: docs/results/2026-11-20-samphost.md, 2026-11-20-samp2s.md); no other built-in recipe or backend (Metal, HIP, cpu, the 27B).
+    #[test]
+    fn only_the_35b_recipe_opts_into_sampled_verify_fast_and_only_on_cuda() {
+        for (name, text) in BUILTIN_RECIPES {
+            let r = parse_recipe(text).unwrap();
+            for backend in ["metal", "cuda", "hip", "cpu"] {
+                let want = (*name == "qwen3_5_moe" && backend == "cuda").then_some(true);
+                assert_eq!(r.resolve_sampled_verify_fast(backend), want, "{name} on {backend}");
+            }
+        }
+    }
+
     #[test]
     fn unknown_recipe_key_is_rejected_naming_the_key_and_the_valid_ones() {
         let text = include_str!("../../../recipes/qwen3.toml").replace("kv_dtype =", "kv_dtyp =");
