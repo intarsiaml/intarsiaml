@@ -164,6 +164,10 @@ fn main() {
                 let flops = (tr * K) as f64 * 2.0 * (H * 2 * I + I * H) as f64;
                 // lane ink-prefill: INKMOE_PROBES=a,0,1,2 (a = the normal kernels; 0..2 the probe copies, `ink-probe` feature)
                 let probes_l = list("INKMOE_PROBES", "a");
+                // INKMOE_CHECK=1: after each arm, run calls[0] once and compare its output to the first arm of the same skip
+                // (max_abs, count of differing bf16 values); WRONG-result probes will differ by design
+                let check = std::env::var("INKMOE_CHECK").is_ok_and(|v| v == "1");
+                let mut refs: std::collections::HashMap<String, Vec<u16>> = std::collections::HashMap::new();
                 for form in forms.split(',') {
                     for skip in skips.split(',') {
                     for pr in probes_l.split(',') {
@@ -196,6 +200,32 @@ fn main() {
                             v[0],
                             flops / (v[2] * 1e-6) / 1e12
                         );
+                        if check {
+                            use intarsia_backend_metal::bench::bf16_to_f32;
+                            be.launch(kname, &calls[0], 0).unwrap();
+                            be.synchronize(0).unwrap();
+                            let raw = be.download_row_major(&calls[0].outputs[0]).unwrap();
+                            let out: Vec<u16> = raw.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
+                            let key = format!("{form}/{skip}");
+                            match refs.get(&key) {
+                                None => {
+                                    println!("    check {fmt} skip {skip} probe {pr}: reference ({} values)", out.len());
+                                    refs.insert(key, out);
+                                }
+                                Some(r) => {
+                                    let (mut nd, mut ma, mut mr) = (0usize, 0f32, 0f32);
+                                    for (&a, &b) in r.iter().zip(&out) {
+                                        if a != b {
+                                            nd += 1;
+                                            let (x, y) = (bf16_to_f32(a), bf16_to_f32(b));
+                                            ma = ma.max((x - y).abs());
+                                            mr = mr.max(x.abs());
+                                        }
+                                    }
+                                    println!("    check {fmt} skip {skip} probe {pr}: {nd} of {} bf16 values differ, max_abs {ma:.3e} (ref max |x| among them {mr:.3e})", out.len());
+                                }
+                            }
+                        }
                     }
                     }
                 }
