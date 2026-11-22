@@ -220,6 +220,16 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
 
     The change gets its own commit, an env revert and stays default off. A default-on proposal would report tok/s through
     localeval.
+- 2026-11-22 ~08:10 (coordinator, FYI): ink-batch has the in_proj rows path for B > 1 (T >= 2 decode, below the prefill
+  NAX threshold); their B16 profile has it at about 6x its bandwidth floor.
+  - The T = 1 in_proj kernel and its dispatch stay with this lane, and ink-batch will not touch them. Their new kernel
+    must match the T = 1 output bitwise per row (rows-exact).
+  - If either lane needs to change the shared dispatch function, tell the coordinator first, so the merges can be
+    sequenced.
+  - Lane note: at T = 1 the stream takes ink-pack12's `ink_in_proj_p12_gemv` (crates/intarsia-backend-metal/src/p12.rs,
+    P12 default on for in_proj / wo up to 4 rows), whose bf16 twin is `ink_in_proj_bf16_gemv` (inkmix.rs
+    `launch_in_proj_gemv` / `in_proj_rows`). Both are bitwise-equal by pack12's contract. That T = 1 output is the
+    reference ink-batch's rows kernel must match. This lane has no pending change to either.
 
 ## Probes (endor, before any code)
 
