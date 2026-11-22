@@ -1,0 +1,8 @@
+cb_short_1_k0.jsonl: steps 252 dispatches/step 543  GPU busy 13.308 ms  host encode 13.291 ms (24.48 us/dispatch)  lead (GPU end - last commit) 13.223 ms
+cb_short_8_k0.jsonl: steps 252 dispatches/step 543  GPU busy 13.356 ms  host encode 13.321 ms (24.53 us/dispatch)  lead (GPU end - last commit) 13.249 ms
+cb_short_4_k200.jsonl: steps 252 dispatches/step 743  GPU busy 13.477 ms  host encode 13.442 ms (18.09 us/dispatch)  lead (GPU end - last commit) 13.371 ms
+cb_short_5_k200.jsonl: steps 252 dispatches/step 743  GPU busy 13.568 ms  host encode 13.551 ms (18.24 us/dispatch)  lead (GPU end - last commit) 13.472 ms
+cb_5k_1_k0.jsonl: steps 252 dispatches/step 551  GPU busy 14.321 ms  host encode 14.301 ms (25.95 us/dispatch)  lead (GPU end - last commit) 14.226 ms
+cb_5k_8_k0.jsonl: steps 252 dispatches/step 551  GPU busy 14.263 ms  host encode 14.245 ms (25.85 us/dispatch)  lead (GPU end - last commit) 14.156 ms
+cb_5k_4_k200.jsonl: steps 252 dispatches/step 751  GPU busy 14.431 ms  host encode 14.405 ms (19.18 us/dispatch)  lead (GPU end - last commit) 14.326 ms
+cb_5k_5_k200.jsonl: steps 252 dispatches/step 751  GPU busy 14.467 ms  host encode 14.435 ms (19.22 us/dispatch)  lead (GPU end - last commit) 14.358 ms

@@ -1,0 +1,5 @@
+step 0 steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.826 mean 14.126 min 13.066 max 17.871  decode 3621 ms (70.69 tok/s)
+step 1 steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.331 mean 13.408 min 13.043 max 15.587  decode 3436 ms (74.51 tok/s)
+step 2 steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.282 mean 13.302 min 13.041 max 13.998  decode 3410 ms (75.07 tok/s)
+step 3 steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.830 mean 14.085 min 13.080 max 22.839  decode 3608 ms (70.96 tok/s)
+step 4 steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.330 mean 13.361 min 13.020 max 14.850  decode 3425 ms (74.73 tok/s)

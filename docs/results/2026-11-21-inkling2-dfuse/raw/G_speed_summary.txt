@@ -1,0 +1,4 @@
+short: per-pair span gain off - on (ms/step) ['0.275', '0.314', '0.236', '0.270'] median 0.272; tok/s on - off ['1.52', '1.53', '1.32', '1.72'] median 1.52; served on [1, 1, 1, 1] off [0, 0, 0, 0]
+DECISION short: below 0.3 ms
+5k: per-pair span gain off - on (ms/step) ['0.293', '0.308', '0.248'] median 0.293; tok/s on - off ['1.05', '1.53', '1.18'] median 1.18; served on [1, 1, 1] off [0, 0, 0]
+DECISION 5k: below 0.3 ms

@@ -1,0 +1,45 @@
+== cal: shipped copy (and p0) vs the backend's ink_attn_decode_bf16, one visit each
+cal swa_150 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_150 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_150 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_150 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_512 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_512 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_512 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_512 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_4096 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_4096 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_4096 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_4096 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_5180 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_5180 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_5180 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_5180 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+CAL PASS
+floor: empty dependent dispatch 3.378 us
+== token: 40 SWA + 8 full visits per token, NT distinct token sets, 2 passes per command buffer; ms per token
+bits ctx 150 swa: p0 EQUAL
+bits ctx 150 full: p0 EQUAL
+token ctx   150 ship     1.073 ms/token (min 1.069 max 1.075)  vs ship   +0.000
+token ctx   150 p0     1.072 ms/token (min 1.070 max 1.078)  vs ship   -0.000
+token ctx   150 nopro     0.660 ms/token (min 0.659 max 0.663)  vs ship   -0.413
+token ctx   150 noclip     0.969 ms/token (min 0.966 max 0.972)  vs ship   -0.104
+token ctx   150 noconv     1.108 ms/token (min 1.105 max 1.114)  vs ship   +0.035
+token ctx   150 nobias     0.831 ms/token (min 0.826 max 0.834)  vs ship   -0.242
+bits ctx 512 swa: p0 EQUAL
+bits ctx 512 full: p0 EQUAL
+token ctx   512 ship     1.164 ms/token (min 1.163 max 1.167)  vs ship   +0.000
+token ctx   512 p0     1.171 ms/token (min 1.169 max 1.172)  vs ship   +0.007
+token ctx   512 nopro     0.803 ms/token (min 0.802 max 0.806)  vs ship   -0.361
+token ctx   512 noclip     1.094 ms/token (min 1.094 max 1.095)  vs ship   -0.070
+token ctx   512 noconv     1.167 ms/token (min 1.160 max 1.169)  vs ship   +0.003
+token ctx   512 nobias     0.862 ms/token (min 0.859 max 0.863)  vs ship   -0.302
+bits ctx 5180 swa: p0 EQUAL
+bits ctx 5180 full: p0 EQUAL
+token ctx  5180 ship     1.869 ms/token (min 1.868 max 1.983)  vs ship   +0.000
+token ctx  5180 p0     1.862 ms/token (min 1.859 max 1.867)  vs ship   -0.007
+token ctx  5180 nopro     1.383 ms/token (min 1.380 max 1.393)  vs ship   -0.486
+token ctx  5180 noclip     1.789 ms/token (min 1.779 max 1.829)  vs ship   -0.081
+token ctx  5180 noconv     1.707 ms/token (min 1.702 max 1.722)  vs ship   -0.163
+token ctx  5180 nobias     1.612 ms/token (min 1.607 max 1.626)  vs ship   -0.258
+done

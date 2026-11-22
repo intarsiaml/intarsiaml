@@ -1,0 +1,6 @@
+| short | off (best) | 543 | 14.985, 15.025, 15.073, 15.081, 15.045, 15.063 | 15.054 | 66.34 |
+| short | on (best + preload) | 543 | 15.099, 15.038, 15.127, 15.080, 15.154, 15.065 | 15.090 | 66.12 |
+DELTA short: median on - off = +0.036 ms/step; off spread 0.096; min(off) - max(on) = -0.169
+| 5k | off (best) | 551 | 16.035, 16.162, 16.970, 16.472 | 16.317 | 60.85 |
+| 5k | on (best + preload) | 551 | 16.243, 16.386, 16.793, 16.667 | 16.526 | 59.22 |
+DELTA 5k: median on - off = +0.209 ms/step; off spread 0.935; min(off) - max(on) = -0.758

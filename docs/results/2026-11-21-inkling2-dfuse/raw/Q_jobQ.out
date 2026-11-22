@@ -1,0 +1,62 @@
+fleetq: #11433 waiting (#3 in line): in line behind #11427 "intarsiaml inkling metal: full Metal test suite at 8e0ff6af6 (metal4 shader-count fix; backend-metal lib + all tests, models Metal tests)" (claude-57ee98d5) on endor
+fleetq:   #11427 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11427 set, or it will wait for #11427 to be released.
+fleetq: #11433 waiting (#2 in line): in line behind #11428 "intarsiaml inkling batch: in_proj rows step 1, InkInProj us/call at 1-16 rows, P/RB same-bits knobs, P12 1/4/16 (measure only)" (claude-57ee98d5) on endor
+fleetq:   #11428 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11428 set, or it will wait for #11428 to be released.
+fleetq: #11433 waiting (#1 in line): needs gpu quiet on endor, but #11428 "intarsiaml inkling batch: in_proj rows step 1, InkInProj us/call at 1-16 rows, P/RB same-bits knobs, P12 1/4/16 (measure only)" (claude-57ee98d5) loads it
+fleetq:   #11428 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11428 set, or it will wait for #11428 to be released.
+fleetq: #11433 running on endor: sh .scratch/jobQ.sh
+STEP build
+STEP probe libs + harness
+wrote /opt/code/intarsiaml/.worktrees/ink-dfuse/.scratch/Q/src
+libs ok:       10
+STEP dump
+STEP probe
+EXIT probe 0
+cal swa_150 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_150 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_150 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_150 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_512 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_512 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_512 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_512 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_4096 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_4096 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_4096 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_4096 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_5180 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_5180 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_5180 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_5180 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+CAL PASS
+floor: empty dependent dispatch 3.321 us
+bits ctx 150 swa: p0 EQUAL, skel_c DIFF(max 0.14), skel DIFF(max 0.14), la1 EQUAL, la2 EQUAL, la4 EQUAL, early2 EQUAL, early4 EQUAL, sk32 DIFF(max 5.59e-09), sk128 DIFF(max 3.73e-09)
+bits ctx 150 full: p0 EQUAL, skel_c DIFF(max 0.139), skel DIFF(max 0.139), la1 EQUAL, la2 EQUAL, la4 EQUAL, early2 EQUAL, early4 EQUAL, sk32 DIFF(max 4.77e-07), sk128 DIFF(max 4.77e-07)
+bits ctx 512 swa: p0 EQUAL, skel_c DIFF(max 0.0757), skel DIFF(max 0.0757), la1 EQUAL, la2 EQUAL, la4 EQUAL, early2 EQUAL, early4 EQUAL, sk32 DIFF(max 1.49e-08), sk128 DIFF(max 1.49e-08)
+bits ctx 512 full: p0 EQUAL, skel_c DIFF(max 0.0776), skel DIFF(max 0.0776), la1 EQUAL, la2 EQUAL, la4 EQUAL, early2 EQUAL, early4 EQUAL, sk32 EQUAL, sk128 EQUAL
+bits ctx 5180 swa: p0 EQUAL, skel_c DIFF(max 0.0542), skel DIFF(max 0.0542), la1 EQUAL, la2 EQUAL, la4 EQUAL, early2 EQUAL, early4 EQUAL, sk32 DIFF(max 2.38e-07), sk128 DIFF(max 2.38e-07)
+bits ctx 5180 full: p0 EQUAL, skel_c DIFF(max 0.026), skel DIFF(max 0.026), la1 EQUAL, la2 EQUAL, la4 EQUAL, early2 EQUAL, early4 EQUAL, sk32 EQUAL, sk128 EQUAL
+STEP real step: box label, split-keys sweep (information only)
+box0 sk 64 short  span ms/step median 13.245 mean 13.288 min 13.032 max 14.222  decode 3407 ms (75.14 tok/s) md5 d03580fb172c4b088977979647b67712
+box1 sk 64 short  span ms/step median 13.246 mean 13.263 min 13.052 max 14.174  decode 3400 ms (75.30 tok/s) md5 d03580fb172c4b088977979647b67712
+short_1_sk64 sk 64 short  span ms/step median 13.340 mean 13.429 min 13.065 max 19.496  decode 3443 ms (74.35 tok/s) md5 d03580fb172c4b088977979647b67712
+short_2_sk32 sk 32 short  span ms/step median 13.248 mean 13.494 min 12.837 max 27.475  decode 3458 ms (74.03 tok/s) md5 54bf1b0947f365fe7d270feba12fa7e1
+short_3_sk128 sk 128 short  span ms/step median 13.636 mean 13.635 min 13.181 max 14.769  decode 3495 ms (73.25 tok/s) md5 750d1e8c274978d75c6993861cab7df3
+short_4_sk128 sk 128 short  span ms/step median 13.936 mean 13.976 min 13.145 max 15.994  decode 3582 ms (71.48 tok/s) md5 750d1e8c274978d75c6993861cab7df3
+short_5_sk32 sk 32 short  span ms/step median 13.235 mean 13.371 min 12.954 max 20.623  decode 3427 ms (74.71 tok/s) md5 54bf1b0947f365fe7d270feba12fa7e1
+short_6_sk64 sk 64 short  span ms/step median 13.349 mean 13.381 min 13.091 max 14.883  decode 3434 ms (74.54 tok/s) md5 d03580fb172c4b088977979647b67712
+5k_1_sk64 sk 64 5k  span ms/step median 14.273 mean 14.416 min 14.114 max 17.748  decode 3701 ms (69.17 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+5k_2_sk32 sk 32 5k  span ms/step median 14.307 mean 14.518 min 14.148 max 24.294  decode 3721 ms (68.79 tok/s) md5 c6989f2c258afdaf963e89f03d18ea82
+5k_3_sk128 sk 128 5k  span ms/step median 14.412 mean 14.449 min 14.276 max 15.722  decode 3703 ms (69.12 tok/s) md5 64f8edc10da5fe8a98a93987e6ceeee8
+5k_4_sk128 sk 128 5k  span ms/step median 14.489 mean 14.550 min 14.307 max 15.433  decode 3729 ms (68.65 tok/s) md5 64f8edc10da5fe8a98a93987e6ceeee8
+5k_5_sk32 sk 32 5k  span ms/step median 14.257 mean 14.499 min 14.092 max 23.897  decode 3722 ms (68.78 tok/s) md5 c6989f2c258afdaf963e89f03d18ea82
+5k_6_sk64 sk 64 5k  span ms/step median 14.273 mean 14.399 min 14.086 max 26.036  decode 3690 ms (69.38 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+STEP box label (end)
+box2 sk 64 short  span ms/step median 13.288 mean 13.381 min 13.054 max 19.419  decode 3429 ms (74.65 tok/s) md5 d03580fb172c4b088977979647b67712
+Sun Nov 22 09:20:50 EST 2026
+build Sun Nov 22 09:21:20 EST 2026
+libs Sun Nov 22 09:21:26 EST 2026
+probe Sun Nov 22 09:21:32 EST 2026
+done Sun Nov 22 09:23:34 EST 2026
+body exit 0
+fleetq: #11433 done (exit 0)

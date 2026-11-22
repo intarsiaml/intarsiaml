@@ -1,0 +1,10 @@
+== per-dispatch off
+Traceback (most recent call last):
+  File "/opt/code/intarsiaml/.worktrees/ink-dfuse/.scratch/disp.py", line 5, in <module>
+    recs = sorted((json.loads(l) for l in open(sys.argv[1]) if l.strip()), key=lambda r: r["s"])
+FileNotFoundError: [Errno 2] No such file or directory: '/opt/code/intarsiaml/.worktrees/ink-dfuse/.scratch/D/disp_off.jsonl'
+== per-dispatch best
+Traceback (most recent call last):
+  File "/opt/code/intarsiaml/.worktrees/ink-dfuse/.scratch/disp.py", line 5, in <module>
+    recs = sorted((json.loads(l) for l in open(sys.argv[1]) if l.strip()), key=lambda r: r["s"])
+FileNotFoundError: [Errno 2] No such file or directory: '/opt/code/intarsiaml/.worktrees/ink-dfuse/.scratch/D/disp_best.jsonl'
