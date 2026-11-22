@@ -30,6 +30,7 @@ struct P12Row {
     const uint32_t* side;   // this row's escapes (col << 16 | bf16 bits), columns ascending
     uint32_t ns;            // how many
     uint32_t e;             // cursor: the first escape not before the chunk last loaded (a lane loads its chunks ascending)
+    uint32_t nx;            // that escape's entry (valid while e < ns), held in a register
 };
 
 IK_DEVI P12Row p12_row(const uint8_t* codes, const uint32_t* aux, int64_t nrows, int64_t r, int64_t K) {
@@ -42,22 +43,32 @@ IK_DEVI P12Row p12_row(const uint8_t* codes, const uint32_t* aux, int64_t nrows,
     w.side = aux + nrows + 1 + (m0 >> 8);
     w.ns = (m1 >> 8) - (m0 >> 8);
     w.e = 0;
+    w.nx = w.ns ? __ldg(w.side) : 0u;
     return w;
 }
 
 // Chunk c (elements 8c .. 8c + 7) as the four bf16 pair words a bf16 weight stores, escapes patched. The chunks of one row
 // must be loaded in ascending order (the cursor only moves forward); the escape of column col lives in chunk col >> 3.
-IK_DEVI uint4 p12_load(P12Row& w, int64_t c) {
-    const uint2 a = __ldcs(w.a + c);
-    const uint32_t b = __ldcs(w.b + c);
+// The raw code words of a chunk (loads only), decoded later by p12_dec: the in-projection issues the next k block's loads
+// before this block's mma, as its bf16 twin does.
+struct P12Raw {
+    uint2 a;
+    uint32_t b;
+};
+IK_DEVI P12Raw p12_raw(const P12Row& w, int64_t c) { return P12Raw{__ldcs(w.a + c), __ldcs(w.b + c)}; }
+
+IK_DEVI uint4 p12_dec(P12Row& w, const P12Raw& r, int64_t c) {
+    const uint2 a = r.a;
+    const uint32_t b = r.b;
     const uint32_t q3 = ((a.x >> 11) & 0x000F000Fu) | ((a.y >> 7) & 0x00F000F0u) | ((b >> 3) & 0x07000700u) | ((b << 1) & 0x80008000u);
     uint32_t v[4] = {(a.x & 0x87FF87FFu) + w.bb, (a.y & 0x87FF87FFu) + w.bb, (b & 0x87FF87FFu) + w.bb, q3 + w.bb};
     // escapes: rare (most rows have none); skip those of earlier chunks, patch this chunk's
-    while (w.e < w.ns) {
-        const uint32_t ent = __ldg(w.side + w.e);
+    // the common case (no escape at or before this chunk) costs one compare and no load
+    while (w.e < w.ns && (int64_t)(w.nx >> 19) <= c) {
+        const uint32_t ent = w.nx;
         const int64_t ec = (int64_t)(ent >> 19);
-        if (ec > c) break;
         ++w.e;
+        if (w.e < w.ns) w.nx = __ldg(w.side + w.e);
         if (ec < c) continue;
         const uint32_t col = ent >> 16;
         const uint32_t j = (col >> 1) & 3u, sh = (col & 1u) * 16u;
@@ -68,6 +79,8 @@ IK_DEVI uint4 p12_load(P12Row& w, int64_t c) {
     }
     return make_uint4(v[0], v[1], v[2], v[3]);
 }
+
+IK_DEVI uint4 p12_load(P12Row& w, int64_t c) { return p12_dec(w, p12_raw(w, c), c); }
 
 // ---- MatmulP12: matmul.cu gemv_body<M, OutT, VEC = true> with the weight loads replaced by p12_load ------------------------
 template <int M, typename OutT>
@@ -174,10 +187,13 @@ p12_in_proj_kernel(P12Segs sg, const uint8_t* __restrict__ codes, const uint32_t
     // the bf16 kernel's lane loads elements kb + 16c .. kb + 16c + 15 of its rows: chunks (kb + 16c) / 8 and the next
     const int cc = 2 * c;
     if (kmain > 0) {
-        uint4 A0 = p12_load(wa, cc), A1 = p12_load(wa, cc + 1), B0 = p12_load(wb, cc), B1 = p12_load(wb, cc + 1);
+        P12Raw RA0 = p12_raw(wa, cc), RA1 = p12_raw(wa, cc + 1), RB0 = p12_raw(wb, cc), RB1 = p12_raw(wb, cc + 1);
         uint4 X0 = ha ? ld_act(pa) : z, X1 = ha ? ld_act(pa + 8) : z;
         uint4 Y0 = hb ? ld_act(pb) : z, Y1 = hb ? ld_act(pb + 8) : z;
         for (int kb = 0; kb < kmain; kb += 64) {
+            const int ck0 = kb / 8 + cc;
+            const uint4 A0 = p12_dec(wa, RA0, ck0), A1 = p12_dec(wa, RA1, ck0 + 1);
+            const uint4 B0 = p12_dec(wb, RB0, ck0), B1 = p12_dec(wb, RB1, ck0 + 1);
             const uint32_t a[8] = {A0.x, A0.y, A0.z, A0.w, A1.x, A1.y, A1.z, A1.w};
             const uint32_t b[8] = {B0.x, B0.y, B0.z, B0.w, B1.x, B1.y, B1.z, B1.w};
             const uint32_t x[8] = {X0.x, X0.y, X0.z, X0.w, X1.x, X1.y, X1.z, X1.w};
@@ -185,7 +201,7 @@ p12_in_proj_kernel(P12Segs sg, const uint8_t* __restrict__ codes, const uint32_t
             const int kn = kb + 64;
             if (kn < kmain) {
                 const int ck = kn / 8 + cc;
-                A0 = p12_load(wa, ck), A1 = p12_load(wa, ck + 1), B0 = p12_load(wb, ck), B1 = p12_load(wb, ck + 1);
+                RA0 = p12_raw(wa, ck), RA1 = p12_raw(wa, ck + 1), RB0 = p12_raw(wb, ck), RB1 = p12_raw(wb, ck + 1);
                 if (ha) X0 = ld_act(pa + kn), X1 = ld_act(pa + kn + 8);
                 if (hb) Y0 = ld_act(pb + kn), Y1 = ld_act(pb + kn + 8);
             }
