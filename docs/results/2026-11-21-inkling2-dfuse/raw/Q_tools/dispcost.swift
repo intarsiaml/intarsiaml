@@ -29,7 +29,7 @@ let opt = MTLCompileOptions(); opt.languageVersion = .version3_1
 let lib = try! dev.makeLibrary(source: src, options: opt)
 func pso(_ n: String) -> MTLComputePipelineState { try! dev.makeComputePipelineState(function: lib.makeFunction(name: n)!) }
 let N = 1000
-enum Enc { case serial, concBarrier }
+enum Enc { case serial, concBarrier, concNone }
 var hostUs: [String: Double] = [:]  // host encode wall per dispatch (cb create -> endEncoding), same key as the GPU number
 func chain(_ kernel: String, storage: MTLResourceOptions, tracked: Bool, enc: Enc) -> Double {
     var o = storage
@@ -41,7 +41,7 @@ func chain(_ kernel: String, storage: MTLResourceOptions, tracked: Bool, enc: En
     for rep in 0..<11 {
         let t0 = DispatchTime.now().uptimeNanoseconds
         let cb = queue.makeCommandBuffer()!
-        let e = enc == .serial ? cb.makeComputeCommandEncoder(dispatchType: .serial)! : cb.makeComputeCommandEncoder(dispatchType: .concurrent)!
+        let e = enc == .serial ? cb.makeComputeCommandEncoder(dispatchType: .serial)! : cb.makeComputeCommandEncoder(dispatchType: .concurrent)!  // concNone: no barriers (independent neighbours overlap; dependent chains race: timing only)
         e.setComputePipelineState(p)
         for i in 0..<N {
             switch kernel {
@@ -66,7 +66,7 @@ func chain(_ kernel: String, storage: MTLResourceOptions, tracked: Bool, enc: En
     return a.sorted()[a.count / 2]
 }
 print("device \(dev.name); \(N) dispatches of 1 tg x 32 threads per command buffer; us per dispatch, median of 9")
-let cols = ["shared tracked serial*", "shared untracked serial", "private tracked serial", "private untracked serial", "shared tracked conc+bar", "shared untracked conc+bar"]
+let cols = ["shared tracked serial*", "shared untracked serial", "private tracked serial", "private untracked serial", "shared tracked conc+bar", "shared untracked conc+bar", "shared tracked conc nobar"]
 print("GPU us per dispatch")
 print(("kernel  " + cols.map { $0.padding(toLength: 26, withPad: " ", startingAt: 0) }.joined()))
 for k in ["empty", "empty_b", "write", "rmw", "add3", "chain", "chain8"] {
@@ -75,7 +75,8 @@ for k in ["empty", "empty_b", "write", "rmw", "add3", "chain", "chain8"] {
              chain(k, storage: .storageModePrivate, tracked: true, enc: .serial),
              chain(k, storage: .storageModePrivate, tracked: false, enc: .serial),
              chain(k, storage: .storageModeShared, tracked: true, enc: .concBarrier),
-             chain(k, storage: .storageModeShared, tracked: false, enc: .concBarrier)]
+             chain(k, storage: .storageModeShared, tracked: false, enc: .concBarrier),
+             chain(k, storage: .storageModeShared, tracked: true, enc: .concNone)]
     print(k.padding(toLength: 8, withPad: " ", startingAt: 0) + r.map { String(format: "%-26.3f", $0) }.joined())
 }
 print("host encode wall us per dispatch (command buffer create -> endEncoding)")

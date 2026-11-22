@@ -1554,3 +1554,34 @@ core readback callers; key lines spot-checked):
 - **What an untracked switch would need.** Explicit ordering at each command-buffer boundary: an MTLFence or MTLEvent
   at the held cut and between steps, about 2 per step in fb mode. Inside the serial encoder, nothing extra is needed. The
   single flip point is `lib.rs:1119`. This is the hostgap lane's area (encoder and commit), so it is a listing only.
+
+### Coordinator add-on 2 (~09:50): a concurrent encoder with barriers only at real dependencies
+
+**The coordinator's reasoning.** Untracked buffers probably will not remove a transition's GPU cost, because order inside
+the serial encoder comes from the dispatch type. The serial drain and refill will. So the ranking should include a
+concurrent-dispatch encoder with `memoryBarrier(scope: .buffers)` only at real dependencies, letting independent neighbours
+overlap. Measure and list only.
+
+- **Chain matrix (dispcost.swift, before job K starts):**
+  - It already had concurrent + barrier-after-every-dispatch columns (tracked and untracked).
+  - Added: a concurrent no-barrier column, the overlap bound for independent neighbours (dependent chains race there, so
+    it is timing only). Compiles (bespin #11452).
+  - Comparing serial with conc+barrier on the dependent chains gives the per-transition cost of the barrier form.
+- **How many of the ~543 transitions have no data dependency on the dispatch before them:** about **6 per step**.
+  - Source: a read-only reading of `ink_pass_rows` and the Metal launchers (inkattn, inkmoe, inkmix, p12); the
+    AttnResMix pair was spot-checked. Confidence is high on the dependencies and medium on the exact count.
+  - Every visit is a strict read-after-write chain: in_proj -> attention dec (-> comb) -> wo -> ConvMix -> InkRoute ->
+    experts gate+up -> down -> MLP-side ConvMix -> the next in_proj.
+  - The blend stages (h GEMV -> gate -> norm) and LoopBlend's 4 stages are chains too.
+  - At each of the 2 loop restarts there are 3 independent transitions:
+    - restart copy 1 after the previous MLP ConvMix;
+    - copy 2 after copy 1 (disjoint bank planes);
+    - `AttnResMix(dst)` after `AttnResMix(msg_all)`: the second reads the stack and partial and writes `ws.dst`; the
+      first writes `ws.msg`.
+  - All 6 are tiny ops (about 4.6 KB copies, small AttnResMix).
+  - The fusions already in place remove the classic independent neighbours. q / k / v / r / gate are one `InkInProj`
+    GEMV, and gate / up are one expert kernel.
+- **Implication for the ranking.** Overlap of independent neighbours is worth at most about 6 transitions per step. A
+  concurrent encoder can only pay off if a barrier-separated transition is cheaper than a serial one. In dispatch_cost
+  (untracked) it was not: 1.03 us with a barrier vs 0.88 serial. Job K's matrix measures this in the engine's tracked
+  setting.
