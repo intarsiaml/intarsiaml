@@ -12,8 +12,13 @@ pub struct GenerateArgs {
     #[command(flatten)]
     pub model: ModelArgs,
     /// Prompt text. Raw completion unless --chat is given (no chat template, no special tokens).
-    #[arg(long, short = 'p')]
+    #[arg(long, short = 'p', default_value = "")]
     pub prompt: String,
+    /// Prompts as token ids instead of `--prompt`: a JSON file, either an `intarsia-greedy-v1` golden (`results[].prompt_ids`,
+    /// named by `name` and `reasoning_effort`) or a list of id lists. Every prompt runs in turn in this one process (the sequence
+    /// reset before each); with `--show-ids` each prints `ids[name]: ...`, and a decode tok/s line per prompt.
+    #[arg(long)]
+    pub prompt_ids: Option<std::path::PathBuf>,
     #[arg(long, default_value_t = 64)]
     pub max_tokens: usize,
     #[arg(long, default_value_t = 0)]
@@ -83,6 +88,72 @@ fn margins(rows: &[Vec<f32>]) -> String {
     rows.iter().map(one).collect::<Vec<_>>().join(" ")
 }
 
+/// `--prompt-ids FILE`: every prompt of the file, one after the other (the sequence reset before each, so no prefix reuse).
+fn run_ids(args: &GenerateArgs, engine: &dyn intarsia_core::engine::Engine, f: &std::path::Path) -> Result<()> {
+    let v: serde_json::Value = serde_json::from_slice(&std::fs::read(f)?)?;
+    let ids_of = |x: &serde_json::Value| -> Vec<u32> { x.as_array().map(|a| a.iter().filter_map(|i| i.as_u64()).map(|i| i as u32).collect()).unwrap_or_default() };
+    let prompts: Vec<(String, Vec<u32>)> = match v.get("results").and_then(|r| r.as_array()) {
+        Some(rs) => rs
+            .iter()
+            .map(|r| {
+                let eff = r.get("reasoning_effort").filter(|e| !e.is_null()).map(|e| format!("_e{}", e.as_str().map_or_else(|| e.to_string(), str::to_string))).unwrap_or_default();
+                (format!("{}{eff}", r.get("name").and_then(|n| n.as_str()).unwrap_or("?")), ids_of(&r["prompt_ids"]))
+            })
+            .collect(),
+        None => v.as_array().map(|a| a.iter().enumerate().map(|(i, x)| (i.to_string(), ids_of(x))).collect()).unwrap_or_default(),
+    };
+    if prompts.is_empty() || prompts.iter().any(|p| p.1.is_empty()) {
+        bail!("{}: no prompts (or an empty one)", f.display());
+    }
+    let (mut toks, mut ms) = (0usize, 0f64);
+    for (name, ids) in &prompts {
+        engine.forward_script(&[]).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let req = GenRequest {
+            prompt: ids.clone(),
+            max_tokens: args.max_tokens,
+            min_tokens: args.min_tokens,
+            ignore_eos: args.ignore_eos,
+            temperature: args.temperature,
+            top_p: args.top_p,
+            top_k: args.top_k,
+            seed: args.seed,
+            stop: args.stop.clone(),
+            ..Default::default()
+        };
+        let (mut generated, mut done, mut err) = (vec![], None, None);
+        engine
+            .generate(req, &mut |ev| match ev {
+                GenEvent::Token { id, .. } => generated.push(id),
+                GenEvent::Done { .. } => done = Some(ev),
+                GenEvent::Error { message } => err = Some(message),
+            })
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        if let Some(m) = err {
+            bail!("{name}: generation failed: {m}");
+        }
+        if args.show_ids {
+            eprintln!("ids[{name}]: {generated:?}");
+        }
+        if let Some(GenEvent::Done { completion_tokens, decode_ms, .. }) = done {
+            let n = completion_tokens.saturating_sub(1);
+            toks += n;
+            ms += decode_ms;
+            eprintln!("decode[{name}]: {completion_tokens} tokens, {decode_ms:.0} ms ({:.2} tok/s)", n as f64 / (decode_ms / 1e3).max(1e-9));
+        }
+    }
+    eprintln!("decode overall: {toks} tokens after the first, {ms:.0} ms ({:.2} tok/s)", toks as f64 / (ms / 1e3).max(1e-9));
+    let t = engine.telemetry();
+    eprintln!(
+        "spec: verify passes={} proposed={} accepted={} (acceptance {:.1}%, {:.2} tokens per pass)",
+        t.spec_steps,
+        t.spec_proposed,
+        t.spec_accepted,
+        100.0 * t.spec_accepted as f64 / t.spec_proposed.max(1) as f64,
+        (t.spec_steps + t.spec_accepted) as f64 / t.spec_steps.max(1) as f64,
+    );
+    Ok(())
+}
+
 pub fn run(args: GenerateArgs) -> Result<()> {
     let t_load = std::time::Instant::now();
     let loaded = args.model.load()?;
@@ -122,6 +193,9 @@ pub fn run(args: GenerateArgs) -> Result<()> {
     } else {
         args.prompt.clone()
     };
+    if let Some(f) = &args.prompt_ids {
+        return run_ids(&args, &*engine, f);
+    }
     // plain text gets the tokenizer's own special tokens (Llama's BOS); a rendered chat template carries its own
     let ids = engine.tokenize(&text, !args.chat).map_err(|e| anyhow::anyhow!("{e}"))?;
     if ids.is_empty() {
