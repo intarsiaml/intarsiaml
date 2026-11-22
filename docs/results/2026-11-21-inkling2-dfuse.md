@@ -914,7 +914,7 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
   their barriers, the softmax in simdgroup 0, and the stores. Only a restructured kernel could cut it, and that has no
   measured ceiling yet.
 
-### Roofline job L (#11336, queued 06:47, snapshot .scratch/snap7 = 91355d5f7, code = afaf4e8c9; measurement only)
+### Roofline job L (#11336, 06:57-06:59, snapshot .scratch/snap7 = 91355d5f7, code = afaf4e8c9; measurement only)
 
 - **Method.** Multi-dispatch timing only.
   - Each class is measured by its lane's existing microbench at the real shapes: many launches per command buffer, each
@@ -947,4 +947,66 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
     escapes. The P12 bench reports the exact bytes.
   - fp8 (e4m3) would bring the projections from 2582 MB (bf16) to 1301 MB and the unembed from 922 to 465 MB. Against P12,
     that is about -0.64 GB, or -1.0 ms per token at 614 GB/s, if it hits the same GB/s.
+
+### Job L results: where the 4.4 ms goes (raw/L_*, raw/roofline.py -> raw/L_roofline.txt)
+
+- **Box check: OK.** Default step, reps 1-3: 13.331 / 13.282 / 13.830 ms; median 13.331, inside 12.64-13.97. The rep after
+  the benches read 13.330. One rep: GPU busy 13.281 ms per step, idle 0.001, 543 dispatches.
+- **Classes.** Multi-dispatch microbench time per call x calls per token. Bytes are those the tip reads: P12 for the dense
+  projections and the unembed, experts as stored, and KV at a mean context of 150. The floor is those bytes at 614 GB/s.
+
+  | Class | ms / token | MB / token read | GB/s | Floor (ms) | Gap (ms) |
+  |---|---|---|---|---|---|
+  | Controllers: ConvMix row kernel and the blend stages, LoopBlend, AttnResMix | 1.728 | 113 | 66 | 0.184 | **1.543** |
+  | Attention core: fused decode, 40 SWA + 8 full visits, ctx <= 512 (an upper bound for the short prompt) | 1.118 | 30 | 27 | 0.048 | **1.070** |
+  | Experts NVFP4 (44 visits; gate+up, down) | 3.599 | 1577 | 438 | 2.568 | **1.031** |
+  | Attention projections: InkInProj S 1 / 3, wo (P12) | 3.735 | 1950 | 522 | 3.175 | 0.561 |
+  | Router (ink_route) | 0.409 | 28 | 69 | 0.046 | 0.363 |
+  | Experts MXFP8 (4 visits) | 0.504 | 263 | 522 | 0.428 | 0.076 |
+  | Unembed (P12) | 1.202 | 692 | 576 | 1.128 | 0.074 |
+  | Argmax, norms, embedding, other | 0.031 | 8 | | 0.013 | 0.018 |
+  | **Sum of the classes** | **12.327** | **4660** | | **7.590** | **4.737** |
+  | **Not seen by the class benches** (step 13.31 - sum) | **0.983** | | | | |
+
+  Notes on the controller rows:
+  - The two MLP-side controller rows use the bench's shapes, which are heavier than the model's (probe P: the stream's MLP
+    row kernel is under the bench). The controller row is an upper bound by about 0.1-0.2 ms, and the unseen share is
+    larger by the same amount.
+  - AttnResMix (4 per token) has no multi-dispatch bench; its per-dispatch stream time (0.091 ms) is used as an upper bound.
+- **Pure dispatch cost.** A near-empty kernel costs 0.88 us per dependent dispatch in one serial command buffer
+  (dispatch_cost). 543 x 0.88 = **0.478 ms per step**. That cost is inside the class times above, not on top of them. In a
+  concurrent encoder without barriers it falls to 0.12 us, but that does not apply to a dependent chain.
+- **Floors.** 7.59 ms at the bytes the tip reads (4.66 GB), 8.94 ms at native bf16 bytes (5.49 GB). The step is 13.31 ms:
+  5.7 ms over the tip-bytes floor, 4.4 ms over the native one.
+- **Top 3 gaps, with ceilings for a fix.**
+  1. **Controllers, 1.54 ms gap.** Bounded ceiling: at most about 1.28 ms. Even a perfect set would keep its 294
+     dependent dispatches (294 x 0.88 = 0.26 ms) and its bytes (0.18 ms).
+     - The biggest part is the two blend chains (ConvMix with the blend, 4 dispatches each). They cost 1.175 ms against
+       floors of about 5.4 us (S 1) and 9.3 us (S 3) per call (bytes + 4 dispatches), which bounds the ceiling at about
+       0.84 ms.
+     - No lever with a measured gain exists: the row kernel's cold cost is 0.085 ms (probe P); fusing the blend tail
+       measured +0.155 ms, i.e. slower (change 3); ink_route's lever is at most about 0.18 ms.
+  2. **Attention core, about 1.07 ms gap.** It is latency-bound: 23-24 us per call at ctx <= 512, almost no bytes, and
+     nearly flat in context in the stream (about 30-33 us per dispatch from ctx 20 to 277).
+     - Bounded ceiling: about 0.33 ms if the fused kernel cost no more than its longer half (attention alone 16.3 us, SWA)
+       with the prologue fully hidden. About 0.58 ms if it cost no more than the prologue alone (10.8 us). Neither is a
+       measured kernel.
+     - Owner: the attention lane (m-attn / ink-metal).
+  3. **Experts NVFP4, 1.03 ms gap** (438 GB/s at 1 row).
+     - Measured bound: the same kernels stream at 535 GB/s at 4 rows (m-moe results doc). At that rate the 1-row call would
+       be 67 us instead of 81.8, which is 0.65 ms per token. The 1-row split is gate+up 50 us at 480 GB/s, and down 33 us at
+       355 GB/s, about 10 us over streaming.
+     - Owner: m-moe. Its doc names the lever: one persistent gate+up -> down kernel, which has a forward-progress caveat.
+
+  Also measured:
+  - The unseen remainder, 0.98 ms: kernel-to-kernel transitions in the dependent chain, outside any one class. It has no
+    ceiling, and the levers would sit in the backend encoder (hostgap's area).
+  - The projections: 0.56 ms gap. The best GEMV rate measured on this box is the unembed's 576-582 GB/s, which bounds the
+    gain at about 0.35 ms (pack12's kernels).
+- **What reduced precision changes (ink-fp8's lane).** e4m3 for the projections takes their bytes from 1950 MB (P12) to
+  1301 MB, and for the unembed from 692 to 465 MB. That is -0.88 GB, about -1.4 ms at the rates the P12 kernels reach now:
+  the biggest single lever in the table, and not this lane's.
+- **Proposal.** Nothing in this lane has a lever with a measured ceiling of at least 0.3 ms, so I propose building nothing
+  here. The best-supported item over the bar is the NVFP4 1-row experts (measured bound 0.65 ms, owner m-moe); after it come
+  the attention core (bounded 0.33-0.58 ms) and the projections' GEMV rate (bound 0.35 ms).
 
