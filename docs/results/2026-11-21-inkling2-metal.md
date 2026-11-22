@@ -179,6 +179,9 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   gave 2k prefill 1163 / 1186 vs 1503 / 1415 tok/s (-20 %), decode after 2k 39.7 / 38.6 vs 60.9 / 54.7 (-35 %): answer
   whether NE 4 is faster because it skips work or NE 3 is genuinely slower; the quiet A/B is #11181. Lane: #11195 released;
   the realtest is #11197 (reserved 03:41).
+- 2026-11-22 (coordinator, SendMessage): ink-batch found an endor slow state that slows B16 by 30-50% while B1 barely moves (same binary: B16 61 ms now, 77-90 ms at 06:49), which the B1 / localeval guard cannot see. For the queued baseline's batch_step section C: take one B16 sample first; if it is more than 5% over about 60 ms (fast-state reference at the final tree), mark the batched numbers BOX SLOW and do not record them as a reference. Solo and localeval parts keep their own guard. Done: `.scratch/serve_le2_body.sh` section C runs a B16 probe (`--batches 16`, same ctx / rounds / steps as the reps), limit 63.0 ms; it prints `BOX FAST|SLOW|UNKNOWN` and tags every rep row `[box ...]`. Only FAST rows count as a reference; UNKNOWN (probe row not parsed) counts as not a reference.
+- 2026-11-22 (coordinator, SendMessage): #11387 may be contaminated 07:56:30-07:56:45 by an unslotted `cargo check --release -p intarsia-backend-metal` from ink-dfuse on endor (about 14 s CPU, metallib compile, no GPU). Find the arm / localeval case covering that window; if its numbers stand out against the other reps, rerun it inside the baseline slot or a short follow-up slot before recording; if normal, note the window. Status: the window falls in section A, localeval speed-plain (started 07:55:56, server on 8098); the per-request timestamps decide which case.
+- 2026-11-22 (coordinator, SendMessage): `metal4_shaders_are_the_nax_variants_and_not_metal3_shaders` counts 110 Metal 4 shaders, expects 65, on the integration tree and on a3cb54621; likely from an ink/* merge into ink/metal. Check whether #11363 ran that suite; find the merge that raised the count; update the expectation (legit NAX variants, one-line reason) or fix the build (Metal 3 leak); full Metal suite green before main; record here; bisect on bespin or in a fleetq slot.
 
 ## NE fix gate #11179 (tree 65dbc2870 = fix 7eca1b012 + test/docs)
 
@@ -503,6 +506,87 @@ by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
   nothing committed, ink/metal unchanged at d14028792.
 - 2026-11-22 (coordinator): HOLD: 538a9c283 contains 89270fb58 (screen default on). ink-fp8 commits a one-commit revert of the
   default (unset -> off, `=1` -> on) and sends the hash; merge that, with the same post-merge checks.
+- 2026-11-22 (coordinator): one job under `--quiet gpu,cpu` is fine; honest `--expect` including the build. Lane: ready,
+  not queued: `.scratch/q_fp8merge.sh` -> `jobwrap.sh fp8merge_body.sh` (pinned worktree at the merge commit, screen default
+  printed first, build, Metal suite, admission of 18 Inkling ops incl. matmul_p12 / gumbel_argmax / the screen ops, greedy md5
+  64 / 256 switches unset vs 65cde8f35... / 61fd59fecb...), `--expect 45`.
+
+### #11347 (cb61e0847, p12solo, quiet): item 4 verified; stopped by pk12check's B16 rule (a false positive)
+
+- Guard: B1 batched 64.4 tok/s at 07:08:34, in range (>= 58), no BOX SLOW. The wrapper's end sweep: descendants none.
+- Metal at defaults: inkling2_batch 7/7 (the new test included: "pack12 off: batched plan (max-batch 16); 17 P12 tensors
+  dropped"), inkling2 9/9.
+- Solo with P12 on: G2 short 2.087e-3 / 2.928e-3 PASS, confident misses 0/363; greedy 64 / 256 md5 65cde8f35... / 61fd59fecb...
+  = the combined-gate tip.
+- batch_step, defaults vs `INTARSIA_INK_PACK12=0`, ABAB x3 (batched step ms; median): B1 15.48 vs 15.41, B8 36.18 vs 37.07,
+  B16 74.67 vs 71.52 (reps 78.82 / 69.14 / 74.67 vs 74.78 / 71.52 / 70.14). Defaults configure and run batched. The B16 ratio
+  1.044 tripped the 1.02 rule and the job stopped before localeval. It is noise, not P12: with P12 dropped by enable_batch both
+  arms run the same bf16 code, and each arm's own B16 spread (69-79 ms) is wider than the gap. The rule no longer measures
+  anything (P12 is never used batched) and is removed from the next run. Against the #11266 reference (B8 41.55, B16 76.20)
+  these runs are 11-13 % faster at B8 and level at B16. Aggregate B16 203-231 tok/s.
+- Not run: localeval speed-plain / conc-plain-1k (with memory) and batch_step section C.
+
+### ink/fp8 merged: 12cd4a06e at **9576df6ea**
+
+- ink-fp8 sent 12cd4a06e: one commit on 538a9c283 that makes the screen opt-in again (screen.rs `wanted`: unset -> off,
+  1 / on / true -> on; its unit test, the load comment, the tuning row). Checked: `git diff 538a9c283 12cd4a06e` touches only
+  model.rs (comment), screen.rs, tuning.md; merged `wanted` has `_ => false`. Conflict only in docs/decisions/LOG.md (both
+  entries kept; ink-fp8's entry still says "default on on Metal", which 12cd4a06e does not update; flagged to ink-fp8).
+  89270fb58 / 5295a81b4 are in the history, superseded by 72900194e and 12cd4a06e. Not pushed.
+- bespin #11360: workspace check clean, core / cpu / cuda / hip / docs_env_vars pass; cpu inkling2 10/11:
+  `inkling2_tiny_screened_verify_fallback_reads_the_head_once` failed at its first assert (no screen loaded) in the parallel
+  run; alone (#11361, merged tree and 12cd4a06e by itself) both screen tests pass. The test sets `INTARSIA_INK_HEAD_SCREEN`
+  with `set_var` while other tests run in parallel in the same process: a test-order race of the fp8 test, not of the merge
+  (flagged to ink-fp8). Metal post-merge checks: `.scratch/q_fp8merge.sh` on 9576df6ea.
+- Fixed on ink/fp8 in eb14004b9 (tip e2c95e6d7), merged here at 37c8fbaf1 (tests and docs only): the screen tests load
+  through `load_screen()`, which holds a process-wide mutex, sets `INTARSIA_INK_HEAD_SCREEN` for that one load and removes
+  it before unlocking. Parallel cpu inkling2 11/11 three times on bespin (#11368, ink-fp8's run; the test file here is
+  identical to e2c95e6d7's). LOG.md's ink-fp8 row now says the screened head stays opt-in. Engine code unchanged, so the
+  pinned 9576df6ea post-merge check (#11363) and the a31e2df50 baseline still apply.
+- Metal post-merge check #11363 (9576df6ea, quiet, ended 07:33:55, exit 0): build clean; Metal rows_exact / quick_coverage /
+  gumbel / inkling2 11/11 / inkling2_batch 7/7, core op ids 7/7, docs_env_vars 2/2 pass; admission of all 17 Inkling ops incl.
+  head_screen / logits_gather / screen_argmax: 0 fail/reject; greedy with every switch unset: g64 md5 65cde8f35a1802e3e2fadb44d94d080d,
+  g256 md5 61fd59fecb5e0d72ffd08f2c6d07855a (both identical to the pre-merge reference); no screen lines in the logs; merged
+  `wanted` has `_ => false`. The ink/fp8 merge is clean on Metal. Reference baseline (a31e2df50, with the B16 box probe) queued as #11387.
+
+## Reference baseline #11387 (a31e2df50 merged-fp8, quiet gpu,cpu, 07:50:42-08:19:22, exit 0)
+
+Pre-checks on the same tree: Metal inkling2_batch 7/7, inkling2 11/11, batched plan configures with P12 dropped; G2 short
+PASS (prefill 2.087e-3, decode 2.928e-3, 0/363 confident misses); greedy g64 / g256 md5 identical to the combined-gate tip.
+
+**A. localeval speed-plain** (`serve --max-batch 1 --max-seq 20480`, chunk 2048; results
+`/opt/code/deepeval/results/20261122-075558-adhoc-endor-intarsia-metal-ink-metal-merged-fp8`; server peak RSS 25.2 GB,
+phys_footprint peak 28 GB):
+
+| prompt tok | decode tok/s median (min-max, n=3) | prefill tok/s | marginal prefill | TTFT s |
+|---:|---:|---:|---:|---:|
+| 128 | 71.0 (68.7-71.3) | - | - | 0.15-0.16 |
+| 1024 | 69.7 (67.5-69.7) | 2029 | 2545 | 0.49-0.51 |
+| 4096 | 67.5 (66.9-68.1) | 2268 | 2357 | 1.75-1.88 |
+| 16384 | 62.4 (62.0-63.7) | 2324 | 2344 | 7.05-7.10 |
+
+Contamination window 07:56:30-45 (ink-dfuse unslotted `cargo check`, CPU only): localeval's server probe / warm-up ran then and
+the first measured rep (128 tok, rep 1) started at 07:56:44.19, so at most its first second overlaps. That rep is 71.3 tok/s
+decode, 0.162 s TTFT: the highest decode of its three reps, TTFT within 7% of the others. Not an outlier; no rerun. Every
+other rep started after 07:56:47.
+
+**B. localeval conc-plain-1k** (`serve --max-batch 16 --max-seq 8192`; results
+`/opt/code/deepeval/results/20261122-075832-adhoc-endor-intarsia-metal-ink-metal-merged-fp8-b16`): batched decode runs since
+the ink/batch merge, so the cell completed (0 errors): aggregate 55.0 tok/s at 1 stream, 97.3 at 4, 127.9 at 16.
+
+**C. batch_step** (`--prompts random --digest`, ctx 1024, 2 x 16 steps; binaries intarsia 8f61cd39635e09d4, batch_step
+369ddee7e352a499). Box probe B16 62.97 ms against the 63.0 limit: **BOX FAST, by 0.03 ms**. Batched step ms per rep:
+
+| B | rep 1 | rep 2 | rep 3 | median | batched tok/s (median) |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 15.45 | 15.42 | 15.38 | 15.42 | 64.9 |
+| 8 | 34.45 | 34.20 | 34.09 | 34.20 | 233.9 |
+| 16 | 63.90 | 65.64 | 66.83 | 65.64 | 243.7 |
+
+Digests identical across the three reps (B1 6d7e5d70e4d0014a, B8 4eceea81c044812c, B16 65fc922062715df4); P12 dropped in the
+batched plan (49 tensors). B1 and B8 are the reference. B16 counts by the probe rule, but its reps climb 63.9 -> 66.8 ms
+(+5% within the section, all three over the 63 ms limit), which looks like the start of the slow state ink-batch described;
+treat B16 65.6 ms as an upper bound of the fast state, not a tight reference.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
@@ -847,3 +931,15 @@ row (pos 57, golden margin 0.77) 0.011 -> 0.303. chat_reasoning: the error **gro
 decode rows**: pos 92-104 old 0.007-0.018, new 0.036, 0.023, 0.123, 0.029, 0.131, **0.431** (pos 103, margin 0.06),
 0.119. Mean 1.0e-2 -> 5.8e-2. Prefill rows of the same prompts barely move. Growth over successive decode steps points at
 state written by the 1-row decode path (conv rings, KV), not at a single near-tie row.
+
+## Metal 4 shader-count test (coordinator brief 2026-11-22)
+
+`metal4_shaders_are_the_nax_variants_and_not_metal3_shaders` (backend-metal `kernels.rs` unit test) failed on ink/metal: 110
+Metal 4 shaders against an expected 65. Cause: d03224697 (ink/prefill: MoE prefill forms nax2 / nax3) added
+`inkprefill::metal4_shaders()` (the nax2 / nax3 gate-up and down shaders per format, the nax3 gather, the two blend
+shaders) to `metal4_shaders()` but not to the test's expected sum; it came into ink/metal with ink/prefill at merge 9d6764682.
+Found by `git log -S` on the shader list, not by a run bisect. These are NAX shaders in the metal4 library, not Metal 3 shaders: the
+test's other two asserts (no overlap with `shader_names()`, no duplicates) are unchanged. Fix 8e0ff6af6 adds the
+`inkprefill` term to the expected count. #11363 missed it because its Metal suite ran named integration tests
+(rows_exact, inkmix, rows_single, quick_coverage, gumbel, inkling2, inkling2_batch), not the backend-metal lib unit tests.
+Full Metal suite at 8e0ff6af6 (backend-metal lib + every integration test, models Metal tests): fleetq #11427, pending.

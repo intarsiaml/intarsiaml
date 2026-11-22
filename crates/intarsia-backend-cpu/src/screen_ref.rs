@@ -39,7 +39,7 @@ pub fn run(call: &OpCall, fast: bool) -> Result<()> {
             write_i32(&o[1], &cnt)
         }
         Op::LogitsGather => {
-            let (t, d, v, c) = (i[0].shape[0], i[0].shape[1], i[1].shape[0], i[2].shape[1]);
+            let (_t, d, v, c) = (i[0].shape[0], i[0].shape[1], i[1].shape[0], i[2].shape[1]);
             let (h, w, cand, cnt) = (read_f32(&i[0])?, read_f32(&i[1])?, read_i32(&i[2])?, read_i32(&i[3])?);
             let mut y = read_f32(&o[0])?;
             let logit = |r: usize, n: usize| -> f32 {

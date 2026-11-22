@@ -944,6 +944,7 @@ mod tests {
                 + 2 * crate::mxfp4::NAXD_FORMS.len()
                 + crate::inkattn::metal4_shader_names().len()
                 + crate::inkmoe::metal4_shaders().count()
+                + crate::inkprefill::metal4_shaders().len()
                 + crate::inkmix::NAX_SHADERS.len()
                 + crate::inkctrl::METAL4_SHADERS.len()
         );
