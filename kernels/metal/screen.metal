@@ -17,11 +17,14 @@ struct ScP {
 constant float SC_WIDEN = 9.5367431640625e-7f;  // 2^-20
 constant float SC_HN_MARGIN = 1.00048828125f;    // 1 + 2^-11
 constant int SC_NONFINITE = 0x7fffffff;
+constant float SC_HN_FLOOR = 8.881784197001252e-16f;    // 2^-50
+constant float SC_T_ABS = 1.262177448353619e-29f;      // 2^-96
+constant float SC_M_MAX = 1.2379400392853803e27f;      // 2^90
 
 inline float2 sc_lohi(float a, float hn, float b) {
     const float m = fma(hn, b, fabs(a));
-    const float lo = fma(-SC_WIDEN, m, fma(-hn, b, a));
-    const float hi = fma(SC_WIDEN, m, fma(hn, b, a));
+    const float lo = fma(-SC_WIDEN, m, fma(-hn, b, a)) - SC_T_ABS;
+    const float hi = fma(SC_WIDEN, m, fma(hn, b, a)) + SC_T_ABS;
     return float2(lo, hi);
 }
 
@@ -55,7 +58,7 @@ kernel void head_screen_f32(device const float* A [[buffer(0)]],
         q = q + simd_shuffle_xor(q, 4);
         q = q + simd_shuffle_xor(q, 2);
         q = q + simd_shuffle_xor(q, 1);
-        if (lane == 0) s_hn = precise::sqrt(q) * SC_HN_MARGIN;
+        if (lane == 0) s_hn = fma(precise::sqrt(q), SC_HN_MARGIN, SC_HN_FLOOR);
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
     const float hn = s_hn;
@@ -64,7 +67,7 @@ kernel void head_screen_f32(device const float* A [[buffer(0)]],
     uint bad = isfinite(hn) ? 0u : 1u;
     for (uint n = tid; n < p.v; n += tgs) {
         const float an = a[n];
-        bad |= isfinite(an) ? 0u : 1u;
+        bad |= (isfinite(an) && fma(hn, beta[n], fabs(an)) <= SC_M_MAX) ? 0u : 1u;
         lmax = max(lmax, sc_lohi(an, hn, beta[n]).x);
     }
     lmax = simd_max(lmax);

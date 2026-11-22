@@ -3,7 +3,10 @@
 //! trace uses (`CLOCK_UPTIME_RAW`), so `INTARSIA_METAL_PROFILE=cb:<file>` / `kernel:<file>` records can be cut into steps.
 //!
 //!   INTARSIA_METAL_PROFILE=kernel:k.jsonl cargo run --release -p intarsia-models --example batch_prof -- \
-//!       --ctx 1024 --b 8 --steps 40 --warm 8 --marks marks.jsonl
+//!       --ctx 1024 --b 8 --steps 40 --warm 8 --marks marks.jsonl [--prompts text|random]
+//!
+//! Prompts as batch_step's (examples/common/prompts.rs; default `text`). In `kernel:` mode each MoE launch's trace label
+//! carries the distinct experts (`n`) and the routed pairs (`k`) of its call, so the trace gives the expert union per call.
 //!
 //! Measurement only; it uses the public model API and changes nothing in the engine. Run inside a fleetq slot.
 
@@ -18,7 +21,13 @@ fn main() {
 }
 
 #[cfg(target_os = "macos")]
+#[path = "common/prompts.rs"]
+#[allow(dead_code)]
+mod prompts;
+
+#[cfg(target_os = "macos")]
 mod imp {
+    use super::prompts::Prompts;
     use intarsia_core::model::{HeadMode, LoadOptions, Model, StepOut};
     use intarsia_core::state::SequenceState;
     use intarsia_core::Telemetry;
@@ -51,6 +60,7 @@ mod imp {
         let dir = std::env::var_os("INTARSIA_METAL_TEST_MODEL")
             .map(std::path::PathBuf::from)
             .unwrap_or_else(|| std::path::PathBuf::from(std::env::var("HOME").unwrap()).join("models/Qwen3-8B"));
+        let prompts = Prompts::new(&arg(&args, "--prompts", "text"), &dir);
         let backend = intarsia_backend_metal::MetalBackend::arc().unwrap();
         let (_, recipe, dims, _) = read_model_spec(&dir, &EngineOptions::default()).unwrap();
         let weights = SchemedSource::open(&dir).unwrap();
@@ -64,8 +74,7 @@ mod imp {
         let mut states: Vec<SequenceState> = Vec::new();
         let mut cur: Vec<u32> = Vec::new();
         for i in 0..b {
-            let mut rng = intarsia_core::rng::SplitMix64::new(0xbe7c_0000 + i as u64);
-            let p: Vec<u32> = (0..ctx).map(|_| 1000 + (rng.next_u64() % 29000) as u32).collect();
+            let p = prompts.row(i, ctx);
             let mut s = m.new_state().unwrap();
             m.forward(&mut s, &p[..ctx - 1], HeadMode::None, None).unwrap();
             states.push(s);
@@ -99,6 +108,6 @@ mod imp {
             }
         }
         walls.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        println!("ctx {ctx} B {b}: median step {:.3} ms (min {:.3}, max {:.3}, n {})", walls[walls.len() / 2], walls[0], walls[walls.len() - 1], walls.len());
+        println!("ctx {ctx} B {b} ({}): median step {:.3} ms (min {:.3}, max {:.3}, n {})", prompts.describe(), walls[walls.len() / 2], walls[0], walls[walls.len() - 1], walls.len());
     }
 }

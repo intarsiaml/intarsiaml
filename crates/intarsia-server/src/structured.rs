@@ -831,6 +831,10 @@ pub enum Piece {
 }
 
 const THINK_OPEN: &str = "<think>";
+#[cfg(test)]
+#[path = "structured_batch_tests.rs"]
+mod batch_tests;
+
 const THINK_CLOSE: &str = "</think>";
 const OPEN: &str = "<tool_call>";
 const CLOSE: &str = "</tool_call>";

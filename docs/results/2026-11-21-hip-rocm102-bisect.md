@@ -1,7 +1,8 @@
 # HIP: why ROCm 10.2 moves the 35B logits (lane rocm102-bisect)
 
-Status: 2026-11-21, diagnosis done. **Nothing is flipped:** the images, `dev.sh` and every default are unchanged. The fix is
-opt-in (`-DIK_GDN_CHUNK_STABLE_LOG=1`, off by default). Follows `2026-11-21-hip-rocm102.md` (PR #484), whose 10.2 arm failed
+Status: 2026-11-21, diagnosis done; **the fix is now the default** (section "Default-on", the user's call: "Yes, make it
+default"). The images and `dev.sh` are unchanged: 7.2.4 stays the pinned image. The sections below were written while the
+fix was opt-in (`-DIK_GDN_CHUNK_STABLE_LOG=1`); that macro no longer exists, `gc_logf` is unconditional. Follows `2026-11-21-hip-rocm102.md` (PR #484), whose 10.2 arm failed
 qualify's same-build gates: mean KL21 8.6e-3 against a 1e-4 limit, about 200 top-1 flips.
 
 ## Answer
@@ -65,6 +66,25 @@ This is the only `logf` in `kernels/hip`. Other libm calls (`expf`, `rsqrtf`, `l
 the same bits under both compilers in this model's path, per the swap scan. Some other model or path could still hit a
 different lowering change. A pinned-compiler bit-equality check is the general guard: `qualify`'s same-build gates already
 are one.
+
+## Default-on (`688a4b0`; fleetq #10544 / #10546 builds, #10545 / #10547 windows)
+
+`gc_logf` is unconditional. Both images were built from the same tree (head `91b90b6`, code-tree `b115fc08bc5d`, the
+same code as `688a4b0`). They ran `scripts/rocm102/stages.sh` with `STEPS="smoke kern kern7 tests qchk7 qchk10"` (raw:
+`raw/win4/`). The 7.2.4 HIP suite ran in a second window (`STEPS=tests7`, a step added for this, at `96303c8`: the same code).
+
+| gate | ROCm 7.2.4 | ROCm 10.2 |
+|---|---|---|
+| `kernels test --backend hip` (2219 cases) | 81 admitted, 0 rejected | 81 admitted, 0 rejected, same max_abs / rel_l2 columns |
+| HIP GPU suite, tiny packed / macro prefill, real-35B batched / macro | all ok, 0 failed (#10547, `raw/win5/`) | all ok, 0 failed |
+| qualify `acc-short` (vs the vLLM golden, and its recorded baseline) | PASS, prefill KL 6.00e-3, decode 1.11e-2 | PASS, the same numbers |
+| qualify `acc-oracle` + drift check (tp1 self-golden) | PASS, "logits unchanged" | PASS, "logits unchanged" |
+| qualify `tp` + tp2 drift check | PASS, "logits unchanged" | PASS, "logits unchanged" |
+
+The two qualify reports differ only in the device name string, the load time and the bench speed (192.2 vs 191.7 tok/s
+at tp2, 128 tokens). Every accuracy number is the same, and on 7.2.4 the checked-in baselines hold with no re-record.
+The previous 10.2 run (#484) had prefill KL 5.71e-3 / decode 1.13e-2 against vLLM; with the fix 10.2 lands on 7.2.4's
+6.00e-3 / 1.11e-2. Not run here: acc-long, acc-4k (known FAIL on main), the envelope, the 27B.
 
 ## Method
 
@@ -146,7 +166,7 @@ same FP op counts. They differ only in VOPD dual-issue packing, which does not c
 ## Files
 
 - `crates/intarsia-backend-hip/build.rs`: `INTARSIA_HIP_KERNELS_NOBUNDLE` (opt-in, debugging).
-- `kernels/hip/gdn_chunk.hip`: `gc_logf`, opt-in via `IK_GDN_CHUNK_STABLE_LOG`. The default build is unchanged: `logf`.
+- `kernels/hip/gdn_chunk.hip`: `gc_logf`, unconditional since `688a4b0` (it was opt-in via `IK_GDN_CHUNK_STABLE_LOG` in #485).
   Checked with fleetq #10543: on both compilers, the edited file's default ISA equals the pre-edit file's except for the
   `__hip_cuid_*` symbol name, a hash of the source. That gives 0 differing instructions.
 - `scripts/rocm102/bisect/`: `lib.sh`, `mkbins.sh`, `variants.sh`, `relink.sh`, `tu.sh`, `exp1.sh`, `exp2.sh`,

@@ -40,6 +40,7 @@ pub mod inkattn;
 pub mod gemm_nax;
 mod host;
 pub mod inkmoe;
+pub mod inkprefill;
 pub mod inkmix;
 pub mod screen;
 pub mod kernels;
@@ -50,6 +51,8 @@ pub mod nvfp4;
 pub mod p12;
 pub mod profile;
 mod rowtab;
+pub mod inkctrl;
+mod sync;
 mod topk;
 
 pub use buffer::{MetalBuffer, MtlBuffer};
@@ -237,6 +240,8 @@ pub struct MetalBackend {
     /// Buffers whose device address was handed out (`Backend::device_address`): row-table kernels reach them through
     /// addresses, so they must be declared resident in every encoder that runs such a kernel ([`rowtab`]).
     indirect: Mutex<Indirect>,
+    /// Device counters of the cross-threadgroup hand-off kernels ([`sync`]), created on first use.
+    sync: OnceLock<sync::SyncArena>,
 }
 
 /// Most rows a row-exact multi-row kernel takes in one launch (the tile of its shader).
@@ -635,6 +640,7 @@ impl MetalBackend {
             page_size,
             bandwidth: OnceLock::new(),
             indirect: Mutex::new(Indirect::default()),
+            sync: OnceLock::new(),
         })
     }
 
@@ -1426,6 +1432,9 @@ impl MetalBackend {
         }
         if screen::KERNELS.iter().any(|k| k.0 == kernel) {
             return self.launch_screen(kernel, call);
+        }
+        if inkctrl::KERNELS.iter().any(|k| k.0 == kernel) {
+            return self.launch_inkctrl(kernel, call);
         }
         if bridge::KERNELS.iter().any(|k| k.0 == kernel) {
             return self.launch_bridge(kernel, call);

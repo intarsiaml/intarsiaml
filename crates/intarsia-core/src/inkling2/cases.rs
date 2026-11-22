@@ -608,6 +608,39 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                 }
             }
         }
+        Op::InkRoute => {
+            use crate::dsv41::ops::ScoreFunc;
+            // (D, E, K, scale): small (16-byte rows and a D that takes the 2-byte form) and the real router (D 2304, 128 experts,
+            // top-8, route_scale 8); decode / verify / batch rows 1..=16 plus a longer chunk
+            let mut shapes: Vec<(usize, usize, usize, f32)> = vec![(D, 16, 4, 1.5), (60, 40, 6, 1.0)];
+            if !quick {
+                shapes.push((2304, 128, 8, 8.0));
+            }
+            let rrows: &[usize] = if quick { &[1, 4, 16] } else { &[1, 2, 3, 4, 7, 16, 40] };
+            for &t in rrows {
+                for &dt in dts {
+                    for &(d, e, k, scale) in &shapes {
+                        if d > D && t > 16 {
+                            continue;
+                        }
+                        let funcs: &[(ScoreFunc, bool, f32)] = if d > D {
+                            &[(ScoreFunc::Sigmoid, true, 1.0)]
+                        } else {
+                            &[(ScoreFunc::Sigmoid, true, 1.0), (ScoreFunc::Softmax, true, 1.0), (ScoreFunc::SqrtSoftplus, true, 1.0), (ScoreFunc::Sigmoid, false, 0.7)]
+                        };
+                        for &(sf, norm, temp) in funcs {
+                            for with_logits in [true, false] {
+                                let mut a = OpAttrs { top_k: k, scale, norm_topk: norm, temperature: temp, ..a0.clone() };
+                                a.dsv.score_func = sf;
+                                let inputs = vec![rand_t(rng, dt, &[t, d], 1.0), rand_t(rng, W, &[e, d], (d as f32).powf(-0.5)), rand_t(rng, DType::F32, &[e], 0.1)];
+                                let outputs = vec![out(DType::F32, &[t, k]), out(DType::I32, &[t, k]), if with_logits { out(DType::F32, &[t, e]) } else { OutSpec::new(DType::F32, &[0]) }];
+                                push(format!("T={t} D={d} E={e} K={k} {sf:?} norm={norm} temp={temp} logits={with_logits} {dt}"), inputs, outputs, a);
+                            }
+                        }
+                    }
+                }
+            }
+        }
         _ => {}
     }
     if !quick {

@@ -1071,6 +1071,10 @@ mod tests {
             Op::HeadScreen,
             Op::LogitsGather,
             Op::ScreenArgmax,
+            // the fused router (lane ink-dfuse, op 76): Metal only; CUDA runs the router matmul + `MoeRoute`
+            Op::InkRoute,
+            // the device sampler (lane ink-hostgap, slot 77): cpu and Metal only, CUDA keeps the host sampler (`Model::gumbel_ok`)
+            Op::GumbelArgmax,
         ];
         // the reserved placeholder discriminants (`Op::is_reserved`) are exempt
         for op in Op::ALL.into_iter().filter(|o| !o.is_reserved()) {

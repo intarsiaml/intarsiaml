@@ -16,13 +16,17 @@
 use crate::MetalBackend;
 use intarsia_core::backend::TensorRef;
 use intarsia_core::{DType, Error, Exactness, KernelImpl, Op, OpAttrs, OpCall, Result, Tol};
-use objc2_metal::{MTLComputeCommandEncoder, MTLSize};
+use objc2_metal::{MTLComputeCommandEncoder, MTLComputePipelineState, MTLSize};
 
 pub const INK_IN_PROJ_BF16_GEMV: &str = "ink_in_proj_bf16_gemv";
 pub const INK_IN_PROJ_BF16_GEMV_ROWS: &str = "ink_in_proj_bf16_gemv_rows";
 pub const INK_IN_PROJ_BF16_NAX: &str = "ink_in_proj_bf16_nax";
 pub const INK_IN_PROJ_F8_GEMV: &str = "ink_in_proj_f8_gemv";
 pub const INK_IN_PROJ_F8_GEMV_ROWS: &str = "ink_in_proj_f8_gemv_rows";
+/// Ordinary calls above `PROJ_GEMV_ORDINARY_MAX` rows without the NAX GEMM (no metal4.0 library, or operands it refuses):
+/// the multi-row GEMV in 16-row chunks (`in_proj_rows`), every row bitwise its 1-row launch, so bitwise the GEMV forms the
+/// neighbouring row counts take (lane ink-prefill, brief 7: m > 16 had no kernel without metal4).
+pub const INK_IN_PROJ_BF16_GEMV_CHUNKS: &str = "ink_in_proj_bf16_gemv_chunks";
 
 /// inkling2_mix_nax.metal entry points (metal4.0 library), one per `gemm_nax::NAX_VARIANTS` tile, in that order.
 pub const NAX_SHADERS: [&str; 5] = [
@@ -40,6 +44,7 @@ pub const KERNELS: &[(&str, Op)] = &[
     (INK_IN_PROJ_BF16_NAX, Op::InkInProj),
     (INK_IN_PROJ_F8_GEMV, Op::InkInProj),
     (INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj),
+    (INK_IN_PROJ_BF16_GEMV_CHUNKS, Op::InkInProj),
     (CONV_MIX_BF16, Op::ConvMix),
     (CONV_MIX_BF16_ROWS, Op::ConvMix),
     (ATTN_RES_MIX_BF16, Op::AttnResMix),
@@ -85,6 +90,14 @@ pub fn register(k: KernelImpl) -> KernelImpl {
             .tol(BF16_TOL)
             .priority(-1)
             .rows_exact(),
+        // below the NAX GEMM (priority 5): taken only where it is not, e.g. without the metal4.0 library
+        INK_IN_PROJ_BF16_GEMV_CHUNKS => k
+            .acts(bf)
+            .weights(bf)
+            .when(|s| s.m > PROJ_GEMV_ORDINARY_MAX)
+            .exact(Exactness::Deterministic)
+            .tol(BF16_TOL)
+            .priority(0),
         // prefill (the `matmul_bf16_nax` rule: M >= 2, above the GEMV); a segment is bitwise `matmul_bf16_nax` on it
         INK_IN_PROJ_BF16_NAX => k
             .acts(bf)
@@ -307,8 +320,16 @@ fn dim(v: usize, what: &str) -> Result<u32> {
 
 impl MetalBackend {
     pub(crate) fn launch_inkmix(&self, kernel: &str, call: &OpCall) -> Result<()> {
+        crate::inkprefill::set_exact(call.exact_rows); // lane ink-prefill: row-exact calls keep the GEMV blend
         match (kernel, call.op) {
             (INK_IN_PROJ_BF16_GEMV | INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj) => self.launch_in_proj_gemv(call),
+            (INK_IN_PROJ_BF16_GEMV_CHUNKS, Op::InkInProj) => {
+                let (i, o) = (&call.inputs, &call.outputs);
+                if i[0].dtype != DType::Bf16 || i[1].dtype != DType::Bf16 || o.iter().any(|y| y.dtype != DType::Bf16) {
+                    return Err(Error::invalid("ink_in_proj_bf16_gemv_chunks: bf16 only"));
+                }
+                self.in_proj_rows(&i[0], &i[1], o, i[0].shape[0])
+            }
             (INK_IN_PROJ_BF16_NAX, Op::InkInProj) => self.launch_in_proj_nax(call),
             (INK_IN_PROJ_F8_GEMV | INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj) => self.launch_in_proj_f8(call),
             (CONV_MIX_BF16 | CONV_MIX_BF16_ROWS | ATTN_RES_MIX_BF16 | SCONV_RES_BF16 | LOOP_BLEND_BF16, _) => self.launch_mix(kernel, call),
@@ -629,33 +650,42 @@ struct InkBlendP {
     sk: [u32; 8],
 }
 
-/// (NE, threads per threadgroup) of the row kernels for rows of `d` elements: 4 from D 2048, below that the fewest elements per
-/// thread that fit in 1024 threads (`INTARSIA_INK_MIX_NE=<ne>` forces another compiled NE: a measurement knob that changes the reduction order,
-/// fixed per D, so still rows-exact).
+/// (NE, threads per threadgroup) of the row kernels for rows of `d` elements: the fewest elements per thread that fit in 1024
+/// threads, so NE 3 (768 threads) at D 2304 (`INTARSIA_INK_MIX_NE=<ne>` forces another compiled NE: a measurement knob that
+/// changes the reduction order, fixed per D, so still rows-exact).
+///
+/// TODO(ink-metal): m-mix 25ff7864a made NE 4 the default from D 2048 (576 threads at D 2304; 15 % faster 2048-row prefill
+/// in docs/results/2026-11-21-inkling2-metal-mix.md section 3.5). On the real model that took decode-mode G2 short from
+/// 2.589e-3 to 1.109e-2 with an error that grows over the decode rows (state-like), while NE 3 is bitwise the pre-merge tree
+/// (bisect #11142, docs/results/2026-11-21-inkling2-metal.md). The kernels at NE 4 match the cpu reference on synthetic
+/// D 2304 calls (tests/inkling2_mix_decode_cpu.rs), so the fault needs the real call layout; not found yet. Suspects: a call
+/// layout the synthetic test lacks (views with element skips, outputs aliasing stored sources, the device position).
+/// tests/inkling2_real_decode_ne.rs gates the default against NE 3 on the real model and reports NE 4 forced.
 fn mix_geom(d: usize) -> (usize, usize) {
     static OV: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
     let ov = *OV.get_or_init(|| std::env::var("INTARSIA_INK_MIX_NE").ok().and_then(|v| v.parse().ok()).filter(|n| MIX_NE.contains(n)));
-    // NE 4 from D 2048 (576 threads at D 2304): same decode latency as NE 3, 15 % faster 2048-row prefill
-    // (docs/results/2026-11-21-inkling2-metal-mix.md section 3.5)
     let fit = MIX_NE.iter().copied().find(|&n| n * 1024 >= d).unwrap_or(4);
-    let ne = ov.filter(|&n| n * 1024 >= d).unwrap_or(if d >= 2048 { 4 } else { fit });
+    let ne = ov.filter(|&n| n * 1024 >= d).unwrap_or(fit);
     (ne, d.div_ceil(ne).next_multiple_of(32).clamp(32, 1024))
 }
 
-/// `ink_mix_row_e<NE>n<NS>q<QB>`: NS = stored sources + 1 (1 when the call mixes nothing), QB = 1 for one query, else 4.
-fn mix_row_shader(ne: usize, ns: usize, qb: usize) -> &'static str {
+/// `ink_mix_row_e<NE>n<NS>q<QB>`: NS = stored sources + 1 (1 when the call mixes nothing), QB = 1 for one query, else 4;
+/// `hoist`: the `ink_mix_row_h_` instance of the same shape (`INTARSIA_INK_MIX_HOIST`, same bits).
+fn mix_row_shader(ne: usize, ns: usize, qb: usize, hoist: bool) -> &'static str {
     static T: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
     let t = T.get_or_init(row_names);
     let (ei, qi) = (MIX_NE.iter().position(|&e| e == ne).expect("compiled NE"), usize::from(qb > 1));
-    t[(ei * 2 + qi) * MIX_SOURCES_MAX + ns - 1]
+    t[usize::from(hoist) * MIX_NE.len() * 2 * MIX_SOURCES_MAX + (ei * 2 + qi) * MIX_SOURCES_MAX + ns - 1]
 }
 
 fn row_names() -> Vec<&'static str> {
     let mut v = Vec::new();
-    for ne in MIX_NE {
-        for qb in [1, 4] {
-            for ns in 1..=MIX_SOURCES_MAX {
-                v.push(&*Box::leak(format!("ink_mix_row_e{ne}n{ns}q{qb}").into_boxed_str()));
+    for h in ["", "h_"] {
+        for ne in MIX_NE {
+            for qb in [1, 4] {
+                for ns in 1..=MIX_SOURCES_MAX {
+                    v.push(&*Box::leak(format!("ink_mix_row_{h}e{ne}n{ns}q{qb}").into_boxed_str()));
+                }
             }
         }
     }
@@ -665,7 +695,7 @@ fn row_names() -> Vec<&'static str> {
 /// The row-kernel entry points of inkling2_mix.metal (`MX_NS`), and the ring / blend helpers.
 pub fn row_shaders() -> Vec<&'static str> {
     let mut v = row_names();
-    v.extend(["ink_ring_write", "ink_blend_pair", "ink_blend_gate_g1", "ink_blend_gate_g8", "ink_blend_gate_g16", "ink_blend_norm"]);
+    v.extend(["ink_ring_write", "ink_blend_pair", "ink_blend_gate_g1", "ink_blend_gate_g8", "ink_blend_gate_g16", "ink_blend_norm", "ink_blend_norm_c"]);
     v
 }
 
@@ -861,10 +891,13 @@ impl MetalBackend {
         }
         let binds = [&xb, &taps_b, &res_b, &add_b, &y_b, &ring_b, &sum_b, &src_b, &qry_b, &nrm_b, &outb, &outf, &pos_b, &msg_b, &pair_b];
         let (ns_i, qb) = if nq == 0 { (1, 1) } else { (ns + 1, if nq == 1 { 1 } else { 4 }) };
+        let hname = mix_row_shader(ne, ns_i, qb, true);
+        let hoist = crate::inkctrl::MIX_HOIST.on() && self.pso(hname).is_some_and(|ps| ps.maxTotalThreadsPerThreadgroup() >= tpg);
+        let name = if hoist { hname } else { mix_row_shader(ne, ns_i, qb, false) };
         if rt.is_some() {
-            self.dispatch_ind(mix_row_shader(ne, ns_i, qb), &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
+            self.dispatch_ind(name, &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
         } else {
-            self.dispatch(mix_row_shader(ne, ns_i, qb), &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
+            self.dispatch(name, &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
         }
         if conv && !safe {
             // ink_ring_write reads `pad0` (here `nrows`) as the launch's row count
@@ -950,7 +983,8 @@ impl MetalBackend {
                 TensorRef { shape: vec![n, if j < s { g } else { 0 }], ..hv }
             })
             .collect();
-        self.in_proj_rows(&xs, &wd, &hs, s)?;
+        // lane ink-prefill hook: prefill chunks take the InkInProj NAX GEMM for h (inkprefill.rs)
+        if crate::inkprefill::blend_nax(n) && self.has_metal4() { crate::inkprefill::trace("blend h nax"); self.launch_in_proj_nax(&OpCall::new(Op::InkInProj, vec![xs.clone(), wd.clone()], hs.clone(), OpAttrs::default()))?; } else { self.in_proj_rows(&xs, &wd, &hs, s)?; }
         let (h_b, gain_b, forget_b, y_b, part_b) = (
             self.bind(&h, bf, false, "h")?,
             self.bind(gain, bf, false, "gain")?,
@@ -958,6 +992,8 @@ impl MetalBackend {
             self.bind(&yv, f32t, true, "y")?,
             self.bind(&part, f32t, true, "partial")?,
         );
+        // lane ink-prefill hook: prefill chunks run the gate + norm on the accelerators (inkprefill.rs)
+        if crate::inkprefill::blend_gate_nax(n) && self.has_metal4() { crate::inkprefill::trace("blend gate nax"); return self.ink_blend_gate_nax(&dest_b, &msg_b, &h_b, &gain_b, &forget_b, &pair, &yv, norm, out, [d, n, s, sd, g, t0, out.shape[1], dest_rows.1, mt, dest_rows.0, t0], eps); }
         let mut pg = p;
         pg.sk = [gain_b.skip, forget_b.skip, 0, 0, 0, 0, 0, 0];
         let gate = match g / 8 {
@@ -974,6 +1010,15 @@ impl MetalBackend {
         let (nrm_b, out_b) = (self.bind(norm, bf, false, "norm")?, self.bind(out, bf, true, "out")?);
         let mut pn = p;
         pn.sk = [0, 0, nrm_b.skip, out_b.skip, 0, 0, 0, 0];
+        if crate::inkctrl::BLEND_NORM_C.on() {
+            // one channel per thread, the partials summed in the same order: bitwise ink_blend_norm
+            return self.dispatch(
+                "ink_blend_norm_c",
+                &[&y_b, &part_b, &nrm_b, &out_b],
+                &pn,
+                crate::dense::Grid::Groups { x: s * n, y: d.div_ceil(256), threads: 256 },
+            );
+        }
         self.dispatch("ink_blend_norm", &[&y_b, &part_b, &nrm_b, &out_b], &pn, crate::dense::Grid::Groups { x: s * n, y: 1, threads: 256 })
     }
 

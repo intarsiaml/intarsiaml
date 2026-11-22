@@ -4,7 +4,7 @@
 //! `Engine` is object safe: hold it as `Arc<dyn Engine>`.
 
 use crate::error::{Error, Result};
-use crate::model::{HeadMode, Model, Predraft, Staged, StepOut};
+use crate::model::{GumbelHead, HeadMode, Model, Predraft, Staged, StepOut};
 use crate::sampler::{Sampler, SamplingParams};
 use crate::state::SequenceState;
 use crate::telemetry::{Telemetry, TelemetrySnapshot};
@@ -708,6 +708,18 @@ pub(crate) struct SeqEnv {
     pub(crate) spec: crate::spec::SpecConfig,
 }
 
+/// The device sampler's key for `req` (`on`: `INTARSIA_GUMBEL_SAMPLING=1`, lane ink-hostgap): only a plain-temperature request,
+/// temperature > 0 with no top-k, no top-p, no constraint and no logit trace (logprobs / top_logprobs set `trace_logits`), since
+/// those need the logits row on the host. The seed is the request's own, else a fresh one ([`crate::gumbel::request_seed`]).
+pub(crate) fn gumbel_head_for(req: &GenRequest, on: bool) -> Option<GumbelHead> {
+    (on && req.temperature > 0.0
+        && req.top_k == 0
+        && req.top_p >= 1.0
+        && req.trace_logits.is_none()
+        && req.constraint.is_none())
+    .then(|| GumbelHead::new(crate::gumbel::request_seed(req.seed), req.temperature))
+}
+
 /// Debug aid: `INTARSIA_DEBUG_STALL_S=n` makes the worker sleep n seconds at the start of every
 /// job (a wedged-GPU stand-in for testing the watchdog and supervisor);
 /// `INTARSIA_DEBUG_PANIC=1` makes it panic instead.
@@ -1393,6 +1405,10 @@ pub(crate) struct Seq {
     /// Speculation for this sampled request ([`crate::spec::SampledSpec`]; `Off` for greedy requests, which keep the greedy
     /// acceptance). Set by [`Seq::new`] (single-sequence engine only), never by the batching scheduler.
     spec_sampled: crate::spec::SampledSpec,
+    /// The device sampler's key for this request (`INTARSIA_GUMBEL_SAMPLING=1`, lane ink-hostgap): `Some` for a plain-temperature
+    /// request (temperature > 0, no top-k, no top-p, no constraint, no logit trace) on a model that runs it ([`Seq::gate_gumbel`]);
+    /// [`Seq::head_mode`] then draws its tokens on the device wherever nothing else needs the logits row on the host.
+    gumbel: Option<GumbelHead>,
     /// Lane mtp-sampled: this sampled request drafts in the batching engine with seed-exact acceptance (`engine/keyed.rs`).
     /// Set by [`Seq::enable_keyed`], never by [`Seq::new`].
     spec_keyed: bool,
@@ -1485,6 +1501,7 @@ impl Seq {
         // a prewarm computes the whole prompt (no token to sample), a request keeps >= 1 token to compute
         let max_reuse = if req.prewarm.is_some() { plen } else { plen - 1 };
         let mut seq = Seq::build(&sh.env(), req, tx, model.verify_rows(), recurrent);
+        seq.gate_gumbel(model.gumbel_ok());
         // sampled speculation (opt-in, `INTARSIA_SPEC_SAMPLED`): `--spec mtp` on one rank, the same exclusions as greedy
         // speculation (logit tracing, constraints)
         let sampled = model.spec_sampled();
@@ -1617,6 +1634,7 @@ impl Seq {
         let plen = req.prompt.len();
         let params = SamplingParams { temperature: req.temperature, top_k: req.top_k, top_p: req.top_p };
         let greedy = req.temperature <= 0.0;
+        let gumbel = gumbel_head_for(&req, crate::gumbel::enabled_from_env());
         let sampler = Sampler::new(params, req.seed);
         let mut stop_ids: Vec<u32> = req.stop_ids.clone();
         if !req.ignore_eos {
@@ -1674,6 +1692,7 @@ impl Seq {
             probe_head_rows: 0,
             depth: if spec_mtp && !spec_dflash { crate::spec::k_min_for(&env.spec).and_then(|m| crate::spec::Depth::new(m, spec_k)) } else { None },
             spec_sampled: crate::spec::SampledSpec::Off,
+            gumbel,
             spec_keyed: false,
             keyed_ctx_k: Vec::new(),
             auto: None,
@@ -1794,12 +1813,28 @@ impl Seq {
     /// the host when something uses them (sampling, the `min_tokens` mask on stop ids, logit tracing); otherwise the
     /// argmax stays on device. With `ignore_eos` (no stop ids) a forced-length greedy run keeps the on-device argmax,
     /// so forced-length speed benchmarks measure the real decode path.
+    ///
+    /// A plain-temperature request with the device sampler ([`Seq::gumbel`]) draws on the device ([`HeadMode::LastGumbel`])
+    /// under the same conditions, and not while it speculates (sampled or keyed speculation reads the rows on the host).
+    /// The engine applies no min_p, penalty or logit_bias today (the server drops them on both paths); any future feature
+    /// that changes the logits before sampling (min_p, penalties, logit_bias, ...) must exclude `LastGumbel` here.
     pub(crate) fn head_mode(&self, k: usize) -> HeadMode {
         let masks_stop_ids = k <= self.req.min_tokens && !self.stop_ids.is_empty();
-        if !self.greedy || masks_stop_ids || self.req.trace_logits.is_some() || self.constrained() {
+        if masks_stop_ids || self.req.trace_logits.is_some() || self.constrained() {
             HeadMode::LastLogits
-        } else {
+        } else if self.greedy {
             HeadMode::LastArgmax
+        } else if let (Some(h), false) = (self.gumbel, self.spec_on) {
+            HeadMode::LastGumbel(h)
+        } else {
+            HeadMode::LastLogits
+        }
+    }
+
+    /// Keep the device sampler for this request only when the model runs it ([`Model::gumbel_ok`]).
+    pub(crate) fn gate_gumbel(&mut self, model_ok: bool) {
+        if !model_ok {
+            self.gumbel = None;
         }
     }
 
@@ -2643,7 +2678,11 @@ impl Seq {
                         model.mtp_catch_up(st)?;
                     }
                 }
-                let drafts = if drafter == crate::spec::Drafter::Dflash { model.dflash_draft(st, self.tok, k)? } else { model.mtp_draft(st, self.tok, k)? };
+                let drafts = {
+                    let _d = crate::hostprof::span(crate::hostprof::Cat::Draft);
+                    crate::hostprof::mark_launch_begin();
+                    if drafter == crate::spec::Drafter::Dflash { model.dflash_draft(st, self.tok, k)? } else { model.mtp_draft(st, self.tok, k)? }
+                };
                 if drafts.is_empty() {
                     // no room for a draft block near the end of the context window: a plain step
                     self.cost_begin(false);
@@ -2664,7 +2703,12 @@ impl Seq {
                     eprintln!("spec-check: rows {} {}", rows.len(), line.join(" "));
                 }
                 let t1 = Instant::now();
-                self.verify(model, st, &drafts)?;
+                {
+                    let _v = crate::hostprof::span(crate::hostprof::Cat::Verify);
+                    self.verify(model, st, &drafts)?;
+                }
+                crate::hostprof::mark_sync_end();
+                crate::hostprof::spec_cycle(self.pending.len());
                 if let Some(a) = self.auto.as_mut() {
                     let ms = t0.elapsed().as_secs_f64() * 1e3;
                     a.record(drafter, self.pending.len(), ms);
@@ -2725,10 +2769,25 @@ impl Seq {
 
     /// Produce the next `self.tok` on this sequence alone (plan, run the forward pass, sample).
     pub(crate) fn advance(&mut self, model: &Model, st: &mut SequenceState) -> Result<()> {
-        if let Some((tok, mode)) = self.prepare(model, st)? {
+        let prep = {
+            let _p = crate::hostprof::span(crate::hostprof::Cat::Prepare);
+            self.prepare(model, st)?
+        };
+        if let Some((tok, mode)) = prep {
             let pos = st.len;
-            let out = model.forward(st, &[tok], mode, None)?;
+            // a sampled step's soft-cap and draw run on the host pool once the logits land: have its workers hot by then
+            // (`INTARSIA_HOST_PREWAKE=1`, lane ink-hostgap item 7; the same tokens either way)
+            if mode == HeadMode::LastLogits && !self.greedy && crate::par::prewake_enabled() {
+                crate::par::prewake();
+            }
+            let out = {
+                let _s = crate::hostprof::span(crate::hostprof::Cat::StepSetup);
+                crate::hostprof::mark_launch_begin();
+                model.forward(st, &[tok], mode, None)?
+            };
+            crate::hostprof::decoded(1);
             st.tag_passes(pos, crate::state::PassKind::Decode);
+            let _a = crate::hostprof::span(crate::hostprof::Cat::Accept);
             self.accept_plain(out)?;
         }
         Ok(())
@@ -2743,7 +2802,7 @@ impl Seq {
         !self.spec_on
             && self.cons.is_none()
             && self.pending.is_empty()
-            && self.head_mode(self.generated + 1) == HeadMode::LastArgmax
+            && matches!(self.head_mode(self.generated + 1), HeadMode::LastArgmax | HeadMode::LastGumbel(_))
             && model.feedback_ok(st)
     }
 
@@ -2770,17 +2829,28 @@ impl Seq {
     fn feedback_loop(&mut self, model: &Model, st: &mut SequenceState) -> Result<()> {
         use crate::model::feedback::{Feed, RING, UNREAD};
         let (tok, _) = self.plain_input();
-        let mut cur = model.feedback_step(st, Feed::Host(tok), RING[0], false)?;
+        // the head of every remaining step ([`Seq::feedback_ok`]: it no longer changes); a device-sampled request writes the
+        // keys of every token it may still sample now, before any step is in flight (positions st.len + 1 ..)
+        let head = self.head_mode(self.generated + 1);
+        if let HeadMode::LastGumbel(h) = head {
+            model.gumbel_prepare(h, st.len + 1, self.max_new.saturating_sub(self.generated) + 1)?;
+        }
+        let mut cur = model.feedback_step(st, Feed::Host(tok), RING[0], false, head)?;
         loop {
+            crate::hostprof::iter_begin();
+            let t_iter = std::time::Instant::now();
             // `cur` samples token generated + 1; unless max_tokens ends the request there, feed it on to the next step
             // before reading it (its start queued behind `cur`, the rest held until the token says it is needed)
             let next = if self.generated + 1 < self.max_new {
                 let out = if cur.slot == RING[0] { RING[1] } else { RING[0] };
-                Some(model.feedback_step(st, Feed::Slot(cur.slot), out, true)?)
+                // the encode of the next step (held after its first dispatches); `sync` below is not inside it
+                let _s = crate::hostprof::span(crate::hostprof::Cat::Launch);
+                Some(model.feedback_step(st, Feed::Slot(cur.slot), out, true, head)?)
             } else {
                 None
             };
             let tok = model.feedback_read(cur)?;
+            crate::hostprof::decoded(1);
             if next.is_some() {
                 // the next step was committed with the token unread: it sits at position plen + generated
                 let i = self.plen + self.generated;
@@ -2788,18 +2858,27 @@ impl Seq {
                 st.tokens[i] = tok;
             }
             self.tok = tok;
-            if self.on_token()? {
+            let done = {
+                let _t = crate::hostprof::span(crate::hostprof::Cat::OnToken);
+                self.on_token()?
+            };
+            if done {
                 if next.is_some() {
                     // the stop came one step late: drop the held rest of the step (the caller rolls its position back)
                     model.feedback_discard()?;
                 }
+                crate::hostprof::iter_end(t_iter.elapsed().as_nanos());
                 return Ok(());
             }
             cur = match next {
-                Some(p) => model.feedback_release(p)?,
+                Some(p) => {
+                    crate::hostprof::mark_launch_begin();
+                    model.feedback_release(p)?
+                }
                 // not reached (on_token ends the request at max_new); stay correct anyway
-                None => model.feedback_step(st, Feed::Host(self.tok), RING[0], false)?,
+                None => model.feedback_step(st, Feed::Host(self.tok), RING[0], false, head)?,
             };
+            crate::hostprof::iter_end(t_iter.elapsed().as_nanos());
         }
     }
 
@@ -2909,8 +2988,24 @@ fn run_seq(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<O
     }
     // this loop alone runs on the model between the sequence's steps
     seq.pipe_solo = true;
+    let r = run_decode(seq, model, st);
+    crate::hostprof::flush();
+    r.map(|_| None)
+}
+
+/// The decode loop of [`run_seq`]; with `INTARSIA_HOST_PROFILE=1` one host-profile iteration per step (`hostprof`).
+fn run_decode(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<()> {
+    // one iteration per plain step or spec cycle: the passes that only emit a verified token stay in the open one
+    let mut open: Option<std::time::Instant> = None;
     loop {
-        let done = seq.on_token()?;
+        let t_iter = *open.get_or_insert_with(|| {
+            crate::hostprof::iter_begin();
+            std::time::Instant::now()
+        });
+        let done = {
+            let _t = crate::hostprof::span(crate::hostprof::Cat::OnToken);
+            seq.on_token()?
+        };
         if done {
             break;
         }
@@ -2919,8 +3014,12 @@ fn run_seq(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<O
             break;
         }
         seq.advance(model, st)?;
+        if crate::hostprof::pending() {
+            crate::hostprof::iter_end(t_iter.elapsed().as_nanos());
+            open = None;
+        }
     }
-    Ok(None)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -3024,5 +3123,84 @@ mod store_macro_tests {
         assert_eq!(ps.macro_len(0, 12_000, 8192), Some(4096));
         // 4096..12000 holds three whole chunks and the 1760-row last chunk, which stays out
         assert_eq!(ps.macro_len(4096, 12_000, 8192), Some(3 * 2048));
+    }
+}
+
+/// Lane ink-hostgap: which requests the device sampler takes (`HeadMode::LastGumbel`), and that every other one keeps the host
+/// path. No environment change: the switch is passed in (`gumbel_head_for`) or forced on the `Seq`.
+#[cfg(test)]
+mod gumbel_tests {
+    use super::*;
+    use crate::model::HeadMode;
+
+    struct NoCodec;
+    impl TextCodec for NoCodec {
+        fn encode(&self, _: &str, _: bool) -> Result<Vec<u32>> {
+            Ok(vec![])
+        }
+        fn decode(&self, _: &[u32], _: bool) -> Result<String> {
+            Ok(String::new())
+        }
+        fn apply_chat_template(&self, _: &[Value], _: &ChatOpts) -> Result<String> {
+            Ok(String::new())
+        }
+        fn has_chat_template(&self) -> bool {
+            false
+        }
+    }
+
+    fn seq(req: GenRequest, on: bool) -> Seq {
+        let tel = Arc::new(Telemetry::new());
+        let env = SeqEnv { codec: Arc::new(NoCodec), telemetry: tel, eos: vec![7], spec: Default::default() };
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let mut s = Seq::build(&env, req.clone(), tx, 0, false);
+        s.gumbel = gumbel_head_for(&req, on);
+        s
+    }
+
+    fn plain() -> GenRequest {
+        GenRequest { prompt: vec![1, 2, 3], max_tokens: 8, temperature: 1.0, top_p: 1.0, top_k: 0, seed: Some(5), ..Default::default() }
+    }
+
+    #[test]
+    fn a_plain_temperature_request_draws_on_the_device() {
+        for t in [0.7f32, 1.0, 1.3] {
+            let s = seq(GenRequest { temperature: t, ..plain() }, true);
+            assert_eq!(s.head_mode(1), HeadMode::LastGumbel(GumbelHead::new(5, t)), "T {t}");
+        }
+        // the switch off (the default) keeps the host sampler
+        assert_eq!(seq(plain(), false).head_mode(1), HeadMode::LastLogits);
+        // a model without the sampler (CUDA, HIP, tensor parallel) too
+        let mut s = seq(plain(), true);
+        s.gate_gumbel(false);
+        assert_eq!(s.head_mode(1), HeadMode::LastLogits);
+        // greedy stays the argmax
+        assert_eq!(seq(GenRequest { temperature: 0.0, ..plain() }, true).head_mode(1), HeadMode::LastArgmax);
+    }
+
+    #[test]
+    fn rows_that_need_the_logits_keep_the_host_path() {
+        // top-k, top-p
+        assert_eq!(seq(GenRequest { top_k: 20, ..plain() }, true).head_mode(1), HeadMode::LastLogits);
+        assert_eq!(seq(GenRequest { top_p: 0.95, ..plain() }, true).head_mode(1), HeadMode::LastLogits);
+        // logprobs / top_logprobs: the server sets `trace_logits`
+        let trace = Some(Arc::new(Mutex::new(Vec::new())));
+        assert_eq!(seq(GenRequest { trace_logits: trace, ..plain() }, true).head_mode(1), HeadMode::LastLogits);
+        // the min_tokens mask on stop ids: host rows up to min_tokens, device draws after
+        let s = seq(GenRequest { min_tokens: 2, ..plain() }, true);
+        assert_eq!((s.head_mode(1), s.head_mode(2)), (HeadMode::LastLogits, HeadMode::LastLogits));
+        assert!(matches!(s.head_mode(3), HeadMode::LastGumbel(_)));
+        // sampled speculation reads the rows on the host
+        let mut s = seq(plain(), true);
+        s.spec_on = true;
+        assert_eq!(s.head_mode(1), HeadMode::LastLogits);
+    }
+
+    #[test]
+    fn a_request_without_a_seed_gets_its_own() {
+        let a = gumbel_head_for(&GenRequest { seed: None, ..plain() }, true).unwrap();
+        let b = gumbel_head_for(&GenRequest { seed: None, ..plain() }, true).unwrap();
+        assert_ne!(a.seed, b.seed);
+        assert_eq!(gumbel_head_for(&plain(), true).unwrap().seed, 5);
     }
 }

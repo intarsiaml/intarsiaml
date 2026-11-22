@@ -132,6 +132,8 @@ pub const TABLE: &[(&str, Op)] = &[
 /// The DeepSeek-V4.1 ops (lane 1a, `intarsia_core::dsv41::ops::OPS`) are not ported: the model is CUDA-first (TP=2 over two Sparks).
 pub const UNIMPLEMENTED: &[Op] = &[
     Op::Sample,
+    // the device sampler (lane ink-hostgap): cpu and Metal only, HIP keeps the host sampler (`Model::gumbel_ok`)
+    Op::GumbelArgmax,
     Op::MatmulExl3,
     Op::RopeScaled,
     Op::AddBias,
@@ -170,6 +172,7 @@ pub const UNIMPLEMENTED: &[Op] = &[
     Op::HeadScreen,
     Op::LogitsGather,
     Op::ScreenArgmax,
+    Op::InkRoute,
     // lossless 12-bit weights (lane ink-pack12): cpu and Metal only
     Op::MatmulP12,
 ];
