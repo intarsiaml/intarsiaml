@@ -1018,6 +1018,346 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
     }
 }
 
+template <int D>
+struct TileSmemS {
+    static constexpr int LD = D + 8;                                   // padded row (elements): conflict-free ldmatrix
+    static constexpr size_t KV = (size_t)2 * 2 * CH * LD * 2;          // [stage][k / v][CH][LD] bf16
+    __host__ __device__ static size_t bias(int nmt) { return (size_t)nmt * 16 * CH * 2; }  // [nmt * 16][CH] bf16 (raw rel values)
+    __host__ __device__ static size_t rsh(int m, int dr) { return ((size_t)m * dr * 4 + 15) / 16 * 16; }
+    __host__ __device__ static size_t own(int t) { return (size_t)2 * t * D * 2; }
+    // stages = 1 when every tile of the call is one sub-chunk (S = CH: no next sub-chunk to prefetch)
+    __host__ __device__ static size_t kv(int stages) { return KV / 2 * stages; }
+    __host__ __device__ static size_t bytes(int t, int g, int dr, bool fused, int stages) {
+        const int m = t * g, nmt = (m + 15) / 16;
+        return kv(stages) + bias(nmt) + (fused ? rsh(m, dr) + own(t) : 0);
+    }
+};
+
+// The staged variant (SWA layers, window > 0): K / V sub-chunks of 64 keys staged through shared memory with cp.async (double
+// buffer), a block barrier per sub-chunk. Same row rule, its own (fixed) reduction order. One block per (kv head, tile slot y). FUSED: the prologue's jobs in the block (q / r of every row, the conv'd K / V of the
+// call's keys in the tile) instead of reading q / k / v / rel. blockDim = 128 * nmt.
+template <int D, bool FUSED>
+__global__ void __launch_bounds__(384) ink_tile_staged_k(InkP p, int min_s, int stages) {
+    const int maxt = p.maxt;
+    constexpr int J = (D + 31) / 32;
+    using SM = TileSmemS<D>;
+    constexpr int LD = SM::LD, NKS = D / 16, NDB = D / 8;
+    extern __shared__ __align__(16) unsigned char sm[];
+    const int G = p.h / p.hk, T = p.t, M = T * G, nmt = (M + 15) / 16;
+    const int H = p.h, Hk = p.hk, Cr = p.cr, E = p.e, dr = p.dr;
+    const int tid = threadIdx.x, warp = tid >> 5, lane = tid & 31, nw = blockDim.x >> 5;
+    const int mt = warp >> 2, grp = warp & 3;
+    const int kvh = blockIdx.x;
+    const bool ring = (p.flags & F_RING) != 0;
+    const int pos0 = ink_pos0(p);
+    const TileGeo geo = tile_geo(pos0, T, p.window, min_s, maxt);
+    int S, tau, r0, r1;
+    if ((int)blockIdx.y < geo.na) {
+        S = geo.sa, tau = geo.ta + blockIdx.y, r0 = 0, r1 = geo.rb;
+    } else if ((int)blockIdx.y < geo.na + geo.nb) {
+        S = geo.sb, tau = geo.tb + blockIdx.y - geo.na, r0 = geo.rb, r1 = T;
+    } else {
+        return;
+    }
+    const int tk0 = tau * S, tk1 = tk0 + S - 1;
+    // the keys any row of the block reads in this tile, and the first participating row's position (for the bias skip)
+    int jlo = 0x7fffffff, jhi = -1, pmin = 0x7fffffff;
+    for (int t = r0; t < r1; ++t) {
+        const int pp = pos0 + t, lo = (int)ink_lo(pp, p.window);
+        if (lo / S <= tau && tau <= pp / S) {
+            jlo = min(jlo, max(lo, tk0));
+            jhi = max(jhi, min(pp, tk1));
+            pmin = min(pmin, pp);
+        }
+    }
+    if (jhi < 0) return;
+
+    bf16* KV = (bf16*)sm;
+    const size_t kvb = SM::kv(stages);
+    bf16* Bs = (bf16*)(sm + kvb);
+    float* rsh = (float*)(sm + kvb + SM::bias(nmt));
+    bf16* own = (bf16*)(sm + kvb + SM::bias(nmt) + SM::rsh(M, dr));
+    const int on0 = max(pos0, tk0), on1 = min(pos0 + T - 1, tk1);  // the call's own keys in this tile
+    const int nown = on1 >= on0 ? on1 - on0 + 1 : 0;
+
+    if (FUSED) {
+        // q of every row into the KV region (before the loop), r into rsh, the own K / V rows into `own`
+        bf16* Qt = KV;
+        const int njobs = 2 * M + 2 * nown;
+        for (int job = warp; job < njobs; job += nw) {
+            float v[J];
+            if (job < 2 * M) {
+                const int mi = job % M, t = mi / G, h = kvh * G + mi % G;
+                const bool r = job >= M;
+                job_qr<J>(p, t, h, pos0 + t, r, lane, v);
+                if (!r) {
+#pragma unroll
+                    for (int i = 0; i < J; ++i)
+                        if (lane + 32 * i < D) Qt[mi * D + lane + 32 * i] = f2b(v[i]);
+                } else if (lane < dr) {
+                    rsh[mi * dr + lane] = v[0];
+                }
+            } else {
+                const int jj = job - 2 * M, kind = jj & 1, t = on0 - pos0 + (jj >> 1);
+                const float ss = job_conv<J>(p, kind ? p.pv : p.pk, kind ? p.vr : p.kr, kind ? p.vt : p.kt, t, pos0, kvh, lane, v);
+#pragma unroll
+                for (int i = 0; i < J; ++i)
+                    if (lane + 32 * i < D) own[((size_t)kind * T + t) * D + lane + 32 * i] = f2b(kind ? v_out(v[i], ss, p) : k_out(v[i], ss, p));
+            }
+        }
+        __syncthreads();
+    }
+    // the rows this block owns (its tile holds the row's own key and the row is of its class): the cache and conv-ring writes
+    for (int x = tid; x < nown * D; x += blockDim.x) {
+        const int t = on0 - pos0 + x / D, c = x % D, pp = pos0 + t;
+        if (t < r0 || t >= r1 || pp / S != tau) continue;
+        const size_t src = ((size_t)t * Hk + kvh) * D + c;
+        const bf16 kx = FUSED ? own[(size_t)t * D + c] : p.kn[src];
+        const bf16 vx = FUSED ? own[((size_t)T + t) * D + c] : p.vn[src];
+        if (!ring || t + Cr >= T) {
+            if ((p.flags & F_KV_WRITE) != 0) {
+                const size_t dst = ((size_t)kvh * Cr + (ring ? pp % Cr : pp)) * D + c;
+                p.kc[dst] = kx;
+                p.vc[dst] = vx;
+            } else if (FUSED) {
+                p.stg[src] = kx;
+                p.stg[(size_t)T * Hk * D + src] = vx;
+            }
+        }
+        if (FUSED && (p.flags & F_RING_WRITE) != 0 && t + p.rr >= T) {
+            const int ch = kvh * D + c, ckv = Hk * D;
+            const size_t ro = (size_t)(pp % p.rr) * ckv + ch;
+            p.kr[ro] = p.pk[(size_t)t * p.pw + ch];
+            p.vr[ro] = p.pv[(size_t)t * p.pw + ch];
+        }
+    }
+
+    // this thread's two query rows (mma C layout: rows g8 and g8 + 8 of the warp's m-tile)
+    const int g8 = lane >> 2, c4 = lane & 3, lm = lane >> 3, lr = lane & 7;
+    int rmi[2], rlo[2], rhi[2];
+#pragma unroll
+    for (int k = 0; k < 2; ++k) {
+        rmi[k] = mt * 16 + g8 + 8 * k;
+        rlo[k] = 1;
+        rhi[k] = 0;  // no key
+        if (rmi[k] < M) {
+            const int t = rmi[k] / G, pp = pos0 + t, lo = (int)ink_lo(pp, p.window);
+            if (t >= r0 && t < r1 && lo / S <= tau && tau <= pp / S) {
+                rlo[k] = lo;
+                rhi[k] = pp;
+            }
+        }
+    }
+    // Q fragments (A operand, 16 x D of the m-tile) into registers
+    uint32_t qf[NKS][4];
+#pragma unroll
+    for (int k = 0; k < 2; ++k) {
+        const int mi = rmi[k];
+        const bf16* qrow = nullptr;
+        if (mi < M) qrow = FUSED ? (const bf16*)KV + (size_t)mi * D : p.q + ((size_t)(mi / G) * H + kvh * G + mi % G) * D;
+#pragma unroll
+        for (int ks = 0; ks < NKS; ++ks) {
+            qf[ks][k] = qrow ? *(const uint32_t*)(qrow + ks * 16 + 2 * c4) : 0u;
+            qf[ks][2 + k] = qrow ? *(const uint32_t*)(qrow + ks * 16 + 8 + 2 * c4) : 0u;
+        }
+    }
+    if (FUSED) __syncthreads();  // the KV region held q
+
+    const bf16* kcb = p.kc + (size_t)kvh * Cr * D;
+    const bf16* vcb = p.vc + (size_t)kvh * Cr * D;
+    auto stage = [&](int ci, int buf) {
+        const int jb = ci * CH;
+        constexpr int CPR = D / 8;  // 16-byte chunks per row
+        for (int x = tid; x < 2 * CH * CPR; x += blockDim.x) {
+            const int kind = x / (CH * CPR), r = (x / CPR) % CH, cc = x % CPR;
+            const int j = jb + r;
+            bf16* dst = KV + ((size_t)(buf * 2 + kind) * CH + r) * LD + cc * 8;
+            if (j < jlo || j > jhi) {
+                *(uint4*)dst = make_uint4(0, 0, 0, 0);
+            } else if (j >= pos0) {
+                if (FUSED) {
+                    *(uint4*)dst = *(const uint4*)(own + ((size_t)kind * T + (j - pos0)) * D + cc * 8);
+                } else {
+                    cp_async16(dst, (kind ? p.vn : p.kn) + ((size_t)(j - pos0) * Hk + kvh) * D + cc * 8, true);
+                }
+            } else {
+                const int row = ring ? j % Cr : j;
+                cp_async16(dst, (kind ? vcb : kcb) + (size_t)row * D + cc * 8, true);
+            }
+        }
+    };
+
+    float o[NDB][4];
+#pragma unroll
+    for (int i = 0; i < NDB; ++i) o[i][0] = o[i][1] = o[i][2] = o[i][3] = 0.0f;
+    float m[2] = {-INFINITY, -INFINITY}, l[2] = {0.0f, 0.0f};
+    const float qsc = __fmul_rn(p.scale, LOG2E);
+
+    const int c0 = jlo / CH, c1 = jhi / CH;
+    stage(c0, 0);
+    cp_commit();
+    for (int ci = c0; ci <= c1; ++ci) {
+        const int buf = stages == 1 ? 0 : (ci - c0) & 1, jb = ci * CH;
+        __syncthreads();  // the previous sub-chunk's compute is done with the other buffer and Bs
+        if (stages == 1) {
+            if (ci > c0) stage(ci, 0);  // one buffer: no prefetch (other resident blocks hide the latency)
+        } else if (ci < c1) {
+            stage(ci + 1, buf ^ 1);
+        }
+        cp_commit();
+        // the raw rel bias of the sub-chunk's keys (zero at distances >= E and for masked keys)
+        const bool need_bias = pmin - (jb + CH - 1) < E;
+        if (need_bias) {
+            for (int x = tid; x < nmt * 16 * CH; x += blockDim.x) {
+                const int mi = x / CH, i = x % CH, j = jb + i;
+                bf16 b = __float2bfloat16_rn(0.0f);
+                if (mi < M) {
+                    const int t = mi / G, pp = pos0 + t, d = pp - j;
+                    if (t >= r0 && t < r1 && d >= 0 && d < E && j >= (int)ink_lo(pp, p.window)) {
+                        if (FUSED) b = f2b(ink_rel(rsh + mi * dr, p.rp, dr, E, d));
+                        else b = p.rel[((size_t)t * H + kvh * G + mi % G) * E + d];
+                    }
+                }
+                Bs[x] = b;
+            }
+        }
+        if (stages == 1) cp_wait<0>();
+        else cp_wait<1>();
+        __syncthreads();
+        const int kb = grp * 16;
+        if (jb + kb + 15 < jlo || jb + kb > jhi) continue;  // the group's keys hold none of the block's
+        const bf16* Ks = KV + (size_t)(buf * 2) * CH * LD;
+        const bf16* Vs = KV + (size_t)(buf * 2 + 1) * CH * LD;
+        float s[2][4];
+#pragma unroll
+        for (int i = 0; i < 2; ++i) s[i][0] = s[i][1] = s[i][2] = s[i][3] = 0.0f;
+#pragma unroll
+        for (int ks = 0; ks < NKS; ++ks) {
+            uint32_t b0, b1, b2, b3;
+            ldsm_x4(b0, b1, b2, b3, Ks + (size_t)(kb + (lm >> 1) * 8 + lr) * LD + ks * 16 + (lm & 1) * 8);
+            mma_bf16(s[0], qf[ks], b0, b1);
+            mma_bf16(s[1], qf[ks], b2, b3);
+        }
+        // scores (log2 domain), masks, online softmax per row
+        float mx[2] = {-INFINITY, -INFINITY};
+#pragma unroll
+        for (int nb = 0; nb < 2; ++nb) {
+#pragma unroll
+            for (int e = 0; e < 4; ++e) {
+                const int k = e >> 1, i = kb + nb * 8 + 2 * c4 + (e & 1), j = jb + i;
+                float v = -INFINITY;
+                if (j >= rlo[k] && j <= rhi[k]) {
+                    const float b = need_bias ? __bfloat162float(Bs[rmi[k] * CH + i]) : 0.0f;
+                    v = __fmaf_rn(s[nb][e], qsc, __fmul_rn(b, LOG2E));
+                }
+                s[nb][e] = v;
+                mx[k] = fmaxf(mx[k], v);
+            }
+        }
+        uint32_t pa[2][2];
+#pragma unroll
+        for (int k = 0; k < 2; ++k) {
+            mx[k] = fmaxf(mx[k], __shfl_xor_sync(0xffffffffu, mx[k], 1));
+            mx[k] = fmaxf(mx[k], __shfl_xor_sync(0xffffffffu, mx[k], 2));
+            const float mn = fmaxf(m[k], mx[k]);
+            const float mu = mn == -INFINITY ? 0.0f : mn;
+            const float corr = exp2f(m[k] - mu);
+            m[k] = mn;
+            const bf16 q0 = f2b(exp2f(s[0][2 * k] - mu)), q1 = f2b(exp2f(s[0][2 * k + 1] - mu));
+            const bf16 q2 = f2b(exp2f(s[1][2 * k] - mu)), q3 = f2b(exp2f(s[1][2 * k + 1] - mu));
+            const float ps = __fadd_rn(__fadd_rn(__fadd_rn(b2f(q0), b2f(q1)), b2f(q2)), b2f(q3));
+            l[k] = __fmaf_rn(l[k], corr, ps);
+            pa[0][k] = pack_bf16(q0, q1);
+            pa[1][k] = pack_bf16(q2, q3);
+#pragma unroll
+            for (int i = 0; i < NDB; ++i) {
+                o[i][2 * k] = __fmul_rn(o[i][2 * k], corr);
+                o[i][2 * k + 1] = __fmul_rn(o[i][2 * k + 1], corr);
+            }
+        }
+        const uint32_t a[4] = {pa[0][0], pa[0][1], pa[1][0], pa[1][1]};
+#pragma unroll
+        for (int dp = 0; dp < NDB / 2; ++dp) {
+            uint32_t b0, b1, b2, b3;
+            ldsm_x4_t(b0, b1, b2, b3, Vs + (size_t)(kb + (lm & 1) * 8 + lr) * LD + (dp * 2 + (lm >> 1)) * 8);
+            mma_bf16(o[dp * 2], a, b0, b1);
+            mma_bf16(o[dp * 2 + 1], a, b2, b3);
+        }
+    }
+    cp_wait<0>();
+#pragma unroll
+    for (int k = 0; k < 2; ++k) {
+        l[k] = __fadd_rn(l[k], __shfl_xor_sync(0xffffffffu, l[k], 1));
+        l[k] = __fadd_rn(l[k], __shfl_xor_sync(0xffffffffu, l[k], 2));
+    }
+    // merge the four key groups of each m-tile in order (0 + 1) + 2 + 3; the KV region is free now
+    float* mb = (float*)sm;
+    constexpr int SLOT = (2 * NDB + 2) * 32;  // floats per warp state: o (4 NDB) ... stored as [NDB * 4 + 4][32]
+    for (int q = 1; q < 4; ++q) {
+        __syncthreads();
+        if (grp == q) {
+            float* w = mb + (size_t)mt * (NDB * 4 + 4) * 32;
+#pragma unroll
+            for (int i = 0; i < NDB; ++i)
+#pragma unroll
+                for (int e = 0; e < 4; ++e) w[(i * 4 + e) * 32 + lane] = o[i][e];
+            w[(NDB * 4 + 0) * 32 + lane] = m[0];
+            w[(NDB * 4 + 1) * 32 + lane] = m[1];
+            w[(NDB * 4 + 2) * 32 + lane] = l[0];
+            w[(NDB * 4 + 3) * 32 + lane] = l[1];
+        }
+        __syncthreads();
+        if (grp == 0) {
+            const float* w = mb + (size_t)mt * (NDB * 4 + 4) * 32;
+#pragma unroll
+            for (int k = 0; k < 2; ++k) {
+                const float m2 = w[(NDB * 4 + k) * 32 + lane], l2 = w[(NDB * 4 + 2 + k) * 32 + lane];
+                const float mn = fmaxf(m[k], m2);
+                if (mn == -INFINITY) continue;
+                const float c1 = m[k] == -INFINITY ? 0.0f : exp2f(m[k] - mn), c2 = m2 == -INFINITY ? 0.0f : exp2f(m2 - mn);
+                l[k] = __fadd_rn(__fmul_rn(l[k], c1), __fmul_rn(l2, c2));
+#pragma unroll
+                for (int i = 0; i < NDB; ++i) {
+                    o[i][2 * k] = __fadd_rn(__fmul_rn(o[i][2 * k], c1), __fmul_rn(w[(i * 4 + 2 * k) * 32 + lane], c2));
+                    o[i][2 * k + 1] = __fadd_rn(__fmul_rn(o[i][2 * k + 1], c1), __fmul_rn(w[(i * 4 + 2 * k + 1) * 32 + lane], c2));
+                }
+                m[k] = mn;
+            }
+        }
+    }
+    (void)SLOT;
+    if (grp != 0) return;
+#pragma unroll
+    for (int k = 0; k < 2; ++k) {
+        if (rhi[k] < rlo[k]) continue;
+        const int mi = rmi[k], t = mi / G, h = kvh * G + mi % G, pp = pos0 + t;
+        const int lt = rlo[k] / S, ntiles = pp / S - lt + 1;
+        const size_t pr = (size_t)t * p.nq;
+        if (ntiles == 1) {
+            const float sink2 = __fmul_rn(b2f(p.pq[pr + 2 * H * D + H * dr + h]), LOG2E);
+#pragma unroll
+            for (int i = 0; i < NDB; ++i)
+#pragma unroll
+                for (int e = 0; e < 2; ++e) {
+                    const int dim = i * 8 + 2 * c4 + e;
+                    const float gate = b2f(p.pq[pr + H * D + H * dr + h * D + dim]);
+                    p.out[((size_t)t * H + h) * D + dim] = ink_finish(o[i][2 * k + e], m[k], l[k], sink2, gate);
+                }
+        } else {
+            const size_t slotp = ((size_t)t * H + h) * MAXT + (tau - lt);
+#pragma unroll
+            for (int i = 0; i < NDB; ++i)
+#pragma unroll
+                for (int e = 0; e < 2; ++e) p.scr[slotp * D + i * 8 + 2 * c4 + e] = o[i][2 * k + e];
+            if (c4 == 0) {
+                float* ml = p.scr + (size_t)T * H * MAXT * D;
+                ml[slotp * 2] = m[k];
+                ml[slotp * 2 + 1] = l[k];
+            }
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------------------------------------------
 // Prefill (T > 16): flash attention on tensor cores. Block = (kv head, 64 query rows); warp (g, q) takes the 16 rows q * 16 ..
 // of query head g, so a staged K / V sub-chunk serves 64 rows x G heads. Same score arithmetic as the tile kernel (log2 domain,
@@ -1344,6 +1684,45 @@ int tile_maxt() {
 }
 
 template <int D, bool FUSED>
+int launch_tile_staged_d(const InkP& p, int min_s, unsigned ny, cudaStream_t st) {
+    const int maxt = p.maxt;
+    const int G = p.h / p.hk, nmt = (p.t * G + 15) / 16;
+    bool one_sub;
+    if (p.pos) {
+        const int vmax = p.window > 0 ? (p.window < p.cr ? p.window : p.cr) : p.cr;
+        one_sub = tile_s(vmax, min_s, maxt) == CH;
+    } else {
+        const TileGeo g = tile_geo(p.pos0, p.t, p.window, min_s, maxt);
+        one_sub = g.sa == CH && g.sb == CH;
+    }
+    const int stages = (min_s == CH && one_sub) ? 1 : 2;
+    const size_t smem = TileSmemS<D>::bytes(p.t, G, p.dr, FUSED, stages);
+    static bool attr = false;
+    if (!attr) {
+        const size_t most = TileSmemS<D>::bytes(MAXROWS, 3, 32, FUSED, 2);
+        if (cudaFuncSetAttribute(ink_tile_staged_k<D, FUSED>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)most) != cudaSuccess) return IK_ERR_LAUNCH;
+        attr = true;
+    }
+    ink_tile_staged_k<D, FUSED><<<dim3(p.hk, ny), 128 * nmt, smem, st>>>(p, min_s, stages);
+    return IK_OK;
+}
+
+// INTARSIA_INK_TILE_BODY=direct / staged: one body for every layer (diagnostic A/B); default: staged on SWA layers
+// (window > 0), direct on full layers. A per-layer constant, the same for the pair and the fused kernel.
+int tile_body_env() {
+    static int v = -1;
+    if (v < 0) {
+        const char* e = getenv("INTARSIA_INK_TILE_BODY");
+        v = e && strcmp(e, "direct") == 0 ? 1 : e && strcmp(e, "staged") == 0 ? 2 : 0;
+    }
+    return v;
+}
+bool tile_staged(const InkP& p) {
+    const int b = tile_body_env();
+    return b == 2 || (b == 0 && p.window > 0);
+}
+
+template <int D, bool FUSED>
 int launch_tile_d(const InkP& p, int min_s, unsigned ny, cudaStream_t st) {
     const int G = p.h / p.hk, nmt = (p.t * G + 15) / 16;
     const size_t smem = TileSmem<D>::bytes(p.t, G, p.dr, FUSED);
@@ -1361,6 +1740,15 @@ int launch_tile_d(const InkP& p, int min_s, unsigned ny, cudaStream_t st) {
 
 template <bool FUSED>
 int launch_tile(const InkP& p, int min_s, unsigned ny, cudaStream_t st) {
+    if (tile_staged(p)) {
+        switch (p.d) {
+            case 16: return launch_tile_staged_d<16, FUSED>(p, min_s, ny, st);
+            case 32: return launch_tile_staged_d<32, FUSED>(p, min_s, ny, st);
+            case 64: return launch_tile_staged_d<64, FUSED>(p, min_s, ny, st);
+            case 128: return launch_tile_staged_d<128, FUSED>(p, min_s, ny, st);
+            default: return IK_ERR_SHAPE;
+        }
+    }
     switch (p.d) {
         case 16: return launch_tile_d<16, FUSED>(p, min_s, ny, st);
         case 32: return launch_tile_d<32, FUSED>(p, min_s, ny, st);
