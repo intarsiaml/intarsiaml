@@ -90,6 +90,10 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   one LOG line (below). A failing rerun is fixed by the fp8 lane in a follow-up and does not block the combined gate, which
   runs with every fp8 env var unset (the default path).
 
+- 2026-11-22 (coordinator): the LOG line belongs in this doc's LOG section; leave docs/decisions/LOG.md alone. Its rows (P12
+  default-on, MTP flip, argmax v4t, profile-every 0, chunk 2048 if it lands, head screen pending) go in once at merge-to-main
+  time, from the LOG section here. The env reset in the combined gate is right. Carry on with the queue.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
@@ -382,5 +386,8 @@ prefix_reuse_real 6, batch_recurrent 15): all pass; Qwen3-8B `plan show --backen
 to the base b5e283927.
 
 ## LOG
+
+Rows for docs/decisions/LOG.md at merge-to-main time (coordinator): P12 default-on, MTP flip, argmax v4t, `--profile-every 0`
+default on Metal, chunk 2048 (if it lands), and:
 
 - INTARSIA_INK_HEAD_SCREEN opt-in: md5 gate pending (rerun of #10974)
