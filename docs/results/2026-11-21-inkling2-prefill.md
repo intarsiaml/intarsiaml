@@ -284,6 +284,35 @@ warmup) does not pay it. Batching prefill command buffers therefore has nothing 
 brief 8's first next item is closed by this measurement. (A cold `generate` pays ~0.2 s once; prefetching the expert weights at load would
 remove that and belongs to the residency / keep-warm owner.)
 
+### Steady-state ranking vs floors (brief 9; kernel trace .scratch/e2e/profdefault.k.jsonl, chunks 1 + 2 of an 8k prompt, warm)
+
+ms per 2048-row chunk, the mean of chunks 1 and 2 (GPU 651.7 / 660.6 ms; ctx 2k-6k). Floors: NAX bf16 62 TFLOP/s (see Floors);
+memory-bound ops at ~550 GB/s DRAM (assumed, not measured on endor; ops whose operands stay in the SLC can beat it).
+
+| Op | ms / chunk | floor ms / chunk | above floor | floor basis | covered by |
+|---|---:|---:|---:|---|---|
+| MoE experts NVFP4 (44 visits) | 323.2 | 185 | **138** | 261 GFLOP / visit | v65 / dq1 (#10982) |
+| ConvMix incl. the looped blend | 76.5 | n/m | ~15 (fusion bound) | plain 18.6 ms (96 calls); blend 8 x 4 dispatches per looped call, 1.12 ms per call, already at cache speed per dispatch (blend_pair moves 57 MB in 0.043 ms) | - |
+| RelSinkAttn NAX | 70.3 | 30 | **40** | SWA 25.8 GFLOP x 40, full ~103 GFLOP x 8 (mean 4k keys); 62 TFLOP/s is optimistic for softmax attention | - |
+| InkInProj NAX | 61.6 | 63 | 0 | 81.8 GFLOP / visit | - |
+| InkKvPrologue | 47.9 | 12 | **36** | ~140 MB / visit (rel 100.7 MB written, q 12.6, k / v 8.4, pq 14, pk / pv 8.4) | - |
+| MoE experts MXFP8 (4 visits) | 30.8 | 17 | 14 | as NVFP4 | v65 / dq1 |
+| wo (matmul_bf16_nax) | 22.7 | 22.5 | 0 | 29 GFLOP / visit | - |
+| router (logits_bf16) | 15.2 | ~1 | 14 | 1.2 GFLOP / visit | router NAX (#10982) |
+| attn_res_mix + loop_blend + moe_route + rest | 7.7 | - | - | under 5 ms each | - |
+
+**Pick: InkKvPrologue (36 ms above floor; attention's 40 assumes an unreachable 62 TFLOP/s for softmax attention, and its
+in-kernel-bias variant already lost).** The prologue runs at 1.0 ms per visit, about 140 GB/s for the ~140 MB it must move.
+Per (row, kv head) it runs a 256-thread threadgroup in which only 128 threads do the conv / q / r part. The rel product
+(rel[t, h, e] = sum_j r[t, h, j] relproj[j, e], 16 x 1024 per head, 75 % of the bytes) re-reads relproj's 32 KB for every row.
+Plan: (1) `ink_kv_prologue_norel_bf16` = the prologue without the rel loop, at 128 threads; (2) `ink_rel_proj_bf16`, one
+threadgroup per (kv head, 8-row block). It recomputes r with the prologue's own arithmetic (same lane map, simd_sum, clip, tau
+and rA rounding), loads relproj once per block into registers, and writes rel with the same per-element fma order (j ascending).
+New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGUE_SPLIT=1`, default off, branch
+`ink/prologue-split` off the ink/prefill tip. **Bitwise** vs the current prologue: same inputs, the same fp32 chains, only the
+threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
+the Metal test, I stop and report rather than argue tolerance.
+
 ## Next ideas (ranked)
 
 1. MoE experts (54% of the chunk): the gen1 kernel is staging / decode bound, not MMA bound (no-matmul probe 6.3 of 7.3 ms).
