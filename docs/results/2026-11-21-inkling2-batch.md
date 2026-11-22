@@ -175,3 +175,21 @@ Step time grows 5.8 ms from 1 to 2 rows, then about 2.3 ms per row to 8 and 4.2 
 is the one that does not amortise (perf-strategy section 7: the chunked row GEMVs read the weights twice above 8 rows, and
 the expert union grows). Engine-path numbers through `intarsia serve --max-batch 16` (`bench speed`, localeval
 `conc-plain-1k`): #10811, queued.
+
+## 5. Single-read 9..16-row dense GEMVs (opt-in)
+
+Above 8 rows the row-exact bf16 GEMV (`matmul_bf16_gemv_rows`: Inkling-2's wo) and the logits GEMV (`logits_bf16_gemv_rows`: the
+unembed, the router) ran as two chunk launches (`row_chunks`), so their weights came from DRAM twice. The MoE experts were
+already read once per step for all rows (`Policy::Auto`: union gate+up and union down above one row) and InkInProj already
+takes 1..=16 rows in one dispatch, so these two are the only re-reads.
+
+`<base>_mr8t<T>` (kernels/metal/gemv_multirow.metal, T = 1..8, families 16-byte / 8-byte bf16 and f32-out logits): one launch of
+8 + T rows, as an 8-row pass and a T-row pass inside each threadgroup (simdgroup for logits) on the same weight row, the
+weights read from DRAM once. Each (weight row, activation row) accumulator is the mirrored 1-row kernel's (same pass helpers,
+lane mapping and reduction order). Opt-in `INTARSIA_METAL_ROWS_SINGLE=1` (default off; only 9..=16-row calls of those two
+kernels; `with_rows_single` test hook). G-B: `crates/intarsia-backend-metal/tests/rows_single.rs`, 9..=16 rows, wo shape on
+both load families, a K off the 16-byte block, logits at N 8195 and 128: every row bitwise the one-row launch and the two-chunk
+launch (#10877, pass); `rows_exact` 11 / 11 and the backend lib tests 18 / 18 in the same run.
+
+Expected gain: about 0.9 GB of re-read per step each for wo (48 visits) and the unembed, about 3 ms at 16 rows. A/B on the
+batched step: queued (quiet slot).
