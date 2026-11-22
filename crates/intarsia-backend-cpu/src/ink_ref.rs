@@ -288,10 +288,13 @@ pub fn run(call: &OpCall, fast: bool) -> Result<()> {
         Op::RelSinkAttn => attention(call),
         Op::InkAttnDecode => attn_decode(call),
         Op::MoeExpertsMxfp8 => experts_mxfp8(call),
-        Op::InkInProj if fast => in_proj_fast(call),
+        // e4m3 weights (lane ink-fp8): the reference is also the fast path (f64, rows in parallel)
+        Op::InkInProj if fast && i.len() == 2 => in_proj_fast(call),
         Op::InkInProj => {
             let (s, t, d, a) = (i[0].shape[0], i[0].shape[1], i[0].shape[2], i[0].dtype);
             let (x, w) = (rd(&i[0])?, rd(&i[1])?);
+            // `scale * sum(x * e4m3(w))` per pack, `MatmulFp8`'s W8A16 order; 1 for float weights
+            let sc: Vec<f64> = if i.len() == 3 { rd(&i[2])? } else { vec![1.0; 3] };
             let mut row0 = 0;
             for (j, out) in o.iter().enumerate() {
                 let n = out.shape[1];
@@ -301,7 +304,8 @@ pub fn run(call: &OpCall, fast: bool) -> Result<()> {
                     .into_par_iter()
                     .map(|idx| {
                         let (ti, ni) = (idx / n, idx % n);
-                        round(a, xs[ti * d..(ti + 1) * d].iter().zip(&ws[ni * d..(ni + 1) * d]).map(|(p, q)| p * q).sum())
+                        let dot: f64 = xs[ti * d..(ti + 1) * d].iter().zip(&ws[ni * d..(ni + 1) * d]).map(|(p, q)| p * q).sum();
+                        round(a, if i.len() == 3 { dot * sc[j] } else { dot })
                     })
                     .collect();
                 wr(out, &y)?;

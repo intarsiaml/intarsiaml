@@ -38,7 +38,7 @@
 //! | `InkKvPrologue` (70) | pq `[T,Nq]`, pk `[T,Ckv(+Hk*K)]`, pv (as pk), k taps `[K,Ckv]`, v taps `[K,Ckv]`, q scale `[H,Dh]`, r scale `[H,dr]`, rel proj `[dr,E]` | q `[T,H,Dh]`, rel `[T,H,E]`, k `[T,Hk,Dh]`, v `[T,Hk,Dh]`, k ring `[Rr,Ckv]`, v ring `[Rr,Ckv]` (rings **in place**) | pos0, n_heads, n_kv_heads, head_dim, eps, ink.{qk_clip, rel_clip, tau_floor, tau_alpha, dyn_conv, d_rel} |
 //! | `RelSinkAttn` (71) | q `[T,H,Dh]`, k `[T,Hk,Dh]`, v `[T,Hk,Dh]`, k cache `[Hk,Cr,Dh]`, v cache `[Hk,Cr,Dh]`, rel `[T,H,E]`, pq `[T,Nq]` | o `[T,H*Dh]`, k cache, v cache (**in place**) | pos0, scale, n_heads, n_kv_heads, head_dim, window, ink.{kv_ring, d_rel} |
 //! | `MoeExpertsMxfp8` (72) | x `[T,H]`, ids `[T,K]` i32, weights `[T,K]` f32, w13 `[E,2I,H]` e4m3, w13 scales `[E,2I,H/32]` u8 (E8M0), w2 `[E,H,I]` e4m3, w2 scales `[E,H,I/32]` u8 | `[T,H]` | gelu, ink.{situ, gate_cap, up_cap, act_quant} |
-//! | `InkInProj` (73) | x `[S,T,D]` (S = 1 or 3), w `[Nq+Nk+Nv,D]` | pq `[T,Nq]`, pk `[T,Nk]`, pv `[T,Nv]` | |
+//! | `InkInProj` (73) | x `[S,T,D]` (S = 1 or 3), w `[Nq+Nk+Nv,D]`; with an e4m3 w also scales `[3]` f32 | pq `[T,Nq]`, pk `[T,Nk]`, pv `[T,Nv]` | |
 //! | `InkAttnDecode` (75) | pq, pk, pv, k taps, v taps, q scale, r scale, rel proj (as `InkKvPrologue`), k cache `[Hk,Cr,Dh]`, v cache | o `[T,H*Dh]`, k cache, v cache, k ring, v ring (all **in place**) | the union of the two ops' attrs |
 //! | `ConvMix` (74) | x, taps, res, addend (as `SconvRes`), src `[N,T,D]`, queries `[Q,D]` f32 (Q may be 0), norm `[S,D]` or `[0]`, msg `[S,T,D]` f32 or `[0]`, down, gain, forget (as `LoopBlend`) or three `[0]` | y, ring, sum (as `SconvRes`), mix `[S,T,D]` or `[0]` | pos0, eps |
 //!
@@ -106,6 +106,13 @@
 //!
 //! `w` stacks the q-pack rows (`Nq`), the k-pack rows (`Nk`) and the v-pack rows (`Nv`); `pq = rA(x[0] . Wq^T)`,
 //! `pk = rA(x[min(1, S-1)] . Wk^T)`, `pv = rA(x[min(2, S-1)] . Wv^T)`. One launch whether the three inputs differ or not.
+//!
+//! **e4m3 weights** (lane ink-fp8, opt-in `INTARSIA_INK_ATTN_QUANT=fp8`; W8A16): w is `fp8_e4m3` and the call has a third input
+//! `scales [3]` f32, one weight scale per pack: `pq = rA(scales[0] * sum_k x[0,k] * e4m3(Wq[n,k]))` (the f32 sum of the products
+//! of the activation and the decoded e4m3 code, then the scale, then the rounding: `MatmulFp8` with `scales = (scales[j], 0)` on
+//! that pack), `pk` / `pv` with `scales[1]` / `scales[2]`. A float w takes exactly two inputs and an e4m3 w exactly three; a
+//! kernel registered for float weights never sees e4m3 (`ShapeInfo::weight`). Pack j as a `MatmulFp8` is the model's fallback
+//! where a backend has no e4m3 `InkInProj` kernel.
 //!
 //! ## ConvMix: a sublayer boundary (vLLM `ops/conv_mix.py`, `loop.py:257-316`)
 //!
@@ -488,7 +495,14 @@ pub fn check(call: &OpCall) -> Result<()> {
                     return bad(op, format!("{w} must be {a} [{t},N], got {} {:?}", x.dtype, x.shape));
                 }
             }
-            want(op, &i[1], None, &[ns.iter().sum(), d], "w")?;
+            let wdt = if i[1].dtype == DType::Fp8E4m3 { Some(DType::Fp8E4m3) } else { None };
+            want(op, &i[1], wdt, &[ns.iter().sum(), d], "w")?;
+            match (i[1].dtype, i.len()) {
+                (DType::Fp8E4m3, 3) => want(op, &i[2], Some(DType::F32), &[3], "scales")?,
+                (DType::Fp8E4m3, _) => return bad(op, "e4m3 w needs a third input, scales [3] f32".into()),
+                (_, 2) if float(i[1].dtype) => {}
+                (dt, n) => return bad(op, format!("w must be float (2 inputs) or e4m3 with scales (3 inputs), got {dt} with {n} inputs")),
+            }
         }
         Op::InkAttnDecode => {
             let t = i[0].shape.first().copied().unwrap_or(0);

@@ -51,6 +51,13 @@ pub(crate) fn ink_attn_fused_rule(rows: usize, local: bool, ctx: usize, window: 
     }
 }
 
+/// `INTARSIA_INK_FP8_PROJ`: `0` = the fp8 in-projection always as its three `MatmulFp8` packs (A/B); unset / anything else = the
+/// e4m3 `InkInProj` where the backend admits it. Only read under `INTARSIA_INK_ATTN_QUANT=fp8`.
+fn ink_fp8_proj_fused() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| !std::env::var("INTARSIA_INK_FP8_PROJ").is_ok_and(|v| v.trim() == "0"))
+}
+
 /// Whether an Inkling-2 pass of `t` rows runs under `exact_rows` (the row-exact kernels): on Metal for 2..=16 rows (the 1-row
 /// kernels are the reference the rows kernels are bitwise to), unless `INTARSIA_INK_ROWS_EXACT=0`. Larger passes (prefill
 /// chunks) take the fast kernels and are not bitwise a decode step's rows on Metal.
@@ -111,6 +118,10 @@ pub(super) enum InkInW {
     /// `INTARSIA_INK_ATTN_QUANT` (opt-in, lane ink-fp8): the q, k and v packs quantised at load, each with its own scale, run as
     /// three `MatmulFp8` / `MatmulMxfp4` calls (no op contract change).
     Packs(Box<[QTensor; 3]>),
+    /// `INTARSIA_INK_ATTN_QUANT=fp8`: the stacked rows in e4m3 `[nq + 2 nk, D]` with one scale per pack `[3]` f32, one
+    /// `InkInProj` (e4m3 variant) where the backend has a kernel for it; `packs` are `MatmulFp8` views of the same bytes (the
+    /// fallback, bitwise the same values per the op contract).
+    Fp8 { w: TensorRef, scales: TensorRef, packs: Box<[QTensor; 3]> },
 }
 
 /// `INTARSIA_INK_ATTN_QUANT` (`fp8`, `mxfp4`; the off spellings of `INTARSIA_LMHEAD_QUANT`), else the recipe's
@@ -407,7 +418,30 @@ pub(super) fn load(
                     }
                     eprintln!("{line}");
                 }
-                InkInW::Packs(Box::new([pack(0, nq)?, pack(nq, nk)?, pack(nq + nk, nk)?]))
+                if kind == crate::quant::head::HeadQuant::Fp8 {
+                    // one e4m3 buffer for the fused op, the packs as row views of it with their own `(scale, 0)` tensors
+                    let ranges = [(0, nq), (nq, nk), (nq + nk, nk)];
+                    let mut data = Vec::with_capacity((nq + 2 * nk) * d);
+                    let mut sc = [0f32; 3];
+                    for (j, &(r0, n)) in ranges.iter().enumerate() {
+                        let hq = crate::quant::head::quantize_host(kind, wdt, &stacked[r0 * d * es..(r0 + n) * d * es], n, d, 0, n)?;
+                        sc[j] = hq.parts[1].to_f32()[0];
+                        data.extend_from_slice(&hq.parts[0].data);
+                    }
+                    let w = TensorRef::new(crate::backend::upload_new(b, &data)?, DType::Fp8E4m3, &[nq + 2 * nk, d]);
+                    let scales = TensorRef::new(crate::backend::upload_new(b, &encode(DType::F32, &sc)?)?, DType::F32, &[3]);
+                    qbytes.set(qbytes.get() + data.len() as u64 + 12);
+                    let mut packs = Vec::new();
+                    for (j, &(r0, n)) in ranges.iter().enumerate() {
+                        let s2 = crate::quant::fp8::scales_tensor(sc[j], 0.0);
+                        let s2 = TensorRef::new(crate::backend::upload_new(b, &s2.data)?, DType::F32, &[2]);
+                        packs.push(QTensor { format: crate::quant::FP8_E4M3, n, k: d, parts: vec![w.rows(r0, n), s2], act_quant: false, act_fp8: false });
+                    }
+                    let packs: [QTensor; 3] = packs.try_into().map_err(|_| Error::invalid("three packs"))?;
+                    InkInW::Fp8 { w, scales, packs: Box::new(packs) }
+                } else {
+                    InkInW::Packs(Box::new([pack(0, nq)?, pack(nq, nk)?, pack(nq + nk, nk)?]))
+                }
             }
         };
         // lag-major taps [K, C]: `[C,1,K]` has tap K-1 on the current token; `static_w [K,C]` already has lag 0 first
@@ -802,6 +836,19 @@ impl Model {
             let pv = TensorRef::new(ws.pv.clone(), act, &[t, l.nk]);
             match &l.in_w {
                 InkInW::Stacked(w) => ex(Op::InkInProj, vec![xs(nx), w.clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default())?,
+                InkInW::Fp8 { w, scales, packs } => {
+                    // the e4m3 InkInProj where the backend has a kernel for it (INTARSIA_INK_FP8_PROJ=0: always the packs)
+                    let mut c = OpCall::new(Op::InkInProj, vec![xs(nx), w.clone(), scales.clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default());
+                    c.exact_rows = self.verifying();
+                    if ink_fp8_proj_fused() && self.registry.select(&c).is_ok() {
+                        self.exec_call(c, profile)?;
+                    } else {
+                        for (j, (wq, out)) in packs.iter().zip([&pq, &pk, &pv]).enumerate() {
+                            let c = wq.call(planes(&ws.x, act, j.min(nx - 1), 1, t, d).reshaped(&[t, d]), out.clone());
+                            ex(c.op, c.inputs, c.outputs, c.attrs)?;
+                        }
+                    }
+                }
                 InkInW::Packs(p) => {
                     // the InkInProj contract by hand: pack j reads input plane min(j, S-1)
                     for (j, (w, out)) in p.iter().zip([&pq, &pk, &pv]).enumerate() {

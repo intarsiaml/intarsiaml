@@ -66,7 +66,7 @@
 //! | `InkKvPrologue` | pq `[T,Nq]`, pk, pv `[T,Ckv(+Hk*K)]`, k / v taps `[K,Ckv]`, q scale `[H,Dh]`, r scale `[H,dr]`, rel proj `[dr,E]` | q `[T,H,Dh]`, rel `[T,H,E]`, k, v `[T,Hk,Dh]`, k / v rings `[Rr,Ckv]` (**in place**) | pos0, n_heads, n_kv_heads, head_dim, eps, ink.* |
 //! | `RelSinkAttn` | q `[T,H,Dh]`, k, v `[T,Hk,Dh]`, k / v cache `[Hk,Cr,Dh]`, rel `[T,H,E]`, pq `[T,Nq]` | o `[T,H*Dh]`, k / v cache (**in place**) | pos0, scale, n_heads, n_kv_heads, head_dim, window, ink.kv_ring, ink.d_rel |
 //! | `MoeExpertsMxfp8` | x `[T,H]`, ids `[T,K]`, weights `[T,K]` f32, w13 `[E,2I,H]` e4m3, scales `[E,2I,H/32]` u8, w2 `[E,H,I]` e4m3, scales `[E,H,I/32]` u8 | `[T,H]` | gelu, ink.situ / gate_cap / up_cap / act_quant |
-//! | `InkInProj` | x `[1 or 3,T,D]`, w `[Nq+Nk+Nv,D]` | pq, pk, pv | |
+//! | `InkInProj` | x `[1 or 3,T,D]`, w `[Nq+Nk+Nv,D]` (float, or e4m3 with scales `[3]` f32 as a third input) | pq, pk, pv | |
 //! | `ConvMix` | `SconvRes`'s four, src `[N,T,D]`, queries `[Q,D]` f32, norm, msg `[S,T,D]` f32, down, gain, forget (or `[0]`) | y, ring, sum, mix `[S,T,D]` | pos0, eps |
 //! | `GdnDeltaRule` | qkv `[T,C]` (`C = 2*Hk*dk + Hv*dv`, rows `[q|k|v]`), a `[T,Hv]`, b `[T,Hv]`, A_log `[Hv]`, dt_bias `[Hv]` | o `[T,Hv,dv]`, state `[Hv,dv,dk]` f32 (**in place**) | eps (l2norm) |
 //!
@@ -706,7 +706,9 @@ impl OpCall {
         let bad = |m: String| Err(Error::invalid(format!("{}: {m}", self.op)));
         // `GdnConvDelta` may carry per-row state snapshots after its three outputs (HIP's speculative-verify launch, lane vrc)
         let extra_outputs = self.op == Op::GdnConvDelta && self.outputs.len() > no;
-        if self.inputs.len() != ni || (self.outputs.len() != no && !extra_outputs) {
+        // `InkInProj` over e4m3 weights takes a third input, the per-pack weight scales (lane ink-fp8; `inkling2::ops`)
+        let extra_input = self.op == Op::InkInProj && self.inputs.len() == ni + 1;
+        if (self.inputs.len() != ni && !extra_input) || (self.outputs.len() != no && !extra_outputs) {
             return bad(format!(
                 "expected {ni} inputs / {no} outputs, got {} / {}",
                 self.inputs.len(),
