@@ -64,6 +64,14 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   kernels test, G2 / G3, greedy md5 against the current tip, ink-batch's batched == solo at B = 2 / 5 / 16. Send the hash to
   the coordinator and ink-batch (a716d7e057a6fbfc3).
 
+- 2026-11-22 (coordinator): after #11048 passes, merge three more branches in this order, each when the coordinator or its
+  lane says it is ready: (1) ink/hostgap 9a38f0224, once its spark2 #11072 and bespin #11073 pass (greedy +1.5 %, sampled
+  +2.7-3.6 %, bitwise identical; `generate` defaults to `--profile-every 0` on Metal); (2) ink/fp8, after its #10974 (all
+  opt-in, default path identical, #10941); (3) ink/pack12, after its flip gate #11066 (contains ink/fp8; P12 default-on on
+  Metal, `INTARSIA_INK_PACK12=0` reverts; lossless, +8.5-9.7 % decode). Then ONE combined gate on the tip after all three (or
+  whichever are in): rows-exact, G2 / G3, greedy md5 with P12 on vs explicit off, batched == solo at B 2 / 5 / 16, and a quiet
+  localeval speed-plain at 142 / 1k / 4k / 16k, which becomes the new Metal baseline. Send the hash.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
