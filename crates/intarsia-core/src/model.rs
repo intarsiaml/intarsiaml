@@ -5695,6 +5695,11 @@ impl Model {
         if mark {
             self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         }
+        // recorded (plan dry run) as `extra` calls: plan admission still admits the screen kernels, but the solo decode step's
+        // op lists, which the batched step is checked against (`plan::check_batch_ops`), and the per-step call
+        // counts are the full head's; a batched step never runs the screen
+        let set_extra = |v: bool| -> bool { self.recorder.lock().unwrap().as_mut().map_or(false, |r| std::mem::replace(&mut r.extra, v)) };
+        let prev_extra = if recording { set_extra(true) } else { false };
         let r = (|| -> Result<bool> {
             let sc = hs.q.call(x.clone(), a.clone());
             self.exec(sc.op, sc.inputs, sc.outputs, sc.attrs, profile)?;
@@ -5737,6 +5742,9 @@ impl Model {
         })();
         if mark {
             self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        }
+        if recording {
+            set_extra(prev_extra);
         }
         r.map(|served| served && !recording) // recorded only: the caller records the full head too
     }

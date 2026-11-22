@@ -517,3 +517,20 @@ fn inkling2_tiny_screened_verify_fallback_reads_the_head_once() {
         assert_eq!((g1 - g0) + (f1 - f0), 1, "{rows}-row verify: exactly one screened call");
     }
 }
+
+/// The screened head never changes what batching accepts (brief 12, endor #11315): its plan-probe calls are recorded as
+/// `extra`, so the solo decode step the batched step is checked against is the full head's. `enable_batch` + `configure_plan`
+/// give the same result with the screen on as off.
+#[test]
+fn inkling2_tiny_screen_keeps_batching() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let plan = |screen: &str| -> std::result::Result<(), String> {
+        std::env::set_var("INTARSIA_INK_HEAD_SCREEN", screen);
+        let mut m = load(&dir, chunk());
+        m.enable_batch(4).map_err(|e| format!("enable_batch: {e}"))?;
+        m.configure_plan(&Default::default(), None).map(|_| ()).map_err(|e| format!("configure_plan: {e}"))
+    };
+    let off = plan("0");
+    let on = plan("1");
+    assert_eq!(on, off, "batching with the screen on vs off");
+}
