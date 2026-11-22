@@ -427,7 +427,9 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
         assert!(msg.contains(op.as_str()), "{op}: {msg}");
     }
     for op in intarsia_core::inkling2::ops::OPS {
-        assert!(!intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
+        // CUDA: the attention ops have kernels (lane ink-cuda-attn), the rest not yet
+        let cuda_attn = intarsia_backend_cuda::inkattn::TABLE.iter().any(|(_, o)| *o == op);
+        assert_eq!(intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), cuda_attn, "cuda {op}");
         assert!(intarsia_backend_hip::kernels::UNIMPLEMENTED.contains(&op), "hip {op}");
         // Metal: every op has a kernel (lanes ink-m-attn, ink-m-moe, ink-m-mix); the table alone, no device
         assert!(intarsia_backend_metal::kernels::all().iter().any(|k| k.op == op), "metal {op}");
