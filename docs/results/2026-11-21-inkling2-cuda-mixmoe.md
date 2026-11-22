@@ -103,6 +103,17 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   0.36), then experts 170 -> 230 GB/s. CUDA P12 moves to ink-cuda-attn (ink/cuda-p12); accept its p12 weight arm hook in the
   ink_in_proj dispatch and keep the bf16 in_proj reduction order unchanged. Report the next tiny-ops numbers with graphs on.
 
+- (coordinator, 13th) Deep GEMV landing and the no-gain reverts accepted. Order: (1) now: generate tok/s at short / 1.2k / 5k
+  with graphs on, and localeval speed-plain of `intarsia serve` vs the running vLLM NVFP4 on spark2 (37-43), quiet slot, vLLM
+  retro not taken down without the coordinator's OK; (2) from existing outputs, no new GPU job: a per-row decode KL21 table for
+  G2 short on CUDA with ink-metal's docs/results/2026-11-21-inkling2-metal/decrows.py (CUDA 3.73e-3 vs Metal pre-regression
+  2.59e-3): spread evenly, or a few rows that drift and grow (Metal's regression shows that on chat_reasoning / chat_system)?
+  If a few rows, name the op by replaying their per-module captures against the oracle (ink/spec replay setup); (3) opt-in
+  tensor-core NVFP4 expert GEMV (W4A16, bf16 activations, fp32 accumulate, default off): rows-exact against itself, G2 decode /
+  prefill and G3 within limits, KL <= ~10 % above the SIMT baseline, tok/s gain beyond spread; default-on is the
+  coordinator's call; (4) split-K blend h parked until step 2 restores headroom; (5) InkRoute port later. ncu permission:
+  correct not to change it; the coordinator raises it with the user.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
