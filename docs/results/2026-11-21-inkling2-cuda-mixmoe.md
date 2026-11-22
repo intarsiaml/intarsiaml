@@ -533,3 +533,20 @@ to the bf16 MMA on the dequantised xq). Default numerics unchanged (act_quant 0 
   own sweep and justification (not done; parked).
 - Not done (parked by brief 26): G3 short / long, G2 (information), spec-verify rows and greedy md5 spec on / off under
   act_quant=1, decode tok/s A4 vs A16, FP4 prefill timing.
+
+## Decode: L2 prefetch prologues (brief 26 item 2; spark2 #11377, ink_bench, `--quiet gpu,cpu`)
+
+| kernel (T=1 / T=4) | prefetch off | prefetch on |
+|---|---|---|
+| conv_mix N4 Q1 norm | 14.3 / 14.3 us | 18.8 / 18.5 us |
+| conv_mix N7 Q3 norm | 22.5 / 22.2 us | 27.7 / 27.6 us |
+| conv_mix S=3 | 45.1 / 47.1 us | 50.7 / 51.3 us |
+| sconv_res / attn_res_mix | 10.2 / 8.2 us | 12.3 / 12.3 us |
+| loop_blend S=3 | 32.8 / 32.8 us | 34.8 / 37.0 us |
+| moe NVFP4 (union 8 / 29) | 188.1 / 198.9 GB/s | 198.8 / 219.8 GB/s |
+| moe MXFP8 (union 8 / 29) | 219.9 / 226.0 GB/s | 220.0 / 229.8 GB/s |
+
+Row kernel: prefetch is 2-5 us slower per call (the prologue's address arithmetic runs on every thread of the 768-thread block,
+and the kernel is already register-capped: 80 registers with 228 B spill stores / 680 B spill loads in the widest variant,
+before and after) -> removed. MoE: NVFP4 +6 % at T=1, +10 % at T=4, MXFP8 flat -> kept (`INTARSIA_INK_MOE_PF=0` reverts). It
+only adds `prefetch.global.L2`, so values are unchanged; the model-level md5 / tok/s check is next.
