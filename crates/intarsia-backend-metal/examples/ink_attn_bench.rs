@@ -116,28 +116,31 @@ mod imp {
         Case { kernel: "add_bf16", call: OpCall::new(Op::Add, vec![t(&a, &[1, 32]), t(&b, &[1, 32])], vec![t(&c, &[1, 32])], OpAttrs::default()) }
     }
 
-    /// Median / p10 / p90 GPU µs per launch of the case list (each command buffer runs the whole list once).
+    /// Median / p10 / p90 GPU µs per launch of the case list: `reps` passes over the list are encoded back to back without
+    /// waiting (the GPU never idles between them, so it stays at its working clock), then each command buffer of the trace
+    /// gives one sample, its GPU span over its dispatch count ("nd").
     pub fn time(be: &MetalBackend, trace: &std::path::Path, cases: &[&Case], reps: usize) -> (f64, f64, f64) {
-        let mut samples = Vec::new();
-        let mut seen = std::fs::read_to_string(trace).unwrap_or_default().lines().count();
-        for rep in 0..reps + 3 {
+        for c in cases.iter().cycle().take(cases.len() * 3) {
+            be.launch(c.kernel, &c.call, 0).unwrap();
+        }
+        be.synchronize(0).unwrap();
+        let seen = std::fs::read_to_string(trace).unwrap_or_default().lines().count();
+        for _ in 0..reps {
             for c in cases {
                 be.launch(c.kernel, &c.call, 0).unwrap();
             }
-            be.synchronize(0).unwrap();
-            let text = std::fs::read_to_string(trace).unwrap_or_default();
-            let lines: Vec<&str> = text.lines().collect();
-            if lines.len() > seen && rep >= 3 {
-                // every command buffer of the rep (the stream may commit more than one): the sum of their GPU spans
-                let mut gpu = 0.0;
-                for l in &lines[seen..] {
-                    let r: serde_json::Value = serde_json::from_str(l).unwrap();
-                    gpu += r["e"].as_f64().unwrap() - r["s"].as_f64().unwrap();
-                }
-                samples.push(gpu / cases.len() as f64 * 1e6);
-            }
-            seen = lines.len();
         }
+        be.synchronize(0).unwrap();
+        let text = std::fs::read_to_string(trace).unwrap_or_default();
+        let mut samples: Vec<f64> = text
+            .lines()
+            .skip(seen)
+            .filter_map(|l| {
+                let r: serde_json::Value = serde_json::from_str(l).ok()?;
+                let nd = r["nd"].as_f64()?;
+                (nd > 0.0).then(|| (r["e"].as_f64().unwrap() - r["s"].as_f64().unwrap()) / nd * 1e6)
+            })
+            .collect();
         let st = stats(&mut samples);
         (st.median, st.p10, st.p90)
     }
