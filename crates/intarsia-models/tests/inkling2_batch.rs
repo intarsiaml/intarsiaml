@@ -154,6 +154,68 @@ fn inkling2_batch_equals_solo_2_5_16() {
     }
 }
 
+/// The rows a sampler reads from batched decode are softcapped as the solo step's (the fixture's
+/// `final_logit_softcapping` is 30): full-logit rows bitwise the solo capped logits, and top-k rows (device top-k on a
+/// backend that has it, else logits) bitwise the k largest of the solo capped logits, with the same ids. Mixed modes in one
+/// batch, 2 / 5 / 16 sequences.
+#[test]
+fn inkling2_batch_sampler_rows_are_softcapped() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    // cpu: the backend with device-side top-k (`CpuBackend::arc_topk`), so `LastTopK` rows take the device top-k path; Metal has
+    // no `supports_topk`, so its sampled rows are logits rows (the host sampler takes the top-k there)
+    let inner = if on_metal() { backend() } else { intarsia_backend_cpu::CpuBackend::arc_topk() };
+    let m = load_on(&dir, Arc::new(Failing { inner, fail: Arc::new(AtomicBool::new(false)) }), 16).unwrap();
+    let all = [1usize, 7, 8, 9, 12, 13, 3, 30, 17, 64, 5, 41, 2, 24, 50, 11];
+    let mut max_d = 0f32;
+    for n in [2usize, 5, 16] {
+        let (mut solo, mut bat) = pair(&m, &all[..n]);
+        for step in 0..3 {
+            let ids: Vec<u32> = (0..n).map(|s| tok(s, solo[s].len)).collect();
+            let want: Vec<Vec<f32>> =
+                (0..n).map(|s| logits(m.forward(&mut solo[s], &[ids[s]], HeadMode::LastLogits, None).unwrap())).collect();
+            // device top-k only where the backend has it (Metal; the cpu backend has no `supports_topk`): else logits rows only
+            let topk_ok = m.check_batch_row(&bat[0], ids[0], HeadMode::LastTopK(8)).is_ok();
+            if n == 2 && step == 0 {
+                eprintln!("device top-k rows {}", if topk_ok { "tested" } else { "not available on this backend (Metal has no supports_topk): logits rows only" });
+            }
+            let modes: Vec<HeadMode> = (0..n)
+                .map(|s| match ((s + step) % 3, topk_ok) {
+                    (1, true) => HeadMode::LastTopK(8),
+                    (2, true) => HeadMode::LastTopK(40),
+                    _ => HeadMode::LastLogits,
+                })
+                .collect();
+            let mut refs: Vec<&mut SequenceState> = bat.iter_mut().collect();
+            let got = m.forward_batch(&mut refs, &ids, &modes).unwrap();
+            for (s, (g, w)) in got.into_iter().zip(&want).enumerate() {
+                let what = format!("{n} sequences, step {step}, row {s} ({:?})", modes[s]);
+                match (g, modes[s]) {
+                    (StepOut::Logits(g), _) => {
+                        for (a, b) in g.iter().zip(w) {
+                            max_d = max_d.max((a - b).abs());
+                        }
+                        assert!(g == *w, "{what}: logits row differs from the solo capped logits");
+                    }
+                    (StepOut::TopK { ids: ti, vals }, HeadMode::LastTopK(k)) => {
+                        assert_eq!(ti.len(), k, "{what}: top-k length");
+                        for (&i, &v) in ti.iter().zip(&vals) {
+                            max_d = max_d.max((v - w[i as usize]).abs());
+                        }
+                        let mut order: Vec<usize> = (0..w.len()).collect();
+                        order.sort_by(|&a, &b| w[b].partial_cmp(&w[a]).unwrap().then(a.cmp(&b)));
+                        let want_vals: Vec<f32> = order[..k].iter().map(|&i| w[i]).collect();
+                        let got_vals: Vec<f32> = ti.iter().map(|&i| w[i as usize]).collect();
+                        assert_eq!(vals, got_vals, "{what}: top-k values are not the solo capped logits of their ids");
+                        assert_eq!(vals, want_vals, "{what}: top-k values are not the k largest solo capped logits");
+                    }
+                    (other, mode) => panic!("{what}: {mode:?} gave {other:?}"),
+                }
+            }
+        }
+    }
+    eprintln!("batched sampler rows vs solo capped logits: max |d| = {max_d:e}");
+}
+
 /// P12 (lane ink-pack12) is solo-only (#11266: with P12 default-on a batched plan failed the bitwise op-count check, the
 /// solo head ran `MatmulP12`, the batched one `Logits`). With the default env: a solo model keeps its P12 copies (on Metal,
 /// where P12 defaults on), a model with `enable_batch(16)` drops them, configures its plan, and its batched rows are bitwise
@@ -314,6 +376,22 @@ impl Backend for Failing {
     }
     fn device_address(&self, buf: &Buffer) -> Option<u64> {
         self.inner.device_address(buf)
+    }
+    fn supports_topk(&self) -> bool {
+        self.inner.supports_topk()
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn topk_rows(
+        &self,
+        logits: &intarsia_core::TensorRef,
+        k: usize,
+        ids: &intarsia_core::TensorRef,
+        vals: &intarsia_core::TensorRef,
+        nan: &intarsia_core::TensorRef,
+        scratch: &intarsia_core::TensorRef,
+        s: StreamId,
+    ) -> intarsia_core::Result<()> {
+        self.inner.topk_rows(logits, k, ids, vals, nan, scratch, s)
     }
     fn batch_row_cap(&self) -> usize {
         self.inner.batch_row_cap().max(16)
