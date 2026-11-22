@@ -1,0 +1,28 @@
+# Thinking Machines Inkling-2-Mini (Inkling2LoopForConditionalGeneration, model_type inkling2_loop): the TEXT model only (vision
+# tower and the MTP / DSpark speculator are not loaded). 24 physical layers run as 48 visits (prelude 0..6, the core 6..18 three
+# times with cross-pass controllers, coda 18..24); depth mixing over attn-res blocks of 6 layers instead of a residual stream;
+# SWA (window 1024) and full attention layers with a distance bias, a per-query sink, short convs on K / V and on both sublayer
+# outputs; 128 routed experts (top-8, sigmoid + bias, SiTU) in NVFP4, MXFP8 on layers 20 and 23. Port spec:
+# docs/plans/2026-11-21-inkling2-port.md; the layer is one `ink` block (crates/intarsia-core/src/model/inkling2.rs) whose
+# visit table, state slots and loader are fixed by config.json (lane ink-skel, docs/results/2026-11-21-inkling2-skel.md).
+[model]
+match.architectures = ["Inkling2LoopForConditionalGeneration"]
+family = "inkling2"
+chat_template = "hf"            # chat_template.jinja (spec section e: no generation prompt, the model opens its own turn)
+
+[layer]
+pattern = ["ink"]
+
+[layer.ink]
+kind = "inkling2"
+prefix = "model.llm.layers.{i}"   # the checkpoint's `model.llm.` prefix (vision under `model.vision.`, MTP in mtp.safetensors)
+root = "model.llm"                # attn_res queries, cross-pass queries, embed_norm
+
+[top]
+embed = "model.llm.embed"         # [vocab_size (padded), D]; the model uses the first unpadded_vocab_size rows
+final_norm = "model.llm.norm"
+lm_head = { tensor = "model.llm.unembed" }   # bf16, not tied; logits = 30 tanh(x / 30) over the 200058 real tokens
+
+[defaults]
+kv_dtype = "bf16"
+max_batch = 1

@@ -850,6 +850,10 @@ pub struct ModelDims {
     pub moe: Option<crate::quant::moe::MoeConfig>,
     /// Gemma 4 text-model dimensions (`model_type = "gemma4_text"`); `None` for every other family.
     pub gemma: Option<GemmaDims>,
+    /// Inkling-2 text-model dimensions (`model_type = "inkling2_loop_text"`); `None` for every other family. Not serialised when
+    /// absent, so the dims JSON of every other model is unchanged.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ink: Option<crate::inkling2::config::InkDims>,
 }
 
 /// What a Gemma 4 text config adds to [`ModelDims`] (HF `Gemma4TextConfig`): sliding / global attention layers with their
@@ -1054,6 +1058,9 @@ impl ModelDims {
 
 impl ModelDims {
     pub fn from_hf_config(cfg: &serde_json::Value, keys: &ConfigKeys) -> Result<ModelDims> {
+        if let Some(ink) = crate::inkling2::config::InkDims::from_hf_config(cfg)? {
+            return Self::from_inkling(cfg, keys, ink);
+        }
         check_supported(cfg)?;
         let tc = text_config(cfg);
         let gemma = GemmaDims::from_hf_config(cfg)?;
@@ -1211,6 +1218,39 @@ impl ModelDims {
                 None
             },
             gemma,
+            ink: None,
+        })
+    }
+
+    /// Inkling-2 (`InkDims::from_hf_config` matched): no rope, no dense FFN, the real vocabulary (`unpadded_vocab_size`) as `vocab`.
+    fn from_inkling(cfg: &serde_json::Value, keys: &ConfigKeys, ink: crate::inkling2::config::InkDims) -> Result<ModelDims> {
+        let tc = text_config(cfg);
+        let u = |k: &str| tc.get(k).and_then(|v| v.as_u64()).map(|v| v as usize).ok_or_else(|| Error::model(format!("config.json missing '{k}'")));
+        let rms_eps = tc.get(&keys.rms_eps).and_then(|v| v.as_f64()).ok_or_else(|| Error::model(format!("config.json missing '{}' (no default is assumed)", keys.rms_eps)))?;
+        let n_layers = u(&keys.num_layers)?;
+        if ink.local.len() != n_layers {
+            return Err(Error::model("inkling2 config: local_layer_ids / num_hidden_layers mismatch"));
+        }
+        Ok(ModelDims {
+            hidden: u(&keys.hidden_size)?,
+            n_layers,
+            n_heads: u(&keys.num_heads)?,
+            n_kv_heads: u(&keys.num_kv_heads)?,
+            head_dim: u(&keys.head_dim)?,
+            intermediate: 0,
+            vocab: tc.get("unpadded_vocab_size").and_then(|v| v.as_u64()).map(|v| v as usize).unwrap_or(ink.vocab_padded),
+            rms_eps: rms_eps as f32,
+            rope_theta: 0.0,
+            partial_rotary_factor: 1.0,
+            rope_scaling: RopeScaling::None,
+            tie_embeddings: false,
+            max_positions: tc.get("model_max_length").and_then(|v| v.as_u64()).map(|v| v as usize).unwrap_or(1 << 20),
+            layer_types: Vec::new(),
+            linear: None,
+            short_conv: None,
+            moe: None,
+            gemma: None,
+            ink: Some(ink),
         })
     }
 }

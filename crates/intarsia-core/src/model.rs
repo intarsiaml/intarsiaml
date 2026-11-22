@@ -38,6 +38,7 @@ mod gdn_batch;
 mod gdn_block;
 mod short_conv;
 mod gemma;
+mod inkling2;
 pub(crate) mod feedback;
 mod graph_step;
 mod spec_graph;
@@ -59,6 +60,8 @@ pub use batch::TpBatchMutant;
 use gdn_block::{ExtraWs, GdnBlock};
 use short_conv::ConvBlock;
 use gemma::{GemmaLayer, GemmaWs};
+use inkling2::InkModel;
+pub use inkling2::{InkTensors, INK_RING_MARGIN};
 use graph_step::GraphState;
 
 /// The checkpoint tensors among a call's `inputs` that have dtype `dtype` (the weight dtype of a call no kernel took), as
@@ -325,6 +328,8 @@ enum Block {
     Moe(MoeBlock),
     /// A whole Gemma 4 decoder layer (`model/gemma.rs`): attention, dense MLP and MoE with sandwich norms.
     Gemma(GemmaLayer),
+    /// One physical Inkling-2 layer (`model/inkling2.rs`; the weights live in `Model::ink`, which runs the visit table).
+    Ink(usize),
 }
 
 /// Bytes of `Workspace::pos`: [`POS_TAB_ENTRIES`] i32 positions.
@@ -558,6 +563,8 @@ pub struct Model {
     layers: Arc<Vec<Vec<Block>>>,
     /// Scratch of the Gemma 4 layers (`None` for every other model).
     gemma: Option<GemmaWs>,
+    /// Inkling-2: layers, visit table and workspace (`None` for every other model).
+    ink: Option<InkModel>,
     slot_specs: Vec<SlotSpec>,
     ws: Workspace,
     telemetry: Arc<Telemetry>,
@@ -1029,7 +1036,11 @@ impl Model {
             Ok(t)
         };
 
-        let embed = load(&recipe.top.embed, 0, Some(&[dims.vocab, dims.hidden]))?;
+        // Inkling-2 stores `vocab_size` (padded) rows; the model uses the first `unpadded_vocab_size` (`dims.vocab`)
+        let embed = match &dims.ink {
+            Some(ik) => load(&recipe.top.embed, 0, Some(&[ik.vocab_padded, dims.hidden]))?.rows(0, dims.vocab),
+            None => load(&recipe.top.embed, 0, Some(&[dims.vocab, dims.hidden]))?,
+        };
         let act = match opts.act_dtype {
             Some(d) => d,
             None if embed.dtype.is_float() && embed.dtype != DType::Fp8E4m3 && embed.dtype != DType::Fp8E5m2 => {
@@ -1071,6 +1082,11 @@ impl Model {
             }
             // the rows this rank's head covers
             let (n, axis) = if vocab_par { (vh, Some(ShardAxis::Rows)) } else { (dims.vocab, None) };
+            if let Some(ik) = &dims.ink {
+                // Inkling-2: the first `unpadded_vocab_size` rows of the padded bf16 unembed (a view, a16)
+                let t = load(&lh.tensor, 0, Some(&[ik.vocab_padded, dims.hidden]))?;
+                return Ok(Some(dense(t.rows(0, dims.vocab), dims.vocab)));
+            }
             if let Some(kind) = head_quant {
                 // the checkpoint's own float head tensor, or the tied embedding table
                 let name = if own.is_some() && !dims.tie_embeddings {
@@ -1186,7 +1202,8 @@ impl Model {
         }
         let mut layers = Vec::new();
         let mut slot_specs = Vec::new();
-        for li in 0..dims.n_layers {
+        // Inkling-2 loads its layers itself (`model/inkling2.rs`, after the workspace size is known)
+        for li in 0..if dims.ink.is_some() { 0 } else { dims.n_layers } {
             let mut blocks = Vec::new();
             for name in recipe.layer.pattern_for(li, &dims.layer_types)? {
                 let pre = recipe
@@ -1542,6 +1559,30 @@ impl Model {
         // pass of `macro_rows` (+ the merged tail)
         let mt = chunk.max(macro_rows) + tail_merge;
         let esz = act.size_bytes();
+        let ink_model = match &dims.ink {
+            Some(_) => {
+                if tp.world > 1 {
+                    return Err(Error::Unsupported("tensor parallelism of Inkling-2".into()));
+                }
+                if opts.mtp || opts.dflash.is_some() {
+                    return Err(Error::Unsupported("speculative drafters (--spec mtp / dflash) on Inkling-2".into()));
+                }
+                let ic = recipe.layer.other.get("ink").ok_or_else(|| Error::model("recipe [layer.ink] missing"))?;
+                let field = |k: &str| ic.get(k).and_then(|v| v.as_str()).map(String::from).ok_or_else(|| Error::model(format!("recipe [layer.ink] needs '{k}'")));
+                if ic.get("kind").and_then(|v| v.as_str()) != Some("inkling2") {
+                    return Err(Error::Unsupported(format!("ink block kind {:?}", ic.get("kind"))));
+                }
+                let names = inkling2::InkNames { layer: field("prefix")?, root: field("root")? };
+                let mut nbytes = 0u64;
+                let t0 = Instant::now();
+                let m = inkling2::load(b, src, dims, &names, act, mt, &mut slot_specs, &mut nbytes)?;
+                weights_bytes.set(weights_bytes.get() + nbytes);
+                eprintln!("inkling2: {} layers, {} visits, {} state slots, loaded in {:.1} s", m.layers.len(), m.visits.len(), slot_specs.len(), t0.elapsed().as_secs_f64());
+                layers = (0..dims.n_layers).map(|li| vec![Block::Ink(li)]).collect();
+                Some(m)
+            }
+            None => None,
+        };
         // the MTP drafter head (`--spec mtp`): read only when asked for, so without it the model is unchanged
         let mtp_k = if opts.mtp_k == 0 { crate::spec::SPEC_K_MAX } else { opts.mtp_k.min(crate::spec::DFLASH_K_MAX) };
         // an MoE head under tensor parallelism (lane mt2) runs whole on rank 0: unsharded against the global dims, no collective; the
@@ -1688,6 +1729,9 @@ impl Model {
             .sum();
         ws_bytes += moe_bytes;
         ws_bytes += rec_bytes * (1 + crate::state::RECURRENT_SNAPSHOTS as u64);
+        // ring slots are fixed-size like recurrent ones (Inkling-2's SWA KV and conv windows; no other model here has them)
+        ws_bytes += slot_specs.iter().map(|s| if matches!(s, SlotSpec::Ring { .. }) { s.bytes(0) as u64 } else { 0 }).sum::<u64>();
+        ws_bytes += ink_model.as_ref().map_or(0, |m| m.ws.bytes() as u64);
         if mtp_head.is_some() {
             // per-row recurrent states of a verify pass (up to `mtp_k` saved rows: `--spec-k`, or the copy chain's `len` with `INTARSIA_SPEC_COPY`) and the drafter's hidden-row queue
             ws_bytes += rec_bytes * mtp_k as u64;
@@ -1849,6 +1893,7 @@ impl Model {
             draft_map,
             layers: Arc::new(layers),
             gemma: gemma_ws,
+            ink: ink_model,
             slot_specs,
             ws,
             telemetry,
@@ -2042,7 +2087,7 @@ impl Model {
         if !self.peers.is_empty() || self.remote.is_some() || self.tp.world > 1 {
             return Some("a batched verify pass under tensor parallelism");
         }
-        if self.layers.iter().flatten().any(|b| matches!(b, Block::Conv(_) | Block::Gemma(_))) || self.dflash.is_some() {
+        if self.layers.iter().flatten().any(|b| matches!(b, Block::Conv(_) | Block::Gemma(_) | Block::Ink(_))) || self.dflash.is_some() {
             return Some("a batched verify pass of short-conv / Gemma layers or with a DFlash draft");
         }
         None
@@ -2832,6 +2877,7 @@ impl Model {
                         Block::Ffn(_) => "dense_ffn",
                         Block::Moe(_) => "moe",
                         Block::Gemma(_) => "gemma4_layer",
+                        Block::Ink(_) => "inkling2_layer",
                     })
                     .collect()
             })
@@ -2849,6 +2895,32 @@ impl Model {
     }
 
     /// Allocate a fresh sequence state with the planned KV capacity.
+    /// Inkling-2 only (tests, G1): one pass over `ids` (at most one workspace chunk) returning the oracle-named intermediates
+    /// (`vNN.attn_in_q` .. `vNN.partial_out`, `embed`, `final_hidden`, `logits` softcapped). `tf`: teacher forcing from these
+    /// tensors (`vNN.partial_in`, `vNN.blocks`, `vNN.bank`, `final.*`); the state is left as the pass wrote it and is not
+    /// committed. Without `tf` the pass is committed like `forward`.
+    pub fn ink_dump(&self, st: &mut SequenceState, ids: &[u32], tf: Option<&InkTensors>) -> Result<InkTensors> {
+        if self.ink.is_none() {
+            return Err(Error::invalid("ink_dump on a model that is not Inkling-2"));
+        }
+        let t = ids.len();
+        let ids_i32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
+        self.backend.upload(&self.ws.ids, 0, &ids_i32, self.stream)?;
+        let nv = self.view(&self.ws.n, self.act, &[t, self.dims.hidden]);
+        let mut dump = InkTensors::new();
+        let pos0 = st.len;
+        self.ink_pass(st, &self.view(&self.ws.ids, DType::I32, &[t]), t, pos0, &nv, false, tf, Some(&mut dump))?;
+        let mut logits = Vec::with_capacity(t * self.dims.vocab);
+        for r0 in (0..t).step_by(LOGIT_ROWS) {
+            logits.extend(self.head_logits(&nv, r0, LOGIT_ROWS.min(t - r0), false)?);
+        }
+        dump.insert("logits".into(), (vec![t, self.dims.vocab], logits));
+        if tf.is_none() {
+            st.commit(ids);
+        }
+        Ok(dump)
+    }
+
     pub fn new_state(&self) -> Result<SequenceState> {
         let mut st = SequenceState::new(&*self.backend, &self.slot_specs, self.plan.kv_cap_tokens)?;
         if self.batch_rows > 0 {
@@ -3061,7 +3133,8 @@ impl Model {
             self.forward_tp(st, ids, mode, on_row)
         };
         let r = r.and_then(|o| self.det_tap_flush(pos, ids.len()).map(|_| o));
-        if r.is_err() && st.has_recurrent() {
+        // a failed pass leaves recurrent state, and ring rows (Inkling-2), half-written: start the sequence over
+        if r.is_err() && (st.has_recurrent() || self.ink.is_some()) {
             let _ = st.reset(&*self.backend);
         }
         r
@@ -3157,6 +3230,7 @@ impl Model {
             && self.peers.is_empty()
             && self.tp.world == 1
             && self.gemma.is_none()
+            && self.ink.is_none()
             && self.recorder.lock().unwrap().is_none()
             && self.rope_table.is_none()
     }
@@ -3974,6 +4048,20 @@ impl Model {
             }
         }
 
+        if self.ink.is_some() {
+            // Inkling-2 runs its own visit table (`model/inkling2.rs`) and leaves the final normed hidden state in `ws.n`
+            let Seqs::One(st) = seqs else {
+                return Err(Error::Unsupported("batched or packed passes of Inkling-2".into()));
+            };
+            if dpos.is_some() {
+                return Err(Error::Unsupported("device-position (graph) decode of Inkling-2".into()));
+            }
+            let ids_t = ids_at.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t]));
+            let nv = self.view(&ws.n, act, &[t, h]);
+            self.ink_pass(st, &ids_t, t, pos0, &nv, profile, None, None)?;
+            return Ok(nv);
+        }
+
         let mut cur = 0usize; // which h buffer holds the residual stream
         let hv = |i: usize| self.view(&ws.h[i], act, &[t, h]);
         let nv = self.view(&ws.n, act, &[t, h]);
@@ -4034,6 +4122,7 @@ impl Model {
                     continue;
                 }
                 match block {
+                    Block::Ink(_) => return Err(Error::invalid("an Inkling-2 layer outside its visit table")),
                     Block::Gemma(g) => {
                         // a whole layer with its own residual handling: nothing is pending before or after it
                         let Seqs::One(st) = seqs else {
@@ -5369,7 +5458,7 @@ impl Model {
 
     /// Gemma 4 final logit soft-capping; monotonic, so the device argmax of `head_argmax` is unaffected.
     pub(super) fn softcap_logits(&self, out: &mut [f32]) {
-        if let Some(cap) = self.dims.gemma.as_ref().map(|g| g.softcap).filter(|&c| c > 0.0) {
+        if let Some(cap) = self.dims.gemma.as_ref().map(|g| g.softcap).or(self.dims.ink.as_ref().map(|i| i.softcap)).filter(|&c| c > 0.0) {
             for x in out.iter_mut() {
                 *x = cap * (*x / cap).tanh();
             }

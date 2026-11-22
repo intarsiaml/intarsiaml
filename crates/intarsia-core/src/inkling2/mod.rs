@@ -3,4 +3,5 @@
 //! has the formulas, f the gap list); the model block is `crate::model::inkling2`.
 
 pub mod cases;
+pub mod config;
 pub mod ops;

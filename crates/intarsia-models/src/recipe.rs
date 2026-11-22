@@ -17,6 +17,7 @@ pub const BUILTIN_RECIPES: &[(&str, &str)] = &[
     ("qwen2", include_str!("../../../recipes/qwen2.toml")),
     ("lfm2", include_str!("../../../recipes/lfm2.toml")),
     ("deepseek_v41", include_str!("../../../recipes/deepseek_v41.toml")),
+    ("inkling2", include_str!("../../../recipes/inkling2.toml")),
 ];
 
 pub fn parse_recipe(text: &str) -> Result<Recipe> {

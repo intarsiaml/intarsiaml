@@ -67,7 +67,7 @@ impl Model {
         self.layers.iter().flatten().any(|b| match b {
             Block::Attn(a) => a.gated,
             Block::Gdn(_) | Block::Conv(_) | Block::Moe(_) => true,
-            Block::Ffn(_) | Block::Gemma(_) => false,
+            Block::Ffn(_) | Block::Gemma(_) | Block::Ink(_) => false,
         })
     }
 
@@ -140,7 +140,7 @@ impl Model {
             Block::Attn(a) => hybrid || !a.gated,
             Block::Ffn(_) => true,
             Block::Gdn(_) | Block::Conv(_) | Block::Moe(_) => hybrid,
-            Block::Gemma(_) => false,
+            Block::Gemma(_) | Block::Ink(_) => false,
         });
         if !dense {
             return Err(Error::Unsupported(
@@ -1113,6 +1113,7 @@ impl Model {
             draft_map: None,
             layers: self.layers.clone(),
             gemma: None,
+            ink: None,
             slot_specs: self.slot_specs.clone(),
             ws,
             telemetry: self.telemetry.clone(),
