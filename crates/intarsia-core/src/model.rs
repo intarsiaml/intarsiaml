@@ -443,9 +443,17 @@ thread_local! {
 /// At most this many rows wait in this thread's logits pool.
 const LOGITS_POOL_MAX: usize = 8;
 
-/// A logits row of the f32 little-endian `bytes`, in a vector of this thread's pool when one is there.
+/// Rows recycled on a host pool worker (batched rows accepted on the pool, `Scheduler::accept_rows`), for the step's thread
+/// to take back: a worker never downloads logits, so its own pool would only hold them. At most [`LOGITS_SPILL_MAX`].
+static LOGITS_SPILL: std::sync::Mutex<Vec<Vec<f32>>> = std::sync::Mutex::new(Vec::new());
+const LOGITS_SPILL_MAX: usize = 64;
+
+/// A logits row of the f32 little-endian `bytes`, in a vector of this thread's pool (or the pool workers' spill) when one is there.
 pub(crate) fn logits_row(bytes: &[u8]) -> Vec<f32> {
-    let mut out = LOGITS_POOL.with(|p| p.borrow_mut().pop()).unwrap_or_default();
+    let mut out = LOGITS_POOL
+        .with(|p| p.borrow_mut().pop())
+        .or_else(|| LOGITS_SPILL.lock().unwrap_or_else(|e| e.into_inner()).pop())
+        .unwrap_or_default();
     out.clear();
     out.extend(bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])));
     out
@@ -454,6 +462,13 @@ pub(crate) fn logits_row(bytes: &[u8]) -> Vec<f32> {
 /// Hand a logits row ([`StepOut::Logits`]) back once it is read, for [`logits_row`] to reuse on this thread.
 pub fn recycle_logits(v: Vec<f32>) {
     if v.capacity() == 0 {
+        return;
+    }
+    if crate::par::on_worker() {
+        let mut s = LOGITS_SPILL.lock().unwrap_or_else(|e| e.into_inner());
+        if s.len() < LOGITS_SPILL_MAX {
+            s.push(v);
+        }
         return;
     }
     LOGITS_POOL.with(|p| {

@@ -194,20 +194,22 @@ fn sample_row_par(logits: &[f32], p: &SamplingParams, u: f32, s: &mut SampleScra
     walk_par(logits, p, u, keys, &mut s.probs, chunks)
 }
 
-/// Stable LSD radix sort of `keys` by their high 32 bits (11-bit digits, as [`radix_sort_hi`]), each pass as per-chunk
-/// histograms, offsets bucket-major and chunk-minor, and a per-chunk scatter on the host pool. The same order as
-/// [`radix_sort_hi`].
+/// Stable LSD radix sort of `keys` by their high 32 bits, each pass as per-part histograms, offsets bucket-major and part-minor,
+/// and a per-part scatter on the host pool. Stable, so the order [`radix_sort_hi`] gives (the keys are distinct: every correct
+/// sort agrees). 8-bit digits in 4 passes and `chunks / 2` parts: with [`radix_sort_hi`]'s 2048 buckets and 16 parts a part's run
+/// of a bucket was about 6 keys, less than a cache line, so the parts' scatters shared nearly every line they wrote (spark2: 0.63 ms
+/// for the sort of 200058 keys); with 256 buckets and 8 parts a run is about 100 keys.
 fn radix_sort_hi_par(keys: &mut Vec<u64>, tmp: &mut Vec<u64>, hist: &mut Vec<usize>, chunks: usize) {
     use crate::par::{run, SharedMut};
-    const BITS: u32 = 11;
+    const BITS: u32 = 8;
     const B: usize = 1 << BITS;
     let n = keys.len();
     tmp.resize(n, 0);
-    let ch = n.div_ceil(chunks.max(1)).max(1);
+    let ch = n.div_ceil(chunks.div_ceil(2).max(1)).max(1);
     let nc = n.div_ceil(ch);
     hist.clear();
     hist.resize(nc * B, 0);
-    for d in 0..3u32 {
+    for d in 0..32 / BITS {
         let shift = 32 + BITS * d;
         hist.fill(0);
         let (hp, src) = (SharedMut(hist.as_mut_ptr()), &keys[..]);

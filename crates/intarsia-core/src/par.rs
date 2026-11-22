@@ -64,6 +64,15 @@ fn run_inline(n: usize, f: &(dyn Fn(usize) + Sync)) {
     }
 }
 
+thread_local! {
+    static ON_WORKER: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// This thread is one of the pool's workers (not a caller of [`run`]).
+pub fn on_worker() -> bool {
+    ON_WORKER.with(|w| w.get())
+}
+
 /// `*mut T` that tasks share; each task writes only the elements it owns.
 #[derive(Clone, Copy)]
 pub(crate) struct SharedMut<T>(pub(crate) *mut T);
@@ -167,6 +176,7 @@ impl Pool {
     }
 
     fn worker(&self) {
+        ON_WORKER.with(|w| w.set(true));
         let mut seen = 0u64;
         loop {
             let t0 = Instant::now();
