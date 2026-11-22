@@ -372,3 +372,109 @@ async fn images_and_the_anthropic_route_are_refused() {
     let _ = USER;
     let _ = TOOL_JSON;
 }
+
+/// The real Inkling-2 vocabulary (200058 tokens, 60 specials): the markers are single special tokens, the framing grammar
+/// compiles against it, and at the start of a reply only `<|message_model|>` is allowed. Skipped without the tokenizer.
+#[tokio::test]
+async fn the_framing_grammar_compiles_against_the_real_vocabulary() {
+    let dir = match std::env::var("INTARSIA_INKLING2_DIR") {
+        Ok(d) => std::path::PathBuf::from(d),
+        Err(_) => {
+            let snaps = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots");
+            match std::fs::read_dir(snaps).ok().and_then(|d| d.filter_map(|e| e.ok()).map(|e| e.path()).find(|p| p.join("tokenizer.json").exists() && p.join("model.safetensors.index.json").exists())) {
+                Some(p) => p,
+                None => {
+                    eprintln!("skipped: no Inkling-2 tokenizer.json (set INTARSIA_INKLING2_DIR)");
+                    return;
+                }
+            }
+        }
+    };
+    let json = std::fs::read_to_string(dir.join("tokenizer.json")).unwrap();
+    let renderer = InklingChat::from_tokenizer_json(&json).unwrap().expect("Inkling vocabulary");
+    // the markers by the ids of the model card (spec section e)
+    assert_eq!((renderer.ids.model, renderer.ids.text, renderer.ids.thinking, renderer.ids.end_message, renderer.ids.end_sampling), (200001, 200004, 200008, 200010, 200006));
+    let tok = tokenizers::Tokenizer::from_bytes(json.as_bytes()).unwrap();
+    let eng = Arc::new(RealVocab { tok, json, chat: renderer, say: Mutex::new(Vec::new()), first_mask: Mutex::new(Vec::new()) });
+    let app = intarsia_server::router(eng.clone(), None);
+    let want = eng.ids(&["<|message_model|>", "<|content_thinking|>", "hm", "<|end_message|>", "<|message_model|>", "<|content_text|>", "{\"a\": 1}", "<|end_message|>"]);
+    *eng.say.lock().unwrap() = want;
+    let (st, body) = chat(&app, json!({"messages": [{"role": "user", "content": "give a"}], "response_format": schema_format(), "max_tokens": 40})).await;
+    assert_eq!(st, StatusCode::OK, "{body}");
+    let v: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(v["choices"][0]["message"]["content"], "{\"a\": 1}", "{body}");
+    assert_eq!(v["choices"][0]["message"]["reasoning_content"], "hm", "{body}");
+    assert_eq!(eng.first_mask.lock().unwrap().clone(), vec![200001], "only <|message_model|> may open the reply");
+}
+
+struct RealVocab {
+    tok: tokenizers::Tokenizer,
+    json: String,
+    chat: InklingChat,
+    say: Mutex<Vec<u32>>,
+    first_mask: Mutex<Vec<u32>>,
+}
+
+impl RealVocab {
+    fn ids(&self, parts: &[&str]) -> Vec<u32> {
+        parts.iter().flat_map(|p| self.tok.encode(*p, false).unwrap().get_ids().to_vec()).collect()
+    }
+}
+
+impl Engine for RealVocab {
+    fn info(&self) -> ModelInfo {
+        let mut i = Ink::default().info();
+        i.vocab = 200058;
+        i.eos_ids = vec![200006];
+        i
+    }
+    fn tokenize(&self, text: &str, add: bool) -> Result<Vec<u32>> {
+        Ok(self.tok.encode(text, add).unwrap().get_ids().to_vec())
+    }
+    fn detokenize(&self, ids: &[u32]) -> Result<String> {
+        Ok(self.tok.decode(ids, true).unwrap())
+    }
+    fn apply_chat_template(&self, _: &[Value], _: &ChatOpts) -> Result<String> {
+        panic!("rendered to ids")
+    }
+    fn chat_ids(&self, messages: &[Value], opts: &ChatOpts) -> Result<Option<Vec<u32>>> {
+        self.chat.render(messages, opts).map(Some)
+    }
+    fn tokenizer_json(&self) -> Option<String> {
+        Some(self.json.clone())
+    }
+    fn submit(&self, req: GenRequest) -> Result<Receiver<GenEvent>> {
+        let (tx, rx) = channel();
+        let want = self.say.lock().unwrap().clone();
+        let mut out: Vec<u32> = Vec::new();
+        let mut c = req.constraint.as_ref().unwrap().start().unwrap();
+        for step in 0..req.max_tokens {
+            let m = c.compute_mask().unwrap();
+            let allowed = |t: u32| m.allows(t);
+            if step == 0 {
+                *self.first_mask.lock().unwrap() = (0..200058u32).filter(|&t| allowed(t)).collect();
+            }
+            let pick = want.get(step).copied().filter(|&t| allowed(t)).unwrap_or(200006);
+            if pick == 200006 {
+                break;
+            }
+            c.commit(pick).unwrap();
+            out.push(pick);
+        }
+        let n = out.len();
+        let texts: Vec<String> = out.iter().map(|&t| self.tok.decode(&[t], true).unwrap()).collect();
+        std::thread::spawn(move || {
+            for (t, s) in out.iter().zip(texts) {
+                tx.send(GenEvent::Token { id: *t, text: s }).ok();
+            }
+            tx.send(GenEvent::Done { finish_reason: FinishReason::Stop, stop_sequence: None, prompt_tokens: 1, completion_tokens: n + 1, cached_tokens: 0, prefill_ms: 1.0, decode_ms: 1.0, prefill_chunk: None }).ok();
+        });
+        Ok(rx)
+    }
+    fn forward_logits_each(&self, _: &[u32], _: &mut dyn FnMut(usize, &[f32]) -> Result<()>) -> Result<()> {
+        Ok(())
+    }
+    fn telemetry(&self) -> TelemetrySnapshot {
+        TelemetrySnapshot { schema_version: 1, model: "ink-real-vocab".into(), ..Default::default() }
+    }
+}
