@@ -22,6 +22,13 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
   #10867 starts, record it here, and take no default flips from m-mix (those come later as their own commit). ink-batch
   merges this lane's 761a1561b (serve admission fix).
 
+- 2026-11-21 (coordinator): merge ink/d1row-doc 5b0b0bd2f (docs only: docs/results/2026-11-21-inkling2-d1row/ and its results
+  doc; the d1row kernels lost and stay unmerged on ink/d1row); check the diff touches only docs/results/; ops 84-87 are free
+  again (mark them free in an op reservation note if ink/metal has one: it has none). Done: merge 2343bb720, 27 files, all under
+  docs/results/.
+- 2026-11-21 (coordinator): guard the two  uses in tests/inkling2.rs with 
+  (Linux test builds of intarsia-models failed), check on spark2, commit separately. Done: e3f92beff;  EXIT 0 on spark2 and clean on endor.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
@@ -174,7 +181,7 @@ for a later lane (memory: the workspace grows with the chunk; not changed here).
 | `prof_kernel.jsonl` | #10730, `INTARSIA_METAL_PROFILE=kernel`, 33 tokens | op order and labels of a decode step (613 dispatches); durations inflated (one waited command buffer per launch) |
 | `prof_cb.jsonl` | #10730, `cb`, 65 tokens, `--profile-every 16` | normal steps = 2 command buffers (16 + 597 dispatches), 15.8 ms; profiled steps 419 buffers (Fable review section 0.1) |
 | `prof_cb1.jsonl` | #10756, `cb`, `INTARSIA_METAL_COMMIT_EVERY=1`, 33 tokens | **not per dispatch for normal steps**: with token feedback the step is held and committed as 16 + 597 dispatches regardless of the commit cadence; 29 normal steps, median wall 15.86 ms, GPU busy 15.82 ms (the 3034 one-dispatch buffers are the prefill and the profiled steps) |
-| `prof_cb2.jsonl` | #(queued), the same with `INTARSIA_TOKEN_FEEDBACK=0 --profile-every 0` | the per-dispatch timeline of an unprofiled step (labels by position from `prof_kernel.jsonl`, `prof_cb1.py`) |
+| `prof_cb2.jsonl` | #10857, `cb`, `INTARSIA_METAL_COMMIT_EVERY=1 INTARSIA_TOKEN_FEEDBACK=0 --profile-every 0`, 33 tokens | **per-dispatch timeline of unprofiled steps**: every dispatch its own buffer, labelled by the backend; 30 steps x 613 dispatches; GPU busy 16.74 ms / token, span 16.96 ms (the one-dispatch buffers add ~1.5 us each over the normal 15.8 ms step) |
 
 Analysis scripts: `prof.py` (kernel trace per op), `prof_cb1.py` (per-dispatch labels by position).
 
@@ -200,6 +207,28 @@ normal 15.76 ms step. Floor = the term's bytes at 560 GB/s (perf-strategy sectio
 | Fused attention InkAttnDecode (48 x 32 us) | 1.52 | 10 % | 0.08 | 1.44 | 48 |
 | argmax | 0.17 | 1 % | 0 | 0.17 | 1 |
 | **Total** | **15.76** | | **9.9** | **5.9** | 613 dispatches |
+
+Measured per dispatch (#10857, `prof_cb2.jsonl`, the backend's own labels, mean of 30 unprofiled steps; the sum is 16.74 ms,
+about 1 ms above a normal step from the one-dispatch buffers):
+
+| Kernel | us / token | share | dispatches / token | us / dispatch |
+|---|---:|---:|---:|---:|
+| moe_experts_situ_bf16 | 4057 | 24.2 % | 88 | 46.1 |
+| ink_in_proj_bf16_gemv | 3579 | 21.4 % | 48 | 74.6 |
+| conv_mix_bf16 | 2715 | 16.2 % | 234 | 11.6 |
+| ink_attn_decode_bf16 | 1669 | 10.0 % | 48 | 34.8 |
+| logits_bf16_gemv (unembed) | 1594 | 9.5 % | 1 | 1594 |
+| matmul_bf16_gemv (wo) | 1354 | 8.1 % | 48 | 28.2 |
+| moe_experts_mxfp8_bf16 | 549 | 3.3 % | 8 | 68.6 |
+| moe_route_f32 | 501 | 3.0 % | 48 | 10.4 |
+| attn_res_mix_bf16 | 231 | 1.4 % | 26 | 8.9 |
+| logits_bf16_gemv (router) | 226 | 1.3 % | 48 | 4.7 |
+| argmax_f32 | 174 | 1.0 % | 1 | 174 |
+| loop_blend, rmsnorm, embedding, other | 87 | 0.5 % | 15 | |
+
+It confirms the corrected split above: projections 4.93 ms (floor 4.63), experts 4.61 ms (floor 3.28), controllers
+(ConvMix + MoeRoute + router + AttnResMix + LoopBlend) 3.74 ms (floor 0.25, 364 of the 613 dispatches), attention 1.67 ms,
+unembed 1.59 ms (floor 1.65).
 
 ### Ranked costs (what to attack, by ms over the floor)
 
