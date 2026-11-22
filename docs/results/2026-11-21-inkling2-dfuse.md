@@ -447,7 +447,7 @@ candidates, in the order to try:
 Measure the same way as the hoist: microbench warm vs rotating sets, the per-dispatch trace, and the normal-step span with
 interleaved reps.
 
-### ink_route candidate 1: preload (branch ink/dfuse-route, ed14676a6; not yet timed)
+### ink_route candidate 1: preload (branch ink/dfuse-route, 120cfe4b9; not yet timed)
 
 - **Kernel.** `ink_route_p9` / `ink_route_p16` (`INTARSIA_INK_ROUTE_PRELOAD`, default off). Each simdgroup loads its whole
   weight row and the x row before the first dot: 9 uint4 per lane at D 2304, up to 16. The dot8 terms are added in the same
@@ -465,6 +465,13 @@ interleaved reps.
   4. us per ink_route call in the stream (per-dispatch trace) and in the microbench.
   5. Normal-step span: short prompt 6 interleaved reps, 5k 4 reps.
 - The ink/dfuse docs check of the tail removal passed on spark2 (#11103).
+- **120cfe4b9** (on ed14676a6) counts the `ink_route_p*` launches (`route_preload_served()`); the bitwise test asserts the
+  count grew, and the first launch prints one stderr line. This guards against the two build hazards (a cloned target dir
+  keeping the preload uncompiled, and an empty or failed run compared with itself). Job R now touches every tracked source
+  after cloning the target, counts a model-run match only when both runs finished, and reports how many runs the preload
+  served (expect on 10 of 10, off 0 of 10). bespin #11163 checked the counter build. Job F got the same touch and run check.
+- Queue at 02:51: R (#11111) is 4th behind #11104 on endor; fleetq estimates a start around 12:30 if the jobs ahead end on
+  time. F (#11145) follows R.
 
 ### Job E (#11003, 02:01-02:14, snapshot ac2371c81; raw/E_*)
 
@@ -571,4 +578,3 @@ Job R (#11111) still runs its same-binary off / best / best + preload G2 compari
 Job F (#11145) checks the new defaults on Metal. It merges into ink/metal after ink-metal's decode-mode G2 is fixed or
 explained.
 
-PENDING_ATTRIBUTION
