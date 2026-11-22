@@ -403,3 +403,20 @@ Rows for docs/decisions/LOG.md at merge-to-main time (coordinator): P12 default-
 default on Metal, chunk 2048 (if it lands), and:
 
 - INTARSIA_INK_HEAD_SCREEN opt-in: md5 gate pending (rerun of #10974)
+
+## Merge gate #11048 (tree 45887198b + docs: m-mix 52b337aa9, ink/batch bbc0bec00)
+
+**FAIL: G2 decode mode** (now gated, coordinator brief). G2 short decode KL21 1.109e-2 (limit 4e-3), long 9.205e-3 (6e-3),
+the tool exits 1 on both; carried by chat_reasoning (16 decode rows, 5.808e-2, max 0.433) and chat_system (16 rows, 2.376e-2,
+max 0.303), top-1 100 % on both. Before the merges (f55bfe8b7 era, #10721 / #10901): 2.589e-3 / 2.474e-3. G2 prefill 2.719e-3
+short / 3.544e-3 long (pass; was 2.380e-3 / 3.418e-3). G3 short 8.069e-3, long 1.227e-2 (pass). Confident misses 0 / 0 / 1 / 0.
+
+Passed: rows_exact 11, inkmix 3, rows_single 2, quick_coverage 1, docs_env_vars 2; kernels test 18 Inkling kernels ADMITTED;
+tiny inkling2 8 / 8 and inkling2_batch 6 / 6 on cpu and Metal; real-model `batch_step --ctx 600 --ctx-spread 150`, B 2 / 5 / 16:
+batched == solo (asserted), 1.67x / 2.95x / 4.41x. Greedy md5 changed (64 tokens 65cde8f3, was 15d62682; 256 tokens 29ec9e50,
+was d64363ea; 63.7 tok/s). Every queued merge is held; bisect #11142.
+
+At B = 1 the teacher-forced decode path (`forward_logits_decode`, engine.rs:984) is `forward_prefill` then one-token
+`model.forward`, never `forward_batch`, so no call has `rows`; ink/batch's inkling2.rs changes are no-ops there (batch None:
+`pair_rows` true, the same fused rule). It did change solo-path kernels (inkling2_attn.metal, gemv_multirow.metal,
+multirow.rs), which the bisect covers.
