@@ -121,6 +121,15 @@ Status: waiting on endor #10943 (items 2 and 3 timing); code done and CPU-checke
   (`fleetq run --host bespin --load cpu --mem 6 --expect <min>`, a `git archive` copy in `~/intarsiaml-<lane>`, toolchain in
   `~/.cargo/bin`; no GPU timing or real model there). CPU tests: spark2. GPU work: endor fleetq jobs. Reading, git and editing
   locally are fine.
+- 2026-11-22 (coordinator): trim the endor device-sampler job before it starts, since a long quiet job blocks all of endor.
+  (1) No 35B Metal model tests. Keep `plan show` for 8B and 35B, which must be byte-identical with the switch default-off, and
+  keep the 8B Metal model tests. (2) No G2 / G3 with the switch on: they are logits gates, and LastGumbel only changes how a
+  token is drawn from the same logits. G1 only if it exercises a sampled request. It does not (`tests/inkling2.rs` runs
+  `AllLogits` / `LastLogits` only), so G1 is dropped too. (3) Keep the rest: shader compile first, the Metal crate incl.
+  chi-square on the Metal draws, admission, md5 gates, t1.0 on / off / greedy x5 at short and 5k, serve smoke. (4) Lower
+  `--expect` to the honest estimate. `fleetq update` cannot change `--expect` (it takes --load / --quiet / --mem only), so
+  #11033 was released and requeued as #11037 with `--expect 100` (build + Metal suite ~30, ~52 generate runs ~26, serve ~5,
+  plan show ~6, 8B tests ~15, plus margin). It was last in line, so it lost no place.
 
 ## Measurement (before)
 
@@ -553,8 +562,9 @@ without a seed gets a fresh one (time mixed with a process counter).
 | cpu backend, whole suite (GumbelArgmax ref == fast == definition, rows independent of R) | spark2 #11018 | 17 binaries ok, 0 failed |
 | `gumbel_engine` (tiny model: fixed seed same stream on the same and a fresh engine; another seed moves the streams; batched B 4 / 8 == solo, device and host rows mixed; switch off = host sampler, host rows unchanged) | spark2 #11013 | pass |
 | `batch_engine` 10/10, `engine` 10/10, `batch` 6/6, `docs_env_vars` 2/2 | spark2 #11013 | pass |
+| wide cpu run on 717139638 (stderr decision line, serve admission of `gumbel_argmax`): core, cpu backend, cli, server (all targets, no fail-fast); `gumbel_engine`, `batch_engine` | spark2 #11034 | 43 binaries ok; 1 failure, `refnoise::rescore_cuda_round7_from_the_committed_table`, which reads `docs/results/2026-10-21-cuda-round7/raw/` that the job's copy left out (`git archive` excluded `docs/results/*/**`), not code; models 2/2 ok |
 | macOS compile: Metal crate with tests, cli `--features metal`, Metal kernel-list pin | bespin #11014 (no Xcode there: the shader compiles on endor) | pass |
-| Metal: shader build, `tests/gumbel.rs` (Metal == definition at V 101 / 4099 / 200058, cap 0 / 30; rows independent; key at an offset; chi-square of the Metal draws at T 0.7 / 1.0, softcap on / off), admission, md5 gates (greedy and host-sampled unchanged; device-sampled feedback on == off, twice == once, 5k), t1.0 timing on / off / greedy (short, 5k, 5 reps), host profile, G1-G3, plan show and Metal model tests for other models | endor #11017, queued behind #10943 (`.scratch/endorgumbel.sh`, summary `.scratch/gmb/summary.txt`) | pending |
+| Metal: shader build first; the whole Metal crate incl. `tests/gumbel.rs` (Metal == definition at V 101 / 4099 / 200058, cap 0 / 30; rows independent; key at an offset; chi-square of the Metal draws at T 0.7 / 1.0, softcap on / off); admission (`gumbel_argmax`, `argmax`); md5 gates (greedy and host-sampled unchanged; device-sampled feedback on == off, twice == once, 5k; every switch-on run must log the device sampler on); t1.0 timing on / off / greedy, short and 5k, 5 reps; host profile; serve smoke with the switch on; `plan show` Qwen3-8B / 35B / Inkling with the switch default-off vs the reference binary; Qwen3-8B (and tiny GDN) Metal model tests | endor #11037 (trimmed, `--expect 100`), queued last in line behind #10943 (`.scratch/endorgumbel.sh`, summary `.scratch/gmb/summary.txt`) | pending |
 
 **Kernel cost (estimate, to be measured in #11017).** One threadgroup per row runs on one GPU core. Per element the kernel does
 Philox (10 rounds), up to two `precise::log`, and `precise::tanh` with the cap. That is about 150 integer and float ops, roughly
