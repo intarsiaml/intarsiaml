@@ -965,6 +965,11 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   (inkling2.toml, new), bench 1, Cargo.lock 1, cuda 1 and hip 1 (the op-coverage test list / `UNIMPLEMENTED` list only).
 - No-op checks: Metal on endor fleetq #11440 (plan show and ids for Qwen3-8B and Llama-3.1-8B, kernels test, goldens,
   workspace tests base vs dev); CUDA on spark1 #11441 (plan show json 35B + 8B, kernels test --quick, base vs dev). Pending.
+- CUDA #11443 done (exit 0, 09:26:37-09:59:22): Qwen3-8B 256 greedy ids on CUDA identical base vs dev, short (sha 90c02be1) and
+  4k (sha 6203ecdb). Its `cargo test --workspace` did not run any test on either tree: the macOS-only Metal crate's test
+  `quick_coverage` does not compile on Linux (`intarsia_backend_metal::kernels` is cfg'd out), the same error on base and dev.
+  Rerun as #11455 with `--exclude intarsia-backend-metal --exclude intarsia-backend-hip` (CI's exclusions minus cuda, which
+  runs here on its GPU). Memguard minimum 61 GB available, 0 kills. (#11453 was a script error, nothing ran.)
 - Metal #11440 done (exit 0, 09:29:18-09:59:11, quiet gpu,cpu): 256 greedy ids identical base vs dev for Qwen3-8B (short sha
   d619ede5, 4k feb11f5c) and Llama-3.1-8B-Instruct (short 25bbc20f, 4k eda51e94); `plan show` txt and json byte-identical for
   both. `kernels test --backend metal` 0 FAIL on both: base 56 kernels / 1335 cases, dev 86 kernels / 2915 cases (the Inkling,
