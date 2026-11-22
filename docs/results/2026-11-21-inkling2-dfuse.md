@@ -1456,3 +1456,24 @@ Neither has a measured lever >= 0.3. A pair (i) + (ii) might reach it only if (i
     path) has not been measured.
 - **5k residual.** The cold-KV harness grows 0.79 ms/token from ctx 150 to 5180, but the real step grows 0.93 (job Q:
   14.27 vs 13.34; job G: 0.92). About 0.14 ms/token at 5k is not explained by the attention core.
+
+### Coordinator brief: item 2b, the dispatch cost (2026-11-22 ~09:45, verbatim in substance)
+
+Go with (b), measure-only, with one change so that the result applies to the real engine:
+1. **The deciding measurement runs in the real decode step, not the harness.** A debug env var inserts k empty dependent
+   dispatches into the real decode chain at a realistic point (e.g. after attention), for k = 0, 50, 100, 200. Time
+   ms/token at short and at 5k, ABAB after a warm-up, all in one quiet slot. The slope is the real cost per transition.
+2. **Keep the harness chains** (empty, write-only, read-modify-write, read-previous-output; private vs shared), but
+   configured as the engine is: the same encoder dispatch type, hazard-tracking mode and barrier scope. If these differ
+   from what dispatch_cost assumed, write down which setting explains the gap.
+3. **The prologue split, the combine fold and L's full-512 rerun ride along**, as long as they don't delay item 1.
+
+**Decision rule:**
+- Real-step slope >= 2 us per dispatch: reopen the dispatch-count target and send the coordinator ranked candidates, with
+  ms/token = removable dispatches x slope. The coordinator takes the build decision.
+- Slope < 1.5 us: do (a), the wrap-up.
+- In between: report it, and the coordinator decides.
+
+**Other instructions:**
+- The 0.14 ms/token unexplained at 5k is noted (job Q results) and is not chased now.
+- The env var is committed as debug-only, off by default, with no effect on plans or bits when unset.
