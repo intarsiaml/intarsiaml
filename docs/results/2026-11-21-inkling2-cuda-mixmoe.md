@@ -983,3 +983,16 @@ Metal plan show Qwen3-8B / Llama-3.1-8B / Inkling and cpu plan show Qwen3-8B / L
 md5 g64 `65cde8f35a18` and g256 `61fd59fecb5e`, both equal to main. CUDA plan show 35B / 8B: byte-identical. CUDA 8B greedy ids are
 identical, and kernels test --quick passes 128 kernels / 1556 cases (spark2 #11547). Inkling CUDA md5 g64 / g256 / g1.2k are unchanged
 with spec off and on (#11541).
+
+## Merge of main 3f79f70ed and the plan-test fix (PR #491 CI)
+
+CI `cargo test (linux)` failed in `plan.rs::lazy_admission_cases_build_nothing_when_cached_and_keep_the_data_of_those_that_run`.
+It also failed on endor twice in a row, so it is deterministic, not a flake. The cause is that serde_json without the
+`float_roundtrip` feature parses some 17-digit floats to the neighbouring value. The entries kept from the cache take one more
+parse / print step than the cold file, so `cpu_f32_logits` rel_l2 came back 1 ulp off (2.4632088598130532e-8 vs
+2.463208859813053e-8). This branch exposed it by seeding each case from its label (`case_rng`), which gives that case new data.
+Turning `float_roundtrip` on made the test pass 2/2 (#11590, probe only, reverted). I did not turn it on for the workspace
+because it would change how every JSON float parses, model configs included. Fix: the test now compares floats up to 4 ulp;
+data drawn from another generator would differ by far more. Plan tests pass 10/10, twice (#11595). Merge checks after the
+main merge: workspace check, mtp 17/17, inkling2 69/69 (endor #11581); Inkling CUDA md5s are unchanged with spec off and on
+(spark2 #11582).
