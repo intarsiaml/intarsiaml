@@ -5,6 +5,11 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 
 ## Briefs received
 
+- 2026-11-22 (main): bisect names m-mix's NE 4 from D 2048 (25ff7864a) as the G2 decode culprit; NE=3 restores base KL;
+  BLEND_RB and InkMixP cleared for accuracy; ink-metal is fixing. Do not requeue the five-arm b8reg; queue ONE trimmed quiet
+  job on the merged tip: tip default | tip INTARSIA_INK_MIX_NE=3 | tip NE=3 + BLEND_RB=16, B=1/8/16, 3 reps. Report #11104's
+  rtvar correctness when it finishes, then the trimmed table.
+
 - 2026-11-21 (main, after the design note): design approved, proceed. (1) Memory: count the full-attention KV of the 8
   full visits per sequence at max context as well as the rings; `enable_batch` (and the server) must cap B so everything
   fits and refuse cleanly rather than over-allocate. (2) Solo path: single-stream decode tok/s and G2 short / long
