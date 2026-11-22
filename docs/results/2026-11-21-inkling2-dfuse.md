@@ -1477,3 +1477,27 @@ Go with (b), measure-only, with one change so that the result applies to the rea
 **Other instructions:**
 - The 0.14 ms/token unexplained at 5k is noted (job Q results) and is not chased now.
 - The env var is committed as debug-only, off by default, with no effect on plans or bits when unset.
+
+### Job K (#11450, queued ~10:05; snapshot .scratch/snap11 = 88d28e48a): what a dependent dispatch costs in the real step
+
+- **88d28e48a** adds `INTARSIA_INK_DEBUG_DISPATCHES=k` (debug only; unset = 0, no other effect). Each solo one-row decode
+  step gets k extra `Add` [1, 32] bf16 dispatches, spread over the 48 visits right after each attention. They form a
+  chain: the first reads the attention output, and each next one reads the previous output, ping-ponging between the heads
+  of aproj and aout. wo and the attention-side ConvMix overwrite both right after, so the bits do not change.
+  Documented in docs/tuning.md. bespin #11449: check, the CPU Inkling tests and docs_env_vars pass.
+- **Job K** (raw/K_jobK.sh when archived):
+  1. build;
+  2. greedy md5 at 64 tokens, unset vs k = 200 (stop on a difference), and plan show of Qwen3-8B / Llama-3.1-8B against
+     the base binary;
+  3. **the deciding measurement**: warm-up, then k = 0 50 100 200 200 100 50 0 at short and at 5k. The least-squares
+     slope of span ms/step on k is the cost per transition;
+  4. ride-alongs:
+     - the harness chains in the engine's setting and in dispatch_cost's (raw/Q_tools/dispcost.swift: shared vs private,
+       tracked vs untracked, serial vs concurrent + barrier);
+     - dispatch_cost itself;
+     - the prologue split (noclip / noconv / nobias, token mode);
+     - ink_attn_bench (L's full-512 row).
+- **Engine setting, from the code:** `MetalBackend::alloc` makes buffers `StorageModeShared` with hazard tracking ON
+  (`new_mtl_buffer(bytes, false)`). One `MTLDispatchTypeSerial` encoder, no barriers. dispatch_cost's buffers are
+  untracked (`new_mtl_buffer(bytes, true)`), and the attention harness used private, tracked buffers. So hazard tracking
+  is the first suspect for 0.88 vs 3.3 us.

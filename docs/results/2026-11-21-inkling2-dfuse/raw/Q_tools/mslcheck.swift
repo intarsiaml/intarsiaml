@@ -5,7 +5,7 @@ let dir = CommandLine.arguments[1]
 let dev = MTLCreateSystemDefaultDevice()!
 let sets: [(String, String, [String: NSNumber])] = [
     ("ship", "ship.metal", [:]), ("p0", "probe.metal", [:]), ("p_nopro", "probe.metal", ["PR_NOPRO": 1]),
-    ("p_nomath", "probe.metal", ["PR_NOMATH": 1]), ("p_skel", "probe.metal", ["PR_NOPRO": 1, "PR_NOMATH": 1]),
+    ("p_nomath", "probe.metal", ["PR_NOMATH": 1]), ("p_noclip", "probe.metal", ["PR_NOCLIP": 1]), ("p_noconv", "probe.metal", ["PR_NOCONV": 1]), ("p_nobias", "probe.metal", ["PR_NOBIAS": 1]), ("p_skel", "probe.metal", ["PR_NOPRO": 1, "PR_NOMATH": 1]),
     ("p_la1", "probe.metal", ["PR_NB": 1]), ("p_la2", "probe.metal", ["PR_NB": 2]), ("p_la4", "probe.metal", ["PR_NB": 4]),
     ("p_early2", "probe.metal", ["PR_NB": 2, "PR_EARLY": 1]), ("p_early4", "probe.metal", ["PR_NB": 4, "PR_EARLY": 1])]
 var bad = 0

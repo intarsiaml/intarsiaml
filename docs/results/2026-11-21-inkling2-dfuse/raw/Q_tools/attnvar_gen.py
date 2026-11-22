@@ -6,7 +6,8 @@
     PR_EARLY 1  the first PR_NB steps' cache loads are issued in ink_attn_dec before the prologue (same bits; needs PR_NB)
     PR_NOMATH 1 the key loop keeps its loads and drops the score / online-softmax arithmetic and the slot merge (timing only)
     PR_NOPRO 1  ink_attn_dec keeps the prologue's loads and barriers and drops its arithmetic: no q / r clip reductions,
-                no conv, no k clip / v norm, no rel bias (r . relproj) (timing only)
+                no conv, no k clip / v norm, no rel bias (r . relproj) (timing only); the parts alone:
+    PR_NOCLIP 1 no q / r clip reductions and no k clip / v norm   PR_NOCONV 1 no K / V conv   PR_NOBIAS 1 no rel bias
     plus pr_bytes (a byte stream over the split's K / V rows on the same grid) and pr_floor (an empty dispatch).
 usage: python3 -I attnvar_gen.py KERNEL_DIR OUT_DIR"""
 import sys, os
@@ -37,6 +38,15 @@ p = sub(p, "constant constexpr uint INK_MAXS = 32;", """#ifndef PR_NB
 #endif
 #ifndef PR_NOPRO
 #define PR_NOPRO 0
+#endif
+#ifndef PR_NOCLIP
+#define PR_NOCLIP PR_NOPRO
+#endif
+#ifndef PR_NOCONV
+#define PR_NOCONV PR_NOPRO
+#endif
+#ifndef PR_NOBIAS
+#define PR_NOBIAS PR_NOPRO
 #endif
 #define PR_NBX (PR_NB > 0 ? PR_NB : 1)
 constant constexpr uint INK_MAXS = 32;""")
@@ -184,7 +194,7 @@ p = sub(p, """    const InkSplit g = ink_split(p, pos0, t, split);
 p = sub(p, """        for (uint x = 0; x < 2 * GP; ++x) {
             const float s = simd_sum(vals[x]);
             if (lane == 0) part[sg][x] = s;
-        }""", """        for (uint x = 0; x < 2 * GP && !PR_NOPRO; ++x) {
+        }""", """        for (uint x = 0; x < 2 * GP && !PR_NOCLIP; ++x) {
             const float s = simd_sum(vals[x]);
             if (lane == 0) part[sg][x] = s;
         }""")
@@ -197,7 +207,7 @@ p = sub(p, """            if (c < D) {
                 float x = rA(rv[h] * ink_clipf(tr, p.rel_clip));
                 if (use_tau) x = rA(x * tau);
                 rsh[h][c] = x;
-            }""", """#if PR_NOPRO
+            }""", """#if PR_NOCLIP
             if (c < D) S.q[h][c] = qv[h];
             if (c < dr) rsh[h][c] = rv[h];
             (void)tq; (void)tr; (void)tau; (void)use_tau;
@@ -217,7 +227,7 @@ p = sub(p, """        if (c < D) {
             kcv[r] = ink_conv(pk, kr, kt, t0 + r, pos0, p, ch, kvh);
             vcv[r] = ink_conv(pv, vr, vt, t0 + r, pos0, p, ch, kvh);
         }""", """        if (c < D) {
-#if PR_NOPRO
+#if PR_NOCONV
             kcv[r] = bf2f(pk[(ulong)(t0 + r) * p.pw + ch]);
             vcv[r] = bf2f(pv[(ulong)(t0 + r) * p.pw + ch]);
 #else
@@ -226,19 +236,19 @@ p = sub(p, """        if (c < D) {
 #endif
         }""")
 p = sub(p, """    for (uint r = 0; r < nnew; ++r) {
-        const float a = simd_sum(kcv[r] * kcv[r]);""", """    for (uint r = 0; r < nnew && !PR_NOPRO; ++r) {
+        const float a = simd_sum(kcv[r] * kcv[r]);""", """    for (uint r = 0; r < nnew && !PR_NOCLIP; ++r) {
         const float a = simd_sum(kcv[r] * kcv[r]);""")
 p = sub(p, """        float a = 0.0f;
         for (uint j = 0; j < dr; ++j) a = fma(rsh[h][j], bf2f(rp[(ulong)j * E + e]), a);
         tb[h * g.nb + x % g.nb] = rA(a) * INK_LOG2E;""", """        float a = 0.0f;
-        for (uint j = 0; j < dr && !PR_NOPRO; ++j) a = fma(rsh[h][j], bf2f(rp[(ulong)j * E + e]), a);
+        for (uint j = 0; j < dr && !PR_NOBIAS; ++j) a = fma(rsh[h][j], bf2f(rp[(ulong)j * E + e]), a);
         tb[h * g.nb + x % g.nb] = rA(a) * INK_LOG2E;""")
 p = sub(p, """        if (c < D) {
             tkv[r * D + c] = f2bf(kcv[r] * ink_clipf(tk, p.qk_clip));
             const float inv = precise::divide(1.0f, precise::sqrt(tv / (float)D + p.eps));
             tkv[(PT + r) * D + c] = f2bf(vcv[r] * inv);
         }""", """        if (c < D) {
-#if PR_NOPRO
+#if PR_NOCLIP
             tkv[r * D + c] = f2bf(kcv[r]);
             tkv[(PT + r) * D + c] = f2bf(vcv[r]);
             (void)tk; (void)tv;

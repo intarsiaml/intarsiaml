@@ -14,6 +14,9 @@ one p0 probe.metal
 one p_nopro probe.metal -DPR_NOPRO=1
 one p_nomath probe.metal -DPR_NOMATH=1
 one p_skel probe.metal -DPR_NOPRO=1 -DPR_NOMATH=1
+one p_noclip probe.metal -DPR_NOCLIP=1
+one p_noconv probe.metal -DPR_NOCONV=1
+one p_nobias probe.metal -DPR_NOBIAS=1
 one p_la1 probe.metal -DPR_NB=1
 one p_la2 probe.metal -DPR_NB=2
 one p_la4 probe.metal -DPR_NB=4
