@@ -595,9 +595,9 @@ fn ink_mxfp4_head_bitwise_gemv() {
 }
 
 /// The decode repack (`ink.moe_layout = 1`, brief 36 stage A): the NVFP4 situ kernels on repacked weights are BITWISE the same
-/// kernels on the checkpoint layout, ordinary and `_rows`, T 1 / 4 / 16, the real shape (H 2304, I 1152) and a small one; and
-/// each row of an 80-row repacked call (640 pairs: the pair-table path, which a repacked call always takes) equals the one-row
-/// call on the plain layout. (No process-wide setter here: the tests run in parallel.)
+/// kernels on the checkpoint layout, ordinary and `_rows`, T 1 / 4 / 16, the real shape (H 2304, I 1152) and a small one; and an
+/// 80-row call (640 pairs: the tensor-core prefill `ink_moe_mma`, which reads the repacked address map since brief 44) equals the
+/// plain layout's 80-row call. (No process-wide setter here: the tests run in parallel.)
 #[test]
 fn ink_experts_repack_bitwise() {
     use intarsia_core::inkling2::ops::moe_repack_rows;
@@ -628,19 +628,10 @@ fn ink_experts_repack_bitwise() {
                     rig.run(kn, Op::MoeExperts, &v, &[(DType::Bf16, vec![t, h], None)], &a)
                 };
                 let on = run(&rp, 1);
-                if t <= 16 {
-                    let off = run(&plain, 0);
-                    assert!(off[0].to_f32().iter().all(|v| v.is_finite()), "{kn} non-finite");
-                    assert_eq!(on[0].data, off[0].data, "{kn} H {h} I {i} T {t}: repacked differs from the plain layout");
-                } else {
-                    for r in [0usize, 37, t - 1] {
-                        let one = |tt: &HostTensor, w: usize| HostTensor::new(tt.dtype, vec![1, w], tt.data[r * w * tt.dtype.size_bytes()..(r + 1) * w * tt.dtype.size_bytes()].to_vec()).unwrap();
-                        let mut v: Vec<HostTensor> = vec![one(&x, h), one(&ids, k), one(&ws, k)];
-                        v.extend(plain.iter().cloned());
-                        let o1 = rig.run("moe_experts_situ_bf16_rows", Op::MoeExperts, &v, &[(DType::Bf16, vec![1, h], None)], &a);
-                        assert_eq!(&on[0].data[r * h * 2..(r + 1) * h * 2], &o1[0].data[..], "{kn} H {h} I {i} T {t} row {r}: repacked table path vs the plain one-row call");
-                    }
-                }
+                let off = run(&plain, 0);
+                assert!(off[0].to_f32().iter().all(|v| v.is_finite()), "{kn} non-finite");
+                // T 80 (640 pairs): both layouts take the tensor-core prefill (`ink_moe_mma`, which reads the repack, brief 44)
+                assert_eq!(on[0].data, off[0].data, "{kn} H {h} I {i} T {t}: repacked differs from the plain layout");
             }
         }
     }

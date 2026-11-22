@@ -503,7 +503,7 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool r
     // repacked weights: the decode kernels only (no tensor-core path), 16-bit activations, the shapes the repack covers
     if (rp && (FMT != FMT_NV || a.aq || a.I % kGuRows || a.H % kDnRows || (a.H / 32) % 8 || (a.I / 32) % 4))
         return IK_ERR_INVALID_ARG;
-    if (rp) rows_kernel = true;  // (rows_kernel only gates the tensor-core paths below)
+    // (a repacked call never reaches the FP4 path below: that needs W4A4, refused above; ink_moe_mma reads the repack, a.rp)
     a.pf = moe_pf_on();
     ik_scratch sc_rest{};
     const ik_scratch* sc = sc_in;
@@ -540,7 +540,7 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool r
     if (!rows_kernel && P > mma_min_pairs() && a.H % 128 == 0 && a.I % 128 == 0 && g_probe == 0 && sc && sc->data &&
         sc->bytes >= ink_moe_mma_scratch_bytes(P, a.E, a.H, a.I) && (reinterpret_cast<uintptr_t>(sc->data) & 15u) == 0) {
         const InkMmaArgs m{a.x, a.ids, a.wts, a.guw, a.gus, a.dnw, a.dns, a.gs, a.out, a.T, a.K, a.E, a.H, a.I, FMT, ACT, a.gc, a.uc,
-                           a.aq, a.xo, ho};
+                           a.aq, a.xo, ho, rp ? 1 : 0};
         return ink_moe_mma(m, sc->data, out_f32, st);
     }
     const int64_t need = rnd(P * 4) + rnd((int64_t)(a.E + 1) * 4) * 2 + rnd(P * a.I * 2) + rnd(P * a.H * 2);

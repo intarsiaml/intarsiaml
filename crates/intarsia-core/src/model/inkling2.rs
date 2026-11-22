@@ -177,8 +177,8 @@ pub const ACT_QUANT_ENV: &str = "INTARSIA_INK_ACT_QUANT";
 
 /// The expert activation mode from its spelling (`w4a16` -> 0, `w4a4` -> 1).
 /// `INTARSIA_INK_MOE_REPACK=1` (CUDA, off by default; brief 36 stage A): the NVFP4 expert weights are repacked at load for the
-/// decode kernels' warp steps (`ink.moe_layout = 1`); the CUDA experts then never take the tensor-core prefill path, and W4A4 is
-/// refused.
+/// decode kernels' warp steps (`ink.moe_layout = 1`); the tensor-core prefill (`ink_moe_mma`) reads the repacked address map
+/// (brief 44), and W4A4 is refused.
 pub const MOE_REPACK_ENV: &str = "INTARSIA_INK_MOE_REPACK";
 
 fn moe_repack_wanted(b: &dyn Backend) -> bool {
@@ -472,7 +472,7 @@ pub(super) fn load(
     // the decode repack of the NVFP4 experts (MOE_REPACK_ENV, CUDA only)
     let repack = moe_repack_wanted(b) && crate::inkling2::ops::moe_repack_fits(d, ink.inter);
     if repack {
-        eprintln!("inkling2: NVFP4 experts repacked for the decode kernels ({MOE_REPACK_ENV}=1; CUDA prefill takes the decode kernels)");
+        eprintln!("inkling2: NVFP4 experts repacked for the decode kernels ({MOE_REPACK_ENV}=1)");
     }
     let mut p12_stats = P12Stats::default();
     let mut put = |data: &[u8], dt: DType, shape: &[usize]| -> Result<TensorRef> {
