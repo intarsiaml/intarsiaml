@@ -81,6 +81,11 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   MX_ROWTAB variant from 8546d143f; its solo ABAB's base arm is 8546d143f (not f55bfe8b7).
 - 2026-11-22 (coordinator): pid 53955 on 8099 was an orphan of ink-dfuse's finished #10882; killed (with parent 53944),
   8099 free. Keep the port-pick + owner check; no other change.
+- 2026-11-22 (coordinator, relaying ink-dfuse): ink-dfuse's hoist switch (INTARSIA_INK_MIX_HOIST) picked x vs ring from the
+  row index instead of the in-call index + xoff under row tables; fixed on ink/dfuse ac2371c81 (contiguous path unchanged).
+  Run the row-table rows-exact tests and tiny B 2 / 5 / 16 batched == solo with INTARSIA_INK_MIX_HOIST=1 against ink/dfuse
+  ac2371c81 in a default-load slot (folded into #11056 if not started, else after ink/dfuse merges into ink/metal); report
+  pass / fail to the coordinator and ink-dfuse (a194e917d8f92b542).
 
 ## 1. Design note (contract delta, written before any kernel)
 
