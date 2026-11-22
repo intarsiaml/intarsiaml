@@ -109,6 +109,9 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
     the cpu Inkling tests on bespin; then send ink-metal (af43898d63e5b5190) the one new merge hash in place of the old one (ink-metal
     never cherry-picks lane code). The prefill_chunk = 2048 recipe commit goes on top only if #11109 passes G2/G3 at 2048; if
     not, send the hash without it and tell the coordinator. ink-metal holds merges until the bisect lands (~04:15).
+    **Done:** ink/prefill-merge 96740cbe2 = 378dc214e + ed27f4462 (cherry-picked). Bespin #11173: cargo check clean;
+    cpu tests inkling2 8/8, inkling_chat 7/7, ink_attn_decode 1/1. Sent to ink-metal as the merge hash; the recipe commit
+    follows only if #11109 passes.
 
 ## Status
 
