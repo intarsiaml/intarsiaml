@@ -1,6 +1,6 @@
 // PROBE (lane ink-prefill, brief 21 / 22): ink_attn_nax with an interior-tile fast path. Launcher picks it only under
 // INTARSIA_INK_NAX_INT (1 = exact: on a key tile where every key is visible to all 16 rows of the simdgroup and every
-// distance is < E, skip the per-score window / causal / E tests; 2 = timing only, numerics wrong: interior tiles also skip
+// distance is < E (bias on every score) or every distance is >= E (no bias), skip the per-score window / causal / E tests; 2 = timing only, numerics wrong: interior tiles also skip
 // the rel gather). Otherwise a copy of inkling2_attn_nax.metal (that file's header holds the contract notes).
 // Inkling-2-Mini RelSinkAttn prefill on the M5 neural accelerators (lane ink-m-attn; Metal 4, compiled -std=metal4.0 into
 // intarsia_metal4.metallib, build.rs METAL4_SOURCES; launcher crates/intarsia-backend-metal/src/inkattn.rs). Contract:
@@ -219,8 +219,10 @@ template <int NSG, int MODE>
         // window and rel extent of the last row (uniform per simdgroup)
         const uint tk_lo = kbase + (uint)key0, tk_hi = tk_lo + BK - 1;
         const uint srow_lo = pos0 + qbase, srow_hi = srow_lo + 15;
-        const bool interior = sg_ok && tk_hi <= srow_lo && (window == 0 || srow_hi - tk_lo < window) && srow_hi - tk_lo < E;
-        if (interior) {
+        const bool allvis = sg_ok && tk_hi <= srow_lo && (window == 0 || srow_hi - tk_lo < window);
+        const bool near = srow_hi - tk_lo < E;   // every distance < E: bias on every score
+        const bool far = srow_lo - tk_hi >= E;   // every distance >= E: no bias
+        if (allvis && (near || far)) {
             IN_UNROLL
             for (int f = 0; f < TK; ++f) {
                 IN_UNROLL
@@ -229,7 +231,7 @@ template <int NSG, int MODE>
                     const uint row = hi ? row1 : row0;
                     const uint key = tk_lo + 16 * f + 4 * cq + (e & 3);
                     float s = Sf[f][e] * c;
-                    if (MODE == 1) s += bf2f((hi ? rel1 : rel0)[row - key]) * INX_LOG2E;
+                    if (MODE == 1 && near) s += bf2f((hi ? rel1 : rel0)[row - key]) * INX_LOG2E;
                     Sf[f][e] = s;
                     if (hi) mx1 = max(mx1, s); else mx0 = max(mx0, s);
                 }
