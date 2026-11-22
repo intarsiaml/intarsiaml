@@ -1363,9 +1363,11 @@ extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk,
     const bool fused = p.t + p.k <= p.rr + 1;
     if (fused) p.flags |= F_RING_WRITE;
     cudaStream_t st = IK_STREAM(stream);
-    // the rel tail in slices of 256 elements (4 blocks per (kv head, row) at E = 1024: decode is latency, not work)
-    const unsigned nz = (unsigned)((p.e + 255) / 256);
-    ink_prologue_k<<<dim3(p.hk, p.t, nz > 8 ? 8 : nz), 256, 0, st>>>(p);
+    // decode (T <= 4): the rel tail in slices of 256 elements over more blocks (latency, not work); otherwise one block per
+    // (kv head, row) (each slice block redoes the r jobs). The elements' arithmetic does not depend on the slicing.
+    unsigned nz = p.t <= 4 ? (unsigned)((p.e + 255) / 256) : 1u;
+    if (nz > 8) nz = 8;
+    ink_prologue_k<<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
     if (!fused) {
         const size_t n = (size_t)p.t * p.hk * p.d;
         ink_ring_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p);
