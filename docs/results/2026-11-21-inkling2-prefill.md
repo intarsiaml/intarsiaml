@@ -508,6 +508,22 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### NSG 6 vs 12 with cool-down (#11517, rg4.sh, brief 27): p8k never reached 2736 in 20 min; no pairs, no flip
+
+| reading | time | p8k tok/s | load1 | top CPU processes |
+|---|---|---:|---:|---|
+| 0 | 12:26:04 | 2516.2 | 2.66 | WindowServer 50 %, duetexpertd 12 %, BambuStudio 5 %, zoom.us 4 % |
+| 1 | 12:31:14 | 2022.2 | 6.52 | Tailscale network extension 126 %, Syrtis 77 %, claude 35 % |
+| 2 | 12:36:24 | 2153.5 | 2.27 | Python 10 %, sysmond 7 % |
+| 3 | 12:41:38 | 1769.2 | **22.21** | **rustc 397 % / 218 % / 134 % / 59 %, python 154 %** |
+| 4 | 12:46:47 | 2149.6 | 2.89 | claude 31 %, python 19 % / 19 % |
+
+The best reading was the first one (2516 tok/s, 87 % of 2880). Idling did not recover the GPU: readings at load ~2-3 with
+nothing heavy were 2150 tok/s, and the 12:41 reading ran during a 4-process rustc build that some other job ran on endor
+inside this quiet slot. The box also has interactive use (WindowServer, zoom.us, BambuStudio). Stopped as the brief says.
+**NSG 6 stays opt-in** (bitwise identical to 12; the per-call sweep #11468 has it ~11 ms per chunk faster). The flip needs
+a clean slot. The same script (`.scratch/rg4.sh`) can run unchanged once p8k reads >= 2736 again.
+
 ### NSG 6 vs 12 speed rerun (#11508, rg3.sh, brief 26): box degraded twice, stopped before the pairs; no flip
 
 Box check (p8k at NSG 12, need >= 2736 tok/s = 95 % of 2880), after a 4k warm-up:
