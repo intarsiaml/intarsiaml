@@ -653,7 +653,7 @@ impl Model {
 
     /// Whether [`Model::forward_verify`] can run its `q` rows on `st` as the replay of a captured verify-only pass: graphs
     /// usable, a backend whose verify attention is one decode call per row at a device position (so the recording names no
-    /// position; HIP), one rank, and `INTARSIA_VERIFY_GRAPH=1` (default off). The eager pass and the replay launch the same ops on
+    /// position; HIP or CUDA), one rank, and `INTARSIA_VERIFY_GRAPH=1` (default off). The eager pass and the replay launch the same ops on
     /// the same kernels in the same order, so their outputs are bitwise equal (`tests/verify_rows_real.rs` checks it on the
     /// real model).
     pub(super) fn verify_graph_ok(&self, st: &SequenceState, q: usize, profile: bool) -> bool {
@@ -662,8 +662,9 @@ impl Model {
             && self.graphs.usable(self)
             && self.graphs.spec_fail.load(Ordering::Relaxed) < SPEC_CAPTURE_FAILURES_MAX
             && self.backend.verify_attn_per_row()
-            // HIP only so far: there it is measured (lane dfh window 2); CUDA and Metal keep the eager pass until someone measures them
-            && self.backend.name() == "hip"
+            // HIP (lane dfh window 2) and CUDA (lane ink-cuda-mtp: Inkling-2 DSpark verify, its positioned ops reading the
+            // device position); Metal keeps the eager pass
+            && matches!(self.backend.name(), "hip" | "cuda")
             && self.recorder.lock().unwrap().is_none()
             && self.tp.world == 1
             && self.peers.is_empty()
