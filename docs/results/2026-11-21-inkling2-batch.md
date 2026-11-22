@@ -10,6 +10,15 @@ P12 / screen). Never restore an old bench source without `--digest` for a refere
 
 ## Briefs received
 
+- 2026-11-22 ~07:55 (main): #11393 is the last endor slot spent on the slow state's cause; record its result in section 28
+  and return to the batched-decode optimization. If it points to something actionable in software (e.g. a P-state choice our
+  dispatch pattern triggers), propose it; else close the topic. Reasoning: the 58.7 ms "fast" B16 shows only in the first ~3
+  min after a quiet period; sustained load settles at 73-75 ms, which is what a loaded server sees: ~73-75 ms is the honest
+  serving number, the cold one a best case. A BOX OK gate pinned to 61.0 ms would reject most warm runs and stall the queue.
+  From now on, for any endor speed claim: (1) interleave arms ABAB (or ABBA) in one slot after a short warm-up; (2) report
+  the gain as the per-pair difference plus whether the box was cold or warm (box check = label, not gate); (3) quote the
+  warm steady-state number as primary.
+
 - 2026-11-22 ~07:45 (main): #11352 X/Y show the same binary at 61 ms vs 77-90 in #11328: endor has a slow state hitting B16
   hard and B1 barely. Finish #11352 as planned. Then (1) re-label: #11181 consistent with a fast-state run (still unverifiable,
   no digests, but not "the outlier"); fast-state reference = final ~59-61 ms B16 (262-273 tok/s, above 230); slow state ~77-90.
@@ -986,3 +995,8 @@ after; no other process used the GPU (< 25 ms each per sample).
 - Next (queued as a measure-only job): B 16 batched-only (`batch_prof --b 16`, a few hundred steps, no solo phases) with a
   100 ms P-state trace and per-step times, at the start of a slot and again after ~5 min of heating, to correlate step time
   with P-state directly. MHz per state is still unmapped (15 states; no pmgr table with 15 entries).
+
+**28b. Speed-claim rule (main, ~07:55), replaces the BOX OK gate of section 28.** Box check stays as a label (cold / warm),
+not a gate. Every endor speed claim: short warm-up, then arms ABAB or ABBA in one slot; gain = per-pair difference; state
+cold or warm; the warm steady state (B 16 ~73-75 ms at the final tree, ~215-220 tok/s) is the primary number, the cold
+~59-61 ms (262-273 tok/s) a best case. #11393 is the last slot spent on the slow state's cause.
