@@ -291,6 +291,7 @@ pub fn metal4_shaders() -> Vec<&'static str> {
     v.extend(crate::mxfp4::NAXD_FORMS.iter().flat_map(|f| [f.0, f.1]));
     v.extend(crate::inkattn::metal4_shader_names());
     v.extend(crate::inkmoe::metal4_shaders());
+    v.extend(crate::inkprefill::metal4_shaders());
     v.extend(crate::inkmix::NAX_SHADERS);
     v
 }

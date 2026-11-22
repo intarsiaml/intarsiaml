@@ -40,6 +40,7 @@ pub mod inkattn;
 pub mod gemm_nax;
 mod host;
 pub mod inkmoe;
+pub mod inkprefill;
 pub mod inkmix;
 pub mod kernels;
 mod moe;

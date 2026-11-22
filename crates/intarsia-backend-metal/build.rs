@@ -29,6 +29,8 @@ const METAL4_SOURCES: &[&str] =
         "mxfp4_naxd.metal",
         "inkling2_attn_nax.metal",
         "inkling2_moe_nax.metal",
+        "inkling2_moe_nax2.metal",
+        "inkling2_moe_nax3.metal",
         "inkling2_mix_nax.metal",
     ];
 
@@ -57,6 +59,7 @@ const LAUNCHER_SOURCES: &[&str] = &[
     "src/moe.rs",
     "src/inkattn.rs",
     "src/inkmoe.rs",
+    "src/inkprefill.rs",
 ];
 
 /// FNV-1a 64 over the launcher sources (file name, then contents, in list order).

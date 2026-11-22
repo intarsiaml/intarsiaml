@@ -381,6 +381,14 @@ impl MetalBackend {
             // grouped by expert (moe.metal's moe_group reads the rows per tile from p.f), h by slot, y by pair, then the gather
             let (pb, offb, tb, yb) = (at(&sc, 0), at(&sc, o_off), at(&sc, o_tiles), at(&sc, o_y));
             let (ti, tm) = tile_rows(pairs, e);
+            // lane ink-prefill: the second-generation forms when one is selected (inkprefill.rs)
+            let form = crate::inkprefill::moe_nax(mx, tm).filter(|f| {
+                self.pso(f.gu).is_some()
+                    && self.pso(f.dn).is_some()
+                    && (f.bn3.is_none() || self.pso(crate::inkprefill::NAX3_GATHER).is_some())
+            });
+            let (gu_k, dn_k, tm) = form.map_or((NAX_GU[fi][ti], NAX_DN[fi][ti], tm), |f| (f.gu, f.dn, f.tm));
+            let bn3 = form.and_then(|f| f.bn3);
             let mut pg = p;
             pg.dims[5] = tm as u32;
             let gt = self.pso("moe_group").map_or(256, |s| {
@@ -395,10 +403,27 @@ impl MetalBackend {
                 gt,
             )?;
             let max_tiles = pairs.div_ceil(tm) + pairs.min(e);
-            let ggu = MTLSize { width: inter.div_ceil(32), height: max_tiles, depth: 1 };
-            self.ink_dispatch(NAX_GU[fi][ti], &[&xb, &pb, &offb, &tb, &w13, &s13, &gb, &wb, &hb], &p, ggu, 128)?;
-            let gdn = MTLSize { width: h.div_ceil(64), height: max_tiles, depth: 1 };
-            self.ink_dispatch(NAX_DN[fi][ti], &[&hb, &pb, &offb, &tb, &w2, &s2, &gb, &wb, &yb], &p, gdn, 128)?;
+            let (cg, cd) = bn3.map_or((32, 64), |bn| (bn / 2, bn));
+            let ggu = MTLSize { width: inter.div_ceil(cg), height: max_tiles, depth: 1 };
+            let skip = crate::inkprefill::nax_skip();
+            // third generation: the x rows into slot order first (the y region, free until the down writes it)
+            let ab = if bn3.is_some() {
+                let gx = MTLSize { width: (h / 8).div_ceil(64), height: pairs, depth: 1 };
+                self.ink_dispatch(crate::inkprefill::NAX3_GATHER, &[&xb, &pb, &offb, &yb], &p, gx, 64)?;
+                at(&yb, 0)
+            } else {
+                at(&xb, 0)
+            };
+            if skip & 1 == 0 {
+                self.ink_dispatch(gu_k, &[&ab, &pb, &offb, &tb, &w13, &s13, &gb, &wb, &hb], &p, ggu, 128)?;
+            }
+            let gdn = MTLSize { width: h.div_ceil(cd), height: max_tiles, depth: 1 };
+            if skip & 2 == 0 {
+                self.ink_dispatch(dn_k, &[&hb, &pb, &offb, &tb, &w2, &s2, &gb, &wb, &yb], &p, gdn, 128)?;
+            }
+            if skip & 4 != 0 {
+                return Ok(());
+            }
             let gg = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };
             return self.ink_dispatch(GATHER[o32], &[&yb, &ib, &wb, &ob], &p, gg, 256);
         }
