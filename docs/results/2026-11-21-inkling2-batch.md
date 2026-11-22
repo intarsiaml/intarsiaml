@@ -1105,3 +1105,30 @@ they are upper bounds, in warm-state ms.
   ~4 ms; for workloads with more expert sharing it is much larger. ALU-bound per-pair work also explains why B 16 follows
   the GPU P-state (28c) while B 1 does not. Lever 2 (after in_proj): decode each expert's weights once per call for all its
   pairs (union kernel with shared decode), if the per-pair decode is confirmed as the cost.
+
+## 30. in_proj rows (main's assignment, 2026-11-22)
+
+**Step 1, #11428 (09:18-09:21, quiet, tree 50abd8291; `.scratch/inproj.log`).** `ink_mix_bench proj`, weights rotating past the
+system cache, A B B A after a warm-up. Box label: start cold (B 16 61.15 ms, ALU 159.8), end warm (71.91, ALU 192.7).
+
+| rows | default (P 1, RB = R) us/call, S 1 (2 passes) | GB/s | `PROJ_P=2` | `PROJ_RB=8` | P12 (ink_p12_bench) |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 71.1 / 73.1 | 562 / 547 | | | 57.6 (bf16 72.8) |
+| 2 | 74.0 / 76.2 | 540 / 525 | | | |
+| 4 | 78.7 / 82.8 | 509 / 483 | | | 86.2 (bf16 96.2) |
+| 8 | 109.1 / 109.4 | 368 / 367 | 130.1 / 135.9 | | |
+| 16 | 183.2 / 183.0 | 220 | 238.6 / 238.8 | 265.9 / 260.1 | 322.2 (bf16 223.9) |
+
+- Confirmed with a correction: 16 rows cost 2.6x the 1-row time (the bandwidth floor), not 6x. Weight reads do not repeat
+  per row (one threadgroup per weight row, all R rows in registers); time grows with rows from 4 up: ~9.5 us per extra row.
+- The kernel is ALU-bound at 8-16 rows, not bandwidth-bound: per (weight chunk, row) `ip_dot8` unpacks the 8 weight bf16s
+  again (24 ops per 8 MACs), and the epilogue has every one of the 256 threads sum all R rows' 8 partials (R x 8 adds each)
+  before thread 0 writes R values. The same-bits knobs that share x loads (P 2) or split rows (RB 8) are slower, as is P12 at 16
+  rows (decode per row). A multi-row P12 kernel would not help while the cost is ALU.
+- **Step 2 (built, 9ffcfd562): `ink_in_proj_gemvx_r<R>s8u2`, R = 2..=16**, only for the default family at P 1 / RB = R: weight
+  chunk unpacked once per chunk for all rows, row r's partials summed by thread r (same additions, same order), which writes
+  row r. Same products, same fma chain, same simd_sum, same sg-order sum, so bitwise the R = 1 kernel (and so the T = 1 P12
+  kernel, by pack12's contract). The R = 1 instances, the T = 1 dispatch and the P12 path are unchanged.
+  `INTARSIA_INK_PROJ_X=0` keeps the old form (docs/tuning.md). The chunk form (> 16 rows, prefill without the NAX library)
+  routes its 16-row chunks and tail through it too; `in_proj_chunks_rows_exact` (new) checks it. Estimate (op counts):
+  ~184 -> 110-130 us at 16 rows, ~2.5-3.5 ms per B 16 step. #11439-ish (queued): build, Metal tests, X=0 vs X=1 us/call.
