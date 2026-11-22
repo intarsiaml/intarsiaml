@@ -149,6 +149,14 @@ Status: #10943 done (items 2 and 3 measured: no regression, sampled decode +2.7-
   QoS / vsort, untimed at the time) out. State: #11048 failed its decode-mode G2 rows, so every queued merge, this one
   included, is held until the bisect #11142 lands and the fix passes. fb38fe4a5 has since been timed (#11037 section 7,
   below): bitwise identical, PQV +0.45 %, still opt-in.
+- 2026-11-22 (coordinator, build hazard 2, found by pack12 #11066): `cargo test -p intarsia-cli --test <x>` rebuilds
+  `target/<profile>/intarsia` without `--features metal` over the backend binary. Rules: build the backend binary last (or give
+  tests their own `--target-dir`); count md5 / self-golden matches only when both runs exit 0 with non-empty output. Checked
+  (03:05): no past result here is affected. Every endor measurement ran a copy in `.scratch/bin` or `.scratch/i7` taken right
+  after its `--features metal` build (`cpucheck.sh` ran docs_env_vars before its build; `build1.sh` copied b1 before its CLI
+  tests, which had `--features metal`), and none of the 197 `.out` files in mA / mC / mAB / i7 is empty. #11152 / #11153 run no
+  intarsia-cli test and copy each binary right after its build. `endorgumbel2.sh` now counts a match only for exit 0 and
+  non-empty output on both sides (INVALID otherwise), plan show included; serve's twice-identical needs non-empty text.
 
 ## Measurement (before)
 
