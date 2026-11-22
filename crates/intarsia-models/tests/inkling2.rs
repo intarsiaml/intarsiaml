@@ -490,6 +490,14 @@ fn inkling2_tiny_screened_verify_fallback_reads_the_head_once() {
         all_logits(m, &mut st, &ids[..20]);
         m.forward_verify(&mut st, &ids[20..20 + rows]).unwrap()
     };
+    // the screen must engage on cpu; on Metal it turns itself off when the gather refuses this head (the fixture's lm_head is
+    // not 16-byte aligned there, so the head runs the scalar GEMV the gather does not repeat): nothing to test then
+    run(&m, 5);
+    let (g, f) = m.head_screen_stats().unwrap();
+    if g + f == 0 {
+        assert!(on_metal(), "the screen did not engage on cpu");
+        return skip("screened verify: the screen is off for the tiny head on this backend (see the load log)");
+    }
     for rows in [5usize, 16] {
         m.head_screen_test_hooks(false, 0);
         let want = run(&m, rows);

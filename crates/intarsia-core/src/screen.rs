@@ -87,6 +87,24 @@ pub static LOADED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool
 /// `/metrics`).
 pub const STATS_ENV: &str = "INTARSIA_INK_HEAD_SCREEN_STATS";
 
+/// `INTARSIA_INK_HEAD_SCREEN_FORCE_FALLBACK=<mask>` (test hook, decimal or `0x` hex): bit i makes row i of every c-row screened
+/// group (c > 1, verify) count as fallen back, so the group takes the full head (`Model::head_screen_test_hooks` in tests).
+pub const FORCE_FALLBACK_ENV: &str = "INTARSIA_INK_HEAD_SCREEN_FORCE_FALLBACK";
+
+/// The [`FORCE_FALLBACK_ENV`] mask (0 when unset or unparsable).
+pub fn force_fallback_env() -> u64 {
+    std::env::var(FORCE_FALLBACK_ENV)
+        .ok()
+        .and_then(|v| {
+            let v = v.trim();
+            match v.strip_prefix("0x") {
+                Some(h) => u64::from_str_radix(h, 16).ok(),
+                None => v.parse().ok(),
+            }
+        })
+        .unwrap_or(0)
+}
+
 /// The Prometheus lines of the launch counter (`serve`'s `/metrics`), empty when no screen is loaded.
 pub fn metric() -> String {
     if !LOADED.load(std::sync::atomic::Ordering::Relaxed) {

@@ -1256,7 +1256,7 @@ impl Model {
                         t0.elapsed().as_secs_f64()
                     );
                     crate::screen::LOADED.store(true, std::sync::atomic::Ordering::Relaxed);
-                    Some(HeadScreenW { q, beta, a, cand, cnt, cap, rows, ok: std::sync::OnceLock::new(), served: Default::default(), gathers: Default::default(), fallback_passes: Default::default(), disabled: Default::default(), force_fallback: Default::default() })
+                    Some(HeadScreenW { q, beta, a, cand, cnt, cap, rows, ok: std::sync::OnceLock::new(), served: Default::default(), gathers: Default::default(), fallback_passes: Default::default(), disabled: Default::default(), force_fallback: std::sync::atomic::AtomicU64::new(crate::screen::force_fallback_env()) })
                 }
             }
         } else {
@@ -5609,7 +5609,7 @@ impl Model {
     fn screened_argmax(&self, x: &TensorRef, c: usize, tok: &TensorRef, profile: bool) -> Result<bool> {
         let Some(hs) = self.head_screen.as_ref() else { return Ok(false) };
         // the screen ops take bf16 activations (their contract); any other row takes the full head
-        if c > hs.rows || self.vocab_par || x.dtype != DType::Bf16 || hs.disabled.load(std::sync::atomic::Ordering::Relaxed) {
+        if c > hs.rows || self.vocab_par || x.dtype != DType::Bf16 || x.offset % 16 != 0 || hs.disabled.load(std::sync::atomic::Ordering::Relaxed) {
             return Ok(false);
         }
         // a plan dry run records the screen calls too (so `serve`, admitted kernels only, admits their kernels on the plan
@@ -5655,6 +5655,23 @@ impl Model {
                 c.exact_rows = true;
                 self.registry.select(&c).is_ok()
             });
+            // one real gather (row 0 as the only candidate): a backend whose gather cannot take this head (Metal: the weight
+            // not 16-byte aligned, where the head itself runs another GEMV) refuses it here, and the screen stays off
+            let probe_ok = kernels_ok && screen_ok && (|| -> Result<()> {
+                self.backend.upload(&hs.cand, 0, &0i32.to_le_bytes(), self.stream)?;
+                self.backend.upload(&hs.cnt, 0, &1i32.to_le_bytes(), self.stream)?;
+                let c = OpCall::new(Op::LogitsGather, vec![xs.clone(), head.parts[0].clone(), TensorRef::new(hs.cand.clone(), DType::I32, &[1, hs.cap]), TensorRef::new(hs.cnt.clone(), DType::I32, &[1])], vec![self.view(&self.ws.logits, DType::F32, &[1, v])], OpAttrs::default());
+                // `exact_rows` as the real screen calls run it (exec_call takes it from the pass state)
+                let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);
+                let r = self.exec_call(c, false);
+                self.exact_rows.store(prev, std::sync::atomic::Ordering::Relaxed);
+                r?;
+                self.backend.synchronize(self.stream)
+            })()
+            .is_ok();
+            if kernels_ok && screen_ok && !probe_ok {
+                eprintln!("{}: off (the backend's gather refuses this head, e.g. a weight that is not 16-byte aligned)", crate::screen::ENV);
+            }
             if !(kernels_ok && screen_ok) {
                 eprintln!(
                     "{}: off (head kernel '{}' {}, screen kernels {})",
@@ -5664,7 +5681,7 @@ impl Model {
                     if screen_ok { "selectable" } else { "not selectable (not registered or not admitted)" }
                 );
             }
-            kernels_ok && screen_ok
+            kernels_ok && screen_ok && probe_ok
         });
         if !ok || (c > 1 && !recording && !good(&head_kernel(c, true))) {
             return Ok(false);
@@ -5950,7 +5967,13 @@ struct HeadScreenW {
 impl Drop for HeadScreenW {
     fn drop(&mut self) {
         if std::env::var(crate::screen::STATS_ENV).is_ok_and(|v| v.trim() == "1") {
-            eprintln!("{}: {} screened launch(es)", crate::screen::ENV, crate::screen::LAUNCHES.load(std::sync::atomic::Ordering::Relaxed));
+            eprintln!(
+                "{}: {} screened launch(es), {} gathered here, {} full-head fallback pass(es)",
+                crate::screen::ENV,
+                crate::screen::LAUNCHES.load(std::sync::atomic::Ordering::Relaxed),
+                self.gathers.load(std::sync::atomic::Ordering::Relaxed),
+                self.fallback_passes.load(std::sync::atomic::Ordering::Relaxed)
+            );
         }
     }
 }
