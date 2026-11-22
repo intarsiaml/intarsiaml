@@ -239,7 +239,7 @@ evidence that NE 4 is wrong rather than merely reordered remains G2 against the 
 
 | Merge | Commit | Conflicts |
 |---|---|---|
-| ink/hostgap 9a38f0224 | (fast-forward-free merge) | none |
+| ink/hostgap 9a38f0224 | d6a5dbced | none |
 | ink/fp8 05438a81f | 26fdda63d | inkmix.rs launch match: kept the fp8 GEMV arm and m-mix/batch's `CONV_MIX_BF16_ROWS` |
 | ink/prefill-merge 05f1c702e | 9d6764682 | inkmix.rs / kernels.rs registration lists: kept fp8's two GEMVs and prefill's `ink_in_proj_bf16_gemv_chunks` |
 | ink/dfuse 00c81dda7 (flip 2f952f697) | b1a4f3f62 | op 76: `InkRoute` replaces the reserved `InkReserved76` in place (77..=95 and fp8's 88-90 kept, `ALL` stays 96); every registration list both sides (cpu fast / reference, cuda / hip exclusion lists, metal build.rs sources, kernels.rs table / register / admission filter, lib.rs dispatch); inkling2.rs both env helpers and `msg_q_all` after fp8's byte count; the mix shader keeps fp8's IP8 instances and dfuse's `ink_blend_norm_c` |
