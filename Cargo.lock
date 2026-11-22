@@ -1103,6 +1103,8 @@ dependencies = [
  "memmap2",
  "minijinja",
  "minijinja-contrib",
+ "objc2",
+ "objc2-metal",
  "serde",
  "serde_json",
  "sha2",

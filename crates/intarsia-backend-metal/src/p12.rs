@@ -254,11 +254,57 @@ impl MetalBackend {
                 enc.setBuffer_offset_atIndex(Some(&xb.mtl), xo, 1);
                 enc.setBuffer_offset_atIndex(Some(&yb.mtl), yb.off, 2);
                 enc.setBuffer_offset_atIndex(Some(&ab.mtl), ab.off, 3);
+                if f32o {
+                    // the index-mode buffers (cand, cnt) of p12_gemv_f32o: bound, never read in the plain launch (pad = 0)
+                    enc.setBuffer_offset_atIndex(Some(&yb.mtl), yb.off, 5);
+                    enc.setBuffer_offset_atIndex(Some(&yb.mtl), yb.off, 6);
+                }
             }
             crate::set_bytes(enc, &prm, 4);
             enc.dispatchThreadgroups_threadsPerThreadgroup(
                 MTLSize { width: groups, height: 1, depth: 1 },
                 MTLSize { width: threads, height: 1, depth: 1 },
+            );
+        })
+    }
+
+    /// `LogitsGather` over a P12 head, one activation row (lane ink-fp8, `screen.rs`): the 1-row `p12_gemv_f32o` instance
+    /// `launch_p12_gemv` runs for the head (same family, P, unroll), in its index mode (`pad` = the candidate cap). Inputs
+    /// `[h, codes, cand, cnt, aux]`, output `y [1, V]` f32.
+    pub(crate) fn launch_p12_logits_gather(&self, call: &OpCall) -> Result<()> {
+        let (i, y) = (&call.inputs, &call.outputs[0]);
+        let (t, k, n, c) = (i[0].shape[0], i[0].shape[1], i[1].shape[0], i[2].shape[1]);
+        if t != 1 || c == 0 {
+            return Err(Error::invalid(format!("logits_gather_p12: one activation row and a candidate cap (T {t}, C {c})")));
+        }
+        if n == 0 {
+            return Ok(());
+        }
+        let ((xo, co), ab) = self.p12_operands(&i[0], &i[1], &i[4], k, "logits_gather_p12")?;
+        let yb = self.bind(y, DType::F32, true, "y")?;
+        let cand = self.bind(&i[2], DType::I32, false, "cand")?;
+        let cnt = self.bind(&i[3], DType::I32, false, "cnt")?;
+        let (p, rb) = Fam::F32o.inst(1);
+        let name = shader(Fam::F32o, 1, p, Fam::F32o.unroll(), rb);
+        let prm = P12GemvP { k: dim(k, "K")?, n: dim(n, "N")?, y_skip: yb.skip, pad: dim(c, "C")? };
+        let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
+        let (xb, cb) = (self.mbuf(&i[0].buf)?, self.mbuf(&i[1].buf)?);
+        self.with_encoder(|enc| {
+            enc.setComputePipelineState(pso);
+            // SAFETY: offsets inside the buffers (OpCall::check), codes 8- and x 16-byte aligned (checked above).
+            unsafe {
+                enc.setBuffer_offset_atIndex(Some(&cb.mtl), co, 0);
+                enc.setBuffer_offset_atIndex(Some(&xb.mtl), xo, 1);
+                enc.setBuffer_offset_atIndex(Some(&yb.mtl), yb.off, 2);
+                enc.setBuffer_offset_atIndex(Some(&ab.mtl), ab.off, 3);
+                enc.setBuffer_offset_atIndex(Some(&cand.mtl), cand.off, 5);
+                enc.setBuffer_offset_atIndex(Some(&cnt.mtl), cnt.off, 6);
+            }
+            crate::set_bytes(enc, &prm, 4);
+            // the head's grid: every row in the fallback, the candidate slots (and early exits) otherwise
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: n.div_ceil(4 * p), height: 1, depth: 1 },
+                MTLSize { width: 128, height: 1, depth: 1 },
             );
         })
     }

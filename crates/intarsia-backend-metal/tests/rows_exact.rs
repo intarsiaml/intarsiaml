@@ -1018,6 +1018,7 @@ fn rows_exact_registrations_are_pinned() {
             "logits_bf16_gemv_rows",
             // lane ink-fp8 (screened greedy head)
             "logits_gather_f32o_v",
+            "logits_gather_p12",
             "matmul_bf16_gemv_rows",
             "matmul_fp8_gemv_rows",
             "matmul_mxfp4_gemv_rows",

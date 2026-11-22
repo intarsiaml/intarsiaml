@@ -225,21 +225,44 @@ kernel void p12_gemv_rt(device const uchar* codes [[buffer(0)]],
 }
 
 // ---- Logits, f32 out (mirrors gemv_f32o_v / gemv_f32o_v_mr: one simdgroup per P rows, 4 per threadgroup) -----------------
-// bind: 0 codes [N, 3K/2], 1 X [R, K], 2 Y [R, N] f32, 3 aux, 4 P12GemvP. Grid: ceil(N / (4 P)) threadgroups of 128 threads.
+// bind: 0 codes [N, 3K/2], 1 X [R, K], 2 Y [R, N] f32, 3 aux, 4 P12GemvP, 5 cand, 6 cnt (read only by the 1-row index mode).
+// Grid: ceil(N / (4 P)) threadgroups of 128 threads.
+// Row indirection (lane ink-fp8, the screened greedy head's `LogitsGather` over the P12 head; R == 1 instances only, the
+// rows instances compile as before): with p.pad = C > 0 this same function and pipeline compute the candidate rows of the
+// one activation row. cnt[0] in 1..=C: slot j computes row cand[j] and writes Y[y_skip + j] (j < cnt[0]); any other
+// cnt[0]: every row, as the plain launch. The plain launch (pad = 0) binds Y at 5 and 6 and never reads them.
 template <int R, int P, int U, int RB>
 kernel void p12_gemv_f32o(device const uchar* codes [[buffer(0)]],
                           device const uint4* X [[buffer(1)]],
                           device float* Y [[buffer(2)]],
                           device const uint* aux [[buffer(3)]],
                           constant P12GemvP& p [[buffer(4)]],
+                          device const int* cand [[buffer(5)]],
+                          device const int* cnt [[buffer(6)]],
                           uint tg [[threadgroup_position_in_grid]],
                           uint sg [[simdgroup_index_in_threadgroup]],
                           uint lane [[thread_index_in_simdgroup]]) {
     static_assert(R % RB == 0, "R must be a multiple of RB");
     const uint k8 = p.k / 8;
     const uint row0 = (tg * 4 + sg) * P;
+    uint lim = p.n;  // slots stored: row0 + q < lim
+    int ind = 0;     // > 0: slot q's row is cand[min(row0 + q, ind - 1)]
+    if constexpr (R == 1) {
+        if (p.pad != 0) {
+            const int ct = cnt[0];
+            if (ct >= 1 && (uint)ct <= p.pad) {
+                if (row0 >= (uint)ct) return;  // the whole simdgroup: row0 is uniform in it
+                lim = (uint)ct;
+                ind = ct;
+            }
+        }
+    }
     P12Row wr[P];
-    for (int q = 0; q < P; ++q) wr[q] = p12_row(codes, aux, p.n, min(row0 + q, p.n - 1), k8);  // rows past N: valid, not stored
+    for (int q = 0; q < P; ++q) {
+        // rows past the end read a valid row and are not stored
+        const uint r = ind > 0 ? (uint)cand[min(row0 + q, (uint)ind - 1)] : min(row0 + q, p.n - 1);
+        wr[q] = p12_row(codes, aux, p.n, r, k8);
+    }
     for (int rb = 0; rb < R; rb += RB) {
         device const uint4* Xb = X + (ulong)rb * k8;
         float acc[P * RB];
@@ -269,7 +292,7 @@ kernel void p12_gemv_f32o(device const uchar* codes [[buffer(0)]],
         for (int q = 0; q < P; ++q) {
             for (int r = 0; r < RB; ++r) {
                 const float s = simd_sum(acc[q * RB + r]);
-                if (lane == 0 && row0 + q < p.n) Y[p.y_skip + (ulong)(rb + r) * p.n + row0 + q] = s;
+                if (lane == 0 && row0 + q < lim) Y[p.y_skip + (ulong)(rb + r) * p.n + row0 + q] = s;
             }
         }
     }
@@ -280,7 +303,8 @@ kernel void p12_gemv_f32o(device const uchar* codes [[buffer(0)]],
 #define P12_PROJ_ARGS device const uchar*, device const uint4*, device ushort*, device ushort*, device ushort*, \
     device const uint*, constant P12ProjP&, uint, uint, uint, uint
 #define P12_RT_ARGS device const uchar*, device const uint4*, device ushort*, device const uint*, constant P12GemvP&, uint, uint, uint
-#define P12_F32_ARGS device const uchar*, device const uint4*, device float*, device const uint*, constant P12GemvP&, uint, uint, uint
+#define P12_F32_ARGS device const uchar*, device const uint4*, device float*, device const uint*, constant P12GemvP&, \
+    device const int*, device const int*, uint, uint, uint
 
 template [[host_name("p12_in_proj_gemv_r1p1u1b1")]] kernel void p12_in_proj_gemv<1, 1, 1, 1>(P12_PROJ_ARGS);
 template [[host_name("p12_in_proj_gemv_r1p2u1b1")]] kernel void p12_in_proj_gemv<1, 2, 1, 1>(P12_PROJ_ARGS);

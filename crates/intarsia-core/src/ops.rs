@@ -810,7 +810,8 @@ impl OpCall {
         // `GdnConvDelta` may carry per-row state snapshots after its three outputs (HIP's speculative-verify launch, lane vrc)
         let extra_outputs = self.op == Op::GdnConvDelta && self.outputs.len() > no;
         // `InkInProj` over e4m3 weights takes a third input, the per-pack weight scales (lane ink-fp8; `inkling2::ops`)
-        let extra_input = self.op == Op::InkInProj && self.inputs.len() == ni + 1;
+        // `LogitsGather` over a P12 head takes a fifth input, the P12 aux (lane ink-fp8; `screen`)
+        let extra_input = matches!(self.op, Op::InkInProj | Op::LogitsGather) && self.inputs.len() == ni + 1;
         if (self.inputs.len() != ni && !extra_input) || (self.outputs.len() != no && !extra_outputs) {
             return bad(format!(
                 "expected {ni} inputs / {no} outputs, got {} / {}",
