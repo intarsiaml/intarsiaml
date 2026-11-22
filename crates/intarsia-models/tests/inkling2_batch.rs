@@ -169,8 +169,18 @@ fn inkling2_batch_sampler_rows_are_softcapped() {
             let ids: Vec<u32> = (0..n).map(|s| tok(s, solo[s].len)).collect();
             let want: Vec<Vec<f32>> =
                 (0..n).map(|s| logits(m.forward(&mut solo[s], &[ids[s]], HeadMode::LastLogits, None).unwrap())).collect();
-            let modes: Vec<HeadMode> =
-                (0..n).map(|s| match (s + step) % 3 { 0 => HeadMode::LastLogits, 1 => HeadMode::LastTopK(8), _ => HeadMode::LastTopK(40) }).collect();
+            // device top-k only where the backend has it (Metal; the cpu backend has no `supports_topk`): else logits rows only
+            let topk_ok = m.check_batch_row(&bat[0], ids[0], HeadMode::LastTopK(8)).is_ok();
+            if n == 2 && step == 0 {
+                eprintln!("device top-k rows {}", if topk_ok { "tested" } else { "not available on this backend: logits rows only" });
+            }
+            let modes: Vec<HeadMode> = (0..n)
+                .map(|s| match ((s + step) % 3, topk_ok) {
+                    (1, true) => HeadMode::LastTopK(8),
+                    (2, true) => HeadMode::LastTopK(40),
+                    _ => HeadMode::LastLogits,
+                })
+                .collect();
             let mut refs: Vec<&mut SequenceState> = bat.iter_mut().collect();
             let got = m.forward_batch(&mut refs, &ids, &modes).unwrap();
             for (s, (g, w)) in got.into_iter().zip(&want).enumerate() {
