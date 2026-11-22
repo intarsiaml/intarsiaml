@@ -35,7 +35,7 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
 - **Opt-in, not faster:** MoE prefill forms nax2 / nax3 (`INTARSIA_INK_MOE_NAX2=<form>`); all bitwise the first generation
   at 2048 rows, none faster (table below). 128-row tiles pending.
 - **Side branch `ink/prefill-rel` (4212f2e45), not merged:** `ink.rel_mode` (approved contract variant): cpu reference +
-  bitwise test pass; Metal mode 1 measured slower end to end, so the graph default is off. Admission and G3-with-mode-1 pending.
+  bitwise test pass; Metal mode 1 measured slower end to end, so the graph default is off. Tests and admission pass; G3 with mode 1 not run (off by default).
 
 ## Floors
 
@@ -132,5 +132,9 @@ twice; the 128-row forms (m128_*) decode them once: pending (#10875 build, #1088
 - `intarsia kernels test --backend metal`: moe_experts / moe_experts_mxfp8 ADMITTED with every form forced (trace confirms
   the form ran; worst case unchanged, 3.472e-3 / 2.099e-4 and 3.378e-3 / 2.453e-4), loop_blend / conv_mix ADMITTED at blend
   levels 0 / 1 / 2 (3.226e-3 / 2.640e-4; trace confirms the NAX blend ran on the 40-row cases).
-- `tests/ink_prefill_moe.rs` (2048 rows, real shape, output poisoned between runs): every nax2 / nax3 form bitwise gen1.
-- `ink.rel_mode` (wt-rel): cpu `ink_rel_mode` (mode 1 == mode 0 bitwise over the InkAttnDecode sweep) and `ink_attn_decode` pass.
+- `tests/ink_prefill_moe.rs` (2048 rows, real shape, output poisoned with NaN before each run; #10889): every nax2 / nax3 /
+  m128 form, NVFP4 and MXFP8, bitwise gen1 (max_abs 0).
+- `ink.rel_mode` (wt-rel, #10843): cpu `ink_rel_mode` (mode 1 == mode 0 bitwise over the InkAttnDecode sweep), Metal
+  `ink_rel_mode` (prologue + NAX attention, mode 1 == mode 0 bitwise at T 17 / 512 / 2048, SWA and full past 8192),
+  `ink_attn_decode`, `inkling2_attn` pass; admission with the appended mode-1 cases: ink_kv_prologue 123 cases ADMITTED,
+  rel_sink_attn_bf16_nax 15 ADMITTED, rel_sink_attn_bf16 63 and ink_attn_decode 70 ADMITTED (unchanged).
