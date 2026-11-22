@@ -1069,6 +1069,7 @@ mod tests {
             Op::InkInProj,
             Op::ConvMix,
             Op::InkAttnDecode,
+            Op::InkRoute,
         ];
         for op in Op::ALL {
             if !not_on_cuda.contains(&op) {

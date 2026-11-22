@@ -66,6 +66,19 @@ pub(crate) fn ink_attn_fused_rule(rows: usize, local: bool, ctx: usize, window: 
     }
 }
 
+/// `INTARSIA_INK_ROUTE_FUSED`: `1` / `on` = `InkRoute` (op 76: the router GEMV and `MoeRoute` in one launch) on every call of up to
+/// 16 rows the backend admits it for, `auto` = the same on Metal only, unset / `0` / `off` = the router matmul + `MoeRoute` (the
+/// default until the lane's timing lands). Both give the same bits on a backend (the fused kernel is bitwise its pair), so
+/// this only moves time.
+fn ink_route_fused_env() -> Option<bool> {
+    static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| match std::env::var("INTARSIA_INK_ROUTE_FUSED").ok().as_deref().map(str::trim) {
+        Some("1") | Some("on") => Some(true),
+        Some("auto") => None,
+        _ => Some(false),
+    })
+}
+
 /// Whether an Inkling-2 pass of `t` rows runs under `exact_rows` (the row-exact kernels): on Metal for 2..=16 rows (the 1-row
 /// kernels are the reference the rows kernels are bitwise to), unless `INTARSIA_INK_ROWS_EXACT=0`. Larger passes (prefill
 /// chunks) take the fast kernels and are not bitwise a decode step's rows on Metal.
@@ -915,12 +928,20 @@ impl Model {
             if self.registry.select(&rc).is_err() {
                 rc.op = Op::Logits;
             }
-            ex(rc.op, rc.inputs, rc.outputs, rc.attrs)?;
             let rw = TensorRef::new(ws.rw.clone(), DType::F32, &[t, ink.top_k]);
             let ri = TensorRef::new(ws.ri.clone(), DType::I32, &[t, ink.top_k]);
             let mut ra = OpAttrs { top_k: ink.top_k, scale: ink.route_scale, norm_topk: true, temperature: 1.0, ..OpAttrs::default() };
             ra.dsv.score_func = crate::dsv41::ops::ScoreFunc::Sigmoid;
-            ex(Op::MoeRoute, vec![rl.clone(), l.router_bias.clone()], vec![rw.clone(), ri.clone()], ra)?;
+            // decode rows: the fused InkRoute (76) where the backend admits it (the logits still land in `rl` for the dumps)
+            let want_route = t <= 16 && ink_route_fused_env().unwrap_or(self.backend.name() == "metal");
+            let mut fc = OpCall::new(Op::InkRoute, vec![mlpin.clone(), l.router.clone(), l.router_bias.clone()], vec![rw.clone(), ri.clone(), rl.clone()], ra.clone());
+            fc.exact_rows = self.verifying();
+            if want_route && self.registry.select(&fc).is_ok() {
+                ex(fc.op, fc.inputs, fc.outputs, fc.attrs)?;
+            } else {
+                ex(rc.op, rc.inputs, rc.outputs, rc.attrs)?;
+                ex(Op::MoeRoute, vec![rl.clone(), l.router_bias.clone()], vec![rw.clone(), ri.clone()], ra)?;
+            }
             put(format!("{tag}.router_logits"), &rl)?;
             if dumping {
                 let (lg, bias) = (self.ink_download(&rl)?, self.ink_download(&l.router_bias)?);

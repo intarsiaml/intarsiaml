@@ -166,6 +166,7 @@ pub const UNIMPLEMENTED: &[Op] = &[
     Op::InkInProj,
     Op::ConvMix,
     Op::InkAttnDecode,
+    Op::InkRoute,
 ];
 
 /// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the

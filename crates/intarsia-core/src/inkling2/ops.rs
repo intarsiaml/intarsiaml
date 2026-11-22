@@ -41,6 +41,7 @@
 //! | `InkInProj` (73) | x `[S,T,D]` (S = 1 or 3), w `[Nq+Nk+Nv,D]` | pq `[T,Nq]`, pk `[T,Nk]`, pv `[T,Nv]` | |
 //! | `InkAttnDecode` (75) | pq, pk, pv, k taps, v taps, q scale, r scale, rel proj (as `InkKvPrologue`), k cache `[Hk,Cr,Dh]`, v cache | o `[T,H*Dh]`, k cache, v cache, k ring, v ring (all **in place**) | the union of the two ops' attrs |
 //! | `ConvMix` (74) | x, taps, res, addend (as `SconvRes`), src `[N,T,D]`, queries `[Q,D]` f32 (Q may be 0), norm `[S,D]` or `[0]`, msg `[S,T,D]` f32 or `[0]`, down, gain, forget (as `LoopBlend`) or three `[0]` | y, ring, sum (as `SconvRes`), mix `[S,T,D]` or `[0]` | pos0, eps |
+//! | `InkRoute` (76) | x `[T,D]`, w `[E,D]`, bias `[E]` f32 | weights `[T,K]` f32, ids `[T,K]` i32, logits `[T,E]` f32 or `[0]` | as `MoeRoute`: top_k, scale, norm_topk, temperature, dsv.score_func |
 //!
 //! ## AttnResMix: the depth mix (spec a2, also the loop messages a12 and the output mix a16)
 //!
@@ -114,6 +115,14 @@
 //! then with msg the blend `LoopBlend(mix, msg, down, gain, forget, norm)` (the mix unnormed, f32), else the norm as in
 //! `AttnResMix`. `mix` is `[S,T,D]` in `A` (S = msg rows with a blend, Q otherwise), or f32 `[Q,T,D]` without norm and blend.
 //! `Q = 0` (queries `[0,D]`, mix `[0]`) is the conv alone.
+//!
+//! ## InkRoute: the router (spec a13; lane ink-dfuse, discriminant 76)
+//!
+//! Exactly `MoeRoute(logits, bias) -> weights, ids` (`dsv41::ops`, the score function, temperature, selection-only bias,
+//! renorm and scale of its attributes) on `logits[t, e] = sum_c x[t, c] * w[e, c]`, accumulated and stored in f32 (the math of
+//! `Matmul` with an f32 output, i.e. `Logits`). `logits` is an output only when given (dumps); `[0]` leaves it to the kernel.
+//! Stateless and row-local: row `t` depends only on `x[t]`. A Metal kernel that keeps the per-logit order of the `Logits` GEMV
+//! and the routing of `MoeRoute` gives bitwise their composition.
 
 use crate::backend::TensorRef;
 use crate::dtype::DType;
@@ -165,7 +174,7 @@ impl Default for InkAttrs {
 }
 
 /// The Inkling-2 ops, in discriminant order (67 ..).
-pub const OPS: [Op; 9] = [
+pub const OPS: [Op; 10] = [
     Op::AttnResMix,
     Op::LoopBlend,
     Op::SconvRes,
@@ -175,6 +184,7 @@ pub const OPS: [Op; 9] = [
     Op::InkInProj,
     Op::ConvMix,
     Op::InkAttnDecode,
+    Op::InkRoute,
 ];
 
 /// The ops that take a device position (`OpCall::pos`, `i32 [1]`).
@@ -490,6 +500,26 @@ pub fn check(call: &OpCall) -> Result<()> {
             }
             want(op, &i[1], None, &[ns.iter().sum(), d], "w")?;
         }
+        Op::InkRoute => {
+            if i[0].shape.len() != 2 || !is_act(i[0].dtype) || i[1].shape.len() != 2 {
+                return bad(op, format!("x must be a float [T,D] and w [E,D], got {:?} {:?}", i[0].shape, i[1].shape));
+            }
+            let (t, d, e) = (i[0].shape[0], i[0].shape[1], i[1].shape[0]);
+            let k = at.top_k;
+            if e == 0 || k == 0 || k > e {
+                return bad(op, format!("{e} experts, top_k {k}"));
+            }
+            want(op, &i[1], None, &[e, d], "w")?;
+            want(op, &i[2], Some(DType::F32), &[e], "bias")?;
+            want(op, &o[0], Some(DType::F32), &[t, k], "weights")?;
+            want(op, &o[1], Some(DType::I32), &[t, k], "ids")?;
+            if !absent(&o[2]) {
+                want(op, &o[2], Some(DType::F32), &[t, e], "logits")?;
+            }
+            if !(at.temperature > 0.0) || !at.scale.is_finite() {
+                return bad(op, format!("temperature {} / scale {}", at.temperature, at.scale));
+            }
+        }
         Op::InkAttnDecode => {
             let t = i[0].shape.first().copied().unwrap_or(0);
             if !(1..=ATTN_DECODE_MAX_ROWS).contains(&t) || i[7].shape.len() != 2 {
@@ -572,6 +602,15 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.m = dim(&i[0], 1);
             s.k = dim(&i[0], 2);
             s.n = dim(&i[1], 0);
+            s.weight = Some(i[1].dtype);
+        }
+        Op::InkRoute => {
+            s.m = dim(&i[0], 0);
+            s.k = dim(&i[0], 1);
+            s.n = dim(&i[1], 0);
+            s.experts = dim(&i[1], 0);
+            s.top_k = a.top_k;
+            s.act = Some(i[0].dtype);
             s.weight = Some(i[1].dtype);
         }
         _ => {}
