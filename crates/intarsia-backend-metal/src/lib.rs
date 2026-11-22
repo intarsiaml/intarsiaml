@@ -38,6 +38,7 @@ mod fused;
 mod gdn;
 pub mod gemm_nax;
 mod host;
+pub mod inkmix;
 pub mod kernels;
 mod moe;
 pub mod multirow;
@@ -1367,6 +1368,9 @@ impl MetalBackend {
         ) && call.op == Op::MatmulNvfp4
         {
             return self.launch_nvfp4(kernel, call);
+        }
+        if inkmix::KERNELS.iter().any(|k| k.0 == kernel) {
+            return self.launch_inkmix(kernel, call);
         }
         if bridge::KERNELS.iter().any(|k| k.0 == kernel) {
             return self.launch_bridge(kernel, call);

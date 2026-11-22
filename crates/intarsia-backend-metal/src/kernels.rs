@@ -323,6 +323,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::gdn::shader_names());
     v.extend(crate::dflash::shader_names());
     v.extend(crate::bridge::shader_names());
+    v.extend(crate::inkmix::shader_names());
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
     v.extend(crate::nvfp4::SHADERS);
@@ -416,6 +417,13 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::bridge::BRIDGE_CODE_BF16, Op::BridgeCode),
     (crate::bridge::BRIDGE_GATE_BF16, Op::BridgeGate),
     (crate::bridge::BRIDGE_WRITE_BF16, Op::BridgeWrite),
+    // Inkling-2 depth mix / conv / in-projection (inkmix.rs)
+    (crate::inkmix::INK_IN_PROJ_BF16_GEMV, Op::InkInProj),
+    (crate::inkmix::INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj),
+    (crate::inkmix::CONV_MIX_BF16, Op::ConvMix),
+    (crate::inkmix::ATTN_RES_MIX_BF16, Op::AttnResMix),
+    (crate::inkmix::SCONV_RES_BF16, Op::SconvRes),
+    (crate::inkmix::LOOP_BLEND_BF16, Op::LoopBlend),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -804,6 +812,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(BF16_TOL)
                     .row_table()
                     .scratch(crate::rowtab::attn_scratch),
+                n if crate::inkmix::KERNELS.iter().any(|e| e.0 == n) => crate::inkmix::register(k),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
