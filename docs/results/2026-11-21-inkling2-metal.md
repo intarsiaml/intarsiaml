@@ -1088,6 +1088,23 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
 - Serve gap (not worked on): `/v1/chat/completions` returns no `logprobs` for Inkling-2 even when the request sets
   `logprobs` / `top_logprobs` (#11554 smoke: the choice has only index / message / finish_reason). The engine still keeps
   such rows on the host sampler (engine unit test); only the reply field is missing.
-- Profile (option c) queued as endor #11559 (quiet): kernel trace (gumbel dispatches per token), cb trace (GPU idle per
-  step), host profile, A/B x3, serve A/B, at short and 5k.
+- Profile (option c), endor #11559 (quiet, 13:33-13:38, land binary 45710801c), A = unset (device), B = `=0` (host):
+  - Paths confirmed: kernel trace, 64 tokens: A 64 `gumbel_argmax_f32` dispatches (1 per token), B 0; both ~543-551
+    dispatches per step otherwise.
+  - Host profile (`INTARSIA_HOST_PROFILE=1`, 255 decode steps, ms per step), short: A wall 13.53-13.60 (launch 0.67-0.74,
+    held behind the running step; sync 12.82-12.90; accept 0); B wall 15.31-15.32 (step-setup 0.84-0.86 + accept 1.04-1.07
+    on the critical path; sync 13.06-13.13). So the host sampler's share did not overlap and did not shrink much: about
+    1.9 ms per token serial in B (accept 1.07 + step-setup 0.85) vs 1.37 + setup in hostgap; it costs 1.7-1.8 ms of wall.
+    cb trace A: GPU idle 0.001 ms per step (short and 5k).
+  - Decode tok/s, 256 forced tokens, order A B B A A B: short A 73.55 / 73.87 / 73.53, B 65.34 / 65.26 / 55.15 (last in a
+    slow box state; greedy right after: 73.63 then 55.51). **Short +12.8 %** (A median 73.55 vs B 65.30, the clean pair).
+    5k: A 53.84 / 56.59 / 51.89, B 50.87 / 50.56 / 51.45: **+5.8 %** median (53.84 vs 50.87); 5k host-profile walls A
+    17.67-19.27 vs B 19.44-19.78 ms.
+  - Serve (max-batch 1, 3 streamed t=1.0 256-token requests after a warm-up): A 51.38 / 49.69 / 54.37, B 49.65 / 53.21 / 54.98
+    chunks/s: no difference visible; both far below generate's 73, so the box was in its slow state for this section
+    (warm-ups 68.7 / 59.8). Not usable as a reference.
+  - Why #11554's ABBA showed no gain: its A arm ran at 65.2-65.3 tok/s, which is the slow-state speed (A runs at 73.5 in
+    a fast state, = greedy), so the box was slow during that section; the gain is there in the fast state.
+  - Verdict by the coordinator's rule (>= 3 % at t=1.0 somewhere real): **met at short (+12.8 %) and 5k (+5.8 %)**.
+    Reported; the PR is not opened, the worktree .worktrees/ink-gumbel-land kept until the coordinator decides.
 
