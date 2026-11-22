@@ -874,7 +874,7 @@ in `d3abfa9b6` (5..8 rows at K <= 3072: no other model has that MXFP4 shape).
 
 Only the MoE repack clears 0.3 ms / token. It was parked under brief 29's 1 ms bar; it is not built here without a go (it changes
 the expert layout that `ink_moe_mma` (prefill), the `_rows` path and W4A4 all read: either all of them learn the layout, or a
-second copy of the experts is kept, ~16 GB for the NVFP4 experts).
+second copy of the experts is kept: ~25 GB for the NVFP4 experts, estimated from the probe bytes (~4.5 MB per expert x 128 x 44 layers)).
 
 ### Dead end: MoE NVFP4 decode staging (`9be9868a9`, reverted `6cbbff7bf`)
 
