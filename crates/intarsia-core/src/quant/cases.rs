@@ -607,6 +607,19 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                         );
                     }
                 }
+                // 5 to 8 rows at K <= 3072 (CUDA's `matmul_mxfp4_gemv_ink_rows`, the Inkling-2 DSpark draft head: 4 output rows per warp,
+                // 1 to 3 groups per lane): K 2304 (72 groups: lanes 0..7 own a third), N tails (not a multiple of 4, N = 1 and 3), K of 1 and
+                // 96 groups. Appended again so the cases above keep their data.
+                let head: &[(usize, usize, usize)] =
+                    if quick { &[(7, 135, 2304), (5, 3, 32)] } else { &[(7, 135, 2304), (5, 3, 32), (6, 1, 3072), (8, 1001, 2304), (7, 4096, 2304), (5, 137, 1056)] };
+                for &(m, n, k) in head {
+                    for odt in [DType::Bf16, DType::F32] {
+                        push(
+                            format!("M={m} N={n} K={k} x=bf16 out={odt} act=none (w4a16)"),
+                            matmul_mxfp4_w4a16_case(&mut rng, m, n, k, DType::Bf16, odt),
+                        );
+                    }
+                }
             }
         }
         Op::MoeTopk => {

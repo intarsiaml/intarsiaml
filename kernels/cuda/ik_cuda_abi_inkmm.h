@@ -73,6 +73,11 @@ int ik_moe_experts_mxfp8_bf16_rows(const ik_tensor* x, const ik_tensor* ids, con
                                    const ik_tensor* s13, const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap,
                                    float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream);
 
+/* matmul_mxfp4 (W4A16; `act` not read), 5..8 rows, K % 32 == 0, K <= 3072, rows-exact: x [M,K] bf16, w u8 [N,K/2], scales
+ * u8 [N,K/32] (e8m0) -> out [M,N] bf16 or f32; bitwise ik_matmul_mxfp4_gemv per element (ink_mx4head.cu; the DSpark draft head). */
+int ik_matmul_mxfp4_gemv_ink_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                                  ik_tensor* out, void* stream);
+
 /* Benchmarks only: 1 launches only the gate+up kernel of an experts call, 2 only the down kernel (the output is garbage). */
 void ik_ink_moe_probe(int v);
 /* Tests / benchmarks: an ordinary experts call takes the tensor-core path above this many pairs (default 512, env

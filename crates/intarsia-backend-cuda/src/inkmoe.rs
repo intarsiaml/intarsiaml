@@ -3,6 +3,8 @@
 //! `MoeExpertsMxfp8` (silu / gelu / situ). Kernels in kernels/cuda/ink_moe.cu (ABI kernels/cuda/ik_cuda_abi_inkmm.h); the router
 //! (`MoeRoute`) is DSv4.1's `moe_route` (dsv41.rs). Union-grouped decode: each expert's rows are read once per call for all
 //! the pairs routed to it; a T-row call is bitwise T one-row calls, so the `_rows` twins are the same launchers.
+//! Also `matmul_mxfp4_gemv_ink_rows` (kernels/cuda/ink_mx4head.cu): the DSpark draft head's 5..=8-row MXFP4 GEMV, bitwise
+//! `matmul_mxfp4_gemv_rows` per element.
 
 use crate::kernels::ARCH;
 use intarsia_core::quant::ops::{moe_experts_mma_scratch, moe_experts_scratch};
@@ -13,6 +15,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("moe_experts_situ_bf16_rows", Op::MoeExperts),
     ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8),
     ("moe_experts_mxfp8_bf16_rows", Op::MoeExpertsMxfp8),
+    ("matmul_mxfp4_gemv_ink_rows", Op::MatmulMxfp4),
 ];
 
 /// bf16 expert outputs: the quantised-MoE budget (quantmoe.rs `TOL`).
@@ -65,6 +68,13 @@ fn rows_scratch(s: &ShapeInfo) -> usize {
     aq_scratch(s) + moe_experts_scratch(s)
 }
 
+/// `matmul_mxfp4_gemv_ink_rows` above the generic row-exact GEMV (default; the same bits); `INTARSIA_INK_MX4HEAD=0` puts it
+/// below. Read once per process.
+pub fn mx4head_on() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_INK_MX4HEAD").map_or(true, |v| v != "0"))
+}
+
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
     TABLE
@@ -76,6 +86,15 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(if name.starts_with("moe_experts_situ") { SITU_TOL } else { MOE_TOL })
                 .tol_f32(F32_TOL);
+            if *name == "matmul_mxfp4_gemv_ink_rows" {
+                // the DSpark draft head (ink_mx4head.cu): 5..=8 rows, W4A16, bitwise `matmul_mxfp4_gemv_rows` per element, so
+                // above it (priority -1) for these rows; K <= 3072 (3 groups per lane). The 27B's MXFP4 (K 5120) is out of range.
+                return k
+                    .weights([DType::U8])
+                    .when(|s| s.mxfp4_w4a16 && !s.mxfp4_a8 && (5..=8).contains(&s.m) && s.k % 32 == 0 && (32..=3072).contains(&s.k))
+                    .priority(if mx4head_on() { 5 } else { -10 })
+                    .rows_exact();
+            }
             // the ordinary kernels take the tensor-core path above 512 pairs (its scratch holds the tile table too) and the
             // SIMT path at or below it, so they reserve the larger of the two layouts
             // every Inkling expert kernel also runs the W4A4 mode (`ink.act_quant = 1`, situ only: `inkling2::ops`)
@@ -162,6 +181,7 @@ mod launch {
         fn ik_moe_experts_situ_bf16_rows(x: T, ids: T, w: T, guw: T, gus: T, dnw: T, dns: T, gs: T, gc: f32, uc: f32, aq: c_int, out: TM, sc: SC, s: S) -> c_int;
         fn ik_moe_experts_mxfp8_bf16(x: T, ids: T, w: T, w13: T, s13: T, w2: T, s2: T, act: c_int, gc: f32, uc: f32, aq: c_int, out: TM, sc: SC, s: S) -> c_int;
         fn ik_moe_experts_mxfp8_bf16_rows(x: T, ids: T, w: T, w13: T, s13: T, w2: T, s2: T, act: c_int, gc: f32, uc: f32, aq: c_int, out: TM, sc: SC, s: S) -> c_int;
+        fn ik_matmul_mxfp4_gemv_ink_rows(x: T, w: T, sc: T, act: T, out: TM, s: S) -> c_int;
     }
 
     impl CudaBackend {
@@ -214,6 +234,7 @@ mod launch {
                     "moe_experts_mxfp8_bf16_rows" => {
                         ik_moe_experts_mxfp8_bf16_rows(i(0), i(1), i(2), i(3), i(4), i(5), i(6), act, gc, uc, aq, o, sc, s)
                     }
+                    "matmul_mxfp4_gemv_ink_rows" => ik_matmul_mxfp4_gemv_ink_rows(i(0), i(1), i(2), i(3), o, s),
                     other => return Err(Error::NoKernel(format!("cuda kernel '{other}'"))),
                 }
             };

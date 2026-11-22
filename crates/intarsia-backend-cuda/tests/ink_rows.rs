@@ -569,3 +569,27 @@ fn ink_experts_mma_chunk_invariant() {
         assert!(rel < bound, "{kname} {act} aq={aq}: tensor-core path rel_l2 {rel} against the SIMT kernels");
     }
 }
+
+/// The DSpark draft head's MXFP4 GEMV (`matmul_mxfp4_gemv_ink_rows`, 5..=8 rows, 4 output rows per warp): BITWISE
+/// `matmul_mxfp4_gemv_rows` (the generic row-exact GEMV it replaces) at every element, both output dtypes; N tails (not a
+/// multiple of 4, 1, 3), K of 1, 33, 72 and 96 groups.
+#[test]
+fn ink_mxfp4_head_bitwise_gemv() {
+    let Some(rig) = Rig::new("ink_mxfp4_head_bitwise_gemv") else { return };
+    let mut rng = SplitMix64::new(0x6d78_3468);
+    for &(n, k) in &[(135usize, 2304usize), (1, 32), (3, 1056), (1001, 3072), (64, 2304)] {
+        let w = HostTensor::new(DType::U8, vec![n, k / 2], (0..n * k / 2).map(|_| rng.next_u64() as u8).collect()).unwrap();
+        let sc = HostTensor::new(DType::U8, vec![n, k / 32], (0..n * k / 32).map(|_| 118 + (rng.next_u64() % 8) as u8).collect()).unwrap();
+        let act = HostTensor::from_f32_as(DType::F32, &[1], &[0.0]);
+        for m in 5..=8usize {
+            let x = rnd(&mut rng, DType::Bf16, &[m, k], 1.0);
+            for odt in [DType::Bf16, DType::F32] {
+                let attrs = OpAttrs { mxfp4_w4a16: true, ..OpAttrs::default() };
+                let ins = [x.clone(), w.clone(), sc.clone(), act.clone()];
+                let a = rig.run("matmul_mxfp4_gemv_ink_rows", Op::MatmulMxfp4, &ins, &[(odt, vec![m, n], None)], &attrs);
+                let b = rig.run("matmul_mxfp4_gemv_rows", Op::MatmulMxfp4, &ins, &[(odt, vec![m, n], None)], &attrs);
+                assert_eq!(a[0].data, b[0].data, "N {n} K {k} M {m} out {odt}: differs from matmul_mxfp4_gemv_rows");
+            }
+        }
+    }
+}
