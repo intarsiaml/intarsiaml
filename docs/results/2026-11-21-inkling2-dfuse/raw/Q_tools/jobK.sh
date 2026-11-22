@@ -76,6 +76,12 @@ for kind in ("short", "5k"):
     print(f"{kind}: " + "; ".join(f"k {k}: span {', '.join('%.3f' % x[3] for x in v)} disp/step {v[0][2]:.0f} md5 {'same' if len(set(y[5] for y in v)) == 1 else 'MIXED'}" for k, v in sorted(by.items())))
     print(f"SLOPE {kind}: {b * 1000:.2f} us per dispatch (se {se * 1000:.2f}), intercept {a:.3f} ms/step; md5 across k: {'all equal' if len(set(x[5] for x in r)) == 1 else 'DIFFER'}")
 PY
+  python3 $S/attn/stepenc.py $L/cb_short_*_k0.jsonl $L/cb_short_*_k200.jsonl $L/cb_5k_*_k0.jsonl $L/cb_5k_*_k200.jsonl | tee $L/stepenc.txt
+  echo "STEP host encode vs GPU (token feedback off: plain 128-dispatch buffers give host encode per dispatch)"
+  for k in 0 200; do
+    env INTARSIA_TOKEN_FEEDBACK=0 INTARSIA_INK_DEBUG_DISPATCHES=$k INTARSIA_METAL_PROFILE=cb:$L/cbp_k$k.jsonl $S/tmo.sh 300 $B generate --model $CK --backend metal --max-seq 8192 --temperature 0 --profile-every 0 --prompt "$P" --max-tokens 257 > $L/cbp_k$k.out 2> $L/cbp_k$k.err
+    echo "plain k=$k: $(python3 $S/cbstat.py $L/cbp_k$k.jsonl enc) | $(python3 $S/cbstat.py $L/cbp_k$k.jsonl plain 250 | tr -s ' ' | tr '\n' ' ') | $(grep -ho 'decode [0-9]* ms ([0-9.]* tok/s)' $L/cbp_k$k.err) md5 $(md5 -q $L/cbp_k$k.out)"
+  done | tee $L/plain_enc.txt
   echo "slope $(date)" >> $L/times.txt
   echo "STEP harness chains (engine settings) + dispatch_cost"
   xcrun swiftc -O -o $L/dispcost $S/attn/dispcost.swift > $L/swiftc_dc.log 2>&1 && $S/tmo.sh 300 $L/dispcost > $L/dispcost.txt 2>&1; echo "EXIT dispcost $?"; cat $L/dispcost.txt

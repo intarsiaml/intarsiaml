@@ -1501,3 +1501,56 @@ Go with (b), measure-only, with one change so that the result applies to the rea
   (`new_mtl_buffer(bytes, false)`). One `MTLDispatchTypeSerial` encoder, no barriers. dispatch_cost's buffers are
   untracked (`new_mtl_buffer(bytes, true)`), and the attention harness used private, tracked buffers. So hazard tracking
   is the first suspect for 0.88 vs 3.3 us.
+
+### Coordinator add-on to job K (~09:35, verbatim in substance)
+
+If job K shows that hazard tracking explains 0.88 vs 3.3 us, rank one more candidate next to the dispatch cuts: decode
+buffers untracked (`MTLHazardTrackingModeUntracked`) with explicit barriers. That would cut the cost of all 543
+transitions, not only the removed ones, and it would help every model on Metal. Report, measure and list only, no build:
+1. from the chain matrix, the slope difference between tracked and untracked buffers in the engine's encoder setup;
+2. whether the cost is CPU encoding or GPU time: the encode wall time and the GPU time of a step at k = 0 and k = 200;
+3. where the engine creates and uses buffers (file:line), and which hazards it relies on Metal to track today: reads after
+   writes across encoders, blits, and the CPU readback of sampled ids.
+
+**Added to job K before it started:**
+- dispcost.swift: an untracked conc+barrier column, and the host encode wall per dispatch for every setting.
+- stepenc.py: per fb step, GPU busy and the lead (GPU end - last commit).
+- Two plain-mode runs (`INTARSIA_TOKEN_FEEDBACK=0`, k = 0 and 200). In plain mode, cbstat `enc` gives host encode us per
+  dispatch from the full 128-dispatch buffers. In fb mode the held buffer's commit time includes the hold, so encode is
+  not separable there.
+- From job Q's traces (k = 0): the host commits each step's last buffer about 13.2 ms before the GPU finishes it (lead
+  13.230 ms short, 14.173 at 5k; GPU idle 0.01 %). Host encoding is therefore off the critical path today, and a
+  transition's cost is GPU time. Job K checks that this still holds at k = 200.
+
+**Item 3: buffers and the hazards Metal tracks today** (read-only survey of crates/intarsia-backend-metal/src and the
+core readback callers; key lines spot-checked):
+- **Creation.**
+  - Every engine buffer is created at `lib.rs:1119` (`alloc` -> `new_mtl_buffer(bytes, false)`, `lib.rs:670-677`):
+    StorageModeShared, tracked. That covers workspaces, KV, state and the `ws.tok` token ring.
+  - mmap'd weights: `host.rs:83-87` (`newBufferWithBytesNoCopy`, shared, tracked, read-only).
+  - Already untracked: the sync counter arena `sync.rs:32`; the decode.rs bench (`decode.rs:85-86`,
+    `IK_METAL_TRACKED=1` measures tracked); `bench.rs:131-132`; the keep-warm scratch `host.rs:358`.
+  - No MTLHeap.
+- **Encoders.**
+  - One `MTLDispatchTypeSerial` compute encoder on the decode path (`lib.rs:788-791`, `with_encoder_opt`). No blit
+    encoders: copy and zero are compute dispatches (`fill.rs`), and an overlapping same-buffer copy synchronizes first
+    (`lib.rs:1151-1157`).
+  - Cuts:
+    - `commit_every` (128, `INTARSIA_METAL_COMMIT_EVERY`) and `first_commit` (4);
+    - in token feedback, the held cut of 16 dispatches, then the rest on `release` (`lib.rs:806-815, 1237`). cbstat
+      shows 2 buffers per decode step in fb mode.
+  - No memoryBarrier, MTLFence, MTLEvent or MTLSharedEvent. `useResources` appears only for row-table indirect sets
+    (`lib.rs:832-860`).
+- **Hazards that rely on tracking today.**
+  - (a) Read-after-write across command buffers: the held cut -> rest within a step, and step N -> step N+1 (token
+    feedback has two steps in flight). Inside one serial encoder, the dispatch order alone covers RAW.
+  - (b) Blits: none on the decode path.
+  - (c) CPU readback of the sampled id: `feedback_read` -> `read_after` (`lib.rs:1272-1293`). It waits
+    (`waitUntilCompleted`) on the fence's command buffers, then memcpys the `ws.tok` slot. The next step reads the other
+    ring slot, so this does not depend on tracking. The plain path's `download` drains first (`lib.rs:1134-1136`).
+  - (d) Host writes (`upload`) always drain first (`lib.rs:1123`), so they do not depend on tracking.
+  - (e) Row tables reach state by device address, which tracking cannot see, so those already rely on serial order plus
+    `useResources`.
+- **What an untracked switch would need.** Explicit ordering at each command-buffer boundary: an MTLFence or MTLEvent
+  at the held cut and between steps, about 2 per step in fb mode. Inside the serial encoder, nothing extra is needed. The
+  single flip point is `lib.rs:1119`. This is the hostgap lane's area (encoder and commit), so it is a listing only.
