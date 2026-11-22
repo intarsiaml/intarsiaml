@@ -471,3 +471,21 @@ was killed with the server; the script should signal the server pid, not the wra
 
 ink/dfuse ac2371c81 in the same job (#11104, exit 0): row-table tests on Metal with INTARSIA_INK_MIX_HOIST=1 and =0 both
 pass (tiny inkling2_batch 6/6, inkmix 3/3, tiny state 8/8), and HOIST=1 with forced splits (INTARSIA_INK_SPLIT_KEYS=4) 6/6.
+
+## 17. NE / BLEND_RB speed A/B on the merged tip (#11181, quiet, `.scratch/nerb-11181.log`)
+
+Merged tip 8546d143f (code = ink/metal 1d0892eb7, before the NE fix 7eca1b012), `batch_step --ctx 1024 --rounds 2 --steps 16`,
+arms in order fwd / rev / fwd. Batched step ms per rep, median, and aggregate tok/s at the median:
+
+| B | tip (NE 4, RB 4) | NE=3 | NE=3 + BLEND_RB=16 |
+|---:|---|---|---|
+| 1 | 16.40 / 16.43 / 16.36: **16.40** (61.0) | 16.31 / 16.34 / 16.33: **16.33** (61.2) | 16.29 / 16.41 / 16.62: **16.41** (60.9) |
+| 8 | 34.93 / 35.11 / 34.93: **34.93** (229.0) | 35.09 / 34.98 / 34.78: **34.98** (228.7) | 35.04 / 35.14 / 35.27: **35.14** (227.6) |
+| 16 | 59.96 / 59.96 / 60.61: **59.96** (266.9) | 59.90 / 59.75 / 59.77: **59.77** (267.7) | 60.39 / 60.41 / 60.50: **60.41** (264.9) |
+
+- NE 4 vs NE 3 costs nothing measurable at B 1/8/16 (within 0.3%); BLEND_RB 16 is ~0.6-0.8% slower at B 8/16, not faster.
+  Neither is the batched speed cost, so the NE fix (7eca1b012, NE 3 at D 2304) should not slow the batched step.
+- The 71 -> 80 ms B=16 slowdown does not reproduce here: the merged tip runs B 16 at ~60 ms (266.9 tok/s), B 8 at ~35 ms,
+  faster than every earlier figure (pre-merge #10900 71 ms; merged #11057 79-81 ms). This job ran without a pre-merge arm, so
+  it cannot say what changed; the earlier figures came from other jobs (load, run order, the rtvar build or flags may differ).
+  Before trusting the 230 target as met (266.9 here), a paired pre-merge vs merged run in one quiet job is still needed.
