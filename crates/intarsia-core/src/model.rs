@@ -1202,9 +1202,9 @@ impl Model {
             r => r?,
         };
 
-        // the screened greedy head (lane ink-fp8; crate::screen): an fp8 copy of the bf16 head and its row bounds. Default on
-        // on Metal for Inkling-2 (`crate::screen::wanted`), `INTARSIA_INK_HEAD_SCREEN=0` off; the load notes below only when
-        // the variable is set or the model is Inkling-2
+        // the screened greedy head (lane ink-fp8; crate::screen): an fp8 copy of the bf16 head and its row bounds. Opt-in
+        // (`INTARSIA_INK_HEAD_SCREEN=1`, `crate::screen::wanted`); the load notes below only when the variable is set or the
+        // model is Inkling-2
         let screen_env = std::env::var(crate::screen::ENV).ok();
         let head_screen = if crate::screen::wanted(screen_env.as_deref(), b.name()) && (dims.ink.is_some() || screen_env.is_some()) {
             let reason = if dims.ink.is_none() {

@@ -120,16 +120,17 @@ pub fn metric() -> String {
 pub const W_NORM_MAX: f64 = 1048576.0;
 
 /// `INTARSIA_INK_HEAD_SCREEN`: the screened greedy head (Inkling-2 only; needs `INTARSIA_LMHEAD_QUANT` unset: the head stays
-/// bf16, the fp8 copy is the screen's). Unset: on on Metal, off elsewhere; `0` / `off` / `false`: off; `1` / `on` / `true`: on
-/// on every backend (the cpu reference ops included). See [`wanted`].
+/// bf16, the fp8 copy is the screen's). Opt-in: `1` / `on` / `true`: on (every backend with the screen kernels, the cpu
+/// reference ops included); unset or anything else: off. See [`wanted`].
 pub const ENV: &str = "INTARSIA_INK_HEAD_SCREEN";
 
 /// Whether the screen is asked for: the value of [`ENV`] (if set) and the backend's name.
-pub fn wanted(env: Option<&str>, backend: &str) -> bool {
+pub fn wanted(env: Option<&str>, _backend: &str) -> bool {
     match env.map(|v| v.trim().to_ascii_lowercase()) {
         Some(v) if matches!(v.as_str(), "0" | "off" | "false") => false,
         Some(v) if matches!(v.as_str(), "1" | "on" | "true") => true,
-        _ => backend == "metal",
+        // opt-in: a default needs its gate first (rigorous bound, longer B16 ABAB); the backend argument stays for it
+        _ => false,
     }
 }
 
@@ -583,11 +584,11 @@ mod tests {
     }
 
     #[test]
-    fn default_on_metal_only() {
-        assert!(wanted(None, "metal") && !wanted(None, "cpu") && !wanted(None, "cuda"));
+    fn opt_in_only() {
+        assert!(!wanted(None, "metal") && !wanted(None, "cpu") && !wanted(None, "cuda"));
         assert!(!wanted(Some("0"), "metal") && !wanted(Some(" off "), "metal") && !wanted(Some("FALSE"), "metal"));
-        assert!(wanted(Some("1"), "cpu") && wanted(Some("on"), "metal"));
-        assert!(wanted(Some(""), "metal") && !wanted(Some("x"), "cpu"));
+        assert!(wanted(Some("1"), "cpu") && wanted(Some("on"), "metal") && wanted(Some(" TRUE "), "metal"));
+        assert!(!wanted(Some(""), "metal") && !wanted(Some("x"), "cpu"));
     }
 
     /// The flush-to-zero part of the bound: `hn` keeps its floor for an all-zero or subnormal-scale row, and a head row norm of
