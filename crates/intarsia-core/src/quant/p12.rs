@@ -307,6 +307,14 @@ pub fn random_weight(rng: &mut crate::rng::SplitMix64, n: usize, k: usize, std: 
     w
 }
 
+/// Whether the in-projection gets a P12 copy on the backend named `backend` (wo and the unembed always do when P12 is on).
+/// Not on CUDA: its P12 in_proj kernel is bitwise the bf16 one but slower there (spark1 #11157, nsys of the decode step at
+/// 1.2k: 197 vs 182 us per visit; decode-ALU bound), while wo (48 vs 59 us) and the unembed (2873 vs 3756 us) gain. The
+/// kernel stays registered (`INTARSIA_INK_P12_IN_PROJ=1` packs it anyway, for measurement).
+pub fn pack_in_proj(backend: &str) -> bool {
+    backend != "cuda" || std::env::var("INTARSIA_INK_P12_IN_PROJ").is_ok_and(|v| v.trim() == "1")
+}
+
 /// What `INTARSIA_INK_PACK12` (`env`) decides on the backend named `backend`, which registers the P12 kernels
 /// (`Op::MatmulP12`: Metal and the cpu reference) or not (CUDA, HIP): whether to pack, and a load-log note when a forced
 /// `1` is not honoured. `0` / `off` / `false`: never. `1` / `on` / `true`: wherever the kernels exist; a backend without

@@ -457,7 +457,8 @@ pub(super) fn load(
         }
         let nq = nq_width(h, dh, dr);
         let nk = ckv + if local { 0 } else { hk * kc };
-        let in_p12 = if pack12 { Some(p12_stats.pack(b, &stacked, nq + 2 * nk, d)?) } else { None };
+        // per tensor class: the in-projection only where its P12 kernel is faster (`p12::pack_in_proj`)
+        let in_p12 = if pack12 && crate::quant::p12::pack_in_proj(b.name()) { Some(p12_stats.pack(b, &stacked, nq + 2 * nk, d)?) } else { None };
         let in_w = match attn_quant {
             None => InkInW::Stacked(put(&stacked, wdt, &[nq + 2 * nk, d])?),
             Some(kind) => {
