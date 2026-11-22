@@ -193,6 +193,15 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   estimate, report TTFT and decode. (3) Then start prefill MoE MMA W4A4 on the FP4 tensor cores (moe_sm120 way); same gates
   (rows-exact or tolerance-justified admission, G2 / G3, greedy md5 or explained drift); decode MoE repack after. (4) Metal
   half of 24ab7961d out of any merge until #11301 passes.
+- (coordinator, 25th) Ack chunk 2048 default and #11301 PASS (Metal half of 24ab7961d cleared for the merge). W4A4: (1) gates
+  option (a): opt-in speed mode gated on G3 short AND long, G2 waived but reported as information; W4A4 never default
+  without the user; results table shows quality and speed side by side; say plainly if G3 passes with under 5% margin; no
+  rounding tuning until it passes. (2) Contract approved: act_quant = 1 = W4A4 per hf_quant_config (NVFP4: per-token
+  fouroversix_mae, block 16, e4m3 scales, global amax/1536, for x and h; MXFP8 layers 20-23: mxfp8_e4m3 activations, ue8m0 per
+  32), chosen by recipe `[tuning.cuda] act_quant`, W4A16 default. Quantize at every T including decode (required: spec verify
+  rows bitwise equal T=1 decode rows, greedy md5 spec on vs off under act_quant=1; both on the act_quant=1 gate list). Measure
+  decode tok/s act_quant 1 vs 0. ink_ref.rs quantizer matches the GPU exactly; admission rows-exact up to GEMM accumulation.
+  sm_121a fine if the default build still works for everything else and other CUDA tests pass; report the build.rs change.
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
