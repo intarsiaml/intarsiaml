@@ -235,6 +235,9 @@ fn conv_mix_rows_exact() {
     // a chunk longer than the blend's 256-row scratch chunk (two blend chunks, the h GEMV's full 16-row chunks and its tail)
     conv_case(&be, &mut rng, Op::ConvMix, 300, 64, 7, 2, (true, true, true), (3, 1, false, 3), false);
     conv_case(&be, &mut rng, Op::ConvMix, 300, 64, 7, 2, (true, false, false), (2, 3, false, 3), false);
+    // the real width past 16 rows: the h GEMV's 16-row chunks and tail at K = 4608, the deferred ring write at Rr 19
+    conv_case(&be, &mut rng, Op::ConvMix, 40, 2304, 19, 2, (true, true, true), (3, 1, false, 3), false);
+    conv_case(&be, &mut rng, Op::ConvMix, 40, 2304, 19, 29, (true, false, false), (4, 1, true, 0), false);
     // the device position
     conv_case(&be, &mut rng, Op::ConvMix, 7, 2304, 19, 29, (true, true, true), (4, 1, true, 0), true);
     conv_case(&be, &mut rng, Op::ConvMix, 16, 64, 7, 3, (true, true, true), (3, 1, false, 3), true);

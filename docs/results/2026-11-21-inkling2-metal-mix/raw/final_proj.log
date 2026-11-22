@@ -1,0 +1,36 @@
+fleetq: #10669 running on endor: .scratch/final_proj.sh
+HEAD d99d2c0fc bin Nov 21 20:44:18 2026
+{"gbs": 561.8, "reps": 7, "min": 545.5, "max": 564.6}
+case                                           us/call       p10       p90     GB/s
+InkInProj R=1 S=1                                69.57     69.43     70.07    574.2
+InkInProj R=1 S=3                                69.81     69.52     72.48    572.3
+InkInProj R=2 S=1                                70.42     70.28     71.93    567.5
+InkInProj R=2 S=3                                71.85     70.20     72.81    556.5
+InkInProj R=4 S=1                                72.57     71.90     73.22    551.4
+InkInProj R=4 S=3                                72.50     71.86     73.19    552.4
+InkInProj R=8 S=1                                83.31     82.27     83.59    481.3
+InkInProj R=8 S=3                                83.31     83.15     83.61    482.2
+InkInProj R=16 S=1                              161.80    161.67    161.98    248.9
+InkInProj R=16 S=3                              167.85    167.76    167.94    240.8
+3 x Matmul GEMV (per visit) R=1                  73.12     72.82     73.64    546.4
+3 x Matmul GEMV (per visit) R=2                  76.87     75.16     77.56    520.2
+3 x Matmul GEMV (per visit) R=4                  77.86     76.33     79.20    514.4
+3 x Matmul GEMV (per visit) R=8                  82.81     81.99     83.13    485.1
+3 x Matmul GEMV (per visit) R=16                155.60    155.15    156.52    259.8
+wo Matmul [2304,3072] R=1 (matmul_bf16_gemv)     25.70     25.62     25.96    551.1
+wo Matmul [2304,3072] R=2 (matmul_bf16_gemv_rows)     26.48     26.10     27.81    535.4
+wo Matmul [2304,3072] R=4 (matmul_bf16_gemv_rows)     27.81     27.16     28.23    510.5
+wo Matmul [2304,3072] R=8 (matmul_bf16_gemv_rows)     29.32     29.27     29.71    485.8
+wo Matmul [2304,3072] R=16 (matmul_bf16_gemv_rows)     53.19     52.85     53.40    269.4
+case                                           us/call       p10       p90     GB/s
+Matmul NAX [8664,2304] R=2                      106.32    106.08    107.13    375.9
+Matmul NAX [8664,2304] R=4                      107.30    106.30    108.34    372.9
+Matmul NAX [8664,2304] R=8                      106.40    106.03    107.59    376.9
+Matmul NAX [8664,2304] R=12                     106.49    106.38    106.82    377.4
+Matmul NAX [8664,2304] R=16                     106.92    106.14    108.47    376.7
+case                                           us/call       p10       p90     GB/s
+InkInProj NAX T=2048 S=1                        1296.6    1295.6    1298.1     63.1 TFLOP/s
+InkInProj NAX T=2048 S=3                        1295.2    1294.0    1297.0     63.1 TFLOP/s
+wo Matmul NAX T=2048                             466.5     466.1     466.6     62.1 TFLOP/s
+{"gbs": 559.2, "reps": 7, "min": 533.7, "max": 567.8}
+fleetq: #10669 done (exit 0)

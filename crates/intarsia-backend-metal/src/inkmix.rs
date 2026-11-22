@@ -49,7 +49,15 @@ const F32_TOL: Tol = Tol::new(1e-3, 2e-4);
 pub fn register(k: KernelImpl) -> KernelImpl {
     let bf = [DType::Bf16];
     match k.name.as_str() {
-        INK_IN_PROJ_BF16_GEMV => k.acts(bf).weights(bf).when(|s| s.m == 1).exact(Exactness::Deterministic).tol(BF16_TOL),
+        // ordinary calls up to PROJ_GEMV_ORDINARY_MAX rows too, above the NAX GEMM (priority 5): at the real shape the
+        // GEMV takes 70-83 us for 1-8 rows, NAX a flat 106 us for 2-16 (docs/results/2026-11-21-inkling2-metal-mix.md)
+        INK_IN_PROJ_BF16_GEMV => k
+            .acts(bf)
+            .weights(bf)
+            .when(|s| (1..=PROJ_GEMV_ORDINARY_MAX).contains(&s.m))
+            .exact(Exactness::Deterministic)
+            .tol(BF16_TOL)
+            .priority(6),
         // the verify / batched twin: bitwise the 1-row launch per row (tests/inkmix.rs); only `exact_rows` calls select it
         INK_IN_PROJ_BF16_GEMV_ROWS => k
             .acts(bf)
@@ -94,6 +102,9 @@ pub fn register(k: KernelImpl) -> KernelImpl {
         other => unreachable!("inkmix kernel {other} has no registration"),
     }
 }
+
+/// Most rows an ordinary (not `exact_rows`) InkInProj call runs on the GEMV; above it the NAX GEMM is faster.
+pub const PROJ_GEMV_ORDINARY_MAX: usize = 8;
 
 /// Most rows the GEMV forms take in one launch.
 pub const PROJ_ROWS_MAX: usize = 16;
@@ -403,8 +414,19 @@ pub const MIX_D_MAX: usize = 4096;
 pub const MIX_SOURCES_MAX: usize = 8;
 /// Rows per blend chunk (its scratch holds that many rows: 21 MB at D 2304, S 3), streams and controller rank bounds.
 pub const BLEND_ROWS: usize = 256;
-/// Rows per `ink_blend_gate` threadgroup (`BLEND_RB` in the shader).
+/// Rows per `ink_blend_gate` threadgroup. With [`BLEND_CS`] a launch-shape choice only: a channel's gate value and the 32-channel
+/// partial sums do not depend on it (`INTARSIA_INK_BLEND_RB` / `_CS` measurement knobs).
 pub const BLEND_RB: usize = 16;
+
+fn blend_geom() -> (usize, usize) {
+    static G: std::sync::OnceLock<(usize, usize)> = std::sync::OnceLock::new();
+    *G.get_or_init(|| {
+        let g = |k: &str| std::env::var(k).ok().and_then(|v| v.parse::<usize>().ok());
+        let rb = g("INTARSIA_INK_BLEND_RB").filter(|&v| v >= 1).unwrap_or(BLEND_RB);
+        let cs = g("INTARSIA_INK_BLEND_CS").filter(|&v| v % 32 == 0 && (32..=1024).contains(&v)).unwrap_or(BLEND_CS);
+        (rb, cs)
+    })
+}
 pub const BLEND_STREAMS_MAX: usize = 3;
 pub const BLEND_G_MAX: usize = 128;
 /// Channels per slice of `ink_blend_gate` (one thread each).
@@ -514,7 +536,7 @@ fn blend_layout(d: usize, rows: usize) -> [usize; 6] {
     let pair = r(s * rows * 2 * d * 2);
     let h = r(s * rows * BLEND_G_MAX * 2);
     let y = r(s * rows * d * 4);
-    let part = r(s * rows * 2 * d.div_ceil(BLEND_CS) * 4);
+    let part = r(s * rows * d.div_ceil(1024).max(1) * 32 * 4);
     [0, dest, dest + pair, dest + pair + h, dest + pair + h + y, dest + pair + h + y + part]
 }
 
@@ -712,8 +734,9 @@ impl MetalBackend {
         let pair = sview(scratch, lay[1], bf, s * n * 2 * d);
         let h = sview(scratch, lay[2], bf, s * n * g);
         let yv = sview(scratch, lay[3], f32t, s * n * d);
-        let slices = d.div_ceil(BLEND_CS);
-        let nsl = 2 * slices;
+        let (brb, bcs) = blend_geom();
+        let slices = d.div_ceil(bcs);
+        let nsl = slices * (bcs / 32);
         let part = sview(scratch, lay[4], f32t, s * n * nsl);
         if g % 8 != 0 {
             return Err(Error::invalid(format!("metal blend: controller rank {g} is not a multiple of 8")));
@@ -731,13 +754,14 @@ impl MetalBackend {
             sd: dim(sd, "Sd")?,
             g: dim(g, "G")?,
             nsl: dim(nsl, "slices")?,
-            cs: BLEND_CS as u32,
+            cs: bcs as u32,
             t0: dim(t0, "row")?,
             ocount: dim(out.shape[1], "rows")?,
             dcount: dim(dest_rows.1, "rows")?,
             mcount: dim(mt, "rows")?,
             dt0: dim(dest_rows.0, "row")?,
             mt0: dim(t0, "row")?,
+            pad0: dim(brb, "gate rows")?,
             eps,
             ..Default::default()
         };
@@ -774,7 +798,7 @@ impl MetalBackend {
             gate,
             &[&dest_b, &msg_b, &h_b, &gain_b, &forget_b, &y_b, &part_b],
             &pg,
-            crate::dense::Grid::Groups { x: s * slices, y: n.div_ceil(BLEND_RB), threads: BLEND_CS },
+            crate::dense::Grid::Groups { x: s * slices, y: n.div_ceil(brb), threads: bcs },
         )?;
         let (nrm_b, out_b) = (self.bind(norm, bf, false, "norm")?, self.bind(out, bf, true, "out")?);
         let mut pn = p;
