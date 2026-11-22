@@ -7,6 +7,8 @@
 //!
 //!   cargo run --release -p intarsia-backend-metal --example inkmoe_bench [-- nv|mx] [rows ...]
 //!
+//! `INKMOE_POOL=<u>`: draw every token's experts from one random pool of u per call (smaller unions, more pairs per expert).
+//!
 //! Run it inside a fleetq slot (`fleetq run --host endor --quiet gpu,cpu --mem 8 ...`).
 
 #[cfg(not(target_os = "macos"))]
@@ -114,7 +116,22 @@ fn main() {
             let mut unions = Vec::new();
             let calls: Vec<OpCall> = (0..ncalls)
                 .map(|c| {
-                    let (ids, ws) = intarsia_core::quant::cases::random_routing(&mut rng, tr, E, K);
+                    // INKMOE_POOL=<u> (lane ink-batch): every token's top-K drawn from one random pool of u experts per
+                    // call, so the union shrinks toward u (real text at 16 rows: ~62; the bench's random ids: ~23)
+                    let pool = std::env::var("INKMOE_POOL")
+                        .ok()
+                        .and_then(|v| v.parse::<usize>().ok())
+                        .filter(|&u| u >= K && u < E);
+                    let (ids, ws) = match pool {
+                        None => intarsia_core::quant::cases::random_routing(&mut rng, tr, E, K),
+                        Some(u) => {
+                            let (sub, _) = intarsia_core::quant::cases::random_routing(&mut rng, 1, E, u);
+                            let sub = sub.to_i32().unwrap();
+                            let (ids, ws) = intarsia_core::quant::cases::random_routing(&mut rng, tr, u, K);
+                            let mapped: Vec<i32> = ids.to_i32().unwrap().iter().map(|&j| sub[j as usize]).collect();
+                            (HostTensor::from_i32(&[tr, K], &mapped), ws)
+                        }
+                    };
                     let mut seen = [false; E];
                     for &id in &ids.to_i32().unwrap() {
                         seen[id as usize] = true;
