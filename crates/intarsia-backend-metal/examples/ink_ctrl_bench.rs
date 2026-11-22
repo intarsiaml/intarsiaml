@@ -8,6 +8,12 @@
 //!
 //!   cargo run --release -p intarsia-backend-metal --example ink_ctrl_bench -- [--reps N] [--rows 1,2,3,4,16] [--trace F]
 //!
+//! `--probe [--evict MB,..]`: only the four ConvMix call sites with the default switches, one command buffer per dispatch
+//! (`INTARSIA_METAL_COMMIT_EVERY=1`, the stream per-dispatch trace's measurement), per dispatch label: the row kernel
+//! (`conv_mix_bf16`) alone, each blend stage, the call's total. With an evict size, every unit first streams one shared
+//! weight of that many MB through a `logits_bf16_gemv` (like the expert weights between two visits), so the call's operands
+//! come cold; the evict dispatch is reported apart and left out of the call's total.
+//!
 //! Run inside a fleetq slot (`--quiet gpu,cpu`).
 
 #[cfg(not(target_os = "macos"))]
@@ -96,6 +102,105 @@ mod imp {
         }
         let st = stats(&mut samples);
         (st.median, st.p10, st.p90)
+    }
+
+    /// Per dispatch label (the trace's `op`, `#k` for a call's k-th launch): median GPU us per unit, as `bench`.
+    fn bench_lab(be: &MetalBackend, trace: &std::path::Path, units: &[Vec<L>], reps: usize) -> std::collections::BTreeMap<String, f64> {
+        use std::io::{Read, Seek, SeekFrom};
+        let mut f = std::fs::OpenOptions::new().read(true).open(trace).ok();
+        let mut pos = f.as_mut().map_or(0, |f| f.seek(SeekFrom::End(0)).unwrap());
+        let mut inner = 1usize;
+        let mut samples: std::collections::BTreeMap<String, Vec<f64>> = Default::default();
+        for rep in 0..reps + 3 {
+            for _ in 0..inner {
+                for u in units {
+                    for l in u {
+                        be.launch(l.kernel, &l.call, 0).unwrap();
+                    }
+                }
+            }
+            be.synchronize(0).unwrap();
+            if f.is_none() {
+                f = std::fs::OpenOptions::new().read(true).open(trace).ok();
+            }
+            let Some(fh) = f.as_mut() else { continue };
+            fh.seek(SeekFrom::Start(pos)).unwrap();
+            let mut text = String::new();
+            fh.read_to_string(&mut text).unwrap();
+            pos += text.len() as u64;
+            let mut tot: std::collections::BTreeMap<String, f64> = Default::default();
+            for l in text.lines() {
+                let r: serde_json::Value = serde_json::from_str(l).unwrap();
+                *tot.entry(r["op"].as_str().unwrap_or("other").to_string()).or_default() += r["e"].as_f64().unwrap() - r["s"].as_f64().unwrap();
+            }
+            let n = (units.len() * inner) as f64;
+            if rep == 0 {
+                let all: f64 = tot.values().sum::<f64>() / n;
+                inner = ((0.03 / (all * units.len() as f64).max(1e-7)) as usize).clamp(1, 4000);
+            } else if rep >= 3 {
+                for (k, v) in tot {
+                    samples.entry(k).or_default().push(v / n * 1e6);
+                }
+            }
+        }
+        samples.into_iter().map(|(k, mut v)| (k, stats(&mut v).median)).collect()
+    }
+
+    /// `--probe`: the four ConvMix call sites (default switches) per dispatch label, cached and after `evict` MB.
+    fn probe(be: &MetalBackend, trace: &std::path::Path, rows: &[usize], reps: usize, evicts: &[usize], rng: &mut Rng) {
+        println!("| call site | T | evict MB | row kernel (conv_mix_bf16) | #1 | #2 | #3 | call total | evict dispatch |");
+        println!("|---|---:|---:|---:|---:|---:|---:|---:|---:|");
+        let big = evicts.iter().copied().max().unwrap_or(0);
+        // one shared evict weight of the largest size; smaller sizes read a prefix
+        let ew = if big > 0 {
+            let nr = big * 1_000_000 / (2 * D);
+            let b = be.alloc(nr * D * 2 + 64, MemKind::Device).unwrap();
+            be.upload(&b, 0, &vec![0x3cu8; nr * D * 2], 0).unwrap();
+            Some((b, nr))
+        } else {
+            None
+        };
+        for &t in rows {
+            for (mlp, s, what) in [(false, 0usize, "attn side, plain"), (false, 1, "attn side, blend S=1"), (true, 0, "mlp side, plain (Q 3)"), (true, 3, "mlp side, blend S=3")] {
+                let cu = conv_units(be, rng, t, mlp, s);
+                for &mb in evicts {
+                    let units: Vec<Vec<L>> = cu
+                        .iter()
+                        .map(|u| {
+                            let mut v = Vec::new();
+                            if let (true, Some((b, _))) = (mb > 0, ew.as_ref()) {
+                                let nr = mb * 1_000_000 / (2 * D);
+                                let x = zeros(be, DType::Bf16, &[1, D]);
+                                let w = TensorRef { buf: b.clone(), offset: 0, dtype: DType::Bf16, shape: vec![nr, D] };
+                                let lg = zeros(be, DType::F32, &[1, nr]);
+                                let c = OpCall::new(Op::Logits, vec![x, w], vec![lg], OpAttrs::default());
+                                c.check().unwrap();
+                                v.push(L { kernel: "logits_bf16_gemv", call: c });
+                            }
+                            v.extend(u.iter().map(|l| L { kernel: l.kernel, call: l.call.clone() }));
+                            v
+                        })
+                        .collect();
+                    let m = bench_lab(be, trace, &units, reps);
+                    let g = |k: &str| m.get(k).copied();
+                    let fmt = |v: Option<f64>| v.map_or("-".to_string(), |x| format!("{x:.2}"));
+                    let total: f64 = m.iter().filter(|(k, _)| k.starts_with("conv_mix")).map(|(_, v)| v).sum();
+                    let ev: f64 = m.iter().filter(|(k, _)| k.starts_with("logits")).map(|(_, v)| v).sum();
+                    println!(
+                        "| {what} | {t} | {mb} | {} | {} | {} | {} | {total:.2} | {} |",
+                        fmt(g("conv_mix_bf16")),
+                        fmt(g("conv_mix_bf16#1")),
+                        fmt(g("conv_mix_bf16#2")),
+                        fmt(g("conv_mix_bf16#3")),
+                        if mb > 0 { format!("{ev:.1}") } else { "-".into() }
+                    );
+                    let other: Vec<_> = m.keys().filter(|k| !k.starts_with("conv_mix") && !k.starts_with("logits")).collect();
+                    if !other.is_empty() {
+                        println!("(other labels: {other:?})");
+                    }
+                }
+            }
+        }
     }
 
     fn route_attrs() -> OpAttrs {
@@ -197,20 +302,32 @@ mod imp {
         let mut reps = 40usize;
         let mut rows = vec![1usize, 2, 3, 4, 16];
         let mut trace = std::path::PathBuf::from(format!("target/ink_ctrl_bench-{}.jsonl", std::process::id()));
+        let (mut probe_mode, mut evicts) = (false, vec![0usize]);
         let mut args = std::env::args().skip(1);
         while let Some(a) = args.next() {
             match a.as_str() {
                 "--reps" => reps = args.next().unwrap().parse().unwrap(),
                 "--rows" => rows = args.next().unwrap().split(',').map(|v| v.parse().unwrap()).collect(),
                 "--trace" => trace = args.next().unwrap().into(),
+                "--probe" => probe_mode = true,
+                "--evict" => evicts = args.next().unwrap().split(',').map(|v| v.parse().unwrap()).collect(),
                 o => panic!("unknown argument {o}"),
             }
         }
         std::env::set_var("INTARSIA_METAL_PROFILE", format!("cb:{}", trace.display()));
+        if probe_mode {
+            // one command buffer per dispatch, as the stream per-dispatch trace measures (each launch gets its own label)
+            std::env::set_var("INTARSIA_METAL_COMMIT_EVERY", "1");
+        }
         let be = MetalBackend::new().expect("metal backend");
         assert!(be.has_metal4(), "ink_ctrl_bench needs the metal4.0 library");
         use intarsia_backend_metal::inkctrl::{BLEND_NORM_C, MIX_HOIST};
         let mut rng = Rng(0xc7_1be4c4);
+        if probe_mode {
+            probe(&be, &trace, &rows, reps, &evicts, &mut rng);
+            let _ = std::fs::remove_file(&trace);
+            return;
+        }
         let none = || {};
         println!("| what | T | us per call (median) | p10 | p90 |");
         println!("|---|---:|---:|---:|---:|");
