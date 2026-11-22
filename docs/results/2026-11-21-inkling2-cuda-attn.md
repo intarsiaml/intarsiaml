@@ -77,35 +77,35 @@ checks five runs against each other:
 
 The test compares q / rel / k / v / o, both conv rings and both caches. Passes (fleetq #10799).
 
-## Decode timing (fleetq #10927, build7, tile floor 256)
+## Decode timing (fleetq #10963, final build, tile floor 256)
 
 `crates/intarsia-backend-cuda/tests/inkling2_attn_bench.rs` (`INTARSIA_INK_BENCH=1`). The figures are microseconds per
 visit, replayed from a captured CUDA graph (eager is 1-5 us higher). 16 visits rotate over their own operands so the
-K / V never sits in L2. "KV" is the K + V bytes a visit reads; the floor is KV / 273 GB/s.
+K / V never sits in L2. "KV" is the K + V bytes a visit reads; the floor is KV / 273 GB/s. The faster of pair and fused is
+in bold.
 
-| layer | ctx | rows | prologue | attn | pair | **fused (op 75)** | KV MB | floor us |
+| layer | ctx | rows | prologue | attn | pair | fused (op 75) | KV MB | floor us |
 |---|---|---|---|---|---|---|---|---|
-| SWA | 512 | 1 | 8.9 | 23.1 | 38.8 | **27.4** | 2.1 | 7.7 |
-| SWA | 512 | 4 | 8.9 | 36.2 | 41.8 | **39.3** | 2.1 | 7.7 |
-| SWA | 512 | 16 | 20.4 | 50.8 | 69.2 | **58.9** | 2.2 | 7.9 |
-| SWA | 4k | 1 | 8.8 | 33.4 | 46.8 | **39.4** | 4.2 | 15.4 |
-| SWA | 4k | 4 | 9.8 | 44.1 | 53.0 | **50.9** | 4.2 | 15.4 |
-| SWA | 4k | 16 | 19.0 | 61.3 | 80.3 | **72.7** | 4.2 | 15.4 |
-| full | 512 | 1 | 8.7 | 22.0 | 36.9 | **28.3** | 2.1 | 7.7 |
-| full | 512 | 4 | 8.8 | 32.8 | 40.9 | **38.6** | 2.1 | 7.7 |
-| full | 512 | 16 | 24.2 | 50.3 | 69.5 | **58.5** | 2.2 | 7.9 |
-| full | 4k | 1 | 8.7 | 99.6 | 119.0 | **111.7** | 16.8 | 61.5 |
-| full | 4k | 4 | 8.7 | 117.3 | **122.0** | 131.2 | 16.8 | 61.5 |
-| full | 4k | 16 | 20.2 | 146.5 | 166.5 | **165.5** | 16.8 | 61.7 |
-| full | 32k | 1 | 8.8 | 746 | 770 | **736** | 134 | 492 |
-| full | 32k | 4 | 8.8 | 796 | 801 | **776** | 134 | 492 |
-| full | 32k | 16 | 20.6 | 858 | 885 | 887 | 134 | 492 |
+| SWA | 512 | 1 | 8.2 | 23.9 | 41.6 | **28.7** | 2.1 | 7.7 |
+| SWA | 512 | 4 | 8.5 | 34.4 | 44.5 | **37.7** | 2.1 | 7.7 |
+| SWA | 512 | 16 | 12.0 | 50.0 | 61.2 | **57.3** | 2.2 | 7.9 |
+| SWA | 4k | 1 | 8.2 | 35.1 | 47.4 | **40.8** | 4.2 | 15.4 |
+| SWA | 4k | 4 | 8.5 | 46.5 | 53.7 | **47.8** | 4.2 | 15.4 |
+| SWA | 4k | 16 | 11.8 | 60.3 | 70.0 | **69.6** | 4.2 | 15.4 |
+| full | 512 | 1 | 8.2 | 22.5 | 39.3 | **29.7** | 2.1 | 7.7 |
+| full | 512 | 4 | 8.4 | 35.9 | 41.2 | **37.0** | 2.1 | 7.7 |
+| full | 512 | 16 | 13.4 | 51.2 | 58.5 | **56.1** | 2.2 | 7.9 |
+| full | 4k | 1 | 8.1 | 97.2 | 110.9 | **108.5** | 16.8 | 61.5 |
+| full | 4k | 4 | 8.3 | 115.9 | **119.5** | 123.9 | 16.8 | 61.5 |
+| full | 4k | 16 | 13.7 | 146.1 | **156.3** | 161.5 | 16.8 | 61.7 |
+| full | 32k | 1 | 8.1 | 732.8 | 732.6 | **715.4** | 134.2 | 491.7 |
+| full | 32k | 4 | 8.4 | 756.6 | 761.1 | **749.7** | 134.2 | 491.7 |
+| full | 32k | 16 | 11.6 | 829.8 | **845.1** | 846.3 | 134.3 | 491.9 |
 
 SWA visits read at most the 1024-key window, so SWA 32k is SWA 4k. On CUDA the fused op 75 is at least as fast as the pair
-at every point except full 4k at 4 rows (+9 us). The rule sent to main is fused for every visit of 1..16 rows on CUDA; the
-model's selection rule is Metal-only today.
-
-The 16-row prologue (20 us) is the build7 figure, taken before the tail-slicing fix in the next commit (re-measured below).
+by 1-13 us at 1-4 rows (SWA 512, 1 row: 28.7 vs 41.6), and within 5 us elsewhere. The pair wins at full 4k with 4 / 16
+rows (by 4-5 us, after the last prologue fix) and ties at full 32k with 16 rows. Approved rule, commit d536ff099: on CUDA,
+fused for every visit of 1..16 rows.
 
 Tile floor sweep (`INTARSIA_INK_SPLIT_KEYS`, fleetq #10866, before the prologue fix, so compare the attention and fused
 columns only):
@@ -129,16 +129,16 @@ columns only):
 | prefill chunk (2048 rows) | 4: `ink_prologue_k`, `ink_ring_write_k` (T > Rr - K + 1), `ink_flash_k`, `ink_kv_write_k` |
 | `rel_sink_attn_bf16` at T > 16 (rows-exact path, not normally selected) | 2 per 16-row slice |
 
-## Prefill timing (2048-row chunk, fleetq #10927)
+## Prefill timing (2048-row chunk, fleetq #10963)
 
-| layer | ctx before | prologue | attn (flash) | pair | KV MB | rel tensor |
-|---|---|---|---|---|---|---|
-| SWA | 0 | 2191 | 1250 | 3558 | 4.2 | 100 MB written + read |
-| SWA | 2k | 2300 | 1651 | 3785 | 4.2 | 100 MB |
-| SWA | 30k | 2246 | 1752 | 3807 | 4.2 | 100 MB |
-| full | 0 | 2205 | 1333 | 3538 | 8.4 | 100 MB |
-| full | 2k | 2254 | 2264 | 4594 | 16.8 | 100 MB |
-| full | 30k | 2291 | 14276 | 16670 | 134 | 100 MB |
+| layer | ctx before | prologue | attn (flash) | pair | KV MB |
+|---|---|---|---|---|---|
+| SWA | 0 | 1224.9 | 1221.4 | 2450.1 | 4.2 |
+| SWA | 2k | 1307.2 | 1581.3 | 2803.6 | 4.2 |
+| SWA | 30k | 1205.5 | 1600.0 | 2837.0 | 4.2 |
+| full | 0 | 1171.1 | 1429.2 | 2484.9 | 8.4 |
+| full | 2k | 1203.3 | 2293.6 | 3640.1 | 16.8 |
+| full | 30k | 1215.8 | 14282.0 | 15631.1 | 134.2 |
 
 The contract's `rel [T,H,E]` costs 2048 x 24 x 1024 x 2 B = 100 MB per chunk. That is 0.37 ms to write plus 0.37 ms to read
 at the bandwidth floor, and the bias fetch dominates SWA flash (every key is biased there, since window = E). The flash
