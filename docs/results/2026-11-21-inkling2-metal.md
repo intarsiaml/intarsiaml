@@ -535,6 +535,11 @@ by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
   run; alone (#11361, merged tree and 12cd4a06e by itself) both screen tests pass. The test sets `INTARSIA_INK_HEAD_SCREEN`
   with `set_var` while other tests run in parallel in the same process: a test-order race of the fp8 test, not of the merge
   (flagged to ink-fp8). Metal post-merge checks: `.scratch/q_fp8merge.sh` on 9576df6ea.
+- Fixed on ink/fp8 in eb14004b9 (tip e2c95e6d7), merged here at 37c8fbaf1 (tests and docs only): the screen tests load
+  through `load_screen()`, which holds a process-wide mutex, sets `INTARSIA_INK_HEAD_SCREEN` for that one load and removes
+  it before unlocking. Parallel cpu inkling2 11/11 three times on bespin (#11368, ink-fp8's run; the test file here is
+  identical to e2c95e6d7's). LOG.md's ink-fp8 row now says the screened head stays opt-in. Engine code unchanged, so the
+  pinned 9576df6ea post-merge check (#11363) and the a31e2df50 baseline still apply.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
