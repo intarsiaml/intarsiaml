@@ -173,6 +173,44 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   (head_screen None without `INTARSIA_INK_HEAD_SCREEN=1`). Take 05438a81f (or the later docs-only tip). Quiet ABAB #11189.
 - Lane: #11179's real-decode step errored on both trees (assert: chat_system has 63 ids, the test wanted 72), not a result.
   Fixed (e0a541b16: prefill 24, decode 38); rerun of that step alone as #11195 (`.scratch/realtest.sh`).
+- 2026-11-22 (coordinator): #11179 finished 03:39; submit the realtest now (`--in 1m`, no `--quiet gpu`; #11184 is not a
+  timing run). Pass rule: unfixed FAIL, fix PASS, and the failure must be the row-57 blow-up, not a setup error (a setup
+  error on either tree = invalid). Merges wait for #11179 and this rerun. Speed flag: in #11179's unquiet slot NE 3 vs NE 4
+  gave 2k prefill 1163 / 1186 vs 1503 / 1415 tok/s (-20 %), decode after 2k 39.7 / 38.6 vs 60.9 / 54.7 (-35 %): answer
+  whether NE 4 is faster because it skips work or NE 3 is genuinely slower; the quiet A/B is #11181. Lane: #11195 released;
+  the realtest is #11197 (reserved 03:41).
+
+## NE fix gate #11179 (tree 65dbc2870 = fix 7eca1b012 + test/docs)
+
+| Check | Result |
+|---|---|
+| real decode test, unfixed / fix | INVALID on both: setup assert (chat_system has 63 ids, test wanted 72); rerun #11197 |
+| synthetic mix vs cpu | 2/2 pass |
+| metal inkmix rows-exact / rows_single | 3/3, 2/2 |
+| tiny Metal inkling2 / inkling2_batch | 8/8, 6/6 |
+| G2 short prefill / decode mode | 2.380e-3 / **2.589e-3** (limit 4e-3), PASS; confident misses 0/363 |
+| G2 long prefill / decode mode | 3.418e-3 / **2.474e-3** (limit 6e-3), PASS; confident misses 1/1206 (allowance 2) |
+| G3 short / long | 8.391e-3 / 1.248e-2 (1.05e-2 / 1.65e-2), PASS |
+| greedy md5, 64 tokens | default == NE 3 forced: 15d62682aef1efea43a627936df9bb70 (both exit 0, non-empty; = the pre-m-mix tip) |
+
+Decode-mode G2 short is byte-for-byte the pre-merge value (2.589e-3), long 2.474e-3 equals the tip-gate value before the m-mix merge.
+
+Speed in the same slot (not quiet; pack12's nested #11161 never ran, its script was not executable, so no overlap with it):
+
+| Arm | short decode (19-token prompt, 256 tokens) | 2k prefill | decode after 2k (7 tokens) |
+|---|---|---|---|
+| default (NE 3), round 1 / 2 | 41.53 / 41.82 tok/s | 1163.2 / 1186.0 tok/s | 39.75 / 38.64 tok/s |
+| NE 4 forced, round 1 / 2 | 45.88 / 41.28 tok/s | 1503.5 / 1414.6 tok/s | 60.93 / 54.66 tok/s |
+
+**Does NE 4 skip work, or is NE 3 slower on the correct work? Neither explains these numbers; they are slot noise.**
+(1) NE 4 cannot skip work at D 2304: 576 threads x 4 = 2304 elements exactly (every `on[j]` true), as NE 3's 768 x 3; the
+fault is in the values, not in the coverage. (2) The row kernels are far too small a share for a 20-35 % gap: m-mix's quiet
+sweep (mix doc section 3.5) has NE 4 vs NE 3 at 8.45 vs 8.46 us per 1-row ConvMix, 233 vs 274 us per 2048-row plain ConvMix
+and 137 vs 149 us per AttnResMix, so over a 2048-row chunk (~48 plain ConvMix + ~49 AttnResMix-class row calls) NE 4 saves at
+most ~3 ms of ~1400-1700 ms (<= 0.3 %), and at decode it is within +-4 % of ~0.4 ms of row kernels per ~15.6 ms token
+(<= 0.1 %). (3) The slot was loaded: the default's short decode here is 41.5 tok/s against 63.4-64.3 quiet (localeval #10890,
+generate), and the NE 4 rounds swing 45.9 -> 41.3 between rounds; decode after 2k is 7 tokens (115-181 ms), too short to time.
+Expected from the quiet A/B #11181: NE 3 vs NE 4 within ~1 % at prefill and decode. The answer is final when #11181 reports.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
