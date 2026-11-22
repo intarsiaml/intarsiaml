@@ -40,6 +40,14 @@ Status: in progress. Branch `ink/mtp` (not pushed, not merged).
   (device positions for Inkling's ops). Ask: report per-cycle host ms split S1 / S2 / S3 from INTARSIA_DSPARK_PROFILE=1 (a short
   default-load job if #10806 lacks it); under about 1 ms per cycle in total drops M1-M4. And: may hostgap add
   INTARSIA_HOST_PROFILE hooks (profiling lines only) in the spec loop; name the file to keep out of.
+- 2026-11-21 (coordinator, SendMessage): the arithmetic points at the verify pass, not the drafter: k3 is 35.0 ms per cycle,
+  so verify at 4 rows is about 29 ms against 16.6 ms at 1 row (about +4.3 ms per row; k2 about +4.7), while ink-batch measures
+  about 2.3 ms per extra row for batch_step 2-8 rows. (1) Before the AttnDecode work, profile one verify pass at T = 3 and 4
+  per op (kernel trace, attribution only) next to ink-batch's B = 3 / 4 rows path: does verify route wo / unembed / InkInProj /
+  experts to generic GEMM / prefill-style kernels or to the rows kernels; attention and the rel prologue at T > 1 too. (2) If it
+  is the routing, send verify T <= 16 through ink-batch's rows kernels (bitwise per row with the 1-row kernels). Merge ink/metal
+  first (m-mix 47570539e, serve fix 761a1561b). (3) Default-on candidate k2 tau 0.6 greedy: flip as its own commit with an env
+  off switch, only after #10874 shows the gain; sampled requests stay on the normal path.
 
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
