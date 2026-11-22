@@ -187,6 +187,17 @@ pub const RMSNORM_ADD_EX: [&str; 6] = [
     "rmsnorm_add_bf16_ex32_f",
 ];
 pub const ARGMAX_F32_V4: &str = "argmax_f32_v4";
+/// `argmax_f32_v4` for any V (rows not 16-byte aligned: V % 4 != 0), lane ink-hostgap; the launcher takes it where `argmax_f32_v4`
+/// does not apply, unless `INTARSIA_METAL_ARGMAX_V4T=0`. Same result as `argmax_f32`.
+pub const ARGMAX_F32_V4T: &str = "argmax_f32_v4t";
+
+/// `INTARSIA_METAL_ARGMAX_V4T`: `0` sends f32 argmax rows with V % 4 != 0 back to the 256-thread scalar `argmax_f32`; unset or anything
+/// else takes `argmax_f32_v4t` (same result, 172 -> see docs/results/2026-11-21-inkling2-hostgap.md on Inkling-2's 200058 logits).
+/// Read once per process.
+pub fn argmax_v4t_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_METAL_ARGMAX_V4T").map_or(true, |v| v.trim() != "0"))
+}
 
 pub const ATTN_PREFILL_BF16: &str = "attn_prefill_bf16";
 /// `AttnPrefill`, flash-style on `simdgroup_matrix` with GQA-shared K / V tiles (attention_flash.metal, launcher flash.rs);
@@ -349,7 +360,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8, GEMV_PAIR_BF16_R1, GEMV_PAIR_BF16_R1_A8]);
     v.extend(RMSNORM_EX);
     v.extend(RMSNORM_ADD_EX);
-    v.push(ARGMAX_F32_V4);
+    v.extend([ARGMAX_F32_V4, ARGMAX_F32_V4T]);
     v.extend(EXPERIMENT_SHADERS);
     v.extend(crate::multirow::shader_names());
     v.extend(crate::rowtab::shader_names());

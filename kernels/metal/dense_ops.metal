@@ -426,6 +426,60 @@ kernel void argmax_f32_v4(device const float4* logits [[buffer(0)]],
     }
 }
 
+// Argmax over f32 logits, vector form for any V (lane ink-hostgap): the rows need not be 16-byte aligned (V % 4 != 0, e.g.
+// Inkling-2's unpadded 200058-row head, which took the 256-thread scalar kernel at 172 us), only the binding (no skip,
+// offset % 16 == 0). Row r starts at element r * V; its `head` (0..=3) elements before the first 16-byte boundary go to
+// threads 0..head-1, the float4 chunks of the aligned body follow as in `argmax_f32_v4` (AMX_U in flight per thread), the
+// up to 3 elements after the last whole chunk go to threads 0..tail-1. Every thread visits its elements in increasing
+// index order (head < body < tail), so the strict `>` keeps the lowest index of its own maximum, and the cross-thread
+// resolution is `argmax_f32`'s: the same result (lowest index of the maximum, NaN never wins, empty / all -inf row gives 0).
+inline void amx_upd1(float x, uint i, thread float& bv, thread uint& bi) {
+    if (x > bv) { bv = x; bi = i; }
+}
+
+kernel void argmax_f32_v4t(device const float* logits [[buffer(0)]],
+                           device int* out [[buffer(1)]],
+                           constant OpP& p [[buffer(2)]],
+                           uint row [[threadgroup_position_in_grid]],
+                           uint tid [[thread_position_in_threadgroup]],
+                           uint tgs [[threads_per_threadgroup]],
+                           uint lane [[thread_index_in_simdgroup]],
+                           uint sg [[simdgroup_index_in_threadgroup]],
+                           uint nsg [[simdgroups_per_threadgroup]]) {
+    threadgroup float pv[32];
+    threadgroup uint pi[32];
+    const uint v = p.a;
+    const ulong r0 = (ulong)row * v;
+    device const float* l = logits + r0;
+    const uint head = min(v, (uint)((4u - (uint)(r0 & 3u)) & 3u));
+    const uint n4 = (v - head) / 4;
+    const uint tail0 = head + n4 * 4;
+    device const float4* b = (device const float4*)(l + head);
+    float bv = -INFINITY;
+    uint bi = 0xffffffffu;
+    if (tid < head) amx_upd1(l[tid], tid, bv, bi);
+    uint c = tid;
+    for (; c + (AMX_U - 1) * tgs < n4; c += AMX_U * tgs) {
+        float4 xs[AMX_U];
+        for (uint u = 0; u < AMX_U; ++u) xs[u] = b[c + u * tgs];
+        for (uint u = 0; u < AMX_U; ++u) amx_upd(xs[u], head + (c + u * tgs) * 4, bv, bi);
+    }
+    for (; c < n4; c += tgs) amx_upd(b[c], head + c * 4, bv, bi);
+    if (tid < v - tail0) amx_upd1(l[tail0 + tid], tail0 + tid, bv, bi);
+    float m = simd_max(bv);
+    uint mi = simd_min(bv == m ? bi : 0xffffffffu);
+    if (lane == 0) { pv[sg] = m; pi[sg] = mi; }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (tid == 0) {
+        float gm = -INFINITY;
+        uint gi = 0xffffffffu;
+        for (uint j = 0; j < nsg; ++j) {
+            if (pv[j] > gm || (pv[j] == gm && pi[j] < gi)) { gm = pv[j]; gi = pi[j]; }
+        }
+        out[row] = gi == 0xffffffffu ? 0 : (int)gi;
+    }
+}
+
 // ---- Row tables (batched decode, lane mr3) -------------------------------------------------------------------------------
 // KvAppend on R rows at once: row r of `src` ([R,Nkv,D]) is the new K (or V) row of sequence r, appended to the cache whose
 // device address is entry [r, index] of the u64 row table at that sequence's own position posbuf[r] (the solo one-row call

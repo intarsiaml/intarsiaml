@@ -189,6 +189,112 @@ fn argmax_vector_path_matches_host() {
     }
 }
 
+/// The argmax contract on the host: lowest index of the maximum, NaN never wins, an empty / all -inf (or NaN) row gives 0.
+fn host_argmax(r: &[f32]) -> i32 {
+    let (mut bv, mut bi) = (f32::NEG_INFINITY, None);
+    for (i, &x) in r.iter().enumerate() {
+        if x > bv {
+            (bv, bi) = (x, Some(i));
+        }
+    }
+    bi.map_or(0, |i| i as i32)
+}
+
+fn argmax_launch(be: &MetalBackend, flat: &[f32], rows: usize, v: usize, off: usize) -> Vec<i32> {
+    let lb = be.alloc(off + flat.len() * 4 + 16, MemKind::Device).unwrap();
+    // SAFETY: f32 -> u8 view of the same memory.
+    be.upload(&lb, off, unsafe { std::slice::from_raw_parts(flat.as_ptr() as *const u8, flat.len() * 4) }, 0).unwrap();
+    let ob = be.alloc(rows * 4, MemKind::Device).unwrap();
+    let call = OpCall::new(
+        Op::Argmax,
+        vec![t(&lb, off, DType::F32, &[rows, v])],
+        vec![t(&ob, 0, DType::I32, &[rows])],
+        OpAttrs::default(),
+    );
+    be.launch(ARGMAX_F32, &call, 0).unwrap();
+    let mut raw = vec![0u8; rows * 4];
+    be.download(&ob, 0, &mut raw, 0).unwrap();
+    raw.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect()
+}
+
+/// Lane ink-hostgap: f32 argmax rows with V % 4 != 0 (Inkling-2's unpadded 200058-row head; the rows of a multi-row call then
+/// start 4, 8 or 12 bytes past a 16-byte boundary) take `argmax_f32_v4t`. Its result is the contract's for random rows, ties
+/// of the maximum in the unaligned head, the body and the tail, NaN and -inf mixtures, and rows of only -inf / NaN.
+#[test]
+fn argmax_tail_path_matches_host() {
+    let be = backend();
+    let mut rng = Rng(4242);
+    let shapes = [(1usize, 200058usize), (2, 200058), (3, 200058), (4, 200058), (4, 151937), (3, 1001), (2, 5), (3, 1), (4, 2), (3, 3), (5, 7), (5, 4099)];
+    for (rows, v) in shapes {
+        for case in 0..5 {
+            let mut flat: Vec<f32> = (0..rows * v).map(|_| rng.unit()).collect();
+            for r in 0..rows {
+                let row = &mut flat[r * v..(r + 1) * v];
+                match case {
+                    // a tie of the maximum at the row's first element and at its last (head and tail of an unaligned row)
+                    1 => {
+                        row[0] = 9.0;
+                        row[v - 1] = 9.0;
+                    }
+                    // a tie of the maximum at the last element and one in the middle; the maximum after the body
+                    2 => {
+                        row[v - 1] = 9.0;
+                        row[v / 2] = 9.0;
+                    }
+                    // NaN and -inf everywhere but a few finite values (NaN never wins), -0.0 against +0.0 ties
+                    3 => {
+                        for (i, x) in row.iter_mut().enumerate() {
+                            *x = match i % 5 {
+                                0 => f32::NAN,
+                                1 => f32::NEG_INFINITY,
+                                2 => -0.0,
+                                3 => 0.0,
+                                _ => -1.0 - *x,
+                            };
+                        }
+                    }
+                    // nothing above -inf: the row gives 0
+                    4 => {
+                        for (i, x) in row.iter_mut().enumerate() {
+                            *x = if i % 2 == 0 { f32::NAN } else { f32::NEG_INFINITY };
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let want: Vec<i32> = flat.chunks(v).map(host_argmax).collect();
+            for off in [0usize, 16] {
+                assert_eq!(argmax_launch(&be, &flat, rows, v, off), want, "rows={rows} v={v} case={case} off={off}");
+            }
+        }
+    }
+}
+
+/// `argmax_f32_v4t` dispatched by hand on rows with V % 4 == 0 (where the launcher keeps `argmax_f32_v4`, Qwen3's 151936) gives
+/// the indices `argmax_f32_v4` gives: other models' greedy tokens do not depend on which of the two runs.
+#[test]
+fn argmax_tail_kernel_is_the_vector_kernel_on_aligned_rows() {
+    let be = backend();
+    let mut rng = Rng(77);
+    for (rows, v) in [(1usize, 151936usize), (3, 151936), (2, 248320), (4, 4096), (3, 4)] {
+        let mut flat: Vec<f32> = (0..rows * v).map(|_| (rng.unit() * 8.0).round()).collect();
+        flat[(rows - 1) * v + v / 3] = 99.0;
+        flat[(rows - 1) * v + v - 1] = 99.0;
+        let via_launcher = argmax_launch(&be, &flat, rows, v, 0);
+        let lb = be.alloc(flat.len() * 4, MemKind::Device).unwrap();
+        // SAFETY: f32 -> u8 view of the same memory.
+        be.upload(&lb, 0, unsafe { std::slice::from_raw_parts(flat.as_ptr() as *const u8, flat.len() * 4) }, 0).unwrap();
+        let ob = be.alloc(rows * 4, MemKind::Device).unwrap();
+        let p = OpP { dims: [v as u32, 0, 0, 0, 0, 0, 0, 0], ..Default::default() };
+        dispatch_rows_t(&be, intarsia_backend_metal::kernels::ARGMAX_F32_V4T, &[&lb, &ob], &p, rows, 1024);
+        let mut raw = vec![0u8; rows * 4];
+        be.download(&ob, 0, &mut raw, 0).unwrap();
+        let by_hand: Vec<i32> = raw.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+        assert_eq!(by_hand, via_launcher, "rows={rows} v={v}");
+        assert_eq!(by_hand, flat.chunks(v).map(host_argmax).collect::<Vec<_>>());
+    }
+}
+
 /// OpP of kernels/metal/common.h (64 bytes).
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -202,6 +308,11 @@ struct OpP {
 
 /// Dispatch shader `name` by hand: one threadgroup of 256 threads per row, buffers at offset 0, then `p`.
 fn dispatch_rows(be: &MetalBackend, name: &str, bufs: &[&Buffer], p: &OpP, rows: usize) {
+    dispatch_rows_t(be, name, bufs, p, rows, 256)
+}
+
+/// [`dispatch_rows`] with `threads` per threadgroup.
+fn dispatch_rows_t(be: &MetalBackend, name: &str, bufs: &[&Buffer], p: &OpP, rows: usize, threads: usize) {
     let pso = be.pso(name).unwrap();
     let mtls: Vec<&_> = bufs.iter().map(|b| b.downcast::<MetalBuffer>().unwrap().mtl()).collect();
     be.with_encoder(|enc| {
@@ -213,7 +324,7 @@ fn dispatch_rows(be: &MetalBackend, name: &str, bufs: &[&Buffer], p: &OpP, rows:
         set_bytes(enc, p, bufs.len());
         enc.dispatchThreadgroups_threadsPerThreadgroup(
             MTLSize { width: rows, height: 1, depth: 1 },
-            MTLSize { width: 256, height: 1, depth: 1 },
+            MTLSize { width: threads, height: 1, depth: 1 },
         );
     })
     .unwrap();

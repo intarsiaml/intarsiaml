@@ -389,6 +389,16 @@ impl MetalBackend {
                         Grid::Groups { x: r, y: 1, threads: ARGMAX_V4_THREADS },
                     );
                 }
+                // V % 4 != 0 (Inkling-2's unpadded 200058-row head): the float4 form with each row's unaligned head and tail
+                // done by single loads, the same result (lowest index of the maximum); 172 us -> see kernels/metal/dense_ops.metal
+                if kernel == ARGMAX_F32 && l.skip == 0 && l.off % 16 == 0 && argmax_v4t_enabled() {
+                    return self.dispatch(
+                        ARGMAX_F32_V4T,
+                        &[&l, &out],
+                        &p,
+                        Grid::Groups { x: r, y: 1, threads: ARGMAX_V4_THREADS },
+                    );
+                }
                 self.dispatch(kernel, &[&l, &out], &p, Grid::Groups { x: r, y: 1, threads: ROW_THREADS })
             }
             ATTN_PREFILL_BF16 | ATTN_DECODE_BF16 => {
