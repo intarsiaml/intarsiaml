@@ -109,13 +109,6 @@ mod imp {
                     OpAttrs::default(),
                 );
                 call.exact_rows = rows > 1;
-                // the rows kernel's planned scratch (the slice form's partials, lane ink-batch)
-                let sb =
-                    intarsia_backend_metal::inkmix::proj_slice_scratch(&intarsia_core::ShapeInfo::from_call(&call));
-                if sb > 0 {
-                    let b = be.alloc(sb, MemKind::Device).unwrap();
-                    call.scratch = Some(t(&b, DType::U8, &[sb]));
-                }
                 Case { kernel, call }
             })
             .collect()

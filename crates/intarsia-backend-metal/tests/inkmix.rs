@@ -81,8 +81,7 @@ fn down(be: &MetalBackend, t: &TensorRef) -> Vec<u8> {
 
 fn scratch(be: &MetalBackend, call: &OpCall) -> Option<TensorRef> {
     let s = ShapeInfo::from_call(call);
-    // the blend's workspace, or the in-projection slice form's partials (INTARSIA_INK_PROJ_SLICE=1 runs take it)
-    let n = blend_scratch(&s).max(if call.op == Op::InkInProj { proj_slice_scratch(&s) } else { 0 }).max(16);
+    let n = blend_scratch(&s);
     let b: Buffer = be.alloc(n, MemKind::Device).unwrap();
     Some(TensorRef { buf: b, offset: 0, dtype: DType::U8, shape: vec![n] })
 }
