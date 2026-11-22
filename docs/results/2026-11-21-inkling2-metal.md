@@ -454,6 +454,23 @@ by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
   with the numbers, record nothing as a baseline; in range -> let it run and say so here. Lane: a watcher checks the first
   B1 batched tok/s line and the first localeval 1k decode and stops the job on a miss.
 
+### #11314 (063f7b55f, p12solo): stopped by SIGTERM (exit -15) during pk12check's speed arm; NOT a baseline
+
+- Guard: first B1 batched 63.0 tok/s (>= 58, in range); the job then ended (exit -15) before localeval; the guard did not
+  stop it (it logged "job ended before the 1k decode"); the TERM came from outside the lane.
+- Metal tests at defaults: inkling2 9/9; inkling2_batch 6/7: the batched plan configured ("pack12 off: batched plan
+  (max-batch 16); 17 P12 tensors dropped"), but the new test's cross-model assertion failed: batched (bf16) rows were not
+  bitwise the separate P12 solo model's rows on the tiny fixture. P12 solo is therefore not bitwise the bf16 path at the
+  tiny shapes (on the real model #11194 found P12 default == off bitwise). Fix c4 (this commit): the test asserts batched ==
+  the batched model's own solo steps (bitwise) and P12 on solo / off batched, and prints the P12-vs-bf16 row count and max
+  |dlogit| (not asserted). bespin: cpu inkling2_batch 7/7. To the pack12 lane: the "bitwise twin" claim does not hold at
+  tiny shapes.
+- pk12check: G2 short 2.087e-3 / 2.928e-3 PASS, confident misses 0/363; greedy 64 / 256 md5 = the combined-gate tip
+  (solo P12 unchanged).
+- batch_step rep 1 (only rep that ran): defaults B1 15.88 / B8 53.47 / B16 94.83 ms, P12=0 B1 15.49 / B8 49.39 / B16 91.51 ms:
+  defaults configure now (no panic). B8 / B16 are ~20 % slower than #11266's P12=0 run (41.55 / 76.20) on the same code path
+  for these rows (P12 is dropped in both): the box or the slot was slow in this window; not recorded as a baseline.
+
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
 | Tree | KL21 scored | max | chat_system | chat_reasoning |
