@@ -1070,5 +1070,18 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   in tuning.md, recipes.md, LOG.md.
 - CPU checks (endor #11550, CPU slot): workspace check; core gumbel + recipe 22/22 (incl. switch-vs-recipe cases); models
   recipe_gumbel 1/1 (only Inkling-2 on Metal sets it), recipes_doc 3/3, recipe_macro 1/1, gumbel_engine 1/1; docs_env_vars 2/2.
-- GPU gates queued as endor #11554 (quiet): plan show main vs land, greedy md5, gumbel tests, serve smoke unset / =0, ABBA.
+- GPU gates endor #11554 (quiet, 13:14-13:22, exit 0), main 2474c17b9 vs 45710801c:
+  - plan show text + JSON byte-identical for Qwen3-8B, Llama **and Inkling-2** (the sampler head runs outside the plan).
+  - Greedy md5 64 / 256 = 65cde8f3 / 61fd59fe (unchanged); log: `device sampler (...): on, kernel gumbel_argmax_f32`.
+  - Tests on the merged tree: core lib 259/259 (gumbel + engine head-mode 11/11: chi-square, exclusions of top_k / top_p /
+    logit trace / sampled spec), gumbel_engine 1/1, recipe_gumbel 1/1, backend-metal gumbel 2/2, inkling2 (Metal) 11/11,
+    docs_env_vars 2/2, kernels test gumbel_argmax ADMITTED, 0 fail.
+  - Serve smoke: unset: sampler on (serve.err), t=1.0 seed 7 HTTP 200 and identical twice; top_k / top_p request 200; greedy 200.
+    `=0`: seed 7 identical twice, and **different from unset** (device vs host draws). The chat endpoint returns no `logprobs`
+    for Inkling (the field is not in its reply; only legacy completions has logprobs), so the logprobs exclusion is covered
+    by the engine unit test only, not by HTTP.
+  - **ABBA t = 1.0, 256 forced tokens, A unset (device) / B =0 (host):** short (19 tok): A 65.23 / 65.32, B 61.83 / 65.03 tok/s;
+    5k (6704 tok): A 59.83 / 60.57, B 60.40 / 60.28. **No measurable gain on main** (short +2.7 % on one B outlier, 5k -0.2 %),
+    against hostgap's +12.0 % / +10.8 % (#11182, before the later merges). The decision's premise (sampled decode ~11-12 %
+    faster) does not hold on the current tree. PR not opened; asked the coordinator.
 
