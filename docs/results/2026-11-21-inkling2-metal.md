@@ -212,6 +212,22 @@ most ~3 ms of ~1400-1700 ms (<= 0.3 %), and at decode it is within +-4 % of ~0.4
 generate), and the NE 4 rounds swing 45.9 -> 41.3 between rounds; decode after 2k is 7 tokens (115-181 ms), too short to time.
 Expected from the quiet A/B #11181: NE 3 vs NE 4 within ~1 % at prefill and decode. The answer is final when #11181 reports.
 
+### Real decode test rerun #11197 (inkling2_real_decode_ne.rs at e0a541b16)
+
+| Tree | default geometry | exit | worst per-step KL(NE 3 \|\| default) | KL at row 57 (step 33) | result |
+|---|---|---|---|---|---|
+| 331238a4e (unfixed) | NE 4 | 101 | 7.260e-2 (step 3, row 27) | 1.673e-2 | FAIL, as required |
+| 1fdd5a50a (fix) | NE 3 | 0 | 0.000e0 (bitwise, 38 steps, all dumped tensors 0) | 0 | PASS |
+
+The unfixed failure is numerical, not setup: all three children ran (prefill 24 rows of chat_system, 38 decode steps, the
+dump step); 10 of 38 steps exceed 2e-3 (step 0, row 24: 1.136e-2, so the departure is already there after the 24-row prefill
+plus one decode row; it does not grow monotonically against NE 3 the way the per-row KL against the golden did). NE 4 forced on
+the fix tree gives the same per-step KLs as the unfixed default (same kernels). Limits of the test: (1) at D 2304 there is no
+benign second geometry to calibrate 2e-3 against (NE 1 / 2 do not fit 1024 threads, so NE 3 is the only other one); the
+evidence that NE 4 is wrong rather than merely reordered remains G2 against the golden (4x worse, bitwise base at NE 3);
+(2) the dump ranking is all `expert_ids` (discrete, uninformative); localizing the NE 4 fault needs the ranking without them
+(next step for the NE 4 lane).
+
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
 | Tree | KL21 scored | max | chat_system | chat_reasoning |
