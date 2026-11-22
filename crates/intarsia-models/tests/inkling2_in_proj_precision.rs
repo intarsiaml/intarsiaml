@@ -136,8 +136,8 @@ fn inkling2_in_proj_precision() {
         be.upload(&b, 0, bytes, 0).unwrap();
         b
     };
-    let mut tot: Vec<(String, Stat)> =
-        ["ink_in_proj_bf16_mma", "ink_in_proj_p12_mma", "ink_in_proj_bf16_gemv", "ink_in_proj_p12_gemv"].iter().map(|n| (n.to_string(), Stat::default())).collect();
+    let knames = ["ink_in_proj_bf16_mma", "ink_in_proj_p12_mma", "ink_in_proj_bf16_gemv", "ink_in_proj_p12_gemv"];
+    let mut tot: Vec<(String, Stat)> = knames.iter().map(|n| (n.to_string(), Stat::default())).collect();
     for li in 0..LAYERS {
         let suffix = format!(".layers.{li}.attn.wq_du.weight");
         let wq = names.iter().find(|n| n.ends_with(&suffix)).expect("layer prefix");
@@ -177,7 +177,7 @@ fn inkling2_in_proj_precision() {
                 }
                 r0 += nj;
             }
-            for (ki, (kname, _)) in tot.iter().enumerate() {
+            for (ki, kname) in knames.iter().enumerate() {
                 let outs: Vec<TensorRef> =
                     ns.iter().map(|&nj| TensorRef::new(be.alloc((nj * 2).max(16), MemKind::Device).unwrap(), DType::Bf16, &[1, nj])).collect();
                 let ins = if kname.contains("p12") { vec![xt.clone(), pk.parts[0].clone(), pk.parts[1].clone()] } else { vec![xt.clone(), wt.clone()] };
@@ -201,7 +201,7 @@ fn inkling2_in_proj_precision() {
                 }
             }
         }
-        for (ki, (kname, _)) in tot.iter().enumerate() {
+        for (ki, kname) in knames.iter().enumerate() {
             println!("layer {li} ({}) N={n} {kname:24} {}", if local { "swa" } else { "full" }, lay[ki].line());
         }
     }
