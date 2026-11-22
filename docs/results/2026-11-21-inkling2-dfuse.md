@@ -1,6 +1,6 @@
 # Inkling-2-Mini decode controller fusion on Metal (lane ink-dfuse, 2026-11-21)
 
-Status: in progress. Branch `ink/dfuse` (from `ink/metal` a88db4620), worktree `.worktrees/ink-dfuse`. Not pushed.
+Status: in progress (correctness and first timing done; per-switch attribution and the real-model bitwise gate queued). Branch `ink/dfuse` (from `ink/metal` a88db4620), worktree `.worktrees/ink-dfuse`. Not pushed.
 
 ## Briefs received
 
@@ -113,4 +113,53 @@ token; left for after those lanes land.
 
 ## Results
 
-RESULTS_PLACEHOLDER
+### Correctness (fleetq #10879, raw/correctness_A2.txt)
+
+- Whole Metal crate (`cargo test -p intarsia-backend-metal --no-fail-fast`, stress skipped) passes except this lane's route test,
+  whose helper sized output buffers at 16 bytes (fixed in 86c7d8def; the fixed test passes in #10882's fail-fast).
+- The blend tail is bitwise the three dispatches (LoopBlend and ConvMix with a blend, D 200 / 256 / 320 / 2304, R 1..16,
+  S 1 / 3), also with `INTARSIA_INK_BLEND_CS=32` and `1024`; `tests/inkmix.rs` passes with the tail on.
+- Stress, 12000 calls each, every result bitwise its single call: ink_route slowest batch of 200 4.1 ms, blend tail 193 ms (the
+  batch time includes the per-call host allocations). The concurrent bandwidth load overlapped only about 1 s, so job B loops
+  the stress through the G2 / G3 model runs.
+- Admission (`intarsia kernels test --backend metal`): ink_route 124 cases, max_abs 1.98e-7, ADMITTED; conv_mix 532 and
+  loop_blend 27 cases with the tail on, ADMITTED; attn_res_mix, moe_route ADMITTED.
+- G1 (tiny model on Metal): pass with the switches off and all on; tiny on cpu: pass off and on. With
+  `INTARSIA_METAL_NO_METAL4=1` the tiny model does not load on this branch or on ink/metal (InkInProj prefill has no metal3.1
+  kernel); `tests/inkctrl_nometal4.rs` covers the fallback of the new kernels.
+- `plan show --backend metal` for Qwen3-8B and Llama-3.1-8B-Instruct: byte-identical stdout and stderr against the ink/metal
+  f55bfe8b7 binary.
+
+### Timing, all three switches off vs on (fleetq #10882, `--quiet gpu,cpu`, raw/timing_C_summary.txt)
+
+| | off (= ink/metal graph) | all on |
+|---|---:|---:|
+| dispatches per decode step | 613 | 447 |
+| decode step, one command buffer (cb trace, 124 steps, median; 2 reps) | 15.44 / 15.49 ms | 15.54 / 15.56 ms |
+| `generate` decode, short prompt (129 tokens; 2 reps) | 64.7 / 64.3 tok/s | 64.3 / 64.2 tok/s |
+| `generate` decode, 5051-token prompt (128 tokens; 2 reps) | 60.3 / 60.7 tok/s | 60.8 / 61.0 tok/s |
+| localeval speed decode, 136 / 5136 prompt tokens | 65.0 / 61.6 tok/s | 65.1 / 61.8 tok/s |
+| controllers, per-dispatch trace (pipelined, one buffer per dispatch) | 3.70 ms | 3.46 ms |
+| controllers, profiled steps (one waited buffer per op call, corrected) | 2.80 ms | 3.27 ms |
+
+(The two controller rows disagree because each mode adds its own per-buffer cost; neither is the in-step time, which a single
+command buffer does not expose.) **166 fewer dispatches gave no decode gain.** Dependent dispatches inside one command buffer
+cost little next to the kernels' own latency, and two of the fused kernels are no faster than what they replace:
+
+In-stream microbench (`examples/ink_ctrl_bench.rs`, raw/ctrl_bench_C.md; us per call, median):
+
+| T | router pair | ink_route (loop select) | LoopBlend S=3, 4 dispatches | S=3 tail | S=1, 4 dispatches | S=1 tail |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 9.68 | 9.47 | 25.37 | 32.46 | 19.99 | 20.61 |
+| 2 | 9.79 | 9.38 | 28.03 | 44.16 | 21.54 | 28.55 |
+| 3 | 10.02 | 9.49 | 29.62 | 55.50 | 23.29 | 37.01 |
+| 4 | 10.64 | 9.54 | 30.44 | 66.62 | 24.95 | 45.70 |
+| 16 | 23.73 | 12.97 | 76.20 | 209.00 | 47.48 | 148.17 |
+
+- The router's cost is the selection (K dependent shuffle rounds on one simdgroup), not the launch: e0ab9b674 replaces it in
+  the fused kernel with a rank selection over the whole last threadgroup (bitwise for finite logits; `INTARSIA_INK_ROUTE_RANK`).
+- The ticketed blend tail is slower than the three dispatches: each h item reloads its weight row once per row (the GEMV keeps
+  it across the rows), and the gate items spin on a counter while the h items run. Recommendation: leave it off (or drop it).
+- Message precompute: per-dispatch trace attn_res_mix 229 -> 102 us per token (26 -> 4 calls).
+
+PENDING_ATTRIBUTION
