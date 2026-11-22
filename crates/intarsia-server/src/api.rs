@@ -38,6 +38,9 @@ pub struct AppState {
     /// Flips to true when the server is shutting down: the streams that never end on their own (`/events`) end then, so
     /// the graceful shutdown that waits for every open response can finish ([`crate::Shutdown`]).
     pub shutdown: Arc<tokio::sync::watch::Sender<bool>>,
+    /// Flips to true at the shutdown's drain deadline ([`crate::ServerConfig::drain_s`]): every request still running is
+    /// ended then with [`SHUTDOWN_CUT`], before the supervisor's SIGKILL would cut its connection without a word.
+    pub drain: Arc<tokio::sync::watch::Sender<bool>>,
     inflight: Arc<AtomicUsize>,
     counter: Arc<AtomicU64>,
     salt: u64,
@@ -77,6 +80,7 @@ impl AppState {
             source: Arc::from("unknown"),
             grammar: Arc::new(std::sync::OnceLock::new()),
             shutdown: Arc::new(tokio::sync::watch::channel(false).0),
+            drain: Arc::new(tokio::sync::watch::channel(false).0),
             inflight: Arc::new(AtomicUsize::new(0)),
             counter: Arc::new(AtomicU64::new(0)),
             salt: now.as_nanos() as u64 & 0xffff_ffff,
@@ -223,11 +227,61 @@ where
 pub struct GenRx {
     rx: UnboundedReceiver<GenEvent>,
     _cancel: CancelGuard,
+    drain: tokio::sync::watch::Receiver<bool>,
+    /// A `Done` or `Error` went by: what the engine sent is complete, the drain deadline no longer concerns this request.
+    ended: bool,
+    /// The drain deadline passed: the request is cancelled and only what was already queued is left to deliver.
+    draining: bool,
+}
+
+/// The `Error` event [`GenRx::recv`] yields for a request the drain deadline ended (see [`is_shutdown_cut`]). Handlers
+/// answer it as a 503 (non-streaming) or, streaming, with a final chunk (`finish_reason` `abort` on the OpenAI routes) and
+/// an error event, so that the client sees an explicit end instead of a connection cut by the supervisor's SIGKILL.
+pub const SHUTDOWN_CUT: &str = "the server is shutting down and could not finish this request in time; retry it on a running server";
+
+pub fn is_shutdown_cut(message: &str) -> bool {
+    message == SHUTDOWN_CUT
 }
 
 impl GenRx {
+    /// The next event. Once the server's drain deadline has passed, the engine is told to stop the request (cancel flag: its
+    /// sequence and KV are released between decode steps), what it had already sent still comes (a reply that finished in
+    /// time is delivered whole), and a request that has not finished by then gets one `Error` ([`SHUTDOWN_CUT`]) instead.
     pub async fn recv(&mut self) -> Option<GenEvent> {
-        self.rx.recv().await
+        if self.ended {
+            return self.rx.recv().await;
+        }
+        if !self.draining {
+            // a closed drain channel never fires
+            let drained = async {
+                if self.drain.wait_for(|d| *d).await.is_err() {
+                    std::future::pending::<()>().await;
+                }
+            };
+            let next = tokio::select! {
+                biased;
+                _ = drained => None,
+                ev = self.rx.recv() => Some(ev),
+            };
+            if let Some(ev) = next {
+                self.ended = matches!(ev, Some(GenEvent::Done { .. } | GenEvent::Error { .. }));
+                return ev;
+            }
+            self.draining = true;
+            self._cancel.0.store(true, Ordering::Relaxed);
+            // the bridge thread's next send fails, which drops the engine's receiver too
+            self.rx.close();
+        }
+        match self.rx.try_recv() {
+            Ok(ev) => {
+                self.ended = matches!(ev, GenEvent::Done { .. } | GenEvent::Error { .. });
+                Some(ev)
+            }
+            Err(_) => {
+                self.ended = true;
+                Some(GenEvent::Error { message: SHUTDOWN_CUT.into() })
+            }
+        }
     }
 }
 
@@ -278,7 +332,7 @@ pub fn start(st: &AppState, flavor: Flavor, mut req: GenRequest) -> Result<GenRx
             }
         })
         .map_err(|e| ApiError::internal(flavor, format!("spawn bridge: {e}")))?;
-    Ok(GenRx { rx: out, _cancel: CancelGuard(cancel) })
+    Ok(GenRx { rx: out, _cancel: CancelGuard(cancel), drain: st.drain.subscribe(), ended: false, draining: false })
 }
 
 /// Final result of a non-streaming generation.
@@ -353,6 +407,7 @@ pub async fn collect(mut rx: GenRx, flavor: Flavor) -> Result<Collected, ApiErro
                     stop_sequence,
                 })
             }
+            GenEvent::Error { message } if is_shutdown_cut(&message) => return Err(ApiError::unavailable(flavor, message)),
             GenEvent::Error { message } => return Err(ApiError::internal(flavor, message)),
         }
     }

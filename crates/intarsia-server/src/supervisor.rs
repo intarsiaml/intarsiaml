@@ -34,6 +34,10 @@ impl SupervisorConfig {
     }
 }
 
+/// How long the supervisor gives the server to stop after SIGTERM before it sends SIGKILL. The server's own drain deadline
+/// (`INTARSIA_DRAIN_S`, `intarsia serve`) is this minus 2 s, so that it ends what still runs before the SIGKILL comes.
+pub const STOP_GRACE: Duration = Duration::from_secs(30);
+
 static SIGNAL: AtomicI32 = AtomicI32::new(0);
 
 extern "C" fn on_signal(sig: libc::c_int) {
@@ -74,6 +78,11 @@ fn terminate(child: &mut Child, grace: Duration) -> Option<std::process::ExitSta
         }
         std::thread::sleep(Duration::from_millis(50));
     }
+    eprintln!(
+        "[supervisor] server pid {} still running {:.0}s after SIGTERM: sending SIGKILL (requests still in flight are cut)",
+        child.id(),
+        grace.as_secs_f64()
+    );
     let _ = child.kill();
     child.wait().ok()
 }
@@ -101,7 +110,7 @@ pub fn supervise(cfg: SupervisorConfig) -> i32 {
         let status = loop {
             if SIGNAL.load(Ordering::SeqCst) != 0 {
                 eprintln!("[supervisor] signal {}: stopping the server", SIGNAL.load(Ordering::SeqCst));
-                let st = terminate(&mut child, Duration::from_secs(30));
+                let st = terminate(&mut child, STOP_GRACE);
                 return st.and_then(|s| s.code()).unwrap_or(0);
             }
             match child.try_wait() {
@@ -173,6 +182,28 @@ mod tests {
         assert_eq!(supervise(cfg(&script)), 0);
         assert_eq!(std::fs::read_to_string(&f).unwrap().trim(), "3");
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_child_that_ignores_sigterm_is_killed_after_the_grace() {
+        use std::os::unix::process::ExitStatusExt;
+        let mut child = Command::new("/bin/sh").args(["-c", "trap '' TERM; while :; do sleep 0.05; done"]).spawn().unwrap();
+        std::thread::sleep(Duration::from_millis(200)); // the trap is set
+        let t0 = Instant::now();
+        let st = terminate(&mut child, Duration::from_millis(300)).unwrap();
+        assert_eq!(st.signal(), Some(libc::SIGKILL));
+        assert!(t0.elapsed() >= Duration::from_millis(300));
+    }
+
+    #[test]
+    fn a_child_that_stops_on_sigterm_is_not_killed() {
+        use std::os::unix::process::ExitStatusExt;
+        let mut child = Command::new("/bin/sh").args(["-c", "while :; do sleep 0.05; done"]).spawn().unwrap();
+        std::thread::sleep(Duration::from_millis(200));
+        let t0 = Instant::now();
+        let st = terminate(&mut child, Duration::from_secs(10)).unwrap();
+        assert_eq!(st.signal(), Some(libc::SIGTERM));
+        assert!(t0.elapsed() < Duration::from_secs(5));
     }
 
     #[test]
