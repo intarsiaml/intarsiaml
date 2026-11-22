@@ -523,6 +523,19 @@ by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
   these runs are 11-13 % faster at B8 and level at B16. Aggregate B16 203-231 tok/s.
 - Not run: localeval speed-plain / conc-plain-1k (with memory) and batch_step section C.
 
+### ink/fp8 merged: 12cd4a06e at **9576df6ea**
+
+- ink-fp8 sent 12cd4a06e: one commit on 538a9c283 that makes the screen opt-in again (screen.rs `wanted`: unset -> off,
+  1 / on / true -> on; its unit test, the load comment, the tuning row). Checked: `git diff 538a9c283 12cd4a06e` touches only
+  model.rs (comment), screen.rs, tuning.md; merged `wanted` has `_ => false`. Conflict only in docs/decisions/LOG.md (both
+  entries kept; ink-fp8's entry still says "default on on Metal", which 12cd4a06e does not update; flagged to ink-fp8).
+  89270fb58 / 5295a81b4 are in the history, superseded by 72900194e and 12cd4a06e. Not pushed.
+- bespin #11360: workspace check clean, core / cpu / cuda / hip / docs_env_vars pass; cpu inkling2 10/11:
+  `inkling2_tiny_screened_verify_fallback_reads_the_head_once` failed at its first assert (no screen loaded) in the parallel
+  run; alone (#11361, merged tree and 12cd4a06e by itself) both screen tests pass. The test sets `INTARSIA_INK_HEAD_SCREEN`
+  with `set_var` while other tests run in parallel in the same process: a test-order race of the fp8 test, not of the merge
+  (flagged to ink-fp8). Metal post-merge checks: `.scratch/q_fp8merge.sh` on 9576df6ea.
+
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
 | Tree | KL21 scored | max | chat_system | chat_reasoning |
