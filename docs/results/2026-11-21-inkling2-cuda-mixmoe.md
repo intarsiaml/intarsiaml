@@ -240,6 +240,13 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   tiny tests (cuda + cpu), verify-graph test; (2) greedy md5 64 / 256 / 1.2k spec off (must stay `a0e6f47bc45f` etc.); (3) spec-on
   md5 and tok/s with the verify graph default-on; (4) serve smoke at 1k and 9k. Send the merge hash and numbers; the gate + norm
   fuse and split-N work continue after.
+- (coordinator, 32nd) Split-K stays default-on (bitwise). Next, in order: (1) profile spec-on decode at g256 and g1.2k and spec-off
+  g256 on spark1; rank the top 3 targets by ms / token saved with evidence; build the top one with the same gate (md5, G2 / G3 if
+  bits change, ABAB tok/s). On the list: why g64 spec on loses ~2 % (36.76 -> 36.05): first-step draft cost or low acceptance
+  without adaptive draft length; an acceptance-based fallback to spec off with identical output is a candidate. (2) PR prep after
+  ink/metal's main PR merges: merge main in, CUDA no-op check on other models (Qwen3-8B greedy 256 short / 4k bit-identical to
+  main, plan show JSON for 35B and 8B, kernels test --quick), report; coordinator takes the PR. Spec on by default stays opt-in
+  (deployment call for the user).
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
