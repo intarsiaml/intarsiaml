@@ -3,7 +3,7 @@
 //! candidate masks). A stub op still gets cases, so admission reports its "not implemented" error instead of passing
 //! vacuously.
 
-use super::ops::{compressed_rows, n_blocks, QdqFmt, QdqScale};
+use super::ops::{compressed_rows, n_blocks, QdqFmt, QdqScale, ScoreFunc};
 use crate::admission::{Case, SweepConfig};
 use crate::dtype::DType;
 use crate::exec::{HostCall, OutSpec};
@@ -292,6 +292,29 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
     for &t in &[1usize, 4] {
         for &dt in dts {
             dev_cases(op, t, dt, rng, &mut push);
+        }
+    }
+    if op == Op::MoeRoute {
+        // Inkling-2-Mini's router (spec a13): sigmoid scores, selection-only bias, top-8 of 128, renorm, route_scale 8, at decode /
+        // verify rows and a prefill chunk; the other score functions and no renorm at that width. Its own stream, so the cases
+        // above keep their data.
+        let mut irng = SplitMix64::new(cfg.seed ^ 0x1A4B_5171);
+        let rows: &[usize] = if cfg.quick { &[1, 16] } else { &[1, 4, 16, 2048] };
+        for &t in rows {
+            for (sf, norm, temp) in [(ScoreFunc::Sigmoid, true, 1.0f32), (ScoreFunc::SqrtSoftplus, true, 1.0), (ScoreFunc::Softmax, true, 1.0), (ScoreFunc::Sigmoid, false, 0.7)] {
+                if (sf != ScoreFunc::Sigmoid || !norm) && t > 16 {
+                    continue;
+                }
+                let mut at = OpAttrs { top_k: 8, scale: 8.0, norm_topk: norm, temperature: temp, ..OpAttrs::default() };
+                at.dsv.score_func = sf;
+                push(
+                    format!("inkling T={t} E=128 K=8 {sf:?} norm={norm} temp={temp}"),
+                    op,
+                    vec![rand_t(&mut irng, DType::F32, &[t, 128], 2.0), rand_t(&mut irng, DType::F32, &[128], 0.1)],
+                    vec![out(DType::F32, &[t, 8]), out(DType::I32, &[t, 8])],
+                    at,
+                );
+            }
         }
     }
     cases

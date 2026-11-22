@@ -45,6 +45,7 @@ const LAUNCHER_SOURCES: &[&str] = &[
     "src/nvfp4.rs",
     "src/gdn.rs",
     "src/moe.rs",
+    "src/inkmoe.rs",
 ];
 
 /// FNV-1a 64 over the launcher sources (file name, then contents, in list order).
