@@ -443,9 +443,17 @@ thread_local! {
 /// At most this many rows wait in this thread's logits pool.
 const LOGITS_POOL_MAX: usize = 8;
 
-/// A logits row of the f32 little-endian `bytes`, in a vector of this thread's pool when one is there.
+/// Rows recycled on a host pool worker (batched rows accepted on the pool, `Scheduler::accept_rows`), for the step's thread
+/// to take back: a worker never downloads logits, so its own pool would only hold them. At most [`LOGITS_SPILL_MAX`].
+static LOGITS_SPILL: std::sync::Mutex<Vec<Vec<f32>>> = std::sync::Mutex::new(Vec::new());
+const LOGITS_SPILL_MAX: usize = 64;
+
+/// A logits row of the f32 little-endian `bytes`, in a vector of this thread's pool (or the pool workers' spill) when one is there.
 pub(crate) fn logits_row(bytes: &[u8]) -> Vec<f32> {
-    let mut out = LOGITS_POOL.with(|p| p.borrow_mut().pop()).unwrap_or_default();
+    let mut out = LOGITS_POOL
+        .with(|p| p.borrow_mut().pop())
+        .or_else(|| LOGITS_SPILL.lock().unwrap_or_else(|e| e.into_inner()).pop())
+        .unwrap_or_default();
     out.clear();
     out.extend(bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])));
     out
@@ -454,6 +462,13 @@ pub(crate) fn logits_row(bytes: &[u8]) -> Vec<f32> {
 /// Hand a logits row ([`StepOut::Logits`]) back once it is read, for [`logits_row`] to reuse on this thread.
 pub fn recycle_logits(v: Vec<f32>) {
     if v.capacity() == 0 {
+        return;
+    }
+    if crate::par::on_worker() {
+        let mut s = LOGITS_SPILL.lock().unwrap_or_else(|e| e.into_inner());
+        if s.len() < LOGITS_SPILL_MAX {
+            s.push(v);
+        }
         return;
     }
     LOGITS_POOL.with(|p| {
@@ -1884,6 +1899,9 @@ impl Model {
         let inv_want = opts.row_invariant_prefill.or_else(row_invariant_override).unwrap_or_else(|| b.row_invariant_prefill())
             && slot_specs.iter().all(|s| matches!(s, SlotSpec::AttnKv { .. }))
             && tp.world == 1;
+        // the host pool for the logits row work (soft-cap, sampler): on for Inkling-2 by default, off for every other model until its
+        // own gates pass (lane ink-hostgap; `INTARSIA_HOST_THREADS` sets it for every model)
+        crate::par::set_model_default(ink_model.is_some());
         let mut model = Model {
             backend,
             registry,
@@ -5455,6 +5473,13 @@ impl Model {
         if self.recorder.lock().unwrap().is_some() {
             return Ok(Vec::new());
         }
+        if crate::hostprof::enabled() {
+            // host profile: the wait for the step on its own (`download` then finds nothing pending)
+            let _w = crate::hostprof::span(crate::hostprof::Cat::Sync);
+            self.backend.synchronize(self.stream)?;
+            crate::hostprof::mark_sync_end();
+        }
+        let _tail = crate::hostprof::span(crate::hostprof::Cat::StepTail);
         // the reused download buffer and pooled row of the decode paths (`with_logits_bytes`; eager one-row decode steps land here)
         let mut out = with_logits_bytes(c * v * 4, |bytes| -> Result<Vec<f32>> {
             self.backend.download(&self.ws.logits, 0, bytes, self.stream)?;
@@ -5471,6 +5496,7 @@ impl Model {
                 }
             }
         }
+        let _cap = crate::hostprof::span(crate::hostprof::Cat::Softcap);
         self.softcap_logits(&mut out);
         Ok(out)
     }
@@ -5478,9 +5504,8 @@ impl Model {
     /// Gemma 4 final logit soft-capping; monotonic, so the device argmax of `head_argmax` is unaffected.
     pub(super) fn softcap_logits(&self, out: &mut [f32]) {
         if let Some(cap) = self.dims.gemma.as_ref().map(|g| g.softcap).or(self.dims.ink.as_ref().map(|i| i.softcap)).filter(|&c| c > 0.0) {
-            for x in out.iter_mut() {
-                *x = cap * (*x / cap).tanh();
-            }
+            // per element `cap * tanh(x / cap)`, on the host pool for a long row (lane ink-hostgap)
+            crate::sampler::softcap(out, cap);
         }
     }
 
@@ -5627,6 +5652,12 @@ impl Model {
         self.head_to_device(hn, row, profile)?;
         if self.recorder.lock().unwrap().is_some() {
             return Ok(0);
+        }
+        if crate::hostprof::enabled() {
+            // host profile: the wait for the step on its own (the 4-byte download then finds nothing pending)
+            let _w = crate::hostprof::span(crate::hostprof::Cat::Sync);
+            self.backend.synchronize(self.stream)?;
+            crate::hostprof::mark_sync_end();
         }
         let mut b = [0u8; 4];
         self.backend.download(&self.ws.tok, 0, &mut b, self.stream)?;

@@ -148,7 +148,28 @@ fn cases(n: usize) -> Vec<GenRequest> {
         .collect()
 }
 
+/// [`cases`] with every request sampled (lane ink-hostgap): temperatures 0.6-1.3, `top_k` 0 (the whole row) or 40, `top_p` 1 or
+/// 0.9, a seed each; the lengths, stops and `min_tokens` of `cases`.
+fn cases_sampled(n: usize) -> Vec<GenRequest> {
+    cases(n)
+        .into_iter()
+        .enumerate()
+        .map(|(i, mut r)| {
+            r.temperature = 0.6 + 0.1 * (i % 8) as f32;
+            r.top_k = if i % 2 == 0 { 0 } else { 40 };
+            r.top_p = if i % 3 == 0 { 0.9 } else { 1.0 };
+            r.seed = Some(1000 + 7 * i as u64);
+            r.max_tokens = r.max_tokens.max(12);
+            r
+        })
+        .collect()
+}
+
 fn check(seed: u64, rows: usize, spec_k: Option<usize>, n_cases: usize) {
+    check_cases(seed, rows, spec_k, n_cases, cases)
+}
+
+fn check_cases(seed: u64, rows: usize, spec_k: Option<usize>, n_cases: usize, cases: fn(usize) -> Vec<GenRequest>) {
     let reference = solo(seed, None);
     let want: Vec<Out> = cases(n_cases).into_iter().map(|r| run_solo(&reference, r)).collect();
     let (eng, tel) = batched(seed, rows, spec_k, 64);
@@ -175,6 +196,16 @@ fn check(seed: u64, rows: usize, spec_k: Option<usize>, n_cases: usize) {
 fn batched_equals_solo_plain() {
     for (seed, rows) in [(7u64, 2usize), (7, 4), (23, 8)] {
         check(seed, rows, None, 30);
+    }
+}
+
+/// Lane ink-hostgap: every request sampled, B = 4 and 8 (the cpu backend's batch cap, `SERVE_MAX_BATCH`; B = 16 needs a backend
+/// that allows it). With the host pool on (`INTARSIA_HOST_THREADS` > 1; run it at 3 too, fewer threads than rows) a decode step's
+/// rows are accepted one per pool task (`Scheduler::accept_rows`); the streams must be the solo ones, as with the pool off.
+#[test]
+fn batched_sampled_equals_solo() {
+    for (seed, rows) in [(7u64, 4usize), (23, 8)] {
+        check_cases(seed, rows, None, 40, cases_sampled);
     }
 }
 
