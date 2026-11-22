@@ -145,6 +145,34 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   on the unfixed tree (show it on 331238a4e) and passes on the fix; (3) gate: G2 short both modes (decode ~2.6e-3), greedy
   md5 non-empty, tok/s 1-row short vs the tip, what the fix costs; (4) then the merge queue: hostgap, fp8, pack12 after
   #11161, prefill (new hash), dfuse, then the combined gate. Message the gate job id; the coordinator nests it.
+- 2026-11-22 (ink-fp8 lane): take ink/fp8 05438a81f (follow-up to a810fbb5c): the screen md5 rerun #11113 was vacuous
+  under serve (plan dry runs never recorded the screen ops, so serve never admitted them); 05438a81f records them in dry
+  runs. Default path unaffected (screen opt-in, off). bespin #11178 check passes; rerun 3 queued, needs "screen SERVED" in
+  both logs.
+- 2026-11-22 (coordinator): #11179 not nested (60 min outlives the correctness slots); the line ahead of it is cleared, so it
+  starts in ~1-1.5 h. pack12's model gate #11161 (24 GB, ~20 min) runs inside #11179; if the tok/s rounds overlap it
+  (log ink-pack12/.scratch/flip2_job.log), say so rather than trusting the numbers. fp8: merge 05438a81f only after its rerun
+  3 shows "screen SERVED" in both logs.
+- 2026-11-22 (ink-prefill lane): merge ink/prefill-merge at 05f1c702e instead of 96740cbe2: 96740cbe2 plus
+  `[tuning.metal] prefill_chunk = 2048` in recipes/inkling2.toml (#11109: G2/G3 pass at 2048; prefill +62 % at 1k,
+  +52-70 % at 4k, +69-71 % at 16k; 1k cell rejected for spread in both 2048 runs; 4k decode -1.5 % / -0.3 %). Bespin #11191
+  recipe tests pass. Combined gate: confirm serve logs "prefill chunk 2048" without the flag; record peak memory at 16k
+  (first measurement). Revert = 05f1c702e alone.
+- 2026-11-22 (coordinator): before the dfuse flip (tip 00c81dda7, doc e75e14206) lands on the NE fix 7eca1b012, check it
+  on the merged tree (NE fix + flip): the flip makes the hoisted row kernels `ink_mix_row_h_e*` the default; both they and
+  the plain ones take NE from `mix_geom`, but that combination has not run. (1) G2 decode mode twice, defaults and
+  `INTARSIA_INK_MIX_HOIST=0`: both within 4e-3 short / 6e-3 long, and byte-identical outputs; (2) inkling2_real_decode_ne.rs
+  with the defaults, confirmed executed (not the skip path); (3) if either fails, do not merge the flip; report the arm and
+  the KL. Fold into #11179 or the post-merge baseline, whichever is first. Lane: #11179 runs on the NE fix alone (no
+  dfuse), so both checks go in the combined gate (`.scratch/combgate.sh`, section "dfuse flip check").
+- 2026-11-22 (coordinator): clarification: the combined gate runs after the merges, so if either dfuse check fails, revert
+  the flip's merge commit on ink/metal (`git revert -m 1 <merge>`) before anything else lands on top, then report the failing
+  run and its KL. The rest of the plan is approved. Lane: merge dfuse last, so its merge commit is the tip when the gate runs.
+- 2026-11-22 (ink-fp8 lane): #11180 on the ink/fp8 tip passes: "screen SERVED" in both serve and generate on-logs, 12 golden
+  prompts x 256 plus 5k md5 same off vs on; plan admission 28 kernels with the screen (24 without); default unchanged
+  (head_screen None without `INTARSIA_INK_HEAD_SCREEN=1`). Take 05438a81f (or the later docs-only tip). Quiet ABAB #11189.
+- Lane: #11179's real-decode step errored on both trees (assert: chat_system has 63 ids, the test wanted 72), not a result.
+  Fixed (e0a541b16: prefill 24, decode 38); rerun of that step alone as #11195 (`.scratch/realtest.sh`).
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 

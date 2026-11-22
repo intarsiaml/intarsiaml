@@ -4,8 +4,8 @@
 //! 2.589e-3 to 1.109e-2 while NE 3 is bitwise the pre-merge tree). The synthetic kernel test (inkling2_mix_decode_cpu.rs) passes
 //! at NE 4, so the fault needs the real call layout; this test runs the real graph.
 //!
-//! One child process per geometry (`INTARSIA_INK_MIX_NE`, read once per process: 3, unset = the default, 4): prefill 48 tokens of the golden's `chat_system`
-//! prompt, then decode the next 24 tokens one at a time (teacher-forced: the same ids in both runs), the logits of each decode
+//! One child process per geometry (`INTARSIA_INK_MIX_NE`, read once per process: 3, unset = the default, 4): prefill 24 tokens of the golden's `chat_system`
+//! prompt (63 ids), then decode the next 38 tokens (rows 24..61: the regression grew past row 50 there) one at a time (teacher-forced: the same ids in both runs), the logits of each decode
 //! step written out, then one `ink_dump` decode step whose per-visit tensors are written out. The parent compares with NE 3: per step
 //! the softmax KL(NE 3 || default) must stay at reduction-order size (<= 2e-3 every step); NE 4 forced is reported, with the
 //! dumped tensors furthest from NE 3, not gated. Skips without the model or the golden (fails under `CI=1`).
@@ -18,10 +18,10 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-const PREFILL: usize = 48;
-const DECODE: usize = 24;
+const PREFILL: usize = 24;
+const DECODE: usize = 38;
 /// Per decode step KL(NE 3 || NE 4) of the softmax: two reduction orders of the same math (bf16 activations) stay well below
-/// this; the regression reaches 1e-2 .. 3e-1 per row by row 60 of this prompt.
+/// this; the regression reaches 1e-2 .. 3e-1 per row by row 57 of this prompt.
 const KL_MAX: f64 = 2e-3;
 
 fn skip(why: &str) {
