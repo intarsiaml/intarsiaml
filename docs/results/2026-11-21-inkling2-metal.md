@@ -132,6 +132,10 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   self-golden matches only with exit 0 and non-empty output. Lane: mergegate.sh and combgate.sh run docs_env_vars with
   `--features metal` (binary keeps Metal; #11048's G2 logs show real KL values, so not affected); bisect.sh runs only
   intarsia-models tests in the debug profile, which do not rebuild target/release/intarsia.
+- 2026-11-22 (coordinator): bisect moved up. The coordinator's waiter runs `fleetq wait 11104`, releases #11142 and runs
+  `.scratch/bisect.sh` with FLEETQ_JOB=11104 (batch correctness slot, default load, 20 GB), expected start ~03:47 when #11093
+  ends; same `.scratch/bisect_job.log` and `.scratch/bis/out/`. The #11142 client exits 4 on release: expected, do not
+  requeue. Coordinator messages the lane when it lands.
 
 ## Integrated
 
