@@ -5,6 +5,14 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 
 ## Briefs received
 
+- 2026-11-22 (main, priority, CPU only): ink-mtp suspects batched-decode sampler readbacks skip the final logit softcap
+  (model.rs batch-head top-k path ~2594-2612: LastTopK vals and LastLogits rows; model/batch.rs; softcap only in head_logits
+  and graph_decode_step). (1) Test first: batched rows, top-k values and full logits, bitwise == one-sequence decode's capped
+  logits after the same prefill, tiny Inkling cap 30 (shape: ink/mtp-softcap 36cbb9536 tests/inkling2_verify_softcap.rs).
+  (2) If it fails, fix the same way, sharing Model::softcap_step from that branch (cherry-pick, no duplicate); batch tests +
+  G1 on CPU (bespin or spark2). (3) Report: reproduced yes/no with max |d|, fix commit, exposed serve paths and models.
+  rsync -a keeps mtimes: use cp or touch.
+
 - 2026-11-22 (main): the steady auto B16 drop across reps (87.7 / 84.4 / 80.4 ms) looks like warm-up: expert weights may be
   mmap-backed and real text (~63 experts/call vs ~28) pages in never-touched or evicted experts. Check whether weight
   buffers are mmap'd and resident before timing (page-in / fault counts, vm_stat pageins before / after each rep). If so,
