@@ -127,8 +127,9 @@ fn conv_io(rng: &mut Rng, op: Op, t: usize, c: usize, k: usize, rr: usize, epi: 
     (ins, outs)
 }
 
-/// The HO instances admit the thread counts the row kernels launch (D 2304: NE 3 x 768 threads), else the switch would fall
-/// back to the plain instance and the bitwise test below would compare a kernel with itself.
+/// The HO instances admit the thread counts the row kernels launch (D 2304: NE 4 x 576 threads since ink/metal's mix_geom
+/// change; NE 2 below D 2048: up to 1024), else the switch would fall back to the plain instance and the bitwise test below
+/// would compare a kernel with itself.
 #[test]
 fn mix_hoist_instances_admit_their_rows() {
     use objc2_metal::MTLComputePipelineState;
@@ -140,8 +141,8 @@ fn mix_hoist_instances_admit_their_rows() {
                 let mh = be.pso(&h).unwrap_or_else(|| panic!("no pipeline {h}")).maxTotalThreadsPerThreadgroup();
                 let mp = be.pso(&p).unwrap().maxTotalThreadsPerThreadgroup();
                 eprintln!("{h}: max threads {mh} (plain {mp}){}", if mh < mp { " (falls back above this)" } else { "" });
-                // the model's rows (D 2304: NE 3 x 768 threads) must take it
-                assert!(ne != 3 || mh >= 768, "{h}: max threads {mh}, the model's rows need 768");
+                // the model's rows (D 2304: NE 4 x 576 threads) must take it
+                assert!(ne != 4 || mh >= 576, "{h}: max threads {mh}, the model's rows need 576");
             }
         }
     }
@@ -153,8 +154,8 @@ fn mix_hoist_is_bitwise() {
     let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut rng = Rng(0x4015);
     let mut n = 0;
-    // widths of NE 3 (the model), 1, 4 and a ragged 3; K = 4 (the model), shorter, and 5 (the loop)
-    for &c in &[2304usize, 1000, 4096, 2200] {
+    // widths of NE 4 (the model, D 2304), 1, 4 (full) and 2; K = 4 (the model), shorter, and 5 (the loop)
+    for &c in &[2304usize, 1000, 4096, 1500] {
         for &k in &[4usize, 2, 1, 5] {
             for &t in &[1usize, 2, 3, 4, 7, 16] {
                 for &(rr, pos0, dev) in &[(k - 1 + 16, 0usize, false), (k - 1 + 16, 29, true), (k - 1 + 4, 2, false), (k - 1 + 4, 29, false)] {

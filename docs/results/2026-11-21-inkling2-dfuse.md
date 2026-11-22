@@ -154,7 +154,7 @@ Only with the default in-projection family (`INTARSIA_INK_PROJ_CFG` unset).
 ### 4. Load order in the row kernels (`INTARSIA_INK_MIX_HOIST`, no contract change)
 
 Why: in the stream the ConvMix row kernel costs 16.6 us per call (96 per token, 1.6 ms, half the controller time) against 8.5
-us in the warm microbench. At T <= 16 a row is one threadgroup (768 threads at D 2304), so nothing hides its latency, and its
+us in the warm microbench. At T <= 16 a row is one threadgroup (576 threads at D 2304 since ink/metal's NE 4 change; 768 before), so nothing hides its latency, and its
 cost is the chain of dependent cold loads (ink-d1row's cold-cache finding: ~200 MB of weights pass between two visits). The
 chain in `ink_mix_row`: the conv loops over a runtime K (4), and each tap's taps row and x / ring row are loaded only after the
 previous fma (4 rounds); the queries are loaded after the conv's stores (the compiler cannot move loads above possibly aliasing
@@ -167,9 +167,11 @@ depends on the row's index in the call, not on pos. The first query batch, its n
 kernel start. The partial sums read eight values at a time, with the adds in the same order. Same values and the same fma and
 add order: bitwise the plain instance (`tests/inkload.rs`: SconvRes, ConvMix with and without the blend, AttnResMix; widths of
 every NE, K 1..5, rows 1..16, the model's ring and a short one, host and device pos, one and two query batches, Q 48). K > 4
-keeps the loop. Every NE 3 instance admits 1024 threads (bespin runtime compile), and the switch falls back to the plain
-instance when a pipeline admits fewer threads than the row needs. The row-table form of ink/batch only changes the pos / ring
-pointer lines above the loop, so the merge stays local.
+keeps the loop. The switch falls back to the plain instance when a pipeline admits fewer threads than the row needs. The
+row-table form (ink/batch, merged with ink/metal 0ee1bec29): a row of a row-table call has in-call index 0 and its x row at
+`xoff` = t, so the HO conv takes the x / ring choice from the in-call index `dx` (t, or 0 with a row table) and adds `xoff`,
+as the plain loop does through `qq - pos + xoff`. The batched-decode tests (`tests/inkling2_batch.rs` on Metal, batch ==
+solo bitwise) run with the switch on in job E.
 
 ### 5. The blend norm, one channel per thread (`INTARSIA_INK_BLEND_NORM_C`, no contract change)
 

@@ -35,6 +35,7 @@ pub const KERNELS: &[(&str, Op)] = &[
     (INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj),
     (INK_IN_PROJ_BF16_NAX, Op::InkInProj),
     (CONV_MIX_BF16, Op::ConvMix),
+    (CONV_MIX_BF16_ROWS, Op::ConvMix),
     (ATTN_RES_MIX_BF16, Op::AttnResMix),
     (SCONV_RES_BF16, Op::SconvRes),
     (LOOP_BLEND_BF16, Op::LoopBlend),
@@ -85,6 +86,16 @@ pub fn register(k: KernelImpl) -> KernelImpl {
             .tol(BF16_TOL)
             .tol_f32(F32_TOL)
             .scratch(blend_scratch),
+        // the row-table form (batched decode): row r the T = 1 call of sequence r on its own ring; inkling2_batch.rs
+        CONV_MIX_BF16_ROWS => k
+            .acts(bf)
+            .weights(bf)
+            .when(|s| s.k > 0 && s.k <= MIX_D_MAX)
+            .exact(Exactness::Deterministic)
+            .tol(BF16_TOL)
+            .tol_f32(F32_TOL)
+            .scratch(blend_scratch)
+            .row_table(),
         ATTN_RES_MIX_BF16 => k
             .acts(bf)
             .when(|s| s.k > 0 && s.k <= MIX_D_MAX && s.kv_len <= MIX_SOURCES_MAX)
@@ -241,7 +252,7 @@ impl MetalBackend {
         match (kernel, call.op) {
             (INK_IN_PROJ_BF16_GEMV | INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj) => self.launch_in_proj_gemv(call),
             (INK_IN_PROJ_BF16_NAX, Op::InkInProj) => self.launch_in_proj_nax(call),
-            (CONV_MIX_BF16 | ATTN_RES_MIX_BF16 | SCONV_RES_BF16 | LOOP_BLEND_BF16, _) => self.launch_mix(kernel, call),
+            (CONV_MIX_BF16 | CONV_MIX_BF16_ROWS | ATTN_RES_MIX_BF16 | SCONV_RES_BF16 | LOOP_BLEND_BF16, _) => self.launch_mix(kernel, call),
             _ => Err(Error::invalid(format!("metal: {kernel} does not run {}", call.op))),
         }
     }
@@ -402,6 +413,8 @@ pub fn segment_x(x: &TensorRef, j: usize) -> TensorRef {
 // ---------------------------------------------------------------------------------------------------------------------
 
 pub const CONV_MIX_BF16: &str = "conv_mix_bf16";
+/// The row-table form of `ConvMix` (lane ink-batch, `OpCall::rows`): the same shaders with `MX_ROWTAB`.
+pub const CONV_MIX_BF16_ROWS: &str = "conv_mix_bf16_rows";
 pub const ATTN_RES_MIX_BF16: &str = "attn_res_mix_bf16";
 pub const SCONV_RES_BF16: &str = "sconv_res_bf16";
 pub const LOOP_BLEND_BF16: &str = "loop_blend_bf16";
@@ -416,7 +429,7 @@ pub const MIX_SOURCES_MAX: usize = 8;
 pub const BLEND_ROWS: usize = 256;
 /// Rows per `ink_blend_gate` threadgroup. With [`BLEND_CS`] a launch-shape choice only: a channel's gate value and the 32-channel
 /// partial sums do not depend on it (`INTARSIA_INK_BLEND_RB` / `_CS` measurement knobs).
-pub const BLEND_RB: usize = 16;
+pub const BLEND_RB: usize = 4;
 
 fn blend_geom() -> (usize, usize) {
     static G: std::sync::OnceLock<(usize, usize)> = std::sync::OnceLock::new();
@@ -439,8 +452,10 @@ const MX_SUM: u32 = 8;
 const MX_NORM: u32 = 16;
 const MX_RING: u32 = 32;
 const MX_PAIR: u32 = 64;
+/// The row-table form (lane ink-batch, `OpCall::rows`): row t is the T = 1 conv of sequence t on its own ring.
+const MX_ROWTAB: u32 = 128;
 
-/// `InkMixP` of the shader (112 bytes).
+/// `InkMixP` of the shader (144 bytes).
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 struct InkMixP {
@@ -463,6 +478,13 @@ struct InkMixP {
     cscale: f32,
     fpad: [f32; 2],
     sk: [u32; 12],
+    /// `MX_ROWTAB`: table stride, this call's entry, the table's GPU address (lo, hi), the ring carrier's byte offset.
+    rts: u32,
+    rti: u32,
+    tab_lo: u32,
+    tab_hi: u32,
+    roff: u32,
+    rpad: [u32; 3],
 }
 
 /// `InkBlendP` of the shader (96 bytes).
@@ -489,13 +511,16 @@ struct InkBlendP {
     sk: [u32; 8],
 }
 
-/// (NE, threads per threadgroup) of the row kernels for rows of `d` elements: the fewest elements per thread that fit in
-/// 1024 threads (`INTARSIA_INK_MIX_NE=<ne>` forces another compiled NE: a measurement knob that changes the reduction order,
+/// (NE, threads per threadgroup) of the row kernels for rows of `d` elements: 4 from D 2048, below that the fewest elements per
+/// thread that fit in 1024 threads (`INTARSIA_INK_MIX_NE=<ne>` forces another compiled NE: a measurement knob that changes the reduction order,
 /// fixed per D, so still rows-exact).
 fn mix_geom(d: usize) -> (usize, usize) {
     static OV: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
     let ov = *OV.get_or_init(|| std::env::var("INTARSIA_INK_MIX_NE").ok().and_then(|v| v.parse().ok()).filter(|n| MIX_NE.contains(n)));
-    let ne = ov.filter(|&n| n * 1024 >= d).unwrap_or_else(|| MIX_NE.iter().copied().find(|&n| n * 1024 >= d).unwrap_or(4));
+    // NE 4 from D 2048 (576 threads at D 2304): same decode latency as NE 3, 15 % faster 2048-row prefill
+    // (docs/results/2026-11-21-inkling2-metal-mix.md section 3.5)
+    let fit = MIX_NE.iter().copied().find(|&n| n * 1024 >= d).unwrap_or(4);
+    let ne = ov.filter(|&n| n * 1024 >= d).unwrap_or(if d >= 2048 { 4 } else { fit });
     (ne, d.div_ceil(ne).next_multiple_of(32).clamp(32, 1024))
 }
 
@@ -557,6 +582,16 @@ fn absent(t: &TensorRef) -> bool {
 }
 
 impl MetalBackend {
+    /// The row-table parameters of an Inkling-2 row-table call (`inkling2::ops`, "Row tables") whose first state tensor is
+    /// `carrier`: (stride, entry, the table's GPU address, the carrier's byte offset). The table joins the indirect set.
+    pub(crate) fn ink_row_table(&self, r: &intarsia_core::ops::RowTab, carrier: &TensorRef) -> Result<(u32, u32, u64, u32)> {
+        let tab = intarsia_core::backend::Backend::device_address(self, &r.ptrs.buf).ok_or_else(|| Error::invalid("metal: no device address for the row table"))? + r.ptrs.offset as u64;
+        if tab % 8 != 0 {
+            return Err(Error::invalid("metal: the row table must be 8-byte aligned"));
+        }
+        Ok((dim(r.stride, "row table stride")?, dim(r.index, "row table entry")?, tab, dim(carrier.offset, "state offset")?))
+    }
+
     /// Bind `t` as `dt`, or (absent) `dummy` in its place: the kernel never touches an absent operand.
     fn bind_or(&self, t: &TensorRef, dt: DType, write: bool, what: &str, dummy: &crate::dense::Bind) -> Result<crate::dense::Bind> {
         if absent(t) {
@@ -658,10 +693,19 @@ impl MetalBackend {
         if has_norm {
             flags |= MX_NORM;
         }
-        // in-kernel ring write when no row of this launch reads a ring row a row of it writes
+        // in-kernel ring write when no row of this launch reads a ring row a row of it writes (a row-table call: every row its
+        // own ring, always)
+        let rt = match &call.rows {
+            Some(r) if conv => Some(self.ink_row_table(r, &o[1])?),
+            Some(_) => return Err(Error::invalid(format!("metal {}: a row table on an op without state", call.op))),
+            None => None,
+        };
         let readers = conv && t0 < k.saturating_sub(1);
         let writers = conv && t0 + nrows > t.saturating_sub(rr);
-        let safe = !readers || !writers || t + k.saturating_sub(1) <= rr;
+        let safe = rt.is_some() || !readers || !writers || t + k.saturating_sub(1) <= rr;
+        if rt.is_some() {
+            flags |= MX_ROWTAB;
+        }
         if conv && safe {
             flags |= MX_RING;
         }
@@ -694,13 +738,22 @@ impl MetalBackend {
             cscale: ((k + 1) as f32).powf(-0.5),
             fpad: [0.0; 2],
             sk: [xb.skip, taps_b.skip, res_b.skip, add_b.skip, y_b.skip, ring_b.skip, sum_b.skip, src_b.skip, nrm_b.skip, outb.skip, 0, 0],
+            ..Default::default()
         };
+        let mut p = p;
+        if let Some((rts, rti, tab, roff)) = rt {
+            (p.rts, p.rti, p.tab_lo, p.tab_hi, p.roff) = (rts, rti, tab as u32, (tab >> 32) as u32, roff);
+        }
         let binds = [&xb, &taps_b, &res_b, &add_b, &y_b, &ring_b, &sum_b, &src_b, &qry_b, &nrm_b, &outb, &outf, &pos_b, &msg_b, &pair_b];
         let (ns_i, qb) = if nq == 0 { (1, 1) } else { (ns + 1, if nq == 1 { 1 } else { 4 }) };
         let hname = mix_row_shader(ne, ns_i, qb, true);
         let hoist = crate::inkctrl::MIX_HOIST.on() && self.pso(hname).is_some_and(|ps| ps.maxTotalThreadsPerThreadgroup() >= tpg);
         let name = if hoist { hname } else { mix_row_shader(ne, ns_i, qb, false) };
-        self.dispatch(name, &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
+        if rt.is_some() {
+            self.dispatch_ind(name, &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
+        } else {
+            self.dispatch(name, &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
+        }
         if conv && !safe {
             // ink_ring_write reads `pad0` (here `nrows`) as the launch's row count
             let pw = p;
@@ -863,7 +916,10 @@ impl MetalBackend {
                 }
                 self.mix_rows(call, 0, t, None, None)
             }
-            (CONV_MIX_BF16, Op::ConvMix) => {
+            (CONV_MIX_BF16 | CONV_MIX_BF16_ROWS, Op::ConvMix) => {
+                if (kernel == CONV_MIX_BF16_ROWS) != call.rows.is_some() {
+                    return Err(Error::invalid(format!("metal {kernel}: row table {}", if call.rows.is_some() { "given" } else { "missing" })));
+                }
                 if i[0].dtype != bf {
                     return Err(Error::invalid(format!("metal {kernel}: bf16 activations only")));
                 }
