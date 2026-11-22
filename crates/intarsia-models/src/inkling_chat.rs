@@ -85,14 +85,17 @@ impl InklingChat {
             .and_then(Value::as_array)
             .map(|a| {
                 a.iter()
-                    .filter_map(|t| Some((t.get("content")?.as_str()?.to_string(), u32::try_from(t.get("id")?.as_u64()?).ok()?)))
+                    .filter_map(|t| {
+                        Some((t.get("content")?.as_str()?.to_string(), u32::try_from(t.get("id")?.as_u64()?).ok()?))
+                    })
                     .collect()
             })
             .unwrap_or_default();
         let Some(ids) = InklingIds::resolve(|s| added.get(s).copied()) else { return Ok(None) };
         // the same vocabulary with its added tokens removed: the BPE of `<|end_message|>` is plain characters
         v["added_tokens"] = Value::Array(Vec::new());
-        let plain = Tokenizer::from_bytes(v.to_string().as_bytes()).map_err(|e| Error::Text(format!("tokenizer.json: {e}")))?;
+        let plain =
+            Tokenizer::from_bytes(v.to_string().as_bytes()).map_err(|e| Error::Text(format!("tokenizer.json: {e}")))?;
         Ok(Some(InklingChat { ids, plain }))
     }
 
@@ -154,7 +157,8 @@ impl InklingChat {
         }
 
         let mut out = Vec::new();
-        let mut declared = collect_tools(&messages, if choice == Choice::Mode("none".into()) { None } else { opts.tools.as_ref() })?;
+        let mut declared =
+            collect_tools(&messages, if choice == Choice::Mode("none".into()) { None } else { opts.tools.as_ref() })?;
         if let Choice::Named(name) = &choice {
             declared.retain(|t| function_of(t).get("name").and_then(Value::as_str) == Some(name.as_str()));
         }
@@ -165,7 +169,11 @@ impl InklingChat {
         let mut effort_text = Some(effort_text(effort)?);
         let instruction = if declared.is_empty() { None } else { choice_instruction(&choice, parallel) };
         if let Some(instruction) = instruction {
-            let first_is_system = messages.first().and_then(|m| m.get("role")).and_then(Value::as_str).is_some_and(|r| r == "system" || r == "developer");
+            let first_is_system = messages
+                .first()
+                .and_then(|m| m.get("role"))
+                .and_then(Value::as_str)
+                .is_some_and(|r| r == "system" || r == "developer");
             if first_is_system {
                 messages[0] = with_appended_text(&messages[0], &instruction);
             } else if let Some(t) = effort_text.as_mut() {
@@ -181,12 +189,13 @@ impl InklingChat {
                     self.block(&mut out, "system", "text", &t, None)?;
                 }
             }
-            let author = (role == "tool").then(|| {
-                match message.get("name").and_then(Value::as_str).filter(|n| !n.is_empty()) {
+            let author =
+                (role == "tool").then(|| match message.get("name").and_then(Value::as_str).filter(|n| !n.is_empty()) {
                     Some(n) => Some(n.to_string()),
-                    None => message.get("tool_call_id").and_then(Value::as_str).and_then(|id| call_names.get(id)).cloned(),
-                }
-            });
+                    None => {
+                        message.get("tool_call_id").and_then(Value::as_str).and_then(|id| call_names.get(id)).cloned()
+                    }
+                });
             let author = author.flatten();
             let blocks = blocks_of(message, role, &mut call_names)?;
             for (kind, text, block_author) in &blocks {
@@ -276,7 +285,9 @@ impl Choice {
                     Some(f) => f.get("name"),
                     None => o.get("name"),
                 };
-                name.and_then(Value::as_str).map(|n| Choice::Named(n.to_string())).ok_or_else(|| bad("tool_choice names no function"))
+                name.and_then(Value::as_str)
+                    .map(|n| Choice::Named(n.to_string()))
+                    .ok_or_else(|| bad("tool_choice names no function"))
             }
             Some(o) => Err(bad(format!("unsupported tool_choice: {o}"))),
         }
@@ -289,10 +300,13 @@ fn choice_instruction(choice: &Choice, parallel: bool) -> Option<String> {
             let once = if parallel { "" } else { " exactly once" };
             Some(format!("Call the function named {}{once} in your next response.", Value::String(name.clone())))
         }
-        Choice::Mode(m) if m == "required" => {
-            Some(format!("Call {} of the provided functions in your next response.", if parallel { "at least one" } else { "exactly one" }))
+        Choice::Mode(m) if m == "required" => Some(format!(
+            "Call {} of the provided functions in your next response.",
+            if parallel { "at least one" } else { "exactly one" }
+        )),
+        Choice::Mode(m) if m == "auto" && !parallel => {
+            Some("If you call a function, call at most one function in your next response.".into())
         }
-        Choice::Mode(m) if m == "auto" && !parallel => Some("If you call a function, call at most one function in your next response.".into()),
         _ => None,
     }
 }
@@ -345,7 +359,10 @@ fn assistant_reasoning(m: &Value) -> Option<&Value> {
 
 /// The text a `continue_final_message` request extends: a plain-string assistant message with no calls and no reasoning.
 fn continuation_prefix(m: &Value) -> Option<String> {
-    if m.get("role").and_then(Value::as_str) != Some("assistant") || truthy(m.get("tool_calls")) || truthy(assistant_reasoning(m)) {
+    if m.get("role").and_then(Value::as_str) != Some("assistant")
+        || truthy(m.get("tool_calls"))
+        || truthy(assistant_reasoning(m))
+    {
         return None;
     }
     m.get("content").and_then(Value::as_str).map(String::from)
@@ -361,10 +378,20 @@ fn parts_of(content: Option<&Value>) -> Result<Vec<(&'static str, String)>> {
                 match p {
                     Value::String(s) => out.push(("text", s.clone())),
                     Value::Object(o) => match o.get("type").and_then(Value::as_str) {
-                        None | Some("text" | "input_text") => out.push(("text", o.get("text").and_then(Value::as_str).unwrap_or("").to_string())),
-                        Some("thinking") => out.push(("thinking", o.get("thinking").and_then(Value::as_str).unwrap_or("").to_string())),
-                        Some("tool_error") => out.push(("tool_error", o.get("text").and_then(Value::as_str).unwrap_or("").to_string())),
-                        Some("image" | "input_image" | "image_url") => return Err(bad("this server runs Inkling-2-Mini's text model only: image parts are not supported")),
+                        None | Some("text" | "input_text") => {
+                            out.push(("text", o.get("text").and_then(Value::as_str).unwrap_or("").to_string()))
+                        }
+                        Some("thinking") => {
+                            out.push(("thinking", o.get("thinking").and_then(Value::as_str).unwrap_or("").to_string()))
+                        }
+                        Some("tool_error") => {
+                            out.push(("tool_error", o.get("text").and_then(Value::as_str).unwrap_or("").to_string()))
+                        }
+                        Some("image" | "input_image" | "image_url") => {
+                            return Err(bad(
+                                "this server runs Inkling-2-Mini's text model only: image parts are not supported",
+                            ))
+                        }
                         Some(other) => return Err(bad(format!("unsupported Inkling2 content part type: {other:?}"))),
                     },
                     _ => return Err(bad("content part must be an object or a string")),
@@ -389,22 +416,34 @@ fn blocks_of(m: &Value, role: &str, call_names: &mut HashMap<String, String>) ->
     }
     let calls = m.get("tool_calls").and_then(Value::as_array).cloned().unwrap_or_default();
     // `content == "" and (tool_calls or reasoning)` is no content
-    let content = if content.and_then(Value::as_str) == Some("") && (!calls.is_empty() || truthy(reasoning)) { None } else { content };
+    let content = if content.and_then(Value::as_str) == Some("") && (!calls.is_empty() || truthy(reasoning)) {
+        None
+    } else {
+        content
+    };
     let mut blocks: Vec<Block> = Vec::new();
     if let Some(r) = reasoning.and_then(Value::as_str).filter(|r| !r.is_empty()) {
         blocks.push(("thinking", r.to_string(), None));
     }
     blocks.extend(parts_of(content)?.into_iter().map(|(k, t)| (k, t, None)));
     for call in &calls {
-        let function = call.get("function").filter(|f| f.is_object()).ok_or_else(|| bad("tool call has no function"))?;
-        let name = function.get("name").and_then(Value::as_str).ok_or_else(|| bad("tool call function name must be a string"))?;
+        let function =
+            call.get("function").filter(|f| f.is_object()).ok_or_else(|| bad("tool call has no function"))?;
+        let name = function
+            .get("name")
+            .and_then(Value::as_str)
+            .ok_or_else(|| bad("tool call function name must be a string"))?;
         let args = match function.get("arguments") {
             None | Some(Value::Null) => Value::Object(Map::new()),
             Some(Value::String(s)) if s.trim().is_empty() => Value::Object(Map::new()),
-            Some(Value::String(s)) => serde_json::from_str(s).map_err(|e| bad(format!("tool call arguments are not JSON: {e}")))?,
+            Some(Value::String(s)) => {
+                serde_json::from_str(s).map_err(|e| bad(format!("tool call arguments are not JSON: {e}")))?
+            }
             Some(v) => v.clone(),
         };
-        let Value::Object(args) = args else { return Err(bad("tool call function arguments must decode to an object")) };
+        let Value::Object(args) = args else {
+            return Err(bad("tool call function arguments must decode to an object"));
+        };
         if let Some(id) = call.get("id").and_then(Value::as_str).filter(|i| !i.is_empty()) {
             call_names.insert(id.to_string(), name.to_string());
         }
@@ -421,7 +460,11 @@ fn blocks_of(m: &Value, role: &str, call_names: &mut HashMap<String, String>) ->
             tml_json(&args[k.as_str()], false, false, &mut s)?;
         }
         s.push('}');
-        blocks.push(("invoke_tool_json", format!("{{\"name\":{},\"args\":{}}}", json_str(name), s), Some(name.to_string())));
+        blocks.push((
+            "invoke_tool_json",
+            format!("{{\"name\":{},\"args\":{}}}", json_str(name), s),
+            Some(name.to_string()),
+        ));
     }
     Ok(blocks)
 }
@@ -451,17 +494,31 @@ fn collect_tools(messages: &[Value], tools: Option<&Value>) -> Result<Vec<Value>
 fn tool_declare_json(tools: &[Value]) -> Result<String> {
     let mut specs = Vec::new();
     for t in tools {
-        let Some(function) = t.get("function").and_then(Value::as_object) else { return Err(bad("tool has no function")) };
+        let Some(function) = t.get("function").and_then(Value::as_object) else {
+            return Err(bad("tool has no function"));
+        };
         let parameters = match function.get("parameters") {
             None | Some(Value::Null) => Value::Object(Map::new()),
             Some(p @ Value::Object(_)) => p.clone(),
             Some(_) => return Err(bad("tool parameters must be a JSON object")),
         };
         let mut spec = Map::new();
-        spec.insert("description".into(), function.get("description").filter(|d| !d.is_null()).cloned().unwrap_or_else(|| Value::String(String::new())));
+        spec.insert(
+            "description".into(),
+            function
+                .get("description")
+                .filter(|d| !d.is_null())
+                .cloned()
+                .unwrap_or_else(|| Value::String(String::new())),
+        );
         spec.insert("name".into(), function.get("name").cloned().ok_or_else(|| bad("tool has no name"))?);
         spec.insert("parameters".into(), parameters);
-        spec.insert("type".into(), Value::String(t.get("type").and_then(Value::as_str).filter(|s| !s.is_empty()).unwrap_or("function").to_string()));
+        spec.insert(
+            "type".into(),
+            Value::String(
+                t.get("type").and_then(Value::as_str).filter(|s| !s.is_empty()).unwrap_or("function").to_string(),
+            ),
+        );
         specs.push(Value::Object(spec));
     }
     let mut s = String::new();
@@ -605,7 +662,9 @@ mod tests {
 
     #[test]
     fn tool_declaration_sorts_every_level_and_args_only_the_first() {
-        let tools = vec![json!({"type": "function", "function": {"name": "f", "parameters": {"type": "object", "properties": {"b": {"type": "number", "maximum": 1e22}, "a": {"type": "string"}}}}})];
+        let tools = vec![
+            json!({"type": "function", "function": {"name": "f", "parameters": {"type": "object", "properties": {"b": {"type": "number", "maximum": 1e22}, "a": {"type": "string"}}}}}),
+        ];
         assert_eq!(
             tool_declare_json(&tools).unwrap(),
             r#"[{"description":"","name":"f","parameters":{"properties":{"a":{"type":"string"},"b":{"maximum":1e+22,"type":"number"}},"type":"object"},"type":"function"}]"#

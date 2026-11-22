@@ -18,8 +18,17 @@ use std::sync::{Arc, Mutex};
 use tower::ServiceExt;
 
 const NAMES: [&str; 12] = [
-    "<|message_user|>", "<|message_model|>", "<|message_system|>", "<|message_tool|>", "<|content_text|>", "<|content_thinking|>",
-    "<|content_tool_error|>", "<|content_xml|>", "<|content_invoke_tool_json|>", "<|end_message|>", "<|content_model_end_sampling|>",
+    "<|message_user|>",
+    "<|message_model|>",
+    "<|message_system|>",
+    "<|message_tool|>",
+    "<|content_text|>",
+    "<|content_thinking|>",
+    "<|content_tool_error|>",
+    "<|content_xml|>",
+    "<|content_invoke_tool_json|>",
+    "<|end_message|>",
+    "<|content_model_end_sampling|>",
     "<|content_invoke_tool_text|>",
 ];
 const fn id(i: usize) -> u32 {
@@ -71,7 +80,11 @@ fn tokenize(text: &str) -> Vec<u32> {
 }
 
 fn text_of(i: u32) -> String {
-    if i < 256 { (i as u8 as char).to_string() } else { String::new() }
+    if i < 256 {
+        (i as u8 as char).to_string()
+    } else {
+        String::new()
+    }
 }
 
 /// What the mock "model" does: tokens it says (the markers and ASCII), or under a constraint the same where the mask lets it.
@@ -112,8 +125,17 @@ impl Engine for Ink {
             reasoning_parser: Some("inkling".into()),
             tool_parser: Some("inkling".into()),
             memory_plan: MemoryPlan {
-                device: "test".into(), total_bytes: 0, free_bytes: 0, weights_bytes: 0, workspace_bytes: 0, kv_bytes_per_token: 0,
-                kv_fraction: 0.5, kv_budget_bytes: 0, kv_cap_tokens: 4096, kv_total_bytes: 0, notes: vec![],
+                device: "test".into(),
+                total_bytes: 0,
+                free_bytes: 0,
+                weights_bytes: 0,
+                workspace_bytes: 0,
+                kv_bytes_per_token: 0,
+                kv_fraction: 0.5,
+                kv_budget_bytes: 0,
+                kv_cap_tokens: 4096,
+                kv_total_bytes: 0,
+                notes: vec![],
             },
             reuse_cold_cuts_only: false,
         }
@@ -150,7 +172,13 @@ impl Engine for Ink {
                 } else {
                     (0..VOCAB as u32).collect()
                 };
-                let pick = want.get(step).copied().filter(|t| allowed.contains(t)).unwrap_or_else(|| if allowed.contains(&EOS) { EOS } else { allowed[0] });
+                let pick = want.get(step).copied().filter(|t| allowed.contains(t)).unwrap_or_else(|| {
+                    if allowed.contains(&EOS) {
+                        EOS
+                    } else {
+                        allowed[0]
+                    }
+                });
                 if pick == EOS {
                     break;
                 }
@@ -170,8 +198,14 @@ impl Engine for Ink {
                 tx.send(GenEvent::Token { id: t, text: text_of(t) }).ok();
             }
             tx.send(GenEvent::Done {
-                finish_reason: finish, stop_sequence: None, prompt_tokens: plen, completion_tokens: n + 1, cached_tokens: 0,
-                prefill_ms: 1.0, decode_ms: 1.0, prefill_chunk: None,
+                finish_reason: finish,
+                stop_sequence: None,
+                prompt_tokens: plen,
+                completion_tokens: n + 1,
+                cached_tokens: 0,
+                prefill_ms: 1.0,
+                decode_ms: 1.0,
+                prefill_chunk: None,
             })
             .ok();
         });
@@ -186,12 +220,21 @@ impl Engine for Ink {
 }
 
 fn app(say: Vec<u32>) -> (Router, Arc<Ink>) {
-    let m = Arc::new(Ink { chat: InklingChat::from_tokenizer_json(&tokenizer_json()).unwrap(), say: Mutex::new(say), ..Default::default() });
+    let m = Arc::new(Ink {
+        chat: InklingChat::from_tokenizer_json(&tokenizer_json()).unwrap(),
+        say: Mutex::new(say),
+        ..Default::default()
+    });
     (intarsia_server::router(m.clone(), None), m)
 }
 
 async fn chat(app: &Router, body: Value) -> (StatusCode, String) {
-    let req = Request::builder().method("POST").uri("/v1/chat/completions").header("content-type", "application/json").body(Body::from(body.to_string())).unwrap();
+    let req = Request::builder()
+        .method("POST")
+        .uri("/v1/chat/completions")
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap();
     let resp = app.clone().oneshot(req).await.unwrap();
     let status = resp.status();
     let bytes = resp.into_body().collect().await.unwrap().to_bytes();
@@ -199,10 +242,24 @@ async fn chat(app: &Router, body: Value) -> (StatusCode, String) {
 }
 
 fn chunks(body: &str) -> Vec<Value> {
-    body.lines().filter_map(|l| l.strip_prefix("data: ")).filter(|d| *d != "[DONE]").map(|d| serde_json::from_str(d).unwrap()).collect()
+    body.lines()
+        .filter_map(|l| l.strip_prefix("data: "))
+        .filter(|d| *d != "[DONE]")
+        .map(|d| serde_json::from_str(d).unwrap())
+        .collect()
 }
 
-const ANSWER: [&str; 9] = ["<|message_model|>", "<|content_thinking|>", "The user asks for the capital. ", "<|end_message|>", "<|message_model|>", "<|content_text|>", "Paris.", "<|end_message|>", "<|content_model_end_sampling|>"];
+const ANSWER: [&str; 9] = [
+    "<|message_model|>",
+    "<|content_thinking|>",
+    "The user asks for the capital. ",
+    "<|end_message|>",
+    "<|message_model|>",
+    "<|content_text|>",
+    "Paris.",
+    "<|end_message|>",
+    "<|content_model_end_sampling|>",
+];
 
 #[tokio::test]
 async fn the_prompt_is_the_vllm_rendering_and_reasoning_is_split() {
@@ -217,7 +274,10 @@ async fn the_prompt_is_the_vllm_rendering_and_reasoning_is_split() {
     assert!(m.get("tool_calls").is_none());
     // the prompt: no generation prefix, the effort block before the first non-system message
     let prompt = mock.reqs.lock().unwrap()[0].prompt.clone();
-    let text: String = prompt.iter().map(|&i| if i >= 256 { NAMES[i as usize - 256].to_string() } else { (i as u8 as char).to_string() }).collect();
+    let text: String = prompt
+        .iter()
+        .map(|&i| if i >= 256 { NAMES[i as usize - 256].to_string() } else { (i as u8 as char).to_string() })
+        .collect();
     assert_eq!(
         text,
         "<|message_system|><|content_text|>Be brief.<|end_message|><|message_system|><|content_text|>Thinking effort level: 0.2<|end_message|><|message_user|><|content_text|>Capital of France?<|end_message|>"
@@ -231,9 +291,13 @@ async fn kwargs_effort_wins_and_none_is_zero() {
     let (st, body) = chat(&app, json!({"messages": [{"role": "user", "content": "hi"}], "reasoning_effort": "high", "chat_template_kwargs": {"reasoning_effort": "none"}})).await;
     assert_eq!(st, StatusCode::OK, "{body}");
     let prompt = mock.reqs.lock().unwrap()[0].prompt.clone();
-    let text: String = prompt.iter().map(|&i| if i >= 256 { NAMES[i as usize - 256].to_string() } else { (i as u8 as char).to_string() }).collect();
+    let text: String = prompt
+        .iter()
+        .map(|&i| if i >= 256 { NAMES[i as usize - 256].to_string() } else { (i as u8 as char).to_string() })
+        .collect();
     assert!(text.contains("Thinking effort level: 0<|end_message|>"), "{text}");
-    let (st, body) = chat(&app, json!({"messages": [{"role": "user", "content": "hi"}], "reasoning_effort": "loud"})).await;
+    let (st, body) =
+        chat(&app, json!({"messages": [{"role": "user", "content": "hi"}], "reasoning_effort": "loud"})).await;
     assert_eq!(st, StatusCode::BAD_REQUEST, "{body}");
 }
 
@@ -254,13 +318,25 @@ async fn streaming_splits_reasoning_and_content_by_marker() {
         }
     }
     assert_eq!((reasoning.as_str(), content.as_str()), ("The user asks for the capital.", "Paris."));
-    let fr: Vec<&Value> = cs.iter().filter_map(|c| c["choices"].get(0)).map(|c| &c["finish_reason"]).filter(|f| !f.is_null()).collect();
+    let fr: Vec<&Value> =
+        cs.iter().filter_map(|c| c["choices"].get(0)).map(|c| &c["finish_reason"]).filter(|f| !f.is_null()).collect();
     assert_eq!(fr, vec![&json!("stop")]);
     assert!(cs.last().unwrap()["usage"]["completion_tokens"].as_u64().unwrap() > 0);
 }
 
 fn call_reply() -> Vec<u32> {
-    say(&["<|message_model|>", "<|content_thinking|>", "need weather", "<|end_message|>", "<|message_model|>", "get_weather", "<|content_invoke_tool_json|>", r#"{"name":"get_weather","args":{"city":"Paris","days":2}}"#, "<|end_message|>", "<|content_model_end_sampling|>"])
+    say(&[
+        "<|message_model|>",
+        "<|content_thinking|>",
+        "need weather",
+        "<|end_message|>",
+        "<|message_model|>",
+        "get_weather",
+        "<|content_invoke_tool_json|>",
+        r#"{"name":"get_weather","args":{"city":"Paris","days":2}}"#,
+        "<|end_message|>",
+        "<|content_model_end_sampling|>",
+    ])
 }
 
 fn weather() -> Value {
@@ -270,7 +346,8 @@ fn weather() -> Value {
 #[tokio::test]
 async fn a_tool_call_is_parsed_and_the_declaration_is_in_the_prompt() {
     let (app, mock) = app(call_reply());
-    let (st, body) = chat(&app, json!({"messages": [{"role": "user", "content": "weather in Paris?"}], "tools": weather()})).await;
+    let (st, body) =
+        chat(&app, json!({"messages": [{"role": "user", "content": "weather in Paris?"}], "tools": weather()})).await;
     assert_eq!(st, StatusCode::OK, "{body}");
     let v: Value = serde_json::from_str(&body).unwrap();
     let c = &v["choices"][0];
@@ -279,17 +356,29 @@ async fn a_tool_call_is_parsed_and_the_declaration_is_in_the_prompt() {
     assert!(c["message"]["content"].is_null(), "{c}");
     let call = &c["message"]["tool_calls"][0];
     assert_eq!(call["function"]["name"], "get_weather");
-    assert_eq!(serde_json::from_str::<Value>(call["function"]["arguments"].as_str().unwrap()).unwrap(), json!({"city": "Paris", "days": 2}));
+    assert_eq!(
+        serde_json::from_str::<Value>(call["function"]["arguments"].as_str().unwrap()).unwrap(),
+        json!({"city": "Paris", "days": 2})
+    );
     assert!(call["id"].as_str().unwrap().starts_with("call"));
     let prompt = mock.reqs.lock().unwrap()[0].prompt.clone();
-    let text: String = prompt.iter().map(|&i| if i >= 256 { NAMES[i as usize - 256].to_string() } else { (i as u8 as char).to_string() }).collect();
-    assert!(text.starts_with("<|message_system|>tool_declare<|content_xml|>[{\"description\":\"Weather\",\"name\":\"get_weather\""), "{text}");
+    let text: String = prompt
+        .iter()
+        .map(|&i| if i >= 256 { NAMES[i as usize - 256].to_string() } else { (i as u8 as char).to_string() })
+        .collect();
+    assert!(
+        text.starts_with(
+            "<|message_system|>tool_declare<|content_xml|>[{\"description\":\"Weather\",\"name\":\"get_weather\""
+        ),
+        "{text}"
+    );
 }
 
 #[tokio::test]
 async fn a_streamed_tool_call_and_the_follow_up_turn() {
     let (app, mock) = app(call_reply());
-    let (_, body) = chat(&app, json!({"messages": [{"role": "user", "content": "w?"}], "tools": weather(), "stream": true})).await;
+    let (_, body) =
+        chat(&app, json!({"messages": [{"role": "user", "content": "w?"}], "tools": weather(), "stream": true})).await;
     let cs = chunks(&body);
     let calls: Vec<&Value> = cs.iter().filter_map(|c| c["choices"][0]["delta"].get("tool_calls")).collect();
     assert_eq!(calls.len(), 1);
@@ -298,31 +387,49 @@ async fn a_streamed_tool_call_and_the_follow_up_turn() {
     let fr = cs.iter().filter_map(|c| c["choices"][0]["finish_reason"].as_str()).last();
     assert_eq!(fr, Some("tool_calls"));
     // the client sends the call back with string arguments and the tool's result
-    *mock.say.lock().unwrap() = say(&["<|message_model|>", "<|content_text|>", "Sunny.", "<|end_message|>", "<|content_model_end_sampling|>"]);
+    *mock.say.lock().unwrap() =
+        say(&["<|message_model|>", "<|content_text|>", "Sunny.", "<|end_message|>", "<|content_model_end_sampling|>"]);
     let (st, body) = chat(&app, json!({"messages": [
         {"role": "user", "content": "w?"},
         {"role": "assistant", "content": null, "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "get_weather", "arguments": "{\"city\": \"Paris\"}"}}]},
         {"role": "tool", "tool_call_id": "call_1", "content": "sunny"}], "tools": weather()})).await;
     assert_eq!(st, StatusCode::OK, "{body}");
     let prompt = mock.reqs.lock().unwrap().last().unwrap().prompt.clone();
-    let text: String = prompt.iter().map(|&i| if i >= 256 { NAMES[i as usize - 256].to_string() } else { (i as u8 as char).to_string() }).collect();
+    let text: String = prompt
+        .iter()
+        .map(|&i| if i >= 256 { NAMES[i as usize - 256].to_string() } else { (i as u8 as char).to_string() })
+        .collect();
     assert!(text.contains("<|message_model|>get_weather<|content_invoke_tool_json|>{\"name\":\"get_weather\",\"args\":{\"city\":\"Paris\"}}<|end_message|><|content_model_end_sampling|><|message_tool|>get_weather<|content_text|>sunny<|end_message|>"), "{text}");
 }
 
 #[tokio::test]
 async fn tool_choice_required_is_an_instruction_not_a_grammar() {
     let (app, mock) = app(call_reply());
-    let (st, body) = chat(&app, json!({"messages": [{"role": "user", "content": "w?"}], "tools": weather(), "tool_choice": "required"})).await;
+    let (st, body) = chat(
+        &app,
+        json!({"messages": [{"role": "user", "content": "w?"}], "tools": weather(), "tool_choice": "required"}),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK, "{body}");
     let r = mock.reqs.lock().unwrap()[0].clone();
     assert!(r.constraint.is_none());
-    let text: String = r.prompt.iter().map(|&i| if i >= 256 { NAMES[i as usize - 256].to_string() } else { (i as u8 as char).to_string() }).collect();
+    let text: String = r
+        .prompt
+        .iter()
+        .map(|&i| if i >= 256 { NAMES[i as usize - 256].to_string() } else { (i as u8 as char).to_string() })
+        .collect();
     assert!(text.contains("Call at least one of the provided functions in your next response."), "{text}");
     // none: no declaration
-    let (st, _) = chat(&app, json!({"messages": [{"role": "user", "content": "w?"}], "tools": weather(), "tool_choice": "none"})).await;
+    let (st, _) =
+        chat(&app, json!({"messages": [{"role": "user", "content": "w?"}], "tools": weather(), "tool_choice": "none"}))
+            .await;
     assert_eq!(st, StatusCode::OK);
     let r = mock.reqs.lock().unwrap()[1].clone();
-    let text: String = r.prompt.iter().map(|&i| if i >= 256 { NAMES[i as usize - 256].to_string() } else { (i as u8 as char).to_string() }).collect();
+    let text: String = r
+        .prompt
+        .iter()
+        .map(|&i| if i >= 256 { NAMES[i as usize - 256].to_string() } else { (i as u8 as char).to_string() })
+        .collect();
     assert!(!text.contains("tool_declare"), "{text}");
 }
 
@@ -332,7 +439,17 @@ fn schema_format() -> Value {
 
 #[tokio::test]
 async fn a_json_schema_is_framed_in_blocks() {
-    let want = say(&["<|message_model|>", "<|content_thinking|>", "hm", "<|end_message|>", "<|message_model|>", "<|content_text|>", r#"{"a": 1}"#, "<|end_message|>", "<|content_model_end_sampling|>"]);
+    let want = say(&[
+        "<|message_model|>",
+        "<|content_thinking|>",
+        "hm",
+        "<|end_message|>",
+        "<|message_model|>",
+        "<|content_text|>",
+        r#"{"a": 1}"#,
+        "<|end_message|>",
+        "<|content_model_end_sampling|>",
+    ]);
     let (app, mock) = app(want);
     let (st, body) = chat(&app, json!({"messages": [{"role": "user", "content": "give a"}], "response_format": schema_format(), "max_tokens": 60})).await;
     assert_eq!(st, StatusCode::OK, "{body}");
@@ -363,10 +480,20 @@ async fn a_json_schema_cannot_be_escaped_into_free_text() {
 #[tokio::test]
 async fn images_and_the_anthropic_route_are_refused() {
     let (app, _) = app(say(&ANSWER));
-    let (st, body) = chat(&app, json!({"messages": [{"role": "user", "content": [{"type": "image_url", "image_url": {"url": "x"}}]}]})).await;
+    let (st, body) = chat(
+        &app,
+        json!({"messages": [{"role": "user", "content": [{"type": "image_url", "image_url": {"url": "x"}}]}]}),
+    )
+    .await;
     assert_eq!(st, StatusCode::BAD_REQUEST, "{body}");
-    let req = Request::builder().method("POST").uri("/v1/messages").header("content-type", "application/json")
-        .body(Body::from(json!({"model": "m", "max_tokens": 5, "messages": [{"role": "user", "content": "hi"}]}).to_string())).unwrap();
+    let req = Request::builder()
+        .method("POST")
+        .uri("/v1/messages")
+        .header("content-type", "application/json")
+        .body(Body::from(
+            json!({"model": "m", "max_tokens": 5, "messages": [{"role": "user", "content": "hi"}]}).to_string(),
+        ))
+        .unwrap();
     let resp = app.clone().oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     let _ = USER;
@@ -380,8 +507,13 @@ async fn the_framing_grammar_compiles_against_the_real_vocabulary() {
     let dir = match std::env::var("INTARSIA_INKLING2_DIR") {
         Ok(d) => std::path::PathBuf::from(d),
         Err(_) => {
-            let snaps = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots");
-            match std::fs::read_dir(snaps).ok().and_then(|d| d.filter_map(|e| e.ok()).map(|e| e.path()).find(|p| p.join("tokenizer.json").exists() && p.join("model.safetensors.index.json").exists())) {
+            let snaps = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+                .join(".cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots");
+            match std::fs::read_dir(snaps).ok().and_then(|d| {
+                d.filter_map(|e| e.ok())
+                    .map(|e| e.path())
+                    .find(|p| p.join("tokenizer.json").exists() && p.join("model.safetensors.index.json").exists())
+            }) {
                 Some(p) => p,
                 None => {
                     eprintln!("skipped: no Inkling-2 tokenizer.json (set INTARSIA_INKLING2_DIR)");
@@ -393,11 +525,35 @@ async fn the_framing_grammar_compiles_against_the_real_vocabulary() {
     let json = std::fs::read_to_string(dir.join("tokenizer.json")).unwrap();
     let renderer = InklingChat::from_tokenizer_json(&json).unwrap().expect("Inkling vocabulary");
     // the markers by the ids of the model card (spec section e)
-    assert_eq!((renderer.ids.model, renderer.ids.text, renderer.ids.thinking, renderer.ids.end_message, renderer.ids.end_sampling), (200001, 200004, 200008, 200010, 200006));
+    assert_eq!(
+        (
+            renderer.ids.model,
+            renderer.ids.text,
+            renderer.ids.thinking,
+            renderer.ids.end_message,
+            renderer.ids.end_sampling
+        ),
+        (200001, 200004, 200008, 200010, 200006)
+    );
     let tok = tokenizers::Tokenizer::from_bytes(json.as_bytes()).unwrap();
-    let eng = Arc::new(RealVocab { tok, json, chat: renderer, say: Mutex::new(Vec::new()), first_mask: Mutex::new(Vec::new()) });
+    let eng = Arc::new(RealVocab {
+        tok,
+        json,
+        chat: renderer,
+        say: Mutex::new(Vec::new()),
+        first_mask: Mutex::new(Vec::new()),
+    });
     let app = intarsia_server::router(eng.clone(), None);
-    let want = eng.ids(&["<|message_model|>", "<|content_thinking|>", "hm", "<|end_message|>", "<|message_model|>", "<|content_text|>", "{\"a\": 1}", "<|end_message|>"]);
+    let want = eng.ids(&[
+        "<|message_model|>",
+        "<|content_thinking|>",
+        "hm",
+        "<|end_message|>",
+        "<|message_model|>",
+        "<|content_text|>",
+        "{\"a\": 1}",
+        "<|end_message|>",
+    ]);
     *eng.say.lock().unwrap() = want;
     let (st, body) = chat(&app, json!({"messages": [{"role": "user", "content": "give a"}], "response_format": schema_format(), "max_tokens": 40})).await;
     assert_eq!(st, StatusCode::OK, "{body}");
@@ -467,7 +623,17 @@ impl Engine for RealVocab {
             for (t, s) in out.iter().zip(texts) {
                 tx.send(GenEvent::Token { id: *t, text: s }).ok();
             }
-            tx.send(GenEvent::Done { finish_reason: FinishReason::Stop, stop_sequence: None, prompt_tokens: 1, completion_tokens: n + 1, cached_tokens: 0, prefill_ms: 1.0, decode_ms: 1.0, prefill_chunk: None }).ok();
+            tx.send(GenEvent::Done {
+                finish_reason: FinishReason::Stop,
+                stop_sequence: None,
+                prompt_tokens: 1,
+                completion_tokens: n + 1,
+                cached_tokens: 0,
+                prefill_ms: 1.0,
+                decode_ms: 1.0,
+                prefill_chunk: None,
+            })
+            .ok();
         });
         Ok(rx)
     }

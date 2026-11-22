@@ -59,7 +59,17 @@ impl Ids {
     }
 
     fn is_marker(&self, id: u32) -> bool {
-        [self.model, self.text, self.thinking, self.end_message, self.tool_json, self.tool_text, self.tool_error, self.end_sampling].contains(&id)
+        [
+            self.model,
+            self.text,
+            self.thinking,
+            self.end_message,
+            self.tool_json,
+            self.tool_text,
+            self.tool_error,
+            self.end_sampling,
+        ]
+        .contains(&id)
     }
 }
 
@@ -69,7 +79,10 @@ pub enum Out {
     Reasoning(String),
     Content(String),
     /// A complete call; `arguments` is the `args` object the model wrote (a string when it wrote one).
-    Call { name: String, arguments: Value },
+    Call {
+        name: String,
+        arguments: Value,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -105,7 +118,18 @@ fn trailing_ws_start(s: &str) -> usize {
 impl Stream {
     pub fn new(ids: Ids) -> Stream {
         // the prompt ends between messages: the model opens its own `<|message_model|>`
-        Stream { ids, state: State::Header, header: String::new(), tool: String::new(), tool_name: String::new(), reason_ws: String::new(), content_ws: String::new(), content_started: false, called: false, last: None }
+        Stream {
+            ids,
+            state: State::Header,
+            header: String::new(),
+            tool: String::new(),
+            tool_name: String::new(),
+            reason_ws: String::new(),
+            content_ws: String::new(),
+            content_started: false,
+            called: false,
+            last: None,
+        }
     }
 
     /// One generated token with the text the engine released for it (empty for a marker).
@@ -259,9 +283,18 @@ impl Stream {
 fn parse_call(raw: &str, header_name: &str) -> Option<(String, Value)> {
     let v: Value = serde_json::from_str(raw.trim()).ok()?;
     let o = v.as_object()?;
-    let name = o.get("name").and_then(Value::as_str).filter(|n| !n.is_empty()).map(String::from).or_else(|| (!header_name.is_empty()).then(|| header_name.to_string()))?;
+    let name = o
+        .get("name")
+        .and_then(Value::as_str)
+        .filter(|n| !n.is_empty())
+        .map(String::from)
+        .or_else(|| (!header_name.is_empty()).then(|| header_name.to_string()))?;
     // `args`, as vLLM reads it (`arguments` and `parameters` too)
-    let args = ["args", "arguments", "parameters"].iter().find_map(|k| o.get(*k)).cloned().unwrap_or_else(|| Value::Object(Map::new()));
+    let args = ["args", "arguments", "parameters"]
+        .iter()
+        .find_map(|k| o.get(*k))
+        .cloned()
+        .unwrap_or_else(|| Value::Object(Map::new()));
     Some((name, args))
 }
 
@@ -315,7 +348,16 @@ pub fn deltas(outs: Vec<Out>, n: &mut usize, new_id: &dyn Fn() -> String) -> Vec
 mod tests {
     use super::*;
 
-    const IDS: Ids = Ids { model: 1, text: 2, thinking: 3, end_message: 4, tool_json: 5, tool_text: 6, tool_error: 7, end_sampling: 8 };
+    const IDS: Ids = Ids {
+        model: 1,
+        text: 2,
+        thinking: 3,
+        end_message: 4,
+        tool_json: 5,
+        tool_text: 6,
+        tool_error: 7,
+        end_sampling: 8,
+    };
 
     /// Events: a marker id, or text as a run of ids 100+ with the text on the first.
     fn run(events: &[(u32, &str)]) -> Vec<Out> {
@@ -335,7 +377,19 @@ mod tests {
 
     #[test]
     fn reasoning_then_answer() {
-        let outs = run(&[(1, ""), (3, ""), (100, "The user asks"), (101, " a question.\n"), (4, ""), (1, ""), (2, ""), (102, "Paris"), (103, "."), (4, ""), (8, "")]);
+        let outs = run(&[
+            (1, ""),
+            (3, ""),
+            (100, "The user asks"),
+            (101, " a question.\n"),
+            (4, ""),
+            (1, ""),
+            (2, ""),
+            (102, "Paris"),
+            (103, "."),
+            (4, ""),
+            (8, ""),
+        ]);
         assert_eq!(joined(&outs), ("The user asks a question.".to_string(), "Paris.".to_string(), vec![]));
         // the reasoning streams as it comes, without the whitespace it ends in
         assert_eq!(outs[0], Out::Reasoning("The user asks".into()));
@@ -344,12 +398,23 @@ mod tests {
 
     #[test]
     fn effort_none_may_skip_the_thinking_block() {
-        assert_eq!(joined(&run(&[(1, ""), (2, ""), (100, "Hi"), (4, ""), (8, "")])), (String::new(), "Hi".to_string(), vec![]));
+        assert_eq!(
+            joined(&run(&[(1, ""), (2, ""), (100, "Hi"), (4, ""), (8, "")])),
+            (String::new(), "Hi".to_string(), vec![])
+        );
     }
 
     #[test]
     fn a_call_with_its_header_name() {
-        let outs = run(&[(1, ""), (100, "get_weather"), (5, ""), (101, "{\"name\":\"get_weather\",\"args\":{\"city\":"), (102, "\"Paris\"}}"), (4, ""), (8, "")]);
+        let outs = run(&[
+            (1, ""),
+            (100, "get_weather"),
+            (5, ""),
+            (101, "{\"name\":\"get_weather\",\"args\":{\"city\":"),
+            (102, "\"Paris\"}}"),
+            (4, ""),
+            (8, ""),
+        ]);
         let (reasoning, content, calls) = joined(&outs);
         assert_eq!((reasoning.as_str(), content.as_str()), ("", ""));
         assert_eq!(calls, vec![("get_weather".to_string(), json!({"city": "Paris"}))]);
@@ -358,9 +423,19 @@ mod tests {
     #[test]
     fn text_after_a_call_is_kept_and_whitespace_before_it_is_not() {
         let outs = run(&[
-            (1, ""), (2, ""), (100, "\n\n"), (4, ""),
-            (1, ""), (5, ""), (101, "{\"name\":\"f\",\"args\":{}}"), (4, ""),
-            (1, ""), (2, ""), (102, "done"), (4, ""), (8, ""),
+            (1, ""),
+            (2, ""),
+            (100, "\n\n"),
+            (4, ""),
+            (1, ""),
+            (5, ""),
+            (101, "{\"name\":\"f\",\"args\":{}}"),
+            (4, ""),
+            (1, ""),
+            (2, ""),
+            (102, "done"),
+            (4, ""),
+            (8, ""),
         ]);
         let (_, content, calls) = joined(&outs);
         assert_eq!(content, "done");
@@ -369,7 +444,16 @@ mod tests {
 
     #[test]
     fn trailing_whitespace_with_a_call_is_dropped_without_one_kept() {
-        let with_call = run(&[(1, ""), (5, ""), (100, "{\"name\":\"f\",\"args\":{}}"), (4, ""), (1, ""), (2, ""), (101, "\n"), (4, "")]);
+        let with_call = run(&[
+            (1, ""),
+            (5, ""),
+            (100, "{\"name\":\"f\",\"args\":{}}"),
+            (4, ""),
+            (1, ""),
+            (2, ""),
+            (101, "\n"),
+            (4, ""),
+        ]);
         assert_eq!(joined(&with_call).1, "");
         let without = run(&[(1, ""), (2, ""), (101, "\n"), (4, "")]);
         assert_eq!(joined(&without).1, "\n");
@@ -377,7 +461,20 @@ mod tests {
 
     #[test]
     fn two_thinking_blocks_and_raw_tool_blocks() {
-        let outs = run(&[(1, ""), (3, ""), (100, "a "), (4, ""), (1, ""), (3, ""), (101, "b"), (4, ""), (1, ""), (6, ""), (102, "raw text"), (4, "")]);
+        let outs = run(&[
+            (1, ""),
+            (3, ""),
+            (100, "a "),
+            (4, ""),
+            (1, ""),
+            (3, ""),
+            (101, "b"),
+            (4, ""),
+            (1, ""),
+            (6, ""),
+            (102, "raw text"),
+            (4, ""),
+        ]);
         assert_eq!(joined(&outs), ("ab".to_string(), "raw text".to_string(), vec![]));
     }
 
@@ -424,6 +521,9 @@ mod tests {
         streamed.extend(s.finish());
         let whole = Stream::parse_ids(IDS, &ids, &mut |run: &[u32]| run.iter().map(|&i| text(i)).collect::<String>());
         assert_eq!(joined(&whole), joined(&streamed));
-        assert_eq!(joined(&whole), ("think hard".to_string(), "Paris".to_string(), vec![("f".to_string(), json!({"x": 1}))]));
+        assert_eq!(
+            joined(&whole),
+            ("think hard".to_string(), "Paris".to_string(), vec![("f".to_string(), json!({"x": 1}))])
+        );
     }
 }

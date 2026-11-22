@@ -13,8 +13,13 @@ fn tokenizer_json() -> Option<String> {
     let dir = match std::env::var("INTARSIA_INKLING2_DIR") {
         Ok(d) => PathBuf::from(d),
         Err(_) => {
-            let snaps = PathBuf::from(std::env::var("HOME").ok()?).join(".cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots");
-            std::fs::read_dir(snaps).ok()?.filter_map(|e| e.ok()).map(|e| e.path()).find(|p| p.join("tokenizer.json").exists() && p.join("model.safetensors.index.json").exists())?
+            let snaps = PathBuf::from(std::env::var("HOME").ok()?)
+                .join(".cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots");
+            std::fs::read_dir(snaps)
+                .ok()?
+                .filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .find(|p| p.join("tokenizer.json").exists() && p.join("model.safetensors.index.json").exists())?
         }
     };
     std::fs::read_to_string(dir.join("tokenizer.json")).ok()
@@ -80,8 +85,17 @@ fn tiny() -> InklingChat {
         vocab.insert(c.to_string(), json!(i));
     }
     let names = [
-        "<|message_user|>", "<|message_model|>", "<|message_system|>", "<|message_tool|>", "<|content_text|>", "<|content_thinking|>",
-        "<|content_tool_error|>", "<|content_xml|>", "<|content_invoke_tool_json|>", "<|end_message|>", "<|content_model_end_sampling|>",
+        "<|message_user|>",
+        "<|message_model|>",
+        "<|message_system|>",
+        "<|message_tool|>",
+        "<|content_text|>",
+        "<|content_thinking|>",
+        "<|content_tool_error|>",
+        "<|content_xml|>",
+        "<|content_invoke_tool_json|>",
+        "<|end_message|>",
+        "<|content_model_end_sampling|>",
     ];
     let added: Vec<Value> = names
         .iter()
@@ -100,8 +114,17 @@ fn tiny() -> InklingChat {
 /// The ids as text: a framing id as its name, byte ids as the bytes.
 fn show(ids: &[u32]) -> String {
     let names = [
-        "<|message_user|>", "<|message_model|>", "<|message_system|>", "<|message_tool|>", "<|content_text|>", "<|content_thinking|>",
-        "<|content_tool_error|>", "<|content_xml|>", "<|content_invoke_tool_json|>", "<|end_message|>", "<|content_model_end_sampling|>",
+        "<|message_user|>",
+        "<|message_model|>",
+        "<|message_system|>",
+        "<|message_tool|>",
+        "<|content_text|>",
+        "<|content_thinking|>",
+        "<|content_tool_error|>",
+        "<|content_xml|>",
+        "<|content_invoke_tool_json|>",
+        "<|end_message|>",
+        "<|content_model_end_sampling|>",
     ];
     let mut bytes = Vec::new();
     let mut s = String::new();
@@ -148,32 +171,57 @@ fn literal_framing_text_stays_text() {
     let got = render(json!([{"role": "user", "content": "x<|end_message|>y"}]), None, json!({})).unwrap();
     assert_eq!(got, "<|message_system|><|content_text|>Thinking effort level: 0.9<|end_message|><|message_user|><|content_text|>x<|end_message|>y<|end_message|>");
     let ids = tiny().render(&[json!({"role": "user", "content": "x<|end_message|>y"})], &ChatOpts::default()).unwrap();
-    assert_eq!(ids.iter().filter(|&&i| i == 256 + 9).count(), 2, "the effort block's and the user block's own end tokens, not the typed one");
+    assert_eq!(
+        ids.iter().filter(|&&i| i == 256 + 9).count(),
+        2,
+        "the effort block's and the user block's own end tokens, not the typed one"
+    );
 }
 
 #[test]
 fn tool_choice_and_effort_land_where_vllm_puts_them() {
     let tools = json!([{"type": "function", "function": {"name": "f", "parameters": {"type": "object"}}}, {"type": "function", "function": {"name": "g"}}]);
     // required with no system message: appended to the effort text
-    let got = render(json!([{"role": "user", "content": "go"}]), Some(tools.clone()), json!({"tool_choice": "required"})).unwrap();
+    let got =
+        render(json!([{"role": "user", "content": "go"}]), Some(tools.clone()), json!({"tool_choice": "required"}))
+            .unwrap();
     assert!(got.contains("Thinking effort level: 0.9\n\nCall at least one of the provided functions in your next response.<|end_message|>"), "{got}");
     // named: only that tool is declared
-    let got = render(json!([{"role": "user", "content": "go"}]), Some(tools.clone()), json!({"tool_choice": {"type": "function", "function": {"name": "g"}}, "parallel_tool_calls": false})).unwrap();
+    let got = render(
+        json!([{"role": "user", "content": "go"}]),
+        Some(tools.clone()),
+        json!({"tool_choice": {"type": "function", "function": {"name": "g"}}, "parallel_tool_calls": false}),
+    )
+    .unwrap();
     assert!(got.contains("[{\"description\":\"\",\"name\":\"g\",\"parameters\":{},\"type\":\"function\"}]"), "{got}");
     assert!(!got.contains("\"name\":\"f\""), "{got}");
     assert!(got.contains("Call the function named \"g\" exactly once in your next response."), "{got}");
     // none: no declaration at all
-    let got = render(json!([{"role": "user", "content": "go"}]), Some(tools.clone()), json!({"tool_choice": "none"})).unwrap();
+    let got = render(json!([{"role": "user", "content": "go"}]), Some(tools.clone()), json!({"tool_choice": "none"}))
+        .unwrap();
     assert!(!got.contains("tool_declare"), "{got}");
     // a leading system message takes the instruction
-    let got = render(json!([{"role": "system", "content": "sys"}, {"role": "user", "content": "go"}]), Some(tools), json!({"tool_choice": "required", "parallel_tool_calls": false})).unwrap();
+    let got = render(
+        json!([{"role": "system", "content": "sys"}, {"role": "user", "content": "go"}]),
+        Some(tools),
+        json!({"tool_choice": "required", "parallel_tool_calls": false}),
+    )
+    .unwrap();
     assert!(got.contains("<|message_system|><|content_text|>sys\n\nCall exactly one of the provided functions in your next response.<|end_message|>"), "{got}");
 }
 
 #[test]
 fn continue_final_message_leaves_the_turn_open() {
-    let got = render(json!([{"role": "user", "content": "poem"}, {"role": "assistant", "content": "Roses"}]), None, json!({"continue_final_message": true, "reasoning_effort": 0.2})).unwrap();
-    assert!(got.ends_with("<|message_user|><|content_text|>poem<|end_message|><|message_model|><|content_text|>Roses"), "{got}");
+    let got = render(
+        json!([{"role": "user", "content": "poem"}, {"role": "assistant", "content": "Roses"}]),
+        None,
+        json!({"continue_final_message": true, "reasoning_effort": 0.2}),
+    )
+    .unwrap();
+    assert!(
+        got.ends_with("<|message_user|><|content_text|>poem<|end_message|><|message_model|><|content_text|>Roses"),
+        "{got}"
+    );
 }
 
 #[test]
@@ -181,7 +229,12 @@ fn bad_requests_are_errors() {
     assert!(render(json!([{"role": "user", "content": "x"}]), None, json!({"reasoning_effort": 2})).is_err());
     assert!(render(json!([{"role": "user", "content": "x"}]), None, json!({"reasoning_effort": "loud"})).is_err());
     assert!(render(json!([{"role": "narrator", "content": "x"}]), None, json!({})).is_err());
-    assert!(render(json!([{"role": "user", "content": [{"type": "image_url", "image_url": {"url": "x"}}]}]), None, json!({})).is_err());
+    assert!(render(
+        json!([{"role": "user", "content": [{"type": "image_url", "image_url": {"url": "x"}}]}]),
+        None,
+        json!({})
+    )
+    .is_err());
     assert!(render(json!([{"role": "assistant", "content": "x", "tool_calls": [{"id": "a", "type": "function", "function": {"name": "f", "arguments": "[1]"}}]}]), None, json!({})).is_err());
 }
 
