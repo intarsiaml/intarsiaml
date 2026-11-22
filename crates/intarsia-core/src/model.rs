@@ -552,8 +552,8 @@ pub struct Model {
     /// Replicated head: only rank 0 holds it (and runs the final norm's consumer), the other ranks stop after the last layer.
     /// Vocab-parallel head (`vocab_par`): every rank holds its `V / world` rows of it.
     lm_head: Option<QTensor>,
-    /// Inkling-2, `INTARSIA_INK_PACK12=1` (lane ink-pack12; lossless): the bf16 unembed rows as P12 too, run by every head
-    /// group the backend admits (all of them are 1..=16 rows); the bf16 view stays for the rest.
+    /// Inkling-2, `INTARSIA_INK_PACK12` (lane ink-pack12; lossless; default on Metal): the bf16 unembed rows as P12 too, run
+    /// by every head group the backend admits (all of them are 1..=16 rows); the bf16 view stays for the rest.
     head_p12: Option<QTensor>,
     /// The lm_head is split over the ranks by vocabulary rows (`LoadOptions::tp_vocab`): every rank runs its half and the
     /// halves are all-gathered into rank 0's `ws.logits`.
@@ -1206,7 +1206,7 @@ impl Model {
         };
         // the lossless 12-bit copy of the Inkling-2 unembed (lane ink-pack12): the replicated bf16 head only
         let head_p12 = match (&dims.ink, &lm_head) {
-            (Some(_), Some(h)) if crate::quant::p12::enabled() && head_quant.is_none() && !vocab_par && h.format == crate::quant::BF16 => {
+            (Some(_), Some(h)) if crate::quant::p12::enabled(b.name()) && head_quant.is_none() && !vocab_par && h.format == crate::quant::BF16 => {
                 let nm = resolve(src, &lh.tensor)?;
                 let i = src.info(&nm).ok_or_else(|| Error::model(format!("lm_head tensor '{nm}' missing")))?;
                 if i.dtype != DType::Bf16 {

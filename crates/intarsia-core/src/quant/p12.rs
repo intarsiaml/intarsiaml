@@ -28,7 +28,8 @@ use crate::error::{Error, Result};
 /// The `QuantFormat` id of a P12 weight (`QTensor::parts = [codes, aux]`, the op `MatmulP12`).
 pub const P12: super::QuantId = "p12";
 
-/// `INTARSIA_INK_PACK12=1`: Inkling-2 stores in_proj, wo and the unembed as P12 for the 1..=16-row kernels (lossless).
+/// `INTARSIA_INK_PACK12`: Inkling-2 stores in_proj, wo and the unembed as P12 too, for the few-row kernels (lossless).
+/// Default on where the backend has the kernels (Metal), `0` turns it off, `1` turns it on everywhere ([`enabled`]).
 pub const ENV: &str = "INTARSIA_INK_PACK12";
 
 /// Most activation rows a P12 kernel takes (decode and verify; prefill chunks keep the bf16 weights).
@@ -306,9 +307,14 @@ pub fn random_weight(rng: &mut crate::rng::SplitMix64, n: usize, k: usize, std: 
     w
 }
 
-/// Whether `INTARSIA_INK_PACK12` asks for P12 (`1` / `on` / `true`).
-pub fn enabled() -> bool {
-    std::env::var(ENV).is_ok_and(|v| matches!(v.trim(), "1" | "on" | "true"))
+/// Whether Inkling-2 packs P12 copies at load on `backend` (its `Backend::name`): `INTARSIA_INK_PACK12=0` / `off` /
+/// `false` never, `1` / `on` / `true` always, unset (or anything else) only on Metal, the backend with the P12 kernels.
+pub fn enabled(backend: &str) -> bool {
+    match std::env::var(ENV).ok().as_deref().map(str::trim) {
+        Some("0" | "off" | "false") => false,
+        Some("1" | "on" | "true") => true,
+        _ => backend == "metal",
+    }
 }
 
 #[cfg(test)]

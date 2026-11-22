@@ -145,8 +145,9 @@ pub(super) struct InkLayer {
     pub relproj: TensorRef,
     /// `[D, H*Dh]`, bf16 as stored or quantised (`INTARSIA_INK_ATTN_QUANT`).
     pub wo: QTensor,
-    /// `INTARSIA_INK_PACK12=1` (lane ink-pack12; lossless): the bf16 in-projection stack and wo as P12 too
-    /// (`quant::p12`), for the 1..=`DENSE_ROWS_MAX`-row calls where the backend has the kernels; larger calls keep the bf16.
+    /// `INTARSIA_INK_PACK12` (lane ink-pack12; lossless; default on Metal): the bf16 in-projection stack and wo as P12
+    /// too (`quant::p12`), for the 1..=`DENSE_ROWS_MAX`-row calls where the backend has the kernels; larger calls keep the
+    /// bf16.
     pub in_p12: Option<QTensor>,
     pub wo_p12: Option<QTensor>,
     /// Attention-input norms `[3, D]` (SWA: `attn_norm` three times; full: q / k / v input norms).
@@ -324,7 +325,7 @@ impl P12Stats {
     }
     pub(crate) fn note(&self, what: &str) -> String {
         format!(
-            "{}=1: {what} packed lossless to 12 bits ({} tensors, {:.3} GB, was {:.3} GB bf16; escapes {:.2e}; {:.1} s)",
+            "P12 ({}=0 turns it off): {what} packed lossless to 12 bits ({} tensors, {:.3} GB, was {:.3} GB bf16; escapes {:.2e}; {:.1} s)",
             crate::quant::p12::ENV,
             self.tensors,
             self.bytes as f64 / 1e9,
@@ -380,8 +381,10 @@ pub(super) fn load(
     let s = (d as f32).powf(-0.5);
     // device bytes of the quantised projections (`attn_quant`), added to `bytes` at the end
     let qbytes = std::cell::Cell::new(0u64);
-    // lossless 12-bit copies of the bf16 in-projection and wo (lane ink-pack12, opt-in); not with a quantised projection
-    let pack12 = crate::quant::p12::enabled() && attn_quant.is_none() && wdt_of(src, &names.root) == DType::Bf16;
+    // lossless 12-bit copies of the bf16 in-projection and wo (lane ink-pack12, default on Metal); not with a quantised
+    // projection
+    let pack12 =
+        crate::quant::p12::enabled(b.name()) && attn_quant.is_none() && wdt_of(src, &names.root) == DType::Bf16;
     let mut p12_stats = P12Stats::default();
     let mut put = |data: &[u8], dt: DType, shape: &[usize]| -> Result<TensorRef> {
         let buf = crate::backend::upload_new(b, data)?;
