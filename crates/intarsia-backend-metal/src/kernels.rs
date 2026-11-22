@@ -304,6 +304,7 @@ pub fn metal4_shaders() -> Vec<&'static str> {
     v.extend(crate::inkmoe::metal4_shaders());
     v.extend(crate::inkprefill::metal4_shaders());
     v.extend(crate::inkmix::NAX_SHADERS);
+    v.extend(crate::inkctrl::METAL4_SHADERS);
     v
 }
 
@@ -326,6 +327,7 @@ pub const NAX_KERNELS: &[&str] = &[
     crate::mxfp4::MATMUL_MXFP4_NAX,
     crate::inkattn::REL_SINK_ATTN_BF16_NAX,
     crate::inkmix::INK_IN_PROJ_BF16_NAX,
+    crate::inkctrl::INK_ROUTE_BF16,
 ];
 
 pub fn requires_metal4(kernel: &str) -> bool {
@@ -465,6 +467,8 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::screen::KERNELS[0].0, Op::HeadScreen),
     (crate::screen::KERNELS[1].0, Op::LogitsGather),
     (crate::screen::KERNELS[2].0, Op::ScreenArgmax),
+    // Inkling-2 decode controller fusion (inkctrl.rs, lane ink-dfuse; metal4.0 library)
+    (crate::inkctrl::INK_ROUTE_BF16, Op::InkRoute),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -890,6 +894,7 @@ pub fn all() -> Vec<KernelImpl> {
                 n if crate::inkmoe::KERNELS.iter().any(|e| e.0 == n) => crate::inkmoe::register(n, k),
                 n if crate::inkmix::KERNELS.iter().any(|e| e.0 == n) => crate::inkmix::register(k),
                 n if crate::screen::KERNELS.iter().any(|e| e.0 == n) => crate::screen::register(k),
+                n if crate::inkctrl::KERNELS.iter().any(|e| e.0 == n) => crate::inkctrl::register(k),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -924,6 +929,7 @@ mod tests {
                 + crate::inkattn::metal4_shader_names().len()
                 + crate::inkmoe::metal4_shaders().count()
                 + crate::inkmix::NAX_SHADERS.len()
+                + crate::inkctrl::METAL4_SHADERS.len()
         );
         assert!(!shader_names().iter().any(|n| m4.contains(n)));
         let set: HashSet<_> = m4.iter().collect();
@@ -1096,6 +1102,7 @@ mod tests {
         got.retain(|g| !crate::inkmix::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
         // the screened greedy head (screen.rs, lane ink-fp8): new ops only
         got.retain(|g| !crate::screen::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
+        got.retain(|g| !crate::inkctrl::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
         got.sort();
         if MAIN_KERNEL_LIST.is_empty() {
             panic!("LIST {}", got.join(" "));

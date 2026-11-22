@@ -1,0 +1,24 @@
+PLAN Qwen3-8B: byte-identical
+PLAN Llama-3.1-8B-Instruct: byte-identical
+test blend_tail_stress_no_hang_no_stale_counter ... STRESS blend_tail: 12000 calls, all bitwise; slowest batch of 200 (encode + GPU + wait) 193.12 ms (watchdog 660s)
+test ink_route_stress_no_hang_no_stale_counter ... STRESS ink_route: 12000 calls, all bitwise; slowest batch of 200 (encode + GPU + wait) 4.11 ms (watchdog 270s)
+EXIT metal_all 101
+EXIT metal_inkmix_tail 0
+EXIT tail_cs1024 0
+EXIT tail_cs32 0
+EXIT stress 0
+EXIT kt_attn_res_mix 0
+EXIT kt_conv_mix_tail 0
+EXIT kt_ink_route 0
+EXIT kt_loop_blend_tail 0
+EXIT kt_moe_route 0
+EXIT tiny_cpu 0
+EXIT tiny_cpu_on 0
+EXIT tiny_metal 0
+EXIT tiny_metal_nom4 101
+EXIT tiny_metal_on 0
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.640e-4  ADMITTED
+attn_res_mix   attn_res_mix_bf16              97      0    2.016e-3    3.664e-5  ADMITTED
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+ink_route      ink_route_bf16                124      0    1.975e-7    1.350e-7  ADMITTED
+moe_route      moe_route_f32                  19      0    2.048e-7    9.806e-8  ADMITTED

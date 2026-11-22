@@ -25,6 +25,25 @@ use std::collections::BTreeMap;
 /// rollback may cut (spec section f: at least `max verify rows - 1 + rollback depth` = 6).
 pub const INK_RING_MARGIN: usize = 16;
 
+/// Passes of up to this many rows compute the loop messages of a whole pass at its restart: the 4 message rows of every core
+/// layer read only the bank (spec a12), which the restart writes and nothing else writes until the next restart, so one
+/// `AttnResMix` over `InkModel::msg_q_all` replaces one call per looped visit; each query is computed exactly as in a 4-query
+/// call (same per-query-batch code), so the messages are bitwise the same. Longer passes (prefill chunks) and teacher-forced
+/// passes (the bank is uploaded per visit) keep the per-visit call.
+pub const INK_MSG_PRE_ROWS: usize = 16;
+
+/// `INTARSIA_INK_MSG_PRE`: `1` / `on` = the per-pass message `AttnResMix` ([`INK_MSG_PRE_ROWS`]) instead of one per looped
+/// visit, `0` / `off` = per visit, unset / `auto` = per pass on Metal (lane ink-dfuse: -0.19 ms per decode step, job E #11003),
+/// per visit elsewhere. The same bits either way.
+fn ink_msg_pre_env() -> Option<bool> {
+    static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| match std::env::var("INTARSIA_INK_MSG_PRE").ok().as_deref().map(str::trim) {
+        Some("1") | Some("on") => Some(true),
+        Some("0") | Some("off") => Some(false),
+        _ => None,
+    })
+}
+
 /// `INTARSIA_INK_ATTN_FUSED`: `1` / `on` = `InkAttnDecode` (op 75) on every visit of up to 16 rows the backend admits it for,
 /// `0` / `off` = always the `InkKvPrologue` + `RelSinkAttn` pair, unset / `auto` = [`ink_attn_fused_rule`] on Metal (the pair
 /// elsewhere). Both give the same bits (the fused kernel is bitwise the pair), so this only moves time.
@@ -57,6 +76,19 @@ pub(crate) fn ink_attn_fused_rule(rows: usize, local: bool, ctx: usize, window: 
 fn ink_fp8_proj_fused() -> bool {
     static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *V.get_or_init(|| !std::env::var("INTARSIA_INK_FP8_PROJ").is_ok_and(|v| v.trim() == "0"))
+}
+
+/// `INTARSIA_INK_ROUTE_FUSED`: `1` / `on` = `InkRoute` (op 76: the router GEMV and `MoeRoute` in one launch) on every call of up to
+/// 16 rows the backend admits it for, `0` / `off` = the router matmul + `MoeRoute`, unset / `auto` = fused on Metal (lane
+/// ink-dfuse: -0.11 ms per decode step, job E #11003), the pair elsewhere. Both give the same bits on a backend (the fused
+/// kernel is bitwise its pair), so this only moves time.
+fn ink_route_fused_env() -> Option<bool> {
+    static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| match std::env::var("INTARSIA_INK_ROUTE_FUSED").ok().as_deref().map(str::trim) {
+        Some("1") | Some("on") => Some(true),
+        Some("0") | Some("off") => Some(false),
+        _ => None,
+    })
 }
 
 /// Whether an Inkling-2 pass of `t` rows runs under `exact_rows` (the row-exact kernels): on Metal for 2..=16 rows (the 1-row
@@ -203,6 +235,9 @@ pub(super) struct InkModel {
     /// `output_query` `[1, D]` f32 x D^-0.5 and the final norm as `[1, D]`.
     pub out_q: TensorRef,
     pub final_norm: TensorRef,
+    /// The message queries of all core layers stacked `[4 * n_core, D]` f32 (layer `core_start + j` at rows `4j..4j+4`): one
+    /// `AttnResMix` at the loop restart computes the messages of the whole pass ([`INK_MSG_PRE_ROWS`]).
+    pub msg_q_all: Option<TensorRef>,
     pub ws: InkWs,
     pub dims: InkDims,
 }
@@ -373,6 +408,8 @@ pub(super) fn load(
         (Vec::new(), Vec::new())
     };
     let mut layers = Vec::new();
+    // the message queries of every core layer, in layer order (`InkModel::msg_q_all`)
+    let mut all_q4: Vec<f32> = Vec::new();
     for li in 0..dims.n_layers {
         let p = names.layer.replace("{i}", &li.to_string());
         let t = |n: &str| format!("{p}.{n}");
@@ -524,6 +561,7 @@ pub(super) fn load(
             q4.extend(row(&mckv, 2 * j));
             q4.extend(row(&mckv, 2 * j + 1));
             q4.extend(row(&mcq, 2 * j + 1));
+            all_q4.extend_from_slice(&q4);
             Some(InkCtrl {
                 down: put(&dn, wdt, &[4, g, 2 * d])?,
                 gain: put(&gn, wdt, &[4, d, g])?,
@@ -632,7 +670,8 @@ pub(super) fn load(
     push_slots(&mut visits, &ink, dims, act, slot_specs);
     let ws = InkWs::alloc(b, mt, act, dims, &ink, n_stack)?;
     *bytes += qbytes.get();
-    Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, ws, dims: ink })
+    let msg_q_all = if ink.looped() { Some(queries(&mut put, all_q4, 4 * n_core)?) } else { None };
+    Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, msg_q_all, ws, dims: ink })
 }
 
 impl InkWs {
@@ -652,7 +691,8 @@ impl InkWs {
             p: a(2 * mt * d * esz)?,
             bank: a(2 * mt * d * esz)?,
             x: a(3 * mt * d * esz)?,
-            msg: a(4 * mt * d * 4)?,
+            // 4 planes per pass for any pass, or the 4 * n_core planes of a whole pass for passes of up to INK_MSG_PRE_ROWS rows
+            msg: a((4 * mt).max(4 * (ink.core_end - ink.core_start) * mt.min(INK_MSG_PRE_ROWS)) * d * 4)?,
             dst: a(3 * mt * d * 4)?,
             emb: a(mt * d * esz)?,
             pq: a(mt * nq_width(h, dh, ink.d_rel) * esz)?,
@@ -804,6 +844,9 @@ impl Model {
         let stack = |start: usize, n: usize| planes(&ws.s, act, start, n, t, d);
         let xs = |n: usize| planes(&ws.x, act, 0, n, t, d);
         let msgs = |start: usize, n: usize| planes(&ws.msg, DType::F32, start, n, t, d);
+        // the messages of a whole pass at its restart (INK_MSG_PRE_ROWS): layer l's 4 rows at planes 4 * (l - core_start)
+        let pre = tf.is_none() && t <= INK_MSG_PRE_ROWS && im.msg_q_all.is_some() && ink_msg_pre_env().unwrap_or(self.backend.name() == "metal");
+        let mbase = |layer: usize| if pre { 4 * (layer - ink.core_start) } else { 0 };
         let bank = planes(&ws.bank, act, 0, 2, t, d);
         let dumping = dump.is_some();
         // host-computed dump tensors (router_sel = sigmoid(logits) + bias), merged into the dump at the end
@@ -859,7 +902,12 @@ impl Model {
                 return Err(Error::invalid("inkling2: a looped visit of a layer without controllers"));
             }
             // a12 messages: attn_res(bank[:1], bank[1], MQ) -> M (4 f32 rows), unless the previous visit made them
-            if looped && !x_ready {
+            let mb = if looped { mbase(v.layer) } else { 0 };
+            if looped && pre && v.restart {
+                let all = im.msg_q_all.clone().expect("looped model");
+                let nm = all.shape[0];
+                ex(Op::AttnResMix, vec![planes(&ws.bank, act, 0, 1, t, d), plane(&ws.bank, act, 1, t, d), none(act, &[0]), all, none(act, &[0])], vec![msgs(0, nm)], a0.clone())?;
+            } else if looped && !x_ready && !pre {
                 let c = ctrl.unwrap();
                 ex(Op::AttnResMix, vec![planes(&ws.bank, act, 0, 1, t, d), plane(&ws.bank, act, 1, t, d), none(act, &[0]), c.msg_q.clone(), none(act, &[0])], vec![msgs(0, 4)], a0.clone())?;
             }
@@ -877,7 +925,7 @@ impl Model {
                         let c = ctrl.unwrap();
                         let dst = planes(&ws.dst, DType::F32, 0, nq, t, d);
                         ex(Op::AttnResMix, vec![stack(0, v.nb_in), partial.clone(), none(act, &[0]), aq.clone(), none(act, &[0])], vec![dst.clone()], a0.clone())?;
-                        ex(Op::LoopBlend, vec![dst, msgs(0, 3), c.down.rows(0, 3), c.gain.rows(0, 3), c.forget.rows(0, 3), l.norm3.clone()], vec![xs(3)], a0.clone())?;
+                        ex(Op::LoopBlend, vec![dst, msgs(mb, 3), c.down.rows(0, 3), c.gain.rows(0, 3), c.forget.rows(0, 3), l.norm3.clone()], vec![xs(3)], a0.clone())?;
                     } else {
                         ex(Op::AttnResMix, vec![stack(0, v.nb_in), partial.clone(), none(act, &[0]), aq.clone(), l.norm3.rows(0, nq)], vec![xs(nq)], a0.clone())?;
                     }
@@ -1034,7 +1082,7 @@ impl Model {
             let mut ins = vec![aproj, l.attn_sconv.clone(), res, none(act, &[0]), src, l.mlp_q.clone()];
             if looped {
                 let c = ctrl.unwrap();
-                ins.extend([l.mlp_norm.clone(), msgs(3, 1), c.down.rows(3, 1), c.gain.rows(3, 1), c.forget.rows(3, 1)]);
+                ins.extend([l.mlp_norm.clone(), msgs(mb + 3, 1), c.down.rows(3, 1), c.gain.rows(3, 1), c.forget.rows(3, 1)]);
             } else {
                 ins.extend([l.mlp_norm.clone(), none(act, &[0]), none(act, &[0]), none(act, &[0]), none(act, &[0])]);
             }
@@ -1051,12 +1099,20 @@ impl Model {
             if self.registry.select(&rc).is_err() {
                 rc.op = Op::Logits;
             }
-            ex(rc.op, rc.inputs, rc.outputs, rc.attrs)?;
             let rw = TensorRef::new(ws.rw.clone(), DType::F32, &[t, ink.top_k]);
             let ri = TensorRef::new(ws.ri.clone(), DType::I32, &[t, ink.top_k]);
             let mut ra = OpAttrs { top_k: ink.top_k, scale: ink.route_scale, norm_topk: true, temperature: 1.0, ..OpAttrs::default() };
             ra.dsv.score_func = crate::dsv41::ops::ScoreFunc::Sigmoid;
-            ex(Op::MoeRoute, vec![rl.clone(), l.router_bias.clone()], vec![rw.clone(), ri.clone()], ra)?;
+            // decode rows: the fused InkRoute (76) where the backend admits it (the logits still land in `rl` for the dumps)
+            let want_route = t <= 16 && ink_route_fused_env().unwrap_or(self.backend.name() == "metal");
+            let mut fc = OpCall::new(Op::InkRoute, vec![mlpin.clone(), l.router.clone(), l.router_bias.clone()], vec![rw.clone(), ri.clone(), rl.clone()], ra.clone());
+            fc.exact_rows = self.verifying();
+            if want_route && self.registry.select(&fc).is_ok() {
+                ex(fc.op, fc.inputs, fc.outputs, fc.attrs)?;
+            } else {
+                ex(rc.op, rc.inputs, rc.outputs, rc.attrs)?;
+                ex(Op::MoeRoute, vec![rl.clone(), l.router_bias.clone()], vec![rw.clone(), ri.clone()], ra)?;
+            }
             put(format!("{tag}.router_logits"), &rl)?;
             if dumping {
                 let (lg, bias) = (self.ink_download(&rl)?, self.ink_download(&l.router_bias)?);
@@ -1102,8 +1158,11 @@ impl Model {
                 if nlooped {
                     let c = nl.ctrl.as_ref().ok_or_else(|| Error::invalid("inkling2: a looped visit of a layer without controllers"))?;
                     // the next visit's messages (this visit's are no longer read)
-                    ex(Op::AttnResMix, vec![planes(&ws.bank, act, 0, 1, t, d), plane(&ws.bank, act, 1, t, d), none(act, &[0]), c.msg_q.clone(), none(act, &[0])], vec![msgs(0, 4)], a0.clone())?;
-                    ins.extend([aq, nl.norm3.clone(), msgs(0, 3), c.down.rows(0, 3), c.gain.rows(0, 3), c.forget.rows(0, 3)]);
+                    let nb = mbase(n.layer);
+                    if !pre {
+                        ex(Op::AttnResMix, vec![planes(&ws.bank, act, 0, 1, t, d), plane(&ws.bank, act, 1, t, d), none(act, &[0]), c.msg_q.clone(), none(act, &[0])], vec![msgs(0, 4)], a0.clone())?;
+                    }
+                    ins.extend([aq, nl.norm3.clone(), msgs(nb, 3), c.down.rows(0, 3), c.gain.rows(0, 3), c.forget.rows(0, 3)]);
                     mix_out = xs(3);
                 } else {
                     ins.extend([aq, nl.norm3.rows(0, nq), none(act, &[0]), none(act, &[0]), none(act, &[0]), none(act, &[0])]);

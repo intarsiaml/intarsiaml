@@ -1,0 +1,59 @@
+prefill chunk 256 (default)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 1.6 s
+accuracy: thinkingmachines/Inkling-2-Mini on Apple M5 Max (vocab 200058, weights/act/kv bf16/bf16)
+accuracy: the golden's template "chatml" does not fit this tokenizer (turn format chatml: turn-close marker "<|im_end|>" is not a single token (got [27, 91, 315, 62, 406, 91, 29])); using inkling2 (recipe inkling2)
+KL row mask: inkling2 (recipe inkling2, golden template "chatml" does not fit the tokenizer): 0 of 1569 rows lie inside a system or user turn and are not scored by the KL floor
+golden: golden/oracle/inkling2-mini-oracle-w4a16-long-top20.safetensors (10 prompts, 1569 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine inkling2_ref 0.1.dev25855+g7cb5dae22 | model thinkingmachines/Inkling-2-Mini | revision not in the model root path | dtype torch.float32 | KV dtype auto | template chatml
+  reference cache config: {"_block_size_resolved": "True", "_extensible_kv_cache_resolved": "True", "block_size": "16", "cache_dtype": "auto", "cache_hit_alignment_tokens": "None", "effective_attention_block_size": "64", "enable_extensible_kv_cache": "True", "enable_mamba_shared_prefix_checkpoint": "False", "enable_prefix_caching": "False", "engine": "0", "gpu_memory_utilization": "0.3", "hash_block_size": "None", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_layout": "None", "kv_cache_max_concurrency": "3.286881307063912", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "26926", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "None", "mamba_cache_dtype": "auto", "mamba_cache_mode": "none", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "auto", "num_cpu_blocks": "None", "num_gpu_blocks": "6840", "num_gpu_blocks_override": "None", "prefix_cache_retention_interval": "0", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "simple_cpu_offload_num_blocks": "None", "skip_page_size_padded": "None", "sliding_window": "None", "swa_bounded_replay": "True", "use_kda_recoverssm": "False", "use_replayssm": "False", "user_specified_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server", "cache_salt": "not used (prefix cache not controlled: unverified whether prompt_logprobs requests read cached fp8 KV blocks)"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len 8192 | launch flags: not observable through the API; note: vllm/vllm-openai:inkling-2-mini (vLLM 0.1.dev25855+g7cb5dae22) on spark2 (GB10), docker run --gpus all --ipc host --network host --shm-size 16g, args: thinkingmachines/Inkling-2-Mini --served-model-name inkling-2-mini --tensor-parallel-size 1 --max-model-len 8192 --gpu-memory-utilization 0.30 --max-num-seqs 16 --reasoning-parser inkling --no-enable-prefix-caching (plain decoding, no speculative config, KV cache dtype auto); weights snapshot ed40e7da625f594fc9c4990f5f66be24873c22d7 (model-00001-of-00001.safetensors sha256 65e60f51...; identical blobs in b85c3cfa...); run tag run1
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 6.0e-3, |tail excess| (all rows) <= 0.02
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+reference noise: ignored (--no-ref-noise): the KL floor is the class floor alone
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 35    35   100.00   9.297e-5   1.055e-4   1.055e-4   6.642e-4   0.0502   0.0498    98.86     35/35      0
+story                 40    40    95.00   1.162e-3   1.163e-3   1.163e-3   9.104e-3   0.0737   0.0722    98.00     12/40      0
+code                 101   101   100.00   2.349e-4   2.316e-4   2.316e-4   1.051e-2   0.0130   0.0130    96.44   101/101      0
+science               87    87    97.70   4.329e-4   4.223e-4   4.223e-4   3.137e-3   0.0398   0.0397    99.08     56/87      0
+chat_short            36    36   100.00   1.309e-2   9.453e-3   9.453e-3   2.901e-1   0.1911   0.1865    95.56     36/36      0
+chat_system           63    63   100.00   8.213e-3   6.018e-3   6.018e-3   2.901e-1   0.1232   0.1214    93.33     63/63      0
+chat_multiturn       101   101    99.01   4.536e-3   3.302e-3   3.302e-3   2.901e-1   0.0689   0.0667    93.86    78/101      0
+chat_reasoning       106   106    98.11   4.781e-3   3.622e-3   3.622e-3   2.901e-1   0.0713   0.0695    97.74    63/106      0
+long_prose_300       300   300    99.00   6.049e-3   5.706e-3   5.706e-3   5.940e-1   0.0180   0.0180    93.73   157/300      0
+long_prose_700       700   700    99.29   3.360e-3   3.287e-3   3.287e-3   4.778e-1   0.0284   0.0295    93.71    58/700      0
+OVERALL                   1569    99.04   3.971e-3   3.544e-3   3.544e-3   5.940e-1   0.0407   0.0407    94.72     42.0%      0
+prefill floor [4bit]: top-1 (all rows) 99.04% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 3.544e-3 (need <= 6.0e-3) ok [all rows, n=1569: 3.544e-3, reported only] | tail mass (all rows) ours 0.0407 vs ref 0.0407, excess +0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill confident rows (golden p1 - p2 >= 0.5, all rows): 1206 of 1569, top-1 misses 1 (reported, not gated)
+prefill KL threshold [21-way KL]: static floor 6.000e-3 | no ref noise measured for this golden => effective 6.000e-3 bound by static floor; KL 3.544e-3 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 3.544e-3 (21-way KL over all rows <= static floor) | current def: PASS 3.544e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 35    16   100.00   6.993e-5   7.694e-5   7.694e-5   2.598e-4   0.0201   0.0204    98.75     16/16      0
+story                 40    16   100.00   9.838e-4   9.951e-4   9.951e-4   2.861e-3   0.0443   0.0429    97.50     16/16      0
+code                 101    16   100.00   1.350e-4   1.389e-4   1.389e-4   7.583e-4   0.0003   0.0002    95.00     16/16      0
+science               87    16    93.75   1.262e-3   1.220e-3   1.220e-3   7.842e-3   0.0302   0.0305    98.75      0/16      0
+chat_short            36    16    93.75   2.468e-3   2.411e-3   2.411e-3   1.117e-2   0.0166   0.0165    91.25     15/16      0
+chat_system           63    16   100.00   2.391e-2   2.376e-2   2.376e-2   3.030e-1   0.0028   0.0033    82.50     16/16      0
+chat_multiturn       101    16   100.00   1.515e-3   2.022e-3   2.022e-3   1.423e-2   0.0044   0.0031    81.25     16/16      0
+chat_reasoning       106    16   100.00   5.805e-2   5.808e-2   5.808e-2   4.334e-1   0.0195   0.0169    93.75     16/16      0
+long_prose_300       300    16   100.00   5.074e-4   5.137e-4   5.137e-4   4.437e-3   0.0006   0.0006    91.25     16/16      0
+long_prose_700       700    16    93.75   2.908e-3   2.831e-3   2.831e-3   1.172e-2   0.0570   0.0594    97.50      6/16      0
+OVERALL                    160    98.12   9.181e-3   9.205e-3   9.205e-3   4.334e-1   0.0196   0.0194    92.75     83.1%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 98.12% (not gated for this class) ok | 21-way KL (scored rows, n=160) 9.205e-3 (need <= 6.0e-3) FAIL [all rows, n=160: 9.205e-3, reported only] | tail mass (all rows) ours 0.0194 vs ref 0.0196, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+decode (teacher-forced) confident rows (golden p1 - p2 >= 0.5, all rows): 119 of 160, top-1 misses 0 (reported, not gated)
+decode KL threshold [21-way KL]: static floor 6.000e-3 | no ref noise measured for this golden => effective 6.000e-3 bound by static floor; KL 9.205e-3 FAIL
+gate-definition: kl_floor [decode]: old def: FAIL 9.205e-3 (21-way KL over all rows <= static floor) | current def: FAIL 9.205e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 69.2% of positions before the first argmax divergence, worst prompt 8.3% (informational)
+greedy-match [decode (teacher-forced)]: mean 83.1% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden /opt/code/intarsiaml/.worktrees/ink-dfuse/.scratch/E/g2-long-self.safetensors (top-64 rows of modes prefill,decode for 10 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+Error: accuracy gate FAILED
+EXIT 1

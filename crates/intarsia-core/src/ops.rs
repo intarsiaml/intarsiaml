@@ -233,8 +233,8 @@ pub enum Op {
     // reserved ONCE (2026-11-21, coordinator): placeholder discriminants 76..=95 for the Inkling-2 lanes, four each (ink-dfuse
     // 76-79, ink-pack12 80-83, ink-d1row 84-87, ink-fp8 88-91, ink-mtp 92-95). A lane replaces only its own placeholders, in
     // place, keeping the order. They have no kernels anywhere and are exempt from the kernel-coverage tests (`Op::is_reserved`).
-    /// Reserved Inkling-2 discriminant 76 (lane ink-dfuse): no semantics yet; `OpCall::check` refuses it.
-    InkReserved76,
+    /// Inkling-2 router: the router GEMV (f32 logits) and `MoeRoute` in one op (lane ink-dfuse, discriminant 76).
+    InkRoute,
     /// Reserved Inkling-2 discriminant 77 (lane ink-dfuse): no semantics yet; `OpCall::check` refuses it.
     InkReserved77,
     /// Reserved Inkling-2 discriminant 78 (lane ink-dfuse): no semantics yet; `OpCall::check` refuses it.
@@ -358,7 +358,7 @@ impl Op {
         Op::InkInProj,
         Op::ConvMix,
         Op::InkAttnDecode,
-        Op::InkReserved76,
+        Op::InkRoute,
         Op::InkReserved77,
         Op::InkReserved78,
         Op::InkReserved79,
@@ -459,7 +459,7 @@ impl Op {
             Op::InkInProj => "ink_in_proj",
             Op::ConvMix => "conv_mix",
             Op::InkAttnDecode => "ink_attn_decode",
-            Op::InkReserved76 => "ink_reserved_76",
+            Op::InkRoute => "ink_route",
             Op::InkReserved77 => "ink_reserved_77",
             Op::InkReserved78 => "ink_reserved_78",
             Op::InkReserved79 => "ink_reserved_79",
@@ -486,7 +486,7 @@ impl Op {
         Op::ALL.iter().copied().find(|o| o.as_str() == s)
     }
 
-    /// A reserved placeholder discriminant (`InkReserved76` ..= `InkReserved95`): no kernels, refused by `OpCall::check`, exempt
+    /// A reserved placeholder discriminant (`InkReserved77` ..= `InkReserved95`, less the ones lanes replaced): no kernels, refused by `OpCall::check`, exempt
     /// from every backend's kernel-coverage tests.
     pub fn is_reserved(self) -> bool {
         // by name, so a lane that replaces its placeholder in place does not touch this
@@ -573,7 +573,8 @@ impl Op {
             Op::HeadScreen => (3, 2),
             Op::LogitsGather => (4, 1),
             Op::ScreenArgmax => (3, 1),
-            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => (0, 0),
+            Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => (0, 0),
+            Op::InkRoute => (3, 3),
         }
     }
 }
@@ -1147,9 +1148,9 @@ impl OpCall {
             Op::MatmulExl3 => crate::quant::exl3::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::check(self)?,
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::check(self)?,
-            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode => crate::inkling2::ops::check(self)?,
+            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode | Op::InkRoute => crate::inkling2::ops::check(self)?,
             Op::HeadScreen | Op::LogitsGather | Op::ScreenArgmax => crate::screen::check(self)?,
-            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => unreachable!("refused above"),
+            Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => unreachable!("refused above"),
         }
         Ok(())
     }
@@ -1327,9 +1328,9 @@ impl ShapeInfo {
             Op::MatmulExl3 => crate::quant::exl3::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::shape(call, &mut s),
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::shape(call, &mut s),
-            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode => crate::inkling2::ops::shape(call, &mut s),
+            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode | Op::InkRoute => crate::inkling2::ops::shape(call, &mut s),
             Op::HeadScreen | Op::LogitsGather | Op::ScreenArgmax => crate::screen::shape(call, &mut s),
-            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => {}
+            Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => {}
         }
         let _ = o;
         s
@@ -1589,16 +1590,16 @@ mod tests {
         assert_eq!(Op::ALL[Op::InkAttnDecode as usize], Op::InkAttnDecode);
         assert_eq!(Op::InkAttnDecode as usize, 75, "the fused decode attention, appended after ConvMix");
         // the reserved Inkling-2 placeholders 76..=95, in order, last in `Op::ALL`
-        assert_eq!(Op::InkReserved76 as usize, 76);
+        assert_eq!(Op::InkRoute as usize, 76, "the fused router (lane ink-dfuse, 76..=79), in place of its first placeholder");
         assert_eq!(Op::ALL.last(), Some(&Op::InkReserved95), "the last of the reserved block");
         for (j, op) in Op::ALL.iter().enumerate() {
             assert_eq!(*op as usize, j, "{op}");
             if op.is_reserved() {
-                assert!((76..=95).contains(&j), "{op}");
+                assert!((77..=95).contains(&j), "{op}");
                 assert_eq!(op.as_str(), format!("ink_reserved_{j}"));
             }
         }
-        assert!(!Op::InkAttnDecode.is_reserved() && Op::InkReserved76.is_reserved());
+        assert!(!Op::InkAttnDecode.is_reserved() && Op::InkReserved77.is_reserved() && !Op::InkRoute.is_reserved());
         let r = OpCall::new(Op::InkReserved80, vec![], vec![], OpAttrs::default());
         assert!(r.check().unwrap_err().to_string().contains("reserved"));
         assert_eq!(Op::parse("ink_reserved_95"), Some(Op::InkReserved95));

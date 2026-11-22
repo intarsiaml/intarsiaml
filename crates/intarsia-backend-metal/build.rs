@@ -33,6 +33,7 @@ const METAL4_SOURCES: &[&str] =
         "inkling2_moe_nax3.metal",
         "inkling2_blend_nax.metal",
         "inkling2_mix_nax.metal",
+        "inkling2_ctrl.metal",
     ];
 
 /// Rust sources that decide which kernel a call takes and with which grid / bindings (GEMV variant choice by alignment,
@@ -61,6 +62,8 @@ const LAUNCHER_SOURCES: &[&str] = &[
     "src/inkattn.rs",
     "src/inkmoe.rs",
     "src/inkprefill.rs",
+    "src/inkctrl.rs",
+    "src/sync.rs",
 ];
 
 /// FNV-1a 64 over the launcher sources (file name, then contents, in list order).

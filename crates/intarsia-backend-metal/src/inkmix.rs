@@ -16,7 +16,7 @@
 use crate::MetalBackend;
 use intarsia_core::backend::TensorRef;
 use intarsia_core::{DType, Error, Exactness, KernelImpl, Op, OpAttrs, OpCall, Result, Tol};
-use objc2_metal::{MTLComputeCommandEncoder, MTLSize};
+use objc2_metal::{MTLComputeCommandEncoder, MTLComputePipelineState, MTLSize};
 
 pub const INK_IN_PROJ_BF16_GEMV: &str = "ink_in_proj_bf16_gemv";
 pub const INK_IN_PROJ_BF16_GEMV_ROWS: &str = "ink_in_proj_bf16_gemv_rows";
@@ -669,20 +669,23 @@ fn mix_geom(d: usize) -> (usize, usize) {
     (ne, d.div_ceil(ne).next_multiple_of(32).clamp(32, 1024))
 }
 
-/// `ink_mix_row_e<NE>n<NS>q<QB>`: NS = stored sources + 1 (1 when the call mixes nothing), QB = 1 for one query, else 4.
-fn mix_row_shader(ne: usize, ns: usize, qb: usize) -> &'static str {
+/// `ink_mix_row_e<NE>n<NS>q<QB>`: NS = stored sources + 1 (1 when the call mixes nothing), QB = 1 for one query, else 4;
+/// `hoist`: the `ink_mix_row_h_` instance of the same shape (`INTARSIA_INK_MIX_HOIST`, same bits).
+fn mix_row_shader(ne: usize, ns: usize, qb: usize, hoist: bool) -> &'static str {
     static T: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
     let t = T.get_or_init(row_names);
     let (ei, qi) = (MIX_NE.iter().position(|&e| e == ne).expect("compiled NE"), usize::from(qb > 1));
-    t[(ei * 2 + qi) * MIX_SOURCES_MAX + ns - 1]
+    t[usize::from(hoist) * MIX_NE.len() * 2 * MIX_SOURCES_MAX + (ei * 2 + qi) * MIX_SOURCES_MAX + ns - 1]
 }
 
 fn row_names() -> Vec<&'static str> {
     let mut v = Vec::new();
-    for ne in MIX_NE {
-        for qb in [1, 4] {
-            for ns in 1..=MIX_SOURCES_MAX {
-                v.push(&*Box::leak(format!("ink_mix_row_e{ne}n{ns}q{qb}").into_boxed_str()));
+    for h in ["", "h_"] {
+        for ne in MIX_NE {
+            for qb in [1, 4] {
+                for ns in 1..=MIX_SOURCES_MAX {
+                    v.push(&*Box::leak(format!("ink_mix_row_{h}e{ne}n{ns}q{qb}").into_boxed_str()));
+                }
             }
         }
     }
@@ -692,7 +695,7 @@ fn row_names() -> Vec<&'static str> {
 /// The row-kernel entry points of inkling2_mix.metal (`MX_NS`), and the ring / blend helpers.
 pub fn row_shaders() -> Vec<&'static str> {
     let mut v = row_names();
-    v.extend(["ink_ring_write", "ink_blend_pair", "ink_blend_gate_g1", "ink_blend_gate_g8", "ink_blend_gate_g16", "ink_blend_norm"]);
+    v.extend(["ink_ring_write", "ink_blend_pair", "ink_blend_gate_g1", "ink_blend_gate_g8", "ink_blend_gate_g16", "ink_blend_norm", "ink_blend_norm_c"]);
     v
 }
 
@@ -888,10 +891,13 @@ impl MetalBackend {
         }
         let binds = [&xb, &taps_b, &res_b, &add_b, &y_b, &ring_b, &sum_b, &src_b, &qry_b, &nrm_b, &outb, &outf, &pos_b, &msg_b, &pair_b];
         let (ns_i, qb) = if nq == 0 { (1, 1) } else { (ns + 1, if nq == 1 { 1 } else { 4 }) };
+        let hname = mix_row_shader(ne, ns_i, qb, true);
+        let hoist = crate::inkctrl::MIX_HOIST.on() && self.pso(hname).is_some_and(|ps| ps.maxTotalThreadsPerThreadgroup() >= tpg);
+        let name = if hoist { hname } else { mix_row_shader(ne, ns_i, qb, false) };
         if rt.is_some() {
-            self.dispatch_ind(mix_row_shader(ne, ns_i, qb), &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
+            self.dispatch_ind(name, &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
         } else {
-            self.dispatch(mix_row_shader(ne, ns_i, qb), &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
+            self.dispatch(name, &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
         }
         if conv && !safe {
             // ink_ring_write reads `pad0` (here `nrows`) as the launch's row count
@@ -1004,6 +1010,15 @@ impl MetalBackend {
         let (nrm_b, out_b) = (self.bind(norm, bf, false, "norm")?, self.bind(out, bf, true, "out")?);
         let mut pn = p;
         pn.sk = [0, 0, nrm_b.skip, out_b.skip, 0, 0, 0, 0];
+        if crate::inkctrl::BLEND_NORM_C.on() {
+            // one channel per thread, the partials summed in the same order: bitwise ink_blend_norm
+            return self.dispatch(
+                "ink_blend_norm_c",
+                &[&y_b, &part_b, &nrm_b, &out_b],
+                &pn,
+                crate::dense::Grid::Groups { x: s * n, y: d.div_ceil(256), threads: 256 },
+            );
+        }
         self.dispatch("ink_blend_norm", &[&y_b, &part_b, &nrm_b, &out_b], &pn, crate::dense::Grid::Groups { x: s * n, y: 1, threads: 256 })
     }
 

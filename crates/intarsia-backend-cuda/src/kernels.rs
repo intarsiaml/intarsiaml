@@ -1073,6 +1073,7 @@ mod tests {
             Op::HeadScreen,
             Op::LogitsGather,
             Op::ScreenArgmax,
+            Op::InkRoute,
         ];
         // the reserved placeholder discriminants (`Op::is_reserved`) are exempt
         for op in Op::ALL.into_iter().filter(|o| !o.is_reserved()) {
