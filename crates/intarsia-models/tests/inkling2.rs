@@ -447,7 +447,15 @@ fn inkling2_tiny_verify_graph_replays_equal_decode_bitwise() {
     }
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     let ids = prompt(&dir);
-    let mut m = load(&dir, chunk());
+    // no profiled steps (`LoadOptions::profile_every` defaults to 1, and a profiled verify pass runs eagerly)
+    let mut m = {
+        let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
+        let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
+        let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
+        let src = SafeTensors::open_dir(&dir).unwrap();
+        let o = LoadOptions { max_seq: 128, prefill_chunk: chunk(), graphs: false, profile_every: 0, ..Default::default() };
+        Model::load(backend(), &recipe, &dims, &src, &o, Arc::new(Telemetry::new())).unwrap()
+    };
     // the tests load with graphs off: on for the verify passes, off for the 1-row decode they are compared against
     m.set_graphs(true);
     if !m.graph_stats().enabled {
