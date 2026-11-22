@@ -21,27 +21,7 @@ pub const KERNELS: [(&str, Op); 1] = [(INK_ROUTE_BF16, Op::InkRoute)];
 
 const ROUTE: &str = "ink_route";
 /// Shader entry points of kernels/metal/inkling2_ctrl.metal (all in the metal4.0 library).
-pub const METAL4_SHADERS: [&str; 4] = [ROUTE, "ink_blend_tail_g1", "ink_blend_tail_g8", "ink_blend_tail_g16"];
-
-/// Threads per threadgroup of `ink_blend_tail` (`BT_THREADS`: the h GEMV's 8 simdgroups, 256 channels per gate item).
-pub const BLEND_TAIL_THREADS: usize = 256;
-/// Most rows of a blend chunk the tail takes (decode, verify, batch); longer chunks keep the three dispatches.
-pub const BLEND_TAIL_ROWS_MAX: usize = 16;
-
-/// 0 = `INTARSIA_INK_BLEND_TAIL` (`1` / `on`: on; unset / `0` / `off`: off, the default until the lane's timing lands), 1 = forced
-/// on, 2 = forced off ([`set_blend_tail`]).
-static BLEND_TAIL: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
-
-/// Force the fused blend tail on or off for this process, `None` = back to the environment (tests and benchmarks: both give
-/// the same bits).
-pub fn set_blend_tail(on: Option<bool>) {
-    BLEND_TAIL.store(match on { None => 0, Some(true) => 1, Some(false) => 2 }, std::sync::atomic::Ordering::Relaxed);
-}
-
-fn blend_tail_env() -> bool {
-    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *V.get_or_init(|| matches!(std::env::var("INTARSIA_INK_BLEND_TAIL").ok().as_deref().map(str::trim), Some("1") | Some("on")))
-}
+pub const METAL4_SHADERS: [&str; 1] = [ROUTE];
 
 /// A default-off kernel switch of this lane: its environment variable (`1` / `on`: on; unset / `0` / `off`: off), or forced
 /// for this process by [`Switch::set`] (tests and benchmarks; every switch gives the same bits on or off).
@@ -74,26 +54,6 @@ impl Switch {
 pub static MIX_HOIST: Switch = Switch::new("INTARSIA_INK_MIX_HOIST");
 /// `INTARSIA_INK_BLEND_NORM_C`: the blend norm with one channel per thread (`ink_blend_norm_c`).
 pub static BLEND_NORM_C: Switch = Switch::new("INTARSIA_INK_BLEND_NORM_C");
-
-/// Whether a blend chunk of `n` rows (controller rank `g`, width `d`) takes the fused tail: the metal4.0 library, at most
-/// [`BLEND_TAIL_ROWS_MAX`] rows, G % 8 == 0 and G <= 128 (the gate's register rows), and the switch on.
-pub(crate) fn blend_tail_on(be: &MetalBackend, n: usize, g: usize, d: usize) -> bool {
-    let on = match BLEND_TAIL.load(std::sync::atomic::Ordering::Relaxed) {
-        1 => true,
-        2 => false,
-        _ => blend_tail_env(),
-    };
-    on && be.has_metal4() && (1..=BLEND_TAIL_ROWS_MAX).contains(&n) && g % 8 == 0 && (8..=128).contains(&g) && d > 0
-}
-
-/// The tail shader for controller rank `g` (the gate's `GC`, as `ink_blend_gate_g*`).
-pub(crate) fn blend_tail_shader(g: usize) -> &'static str {
-    match g / 8 {
-        0..=1 => "ink_blend_tail_g1",
-        2..=8 => "ink_blend_tail_g8",
-        _ => "ink_blend_tail_g16",
-    }
-}
 
 /// Logits per threadgroup (`RT_SG` in the shader).
 const RT_SG: usize = 4;

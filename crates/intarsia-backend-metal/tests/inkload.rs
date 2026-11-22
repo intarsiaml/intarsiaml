@@ -9,7 +9,7 @@
 mod common;
 use common::*;
 use intarsia_backend_metal::bench::{f32_to_bf16, Rng};
-use intarsia_backend_metal::inkctrl::{set_blend_tail, BLEND_NORM_C, MIX_HOIST};
+use intarsia_backend_metal::inkctrl::{BLEND_NORM_C, MIX_HOIST};
 use intarsia_backend_metal::inkmix::*;
 use intarsia_backend_metal::MetalBackend;
 use intarsia_core::backend::{Backend, MemKind, TensorRef};
@@ -66,7 +66,6 @@ fn down(be: &MetalBackend, t: &TensorRef) -> Vec<u8> {
 fn run(be: &MetalBackend, kernel: &str, op: Op, ins: &[Ht], outs: &[Ht], attrs: &OpAttrs, dev_pos: Option<i32>, sw: (bool, bool)) -> Vec<Vec<u8>> {
     MIX_HOIST.set(Some(sw.0));
     BLEND_NORM_C.set(Some(sw.1));
-    set_blend_tail(Some(false));
     let it: Vec<TensorRef> = ins.iter().map(|h| h.up(be)).collect();
     let ot: Vec<TensorRef> = outs.iter().map(|h| h.up(be)).collect();
     let mut call = OpCall::new(op, it, ot.clone(), attrs.clone());
@@ -84,7 +83,6 @@ fn run(be: &MetalBackend, kernel: &str, op: Op, ins: &[Ht], outs: &[Ht], attrs: 
     be.synchronize(0).unwrap();
     MIX_HOIST.set(None);
     BLEND_NORM_C.set(None);
-    set_blend_tail(None);
     ot.iter().map(|t| down(be, t)).collect()
 }
 

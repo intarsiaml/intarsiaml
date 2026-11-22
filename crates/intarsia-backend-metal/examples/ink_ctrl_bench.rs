@@ -1,13 +1,12 @@
 //! Microbenchmark of the Inkling-2 decode controller fusion (lane ink-dfuse, docs/results/2026-11-21-inkling2-dfuse.md): the
-//! fused router `ink_route_bf16` (op 76) against the pair it replaces (`logits_bf16_gemv` / `_rows` + `moe_route_f32`), and
-//! the blend (LoopBlend, S = 3 and 1) with the fused tail on and off, and the two ConvMix call sites with the load-order
-//! switches on and off, at the real shapes (D 2304, 128 experts top-8, rank 64).
+//! fused router `ink_route_bf16` (op 76) against the pair it replaces (`logits_bf16_gemv` / `_rows` + `moe_route_f32`), the
+//! blend (LoopBlend, S = 3 and 1) and the two ConvMix call sites with the load-order switches on and off, at the real shapes
+//! (D 2304, 128 experts top-8, rank 64).
 //! GPU time per unit (a unit = the launches one call site makes) from the backend's `INTARSIA_METAL_PROFILE=cb:<file>`
 //! trace, many dependent units per command buffer, each on its own operand set (48 sets: the weights rotate through more than
 //! the system cache holds, like the 48 visits of a decode step).
 //!
 //!   cargo run --release -p intarsia-backend-metal --example ink_ctrl_bench -- [--reps N] [--rows 1,2,3,4,16] [--trace F]
-//!   ... -- --tail-dist N   (per-call time distribution of the blend, fused tail on / off, one command buffer per dispatch)
 //!
 //! Run inside a fleetq slot (`--quiet gpu,cpu`).
 
@@ -194,76 +193,8 @@ mod imp {
             .collect()
     }
 
-    /// `--tail-dist N` (coordinator, 2026-11-22): per-call GPU time distribution of the blend with the fused tail on and off.
-    /// Every dispatch is its own command buffer (`INTARSIA_METAL_COMMIT_EVERY=1`), N calls per case, a wait every 200 calls;
-    /// a call's busy time is the sum of its dispatches' GPU time, its span the first start to the last end.
-    fn tail_dist(be: &MetalBackend, trace: &std::path::Path, n: usize) {
-        use std::io::{Read, Seek, SeekFrom};
-        let mut rng = Rng(0x7a1d);
-        let read_new = |pos: &mut u64| -> Vec<(f64, f64)> {
-            let Ok(mut fh) = std::fs::OpenOptions::new().read(true).open(trace) else { return Vec::new() };
-            fh.seek(SeekFrom::Start(*pos)).unwrap();
-            let mut text = String::new();
-            fh.read_to_string(&mut text).unwrap();
-            *pos += text.len() as u64;
-            text.lines()
-                .map(|l| {
-                    let r: serde_json::Value = serde_json::from_str(l).unwrap();
-                    (r["s"].as_f64().unwrap(), r["e"].as_f64().unwrap())
-                })
-                .collect()
-        };
-        let pct = |v: &mut Vec<f64>, q: f64| -> f64 {
-            v.sort_by(|a, b| a.partial_cmp(b).unwrap());
-            v[((v.len() as f64 - 1.0) * q).round() as usize]
-        };
-        println!("| blend case | tail | calls | dispatches/call | busy median us | busy p99 | busy max | span median us | span p99 | span max |");
-        println!("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|");
-        for &(t, s) in &[(1usize, 3usize), (1, 1), (4, 3), (16, 3)] {
-            let units = blend_units(be, &mut rng, t, s);
-            for tail in [false, true] {
-                intarsia_backend_metal::inkctrl::set_blend_tail(Some(tail));
-                let mut pos = std::fs::metadata(trace).map_or(0, |m| m.len());
-                // calibration: dispatches per call
-                for _ in 0..3 {
-                    for l in &units[0] {
-                        be.launch(l.kernel, &l.call, 0).unwrap();
-                    }
-                }
-                be.synchronize(0).unwrap();
-                let k = read_new(&mut pos).len() / 3;
-                let mut recs = Vec::new();
-                let mut done = 0;
-                while done < n {
-                    let b = 200.min(n - done);
-                    for j in 0..b {
-                        for l in &units[(done + j) % units.len()] {
-                            be.launch(l.kernel, &l.call, 0).unwrap();
-                        }
-                    }
-                    be.synchronize(0).unwrap();
-                    recs.extend(read_new(&mut pos));
-                    done += b;
-                }
-                if k == 0 || recs.len() != n * k {
-                    println!("| T={t} S={s} | {tail} | {n} | ? | trace has {} records for {n} calls of {k} dispatches | | | | | |", recs.len());
-                    continue;
-                }
-                let (mut busy, mut span): (Vec<f64>, Vec<f64>) = recs
-                    .chunks_exact(k)
-                    .map(|c| (c.iter().map(|(a, b)| b - a).sum::<f64>() * 1e6, (c[k - 1].1 - c[0].0) * 1e6))
-                    .unzip();
-                let (bm, b99, bx) = (pct(&mut busy, 0.5), pct(&mut busy, 0.99), pct(&mut busy, 1.0));
-                let (sm, s99, sx) = (pct(&mut span, 0.5), pct(&mut span, 0.99), pct(&mut span, 1.0));
-                println!("| T={t} S={s} | {} | {n} | {k} | {bm:.2} | {b99:.2} | {bx:.2} | {sm:.2} | {s99:.2} | {sx:.2} |", if tail { "on" } else { "off" });
-            }
-        }
-        intarsia_backend_metal::inkctrl::set_blend_tail(None);
-    }
-
     pub fn main() {
         let mut reps = 40usize;
-        let mut dist = 0usize;
         let mut rows = vec![1usize, 2, 3, 4, 16];
         let mut trace = std::path::PathBuf::from(format!("target/ink_ctrl_bench-{}.jsonl", std::process::id()));
         let mut args = std::env::args().skip(1);
@@ -272,24 +203,15 @@ mod imp {
                 "--reps" => reps = args.next().unwrap().parse().unwrap(),
                 "--rows" => rows = args.next().unwrap().split(',').map(|v| v.parse().unwrap()).collect(),
                 "--trace" => trace = args.next().unwrap().into(),
-                "--tail-dist" => dist = args.next().unwrap().parse().unwrap(),
                 o => panic!("unknown argument {o}"),
             }
         }
         std::env::set_var("INTARSIA_METAL_PROFILE", format!("cb:{}", trace.display()));
-        if dist > 0 {
-            std::env::set_var("INTARSIA_METAL_COMMIT_EVERY", "1");
-        }
         let be = MetalBackend::new().expect("metal backend");
         assert!(be.has_metal4(), "ink_ctrl_bench needs the metal4.0 library");
-        if dist > 0 {
-            tail_dist(&be, &trace, dist);
-            let _ = std::fs::remove_file(&trace);
-            return;
-        }
+        use intarsia_backend_metal::inkctrl::{BLEND_NORM_C, MIX_HOIST};
         let mut rng = Rng(0xc7_1be4c4);
         let none = || {};
-        let tail = |on: bool| move || intarsia_backend_metal::inkctrl::set_blend_tail(Some(on));
         println!("| what | T | us per call (median) | p10 | p90 |");
         println!("|---|---:|---:|---:|---:|");
         for &t in &rows {
@@ -301,19 +223,17 @@ mod imp {
             drop((fu, pu));
             for s in [3usize, 1] {
                 let bu = blend_units(&be, &mut rng, t, s);
-                let (m, lo, hi) = bench(&be, &trace, &bu, reps, &tail(false));
-                println!("| loop_blend S={s} (4 dispatches) | {t} | {m:.2} | {lo:.2} | {hi:.2} |");
-                let (m, lo, hi) = bench(&be, &trace, &bu, reps, &tail(true));
-                println!("| loop_blend S={s} (fused tail, 2 dispatches) | {t} | {m:.2} | {lo:.2} | {hi:.2} |");
+                for (c, name) in [(false, "off"), (true, "norm_c")] {
+                    let (m, lo, hi) = bench(&be, &trace, &bu, reps, &move || BLEND_NORM_C.set(Some(c)));
+                    println!("| loop_blend S={s} (4 dispatches): {name} | {t} | {m:.2} | {lo:.2} | {hi:.2} |");
+                }
             }
-            intarsia_backend_metal::inkctrl::set_blend_tail(None);
+            BLEND_NORM_C.set(None);
             // the load-order switches (INTARSIA_INK_MIX_HOIST, INTARSIA_INK_BLEND_NORM_C) on the two ConvMix call sites
-            use intarsia_backend_metal::inkctrl::{BLEND_NORM_C, MIX_HOIST};
             let sw = |h: bool, c: bool| {
                 move || {
                     MIX_HOIST.set(Some(h));
                     BLEND_NORM_C.set(Some(c));
-                    intarsia_backend_metal::inkctrl::set_blend_tail(Some(false));
                 }
             };
             for (mlp, s, what) in [(false, 0usize, "conv_mix attn side, plain"), (false, 1, "conv_mix attn side, blend S=1"), (true, 0, "conv_mix mlp side, plain (Q 3)"), (true, 3, "conv_mix mlp side, blend S=3")] {
@@ -326,7 +246,6 @@ mod imp {
             }
             MIX_HOIST.set(None);
             BLEND_NORM_C.set(None);
-            intarsia_backend_metal::inkctrl::set_blend_tail(None);
         }
         let _ = std::fs::remove_file(&trace);
     }
