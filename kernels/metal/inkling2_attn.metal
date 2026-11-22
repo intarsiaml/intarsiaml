@@ -28,7 +28,7 @@ constant constexpr float INK_SRC_EPS = 1e-6f;
 struct InkP {
     uint t, h, hk, d;
     uint dr, e, k, rr;
-    uint cr, pos0, use_dev, flags;  // flags: 1 dyn_conv, 2 kv ring, 4 fused cache / ring write
+    uint cr, pos0, use_dev, flags;  // flags: 1 dyn_conv, 2 kv ring, 4 fused cache / ring write, 8 rel 8-byte aligned
     uint tau_floor, window, nq, pw;
     float qk_clip, rel_clip, eps, tau_alpha;
     float scale, cscale, f2, f3;
@@ -207,7 +207,29 @@ kernel void ink_kv_prologue_bf16(device const ushort* pq_ [[buffer(0)]],
         vr[ro] = pv[(ulong)t * p.pw + ch];
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
-    for (uint e = tid; e < E; e += tpg) {
+    // rel = r . relproj: 4 consecutive columns per thread, the d_rel = 16 rows of relproj loaded up front into registers
+    // (independent loads); other widths and misaligned operands take the scalar loop. Same per-element order (j ascending).
+    const bool vec4 = (E % 4) == 0 && (p.flags & 8u) != 0 && dr == 16;  // launcher: rel proj and rel 8-byte aligned
+    const uint e4n = vec4 ? E / 4 : 0;
+    for (uint e4 = tid; e4 < e4n; e4 += tpg) {
+        uint2 w[16];
+#pragma unroll
+        for (uint j = 0; j < 16; ++j) w[j] = *(device const uint2*)(rp + (ulong)j * E + e4 * 4);
+        for (uint g = 0; g < G; ++g) {
+            float a0 = 0.0f, a1 = 0.0f, a2 = 0.0f, a3 = 0.0f;
+#pragma unroll
+            for (uint j = 0; j < 16; ++j) {
+                const float r = rsh[g][j];
+                a0 = fma(r, as_type<float>(w[j].x << 16), a0);
+                a1 = fma(r, as_type<float>(w[j].x & 0xffff0000u), a1);
+                a2 = fma(r, as_type<float>(w[j].y << 16), a2);
+                a3 = fma(r, as_type<float>(w[j].y & 0xffff0000u), a3);
+            }
+            device uint2* dst = (device uint2*)(relo + ((ulong)t * H + kvh * G + g) * E + e4 * 4);
+            *dst = uint2((uint)f2bf(a0) | ((uint)f2bf(a1) << 16), (uint)f2bf(a2) | ((uint)f2bf(a3) << 16));
+        }
+    }
+    for (uint e = e4n * 4 + tid; e < E; e += tpg) {
         for (uint g = 0; g < G; ++g) {
             float a = 0.0f;
             for (uint j = 0; j < dr; ++j) a = fma(rsh[g][j], bf2f(rp[(ulong)j * E + e]), a);
@@ -253,7 +275,8 @@ inline ushort ink_finish(float a, float m, float l, float sink2, float gate) {
 
 // bind: 0 q, 1 k (chunk), 2 v (chunk), 3 k cache, 4 v cache, 5 rel, 6 pq, 7 out, 8 pos, 9 scratch, 10 InkP.
 // Grid (Hk, max splits, T), INK_NSG simdgroups. q, k, v and the caches 16-byte aligned (launcher checks), D in {8..128}.
-template <uint GP>
+// U: steps whose loads are issued together (no bit depends on it)
+template <uint GP, uint INK_U>
 [[kernel, max_total_threads_per_threadgroup(INK_NSG * 32)]] void ink_attn_s1(
     device const ushort* q_ [[buffer(0)]],
     device const ushort* kn_ [[buffer(1)]],
@@ -326,47 +349,62 @@ template <uint GP>
     const uint rbase = ring ? lo % Cr : 0u;
     device const ushort* kcb = kc + (ulong)kvh * Cr * D;
     device const ushort* vcb = vc + (ulong)kvh * Cr * D;
-    for (uint base = ks + sg * kps; base < ke; base += INK_NSG * kps) {
-        const uint j = base + slot;
-        const bool ok = j < ke;
-        uint4 kw = uint4(0), vw = uint4(0);
-        if (ok) {
-            device const ushort* kp;
-            device const ushort* vp;
-            if (j >= pos0) {
-                const ulong o = ((ulong)(j - pos0) * Hk + kvh) * D + le * 8;
-                kp = kn + o;
-                vp = vn + o;
-            } else {
-                uint row = j;
-                if (ring) {
-                    row = (j - lo) + rbase;
-                    if (row >= Cr) row -= Cr;
+    // rounds of INK_U steps: the K / V rows and the bias of a round are loaded before any of them is used (a load-use chain
+    // per step was latency bound); within a slot the keys are still processed in ascending step order
+    const uint stride = INK_NSG * kps;
+    for (uint base0 = ks + sg * kps; base0 < ke; base0 += stride * INK_U) {
+        uint4 kw[INK_U], vw[INK_U];
+        float bv[INK_U][GP];
+        bool ok[INK_U];
+#pragma unroll
+        for (uint u = 0; u < INK_U; ++u) {
+            const uint j = base0 + u * stride + slot;
+            ok[u] = j < ke;
+            kw[u] = uint4(0);
+            vw[u] = uint4(0);
+            for (uint g = 0; g < GP; ++g) bv[u][g] = 0.0f;
+            if (ok[u]) {
+                device const ushort* kp;
+                device const ushort* vp;
+                if (j >= pos0) {
+                    const ulong o = ((ulong)(j - pos0) * Hk + kvh) * D + le * 8;
+                    kp = kn + o;
+                    vp = vn + o;
+                } else {
+                    uint row = j;
+                    if (ring) {
+                        row = (j - lo) + rbase;
+                        if (row >= Cr) row -= Cr;
+                    }
+                    const ulong o = (ulong)row * D + le * 8;
+                    kp = kcb + o;
+                    vp = vcb + o;
                 }
-                const ulong o = (ulong)row * D + le * 8;
-                kp = kcb + o;
-                vp = vcb + o;
+                kw[u] = *(device const uint4*)kp;
+                vw[u] = *(device const uint4*)vp;
+                const uint dist = pp - j;
+                if (dist < E)
+                    for (uint g = 0; g < GP; ++g) bv[u][g] = bf2f(relr[g * E + dist]) * INK_LOG2E;
             }
-            kw = *(device const uint4*)kp;
-            vw = *(device const uint4*)vp;
         }
-        float kf[8], vf[8];
-        ink_unpack8(kw, kf);
-        ink_unpack8(vw, vf);
-        const uint dist = pp - j;
-        for (uint g = 0; g < GP; ++g) {
-            float s = 0.0f;
-            for (uint i = 0; i < 8; ++i) s = fma(qv[g][i], kf[i], s);
-            for (uint o = 1; o < lpk; o <<= 1) s += simd_shuffle_xor(s, (ushort)o);
-            if (!ok) continue;
-            const float b = dist < E ? bf2f(relr[g * E + dist]) * INK_LOG2E : 0.0f;
-            s += b;
-            const float mn = max(m[g], s);
-            const float corr = exp2(m[g] - mn);
-            const float pr = exp2(s - mn);
-            l[g] = l[g] * corr + pr;
-            for (uint i = 0; i < 8; ++i) acc[g][i] = fma(pr, vf[i], acc[g][i] * corr);
-            m[g] = mn;
+#pragma unroll
+        for (uint u = 0; u < INK_U; ++u) {
+            float kf[8], vf[8];
+            ink_unpack8(kw[u], kf);
+            ink_unpack8(vw[u], vf);
+            for (uint g = 0; g < GP; ++g) {
+                float s = 0.0f;
+                for (uint i = 0; i < 8; ++i) s = fma(qv[g][i], kf[i], s);
+                for (uint o = 1; o < lpk; o <<= 1) s += simd_shuffle_xor(s, (ushort)o);
+                if (!ok[u]) continue;
+                s += bv[u][g];
+                const float mn = max(m[g], s);
+                const float corr = exp2(m[g] - mn);
+                const float pr = exp2(s - mn);
+                l[g] = l[g] * corr + pr;
+                for (uint i = 0; i < 8; ++i) acc[g][i] = fma(pr, vf[i], acc[g][i] * corr);
+                m[g] = mn;
+            }
         }
     }
     // merge the slots of the simdgroup (xor tree over the slot bits; both partners compute the same value)
@@ -424,15 +462,18 @@ template <uint GP>
     }
 }
 
-#define INK_S1(GP)                                                                                                         \
-    template [[host_name("ink_attn_s1_g" #GP)]] [[kernel]] void ink_attn_s1<GP>(                                          \
+#define INK_S1(GP, U)                                                                                                      \
+    template [[host_name("ink_attn_s1_g" #GP "_u" #U)]] [[kernel]] void ink_attn_s1<GP, U>(                               \
         device const ushort*, device const ushort*, device const ushort*, device ushort*, device ushort*,                   \
         device const ushort*, device const ushort*, device ushort*, device const int*, device float*, constant InkP&,       \
         uint3, uint3, uint, uint);
-INK_S1(1)
-INK_S1(2)
-INK_S1(3)
-INK_S1(4)
+INK_S1(1, 2)
+INK_S1(2, 2)
+INK_S1(4, 2)
+INK_S1(3, 1)
+INK_S1(3, 2)
+INK_S1(3, 4)
+INK_S1(3, 8)
 
 // stage 2. bind: 0 pq, 1 out, 2 pos, 3 scratch, 4 InkP. Grid (H, T), threads >= D.
 kernel void ink_attn_comb_bf16(device const ushort* pq_ [[buffer(0)]],

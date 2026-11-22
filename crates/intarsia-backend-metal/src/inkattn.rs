@@ -19,7 +19,24 @@ pub const INK_KV_PROLOGUE_BF16: &str = "ink_kv_prologue_bf16";
 pub const REL_SINK_ATTN_BF16: &str = "rel_sink_attn_bf16";
 
 const RING_WRITE: &str = "ink_ring_write_bf16";
-const S1: [&str; 4] = ["ink_attn_s1_g1", "ink_attn_s1_g2", "ink_attn_s1_g3", "ink_attn_s1_g4"];
+const S1: [&str; 7] =
+    ["ink_attn_s1_g1_u2", "ink_attn_s1_g2_u2", "ink_attn_s1_g3_u1", "ink_attn_s1_g4_u2", "ink_attn_s1_g3_u2", "ink_attn_s1_g3_u4", "ink_attn_s1_g3_u8"];
+
+/// Stage-1 shader of a group: G = 3 takes `INTARSIA_INK_ATTN_U` (1, 2, 4, 8; diagnostic, same bits) or the default.
+fn s1_name(g: usize) -> &'static str {
+    static U: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    let u = *U.get_or_init(|| std::env::var("INTARSIA_INK_ATTN_U").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(S1_U_DEFAULT));
+    match (g, u) {
+        (1, _) => S1[0],
+        (2, _) => S1[1],
+        (4, _) => S1[3],
+        (_, 1) => S1[2],
+        (_, 4) => S1[5],
+        (_, 8) => S1[6],
+        _ => S1[4],
+    }
+}
+const S1_U_DEFAULT: usize = 1;
 const COMB: &str = "ink_attn_comb_bf16";
 const KV_WRITE: &str = "ink_kv_write_bf16";
 
@@ -171,6 +188,8 @@ impl MetalBackend {
             None => self.bind(&i[0], bf, false, "pos (unused)")?,
         };
         let fused = t + k <= rr + 1;
+        let a8 = |x: &intarsia_core::backend::TensorRef| self.mbuf(&x.buf).map(|m| (m.base + x.offset) % 8 == 0);
+        let vec_rel = a8(&i[7])? && a8(&o[1])?;
         let mut p = InkP {
             t: u(t, "T")?,
             h: u(h, "H")?,
@@ -182,7 +201,7 @@ impl MetalBackend {
             rr: u(rr, "Rr")?,
             pos0: u(a.pos0, "pos0")?,
             use_dev,
-            flags: u32::from(ink.dyn_conv) | if fused { 4 } else { 0 },
+            flags: u32::from(ink.dyn_conv) | if fused { 4 } else { 0 } | if vec_rel { 8 } else { 0 },
             tau_floor: u(ink.tau_floor, "tau_floor")?,
             nq: u(i[0].shape[1], "Nq")?,
             pw: u(i[1].shape[1], "pk width")?,
@@ -197,7 +216,7 @@ impl MetalBackend {
             *s = b.skip;
         }
         u(t * hk * d * 2, "T*Ckv")?;
-        let threads = d.max(dr).max(32).next_multiple_of(32);
+        let threads = d.max(dr).max((e / 4).min(256)).max(32).next_multiple_of(32);
         let pso = self.ink_pso(INK_KV_PROLOGUE_BF16)?;
         let pso_rw = self.ink_pso(RING_WRITE)?;
         let all: Vec<&Bind> = binds.iter().chain(std::iter::once(&pos_b)).collect();
@@ -279,7 +298,7 @@ impl MetalBackend {
         }
         u(t * h * MAX_SPLIT * (d + 2), "scratch floats")?;
         u(hk * cr * d, "cache elements")?;
-        let s1 = self.ink_pso(S1[g - 1])?;
+        let s1 = self.ink_pso(s1_name(g))?;
         let comb = self.ink_pso(COMB)?;
         let wr = self.ink_pso(KV_WRITE)?;
         self.with_encoder(|enc| {
