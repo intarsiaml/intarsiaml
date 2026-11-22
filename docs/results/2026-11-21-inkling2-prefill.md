@@ -352,6 +352,32 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### Metal prefill chunk 2048 vs 256 (#11109, binary 378dc214e, brief 8 conditions)
+
+G2 / G3 at `--prefill-chunk 2048` (accuracy; the 256 numbers are the earlier default runs, #10883):
+
+| Gate | 2048 | limit | 256 |
+|---|---:|---:|---:|
+| G2 short (prefill rows / decode rows) | 2.087e-3 / 2.928e-3 | 4e-3 | 2.380e-3 |
+| G2 long | 3.239e-3 | 6e-3 | 3.418e-3 |
+| G3 short | 8.420e-3 | 1.05e-2 | 8.391e-3 |
+| G3 long | 1.229e-2 | 1.65e-2 | 1.248e-2 |
+
+All pass; serve logs "prefill chunk 2048 (--prefill-chunk)" in both 2048 arms.
+
+localeval speed-plain, serve `--max-batch 1`, same binary, order 256, 2048, 256, 2048 (`localeval compare` per pair):
+
+| prompt tok | prefill tok/s pair 1 (256 -> 2048) | pair 2 | decode pair 1 | decode pair 2 |
+|---:|---|---|---|---|
+| ~1k | 1266 -> 2055 (+62 %, rejected B: spread) | 1350 -> 2218 (+64 %, rejected B) | 62.2 -> 62.2 | 62.5 -> 62.6 |
+| ~4k | 1428 -> 2170 (+52 %, faster) | 1436 -> 2446 (+70 %, faster) | 60.8 -> 59.9 (**-1.5 %**) | 61.1 -> 60.9 (-0.3 %) |
+| ~16k | 1456 -> 2455 (+69 %, faster) | 1480 -> 2530 (+71 %, faster) | 57.5 -> 57.7 | 57.9 -> 57.8 |
+
+Against brief 8: G2 / G3 pass; serve log ok; 4k and 16k prefill faster beyond spread in both pairs. Two items are not clean.
+- **1k prefill:** both 2048 runs were rejected for spread. Their reps range 2026-2424, every one far above the 256 arm.
+- **4k decode, pair 1:** -1.5 % (localeval calls it noise; brief 8 asks for within 1 %). Pair 2 is -0.3 %.
+Recipe commit held pending the coordinator's call.
+
 ### Brief 7 fix check (#11105, built in-slot at 92e7e273f, which contains ed27f4462)
 
 | Check | Result |
