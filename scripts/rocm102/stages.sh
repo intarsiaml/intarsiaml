@@ -6,6 +6,9 @@
 #   kern7   7.2.4: the same sweep (per-kernel error columns side by side)
 #   tests   10.2 (tests7: the same on 7.2.4): the HIP GPU test suite (benches out), tiny-model packed / macro prefill == solo on HIP, the real-35B batched ==
 #           local and macro == plain tests (as scripts/gdn-default/stages.sh)
+#   full10, full7   the switch qualify (after #486): every stage but kernels (own step) and ab (needs localeval), so acc-long,
+#                   acc-4k, envelope, bench and bench-long too. Pass = 10.2 prints the same numbers as 7.2.4 (acc-4k: the same
+#                   FAIL as main) and 7.2.4 still hits the checked-in baselines
 #   qchk10, qchk7   qualify (tp=2 stage included) against the checked-in 35B HIP baselines, the same tree on each image, so the
 #           acc-short / acc-oracle KL and top-1 numbers compare the toolchains directly. Skipped stages: kernels (own step),
 #           bench, acc-long, acc-4k (known FAIL on main: restore / aligned), bench-long, ab, envelope
@@ -43,6 +46,7 @@ if has "tests$suf"; then
 fi
 done
 for a in r10 r7; do
+  if has "full${a#r}"; then run $a 0,1 2400 "full-$a" $Q --model $M35 --out "$W/full-$a" --tp 2 --devices 0,1 --skip kernels --skip ab; verdicts "full-$a"; fi
   if has "qchk${a#r}"; then run $a 0,1 1500 "qchk-$a" $Q --model $M35 --out "$W/qchk-$a" --tp 2 --devices 0,1 $SK; verdicts "qchk-$a"; fi
 done
 log "stages done"
