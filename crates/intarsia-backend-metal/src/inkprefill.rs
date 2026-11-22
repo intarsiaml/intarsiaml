@@ -59,6 +59,7 @@ fn names() -> &'static [(&'static str, &'static str)] {
 pub fn metal4_shaders() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = names().iter().flat_map(|&(g, d)| [g, d]).collect();
     v.push(NAX3_GATHER);
+    v.extend(BLEND_SHADERS);
     v
 }
 
@@ -110,6 +111,107 @@ pub fn set_skip(v: u8) {
 /// Prefill blend chunks (rows > 16): the h projection on the NAX GEMM (InkInProj's prefill kernel) instead of the 16-row
 /// GEMV passes. `INTARSIA_INK_BLEND_NAX=1` turns it on (measurement default: off).
 pub fn blend_nax(rows: usize) -> bool {
-    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    rows > 16 && *ON.get_or_init(|| std::env::var("INTARSIA_INK_BLEND_NAX").is_ok_and(|v| v != "0"))
+    rows > 16 && blend_level() >= 1
+}
+
+/// Prefill blend chunks: the gate + norm on the accelerators too (kernels/metal/inkling2_blend_nax.metal),
+/// `INTARSIA_INK_BLEND_NAX=2`.
+pub fn blend_gate_nax(rows: usize) -> bool {
+    rows > 16 && blend_level() >= 2
+}
+
+fn blend_level() -> u8 {
+    static L: std::sync::OnceLock<u8> = std::sync::OnceLock::new();
+    *L.get_or_init(|| std::env::var("INTARSIA_INK_BLEND_NAX").ok().and_then(|v| v.parse().ok()).unwrap_or(0))
+}
+
+/// Entry points of inkling2_blend_nax.metal.
+pub const BLEND_SHADERS: [&str; 2] = ["ink_blend_gf_nax", "ink_blend_yn"];
+
+/// `InkBlendP` of inkling2_blend_nax.metal (the same 96-byte layout as inkling2_mix.metal's).
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+struct BlendP {
+    d: u32,
+    rows: u32,
+    s: u32,
+    sd: u32,
+    g: u32,
+    nsl: u32,
+    cs: u32,
+    t0: u32,
+    ocount: u32,
+    dcount: u32,
+    mcount: u32,
+    pad0: u32,
+    dt0: u32,
+    mt0: u32,
+    pad1: [u32; 2],
+    eps: f32,
+    fpad: [f32; 3],
+    sk: [u32; 8],
+}
+
+fn u32_of(v: usize) -> intarsia_core::Result<u32> {
+    u32::try_from(v).map_err(|_| intarsia_core::Error::invalid(format!("metal blend prefill: {v} exceeds u32")))
+}
+
+impl crate::MetalBackend {
+    /// The gate + norm of a prefill blend chunk on the accelerators: gn / fg (f32, into the dead pair region and the y
+    /// region of the blend scratch), then y and the norm per (stream, row). `dims` = [D, rows, S, Sd, G, t0, ocount, dcount,
+    /// mcount, dt0, mt0] as inkmix.rs's `InkBlendP`.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn ink_blend_gate_nax(
+        &self,
+        dest_b: &crate::dense::Bind,
+        msg_b: &crate::dense::Bind,
+        h_b: &crate::dense::Bind,
+        gain_b: &crate::dense::Bind,
+        forget_b: &crate::dense::Bind,
+        gn: &intarsia_core::backend::TensorRef,
+        fg: &intarsia_core::backend::TensorRef,
+        norm: &intarsia_core::backend::TensorRef,
+        out: &intarsia_core::backend::TensorRef,
+        dims: [usize; 11],
+        eps: f32,
+    ) -> intarsia_core::Result<()> {
+        use intarsia_core::DType;
+        let [d, rows, s, sd, g, t0, ocount, dcount, mcount, dt0, mt0] = dims;
+        if d > 256 * 12 {
+            return Err(intarsia_core::Error::invalid(format!("metal blend prefill: D = {d} > 3072")));
+        }
+        let gn_t = intarsia_core::backend::TensorRef { dtype: DType::F32, shape: vec![s * rows * d], ..gn.clone() };
+        let fg_t = intarsia_core::backend::TensorRef { dtype: DType::F32, shape: vec![s * rows * d], ..fg.clone() };
+        let (gn_b, fg_b) = (self.bind(&gn_t, DType::F32, true, "gn")?, self.bind(&fg_t, DType::F32, true, "fg")?);
+        let (nrm_b, out_b) = (self.bind(norm, DType::Bf16, false, "norm")?, self.bind(out, DType::Bf16, true, "out")?);
+        let p = BlendP {
+            d: u32_of(d)?,
+            rows: u32_of(rows)?,
+            s: u32_of(s)?,
+            sd: u32_of(sd)?,
+            g: u32_of(g)?,
+            t0: u32_of(t0)?,
+            ocount: u32_of(ocount)?,
+            dcount: u32_of(dcount)?,
+            mcount: u32_of(mcount)?,
+            dt0: u32_of(dt0)?,
+            mt0: u32_of(mt0)?,
+            eps,
+            sk: [gain_b.skip, forget_b.skip, nrm_b.skip, out_b.skip, 0, 0, 0, 0],
+            ..Default::default()
+        };
+        let td = d.div_ceil(64);
+        self.dispatch(
+            BLEND_SHADERS[0],
+            &[h_b, gain_b, forget_b, &gn_b, &fg_b],
+            &p,
+            crate::dense::Grid::Groups { x: s * td, y: rows.div_ceil(64), threads: 128 },
+        )?;
+        self.dispatch(
+            BLEND_SHADERS[1],
+            &[dest_b, msg_b, &gn_b, &fg_b, &nrm_b, &out_b],
+            &p,
+            crate::dense::Grid::Groups { x: s * rows, y: 1, threads: 256 },
+        )
+    }
 }

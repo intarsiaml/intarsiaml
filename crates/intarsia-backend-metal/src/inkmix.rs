@@ -764,6 +764,8 @@ impl MetalBackend {
             self.bind(&yv, f32t, true, "y")?,
             self.bind(&part, f32t, true, "partial")?,
         );
+        // lane ink-prefill hook: prefill chunks run the gate + norm on the accelerators (inkprefill.rs)
+        if crate::inkprefill::blend_gate_nax(n) && self.has_metal4() { return self.ink_blend_gate_nax(&dest_b, &msg_b, &h_b, &gain_b, &forget_b, &pair, &yv, norm, out, [d, n, s, sd, g, t0, out.shape[1], dest_rows.1, mt, dest_rows.0, t0], eps); }
         let mut pg = p;
         pg.sk = [gain_b.skip, forget_b.skip, 0, 0, 0, 0, 0, 0];
         let gate = match g / 8 {
