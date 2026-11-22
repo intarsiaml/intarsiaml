@@ -1031,3 +1031,37 @@ Gate rules (set before the gates ran). Job: endor, default load, flip tip vs mai
 - Lane stopped here, as the rule says. The night job #11621 will not run without the pass marker. A rerun with fixed
   measurement (F4: kernels and total cases, reply = reasoning + content; F8: a `/v1/completions` continuation with an 8-token
   sampled turn) waits on the coordinator.
+
+### Default-on gates, rerun of F4 and F8 (#11634, endor, default load, code 34525d854 vs main 22303d704): all pass
+
+Brief L2c approved both measurement fixes. 34525d854 changed only `crates/intarsia-models/tests/mtp.rs` (the new BackendTuning
+field in two struct literals; #496's CI `cargo test` did not compile) and this doc since 6d70c6fa7: the rebuilt flip binary is
+byte-identical to #11620's (checked with `cmp` in the job), so #11620's F1-F3 and F5-F7 stand for this code.
+- F4 PASS: `--max-batch 4`, no draft loaded; admission main 30 kernels / 113 cases, flip 30 / 113; the greedy reply
+  (`reasoning_content` + `content`) identical to main's.
+- F8 v2 PASS (`/v1/completions`, `serve --max-batch 1`): turn 1 sampled t1.0, 8 tokens on a 4575-row prompt; turn 2 greedy
+  continuation (4584 prompt rows). Default server: 4560 rows cached, no draft (spec steps 0 -> 0), text equal to `--spec off`'s,
+  TTFT 0.097 s; `--spec off`: 4560 cached (above the 4000-row void bar), TTFT 0.085 s. Main with opt-in `--spec dflash`, i.e.
+  before the L2b rule: 0 cached, 15 spec steps, TTFT 1.864 s. A new short prompt (t3) on the default server drafted (9 steps).
+- Summary: 0 failed checks; pass marker `.scratch/flip_pass_34525d854` written, so #11621 (Mon 05:45) runs on this binary.
+
+### Inkling-2 serve re-prefills every normal chat turn (info, Brief L2c; a TTFT lever, separate from the flip, nothing built)
+
+Measured in #11634 on the `--spec off` server (main's behaviour, unchanged by the flip), `/v1/chat/completions`, Metal, endor:
+
+| request | prompt rows | cached rows | TTFT |
+|---|---:|---:|---:|
+| chat turn 1 (sampled t1.0, ~4.6k-token context, cold) | 4575 | 0 | 1.60 s |
+| chat turn 2 (greedy, the history re-rendered by the template) | 4593 | 0 | 1.55 s |
+| the same continuation as `/v1/completions` (F8 v2, prompt extends the cached tokens) | 4584 | 4560 | 0.085 s |
+| new short chat prompt | 21 | 0 | 0.093 s |
+
+- Turn 2 re-prefills all 4593 rows (about 1.5 s, ~3.0k rows/s) where an exact continuation takes 0.085 s: 18x the TTFT at ~4.6k.
+  It grows with the conversation (prefill is about linear in rows up to 16k: section "Speed").
+- Cause, two parts: (1) the chat template re-renders the history (turn 1's reply replaced by its final text, the reasoning
+  dropped), so turn 2's tokens leave the cached sequence about 30 rows before its end; (2) Inkling-2's sliding-window layers keep
+  ring slots with a 16-row margin (`INK_RING_MARGIN`, `model/inkling2.rs`), so a request can resume only within 16 rows of the
+  cached end; anything further back finds the window's rows overwritten and restarts from 0.
+- Any OpenAI-chat client gets this on every turn (the coordinator's TTFT question, not the flip's). Levers, not built: snapshot
+  the ring state at the end of each prompt (resume at the prompt boundary, which is where re-rendered histories diverge), or a
+  larger margin sized to the template's re-render (memory cost per sliding layer).
