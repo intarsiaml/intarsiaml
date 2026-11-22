@@ -490,6 +490,38 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### NSG 6 vs 12 gate (#11499, rg2.sh, bin12 640d1c59f): bitwise shown; speed rule FAILS at 8k on a degraded box; no flip
+
+**Exactness: bitwise, as constructed.** G2 self-goldens (`accuracy --write-self-golden`) short and long at NSG 12 and 6: every
+tensor byte-identical (short 48 / 48, long 60 / 60); the files differ only in metadata (`built_unix`, the exec command line
+in `self_meta`), which is why a whole-file `cmp` differs. Greedy md5 at NSG 6 = NSG 12 = the references (64: a2ab7b3d...,
+256: cbd62660...).
+
+**Speed (warm-up, 3 ABAB pairs, prefill tok/s NSG 12 -> 6, TTFT ms):**
+
+| prompt | pair ratios | median | need | TTFT NSG 12 | TTFT NSG 6 |
+|---|---|---:|---:|---|---|
+| 4k | 1.1937 / 0.9330 / 1.1605 | 1.1605 | 1.01 | 1930 / 1611 / 1863 | 1617 / 1727 / 1605 |
+| 8k | 1.0021 / 1.0095 / 0.8629 | 1.0021 | 1.01 | 2930 / 2939 / 2942 | 2923 / 2912 / 3410 |
+| 16k | 0.9919 / 1.0192 / 1.0294 | 1.0192 | 1.01 | 6037 / 6152 / 6173 | 6086 / 6036 / 5996 |
+
+The rule as written fails at 8k (1.0021 < 1.01): **no flip.** The run is not a clean measurement, though. The box was in a
+degraded state for both arms: 4k prefill 2047-2461 tok/s against 2688-2716 in #11461 80 minutes earlier, decode 40.8-50.5
+tok/s against 68.5-70.7, and swings of +-15 % inside pairs (4k pair 2, 8k pair 3). fleetq shows no job overlapping
+11:34:31-11:37:44. The previous job #11489 (a build plus tests) ended at 11:34:31, so leftover processes are possible but not
+verified, and rg2.sh had no box check. Asked the coordinator whether to rerun once with a box check first (gp1.sh style:
+stop if p8k < 95 % of reference).
+
+### Softmax / exp / rescale bucket bound (brief 25; from #11370 E 1, #11468, the blend-gate trace)
+
+Above the 62 TFLOP/s matmul floor with the rel bias removed (E 1): SWA ~0.53 ms per visit x 40 = ~21 ms per chunk, full
+visits ~1.2 ms (mean over an 8k prompt's chunks at ctx 0 / 2k / 4k / 6k) x 8 = ~10 ms, so ~31 ms per chunk. At 8k a chunk is
+~700 ms end to end (2.79 s / 4), so the bucket is **~4.4 % of 8k prefill**. That is the best case and needs attention at
+the full GEMM peak, which flash attention does not reach (the softmax between the two matmuls is not hidden). At a
+realistic ~70 % of peak the saving is ~19 ms per chunk, **~2.7 %**. If NSG 6 is flipped it takes ~11 ms of the same
+overhead, leaving a best case of ~2.9 % and a realistic ~1.5 %. **Under the >= 3 % build bar on any realistic reading: not
+built.**
+
 ### NAX attention NSG sweep, mode 0 (brief 25; #11468, 640d1c59f, bench 2048 rows, µs per call, median of 2)
 
 `INTARSIA_INK_NAX_SG`: NSG simdgroups per threadgroup, BQ = 16 x (NSG / 3) query rows; NSG not a multiple of G = 3 leaves
