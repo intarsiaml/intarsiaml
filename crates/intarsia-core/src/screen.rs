@@ -8,7 +8,7 @@
 //! | Op | Inputs | Outputs |
 //! |---|---|---|
 //! | `HeadScreen` (88) | a `[T,V]` f32, h `[T,D]` (act), beta `[V]` f32 | cand `[T,C]` i32, cnt `[T]` i32 |
-//! | `LogitsGather` (89) | h `[T,D]` bf16, W `[V,D]` bf16, cand `[T,C]` i32, cnt `[T]` i32 | y `[T,V]` f32 |
+//! | `LogitsGather` (89) | h `[T,D]` bf16, W `[V,D]` bf16, cand `[T,C]` i32, cnt `[T]` i32 (P12 head: W = codes u8 `[V,3D/2]`, fifth input aux i32) | y `[T,V]` f32 |
 //! | `ScreenArgmax` (90) | cand `[T,C]` i32, cnt `[T]` i32, y `[T,V]` f32 | tok `[T]` i32 |
 //!
 //! **HeadScreen.** Per row t, in f32 with these exact operations (the cpu reference [`screen_row`] and every kernel agree
@@ -21,8 +21,11 @@
 //! and the whole row of `cand` to -1 (the full head).
 //!
 //! **LogitsGather.** `cnt[t]` in `1..=C_cap`: `y[t, j] = Logits(h_t, W[cand[t, j]])` for `j < cnt[t]`; otherwise (the
-//! fallback) `y[t, n] = Logits(h_t, W_n)` for every n, i.e. the full head row. Each value is bitwise the backend's `Logits`
-//! for that (row, weight row); the rest of `y[t]` is left as it was.
+//! fallback) `y[t, n] = Logits(h_t, W_n)` for every n, i.e. the full head row. Each value is bitwise the backend's head for
+//! that (row, weight row): `Logits` over a bf16 W, `MatmulP12` (f32 out) over a P12 W (`quant::p12`; inputs `[h, codes, cand,
+//! cnt, aux]`). The rest of `y[t]` is left as it was. On Metal the gather is the serving 1-row head kernel itself
+//! (`gemv_f32o_v`, or P12's 1-row `p12_gemv_f32o`) launched with a runtime candidate index (brief 14 option B): one function
+//! and pipeline, so a gathered value is that kernel's output by construction; it takes T = 1.
 //!
 //! **ScreenArgmax.** `cnt[t]` in `1..=C_cap`: `tok[t] = cand[t, j*]`, j* the lowest j of the maximum of `y[t, 0..cnt)`;
 //! otherwise `tok[t] = Argmax(y[t, 0..V))`. Comparisons as `Argmax`: strict `>`, `+0 == -0`, NaN never wins.
@@ -69,6 +72,19 @@ pub const WIDEN: f32 = 1.0 / (1u32 << 20) as f32;
 
 /// The `hn` margin (`1 + 2^-11`).
 pub const HN_MARGIN: f32 = 1.0 + 1.0 / 2048.0;
+
+/// Whether the `hn` margin (`1 + 2^-11`) covers the rounding of `D` f32 squares and the square root: `||h|| <= hn` needs
+/// `(1 + 2^-11) sqrt(1 - g_D) (1 - u) >= 1` with `u = 2^-24`, `g_D = D u / (1 - D u)` (D up to about 16 000). A head wider
+/// than that is refused at load (the screen stays off).
+pub fn hn_margin_covers(d: usize) -> bool {
+    let u = f64::powi(2.0, -24);
+    let du = d as f64 * u;
+    if du >= 0.5 {
+        return false;
+    }
+    let g = du / (1.0 - du);
+    (1.0 + f64::powi(2.0, -11)) * (1.0 - g).sqrt() * (1.0 - u) >= 1.0
+}
 
 /// The `hn` floor (`2^-50`): covers squares a flush-to-zero device drops (at most `D * 2^-126` of `||h||^2`).
 pub const HN_FLOOR: f32 = 8.881784197001252e-16;
@@ -177,7 +193,18 @@ pub fn check(call: &OpCall) -> Result<()> {
             }
             let (t, d, v, c) = (i[0].shape[0], i[0].shape[1], i[1].shape[0], i[2].shape[1]);
             want(op, &i[0], Some(DType::Bf16), &[t, d], "h")?;
-            want(op, &i[1], Some(DType::Bf16), &[v, d], "W")?;
+            if i.len() == 5 {
+                // the P12 head: codes [V, 3D/2] u8 and aux (`quant::p12`)
+                if d % 16 != 0 {
+                    return bad(op, format!("P12 W needs D % 16 == 0 (D {d})"));
+                }
+                want(op, &i[1], Some(DType::U8), &[v, 3 * d / 2], "codes")?;
+                if let Err(m) = crate::quant::p12::check_tensors(&i[1], &i[4], v, d, "LogitsGather") {
+                    return bad(op, m);
+                }
+            } else {
+                want(op, &i[1], Some(DType::Bf16), &[v, d], "W")?;
+            }
             want(op, &i[2], Some(DType::I32), &[t, c], "cand")?;
             want(op, &i[3], Some(DType::I32), &[t], "cnt")?;
             want(op, &o[0], Some(DType::F32), &[t, v], "y")?;
@@ -589,6 +616,15 @@ mod tests {
         assert!(!wanted(Some("0"), "metal") && !wanted(Some(" off "), "metal") && !wanted(Some("FALSE"), "metal"));
         assert!(wanted(Some("1"), "cpu") && wanted(Some("on"), "metal") && wanted(Some(" TRUE "), "metal"));
         assert!(!wanted(Some(""), "metal") && !wanted(Some("x"), "cpu"));
+    }
+
+    #[test]
+    fn hn_margin_d_limit() {
+        assert!(hn_margin_covers(2304) && hn_margin_covers(8192) && hn_margin_covers(16000));
+        assert!(!hn_margin_covers(17000) && !hn_margin_covers(1 << 23));
+        // the limit is where the inequality turns: 2^-11 against g_D / 2 + u
+        let lim = (1..40000).find(|&d| !hn_margin_covers(d)).unwrap();
+        assert!((16000..17000).contains(&lim), "D limit {lim}");
     }
 
     /// The flush-to-zero part of the bound: `hn` keeps its floor for an all-zero or subnormal-scale row, and a head row norm of
