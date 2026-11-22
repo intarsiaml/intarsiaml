@@ -172,10 +172,12 @@ fn ink_attn_timing() {
                 let visits: Vec<Visit> = (0..nv).map(|i| visit(be, window, ring, cr, t, ctx, 1000 + i as u64 * 31)).collect();
                 let reps = if t >= 2048 || ctx >= 32768 { 3 } else { 20 };
                 let pro = time(be, &visits, reps, &|v| launch("ink_kv_prologue_bf16", &v.pro));
-                let att = time(be, &visits, reps, &|v| launch("rel_sink_attn_bf16", &v.att));
+                // the kernel the registry picks: the flash kernel for prefill chunks (INTARSIA_INK_BENCH_ROWS_EXACT=1: the rows-exact one)
+                let an = if t > 16 && std::env::var("INTARSIA_INK_BENCH_ROWS_EXACT").map_or(true, |v| v != "1") { "rel_sink_attn_bf16_flash" } else { "rel_sink_attn_bf16" };
+                let att = time(be, &visits, reps, &|v| launch(an, &v.att));
                 let pair = time(be, &visits, reps, &|v| {
                     launch("ink_kv_prologue_bf16", &v.pro);
-                    launch("rel_sink_attn_bf16", &v.att);
+                    launch(an, &v.att);
                 });
                 let fused = if visits[0].fused.is_some() { Some(time(be, &visits, reps, &|v| launch("ink_attn_decode_bf16", v.fused.as_ref().unwrap()))) } else { None };
                 let vis = if ring { (ctx + t).min(window) } else { ctx + t };
