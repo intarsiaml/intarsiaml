@@ -11,6 +11,12 @@ Branch `ink/m-mix` (worktree `.worktrees/ink-m-mix`, base `3feffee6e`). Target e
   kernels plus the 1/16/2048-row bench lines before/after; tiny/CPU parts to spark2 if any; (3) report pass/fail and the
   numbers, ink-metal merges once it passes. Ideas 1-2 are taken (ink-dfuse: gate+norm fusion and one message mix per pass;
   ink-prefill: blend prefill); idea 3 goes to ink-batch.
+- 2026-11-21, coordinator, after the shared-slot check: do not merge `25ff7864a` on those numbers. One quiet run
+  (`--quiet gpu,cpu --expect 8`): LoopBlend, ConvMix with blend and plain ConvMix at 1 / 16 / 2048 rows, old vs new defaults
+  alternating in one job (env override, one binary), >= 5 reps each, medians. Both hold -> ink-metal merges `25ff7864a`; only NE 4
+  holds -> add a commit putting BLEND_RB back to 16, that gets merged; neither -> nothing merged. ink-dfuse replaces the gate +
+  norm dispatches with one ticketed dispatch for <= 16 rows (INTARSIA_INK_BLEND_TAIL), so weight the 2048-row line. Record,
+  report the table, stop; keep the worktree until the merge.
 
 ## 1. What was built
 

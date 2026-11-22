@@ -391,7 +391,7 @@ mod imp_mix {
         println!("{:<44} {:>9} {:>9} {:>9}", "mix case (D 2304)", "us/call", "p10", "p90");
         let only = std::env::var("INK_BENCH_ONLY").unwrap_or_default();
         for (name, mk) in &kinds {
-            if !only.is_empty() && !name.contains(only.as_str()) {
+            if !only.is_empty() && !only.split(',').any(|o| name.contains(o)) {
                 continue;
             }
             for &r in &rows {
