@@ -101,13 +101,15 @@ pub const DEC_MAX_ROWS: usize = 16;
 const MAX_EXPERTS: usize = 1024;
 const MAX_K: usize = 32;
 /// gate+up rows per threadgroup (4 simdgroups x 4 rows), down rows per threadgroup of `dn_u` (4 x 8) and of `dn_f`.
-/// `INTARSIA_INK_MOE_DEC1=<n>` (lane ink-batch, n = 1..=4): the union gate+up / down decode each weight chunk once for all the
-/// pairs a leader serves when it serves at least n (flag bit 3, n in bits 4..6); the same bits. Opt-in until measured.
+/// Union gate+up / down (lane ink-batch): leaders serving at least n pairs decode each weight chunk once for all of them
+/// (flag bit 3, n in bits 4..6); the same bits. Default n = 2 (docs/results/2026-11-21-inkling2-batch.md section 31);
+/// `INTARSIA_INK_MOE_DEC1=<n>` (1..=4) sets n, `=0` turns it off.
 fn dec1_bits() -> u32 {
     static B: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
     *B.get_or_init(|| match std::env::var("INTARSIA_INK_MOE_DEC1").ok().and_then(|v| v.parse::<u32>().ok()) {
+        Some(0) => 0,
         Some(n @ 1..=4) => 8 | (n << 4),
-        _ => 0,
+        _ => 8 | (2 << 4),
     })
 }
 
