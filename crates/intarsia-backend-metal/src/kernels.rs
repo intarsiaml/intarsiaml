@@ -289,6 +289,7 @@ pub fn metal4_shaders() -> Vec<&'static str> {
     v.extend(crate::fp8::NAX_FP8_SHADERS.iter().flatten());
     v.extend(crate::moe::NAX_MM_GU.iter().chain(&crate::moe::NAX_MM_DN));
     v.extend(crate::mxfp4::NAXD_FORMS.iter().flat_map(|f| [f.0, f.1]));
+    v.extend(crate::inkattn::metal4_shader_names());
     v
 }
 
@@ -309,6 +310,7 @@ pub const NAX_KERNELS: &[&str] = &[
     crate::fp8::MATMUL_FP8_NAX,
     crate::nvfp4::MATMUL_NVFP4_NAX,
     crate::mxfp4::MATMUL_MXFP4_NAX,
+    crate::inkattn::REL_SINK_ATTN_BF16_NAX,
 ];
 
 pub fn requires_metal4(kernel: &str) -> bool {
@@ -323,6 +325,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::gdn::shader_names());
     v.extend(crate::dflash::shader_names());
     v.extend(crate::bridge::shader_names());
+    v.extend(crate::inkattn::shader_names());
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
     v.extend(crate::nvfp4::SHADERS);
@@ -416,6 +419,11 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::bridge::BRIDGE_CODE_BF16, Op::BridgeCode),
     (crate::bridge::BRIDGE_GATE_BF16, Op::BridgeGate),
     (crate::bridge::BRIDGE_WRITE_BF16, Op::BridgeWrite),
+    // Inkling-2-Mini attention (inkattn.rs, lane ink-m-attn)
+    (crate::inkattn::INK_KV_PROLOGUE_BF16, Op::InkKvPrologue),
+    (crate::inkattn::REL_SINK_ATTN_BF16, Op::RelSinkAttn),
+    (crate::inkattn::INK_ATTN_DECODE_BF16, Op::InkAttnDecode),
+    (crate::inkattn::REL_SINK_ATTN_BF16_NAX, Op::RelSinkAttn),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -620,6 +628,31 @@ pub fn all() -> Vec<KernelImpl> {
                 crate::bridge::BRIDGE_NORM_BF16 | crate::bridge::BRIDGE_CODE_BF16 | crate::bridge::BRIDGE_GATE_BF16 | crate::bridge::BRIDGE_WRITE_BF16 => {
                     k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL)
                 }
+                // Inkling-2-Mini attention (inkattn.rs): f32 math, bf16 stores at the contract's rounding points; rows-exact by construction
+                crate::inkattn::INK_KV_PROLOGUE_BF16 => k.acts(bf).when(crate::inkattn::prologue_ok).exact(Exactness::Deterministic).tol(BF16_TOL),
+                crate::inkattn::REL_SINK_ATTN_BF16 => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::inkattn::attn_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .scratch(crate::inkattn::attn_scratch),
+                crate::inkattn::INK_ATTN_DECODE_BF16 => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::inkattn::decode_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .scratch(crate::inkattn::decode_scratch),
+                // prefill chunks on the neural accelerators (falls back to the split-KV kernel for what it cannot take)
+                crate::inkattn::REL_SINK_ATTN_BF16_NAX => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::inkattn::nax_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(5)
+                    .scratch(crate::inkattn::nax_scratch),
                 // the sliding-window decode: the plain decode shaders over the window's keys (dflash.rs). `.ext()`: the only Metal
                 // kernel that takes `OpAttrs::window > 0`; priority -1 keeps every plain call on the kernel it had.
                 crate::dflash::ATTN_DECODE_BF16_WINDOW => k
@@ -835,6 +868,7 @@ mod tests {
                 + 2 * crate::gemm_nax::NAX_VARIANTS.len()
                 + 8
                 + 2 * crate::mxfp4::NAXD_FORMS.len()
+                + crate::inkattn::metal4_shader_names().len()
         );
         assert!(!shader_names().iter().any(|n| m4.contains(n)));
         let set: HashSet<_> = m4.iter().collect();
@@ -947,6 +981,8 @@ mod tests {
         "gdn_delta_rule_bf16:gdn_delta_rule",
         "gdn_delta_rule_bf16_pre:gdn_delta_rule",
         "gdn_delta_rule_bf16_rows:gdn_delta_rule",
+        "ink_attn_decode_bf16:ink_attn_decode",
+        "ink_kv_prologue_bf16:ink_kv_prologue",
         "kv_append_bf16:kv_append",
         "kv_append_bf16_rows:kv_append",
         "logits_bf16:logits",
@@ -977,6 +1013,8 @@ mod tests {
         "qk_norm_bf16:qk_norm",
         "qk_norm_rope_kv_bf16:qk_norm_rope_kv",
         "qk_norm_rope_kv_bf16_rows:qk_norm_rope_kv",
+        "rel_sink_attn_bf16:rel_sink_attn",
+        "rel_sink_attn_bf16_nax:rel_sink_attn",
         "rmsnorm_add_bf16:rmsnorm_add",
         "rmsnorm_bf16:rmsnorm",
         "rope_bf16:rope",

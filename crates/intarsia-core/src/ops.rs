@@ -228,6 +228,8 @@ pub enum Op {
     InkInProj,
     /// Inkling-2 sublayer boundary: `SconvRes`, then the next depth mix, optional blend and norm.
     ConvMix,
+    /// Inkling-2 fused decode attention (1..=16 rows): exactly `RelSinkAttn(InkKvPrologue(..))` (lane ink-m-attn).
+    InkAttnDecode,
 }
 
 /// `BridgeCode` among the two single-output-shape bridge ops (they share a shape check).
@@ -236,7 +238,7 @@ fn call_op_is_code(op: Op) -> bool {
 }
 
 impl Op {
-    pub const ALL: [Op; 75] = [
+    pub const ALL: [Op; 76] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -312,6 +314,7 @@ impl Op {
         Op::MoeExpertsMxfp8,
         Op::InkInProj,
         Op::ConvMix,
+        Op::InkAttnDecode,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -392,6 +395,7 @@ impl Op {
             Op::MoeExpertsMxfp8 => "moe_experts_mxfp8",
             Op::InkInProj => "ink_in_proj",
             Op::ConvMix => "conv_mix",
+            Op::InkAttnDecode => "ink_attn_decode",
         }
     }
 
@@ -475,6 +479,7 @@ impl Op {
             Op::MoeExpertsMxfp8 => (7, 1),
             Op::InkInProj => (2, 3),
             Op::ConvMix => (11, 4),
+            Op::InkAttnDecode => (10, 5),
         }
     }
 }
@@ -1027,7 +1032,7 @@ impl OpCall {
             Op::MatmulExl3 => crate::quant::exl3::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::check(self)?,
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::check(self)?,
-            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix => crate::inkling2::ops::check(self)?,
+            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode => crate::inkling2::ops::check(self)?,
         }
         Ok(())
     }
@@ -1205,7 +1210,7 @@ impl ShapeInfo {
             Op::MatmulExl3 => crate::quant::exl3::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::shape(call, &mut s),
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::shape(call, &mut s),
-            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix => crate::inkling2::ops::shape(call, &mut s),
+            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode => crate::inkling2::ops::shape(call, &mut s),
         }
         let _ = o;
         s
@@ -1462,7 +1467,8 @@ mod tests {
             assert_eq!(*op as usize, 67 + j, "{op}");
             assert_eq!(Op::ALL[67 + j], *op);
         }
-        assert_eq!(Op::ALL.last(), Some(&Op::ConvMix), "the last of the Inkling-2 block");
+        assert_eq!(Op::ALL.last(), Some(&Op::InkAttnDecode), "the last of the Inkling-2 block");
+        assert_eq!(Op::InkAttnDecode as usize, 75, "the fused decode attention, appended after ConvMix");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

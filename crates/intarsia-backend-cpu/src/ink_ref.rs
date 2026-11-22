@@ -286,6 +286,7 @@ pub fn run(call: &OpCall, fast: bool) -> Result<()> {
         }
         Op::InkKvPrologue => prologue(call),
         Op::RelSinkAttn => attention(call),
+        Op::InkAttnDecode => attn_decode(call),
         Op::MoeExpertsMxfp8 => experts_mxfp8(call),
         Op::InkInProj if fast => in_proj_fast(call),
         Op::InkInProj => {
@@ -393,6 +394,20 @@ fn prologue(call: &OpCall) -> Result<()> {
     wr(&o[3], &vv)?;
     wr(&o[4], &kring)?;
     wr(&o[5], &vring)
+}
+
+/// `InkAttnDecode`: the prologue into scratch intermediates (rounded to the activation dtype as that op writes them), then
+/// the attention; bitwise the pair by construction.
+fn attn_decode(call: &OpCall) -> Result<()> {
+    let a = call.inputs[0].dtype;
+    let tmp = |shape: Vec<usize>| {
+        let n: usize = shape.iter().product();
+        TensorRef::new(intarsia_core::backend::Buffer::new(crate::mem::CpuBuffer::zeroed((n * a.size_bytes()).max(1))), a, &shape)
+    };
+    let [qs, rs, ks, vs] = intarsia_core::inkling2::ops::attn_decode_inter(call);
+    let (pro, att) = intarsia_core::inkling2::ops::attn_decode_parts(call, tmp(qs), tmp(rs), tmp(ks), tmp(vs));
+    prologue(&pro)?;
+    attention(&att)
 }
 
 fn eps_of(at: &OpAttrs) -> f64 {

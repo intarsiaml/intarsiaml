@@ -15,7 +15,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         // quantised matmuls and MoE reuse the f64 reference math (parallel over rows / tokens)
         Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MatmulMxfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
         Op::BridgeNorm | Op::BridgeCode | Op::BridgeGate | Op::BridgeWrite => crate::bridge_ref::run(call),
-        Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix => crate::ink_ref::run(call, true),
+        Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode => crate::ink_ref::run(call, true),
         Op::MatmulExl3 => crate::exl3_ref::run(call),
         // the DeepSeek-V4.1 ops (lane 1a): one f64 implementation for both kernel sets, stubs return "not implemented (lane 1b)"
         Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41_ref::run(call),
