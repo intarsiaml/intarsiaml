@@ -43,6 +43,8 @@ Status: in progress. Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwar
   engine.rs hooks if small: a real check (build + the tiny spec test), its own commit, no new GPU job for them.
 - 2026-11-21 (coordinator): H1 / H2 not to be built until S1 + S2 + S3 is shown to be well over 1 ms per cycle; #10839 stays
   queued.
+- 2026-11-21 (coordinator): item 5 dropped on ink-mtp's per-cycle split (host 1.2-1.6 ms of a 35 ms cycle, under 5 %; numbers in
+  item 5). The lane finishes with #10839 / #10840 / #10888: report those, then stop.
 
 ## Measurement (before)
 
@@ -143,7 +145,20 @@ What can and cannot remove it while keeping the token bitwise the same:
   sequential (about 0.15 ms). Worth building only if the measured host share is large: the profile columns `softcap` and
   `accept` of `hp_t1` / `hp_t07` in #10840.
 
-## Item 5: the speculative draft cycle without a host round trip (proposal, not built)
+## Item 5: the speculative draft cycle without a host round trip (proposal, not built; dropped)
+
+**Dropped 2026-11-21 (coordinator).** ink-mtp's per-cycle split at k3, synced:
+
+| part | ms per cycle | where |
+|---|---:|---|
+| S1 ingest | 0.94 | host + GPU |
+| drafter block | 2.64 | GPU |
+| head | 1.34 | GPU |
+| Markov + small downloads | 0.70 | host |
+| S3 verify, extra wait | 0.04 | host |
+
+Host total is about 1.2-1.6 ms of a 35 ms cycle, under 5 %. So H1 / H2 are not built, and M1-M4 are not requested. The text
+below is the proposal as it was sent, kept for reference.
 
 Read from `ink/mtp` 7c0a2a956 (`crates/intarsia-core/src/model/dspark.rs`, `model/dflash.rs`); the DSpark cycle has three host
 syncs, each followed by host work the GPU waits through:
