@@ -10,6 +10,14 @@ P12 / screen). Never restore an old bench source without `--digest` for a refere
 
 ## Briefs received
 
+- 2026-11-22 (main): ink-fp8's quiet #11345 (~07:00-07:30, ink/metal a7cba52f4 + ink/fp8 72900194e, P12 off, screen off;
+  box check B1 65.0 tok/s; batched == solo in 4 runs) measured screen off B1 15.39 / 15.53, B8 33.91 / 38.99, B16 63.25 /
+  65.40 ms (#11181-like, ~250 tok/s) in the same hour as my 77-90. Before #11352 runs, diff the setups from the logs
+  (.worktrees/ink-fp8/.scratch/batchab/ vs #11328): args, prompt type, bench source commit, --digest, env, binary path / sha,
+  tree, plan / policy / P12 / screen lines. Name the difference; if --digest, measure its cost (same binary on vs off); if
+  ctx / prompts / steps, say which is the honest serving config; make #11352 report both configs side by side. Hold any
+  "230 not met" claim until settled; tell main.
+
 - 2026-11-22 (main): one quiet slot (~35 min): NE 3 vs 4 batched plus the final default aede2ff72 as the digest-backed
   batched reference; B 1/8/16, random ids, --digest on every arm, 3 alternating reps, plan / policy / P12 / screen lines
   logged. Section 17's item holds only if NE 4 is within noise of NE 3 at B 8 / 16 and the digests match; if NE 4 costs more,
