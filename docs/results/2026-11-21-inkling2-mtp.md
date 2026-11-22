@@ -224,6 +224,16 @@ Report before building any default.
 4. Measure verify ms for 1..7 rows (gives r), acceptance, tokens per round, decode tok/s, output identical to `--spec off`.
 - A rule that needs a code change goes behind a measurement-only env on the new branch.
 
+## Coordinator ruling (2026-11-22 ~17:15), lane ink-spec-land: merge order after the #491 freeze
+
+#491 merged as main 8c7bb7cb1. Merge order on main:
+1. #497
+2. the CUDA flips PR
+3. #496, after the 05:45 night speed run (#11621) passes
+4. chat-reuse, after all its gates pass
+
+Before merging: merge main in, rerun md5 and the affected tests, and ask the coordinator for the go.
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
