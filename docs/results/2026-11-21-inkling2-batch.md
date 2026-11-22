@@ -1151,3 +1151,26 @@ kernels table 7/7 (incl. the metal4 count). Box cold at start (B 16 58.07). InkI
   P = 2 / 4 weight rows per threadgroup sharing each x load (`INTARSIA_INK_PROJ_XP`, same bits; the old kernel's P 2 lost to
   re-unpacking and RB passes), measured X0 / XP1 / XP2 / XP4 at 4 / 8 / 16 rows, A B C D D C B A, with inkmix rows-exact at
   each XP.
+
+**#11457 (10:09-10:15, quiet, cold box B 16 58.07; tree 401604c38; `.scratch/projx2.log`).** inkmix rows-exact passes at
+`INTARSIA_INK_PROJ_XP` 1, 2 and 4 (5/5 each), p12 4/4, rows_exact 11/11, kernels 7/7. us/call, S 1, A B C D D C B A:
+
+| rows | A X=0 | B gemvx P 1 | C gemvx P 2 | D gemvx P 4 |
+|---:|---:|---:|---:|---:|
+| 4 | 71.57 / 72.08 | 71.64 / 71.60 | 73.01 / 72.70 | 93.62 / 92.87 |
+| 8 | 82.43 / 82.56 | 80.78 / 81.69 | 106.74 / 106.65 | 152.50 / 152.42 |
+| 16 | 161.99 / 161.84 | 149.91 / 149.93 | 222.78 / 222.69 | 203.59 / 203.62 |
+
+- gemvx P 1 is -12 us per call at 16 rows (-1 at 8) in both pairs, stable: ~0.6 ms per B 16 step (48 calls) cold. P 2 / 4
+  lose badly (register pressure; fewer threadgroups), so P stays 1 (`_XP` stays a measurement knob, default 1).
+- Model that fits 4 / 8 / 16 rows: time ~ max(weights from DRAM at ~560 GB/s = 71 us, x re-reads from cache at ~4.2 TB/s):
+  x traffic 160 / 320 / 640 MB per call -> 38 / 76 / 152 us. At 16 rows the x re-reads set the time.
+- What the bitwise contract fixes: the 256-lane chunk mapping, each lane's chunk order, simd_sum over the same lanes and the
+  sg-order sum, per (weight row, row). Within that, the x re-read can only be removed by keeping x close to the lanes across
+  weight rows: a two-pass slice form (pass 1: a threadgroup owns one simdgroup's K slice of x for all 16 rows in threadgroup
+  memory, 8-16 KB, and loops over many weight rows, writing each simdgroup's simd_sum to a scratch buffer; pass 2 sums the 8
+  partials per output in sg order). Same bits by construction; gain uncertain (threadgroup-memory loads instead of cache
+  loads, the same simd_sums, +4.4 MB scratch traffic). A non-bitwise B > 1 kernel (simdgroup-matrix GEMM over 16 rows) would
+  approach the 71 us floor (~3.8 ms per B 16 step) but changes bits: opt-in only, flip is the user's call.
+- Gates for gemvx P 1 default-on queued as #11463 (Metal suite, admission, greedy md5 64 / 256, B 1/8/16 X0 vs X1 A B A B B A
+  B A with digests, warm).
