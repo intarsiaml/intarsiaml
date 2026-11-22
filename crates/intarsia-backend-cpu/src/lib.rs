@@ -180,7 +180,8 @@ impl Backend for CpuBackend {
 
     fn kernels(&self) -> Vec<KernelImpl> {
         let mut v = Vec::new();
-        for op in Op::ALL {
+        // the reserved placeholder discriminants (`Op::is_reserved`) have no kernels
+        for op in Op::ALL.into_iter().filter(|o| !o.is_reserved()) {
             let mut r = KernelImpl::new(op, format!("ref_{}", op.as_str()), "cpu")
                 .exact(Exactness::Exact)
                 .tol(Tol::EXACT)
