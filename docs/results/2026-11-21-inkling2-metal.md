@@ -189,6 +189,7 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
 - 2026-11-22 (coordinator, SendMessage): ink/fp8 will send df7eb7f80 (head screen default on, Metal, Inkling only; INTARSIA_INK_HEAD_SCREEN=0 off). Do not add it under the main PR: the no-op checks cover d111c798a and the PR merges that tree. Finish #11455, open the PR, merge on green. Then merge ink/fp8's flip into ink/metal as a follow-up once ink/fp8 reports its post-flip checks green (endor, ~30 min).
 - 2026-11-22 (coordinator, SendMessage): go with d111c798a + docs + 040748800 (gates a test-file arm; the no-op checks stand), Linux workspace rerun compared with base, then the PR from that tip, df7eb7f80 out. PR body names 040748800 as the one code change after the no-op check and why. CI's ubuntu job is the final check before merging. Note the unqueued cargo check in the doc and move on.
 - 2026-11-22 (ink-fp8, SendMessage): screened greedy head default-on for Metal (Inkling only, `INTARSIA_INK_HEAD_SCREEN=0` reverts) at df7eb7f80, ink/fp8 tip 22689e76c (merges ink/metal baa2395dd); gates #11426 and #11446, post-flip checks #11458 green. Held per the coordinator: merged into ink/metal only after the main PR lands.
+- 2026-11-22 (coordinator, SendMessage): open the follow-up PR once bespin is green on cdf954b26. Before it: plan show for Qwen3-8B and Llama on Metal byte-identical vs main 57e1b3332 (CPU-only build + plan show), result in the PR body. ink-dfuse sends ink/dfuse-land (on a63d06c97: INTARSIA_INK_DEBUG_DISPATCHES debug env, off by default, ink_ctrl_bench --probe example, results doc; no T1), its check #11488 on endor: if green before the PR merges, merge into ink/metal and push to the same PR with a line in the body; else a separate small PR later. Merge on all-green CI.
 
 ## NE fix gate #11179 (tree 65dbc2870 = fix 7eca1b012 + test/docs)
 
@@ -989,6 +990,17 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   35a1f17bf (test only, coordinator's shape): every-task-once stays strict; the wait is asserted only when a run measured it.
   bespin #11484: intarsia-core lib 257 passed in each of 10 runs (plain, INTARSIA_HOST_THREADS=4 x5, pool on with
   --test-threads 2 x3, par:: alone). An endor run queued first (#11483) was cancelled before it started (endor queue).
+- PR #488 CI rerun on a63d06c97: all 6 jobs green (ubuntu cargo test 15 m 9 s). **Merged** into main at 57e1b3332 (merge
+  commit). Follow-up: ink/fp8 22689e76c (df7eb7f80, screened greedy head default-on on Metal, Inkling only) merged into
+  ink/metal at cdf954b26 with no conflicts; its code differs from ink-fp8's checked tree (#11458, all green) only by this
+  lane's two test-only fixes (040748800, 35a1f17bf).
+- Correction: bespin is a Mac Studio (macOS, M5 Max), not Linux. #11484 (the par test x10) ran on macOS, and the "CI ubuntu
+  steps" run #11492 on cdf954b26 did not mirror CI: its 6 failing test binaries (gdn_verify_metal, inkling2_mix_decode_cpu
+  and the like) all fail at `MetalBackend::new()` / `MetalBackend::arc()`: no Metal device in that ssh session; 141 binaries
+  passed, and nothing failed outside Metal device creation. The ubuntu check for the follow-up is the PR's CI. (That run also
+  touched no GPU work beyond those failed device opens, though it ran as `--load cpu`.)
+- Follow-up `plan show` on Metal, main 57e1b3332 vs cdf954b26 (endor #11493, `--load cpu`): Qwen3-8B and Llama-3.1-8B text
+  and JSON byte-identical. Follow-up PR opened from ink/metal.
 - Metal #11440 done (exit 0, 09:29:18-09:59:11, quiet gpu,cpu): 256 greedy ids identical base vs dev for Qwen3-8B (short sha
   d619ede5, 4k feb11f5c) and Llama-3.1-8B-Instruct (short 25bbc20f, 4k eda51e94); `plan show` txt and json byte-identical for
   both. `kernels test --backend metal` 0 FAIL on both: base 56 kernels / 1335 cases, dev 86 kernels / 2915 cases (the Inkling,

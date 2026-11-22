@@ -32,15 +32,30 @@ inline float dot8(uint4 w, uint4 x) {
     return a;
 }
 
+// Row indirection (lane ink-fp8, the screened greedy head's `LogitsGather`, crates/intarsia-core/src/screen.rs): with
+// p.pad0 = C > 0 this same function and pipeline compute the candidate rows of one activation row instead of every row, so a
+// gathered logit is this kernel's own output for that row, by construction. cnt[0] in 1..=C: slot j computes row cand[j] and
+// writes Y[y_skip + j] (j < cnt[0]); any other cnt[0] (above the cap, or the screen's non-finite mark): every row, as the
+// plain launch. The plain launch (pad0 = 0, `Logits`) binds Y at 4 and 5 and never reads them.
 kernel void gemv_f32o_v(device const uint4* W [[buffer(0)]],
                         device const uint4* X [[buffer(1)]],
                         device float* Y [[buffer(2)]],
                         constant GemvParams& p [[buffer(3)]],
+                        device const int* cand [[buffer(4)]],
+                        device const int* cnt [[buffer(5)]],
                         uint tg [[threadgroup_position_in_grid]],
                         uint sg [[simdgroup_index_in_threadgroup]],
                         uint lane [[thread_index_in_simdgroup]]) {
     const uint k8 = p.k / 8;
-    const uint row = tg * 4 + sg;
+    const uint slot = tg * 4 + sg;
+    uint row = slot;
+    if (p.pad0 != 0) {
+        const int ct = cnt[0];
+        if (ct >= 1 && (uint)ct <= p.pad0) {
+            if (slot >= (uint)ct) return;  // the whole simdgroup: slot is uniform in it
+            row = (uint)cand[slot];
+        }
+    }
     device const uint4* wr = W + (ulong)min(row, p.n - 1) * k8;  // rows past N read a valid row and are not stored
     float acc = 0.0f;
     const uint block = 32 * 4;
@@ -54,7 +69,7 @@ kernel void gemv_f32o_v(device const uint4* W [[buffer(0)]],
     }
     for (i = nblk * block + lane; i < k8; i += 32) acc += dot8(wr[i], X[i]);
     const float s = simd_sum(acc);
-    if (lane == 0 && row < p.n) Y[p.y_skip + row] = s;
+    if (lane == 0 && slot < p.n) Y[p.y_skip + slot] = s;
 }
 
 kernel void gemv_f32o_scalar(device const ushort* W [[buffer(0)]],
@@ -71,55 +86,4 @@ kernel void gemv_f32o_scalar(device const ushort* W [[buffer(0)]],
     for (uint i = lane; i < p.k; i += 32) acc = fma(bf2f(w[i]), bf2f(x[i]), acc);
     const float s = simd_sum(acc);
     if (lane == 0 && row < p.n) Y[p.y_skip + row] = s;
-}
-
-// =====================================================================================================================
-// LogitsGather (lane ink-fp8, crates/intarsia-core/src/screen.rs): `Logits` over the screen's candidate rows of each
-// activation row (or every row, the fallback). The per-(activation row, weight row) arithmetic is gemv_f32o_v's line for
-// line (the same dot8, the same lane -> chunk mapping, block loop, tail and simd_sum), so each value is bitwise the
-// `Logits` the serving head writes (gemv_f32o_v, and gemv_f32o_v_mr per row). One simdgroup per output, grid-stride over
-// the outputs of activation row t = threadgroup y.
-// bind: 0 W [V, K] bf16, 1 X [T, K] bf16, 2 Y [T, V] f32, 3 cand [T, C] i32, 4 cnt [T] i32, 5 LgP.
-// =====================================================================================================================
-
-struct LgP {
-    uint k;
-    uint v;
-    uint c;
-    uint pad;
-};
-
-kernel void logits_gather_f32o_v(device const uint4* W [[buffer(0)]],
-                                 device const uint4* Xall [[buffer(1)]],
-                                 device float* Y [[buffer(2)]],
-                                 device const int* cand [[buffer(3)]],
-                                 device const int* cnt [[buffer(4)]],
-                                 constant LgP& p [[buffer(5)]],
-                                 uint2 tg2 [[threadgroup_position_in_grid]],
-                                 uint2 ng2 [[threadgroups_per_grid]],
-                                 uint sg [[simdgroup_index_in_threadgroup]],
-                                 uint lane [[thread_index_in_simdgroup]]) {
-    const uint t = tg2.y;
-    const uint k8 = p.k / 8;
-    device const uint4* X = Xall + (ulong)t * k8;
-    const int ct = cnt[t];
-    const bool path = ct >= 1 && (uint)ct <= p.c;
-    const uint neff = path ? (uint)ct : p.v;
-    for (uint j = tg2.x * 4 + sg; j < neff; j += ng2.x * 4) {
-        const uint row = path ? (uint)cand[(ulong)t * p.c + j] : j;
-        device const uint4* wr = W + (ulong)row * k8;
-        float acc = 0.0f;
-        const uint block = 32 * 4;
-        const uint nblk = k8 / block;
-        uint i = lane;
-        for (uint b = 0; b < nblk; ++b, i += block) {
-            uint4 xv[4], wv[4];
-            for (int u = 0; u < 4; ++u) xv[u] = X[i + 32 * u];
-            for (int u = 0; u < 4; ++u) wv[u] = wr[i + 32 * u];
-            for (int u = 0; u < 4; ++u) acc += dot8(wv[u], xv[u]);
-        }
-        for (i = nblk * block + lane; i < k8; i += 32) acc += dot8(wr[i], X[i]);
-        const float s = simd_sum(acc);
-        if (lane == 0) Y[(ulong)t * p.v + j] = s;
-    }
 }
