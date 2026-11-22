@@ -1,0 +1,332 @@
+# Inkling-2-Mini speculative decoding with its DSpark draft (lane ink-mtp, 2026-11-21)
+
+Status: in progress. Branch `ink/mtp` (not pushed, not merged).
+
+## Briefs received
+
+- 2026-11-21 (coordinator, SendMessage): Fable's decode review ranks this lane #2 (`.worktrees/ink-fable/decode-profile-review.md`,
+  item 2, sections 3.5 and 4; read section 4 before designing the verify path).
+  1. Shape: short confidence-gated drafts, 2-3 verify rows; the drafter rows share the verify's unembed launch.
+  2. Estimated saving 3.0-4.4 ms of the real 15.76 ms step at acceptance 0.6-0.7, about 6 ms if consecutive tokens share experts.
+  3. #10743 decides it: report acceptance by draft position and the expert-union size for 2 and 3 consecutive tokens
+     (union over the 8-of-128 per layer) as soon as available.
+  4. Device-side accept / verify readback is ink-hostgap's job: send interface needs to the coordinator, who relays.
+  5. Measure Metal decode with `--profile-every 0` (real greedy about 63.4 tok/s; the default profiler adds about 4 ms/token).
+
+- 2026-11-21 (coordinator, SendMessage): endor's queue is about 5 h deep. Move the real-model CPU token-identity job (#10807) to
+  spark2's CPU (released on endor, resubmitted there); keep the Metal decode tok/s job (#10806) on endor. Every other CPU-only
+  job of this lane goes to a Spark.
+- 2026-11-21 (coordinator, SendMessage): priorities in order. (1) Fold the drafter's base-logit read into the verify's unembed
+  (Fable §4.3; a separate 922 MB read is about 1.6 ms a cycle). (2) Move the tap mixes and the top-64 Markov head to the device;
+  send the interface needs (what the device hands back per cycle: accepted count, next ids, draft confidences) after the
+  per-cycle profile. (3) Tune the policy on a mixed set (greedy golden + prose + chat turns), report tokens per pass and real
+  tok/s per policy; the default must never be slower than spec off on prose; the p1 >= 0.6 gate is the right shape.
+  (4) Sampling: confirm whether temperature > 0 uses exact speculative rejection sampling; if not, keep spec greedy-only and
+  say so. Speculation stays opt-in until #10806's timed numbers; default-on is the coordinator's call. If drafter changes land
+  before #10806 starts, edit its script rather than queue a new job (within its --expect).
+- 2026-11-21 (coordinator, SendMessage): §4.3 agreed circular for the anchor; the separate MXFP4 draft head is the fix, its
+  precision a measured choice in #10806. Ownership: this lane's drafter device ops ((c) top-k ids / values + p1, the tap mixes)
+  take discriminants 92-95; ink-hostgap owns (a) device argmax over the R verify rows with the accepted length and (d) the single
+  per-cycle readback. Send the interface after the #10806 profile (relayed to hostgap). Remove the 7 x V head download + host
+  top-64 sync first ((c) on device). Greedy-only DSpark is fine: say so in the doc and the serve / CLI `--spec` help.
+- 2026-11-21 (coordinator, SendMessage): endor's quiet-GPU line is about 9 h. Move the token-identity checks out of #10806 into
+  a default-GPU-load job with a short --expect (backfills); keep #10806 for tok/s plus the DSPARK_PROFILE run. ink-metal fixed
+  the rows_exact pin-list test at a0751f302: merge ink/metal.
+- 2026-11-21 (coordinator, relay from ink-hostgap; their design note docs/results/2026-11-21-inkling2-hostgap.md on ink/hostgap,
+  6855e486a, nothing built): a DSpark cycle has 3 host syncs, S1 ingest (taps down, host mix, upload per layer), S2 draft head
+  (base-logit download, host top-64, host Markov + gate), S3 verify (argmax readback, accept). hostgap can provide H1 (one 40 B
+  per-cycle record [n_acc, bonus, k_eff, drafts[7]]) and H2 (encode cycle c+1 ahead, discard on reject). Removing the syncs needs
+  this lane's M1 (device ingest mix), M2 (device Markov head + gate), M3 (verify always at kmax+1 rows + an accept op), M4
+  (device positions for Inkling's ops). Ask: report per-cycle host ms split S1 / S2 / S3 from INTARSIA_DSPARK_PROFILE=1 (a short
+  default-load job if #10806 lacks it); under about 1 ms per cycle in total drops M1-M4. And: may hostgap add
+  INTARSIA_HOST_PROFILE hooks (profiling lines only) in the spec loop; name the file to keep out of.
+- 2026-11-21 (coordinator, SendMessage): the arithmetic points at the verify pass, not the drafter: k3 is 35.0 ms per cycle,
+  so verify at 4 rows is about 29 ms against 16.6 ms at 1 row (about +4.3 ms per row; k2 about +4.7), while ink-batch measures
+  about 2.3 ms per extra row for batch_step 2-8 rows. (1) Before the AttnDecode work, profile one verify pass at T = 3 and 4
+  per op (kernel trace, attribution only) next to ink-batch's B = 3 / 4 rows path: does verify route wo / unembed / InkInProj /
+  experts to generic GEMM / prefill-style kernels or to the rows kernels; attention and the rel prologue at T > 1 too. (2) If it
+  is the routing, send verify T <= 16 through ink-batch's rows kernels (bitwise per row with the 1-row kernels). Merge ink/metal
+  first (m-mix 47570539e, serve fix 761a1561b). (3) Default-on candidate k2 tau 0.6 greedy: flip as its own commit with an env
+  off switch, only after #10874 shows the gain; sampled requests stay on the normal path.
+- 2026-11-21 (coordinator, SendMessage): flip choice k3 tau 0.8. Flip only after #10874's serve + localeval speed-plain shows
+  on >= off at every prompt length it runs. Greedy requests only (sampled stay plain); single sequence only (spec off when
+  ink/batch's batched decode has B > 1 live sequences); an env off switch named in docs/tuning.md with the numbers; its own
+  revertable commit; plan show / greedy md5 unchanged with the switch off. If localeval shows on < off at any length, no flip:
+  send the table. Also report: verify at T = 3 / 4 per-op profile, whether verify routing changed between #10806 and #10874, and
+  verify ms per cycle now; if verify still costs about +4 ms per extra row, that is the next lever before AttnDecode.
+- 2026-11-22 (coordinator, SendMessage): decision (b): make the prompt-time drafter ingest cheaper or deferred first, then flip
+  (16k prompt + 100 tokens is slower end to end with DSpark: 11.97 + 1.39 s vs 11.22 + 1.75 s; the flip is not urgent).
+  (1) Check and say here whether the draft ingests the prompt on requests that can never speculate (sampled, the serve
+  default t1.0, or batched); if so, skip the ingest entirely for them, before any flip (no lazy catch-up: sampling is per
+  request). (2) Greedy: cut the ingest cost, preferring (i) ingest only the rows the draft can attend to if its context is
+  windowed, (ii) fold the ingest into the prefill chunk's command buffer so it overlaps, (iii) defer it to the first decode
+  step; ids identical spec on vs off. (3) Flip gate: localeval speed-plain off vs DSpark k3 tau 0.8 at 142 / 1k / 4k / 16k,
+  quiet slot: prefill within 2% of off at every length with the decode gain kept, plus a sampled (t1.0) run with prefill ==
+  off; fix the run label (not spec:unknown). (4) If (1) is done but (2) cannot get under 2% in about 2 hours of work, report
+  the best number. (5) After the flip: the union-fused experts pass at 2-4 verify rows is this lane's; write a plan and send it
+  before building. Rules: compile on bespin, CPU tests on spark2, GPU only inside endor fleetq slots.
+
+## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
+
+`tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
+fp32 math) over fixed token streams. It saves the four DSpark taps per position (the partial entering visits 5, 23, 41, and the
+final-norm output), the target argmax and the routing. It then drafts at every anchor exactly as vLLM's decode step does: context
+K/V from the taps of positions < t, block = anchor + 7 masks, f_rnn from position t-1, 7 sequential Markov steps.
+
+Streams: vLLM's greedy outputs on the 12 greedy golden prompts (2564 anchors on the target's greedy path) and the two human prose
+texts of the long golden (875 anchors). A draft prefix counts as accepted when every draft equals the target's argmax and the text
+stays on the target's path. Off-path anchors (where vLLM's W4A4 near-ties differ from the W4A16 oracle) are reported separately.
+Raw output: `docs/results/2026-11-21-inkling2-mtp/analysis.{md,json}`.
+
+P(at least j drafts accepted):
+
+| set | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| greedy golden | 0.722 | 0.521 | 0.384 | 0.293 | 0.230 | 0.189 | 0.152 |
+| prose | 0.408 | 0.158 | 0.067 | 0.030 | 0.009 | 0.002 | 0.000 |
+| all on-path | 0.642 | 0.428 | 0.303 | 0.226 | 0.174 | 0.141 | 0.113 |
+
+On greedy, the acceptance of position j given j-1 is 0.72, 0.72, 0.74, 0.76, 0.79, 0.82, 0.80. Calibration of the position-1
+top-1 probability (greedy, bucket: accept rate): <0.3: 0.17, 0.3-0.5: 0.29, 0.5-0.7: 0.43, 0.7-0.8: 0.53, 0.8-0.9: 0.62,
+0.9-0.95: 0.75, >=0.95: 0.95 (1382 of 2564 anchors).
+
+Expert union per visit over R consecutive rows (real routing, 8 of 128 per visit):
+
+| R | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| NVFP4 visits | 8.0 | 12.5 | 16.0 | 18.9 | 21.4 | 23.7 | 25.7 | 27.6 |
+| MXFP8 visits | 8.0 | 12.6 | 16.3 | 19.2 | 21.7 | 23.9 | 25.9 | 27.7 |
+| independent routing | 8.0 | 15.5 | 22.5 | 29.1 | 35.3 | 41.1 | 46.5 | 51.6 |
+
+Consecutive tokens share experts strongly: at R = 2 the second row adds 4.5 new experts, not 7.5.
+
+Tokens per verify step (accepted + 1) and modelled speedup. The cost model is the m-moe expert timings at the real union, the
+m-attn attention per row, the dense bytes at 480 GB/s plus 1.5 ms fixed (14.4 ms plain step), and the native drafter (block 0.52
+GB, base logits 0.92 GB, fold 0.1 GB per step). "Cheap" is a 0.5 GB drafter (perf-strategy §6). These are modelled numbers:
+the measured ones are in section 3.
+
+| policy (greedy) | mean k | tokens / step | speedup | cheap drafter |
+|---|---:|---:|---:|---:|
+| fixed k=1 | 1.00 | 1.722 | 1.23 | 1.38 |
+| fixed k=2 | 2.00 | 2.242 | 1.46 | 1.64 |
+| fixed k=3 | 3.00 | 2.626 | 1.59 | 1.78 |
+| gate p1 >= 0.6, kmax 2 | 1.42 | 2.121 | 1.46 | 1.64 |
+| gate p1 >= 0.6, kmax 3 | 1.94 | 2.460 | 1.62 | 1.83 |
+| gate p1 >= 0.8, kmax 3 | 1.54 | 2.298 | 1.57 | 1.77 |
+| gate p1 >= 0.6, kmax 4 | 2.37 | 2.720 | 1.74 | 1.96 |
+| gate p1 >= 0.6, kmax 7 | 3.29 | 3.223 | 1.95 | 2.21 |
+
+On prose every policy is 0.99-1.09x modelled (fixed k=3: 0.99; gate 0.6 kmax 3: 1.07). The gate keeps prose from going below 1.
+
+## 2. The Rust drafter
+
+`--spec dflash --spec-draft <Inkling model dir>`: the loader (`intarsia-models/src/load.rs:open_dspark`) sees `mtp_config` +
+`mtp.safetensors` and loads the draft as a DFlash-family head with `DflashConfig::dspark`. The engine's DFlash verify, accept
+and rollback path is used unchanged. The Inkling refusal of drafters now admits only this draft (MTP and other DFlash drafts are
+still refused). Code: `crates/intarsia-core/src/model/dspark.rs`.
+
+- Taps: `ink_pass` copies the partial entering visits 5, 23, 41 and the final-norm output into the DFlash staging buffers
+  (`model/inkling2.rs`). This is vLLM's `aux_hidden_states`: `stack[num_blocks]` at those visits, none of which is a pass
+  restart, plus the output-norm hidden.
+- Context ingest (after every forward, the accepted rows only): taps downloaded, the four-tap softmax(fuse_weight) mix +
+  dflare RMSNorm on the host (bf16-rounded), uploaded, `k_proj_ctx` / `v_proj_ctx`, `k_norm_ctx` + neox RoPE (theta 1e6),
+  appended to per-layer draft caches. `f_rnn` rows go to a 64-row host ring.
+- Block: `[embed_norm(embed(anchor)), mask_embed x 7]` at positions P..P+7. Pre-norm layers with q/k norm + RoPE, block K/V
+  appended after the context. Each row is one `AttnDecode` at P+7 (every block row sees all 8 block keys: bidirectional);
+  layers 0 and 2 use a window of 1024 + 8 keys. SwiGLU MLP, final norm.
+- Head: base logits of the mask rows through the draft's own MXFP4 copy of the target unembed (`INTARSIA_DSPARK_HEAD`),
+  device top-64 per row (`Backend::topk_rows`, new on Metal, `kernels/metal/topk.metal`). The rnn_proj hidden / f_rnn parts
+  run as two small GEMVs. The rank-256 recurrence runs on the host with vLLM's bf16 rounding points. For each step, the Markov
+  bias `fold(latent)` is evaluated on the 64 candidates only. fold = unembed . hidden_out, folded at load: 200058 x 256,
+  4.7 s on endor's CPU.
+- Gate: stop at the first step whose top-1 probability (softcapped logits over the candidates) is below
+  `INTARSIA_DSPARK_TAU` = 0.6. An empty draft is a plain step.
+- Opt-ins: `INTARSIA_DSPARK_CAND=0` (exact full-vocab head), `INTARSIA_DSPARK_LAYERS=fp8`, `INTARSIA_DSPARK_DEVICE_TOPK=0`.
+- Greedy only: `--spec dflash` never speculates on sampled requests (`engine.rs`, sampled speculation is `SpecMode::Mtp`
+  only), so a temperature > 0 request takes plain steps and its distribution is unchanged. The CLI / serve `--spec-draft`
+  help says so.
+
+Fable §4.3 (drafter rows sharing the verify's unembed) is circular for this draft. The block's row 0 is the embedding of the
+target's argmax at the last accepted verify row, and that argmax exists only after the verify's unembed; attention spreads
+row 0 into every mask row from layer 0 on. The separate MXFP4 draft head cuts the read from 0.92 to 0.24 GB per cycle
+instead. Emitted tokens are still the bf16 verify argmax.
+
+Tests:
+- `crates/intarsia-models/tests/inkling2_dspark.rs`: tiny target + random 3-layer DSpark, `golden/inkling2-tiny-dspark`,
+  written by `tools/inkling2_dspark_ref.py tiny`. Greedy ids equal spec off at k 1 / 3 / 7 and max_tokens 1 / 2 / 5 / 40;
+  scripted partly-right drafts give every accepted length. Passes on cpu and Metal.
+- `crates/intarsia-backend-metal/tests/topk.rs`: `topk_rows` equals `sampler::topk_row` (ties, -inf, NaN, V 200058,
+  f32 / bf16).
+- Real-model token identity: section 3.
+
+## 3. Metal: token identity and speed (endor, M5 Max)
+
+### Token identity
+
+Every DSpark run below produced the same ids as `--spec off` on all 12 greedy golden prompts x 128 tokens and on both prose
+texts x 128. That covers k 1-7, tau 0.4-0.8, mxfp4 / bf16 heads, fp8 layers, the exact head (`CAND=0`) and the gate-off k1.
+Runs: #10790 (k3 tau 0.6, k1 tau 0) and #10806 (all of the timing table). CPU backend, real model: 2 greedy prompts x 32,
+identical (#10816 on spark2's CPU; 1.21 -> 1.99 tok/s, 3.59 tokens per pass).
+
+Engine acceptance at k1 with the gate off is 71.1%, against the oracle's 72.2% at position 1, so the Rust drafter's numerics
+match vLLM's (#10790, bf16 exact head).
+
+### Decode tok/s (#10806, `--quiet gpu,cpu`, `--profile-every 0`, frozen binary c770aaef3)
+
+Greedy golden, 12 prompts x 128 tokens (1501 tokens after each prompt's first):
+
+| policy | tok/s | vs off | tokens / verify pass | acceptance |
+|---|---:|---:|---:|---:|
+| spec off | 60.21 | 1.00 | - | - |
+| k1, tau 0.6 | 63.71 | 1.06 | 1.80 | 79.6% |
+| **k2, tau 0.6** | **71.27** | **1.18** | 2.23 | 67.4% |
+| k3, tau 0.6 | 68.50 | 1.14 | 2.40 | 56.9% |
+| k3, tau 0.8 | 69.65 | 1.16 | 2.55 | 71.7% |
+| k4, tau 0.6 | 69.24 | 1.15 | 2.53 | 52.0% |
+| k7, tau 0.6 | 63.75 | 1.06 | 2.63 | 42.2% |
+| k3, tau 0.6, bf16 draft head | 67.12 | 1.11 | 2.47 | 59.7% |
+| k3, tau 0.6, fp8 draft layers | 63.98 | 1.06 | 2.41 | 57.5% |
+
+Prose (the two human texts, 128 tokens each):
+
+| policy | tok/s | vs off | tokens / pass |
+|---|---:|---:|---:|
+| spec off | 61.55 | 1.00 | - |
+| k3, tau 0.6 | 66.00 | 1.07 | 2.33 |
+| k7, tau 0.6 | 63.30 | 1.03 | 2.52 |
+
+Drafter profile (k3 tau 0.6, `INTARSIA_DSPARK_PROFILE=1`, ms per cycle, synced; 522 cycles):
+
+| part | ms | where |
+|---|---:|---|
+| ingest (taps down, host mixes, upload, ctx K/V projections) | 0.94 | host + GPU |
+| block pass (3 layers x 8 rows, 24 AttnDecode calls) | 2.64 | GPU |
+| head (MXFP4 base GEMM over k rows + device top-64) | 1.34 | GPU |
+| Markov step 0 + small downloads | 0.70 | host |
+
+The drafter costs about 5 ms a cycle against a 16.6 ms plain step. That is why the gain stops at about 18% while the oracle's
+tokens per pass (2.2-2.6) promised more. Most of it is GPU work (block 2.6 ms, head 1.3 ms), not host syncs (about 1.2 ms of
+host time in total). Verify and the k choice are behind it: k2 is the best fixed setting, and k7 pays for 8-row verifies that
+mostly reject.
+
+### Decode tok/s after the drafter work (#10874, `--quiet gpu,cpu`, binary 17c67dacf)
+
+Same sets and flags as #10806. 17c67dacf adds the row-exact draft kernels (2-16 rows), the vectorised Markov head and the merge
+of ink/metal (rows-exact ConvMix, serve fix). The spec-off baseline also moved (60.21 -> 62.58), so compare within this table.
+Every row is token-identical to spec off.
+
+| set, policy | tok/s | vs off | tokens / verify pass | acceptance |
+|---|---:|---:|---:|---:|
+| greedy, spec off | 62.58 | 1.00 | - | - |
+| greedy, k2 tau 0.6 | 79.84 | 1.28 | 2.23 | 67.5% |
+| greedy, k3 tau 0.6 | 80.46 | 1.29 | 2.40 | 57.0% |
+| **greedy, k3 tau 0.8** | **80.64** | **1.29** | 2.54 | 72.0% |
+| prose, spec off | 63.35 | 1.00 | - | - |
+| prose, k2 tau 0.6 | 74.46 | 1.18 | 2.16 | 67.8% |
+
+Drafter per cycle (k3 tau 0.6, profile on, 525 cycles): block 1.75 ms (was 2.64), head 1.20 ms (1.34), Markov 0.59 ms (0.70),
+ingest 0.75 ms (0.94): about 4.3 ms, down from 5.6. k2 and k3 are now within 1%; tau 0.8 trades fewer drafts for the same speed.
+
+Verify routing is the same as in #10806 (both runs print the same verify kernels: `matmul_bf16_gemv_rows`,
+`ink_in_proj_bf16_gemv_rows`, `moe_experts_situ_bf16_rows` / `moe_experts_mxfp8_bf16_rows`, `logits_bf16_gemv_rows`, attention
+one `ink_attn_decode_bf16` call per row). From the #10874 totals, with the plain steps (16.0 ms) and the drafter (4.3 ms) taken
+out, a verify pass costs about 21 ms at 2.8 rows (k2) and 23 ms at 3.5 rows (k3): about +2.9 ms per extra row (ink-batch:
+about 2.3 ms per extra row in its batched step). Per-op attribution at T = 2 / 3 / 4: #10990 (first try #10897 printed no op
+table, because `generate --prompt-ids` never printed one; fixed in a3b72495b).
+
+### serve: the draft under admitted kernels only (a3b72495b)
+
+#10874's localeval half failed on the DSpark server: `no kernel for qk_norm on metal/applegpu_g17s (m=256 ...) [admitted kernels
+only]`. The plan dry run skipped the DSpark draft, so admission never tested its kernels, and `serve` selects only admitted
+ones. `generate` does not require admission, which is why the timing and identity runs never hit this. Fix: the dry run runs
+the draft's device calls with its host steps skipped: ingest at 1-16 rows and powers of two up to the store, and the block pass +
+head at every draft length, at the start of the context and past the local layers' window. Test
+`dspark_runs_with_admitted_kernels_only` (tiny, `PlanOptions { admit, require_admitted }`) fails without the fix with the same
+error and passes with it (cpu, spark2 #10975 / #10979).
+
+Spec-off localeval speed-plain (17c67dacf, `20261121-225828-adhoc-endor-intarsia-metal-ink-mtp-off`, decode tok/s median):
+63.8 at 146 prompt tokens, 61.9 at 1023, 60.7 at 4110, 57.4 at 16456. The off vs DSpark k3 tau 0.8 rerun is #10991.
+
+### Default-on flip (prepared, not on this branch)
+
+Local branch `ink/mtp-flip`, commit f130b8855 (on a3b72495b): without `--spec`, Inkling-2 on Metal at one rank in process
+and `--max-batch` <= 1 runs DSpark k3, and the gate default moves 0.6 -> 0.8. Sampled requests stay plain, and a batching
+server has no draft. `--spec off` or `INTARSIA_SPEC_DEFAULT=0` turns it off. docs/tuning.md rows; unit test
+`dspark_default_only_where_measured`. It is cherry-picked onto ink/mtp only if #10991 shows on >= off at every length. #10990
+checks default-on ids against `--spec off`, plus greedy ids and `plan show` with `INTARSIA_SPEC_DEFAULT=0` against a3b72495b.
+
+### Verify per-op attribution (#10990, attribution only)
+
+One greedy prompt x 64 tokens, gate 0 (every pass verifies k + 1 rows), `--profile-every 1`. Every op is synced and timed, so
+the absolute ms are inflated (79 ms per step against 16 ms untimed). Only the shares and growth mean anything. ms per pass:
+
+| op | 1 row (off) | 2 rows (k1) | 3 rows (k2) | 4 rows (k3) |
+|---|---:|---:|---:|---:|
+| moe_experts (NVFP4 visits) | 11.9 | 16.7 | 20.5 | 23.1 |
+| moe_experts_mxfp8 | 1.4 | 2.2 | 2.9 | 3.1 |
+| conv_mix | 15.7 | 17.1 | 17.3 | 17.8 |
+| ink_in_proj | 10.1 | 11.0 | 11.6 | 11.6 |
+| logits (target head + draft GEMVs) | 8.6 | 9.6 | 9.7 | 10.0 |
+| ink_attn_decode | 8.1 | 8.6 | 8.4 | 8.7 |
+| moe_route | 6.9 | 7.5 | 7.3 | 7.5 |
+| matmul (target + draft) | 7.9 | 13.0 | 13.5 | 13.5 |
+
+Going from 1 to 4 rows, the target's ops grow by about 18 ms (profiled). The experts are about 13 ms of that (70%), following
+the expert union (8 -> 18.9 experts per visit at 4 rows, section 1). Attention, routing and in_proj barely move. The next lever
+is the expert pass at 2-4 rows (a union-fused experts kernel that reads each expert once for all rows), not AttnDecode.
+
+### Flip checks (#10990, flip binary f130b8855) and serve smoke (#10996)
+
+- Default on (no `--spec`): the 12 greedy prompts x 128 and both prose texts give the same ids as `--spec off`. The loader
+  prints the DSpark default line (k3; 459 passes, 72.0% acceptance, 2.54 tokens per pass).
+- `INTARSIA_SPEC_DEFAULT=0`: no verify passes. Greedy ids md5 439a1865723f2bca3b6508f864e24af1 is the same as `--spec off` on
+  a3b72495b, and `plan show` matches a3b72495b.
+- serve smoke (a3b72495b, DSpark k3 gate 0.8, admitted kernels only; admission checked 33 kernels, 220 cases): a 1425-token
+  greedy request returns HTTP 200 with 13 verify passes. The 16k request was over the 20480 context, so it was not run; the
+  16456-token localeval cell in #10991 covers that length.
+- Identity at a3b72495b: tiny Metal tests 3 / 3 pass, and greedy k2, k3, k3 bf16 head and prose k3 all match `--spec off`.
+
+### localeval speed-plain, spec off vs DSpark k3 gate 0.8 (#10991, `--quiet gpu,cpu`, a3b72495b, serve --max-batch 1)
+
+Decode and prefill tok/s, median (range):
+
+| prompt tok | decode off | decode DSpark | x | prefill off | prefill DSpark | TTFT off / DSpark s |
+|---:|---:|---:|---:|---:|---:|---:|
+| 142 | 63.6 (63.6-63.9) | 80.2 (77.3-90.2) | 1.26 | - | - | 0.15 / 0.16 |
+| 1021 | 61.6 (61.1-61.7) | 77.5 (70.6-81.2) | 1.26 | 1265 | 1270 | 0.81 / 0.81 |
+| 4108 | 60.9 (60.4-60.9) | 87.5 (78.9-111.9) | 1.44 | 1481 | 1376 | 2.78 / 2.98 |
+| 16455 | 57.1 (56.2-57.1) | 72.1 (69.9-74.3) | 1.26 | 1466 | 1375 | 11.22 / 11.97 |
+
+Server counters, DSpark arm: 2255 verify passes, 4517 proposed, 3486 accepted (77%, 2.55 tokens per pass). Off arm: 0.
+
+- Decode: DSpark is faster at every length, and its slowest rep beats off's fastest at every length.
+- Prefill: DSpark is 7% / 6% slower at 4k / 16k (TTFT +0.2 s / +0.75 s). The draft's context ingest (projections of every
+  prompt row into its 3 layers' caches) runs after each prefill chunk.
+- Suite status: neither run is a suite result. Off had its 1024 cell rejected for prefill spread. DSpark had its 128 / 1024 /
+  4096 cells rejected for decode spread (acceptance varies by content, so per-request decode varies), and its arm was relabelled
+  `spec:unknown` because the run was not labelled as a spec lane.
+- Flip: not applied. The brief's "on >= off at every length" holds for decode but not for prefill at 4k / 16k, so it goes to the
+  coordinator (f130b8855 stays on `ink/mtp-flip`).
+
+### Prompt-time ingest (brief of 2026-11-22)
+
+(1) Requests that can never speculate. A sampled request (temperature > 0, the serve default t1.0) has `spec_on = false`
+(`engine.rs`: `spec_on` requires `greedy`), so its draft state is admitted with `active = false`, and
+`dflash_after_forward` returns before any ingest. The draft never ingested sampled prompts. A batched server cannot load the
+draft at all (`--spec dflash` with `--max-batch` > 1 is refused, and the default needs `--max-batch` <= 1). One cost did remain:
+`ink_pass` copied the four taps into the staging buffers on every pass whenever the draft was loaded (4 x t x H bf16 per pass).
+These copies now run only when the request drafts.
+
+(2) Greedy. (i) does not apply in full: draft layers 0 and 2 are windowed (1024), but layer 1 attends the whole context, so
+every prompt row needs its layer-1 K/V. Instead the ingest no longer goes through the host:
+- the taps are one tap-major buffer per pass;
+- each layer's mix is `HcPre` with the fixed softmax(fuse_weight) weights, then `RmsNorm` with its `dflare_norm`;
+- `f_rnn` goes into a per-sequence device ring, and the draft reads its row there;
+- the decode-row stash is row-major `[rows, taps, H]`, so a 1-row pass is one copy and a flush is one `HcPre` over the stash.
+
+Before, the ingest was one host sync per prefill chunk, four tap downloads, the host mixes and three uploads; now it is device
+work in the chunk's command stream ((ii)). The new Metal kernel `hc_pre_bf16` serves the existing op `HcPre` (no new op): an
+f32 fma chain over the taps, one bf16 rounding, bitwise the host sum (test `hc_pre_matches_host_sum`). The mix now rounds to
+bf16 once before the norm, which the host version did not; drafts only propose, so this can move acceptance but never a token.
+
+RESULTS_PLACEHOLDER

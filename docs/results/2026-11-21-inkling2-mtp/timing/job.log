@@ -1,0 +1,33 @@
+fleetq: #10806 waiting (#10 in line): in line behind #10749 "intarsiaml inkling m-mix: blend geometry + NE4 sweep" (claude-57ee98d5) on endor
+fleetq:   #10749 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10749 set, or it will wait for #10749 to be released.
+fleetq: #10806 waiting (#7 in line): in line behind #10756 "intarsiaml inkling metal: per-dispatch decode trace" (claude-57ee98d5) on endor
+fleetq:   #10756 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10756 set, or it will wait for #10756 to be released.
+fleetq: #10806 waiting (#6 in line): in line behind #10764 "intarsiaml inkling fp8: dense projection microbench (bf16 vs fp8 vs mxfp4)" (claude-57ee98d5) on endor
+fleetq:   #10764 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10764 set, or it will wait for #10764 to be released.
+fleetq: #10806 waiting (#5 in line): in line behind #10770 "intarsiaml inkling fp8: full-model Metal decode tok/s per quant mode" (claude-57ee98d5) on endor
+fleetq:   #10770 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10770 set, or it will wait for #10770 to be released.
+fleetq: #10806 waiting (#4 in line): in line behind #10773 "intarsiaml inkling batch: real-model batch_step 1-16 streams" (claude-57ee98d5) on endor
+fleetq:   #10773 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10773 set, or it will wait for #10773 to be released.
+fleetq: #10806 waiting (#3 in line): in line behind #10779 "intarsiaml inkling prefill: build + MoE nax2/nax3 admission + sweep + e2e baseline" (claude-57ee98d5) on endor
+fleetq:   #10779 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10779 set, or it will wait for #10779 to be released.
+fleetq: #10806 waiting (#2 in line): in line behind #10781 "intarsiaml inkling metal: intarsia serve + bench speed + localeval speed-plain/conc-plain-1k" (claude-57ee98d5) on endor
+fleetq:   #10781 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10781 set, or it will wait for #10781 to be released.
+fleetq: #10806 waiting (#1 in line): needs gpu quiet on endor, but #10781 "intarsiaml inkling metal: intarsia serve + bench speed + localeval speed-plain/conc-plain-1k" (claude-57ee98d5) loads it
+fleetq:   #10781 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10781 set, or it will wait for #10781 to be released.
+fleetq: #10806 running on endor: .scratch/timing.sh
+greedy.k1_t0.6_mxfp4 same (12 prompts) | decode overall: 1501 tokens after the first, 23558 ms (63.71 tok/s) | spec: verify passes=711 proposed=711 accepted=566 (acceptance 79.6%, 1.80 tokens per pass)
+greedy.k2_t0.6_mxfp4 same (12 prompts) | decode overall: 1501 tokens after the first, 21062 ms (71.27 tok/s) | spec: verify passes=584 proposed=1063 accepted=716 (acceptance 67.4%, 2.23 tokens per pass)
+greedy.k3_t0.6 same (12 prompts) | decode overall: 1501 tokens after the first, 21912 ms (68.50 tok/s) | spec: verify passes=543 proposed=1333 accepted=759 (acceptance 56.9%, 2.40 tokens per pass)
+greedy.k3_t0.6_bf16 same (12 prompts) | decode overall: 1501 tokens after the first, 22364 ms (67.12 tok/s) | spec: verify passes=535 proposed=1315 accepted=785 (acceptance 59.7%, 2.47 tokens per pass)
+greedy.k3_t0.6_fp8layers same (12 prompts) | decode overall: 1501 tokens after the first, 23460 ms (63.98 tok/s) | spec: verify passes=545 proposed=1334 accepted=767 (acceptance 57.5%, 2.41 tokens per pass)
+greedy.k3_t0.8_mxfp4 same (12 prompts) | decode overall: 1501 tokens after the first, 21549 ms (69.65 tok/s) | spec: verify passes=457 proposed=989 accepted=709 (acceptance 71.7%, 2.55 tokens per pass)
+greedy.k4_t0.6_mxfp4 same (12 prompts) | decode overall: 1501 tokens after the first, 21679 ms (69.24 tok/s) | spec: verify passes=516 proposed=1518 accepted=790 (acceptance 52.0%, 2.53 tokens per pass)
+greedy.k7_t0.6_mxfp4 same (12 prompts) | decode overall: 1501 tokens after the first, 23544 ms (63.75 tok/s) | spec: verify passes=499 proposed=1927 accepted=813 (acceptance 42.2%, 2.63 tokens per pass)
+greedy.off same (12 prompts) | decode overall: 1501 tokens after the first, 24929 ms (60.21 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+greedy.prof same (12 prompts) | decode overall: 1501 tokens after the first, 21664 ms (69.28 tok/s) | spec: verify passes=543 proposed=1333 accepted=759 (acceptance 56.9%, 2.40 tokens per pass)
+prose.k3_t0.6 same (2 prompts) | decode overall: 254 tokens after the first, 3849 ms (66.00 tok/s) | spec: verify passes=83 proposed=185 accepted=110 (acceptance 59.5%, 2.33 tokens per pass)
+prose.k7_t0.6 same (2 prompts) | decode overall: 254 tokens after the first, 4013 ms (63.30 tok/s) | spec: verify passes=77 proposed=256 accepted=117 (acceptance 45.7%, 2.52 tokens per pass)
+prose.off same (2 prompts) | decode overall: 254 tokens after the first, 4126 ms (61.55 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+draft per cycle (n=522): flush 0.00 block 2.64 head 1.34 markov 0.70 | cycle wall 37.77 ms
+ingest (n=736): target sync 0.04 ingest 0.94 ms
+fleetq: #10806 done (exit 0)

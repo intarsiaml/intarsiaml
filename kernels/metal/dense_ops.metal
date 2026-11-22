@@ -101,6 +101,23 @@ kernel void add_bf16(device const ushort* a [[buffer(0)]],
     out[p.s2 + gid] = f2bf(bf2f(a[p.s0 + gid]) + bf2f(b[p.s1 + gid]));
 }
 
+// ---- HcPre: out[t,:] = sum_s mix[t,s] * x[t,s,:] (f32 fma chain over s in order, one rounding) -------------------------------
+// bind: 0 x (bf16 [T,S,D]), 1 mix (f32 [T,S]), 2 out (bf16 [T,D]). a = T, b = S, c = D. s0..s2 skips. (Lane ink-mtp: the
+// DSpark draft's fixed four-tap mix, T = 1 with D = rows * H, or T = rows with D = H.)
+kernel void hc_pre_bf16(device const ushort* x [[buffer(0)]],
+                        device const float* mix [[buffer(1)]],
+                        device ushort* out [[buffer(2)]],
+                        constant OpP& p [[buffer(3)]],
+                        uint gid [[thread_position_in_grid]]) {
+    if (gid >= p.a * p.c) return;
+    const uint row = gid / p.c, col = gid % p.c;
+    float acc = 0.0f;
+    for (uint s = 0; s < p.b; s++) {
+        acc = fma(mix[p.s1 + row * p.b + s], bf2f(x[p.s0 + ((ulong)row * p.b + s) * p.c + col]), acc);
+    }
+    out[p.s2 + gid] = f2bf(acc);
+}
+
 // ---- SiluGlu: out = silu(gate) * up ---------------------------------------------------------------------------------
 // bind: 0 gate, 1 up, 2 out. a = element count. s0..s2 skips.
 kernel void silu_glu_bf16(device const ushort* g [[buffer(0)]],

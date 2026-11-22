@@ -1,0 +1,872 @@
+//! Inkling-2 DSpark drafter (`mtp.safetensors`, `--spec dflash --spec-draft <model dir>`), lane ink-mtp,
+//! docs/results/2026-11-21-inkling2-mtp.md. Numerics authority: vLLM's `models/inkling2/nvidia/dspark.py`, `ops/dspark.py` and
+//! `speculator.py`; the Python oracle is `tools/inkling2_dspark_ref.py`.
+//!
+//! ```text
+//!   taps    the partial entering target visits 5, 23, 41 and the final-norm output (`target_layer_ids` 5, 23, 41, 48),
+//!           exported by `ink_pass` into the DFlash staging buffers `feat[0..4]`
+//!   context per draft layer i: ctx_i = rms(sum_j softmax(fuse_weight)[i, j] tap_j; dflare_norm_i)
+//!           K_i(p) = rope(k_norm_ctx(k_proj_ctx ctx_i)), V_i(p) = v_proj_ctx ctx_i       (cache slot i, absolute position p)
+//!           f_rnn(p) = rms(sum_j softmax(fuse_weight)[3, j] tap_j; markov dflare_norm)  (a device ring by position, per sequence)
+//!   block   rows [embed_norm(embed(anchor)), mask_embed x 7] at positions P .. P + 7 (P = target length); pre-norm dense layers
+//!           with q / k RMSNorm + neox rope (theta 1e6); every row sees all 8 block keys and the context (local layers 0, 2: the
+//!           1024 positions before the block), i.e. one `AttnDecode` per row at P + 7 with window 1032 (0: all keys)
+//!   head    mask row i + 1 drafts the token at P + i + 1: base = unembed(h_{i+1}); Markov (rank 256) step i:
+//!           raw = b + W [state, w1[prev], h_{i+1}, f_rnn(P - 1)], gate / cand / out = raw thirds (rounded to bf16),
+//!           state = sigma(gate) state + (1 - sigma(gate)) tanh(cand), latent = tanh(out),
+//!           logits = 30 tanh(bf(base + fold(latent)) / 30), fold = unembed . hidden_out folded at load ([V, 256] + [V])
+//!   gate    (lane ink-mtp) drafting stops at the first step whose top-1 probability is below `INTARSIA_DSPARK_TAU`
+//! ```
+//!
+//! The mixes, the Markov recurrence and the logits' reduction run on the host (a few vectors per step); the projections, attention,
+//! MLPs, the unembed and the fold GEMV run on the device with existing ops. Drafts never change the output (every emitted token is
+//! a verify row's argmax), the draft's numerics only move the acceptance rate.
+
+use super::*;
+use crate::state::DflashState;
+
+/// Host ring of `f_rnn` rows (by position): a draft reads the row of the last committed position, which a rollback keeps.
+pub(super) const FRNN_RING: usize = 64;
+/// Rows of a draft block (anchor + masks); the masks are the proposals.
+pub(super) const BLOCK: usize = 8;
+/// Rows of the device mix weights (`Dspark::mixw`): the most rows a row-major ingest (a flush of stashed decode rows) takes.
+const MIX_ROWS: usize = 512;
+/// Default confidence gate (`INTARSIA_DSPARK_TAU`): measured on the oracle, docs/results/2026-11-21-inkling2-mtp.md.
+const TAU_DEFAULT: f32 = 0.6;
+
+/// `mtp_config` of the target's `config.json` (the loader's `open_dflash`).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct DsparkConfig {
+    pub n_layers: usize,
+    pub n_heads: usize,
+    pub n_kv_heads: usize,
+    pub head_dim: usize,
+    pub intermediate: usize,
+    pub eps: f32,
+    pub theta: f32,
+    pub local: Vec<usize>,
+    pub window: usize,
+    pub block: usize,
+    pub rank: usize,
+    /// Target visits whose input partial is tapped; the last entry (one past the last visit) is the final-norm output.
+    pub taps: Vec<usize>,
+    pub softcap: f32,
+}
+
+pub(super) struct DsLayer {
+    ln1: TensorRef,
+    ln2: TensorRef,
+    wq: QTensor,
+    wk: QTensor,
+    wv: QTensor,
+    wo: QTensor,
+    q_norm: TensorRef,
+    k_norm: TensorRef,
+    k_norm_ctx: TensorRef,
+    wk_ctx: QTensor,
+    wv_ctx: QTensor,
+    gate: QTensor,
+    up: QTensor,
+    down: QTensor,
+    local: bool,
+}
+
+pub(super) struct Dspark {
+    c: DsparkConfig,
+    layers: Vec<DsLayer>,
+    norm: TensorRef,
+    /// `[7, H]` mask rows, copied into block rows 1..8.
+    masks: TensorRef,
+    /// softmax(fuse_weight) as the device `HcPre` mixes: per draft layer and then the Markov head's, f32 `[MIX_ROWS, taps]`
+    /// (the same row repeated, so a row-major call of up to `MIX_ROWS` rows reads its row's weights).
+    mixw: Vec<Buffer>,
+    /// the context `dflare_norm` weights per draft layer, then the Markov head's (device, bf16)
+    dflare: Vec<TensorRef>,
+    /// rnn_proj split by columns: `[state | prev]` on the host (f32 `[3r, 2r]`), `hidden` and `f_rnn` on the device (bf16).
+    w_sp: Vec<f32>,
+    w_h: TensorRef,
+    w_f: TensorRef,
+    rnn_bias: Vec<f32>,
+    /// `markov_w1` `[V_padded, r]` bf16 bits (host).
+    w1: Vec<u16>,
+    /// Folded `unembed . hidden_out`: weight `[V, r]` (device), bias `[V]` (host, bf16-rounded).
+    fold_w: QTensor,
+    fold_b: Vec<f32>,
+    /// `INTARSIA_DSPARK_HEAD` (`mxfp4` default, `fp8`, `bf16`): the draft's own quantised copy of the target unembed for the base
+    /// logits (the draft only proposes, so its head needs no exactness; mxfp4 reads 0.24 GB per cycle instead of 0.92). `None`: the
+    /// target's bf16 head.
+    head: Option<QTensor>,
+    /// Host copy of the fold weight (`[V, r]` bf16 bits), for the candidate head.
+    fold_host: Vec<u16>,
+    /// `INTARSIA_DSPARK_CAND` (default 64): the Markov bias is applied to each step's top-`cand` base logits only (the base read
+    /// once per cycle, every step on the host); 0: the exact head (the full fold GEMV and both rows downloaded every step).
+    cand: usize,
+    /// The device top-k failed once (a backend without `topk_rows`): the host takes the candidates from then on.
+    host_topk: std::sync::atomic::AtomicBool,
+    tau: f32,
+    bufs: DsBufs,
+}
+
+/// Where a DSpark ingest reads its taps: one pass's staging buffer (tap-major, `Model::ink_pass`) or a sequence's stash of
+/// decode rows (row-major `[rows, taps, H]`, `Model::dflash_stash`).
+#[derive(Clone, Copy)]
+pub(super) enum DsSrc<'a> {
+    Taps(&'a Buffer),
+    Rows(&'a Buffer),
+}
+
+struct DsBufs {
+    x: [Buffer; 2],
+    n: Buffer,
+    o: Buffer,
+    q: [Buffer; 2],
+    k: [Buffer; 2],
+    v: Buffer,
+    ao: Buffer,
+    g: Buffer,
+    u: Buffer,
+    a: Buffer,
+    emb: Buffer,
+    /// context ingest: `[rows, H]` mixes (act, one per draft layer), the unnormed mix, `[rows, kvdim]` k / v
+    cx: Vec<Buffer>,
+    mx: Buffer,
+    ik: [Buffer; 2],
+    iv: Buffer,
+    /// head: base logits `[7, V]` (act), fold output `[1, V]`, latent `[1, r]`, f_rnn `[1, H]`, context parts (f32)
+    base: Buffer,
+    fold: Buffer,
+    latent: Buffer,
+    frnn: Buffer,
+    hw: Buffer,
+    fw: Buffer,
+    /// device top-k of the base rows (`Backend::topk_rows`): ids i32 `[7, cand]`, values f32 `[7, cand]`, NaN flags, scratch
+    tk: [Buffer; 4],
+}
+
+fn bf16_bits(x: f32) -> u16 {
+    let b = x.to_bits();
+    if x.is_nan() {
+        return 0x7fc0;
+    }
+    ((b + 0x7fff + ((b >> 16) & 1)) >> 16) as u16
+}
+
+fn rbf(x: f32) -> f32 {
+    f32::from_bits((bf16_bits(x) as u32) << 16)
+}
+
+fn from_bits(b: u16) -> f32 {
+    f32::from_bits((b as u32) << 16)
+}
+
+/// `a . b` with eight independent partial sums (so the compiler vectorises it).
+fn dot8(a: &[f32], b: &[f32]) -> f32 {
+    let mut acc = [0f32; 8];
+    let (ca, cb) = (a.chunks_exact(8), b.chunks_exact(8));
+    let (ra, rb) = (ca.remainder(), cb.remainder());
+    for (x, y) in ca.zip(cb) {
+        for l in 0..8 {
+            acc[l] += x[l] * y[l];
+        }
+    }
+    acc.iter().sum::<f32>() + ra.iter().zip(rb).map(|(x, y)| x * y).sum::<f32>()
+}
+
+fn dot8_bf16(a: &[u16], b: &[f32]) -> f32 {
+    let mut acc = [0f32; 8];
+    let (ca, cb) = (a.chunks_exact(8), b.chunks_exact(8));
+    let (ra, rb) = (ca.remainder(), cb.remainder());
+    for (x, y) in ca.zip(cb) {
+        for l in 0..8 {
+            acc[l] += from_bits(x[l]) * y[l];
+        }
+    }
+    acc.iter().sum::<f32>() + ra.iter().zip(rb).map(|(x, y)| from_bits(*x) * y).sum::<f32>()
+}
+
+fn sigmoid(x: f32) -> f32 {
+    1.0 / (1.0 + (-x).exp())
+}
+
+/// A host f32 vector of a bf16 / f32 tensor.
+fn host_f32(src: &dyn WeightSource, name: &str, shape: &[usize]) -> Result<Vec<f32>> {
+    let info = src.info(name).ok_or_else(|| Error::model(format!("DSpark tensor '{name}' missing")))?;
+    if info.shape != shape {
+        return Err(Error::model(format!("DSpark tensor '{name}' is {:?}, expected {shape:?}", info.shape)));
+    }
+    let raw = src.bytes(name)?;
+    let mut out = vec![0f32; shape.iter().product()];
+    crate::dtype::decode_to_f32(info.dtype, raw, &mut out);
+    Ok(out)
+}
+
+fn upload_bf16(b: &dyn Backend, add_bytes: &dyn Fn(u64), vals: &[f32], shape: &[usize]) -> Result<TensorRef> {
+    let bytes: Vec<u8> = vals.iter().flat_map(|&v| bf16_bits(v).to_le_bytes()).collect();
+    add_bytes(bytes.len() as u64);
+    Ok(TensorRef::new(crate::backend::upload_new(b, &bytes)?, DType::Bf16, shape))
+}
+
+/// `unembed[0..v] . hidden_out` (`[v, r]`) and `unembed . hidden_out_bias` (`[v]`), f32 accumulation over the bf16 inputs, rounded
+/// to bf16 (vLLM folds in fp64; the difference only moves draft logits by a bf16 ulp), on all host cores.
+fn fold(unembed: &[u8], v: usize, h: usize, ho_w: &[f32], ho_b: &[f32], r: usize) -> (Vec<u16>, Vec<f32>) {
+    // ho_w is [h, r]: transpose to [r, h] so each output is a contiguous dot product
+    let mut wt = vec![0f32; r * h];
+    for d in 0..h {
+        for j in 0..r {
+            wt[j * h + d] = ho_w[d * r + j];
+        }
+    }
+    let mut fw = vec![0u16; v * r];
+    let mut fb = vec![0f32; v];
+    let threads = std::thread::available_parallelism().map_or(4, |n| n.get()).min(32);
+    let per = v.div_ceil(threads);
+    std::thread::scope(|sc| {
+        for (ci, (wc, bc)) in fw.chunks_mut(per * r).zip(fb.chunks_mut(per)).enumerate() {
+            let wt = &wt;
+            sc.spawn(move || {
+                let mut row = vec![0f32; h];
+                for (i, b) in bc.iter_mut().enumerate() {
+                    let vi = ci * per + i;
+                    let src = &unembed[vi * h * 2..(vi + 1) * h * 2];
+                    for (x, c) in row.iter_mut().zip(src.chunks_exact(2)) {
+                        *x = from_bits(u16::from_le_bytes([c[0], c[1]]));
+                    }
+                    for j in 0..r {
+                        let w = &wt[j * h..(j + 1) * h];
+                        let s: f32 = row.iter().zip(w).map(|(a, b)| a * b).sum();
+                        wc[i * r + j] = bf16_bits(s);
+                    }
+                    *b = rbf(row.iter().zip(ho_b).map(|(a, b)| a * b).sum());
+                }
+            });
+        }
+    });
+    (fw, fb)
+}
+
+/// The DSpark draft onto the device (`dflash::load_head` with `DflashConfig::dspark`). `target` is the target checkpoint (its unembed
+/// is folded into the Markov head here); `rows` the most context rows one ingest takes.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn load(
+    dl: &super::dflash::DflashLoad,
+    c: &DsparkConfig,
+    target: &dyn WeightSource,
+    unembed_name: &str,
+    b: &dyn Backend,
+    dims: &ModelDims,
+    add_bytes: &dyn Fn(u64),
+    rows: usize,
+    act: DType,
+) -> Result<(Dspark, Vec<Buffer>)> {
+    let src = &*dl.src;
+    let (h, hd, r) = (dims.hidden, c.head_dim, c.rank);
+    if act != DType::Bf16 {
+        return Err(Error::Unsupported(format!("the DSpark draft with {act} activations (bf16 only)")));
+    }
+    if c.taps.len() != 4 || c.n_heads % c.n_kv_heads.max(1) != 0 || c.block != BLOCK || c.n_layers == 0 {
+        return Err(Error::model(format!("DSpark config {c:?}: needs 4 taps, block {BLOCK}, whole GQA groups")));
+    }
+    let (qdim, kvdim, inter) = (c.n_heads * hd, c.n_kv_heads * hd, c.intermediate);
+    // `INTARSIA_DSPARK_LAYERS=fp8` (opt-in): the draft layers' projections as e4m3 with one scale per tensor (W8A16), half the
+    // bytes of the block pass; drafts only propose, so this moves acceptance, never the output
+    let layers_fp8 = std::env::var("INTARSIA_DSPARK_LAYERS").is_ok_and(|v| v.trim() == "fp8");
+    let lin = |p: &str, n: usize, k: usize| -> Result<QTensor> {
+        if !layers_fp8 {
+            return super::dflash::lin(src, b, add_bytes, p, n, k);
+        }
+        let name = format!("{p}.weight");
+        let info = src.info(&name).ok_or_else(|| Error::model(format!("DSpark tensor '{name}' missing")))?;
+        if info.shape != [n, k] {
+            return Err(Error::model(format!("DSpark tensor '{name}' is {:?}, expected [{n}, {k}]", info.shape)));
+        }
+        let hq = crate::quant::head::quantize_host(crate::quant::head::HeadQuant::Fp8, info.dtype, src.bytes(&name)?, n, k, 0, n)?;
+        let q = hq.upload(b)?;
+        add_bytes(q.parts.iter().map(|t| t.nbytes() as u64).sum());
+        Ok(q)
+    };
+    let norm_w = |name: &str, n: usize| -> Result<TensorRef> {
+        let t = load_tensor(b, src, name, Some(&[n]))?;
+        add_bytes(t.nbytes() as u64);
+        Ok(t)
+    };
+    let mut layers = Vec::with_capacity(c.n_layers);
+    for l in 0..c.n_layers {
+        let p = format!("layers.{l}");
+        layers.push(DsLayer {
+            ln1: norm_w(&format!("{p}.input_layernorm.weight"), h)?,
+            ln2: norm_w(&format!("{p}.post_attention_layernorm.weight"), h)?,
+            wq: lin(&format!("{p}.self_attn.q_proj"), qdim, h)?,
+            wk: lin(&format!("{p}.self_attn.k_proj"), kvdim, h)?,
+            wv: lin(&format!("{p}.self_attn.v_proj"), kvdim, h)?,
+            wo: lin(&format!("{p}.self_attn.o_proj"), h, qdim)?,
+            q_norm: norm_w(&format!("{p}.self_attn.q_norm.weight"), hd)?,
+            k_norm: norm_w(&format!("{p}.self_attn.k_norm.weight"), hd)?,
+            k_norm_ctx: norm_w(&format!("{p}.self_attn.k_norm_ctx.weight"), hd)?,
+            wk_ctx: lin(&format!("{p}.self_attn.k_proj_ctx"), kvdim, h)?,
+            wv_ctx: lin(&format!("{p}.self_attn.v_proj_ctx"), kvdim, h)?,
+            gate: lin(&format!("{p}.mlp.gate_proj"), inter, h)?,
+            up: lin(&format!("{p}.mlp.up_proj"), inter, h)?,
+            down: lin(&format!("{p}.mlp.down_proj"), h, inter)?,
+            local: c.local.contains(&l),
+        });
+    }
+    let norm = norm_w("norm.weight", h)?;
+    let mask = host_f32(src, "mask_embed", &[h])?;
+    let masks = upload_bf16(b, add_bytes, &mask.repeat(BLOCK - 1), &[BLOCK - 1, h])?;
+    let nt = c.taps.len();
+    let fw = host_f32(src, "fuse_weight", &[c.n_layers + 1, nt])?;
+    let mut alpha = vec![0f32; fw.len()];
+    for (o, row) in alpha.chunks_mut(nt).zip(fw.chunks(nt)) {
+        let m = row.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+        let s: f32 = row.iter().map(|x| (x - m).exp()).sum();
+        for (a, x) in o.iter_mut().zip(row) {
+            *a = (x - m).exp() / s;
+        }
+    }
+    let wr = host_f32(src, "markov_head.rnn_proj.weight", &[3 * r, 2 * r + 2 * h])?;
+    let rnn_bias = host_f32(src, "markov_head.rnn_proj.bias", &[3 * r])?;
+    let width = 2 * r + 2 * h;
+    let cols = |lo: usize, n: usize| -> Vec<f32> { (0..3 * r).flat_map(|i| wr[i * width + lo..i * width + lo + n].to_vec()).collect() };
+    let w_sp = cols(0, 2 * r);
+    let w_h = upload_bf16(b, add_bytes, &cols(2 * r, h), &[3 * r, h])?;
+    let w_f = upload_bf16(b, add_bytes, &cols(2 * r + h, h), &[3 * r, h])?;
+    let w1_info = src.info("markov_head.markov_w1.weight").ok_or_else(|| Error::model("DSpark tensor 'markov_head.markov_w1.weight' missing"))?;
+    if w1_info.dtype != DType::Bf16 || w1_info.shape.len() != 2 || w1_info.shape[1] != r || w1_info.shape[0] < dims.vocab {
+        return Err(Error::model(format!("DSpark markov_w1 is {} {:?}, expected bf16 [>= {}, {r}]", w1_info.dtype, w1_info.shape, dims.vocab)));
+    }
+    let w1: Vec<u16> = src.bytes("markov_head.markov_w1.weight")?.chunks_exact(2).map(|x| u16::from_le_bytes([x[0], x[1]])).collect();
+    // the fold of the target's unembed (its first `dims.vocab` rows, the ones the model's head uses)
+    let ui = target.info(unembed_name).ok_or_else(|| Error::model(format!("DSpark fold: target tensor '{unembed_name}' missing")))?;
+    if ui.dtype != DType::Bf16 || ui.shape.len() != 2 || ui.shape[1] != h || ui.shape[0] < dims.vocab {
+        return Err(Error::model(format!("DSpark fold: '{unembed_name}' is {} {:?}, expected bf16 [>= {}, {h}]", ui.dtype, ui.shape, dims.vocab)));
+    }
+    let ho_w = host_f32(src, "markov_head.hidden_out.weight", &[h, r])?;
+    let ho_b = host_f32(src, "markov_head.hidden_out.bias", &[h])?;
+    let t0 = Instant::now();
+    let (fw_bits, fold_b) = fold(target.bytes(unembed_name)?, dims.vocab, h, &ho_w, &ho_b, r);
+    let fbytes: Vec<u8> = fw_bits.iter().flat_map(|x| x.to_le_bytes()).collect();
+    add_bytes(fbytes.len() as u64);
+    let fold_w = QTensor {
+        format: crate::quant::BF16,
+        n: dims.vocab,
+        k: r,
+        parts: vec![TensorRef::new(crate::backend::upload_new(b, &fbytes)?, DType::Bf16, &[dims.vocab, r])],
+        act_fp8: false,
+        act_quant: false,
+    };
+    eprintln!("dspark: Markov fold [{} x {r}] in {:.1} s", dims.vocab, t0.elapsed().as_secs_f64());
+    let hq = std::env::var("INTARSIA_DSPARK_HEAD").unwrap_or_else(|_| "mxfp4".into());
+    let kind = match hq.trim() {
+        "mxfp4" => Some(crate::quant::head::HeadQuant::Mxfp4),
+        "fp8" => Some(crate::quant::head::HeadQuant::Fp8),
+        "bf16" | "0" | "off" | "" => None,
+        other => return Err(Error::invalid(format!("INTARSIA_DSPARK_HEAD={other}: mxfp4, fp8 or bf16"))),
+    };
+    let head = match kind {
+        Some(kind) => {
+            let t1 = Instant::now();
+            let n_all = ui.shape[0];
+            let hq = crate::quant::head::quantize_host(kind, DType::Bf16, target.bytes(unembed_name)?, n_all, h, 0, dims.vocab)?;
+            let q = hq.upload(b)?;
+            add_bytes(q.parts.iter().map(|p| p.nbytes() as u64).sum());
+            eprintln!("dspark: draft head {} [{} x {h}] in {:.1} s", kind.name(), dims.vocab, t1.elapsed().as_secs_f64());
+            Some(q)
+        }
+        None => None,
+    };
+    let es = act.size_bytes();
+    let alloc = |elems: usize| -> Result<Buffer> {
+        add_bytes((elems * es) as u64);
+        b.alloc((elems * es).max(16), MemKind::Device)
+    };
+    let f32buf = |elems: usize| -> Result<Buffer> {
+        add_bytes((elems * 4) as u64);
+        b.alloc((elems * 4).max(16), MemKind::Device)
+    };
+    let t = BLOCK;
+    let bufs = DsBufs {
+        x: [alloc(t * h)?, alloc(t * h)?],
+        n: alloc(t * h)?,
+        o: alloc(t * h)?,
+        q: [alloc(t * qdim)?, alloc(t * qdim)?],
+        k: [alloc(t * kvdim)?, alloc(t * kvdim)?],
+        v: alloc(t * kvdim)?,
+        ao: alloc(t * qdim)?,
+        g: alloc(t * inter)?,
+        u: alloc(t * inter)?,
+        a: alloc(t * inter)?,
+        emb: alloc(h)?,
+        cx: (0..c.n_layers).map(|_| alloc(rows.max(MIX_ROWS) * h)).collect::<Result<_>>()?,
+        mx: alloc(rows.max(MIX_ROWS) * h)?,
+        ik: [alloc(rows.max(MIX_ROWS) * kvdim)?, alloc(rows.max(MIX_ROWS) * kvdim)?],
+        iv: alloc(rows.max(MIX_ROWS) * kvdim)?,
+        base: alloc((BLOCK - 1) * dims.vocab)?,
+        fold: alloc(dims.vocab)?,
+        latent: alloc(r)?,
+        frnn: alloc(h)?,
+        hw: f32buf((BLOCK - 1) * 3 * r)?,
+        fw: f32buf(3 * r)?,
+        tk: [f32buf((BLOCK - 1) * 64)?, f32buf((BLOCK - 1) * 64)?, f32buf(BLOCK)?, f32buf((BLOCK - 1) * 32 * 64 * 2)?],
+    };
+    // the taps of one pass, tap-major: tap j of a `t`-row pass at rows `j * t ..` (`Model::ink_pass`)
+    let feat = vec![alloc(nt * rows * h)?];
+    let mut mixw = Vec::with_capacity(c.n_layers + 1);
+    for a in alpha.chunks(nt) {
+        let rep: Vec<u8> = a.repeat(MIX_ROWS).iter().flat_map(|x| x.to_le_bytes()).collect();
+        add_bytes(rep.len() as u64);
+        mixw.push(crate::backend::upload_new(b, &rep)?);
+    }
+    let mut dflare = Vec::with_capacity(c.n_layers + 1);
+    for l in 0..c.n_layers {
+        dflare.push(norm_w(&format!("layers.{l}.dflare_norm.weight"), h)?);
+    }
+    dflare.push(norm_w("markov_head.dflare_norm.weight", h)?);
+    let tau = std::env::var("INTARSIA_DSPARK_TAU").ok().and_then(|v| v.trim().parse::<f32>().ok()).unwrap_or(TAU_DEFAULT);
+    let ds = Dspark {
+        c: c.clone(),
+        layers,
+        norm,
+        masks,
+        mixw,
+        dflare,
+        w_sp,
+        w_h,
+        w_f,
+        rnn_bias,
+        w1,
+        fold_w,
+        fold_b,
+        fold_host: fw_bits,
+        head,
+        cand: std::env::var("INTARSIA_DSPARK_CAND").ok().and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(64).min(64),
+        host_topk: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DSPARK_DEVICE_TOPK").is_ok_and(|v| v == "0")),
+        tau,
+        bufs,
+    };
+    Ok((ds, feat))
+}
+
+impl Dspark {
+    pub(super) fn n_layers(&self) -> usize {
+        self.layers.len()
+    }
+
+    pub(super) fn norm_ref(&self) -> TensorRef {
+        self.norm.clone()
+    }
+
+    /// The local layers' sliding window (0: every layer sees all keys).
+    pub(super) fn window(&self) -> usize {
+        if self.layers.iter().any(|l| l.local) { self.c.window } else { 0 }
+    }
+
+    pub(super) fn taps(&self) -> &[usize] {
+        &self.c.taps
+    }
+
+    pub(super) fn slot_specs(&self) -> Vec<SlotSpec> {
+        (0..self.layers.len()).map(|_| SlotSpec::AttnKv { n_kv_heads: self.c.n_kv_heads, head_dim: self.c.head_dim, dtype: DType::Bf16 }).collect()
+    }
+}
+
+fn dspark_dump() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_DSPARK_DUMP").is_ok_and(|v| v.trim() == "1"))
+}
+
+fn dspark_profile() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_DSPARK_PROFILE").is_ok_and(|v| v == "1"))
+}
+
+fn ms(d: std::time::Duration) -> f64 {
+    d.as_secs_f64() * 1e3
+}
+
+impl Model {
+    fn ds_download(&self, b: &Buffer, dtype: DType, off_elems: usize, n: usize) -> Result<Vec<f32>> {
+        let es = dtype.size_bytes();
+        let mut raw = vec![0u8; n * es];
+        self.backend.download(b, off_elems * es, &mut raw, self.stream)?;
+        let mut out = vec![0f32; n];
+        crate::dtype::decode_to_f32(dtype, &raw, &mut out);
+        Ok(out)
+    }
+
+    fn ds_upload_bf16(&self, b: &Buffer, vals: &[f32]) -> Result<()> {
+        let bytes: Vec<u8> = vals.iter().flat_map(|&v| bf16_bits(v).to_le_bytes()).collect();
+        self.backend.upload(b, 0, &bytes, self.stream)
+    }
+
+    /// Context rows of `t` target positions (`kv.len ..`) from the tap buffers `src` into the draft caches, and their `f_rnn` rows
+    /// into the host ring.
+    /// Run `f` with the row-exact kernels selected (`OpCall::exact_rows`, the GEMV `_rows` family) when `rows` <= 16 and
+    /// `INTARSIA_DSPARK_ROWS_KERNELS` is not `0`: at 2-16 rows the generic GEMM kernels read the weights at about half the
+    /// bandwidth (lane dcp's measurement for the DFlash2 draft). A speed choice only: drafts never reach the output.
+    fn ds_rows<T>(&self, rows: usize, mut f: impl FnMut() -> Result<T>) -> Result<T> {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        let on = *ON.get_or_init(|| std::env::var("INTARSIA_DSPARK_ROWS_KERNELS").map_or(true, |v| v != "0"));
+        if !on || !(2..=16).contains(&rows) || self.exact_rows.load(std::sync::atomic::Ordering::Relaxed) {
+            return f();
+        }
+        static NO_KERNEL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+        if NO_KERNEL.load(std::sync::atomic::Ordering::Relaxed) {
+            return f();
+        }
+        self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        let r = f();
+        self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        match r {
+            // a shape the row-exact family does not cover (the tiny fixtures): the generic kernels from then on. The failed call
+            // wrote nothing a rerun does not overwrite: the block and ingest write their rows at absolute positions and the
+            // caches advance only at the end.
+            Err(Error::NoKernel(e)) => {
+                eprintln!("dspark: no row-exact kernel ({e}); the draft takes the generic kernels");
+                NO_KERNEL.store(true, std::sync::atomic::Ordering::Relaxed);
+                f()
+            }
+            r => r,
+        }
+    }
+
+    /// Run `f` on the generic kernels (`exact_rows` cleared) when `on`: the draft's small f32-output GEMVs and one-row calls, which
+    /// the row-exact family does not register (`logits` with m = 1).
+    fn ds_generic<T>(&self, on: bool, f: impl FnOnce() -> Result<T>) -> Result<T> {
+        let was = self.exact_rows.load(std::sync::atomic::Ordering::Relaxed);
+        if !on || !was {
+            return f();
+        }
+        self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        let r = f();
+        self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        r
+    }
+
+    pub(super) fn dspark_ingest(&self, ds: &Dspark, d: &mut DflashState, src: DsSrc, t: usize, profile: bool) -> Result<()> {
+        self.ds_rows(t, || self.dspark_ingest_inner(ds, d, src, t, profile))
+    }
+
+    /// On the device, in the stream of the target's pass (no host sync, lane ink-mtp): per draft layer the four-tap mix
+    /// (`HcPre` with softmax(fuse_weight), then `RmsNorm` with the layer's `dflare_norm`), `k_proj_ctx` / `v_proj_ctx`, `k_norm_ctx`
+    /// + RoPE, appended to the layer's cache; the Markov head's mix of the last `FRNN_RING` rows into the sequence's device ring.
+    fn dspark_ingest_inner(&self, ds: &Dspark, d: &mut DflashState, src: DsSrc, t: usize, profile: bool) -> Result<()> {
+        let (h, act) = (self.dims.hidden, self.act);
+        let (nkv, hd, nt) = (ds.c.n_kv_heads, ds.c.head_dim, ds.c.taps.len());
+        let prof = dspark_profile() && self.recorder.lock().unwrap().is_none();
+        let t0 = Instant::now();
+        if prof {
+            self.backend.synchronize(self.stream)?;
+        }
+        let t_sync = t0.elapsed();
+        let pos0 = d.kv.len;
+        // the taps as HcPre's x: tap-major `[1, taps, t * H]` (one pass's staging rows) or row-major `[t, taps, H]` (the stash)
+        let (x, mix, mxo) = match src {
+            DsSrc::Taps(b) => (self.view(b, act, &[1, nt, t * h]), [1, nt], self.view(&ds.bufs.mx, act, &[1, t * h])),
+            DsSrc::Rows(b) => (self.view(b, act, &[t, nt, h]), [t, nt], self.view(&ds.bufs.mx, act, &[t, h])),
+        };
+        if mix[0] > MIX_ROWS {
+            return Err(Error::invalid(format!("DSpark ingest of {t} stashed rows: more than {MIX_ROWS}")));
+        }
+        let mx = self.view(&ds.bufs.mx, act, &[t, h]);
+        let eps = OpAttrs { eps: ds.c.eps, w_offset: 0.0, ..Default::default() };
+        let premix = |m: usize| self.exec(Op::HcPre, vec![x.clone(), self.view(&ds.mixw[m], DType::F32, &mix)], vec![mxo.clone()], OpAttrs::default(), profile);
+        let k0 = self.view(&ds.bufs.ik[0], act, &[t, nkv, hd]);
+        let k1 = self.view(&ds.bufs.ik[1], act, &[t, nkv, hd]);
+        let v = self.view(&ds.bufs.iv, act, &[t, nkv, hd]);
+        for (li, l) in ds.layers.iter().enumerate() {
+            premix(li)?;
+            let cx = self.view(&ds.bufs.cx[li], act, &[t, h]);
+            self.exec(Op::RmsNorm, vec![mx.clone(), ds.dflare[li].clone()], vec![cx.clone()], eps.clone(), profile)?;
+            let slot = Self::attn_slot_at(&d.kv, li)?;
+            self.proj(&cx, &l.wk_ctx, &k0.reshaped(&[t, nkv * hd]), profile)?;
+            self.proj(&cx, &l.wv_ctx, &v.reshaped(&[t, nkv * hd]), profile)?;
+            self.ds_qk(ds, &k0, &l.k_norm_ctx, &k1, &k0, pos0, profile)?;
+            self.d2_append(slot, &k0, &v, pos0, nkv, hd, profile)?;
+        }
+        // f_rnn of the last FRNN_RING rows, by position into the ring (at most two runs of rows)
+        if d.frnn.is_none() {
+            d.frnn = Some(self.backend.alloc(FRNN_RING * h * act.size_bytes(), MemKind::Device)?);
+        }
+        let ring = self.view(d.frnn.as_ref().unwrap(), act, &[FRNN_RING, h]);
+        premix(ds.c.n_layers)?;
+        let mut p = t.saturating_sub(FRNN_RING);
+        while p < t {
+            let slot = (pos0 + p) % FRNN_RING;
+            let n = (t - p).min(FRNN_RING - slot);
+            self.exec(Op::RmsNorm, vec![mx.rows(p, n), ds.dflare[ds.c.n_layers].clone()], vec![ring.rows(slot, n)], eps.clone(), profile)?;
+            p += n;
+        }
+        d.kv.advance_rows(t);
+        if prof {
+            self.backend.synchronize(self.stream)?;
+            eprintln!("dspark: ingest {t} rows ms: target sync {:.2} ingest {:.2}", ms(t_sync), ms(t0.elapsed() - t_sync));
+        }
+        Ok(())
+    }
+
+    /// q / k norm then neox rope at positions `pos0 ..` (the draft's theta, full rotary): `x` -> `tmp` -> `out`.
+    #[allow(clippy::too_many_arguments)]
+    fn ds_qk(&self, ds: &Dspark, x: &TensorRef, w: &TensorRef, tmp: &TensorRef, out: &TensorRef, pos0: usize, profile: bool) -> Result<()> {
+        self.exec(Op::QkNorm, vec![x.clone(), w.clone()], vec![tmp.clone()], OpAttrs { eps: ds.c.eps, w_offset: 0.0, ..Default::default() }, profile)?;
+        let rope = OpAttrs { pos0, theta: ds.c.theta, head_dim: ds.c.head_dim, rotary_dim: 0, ..Default::default() };
+        self.exec(Op::Rope, vec![tmp.clone()], vec![out.clone()], rope, profile)
+    }
+
+    /// Drafts after `next` (the token at position `st.len`): one block pass and up to `k` (at most 7) Markov steps, stopping at the
+    /// first proposal whose top-1 probability is below the gate. Empty: no proposal cleared the gate (a plain step follows).
+    pub(super) fn dspark_draft(&self, ds: &Dspark, st: &mut SequenceState, next: u32, k: usize) -> Result<Vec<u32>> {
+        self.ds_rows(BLOCK, || self.dspark_draft_inner(ds, st, next, k))
+    }
+
+    fn dspark_draft_inner(&self, ds: &Dspark, st: &mut SequenceState, next: u32, k: usize) -> Result<Vec<u32>> {
+        let d = st.dflash.as_ref().ok_or_else(|| Error::invalid("sequence without DFlash state"))?;
+        let kmax = k.min(BLOCK - 1);
+        let p0 = d.kv.len;
+        if kmax == 0 || p0 == 0 || p0 + BLOCK > d.kv.cap {
+            return Ok(Vec::new());
+        }
+        // a plan dry run (`Model::dflash_dry_run`) records the block pass and the head's device calls, then stops: no uploads,
+        // downloads or Markov steps
+        let rec = self.recorder.lock().unwrap().is_some();
+        if next as usize >= self.dims.vocab {
+            return Err(Error::BadRequest(format!("token id {next} >= vocab {}", self.dims.vocab)));
+        }
+        let im = self.ink.as_ref().ok_or_else(|| Error::invalid("the DSpark draft on a model other than Inkling-2"))?;
+        let head = self.lm_head.as_ref().ok_or_else(|| Error::invalid("the DSpark draft needs the model's lm_head"))?;
+        let profile = false;
+        let prof = dspark_profile() && !rec;
+        let t0 = Instant::now();
+        if prof {
+            self.backend.synchronize(self.stream)?;
+        }
+        let t_in = t0.elapsed();
+        let (h, act, t) = (self.dims.hidden, self.act, BLOCK);
+        let (nh, nkv, hd, inter, r) = (ds.c.n_heads, ds.c.n_kv_heads, ds.c.head_dim, ds.c.intermediate, ds.c.rank);
+        let bf = &ds.bufs;
+        let rows = |b: &Buffer, w: usize| self.view(b, act, &[t, w]);
+        let (mut x, mut xn) = (rows(&bf.x[0], h), rows(&bf.x[1], h));
+        let (n, o) = (rows(&bf.n, h), rows(&bf.o, h));
+        let q3 = |i: usize| self.view(&bf.q[i], act, &[t, nh, hd]);
+        let k3 = |i: usize| self.view(&bf.k[i], act, &[t, nkv, hd]);
+        let v3 = self.view(&bf.v, act, &[t, nkv, hd]);
+        let ao = self.view(&bf.ao, act, &[t, nh, hd]);
+        let (g, u, a) = (rows(&bf.g, inter), rows(&bf.u, inter), rows(&bf.a, inter));
+        let add = |a: &TensorRef, b: &TensorRef, out: &TensorRef| self.exec(Op::Add, vec![a.clone(), b.clone()], vec![out.clone()], OpAttrs::default(), profile);
+        let eps_t = OpAttrs { eps: self.dims.rms_eps, ..OpAttrs::default() };
+        let eps_d = OpAttrs { eps: ds.c.eps, w_offset: 0.0, ..OpAttrs::default() };
+        // block rows: the anchor's normed target embedding, then the masks
+        if !rec {
+            self.backend.upload(&self.ws.ids, 0, &(next as i32).to_le_bytes(), self.stream)?;
+        }
+        let emb = self.view(&bf.emb, act, &[1, h]);
+        self.exec(Op::Embedding, vec![self.view(&self.ws.ids, DType::I32, &[1]), self.embed.clone()], vec![emb.clone()], OpAttrs::default(), profile)?;
+        self.exec(Op::RmsNorm, vec![emb, im.embed_norm.clone()], vec![x.rows(0, 1)], eps_t, profile)?;
+        let mrows = x.rows(1, t - 1);
+        if !rec {
+            self.backend.copy(&mrows.buf, mrows.offset, &ds.masks.buf, ds.masks.offset, ds.masks.nbytes(), self.stream)?;
+        }
+        let last = p0 + t - 1;
+        for (li, l) in ds.layers.iter().enumerate() {
+            let slot = Self::attn_slot_at(&st.dflash.as_ref().unwrap().kv, li)?;
+            self.exec(Op::RmsNorm, vec![x.clone(), l.ln1.clone()], vec![n.clone()], eps_d.clone(), profile)?;
+            self.proj(&n, &l.wq, &q3(0).reshaped(&[t, nh * hd]), profile)?;
+            self.proj(&n, &l.wk, &k3(0).reshaped(&[t, nkv * hd]), profile)?;
+            self.proj(&n, &l.wv, &v3.reshaped(&[t, nkv * hd]), profile)?;
+            self.ds_qk(ds, &q3(0), &l.q_norm, &q3(1), &q3(0), p0, profile)?;
+            self.ds_qk(ds, &k3(0), &l.k_norm, &k3(1), &k3(0), p0, profile)?;
+            // the block's K / V beyond the context (scratch: the next ingest overwrites them)
+            self.d2_append(slot, &k3(0), &v3, p0, nkv, hd, profile)?;
+            let shape = [nkv, slot.cap, hd];
+            let kc = self.view(&slot.k, slot.dtype, &shape);
+            let vc = self.view(&slot.v, slot.dtype, &shape);
+            let win = if l.local { ds.c.window + t } else { 0 };
+            let win = if win == 0 || last < win { 0 } else { win };
+            for rr in 0..t {
+                let attrs = OpAttrs {
+                    pos0: last,
+                    scale: 1.0 / (hd as f32).sqrt(),
+                    n_heads: nh,
+                    n_kv_heads: nkv,
+                    head_dim: hd,
+                    kv_cap: slot.cap,
+                    window: win,
+                    ..Default::default()
+                };
+                self.exec(Op::AttnDecode, vec![q3(0).rows(rr, 1), kc.clone(), vc.clone()], vec![ao.rows(rr, 1)], attrs, profile)?;
+            }
+            self.proj(&ao.reshaped(&[t, nh * hd]), &l.wo, &o, profile)?;
+            add(&x, &o, &xn)?;
+            std::mem::swap(&mut x, &mut xn);
+            self.exec(Op::RmsNorm, vec![x.clone(), l.ln2.clone()], vec![n.clone()], eps_d.clone(), profile)?;
+            self.proj(&n, &l.gate, &g, profile)?;
+            self.proj(&n, &l.up, &u, profile)?;
+            self.exec(Op::SiluGlu, vec![g.clone(), u.clone()], vec![a.clone()], OpAttrs::default(), profile)?;
+            self.proj(&a, &l.down, &o, profile)?;
+            add(&x, &o, &xn)?;
+            std::mem::swap(&mut x, &mut xn);
+        }
+        self.exec(Op::RmsNorm, vec![x.clone(), ds.norm.clone()], vec![n.clone()], eps_d, profile)?;
+        if prof {
+            self.backend.synchronize(self.stream)?;
+        }
+        let t_block = t0.elapsed();
+        // head inputs: base logits of the mask rows, the hidden part of rnn_proj; the f_rnn part of the last committed position
+        let hs = n.rows(1, kmax);
+        let vocab = self.dims.vocab;
+        let base = self.view(&bf.base, act, &[kmax, vocab]);
+        self.ds_generic(kmax == 1, || self.proj(&hs, ds.head.as_ref().unwrap_or(head), &base, profile))?;
+        let hw = self.view(&bf.hw, DType::F32, &[kmax, 3 * r]);
+        self.ds_generic(true, || self.exec(Op::Logits, vec![hs.clone(), ds.w_h.clone()], vec![hw.clone()], OpAttrs::default(), profile))?;
+        let dstate = st.dflash.as_ref().unwrap();
+        let slot = (p0 - 1) % FRNN_RING;
+        // f_rnn of the last committed position: its row of the sequence's device ring (a plan dry run: the scratch row)
+        let frnn = match (&dstate.frnn, rec) {
+            (_, true) => self.view(&bf.frnn, act, &[1, h]),
+            (Some(ring), false) => self.view(ring, act, &[FRNN_RING, h]).rows(slot, 1),
+            (None, false) => return Ok(Vec::new()),
+        };
+        let fwv = self.view(&bf.fw, DType::F32, &[1, 3 * r]);
+        self.ds_generic(true, || self.exec(Op::Logits, vec![frnn.clone(), ds.w_f.clone()], vec![fwv.clone()], OpAttrs::default(), profile))?;
+        if rec {
+            if ds.cand == 0 {
+                // the exact head's per-step fold GEMV
+                let latent_t = self.view(&bf.latent, act, &[1, r]);
+                let fold_t = self.view(&bf.fold, act, &[1, vocab]);
+                self.proj(&latent_t, &ds.fold_w, &fold_t, profile)?;
+            }
+            return Ok(Vec::new());
+        }
+        self.backend.synchronize(self.stream)?;
+        let t_head = t0.elapsed();
+        let hw = self.ds_download(&bf.hw, DType::F32, 0, kmax * 3 * r)?;
+        let fw = self.ds_download(&bf.fw, DType::F32, 0, 3 * r)?;
+        // the Markov recurrence, one proposal per step
+        let mut state = vec![0f32; r];
+        let mut prev = next as usize;
+        let mut out = Vec::with_capacity(kmax);
+        let sc = ds.c.softcap;
+        let latent_t = self.view(&bf.latent, act, &[1, r]);
+        let fold_t = self.view(&bf.fold, act, &[1, vocab]);
+        // candidate head: the top-`cand` base logits of every draft row, from one download
+        let dev = if ds.cand > 0 && !ds.host_topk.load(std::sync::atomic::Ordering::Relaxed) {
+            let c = ds.cand.min(vocab);
+            let t = |b: &Buffer, dt: DType, shape: &[usize]| TensorRef::new(b.clone(), dt, shape);
+            let (ib, vb, nb) = (t(&bf.tk[0], DType::I32, &[kmax, c]), t(&bf.tk[1], DType::F32, &[kmax, c]), t(&bf.tk[2], DType::I32, &[kmax]));
+            match self.backend.topk_rows(&base, c, &ib, &vb, &nb, &t(&bf.tk[3], DType::F32, &[kmax * 32 * c * 2]), self.stream) {
+                Ok(()) => Some(c),
+                Err(e) => {
+                    eprintln!("dspark: device top-k unavailable ({e}); the host takes the candidates");
+                    ds.host_topk.store(true, std::sync::atomic::Ordering::Relaxed);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        let cands: Vec<Vec<(usize, f32)>> = if let Some(c) = dev {
+            self.backend.synchronize(self.stream)?;
+            let ids = self.ds_download(&bf.tk[0], DType::I32, 0, kmax * c)?;
+            let vals = self.ds_download(&bf.tk[1], DType::F32, 0, kmax * c)?;
+            let nan = self.ds_download(&bf.tk[2], DType::I32, 0, kmax)?;
+            (0..kmax).map(|i| if nan[i] != 0.0 { Vec::new() } else { (0..c).map(|j| (ids[i * c + j] as usize, vals[i * c + j])).collect() }).collect()
+        } else if ds.cand > 0 {
+            let base_all = self.ds_download(&bf.base, act, 0, kmax * vocab)?;
+            base_all
+                .chunks_exact(vocab)
+                .map(|row| {
+                    let mut idx: Vec<(usize, f32)> = row.iter().copied().enumerate().collect();
+                    let c = ds.cand.min(vocab);
+                    idx.select_nth_unstable_by(c - 1, |a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
+                    idx.truncate(c);
+                    idx
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        for i in 0..kmax {
+            // [state, w1[prev]] . rnn_proj[:, :2r]^T, eight partial sums per row (vectorises; the draft only needs f32 accuracy)
+            let mut inp = Vec::with_capacity(2 * r);
+            inp.extend_from_slice(&state);
+            inp.extend(ds.w1[prev * r..(prev + 1) * r].iter().map(|&b| from_bits(b)));
+            let mut raw = vec![0f32; 3 * r];
+            for (j, z) in raw.iter_mut().enumerate() {
+                *z = ds.rnn_bias[j] + hw[i * 3 * r + j] + fw[j] + dot8(&ds.w_sp[j * 2 * r..(j + 1) * 2 * r], &inp);
+            }
+            let mut latent = vec![0f32; r];
+            for c in 0..r {
+                let gate = rbf(sigmoid(rbf(raw[c])));
+                let cand = rbf(rbf(raw[r + c]).tanh());
+                let keep = rbf(gate * state[c]);
+                let upd = rbf(rbf(1.0 - gate) * cand);
+                state[c] = rbf(keep + upd);
+                latent[c] = rbf(rbf(raw[2 * r + c]).tanh());
+            }
+            // x = bf(base + bf(fold + fold_b)) (the candidates' ids alongside); softcap is monotone: argmax on x (first index on ties)
+            let (ids, xs): (Vec<usize>, Vec<f32>) = if ds.cand > 0 {
+                cands[i]
+                    .iter()
+                    .map(|&(v, b)| {
+                        let w = &ds.fold_host[v * r..(v + 1) * r];
+                        let f = dot8_bf16(w, &latent);
+                        (v, rbf(b + rbf(f + ds.fold_b[v])))
+                    })
+                    .unzip()
+            } else {
+                self.ds_upload_bf16(&bf.latent, &latent)?;
+                self.proj(&latent_t, &ds.fold_w, &fold_t, profile)?;
+                self.backend.synchronize(self.stream)?;
+                let fo = self.ds_download(&bf.fold, act, 0, vocab)?;
+                let br = self.ds_download(&bf.base, act, i * vocab, vocab)?;
+                ((0..vocab).collect(), br.iter().zip(&fo).zip(&ds.fold_b).map(|((b, f), fb)| rbf(b + rbf(f + fb))).collect())
+            };
+            let (mut best, mut bx) = (0usize, f32::NEG_INFINITY);
+            for (&j, &v) in ids.iter().zip(&xs) {
+                if v > bx || (v == bx && j < best) {
+                    bx = v;
+                    best = j;
+                }
+            }
+            // top-1 probability of the softcapped logits; terms more than 25 below the max (in capped units) are negligible
+            let cmax = sc * (bx / sc).tanh();
+            let lo = cmax - 25.0;
+            let thr = if lo / sc <= -1.0 { f32::NEG_INFINITY } else { sc * (lo / sc).atanh() };
+            let z: f32 = xs.iter().filter(|&&v| v > thr).map(|&v| (sc * (v / sc).tanh() - cmax).exp()).sum();
+            let p1 = 1.0 / z;
+            if crate::spec::trace_enabled() {
+                eprintln!("dspark: pos {p0} step {i} draft {best} p1 {p1:.3}");
+            }
+            // `INTARSIA_DSPARK_DUMP=1` (lane ink-cuda-mtp; backend comparisons): the step's capped log-probabilities over the
+            // terms above the threshold, as id:logp pairs, for top-1 agreement and KL between two backends at equal positions
+            if dspark_dump() {
+                let mut terms: Vec<(usize, f32)> = ids
+                    .iter()
+                    .zip(&xs)
+                    .filter(|&(_, &v)| v > thr)
+                    .map(|(&j, &v)| (j, sc * (v / sc).tanh() - cmax - z.ln()))
+                    .collect();
+                terms.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
+                terms.truncate(64);
+                let body: Vec<String> = terms.iter().map(|(j, l)| format!("{j}:{l:.6}")).collect();
+                eprintln!("dspark-dump: pos {p0} step {i} prev {prev} draft {best} p1 {p1:.6} | {}", body.join(" "));
+            }
+            if p1 < ds.tau {
+                break;
+            }
+            if prof && i == 0 {
+                static LAST: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
+                let cyc = LAST.lock().unwrap().replace(t0).map_or(0.0, |l| ms(t0 - l));
+                eprintln!(
+                    "dspark: ms flush {:.2} block {:.2} head {:.2} step0 {:.2} cycle {cyc:.2}",
+                    ms(t_in),
+                    ms(t_block - t_in),
+                    ms(t_head - t_block),
+                    ms(t0.elapsed() - t_head)
+                );
+            }
+            out.push(best as u32);
+            prev = best;
+        }
+        Ok(out)
+    }
+}

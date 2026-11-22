@@ -385,6 +385,123 @@ fn inkling2_tiny_chunk_scan() {
     }
 }
 
+/// The speculative verify pass (`Model::forward_verify_logits`, R rows through the rows-exact kernels) gives the 1-row decode
+/// steps' logits bit for bit at R = 2, 3, 4 and at several positions (before and past the window and the rel extent), and its
+/// greedy picks are the decode argmaxes: greedy spec == no spec needs exactly this (lane ink-cuda-mtp).
+///
+/// The verify rows come back BEFORE the final logit softcap (`final_logit_softcapping`; a decode step's readback applies it on
+/// the host, `Model::softcap_logits`), so the comparison caps them the same way, `cap * tanh(x / cap)`. The cap is monotone:
+/// greedy picks are unaffected, a sampled verify would draw from uncapped logits (reported, not changed here).
+#[test]
+fn inkling2_tiny_verify_rows_equal_decode_bitwise() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let mut m = load(&dir, chunk());
+    m.enable_verify(4).unwrap();
+    let cap = m.dims.ink.as_ref().map_or(0.0, |i| i.softcap);
+    for &p in &[5usize, 9, 17, 26] {
+        for r in 2..=4usize {
+            if p + r > ids.len() {
+                continue;
+            }
+            let mut a = m.new_state().unwrap();
+            all_logits(&m, &mut a, &ids[..p]);
+            let (picks, mut rows) = m.forward_verify_logits(&mut a, &ids[p..p + r]).unwrap();
+            if cap > 0.0 {
+                rows.iter_mut().flatten().for_each(|x| *x = cap * (*x / cap).tanh());
+            }
+            let mut b = m.new_state().unwrap();
+            all_logits(&m, &mut b, &ids[..p]);
+            for (j, &id) in ids[p..p + r].iter().enumerate() {
+                let intarsia_core::model::StepOut::Logits(one) = m.forward(&mut b, &[id], HeadMode::LastLogits, None).unwrap() else { panic!() };
+                let diff = rows[j].iter().zip(&one).position(|(x, y)| x.to_bits() != y.to_bits());
+                assert!(
+                    diff.is_none(),
+                    "{}: verify R={r} at pos {p}, row {j}: logit {diff:?} differs from the 1-row decode (rel l2 {:.3e}, len {} vs {}, \
+                     argmax {} vs {}, pick {}, first values {:?} vs {:?})",
+                    m.backend.name(),
+                    rel_l2(&rows[j], &one),
+                    rows[j].len(),
+                    one.len(),
+                    argmax(&rows[j]),
+                    argmax(&one),
+                    picks[j],
+                    &rows[j][..3],
+                    &one[..3]
+                );
+                assert_eq!(picks[j] as usize, argmax(&one), "verify R={r} at pos {p}, row {j}: greedy pick");
+            }
+        }
+    }
+}
+
+/// The captured verify-only pass (`Model::verify_replay`; default on for Inkling-2 on CUDA, `INTARSIA_VERIFY_GRAPH=0` off): ONE state runs R-row verify passes
+/// back to back, so one recording per R is replayed at several positions (through the window and the rel extent), and every
+/// row is the 1-row decode bit for bit (after the final softcap, as above). A position baked into the recording would show
+/// here; a fresh state per pass would not. Asserts that replays happened (a failed capture falls back to the eager pass,
+/// which passes the comparison too). Skipped where graphs are unusable (cpu) and under `INTARSIA_VERIFY_GRAPH=0`.
+#[test]
+fn inkling2_tiny_verify_graph_replays_equal_decode_bitwise() {
+    if std::env::var("INTARSIA_VERIFY_GRAPH").ok().as_deref() == Some("0") {
+        return skip("INTARSIA_VERIFY_GRAPH=0");
+    }
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    // no profiled steps (`LoadOptions::profile_every` defaults to 1, and a profiled verify pass runs eagerly)
+    let mut m = {
+        let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
+        let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
+        let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
+        let src = SafeTensors::open_dir(&dir).unwrap();
+        let o = LoadOptions { max_seq: 128, prefill_chunk: chunk(), graphs: false, profile_every: 0, ..Default::default() };
+        Model::load(backend(), &recipe, &dims, &src, &o, Arc::new(Telemetry::new())).unwrap()
+    };
+    // graphs on for the verify passes (turning them off drops the recordings, `Model::set_graphs`); the 1-row decode they
+    // are compared against runs eagerly on a second load (graphs off, as the other tests)
+    m.set_graphs(true);
+    if !m.graph_stats().enabled {
+        return skip("graphs not usable on this backend");
+    }
+    m.enable_verify(4).unwrap();
+    let e = load(&dir, chunk());
+    let cap = m.dims.ink.as_ref().map_or(0.0, |i| i.softcap);
+    for r in 2..=4usize {
+        let p0 = 5usize;
+        let before = m.graph_stats();
+        let mut a = m.new_state().unwrap();
+        all_logits(&m, &mut a, &ids[..p0]);
+        let mut b = e.new_state().unwrap();
+        all_logits(&e, &mut b, &ids[..p0]);
+        let mut p = p0;
+        let mut passes = 0u64;
+        while p + r <= ids.len() {
+            let (picks, mut rows) = m.forward_verify_logits(&mut a, &ids[p..p + r]).unwrap();
+            if cap > 0.0 {
+                rows.iter_mut().flatten().for_each(|x| *x = cap * (*x / cap).tanh());
+            }
+            for (j, &id) in ids[p..p + r].iter().enumerate() {
+                let intarsia_core::model::StepOut::Logits(one) = e.forward(&mut b, &[id], HeadMode::LastLogits, None).unwrap() else { panic!() };
+                let diff = rows[j].iter().zip(&one).position(|(x, y)| x.to_bits() != y.to_bits());
+                assert!(
+                    diff.is_none(),
+                    "{}: replayed verify R={r} at pos {p}, row {j}: logit {diff:?} differs from the 1-row decode (rel l2 {:.3e})",
+                    m.backend.name(),
+                    rel_l2(&rows[j], &one)
+                );
+                assert_eq!(picks[j] as usize, argmax(&one), "replayed verify R={r} at pos {p}, row {j}: greedy pick");
+            }
+            p += r;
+            passes += 1;
+        }
+        let after = m.graph_stats();
+        let (caps, reps) = (after.spec_captures - before.spec_captures, after.spec_replays - before.spec_replays);
+        println!("{}: R={r}: {passes} verify passes from pos {p0}, {caps} capture(s), {reps} replays", m.backend.name());
+        assert!(passes >= 3, "R={r}: too few passes ({passes}) to replay at several positions");
+        assert_eq!(caps, 1, "R={r}: one recording for the state");
+        assert_eq!(reps, passes, "R={r}: every pass replayed");
+    }
+}
+
 /// Rollback by length (a rejected speculative tail, a prompt edit) within the ring margin, and the refusal past it.
 #[test]
 fn inkling2_tiny_rollback_by_length() {
