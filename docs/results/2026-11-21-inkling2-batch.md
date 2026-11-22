@@ -445,4 +445,12 @@ requests (80 x ~1k = ~82k prompt tokens) in 172 s; at the measured ~1.4k tok/s p
 engine interleaves with decode steps (busy prefill chunk 256), so decode runs at roughly 20.3k tokens / ~117 s = ~173 tok/s
 when it runs, and the batch is short of 16 rows while new requests prefill. The next levers on this cell are prefill speed and
 how prefill shares steps with a full decode batch, not the batched decode step. Peak RSS not recorded (the `time -l` wrapper
-was killed with the server; script fixed to stop the child instead next time). Job exit 1 is that kill, not a failure.
+was killed with the server; the script should signal the server pid, not the wrapper). Job exit 1 is that kill, not a failure.
+
+## 15. Open at hand-off (2026-11-22)
+
+- #11104 (rtvar correctness + ink/dfuse HOIST=1 row-table tests; ink-metal's G2 bisect inside the slot) still running: `.scratch/rtvar_correct.log`.
+- #11164 (five-arm B1/8/16 regression A/B) cancelled before it started; requeue with `.scratch/b8reg.sh` (log `.scratch/b8reg.log`).
+  The post-merge batched slowdown (B=8 ~39 -> 46-49 ms, B=16 ~71 -> 79-81 ms) is unexplained.
+- 230 tok/s at 16 streams (batch_step) not confirmed: 224.7 / 204 pre-merge, 198-202 post-merge.
+- `plan show` Qwen3-8B Metal byte-identical last checked at a88db4620 (#10785), before the ink/metal merge.
