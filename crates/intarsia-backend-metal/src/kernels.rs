@@ -441,6 +441,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkmix::INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_BF16_NAX, Op::InkInProj),
     (crate::inkmix::CONV_MIX_BF16, Op::ConvMix),
+    (crate::inkmix::CONV_MIX_BF16_ROWS, Op::ConvMix),
     (crate::inkmix::ATTN_RES_MIX_BF16, Op::AttnResMix),
     (crate::inkmix::SCONV_RES_BF16, Op::SconvRes),
     (crate::inkmix::LOOP_BLEND_BF16, Op::LoopBlend),
