@@ -160,6 +160,12 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   `cd X && { nohup B serve ... >log 2>&1 </dev/null & echo $! >pid; }` or `setsid -f` (this lane: .scratch/serve_remote.sh,
   setsid with the redirects on the command, stop by process group, STOP FAILED check).
 
+- (coordinator, 20th) After the MoE loads-only probe: profile CUDA prefill (the largest like-for-like gap, marginal 1.44-1.49k vs
+  vLLM 2.8-4.0k tok/s) in one quiet slot on spark2: a 4k-prompt prefill with a per-op breakdown (MoE grouped GEMM, attention,
+  mix/conv, norms, launch gaps) from nsys or the engine's op timers. Report the top 3 costs (ms, share) with a proposed fix
+  each; do not build, the coordinator picks. No decode-vs-vLLM claims until a plain no-spec comparison exists (the reference ran
+  with DSpark MTP).
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
