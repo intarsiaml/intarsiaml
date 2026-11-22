@@ -189,8 +189,13 @@ fn mx_bytes(rng: &mut SplitMix64, n: usize) -> Vec<u8> {
         .collect()
 }
 
+/// The tests that set the process-wide tensor-core threshold (`inkmoe::set_mma_min`) hold this, so parallel tests never see
+/// each other's setting.
+static MMA_MIN_KNOB: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn ink_experts_rows_exact() {
+    let _knob = MMA_MIN_KNOB.lock().unwrap_or_else(|e| e.into_inner());
     let Some(rig) = Rig::new("ink_experts_rows_exact") else { return };
     // the SIMT kernels at every T (the tensor-core prefill path is not bitwise them: `ink_experts_mma_chunk_invariant`)
     intarsia_backend_cuda::inkmoe::set_mma_min(i32::MAX);
@@ -421,6 +426,7 @@ fn ink_attn_res_mix_and_blend_rows_exact() {
 /// 513-row window from row 87), NVFP4 situ and MXFP8 situ / silu; and it stays within the bf16 budget of the SIMT kernels.
 #[test]
 fn ink_experts_mma_chunk_invariant() {
+    let _knob = MMA_MIN_KNOB.lock().unwrap_or_else(|e| e.into_inner());
     let Some(rig) = Rig::new("ink_experts_mma_chunk_invariant") else { return };
     intarsia_backend_cuda::inkmoe::set_mma_min(512);
     rig.cache_on.set(true);
