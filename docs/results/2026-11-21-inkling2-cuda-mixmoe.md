@@ -928,3 +928,42 @@ NVFP4 (15570 / 4017 B); `kernels test --quick` on the branch: 128 kernels, 1556 
 - Greedy ids md5, spec off and spec on (DSpark, verify graph): g64 `ec9a19c14b2d`, g256 `a0e6f47bc45f`, g1.2k `aaaa65a7ac70`
   in all six runs, as before both merges. Decode tok/s spec off 36.67 / 36.46 / 35.98, spec on 36.88 / 41.82 / 43.99
   (acceptance 31.6 / 34.1 / 43.0 %).
+
+## MoE decode repack, stage A (brief 36; branch `ink/cuda-mixmoe-repack` `0e0c21028`, not in the PR; gate #11520)
+
+`INTARSIA_INK_MOE_REPACK=1` (CUDA, default off): at load each block of 4 gate / up rows and of 8 down rows (payload and scales)
+is permuted so that a decode warp step is one contiguous 512 B (payload) / 64 B (scales) run
+(`inkling2::ops::moe_repack_rows`, `ink.moe_layout = 1`); the NVFP4 gu / dn decode kernels index it (`RP` instances), every
+repacked call takes the decode kernels (no tensor-core path), W4A4 is refused. Bitwise by construction: the same chunks reach
+the same lanes. `ink_rows` repack test passed in #11520 (its first form also raced `ink_experts_rows_exact` through a
+process-wide setter; fixed in `0e0c21028`, not yet rerun).
+
+| ink_bench NVFP4, 2 passes | plain | repacked |
+|---|---|---|
+| T=1 | 180.6 / 177.6 us (199-202 GB/s) | 170.9 / 170.2 us (210 GB/s, -5.4 %) |
+| T=2 | 328.9 / 331.2 us | 312.4 / 312.3 us (-5.4 %) |
+| T=4 | 592.0 / 594.2 us | 571.2 / 573.2 us (-3.5 %) |
+| T=16 | 1682.7 / 1686.0 us | 1644.9 / 1641.4 us (-2.4 %) |
+
+| greedy 256, rotated order | plain | repacked |
+|---|---|---|
+| spec off tok/s | 36.32 / 36.48 / 36.37 (36.39) | 36.82 / 36.90 / 36.68 (36.80, **+1.13 %**) |
+| spec on tok/s | 41.87 / 41.76 (41.82) | 42.38 / 42.34 (42.36, +1.3 %) |
+| ids g256 | `a0e6f47bc45f` | `a0e6f47bc45f` |
+| g1.2k (spec off) | `aaaa65a7ac70`, prefill 1583 tok/s | `4b44e4ab3ff3`, prefill 436 tok/s |
+
+The g1.2k ids differ because a repacked prefill runs the decode kernels (another f32 order than the tensor-core GEMM) and is
+3.6x slower (MoE per 2048-row layer: decode kernels 78.2 ms vs tensor core 7.8 ms): stage A's refusal of the prefill path,
+not a repack error. **Verdict: +1.13 % spec off is under the +1.2 % bar: stopped, not merged** (the branch stays as the
+record). The decode gain is real but small: ~0.4 ms / token.
+
+MoE bandwidth floor (brief 36 item 3): at g256 decode a token reads 1.84 GB of experts (44 NVFP4 layers x 8 experts x 4.48 MB
++ 4 MXFP8 layers x 8 x 8.21 MB). At the best measured stream on this box (~240 GB/s: the head GEMV 242, plain bf16 GEMV 239)
+the floor is 7.7 ms / token (6.7 ms at the nominal 273 GB/s), against 8.80 ms measured (#11462, spec off) and ~8.4 ms
+repacked. What remains after the repack (~0.7 ms) is launch ramp / tail: 2 launches per layer (96 per token) whose last wave
+runs a few experts on a few SMs. Next lever: one launch per layer for gu + dn (dn blocks start on the h rows as they
+complete, a per-row-block ready flag), worth ~0.3-0.5 ms / token by estimate; not measured.
+
+Prefill (for brief 37): the existing W4A4 FP4 tensor-core path (`ink_moe_fp4_sm120a.cu`, block-scaled `mxf4nvf4` m16n8k64)
+already runs at 4.83 ms per 2048-row NVFP4 layer (incl. activation quantisation) vs 7.83 ms for the bf16 `ink_moe_mma`
+(ink_bench, #11520): 54 vs 33 TF/s.
