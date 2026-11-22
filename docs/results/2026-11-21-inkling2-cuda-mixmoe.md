@@ -77,6 +77,16 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   order; no further CUDA approximation may eat that margin. (4) Then tok/s and localeval vs vLLM, after graph decode lands or on
   the coordinator's go.
 
+- (coordinator, 10th) GO with a split: (1) graph decode moves to ink-cuda-attn (my plan as written, from 8f7d5cd3a, touching
+  only inkling2.rs, model.rs, plan.rs; stay out of those files or message cuda-attn first). (2) This lane: the latency-bound
+  small ops, conv_mix S>0, loop_blend (stashed WIP) and the N=128 router GEMV. Each change bitwise vs the current CUDA kernel at
+  T=1..16 (rows-exact tests); split-K changes the reduction order unless its tree matches exactly. A faster non-bitwise form goes
+  to the coordinator as a numerics change with G2 decode measured against 4e-3 before it lands (CUDA headroom 0.27e-3).
+  (3) Router: compare split-K with a port of Metal's fused op 76 InkRoute (ink/dfuse: router GEMV + MoeRoute, last-TG top-k,
+  bitwise vs unfused); pick whichever is bitwise and faster; write the choice down. (4) Afterwards maybe: list a CUDA port of
+  lossless P12 (ink/pack12, default-on on Metal) for in_proj as the next candidate with an estimate; do not build it.
+  (5) Report per op us before/after at T=1/4/16, and eager tok/s short / 5k.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
