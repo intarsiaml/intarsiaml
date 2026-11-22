@@ -264,3 +264,25 @@ Summed GPU time grows 17 ms while the real step (`batch_step`, quiet) grows 34 m
 lever the command-buffer timeline (GPU busy vs wall per step, B 2 / 8 / 16) is measured, to tell real GPU growth from host
 gaps (queued). The coordinator's InkInProj figure (+4 ms) matches this table; it is one of three similar shares, not the
 largest (the MoE situ path is).
+
+## 9. A/B of `INTARSIA_METAL_ROWS_SINGLE` (#10900, quiet, tip 76cedfc93)
+
+`batch_step --ctx 1024 --rounds 2 --steps 16 --batches 8,16`, arms alternating off / on, 2 reps; batched step ms
+(aggregate tok/s). Batched tokens == solo tokens in every arm (asserted, exit 0), so the one-launch form is also exact on the
+real model.
+
+| rep | B 8 off | B 8 on | B 16 off | B 16 on |
+|---|---:|---:|---:|---:|
+| 1 | 39.18 (204.2) | 38.03 (210.4) | 71.20 (224.7) | 70.33 (227.5) |
+| 2 | 39.47 (202.7) | 38.21 (209.4) | 78.45 (204.0) | 78.28 (204.4) |
+
+The flag cannot change a B = 8 step (it only acts on 9..16-row calls), yet B 8 "on" is 1.1-1.3 ms faster in both reps: that is
+the run-order bias of this A/B (on always runs second). The B 16 difference (0.9 and 0.2 ms) is inside it. **No measurable
+gain; the flag stays opt-in and off.** (Expected about 3 ms; the re-read is mostly served from the SLC, it seems.)
+
+**Bigger finding: the whole curve moved.** Against #10773 (section 4, ink/metal 1dacac3a8-era code), the same harness at this
+tip gives solo 61 tok/s (was 57.8), B 8 39.2 ms (was 58.4), B 16 71.2 ms = **224.7 tok/s** (was 92.1 ms = 173.7) in rep 1;
+rep 2 of B 16 is 78 ms (204 tok/s), a 10 % spread between reps of the same setting. The likely cause is the merged ink/metal
+work since then, chiefly m-mix 47570539e (InkInProj up to 8 rows on the GEMV instead of the matrix units; the 8-row InkInProj
+was 8.2 ms per step in #10885); unrelated local CPU load on endor during #10773 (the coordinator's build rule) may also have
+inflated it. A full 1 / 2 / 4 / 8 / 16 curve at the tip, two passes, is queued to replace section 4's table.
