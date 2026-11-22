@@ -1,6 +1,6 @@
 # Inkling-2-Mini Metal decode: host gap (lane ink-hostgap, 2026-11-21)
 
-Status: done (lane stopped by the coordinator after #10839 / #10840 / #10888). Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwarded to e61f392fd), not pushed.
+Status: in progress again (coordinator, items 1-3 below). Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwarded to e61f392fd), not pushed.
 
 ## Briefs received
 
@@ -45,6 +45,22 @@ Status: done (lane stopped by the coordinator after #10839 / #10840 / #10888). B
   queued.
 - 2026-11-21 (coordinator): item 5 dropped on ink-mtp's per-cycle split (host 1.2-1.6 ms of a 35 ms cycle, under 5 %; numbers in
   item 5). The lane finishes with #10839 / #10840 / #10888: report those, then stop.
+
+- 2026-11-21 (coordinator, after the final report): three more items.
+  1. `argmax_f32_v4t` stays default-on. It is exact (max_abs 0, admitted, greedy md5 identical), only V % 4 != 0 rows take it,
+     and `plan show` is identical for 3 models. Note the revert switch `INTARSIA_METAL_ARGMAX_V4T=0` in the doc.
+  2. Settle the base-vs-branch confound first, in one quiet ABAB job (`--quiet gpu,cpu`, an honest `--expect`):
+     - base vs b1 interleaved, at least 3 reps per arm, `--profile-every 0`, medians reported
+     - workloads: the short prompt, 5k, and t0.7 seed 7
+     - ink/hostgap merges into ink/metal only if 5k and t0.7 are within 1 % (or faster). If a gap is real, find it before item 3.
+  3. Then build option (a), the bitwise host sampler: soft-cap / keys / exp split across threads, a stable chunked radix sort,
+     the f64 sum kept sequential.
+     - Target: sampler + soft-cap at t1.0 <= 1 ms per token, from 3.47.
+     - Gate: sampled md5 identical to today at t0.7 and t1.0 for 2 seeds each, plus the microbench before and after.
+     - CPU tests and the microbench correctness run on spark2. Timing stays on endor, folded into the item-2 job if (a) is
+       built first, else a second short quiet job.
+     - (b), the device sampler, is out: it is not bitwise.
+     Also: say which sampling path real `serve` traffic takes, given the checkpoint's generation config.
 
 ## Measurement (before)
 
@@ -364,7 +380,8 @@ raw dirs or golden/. spark2 has no /opt/code.
 
 - **Metal `generate --profile-every` default 16 -> 0** (63e0d1895): every model on Metal; CUDA / HIP / cpu unchanged. Coordinator
   go-ahead, LOG.md row. Revert that commit alone to undo it.
-- **`argmax_f32_v4t`** (942f72f31): on by default for f32 argmax rows with V % 4 != 0, on any model. Of the fleet's Metal models
+- **`argmax_f32_v4t`** (942f72f31): on by default, confirmed by the coordinator. It applies to f32 argmax rows with V % 4 != 0,
+  on any model. **Revert switch: `INTARSIA_METAL_ARGMAX_V4T=0`**, the old scalar kernel. Of the fleet's Metal models
   only Inkling-2-Mini has such a head. Qwen3 / the 35B (V % 4 == 0) run the kernel they ran before. `INTARSIA_METAL_ARGMAX_V4T=0`
   turns it off. Same result by construction and by test.
 - **`INTARSIA_HOST_PROFILE`** (e6e5d4314, 6c0f4a5d9, 5b487b79c, cd886d57b): opt-in, measures only.
