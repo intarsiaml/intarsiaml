@@ -487,15 +487,42 @@ impl Model {
     /// Run `f` with the row-exact kernels selected (`OpCall::exact_rows`, the GEMV `_rows` family) when `rows` <= 16 and
     /// `INTARSIA_DSPARK_ROWS_KERNELS` is not `0`: at 2-16 rows the generic GEMM kernels read the weights at about half the
     /// bandwidth (lane dcp's measurement for the DFlash2 draft). A speed choice only: drafts never reach the output.
-    fn ds_rows<T>(&self, rows: usize, f: impl FnOnce() -> Result<T>) -> Result<T> {
+    fn ds_rows<T>(&self, rows: usize, mut f: impl FnMut() -> Result<T>) -> Result<T> {
         static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
         let on = *ON.get_or_init(|| std::env::var("INTARSIA_DSPARK_ROWS_KERNELS").map_or(true, |v| v != "0"));
-        if !on || rows > 16 || self.exact_rows.load(std::sync::atomic::Ordering::Relaxed) {
+        if !on || !(2..=16).contains(&rows) || self.exact_rows.load(std::sync::atomic::Ordering::Relaxed) {
+            return f();
+        }
+        static NO_KERNEL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+        if NO_KERNEL.load(std::sync::atomic::Ordering::Relaxed) {
             return f();
         }
         self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         let r = f();
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        match r {
+            // a shape the row-exact family does not cover (the tiny fixtures): the generic kernels from then on. The failed call
+            // wrote nothing a rerun does not overwrite: the block and ingest write their rows at absolute positions and the
+            // caches advance only at the end.
+            Err(Error::NoKernel(e)) => {
+                eprintln!("dspark: no row-exact kernel ({e}); the draft takes the generic kernels");
+                NO_KERNEL.store(true, std::sync::atomic::Ordering::Relaxed);
+                f()
+            }
+            r => r,
+        }
+    }
+
+    /// Run `f` on the generic kernels (`exact_rows` cleared) when `on`: the draft's small f32-output GEMVs and one-row calls, which
+    /// the row-exact family does not register (`logits` with m = 1).
+    fn ds_generic<T>(&self, on: bool, f: impl FnOnce() -> Result<T>) -> Result<T> {
+        let was = self.exact_rows.load(std::sync::atomic::Ordering::Relaxed);
+        if !on || !was {
+            return f();
+        }
+        self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        let r = f();
+        self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         r
     }
 
@@ -652,9 +679,9 @@ impl Model {
         let hs = n.rows(1, kmax);
         let vocab = self.dims.vocab;
         let base = self.view(&bf.base, act, &[kmax, vocab]);
-        self.proj(&hs, ds.head.as_ref().unwrap_or(head), &base, profile)?;
+        self.ds_generic(kmax == 1, || self.proj(&hs, ds.head.as_ref().unwrap_or(head), &base, profile))?;
         let hw = self.view(&bf.hw, DType::F32, &[kmax, 3 * r]);
-        self.exec(Op::Logits, vec![hs, ds.w_h.clone()], vec![hw], OpAttrs::default(), profile)?;
+        self.ds_generic(true, || self.exec(Op::Logits, vec![hs.clone(), ds.w_h.clone()], vec![hw.clone()], OpAttrs::default(), profile))?;
         let dstate = st.dflash.as_ref().unwrap();
         let slot = (p0 - 1) % FRNN_RING;
         if dstate.frnn.len() != FRNN_RING * h {
@@ -662,7 +689,7 @@ impl Model {
         }
         self.ds_upload_bf16(&bf.frnn, &dstate.frnn[slot * h..(slot + 1) * h])?;
         let fwv = self.view(&bf.fw, DType::F32, &[1, 3 * r]);
-        self.exec(Op::Logits, vec![self.view(&bf.frnn, act, &[1, h]), ds.w_f.clone()], vec![fwv], OpAttrs::default(), profile)?;
+        self.ds_generic(true, || self.exec(Op::Logits, vec![self.view(&bf.frnn, act, &[1, h]), ds.w_f.clone()], vec![fwv.clone()], OpAttrs::default(), profile))?;
         self.backend.synchronize(self.stream)?;
         let t_head = t0.elapsed();
         let hw = self.ds_download(&bf.hw, DType::F32, 0, kmax * 3 * r)?;
