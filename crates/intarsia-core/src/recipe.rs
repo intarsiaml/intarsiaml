@@ -437,6 +437,9 @@ pub struct BackendTuning {
     /// this backend (`"fp8"` or `"mxfp4"`, [`crate::quant::head::HeadQuant`]) when `INTARSIA_INK_ATTN_QUANT` is not set. It changes
     /// outputs; no shipped recipe sets it (lane ink-fp8, `docs/results/2026-11-21-inkling2-fp8.md`).
     pub ink_attn_quant: Option<String>,
+    /// Inkling-2 only: the expert activation mode on this backend (`"w4a16"`, the default, or `"w4a4"`: the checkpoint's NVFP4 /
+    /// MXFP8 activation quantisation, `ink.act_quant = 1`) when `INTARSIA_INK_ACT_QUANT` is not set. It changes outputs; opt-in.
+    pub act_quant: Option<String>,
     /// The device sampler ([`crate::gumbel`], `HeadMode::LastGumbel`) for plain-temperature requests on this backend when
     /// `INTARSIA_GUMBEL_SAMPLING` is not set. It changes which token a given seed draws (same distribution): only
     /// `recipes/inkling2.toml` sets it, `true` on Metal (user decision 2026-11-22, lane ink-metal).
@@ -505,6 +508,11 @@ impl Recipe {
     /// The recipe's `lm_head_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
     pub fn lm_head_quant(&self, backend: &str) -> Option<&str> {
         self.tuning.backends.get(backend).and_then(|b| b.lm_head_quant.as_deref())
+    }
+
+    /// The recipe's Inkling-2 `act_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
+    pub fn ink_act_quant(&self, backend: &str) -> Option<&str> {
+        self.tuning.backends.get(backend).and_then(|b| b.act_quant.as_deref())
     }
 
     /// The recipe's `gumbel_sampling` for `backend` (`[tuning.<backend>]`); the env var is resolved by [`crate::gumbel::wanted`].
@@ -802,6 +810,11 @@ impl Recipe {
         }
         for v in self.tuning.backends.values().filter_map(|b| b.ink_attn_quant.as_deref()) {
             crate::quant::head::HeadQuant::parse(v)?;
+        }
+        for v in self.tuning.backends.values().filter_map(|b| b.act_quant.as_deref()) {
+            if !matches!(v.trim().to_ascii_lowercase().as_str(), "w4a16" | "w4a4") {
+                return Err(Error::model(format!("recipe [tuning.*] act_quant '{v}' (w4a16 or w4a4)")));
+            }
         }
         self.accuracy.ppl_form()?;
         if self.accuracy.max_ppl.is_some_and(|m| !(m.is_finite() && m > 0.0)) {

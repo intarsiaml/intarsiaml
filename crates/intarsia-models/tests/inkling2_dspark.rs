@@ -4,7 +4,7 @@
 //!
 //! The correctness gate of lane ink-mtp: greedy output with the draft on is token-identical to `--spec off`, at `--spec-k` 1 / 3 / 7,
 //! odd `max_tokens`, with the random draft's (nearly always rejected) proposals and with scripted proposals that are partly right
-//! (accepted rows stay, rejected ones roll back by length). Backend: cpu, or Metal with `INTARSIA_INKLING2_BACKEND=metal`.
+//! (accepted rows stay, rejected ones roll back by length). Backend: cpu, or Metal / CUDA with `INTARSIA_INKLING2_BACKEND=metal|cuda`.
 
 mod common;
 use common::ByteCodec;
@@ -26,8 +26,10 @@ fn backend() -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
         #[cfg(target_os = "macos")]
         Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
+        // lane ink-cuda-mtp
+        Ok("cuda") => intarsia_backend_cuda::create(0).unwrap(),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
-        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or metal"),
+        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal or cuda"),
     }
 }
 

@@ -270,7 +270,22 @@ fn lazy_admission_cases_build_nothing_when_cached_and_keep_the_data_of_those_tha
     let (fe, fl) = (std::fs::read(file(&eager)).unwrap(), std::fs::read(file(&lazy)).unwrap());
     assert_eq!(fl, fe, "the lazy loop re-measured a lost case on other data than the eager loop");
     let (je, jf): (serde_json::Value, serde_json::Value) = (serde_json::from_slice(&fe).unwrap(), serde_json::from_slice(&full).unwrap());
-    let diff: Vec<_> = keys.iter().filter(|k| je["entries"][k.as_str()] != jf["entries"][k.as_str()]).map(|k| (k, &je["entries"][k.as_str()], &jf["entries"][k.as_str()])).collect();
+    // floats equal up to 4 ulp: serde_json (no `float_roundtrip`) parses some 17-digit values to a neighbour, and the kept entries
+    // go through one more parse / print than the cold file, so a value can come back 1 ulp off (seen with the per-case generator:
+    // rel_l2 2.4632088598130532e-8 vs 2.463208859813053e-8); other data would differ by far more
+    fn same(a: &serde_json::Value, b: &serde_json::Value) -> bool {
+        use serde_json::Value as V;
+        match (a, b) {
+            (V::Number(x), V::Number(y)) if x.is_f64() || y.is_f64() => {
+                let (x, y) = (x.as_f64().unwrap_or(f64::NAN), y.as_f64().unwrap_or(f64::NAN));
+                x == y || (x.signum() == y.signum() && (x.to_bits() as i64 - y.to_bits() as i64).abs() <= 4)
+            }
+            (V::Object(x), V::Object(y)) => x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| same(v, w))),
+            (V::Array(x), V::Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(v, w)| same(v, w)),
+            _ => a == b,
+        }
+    }
+    let diff: Vec<_> = keys.iter().filter(|k| !same(&je["entries"][k.as_str()], &jf["entries"][k.as_str()])).map(|k| (k, &je["entries"][k.as_str()], &jf["entries"][k.as_str()])).collect();
     assert!(diff.is_empty(), "re-measured cases differ from the cold run's: {diff:#?}");
     let _ = std::fs::remove_dir_all(eager);
     let _ = std::fs::remove_dir_all(lazy);

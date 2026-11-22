@@ -931,10 +931,10 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         // DSpine (lane dspine): cpu, HIP and Metal like DFlash2 (HIP: bridge kernels admitted and greedy ids gate passed on the
         // R9700, tatooine 2026-11-07).
         let is_spine = dl.config.spine.is_some();
-        // DSpark (Inkling-2's own draft, lane ink-mtp): cpu and Metal (its ops are DFlash2's dense set: Matmul, Logits, Rope,
-        // QkNorm, windowed AttnDecode, SiluGlu)
+        // DSpark (Inkling-2's own draft, lane ink-mtp): cpu, Metal and CUDA (lane ink-cuda-mtp; its ops are DFlash2's dense set:
+        // Matmul, Logits, Rope, QkNorm, windowed AttnDecode, SiluGlu, plus HcPre, RmsNorm, Embedding, Add and the device top-k)
         let ok = if dl.config.dspark.is_some() {
-            matches!(backend_name, "cpu" | "metal")
+            matches!(backend_name, "cpu" | "metal" | "cuda")
         } else if dl.config.v2 || is_spine {
             matches!(backend_name, "cpu" | "hip" | "metal")
         } else {
@@ -944,7 +944,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             return Err(Error::Unsupported(format!(
                 "--spec dflash with a {} draft on the {backend_name} backend ({} only so far)",
                 if dl.config.dspark.is_some() { "DSpark" } else if is_spine { "DSpine" } else if dl.config.v2 { "DFlash2" } else { "DFlash" },
-                if dl.config.dspark.is_some() { "cpu and metal" } else if dl.config.v2 || is_spine { "cpu, hip and metal" } else { "cpu and cuda" }
+                if dl.config.dspark.is_some() { "cpu, metal and cuda" } else if dl.config.v2 || is_spine { "cpu, hip and metal" } else { "cpu and cuda" }
             )));
         }
         // a DSpine draft's own default depth (not the DFlash block's 15) when `--spec-k` was not given

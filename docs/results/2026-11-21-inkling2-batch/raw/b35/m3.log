@@ -1,0 +1,149 @@
+fleetq: #11606 running on endor: bash m3.sh a1a7b0cf2
+fleetq: #11606 went ahead of the line and must end within 11h53m (by Mon 03:00); it is stopped then
+tree a1a7b0cf2; modified files: 0
+rustfmt: DIFF
+warning: field `0` is never read
+warning: function `hip_batch_needs_hybrid` is never used
+warning: field `max_tokens` is never read
+warning: field `n_stack` is never read
+warning: field `state_id` is never read
+warning: `intarsia-core` (lib) generated 5 warnings
+    Finished `release` profile [optimized] target(s) in 14.28s
+== test inkmoe
+INKMOE Nv negctl T=2: 2110 bytes differ, first at 4610 (last token at 4608), max |out| 14.6875
+INKMOE Nv negctl T=16: 2135 bytes differ, first at 69120 (last token at 69120), max |out| 21.5
+INKMOE Mx negctl T=2: 2130 bytes differ, first at 4610 (last token at 4608), max |out| 0.75
+INKMOE Mx negctl T=16: 2100 bytes differ, first at 69122 (last token at 69120), max |out| 1.03125
+INKMOE Nv bitwise: 1000 multi-row calls over 640 token rows equal the one-row calls
+INKMOE Nv INTARSIA_INK_MOE_T1 false: 0 one-row calls took the gu1 / dn_f3 instances
+INKMOE Nv bitwise: 1000 multi-row calls over 640 token rows equal the one-row calls
+INKMOE Nv INTARSIA_INK_MOE_T1 true: 3840 one-row calls took the gu1 / dn_f3 instances
+INKMOE Mx bitwise: 3000 multi-row calls over 1920 token rows equal the one-row calls
+INKMOE Nv bitwise: 1000 multi-row calls over 640 token rows equal the one-row calls
+INKMOE Mx bitwise: 3000 multi-row calls over 1920 token rows equal the one-row calls
+INKMOE INTARSIA_INK_MOE_DNU3 on: 7520 by-pair down launches took the dn_u3 instances
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.92s
+== test rows_exact
+test result: ok. 11 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 2.39s
+== docs_env_vars
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+== DNU3=0 pool=62
+nv T=    4 Auto         all          245.0 us/call (min    244.5)  union  26.1 experts   476.4 GB/s
+nv T=    4 Auto         gate+up      146.2 us/call (min    146.0)  union  26.1 experts   532.3 GB/s
+nv T=    4 Auto         down          94.1 us/call (min     93.9)  union  26.1 experts   413.3 GB/s
+nv T=    8 Auto         all          382.2 us/call (min    380.3)  union  41.6 experts   487.3 GB/s
+nv T=    8 Auto         gate+up      232.8 us/call (min    231.5)  union  41.6 experts   533.3 GB/s
+nv T=    8 Auto         down         150.3 us/call (min    147.2)  union  41.6 experts   412.9 GB/s
+nv T=   16 Auto         all          604.6 us/call (min    574.8)  union  55.6 experts   412.2 GB/s
+nv T=   16 Auto         gate+up      363.1 us/call (min    352.2)  union  55.6 experts   457.7 GB/s
+nv T=   16 Auto         down         211.2 us/call (min    210.3)  union  55.6 experts   393.3 GB/s
+== DNU3=1 pool=62
+nv T=    4 Auto         all          238.9 us/call (min    237.4)  union  26.1 experts   488.5 GB/s
+nv T=    4 Auto         gate+up      150.2 us/call (min    149.9)  union  26.1 experts   518.3 GB/s
+nv T=    4 Auto         down          84.4 us/call (min     83.9)  union  26.1 experts   460.8 GB/s
+nv T=    8 Auto         all          403.2 us/call (min    392.2)  union  41.6 experts   461.9 GB/s
+nv T=    8 Auto         gate+up      248.0 us/call (min    241.6)  union  41.6 experts   500.7 GB/s
+nv T=    8 Auto         down         142.5 us/call (min    141.8)  union  41.6 experts   435.5 GB/s
+nv T=   16 Auto         all          610.7 us/call (min    597.9)  union  55.6 experts   408.1 GB/s
+nv T=   16 Auto         gate+up      386.6 us/call (min    382.2)  union  55.6 experts   429.9 GB/s
+nv T=   16 Auto         down         237.3 us/call (min    234.5)  union  55.6 experts   350.1 GB/s
+== DNU3=1 pool=62
+nv T=    4 Auto         all          241.3 us/call (min    240.3)  union  26.1 experts   483.7 GB/s
+nv T=    4 Auto         gate+up      148.9 us/call (min    148.2)  union  26.1 experts   522.7 GB/s
+nv T=    4 Auto         down          84.9 us/call (min     84.6)  union  26.1 experts   458.4 GB/s
+nv T=    8 Auto         all          417.7 us/call (min    408.1)  union  41.6 experts   445.9 GB/s
+nv T=    8 Auto         gate+up      253.1 us/call (min    250.7)  union  41.6 experts   490.7 GB/s
+nv T=    8 Auto         down         151.3 us/call (min    147.2)  union  41.6 experts   410.3 GB/s
+nv T=   16 Auto         all          722.5 us/call (min    708.1)  union  55.6 experts   345.0 GB/s
+nv T=   16 Auto         gate+up      428.0 us/call (min    423.3)  union  55.6 experts   388.3 GB/s
+nv T=   16 Auto         down         275.4 us/call (min    269.6)  union  55.6 experts   301.6 GB/s
+== DNU3=0 pool=62
+nv T=    4 Auto         all          249.1 us/call (min    244.4)  union  26.1 experts   468.5 GB/s
+nv T=    4 Auto         gate+up      148.7 us/call (min    148.1)  union  26.1 experts   523.4 GB/s
+nv T=    4 Auto         down          97.4 us/call (min     96.5)  union  26.1 experts   399.5 GB/s
+nv T=    8 Auto         all          409.1 us/call (min    408.5)  union  41.6 experts   455.3 GB/s
+nv T=    8 Auto         gate+up      241.4 us/call (min    238.9)  union  41.6 experts   514.3 GB/s
+nv T=    8 Auto         down         167.0 us/call (min    166.5)  union  41.6 experts   371.8 GB/s
+nv T=   16 Auto         all          741.3 us/call (min    733.6)  union  55.6 experts   336.2 GB/s
+nv T=   16 Auto         gate+up      490.5 us/call (min    437.7)  union  55.6 experts   338.8 GB/s
+nv T=   16 Auto         down         251.7 us/call (min    248.6)  union  55.6 experts   330.1 GB/s
+== DNU3=0 pool=
+nv T=    4 Auto         all          270.1 us/call (min    269.7)  union  29.5 experts   489.5 GB/s
+nv T=    4 Auto         gate+up      162.1 us/call (min    161.2)  union  29.5 experts   543.9 GB/s
+nv T=    4 Auto         down         103.9 us/call (min    103.8)  union  29.5 experts   424.3 GB/s
+nv T=    8 Auto         all          467.1 us/call (min    464.6)  union  51.1 experts   490.4 GB/s
+nv T=    8 Auto         gate+up      278.9 us/call (min    276.6)  union  51.1 experts   547.6 GB/s
+nv T=    8 Auto         down         187.4 us/call (min    185.8)  union  51.1 experts   407.4 GB/s
+nv T=   16 Auto         all          949.9 us/call (min    878.6)  union  83.2 experts   392.6 GB/s
+nv T=   16 Auto         gate+up      543.1 us/call (min    542.0)  union  83.2 experts   457.7 GB/s
+nv T=   16 Auto         down         323.4 us/call (min    320.7)  union  83.2 experts   384.3 GB/s
+== DNU3=1 pool=
+nv T=    4 Auto         all          256.9 us/call (min    256.7)  union  29.5 experts   514.7 GB/s
+nv T=    4 Auto         gate+up      161.5 us/call (min    160.9)  union  29.5 experts   546.0 GB/s
+nv T=    4 Auto         down          87.2 us/call (min     87.1)  union  29.5 experts   505.2 GB/s
+nv T=    8 Auto         all          432.9 us/call (min    432.8)  union  51.1 experts   529.2 GB/s
+nv T=    8 Auto         gate+up      278.6 us/call (min    276.9)  union  51.1 experts   548.1 GB/s
+nv T=    8 Auto         down         148.7 us/call (min    148.5)  union  51.1 experts   513.6 GB/s
+nv T=   16 Auto         all         1082.9 us/call (min   1015.3)  union  83.2 experts   344.3 GB/s
+nv T=   16 Auto         gate+up      604.5 us/call (min    598.0)  union  83.2 experts   411.2 GB/s
+nv T=   16 Auto         down         300.1 us/call (min    295.0)  union  83.2 experts   414.2 GB/s
+== DNU3=1 pool=
+nv T=    4 Auto         all          260.1 us/call (min    258.8)  union  29.5 experts   508.3 GB/s
+nv T=    4 Auto         gate+up      160.6 us/call (min    160.4)  union  29.5 experts   549.0 GB/s
+nv T=    4 Auto         down          87.8 us/call (min     87.3)  union  29.5 experts   502.2 GB/s
+nv T=    8 Auto         all          432.9 us/call (min    431.3)  union  51.1 experts   529.2 GB/s
+nv T=    8 Auto         gate+up      275.0 us/call (min    274.4)  union  51.1 experts   555.4 GB/s
+nv T=    8 Auto         down         148.2 us/call (min    147.9)  union  51.1 experts   515.3 GB/s
+nv T=   16 Auto         all          876.2 us/call (min    865.4)  union  83.2 experts   425.5 GB/s
+nv T=   16 Auto         gate+up      634.6 us/call (min    541.5)  union  83.2 experts   391.7 GB/s
+nv T=   16 Auto         down         355.3 us/call (min    302.5)  union  83.2 experts   349.8 GB/s
+== DNU3=0 pool=
+nv T=    4 Auto         all          269.6 us/call (min    268.2)  union  29.5 experts   490.5 GB/s
+nv T=    4 Auto         gate+up      162.4 us/call (min    161.0)  union  29.5 experts   542.7 GB/s
+nv T=    4 Auto         down         102.3 us/call (min    102.2)  union  29.5 experts   430.9 GB/s
+nv T=    8 Auto         all          457.2 us/call (min    456.0)  union  51.1 experts   501.0 GB/s
+nv T=    8 Auto         gate+up      277.4 us/call (min    274.6)  union  51.1 experts   550.5 GB/s
+nv T=    8 Auto         down         175.6 us/call (min    173.4)  union  51.1 experts   434.7 GB/s
+nv T=   16 Auto         all         1015.6 us/call (min    948.2)  union  83.2 experts   367.1 GB/s
+nv T=   16 Auto         gate+up      513.0 us/call (min    511.8)  union  83.2 experts   484.6 GB/s
+nv T=   16 Auto         down         306.7 us/call (min    305.3)  union  83.2 experts   405.3 GB/s
+== mx DNU3=0 pool 62
+mx T=   16 Auto         all          826.0 us/call (min    825.2)  union  55.6 experts   553.2 GB/s
+mx T=   16 Auto         gate+up      541.0 us/call (min    538.5)  union  55.6 experts   563.1 GB/s
+mx T=   16 Auto         down         283.3 us/call (min    282.7)  union  55.6 experts   537.6 GB/s
+== mx DNU3=1 pool 62
+mx T=   16 Auto         all          837.0 us/call (min    833.7)  union  55.6 experts   545.9 GB/s
+mx T=   16 Auto         gate+up      541.8 us/call (min    539.1)  union  55.6 experts   562.3 GB/s
+mx T=   16 Auto         down         290.2 us/call (min    288.6)  union  55.6 experts   524.8 GB/s
+== mx DNU3=1 pool 62
+mx T=   16 Auto         all          849.6 us/call (min    842.8)  union  55.6 experts   537.8 GB/s
+mx T=   16 Auto         gate+up      538.8 us/call (min    538.0)  union  55.6 experts   565.4 GB/s
+mx T=   16 Auto         down         288.6 us/call (min    288.3)  union  55.6 experts   527.8 GB/s
+== mx DNU3=0 pool 62
+mx T=   16 Auto         all          825.4 us/call (min    823.2)  union  55.6 experts   553.6 GB/s
+mx T=   16 Auto         gate+up      538.3 us/call (min    538.0)  union  55.6 experts   565.9 GB/s
+mx T=   16 Auto         down         286.8 us/call (min    282.7)  union  55.6 experts   531.0 GB/s
+== moevar pass 1
+| variant | threads gu / dn | TGs gu / dn | max threads/TG gu / dn | visit us | GB/s | gate+up us | down us | max abs vs shipped (of max |out|) |
+|---|---|---|---|---:|---:|---:|---:|---|
+| ship | 128 / 128 | 576 / 288 | 1024 / 1024 | 80.20 | 446.8 | 48.76 | 31.81 | reference (9216 of 9216 nonzero, 0 inf / nan) |
+| dn_nb3 | 128 / 128 | 576 / 288 | 1024 / 1024 | 76.75 | 466.9 | 48.23 | 26.43 | 0 (bitwise) |
+| dn_thr256 | 128 / 256 | 576 / 288 | 1024 / 1024 | 83.18 | 430.8 | 49.14 | 33.89 | 0 (bitwise) |
+| dn_nb3_thr256 | 128 / 256 | 576 / 288 | 1024 / 1024 | 78.96 | 453.8 | 48.37 | 27.79 | 0 (bitwise) |
+| dn_nb2_thr256 | 128 / 256 | 576 / 288 | 1024 / 1024 | 79.24 | 452.2 | 47.90 | 28.90 | 0 (bitwise) |
+| xr1_dn_nb3 | 128 / 128 | 576 / 288 | 1024 / 1024 | 72.78 | 492.4 | 45.71 | 26.71 | 0 (bitwise) |
+| xr1_dn_nb3_thr256 | 128 / 256 | 576 / 288 | 1024 / 1024 | 74.98 | 477.9 | 46.25 | 28.06 | 0 (bitwise) |
+| ship | 128 / 128 | 576 / 288 | 1024 / 1024 | 80.39 | 445.7 | 47.93 | 31.88 | 0 (bitwise) |
+== moevar pass 2
+| variant | threads gu / dn | TGs gu / dn | max threads/TG gu / dn | visit us | GB/s | gate+up us | down us | max abs vs shipped (of max |out|) |
+|---|---|---|---|---:|---:|---:|---:|---|
+| ship | 128 / 128 | 576 / 288 | 1024 / 1024 | 80.91 | 442.8 | 48.03 | 31.73 | reference (9216 of 9216 nonzero, 0 inf / nan) |
+| xr1_dn_nb3_thr256 | 128 / 256 | 576 / 288 | 1024 / 1024 | 74.08 | 483.7 | 45.74 | 27.78 | 0 (bitwise) |
+| xr1_dn_nb3 | 128 / 128 | 576 / 288 | 1024 / 1024 | 72.18 | 496.4 | 45.63 | 26.43 | 0 (bitwise) |
+| dn_nb2_thr256 | 128 / 256 | 576 / 288 | 1024 / 1024 | 78.78 | 454.8 | 47.92 | 28.84 | 0 (bitwise) |
+| dn_nb3_thr256 | 128 / 256 | 576 / 288 | 1024 / 1024 | 79.04 | 453.4 | 47.87 | 27.82 | 0 (bitwise) |
+| dn_thr256 | 128 / 256 | 576 / 288 | 1024 / 1024 | 82.00 | 437.0 | 48.12 | 33.87 | 0 (bitwise) |
+| dn_nb3 | 128 / 128 | 576 / 288 | 1024 / 1024 | 78.22 | 458.1 | 48.85 | 27.13 | 0 (bitwise) |
+| ship | 128 / 128 | 576 / 288 | 1024 / 1024 | 81.71 | 438.5 | 49.87 | 36.07 | 0 (bitwise) |
+m3 done
+fleetq: #11606 done (exit 0)

@@ -607,6 +607,19 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                         );
                     }
                 }
+                // 5 to 8 rows at K <= 3072 (CUDA's `matmul_mxfp4_gemv_ink_rows`, the Inkling-2 DSpark draft head: 4 output rows per warp,
+                // 1 to 3 groups per lane): K 2304 (72 groups: lanes 0..7 own a third), N tails (not a multiple of 4, N = 1 and 3), K of 1 and
+                // 96 groups. Appended again so the cases above keep their data.
+                let head: &[(usize, usize, usize)] =
+                    if quick { &[(7, 135, 2304), (5, 3, 32)] } else { &[(7, 135, 2304), (5, 3, 32), (6, 1, 3072), (8, 1001, 2304), (7, 4096, 2304), (5, 137, 1056)] };
+                for &(m, n, k) in head {
+                    for odt in [DType::Bf16, DType::F32] {
+                        push(
+                            format!("M={m} N={n} K={k} x=bf16 out={odt} act=none (w4a16)"),
+                            matmul_mxfp4_w4a16_case(&mut rng, m, n, k, DType::Bf16, odt),
+                        );
+                    }
+                }
             }
         }
         Op::MoeTopk => {
@@ -690,6 +703,28 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     c.attrs.ink.gate_cap = 4.0;
                     c.attrs.ink.up_cap = 25.0;
                     push(format!("T={t} E={e} K={k} H={h} I={i} {dt} situ"), c);
+                }
+            }
+            // Inkling-2 W4A4 (`ink.act_quant = 1`, `.act_quant()` kernels only): the situ shapes again with quantised activations;
+            // decode rows, the table path (40), verify rows and a prefill chunk at the real shape. Its own stream.
+            let mut arng = SplitMix64::new(cfg.seed ^ 0xA4A4_0001);
+            let mut ashapes: Vec<(usize, usize, usize, usize, usize)> = vec![(1, 16, 4, 64, 32), (7, 16, 4, 64, 32), (16, 16, 4, 128, 64), (40, 16, 4, 64, 32)];
+            if !quick {
+                ashapes.extend([(1, 128, 8, 2304, 1152), (4, 32, 8, 2304, 1152), (16, 32, 8, 2304, 1152), (64, 128, 8, 2304, 1152), (2048, 128, 8, 2304, 1152)]);
+            }
+            for (t, e, k, h, i) in ashapes {
+                for dt in ACT {
+                    if t >= 1024 && dt != DType::Bf16 {
+                        continue;
+                    }
+                    let mut c = experts_case(&mut arng, t, e, k, h, i, dt);
+                    let w: Vec<f32> = c.inputs[2].to_f32().iter().map(|v| v * 8.0).collect();
+                    c.inputs[2] = HostTensor::from_f32(&[t, k], &w);
+                    c.attrs.ink.situ = true;
+                    c.attrs.ink.gate_cap = 4.0;
+                    c.attrs.ink.up_cap = 25.0;
+                    c.attrs.ink.act_quant = 1;
+                    push(format!("T={t} E={e} K={k} H={h} I={i} {dt} situ w4a4"), c);
                 }
             }
         }
@@ -989,7 +1024,11 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             i[3].shape[1] / 2,
             i[0].dtype,
             // Inkling-2's SiTU experts are another case (and cache entry); the suffix is empty for every other model
-            if call.attrs.ink.situ { " situ" } else { "" }
+            match (call.attrs.ink.situ, call.attrs.ink.act_quant) {
+                (true, 1) => " situ w4a4",
+                (true, _) => " situ",
+                _ => "",
+            }
         ),
         Op::MoeCombine => format!("T={} H={} {}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
         Op::MatmulPair => format!(
@@ -1241,6 +1280,28 @@ pub const FORMATS: [&str; 3] = [FP8_E4M3, NVFP4, MXFP4];
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An exact-shape MoE case of a situ call carries situ and its caps, and its label says so (a situ kernel refuses a case
+    /// without it: Inkling-2 under `serve`'s admitted-only rule); a plain call's case and label are unchanged.
+    #[test]
+    fn moe_experts_case_carries_situ() {
+        let mk = |t: &HostTensor| crate::backend::TensorRef::new(crate::backend::Buffer::new(P(t.nbytes())), t.dtype, &t.shape);
+        let mut rng = SplitMix64::new(7);
+        let base = experts_case(&mut rng, 1, 128, 8, 256, 128, DType::Bf16);
+        let ins: Vec<_> = base.inputs.iter().map(mk).collect();
+        let outs: Vec<_> = base.outputs.iter().map(|o| mk(&HostTensor::zeros(o.dtype, &o.shape))).collect();
+        let caps = crate::plan::CAPS;
+        let plain = OpCall::new(Op::MoeExperts, ins.clone(), outs.clone(), base.attrs.clone());
+        let mut a = base.attrs.clone();
+        (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
+        let situ = OpCall::new(Op::MoeExperts, ins, outs, a);
+        let (pc, pl) = case_from_call(&plain, &caps, &mut SplitMix64::new(1)).unwrap();
+        let (sc, sl) = case_from_call(&situ, &caps, &mut SplitMix64::new(1)).unwrap();
+        assert!(!pc.attrs.ink.situ && !pl.contains("situ"), "{pl}");
+        assert!(sc.attrs.ink.situ && sc.attrs.ink.gate_cap == 4.0 && sc.attrs.ink.up_cap == 25.0);
+        assert_eq!(sl, format!("{pl} situ"));
+        assert!(pl.ends_with("T=1 E=32 K=8 H=256 I=128 bf16"), "{pl}");
+    }
 
     #[test]
     fn every_case_validates() {

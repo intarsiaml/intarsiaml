@@ -105,6 +105,8 @@ pub struct KernelImpl {
     pub row_invariant: bool,
     /// Implements the Inkling-2 SiTU expert activation (`OpAttrs::ink.situ`, `ShapeInfo::situ`). Off by default.
     pub situ: bool,
+    /// Implements the Inkling-2 W4A4 expert activation mode (`OpAttrs::ink.act_quant = 1`, `ShapeInfo::act_quant`). Off by default.
+    pub act_quant: bool,
 }
 
 fn always(_: &ShapeInfo) -> bool {
@@ -133,12 +135,19 @@ impl KernelImpl {
             frag: false,
             row_invariant: false,
             situ: false,
+            act_quant: false,
         }
     }
 
     /// Mark the kernel as implementing the Inkling-2 SiTU expert activation (`ShapeInfo::situ`).
     pub fn situ(mut self) -> Self {
         self.situ = true;
+        self
+    }
+
+    /// Mark the kernel as implementing the Inkling-2 W4A4 expert activation mode (`ShapeInfo::act_quant`).
+    pub fn act_quant(mut self) -> Self {
+        self.act_quant = true;
         self
     }
 
@@ -247,7 +256,7 @@ impl KernelImpl {
     pub fn accepts(&self, s: &ShapeInfo) -> bool {
         let act_ok = self.acts.is_empty() || s.act.is_none_or(|d| self.acts.contains(&d));
         let w_ok = self.weights.is_empty() || s.weight.is_none_or(|d| self.weights.contains(&d));
-        act_ok && w_ok && (self.ext || !s.ext) && (self.frag || !s.frag) && (self.situ || !s.situ) && (self.when)(s)
+        act_ok && w_ok && (self.ext || !s.ext) && (self.frag || !s.frag) && (self.situ || !s.situ) && (self.act_quant || s.act_quant == 0) && (self.when)(s)
     }
 }
 

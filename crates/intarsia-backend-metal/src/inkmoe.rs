@@ -40,7 +40,7 @@ const ROUTE: &str = "ink_moe_route";
 const GATHER: [&str; 2] = ["ink_moe_gather_bf16", "ink_moe_gather_f32"];
 
 /// Shader entry points of kernels/metal/inkling2_moe.metal.
-pub const SHADERS: [&str; 23] = [
+pub const SHADERS: [&str; 35] = [
     ROUTE,
     "ink_moe_gu_nv_a_x",
     "ink_moe_gu_nv_a",
@@ -64,6 +64,20 @@ pub const SHADERS: [&str; 23] = [
     "ink_moe_dn_f_mx_u_f32",
     GATHER[0],
     GATHER[1],
+    // one-row NVFP4 instances ([`t1_enabled`])
+    "ink_moe_gu1_nv_a_x",
+    "ink_moe_gu1_nv_a",
+    "ink_moe_gu1_nv_u_x",
+    "ink_moe_gu1_nv_u",
+    "ink_moe_dn_f3_nv_a_bf16",
+    "ink_moe_dn_f3_nv_u_bf16",
+    "ink_moe_dn_f3_nv_a_f32",
+    "ink_moe_dn_f3_nv_u_f32",
+    // down per pair, 3 chunks ahead ([`dnu3_enabled`])
+    "ink_moe_dn_u3_nv_a",
+    "ink_moe_dn_u3_nv_u",
+    "ink_moe_dn_u3_mx_a",
+    "ink_moe_dn_u3_mx_u",
 ];
 
 /// The grouped prefill GEMMs on the neural accelerators (kernels/metal/inkling2_moe_nax.metal, metal4.0 library), by
@@ -119,6 +133,13 @@ const DNF_ROWS: usize = 8;
 
 /// bf16 expert outputs (the Metal MoE budget, `kernels::MOE_TOL`).
 const MOE_TOL: Tol = Tol::new(1.5e-2, 1e-3);
+/// NVFP4 situ experts: rel_l2 2e-3 (abs as MOE_TOL). Lane ink-cuda-mixmoe swept 600 admission-built situ cases on CUDA (the Metal
+/// situ kernels take the same budget: same contract, same bf16 output rounding)
+/// (tests/ink_situ_spread.rs in intarsia-backend-cuda: T 1 and 4, E 32, H 2304, I 1152, judge of plan admission): worst
+/// rel_l2 9.50e-4, every differing output exactly 1 bf16 ulp (~5 % of the elements, scattered), so the error is the bf16
+/// output rounding of the routing-weighted (x 8) sum; a serve plan on spark1 drew a 1.04e-3 case of that tail and refused to
+/// load. Coordinator rule, brief 22 of docs/results/2026-11-21-inkling2-cuda-mixmoe.md.
+const SITU_TOL: Tol = Tol::new(1.5e-2, 2e-3);
 /// f32 router weights.
 const ROUTE_TOL: Tol = Tol::new(1e-3, 2e-4);
 
@@ -178,6 +199,60 @@ fn dnf_threads() -> usize {
     DNF_THREADS.load(Ordering::Relaxed)
 }
 
+static T1: AtomicU8 = AtomicU8::new(255);
+static T1_SERVED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// `INTARSIA_INK_MOE_T1` (lane ink-dfuse; default on since lane ink-batch brief 35, `=0` / `off` reverts): one-row NVFP4 calls (T = 1, the decode step at one row) take
+/// `ink_moe_gu1_nv_*` (one pair per union leader) and `ink_moe_dn_f3_nv_*` (3 down chunks loaded ahead). Same bits as the
+/// shipped instances (kernels/metal/inkling2_moe.metal); T > 1, MXFP8 and the grouped prefill GEMMs are unchanged.
+pub fn t1_enabled() -> bool {
+    let v = T1.load(Ordering::Relaxed);
+    if v == 255 {
+        let on = !matches!(std::env::var("INTARSIA_INK_MOE_T1").as_deref(), Ok("0") | Ok("off"));
+        T1.store(on as u8, Ordering::Relaxed);
+        on
+    } else {
+        v == 1
+    }
+}
+
+/// Tests and benchmarks: force [`t1_enabled`] on or off for this process (`None`: back to the environment).
+pub fn set_t1(v: Option<bool>) {
+    T1.store(v.map_or(255, |b| b as u8), Ordering::Relaxed);
+}
+
+static DNU3: AtomicU8 = AtomicU8::new(255);
+static DNU3_SERVED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// How many by-pair down launches took the `ink_moe_dn_u3_*` instances.
+pub fn dnu3_served() -> usize {
+    DNU3_SERVED.load(Ordering::Relaxed)
+}
+
+/// `INTARSIA_INK_MOE_DNU3=1` (default off, lane ink-batch brief 35): the by-pair down of decode calls (T > 1 under the Auto
+/// policy) takes `ink_moe_dn_u3_*`, which loads 3 weight chunks ahead per lane. Same chunk order, fma chain and reductions:
+/// same bits.
+pub fn dnu3_enabled() -> bool {
+    let v = DNU3.load(Ordering::Relaxed);
+    if v == 255 {
+        let on = matches!(std::env::var("INTARSIA_INK_MOE_DNU3").as_deref(), Ok("1") | Ok("on"));
+        DNU3.store(on as u8, Ordering::Relaxed);
+        on
+    } else {
+        v == 1
+    }
+}
+
+/// Tests and benchmarks: force [`dnu3_enabled`] on or off for this process (`None`: back to the environment).
+pub fn set_dnu3(v: Option<bool>) {
+    DNU3.store(v.map_or(255, |b| b as u8), Ordering::Relaxed);
+}
+
+/// How many decode calls took the one-row instances (tests assert that the switch reached the kernels).
+pub fn t1_served() -> usize {
+    T1_SERVED.load(Ordering::Relaxed)
+}
+
 /// Set the decode policy for this process (benchmarks and tests).
 pub fn set_policy(p: Policy) {
     POLICY.store(p as u8, Ordering::Relaxed);
@@ -199,7 +274,7 @@ pub fn register(name: &str, k: KernelImpl) -> KernelImpl {
             .situ()
             .when(|s| s.situ && s.experts <= MAX_EXPERTS && s.top_k <= MAX_K && s.k % 32 == 0 && s.n % 32 == 0)
             .exact(Exactness::Deterministic)
-            .tol(MOE_TOL)
+            .tol(SITU_TOL)
             .scratch(intarsia_core::quant::ops::moe_experts_scratch),
         MOE_EXPERTS_SITU_BF16_ROWS => k
             .acts(bf)
@@ -214,7 +289,7 @@ pub fn register(name: &str, k: KernelImpl) -> KernelImpl {
                     && s.n % 32 == 0
             })
             .exact(Exactness::Deterministic)
-            .tol(MOE_TOL)
+            .tol(SITU_TOL)
             .priority(-1)
             .rows_exact()
             .scratch(intarsia_core::quant::ops::moe_experts_scratch),
@@ -443,6 +518,11 @@ impl MetalBackend {
         let fmt = if mx { "mx" } else { "nv" };
         let al = if a16 { "a" } else { "u" };
         let pol = policy();
+        // one-row NVFP4: the gu1 / dn_f3 instances (same bits)
+        let t1 = !mx && t == 1 && t1_enabled();
+        if t1 {
+            T1_SERVED.fetch_add(1, Ordering::Relaxed);
+        }
         let (uni_gu, fused) = match pol {
             Policy::Auto => (true, t == 1),
             Policy::Union => (true, false),
@@ -452,7 +532,7 @@ impl MetalBackend {
         };
         // gate + up
         p.dims[5] = epi | if uni_gu { 4 } else { 0 } | if uni_gu { dec1_bits() } else { 0 };
-        let gu = format!("ink_moe_gu_{fmt}_{al}{}", if ax { "_x" } else { "" });
+        let gu = format!("ink_moe_gu{}_{fmt}_{al}{}", if t1 { "1" } else { "" }, if ax { "_x" } else { "" });
         let rb = inter.div_ceil(GU_ROWS);
         let g1 = if uni_gu {
             MTLSize { width: rb, height: pairs, depth: 1 }
@@ -468,14 +548,22 @@ impl MetalBackend {
         }
         if fused {
             p.dims[5] = epi;
-            let dn = format!("ink_moe_dn_f_{fmt}_{al}_{}", if o32 == 1 { "f32" } else { "bf16" });
+            let dn = format!(
+                "ink_moe_dn_f{}_{fmt}_{al}_{}",
+                if t1 { "3" } else { "" },
+                if o32 == 1 { "f32" } else { "bf16" }
+            );
             let g2 = MTLSize { width: t, height: h.div_ceil(DNF_ROWS), depth: 1 };
             return self.ink_dispatch(&dn, &[&hb, &ib, &wb, &w2, &s2, &gb, &ob], &p, g2, dnf_threads());
         }
         let uni_dn = uni_gu;
         p.dims[5] = epi | if uni_dn { 4 } else { 0 } | if uni_dn { dec1_bits() } else { 0 };
         let yb = at(&sc, o_y);
-        let dn = format!("ink_moe_dn_u_{fmt}_{al}");
+        let dnu3 = dnu3_enabled();
+        if dnu3 {
+            DNU3_SERVED.fetch_add(1, Ordering::Relaxed);
+        }
+        let dn = format!("ink_moe_dn_u{}_{fmt}_{al}", if dnu3 { "3" } else { "" });
         let nb = h.div_ceil(DNU_ROWS);
         let g2 = if uni_dn {
             MTLSize { width: nb, height: pairs, depth: 1 }

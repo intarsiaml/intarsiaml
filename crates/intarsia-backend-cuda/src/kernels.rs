@@ -380,13 +380,15 @@ pub fn all() -> Vec<KernelImpl> {
             }
             "rope_bf16" => k.acts(bf).when(|s| s.head_dim % 2 == 0).exact(Exactness::Deterministic).tol(BF16_TOL).row_invariant(),
             // cuBLAS: tensor cores, algorithm (split-K) may change with the shape or the library version
-            "matmul_bf16" => k.acts(bf).weights(bf).exact(Exactness::Fast).tol(BF16_TOL).priority(0),
+            // The bf16 Matmul launchers write bf16 only (`check_mm`): an f32-output Matmul (Inkling's router) is refused at
+            // selection, so the model takes `Logits` (the same math) as on Metal (lane ink-cuda-mixmoe)
+            "matmul_bf16" => k.acts(bf).weights(bf).when(|s| s.out != Some(DType::F32)).exact(Exactness::Fast).tol(BF16_TOL).priority(0),
             "logits_bf16" => k.acts(bf).weights(bf).exact(Exactness::Fast).tol(F32_TOL).priority(0),
             // native decode GEMV: fixed reduction order, run-to-run identical
             "matmul_bf16_gemv" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| (1..=4).contains(&s.m))
+                .when(|s| (1..=4).contains(&s.m) && s.out != Some(DType::F32))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(10),
@@ -405,7 +407,7 @@ pub fn all() -> Vec<KernelImpl> {
             "matmul_bf16_inv" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| s.k % 8 == 0 && s.n % 8 == 0)
+                .when(|s| s.k % 8 == 0 && s.n % 8 == 0 && s.out != Some(DType::F32))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(-5)
@@ -416,7 +418,7 @@ pub fn all() -> Vec<KernelImpl> {
             "matmul_bf16_gemv_rows" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| (1..=ROWS_MAX).contains(&s.m))
+                .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.out != Some(DType::F32))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(-1)
@@ -611,12 +613,16 @@ pub fn all() -> Vec<KernelImpl> {
     v.extend(crate::quantmoe::all());
     v.extend(crate::exl3::all());
     v.extend(crate::dsv41::all());
+    v.extend(crate::inkattn::all());
+    v.extend(crate::inkmix::all());
+    v.extend(crate::inkmoe::all());
+    v.extend(crate::inkp12::all());
     v
 }
 
 /// (launcher name, op) of every launcher: this file's table plus the quantised/MoE table.
 pub fn full_table() -> Vec<(&'static str, Op)> {
-    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).chain(crate::exl3::TABLE.iter()).chain(crate::dsv41::TABLE.iter()).copied().collect()
+    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).chain(crate::exl3::TABLE.iter()).chain(crate::dsv41::TABLE.iter()).chain(crate::inkattn::TABLE.iter()).chain(crate::inkmix::TABLE.iter()).chain(crate::inkmoe::TABLE.iter()).chain(crate::inkp12::TABLE.iter()).copied().collect()
 }
 
 #[cfg(test)]
@@ -1039,6 +1045,8 @@ mod tests {
         let not_on_cuda: Vec<Op> = NOT_ON_CUDA
             .iter()
             .chain(intarsia_core::dsv41::ops::OPS.iter().filter(|op| !crate::dsv41::TABLE.iter().any(|(_, o)| o == *op)))
+            // Inkling-2 (lane ink-skel): the ops without a CUDA kernel yet; the model refuses to load naming the op
+            .chain(intarsia_core::inkling2::ops::OPS.iter().filter(|op| !table.iter().any(|(_, o)| o == *op)))
             .copied()
             .collect();
         const NOT_ON_CUDA: &[Op] = &[
@@ -1059,23 +1067,12 @@ mod tests {
             Op::BridgeCode,
             Op::BridgeGate,
             Op::BridgeWrite,
-            // Inkling-2 (lane ink-skel): cpu only so far, the model refuses to load naming the op
-            Op::AttnResMix,
-            Op::LoopBlend,
-            Op::SconvRes,
-            Op::InkKvPrologue,
-            Op::RelSinkAttn,
-            Op::MoeExpertsMxfp8,
-            Op::InkInProj,
-            Op::ConvMix,
-            Op::InkAttnDecode,
             // the screened greedy head (lane ink-fp8): cpu and Metal only
             Op::HeadScreen,
             Op::LogitsGather,
             Op::ScreenArgmax,
+            // the fused router (lane ink-dfuse, op 76): Metal only; CUDA runs the router matmul + `MoeRoute`
             Op::InkRoute,
-            // lossless 12-bit weights (lane ink-pack12): cpu and Metal only
-            Op::MatmulP12,
             // the device sampler (lane ink-hostgap, slot 77): cpu and Metal only, CUDA keeps the host sampler (`Model::gumbel_ok`)
             Op::GumbelArgmax,
         ];
@@ -1095,6 +1092,9 @@ mod tests {
             include_str!("../../../kernels/cuda/ik_cuda_abi.h"),
             include_str!("../../../kernels/cuda/ik_cuda_abi_g4.h"),
             include_str!("../../../kernels/cuda/ik_cuda_abi_dsv41.h"),
+            include_str!("../../../kernels/cuda/ik_cuda_abi_ink.h"),
+            include_str!("../../../kernels/cuda/ik_cuda_abi_inkmm.h"),
+            include_str!("../../../kernels/cuda/ik_cuda_abi_inkp12.h"),
         ]
         .concat();
         for (name, _) in full_table() {
@@ -1219,6 +1219,7 @@ mod tests {
         "matmul_fp8_pair_gemv:matmul_fp8_pair",
         "matmul_fp8_pair_gemv_rows:matmul_fp8_pair",
         "matmul_mxfp4_gemv:matmul_mxfp4", // M1 drill (2026-10-21): OCP MXFP4, a new op, no change to existing candidates
+        "matmul_mxfp4_gemv_ink_rows:matmul_mxfp4", // lane ink-cuda-mixmoe: the DSpark draft head, 5..=8 rows at K <= 3072 only (no other model has that MXFP4 shape), bitwise matmul_mxfp4_gemv_rows
         "matmul_mxfp4_gemv_mr:matmul_mxfp4",
         "matmul_mxfp4_gemv_mr_rows:matmul_mxfp4",
         "matmul_mxfp4_gemv_rows:matmul_mxfp4",
@@ -1264,6 +1265,11 @@ mod tests {
         let mut got: Vec<String> = all()
             .iter()
             .filter(|k| !intarsia_core::dsv41::ops::OPS.contains(&k.op))
+            .filter(|k| !intarsia_core::inkling2::ops::OPS.contains(&k.op))
+            // the Inkling-2 experts (inkmoe.rs) serve only `ink.situ` calls of `MoeExperts`
+            .filter(|k| !k.situ)
+            // the P12 GEMVs (inkp12.rs, lane ink-cuda-p12) serve only `MatmulP12`, which no earlier model's plan contains
+            .filter(|k| k.op != Op::MatmulP12)
             .map(|k| format!("{}:{}", k.name, k.op))
             .collect();
         got.sort();

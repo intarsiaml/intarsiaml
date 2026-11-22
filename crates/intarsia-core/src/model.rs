@@ -1810,7 +1810,15 @@ impl Model {
                 if let Some(k) = attn_quant {
                     eprintln!("inkling2: attention projections quantised to {} at load ({} = {}; changes outputs)", k.name(), inkling2::ATTN_QUANT_ENV, k.name());
                 }
-                let m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, &mut slot_specs, &mut nbytes)?;
+                let mut m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, &mut slot_specs, &mut nbytes)?;
+                // opt-in W4A4 expert activations: the variable wins over the recipe
+                m.act_quant = match std::env::var(inkling2::ACT_QUANT_ENV).ok().filter(|v| !v.is_empty()) {
+                    Some(v) => inkling2::parse_act_quant(&v)?,
+                    None => recipe.ink_act_quant(backend.name()).map(inkling2::parse_act_quant).transpose()?.unwrap_or(0),
+                };
+                if m.act_quant == 1 {
+                    eprintln!("inkling2: W4A4 expert activations ({} / recipe act_quant; changes outputs)", inkling2::ACT_QUANT_ENV);
+                }
                 weights_bytes.set(weights_bytes.get() + nbytes);
                 eprintln!("inkling2: {} layers, {} visits, {} state slots, loaded in {:.1} s", m.layers.len(), m.visits.len(), slot_specs.len(), t0.elapsed().as_secs_f64());
                 layers = (0..dims.n_layers).map(|li| vec![Block::Ink(li)]).collect();
@@ -3167,7 +3175,7 @@ impl Model {
         let nv = self.view(&self.ws.n, self.act, &[t, self.dims.hidden]);
         let mut dump = InkTensors::new();
         let pos0 = st.len;
-        self.ink_pass(st, None, &self.view(&self.ws.ids, DType::I32, &[t]), t, pos0, &nv, false, tf, Some(&mut dump))?;
+        self.ink_pass(st, None, &self.view(&self.ws.ids, DType::I32, &[t]), t, pos0, &nv, false, tf, Some(&mut dump), None)?;
         let mut logits = Vec::with_capacity(t * self.dims.vocab);
         for r0 in (0..t).step_by(LOGIT_ROWS) {
             logits.extend(self.head_logits(&nv, r0, LOGIT_ROWS.min(t - r0), false)?);
@@ -4028,7 +4036,18 @@ impl Model {
                 HeadMode::AllLogits => {
                     let cb = on_row.as_mut().unwrap();
                     for (r, c) in self.head_groups(mode, chunk.len(), last) {
-                        let flat = self.head_logits(&hn, r, c, profile)?;
+                        // Inkling-2: a head group of 2..=16 rows takes the row-exact head (as its pass does), so each row's
+                        // logits are the one-row decode head's bits whatever the chunking (on CUDA the ordinary head is
+                        // cuBLAS from 5 rows)
+                        let mark = self.dims.ink.is_some() && !self.verifying() && inkling2::ink_rows_exact(self.backend.name(), c);
+                        if mark {
+                            self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+                        }
+                        let flat = self.head_logits(&hn, r, c, profile);
+                        if mark {
+                            self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+                        }
+                        let flat = flat?;
                         for i in 0..c {
                             cb(base + r + i, &flat[i * self.dims.vocab..(i + 1) * self.dims.vocab])?;
                         }
@@ -4366,12 +4385,10 @@ impl Model {
                 _ => return Err(Error::Unsupported("packed passes of Inkling-2".into())),
             };
             let pos0 = batch.as_ref().map_or(pos0, |b| b.max_pos);
-            if dpos.is_some() {
-                return Err(Error::Unsupported("device-position (graph) decode of Inkling-2".into()));
-            }
             let ids_t = ids_at.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t]));
             let nv = self.view(&ws.n, act, &[t, h]);
-            self.ink_pass(st, batch.as_ref(), &ids_t, t, pos0, &nv, profile, None, None)?;
+            // a captured decode step (`dpos`): pos0 is 0 and the positioned ops read the device position
+            self.ink_pass(st, batch.as_ref(), &ids_t, t, pos0, &nv, profile, None, None, dpos)?;
             return Ok(nv);
         }
 
