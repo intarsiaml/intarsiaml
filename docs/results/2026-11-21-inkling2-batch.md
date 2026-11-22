@@ -137,3 +137,23 @@ its `inkling2_attn` (1), `inkmix` (3), `row_tables` (8), `rows_exact` (10 of 11)
 `rows_exact_registrations_are_pinned`, fails identically on the base a88db4620 (#10818): ink/m-mix's
 `ink_in_proj_bf16_gemv_rows` is `rows_exact` but not in the pin list; not touched here (integration lane). `plan show --model ~/models/Qwen3-8B --backend metal`:
 stdout and stderr byte-identical to a88db4620 (#10785).
+
+## 4. Speed (Metal, endor, real checkpoint)
+
+`batch_step` (`crates/intarsia-models/examples/batch_step.rs`), fleetq #10773 `--quiet gpu,cpu --mem 25`, checkpoint b85c3cfa
+(W4A16, bf16), every sequence at context 1024 (+64 decoded), 4 rounds x 16 steps, solo and batched arms alternating;
+`profile_every: 0`. Each step asserts the batched tokens equal the solo tokens (held for every B).
+
+| streams | B solo steps ms | 1 batched step ms | speedup | solo agg tok/s | batched agg tok/s | per-stream tok/s |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 17.30 | 17.53 | 0.99x | 57.8 | 57.0 | 57.0 |
+| 2 | 36.83 | 23.29 | 1.58x | 54.3 | 85.9 | 43.0 |
+| 4 | 71.49 | 32.55 | 2.20x | 56.0 | 122.9 | 30.7 |
+| 8 | 146.64 | 58.38 | 2.51x | 54.6 | 137.0 | 17.1 |
+| 16 | 292.58 | 92.13 | 3.18x | 54.7 | **173.7** | 10.9 |
+
+oMLX on endor at 16 streams: 94 tok/s aggregate; Fable's estimate for this engine: about 250 (perf-strategy section 7).
+Step time grows 5.8 ms from 1 to 2 rows, then about 2.3 ms per row to 8 and 4.2 ms per row from 8 to 16: the 8 -> 16 step
+is the one that does not amortise (perf-strategy section 7: the chunked row GEMVs read the weights twice above 8 rows, and
+the expert union grows). Engine-path numbers through `intarsia serve --max-batch 16` (`bench speed`, localeval
+`conc-plain-1k`): #10811, queued.
