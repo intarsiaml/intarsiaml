@@ -20,3 +20,10 @@ Status: in progress.
 | 11 | MINOR | spec text (route_scale, two bank entries, two eps, bf16 probabilities) | route_scale is an attr; loader refuses a bank other than 2 entries; source eps fixed 1e-6 separate from `rms_norm_eps` |
 | 12 | MINOR | oracle duplicate ring writes | n/a (Rust writes only the last `rows` positions) |
 | 13 | MINOR | head_dim == d_rel in the tiny fixture | spec lane |
+
+## Briefs from the coordinator (kept here so they survive compaction)
+
+- 2026-11-21: merge ink/spec (6a42b90bf: regenerated tiny fixture, teacher-forced dumps, gates rewritten) before the tiny tests; gate on the new definitions.
+- G1(b) budget = **3x** the oracle's own teacher-forced bf16 error (`tf_check(factor=3)`), not 2x.
+- G2: KL21 mean <= 4e-3 (short), <= 6e-3 (long). G3: <= 1.05e-2 (short), <= 1.65e-2 (long), 1.4e-2 (4k). Plus confident rows (p1 - p2 >= 0.5): top-1 misses within the section i allowance (at most 1 per 2000).
+- Metal lanes ink/m-attn, ink/m-mix, ink/m-moe branched from 3feffee6e: op contracts stay stable; message main before any change.
