@@ -662,4 +662,53 @@ The default flip is a separate decision for the coordinator.
 
 Down runs at 318-354 GB/s at T = 4, against gate+up's 379-403. The quiet repeat (#11231) replaces these numbers when it lands.
 
-RESULTS_PLACEHOLDER
+## Landing as opt-in (lane ink-spec-land, Brief L1)
+
+Branch `ink/spec-land` = origin/main 1f226a2e3 + `ink/mtp` (c6dffe0d6) + `ink/mtp-softcap` (36cbb9536, with `ink/mtp-cut`).
+Merge conflicts were textual only: the Metal kernel pin list (`gumbel_argmax_f32` from main next to `hc_pre_bf16`), the Metal
+crate's module list (`sync`, `inkctrl` from main next to `topk`), `docs/tuning.md` rows (both sets) and this doc. No defaults
+change: DSpark runs only with `--spec dflash --spec-draft <Inkling-2-Mini dir>`; `ink/mtp-flip` (f130b8855) is not included.
+
+### Gate rules (set before any gate ran)
+
+Checkpoint `Inkling-2-Mini` snapshot b85c3cfa6 (its `mtp.safetensors` is the draft). DSpark arm everywhere:
+`--spec dflash --spec-draft <same dir> --spec-k 3` with `INTARSIA_DSPARK_TAU=0.8` (the code default is 0.6; 0.8 is the flip
+policy measured in #10991). Every `INTARSIA_*` variable is unset in the job scripts first. main = origin/main 1f226a2e3 built
+in the same job from `git archive`, branch = this branch's tip built in the same job. A gate fails on any miss; a failed gate
+stops the lane and is reported, never re-ruled.
+
+A. Spec off (the default) is a no-op vs main.
+  - A1 (endor, Metal): Inkling greedy `generate --temperature 0` at 64 tokens (`--max-seq 4096`) and 256 tokens
+    (`--max-seq 8192 --profile-every 0`), the lighthouse prompt of ink-metal's landing check: stdout md5 branch == main
+    (main's known values 65cde8f35a1802e3e2fadb44d94d080d / 61fd59fecb5e0d72ffd08f2c6d07855a).
+  - A2 (endor, Metal): `plan show --backend metal --max-seq 8192`, text and `--json`, for Inkling-2-Mini, Qwen3-8B and
+    Llama-3.1-8B-Instruct: non-empty and byte-identical branch vs main (6 files).
+  - A3 (endor, Metal, branch): every test binary passes with 0 failed and no panic: `intarsia-backend-metal` `--lib` (kernel
+    pin list) and `--test` dense, topk, inkmix, inkmoe, rows_exact, screen, inkling2_attn, inkctrl; `intarsia-models` with
+    `INTARSIA_INKLING2_BACKEND=metal --test-threads 1`: inkling2, inkling2_batch, inkling2_dspark, inkling2_dspark_cut,
+    inkling2_verify_softcap; `intarsia-cli --features metal --test docs_env_vars`; `kernels test --backend metal --op hc_pre`
+    admits its kernel.
+  - A4 (bespin, macOS, CPU slot): CI's check steps (`cargo check --workspace --locked`; metal; cuda / hip cfgs `--all-targets`)
+    finish without error, and CI's test step (`cargo test --workspace --locked --no-fail-fast` minus metal / cuda / hip) has
+    0 failed test binaries.
+  - A5 (spark1, CPU slot): CUDA release builds of main and branch; `plan show --backend cuda --max-seq 8192 --mem-budget 30`,
+    text and `--json`, for Qwen3.6-35B-A3B-NVFP4 and Qwen3-8B (no weights loaded): byte-identical. HIP: spark1 has no hipcc,
+    so as CI does it (`INTARSIA_HIP_CHECK_ONLY=1 cargo check --locked -p intarsia-backend-hip --all-targets` and `-p
+    intarsia-cli --features hip`): both finish without error.
+B. DSpark k3, gate 0.8 (branch, endor, Metal).
+  - B1: `generate --max-tokens 128 --show-ids --profile-every 0` on the 12 greedy golden prompts (`--prompt-ids greedy.json`)
+    and the 2 prose texts (`prose.json`): every `ids[` line identical spec off vs DSpark (14 prompts), and the DSpark run's
+    `spec:` line shows verify passes and accepted tokens > 0 (not vacuous).
+  - B2: `inkling2_verify_softcap` passes on Metal (A3) and cpu (A4): the rows `forward_verify_logits` returns (what a sampled
+    verify reads) are bitwise the softcapped decode logits. DSpark itself is greedy-only (sampled speculation exists only for
+    `--spec mtp`): in the B3 serve, a t1.0 request returns 200 and leaves `intarsia_spec_steps_total` unchanged.
+  - B3: `serve --max-batch 1 --max-seq 20480` with DSpark (admitted kernels only): one ~1.4k-token greedy chat request returns
+    HTTP 200 and `intarsia_spec_steps_total` > 0 after it.
+C. The PR's own CI (ubuntu check / test, macOS metal check, cuda / hip cfgs, reproducible build): every job green before merge.
+
+Speed protocol (after A and B pass; branch tip binary, endor, one `--quiet gpu,cpu` slot): `serve --backend metal --max-batch 1
+--max-seq 20480` per arm (off, DSpark k3 tau 0.8), localeval `suite --tier adhoc --cells speed-plain` (143 / 1k / 4k / 16k
+prompt tokens, 256 forced output tokens, 3 reps each); the DSpark arm declared `--lane spec:dspark --drafter dspark`, off `--lane
+plain`. Order: one warm-up run (off, `--no-unim`, discarded), then off, DSpark, DSpark, off (ABBA). Reported per length: decode
+tok/s, prefill tok/s and TTFT of each run, the arm means (absolute) and DSpark / off ratios, plus the A-to-A and B-to-B drift.
+
