@@ -387,13 +387,18 @@ fn inkling2_tiny_chunk_scan() {
 
 /// The speculative verify pass (`Model::forward_verify_logits`, R rows through the rows-exact kernels) gives the 1-row decode
 /// steps' logits bit for bit at R = 2, 3, 4 and at several positions (before and past the window and the rel extent), and its
-/// greedy picks are the decode argmaxes: greedy spec == no spec needs exactly this (lane ink-cuda-mtp; Metal's contract).
+/// greedy picks are the decode argmaxes: greedy spec == no spec needs exactly this (lane ink-cuda-mtp).
+///
+/// The verify rows come back BEFORE the final logit softcap (`final_logit_softcapping`; a decode step's readback applies it on
+/// the host, `Model::softcap_logits`), so the comparison caps them the same way, `cap * tanh(x / cap)`. The cap is monotone:
+/// greedy picks are unaffected, a sampled verify would draw from uncapped logits (reported, not changed here).
 #[test]
 fn inkling2_tiny_verify_rows_equal_decode_bitwise() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     let ids = prompt(&dir);
     let mut m = load(&dir, chunk());
     m.enable_verify(4).unwrap();
+    let cap = m.dims.ink.as_ref().map_or(0.0, |i| i.softcap);
     for &p in &[5usize, 9, 17, 26] {
         for r in 2..=4usize {
             if p + r > ids.len() {
@@ -401,7 +406,10 @@ fn inkling2_tiny_verify_rows_equal_decode_bitwise() {
             }
             let mut a = m.new_state().unwrap();
             all_logits(&m, &mut a, &ids[..p]);
-            let (picks, rows) = m.forward_verify_logits(&mut a, &ids[p..p + r]).unwrap();
+            let (picks, mut rows) = m.forward_verify_logits(&mut a, &ids[p..p + r]).unwrap();
+            if cap > 0.0 {
+                rows.iter_mut().flatten().for_each(|x| *x = cap * (*x / cap).tanh());
+            }
             let mut b = m.new_state().unwrap();
             all_logits(&m, &mut b, &ids[..p]);
             for (j, &id) in ids[p..p + r].iter().enumerate() {
