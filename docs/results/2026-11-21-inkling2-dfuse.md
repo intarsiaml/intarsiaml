@@ -1660,3 +1660,27 @@ difference, and a concurrent encoder with barriers costs more per transition tha
     The rel bias is the largest part, but 0.24-0.30 is a bound for deleting it, not for computing it faster in the same
     order. It reaches 0.3 only at ctx 512. Under the rule this is no build.
 - **Decision: wrap up (option a)**, per the coordinator's rule (slope < 1.5 us).
+
+### Wrap-up job W (#see jobW.out, queued ~10:20; estimated start ~12:29)
+
+- **Merge:** ink/metal bb2edc527 merged into ink/dfuse at 81bb8c4b8. The only code it brings is a test gate in
+  inkling2_batch.rs and a HIP kernel, so Metal decode is unchanged. Job W's Metal test step is the check.
+- **Arms:**
+  - A = after: the tip 81bb8c4b8 (.scratch/snap12) with its defaults;
+  - B = before: the same binary with the lane's four switches at 0. It isolates only the switchable changes. Two smaller
+    changes sit in both arms: route rank selection (part of InkRoute, so off whenever route is off) and the in_proj
+    rows-exact pin;
+  - C = the brief's base a88db4620 (.scratch/snapC), included until the coordinator says otherwise.
+
+  `INTARSIA_INK_MOE_T1` stays default off and so is in no arm; INTARSIA_INK_DEBUG_DISPATCHES is unset everywhere.
+- **Steps (raw/W_jobW.sh):**
+  1. Metal tests at the tip: the backend-metal Inkling tests (inkmoe, inkling2_attn, inkctrl, inkctrl_nometal4, inkmix,
+     inkload) and the models tests inkling2 (G1 tiny), inkling2_batch and inkling2_mix_decode_cpu.
+  2. Greedy md5 A vs B at 64 and 256 tokens.
+  3. G2 short / long (decode mode) and G3 short / long at the tip, with the self-goldens byte-compared with job G's.
+  4. plan show for Qwen3-8B / Llama-3.1-8B.
+  5. For each arm, a normal-step cb trace (short, 5k) and job E's per-dispatch trace with disp.py: dispatches and controller
+     ms per token.
+  6. localeval speed (sizes 128 / 5000, gen 128, 3 reps; serve --max-batch 1 --max-seq 8192) in the order A B C C B A.
+- **unanimis:** job K's finding is captured as record 46fa531e (about 1 us per dependent dispatch, tracking makes no
+  difference, conc + barrier is dearer).
