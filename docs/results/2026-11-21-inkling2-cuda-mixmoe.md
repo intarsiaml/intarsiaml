@@ -275,6 +275,13 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   baselines); Stage A runs there.
 - (coordinator, 36b) PR #489 merged as main `693f6440e`: merge it once #11498 / #11502 are green, rerun the Inkling CUDA md5s
   if the merge touches engine code or recipes, then push and open the PR.
+- (coordinator, 39th) Stopping stage A at +1.13 % was right. Before merging #491 (91 files, +16k): put no-op evidence for head
+  `cb13bd5f2` vs main `1f226a2e3` in the PR body: Metal and cpu plan show byte-identical for Qwen3-8B and Llama, Inkling Metal greedy
+  md5 64 / 256 unchanged, CUDA plan show 35B and 8B unchanged; rerun #11498 / #11502 if they ran on an older main (cpu / default
+  slots, cargo only inside slots). Merge on all-green CI, then delete the remote branch. Decisions 5 and 6 (user): cuda-attn makes
+  the default-on commits for CUDA spec and in_proj GEMV (briefs 31, 32) as a follow-up PR; do not hold #491. Next: gu+dn in one
+  launch per layer, build only if bitwise, timebox half a day, keep only at >= 1 % at g256 spec-off in a quiet ABBA, else record
+  and stop.
 - (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
   chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
   is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
