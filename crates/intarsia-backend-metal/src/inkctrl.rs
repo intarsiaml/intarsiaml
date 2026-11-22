@@ -105,10 +105,19 @@ struct InkRouteP {
     ngr: u32,
     sx: u32,
     sw: u32,
-    pad: [u32; 2],
+    rank: u32,
+    pad: u32,
     scale: f32,
     temp: f32,
     fpad: [f32; 2],
+}
+
+/// `INTARSIA_INK_ROUTE_RANK=0` / `off`: route with the selection loop of `ink_moe_route` (K dependent shuffle rounds on one
+/// simdgroup) instead of the rank selection (every thread of the last threadgroup ranks its experts; elementwise score functions
+/// only, softmax always takes the loop). The same bits for finite logits; an A/B knob.
+fn route_rank() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| !matches!(std::env::var("INTARSIA_INK_ROUTE_RANK").ok().as_deref().map(str::trim), Some("0") | Some("off")))
 }
 
 fn u32_of(v: usize, what: &str) -> Result<u32> {
@@ -181,6 +190,7 @@ impl MetalBackend {
             ngr: ngr as u32,
             sx: if vec { 0 } else { xb.skip },
             sw: if vec { 0 } else { wb.skip },
+            rank: route_rank() as u32,
             scale: a.scale,
             temp: a.temperature,
             ..Default::default()

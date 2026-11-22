@@ -133,6 +133,50 @@ inline void rt_route(coherent(device) device const float* row, device const floa
     }
 }
 
+// ---- the routing of one row by rank, in a whole threadgroup (elementwise score functions only) ----------------------------
+// For sigmoid and sqrt-softplus every score is a function of its own logit, so the scores, the biased values and the selection
+// order (biased value descending, expert index ascending on ties: `rt_better`'s order) do not depend on which thread computes
+// them. Every thread ranks its experts against all E values in threadgroup memory (rank = how many beat it); the expert of rank
+// k < K is pick k. The renorm sums the picks in k order on one thread, as `rt_route` does on every lane, so the outputs are
+// bitwise `rt_route`'s for every finite input (a NaN logit may select differently; the selection loop's NaN order is an
+// artefact of its scan). One dependent pass over E values instead of K dependent shuffle rounds.
+constant constexpr uint RT_EMAX = 1024;
+
+inline void rt_route_rank(coherent(device) device const float* row, device const float* bias, device float* wout,
+                          device int* iout, uint E, uint K, uint norm_topk, uint sf, float scale, float temp, uint tid,
+                          uint nthr, threadgroup float* tv, threadgroup float* ts, threadgroup int* slot,
+                          threadgroup float* sslot) {
+    for (uint e = tid; e < E; e += nthr) {
+        const float l = row[e] / temp;
+        const float sc = sf == 1u ? precise::divide(1.f, 1.f + precise::exp(-l))
+                                  : precise::sqrt(max(l, 0.f) + rt_log1p(precise::exp(-fabs(l))));
+        ts[e] = sc;
+        tv[e] = sc + bias[e];
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint e = tid; e < E; e += nthr) {
+        const float v = tv[e];
+        uint rank = 0;
+        for (uint o = 0; o < E; ++o) {
+            const float w = tv[o];
+            rank += (w > v || (w == v && o < e)) ? 1u : 0u;
+        }
+        if (rank < K) {
+            slot[rank] = (int)e;
+            sslot[rank] = ts[e];
+        }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (tid < K) {
+        float den = 0.f;
+        for (uint k = 0; k < K; ++k) den += sslot[k];
+        const float pick = sslot[tid];
+        const float w = (norm_topk != 0u && K > 1u) ? precise::divide(pick, den + 1e-20f) : pick;
+        wout[tid] = w * scale;
+        iout[tid] = slot[tid];
+    }
+}
+
 // ---- the last-threadgroup hand-off -------------------------------------------------------------------------------------------
 
 // Every thread calls this after its stores of the stage; returns (in every thread) whether this threadgroup is the last of
@@ -163,7 +207,7 @@ constant constexpr uint RT_SG = 4;  // logits (simdgroups) per threadgroup, as g
 struct InkRouteP {
     uint t, e, k, d;               // rows, experts, top-k, hidden (the GEMV's K)
     uint norm_topk, sfunc, vec, ngr;  // renorm, score function, 16-byte form, threadgroups per row (ceil(E / RT_SG))
-    uint sx, sw, pad0, pad1;       // leading bf16 elements of x / W (scalar form; 0 in the 16-byte form)
+    uint sx, sw, rank, pad1;       // leading bf16 elements of x / W (scalar form; 0 in the 16-byte form); rank = the rank routing
     float scale, temp, fpad0, fpad1;
 };
 
@@ -182,6 +226,8 @@ kernel void ink_route(device const ushort* x [[buffer(0)]],
                       uint sg [[simdgroup_index_in_threadgroup]],
                       uint lane [[thread_index_in_simdgroup]]) {
     threadgroup uint flag;
+    threadgroup float tv[RT_EMAX], ts[RT_EMAX], sslot[32];
+    threadgroup int slot[32];
     const uint j = tg2.x, t = tg2.y, E = p.e;
     const uint e = j * RT_SG + sg;
     const uint row = min(e, E - 1u);  // simdgroups past E read a valid row and do not store
@@ -194,7 +240,13 @@ kernel void ink_route(device const ushort* x [[buffer(0)]],
     }
     coherent(device) device float* lrow = logits + (ulong)t * E;
     if (lane == 0 && e < E) lrow[e] = s;
-    if (!rt_last(ctr + t, p.ngr, tid, &flag) || sg != 0) return;
+    if (!rt_last(ctr + t, p.ngr, tid, &flag)) return;
+    if (p.sfunc != 0u && p.rank != 0u) {
+        rt_route_rank(lrow, bias, wout + (ulong)t * p.k, iout + (ulong)t * p.k, E, p.k, p.norm_topk, p.sfunc, p.scale, p.temp,
+                      tid, RT_SG * 32u, tv, ts, slot, sslot);
+        return;
+    }
+    if (sg != 0) return;
     rt_route(lrow, bias, wout + (ulong)t * p.k, iout + (ulong)t * p.k, E, p.k, p.norm_topk, p.sfunc, p.scale, p.temp, lane);
 }
 
