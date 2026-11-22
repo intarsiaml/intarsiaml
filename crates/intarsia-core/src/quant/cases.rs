@@ -637,9 +637,14 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
             let mut ishapes: Vec<(usize, usize, usize, usize, usize)> = vec![(1, 16, 4, 64, 32), (7, 16, 4, 64, 32), (16, 16, 4, 128, 64), (40, 16, 4, 64, 32)];
             if !quick {
                 ishapes.extend([(1, 128, 8, 2304, 1152), (3, 32, 8, 256, 128)]);
+                // lane ink-m-moe: verify rows at the real H / I, and a real prefill chunk (bf16 only: the cpu reference's cost)
+                ishapes.extend([(4, 32, 8, 2304, 1152), (16, 32, 8, 2304, 1152), (2048, 128, 8, 2304, 1152)]);
             }
             for (t, e, k, h, i) in ishapes {
                 for dt in ACT {
+                    if t >= 1024 && dt != DType::Bf16 {
+                        continue;
+                    }
                     let mut c = experts_case(&mut irng, t, e, k, h, i, dt);
                     // route_scale 8: weights around 8 / K, as the model gives them
                     let w: Vec<f32> = c.inputs[2].to_f32().iter().map(|v| v * 8.0).collect();

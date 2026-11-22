@@ -286,6 +286,7 @@ inline bool ink_lead(device const int* ids, uint P, uint E, uint pr, bool uni, u
 constant constexpr uint INK_SG = 4;   // simdgroups per threadgroup of the expert kernels
 constant constexpr uint INK_LG = 8;   // lanes per gate+up row
 constant constexpr uint INK_LD = 4;   // lanes per down row
+constant constexpr uint INK_NB = 1;   // chunks a lane loads ahead per step (3 measured slower: 83 -> 91 us at one NVFP4 row)
 
 // gate + up. Union: grid (I / 16, pairs), else (pairs, I / 16). h [T*K, I] bf16 by pair.
 template <uint FMT, bool A16, bool AX>
@@ -315,7 +316,27 @@ inline void ink_gu_impl(device const ushort* x, device const int* ids, device co
         ag[q] = 0.f;
         au[q] = 0.f;
     }
-    for (uint c = li; c < nc; c += INK_LG) {
+    // INK_NB chunks per step, all their loads first (more bytes in flight per lane); chunk order per pair unchanged
+    uint c = li;
+    for (; c + (INK_NB - 1u) * INK_LG < nc; c += INK_NB * INK_LG) {
+        InkChunk<FMT> kg[INK_NB], ku[INK_NB];
+        _Pragma("clang loop unroll(full)")
+        for (uint j = 0; j < INK_NB; ++j) {
+            kg[j] = ink_load<FMT, A16>(wg, sgp, c + j * INK_LG);
+            ku[j] = ink_load<FMT, A16>(wu, sup, c + j * INK_LG);
+        }
+        for (uint q = 0; q < INK_XR; ++q) {
+            if (q >= rows) break;
+            _Pragma("clang loop unroll(full)")
+            for (uint j = 0; j < INK_NB; ++j) {
+                uint xw[16];
+                ink_xload<AX>(xr[q], c + j * INK_LG, xw);
+                ag[q] = ink_chunk_dot<FMT>(kg[j], xw, ag[q]);
+                au[q] = ink_chunk_dot<FMT>(ku[j], xw, au[q]);
+            }
+        }
+    }
+    for (; c < nc; c += INK_LG) {
         const InkChunk<FMT> kg = ink_load<FMT, A16>(wg, sgp, c);
         const InkChunk<FMT> ku = ink_load<FMT, A16>(wu, sup, c);
         for (uint q = 0; q < INK_XR; ++q) {
@@ -348,7 +369,19 @@ inline void ink_gu_impl(device const ushort* x, device const int* ids, device co
 template <uint FMT, bool A16>
 inline float ink_dn_row(device const uchar* wr, device const uchar* sr, device const ushort* hr, uint nc, uint li) {
     float s = 0.f;
-    for (uint c = li; c < nc; c += INK_LD) {
+    uint c = li;
+    for (; c + (INK_NB - 1u) * INK_LD < nc; c += INK_NB * INK_LD) {
+        InkChunk<FMT> kw[INK_NB];
+        _Pragma("clang loop unroll(full)")
+        for (uint j = 0; j < INK_NB; ++j) kw[j] = ink_load<FMT, A16>(wr, sr, c + j * INK_LD);
+        _Pragma("clang loop unroll(full)")
+        for (uint j = 0; j < INK_NB; ++j) {
+            uint xw[16];
+            ink_xload<true>(hr, c + j * INK_LD, xw);
+            s = ink_chunk_dot<FMT>(kw[j], xw, s);
+        }
+    }
+    for (; c < nc; c += INK_LD) {
         const InkChunk<FMT> kw = ink_load<FMT, A16>(wr, sr, c);
         uint xw[16];
         ink_xload<true>(hr, c, xw);
@@ -397,18 +430,18 @@ inline float ink_tok_sum(thread const float* ys, device const int* ids, device c
     return acc;
 }
 
-// down + the token sum: grid (T, H / 8). A threadgroup: 8 output rows of token tg.x; simdgroup sg serves slots sg, sg + 4, ..
+// down + the token sum: grid (T, H / 8), any whole simdgroups. A threadgroup: 8 output rows of token tg.x; simdgroup sg serves slots sg, sg + nsg, ..
 // (8 rows x INK_LD lanes each), the y values meet in threadgroup memory, 8 threads sum them in k order.
 template <uint FMT, bool A16, typename OutT>
 inline void ink_dn_f_impl(device const ushort* h, device const int* ids, device const float* wts, device const uchar* w2,
                           device const uchar* s2, device const float* gsc, device OutT* out, constant OpP& p,
-                          threadgroup float* ys, uint2 tg, uint sg, uint lane, uint tid) {
+                          threadgroup float* ys, uint2 tg, uint sg, uint lane, uint tid, uint nsg) {
     const uint E = p.b, K = p.c, H = p.d, I = p.e, t = tg.x;
     const uint n = tg.y * 8u + lane / INK_LD, li = lane % INK_LD;
     const uint nn = min(n, H - 1u);
     constexpr uint WB = FMT == 0 ? 16u : 32u, SB = FMT == 0 ? 2u : 1u;
     const uint nc = I / 32u;
-    for (uint k = sg; k < K; k += INK_SG) {
+    for (uint k = sg; k < K; k += nsg) {
         const uint pr = t * K + k;
         const int id = ids[pr];
         if (id < 0 || (uint)id >= E) continue;  // uniform over the simdgroup
@@ -460,9 +493,10 @@ inline void ink_gather_impl(device const ushort* y, device const int* ids, devic
                      device const uchar* s2 [[buffer(4)]], device const float* gsc [[buffer(5)]],                       \
                      device OUT* out [[buffer(6)]], constant OpP& p [[buffer(7)]],                                       \
                      uint2 tg [[threadgroup_position_in_grid]], uint sg [[simdgroup_index_in_threadgroup]],             \
-                     uint lane [[thread_index_in_simdgroup]], uint tid [[thread_index_in_threadgroup]]) {               \
+                     uint lane [[thread_index_in_simdgroup]], uint tid [[thread_index_in_threadgroup]],                 \
+                     uint nsg [[simdgroups_per_threadgroup]]) {                                                         \
         threadgroup float ys[32 * 8];                                                                                   \
-        ink_dn_f_impl<FMT, A16, OUT>(h, ids, wts, w2, s2, gsc, out, p, ys, tg, sg, lane, tid);                          \
+        ink_dn_f_impl<FMT, A16, OUT>(h, ids, wts, w2, s2, gsc, out, p, ys, tg, sg, lane, tid, nsg);                     \
     }
 
 // suffixes: nv = NVFP4, mx = MXFP8; a = 16-byte aligned weights, u = 4-byte aligned; x = 16-byte aligned activations

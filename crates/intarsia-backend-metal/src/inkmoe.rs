@@ -66,6 +66,36 @@ pub const SHADERS: [&str; 23] = [
     GATHER[1],
 ];
 
+/// The grouped prefill GEMMs on the neural accelerators (kernels/metal/inkling2_moe_nax.metal, metal4.0 library), by
+/// format (NVFP4, MXFP8) and rows per tile (8, 16, 32, 64).
+pub const NAX_GU: [[&str; 4]; 2] = [
+    ["ink_moe_nax_gu_nv_m8", "ink_moe_nax_gu_nv_m16", "ink_moe_nax_gu_nv_m32", "ink_moe_nax_gu_nv_m64"],
+    ["ink_moe_nax_gu_mx_m8", "ink_moe_nax_gu_mx_m16", "ink_moe_nax_gu_mx_m32", "ink_moe_nax_gu_mx_m64"],
+];
+pub const NAX_DN: [[&str; 4]; 2] = [
+    ["ink_moe_nax_dn_nv_m8", "ink_moe_nax_dn_nv_m16", "ink_moe_nax_dn_nv_m32", "ink_moe_nax_dn_nv_m64"],
+    ["ink_moe_nax_dn_mx_m8", "ink_moe_nax_dn_mx_m16", "ink_moe_nax_dn_mx_m32", "ink_moe_nax_dn_mx_m64"],
+];
+
+/// Entry points of the metal4.0 library (`kernels::metal4_shaders`).
+pub fn metal4_shaders() -> impl Iterator<Item = &'static str> {
+    NAX_GU.iter().chain(NAX_DN.iter()).flatten().copied()
+}
+
+/// `INTARSIA_INK_MOE_NAX=0` keeps every call on the decode kernels (no grouped prefill GEMMs).
+fn nax_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_INK_MOE_NAX").map_or(true, |v| v != "0"))
+}
+
+/// Rows per grouped tile for `pairs` pairs over `e` experts, as (index into `NAX_GU` / `NAX_DN`, rows): the smallest of
+/// 8 / 16 / 32 / 64 at or above the mean rows per expert (moe.rs's rule).
+fn tile_rows(pairs: usize, e: usize) -> (usize, usize) {
+    let mean = pairs.div_ceil(e.max(1));
+    let ti = (0..3).find(|&t| mean <= 8 << t).unwrap_or(3);
+    (ti, 8 << ti)
+}
+
 /// Rows at or below which the experts take the decode kernels (above: grouped GEMMs when the metal4.0 library loaded).
 pub const DEC_MAX_ROWS: usize = 16;
 const MAX_EXPERTS: usize = 1024;
@@ -115,6 +145,25 @@ fn policy() -> Policy {
         [Policy::Auto, Policy::Union, Policy::Pair, Policy::Fused, Policy::UnionFused][v as usize]
     };
     p
+}
+
+static PROBE: AtomicU8 = AtomicU8::new(0);
+
+/// Benchmarks only: 1 launches only the gate+up kernel of a decode call, 2 only its down kernel(s) (the output is then
+/// garbage); 0 (default) the whole call.
+pub fn set_probe(v: u8) {
+    PROBE.store(v, Ordering::Relaxed);
+}
+
+static DNF_THREADS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(128);
+
+/// Threads per threadgroup of the fused down kernel (a multiple of 32; benchmarks: every choice gives the same bits).
+pub fn set_dnf_threads(n: usize) {
+    DNF_THREADS.store(n, Ordering::Relaxed);
+}
+
+fn dnf_threads() -> usize {
+    DNF_THREADS.load(Ordering::Relaxed)
 }
 
 /// Set the decode policy for this process (benchmarks and tests).
@@ -324,6 +373,26 @@ impl MetalBackend {
             ..Default::default()
         };
         let hb = at(&sc, o_h);
+        let fi = mx as usize;
+        if t > DEC_MAX_ROWS && nax_enabled() && self.has_metal4() && self.pso(NAX_GU[fi][0]).is_some() {
+            // grouped by expert (moe.metal's moe_group reads the rows per tile from p.f), h by slot, y by pair, then the gather
+            let (pb, offb, tb, yb) = (at(&sc, 0), at(&sc, o_off), at(&sc, o_tiles), at(&sc, o_y));
+            let (ti, tm) = tile_rows(pairs, e);
+            let mut pg = p;
+            pg.dims[5] = tm as u32;
+            let gt = self.pso("moe_group").map_or(256, |s| {
+                use objc2_metal::MTLComputePipelineState;
+                s.maxTotalThreadsPerThreadgroup().min(1024)
+            });
+            self.ink_dispatch("moe_group", &[&ib, &pb, &offb, &tb], &pg, MTLSize { width: 1, height: 1, depth: 1 }, gt)?;
+            let max_tiles = pairs.div_ceil(tm) + pairs.min(e);
+            let ggu = MTLSize { width: inter.div_ceil(32), height: max_tiles, depth: 1 };
+            self.ink_dispatch(NAX_GU[fi][ti], &[&xb, &pb, &offb, &tb, &w13, &s13, &gb, &wb, &hb], &p, ggu, 128)?;
+            let gdn = MTLSize { width: h.div_ceil(64), height: max_tiles, depth: 1 };
+            self.ink_dispatch(NAX_DN[fi][ti], &[&hb, &pb, &offb, &tb, &w2, &s2, &gb, &wb, &yb], &p, gdn, 128)?;
+            let gg = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };
+            return self.ink_dispatch(GATHER[o32], &[&yb, &ib, &wb, &ob], &p, gg, 256);
+        }
         let fmt = if mx { "mx" } else { "nv" };
         let al = if a16 { "a" } else { "u" };
         let pol = policy();
@@ -334,18 +403,23 @@ impl MetalBackend {
             Policy::Fused => (false, true),
             Policy::UnionFused => (true, true),
         };
-        let _ = (o_off, o_tiles);
         // gate + up
         p.dims[5] = epi | if uni_gu { 4 } else { 0 };
         let gu = format!("ink_moe_gu_{fmt}_{al}{}", if ax { "_x" } else { "" });
         let rb = inter.div_ceil(GU_ROWS);
         let g1 = if uni_gu { MTLSize { width: rb, height: pairs, depth: 1 } } else { MTLSize { width: pairs, height: rb, depth: 1 } };
-        self.ink_dispatch(&gu, &[&xb, &ib, &wb, &w13, &s13, &gb, &hb], &p, g1, 128)?;
+        let probe = PROBE.load(Ordering::Relaxed);
+        if probe != 2 {
+            self.ink_dispatch(&gu, &[&xb, &ib, &wb, &w13, &s13, &gb, &hb], &p, g1, 128)?;
+        }
+        if probe == 1 {
+            return Ok(());
+        }
         if fused {
             p.dims[5] = epi;
             let dn = format!("ink_moe_dn_f_{fmt}_{al}_{}", if o32 == 1 { "f32" } else { "bf16" });
             let g2 = MTLSize { width: t, height: h.div_ceil(DNF_ROWS), depth: 1 };
-            return self.ink_dispatch(&dn, &[&hb, &ib, &wb, &w2, &s2, &gb, &ob], &p, g2, 128);
+            return self.ink_dispatch(&dn, &[&hb, &ib, &wb, &w2, &s2, &gb, &ob], &p, g2, dnf_threads());
         }
         let uni_dn = uni_gu;
         p.dims[5] = epi | if uni_dn { 4 } else { 0 };
