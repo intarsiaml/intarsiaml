@@ -106,6 +106,14 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   row-table (batched) path at B = 1 (it must take the solo path). Report each step; cc the m-mix lane (ae322a37a246f2443) or
   ink-batch (a716d7e057a6fbfc3) if theirs.
 
+- 2026-11-22 (coordinator): agrees it looks like bad state from the 1-row decode path. Whatever the bisect names, the fix is
+  not done without a test that would have caught it: Metal 1-row decode at real D (2304, so NE 4 runs) against the CPU
+  reference (not against the rows-exact kernels), ~20 decode steps, comparing the conv-ring / blend / KV state each kernel
+  writes and the logits, within the tiny CPU-vs-Metal tolerances; a synthetic D 2304 layer with random weights in the Metal
+  test suite is fine; the same test for NE 3. If the bisect points at NE 4: fix the kernel or make NE 3 the default
+  (`INTARSIA_INK_MIX_NE`) until fixed, whichever is faster; then rerun decode-mode G2 (must be back near 2.6e-3) and release
+  the merge queue. Send the bisect table when #11142 lands.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
