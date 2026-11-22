@@ -380,6 +380,15 @@ impl Dspark {
     }
 }
 
+fn dspark_profile() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_DSPARK_PROFILE").is_ok_and(|v| v == "1"))
+}
+
+fn ms(d: std::time::Duration) -> f64 {
+    d.as_secs_f64() * 1e3
+}
+
 impl Model {
     fn ds_download(&self, b: &Buffer, dtype: DType, off_elems: usize, n: usize) -> Result<Vec<f32>> {
         let es = dtype.size_bytes();
@@ -403,7 +412,9 @@ impl Model {
         if self.recorder.lock().unwrap().is_some() {
             return Ok(());
         }
+        let t0 = Instant::now();
         self.backend.synchronize(self.stream)?;
+        let t_sync = t0.elapsed();
         let taps: Vec<Vec<f32>> = src.iter().map(|b| self.ds_download(b, act, 0, t * h)).collect::<Result<_>>()?;
         let pos0 = d.kv.len;
         let row = |p: usize| -> Vec<&[f32]> { taps.iter().map(|x| &x[p * h..(p + 1) * h]).collect() };
@@ -434,6 +445,10 @@ impl Model {
             self.d2_append(slot, &k0, &v, pos0, nkv, hd, profile)?;
         }
         d.kv.advance_rows(t);
+        if dspark_profile() {
+            self.backend.synchronize(self.stream)?;
+            eprintln!("dspark: ingest {t} rows ms: target sync {:.2} ingest {:.2}", ms(t_sync), ms(t0.elapsed() - t_sync));
+        }
         Ok(())
     }
 
@@ -460,6 +475,12 @@ impl Model {
         let im = self.ink.as_ref().ok_or_else(|| Error::invalid("the DSpark draft on a model other than Inkling-2"))?;
         let head = self.lm_head.as_ref().ok_or_else(|| Error::invalid("the DSpark draft needs the model's lm_head"))?;
         let profile = false;
+        let prof = dspark_profile();
+        let t0 = Instant::now();
+        if prof {
+            self.backend.synchronize(self.stream)?;
+        }
+        let t_in = t0.elapsed();
         let (h, act, t) = (self.dims.hidden, self.act, BLOCK);
         let (nh, nkv, hd, inter, r) = (ds.c.n_heads, ds.c.n_kv_heads, ds.c.head_dim, ds.c.intermediate, ds.c.rank);
         let bf = &ds.bufs;
@@ -522,6 +543,10 @@ impl Model {
             std::mem::swap(&mut x, &mut xn);
         }
         self.exec(Op::RmsNorm, vec![x.clone(), ds.norm.clone()], vec![n.clone()], eps_d, profile)?;
+        if prof {
+            self.backend.synchronize(self.stream)?;
+        }
+        let t_block = t0.elapsed();
         // head inputs: base logits of the mask rows, the hidden part of rnn_proj; the f_rnn part of the last committed position
         let hs = n.rows(1, kmax);
         let vocab = self.dims.vocab;
@@ -538,6 +563,7 @@ impl Model {
         let fwv = self.view(&bf.fw, DType::F32, &[1, 3 * r]);
         self.exec(Op::Logits, vec![self.view(&bf.frnn, act, &[1, h]), ds.w_f.clone()], vec![fwv], OpAttrs::default(), profile)?;
         self.backend.synchronize(self.stream)?;
+        let t_head = t0.elapsed();
         let hw = self.ds_download(&bf.hw, DType::F32, 0, kmax * 3 * r)?;
         let fw = self.ds_download(&bf.fw, DType::F32, 0, 3 * r)?;
         // the Markov recurrence, one proposal per step
@@ -592,6 +618,9 @@ impl Model {
             }
             if p1 < ds.tau {
                 break;
+            }
+            if prof && i == 0 {
+                eprintln!("dspark: ms flush {:.2} block {:.2} head {:.2} step0 {:.2}", ms(t_in), ms(t_block - t_in), ms(t_head - t_block), ms(t0.elapsed() - t_head));
             }
             out.push(best as u32);
             prev = best;
