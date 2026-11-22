@@ -72,6 +72,15 @@ Status: in progress. Branch `ink/mtp` (not pushed, not merged).
   cycle from a running acceptance estimate and/or the draft's top-1 confidence, simulated offline on CPU from the oracle
   acceptance logs (no GPU jobs). Report the expected tokens per pass and tok/s against fixed k3 tau 0.8 on greedy golden and
   prose, with the measured +2.9 ms per extra verify row; send the table before building anything.
+- 2026-11-22 (coordinator, SendMessage): go on the cumulative cut; skip EMA. (1) Build env knobs for the cut c and kmax, default
+  off (k3 tau 0.8 unchanged when unset); a few lines in the gate only; bespin compile + spark2 CPU DSpark tests. (2) One quiet
+  endor job behind #11147 / #11148 (do not delay them): c in {0.35, 0.5} x kmax in {3, 4} against k3 tau 0.8, interleaved, on
+  greedy golden and the real-decode prose prompts, with server counters (tokens / pass, rows / pass). (3) Decision rule
+  (coordinator's, pre-set): if the best (c, kmax) beats k3 tau 0.8 beyond spread on greedy and is not worse beyond spread on
+  prose, it becomes the flip commit's policy (amend f130b8855's message with the numbers). kmax 4 needs verify at 5 rows:
+  confirm it routes to the rows kernels with no slow fallback and that the 4-row crossover is not a cliff at 5; report
+  per-pass ms at 4 and 5 rows. If nothing clears, keep k3 tau 0.8 and report. (4) The flip still needs the ingest gates first
+  (prefill within 2% at every length, sampled prefill equal to off).
 
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
