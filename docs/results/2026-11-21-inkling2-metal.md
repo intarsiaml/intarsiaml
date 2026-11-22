@@ -311,6 +311,10 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
   more than 2 % slower -> flip only the R=1 paths, or stop and report; within 2 % the flip stands. #11194 still required.
   Lane: arm D in `serve_le2.sh` (ABAB x3, medians of the batched step ms per B, on/off ratio, the 1.02 rule printed); it runs
   only if pack12 is merged, so the order is #11206 -> (#11194 passes) pack12 merge + `pk12check.sh` -> quiet baseline.
+- 2026-11-22 (ink-prefill lane): take ink/prefill-merge 297cebadc instead of 05f1c702e: one docs commit, tuning.md rows for
+  `INTARSIA_INK_BLEND_NAX` / `_MOE_NAX2` / `_MOE_NAXSKIP` / `_PREFILL_TRACE` (bespin #11216 docs_env_vars 2/2), no code.
+  Lane: ink/metal already has rows for these four (7e5e6010e, written at the merge); 297cebadc merges after #11206 (the gate
+  tree stays fixed), keeping the lane's own row text and dropping mine, so each variable has one row.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
