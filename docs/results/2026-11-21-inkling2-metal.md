@@ -64,6 +64,56 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   kernels test, G2 / G3, greedy md5 against the current tip, ink-batch's batched == solo at B = 2 / 5 / 16. Send the hash to
   the coordinator and ink-batch (a716d7e057a6fbfc3).
 
+- 2026-11-22 (coordinator): after #11048 passes, merge three more branches in this order, each when the coordinator or its
+  lane says it is ready: (1) ink/hostgap 9a38f0224, once its spark2 #11072 and bespin #11073 pass (greedy +1.5 %, sampled
+  +2.7-3.6 %, bitwise identical; `generate` defaults to `--profile-every 0` on Metal); (2) ink/fp8, after its #10974 (all
+  opt-in, default path identical, #10941); (3) ink/pack12, after its flip gate #11066 (contains ink/fp8; P12 default-on on
+  Metal, `INTARSIA_INK_PACK12=0` reverts; lossless, +8.5-9.7 % decode). Then ONE combined gate on the tip after all three (or
+  whichever are in): rows-exact, G2 / G3, greedy md5 with P12 on vs explicit off, batched == solo at B 2 / 5 / 16, and a quiet
+  localeval speed-plain at 142 / 1k / 4k / 16k, which becomes the new Metal baseline. Send the hash.
+
+- 2026-11-22 (coordinator): ink/hostgap 9a38f0224 is ready (spark2 #11072: 45 test binaries, 0 failed; bespin #11073 compiles
+  clean on macOS). Merge it after #11048 passes, before fp8 and pack12; leave its later fb38fe4a5 (opt-in pre-wake / QoS /
+  vsort, untimed) out.
+
+- 2026-11-22 (coordinator): add ink/prefill to the merge queue, after hostgap, fp8 and pack12 and before the ONE combined gate
+  (which includes it: rows-exact, G2 / G3, md5, batched == solo B 2 / 5 / 16, then the localeval baseline). Its gate: localeval
+  speed-plain #10967, base e3f92beff vs 378dc214e: prefill 1k +11.5 / +12.0 %, 4k +21.5 %, 16k +9.4 / +7.0 %, decode within
+  1 % everywhere. ink-prefill sends the exact hash: 378dc214e, or a recipe commit on top (`[tuning.metal] prefill_chunk = 2048`
+  in recipes/inkling2.toml) if its #11109 passes. With the recipe commit in, the combined gate and the baseline run at chunk
+  2048 (say so: earlier Inkling Metal localeval numbers were at chunk 256). Report the merged tip hash.
+
+- 2026-11-22 (coordinator): queue item 3 changed. fp8's #10974 screen md5 gate was vacuous (the opt-in head screen never ran
+  in the "on" runs); fixed on ink/fp8 a810fbb5c (opt-in screen code only; bespin #11112 compiles), rerun queued on endor. The
+  default path is proven (#10941 bit-identity, #11055 admission) and the screen is off by default, so do not wait for the
+  rerun: merge ink/fp8 a810fbb5c (or a newer tip touching only docs or the screen) when fp8 is next; it unblocks pack12. Add
+  one LOG line (below). A failing rerun is fixed by the fp8 lane in a follow-up and does not block the combined gate, which
+  runs with every fp8 env var unset (the default path).
+
+- 2026-11-22 (coordinator): the LOG line belongs in this doc's LOG section; leave docs/decisions/LOG.md alone. Its rows (P12
+  default-on, MTP flip, argmax v4t, profile-every 0, chunk 2048 if it lands, head screen pending) go in once at merge-to-main
+  time, from the LOG section here. The env reset in the combined gate is right. Carry on with the queue.
+
+- 2026-11-22 (coordinator, before the merge queue): likely accuracy regression. ink-dfuse job E #11003 (ink/dfuse ac2371c81,
+  containing ink/metal 0ee1bec29): G2 teacher-forced DECODE rows 1.109e-2 short / 9.205e-3 long (before the ink/metal merge,
+  #10952: 2.589e-3 / 2.474e-3; limits 4e-3 / 6e-3; the tool exits 1), carried by one chat_reasoning row (0.43 nats) and one
+  chat_system row (0.30); prefill G2 2.380e-3 -> 2.719e-3. Suspects: the m-mix and / or batch merges. Do: (1) gate the decode-mode
+  G2 rows in #11048 and every later gate, same limits; (2) if #11048 shows it on 8546d143f, hold every queued merge (hostgap,
+  fp8, pack12, prefill) and bisect G2 short decode mode on f55bfe8b7, 331238a4e (m-mix), 45887198b (batch) in one default-load
+  endor job; (3) on the culprit, run the two outlier rows against the fp32 oracle (tools/inkling2_ref.py, the replay / capture
+  setup on ink/spec): farther from the oracle = a bug to fix or revert, equally close = chaotic amplification through the conv /
+  ring state (report; a gate-design question); (4) check whether `intarsia accuracy`'s teacher-forced decode path runs the
+  row-table (batched) path at B = 1 (it must take the solo path). Report each step; cc the m-mix lane (ae322a37a246f2443) or
+  ink-batch (a716d7e057a6fbfc3) if theirs.
+
+- 2026-11-22 (coordinator): agrees it looks like bad state from the 1-row decode path. Whatever the bisect names, the fix is
+  not done without a test that would have caught it: Metal 1-row decode at real D (2304, so NE 4 runs) against the CPU
+  reference (not against the rows-exact kernels), ~20 decode steps, comparing the conv-ring / blend / KV state each kernel
+  writes and the logits, within the tiny CPU-vs-Metal tolerances; a synthetic D 2304 layer with random weights in the Metal
+  test suite is fine; the same test for NE 3. If the bisect points at NE 4: fix the kernel or make NE 3 the default
+  (`INTARSIA_INK_MIX_NE`) until fixed, whichever is faster; then rerun decode-mode G2 (must be back near 2.6e-3) and release
+  the merge queue. Send the bisect table when #11142 lands.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
@@ -354,3 +404,34 @@ ADMITTED (18 kernels, including m-mix's widened `ink_in_proj_bf16_gemv` at 18 ca
 (batch_metal 1, batch_metal_real 3, gdn_verify_metal 7, mtp_store_metal 2, prefix_store_metal 1, hybrid_reuse_real 2,
 prefix_reuse_real 6, batch_recurrent 15): all pass; Qwen3-8B `plan show --backend metal`: stdout and stderr byte-identical
 to the base b5e283927.
+
+## LOG
+
+Rows for docs/decisions/LOG.md at merge-to-main time (coordinator): P12 default-on, MTP flip, argmax v4t, `--profile-every 0`
+default on Metal, chunk 2048 (if it lands), and:
+
+- INTARSIA_INK_HEAD_SCREEN opt-in: md5 gate pending (rerun of #10974)
+
+## Merge gate #11048 (tree 45887198b + docs: m-mix 52b337aa9, ink/batch bbc0bec00)
+
+**FAIL: G2 decode mode** (now gated, coordinator brief). G2 short decode KL21 1.109e-2 (limit 4e-3), long 9.205e-3 (6e-3),
+the tool exits 1 on both; carried by chat_reasoning (16 decode rows, 5.808e-2, max 0.433) and chat_system (16 rows, 2.376e-2,
+max 0.303), top-1 100 % on both. Before the merges (f55bfe8b7 era, #10721 / #10901): 2.589e-3 / 2.474e-3. G2 prefill 2.719e-3
+short / 3.544e-3 long (pass; was 2.380e-3 / 3.418e-3). G3 short 8.069e-3, long 1.227e-2 (pass). Confident misses 0 / 0 / 1 / 0.
+
+Passed: rows_exact 11, inkmix 3, rows_single 2, quick_coverage 1, docs_env_vars 2; kernels test 18 Inkling kernels ADMITTED;
+tiny inkling2 8 / 8 and inkling2_batch 6 / 6 on cpu and Metal; real-model `batch_step --ctx 600 --ctx-spread 150`, B 2 / 5 / 16:
+batched == solo (asserted), 1.67x / 2.95x / 4.41x. Greedy md5 changed (64 tokens 65cde8f3, was 15d62682; 256 tokens 29ec9e50,
+was d64363ea; 63.7 tok/s). Every queued merge is held; bisect #11142.
+
+At B = 1 the teacher-forced decode path (`forward_logits_decode`, engine.rs:984) is `forward_prefill` then one-token
+`model.forward`, never `forward_batch`, so no call has `rows`; ink/batch's inkling2.rs changes are no-ops there (batch None:
+`pair_rows` true, the same fused rule). It did change solo-path kernels (inkling2_attn.metal, gemv_multirow.metal,
+multirow.rs), which the bisect covers.
+
+Per-row decode KL21 against the golden, previous tip (#10901 self-golden) vs 45887198b (#11048), G2 short
+(`docs/results/2026-11-21-inkling2-metal/decrows.py`): six of eight prompts are unchanged within noise. chat_system: one
+row (pos 57, golden margin 0.77) 0.011 -> 0.303. chat_reasoning: the error **grows across the consecutive teacher-forced
+decode rows**: pos 92-104 old 0.007-0.018, new 0.036, 0.023, 0.123, 0.029, 0.131, **0.431** (pos 103, margin 0.06),
+0.119. Mean 1.0e-2 -> 5.8e-2. Prefill rows of the same prompts barely move. Growth over successive decode steps points at
+state written by the 1-row decode path (conv rings, KV), not at a single near-tie row.
