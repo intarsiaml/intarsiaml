@@ -661,7 +661,9 @@ impl Model {
             && verify_graph_env_on()
             && self.graphs.usable(self)
             && self.graphs.spec_fail.load(Ordering::Relaxed) < SPEC_CAPTURE_FAILURES_MAX
-            && self.backend.verify_attn_per_row()
+            // Inkling-2 runs no AttnPrefill / AttnDecode: its verify attention is the rows-exact InkAttnDecode at the device
+            // position (inkling2::ops::POSITIONED), so the per-row switch does not apply to it
+            && (self.backend.verify_attn_per_row() || self.ink.is_some())
             // HIP (lane dfh window 2) and CUDA (lane ink-cuda-mtp: Inkling-2 DSpark verify, its positioned ops reading the
             // device position); Metal keeps the eager pass
             && matches!(self.backend.name(), "hip" | "cuda")
