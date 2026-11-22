@@ -176,7 +176,8 @@ fn ink_experts_rows_exact() {
         HostTensor::new(DType::Fp8E4m3, vec![e, h, i], mx_bytes(&mut rng, e * h * i)).unwrap(),
         HostTensor::new(DType::U8, vec![e, h, i / 32], (0..e * h * i / 32).map(|_| 116 + (rng.next_u64() % 4) as u8).collect()).unwrap(),
     ];
-    for t in [2usize, 3, 4, 7, 16] {
+    // 64 x 8 = 512 pairs: the last call grouped in shared memory; 72 and 128: the pair table in scratch and the gather
+    for t in [2usize, 3, 4, 7, 16, 64, 72, 128] {
         for routing in ["random", "same", "invalid"] {
             let (ids, ws) = random_routing(&mut rng, t, e, k);
             let mut idv = ids.to_i32().unwrap();
@@ -213,9 +214,11 @@ fn ink_experts_rows_exact() {
                     v
                 };
                 let full = rig.run(kname, op, &call_in(x.clone(), ids.clone(), ws.clone()), &[(DType::Bf16, vec![t, h], None)], &a);
-                let rows_k = format!("{kname}_rows");
-                let full2 = rig.run(&rows_k, op, &call_in(x.clone(), ids.clone(), ws.clone()), &[(DType::Bf16, vec![t, h], None)], &a);
-                assert_eq!(full[0].data, full2[0].data, "{rows_k} differs from {kname}");
+                if t <= 16 {
+                    let rows_k = format!("{kname}_rows");
+                    let full2 = rig.run(&rows_k, op, &call_in(x.clone(), ids.clone(), ws.clone()), &[(DType::Bf16, vec![t, h], None)], &a);
+                    assert_eq!(full[0].data, full2[0].data, "{rows_k} differs from {kname}");
+                }
                 for r in 0..t {
                     let one = rig.run(kname, op, &call_in(row_of(&x, 0, r), row_of(&ids, 0, r), row_of(&ws, 0, r)), &[(DType::Bf16, vec![1, h], None)], &a);
                     assert_rows_eq(&format!("{kname} {act} T={t} {routing}"), &full[0], 0, r, &one[0]);
