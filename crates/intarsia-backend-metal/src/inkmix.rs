@@ -78,7 +78,8 @@ pub fn register(k: KernelImpl) -> KernelImpl {
             .exact(Exactness::Deterministic)
             .tol(BF16_TOL)
             .priority(-1)
-            .rows_exact(),
+            .rows_exact()
+            .scratch(proj_slice_scratch),
         // e4m3 weights (scales [3] third input, lane ink-fp8): decode / verify rows only; prefill chunks take the model's
         // three `MatmulFp8` packs (the NAX fp8 GEMM)
         INK_IN_PROJ_F8_GEMV => k.acts(bf).weights([DType::Fp8E4m3]).when(|s| s.m == 1).exact(Exactness::Deterministic).tol(BF16_TOL),
@@ -289,6 +290,65 @@ fn projx_pick(r: usize, cfg: ProjCfg, p: usize, rb: usize) -> Option<(usize, &'s
     Some((xp, projx_shader_name(r, xp)))
 }
 
+/// Simdgroups of the default family (the slice form's partials per output).
+const SLICE_SG: usize = 8;
+
+/// Scratch of the rows kernel: the slice form's partials, `[N, R, SG]` f32 (lane ink-batch). Planned for every R-row call
+/// (R >= 2) so the opt-in form can run; 1-row calls need none.
+pub fn proj_slice_scratch(s: &intarsia_core::ShapeInfo) -> usize {
+    if s.m < 2 {
+        0
+    } else {
+        s.n * s.m * SLICE_SG * 4 + 16
+    }
+}
+
+/// `INTARSIA_INK_PROJ_SLICE=1` runs R-row InkInProj calls (R = 2..=16, default family, K < 4096) as the two-pass slice form
+/// (`ink_in_proj_slice1` / `_slice2`, bitwise the 1-row kernel); `INTARSIA_INK_PROJ_SLICE_ROWS=<n>` sets its weight rows per
+/// threadgroup (default 64). Opt-in until measured.
+fn proj_slice_cfg() -> Option<usize> {
+    static C: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
+    *C.get_or_init(|| {
+        if std::env::var("INTARSIA_INK_PROJ_SLICE").map_or(true, |v| v != "1") {
+            return None;
+        }
+        Some(
+            std::env::var("INTARSIA_INK_PROJ_SLICE_ROWS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .filter(|&n| n > 0)
+                .unwrap_or(64),
+        )
+    })
+}
+
+fn slice_shader_names(r: usize) -> (&'static str, &'static str) {
+    static T: std::sync::OnceLock<Vec<(&'static str, &'static str)>> = std::sync::OnceLock::new();
+    T.get_or_init(|| {
+        (0..=PROJ_ROWS_MAX)
+            .map(|r| {
+                (
+                    &*Box::leak(format!("ink_in_proj_slice1_r{r}").into_boxed_str()),
+                    &*Box::leak(format!("ink_in_proj_slice2_r{r}").into_boxed_str()),
+                )
+            })
+            .collect()
+    })[r]
+}
+
+/// `InkSliceP` of the shader (56 bytes).
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+struct InkSliceP {
+    k: u32,
+    n: [u32; 3],
+    xo1: u32,
+    xo2: u32,
+    ys: [u32; 3],
+    b: [u32; 3],
+    rows_per_block: u32,
+}
+
 /// The e4m3 GEMV families compiled in (`IP8_CFG`): (simdgroups, 8-byte weight chunks per lane per step).
 pub const PROJ8_CFGS: [(u32, u32); 4] = [(8, 2), (8, 4), (4, 4), (16, 1)];
 
@@ -357,6 +417,10 @@ pub fn shader_names() -> Vec<&'static str> {
         }
     }
     v.extend(PROJX_INSTS.iter().map(|&(r, p)| projx_shader_name(r, p)));
+    for r in 2..=PROJ_ROWS_MAX {
+        let (a, b) = slice_shader_names(r);
+        v.extend([a, b]);
+    }
     v.extend(row_shaders());
     v
 }
@@ -410,7 +474,93 @@ impl MetalBackend {
         if t > PROJ_ROWS_MAX {
             return Err(Error::invalid(format!("ink_in_proj_bf16_gemv: {t} rows (at most {PROJ_ROWS_MAX})")));
         }
+        if let (Some(rpb), Some(sc)) = (proj_slice_cfg(), call.scratch.as_ref()) {
+            if self.in_proj_slice(&i[0], &i[1], o, sc, rpb)? {
+                return Ok(());
+            }
+        }
         self.in_proj_rows(&i[0], &i[1], o, i[0].shape[0])
+    }
+
+    /// The two-pass slice form (opt-in, see [`proj_slice_cfg`]). Returns false (nothing launched) where it does not apply:
+    /// R < 2, a non-default family, K with a full chunk block (>= 32 * 8 * 2 chunks), misalignment or a short scratch.
+    fn in_proj_slice(
+        &self,
+        xt: &TensorRef,
+        wt: &TensorRef,
+        o: &[TensorRef],
+        sc: &TensorRef,
+        rpb: usize,
+    ) -> Result<bool> {
+        let bf = DType::Bf16;
+        let (s, t, d) = (xt.shape[0], xt.shape[1], xt.shape[2]);
+        let cfg = proj_cfg();
+        let (p, rb) = proj_inst(t.max(1));
+        if t < 2 || cfg.sg as usize != SLICE_SG || cfg.u != PROJ_DEFAULT.u || p != 1 || rb != t || d % 8 != 0 {
+            return Ok(false);
+        }
+        if d / 8 >= 32 * SLICE_SG * cfg.u as usize {
+            return Ok(false);
+        }
+        let ns = [o[0].shape[1], o[1].shape[1], o[2].shape[1]];
+        let ntot: usize = ns.iter().sum();
+        let (xb, wb) = (self.mbuf(&xt.buf)?, self.mbuf(&wt.buf)?);
+        let (xo, wo) = (xb.base + xt.offset, wb.base + wt.offset);
+        if xo % 16 != 0 || wo % 16 != 0 || sc.numel() * sc.dtype.size_bytes() < ntot * t * SLICE_SG * 4 {
+            return Ok(false);
+        }
+        let part = self.bind(sc, DType::U8, true, "scratch")?;
+        if part.skip != 0 {
+            return Ok(false);
+        }
+        let ys: Vec<_> =
+            o.iter().enumerate().map(|(j, y)| self.bind(y, bf, true, ["pq", "pk", "pv"][j])).collect::<Result<_>>()?;
+        let xoff = |j: usize| -> Result<u32> { dim(j.min(s - 1) * t * d, "x offset") };
+        let b = ns.map(|n| n.div_ceil(rpb));
+        let prm = InkSliceP {
+            k: dim(d, "D")?,
+            n: [dim(ns[0], "Nq")?, dim(ns[1], "Nk")?, dim(ns[2], "Nv")?],
+            xo1: xoff(1)?,
+            xo2: xoff(2)?,
+            ys: [ys[0].skip, ys[1].skip, ys[2].skip],
+            b: [dim(b[0], "blocks")?, dim(b[1], "blocks")?, dim(b[2], "blocks")?],
+            rows_per_block: dim(rpb, "rows per block")?,
+        };
+        let (n1, n2) = slice_shader_names(t);
+        let p1 = self.pso(n1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{n1}'")))?;
+        let p2 = self.pso(n2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{n2}'")))?;
+        let groups = b.iter().sum::<usize>() * SLICE_SG;
+        self.with_encoder(|enc| {
+            enc.setComputePipelineState(p1);
+            // SAFETY: offsets inside the buffers (OpCall::check), W and x 16-byte aligned, the scratch 4-byte aligned and
+            // at least N * R * SG floats (checked above).
+            unsafe {
+                enc.setBuffer_offset_atIndex(Some(&wb.mtl), wo, 0);
+                enc.setBuffer_offset_atIndex(Some(&xb.mtl), xo, 1);
+                enc.setBuffer_offset_atIndex(Some(&part.mtl), part.off, 2);
+            }
+            crate::set_bytes(enc, &prm, 3);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: groups, height: 1, depth: 1 },
+                MTLSize { width: SLICE_SG * 32, height: 1, depth: 1 },
+            );
+        })?;
+        self.with_encoder(|enc| {
+            enc.setComputePipelineState(p2);
+            // SAFETY: as above; the outputs bound by `bind` (writable, in range).
+            unsafe {
+                enc.setBuffer_offset_atIndex(Some(&part.mtl), part.off, 0);
+                for (j, y) in ys.iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&y.mtl), y.off, 1 + j);
+                }
+            }
+            crate::set_bytes(enc, &prm, 4);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: (ntot * t).div_ceil(256), height: 1, depth: 1 },
+                MTLSize { width: 256, height: 1, depth: 1 },
+            );
+        })?;
+        Ok(true)
     }
 
     /// `InkInProj` over e4m3 weights, T = 1..=16 rows: one dispatch of `ink_in_proj_f8_gemv_r<T>..`, scale j on segment j.

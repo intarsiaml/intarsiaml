@@ -286,6 +286,103 @@ kernel void ink_in_proj_gemvx(device const uint4* W [[buffer(0)]],
 IPX_CFG(8, 2)
 
 // ================================================================================================================
+// InkInProj, two-pass slice form for R = 2..=16 decode rows (lane ink-batch; opt-in INTARSIA_INK_PROJ_SLICE). Bitwise the
+// R = 1 kernel ink_in_proj_gemv_r1p1s8u2b1 per row, for K with fewer than 32 * SG * U chunks (no full block; D 2304 = 288
+// chunks): there every lane L of simdgroup sg owns the chunks sg * 32 + L + e * 32 * SG (e = 0, 1, while < k8), adds their
+// ip_dot8 to a zero accumulator in that order, the simdgroup simd_sums, and the SG partials are summed in sg order.
+//  - pass 1 (ink_in_proj_slice1): a threadgroup owns one simdgroup slice sg of one segment's x for all R rows (in threadgroup
+//    memory, R * 2 * 32 chunks) and a block of that segment's weight rows; each of its simdgroups takes weight rows in turn,
+//    runs lane L's chunks exactly as above and writes the simd_sum of row r (lane r) to part[(wrow * R + r) * SG + sg];
+//  - pass 2 (ink_in_proj_slice2): one thread per (weight row, row) sums the SG partials in sg order and rounds to bf16.
+// x is then read once per (slice, row block) instead of once per weight row.
+// ================================================================================================================
+
+struct InkSliceP {
+    uint k;                 // D
+    uint n0, n1, n2;        // rows per segment
+    uint xo1, xo2;          // x element offsets of segments 1 and 2
+    uint ys0, ys1, ys2;     // leading bf16 elements of Y0 / Y1 / Y2
+    uint b0, b1, b2;        // row blocks per segment (ceil(n_j / rows_per_block))
+    uint rows_per_block;    // weight rows per threadgroup
+};
+
+constant constexpr uint SL_SG = 8;    // the family's simdgroups (s8u2)
+constant constexpr uint SL_LANES = 32 * SL_SG;
+
+// grid: (b0 + b1 + b2) * SL_SG threadgroups (x = block * SL_SG + slice) of NW simdgroups; bind 0 W, 1 X, 2 part (f32), 3 p.
+template <int R, int NW>
+kernel void ink_in_proj_slice1(device const uint4* W [[buffer(0)]],
+                               device const uint4* X [[buffer(1)]],
+                               device float* part [[buffer(2)]],
+                               constant InkSliceP& p [[buffer(3)]],
+                               uint tg [[threadgroup_position_in_grid]],
+                               uint simd [[simdgroup_index_in_threadgroup]],
+                               uint lane [[thread_index_in_simdgroup]],
+                               uint tid [[thread_index_in_threadgroup]]) {
+    threadgroup uint4 xs[R * 2 * 32];
+    const uint k8 = p.k / 8;
+    const uint sg = tg % SL_SG, blk = tg / SL_SG;
+    uint lb, n, wrow, xo;
+    if (blk < p.b0) {
+        lb = blk; n = p.n0; wrow = 0; xo = 0;
+    } else if (blk < p.b0 + p.b1) {
+        lb = blk - p.b0; n = p.n1; wrow = p.n0; xo = p.xo1;
+    } else {
+        lb = blk - p.b0 - p.b1; n = p.n2; wrow = p.n0 + p.n1; xo = p.xo2;
+    }
+    device const uint4* Xs = X + xo / 8;
+    // stage this slice's x chunks: entry (r, e, L) = chunk sg * 32 + L + e * SL_LANES of row r (zero past k8: never used)
+    for (uint j = tid; j < uint(R) * 64; j += NW * 32) {
+        const uint r = j / 64, e = (j / 32) % 2, L = j % 32;
+        const uint c = sg * 32 + L + e * SL_LANES;
+        xs[j] = c < k8 ? Xs[(ulong)r * k8 + c] : uint4(0);
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    const uint c0 = sg * 32 + lane, c1 = c0 + SL_LANES;
+    const uint first = lb * p.rows_per_block, last = min(first + p.rows_per_block, n);
+    for (uint row = first + simd; row < last; row += NW) {
+        device const uint4* wr = W + (ulong)(wrow + row) * k8;
+        const IpW8 w0 = ip_unpack8(c0 < k8 ? wr[c0] : uint4(0));
+        const bool has1 = c1 < k8;
+        const IpW8 w1 = ip_unpack8(has1 ? wr[c1] : uint4(0));
+        for (int r = 0; r < R; ++r) {
+            float acc = 0.0f;
+            if (c0 < k8) acc += ip_dot8w(w0, xs[(r * 2 + 0) * 32 + lane]);
+            if (has1) acc += ip_dot8w(w1, xs[(r * 2 + 1) * 32 + lane]);
+            const float s = simd_sum(acc);
+            if (lane == uint(r)) part[((ulong)(wrow + row) * R + r) * SL_SG + sg] = s;
+        }
+    }
+}
+
+// one thread per (global weight row, row): grid (n0 + n1 + n2) * R threads; bind 0 part, 1 Y0, 2 Y1, 3 Y2, 4 p.
+template <int R>
+kernel void ink_in_proj_slice2(device const float* part [[buffer(0)]],
+                               device ushort* Y0 [[buffer(1)]],
+                               device ushort* Y1 [[buffer(2)]],
+                               device ushort* Y2 [[buffer(3)]],
+                               constant InkSliceP& p [[buffer(4)]],
+                               uint gid [[thread_position_in_grid]]) {
+    const uint ntot = p.n0 + p.n1 + p.n2;
+    if (gid >= ntot * uint(R)) return;
+    const uint g = gid / uint(R), r = gid % uint(R);
+    device const float* q = part + ((ulong)g * R + r) * SL_SG;
+    float t = q[0];
+    for (uint k = 1; k < SL_SG; ++k) t += q[k];
+    if (g < p.n0) Y0[p.ys0 + (ulong)r * p.n0 + g] = f2bf(t);
+    else if (g < p.n0 + p.n1) Y1[p.ys1 + (ulong)r * p.n1 + (g - p.n0)] = f2bf(t);
+    else Y2[p.ys2 + (ulong)r * p.n2 + (g - p.n0 - p.n1)] = f2bf(t);
+}
+
+#define SL_INST(R)                                                                                                    \
+    template [[host_name("ink_in_proj_slice1_r" #R)]] kernel void ink_in_proj_slice1<R, 8>(                          \
+        device const uint4*, device const uint4*, device float*, constant InkSliceP&, uint, uint, uint, uint);        \
+    template [[host_name("ink_in_proj_slice2_r" #R)]] kernel void ink_in_proj_slice2<R>(                             \
+        device const float*, device ushort*, device ushort*, device ushort*, constant InkSliceP&, uint);
+SL_INST(2) SL_INST(3) SL_INST(4) SL_INST(5) SL_INST(6) SL_INST(7) SL_INST(8) SL_INST(9) SL_INST(10) SL_INST(11) SL_INST(12)
+SL_INST(13) SL_INST(14) SL_INST(15) SL_INST(16)
+
+// ================================================================================================================
 // InkInProj over e4m3 weights (lane ink-fp8, opt-in INTARSIA_INK_ATTN_QUANT=fp8; W8A16): y_j = bf16(scale_j * x . e4m3(W_j)^T).
 // The bf16 GEMV above with 8-byte weight chunks (8 e4m3 codes) against the same 16-byte activation chunks, the same lane ->
 // chunk mapping and reduction tree for every R (rows-exact as the bf16 kernel). e4m3 decodes as value / 256 (the fp8.metal
