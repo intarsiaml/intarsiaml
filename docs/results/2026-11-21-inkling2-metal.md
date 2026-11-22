@@ -7,6 +7,14 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 
 - 2026-11-21 (coordinator, SendMessage): ink/skel is done at 46349d879 (G1, G2, G3 short / long / 4k pass on cpu; new: ring-safe prompt reuse, faster cpu experts bitwise the same, the accuracy turn format, recipe coverage, results doc; op contracts unchanged). Merge ink/skel at the next clean point, rerun the Metal gates on the merged tip, and message main with the first endor decode tok/s and the per-op profile.
 
+- 2026-11-21 (coordinator, SendMessage): scope from here: (1) finish the per-dispatch trace (#10756) and the localeval run
+  (speed-plain, conc-plain-1k vs oMLX 20261120-222536); write the trace path into this doc as soon as it lands (the Fable
+  reviewer reads it here). (2) Do not start controller / router fusion or host-gap / command-buffer work (decode graphs
+  included): lanes ink-dfuse (`.worktrees/ink-dfuse`: controllers, router fusion, <= 350 dispatches) and ink-hostgap
+  (`.worktrees/ink-hostgap`: cb pipelining, GPU sampling, encode-ahead) own them, both branched from a88db4620. (3) This
+  lane stays the integration owner: merge lane branches when they report done with passing gates and rerun G1-G3 after each
+  merge; next in line are m-mix's final tip and ink/serve aaad4c9b6 (chat / reasoning / tools).
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
