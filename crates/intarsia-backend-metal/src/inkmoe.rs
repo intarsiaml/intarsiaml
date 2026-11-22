@@ -389,6 +389,7 @@ impl MetalBackend {
             });
             let (gu_k, dn_k, tm) = form.map_or((NAX_GU[fi][ti], NAX_DN[fi][ti], tm), |f| (f.gu, f.dn, f.tm));
             let bn3 = form.and_then(|f| f.bn3);
+            crate::inkprefill::trace(gu_k);
             let mut pg = p;
             pg.dims[5] = tm as u32;
             let gt = self.pso("moe_group").map_or(256, |s| {

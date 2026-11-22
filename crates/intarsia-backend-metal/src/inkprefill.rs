@@ -81,11 +81,12 @@ pub fn moe_nax(mx: bool, tm: usize) -> Option<Form> {
     let want = form()?;
     let f = mx as usize;
     if let Some(w3) = want.strip_prefix("nax3_") {
-        let i = NAX3.iter().position(|&(ff, rows, _, s)| ff == f && s == w3 && rows <= tm.max(32))?;
+        let _ = tm; // an explicitly selected form runs at any row count (its tile may exceed the mean rows per expert)
+        let i = NAX3.iter().position(|&(ff, _, _, s)| ff == f && s == w3)?;
         let (gu, dn) = names()[NAX2.len() + i];
         return Some(Form { gu, dn, tm: NAX3[i].1, bn3: Some(NAX3[i].2) });
     }
-    let i = NAX2.iter().position(|&(ff, rows, s)| ff == f && s == want.as_str() && rows <= tm.max(32))?;
+    let i = NAX2.iter().position(|&(ff, _, s)| ff == f && s == want.as_str())?;
     Some(Form { gu: names()[i].0, dn: names()[i].1, tm: NAX2[i].1, bn3: None })
 }
 
@@ -213,5 +214,20 @@ impl crate::MetalBackend {
             &p,
             crate::dense::Grid::Groups { x: s * rows, y: 1, threads: 256 },
         )
+    }
+}
+
+/// `INTARSIA_INK_PREFILL_TRACE=1`: print each prefill kernel this lane's hooks dispatch, once per name, to stderr (proves the
+/// selected path ran: admission and benches otherwise cannot tell a silent fallback from the new kernel).
+pub fn trace(name: &str) {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if !*ON.get_or_init(|| std::env::var("INTARSIA_INK_PREFILL_TRACE").is_ok_and(|v| v != "0")) {
+        return;
+    }
+    static SEEN: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+    let mut s = SEEN.lock().unwrap();
+    if !s.iter().any(|x| x == name) {
+        s.push(name.to_string());
+        eprintln!("ink-prefill trace: {name}");
     }
 }

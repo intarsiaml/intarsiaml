@@ -756,7 +756,7 @@ impl MetalBackend {
             })
             .collect();
         // lane ink-prefill hook: prefill chunks take the InkInProj NAX GEMM for h (inkprefill.rs)
-        if crate::inkprefill::blend_nax(n) && self.has_metal4() { self.launch_in_proj_nax(&OpCall::new(Op::InkInProj, vec![xs.clone(), wd.clone()], hs.clone(), OpAttrs::default()))?; } else { self.in_proj_rows(&xs, &wd, &hs, s)?; }
+        if crate::inkprefill::blend_nax(n) && self.has_metal4() { crate::inkprefill::trace("blend h nax"); self.launch_in_proj_nax(&OpCall::new(Op::InkInProj, vec![xs.clone(), wd.clone()], hs.clone(), OpAttrs::default()))?; } else { self.in_proj_rows(&xs, &wd, &hs, s)?; }
         let (h_b, gain_b, forget_b, y_b, part_b) = (
             self.bind(&h, bf, false, "h")?,
             self.bind(gain, bf, false, "gain")?,
@@ -765,7 +765,7 @@ impl MetalBackend {
             self.bind(&part, f32t, true, "partial")?,
         );
         // lane ink-prefill hook: prefill chunks run the gate + norm on the accelerators (inkprefill.rs)
-        if crate::inkprefill::blend_gate_nax(n) && self.has_metal4() { return self.ink_blend_gate_nax(&dest_b, &msg_b, &h_b, &gain_b, &forget_b, &pair, &yv, norm, out, [d, n, s, sd, g, t0, out.shape[1], dest_rows.1, mt, dest_rows.0, t0], eps); }
+        if crate::inkprefill::blend_gate_nax(n) && self.has_metal4() { crate::inkprefill::trace("blend gate nax"); return self.ink_blend_gate_nax(&dest_b, &msg_b, &h_b, &gain_b, &forget_b, &pair, &yv, norm, out, [d, n, s, sd, g, t0, out.shape[1], dest_rows.1, mt, dest_rows.0, t0], eps); }
         let mut pg = p;
         pg.sk = [gain_b.skip, forget_b.skip, 0, 0, 0, 0, 0, 0];
         let gate = match g / 8 {
