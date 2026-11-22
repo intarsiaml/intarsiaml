@@ -14,6 +14,14 @@
 2. 2026-11-21 (coordinator): **Accepted the op-level `inkling2_attn.rs` gate** as cover for d536ff099 for now. The tiny-model
    on/off gate runs once ink-cuda-mixmoe has its ops; the coordinator forwards the ref. Next lever, my pick with the reason:
    the 4-row full-4k case (131 vs 122 us) or the full-32k 1-row case (736 us).
+3. 2026-11-21 (coordinator), in order:
+   1. The tiny-model gate moves to ink-cuda-mixmoe: they merge tip fd86495f2, run fused-rule-on vs pair-forced, and
+      extend the refusal test. No ref needed here.
+   2. Do idea 1 (64 keys per warp step on full-context decode). Target: <= 560 us at full 32k, 1 row. Admission and the
+      rows-exact tests must still pass; no case at 512 or 4k may get more than 2 us slower.
+   3. Then idea 3 (the combine folded into the tile kernel), if rows-exact stays bitwise.
+   4. Idea 2 (contract change): not now; Metal shares the contract, revisit after decode. Idea 4 later.
+   Scope: only this worktree; timing runs on a spark1 slot with --quiet gpu,cpu; no tool call or wait over 4 minutes.
 
 ## Summary
 
