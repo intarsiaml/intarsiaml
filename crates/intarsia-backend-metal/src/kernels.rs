@@ -187,6 +187,17 @@ pub const RMSNORM_ADD_EX: [&str; 6] = [
     "rmsnorm_add_bf16_ex32_f",
 ];
 pub const ARGMAX_F32_V4: &str = "argmax_f32_v4";
+/// `argmax_f32_v4` for any V (rows not 16-byte aligned: V % 4 != 0), lane ink-hostgap; the launcher takes it where `argmax_f32_v4`
+/// does not apply, unless `INTARSIA_METAL_ARGMAX_V4T=0`. Same result as `argmax_f32`.
+pub const ARGMAX_F32_V4T: &str = "argmax_f32_v4t";
+
+/// `INTARSIA_METAL_ARGMAX_V4T`: `0` sends f32 argmax rows with V % 4 != 0 back to the 256-thread scalar `argmax_f32`; unset or anything
+/// else takes `argmax_f32_v4t` (same result, 172 -> see docs/results/2026-11-21-inkling2-hostgap.md on Inkling-2's 200058 logits).
+/// Read once per process.
+pub fn argmax_v4t_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_METAL_ARGMAX_V4T").map_or(true, |v| v.trim() != "0"))
+}
 
 pub const ATTN_PREFILL_BF16: &str = "attn_prefill_bf16";
 /// `AttnPrefill`, flash-style on `simdgroup_matrix` with GQA-shared K / V tiles (attention_flash.metal, launcher flash.rs);
@@ -291,7 +302,9 @@ pub fn metal4_shaders() -> Vec<&'static str> {
     v.extend(crate::mxfp4::NAXD_FORMS.iter().flat_map(|f| [f.0, f.1]));
     v.extend(crate::inkattn::metal4_shader_names());
     v.extend(crate::inkmoe::metal4_shaders());
+    v.extend(crate::inkprefill::metal4_shaders());
     v.extend(crate::inkmix::NAX_SHADERS);
+    v.extend(crate::inkctrl::METAL4_SHADERS);
     v
 }
 
@@ -314,6 +327,7 @@ pub const NAX_KERNELS: &[&str] = &[
     crate::mxfp4::MATMUL_MXFP4_NAX,
     crate::inkattn::REL_SINK_ATTN_BF16_NAX,
     crate::inkmix::INK_IN_PROJ_BF16_NAX,
+    crate::inkctrl::INK_ROUTE_BF16,
 ];
 
 pub fn requires_metal4(kernel: &str) -> bool {
@@ -330,6 +344,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::bridge::shader_names());
     v.extend(crate::inkattn::shader_names());
     v.extend(crate::inkmix::shader_names());
+    v.extend(crate::screen::shader_names());
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
     v.extend(crate::nvfp4::SHADERS);
@@ -349,7 +364,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8, GEMV_PAIR_BF16_R1, GEMV_PAIR_BF16_R1_A8]);
     v.extend(RMSNORM_EX);
     v.extend(RMSNORM_ADD_EX);
-    v.push(ARGMAX_F32_V4);
+    v.extend([ARGMAX_F32_V4, ARGMAX_F32_V4T]);
     v.extend(EXPERIMENT_SHADERS);
     v.extend(crate::multirow::shader_names());
     v.extend(crate::rowtab::shader_names());
@@ -440,11 +455,20 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkmix::INK_IN_PROJ_BF16_GEMV, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_BF16_NAX, Op::InkInProj),
+    (crate::inkmix::INK_IN_PROJ_F8_GEMV, Op::InkInProj),
+    (crate::inkmix::INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj),
+    (crate::inkmix::INK_IN_PROJ_BF16_GEMV_CHUNKS, Op::InkInProj),
     (crate::inkmix::CONV_MIX_BF16, Op::ConvMix),
     (crate::inkmix::CONV_MIX_BF16_ROWS, Op::ConvMix),
     (crate::inkmix::ATTN_RES_MIX_BF16, Op::AttnResMix),
     (crate::inkmix::SCONV_RES_BF16, Op::SconvRes),
     (crate::inkmix::LOOP_BLEND_BF16, Op::LoopBlend),
+    // lane ink-fp8: the screened greedy head (screen.rs)
+    (crate::screen::KERNELS[0].0, Op::HeadScreen),
+    (crate::screen::KERNELS[1].0, Op::LogitsGather),
+    (crate::screen::KERNELS[2].0, Op::ScreenArgmax),
+    // Inkling-2 decode controller fusion (inkctrl.rs, lane ink-dfuse; metal4.0 library)
+    (crate::inkctrl::INK_ROUTE_BF16, Op::InkRoute),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -869,6 +893,8 @@ pub fn all() -> Vec<KernelImpl> {
                     .scratch(crate::rowtab::attn_scratch),
                 n if crate::inkmoe::KERNELS.iter().any(|e| e.0 == n) => crate::inkmoe::register(n, k),
                 n if crate::inkmix::KERNELS.iter().any(|e| e.0 == n) => crate::inkmix::register(k),
+                n if crate::screen::KERNELS.iter().any(|e| e.0 == n) => crate::screen::register(k),
+                n if crate::inkctrl::KERNELS.iter().any(|e| e.0 == n) => crate::inkctrl::register(k),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -903,6 +929,7 @@ mod tests {
                 + crate::inkattn::metal4_shader_names().len()
                 + crate::inkmoe::metal4_shaders().count()
                 + crate::inkmix::NAX_SHADERS.len()
+                + crate::inkctrl::METAL4_SHADERS.len()
         );
         assert!(!shader_names().iter().any(|n| m4.contains(n)));
         let set: HashSet<_> = m4.iter().collect();
@@ -1073,6 +1100,9 @@ mod tests {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();
         // the Inkling-2 kernels serve new ops only (inkmix.rs): no existing op gains a candidate
         got.retain(|g| !crate::inkmix::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
+        // the screened greedy head (screen.rs, lane ink-fp8): new ops only
+        got.retain(|g| !crate::screen::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
+        got.retain(|g| !crate::inkctrl::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
         got.sort();
         if MAIN_KERNEL_LIST.is_empty() {
             panic!("LIST {}", got.join(" "));

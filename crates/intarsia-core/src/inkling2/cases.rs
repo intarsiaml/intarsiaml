@@ -25,6 +25,21 @@ fn pos_t(rng: &mut SplitMix64, dt: DType, shape: &[usize], lo: f32, hi: f32) -> 
     HostTensor::from_f32_as(dt, shape, &v)
 }
 
+/// A stacked e4m3 `InkInProj` weight `[sum ns, d]` and its per-pack scales `[3]` (lane ink-fp8): normal values of scale `std`,
+/// each pack quantised with `amax / 448` of its own rows, so the packs get different scales.
+fn fp8_stack(rng: &mut SplitMix64, ns: [usize; 3], d: usize, std: f32) -> (HostTensor, HostTensor) {
+    let mut data = Vec::with_capacity(ns.iter().sum::<usize>() * d);
+    let mut sc = [0f32; 3];
+    for (j, &n) in ns.iter().enumerate() {
+        // pack j at 1, 1/4, 4 times `std`: scales that differ by powers of two and by non-powers
+        let v = rng.normal_vec(n * d, std * [1.0, 0.25, 3.7][j]);
+        let amax = v.iter().fold(0f32, |m, x| m.max(x.abs()));
+        sc[j] = if amax > 0.0 { amax / crate::quant::fp8::MAX } else { 1.0 };
+        data.extend(v.iter().map(|x| crate::dtype::f32_to_fp8_e4m3(x / sc[j])));
+    }
+    (HostTensor::new(DType::Fp8E4m3, vec![ns.iter().sum(), d], data).expect("sized"), HostTensor::from_f32(&[3], &sc))
+}
+
 fn none() -> HostTensor {
     HostTensor::zeros(DType::Bf16, &[0])
 }
@@ -524,6 +539,43 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                         for s in [1usize, 3] {
                             let inputs = vec![rand_t(rng, dt, &[s, t, d], 1.0), rand_t(rng, W, &[ns.iter().sum(), d], (d as f32).powf(-0.5))];
                             push(format!("T={t} S={s} D={d} N={ns:?} {dt}"), inputs, ns.iter().map(|&n| out(dt, &[t, n])).collect(), a0.clone());
+                            // e4m3 weights with per-pack scales (lane ink-fp8)
+                            let (w, sc) = fp8_stack(rng, ns, d, (d as f32).powf(-0.5));
+                            let inputs = vec![rand_t(rng, dt, &[s, t, d], 1.0), w, sc];
+                            push(format!("T={t} S={s} D={d} N={ns:?} {dt} e4m3"), inputs, ns.iter().map(|&n| out(dt, &[t, n])).collect(), a0.clone());
+                        }
+                    }
+                }
+            }
+        }
+        Op::InkRoute => {
+            use crate::dsv41::ops::ScoreFunc;
+            // (D, E, K, scale): small (16-byte rows and a D that takes the 2-byte form) and the real router (D 2304, 128 experts,
+            // top-8, route_scale 8); decode / verify / batch rows 1..=16 plus a longer chunk
+            let mut shapes: Vec<(usize, usize, usize, f32)> = vec![(D, 16, 4, 1.5), (60, 40, 6, 1.0)];
+            if !quick {
+                shapes.push((2304, 128, 8, 8.0));
+            }
+            let rrows: &[usize] = if quick { &[1, 4, 16] } else { &[1, 2, 3, 4, 7, 16, 40] };
+            for &t in rrows {
+                for &dt in dts {
+                    for &(d, e, k, scale) in &shapes {
+                        if d > D && t > 16 {
+                            continue;
+                        }
+                        let funcs: &[(ScoreFunc, bool, f32)] = if d > D {
+                            &[(ScoreFunc::Sigmoid, true, 1.0)]
+                        } else {
+                            &[(ScoreFunc::Sigmoid, true, 1.0), (ScoreFunc::Softmax, true, 1.0), (ScoreFunc::SqrtSoftplus, true, 1.0), (ScoreFunc::Sigmoid, false, 0.7)]
+                        };
+                        for &(sf, norm, temp) in funcs {
+                            for with_logits in [true, false] {
+                                let mut a = OpAttrs { top_k: k, scale, norm_topk: norm, temperature: temp, ..a0.clone() };
+                                a.dsv.score_func = sf;
+                                let inputs = vec![rand_t(rng, dt, &[t, d], 1.0), rand_t(rng, W, &[e, d], (d as f32).powf(-0.5)), rand_t(rng, DType::F32, &[e], 0.1)];
+                                let outputs = vec![out(DType::F32, &[t, k]), out(DType::I32, &[t, k]), if with_logits { out(DType::F32, &[t, e]) } else { OutSpec::new(DType::F32, &[0]) }];
+                                push(format!("T={t} D={d} E={e} K={k} {sf:?} norm={norm} temp={temp} logits={with_logits} {dt}"), inputs, outputs, a);
+                            }
                         }
                     }
                 }

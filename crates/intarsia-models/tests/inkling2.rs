@@ -46,7 +46,10 @@ fn load_act(dir: &Path, chunk: usize, backend: Arc<dyn intarsia_core::Backend>, 
 /// The backend of the bf16 tests: cpu, or Metal with `INTARSIA_INKLING2_BACKEND=metal`.
 fn backend() -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
+        #[cfg(target_os = "macos")]
         Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
+        #[cfg(not(target_os = "macos"))]
+        Ok("metal") => panic!("INTARSIA_INKLING2_BACKEND=metal: the Metal backend is macOS only"),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
         Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or metal"),
     }
@@ -454,7 +457,8 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     // SconvRes is in the op set for kernels that split ConvMix; the model graph itself emits ConvMix. InkAttnDecode is optional:
     // without it the graph runs the InkKvPrologue + RelSinkAttn pair
-    for op in intarsia_core::inkling2::ops::OPS.iter().copied().filter(|&o| o != Op::SconvRes && o != Op::InkAttnDecode) {
+    // InkRoute (76) is optional too: without it the graph runs the router matmul + MoeRoute
+    for op in intarsia_core::inkling2::ops::OPS.iter().copied().filter(|&o| o != Op::SconvRes && o != Op::InkAttnDecode && o != Op::InkRoute) {
         let b = Arc::new(Wrapped { inner: intarsia_backend_cpu::CpuBackend::arc(), drop: vec![op], fail: Arc::new(AtomicBool::new(false)) });
         let e = load_with(&dir, chunk(), b).err().unwrap_or_else(|| panic!("load without {op} must fail"));
         let msg = e.to_string();
@@ -465,6 +469,8 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
         assert!(!intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
         assert!(intarsia_backend_hip::kernels::UNIMPLEMENTED.contains(&op), "hip {op}");
         // Metal: every op has a kernel (lanes ink-m-attn, ink-m-moe, ink-m-mix); the table alone, no device
+        // (a macOS-only dev-dependency, so the check is too)
+        #[cfg(target_os = "macos")]
         assert!(intarsia_backend_metal::kernels::all().iter().any(|k| k.op == op), "metal {op}");
     }
 }

@@ -71,8 +71,8 @@ pub struct Row<Mode> {
 pub trait BatchModel {
     /// Per-row head mode (real model: `HeadMode`).
     type Mode: Copy + std::fmt::Debug;
-    /// Per-row output (real model: `StepOut`).
-    type Out;
+    /// Per-row output (real model: `StepOut`). `Send`: a decode step's rows are accepted on the host pool (lane ink-hostgap).
+    type Out: Send;
 
     /// Number of slots (fixed for the model's lifetime, `>= max_batch`).
     fn slots(&self) -> usize;
@@ -959,6 +959,41 @@ pub struct Scheduler<M: BatchModel, S: BatchSeq<M>> {
 }
 
 impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
+    /// Each decode row's output accepted by its sequence ([`BatchSeq::accept`]: the host sampler for a sampled row), in row order.
+    /// With the host pool on ([`crate::par::enabled`]) and more than one row, the rows run one per pool task (lane ink-hostgap): a
+    /// sequence's accept touches only that sequence (its sampler, its seeded RNG, its constraint), so its token is the one the
+    /// sequential loop gives, and the results are handled in row order afterwards. Off: the sequential loop.
+    fn accept_rows(&mut self, row_of: &[RequestId], outs: Vec<Result<M::Out>>) -> Vec<Result<()>> {
+        let idx: Vec<usize> = row_of.iter().map(|id| self.index_of(*id).expect("row of a live request")).collect();
+        if idx.len() < 2 || !crate::par::enabled() {
+            return idx.iter().zip(outs).map(|(&i, out)| out.and_then(|o| self.active[i].seq.accept(o))).collect();
+        }
+        // every row names its own sequence (one row per request in a decode step): the tasks touch disjoint `Active::seq`s
+        debug_assert!({
+            let mut d = idx.clone();
+            d.sort_unstable();
+            d.windows(2).all(|w| w[0] != w[1])
+        });
+        fn sendable<T: Send>() {}
+        sendable::<S>();
+        sendable::<Result<M::Out>>();
+        let mut outs: Vec<Option<Result<M::Out>>> = outs.into_iter().map(Some).collect();
+        let mut res: Vec<Option<Result<()>>> = (0..idx.len()).map(|_| None).collect();
+        let (ap, op, rp) = (crate::par::SharedMut(self.active.as_mut_ptr()), crate::par::SharedMut(outs.as_mut_ptr()), crate::par::SharedMut(res.as_mut_ptr()));
+        let n_active = self.active.len();
+        crate::par::run(idx.len(), &|r| {
+            assert!(idx[r] < n_active);
+            // SAFETY: task r alone touches outs[r], res[r] and the sequence of active[idx[r]] (distinct per row, checked above);
+            // `S` and the outputs are `Send`; `run` returns after every task.
+            unsafe {
+                let out = (*op.at(r)).take().expect("row output taken once");
+                let seq = &mut (*ap.at(idx[r])).seq;
+                *rp.at(r) = Some(out.and_then(|o| seq.accept(o)));
+            }
+        });
+        res.into_iter().map(|r| r.expect("every row accepted")).collect()
+    }
+
     pub fn new(model: M, cfg: SchedulerConfig) -> Result<Self> {
         cfg.validate()?;
         if model.slots() < cfg.max_batch {
@@ -1612,9 +1647,9 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                     m.batch_hist[rows.len()] += 1;
                 }
                 let _prof_accept = crate::hostprof::span(crate::hostprof::Cat::Accept);
-                for (id, out) in row_of.iter().zip(outs) {
+                let results = self.accept_rows(&row_of, outs);
+                for (id, res) in row_of.iter().zip(results) {
                     let i = self.index_of(*id).expect("row of a live request");
-                    let res = out.and_then(|o| self.active[i].seq.accept(o));
                     match res {
                         Ok(()) => ready.push(*id),
                         Err(e) => {

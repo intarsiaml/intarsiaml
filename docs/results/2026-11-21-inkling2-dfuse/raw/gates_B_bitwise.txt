@@ -1,0 +1,51 @@
+BITWISE 1-row decode (64 greedy tokens, text md5): route on vs all off: EQUAL (15d62682aef1efea43a627936df9bb70 vs 15d62682aef1efea43a627936df9bb70)
+BITWISE 16-row passes (G2 short, prefill chunk 16, self-golden md5): route on vs all off: DIFFER (40fc151abf50d7117411930d6fb20e53 vs 37d15af65727b2167316128ab426fdef)
+BITWISE 1-row decode (64 greedy tokens, text md5): msg on vs all off: EQUAL (15d62682aef1efea43a627936df9bb70 vs 15d62682aef1efea43a627936df9bb70)
+BITWISE 16-row passes (G2 short, prefill chunk 16, self-golden md5): msg on vs all off: DIFFER (799977924d10944c9b9527e6b09bf68a vs 37d15af65727b2167316128ab426fdef)
+BITWISE 1-row decode (64 greedy tokens, text md5): tail on vs all off: EQUAL (15d62682aef1efea43a627936df9bb70 vs 15d62682aef1efea43a627936df9bb70)
+BITWISE 16-row passes (G2 short, prefill chunk 16, self-golden md5): tail on vs all off: DIFFER (57e50d2f1f5e17fd0d3a2b769823e49d vs 37d15af65727b2167316128ab426fdef)
+BITWISE 1-row decode (64 greedy tokens, text md5): all on vs all off: EQUAL (15d62682aef1efea43a627936df9bb70 vs 15d62682aef1efea43a627936df9bb70)
+BITWISE 16-row passes (G2 short, prefill chunk 16, self-golden md5): all on vs all off: DIFFER (0fa961e18471f8e37809931b76941a91 vs 37d15af65727b2167316128ab426fdef)
+gate-definition: kl_floor [prefill]: old def: PASS 3.107e-3 (21-way KL over all rows <= static floor) | current def: PASS 3.107e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+COUNT 1-row decode, off: 7 steps, 613 op calls and 613 dispatches per step
+COUNT 1-row decode, off:   attn_res_mix_bf16 nd=1: 26.0 per step
+COUNT 1-row decode, off:   conv_mix_bf16 nd=1: 96.0 per step
+COUNT 1-row decode, off:   conv_mix_bf16#1 nd=1: 46.0 per step
+COUNT 1-row decode, off:   conv_mix_bf16#2 nd=1: 46.0 per step
+COUNT 1-row decode, off:   conv_mix_bf16#3 nd=1: 46.0 per step
+COUNT 1-row decode, off:   logits_bf16_gemv nd=1: 49.0 per step
+COUNT 1-row decode, off:   loop_blend_bf16 nd=1: 2.0 per step
+COUNT 1-row decode, off:   loop_blend_bf16#1 nd=1: 2.0 per step
+COUNT 1-row decode, off:   loop_blend_bf16#2 nd=1: 2.0 per step
+COUNT 1-row decode, off:   loop_blend_bf16#3 nd=1: 2.0 per step
+COUNT 1-row decode, off:   moe_route_f32 nd=1: 48.0 per step
+COUNT 16-row passes, off: 38 steps, 805 op calls and 805 dispatches per step
+COUNT 16-row passes, off:   attn_res_mix_bf16 nd=1: 26.0 per step
+COUNT 16-row passes, off:   conv_mix_bf16 nd=1: 96.0 per step
+COUNT 16-row passes, off:   conv_mix_bf16#1 nd=1: 46.0 per step
+COUNT 16-row passes, off:   conv_mix_bf16#2 nd=1: 46.0 per step
+COUNT 16-row passes, off:   conv_mix_bf16#3 nd=1: 46.0 per step
+COUNT 16-row passes, off:   logits_bf16_gemv_rows nd=1: 90.3 per step
+COUNT 16-row passes, off:   loop_blend_bf16 nd=1: 2.0 per step
+COUNT 16-row passes, off:   loop_blend_bf16#1 nd=1: 2.0 per step
+COUNT 16-row passes, off:   loop_blend_bf16#2 nd=1: 2.0 per step
+COUNT 16-row passes, off:   loop_blend_bf16#3 nd=1: 2.0 per step
+COUNT 16-row passes, off:   moe_route_f32 nd=1: 48.0 per step
+COUNT 1-row decode, all: 7 steps, 447 op calls and 447 dispatches per step
+COUNT 1-row decode, all:   attn_res_mix_bf16 nd=1: 4.0 per step
+COUNT 1-row decode, all:   conv_mix_bf16 nd=1: 96.0 per step
+COUNT 1-row decode, all:   conv_mix_bf16#1 nd=1: 46.0 per step
+COUNT 1-row decode, all:   ink_route_bf16 nd=1: 48.0 per step
+COUNT 1-row decode, all:   logits_bf16_gemv nd=1: 1.0 per step
+COUNT 1-row decode, all:   loop_blend_bf16 nd=1: 2.0 per step
+COUNT 1-row decode, all:   loop_blend_bf16#1 nd=1: 2.0 per step
+COUNT 16-row passes, all: 38 steps, 591 op calls and 591 dispatches per step
+COUNT 16-row passes, all:   attn_res_mix_bf16 nd=1: 4.0 per step
+COUNT 16-row passes, all:   conv_mix_bf16 nd=1: 96.0 per step
+COUNT 16-row passes, all:   conv_mix_bf16#1 nd=1: 46.0 per step
+COUNT 16-row passes, all:   ink_route_bf16 nd=1: 48.0 per step
+COUNT 16-row passes, all:   logits_bf16_gemv_rows nd=1: 1.8 per step
+COUNT 16-row passes, all:   loop_blend_bf16 nd=1: 2.0 per step
+COUNT 16-row passes, all:   loop_blend_bf16#1 nd=1: 2.0 per step

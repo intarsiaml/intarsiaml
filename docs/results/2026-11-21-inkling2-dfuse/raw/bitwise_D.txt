@@ -1,0 +1,9 @@
+BITWISE 1-row decode (64 greedy tokens, text md5): hoist vs off: EQUAL (15d62682aef1efea43a627936df9bb70 vs 15d62682aef1efea43a627936df9bb70)
+BITWISE 16-row passes (G2 short, prefill chunk 16, self-golden tensor bytes): hoist vs off: EQUAL
+BITWISE 1-row decode (64 greedy tokens, text md5): normc vs off: EQUAL (15d62682aef1efea43a627936df9bb70 vs 15d62682aef1efea43a627936df9bb70)
+BITWISE 16-row passes (G2 short, prefill chunk 16, self-golden tensor bytes): normc vs off: EQUAL
+BITWISE 1-row decode (64 greedy tokens, text md5): new vs off: EQUAL (15d62682aef1efea43a627936df9bb70 vs 15d62682aef1efea43a627936df9bb70)
+BITWISE 16-row passes (G2 short, prefill chunk 16, self-golden tensor bytes): new vs off: EQUAL
+BITWISE 1-row decode (64 greedy tokens, text md5): best vs off: EQUAL (15d62682aef1efea43a627936df9bb70 vs 15d62682aef1efea43a627936df9bb70)
+BITWISE 16-row passes (G2 short, prefill chunk 16, self-golden tensor bytes): best vs off: EQUAL
+     249 /opt/code/intarsiaml/.worktrees/ink-dfuse/.scratch/D/r1_off.out

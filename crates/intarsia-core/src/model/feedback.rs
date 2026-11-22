@@ -133,7 +133,11 @@ impl Model {
     pub(crate) fn feedback_read(&self, p: Pending) -> Result<u32> {
         let fence = p.fence.ok_or_else(|| Error::invalid("token feedback: read of a held step"))?;
         let mut b = [0u8; 4];
-        self.backend.read_after(fence, &self.ws.tok, p.slot * 4, &mut b, 0)?;
+        {
+            let _w = crate::hostprof::span(crate::hostprof::Cat::Sync);
+            self.backend.read_after(fence, &self.ws.tok, p.slot * 4, &mut b, 0)?;
+            crate::hostprof::mark_sync_end();
+        }
         let t = i32::from_le_bytes(b) as u32;
         if t as usize >= self.dims.vocab {
             return Err(Error::backend(format!("token feedback: argmax {t} >= vocab {}", self.dims.vocab)));

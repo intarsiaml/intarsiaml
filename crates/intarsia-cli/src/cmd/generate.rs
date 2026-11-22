@@ -243,7 +243,11 @@ pub fn run(args: GenerateArgs) -> Result<()> {
     }
     let mut top: Vec<_> = t.ops.iter().collect();
     top.sort_by(|a, b| b.1.time_ms.partial_cmp(&a.1.time_ms).unwrap());
-    let line: Vec<String> = top.iter().take(5).map(|(k, v)| format!("{k}={:.0}ms/{}", v.time_ms, v.calls)).collect();
+    let mut line: Vec<String> = top.iter().take(5).map(|(k, v)| format!("{k}={:.0}ms/{}", v.time_ms, v.calls)).collect();
+    if t.ops.values().all(|v| v.timed_calls == 0) {
+        // no op was timed: `--profile-every 0`, the Metal default
+        line = vec!["off (pass --profile-every 16)".into()];
+    }
     if let Some(c) = t.ops.get("all_reduce") {
         eprintln!(
             "tensor parallel: {} all-reduces ({:.1} per step), {} timed, avg {:.1} us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)",
