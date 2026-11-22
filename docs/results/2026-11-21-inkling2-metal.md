@@ -384,6 +384,12 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
   request returns 200 with text, a sampled stream (temperature 1.0, seed 7) returns tokens, the same seeded request twice
   gives identical text (never ran in #11182). Lane: both added to `gumbelcheck.sh` before #11277 started (serve through
   `serve_lib.sh`, port 8097).
+- 2026-11-22 (coordinator): possible batched decode regression on the merged tree: #11261 (e4ebcfe77) B8 42.79 / B16 74.84 ms
+  vs #11181 (8546d143f) 34.93 / 59.96; B1 faster. #11266's batch_step x3 (c918e9fda) is the confirming run: send its B1 / B8 /
+  B16 step ms to ink-batch (a716d7e057a6fbfc3) and the coordinator. Hold any merge touching the batch head or controllers
+  until settled. Lane: holding; #11266 also carries the P12 on/off batch_step arm (same binary, ABAB x3), which separates
+  pack12's share; the combined gate's batched == solo run (7e5e6010e, not a timing slot) logged B16 74.9 ms, consistent with
+  #11261.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
