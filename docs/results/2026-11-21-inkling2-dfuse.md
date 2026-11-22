@@ -1,6 +1,6 @@
 # Inkling-2-Mini decode controller fusion on Metal (lane ink-dfuse, 2026-11-21)
 
-Status: in progress. Changes 1-5 are committed, default off, and bitwise on the real model. G2 / G3 pass for 1-3 (#10952). Per-switch timing (#10964): best = route + msg + hoist + norm_c is -0.67 ms per step. The tail is dropped. Job E (#11003) confirms with 6 reps and runs the final gates before any default changes. Branch `ink/dfuse` (from `ink/metal` a88db4620), worktree `.worktrees/ink-dfuse`. Not pushed.
+Status: in progress. Changes 1-5 are committed, default off, and bitwise on the real model. G2 / G3 pass for 1-3 (#10952). Per-switch timing (#10964): best = route + msg + hoist + norm_c is -0.67 ms per step. The tail is removed (ac2371c81). ink/metal 0ee1bec29 is merged (ae617da2f; the hoist is row-table aware). Job E (#11003, snapshot ac2371c81 = .scratch/snap3) runs the final gates and the timing on that code before any default changes. Branch `ink/dfuse` (from `ink/metal` a88db4620), worktree `.worktrees/ink-dfuse`. Not pushed.
 
 ## Briefs received
 
@@ -380,5 +380,32 @@ dispatch, us; raw/tail_dist_*_D.md):
 Under a second process that keeps every core streaming, the tail's maximum stays below the four-dispatch path's. Its worst
 case is bounded, which matches the analysis above. But its median is higher at T=1 S=3, T=4 and T=16 (T=1 S=1 is a wash),
 and the real step is 0.155 ms slower with it on. Decision (coordinator: agreed): drop the tail.
+
+### After #10964: merge, row-table fix, tail removed, job E
+
+- **Merge of ink/metal 0ee1bec29** (ae617da2f) brings ink/batch's row tables (`conv_mix_bf16_rows`, `MX_ROWTAB`) and the NE 4
+  mix geometry: D 2304 now runs NE 4 x 576 threads per row instead of NE 3 x 768.
+- **The hoist and row tables.** As committed in 88b2b089c, the HO conv took the x / ring choice and the x address from the
+  row index t. That matched the plain loop only for contiguous calls. In a row-table call, row t is a T = 1 call at posb[t]
+  with its x row at `xoff` = t, so HO would have read another sequence's x rows. The merge resolution makes HO use the in-call
+  index `dx` (t, or 0 with a row table) and add `xoff`, as the plain loop does through `qq - pos + xoff`. This leaves the
+  contiguous path unchanged, so the #10964 bits hold for it. Job E runs `tests/inkling2_batch.rs` on Metal (batch == solo
+  bitwise, row tables) with best on.
+- **The hoisted instances at NE 4** admit 1024 threads (bespin runtime compile, #11099). The model's rows need 576.
+- **The tail is removed** (ac2371c81).
+- **Checks of the merged tree on bespin:** `cargo check` of the Metal crate (examples + tests) and of the models' inkling2 /
+  inkling2_batch tests pass (#11102).
+- **No-metal4 tiny failures (#10879) are not this lane's.** With `INTARSIA_METAL_NO_METAL4=1` the three tiny tests fail with
+  NoKernel for `ink_in_proj` at prefill shapes (m = 31..63 rows: only the NAX in-projection takes those), not for `ink_route`,
+  whose fallback to the pair is shown by `tests/inkctrl_nometal4.rs`. Job E runs the tiny suite without metal4 with the
+  switches off and with best on, to show that both fail the same way.
+- **Job E** (`.scratch/jobE.sh`, `raw/` after the run):
+  1. fail-fast bitwise tests, inkmix rows-exact with best on, G1 (tiny inkling2 on Metal) with best on, batched decode off /
+     best, tiny no-metal4 off / best
+  2. the metal binary, admission with best on, plan show for Qwen3-8B / Llama against the ink/metal binary
+  3. real-model bitwise off vs best (1 and 16 rows)
+  4. G2 / G3 with best on
+  5. normal-step span of off / best / the four leave-one-outs: short prompt 6 interleaved reps, 5k prompt 4 reps
+  6. the per-dispatch trace (controller ms per token), localeval speed 128 / 5120 off vs best (`serve_lib.sh` teardown)
 
 PENDING_ATTRIBUTION
