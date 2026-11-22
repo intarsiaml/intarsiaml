@@ -1,6 +1,8 @@
 //! Lane ink-prefill: µs per call of the small Inkling-2-Mini prefill ops at a 2048-row chunk that the kernel lanes' benches do
 //! not cover: the router (`Logits` [T, 2304] x [128, 2304] -> f32, the Matmul the graph turns into `Logits` on Metal) and
-//! `MoeRoute` (sigmoid, E 128, top-8). Wall time of a synced batch, several operand copies rotating.
+//! `MoeRoute` (sigmoid, E 128, top-8). Wall time of a synced batch, several operand copies rotating. Only kernels whose
+//! registration accepts the shape are timed (the first version launched `logits_bf16_gemv` at 2048 rows directly, which its
+//! launcher refuses: "needs M == 1"; the registry never selects it there).
 //!
 //!   cargo run --release -p intarsia-backend-metal --example ink_prefill_bench [-- rows ...]
 //!
@@ -30,7 +32,7 @@ fn main() {
         }
     };
     let be = MetalBackend::new().expect("metal backend");
-    let names: Vec<String> = be.kernels().iter().map(|k| k.name.to_string()).collect();
+    let kernels = be.kernels();
     let mut rng = intarsia_core::rng::SplitMix64::new(7);
     let mut up = |dt: DType, shape: &[usize], scale: f32| -> TensorRef {
         let n: usize = shape.iter().product();
@@ -62,14 +64,13 @@ fn main() {
         let x = up(DType::Bf16, &[t, D], 1.0);
         let out = up(DType::F32, &[t, E], 0.0);
         for kname in ["logits_bf16", "logits_bf16_gemv", "logits_bf16_gemv_rows"] {
-            if !names.iter().any(|n| n == kname) {
-                continue;
-            }
             let calls: Vec<OpCall> = ws
                 .iter()
                 .map(|w| OpCall::new(Op::Logits, vec![x.clone(), w.clone()], vec![out.clone()], OpAttrs::default()))
                 .collect();
-            if calls[0].check().is_err() {
+            // only kernels the registry would select for this shape (the GEMV forms take M == 1 / <= 16 rows only)
+            let ok = kernels.iter().any(|k| k.name == kname && k.accepts(&intarsia_core::ShapeInfo::from_call(&calls[0])));
+            if !ok || calls[0].check().is_err() {
                 continue;
             }
             let us = time(kname, &calls);
