@@ -86,6 +86,14 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   Run the row-table rows-exact tests and tiny B 2 / 5 / 16 batched == solo with INTARSIA_INK_MIX_HOIST=1 against ink/dfuse
   ac2371c81 in a default-load slot (folded into #11056 if not started, else after ink/dfuse merges into ink/metal); report
   pass / fail to the coordinator and ink-dfuse (a194e917d8f92b542).
+- 2026-11-22 (coordinator, on the B 8 / 16 regression A/B): the same m-mix merge (NE 4, BLEND_RB) is the main suspect in
+  ink-metal's decode-mode G2 regression on the merged tip (teacher-forced decode rows 2.6e-3 -> 1.1e-2, drift growing row to
+  row: looks like 1-row decode writing bad state); their bisect #11142 runs NE=3 / BLEND_RB=16 arms. Send the five-arm B 8 / 16
+  table to ink-metal (af43898d63e5b5190) and the coordinator. If ink-metal reverts NE 4 for accuracy: rerun B 8 / 16 on the
+  fixed tip first (a batched-only override may be moot). If accuracy is fine at NE 4 and only batched speed needs NE 3 /
+  RB 16: approved, a batched-only override in mix_geom / blend_geom, written by ink-dfuse (a194e917d8f92b542, owns the
+  inkmix.rs row kernels now; m-mix lane closed): send dfuse the exact lines, solo defaults stay. Solo rtvar: inconclusive,
+  stays unmerged; retry in a later quiet slot only if cheap (0.6 % at best).
 
 ## 1. Design note (contract delta, written before any kernel)
 
