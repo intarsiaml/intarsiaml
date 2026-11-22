@@ -5,7 +5,7 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 
 ## Briefs received
 
-- (none after the start brief)
+- 2026-11-21 (coordinator, SendMessage): ink/skel is done at 46349d879 (G1, G2, G3 short / long / 4k pass on cpu; new: ring-safe prompt reuse, faster cpu experts bitwise the same, the accuracy turn format, recipe coverage, results doc; op contracts unchanged). Merge ink/skel at the next clean point, rerun the Metal gates on the merged tip, and message main with the first endor decode tok/s and the per-op profile.
 
 ## Integrated
 
