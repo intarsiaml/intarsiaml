@@ -315,6 +315,8 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
   `INTARSIA_INK_BLEND_NAX` / `_MOE_NAX2` / `_MOE_NAXSKIP` / `_PREFILL_TRACE` (bespin #11216 docs_env_vars 2/2), no code.
   Lane: ink/metal already has rows for these four (7e5e6010e, written at the merge); 297cebadc merges after #11206 (the gate
   tree stays fixed), keeping the lane's own row text and dropping mine, so each variable has one row.
+- 2026-11-22 (coordinator): confirms 297cebadc after #11206, the prefill lane's row text, one row per variable. Prologue split
+  (ink/prologue-split-merge 61980c882, default-on) is not ready: waits on speed check #11221; hash only if it passes.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
