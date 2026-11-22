@@ -1336,3 +1336,34 @@ per token. Times are L's `ink_attn_bench --fused`, rows 1, raw/L_b_attn.txt. The
 - **(b) Any build that touches `ink_attn_dec<GP, RT>` goes to the coordinator before it starts.** ink-batch's rows form
   shares the template, and ink-batch is working on the B > 1 in_proj now. The gate runs `inkling2_batch` and the
   attention rows-exact tests.
+
+### Probe job Q (queued 09:05, estimated start ~11:37 behind #11426 / #11427 / #11428; snapshot .scratch/snap10 = 6368ad219)
+
+The tools are in raw/Q_tools. Nothing is shipped: the backend dump is an example that is not tracked in the snapshot, and the
+variants are macro switches on a probe copy of the shader.
+
+- **`ink_attn_dump.rs`**: one backend `ink_attn_decode_bf16` visit for each (SWA / full) x ctx (150, 512, 4096, 5180), at
+  rows 1 and ink_attn_bench's shapes. It writes the operands, the output, and the caches and rings after the visit.
+- **`attnvar_gen.py`** writes `ship.metal`, which is the shipped file with common.h inlined, and `probe.metal`:
+  - `PR_NB` n: key-loop lookahead loads (same bits);
+  - `PR_EARLY`: the first n steps' cache loads are issued before the prologue (same bits);
+  - `PR_NOMATH`: the key loop keeps its loads and drops the score / softmax / merge arithmetic;
+  - `PR_NOPRO`: the prologue keeps its loads and barriers and drops its arithmetic;
+  - `pr_bytes`: a byte stream over the split's K / V on the same grid.
+
+  `build_libs.sh` compiles them with build.rs's flags (`-std=metal3.1 -O3 -fno-fast-math`, Xcode.app).
+- **`attnprobe.swift`** has three parts:
+  - **cal**: the shipped copy (and p0) against the dump, bitwise.
+  - **warm16**: L's bench setting, 16 sets x 8 passes, us per visit.
+  - **token**: 40 SWA + 8 full visits per token over 6 / 4 / 2 distinct token sets at ctx 150 / 512 / 5180, so that K/V
+    arrive cold. Two passes per command buffer, ms per token.
+
+  Variants: ship, p0, nocomb, nopro, nomath, skel_c (both off, with comb), skel (both off, no comb), bytes,
+  la1 / la2 / la4, early2 / early4, and split keys 32 / 128. Each number is the median of 7 rounds, with the order rotated.
+  Same-bits variants are compared bitwise with ship on a SWA and a full visit.
+- **Pre-checks (bespin #11434):** the example passes cargo check, the harness compiles with swiftc, and all 10 macro sets
+  compile with the OS Metal compiler (bespin has no Xcode, so the backend-flag compile runs in the endor slot).
+- **Real step in the same slot:** a box label, then the split-keys sweep 64 / 32 / 128 at short and 5k, two runs each in
+  ABC CBA order. This is for information only; the bits differ.
+- (Housekeeping: this job's first draft was written over the original `.scratch/jobA.sh` from 2026-11-21. That script
+  belonged to the superseded first correctness pass; the rerun's script is archived as raw/jobA2.sh.)
