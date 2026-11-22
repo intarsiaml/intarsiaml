@@ -152,7 +152,7 @@ fn matmul_p12_bitwise_bf16_unembed() {
     check_gemv(be, &mut rng, &w, n, k, true, &(1..=16).collect::<Vec<_>>(), "Logits N=20011 K=2304 adversarial");
     let n = 200058usize;
     let w = weight(be, &mut rng, n, k, false, &[(n, 1.0)]);
-    check_gemv(be, &mut rng, &w, n, k, true, &[1, 4, 16], &format!("Logits unembed N={n} K={k} escapes={}", w.escapes));
+    check_gemv(be, &mut rng, &w, n, k, true, &[1, 2, 3, 4, 5, 6, 7, 8, 16], &format!("Logits unembed N={n} K={k} escapes={}", w.escapes));
 }
 
 #[test]

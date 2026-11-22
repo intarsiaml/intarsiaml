@@ -2915,7 +2915,19 @@ impl Model {
                 }
             }
             let logits = self.view(&self.ws.logits, DType::F32, &[q, v]);
-            self.proj(&hn.rows(0, q), self.head()?, &logits, profile)?;
+            // Inkling-2 on CUDA under INTARSIA_INK_VERIFY_P12: the P12 head's rows kernel (bitwise the bf16 rows GEMV per row)
+            let mut done = false;
+            if let Some(p) = self.head_p12.as_ref().filter(|_| self.ink.is_some() && q <= crate::quant::p12::ROWS_MAX && inkling2::verify_p12(self.backend.name())) {
+                let mut call = p.call(hn.rows(0, q), logits.clone());
+                call.exact_rows = true;
+                if self.registry.select(&call).is_ok() {
+                    self.exec_call(call, profile)?;
+                    done = true;
+                }
+            }
+            if !done {
+                self.proj(&hn.rows(0, q), self.head()?, &logits, profile)?;
+            }
         }
         let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("verify head without its buffer"))?;
         let logits = self.view(&self.ws.logits, DType::F32, &[q, v]);

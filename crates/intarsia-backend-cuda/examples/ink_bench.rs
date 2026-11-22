@@ -348,10 +348,53 @@ fn bench_mix(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
     }
 }
 
+/// Lane ink-cuda-attn (brief 26): the verify pass's wo [2304 x 3072] and unembed [200058 x 2304] at 1..=8 rows, the bf16 rows
+/// GEMV (what verify runs today) against the P12 rows kernel on the same weights (4 rotating copies of wo; one unembed).
+fn bench_vhead(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
+    for &(n, k, f32o, copies) in &[(2304usize, 3072usize, false, 4usize), (200058, 2304, true, 1)] {
+        let (bf_name, bf_op, pk_name) =
+            if f32o { ("logits_bf16_gemv_rows", Op::Logits, "matmul_p12_logits_gemv_rows") } else { ("matmul_bf16_gemv_rows", Op::Matmul, "matmul_p12_gemv_rows") };
+        let odt = if f32o { DType::F32 } else { DType::Bf16 };
+        let ws: Vec<(Buffer, intarsia_core::quant::QTensor)> = (0..copies)
+            .map(|c| {
+                let mut rng = intarsia_core::rng::SplitMix64::new(300 + c as u64);
+                let v = rng.normal_vec(n * k, (k as f32).powf(-0.5));
+                let host = HostTensor::from_f32_as(DType::Bf16, &[n, k], &v);
+                let b = be.alloc(host.data.len(), MemKind::Device).unwrap();
+                be.upload(&b, 0, &host.data, 0).unwrap();
+                (b, intarsia_core::quant::p12::pack_bytes(&host.data, n, k, 0).unwrap().upload(be).unwrap())
+            })
+            .collect();
+        println!("== {} [{n}, {k}], {copies} weight copies", if f32o { "unembed" } else { "wo" });
+        for &m in rows {
+            let x = bf16_buf(be, &[m, k], 7 + m as u64, 1.0);
+            let o = be.alloc((m * n * odt.size_bytes()).max(16), MemKind::Device).unwrap();
+            for (kname, p12) in [(bf_name, false), (pk_name, true)] {
+                let kk = kern(ks, kname);
+                let calls: Vec<OpCall> = ws
+                    .iter()
+                    .map(|(b, q)| {
+                        let ins = if p12 {
+                            vec![t(&x, DType::Bf16, &[m, k]), q.parts[0].clone(), q.parts[1].clone()]
+                        } else {
+                            vec![t(&x, DType::Bf16, &[m, k]), t(b, DType::Bf16, &[n, k])]
+                        };
+                        let mut c = OpCall::new(if p12 { Op::MatmulP12 } else { bf_op }, ins, vec![t(&o, odt, &[m, n])], OpAttrs::default());
+                        c.exact_rows = true;
+                        with_scratch(be, &kk, c)
+                    })
+                    .collect();
+                let (us, mn) = time(be, kname, &calls, if f32o { 40 } else { 400 });
+                println!("vhead M={m:2} {kname:30} {us:9.1} us (min {mn:8.1})");
+            }
+        }
+    }
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let what: Vec<&str> = {
-        let w: Vec<&str> = args.iter().map(|s| s.as_str()).filter(|a| matches!(*a, "proj" | "moe" | "mix")).collect();
+        let w: Vec<&str> = args.iter().map(|s| s.as_str()).filter(|a| matches!(*a, "proj" | "moe" | "mix" | "vhead")).collect();
         if w.is_empty() {
             vec!["proj", "moe", "mix"]
         } else {
@@ -365,6 +408,7 @@ fn main() {
         match w {
             "proj" => bench_proj(&*be, &ks, if rows.is_empty() { &[1, 2, 4, 8, 16, 2048] } else { &rows }),
             "moe" => bench_moe(&*be, &ks, if rows.is_empty() { &[1, 4, 16, 2048] } else { &rows }),
+            "vhead" => bench_vhead(&*be, &ks, if rows.is_empty() { &[1, 2, 3, 4, 5, 6, 7, 8] } else { &rows }),
             "mix" => bench_mix(&*be, &ks, if rows.is_empty() { &[1, 4, 16, 2048] } else { &rows }),
             _ => {}
         }

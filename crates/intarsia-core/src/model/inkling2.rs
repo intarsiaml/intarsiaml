@@ -68,6 +68,16 @@ pub(crate) fn ink_rows_exact(backend: &str, t: usize) -> bool {
     !off && (backend == "metal" || backend == "cuda") && (2..=16).contains(&t)
 }
 
+/// `INTARSIA_INK_VERIFY_P12` (lane ink-cuda-attn, brief 26): the CUDA verify pass takes the P12 copies of wo and the unembed
+/// at all its rows (1..=`p12::ROWS_MAX`, the rows-exact P12 kernels, bitwise the bf16 rows GEMV each row) instead of the bf16
+/// weights above `DENSE_ROWS_MAX` rows. `1` on, `0` off; unset = off (the default is decided by the gate). CUDA only: Metal and
+/// every non-verify call keep `DENSE_ROWS_MAX`. Read once.
+pub(crate) fn verify_p12(backend: &str) -> bool {
+    static ON: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    let env = *ON.get_or_init(|| std::env::var("INTARSIA_INK_VERIFY_P12").ok().map(|v| v.trim() == "1"));
+    backend == "cuda" && env.unwrap_or(false)
+}
+
 /// Where a partial lives (see the module doc).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Loc {
@@ -1109,10 +1119,11 @@ impl Model {
             }
             let aproj = plane(&ws.aproj, act, 0, t, d);
             {
-                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows where the backend admits it, else wo as
-                // loaded (the same bits)
+                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows (a CUDA verify pass: 1..=ROWS_MAX under
+                // INTARSIA_INK_VERIFY_P12) where the backend admits it, else wo as loaded (the same bits)
                 let mut done = false;
-                if let Some(p) = l.wo_p12.as_ref().filter(|_| t <= crate::quant::p12::DENSE_ROWS_MAX) {
+                let wo_max = if self.verifying() && verify_p12(self.backend.name()) { crate::quant::p12::ROWS_MAX } else { crate::quant::p12::DENSE_ROWS_MAX };
+                if let Some(p) = l.wo_p12.as_ref().filter(|_| t <= wo_max) {
                     let mut c = p.call(o.clone(), aproj.clone());
                     c.exact_rows = self.verifying();
                     if self.registry.select(&c).is_ok() {
