@@ -66,6 +66,19 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
    neighbouring m, or route m 31-63 to the existing GEMM fallback. Check: the tiny inkling2 suite with metal4 forced off passes
    on endor, plus rows-exact; default-load slot, no local builds. After the queued jobs; report the hash.
 
+8. 2026-11-22 (coordinator, via SendMessage): approved with conditions.
+   1. Recipe: `[tuning.metal] prefill_chunk = 2048` in recipes/inkling2.toml as its own commit on ink/prefill, only if #11109
+      passes all of: G2/G3 short+long at 2048 within the limits (G2 4e-3 / 6e-3, G3 1.05e-2 / 1.65e-2); speed-plain serve 2048
+      >= 256 at every length (prefill and decode, beyond spread, or within 1 % for decode); serve log shows "prefill chunk 2048".
+      Commit message cites the #11109 numbers. Revert = that one commit.
+   2. Merge: #10967 counts as the speed-plain gate for ink/prefill 378dc214e (1k / 4k clean wins, 16k positive in both pairs,
+      decode within 1 %). Send ink-metal (af43898d63e5b5190) the hash to merge (378dc214e, or the recipe commit on top once
+      #11109 passes).
+   3. If #11109 fails a G2/G3 limit at 2048: stop and report the numbers; no other chunk sizes without asking.
+   4. Results doc note: every localeval / accuracy number for Inkling on Metal before that commit ran at 256-row chunks.
+   Next, in order: prefill cb batching (57 ms / chunk), router NAX, MoE unpack sharing; also the non-metal4 ink_in_proj
+   m 31-63 fix (brief 7).
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
@@ -238,7 +251,7 @@ Verdict against brief 5 (prefill better at 4k and 16k, decode within 1 %): 4k be
 
 **Why serve is ~1300 tok/s while `generate --prefill-chunk 2048` is ~2700:** `recipes/inkling2.toml` sets no
 `prefill_chunk`, so serve and `intarsia accuracy` run **256-row chunks** (serve-2.log: "prefill chunk 256 (default)"). Every
-NAX path in this lane (blend, router, MoE tiles) was tuned and timed at 2048 rows, and G2/G3 above ran at 256. Proposal:
+NAX path in this lane (blend, router, MoE tiles) was tuned and timed at 2048 rows, and G2/G3 above ran at 256. **Every localeval / accuracy number for Inkling on Metal before the recipe commit ran at 256-row chunks (brief 8.4).** Proposal:
 `[tuning.metal] prefill_chunk = 2048` in the recipe (as qwen3 / qwen3_5_moe). Check queued as #11109: G2/G3 short+long at
 2048, then speed-plain ABAB serve 256 vs 2048 on the same binary.
 
