@@ -172,6 +172,15 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   from b1d84ba5b first, then (b) a weight-format change at m=1. Reproducer ink-cuda-mtp/.scratch/servediag.sh (~8 min, spark1,
   own fleetq slot). Report cause and fix commit; the attention lane then reruns servediag, the serve smoke and localeval.
 
+- (coordinator, 22nd) Rule for the situ sweep (600 cases): (1) worst rel_l2 <= 1.5e-3 AND the worst element is plain bf16
+  accumulation noise (no element over ~8 ulps, no structure by expert / row / position) -> raise the situ rel_l2 tol to 2e-3,
+  abs unchanged, on CUDA and Metal, comment citing the sweep; (2) anything else is a kernel error: fix the kernel. Either way
+  seed admission case data from the case key (shape, act, w, situ), not plan-call order, and check Metal and CPU admission
+  still pass. Report the worst case, the branch taken and the commit; then the attention lane reruns servediag. Prefill after
+  the blocker: CUDA prefill chunk 1024 and 2048 vs 256 (the same 4k profile + G2 / greedy md5; Metal runs 2048), budget the
+  activation memory and give the job a --mem peak; if 2048 is bitwise / within tolerance and faster, send numbers (the
+  coordinator decides default-on); then the rest of the top 3.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
