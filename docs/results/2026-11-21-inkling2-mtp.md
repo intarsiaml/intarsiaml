@@ -96,6 +96,13 @@ Status: in progress. Branch `ink/mtp` (not pushed, not merged).
   gap, find the ingest cost before any flip. (3) The -1.7 pp acceptance gap at k1 tau 0 is not blocking: note it as a known
   difference. (4) Cut: wait for #11227 (counts only with ids equal off, prose not worse, greedy > k3 tau 0.8 beyond spread at
   every length); keep the clean-tree + passed-tests guard on every queued build job.
+- 2026-11-22 (coordinator, SendMessage): low priority, after the flip gates. Latent bug found by ink-cuda-attn (gate5, fleetq
+  #11254): `verify_head` (model.rs:2890) fills `ws.logits` through a plain proj and never applies the final logit softcap (30);
+  decode applies it on host readback in `Model::softcap_logits` (decode == 30*tanh(verify/30) to every printed digit, cpu and
+  CUDA). Greedy is safe (monotone); a sampled or probability-based verify reading `forward_verify_logits` would see uncapped
+  logits, unreachable today. Fix as one small commit: apply the cap wherever verify rows are read as probabilities, or a hard
+  assert that sampled verify is unreachable plus a comment that the rows are pre-softcap. Bitwise-neutral for greedy (md5
+  equal). Do not change it while #11226 / #11227 are pending on the current binary.
 
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
