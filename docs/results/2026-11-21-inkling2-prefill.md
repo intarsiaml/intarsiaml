@@ -113,6 +113,14 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
     cpu tests inkling2 8/8, inkling_chat 7/7, ink_attn_decode 1/1. Sent to ink-metal as the merge hash; the recipe commit
     follows only if #11109 passes.
 
+13. 2026-11-22 (coordinator, via SendMessage): COMMIT the recipe (1k miss is spread, not speed; 4k decode -1.5 % in one pair
+    only, chunk size does not touch decode kernels; no rerun). Recipe commit on ink/prefill-merge on top of 96740cbe2 with
+    the 1k spread and 4k decode caveats in its message; send ink-metal the new hash in place of 96740cbe2; note peak memory
+    at 16k with chunk 2048 if serve logged it.
+    **Done:** 05f1c702e (`[tuning.metal] prefill_chunk = 2048`), bespin #11191 recipe tests 15 + 11 pass, cpu inkling2 8/8;
+    sent to ink-metal. **Peak memory at 16k / chunk 2048: not logged by serve** (only the 19.53 GB keep-warm residency of
+    the weights); ink-metal's combined gate measures it.
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
@@ -376,7 +384,7 @@ localeval speed-plain, serve `--max-batch 1`, same binary, order 256, 2048, 256,
 Against brief 8: G2 / G3 pass; serve log ok; 4k and 16k prefill faster beyond spread in both pairs. Two items are not clean.
 - **1k prefill:** both 2048 runs were rejected for spread. Their reps range 2026-2424, every one far above the 256 arm.
 - **4k decode, pair 1:** -1.5 % (localeval calls it noise; brief 8 asks for within 1 %). Pair 2 is -0.3 %.
-Recipe commit held pending the coordinator's call.
+Recipe committed on the coordinator's call (brief 13): ink/prefill-merge 05f1c702e.
 
 ### Brief 7 fix check (#11105, built in-slot at 92e7e273f, which contains ed27f4462)
 
