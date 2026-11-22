@@ -996,3 +996,6 @@ because it would change how every JSON float parses, model configs included. Fix
 data drawn from another generator would differ by far more. Plan tests pass 10/10, twice (#11595). Merge checks after the
 main merge: workspace check, mtp 17/17, inkling2 69/69 (endor #11581); Inkling CUDA md5s are unchanged with spec off and on
 (spark2 #11582).
+Then main moved to 17b999272 (#494 gumbel). That merge had two conflicts, `recipe.rs` and `mtp.rs`, and both keep both sides.
+Endor #11599 passed: workspace check, mtp 17/17, inkling2 69/69, plan 10/10, recipe_gumbel, prepush. Spark2 #11600 passed:
+ink_rows 8/8, tiny cuda 17/17, Inkling CUDA md5 g64 / g256 / g1.2k unchanged with spec off and on.
