@@ -742,9 +742,9 @@ raw dirs or golden/. spark2 has no /opt/code.
 - **MTP draft verify:** see item 5 (dropped: host time is under 5 % of a cycle). With the device sampler, a sampled verify
   could stay on the device: `GumbelArgmax` already takes `[R, V]` rows with one key per row, so verify row k draws with the
   key of position pos + k, and the accepted length is the longest prefix where the draft token equals the draw. The host then
-  reads R + 1 i32s per cycle. Every emitted token is the target's own seeded draw, so the output law is the target's. The
-  acceptance rate is a different question: it equals the target-rejection rate only if the draft is also drawn with the same
-  keys, and it is below the optimal coupling. Not built; it would need ink-mtp's verify loop and a decision on the law.
+  reads R + 1 i32s per cycle. Every emitted token is the target's own seeded draw, so the output law is the target's. If the
+  draft is drawn with the same keys (a Gumbel coupling), the acceptance rate is at most that of standard speculative sampling
+  (1 - TV(p, q)), not equal to it. Not built; it would need ink-mtp's verify loop and a decision on the law.
 - **Batched decode with the device sampler:** `HeadMode::LastGumbel` already handles batched rows (one key per row, one
   threadgroup per row, so a row's draw does not depend on B; `model/batch.rs`). The batch lane keeps graphs off, which this
   needs no change for.
