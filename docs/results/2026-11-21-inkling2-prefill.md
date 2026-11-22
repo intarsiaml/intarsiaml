@@ -342,7 +342,7 @@ memory-bound ops at ~550 GB/s DRAM (assumed, not measured on endor; ops whose op
 | ConvMix incl. the looped blend | 76.5 | n/m | ~15 (fusion bound) | plain 18.6 ms (96 calls); blend 8 x 4 dispatches per looped call, 1.12 ms per call, already at cache speed per dispatch (blend_pair moves 57 MB in 0.043 ms) | - |
 | RelSinkAttn NAX | 70.3 | 30 | **40** | SWA 25.8 GFLOP x 40, full ~103 GFLOP x 8 (mean 4k keys); 62 TFLOP/s is optimistic for softmax attention | - |
 | InkInProj NAX | 61.6 | 63 | 0 | 81.8 GFLOP / visit | - |
-| InkKvPrologue | 47.9 | 12 | **36** | ~140 MB / visit (rel 100.7 MB written, q 12.6, k / v 8.4, pq 14, pk / pv 8.4) | - |
+| InkKvPrologue | 47.9 (24.1 split) | 12 | **36** (12 split) | ~140 MB / visit (rel 100.7 MB written, q 12.6, k / v 8.4, pq 14, pk / pv 8.4) | - |
 | MoE experts MXFP8 (4 visits) | 30.8 | 17 | 14 | as NVFP4 | v65 / dq1 tried: both slower |
 | wo (matmul_bf16_nax) | 22.7 | 22.5 | 0 | 29 GFLOP / visit | - |
 | router (logits_bf16) | 15.2 | ~1 | 14 | 1.2 GFLOP / visit | none (router NAX reverted: shared Op::Logits) |
@@ -359,6 +359,22 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 `ink/prologue-split` off the ink/prefill tip. **Bitwise** vs the current prologue: same inputs, the same fp32 chains, only the
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
+
+### Prologue split (#11185, ink/prologue-split 9f925c85e, `INTARSIA_INK_PROLOGUE_SPLIT=1`, default off)
+
+| Check | Result |
+|---|---|
+| bitwise vs `ink_kv_prologue_bf16` (q, rel, k, v, both rings; T 17 .. 2048, static / dynamic + tau, ring 19 / 1040, pos0 up to 6144, partial 8-row block) | **8 / 8 bitwise**; the launch counter asserts the split ran on the split arm only |
+| rows-exact attention suite with the split on | pass |
+| lib tests (incl. `kernel_list_is_unchanged_by_core_op_fusion_p1`) | 18 / 18 |
+| admission `ink_kv_prologue`, split on | ADMITTED (117 shapes), trace "prologue split" |
+| greedy 8 tokens at 8k, off vs on | identical, both runs exit 0, 14 bytes each |
+| prologue GPU time per 2048-row chunk (kernel trace, chunks 1 + 2) | **48.0 -> 24.1 ms** (1.00 -> 0.50 ms per visit, both kernels) |
+| GPU per chunk | 654.8 -> 631.6 ms (-3.5 %) |
+| e2e p8k, 2 interleaved rounds of 2 | off 2635 / 2611 / 2583 / 2730, on 2573 / 2826 / 2709 / 2814 tok/s (medians 2622 -> 2762, +5 %; noisy) |
+
+Saved 24 ms of the 30 ms planned; the rel product now runs at ~0.25-0.3 ms per visit (100 MB written). Because it is bitwise,
+G2 / G3 and md5 cannot move; the flip to default-on waits for the coordinator.
 
 ### Metal prefill chunk 2048 vs 256 (#11109, binary 378dc214e, brief 8 conditions)
 
