@@ -10,6 +10,7 @@
 //! `INKMOE_ROUTES=<file>:<P1>,<P2>,...` (lane ink-mtp): real routing instead of the random one. The file is i16 expert ids
 //! `[48 visits, P_i positions, 8]` per text, one after another (the oracle's `expert_ids`, tools/inkling2_dspark_ref.py); a
 //! T-row call takes T consecutive positions of one visit of one text, as a verify pass does.
+//! `INKMOE_POOL=<u>`: draw every token's experts from one random pool of u per call (smaller unions, more pairs per expert).
 //!
 //! Run it inside a fleetq slot (`fleetq run --host endor --quiet gpu,cpu --mem 8 ...`).
 
@@ -134,7 +135,22 @@ fn main() {
             let mut unions = Vec::new();
             let calls: Vec<OpCall> = (0..ncalls)
                 .map(|c| {
-                    let (mut ids, ws) = intarsia_core::quant::cases::random_routing(&mut rng, tr, E, K);
+                    // INKMOE_POOL=<u> (lane ink-batch): every token's top-K drawn from one random pool of u experts per
+                    // call, so the union shrinks toward u (real text at 16 rows: ~62; the bench's random ids: ~23)
+                    let pool = std::env::var("INKMOE_POOL")
+                        .ok()
+                        .and_then(|v| v.parse::<usize>().ok())
+                        .filter(|&u| u >= K && u < E);
+                    let (mut ids, ws) = match pool {
+                        None => intarsia_core::quant::cases::random_routing(&mut rng, tr, E, K),
+                        Some(u) => {
+                            let (sub, _) = intarsia_core::quant::cases::random_routing(&mut rng, 1, E, u);
+                            let sub = sub.to_i32().unwrap();
+                            let (ids, ws) = intarsia_core::quant::cases::random_routing(&mut rng, tr, u, K);
+                            let mapped: Vec<i32> = ids.to_i32().unwrap().iter().map(|&j| sub[j as usize]).collect();
+                            (HostTensor::from_i32(&[tr, K], &mapped), ws)
+                        }
+                    };
                     if let Some(rs) = &routes {
                         // T consecutive positions of one visit of one text
                         let (p, seg) = &rs[(rng.next_u64() as usize) % rs.len()];
