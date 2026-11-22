@@ -356,6 +356,21 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
   TERMs serve, then TERM / KILL the group, checks the port is closed and the group empty (STOP FAILED otherwise); reuse
   ink-batch's `serve_lib.sh`. Lane: copied to `.scratch/serve_lib.sh`; `serve_le2.sh` uses `start_group` / `stop_group` for
   both servers (separate .log / .err); tested with a dummy server: normal stop and an early `exit 3` both close the port.
+- 2026-11-22 (coordinator): the baseline measures the tree we ship: if #11194 passes before #11263 starts, merge pack12
+  (default-on) first and point the baseline at that hash; otherwise run it on the current hash labelled "pre-pack12". Guard
+  as ink-mtp #11227: an explicit commit (`git rev-parse HEAD` = the label's hash), no dirty tree, the hash in the results
+  doc, runs counted only with exit 0 and non-empty output.
+- Lane: #11194 had passed (05:04: P12 default == off bitwise at chunks 256 / 4 / 5 / 16, md5 65cde8f35 at chunk 256, kernel
+  traces show the P12 kernels, G2 short self-golden tensors 48/48 equal). Merged ink/pack12 b57a41a46 (code = 03e493df2) at
+  e215c2fca: `MatmulP12` in reserved slot 80, the reserved lists drop 80, the refusal test uses 81, cuda `NOT_ON_CUDA` takes
+  pack12's slice form, inkling2.rs keeps `msg_q_all` with pack12's byte count. bespin found a pack12 test bug: p12.rs
+  `roundtrip_adversarial` overflows a u16 multiply in debug builds (pack12 ran it in release); fixed with `wrapping_mul`
+  (the same values the release test used), c918e9fda; bespin #11265: core lib 244 pass, p12 release 4/4, cuda / hip 34 / 31.
+  Baseline: #11263 released; requeued as **#11266 on c918e9fda, tag with-pack12** (`.scratch/baseline.env`). It builds in a
+  detached worktree `.scratch/blwt` at exactly that commit (HEAD == label checked, clean tree checked, target cloned and
+  sources touched), then runs `pk12check.sh` on it first (G2 short, md5 vs the combined-gate tip, the P12 on/off batch_step
+  arm; a B16 on/off > 1.02 stops the job before localeval), then localeval speed-plain / conc-plain-1k and batch_step; each
+  run is counted only with exit 0 and non-empty output (NOT COUNTED otherwise).
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
