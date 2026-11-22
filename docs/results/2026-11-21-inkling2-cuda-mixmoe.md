@@ -295,6 +295,13 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   PDL is off. Quiet ABBA, both arms, g256 spec off and spec on. Keep it only at >= 2 % spec off with no loss spec on, or
   >= 1 % spec on. Bitwise as before. If it passes, prepare a PR but do not merge. Merge order: #497, the CUDA flips PR, then
   chat-reuse; ask first.
+- (coordinator, 44th) Do (b); (a) is out (memory). Teach `ink_moe_mma` and `ink_moe_fp4` the repacked address map, so that
+  chunks above 512 pairs go back to the tensor-core prefill: the same bytes give the same bits. Re-gate on
+  `ink/cuda-moe-combo`: g1.2k ids identical to main (`aaaa65a7ac70`); 3.6k prompt prefill within noise of main (<= 2 % slower,
+  796 ms baseline); g64 / g256 ids identical spec off and on; ink_rows, tiny cuda, admission green; quiet ABBA g256 repeat. Keep
+  it at spec on >= 1 % with spec off not slower. #498 (CUDA defaults) is merging and needs Spark slots: let fleetq order this
+  behind it, and rebase onto main after #498 lands, before the final gate. If it passes, open a PR and ask before merging. If
+  the map change is not bitwise or costs prefill, stop and report; no third variant. Worktree: this one only.
 - (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
   chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
   is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
