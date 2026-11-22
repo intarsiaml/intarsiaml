@@ -846,6 +846,19 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
             .collect();
         let mut pending: BTreeSet<String> = untested.iter().filter(|n| !is_rt(n)).cloned().collect();
         pending.extend(twins.iter().cloned());
+        // the device sampler (lane ink-hostgap, `INTARSIA_GUMBEL_SAMPLING=1`): its head runs outside the planned passes, so no
+        // planned call selects its kernel; tested by its op's sweep, as a twin's base is, else `serve` (admitted kernels only)
+        // would never run it
+        let extra: BTreeSet<String> = if crate::gumbel::enabled_from_env() {
+            cand_kernels
+                .iter()
+                .filter(|k| k.op == Op::GumbelArgmax && model.registry.admission(&k.name) == Some(Admission::Untested))
+                .map(|k| k.name.clone())
+                .collect()
+        } else {
+            BTreeSet::new()
+        };
+        pending.extend(extra.iter().cloned());
         if pending.is_empty() {
             break;
         }
@@ -869,7 +882,7 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
             let mut handled_sweep = false;
             // a twin's base that no planned call uses is tested by its sweep alone
             let items: Vec<Option<PlannedCall>> =
-                if work.is_empty() && twins.contains(&kname) { vec![None] } else { work.into_iter().map(Some).collect() };
+                if work.is_empty() && (twins.contains(&kname) || extra.contains(&kname)) { vec![None] } else { work.into_iter().map(Some).collect() };
             for c in items {
                 // (a call without a label has no case: `case_from_call` returns `None` for it before it draws anything, and
                 // its kernel's sweep decides below, lazy or not)

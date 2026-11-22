@@ -5730,32 +5730,41 @@ impl Model {
     fn gumbel_bufs(&self) -> Option<&GumbelBufs> {
         self.gumbel
             .get_or_init(|| {
-                if !crate::gumbel::enabled_from_env()
-                    || self.tp.world != 1
-                    || !self.peers.is_empty()
-                    || self.remote.is_some()
-                    || self.vocab_par
-                    || self.lm_head.is_none()
-                {
-                    return None;
+                let r = self.gumbel_init();
+                // one line on stderr when the switch is set at all (so a run can show the sampler it got), none otherwise
+                if std::env::var_os("INTARSIA_GUMBEL_SAMPLING").is_some() {
+                    match &r {
+                        Ok((_, k)) => eprintln!("device sampler (INTARSIA_GUMBEL_SAMPLING): on, kernel {k}"),
+                        Err(why) => eprintln!("device sampler (INTARSIA_GUMBEL_SAMPLING): off, {why}"),
+                    }
                 }
-                let probe = OpCall::new(
-                    Op::GumbelArgmax,
-                    vec![self.view(&self.ws.logits, DType::F32, &[1, self.dims.vocab]), self.view(&self.ws.tok, DType::I32, &[1, 4])],
-                    vec![self.view(&self.ws.tok, DType::I32, &[1])],
-                    OpAttrs { scale: self.softcap_cap(), ..OpAttrs::default() },
-                );
-                if probe.check().is_err() || self.registry.select(&probe).is_err() {
-                    return None;
-                }
-                let m = Self::BATCH_MAX_ROWS;
-                Some(GumbelBufs {
-                    table: Mutex::new(GumbelTable::default()),
-                    batch_keys: self.backend.alloc(m * 16, MemKind::Device).ok()?,
-                    batch_tok: self.backend.alloc(m * 4, MemKind::Device).ok()?,
-                })
+                r.ok().map(|(b, _)| b)
             })
             .as_ref()
+    }
+
+    /// [`Model::gumbel_bufs`]' decision: the buffers and the kernel name, or why the device sampler is off.
+    fn gumbel_init(&self) -> std::result::Result<(GumbelBufs, String), String> {
+        if !crate::gumbel::enabled_from_env() {
+            return Err("the switch is not 1".into());
+        }
+        if self.tp.world != 1 || !self.peers.is_empty() || self.remote.is_some() || self.vocab_par {
+            return Err("tensor parallel or remote ranks".into());
+        }
+        if self.lm_head.is_none() {
+            return Err("no lm_head on this rank".into());
+        }
+        let probe = OpCall::new(
+            Op::GumbelArgmax,
+            vec![self.view(&self.ws.logits, DType::F32, &[1, self.dims.vocab]), self.view(&self.ws.tok, DType::I32, &[1, 4])],
+            vec![self.view(&self.ws.tok, DType::I32, &[1])],
+            OpAttrs { scale: self.softcap_cap(), ..OpAttrs::default() },
+        );
+        probe.check().map_err(|e| format!("the probe call is invalid: {e}"))?;
+        let kernel = self.registry.select(&probe).map_err(|e| format!("no selectable gumbel_argmax kernel: {e}"))?.name.clone();
+        let m = Self::BATCH_MAX_ROWS;
+        let alloc = |n: usize| self.backend.alloc(n, MemKind::Device).map_err(|e| format!("buffers: {e}"));
+        Ok((GumbelBufs { table: Mutex::new(GumbelTable::default()), batch_keys: alloc(m * 16)?, batch_tok: alloc(m * 4)? }, kernel))
     }
 
     /// The head's softcap (Gemma-2, Inkling-2), 0 when the model has none: the cap `GumbelArgmax` applies, the one

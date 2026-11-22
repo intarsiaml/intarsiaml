@@ -484,7 +484,7 @@ kernel void argmax_f32_v4t(device const float* logits [[buffer(0)]],
 // Exactly `intarsia_core::gumbel::argmax_row`: out[row] = argmax_i(c(l_i) * inv_t + g_i), c(x) = cap * tanh(x / cap) for cap = p.f0
 // > 0 (else x), g_i = -ln(E_i), E_i = -ln(1 - w_i) (its series below w = 1/16), w_i = min((float(x_i) + 0.5) 2^-32, 1 - 2^-24),
 // x_i = word 0 of Philox4x32-10(counter (i, pos, 0, 0), key (seed lo, seed hi)); the row's key is (seed lo, seed hi, pos, bits of
-// 1/T). `precise::` log and tanh (the library builds with fast math). One threadgroup per row; each thread visits its ids in
+// 1/T). `precise::` log and tanh (whatever the math mode; build.rs passes -fno-fast-math). One threadgroup per row; each thread visits its ids in
 // increasing order and keeps its first maximum (strict >), the cross-thread reduction takes the lowest id of the maximum, so ties go
 // to the smaller id, the result is the argmax whatever the partition, and a row draws the same token whatever R is.
 // bind: 0 logits f32 [R,V], 1 keys u32 [R,4], 2 out i32 [R], 3 OpP: a = V, f0 = cap.
