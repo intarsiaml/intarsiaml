@@ -156,7 +156,7 @@ pub fn run(call: &OpCall) -> Result<()> {
                 .map(|ti| {
                     let (xr, ir, wr_) = (&x[ti * h..(ti + 1) * h], &ids[ti * k..(ti + 1) * k], &wts[ti * k..(ti + 1) * k]);
                     if a.ink.situ {
-                        r::moe_experts_token_situ(&ex, xr, ir, wr_, dt, od, a.ink.gate_cap as f64, a.ink.up_cap as f64)
+                        situ_token(&ex, xr, ir, wr_, dt, od, a.ink.gate_cap as f64, a.ink.up_cap as f64)
                     } else {
                         r::moe_experts_token_act(&ex, xr, ir, wr_, dt, od, a.gelu)
                     }
@@ -171,4 +171,56 @@ pub fn run(call: &OpCall) -> Result<()> {
         }
         other => Err(Error::invalid(format!("quant_ref cannot run {other}"))),
     }
+}
+
+/// `r::moe_experts_token_situ` with the rows of each expert in parallel (decode has one token): the same f64 sums in the same
+/// order per output value, so the bits are those of the serial reference.
+#[allow(clippy::too_many_arguments)]
+fn situ_token(ex: &r::ExpertsRef, x: &[f32], ids: &[i32], weights: &[f32], dt: intarsia_core::DType, od: intarsia_core::DType, gc: f64, uc: f64) -> Vec<f64> {
+    use intarsia_core::quant::nvfp4::GROUP;
+    let (h, i) = (ex.h, ex.i);
+    let sig = |z: f64| 1.0 / (1.0 + (-z).exp());
+    let ys: Vec<Vec<f64>> = ids
+        .par_iter()
+        .zip(weights.par_iter())
+        .map(|(&id, &w)| {
+            if id < 0 || id as usize >= ex.e {
+                return Vec::new();
+            }
+            let e = id as usize;
+            let gw = &ex.gate_up_w[e * 2 * i * (h / 2)..(e + 1) * 2 * i * (h / 2)];
+            let gsb = &ex.gate_up_s[e * 2 * i * (h / GROUP)..(e + 1) * 2 * i * (h / GROUP)];
+            let dw = &ex.down_w[e * h * (i / 2)..(e + 1) * h * (i / 2)];
+            let dsb = &ex.down_s[e * h * (i / GROUP)..(e + 1) * h * (i / GROUP)];
+            let g3 = &ex.gscales[e * 3..e * 3 + 3];
+            let act: Vec<f64> = (0..i)
+                .into_par_iter()
+                .map_init(
+                    || vec![0f64; h],
+                    |row, rr| {
+                        r::nvfp4_row(gw, gsb, g3[0], rr, h, row);
+                        let g = r::round(dt, (0..h).map(|c| x[c] as f64 * row[c]).sum());
+                        r::nvfp4_row(gw, gsb, g3[1], i + rr, h, row);
+                        let u = r::round(dt, (0..h).map(|c| x[c] as f64 * row[c]).sum());
+                        r::round(dt, gc * (g / gc).tanh() * sig(g) * uc * (u / uc).tanh() * w as f64)
+                    },
+                )
+                .collect();
+            (0..h)
+                .into_par_iter()
+                .map_init(
+                    || vec![0f64; i],
+                    |row, rr| {
+                        r::nvfp4_row(dw, dsb, g3[2], rr, i, row);
+                        r::round(dt, (0..i).map(|c| act[c] * row[c]).sum())
+                    },
+                )
+                .collect()
+        })
+        .collect();
+    let mut acc = vec![0f64; h];
+    for y in ys.iter().filter(|y| !y.is_empty()) {
+        acc.iter_mut().zip(y).for_each(|(a, v)| *a += v);
+    }
+    acc.iter().map(|v| r::round(od, *v)).collect()
 }
