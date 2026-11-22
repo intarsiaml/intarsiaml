@@ -1242,6 +1242,28 @@ pub const FORMATS: [&str; 3] = [FP8_E4M3, NVFP4, MXFP4];
 mod tests {
     use super::*;
 
+    /// An exact-shape MoE case of a situ call carries situ and its caps, and its label says so (a situ kernel refuses a case
+    /// without it: Inkling-2 under `serve`'s admitted-only rule); a plain call's case and label are unchanged.
+    #[test]
+    fn moe_experts_case_carries_situ() {
+        let mk = |t: &HostTensor| crate::backend::TensorRef::new(crate::backend::Buffer::new(P(t.nbytes())), t.dtype, &t.shape);
+        let mut rng = SplitMix64::new(7);
+        let base = experts_case(&mut rng, 1, 128, 8, 256, 128, DType::Bf16);
+        let ins: Vec<_> = base.inputs.iter().map(mk).collect();
+        let outs: Vec<_> = base.outputs.iter().map(|o| mk(&HostTensor::zeros(o.dtype, &o.shape))).collect();
+        let caps = crate::plan::CAPS;
+        let plain = OpCall::new(Op::MoeExperts, ins.clone(), outs.clone(), base.attrs.clone());
+        let mut a = base.attrs.clone();
+        (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
+        let situ = OpCall::new(Op::MoeExperts, ins, outs, a);
+        let (pc, pl) = case_from_call(&plain, &caps, &mut SplitMix64::new(1)).unwrap();
+        let (sc, sl) = case_from_call(&situ, &caps, &mut SplitMix64::new(1)).unwrap();
+        assert!(!pc.attrs.ink.situ && !pl.contains("situ"), "{pl}");
+        assert!(sc.attrs.ink.situ && sc.attrs.ink.gate_cap == 4.0 && sc.attrs.ink.up_cap == 25.0);
+        assert_eq!(sl, format!("{pl} situ"));
+        assert!(pl.ends_with("T=1 E=32 K=8 H=256 I=128 bf16"), "{pl}");
+    }
+
     #[test]
     fn every_case_validates() {
         for op in [

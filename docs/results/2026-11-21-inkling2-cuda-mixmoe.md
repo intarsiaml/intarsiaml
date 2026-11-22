@@ -67,6 +67,87 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   with an estimated cost, do not build it; (4) when decode G2 + greedy pass, message the coordinator and ink-cuda-attn the hash,
   then continue with tok/s and localeval.
 
+- (coordinator, 9th) Decode accepted (8f7d5cd3a forwarded to ink-cuda-attn). New order: (1) Metal token comparison stays queued;
+  (2) graph decode before tok/s and localeval (30 tok/s eager vs vLLM 37-43; eager launch overhead the likely gap): write a
+  ONE-PARAGRAPH plan to the coordinator before building. Likely route: ink/batch's row-table form of ops 69/70/71/74/75
+  (`OpCall::rows` + `pos` i32[B] in a device buffer, now on ink/metal 8546d143f) run at B = 1 makes positions device-resident,
+  which device-position capture needs. The plan lists the CUDA kernels that need the row-table variant, how the ring slot / pos
+  advance on device, and what else blocks capture (host top-k / argmax, sampler, MoE expert counts). No separate contract.
+  (3) Headroom: G2 decode short 3.73e-3 vs budget 4e-3 on CUDA (Metal 2.59e-3): note which ops differ from Metal's reduction
+  order; no further CUDA approximation may eat that margin. (4) Then tok/s and localeval vs vLLM, after graph decode lands or on
+  the coordinator's go.
+
+- (coordinator, 10th) GO with a split: (1) graph decode moves to ink-cuda-attn (my plan as written, from 8f7d5cd3a, touching
+  only inkling2.rs, model.rs, plan.rs; stay out of those files or message cuda-attn first). (2) This lane: the latency-bound
+  small ops, conv_mix S>0, loop_blend (stashed WIP) and the N=128 router GEMV. Each change bitwise vs the current CUDA kernel at
+  T=1..16 (rows-exact tests); split-K changes the reduction order unless its tree matches exactly. A faster non-bitwise form goes
+  to the coordinator as a numerics change with G2 decode measured against 4e-3 before it lands (CUDA headroom 0.27e-3).
+  (3) Router: compare split-K with a port of Metal's fused op 76 InkRoute (ink/dfuse: router GEMV + MoeRoute, last-TG top-k,
+  bitwise vs unfused); pick whichever is bitwise and faster; write the choice down. (4) Afterwards maybe: list a CUDA port of
+  lossless P12 (ink/pack12, default-on on Metal) for in_proj as the next candidate with an estimate; do not build it.
+  (5) Report per op us before/after at T=1/4/16, and eager tok/s short / 5k.
+
+- (coordinator, 11th) cuda-attn's nsys at 8f7d5cd3a (spark1 #11087, its doc 903937e67) confirms: idle gaps 1.47 ms/token (657
+  kernels, 2.2 us mean gap). Per token at 7.9k ctx, measured vs floor: experts gu+dn 9.35 vs 6.30 ms; in_proj 8.71 vs 6.96;
+  unembed 3.75 vs 3.39; 48 tiny 1-3-block ink_mma_gemv calls 1.96 ms (40 us each, ~0 bytes); ink_row single-block conv /
+  res-mix 2.10 ms (124 calls); moe_route 0.4. Order, all bitwise vs the current kernels: (1) the latency-bound tiny ops (~4.5
+  ms: ink_row, the small mma_gemv calls, moe_route; more blocks or fuse into neighbours); (2) MoE experts 170 -> >= 230 GB/s
+  (~2-3 ms); (3) CUDA P12 stays a listed candidate. Per item: us before / after and eager tok/s.
+
+- (coordinator, 12th) Merge ink-cuda-attn's B=1 graph decode ink/cuda-graph 5fa5a88bd (on 8f7d5cd3a; tiny graph == eager bitwise
+  over 31 steps, greedy 64/256 md5 equal, G2 decode 3.729e-3 / 3.145e-3 as eager; eager -> graph 30.54 -> 31.54 short, 29.88 ->
+  31.20 at 1.2k, 29.33 -> 30.50 at 5k; idle 1.46 -> 0.39 ms/token; touches only inkling2.rs, model.rs, the tiny test) after
+  the running job, before the next timing job. Rule: every new or changed decode kernel stays capturable and keeps
+  decode_position_stable (no kernel choice on context length or host position at 1 row; position from the device; "decode
+  graph disabled" means not done). Order unchanged: tiny ops (~4.4 ms: ink_row 2.07, 1-/3-block ink_mma_gemv 1.94, moe_route
+  0.36), then experts 170 -> 230 GB/s. CUDA P12 moves to ink-cuda-attn (ink/cuda-p12); accept its p12 weight arm hook in the
+  ink_in_proj dispatch and keep the bf16 in_proj reduction order unchanged. Report the next tiny-ops numbers with graphs on.
+
+- (coordinator, 13th) Deep GEMV landing and the no-gain reverts accepted. Order: (1) now: generate tok/s at short / 1.2k / 5k
+  with graphs on, and localeval speed-plain of `intarsia serve` vs the running vLLM NVFP4 on spark2 (37-43), quiet slot, vLLM
+  retro not taken down without the coordinator's OK; (2) from existing outputs, no new GPU job: a per-row decode KL21 table for
+  G2 short on CUDA with ink-metal's docs/results/2026-11-21-inkling2-metal/decrows.py (CUDA 3.73e-3 vs Metal pre-regression
+  2.59e-3): spread evenly, or a few rows that drift and grow (Metal's regression shows that on chat_reasoning / chat_system)?
+  If a few rows, name the op by replaying their per-module captures against the oracle (ink/spec replay setup); (3) opt-in
+  tensor-core NVFP4 expert GEMV (W4A16, bf16 activations, fp32 accumulate, default off): rows-exact against itself, G2 decode /
+  prefill and G3 within limits, KL <= ~10 % above the SIMT baseline, tok/s gain beyond spread; default-on is the
+  coordinator's call; (4) split-K blend h parked until step 2 restores headroom; (5) InkRoute port later. ncu permission:
+  correct not to change it; the coordinator raises it with the user.
+
+- (coordinator, 14th) Build hazard: `cargo test -p intarsia-cli --test <x>` rebuilds target/<profile>/intarsia without
+  `--features cuda`. Rules: build the backend binary last or give tests their own target dir; count md5 / self-golden matches
+  only when both runs exit 0 with non-empty output. Checked: not affected here (build.sh copies the cuda binary to
+  `bin/intarsia` right after building it; this lane's tests are intarsia-models / intarsia-backend-cuda only; every compared
+  ids md5 is non-empty, `a0e6f47...`, with `finish=` lines).
+
+- (ink-cuda-attn, coordinator-approved) After the current job, merge ink/cuda-p12 fc773d0fc (local branch in
+  .worktrees/ink-cuda-p12; contains ink/cuda-graph 5fa5a88bd, ink/pack12 and CUDA P12). P12 default-on on CUDA
+  (INTARSIA_INK_PACK12=0 off) packs wo and the unembed only; the in-projection stays bf16 (`p12::pack_in_proj`), so
+  ink_in_proj_bf16_mma stays on decode. Its gate (spark1 #11172): greedy 64/256 md5 on == off, G2 decode identical, tiny 13/13,
+  bitwise 4/4; decode short 31.6 -> 33.0, 1.2k 31.1 -> 32.5, 5k 30.5 -> 31.8 tok/s.
+
+- (coordinator, 15th) For the next pick after the P12 merge: cuda-attn's nsys at 1.2k, P12 on, graphs (#11172, 30.89 ms GPU /
+  token; ink/cuda-attn 40644991c, "Decode step at 1.2k with P12 on"): MoE gu 6026 us (19.3 %), dn 3261 (10.4 %), ink_row 2074
+  (6.6 %), blend h mma_gemv 1946 (6.2 %; build without this lane's deep GEMV ba7a9fcdc), blend_gate 480, moe_route 368: ~45 %
+  of the step. cuda-attn takes in_proj and the SWA tiles: hands off. Report MoE gu / dn GB/s vs ~273 and the top candidate
+  with an estimated gain. Answer (from those timings and config dims, NVFP4 0.5625 B / weight, top-8, 44 visits): gu 1051 MB
+  -> 174 GB/s, dn 525 MB -> 161 GB/s; at 240 GB/s both save ~2.7 ms / token. Candidate in the doc section below.
+
+- (coordinator, 16th) MoE probe plan APPROVED. Order: serve admission fix (#11158), P12 merge fc773d0fc and its localeval first;
+  then the loads-only probe. Probe: timebox 45 min, own fleetq slot `--quiet gpu,cpu`; the loads-only kernel is bench-only
+  (env-gated or a separate binary, never default path, never merged); measure gu and dn separately at the #11172 shape (1.2k,
+  P12 on, graphs). Decide by the worse of gu / dn loads-only GB/s: >= 230 compute-bound -> leaner bitwise inner loop (more rows
+  per warp, same lane->chunk map and shuffle tree, LUT / prmt fp4 decode); <= 195 pattern is the ceiling -> load-time weight
+  repack (contiguous per-warp streams), bitwise; 195-230 -> report numbers before building either. Either build needs greedy md5
+  equal to the pre-change run, the CUDA test suite green, and an nsys step time showing the gain. Two attempts at one route
+  without a gain: stop and report which assumption broke. ink_row stays parked.
+
+- (coordinator, 17th) FYI for ranking after the probe, order unchanged. (1) cuda-attn starts DSpark speculative decode on CUDA
+  (.worktrees/ink-cuda-mtp); its gain depends mostly on MoE cost at 2..4 verify rows: weigh MoE at T = 2..4 with T = 1 when
+  picking the next build. (2) The CUDA prefill gap is this lane's: 1159 tok/s at 6.7k (#11085) vs vLLM 2772-2902 at 4-16k and
+  4018 at 1k (2.4-3.5x); attention is 6-9 % of it, the rest the MoE and in_proj prefill GEMMs. When the probe reports, give a
+  ranked choice between decode MoE (the probe outcome) and prefill GEMMs, each with an estimated tok/s or TTFT gain.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
@@ -120,3 +201,113 @@ Fixes on the way here: the AllLogits head groups of 2..=16 rows now run the row-
 cuBLAS from 5 rows, so chunks of 5..16 rows scored rows differently from decode steps); the tiny rollback test accepts CUDA's
 conservative `reuse_len`; `ink_rows` serializes the two tests that set the process-wide MoE tensor-core threshold (a parallel-test
 race, not a kernel bug). G3 4k and greedy tok/s (short, 5k) not run yet.
+
+## Real-model decode on CUDA (8f7d5cd3a, spark2)
+
+The first eager 1-row step failed (`ik_moe_experts_situ_bf16` IK_ERR_INVALID_ARG). The ordinary experts kernels reserved only
+the tensor-core scratch layout, which at E = 128 and few pairs is 256 bytes short of the SIMT layout. Fixed by reserving the
+larger of the two; covered by `ink_experts_rows_exact_128_experts` (T 1..16, NVFP4 and MXFP8 situ) and a scratch-size unit test.
+
+Decode gate (fleetq #11079): G2 decode (teacher-forced, 16 positions per prompt) short KL21 3.729e-3 (budget 4e-3), 0 / 96
+confident misses on the decode rows; long 3.145e-3 (budget 6e-3), 0 / 119. Greedy eager, profile off: 64 tokens of raw "The
+capital of France is" and 256 forced tokens of a short prompt, ids md5 identical over 2 runs (and the 256 text over 3 more in
+#11085). G3 4k prefill (#11068): KL21 9.754e-3 (budget 1.4e-2), 5 / 8229 confident misses (budget 9), top-1 95.76 %.
+Metal token comparison (endor #11156, ink/metal binary built 2026-11-22 00:09, snapshot b85c3cfa6, whose config / index / quant
+config md5 and weight-file size equal spark2's ed40e7da6; the ed40e7da6 snapshot on endor has no config.json): Metal is
+md5-stable over 2 runs too (ids g64 fa9f4b4a..., g256 550cd932...). CUDA vs Metal greedy ids, first divergence (not gated):
+64-token raw "The capital of France is" at token 7 (CUDA 164452, Metal 68014); 256-token hash-map prompt at token 69
+(150149 vs 150837). The top-1 margins at those tokens were not measured; both backends pass G2 decode on their own.
+
+### Eager greedy speed (fleetq #11085, `--quiet gpu,cpu`, `--profile-every 0`, vLLM retro resident and idle)
+
+| prompt | prefill | decode (256 forced tokens) |
+|---|---|---|
+| 15 tokens | 100 ms | 30.53 / 30.55 / 30.63 tok/s |
+| 6672 tokens | 5758 / 5797 ms (1159 / 1151 tok/s) | 29.19 / 29.17 tok/s |
+
+### Per-op decode profile (128 tokens, short prompt, `--profile-every 1 --op-table`: sync per op, 34.5 ms/step vs 32.7 eager)
+
+| op | ms / step | calls / step | us / call |
+|---|---|---|---|
+| ink_in_proj | 9.22 | 48 | 192 |
+| moe_experts (NVFP4) | 8.77 | 44 | 199 |
+| conv_mix | 5.19 | 96 | 54 |
+| logits (48 router + head) | 4.03 | 49 | 82 |
+| matmul | 2.98 | 48 | 62 |
+| ink_attn_decode | 1.85 | 48 | 39 |
+| moe_experts_mxfp8 | 1.24 | 4 | 310 |
+| moe_route | 0.63 | 48 | 13 |
+| attn_res_mix | 0.36 | 26 | 14 |
+| loop_blend | 0.16 | 2 | 78 |
+
+About 415 launches per token. The profiled run's per-op syncs add only 1.8 ms/step, so the eager step is mostly GPU time per op.
+
+### Perf items
+
+- Graph decode (B = 1, device position): today "unsupported: device-position (graph) decode of Inkling-2", so decode is eager.
+  The CUDA kernels already take a device `pos` (POSITIONED contract); the work is `ink_pass` plumbing (`call.pos` on the 5
+  positioned call sites, `dpos` through model.rs). Estimated gain 1-3 ms/token (host launch and inter-kernel gaps, ~415
+  launches); cost about half a day.
+- Latency-bound small ops (about 10-12 ms/token together): conv_mix with sources (46-53 us GPU at T = 1), loop_blend (35-40
+  us), the router GEMV on 128 outputs (~80 us), the 48 per-visit matmuls (~62 us). These are the larger lever.
+
+### Headroom against Metal (G2 decode short 3.73e-3 CUDA vs 2.59e-3 Metal, budget 4e-3)
+
+Ops whose reduction order differs from Metal's: ink_in_proj (one k16 tensor-core step per 16 inputs, then fp32 adds),
+matmul / logits GEMV (warp-shuffle tree vs simdgroup tree), the MoE SIMT dot products (warp tree per row), the CUDA attention
+kernels (ink-cuda-attn's split and tile order), and the cuBLAS head at prefill. None are approximations (fp32 accumulation
+everywhere, bf16 rounding points as in the contract), but further CUDA changes must not trade accuracy for speed.
+
+## Latency-bound small ops and MoE experts, bitwise only (graphs on, after merging ink/cuda-graph 5fa5a88bd)
+
+Per-kernel GPU time per token from nsys (spark2 #11092, eager, 64 tokens; `ink_row` per slot from the SQLite export):
+
+| kernel | calls / token | us / call | ms / token |
+|---|---|---|---|
+| ink_mma_gemv, in-projection (135-136 blocks) | 48 | 173-197 | ~8.9 |
+| ink_mma_gemv, blend controller h (G 64: 1 or 3 blocks) | 24 + 24 | 40.1 / 40.9 | 1.95 |
+| ink_row_kernel (one 768-thread block per row) | 124 | 4.0-18.5 (plain-visit ConvMix with mix + norm: 17.9) | 2.09 |
+| ink_blend_gate / ink_blend_norm | 48 / 48 | 9.8 / 5.5 | 0.74 |
+| moe_route | 48 | 8.1 | 0.39 |
+| ink_moe_gu / ink_moe_dn (NVFP4) | 44 / 44 | ~120 / ~66 | 8.2 |
+
+| change | bitwise check | before | after |
+|---|---|---|---|
+| blend h GEMV deep prefetch (ba7a9fcdc): separate kernel for grids <= 8 blocks, 4 k blocks in flight, same mma / fp32 chain | `ink_gemv_deep_bitwise` (deep == plain, G 64/128, S 1/3, R 1..40), ink_rows 7/7, tiny 12/12, greedy ids md5 equal | loop_blend T=1 35.9 us (S 1) / 40.4 (S 3); T=4 36.8 / 41.0; T=16 47.1 / 50.9 | 28.7 / 32.8; 29.4 / 35.6; 38.9 / 43.0 |
+| (kept) | | greedy, graphs on: short 31.58 / 31.47, 5k 30.26 tok/s | short 32.77 / 32.63, 5k 31.16 tok/s (#11144) |
+| row kernel: all independent loads first + tap loop unroll | greedy md5 equal | conv_mix N4 Q1 norm 14.3 us | 16.2 us: reverted |
+| blend GEMV PF 4 inside the shared kernel (with `break` in the stage loop) | greedy md5 equal | loop_blend T=1 36.4 | 43.1: reverted (stage arrays likely went to local memory) |
+| MoE gu / dn: next chunk's raw bytes loaded one ahead | greedy md5 equal | nv T=1 184.7 us (194 GB/s) | 185.4: no change, reverted |
+| MoE gu / dn: persistent grid (resident blocks, grouping once) | greedy md5 equal | nv T=1 187.9 us | 186.6: no change, reverted |
+
+Not done, and why. (1) ink_row: its reductions are "per-thread partial in element order, warp butterfly, warp partials in warp
+order" with the block size and elements per thread fixed by D, so any change of block shape changes the bits; the load hoist
+did not help, so it is not a load-issue problem. A bitwise multi-SM form needs a thread-block cluster with DSMEM keeping the
+same thread-to-element map and warp order (large; gain unknown without counters). GPU performance counters are not
+accessible to this user on spark2 (ncu: ERR_NVGPUCTRPERM), so stall reasons could not be read. (2) MoE experts: two bitwise
+restructurings (prefetch, persistence) moved nothing; the SIMT kernels are not limited by load latency or waves as assumed.
+Reaching ~230 GB/s needs a different inner loop (e.g. tensor-core decode GEMV over the expert rows), which is not bitwise the
+current SIMT chain: a numerics change. (3) moe_route (8 us, one warp) and the blend gate / norm: fusion into neighbours means
+a fused op in core (Metal's InkRoute op 76 is on ink/dfuse, not merged), outside this lane's files now.
+
+## G2 decode KL per row on CUDA (self-goldens of #11079; `2026-11-21-inkling2-cuda-mixmoe-decrows.py`, ink-metal's decrows.py)
+
+Short set (n 128, mean 3.73e-3): the top row carries 29 %, the top 3 50 %, the top 5 62 %; without the top 5 the mean is
+1.46e-3. Long set (n 160, mean 3.15e-3): 28 / 48 / 59 %, 1.32e-3 without the top 5. The large rows are isolated spikes, not
+drift: chat_system pos 47..62 is 0.000 everywhere except pos 57 (0.139, golden margin 0.77) and pos 62 (0.056); chat_short
+pos 34 0.046; chat_multiturn pos 95 0.030 (margin 1.00); chat_reasoning pos 90..105 stays at 0.000-0.028 with no growth
+(Metal's regression grew to 0.431 over those rows). chat_system pos 57 is the row that regressed on Metal too (0.011 -> 0.303).
+Next: per-module replay of chat_system pos 57 against the oracle.
+
+## Merged tip with ink/cuda-p12 fc773d0fc (613dbacda; spark2 #11211, `--quiet gpu,cpu`, graphs on, P12 default on)
+
+Serve admission fix (65daa3e7a; the P12 branch had the same fix, its form kept at the merge): `serve` loads Inkling-2 on CUDA
+under the admitted-only rule (23 kernels, 119 cases, none rejected) and answers. Gate: ink_rows 7/7, backend-cuda lib 35/35,
+tiny 13/13 (tests/inkling2_capture.rs compiles), core quant::cases 2/2; greedy 256 short ids md5 a0e6f47... over 2 runs
+(unchanged from 8f7d5cd3a: P12 and the deep GEMV keep the bits).
+
+| prompt | prefill | decode tok/s (256 forced) | before P12 merge (#11144) |
+|---|---|---|---|
+| 15 tokens | 98-108 ms | 34.56 / 34.62 | 32.77 / 32.63 |
+| 1261 tokens | 1295 ms (974 tok/s) | 33.98 | 32.31 (#11158) |
+| 6672 tokens | 5775 ms (1155 tok/s) | 33.02 | 31.16 |

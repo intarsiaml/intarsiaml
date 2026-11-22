@@ -463,6 +463,37 @@ fn ink_attn_res_mix_and_blend_rows_exact() {
     }
 }
 
+/// The tensor-core GEMV's deep-prefetch form (calls of few blocks: the blend's controller h) is bitwise the one-block-ahead
+/// form: LoopBlend at G 64 / 128, S 1 / 3, R 1, 4, 9, 16, 40 (D 2304: K 4608).
+#[test]
+fn ink_gemv_deep_bitwise() {
+    let Some(rig) = Rig::new("ink_gemv_deep_bitwise") else { return };
+    let mut rng = SplitMix64::new(0x9f);
+    let bf = DType::Bf16;
+    let d = 2304;
+    for g in [64usize, 128] {
+        for s in [1usize, 3] {
+            for r in [1usize, 4, 9, 16, 40] {
+                let ins = vec![
+                    rnd(&mut rng, DType::F32, &[1, r, d], 1.0),
+                    rnd(&mut rng, DType::F32, &[s, r, d], 1.0),
+                    rnd(&mut rng, bf, &[s, g, 2 * d], (2.0 * d as f32).powf(-0.5)),
+                    rnd(&mut rng, bf, &[s, d, g], 0.5),
+                    rnd(&mut rng, bf, &[s, d, g], 0.5),
+                    pos(&mut rng, &[s, d]),
+                ];
+                let a = OpAttrs { eps: 1e-6, ..OpAttrs::default() };
+                let run = || rig.run("loop_blend_bf16", Op::LoopBlend, &ins, &[(bf, vec![s, r, d], None)], &a);
+                intarsia_backend_cuda::inkmix::set_gemv_deep(0);
+                let plain = run();
+                intarsia_backend_cuda::inkmix::set_gemv_deep(1);
+                let deep = run();
+                assert_eq!(plain[0].data, deep[0].data, "loop_blend G={g} S={s} R={r}: deep prefetch changed the bits");
+            }
+        }
+    }
+}
+
 /// The tensor-core prefill experts: a row's value does not depend on the chunk (T 600 against its first 520 rows and a
 /// 513-row window from row 87), NVFP4 situ and MXFP8 situ / silu; and it stays within the bf16 budget of the SIMT kernels.
 #[test]

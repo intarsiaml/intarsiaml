@@ -13,6 +13,7 @@
 // column in the n-tile does not change its sum: the tensor core computes each column independently), so row m of a T-row call
 // is bitwise the one-row call on that row; rows past T are zeros that are never stored. grid.y walks 16-row chunks of T, so
 // any T is rows-exact (the in-projection's prefill takes cuBLAS instead: it re-reads the weights per chunk).
+#include <cstdlib>
 #include "ik_launch.h"
 #include "ik_quant.cuh"
 #include "ik_cuda_abi_inkmm.h"
@@ -21,6 +22,7 @@
 namespace {
 
 constexpr int kWarps = 4;  // warps per block (one 16 x 16 tile each)
+constexpr unsigned kDeepBlocks = 8;  // at most this many blocks: the deep-prefetch form
 
 IK_DEVI uint4 ld_stream(const ik_bf16* p) { return __ldcs(reinterpret_cast<const uint4*>(p)); }
 IK_DEVI uint4 ld_act(const ik_bf16* p) { return __ldg(reinterpret_cast<const uint4*>(p)); }
@@ -102,7 +104,90 @@ __global__ void __launch_bounds__(kWarps * IK_WARP) ink_mma_gemv_kernel(InkSegs 
     }
 }
 
+// The same GEMV for calls of few blocks (the blend's controller h: G = 64 rows per stream, 1-3 blocks): with one 64-wide k
+// block in flight a warp waits one memory latency per block, so this form keeps kPF blocks in flight. TWO = false (T - m0 <= 8)
+// carries no second activation row. The chain of mma steps and fp32 adds per output is the one of ink_mma_gemv_kernel, in the
+// same k order, so the bits are the same. Needs (D & ~63) % (64 * kPF) == 0.
+constexpr int kPF = 4;
+template <bool TWO>
+__global__ void __launch_bounds__(kWarps * IK_WARP) ink_mma_gemv_deep_kernel(InkSegs sg, int T, int D) {
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int tile = blockIdx.x * kWarps + warp;
+    int j = 0;
+    while (j + 1 < sg.nseg && tile >= sg.t0[j + 1]) ++j;
+    if (tile >= sg.t0[sg.nseg]) return;
+    const InkSeg s = sg.s[j];
+    const int n0 = (tile - sg.t0[j]) * 16;
+    const int m0 = blockIdx.y * 16;
+    const int g = lane >> 2, c = lane & 3;
+    const int ra = min(n0 + g, s.n - 1), rb = min(n0 + g + 8, s.n - 1);
+    const int xa = m0 + g, xb = m0 + 8 + g;
+    const bool ha = xa < T, hb = TWO && xb < T;
+    const ik_bf16* wa = s.w + (int64_t)ra * D + 16 * c;
+    const ik_bf16* wb = s.w + (int64_t)rb * D + 16 * c;
+    const ik_bf16* pa = s.x + (int64_t)(ha ? xa : 0) * D + 16 * c;
+    const ik_bf16* pb = s.x + (int64_t)(hb ? xb : 0) * D + 16 * c;
+    float c0[4] = {0.f, 0.f, 0.f, 0.f}, c1[4] = {0.f, 0.f, 0.f, 0.f};
+    const uint4 z = make_uint4(0, 0, 0, 0);
+    const int kmain = D & ~63;
+    uint4 A0[kPF], A1[kPF], B0[kPF], B1[kPF], X0[kPF], X1[kPF], Y0[kPF], Y1[kPF];
+#pragma unroll
+    for (int p = 0; p < kPF; ++p) {
+        const int kp = 64 * p;
+        A0[p] = ld_stream(wa + kp), A1[p] = ld_stream(wa + kp + 8), B0[p] = ld_stream(wb + kp), B1[p] = ld_stream(wb + kp + 8);
+        X0[p] = ha ? ld_act(pa + kp) : z, X1[p] = ha ? ld_act(pa + kp + 8) : z;
+        if (TWO) Y0[p] = hb ? ld_act(pb + kp) : z, Y1[p] = hb ? ld_act(pb + kp + 8) : z;
+    }
+    for (int k0 = 0; k0 < kmain; k0 += 64 * kPF) {
+        const bool more = k0 + 64 * kPF < kmain;
+#pragma unroll
+        for (int p = 0; p < kPF; ++p) {
+            const uint32_t a[8] = {A0[p].x, A0[p].y, A0[p].z, A0[p].w, A1[p].x, A1[p].y, A1[p].z, A1[p].w};
+            const uint32_t b[8] = {B0[p].x, B0[p].y, B0[p].z, B0[p].w, B1[p].x, B1[p].y, B1[p].z, B1[p].w};
+            const uint32_t x[8] = {X0[p].x, X0[p].y, X0[p].z, X0[p].w, X1[p].x, X1[p].y, X1[p].z, X1[p].w};
+            uint32_t y[8];
+            if (TWO) {
+                y[0] = Y0[p].x, y[1] = Y0[p].y, y[2] = Y0[p].z, y[3] = Y0[p].w, y[4] = Y1[p].x, y[5] = Y1[p].y, y[6] = Y1[p].z, y[7] = Y1[p].w;
+            }
+            if (more) {
+                const int kn = k0 + 64 * kPF + 64 * p;
+                A0[p] = ld_stream(wa + kn), A1[p] = ld_stream(wa + kn + 8), B0[p] = ld_stream(wb + kn), B1[p] = ld_stream(wb + kn + 8);
+                if (ha) X0[p] = ld_act(pa + kn), X1[p] = ld_act(pa + kn + 8);
+                if (TWO && hb) Y0[p] = ld_act(pb + kn), Y1[p] = ld_act(pb + kn + 8);
+            }
+#pragma unroll
+            for (int st = 0; st < 4; ++st) {
+                mma_add(c0, a[2 * st], b[2 * st], a[2 * st + 1], b[2 * st + 1], x[2 * st], x[2 * st + 1]);
+                if (TWO) mma_add(c1, a[2 * st], b[2 * st], a[2 * st + 1], b[2 * st + 1], y[2 * st], y[2 * st + 1]);
+            }
+        }
+    }
+    for (int kb = kmain; kb < D; kb += 16) {
+        const int o = kb - 16 * c + 4 * c;
+        const uint2 A = __ldcs(reinterpret_cast<const uint2*>(wa + o)), B = __ldcs(reinterpret_cast<const uint2*>(wb + o));
+        const uint2 X = ha ? __ldg(reinterpret_cast<const uint2*>(pa + o)) : make_uint2(0, 0);
+        mma_add(c0, A.x, B.x, A.y, B.y, X.x, X.y);
+        if (TWO) {
+            const uint2 Y = hb ? __ldg(reinterpret_cast<const uint2*>(pb + o)) : make_uint2(0, 0);
+            mma_add(c1, A.x, B.x, A.y, B.y, Y.x, Y.y);
+        }
+    }
+#pragma unroll
+    for (int nt = 0; nt < 2; ++nt) {
+        if (nt == 1 && !(TWO && T - m0 > 8)) break;
+        const float* cc = nt ? c1 : c0;
+#pragma unroll
+        for (int e = 0; e < 4; ++e) {
+            const int m = m0 + nt * 8 + 2 * c + (e & 1);
+            const int n = n0 + g + (e >> 1) * 8;
+            if (m < T && n < s.n) s.out[(int64_t)m * s.n + n] = ik_f2b(cc[e]);
+        }
+    }
+}
+
 }  // namespace
+
+int g_deep = -1;  // < 0: not read yet (tests set it with ik_ink_gemv_deep)
 
 // shared with ink_mix.cu (the controller's h projection)
 int ink_mma_gemv(const InkSegs& in, int T, int D, cudaStream_t st) {
@@ -114,7 +199,18 @@ int ink_mma_gemv(const InkSegs& in, int T, int D, cudaStream_t st) {
     if (D % 16 != 0) return IK_ERR_SHAPE;
     const dim3 grid((unsigned)((tiles + kWarps - 1) / kWarps), (unsigned)((T + 15) / 16));
     if (grid.y > 65535) return IK_ERR_SHAPE;
-    ink_mma_gemv_kernel<<<grid, kWarps * IK_WARP, 0, st>>>(sg, T, D);
+    // few blocks: the deep-prefetch form (INTARSIA_INK_GEMV_DEEP=0 turns it off, for A/B)
+    if (g_deep < 0) {
+        const char* e = getenv("INTARSIA_INK_GEMV_DEEP");
+        g_deep = (e && e[0] == '0') ? 0 : 1;
+    }
+    const int kmain = D & ~63;
+    if (g_deep && grid.x * grid.y <= kDeepBlocks && kmain >= 64 * kPF && kmain % (64 * kPF) == 0) {
+        if (T <= 8) ink_mma_gemv_deep_kernel<false><<<grid, kWarps * IK_WARP, 0, st>>>(sg, T, D);
+        else ink_mma_gemv_deep_kernel<true><<<grid, kWarps * IK_WARP, 0, st>>>(sg, T, D);
+    } else {
+        ink_mma_gemv_kernel<<<grid, kWarps * IK_WARP, 0, st>>>(sg, T, D);
+    }
     return ik_launch_status();
 }
 
@@ -182,3 +278,5 @@ int ik_ink_in_proj_bf16_cublas(const ik_tensor* x, const ik_tensor* w, ik_tensor
 }
 
 }  // extern "C"
+
+extern "C" void ik_ink_gemv_deep(int v) { g_deep = v; }
