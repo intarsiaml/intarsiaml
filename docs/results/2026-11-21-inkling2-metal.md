@@ -931,3 +931,15 @@ row (pos 57, golden margin 0.77) 0.011 -> 0.303. chat_reasoning: the error **gro
 decode rows**: pos 92-104 old 0.007-0.018, new 0.036, 0.023, 0.123, 0.029, 0.131, **0.431** (pos 103, margin 0.06),
 0.119. Mean 1.0e-2 -> 5.8e-2. Prefill rows of the same prompts barely move. Growth over successive decode steps points at
 state written by the 1-row decode path (conv rings, KV), not at a single near-tie row.
+
+## Metal 4 shader-count test (coordinator brief 2026-11-22)
+
+`metal4_shaders_are_the_nax_variants_and_not_metal3_shaders` (backend-metal `kernels.rs` unit test) failed on ink/metal: 110
+Metal 4 shaders against an expected 65. Cause: d03224697 (ink/prefill: MoE prefill forms nax2 / nax3) added
+`inkprefill::metal4_shaders()` (the nax2 / nax3 gate-up and down shaders per format, the nax3 gather, the two blend
+shaders) to `metal4_shaders()` but not to the test's expected sum; it came into ink/metal with ink/prefill at merge 9d6764682.
+Found by `git log -S` on the shader list, not by a run bisect. These are NAX shaders in the metal4 library, not Metal 3 shaders: the
+test's other two asserts (no overlap with `shader_names()`, no duplicates) are unchanged. Fix 8e0ff6af6 adds the
+`inkprefill` term to the expected count. #11363 missed it because its Metal suite ran named integration tests
+(rows_exact, inkmix, rows_single, quick_coverage, gumbel, inkling2, inkling2_batch), not the backend-metal lib unit tests.
+Full Metal suite at 8e0ff6af6 (backend-metal lib + every integration test, models Metal tests): fleetq #11427, pending.
