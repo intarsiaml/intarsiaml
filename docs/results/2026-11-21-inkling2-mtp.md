@@ -157,6 +157,10 @@ hand the coordinator a default-on proposal. User approved the lane on 2026-11-22
 - Rules: every box-loading command via fleetq (`fleetq status` first; builds/tests `--load cpu`, timing `--quiet gpu,cpu`;
   no bare cargo/rustc on endor outside a slot); job scripts trap and kill their process tree; no tool call or wait > 4 min;
   never release others' jobs, no --force / --no-queue. If a gate fails, stop and report instead of loosening the rule.
+- 2026-11-22 (coordinator, rule found by ink-metal): `git push` runs the repo's pre-push hook (`.githooks/pre-push` ->
+  `scripts/prepush.sh`, two `cargo test`s), so a push from endor is a cargo run: push only inside a slot,
+  `fleetq run --host endor --load cpu --expect 10 -- git push ...`. This lane's first two pushes (13:4x, before the rule
+  reached it) ran outside a slot; every later push goes through fleetq.
   Report to the coordinator with job numbers at: merge result, gate results, speed table, PR link, default-on proposal.
 
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
