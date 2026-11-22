@@ -1083,7 +1083,7 @@ they are upper bounds, in warm-state ms.
   P12 bytes. Still above 3 ms. The launcher already reads each weight row once for all 16 activation rows (R 16, P 1, RB 16:
   one threadgroup per weight row, 16 accumulators per lane); what repeats is the activation load: every weight row's
   threadgroup reloads all 16 x rows (16 x 4.6 KB per 4.6 KB of weights), ~320 MB of cache reads per call. `INTARSIA_INK_PROJ_P`
-  (weight rows sharing one x load) and `INTARSIA_INK_PROJ_RB` are same-bits knobs; #11426-ish (queued, `.scratch/inproj.sh`)
+  (weight rows sharing one x load) and `INTARSIA_INK_PROJ_RB` are same-bits knobs; #11428 (queued, `.scratch/inproj.sh`)
   measures them at 1-16 rows with P12 next to it.
 - MoE: per step 44 `moe_experts_situ_bf16_rows` calls (gate+up 415.9 us, down 233.8 us, gather 6.1 us = 655.8 us per call at
   union 62.5, 28.9 ms) plus 4 MXFP8 calls (634.7 + 329.0 + 6.2 = 969.9 us, 3.9 ms). The situ part's floor at 490 GB/s is 25.1
