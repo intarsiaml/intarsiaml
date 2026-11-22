@@ -1,6 +1,6 @@
 # Inkling-2-Mini through the OpenAI server (lane ink-serve, 2026-11-21)
 
-Status: chat, reasoning, tools, json_schema and the accuracy metric done and unit / mock-engine tested; Metal real-model smoke: see "Real model". Branch `ink/serve` (not pushed, not merged).
+Status: chat, reasoning, tools, json_schema and the accuracy metric done, unit and mock-engine tested, and smoke-tested on the real checkpoint (spark1, CPU backend); the Metal run and the localeval cells are not done. Branch `ink/serve` (not pushed, not merged).
 
 ## Briefs received
 
@@ -36,20 +36,30 @@ Not changed: model math, kernels, op contracts, other models' templates and pars
 - Streaming tool calls arrive complete in one delta (as every tool parser of this server), not as argument fragments.
 - Only `/v1/chat/completions` (Anthropic route: 400).
 
-## Real model (Metal, endor): not run in this lane
+## Real model (spark1, CPU backend)
 
-ink/metal (8f23e15ec, merged into this branch, clean) runs the real checkpoint end to end and passes G1-G3 on Metal. The server smoke
-on it was queued (fleetq #10750, `--host endor --expect 25 --mem 25`) but endor's queue had 10 lane jobs ahead (estimated start
-about 2 h away, growing), so the job was cancelled rather than left holding a place with nobody to read it. Everything the server
-does with the model's output is covered by the mock-engine tests and the real-vocabulary grammar test; what is still unmeasured is
-how the real model behaves under the parser (does it emit the block layout, the tool-call JSON, thinking at effort none) and the
-localeval smoke cells.
+Endor's queue was about 2 h long, so (coordinator brief) the smoke ran on spark1 with the CPU backend: build `fleetq #10775`
+(`--load cpu --mem 40`, `scripts/inkling2-spark-cpu-build.sh`, `~/intarsiaml-ink-serve/{src,bin}`, 1 m 35 s), checkpoint copy
+`#10778` (`--host endor,spark1 --load net,disk`, `scripts/inkling2-spark-copy-model.sh`, 18 GB text model to
+`~/intarsiaml-ink-serve/model`, about 9 min; spark1 had no copy), smoke `#10801` (`--load cpu --mem 40`,
+`scripts/inkling2-spark-smoke.sh` + `tools/inkling2_serve_smoke_cpu.py`; server load 87 s, context 1024, temperature 0 per request,
+every request `max_tokens` 64; raw output `docs/results/2026-11-21-inkling2-serve-spark1-cpu-smoke.json`). `intarsia serve` at the
+tip of this branch, `/v1/chat/completions`, real checkpoint, W4A16 CPU reference kernels.
 
-To run it (one slot: server on the real checkpoint, `tools/inkling2_serve_smoke.py` API smoke with effort none / high, tool call,
-tool-result follow-up, required choice, json_schema full and streamed, then the two localeval smoke cells like the oMLX runs
-`20261120-222246-endor-inkling-omlx-none-smoke-json_schema` / `...-smoke-none`, inside the same slot):
+| Request | Generated block layout (ids read back with `return_token_ids`) | Parsed reply | Parses |
+|---|---|---|---|
+| chat, `reasoning_effort: "none"` | `<\|message_model\|><\|content_thinking\|>` 29 tokens `<\|end_message\|><\|message_model\|><\|content_text\|>` 1 token `<\|end_message\|>` | `reasoning_content` "The user asks for the capital of France, one word. Need answer only. Capital of France is Paris. Ensure one word. No extra.", `content` "Paris", `finish_reason` stop (37 tokens, 27 s) | yes |
+| chat, no effort (default 0.9), streamed | (stream) | reasoning deltas "The user asks: What is the capital ... One word: Paris.", content delta "Paris", finish stop (36.6 s) | yes |
+| tool call (`get_weather`, effort none) | `<\|message_model\|><\|content_thinking\|>` 25 tokens `<\|end_message\|><\|message_model\|>` 3 tokens (the function name) `<\|content_invoke_tool_json\|>` 25 tokens `<\|end_message\|>` | `reasoning_content` "The user wants weather in Paris using the tool. ...", `content` null, `tool_calls[0]` `get_weather` with arguments `{"city":"Paris"}`, `finish_reason` `tool_calls` (prompt 103 tokens, 60 generated, 56 s) | yes |
+| `response_format` json_schema (effort none) | thinking block 29 tokens, then `<\|message_model\|><\|content_text\|>` 9 tokens `<\|end_message\|>` | `reasoning_content` as above, `content` `{"capital": "Paris"}` (valid against the schema), finish stop (45 tokens, 33 s) | yes |
 
-    cargo build --release -p intarsia-cli --features metal      # in .worktrees/ink-serve
-    fleetq run --host endor --expect 25 --mem 25 --label "intarsiaml inkling serve: Metal server smoke + localeval cells" -- scripts/inkling2-serve-smoke.sh
+So: the real model writes the block layout the parser reads, the reasoning split works at both efforts (effort none still writes a
+short thinking block, as the spec says), the tool call comes back as an OpenAI `tool_calls` entry with the name from the JSON
+(the 3-token header agrees), and the schema-framed reply is exactly the JSON payload as `content`. The grammar, which has to
+let the model open with `<|message_model|>` and a thinking block before the text block, did not get in the way of the model's own
+layout. Not run: tool-result follow-up turn, `required` choice, streamed tool call and streamed json_schema on the real model (the
+mock-engine tests cover them), effort high with long reasoning (64-token limit), the localeval cells (to wait for Metal serving on
+endor). Reasoning at 0.9 was not truncated by the 64 tokens on this prompt.
 
-Results land in `.scratch/smoke-out.json`, `.scratch/server.log` and `/opt/code/deepeval/results/*ink-serve-metal-smoke-*`.
+Left on spark1: `~/intarsiaml-ink-serve` (source, binary, 19 GB model copy, logs); the server was stopped at the end of the job.
+Endor Metal: `scripts/inkling2-serve-smoke.sh` (API smoke + localeval cells in one slot) is ready but not run.
