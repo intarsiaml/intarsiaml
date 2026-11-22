@@ -82,3 +82,41 @@ Verify cost known so far: about +2.9 ms per extra row (#10874 totals), 3.16 ms i
 3. Build (ii), the device full-vocab softmax behind a measurement-only env, only if the simulation shows a full-vocab cut beating
    the best rule on our p1 by >= 5% at some length; otherwise skip it and write down why.
 4. The quiet job runs CAND=0 arms only for the simulation's best k, not the full grid; report measured and cost-adjusted numbers.
+
+## 2. Probe and offline simulation
+
+**Probe #11640** (endor, default load, main 22303d704 binary): DSpark `--spec-k 7`, gate off (`INTARSIA_DSPARK_TAU=0`, no cut),
+`INTARSIA_SPEC_TRACE=1`, so every pass drafts 7 and prints each step's p1 and the accepted count. Sets: greedy golden (12 x 128),
+`code_tests` (a raw unit-test file continuation, 188 prompt tokens, x 256; `.scratch/code.json`), prose (2 x 128), longp
+(1021 / 4108 / 16455-token prompts x 128). Traced passes with 7 drafts: greedy 607, code 81, prose 107, 1k 51, 4k 32, 16k 39 (the
+long sets are one prompt each, so their numbers are noisy).
+
+The `INTARSIA_DSPARK_CAND=0` half (option (i), the exact head as the full-vocab confidence) failed to load on Metal: its per-step
+fold GEMV (`matmul` m=1 n=200058 k=256 bf16) has no row-exact kernel, and the draft's calls run under `[row-exact verify kernels
+only]`. So option (i) does not exist on today's main. In its place, `INTARSIA_DSPARK_PFULL=1` (9866126fd, measurement only):
+the drafts stay the candidate head's, and the gate and the cut read the full-vocab p1, computed on the host from the downloaded
+base rows and the host fold copy (several ms a step). With the trace on, each step prints both probabilities. Unit test
+`full_p1_matches_naive_and_bounds_the_candidates`; the CPU DSpark tests and `docs_env_vars` pass (bespin #11643). Probe 2 (#11646)
+runs the same sets with it.
+
+**Simulation** (`.scratch/sim.py`): each traced pass is replayed under a rule. A rule that verifies n of the 7 drafts accepts
+min(a, n) and emits min(a, n) + 1 tokens over n + 1 rows. The cost model per round:
+- drafter 1.88 + 0.40 k + 0.25 (steps - 1) ms (#11227's 3.08 ms at k3 plus the refit's per-row head and per-step Markov costs);
+- verify P + r n, with r the extra ms per verified row and P the plain step: 13.9 ms short, then 15.1 / 15.3 / 16.6 ms at 1k / 4k /
+  16k (#11564's off decode);
+- for full-vocab p1, optionally +0.3 ms per Markov step (a device full-vocab softmax: the 102 MB fold GEMV plus a reduction).
+
+The passes are the k7 run's anchors, not each rule's own walk. With our p1 (candidates) the best rule against gate 0.8 k3:
+
+| set | gate 0.8 k3 (x vs plain) | best rule, r = 2.9 | of base | best rule, r = 3.2 | of base |
+|---|---:|---|---:|---|---:|
+| greedy | 1.275 | cut 0.61 (from r) k3 | 1.002 | gate 0.8 k3 | 1.000 |
+| code | 1.647 | gate 0.8 k3 | 1.000 | gate 0.8 k3 | 1.000 |
+| prose | 1.120 | cut 0.61 k5 | 1.035 | gate 0.8 k5 | 1.023 |
+| 1k | 1.107 | cut 0.5 k3 | 1.077 | cut 0.5 k3 | 1.067 |
+| 4k | 1.595 | cut 0.6 k7 | 1.152 | cut 0.6 k7 | 1.140 |
+| 16k | 1.456 | cut 0.61 k5 | 1.089 | cut 0.5 k5 | 1.077 |
+
+On greedy and code, k5 / k7 lose 2-17% under every rule: an extra verified row costs about 21% of a plain step (r / P = 0.21),
+and drafts 4-7 are accepted too rarely to pay for it. The long-context rows are single prompts of 32-51 passes (the 4k prompt is a
+counting continuation, 95.7% acceptance), so they are leads for the quiet job, not results. Full tables: `.scratch/sim_c64.txt`.
