@@ -223,6 +223,11 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   available; fleetq `--mem` = load peak. Prefill moves to the new layout, so the gate adds prefill tok/s at 2k and 8k before /
   after, besides bitwise rows-exact, greedy md5, decode tok/s with spread. Ownership: InkInProj (8.7 ms) and the attention
   projections are ink-cuda-attn's (item d); stay off them. MoE, mix/conv, blend, controllers and router stay here.
+- (coordinator, 29th) Repack stays unbuilt. One more cheap probe before LoopBlend (<= 1 h): vary the thread geometry in the
+  same no-math harness (2x the CTAs or warps per SM; 128-bit loads per lane if not already; both). If any geometry's no-math
+  stream reaches ~250 GB/s (>= 0.8 ms / token against the shipped kernel), report before building; else close MoE at T=1 and
+  go to LoopBlend, then the router. Confirm the spark2 runs held a fleetq slot (they did: #11417 and the pass-2 job, both
+  `fleetq run --quiet gpu,cpu`).
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
