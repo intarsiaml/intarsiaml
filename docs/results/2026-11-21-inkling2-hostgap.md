@@ -250,6 +250,16 @@ Host cost, measured: `sampler::tests::sampler_host_cost` on endor's CPU inside #
 In the decode loop the same work costs more than in the microbench. There the host profile shows softcap 0.68-1.37 ms and
 sampler 1.67-2.10 ms per token, a host gap of 2.4-3.6 ms; the bench runs with a warm cache.
 
+Which path real `serve` traffic takes. The `generation_config.json` of the checkpoint is
+`{"do_sample": true, "temperature": 1.0, "eos_token_id": 200006, "pad_token_id": 199999}`, which sets no `top_k` and no `top_p`.
+`SamplingDefaults::effective` (crates/intarsia-server/src/api.rs) fills a field the file lacks with the built-in: temperature
+1.0, top_p 1.0, top_k 0 = off. So:
+- **A request that sends no sampling fields** takes the full-vocabulary path: T 1, no top-k, the 1.43 ms row above.
+- **A request that sends `top_k`** (1..=200057) takes the `select_nth` path, 0.19 ms.
+- **A request that sends `top_p` only** still sorts the whole vocabulary.
+- **`localeval speed`** pins temperature 0 (`src/localeval/speed.py`), so its decode numbers are the greedy token-feedback
+  path and do not see the sampler at all.
+
 This is the remaining host gap of Inkling decode, about 12-16 % of a sampled step. Served requests that send no sampling
 parameters get it: `serve` applies the checkpoint's temperature 1.0, no top-k. Not built here; the lane stopped. The bitwise
 option is below.
