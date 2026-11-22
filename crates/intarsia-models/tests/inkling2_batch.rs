@@ -160,7 +160,10 @@ fn inkling2_batch_equals_solo_2_5_16() {
 #[test]
 fn inkling2_batch_sampler_rows_are_softcapped() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
-    let m = load(&dir, 16);
+    // cpu: the backend with device-side top-k (`CpuBackend::arc_topk`), so `LastTopK` rows take the device top-k path; Metal has
+    // no `supports_topk`, so its sampled rows are logits rows (the host sampler takes the top-k there)
+    let be = if on_metal() { backend() } else { intarsia_backend_cpu::CpuBackend::arc_topk() };
+    let m = load_on(&dir, be, 16).unwrap();
     let all = [1usize, 7, 8, 9, 12, 13, 3, 30, 17, 64, 5, 41, 2, 24, 50, 11];
     let mut max_d = 0f32;
     for n in [2usize, 5, 16] {
@@ -172,7 +175,7 @@ fn inkling2_batch_sampler_rows_are_softcapped() {
             // device top-k only where the backend has it (Metal; the cpu backend has no `supports_topk`): else logits rows only
             let topk_ok = m.check_batch_row(&bat[0], ids[0], HeadMode::LastTopK(8)).is_ok();
             if n == 2 && step == 0 {
-                eprintln!("device top-k rows {}", if topk_ok { "tested" } else { "not available on this backend: logits rows only" });
+                eprintln!("device top-k rows {}", if topk_ok { "tested" } else { "not available on this backend (Metal has no supports_topk): logits rows only" });
             }
             let modes: Vec<HeadMode> = (0..n)
                 .map(|s| match ((s + step) % 3, topk_ok) {
