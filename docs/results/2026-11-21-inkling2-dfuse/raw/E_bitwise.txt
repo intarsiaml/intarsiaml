@@ -1,0 +1,2 @@
+BITWISE 1-row decode (64 greedy tokens, text md5,      255 bytes): best vs off: EQUAL (65cde8f35a1802e3e2fadb44d94d080d vs 65cde8f35a1802e3e2fadb44d94d080d)
+BITWISE 16-row passes (G2 short, prefill chunk 16, self-golden tensor bytes): best vs off: EQUAL

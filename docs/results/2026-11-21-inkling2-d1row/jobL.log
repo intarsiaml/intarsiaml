@@ -1,0 +1,80 @@
+fleetq: #10850 waiting (#18 in line): in line behind #10749 "intarsiaml inkling m-mix: blend geometry + NE4 sweep" (claude-57ee98d5) on endor
+fleetq:   #10749 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10749 set, or it will wait for #10749 to be released.
+fleetq: #10850 waiting (#17 in line): in line behind #10756 "intarsiaml inkling metal: per-dispatch decode trace" (claude-57ee98d5) on endor
+fleetq:   #10756 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10756 set, or it will wait for #10756 to be released.
+fleetq: #10850 waiting (#16 in line): in line behind #10764 "intarsiaml inkling fp8: dense projection microbench (bf16 vs fp8 vs mxfp4)" (claude-57ee98d5) on endor
+fleetq:   #10764 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10764 set, or it will wait for #10764 to be released.
+fleetq: #10850 waiting (#15 in line): in line behind #10770 "intarsiaml inkling fp8: full-model Metal decode tok/s per quant mode" (claude-57ee98d5) on endor
+fleetq:   #10770 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10770 set, or it will wait for #10770 to be released.
+fleetq: #10850 waiting (#13 in line): in line behind #10773 "intarsiaml inkling batch: real-model batch_step 1-16 streams" (claude-57ee98d5) on endor
+fleetq:   #10773 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10773 set, or it will wait for #10773 to be released.
+fleetq: #10850 waiting (#11 in line): in line behind #10779 "intarsiaml inkling prefill: build + MoE nax2/nax3 admission + sweep + e2e baseline" (claude-57ee98d5) on endor
+fleetq:   #10779 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10779 set, or it will wait for #10779 to be released.
+fleetq: #10850 waiting (#9 in line): in line behind #10781 "intarsiaml inkling metal: intarsia serve + bench speed + localeval speed-plain/conc-plain-1k" (claude-57ee98d5) on endor
+fleetq:   #10781 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10781 set, or it will wait for #10781 to be released.
+fleetq: #10850 waiting (#8 in line): in line behind #10806 "intarsiaml inkling mtp: DSpark decode tok/s (off, k1-3, tau sweep)" (claude-57ee98d5) on endor
+fleetq:   #10806 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10806 set, or it will wait for #10806 to be released.
+fleetq: #10850 waiting (#7 in line): in line behind #10811 "intarsiaml inkling batch: serve --max-batch 16 + engine bench 1-16 + localeval conc-plain-1k" (claude-57ee98d5) on endor
+fleetq:   #10811 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10811 set, or it will wait for #10811 to be released.
+fleetq: #10850 waiting (#6 in line): in line behind #10839 "intarsiaml inkling hostgap: correctness (metal tests, argmax admission, md5 + G2 bitwise base vs branch, plan show)" (claude-57ee98d5) on endor
+fleetq:   #10839 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10839 set, or it will wait for #10839 to be released.
+fleetq: #10850 waiting (#4 in line): in line behind #10840 "intarsiaml inkling hostgap: timing (A runs base vs branch, 5k, argmax_cost, host profile, cb traces, Qwen3-8B default vs p16)" (claude-57ee98d5) on endor
+fleetq:   #10840 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10840 set, or it will wait for #10840 to be released.
+fleetq: #10850 waiting (#3 in line): in line behind #10844 "intarsiaml inkling batch: correctness (build, tiny, G2 bitwise base vs branch, mixed-context batched==solo)" (claude-57ee98d5) on endor
+fleetq:   #10844 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10844 set, or it will wait for #10844 to be released.
+fleetq: #10850 waiting (#2 in line): in line behind #10845 "intarsiaml inkling batch: solo decode tok/s base vs branch" (claude-57ee98d5) on endor
+fleetq:   #10845 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10845 set, or it will wait for #10845 to be released.
+fleetq: #10850 waiting (#1 in line): #10845 "intarsiaml inkling batch: solo decode tok/s base vs branch" (claude-57ee98d5) needs gpu,cpu quiet on endor, and this job loads it
+fleetq:   #10845 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10845 set, or it will wait for #10845 to be released.
+fleetq: #10850 running on endor: .scratch/jobL.sh
+build ok 4f16e91f4
+bitwise tests exit 0
+36 rows-exact cases bitwise
+396 pipelined == plain cases bitwise
+test pipelined_is_bitwise_the_plain_kernels ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.41s
+INKMOE Nv pipelined == plain: 500 calls bitwise
+INKMOE Nv bitwise: 1000 multi-row calls over 640 token rows equal the one-row calls
+INKMOE Mx pipelined == plain: 1500 calls bitwise
+test ink_moe_pipelined_is_bitwise_the_plain_loops ... ok
+INKMOE Mx bitwise: 3000 multi-row calls over 1920 token rows equal the one-row calls
+test ink_moe_rows_are_bitwise_the_one_row_calls ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.13s
+bf16 pair: 603 cases, 4749 rows compared bitwise
+row-parallel: 1329 cases, 13707 rows compared bitwise
+moe_experts: 1802 cases, 17960 rows compared bitwise
+test moe_experts_rows_are_bitwise_the_one_token_call ... ok
+nvfp4: 279 cases, 2587 rows compared bitwise
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+mxfp4 chunks: 340 cases, 3763 rows compared bitwise
+test mxfp4_row_chunks_are_bitwise_the_one_row_gemv ... ok
+mxfp4: 625 cases, 6436 rows compared bitwise
+metal lib tests exit 0
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+rel_sink_attn  rel_sink_attn_bf16             63      0    1.678e-3    1.161e-4  ADMITTED
+rel_sink_attn  rel_sink_attn_bf16_nax          7      0    5.464e-3    1.500e-3  ADMITTED
+ink_attn_decode ink_attn_decode_bf16           70      0    1.033e-3    7.279e-5  ADMITTED
+moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_situ_bf16          10      0    3.472e-3    2.099e-4  ADMITTED
+moe_experts    moe_experts_situ_bf16_rows      7      0    1.748e-3    1.451e-4  ADMITTED
+moe_experts_mxfp8 moe_experts_mxfp8_bf16         19      0    3.378e-3    2.453e-4  ADMITTED
+moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows     14      0    2.058e-3    1.634e-4  ADMITTED
+G1 metal exit 0
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.34s
+15d62682aef1efea43a627936df9bb70 15d62682aef1efea43a627936df9bb70 8c373e5a685f5c7a3f262de3b37d4e8d 8c373e5a685f5c7a3f262de3b37d4e8d (short off, short on, 5k off, 5k on)
+G2 short exit 0
+G3 short exit 0
+G2 long exit 0
+G3 long exit 0
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+golden gate: PASS
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+golden gate: PASS
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+golden gate: PASS
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+golden gate: PASS
+fleetq: #10850 done (exit 0)

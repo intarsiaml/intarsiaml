@@ -40,6 +40,18 @@ fn fp8_stack(rng: &mut SplitMix64, ns: [usize; 3], d: usize, std: f32) -> (HostT
     (HostTensor::new(DType::Fp8E4m3, vec![ns.iter().sum(), d], data).expect("sized"), HostTensor::from_f32(&[3], &sc))
 }
 
+/// A stacked P12 `InkInProj` weight (lane ink-pack12): weight-like bf16 rows, pack j at its own scale (1, 1/4, 3.7 times `std`,
+/// so the per-row bases differ between segments), packed losslessly; `adversarial` adds `p12::random_weight`'s hard rows.
+fn p12_stack(rng: &mut SplitMix64, ns: [usize; 3], d: usize, std: f32, adversarial: bool) -> (HostTensor, HostTensor) {
+    let mut w = Vec::with_capacity(ns.iter().sum::<usize>() * d);
+    for (j, &n) in ns.iter().enumerate() {
+        w.extend(crate::quant::p12::random_weight(rng, n, d, std * [1.0, 0.25, 3.7][j], adversarial));
+    }
+    let p = crate::quant::p12::pack(&w, ns.iter().sum(), d, 0).expect("p12 pack");
+    let mut parts = p.host_parts().into_iter();
+    (parts.next().unwrap(), parts.next().unwrap())
+}
+
 fn none() -> HostTensor {
     HostTensor::zeros(DType::Bf16, &[0])
 }
@@ -543,6 +555,54 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                             let (w, sc) = fp8_stack(rng, ns, d, (d as f32).powf(-0.5));
                             let inputs = vec![rand_t(rng, dt, &[s, t, d], 1.0), w, sc];
                             push(format!("T={t} S={s} D={d} N={ns:?} {dt} e4m3"), inputs, ns.iter().map(|&n| out(dt, &[t, n])).collect(), a0.clone());
+                        }
+                    }
+                }
+            }
+            // P12 codes + aux (lane ink-pack12; bf16 activations, the form the model uses), appended so the cases above keep their data
+            for &t in rows {
+                for &(d, ns) in &shapes {
+                    if d > D && t > 1 {
+                        continue;
+                    }
+                    for s in [1usize, 3] {
+                        for adv in [false, true] {
+                            let (w, aux) = p12_stack(rng, ns, d, (d as f32).powf(-0.5), adv);
+                            let inputs = vec![rand_t(rng, DType::Bf16, &[s, t, d], 1.0), w, aux];
+                            push(format!("T={t} S={s} D={d} N={ns:?} bf16 p12 adversarial={adv}"), inputs, ns.iter().map(|&n| out(DType::Bf16, &[t, n])).collect(), a0.clone());
+                        }
+                    }
+                }
+            }
+        }
+        Op::InkRoute => {
+            use crate::dsv41::ops::ScoreFunc;
+            // (D, E, K, scale): small (16-byte rows and a D that takes the 2-byte form) and the real router (D 2304, 128 experts,
+            // top-8, route_scale 8); decode / verify / batch rows 1..=16 plus a longer chunk
+            let mut shapes: Vec<(usize, usize, usize, f32)> = vec![(D, 16, 4, 1.5), (60, 40, 6, 1.0)];
+            if !quick {
+                shapes.push((2304, 128, 8, 8.0));
+            }
+            let rrows: &[usize] = if quick { &[1, 4, 16] } else { &[1, 2, 3, 4, 7, 16, 40] };
+            for &t in rrows {
+                for &dt in dts {
+                    for &(d, e, k, scale) in &shapes {
+                        if d > D && t > 16 {
+                            continue;
+                        }
+                        let funcs: &[(ScoreFunc, bool, f32)] = if d > D {
+                            &[(ScoreFunc::Sigmoid, true, 1.0)]
+                        } else {
+                            &[(ScoreFunc::Sigmoid, true, 1.0), (ScoreFunc::Softmax, true, 1.0), (ScoreFunc::SqrtSoftplus, true, 1.0), (ScoreFunc::Sigmoid, false, 0.7)]
+                        };
+                        for &(sf, norm, temp) in funcs {
+                            for with_logits in [true, false] {
+                                let mut a = OpAttrs { top_k: k, scale, norm_topk: norm, temperature: temp, ..a0.clone() };
+                                a.dsv.score_func = sf;
+                                let inputs = vec![rand_t(rng, dt, &[t, d], 1.0), rand_t(rng, W, &[e, d], (d as f32).powf(-0.5)), rand_t(rng, DType::F32, &[e], 0.1)];
+                                let outputs = vec![out(DType::F32, &[t, k]), out(DType::I32, &[t, k]), if with_logits { out(DType::F32, &[t, e]) } else { OutSpec::new(DType::F32, &[0]) }];
+                                push(format!("T={t} D={d} E={e} K={k} {sf:?} norm={norm} temp={temp} logits={with_logits} {dt}"), inputs, outputs, a);
+                            }
                         }
                     }
                 }

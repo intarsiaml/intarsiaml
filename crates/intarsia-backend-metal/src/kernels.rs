@@ -187,6 +187,20 @@ pub const RMSNORM_ADD_EX: [&str; 6] = [
     "rmsnorm_add_bf16_ex32_f",
 ];
 pub const ARGMAX_F32_V4: &str = "argmax_f32_v4";
+/// `argmax_f32_v4` for any V (rows not 16-byte aligned: V % 4 != 0), lane ink-hostgap; the launcher takes it where `argmax_f32_v4`
+/// does not apply, unless `INTARSIA_METAL_ARGMAX_V4T=0`. Same result as `argmax_f32`.
+pub const ARGMAX_F32_V4T: &str = "argmax_f32_v4t";
+/// The device sampler (`Op::GumbelArgmax`, lane ink-hostgap): Gumbel-max over `softcap(l) / T` with Philox noise, one threadgroup
+/// per row (kernels/metal/dense_ops.metal; `intarsia_core::gumbel` is the definition).
+pub const GUMBEL_ARGMAX_F32: &str = "gumbel_argmax_f32";
+
+/// `INTARSIA_METAL_ARGMAX_V4T`: `0` sends f32 argmax rows with V % 4 != 0 back to the 256-thread scalar `argmax_f32`; unset or anything
+/// else takes `argmax_f32_v4t` (same result, 172 -> see docs/results/2026-11-21-inkling2-hostgap.md on Inkling-2's 200058 logits).
+/// Read once per process.
+pub fn argmax_v4t_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_METAL_ARGMAX_V4T").map_or(true, |v| v.trim() != "0"))
+}
 
 pub const ATTN_PREFILL_BF16: &str = "attn_prefill_bf16";
 /// `AttnPrefill`, flash-style on `simdgroup_matrix` with GQA-shared K / V tiles (attention_flash.metal, launcher flash.rs);
@@ -291,7 +305,9 @@ pub fn metal4_shaders() -> Vec<&'static str> {
     v.extend(crate::mxfp4::NAXD_FORMS.iter().flat_map(|f| [f.0, f.1]));
     v.extend(crate::inkattn::metal4_shader_names());
     v.extend(crate::inkmoe::metal4_shaders());
+    v.extend(crate::inkprefill::metal4_shaders());
     v.extend(crate::inkmix::NAX_SHADERS);
+    v.extend(crate::inkctrl::METAL4_SHADERS);
     v
 }
 
@@ -314,6 +330,7 @@ pub const NAX_KERNELS: &[&str] = &[
     crate::mxfp4::MATMUL_MXFP4_NAX,
     crate::inkattn::REL_SINK_ATTN_BF16_NAX,
     crate::inkmix::INK_IN_PROJ_BF16_NAX,
+    crate::inkctrl::INK_ROUTE_BF16,
 ];
 
 pub fn requires_metal4(kernel: &str) -> bool {
@@ -330,6 +347,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::bridge::shader_names());
     v.extend(crate::inkattn::shader_names());
     v.extend(crate::inkmix::shader_names());
+    v.extend(crate::p12::shader_names());
     v.extend(crate::screen::shader_names());
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
@@ -350,7 +368,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8, GEMV_PAIR_BF16_R1, GEMV_PAIR_BF16_R1_A8]);
     v.extend(RMSNORM_EX);
     v.extend(RMSNORM_ADD_EX);
-    v.push(ARGMAX_F32_V4);
+    v.extend([ARGMAX_F32_V4, ARGMAX_F32_V4T, GUMBEL_ARGMAX_F32]);
     v.extend(EXPERIMENT_SHADERS);
     v.extend(crate::multirow::shader_names());
     v.extend(crate::rowtab::shader_names());
@@ -378,6 +396,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (SILU_GLU_BF16, Op::SiluGlu),
     (ARGMAX_F32, Op::Argmax),
     (ARGMAX_BF16, Op::Argmax),
+    (GUMBEL_ARGMAX_F32, Op::GumbelArgmax),
     (ATTN_PREFILL_BF16, Op::AttnPrefill),
     (ATTN_PREFILL_BF16_FLASH, Op::AttnPrefill),
     (ATTN_PREFILL_BF16_FLASH_NAX, Op::AttnPrefill),
@@ -429,6 +448,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkattn::INK_KV_PROLOGUE_BF16, Op::InkKvPrologue),
     (crate::inkattn::REL_SINK_ATTN_BF16, Op::RelSinkAttn),
     (crate::inkattn::INK_ATTN_DECODE_BF16, Op::InkAttnDecode),
+    (crate::inkattn::INK_ATTN_DECODE_BF16_ROWS, Op::InkAttnDecode),
     (crate::inkattn::REL_SINK_ATTN_BF16_NAX, Op::RelSinkAttn),
     // lane ink-m-moe: the Inkling-2-Mini router and experts (inkmoe.rs)
     (crate::inkmoe::KERNELS[0].0, Op::MoeRoute),
@@ -442,14 +462,25 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkmix::INK_IN_PROJ_BF16_NAX, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_F8_GEMV, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj),
+    (crate::inkmix::INK_IN_PROJ_BF16_GEMV_CHUNKS, Op::InkInProj),
     (crate::inkmix::CONV_MIX_BF16, Op::ConvMix),
+    (crate::inkmix::CONV_MIX_BF16_ROWS, Op::ConvMix),
     (crate::inkmix::ATTN_RES_MIX_BF16, Op::AttnResMix),
     (crate::inkmix::SCONV_RES_BF16, Op::SconvRes),
     (crate::inkmix::LOOP_BLEND_BF16, Op::LoopBlend),
+    // lossless 12-bit bf16 weights (lane ink-pack12, p12.rs)
+    (crate::p12::MATMUL_P12_GEMV, Op::MatmulP12),
+    (crate::p12::MATMUL_P12_GEMV_ROWS, Op::MatmulP12),
+    (crate::p12::MATMUL_P12_LOGITS_GEMV, Op::MatmulP12),
+    (crate::p12::MATMUL_P12_LOGITS_GEMV_ROWS, Op::MatmulP12),
+    (crate::p12::INK_IN_PROJ_P12_GEMV, Op::InkInProj),
+    (crate::p12::INK_IN_PROJ_P12_GEMV_ROWS, Op::InkInProj),
     // lane ink-fp8: the screened greedy head (screen.rs)
     (crate::screen::KERNELS[0].0, Op::HeadScreen),
     (crate::screen::KERNELS[1].0, Op::LogitsGather),
     (crate::screen::KERNELS[2].0, Op::ScreenArgmax),
+    // Inkling-2 decode controller fusion (inkctrl.rs, lane ink-dfuse; metal4.0 library)
+    (crate::inkctrl::INK_ROUTE_BF16, Op::InkRoute),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -497,6 +528,9 @@ pub fn all() -> Vec<KernelImpl> {
                 }
                 ARGMAX_F32 => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
                 ARGMAX_BF16 => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
+                // the device sampler: run-to-run identical; the token is the cpu reference's unless two candidates lie within
+                // the ulp-level difference of Metal's and Rust's tanh / log (admission checks it bit for bit)
+                GUMBEL_ARGMAX_F32 => k.acts([DType::F32]).exact(Exactness::Deterministic).tol(Tol::EXACT),
                 // causal GQA, f32 online softmax; `weights` is the K cache dtype (bf16 only, as KvAppend). Same
                 // predicate and tolerance as the hip `attn_prefill_bf16` / `attn_decode_bf16`.
                 ATTN_PREFILL_BF16 | ATTN_DECODE_BF16 => k
@@ -670,6 +704,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .scratch(crate::inkattn::decode_scratch),
+                // the row-table form (batched decode, lane ink-batch): row r the T = 1 call of sequence r; inkling2_batch.rs
+                crate::inkattn::INK_ATTN_DECODE_BF16_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::inkattn::decode_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .scratch(crate::inkattn::decode_scratch)
+                    .row_table(),
                 // prefill chunks on the neural accelerators (falls back to the split-KV kernel for what it cannot take)
                 crate::inkattn::REL_SINK_ATTN_BF16_NAX => k
                     .acts(bf)
@@ -865,7 +908,9 @@ pub fn all() -> Vec<KernelImpl> {
                     .scratch(crate::rowtab::attn_scratch),
                 n if crate::inkmoe::KERNELS.iter().any(|e| e.0 == n) => crate::inkmoe::register(n, k),
                 n if crate::inkmix::KERNELS.iter().any(|e| e.0 == n) => crate::inkmix::register(k),
+                n if crate::p12::KERNELS.iter().any(|e| e.0 == n) => crate::p12::register(k),
                 n if crate::screen::KERNELS.iter().any(|e| e.0 == n) => crate::screen::register(k),
+                n if crate::inkctrl::KERNELS.iter().any(|e| e.0 == n) => crate::inkctrl::register(k),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -900,6 +945,7 @@ mod tests {
                 + crate::inkattn::metal4_shader_names().len()
                 + crate::inkmoe::metal4_shaders().count()
                 + crate::inkmix::NAX_SHADERS.len()
+                + crate::inkctrl::METAL4_SHADERS.len()
         );
         assert!(!shader_names().iter().any(|n| m4.contains(n)));
         let set: HashSet<_> = m4.iter().collect();
@@ -1012,7 +1058,9 @@ mod tests {
         "gdn_delta_rule_bf16:gdn_delta_rule",
         "gdn_delta_rule_bf16_pre:gdn_delta_rule",
         "gdn_delta_rule_bf16_rows:gdn_delta_rule",
+        "gumbel_argmax_f32:gumbel_argmax",
         "ink_attn_decode_bf16:ink_attn_decode",
+        "ink_attn_decode_bf16_rows:ink_attn_decode",
         "ink_kv_prologue_bf16:ink_kv_prologue",
         "kv_append_bf16:kv_append",
         "kv_append_bf16_rows:kv_append",
@@ -1064,13 +1112,17 @@ mod tests {
     /// origin/main's (`4962d8fa`) plus the two ops added by rope scaling / projection bias (`add_bias`, `rope_scaled`: no existing
     /// op gains or loses a kernel) and `short_conv` (LFM2, lane nab2: a new op, no existing op changes), and lane dm's DFlash2 draft kernels (`dyn_conv_bf16`, a
     /// new op; `attn_decode_bf16_window`, `.ext()` and priority -1, so no plain call can pick it), so the plan has the same candidates as before.
+    /// Lane ink-hostgap's device sampler adds `gumbel_argmax_f32` for its new op (`gumbel_argmax`): no existing op gains a candidate.
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();
         // the Inkling-2 kernels serve new ops only (inkmix.rs): no existing op gains a candidate
         got.retain(|g| !crate::inkmix::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
+        // the P12 kernels (lane ink-pack12) serve MatmulP12 and the P12 form of InkInProj only: no existing call gains a candidate
+        got.retain(|g| !crate::p12::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
         // the screened greedy head (screen.rs, lane ink-fp8): new ops only
         got.retain(|g| !crate::screen::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
+        got.retain(|g| !crate::inkctrl::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
         got.sort();
         if MAIN_KERNEL_LIST.is_empty() {
             panic!("LIST {}", got.join(" "));

@@ -372,3 +372,37 @@ fn fast_matches_reference_on_random_bf16() {
         }
     }
 }
+
+/// `GumbelArgmax` (lane ink-hostgap): both kernels give `gumbel::argmax_row` of every row, and a row draws the same token in a
+/// 4-row call as alone (the key, not the row index, picks the noise).
+#[test]
+fn gumbel_argmax_matches_the_reference_draw_and_rows_are_independent() {
+    use intarsia_core::gumbel::{argmax_row, key_row};
+    let v = 1001;
+    let mut rng = intarsia_core::rng::SplitMix64::new(9);
+    let l: Vec<f32> = (0..4 * v).map(|_| rng.next_f32() * 40.0 - 5.0).collect();
+    let keys: Vec<[i32; 4]> = (0..4).map(|j| key_row(100 + j as u64, 7 + 3 * j, [1.0f32, 0.7, 1.0, 1.5][j])).collect();
+    for cap in [0.0f32, 30.0] {
+        let want: Vec<i32> = (0..4).map(|j| argmax_row(&l[j * v..(j + 1) * v], cap, keys[j]) as i32).collect();
+        let hc = call(
+            Op::GumbelArgmax,
+            vec![f32t(&[4, v], &l), HostTensor::from_i32(&[4, 4], &keys.concat())],
+            vec![OutSpec::new(DType::I32, &[4])],
+            OpAttrs { scale: cap, ..Default::default() },
+        );
+        for r in both(&hc) {
+            assert_eq!(r[0].to_i32().unwrap(), want, "cap {cap}");
+        }
+        for j in 0..4 {
+            let solo = call(
+                Op::GumbelArgmax,
+                vec![f32t(&[1, v], &l[j * v..(j + 1) * v]), HostTensor::from_i32(&[1, 4], &keys[j])],
+                vec![OutSpec::new(DType::I32, &[1])],
+                OpAttrs { scale: cap, ..Default::default() },
+            );
+            for r in both(&solo) {
+                assert_eq!(r[0].to_i32().unwrap(), vec![want[j]], "cap {cap} row {j} solo");
+            }
+        }
+    }
+}

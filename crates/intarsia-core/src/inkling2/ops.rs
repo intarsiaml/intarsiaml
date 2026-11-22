@@ -38,9 +38,10 @@
 //! | `InkKvPrologue` (70) | pq `[T,Nq]`, pk `[T,Ckv(+Hk*K)]`, pv (as pk), k taps `[K,Ckv]`, v taps `[K,Ckv]`, q scale `[H,Dh]`, r scale `[H,dr]`, rel proj `[dr,E]` | q `[T,H,Dh]`, rel `[T,H,E]`, k `[T,Hk,Dh]`, v `[T,Hk,Dh]`, k ring `[Rr,Ckv]`, v ring `[Rr,Ckv]` (rings **in place**) | pos0, n_heads, n_kv_heads, head_dim, eps, ink.{qk_clip, rel_clip, tau_floor, tau_alpha, dyn_conv, d_rel} |
 //! | `RelSinkAttn` (71) | q `[T,H,Dh]`, k `[T,Hk,Dh]`, v `[T,Hk,Dh]`, k cache `[Hk,Cr,Dh]`, v cache `[Hk,Cr,Dh]`, rel `[T,H,E]`, pq `[T,Nq]` | o `[T,H*Dh]`, k cache, v cache (**in place**) | pos0, scale, n_heads, n_kv_heads, head_dim, window, ink.{kv_ring, d_rel} |
 //! | `MoeExpertsMxfp8` (72) | x `[T,H]`, ids `[T,K]` i32, weights `[T,K]` f32, w13 `[E,2I,H]` e4m3, w13 scales `[E,2I,H/32]` u8 (E8M0), w2 `[E,H,I]` e4m3, w2 scales `[E,H,I/32]` u8 | `[T,H]` | gelu, ink.{situ, gate_cap, up_cap, act_quant} |
-//! | `InkInProj` (73) | x `[S,T,D]` (S = 1 or 3), w `[Nq+Nk+Nv,D]`; with an e4m3 w also scales `[3]` f32 | pq `[T,Nq]`, pk `[T,Nk]`, pv `[T,Nv]` | |
+//! | `InkInProj` (73) | x `[S,T,D]` (S = 1 or 3), w `[Nq+Nk+Nv,D]`; with an e4m3 w also scales `[3]` f32; or P12 codes `[Nq+Nk+Nv,3D/2]` u8 + aux u32 | pq `[T,Nq]`, pk `[T,Nk]`, pv `[T,Nv]` | |
 //! | `InkAttnDecode` (75) | pq, pk, pv, k taps, v taps, q scale, r scale, rel proj (as `InkKvPrologue`), k cache `[Hk,Cr,Dh]`, v cache | o `[T,H*Dh]`, k cache, v cache, k ring, v ring (all **in place**) | the union of the two ops' attrs |
 //! | `ConvMix` (74) | x, taps, res, addend (as `SconvRes`), src `[N,T,D]`, queries `[Q,D]` f32 (Q may be 0), norm `[S,D]` or `[0]`, msg `[S,T,D]` f32 or `[0]`, down, gain, forget (as `LoopBlend`) or three `[0]` | y, ring, sum (as `SconvRes`), mix `[S,T,D]` or `[0]` | pos0, eps |
+//! | `InkRoute` (76) | x `[T,D]`, w `[E,D]`, bias `[E]` f32 | weights `[T,K]` f32, ids `[T,K]` i32, logits `[T,E]` f32 or `[0]` | as `MoeRoute`: top_k, scale, norm_topk, temperature, dsv.score_func |
 //!
 //! ## AttnResMix: the depth mix (spec a2, also the loop messages a12 and the output mix a16)
 //!
@@ -114,6 +115,10 @@
 //! kernel registered for float weights never sees e4m3 (`ShapeInfo::weight`). Pack j as a `MatmulFp8` is the model's fallback
 //! where a backend has no e4m3 `InkInProj` kernel.
 //!
+//! **P12 weights** (lane ink-pack12, `INTARSIA_INK_PACK12=1`; lossless): w is the u8 codes `[Nq+Nk+Nv, 3D/2]` and the third
+//! input the u32 aux of `quant::p12`; the op is exactly the float form over `W = p12::decode(codes, aux)` (bf16 values). The
+//! model keeps the bf16 stack for prefill chunks and takes this form where the backend admits it.
+//!
 //! ## ConvMix: a sublayer boundary (vLLM `ops/conv_mix.py`, `loop.py:257-316`)
 //!
 //! Exactly `SconvRes(x, taps, res, addend) -> y, ring, sum`, then the depth mix of the next sublayer over `src` and the
@@ -121,6 +126,25 @@
 //! then with msg the blend `LoopBlend(mix, msg, down, gain, forget, norm)` (the mix unnormed, f32), else the norm as in
 //! `AttnResMix`. `mix` is `[S,T,D]` in `A` (S = msg rows with a blend, Q otherwise), or f32 `[Q,T,D]` without norm and blend.
 //! `Q = 0` (queries `[0,D]`, mix `[0]`) is the conv alone.
+//!
+//! ## InkRoute: the router (spec a13; lane ink-dfuse, discriminant 76)
+//!
+//! Exactly `MoeRoute(logits, bias) -> weights, ids` (`dsv41::ops`, the score function, temperature, selection-only bias,
+//! renorm and scale of its attributes) on `logits[t, e] = sum_c x[t, c] * w[e, c]`, accumulated and stored in f32 (the math of
+//! `Matmul` with an f32 output, i.e. `Logits`). `logits` is an output only when given (dumps); `[0]` leaves it to the kernel.
+//! Stateless and row-local: row `t` depends only on `x[t]`. A Metal kernel that keeps the per-logit order of the `Logits` GEMV
+//! and the routing of `MoeRoute` gives bitwise their composition.
+//!
+//! # Row tables (batched decode of several sequences; lane ink-batch, docs/results/2026-11-21-inkling2-batch.md)
+//!
+//! `SconvRes`, `InkKvPrologue`, `RelSinkAttn`, `ConvMix` and `InkAttnDecode` also take an optional row-table form:
+//! `OpCall::rows` = a [`crate::ops::RowTab`] over `T = B` rows (`byte_off` 0) and `OpCall::pos` = i32 `[B]`, the per-row
+//! positions. Row `r` of the call is then, bit for bit, the `T = 1` call at device position `pos[r]` whose row-indexed
+//! tensors are row `r` of the call's ([`row_roles`]: `[T, ..]` tensors and row `r` of every plane of `[N, T, D]` sources,
+//! messages and the mix) and whose state is sequence `r`'s: no row reads or writes another row's state, and no row has
+//! in-call history. The call's state tensors (rings, caches; `State(j)` in [`row_roles`]) describe row 0's buffers and are
+//! shape / dtype / offset carriers: state tensor `j` of row `r` lives at `tab[r, index + j] + carrier.offset`. The calls
+//! without a row table are unchanged.
 
 use crate::backend::TensorRef;
 use crate::dtype::DType;
@@ -172,7 +196,7 @@ impl Default for InkAttrs {
 }
 
 /// The Inkling-2 ops, in discriminant order (67 ..).
-pub const OPS: [Op; 9] = [
+pub const OPS: [Op; 10] = [
     Op::AttnResMix,
     Op::LoopBlend,
     Op::SconvRes,
@@ -182,6 +206,7 @@ pub const OPS: [Op; 9] = [
     Op::InkInProj,
     Op::ConvMix,
     Op::InkAttnDecode,
+    Op::InkRoute,
 ];
 
 /// The ops that take a device position (`OpCall::pos`, `i32 [1]`).
@@ -189,6 +214,46 @@ pub const POSITIONED: [Op; 5] = [Op::SconvRes, Op::InkKvPrologue, Op::RelSinkAtt
 
 /// Most rows of an `InkAttnDecode` call.
 pub const ATTN_DECODE_MAX_ROWS: usize = 16;
+
+/// The ops with a row-table form (module doc, "Row tables").
+pub const ROW_TABLE_OPS: [Op; 5] = [Op::SconvRes, Op::InkKvPrologue, Op::RelSinkAttn, Op::ConvMix, Op::InkAttnDecode];
+
+/// What a tensor of a row-table call is (module doc, "Row tables").
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RowRole {
+    /// `[T, ..]`: row `r` is sequence `r`'s.
+    Row,
+    /// `[N, T, D]`: row `r` of every plane is sequence `r`'s.
+    Planes,
+    /// Per-sequence state, table entry `index + j` (the tensor is row 0's carrier).
+    State(usize),
+    /// Weights, queries, norms: shared by every row.
+    Fixed,
+}
+
+/// Roles of the (inputs, outputs) of a row-table call of `op`; `None` for an op without a row-table form. An absent
+/// optional tensor (`[0]`) is shared whatever its role.
+pub fn row_roles(op: Op) -> Option<(Vec<RowRole>, Vec<RowRole>)> {
+    use RowRole::{Fixed as F, Planes as P, Row as R, State as S};
+    Some(match op {
+        Op::SconvRes => (vec![R, F, R, R], vec![R, S(0), R]),
+        Op::ConvMix => (vec![R, F, R, R, P, F, F, P, F, F, F], vec![R, S(0), R, P]),
+        Op::InkKvPrologue => (vec![R, R, R, F, F, F, F, F], vec![R, R, R, R, S(0), S(1)]),
+        Op::RelSinkAttn => (vec![R, R, R, S(0), S(1), R, R], vec![R, S(0), S(1)]),
+        Op::InkAttnDecode => (vec![R, R, R, F, F, F, F, F, S(0), S(1)], vec![R, S(0), S(1), S(2), S(3)]),
+        _ => return None,
+    })
+}
+
+/// Table entries a row-table call of `op` reads per row (its state tensors).
+pub fn row_states(op: Op) -> usize {
+    match op {
+        Op::SconvRes | Op::ConvMix => 1,
+        Op::InkKvPrologue | Op::RelSinkAttn => 2,
+        Op::InkAttnDecode => 4,
+        _ => 0,
+    }
+}
 
 /// The two calls `InkAttnDecode` is defined as (prologue, attention), with `q`, `rel`, `k`, `v` the intermediates (any
 /// buffers of the right shapes; the checks only look at shapes and dtypes).
@@ -496,12 +561,37 @@ pub fn check(call: &OpCall) -> Result<()> {
                 }
             }
             let wdt = if i[1].dtype == DType::Fp8E4m3 { Some(DType::Fp8E4m3) } else { None };
-            want(op, &i[1], wdt, &[ns.iter().sum(), d], "w")?;
+            // P12 codes (lane ink-pack12) are [N, 3D/2] u8: checked by their own arm below
+            if i[1].dtype != DType::U8 {
+                want(op, &i[1], wdt, &[ns.iter().sum(), d], "w")?;
+            }
             match (i[1].dtype, i.len()) {
                 (DType::Fp8E4m3, 3) => want(op, &i[2], Some(DType::F32), &[3], "scales")?,
                 (DType::Fp8E4m3, _) => return bad(op, "e4m3 w needs a third input, scales [3] f32".into()),
+                (DType::U8, 3) => crate::quant::p12::check_tensors(&i[1], &i[2], ns.iter().sum(), d, "w").or_else(|m| bad(op, m))?,
+                (DType::U8, _) => return bad(op, "p12 w (u8 codes) needs a third input, aux u32".into()),
                 (_, 2) if float(i[1].dtype) => {}
                 (dt, n) => return bad(op, format!("w must be float (2 inputs) or e4m3 with scales (3 inputs), got {dt} with {n} inputs")),
+            }
+        }
+        Op::InkRoute => {
+            if i[0].shape.len() != 2 || !is_act(i[0].dtype) || i[1].shape.len() != 2 {
+                return bad(op, format!("x must be a float [T,D] and w [E,D], got {:?} {:?}", i[0].shape, i[1].shape));
+            }
+            let (t, d, e) = (i[0].shape[0], i[0].shape[1], i[1].shape[0]);
+            let k = at.top_k;
+            if e == 0 || k == 0 || k > e {
+                return bad(op, format!("{e} experts, top_k {k}"));
+            }
+            want(op, &i[1], None, &[e, d], "w")?;
+            want(op, &i[2], Some(DType::F32), &[e], "bias")?;
+            want(op, &o[0], Some(DType::F32), &[t, k], "weights")?;
+            want(op, &o[1], Some(DType::I32), &[t, k], "ids")?;
+            if !absent(&o[2]) {
+                want(op, &o[2], Some(DType::F32), &[t, e], "logits")?;
+            }
+            if !(at.temperature > 0.0) || !at.scale.is_finite() {
+                return bad(op, format!("temperature {} / scale {}", at.temperature, at.scale));
             }
         }
         Op::InkAttnDecode => {
@@ -586,6 +676,15 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.m = dim(&i[0], 1);
             s.k = dim(&i[0], 2);
             s.n = dim(&i[1], 0);
+            s.weight = Some(i[1].dtype);
+        }
+        Op::InkRoute => {
+            s.m = dim(&i[0], 0);
+            s.k = dim(&i[0], 1);
+            s.n = dim(&i[1], 0);
+            s.experts = dim(&i[1], 0);
+            s.top_k = a.top_k;
+            s.act = Some(i[0].dtype);
             s.weight = Some(i[1].dtype);
         }
         _ => {}

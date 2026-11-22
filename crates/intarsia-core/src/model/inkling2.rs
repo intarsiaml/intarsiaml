@@ -25,6 +25,25 @@ use std::collections::BTreeMap;
 /// rollback may cut (spec section f: at least `max verify rows - 1 + rollback depth` = 6).
 pub const INK_RING_MARGIN: usize = 16;
 
+/// Passes of up to this many rows compute the loop messages of a whole pass at its restart: the 4 message rows of every core
+/// layer read only the bank (spec a12), which the restart writes and nothing else writes until the next restart, so one
+/// `AttnResMix` over `InkModel::msg_q_all` replaces one call per looped visit; each query is computed exactly as in a 4-query
+/// call (same per-query-batch code), so the messages are bitwise the same. Longer passes (prefill chunks) and teacher-forced
+/// passes (the bank is uploaded per visit) keep the per-visit call.
+pub const INK_MSG_PRE_ROWS: usize = 16;
+
+/// `INTARSIA_INK_MSG_PRE`: `1` / `on` = the per-pass message `AttnResMix` ([`INK_MSG_PRE_ROWS`]) instead of one per looped
+/// visit, `0` / `off` = per visit, unset / `auto` = per pass on Metal (lane ink-dfuse: -0.19 ms per decode step, job E #11003),
+/// per visit elsewhere. The same bits either way.
+fn ink_msg_pre_env() -> Option<bool> {
+    static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| match std::env::var("INTARSIA_INK_MSG_PRE").ok().as_deref().map(str::trim) {
+        Some("1") | Some("on") => Some(true),
+        Some("0") | Some("off") => Some(false),
+        _ => None,
+    })
+}
+
 /// `INTARSIA_INK_ATTN_FUSED`: `1` / `on` = `InkAttnDecode` (op 75) on every visit of up to 16 rows the backend admits it for,
 /// `0` / `off` = always the `InkKvPrologue` + `RelSinkAttn` pair, unset / `auto` = [`ink_attn_fused_rule`] on Metal (the pair
 /// elsewhere). Both give the same bits (the fused kernel is bitwise the pair), so this only moves time.
@@ -57,6 +76,19 @@ pub(crate) fn ink_attn_fused_rule(rows: usize, local: bool, ctx: usize, window: 
 fn ink_fp8_proj_fused() -> bool {
     static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *V.get_or_init(|| !std::env::var("INTARSIA_INK_FP8_PROJ").is_ok_and(|v| v.trim() == "0"))
+}
+
+/// `INTARSIA_INK_ROUTE_FUSED`: `1` / `on` = `InkRoute` (op 76: the router GEMV and `MoeRoute` in one launch) on every call of up to
+/// 16 rows the backend admits it for, `0` / `off` = the router matmul + `MoeRoute`, unset / `auto` = fused on Metal (lane
+/// ink-dfuse: -0.11 ms per decode step, job E #11003), the pair elsewhere. Both give the same bits on a backend (the fused
+/// kernel is bitwise its pair), so this only moves time.
+fn ink_route_fused_env() -> Option<bool> {
+    static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| match std::env::var("INTARSIA_INK_ROUTE_FUSED").ok().as_deref().map(str::trim) {
+        Some("1") | Some("on") => Some(true),
+        Some("0") | Some("off") => Some(false),
+        _ => None,
+    })
 }
 
 /// Whether an Inkling-2 pass of `t` rows runs under `exact_rows` (the row-exact kernels): on Metal for 2..=16 rows (the 1-row
@@ -145,6 +177,11 @@ pub(super) struct InkLayer {
     pub relproj: TensorRef,
     /// `[D, H*Dh]`, bf16 as stored or quantised (`INTARSIA_INK_ATTN_QUANT`).
     pub wo: QTensor,
+    /// `INTARSIA_INK_PACK12` (lane ink-pack12; lossless; default on Metal): the bf16 in-projection stack and wo as P12
+    /// too (`quant::p12`), for the 1..=`DENSE_ROWS_MAX`-row calls where the backend has the kernels; larger calls keep the
+    /// bf16.
+    pub in_p12: Option<QTensor>,
+    pub wo_p12: Option<QTensor>,
     /// Attention-input norms `[3, D]` (SWA: `attn_norm` three times; full: q / k / v input norms).
     pub norm3: TensorRef,
     pub mlp_norm: TensorRef,
@@ -185,6 +222,15 @@ pub(super) struct InkWs {
     pub ri: Buffer,
 }
 
+/// A batched decode pass (`Model::forward_batch`, lane ink-batch): `rows` sequences, one row each, at the positions in `pos`
+/// (i32 `[rows]`, device); the stateful ops run in their row-table form (`inkling2::ops`, "Row tables") on the row table the
+/// step uploaded (`Model::upload_row_table`). `max_pos` is the largest position (the attention selection rule's context).
+pub(super) struct InkBatch {
+    pub rows: usize,
+    pub pos: TensorRef,
+    pub max_pos: usize,
+}
+
 pub(super) struct InkModel {
     pub layers: Vec<InkLayer>,
     pub visits: Vec<InkVisit>,
@@ -194,6 +240,9 @@ pub(super) struct InkModel {
     /// `output_query` `[1, D]` f32 x D^-0.5 and the final norm as `[1, D]`.
     pub out_q: TensorRef,
     pub final_norm: TensorRef,
+    /// The message queries of all core layers stacked `[4 * n_core, D]` f32 (layer `core_start + j` at rows `4j..4j+4`): one
+    /// `AttnResMix` at the loop restart computes the messages of the whole pass ([`INK_MSG_PRE_ROWS`]).
+    pub msg_q_all: Option<TensorRef>,
     pub ws: InkWs,
     pub dims: InkDims,
 }
@@ -272,6 +321,8 @@ pub(super) fn push_slots(visits: &mut [InkVisit], ink: &InkDims, dims: &ModelDim
     let ckv = dims.n_kv_heads * dims.head_dim;
     let m = INK_RING_MARGIN;
     for v in visits.iter_mut() {
+        // the row-table form of InkAttnDecode reaches the KV slot's and the K/V conv ring's entries as one run
+        // (`2 * kv_slot .. + 4`): the conv ring is the next slot
         v.kv_slot = specs.len();
         specs.push(if ink.local[v.layer] {
             SlotSpec::Ring { rows: ink.window + m, width: ckv, planes: 2, dtype: act, margin: m, kind: RingKind::InkKv }
@@ -279,6 +330,7 @@ pub(super) fn push_slots(visits: &mut [InkVisit], ink: &InkDims, dims: &ModelDim
             SlotSpec::AttnKv { n_kv_heads: dims.n_kv_heads, head_dim: dims.head_dim, dtype: act }
         });
         v.kvconv_slot = specs.len();
+        debug_assert_eq!(v.kvconv_slot, v.kv_slot + 1);
         specs.push(SlotSpec::Ring { rows: ink.k_conv - 1 + m, width: ckv, planes: 2, dtype: act, margin: m, kind: RingKind::InkConv });
         v.hconv_slot = specs.len();
         specs.push(SlotSpec::Ring { rows: ink.k_conv - 1 + m, width: dims.hidden, planes: 2, dtype: act, margin: m, kind: RingKind::InkConv });
@@ -289,6 +341,46 @@ pub(super) fn push_slots(visits: &mut [InkVisit], ink: &InkDims, dims: &ModelDim
 fn host(src: &dyn WeightSource, name: &str) -> Result<(Vec<usize>, Vec<f32>)> {
     let info = src.info(name).ok_or_else(|| Error::model(format!("tensor '{name}' not found in checkpoint")))?;
     Ok((info.shape.clone(), crate::weights::to_f32_vec(info.dtype, src.bytes(name)?)?))
+}
+
+fn wdt_of(src: &dyn WeightSource, root: &str) -> DType {
+    src.info(&format!("{root}.embed.weight")).map(|i| i.dtype).unwrap_or(DType::Bf16)
+}
+
+/// Totals of the P12 packs made at load (`INTARSIA_INK_PACK12`, lane ink-pack12).
+#[derive(Default)]
+pub(crate) struct P12Stats {
+    pub elems: usize,
+    pub escapes: usize,
+    /// device bytes of the packs (codes + aux)
+    pub bytes: usize,
+    pub tensors: usize,
+    pub secs: f64,
+}
+
+impl P12Stats {
+    /// Pack a bf16 `[n, k]` weight (little-endian bytes) and upload it as a `p12` [`QTensor`].
+    pub(crate) fn pack(&mut self, b: &dyn Backend, w: &[u8], n: usize, k: usize) -> Result<QTensor> {
+        let t0 = std::time::Instant::now();
+        let p = crate::quant::p12::pack_bytes(w, n, k, 0)?;
+        self.secs += t0.elapsed().as_secs_f64();
+        self.elems += n * k;
+        self.escapes += p.escapes();
+        self.bytes += p.bytes();
+        self.tensors += 1;
+        p.upload(b)
+    }
+    pub(crate) fn note(&self, what: &str) -> String {
+        format!(
+            "P12 ({}=0 turns it off): {what} packed lossless to 12 bits ({} tensors, {:.3} GB, was {:.3} GB bf16; escapes {:.2e}; {:.1} s)",
+            crate::quant::p12::ENV,
+            self.tensors,
+            self.bytes as f64 / 1e9,
+            (2 * self.elems) as f64 / 1e9,
+            self.escapes as f64 / self.elems.max(1) as f64,
+            self.secs
+        )
+    }
 }
 
 fn encode(dt: DType, v: &[f32]) -> Result<Vec<u8>> {
@@ -336,6 +428,10 @@ pub(super) fn load(
     let s = (d as f32).powf(-0.5);
     // device bytes of the quantised projections (`attn_quant`), added to `bytes` at the end
     let qbytes = std::cell::Cell::new(0u64);
+    // lossless 12-bit copies of the bf16 in-projection and wo (lane ink-pack12, default on Metal); not with a quantised
+    // projection
+    let pack12 = crate::quant::p12::enabled(b) && attn_quant.is_none() && wdt_of(src, &names.root) == DType::Bf16;
+    let mut p12_stats = P12Stats::default();
     let mut put = |data: &[u8], dt: DType, shape: &[usize]| -> Result<TensorRef> {
         let buf = crate::backend::upload_new(b, data)?;
         *bytes += data.len() as u64;
@@ -361,6 +457,8 @@ pub(super) fn load(
         (Vec::new(), Vec::new())
     };
     let mut layers = Vec::new();
+    // the message queries of every core layer, in layer order (`InkModel::msg_q_all`)
+    let mut all_q4: Vec<f32> = Vec::new();
     for li in 0..dims.n_layers {
         let p = names.layer.replace("{i}", &li.to_string());
         let t = |n: &str| format!("{p}.{n}");
@@ -396,6 +494,7 @@ pub(super) fn load(
         }
         let nq = nq_width(h, dh, dr);
         let nk = ckv + if local { 0 } else { hk * kc };
+        let in_p12 = if pack12 { Some(p12_stats.pack(b, &stacked, nq + 2 * nk, d)?) } else { None };
         let in_w = match attn_quant {
             None => InkInW::Stacked(put(&stacked, wdt, &[nq + 2 * nk, d])?),
             Some(kind) => {
@@ -512,6 +611,7 @@ pub(super) fn load(
             q4.extend(row(&mckv, 2 * j));
             q4.extend(row(&mckv, 2 * j + 1));
             q4.extend(row(&mcq, 2 * j + 1));
+            all_q4.extend_from_slice(&q4);
             Some(InkCtrl {
                 down: put(&dn, wdt, &[4, g, 2 * d])?,
                 gain: put(&gn, wdt, &[4, d, g])?,
@@ -571,6 +671,7 @@ pub(super) fn load(
         let sconv = |put: &mut dyn FnMut(&[u8], DType, &[usize]) -> Result<TensorRef>, n: &str| lag_major(put, &t(&format!("{n}.weight")), d);
         let attn_sconv = sconv(&mut put, "attn_sconv")?;
         let mlp_sconv = sconv(&mut put, "mlp_sconv")?;
+        let wo_p12 = if pack12 { Some(p12_stats.pack(b, src.bytes(&t("attn.wo_ud.weight"))?, d, h * dh)?) } else { None };
         layers.push(InkLayer {
             local,
             first: li % ink.block == 0,
@@ -600,6 +701,8 @@ pub(super) fn load(
                     }
                 }
             },
+            in_p12,
+            wo_p12,
             norm3,
             mlp_norm: direct(&t("mlp_norm.weight"), Some(&[d]))?.reshaped(&[1, d]),
             attn_sconv,
@@ -619,8 +722,13 @@ pub(super) fn load(
     let (mut visits, n_stack) = plan_visits(&ink)?;
     push_slots(&mut visits, &ink, dims, act, slot_specs);
     let ws = InkWs::alloc(b, mt, act, dims, &ink, n_stack)?;
+    let msg_q_all = if ink.looped() { Some(queries(&mut put, all_q4, 4 * n_core)?) } else { None };
     *bytes += qbytes.get();
-    Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, ws, dims: ink })
+    if pack12 {
+        *bytes += p12_stats.bytes as u64;
+        eprintln!("{}", p12_stats.note("in_proj + wo"));
+    }
+    Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, msg_q_all, ws, dims: ink })
 }
 
 impl InkWs {
@@ -640,7 +748,8 @@ impl InkWs {
             p: a(2 * mt * d * esz)?,
             bank: a(2 * mt * d * esz)?,
             x: a(3 * mt * d * esz)?,
-            msg: a(4 * mt * d * 4)?,
+            // 4 planes per pass for any pass, or the 4 * n_core planes of a whole pass for passes of up to INK_MSG_PRE_ROWS rows
+            msg: a((4 * mt).max(4 * (ink.core_end - ink.core_start) * mt.min(INK_MSG_PRE_ROWS)) * d * 4)?,
             dst: a(3 * mt * d * 4)?,
             emb: a(mt * d * esz)?,
             pq: a(mt * nq_width(h, dh, ink.d_rel) * esz)?,
@@ -718,12 +827,15 @@ impl Model {
     }
 
     /// One Inkling-2 pass over `t` rows at positions `pos0..` of `st`, the final normed hidden state into `out` (`[t, D]`).
+    /// `batch`: a batched decode step instead, row `r` the next token of sequence `r` (`st` is row 0's state, the carrier of
+    /// the row-table calls; `pos0` the largest position).
     /// `tf`: teacher forcing (every visit's blocks / partial / bank and the head's from these tensors, every attention mix
     /// standalone); `dump`: collect the oracle-named intermediates (tests).
     #[allow(clippy::too_many_arguments)]
     pub(super) fn ink_pass(
         &self,
         st: &SequenceState,
+        batch: Option<&InkBatch>,
         ids: &TensorRef,
         t: usize,
         pos0: usize,
@@ -738,7 +850,7 @@ impl Model {
         if mark {
             self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         }
-        let r = self.ink_pass_rows(st, ids, t, pos0, out, profile, tf, dump);
+        let r = self.ink_pass_rows(st, batch, ids, t, pos0, out, profile, tf, dump);
         if mark {
             self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         }
@@ -749,6 +861,7 @@ impl Model {
     fn ink_pass_rows(
         &self,
         st: &SequenceState,
+        batch: Option<&InkBatch>,
         ids: &TensorRef,
         t: usize,
         pos0: usize,
@@ -767,11 +880,30 @@ impl Model {
         let act = self.act;
         let eps = self.dims.rms_eps;
         let ex = |op: Op, i: Vec<TensorRef>, o: Vec<TensorRef>, a: OpAttrs| self.exec(op, i, o, a, profile);
+        // the stateful ops: in a batched step their row-table form over the state slot `slot` (entries `2 * slot ..`)
+        let rowtab = |c: &mut OpCall, slot: usize| -> Result<()> {
+            if let Some(bt) = batch {
+                c.rows = Some(self.row_tab_for(bt.rows, slot, 0, 0).ok_or_else(|| Error::invalid("inkling2 batched step without its row table"))?);
+                c.pos = Some(bt.pos.clone());
+            }
+            Ok(())
+        };
+        let sx = |op: Op, i: Vec<TensorRef>, o: Vec<TensorRef>, a: OpAttrs, slot: usize| -> Result<()> {
+            if batch.is_none() {
+                return ex(op, i, o, a);
+            }
+            let mut c = OpCall::new(op, i, o, a);
+            rowtab(&mut c, slot)?;
+            self.exec_call(c, profile)
+        };
         let a0 = OpAttrs { eps, ..OpAttrs::default() };
         let none = |dt: DType, shape: &[usize]| TensorRef::new(ws.emb.clone(), dt, shape);
         let stack = |start: usize, n: usize| planes(&ws.s, act, start, n, t, d);
         let xs = |n: usize| planes(&ws.x, act, 0, n, t, d);
         let msgs = |start: usize, n: usize| planes(&ws.msg, DType::F32, start, n, t, d);
+        // the messages of a whole pass at its restart (INK_MSG_PRE_ROWS): layer l's 4 rows at planes 4 * (l - core_start)
+        let pre = tf.is_none() && t <= INK_MSG_PRE_ROWS && im.msg_q_all.is_some() && ink_msg_pre_env().unwrap_or(self.backend.name() == "metal");
+        let mbase = |layer: usize| if pre { 4 * (layer - ink.core_start) } else { 0 };
         let bank = planes(&ws.bank, act, 0, 2, t, d);
         let dumping = dump.is_some();
         // host-computed dump tensors (router_sel = sigmoid(logits) + bias), merged into the dump at the end
@@ -827,7 +959,12 @@ impl Model {
                 return Err(Error::invalid("inkling2: a looped visit of a layer without controllers"));
             }
             // a12 messages: attn_res(bank[:1], bank[1], MQ) -> M (4 f32 rows), unless the previous visit made them
-            if looped && !x_ready {
+            let mb = if looped { mbase(v.layer) } else { 0 };
+            if looped && pre && v.restart {
+                let all = im.msg_q_all.clone().expect("looped model");
+                let nm = all.shape[0];
+                ex(Op::AttnResMix, vec![planes(&ws.bank, act, 0, 1, t, d), plane(&ws.bank, act, 1, t, d), none(act, &[0]), all, none(act, &[0])], vec![msgs(0, nm)], a0.clone())?;
+            } else if looped && !x_ready && !pre {
                 let c = ctrl.unwrap();
                 ex(Op::AttnResMix, vec![planes(&ws.bank, act, 0, 1, t, d), plane(&ws.bank, act, 1, t, d), none(act, &[0]), c.msg_q.clone(), none(act, &[0])], vec![msgs(0, 4)], a0.clone())?;
             }
@@ -845,7 +982,7 @@ impl Model {
                         let c = ctrl.unwrap();
                         let dst = planes(&ws.dst, DType::F32, 0, nq, t, d);
                         ex(Op::AttnResMix, vec![stack(0, v.nb_in), partial.clone(), none(act, &[0]), aq.clone(), none(act, &[0])], vec![dst.clone()], a0.clone())?;
-                        ex(Op::LoopBlend, vec![dst, msgs(0, 3), c.down.rows(0, 3), c.gain.rows(0, 3), c.forget.rows(0, 3), l.norm3.clone()], vec![xs(3)], a0.clone())?;
+                        ex(Op::LoopBlend, vec![dst, msgs(mb, 3), c.down.rows(0, 3), c.gain.rows(0, 3), c.forget.rows(0, 3), l.norm3.clone()], vec![xs(3)], a0.clone())?;
                     } else {
                         ex(Op::AttnResMix, vec![stack(0, v.nb_in), partial.clone(), none(act, &[0]), aq.clone(), l.norm3.rows(0, nq)], vec![xs(nq)], a0.clone())?;
                     }
@@ -861,7 +998,22 @@ impl Model {
             let pk = TensorRef::new(ws.pk.clone(), act, &[t, l.nk]);
             let pv = TensorRef::new(ws.pv.clone(), act, &[t, l.nk]);
             match &l.in_w {
-                InkInW::Stacked(w) => ex(Op::InkInProj, vec![xs(nx), w.clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default())?,
+                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows where the backend admits it, else the
+                // bf16 stack (the same bits)
+                InkInW::Stacked(w) => {
+                    let mut done = false;
+                    if let Some(p) = l.in_p12.as_ref().filter(|_| t <= crate::quant::p12::DENSE_ROWS_MAX) {
+                        let mut c = OpCall::new(Op::InkInProj, vec![xs(nx), p.parts[0].clone(), p.parts[1].clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default());
+                        c.exact_rows = self.verifying();
+                        if self.registry.select(&c).is_ok() {
+                            self.exec_call(c, profile)?;
+                            done = true;
+                        }
+                    }
+                    if !done {
+                        ex(Op::InkInProj, vec![xs(nx), w.clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default())?;
+                    }
+                }
                 InkInW::Fp8 { w, scales, packs } => {
                     // the e4m3 InkInProj where the backend has a kernel for it (INTARSIA_INK_FP8_PROJ=0: always the packs)
                     let mut c = OpCall::new(Op::InkInProj, vec![xs(nx), w.clone(), scales.clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default());
@@ -920,12 +1072,23 @@ impl Model {
             aa.ink = InkAttrs { kv_ring: l.local, d_rel: dr, ..InkAttrs::default() };
             // decode rows: the fused InkAttnDecode (75) where the selection rule (or INTARSIA_INK_ATTN_FUSED) asks for it and the
             // backend admits the call, else the pair; a dump needs the pair's q / k / v / rel
-            let want_fused = !dumping
-                && t <= 16
-                && match ink_attn_fused_env() {
-                    Some(f) => f,
-                    None => self.backend.name() == "metal" && ink_attn_fused_rule(t, l.local, pos0 + t, ink.window),
-                };
+            // a batched step runs the pair only where the backend has its row-table kernels (the bits are the same either way)
+            let pair_rows = batch.is_none() || {
+                let by_op = self.registry.by_op();
+                [Op::InkKvPrologue, Op::RelSinkAttn].iter().all(|op| by_op.get(op).is_some_and(|ks| ks.iter().any(|k| k.row_table)))
+            };
+            let rule = match ink_attn_fused_env() {
+                Some(f) => f,
+                // a batched step's rows are 1-row calls each: the 1-row rule over the largest context
+                None => {
+                    self.backend.name() == "metal"
+                        && match batch {
+                            Some(bt) => ink_attn_fused_rule(1, l.local, bt.max_pos + 1, ink.window),
+                            None => ink_attn_fused_rule(t, l.local, pos0 + t, ink.window),
+                        }
+                }
+            };
+            let want_fused = !dumping && t <= 16 && (rule || !pair_rows);
             let fused = want_fused.then(|| {
                 let mut fa = aa.clone();
                 fa.ink = InkAttrs { kv_ring: l.local, ..pa.ink };
@@ -947,30 +1110,47 @@ impl Model {
                     fa,
                 )
             });
-            let fused = fused.map(|mut c| {
-                c.exact_rows = self.verifying();
-                c
-            });
+            let fused = fused
+                .map(|mut c| -> Result<OpCall> {
+                    c.exact_rows = self.verifying();
+                    rowtab(&mut c, v.kv_slot)?;
+                    Ok(c)
+                })
+                .transpose()?;
             if let Some(call) = fused.filter(|c| self.registry.select(c).is_ok()) {
                 self.exec_call(call, profile)?;
             } else {
-                ex(
+                sx(
                     Op::InkKvPrologue,
                     vec![pq.clone(), pk, pv, l.ktaps.clone(), l.vtaps.clone(), l.qscale.clone(), l.rscale.clone(), l.relproj.clone()],
                     vec![q.clone(), rel.clone(), k.clone(), vv.clone(), kvc.plane(0), kvc.plane(1)],
                     pa,
+                    v.kvconv_slot,
                 )?;
                 put(format!("{tag}.q"), &q)?;
                 put(format!("{tag}.k"), &k)?;
                 put(format!("{tag}.v"), &vv)?;
                 put(format!("{tag}.rel"), &rel)?;
                 put(format!("{tag}.sink"), &pq)?;
-                ex(Op::RelSinkAttn, vec![q, k, vv, kc.clone(), vc.clone(), rel, pq], vec![o.clone(), kc, vc], aa)?;
+                sx(Op::RelSinkAttn, vec![q, k, vv, kc.clone(), vc.clone(), rel, pq], vec![o.clone(), kc, vc], aa, v.kv_slot)?;
             }
             let aproj = plane(&ws.aproj, act, 0, t, d);
             {
-                let c = l.wo.call(o, aproj.clone());
-                ex(c.op, c.inputs, c.outputs, c.attrs)?;
+                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows where the backend admits it, else wo as
+                // loaded (the same bits)
+                let mut done = false;
+                if let Some(p) = l.wo_p12.as_ref().filter(|_| t <= crate::quant::p12::DENSE_ROWS_MAX) {
+                    let mut c = p.call(o.clone(), aproj.clone());
+                    c.exact_rows = self.verifying();
+                    if self.registry.select(&c).is_ok() {
+                        self.exec_call(c, profile)?;
+                        done = true;
+                    }
+                }
+                if !done {
+                    let c = l.wo.call(o, aproj.clone());
+                    ex(c.op, c.inputs, c.outputs, c.attrs)?;
+                }
             }
             put(format!("{tag}.attn_proj"), &aproj)?;
 
@@ -987,11 +1167,11 @@ impl Model {
             let mut ins = vec![aproj, l.attn_sconv.clone(), res, none(act, &[0]), src, l.mlp_q.clone()];
             if looped {
                 let c = ctrl.unwrap();
-                ins.extend([l.mlp_norm.clone(), msgs(3, 1), c.down.rows(3, 1), c.gain.rows(3, 1), c.forget.rows(3, 1)]);
+                ins.extend([l.mlp_norm.clone(), msgs(mb + 3, 1), c.down.rows(3, 1), c.gain.rows(3, 1), c.forget.rows(3, 1)]);
             } else {
                 ins.extend([l.mlp_norm.clone(), none(act, &[0]), none(act, &[0]), none(act, &[0]), none(act, &[0])]);
             }
-            ex(Op::ConvMix, ins, vec![aout.clone(), hc.plane(0), none(act, &[0]), mlpin.clone()], pc.clone())?;
+            sx(Op::ConvMix, ins, vec![aout.clone(), hc.plane(0), none(act, &[0]), mlpin.clone()], pc.clone(), v.hconv_slot)?;
             put(format!("{tag}.attn_out"), &aout)?;
             let mlpin = mlpin.reshaped(&[t, d]);
             put(format!("{tag}.mlp_in"), &mlpin)?;
@@ -1004,12 +1184,20 @@ impl Model {
             if self.registry.select(&rc).is_err() {
                 rc.op = Op::Logits;
             }
-            ex(rc.op, rc.inputs, rc.outputs, rc.attrs)?;
             let rw = TensorRef::new(ws.rw.clone(), DType::F32, &[t, ink.top_k]);
             let ri = TensorRef::new(ws.ri.clone(), DType::I32, &[t, ink.top_k]);
             let mut ra = OpAttrs { top_k: ink.top_k, scale: ink.route_scale, norm_topk: true, temperature: 1.0, ..OpAttrs::default() };
             ra.dsv.score_func = crate::dsv41::ops::ScoreFunc::Sigmoid;
-            ex(Op::MoeRoute, vec![rl.clone(), l.router_bias.clone()], vec![rw.clone(), ri.clone()], ra)?;
+            // decode rows: the fused InkRoute (76) where the backend admits it (the logits still land in `rl` for the dumps)
+            let want_route = t <= 16 && ink_route_fused_env().unwrap_or(self.backend.name() == "metal");
+            let mut fc = OpCall::new(Op::InkRoute, vec![mlpin.clone(), l.router.clone(), l.router_bias.clone()], vec![rw.clone(), ri.clone(), rl.clone()], ra.clone());
+            fc.exact_rows = self.verifying();
+            if want_route && self.registry.select(&fc).is_ok() {
+                ex(fc.op, fc.inputs, fc.outputs, fc.attrs)?;
+            } else {
+                ex(rc.op, rc.inputs, rc.outputs, rc.attrs)?;
+                ex(Op::MoeRoute, vec![rl.clone(), l.router_bias.clone()], vec![rw.clone(), ri.clone()], ra)?;
+            }
             put(format!("{tag}.router_logits"), &rl)?;
             if dumping {
                 let (lg, bias) = (self.ink_download(&rl)?, self.ink_download(&l.router_bias)?);
@@ -1055,8 +1243,11 @@ impl Model {
                 if nlooped {
                     let c = nl.ctrl.as_ref().ok_or_else(|| Error::invalid("inkling2: a looped visit of a layer without controllers"))?;
                     // the next visit's messages (this visit's are no longer read)
-                    ex(Op::AttnResMix, vec![planes(&ws.bank, act, 0, 1, t, d), plane(&ws.bank, act, 1, t, d), none(act, &[0]), c.msg_q.clone(), none(act, &[0])], vec![msgs(0, 4)], a0.clone())?;
-                    ins.extend([aq, nl.norm3.clone(), msgs(0, 3), c.down.rows(0, 3), c.gain.rows(0, 3), c.forget.rows(0, 3)]);
+                    let nb = mbase(n.layer);
+                    if !pre {
+                        ex(Op::AttnResMix, vec![planes(&ws.bank, act, 0, 1, t, d), plane(&ws.bank, act, 1, t, d), none(act, &[0]), c.msg_q.clone(), none(act, &[0])], vec![msgs(0, 4)], a0.clone())?;
+                    }
+                    ins.extend([aq, nl.norm3.clone(), msgs(nb, 3), c.down.rows(0, 3), c.gain.rows(0, 3), c.forget.rows(0, 3)]);
                     mix_out = xs(3);
                 } else {
                     ins.extend([aq, nl.norm3.rows(0, nq), none(act, &[0]), none(act, &[0]), none(act, &[0]), none(act, &[0])]);
@@ -1066,7 +1257,7 @@ impl Model {
                 ins.extend([TensorRef::new(ws.emb.clone(), DType::F32, &[0, d]), none(act, &[0]), none(act, &[0]), none(act, &[0]), none(act, &[0]), none(act, &[0])]);
                 mix_out = none(act, &[0]);
             }
-            ex(Op::ConvMix, ins, vec![plane(&ws.aproj, act, 0, t, d), hc.plane(1), dest.clone(), mix_out], pc)?;
+            sx(Op::ConvMix, ins, vec![plane(&ws.aproj, act, 0, t, d), hc.plane(1), dest.clone(), mix_out], pc, v.hconv_slot)?;
             put(format!("{tag}.partial_out"), &dest)?;
             x_ready = fuse;
         }

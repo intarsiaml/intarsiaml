@@ -1041,7 +1041,7 @@ mod tests {
             .chain(intarsia_core::dsv41::ops::OPS.iter().filter(|op| !crate::dsv41::TABLE.iter().any(|(_, o)| o == *op)))
             .copied()
             .collect();
-        const NOT_ON_CUDA: [Op; 25] = [
+        const NOT_ON_CUDA: &[Op] = &[
             Op::ShortConv,
             Op::DynConv,
             Op::RopeScaled,
@@ -1073,6 +1073,11 @@ mod tests {
             Op::HeadScreen,
             Op::LogitsGather,
             Op::ScreenArgmax,
+            Op::InkRoute,
+            // lossless 12-bit weights (lane ink-pack12): cpu and Metal only
+            Op::MatmulP12,
+            // the device sampler (lane ink-hostgap, slot 77): cpu and Metal only, CUDA keeps the host sampler (`Model::gumbel_ok`)
+            Op::GumbelArgmax,
         ];
         // the reserved placeholder discriminants (`Op::is_reserved`) are exempt
         for op in Op::ALL.into_iter().filter(|o| !o.is_reserved()) {

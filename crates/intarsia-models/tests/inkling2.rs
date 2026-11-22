@@ -463,13 +463,58 @@ fn inkling2_tiny_failed_pass_resets_the_sequence() {
     assert!(first.is_none(), "after the reset: first differing row {first:?} of {}", again.len());
 }
 
+/// `INTARSIA_INK_PACK12=1` (lane ink-pack12) on cpu, whose reference registers the P12 kernels, packs at load and gives the
+/// bf16 logits bit for bit, over 1-row decode steps and 4- and 5-row passes (both sides of `quant::p12::DENSE_ROWS_MAX`).
+/// On a backend without the P12 kernels (`MatmulP12` dropped, as CUDA and HIP register none) the forced `1` keeps the bf16
+/// weights instead of packing. The variable is read at load, so this runs only when the test binary has it set to `1`.
+#[test]
+fn inkling2_tiny_p12_forced_on() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    if !std::env::var(intarsia_core::quant::p12::ENV).is_ok_and(|v| v.trim() == "1") {
+        eprintln!("inkling2_tiny_p12_forced_on: skipped (run with INTARSIA_INK_PACK12=1)");
+        return;
+    }
+    let ids = prompt(&dir);
+    let cpu = intarsia_backend_cpu::CpuBackend::arc();
+    let packed = load_with(&dir, chunk(), cpu.clone()).unwrap();
+    let no_p12 = Arc::new(Wrapped { inner: cpu, drop: vec![Op::MatmulP12], fail: Arc::new(AtomicBool::new(false)) });
+    let plain = load_with(&dir, chunk(), no_p12).unwrap();
+    assert!(
+        packed.weights_bytes > plain.weights_bytes,
+        "the cpu load packs ({} B) and the one without P12 kernels keeps bf16 only ({} B)",
+        packed.weights_bytes,
+        plain.weights_bytes
+    );
+    // 8 one-row steps, then passes of 4 and 5 rows, then one-row steps to the end
+    let mut cuts = vec![0usize];
+    for _ in 0..8 {
+        cuts.push(cuts.last().unwrap() + 1);
+    }
+    for n in [4, 5, 4, 5] {
+        cuts.push(cuts.last().unwrap() + n);
+    }
+    while *cuts.last().unwrap() < ids.len() {
+        cuts.push(cuts.last().unwrap() + 1);
+    }
+    let run = |m: &Model| {
+        let mut st = m.new_state().unwrap();
+        let n = ids.len();
+        cuts.windows(2).filter(|w| w[0] < n).flat_map(|w| all_logits(m, &mut st, &ids[w[0]..w[1].min(n)])).collect::<Vec<_>>()
+    };
+    let (a, b) = (run(&packed), run(&plain));
+    assert_eq!(a.len(), ids.len());
+    let first = (0..a.len()).find(|&i| a[i] != b[i]);
+    assert!(first.is_none(), "P12 vs bf16 logits: first differing row {first:?} of {}", a.len());
+}
+
 /// A backend without one of the Inkling-2 kernels refuses the load, naming the op (CUDA and HIP register none of them).
 #[test]
 fn inkling2_tiny_no_kernel_refusal_names_the_op() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     // SconvRes is in the op set for kernels that split ConvMix; the model graph itself emits ConvMix. InkAttnDecode is optional:
     // without it the graph runs the InkKvPrologue + RelSinkAttn pair
-    for op in intarsia_core::inkling2::ops::OPS.iter().copied().filter(|&o| o != Op::SconvRes && o != Op::InkAttnDecode) {
+    // InkRoute (76) is optional too: without it the graph runs the router matmul + MoeRoute
+    for op in intarsia_core::inkling2::ops::OPS.iter().copied().filter(|&o| o != Op::SconvRes && o != Op::InkAttnDecode && o != Op::InkRoute) {
         let b = Arc::new(Wrapped { inner: intarsia_backend_cpu::CpuBackend::arc(), drop: vec![op], fail: Arc::new(AtomicBool::new(false)) });
         let e = load_with(&dir, chunk(), b).err().unwrap_or_else(|| panic!("load without {op} must fail"));
         let msg = e.to_string();

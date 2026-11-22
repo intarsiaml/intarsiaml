@@ -22,9 +22,11 @@
 //! | `GeluGlu` | gate `[T,I]`, up `[T,I]` | `[T,I]` (= `gelu_tanh(gate) * up`, `gelu_pytorch_tanh`: `0.5 x (1 + tanh(sqrt(2/pi) (x + 0.044715 x^3)))`, f32 inside, one rounding) | |
 //! | `Argmax` | logits `[R,V]` | `[R]` i32 | |
 //! | `Sample` | logits `[R,V]`, u `[R]` f32 in [0,1) | `[R]` i32 | temperature, top_k, top_p |
+//! | `GumbelArgmax` | logits `[R,V]` f32, keys `[R,4]` i32 (u32 bits: seed lo, seed hi, position, bits of 1/T) | `[R]` i32 (= argmax of `softcap(l) / T` + Philox Gumbel noise, exactly `gumbel::argmax_row`) | scale (the softcap cap, 0 = none) | device sampler, slot 77 of the Inkling-2 reserved block (lane ink-hostgap) |
 //! | `MatmulFp8` | x `[M,K]`, w `[N,K]` fp8_e4m3, scales `[2]` f32 = (weight_scale, input_scale) | `[M,N]` (bf16/f16/f32) | see `quant::fp8` |
 //! | `MatmulExl3` | x `[M,K]`, trellis `[K/16,N/16,8*k2]` i16, suh `[K]` f16, svh `[N]` f16, codebook `[1]` i32 (0 3inst, 1 mcg, 2 mul1) | `[M,N]` (bf16/f16/f32) | see `quant::exl3` |
 //! | `MatmulNvfp4` | x `[M,K]`, w `[N,K/2]` u8 (e2m1 pairs), block scales `[N,K/16]` fp8_e4m3, global `[1]` f32 | `[M,N]` (bf16/f16/f32) | see `quant::nvfp4` |
+//! | `MatmulP12` | x `[M,K]`, codes `[N,3K/2]` u8, aux `[N+1+E]` u32 (lossless 12-bit bf16 weight) | `[M,N]` (bf16/f16 = `Matmul`, f32 = `Logits`) | see `quant::p12` |
 //! | `MatmulMxfp4` | x `[M,K]`, w `[N,K/2]` u8 (e2m1 pairs), scales `[N,K/32]` u8 (e8m0), act `[1]` f32 (0 = 16-bit x, 1 = dynamic MXFP4 QDQ of x, 2 = dynamic per-token fp8 e4m3 x) | `[M,N]` (bf16/f16/f32) | see `quant::mxfp4` |
 //! | `MatmulMxfp4Pair` | x `[M,K]`, (w0 `[N0,K/2]` u8, scales0 `[N0,K/32]` u8), (w1 `[N1,K/2]` u8, scales1 `[N1,K/32]` u8), act `[1]` f32 | `[M,N0]`, `[M,N1]` (= two `MatmulMxfp4`s of the same x and act) | fused, see `quant::mxfp4` |
 //! | `MoeTopk` | router logits `[T,E]` | weights `[T,K]` f32, expert ids `[T,K]` i32 | top_k, norm_topk |
@@ -66,7 +68,7 @@
 //! | `InkKvPrologue` | pq `[T,Nq]`, pk, pv `[T,Ckv(+Hk*K)]`, k / v taps `[K,Ckv]`, q scale `[H,Dh]`, r scale `[H,dr]`, rel proj `[dr,E]` | q `[T,H,Dh]`, rel `[T,H,E]`, k, v `[T,Hk,Dh]`, k / v rings `[Rr,Ckv]` (**in place**) | pos0, n_heads, n_kv_heads, head_dim, eps, ink.* |
 //! | `RelSinkAttn` | q `[T,H,Dh]`, k, v `[T,Hk,Dh]`, k / v cache `[Hk,Cr,Dh]`, rel `[T,H,E]`, pq `[T,Nq]` | o `[T,H*Dh]`, k / v cache (**in place**) | pos0, scale, n_heads, n_kv_heads, head_dim, window, ink.kv_ring, ink.d_rel |
 //! | `MoeExpertsMxfp8` | x `[T,H]`, ids `[T,K]`, weights `[T,K]` f32, w13 `[E,2I,H]` e4m3, scales `[E,2I,H/32]` u8, w2 `[E,H,I]` e4m3, scales `[E,H,I/32]` u8 | `[T,H]` | gelu, ink.situ / gate_cap / up_cap / act_quant |
-//! | `InkInProj` | x `[1 or 3,T,D]`, w `[Nq+Nk+Nv,D]` (float, or e4m3 with scales `[3]` f32 as a third input) | pq, pk, pv | |
+//! | `InkInProj` | x `[1 or 3,T,D]`, w `[Nq+Nk+Nv,D]` (float, or e4m3 with scales `[3]` f32, or P12 u8 codes `[N,3D/2]` with u32 aux, as a third input) | pq, pk, pv | |
 //! | `ConvMix` | `SconvRes`'s four, src `[N,T,D]`, queries `[Q,D]` f32, norm, msg `[S,T,D]` f32, down, gain, forget (or `[0]`) | y, ring, sum, mix `[S,T,D]` | pos0, eps |
 //! | `GdnDeltaRule` | qkv `[T,C]` (`C = 2*Hk*dk + Hv*dv`, rows `[q|k|v]`), a `[T,Hv]`, b `[T,Hv]`, A_log `[Hv]`, dt_bias `[Hv]` | o `[T,Hv,dv]`, state `[Hv,dv,dk]` f32 (**in place**) | eps (l2norm) |
 //!
@@ -233,16 +235,17 @@ pub enum Op {
     // reserved ONCE (2026-11-21, coordinator): placeholder discriminants 76..=95 for the Inkling-2 lanes, four each (ink-dfuse
     // 76-79, ink-pack12 80-83, ink-d1row 84-87, ink-fp8 88-91, ink-mtp 92-95). A lane replaces only its own placeholders, in
     // place, keeping the order. They have no kernels anywhere and are exempt from the kernel-coverage tests (`Op::is_reserved`).
-    /// Reserved Inkling-2 discriminant 76 (lane ink-dfuse): no semantics yet; `OpCall::check` refuses it.
-    InkReserved76,
-    /// Reserved Inkling-2 discriminant 77 (lane ink-dfuse): no semantics yet; `OpCall::check` refuses it.
-    InkReserved77,
+    /// Inkling-2 router: the router GEMV (f32 logits) and `MoeRoute` in one op (lane ink-dfuse, discriminant 76).
+    InkRoute,
+    /// Device sampler (lane ink-hostgap, reserved slot 77 in place of its placeholder): Gumbel-max over `softcap(logits) / T`
+    /// with Philox noise keyed on (seed, position, token id), exactly `gumbel::argmax_row`.
+    GumbelArgmax,
     /// Reserved Inkling-2 discriminant 78 (lane ink-dfuse): no semantics yet; `OpCall::check` refuses it.
     InkReserved78,
     /// Reserved Inkling-2 discriminant 79 (lane ink-dfuse): no semantics yet; `OpCall::check` refuses it.
     InkReserved79,
-    /// Reserved Inkling-2 discriminant 80 (lane ink-pack12): no semantics yet; `OpCall::check` refuses it.
-    InkReserved80,
+    /// Lossless 12-bit bf16 weight (`quant::p12`, lane ink-pack12): `Matmul` (bf16 out) / `Logits` (f32 out) of the decoded weight.
+    MatmulP12,
     /// Reserved Inkling-2 discriminant 81 (lane ink-pack12): no semantics yet; `OpCall::check` refuses it.
     InkReserved81,
     /// Reserved Inkling-2 discriminant 82 (lane ink-pack12): no semantics yet; `OpCall::check` refuses it.
@@ -358,11 +361,11 @@ impl Op {
         Op::InkInProj,
         Op::ConvMix,
         Op::InkAttnDecode,
-        Op::InkReserved76,
-        Op::InkReserved77,
+        Op::InkRoute,
+        Op::GumbelArgmax,
         Op::InkReserved78,
         Op::InkReserved79,
-        Op::InkReserved80,
+        Op::MatmulP12,
         Op::InkReserved81,
         Op::InkReserved82,
         Op::InkReserved83,
@@ -459,11 +462,11 @@ impl Op {
             Op::InkInProj => "ink_in_proj",
             Op::ConvMix => "conv_mix",
             Op::InkAttnDecode => "ink_attn_decode",
-            Op::InkReserved76 => "ink_reserved_76",
-            Op::InkReserved77 => "ink_reserved_77",
+            Op::InkRoute => "ink_route",
+            Op::GumbelArgmax => "gumbel_argmax",
             Op::InkReserved78 => "ink_reserved_78",
             Op::InkReserved79 => "ink_reserved_79",
-            Op::InkReserved80 => "ink_reserved_80",
+            Op::MatmulP12 => "matmul_p12",
             Op::InkReserved81 => "ink_reserved_81",
             Op::InkReserved82 => "ink_reserved_82",
             Op::InkReserved83 => "ink_reserved_83",
@@ -486,7 +489,7 @@ impl Op {
         Op::ALL.iter().copied().find(|o| o.as_str() == s)
     }
 
-    /// A reserved placeholder discriminant (`InkReserved76` ..= `InkReserved95`): no kernels, refused by `OpCall::check`, exempt
+    /// A reserved placeholder discriminant (`InkReserved78` ..= `InkReserved95`, less the ones lanes replaced): no kernels, refused by `OpCall::check`, exempt
     /// from every backend's kernel-coverage tests.
     pub fn is_reserved(self) -> bool {
         // by name, so a lane that replaces its placeholder in place does not touch this
@@ -570,10 +573,13 @@ impl Op {
             Op::InkInProj => (2, 3),
             Op::ConvMix => (11, 4),
             Op::InkAttnDecode => (10, 5),
+            Op::GumbelArgmax => (2, 1),
+            Op::MatmulP12 => (3, 1),
             Op::HeadScreen => (3, 2),
             Op::LogitsGather => (4, 1),
             Op::ScreenArgmax => (3, 1),
-            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => (0, 0),
+            Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => (0, 0),
+            Op::InkRoute => (3, 3),
         }
     }
 }
@@ -825,7 +831,8 @@ impl OpCall {
             }
             // one position (token t sits at pos + t), or one per token (`[T]`: batched decode rows, each at its own position)
             let t = self.inputs.first().and_then(|x| x.shape.first().copied()).unwrap_or(1);
-            let per_token = p.numel() == t && t > 1 && matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv);
+            let ink_rows = self.rows.is_some() && crate::inkling2::ops::ROW_TABLE_OPS.contains(&self.op);
+            let per_token = p.numel() == t && (t > 1 || ink_rows) && (ink_rows || matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv));
             if p.dtype != DType::I32 || (p.numel() != 1 && !per_token) {
                 return Err(Error::invalid(format!("{}: device position must be i32 [1] (or [T] for a batch of decode rows), got {} {:?}", self.op, p.dtype, p.shape)));
             }
@@ -835,16 +842,31 @@ impl OpCall {
         }
         if let Some(r) = &self.rows {
             r.ptrs.check_bounds()?;
-            if !matches!(self.op, Op::GdnConv | Op::GdnDeltaRule | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv) {
+            let ink = crate::inkling2::ops::ROW_TABLE_OPS.contains(&self.op);
+            if !ink && !matches!(self.op, Op::GdnConv | Op::GdnDeltaRule | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv) {
                 return Err(Error::invalid(format!("{}: takes no row table", self.op)));
             }
+            if ink {
+                // Inkling-2 row-table form (inkling2::ops, "Row tables"): per-row positions, `index + states` entries
+                let t = self.inputs.first().and_then(|x| x.shape.first().copied()).unwrap_or(0);
+                let n = crate::inkling2::ops::row_states(self.op);
+                if r.ptrs.dtype != DType::U8 || r.ptrs.shape != [r.rows, r.stride, 8] || r.rows != t || r.rows == 0 || r.index + n > r.stride || r.byte_off != 0 {
+                    return Err(Error::invalid(format!(
+                        "{}: row table {:?} {:?} rows {} stride {} index {} (+{n} entries) does not fit a call over {t} rows",
+                        self.op, r.ptrs.dtype, r.ptrs.shape, r.rows, r.stride, r.index
+                    )));
+                }
+                if !self.pos.as_ref().is_some_and(|p| p.numel() == t) {
+                    return Err(Error::invalid(format!("{}: a row-table call needs the per-row positions (`pos`, i32 [{t}])", self.op)));
+                }
+            }
             let t = self.inputs.first().and_then(|x| x.shape.first().copied()).unwrap_or(0);
-            if r.ptrs.dtype != DType::U8
+            if !ink && (r.ptrs.dtype != DType::U8
                 || r.ptrs.shape != [r.rows, r.stride, 8]
                 || r.rows != t
                 || r.rows == 0
                 || r.index >= r.stride
-                || (matches!(self.op, Op::AttnDecode | Op::QkNormRopeKv) && r.index + 1 >= r.stride)
+                || (matches!(self.op, Op::AttnDecode | Op::QkNormRopeKv) && r.index + 1 >= r.stride))
             {
                 return Err(Error::invalid(format!(
                     "{}: row table {:?} {:?} rows {} stride {} index {} does not fit a call over {t} rows",
@@ -1111,6 +1133,21 @@ impl OpCall {
                     return bad("out must be i32 [R]".into());
                 }
             }
+            Op::GumbelArgmax => {
+                rank(&i[0], 2, "logits")?;
+                if i[0].dtype != DType::F32 {
+                    return bad("logits must be f32".into());
+                }
+                if i[1].dtype != DType::I32 || i[1].shape != [i[0].shape[0], 4] {
+                    return bad("keys must be i32 [R,4]".into());
+                }
+                if o[0].dtype != DType::I32 || o[0].shape != [i[0].shape[0]] {
+                    return bad("out must be i32 [R]".into());
+                }
+                if !(self.attrs.scale >= 0.0 && self.attrs.scale.is_finite()) {
+                    return bad(format!("cap {} must be finite and >= 0", self.attrs.scale));
+                }
+            }
             Op::MatmulFp8
             | Op::MatmulNvfp4
             | Op::MoeTopk
@@ -1127,13 +1164,14 @@ impl OpCall {
             | Op::SharedDownCombine
             | Op::MoeBlock
             | Op::MatmulMxfp4
-            | Op::MatmulMxfp4Pair => crate::quant::ops::check(self)?,
+            | Op::MatmulMxfp4Pair
+            | Op::MatmulP12 => crate::quant::ops::check(self)?,
             Op::MatmulExl3 => crate::quant::exl3::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::check(self)?,
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::check(self)?,
-            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode => crate::inkling2::ops::check(self)?,
+            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode | Op::InkRoute => crate::inkling2::ops::check(self)?,
             Op::HeadScreen | Op::LogitsGather | Op::ScreenArgmax => crate::screen::check(self)?,
-            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => unreachable!("refused above"),
+            Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => unreachable!("refused above"),
         }
         Ok(())
     }
@@ -1287,7 +1325,7 @@ impl ShapeInfo {
                 s.kv_len = call.attrs.pos0 + s.m;
                 s.weight = Some(i[1].dtype); // kv dtype
             }
-            Op::Argmax | Op::Sample => {
+            Op::Argmax | Op::Sample | Op::GumbelArgmax => {
                 s.m = i[0].shape[0];
                 s.n = i[0].shape[1];
             }
@@ -1307,13 +1345,14 @@ impl ShapeInfo {
             | Op::SharedDownCombine
             | Op::MoeBlock
             | Op::MatmulMxfp4
-            | Op::MatmulMxfp4Pair => crate::quant::ops::shape(call, &mut s),
+            | Op::MatmulMxfp4Pair
+            | Op::MatmulP12 => crate::quant::ops::shape(call, &mut s),
             Op::MatmulExl3 => crate::quant::exl3::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::shape(call, &mut s),
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::shape(call, &mut s),
-            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode => crate::inkling2::ops::shape(call, &mut s),
+            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode | Op::InkRoute => crate::inkling2::ops::shape(call, &mut s),
             Op::HeadScreen | Op::LogitsGather | Op::ScreenArgmax => crate::screen::shape(call, &mut s),
-            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => {}
+            Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => {}
         }
         let _ = o;
         s
@@ -1573,17 +1612,22 @@ mod tests {
         assert_eq!(Op::ALL[Op::InkAttnDecode as usize], Op::InkAttnDecode);
         assert_eq!(Op::InkAttnDecode as usize, 75, "the fused decode attention, appended after ConvMix");
         // the reserved Inkling-2 placeholders 76..=95, in order, last in `Op::ALL`
-        assert_eq!(Op::InkReserved76 as usize, 76);
+        assert_eq!(Op::InkRoute as usize, 76, "the fused router (lane ink-dfuse, 76..=79), in place of its first placeholder");
+        assert_eq!(Op::MatmulP12 as usize, 80, "lane ink-pack12's first discriminant");
         assert_eq!(Op::ALL.last(), Some(&Op::InkReserved95), "the last of the reserved block");
         for (j, op) in Op::ALL.iter().enumerate() {
             assert_eq!(*op as usize, j, "{op}");
             if op.is_reserved() {
-                assert!((76..=95).contains(&j), "{op}");
+                assert!((78..=95).contains(&j), "{op}");
                 assert_eq!(op.as_str(), format!("ink_reserved_{j}"));
             }
         }
-        assert!(!Op::InkAttnDecode.is_reserved() && Op::InkReserved76.is_reserved());
-        let r = OpCall::new(Op::InkReserved80, vec![], vec![], OpAttrs::default());
+        assert!(!Op::InkAttnDecode.is_reserved() && Op::InkReserved78.is_reserved() && !Op::InkRoute.is_reserved());
+        // the device sampler (lane ink-hostgap) in reserved slot 77, so `ALL` stays 96 (ink-metal's reserved op slot map)
+        assert_eq!(Op::GumbelArgmax as usize, 77, "the device sampler, in place of InkReserved77");
+        assert!(!Op::GumbelArgmax.is_reserved());
+        assert_eq!(Op::ALL.len(), 96);
+        let r = OpCall::new(Op::InkReserved81, vec![], vec![], OpAttrs::default());
         assert!(r.check().unwrap_err().to_string().contains("reserved"));
         assert_eq!(Op::parse("ink_reserved_95"), Some(Op::InkReserved95));
         call.check().unwrap();

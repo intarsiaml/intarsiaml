@@ -1,0 +1,44 @@
+fleetq: #10909 running on endor: .scratch/quiet_defaults.sh
+HEAD 5f3970858
+== round 1 old (NE 3, gate 16 rows)
+ConvMix N=4 Q=1 norm (plain boundary) R=1         8.47      8.45      8.49
+ConvMix N=4 Q=1 norm (plain boundary) R=16        9.05      8.99      9.10
+ConvMix N=4 Q=1 norm (plain boundary) R=2048    275.36    274.99    281.22
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=1     33.73     33.72     33.81
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=16     73.35     73.24     73.90
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=2048   4244.47   4237.56   4253.54
+LoopBlend S=3 R=1                                24.73     24.62     24.75
+LoopBlend S=3 R=16                               62.95     62.88     63.73
+LoopBlend S=3 R=2048                           3922.97   3920.61   3924.11
+== round 1 new (NE 4, gate 4 rows)
+ConvMix N=4 Q=1 norm (plain boundary) R=1         8.43      8.42      8.45
+ConvMix N=4 Q=1 norm (plain boundary) R=16        9.15      9.14      9.17
+ConvMix N=4 Q=1 norm (plain boundary) R=2048    232.51    232.33    232.62
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=1     34.58     34.44     34.78
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=16     61.71     61.58     61.89
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=2048   4186.94   4179.61   4190.35
+LoopBlend S=3 R=1                                24.84     24.63     24.93
+LoopBlend S=3 R=16                               54.27     54.23     54.37
+LoopBlend S=3 R=2048                           3871.36   3865.19   3877.52
+== round 2 old (NE 3, gate 16 rows)
+ConvMix N=4 Q=1 norm (plain boundary) R=1         8.47      8.46      8.48
+ConvMix N=4 Q=1 norm (plain boundary) R=16        9.05      9.01      9.17
+ConvMix N=4 Q=1 norm (plain boundary) R=2048    274.52    274.42    274.56
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=1     33.88     33.84     33.93
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=16     70.31     70.23     70.40
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=2048   4247.56   4243.88   4254.87
+LoopBlend S=3 R=1                                24.90     24.72     25.01
+LoopBlend S=3 R=16                               62.76     62.72     62.78
+LoopBlend S=3 R=2048                           3924.39   3920.86   3926.29
+== round 2 new (NE 4, gate 4 rows)
+ConvMix N=4 Q=1 norm (plain boundary) R=1         8.45      8.44      8.46
+ConvMix N=4 Q=1 norm (plain boundary) R=16        9.20      9.18      9.22
+ConvMix N=4 Q=1 norm (plain boundary) R=2048    232.58    232.49    232.79
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=1     34.49     34.45     34.55
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=16     61.66     61.61     62.41
+ConvMix N=3 Q=1 blend S=3 (looped attn in) R=2048   4163.03   4160.47   4168.41
+LoopBlend S=3 R=1                                24.74     24.68     24.77
+LoopBlend S=3 R=16                               55.31     55.29     55.37
+LoopBlend S=3 R=2048                           3875.25   3870.93   3877.77
+== end
+fleetq: #10909 done (exit 0)

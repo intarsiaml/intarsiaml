@@ -85,15 +85,23 @@ impl Model {
             && self.recorder.lock().unwrap().is_none()
     }
 
-    /// Encode one greedy decode step at position `st.len`. Its input is `feed`, its argmax goes to ring slot `out`.
+    /// Encode one decode step at position `st.len`. Its input is `feed`, its token goes to ring slot `out`: the argmax
+    /// (`head` [`HeadMode::LastArgmax`]) or the device sampler's draw ([`HeadMode::LastGumbel`], lane ink-hostgap: its key
+    /// must be in the table already, [`Model::gumbel_prepare`], since nothing may be written while the step before runs).
     /// `held`: submit only its first [`HOLD`] dispatches and hold the rest ([`Model::feedback_release`] or
     /// [`Model::feedback_discard`]); otherwise submit it all and fence it. Commits the position to `st` (with [`UNREAD`]
     /// as the token for a slot feed).
-    pub(crate) fn feedback_step(&self, st: &mut SequenceState, feed: Feed, out: usize, held: bool) -> Result<Pending> {
+    pub(crate) fn feedback_step(&self, st: &mut SequenceState, feed: Feed, out: usize, held: bool, head: HeadMode) -> Result<Pending> {
         if !RING.contains(&out) || feed == Feed::Slot(out) || matches!(feed, Feed::Slot(s) if !RING.contains(&s)) {
             return Err(Error::invalid(format!("token feedback: bad ring slots {feed:?} -> {out}")));
         }
-        Self::check_forward(st, &[0], HeadMode::LastArgmax, false)?;
+        if !matches!(head, HeadMode::LastArgmax | HeadMode::LastGumbel(_)) {
+            return Err(Error::invalid(format!("token feedback: head {head:?} leaves no token on the device")));
+        }
+        Self::check_forward(st, &[0], head, false)?;
+        if let HeadMode::LastGumbel(h) = head {
+            self.gumbel_cover(h, st.len + 1, false)?; // before anything of the step is encoded
+        }
         let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
         self.telemetry.decode_eager_step(profile);
         let held = held && self.feedback_hold > 0;
@@ -105,7 +113,11 @@ impl Model {
             Feed::Host(id) => self.run_layers(Seqs::One(st), &[id], profile, None, true, None)?,
             Feed::Slot(s) => self.run_layers(Seqs::One(st), &[0], profile, None, false, Some(&ring.rows(s, 1)))?,
         };
-        self.head_to_device_into(&hn, 0, profile, ring.rows(out, 1))?;
+        match head {
+            // the key of the token this step samples, at position st.len + 1 (refill off: an error, never a write, if absent)
+            HeadMode::LastGumbel(h) => self.head_gumbel_into(&hn, 0, h, st.len + 1, false, profile, ring.rows(out, 1))?,
+            _ => self.head_to_device_into(&hn, 0, profile, ring.rows(out, 1))?,
+        }
         let fence = if held { None } else { Some(self.backend.fence(0)?) };
         st.commit_decode(&[match feed {
             Feed::Host(id) => id,
@@ -133,7 +145,11 @@ impl Model {
     pub(crate) fn feedback_read(&self, p: Pending) -> Result<u32> {
         let fence = p.fence.ok_or_else(|| Error::invalid("token feedback: read of a held step"))?;
         let mut b = [0u8; 4];
-        self.backend.read_after(fence, &self.ws.tok, p.slot * 4, &mut b, 0)?;
+        {
+            let _w = crate::hostprof::span(crate::hostprof::Cat::Sync);
+            self.backend.read_after(fence, &self.ws.tok, p.slot * 4, &mut b, 0)?;
+            crate::hostprof::mark_sync_end();
+        }
         let t = i32::from_le_bytes(b) as u32;
         if t as usize >= self.dims.vocab {
             return Err(Error::backend(format!("token feedback: argmax {t} >= vocab {}", self.dims.vocab)));
