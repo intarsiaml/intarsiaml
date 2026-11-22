@@ -47,6 +47,8 @@ mod imp {
         let ctx: usize = arg(&args, "--ctx", "1024").parse().unwrap();
         let rounds: usize = arg(&args, "--rounds", "8").parse().unwrap();
         let steps: usize = arg(&args, "--steps", "16").parse().unwrap();
+        // sequence i starts at ctx + i * spread (mixed positions; 0: all at ctx, as before)
+        let spread: usize = arg(&args, "--ctx-spread", "0").parse().unwrap();
         let batches: Vec<usize> = arg(&args, "--batches", "1,2,4,8").split(',').map(|x| x.parse().unwrap()).collect();
         let dir = std::env::var_os("INTARSIA_METAL_TEST_MODEL")
             .map(std::path::PathBuf::from)
@@ -55,7 +57,8 @@ mod imp {
         let (_, recipe, dims, _) = read_model_spec(&dir, &EngineOptions::default()).unwrap();
         let weights = SchemedSource::open(&dir).unwrap();
         let chunk = recipe.resolve_prefill_chunk(None, "metal").value;
-        let max_seq = ctx + (rounds + 1) * steps * batches.len() + 64;
+        let top0 = *batches.iter().max().unwrap();
+        let max_seq = ctx + spread * top0 + (rounds + 1) * steps * batches.len() + 64;
         let opts = LoadOptions { max_seq, prefill_chunk: chunk, profile_every: 0, ..Default::default() };
         let mut m = Model::load(backend, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
         let top = *batches.iter().max().unwrap();
@@ -64,20 +67,21 @@ mod imp {
         }
         m.configure_plan(&Default::default(), None).unwrap();
         let name = dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        println!("# {name} Metal, context {ctx} (+{} decoded), {rounds} rounds x {steps} steps, chunk {chunk}", rounds * steps);
+        println!("# {name} Metal, context {ctx} (+{spread} per sequence, +{} decoded), {rounds} rounds x {steps} steps, chunk {chunk}", rounds * steps);
 
         let mut solo: Vec<SequenceState> = Vec::new();
         let mut bat: Vec<SequenceState> = Vec::new();
         let mut cur: Vec<u32> = Vec::new();
         for i in 0..top {
             let mut rng = intarsia_core::rng::SplitMix64::new(0xbe7c_0000 + i as u64);
-            let p: Vec<u32> = (0..ctx).map(|_| 1000 + (rng.next_u64() % 29000) as u32).collect();
+            let n = ctx + i * spread;
+            let p: Vec<u32> = (0..n).map(|_| 1000 + (rng.next_u64() % 29000) as u32).collect();
             let (mut a, mut b) = (m.new_state().unwrap(), m.new_state().unwrap());
-            m.forward(&mut a, &p[..ctx - 1], HeadMode::None, None).unwrap();
-            m.forward(&mut b, &p[..ctx - 1], HeadMode::None, None).unwrap();
+            m.forward(&mut a, &p[..n - 1], HeadMode::None, None).unwrap();
+            m.forward(&mut b, &p[..n - 1], HeadMode::None, None).unwrap();
             solo.push(a);
             bat.push(b);
-            cur.push(p[ctx - 1]);
+            cur.push(p[n - 1]);
         }
         println!("| B | B solo steps ms | 1 batched step ms | speedup | solo tok/s | batched tok/s | design est. ms (1k) |");
         println!("|---:|---:|---:|---:|---:|---:|---:|");

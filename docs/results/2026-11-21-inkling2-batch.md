@@ -19,6 +19,18 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   batched == solo, the G2-bitwise part of #10795) go as default-gpu-load jobs with short honest `--expect` (they share the box
   and backfill); only tok/s (#10773, the tok/s of #10795, #10811) stays `--quiet gpu,cpu`. ink-metal fixed the rows_exact pin
   list at a0751f302: merge ink/metal.
+- 2026-11-21 (coordinator, after 173.7 tok/s at 16): (1) do the 9..16-row single-read work now: dense row GEMVs (in_proj, wo,
+  unembed) read the weights once for all rows instead of two 8-row chunks, then the experts read each expert's weights once
+  per step over the rows routed to it; target 16 streams >= 230 tok/s, every row still bitwise its solo step (the tiny tests
+  and #10844's mixed-context check are the gate); new kernels opt-in by row count first; if a 16-row form cannot stay
+  bitwise with the 8-row one, ask before changing the contract. (2) Confirm from code that serve / the engine route a single
+  live sequence through the solo path, not a B = 1 batched step (B = 1 batch_step 17.5 ms vs 15.86 ms solo); if not, make
+  them. (3) Keep #10844 / #10845 / #10811 queued; tiny / cpu tests for new work on spark2 (`--load cpu --mem 30`, copies in
+  ~/intarsiaml-ink-batch); endor only for Metal admission and timing.
+- 2026-11-21 (coordinator): `intarsia serve` on Metal refused Inkling (require_admitted: no admitted moe_experts kernel; the
+  plan-shape case builder dropped `attrs.ink`, so the SiTU kernels were never admitted). Fixed in ink-metal 761a1561b
+  (quant/cases.rs, test `situ_experts_case_keeps_the_ink_attrs`). Merge ink/metal at or after 761a1561b now; #10811's script
+  must build from that tip at job start, not use a prebuilt binary.
 
 ## 1. Design note (contract delta, written before any kernel)
 

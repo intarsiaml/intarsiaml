@@ -382,6 +382,27 @@ fn chunk_sizes(kernel: &str, m: usize) -> Option<Vec<usize>> {
 /// serves). Every row of such a kernel is bitwise the one-row launch on that
 /// row alone, whatever the other rows are (tests/rows_exact.rs), so the split changes no bit. Row tensors are sliced; weights,
 /// scales and the scratch are shared (the launches are stream-ordered).
+/// `INTARSIA_METAL_ROWS_SINGLE=1` (opt-in, lane ink-batch): `matmul_bf16_gemv_rows` and `logits_bf16_gemv_rows` calls of 9..=16 rows
+/// run as ONE launch of the `<base>_mr8t<T>` shaders (an 8-row pass and a tail pass per threadgroup, the weights read from DRAM once)
+/// instead of the two chunk launches of [`row_chunks`]. Every row is the 1-row kernel's either way (tests/rows_exact.rs).
+pub fn rows_single(kernel: &str, m: usize) -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let on = ROWS_SINGLE_FORCE.with(|t| t.get()).unwrap_or_else(|| *ON.get_or_init(|| std::env::var("INTARSIA_METAL_ROWS_SINGLE").is_ok_and(|v| v.trim() == "1")));
+    on && (CHUNK_TILE + 1..=CHUNK_ROWS_MAX).contains(&m) && matches!(kernel, multirow::MATMUL_BF16_GEMV_ROWS | multirow::LOGITS_BF16_GEMV_ROWS)
+}
+
+thread_local! {
+    static ROWS_SINGLE_FORCE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Test hook: run `f` with this thread's `INTARSIA_METAL_ROWS_SINGLE` forced on or off, whatever the env says.
+pub fn with_rows_single<R>(on: bool, f: impl FnOnce() -> R) -> R {
+    ROWS_SINGLE_FORCE.with(|t| t.set(Some(on)));
+    let r = f();
+    ROWS_SINGLE_FORCE.with(|t| t.set(None));
+    r
+}
+
 fn row_chunks(kernel: &str, call: &OpCall) -> Option<Vec<OpCall>> {
     let is_rows = matches!(
         kernel,
@@ -395,6 +416,9 @@ fn row_chunks(kernel: &str, call: &OpCall) -> Option<Vec<OpCall>> {
     );
     let m = call.inputs.first()?.shape.first().copied()?;
     if !is_rows || m < 2 || m > CHUNK_ROWS_MAX || call.rows.is_some() {
+        return None;
+    }
+    if rows_single(kernel, m) {
         return None;
     }
     // the per-pair MoE kernels take all rows in one launch (lane mdec): pairs that share an expert read it at about the same time
