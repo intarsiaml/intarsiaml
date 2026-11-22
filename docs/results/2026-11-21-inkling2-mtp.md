@@ -823,6 +823,8 @@ on 840adbca6 over the old main.
   Recheck #11575 (endor, default load, code 00c49620c vs main 2c103f913): A1 md5 equal (65cde8f3... / 61fd59fe...), A2 Metal
   plan show byte-identical for all three models, B3 ~1.4k greedy HTTP 200 with verify passes 0 -> 13, B2 t1.0 HTTP 200 with
   spec steps unchanged. All pass.
+- Main moved to 3f79f70ed (#495 svfflip: `sampled_verify_fast` recipe key, CUDA 35B only; load.rs in the batched loader,
+  model.rs doc comments), merged as b6f331152 without conflict. Recheck A1 / A2 / B2 / B3 against it: see the job below.
 - The speed job's first try (#11556) aborted on its own guard: `serve` runs a supervisor whose child holds the port, and the
   guard wanted the supervisor's pid; fixed to accept a descendant, requeued as #11564.
 
