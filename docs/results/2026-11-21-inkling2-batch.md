@@ -42,6 +42,11 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 - 2026-11-21 (coordinator): when #10845 shows solo tok/s base vs branch within noise (<= 1 % slower, or faster), ink/batch at
   that tip merges into ink/metal (ink-metal does the merge); report #10845 with the tip hash as soon as it lands. A solo
   regression above 1 %: find it before anything else.
+- 2026-11-21 (coordinator): hypothesis for the ~17 ms not in GPU time: host softcap 0.67 ms per 200058-wide row (ink-hostgap)
+  plus a host full-vocab pass ~0.2 ms+, per row, if the batched step downloads B logits rows and softcaps / argmaxes them on the
+  host: 16 x ~1 ms. (1) Check from code what happens per row on the host in a greedy batched step. (2) If so, greedy rows on
+  the device (the solo path's softcap + argmax per row, one small readback of B ids). (3) Sampled rows keep host logits; the
+  per-row softcap on the host pool waits for hostgap's a2f2b87b9. Report before building; record this brief.
 
 ## 1. Design note (contract delta, written before any kernel)
 
