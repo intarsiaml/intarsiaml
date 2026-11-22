@@ -297,7 +297,7 @@ Claim a slot here before adding an op; replace the placeholder in place (same po
 | 92-95 | reserved, claimed for the DSpark drafter device ops ((c) top-k ids / values + p1, tap mixes) | ink/mtp | claimed by the mtp brief (mtp doc, 2026-11-21); no op on ink/mtp 85265f9d5 / b12b1afeb yet (its ops.rs ends at InkAttnDecode, ALL 76) |
 
 Lane note on 77: it is the lowest free slot but sits in dfuse's block; dfuse's current work (dfuse-route 120cfe4b9) adds no op,
-so 78-79 stay for it. If the coordinator prefers to keep lane blocks whole, 84 (the gone d1row block) is the alternative.
+so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need not stay whole; the map is accepted.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
