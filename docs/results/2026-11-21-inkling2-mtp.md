@@ -81,6 +81,12 @@ Status: in progress. Branch `ink/mtp` (not pushed, not merged).
   confirm it routes to the rows kernels with no slow fallback and that the 4-row crossover is not a cliff at 5; report
   per-pass ms at 4 and 5 rows. If nothing clears, keep k3 tau 0.8 and report. (4) The flip still needs the ingest gates first
   (prefill within 2% at every length, sampled prefill equal to off).
+- 2026-11-22 (coordinator, SendMessage): cut sweep #11188 down to one candidate, cumulative 0.5 kmax 3 vs fixed k3 tau 0.8,
+  ABAB (at least 2 rounds each); the refit gain (+2-4%) is inside model error, and kmax 4 and c 0.35 lose on prose. Keep it only
+  if greedy tok/s beats k3 tau 0.8 by more than the spread at all 4 lengths, prose is not worse, and ids equal spec off;
+  otherwise the cut stays opt-in and the flip keeps k3 tau 0.8. Commit the cut in .worktrees/ink-mtp-cut only after #11214
+  passes; if #11188 reaches the front first, release and requeue it behind the others (never build uncommitted or failing
+  code). Send the refit correction with the #11214 result.
 
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
