@@ -51,3 +51,14 @@ snapshot buffer is reserved with the slot and counted in the memory plan (no all
 Exactness: the restore puts back the exact ring bytes of turn 1's prefill, and Metal passes of >= 2 rows agree bitwise whatever
 row they start at (the rule `reuse_len` already relies on), so turn 2 is expected to equal a full re-prefill bit for bit; the
 gate checks it.
+
+## Coordinator ruling (2026-11-22 ~17:00): snapshot approved, no margin change
+
+Keep the bitwise gate (turn 2 == a full re-prefill). Added gates:
+1. A 3-turn chat with replies over 1k tokens (reasoning on): turns 2 and 3 each reuse the previous prompt's end, and their text
+   equals a full re-prefill's.
+2. B16 serve with 16 concurrent chats: each slot restores only its own snapshot (slots crossed or reordered give the same
+   per-slot text), and the memory plan counts the +2.72 GiB.
+3. A restore whose cut is more than 16 rows below the snapshot falls back to a full prefill, with correct output.
+4. `INTARSIA_INK_RING_SNAPSHOT=0` behaves the same as main.
+Report the chat turn-2 TTFT at about 4.6k (target <= 0.2 s) and at 16k. Nothing to main during the #491 freeze.
