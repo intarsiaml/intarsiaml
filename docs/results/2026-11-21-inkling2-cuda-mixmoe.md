@@ -512,3 +512,24 @@ Runs #11330 (chunk 256: the serve binary predates the recipe line and embeds the
 `20261122-*-adhoc-intarsia-cuda-c2048-warm`). Warm 4k prefill at 2048 is 1.70 s / 2434 tok/s: the ~2500 tok/s estimate from GPU
 busy time holds (marginal 2574). The CLI's extra ~0.25-0.6 s is the per-process first-use stall; it does not recur per request.
 Decode is unchanged by the chunk (33-35 tok/s). The recipe default takes effect from the next build (checked then).
+
+## W4A4 expert activations (`ink.act_quant = 1`): status at park (brief 26 item 1; spark2 #11364, build 09ac2f7e1)
+
+Commits 12ed05626 (contract text in `inkling2/ops.rs`, `inkling2/actq.rs` quantisers, CPU refs `quant_ref.rs` / `ink_ref.rs`,
+`ShapeInfo::act_quant` + `KernelImpl::act_quant()`, sweep cases labelled ` w4a4`, `kernels/cuda/ink_actq.cu`, row scales in the
+decode and bf16-MMA epilogues, knob `INTARSIA_INK_ACT_QUANT` / recipe `[tuning.<backend>] act_quant`, default w4a16),
+143eaa02a (tests), 09ac2f7e1 (`ink_moe_fp4_sm120a.cu`: NVFP4 prefill on the FP4 tensor core, `INTARSIA_INK_MOE_FP4=0` falls back
+to the bf16 MMA on the dequantised xq). Default numerics unchanged (act_quant 0 everywhere; no recipe sets it).
+
+- Admission (`kernels test --backend cuda`): all expert kernels ADMITTED. Every w4a4 case at T <= 40 is bitwise the f64
+  reference (max_abs 0: the GPU quantiser reproduces `actq.rs` bit for bit); T=64 (table path) rel_l2 1.2e-5; T=2048 NVFP4
+  (FP4 tensor core) rel_l2 2.7e-4, MXFP8 T=2048 1.4e-4.
+- `ink_rows` 7/7 with the aq=1 variants: T-row calls bitwise T one-row calls and the `_rows` twins (decode, verify rows, table
+  path), chunk-invariant prefill; prefill vs SIMT rel_l2 0 (NVFP4: the W4A4 products are short enough that the f32 sums agree
+  on this data) / 8.8e-5 (MXFP8).
+- Spread vs the reference (`ink_situ_spread`, 150 cases, real shape, NVFP4): T=1 max 8.9e-5 (1 element, 1 ulp); T=4 p99
+  1.2e-3, max 7.6e-3 at seed 7, **1 of 150 over SITU_TOL (2e-3)**: one 1-ulp difference of a bf16 `a` element moves the row
+  amax / an e2m1 code, and that row's down output then differs in ~20 % of elements (15 ulp at most). A W4A4 tolerance needs its
+  own sweep and justification (not done; parked).
+- Not done (parked by brief 26): G3 short / long, G2 (information), spec-verify rows and greedy md5 spec on / off under
+  act_quant=1, decode tok/s A4 vs A16, FP4 prefill timing.

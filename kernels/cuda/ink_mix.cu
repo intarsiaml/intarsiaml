@@ -20,6 +20,8 @@
 #include "ik_launch.h"
 #include "ik_cuda_abi_inkmm.h"
 #include "ink_common.cuh"
+#include <stdint.h>
+#include <stdlib.h>
 
 namespace {
 
@@ -91,7 +93,45 @@ struct RowArgs {
     int64_t pos0;
     const int* pos;
     float eps;
+    int pf;  // L2 prefetch prologue (INTARSIA_INK_ROW_PF, default on): every byte the row reads, requested before the first load
 };
+
+// One 128-byte L2 prefetch per line of [p, p + bytes), the lines dealt over the block's threads from line `*k` on (a running
+// count, so consecutive regions continue the deal). No register result, no numerics: the loads below then hit L2 instead of
+// paying one DRAM round trip per dependent phase (pos -> conv taps -> sources -> queries -> norm).
+IK_DEVI void pf_l2(const void* p, int64_t bytes, int* k) {
+    if (!p || bytes <= 0) return;
+    const char* c = (const char*)((uintptr_t)p & ~(uintptr_t)127);
+    const int64_t n = ((const char*)p + bytes - c + 127) / 128;
+    const int tid = (int)threadIdx.x, nt = (int)blockDim.x;
+    for (int64_t i = ((tid - *k) % nt + nt) % nt; i < n; i += nt) asm volatile("prefetch.global.L2 [%0];" ::"l"(c + i * 128));
+    *k = (int)((*k + n) % nt);
+}
+
+IK_DEVI void row_prefetch(const RowArgs& a, int t) {
+    const int64_t D = a.D, T = a.T, rb = D * 2;
+    int k = 0;
+    if (a.x) {
+        pf_l2(a.x + (t >= a.K - 1 ? t - (a.K - 1) : 0) * D, (int64_t)(t < a.K - 1 ? t + 1 : a.K) * rb, &k);
+        pf_l2(a.ring, (int64_t)a.Rr * rb, &k);
+        pf_l2(a.taps, (int64_t)a.K * rb, &k);
+        if (a.res) pf_l2(a.res + t * D, rb, &k);
+        if (a.add) pf_l2(a.add + t * D, rb, &k);
+    } else if (a.last) {
+        pf_l2(a.last + t * D, rb, &k);
+        if (a.last_add) pf_l2(a.last_add + t * D, rb, &k);
+    }
+    if (a.Q > 0 && !a.dest) {
+        for (int n = 0; n < a.N; ++n) pf_l2(a.src + (n * T + t) * D, rb, &k);
+        pf_l2(a.q, (int64_t)a.Q * D * 4, &k);
+    }
+    if (a.Q > 0 && !a.msg && a.norm) pf_l2(a.norm, (int64_t)a.Q * rb, &k);
+    if (a.msg) {
+        for (int s2 = 0; s2 < a.S; ++s2) pf_l2(a.msg + (s2 * T + t) * D, D * 4, &k);
+        if (a.dest)
+            for (int s2 = 0; s2 < (a.dest_bcast ? 1 : a.S); ++s2) pf_l2(a.dest + (s2 * T + t) * D, D * 4, &k);
+    }
+}
 
 template <int NE>
 __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
@@ -99,6 +139,7 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
     __shared__ float fin[kNvMax];
     const int t = a.t0 + blockIdx.x;
     const int tl = blockIdx.x;  // row in the blend chunk
+    if (a.pf) row_prefetch(a, t);
     const int D = a.D;
     const int64_t T = a.T;
     const int nt = blockDim.x;
@@ -423,8 +464,18 @@ int row_threads(int D, int* ne) {
     return (th + 31) / 32 * 32;
 }
 
-int launch_rows(const RowArgs& a, int rows, cudaStream_t st) {
+int row_pf_on() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_INK_ROW_PF");
+        return e && e[0] == '0' ? 0 : 1;
+    }();
+    return v;
+}
+
+int launch_rows(const RowArgs& a_in, int rows, cudaStream_t st) {
     if (rows <= 0) return IK_OK;
+    RowArgs a = a_in;
+    a.pf = row_pf_on();
     int ne = 0;
     const int th = row_threads(a.D, &ne);
     switch (ne) {

@@ -62,7 +62,18 @@ struct MoeArgs {
     int aq;
     const float* xo;
     const float* ho;
+    // L2 prefetch of each warp's expert rows before its loads (INTARSIA_INK_MOE_PF, default on; bitwise: no value changes)
+    int pf;
 };
+
+// The warp's lanes request every 128-byte line of [p, p + bytes) into L2 at once: DRAM then streams the warp's whole
+// contiguous row block (gu: 4 consecutive gate rows, 4 up rows; dn: 8 consecutive rows; and their scales) instead of the
+// 64 / 128-byte pieces of the chunk loop, which then hit L2.
+IK_DEVI void warp_pf_l2(const uint8_t* p, int64_t bytes, int lane) {
+    const uint8_t* c = (const uint8_t*)((uintptr_t)p & ~(uintptr_t)127);
+    const int64_t n = (p + bytes - c + 127) / 128;
+    for (int64_t i = lane; i < n; i += IK_WARP) asm volatile("prefetch.global.L2 [%0];" ::"l"(c + i * 128));
+}
 
 IK_DEVI float sigm(float z) { return 1.f / (1.f + expf(-z)); }
 
@@ -252,6 +263,13 @@ __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
         const uint8_t* wu = a.guw + ((int64_t)e * 2 * I + I + rr) * wb;
         const uint8_t* sgp = a.gus + ((int64_t)e * 2 * I + rr) * sb;
         const uint8_t* sup = a.gus + ((int64_t)e * 2 * I + I + rr) * sb;
+        if (a.pf) {
+            const int rb = blockIdx.x * kGuRows, nr = min(kGuRows, I - rb);
+            warp_pf_l2(a.guw + ((int64_t)e * 2 * I + rb) * wb, nr * wb, lane);
+            warp_pf_l2(a.guw + ((int64_t)e * 2 * I + I + rb) * wb, nr * wb, lane);
+            warp_pf_l2(a.gus + ((int64_t)e * 2 * I + rb) * sb, nr * sb, lane);
+            warp_pf_l2(a.gus + ((int64_t)e * 2 * I + I + rb) * sb, nr * sb, lane);
+        }
         const int o0 = gr.doff[d], o1 = gr.doff[d + 1];
         for (int pb = o0; pb < o1; pb += kNB) {
             const int nb = min(kNB, o1 - pb);
@@ -324,6 +342,11 @@ __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
         const int e = gr.dexp[d];
         const uint8_t* wd = a.dnw + ((int64_t)e * H + rr) * wb;
         const uint8_t* sd = a.dns + ((int64_t)e * H + rr) * sb;
+        if (a.pf) {
+            const int nr = min(kDnRows, H - r0);
+            warp_pf_l2(a.dnw + ((int64_t)e * H + r0) * wb, nr * wb, lane);
+            warp_pf_l2(a.dns + ((int64_t)e * H + r0) * sb, nr * sb, lane);
+        }
         const int o0 = gr.doff[d], o1 = gr.doff[d + 1];
         for (int pb = o0; pb < o1; pb += kNB) {
             const int nb = min(kNB, o1 - pb);
@@ -425,9 +448,18 @@ int fp4_on() {
 // W4A4 scratch in front of the layout below: xq bf16 [T,H] | xo f32 [T] | ho f32 [P] (inkmoe.rs `aq_scratch`)
 int64_t aq_bytes(int64_t T, int64_t P, int64_t H) { return ((T * H * 2 + 255) & ~(int64_t)255) + ((T * 4 + 255) & ~(int64_t)255) + ((P * 4 + 255) & ~(int64_t)255); }
 
+int moe_pf_on() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_INK_MOE_PF");
+        return e && e[0] == '0' ? 0 : 1;
+    }();
+    return v;
+}
+
 template <int FMT, int ACT>
 int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool rows_kernel) {
     const int64_t P = (int64_t)a.T * a.K;
+    a.pf = moe_pf_on();
     ik_scratch sc_rest{};
     const ik_scratch* sc = sc_in;
     float* ho = nullptr;
