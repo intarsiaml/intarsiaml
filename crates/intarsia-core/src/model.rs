@@ -3000,8 +3000,11 @@ impl Model {
                 }
             }
         } else {
-            let logits = self.view(&self.ws.logits, DType::F32, &[q, v]);
-            self.proj(&hn.rows(0, q), self.head()?, &logits, profile)?;
+            // the head as a decode step runs it ([`Model::head_proj`]): Inkling-2's P12 unembed where loaded, here at `exact_rows`
+            // its `_rows` twin (the same shaders as the 1-row decode head), else the head as loaded. A verify row's logits are then
+            // bitwise its decode step's; the bf16 rows kernel against the 1-row P12 head differed by an ulp in some logits
+            // (tests/inkling2_verify_softcap.rs on Metal, lane ink-spec-land #11532 / #11553).
+            self.head_proj(&hn.rows(0, q), q, profile)?;
         }
         let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("verify head without its buffer"))?;
         let logits = self.view(&self.ws.logits, DType::F32, &[q, v]);
