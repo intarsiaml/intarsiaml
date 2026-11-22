@@ -275,4 +275,26 @@ is the expert pass at 2-4 rows (a union-fused experts kernel that reads each exp
   16456-token localeval cell in #10991 covers that length.
 - Identity at a3b72495b: tiny Metal tests 3 / 3 pass, and greedy k2, k3, k3 bf16 head and prose k3 all match `--spec off`.
 
+### localeval speed-plain, spec off vs DSpark k3 gate 0.8 (#10991, `--quiet gpu,cpu`, a3b72495b, serve --max-batch 1)
+
+Decode and prefill tok/s, median (range):
+
+| prompt tok | decode off | decode DSpark | x | prefill off | prefill DSpark | TTFT off / DSpark s |
+|---:|---:|---:|---:|---:|---:|---:|
+| 142 | 63.6 (63.6-63.9) | 80.2 (77.3-90.2) | 1.26 | - | - | 0.15 / 0.16 |
+| 1021 | 61.6 (61.1-61.7) | 77.5 (70.6-81.2) | 1.26 | 1265 | 1270 | 0.81 / 0.81 |
+| 4108 | 60.9 (60.4-60.9) | 87.5 (78.9-111.9) | 1.44 | 1481 | 1376 | 2.78 / 2.98 |
+| 16455 | 57.1 (56.2-57.1) | 72.1 (69.9-74.3) | 1.26 | 1466 | 1375 | 11.22 / 11.97 |
+
+Server counters, DSpark arm: 2255 verify passes, 4517 proposed, 3486 accepted (77%, 2.55 tokens per pass). Off arm: 0.
+
+- Decode: DSpark is faster at every length, and its slowest rep beats off's fastest at every length.
+- Prefill: DSpark is 7% / 6% slower at 4k / 16k (TTFT +0.2 s / +0.75 s). The draft's context ingest (projections of every
+  prompt row into its 3 layers' caches) runs after each prefill chunk.
+- Suite status: neither run is a suite result. Off had its 1024 cell rejected for prefill spread. DSpark had its 128 / 1024 /
+  4096 cells rejected for decode spread (acceptance varies by content, so per-request decode varies), and its arm was relabelled
+  `spec:unknown` because the run was not labelled as a spec lane.
+- Flip: not applied. The brief's "on >= off at every length" holds for decode but not for prefill at 4k / 16k, so it goes to the
+  coordinator (f130b8855 stays on `ink/mtp-flip`).
+
 RESULTS_PLACEHOLDER
