@@ -24,8 +24,8 @@ pub const TABLE: &[(&str, Op)] = &[
 /// bf16-rounded outputs: a one-ulp flip is allowed (the backend's shared budget).
 const BF16_TOL: Tol = Tol::new(1.5e-2, 6e-3);
 
-/// `MAXS` of the kernels (most splits per row: the scratch stride).
-pub const MAX_SPLIT: usize = 32;
+/// Scratch stride: the most partials per row (`MAXT` of the tile kernel, >= `MAXS` of the split-KV kernel).
+pub const MAX_SPLIT: usize = 40;
 
 /// Shapes the prologue takes (d_rel <= 32 is checked at launch).
 fn prologue_ok(s: &ShapeInfo) -> bool {
@@ -42,12 +42,24 @@ fn attn_ok(s: &ShapeInfo) -> bool {
 }
 
 fn decode_ok(s: &ShapeInfo) -> bool {
-    attn_ok(s) && s.m <= intarsia_core::inkling2::ops::ATTN_DECODE_MAX_ROWS
+    attn_ok(s) && s.head_dim >= 16 && s.m <= intarsia_core::inkling2::ops::ATTN_DECODE_MAX_ROWS
 }
 
-/// Split-KV partials: f32 `acc [T,H,MAXS,D]` + `(m, l) [T,H,MAXS]`.
+/// Decode / verify rows (T <= 16): the tile partials, f32 `acc [T,H,MAXT,D]` + `(m, l) [T,H,MAXT]`. Prefill chunks run the
+/// flash kernel (no scratch), except head_dim 8 or `INTARSIA_INK_PREFILL=splitkv`: the split-KV partials (`MAXS` = 32 per row).
 pub fn attn_scratch(s: &ShapeInfo) -> usize {
-    s.m * s.n_heads * MAX_SPLIT * (s.head_dim + 2) * 4
+    if s.m <= intarsia_core::inkling2::ops::ATTN_DECODE_MAX_ROWS {
+        s.m * s.n_heads * MAX_SPLIT * (s.head_dim + 2) * 4
+    } else if matches!(s.head_dim, 16 | 32 | 64 | 128) && !prefill_splitkv() {
+        0
+    } else {
+        s.m * s.n_heads * 32 * (s.head_dim + 2) * 4
+    }
+}
+
+/// `INTARSIA_INK_PREFILL=splitkv`: prefill chunks on the split-KV kernel (diagnostic; the kernel library reads the same variable).
+fn prefill_splitkv() -> bool {
+    std::env::var("INTARSIA_INK_PREFILL").is_ok_and(|v| v == "splitkv")
 }
 
 /// `attn_scratch` plus the staged K / V cache rows `[2][T][Hk][D]` bf16 of the fused kernel.
