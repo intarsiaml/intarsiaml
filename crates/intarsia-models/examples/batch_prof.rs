@@ -22,6 +22,7 @@ fn main() {
 
 #[cfg(target_os = "macos")]
 #[path = "common/prompts.rs"]
+#[allow(dead_code)]
 mod prompts;
 
 #[cfg(target_os = "macos")]
@@ -107,6 +108,6 @@ mod imp {
             }
         }
         walls.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        println!("ctx {ctx} B {b}: median step {:.3} ms (min {:.3}, max {:.3}, n {})", walls[walls.len() / 2], walls[0], walls[walls.len() - 1], walls.len());
+        println!("ctx {ctx} B {b} ({}): median step {:.3} ms (min {:.3}, max {:.3}, n {})", prompts.describe(), walls[walls.len() / 2], walls[0], walls[walls.len() - 1], walls.len());
     }
 }
