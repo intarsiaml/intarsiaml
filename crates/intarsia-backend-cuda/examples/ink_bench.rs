@@ -200,6 +200,10 @@ fn bench_moe(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
                     if !mx && std::env::var("INTARSIA_INK_MOE_REPACK").is_ok_and(|v| v == "1") {
                         a.ink.moe_layout = 1;
                     }
+                    // INKBENCH_AQ=1: W4A4 activations (NVFP4: the FP4 block-scaled tensor-core path above the tensor-core threshold)
+                    if !mx && std::env::var("INKBENCH_AQ").is_ok_and(|v| v == "1") {
+                        a.ink.act_quant = 1;
+                    }
                     let op = if mx { Op::MoeExpertsMxfp8 } else { Op::MoeExperts };
                     with_scratch(be, &k, OpCall::new(op, ins, vec![t(&out, DType::Bf16, &[tr, H])], a))
                 })
