@@ -29,6 +29,7 @@ const METAL4_SOURCES: &[&str] =
         "mxfp4_naxd.metal",
         "inkling2_attn_nax.metal",
         "inkling2_moe_nax.metal",
+        "inkling2_mix_nax.metal",
     ];
 
 /// Rust sources that decide which kernel a call takes and with which grid / bindings (GEMV variant choice by alignment,
@@ -43,6 +44,7 @@ const LAUNCHER_SOURCES: &[&str] = &[
     "src/fill.rs",
     "src/attn.rs",
     "src/bridge.rs",
+    "src/inkmix.rs",
     "src/fused.rs",
     "src/flash.rs",
     "src/flash_nax.rs",

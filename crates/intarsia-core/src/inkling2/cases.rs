@@ -4,6 +4,8 @@
 //! heads over 2 kv heads, head_dim 16, d_rel 8 so that a head_dim / d_rel stride mix-up shows) plus the real model's widths
 //! once (outside `--quick`).
 
+mod real;
+
 use super::ops::nq;
 use crate::admission::{Case, SweepConfig};
 use crate::dtype::DType;
@@ -508,6 +510,9 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
             }
         }
         _ => {}
+    }
+    if !quick {
+        cases.extend(real::real_cases(op, rng));
     }
     cases
 }

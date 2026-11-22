@@ -291,6 +291,7 @@ pub fn metal4_shaders() -> Vec<&'static str> {
     v.extend(crate::mxfp4::NAXD_FORMS.iter().flat_map(|f| [f.0, f.1]));
     v.extend(crate::inkattn::metal4_shader_names());
     v.extend(crate::inkmoe::metal4_shaders());
+    v.extend(crate::inkmix::NAX_SHADERS);
     v
 }
 
@@ -312,6 +313,7 @@ pub const NAX_KERNELS: &[&str] = &[
     crate::nvfp4::MATMUL_NVFP4_NAX,
     crate::mxfp4::MATMUL_MXFP4_NAX,
     crate::inkattn::REL_SINK_ATTN_BF16_NAX,
+    crate::inkmix::INK_IN_PROJ_BF16_NAX,
 ];
 
 pub fn requires_metal4(kernel: &str) -> bool {
@@ -327,6 +329,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::dflash::shader_names());
     v.extend(crate::bridge::shader_names());
     v.extend(crate::inkattn::shader_names());
+    v.extend(crate::inkmix::shader_names());
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
     v.extend(crate::nvfp4::SHADERS);
@@ -432,6 +435,14 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkmoe::KERNELS[2].0, Op::MoeExperts),
     (crate::inkmoe::KERNELS[3].0, Op::MoeExpertsMxfp8),
     (crate::inkmoe::KERNELS[4].0, Op::MoeExpertsMxfp8),
+    // Inkling-2 depth mix / conv / in-projection (inkmix.rs)
+    (crate::inkmix::INK_IN_PROJ_BF16_GEMV, Op::InkInProj),
+    (crate::inkmix::INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj),
+    (crate::inkmix::INK_IN_PROJ_BF16_NAX, Op::InkInProj),
+    (crate::inkmix::CONV_MIX_BF16, Op::ConvMix),
+    (crate::inkmix::ATTN_RES_MIX_BF16, Op::AttnResMix),
+    (crate::inkmix::SCONV_RES_BF16, Op::SconvRes),
+    (crate::inkmix::LOOP_BLEND_BF16, Op::LoopBlend),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -846,6 +857,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .row_table()
                     .scratch(crate::rowtab::attn_scratch),
                 n if crate::inkmoe::KERNELS.iter().any(|e| e.0 == n) => crate::inkmoe::register(n, k),
+                n if crate::inkmix::KERNELS.iter().any(|e| e.0 == n) => crate::inkmix::register(k),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -1046,6 +1058,8 @@ mod tests {
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();
+        // the Inkling-2 kernels serve new ops only (inkmix.rs): no existing op gains a candidate
+        got.retain(|g| !crate::inkmix::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
         got.sort();
         if MAIN_KERNEL_LIST.is_empty() {
             panic!("LIST {}", got.join(" "));

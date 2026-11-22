@@ -40,6 +40,7 @@ pub mod inkattn;
 pub mod gemm_nax;
 mod host;
 pub mod inkmoe;
+pub mod inkmix;
 pub mod kernels;
 mod moe;
 pub mod multirow;
@@ -1375,6 +1376,9 @@ impl MetalBackend {
         }
         if matches!(kernel, inkattn::INK_KV_PROLOGUE_BF16 | inkattn::REL_SINK_ATTN_BF16 | inkattn::INK_ATTN_DECODE_BF16 | inkattn::REL_SINK_ATTN_BF16_NAX) {
             return self.launch_inkattn(kernel, call);
+        }
+        if inkmix::KERNELS.iter().any(|k| k.0 == kernel) {
+            return self.launch_inkmix(kernel, call);
         }
         if bridge::KERNELS.iter().any(|k| k.0 == kernel) {
             return self.launch_bridge(kernel, call);
