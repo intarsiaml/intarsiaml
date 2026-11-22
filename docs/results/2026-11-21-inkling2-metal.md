@@ -948,3 +948,17 @@ intarsia-backend-metal --no-fail-fast` exit 0, 54 test binaries ok, 0 failed, th
 the Inkling backend on metal: inkling2 11/11, inkling2_batch 7/7, batch_metal 1/1, prefix_store_metal 1/1, mtp_store_metal
 2/2, gdn_verify_metal 2/2 (batch_metal, prefix_store_metal and mtp_store_metal finish in 0.00 s: they need a real-model env
 var that was unset, so they ran their skip path). ink/metal's Metal suite is green.
+
+## Preparing ink/metal for main (coordinator brief 2026-11-22)
+
+- Pushed `ink/metal` to origin (backup) at f2c232423; then merged origin/main 608bc4408 (#486, #487: 7 commits,
+  ROCm 10.2 / gdn_chunk logf) at d111c798a with no conflicts.
+- Footprint outside docs / backend-metal / kernels/metal / scripts: 105 files. core 34 (new: inkling2 ops / cases / config,
+  model/inkling2.rs, gumbel.rs, screen.rs, sampler.rs, par.rs, quant/p12.rs; edited: engine.rs, model.rs, model/batch.rs,
+  scheduler.rs, ops.rs, plan.rs, admission.rs, hostprof.rs, recipe.rs, registry.rs, state.rs, prefix_store.rs, dsv41/cases.rs),
+  models 21 (inkling_chat.rs, load / recipe / tokenizer hooks, tests, bench examples), cpu 13 (Inkling, P12, screen references;
+  rowtab; mem.rs), server 8 (Inkling chat path, all gated on `reasoning_parser == "inkling"`), cli 6 (accuracy turns / baseline,
+  recipe, `default_profile_every`), golden 9 (inkling2-tiny fixture, oracle), tools 9 (Inkling scripts), recipes 1
+  (inkling2.toml, new), bench 1, Cargo.lock 1, cuda 1 and hip 1 (the op-coverage test list / `UNIMPLEMENTED` list only).
+- No-op checks: Metal on endor fleetq #11440 (plan show and ids for Qwen3-8B and Llama-3.1-8B, kernels test, goldens,
+  workspace tests base vs dev); CUDA on spark1 #11441 (plan show json 35B + 8B, kernels test --quick, base vs dev). Pending.
