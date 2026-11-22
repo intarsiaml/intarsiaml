@@ -1738,11 +1738,18 @@ normal-step span is the real cost. Where the -70 dispatches and -0.77 ms come fr
 | 3 | before | 67.3 | 65.3 | 2031 |
 | 4 | after | 65.9 | 65.0 | 1886 |
 
-- **Runs 3 and 4 are contaminated by a slow box state, not by the code.** Identical config A fell from 75.6 to 65.9
-  tok/s between runs 1 and 4. 5k prefill fell 30 % in both arms, and prefill is outside the switches' T <= 16 decode scope.
-  The fleetq log shows no other slotted job on endor in 10:49-10:51; the cause was not identified.
-- **Reported numbers: pair 1** (runs 1-2), cross-checked by the engine's own normal-step traces from the same slot
-  before localeval:
+- **Runs 3 and 4 are contaminated by a slow box state, not by the code.**
+  - Identical config A fell from 75.6 to 65.9 tok/s between runs 1 and 4.
+  - 5k prefill fell about 30 % in both arms. All four switches are gated at <= 16 rows (route `t <= 16`, messages
+    `INK_MSG_PRE_ROWS` = 16, the mix kernels T <= 16), so 2048-row prefill chunks do not touch them.
+  - Cause not identified. The fleetq log shows no other slotted job on endor at 10:49-10:51. One coincidence:
+    #11483 (core lib tests, CPU, endor) left the endor queue at 10:49:15 and reappeared on bespin at 10:49:27.
+    It is not shown to be the cause.
+- **Reported numbers: pair 1** (runs 1-2), with the engine's own normal-step traces as support. Those traces were
+  taken at 10:46, before localeval, while the box matched job K's 13.28 ms label.
+- **Pair 1 is weak on its own.** It is one run per arm in the order A then B, so nothing cancels drift. Run 2 may already
+  show the slow state starting: its 5k rep 3 is 65.9 and its prefill is about 7 % below run 1's. The engine delta is the
+  better-anchored number:
 
 | Prompt | Before (tok/s) | After (tok/s) | Gain |
 |---|---|---|---|
@@ -1751,11 +1758,19 @@ normal-step span is the real cost. Where the -70 dispatches and -0.77 ms come fr
 | short (localeval, pair 1) | 72.3 | 75.6 | +3.3 |
 | 5k (localeval, pair 1) | 67.5 | 70.5 | +3.0 |
 
-  The two methods agree within 0.5 tok/s. A clean second pair would take another quiet slot of about 8 minutes.
+  The two methods agree within 0.5 tok/s.
+- **Not queued, the coordinator's call:** a clean rerun of about 8 minutes of quiet slot, A B B A, with a cb short-prompt
+  label before and after each localeval run, dropping any run whose label is above about 13.5 ms.
 - **Context for the brief.** Its 50-52 / 48.3 tok/s were measured at a88db4620. The tip's "before" runs 72 / 67 tok/s
   with the same 613 dispatches, so the difference comes from other lanes merged since (pack12's in_proj / wo / unembed
   among them), not from this lane.
 - **Opt-in, not in "after":** `INTARSIA_INK_MOE_T1` gains 0.27 / 0.29 ms per token (job G), bitwise.
+- **New op 76 (`InkRoute`, router GEMV + MoeRoute):**
+  - CPU reference: `crates/intarsia-backend-cpu/src/ink_ref.rs:420`, which composes `Logits` and `MoeRoute` and is bitwise
+    that pair by construction.
+  - Metal admission: #10879, 124 cases, max_abs 1.98e-7, ADMITTED. The sweep (`crates/intarsia-core/src/inkling2/cases.rs:586`)
+    covers rows 1, 4 and 16 in quick mode, and 1-7, 16 and 40 in full mode.
+  - Bitwise against the pair: `tests/inkctrl.rs`. Job W reran inkctrl (pass) but not the admission.
 
 ### Why the targets are not met (jobs Q and K)
 
