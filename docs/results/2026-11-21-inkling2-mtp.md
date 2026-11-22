@@ -718,6 +718,32 @@ inkling2_real_decode_ne. Ubuntu CI never compiles them. So A4's test step moves 
 `INTARSIA_METAL_TEST_MODEL` = the checkpoint). A5 reruns on the final code in the same spark1 job (#11534 ran it on 8f481dad2,
 before 840adbca6 touched `load.rs`).
 
+### Gate results
+
+- A4, first pass (bespin #11530, code 8f481dad2): CI's check steps all finished (workspace; metal; cuda and hip cfgs
+  `--all-targets`). The workspace test step had 7 failed binaries; see the amendment above. `inkling2_verify_softcap` and the DSpark
+  tests passed on cpu there.
+- A5 (spark1 #11534, branch 6b62cc05e = code 8f481dad2, main 1f226a2e3): `plan show --backend cuda` byte-identical for the 35B
+  NVFP4 (json 15570 B, txt 4017 B) and Qwen3-8B (json 8973 B, txt 1548 B); HIP check-only `-p intarsia-backend-hip --all-targets`
+  and `-p intarsia-cli --features hip` both finish. Rerun on the final code: #11540.
+- #11532 (endor, default load, code 840adbca6, main 1f226a2e3), 1 failed check:
+  - A1 PASS: g64 md5 65cde8f35a1802e3e2fadb44d94d080d and g256 61fd59fecb5e0d72ffd08f2c6d07855a, both equal to main's.
+  - A2 PASS: Metal `plan show` byte-identical to main, text and json, for Qwen3-8B (8371 / 1342 B), Llama-3.1-8B (7983 / 1411 B)
+    and Inkling-2-Mini (10519 / 2619 B).
+  - B1 PASS: ids identical spec off vs DSpark (defaults, "--spec-k defaults to 3" seen) on the 12 greedy golden prompts x 128
+    and both prose texts. Greedy golden: 72.67 -> 82.75 tok/s (default load, not a speed number), 478 verify passes,
+    acceptance 69.6%, 2.47 tokens per pass (85265f9d5 had 71.8% / 2.56 on the same prompts; greedy acceptance is deterministic,
+    so main's numerics moved it; the speed job runs it with `INTARSIA_INK_HEAD_SCREEN=0` too). Prose: 58.68 -> 73.24 tok/s,
+    acceptance 73.8%, 2.60 tokens per pass (72.7% before).
+  - B3 PASS: serve, admitted kernels only, DSpark: a ~1.4k-token greedy request HTTP 200, verify passes 0 -> 13.
+  - B2 serve half PASS: a t1.0 request HTTP 200, spec steps unchanged (13).
+  - A3: PASS for metal `--lib` (18), dense (11), topk (1), inkmix (4), inkmoe (2), rows_exact (11), screen (4), inkling2_attn
+    (1), inkctrl (2); models inkling2 (11), inkling2_batch (7), inkling2_dspark (3), inkling2_dspark_cut (1), gdn_verify_metal
+    (7), inkling2_mix_decode_cpu (2), inkling2_real_decode_ne (4); docs_env_vars (2); `kernels test --op hc_pre` (admitted).
+    **FAIL: `inkling2_verify_softcap` on Metal**: "row 0: 81 of 300 verify logits differ from the capped decode logits (max |d|
+    9.536743e-7)". The test had run on cpu only before (spark2 #11295 / #11296). The lane stopped here (rule: report, do not
+    re-rule); the speed job #11533 aborted on its guard (no pass marker), nothing timed. Diagnosis job: #11553.
+
 Speed protocol (after A and B pass; branch tip binary, endor, one `--quiet gpu,cpu` slot): `serve --backend metal --max-batch 1
 --max-seq 20480` per arm (off, DSpark), localeval `suite --tier adhoc --cells speed-plain` (143 / 1k / 4k / 16k
 prompt tokens, 256 forced output tokens, 3 reps each), DSpark at its defaults (k3, gate 0.8); the DSpark arm declared `--lane spec:dspark --drafter dspark`, off `--lane
