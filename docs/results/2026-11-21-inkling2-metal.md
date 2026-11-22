@@ -72,6 +72,10 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   whichever are in): rows-exact, G2 / G3, greedy md5 with P12 on vs explicit off, batched == solo at B 2 / 5 / 16, and a quiet
   localeval speed-plain at 142 / 1k / 4k / 16k, which becomes the new Metal baseline. Send the hash.
 
+- 2026-11-22 (coordinator): ink/hostgap 9a38f0224 is ready (spark2 #11072: 45 test binaries, 0 failed; bespin #11073 compiles
+  clean on macOS). Merge it after #11048 passes, before fp8 and pack12; leave its later fb38fe4a5 (opt-in pre-wake / QoS /
+  vsort, untimed) out.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
