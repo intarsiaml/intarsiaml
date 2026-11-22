@@ -168,6 +168,7 @@ constant uint MX_ADD = 4u;
 constant uint MX_SUM = 8u;
 constant uint MX_NORM = 16u;  // mix output normed (bf16), else the f32 mix
 constant uint MX_RING = 32u;  // write the ring rows of this launch's rows here (no row of the launch reads a row written)
+constant uint MX_PAIR = 64u;  // blend path: also write the controller pair rA([d w(d), m w(m)]) of each stream (bf16 scratch)
 
 constant float SRC_EPS = 1e-6f;
 constant int MX_NMAX = 8;     // stored sources + last
@@ -177,7 +178,7 @@ struct InkMixP {
     uint d, t, t0, pad0;        // D, rows T of the call, first row of this launch (grid = rows of the launch)
     uint k, rr, pos0, use_dev;  // taps K, ring rows, host position, position from the device buffer
     uint n, q, flags, orow0;    // stored sources N, queries Q, MX_*, output row base (out row = t - orow0)
-    uint ocount, pad1, pad2, pad3; // output rows per query block (row stride of the [Q, rows, D] output)
+    uint ocount, nstream, pad2, pad3; // output rows per query block (row stride of the [Q, rows, D] output); blend streams S
     float eps, cscale, fpad0, fpad1;
     // leading bf16 elements per binding: x, taps, res, add, y, ring, sum, src, norm, out
     uint sk[12];
@@ -234,7 +235,9 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
                         device ushort* outb [[buffer(10)]],
                         device float* outf [[buffer(11)]],
                         device const int* posb [[buffer(12)]],
-                        constant InkMixP& p [[buffer(13)]],
+                        device const float* msg [[buffer(13)]],
+                        device ushort* pair [[buffer(14)]],
+                        constant InkMixP& p [[buffer(15)]],
                         uint row [[threadgroup_position_in_grid]],
                         uint tid [[thread_position_in_threadgroup]],
                         uint tpg [[threads_per_threadgroup]],
@@ -312,7 +315,6 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
         }
     }
     const bool norm = (p.flags & MX_NORM) != 0;
-    float w[MX_NMAX];
     for (uint q0 = 0; q0 < p.q; q0 += MX_QB) {
         const int nq = int(min(uint(MX_QB), p.q - q0));
         // one reduction: the source sums of squares (first batch only) and the query dots, [qi][n] after them
@@ -334,25 +336,38 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
                 v[MX_NMAX + qi * MX_NMAX + n] = a;
             }
         }
-        mx_reduce_t(v, part, red, tid, lane, sg, nsg);
-        if (q0 == 0)
-            for (int n = 0; n < MX_NMAX; ++n) w[n] = n < ns ? precise::rsqrt(red[n] / float(d) + SRC_EPS) : 0.0f;
-        float coef[MX_QB][MX_NMAX];
-        for (int qi = 0; qi < MX_QB; ++qi) {
-            float l[MX_NMAX];
-            float mx = -INFINITY;
-            for (int n = 0; n < MX_NMAX; ++n) {
-                l[n] = (qi < nq && n < ns) ? red[MX_NMAX + qi * MX_NMAX + n] * w[n] : -INFINITY;
-                mx = max(mx, l[n]);
-            }
-            float e[MX_NMAX];
-            float s = 0.0f;
-            for (int n = 0; n < MX_NMAX; ++n) {
-                e[n] = n < ns ? precise::exp(l[n] - mx) : 0.0f;
-                s += e[n];
-            }
-            for (int n = 0; n < MX_NMAX; ++n) coef[qi][n] = n < ns ? e[n] / s * w[n] : 0.0f;
+        // partials per simdgroup, then simdgroup 0 finishes: lane L = (query qi = L / 8, source n = L % 8) sums its dot
+        // and source n's squares over the simdgroups (in sg order), and the softmax over n runs across the 8 lanes of a
+        // query (butterfly max / sum). The coefficients p[qi,n] * w[n] go to `coefs` for every thread.
+        for (int j = 0; j < MX_NMAX + MX_QB * MX_NMAX; ++j) {
+            const float sj = simd_sum(v[j]);
+            if (lane == 0) part[j * 32 + sg] = sj;
         }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (sg == 0) {
+            const int qi = int(lane) / MX_NMAX, n = int(lane) % MX_NMAX;
+            float dt = 0.0f, sq = 0.0f;
+            for (uint k = 0; k < nsg; ++k) {
+                dt += part[(MX_NMAX + lane) * 32 + k];
+                sq += part[n * 32 + k];
+            }
+            const bool ok = qi < nq && n < ns;
+            const float wn = n < ns ? precise::rsqrt(sq / float(d) + SRC_EPS) : 0.0f;
+            const float l = ok ? dt * wn : -INFINITY;
+            float m = max(l, simd_shuffle_xor(l, ushort(1)));
+            m = max(m, simd_shuffle_xor(m, ushort(2)));
+            m = max(m, simd_shuffle_xor(m, ushort(4)));
+            const float e = ok ? precise::exp(l - m) : 0.0f;
+            float se = e + simd_shuffle_xor(e, ushort(1));
+            se = se + simd_shuffle_xor(se, ushort(2));
+            se = se + simd_shuffle_xor(se, ushort(4));
+            red[lane] = ok ? e / se * wn : 0.0f;
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        float coef[MX_QB][MX_NMAX];
+        for (int qi = 0; qi < MX_QB; ++qi)
+            for (int n = 0; n < MX_NMAX; ++n) coef[qi][n] = red[qi * MX_NMAX + n];
+        threadgroup_barrier(mem_flags::mem_threadgroup);  // red is reused below
         float mix[MX_QB][NE];
         for (int qi = 0; qi < MX_QB; ++qi)
             for (int j = 0; j < NE; ++j) {
@@ -389,13 +404,43 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
                     if (c < d) outf[((ulong)q * p.ocount + (t - p.orow0)) * d + c] = mix[qi][j];
                 }
             }
+            if ((p.flags & MX_PAIR) != 0) {
+                // the controller pair of each stream: dest = mix[Q == 1 ? 0 : s] (unnormed, f32), m = msg[s, t]
+                float mv[MX_QB][NE];
+                float v2[2 * MX_QB];
+                for (int qi = 0; qi < MX_QB; ++qi) {
+                    float a = 0.0f, b = 0.0f;
+                    for (int j = 0; j < NE; ++j) {
+                        const uint c = tid + uint(j) * tpg;
+                        mv[qi][j] = (uint(qi) < p.nstream && c < d) ? msg[((ulong)qi * p.t + t) * d + c] : 0.0f;
+                        a = fma(mix[qi][j], mix[qi][j], a);
+                        b = fma(mv[qi][j], mv[qi][j], b);
+                    }
+                    v2[qi] = a;
+                    v2[MX_QB + qi] = b;
+                }
+                mx_reduce_t(v2, part, red, tid, lane, sg, nsg);
+                for (int si = 0; si < MX_QB; ++si) {
+                    if (uint(si) >= p.nstream) continue;
+                    const int qi = p.q == 1 ? 0 : si;
+                    const float wd = precise::rsqrt(red[qi] / float(d) + SRC_EPS);
+                    const float wm = precise::rsqrt(red[MX_QB + si] / float(d) + SRC_EPS);
+                    device ushort* pr = pair + ((ulong)si * p.ocount + (t - p.orow0)) * 2 * d;
+                    for (int j = 0; j < NE; ++j) {
+                        const uint c = tid + uint(j) * tpg;
+                        if (c >= d) continue;
+                        pr[c] = f2bf(mix[qi][j] * wd);
+                        pr[d + c] = f2bf(mv[si][j] * wm);
+                    }
+                }
+            }
         }
     }
 }
 
 #define MX_ARGS device const ushort*, device const ushort*, device const ushort*, device const ushort*, device ushort*,   \
     device ushort*, device ushort*, device const ushort*, device const float*, device const ushort*, device ushort*,     \
-    device float*, device const int*, constant InkMixP&, uint, uint, uint, uint, uint, uint
+    device float*, device const int*, device const float*, device ushort*, constant InkMixP&, uint, uint, uint, uint, uint, uint
 #define MX_INST(NE) template [[host_name("ink_mix_row_e" #NE)]] kernel void ink_mix_row<NE>(MX_ARGS);
 MX_INST(1)
 MX_INST(2)

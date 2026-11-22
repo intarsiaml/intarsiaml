@@ -258,6 +258,13 @@ mod imp {
                     let flops = 2.0 * (r * 2304 * 3072) as f64;
                     println!("{:<44} {m:>9.1} {lo:>9.1} {hi:>9.1} {:>8.1} TFLOP/s", "wo Matmul NAX T=2048", flops / (m * 1e-6) / 1e12);
                 }
+                "psoinfo" => {
+                    use objc2_metal::MTLComputePipelineState;
+                    for n in ["ink_mix_row_e3", "ink_mix_row_e4", "ink_mix_row_e9", "ink_blend_gate_g8", "ink_in_proj_gemv_r1p1s8u2b1", "ink_in_proj_gemv_r16p1s8u2b16"] {
+                        let pso = be.pso(n).unwrap();
+                        println!("{n}: max threads {} width {} tg mem {}", pso.maxTotalThreadsPerThreadgroup(), pso.threadExecutionWidth(), pso.staticThreadgroupMemoryLength());
+                    }
+                }
                 "mix" => crate::imp_mix::run(&be, &trace, &mut rng, &rows_list, reps),
                 o => panic!("unknown benchmark {o}"),
             }

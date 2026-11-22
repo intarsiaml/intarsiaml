@@ -396,6 +396,7 @@ const MX_ADD: u32 = 4;
 const MX_SUM: u32 = 8;
 const MX_NORM: u32 = 16;
 const MX_RING: u32 = 32;
+const MX_PAIR: u32 = 64;
 
 /// `InkMixP` of the shader (112 bytes).
 #[repr(C)]
@@ -414,7 +415,8 @@ struct InkMixP {
     flags: u32,
     orow0: u32,
     ocount: u32,
-    pad: [u32; 3],
+    nstream: u32,
+    pad: [u32; 2],
     eps: f32,
     cscale: f32,
     fpad: [f32; 2],
@@ -518,7 +520,7 @@ impl MetalBackend {
     /// The row kernel over rows `t0 .. t0 + nrows` of a SconvRes / ConvMix / AttnResMix call. `dest` set: the mix (unnormed,
     /// f32) goes to that scratch view as `[Q, nrows, D]` instead of the call's output (the blend path). Encodes the deferred
     /// ring write after it when a row of the launch reads a ring row another row writes.
-    fn mix_rows(&self, call: &OpCall, t0: usize, nrows: usize, dest: Option<&TensorRef>) -> Result<()> {
+    fn mix_rows(&self, call: &OpCall, t0: usize, nrows: usize, dest: Option<&TensorRef>, pair: Option<&TensorRef>) -> Result<()> {
         let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
         let bf = DType::Bf16;
         let f32t = DType::F32;
@@ -614,6 +616,14 @@ impl MetalBackend {
         if conv && safe {
             flags |= MX_RING;
         }
+        // the blend's pair stage, folded in (ConvMix with msg): msg rows [S, T, D] f32
+        let (msg_b, pair_b, nstream) = match pair {
+            Some(pv) if op == Op::ConvMix => {
+                flags |= MX_PAIR;
+                (self.bind(&i[7], f32t, false, "msg")?, self.bind(pv, bf, true, "pair")?, i[7].shape[0])
+            }
+            _ => (crate::dense::Bind { mtl: dummy.mtl.clone(), off: dummy.off, skip: 0 }, crate::dense::Bind { mtl: dummy.mtl.clone(), off: dummy.off, skip: 0 }, 0),
+        };
         let (ne, tpg) = mix_geom(d);
         let p = InkMixP {
             d: dim(d, "D")?,
@@ -629,20 +639,18 @@ impl MetalBackend {
             flags,
             orow0: if dest.is_some() { t0 as u32 } else { 0 },
             ocount: dim(if dest.is_some() { nrows } else { t }, "rows")?,
-            pad: [0; 3],
+            nstream: dim(nstream, "streams")?,
+            pad: [0; 2],
             eps: a.eps,
             cscale: ((k + 1) as f32).powf(-0.5),
             fpad: [0.0; 2],
             sk: [xb.skip, taps_b.skip, res_b.skip, add_b.skip, y_b.skip, ring_b.skip, sum_b.skip, src_b.skip, nrm_b.skip, outb.skip, 0, 0],
         };
-        let binds = [&xb, &taps_b, &res_b, &add_b, &y_b, &ring_b, &sum_b, &src_b, &qry_b, &nrm_b, &outb, &outf, &pos_b];
+        let binds = [&xb, &taps_b, &res_b, &add_b, &y_b, &ring_b, &sum_b, &src_b, &qry_b, &nrm_b, &outb, &outf, &pos_b, &msg_b, &pair_b];
         self.dispatch(mix_row_shader(ne), &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
         if conv && !safe {
-            let mut pw = p;
-            pw.pad[0] = 0;
-            pw.nrows = 0;
             // ink_ring_write reads `pad0` (here `nrows`) as the launch's row count
-            pw.nrows = dim(nrows, "rows")?;
+            let pw = p;
             let binds = [&xb, &ring_b, &pos_b];
             self.dispatch("ink_ring_write", &binds, &pw, crate::dense::Grid::Threads(nrows * d))?;
         }
@@ -665,6 +673,7 @@ impl MetalBackend {
         n: usize,
         scratch: &TensorRef,
         eps: f32,
+        pair_done: bool,
     ) -> Result<()> {
         let bf = DType::Bf16;
         let f32t = DType::F32;
@@ -708,7 +717,9 @@ impl MetalBackend {
             ..Default::default()
         };
         let (dest_b, msg_b, pair_b) = (self.bind(dest, f32t, false, "dest")?, self.bind(msg, f32t, false, "msg")?, self.bind(&pair, bf, true, "pair")?);
-        self.dispatch("ink_blend_pair", &[&dest_b, &msg_b, &pair_b], &p, crate::dense::Grid::Groups { x: s * n, y: 1, threads: 256 })?;
+        if !pair_done {
+            self.dispatch("ink_blend_pair", &[&dest_b, &msg_b, &pair_b], &p, crate::dense::Grid::Groups { x: s * n, y: 1, threads: 256 })?;
+        }
         // h[j] = rA(pair[j] . down[j]^T): the InkInProj GEMV with the streams as its segments
         let wd = TensorRef { shape: vec![s * g, 2 * d], ..down.clone() };
         let xs = TensorRef { shape: vec![s, n, 2 * d], ..pair.clone() };
@@ -759,7 +770,7 @@ impl MetalBackend {
                 if t == 0 {
                     return Ok(());
                 }
-                self.mix_rows(call, 0, t, None)
+                self.mix_rows(call, 0, t, None, None)
             }
             (CONV_MIX_BF16, Op::ConvMix) => {
                 if i[0].dtype != bf {
@@ -770,7 +781,7 @@ impl MetalBackend {
                     return Ok(());
                 }
                 if absent(&i[7]) || i[5].shape[0] == 0 {
-                    return self.mix_rows(call, 0, t, None);
+                    return self.mix_rows(call, 0, t, None, None);
                 }
                 let scratch = call.scratch.as_ref().ok_or_else(|| Error::invalid("metal conv_mix_bf16: the blend needs the scratch (OpCall::scratch)"))?;
                 let d = i[0].shape[1];
@@ -779,8 +790,10 @@ impl MetalBackend {
                 for t0 in (0..t).step_by(BLEND_ROWS) {
                     let n = (t - t0).min(BLEND_ROWS);
                     let dest = TensorRef { shape: vec![nq, n, d], ..sview(scratch, lay[0], DType::F32, nq * n * d) };
-                    self.mix_rows(call, t0, n, Some(&dest))?;
-                    self.blend_rows(&dest, (0, n), &i[7], &i[8], &i[9], &i[10], &i[6], &o[3], t0, n, scratch, call.attrs.eps)?;
+                    let s = i[7].shape[0];
+                    let pair = TensorRef { shape: vec![s, n, 2 * d], ..sview(scratch, lay[1], DType::Bf16, s * n * 2 * d) };
+                    self.mix_rows(call, t0, n, Some(&dest), Some(&pair))?;
+                    self.blend_rows(&dest, (0, n), &i[7], &i[8], &i[9], &i[10], &i[6], &o[3], t0, n, scratch, call.attrs.eps, true)?;
                 }
                 Ok(())
             }
@@ -792,7 +805,7 @@ impl MetalBackend {
                 let scratch = call.scratch.as_ref().ok_or_else(|| Error::invalid("metal loop_blend_bf16: the scratch (OpCall::scratch) is missing"))?;
                 for t0 in (0..r).step_by(BLEND_ROWS) {
                     let n = (r - t0).min(BLEND_ROWS);
-                    self.blend_rows(&i[0], (t0, r), &i[1], &i[2], &i[3], &i[4], &i[5], &o[0], t0, n, scratch, call.attrs.eps)?;
+                    self.blend_rows(&i[0], (t0, r), &i[1], &i[2], &i[3], &i[4], &i[5], &o[0], t0, n, scratch, call.attrs.eps, false)?;
                 }
                 Ok(())
             }
