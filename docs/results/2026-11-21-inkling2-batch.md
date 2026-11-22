@@ -62,6 +62,10 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   `conc-plain-1k` first, then the bench as a non-fatal step with a 30 min watchdog. Solo baseline from #10890: at
   `--max-batch 1` `conc-plain-1k` is serialized, 50.8-51.6 tok/s aggregate at 1 / 4 / 16 streams; the `--max-batch 16` run is
   compared against it.
+- 2026-11-22 (coordinator): the `bench speed` calibration fix is ink/metal b9dd0d6b4 (crates/intarsia-bench/src/speed.rs only;
+  Inkling's first generated token is a block marker the text stream drops, so a max_tokens 1 probe returned usage only and
+  counted as "no tokens received"). Cherry-pick it before #10946 builds; keep the non-fatal bench step. Done: cherry-picked as
+  6b5ff520f before #10946 started (it builds the tip at job start); the bench step stays non-fatal.
 
 ## 1. Design note (contract delta, written before any kernel)
 
