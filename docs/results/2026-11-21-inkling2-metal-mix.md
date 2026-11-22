@@ -278,3 +278,24 @@ Full-attention visits (8) use the Q=3 ConvMix into them (+2.9 us each). The outp
   32.8-40.6 and 76-92: noisy, the slot was shared). 2048-row lines were not in this job (the quiet sweep in 3.5 has them).
 - Reading: decode is within +-5 % except LoopBlend, whose after-run is noisy and contradicts the quiet sweep (3.5: 24.9 / 55.3 us
   at gate 4 rows); it needs one `--quiet gpu,cpu` rerun before the gate change is trusted for decode. Raw: `raw/defaults_check.log`.
+
+## 8. Quiet defaults run (fleetq #10909, `--quiet gpu,cpu`, one binary at `5f3970858`, env override, rounds alternated)
+
+Old = `INTARSIA_INK_MIX_NE=3 INTARSIA_INK_BLEND_RB=16`, new = the `25ff7864a` defaults (NE 4, gate 4 rows). us per call, median of
+5 reps per round; round 1 / round 2. Raw: `raw/quiet_defaults.log`.
+
+| case | rows | old | new | change |
+|---|---:|---:|---:|---:|
+| ConvMix plain | 1 | 8.47 / 8.47 | 8.43 / 8.45 | -0.4 % |
+| ConvMix plain | 16 | 9.05 / 9.05 | 9.15 / 9.20 | +1.4 % |
+| ConvMix plain | **2048** | 275.4 / 274.5 | 232.5 / 232.6 | **-15.4 %** |
+| ConvMix + blend S=3 | 1 | 33.73 / 33.88 | 34.58 / 34.49 | +2.3 % |
+| ConvMix + blend S=3 | 16 | 73.35 / 70.31 | 61.71 / 61.66 | -14 % |
+| ConvMix + blend S=3 | **2048** | 4244 / 4248 | 4187 / 4163 | **-1.7 %** |
+| LoopBlend S=3 | 1 | 24.73 / 24.90 | 24.84 / 24.74 | 0 % |
+| LoopBlend S=3 | 16 | 62.95 / 62.76 | 54.27 / 55.31 | -13 % |
+| LoopBlend S=3 | **2048** | 3923 / 3924 | 3871 / 3875 | **-1.3 %** |
+
+Both settings hold, and every 2048-row line improves. The shared-slot LoopBlend regression in section 7 does not reproduce
+(p10-p90 here is within 0.3 %). The one cost is ConvMix + blend at 1 row, +0.8 us (+2.3 %), from the NE 4 row kernel's pair
+write; ink-dfuse's T = 1 split of the row kernels supersedes that path. Verdict per the brief: `25ff7864a` merges as is.
