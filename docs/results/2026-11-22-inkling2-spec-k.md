@@ -125,3 +125,49 @@ counting continuation, 95.7% acceptance), so they are leads for the quiet job, n
 
 Wait for probe 2 (#11646) and the timed sweep. With r / P at 0.21 and k5 / k7 losing on greedy and code, build no cut rule unless
 the timed sweep shows >= 2% at some length on more than one prompt. The long single prompts' +7-15% has too few passes to count.
+
+## 3. Probe 2 (#11646): full-vocab confidence, and the call on option (ii)
+
+The same probe sets with `INTARSIA_DSPARK_PFULL=1` on 9866126fd. Its ids equal the candidate probe's on every set: the env only
+changes what the gate reads, and with the gate off that is nothing. 4344 / 576 / 765 / 888 steps traced on greedy / code /
+prose / longp.
+
+Median confidence by draft step (greedy; candidate p1 vs full-vocab p1):
+
+| step | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| candidates (64) | 0.928 | 0.890 | 0.862 | 0.825 | 0.776 | 0.786 | 0.781 |
+| full vocab | 0.907 | 0.605 | 0.394 | 0.283 | 0.262 | 0.271 | 0.206 |
+
+At step 0 the 64 candidates hold nearly all the mass. From step 1 on most of the mass sits outside them, so candidate p1 says
+0.8-0.9 where the full softmax says 0.2-0.6. That is why #11227's cut 0.5 on candidate p1 almost never fired.
+
+Simulation, best full-p1 rule (+0.3 ms per Markov step for a device softmax) vs the best candidate-p1 rule, both relative to gate
+0.8 k3, r = 2.9 / 3.2 ms:
+
+| set | best candidate-p1 rule | best full-p1 rule | full over candidate |
+|---|---|---|---:|
+| greedy | 1.002 / 1.000 | cut 0.6 k3: 1.009 / 1.010 | +0.7% / +1.0% |
+| code | 1.000 / 1.000 | gate 0.8 k5: 1.008 / 1.010 | +0.8% / +1.0% |
+| prose | 1.035 / 1.023 | cut 0.5 k5: 1.042 / 1.039 | +0.7% / +1.6% |
+| 1k | 1.077 / 1.067 | cut 0.5 k5: 1.075 / 1.070 | -0.2% / +0.3% |
+| 4k | 1.152 / 1.140 | cut 0.6 k7: 1.143 / 1.135 | -0.8% / -0.4% |
+| 16k | 1.089 / 1.077 | cut 0.5 k5: 1.107 / 1.101 | +1.6% / +2.2% |
+
+**(ii) is not built.** The ruling's bar was a full-vocab cut beating the best candidate-p1 rule by >= 5% at some length; the
+best case is +2.2% (16k, one prompt, 39 passes). The full-vocab confidence is the better-calibrated signal, but the verify cost
+(r / P = 0.21) leaves little to gain: a better stop point saves about one verified row in five rounds. The timed sweep keeps two
+full-p1 arms at k5 (the best k on 4 of 6 sets), measured with the host sum and cost-adjusted.
+
+## 4. Timed sweep (queued after #11621)
+
+`.scratch/sweep.sh`, endor `--quiet gpu,cpu`, on 9866126fd.
+1. Warm-up.
+2. r: cycle ms at `--spec-k` 1..7 with the gate off (`INTARSIA_DSPARK_PROFILE=1`), short and 16k. The slope per draft covers a
+   verify row + a Markov step + a head row. Cut from r = clamp(1.34 sqrt(slope / plain step), 0.3, 0.8), from the short run.
+3. A B B A over 12 arms: off, gate 0.8 k3/5/7, cut 0.5 k3/5/7, cut-from-r k3/5/7, full-p1 cut 0.5 and cut-from-r at k5.
+- Sets: greedy (12 x 128), code_tests (x 256), prose (2 x 128), longp (1k/4k/16k), and longp2. longp2 is new, so that each long
+  length has three prompts for the ">= 2% on more than one prompt" bar: 1021 / 4108 / ~16.2k-token prefixes of
+  `crates/intarsia-core/src/state.rs` and of the ink-mtp results doc, raw continuations.
+- Reported: tok/s by length (short = 15 prompts, 1k / 4k / 16k = 3 each), x off, x gate 0.8 k3, prompts >= +2% over it, ids vs
+  off, acceptance, tokens and rows per pass.
