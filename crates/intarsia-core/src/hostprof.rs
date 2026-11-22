@@ -12,6 +12,11 @@
 //! token-feedback step (there `launch` is the encode of the next step, held after its first dispatches, and `gpu-idle-gap` the
 //! host time from the token read to the release of that step, which the GPU covers with the dispatches it already has).
 //!
+//! A speculative cycle of that loop (the eager draft + verify of `Seq::prepare_with`) is its own class, `spec-cycle`: `draft` and
+//! `verify` (device time and syncs included) out of `prepare`, `rows` the tokens the cycle emitted, one iteration from one cycle
+//! to the next (the `on_token` of its tokens included), and `gpu-idle-gap` the host time from the verify's token download to the
+//! next draft.
+//!
 //! The profile only measures: it changes no output and no schedule.
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -50,10 +55,16 @@ pub enum Cat {
     Prefill,
     /// the host logit soft-cap of a step that reads its logits (Gemma 4, Inkling-2; `Model::softcap_logits`), inside `StepTail`
     Softcap,
+    /// a speculative cycle's draft (`Model::dflash_draft` / `mtp_draft`, host and device, its syncs included), inside `Prepare`
+    Draft,
+    /// a speculative cycle's verify pass, acceptance and rollback (`Seq::verify`, ending in the token download), inside `Prepare`
+    Verify,
 }
-pub const NCAT: usize = 15;
-const NAMES: [&str; NCAT] =
-    ["reap+admit", "prepare", "step-setup", "upload", "launch", "sync", "step-tail", "accept", "metrics", "on_token", "detok", "send", "finish", "prefill", "softcap"];
+pub const NCAT: usize = 17;
+const NAMES: [&str; NCAT] = [
+    "reap+admit", "prepare", "step-setup", "upload", "launch", "sync", "step-tail", "accept", "metrics", "on_token", "detok", "send", "finish", "prefill", "softcap",
+    "draft", "verify",
+];
 
 #[derive(Clone, Copy, Debug)]
 #[repr(usize)]
@@ -64,9 +75,11 @@ enum Kind {
     Mixed,
     /// a prefill chunk and no decode step
     PrefillOnly,
+    /// a speculative draft + verify cycle of the solo decode loop and no prefill chunk (`rows` = tokens the cycle emitted)
+    Spec,
 }
-const NKIND: usize = 3;
-const KIND_NAMES: [&str; NKIND] = ["decode-only", "decode+prefill", "prefill-only"];
+const NKIND: usize = 4;
+const KIND_NAMES: [&str; NKIND] = ["decode-only", "decode+prefill", "prefill-only", "spec-cycle"];
 
 #[derive(Default)]
 struct Acc {
@@ -87,10 +100,12 @@ struct Prof {
     acc: [Acc; NKIND],
     decoded: bool,
     prefilled: bool,
+    /// a speculative cycle ran ([`spec_cycle`])
+    spec: bool,
     rows: usize,
     /// instant the last decode step's sync returned
     last_sync_end: Option<Instant>,
-    /// the previous iteration was decode-only (the gap is only meaningful between two of those)
+    /// the previous iteration was decode-only or a spec cycle (the gap is only meaningful between two of those)
     prev_decode_only: bool,
     gap_this: Option<u128>,
 }
@@ -181,6 +196,28 @@ pub fn prefilled() {
     P.with(|p| p.borrow_mut().prefilled = true);
 }
 
+/// A speculative draft + verify cycle ran and emitted `tokens` tokens (the solo decode loop, lane ink-hostgap).
+#[inline]
+pub fn spec_cycle(tokens: usize) {
+    if !enabled() {
+        return;
+    }
+    P.with(|p| {
+        let mut p = p.borrow_mut();
+        p.spec = true;
+        p.rows = p.rows.max(tokens);
+    });
+}
+
+/// The running iteration has run a decode step, a prefill chunk or a spec cycle (what [`iter_end`] folds; the solo loop keeps an
+/// iteration open across the passes that only emit tokens a cycle already verified).
+pub fn pending() -> bool {
+    enabled() && P.with(|p| {
+        let p = p.borrow();
+        p.decoded || p.prefilled || p.spec
+    })
+}
+
 /// Start of an iteration: zero the per-iteration sums.
 #[inline]
 pub fn iter_begin() {
@@ -192,6 +229,7 @@ pub fn iter_begin() {
         p.cur = [0; NCAT];
         p.decoded = false;
         p.prefilled = false;
+        p.spec = false;
         p.rows = 0;
         p.gap_this = None;
     });
@@ -204,7 +242,8 @@ pub fn iter_end(wall_ns: u128) {
     }
     let line = P.with(|p| {
         let mut p = p.borrow_mut();
-        let k = match (p.decoded, p.prefilled) {
+        let k = match (p.decoded || p.spec, p.prefilled) {
+            (true, false) if p.spec => Kind::Spec,
             (true, false) => Kind::DecodeOnly,
             (true, true) => Kind::Mixed,
             (false, true) => Kind::PrefillOnly,
@@ -220,9 +259,11 @@ pub fn iter_end(wall_ns: u128) {
         cur[Cat::OnToken as usize] = cur[Cat::OnToken as usize].saturating_sub(cur[Cat::Detok as usize] + cur[Cat::Send as usize]);
         // `StepTail` holds the logits soft-cap
         cur[Cat::StepTail as usize] = cur[Cat::StepTail as usize].saturating_sub(cur[Cat::Softcap as usize]);
+        // `Prepare` holds a spec cycle's draft and verify
+        cur[Cat::Prepare as usize] = cur[Cat::Prepare as usize].saturating_sub(cur[Cat::Draft as usize] + cur[Cat::Verify as usize]);
         let gap = p.gap_this;
         let rows = p.rows as u64;
-        p.prev_decode_only = matches!(k, Kind::DecodeOnly);
+        p.prev_decode_only = matches!(k, Kind::DecodeOnly | Kind::Spec);
         let a = &mut p.acc[k as usize];
         a.iters += 1;
         a.since_print += 1;
@@ -298,12 +339,16 @@ pub fn flush() {
 mod tests {
     use super::*;
 
+    /// The tests flip the process-wide `ENABLED`: one at a time.
+    static ONE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     /// The iteration is classed by what ran in it, per-category time adds up across iterations, nested categories are
     /// netted out of their enclosing one, and the gap between two decode-only iterations is counted once. Durations are
     /// fed explicitly through `add_ns` (the call a dropping span makes) so no wall-clock thresholds are involved;
     /// `mark_launch_begin`/`mark_sync_end` only feed the gap, which is asserted by count.
     #[test]
     fn spans_fold_into_the_iteration_class() {
+        let _one = ONE.lock().unwrap_or_else(|e| e.into_inner());
         const MS: u128 = 1_000_000;
         ENABLED.store(1, Ordering::Relaxed);
         P.with(|p| *p.borrow_mut() = Prof::default());
@@ -335,6 +380,44 @@ mod tests {
         });
         let l = P.with(|p| render(Kind::DecodeOnly as usize, &p.borrow().acc[Kind::DecodeOnly as usize]));
         assert!(l.contains("decode-only") && l.contains("gpu-idle-gap"), "{l}");
+        ENABLED.store(2, Ordering::Relaxed);
+    }
+
+    /// A spec cycle (lane ink-hostgap) is its own class: draft and verify come out of `prepare`, `rows` is the cycle's tokens,
+    /// an iteration with only emitted tokens is not folded (`pending` false, the solo loop keeps it open), and the gap between
+    /// two cycles is counted.
+    #[test]
+    fn spec_cycles_are_their_own_class() {
+        let _one = ONE.lock().unwrap_or_else(|e| e.into_inner());
+        const MS: u128 = 1_000_000;
+        ENABLED.store(1, Ordering::Relaxed);
+        P.with(|p| *p.borrow_mut() = Prof::default());
+        for tokens in [3usize, 1] {
+            iter_begin();
+            add_ns(Cat::OnToken, MS);
+            assert!(!pending(), "emitting a verified token is not a step");
+            mark_launch_begin();
+            add_ns(Cat::Draft, 2 * MS);
+            add_ns(Cat::Verify, 5 * MS);
+            mark_sync_end();
+            // `Prepare` wraps draft and verify plus 1 ms of its own
+            add_ns(Cat::Prepare, 8 * MS);
+            spec_cycle(tokens);
+            assert!(pending());
+            iter_end(10 * MS);
+        }
+        P.with(|p| {
+            let p = p.borrow();
+            let a = &p.acc[Kind::Spec as usize];
+            assert_eq!((a.iters, a.rows), (2, 4));
+            assert_eq!(a.cat_ns[Cat::Prepare as usize], 2 * MS, "{:?}", a.cat_ns);
+            assert_eq!(a.cat_ns[Cat::Draft as usize], 4 * MS, "{:?}", a.cat_ns);
+            assert_eq!(a.cat_ns[Cat::Verify as usize], 10 * MS, "{:?}", a.cat_ns);
+            assert_eq!(a.gaps, 1, "one gap, between the two cycles");
+            assert_eq!(p.acc[Kind::DecodeOnly as usize].iters, 0);
+        });
+        let l = P.with(|p| render(Kind::Spec as usize, &p.borrow().acc[Kind::Spec as usize]));
+        assert!(l.contains("spec-cycle") && l.contains(" draft ") && l.contains(" verify "), "{l}");
         ENABLED.store(2, Ordering::Relaxed);
     }
 }

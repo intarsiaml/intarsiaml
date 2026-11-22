@@ -2630,7 +2630,11 @@ impl Seq {
                         model.mtp_catch_up(st)?;
                     }
                 }
-                let drafts = if drafter == crate::spec::Drafter::Dflash { model.dflash_draft(st, self.tok, k)? } else { model.mtp_draft(st, self.tok, k)? };
+                let drafts = {
+                    let _d = crate::hostprof::span(crate::hostprof::Cat::Draft);
+                    crate::hostprof::mark_launch_begin();
+                    if drafter == crate::spec::Drafter::Dflash { model.dflash_draft(st, self.tok, k)? } else { model.mtp_draft(st, self.tok, k)? }
+                };
                 if drafts.is_empty() {
                     // no room for a draft block near the end of the context window: a plain step
                     self.cost_begin(false);
@@ -2651,7 +2655,12 @@ impl Seq {
                     eprintln!("spec-check: rows {} {}", rows.len(), line.join(" "));
                 }
                 let t1 = Instant::now();
-                self.verify(model, st, &drafts)?;
+                {
+                    let _v = crate::hostprof::span(crate::hostprof::Cat::Verify);
+                    self.verify(model, st, &drafts)?;
+                }
+                crate::hostprof::mark_sync_end();
+                crate::hostprof::spec_cycle(self.pending.len());
                 if let Some(a) = self.auto.as_mut() {
                     let ms = t0.elapsed().as_secs_f64() * 1e3;
                     a.record(drafter, self.pending.len(), ms);
@@ -2723,6 +2732,7 @@ impl Seq {
                 crate::hostprof::mark_launch_begin();
                 model.forward(st, &[tok], mode, None)?
             };
+            crate::hostprof::decoded(1);
             st.tag_passes(pos, crate::state::PassKind::Decode);
             let _a = crate::hostprof::span(crate::hostprof::Cat::Accept);
             self.accept_plain(out)?;
@@ -2926,9 +2936,13 @@ fn run_seq(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<O
 
 /// The decode loop of [`run_seq`]; with `INTARSIA_HOST_PROFILE=1` one host-profile iteration per step (`hostprof`).
 fn run_decode(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<()> {
+    // one iteration per plain step or spec cycle: the passes that only emit a verified token stay in the open one
+    let mut open: Option<std::time::Instant> = None;
     loop {
-        crate::hostprof::iter_begin();
-        let t_iter = std::time::Instant::now();
+        let t_iter = *open.get_or_insert_with(|| {
+            crate::hostprof::iter_begin();
+            std::time::Instant::now()
+        });
         let done = {
             let _t = crate::hostprof::span(crate::hostprof::Cat::OnToken);
             seq.on_token()?
@@ -2941,8 +2955,10 @@ fn run_decode(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Resul
             break;
         }
         seq.advance(model, st)?;
-        crate::hostprof::decoded(1);
-        crate::hostprof::iter_end(t_iter.elapsed().as_nanos());
+        if crate::hostprof::pending() {
+            crate::hostprof::iter_end(t_iter.elapsed().as_nanos());
+            open = None;
+        }
     }
     Ok(())
 }
