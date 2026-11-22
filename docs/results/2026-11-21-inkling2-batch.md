@@ -114,6 +114,12 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   plain dependency), so its test builds do not change batch_step. Past matches all had non-empty output and exit 0 (G2:
   EXIT 0 x 4, tensors compared one by one; generate outputs 1025 / 946 bytes). Not affected. Hardened anyway: #11104 compares
   digests only when both runs produced all three, and the timing job's text comparison requires non-empty files.
+- 2026-11-22 (coordinator): (1) when #11104 starts, the coordinator runs ink-metal's G2 bisect inside its slot
+  (FLEETQ_JOB=11104, ~25 min, 20 GB, correctness only): do not release #11104 early; extra GPU load during it is expected
+  (bitwise / correctness tests only). (2) The five-arm regression hunt #11164 hunts the same suspects (m-mix NE 4 / BLEND_RB
+  16 -> 4, InkMixP 112 -> 144): when the bisect lands (~04:15) read its table in
+  /opt/code/intarsiaml/.worktrees/ink-metal/.scratch/bisect_job.log; if it names the culprit, cut #11164 to the arms it does
+  not settle for batched B 8 / 16, or cancel it.
 
 ## 1. Design note (contract delta, written before any kernel)
 
