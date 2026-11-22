@@ -1,0 +1,1935 @@
+# IntarsiaML architecture plan (v0.2, 2026-10-12)
+
+> v0.2 incorporates the [Fable adversarial review](reviews/2026-10-12-fable-adversarial-review.md): torch-free C kernel ABI, TensorFold (MIT) and radiance (Apache-2.0) as the first kernel packs, hard kernels earlier, Phase 0 cut to seams.
+
+Intarsia is wood inlay: a picture built from interchangeable, precisely fitted pieces. The engine works the same way. Every op, kernel, quant format, model block, benchmark and API surface is a piece with a contract, and every piece is checked against a reference before it is allowed in.
+
+Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons](research/spark-tensorfold-tooling-lessons.md), [Fable review](reviews/2026-10-12-fable-adversarial-review.md). Decisions are logged in [decisions/](decisions/).
+
+> **Status of this document (2026-10-25).** This file is the v0.2 *plan*, not a description of the code. Each claim in
+> sections 1 to 14 now carries one of three markers, checked against `origin/main` with `grep` and `ls`
+> (review finding 7, [reviews/2026-10-22-fable-adversarial.md](reviews/2026-10-22-fable-adversarial.md)):
+> **implemented** (links to the file that does it), **partial** (says what is missing) or **planned** (nothing in the code yet).
+> Where the code does the job differently from the text, the row says so and the original text is left as the design intent.
+> The "Status vs plan" table below, the per-section tables (1 to 12), the section 2 diagram note and the section 13 status
+> paragraph were all re-checked on 2026-10-25 against `origin/main` (cf84efa4, PRs up to #157).
+
+### Status vs plan
+
+| Component | Status | Short version |
+|---|---|---|
+| Rust host, server, CLI, TUI, embedded UI | **implemented** | 12 crates; see sections 1, 9, 12 |
+| Backends: cpu-ref, CUDA, HIP | **implemented** | cpu-ref is the oracle; CUDA targets `sm_121`, HIP `gfx1201` |
+| Metal backend | **implemented** | not in the plan above; `crates/intarsia-backend-metal`; row-exact batched decode for the hybrid 35B (`crates/intarsia-backend-metal/tests/rows_exact.rs`) |
+| Vulkan / SYCL backend behind the same trait | **planned** | no code; the C ABI is CUDA-stream-shaped, so it is not "the same trait" for free |
+| Backend trait | **partial** | exists, but shaped differently from the sketch (3.1) |
+| Kernel registry, cpu-ref oracle, admission test | **implemented** | 3.2 |
+| `register_kernel!` as the registration path | **partial** | macro exists, backends register through `KernelImpl` directly |
+| Exactness modes (`fast`, `deterministic`, `exact`) | **implemented** | enum and per-kernel tag; no server flag |
+| Autotuner and tuning DB (`tuning/<fingerprint>.toml`) | **planned** | no code, no `tuning/` directory; kernel choice is static priority |
+| Torch-free C kernel ABI | **implemented** | `kernels/abi/ik_abi.h` |
+| Kernel packs (`kernels/packs/*`) | **partial** | kernels are ported into `kernels/cuda` and `kernels/hip`; no pack mechanism, no submodules |
+| Quant formats BF16, FP8, NVFP4, MXFP4, EXL3 | **implemented** | `crates/intarsia-core/src/quant` |
+| Quant formats GGUF k-quants, AWQ/GPTQ | **planned** | no loader |
+| `intarsia-quant` crate | **planned** | does not exist; formats live in `intarsia-core` |
+| Block library (GQA, GDN, dense FFN, MoE, RMSNorm) | **partial** | hard-coded in Rust, selected by recipe; sliding window exists only inside the Gemma 4 block (`crates/intarsia-core/src/model/gemma.rs`); MLA, Mamba2, LayerNorm absent |
+| Recipes and `recipe new` | **partial** | 7 recipes in `recipes/` (Qwen2, Qwen3, Qwen3.5 dense / MoE / VL, Llama, Gemma 4), so "Qwen3 family only" no longer holds; unsupported architectures refused at load |
+| Plan compiler, `plan show`, measured-memory KV, graph capture | **partial** | graphs are captured per batch row count for batched decode (`crates/intarsia-core/src/model/graph_step.rs`); no tuning DB, no `--allow-slow` |
+| Scheduler | **partial** | FIFO continuous batching (`crates/intarsia-core/src/scheduler.rs`) on Metal, CUDA and HIP (dense models on Metal and HIP since #154, hybrid models on all three); tensor-parallel batching and MTP under batching are not on main; no priorities |
+| Watchdog and supervisor | **implemented** | `crates/intarsia-server/src/supervisor.rs` |
+| Paged KV blocks | **planned** | KV is contiguous per slot |
+| Radix-tree prefix cache | **partial** | opt-in content-addressed prefix store (`crates/intarsia-core/src/prefix_store.rs`, `serve --prefix-store`, hash-keyed pages, not a radix tree), single-sequence engine and the batched engine for plain decode (docs/results/2026-11-13-batch-store.md); idle-slot prefix reuse with recurrent snapshots otherwise |
+| Host-RAM KV tier | **partial** | the prefix store keeps prefix pages in host memory and on disk (`crates/intarsia-core/src/prefix_store.rs`); live per-slot KV has no host tier |
+| Speculation | **partial** | n-gram (Metal only) and the MTP drafter (`--spec mtp` on CUDA, HIP and Metal, one sequence, greedy; captured draft+verify step on HIP in `crates/intarsia-core/src/model/spec_graph.rs`); DFlash2 block drafter opt-in on HIP (`--spec dflash`, Qwen3.8-27B, tp=1 and tp=2; #175, cost lane dcp: `docs/results/2026-10-27-dcp-dflash-cost.md`; `crates/intarsia-core/src/model/dflash2.rs`); batched MTP refused at load (`crates/intarsia-models/src/load.rs`) |
+| Sampler and structured output | **partial** | no min-p or penalties; `llguidance` is in |
+| Tool and reasoning parsers | **partial** | two tool-call formats (hermes, qwen3_xml) and one reasoning format (think-tags) |
+| Tensor parallelism and `Comm` | **partial** | NCCL (CUDA), 2-rank P2P (HIP), host-bounced for the rest; no RCCL, no fused all-reduce+norm+quant, no lossy transports; batching under tp, vocab-parallel head and fused all-reduce+norm are open PRs, not on main |
+| Accuracy system | **partial** | `intarsia accuracy` and `qualify`; gates differ from section 6 (see ADR-0008) |
+| Bench plugins, onboarding | **partial** | `bench speed` and `onboard` exist; no `BenchPlugin` trait, no `micro` plugin |
+| OpenAI and Anthropic APIs | **partial** | `/v1/responses` and `/v1/embeddings` absent |
+| Prometheus metrics | **implemented** | OTLP export absent |
+| Containers, run manifest, `intarsia replay` | **partial** | script-level only: `scripts/deploy.sh`, `scripts/bench-bundle.sh` (pack / replay), `scripts/repro-build.sh`, CI `scripts/repro-check.sh`; only HIP dev Dockerfiles (`deploy/tatooine/`); no `intarsia replay` command, and the bundle holds no plan or tuning hash |
+
+---
+
+## 0. Goals, honest targets, anti-goals
+
+Requirements in priority order (user, 2026-10-12): modular → easy to use → accurate → fast (top 3 per platform) → reproducible → OpenAI/Anthropic APIs → built-in UI/TUI (optional, dark) → metrics → live architecture diagram → Spark → R9700 → TP=X → Intel Arc later.
+
+**What "top 3" means per platform** (the competitor to beat at each phase gate):
+
+| Platform | Current leaders on our boxes | Phase-2 gate | Phase-4 gate |
+|---|---|---|---|
+| DGX Spark (GB10) | TensorFold (27B decode 83 tok/s is its TP=2 vendor figure; one Spark measures 31.7 / 39.7 / 37.1 tok/s at 1k / 4k / 16k in localeval, TensorFold 0.3.0 MLX-4bit, see results/2026-10-27-s27d-cuda-27b-decode.md), vLLM (35B-A3B NVFP4 86-90), llama.cpp, SGLang | beat llama.cpp and vLLM single-stream on the same quant | within 10% of TensorFold |
+| R9700 (gfx1201) | native radiance (27B TP=2 207-226), vLLM-radiance (150), llama.cpp Vulkan (MoE 112) | beat llama.cpp Vulkan/HIP | beat vLLM-radiance; radiance is the long-term bar |
+| Apple Silicon (dev box) | mlx-serve, MLX-LM, TensorFold-MLX | correctness only | later decision |
+| Intel Arc | llama.cpp SYCL | not in scope | not in scope |
+
+Top 3 on R9700 means beating vLLM or llama.cpp, not radiance, until Phase 4. Saying so keeps the target honest.
+
+**Anti-goals** (each one cost a prior project months):
+- **No per-family engines.** TensorFold ships a CUDA engine per model family; effort multiplies per model. Here a model is a *recipe* over a shared block library. New code is needed only for a genuinely new block type.
+- **No Python in the serving path.** Native radiance starts in 11 s vs 160 s for vLLM at equal or better step time. Python stays in offline tools (golden references, converters).
+- **No scope sprawl.** Text LLM inference first. No image, audio or 3D (mlx-serve's burden). Vision encoders are a later block type, not a side product.
+- **No kernel enters without passing its reference test.** sm_121 CUTLASS NVFP4 MoE emitting `!!!!!` and a cuDNN FP8 GEMM hanging after 250k steps were both shipped by others.
+
+---
+
+## 1. Language and build
+
+| Layer | Choice | Why |
+|---|---|---|
+| Host: server, scheduler, KV manager, loaders, metrics, UI server, CLI | **Rust** (stable, edition 2021) | Native speed and startup with memory safety; best ecosystem for this exact stack: `tokenizers` (HF), `safetensors`, `minijinja` (HF chat templates), `llguidance` (structured output), `axum`/`tokio`, `ratatui`, `prometheus-client`, `opentelemetry`, `cudarc` (CUDA driver + NCCL). One static binary per platform. |
+| GPU kernels, NVIDIA | **CUDA C++** (+ inline PTX where profiling demands), AOT-compiled to fatbins for `sm_121` (GB10), plus `sm_90/100/120` when hardware appears | Cold JIT compiles take minutes on GB10; AOT removes that. |
+| GPU kernels, AMD | **HIP C++** (+ inline GCN/RDNA asm where needed), AOT for `gfx1201` | Same as radiance, which holds the R9700 bar. |
+| Shared kernel code | One `ik_portable.h` header that maps CUDA/HIP intrinsics; elementwise, norm, rope, sampling and quant-pack kernels compile from one source for both | Halves the simple-kernel work. GEMM and attention stay arch-specific. |
+| Apple (dev) / Arc (later) | Metal / Vulkan or SYCL backends behind the same trait | Not built now; the trait is shaped so they slot in. |
+| Offline tools | Python (uv), never imported by the server | Golden logits via HF `transformers`, plotting, converters. |
+
+Rejected: C++ host (radiance proves it works, but modularity, packaging and the server/UI ecosystem are slower to build); Zig host (mlx-serve proves it works, but the ML-adjacent library ecosystem is thin; no `tokenizers`/`llguidance` equivalents); Python host (per-step overhead, startup, container weight); Mojo (tried in `TensorFold-mojo*`, not merged). Assembly is used per hot spot, not as a language choice.
+
+
+**Status (section 1).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| Rust host, one binary per platform | **implemented** | [`Cargo.toml`](../Cargo.toml) workspace, edition 2021, `rust-toolchain.toml` pins 1.90.0 |
+| Host crates `tokenizers`, `minijinja`, `llguidance`, `axum`, `ratatui` | **implemented** | [`Cargo.toml`](../Cargo.toml) dependencies |
+| Host crates `prometheus-client`, `opentelemetry`, `cudarc`, `rust-embed` | **planned** | not in `Cargo.toml`: metrics are hand-written ([`crates/intarsia-server/src/metrics.rs`](../crates/intarsia-server/src/metrics.rs)), CUDA is bound through own FFI ([`crates/intarsia-backend-cuda/src/ffi.rs`](../crates/intarsia-backend-cuda/src/ffi.rs)), UI files are `include_str!`d ([`crates/intarsia-ui/src/lib.rs`](../crates/intarsia-ui/src/lib.rs)) |
+| CUDA C++ AOT for `sm_121` | **implemented** | [`crates/intarsia-backend-cuda/build.rs`](../crates/intarsia-backend-cuda/build.rs) (default `sm_121`) |
+| HIP C++ AOT for `gfx1201` | **implemented** | [`crates/intarsia-backend-hip/build.rs`](../crates/intarsia-backend-hip/build.rs) (default `gfx1201`) |
+| One `ik_portable.h` so simple kernels compile from one source for CUDA and HIP | **partial** | [`kernels/common/ik_portable.h`](../kernels/common/ik_portable.h) exists, but `kernels/cuda/*.cu` and `kernels/hip/*.hip` are separate files |
+| Apple (dev) / Arc (later): Metal / Vulkan or SYCL behind the same trait | **partial** | Metal **implemented**: [`crates/intarsia-backend-metal/src/lib.rs`](../crates/intarsia-backend-metal/src/lib.rs); Vulkan/SYCL **planned**: no code |
+| Offline Python tools, never imported by the server | **implemented** | [`tools/golden.py`](../tools/golden.py), [`tools/scribe.py`](../tools/scribe.py) |
+
+---
+
+## 2. System overview
+
+```mermaid
+flowchart LR
+  subgraph Front["Front door (crate: intarsia-server)"]
+    OAI["OpenAI: /v1/chat/completions, /v1/completions, /v1/responses, /v1/models"]
+    ANT["Anthropic: /v1/messages"]
+    UI["Embedded web UI: chat, live dashboard, live architecture map"]
+    MET["/metrics (Prometheus), OTLP, /events (SSE)"]
+  end
+  subgraph Core["Engine core (crate: intarsia-core)"]
+    TOK["Tokenizer + chat template + parsers (tools, reasoning)"]
+    SCH["Scheduler: continuous batching, chunked prefill, priorities"]
+    KV["KV manager: paged blocks, radix prefix cache, host tier"]
+    SPEC["Speculation: MTP, DFlash-style drafter, n-gram"]
+    SMP["Sampler + structured output (llguidance)"]
+    PLAN["Plan compiler: recipe → op graph → kernel selection → captured graphs per batch bucket"]
+  end
+  subgraph Pieces["Pieces (plugins)"]
+    REC["Recipes (TOML)"]
+    BLK["Block library: attention (GQA/MLA/SWA/GDN), FFN (dense/MoE), norms, rope"]
+    QF["Quant formats: BF16, FP8, NVFP4, MXFP4, GGUF k-quants, EXL3, AWQ/GPTQ"]
+    KR["Kernel registry: (op, backend, arch, dtype/quant, shape class) → impl + reference + autotune DB"]
+    BEN["Bench plugins: micro, e2e, localeval"]
+  end
+  subgraph HW["Backends (crate: intarsia-backend-*)"]
+    CPU["cpu-ref (always on: the oracle)"]
+    CUDA["cuda (GB10 sm_121)"]
+    HIP["hip (R9700 gfx1201)"]
+    COMM["Comm: NCCL/RCCL, P2P one-shot all-reduce"]
+  end
+  OAI & ANT & UI --> TOK --> SCH
+  SCH <--> KV
+  SCH --> SPEC --> PLAN
+  SCH --> PLAN --> KR --> CUDA & HIP & CPU
+  PLAN --> SMP
+  REC --> PLAN
+  BLK --> PLAN
+  QF --> KR
+  PLAN --> COMM
+  Core -. events .-> MET
+  MET --> UI
+```
+
+**Status (section 2 diagram).** Boxes that are **planned** or **partial**: `KV` ("paged blocks, radix prefix cache, host tier"; partial: live KV is contiguous per slot ([`state.rs`](../crates/intarsia-core/src/state.rs)); the opt-in content-addressed prefix store keeps paged, content-addressed prefix states in device, host and disk tiers ([`prefix_store.rs`](../crates/intarsia-core/src/prefix_store.rs)); there is no radix tree), `SPEC` (partial: n-gram (Metal only) and MTP (CUDA, HIP, Metal; one sequence) are in, see [`spec.rs`](../crates/intarsia-core/src/spec.rs) and [`model/spec_graph.rs`](../crates/intarsia-core/src/model/spec_graph.rs); no DFlash drafter), `QF` (partial: no GGUF k-quants, AWQ/GPTQ), `BLK` (partial: sliding window exists only inside the Gemma 4 block, [`model/gemma.rs`](../crates/intarsia-core/src/model/gemma.rs); no MLA, no Mamba2), `KR` "autotune DB" (planned), `HIP` and `CUDA` are implemented, `COMM` "NCCL/RCCL" (partial: NCCL on CUDA and a 2-rank P2P one-shot all-reduce on HIP, no RCCL), "OTLP" in `MET` (planned), `/v1/responses` in `OAI` (planned), `PLAN` "captured graphs per batch bucket" (partial: graphs are captured per decode row count, not per rounded bucket, see 3.6). Metal ([`crates/intarsia-backend-metal`](../crates/intarsia-backend-metal)) is implemented but missing from the diagram's `HW` subgraph. The picture in [architecture-diagram.md](architecture-diagram.md) marks planned components with dashed outlines.
+
+---
+
+## 3. Core abstractions (the pieces)
+
+### 3.1 Backend trait (minimal on purpose)
+
+```rust
+pub trait Backend: Send + Sync {
+    fn info(&self) -> DeviceInfo;                       // arch, mem, bandwidth (measured), features
+    fn alloc(&self, bytes: usize, kind: MemKind) -> Result<Buffer>;
+    fn copy(&self, dst: &Buffer, src: &Buffer, stream: StreamId) -> Result<()>;
+    fn launch(&self, k: &LoadedKernel, args: &KernelArgs, stream: StreamId) -> Result<()>;
+    fn graph_begin(&self, stream: StreamId) -> Result<()>;
+    fn graph_end(&self, stream: StreamId) -> Result<GraphHandle>;
+    fn graph_replay(&self, g: &GraphHandle, stream: StreamId) -> Result<()>;
+    fn event(&self, stream: StreamId) -> Result<Event>;
+    fn comm(&self) -> Option<&dyn Comm>;                 // TP collectives
+}
+```
+
+
+**Status (3.1).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| A minimal `Backend` trait is the whole device contract | **partial** | [`backend.rs:192`](../crates/intarsia-core/src/backend.rs): the trait exists with 33 methods, 9 required (`name`, `info`, `alloc`, `upload`, `download`, `copy`, `kernels`, `launch`, `synchronize`); the rest have defaults. Shape differs from the sketch: `launch` is `launch(kernel_name, &OpCall, stream)`, graphs are `graph_capture`/`graph_replay`, there is no `event` |
+| `fn comm(&self) -> Option<&dyn Comm>` | **partial** | no `comm` method on the trait; TP collectives are built from backend lists in [`crates/intarsia-core/src/comm.rs`](../crates/intarsia-core/src/comm.rs) and per-backend files |
+| Everything above the trait is backend-neutral | **partial** | backend-specific branches remain: [`crates/intarsia-core/src/model/batch.rs`](../crates/intarsia-core/src/model/batch.rs) tests `backend.name() != "cpu"`, and `--max-batch` above 1 is refused on any backend but Metal, CUDA and HIP (and the CPU backend with `INTARSIA_RECURRENT_BATCH=1`) in [`crates/intarsia-models/src/load.rs`](../crates/intarsia-models/src/load.rs) |
+| A Vulkan or SYCL backend only has to implement the trait plus its kernel packs | **planned** | no such backend; `kernels/abi/ik_abi.h` takes a CUDA-stream-shaped `void* stream` and CUDA/HIP share `ik_*` symbol names |
+| Backend init applies known-bad-default fixes as data (`GPU_MAX_HW_QUEUES=1`) | **partial** | applied by the launchers, not by backend init: [`crates/intarsia-cli/src/cmd/onboard.rs`](../crates/intarsia-cli/src/cmd/onboard.rs), [`crates/intarsia-cli/src/cmd/qualify.rs`](../crates/intarsia-cli/src/cmd/qualify.rs); `doctor` only reports it ([`crates/intarsia-cli/src/cmd/doctor.rs`](../crates/intarsia-cli/src/cmd/doctor.rs)) |
+
+
+Everything else (ops, quant, attention) lives above the trait. A Vulkan or SYCL backend for Arc only has to implement this plus its kernel packs. Backend init applies known-bad-default fixes as data (for example `GPU_MAX_HW_QUEUES=1` on HIP, which removed a permanent 20% slowdown).
+
+### 3.2 Kernel registry: the core of modularity and accuracy
+
+Every **op** (e.g. `matmul`, `rmsnorm_add`, `rope`, `paged_attn_decode`, `paged_attn_verify`, `moe_gate_topk`, `moe_grouped_gemm`, `all_reduce_norm_quant`) has:
+
+1. A **signature**: typed inputs/outputs, layouts, quant format.
+2. A **reference implementation** in `cpu-ref` (f32/f64 accumulate). This is the oracle.
+3. Any number of **implementations**, each declaring `(backend, arch set, dtype/quant, shape predicate, exactness class)`.
+
+```rust
+register_kernel! {
+    op: Matmul, name: "nvfp4_gemv_splitk_v1",
+    backend: Cuda, arch: [sm_121], weights: Nvfp4, acts: [Bf16, Fp8E4m3],
+    when: |s| s.m <= 8 && s.k % 64 == 0,          // shape preconditions are code, checked at plan time
+    exact: Exactness::Deterministic,               // or BitExactVsSerial / Tolerance(...)
+    tol: Tol { max_abs: 2e-2, rel_l2: 5e-3 },
+}
+```
+
+Rules:
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Plan-time preconditions**: shape predicates are evaluated when the plan is built, so traps like "MXFP4 GEMM needs per-rank K % 128" fail loudly at load, not as token-0 output.
+- **Autotuner**: for each (op, shape bucket) on a host, time the eligible implementations and store the winner in a **tuning DB** keyed by host fingerprint (GPU, driver, toolkit, kernel-pack hash). The DB is a committed lockfile per platform (`tuning/<fingerprint>.toml`) so results reproduce.
+- **Exactness modes** (from TensorFold): `fast` (any passing kernel), `deterministic` (fixed reduction order, run-to-run identical), `exact` (multi-row verify equals serial decode bit-for-bit; required for lossless speculation claims). Mode is a server flag and is reported in every result.
+
+
+**Status (3.2).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| Every op has a typed signature | **implemented** | [`crates/intarsia-core/src/ops.rs`](../crates/intarsia-core/src/ops.rs): `Op` enum, 42 ops with arity and shape checks. The example op names (`paged_attn_decode`, `paged_attn_verify`, `moe_gate_topk`, `moe_grouped_gemm`, `all_reduce_norm_quant`) are plan names; the real ones are `AttnDecode`, `AttnPrefill`, `MoeTopk`, `MoeExperts`, `MoeBlock`, and there is no all-reduce op |
+| Reference implementation per op in `cpu-ref` | **implemented** | [`crates/intarsia-backend-cpu/src/reference.rs`](../crates/intarsia-backend-cpu/src/reference.rs) |
+| Many implementations per op, each with (backend, arch, dtype/quant, shape predicate, exactness) | **implemented** | [`crates/intarsia-core/src/registry.rs`](../crates/intarsia-core/src/registry.rs) `KernelImpl` |
+| `register_kernel!` macro | **partial** | [`registry.rs:247`](../crates/intarsia-core/src/registry.rs) defines it; only that file uses it. Backends build `KernelImpl` values directly ([`crates/intarsia-backend-cuda/src/kernels.rs`](../crates/intarsia-backend-cuda/src/kernels.rs)). The `tol:` field in the example is illustrative |
+| Admission test, `intarsia kernels test`; failing kernel is unselectable | **implemented** | [`crates/intarsia-core/src/admission.rs`](../crates/intarsia-core/src/admission.rs), [`crates/intarsia-cli/src/cmd/kernels.rs`](../crates/intarsia-cli/src/cmd/kernels.rs) |
+| Plan-time preconditions fail loudly at load | **implemented** | [`crates/intarsia-core/src/plan.rs`](../crates/intarsia-core/src/plan.rs) returns `Error::NoKernel` when no admitted kernel fits |
+| Autotuner and tuning DB committed as `tuning/<fingerprint>.toml` | **planned** | no autotuner code and no `tuning/` directory; selection is static priority among admitted kernels |
+| Exactness modes `fast`, `deterministic`, `exact` | **implemented** | [`registry.rs:16`](../crates/intarsia-core/src/registry.rs) `Exactness` enum, shown by `intarsia kernels` |
+| Mode is a server flag reported in every result | **planned** | no `--exactness` flag in `serve` or `common.rs`; exactness is a per-kernel tag |
+
+### 3.3 Kernel ABI and kernel packs
+
+Every pack is a **port**, not an import (most upstream kernels take `torch::Tensor`). The port target is one torch-free C ABI, `kernels/abi/ik_abi.h`:
+
+```c
+typedef struct { void* data; int32_t dtype; int32_t ndim; int64_t shape[6]; int64_t stride[6]; } ik_tensor;
+typedef struct { const void* scales; const void* zeros; int32_t group; int32_t format; } ik_quant;
+// every launcher: raw tensors in, status out, explicit stream, no allocation inside
+int ik_rmsnorm_add(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, ik_tensor* out, void* stream);
+```
+
+Kernels are compiled by `nvcc`/`hipcc` into a static library per backend and bound from Rust via `extern "C"`. The same shim pattern covers HIP, where Rust bindings are thin (no RCCL or hipBLASLt crates).
+
+| Pack | Backend | License | Port first |
+|---|---|---|---|
+| `native` (ours) | CUDA + HIP | Apache-2.0 | norms, rope, embedding, sampling, simple attention, glue |
+| `tensorfold` | CUDA (+ its ROCm variants) | MIT | EXL3 linear/experts, NVFP4 `qmmf`, GDN, DFlash verify, attention: holds the Spark bar |
+| `radiance` (`libr4d`) | HIP gfx1201 | Apache-2.0 (keep `NOTICE`) | MXFP4×FP8 GEMM, one-shot 2/3-rank all-reduce (+norm+quant), GDN recurrent update, paged attention, int2 lm_head: holds the R9700 bar |
+| `cublaslt` / `hipblaslt` | vendor | vendor | prefill GEMM, registered as `Exactness::Fast` only (algorithm choice varies by shape; graphs freeze one) |
+
+Other packs (flashinfer, cutlass, ggml, exl3 upstream, ck/aiter) are added only when a measured gap names one. Rule: **no pack is vendored without its license file in `LICENSES/`**, pinned by commit, and every exported kernel passes the admission test.
+
+**Block-scope fused ops are first-class.** Radiance and TensorFold are fast because of hand-fused, family-specific kernels (all-reduce in a GEMV epilogue, norm+quant into GDN). A generic pattern-rewriting fuser is a compiler project we will not build. Instead the registry holds fused block ops (e.g. `gdn_layer_decode_fused`, `attn_block_decode_fused`, `all_reduce_rmsnorm_fp8`) whose reference is the generic op chain. The plan compiler picks the fused op when one is admitted for the shape, else falls back to the chain.
+
+
+**Status (3.3).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| One torch-free C ABI, `kernels/abi/ik_abi.h` | **implemented** | [`kernels/abi/ik_abi.h`](../kernels/abi/ik_abi.h) (`ik_tensor`, `ik_quant`; launcher comment still says Phase 0 dense BF16) |
+| Kernels compiled by `nvcc`/`hipcc` into a static library and bound via `extern "C"` | **implemented** | [`crates/intarsia-backend-cuda/build.rs`](../crates/intarsia-backend-cuda/build.rs), [`crates/intarsia-backend-hip/build.rs`](../crates/intarsia-backend-hip/build.rs), FFI in `ffi.rs` of each crate |
+| `native` pack (ours, CUDA + HIP) | **implemented** | [`kernels/cuda`](../kernels/cuda), [`kernels/hip`](../kernels/hip) |
+| `tensorfold` pack (MIT): EXL3, NVFP4, GDN, DFlash verify | **partial** | ports of TensorFold kernels exist ([`kernels/cuda/exl3.cu`](../kernels/cuda/exl3.cu), [`kernels/cuda/nvfp4.cu`](../kernels/cuda/nvfp4.cu), licence in [`LICENSES/TensorFold-MIT.txt`](../LICENSES/TensorFold-MIT.txt)); the grouped EXL3 routed-expert kernels ([`kernels/cuda/exl3_moe.cu`](../kernels/cuda/exl3_moe.cu) and `exl3_moe_*.cu`) are ported from the Apache-2.0 DeepSeek-V4.1 fork of TensorFold ([`kernels/cuda/NOTICE-tensorfold`](../kernels/cuda/NOTICE-tensorfold), [`LICENSES/Apache-2.0-TensorFold.txt`](../LICENSES/Apache-2.0-TensorFold.txt)); there is no pack boundary, and no DFlash verify |
+| `radiance` pack (Apache-2.0): MXFP4xFP8 GEMM, one-shot all-reduce, GDN, paged attention | **partial** | HIP kernels with attribution ([`kernels/hip/NOTICE-radiance`](../kernels/hip/NOTICE-radiance), [`LICENSES/Apache-2.0-radiance.txt`](../LICENSES/Apache-2.0-radiance.txt)): MXFP4 GEMM ([`kernels/hip/mxfp4.hip`](../kernels/hip/mxfp4.hip)), a 2-rank one-shot all-reduce ([`kernels/hip/allreduce.hip`](../kernels/hip/allreduce.hip)), GDN ([`kernels/hip/gdn.hip`](../kernels/hip/gdn.hip)); no paged attention, and the all-reduce is 2-rank only |
+| `cublaslt` / `hipblaslt` prefill GEMM registered as `Fast` | **partial** | cuBLASLt for FP8 only ([`kernels/cuda/fp8_gemm_lt.cu`](../kernels/cuda/fp8_gemm_lt.cu)); a hipBLASLt route is not built (the note is in [`kernels/hip/matmul.hip`](../kernels/hip/matmul.hip), see [`docs/backends/hip.md`](backends/hip.md)) |
+| Other packs (flashinfer, cutlass, ggml, exl3, ck/aiter) as pinned submodules under `kernels/packs/` | **planned** | no `kernels/packs/`, no `.gitmodules` |
+| No pack vendored without its licence file in `LICENSES/` | **implemented** | [`LICENSES`](../LICENSES) holds radiance, TensorFold (MIT and the Apache-2.0 fork) and exllamav3 |
+| Block-scope fused ops are first-class; plan picks the fused op when admitted, else the chain | **partial** | fused ops exist as `Op` variants (`MoeBlock`, `GdnConvDelta`, `RmsNormAddMatmulPair`, `QkNormRopeKv`, ... in [`crates/intarsia-core/src/ops.rs`](../crates/intarsia-core/src/ops.rs)); the example names (`gdn_layer_decode_fused`, `attn_block_decode_fused`, `all_reduce_rmsnorm_fp8`) do not exist, and the chain fallback is decided in model code, not by the plan compiler |
+
+### 3.4 Quant formats as plugins
+
+```rust
+pub trait QuantFormat {
+    fn id(&self) -> QuantId;                                  // "nvfp4", "mxfp4", "gguf:q4_k", "exl3:3.0", ...
+    fn detect(&self, meta: &WeightMeta) -> bool;              // from safetensors/GGUF metadata
+    fn load(&self, src: &TensorSource, dst: &dyn Backend, layout: &Layout) -> Result<QTensor>;
+    fn dequant_ref(&self, q: &QTensor) -> Tensor;             // used by the oracle
+    fn quantize(&self, t: &Tensor, cfg: &QuantCfg) -> Option<QTensor>;  // optional: on-the-fly RTN
+}
+```
+
+Adding a quant = implement this trait + register matmul kernels that accept it. The oracle path (`dequant_ref` + reference matmul) works the moment `load` and `dequant_ref` exist, so correctness is testable before any fast kernel is written.
+
+Per-tensor overrides live in the recipe (e.g. drafter stays FP8: MXFP4 RTN dropped drafter acceptance from 2.5 to 2.21 on R9700).
+
+
+**Status (3.4).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| `QuantFormat` trait with `id`, `detect`, `load`, `dequant_ref`, `quantize` | **implemented** | [`mod.rs:233`](../crates/intarsia-core/src/quant/mod.rs) (same five methods; `load` takes `WeightMeta`, `&dyn Backend` and `QuantLoadOpts`) |
+| Formats BF16, FP8, NVFP4, MXFP4, EXL3 | **implemented** | [`crates/intarsia-core/src/quant/fp8.rs`](../crates/intarsia-core/src/quant/fp8.rs), [`crates/intarsia-core/src/quant/nvfp4.rs`](../crates/intarsia-core/src/quant/nvfp4.rs), [`crates/intarsia-core/src/quant/mxfp4.rs`](../crates/intarsia-core/src/quant/mxfp4.rs), [`crates/intarsia-core/src/quant/exl3.rs`](../crates/intarsia-core/src/quant/exl3.rs); BF16 is `Bf16Dense` in `quant/mod.rs` |
+| Formats GGUF k-quants, AWQ/GPTQ | **planned** | no `QuantFormat` impl; `gguf` appears only in `quant/scheme.rs` and `cmd/recipe.rs` text |
+| Adding a quant = implement the trait + register kernels | **partial** | also needs `Op` variants per (format, fusion) and edits in about 20 files (review finding 9, deferred to the user) |
+| Oracle path works as soon as `load` and `dequant_ref` exist | **implemented** | [`crates/intarsia-core/src/quant/reference.rs`](../crates/intarsia-core/src/quant/reference.rs) |
+| Per-tensor overrides live in the recipe | **partial** | recipes carry per-backend tuning tables; per-tensor quant overrides are chosen in load code, not in the recipe TOML |
+| `intarsia-quant` crate (section 12) | **planned** | does not exist; code is under [`crates/intarsia-core/src/quant`](../crates/intarsia-core/src/quant) |
+
+### 3.5 Block library and recipes: adding a model
+
+A **block** is a reusable layer piece with a typed config: `Attention{kind: Gqa|Mla|SlidingWindow|GatedDeltaNet|Mamba2, rope: ..., qk_norm: bool}`, `Ffn{kind: Dense|Moe{experts, top_k, shared, router}}`, `Norm{RmsNorm|LayerNorm, offset}`, `Embedding`, `LmHead{tied}`.
+
+A **recipe** maps a Hugging Face model to blocks:
+
+```toml
+# recipes/qwen3.toml
+[model]
+match.architectures = ["Qwen3ForCausalLM"]
+family = "qwen3"
+chat_template = "hf"            # use tokenizer_config.json template via minijinja
+reasoning_parser = "think-tags"
+tool_parser = "hermes"
+
+[layer]                          # applied to every layer i
+pattern = ["attn", "ffn"]
+attn = { kind = "gqa", q = "model.layers.{i}.self_attn.q_proj", k = "...k_proj", v = "...v_proj",
+         o = "...o_proj", q_norm = "...q_norm", k_norm = "...k_norm", rope = "default" }
+ffn  = { kind = "dense", act = "silu_glu", gate = "model.layers.{i}.mlp.gate_proj",
+         up = "...up_proj", down = "...down_proj" }
+norms = { pre_attn = "model.layers.{i}.input_layernorm", pre_ffn = "model.layers.{i}.post_attention_layernorm" }
+
+[top]
+embed = "model.embed_tokens"
+final_norm = "model.norm"
+lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }
+
+[defaults]                       # tunables a user can override per deployment
+kv_dtype = "bf16"                # fp8_e4m3 KV is opt-in (CUDA `--kv-dtype fp8_e4m3`), not a recipe default
+max_batch = 8                    # ceiling for the batching scheduler (Metal, CUDA, HIP); the qwen3_5* recipes declare 32, gemma4 declares 1. `serve` runs one sequence unless --max-batch N (capped per backend; ADR-0010)
+
+[tuning.metal]                   # optional per-backend prefill chunk (--prefill-chunk wins; unlisted backends use 256)
+prefill_chunk = 2048
+
+[tuning.hip]
+prefill_chunk = 2048             # qwen3_5_moe.toml: CUDA 2048, HIP 4096
+
+[tuning.cuda]
+prefill_chunk = 4096             # shared by every dense Qwen3; qwen3_5_moe.toml keeps 2048 on CUDA
+```
+
+Updated 2026-10-21: this example (it mirrors `recipes/qwen3.toml`) used to show `kv_dtype = "fp8_e4m3"`, `max_batch = 32` and no tuning table. Every shipped recipe (`recipes/*.toml`) uses `bf16`; the current defaults are tabulated in [docs/decisions/LOG.md](decisions/LOG.md) ("Defaults in force on main").
+
+Hybrid models (Qwen3.5/3.8 GDN + full attention every 4th layer) use `pattern_by_layer` or a `layer_types` key read from `config.json`. `intarsia recipe new <hf-dir>` inspects `config.json` + tensor names, matches the closest existing recipe, writes a draft, and lists unmapped tensors. Most new models in a known family need only a recipe; new block types are the only code.
+
+
+**Status (3.5).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| `Attention` kind Gqa | **implemented** | [`recipes/qwen3.toml`](../recipes/qwen3.toml) (`kind = "gqa"`) |
+| `Attention` kind GatedDeltaNet | **implemented** | [`recipes/qwen3_5.toml`](../recipes/qwen3_5.toml) (`kind = "gated_delta_net"`), [`crates/intarsia-core/src/gdn.rs`](../crates/intarsia-core/src/gdn.rs) |
+| `Attention` kind SlidingWindow | **partial** | implemented only inside the Gemma 4 block ([`crates/intarsia-core/src/model/gemma.rs`](../crates/intarsia-core/src/model/gemma.rs), [`recipes/gemma4.toml`](../recipes/gemma4.toml) `kind = "gemma4"`); the generic recipe layer path still rejects a `sliding_attention` layer type ([`crates/intarsia-models/src/recipe.rs`](../crates/intarsia-models/src/recipe.rs)) |
+| `Attention` kinds Mla, Mamba2 | **planned** | no such kind in [`recipes`](../recipes) or the model code |
+| `Ffn` kind Dense | **implemented** | [`recipes/qwen3.toml`](../recipes/qwen3.toml) |
+| `Ffn` kind Moe | **implemented** | [`recipes/qwen3_5_moe.toml`](../recipes/qwen3_5_moe.toml) (`kind = "qwen3_5_moe"`), [`crates/intarsia-core/src/quant/moe.rs`](../crates/intarsia-core/src/quant/moe.rs) |
+| `Norm` RmsNorm | **implemented** | [`crates/intarsia-core/src/ops.rs`](../crates/intarsia-core/src/ops.rs) `RmsNorm` |
+| `Norm` LayerNorm | **planned** | no LayerNorm op |
+| Blocks are a reusable typed-config library | **partial** | block structure is Rust code in [`crates/intarsia-core/src/model.rs`](../crates/intarsia-core/src/model.rs); a recipe selects and wires tensors but cannot define a new block |
+| Recipe maps a Hugging Face model to blocks | **implemented** | [`recipes`](../recipes) (qwen2, qwen3, qwen3_5, qwen3_5_moe, qwen3_5_vl, llama, gemma4), loaders [`crates/intarsia-models/src/recipe.rs`](../crates/intarsia-models/src/recipe.rs), [`crates/intarsia-core/src/recipe.rs`](../crates/intarsia-core/src/recipe.rs) |
+| Hybrid models via `pattern_by_layer` or `layer_types` | **implemented** | [`crates/intarsia-models/src/recipe.rs`](../crates/intarsia-models/src/recipe.rs) (tests show `layer_types`) |
+| `intarsia recipe new <hf-dir>` drafts a recipe and lists unmapped tensors | **implemented** | [`crates/intarsia-cli/src/cmd/recipe.rs`](../crates/intarsia-cli/src/cmd/recipe.rs) |
+| Most new models in a known family need only a recipe | **partial** | true inside the Qwen3 family only; rope scaling variants (llama3, yarn, longrope), attention bias, sliding window, non-SiLU FFNs need code or are refused at recipe load ([`docs/adding-a-model.md`](../docs/adding-a-model.md)) |
+
+### 3.6 Plan compiler
+
+`recipe + config + weights + host` → **plan**:
+1. Build the op graph for one decode step and one prefill chunk.
+2. Prefer admitted block-scope fused ops (3.3) over their generic op chains; only trivial load-time rewrites (`gate+up` weight concat, QKV concat).
+3. For each op, pick the kernel: preconditions → admission pass → tuning DB winner → fallback chain ending at the reference (reference on GPU is never selected silently; it raises an error unless `--allow-slow`).
+4. Allocate activations (static arena), KV pool from **measured** free memory (wrong pins OOM'd radiance at startup; GB10 reports no GPU memory via nvidia-smi, so measure via the driver).
+5. Capture CUDA/HIP graphs per batch-size bucket for decode and verify steps.
+
+The plan is serializable (`intarsia plan show`) so the UI and humans can see exactly which kernel runs for every op.
+
+
+**Status (3.6).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| 1. Build the op graph for a decode step and a prefill chunk | **implemented** | [`crates/intarsia-core/src/plan.rs`](../crates/intarsia-core/src/plan.rs) |
+| 2. Prefer admitted block-scope fused ops; load-time rewrites such as `gate+up` concat | **partial** | fused ops are selected in model code (e.g. `try_mxfp4_pair` in [`crates/intarsia-core/src/model.rs`](../crates/intarsia-core/src/model.rs)); a load-time `gate+up` concat exists only for MoE experts ([`crates/intarsia-core/src/quant/moe.rs`](../crates/intarsia-core/src/quant/moe.rs)), not for the dense FFN |
+| 3. Kernel choice: preconditions, admission pass, tuning-DB winner, fallback chain | **partial** | preconditions and admission are in [`crates/intarsia-core/src/plan.rs`](../crates/intarsia-core/src/plan.rs); the tuning-DB winner step is **planned** |
+| Reference on GPU never selected silently; error unless `--allow-slow` | **partial** | the error half is real (`Error::NoKernel`); there is no `--allow-slow` flag |
+| 4. KV pool and activations from measured free memory | **implemented** | [`crates/intarsia-core/src/memplan.rs`](../crates/intarsia-core/src/memplan.rs) |
+| 5. Capture CUDA/HIP graphs per batch-size bucket | **implemented** | one recording per decode row count (not rounded buckets), plus spec-decode graphs: [`crates/intarsia-core/src/model/graph_step.rs`](../crates/intarsia-core/src/model/graph_step.rs); `INTARSIA_BATCH_GRAPHS=0` turns it off |
+| Plan is serializable (`intarsia plan show`) for the UI | **implemented** | [`crates/intarsia-cli/src/cmd/plan.rs`](../crates/intarsia-cli/src/cmd/plan.rs), `GET /v1/intarsia/plan` in [`crates/intarsia-server/src/lib.rs`](../crates/intarsia-server/src/lib.rs) |
+
+---
+
+## 4. Runtime
+
+- **Scheduler**: continuous batching with chunked prefill (adaptive chunk size as in radiance's MoE lane), request priorities (`priority: background`), memory-based admission. A **step watchdog** runs as a **process supervisor** (`intarsia serve` forks the engine worker): if the step counter stops advancing for N seconds while work is queued, the supervisor kills and restarts the worker, because a wedged CUDA context has sticky errors (vLLM's cuDNN FP8 hang on GB10 kept `/metrics` alive while dead).
+- **Sequence state** is designed for hybrid models from day 1: each sequence owns per-layer *state slots* that are either attention KV (grows with tokens) or recurrent state (fixed size: GDN/Mamba conv + SSM state). Prefix caching snapshots recurrent state at block boundaries (radiance's lazy-GDN snapshot bug was a state-abstraction bug). Phase 0 implements contiguous KV + recurrent slots for one sequence; Phase 1 adds paging.
+- **KV**: paged blocks; radix-tree prefix cache keyed by (model, plan hash, token ids); FP8/BF16 KV; optional host-RAM tier on discrete GPUs (refused on GB10 unified memory).
+- **Speculation**: pluggable drafters (`mtp`, `dflash` block drafter, `ngram`). Verify uses a split-KV attention kernel for q_len>1 (R9700 lesson: 8930 → 475 µs at 18k). Acceptance per workload is a first-class metric.
+- **Sampling**: greedy/temperature/top-k/top-p/min-p/penalties; seeded; `ignore_eos` + `min_tokens` honoured (localeval's speed protocol depends on it); structured output via `llguidance`.
+
+
+# Accuracy gates
+
+Implements ARCHITECTURE section 6, levels 2 and 3 (admission, level 1, is `intarsia kernels test` and runs
+on the model's own shapes at load, see `kernels/README.md`).
+
+## Golden logits (model level)
+
+Two reference sources, two file formats; `intarsia accuracy` reads both.
+
+### HF transformers: `tools/golden.py` (format `intarsia-golden-v1`, full vocabulary)
+
+Runs the Hugging Face `transformers` model in **bf16** (one forward per prompt, whole sequence at once),
+upcasts the logits to fp32, takes `log_softmax` over the vocab and stores it as fp16.
+
+```
+cd tools
+uv run golden.py --model <HF model dir> --out ../golden/<name>.safetensors [--device cpu|cuda]
+                 [--prompts a.jsonl b.jsonl] [--dtype float32] [--topk 20]
+```
+
+On a GPU box without a Python env, run it inside the vLLM image (torch + transformers + safetensors are
+there), through `fleetq`, with `golden.py`, `goldenlib.py` and `prompts/` copied next to each other
+(`~/intarsiaml-golden/` on spark1, see `run.sh` there). `golden/*.safetensors` is git-ignored.
+
+| tensor | dtype | shape | content |
+|---|---|---|---|
+| `ids_<i>` | I32 | `[n_i]` | token ids of prompt i |
+| `logprobs_<i>` | F16 | `[n_i, vocab]` | row t = `log_softmax(logits_t)` of the fp32-upcast reference logits, i.e. the distribution over token t+1 |
+
+`__metadata__` (all strings): `format`, `model`, `torch`, `transformers`, `device`, `dtype`, `template`,
+`vocab`, and `prompts` (JSON list of `{name, kind, n_tokens, text}`). `vocab` is the lm_head width, which can
+exceed the tokenizer vocab; our engine must produce the same width. fp16 rounds log-probs (relative 5e-4);
+the checker renormalises each reference row before computing KL to remove the rounding bias.
+
+A full-vocabulary row is about 300 KB, so a golden costs `positions x vocab x 2` bytes: the default prompt
+set (1434 positions) is 435 MB at vocab 151,669. Keep it out of nearly full disks (spark1) or use top-k.
+
+### Top-k goldens: `tools/golden_vllm.py`, `golden.py --topk K` (format `intarsia-golden-topk-v1`)
+
+For reference servers that can only report the top-k log-probs (vLLM's `prompt_logprobs`), and to keep goldens
+small. `golden_vllm.py` builds one from any OpenAI-compatible vLLM server:
+
+```
+python3 tools/golden_vllm.py --base-url http://spark-4e77:8000/v1 --model guidance \
+    --out golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors        # inside `fleetq run --uses guidance`
+```
+
+It tokenizes each prompt with the server's `/tokenize`, then sends one `/v1/completions` request with the ids
+plus one dummy token, `max_tokens=1` and `prompt_logprobs=20`. vLLM reports, for prompt position j >= 1, the
+top-20 of the distribution that predicts token j, so row t (the distribution after `ids[..=t]`) is
+`prompt_logprobs[t+1]`; the dummy last token exists only to obtain the row for the final real position
+(causal attention: it cannot change earlier rows). Entries outside the top-20 that vLLM adds for the actual
+prompt token are dropped. `golden_topk.py` converts a full golden to top-k (used to test the comparator).
+
+| tensor | dtype | shape | content |
+|---|---|---|---|
+| `ids_<i>` | I32 | `[n_i]` | token ids of prompt i |
+| `topk_ids_<i>` | I32 | `[n_i, K]` | the K most likely token ids of row t, best first; -1 pads |
+| `topk_logprobs_<i>` | F32 | `[n_i, K]` | their log-probs under the **full-vocabulary** softmax as the source reports them; -1e30 pads |
+
+`__metadata__` as above plus `topk`, `source` (`vllm`), `server`, `served_model`.
+
+**Provenance metadata** (all strings; older goldens lack it and `intarsia accuracy` says "not recorded"):
+`engine` (`hf-transformers` / `vllm`), `engine_version`, `model`, `model_revision` (HF snapshot hash when the
+path has one), `kv_dtype` (the reference's KV cache dtype: for vLLM the `cache_dtype` of
+`vllm:cache_config_info`, for HF the activation dtype), `cache_config_info` (all labels of that metric),
+`max_model_len`, `launch_flags` (vLLM's are not observable through the API; `golden_vllm.py --note` records
+what you know), `template`, `add_special_tokens`, `sampling` (prompt_logprobs, temperature, how the
+continuation was made), `prompt_files`, `skipped` (prompts that did not fit `max_model_len`), `built_unix`.
+Per prompt, `prompts` also carries `n_prompt`, `continuation` and `reuse_split` (below). `intarsia accuracy`
+prints this block and **warns when the reference's KV dtype differs from ours** (aliases are normalised: `fp8`
+= `fp8_e4m3`, `bfloat16` = `bf16`; vLLM's `auto` counts as a 16-bit cache). The live `guidance` vLLM runs an
+**fp8 KV cache** (`cache_dtype="fp8"`, prefix caching on) while we run bf16 (the recipe's `kv_dtype`): part of every
+KL against that reference is the reference's own KV quantisation noise, and it cannot be separated from our error
+until a reference with `--kv-cache-dtype auto` exists. That warning is printed on every 35B run.
+
+**Prefix caching in the golden request.** `golden_vllm.py` re-sends prompt plus continuation to a server that runs with
+`enable_prefix_caching=True` (the `guidance` vLLM). Whether a `prompt_logprobs` request reads cached fp8 KV blocks of
+an earlier request is unverified for vLLM 0.26 (Phase 1b review finding 10b), and the goldens built so far recorded
+nothing about it. `--cache-salt SALT` sends vLLM's per-request `cache_salt` (`SALT-<prompt index>-<n>`) so a request
+cannot share blocks; it is recorded in the `sampling` metadata, and without it the metadata says the cache was not
+controlled. The flag has not been run against a live server; rebuild the goldens with it before relying on a
+KV-noise-free comparison.
+
+### How a top-k golden is compared (tail bucket)
+
+A top-k reference is compared with three numbers, none of which is the old one alone:
+
+* `KL(supp)`: KL over the reference's top-k support with both sides renormalised there (the number reported
+  before). It is **blind to probability mass that moves outside the top-k**: if a bug lifts thousands of rare-token
+  logits from -10 to 0, most of our mass leaves the support while this KL stays near 0 (unit test
+  `mass_leaving_the_top_k_is_invisible_...`).
+* `KL(21-way)`: KL over the partition {the k reference ids, everything else}. vLLM reports full-vocabulary
+  log-probs, so the reference's "other" bucket is `1 - sum(top-k)` and ours is our softmax mass outside the same
+  ids (summed directly). By the chain rule this is the 2-way {support, tail} KL plus `P_ref(support)` times
+  `KL(supp)`: a true lower bound of the full-vocabulary KL, and the tightest one available. **This is the gated KL
+  for top-k goldens.** For full-vocabulary goldens the same partition is built from the reference's top-20 (so
+  numbers are comparable), while the gated KL there is the exact full-vocabulary one.
+* `tail ref` / `tail us`: the mean probability each side puts outside the support, and the gate on
+  `|mean(tail us - tail ref)|` (`--max-tail-excess`, default 0.02, all classes). The reference tail is read from
+  f32 log-probs, so it is resolved to about 1e-6.
+
+Top-1 is our full-vocabulary argmax against the reference's best id; top-5 overlap compares our top-5 with the
+reference's top-5. The top-k files are small (0.25 MB for 10 prompts, 6 MB for the long set), so they live in
+the repo copy on every box; spark1 keeps them in `~/intarsiaml-golden/`.
+
+### Prompt set
+
+`tools/prompts/golden.jsonl` (8 prompts of 18-90 tokens: counting, story, code, science, and four chat prompts)
+plus `tools/prompts/golden_long.jsonl` (two prose prompts of 300 and 700 tokens cut from `ppl.txt`, so the
+default 256-token prefill chunk is crossed twice and three times). One JSON object per line:
+`{"name", "kind": "raw", "text"}`, `{"name", "kind": "raw", "file": "ppl.txt", "skip_tokens", "max_tokens"}`
+or `{"name", "kind": "chat", "messages": [...]}`. Chat prompts are rendered with a fixed ChatML text
+(`--template chatml`), independent of the model's own template, so the token ids are stable. Tokenisation uses
+`add_special_tokens=True`; prompts must be 8-16384 tokens. Shared code: `tools/goldenlib.py`.
+
+**Long sets** (review finding 4: nothing used to go past 700 tokens or 16 decode steps):
+`tools/prompts/golden_4k.jsonl` (a 4000-token docs prompt, a 4000-token code prompt, and a 4.5k-token two-turn
+chat) and `golden_12k.jsonl` (12000-token docs and code prompts). Their text comes from frozen corpora
+(`corpus_docs.txt`: the repo's docs, `corpus_code.txt`: two Rust sources; the ids are in the golden, so editing
+the repo later changes nothing). Every prompt has `"continue": 64`: the golden tool appends 64 tokens of the
+**reference's own greedy continuation**, so the teacher-forced decode window (`--decode-positions 64`) is on the
+model's distribution rather than on arbitrary document text. The chat prompt has `"reuse_after_message": 2`:
+the first two messages plus the assistant header are "turn 1" and the golden records that token count as
+`reuse_split` for `--mode reuse`. Chat messages may take `content_file`/`skip_chars`/`max_chars` instead of
+`content`.
+
+```
+# vLLM (35B), inside the lease; the server must have max_model_len >= 12064+1 or the prompt is skipped, loudly
+python3 tools/golden_vllm.py --base-url http://spark-4e77:8000/v1 --model guidance \
+    --prompts tools/prompts/golden_4k.jsonl tools/prompts/golden_12k.jsonl \
+    --out golden/qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors
+# HF (8B), top-20 only (a full-vocabulary 4k golden is over a GB per prompt)
+docker run ... golden.py --model <8B> --device cuda --topk 20 --prompts prompts/golden_4k.jsonl --out ...
+```
+
+**The 8B 4k golden and how it is gated.** `qwen3-8b-4k-fp32-top20.safetensors` (HF fp32, CPU, `--topk 20`, 3 prompts, 12685 positions;
+`docs/results/2026-10-15-metal-golden-4k.md`) is the golden whose prompts are long enough for the prefix-reuse gate at a prefill chunk
+of 2048 (`chat_reuse_4k` splits at 4447 tokens; the 700-token long golden has nothing to run it on above a chunk of ~350). Against it
+the class floor top-1 >= 99.5% fails for every build, the CPU engine included (99.45% prefill; 91 of 12685 positions flip, 90% of them
+where the reference's top-2 gap is under 0.1 nats), while KL(21-way) is 2.3e-4. So `qualify`'s `acc-4k` stage runs it with
+`--min-top1 0` (no absolute top-1 floor) and gates KL (class floor), tail mass, non-finite rows, prefix reuse, and, when the backend has
+a baseline for it (`golden/baselines/qwen3-8b-4k-fp32-top20.<backend>.baseline.json` + `.envelope.json`, recorded at the chunk the run
+uses), no worse than that baseline beyond its noise envelope. With no matching baseline the stage is KL-only and says so.
+Record one with `--mode both --decode-positions 64 --max-seq 8192 --write-baseline`, then the envelope with `--noise-ref ...
+--noise-perturb chunk=N --write-noise-envelope` (the other chunk).
+
+## `intarsia accuracy`
+
+```
+intarsia accuracy --model DIR --backend cpu|cuda [--golden FILE]      # golden gate, both modes
+intarsia accuracy --model DIR --backend cpu|cuda --quick               # day-0 gate
+```
+
+`--golden` defaults to `golden/<model name>.safetensors` (the model name is the lower-cased HF repo name
+when the dir is an HF cache snapshot, else the dir name).
+
+### Modes (`--mode prefill|decode|both|reuse|all`, default both)
+
+* **prefill**: `Engine::forward_logits_each` over the stored ids (state reset per prompt, all-position
+  logits): the prefill kernels (`AttnPrefill`, GEMM / chunked matmul), across chunk boundaries when the prompt
+  is longer than `--prefill-chunk` (default: the recipe's value for the backend, else 256; the tool prints how many prompts cross a boundary and warns
+  when none does, then try `--prefill-chunk 64`).
+* **decode (teacher-forced)**: `Engine::forward_logits_decode`: prefill `n - k` tokens, then feed the golden
+  ids one at a time (`T = 1`) and compare the logits row of each step (`k = --decode-positions`, default 16,
+  clamped to `n - 1`). This is the path serving uses (`AttnDecode`, GEMV matmul and logits), which a full
+  forward never touches.
+
+* **reuse** (`--mode reuse`, part of `all`): the prefix-reuse path of the real model through `Engine::generate`,
+  what `serve` runs. Per prompt, at the run's prefill chunk (the recipe's value for the backend unless
+  `--prefill-chunk` overrides it; the tool prints which, and says when it is not the default): *continue*: turn 1 =
+  `ids[..s]` + a real 16-token reply, turn 2 = turn 1 + reply + the rest of the prompt (the engine must reuse what it
+  holds, `cached >= s`; with the opt-in strict rule `INTARSIA_PREFIX_REUSE=exact` on a recurrent model, which resumes only at a cut of the new prompt's own cold schedule, it must resume at the last prefill chunk cut inside turn 1, `cached >= s / chunk * chunk`); *restore*: turn 1 = `ids[..s]` + a different tail, turn 2 = `ids`, so the cache is truncated
+  (attention) or a recurrent snapshot taken at a prefill chunk boundary is restored (GatedDeltaNet), `0 < cached <= s`;
+  *aligned*: *restore* with `s` rounded down to a multiple of the prefill chunk. A cold run is forced by serving an
+  unrelated prompt in between (`cached == 0` is checked) and the two greedy streams (`--reuse-gen` 32 tokens) are
+  compared. `--reuse-prompt a,b` runs only those prompts.
+  * **The split crosses a chunk boundary; nothing running is a failure.** `s` is the golden's `reuse_split` (else half
+    of the prompt) when it is above one chunk; otherwise one and a half chunks, bounded by the prompt. A prompt with no
+    such split (n <= chunk + 2) tests no restore: it is a reported skip (each line says so; the end of the gate
+    prints the count and the names, and `--write-baseline` records them under `reuse.skipped`), and it does not fail
+    `--mode all` on a golden with some short prompts. The gate FAILS only when no prompt crossed a boundary ("nothing
+    ran"): use a golden with longer prompts or a smaller `--prefill-chunk`. It never passes with nothing run.
+  * **`qualify` runs the reuse gate at `min(chunk, 1024)` and counts the skips.** A backend's default chunk can exceed every
+    split the golden offers (HIP 4096: the 4k prompts' `continue` cases are skipped), which leaves the gate nothing to
+    judge. `qualify` therefore runs the gate as its own `accuracy --mode reuse --prefill-chunk min(plan chunk, 1024)
+    --reuse-require-all` (`acc-long-reuse`, or `acc-4k-reuse` where the 4k golden hosts the gate) and merges it into the
+    stage: with `--reuse-require-all` any skipped prompt FAILS the gate, and the stage's metrics carry `reuse.judged`,
+    `reuse.skipped` and the chunk used. `qualify` passes `--reuse-require-all` only when every prompt of the golden is
+    longer than the chunk + 2 (read from the golden's `prompts` metadata; the 35B long golden holds only 4k and 12k prompts);
+    a golden that mixes short prompts with long ones (the standard `golden_long`) keeps its skips as a reported count.
+  * **`--reuse-measure`** prints, for every *continue* and unaligned *restore* case, `REUSE-MEASURE <prompt> <case> split S
+    shared_rows N nu_max X kl_max Y [diverged_at D]`: the largest top-5 log-probability difference (nats) and KL(cold ||
+    warm) over the rows that share a context, whether or not the streams diverged. Those are the two quantities
+    `reuse_logit_tol` / `reuse_kl_tol` bound; derive a recipe value from them on a known-good build (see
+    docs/results/2026-10-22-fx5-hybrid-reuse-ci.md for the 35B). It changes no verdict.
+  * **`continue` against a committed CPU oracle (lane fx5c).** A model whose logits move by more than the dense-model stream
+    tolerance under any non-identical but equivalent path (the 35B NVFP4 MoE: warm-vs-cold KL up to 8.5e-2) cannot be judged by
+    the absolute 0.25 nats / 1e-2 KL check. When `golden/oracle/` (or `--reuse-oracle-dir`, `$INTARSIA_REUSE_ORACLE_DIR`, `oracle/`
+    beside the golden) holds a `*.continue-oracle.safetensors` for the golden's model, prompt, split and token ids, *continue* is
+    judged on a frozen token list instead of the free-running streams: the engine's teacher-forced cold and warm rows
+    (`Engine::forward_script`; turn 1 prefilled, the frozen reply decoded token by token, resume, 32 forced tokens) are each scored
+    against the oracle's top-64 rows, and the case passes when `mean KL(oracle || warm) <= 1.5 x mean KL(oracle || cold) + 3e-3`
+    (the means over the 32 rows; both means, the ratio and the limit are printed). The floor 3e-3 is the measured disagreement of
+    two runs of the oracle itself on the same tokens (spark1 vs endor CPU: KL 3.1e-3), so a difference below it is oracle noise.
+    Without a matching file the absolute rule above applies unchanged; *restore* and *aligned* always do. `cached >= s` and the
+    cold-run check are kept. `--no-reuse-oracle` forces the absolute rule. What the rule does not cover: it scores the scripted
+    replay of the continue operations, not `generate` reading the cache (the exact *restore* / *aligned* checks guard that), and
+    it resolves errors of about 10% on the logits, not 1%. A new oracle file: `scripts/fx5c/seq-chain.sh` (freeze a sequence on
+    CUDA, run the CPU oracle on it) and `scripts/fx5c/make_continue_oracle.py`. Evidence:
+    docs/results/2026-10-22-fx5c-reuse-vs-oracle.md, docs/results/2026-10-22-fx5c-oracle-gate.md.
+  * **Hard check: the restore is bit-exact.** When the reused length is a multiple of the prefill chunk (*aligned*, and
+    *restore* on such a split) the warm run executes exactly the operations of the cold run, on any backend, so the
+    recorded logits rows of the two runs must be equal by bit pattern on all `--reuse-gen` rows, and `cached == s`
+    (a lost snapshot would still give equal rows at a shorter reuse). No tolerance applies (`--reuse-exact`, default
+    on). If they differ the cold run is repeated: a cold run that does not repeat itself bit for bit is reported as a
+    backend-nondeterminism effect, still a FAIL, never judged by a tolerance. An engine that cannot record logits is
+    held to equal token streams.
+  * **Post-restore stream comparison (continue, and restore on an unaligned split):** the warm run chunks the prompt
+    differently from a cold one (and *continue* reuses KV rows the decode kernels wrote), so bf16 rounding can flip a
+    near-tie. Identical streams pass. A diverging pair passes if it is a rounding tie, judged on the logits
+    (`judge_streams`), or if it agrees on `--reuse-min-match` leading tokens as before. Both runs are repeated with the
+    logits row of every step recorded; rows `0..d` share one context (`d` the first divergence). The divergence is a
+    *rounding tie* when every shared row agrees within `reuse_logit_tol` (nats of log-probability over the top-5
+    tokens) and `reuse_kl_tol` (KL(cold || warm)). **These are fixed per-model constants, never derived from the run**
+    (a tolerance that grows with what the run measured would widen with the bug it judges). Source, in order:
+    `--reuse-logit-tol` / `--reuse-kl-tol`, the golden's `reuse_logit_tol` / `reuse_kl_tol` metadata, the recipe's
+    `[accuracy] reuse_logit_tol` / `reuse_kl_tol`, the built-in 0.25 nats / 1e-2 (calibrated on bf16 Qwen3-8B / HIP,
+    which is also what `recipes/qwen3.toml` records). The tool prints the numbers and where they came from. The hybrid
+    Qwen3.5 / 3.6 recipes carry none yet: on the 35B, decode-written KV moves the rows by KL 8.5e-2 and 1.2 nats
+    (docs/results/2026-10-21-m3-accuracy-debt.md, 2.8), so a value must be measured once on a known-good build (a GPU
+    run) and written into the recipe. A broken restore (wrong position, stale row, off-by-one chunk) fails the hard
+    check; the unit tests `prefix_reuse_*` in `crates/intarsia-models/tests/engine.rs` pin the engine's bookkeeping
+    bitwise. A divergence that does not reproduce when the logits are recorded is accepted with that note (the run is
+    not repeatable).
+  * Why not "N identical leading tokens" (`--reuse-min-match`, still the fallback for an engine that cannot record
+    logits): a *continue* run reuses KV rows the decode kernels wrote (the reply), which a cold run prefills with
+    the GEMM / prefill-attention kernels; the two differ in the last bf16 bit (KL about 3e-4, the size of the golden
+    gate's decode-against-prefill difference), and a greedy stream flips whenever two candidates are closer than that,
+    at any token (`docs/results/2026-10-13-prefix-reuse.md`).
+  * `--reuse-diag` prints, per case, the logit-level comparison (bitwise rows, argmax flips, KL) of the engine's
+    warm / cold runs against `Engine::forward_script` replays: repeatability, engine against replay, warm against
+    cold, cold at other chunkings, warm with the reply prefilled instead of decoded.
+
+Per prompt and overall: top-1 agreement (strict: our argmax equals the reference argmax; positions that differ
+only because the fp16 reference scores two tokens identically are counted as disagreement and reported
+separately), mean and max KL(ref || ours) in nats (f64), top-5 overlap, the **greedy-match length** and the
+number of non-finite rows. Greedy-match length is the number of leading positions, in order, where our argmax
+equals the reference argmax, i.e. how many tokens greedy decoding would track the reference before the first
+divergence; it is informational (no gate), and in prefill mode it starts at the first prompt token, where
+distributions are flat, so the decode-mode figure is the meaningful one.
+
+**Any NaN or infinity anywhere in one of our logits rows fails that position** (KL counts as infinity, top-1 as
+a miss) and the gate fails whatever the other numbers say. A NaN in the golden is an error, not a pass.
+
+`INTARSIA_ACC_POS_DUMP=<file>` (development aid, any mode) appends one tab-separated line per compared position
+(`mode prompt pos token top1_agrees kl21 tail_ref tail_ours`), to see where along a prompt a difference sits (chunk
+boundaries, special tokens, document regions). Run it once with `--golden` and once with `--self-golden` to locate the
+positions where two kernels or two chunk sizes disagree.
+
+### Which golden to gate against
+
+* **Dense models (no experts, no linear-attention layers: Qwen3-8B, the 0.6B Mac model): the HF fp32 golden**
+  (`golden.py --dtype float32`), gate class bf16, plus the baseline gate with its fixed margins. The HF bf16 golden carries
+  about as much noise as the engine under test (HF bf16 against HF fp32: mean KL 5.6e-4 on the 8 short Qwen3-8B prompts,
+  6.3e-4 with the two long ones, against a floor of 1e-3), so a bf16 golden passes or fails the floor on its own noise.
+  Against the fp32 goldens the CUDA engine measures 2.9e-4 / 4.0e-4 (prefill) and passes both modes (table in "Reading the
+  numbers"). Dense models are also quiet: old and new build differ by a mean KL of about 1e-10 on the 8B, which is what the
+  fixed per-prompt margins were calibrated on. The 8B goldens are `qwen3-8b-fp32.safetensors` (8 short prompts) and
+  `qwen3-8b-long-fp32.safetensors` (those plus `long_prose_300/700`); `scripts/phase1b-acceptance.sh` gates its `8b-short`
+  and `8b-long` cases against them with `--gate-class bf16`.
+* **MoE / hybrid / quantised models (the 35B NVFP4): the vLLM top-20 golden** (the only reference that runs the
+  checkpoint), the class floor, a baseline from the pre-change build **and a noise envelope** for the per-prompt part
+  ("Noise envelope" below).
+* **A quantized format with its own reference implementation (EXL3): also the format-reference golden** of the same
+  weights ("Format-reference goldens" below), which gates the engine's error without the quantisation loss.
+
+### Format-reference goldens (`reference_kind = format`)
+
+A quantized model compared with the bf16 model's golden measures quantisation loss plus engine error, and the 4-bit floor
+must leave room for the loss. The format's own reference implementation, run on the **same quantized weights**, takes the
+loss out: KL against it is the engine's error alone. Such a golden carries `reference_kind = format`,
+`reference_format` (`exl3`) and `reference_engine` (`exllamav3 <version>`) in its `__metadata__`; for EXL3 it is made by
+`tools/golden_exl3.py` (exllamav3, the ids of an existing golden, full vocabulary, fp16 activations).
+
+* **Class.** The weight class does not apply (the weights are the same); the KL floor is the KV cache's class (bf16: 1e-3,
+  fp8 KV: 5e-3). Top-1 is reported, not gated: the reference runs other activations than the engine (exllamav3: fp16, the
+  engine bf16), so its argmax is not an fp32 truth to match at 99.5%. `--gate-class` and `--min-top1` override as usual,
+  and the line `gate class:` names the golden as the reason.
+* **Noise.** A format reference has its own spread like any reference. It goes in the golden's `ref_noise` record
+  ("Reference noise", PR #47): `tools/golden_exl3.py --second-run OUT2` writes a second run of every forward and
+  says whether the two are bitwise equal, and `intarsia ref-noise --golden OUT --other OUT2 --method run_to_run --out
+  golden/ref_noise/<OUT file>.json` turns the pair into the sidecar. Bitwise-equal runs give a zero record, and the
+  static floor binds.
+* **Qualify.** `intarsia qualify` runs it as the quick stage `acc-format` (`--format-golden FILE`, else
+  `<model>-formatref...safetensors` in a golden directory; ordinary golden discovery never picks a `-formatref` file). It
+  is skipped for unquantized weights and when there is none, and is an error when the given file is unreadable or lacks
+  `reference_kind = format`. It runs before `acc-short`. **When it passes, a failing `acc-short` (the bf16-relative
+  check, quant loss plus engine error) is report-only**: verdict WARN, listed under "Warnings", the run does not fail
+  (user decision 2026-10-21 17:13, docs/decisions/LOG.md). A model without a format-reference golden keeps the
+  `acc-short` gate as before.
+* **Measured.** Qwen3-8B EXL3 4.0 bpw on CUDA (docs/results/2026-10-21-m2-exl3.md): engine against exllamav3 KL 4.4e-4,
+  top-1 98.6%; exllamav3 against the bf16 golden 2.28e-2 (the quantisation loss).
+
+### Gates
+
+**Advisory gate (ADR-0008).** For Qwen3.6-35B-A3B-NVFP4 the `35b-short` baseline gate against the vLLM golden is advisory:
+`scripts/phase1b-acceptance.sh` reports its FAIL as `ADVISORY FAIL (ADR-0008)` and does not fail the run. The failures were
+measured as noise (`docs/results/2026-10-14-35b-accuracy.md`), and no gate tried resolves a 5 % attention bug, so loosening
+it would not catch bugs. All other gates, including the `35b-short` floor, `35b-long` and the kernel-level tests, stay blocking.
+
+Default thresholds follow the weaker of the weight dtype and the KV dtype (`--gate-class bf16|fp8|4bit`
+overrides the detection; weights are classified from `quantization_config` in `config.json` and
+`hf_quant_config.json`, none = bf16 class):
+
+| class | top-1 (all rows) | mean KL(ref \|\| ours), scored rows |
+|---|---|---|
+| bf16 (vs HF bf16) | >= 99.5% | <= 1e-3 |
+| fp8 (weights or `--kv-dtype fp8_e4m3`) | reported, not gated | <= 5e-3 |
+| 4-bit (NVFP4 / MXFP4) | reported, not gated | <= 3e-2 |
+
+ARCHITECTURE section 6 sets a top-1 threshold only for BF16, so none is invented for the other classes;
+`--min-top1` / `--max-mean-kl` override any of it. The exit status is non-zero when a gate fails. The "4-bit
+... and benchmark deltas within noise" part of section 6 needs the task-level suites, not this tool.
+
+**Which rows each floor judges.** The KL threshold applies to the **scored rows**, the rows the model is asked to predict:
+a row whose target token lies inside a system or user turn of a chat prompt (from the turn-open token through its
+turn-close token, `<|im_end|>` included) is not scored, because serving never asks the model to predict it
+(`crates/intarsia-cli/src/cmd/accuracy/turns.rs`). Top-1, `|tail excess|` and "no non-finite row" judge **all rows**. A prompt with no
+chat template (plain text; the golden marks it `kind = raw`, or it has no turn-open token) keeps every row. The turn
+format (markers and hidden roles as text, resolved to ids with the model's own tokenizer, each marker a single token or
+the run fails) is picked by the golden's `template` metadata, then by the recipe's `[accuracy] chat_turns`; with neither,
+every row is scored and the tool says so. The output prints both numbers, `KL21 scored` next to `KL(21-way)` (all rows)
+per prompt and overall, and the floor line names the row set of each metric; baselines and `--write-baseline` JSON carry
+`mean_kl_scored`, `mean_kl21_scored` and `scored_positions` beside the all-rows `mean_kl`, `mean_kl21` and `positions`. A
+baseline written before the mask holds all-rows KL only: the scored KL is baseline-judged only against a baseline that
+has it. The self-golden budgets compare two builds' logits and stay on all rows. Why: on the 35B long golden the system
+and user rows of `chat_reuse_4k` are about 12% of the set's rows and carry 71-73% of its KL sum
+(docs/results/2026-10-21-m3-accuracy-debt.md). Re-scored on that lane's per-row dump (HIP main, chunk 4096): all rows
+n=36887, 4.356e-2; scored rows n=32349, 1.420e-2 (the `rescore_m3_dump_with_the_row_mask` test, `--ignored`).
+
+The KL threshold applies to the **gated KL**: the 21-way KL for a top-k golden, the full-vocabulary KL for a full
+golden. Next to it the floor gates `|tail excess| <= --max-tail-excess` (0.02) and "no non-finite row". These are
+**absolute floors** and loose for what they guard against: the 4-bit class allows a quantisation error against a
+different reference, so a speed change that adds 2e-2 KL on the same weights passes it. Use a baseline for that.
+
+### Reference noise: the KL floor follows the golden's own spread (`ref_noise`)
+
+A golden is a measurement and it has noise. vLLM does not reproduce its own prompt log-probs between two runs (35B: mean 21-way
+KL 3.16e-3 on the short golden, 2.22e-2 on the long one, 8.42e-3 on the long one without the system and user-turn rows), and an
+
+
+
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+
+
+# Adding a model
+
+A newly downloaded model goes through one command:
+
+```sh
+intarsia onboard --model /models/NewModel --backend hip [--golden-from http://host:8000/v1] [--out reports/NewModel/onboard-1]
+```
+
+It chains the steps below (recipe, smoke generate, `qualify`'s quick tier, then its in-depth tier), **publishes the
+quick numbers as soon as the quick tier is done** (`quick.md`, `quick.json`, `quick.prom`) while the in-depth tier
+keeps running, and can be killed and run again with the same `--out`: finished stages are not repeated. The individual
+commands ([`recipe new`](#1-intarsia-recipe-new), [`qualify`](#2-intarsia-qualify), [by hand](#3-by-hand-generate-and-accuracy)) stay
+available for one step at a time.
+
+Most models need only a recipe, a TOML file that maps the checkpoint's tensor names onto library
+blocks. A new block type is needed only for a new mechanism ([When you need code](#when-you-need-code)).
+
+## 0. `intarsia onboard`
+
+```sh
+intarsia onboard --model <hf dir> --backend <cpu|cuda|hip|metal> [--golden-from <vllm url | hf dir | golden file>]
+                 [--out DIR] [--quick-only] [--fail-fast] [--redo STAGE]... [--push-metrics URL] [--on-quick-done CMD]
+                 [--recipe FILE] [--recipe-dir DIR]... [--device N] [--tp N] [--mem-budget GiB] [-- <qualify flags>]
+```
+
+Six stages, in this order (`STAGES` in `crates/intarsia-cli/src/cmd/onboard.rs`; a new stage is one entry there):
+
+| Stage | What it runs | Notes |
+|---|---|---|
+| `recipe` | `recipe new`'s analysis | A covering recipe is used as is. Otherwise a scaffold goes to `<out>/recipe.toml` and every later stage gets `--recipe` of it. While `TODO(recipe-new)` lines remain, onboard prints them numbered and **stops with exit 3**; fix them, delete the markers and run the same command again. A scaffold with no TODOs goes on (check it into `recipes/` afterwards). |
+| `smoke` | `intarsia generate`, 16 tokens of "The capital of France is" | Load plus one completion. Crash or empty output stops the run (the quick report is still written). |
+| `quick` | `intarsia qualify --quick-only` on `<out>/qualify/` | doctor, plan (load), kernels, gate, accuracy against the golden, speed snapshot 128 / 1024 / 4096 with the byte floor (`intarsia bench`). |
+| `publish-quick` | report rendering | `quick.md`, `quick.json`, `quick.prom` (+ `--on-quick-done`). Runs **before** the in-depth tier starts, also after a failed or stopped run. |
+| `in-depth` | `intarsia qualify` on the same directory | Long-context accuracy, 4k golden, noise envelope, speed sweep 1k / 4k / 16k, A/B against `--golden-from` when it is a server, `tp` with `--tp`. Quick stages are skipped (qualify's own `--resume`). |
+| `publish-in-depth` | report rendering | `in-depth.md`, `in-depth.json`, `in-depth.prom`. Quick + in-depth stages, so it is the full report. |
+
+`--golden-from` becomes `--reference` (an `http(s)://` URL of a vLLM-style server, or an HF model directory) or
+`--golden` (a `.safetensors` file); without it qualify looks for a golden by model name and makes one only for small
+checkpoints (see [qualify](#2-intarsia-qualify)). The accuracy, speed and gate logic is qualify's: onboard runs it and
+renders its `state.json` with qualify's report code, so every number is the one `qualify` documents.
+
+**What is published.** Each report carries the onboard verdict (a stopped recipe or a crashed smoke test is an
+`ERROR`, never "PASS (0 stages)"), qualify's headline and per-stage tables, and a **stage timeline** table: start,
+end and duration in UTC for each onboard stage and each qualify stage inside it. `*.json` has the same under
+`onboard.timeline` plus `published_unix`; `*.prom` is Prometheus text exposition (qualify's headline gauges plus
+`intarsia_onboard_stage_seconds`, `intarsia_onboard_stage_end_timestamp_seconds` and
+`intarsia_onboard_published_timestamp_seconds`), ready for a node-exporter textfile directory; `--push-metrics URL`
+also PUTs the headline to a Pushgateway when each tier is done. Files are written atomically, `quick.md` last, so its
+mtime is the moment the quick numbers went public. `--on-quick-done 'cmd'` runs in the background with the path of
+`quick.md` as `$1`.
+
+**Resume.** `<out>/onboard-state.json` holds one record per stage (verdict, start, end). Run the same command with the same
+`--out`: a stage that finished (PASS or FAIL: the gate ran) is skipped; an ERROR stage and the stage that was running
+when the process died run again, and `qualify` then skips its own finished stages, so a kill in the middle of the
+in-depth tier costs only the stage that was running. `--redo quick` runs a stage again even though it finished (its
+report is rewritten with it). A SKIP inside qualify (no golden) is not retried by onboard; supply the golden and
+`--redo quick`. SIGTERM / SIGINT of onboard stops the whole chain (qualify, its model server and the stage
+subprocess), so a killed run holds no GPU memory. Exit code: `0` all gates passed, `1` a gate failed, `2` the pipeline
+failed or stopped early, `3` the recipe needs a human.
+
+Lease the box first (`fleetq run --host <box> --mem <GB> -- intarsia onboard ...`, or an exclusive lease for numbers
+you will compare).
+
+**Measured timings (Qwen3.6-35B-A3B-NVFP4, a recipe that already exists; 2026-10-22, lane `on`,
+`docs/results/2026-10-22-on-onboard.md`).** Targets: quick numbers within 2 h and the in-depth tier within 4 h of the
+weights being on the box.
+
+| Box | Goldens | Quick numbers published | Whole pass | Notes |
+|---|---|---|---|---|
+| spark1 (CUDA, GB10), `--mem-budget 38`, vLLM up | made from the vLLM server in 29 s (short + long + 4k) | 7 min 24 s after start (smoke 1 m 33 s with the weights cold) | **15 min 24 s** | all 14 stages PASS, 3 skipped (`acc-format`, `ab`, `tp`) |
+| tatooine (HIP, one R9700), `--mem-budget 29` | same goldens, copied | 1 min 24 s | **2 min 47 s** | `acc-4k` FAILs the prefix-reuse gate (a real engine finding, not an onboarding fault) |
+| tatooine, cached canonical goldens (no 4k) | cached | 1 min 23 s | 3 min 59 s | PASS |
+
+Build (cached dependencies) 44 s on spark1, 6 s for the CLI crate on tatooine. The wall clock of a real onboarding is
+dominated by what the pipeline cannot do for you: the box queue (here 4.5 h on the Sparks), a recipe that needs a
+human (`TODO(recipe-new)`), and a new kernel. A model whose recipe exists is far inside both targets.
+
+**Second measurement: a checkpoint the engine had not seen (Qwen3.8-27B-MXFP4-mtpfp8, 2026-10-26, lane `od`,
+`docs/results/2026-10-26-od-onboarding-drill.md`).** Same weights as an onboarded checkpoint, FP8 MTP head; it needed one loader
+change to get past `recipe`. tatooine (HIP, one R9700): `recipe` 0 s, `smoke` 7 s, **quick numbers public 4 min 54 s after the start**
+(decode 33 tok/s = 82 % of the byte floor, prefill 1.8k tok/s), whole pass 6 min 52 s; but only 2 of the 6 in-depth stages could run, the others
+skip for want of a long golden, a 4k golden, a reference server and `--tp`. spark1 (CUDA): the quick tier ended in ERROR after 44 min (MXFP4 W4A4 on CUDA
+prefills at 9 tok/s, so the 4k speed sample exceeds the 30 min stage limit; the cause is not split yet). Of the other unseen checkpoints on the fleet's disks
+every one stopped at `recipe new` on a quantisation format or tensor layout the loader does not read (next section).
+
+**Gotchas found by running it on CUDA and HIP.**
+
+* **The binary must be built with the backend feature.** `cargo build --release --locked -p intarsia-cli --features metal` (or `cuda`, `hip`);
+  a plain build stops `smoke` with "this binary was built without the Metal backend". `scripts/deploy.sh` adds the feature for the host.
+* **`qualify` makes the short golden of a dense bf16 model itself, hybrid (GatedDeltaNet) included**, when none is found and the fp32 copy fits
+  in RAM (2 x the weights + 3 GB, within `--mem-budget`) and the weights are at most `--make-golden-max-gb` (16 GB): `tools/golden.py --dtype
+  float32` on the CPU, inside a fleetq slot on this machine (`fleetq run --load cpu`, taken for you unless the process already holds one; no
+  fleetq on the box: it just runs). About 1.5 min for the Qwen3.5-4B short set, bf16 spread pass included. A MoE or quantised model is skipped
+  with the reason (its golden comes from a reference server: `--reference URL` or `--golden FILE`), as is a model too large for the CPU run.
+  The **long** golden of a hybrid model and the **4k** golden of any model stay manual, because HF runs GatedDeltaNet as a PyTorch loop
+  without `flash-linear-attention` (4k set: 34 min for the 4B on endor's CPU for the fp32 pass alone, about twice that with the bf16 spread pass that calibrates the top-1 floor, `--no-bf16-spread` skips it; no timing run can share the box). `qualify` prints the exact
+  command in the stage's SKIPPED reason; it reads like
+  `uv run --project tools python tools/golden.py --model <dir> --out golden/qwen3.5-4b-4k-fp32-top20.safetensors --device cpu --dtype float32 --topk 20 --prompts tools/prompts/golden_4k.jsonl`
+  (the long one: `--out golden/qwen3.5-4b-long-fp32.safetensors --prompts tools/prompts/golden.jsonl tools/prompts/golden_long.jsonl`). Give the
+  directory with `-- --golden-dir DIR` (files are found by model name). A 4k file given alone is used by `acc-long` as the long set and
+  `acc-4k` then reads "covered by acc-long" (`docs/results/2026-10-27-nmd-new-model-drill-metal.md`).
+* **Original Hugging Face Qwen3.5 checkpoints store `A_log` and the gated-norm weight as f32** (the MLX and ModelOpt conversions store bf16).
+  The GPU GatedDeltaNet kernels read bf16, so a 4B checkpoint stopped at "no kernel for gdn_delta_rule ... w=F32" and then at "metal w:
+  expected bf16, got f32". Both tensors are now rounded to bf16 once at load on the GPU backends (`gpu_f32_to_bf16` in
+  `crates/intarsia-core/src/model.rs`); the cpu reference keeps f32.
+* **The top-1 floor of a bf16 model follows the golden's reference spread.** The class floor (99.5 %) cannot be met by a bf16 run against an
+  fp32 golden when HF's own bf16 forward disagrees with its fp32 one more often than that (Qwen3.5-4B: 98.96 % agreement over the 1441
+  short-set rows, KL 3.2e-4; the engine's 99.72 % prefill top-1 and 2 flips in 160 decode rows failed it in the drill). `tools/golden.py
+  --dtype float32` now runs a second bf16 pass and records that agreement (and the KL) in the golden's `ref_spread` metadata;
+  `intarsia accuracy` (and so `acc-short`, `acc-long`) then requires top-1 >= `agreement - 2 standard errors` at the number of rows judged
+  (0.27 points on 1441 rows, 0.8 on 160 decode rows), never above 99.5 %, **and** the unchanged KL floor. `--min-top1` still wins; a golden
+  without `ref_spread` (every golden made before this, every vLLM golden) keeps the 99.5 % floor exactly. The line `gates: ... top-1 floor
+  calibrated on the golden's reference spread` in the accuracy log says which applies. `--no-bf16-spread` skips the extra pass.
+* **Neither spark1 nor the tatooine dev image can make a golden.** `qualify` makes one with `uv run` or `python3` plus numpy
+  and safetensors; spark1 has neither `uv` nor numpy, and the HIP dev image has no numpy. Make the goldens on a machine
+  that has `uv` (`scripts/onboard/make-goldens.sh <dir> <model name> <vLLM url> <served model>`: short, long and 4k set,
+  29 s for the 35B) and give the directory with `-- --golden-dir DIR`. The files are found by model name. **With `--golden-from URL` and no golden the accuracy stages are SKIPPED and the run can still report PASS** (a SKIP
+  is not a failure): read the Skipped list of `quick.md` before trusting a PASS.
+* **The 4k golden is never made by `qualify`.** Without one, `acc-4k` is SKIPPED and the in-depth tier is shorter than a
+  complete one (the 4k golden is where the prefix-reuse gate bites at a 2048 or 4096 chunk). `make-goldens.sh` makes it.
+* **A vLLM server may listen on one address only.** spark1's vLLM listens on its Tailscale address, not `localhost`: use
+  `--golden-from http://<that address>:8000/v1` when onboard runs on the box.
+* **A cached golden whose file name matches a tracked `golden/ref_noise/*.json` sidecar must be the same file.** On
+  tatooine `/models/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors` is an older file with another hash, and
+  `acc-short` ERRORs with `ref_noise was measured on golden hash ...`. Use the golden of the repository (`golden/`) or a
+  freshly made one with another name. The report used to show only a warning line above that error; it now starts at
+  the `Error:` line.
+* **Build the binary from a clean, committed tree.** The baseline written by `envelope` records the tree it came from, and a
+  modified tree makes `envelope` ERROR (`the baseline was recorded from a modified tree`).
+* **The long golden may hold a prompt longer than the fixed accuracy context.** The 35B long golden has a 12k-token prompt
+  and the old fixed `--max-seq 8192` failed `acc-long`. `qualify` now sizes the context from the golden's longest prompt.
+* **A box shared through fleetq is the slow part.** Take one lease that covers the golden generation, the build and the
+  onboard run (`fleetq acquire ... --wait`, then `FLEETQ_JOB=<id>` on each command), so a failed step does not send you to the
+  back of the line. Launch the waiting `fleetq` client detached (`start_new_session`); a client that dies is dropped from the
+  queue after three minutes.
+* **Goldens are found by the model directory's name, and the committed ones are named for the family** (`gemma4-26b-a4b-nvfp4-*`), not for
+  a directory like `Gemma-4-26B-A4B-NVFP4`. A miss SKIPs every accuracy stage and onboard still ends `PASS`. Give the name with
+  onboard's own `--model-name gemma4-26b-a4b-nvfp4`; after `--` it makes qualify exit 2 (onboard forwards its own copy)
+  (`docs/results/2026-10-27-g4d-gemma4-drill.md`).
+* **`scripts/deploy.sh` syncs with `--delete`.** Do not keep run output (`--out`, logs) inside the deployed tree; the next deploy erases it.
+* **Do not size a golden run from the lease alone on a unified-memory box (GB10).** The HF f32 golden of a 4k prompt took 68 GB of the
+  121 GB next to the 38 GB retro server; the 12k prompt exhausted the box and spark2 stopped answering. Make long goldens one at a time
+  with a measured peak, and not next to a served model that must stay up. `tools/gemma4_nvfp4_golden.py` also needs `C_INCLUDE_PATH` at a
+  Python with headers (torch 2.14's Triton `bmm_outer_product` compiles a C helper) once a prompt is long.
+
+## 1. `intarsia recipe new`
+
+```sh
+intarsia recipe new --model <hf dir> [--out recipes/<family>.toml] [--recipe-dir DIR]... [--force]
+```
+
+It reads `config.json` (with `text_config` of multimodal wrappers), `quantization_config` (in `config.json` or
+`text_config`), `hf_quant_config.json`, and the tensor names from `model.safetensors.index.json` or the
+safetensors headers (never the tensor data), then matches the architecture to the closest existing recipe and
+block types.
+
+* **An existing recipe covers the model** (architecture matches, every tensor template of the recipe resolves in
+  the checkpoint, the config passes `check_supported`, the quantisation is one the engine implements): it prints
+  `covered: builtin:qwen3 already handles this model (25/25 tensor templates resolve, quant: bf16); no new recipe
+  needed`, exits 0 and writes nothing (unless you pass `--out`). Measured on the checkpoints this repo is tested
+  with: Qwen3-8B and Qwen3-Reranker-0.6B are covered by `builtin:qwen3`, Qwen3.6-35B-A3B-NVFP4 by
+  `builtin:qwen3_5_moe` (61/61 templates, quant `nvfp4+fp8`;
+  `docs/results/2026-10-13-qualify/recipe-new-tatooine.txt`).
+* **No recipe covers it**: it writes the scaffold to `--out` (default `recipes/<family>.toml`, refuses to
+  overwrite without `--force`). Every inferred field carries a comment with its source (`# from config.json
+  architectures`, `# from tensors: model.layers.0.self_attn.q_norm.weight`, `# from text_config.layer_types`).
+  Anything it cannot map becomes `# TODO(recipe-new): <what, why, what to do>` where the field belongs: an unknown
+  block (MLA, sliding window, Mamba, an unclaimed tensor group), an activation other than `silu`, an output-projection
+  bias (`o_proj.bias`, config `attention_bias = true`), a rope type other than `default`, `llama3` or `yarn` (linear,
+  dynamic, longrope), an unknown quantisation scheme (the
+  `quant_method` / `quant_algo` string is named), recipe tensors missing from the checkpoint. The numbered list is
+  printed to stderr and the command **exits non-zero**. Resolve every TODO, then run step 2.
+
+**Resolving the TODOs that no code answers.** Most TODOs name a missing mechanism; two are decisions you take from the checkpoint:
+
+* `model.norm_offset` (a new family next to a recipe that sets `norm_offset = 1.0`). The checkpoint does not say whether its
+  RMSNorm computes `x * w` or `x * (1 + w)`; read one `input_layernorm.weight` and look at its mean and minimum. A zero-centred
+  norm (`1 + w`, the Qwen3.5 / 3.6 / 3.8 family) has a mean near 0 and some negative entries (MiniCPM-V 4.7 text model: mean 0.03,
+  min -0.08, `post_attention_layernorm` min -1.0); a plain norm has a mean near 1. The gated norm inside a GatedDeltaNet layer is
+  a plain `x * w` in both (mean 0.88 there) and is not affected. Under `x * w`, weights near 0 would zero the activations.
+  Reading one tensor needs no numpy (`struct` + the safetensors header: 8-byte length, JSON, then the bytes at `data_offsets`).
+* `top: N checkpoint tensor(s) outside the layer stack are claimed by no block`. If the names are the vision tower or its
+  projector (`model.visual.*`, `model.vision_tower.*`, `model.merger.*`, `mtp.*`) `recipe new` now lists them as ignored
+  non-text groups and raises nothing; any other name is a real tensor a block must claim.
+
+**Checkpoint formats that stop at this stage** (checked 2026-10-26 on the fleet's disks,
+`docs/results/2026-10-26-od-onboarding-drill.md`): compressed-tensors INT4 `pack-quantized` (AWQ) and MXFP4, ModelOpt
+`NVFP4` declared W4A4 (see `w4a4_as_w4a16` below), block-wise FP8 (`weight_scale_inv`), GPTQ / AWQ `qweight`, and routed experts stored
+fused (`experts.gate_up_proj [E, 2I, H]`, the transformers 5 layout; the MTP head loader in `model/mtp.rs` reads it, the main
+MoE block does not). Each is named in the TODO list; none is a recipe edit. A Quark checkpoint whose `layer_quant_config`
+names only `mtp.*` (an FP8 MTP head beside MXFP4 decoder layers, e.g. `Qwen3.8-27B-MXFP4-mtpfp8`) is accepted: the engine
+reads `mtp.*` only for `--spec mtp`, and that loader reads bf16 heads.
+
+**compressed-tensors NVFP4A16** (`quant_method = "compressed-tensors"`, format `nvfp4-pack-quantized`: llm-compressor's `NVFP4A16`
+preset, weights only) is accepted since 2026-10-26 (`docs/results/2026-10-26-ct-compressed-tensors.md`): the loader reads
+`weight_packed` as `weight` and `weight_global_scale` as `weight_scale_2 = 1 / weight_global_scale` (`quant/compressed_tensors.rs`),
+so it is the ModelOpt W4A16 NVFP4 path, dense and per-expert MoE alike. The `ignore` list is not interpreted (an ignored layer is simply
+stored as plain float). The same container with quantised activations (W4A4), `transform_config` (rotations), `sparsity_config`, a
+status other than `compressed` is refused at `recipe new` and at load with the reason; another compressed-tensors format (INT4 `pack-quantized`, MXFP4, per-tensor FP8) is flagged by `recipe new` and, at load, keeps its old behaviour (no declared scheme, formats found by tensor names).
+No golden exists for a new model: `tools/golden_ct_nvfp4.py` makes one on a CPU from HF's Qwen3.5 decoder layers and the
+`compressed-tensors` package's own dequantisation (2 min for the 27B, a few GB of memory).
+
+**MLX affine quantisation** (`mlx-community/*`, `mlx_lm.convert -q`; `config.json` has `"quantization": {"group_size": 64, "bits": 4,
+"mode": "affine"}` and no `quant_method`) is accepted since 2026-10-27 (`docs/results/2026-10-27-nab-new-arch-drill-lfm2.md`): any of 2, 3, 4,
+5, 6 and 8 bits, and the per-module overrides the config lists (`"model.embed_tokens": {"bits": 6, ...}`). The loader
+(`quant/mlx_affine.rs`, `MlxAffine` around the safetensors source) **dequantises every packed module to bf16 at load**:
+`<m>.weight` is a `u32` bit stream, `<m>.scales` / `<m>.biases` are per group, `w = scale * q + bias` in f32 rounded once to bf16
+(bitwise `mx.dequantize`). So the recipe, the kernels and the gates see a plain bf16 checkpoint, `recipe new` says `quant: bf16 (MLX affine
+4-bit dequantised at load)`, and **memory and bandwidth are those of bf16: 4x the stored size for 4-bit** (Qwen3.5-2B 4-bit is 1.7 GB on
+disk, 3.76 GB loaded, 11.0 GB peak resident while loading because the dequantised copy and the device copy coexist; the decode byte floor counts 3.76 GB). A native MLX-quant GEMV that reads the 4-bit words is a later change. The
+loader also undoes three things `mlx_lm` does on conversion: `mlx-vlm` tensor names (`language_model.model.*` become `model.language_model.*`),
+the conv layout (`[C, K, 1]` becomes `[C, 1, K]`, same bytes), and, for Qwen3.5 / Qwen3-Next, the `+1` it bakes into the zero-centred
+RMSNorms (it gives back `w - 1` when layer 0's `input_layernorm` has mean above 0.5; without this the model is fluent nonsense because the recipe's
+`norm_offset` adds the 1 again). Safetensors files whose data starts at an odd byte (MLX writes unpadded headers) are copied to the device
+instead of mapped. Not read: MLX `mxfp4` / `nvfp4` / `mxfp8` modes (named in the error), stacked `switch_mlp` experts (the MoE block is
+NVFP4-only), the vision tower.
+No bf16 original of an MLX checkpoint on the box? Make the reference side from the MLX weights with an independent numpy dequantiser,
+`tools/mlx_to_hf_bf16.py --src <mlx dir> --out <dir>` (10 s for a 2B model), and pass it as `onboard --golden-from <dir>`:
+the golden then measures the engine against HF on the same dequantised weights (rounding only, KL about 1e-4), not the
+4-bit loss. The gate class of an MLX checkpoint follows its lowest bit width (`<= 5` bits: the 4-bit class, `6..8`: the FP8 class).
+
+The hand-written reference of the recipe format follows; `recipe new` produces exactly this.
+
+```toml
+[model]
+match.architectures = ["Qwen3ForCausalLM"]   # config.json "architectures" selects the recipe
+family = "qwen3"
+chat_template = "hf"                          # the model's own jinja template
+reasoning_parser = "think-tags"               # parsers the server applies (optional)
+tool_parser = "hermes"
+
+[layer]
+pattern = ["attn", "ffn"]                     # blocks applied in order inside every layer
+
+[layer.attn]                                  # one table per block named in `pattern`
+kind = "gqa"
+q = "model.layers.{i}.self_attn.q_proj"       # {i} = layer index; ".weight" is appended if needed
+k = "..."  v = "..."  o = "..."
+q_norm = "..."  k_norm = "..."                # present = per-head qk RMSNorm before rope
+q_bias = "model.layers.{i}.self_attn.q_proj.bias"   # present = projection bias, added right after the projection
+k_bias = "..."  v_bias = "..."                # (Qwen2 / Qwen2.5 set these without any config key; each one optional)
+rope = "default"                              # neox / rotate-half, theta from config.json; llama3 / yarn scaling is read from
+                                              # config.json (rope_parameters / rope_scaling), nothing to set here
+
+[layer.ffn]
+kind = "dense"
+act = "silu_glu"
+gate = "..."  up = "..."  down = "..."
+
+[layer.norms]                                 # pre_<block> = the norm applied before that block
+pre_attn = "model.layers.{i}.input_layernorm"
+pre_ffn = "model.layers.{i}.post_attention_layernorm"
+
+[top]
+embed = "model.embed_tokens"
+final_norm = "model.norm"
+lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }   # tied when the tensor is absent
+
+[defaults]
+kv_dtype = "bf16"                             # bf16 | f16 | f32 | fp8_e4m3 (fp8 only on cpu-ref for now)
+
+[tuning]                                      # optional: per-backend performance defaults
+prefill_chunk = 256                           # base value, every backend (omit: 256)
+[tuning.cuda]                                 # override for one backend (cpu | cuda | hip | metal)
+prefill_chunk = 2048
+```
+
+Dimensions are read from `config.json` with the Hugging Face key names (`hidden_size`,
+`num_hidden_layers`, `num_attention_heads`, `num_key_value_heads`, `head_dim`, `intermediate_size`,
+`vocab_size`, `rms_norm_eps`, `rope_theta`, `tie_word_embeddings`, `max_position_embeddings`).
+`head_dim` is taken from the config when present (Qwen3 sets 128 with hidden 1024 / 16 heads), and
+only falls back to `hidden / heads`. A `[config]` table can rename keys for families that differ.
+Hybrid models (GatedDeltaNet, MoE) add `pattern_by_layer` / `[layer.by_type]`, `[layer.gdn]`, `[layer.moe]`
+
+
+//! Continuous-batching scheduler core (docs/research/continuous-batching-design.md sections 2, 3.5, 6, 8.1): slots,
+//! FIFO admission, decode-first iteration-level batching, chunked-prefill interleave, idle-slot prefix reuse,
+//! per-request cancellation and failure isolation, the speculation on/off hook and per-iteration metrics.
+//!
+//! The model and the per-request logic sit behind two small traits so the policy is testable without a GPU:
+//!
+//! * [`BatchModel`]: owns `max_batch` KV slots. Prefill one chunk into one slot, one batched decode step over several
+//!   slots, truncate a slot, read the tokens a slot's KV holds. The real adapter wraps `Model` + one `SequenceState`
+//!   per slot (`Model::forward` for chunks, `Model::forward_batch` for steps).
+//! * [`BatchSeq`]: one request's state machine (sampling, `min_tokens`, stop ids / strings, EOS, `max_tokens`,
+//!   streaming, cancellation, its own `Done` / `Error` event). The real adapter wraps `engine::Seq`.
+//!
+//! # Exactness contract (operator decision 8.1: exact only)
+//!
+//! A request's token stream must not depend on what else runs. The scheduler guarantees its half by construction:
+//!
+//! 1. A sequence only ever sees its own rows: [`BatchSeq::accept`] gets exactly the output of the row (or final
+//!    chunk) that fed that sequence's own input, and nothing else about the batch (not `B`, not the row index).
+//! 2. Its slot is truncated to `cached` at admission and is written by nobody else while the sequence runs.
+//! 3. Its prefill chunk schedule is a function of `(cached, prompt_len, C)` and the backend's
+//!    `avoid_single_row_prefill` flag only, where `C` is chosen once, when its first chunk runs (see [`chunk_schedule`]
+//!    and [`SchedulerConfig::busy_chunk`]), and never changes afterwards. The flag (Metal: true) only turns a
+//!    `.., C, 1` tail into `.., C - 1, 2` ([`next_prefill_chunk`]), so that a request's last row, which picks the first
+//!    token, is never computed as a 1-row chunk (decode kernels) in one schedule and inside a bigger chunk in another.
+//!    Decode rows and prefill chunks never share a forward pass (design 2.4, 4.5 item 3).
+//!
+//! The model's half ([`BatchModel`] docs): the output of row `r` of [`BatchModel::decode_step`] is a function of slot
+//! `rows[r].slot`'s KV contents, `rows[r].token` and `rows[r].mode` only, bitwise; likewise a chunk's output.
+//!
+//! Consequently the **solo reference** of a batched request is: the same request run alone (one slot, nothing else
+//! submitted), starting from a slot whose KV holds exactly the `cached`-token prefix the batched run reused (same
+//! values, including whether those rows were prefill- or decode-written, design 4.5 items 2 and 4), prefilled with
+//! `--prefill-chunk C` where `C` is the chunk size the batched run recorded for it ([`TraceEvent::PrefillStart`]).
+//! With the default policy `C` is 2048 (`solo_chunk`) when no other sequence was decoding as its prefill began and
+//! 256 (`busy_chunk`) otherwise; a request with `max_batch = 1` therefore always gets today's 2048 schedule.
+
+use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
+
+use crate::error::{Error, Result};
+
+/// Hard cap on `max_batch`: the most rows any backend serves (`Model::BATCH_MAX_ROWS`). The cap of one backend is
+/// `Backend::batch_row_cap` (operator decisions: exact kernels only; Metal 8 rows (8.1), CUDA 16 (2026-10-23)).
+pub const MAX_BATCH_CAP: usize = 16;
+/// Default `spec_off_at` (design 6: speculation off at B >= 4).
+pub const SPEC_OFF_AT_DEFAULT: usize = 4;
+
+/// Identifies one submitted request (assigned at submit, increasing).
+pub type RequestId = u64;
+
+/// One row of a batched decode step.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Row<Mode> {
+    /// Slot whose KV the row reads and appends to (at that slot's own current length).
+    pub slot: usize,
+    /// Token fed at that position.
+    pub token: u32,
+    /// What the row returns (real model: `HeadMode::LastArgmax` or `HeadMode::LastLogits`).
+    pub mode: Mode,
+}
+
+/// The model side of the scheduler: `max_batch` KV slots and the passes over them.
+///
+/// Contract (exactness): every output is a function of the inputs named here and of the addressed slot's KV contents,
+/// bitwise, and of nothing else: not of other slots, the number of rows, the row order or the call history of other
+/// slots. A slot's KV contents are only changed by calls that name that slot.
+pub trait BatchModel {
+    /// Per-row head mode (real model: `HeadMode`).
+    type Mode: Copy + std::fmt::Debug;
+    /// Per-row output (real model: `StepOut`). `Send`: a decode step's rows are accepted on the host pool (lane ink-hostgap).
+    type Out: Send;
+
+    /// Number of slots (fixed for the model's lifetime, `>= max_batch`).
+    fn slots(&self) -> usize;
+    /// Token capacity of each slot (uniform, design 3.3).
+    fn slot_cap(&self) -> usize;
+    /// The tokens whose KV slot `slot` holds, positions `0..len` (the prefix-reuse candidate).
+    fn slot_tokens(&self, slot: usize) -> &[u32];
+    /// Shorten slot `slot` to its first `len` tokens (`SequenceState::truncate`). `len = 0` invalidates it.
+    fn truncate(&mut self, slot: usize, len: usize) -> Result<()>;
+    /// The largest length `<= want` that slot `slot` can be truncated to. Default: any (attention KV only shortens). A
+    /// slot with recurrent state returns only to its current length, to a snapshot, or to 0
+    /// (`SequenceState::restorable_len`), so admission asks before it promises a reused prefix.
+    fn restorable_len(&self, _slot: usize, want: usize) -> usize {
+        want
+    }
+    /// The prefix of slot `slot` a prompt of `plen` tokens may reuse, at most `want` (the common prefix, below `plen`): what
+    /// gives the request the bits of its cold prefill (`Model::reuse_len`). Default: [`BatchModel::restorable_len`].
+    fn reuse_len(&self, slot: usize, _plen: usize, want: usize) -> usize {
+        self.restorable_len(slot, want)
+    }
+    /// Prefill `tokens` into slot `slot` at its current length, as one forward pass of exactly `tokens.len()` rows
+    /// (the chunk size is part of numerical identity, design 4.5 item 1). `mode = None`: KV only, returns `None`;
+    /// `Some(m)`: the last position's head output in mode `m` (the request's first token).
+    fn prefill_chunk(&mut self, slot: usize, tokens: &[u32], mode: Option<Self::Mode>) -> Result<Option<Self::Out>>;
+    /// Overlap (R3d): the model can run a prefill chunk on its own thread and stream while decode steps go on
+    /// ([`BatchModel::prefill_begin`]). Default false: chunks run to completion before the iteration goes on.
+    fn overlap(&self) -> bool {
+        false
+    }
+    /// Start the same chunk [`BatchModel::prefill_chunk`] runs, in the background; at most one is in flight, and nothing may
+    /// touch `slot` until [`BatchModel::prefill_end`] returns.
+    fn prefill_begin(&mut self, _slot: usize, _tokens: &[u32], _mode: Option<Self::Mode>) -> Result<()> {
+        Err(Error::Unsupported("prefill overlap".into()))
+    }
+    /// Whether the chunk in flight has finished (true when none is).
+    fn prefill_done(&self) -> bool {
+        true
+    }
+    /// Wait for the chunk in flight and return what `prefill_chunk` would have returned.
+    fn prefill_end(&mut self) -> Result<Option<Self::Out>> {
+        Err(Error::Unsupported("prefill overlap".into()))
+    }
+    /// Most rows a packed prefill pass ([`BatchModel::prefill_pack`]) can hold; 0 (default): the model cannot pack.
+    fn pack_rows_max(&self) -> usize {
+        0
+    }
+    /// Fewest rows of a chunk's body (its tokens minus the final one when `last`, which runs alone) that may share a packed
+    /// pass; chunks with fewer prefill on their own.
+    fn pack_min_rows(&self) -> usize {
+        usize::MAX
+    }
+    /// Pack only a prompt that prefills whole in one chunk from row 0 (lane srv16: CUDA, where packed later chunks of a multi-chunk
+    /// prompt, or a prompt resumed from a reused prefix, were not the solo bits in the served identity check). Default false.
+    fn pack_whole_prompts(&self) -> bool {
+        false
+    }
+    /// One chunk each of several prompts (`(slot, tokens, mode)`, distinct slots, the exact chunks [`BatchModel::prefill_chunk`]
+    /// would run) in one pass; returns what `prefill_chunk` returns for each, in order. Each slot ends bitwise as its own
+    /// `prefill_chunk` leaves it. The default runs them one by one.
+    fn prefill_pack(&mut self, items: &[(usize, &[u32], Option<Self::Mode>)]) -> Result<Vec<Option<Self::Out>>> {
+        items.iter().map(|&(slot, tokens, mode)| self.prefill_chunk(slot, tokens, mode)).collect()
+    }
+    /// One decode token for each row in one batched pass (`1..=max_batch` rows, distinct slots); each slot grows by
+    /// one. Inner `Err`: that row failed alone (the request fails, the batch goes on). Outer `Err`: the pass failed as
+    /// a whole; the scheduler treats it as fatal for every in-flight request (design 2.5).
+    fn decode_step(&mut self, rows: &[Row<Self::Mode>]) -> Result<Vec<Result<Self::Out>>>;
+    /// Whether an error from a single-slot call ([`BatchModel::prefill_chunk`], an inner row error) means the device
+    /// is unusable, so every in-flight request must fail (default: backend errors).
+    fn is_fatal(&self, e: &Error) -> bool {
+        matches!(e, Error::Backend(_))
+    }
+    /// Whether prefill chunking avoids a 1-row tail ([`next_prefill_chunk`]); default false (plain `C, C, .., rest`).
+    /// The real adapter returns `Backend::avoid_single_row_prefill()` and false for models with recurrent state (their
+    /// last token deliberately runs alone, see `engine::Seq::prefill_step`).
+    fn avoid_single_row_prefill(&self) -> bool {
+        false
+    }
+    /// Lane interleave: rows per segment of a prefill chunk that parks between layers while other sequences decode
+    /// ([`BatchModel::prefill_begin_paused`]); 0 (default): every chunk runs whole before the next decode step.
+    fn pause_rows(&self) -> usize {
+        0
+    }
+    /// Start the chunk [`BatchModel::prefill_chunk`] would run, on its own thread, parking between layers about every
+    /// [`BatchModel::pause_rows`] rows ([`BatchModel::prefill_park`]); [`BatchModel::prefill_end`] returns what `prefill_chunk`
+    /// would have. The chunk and its bits are the same; only other slots may be used while it is parked.
+    fn prefill_begin_paused(&mut self, _slot: usize, _tokens: &[u32], _mode: Option<Self::Mode>) -> Result<()> {
+        Err(Error::Unsupported("paused prefill".into()))
+    }
+    /// Wait until the chunk in flight parks between layers (true) or ends (false).
+    fn prefill_park(&mut self) -> bool {
+        false
+    }
+    /// Let the parked chunk go on; `abort`: it ends with an error instead.
+    fn prefill_resume(&mut self, _abort: bool) {}
+    /// Lane mtp-store: wait until the device has run what the parked chunk enqueued so far. A backend that only enqueues a
+    /// chunk's kernels (CUDA) parks long before the device reaches the park; the scheduler calls this before a parked decode
+    /// phase so that a token which needs no device work (a verified draft waiting to be emitted) goes out one chunk segment
+    /// after the last one, as a plain step's token does, instead of at once with a whole chunk's wait behind it.
+    fn park_sync(&mut self) {}
+    /// Deferred background work of the model (the prefix store's settle), called where the device is idle; see [`Housekeep`].
+    fn housekeep(&mut self, _at: Housekeep) {}
+    /// Opt-in tail merge threshold in rows ([`next_prefill_chunk_tm`]); default 0 (off). The real adapter returns the
+    /// model's `INTARSIA_PREFILL_TAIL_MERGE`, whose workspace is sized for it.
+    fn tail_merge(&self) -> usize {
+        0
+    }
+    /// Opt-in macro prefill (`INTARSIA_PREFILL_MACRO`): rows of the next [`BatchModel::prefill_chunk`] call for slot `slot` when
+    /// `remaining` (>= 1) prompt rows are left and chunks are `chunk` rows: a whole number of chunks (several, run by the model as
+    /// ONE layer-by-layer pass, bitwise the same chunks), or all `remaining` rows when that ends the prompt. `None` (default):
+    /// the plain one-chunk call. The scheduler asks only when this request is the only one prefilling and no sequence is
+    /// decoding, so the longer call delays nobody.
+    fn macro_step(&self, _slot: usize, _remaining: usize, _chunk: usize) -> Option<usize> {
+        None
+    }
+    /// Prefix store with macro prefill (lane storettft, `INTARSIA_PREFIX_STORE_MACRO=1`): the most rows of a macro pass a request on its own
+    /// schedule ([`BatchSeq::macro_len`]) may take in `slot`; 0 (default): none.
+    fn store_macro_rows(&self, _slot: usize) -> usize {
+        0
+    }
+    /// Trace hook: request `id` was admitted to `slot`, which now holds `cached` reused tokens. No effect on outputs.
+    fn on_admit(&mut self, _slot: usize, _id: RequestId, _cached: usize) {}
+    /// Lane bm: whether [`BatchModel::verify_step`] runs (a sequence may return [`SeqStep::Verify`] only then).
+    fn batched_verify(&self) -> bool {
+        false
+    }
+    /// Lane bm: ONE verify pass over the rows of every drafting sequence, `(slot, [next, drafts...], want)`. `want == None`: the
+    /// greedy token of each fed position ([`Verified::Greedy`]); `Some(mode)` (lane mtp-sampled, a sampled sequence): each fed
+    /// position's output as a decode row in head mode `mode` gives it ([`Verified::Rows`]), so the sequence draws its own token
+    /// from every row. Inner `Err`: that request fails alone; outer `Err`: fatal, as [`BatchModel::decode_step`].
+    fn verify_step(&mut self, _rows: &[VerifyRows<Self::Mode>]) -> Result<Vec<Result<Verified<Self::Out>>>> {
+        Err(Error::Unsupported("batched verify".into()))
+    }
+    /// Lane mdraft: whether [`BatchModel::draft_batch`] can take the drafts of the sequences that draft in one iteration (the
+    /// scheduler then plans in two phases, [`BatchSeq::prepare_hold`] and [`BatchSeq::prepare_finish`]). Default false: every
+    /// sequence drafts inside its own `prepare`, as before.
+    fn batched_draft(&self) -> bool {
+        false
+    }
+    /// Lane mdraft: the drafts of several sequences as one batched draft, `(slot, next, k)` each; `Ok(None)`: not applicable now (nothing
+    /// ran), each sequence drafts alone. The drafts are what each sequence's own draft returns. `Err`: fatal for these sequences.
+    fn draft_batch(&mut self, _jobs: &[(usize, u32, usize)]) -> Result<Option<Vec<Vec<u32>>>> {
+        Ok(None)
+    }
+}
+
+/// What [`BatchSeq::prepare_hold`] returns (lane mdraft): the sequence's step, or the draft it is about to run.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Held<Mode> {
+    /// As [`BatchSeq::prepare`] returns.
+    Step(SeqStep<Mode>),
+    /// The sequence drafts `k` tokens after `next` and has not drafted yet: the scheduler drafts (batched with the other drafting
+    /// sequences, [`BatchModel::draft_batch`], or alone) and calls [`BatchSeq::prepare_finish`].
+    Draft { next: u32, k: usize },
+}
+
+/// One sequence's rows of a batched verify pass ([`BatchModel::verify_step`]): slot, `[next, drafts...]`, and the head mode of the
+/// outputs it wants back (`None`: greedy tokens).
+pub type VerifyRows<Mode> = (usize, Vec<u32>, Option<Mode>);
+
+/// What [`BatchModel::verify_step`] returns for one sequence.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Verified<Out> {
+    /// The greedy token of each fed position.
+    Greedy(Vec<u32>),
+    /// The output of each fed position in the head mode the sequence asked for: what a decode step fed the same token at the same
+    /// position returns (lane mtp-sampled).
+    Rows(Vec<Out>),
+}
+
+/// What a decoding sequence needs this iteration ([`BatchSeq::prepare`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SeqStep<Mode> {
+    /// A plain decode row: feed `token`, run the head in `mode`, hand the row's output to [`BatchSeq::accept`].
+    Plain(u32, Mode),
+    /// The next token is already known (a verified speculative run): no row, go straight to [`BatchSeq::on_token`].
+    Ready,
+    /// Lane bm: the sequence drafted; verify `[next, drafts...]` in the step's batched verify pass ([`BatchModel::verify_step`])
+    /// and hand the rows' greedy tokens to [`BatchSeq::accept_verify`]. With `Some(mode)` (lane mtp-sampled, a sampled sequence)
+    /// the rows come back as decode-row outputs in head mode `mode` instead ([`Verified::Rows`]).
+    Verify(Vec<u32>, Option<Mode>),
+}
+
+/// The per-request side of the scheduler. One value per submitted request; it streams its own tokens and sends its own
+/// final `Done` / `Error` event.
+///
+/// Contract (exactness): its behaviour is a function of its own request, the `cached` length it is admitted with and
+/// the outputs it is handed; it never sees which rows or slots run beside it.
+pub trait BatchSeq<M: BatchModel>: Send {
+    /// The prompt tokens.
+    fn prompt(&self) -> &[u32];
+    /// Admission into a slot with `cached` reused tokens (`< prompt.len()`) and capacity `cap`. `Err`: rejected (the
+    /// scheduler calls [`BatchSeq::fail`], the slot is untouched). `Ok(false)`: nothing to generate (no room or
+    /// `max_tokens = 0`; the sequence sets its finish reason to `Length`, the scheduler calls [`BatchSeq::finish`]
+    /// at once). `Ok(true)`: prefill follows.
+    fn admit(&mut self, cached: usize, cap: usize) -> Result<bool>;
+    /// Head mode of the final prefill chunk (the step that samples generated token 1).
+    fn first_mode(&self) -> M::Mode;
+    /// The scheduler chose prefill chunk size `chunk` for this request (once, at its first chunk) while `decoding`
+    /// other sequences were decoding. Informational (the harness reads it back to pick the matching solo reference).
+    fn on_prefill_start(&mut self, _chunk: usize, _decoding: usize) {}
+    /// Plan this iteration's step. `spec_allowed` is the scheduler's speculation gate (false when `B >= spec_off_at`).
+    /// A speculating sequence may run its verify pass here on its own slot (single-slot, exact by the G1 argument)
+    /// and return `Ready`; it must not draft when `spec_allowed` is false. `busy`: other sequences decode in this
+    /// iteration (`B >= 2`), so a verify pass is a whole extra weight pass beside the batched step; the sequence may
+    /// then decline drafts that do not pay (tokens never depend on it: verify is exact).
+    fn prepare(&mut self, model: &mut M, slot: usize, spec_allowed: bool, busy: bool) -> Result<SeqStep<M::Mode>>;
+    /// Lane mdraft: [`BatchSeq::prepare`] that stops before an MTP draft ([`Held::Draft`]); the scheduler calls it only when
+    /// [`BatchModel::batched_draft`], and then [`BatchSeq::prepare_finish`] for a `Draft`. Default: `prepare`, never holding.
+    fn prepare_hold(&mut self, model: &mut M, slot: usize, spec_allowed: bool, busy: bool) -> Result<Held<M::Mode>> {
+        self.prepare(model, slot, spec_allowed, busy).map(Held::Step)
+    }
+    /// Lane mdraft: the rest of a held draft step. `drafts`: the drafts the scheduler's batched draft made for this sequence, or `None`
+    /// (the sequence drafts alone here, as `prepare` would).
+    fn prepare_finish(&mut self, _model: &mut M, _slot: usize, _drafts: Option<Vec<u32>>) -> Result<SeqStep<M::Mode>> {
+        Err(Error::Unsupported("held drafts".into()))
+    }
+    /// The output of this sequence's row or final chunk: becomes the next token.
+    fn accept(&mut self, out: M::Out) -> Result<()>;
+    /// Lane bm: the greedy tokens (or, for a sequence that asked for a head mode, the row outputs) of this sequence's rows of the
+    /// batched verify pass (after [`SeqStep::Verify`]): accept, roll `slot` back past the rejected rows, and make the first
+    /// emitted token the next one ([`BatchSeq::on_token`]).
+    fn accept_verify(&mut self, _model: &mut M, _slot: usize, _out: Verified<M::Out>) -> Result<()> {
+        Err(Error::Unsupported("batched verify".into()))
+    }
+    /// Lane bm: make the next already-verified token current, if one is queued (`true`), for [`BatchSeq::on_token`].
+    fn next_ready(&mut self) -> bool {
+        false
+    }
+    /// Account for the next token (stop ids / EOS, stop strings, streaming, `max_tokens`, client gone). `true`: done.
+    fn on_token(&mut self) -> Result<bool>;
+    /// Cancellation requested (flag set, or the client went away).
+    fn cancelled(&self) -> bool;
+    /// Whether the sequence ended as cancelled on its own (a cancel noticed while taking a token, or the client gone),
+    /// so the scheduler counts it as cancelled although it finished through [`BatchSeq::on_token`]. Read after
+    /// [`BatchSeq::finish`] (default: false).
+    fn ended_cancelled(&self) -> bool {
+        false
+    }
+    /// The request ended: roll back anything unaccounted in `slot` (speculative rows), send `Done`. `slot` is `None`
+    /// when it never got one (cancelled while queued). `cancelled`: ended by the scheduler's cancellation check (the
+    /// sequence may be in any phase). With `cancelled == false` it is only called after [`BatchSeq::on_token`]
+    /// returned true or [`BatchSeq::admit`] returned `Ok(false)`, so the sequence has its finish reason set.
+    fn finish(&mut self, model: &mut M, slot: Option<usize>, cancelled: bool) -> Result<()>;
+    /// The scheduler accepted the request into its queue (called once, after the submit checks passed): a later
+    /// [`BatchSeq::fail`] is an accepted request that failed, not a refusal.
+    fn on_queued(&mut self) {}
+    /// A rejection [`BatchSeq::admit`] would give that does not depend on the slot (a bad token id, a structured-output
+    /// error), asked before [`BatchSeq::restore`] so a request that is refused never looks up or restores a prefix. `Err`:
+    /// rejected, as from `admit`. Default: `Ok`.
+    fn validate(&self) -> Result<()> {
+        Ok(())
+    }
+    /// Prefix store (`--prefix-store` with `--max-batch` > 1): the length this request's prefill starts from in `slot`, called
+    /// at admission before [`BatchSeq::admit`] with `local`, the slot's own reusable prefix ([`BatchModel::reuse_len`]). The
+    /// sequence may cut `local` back to a point of its own chunk schedule, or restore a longer stored prefix into the slot; the
+    /// slot then holds at least the returned length, which the scheduler admits with (and truncates to). `Err`: the request
+    /// fails (the slot is invalidated). Default: `local`, the slot untouched.
+    /// `idle`: no other request holds a slot (nothing decodes or prefills beside this admission).
+    fn restore(&mut self, _model: &mut M, _slot: usize, local: usize, _idle: bool) -> Result<usize> {
+        Ok(local)
+    }
+    /// Prefix store: the request's own prefill schedule, the length of its next chunk at `pos` with `remaining` rows left
+    /// (`Some`), whatever the scheduler's chunk size (no busy chunk, macro step or packing): a function of the prompt and `pos`
+    /// only, so the slot's history and the other sequences never change its bits. `None` (default): the scheduler's schedule.
+    fn chunk_len(&self, _pos: usize, _remaining: usize) -> Option<usize> {
+        None
+    }
+    /// Prefix store with macro prefill (lane storettft): rows of the next call for a request on its own schedule, `remaining` rows left at
+    /// `pos`, at most `max_rows`: several whole chunks of that schedule (run by the model as one pass, bitwise the same chunks), never the
+    /// prompt's last. `None` (default): the request's next own chunk.
+    fn macro_len(&self, _pos: usize, _remaining: usize, _max_rows: usize) -> Option<usize> {
+        None
+    }
+    /// Prefix store: the chunk size of the request's own schedule (what [`TraceEvent::PrefillStart`] reports), `Some` exactly
+    /// when [`BatchSeq::chunk_len`] is. Default: `None`.
+    fn own_chunk(&self) -> Option<usize> {
+        None
+    }
+    /// Prefix herd (lane herd, [`SchedulerConfig::prefix_herd`]): `Some(min_tokens)` when this request uses the prefix store, so it may
+    /// wait for another request that is prefilling a prompt prefix it shares (at least `min_tokens` leading tokens, the store's
+    /// threshold) instead of prefilling that prefix itself. Default `None`: never waits.
+    fn herd_min(&self) -> Option<usize> {
+        None
+    }
+    /// Prefix herd: a held request is about to prefill its next chunk at `pos` (the leader it waited for has passed their shared
+    /// prefix, or left): look the store up again and restore the longest stored prefix of the prompt that is longer than `pos` into
+    /// `slot`, as [`BatchSeq::restore`] does at admission. Returns the length the slot now holds and the prefill resumes from: `pos`
+    /// when nothing longer is stored (the slot untouched), `0` when a restore failed and the slot was reset (the prefill starts over).
+    /// `Err`: the request fails. Default: `pos`.
+    fn herd_resume(&mut self, _model: &mut M, _slot: usize, pos: usize) -> Result<usize> {
+        Ok(pos)
+    }
+    /// A prefill chunk `[start, end)` of this request ran in `slot` (`last`: the final one, before its output is accepted).
+    /// The prefix store captures the slot's state here. Default: nothing. `Err` fails the request.
+    fn on_chunk(&mut self, _model: &mut M, _slot: usize, _start: usize, _end: usize, _last: bool) -> Result<()> {
+        Ok(())
+    }
+    /// The request failed: send `Error`.
+    fn fail(&mut self, err: &Error);
+}
+
+/// Where the scheduler calls [`BatchModel::housekeep`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Housekeep {
+    /// After a decode step (its sync left the device idle) in an iteration with no prefill in progress.
+    Step,
+    /// Inside a parked prefill chunk, after the decode step that ran there.
+    Pause,
+    /// Nothing is running or waiting (finish what is deferred).
+    Idle,
+}
+
+/// Scheduler policy. Defaults are the operator decisions (design 8.1 and the 2026-10-15 scheduler confirmation).
+#[derive(Clone, Debug)]
+pub struct SchedulerConfig {
+    /// Slots / most rows per decode step (`--max-batch`), `1..=MAX_BATCH_CAP`. Default 1: batching is opt-in.
+    pub max_batch: usize,
+    /// Most requests waiting for a slot; a submit beyond it is rejected.
+    pub max_queue: usize,
+    /// Prefill chunk of a sequence that starts its prefill while no other sequence is decoding (model chunk, 2048 on
+    /// Metal): today's solo behaviour and golden baselines.
+    pub solo_chunk: usize,
+    /// Prefill chunk of a sequence that starts its prefill while at least one other sequence is decoding (256). The
+    /// choice is made once per sequence, at its first chunk, and kept to its last chunk.
+    pub busy_chunk: usize,
+    /// Prefill chunks per iteration while sequences are decoding (prefill budget = `busy_chunk` x this). Only the
+    /// final chunk of a prompt is shorter than its `C`; the budget never splits a chunk.
+    pub busy_chunks_per_iter: usize,
+    /// Speculation is offered to sequences only while fewer than this many sequences decode (design 6: off at B >= 4).
+    /// 0 and 1 both disable it entirely (a decode step always has at least one sequence); `MAX_BATCH_CAP + 1` keeps it
+    /// on at every batch size. Larger values are rejected by [`SchedulerConfig::validate`].
+    pub spec_off_at: usize,
+    /// Keep the last [`SchedulerConfig::trace_cap`] [`TraceEvent`]s for [`Scheduler::take_trace`] (tests, the identity
+    /// harness). Bounded: older events are dropped. Production leaves this off.
+    pub trace: bool,
+    /// Print every [`TraceEvent`] to stderr (`INTARSIA_CB_TRACE=1`). Stores nothing.
+    pub trace_stderr: bool,
+    /// Ring size of the stored trace (`trace`).
+    pub trace_cap: usize,
+    /// Offer idle slots' KV prefixes for reuse at admission (default). Off: every request starts from an empty slot
+    /// (the concurrent-identity harness compares against cold-prefill solo runs).
+    pub prefix_reuse: bool,
+    /// Pack the next chunks of several waiting prompts into one prefill pass ([`BatchModel::prefill_pack`]) when the model can
+    /// (`INTARSIA_PACK_PREFILL=1`). Opt-in.
+    pub pack_prefill: bool,
+    /// Most body rows of one packed pass (`INTARSIA_PACK_ROWS`), below the model's own bound ([`BatchModel::pack_rows_max`]);
+    /// 0: the model's bound only. Lane srv16b: a decoding sequence waits for the whole pass, so this bounds that wait.
+    pub pack_rows: usize,
+    /// A packed pass takes at most half (rounded up) of the prompts waiting to prefill (`INTARSIA_PACK_HALF`): every prompt of a
+    /// pass gets its first token when the pass ends, so packing a short queue whole delays its median first token.
+    pub pack_half: bool,
+    /// Prefix herd (lane herd; the engine reads `INTARSIA_PREFIX_HERD`, unset: on, `0`: off, lane herdflip; this field's own default is off): a store request whose prompt shares at least the store's
+    /// `min_tokens` leading tokens with an older request that is still prefilling does not prefill them itself. It waits until that
+    /// leader has prefilled past their shared prefix (or left: finished, cancelled, failed), then looks the store up again
+    /// ([`BatchSeq::herd_resume`]) and prefills only what no stored prefix covers. Tokens are unchanged, bit for bit (the restore is
+    /// the one admission does). Off: a request looks the store up at admission only.
+    pub prefix_herd: bool,
+    /// Which prefilling sequence gets the next chunk (`INTARSIA_PREFILL_ORDER`). `SchedulerConfig::default()` is [`PrefillOrder::Fifo`]
+    /// (the neutral baseline the scheduler tests build on); the shipped default, [`PrefillOrder::Shortest`] since lane sjfflip, comes
+    /// from [`parse_prefill_order`] (`BatchedOptions::new`).
+    pub prefill_order: PrefillOrder,
+
+
+# Benchmarking
+
+Two tools, same methodology, so numbers are comparable:
+
+* `intarsia bench speed` (built in, no Python, ships with the binary). Use it for quick checks, CI
+  smoke runs and comparing against vLLM from any machine that can reach the server.
+* `localeval` (`/opt/code/deepeval`). Use it for the logged, fleet-aware runs: it takes its own
+  fleetq slot, refuses busy servers, and records every run in unanimis. Quality evals live there too.
+
+To deploy a pinned commit to a box, stamp the toolchain and pack a run so another host can replay it, see
+[Reproducing results](reproducing-results.md).
+
+Both measure end to end over HTTP against an OpenAI-compatible `/v1/chat/completions` stream, so
+the same command works for IntarsiaML, vLLM, llama.cpp and oMLX.
+
+## Methodology
+
+* Prompt sizes 128 / 1K / 4K / 16K tokens. The tool calibrates tokens per filler sentence from the
+  server's own `usage.prompt_tokens`, so sizes are right for any tokenizer. The row reports the
+  measured `prompt` token count.
+* Every prompt starts with a fresh random nonce: no prefix-cache or KV-reuse hit can inflate prefill.
+* Output length is forced with `ignore_eos`, `min_tokens` and `max_tokens` (a row whose `gen` column
+  is below `--gen` means the server ignored them; a warning is printed). Servers that reject these
+  parameters with HTTP 400/422 *naming them* (or saying "unknown/unsupported parameter") are retried without
+  them, and the "rejected optional parameters" warning appears only when that retry worked. A length error
+  ("maximum context length", `max_model_len`) is never treated as a parameter problem.
+* The server's context window is read from `GET /v1/models` (`max_model_len`). A size whose estimated prompt
+  plus `--gen` (+2% and 16 tokens of slack) exceeds it is **skipped before anything is sent**, with a message
+  and a `skipped` row in the JSON; the calibration probe also shrinks to fit a small window.
+* One discarded warmup call per size, then the median of `--reps` measured calls.
+* TTFT = request sent to first content delta. Prefill tok/s = prompt tokens / TTFT (includes queueing
+  and HTTP, so small prompts look slow). Decode tok/s = (completion tokens - 1) / (end - first token).
+* Concurrency rows (`--concurrency 1,4`): N simultaneous streams at `--conc-size` tokens, a warmup
+  round, then per-stream and aggregate decode tok/s (aggregate = total decoded tokens over the
+  window from the first token to the last stream finishing).
+* Bandwidth floor: decode is memory bound, so `bandwidth_gbs / gb_per_token` is a ceiling on single
+  stream tok/s. Pass both and the table adds `% of floor`. Above 100 means a measurement bug or a
+  wrong `gb_per_token` (MoE and quantised models read far fewer bytes than the file size; use the
+  bytes actually read per token). For Qwen3-8B bf16 on the GB10: `--gb-per-token 16.4
+  --bandwidth-gbs 221` gives a floor of 13.5 tok/s.
+
+## Built-in: `intarsia bench speed`
+
+```sh
+# Our engine on spark1 (start it first, inside a fleetq slot; see below)
+intarsia bench speed --url http://spark-4e77:8090 --model Qwen3-8B \
+    --sizes 128,1024,4096,16384 --gen 128 --reps 3 --concurrency 1,4 \
+    --gb-per-token 16.4 --bandwidth-gbs 221 --label qwen3-8b-cuda-bf16 \
+    --fingerprint-file doctor.json
+
+# The vLLM on spark1, for comparison. Needs the guidance slot: it is a production role.
+fleetq run --uses guidance --label "intarsiaml bench smoke" -- \
+    intarsia bench speed --url http://spark-4e77:8000/v1 --model guidance \
+    --sizes 128,1024 --reps 2 --gen 64 --thinking off
+```
+
+Output is a table on stdout and `results/<label>.json` (`--out-dir`, `--no-save`, `--json`). The JSON
+holds the config, the calibration, one row per size, one row per concurrency level, warnings and a
+`fingerprint` object. Fill the fingerprint with `intarsia doctor --json > doctor.json` then
+`--fingerprint-file doctor.json` (stored under `fingerprint.host`), and/or `--fingerprint key=value`
+for things the tool cannot know (`engine=vllm-0.12`, `quant=nvfp4`, `git=<sha>`). Always do so for a
+number you will quote: GPU clocks, driver, THP and free memory change results.
+
+Prefill tok/s depends on the server's prefill chunk, which a recipe may set per backend (the 35B recipe uses 2048 on CUDA,
+256 elsewhere; `serve` prints `prefill chunk N (source)` at load). The client cannot see it, so pass
+`--prefill-chunk N` (the value `serve` printed) to store it as `fingerprint.prefill_chunk`, and compare only runs
+whose chunk matches. `accuracy` baselines refuse a chunk mismatch and name the recipe default; pin
+`--prefill-chunk 256` to compare against baselines recorded before the recipe default existed.
+
+Other flags: `--thinking off` sends `chat_template_kwargs.enable_thinking=false`;
+`--key-env VAR` reads a bearer token from an environment variable; `--timeout-s`; `--warmup N`.
+Plain `http://` only (the client is built without TLS); tunnel for https.
+
+### Benchmark records: `--emit-record`
+
+`bench speed --emit-record [PATH]` appends [benchmark record v1](/opt/code/model-benchmarks/schema/README.md) lines to
+`PATH` (default `/opt/code/model-benchmarks/data/records/intarsia-bench.jsonl`, the file the results site and the
+composer read) after the sweep. It writes one line per measured cell: one per prompt length (a speed point carries
+prefill and decode tok/s together, so it covers both phases of that length) and one per concurrency row. Skipped sizes
+and sizes where every rep failed get no line. The server is probed before the sweep and the run is refused unless it
+reports itself as IntarsiaML (`/v1/models` `owned_by`, `/metrics` `intarsia_info`).
+
+```sh
+fleetq run --host spark1 --expect 15 --quiet gpu,cpu --label "35b nvfp4 records" -- \
+    intarsia bench speed --url http://spark-4e77:8090 --model qwen36-35b --sizes 1024,4096,16384 \
+    --concurrency 1,4 --thinking off --fingerprint-file doctor.json --emit-record \
+    --quant NVFP4 --serve-cmd "intarsia serve --backend cuda --model /models/qwen36-35b-nvfp4 --port 8090"
+```
+
+| Record field | Source |
+|---|---|
+| `run_id` | `intarsia-bench:<label>-<unix time>:p<size>` or `:c<streams>`; `--record-run-id ID` reuses a localeval run id and writes the whole run as ONE record (`schema/validate.py` rejects a run_id repeated within a file) |
+| `provenance.trust`, `measurement.slot` | `measured-here` and the job id when `FLEETQ_JOB` is set; otherwise `external` (self-reported, not counted in regime wins; the schema has no unslotted-local tier) |
+| `hardware.name`, `box` | the server host, mapped to the site's strings (`site/build_data.py` `HOSTS`; two Sparks with `--tp 2` are `2x DGX Spark GB10 (TP2)`); loopback uses this machine's hostname; `--hardware` overrides; unknown is `"Unknown"` |
+| `hardware.driver`, `sku`, `kernel`, `memory_gb` | `--fingerprint-file` (`intarsia doctor --json`) |
+| `engine.version`, `commit` | this binary's version and `git rev-parse HEAD` of the working directory (`+dirty` when tracked files differ); the server does not report them, so pass `--engine-version` / `--engine-commit` when it is another build |
+| `engine.launch` | `--serve-cmd` (command and args), `--serve-env KEY=VALUE`, `--recipe-ref`; api keys and secret-looking env values are redacted; `max_model_len` from `/v1/models` |
+| `model.family`, `repo`, `revision` | `--model-family/--model-repo/--model-revision`, else parsed from the served path (`models--Org--Name/snapshots/<sha>`) and the site's family table; the Python in `build_data.py` is the spec |
+| `quant.format`, `kv_dtype` | `--quant` or derived from the name (NVFP4, MXFP4, INT4, INT8, FP8, BF16); `kv_dtype` from the server's `intarsia_info` metric or `--kv-dtype` |
+| `workload.lane` | `plain`, or `spec:<drafter>` from `--spec` or a `--spec X` inside `--serve-cmd` (`--spec off` is plain). Spec decode is never compared with plain decode |
+| `workload.thinking` | `--thinking` |
+| `completeness` | port of `schema/records.py` `finish()`: a blank (`null`, `""`, `"Unknown"`) hardware, engine, version, family, repo, quant or lane makes the record `incomplete`; it is kept, never dropped, and the missing paths are listed |
+
+The records have `exclusive: null`: the bench cannot see how the slot was taken. Validate a file with
+`uv run --with jsonschema python3 /opt/code/model-benchmarks/schema/validate.py <file>`. The flag reads no
+`INTARSIA_*` variable, so `docs/tuning.md` needs no row; it reads `FLEETQ_JOB` (set by `fleetq run`).
+
+### Composer gaps: `tools/composer/gap_to_lane.py`
+
+Reads model-benchmarks `composer/data/regimes.json` and `catalog.json` (read-only) and writes
+`docs/composer/gaps.md`: every cell where IntarsiaML is behind a rival on **its own quant** beyond the noise, the ties it
+could win, cells where it is `solo` or unmeasured and a competitor has data, and a lane brief per gap (setup, margin vs
+noise, quality of both sides, evidence run ids, catalog techniques, files likely involved by a keyword heuristic, the
+cheapest experiment). Ranking is margin % x a phase weight (decode 1.0, prefill 1.0, concurrent 0.5; a judgement, set
+with `--weight phase=w`). `--lane spec` switches to the speculative lane; `--json [PATH]` emits JSON.
+`python3 -m unittest discover -s tools/composer -p 'test_*.py'` runs the tests.
+
+### Graph replay, variance and profiling in the result (Phase 1b review findings 4, 5, 6)
+
+`intarsia serve` exports `intarsia_graph_replays_total`, `intarsia_graph_captures_total`,
+`intarsia_decode_eager_steps_total` and `intarsia_decode_profiled_steps_total` in `/metrics` (docs/telemetry.md). `bench speed`
+reads them before and after the measured reps of each size (warmup excluded) and writes, per row and summed at the top level:
+
+* `graph`: `{available, replays, captures, eager_steps, profiled_steps}` as deltas over the measured reps. `available: false`
+  (all null) when the server does not export the counters (vLLM, llama.cpp).
+* `decode_tok_s_reps`, `decode_tok_s_min`, `decode_tok_s_max`, `decode_tok_s_stdev` next to the median `decode_tok_s`.
+* warnings: `0 graph replays during the measured reps (decode ran eagerly)`, and `timing includes N profiled eager steps`.
+* `--require-graphs`: exit non-zero (after saving) if the server does not export the counters or any measured size replayed
+  zero graphs. The acceptance procedure passes it for our server. 0 replays means the run measured the Phase 1a eager path.
+
+**Profiled steps bias the number.** With `--profile-every N` (default 16 on CUDA / HIP, 1 on cpu, 0 on metal) every Nth decode step runs eagerly
+with per-op synchronisation: about 6% of the steps at N = 16, each far slower than a replay. A throughput measurement runs the
+server with `--profile-every 0` so that no step is profiled, on every arm. vLLM has no such steps, so profiling only ever
+penalises our side. The as-shipped default can be reported as an extra, separately labelled arm, never as the A/B number.
+
+**Metal `generate` before 2026-11-21 profiled every 16th step.** Until lane ink-hostgap (docs/results/2026-11-21-inkling2-hostgap.md)
+only `serve` defaulted to `--profile-every 0` on Metal; `generate` timed every 16th decode step, and a profiled Metal step
+synchronises around every op (no decode graphs: 77-82 ms against a 15.8 ms Inkling-2-Mini step). So Metal `generate` decode
+tok/s recorded before that change without an explicit `--profile-every 0` is 12-25 % lower than the real decode rate (about 12 %
+on Qwen3-8B / the 35B, 20 % on Inkling-2-Mini: 50.5 against 63.4 tok/s). Compare only runs taken with the same setting; the
+`steps=... (profiled N)` line of `generate` says which.
+
+**One run per arm is not a result.** Run-to-run and server-restart variation on the GB10 is of the order of the margin the
+Phase 1 gate is decided on (76 against 78 tok/s). The A/B uses interleaved rounds (below), a discarded warmup call per size,
+five measured calls per size per round, the per-round difference against vLLM, and a decision rule written down before the run.
+
+### A/B against vLLM on spark1: `scripts/phase1b-acceptance.sh`
+
+The whole procedure is one script (stages: preflight, build, lease, kernels, accuracy, graphs, ab, verdict; `STAGES=ab,verdict`
+runs a subset). What it enforces, and why:
+
+1. **vLLM is stopped while ours runs.** The `guidance` vLLM reserves 64 GB (`gpu_memory_utilization 0.5`) on the 128 GB unified
+   memory; a 38 GB server or an accuracy job beside it is what hung spark1 at 01:50 on 2026-10-13 (an 8B HF golden job next to
+   it). The script takes one exclusive lease with `fleetq acquire --host spark1 --exclusive --takes-down guidance`, stops the
+   container (`VLLM_CONTAINER`, the name from `docker ps` on the box), and waits for the memory to come back. Nothing else runs
+   in the lease: never a golden or HF job, never a build. Builds happen in an earlier small shared slot.
+2. **Restore before release.** An EXIT/INT/TERM trap stops our server (SIGTERM, wait up to 60 s for the pid, then `kill -9`;
+   `deploy/localeval/serve-and-bench.sh` `stop()` now waits too), then restarts the container and waits for `/health` and
+   `/v1/models`, then releases the slots. fleetq counts the role back only when it sees the expected model again.
+   Dry-run check: `DRY_RUN=1 FAIL_AT=accuracy scripts/phase1b-acceptance.sh` shows the stop, start and release commands being
+   issued after a forced failure (no box is touched in a dry run).
+3. **Memory pre-check.** Before every model load (kernels, each accuracy case, graphs, each A/B round) the script reads
+   `MemAvailable` on the box and aborts if it is below model size + 20 GB (35B: 38 GB, 8B: 17 GB; override with
+   `MODEL_GB_35B` / `MODEL_GB_8B`).
+4. **Interleaved rounds.** `ROUNDS` (default 3) rounds, each: ours-new and ours-old (order alternates per round), then vLLM up,
+   vLLM, vLLM down. vLLM and ours never run at the same time, and drift in the box (thermal state, clocks) hits all arms alike.
+5. **Valid round.** The 1 Hz poller must never see `running > 1` or `waiting > 0` on the server under test (the bench is its only
+   client); ours-new must show replays > 0 and 0 eager or profiled steps for every size. Invalid rounds do not count; up to two
+   extra rounds replace them.
+6. **Decision rule** (header of the script; written before any number existed). Per size S and round r:
+   d(S,r) = ours-new median decode tok/s minus vLLM median in the same round. PASS(S): d >= 0 in every valid round.
+   MARGINAL(S): median d >= 0 but some round below 0. FAIL(S): median d < 0. Fewer than 3 valid rounds: INCONCLUSIVE.
+   The Phase 1 speed gate passes only if 128, 1024 and 4096 all PASS; MARGINAL or INCONCLUSIVE sizes give "NOT DECIDED" and the
+   numbers (min / median / max of d) are reported as they are. If no ours-new round is valid because of 0 replays or eager
+   decode, the A/B fails outright: those numbers would be Phase 1a numbers.
+7. The verdict stage (`verdict.py`, written into the work directory) is the only thing that says PASS. The script exits 0 only
+   if it and the accuracy stages pass.
+
+### Fleet rules
+
+Anything that loads or runs GPU work on spark1 takes a fleetq slot first (`fleetq status`). The slot
+must cover the **whole life of our server**, and the benchmark must run inside that same slot:
+`localeval` takes its own exclusive slot on the box behind its `--url`, so it must be started with
+`FLEETQ_JOB` set (it then sees it is already inside a covering slot and carries on) and pointed at
+`http://spark-4e77:8090`, the server's real host (not a loopback tunnel such as `127.0.0.1:18090`,
+which fleetq reads as "this machine" and locks the wrong box). Never start the server outside the
+lease and leave it running after `fleetq release`.
+
+`--mem-budget GIB` ties the KV cache to the lease: weights + workspace + KV stay within it, whatever
+the box has free (the default sizes KV from measured free memory, so a large `--max-seq` could
+otherwise take memory another lease owns). Use the same number as the lease's `--mem`.
+
+One command: `deploy/localeval/serve-and-bench.sh` starts the server on spark1, waits for `/health`,
+runs the benchmark, and stops the server on exit, all inside one `fleetq run` lease:
+
+```sh
+fleetq run --host spark1 --exclusive --mem 24 --label "intarsiaml: qwen3-8b speed" -- \
+    deploy/localeval/serve-and-bench.sh --mem-budget 24 -- \
+    uv run --project /opt/code/deepeval localeval speed spark-intarsia --sizes 128,1024,4096 --gen 128 --reps 3
+```
+
+By hand with a lease (every command carries `FLEETQ_JOB`, the server is stopped before the release):
+
+```sh
+fleetq acquire --host spark1 --exclusive --mem 24 --label "intarsiaml: qwen3-8b speed" --wait   # prints the job id
+export JOB=<id>
+FLEETQ_JOB=$JOB ssh spark1 'cd ~/intarsiaml && nohup target/release/intarsia serve --backend cuda \
+    --model /home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 \
+    --port 8090 --host 0.0.0.0 --mem-budget 24 > /tmp/intarsia-serve.log 2>&1 & echo $! > /tmp/intarsia-serve.pid'
+until curl -sf http://spark-4e77:8090/health >/dev/null; do sleep 2; done
+FLEETQ_JOB=$JOB intarsia bench speed --url http://spark-4e77:8090 --model Qwen3-8B ...
+FLEETQ_JOB=$JOB sh -c 'cd /opt/code/deepeval && uv run localeval speed spark-intarsia ...'   # same slot, no second queue
+FLEETQ_JOB=$JOB ssh spark1 'kill $(cat /tmp/intarsia-serve.pid)'   # SIGTERM reaches the supervisor and its child
+fleetq release $JOB
+```
+
+`localeval` refuses a busy server by reading `vllm:num_requests_running` and
+`vllm:num_requests_waiting` from `/metrics`; `intarsia serve` exports both. If a run dies and leaves
+the server busy, `curl spark-4e77:8090/metrics | grep vllm:` shows what is in flight (a disconnected
+client cancels its request, so this clears within a prefill chunk).
+
+Never use port 8000 for our server (production vLLM).
+
+### Metal speed gate (restated 2026-10-21 12:25 EDT)
+
+Decided by the user ("1 yes", `docs/decisions/LOG.md`). The evidence is `docs/results/2026-10-21-g3-metal.md` section 2: on endor, decode follows the GPU clock (r = +0.94), and the clock falls when other processes load the CPU (r = −0.93). A flat floor therefore failed builds that had not changed.
+
+**Clock-normalised 2026-10-21 (user, `docs/decisions/LOG.md`).** The 4k run missed at 84.5 % on machine state, so the floor is judged on a decode figure normalised for it. The gate uses three parts:
+
+1. **Floor:** decode must reach at least 85 % of the **context-aware** byte floor. The floor is bandwidth / (weight bytes + KV bytes at the mean context). The mean context is the prompt plus half the generated tokens. For Qwen3-8B BF16 that is 15.1368 GB plus 147,456 B per position at 614 GB/s, for example 39.0 tok/s at a 4k prompt. The old flat 40.6 tok/s ignored the KV bytes.
+2. **Clock normalisation:** `sameslot.sh` runs `scripts/metal-speed-gate/refbw.py` before and after every arm. It streams 1 GiB of bf16 matrices through a matrix-vector product (the access pattern of a decode GEMV, no intarsia code) and prints GB/s. The median of the arm's runs over the stored baseline (`scripts/metal-speed-gate/ref-baseline.json`) is the state factor. Normalised decode = raw decode / factor, and the floor is judged on that. The gate output prints raw, reference, factor and normalised values for every size. A factor outside 0.70 to 1.30 is STATE-INVALID: re-run it; it is not a failure. An arm with no reference file (older result dirs) is not normalised and falls back to the earlier admission rule (median GPU clock of busy macmon samples of at least 1300 MHz and median CPU load of at most 0.30). Re-baseline `ref-baseline.json` only after a deliberate machine change (OS update, new chip) and say so in the PR.
+3. **Same-slot ratios:** these apply to every intarsia arm and do not depend on the clock. Decode must be at least 0.90× mlx-lm and at least 1.00× llama.cpp, measured in the same exclusive slot.
+
+To run it, use `scripts/metal-speed-gate/sameslot.sh <binary> <out-dir>` inside one exclusive endor slot. It runs an ABBA of intarsia, mlx-lm, llama.cpp and intarsia with localeval and macmon, then `gate.py`. Unit tests for the normalisation math: `python3 -m unittest scripts/metal-speed-gate/test_gate.py`. `gate.py` exits with:
+- 0 for PASS;
+- 1 for FAIL;
+- 3 for STATE-INVALID (the ratios passed but no arm was admitted).
+
+## localeval
+
+`localeval` reads targets from `/opt/code/deepeval/targets.toml`. Add the engine once by pasting
+`deploy/localeval/targets-snippet.toml` (target `spark-intarsia`, `bandwidth_gbs = 221`), or use it
+ad hoc without editing anything:
+
+```sh
+cd /opt/code/deepeval
+
+# by registry name (after pasting the snippet)
+uv run localeval speed spark-intarsia --sizes 128,1024,4096,16384 --gen 128 --reps 3 --concurrency 1,4
+
+# ad hoc, any server
+uv run localeval speed --url http://spark-4e77:8090/v1 --model Qwen3-8B \
+    --label intarsia-qwen3-8b-bf16 --thinking off --sizes 128,1024,4096,16384 --gen 128 --reps 3
+```
+
+Flags (from `uv run localeval speed --help`): `--url`, `--model`, `--key-env`, `--thinking
+{on,off,default}`, `--structured`, `--label`, `--wait-idle SECONDS`, `--ignore-busy`, `--no-queue`,
+`--no-unim`, `--sizes`, `--gen`, `--reps`, `--concurrency`. localeval takes its own fleetq slot
+(`--no-queue` is for non-fleet servers only; do not use it on spark1 without sign-off), waits for the
+server to be idle, and logs the run to unanimis. If it complains the box is busy, the engine or
+another chat holds a slot: `fleetq status`. Inside a lease you hold (see Fleet rules) run it with
+`FLEETQ_JOB` set so it does not queue behind your own server.
+
+Quality (golden logits and benchmarks) is a separate gate: `docs/accuracy.md`.
+
+## Comparing runs
+
+* Same prompt sizes, `--gen`, thinking mode and prefill chunk (`fingerprint.prefill_chunk`) on both sides, same day, same GPU state.
+* Compare decode tok/s at 128 and 1K prompts (weight streaming) and prefill tok/s at 4K and 16K
+  (compute bound). TTFT at 128 tokens mostly shows scheduling and launch overhead.
+* Check `% of floor`: a healthy bf16 dense decode on a GB10 should land at 70-90%. Far below means
+  launch overhead or an unfused path (see `intarsia top` kernel shares); above 100 means a bug.
+
+

@@ -1,9 +1,14 @@
 //! Batched decode step vs B solo steps (Qwen3-8B BF16, Metal): the speed measurement of `Model::forward_batch`.
 //!
 //!   cargo run --release -p intarsia-models --example batch_step -- [--ctx 1024] [--rounds 8] [--steps 16] [--batches 1,2,4,8]
+//!       [--prompts text|random] [--digest]
 //!   env: INTARSIA_METAL_TEST_MODEL (default ~/models/Qwen3-8B)
 //!
-//! For each batch size B the first B of 8 prefilled sequences (distinct random prompts of `--ctx` tokens) are stepped
+//! Prompts: `--prompts text` (default; distinct slices of a fixed real-text corpus, examples/common/prompts.rs) or
+//! `random` (the old uniform-random ids, whose rows share experts far more than real text). `--digest` prints a digest of
+//! each row's batched greedy tokens per B (for comparing arms bitwise).
+//!
+//! For each batch size B the first B of the prefilled sequences (distinct prompts of `--ctx` tokens) are stepped
 //! `--steps` tokens by B solo steps in turn, and the same by one batched step (two independent state sets fed the same
 //! tokens, greedy on-device argmax so every step ends on one synchronised download). The two variants alternate round
 //! by round (A B A B ...) so clock drift hits both alike; the table gives the median per-step time of each and the
@@ -21,7 +26,12 @@ fn main() {
 }
 
 #[cfg(target_os = "macos")]
+#[path = "common/prompts.rs"]
+mod prompts;
+
+#[cfg(target_os = "macos")]
 mod imp {
+    use super::prompts::{digest, Prompts};
     use intarsia_backend_metal::bench::stats;
     use intarsia_core::model::{HeadMode, LoadOptions, Model, StepOut};
     use intarsia_core::state::SequenceState;
@@ -50,9 +60,11 @@ mod imp {
         // sequence i starts at ctx + i * spread (mixed positions; 0: all at ctx, as before)
         let spread: usize = arg(&args, "--ctx-spread", "0").parse().unwrap();
         let batches: Vec<usize> = arg(&args, "--batches", "1,2,4,8").split(',').map(|x| x.parse().unwrap()).collect();
+        let want_digest = args.iter().any(|a| a == "--digest");
         let dir = std::env::var_os("INTARSIA_METAL_TEST_MODEL")
             .map(std::path::PathBuf::from)
             .unwrap_or_else(|| std::path::PathBuf::from(std::env::var("HOME").unwrap()).join("models/Qwen3-8B"));
+        let prompts = Prompts::new(&arg(&args, "--prompts", "text"), &dir);
         let backend = intarsia_backend_metal::MetalBackend::arc().unwrap();
         let (_, recipe, dims, _) = read_model_spec(&dir, &EngineOptions::default()).unwrap();
         let weights = SchemedSource::open(&dir).unwrap();
@@ -67,15 +79,14 @@ mod imp {
         }
         m.configure_plan(&Default::default(), None).unwrap();
         let name = dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        println!("# {name} Metal, context {ctx} (+{spread} per sequence, +{} decoded), {rounds} rounds x {steps} steps, chunk {chunk}", rounds * steps);
+        println!("# {name} Metal, context {ctx} (+{spread} per sequence, +{} decoded), {rounds} rounds x {steps} steps, chunk {chunk}, prompts: {}", rounds * steps, prompts.describe());
 
         let mut solo: Vec<SequenceState> = Vec::new();
         let mut bat: Vec<SequenceState> = Vec::new();
         let mut cur: Vec<u32> = Vec::new();
         for i in 0..top {
-            let mut rng = intarsia_core::rng::SplitMix64::new(0xbe7c_0000 + i as u64);
             let n = ctx + i * spread;
-            let p: Vec<u32> = (0..n).map(|_| 1000 + (rng.next_u64() % 29000) as u32).collect();
+            let p = prompts.row(i, n);
             let (mut a, mut b) = (m.new_state().unwrap(), m.new_state().unwrap());
             m.forward(&mut a, &p[..n - 1], HeadMode::None, None).unwrap();
             m.forward(&mut b, &p[..n - 1], HeadMode::None, None).unwrap();
@@ -93,8 +104,10 @@ mod imp {
             8 => 36.6,
             _ => f64::NAN,
         };
+        let mut digests: Vec<String> = Vec::new();
         for &b in &batches {
             let (mut ts, mut tb) = (Vec::new(), Vec::new());
+            let mut rows: Vec<Vec<u32>> = vec![Vec::new(); b];
             for round in 0..=rounds {
                 let batched_first = round % 2 == 1;
                 let run_solo = |ts: &mut Vec<f64>, solo: &mut Vec<SequenceState>, cur: &mut Vec<u32>| {
@@ -141,6 +154,11 @@ mod imp {
                     bb = run_batch(&mut tb, &mut bat, &mut cb);
                 }
                 assert_eq!(a, bb, "batched tokens differ from solo tokens (B={b}, round {round})");
+                for step in &bb {
+                    for (i, t) in step.iter().enumerate() {
+                        rows[i].push(*t);
+                    }
+                }
                 cur = cs;
             }
             // the first round of each variant is warm-up
@@ -156,6 +174,13 @@ mod imp {
                 b as f64 * 1e3 / t.median,
                 if est(b).is_nan() { "-".into() } else { format!("{:.1}", est(b)) }
             );
+            if want_digest {
+                let per: Vec<String> = rows.iter().map(|r| digest(r)).collect();
+                digests.push(format!("# B {b} batched-token digest {} rows {}", digest(&rows.concat()), per.join(" ")));
+            }
+        }
+        for d in &digests {
+            println!("{d}");
         }
     }
 }

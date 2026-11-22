@@ -179,6 +179,13 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   gave 2k prefill 1163 / 1186 vs 1503 / 1415 tok/s (-20 %), decode after 2k 39.7 / 38.6 vs 60.9 / 54.7 (-35 %): answer
   whether NE 4 is faster because it skips work or NE 3 is genuinely slower; the quiet A/B is #11181. Lane: #11195 released;
   the realtest is #11197 (reserved 03:41).
+- 2026-11-22 (coordinator, SendMessage): ink-batch found an endor slow state that slows B16 by 30-50% while B1 barely moves (same binary: B16 61 ms now, 77-90 ms at 06:49), which the B1 / localeval guard cannot see. For the queued baseline's batch_step section C: take one B16 sample first; if it is more than 5% over about 60 ms (fast-state reference at the final tree), mark the batched numbers BOX SLOW and do not record them as a reference. Solo and localeval parts keep their own guard. Done: `.scratch/serve_le2_body.sh` section C runs a B16 probe (`--batches 16`, same ctx / rounds / steps as the reps), limit 63.0 ms; it prints `BOX FAST|SLOW|UNKNOWN` and tags every rep row `[box ...]`. Only FAST rows count as a reference; UNKNOWN (probe row not parsed) counts as not a reference.
+- 2026-11-22 (coordinator, SendMessage): #11387 may be contaminated 07:56:30-07:56:45 by an unslotted `cargo check --release -p intarsia-backend-metal` from ink-dfuse on endor (about 14 s CPU, metallib compile, no GPU). Find the arm / localeval case covering that window; if its numbers stand out against the other reps, rerun it inside the baseline slot or a short follow-up slot before recording; if normal, note the window. Status: the window falls in section A, localeval speed-plain (started 07:55:56, server on 8098); the per-request timestamps decide which case.
+- 2026-11-22 (coordinator, SendMessage): `metal4_shaders_are_the_nax_variants_and_not_metal3_shaders` counts 110 Metal 4 shaders, expects 65, on the integration tree and on a3cb54621; likely from an ink/* merge into ink/metal. Check whether #11363 ran that suite; find the merge that raised the count; update the expectation (legit NAX variants, one-line reason) or fix the build (Metal 3 leak); full Metal suite green before main; record here; bisect on bespin or in a fleetq slot.
+- 2026-11-22 (coordinator, SendMessage): prepare ink/metal for main (471 ahead / 7 behind origin/main, nothing pushed). 1. `git push -u origin ink/metal` as backup, no merge yet. 2. Merge origin/main; mechanical conflicts only, else stop and report. 3. Footprint: `git diff --name-only origin/main HEAD` minus docs/, backend-metal, kernels/metal, scripts; summarize shared files (core, models, cli, cpu, cuda, hip, recipes). 4. No-op checks in fleetq slots: Metal on endor (`--quiet gpu,cpu`): `plan show` identical to main for Qwen3-8B and Llama-3.1-8B, `kernels test` 0 FAIL, 256 greedy ids identical to main for qwen3-8b short and 4k, goldens qwen3-8b-fp32 / -long, `cargo test --workspace`; if CUDA / HIP files touched: `plan show` on spark1 (35B + 8B JSON identical) and `kernels test --quick`. Metal `generate --profile-every 0` default changes timing output by design (hostgap a); ids must match. 5. Send results and every default that changes vs main; do not open the PR.
+- 2026-11-22 (coordinator, SendMessage): widen the CUDA no-op (#11441): plan show alone does not cover shared runtime code (engine.rs, model.rs, scheduler.rs, batch.rs, ops.rs). Add on spark1, base 608bc4408 vs dev d111c798a: greedy 256 ids for Qwen3-8B (or Llama-3.1-8B), short and 4k, bit for bit; `cargo test --workspace` both builds, failure sets compared. One job or chained after #11441; `fleetq status` first, `--mem` sized to the real peak beside the resident vLLM; spark OOM rules (MAX_JOBS=4, watch free -g, 10 GB floor). HIP: no GPU work on tatooine (radiance); only a build of base and dev with HIP enabled plus the hip crate's host-side unit tests if they run without a GPU, one fleetq job `--load cpu`; if that cannot share the box, skip and say so. Merge only if every check is green; any greedy-id mismatch on CUDA or Metal stops the merge: report, do not fix on the merge branch.
+- 2026-11-22 (coordinator, SendMessage): tatooine #11444: 29 GB free is tight for two HIP release builds; uncapped cargo runs 24 jobs. If not capped, add the spark1 memguard (MemAvailable every 5 s, kill the job's processes below 8 GB). If restarting, build the trees one after the other with CARGO_BUILD_JOBS=8. radiance must stay up.
+- 2026-11-22 (coordinator, SendMessage): work files stay inside the project's .worktrees/, never in ~. When #11444 ends, copy the memguard log's last reading and minimum MemAvailable here, then delete tatooine:~/intarsiaml-inknoop-memguard.log. Next time put such a log under the tatooine checkout's .worktrees/ink-noop/. (Also in ~ from this lane, to remove when their jobs end: tatooine ~/intarsiaml-inknoop-{base,dev} and ~/intarsiaml-inknoop-memguard.sh, spark1 ~/intarsiaml-inknoop.)
 
 ## NE fix gate #11179 (tree 65dbc2870 = fix 7eca1b012 + test/docs)
 
@@ -535,6 +542,55 @@ by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
   run; alone (#11361, merged tree and 12cd4a06e by itself) both screen tests pass. The test sets `INTARSIA_INK_HEAD_SCREEN`
   with `set_var` while other tests run in parallel in the same process: a test-order race of the fp8 test, not of the merge
   (flagged to ink-fp8). Metal post-merge checks: `.scratch/q_fp8merge.sh` on 9576df6ea.
+- Fixed on ink/fp8 in eb14004b9 (tip e2c95e6d7), merged here at 37c8fbaf1 (tests and docs only): the screen tests load
+  through `load_screen()`, which holds a process-wide mutex, sets `INTARSIA_INK_HEAD_SCREEN` for that one load and removes
+  it before unlocking. Parallel cpu inkling2 11/11 three times on bespin (#11368, ink-fp8's run; the test file here is
+  identical to e2c95e6d7's). LOG.md's ink-fp8 row now says the screened head stays opt-in. Engine code unchanged, so the
+  pinned 9576df6ea post-merge check (#11363) and the a31e2df50 baseline still apply.
+- Metal post-merge check #11363 (9576df6ea, quiet, ended 07:33:55, exit 0): build clean; Metal rows_exact / quick_coverage /
+  gumbel / inkling2 11/11 / inkling2_batch 7/7, core op ids 7/7, docs_env_vars 2/2 pass; admission of all 17 Inkling ops incl.
+  head_screen / logits_gather / screen_argmax: 0 fail/reject; greedy with every switch unset: g64 md5 65cde8f35a1802e3e2fadb44d94d080d,
+  g256 md5 61fd59fecb5e0d72ffd08f2c6d07855a (both identical to the pre-merge reference); no screen lines in the logs; merged
+  `wanted` has `_ => false`. The ink/fp8 merge is clean on Metal. Reference baseline (a31e2df50, with the B16 box probe) queued as #11387.
+
+## Reference baseline #11387 (a31e2df50 merged-fp8, quiet gpu,cpu, 07:50:42-08:19:22, exit 0)
+
+Pre-checks on the same tree: Metal inkling2_batch 7/7, inkling2 11/11, batched plan configures with P12 dropped; G2 short
+PASS (prefill 2.087e-3, decode 2.928e-3, 0/363 confident misses); greedy g64 / g256 md5 identical to the combined-gate tip.
+
+**A. localeval speed-plain** (`serve --max-batch 1 --max-seq 20480`, chunk 2048; results
+`/opt/code/deepeval/results/20261122-075558-adhoc-endor-intarsia-metal-ink-metal-merged-fp8`; server peak RSS 25.2 GB,
+phys_footprint peak 28 GB):
+
+| prompt tok | decode tok/s median (min-max, n=3) | prefill tok/s | marginal prefill | TTFT s |
+|---:|---:|---:|---:|---:|
+| 128 | 71.0 (68.7-71.3) | - | - | 0.15-0.16 |
+| 1024 | 69.7 (67.5-69.7) | 2029 | 2545 | 0.49-0.51 |
+| 4096 | 67.5 (66.9-68.1) | 2268 | 2357 | 1.75-1.88 |
+| 16384 | 62.4 (62.0-63.7) | 2324 | 2344 | 7.05-7.10 |
+
+Contamination window 07:56:30-45 (ink-dfuse unslotted `cargo check`, CPU only): localeval's server probe / warm-up ran then and
+the first measured rep (128 tok, rep 1) started at 07:56:44.19, so at most its first second overlaps. That rep is 71.3 tok/s
+decode, 0.162 s TTFT: the highest decode of its three reps, TTFT within 7% of the others. Not an outlier; no rerun. Every
+other rep started after 07:56:47.
+
+**B. localeval conc-plain-1k** (`serve --max-batch 16 --max-seq 8192`; results
+`/opt/code/deepeval/results/20261122-075832-adhoc-endor-intarsia-metal-ink-metal-merged-fp8-b16`): batched decode runs since
+the ink/batch merge, so the cell completed (0 errors): aggregate 55.0 tok/s at 1 stream, 97.3 at 4, 127.9 at 16.
+
+**C. batch_step** (`--prompts random --digest`, ctx 1024, 2 x 16 steps; binaries intarsia 8f61cd39635e09d4, batch_step
+369ddee7e352a499). Box probe B16 62.97 ms against the 63.0 limit: **BOX FAST, by 0.03 ms**. Batched step ms per rep:
+
+| B | rep 1 | rep 2 | rep 3 | median | batched tok/s (median) |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 15.45 | 15.42 | 15.38 | 15.42 | 64.9 |
+| 8 | 34.45 | 34.20 | 34.09 | 34.20 | 233.9 |
+| 16 | 63.90 | 65.64 | 66.83 | 65.64 | 243.7 |
+
+Digests identical across the three reps (B1 6d7e5d70e4d0014a, B8 4eceea81c044812c, B16 65fc922062715df4); P12 dropped in the
+batched plan (49 tensors). B1 and B8 are the reference. B16 counts by the probe rule, but its reps climb 63.9 -> 66.8 ms
+(+5% within the section, all three over the 63 ms limit), which looks like the start of the slow state ink-batch described;
+treat B16 65.6 ms as an upper bound of the fast state, not a tight reference.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
@@ -879,3 +935,63 @@ row (pos 57, golden margin 0.77) 0.011 -> 0.303. chat_reasoning: the error **gro
 decode rows**: pos 92-104 old 0.007-0.018, new 0.036, 0.023, 0.123, 0.029, 0.131, **0.431** (pos 103, margin 0.06),
 0.119. Mean 1.0e-2 -> 5.8e-2. Prefill rows of the same prompts barely move. Growth over successive decode steps points at
 state written by the 1-row decode path (conv rings, KV), not at a single near-tie row.
+
+## Metal 4 shader-count test (coordinator brief 2026-11-22)
+
+`metal4_shaders_are_the_nax_variants_and_not_metal3_shaders` (backend-metal `kernels.rs` unit test) failed on ink/metal: 110
+Metal 4 shaders against an expected 65. Cause: d03224697 (ink/prefill: MoE prefill forms nax2 / nax3) added
+`inkprefill::metal4_shaders()` (the nax2 / nax3 gate-up and down shaders per format, the nax3 gather, the two blend
+shaders) to `metal4_shaders()` but not to the test's expected sum; it came into ink/metal with ink/prefill at merge 9d6764682.
+Found by `git log -S` on the shader list, not by a run bisect. These are NAX shaders in the metal4 library, not Metal 3 shaders: the
+test's other two asserts (no overlap with `shader_names()`, no duplicates) are unchanged. Fix 8e0ff6af6 adds the
+`inkprefill` term to the expected count. #11363 missed it because its Metal suite ran named integration tests
+(rows_exact, inkmix, rows_single, quick_coverage, gumbel, inkling2, inkling2_batch), not the backend-metal lib unit tests.
+Full Metal suite at 8e0ff6af6, fleetq #11427 (09:14:55-09:17:57, exit 0, INTARSIA_* unset): `cargo test --release -p
+intarsia-backend-metal --no-fail-fast` exit 0, 54 test binaries ok, 0 failed, the shader-count test ok; intarsia-models with
+the Inkling backend on metal: inkling2 11/11, inkling2_batch 7/7, batch_metal 1/1, prefix_store_metal 1/1, mtp_store_metal
+2/2, gdn_verify_metal 2/2 (batch_metal, prefix_store_metal and mtp_store_metal finish in 0.00 s: they need a real-model env
+var that was unset, so they ran their skip path). ink/metal's Metal suite is green.
+
+## Preparing ink/metal for main (coordinator brief 2026-11-22)
+
+- Pushed `ink/metal` to origin (backup) at f2c232423; then merged origin/main 608bc4408 (#486, #487: 7 commits,
+  ROCm 10.2 / gdn_chunk logf) at d111c798a with no conflicts.
+- Footprint outside docs / backend-metal / kernels/metal / scripts: 105 files. core 34 (new: inkling2 ops / cases / config,
+  model/inkling2.rs, gumbel.rs, screen.rs, sampler.rs, par.rs, quant/p12.rs; edited: engine.rs, model.rs, model/batch.rs,
+  scheduler.rs, ops.rs, plan.rs, admission.rs, hostprof.rs, recipe.rs, registry.rs, state.rs, prefix_store.rs, dsv41/cases.rs),
+  models 21 (inkling_chat.rs, load / recipe / tokenizer hooks, tests, bench examples), cpu 13 (Inkling, P12, screen references;
+  rowtab; mem.rs), server 8 (Inkling chat path, all gated on `reasoning_parser == "inkling"`), cli 6 (accuracy turns / baseline,
+  recipe, `default_profile_every`), golden 9 (inkling2-tiny fixture, oracle), tools 9 (Inkling scripts), recipes 1
+  (inkling2.toml, new), bench 1, Cargo.lock 1, cuda 1 and hip 1 (the op-coverage test list / `UNIMPLEMENTED` list only).
+- No-op checks: Metal on endor fleetq #11440 (plan show and ids for Qwen3-8B and Llama-3.1-8B, kernels test, goldens,
+  workspace tests base vs dev); CUDA on spark1 #11441 (plan show json 35B + 8B, kernels test --quick, base vs dev). Pending.
+- CUDA #11443 done (exit 0, 09:26:37-09:59:22): Qwen3-8B 256 greedy ids on CUDA identical base vs dev, short (sha 90c02be1) and
+  4k (sha 6203ecdb). Its `cargo test --workspace` did not run any test on either tree: the macOS-only Metal crate's test
+  `quick_coverage` does not compile on Linux (`intarsia_backend_metal::kernels` is cfg'd out), the same error on base and dev.
+  Rerun as #11455 with `--exclude intarsia-backend-metal --exclude intarsia-backend-hip` (CI's exclusions minus cuda, which
+  runs here on its GPU). Memguard minimum 61 GB available, 0 kills. (#11453 was a script error, nothing ran.)
+- Metal #11440 done (exit 0, 09:29:18-09:59:11, quiet gpu,cpu): 256 greedy ids identical base vs dev for Qwen3-8B (short sha
+  d619ede5, 4k feb11f5c) and Llama-3.1-8B-Instruct (short 25bbc20f, 4k eda51e94); `plan show` txt and json byte-identical for
+  both. `kernels test --backend metal` 0 FAIL on both: base 56 kernels / 1335 cases, dev 86 kernels / 2915 cases (the Inkling,
+  P12, screen, gumbel kernels); every base kernel is still ADMITTED in dev (argmax 4 -> 8 cases from the shared V % 4 rows).
+  Goldens on dev: qwen3-8b-fp32 and qwen3-8b-long-fp32 golden gate PASS (teacher-forced greedy match 100%). `cargo test
+  --workspace --release --no-fail-fast`: dev 295 test binaries ok, base 275 ok, 0 failed on either. One visible change, by
+  design: the `generate` stats line prints `top ops: off (pass --profile-every 16)` when no step was profiled (hostgap a).
+- CUDA #11441 done (exit 0, 09:22:06-09:40:46): CUDA release builds of base and dev clean (6 m 11 s, 5 m 16 s); `plan show
+  --json` byte-identical for the 35B NVFP4 (15570 B) and Qwen3-8B (8973 B); `kernels test --backend cuda --quick` 106 kernels,
+  0 FAIL on both (972 vs 984 cases: dev's shared case lists add 2 argmax_f32 / 2 argmax_bf16 cases (the V % 4 != 0 rows) and
+  8 moe_route cases (Inkling's score functions); the same kernels, all ADMITTED, max abs moe_route 2.18e-7).
+- Widened (coordinator): spark1 #11443, chained after #11441 (waits for its binaries): Qwen3-8B 256 greedy ids short / 4k on
+  CUDA, base vs dev bit for bit; `cargo test --workspace --release` both trees (CARGO_BUILD_JOBS=4, MAX_JOBS=4), failure sets
+  compared; a memory guard logs MemAvailable every 5 s and kills the job's processes under 10 GB; `--mem 36` beside
+  spark1-vllm (34 GB). tatooine #11444 (`--load cpu`, no GPU work, radiance untouched): `--features hip` release build of both
+  trees in the dev image with their own target volumes, then the hip crate's lib unit tests with GPUs hidden
+  (`HIP_VISIBLE_DEVICES=-1`), failure sets compared. Pending.
+- #11444 was already capped (CARGO_BUILD_JOBS=8, trees built one after the other; the hip build.rs runs hipcc serially). Added
+  at 09:25:59 inside its slot: `.scratch/noop/tat_memguard.sh` on tatooine logs MemAvailable every 5 s and removes the
+  inknoop containers below 8 GB; it exits after 150 s with none running. First reading 26 GB available during the base build.
+- #11444 done (exit 0, 09:24:41-09:30:27): `--features hip` release build of base 608bc4408 and dev d111c798a both exit 0
+  (1 m 38 s each, intarsia-backend-hip and intarsia-cli compiled in each); hip crate lib tests with GPUs hidden: 31 passed,
+  0 failed on both; failure sets identical (empty). No GPU work; radiance untouched. Memguard: 63 readings, minimum 26 GB
+  available (09:25:59, base build), last 29 GB (09:31:10, no containers), 0 kills. Cleanup in fleetq #11448: memguard log and
+  script, both source trees and both cargo-target volumes removed from tatooine; nothing of this lane left in its home dir.
