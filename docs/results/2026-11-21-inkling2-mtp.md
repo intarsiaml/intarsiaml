@@ -216,4 +216,32 @@ Every row is token-identical to spec off.
 Drafter per cycle (k3 tau 0.6, profile on, 525 cycles): block 1.75 ms (was 2.64), head 1.20 ms (1.34), Markov 0.59 ms (0.70),
 ingest 0.75 ms (0.94): about 4.3 ms, down from 5.6. k2 and k3 are now within 1%; tau 0.8 trades fewer drafts for the same speed.
 
+Verify routing is the same as in #10806 (both runs print the same verify kernels: `matmul_bf16_gemv_rows`,
+`ink_in_proj_bf16_gemv_rows`, `moe_experts_situ_bf16_rows` / `moe_experts_mxfp8_bf16_rows`, `logits_bf16_gemv_rows`, attention
+one `ink_attn_decode_bf16` call per row). From the #10874 totals, with the plain steps (16.0 ms) and the drafter (4.3 ms) taken
+out, a verify pass costs about 21 ms at 2.8 rows (k2) and 23 ms at 3.5 rows (k3): about +2.9 ms per extra row (ink-batch:
+about 2.3 ms per extra row in its batched step). Per-op attribution at T = 2 / 3 / 4: #10990 (first try #10897 printed no op
+table, because `generate --prompt-ids` never printed one; fixed in a3b72495b).
+
+### serve: the draft under admitted kernels only (a3b72495b)
+
+#10874's localeval half failed on the DSpark server: `no kernel for qk_norm on metal/applegpu_g17s (m=256 ...) [admitted kernels
+only]`. The plan dry run skipped the DSpark draft, so admission never tested its kernels, and `serve` selects only admitted
+ones. `generate` does not require admission, which is why the timing and identity runs never hit this. Fix: the dry run runs
+the draft's device calls with its host steps skipped: ingest at 1-16 rows and powers of two up to the store, and the block pass +
+head at every draft length, at the start of the context and past the local layers' window. Test
+`dspark_runs_with_admitted_kernels_only` (tiny, `PlanOptions { admit, require_admitted }`) fails without the fix with the same
+error and passes with it (cpu, spark2 #10975 / #10979).
+
+Spec-off localeval speed-plain (17c67dacf, `20261121-225828-adhoc-endor-intarsia-metal-ink-mtp-off`, decode tok/s median):
+63.8 at 146 prompt tokens, 61.9 at 1023, 60.7 at 4110, 57.4 at 16456. The off vs DSpark k3 tau 0.8 rerun is #10991.
+
+### Default-on flip (prepared, not on this branch)
+
+Local branch `ink/mtp-flip`, commit f130b8855 (on a3b72495b): without `--spec`, Inkling-2 on Metal at one rank in process
+and `--max-batch` <= 1 runs DSpark k3, and the gate default moves 0.6 -> 0.8. Sampled requests stay plain, and a batching
+server has no draft. `--spec off` or `INTARSIA_SPEC_DEFAULT=0` turns it off. docs/tuning.md rows; unit test
+`dspark_default_only_where_measured`. It is cherry-picked onto ink/mtp only if #10991 shows on >= off at every length. #10990
+checks default-on ids against `--spec off`, plus greedy ids and `plan show` with `INTARSIA_SPEC_DEFAULT=0` against a3b72495b.
+
 RESULTS_PLACEHOLDER
