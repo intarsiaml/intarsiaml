@@ -7,6 +7,8 @@
 //! | `ink_in_proj_bf16_gemv` | `InkInProj` | 1 | one GEMV dispatch over the stacked weight, the segment picks its x block |
 //! | `ink_in_proj_bf16_gemv_rows` | `InkInProj` | 1..=16, `rows_exact` | the same shader family with R rows: row r bitwise the 1-row launch |
 //! | `ink_in_proj_bf16_nax` | `InkInProj` | >= 2 | NAX GEMM over the three segments in one grid (prefill) |
+//! | `ink_in_proj_f8_gemv` | `InkInProj` e4m3 + scales | 1 | the GEMV over e4m3 weights, one scale per segment (lane ink-fp8, opt-in) |
+//! | `ink_in_proj_f8_gemv_rows` | `InkInProj` e4m3 + scales | 1..=16, `rows_exact` | its R-row twin, row r bitwise the 1-row launch |
 //!
 //! The GEMV shaders mirror `gemv_multirow.metal`'s `rt` kernels but with a lane count fitted to D = 2304 (see
 //! [`ProjCfg`]); R only adds accumulators and P only shares an x load between P weight rows, so neither changes a bit.
@@ -19,6 +21,8 @@ use objc2_metal::{MTLComputeCommandEncoder, MTLSize};
 pub const INK_IN_PROJ_BF16_GEMV: &str = "ink_in_proj_bf16_gemv";
 pub const INK_IN_PROJ_BF16_GEMV_ROWS: &str = "ink_in_proj_bf16_gemv_rows";
 pub const INK_IN_PROJ_BF16_NAX: &str = "ink_in_proj_bf16_nax";
+pub const INK_IN_PROJ_F8_GEMV: &str = "ink_in_proj_f8_gemv";
+pub const INK_IN_PROJ_F8_GEMV_ROWS: &str = "ink_in_proj_f8_gemv_rows";
 
 /// inkling2_mix_nax.metal entry points (metal4.0 library), one per `gemm_nax::NAX_VARIANTS` tile, in that order.
 pub const NAX_SHADERS: [&str; 5] = [
@@ -34,6 +38,8 @@ pub const KERNELS: &[(&str, Op)] = &[
     (INK_IN_PROJ_BF16_GEMV, Op::InkInProj),
     (INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj),
     (INK_IN_PROJ_BF16_NAX, Op::InkInProj),
+    (INK_IN_PROJ_F8_GEMV, Op::InkInProj),
+    (INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj),
     (CONV_MIX_BF16, Op::ConvMix),
     (ATTN_RES_MIX_BF16, Op::AttnResMix),
     (SCONV_RES_BF16, Op::SconvRes),
@@ -54,6 +60,17 @@ pub fn register(k: KernelImpl) -> KernelImpl {
         INK_IN_PROJ_BF16_GEMV_ROWS => k
             .acts(bf)
             .weights(bf)
+            .when(|s| (1..=PROJ_ROWS_MAX).contains(&s.m))
+            .exact(Exactness::Deterministic)
+            .tol(BF16_TOL)
+            .priority(-1)
+            .rows_exact(),
+        // e4m3 weights (scales [3] third input, lane ink-fp8): decode / verify rows only; prefill chunks take the model's
+        // three `MatmulFp8` packs (the NAX fp8 GEMM)
+        INK_IN_PROJ_F8_GEMV => k.acts(bf).weights([DType::Fp8E4m3]).when(|s| s.m == 1).exact(Exactness::Deterministic).tol(BF16_TOL),
+        INK_IN_PROJ_F8_GEMV_ROWS => k
+            .acts(bf)
+            .weights([DType::Fp8E4m3])
             .when(|s| (1..=PROJ_ROWS_MAX).contains(&s.m))
             .exact(Exactness::Deterministic)
             .tol(BF16_TOL)
@@ -177,6 +194,42 @@ fn proj_grid_cap() -> usize {
     *C.get_or_init(|| std::env::var("INTARSIA_INK_PROJ_GRID").ok().and_then(|v| v.parse().ok()).unwrap_or(usize::MAX))
 }
 
+/// The e4m3 GEMV families compiled in (`IP8_CFG`): (simdgroups, 8-byte weight chunks per lane per step).
+pub const PROJ8_CFGS: [(u32, u32); 4] = [(8, 2), (8, 4), (4, 4), (16, 1)];
+
+/// Default e4m3 family; `INTARSIA_INK_FP8_PROJ_CFG=s<SG>u<U>` overrides it (measurement knob; each family is rows-exact on its own).
+pub const PROJ8_DEFAULT: ProjCfg = ProjCfg { sg: 8, u: 2 };
+
+fn proj8_cfg() -> ProjCfg {
+    static C: std::sync::OnceLock<ProjCfg> = std::sync::OnceLock::new();
+    *C.get_or_init(|| {
+        let Ok(v) = std::env::var("INTARSIA_INK_FP8_PROJ_CFG") else { return PROJ8_DEFAULT };
+        PROJ8_CFGS
+            .iter()
+            .find(|&&(sg, u)| v == format!("s{sg}u{u}"))
+            .map(|&(sg, u)| ProjCfg { sg, u })
+            .unwrap_or(PROJ8_DEFAULT)
+    })
+}
+
+fn proj8_shader_name(r: usize, p: usize, sg: u32, u: u32, rb: usize) -> &'static str {
+    static T: std::sync::OnceLock<std::collections::HashMap<(usize, usize, u32, u32, usize), &'static str>> =
+        std::sync::OnceLock::new();
+    T.get_or_init(|| {
+        let mut m = std::collections::HashMap::new();
+        for &(sg, u) in &PROJ8_CFGS {
+            for &(r, p, rb) in &PROJ_INSTS {
+                let n: &'static str = Box::leak(format!("ink_in_proj_f8_gemv_r{r}p{p}s{sg}u{u}b{rb}").into_boxed_str());
+                m.insert((r, p, sg, u, rb), n);
+            }
+        }
+        m
+    })
+    .get(&(r, p, sg, u, rb))
+    .copied()
+    .expect("compiled e4m3 InkInProj instance")
+}
+
 fn proj_shader_name(r: usize, p: usize, sg: u32, u: u32, rb: usize) -> &'static str {
     static T: std::sync::OnceLock<std::collections::HashMap<(usize, usize, u32, u32, usize), &'static str>> =
         std::sync::OnceLock::new();
@@ -201,6 +254,11 @@ pub fn shader_names() -> Vec<&'static str> {
     for &(sg, u) in &PROJ_CFGS {
         for &(r, p, rb) in &PROJ_INSTS {
             v.push(proj_shader_name(r, p, sg, u, rb));
+        }
+    }
+    for &(sg, u) in &PROJ8_CFGS {
+        for &(r, p, rb) in &PROJ_INSTS {
+            v.push(proj8_shader_name(r, p, sg, u, rb));
         }
     }
     v.extend(row_shaders());
@@ -230,6 +288,7 @@ impl MetalBackend {
         match (kernel, call.op) {
             (INK_IN_PROJ_BF16_GEMV | INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj) => self.launch_in_proj_gemv(call),
             (INK_IN_PROJ_BF16_NAX, Op::InkInProj) => self.launch_in_proj_nax(call),
+            (INK_IN_PROJ_F8_GEMV | INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj) => self.launch_in_proj_f8(call),
             (CONV_MIX_BF16 | ATTN_RES_MIX_BF16 | SCONV_RES_BF16 | LOOP_BLEND_BF16, _) => self.launch_mix(kernel, call),
             _ => Err(Error::invalid(format!("metal: {kernel} does not run {}", call.op))),
         }
@@ -244,6 +303,65 @@ impl MetalBackend {
             return Err(Error::invalid("ink_in_proj_bf16_gemv: bf16 only"));
         }
         self.in_proj_rows(&i[0], &i[1], o, i[0].shape[0])
+    }
+
+    /// `InkInProj` over e4m3 weights, T = 1..=16 rows: one dispatch of `ink_in_proj_f8_gemv_r<T>..`, scale j on segment j.
+    fn launch_in_proj_f8(&self, call: &OpCall) -> Result<()> {
+        let (i, o) = (&call.inputs, &call.outputs);
+        let bf = DType::Bf16;
+        if i.len() != 3 || i[0].dtype != bf || i[1].dtype != DType::Fp8E4m3 || o.iter().any(|y| y.dtype != bf) {
+            return Err(Error::invalid("ink_in_proj_f8_gemv: bf16 x / outputs, e4m3 w and scales [3]"));
+        }
+        let (s, t, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+        if t == 0 {
+            return Ok(());
+        }
+        if t > PROJ_ROWS_MAX {
+            return Err(Error::invalid(format!("ink_in_proj_f8_gemv: {t} rows (at most {PROJ_ROWS_MAX})")));
+        }
+        let ns = [o[0].shape[1], o[1].shape[1], o[2].shape[1]];
+        let (xb, wb) = (self.mbuf(&i[0].buf)?, self.mbuf(&i[1].buf)?);
+        let (xo, wo) = (xb.base + i[0].offset, wb.base + i[1].offset);
+        if d % 8 != 0 || xo % 16 != 0 || wo % 8 != 0 {
+            return Err(Error::invalid(format!("ink_in_proj_f8_gemv: needs D % 8 == 0, x 16- and w 8-byte aligned (D {d}, x {xo}, w {wo})")));
+        }
+        let sc = self.bind(&i[2], DType::F32, false, "scales")?;
+        let cfg = proj8_cfg();
+        let (p, rb) = proj_inst(t);
+        let name = proj8_shader_name(t, p, cfg.sg, cfg.u, rb);
+        let ys: Vec<_> = o.iter().enumerate().map(|(j, y)| self.bind(y, bf, true, ["pq", "pk", "pv"][j])).collect::<Result<_>>()?;
+        let g = ns.map(|n| n.div_ceil(p));
+        let xoff = |j: usize| -> Result<u32> { dim(j.min(s - 1) * t * d, "x offset") };
+        let prm = InkProjP {
+            k: dim(d, "D")?,
+            n: [dim(ns[0], "Nq")?, dim(ns[1], "Nk")?, dim(ns[2], "Nv")?],
+            xo1: xoff(1)?,
+            xo2: xoff(2)?,
+            ys: [ys[0].skip, ys[1].skip, ys[2].skip],
+            g0: dim(g[0], "groups")?,
+            g1: dim(g[1], "groups")?,
+            gtot: dim(g.iter().sum::<usize>(), "groups")?,
+        };
+        let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
+        let groups = g.iter().sum::<usize>().min(proj_grid_cap());
+        let threads = cfg.sg as usize * 32;
+        self.with_encoder(|enc| {
+            enc.setComputePipelineState(pso);
+            // SAFETY: offsets inside the buffers (OpCall::check), W 8- and x 16-byte aligned (checked above), scales 4-byte.
+            unsafe {
+                enc.setBuffer_offset_atIndex(Some(&wb.mtl), wo, 0);
+                enc.setBuffer_offset_atIndex(Some(&xb.mtl), xo, 1);
+                for (j, y) in ys.iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&y.mtl), y.off, 2 + j);
+                }
+                enc.setBuffer_offset_atIndex(Some(&sc.mtl), sc.off, 6);
+            }
+            crate::set_bytes(enc, &prm, 5);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: groups, height: 1, depth: 1 },
+                MTLSize { width: threads, height: 1, depth: 1 },
+            );
+        })
     }
 
     /// `InkInProj` prefill: one NAX grid over the three segments, the tile of `gemm_nax::pick_variant(T, N)`.

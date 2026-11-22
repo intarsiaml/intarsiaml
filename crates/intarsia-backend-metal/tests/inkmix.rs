@@ -136,6 +136,38 @@ fn in_proj_rows_exact() {
     }
 }
 
+/// The e4m3 in-projection (lane ink-fp8): rows 1..16 bitwise the 1-row launch, one scale per segment, every compiled family.
+#[test]
+fn in_proj_f8_rows_exact() {
+    let be = backend();
+    let mut rng = Rng(0xf8f8);
+    let (d, ns) = (2304usize, [6552usize, 1056, 1056]);
+    let n: usize = ns.iter().sum();
+    // random e4m3 codes without the NaN codes 0x7F / 0xFF
+    let data: Vec<u8> = (0..n * d)
+        .map(|_| {
+            let b = ((rng.unit() * 0.5 + 0.5) * 255.0) as u8;
+            if b & 0x7F == 0x7F { b ^ 1 } else { b }
+        })
+        .collect();
+    let w = Ht { dt: DType::Fp8E4m3, shape: vec![n, d], data };
+    let sc = Ht { dt: DType::F32, shape: vec![3], data: [1.3e-4f32, 4.1e-5, 2.2e-4].iter().flat_map(|v| v.to_le_bytes()).collect() };
+    for s in [1usize, 3] {
+        for r in [1usize, 2, 3, 4, 5, 7, 8, 9, 12, 16] {
+            let x = Ht::rand(DType::Bf16, &[s, r, d], 1.0, &mut rng);
+            let outs: Vec<Ht> = ns.iter().map(|&k| Ht::zeros(DType::Bf16, &[r, k])).collect();
+            let multi = run(&be, INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj, &[x.clone(), w.clone(), sc.clone()], &outs, &OpAttrs::default(), r > 1, None);
+            for t in 0..r {
+                let outs1: Vec<Ht> = ns.iter().map(|&k| Ht::zeros(DType::Bf16, &[1, k])).collect();
+                let one = run(&be, INK_IN_PROJ_F8_GEMV, Op::InkInProj, &[x.row(t), w.clone(), sc.clone()], &outs1, &OpAttrs::default(), false, None);
+                for j in 0..3 {
+                    assert_eq!(out_row(&multi[j], &[r, ns[j]], 2, t), one[j], "S={s} R={r} row {t} segment {j}");
+                }
+            }
+        }
+    }
+}
+
 /// ConvMix / SconvRes case: (T, C, Rr, pos0, res, add, sum, N, Q, norm, blend streams).
 #[allow(clippy::too_many_arguments)]
 fn conv_case(be: &MetalBackend, rng: &mut Rng, op: Op, t: usize, c: usize, rr: usize, pos0: usize, epi: (bool, bool, bool), mix: (usize, usize, bool, usize), dev: bool) {
