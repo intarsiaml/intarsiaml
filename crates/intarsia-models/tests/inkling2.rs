@@ -457,7 +457,8 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     // SconvRes is in the op set for kernels that split ConvMix; the model graph itself emits ConvMix. InkAttnDecode is optional:
     // without it the graph runs the InkKvPrologue + RelSinkAttn pair
-    for op in intarsia_core::inkling2::ops::OPS.iter().copied().filter(|&o| o != Op::SconvRes && o != Op::InkAttnDecode) {
+    // InkRoute (76) is optional too: without it the graph runs the router matmul + MoeRoute
+    for op in intarsia_core::inkling2::ops::OPS.iter().copied().filter(|&o| o != Op::SconvRes && o != Op::InkAttnDecode && o != Op::InkRoute) {
         let b = Arc::new(Wrapped { inner: intarsia_backend_cpu::CpuBackend::arc(), drop: vec![op], fail: Arc::new(AtomicBool::new(false)) });
         let e = load_with(&dir, chunk(), b).err().unwrap_or_else(|| panic!("load without {op} must fail"));
         let msg = e.to_string();

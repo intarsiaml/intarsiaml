@@ -1,0 +1,9 @@
+ATTR off: span median of reps 15.724 ms/step (+0.000 vs off), reps [15.514, 17.185, 15.724], dispatches/step 613
+ATTR route: span median of reps 15.569 ms/step (-0.155 vs off), reps [15.501, 15.569, 15.598], dispatches/step 565
+ATTR msg: span median of reps 15.570 ms/step (-0.154 vs off), reps [15.389, 15.968, 15.57], dispatches/step 591
+ATTR tail: span median of reps 15.879 ms/step (+0.155 vs off), reps [15.577, 15.89, 15.879], dispatches/step 517
+ATTR rm: span median of reps 15.415 ms/step (-0.309 vs off), reps [15.415, 15.592, 15.376], dispatches/step 543
+ATTR hoist: span median of reps 15.524 ms/step (-0.200 vs off), reps [15.469, 15.524, 15.526], dispatches/step 613
+ATTR normc: span median of reps 15.388 ms/step (-0.336 vs off), reps [15.388, 15.482, 15.272], dispatches/step 613
+ATTR new: span median of reps 15.205 ms/step (-0.519 vs off), reps [15.205, 15.435, 15.131], dispatches/step 613
+ATTR best: span median of reps 15.058 ms/step (-0.666 vs off), reps [15.058, 15.063, 14.933], dispatches/step 543

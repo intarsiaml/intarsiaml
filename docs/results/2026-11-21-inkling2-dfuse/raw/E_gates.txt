@@ -1,0 +1,32 @@
+== g2-short
+== mode: prefill ==
+OVERALL                    569    98.77   3.629e-3   2.719e-3   2.719e-3   2.901e-1   0.0679   0.0665    96.49     78.0%
+== mode: decode (teacher-forced) ==
+OVERALL                    128    98.44   1.105e-2   1.109e-2   1.109e-2   4.334e-1   0.0173   0.0167    92.34     86.7%
+golden gate: FAIL
+EXIT 1
+positions 569 top-1 98.77% confident rows 363 misses 0 (allowance 1)
+KL21 mean 2.719e-03 over 569 rows
+== g2-long
+== mode: prefill ==
+OVERALL                   1569    99.04   3.971e-3   3.544e-3   3.544e-3   5.940e-1   0.0407   0.0407    94.72     42.0%
+== mode: decode (teacher-forced) ==
+OVERALL                    160    98.12   9.181e-3   9.205e-3   9.205e-3   4.334e-1   0.0196   0.0194    92.75     83.1%
+golden gate: FAIL
+EXIT 1
+positions 1569 top-1 99.04% confident rows 1206 misses 1 (allowance 2)
+KL21 mean 3.544e-03 over 1569 rows
+== g3-short
+== mode: prefill ==
+OVERALL                    569    97.72   9.733e-3   8.069e-3   8.069e-3   5.217e-1   0.0679   0.0669    92.86     45.0%
+golden gate: PASS
+EXIT 0
+positions 569 top-1 97.72% confident rows 367 misses 0 (allowance 1)
+KL21 mean 7.961e-03 over 569 rows
+== g3-long
+== mode: prefill ==
+OVERALL                   1569    97.39   1.299e-2   1.227e-2   1.227e-2   8.415e-1   0.0414   0.0412    90.01     19.9%
+golden gate: PASS
+EXIT 0
+positions 1569 top-1 97.39% confident rows 1211 misses 0 (allowance 2)
+KL21 mean 1.222e-02 over 1569 rows
