@@ -35,6 +35,7 @@ constexpr int ALIGN = 32;       // split chunks are a multiple of this
 constexpr int NSG = 4;          // warps of an attention block
 constexpr int SPLIT_KEYS = 64;  // default keys per split
 constexpr int MAXROWS = 16;     // InkAttnDecode rows
+constexpr int KMAX = 8;         // most conv taps
 constexpr float LOG2E = 1.4426950408889634f;
 constexpr float SRC_EPS = 1e-6f;
 
@@ -103,12 +104,23 @@ __device__ __forceinline__ float ink_conv(const bf16* x, const bf16* ring, const
     const unsigned ckv = p.hk * p.d;
     const long pp = (long)(pos0 + t);
     const bool dyn = (p.flags & F_DYN) != 0;
-    float acc = 0.0f;
-    for (int l = 0; l < p.k; ++l) {
-        float w = b2f(taps[(size_t)l * ckv + ch]);
-        if (dyn) w = __fadd_rn(w, b2f(x[(size_t)t * p.pw + ckv + kvh * p.k + l]));
-        acc = __fmaf_rn(w, ink_cx(x, ring, pp - (long)l, pos0, p.pw, p.rr, ckv, ch), acc);
+    // loads first (independent), then the fma chain in tap order: the same bits as the plain loop, without K dependent
+    // global-load latencies (K <= KMAX is checked at launch)
+    float w[KMAX], xv[KMAX];
+#pragma unroll
+    for (int l = 0; l < KMAX; ++l) {
+        w[l] = 0.0f;
+        xv[l] = 0.0f;
+        if (l < p.k) {
+            w[l] = b2f(taps[(size_t)l * ckv + ch]);
+            if (dyn) w[l] = __fadd_rn(w[l], b2f(x[(size_t)t * p.pw + ckv + kvh * p.k + l]));
+            xv[l] = ink_cx(x, ring, pp - (long)l, pos0, p.pw, p.rr, ckv, ch);
+        }
     }
+    float acc = 0.0f;
+#pragma unroll
+    for (int l = 0; l < KMAX; ++l)
+        if (l < p.k) acc = __fmaf_rn(w[l], xv[l], acc);
     return rA(__fmul_rn(__fadd_rn(acc, b2f(x[(size_t)t * p.pw + ch])), p.cscale));
 }
 
@@ -133,8 +145,13 @@ __device__ __forceinline__ float ink_qr(float raw, float ss, float th, bool use_
 
 // one rel element: the r . relproj chain (j ascending), unrounded
 __device__ __forceinline__ float ink_rel(const float* r, const bf16* rp, int dr, int E, int e) {
+    float w[32];
+#pragma unroll
+    for (int j = 0; j < 32; ++j) w[j] = j < dr ? b2f(rp[(size_t)j * E + e]) : 0.0f;
     float a = 0.0f;
-    for (int j = 0; j < dr; ++j) a = __fmaf_rn(r[j], b2f(rp[(size_t)j * E + e]), a);
+#pragma unroll
+    for (int j = 0; j < 32; ++j)
+        if (j < dr) a = __fmaf_rn(r[j], w[j], a);
     return a;
 }
 
@@ -196,8 +213,10 @@ __global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
     const unsigned ckv = p.hk * D;
     const unsigned pos0 = ink_pos0(p);
     const unsigned pp = pos0 + t;
+    // blockIdx.z: slice of the rel tail; slice 0 also runs the k / v / q jobs and the ring write, every slice its r jobs
+    const bool lead = blockIdx.z == 0;
     const unsigned njobs = 2 + 2 * G;
-    for (unsigned job = warp; job < njobs; job += nw) {
+    for (unsigned job = lead ? warp : 2 + G + warp; job < njobs; job += nw) {
         float v[JMAX];
         if (job < 2) {
             const float ss = job_conv(p, job ? p.pv : p.pk, job ? p.vr : p.kr, job ? p.vt : p.kt, t, pos0, kvh, lane, v);
@@ -222,7 +241,7 @@ __global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
         }
     }
     // the conv rings: only when no other row of the call still reads the row written (launcher: T <= Rr - K + 1)
-    if ((p.flags & F_RING_WRITE) != 0 && t + p.rr >= (unsigned)p.t) {
+    if (lead && (p.flags & F_RING_WRITE) != 0 && t + p.rr >= (unsigned)p.t) {
         for (unsigned c = tid; c < D; c += blockDim.x) {
             const unsigned ch = kvh * D + c;
             const size_t ro = (size_t)(pp % p.rr) * ckv + ch;
@@ -231,7 +250,8 @@ __global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
         }
     }
     __syncthreads();
-    for (unsigned e = tid; e < E; e += blockDim.x) {
+    const unsigned per = (E + gridDim.z - 1) / gridDim.z, e1 = min(E, (blockIdx.z + 1) * per);
+    for (unsigned e = blockIdx.z * per + tid; e < e1; e += blockDim.x) {
         for (unsigned g = 0; g < G; ++g) p.relo[((size_t)t * H + kvh * G + g) * E + e] = f2b(ink_rel(rsh[g], p.rp, dr, E, e));
     }
 }
@@ -586,16 +606,18 @@ struct TileSmem {
     __host__ __device__ static size_t bias(int nmt) { return (size_t)nmt * 16 * CH * 2; }  // [nmt * 16][CH] bf16 (raw rel values)
     __host__ __device__ static size_t rsh(int m, int dr) { return ((size_t)m * dr * 4 + 15) / 16 * 16; }
     __host__ __device__ static size_t own(int t) { return (size_t)2 * t * D * 2; }
-    __host__ __device__ static size_t bytes(int t, int g, int dr, bool fused) {
+    // stages = 1 when every tile of the call is one sub-chunk (S = CH: no next sub-chunk to prefetch)
+    __host__ __device__ static size_t kv(int stages) { return KV / 2 * stages; }
+    __host__ __device__ static size_t bytes(int t, int g, int dr, bool fused, int stages) {
         const int m = t * g, nmt = (m + 15) / 16;
-        return KV + bias(nmt) + (fused ? rsh(m, dr) + own(t) : 0);
+        return kv(stages) + bias(nmt) + (fused ? rsh(m, dr) + own(t) : 0);
     }
 };
 
 // One block per (kv head, tile slot y). FUSED: the prologue's jobs in the block (q / r of every row, the conv'd K / V of the
 // call's keys in the tile) instead of reading q / k / v / rel. blockDim = 128 * nmt.
 template <int D, bool FUSED>
-__global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
+__global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages) {
     using SM = TileSmem<D>;
     constexpr int LD = SM::LD, NKS = D / 16, NDB = D / 8;
     extern __shared__ __align__(16) unsigned char sm[];
@@ -629,9 +651,10 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
     if (jhi < 0) return;
 
     bf16* KV = (bf16*)sm;
-    bf16* Bs = (bf16*)(sm + SM::KV);
-    float* rsh = (float*)(sm + SM::KV + SM::bias(nmt));
-    bf16* own = (bf16*)(sm + SM::KV + SM::bias(nmt) + SM::rsh(M, dr));
+    const size_t kvb = SM::kv(stages);
+    bf16* Bs = (bf16*)(sm + kvb);
+    float* rsh = (float*)(sm + kvb + SM::bias(nmt));
+    bf16* own = (bf16*)(sm + kvb + SM::bias(nmt) + SM::rsh(M, dr));
     const int on0 = max(pos0, tk0), on1 = min(pos0 + T - 1, tk1);  // the call's own keys in this tile
     const int nown = on1 >= on0 ? on1 - on0 + 1 : 0;
 
@@ -1136,7 +1159,7 @@ int prologue_params(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* p
     IK_TRY(chk(kring, 2));
     IK_TRY(chk(vring, 2));
     const int64_t h = a->n_heads, hk = a->n_kv_heads, d = a->head_dim, dr = a->d_rel;
-    if (hk <= 0 || h % hk != 0 || h / hk > 4 || d <= 0 || d > 256 || dr <= 0 || dr > 32) return IK_ERR_SHAPE;
+    if (hk <= 0 || h % hk != 0 || h / hk > 4 || d <= 0 || d > 256 || dr <= 0 || dr > 32 || kt->shape[0] > KMAX) return IK_ERR_SHAPE;
     p.pq = cb(pq);
     p.pk = cb(pk);
     p.pv = cb(pv);
@@ -1211,14 +1234,24 @@ void tile_grid(const InkP& p, bool dev, int min_s, unsigned* ny, bool* multi) {
 template <int D, bool FUSED>
 int launch_tile_d(const InkP& p, int min_s, unsigned ny, cudaStream_t st) {
     const int G = p.h / p.hk, nmt = (p.t * G + 15) / 16;
-    const size_t smem = TileSmem<D>::bytes(p.t, G, p.dr, FUSED);
+    bool one_sub;
+    if (p.pos) {
+        const int vmax = p.window > 0 ? (p.window < p.cr ? p.window : p.cr) : p.cr;
+        one_sub = tile_s(vmax, min_s) == CH;
+    } else {
+        const TileGeo g = tile_geo(p.pos0, p.t, p.window, min_s);
+        one_sub = g.sa == CH && g.sb == CH;
+    }
+    // one stage when no block has a second sub-chunk (every tile S = CH)
+    const int stages = (min_s == CH && one_sub) ? 1 : 2;
+    const size_t smem = TileSmem<D>::bytes(p.t, G, p.dr, FUSED, stages);
     static bool attr = false;
     if (!attr) {
-        const size_t most = TileSmem<D>::bytes(MAXROWS, 3, 32, FUSED);
+        const size_t most = TileSmem<D>::bytes(MAXROWS, 3, 32, FUSED, 2);
         if (cudaFuncSetAttribute(ink_tile_k<D, FUSED>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)most) != cudaSuccess) return IK_ERR_LAUNCH;
         attr = true;
     }
-    ink_tile_k<D, FUSED><<<dim3(p.hk, ny), 128 * nmt, smem, st>>>(p, min_s);
+    ink_tile_k<D, FUSED><<<dim3(p.hk, ny), 128 * nmt, smem, st>>>(p, min_s, stages);
     return IK_OK;
 }
 
@@ -1299,7 +1332,9 @@ extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk,
     const bool fused = p.t + p.k <= p.rr + 1;
     if (fused) p.flags |= F_RING_WRITE;
     cudaStream_t st = IK_STREAM(stream);
-    ink_prologue_k<<<dim3(p.hk, p.t), 256, 0, st>>>(p);
+    // the rel tail in slices of 256 elements (4 blocks per (kv head, row) at E = 1024: decode is latency, not work)
+    const unsigned nz = (unsigned)((p.e + 255) / 256);
+    ink_prologue_k<<<dim3(p.hk, p.t, nz > 8 ? 8 : nz), 256, 0, st>>>(p);
     if (!fused) {
         const size_t n = (size_t)p.t * p.hk * p.d;
         ink_ring_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p);
