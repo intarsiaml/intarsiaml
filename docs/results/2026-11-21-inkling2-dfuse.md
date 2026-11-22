@@ -151,7 +151,11 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
   break the ~3.2 ms per token of per-dispatch controllers down by op (ms per token, dispatches, share) from the existing
   trace without a new job, and propose the single next target with a ceiling of at least 0.3 ms per token, with its bitwise
   plan. Do not build until the coordinator answers. Before any further decode-mode G2 comparison, move onto the ink/metal
-  tip that has the NE fix (done 06:05: merged ink/metal 1c1ee202c as 10cf8988d, which includes 7eca1b012).
+  tip that has the NE fix (done 06:05: merged ink/metal 1c1ee202c as 10cf8988d, which includes 7eca1b012; a merge, not
+  a rebase, because the branch has merge commits and the brief says merge). bespin #11298 on 10cf8988d: cargo check of
+  the Metal crate (examples + tests) and every models test target; cpu Inkling tests 9 / 9 and 6 / 6; cpu ink_route 1 / 1;
+  docs_env_vars 2 / 2. No Metal run of 10cf8988d exists yet (flip + NE fix + pack12 + gumbel together); the next endor
+  job will be the first.
 
 ## Probes (endor, before any code)
 
@@ -745,9 +749,18 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
   | MLP side, plain, Q 3 | 9.99 | 13.27 | 3.3 |
   | blend call S = 1, whole (4 dispatches) | 20.07 | 36.5 | 16.4 |
 
-  After taking off the ~1.7 us per dispatch that the measurement adds, the row kernel's stream-over-bench gap is about
-  0.5-0.75 ms per token. That is the ceiling: the row kernel running in the stream as fast as it runs with its operands
-  cached.
+  **Ceiling, measured part.** Only the plain calls have the row kernel alone in both columns. Net of the ~1.7 us per
+  dispatch that the measurement adds:
+  - attention side: (14.46 - 5.96 - 1.7) x 24 = 0.16 ms per token;
+  - MLP side: about 0.04 ms.
+
+  That is **0.2 ms per token measured**.
+  **Unmeasured part.** The blend calls' 16.4 us gap covers all four dispatches; the split touches only the row kernel
+  (#0, 18.37 us in the stream, 46 per token), and the bench has no number for the row kernel alone with the pair stage.
+  If that kernel's gap matches the attention-side plain one (6.8 us net), it adds about 0.3 ms, for about 0.5 ms in all.
+  **Baseline caveat.** All of these numbers are NE 4 (job E's trace on ac2371c81, R's bench on the route branch). The tip
+  10cf8988d has the NE fix: NE 3 at D 2304, 768 threads and 24 simdgroups per row. m-mix chose NE 4 for speed, so the row
+  kernel's cost on the tip has probably moved; the probe measures both columns again on 10cf8988d.
 - **Cause, as far as the data goes.** In the stream each visit's controller weights are cold: about 200 MB of expert
   weights pass between two visits. Those weights are the conv taps (4 rows), the queries (f32, Q rows) and the norm rows, as
   is the 8-source mix chain. One threadgroup per row runs all of it on one GPU core. A single threadgroup can stream about
@@ -763,7 +776,9 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
   - A row gets G <= NS threadgroups of the current size (TPG threads; 768 at D 2304 after the NE fix). TG g loads source g's
     row (TG 0 also does the conv and writes y / sum / ring as now). Each computes reduction 1's partials for its source
     (its squares, and its dot with each query of the batch) with the current thread layout. The partials go to device
-    scratch [row, NV, nsg].
+    scratch [row, NV, nsg]. TG 0 also writes an f32 copy of the conv's `last` row to the row's scratch. `last` is not always
+    stored: with a residual and no sum output it is the f32 value rv + yv, and only bf16(yv) is written. The last TG reads
+    that copy rather than recomputing the conv, which would re-enter the ring / pos logic and the deferred ring write.
   - Each TG then does a device fence and an atomic add on the row's counter, as ink_route already does before its last
     threadgroup routes. The last TG to arrive runs the rest of the current kernel unchanged: it sums the partials in
     simdgroup order (eight at a time in the HO instance), runs the softmax, the weighted sum, reduction 2 and the stores. It
@@ -787,12 +802,14 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
     unless ink/batch still edits the mix shader. Without the metal4 library, the current kernel stays: the same fallback as
     InkRoute in tests/inkctrl_nometal4.rs. The per-row counters use the backend's sync arena (sync.rs), as ink_route does;
     the encoder is not touched.
-- **Step 1, before building (needs the go-ahead): a probe.** Add an `--evict MB` mode to `ink_ctrl_bench` that streams a
-  buffer of about 256 MB between units, so the bench reproduces the stream's 13-18 us. Then time a phase-1-only split
-  prototype in the bench, with no model run and no shipped kernel.
-  - Go if the evict-mode bench reproduces the stream within about 2 us, and the split saves at least 3 us per call (at
-    least 0.3 ms per token over 96 calls).
-  - Otherwise stop and report what the probe shows.
+- **Step 1, before building (needs the go-ahead): a probe, on 10cf8988d.** No model run and no shipped kernel.
+  1. First, the missing number: the row kernel alone with the pair stage on, at S = 1 and S = 3. Measure it, and the
+     plain calls, with eviction off and on. Eviction comes from a new `--evict MB` mode in `ink_ctrl_bench`, which
+     streams a buffer of about 256 MB between units the way the expert weights do.
+  2. Then the stream per-dispatch trace on the same tree, giving the ceiling on NE 3.
+  3. Stop rule: if the measured ceiling is below 0.3 ms per token, stop and report.
+  4. Otherwise time a phase-1-only split prototype in the evict-mode bench. Go if the evict bench reproduces the stream
+     within about 2 us and the split saves at least 0.3 ms per token over the 96 calls.
 - **Alternative held back:** prefetching the next visit's controller rows from the previous row kernel. It is a cross-op
   change (contract note) with the same ceiling, so it is only worth it if the probe shows the split cannot hide the cold
   rounds.
