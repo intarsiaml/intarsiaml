@@ -224,6 +224,14 @@
     Inkling diff; Metal + CPU plan show Qwen3-8B / Llama byte-identical; Inkling Metal greedy md5 unchanged; HIP check build;
     docs_env_vars; tiny CUDA rows-exact. (4) PR with numbers and both reverts in the body; merge on all-green CI; remove the
     landing worktree. Rules: fleetq slots + earlyoom budget on sparks; cargo / git push on endor only in --load cpu slots.
+36. 2026-11-22 (coordinator): #491 merged as main 8c7bb7cb1. Open the CUDA flips PR from the landing branch now (GEMV default-on,
+    decision 6, `INTARSIA_INK_IN_PROJ_GEMV=0` reverts; spec default-on, decision 5). Merge main in, rerun the spark md5 / gates
+    the merge touches, push in a fleetq CPU slot, let CI run. Do NOT merge yet: #497 (Metal MoE) goes first; on the
+    coordinator's word, merge main once more and land.
+37. 2026-11-22 17:21 EST (user, via coordinator): "Yes, merge in order": #497, then #498 (this lane: CUDA DSpark spec + in_proj
+    GEMV default-on), then #499. When #497 is on main (`gh pr view 497 --json state` at most every 4 min, or the coordinator's
+    word): merge main into ink/cuda-mtp-land, rerun the CUDA md5 gates and tests on a Spark via fleetq, wait for green CI, merge
+    #498, send the merge commit to the coordinator at once (#499 waits on it). A failing gate or CI: fix and report, no merge.
 33. 2026-11-22 (coordinator, rule): this session and every .worktrees checkout live ON endor. Every cargo, rustc or rustfmt
     run on endor goes inside `fleetq run --host endor --load cpu --expect N ...` (or on spark1 / spark2 / bespin in a CPU
     slot). No exceptions for quick checks. (Violated 12:20-12:41 EST with unslotted local cargo test / check runs while
@@ -1272,3 +1280,32 @@ Per visit, 2048-row chunk, us, graph replay (`inkling2_attn_bench`, INTARSIA_INK
    30k is about 58 TFLOPS).
 5. Full 4k at 4 rows (fused 9 us slower than the pair): the fused blocks each redo the call's q / r jobs; share them
    through a 1-block pre-pass if verify rows matter.
+
+## Landing PR #498 (branch `ink/cuda-mtp-land`, brief 35-37)
+
+Merge of ink/cuda-mtp onto #491 (main 8c7bb7cb1). Conflicts and their resolution:
+- `model.rs` verify head: takes main's `head_proj`, the P12 rows head at `exact_rows` on every backend. Main's screen option B
+  had already dropped the screened verify path. `INTARSIA_INK_VERIFY_P12` now governs wo only (doc and tuning row updated).
+- The duplicate `softcap_step` is dropped.
+- `inkling2.rs` keeps both env helpers.
+- The tests take main's softcap text and keep the CUDA arm of `inkling2_verify_softcap`.
+- `load.rs`: the recipe DSpark default keeps its own k (main's `DSPARK_K_DEFAULT` block skips it).
+- `docs/tuning.md` gains rows for the bench and precision diagnostic variables, so `docs_env_vars` passes.
+
+Gates on the merged tree:
+- spark1 #11657 at 644a3a1c2:
+  - CUDA md5, default: faf40cecb06b / 029e44fede1d / dc28658094c0, spec on == off.
+  - `IN_PROJ_GEMV=0`: ec9a19c14b2d / a0e6f47bc45f / 32ec7a414c3a, spec on == off.
+  - The default equals `--spec off` at 64 / 256 / 1.2k and on a sampled request.
+  - `INTARSIA_SPEC_DEFAULT=0`: the default's ids, no verify pass. A model dir without the draft: plain decode with one line.
+  - 9k prefill: identical ids with fused off and on (3720 vs 3607 ms).
+  - Tiny CUDA `inkling2` 17/17. `inkling2_verify_softcap` passes in all 4 arms.
+  - CUDA plan show for the 35B and 8B, text and json: byte-identical to main.
+  - HIP check-only, both targets: pass.
+  - The `inkling2_batch` CUDA arm failure is a stale test binary from 449c11a16: the landing tree has no CUDA arm and the gate did
+    not rebuild that binary.
+- endor #11656: Metal and cpu plan show for Qwen3-8B and Llama byte-identical. Inkling Metal ids at g64 / g256 identical to
+  main (fa9f4b4a5701 / 550cd932b33f).
+- endor #11652: cpu tests pass: models lib 80, inkling2 17, softcap, inkling2_batch 8, ink_attn_decode, core lib 264. docs_env_vars
+  passes after c371d8242.
+- At 64 output tokens the spec default decodes 4 % slower (37.8 vs 39.4 tok/s, acceptance 44 %). From 256 tokens up it is faster.
