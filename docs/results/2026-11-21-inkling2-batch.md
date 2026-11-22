@@ -5,6 +5,12 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 
 ## Briefs received
 
+- 2026-11-22 (main): main killed an orphaned `intarsia serve --port 8131` from this worktree (pids 85506/85510, ppid 1, 11 GB
+  RSS, up since ~02:42 EST, no fleetq job) inside slot #11257. (1) Serve job scripts must kill the whole process group
+  (set -m or setsid, `kill -- -$PGID` in an EXIT trap) and check the port is closed before exiting. (2) Note next to every
+  quiet endor result since ~02:42 (incl. #11181) that it ran with that idle 11 GB server resident; re-measure only if
+  borderline.
+
 - 2026-11-22 (main): stop accepted; (a)+(b) approved. (a) batch_step and batch_prof take real-text prompts: fixed,
   deterministic tokenized corpus slice, a different slice per row, same slices every run; record expert union per MoE call
   (mean and max per B); keep random-id mode behind a flag. (b) same quiet job: INTARSIA_INK_MOE=auto vs union-fused at
@@ -477,6 +483,12 @@ when it runs, and the batch is short of 16 rows while new requests prefill. The 
 how prefill shares steps with a full decode batch, not the batched decode step. Peak RSS not recorded (the `time -l` wrapper
 was killed with the server; the script should signal the server pid, not the wrapper). Job exit 1 is that kill, not a failure.
 
+**Orphaned server (found 2026-11-22 by main).** This job's server outlived it: `kill $SP` hit `/usr/bin/time`, not the
+`intarsia serve` child (pids 85506/85510, port 8131, 11 GB RSS), which stayed up idle from ~02:42 EST until main killed it
+in slot #11257 (~05:00). The serve scripts now start the server in its own process group (`.scratch/serve_lib.sh`:
+`set -m`, EXIT trap TERMs the server, then the group, then KILL, then checks the port is closed and the group is empty;
+tested with a dummy server under `time -l`).
+
 ## 15. Open at hand-off (2026-11-22)
 
 - #11104 (rtvar correctness + ink/dfuse HOIST=1 row-table tests; ink-metal's G2 bisect inside the slot) still running: `.scratch/rtvar_correct.log`.
@@ -511,6 +523,10 @@ arms in order fwd / rev / fwd. Batched step ms per rep, median, and aggregate to
   faster than every earlier figure (pre-merge #10900 71 ms; merged #11057 79-81 ms). This job ran without a pre-merge arm, so
   it cannot say what changed; the earlier figures came from other jobs (load, run order, the rtvar build or flags may differ).
   Before trusting the 230 target as met (266.9 here), a paired pre-merge vs merged run in one quiet job is still needed.
+
+- Residency caveat: #11181 (and #11104, correctness only) ran while the orphaned idle `intarsia serve` from #11093 held
+  11 GB on endor (section 14). An idle server takes little GPU, and the three arms ran interleaved under the same condition,
+  so the A/B conclusion stands; the absolute B 16 figure (59.96 ms) is not borderline against any decision, so no re-measure.
 
 ## 18. Batched baseline handed to ink-metal; next B=16 candidate (proposal, 2026-11-22)
 
