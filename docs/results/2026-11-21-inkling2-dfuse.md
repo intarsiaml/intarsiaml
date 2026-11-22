@@ -1041,3 +1041,29 @@ ink-metal's combined gate ran this lane's merge condition after the flip landed 
 The self-golden tensors are identical; the files differ only in metadata. Greedy md5 on that tree is 65cde8f35..., this
 lane's defaults md5 from job F. The flip stands (merge b1a4f3f62, no revert). These supersede job F's decode-mode numbers,
 which predate the NE fix.
+
+### Job N (#11362, queued 07:15, snapshot .scratch/snap8 = 914738f23; measurement only): NVFP4 experts at 1 row
+
+- **Shape at T = 1.** 8 experts per visit, 35.83 MB: gate+up 23.89 MB, down 11.94 MB. The GPU has 40 cores.
+  - Gate+up (`ink_moe_gu_nv_a_x`, union): 576 threadgroups of 128 threads (16 rows each, 8 lanes per row, 9 chunk pairs per
+    lane, one chunk in flight per lane).
+  - Fused down (`ink_moe_dn_f_nv_a_bf16`): 288 threadgroups of 128 threads (8 rows; each simdgroup serves 2 of the 8 slots
+    one after the other, 4 lanes per row, 9 chunks per lane per slot). That is half the threads of the gate+up and twice
+    the dependent chain per lane.
+- **Steps:**
+  1. Box check (job L's window). Only batch.rs changed since L's tree, so the B = 1 decode path is the same.
+  2. Streaming floor (raw/moebw.swift): a no-math kernel reading the same regions, with a sweep of TG count, threads and
+     loads in flight. It measures gate+up alone, down alone, both as two dependent dispatches, and all in one dispatch, plus
+     the 29-expert (4-row) union. This answers how much of 438 against 535 GB/s is dispatch size against kernel design.
+  3. Shipped kernels: the gate+up / down split (INKMOE_PROBE) at 1 and 4 rows, and fused-down threads 64 / 256.
+  4. 1-row variants of the shipped kernels (raw/moevar_gen.py, raw/moevar.swift; prototypes compiled at run time, nothing
+     shipped): lanes per row (gate+up 4 / 8 / 16, down 4 / 8 / 16), chunks ahead 1 / 2, simdgroups 4 / 8, fused-down threads
+     128 / 256. Each is timed, and max |out - shipped| is checked over 4 visits. The variants that keep the per-lane chunk
+     order (chunks ahead, simdgroups, threads) should be bitwise.
+  5. Box re-check.
+- The job body runs in its own process group, and TERM kills the tree (tested with dummy sleeps: no descendants left).
+- **Item 3, first part (code read, no job):** the decode encoder is `MTLDispatchTypeSerial`
+  (crates/intarsia-backend-metal/src/lib.rs:790; lib.rs:13-15 names concurrent dispatch with targeted barriers as a phase B
+  option). The only concurrent dispatch is in the ICB path (decode.rs:179). So every dispatch waits for the one before; the
+  overlap bound comes later.
+
