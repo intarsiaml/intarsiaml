@@ -944,13 +944,15 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             call.attrs.norm_topk
         ),
         Op::MoeExperts => format!(
-            "T={} E={} K={} H={} I={} {}",
+            "T={} E={} K={} H={} I={} {}{}",
             i[0].shape[0].min(caps.rows),
             i[3].shape[0].min(32).max(i[1].shape[1]),
             i[1].shape[1],
             i[0].shape[1],
             i[3].shape[1] / 2,
-            i[0].dtype
+            i[0].dtype,
+            // situ cases carry their activation (`case_from_call`); other labels, and so their cached verdicts, are unchanged
+            if call.attrs.ink.situ { format!(" situ gc={} uc={}", call.attrs.ink.gate_cap, call.attrs.ink.up_cap) } else { String::new() }
         ),
         Op::MoeCombine => format!("T={} H={} {}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
         Op::MatmulPair => format!(
@@ -1098,7 +1100,14 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
         Op::MoeExperts => {
             let k = i[1].shape[1];
             let e = i[3].shape[0].min(32).max(k);
-            experts_case(rng, i[0].shape[0].min(caps.rows), e, k, i[0].shape[1], i[3].shape[1] / 2, i[0].dtype)
+            let mut c = experts_case(rng, i[0].shape[0].min(caps.rows), e, k, i[0].shape[1], i[3].shape[1] / 2, i[0].dtype);
+            // Inkling-2's situ activation (and its caps) is part of the call: a situ kernel refuses a case without it
+            if call.attrs.ink.situ {
+                c.attrs.ink.situ = true;
+                c.attrs.ink.gate_cap = call.attrs.ink.gate_cap;
+                c.attrs.ink.up_cap = call.attrs.ink.up_cap;
+            }
+            c
         }
         Op::MoeCombine => combine_case(rng, i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
         Op::MatmulPair => matmul_pair_case(
@@ -1193,6 +1202,28 @@ pub const FORMATS: [&str; 3] = [FP8_E4M3, NVFP4, MXFP4];
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An exact-shape MoE case of a situ call carries situ and its caps, and its label says so (a situ kernel refuses a case
+    /// without it: Inkling-2 under `serve`'s admitted-only rule); a plain call's case and label are unchanged.
+    #[test]
+    fn moe_experts_case_carries_situ() {
+        let mk = |t: &HostTensor| crate::backend::TensorRef::new(crate::backend::Buffer::new(P(t.nbytes())), t.dtype, &t.shape);
+        let mut rng = SplitMix64::new(7);
+        let base = experts_case(&mut rng, 1, 128, 8, 256, 128, DType::Bf16);
+        let ins: Vec<_> = base.inputs.iter().map(mk).collect();
+        let outs: Vec<_> = base.outputs.iter().map(|o| mk(&HostTensor::zeros(o.dtype, &o.shape))).collect();
+        let caps = crate::plan::CAPS;
+        let plain = OpCall::new(Op::MoeExperts, ins.clone(), outs.clone(), base.attrs.clone());
+        let mut a = base.attrs.clone();
+        (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
+        let situ = OpCall::new(Op::MoeExperts, ins, outs, a);
+        let (pc, pl) = case_from_call(&plain, &caps, &mut SplitMix64::new(1)).unwrap();
+        let (sc, sl) = case_from_call(&situ, &caps, &mut SplitMix64::new(1)).unwrap();
+        assert!(!pc.attrs.ink.situ && !pl.contains("situ"), "{pl}");
+        assert!(sc.attrs.ink.situ && sc.attrs.ink.gate_cap == 4.0 && sc.attrs.ink.up_cap == 25.0);
+        assert_eq!(sl, format!("{pl} situ gc=4 uc=25"));
+        assert_eq!(pl, "T=1 E=32 K=8 H=256 I=128 bf16");
+    }
 
     #[test]
     fn every_case_validates() {
