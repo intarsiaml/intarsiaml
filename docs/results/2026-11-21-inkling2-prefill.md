@@ -225,6 +225,16 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     md5 64 / 256 references stay untouched. Hold A until B's probe is in, then report B's measured gain plus A's bound on top
     of B (they may overlap) before building anything. Any default flip that changes md5 is the user's call: bring it to the
     coordinator with G2 / G3 numbers.
+23. 2026-11-22 (coordinator, via SendMessage): **GO on A as opt-in rel_mode 2**, exactly as scoped: default off, own
+    tolerance contract vs the f64 reference, mode 0 / 1 and md5 64 / 256 untouched, G2 / G3 + the brief-20 gate shape before
+    anything comes back. Conditions: (1) if the build looks like more than ~a day, send the estimate before going past the
+    first kernel; (2) speed gate: prefill tok/s at 4k / 8k / 16k, mode 0 vs mode 2, ABAB inside one endor slot after a
+    warm-up, per-pair medians, warm number primary, plus end-to-end TTFT at 4k and 8k; (3) decode unaffected: greedy md5
+    64 / 256 with mode 0, decode tok/s within noise; (4) new shaders update the Metal 4 shader-count test in the same commit
+    (ink/metal 8e0ff6af6 failed on exactly this); (5) a default flip changes bits: user's call, via the coordinator with
+    G2 / G3 and speed numbers. **B:** exact but no gain: remove inkling2_attn_nax_int.metal and INTARSIA_INK_NAX_INT from the
+    branch, keep the measurements in the doc. The softmax / exp / rescale bucket (~0.53 ms per SWA visit over floor) is next
+    after A; do not start it yet.
 
 ## Status
 
