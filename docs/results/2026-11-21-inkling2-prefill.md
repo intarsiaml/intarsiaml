@@ -497,6 +497,23 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### NSG 6 vs 12 speed rerun (#11508, rg3.sh, brief 26): box degraded twice, stopped before the pairs; no flip
+
+Box check (p8k at NSG 12, need >= 2736 tok/s = 95 % of 2880), after a 4k warm-up:
+
+| check | time | p8k tok/s | load1 | top CPU processes |
+|---|---|---:|---:|---|
+| start | 11:51:13 | | 2.19 | **rustc 95 %** (pid 47475, not this job), WebKit 10 % / 10 %, claude 5 % |
+| box 1 | 11:51:24 | 2612.7 (fail) | 5.10 | python 173 % (pid 2524), claude 38 % |
+| retry after 10 min | 12:01:24 | 2152.5 (fail) | 1.64 | Claude Helper 24 %, claude 14 %, Tailscale 8 % |
+| end | 12:01:33 | | 1.54 | idle |
+
+Stopped as the brief says: no ABAB pairs. The second failure came at load 1.6 with nothing heavy on the CPU, so the slowdown
+looks like the GPU's state, not CPU contention. The warm-up 4k ran at 2301 tok/s against ~2690 earlier today, the same
+symptom as #11499. A rustc (pid 47475) was running at 95 % when this quiet slot started; it was gone by box 1. **NSG 6 stays
+opt-in** (`INTARSIA_INK_NAX_SG=6`, bitwise identical to the default 12). The sweep forms are removed (4c18c17e5: s6, s12 and
+the env var stay).
+
 ### NSG 6 vs 12 gate (#11499, rg2.sh, bin12 640d1c59f): bitwise shown; speed rule FAILS at 8k on a degraded box; no flip
 
 **Exactness: bitwise, as constructed.** G2 self-goldens (`accuracy --write-self-golden`) short and long at NSG 12 and 6: every
