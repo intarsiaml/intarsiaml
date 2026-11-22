@@ -516,7 +516,7 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
         }
         Op::MatmulP12 => {
             // decode / verify rows (the P12 kernels take 1..=16 rows); small shapes with tails, then the real Inkling-2 wo
-            // [2304, 3072] and unembed [200058, 2304] (rows 1 / 4 / 16; the unembed at 1 and 4 only, its f64 reference is slow)
+            // [2304, 3072] and unembed [200058, 2304] (rows 1 / 4 / 16)
             let ms: &[usize] = if quick { &[1, 5] } else { &[1, 2, 3, 4, 7, 8, 16] };
             let shapes: &[(usize, usize)] = if quick { &[(64, 64), (37, 96)] } else { &[(64, 64), (37, 96), (130, 2304), (61, 3072)] };
             for &m in ms {
@@ -532,7 +532,7 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 for &m in &[1usize, 4, 16] {
                     push(format!("real wo M={m} N=2304 K=3072 out=bf16"), matmul_p12_case(&mut rng, m, 2304, 3072, DType::Bf16, false));
                 }
-                for &m in &[1usize, 4] {
+                for &m in &[1usize, 4, 16] {
                     push(format!("real unembed M={m} N=200058 K=2304 out=f32"), matmul_p12_case(&mut rng, m, 200058, 2304, DType::F32, false));
                 }
             }
