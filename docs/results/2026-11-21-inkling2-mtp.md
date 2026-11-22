@@ -801,6 +801,10 @@ on 840adbca6 over the old main.
   txt 4017 B, 8B json 8973 B / txt 1548 B); HIP check-only, both targets, finish.
 - The PR's CI on 4f155e476 (= code bfaccd447): all six jobs green (cargo check linux, cuda cfgs, hip cfgs, macOS metal; cargo
   test linux 16m30s; reproducible build).
+- Main moved again to 2c103f913 (#482 graceful-cut: serve / server / supervisor only), merged as 00c49620c (no conflict).
+  Recheck #11575 (endor, default load, code 00c49620c vs main 2c103f913): A1 md5 equal (65cde8f3... / 61fd59fe...), A2 Metal
+  plan show byte-identical for all three models, B3 ~1.4k greedy HTTP 200 with verify passes 0 -> 13, B2 t1.0 HTTP 200 with
+  spec steps unchanged. All pass.
 - The speed job's first try (#11556) aborted on its own guard: `serve` runs a supervisor whose child holds the port, and the
   guard wanted the supervisor's pid; fixed to accept a descendant, requeued as #11564.
 
