@@ -588,3 +588,26 @@ One warp per region, 32-bit lane stride, no modulo in the loop: conv_mix N4 Q1 n
 8.9 us, the others flat (ink_bench, 2 interleaved reps each). Neither prefetch form helps, so the row kernel is not waiting on
 these loads' DRAM latency; dropped (not committed; scratch copy `.scratch/ink_mix_pf_v1.cu`). Next: the tap-loop hoist
 (bitwise integer change), then the cluster split.
+
+### Row kernel: tap-loop hoist (f274ba96e; `INTARSIA_INK_ROW_HOIST=0` reverts)
+
+The decode conv computed `a.ring[(qp % a.Rr) * D + c]` with a **64-bit modulo once per tap per element** (K 4 x NE 3 = 12 per
+thread, plus one more per element for the ring write): ~100 instructions each, on all 24 warps of the 768-thread block. Now the
+taps are the outer loop (each `acc[j]` still sums l = 0 .. K-1 in order, so bitwise), the source row and its 32-bit ring
+modulo are formed once per tap, and the ring-write offset once per thread. This also explains both failed prefetch tries:
+the kernel was paying integer issue, not DRAM latency.
+
+| | HOIST=0 | HOIST=1 |
+|---|---|---|
+| ink_bench conv_mix N4 Q1 norm / N7 Q3 / conv only / S=1 blend | 14.3 / 20.5 / 8.8 / 39.0 us | 10.2 / 16.6 / 6.1 / 34.8 us |
+| in model, ink_row_kernel<3> (124 calls / token, nsys graph-node, #11401) | 16.6 us (2.06 ms / token) | 10.2 us (1.27 ms / token) |
+| greedy 256 decode tok/s (3 interleaved reps, #11401) | 34.94 / 35.18 / 35.21 (35.11) | 35.87 / 36.15 / 36.09 (36.04, +2.6 %) |
+| greedy ids md5 | `a0e6f47bc45f` | `a0e6f47bc45f` |
+
+`ink_rows` 7/7 (#11398). Branch decode now 34.36 -> 36.04 tok/s (+4.9 %) from the MoE prefetch and this. Spec-on pending (brief 27).
+
+### W4A4 FP4 path confirmed (#11398, nsys of `kernels test --op moe_experts --kernel moe_experts_situ_bf16`)
+
+With `INTARSIA_INK_MOE_FP4=1` the T=2048 w4a4 case launches `ink_fp4_kernel` (gate+up and down) + `ink_fp4_sum_kernel`; with
+`=0` it runs `ink_moe_mma_kernel` instead. So the T=2048 NVFP4 W4A4 admission (rel_l2 2.72e-4, max_abs 7.9e-3) is the FP4
+tensor-core path; the bf16-MMA fallback gives the same figures to 4 digits.
