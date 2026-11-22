@@ -1215,6 +1215,7 @@ mod tests {
         "matmul_fp8_pair_gemv:matmul_fp8_pair",
         "matmul_fp8_pair_gemv_rows:matmul_fp8_pair",
         "matmul_mxfp4_gemv:matmul_mxfp4", // M1 drill (2026-10-21): OCP MXFP4, a new op, no change to existing candidates
+        "matmul_mxfp4_gemv_ink_rows:matmul_mxfp4", // lane ink-cuda-mixmoe: the DSpark draft head, 5..=8 rows at K <= 3072 only (no other model has that MXFP4 shape), bitwise matmul_mxfp4_gemv_rows
         "matmul_mxfp4_gemv_mr:matmul_mxfp4",
         "matmul_mxfp4_gemv_mr_rows:matmul_mxfp4",
         "matmul_mxfp4_gemv_rows:matmul_mxfp4",
