@@ -777,4 +777,13 @@ raw dirs or golden/. spark2 has no /opt/code.
 | 6c0f4a5d9 | host profile: the spec cycle as its own class (engine.rs only, approved by ink-mtp) |
 | 5b487b79c | host profile: no gap from a stale sync mark; greedy token read split into sync |
 | cd886d57b | host profile: test expectation fix |
-| f2c338e39, 2229ae919, 6855e486a, f71919c9a, 78e50d649, a3ba38768, this one | results doc |
+| ce292492b | ignored per-phase timing of the threaded sampler (`sampler_par_phases`) |
+| aed3dc496 | host sampler: soft-cap and per-element sampler work on a host pool, bit for bit the one-thread path (`INTARSIA_HOST_THREADS`) |
+| 8d8ac6c78 | host sampler: pool only for top-k-off rows, default on for Inkling-2 only, no per-call zero fills, divides on the pool |
+| a2f2b87b9 | batched serve: a decode step's rows accepted one per pool task; threaded radix sort without shared cache lines |
+| e4299fe24 | `batch_engine::batched_sampled_equals_solo` at B = 4 and 8 (tiny, cpu) |
+| 280d8716c | `structured::batch_tests::json_schema_batched_sampled_equals_solo` (pool on and off) |
+| fb38fe4a5 | item 7, all opt-in: pool pre-wake (`INTARSIA_HOST_PREWAKE`), worker QoS (`INTARSIA_HOST_QOS`), value-key sort (`INTARSIA_SAMPLER_VSORT`) |
+| 9a38f0224, af3991762 | merges of ink/metal (844d81e8b, c135831e9) |
+| a2b6eeae2, 336e20250 (side branch `ink/hostgap-gumbel`, not merged) | item 6, the device sampler: `Op::GumbelArgmax` (96), cpu reference, Metal `gumbel_argmax_f32`, `HeadMode::LastGumbel`, `INTARSIA_GUMBEL_SAMPLING=1` (default off), its stderr line |
+| the other commits on the branch | results doc |
