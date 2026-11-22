@@ -1095,7 +1095,7 @@ impl Model {
         let mut plan = self.plan.clone();
         plan.workspace_bytes = bytes;
         let mut t = Model {
-            head_p12: None,
+            head_p12: self.head_p12.clone(),
             backend: self.backend.clone(),
             registry,
             dims: self.dims.clone(),
