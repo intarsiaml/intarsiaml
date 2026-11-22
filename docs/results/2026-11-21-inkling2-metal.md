@@ -139,6 +139,7 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
 | Suite | Where / job | Tree | Result |
 |---|---|---|---|
 | `cargo test --release --no-fail-fast -p intarsia-core -p intarsia-backend-cpu -p intarsia-cli` | spark2 #10868 (`git archive` of 41c93f814) | 41c93f814 | 40 binaries, 0 failed |
+| the same plus `-p intarsia-bench`, rerun on the merged tip | spark2 #11053 | 8546d143f (m-mix 52b337aa9 + ink/batch) | 637 passed, 1 failed: `docs_env_vars` (ink/batch's `INTARSIA_METAL_ROWS_SINGLE` had no row); row added at 9782778c1, `docs_env_vars` then 2 / 2 |
 | `cargo test --release --no-fail-fast -p intarsia-backend-metal` | endor #10867 | f55bfe8b7 (m-mix 47570539e merged) | 46 binaries, 213 passed, 0 failed (incl. `every_metal_kernel_has_a_quick_case`, `rows_exact_registrations_are_pinned`) |
 | `cargo test -p intarsia-models --test inkling2`, cpu and `INTARSIA_INKLING2_BACKEND=metal` | endor #10715 (both); Metal again in #10890 | #10890: e3f92beff (m-mix 47570539e, ink/serve merged) | 8 / 8 each |
 | intarsia-models Metal tests: batch_metal, batch_metal_real, gdn_verify_metal, mtp_store_metal, prefix_store_metal, hybrid_reuse_real, prefix_reuse_real, batch_recurrent | endor #10901 | de2b5c9bc | 1, 3, 7, 2, 1, 2, 6, 15 passed, 0 failed |
