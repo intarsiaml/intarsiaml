@@ -37,12 +37,13 @@ fn ink_attn_fused_env() -> Option<bool> {
     })
 }
 
-/// `INTARSIA_INK_PREFILL_FUSED=1` (opt-in, default off; lane ink-cuda-attn, briefs 30a / 30b): prefill chunks (more than 16 rows)
+/// `INTARSIA_INK_PREFILL_FUSED` (lane ink-cuda-attn, briefs 30a / 30b; default on, `=0` off): prefill chunks (more than 16 rows)
 /// take the fused `InkAttnDecode` where the backend admits it (CUDA `ink_attn_prefill_bf16`: the flash kernel forms the rel bias,
-/// no `[T,H,E]` table), else the pair. Bitwise the pair either way. Read once.
+/// no `[T,H,E]` table), else the pair. Bitwise the pair either way; warm-serve prefill +2.7-4.1 % at 1k-16k on CUDA (#11632).
+/// Metal and cpu admit op 75 at 1..=16 rows only, so the pair runs there. Read once.
 fn ink_prefill_fused_env() -> bool {
     static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *V.get_or_init(|| std::env::var("INTARSIA_INK_PREFILL_FUSED").is_ok_and(|v| v.trim() == "1"))
+    *V.get_or_init(|| !std::env::var("INTARSIA_INK_PREFILL_FUSED").is_ok_and(|v| v.trim() == "0"))
 }
 
 /// Whether a visit's attention of `rows` rows ending at context `ctx` (positions `0..ctx`) takes the fused `InkAttnDecode`
@@ -1079,7 +1080,7 @@ impl Model {
                             })
                 }
             };
-            // prefill chunks (briefs 30a / 30b, INTARSIA_INK_PREFILL_FUSED=1): op 75 where the backend admits it (CUDA), else the pair
+            // prefill chunks (briefs 30a / 30b; INTARSIA_INK_PREFILL_FUSED=0 turns it off): op 75 where the backend admits it (CUDA), else the pair
             let want_fused = !dumping && if t <= 16 { rule || !pair_rows } else { batch.is_none() && ink_prefill_fused_env() };
             let fused = want_fused.then(|| {
                 let mut fa = aa.clone();
