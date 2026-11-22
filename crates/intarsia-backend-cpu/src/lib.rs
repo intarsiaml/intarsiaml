@@ -21,6 +21,7 @@ mod mem;
 mod p12_ref;
 mod quant_ref;
 mod reference;
+mod rowtab;
 
 use intarsia_core::backend::{Backend, Buffer, DeviceInfo, HostMemory, MemKind, StreamId};
 use intarsia_core::{Error, Exactness, KernelImpl, Op, OpCall, Result, Tol};
@@ -204,10 +205,25 @@ impl Backend for CpuBackend {
                 r = r.situ();
                 f = f.situ();
             }
+            // the Inkling-2 row-table forms (batched decode, `rowtab.rs`): twins `<kernel>_rows`, selected only with a table;
+            // after the base kernels (admission takes an op's first reference kernel as its oracle)
+            let twins = intarsia_core::inkling2::ops::ROW_TABLE_OPS.contains(&op).then(|| {
+                let mut rr = r.clone();
+                rr.name = format!("{}_rows", r.name);
+                let mut fr = f.clone();
+                fr.name = format!("{}_rows", f.name);
+                [rr.row_table(), fr.row_table()]
+            });
             v.push(r);
             v.push(f);
+            v.extend(twins.into_iter().flatten());
         }
         v
+    }
+
+    /// The host address of an owned buffer (row tables of the Inkling-2 batched step, `rowtab.rs`).
+    fn device_address(&self, buf: &Buffer) -> Option<u64> {
+        buf.downcast::<CpuBuffer>().and_then(|b| b.address())
     }
 
     fn launch(&self, kernel: &str, call: &OpCall, _s: StreamId) -> Result<()> {
@@ -219,8 +235,17 @@ impl Backend for CpuBackend {
         } else {
             return Err(Error::NoKernel(format!("cpu kernel '{kernel}'")));
         };
-        if name != call.op.as_str() {
-            return Err(Error::invalid(format!("kernel '{kernel}' cannot run op '{}'", call.op)));
+        let (name, table) = match name.strip_suffix("_rows") {
+            Some(n) if intarsia_core::inkling2::ops::ROW_TABLE_OPS.contains(&call.op) => (n, true),
+            _ => (name, false),
+        };
+        if name != call.op.as_str() || table != call.rows.is_some() {
+            return Err(Error::invalid(format!("kernel '{kernel}' cannot run op '{}'{}", call.op, if call.rows.is_some() { " with a row table" } else { "" })));
+        }
+        if table {
+            call.check()?;
+            rowtab::run(call, &|c| if reference { reference::run(c) } else { fast::run(c) })?;
+            return fault::apply(self, call);
         }
         // device-side position: resolve it now (the cpu runs synchronously, so the value is current). The DeepSeek-V4.1
         // positioned ops keep it: with a device position their shapes are the capacity's (dsv41_ref reads it).
