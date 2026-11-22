@@ -10,6 +10,13 @@ P12 / screen). Never restore an old bench source without `--digest` for a refere
 
 ## Briefs received
 
+- 2026-11-22 ~10:30 (main): gemvx: let #11463 run; if green, default-on is fine (bitwise, -12 us/call) with the revert
+  switch and a docs/tuning.md row. Before choosing (a) vs (c), bound (c) from existing traces (<= 20 min, no new job): MoE ms
+  share of a B16 step, mean union vs the 128 pairs, ms/step saved if each expert's weights were read once per step instead of
+  once per pair. (c) bound >= 2x (a)'s 3.8 ms/step: (c) first, then (a); otherwise (a), then (c) if (a) gives < 2 ms. Drop (b):
+  breaking rows-exact costs more than ~3 ms/step buys; it returns only if (a) and (c) both fall short. Record the brief and
+  the (c) bound before building.
+
 - 2026-11-22 ~09:20 (main): the Metal 4 shader-count test (`metal4_shaders_are_the_nax_variants_and_not_metal3_shaders`) fails
   on any branch carrying d03224697 (ink/prefill's NAX MoE shaders) until it takes ink/metal's one-line test fix 8e0ff6af6.
   Take it at the next ink/metal merge (or cherry-pick when adding shaders); that failure is not ours. Done: merged ink/metal
@@ -1174,3 +1181,14 @@ kernels table 7/7 (incl. the metal4 count). Box cold at start (B 16 58.07). InkI
   approach the 71 us floor (~3.8 ms per B 16 step) but changes bits: opt-in only, flip is the user's call.
 - Gates for gemvx P 1 default-on queued as #11463 (Metal suite, admission, greedy md5 64 / 256, B 1/8/16 X0 vs X1 A B A B B A
   B A with digests, warm).
+
+**30a. Bound for (c), MoE weights once per expert (from #11355's B 16 text trace, no job).**
+- MoE per B 16 text step (traced ms): 44 NVFP4 situ calls x 655.8 us = 28.9 ms, plus 4 MXFP8 calls x 969.9 us = 3.9 ms: 32.7 ms
+  of 62.2 traced (53%).
+- Per situ call: union 62.5 distinct experts (median 64, max 83) vs 128 (row, expert) pairs: ~2.05 pairs per expert.
+- If the per-pair cost became per-expert: 656 us x 62.5 / 128 = 320 us per call, but that is below the call's DRAM floor:
+  62.5 experts x 4.48 MB = 280 MB at 490 GB/s (m-moe's measured NVFP4 rate at 16 rows) = 571 us. So the floor binds: saving
+  <= (656 - 571) x 44 = **3.7 ms per step**. The MXFP8 calls already run at their floor (8.2 MB per expert; ~513 MB at
+  dfuse's 522 GB/s = 983 us vs 970 measured): ~0. At the 614 GB/s roofline instead of 490, the situ floor is 456 us and the
+  bound 8.8 ms, but no Inkling NVFP4 kernel has measured above ~500 GB/s.
+- **(c) bound ~3.7 ms (up to ~8.8 at roofline) vs (a)'s 3.8 ms: not >= 2x. Order: (a) first, then (c) if (a) gives < 2 ms.**
