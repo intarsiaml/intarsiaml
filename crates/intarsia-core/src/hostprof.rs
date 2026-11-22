@@ -6,6 +6,12 @@
 //! [`flush`]) one table line goes to stderr: mean ms per iteration of that class and per category. GPU-busy time of a decode
 //! step is `Launch + Sync`; everything else in a decode-only iteration is the host gap the GPU idles through.
 //!
+//! The solo decode loop (`engine::run_seq`, what `generate` and a `serve` without `--max-batch` run) is profiled the same way
+//! (lane ink-hostgap): one iteration per decode step (`on_token`, `prepare`, the step as `step-setup` net of `sync`, `step-tail`
+//! and `softcap`, `accept` = the host sampler), its `sync` the logits download's wait (plain path) or the token read of a
+//! token-feedback step (there `launch` is the encode of the next step, held after its first dispatches, and `gpu-idle-gap` the
+//! host time from the token read to the release of that step, which the GPU covers with the dispatches it already has).
+//!
 //! The profile only measures: it changes no output and no schedule.
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -42,10 +48,12 @@ pub enum Cat {
     Finish,
     /// the prefill chunk of the iteration, end to end
     Prefill,
+    /// the host logit soft-cap of a step that reads its logits (Gemma 4, Inkling-2; `Model::softcap_logits`), inside `StepTail`
+    Softcap,
 }
-pub const NCAT: usize = 14;
+pub const NCAT: usize = 15;
 const NAMES: [&str; NCAT] =
-    ["reap+admit", "prepare", "step-setup", "upload", "launch", "sync", "step-tail", "accept", "metrics", "on_token", "detok", "send", "finish", "prefill"];
+    ["reap+admit", "prepare", "step-setup", "upload", "launch", "sync", "step-tail", "accept", "metrics", "on_token", "detok", "send", "finish", "prefill", "softcap"];
 
 #[derive(Clone, Copy, Debug)]
 #[repr(usize)]
@@ -210,6 +218,8 @@ pub fn iter_end(wall_ns: u128) {
         cur[Cat::Launch as usize] = cur[Cat::Launch as usize].saturating_sub(cur[Cat::Upload as usize]);
         // `OnToken` is measured around the whole call; Detok and Send are inside it
         cur[Cat::OnToken as usize] = cur[Cat::OnToken as usize].saturating_sub(cur[Cat::Detok as usize] + cur[Cat::Send as usize]);
+        // `StepTail` holds the logits soft-cap
+        cur[Cat::StepTail as usize] = cur[Cat::StepTail as usize].saturating_sub(cur[Cat::Softcap as usize]);
         let gap = p.gap_this;
         let rows = p.rows as u64;
         p.prev_decode_only = matches!(k, Kind::DecodeOnly);

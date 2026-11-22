@@ -2712,10 +2712,19 @@ impl Seq {
 
     /// Produce the next `self.tok` on this sequence alone (plan, run the forward pass, sample).
     pub(crate) fn advance(&mut self, model: &Model, st: &mut SequenceState) -> Result<()> {
-        if let Some((tok, mode)) = self.prepare(model, st)? {
+        let prep = {
+            let _p = crate::hostprof::span(crate::hostprof::Cat::Prepare);
+            self.prepare(model, st)?
+        };
+        if let Some((tok, mode)) = prep {
             let pos = st.len;
-            let out = model.forward(st, &[tok], mode, None)?;
+            let out = {
+                let _s = crate::hostprof::span(crate::hostprof::Cat::StepSetup);
+                crate::hostprof::mark_launch_begin();
+                model.forward(st, &[tok], mode, None)?
+            };
             st.tag_passes(pos, crate::state::PassKind::Decode);
+            let _a = crate::hostprof::span(crate::hostprof::Cat::Accept);
             self.accept_plain(out)?;
         }
         Ok(())
@@ -2759,15 +2768,20 @@ impl Seq {
         let (tok, _) = self.plain_input();
         let mut cur = model.feedback_step(st, Feed::Host(tok), RING[0], false)?;
         loop {
+            crate::hostprof::iter_begin();
+            let t_iter = std::time::Instant::now();
             // `cur` samples token generated + 1; unless max_tokens ends the request there, feed it on to the next step
             // before reading it (its start queued behind `cur`, the rest held until the token says it is needed)
             let next = if self.generated + 1 < self.max_new {
                 let out = if cur.slot == RING[0] { RING[1] } else { RING[0] };
+                // the encode of the next step (held after its first dispatches); `sync` below is not inside it
+                let _s = crate::hostprof::span(crate::hostprof::Cat::Launch);
                 Some(model.feedback_step(st, Feed::Slot(cur.slot), out, true)?)
             } else {
                 None
             };
             let tok = model.feedback_read(cur)?;
+            crate::hostprof::decoded(1);
             if next.is_some() {
                 // the next step was committed with the token unread: it sits at position plen + generated
                 let i = self.plen + self.generated;
@@ -2775,18 +2789,27 @@ impl Seq {
                 st.tokens[i] = tok;
             }
             self.tok = tok;
-            if self.on_token()? {
+            let done = {
+                let _t = crate::hostprof::span(crate::hostprof::Cat::OnToken);
+                self.on_token()?
+            };
+            if done {
                 if next.is_some() {
                     // the stop came one step late: drop the held rest of the step (the caller rolls its position back)
                     model.feedback_discard()?;
                 }
+                crate::hostprof::iter_end(t_iter.elapsed().as_nanos());
                 return Ok(());
             }
             cur = match next {
-                Some(p) => model.feedback_release(p)?,
+                Some(p) => {
+                    crate::hostprof::mark_launch_begin();
+                    model.feedback_release(p)?
+                }
                 // not reached (on_token ends the request at max_new); stay correct anyway
                 None => model.feedback_step(st, Feed::Host(self.tok), RING[0], false)?,
             };
+            crate::hostprof::iter_end(t_iter.elapsed().as_nanos());
         }
     }
 
@@ -2896,8 +2919,20 @@ fn run_seq(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<O
     }
     // this loop alone runs on the model between the sequence's steps
     seq.pipe_solo = true;
+    let r = run_decode(seq, model, st);
+    crate::hostprof::flush();
+    r.map(|_| None)
+}
+
+/// The decode loop of [`run_seq`]; with `INTARSIA_HOST_PROFILE=1` one host-profile iteration per step (`hostprof`).
+fn run_decode(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<()> {
     loop {
-        let done = seq.on_token()?;
+        crate::hostprof::iter_begin();
+        let t_iter = std::time::Instant::now();
+        let done = {
+            let _t = crate::hostprof::span(crate::hostprof::Cat::OnToken);
+            seq.on_token()?
+        };
         if done {
             break;
         }
@@ -2906,8 +2941,10 @@ fn run_seq(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<O
             break;
         }
         seq.advance(model, st)?;
+        crate::hostprof::decoded(1);
+        crate::hostprof::iter_end(t_iter.elapsed().as_nanos());
     }
-    Ok(None)
+    Ok(())
 }
 
 #[cfg(test)]

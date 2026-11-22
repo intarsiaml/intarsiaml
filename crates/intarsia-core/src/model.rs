@@ -5446,6 +5446,13 @@ impl Model {
         if self.recorder.lock().unwrap().is_some() {
             return Ok(Vec::new());
         }
+        if crate::hostprof::enabled() {
+            // host profile: the wait for the step on its own (`download` then finds nothing pending)
+            let _w = crate::hostprof::span(crate::hostprof::Cat::Sync);
+            self.backend.synchronize(self.stream)?;
+            crate::hostprof::mark_sync_end();
+        }
+        let _tail = crate::hostprof::span(crate::hostprof::Cat::StepTail);
         // the reused download buffer and pooled row of the decode paths (`with_logits_bytes`; eager one-row decode steps land here)
         let mut out = with_logits_bytes(c * v * 4, |bytes| -> Result<Vec<f32>> {
             self.backend.download(&self.ws.logits, 0, bytes, self.stream)?;
@@ -5462,6 +5469,7 @@ impl Model {
                 }
             }
         }
+        let _cap = crate::hostprof::span(crate::hostprof::Cat::Softcap);
         self.softcap_logits(&mut out);
         Ok(out)
     }
