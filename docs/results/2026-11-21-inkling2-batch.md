@@ -1089,3 +1089,14 @@ they are upper bounds, in warm-state ms.
   union 62.5, 28.9 ms) plus 4 MXFP8 calls (634.7 + 329.0 + 6.2 = 969.9 us, 3.9 ms). The situ part's floor at 490 GB/s is 25.1
   ms (44 x 62.5 x 4.48 MB), at 580 GB/s 21.2 ms: ceiling **~4-8 ms**, not 12 (section 29 mixed busy-scaled ms with floors).
   gate+up runs at ~450 GB/s, down at ~400 GB/s: the down projection is the weaker half.
+- MoE call time vs union size (least-squares over the traced calls, `moe_experts_situ_bf16_rows` gate+up / down):
+  B 16 text (union 22-83, mean 62.5): 320.8 + 1.52 n / 178.8 + 0.88 n us; B 16 random (union 13-36, mean 23.1): 470.1 + 0.84 n /
+  264.3 + 0.57 n; B 8 text (16-55, mean 41): 194.9 + 2.86 n / 110.4 + 1.50 n. The call time barely depends on the union: B 16
+  random (23 experts, 69 MB of gate+up weights) takes *longer* than B 16 text (62.5 experts, 187 MB). The marginal cost per
+  expert (~1.5 us) is far below its DRAM time (3 MB at 490 GB/s = 6 us), so at B 16 the situ kernels are not bandwidth-bound;
+  their time follows the 128 (row, expert) pairs. Compute floor of one call: 128 pairs x 7.96 M MAC x 2 = 2.04 GFLOP = 131 us
+  at 15.6 TFLOP/s, vs 650 us measured: the per-pair work (NVFP4 decode per pair, by the name "situ") dominates. For real text
+  the bandwidth floor (~570 us per call at union 62.5) is close to the measured 656 us, so the real-text MoE ceiling stays
+  ~4 ms; for workloads with more expert sharing it is much larger. ALU-bound per-pair work also explains why B 16 follows
+  the GPU P-state (28c) while B 1 does not. Lever 2 (after in_proj): decode each expert's weights once per call for all its
+  pairs (union kernel with shared decode), if the per-pair decode is confirmed as the cost.
