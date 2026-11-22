@@ -256,6 +256,9 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   rank this lane's costs (MoE experts, ConvMix, controller blend and loop kernels) for spec-off g256 and spec-on verify passes,
   ms / token with each one's bandwidth floor; build the top item if its bound is >= 0.3 ms / token (same gate: md5, rows-exact or
   bitwise tests, ABAB); if none reaches 0.3, say so and stop.
+- (coordinator, 35th) #488 merged: main is `57e1b3332` (Inkling on Metal / cpu). When the current build item allows: merge main into
+  this branch, run the CUDA no-op check on other models (Qwen3-8B greedy 256 short / 4k bit-identical to main, plan show JSON for
+  the 35B and 8B, kernels test --quick), send the result; do not open the PR.
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
