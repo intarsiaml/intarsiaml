@@ -35,7 +35,7 @@ constexpr int ALIGN = 32;       // split chunks are a multiple of this
 constexpr int NSG = 4;          // warps of an attention block
 constexpr int SPLIT_KEYS = 64;  // default keys per split
 constexpr int MAXROWS = 16;     // InkAttnDecode rows
-constexpr int KMAX = 8;         // most conv taps
+constexpr int KMAX = 4;         // most conv taps (the model's K; a register budget: job_conv holds 2 KMAX values per element)
 constexpr float LOG2E = 1.4426950408889634f;
 constexpr float SRC_EPS = 1e-6f;
 
@@ -146,14 +146,39 @@ __device__ __forceinline__ float ink_qr(float raw, float ss, float th, bool use_
 
 // one rel element: the r . relproj chain (j ascending), unrounded
 __device__ __forceinline__ float ink_rel(const float* r, const bf16* rp, int dr, int E, int e) {
-    float w[32];
-#pragma unroll
-    for (int j = 0; j < 32; ++j) w[j] = j < dr ? b2f(rp[(size_t)j * E + e]) : 0.0f;
+    // in halves of 16: the loads of a half first, then its part of the chain (j ascending)
     float a = 0.0f;
 #pragma unroll
-    for (int j = 0; j < 32; ++j)
-        if (j < dr) a = __fmaf_rn(r[j], w[j], a);
+    for (int j0 = 0; j0 < 32; j0 += 16) {
+        if (j0 >= dr) break;
+        float w[16];
+#pragma unroll
+        for (int j = 0; j < 16; ++j) w[j] = j0 + j < dr ? b2f(rp[(size_t)(j0 + j) * E + e]) : 0.0f;
+#pragma unroll
+        for (int j = 0; j < 16; ++j)
+            if (j0 + j < dr) a = __fmaf_rn(r[j0 + j], w[j], a);
+    }
     return a;
+}
+
+// ink_rel of G heads (r rows of 32) at one e, the relproj loads shared: out[g] = ink_rel(r + 32 g, ..) bit for bit
+__device__ __forceinline__ void ink_rel_g(const float (*r)[32], int G, const bf16* rp, int dr, int E, int e, float* out) {
+    float a[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+#pragma unroll
+    for (int j0 = 0; j0 < 32; j0 += 16) {
+        if (j0 >= dr) break;
+        float w[16];
+#pragma unroll
+        for (int j = 0; j < 16; ++j) w[j] = j0 + j < dr ? b2f(rp[(size_t)(j0 + j) * E + e]) : 0.0f;
+#pragma unroll
+        for (int g = 0; g < 4; ++g)
+            if (g < G)
+#pragma unroll
+                for (int j = 0; j < 16; ++j)
+                    if (j0 + j < dr) a[g] = __fmaf_rn(r[g][j0 + j], w[j], a[g]);
+    }
+#pragma unroll
+    for (int g = 0; g < 4; ++g) out[g] = a[g];
 }
 
 // ------------------------------------------------------------------------------------------------------------------------
@@ -206,7 +231,7 @@ __device__ __forceinline__ float v_out(float v, float ss, const InkP& p) { retur
 
 // InkKvPrologue. Grid (Hk, T), 256 threads (8 warps): warps take the jobs k, v, q_0 .., r_0 .. in turn, then all threads the rel
 // tail (3 x E elements of a 16-long chain each).
-__global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
+__global__ void __launch_bounds__(256, 2) ink_prologue_k(InkP p) {
     __shared__ float rsh[4][32];
     const unsigned tid = threadIdx.x, lane = tid & 31, warp = tid >> 5, nw = blockDim.x >> 5;
     const unsigned kvh = blockIdx.x, t = blockIdx.y;
@@ -253,7 +278,9 @@ __global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
     __syncthreads();
     const unsigned per = (E + gridDim.z - 1) / gridDim.z, e1 = min(E, (blockIdx.z + 1) * per);
     for (unsigned e = blockIdx.z * per + tid; e < e1; e += blockDim.x) {
-        for (unsigned g = 0; g < G; ++g) p.relo[((size_t)t * H + kvh * G + g) * E + e] = f2b(ink_rel(rsh[g], p.rp, dr, E, e));
+        float rv[4];
+        ink_rel_g(rsh, G, p.rp, dr, E, e, rv);
+        for (unsigned g = 0; g < G; ++g) p.relo[((size_t)t * H + kvh * G + g) * E + e] = f2b(rv[g]);
     }
 }
 
@@ -1215,8 +1242,10 @@ void launch_s1(const InkP& p, unsigned gy, size_t tbb, cudaStream_t st) {
     ink_attn_s1_k<GP><<<dim3(p.hk, gy, p.t), NSG * 32, tbb, st>>>(p);
 }
 
-// tile size floor: INTARSIA_INK_SPLIT_KEYS rounded up to a multiple of the sub-chunk, else one sub-chunk
-int tile_min(const ik_ink_attrs* a) { return a->split_keys > 0 ? (a->split_keys + CH - 1) / CH * CH : CH; }
+// tile size floor: INTARSIA_INK_SPLIT_KEYS rounded up to a multiple of the sub-chunk, else TILE_MIN (measured best of 64 / 128 /
+// 256 at the real shapes: fewer, longer blocks and fewer partials to merge; docs/results/2026-11-21-inkling2-cuda-attn.md)
+constexpr int TILE_MIN = 256;
+int tile_min(const ik_ink_attrs* a) { return a->split_keys > 0 ? (a->split_keys + CH - 1) / CH * CH : TILE_MIN; }
 
 // grid y (tile slots) of a tile launch and whether any row can have more than one tile (device position: capacity bounds)
 void tile_grid(const InkP& p, bool dev, int min_s, unsigned* ny, bool* multi) {
