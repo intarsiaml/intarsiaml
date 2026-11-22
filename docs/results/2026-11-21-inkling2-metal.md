@@ -1002,6 +1002,10 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   touched no GPU work beyond those failed device opens, though it ran as `--load cpu`.)
 - Follow-up `plan show` on Metal, main 57e1b3332 vs cdf954b26 (endor #11493, `--load cpu`): Qwen3-8B and Llama-3.1-8B text
   and JSON byte-identical. Follow-up PR opened from ink/metal.
+- PR #489 (no CI run was created at open; close + reopen started it): all 6 CI jobs green on 1b92adf7e. **Merged** at
+  693f6440e. ink/dfuse-land (e63dbcdc6) then goes as its own small PR from branch ink/dfuse-land-pr (worktree
+  .worktrees/ink-dfuse-pr), main merged in at f3f2a7767; code diff vs main: `examples/ink_ctrl_bench.rs` (+117) and the
+  `INTARSIA_INK_DEBUG_DISPATCHES` counter in model/inkling2.rs (+23, off by default), plus its results doc and raw files.
 - Metal #11440 done (exit 0, 09:29:18-09:59:11, quiet gpu,cpu): 256 greedy ids identical base vs dev for Qwen3-8B (short sha
   d619ede5, 4k feb11f5c) and Llama-3.1-8B-Instruct (short 25bbc20f, 4k eda51e94); `plan show` txt and json byte-identical for
   both. `kernels test --backend metal` 0 FAIL on both: base 56 kernels / 1335 cases, dev 86 kernels / 2915 cases (the Inkling,
