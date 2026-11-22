@@ -989,6 +989,10 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   35a1f17bf (test only, coordinator's shape): every-task-once stays strict; the wait is asserted only when a run measured it.
   bespin #11484: intarsia-core lib 257 passed in each of 10 runs (plain, INTARSIA_HOST_THREADS=4 x5, pool on with
   --test-threads 2 x3, par:: alone). An endor run queued first (#11483) was cancelled before it started (endor queue).
+- PR #488 CI rerun on a63d06c97: all 6 jobs green (ubuntu cargo test 15 m 9 s). **Merged** into main at 57e1b3332 (merge
+  commit). Follow-up: ink/fp8 22689e76c (df7eb7f80, screened greedy head default-on on Metal, Inkling only) merged into
+  ink/metal at cdf954b26 with no conflicts; its code differs from ink-fp8's checked tree (#11458, all green) only by this
+  lane's two test-only fixes (040748800, 35a1f17bf). Linux CI steps on bespin for cdf954b26: running.
 - Metal #11440 done (exit 0, 09:29:18-09:59:11, quiet gpu,cpu): 256 greedy ids identical base vs dev for Qwen3-8B (short sha
   d619ede5, 4k feb11f5c) and Llama-3.1-8B-Instruct (short 25bbc20f, 4k eda51e94); `plan show` txt and json byte-identical for
   both. `kernels test --backend metal` 0 FAIL on both: base 56 kernels / 1335 cases, dev 86 kernels / 2915 cases (the Inkling,
