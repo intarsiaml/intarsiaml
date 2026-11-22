@@ -856,3 +856,23 @@ and the separate prologue + attention pair (97.2 / 97.7 us per visit) is faster 
 experts. The p12 / MoE / ctrl benches take a rows argument but ran at 1 row only. Nothing of ink-dfuse's is in flight on the
 B > 1 row kernels (in_proj rows, ConvMix row kernel, attention decode rows, MoE decode); the dfuse flip 2f952f697 (hoist,
 norm_c, route, msg on by default on Metal) is in ink/metal 29e75b835, each with its own `=0`.
+
+## 27. ink-fp8 #11345 vs #11328: setup diff from the logs (no slot)
+
+| | #11345 (ink-fp8, 07:01:53-07:04:39) | #11328 final arms (ink-batch, 06:49:31-06:56:58) |
+|---|---|---|
+| args | `--ctx 1024 --rounds 2 --steps 16 --batches 1,8,16` | same |
+| prompts | random ids (ink/metal's bench default) | same |
+| --digest | no (ink/metal's bench has none) | no |
+| env | `INTARSIA_INK_PACK12=0 INTARSIA_INK_HEAD_SCREEN=0/1 INTARSIA_INK_HEAD_SCREEN_STATS=1`, `INTARSIA_METAL_TEST_MODEL` | `INTARSIA_INK_PACK12=0`, `INTARSIA_METAL_TEST_MODEL` (+ arm switches) |
+| tree | 5d833ef94 = ink/metal a7cba52f4 + ink/fp8 72900194e (screen commits only; screen 0 in the s0 runs) | aede2ff72 (= a7cba52f4 code + one test) |
+| binary | `ink-fp8/.scratch/metalfp8/target/.../batch_step`, 16 756 944 B, sha 4f2fa0b8517bc335, incremental build 11.5 s | `.scratch/base-target/.../batch_step`, 16 742 592 B, sha 0e2a7fd6ac490e40, build after touching all sources |
+| loader lines | `inkling2: 24 layers, 48 visits, 144 state slots, loaded in 1.6 s` (no P12 / screen lines kept) | not kept (grep of table rows only) |
+| cwd | the fp8 tree | `.worktrees/ink-batch` (nothing reads cwd-relative config) |
+| B 8 / B 16 batched ms | 33.91 / 63.25 (s0), 38.99 / 65.40 (s0 rep 2) | 46.79-52.64 / 77.03-82.31 |
+
+No difference in args, prompts, digest, env (beyond the screen switches, off), or time of day (they ran 5 minutes apart).
+The binaries differ: different trees (screen commits) and builds. No shell `INTARSIA_*` variables and no cargo config are in
+play. **Not settled from the logs.** #11352 now starts with both configs side by side, alternating: X = fp8's saved binary +
+env (x2), Y = #11328's saved binary + env (x2), Z = this tree's bench with the same args + `--prompts random`, no digest;
+then the digest-backed NE arms. The "230 not met" claim is on hold until this is settled.
