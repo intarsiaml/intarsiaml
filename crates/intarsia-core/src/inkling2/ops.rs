@@ -176,6 +176,11 @@ pub struct InkAttrs {
     pub up_cap: f32,
     /// Expert ops: activation quantisation mode (0 = 16-bit activations, 1 = W4A4: module doc, `actq`); 1 needs `situ`.
     pub act_quant: u8,
+    /// `MoeExperts` (NVFP4, `situ`): layout of the four expert weight tensors. 0 = the checkpoint's row-major layout (the
+    /// contract above). 1 = CUDA's decode repack ([`moe_repack_rows`], lane ink-cuda-mixmoe, `INTARSIA_INK_MOE_REPACK`): each block
+    /// of 4 gate / up rows (w13 and its scales) and of 8 down rows (w2 and its scales) stored iteration-major. Set only on CUDA,
+    /// with `act_quant` 0; admission cases always use 0.
+    pub moe_layout: u8,
     /// `InkKvPrologue`: L2 clip thresholds of q / k and of r.
     pub qk_clip: f32,
     pub rel_clip: f32,
@@ -197,6 +202,7 @@ impl Default for InkAttrs {
             gate_cap: 0.0,
             up_cap: 0.0,
             act_quant: 0,
+            moe_layout: 0,
             qk_clip: 0.0,
             rel_clip: 0.0,
             tau_floor: 0,
@@ -702,5 +708,51 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.weight = Some(i[1].dtype);
         }
         _ => {}
+    }
+}
+
+/// `ink.moe_layout = 1`: permutes one row-major weight (or scale) tensor in place, block by block. A block is `rows` consecutive
+/// rows of `row_bytes` each, read by one warp whose 32 lanes are `rows` x `lanes` (row q = lane / lanes, sub = lane % lanes) and
+/// load `chunk` bytes per step: lane (q, sub) at step `it` reads row q's chunk `it * lanes + sub`. The repacked block stores step
+/// `it`'s 32 pieces back to back in lane order, so a warp's step is one contiguous `32 * chunk` byte run. The tensor's rows must
+/// be a multiple of `rows` and `row_bytes` a multiple of `lanes * chunk`. Gate / up (w13 `[E,2I,H/2]`, scales `[E,2I,H/16]`):
+/// rows 4, lanes 8, chunk 16 / 2; down (w2 `[E,H,I/2]`, scales `[E,H,I/16]`): rows 8, lanes 4, chunk 16 / 2.
+pub fn moe_repack_rows(data: &mut [u8], row_bytes: usize, rows: usize, lanes: usize, chunk: usize) {
+    assert_eq!(rows * lanes, 32);
+    let blk = rows * row_bytes;
+    assert!(row_bytes % (lanes * chunk) == 0 && data.len() % blk == 0, "moe_repack_rows: {} bytes, rows of {row_bytes}", data.len());
+    let mut tmp = vec![0u8; blk];
+    for b in data.chunks_exact_mut(blk) {
+        for (j, piece) in tmp.chunks_exact_mut(chunk).enumerate() {
+            let (it, lane) = (j / 32, j % 32);
+            let (q, sub) = (lane / lanes, lane % lanes);
+            let src = q * row_bytes + (it * lanes + sub) * chunk;
+            piece.copy_from_slice(&b[src..src + chunk]);
+        }
+        b.copy_from_slice(&tmp);
+    }
+}
+
+/// Whether [`moe_repack_rows`] applies to an NVFP4 experts shape (hidden `h`, intermediate `i`).
+pub fn moe_repack_fits(h: usize, i: usize) -> bool {
+    i % 4 == 0 && h % 8 == 0 && (h / 32) % 8 == 0 && h % 32 == 0 && i % 32 == 0 && (i / 32) % 4 == 0
+}
+
+#[cfg(test)]
+mod repack_tests {
+    #[test]
+    fn repack_is_a_permutation_with_contiguous_warp_steps() {
+        // 4 rows of 8 lanes, 2 steps of 16-byte chunks: row_bytes = 2 * 8 * 16 = 256
+        let rb = 256;
+        let mut d: Vec<u8> = (0..4 * rb).map(|i| (i * 7 % 251) as u8).collect();
+        let orig = d.clone();
+        super::moe_repack_rows(&mut d, rb, 4, 8, 16);
+        let (mut a, mut b) = (orig.clone(), d.clone());
+        a.sort();
+        b.sort();
+        assert_eq!(a, b);
+        // lane 13 = (q 1, sub 5) at step 1 reads row 1, chunk 13
+        let j = 32 + 13;
+        assert_eq!(&d[j * 16..j * 16 + 16], &orig[rb + 13 * 16..rb + 14 * 16]);
     }
 }

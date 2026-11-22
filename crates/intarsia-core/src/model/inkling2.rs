@@ -167,6 +167,15 @@ pub const ATTN_QUANT_ENV: &str = "INTARSIA_INK_ATTN_QUANT";
 pub const ACT_QUANT_ENV: &str = "INTARSIA_INK_ACT_QUANT";
 
 /// The expert activation mode from its spelling (`w4a16` -> 0, `w4a4` -> 1).
+/// `INTARSIA_INK_MOE_REPACK=1` (CUDA, off by default; brief 36 stage A): the NVFP4 expert weights are repacked at load for the
+/// decode kernels' warp steps (`ink.moe_layout = 1`); the CUDA experts then never take the tensor-core prefill path, and W4A4 is
+/// refused.
+pub const MOE_REPACK_ENV: &str = "INTARSIA_INK_MOE_REPACK";
+
+fn moe_repack_wanted(b: &dyn Backend) -> bool {
+    b.name() == "cuda" && std::env::var(MOE_REPACK_ENV).is_ok_and(|v| v.trim() == "1")
+}
+
 pub fn parse_act_quant(v: &str) -> Result<u8> {
     match v.trim().to_ascii_lowercase().as_str() {
         "w4a16" | "a16" | "0" | "off" => Ok(0),
@@ -262,6 +271,9 @@ pub(super) struct InkModel {
     /// `ink.act_quant` of the expert calls: 0 16-bit activations (default), 1 W4A4 (`ACT_QUANT_ENV`, else the recipe's
     /// `[tuning.<backend>] act_quant`; opt-in, changes outputs).
     pub act_quant: u8,
+    /// `ink.moe_layout` of the NVFP4 expert calls (`MOE_REPACK_ENV`, CUDA only, default 0): 1 = the weights were repacked at load
+    /// (`inkling2::ops::moe_repack_rows`).
+    pub moe_layout: u8,
 }
 
 /// Teacher-forced inputs / dumped tensors by the oracle's names (`vNN.partial_in`, `vNN.attn_out`, `final_hidden`, ...):
@@ -448,6 +460,11 @@ pub(super) fn load(
     // lossless 12-bit copies of the bf16 in-projection and wo (lane ink-pack12, default on Metal); not with a quantised
     // projection
     let pack12 = crate::quant::p12::enabled(b) && attn_quant.is_none() && wdt_of(src, &names.root) == DType::Bf16;
+    // the decode repack of the NVFP4 experts (MOE_REPACK_ENV, CUDA only)
+    let repack = moe_repack_wanted(b) && crate::inkling2::ops::moe_repack_fits(d, ink.inter);
+    if repack {
+        eprintln!("inkling2: NVFP4 experts repacked for the decode kernels ({MOE_REPACK_ENV}=1; CUDA prefill takes the decode kernels)");
+    }
     let mut p12_stats = P12Stats::default();
     let mut put = |data: &[u8], dt: DType, shape: &[usize]| -> Result<TensorRef> {
         let buf = crate::backend::upload_new(b, data)?;
@@ -662,12 +679,37 @@ pub(super) fn load(
                 };
                 let (a13, a2) = (scale("w13")?, scale("w2")?);
                 let g3: Vec<f32> = (0..e).flat_map(|x| [a13[x], a13[x], a2[x]]).collect();
+                if repack {
+                    use crate::inkling2::ops::moe_repack_rows;
+                    let (mut gu, mut gs) = (gu, gs);
+                    moe_repack_rows(&mut gu, d / 2, 4, 8, 16);
+                    moe_repack_rows(&mut gs, d / 16, 4, 8, 2);
+                    let (w2n, s2n) = (t("mlp.experts.w2_weight"), t("mlp.experts.w2_weight_scale"));
+                    for (n, want) in [(&w2n, [e, d, inter / 2]), (&s2n, [e, d, inter / 16])] {
+                        let i = src.info(n).ok_or_else(|| Error::model(format!("tensor '{n}' not found")))?;
+                        if i.shape != want {
+                            return Err(Error::model(format!("layer {li}: NVFP4 {n} {:?}, expected {want:?}", i.shape)));
+                        }
+                    }
+                    let mut w2 = src.bytes(&w2n)?.to_vec();
+                    let mut s2 = src.bytes(&s2n)?.to_vec();
+                    moe_repack_rows(&mut w2, inter / 2, 8, 4, 16);
+                    moe_repack_rows(&mut s2, inter / 16, 8, 4, 2);
+                    InkExperts::Nvfp4 {
+                        gate_up_w: put(&gu, DType::U8, &[e, 2 * inter, d / 2])?,
+                        gate_up_s: put(&gs, DType::Fp8E4m3, &[e, 2 * inter, d / 16])?,
+                        down_w: put(&w2, DType::U8, &[e, d, inter / 2])?,
+                        down_s: put(&s2, DType::Fp8E4m3, &[e, d, inter / 16])?,
+                        gscales: put(&encode(DType::F32, &g3)?, DType::F32, &[e, 3])?,
+                    }
+                } else {
                 InkExperts::Nvfp4 {
                     gate_up_w: put(&gu, DType::U8, &[e, 2 * inter, d / 2])?,
                     gate_up_s: put(&gs, DType::Fp8E4m3, &[e, 2 * inter, d / 16])?,
                     down_w: direct(&t("mlp.experts.w2_weight"), Some(&[e, d, inter / 2]))?,
                     down_s: direct(&t("mlp.experts.w2_weight_scale"), Some(&[e, d, inter / 16]))?,
                     gscales: put(&encode(DType::F32, &g3)?, DType::F32, &[e, 3])?,
+                }
                 }
             }
             DType::Fp8E4m3 => {
@@ -746,7 +788,7 @@ pub(super) fn load(
         *bytes += p12_stats.bytes as u64;
         eprintln!("{}", p12_stats.note("in_proj + wo"));
     }
-    Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, msg_q_all, ws, dims: ink, act_quant: 0 })
+    Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, msg_q_all, ws, dims: ink, act_quant: 0, moe_layout: repack as u8 })
 }
 
 impl InkWs {
@@ -1253,7 +1295,7 @@ impl Model {
                     Op::MoeExperts,
                     vec![mlpin, ri, rw, gate_up_w.clone(), gate_up_s.clone(), down_w.clone(), down_s.clone(), gscales.clone()],
                     vec![moe.clone()],
-                    xa,
+                    OpAttrs { ink: InkAttrs { moe_layout: im.moe_layout, ..xa.ink }, ..xa },
                 )?,
                 InkExperts::Mxfp8 { w13, s13, w2, s2 } => {
                     ex(Op::MoeExpertsMxfp8, vec![mlpin, ri, rw, w13.clone(), s13.clone(), w2.clone(), s2.clone()], vec![moe.clone()], xa)?

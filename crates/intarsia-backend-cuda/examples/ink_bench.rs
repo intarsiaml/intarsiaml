@@ -195,6 +195,11 @@ fn bench_moe(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
                     ins.extend(w[c % layers].iter().cloned());
                     let mut a = OpAttrs { top_k: K, ..OpAttrs::default() };
                     (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
+                    // INTARSIA_INK_MOE_REPACK=1: the NVFP4 calls read the decode repack (random weights: the layout moves no time but the
+                    // address pattern, which is what this measures)
+                    if !mx && std::env::var("INTARSIA_INK_MOE_REPACK").is_ok_and(|v| v == "1") {
+                        a.ink.moe_layout = 1;
+                    }
                     let op = if mx { Op::MoeExpertsMxfp8 } else { Op::MoeExperts };
                     with_scratch(be, &k, OpCall::new(op, ins, vec![t(&out, DType::Bf16, &[tr, H])], a))
                 })

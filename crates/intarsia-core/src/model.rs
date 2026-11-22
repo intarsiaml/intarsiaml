@@ -1783,6 +1783,9 @@ impl Model {
                     Some(v) => inkling2::parse_act_quant(&v)?,
                     None => recipe.ink_act_quant(backend.name()).map(inkling2::parse_act_quant).transpose()?.unwrap_or(0),
                 };
+                if m.act_quant == 1 && m.moe_layout != 0 {
+                    return Err(Error::model(format!("inkling2: {} does not combine with W4A4 expert activations", inkling2::MOE_REPACK_ENV)));
+                }
                 if m.act_quant == 1 {
                     eprintln!("inkling2: W4A4 expert activations ({} / recipe act_quant; changes outputs)", inkling2::ACT_QUANT_ENV);
                 }
