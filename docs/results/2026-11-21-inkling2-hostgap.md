@@ -163,7 +163,9 @@ Status: #10943 done (items 2 and 3 measured: no regression, sampled decode +2.7-
   between). ink/metal 431a68aec merged into ink/hostgap (ff65d7f63); the item 7 tree moved to ff65d7f63, so #11152 builds the
   branch-tip binary from post-fix code. #11152 done 03:29-03:31, exit 0: gumbel tree 336e20250 built with intarsia-core
   recompiled (the E0599 is gone), Metal and 8B model test binaries built; `.scratch/i7/intarsia-h7f` built from ff65d7f63 with
-  its G1 / 8B test binaries (`.scratch/gmb/prebuild.txt`). `.scratch/copyfix.sh` copies #11179's self-goldens and binary to `.scratch/gref_fix` /
+  its G1 / 8B test binaries (`.scratch/gmb/prebuild.txt`). #11179 done 03:39: G2 short / long and G3 short / long all PASS (G2 short
+  decode rows back to 2.589e-3); its self-goldens and binary (03:37, ink-metal 3f7233fa6, whose crate code beyond 431a68aec is one
+  test file) copied to `.scratch/gref_fix` and `.scratch/bin/intarsia-im7ec`. `.scratch/copyfix.sh` copies #11179's self-goldens and binary to `.scratch/gref_fix` /
   `.scratch/bin/intarsia-im7ec` when it ends; F compares against those (pre-fix `gref` shown too).
 
 ## Measurement (before)
