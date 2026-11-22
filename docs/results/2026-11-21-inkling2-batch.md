@@ -1251,3 +1251,29 @@ ops and 1 fma, which fits "time follows pairs, not union" (29a).
   served pair's unchanged fma chain on it (gate+up and down union kernels; down also loads the chunk once). #11489 queued:
   inkmoe rows-exact (every policy, routing incl. pool12 / identical / invalid / duplicates, T 2-16, NVFP4 and MXFP8) with
   DEC1 0 and 1, then us/call DEC1 0 vs 1 at pools unset / 64 / 24, A B B A.
+
+**#11487 (11:22-11:28, warm start; `.scratch/moepool.log`), NVFP4 call us vs union, `inkmoe_bench`, first pass (Auto / Union):**
+16 rows: union 83 (pool unset) 1020 / 946 us; union 57 (pool 64) 1011 / 829; union 24 (pool 24) 594 / 690; union 12 (pool 12)
+577 / 579. 8 rows: union 51 450 / 454; 42 393 / 389; 23 330 / 329; 12 319 / 319. At 16 rows the call does not get cheaper
+than ~580 us however few experts the 128 pairs use: per-pair work, not weight bytes, sets the floor (~4.5 us per pair).
+Run-to-run noise at 16 rows is large (Auto and Union are the same configuration at T 16, yet differ by up to 180 us).
+
+**#11489 (11:29-11:35, cold start; `.scratch/dec1.log`), `INTARSIA_INK_MOE_DEC1=1` (decode once for every leader).** inkmoe
+rows-exact passes with DEC1 0 and 1 (2/2 each; every policy, routing, T 2-16, NVFP4 + MXFP8), rows_exact 11/11. Auto, whole
+call, us, order 0 1 1 0:
+
+| rows / union | DEC1 0 | DEC1 1 | DEC1 1 | DEC1 0 |
+|---|---:|---:|---:|---:|
+| 8 / 51 | 451.2 | 449.8 | 453.6 | 452.7 |
+| 16 / 83 | 738.5 | 723.7 | 725.4 | 749.0 |
+| 8 / 42 | 393.0 | 405.5 | 412.5 | 392.8 |
+| 16 / 57 | 637.1 | 597.4 | 783.2 | 646.5 |
+| 8 / 23 | 330.5 | 272.6 | 272.6 | 333.2 |
+| 16 / 24 | 586.0 | 457.4 | 457.4 | 591.7 |
+| MXFP8 16 / 57 | 873.9 | 841.6 | | |
+
+- Bitwise. Large gain where experts are shared (16 rows / union 24: -130 us, -22%; 8 / 23: -18%), small at the real-text
+  shape (16 / 57-83: -15 to -40 us, inside the noise) and a loss at 8 / 42 (+12-20 us: leaders serving one pair pay the
+  decode's registers for nothing). Next (d9c7ff580): `INTARSIA_INK_MOE_DEC1=<n>` decodes once only for leaders serving >= n
+  pairs; #11506 queued: rows-exact at n 1 / 2 / 3, bench n 0 / 2 / 3, then batch_step real text and random ids, n 0 vs 2,
+  A B A B with digests.
