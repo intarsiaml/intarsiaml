@@ -23,6 +23,10 @@ pub const INK_IN_PROJ_BF16_GEMV_ROWS: &str = "ink_in_proj_bf16_gemv_rows";
 pub const INK_IN_PROJ_BF16_NAX: &str = "ink_in_proj_bf16_nax";
 pub const INK_IN_PROJ_F8_GEMV: &str = "ink_in_proj_f8_gemv";
 pub const INK_IN_PROJ_F8_GEMV_ROWS: &str = "ink_in_proj_f8_gemv_rows";
+/// Ordinary calls above `PROJ_GEMV_ORDINARY_MAX` rows without the NAX GEMM (no metal4.0 library, or operands it refuses):
+/// the multi-row GEMV in 16-row chunks (`in_proj_rows`), every row bitwise its 1-row launch, so bitwise the GEMV forms the
+/// neighbouring row counts take (lane ink-prefill, brief 7: m > 16 had no kernel without metal4).
+pub const INK_IN_PROJ_BF16_GEMV_CHUNKS: &str = "ink_in_proj_bf16_gemv_chunks";
 
 /// inkling2_mix_nax.metal entry points (metal4.0 library), one per `gemm_nax::NAX_VARIANTS` tile, in that order.
 pub const NAX_SHADERS: [&str; 5] = [
@@ -40,6 +44,7 @@ pub const KERNELS: &[(&str, Op)] = &[
     (INK_IN_PROJ_BF16_NAX, Op::InkInProj),
     (INK_IN_PROJ_F8_GEMV, Op::InkInProj),
     (INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj),
+    (INK_IN_PROJ_BF16_GEMV_CHUNKS, Op::InkInProj),
     (CONV_MIX_BF16, Op::ConvMix),
     (CONV_MIX_BF16_ROWS, Op::ConvMix),
     (ATTN_RES_MIX_BF16, Op::AttnResMix),
@@ -85,6 +90,14 @@ pub fn register(k: KernelImpl) -> KernelImpl {
             .tol(BF16_TOL)
             .priority(-1)
             .rows_exact(),
+        // below the NAX GEMM (priority 5): taken only where it is not, e.g. without the metal4.0 library
+        INK_IN_PROJ_BF16_GEMV_CHUNKS => k
+            .acts(bf)
+            .weights(bf)
+            .when(|s| s.m > PROJ_GEMV_ORDINARY_MAX)
+            .exact(Exactness::Deterministic)
+            .tol(BF16_TOL)
+            .priority(0),
         // prefill (the `matmul_bf16_nax` rule: M >= 2, above the GEMV); a segment is bitwise `matmul_bf16_nax` on it
         INK_IN_PROJ_BF16_NAX => k
             .acts(bf)
@@ -307,8 +320,16 @@ fn dim(v: usize, what: &str) -> Result<u32> {
 
 impl MetalBackend {
     pub(crate) fn launch_inkmix(&self, kernel: &str, call: &OpCall) -> Result<()> {
+        crate::inkprefill::set_exact(call.exact_rows); // lane ink-prefill: row-exact calls keep the GEMV blend
         match (kernel, call.op) {
             (INK_IN_PROJ_BF16_GEMV | INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj) => self.launch_in_proj_gemv(call),
+            (INK_IN_PROJ_BF16_GEMV_CHUNKS, Op::InkInProj) => {
+                let (i, o) = (&call.inputs, &call.outputs);
+                if i[0].dtype != DType::Bf16 || i[1].dtype != DType::Bf16 || o.iter().any(|y| y.dtype != DType::Bf16) {
+                    return Err(Error::invalid("ink_in_proj_bf16_gemv_chunks: bf16 only"));
+                }
+                self.in_proj_rows(&i[0], &i[1], o, i[0].shape[0])
+            }
             (INK_IN_PROJ_BF16_NAX, Op::InkInProj) => self.launch_in_proj_nax(call),
             (INK_IN_PROJ_F8_GEMV | INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj) => self.launch_in_proj_f8(call),
             (CONV_MIX_BF16 | CONV_MIX_BF16_ROWS | ATTN_RES_MIX_BF16 | SCONV_RES_BF16 | LOOP_BLEND_BF16, _) => self.launch_mix(kernel, call),
@@ -956,7 +977,8 @@ impl MetalBackend {
                 TensorRef { shape: vec![n, if j < s { g } else { 0 }], ..hv }
             })
             .collect();
-        self.in_proj_rows(&xs, &wd, &hs, s)?;
+        // lane ink-prefill hook: prefill chunks take the InkInProj NAX GEMM for h (inkprefill.rs)
+        if crate::inkprefill::blend_nax(n) && self.has_metal4() { crate::inkprefill::trace("blend h nax"); self.launch_in_proj_nax(&OpCall::new(Op::InkInProj, vec![xs.clone(), wd.clone()], hs.clone(), OpAttrs::default()))?; } else { self.in_proj_rows(&xs, &wd, &hs, s)?; }
         let (h_b, gain_b, forget_b, y_b, part_b) = (
             self.bind(&h, bf, false, "h")?,
             self.bind(gain, bf, false, "gain")?,
@@ -964,6 +986,8 @@ impl MetalBackend {
             self.bind(&yv, f32t, true, "y")?,
             self.bind(&part, f32t, true, "partial")?,
         );
+        // lane ink-prefill hook: prefill chunks run the gate + norm on the accelerators (inkprefill.rs)
+        if crate::inkprefill::blend_gate_nax(n) && self.has_metal4() { crate::inkprefill::trace("blend gate nax"); return self.ink_blend_gate_nax(&dest_b, &msg_b, &h_b, &gain_b, &forget_b, &pair, &yv, norm, out, [d, n, s, sd, g, t0, out.shape[1], dest_rows.1, mt, dest_rows.0, t0], eps); }
         let mut pg = p;
         pg.sk = [gain_b.skip, forget_b.skip, 0, 0, 0, 0, 0, 0];
         let gate = match g / 8 {

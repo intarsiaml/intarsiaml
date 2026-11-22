@@ -31,5 +31,11 @@ lm_head = { tensor = "model.llm.unembed" }   # bf16, not tied; logits = 30 tanh(
 kv_dtype = "bf16"
 max_batch = 16                  # the cap of --max-batch (batched decode, lane ink-batch); without the flag one sequence at a time
 
+# 2048 on Metal (endor M5 Max; lane ink-prefill, coordinator brief 8 / 2026-11-22): serve prefill at 1k / 4k / 16k goes from
+# ~1300 / ~1430 / ~1470 tok/s (the 256 fallback) to ~2140 / ~2310 / ~2490, G2 / G3 pass at 2048
+# (docs/results/2026-11-21-inkling2-prefill.md, fleetq #11109). Unlisted backends keep 256.
+[tuning.metal]
+prefill_chunk = 2048
+
 [accuracy]
 chat_turns = "inkling2"       # one open token per role, <|end_message|> closes (crates/intarsia-cli/src/cmd/accuracy/turns.rs)

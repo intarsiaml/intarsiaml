@@ -302,6 +302,7 @@ pub fn metal4_shaders() -> Vec<&'static str> {
     v.extend(crate::mxfp4::NAXD_FORMS.iter().flat_map(|f| [f.0, f.1]));
     v.extend(crate::inkattn::metal4_shader_names());
     v.extend(crate::inkmoe::metal4_shaders());
+    v.extend(crate::inkprefill::metal4_shaders());
     v.extend(crate::inkmix::NAX_SHADERS);
     v
 }
@@ -454,6 +455,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkmix::INK_IN_PROJ_BF16_NAX, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_F8_GEMV, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj),
+    (crate::inkmix::INK_IN_PROJ_BF16_GEMV_CHUNKS, Op::InkInProj),
     (crate::inkmix::CONV_MIX_BF16, Op::ConvMix),
     (crate::inkmix::CONV_MIX_BF16_ROWS, Op::ConvMix),
     (crate::inkmix::ATTN_RES_MIX_BF16, Op::AttnResMix),

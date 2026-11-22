@@ -148,6 +148,43 @@ fn main() {
                 &[Policy::Auto]
             };
             let probes: &[u8] = if std::env::var("INKMOE_PROBE").is_ok() && tr <= 16 { &[0, 1, 2] } else { &[0] };
+            if tr > 16 {
+                // lane ink-prefill: the grouped prefill forms x timing probes (INKMOE_NAX2_FORMS, INKMOE_NAXSKIPS)
+                use intarsia_backend_metal::inkprefill::{set_form, set_skip};
+                let list = |k: &str, d: &str| std::env::var(k).unwrap_or_else(|_| d.to_string());
+                let forms = list("INKMOE_NAX2_FORMS", "0");
+                let skips = list("INKMOE_NAXSKIPS", "0");
+                let flops = (tr * K) as f64 * 2.0 * (H * 2 * I + I * H) as f64;
+                for form in forms.split(',') {
+                    for skip in skips.split(',') {
+                        set_form(Some(form));
+                        set_skip(skip.parse().unwrap());
+                        let run = |reps: usize| {
+                            for r in 0..reps {
+                                be.launch(kname, &calls[r % ncalls], 0).unwrap();
+                            }
+                            be.synchronize(0).unwrap();
+                        };
+                        run(ncalls.min(4));
+                        let mut v = Vec::new();
+                        for _ in 0..5 {
+                            let t0 = Instant::now();
+                            run(12);
+                            v.push(t0.elapsed().as_secs_f64() / 12.0 * 1e6);
+                        }
+                        v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        println!(
+                            "{fmt} T={tr:5} form {form:14} skip {skip} {:9.1} us/call (min {:8.1})  {:5.1} TFLOP/s of the full call",
+                            v[2],
+                            v[0],
+                            flops / (v[2] * 1e-6) / 1e12
+                        );
+                    }
+                }
+                set_form(None);
+                set_skip(0);
+                continue;
+            }
             for &pol in pols {
                 for &probe in probes {
                     set_policy(pol);
