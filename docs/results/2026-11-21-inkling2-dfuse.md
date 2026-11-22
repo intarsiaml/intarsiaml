@@ -141,6 +141,11 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
   need R's output (F's comparison with R's all-off self-goldens is optional and is skipped when the files are missing).
   So #11111 was released at 03:19 and the same script was requeued at the back as **#11190**, with the same flags and the
   same log (`.scratch/route/.scratch/jobR.out`) and an honest `--expect 35`.
+- 2026-11-22 ~05:00 (coordinator): #11190 never ran. fleetq hit a PermissionError at 04:25 because jobR.sh was mode 644. The
+  client died with the slot held and blocked the endor line for 35 min, until the coordinator released #11190 at ~05:01.
+  Requeue R as `sh <path>/jobR.sh` with the same flags, and check that it really runs. Done 05:01: jobR.sh is now
+  executable, R is requeued as **#11258** with the command `sh .../jobR.sh` and the same flags, and fleetq estimates a start
+  around 11:00.
 
 ## Probes (endor, before any code)
 
