@@ -48,6 +48,12 @@ Status: in progress. Branch `ink/mtp` (not pushed, not merged).
   is the routing, send verify T <= 16 through ink-batch's rows kernels (bitwise per row with the 1-row kernels). Merge ink/metal
   first (m-mix 47570539e, serve fix 761a1561b). (3) Default-on candidate k2 tau 0.6 greedy: flip as its own commit with an env
   off switch, only after #10874 shows the gain; sampled requests stay on the normal path.
+- 2026-11-21 (coordinator, SendMessage): flip choice k3 tau 0.8. Flip only after #10874's serve + localeval speed-plain shows
+  on >= off at every prompt length it runs. Greedy requests only (sampled stay plain); single sequence only (spec off when
+  ink/batch's batched decode has B > 1 live sequences); an env off switch named in docs/tuning.md with the numbers; its own
+  revertable commit; plan show / greedy md5 unchanged with the switch off. If localeval shows on < off at any length, no flip:
+  send the table. Also report: verify at T = 3 / 4 per-op profile, whether verify routing changed between #10806 and #10874, and
+  verify ms per cycle now; if verify still costs about +4 ms per extra row, that is the next lever before AttnDecode.
 
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 

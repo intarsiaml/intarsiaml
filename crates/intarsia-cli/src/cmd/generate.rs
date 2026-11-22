@@ -151,7 +151,24 @@ fn run_ids(args: &GenerateArgs, engine: &dyn intarsia_core::engine::Engine, f: &
         100.0 * t.spec_accepted as f64 / t.spec_proposed.max(1) as f64,
         (t.spec_steps + t.spec_accepted) as f64 / t.spec_steps.max(1) as f64,
     );
+    if args.op_table {
+        op_table(&t);
+    }
     Ok(())
+}
+
+/// `--op-table`: every op's estimated time over all its launches (the timed launches scaled), calls and share, to stderr.
+fn op_table(t: &intarsia_core::telemetry::TelemetrySnapshot) {
+    // time_ms covers the timed launches only; scale to all launches of the op
+    let est = |v: &intarsia_core::telemetry::OpStat| v.time_ms * v.calls as f64 / v.timed_calls.max(1) as f64;
+    let mut rows: Vec<_> = t.ops.iter().map(|(k, v)| (k.clone(), est(v), v)).collect();
+    rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+    let total: f64 = rows.iter().map(|r| r.1).sum();
+    eprintln!("op table (estimated ms over all launches; total {total:.1} ms):");
+    eprintln!("{:<24} {:>10} {:>7} {:>8} {:>7}", "op", "ms", "share%", "calls", "timed");
+    for (k, ms, v) in &rows {
+        eprintln!("{:<24} {:>10.2} {:>7.2} {:>8} {:>7}", k, ms, 100.0 * ms / total.max(1e-9), v.calls, v.timed_calls);
+    }
 }
 
 pub fn run(args: GenerateArgs) -> Result<()> {
@@ -304,16 +321,7 @@ pub fn run(args: GenerateArgs) -> Result<()> {
     }
     let t = engine.telemetry();
     if args.op_table {
-        // time_ms covers the timed launches only; scale to all launches of the op
-        let est = |v: &intarsia_core::telemetry::OpStat| v.time_ms * v.calls as f64 / v.timed_calls.max(1) as f64;
-        let mut rows: Vec<_> = t.ops.iter().map(|(k, v)| (k.clone(), est(v), v)).collect();
-        rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-        let total: f64 = rows.iter().map(|r| r.1).sum();
-        eprintln!("op table (estimated ms over all launches; total {total:.1} ms):");
-        eprintln!("{:<24} {:>10} {:>7} {:>8} {:>7}", "op", "ms", "share%", "calls", "timed");
-        for (k, ms, v) in &rows {
-            eprintln!("{:<24} {:>10.2} {:>7.2} {:>8} {:>7}", k, ms, 100.0 * ms / total.max(1e-9), v.calls, v.timed_calls);
-        }
+        op_table(&t);
     }
     let mut top: Vec<_> = t.ops.iter().collect();
     top.sort_by(|a, b| b.1.time_ms.partial_cmp(&a.1.time_ms).unwrap());

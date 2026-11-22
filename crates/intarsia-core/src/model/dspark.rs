@@ -28,7 +28,7 @@ use crate::state::DflashState;
 /// Host ring of `f_rnn` rows (by position): a draft reads the row of the last committed position, which a rollback keeps.
 pub(super) const FRNN_RING: usize = 64;
 /// Rows of a draft block (anchor + masks); the masks are the proposals.
-const BLOCK: usize = 8;
+pub(super) const BLOCK: usize = 8;
 /// Default confidence gate (`INTARSIA_DSPARK_TAU`): measured on the oracle, docs/results/2026-11-21-inkling2-mtp.md.
 const TAU_DEFAULT: f32 = 0.6;
 
@@ -435,6 +435,11 @@ impl Dspark {
         self.norm.clone()
     }
 
+    /// The local layers' sliding window (0: every layer sees all keys).
+    pub(super) fn window(&self) -> usize {
+        if self.layers.iter().any(|l| l.local) { self.c.window } else { 0 }
+    }
+
     pub(super) fn taps(&self) -> &[usize] {
         &self.c.taps
     }
@@ -533,20 +538,21 @@ impl Model {
     fn dspark_ingest_inner(&self, ds: &Dspark, d: &mut DflashState, src: &[Buffer], t: usize, profile: bool) -> Result<()> {
         let (h, act) = (self.dims.hidden, self.act);
         let (nkv, hd) = (ds.c.n_kv_heads, ds.c.head_dim);
-        if self.recorder.lock().unwrap().is_some() {
-            return Ok(());
-        }
+        // a plan dry run (`Model::dflash_dry_run`) records the device calls only: no taps, host mixes or uploads
+        let rec = self.recorder.lock().unwrap().is_some();
         let t0 = Instant::now();
-        self.backend.synchronize(self.stream)?;
+        if !rec {
+            self.backend.synchronize(self.stream)?;
+        }
         let t_sync = t0.elapsed();
-        let taps: Vec<Vec<f32>> = src.iter().map(|b| self.ds_download(b, act, 0, t * h)).collect::<Result<_>>()?;
+        let taps: Vec<Vec<f32>> = if rec { Vec::new() } else { src.iter().map(|b| self.ds_download(b, act, 0, t * h)).collect::<Result<_>>()? };
         let pos0 = d.kv.len;
         let row = |p: usize| -> Vec<&[f32]> { taps.iter().map(|x| &x[p * h..(p + 1) * h]).collect() };
         // f_rnn of the last FRNN_RING rows
         if d.frnn.len() != FRNN_RING * h {
             d.frnn = vec![0f32; FRNN_RING * h];
         }
-        for p in t.saturating_sub(FRNN_RING)..t {
+        for p in if rec { 0..0 } else { t.saturating_sub(FRNN_RING)..t } {
             let slot = (pos0 + p) % FRNN_RING;
             let mut out = vec![0f32; h];
             ds.mix(ds.c.n_layers, &row(p), &ds.frnn_norm, &mut out);
@@ -557,10 +563,12 @@ impl Model {
         let v = self.view(&ds.bufs.iv, act, &[t, nkv, hd]);
         let mut mixed = vec![0f32; t * h];
         for (li, l) in ds.layers.iter().enumerate() {
-            for p in 0..t {
-                ds.mix(li, &row(p), &l.dflare, &mut mixed[p * h..(p + 1) * h]);
+            if !rec {
+                for p in 0..t {
+                    ds.mix(li, &row(p), &l.dflare, &mut mixed[p * h..(p + 1) * h]);
+                }
+                self.ds_upload_bf16(&ds.bufs.cx[li], &mixed)?;
             }
-            self.ds_upload_bf16(&ds.bufs.cx[li], &mixed)?;
             let cx = self.view(&ds.bufs.cx[li], act, &[t, h]);
             let slot = Self::attn_slot_at(&d.kv, li)?;
             self.proj(&cx, &l.wk_ctx, &k0.reshaped(&[t, nkv * hd]), profile)?;
@@ -569,7 +577,7 @@ impl Model {
             self.d2_append(slot, &k0, &v, pos0, nkv, hd, profile)?;
         }
         d.kv.advance_rows(t);
-        if dspark_profile() {
+        if dspark_profile() && !rec {
             self.backend.synchronize(self.stream)?;
             eprintln!("dspark: ingest {t} rows ms: target sync {:.2} ingest {:.2}", ms(t_sync), ms(t0.elapsed() - t_sync));
         }
@@ -594,16 +602,19 @@ impl Model {
         let d = st.dflash.as_ref().ok_or_else(|| Error::invalid("sequence without DFlash state"))?;
         let kmax = k.min(BLOCK - 1);
         let p0 = d.kv.len;
-        if kmax == 0 || p0 == 0 || p0 + BLOCK > d.kv.cap || self.recorder.lock().unwrap().is_some() {
+        if kmax == 0 || p0 == 0 || p0 + BLOCK > d.kv.cap {
             return Ok(Vec::new());
         }
+        // a plan dry run (`Model::dflash_dry_run`) records the block pass and the head's device calls, then stops: no uploads,
+        // downloads or Markov steps
+        let rec = self.recorder.lock().unwrap().is_some();
         if next as usize >= self.dims.vocab {
             return Err(Error::BadRequest(format!("token id {next} >= vocab {}", self.dims.vocab)));
         }
         let im = self.ink.as_ref().ok_or_else(|| Error::invalid("the DSpark draft on a model other than Inkling-2"))?;
         let head = self.lm_head.as_ref().ok_or_else(|| Error::invalid("the DSpark draft needs the model's lm_head"))?;
         let profile = false;
-        let prof = dspark_profile();
+        let prof = dspark_profile() && !rec;
         let t0 = Instant::now();
         if prof {
             self.backend.synchronize(self.stream)?;
@@ -624,12 +635,16 @@ impl Model {
         let eps_t = OpAttrs { eps: self.dims.rms_eps, ..OpAttrs::default() };
         let eps_d = OpAttrs { eps: ds.c.eps, w_offset: 0.0, ..OpAttrs::default() };
         // block rows: the anchor's normed target embedding, then the masks
-        self.backend.upload(&self.ws.ids, 0, &(next as i32).to_le_bytes(), self.stream)?;
+        if !rec {
+            self.backend.upload(&self.ws.ids, 0, &(next as i32).to_le_bytes(), self.stream)?;
+        }
         let emb = self.view(&bf.emb, act, &[1, h]);
         self.exec(Op::Embedding, vec![self.view(&self.ws.ids, DType::I32, &[1]), self.embed.clone()], vec![emb.clone()], OpAttrs::default(), profile)?;
         self.exec(Op::RmsNorm, vec![emb, im.embed_norm.clone()], vec![x.rows(0, 1)], eps_t, profile)?;
         let mrows = x.rows(1, t - 1);
-        self.backend.copy(&mrows.buf, mrows.offset, &ds.masks.buf, ds.masks.offset, ds.masks.nbytes(), self.stream)?;
+        if !rec {
+            self.backend.copy(&mrows.buf, mrows.offset, &ds.masks.buf, ds.masks.offset, ds.masks.nbytes(), self.stream)?;
+        }
         let last = p0 + t - 1;
         for (li, l) in ds.layers.iter().enumerate() {
             let slot = Self::attn_slot_at(&st.dflash.as_ref().unwrap().kv, li)?;
@@ -684,12 +699,23 @@ impl Model {
         self.ds_generic(true, || self.exec(Op::Logits, vec![hs.clone(), ds.w_h.clone()], vec![hw.clone()], OpAttrs::default(), profile))?;
         let dstate = st.dflash.as_ref().unwrap();
         let slot = (p0 - 1) % FRNN_RING;
-        if dstate.frnn.len() != FRNN_RING * h {
-            return Ok(Vec::new());
+        if !rec {
+            if dstate.frnn.len() != FRNN_RING * h {
+                return Ok(Vec::new());
+            }
+            self.ds_upload_bf16(&bf.frnn, &dstate.frnn[slot * h..(slot + 1) * h])?;
         }
-        self.ds_upload_bf16(&bf.frnn, &dstate.frnn[slot * h..(slot + 1) * h])?;
         let fwv = self.view(&bf.fw, DType::F32, &[1, 3 * r]);
         self.ds_generic(true, || self.exec(Op::Logits, vec![self.view(&bf.frnn, act, &[1, h]), ds.w_f.clone()], vec![fwv.clone()], OpAttrs::default(), profile))?;
+        if rec {
+            if ds.cand == 0 {
+                // the exact head's per-step fold GEMV
+                let latent_t = self.view(&bf.latent, act, &[1, r]);
+                let fold_t = self.view(&bf.fold, act, &[1, vocab]);
+                self.proj(&latent_t, &ds.fold_w, &fold_t, profile)?;
+            }
+            return Ok(Vec::new());
+        }
         self.backend.synchronize(self.stream)?;
         let t_head = t0.elapsed();
         let hw = self.ds_download(&bf.hw, DType::F32, 0, kmax * 3 * r)?;

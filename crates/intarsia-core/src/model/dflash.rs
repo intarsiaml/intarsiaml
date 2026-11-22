@@ -517,6 +517,52 @@ impl Model {
         r
     }
 
+    /// The DSpark draft's part of [`Model::dflash_dry_run`]: its device calls (its host steps are skipped while recording), so
+    /// plan admission tests its kernels and `serve` (admitted kernels only) can select them. Without this the first request
+    /// failed with `no kernel for qk_norm ... m=256 ... [admitted kernels only]`. Ingests of every row count up to 16 (a verify's
+    /// accepted rows, short flushes) and the powers of two up to the store (flushes after prefill); the block pass and head at
+    /// every draft length, at the start of the context and past the local layers' window.
+    fn dspark_dry_run(&self, head: &DflashHead, ds: &super::dspark::Dspark) -> Result<()> {
+        let specs = ds.slot_specs();
+        let cap = self.plan.kv_cap_tokens;
+        let block = super::dspark::BLOCK;
+        let state = |len: usize| {
+            let kv = crate::plan::phantom_state(&specs, cap, len);
+            DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false, frnn: Vec::new() }
+        };
+        let exact = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
+        let extra = self.recorder.lock().unwrap().as_ref().is_some_and(|r| r.extra);
+        if let Some(r) = self.recorder.lock().unwrap().as_mut() {
+            r.extra = true;
+        }
+        let max = self.dflash_pend_max();
+        let r = (|| -> Result<()> {
+            let mut ns: Vec<usize> = (1..=16).chain([32, 64, 128, 256, 512]).chain([max]).filter(|&n| n <= max).collect();
+            ns.dedup();
+            for n in ns {
+                self.dspark_ingest(ds, &mut state(0), &head.feat, n, false)?;
+            }
+            let window = ds.window();
+            let mut lens = vec![1];
+            if window > 0 && cap >= window + 2 * block {
+                lens.push(window + block);
+            }
+            for len in lens {
+                for k in 1..block {
+                    let mut st = crate::plan::phantom_state(&[], cap, len);
+                    st.dflash = Some(Box::new(state(len)));
+                    self.dspark_draft(ds, &mut st, 0, k)?;
+                }
+            }
+            Ok(())
+        })();
+        self.exact_rows.store(exact, std::sync::atomic::Ordering::Relaxed);
+        if let Some(rc) = self.recorder.lock().unwrap().as_mut() {
+            rc.extra = extra;
+        }
+        r
+    }
+
     /// Rows the store holds: a flush is one ingest pass, which the workspace limits to `max_tokens` rows.
     fn dflash_pend_max(&self) -> usize {
         PEND_MAX.min(self.ws.max_tokens)
@@ -1058,14 +1104,14 @@ impl Model {
     /// admission cover them. Nothing without the drafter.
     pub(super) fn dflash_dry_run(&self) -> Result<()> {
         let Some(head) = &self.dflash else { return Ok(()) };
-        if head.dspark.is_some() {
-            return Ok(()); // the DSpark draft downloads to the host between its steps: it never runs inside a recorded pass
-        }
         if self.recorder.lock().unwrap().is_none() {
             return Err(Error::invalid("dflash_dry_run outside a dry run"));
         }
         if self.verify_tok.is_none() {
             return Ok(()); // verify passes not enabled: the draft cannot run either
+        }
+        if let Some(ds) = &head.dspark {
+            return self.dspark_dry_run(head, ds);
         }
         let specs = self.dflash_slot_specs(head);
         let kv = crate::plan::phantom_state(&specs, self.plan.kv_cap_tokens, 0);

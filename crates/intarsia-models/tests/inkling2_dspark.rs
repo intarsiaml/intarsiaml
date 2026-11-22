@@ -24,6 +24,7 @@ fn dirs() -> Option<(PathBuf, PathBuf)> {
 
 fn backend() -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
+        #[cfg(target_os = "macos")]
         Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
         Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or metal"),
@@ -31,6 +32,10 @@ fn backend() -> Arc<dyn intarsia_core::Backend> {
 }
 
 fn model(draft: bool, k: usize) -> (Model, Arc<Telemetry>) {
+    model_p(draft, k, &Default::default())
+}
+
+fn model_p(draft: bool, k: usize, plan: &intarsia_core::plan::PlanOptions) -> (Model, Arc<Telemetry>) {
     let (tdir, ddir) = dirs().unwrap();
     let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
     let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(tdir.join("config.json")).unwrap()).unwrap();
@@ -42,7 +47,8 @@ fn model(draft: bool, k: usize) -> (Model, Arc<Telemetry>) {
     let mut m = Model::load(backend(), &recipe, &dims, &src, &opts, tel.clone()).unwrap();
     if draft {
         m.enable_verify(k + 1).unwrap();
-        m.configure_plan(&Default::default(), None).unwrap();
+        let oracle = intarsia_backend_cpu::CpuBackend::arc();
+        m.configure_plan(plan, Some(&*oracle)).unwrap();
     }
     (m, tel)
 }
@@ -115,6 +121,30 @@ fn dspark_greedy_ids_equal_spec_off() {
         assert!(t.spec_proposed > 0, "k {k}: the draft never proposed anything (vacuous test)");
         eprintln!("k {k}: proposed {} accepted {}", t.spec_proposed, t.spec_accepted);
     }
+}
+
+/// `serve`'s plan settings (admission on plan shapes, admitted kernels only): the plan dry run records the draft's calls, so its
+/// kernels are admitted and a request runs. Before, `serve` failed on the first request with `no kernel for qk_norm ...
+/// [admitted kernels only]` (the dry run skipped the draft). Prompts past the window and longer than a prefill chunk.
+#[test]
+fn dspark_runs_with_admitted_kernels_only() {
+    if dirs().is_none() {
+        eprintln!("skipped: no tiny fixtures");
+        return;
+    }
+    gate_off();
+    let plan = intarsia_core::plan::PlanOptions { admit: true, require_admitted: true, no_cache: true, ..Default::default() };
+    let (off, _) = engine(None);
+    let (m, tel) = model_p(true, 3, &plan);
+    assert!(m.registry.require_admitted);
+    let spec = SpecConfig { mode: SpecMode::Dflash, k: 3, k_min: None };
+    let on = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-dspark".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
+        .unwrap();
+    let long: Vec<u32> = (0..40u32).map(|i| (i * 37 + 5) % 250).collect();
+    for p in [PROMPTS[0], PROMPTS[2], &long[..]] {
+        assert_eq!(run(&off, p, 40), run(&on, p, 40), "prompt {p:?}");
+    }
+    assert!(tel.snapshot().spec_proposed > 0, "the draft never proposed anything (vacuous test)");
 }
 
 /// Scripted proposals that follow the reference continuation for a varying number of tokens, then go wrong: every accepted length
