@@ -1093,7 +1093,33 @@ impl Model {
             // the rows this rank's head covers
             let (n, axis) = if vocab_par { (vh, Some(ShardAxis::Rows)) } else { (dims.vocab, None) };
             if let Some(ik) = &dims.ink {
-                // Inkling-2: the first `unpadded_vocab_size` rows of the padded bf16 unembed (a view, a16)
+                // Inkling-2: the first `unpadded_vocab_size` rows of the padded bf16 unembed (a view, a16); with a head quant
+                // (opt-in, lane ink-fp8) those rows quantised, so the padded rows never set the fp8 scale
+                if let Some(kind) = head_quant {
+                    let nm = resolve(src, &lh.tensor)?;
+                    let i = src.info(&nm).ok_or_else(|| Error::model(format!("lm_head tensor '{nm}' missing")))?;
+                    if i.shape != [ik.vocab_padded, dims.hidden] || !matches!(i.dtype, DType::Bf16 | DType::F16 | DType::F32) {
+                        return Err(Error::model(format!("{}: inkling2 unembed is {} {:?}", crate::quant::head::ENV, i.dtype, i.shape)));
+                    }
+                    let t0 = std::time::Instant::now();
+                    let all = &src.bytes(&nm)?[..dims.vocab * dims.hidden * i.dtype.size_bytes()];
+                    let q = crate::quant::head::load_rows(kind, b, i.dtype, all, dims.vocab, 0, dims.vocab, dims.hidden)?;
+                    weights_bytes.set(weights_bytes.get() + q.weight_bytes() as u64);
+                    let note = format!(
+                        "lm_head quantised to {} ({} of {} unembed rows x {}, {:.2} GB; {} = {}, {:.1} s)",
+                        kind.name(),
+                        dims.vocab,
+                        ik.vocab_padded,
+                        dims.hidden,
+                        q.weight_bytes() as f64 / 1e9,
+                        crate::quant::head::ENV,
+                        kind.name(),
+                        t0.elapsed().as_secs_f64()
+                    );
+                    eprintln!("{note}");
+                    *head_quant_note.borrow_mut() = Some(note);
+                    return Ok(Some(q));
+                }
                 let t = load(&lh.tensor, 0, Some(&[ik.vocab_padded, dims.hidden]))?;
                 return Ok(Some(dense(t.rows(0, dims.vocab), dims.vocab)));
             }
@@ -1585,7 +1611,15 @@ impl Model {
                 let names = inkling2::InkNames { layer: field("prefix")?, root: field("root")? };
                 let mut nbytes = 0u64;
                 let t0 = Instant::now();
-                let m = inkling2::load(b, src, dims, &names, act, mt, &mut slot_specs, &mut nbytes)?;
+                // opt-in quantised attention projections (lane ink-fp8): the variable wins over the recipe
+                let attn_quant = {
+                    let env = std::env::var(inkling2::ATTN_QUANT_ENV).ok();
+                    crate::quant::head::HeadQuant::resolve(env.as_deref(), recipe.ink_attn_quant(backend.name()))?
+                };
+                if let Some(k) = attn_quant {
+                    eprintln!("inkling2: attention projections quantised to {} at load ({} = {}; changes outputs)", k.name(), inkling2::ATTN_QUANT_ENV, k.name());
+                }
+                let m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, &mut slot_specs, &mut nbytes)?;
                 weights_bytes.set(weights_bytes.get() + nbytes);
                 eprintln!("inkling2: {} layers, {} visits, {} state slots, loaded in {:.1} s", m.layers.len(), m.visits.len(), slot_specs.len(), t0.elapsed().as_secs_f64());
                 layers = (0..dims.n_layers).map(|li| vec![Block::Ink(li)]).collect();
