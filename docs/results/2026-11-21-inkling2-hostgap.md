@@ -501,6 +501,46 @@ Then (the plan as queued):
 
 The ink/metal merge waited for #10943 so that b4 stayed the code the gates measured. It is cleared now (the rule is met).
 
+## Item 7: the host sampler's remaining share (pre-wake, QoS, value-key sort; ink/hostgap fb38fe4a5, all opt-in for now)
+
+Target: the 1.33 ms soft-cap + sampler share at t1.0 (#10943). The host sampler stays the default for sampled rows.
+
+**What was built** (three switches, all default off until the endor gate; each is bitwise by construction):
+1. **Pre-wake** (`INTARSIA_HOST_PREWAKE=1`, `par::prewake`). Before a sampled decode step blocks on the GPU, `Seq::advance` calls
+   `par::prewake()`. The parked workers sleep (a condvar timed wait, which a task list still interrupts) until 0.7 ms before
+   the expected end of the wait, then spin until the soft-cap's task list arrives or until 1.5 ms past the expected end, then
+   park. The expected wait is the measured `prewake` -> first `run` interval (mean of the last two). Spin cost: at most about
+   2.2 ms of 7 cores per token, about 0.7 ms when the estimate holds.
+2. **Worker QoS** (`INTARSIA_HOST_QOS=1`): the pool's workers take the user-interactive QoS class (macOS performance cores),
+   which is also the class whose timers get the least leeway. This matters because the pre-wake depends on a ~14 ms timed
+   wait waking within 0.7 ms.
+3. **Value-key sort** (`INTARSIA_SAMPLER_VSORT=1`, `sampler::sample_row_vsort`). The radix sort was 0.66 of the 0.81 ms
+   sampler on endor. The draw needs only the values in sorted order: equal values are equal softmax terms, so their order
+   cannot change the f64 total, the top-p cut or the walk. So the sort runs on the 32-bit `order_key`s (half the bytes of
+   `key << 32 | index`). The softmax terms are read in sorted order, not gathered. The divisions by the total and by the
+   top-p sum run for the walked prefix only (the same operations on the same values). The walk's stop position is then
+   mapped back to its index: the r-th smallest index holding that value, where r counts the equal values before the
+   position (one counting pass on the pool). That is exactly the index the stable pair sort has at that position.
+
+**Not taken:**
+- **Soft-cap into the GPU unembed epilogue.** It would have to be bitwise the host soft-cap, which is libm `tanhf`. Metal's
+  `precise::tanh` is a different implementation, and the lane did not check every f32 against it, so whether they agree is
+  unverified, not known false. It is also a kernel change, outside this lane.
+- **Vectorizing the soft-cap.** It already runs on the pool (0.12 ms warm on endor). A vector `tanh` replaces libm `tanhf`
+  and is not bitwise. The in-loop excess (0.27 vs 0.12 ms) is the pool's cold start, which the pre-wake targets.
+
+**Checks so far:**
+| check | where | result |
+|---|---|---|
+| core lib with defaults, and with all three switches on at 8 threads: `threaded_sampler_matches_the_one_thread_path` now also asserts the value-key sort == the one-thread token for every row, temperature, top-k / top-p, chunk count and draw (bf16 rows with many ties, signed zeros, -inf, all-equal rows, NaN rows); `par::tests::prewake_keeps_every_task_once_and_measures_the_wait` | spark2 #11081 (fb38fe4a5) | 239 passed, 0 failed, both runs |
+| macOS: `cargo check -p intarsia-core --tests` (the QoS call is macOS-only), the par + sampler tests with all three switches on (QoS call live), Metal crate and cli `--features metal` compile | bespin #11082 / #11083 | pass (11 par / sampler tests) |
+| microbench, spark2 (`--load cpu`, shared): value sort vs pair sort on the pool | spark2 #11081 | 0.67-0.74 vs 0.91-0.97 ms (-25 to -30 %), bf16 and f32 rows |
+| microbench, the row work (copy + soft-cap + sample, T 1) after a 15 ms idle gap, without / with pre-wake | spark2 #11081 | 1.53 / 1.14 ms, then 1.65 / 1.76 ms: spark2's shared CPU is too noisy to tell; endor decides |
+| endor, first in #11037 (folded in by the coordinator): one binary from `.scratch/item7`, arms cumulative off / P / PQ / PQV at t1.0 and t0.7, short and 5k, 5 interleaved reps after a warm-up; md5 identical across all arms on every run, plus off vs PQV at top-p 0.95 (t1.0 / t0.7, seeds 7 / 11, short, and 5k at t1.0), seed 11 plain, top-k 20; host profile t1.0 off vs PQV; the microbench with QoS 0 / 1 and VSORT 0 / 1 as separate processes | endor #11037, section 7 (`.scratch/i7/summary.txt`) | pending |
+
+Merge rule (coordinator): at least base and bitwise identical, per switch. Each default-on decision gets its own evidence
+from the cumulative arms.
+
 ## Item 5: the speculative draft cycle without a host round trip (proposal, not built; dropped)
 
 **Dropped 2026-11-21 (coordinator).** ink-mtp's per-cycle split at k3, synced:
