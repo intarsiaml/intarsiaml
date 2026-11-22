@@ -73,3 +73,12 @@ Verify cost known so far: about +2.9 ms per extra row (#10874 totals), 3.16 ms i
   to be the rule mlx-serve runs.
 - `INTARSIA_DSPARK_CAND=0` (the exact head) already computes p1 over the full vocab, but it runs the fold GEMV and downloads two
   vocab rows every step, so its tok/s carries a slower drafter.
+
+## L3 ruling (coordinator, 2026-11-22 ~16:30)
+
+1. Run the probe tonight (default load, about 10 min, main's binary); it need not wait for #11621.
+2. From the probe traces, simulate offline the tokens per round and the cost-adjusted speedup of each rule under both p1
+   definitions, with the measured r (+2.9-3.2 ms per row).
+3. Build (ii), the device full-vocab softmax behind a measurement-only env, only if the simulation shows a full-vocab cut beating
+   the best rule on our p1 by >= 5% at some length; otherwise skip it and write down why.
+4. The quiet job runs CAND=0 arms only for the simulation's best k, not the full grid; report measured and cost-adjusted numbers.
