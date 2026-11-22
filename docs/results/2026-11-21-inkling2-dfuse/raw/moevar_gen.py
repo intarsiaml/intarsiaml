@@ -46,25 +46,25 @@ constant constexpr uint INK_LG = 8;   // lanes per gate+up row
 constant constexpr uint INK_LD = 4;   // lanes per down row
 constant constexpr uint INK_NB = 1;   // chunks a lane loads ahead per step (3 measured slower: 83 -> 91 us at one NVFP4 row)"""
 assert base.count(consts) == 1
-VARS = {  # name: (SG, LG, NB, LD, NBD[, fused-down threads])
-    "ship": (4, 8, 1, 4, 1),
-    "gu_nb2": (4, 8, 2, 4, 1),
-    "gu_lg16": (4, 16, 1, 4, 1),
-    "gu_lg16_nb2": (4, 16, 2, 4, 1),
-    "gu_sg8": (8, 8, 1, 4, 1),
-    "gu_lg4": (4, 4, 1, 4, 1),
-    "dn_nb2": (4, 8, 1, 4, 2),
-    "dn_ld8": (4, 8, 1, 8, 1),
-    "dn_ld8_nb2": (4, 8, 1, 8, 2),
-    "dn_ld16": (4, 8, 1, 16, 1),
-    "dn_thr256": (4, 8, 1, 4, 1, 256),
-    "dn_ld8_thr256": (4, 8, 1, 8, 1, 256),
+DEF = dict(SG=4, LG=8, NB=1, LD=4, NBD=1, XR=4, THR=0)
+VARS = {
+    "ship": {}, "gu_nb2": dict(NB=2), "gu_lg16": dict(LG=16), "gu_lg16_nb2": dict(LG=16, NB=2), "gu_sg8": dict(SG=8),
+    "gu_lg4": dict(LG=4), "dn_nb2": dict(NBD=2), "dn_ld8": dict(LD=8), "dn_ld8_nb2": dict(LD=8, NBD=2),
+    "dn_ld16": dict(LD=16), "dn_thr256": dict(THR=256), "dn_ld8_thr256": dict(LD=8, THR=256),
+    # N2: one pair per union leader (T = 1 calls: bitwise), down chunks ahead 3 / 4, combinations
+    "gu_xr1": dict(XR=1), "gu_xr1_nb2": dict(XR=1, NB=2), "gu_xr1_lg16": dict(XR=1, LG=16), "dn_nb3": dict(NBD=3),
+    "dn_nb4": dict(NBD=4), "xr1_dn_nb2": dict(XR=1, NBD=2), "xr1_dn_nb3": dict(XR=1, NBD=3),
+    "xr1_dn_ld8_nb2": dict(XR=1, LD=8, NBD=2),
 }
-for name, v in VARS.items():
-    sg, lg, nb, ld, nbd = v[:5]
-    thr = f" THR {v[5]}" if len(v) > 5 else ""
-    c = (f"constant constexpr uint INK_SG = {sg}u;\nconstant constexpr uint INK_LG = {lg}u;\n"
-         f"constant constexpr uint INK_LD = {ld}u;\nconstant constexpr uint INK_NB = {nb}u;\n"
-         f"constant constexpr uint INK_NBD = {nbd}u;\nconstant constexpr uint INK_RD = 32u / INK_LD;")
-    open(os.path.join(od, f"{name}.metal"), "w").write(f"// variant {name}: SG {sg} LG {lg} NB {nb} LD {ld} NBD {nbd}{thr}\n" + base.replace(consts, c))
-    print(name, sg, lg, nb, ld, nbd, thr)
+xr_line = "constant constexpr uint INK_XR = 4;  // pairs a union leader serves"
+assert base.count(xr_line) == 1
+for name, o in VARS.items():
+    v = dict(DEF, **o)
+    c = (f"constant constexpr uint INK_SG = {v['SG']}u;\nconstant constexpr uint INK_LG = {v['LG']}u;\n"
+         f"constant constexpr uint INK_LD = {v['LD']}u;\nconstant constexpr uint INK_NB = {v['NB']}u;\n"
+         f"constant constexpr uint INK_NBD = {v['NBD']}u;\nconstant constexpr uint INK_RD = 32u / INK_LD;")
+    thr = f" THR {v['THR']}" if v["THR"] else ""
+    src = base.replace(consts, c).replace(xr_line, f"constant constexpr uint INK_XR = {v['XR']}u;")
+    hdr = f"// variant {name}: SG {v['SG']} LG {v['LG']} NB {v['NB']} LD {v['LD']} NBD {v['NBD']} XR {v['XR']}{thr}\n"
+    open(os.path.join(od, f"{name}.metal"), "w").write(hdr + src)
+    print(name, v)

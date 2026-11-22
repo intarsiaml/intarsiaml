@@ -1130,3 +1130,43 @@ which predate the NE fix.
   Random weights for the numerics check, and each variant's maxTotalThreadsPerThreadgroup as an occupancy hint. If the
   best measured combination stays under 0.3 ms per token, item 1 stops and item 2 starts.
 
+### Job N2 (#11382, 07:49-07:51, snap8 914738f23 and job N's binary; measurement only; raw/N2_*)
+
+- **Box:** median span of reps 1-3 is 13.275 ms; the re-check after the variants read 13.264. Greedy md5 is d03580fb... in
+  all 5 reps.
+- **Weights are random this time** (finite e4m3 scales; all 9216 outputs nonzero, no inf / nan). Every variant reads
+  0 diff against the shipped output over 4 visits. For the variants that keep each lane's chunk order (one pair per
+  leader, chunks ahead) that holds by construction. For the lane-count variants it is still only probable, because the
+  bf16 roundings of g, u and y hide most f32 order changes.
+- **Visit us, two passes in opposite orders.** Shipped: 79.72 / 80.16 (pass 1), 80.84 / 80.81 (pass 2).
+
+  | Variant | Pass 1 | Pass 2 | Mean gain vs the shipped runs of the same pass (us) | ms / token (x 44) |
+  |---|---|---|---|---|
+  | **xr1_dn_nb3**: gate+up one pair per leader (INK_XR 1) + down 3 chunks ahead | 73.19 | 73.23 | **7.17** | **0.316** |
+  | xr1_dn_nb2 | 72.73 | 74.93 | 6.55 | 0.288 |
+  | xr1_dn_ld8_nb2 | 75.11 | 75.09 | 5.07 | 0.223 |
+  | dn_nb3 | 75.89 | 76.91 | 4.04 | 0.178 |
+  | dn_nb2 | 76.14 | 76.30 | 4.16 | 0.183 |
+  | gu_xr1_lg16 | 78.00 | 77.81 | 2.32 | 0.102 |
+  | gu_xr1 | 79.03 | 77.88 | 2.00 | 0.088 |
+  | dn_nb4 | 80.09 | 81.25 | -0.25 | |
+  | gu_nb2 | 86.07 | 86.56 | -6.0 | |
+
+  Down alone: 26.65 / 26.44 us at 3 chunks ahead against 32.57 / 31.67 shipped. Gate+up alone with one pair per leader:
+  45.8-47.4 against 47.9.
+- **Reading.** The two levers add up.
+  - **Gate+up:** one pair per leader is the only change that helps it, by about 2 us. At T = 1 every pair leads a run of
+    one, so the per-pair math is the shipped kernel's; the change only drops the 4-slot arrays and loops (registers and
+    instructions).
+  - **Down:** more chunks in flight per lane shortens its latency-bound chain; 3 is the best, and 4 is worse again.
+  - **Combined:** xr1_dn_nb3 measures 0.316 ms per token in the microbench, at the bar. It is bitwise by construction (no
+    change to any pair's chunk order, fma chain or reduction).
+- **Proposed build, opt-in, T = 1 only:**
+  1. A T = 1 gate+up instance with one pair per leader (`ink_moe_gu_nv_*` templated on the pairs per leader).
+  2. The fused down `ink_moe_dn_f_nv_*` with 3 chunks ahead; it serves only T = 1 calls under the Auto policy.
+  3. The T > 1 paths (dn_u, union gate+up with 4 pairs per leader, MXFP8) stay unchanged, which keeps the batch lane's
+     paths and rows-exact intact: a T = R call still runs the shipped kernels, and its pairs' bits equal the T = 1
+     calls'.
+  4. One env switch to revert. Gates as in the brief: the model step ABAB, 3 alternating reps, is the real measure of the
+     gain.
+

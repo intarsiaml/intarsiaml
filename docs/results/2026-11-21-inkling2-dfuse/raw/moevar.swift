@@ -17,10 +17,27 @@ let E = 128, K = 8, H = 2304, I = 1152, LAYERS = 5, calls = 240
 let sz = [E * 2 * I * H / 2, E * 2 * I * H / 16, E * H * I / 2, E * H * I / 16]
 let layerBytes = sz.reduce(0, +)
 let wbuf = dev.makeBuffer(length: LAYERS * layerBytes, options: .storageModePrivate)!
-do {  // e2m1 0x2 nibbles (1.0), e4m3 0x22 scales (small, finite)
-    let cb = q.makeCommandBuffer()!, b = cb.makeBlitCommandEncoder()!
-    b.fill(buffer: wbuf, range: 0..<wbuf.length, value: 0x22)
-    b.endEncoding(); cb.commit(); cb.waitUntilCompleted()
+do {  // random e2m1 codes (no NaN codes), random finite e4m3 scales 0x20..0x2f (2^-3 .. 2^-2 ish): order changes show
+    let fsrc = """
+    #include <metal_stdlib>
+    using namespace metal;
+    kernel void fillr(device uint* w [[buffer(0)]], constant uint2& pm [[buffer(1)]], uint i [[thread_position_in_grid]]) {
+        if (i >= pm.x) return;
+        uint v = (i + pm.y) * 0x9e3779b1u; v ^= v >> 15; v *= 0x85ebca77u; v ^= v >> 13; v *= 0xc2b2ae3du; v ^= v >> 16;
+        w[i] = pm.y & 1u ? ((v & 0x0f0f0f0fu) | 0x20202020u) : v;
+    }
+    """
+    let fl = try! dev.makeLibrary(source: fsrc, options: nil)
+    let fp = try! dev.makeComputePipelineState(function: fl.makeFunction(name: "fillr")!)
+    let cb = q.makeCommandBuffer()!, e = cb.makeComputeCommandEncoder()!
+    e.setComputePipelineState(fp)
+    for l in 0..<LAYERS { for r in 0..<4 {
+        let n = sz[r] / 4
+        var pm: (UInt32, UInt32) = (UInt32(n), UInt32(2 * (l * 4 + r) + (r % 2)))  // odd y = a scale region
+        e.setBuffer(wbuf, offset: l * layerBytes + sz[0..<r].reduce(0, +), index: 0); e.setBytes(&pm, length: 8, index: 1)
+        e.dispatchThreads(MTLSize(width: n, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: 256, height: 1, depth: 1))
+    } }
+    e.endEncoding(); cb.commit(); cb.waitUntilCompleted()
 }
 func off(_ l: Int, _ i: Int) -> Int { l * layerBytes + sz[0..<i].reduce(0, +) }
 var gsc = [Float](repeating: 0.05, count: E * 3)
@@ -51,8 +68,8 @@ func run(_ body: (MTLComputeCommandEncoder) -> Void) -> Double {
 func median(_ f: () -> Double) -> Double { var v: [Double] = []; for _ in 0..<7 { v.append(f()) }; v.sort(); return v[3] }
 let visitBytes = Double(K * layerBytes / E)
 var shipOut: [UInt16]? = nil
-print("| variant | threads gu / dn | TGs gu / dn | visit us | GB/s | gate+up us | down us | max abs vs shipped |")
-print("|---|---|---|---:|---:|---:|---:|---|")
+print("| variant | threads gu / dn | TGs gu / dn | max threads/TG gu / dn | visit us | GB/s | gate+up us | down us | max abs vs shipped (of max |out|) |")
+print("|---|---|---|---|---:|---:|---:|---:|---|")
 for name in names {
     let path = "\(vdir)/\(name).metal"
     let head = (try! String(contentsOfFile: path, encoding: .utf8)).split(separator: "\n", maxSplits: 1)[0]
@@ -88,14 +105,19 @@ for name in names {
     let o = Array(UnsafeBufferPointer(start: ob.contents().bindMemory(to: UInt16.self, capacity: 4 * H), count: 4 * H))
     var diff = "-"
     if let s = shipOut {
-        var m: Float = 0
-        for i in 0..<(4 * H) { m = max(m, abs(Float(bitPattern: UInt32(o[i]) << 16) - Float(bitPattern: UInt32(s[i]) << 16))) }
-        diff = m == 0 ? "0 (bitwise)" : String(format: "%.3g", m)
-    } else { shipOut = o; diff = "reference" }
+        var m: Float = 0, mo: Float = 0
+        for i in 0..<(4 * H) { m = max(m, abs(Float(bitPattern: UInt32(o[i]) << 16) - Float(bitPattern: UInt32(s[i]) << 16)))
+                               mo = max(mo, abs(Float(bitPattern: UInt32(s[i]) << 16))) }
+        diff = m == 0 ? "0 (bitwise)" : String(format: "%.3g (of %.3g)", m, mo)
+    } else {
+        shipOut = o
+        let nz = o.filter { ($0 & 0x7fff) != 0 }.count, nf = o.filter { ($0 & 0x7f80) == 0x7f80 }.count
+        diff = "reference (\(nz) of \(4 * H) nonzero, \(nf) inf / nan)"
+    }
     for _ in 0..<2 { _ = run { e in for c in 0..<calls { gu(e, c); dn(e, c) } } }  // warm
     let both = median { run { e in for c in 0..<calls { gu(e, c); dn(e, c) } } / Double(calls) * 1e6 }
     let g1 = median { run { e in for c in 0..<calls { gu(e, c) } } / Double(calls) * 1e6 }
     let d1 = median { run { e in for c in 0..<calls { dn(e, c) } } / Double(calls) * 1e6 }
-    print(String(format: "| %@ | %d / %d | %d / %d | %.2f | %.1f | %.2f | %.2f | %@ |", name, sg * 32, dthr, ggu.width * K, gdn.height,
-                 both, visitBytes / (both * 1e-6) / 1e9, g1, d1, diff))
+    print(String(format: "| %@ | %d / %d | %d / %d | %d / %d | %.2f | %.1f | %.2f | %.2f | %@ |", name, sg * 32, dthr, ggu.width * K, gdn.height,
+                 pgk.maxTotalThreadsPerThreadgroup, pdk.maxTotalThreadsPerThreadgroup, both, visitBytes / (both * 1e-6) / 1e9, g1, d1, diff))
 }
