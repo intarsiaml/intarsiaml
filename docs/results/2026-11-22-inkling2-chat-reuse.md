@@ -160,8 +160,9 @@ rows. So the reused rows must come from passes of >= 17 rows, and the resume poi
   - on, forward and shuffled (turn 1 = 40 tokens decoded, so only the snapshot can serve): resume points 16 / 15 / 9 / 4 / 1 / 0 /
     0 / 0 rows before the turn-1 prompt end, as the 17-row rule says; all 16 turn-2 replies equal the cold ones.
   - snapshot off (`INTARSIA_INK_RING_SNAPSHOT=0`, turn 1 = 4 tokens, so the live rings can serve): remainders 1 and 2 go cold
-    (the back-off leaves the live margin), the others resume as on, except two that went cold (8 and 17 in the second half); all
-    16 turn-2 replies equal the cold ones.
+    (the back-off leaves the live margin), the others resume as on, except two that went cold (8 and 17 in the second half; most likely the
+    four cold requests took the least recently used free slots, two of which held those conversations); all 16 turn-2 replies
+    equal the cold ones.
   - main 22303d704 (informational, the same snapshot-off flow): resumes at the prompt end with 2..16-row remainders (1 row before
     it for the 1-token remainder), and 8 of 16 turn-2 replies differ from the cold ones. That is main's latent bug, which the fix
     removes.
