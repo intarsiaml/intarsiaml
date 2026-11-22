@@ -44,6 +44,12 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
   62.5 / 62.0 / 60.6 / 57.5 tok/s at 142 / 1k / 4k / 16k, and if any length is more than 1 % lower mark the run possibly
   contaminated and requeue it.
 
+- 2026-11-22 (coordinator): (1) cancel #11023 (done): the coordinator overrides the > 1 % rule; three spec-off runs at 16k are
+  57.5 / 57.4 (mtp 17c67dacf) / 56.7 (#10890) and at 142 62.5 / 63.8 / 63.4, a 1.3 % spread within run-to-run noise; mtp's
+  #10991 off arm gives a fresh baseline. (2) Investigate the `intarsia bench speed` calibration failure now (ink-batch's #10946
+  runs the engine bench at 1-16 streams): compare the calibration call with chat / localeval, repro on a tiny-model serve on
+  spark2 if needed (not endor), fix on ink/metal with a test, send the hash.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
@@ -273,8 +279,8 @@ detects the inherited `FLEETQ_JOB` and does not queue a second one (`localeval/c
 | 4111 | 2.63 | 1573 | 60.0 | -1.0 % |
 | 16455 | 11.41 | 1406 | 56.7 | **-1.4 %** |
 
-**Possibly contaminated** (coordinator rule: other lanes built and tested on endor outside a slot around 23:35, during this
-run; the 16k row is more than 1 % under the baseline). Requeued as #11023 (speed-plain only); conclusions wait for it.
+The 16k row is 1.4 % under the baseline (other lanes built on endor during the run); the coordinator ruled it within
+run-to-run noise (16k: 57.5 / 57.4 / 56.7 over three spec-off runs) and cancelled the rerun #11023. These numbers stand.
 
 conc-plain-1k: **not supported** (batched decode is refused for Inkling-2; at `--max-batch 1` the server serializes the
 streams): aggregate 50.8 / 51.6 / 50.9 tok/s at 1 / 4 / 16 streams, per-stream 50.8 / 12.9 / 3.2, TTFT 0.86 / 15.5 / 75.9 s.
