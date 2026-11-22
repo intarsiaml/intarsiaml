@@ -1,13 +1,17 @@
 //! Lossless 12-bit bf16 weights (P12, lane ink-pack12; kernels/metal/p12.metal, format `intarsia_core::quant::p12`).
 //!
-//! | kernel | op | rows | bitwise twin |
+//! | kernel | op | registered rows | bitwise twin |
 //! |---|---|---|---|
-//! | `matmul_p12_gemv` | `MatmulP12`, bf16 out | 1..=16 | `matmul_bf16_gemv` (1 row) / `matmul_bf16_gemv_rows` |
+//! | `matmul_p12_gemv` | `MatmulP12`, bf16 out | 1 | `matmul_bf16_gemv` |
 //! | `matmul_p12_gemv_rows` | the same, `rows_exact` | 1..=16 | `matmul_bf16_gemv_rows` |
-//! | `matmul_p12_logits_gemv` | `MatmulP12`, f32 out | 1..=16 | `logits_bf16_gemv` / `logits_bf16_gemv_rows` |
+//! | `matmul_p12_logits_gemv` | `MatmulP12`, f32 out | 1 | `logits_bf16_gemv` |
 //! | `matmul_p12_logits_gemv_rows` | the same, `rows_exact` | 1..=16 | `logits_bf16_gemv_rows` |
-//! | `ink_in_proj_p12_gemv` | `InkInProj` over P12 codes | 1..=16 | `ink_in_proj_bf16_gemv` (the default s8 family) |
+//! | `ink_in_proj_p12_gemv` | `InkInProj` over P12 codes | 1..=`PROJ_GEMV_ORDINARY_MAX` (8) | `ink_in_proj_bf16_gemv` (the default s8 family) |
 //! | `ink_in_proj_p12_gemv_rows` | the same, `rows_exact` | 1..=16 | `ink_in_proj_bf16_gemv_rows` |
+//!
+//! The registered row ranges are the twins' own, so a P12 call takes a P12 kernel exactly where the bf16 call would run the
+//! twin GEMV; an ordinary call past them (where the bf16 call runs the NAX GEMM) is refused and the model keeps the bf16
+//! weight for it. Every launcher still takes 1..=16 rows.
 //!
 //! Every kernel decodes the weights to their exact bf16 bits in registers and runs the arithmetic of its twin in the twin's
 //! order (tests/p12.rs checks packed == bf16 bit for bit on the same weights). Operands: K % 16 == 0, codes 8-byte and x
@@ -41,25 +45,35 @@ pub const ROWS_MAX: usize = 16;
 const BF16_TOL: Tol = Tol::new(1.5e-2, 6e-3);
 const F32_TOL: Tol = Tol::new(1e-3, 2e-4);
 
-/// Registration of a kernel of [`KERNELS`] (`kernels::all`). The plain kernel takes every row count 1..=16 (no other P12
-/// kernel exists for ordinary multi-row calls); the `_rows` twin is the same shaders for `exact_rows` calls.
+/// Registration of a kernel of [`KERNELS`] (`kernels::all`): the plain kernels take their bf16 twin's ordinary rows (1, or
+/// 1..=8 for the in-projection), the `_rows` twins (the same shaders) every `exact_rows` call of 1..=16 rows.
 pub fn register(k: KernelImpl) -> KernelImpl {
     let name = k.name.clone();
     let base = k.acts([DType::Bf16]).weights([DType::U8]).exact(Exactness::Deterministic);
     match name.as_str() {
-        MATMUL_P12_GEMV => base.when(|s| rows_ok(s) && s.out == Some(DType::Bf16)).tol(BF16_TOL).priority(10),
+        MATMUL_P12_GEMV => base.when(|s| one_row(s) && s.out == Some(DType::Bf16)).tol(BF16_TOL).priority(10),
         MATMUL_P12_GEMV_ROWS => base.when(|s| rows_ok(s) && s.out == Some(DType::Bf16)).tol(BF16_TOL).priority(-1).rows_exact(),
-        MATMUL_P12_LOGITS_GEMV => base.when(|s| rows_ok(s) && s.out == Some(DType::F32)).tol(F32_TOL).priority(10),
+        MATMUL_P12_LOGITS_GEMV => base.when(|s| one_row(s) && s.out == Some(DType::F32)).tol(F32_TOL).priority(10),
         MATMUL_P12_LOGITS_GEMV_ROWS => base.when(|s| rows_ok(s) && s.out == Some(DType::F32)).tol(F32_TOL).priority(-1).rows_exact(),
-        INK_IN_PROJ_P12_GEMV => base.when(rows_ok).tol(BF16_TOL),
+        INK_IN_PROJ_P12_GEMV => base.when(proj_ordinary).tol(BF16_TOL),
         INK_IN_PROJ_P12_GEMV_ROWS => base.when(rows_ok).tol(BF16_TOL).priority(-1).rows_exact(),
         other => unreachable!("p12: {other} has no registration"),
     }
 }
 
-/// 1..=16 activation rows, K a multiple of 16.
+/// 1..=16 activation rows, K a multiple of 16 (the `_rows` registrations).
 fn rows_ok(s: &intarsia_core::ShapeInfo) -> bool {
     (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0
+}
+
+/// One row (`matmul_bf16_gemv` / `logits_bf16_gemv` take ordinary calls at M == 1 only).
+fn one_row(s: &intarsia_core::ShapeInfo) -> bool {
+    s.m == 1 && s.k % 16 == 0
+}
+
+/// `ink_in_proj_bf16_gemv`'s ordinary rows (above them the bf16 call runs the NAX GEMM).
+fn proj_ordinary(s: &intarsia_core::ShapeInfo) -> bool {
+    (1..=crate::inkmix::PROJ_GEMV_ORDINARY_MAX).contains(&s.m) && s.k % 16 == 0
 }
 
 /// (R, P, RB) instances compiled for every kernel family (`P12_ALL` in p12.metal).

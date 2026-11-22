@@ -167,7 +167,8 @@ fn in_proj_p12_bitwise_bf16() {
     }
 }
 
-/// The registry picks the P12 kernels for P12 calls at 1..=16 rows (plain and `exact_rows`) and none above.
+/// The registry picks the P12 kernels exactly where the bf16 call runs the twin GEMV: ordinary calls at 1 row (Matmul /
+/// Logits) or 1..=8 rows (InkInProj), `exact_rows` calls at 1..=16 rows; nothing else.
 #[test]
 fn p12_selection() {
     let be = backend();
@@ -175,22 +176,36 @@ fn p12_selection() {
     let (n, k) = (64usize, 2304usize);
     let codes = zeros(&be, DType::U8, &[n, p12::row_bytes(k)]);
     let aux = zeros(&be, DType::I32, &[n + 1]);
-    for m in [1usize, 2, 16, 17] {
+    for m in [1usize, 2, 8, 9, 16, 17] {
         for (odt, exact) in [(DType::Bf16, false), (DType::Bf16, true), (DType::F32, false), (DType::F32, true)] {
             let mut c = OpCall::new(Op::MatmulP12, vec![zeros(&be, DType::Bf16, &[m, k]), codes.clone(), aux.clone()], vec![zeros(&be, odt, &[m, n])], OpAttrs::default());
             c.exact_rows = exact;
-            let got = reg.select(&c).map(|k| k.name.clone());
-            if m > ROWS_MAX {
-                assert!(got.is_err(), "M={m}: {got:?}");
-            } else {
-                let want = match (odt, exact) {
-                    (DType::Bf16, false) => MATMUL_P12_GEMV,
-                    (DType::Bf16, true) => MATMUL_P12_GEMV_ROWS,
-                    (_, false) => MATMUL_P12_LOGITS_GEMV,
-                    (_, true) => MATMUL_P12_LOGITS_GEMV_ROWS,
-                };
-                assert_eq!(got.unwrap(), want, "M={m} out={odt} exact={exact}");
-            }
+            let got = reg.select(&c).map(|k| k.name.clone()).ok();
+            let want = match (odt, exact) {
+                (DType::Bf16, false) if m == 1 => Some(MATMUL_P12_GEMV),
+                (DType::Bf16, true) if m <= ROWS_MAX => Some(MATMUL_P12_GEMV_ROWS),
+                (DType::F32, false) if m == 1 => Some(MATMUL_P12_LOGITS_GEMV),
+                (DType::F32, true) if m <= ROWS_MAX => Some(MATMUL_P12_LOGITS_GEMV_ROWS),
+                _ => None,
+            };
+            assert_eq!(got.as_deref(), want, "MatmulP12 M={m} out={odt} exact={exact}");
+        }
+    }
+    let ns = [40usize, 24, 24];
+    let pcodes = zeros(&be, DType::U8, &[ns.iter().sum(), p12::row_bytes(k)]);
+    let paux = zeros(&be, DType::I32, &[ns.iter().sum::<usize>() + 1]);
+    for t in [1usize, 8, 9, 16, 17] {
+        for exact in [false, true] {
+            let outs = ns.iter().map(|&j| zeros(&be, DType::Bf16, &[t, j])).collect();
+            let mut c = OpCall::new(Op::InkInProj, vec![zeros(&be, DType::Bf16, &[1, t, k]), pcodes.clone(), paux.clone()], outs, OpAttrs::default());
+            c.exact_rows = exact;
+            let got = reg.select(&c).map(|k| k.name.clone()).ok();
+            let want = match exact {
+                false if t <= intarsia_backend_metal::inkmix::PROJ_GEMV_ORDINARY_MAX => Some(INK_IN_PROJ_P12_GEMV),
+                true if t <= ROWS_MAX => Some(INK_IN_PROJ_P12_GEMV_ROWS),
+                _ => None,
+            };
+            assert_eq!(got.as_deref(), want, "InkInProj p12 T={t} exact={exact}");
         }
     }
 }
