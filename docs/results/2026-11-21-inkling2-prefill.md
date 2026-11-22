@@ -143,6 +143,12 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
     off, bitwise vs moe_blk_bf16 on real rows), report before any flip; C dominates -> send a one-paragraph weight-reuse idea
     before building; neither -> stop MoE, go to the ConvMix + blend fusion. (4) small-expert GEMV side option parked. Queue
     behind #11221.
+    **Status:** probes built (f753bb1c8). kernels/metal/inkling2_moe_probe.metal holds a copy of the gen1 NVFP4 m64 kernel
+    with PROBE 0 (unchanged), 1 (B: bit copy) and 2 (C: no weight loads). They are selectable only via `set_moe_probe`, which
+    exists only with the `ink-probe` cargo feature (no env var, not a registry kernel). The hook returns None without the
+    feature. Rust compiles on bespin with and without the feature. Job #11235 (behind #11221) builds the bench with the
+    feature in its own target dir and runs arms a / 0 / 1 / 2 x real / balanced-128 x full / gu / dn, 3 reps.
+    Before any merge: drop the probe file and hook, or keep them feature-gated (ink/prefill-merge does not contain them).
 
 ## Status
 
