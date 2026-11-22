@@ -244,4 +244,35 @@ server has no draft. `--spec off` or `INTARSIA_SPEC_DEFAULT=0` turns it off. doc
 `dspark_default_only_where_measured`. It is cherry-picked onto ink/mtp only if #10991 shows on >= off at every length. #10990
 checks default-on ids against `--spec off`, plus greedy ids and `plan show` with `INTARSIA_SPEC_DEFAULT=0` against a3b72495b.
 
+### Verify per-op attribution (#10990, attribution only)
+
+One greedy prompt x 64 tokens, gate 0 (every pass verifies k + 1 rows), `--profile-every 1`. Every op is synced and timed, so
+the absolute ms are inflated (79 ms per step against 16 ms untimed). Only the shares and growth mean anything. ms per pass:
+
+| op | 1 row (off) | 2 rows (k1) | 3 rows (k2) | 4 rows (k3) |
+|---|---:|---:|---:|---:|
+| moe_experts (NVFP4 visits) | 11.9 | 16.7 | 20.5 | 23.1 |
+| moe_experts_mxfp8 | 1.4 | 2.2 | 2.9 | 3.1 |
+| conv_mix | 15.7 | 17.1 | 17.3 | 17.8 |
+| ink_in_proj | 10.1 | 11.0 | 11.6 | 11.6 |
+| logits (target head + draft GEMVs) | 8.6 | 9.6 | 9.7 | 10.0 |
+| ink_attn_decode | 8.1 | 8.6 | 8.4 | 8.7 |
+| moe_route | 6.9 | 7.5 | 7.3 | 7.5 |
+| matmul (target + draft) | 7.9 | 13.0 | 13.5 | 13.5 |
+
+Going from 1 to 4 rows, the target's ops grow by about 18 ms (profiled). The experts are about 13 ms of that (70%), following
+the expert union (8 -> 18.9 experts per visit at 4 rows, section 1). Attention, routing and in_proj barely move. The next lever
+is the expert pass at 2-4 rows (a union-fused experts kernel that reads each expert once for all rows), not AttnDecode.
+
+### Flip checks (#10990, flip binary f130b8855) and serve smoke (#10996)
+
+- Default on (no `--spec`): the 12 greedy prompts x 128 and both prose texts give the same ids as `--spec off`. The loader
+  prints the DSpark default line (k3; 459 passes, 72.0% acceptance, 2.54 tokens per pass).
+- `INTARSIA_SPEC_DEFAULT=0`: no verify passes. Greedy ids md5 439a1865723f2bca3b6508f864e24af1 is the same as `--spec off` on
+  a3b72495b, and `plan show` matches a3b72495b.
+- serve smoke (a3b72495b, DSpark k3 gate 0.8, admitted kernels only; admission checked 33 kernels, 220 cases): a 1425-token
+  greedy request returns HTTP 200 with 13 verify passes. The 16k request was over the 20480 context, so it was not run; the
+  16456-token localeval cell in #10991 covers that length.
+- Identity at a3b72495b: tiny Metal tests 3 / 3 pass, and greedy k2, k3, k3 bf16 head and prose k3 all match `--spec off`.
+
 RESULTS_PLACEHOLDER
