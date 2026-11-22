@@ -14,6 +14,12 @@
 //   ink_moe_dn_f_*         down + the per-token k-order sum in one launch: a threadgroup holds 8 output rows of one token
 //                          and all K slots (simdgroup k % 4), then sums the K bf16 y values in k order (f32).
 //   ink_moe_gather_*       the per-token k-order sum of the y rows (after ink_moe_dn_u).
+//   ink_moe_gu1_nv_*       ink_moe_gu_nv_* with one pair per union leader (INK_XR 1): one-row calls only
+//                          (`INTARSIA_INK_MOE_T1`, lane ink-dfuse). At T = 1 the K pairs have distinct experts, so every
+//                          pair leads a run of one under either value and its chunk order and fma chain are the same: same
+//                          bits; the 4-slot arrays and loops go (fewer registers and instructions, -2 us at one row).
+//   ink_moe_dn_f3_nv_*     ink_moe_dn_f_nv_* with 3 chunks loaded ahead per lane (all loads of a step first, chunk order
+//                          and fma chain unchanged: same bits); its chain is latency-bound at one row (-5 us).
 //
 // Union grouping (p.f bit 2): threadgroup row y of gu / dn_u is a pair; it works only if it leads its expert (the first pair
 // of each run of INK_XR pairs of that expert, pair order) and then serves those pairs with one read of the expert's weights
@@ -249,6 +255,7 @@ inline float ink_act(uint epi, float g, float u, float w, float gc, float uc) {
 
 // The pairs threadgroup row `pr` serves: pl[0..rows) ascending, all of expert `e`. Union: `pr` must be the first of a run
 // of INK_XR pairs of its expert (moe.metal's moe_lead); else just `pr`. false: not a leader / invalid id.
+template <uint XR>
 inline bool ink_lead(device const int* ids, uint P, uint E, uint pr, bool uni, uint lane, thread uint& e, thread uint& rows,
                      thread uint* pl) {
     const int id = ids[pr];
@@ -267,13 +274,13 @@ inline bool ink_lead(device const int* ids, uint P, uint E, uint pr, bool uni, u
         m &= (lim >= 32u) ? 0xFFFFFFFFul : ((1ul << lim) - 1ul);
         rank += (uint)popcount(m);
     }
-    if (rank % INK_XR != 0) return false;
+    if (rank % XR != 0) return false;
     rows = 0;
     uint seen = 0;
-    for (uint base = 0; base < P && rows < INK_XR; base += 32u) {
+    for (uint base = 0; base < P && rows < XR; base += 32u) {
         const int v = (base + lane < P) ? ids[base + lane] : -1;
         ulong m = (ulong)simd_ballot(v == id);
-        while (m != 0ul && rows < INK_XR) {
+        while (m != 0ul && rows < XR) {
             const uint b = (uint)ctz(m);
             m &= m - 1ul;
             if (seen >= rank) pl[rows++] = base + b;
@@ -288,8 +295,9 @@ constant constexpr uint INK_LG = 8;   // lanes per gate+up row
 constant constexpr uint INK_LD = 4;   // lanes per down row
 constant constexpr uint INK_NB = 1;   // chunks a lane loads ahead per step (3 measured slower: 83 -> 91 us at one NVFP4 row)
 
-// gate + up. Union: grid (I / 16, pairs), else (pairs, I / 16). h [T*K, I] bf16 by pair.
-template <uint FMT, bool A16, bool AX>
+// gate + up. Union: grid (I / 16, pairs), else (pairs, I / 16). h [T*K, I] bf16 by pair. XR: pairs a union leader
+// serves (INK_XR; 1 in the one-row ink_moe_gu1_* instances).
+template <uint FMT, bool A16, bool AX, uint XR = INK_XR>
 inline void ink_gu_impl(device const ushort* x, device const int* ids, device const float* wts, device const uchar* w13,
                         device const uchar* s13, device const float* gsc, device ushort* h, constant OpP& p, uint2 tg,
                         uint sg, uint lane) {
@@ -297,8 +305,8 @@ inline void ink_gu_impl(device const ushort* x, device const int* ids, device co
     const bool uni = (p.f & 4u) != 0u;
     const uint rb = uni ? tg.x : tg.y, pr = uni ? tg.y : tg.x;
     uint e, rows;
-    uint pl[INK_XR];
-    if (!ink_lead(ids, P, E, pr, uni, lane, e, rows, pl)) return;  // uniform over the threadgroup
+    uint pl[XR];
+    if (!ink_lead<XR>(ids, P, E, pr, uni, lane, e, rows, pl)) return;  // uniform over the threadgroup
     const uint r = rb * (INK_SG * 32u / INK_LG) + sg * (32u / INK_LG) + lane / INK_LG, li = lane % INK_LG;
     const uint rr = min(r, I - 1u);  // idle rows compute a copy (every lane takes part in the shuffles)
     constexpr uint WB = FMT == 0 ? 16u : 32u;  // weight bytes per 32-element chunk
@@ -309,10 +317,10 @@ inline void ink_gu_impl(device const ushort* x, device const int* ids, device co
     device const uchar* wu = w13 + ru * (nc * WB);
     device const uchar* sgp = s13 + p.s1 + rg * (nc * SB);
     device const uchar* sup = s13 + p.s1 + ru * (nc * SB);
-    device const ushort* xr[INK_XR];
-    for (uint q = 0; q < INK_XR; ++q) xr[q] = x + p.s0 + (ulong)(pl[min(q, rows - 1u)] / K) * H;
-    float ag[INK_XR], au[INK_XR];
-    for (uint q = 0; q < INK_XR; ++q) {
+    device const ushort* xr[XR];
+    for (uint q = 0; q < XR; ++q) xr[q] = x + p.s0 + (ulong)(pl[min(q, rows - 1u)] / K) * H;
+    float ag[XR], au[XR];
+    for (uint q = 0; q < XR; ++q) {
         ag[q] = 0.f;
         au[q] = 0.f;
     }
@@ -325,7 +333,7 @@ inline void ink_gu_impl(device const ushort* x, device const int* ids, device co
             kg[j] = ink_load<FMT, A16>(wg, sgp, c + j * INK_LG);
             ku[j] = ink_load<FMT, A16>(wu, sup, c + j * INK_LG);
         }
-        for (uint q = 0; q < INK_XR; ++q) {
+        for (uint q = 0; q < XR; ++q) {
             if (q >= rows) break;
             _Pragma("clang loop unroll(full)")
             for (uint j = 0; j < INK_NB; ++j) {
@@ -339,7 +347,7 @@ inline void ink_gu_impl(device const ushort* x, device const int* ids, device co
     for (; c < nc; c += INK_LG) {
         const InkChunk<FMT> kg = ink_load<FMT, A16>(wg, sgp, c);
         const InkChunk<FMT> ku = ink_load<FMT, A16>(wu, sup, c);
-        for (uint q = 0; q < INK_XR; ++q) {
+        for (uint q = 0; q < XR; ++q) {
             if (q >= rows) break;
             uint xw[16];
             ink_xload<AX>(xr[q], c, xw);
@@ -349,7 +357,7 @@ inline void ink_gu_impl(device const ushort* x, device const int* ids, device co
     }
     const uint epi = p.f & 3u;
     const float g0 = FMT == 0 ? gsc[e * 3u] : 1.f, g1 = FMT == 0 ? gsc[e * 3u + 1u] : 1.f;
-    for (uint q = 0; q < INK_XR; ++q) {
+    for (uint q = 0; q < XR; ++q) {
         if (q >= rows) break;
         float a = ag[q], b = au[q];
         a += simd_shuffle_xor(a, 1);
@@ -365,17 +373,19 @@ inline void ink_gu_impl(device const ushort* x, device const int* ids, device co
     }
 }
 
-// one down row of one pair: the chain over the I / 32 chunks (lane-strided over INK_LD lanes), reduced
-template <uint FMT, bool A16>
+// one down row of one pair: the chain over the I / 32 chunks (lane-strided over INK_LD lanes), reduced. NB: chunks a lane
+// loads ahead per step (INK_NB; 3 in the one-row ink_moe_dn_f3_* instances); the chunk order and fma chain do not depend
+// on it.
+template <uint FMT, bool A16, uint NB = INK_NB>
 inline float ink_dn_row(device const uchar* wr, device const uchar* sr, device const ushort* hr, uint nc, uint li) {
     float s = 0.f;
     uint c = li;
-    for (; c + (INK_NB - 1u) * INK_LD < nc; c += INK_NB * INK_LD) {
-        InkChunk<FMT> kw[INK_NB];
+    for (; c + (NB - 1u) * INK_LD < nc; c += NB * INK_LD) {
+        InkChunk<FMT> kw[NB];
         _Pragma("clang loop unroll(full)")
-        for (uint j = 0; j < INK_NB; ++j) kw[j] = ink_load<FMT, A16>(wr, sr, c + j * INK_LD);
+        for (uint j = 0; j < NB; ++j) kw[j] = ink_load<FMT, A16>(wr, sr, c + j * INK_LD);
         _Pragma("clang loop unroll(full)")
-        for (uint j = 0; j < INK_NB; ++j) {
+        for (uint j = 0; j < NB; ++j) {
             uint xw[16];
             ink_xload<true>(hr, c + j * INK_LD, xw);
             s = ink_chunk_dot<FMT>(kw[j], xw, s);
@@ -401,7 +411,7 @@ inline void ink_dn_u_impl(device const ushort* h, device const int* ids, device 
     const uint nb = uni ? tg.x : tg.y, pr = uni ? tg.y : tg.x;
     uint e, rows;
     uint pl[INK_XR];
-    if (!ink_lead(ids, P, E, pr, uni, lane, e, rows, pl)) return;
+    if (!ink_lead<INK_XR>(ids, P, E, pr, uni, lane, e, rows, pl)) return;
     const uint n = nb * (INK_SG * 32u / INK_LD) + sg * (32u / INK_LD) + lane / INK_LD, li = lane % INK_LD;
     const uint nn = min(n, H - 1u);
     constexpr uint WB = FMT == 0 ? 16u : 32u, SB = FMT == 0 ? 2u : 1u;
@@ -432,7 +442,7 @@ inline float ink_tok_sum(thread const float* ys, device const int* ids, device c
 
 // down + the token sum: grid (T, H / 8), any whole simdgroups. A threadgroup: 8 output rows of token tg.x; simdgroup sg serves slots sg, sg + nsg, ..
 // (8 rows x INK_LD lanes each), the y values meet in threadgroup memory, 8 threads sum them in k order.
-template <uint FMT, bool A16, typename OutT>
+template <uint FMT, bool A16, typename OutT, uint NB = INK_NB>
 inline void ink_dn_f_impl(device const ushort* h, device const int* ids, device const float* wts, device const uchar* w2,
                           device const uchar* s2, device const float* gsc, device OutT* out, constant OpP& p,
                           threadgroup float* ys, uint2 tg, uint sg, uint lane, uint tid, uint nsg) {
@@ -446,7 +456,7 @@ inline void ink_dn_f_impl(device const ushort* h, device const int* ids, device 
         const int id = ids[pr];
         if (id < 0 || (uint)id >= E) continue;  // uniform over the simdgroup
         const ulong rn = (ulong)id * H + nn;
-        const float s = ink_dn_row<FMT, A16>(w2 + rn * (nc * WB), s2 + p.s2 + rn * (nc * SB), h + (ulong)pr * I, nc, li);
+        const float s = ink_dn_row<FMT, A16, NB>(w2 + rn * (nc * WB), s2 + p.s2 + rn * (nc * SB), h + (ulong)pr * I, nc, li);
         const float g2 = FMT == 0 ? gsc[id * 3 + 2] : 1.f;
         if (li == 0u) ys[k * 8u + lane / INK_LD] = ink_rb(s * g2);
     }
@@ -470,14 +480,15 @@ inline void ink_gather_impl(device const ushort* y, device const int* ids, devic
     store_out(out + p.s3, i, ink_tok_sum(yv, ids, wts, t, K, E, p.f & 3u));
 }
 
-#define INK_GU(NAME, FMT, A16, AX)                                                                                      \
+#define INK_GU(NAME, FMT, A16, AX) INK_GU_XR(NAME, FMT, A16, AX, INK_XR)
+#define INK_GU_XR(NAME, FMT, A16, AX, XR)                                                                               \
     kernel void NAME(device const ushort* x [[buffer(0)]], device const int* ids [[buffer(1)]],                        \
                      device const float* wts [[buffer(2)]], device const uchar* w13 [[buffer(3)]],                      \
                      device const uchar* s13 [[buffer(4)]], device const float* gsc [[buffer(5)]],                      \
                      device ushort* h [[buffer(6)]], constant OpP& p [[buffer(7)]],                                      \
                      uint2 tg [[threadgroup_position_in_grid]], uint sg [[simdgroup_index_in_threadgroup]],             \
                      uint lane [[thread_index_in_simdgroup]]) {                                                         \
-        ink_gu_impl<FMT, A16, AX>(x, ids, wts, w13, s13, gsc, h, p, tg, sg, lane);                                      \
+        ink_gu_impl<FMT, A16, AX, XR>(x, ids, wts, w13, s13, gsc, h, p, tg, sg, lane);                                  \
     }
 #define INK_DN_U(NAME, FMT, A16)                                                                                        \
     kernel void NAME(device const ushort* h [[buffer(0)]], device const int* ids [[buffer(1)]],                        \
@@ -487,7 +498,8 @@ inline void ink_gather_impl(device const ushort* y, device const int* ids, devic
                      uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {             \
         ink_dn_u_impl<FMT, A16>(h, ids, w2, s2, gsc, y, p, tg, sg, lane);                                               \
     }
-#define INK_DN_F(NAME, FMT, A16, OUT)                                                                                   \
+#define INK_DN_F(NAME, FMT, A16, OUT) INK_DN_F_NB(NAME, FMT, A16, OUT, INK_NB)
+#define INK_DN_F_NB(NAME, FMT, A16, OUT, NB)                                                                            \
     kernel void NAME(device const ushort* h [[buffer(0)]], device const int* ids [[buffer(1)]],                        \
                      device const float* wts [[buffer(2)]], device const uchar* w2 [[buffer(3)]],                       \
                      device const uchar* s2 [[buffer(4)]], device const float* gsc [[buffer(5)]],                       \
@@ -496,7 +508,7 @@ inline void ink_gather_impl(device const ushort* y, device const int* ids, devic
                      uint lane [[thread_index_in_simdgroup]], uint tid [[thread_index_in_threadgroup]],                 \
                      uint nsg [[simdgroups_per_threadgroup]]) {                                                         \
         threadgroup float ys[32 * 8];                                                                                   \
-        ink_dn_f_impl<FMT, A16, OUT>(h, ids, wts, w2, s2, gsc, out, p, ys, tg, sg, lane, tid, nsg);                     \
+        ink_dn_f_impl<FMT, A16, OUT, NB>(h, ids, wts, w2, s2, gsc, out, p, ys, tg, sg, lane, tid, nsg);                 \
     }
 
 // suffixes: nv = NVFP4, mx = MXFP8; a = 16-byte aligned weights, u = 4-byte aligned; x = 16-byte aligned activations
@@ -520,6 +532,15 @@ INK_DN_F(ink_moe_dn_f_nv_a_f32, 0, true, float)
 INK_DN_F(ink_moe_dn_f_nv_u_f32, 0, false, float)
 INK_DN_F(ink_moe_dn_f_mx_a_f32, 1, true, float)
 INK_DN_F(ink_moe_dn_f_mx_u_f32, 1, false, float)
+// one-row NVFP4 instances (INTARSIA_INK_MOE_T1, lane ink-dfuse): one pair per union leader, 3 down chunks ahead
+INK_GU_XR(ink_moe_gu1_nv_a_x, 0, true, true, 1u)
+INK_GU_XR(ink_moe_gu1_nv_a, 0, true, false, 1u)
+INK_GU_XR(ink_moe_gu1_nv_u_x, 0, false, true, 1u)
+INK_GU_XR(ink_moe_gu1_nv_u, 0, false, false, 1u)
+INK_DN_F_NB(ink_moe_dn_f3_nv_a_bf16, 0, true, ushort, 3u)
+INK_DN_F_NB(ink_moe_dn_f3_nv_u_bf16, 0, false, ushort, 3u)
+INK_DN_F_NB(ink_moe_dn_f3_nv_a_f32, 0, true, float, 3u)
+INK_DN_F_NB(ink_moe_dn_f3_nv_u_f32, 0, false, float, 3u)
 
 #define INK_GATHER(NAME, OUT)                                                                                           \
     kernel void NAME(device const ushort* y [[buffer(0)]], device const int* ids [[buffer(1)]],                        \
