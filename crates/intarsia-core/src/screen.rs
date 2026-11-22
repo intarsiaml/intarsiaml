@@ -540,7 +540,9 @@ mod tests {
                 assert_eq!(argmax_row(&cand, cnt, &y), want, "trial {trial} kind {kind} cap {cap} cnt {cnt}");
             }
         }
-        assert!(refused <= 100, "{refused} of 400 trials refused by the row-norm cap");
+        // exactly the 50 kind-5 trials (magnitude 1e18, row norms about 9e18): every other kind stays far below 2^20, so
+        // the count does not depend on the seed
+        assert_eq!(refused, 50, "trials refused by the row-norm cap");
     }
 
     #[test]
