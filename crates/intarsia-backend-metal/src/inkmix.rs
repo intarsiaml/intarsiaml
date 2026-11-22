@@ -777,9 +777,14 @@ impl MetalBackend {
                 let down_b = self.bind(down, bf, false, "down")?;
                 let (gain_b, forget_b) = (self.bind(gain, bf, false, "gain")?, self.bind(forget, bf, false, "forget")?);
                 let (nrm_b, out_b) = (self.bind(norm, bf, false, "norm")?, self.bind(out, bf, true, "out")?);
-                let (h_b, y_b, part_b) = (self.bind(&h, bf, true, "h")?, self.bind(&yv, f32t, true, "y")?, self.bind(&part, f32t, true, "partial")?);
+                // the tail's own 32-channel partial count (256 channels per gate item): the same partials in the same order
+                // as the gate's, plus trailing zeros, so the norm's sum is bitwise the same for any `INTARSIA_INK_BLEND_CS`
+                let nsl_t = d.div_ceil(crate::inkctrl::BLEND_TAIL_THREADS) * (crate::inkctrl::BLEND_TAIL_THREADS / 32);
+                let part_t = sview(scratch, lay[4], f32t, s * n * nsl_t);
+                let (h_b, y_b, part_b) = (self.bind(&h, bf, true, "h")?, self.bind(&yv, f32t, true, "y")?, self.bind(&part_t, f32t, true, "partial")?);
                 let ctr = self.sync_counters(1 + 2 * s)?;
                 let mut pt = p;
+                pt.nsl = dim(nsl_t, "partials")?;
                 pt.sk = [gain_b.skip, forget_b.skip, nrm_b.skip, out_b.skip, 0, 0, 0, 0];
                 let name = crate::inkctrl::blend_tail_shader(g);
                 let groups = s * g + s * d.div_ceil(crate::inkctrl::BLEND_TAIL_THREADS);

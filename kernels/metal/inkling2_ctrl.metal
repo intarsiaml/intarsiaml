@@ -208,7 +208,9 @@ kernel void ink_route(device const ushort* x [[buffer(0)]],
 //     slices of `ink_blend_gate`); load the channel's gain / forget rows, then wait until hcnt[s] == G (every H item has a
 //     lower ticket, so it has started and finishes without waiting: no deadlock without a forward-progress guarantee), then
 //     the gate for every row as `ink_blend_gate`; the last C item of stream s (gcnt[s]) runs `ink_blend_norm` for its rows.
-// Tickets come from an atomic at threadgroup start, so the roles follow the start order, not the grid index. Counters
+// p.nsl here is the tail's own partial count, ceil(D / 256) * 8 (one per 32 channels, as the gate's; the trailing zeros past D
+// do not change the norm's sum). Tickets come from an atomic at threadgroup start, so the roles follow the start order, not
+// the grid index. Counters
 // (sync arena, 1 + 2S): [0] tickets, [1 + s] hcnt, [1 + S + s] gcnt; all back to 0 at the end of the dispatch.
 // ================================================================================================================
 
