@@ -628,7 +628,7 @@ pub struct Model {
     draft_head: Option<QTensor>,
     /// `--mtp-draft-subset`: the token id of each `draft_head` row (lane dsubset).
     draft_map: Option<DraftMap>,
-    /// `INTARSIA_INK_HEAD_SCREEN=1` (lane ink-fp8, opt-in): the screened greedy head's fp8 copy, bounds and workspace.
+    /// `INTARSIA_INK_HEAD_SCREEN` (lane ink-fp8, default on Metal): the screened greedy head's fp8 copy, bounds and workspace.
     head_screen: Option<HeadScreenW>,
     layers: Arc<Vec<Vec<Block>>>,
     /// Scratch of the Gemma 4 layers (`None` for every other model).
@@ -697,8 +697,6 @@ pub struct Model {
     /// Set for the duration of a speculative verify pass ([`Model::forward_verify`]): every op call is marked
     /// `OpCall::exact_rows`, so the registry gives it a row-exact kernel (or fails). Never set otherwise.
     exact_rows: std::sync::atomic::AtomicBool,
-    /// The running verify reads only the tokens (`VerifyRead::None`), so the screened greedy head may serve it (lane ink-fp8).
-    verify_tokens_only: std::sync::atomic::AtomicBool,
     /// Inside [`Model::forward_prefill`] with row-invariant prefill on: every call of the pass carries `OpCall::prefill_inv`, so
     /// the registry gives it a `row_invariant` kernel (or fails). Never set otherwise.
     prefill_inv: std::sync::atomic::AtomicBool,
@@ -1290,8 +1288,8 @@ impl Model {
             _ => None,
         };
 
-        // the screened greedy head (lane ink-fp8; crate::screen): an fp8 copy of the bf16 head and its row bounds. Opt-in
-        // (`INTARSIA_INK_HEAD_SCREEN=1`, `crate::screen::wanted`); the load notes below only when the variable is set or the
+        // the screened greedy head (lane ink-fp8; crate::screen): an fp8 copy of the bf16 head and its row bounds. Default on
+        // Metal (`INTARSIA_INK_HEAD_SCREEN=0` off, `crate::screen::wanted`); the load notes below only when the variable is set or the
         // model is Inkling-2
         let screen_env = std::env::var(crate::screen::ENV).ok();
         let head_screen = if crate::screen::wanted(screen_env.as_deref(), b.name()) && (dims.ink.is_some() || screen_env.is_some()) {
@@ -1299,6 +1297,8 @@ impl Model {
                 Some("only Inkling-2 has it")
             } else if tp.rank != 0 || vocab_par {
                 Some("not with a sharded head")
+            } else if !crate::screen::hn_margin_covers(dims.hidden) {
+                Some("the hidden size is past the hn margin's limit (crate::screen::hn_margin_covers)")
             } else if head_quant.is_some() {
                 Some("the head itself is quantised (INTARSIA_LMHEAD_QUANT)")
             } else if act != DType::Bf16 {
@@ -1328,10 +1328,14 @@ impl Model {
                         }
                     };
                     let cap = std::env::var(crate::screen::CAP_ENV).ok().and_then(|c| c.trim().parse().ok()).filter(|&c: &usize| c >= 1).unwrap_or(crate::screen::CAP_DEFAULT);
-                    let rows = 16usize; // decode, verify (<= 16 rows)
+                    let rows = 1usize; // 1-row heads only (brief 14 option B: verify runs the full head)
                     let q = hq.upload(b)?;
                     let bb: Vec<u8> = beta.iter().flat_map(|x| x.to_le_bytes()).collect();
                     let beta = TensorRef::new(crate::backend::upload_new(b, &bb)?, DType::F32, &[v]);
+                    // +inf bounds: a HeadScreen over them marks the row non-finite, so the gather and the argmax take their
+                    // full-row path (the forced fallback, INTARSIA_INK_HEAD_SCREEN_FORCE_FALLBACK / test hooks)
+                    let inf: Vec<u8> = (0..v).flat_map(|_| f32::INFINITY.to_le_bytes()).collect();
+                    let beta_inf = TensorRef::new(crate::backend::upload_new(b, &inf)?, DType::F32, &[v]);
                     let a = b.alloc(rows * v * 4, MemKind::Device)?;
                     let cand = b.alloc(rows * cap * 4, MemKind::Device)?;
                     let cnt = b.alloc(rows * 4 + 16, MemKind::Device)?;
@@ -1344,7 +1348,7 @@ impl Model {
                         t0.elapsed().as_secs_f64()
                     );
                     crate::screen::LOADED.store(true, std::sync::atomic::Ordering::Relaxed);
-                    Some(HeadScreenW { q, beta, a, cand, cnt, cap, rows, ok: std::sync::OnceLock::new(), served: Default::default(), gathers: Default::default(), fallback_passes: Default::default(), disabled: Default::default(), force_fallback: std::sync::atomic::AtomicU64::new(crate::screen::force_fallback_env()) })
+                    Some(HeadScreenW { q, beta, beta_inf, a, cand, cnt, cap, ok: std::sync::OnceLock::new(), served: Default::default(), gathers: Default::default(), fallback_passes: Default::default(), disabled: Default::default(), force_fallback: std::sync::atomic::AtomicU64::new(crate::screen::force_fallback_env()) })
                 }
             }
         } else {
@@ -2136,7 +2140,6 @@ impl Model {
             remote: None,
             tp_aborted: std::sync::atomic::AtomicBool::new(false),
             exact_rows: std::sync::atomic::AtomicBool::new(false),
-            verify_tokens_only: std::sync::atomic::AtomicBool::new(false),
             prefill_inv: std::sync::atomic::AtomicBool::new(false),
             inv_on: std::sync::atomic::AtomicBool::new(inv_want),
             reuse_exact: std::sync::atomic::AtomicBool::new(false),
@@ -2559,13 +2562,11 @@ impl Model {
             Err(e) => Err(e),
             Ok(None) => {
                 self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
-                self.verify_tokens_only.store(matches!(rows, VerifyRead::None), std::sync::atomic::Ordering::Relaxed);
                 let run = (|| -> Result<TensorRef> {
                     let hn = self.run_chunk(st, ids, profile)?;
                     self.verify_head(&hn, q, profile)?;
                     Ok(hn)
                 })();
-                self.verify_tokens_only.store(false, std::sync::atomic::Ordering::Relaxed);
                 self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
                 run
             }
@@ -2998,13 +2999,6 @@ impl Model {
                 }
             }
         } else {
-            // tokens only (`VerifyRead::None`): the screened greedy head when it is on (`INTARSIA_INK_HEAD_SCREEN`)
-            if self.verify_tokens_only.load(std::sync::atomic::Ordering::Relaxed) {
-                let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("verify head without its buffer"))?;
-                if self.screened_argmax(&hn.rows(0, q), q, &self.view(tok, DType::I32, &[q]), profile)? {
-                    return Ok(());
-                }
-            }
             let logits = self.view(&self.ws.logits, DType::F32, &[q, v]);
             self.proj(&hn.rows(0, q), self.head()?, &logits, profile)?;
         }
@@ -5749,157 +5743,135 @@ impl Model {
     /// or the head's `Logits` kernel is not one the gather reproduces (then the caller runs the full head).
     fn screened_argmax(&self, x: &TensorRef, c: usize, tok: &TensorRef, profile: bool) -> Result<bool> {
         let Some(hs) = self.head_screen.as_ref() else { return Ok(false) };
-        // the screen ops take bf16 activations (their contract); any other row takes the full head
-        if c > hs.rows || self.vocab_par || x.dtype != DType::Bf16 || x.offset % 16 != 0 || hs.disabled.load(std::sync::atomic::Ordering::Relaxed) {
+        // brief 14 option B: 1-row heads only (verify and every multi-row head run the full head); bf16 activations (the
+        // screen ops' contract), 16-byte aligned (the head kernels' vector form)
+        if c != 1 || self.vocab_par || x.dtype != DType::Bf16 || x.offset % 16 != 0 || hs.disabled.load(std::sync::atomic::Ordering::Relaxed) {
             return Ok(false);
         }
         // a plan dry run records the screen calls too (so `serve`, admitted kernels only, admits their kernels on the plan
         // shapes), then reports `false` so the full head is recorded as well; the first-use check below runs only for real
         let recording = self.recorder.lock().unwrap().is_some();
         let (v, d) = (self.dims.vocab, self.dims.hidden);
-        let logits = self.view(&self.ws.logits, DType::F32, &[c, v]);
-        let head_kernel = |m: usize, exact: bool| -> String {
-            match self.head() {
-                Ok(head) => {
-                    let mut call = head.call(self.view(&self.ws.n, self.act, &[m, d]), self.view(&self.ws.logits, DType::F32, &[m, v]));
-                    call.exact_rows = exact;
-                    self.registry.select(&call).map(|k| k.name.clone()).unwrap_or_default()
+        let logits = self.view(&self.ws.logits, DType::F32, &[1, v]);
+        let cand = TensorRef::new(hs.cand.clone(), DType::I32, &[1, hs.cap]);
+        let cnt = TensorRef::new(hs.cnt.clone(), DType::I32, &[1]);
+        // The serving 1-row head, as `head_proj` picks it (P12's copy where its call selects, else the head as loaded), and
+        // the gather over that same weight. The gather is that head kernel itself in its index mode (Metal: gemv_f32o_v or
+        // P12's 1-row p12_gemv_f32o; cpu: the same dot), so a gathered logit is the head's by construction.
+        let gather_call = |xr: &TensorRef| -> Result<(String, OpCall)> {
+            if let Some(p) = self.head_p12.as_ref() {
+                let call = p.call(xr.clone(), logits.clone());
+                if let Ok(k) = self.registry.select(&call) {
+                    let g = OpCall::new(Op::LogitsGather, vec![xr.clone(), p.parts[0].clone(), cand.clone(), cnt.clone(), p.parts[1].clone()], vec![logits.clone()], OpAttrs::default());
+                    return Ok((k.name.clone(), g));
                 }
-                Err(_) => String::new(),
             }
+            let head = self.head()?;
+            let k = self.registry.select(&head.call(xr.clone(), logits.clone())).map(|k| k.name.clone()).unwrap_or_default();
+            Ok((k, OpCall::new(Op::LogitsGather, vec![xr.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![logits.clone()], OpAttrs::default())))
         };
-        let good = |n: &str| matches!(n, "logits_bf16_gemv" | "logits_bf16_gemv_rows" | "cpu_f32_logits");
-        // the gather repeats these kernels' per-row arithmetic (gemv_f32o_v and its multi-row form, the cpu dot); any other
-        // head kernel, and the screen not admitted on this backend: the full head
-        // (the one-row head kernel decides once; a `c`-row group checks its own rows-exact kernel below, since `serve` may not
-        // admit `logits_bf16_gemv_rows` when no plan shape takes it)
+        // head kernels whose index mode the gathers are (Metal), and the cpu dot both cpu heads use
+        let good = |n: &str| matches!(n, "logits_bf16_gemv" | "matmul_p12_logits_gemv" | "cpu_f32_logits" | "cpu_f32_matmul_p12");
         let ok = recording
             || *hs.ok.get_or_init(|| {
-            let head = match self.head() {
-                Ok(h) => h,
-                Err(_) => return false,
-            };
-            let xs = self.view(&self.ws.n, self.act, &[1, d]);
-            let kernels_ok = good(&head_kernel(1, false));
-            let a = TensorRef::new(hs.a.clone(), DType::F32, &[1, v]);
-            let cand = TensorRef::new(hs.cand.clone(), DType::I32, &[1, hs.cap]);
-            let cnt = TensorRef::new(hs.cnt.clone(), DType::I32, &[1]);
-            // the screen calls run with `exact_rows` set (screened_argmax), so a backend whose screen kernels are registered
-            // rows-exact (Metal) selects them
-            let screen_ok = [
-                OpCall::new(Op::HeadScreen, vec![a.clone(), xs.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default()),
-                OpCall::new(Op::LogitsGather, vec![xs.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![self.view(&self.ws.logits, DType::F32, &[1, v])], OpAttrs::default()),
-                OpCall::new(Op::ScreenArgmax, vec![cand, cnt, self.view(&self.ws.logits, DType::F32, &[1, v])], vec![self.view(&self.ws.tok, DType::I32, &[1])], OpAttrs::default()),
-            ]
-            .into_iter()
-            .all(|mut c| {
-                c.exact_rows = true;
-                self.registry.select(&c).is_ok()
+                let xs = self.view(&self.ws.n, self.act, &[1, d]);
+                let (hk, g) = match gather_call(&xs) {
+                    Ok(v) => v,
+                    Err(_) => return false,
+                };
+                let kernels_ok = good(&hk);
+                let a = TensorRef::new(hs.a.clone(), DType::F32, &[1, v]);
+                // the screen calls run with `exact_rows` set (Metal registers them rows-exact)
+                let screen_ok = [
+                    OpCall::new(Op::HeadScreen, vec![a, xs.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default()),
+                    g.clone(),
+                    OpCall::new(Op::ScreenArgmax, vec![cand.clone(), cnt.clone(), logits.clone()], vec![self.view(&self.ws.tok, DType::I32, &[1])], OpAttrs::default()),
+                ]
+                .into_iter()
+                .all(|mut c| {
+                    c.exact_rows = true;
+                    self.registry.select(&c).is_ok()
+                });
+                // one real gather (row 0 as the only candidate): a backend whose gather cannot take this head (Metal: a
+                // weight that is not 16-byte aligned, where the head runs another GEMV) refuses it here
+                let probe_ok = kernels_ok && screen_ok && (|| -> Result<()> {
+                    self.backend.upload(&hs.cand, 0, &0i32.to_le_bytes(), self.stream)?;
+                    self.backend.upload(&hs.cnt, 0, &1i32.to_le_bytes(), self.stream)?;
+                    let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);
+                    let r = self.exec_call(g.clone(), false);
+                    self.exact_rows.store(prev, std::sync::atomic::Ordering::Relaxed);
+                    r?;
+                    self.backend.synchronize(self.stream)
+                })()
+                .is_ok();
+                if kernels_ok && screen_ok && !probe_ok {
+                    eprintln!("{}: off (the backend's gather refuses this head, e.g. a weight that is not 16-byte aligned)", crate::screen::ENV);
+                }
+                if !(kernels_ok && screen_ok) {
+                    eprintln!(
+                        "{}: off (head kernel '{hk}' {}, screen kernels {})",
+                        crate::screen::ENV,
+                        if kernels_ok { "ok" } else { "has no index mode here" },
+                        if screen_ok { "selectable" } else { "not selectable (not registered or not admitted)" }
+                    );
+                }
+                if kernels_ok && screen_ok && probe_ok {
+                    eprintln!("{}: gathers through the serving head kernel '{hk}'", crate::screen::ENV);
+                }
+                kernels_ok && screen_ok && probe_ok
             });
-            // one real gather (row 0 as the only candidate): a backend whose gather cannot take this head (Metal: the weight
-            // not 16-byte aligned, where the head itself runs another GEMV) refuses it here, and the screen stays off
-            let probe_ok = kernels_ok && screen_ok && (|| -> Result<()> {
-                self.backend.upload(&hs.cand, 0, &0i32.to_le_bytes(), self.stream)?;
-                self.backend.upload(&hs.cnt, 0, &1i32.to_le_bytes(), self.stream)?;
-                let c = OpCall::new(Op::LogitsGather, vec![xs.clone(), head.parts[0].clone(), TensorRef::new(hs.cand.clone(), DType::I32, &[1, hs.cap]), TensorRef::new(hs.cnt.clone(), DType::I32, &[1])], vec![self.view(&self.ws.logits, DType::F32, &[1, v])], OpAttrs::default());
-                // `exact_rows` as the real screen calls run it (exec_call takes it from the pass state)
-                let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);
-                let r = self.exec_call(c, false);
-                self.exact_rows.store(prev, std::sync::atomic::Ordering::Relaxed);
-                r?;
-                self.backend.synchronize(self.stream)
-            })()
-            .is_ok();
-            if kernels_ok && screen_ok && !probe_ok {
-                eprintln!("{}: off (the backend's gather refuses this head, e.g. a weight that is not 16-byte aligned)", crate::screen::ENV);
-            }
-            if !(kernels_ok && screen_ok) {
-                eprintln!(
-                    "{}: off (head kernel '{}' {}, screen kernels {})",
-                    crate::screen::ENV,
-                    head_kernel(1, false),
-                    if kernels_ok { "ok" } else { "not one the gather reproduces" },
-                    if screen_ok { "selectable" } else { "not selectable (not registered or not admitted)" }
-                );
-            }
-            kernels_ok && screen_ok && probe_ok
-        });
-        if !ok || (c > 1 && !recording && !good(&head_kernel(c, true))) {
+        if !ok {
             return Ok(false);
         }
-        let head = self.head()?;
-        let a = TensorRef::new(hs.a.clone(), DType::F32, &[c, v]);
-        let cand = TensorRef::new(hs.cand.clone(), DType::I32, &[c, hs.cap]);
-        let cnt = TensorRef::new(hs.cnt.clone(), DType::I32, &[c]);
-        // a 2..=16-row group takes the rows-exact kernels, as `head_proj` marks it (the gathered bits are those rows')
-        let mark = c > 1 && !self.verifying();
-        if mark {
-            self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
-        }
+        let (_, g) = gather_call(x)?;
+        let a = TensorRef::new(hs.a.clone(), DType::F32, &[1, v]);
         // recorded (plan dry run) as `extra` calls: plan admission still admits the screen kernels, but the solo decode step's
-        // op lists, which the batched step is checked against (`plan::check_batch_ops`), and the per-step call
-        // counts are the full head's; a batched step never runs the screen
+        // op lists, which the batched step is checked against (`plan::check_batch_ops`), are the full head's
         let set_extra = |v: bool| -> bool { self.recorder.lock().unwrap().as_mut().map_or(false, |r| std::mem::replace(&mut r.extra, v)) };
         let prev_extra = if recording { set_extra(true) } else { false };
-        let r = (|| -> Result<bool> {
+        let forced = !recording && hs.force_fallback.load(std::sync::atomic::Ordering::Relaxed) & 1 == 1;
+        let r = (|| -> Result<()> {
             let sc = hs.q.call(x.clone(), a.clone());
             self.exec(sc.op, sc.inputs, sc.outputs, sc.attrs, profile)?;
             // the screen ops are per-row by contract; their Metal kernels are registered rows-exact, which a call selects
             // only with `exact_rows` set (Registry::select)
             let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);
-            let r = (|| -> Result<bool> {
-                self.exec(Op::HeadScreen, vec![a, x.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default(), profile)?;
-                // a c-row group (verify) with any row past the candidate path: the caller's full head for all c rows, one
-                // read of the unembed (in LogitsGather each such row would read the whole head by itself); the counts
-                // come back here, before anything is gathered
-                if c > 1 && !recording {
-                    let mut raw = vec![0u8; c * 4];
-                    self.backend.download(&hs.cnt, 0, &mut raw, self.stream)?;
-                    let force = hs.force_fallback.load(std::sync::atomic::Ordering::Relaxed);
-                    let any = raw.chunks_exact(4).enumerate().any(|(i, b)| {
-                        !crate::screen::candidate_path(i32::from_le_bytes([b[0], b[1], b[2], b[3]]), hs.cap) || (i < 64 && (force >> i) & 1 == 1)
-                    });
-                    if any {
-                        hs.fallback_passes.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                        return Ok(false);
-                    }
-                }
-                self.exec(Op::LogitsGather, vec![x.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![logits.clone()], OpAttrs::default(), profile)?;
-                self.exec(Op::ScreenArgmax, vec![cand, cnt, logits], vec![tok.clone()], OpAttrs::default(), profile)?;
-                Ok(true)
+            let r = (|| -> Result<()> {
+                let beta = if forced { hs.beta_inf.clone() } else { hs.beta.clone() };
+                self.exec(Op::HeadScreen, vec![a, x.clone(), beta], vec![cand.clone(), cnt.clone()], OpAttrs::default(), profile)?;
+                self.exec_call(g, profile)?;
+                self.exec(Op::ScreenArgmax, vec![cand.clone(), cnt.clone(), logits.clone()], vec![tok.clone()], OpAttrs::default(), profile)
             })();
             self.exact_rows.store(prev, std::sync::atomic::Ordering::Relaxed);
-            if !r? {
-                return Ok(false);
-            }
-            if !recording {
-                crate::screen::LAUNCHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                hs.gathers.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            }
-            if !recording && !hs.served.swap(true, std::sync::atomic::Ordering::Relaxed) {
-                eprintln!("{}: first screened head step served ({c} row(s))", crate::screen::ENV);
-            }
-            Ok(true)
+            r
         })();
-        if mark {
-            self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
-        }
         if recording {
             set_extra(prev_extra);
         }
-        r.map(|served| served && !recording) // recorded only: the caller records the full head too
+        r?;
+        if recording {
+            return Ok(false); // recorded only: the caller records the full head too
+        }
+        crate::screen::LAUNCHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        hs.gathers.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if forced {
+            hs.fallback_passes.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+        if !hs.served.swap(true, std::sync::atomic::Ordering::Relaxed) {
+            eprintln!("{}: first screened head step served (1 row)", crate::screen::ENV);
+        }
+        Ok(true)
     }
 
-    /// The screened head's counters, if it is loaded: (screened calls that gathered, c-row calls handed to the full head
-    /// because a row fell back). Every fallback pass is one read of the unembed for all its rows.
+    /// The screened head's counters, if it is loaded: (screened 1-row steps, of which forced to the full-row fallback).
     pub fn head_screen_stats(&self) -> Option<(u64, u64)> {
         self.head_screen.as_ref().map(|h| {
             (h.gathers.load(std::sync::atomic::Ordering::Relaxed), h.fallback_passes.load(std::sync::atomic::Ordering::Relaxed))
         })
     }
 
-    /// Test hooks of the screened head: `enabled` false makes every head the full head; bit i of `force_fallback_rows` makes
-    /// row i of a c-row group (c > 1) count as fallen back. No effect without a loaded screen.
+    /// Test hooks of the screened head: `enabled` false makes every head the full head; bit 0 of `force_fallback_rows` sends
+    /// every screened step through the full-row fallback of the gather and the argmax. No effect without a loaded screen.
     #[doc(hidden)]
     pub fn head_screen_test_hooks(&self, enabled: bool, force_fallback_rows: u64) {
         if let Some(h) = self.head_screen.as_ref() {
@@ -6227,12 +6199,13 @@ struct HeadScreenW {
     q: QTensor,
     /// The per-row bounds `[V]` f32 (`screen::row_bounds`).
     beta: TensorRef,
-    /// Screen values `[rows, V]` f32, candidates `[rows, cap]` i32, counts `[rows]` i32.
+    /// +inf bounds `[V]` f32: the forced full-row fallback (test hook).
+    beta_inf: TensorRef,
+    /// Screen values `[1, V]` f32, candidates `[1, cap]` i32, the count `[1]` i32 (1-row heads only).
     a: Buffer,
     cand: Buffer,
     cnt: Buffer,
     cap: usize,
-    rows: usize,
     /// Whether this backend's head kernel is one the gather reproduces (decided on first use).
     ok: std::sync::OnceLock<bool>,
     /// Set by the first screened step (logged once, so a gate can tell the screen really ran).

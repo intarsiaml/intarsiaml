@@ -827,47 +827,55 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
     }
 }
 
-/// The screened greedy head on a multi-row verify (lane ink-fp8, brief 12): when any row of a c-row group falls back, the
-/// whole group takes the caller's full head (one read of the unembed for all rows, no per-row full row in LogitsGather), and
-/// the tokens are bitwise the full head's. Fallbacks forced on 1, 2 and all rows of a 5- and a 16-row verify.
+/// The screened greedy head (lane ink-fp8, brief 14 option B): it serves 1-row greedy heads only. A greedy decode gives the
+/// same tokens with the screen off, on, and on with every step forced through the gather's full-row fallback, and the
+/// counters show the screen served each decode step; a multi-row verify never calls it (the full head).
 #[test]
-fn inkling2_tiny_screened_verify_fallback_reads_the_head_once() {
+fn inkling2_tiny_screened_head_one_row_only() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     let mut m = load_screen(&dir, chunk(), "1");
     m.enable_verify(16).unwrap();
     assert!(m.head_screen_stats().is_some(), "INTARSIA_INK_HEAD_SCREEN=1 loads the screen on the tiny model");
     let ids = prompt(&dir);
-    let run = |m: &Model, rows: usize| -> Vec<u32> {
+    let greedy = |m: &Model, steps: usize| -> Vec<u32> {
         let mut st = m.new_state().unwrap();
         all_logits(m, &mut st, &ids[..20]);
-        m.forward_verify(&mut st, &ids[20..20 + rows]).unwrap()
-    };
-    // the screen must engage on cpu; on Metal it turns itself off when the gather refuses this head (the fixture's lm_head is
-    // not 16-byte aligned there, so the head runs the scalar GEMV the gather does not repeat): nothing to test then
-    run(&m, 5);
-    let (g, f) = m.head_screen_stats().unwrap();
-    if g + f == 0 {
-        assert!(on_metal(), "the screen did not engage on cpu");
-        return skip("screened verify: the screen is off for the tiny head on this backend (see the load log)");
-    }
-    for rows in [5usize, 16] {
-        m.head_screen_test_hooks(false, 0);
-        let want = run(&m, rows);
-        let all = if rows == 64 { u64::MAX } else { (1u64 << rows) - 1 };
-        for (what, mask) in [("1 row", 1u64 << (rows - 1)), ("2 rows", 0b101), ("all rows", all)] {
-            m.head_screen_test_hooks(true, mask);
-            let (g0, f0) = m.head_screen_stats().unwrap();
-            assert_eq!(run(&m, rows), want, "{rows}-row verify, fallback forced on {what}");
-            let (g1, f1) = m.head_screen_stats().unwrap();
-            assert_eq!((g1 - g0, f1 - f0), (0, 1), "{rows}-row verify, {what}: one full-head pass, nothing gathered");
+        let mut last = ids[20];
+        let mut out = Vec::new();
+        for _ in 0..steps {
+            match m.forward(&mut st, &[last], HeadMode::LastArgmax, None).unwrap() {
+                intarsia_core::model::StepOut::Token(t) => last = t,
+                _ => panic!("LastArgmax gave no token"),
+            }
+            out.push(last);
         }
-        // unforced: screened (gathered) or, if a row really falls back, the one full-head pass; same tokens either way
-        m.head_screen_test_hooks(true, 0);
-        let (g0, f0) = m.head_screen_stats().unwrap();
-        assert_eq!(run(&m, rows), want, "{rows}-row verify, screened");
-        let (g1, f1) = m.head_screen_stats().unwrap();
-        assert_eq!((g1 - g0) + (f1 - f0), 1, "{rows}-row verify: exactly one screened call");
+        out
+    };
+    m.head_screen_test_hooks(false, 0);
+    let want = greedy(&m, 12);
+    m.head_screen_test_hooks(true, 0);
+    let (g0, _) = m.head_screen_stats().unwrap();
+    let got = greedy(&m, 12);
+    let (g1, _) = m.head_screen_stats().unwrap();
+    if g1 == g0 {
+        // the screen turned itself off for the tiny head on this backend (Metal: its lm_head is not 16-byte aligned)
+        assert!(on_metal(), "the screen did not engage on cpu");
+        return skip("screened head: the screen is off for the tiny head on this backend (see the load log)");
     }
+    assert_eq!(got, want, "greedy tokens, screen on vs off");
+    assert_eq!(g1 - g0, 12, "one screened 1-row head per decode step");
+    m.head_screen_test_hooks(true, 1);
+    let (g0, f0) = m.head_screen_stats().unwrap();
+    assert_eq!(greedy(&m, 12), want, "greedy tokens, every step forced through the full-row fallback");
+    let (g1, f1) = m.head_screen_stats().unwrap();
+    assert_eq!((g1 - g0, f1 - f0), (12, 12), "forced fallbacks counted");
+    // a multi-row verify runs the full head: no screened call
+    m.head_screen_test_hooks(true, 0);
+    let (g0, _) = m.head_screen_stats().unwrap();
+    let mut st = m.new_state().unwrap();
+    all_logits(&m, &mut st, &ids[..20]);
+    m.forward_verify(&mut st, &ids[20..25]).unwrap();
+    assert_eq!(m.head_screen_stats().unwrap().0, g0, "a 5-row verify never calls the screen");
 }
 
 /// The screened head never changes what batching accepts (brief 12, endor #11315): its plan-probe calls are recorded as

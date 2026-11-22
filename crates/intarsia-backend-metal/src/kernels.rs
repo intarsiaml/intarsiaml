@@ -482,7 +482,8 @@ pub const TABLE: &[(&str, Op)] = &[
     // lane ink-fp8: the screened greedy head (screen.rs)
     (crate::screen::KERNELS[0].0, Op::HeadScreen),
     (crate::screen::KERNELS[1].0, Op::LogitsGather),
-    (crate::screen::KERNELS[2].0, Op::ScreenArgmax),
+    (crate::screen::KERNELS[2].0, Op::LogitsGather),
+    (crate::screen::KERNELS[3].0, Op::ScreenArgmax),
     // Inkling-2 decode controller fusion (inkctrl.rs, lane ink-dfuse; metal4.0 library)
     (crate::inkctrl::INK_ROUTE_BF16, Op::InkRoute),
 ];
