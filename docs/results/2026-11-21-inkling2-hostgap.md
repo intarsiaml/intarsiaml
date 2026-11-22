@@ -751,6 +751,34 @@ raw dirs or golden/. spark2 has no /opt/code.
   - The new hostprof test failed: its expected count was wrong (2 gaps, not 1), not the code. Fixed in cd886d57b.
 - **#10899, on cd886d57b:** hostprof 3/3, `dflash_cpu` with the profiler 7/7.
 
+## Gates on the branch tip (endor #11182 section F, 03:49-04:0x, quiet)
+
+Binary `.scratch/i7/intarsia-h7f`, a fresh build of ink/hostgap ff65d7f63 (ink/metal 431a68aec with the NE fix 7eca1b012, plus
+this lane's code through fb38fe4a5), every `INTARSIA_*` switch of this lane unset. References: ink-metal's NE fix gate #11179
+(03:37 build, crate code = 7eca1b012 plus one test file), copied to `.scratch/gref_fix` and `.scratch/bin/intarsia-im7ec`.
+Summary `.scratch/gmb/summary.txt`, logs `.scratch/gates/`.
+
+| Gate | KL21 prefill (limit) | KL21 decode rows | gate | self-golden vs ink-metal post-fix (#11179) |
+|---|---:|---:|---|---|
+| G2 short (oracle W4A16) | 2.380e-3 (4e-3) | 2.589e-3 (128 rows) | PASS | 48 / 48 tensors bitwise identical |
+| G2 long | 3.418e-3 (6e-3) | 2.474e-3 (160 rows) | PASS | 60 / 60 bitwise identical |
+| G3 short (vLLM) | 8.391e-3 (1.05e-2) | (prefill mode) | PASS | 24 / 24 bitwise identical |
+| G3 long | 1.248e-2 (1.65e-2) | (prefill mode) | PASS | 30 / 30 bitwise identical |
+
+The numbers match the integration doc's #10901 gate (2.380e-3 / 3.418e-3 / 8.391e-3 / 1.248e-2) to the last digit. Against the
+pre-fix 844d81e8b self-goldens 32 / 40 / 16 / 20 tensors differ, from the NE change alone, which this branch merged and does not
+touch. So the branch's logits are bitwise the integration tip's.
+
+| Check | Result |
+|---|---|
+| G1, `tests/inkling2.rs`, cpu | 8 passed, 0 failed |
+| G1, `tests/inkling2.rs`, `INTARSIA_INKLING2_BACKEND=metal` | 8 passed, 0 failed |
+| intarsia-models `batch_metal` (Qwen3-8B, real model) | 1 passed |
+| intarsia-models `gdn_verify_metal` (tiny GDN) | all binaries ok (1-2 passed each) |
+| intarsia-models `prefix_store_metal` (Qwen3-8B) | 1 passed |
+| `plan show` Qwen3-8B / 35B / Inkling, h7f vs im7ec | stdout identical (21 / 59 / 31 lines); stderr identical except the 35B's MTP drafter load time (1.2 s vs 0.3 s) |
+| the 35B MoE Metal model tests | not run (coordinator's trim) |
+
 ## Batched decode and MTP draft verify
 
 - **Batched decode:** there was no host-gap work for it in this lane. ink-batch keeps graphs off there. A batched step would need
@@ -770,8 +798,8 @@ raw dirs or golden/. spark2 has no /opt/code.
 ## Open items (2026-11-22 02:50)
 
 - **Device sampler (item 6):** Metal gates and the t1.0 timing wait on #11152 / #11153 (the build in #11037 failed, see item 7).
-- **G1-G3 on the branch tip, the 8B Metal model tests, `plan show` on the branch tip:** section F of #11153. Before that, only G2
-  short had been rerun on this branch (PASS, self-golden bitwise base = branch, #10840 era).
+- **G1-G3 on the branch tip, the 8B Metal model tests, `plan show` on the branch tip:** done, #11182 section F (all pass, G2 / G3
+  self-goldens bitwise ink-metal's post-fix tip; section "Gates on the branch tip").
 - **35B MoE Metal model tests:** not run on this branch (coordinator's trim: a tight-memory endor job that does not check
   Inkling). Covered instead by `plan show` identical for the 35B and by the 35B keeping `argmax_f32_v4` (V % 4 == 0).
 - **localeval:** the speed numbers here are `generate`'s engine-timed decode tok/s, not localeval. The coordinator's rescope
