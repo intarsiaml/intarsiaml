@@ -383,3 +383,16 @@ Still open:
 | Batched controller (`torch.bmm`, cuBLAS order) vs per-stream `linear_k_groups`: which one the loop model runs at batch 1 | summation order only | `loop.py:60, 112-130` |
 | llama.cpp's SITU op and GGUF gate/up order | three-way diff completeness only | `ggml` not in the extract |
 | tau on real weights and W4A4 exactness | no golden reaches position 8191; W4A4 emulation exactness is unproven | `replay` on the spark2 capture (`golden/inkling2-capture/`, pending); expected attention rel err ≈ 3e-3 at `--rounding vllm` |
+
+## k. vLLM 12k module-boundary replay (2026-11-21, coordinator)
+
+Capture: `golden/inkling2-capture/` (ink/golden f038c46f6): one 12065-token prefill on GB10 vLLM, all 48 visits. Replay: `inkling2_ref.py replay --rounding vllm`, endor CPU, logs in `docs/results/raw/inkling2-replay/`.
+
+| Module | act quant | Visits | Relative error vs vLLM |
+|---|---|---|---|
+| Attention (prologue + attn + gate + wo) | n/a | all 48 | 1.6e-3 to 2.9e-3 (bf16 level); full layers at positions up to 12064, tau max abs diff 6.1e-8 |
+| MoE, NVFP4 layers | W4A4 exact | 44 | 3.3e-3 to 6.0e-3 |
+| MoE, MXFP8 layers 20-23 | W4A4 exact | 4 | 7.0e-4 to 9.3e-4 |
+| MoE, NVFP4 layers | W4A16 | 8 sampled | 3.8e-3 (v00, layer 0) up to 1.06e-1 (core); v47 3.3e-2 |
+
+Conclusions: (1) window, extent, beyond-extent bias, sink, clips, dynamic taps and tau above 8192 match vLLM: attention is settled. (2) The exact W4A4 emulation reproduces vLLM's experts to bf16 precision, so the GB10 goldens are W4A4 and the noise model holds. (3) W4A16 differs from vLLM's W4A4 experts by up to 10 % per module but scores closer end to end (section i: long 1.24e-2 vs 1.54e-2): W4A4 is a noisy perturbation that compounds over 48 visits, and W4A16 sits near its mean. Default stays W4A16 (vLLM's own SM90 numerics); W4A4 stays an opt-in mode for FP4 tensor cores.
