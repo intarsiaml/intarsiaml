@@ -176,3 +176,9 @@ Marker `.scratch/gate_pass_bdcdee4b1`.
   the bug it fixes, and `INTARSIA_INK_RING_SNAPSHOT=0` as the revert.
 - On the go: merge main in, rerun md5 and the tiny / chat-reuse tests, then merge.
 - Push from endor (bespin and the Sparks cannot push to GitHub). #11668 stays queued with `--load cpu`.
+
+## User go for #499 (relayed by the coordinator, 2026-11-22 17:21 EST): "Yes, merge in order"
+
+Order: #497, then #498 (CUDA defaults), then #499. When #498 is on main: merge main into `ink/chat-reuse`, rerun md5 and the tiny /
+chat-reuse tests, wait for green CI, then merge, and send the coordinator the merge commit. If anything fails, fix it and report;
+don't merge. #496 is not covered by this go.
