@@ -380,13 +380,15 @@ pub fn all() -> Vec<KernelImpl> {
             }
             "rope_bf16" => k.acts(bf).when(|s| s.head_dim % 2 == 0).exact(Exactness::Deterministic).tol(BF16_TOL).row_invariant(),
             // cuBLAS: tensor cores, algorithm (split-K) may change with the shape or the library version
-            "matmul_bf16" => k.acts(bf).weights(bf).exact(Exactness::Fast).tol(BF16_TOL).priority(0),
+            // The bf16 Matmul launchers write bf16 only (`check_mm`): an f32-output Matmul (Inkling's router) is refused at
+            // selection, so the model takes `Logits` (the same math) as on Metal (lane ink-cuda-mixmoe)
+            "matmul_bf16" => k.acts(bf).weights(bf).when(|s| s.out != Some(DType::F32)).exact(Exactness::Fast).tol(BF16_TOL).priority(0),
             "logits_bf16" => k.acts(bf).weights(bf).exact(Exactness::Fast).tol(F32_TOL).priority(0),
             // native decode GEMV: fixed reduction order, run-to-run identical
             "matmul_bf16_gemv" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| (1..=4).contains(&s.m))
+                .when(|s| (1..=4).contains(&s.m) && s.out != Some(DType::F32))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(10),
@@ -405,7 +407,7 @@ pub fn all() -> Vec<KernelImpl> {
             "matmul_bf16_inv" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| s.k % 8 == 0 && s.n % 8 == 0)
+                .when(|s| s.k % 8 == 0 && s.n % 8 == 0 && s.out != Some(DType::F32))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(-5)
@@ -416,7 +418,7 @@ pub fn all() -> Vec<KernelImpl> {
             "matmul_bf16_gemv_rows" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| (1..=ROWS_MAX).contains(&s.m))
+                .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.out != Some(DType::F32))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(-1)
