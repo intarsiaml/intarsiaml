@@ -97,3 +97,37 @@ T = 1 sub-calls (row r's slices gathered per plane into temporaries, row r's sta
 buffers, `pos0 = pos[r]`), each run by the ordinary kernel, results scattered back. Bitwise the solo row by construction;
 it is the reference the Metal `_rows` kernels are tested against. `device_address` on cpu returns the buffer's host
 address (owned buffers only); `supports_row_tables` stays false for every other model.
+
+## 2. What was built
+
+| Part | Where | What |
+|---|---|---|
+| Contract | `crates/intarsia-core/src/inkling2/ops.rs` ("Row tables"), `ops.rs` (`OpCall::check`), `plan.rs` (`PER_ROW_OPS`) | `ROW_TABLE_OPS`, `row_roles` (Row / Planes / State(j) / Fixed per tensor), `row_states`; a row-table call needs `pos` i32 `[B]`, `rows == T`, `index + states <= stride`; the five ops count as `B` solo calls in the plan's batch check. Calls without a table: unchanged code path. |
+| Model | `model.rs` (`run_layers` Ink arm), `model/inkling2.rs` (`InkBatch`, `sx` / `rowtab` helpers), `model/batch.rs` | `Seqs::Batch` runs the visit loop over B rows; the 5 stateful call sites go through one helper that adds the row table + positions in a batch (identical call otherwise). `enable_batch` accepts `Block::Ink`, reserves rings x (B - 1); row-table entries `(buf, buf)` for Ink rings; softcap on batched logits / top-k values (solo parity); a failed batched pass resets every state of the batch; batched graphs off for Ink. A batch takes fused `InkAttnDecode` when the backend has no row-table pair (both give the same bits). |
+| cpu | `crates/intarsia-backend-cpu/src/rowtab.rs`, `mem.rs` (`Raw` view, `address`), `lib.rs` | `ref_<op>_rows` / `cpu_f32_<op>_rows`: the call run as B one-row sub-calls on the addressed buffers (the reference of the form); registered after the base kernels (admission takes an op's first reference kernel). |
+| Metal | `kernels/metal/inkling2_attn.metal` (`ink_attn_dec<GP, RT>`, `ink_attn_comb<RT>`), `inkling2_mix.metal` (`MX_ROWTAB`), `inkattn.rs` (`launch_ink_decode_rows`), `inkmix.rs` (`conv_mix_bf16_rows`), `dense.rs` (`dispatch_ind`) | Templated RT flag on the existing kernels: row r reads its caches / rings through the table (address in the params, resident via the indirect set), its own position, its own T = 1 scratch block; per-row split choice unchanged (grid over the most splits, the combine returns for a row with one split). The non-RT instantiations compile to the same code as before. |
+| Recipe | `recipes/inkling2.toml` | `max_batch = 16` (the cap of `--max-batch`; without the flag one sequence at a time, as before). |
+| Bench | `crates/intarsia-models/examples/batch_step.rs` | model name from the directory; `--ctx-spread N` (sequence i at ctx + i N). Asserts batched tokens == solo tokens every step. |
+
+## 3. Tests
+
+`crates/intarsia-models/tests/inkling2_batch.rs`, tiny fixture (window 8, rel extent 12, 2-layer blocks, 3 passes), cpu and
+`INTARSIA_INKLING2_BACKEND=metal`; logits compared bitwise (softcapped) against the solo decode step of each sequence:
+
+| Test | What | cpu | Metal | Metal, `INTARSIA_INK_SPLIT_KEYS=4` |
+|---|---|---|---|---|
+| `batch_equals_solo_2_5_16` | 2, 5, 16 sequences at lengths 1..64 (before / at / past the window, ring wrapped many times), 6 steps | pass | pass | pass |
+| `batch_argmax_equals_solo` | device argmax rows | pass | pass | pass |
+| `batch_membership_changes` | one finishes mid-batch, rejoin, shuffled row order, single-row step | pass | pass | pass |
+| `batch_rollback_per_sequence` | two sequences cut back by length (3, 2) while the third continues | pass | pass | pass |
+| `batch_failed_pass_resets_every_sequence` | injected failure in a row-table `ConvMix`: every sequence reset to 0, then prefill + batched decode bitwise again | pass | pass | pass |
+| `batched_engine_equals_solo_engine` | `BatchedEngine` (4 slots, 9 requests at once, one seeded-sampled) token for token = `LocalEngine`; batched passes ran | pass | pass | pass |
+
+`INTARSIA_INK_SPLIT_KEYS=4` forces several splits per row at tiny contexts, so the row-table combine and rows with different
+split counts in one launch are exercised.
+
+Other models (same branch): `intarsia-core` 232 + doc tests, `intarsia-backend-cpu` (admission quick sweep included),
+`intarsia-models` `batch`, `batch_recurrent` (15, cpu), `batch_metal`, `inkling2` (8, cpu and Metal), `intarsia-backend-metal`
+lib (kernel-list golden gains `ink_attn_decode_bf16_rows` only; `conv_mix_bf16_rows` is an Inkling op, outside the golden) and
+its `inkling2_attn`, `inkmix`, `row_tables`, `rows_exact` tests: pass. `plan show --model ~/models/Qwen3-8B --backend metal`:
+stdout and stderr byte-identical to a88db4620 (#10785).
