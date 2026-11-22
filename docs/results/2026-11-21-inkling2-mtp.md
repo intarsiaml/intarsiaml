@@ -744,6 +744,31 @@ before 840adbca6 touched `load.rs`).
     9.536743e-7)". The test had run on cpu only before (spark2 #11295 / #11296). The lane stopped here (rule: report, do not
     re-rule); the speed job #11533 aborted on its guard (no pass marker), nothing timed. Diagnosis job: #11553.
 
+### The A3 failure: cause and fix (#11553, coordinator decision (a))
+
+#11553 (endor, default load, diagnosis only) ran `inkling2_verify_softcap` alone:
+
+| run | Metal result |
+|---|---|
+| branch 840adbca6 | 81 of 300 differ, max 9.5e-7 |
+| `INTARSIA_INK_HEAD_SCREEN=0` | 81 of 300 differ (the screen plays no part) |
+| `INTARSIA_INK_ROWS_EXACT=0` | 66 of 300 differ |
+| 36cbb9536 (ink/mtp-softcap, before the main merge), built from `git archive` | pass |
+| cpu, branch and 36cbb9536 | pass |
+
+So main brought it: main's P12 unembed (lane ink-pack12, `head_p12`). A 1-row decode step's head goes through
+`Model::head_proj`, which takes the P12 head (`matmul_p12_logits_gemv`), while `Model::verify_head` called `proj` on the bf16
+head, i.e. `logits_bf16_gemv_rows` at verify rows: two kernels whose rows are an ulp apart in some logits. Fix 03292acab:
+`verify_head` (replicated head) calls `head_proj`, which at a verify call (`exact_rows`) selects P12's `_rows` twin,
+`matmul_p12_logits_gemv_rows`, the same shaders as the 1-row P12 head; a model without a P12 head (every non-Inkling model, and
+Inkling off Metal or with `INTARSIA_INK_PACK12=0`) runs the same `proj` as before. Re-gate: the full #11532 script again (A1, A2,
+B1, B3, A3 with the softcap test, plus the softcap test with P12 off as information), then the speed job.
+
+Main moved meanwhile to 2474c17b9 (#492 ink/batch: `ink_in_proj_gemvx` at 2..16 rows and MoE decode-once, both default-on,
+bitwise claimed). Merged as bfaccd447 (conflict: `inkmoe_bench.rs`, both routing modes kept). The re-gate compares against
+2474c17b9 (A1 / A2 main built in the same job), and A5 reruns on spark1 against it (#11557). #11540 (A4 Linux test step, A5) ran
+on 840adbca6 over the old main.
+
 Speed protocol (after A and B pass; branch tip binary, endor, one `--quiet gpu,cpu` slot): `serve --backend metal --max-batch 1
 --max-seq 20480` per arm (off, DSpark), localeval `suite --tier adhoc --cells speed-plain` (143 / 1k / 4k / 16k
 prompt tokens, 256 forced output tokens, 3 reps each), DSpark at its defaults (k3, gate 0.8); the DSpark arm declared `--lane spec:dspark --drafter dspark`, off `--lane
