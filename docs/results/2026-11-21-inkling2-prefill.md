@@ -268,6 +268,12 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     says recovery takes more than 20 min, so the idle cap stays at 20 min, with readings at 0 / 5 / 10 / 15 / 20 min. Main's
     rule 28b for that lane makes the warm steady state the primary serving number. Here the coordinator asked for the cold
     gate explicitly, so this run gates on p8k >= 2736.
+28. 2026-11-22 (coordinator, via SendMessage): the stop was correct. The 12:41 rustc came from two CUDA lanes running local
+    cargo on endor without a slot (told). Endor is in interactive use by day: queue `.scratch/rg4.sh` unchanged as a quiet
+    gpu,cpu job at 03:00 (or fleetq's earliest slot after 02:00), generous `--expect`; same box check (p8k >= 2736 first, else
+    stop and log the readings). If it passes the flip bar (bitwise, >= 1 % at 4k / 8k / 16k): commit NSG 6 default-on as its
+    own commit on ink/prefill (`INTARSIA_INK_NAX_SG=12` reverts) and message the coordinator the hash; it routes it to the
+    landing lane. Leave a background waiter on the job, then stop.
 
 ## Status
 
