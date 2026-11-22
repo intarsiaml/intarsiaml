@@ -114,6 +114,14 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   (`INTARSIA_INK_MIX_NE`) until fixed, whichever is faster; then rerun decode-mode G2 (must be back near 2.6e-3) and release
   the merge queue. Send the bisect table when #11142 lands.
 
+- 2026-11-22 (lane): test for the brief, step 1: `crates/intarsia-models/tests/inkling2_mix_decode_cpu.rs` (02d157d8b), the
+  m-mix kernels at D 2304 against the cpu reference: `ConvMix` as a 20-step 1-row recurrence (ring and output carried per
+  backend, all four outputs compared each step), `AttnResMix` and `LoopBlend` at 1, 2, 5, 16 rows; per-tensor rel L2 <= 1e-2;
+  NE 3 runs in a child process (`INTARSIA_INK_MIX_NE=3`). It covers the mix kernels only, not the KV state or the logits; a
+  whole synthetic D 2304 layer follows if this one does not catch the regression. Compiles on macOS (bespin #11159, which has
+  no Metal toolchain); its first GPU run is in #11142 (tip, 331238a4e, 331238a4e with `INTARSIA_INK_BLEND_RB=16`), before the
+  G2 bisect arms.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
