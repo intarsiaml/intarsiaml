@@ -100,7 +100,20 @@
 //! `out = rA(sum_k rA(y * w_k))`. With `ink.situ` (SiTU, spec a14; also on `MoeExperts`, NVFP4):
 //! `a = rA(gate_cap * tanh(g / gate_cap) * sigmoid(g) * up_cap * tanh(u / up_cap) * w_k)` (the routing weight before w2),
 //! `y = rA(a . W2)`, `out = rA(sum_k y)`. A `situ` call selects only kernels registered `.situ()` (`ShapeInfo::situ`).
-//! `ink.act_quant` is reserved for a W4A4 / W8A8 activation mode and must be 0.
+//! **`ink.act_quant = 1` (W4A4, the checkpoint's `required_activation_quantization`; opt-in, recipe `[tuning.<backend>] act_quant`;
+//! with `situ` only).** The expert inputs `x` (per token) and `a` (per (token, slot) row) are quantised before their matmul, by
+//! `crate::inkling2::actq` exactly (f32, these operation orders; a kernel must reproduce every bit of `xq` and `outer`):
+//! * NVFP4 (`MoeExperts`), per row of C values: `amax = max |v|`, `enc = min(1536 / amax, f32::MAX)`, `dec = 1 / enc`,
+//!   `outer = amax * (1/1536)`; per block of 16 the e4m3 scales `s6 = e4m3(min(bmax * (enc * (1/6)), 448))` and
+//!   `s4 = e4m3(min(bmax * (enc * 0.25), 448))`, inverses `i = min(1 / (s * dec), f32::MAX)`, codes `c = e2m1(v * i)` (nearest,
+//!   ties to even, saturating), the error `sum |(c * s) * outer - v|` (pairwise: adjacent pairs, then pairs of those); the 4-based
+//!   block is taken when its error is strictly smaller ("fouroversix_mae"). `xq = c * s` (exact in bf16).
+//!   Then `g = rA(outer * (xq . Wg))` (the NVFP4 global scale is part of W as above), likewise `u`; `a` as above;
+//!   `(aq, outer_a) = quant(a)`, `y = rA(outer_a * (aq . W2))`.
+//! * MXFP8 (`MoeExpertsMxfp8`), per block of 32 (no row scale): `raw = bmax * (1/448)`, `e = ((bits(raw) + 0x7FFFFF) & 0x7F800000)
+//!   >> 23` (0 when `raw <= 2^-127`, at most 254), `scale = max(2^(e-127), 2^-127)`, `inv = 2^127` when `e == 0` else `1 / scale`,
+//!   `xq = rA(e4m3(clamp(v * inv, +-448)) * scale)`; `g = rA(xq . Wg)`, `y = rA(aq . W2)`.
+//! The value of a row depends on that row alone, so a kernel stays rows-exact; it quantises at every row count (decode too).
 //!
 //! ## InkInProj: the attention in-projection of one visit
 //!
@@ -152,7 +165,7 @@ pub struct InkAttrs {
     pub situ: bool,
     pub gate_cap: f32,
     pub up_cap: f32,
-    /// Expert ops: activation quantisation mode, reserved (0 = 16-bit activations, the only one implemented).
+    /// Expert ops: activation quantisation mode (0 = 16-bit activations, 1 = W4A4: module doc, `actq`); 1 needs `situ`.
     pub act_quant: u8,
     /// `InkKvPrologue`: L2 clip thresholds of q / k and of r.
     pub qk_clip: f32,
@@ -584,8 +597,8 @@ pub fn check(call: &OpCall) -> Result<()> {
 /// The expert-activation attributes (`MoeExperts`, `MoeExpertsMxfp8`).
 pub fn check_act_epilogue(call: &OpCall) -> Result<()> {
     let (a, ink) = (&call.attrs, &call.attrs.ink);
-    if ink.act_quant != 0 {
-        return bad(call.op, format!("ink.act_quant {} is reserved (only 16-bit activations are implemented)", ink.act_quant));
+    if ink.act_quant > 1 || (ink.act_quant == 1 && !ink.situ) {
+        return bad(call.op, format!("ink.act_quant {} (0 = 16-bit, 1 = W4A4 with situ; situ {})", ink.act_quant, ink.situ));
     }
     if ink.situ && (a.gelu || !(ink.gate_cap > 0.0) || !(ink.up_cap > 0.0)) {
         return bad(call.op, format!("situ needs gate_cap, up_cap > 0 and no gelu (caps {} / {}, gelu {})", ink.gate_cap, ink.up_cap, a.gelu));
@@ -598,6 +611,7 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
     let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
     let dim = |t: &TensorRef, d: usize| t.shape.get(d).copied().unwrap_or(0);
     s.situ = a.ink.situ;
+    s.act_quant = a.ink.act_quant;
     match call.op {
         Op::AttnResMix => {
             s.m = dim(&i[1], 0);

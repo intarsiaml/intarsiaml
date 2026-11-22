@@ -1691,7 +1691,15 @@ impl Model {
                 if let Some(k) = attn_quant {
                     eprintln!("inkling2: attention projections quantised to {} at load ({} = {}; changes outputs)", k.name(), inkling2::ATTN_QUANT_ENV, k.name());
                 }
-                let m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, &mut slot_specs, &mut nbytes)?;
+                let mut m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, &mut slot_specs, &mut nbytes)?;
+                // opt-in W4A4 expert activations: the variable wins over the recipe
+                m.act_quant = match std::env::var(inkling2::ACT_QUANT_ENV).ok().filter(|v| !v.is_empty()) {
+                    Some(v) => inkling2::parse_act_quant(&v)?,
+                    None => recipe.ink_act_quant(backend.name()).map(inkling2::parse_act_quant).transpose()?.unwrap_or(0),
+                };
+                if m.act_quant == 1 {
+                    eprintln!("inkling2: W4A4 expert activations ({} / recipe act_quant; changes outputs)", inkling2::ACT_QUANT_ENV);
+                }
                 weights_bytes.set(weights_bytes.get() + nbytes);
                 eprintln!("inkling2: {} layers, {} visits, {} state slots, loaded in {:.1} s", m.layers.len(), m.visits.len(), slot_specs.len(), t0.elapsed().as_secs_f64());
                 layers = (0..dims.n_layers).map(|li| vec![Block::Ink(li)]).collect();

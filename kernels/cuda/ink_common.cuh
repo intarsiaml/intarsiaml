@@ -38,6 +38,11 @@ struct InkMmaArgs {
     int T, K, E, H, I;
     int fmt, act;
     float gc, uc;
+    /* W4A4 (ink.act_quant = 1): x is already the quantised xq; the h rows are quantised between the GEMMs; NVFP4 row scales
+     * xo [T] and ho [P] (sorted-row order is written by ink_moe_mma itself) multiply the f32 sums; null otherwise */
+    int aq;
+    const float* xo;
+    float* ho;
 };
 int64_t ink_moe_mma_scratch_bytes(int64_t P, int64_t E, int64_t H, int64_t I);
 int ink_moe_mma(const InkMmaArgs& a, void* scratch, int out_f32, cudaStream_t s);

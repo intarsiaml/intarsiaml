@@ -527,8 +527,15 @@ fn experts_mxfp8(call: &OpCall) -> Result<()> {
         }
         acc
     };
+    // W4A4 (`ink.act_quant = 1`): MXFP8 activations, `rA(e4m3 * 2^e)` per block of 32 (`intarsia_core::inkling2::actq`)
+    let aq = at.ink.act_quant == 1;
+    let mxq = |v: &[f64]| -> Vec<f64> {
+        let f: Vec<f32> = v.iter().map(|a| *a as f32).collect();
+        intarsia_core::inkling2::actq::mxfp8_row(&f).into_iter().map(|q| round(dt, q as f64)).collect()
+    };
     let token = |ti: usize| -> Vec<f64> {
-        let xr = &x[ti * hd..(ti + 1) * hd];
+        let xq = if aq { mxq(&x[ti * hd..(ti + 1) * hd]) } else { x[ti * hd..(ti + 1) * hd].to_vec() };
+        let xr = &xq[..];
         let mut acc = vec![0f64; hd];
         for slot in 0..k {
             let id = ids[ti * k + slot];
@@ -545,6 +552,7 @@ fn experts_mxfp8(call: &OpCall) -> Result<()> {
                     expert_act(g, u, w, at, dt)
                 })
                 .collect();
+            let act = if aq { mxq(&act) } else { act };
             let ys: Vec<f64> = (0..hd).into_par_iter().map(|c| round(dt, dot(w2, s2, ex, hd, inter, c, &act))).collect();
             for (av, y) in acc.iter_mut().zip(ys) {
                 *av += if at.ink.situ { y } else { round(dt, y * w) };

@@ -9,6 +9,7 @@
 #include "ik_quant.cuh"
 #include "moe_group.cuh"
 #include "ink_common.cuh"
+#include "ink_actq.cuh"
 #include <stdlib.h>
 
 namespace {
@@ -46,7 +47,7 @@ __global__ void __launch_bounds__(128 * WM)
 ink_moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
                    const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
                    const int2* __restrict__ tiles, const int* __restrict__ ntiles, ik_bf16* __restrict__ out, int H, int I,
-                   int K, const float* __restrict__ wts, float gcap, float ucap) {
+                   int K, const float* __restrict__ wts, float gcap, float ucap, const float* __restrict__ rscale) {
     constexpr int kRawStride = RawGeom<FMT>::RS;
     constexpr int kRawUnit = RawGeom<FMT>::RU;
     constexpr int RCH = RawGeom<FMT>::RB / 16;  // 16-byte chunks per row and unit
@@ -252,11 +253,15 @@ ink_moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict_
                     const int rl = wm * 16 * MT + i * 16 + (lane >> 2) + hh * 8;
                     const int cl = wn * 16 + j * 8 + (lane & 3) * 2;
                     const float wp = ACT == 2 && rl < rows ? wts[pairs[begin + m0 + rl]] : 0.f;
+                    // W4A4: the token's row scale (rscale = xo [T])
+                    const float ro = rscale && rl < rows ? rscale[pairs[begin + m0 + rl] / K] : 1.f;
                     float hv[2];
 #pragma unroll
                     for (int v = 0; v < 2; ++v) {
-                        const float g = round_bf16(acc[i][j][2 * hh + v] * gg);
-                        const float u = round_bf16(acc[i][j + 2][2 * hh + v] * gu);
+                        const float ag = rscale ? __fmul_rn(acc[i][j][2 * hh + v], ro) : acc[i][j][2 * hh + v];
+                        const float au = rscale ? __fmul_rn(acc[i][j + 2][2 * hh + v], ro) : acc[i][j + 2][2 * hh + v];
+                        const float g = round_bf16(ag * gg);
+                        const float u = round_bf16(au * gu);
                         if (ACT == 2) {
                             hv[v] = gcap * tanhf(g / gcap) * (1.f / (1.f + expf(-g))) * ucap * tanhf(u / ucap) * wp;
                         } else {
@@ -273,11 +278,14 @@ ink_moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict_
 #pragma unroll
             for (int hh = 0; hh < 2; ++hh) {
                 const int rl = wm * 16 * MT + i * 16 + (lane >> 2) + hh * 8;
+                // W4A4: the sorted row's scale (rscale = ho [P], sorted order)
+                const float ro = rscale && rl < rows ? rscale[begin + m0 + rl] : 1.f;
 #pragma unroll
                 for (int j = 0; j < 4; ++j) {
                     const int cl = wn * 32 + j * 8 + (lane & 3) * 2;
-                    *reinterpret_cast<ik_bf162*>(ob + rl * OS + cl) =
-                        __floats2bfloat162_rn(acc[i][j][2 * hh] * gd, acc[i][j][2 * hh + 1] * gd);
+                    const float y0 = rscale ? __fmul_rn(acc[i][j][2 * hh], ro) : acc[i][j][2 * hh];
+                    const float y1 = rscale ? __fmul_rn(acc[i][j][2 * hh + 1], ro) : acc[i][j][2 * hh + 1];
+                    *reinterpret_cast<ik_bf162*>(ob + rl * OS + cl) = __floats2bfloat162_rn(y0 * gd, y1 * gd);
                 }
             }
     }
@@ -307,14 +315,14 @@ int pick_bm_ink(int64_t P, int64_t E) {
 template <int MT, int WM, int MODE, int FMT, int ACT>
 int launch_one(const ik_bf16* a, const uint8_t* w, const uint8_t* sc, const float* gs, const int* pairs, const int* offsets,
                const int2* tiles, const int* ntiles, ik_bf16* out, unsigned tiles_ub, int H, int I, int K, const float* wts, float gc,
-               float uc, cudaStream_t s) {
+               float uc, const float* rscale, cudaStream_t s) {
     constexpr size_t smem = (size_t)(3 * 16 * MT * WM + 2 * kWRows) * LDS * 2 + 2 * RawGeom<FMT>::RU;
     static const cudaError_t attr = cudaFuncSetAttribute(reinterpret_cast<const void*>(ink_moe_mma_kernel<MT, WM, MODE, FMT, ACT>),
                                                          cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem);
     if (attr != cudaSuccess) return IK_ERR_LAUNCH;
     const unsigned nx = MODE == 0 ? (unsigned)(I / 64) : (unsigned)(H / 128);
     ink_moe_mma_kernel<MT, WM, MODE, FMT, ACT><<<dim3(nx, tiles_ub), 128 * WM, smem, s>>>(a, w, sc, gs, pairs, offsets, tiles, ntiles,
-                                                                                         out, H, I, K, wts, gc, uc);
+                                                                                         out, H, I, K, wts, gc, uc, rscale);
     return ik_launch_status();
 }
 
@@ -322,9 +330,15 @@ template <int MT, int WM, int FMT, int ACT>
 int gemms(const InkMmaArgs& a, const int* pairs, const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* h, ik_bf16* y,
           unsigned tiles_ub, cudaStream_t s) {
     IK_TRY((launch_one<MT, WM, 0, FMT, ACT>(a.x, a.guw, a.gus, a.gs, pairs, offsets, tiles, ntiles, h, tiles_ub, a.H, a.I, a.K, a.wts,
-                                            a.gc, a.uc, s)));
+                                            a.gc, a.uc, a.xo, s)));
+    if (a.aq) {
+        // W4A4: the sorted h rows in place (rows past the routed pairs are never read)
+        const int64_t P = (int64_t)a.T * a.K;
+        if (FMT == 0) IK_TRY(ink_actq_nv(h, P, a.I, h, a.ho, nullptr, nullptr, s));
+        else IK_TRY(ink_actq_mx(h, P, a.I, h, s));
+    }
     return launch_one<MT, WM, 1, FMT, ACT>(h, a.dnw, a.dns, a.gs, pairs, offsets, tiles, ntiles, y, tiles_ub, a.H, a.I, a.K, a.wts,
-                                           a.gc, a.uc, s);
+                                           a.gc, a.uc, FMT == 0 ? a.ho : nullptr, s);
 }
 
 // out[t, r] = rA(sum_k term) over the valid slots in slot order; term = y (situ: the weight is in h) or rA(y * w)

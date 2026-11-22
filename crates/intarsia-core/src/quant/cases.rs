@@ -692,6 +692,28 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     push(format!("T={t} E={e} K={k} H={h} I={i} {dt} situ"), c);
                 }
             }
+            // Inkling-2 W4A4 (`ink.act_quant = 1`, `.act_quant()` kernels only): the situ shapes again with quantised activations;
+            // decode rows, the table path (40), verify rows and a prefill chunk at the real shape. Its own stream.
+            let mut arng = SplitMix64::new(cfg.seed ^ 0xA4A4_0001);
+            let mut ashapes: Vec<(usize, usize, usize, usize, usize)> = vec![(1, 16, 4, 64, 32), (7, 16, 4, 64, 32), (16, 16, 4, 128, 64), (40, 16, 4, 64, 32)];
+            if !quick {
+                ashapes.extend([(1, 128, 8, 2304, 1152), (4, 32, 8, 2304, 1152), (16, 32, 8, 2304, 1152), (64, 128, 8, 2304, 1152), (2048, 128, 8, 2304, 1152)]);
+            }
+            for (t, e, k, h, i) in ashapes {
+                for dt in ACT {
+                    if t >= 1024 && dt != DType::Bf16 {
+                        continue;
+                    }
+                    let mut c = experts_case(&mut arng, t, e, k, h, i, dt);
+                    let w: Vec<f32> = c.inputs[2].to_f32().iter().map(|v| v * 8.0).collect();
+                    c.inputs[2] = HostTensor::from_f32(&[t, k], &w);
+                    c.attrs.ink.situ = true;
+                    c.attrs.ink.gate_cap = 4.0;
+                    c.attrs.ink.up_cap = 25.0;
+                    c.attrs.ink.act_quant = 1;
+                    push(format!("T={t} E={e} K={k} H={h} I={i} {dt} situ w4a4"), c);
+                }
+            }
         }
         Op::MoeCombine => {
             for &t in if quick { &[1usize, 5][..] } else { &[1usize, 5, 33][..] } {
@@ -989,7 +1011,11 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             i[3].shape[1] / 2,
             i[0].dtype,
             // Inkling-2's SiTU experts are another case (and cache entry); the suffix is empty for every other model
-            if call.attrs.ink.situ { " situ" } else { "" }
+            match (call.attrs.ink.situ, call.attrs.ink.act_quant) {
+                (true, 1) => " situ w4a4",
+                (true, _) => " situ",
+                _ => "",
+            }
         ),
         Op::MoeCombine => format!("T={} H={} {}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
         Op::MatmulPair => format!(

@@ -1205,6 +1205,9 @@ pub struct ShapeInfo {
     /// `OpAttrs::ink.situ` of the call (`MoeExperts` / `MoeExpertsMxfp8` with the Inkling-2 SiTU activation): only kernels registered
     /// `.situ()` accept it, so an expert kernel that predates SiTU (including the `.ext()` ones for Gemma's GELU) never runs it.
     pub situ: bool,
+    /// `OpAttrs::ink.act_quant` of the call (Inkling-2 expert ops, 1 = W4A4 activations): only kernels registered `.act_quant()`
+    /// accept a call with a nonzero mode.
+    pub act_quant: u8,
 }
 
 impl ShapeInfo {
@@ -1232,6 +1235,7 @@ impl ShapeInfo {
             mxfp4_w4a16: call.attrs.mxfp4_w4a16,
             win_split: call.attrs.win_split,
             situ: call.attrs.ink.situ,
+            act_quant: call.attrs.ink.act_quant,
             ..Default::default()
         };
         match call.op {

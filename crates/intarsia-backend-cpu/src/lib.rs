@@ -204,6 +204,9 @@ impl Backend for CpuBackend {
             if matches!(op, Op::MoeExperts | Op::MoeExpertsMxfp8) {
                 r = r.situ();
                 f = f.situ();
+                // and its W4A4 activation mode (`ShapeInfo::act_quant`; quant_ref.rs / ink_ref.rs, `inkling2::actq`)
+                r = r.act_quant();
+                f = f.act_quant();
             }
             // the Inkling-2 row-table forms (batched decode, `rowtab.rs`): twins `<kernel>_rows`, selected only with a table;
             // after the base kernels (admission takes an op's first reference kernel as its oracle)

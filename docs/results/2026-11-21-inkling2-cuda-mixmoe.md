@@ -491,3 +491,17 @@ families use; other backends keep the default). Revert: `--prefill-chunk 256` pe
 
 Metal admission #11301 (endor, the Metal half of 24ab7961d: situ tol + per-case seeding): 28 kernels admitted `yes` at both
 `--max-seq 20480` and `--mem-budget 30 --max-seq 12288`, none refused, rc 0. That clears brief 23 / 24 item 4 for the Metal half.
+
+### Warm serve prefill (brief 24 item 2; spark2, localeval speed, `--quiet gpu,cpu`, 2 reps + 1 warmup per size, 128 forced tokens)
+
+| prompt tok | chunk 256 TTFT s | tok/s | chunk 2048 TTFT s | tok/s | marginal (2048) | decode tok/s (2048) |
+|---:|---:|---:|---:|---:|---:|---:|
+| ~1035 | 0.87 | 1185 | 0.49 | 2093 | - | 34.6 |
+| ~4126 | 3.04 | 1356 | 1.70 | 2434 | 2574 | 33.7 |
+| ~9260 | 6.48 | 1430 | 3.50 | 2645 | 2844 | 33.2 |
+
+Runs #11330 (chunk 256: the serve binary predates the recipe line and embeds the recipes at build time, so it still resolved
+`prefill chunk 256 (default)`) and #11346 (`--prefill-chunk 2048` on the same binary; localeval run
+`20261122-*-adhoc-intarsia-cuda-c2048-warm`). Warm 4k prefill at 2048 is 1.70 s / 2434 tok/s: the ~2500 tok/s estimate from GPU
+busy time holds (marginal 2574). The CLI's extra ~0.25-0.6 s is the per-process first-use stall; it does not recur per request.
+Decode is unchanged by the chunk (33-35 tok/s). The recipe default takes effect from the next build (checked then).

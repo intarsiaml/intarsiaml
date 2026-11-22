@@ -129,6 +129,20 @@ pub(super) enum InkInW {
 /// `[tuning.<backend>] ink_attn_quant`; unset on both: the bf16 projections as stored.
 pub const ATTN_QUANT_ENV: &str = "INTARSIA_INK_ATTN_QUANT";
 
+/// `INTARSIA_INK_ACT_QUANT` (`w4a4` / `w4a16`), else the recipe's `[tuning.<backend>] act_quant`; unset on both: `w4a16`
+/// (16-bit expert activations). `w4a4` quantises the expert inputs as the checkpoint's `required_activation_quantization`
+/// (contract: `crate::inkling2::ops`, `ink.act_quant = 1`).
+pub const ACT_QUANT_ENV: &str = "INTARSIA_INK_ACT_QUANT";
+
+/// The expert activation mode from its spelling (`w4a16` -> 0, `w4a4` -> 1).
+pub fn parse_act_quant(v: &str) -> Result<u8> {
+    match v.trim().to_ascii_lowercase().as_str() {
+        "w4a16" | "a16" | "0" | "off" => Ok(0),
+        "w4a4" | "a4" | "1" | "on" => Ok(1),
+        other => Err(Error::model(format!("inkling2 act_quant '{other}' (w4a16 or w4a4)"))),
+    }
+}
+
 pub(super) struct InkLayer {
     pub local: bool,
     /// `layer % n_layers_per_attn_res_block == 0`: pushes its input partial as a block.
@@ -210,6 +224,9 @@ pub(super) struct InkModel {
     pub final_norm: TensorRef,
     pub ws: InkWs,
     pub dims: InkDims,
+    /// `ink.act_quant` of the expert calls: 0 16-bit activations (default), 1 W4A4 (`ACT_QUANT_ENV`, else the recipe's
+    /// `[tuning.<backend>] act_quant`; opt-in, changes outputs).
+    pub act_quant: u8,
 }
 
 /// Teacher-forced inputs / dumped tensors by the oracle's names (`vNN.partial_in`, `vNN.attn_out`, `final_hidden`, ...):
@@ -690,7 +707,7 @@ pub(super) fn load(
         *bytes += p12_stats.bytes as u64;
         eprintln!("{}", p12_stats.note("in_proj + wo"));
     }
-    Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, ws, dims: ink })
+    Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, ws, dims: ink, act_quant: 0 })
 }
 
 impl InkWs {
@@ -1163,7 +1180,7 @@ impl Model {
             put(format!("{tag}.expert_w"), &rw)?;
             let moe = plane(&ws.moe, act, 0, t, d);
             let mut xa = OpAttrs { top_k: ink.top_k, ..OpAttrs::default() };
-            xa.ink = InkAttrs { situ: true, gate_cap: ink.gate_cap, up_cap: ink.up_cap, ..InkAttrs::default() };
+            xa.ink = InkAttrs { situ: true, gate_cap: ink.gate_cap, up_cap: ink.up_cap, act_quant: im.act_quant, ..InkAttrs::default() };
             match &l.experts {
                 InkExperts::Nvfp4 { gate_up_w, gate_up_s, down_w, down_s, gscales } => ex(
                     Op::MoeExperts,

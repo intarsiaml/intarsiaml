@@ -33,8 +33,23 @@ pub const ROWS_MAX: usize = crate::kernels::ROWS_MAX;
 /// Scratch of an ordinary experts kernel: the SIMT layout (`moe_experts_scratch`, two `[E + 1]` tables) or the tensor-core one
 /// (`moe_experts_mma_scratch`), whichever is larger. The tensor-core layout alone is 256 bytes short of the SIMT one at 128
 /// experts and few pairs (a decode step: the launcher refused the call).
+/// The W4A4 region in front of the layouts (`ink.act_quant = 1`; kernels/cuda/ink_moe.cu `aq_bytes`): xq bf16 `[T,H]`, the row
+/// scales of x `[T]` and of h `[T*K]` (f32), each rounded to 256 bytes; 0 for 16-bit activations.
+fn aq_scratch(s: &ShapeInfo) -> usize {
+    let r = |x: usize| (x + 255) & !255;
+    if s.act_quant == 0 {
+        0
+    } else {
+        r(s.m * s.k * 2) + r(s.m * 4) + r(s.m * s.top_k * 4)
+    }
+}
+
 fn ordinary_scratch(s: &ShapeInfo) -> usize {
-    moe_experts_scratch(s).max(moe_experts_mma_scratch(s))
+    aq_scratch(s) + moe_experts_scratch(s).max(moe_experts_mma_scratch(s))
+}
+
+fn rows_scratch(s: &ShapeInfo) -> usize {
+    aq_scratch(s) + moe_experts_scratch(s)
 }
 
 pub fn all() -> Vec<KernelImpl> {
@@ -50,7 +65,8 @@ pub fn all() -> Vec<KernelImpl> {
                 .tol_f32(F32_TOL);
             // the ordinary kernels take the tensor-core path above 512 pairs (its scratch holds the tile table too) and the
             // SIMT path at or below it, so they reserve the larger of the two layouts
-            let k = if name.ends_with("_rows") { k.scratch(moe_experts_scratch) } else { k.scratch(ordinary_scratch) };
+            // every Inkling expert kernel also runs the W4A4 mode (`ink.act_quant = 1`, situ only: `inkling2::ops`)
+            let k = if name.ends_with("_rows") { k.scratch(rows_scratch) } else { k.scratch(ordinary_scratch) }.act_quant();
             match *name {
                 "moe_experts_situ_bf16" => k
                     .weights([DType::U8])
@@ -129,10 +145,10 @@ mod launch {
     type S = *mut c_void;
 
     extern "C" {
-        fn ik_moe_experts_situ_bf16(x: T, ids: T, w: T, guw: T, gus: T, dnw: T, dns: T, gs: T, gc: f32, uc: f32, out: TM, sc: SC, s: S) -> c_int;
-        fn ik_moe_experts_situ_bf16_rows(x: T, ids: T, w: T, guw: T, gus: T, dnw: T, dns: T, gs: T, gc: f32, uc: f32, out: TM, sc: SC, s: S) -> c_int;
-        fn ik_moe_experts_mxfp8_bf16(x: T, ids: T, w: T, w13: T, s13: T, w2: T, s2: T, act: c_int, gc: f32, uc: f32, out: TM, sc: SC, s: S) -> c_int;
-        fn ik_moe_experts_mxfp8_bf16_rows(x: T, ids: T, w: T, w13: T, s13: T, w2: T, s2: T, act: c_int, gc: f32, uc: f32, out: TM, sc: SC, s: S) -> c_int;
+        fn ik_moe_experts_situ_bf16(x: T, ids: T, w: T, guw: T, gus: T, dnw: T, dns: T, gs: T, gc: f32, uc: f32, aq: c_int, out: TM, sc: SC, s: S) -> c_int;
+        fn ik_moe_experts_situ_bf16_rows(x: T, ids: T, w: T, guw: T, gus: T, dnw: T, dns: T, gs: T, gc: f32, uc: f32, aq: c_int, out: TM, sc: SC, s: S) -> c_int;
+        fn ik_moe_experts_mxfp8_bf16(x: T, ids: T, w: T, w13: T, s13: T, w2: T, s2: T, act: c_int, gc: f32, uc: f32, aq: c_int, out: TM, sc: SC, s: S) -> c_int;
+        fn ik_moe_experts_mxfp8_bf16_rows(x: T, ids: T, w: T, w13: T, s13: T, w2: T, s2: T, act: c_int, gc: f32, uc: f32, aq: c_int, out: TM, sc: SC, s: S) -> c_int;
     }
 
     impl CudaBackend {
@@ -172,17 +188,18 @@ mod launch {
                 0
             };
             let (gc, uc) = (ink.gate_cap, ink.up_cap);
+            let aq = ink.act_quant as c_int;
             // SAFETY: tensors are bounds-checked views of live device buffers (held by `call`); the launchers validate dtype /
             // rank / shape / alignment / scratch and return an error status instead of faulting, and never synchronise or allocate.
             let rc = unsafe {
                 match kernel {
-                    "moe_experts_situ_bf16" => ik_moe_experts_situ_bf16(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), gc, uc, o, sc, s),
+                    "moe_experts_situ_bf16" => ik_moe_experts_situ_bf16(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), gc, uc, aq, o, sc, s),
                     "moe_experts_situ_bf16_rows" => {
-                        ik_moe_experts_situ_bf16_rows(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), gc, uc, o, sc, s)
+                        ik_moe_experts_situ_bf16_rows(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), gc, uc, aq, o, sc, s)
                     }
-                    "moe_experts_mxfp8_bf16" => ik_moe_experts_mxfp8_bf16(i(0), i(1), i(2), i(3), i(4), i(5), i(6), act, gc, uc, o, sc, s),
+                    "moe_experts_mxfp8_bf16" => ik_moe_experts_mxfp8_bf16(i(0), i(1), i(2), i(3), i(4), i(5), i(6), act, gc, uc, aq, o, sc, s),
                     "moe_experts_mxfp8_bf16_rows" => {
-                        ik_moe_experts_mxfp8_bf16_rows(i(0), i(1), i(2), i(3), i(4), i(5), i(6), act, gc, uc, o, sc, s)
+                        ik_moe_experts_mxfp8_bf16_rows(i(0), i(1), i(2), i(3), i(4), i(5), i(6), act, gc, uc, aq, o, sc, s)
                     }
                     other => return Err(Error::NoKernel(format!("cuda kernel '{other}'"))),
                 }

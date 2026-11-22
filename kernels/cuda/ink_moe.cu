@@ -19,6 +19,7 @@
 #include "ik_quant.cuh"
 #include "ik_cuda_abi_inkmm.h"
 #include "ink_common.cuh"
+#include "ink_actq.cuh"
 #include <climits>
 #include <stdlib.h>
 
@@ -56,6 +57,11 @@ struct MoeArgs {
     int T, K, E, H, I;
     float gc, uc;
     int table;
+    // W4A4 (ink.act_quant = 1, ink_actq.cuh): x is the quantised xq, h is quantised in place between the launches; NVFP4 row
+    // scales xo [T] (gate_up) and ho [P] (down) multiply the f32 sums; null for 16-bit activations and for MXFP8
+    int aq;
+    const float* xo;
+    const float* ho;
 };
 
 IK_DEVI float sigm(float z) { return 1.f / (1.f + expf(-z)); }
@@ -280,6 +286,11 @@ __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
                 }
                 if (sub == 0 && on) {
                     float g, u;
+                    if (a.xo) {
+                        const float o = a.xo[pp[b] / a.K];
+                        sgv = __fmul_rn(sgv, o);
+                        suv = __fmul_rn(suv, o);
+                    }
                     if (FMT == FMT_NV) {
                         g = ink_rbf(sgv * a.gs[e * 3 + 0]);
                         u = ink_rbf(suv * a.gs[e * 3 + 1]);
@@ -341,6 +352,7 @@ __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
                 s += __shfl_xor_sync(0xffffffffu, s, 2);
                 s += __shfl_xor_sync(0xffffffffu, s, 1);
                 if (sub == 0) {
+                    if (a.ho) s = __fmul_rn(s, a.ho[pp[b]]);
                     const float yv = ink_rbf(FMT == FMT_NV ? s * a.gs[e * 3 + 2] : s);
                     const float tv = ACT == ACT_SITU ? yv : ink_rbf(yv * a.wts[pp[b]]);
                     if (a.table) {
@@ -400,12 +412,38 @@ int mma_min_pairs() {
     return g_mma_min;
 }
 
+// W4A4 scratch in front of the layout below: xq bf16 [T,H] | xo f32 [T] | ho f32 [P] (inkmoe.rs `aq_scratch`)
+int64_t aq_bytes(int64_t T, int64_t P, int64_t H) { return ((T * H * 2 + 255) & ~(int64_t)255) + ((T * 4 + 255) & ~(int64_t)255) + ((P * 4 + 255) & ~(int64_t)255); }
+
 template <int FMT, int ACT>
-int run(MoeArgs a, int out_f32, const ik_scratch* sc, cudaStream_t st, bool rows_kernel) {
+int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool rows_kernel) {
     const int64_t P = (int64_t)a.T * a.K;
+    ik_scratch sc_rest{};
+    const ik_scratch* sc = sc_in;
+    float* ho = nullptr;
+    if (a.aq) {
+        const int64_t ab = aq_bytes(a.T, P, a.H);
+        if (!sc_in || !sc_in->data || sc_in->bytes < ab || (reinterpret_cast<uintptr_t>(sc_in->data) & 15u)) return IK_ERR_INVALID_ARG;
+        char* b0 = (char*)sc_in->data;
+        ik_bf16* xq = (ik_bf16*)b0;
+        float* xo = (float*)(b0 + ((a.T * (int64_t)a.H * 2 + 255) & ~(int64_t)255));
+        ho = (float*)((char*)xo + (((int64_t)a.T * 4 + 255) & ~(int64_t)255));
+        if (FMT == FMT_NV) {
+            IK_TRY(ink_actq_nv(a.x, a.T, a.H, xq, xo, nullptr, nullptr, st));
+            a.xo = xo;
+        } else {
+            IK_TRY(ink_actq_mx(a.x, a.T, a.H, xq, st));
+            ho = nullptr;
+        }
+        a.x = xq;
+        sc_rest.data = b0 + ab;
+        sc_rest.bytes = sc_in->bytes - ab;
+        sc = &sc_rest;
+    }
     if (!rows_kernel && P > mma_min_pairs() && a.H % 128 == 0 && a.I % 128 == 0 && g_probe == 0 && sc && sc->data &&
         sc->bytes >= ink_moe_mma_scratch_bytes(P, a.E, a.H, a.I) && (reinterpret_cast<uintptr_t>(sc->data) & 15u) == 0) {
-        const InkMmaArgs m{a.x, a.ids, a.wts, a.guw, a.gus, a.dnw, a.dns, a.gs, a.out, a.T, a.K, a.E, a.H, a.I, FMT, ACT, a.gc, a.uc};
+        const InkMmaArgs m{a.x, a.ids, a.wts, a.guw, a.gus, a.dnw, a.dns, a.gs, a.out, a.T, a.K, a.E, a.H, a.I, FMT, ACT, a.gc, a.uc,
+                           a.aq, a.xo, ho};
         return ink_moe_mma(m, sc->data, out_f32, st);
     }
     const int64_t need = rnd(P * 4) + rnd((int64_t)(a.E + 1) * 4) * 2 + rnd(P * a.I * 2) + rnd(P * a.H * 2);
@@ -425,6 +463,12 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc, cudaStream_t st, bool rows
     if (g_probe != 2) {
         ink_moe_gu_kernel<FMT, ACT><<<(a.I + kGuRows - 1) / kGuRows, kThreads, 0, st>>>(a);
         IK_TRY(ik_launch_status());
+    }
+    if (a.aq) {
+        // h [P, I] (rows of pairs that no expert wrote are quantised too and never read)
+        if (FMT == FMT_NV) IK_TRY(ink_actq_nv(a.h, P, a.I, a.h, ho, nullptr, nullptr, st));
+        else IK_TRY(ink_actq_mx(a.h, P, a.I, a.h, st));
+        a.ho = ho;
     }
     if (g_probe != 1) {
         const unsigned g = (unsigned)((a.H + kDnRows - 1) / kDnRows);
@@ -469,7 +513,7 @@ void ik_ink_moe_set_mma_min(int pairs) { g_mma_min = pairs; }
 namespace {
 
 int situ_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw, const ik_tensor* gus,
-              const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc, float gate_cap, float up_cap, ik_tensor* out,
+              const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc, float gate_cap, float up_cap, int aq, ik_tensor* out,
               const ik_scratch* scratch, void* stream, bool rows_kernel) {
     int of = 0;
     IK_TRY(common_checks(x, ids, wts, out, &of));
@@ -496,11 +540,13 @@ int situ_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, co
     a.out = out->data;
     a.T = (int)T, a.K = (int)ids->shape[1], a.E = (int)E, a.H = (int)H, a.I = (int)I;
     a.gc = gate_cap, a.uc = up_cap;
+    if (aq != 0 && aq != 1) return IK_ERR_INVALID_ARG;
+    a.aq = aq;
     return run<FMT_NV, ACT_SITU>(a, of, scratch, IK_STREAM(stream), rows_kernel);
 }
 
 int mxfp8_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* w13, const ik_tensor* s13,
-               const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap, float up_cap, ik_tensor* out,
+               const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap, float up_cap, int aq, ik_tensor* out,
                const ik_scratch* scratch, void* stream, bool rows_kernel) {
     int of = 0;
     IK_TRY(common_checks(x, ids, wts, out, &of));
@@ -525,6 +571,8 @@ int mxfp8_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, c
     a.out = out->data;
     a.T = (int)T, a.K = (int)ids->shape[1], a.E = (int)E, a.H = (int)H, a.I = (int)I;
     a.gc = gate_cap, a.uc = up_cap;
+    if (aq != 0 && aq != 1) return IK_ERR_INVALID_ARG;
+    a.aq = aq;
     cudaStream_t st = IK_STREAM(stream);
     switch (act) {
         case ACT_SILU: return run<FMT_MX, ACT_SILU>(a, of, scratch, st, rows_kernel);
@@ -540,26 +588,26 @@ extern "C" {
 
 int ik_moe_experts_situ_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw,
                              const ik_tensor* gus, const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc,
-                             float gate_cap, float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream) {
-    return situ_impl(x, ids, wts, guw, gus, dnw, dns, gsc, gate_cap, up_cap, out, scratch, stream, false);
+                             float gate_cap, float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return situ_impl(x, ids, wts, guw, gus, dnw, dns, gsc, gate_cap, up_cap, aq, out, scratch, stream, false);
 }
 
 int ik_moe_experts_situ_bf16_rows(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw,
                                   const ik_tensor* gus, const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc,
-                                  float gate_cap, float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream) {
-    return situ_impl(x, ids, wts, guw, gus, dnw, dns, gsc, gate_cap, up_cap, out, scratch, stream, true);
+                                  float gate_cap, float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return situ_impl(x, ids, wts, guw, gus, dnw, dns, gsc, gate_cap, up_cap, aq, out, scratch, stream, true);
 }
 
 int ik_moe_experts_mxfp8_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* w13,
                               const ik_tensor* s13, const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap,
-                              float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream) {
-    return mxfp8_impl(x, ids, wts, w13, s13, w2, s2, act, gate_cap, up_cap, out, scratch, stream, false);
+                              float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return mxfp8_impl(x, ids, wts, w13, s13, w2, s2, act, gate_cap, up_cap, aq, out, scratch, stream, false);
 }
 
 int ik_moe_experts_mxfp8_bf16_rows(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* w13,
                                    const ik_tensor* s13, const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap,
-                                   float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream) {
-    return mxfp8_impl(x, ids, wts, w13, s13, w2, s2, act, gate_cap, up_cap, out, scratch, stream, true);
+                                   float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return mxfp8_impl(x, ids, wts, w13, s13, w2, s2, act, gate_cap, up_cap, aq, out, scratch, stream, true);
 }
 
 }  // extern "C"

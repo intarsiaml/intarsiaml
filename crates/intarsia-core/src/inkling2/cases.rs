@@ -536,6 +536,39 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     push(format!("T={t} E={e} K={k} H={hd} I={i} situ bf16 (real)"), inputs, vec![out(DType::Bf16, &[t, hd])], a);
                 }
             }
+            // W4A4 (`ink.act_quant = 1`, MXFP8 activations; `.act_quant()` kernels only): small decode / table shapes, then verify
+            // rows and a prefill chunk at the real shape. Its own stream, appended: the cases above keep their data.
+            let mut arng = SplitMix64::new(cfg.seed ^ 0xA4A4_0002);
+            let mut ashapes: Vec<(usize, usize, usize, usize, usize)> = vec![(1, 16, 4, 64, 32), (7, 16, 4, 64, 64), (16, 16, 4, 128, 32), (40, 16, 4, 64, 32)];
+            if !quick {
+                ashapes.extend([(1, 32, 8, 2304, 1152), (16, 32, 8, 2304, 1152), (2048, 128, 8, 2304, 1152)]);
+            }
+            for (t, e, k, hd, i) in ashapes {
+                let rng = &mut arng;
+                let n13 = e * 2 * i * hd;
+                let byte = |rng: &mut SplitMix64| {
+                    let r = rng.next_u64();
+                    ((r & 0x80) as u8) | ((4 + (r >> 8) % 7) as u8) << 3 | ((r >> 16) & 7) as u8
+                };
+                let w13: Vec<u8> = (0..n13).map(|_| byte(rng)).collect();
+                let w2: Vec<u8> = (0..e * hd * i).map(|_| byte(rng)).collect();
+                let s13: Vec<u8> = (0..n13 / 32).map(|_| 116 + (rng.next_u64() % 4) as u8).collect();
+                let s2: Vec<u8> = (0..e * hd * i / 32).map(|_| 116 + (rng.next_u64() % 4) as u8).collect();
+                let (ids, ws) = crate::quant::cases::random_routing(rng, t, e, k);
+                let ws = HostTensor::from_f32(&[t, k], &ws.to_f32().iter().map(|v| v * 8.0).collect::<Vec<_>>());
+                let inputs = vec![
+                    rand_t(rng, DType::Bf16, &[t, hd], 1.0),
+                    ids,
+                    ws,
+                    HostTensor::new(DType::Fp8E4m3, vec![e, 2 * i, hd], w13).expect("sized"),
+                    HostTensor::new(DType::U8, vec![e, 2 * i, hd / 32], s13).expect("sized"),
+                    HostTensor::new(DType::Fp8E4m3, vec![e, hd, i], w2).expect("sized"),
+                    HostTensor::new(DType::U8, vec![e, hd, i / 32], s2).expect("sized"),
+                ];
+                let mut a = OpAttrs { top_k: k, ..a0.clone() };
+                (a.ink.situ, a.ink.gate_cap, a.ink.up_cap, a.ink.act_quant) = (true, 4.0, 25.0, 1);
+                push(format!("T={t} E={e} K={k} H={hd} I={i} situ bf16 w4a4"), inputs, vec![out(DType::Bf16, &[t, hd])], a);
+            }
         }
         Op::InkInProj => {
             let mut shapes: Vec<(usize, [usize; 3])> = vec![(D, [nq(H, DH, DR), HK * DH, HK * DH]), (D, [nq(H, DH, DR), HK * DH + HK * K, HK * DH + HK * K])];

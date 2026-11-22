@@ -56,20 +56,22 @@ int64_t ik_ink_blend_scratch_bytes(int64_t s, int64_t r, int64_t d, int64_t g);
  * `moe_experts_scratch` layout. */
 int ik_moe_experts_situ_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw,
                              const ik_tensor* gus, const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc,
-                             float gate_cap, float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream);
+                             float gate_cap, float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream);
 /* the same launcher (the rows-exact registration) */
 int ik_moe_experts_situ_bf16_rows(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw,
                                   const ik_tensor* gus, const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc,
-                                  float gate_cap, float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream);
+                                  float gate_cap, float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream);
 
 /* moe_experts_mxfp8: x [T,H] bf16, ids, weights, w13 e4m3 [E,2I,H], w13 scales u8 (E8M0) [E,2I,H/32], w2 e4m3 [E,H,I], w2
- * scales u8 [E,H,I/32] -> out [T,H]. act: 0 silu, 1 gelu_tanh, 2 situ (gate_cap, up_cap). Scratch as above. */
+ * scales u8 [E,H,I/32] -> out [T,H]. act: 0 silu, 1 gelu_tanh, 2 situ (gate_cap, up_cap). Scratch as above.
+ * aq (all four): 0 16-bit activations, 1 W4A4 (ink.act_quant; situ only; ink_actq.cuh), which needs the W4A4 region in front of
+ * the scratch (ink_moe.cu aq_bytes). */
 int ik_moe_experts_mxfp8_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* w13,
                               const ik_tensor* s13, const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap,
-                              float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream);
+                              float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream);
 int ik_moe_experts_mxfp8_bf16_rows(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* w13,
                                    const ik_tensor* s13, const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap,
-                                   float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream);
+                                   float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream);
 
 /* Benchmarks only: 1 launches only the gate+up kernel of an experts call, 2 only the down kernel (the output is garbage). */
 void ik_ink_moe_probe(int v);
