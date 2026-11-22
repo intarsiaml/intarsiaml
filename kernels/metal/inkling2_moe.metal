@@ -216,7 +216,7 @@ inline float ink_chunk_dot(thread const InkChunk<FMT>& k, thread const uint* xw,
     }
 }
 
-// lane ink-batch (p.f bit 3, INTARSIA_INK_MOE_DEC1): a chunk decoded once (the half2 of every element pair, exactly the
+// lane ink-batch (p.f bit 3, for leaders serving at least p.f bits 4..6 pairs; INTARSIA_INK_MOE_DEC1): a chunk decoded once (the half2 of every element pair, exactly the
 // values ink_chunk_dot forms) for all the pairs a union leader serves; ink_dec_dot is ink_chunk_dot on it, the same
 // products in the same fma order, so the same bits.
 template <uint FMT>
@@ -391,7 +391,7 @@ inline void ink_gu_impl(device const ushort* x, device const int* ids, device co
     }
     // INK_NB chunks per step, all their loads first (more bytes in flight per lane); chunk order per pair unchanged
     uint c = li;
-    if ((p.f & 8u) != 0u) {
+    if ((p.f & 8u) != 0u && rows >= ((p.f >> 4) & 7u)) {
         // decode each chunk once for all served pairs (lane ink-batch); every pair's chain is unchanged
         for (; c < nc; c += INK_LG) {
             const InkDec<FMT> dg = ink_decode<FMT>(ink_load<FMT, A16>(wg, sgp, c));
@@ -497,7 +497,7 @@ inline void ink_dn_u_impl(device const ushort* h, device const int* ids, device 
     device const uchar* wr = w2 + rn * (nc * WB);
     device const uchar* sr = s2 + p.s2 + rn * (nc * SB);
     const float g2 = FMT == 0 ? gsc[e * 3u + 2u] : 1.f;
-    if ((p.f & 8u) != 0u) {
+    if ((p.f & 8u) != 0u && rows >= ((p.f >> 4) & 7u)) {
         // each chunk loaded and decoded once for all served pairs (lane ink-batch): per pair the chain and the shuffle
         // reduction of ink_dn_row, unchanged
         float s[INK_XR];
