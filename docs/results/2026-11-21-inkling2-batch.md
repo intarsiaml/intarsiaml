@@ -428,15 +428,15 @@ Own server checked (port 8131, listener = this job's binary, pid 85510). ink/bat
 #10900 curve: B 16 71-78 ms in batch_step).
 
 **localeval `conc-plain-1k`** (closed loop, ~1k-token prompts, ~254 generated tokens per request, temperature 0, 3 reps per
-stream count; deepeval results/20261122-02xx-adhoc-endor-intarsia-metal-ink-batch):
+stream count; deepeval results/20261122-024220-adhoc-endor-intarsia-metal-ink-batch/result.json):
 
-| streams | aggregate decode tok/s (median; reps) | per-stream | TTFT s | `--max-batch 1` (#10890) | oMLX |
+| streams | aggregate decode tok/s (median; reps) | per-stream | TTFT s | `--max-batch 1` (#10946, ink-dfuse server) | oMLX |
 |---:|---:|---:|---:|---:|---:|
 | 1 | 46.5 (46.5, 46.5, 50.8) | 46.5 | 0.90 | 50.8 | |
-| 4 | 84.6 (84.6, 84.6, 84.7) | 21.2 | 1.23 | 51.x | |
+| 4 | 84.6 (84.6, 84.6, 84.7) | 21.2 | 1.23 | 52.1 | |
 | 16 | **117.7** (117.7, 118.1, 113.6) | 7.4 | 1.68 | 51.6 | 94 |
 
-16 streams: 2.3x the serialized server, 1.25x oMLX. **`intarsia bench speed`** (calibration fix in; 1024-token prompts,
+16 streams: 2.2x the serialized server, 1.25x oMLX. **`intarsia bench speed`** (calibration fix in; 1024-token prompts,
 128 generated): single stream decode 60.2-61.3 tok/s (prefill 1.3-1.45k tok/s); concurrency rows (every stream prefills its
 prompt each request, TTFT 13.4 s at 16 when 16 prompts arrive together): 2: 73.6, 4: 83.0, 8: 91.6, 16: 93.3 tok/s aggregate.
 
