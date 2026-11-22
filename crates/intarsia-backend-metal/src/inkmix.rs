@@ -465,7 +465,7 @@ fn mix_row_shader(ne: usize) -> &'static str {
     }
 }
 
-pub const ROW_SHADERS: [&str; 9] = [
+pub const ROW_SHADERS: [&str; 11] = [
     "ink_mix_row_e1",
     "ink_mix_row_e2",
     "ink_mix_row_e3",
@@ -473,7 +473,9 @@ pub const ROW_SHADERS: [&str; 9] = [
     "ink_mix_row_e9",
     "ink_ring_write",
     "ink_blend_pair",
-    "ink_blend_gate",
+    "ink_blend_gate_g1",
+    "ink_blend_gate_g8",
+    "ink_blend_gate_g16",
     "ink_blend_norm",
 ];
 
@@ -486,7 +488,7 @@ fn blend_layout(d: usize) -> [usize; 6] {
     let pair = r(s * rows * 2 * d * 2);
     let h = r(s * rows * BLEND_G_MAX * 2);
     let y = r(s * rows * d * 4);
-    let part = r(s * rows * d.div_ceil(BLEND_CS) * 4);
+    let part = r(s * rows * 2 * d.div_ceil(BLEND_CS) * 4);
     [0, dest, dest + pair, dest + pair + h, dest + pair + h + y, dest + pair + h + y + part]
 }
 
@@ -676,8 +678,18 @@ impl MetalBackend {
         let pair = sview(scratch, lay[1], bf, s * n * 2 * d);
         let h = sview(scratch, lay[2], bf, s * n * g);
         let yv = sview(scratch, lay[3], f32t, s * n * d);
-        let part = sview(scratch, lay[4], f32t, s * n * d.div_ceil(BLEND_CS));
-        let nsl = d.div_ceil(BLEND_CS);
+        let slices = d.div_ceil(BLEND_CS);
+        let nsl = 2 * slices;
+        let part = sview(scratch, lay[4], f32t, s * n * nsl);
+        if g % 8 != 0 {
+            return Err(Error::invalid(format!("metal blend: controller rank {g} is not a multiple of 8")));
+        }
+        for (tn, tt) in [("gain", gain), ("forget", forget)] {
+            let mb = self.mbuf(&tt.buf)?;
+            if (mb.base + tt.offset) % 16 != 0 {
+                return Err(Error::invalid(format!("metal blend: {tn} must be 16-byte aligned (the loader places the controllers)")));
+            }
+        }
         let p = InkBlendP {
             d: dim(d, "D")?,
             rows: dim(n, "rows")?,
@@ -717,11 +729,16 @@ impl MetalBackend {
         );
         let mut pg = p;
         pg.sk = [gain_b.skip, forget_b.skip, 0, 0, 0, 0, 0, 0];
+        let gate = match g / 8 {
+            0..=1 => "ink_blend_gate_g1",
+            2..=8 => "ink_blend_gate_g8",
+            _ => "ink_blend_gate_g16",
+        };
         self.dispatch(
-            "ink_blend_gate",
+            gate,
             &[&dest_b, &msg_b, &h_b, &gain_b, &forget_b, &y_b, &part_b],
             &pg,
-            crate::dense::Grid::Groups { x: s * nsl, y: 1, threads: BLEND_CS },
+            crate::dense::Grid::Groups { x: s * slices, y: 1, threads: BLEND_CS },
         )?;
         let (nrm_b, out_b) = (self.bind(norm, bf, false, "norm")?, self.bind(out, bf, true, "out")?);
         let mut pn = p;
