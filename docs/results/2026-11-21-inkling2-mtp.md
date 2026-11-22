@@ -16,6 +16,14 @@ Status: in progress. Branch `ink/mtp` (not pushed, not merged).
 - 2026-11-21 (coordinator, SendMessage): endor's queue is about 5 h deep. Move the real-model CPU token-identity job (#10807) to
   spark2's CPU (released on endor, resubmitted there); keep the Metal decode tok/s job (#10806) on endor. Every other CPU-only
   job of this lane goes to a Spark.
+- 2026-11-21 (coordinator, SendMessage): priorities in order. (1) Fold the drafter's base-logit read into the verify's unembed
+  (Fable §4.3; a separate 922 MB read is about 1.6 ms a cycle). (2) Move the tap mixes and the top-64 Markov head to the device;
+  send the interface needs (what the device hands back per cycle: accepted count, next ids, draft confidences) after the
+  per-cycle profile. (3) Tune the policy on a mixed set (greedy golden + prose + chat turns), report tokens per pass and real
+  tok/s per policy; the default must never be slower than spec off on prose; the p1 >= 0.6 gate is the right shape.
+  (4) Sampling: confirm whether temperature > 0 uses exact speculative rejection sampling; if not, keep spec greedy-only and
+  say so. Speculation stays opt-in until #10806's timed numbers; default-on is the coordinator's call. If drafter changes land
+  before #10806 starts, edit its script rather than queue a new job (within its --expect).
 
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
