@@ -151,6 +151,11 @@ pub fn run(call: &OpCall) -> Result<()> {
             };
             let dt = i[0].dtype;
             let od = o[0].dtype;
+            if a.ink.situ && t > 1 {
+                // a prefill chunk: each expert's rows decoded once for all its tokens (same sums, same bits as per token)
+                let out = situ_grouped(&ex, &x, &ids, &wts, t, k, dt, od, a.ink.gate_cap as f64, a.ink.up_cap as f64);
+                return wr(&o[0], &out);
+            }
             let rows: Vec<Vec<f64>> = (0..t)
                 .into_par_iter()
                 .map(|ti| {
@@ -223,4 +228,79 @@ fn situ_token(ex: &r::ExpertsRef, x: &[f32], ids: &[i32], weights: &[f32], dt: i
         acc.iter_mut().zip(y).for_each(|(a, v)| *a += v);
     }
     acc.iter().map(|v| r::round(od, *v)).collect()
+}
+
+/// [`situ_token`] for `t` tokens at once, grouped by expert: every (token, slot) value is the same f64 sum in the same order, and
+/// the slots of a token are summed in slot order, so the result is bit for bit the per-token one.
+#[allow(clippy::too_many_arguments)]
+fn situ_grouped(ex: &r::ExpertsRef, x: &[f32], ids: &[i32], weights: &[f32], t: usize, k: usize, dt: intarsia_core::DType, od: intarsia_core::DType, gc: f64, uc: f64) -> Vec<f64> {
+    use intarsia_core::quant::nvfp4::GROUP;
+    let (h, i) = (ex.h, ex.i);
+    let sig = |z: f64| 1.0 / (1.0 + (-z).exp());
+    // (expert, [(token * k + slot)])
+    let mut by: Vec<Vec<usize>> = vec![Vec::new(); ex.e];
+    for (j, &id) in ids.iter().enumerate().take(t * k) {
+        if id >= 0 && (id as usize) < ex.e {
+            by[id as usize].push(j);
+        }
+    }
+    let ys: Vec<(usize, Vec<f64>)> = by
+        .par_iter()
+        .enumerate()
+        .filter(|(_, js)| !js.is_empty())
+        .flat_map_iter(|(e, js)| {
+            let gw = &ex.gate_up_w[e * 2 * i * (h / 2)..(e + 1) * 2 * i * (h / 2)];
+            let gsb = &ex.gate_up_s[e * 2 * i * (h / GROUP)..(e + 1) * 2 * i * (h / GROUP)];
+            let dw = &ex.down_w[e * h * (i / 2)..(e + 1) * h * (i / 2)];
+            let dsb = &ex.down_s[e * h * (i / GROUP)..(e + 1) * h * (i / GROUP)];
+            let g3 = &ex.gscales[e * 3..e * 3 + 3];
+            let n = js.len();
+            // act[r][p] for pair p
+            let act: Vec<Vec<f64>> = (0..i)
+                .into_par_iter()
+                .map_init(
+                    || (vec![0f64; h], vec![0f64; h]),
+                    |(rg, ru), rr| {
+                        r::nvfp4_row(gw, gsb, g3[0], rr, h, rg);
+                        r::nvfp4_row(gw, gsb, g3[1], i + rr, h, ru);
+                        js.iter()
+                            .map(|&j| {
+                                let xr = &x[(j / k) * h..(j / k + 1) * h];
+                                let g = r::round(dt, (0..h).map(|c| xr[c] as f64 * rg[c]).sum());
+                                let u = r::round(dt, (0..h).map(|c| xr[c] as f64 * ru[c]).sum());
+                                r::round(dt, gc * (g / gc).tanh() * sig(g) * uc * (u / uc).tanh() * weights[j] as f64)
+                            })
+                            .collect()
+                    },
+                )
+                .collect();
+            // y[c][p]
+            let y: Vec<Vec<f64>> = (0..h)
+                .into_par_iter()
+                .map_init(
+                    || vec![0f64; i],
+                    |row, c| {
+                        r::nvfp4_row(dw, dsb, g3[2], c, i, row);
+                        (0..n).map(|p| r::round(dt, (0..i).map(|q| act[q][p] * row[q]).sum())).collect()
+                    },
+                )
+                .collect();
+            js.iter().enumerate().map(move |(p, &j)| (j, (0..h).map(|c| y[c][p]).collect::<Vec<f64>>())).collect::<Vec<_>>()
+        })
+        .collect();
+    let mut per: Vec<Option<Vec<f64>>> = vec![None; t * k];
+    for (j, v) in ys {
+        per[j] = Some(v);
+    }
+    let mut out = vec![0f64; t * h];
+    for ti in 0..t {
+        let acc = &mut out[ti * h..(ti + 1) * h];
+        for slot in 0..k {
+            if let Some(v) = &per[ti * k + slot] {
+                acc.iter_mut().zip(v).for_each(|(a, b)| *a += b);
+            }
+        }
+        acc.iter_mut().for_each(|a| *a = r::round(od, *a));
+    }
+    out
 }
