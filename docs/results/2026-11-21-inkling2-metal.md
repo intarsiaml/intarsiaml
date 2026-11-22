@@ -541,6 +541,11 @@ by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
   it before unlocking. Parallel cpu inkling2 11/11 three times on bespin (#11368, ink-fp8's run; the test file here is
   identical to e2c95e6d7's). LOG.md's ink-fp8 row now says the screened head stays opt-in. Engine code unchanged, so the
   pinned 9576df6ea post-merge check (#11363) and the a31e2df50 baseline still apply.
+- Metal post-merge check #11363 (9576df6ea, quiet, ended 07:33:55, exit 0): build clean; Metal rows_exact / quick_coverage /
+  gumbel / inkling2 11/11 / inkling2_batch 7/7, core op ids 7/7, docs_env_vars 2/2 pass; admission of all 17 Inkling ops incl.
+  head_screen / logits_gather / screen_argmax: 0 fail/reject; greedy with every switch unset: g64 md5 65cde8f35a1802e3e2fadb44d94d080d,
+  g256 md5 61fd59fecb5e0d72ffd08f2c6d07855a (both identical to the pre-merge reference); no screen lines in the logs; merged
+  `wanted` has `_ => false`. The ink/fp8 merge is clean on Metal. Reference baseline (a31e2df50, with the B16 box probe) queued as #11387.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
