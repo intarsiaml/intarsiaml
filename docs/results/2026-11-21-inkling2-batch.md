@@ -353,3 +353,37 @@ server, not this lane's: **not a `--max-batch 16` result.** (It matches #10890's
 is of the failed start. Fix: the script now takes a free port from 8131 up, and after readiness checks that the listener is
 this job's binary (and still the same pid before the bench); rerun queued. The serve probe #10947 (port 8097, "listening on
 http://127.0.0.1:8097" in its own log) was its own server and stands.
+
+## 13. Compile-time row-table mix variant (ink/batch-rtvar) timing (#11057, quiet)
+
+Variant: ink/batch-rtvar fc76eb318 (+ 2b740dee7, `batch_step --digest`, example only) on the merged ink/metal tip 8546d143f.
+`ink_mix_row<NE, NS, QB, RT>`: the solo instantiations (`ink_mix_row_e*`, RT = false) carry no row-table code, the batched
+calls take `ink_mix_row_rt_e*`; host: `mix_row_shader(.., rt)` and the two dispatch sites only. bespin compile check: Rust
+compiles; bespin's Metal toolchain cannot build the shaders (empty metallib, `attention.metal` fails there), so the shader
+compile is checked on endor (#11104).
+
+**Solo ABAB** (6 reps each, alternating, 256 tokens, `--profile-every 0`; output text identical):
+
+| arm | mean tok/s | median | min | max |
+|---|---:|---:|---:|---:|
+| merged tip 8546d143f | 62.81 | 62.77 | 61.60 | 63.59 |
+| rtvar 2b740dee7 | 62.56 | 62.81 | 61.31 | 63.14 |
+
+Inconclusive: median +0.06 %, mean -0.4 %, and this run's rep spread (3 %, both arms) is several times the 0.6 % being
+recovered (#10914's spread was 0.8 %). The whole box was slower in this slot (both arms about 2 % under #10914).
+
+**Curve on rtvar** (2 passes, ctx 1024, batched tokens == solo tokens every step):
+
+| B | pass 1 step ms | agg tok/s | pass 2 step ms | agg tok/s |
+|---:|---:|---:|---:|---:|
+| 1 | 16.94 | 59.0 | 16.42 | 60.9 |
+| 2 | 22.12 | 90.4 | 21.34 | 93.7 |
+| 4 | 28.80 | 138.9 | 27.89 | 143.4 |
+| 8 | 48.88 | 163.7 | 46.26 | 172.9 |
+| 16 | 79.10 | 202.3 | 80.79 | 198.1 |
+
+B 8 is 18-25 % slower than #10900 at ink/batch 76cedfc93 (39.2 ms) and B 16 about 12 % (71.2 ms in #10900 rep 1; rep 2
+was 78), while solo moved only about 2-4 %. The batched step got slower between ink/batch 76cedfc93 and the merged tip (or
+with the variant). Candidates: m-mix's new defaults (mix_geom NE 4 from D 2048, `BLEND_RB` 16 -> 4) applied to the row-table
+mix path, other ink/metal changes in the merge (25 files), or rtvar itself. Quiet A/B queued: ink/batch vs 8546d143f vs
+8546d143f with `INTARSIA_INK_MIX_NE=3` / `INTARSIA_INK_BLEND_RB=16` vs rtvar, B 1 / 8 / 16, forward then reversed order.
