@@ -22,6 +22,13 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
   #10867 starts, record it here, and take no default flips from m-mix (those come later as their own commit). ink-batch
   merges this lane's 761a1561b (serve admission fix).
 
+- 2026-11-21 (coordinator): merge ink/d1row-doc 5b0b0bd2f (docs only: docs/results/2026-11-21-inkling2-d1row/ and its results
+  doc; the d1row kernels lost and stay unmerged on ink/d1row); check the diff touches only docs/results/; ops 84-87 are free
+  again (mark them free in an op reservation note if ink/metal has one: it has none). Done: merge 2343bb720, 27 files, all under
+  docs/results/.
+- 2026-11-21 (coordinator): guard the two  uses in tests/inkling2.rs with 
+  (Linux test builds of intarsia-models failed), check on spark2, commit separately. Done: e3f92beff;  EXIT 0 on spark2 and clean on endor.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
