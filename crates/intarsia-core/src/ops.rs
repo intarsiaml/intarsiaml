@@ -59,6 +59,15 @@
 //! | `BridgeCode` | p `[T,C]` | code `[T,C]` (= `bf(scale * f / (sqrt(sum f^2) + eps))`, row 0 included) | eps, scale |
 //! | `BridgeGate` | packed `[T,3R]` (rows `[q \| s \| v]`), bias `[R]`, s0 `[2R]` (the row-0 sender `[s \| v]`) | msg `[T,R]` (row 0 zero; row t: `bf(sigmoid((q[t] + s[t-1]) + bias) * v[t-1])`, sender of row 1 from `s0`) | |
 //! | `BridgeWrite` | raw `[T,H]`, rms `[T]` f32, delta `[T,H]`, w `[H]` | out `[T,H]` (= `bf(raw + (rms * delta) * (t != 0))`), normed `[T,H]` (= `bf(bf(out * rsqrt(mean out^2 + eps)) * w)`, HF two-step) | eps |
+//! | **Inkling-2** (67..=74, lane ink-skel; the contract, rounding and ring rules are in `inkling2::ops`, formulas in docs/plans/2026-11-21-inkling2-port.md) | | | |
+//! | `AttnResMix` | src `[N,R,D]`, last `[R,D]`, addend `[R,D]` or `[0]`, queries `[Q,D]` f32, norm `[Q,D]` or `[0]` | `[Q,R,D]` (normed, or f32 without norm) | eps |
+//! | `LoopBlend` | dest `[1 or S,R,D]` f32, msg `[S,R,D]` f32, down `[S,G,2D]`, gain / forget `[S,D,G]`, norm `[S,D]` | `[S,R,D]` | eps |
+//! | `SconvRes` | x `[T,C]`, taps `[K,C]`, res, addend `[T,C]` or `[0]` | y `[T,C]`, ring `[Rr,C]` (**in place**), sum `[T,C]` or `[0]` | pos0 |
+//! | `InkKvPrologue` | pq `[T,Nq]`, pk, pv `[T,Ckv(+Hk*K)]`, k / v taps `[K,Ckv]`, q scale `[H,Dh]`, r scale `[H,dr]`, rel proj `[dr,E]` | q `[T,H,Dh]`, rel `[T,H,E]`, k, v `[T,Hk,Dh]`, k / v rings `[Rr,Ckv]` (**in place**) | pos0, n_heads, n_kv_heads, head_dim, eps, ink.* |
+//! | `RelSinkAttn` | q `[T,H,Dh]`, k, v `[T,Hk,Dh]`, k / v cache `[Hk,Cr,Dh]`, rel `[T,H,E]`, pq `[T,Nq]` | o `[T,H*Dh]`, k / v cache (**in place**) | pos0, scale, n_heads, n_kv_heads, head_dim, window, ink.kv_ring, ink.d_rel |
+//! | `MoeExpertsMxfp8` | x `[T,H]`, ids `[T,K]`, weights `[T,K]` f32, w13 `[E,2I,H]` e4m3, scales `[E,2I,H/32]` u8, w2 `[E,H,I]` e4m3, scales `[E,H,I/32]` u8 | `[T,H]` | gelu, ink.situ / gate_cap / up_cap / act_quant |
+//! | `InkInProj` | x `[1 or 3,T,D]`, w `[Nq+Nk+Nv,D]` | pq, pk, pv | |
+//! | `ConvMix` | `SconvRes`'s four, src `[N,T,D]`, queries `[Q,D]` f32, norm, msg `[S,T,D]` f32, down, gain, forget (or `[0]`) | y, ring, sum, mix `[S,T,D]` | pos0, eps |
 //! | `GdnDeltaRule` | qkv `[T,C]` (`C = 2*Hk*dk + Hv*dv`, rows `[q|k|v]`), a `[T,Hv]`, b `[T,Hv]`, A_log `[Hv]`, dt_bias `[Hv]` | o `[T,Hv,dv]`, state `[Hv,dv,dk]` f32 (**in place**) | eps (l2norm) |
 //!
 //! | `MatmulPair` | x `[M,K]`, w0 `[N0,K]`, w1 `[N1,K]` (dense) | `[M,N0]`, `[M,N1]` (= two `Matmul`s of one x) | fused decode GEMV pair, see `quant::fused` |
@@ -201,6 +210,24 @@ pub enum Op {
     BridgeGate,
     /// DSpine bridge: `raw + rms * delta` (row 0 untouched) and its two-step RMS norm with a weight.
     BridgeWrite,
+    // appended ONCE (2026-11-21, lane ink-skel, Inkling-2-Mini): discriminants 67..=74, frozen so that the Metal / CUDA
+    // lanes only add kernels. Contract: `crate::inkling2::ops`. Never insert above this block, for the same reason as above.
+    /// Inkling-2 depth mix: softmax over the RMS-normalised block stack (+ partial), optional per-query norm.
+    AttnResMix,
+    /// Inkling-2 cross-pass controller: blend of a mix and a message through a rank-64 gate, then the norm.
+    LoopBlend,
+    /// Inkling-2 static short conv `(conv + x) / sqrt(K+1)` over a position ring, with the residual epilogue.
+    SconvRes,
+    /// Inkling-2 K / V conv (static or dynamic taps), k clip, v unit RMS; q / r clip, tau, rel bias table.
+    InkKvPrologue,
+    /// Inkling-2 attention: GQA with a distance-indexed bias, per-query sink, window, sigmoid gate; writes the K / V cache.
+    RelSinkAttn,
+    /// Routed experts over MXFP8 (1x32 E8M0) weights, the `MoeExperts` epilogue attributes.
+    MoeExpertsMxfp8,
+    /// Inkling-2 attention in-projection: one stacked GEMM whose row ranges read one of three inputs.
+    InkInProj,
+    /// Inkling-2 sublayer boundary: `SconvRes`, then the next depth mix, optional blend and norm.
+    ConvMix,
 }
 
 /// `BridgeCode` among the two single-output-shape bridge ops (they share a shape check).
@@ -209,7 +236,7 @@ fn call_op_is_code(op: Op) -> bool {
 }
 
 impl Op {
-    pub const ALL: [Op; 67] = [
+    pub const ALL: [Op; 75] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -277,6 +304,14 @@ impl Op {
         Op::BridgeCode,
         Op::BridgeGate,
         Op::BridgeWrite,
+        Op::AttnResMix,
+        Op::LoopBlend,
+        Op::SconvRes,
+        Op::InkKvPrologue,
+        Op::RelSinkAttn,
+        Op::MoeExpertsMxfp8,
+        Op::InkInProj,
+        Op::ConvMix,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -349,6 +384,14 @@ impl Op {
             Op::BridgeCode => "bridge_code",
             Op::BridgeGate => "bridge_gate",
             Op::BridgeWrite => "bridge_write",
+            Op::AttnResMix => "attn_res_mix",
+            Op::LoopBlend => "loop_blend",
+            Op::SconvRes => "sconv_res",
+            Op::InkKvPrologue => "ink_kv_prologue",
+            Op::RelSinkAttn => "rel_sink_attn",
+            Op::MoeExpertsMxfp8 => "moe_experts_mxfp8",
+            Op::InkInProj => "ink_in_proj",
+            Op::ConvMix => "conv_mix",
         }
     }
 
@@ -424,6 +467,14 @@ impl Op {
             Op::BridgeCode => (1, 1),
             Op::BridgeGate => (3, 1),
             Op::BridgeWrite => (4, 2),
+            Op::AttnResMix => (5, 1),
+            Op::LoopBlend => (6, 1),
+            Op::SconvRes => (4, 3),
+            Op::InkKvPrologue => (8, 6),
+            Op::RelSinkAttn => (7, 3),
+            Op::MoeExpertsMxfp8 => (7, 1),
+            Op::InkInProj => (2, 3),
+            Op::ConvMix => (11, 4),
         }
     }
 }
@@ -489,6 +540,8 @@ pub struct OpAttrs {
     pub win_split: bool,
     /// The DeepSeek-V4.1 ops' own attributes (`crate::dsv41::ops::DsvAttrs`); every other op ignores them.
     pub dsv: crate::dsv41::ops::DsvAttrs,
+    /// The Inkling-2 ops' own attributes (`crate::inkling2::ops::InkAttrs`; `MoeExperts` reads its `situ` fields).
+    pub ink: crate::inkling2::ops::InkAttrs,
 }
 
 impl Default for OpAttrs {
@@ -517,6 +570,7 @@ impl Default for OpAttrs {
             mxfp4_a8: false,
             win_split: false,
             dsv: Default::default(),
+            ink: Default::default(),
         }
     }
 }
@@ -661,6 +715,7 @@ impl OpCall {
             p.check_bounds()?;
             if !matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv | Op::GateSplitQkNormRopeKv)
                 && !crate::dsv41::ops::POSITIONED.contains(&self.op)
+                && !crate::inkling2::ops::POSITIONED.contains(&self.op)
             {
                 return Err(Error::invalid(format!("{}: takes no device-side position", self.op)));
             }
@@ -972,6 +1027,7 @@ impl OpCall {
             Op::MatmulExl3 => crate::quant::exl3::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::check(self)?,
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::check(self)?,
+            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix => crate::inkling2::ops::check(self)?,
         }
         Ok(())
     }
@@ -1021,6 +1077,9 @@ pub struct ShapeInfo {
     /// `OpCall::prefill_inv` of the call (a row-invariant prefill pass): lets a `row_invariant` kernel that ordinary calls take only
     /// for some row counts (the flash prefill above 16 rows) accept every row count there.
     pub prefill_inv: bool,
+    /// `OpAttrs::ink.situ` of the call (`MoeExperts` / `MoeExpertsMxfp8` with the Inkling-2 SiTU activation): only kernels registered
+    /// `.situ()` accept it, so an expert kernel that predates SiTU (including the `.ext()` ones for Gemma's GELU) never runs it.
+    pub situ: bool,
 }
 
 impl ShapeInfo {
@@ -1039,7 +1098,7 @@ impl ShapeInfo {
             act: i.first().map(|t| t.dtype),
             out: o.first().map(|t| t.dtype),
             // the DeepSeek-V4.1 ops read `window` as part of their own definition (no kernel predates it), never as an extension
-            ext: (call.attrs.window > 0 && !crate::dsv41::ops::OPS.contains(&call.op))
+            ext: (call.attrs.window > 0 && !crate::dsv41::ops::OPS.contains(&call.op) && !crate::inkling2::ops::OPS.contains(&call.op))
                 || call.attrs.rope_prop
                 || call.attrs.gelu
                 || (matches!(call.op, Op::Add | Op::Embedding) && call.attrs.scale != 1.0),
@@ -1047,6 +1106,7 @@ impl ShapeInfo {
             mxfp4_a8: call.attrs.mxfp4_a8,
             mxfp4_w4a16: call.attrs.mxfp4_w4a16,
             win_split: call.attrs.win_split,
+            situ: call.attrs.ink.situ,
             ..Default::default()
         };
         match call.op {
@@ -1145,6 +1205,7 @@ impl ShapeInfo {
             Op::MatmulExl3 => crate::quant::exl3::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::shape(call, &mut s),
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::shape(call, &mut s),
+            Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix => crate::inkling2::ops::shape(call, &mut s),
         }
         let _ = o;
         s
@@ -1395,7 +1456,13 @@ mod tests {
         }
         assert_eq!(Op::ALL[Op::HcSublayer as usize], Op::HcSublayer, "the last of the DSv4.1 block");
         assert_eq!(Op::BridgeNorm as usize, 63, "appended after the DSv4.1 block");
-        assert_eq!(Op::ALL.last(), Some(&Op::BridgeWrite), "the last of the DSpine bridge ops");
+        assert_eq!(Op::ALL[Op::BridgeWrite as usize], Op::BridgeWrite, "the last of the DSpine bridge ops");
+        // the Inkling-2 block (lane ink-skel): absolute discriminants 67..=74, in `inkling2::ops::OPS` order, last in `Op::ALL`
+        for (j, op) in crate::inkling2::ops::OPS.iter().enumerate() {
+            assert_eq!(*op as usize, 67 + j, "{op}");
+            assert_eq!(Op::ALL[67 + j], *op);
+        }
+        assert_eq!(Op::ALL.last(), Some(&Op::ConvMix), "the last of the Inkling-2 block");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

@@ -14,6 +14,7 @@ mod exl3_ref;
 mod fast;
 mod fault;
 mod fused_ref;
+mod ink_ref;
 mod gdn_ref;
 mod mem;
 mod quant_ref;
@@ -194,6 +195,11 @@ impl Backend for CpuBackend {
             if implements_ext(op) {
                 r = r.ext();
                 f = f.ext();
+            }
+            // the Inkling-2 SiTU expert activation (`ShapeInfo::situ`)
+            if matches!(op, Op::MoeExperts | Op::MoeExpertsMxfp8) {
+                r = r.situ();
+                f = f.situ();
             }
             v.push(r);
             v.push(f);

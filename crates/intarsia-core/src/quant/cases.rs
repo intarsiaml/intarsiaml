@@ -631,6 +631,25 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
             // NVFP4 cases above stay the same
             let mut xrng = SplitMix64::new(cfg.seed ^ 0xE813_E8E8);
             crate::quant::exl3_moe::sweep_cases(cfg, &mut xrng, &mut push);
+            // Inkling-2: the SiTU activation (`ink.situ`, routing weight before w2), `.situ()` kernels only; decode rows 1..16, a
+            // prefill chunk, the real expert shape (H 2304, I 1152, top-8 of 128) once. Its own stream: the cases above stay the same.
+            let mut irng = SplitMix64::new(cfg.seed ^ 0x1A4B_5170);
+            let mut ishapes: Vec<(usize, usize, usize, usize, usize)> = vec![(1, 16, 4, 64, 32), (7, 16, 4, 64, 32), (16, 16, 4, 128, 64), (40, 16, 4, 64, 32)];
+            if !quick {
+                ishapes.extend([(1, 128, 8, 2304, 1152), (3, 32, 8, 256, 128)]);
+            }
+            for (t, e, k, h, i) in ishapes {
+                for dt in ACT {
+                    let mut c = experts_case(&mut irng, t, e, k, h, i, dt);
+                    // route_scale 8: weights around 8 / K, as the model gives them
+                    let w: Vec<f32> = c.inputs[2].to_f32().iter().map(|v| v * 8.0).collect();
+                    c.inputs[2] = HostTensor::from_f32(&[t, k], &w);
+                    c.attrs.ink.situ = true;
+                    c.attrs.ink.gate_cap = 4.0;
+                    c.attrs.ink.up_cap = 25.0;
+                    push(format!("T={t} E={e} K={k} H={h} I={i} {dt} situ"), c);
+                }
+            }
         }
         Op::MoeCombine => {
             for &t in if quick { &[1usize, 5][..] } else { &[1usize, 5, 33][..] } {

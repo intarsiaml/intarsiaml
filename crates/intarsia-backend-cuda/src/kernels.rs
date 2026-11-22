@@ -1041,7 +1041,7 @@ mod tests {
             .chain(intarsia_core::dsv41::ops::OPS.iter().filter(|op| !crate::dsv41::TABLE.iter().any(|(_, o)| o == *op)))
             .copied()
             .collect();
-        const NOT_ON_CUDA: [Op; 17] = [
+        const NOT_ON_CUDA: [Op; 25] = [
             Op::ShortConv,
             Op::DynConv,
             Op::RopeScaled,
@@ -1059,6 +1059,15 @@ mod tests {
             Op::BridgeCode,
             Op::BridgeGate,
             Op::BridgeWrite,
+            // Inkling-2 (lane ink-skel): cpu only so far, the model refuses to load naming the op
+            Op::AttnResMix,
+            Op::LoopBlend,
+            Op::SconvRes,
+            Op::InkKvPrologue,
+            Op::RelSinkAttn,
+            Op::MoeExpertsMxfp8,
+            Op::InkInProj,
+            Op::ConvMix,
         ];
         for op in Op::ALL {
             if !not_on_cuda.contains(&op) {

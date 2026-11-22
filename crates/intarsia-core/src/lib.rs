@@ -19,6 +19,7 @@ pub mod fault;
 pub mod fusion;
 pub mod gdn;
 pub mod hostprof;
+pub mod inkling2;
 pub mod memplan;
 pub mod model;
 pub mod ops;

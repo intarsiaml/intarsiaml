@@ -82,6 +82,9 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
     if crate::dsv41::ops::OPS.contains(&op) {
         return crate::dsv41::cases::sweep(op, cfg);
     }
+    if crate::inkling2::ops::OPS.contains(&op) {
+        return crate::inkling2::cases::sweep(op, cfg);
+    }
     let mut rng = SplitMix64::new(cfg.seed ^ (op as u64).wrapping_mul(0x9E37));
     let mut cases = Vec::new();
     let quick = cfg.quick;

@@ -156,6 +156,15 @@ pub const UNIMPLEMENTED: &[Op] = &[
     Op::EngramGather,
     Op::EngramMerge,
     Op::HcSublayer,
+    // Inkling-2 (lane ink-skel): cpu only so far
+    Op::AttnResMix,
+    Op::LoopBlend,
+    Op::SconvRes,
+    Op::InkKvPrologue,
+    Op::RelSinkAttn,
+    Op::MoeExpertsMxfp8,
+    Op::InkInProj,
+    Op::ConvMix,
 ];
 
 /// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the

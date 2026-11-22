@@ -154,7 +154,12 @@ pub fn run(call: &OpCall) -> Result<()> {
             let rows: Vec<Vec<f64>> = (0..t)
                 .into_par_iter()
                 .map(|ti| {
-                    r::moe_experts_token_act(&ex, &x[ti * h..(ti + 1) * h], &ids[ti * k..(ti + 1) * k], &wts[ti * k..(ti + 1) * k], dt, od, a.gelu)
+                    let (xr, ir, wr_) = (&x[ti * h..(ti + 1) * h], &ids[ti * k..(ti + 1) * k], &wts[ti * k..(ti + 1) * k]);
+                    if a.ink.situ {
+                        r::moe_experts_token_situ(&ex, xr, ir, wr_, dt, od, a.ink.gate_cap as f64, a.ink.up_cap as f64)
+                    } else {
+                        r::moe_experts_token_act(&ex, xr, ir, wr_, dt, od, a.gelu)
+                    }
                 })
                 .collect();
             wr(&o[0], &rows.concat())

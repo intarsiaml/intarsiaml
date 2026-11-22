@@ -193,6 +193,8 @@ pub fn check(call: &OpCall) -> Result<()> {
             if k == 0 || k > e {
                 return bad(op, format!("{k} experts per token with {e} experts"));
             }
+            // the Inkling-2 SiTU activation and the reserved activation-quant mode
+            crate::inkling2::ops::check_act_epilogue(call)?;
         }
         Op::MoeCombine => {
             rank(&i[0], 2, "routed")?;
