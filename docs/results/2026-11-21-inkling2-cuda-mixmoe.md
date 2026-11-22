@@ -287,6 +287,9 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
 - (coordinator, 41st) Hold granted: the other lanes are told not to merge to main until #491 is merged. The 4-ulp test fix is
   fine, and keeping the workspace `float_roundtrip` off is right. Merge on green and send the merge commit at once (it lifts
   the freeze). If #495 (svfflip, another session) lands first, merge main once more, taking main's side.
+- (coordinator, 42nd) #491 is merged as main `8c7bb7cb1`, and the freeze is lifted. Delete the remote branch. Go ahead with gu+dn
+  in one launch per layer: bitwise only, half-day timebox, kept only at >= 1 % at g256 spec-off in a quiet ABBA. Merge order on
+  main for now: #497, then the CUDA flips PR. **Ask the coordinator before merging anything.**
 - (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
   chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
   is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
