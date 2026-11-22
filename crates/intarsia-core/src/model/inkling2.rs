@@ -70,12 +70,12 @@ pub(crate) fn ink_rows_exact(backend: &str, t: usize) -> bool {
 
 /// `INTARSIA_INK_VERIFY_P12` (lane ink-cuda-attn, brief 26): the CUDA verify pass takes the P12 copies of wo and the unembed
 /// at all its rows (1..=`p12::ROWS_MAX`, the rows-exact P12 kernels, bitwise the bf16 rows GEMV each row) instead of the bf16
-/// weights above `DENSE_ROWS_MAX` rows. `1` on, `0` off; unset = off (the default is decided by the gate). CUDA only: Metal and
-/// every non-verify call keep `DENSE_ROWS_MAX`. Read once.
+/// weights above `DENSE_ROWS_MAX` rows. Default on (bitwise: greedy md5 unchanged, +1.1-1.3 % spec-on decode, fleetq #11494);
+/// `0` reverts. CUDA only: Metal and every non-verify call keep `DENSE_ROWS_MAX`. Read once.
 pub(crate) fn verify_p12(backend: &str) -> bool {
-    static ON: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
-    let env = *ON.get_or_init(|| std::env::var("INTARSIA_INK_VERIFY_P12").ok().map(|v| v.trim() == "1"));
-    backend == "cuda" && env.unwrap_or(false)
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let on = *ON.get_or_init(|| !std::env::var("INTARSIA_INK_VERIFY_P12").is_ok_and(|v| v.trim() == "0"));
+    backend == "cuda" && on
 }
 
 /// Where a partial lives (see the module doc).
