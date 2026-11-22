@@ -10,6 +10,14 @@ P12 / screen). Never restore an old bench source without `--digest` for a refere
 
 ## Briefs received
 
+- 2026-11-22 ~09:00 (main, from ink-dfuse): correction to the in_proj reference. At T=1 the stream runs ink-pack12's
+  `ink_in_proj_p12_gemv` (p12.rs); P12 is on by default for in_proj and wo up to 4 rows. Its bf16 twin `ink_in_proj_bf16_gemv`
+  (inkmix.rs launch_in_proj_gemv / in_proj_rows) is bitwise equal under pack12's contract. The multi-row kernel must match
+  that T=1 output bitwise per row. P12 stops at 4 rows, so B8/B16 in_proj likely reads bf16 (~1.33x P12's bytes) on top of
+  any per-row re-reading: measure which kernel runs at 8 and 16 rows; a multi-row P12 kernel (weights once for all rows, P12
+  bytes) may be the full lever; check p12.rs for an existing multi-row P12 path first. Keep the T=1 kernels and dispatch
+  unchanged.
+
 - 2026-11-22 ~08:50 (main): start with in_proj rows; MoE B16 second. Ownership: the B>1 in_proj rows path (T >= 2 decode,
   below the prefill NAX threshold) is ink-batch's; the T=1 path stays ink-dfuse's: do not change its kernel or dispatch.
   Order: (1) measure only: in_proj us per call at 1/8/16 rows on the current tree plus bytes per call; confirm ~6x over floor
