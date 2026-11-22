@@ -318,7 +318,7 @@ impl Layout {
 
     fn check(&self, st: &SequenceState) -> Result<()> {
         if st.slots.iter().any(|s| matches!(s, StateSlot::Ring(_) | StateSlot::Shared(_))) {
-            return Err(Error::Unsupported("prefix store of DeepSeek-V4.1 ring / shared state slots".into()));
+            return Err(Error::Unsupported("prefix store of ring / shared state slots (DeepSeek-V4.1, Inkling-2)".into()));
         }
         let ok = self.attn.iter().all(|a| match st.slots.get(a.slot) {
             Some(StateSlot::AttnKv(s)) => s.n_kv_heads == a.heads && s.head_dim == a.head_dim && s.dtype.size_bytes() == a.elem,

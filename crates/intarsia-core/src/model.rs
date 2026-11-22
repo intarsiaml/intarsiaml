@@ -876,6 +876,16 @@ impl Model {
     /// `INTARSIA_PREFIX_REUSE=any|exact` overrides the backend's choice (`any`: any held row; `exact`: the cold schedule's
     /// cuts everywhere, row-invariant prefill or not).
     pub fn reuse_len(&self, st: &SequenceState, plen: usize, want: usize) -> usize {
+        let r = self.reuse_len_policy(st, plen, want);
+        // ring slots (Inkling-2's sliding-window KV and conv windows) follow a cut of at most their margin: past it, start over.
+        // No other model of the generic graph has ring slots, so this is a no-op for them
+        if st.ring_margin().is_some() && st.restorable_len(r) != r {
+            return 0;
+        }
+        r
+    }
+
+    fn reuse_len_policy(&self, st: &SequenceState, plen: usize, want: usize) -> usize {
         let over = prefix_reuse_override();
         if st.has_recurrent() {
             if !self.reuse_recurrent_at_cold_cuts_only() {

@@ -280,9 +280,16 @@ fn inkling2_tiny_rollback_by_length() {
     all_logits(&m, &mut st, &draft);
     st.truncate(32, &*m.backend).unwrap();
     assert_eq!(all_logits(&m, &mut st, &ids[32..]), whole[32..].to_vec(), "after rollback to 32");
+    // prompt reuse (`Model::reuse_len`): within the margin the prefix is kept, past it the sequence starts over
+    assert_eq!(m.reuse_len(&st, 40, 30), 30);
+    assert_eq!(m.reuse_len(&st, 40, 10), 0);
     // a cut beyond the ring margin (16) is refused, and restorable_len says so
     assert_eq!(st.restorable_len(10), 0);
     assert!(st.truncate(10, &*m.backend).is_err());
+    // a prompt that shares 30 tokens resumes there (the engine's prefix reuse path: reuse_len, truncate, prefill the rest)
+    let keep = m.reuse_len(&st, 40, 30);
+    st.truncate(keep, &*m.backend).unwrap();
+    assert_eq!(all_logits(&m, &mut st, &ids[keep..]), whole[keep..].to_vec(), "resumed at {keep}");
     // the empty state always works
     st.truncate(0, &*m.backend).unwrap();
     assert_eq!(all_logits(&m, &mut st, &ids), whole, "after a reset to 0");
@@ -385,5 +392,7 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
     for op in intarsia_core::inkling2::ops::OPS {
         assert!(!intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
         assert!(intarsia_backend_hip::kernels::UNIMPLEMENTED.contains(&op), "hip {op}");
+        // Metal: no kernel yet (the ink/m-* lanes add them); the table alone, no device
+        assert!(!intarsia_backend_metal::kernels::all().iter().any(|k| k.op == op), "metal {op}");
     }
 }
