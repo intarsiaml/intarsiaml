@@ -145,6 +145,15 @@ fn prefix_reuse_override() -> Option<bool> {
     })
 }
 
+/// `INTARSIA_INK_RING_SNAPSHOT` (default on; `0` off; lane ink-spec-land): an Inkling-2 sequence copies its ring slots
+/// (sliding-window KV and conv windows) at the end of each prompt's prefill ([`SequenceState::ring_snapshot`]), so the next turn
+/// of a chat, which on Metal resumes at that prompt end, finds the rows its window needs after the reply's decode rows overwrote
+/// them in the live rings. Off: a resume reaches at most `INK_RING_MARGIN` rows below the cached end, as before.
+fn ink_ring_snapshot_env() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("INTARSIA_INK_RING_SNAPSHOT").map_or(true, |v| v.trim() != "0"))
+}
+
 /// `INTARSIA_ROW_INVARIANT_PREFILL`: `1` / `0` overrides `Backend::row_invariant_prefill` (lane rip; [`Model::forward_prefill`]);
 /// unset or anything else: the backend decides.
 fn row_invariant_override() -> Option<bool> {
@@ -706,6 +715,8 @@ pub struct Model {
     inv_on: std::sync::atomic::AtomicBool,
     /// [`Model::set_prefix_reuse_exact`].
     reuse_exact: std::sync::atomic::AtomicBool,
+    /// [`Model::set_ring_snapshots`]`(false)`: no ring snapshots for this model (tests; the env turns them off for the process).
+    ring_snap_off: std::sync::atomic::AtomicBool,
     /// Inside an MTP head pass over several rows ([`Model::mtp_layer_at`]): attention runs one decode call per row on a backend
     /// that asks for it ([`Backend::verify_attn_per_row`]), so the eager head's rows are the captured step's bit for bit.
     head_rows_attn: std::sync::atomic::AtomicBool,
@@ -952,8 +963,13 @@ impl Model {
         let r = self.reuse_len_policy(st, plen, want);
         // ring slots (Inkling-2's sliding-window KV and conv windows) follow a cut of at most their margin: past it, start over.
         // No other model of the generic graph has ring slots, so this is a no-op for them
-        if st.ring_margin().is_some() && st.restorable_len(r) != r {
-            return 0;
+        if st.ring_margin().is_some() {
+            let rr = st.restorable_len(r);
+            if rr != r {
+                // ... unless the ring snapshot reaches a shorter prefix (lane ink-spec-land: the end of the previous prompt, where a
+                // chat's next turn resumes), and the policy takes that prefix too
+                return if rr > 0 && self.reuse_len_policy(st, plen, rr) == rr { rr } else { 0 };
+            }
         }
         r
     }
@@ -1933,7 +1949,9 @@ impl Model {
         ws_bytes += moe_bytes;
         ws_bytes += rec_bytes * (1 + crate::state::RECURRENT_SNAPSHOTS as u64);
         // ring slots are fixed-size like recurrent ones (Inkling-2's SWA KV and conv windows; no other model here has them)
-        ws_bytes += slot_specs.iter().map(|s| if matches!(s, SlotSpec::Ring { .. }) { s.bytes(0) as u64 } else { 0 }).sum::<u64>();
+        // ... and an Inkling-2 sequence's ring snapshot is one more copy of them (`INTARSIA_INK_RING_SNAPSHOT`, lane ink-spec-land)
+        let ring_copies = 1 + u64::from(ink_model.is_some() && ink_ring_snapshot_env());
+        ws_bytes += ring_copies * slot_specs.iter().map(|s| if matches!(s, SlotSpec::Ring { .. }) { s.bytes(0) as u64 } else { 0 }).sum::<u64>();
         ws_bytes += ink_model.as_ref().map_or(0, |m| m.ws.bytes() as u64);
         if mtp_head.is_some() {
             // per-row recurrent states of a verify pass (up to `mtp_k` saved rows: `--spec-k`, or the copy chain's `len` with `INTARSIA_SPEC_COPY`) and the drafter's hidden-row queue
@@ -2135,6 +2153,7 @@ impl Model {
             prefill_inv: std::sync::atomic::AtomicBool::new(false),
             inv_on: std::sync::atomic::AtomicBool::new(inv_want),
             reuse_exact: std::sync::atomic::AtomicBool::new(false),
+            ring_snap_off: std::sync::atomic::AtomicBool::new(false),
             head_rows_attn: std::sync::atomic::AtomicBool::new(false),
             head_whole: std::sync::atomic::AtomicBool::new(false),
             kv_only_skip_q: std::sync::atomic::AtomicBool::new(false),
@@ -3150,6 +3169,10 @@ impl Model {
             // plan): no device allocation inside the scheduler loop
             st.reserve_snapshots(&*self.backend, self.batch_snapshots())?;
         }
+        if self.ring_snapshots() > 0 {
+            // counted in the plan's workspace (one sequence) and in `enable_batch`'s ring reserve (the others)
+            st.reserve_ring_snapshot(&*self.backend)?;
+        }
         st.mtp = self.new_mtp_state(self.plan.kv_cap_tokens)?;
         st.dflash = self.new_dflash_state(self.plan.kv_cap_tokens)?;
         if st.mtp.is_some() && st.has_recurrent() {
@@ -3376,7 +3399,36 @@ impl Model {
     /// pass wrote are recorded as row-invariant (`PassKind::RowInvariant`), joining the state's row-invariant prefix
     /// (`SequenceState::inv_len`) when they extend it. Otherwise, and for
     /// `HeadMode::AllLogits` (its multi-row head groups have no row-invariant kernel), exactly [`Model::forward`].
+    ///
+    /// A pass that ends a prompt (a last-row head) leaves an Inkling-2 sequence's ring snapshot at the prompt's end
+    /// ([`Model::ring_snapshots`]).
     pub fn forward_prefill(
+        &self,
+        st: &mut SequenceState,
+        ids: &[u32],
+        mode: HeadMode,
+        on_row: Option<RowCallback<'_>>,
+    ) -> Result<StepOut> {
+        let out = self.forward_prefill_inner(st, ids, mode, on_row)?;
+        if self.ring_snapshots() > 0 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_) | HeadMode::LastTopK(_)) {
+            st.ring_snapshot(&*self.backend)?;
+        }
+        Ok(out)
+    }
+
+    /// Ring snapshots an Inkling-2 sequence keeps (lane ink-spec-land): 1 with `INTARSIA_INK_RING_SNAPSHOT` on (the default),
+    /// else 0; 0 for every other model.
+    pub fn ring_snapshots(&self) -> usize {
+        usize::from(self.ink.is_some() && ink_ring_snapshot_env() && !self.ring_snap_off.load(std::sync::atomic::Ordering::Relaxed))
+    }
+
+    /// Turn this model's ring snapshots off (or back on, if `INTARSIA_INK_RING_SNAPSHOT` allows them), as the variable does for the
+    /// process (tests). States made before keep their reserved buffer; the memory plan is unchanged.
+    pub fn set_ring_snapshots(&self, on: bool) {
+        self.ring_snap_off.store(!on, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    fn forward_prefill_inner(
         &self,
         st: &mut SequenceState,
         ids: &[u32],
