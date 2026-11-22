@@ -33,9 +33,10 @@ pub const MIX_SOURCES_MAX: usize = 8;
 pub const MIX_QUERIES_MAX: usize = 4;
 pub const BLEND_STREAMS_MAX: usize = 3;
 pub const BLEND_G_MAX: usize = 128;
-/// Rows per blend chunk and channels per gate block (mirrors kBlendRows / kGateCh in ink_mix.cu).
+/// Rows per blend chunk, channels and rows per gate block (mirror kBlendRows / kGateCh / kGateRows in ink_mix.cu).
 const BLEND_ROWS: usize = 256;
 const GATE_CH: usize = 128;
+const GATE_ROWS: usize = 16;
 
 /// Scratch of the blend for `s` streams, `r` rows, width `d`, rank `g` (mirrors `blend_bytes` in ink_mix.cu).
 pub fn blend_bytes(s: usize, r: usize, d: usize, g: usize) -> usize {
@@ -43,6 +44,7 @@ pub fn blend_bytes(s: usize, r: usize, d: usize, g: usize) -> usize {
     let rc = r.min(BLEND_ROWS);
     let nsl = d.div_ceil(GATE_CH);
     rnd(s * rc * 2 * d * 2) + rnd(s * rc * d * 4) + rnd(s * rc * g * 2) + rnd(s * rc * d * 4) + rnd(s * rc * nsl * 4)
+        + rnd(s * rc.div_ceil(GATE_ROWS) * 4)
 }
 
 /// ConvMix: the blend's scratch at its bounds (S and G are not in `ShapeInfo`): 3 streams, rank 128.

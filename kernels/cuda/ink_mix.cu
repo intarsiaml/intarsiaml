@@ -91,6 +91,8 @@ struct RowArgs {
     int64_t pos0;
     const int* pos;
     float eps;
+    int* ctr;   // blend gate + norm fuse: counters [nctr] the row kernel zeroes (block 0) before the gate kernel runs
+    int nctr;
     int hoist;  // conv taps outer (one row pointer / ring modulo per tap); set by launch_rows (INTARSIA_INK_ROW_HOIST, default on)
 };
 
@@ -100,6 +102,7 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
     __shared__ float fin[kNvMax];
     const int t = a.t0 + blockIdx.x;
     const int tl = blockIdx.x;  // row in the blend chunk
+    if (a.ctr && blockIdx.x == 0 && (int)threadIdx.x < a.nctr) a.ctr[threadIdx.x] = 0;
     const int D = a.D;
     const int64_t T = a.T;
     const int nt = blockDim.x;
@@ -328,7 +331,9 @@ __global__ void ink_ring_kernel(const ik_bf16* __restrict__ x, ik_bf16* __restri
 __global__ void __launch_bounds__(kGateCh) ink_blend_gate_kernel(const ik_bf16* __restrict__ h, const ik_bf16* __restrict__ gain,
                                                                  const ik_bf16* __restrict__ forget, const float* __restrict__ dbuf,
                                                                  const float* __restrict__ msg, float* __restrict__ ybuf,
-                                                                 float* __restrict__ part, int Tc, int T, int t0, int D, int G) {
+                                                                 float* __restrict__ part, int Tc, int T, int t0, int D, int G,
+                                                                 int* ctr, const ik_bf16* __restrict__ norm, ik_bf16* __restrict__ out,
+                                                                 float eps) {
     __shared__ float hs[kGateRows][kGMax];
     __shared__ float red[kGateRows][kGateCh / 32];
     const int s = blockIdx.y;
@@ -381,6 +386,32 @@ __global__ void __launch_bounds__(kGateCh) ink_blend_gate_kernel(const ik_bf16* 
         for (int w = 0; w < kGateCh / 32; ++w) q += red[threadIdx.x][w];
         part[((int64_t)s * Tc + r0 + threadIdx.x) * gridDim.x + blockIdx.x] = q;
     }
+    if (!ctr) return;
+    // fused norm (ctr set): the last slice block of this (stream, row block) does ink_blend_norm_kernel's work for its rows, with
+    // the same sums in the same order and the same expressions (bitwise)
+    __shared__ int last;
+    __shared__ float rinv[kGateRows];
+    __threadfence();
+    __syncthreads();
+    if (threadIdx.x == 0) last = atomicAdd(ctr + (int64_t)s * gridDim.z + blockIdx.z, 1) == (int)gridDim.x - 1;
+    __syncthreads();
+    if (!last) return;
+    __threadfence();
+    const int nsl = gridDim.x;
+    if (threadIdx.x == 0) {
+        for (int r = 0; r < rows; ++r) {
+            float q = 0.f;
+            for (int i = 0; i < nsl; ++i) q += __ldcg(part + ((int64_t)s * Tc + r0 + r) * nsl + i);
+            rinv[r] = 1.f / sqrtf(q / (float)D + eps);
+        }
+    }
+    __syncthreads();
+    for (int r = 0; r < rows; ++r) {
+        const float* yr = ybuf + ((int64_t)s * Tc + r0 + r) * D;
+        ik_bf16* orow = out + ((int64_t)s * T + t0 + r0 + r) * D;
+        const float rr = rinv[r];
+        for (int c2 = threadIdx.x; c2 < D; c2 += blockDim.x) orow[c2] = ik_f2b(__ldcg(yr + c2) * rr * ik_b2f(norm[(int64_t)s * D + c2]));
+    }
 }
 
 // norm: out[s, t] = rA(y inv(y) norm[s]); the slice partials summed in slice order
@@ -407,12 +438,14 @@ struct BlendScratch {
     ik_bf16* h;
     float* ybuf;
     float* part;
+    int* ctr;
 };
 
 int64_t blend_bytes(int64_t s, int64_t r, int64_t d, int64_t g) {
     const int64_t rc = r < kBlendRows ? r : kBlendRows;
     const int64_t nsl = (d + kGateCh - 1) / kGateCh;
-    return rnd(s * rc * 2 * d * 2) + rnd(s * rc * d * 4) + rnd(s * rc * g * 2) + rnd(s * rc * d * 4) + rnd(s * rc * nsl * 4);
+    return rnd(s * rc * 2 * d * 2) + rnd(s * rc * d * 4) + rnd(s * rc * g * 2) + rnd(s * rc * d * 4) + rnd(s * rc * nsl * 4) +
+           rnd(s * ((rc + kGateRows - 1) / kGateRows) * 4);
 }
 
 BlendScratch blend_carve(void* base, int64_t s, int64_t rc, int64_t d, int64_t g) {
@@ -428,6 +461,8 @@ BlendScratch blend_carve(void* base, int64_t s, int64_t rc, int64_t d, int64_t g
     b.ybuf = (float*)p;
     p += rnd(s * rc * d * 4);
     b.part = (float*)p;
+    p += rnd(s * rc * nsl * 4);
+    b.ctr = (int*)p;
     return b;
 }
 
@@ -437,6 +472,14 @@ int row_threads(int D, int* ne) {
     *ne = e;
     const int th = (D + e - 1) / e;
     return (th + 31) / 32 * 32;
+}
+
+int blend_fuse_on() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_INK_BLEND_FUSE");
+        return e && e[0] == '0' ? 0 : 1;
+    }();
+    return v;
 }
 
 int row_hoist_on() {
@@ -486,6 +529,12 @@ int run_blend(RowArgs a, const ik_tensor* down, const ik_tensor* gain, const ik_
         r.t0 = t0;
         r.pair = b.pair;
         r.dbuf = b.dbuf;
+        // gate + norm in one launch for decode / verify chunks (INTARSIA_INK_BLEND_FUSE=0: the separate norm kernel)
+        const bool fuse = rc <= kGateRows && blend_fuse_on();
+        if (fuse) {
+            r.ctr = b.ctr;
+            r.nctr = S;
+        }
         IK_TRY(launch_rows(r, rc, st));
         InkSegs sg{};
         sg.nseg = S;
@@ -494,8 +543,10 @@ int run_blend(RowArgs a, const ik_tensor* down, const ik_tensor* gain, const ik_
         IK_TRY(ink_mma_gemv(sg, rc, 2 * D, st));
         const dim3 gg((unsigned)nsl, (unsigned)S, (unsigned)((rc + kGateRows - 1) / kGateRows));
         ink_blend_gate_kernel<<<gg, kGateCh, 0, st>>>(b.h, (const ik_bf16*)gain->data, (const ik_bf16*)forget->data, b.dbuf, a.msg, b.ybuf,
-                                                     b.part, rc, T, t0, D, G);
+                                                     b.part, rc, T, t0, D, G, fuse ? b.ctr : nullptr, (const ik_bf16*)norm->data,
+                                                     (ik_bf16*)out->data, a.eps);
         IK_TRY(ik_launch_status());
+        if (fuse) continue;
         ink_blend_norm_kernel<<<dim3((unsigned)rc, (unsigned)S), 256, 0, st>>>(b.ybuf, b.part, (const ik_bf16*)norm->data,
                                                                                 (ik_bf16*)out->data, rc, T, t0, D, nsl, a.eps);
         IK_TRY(ik_launch_status());
