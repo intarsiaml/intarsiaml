@@ -10,6 +10,16 @@ P12 / screen). Never restore an old bench source without `--digest` for a refere
 
 ## Briefs received
 
+- 2026-11-22 ~08:50 (main): start with in_proj rows; MoE B16 second. Ownership: the B>1 in_proj rows path (T >= 2 decode,
+  below the prefill NAX threshold) is ink-batch's; the T=1 path stays ink-dfuse's: do not change its kernel or dispatch.
+  Order: (1) measure only: in_proj us per call at 1/8/16 rows on the current tree plus bytes per call; confirm ~6x over floor
+  and whether weight reads repeat per row. (2) If confirmed, build a multi-row kernel that reads each weight tile once for all
+  rows, rows-exact: each row's output bitwise equal to the T=1 kernel's, same per-row reduction order as the T=1 GEMV. If that
+  cannot reach a worthwhile gain, report before building a non-bitwise variant (those stay opt-in; a default flip is the
+  user's). (3) Gates: rows_exact (T=1 vs B rows, crossing every dispatch threshold), greedy md5 64/256, inkling2_batch
+  digests, admission, then B8/B16 speed with the ABAB rule (warm number primary). MoE B16 trace analysis needs no slot: do
+  it while the in_proj slot is queued.
+
 - 2026-11-22 ~07:55 (main): #11393 is the last endor slot spent on the slow state's cause; record its result in section 28
   and return to the batched-decode optimization. If it points to something actionable in software (e.g. a P-state choice our
   dispatch pattern triggers), propose it; else close the topic. Reasoning: the 58.7 ms "fast" B16 shows only in the first ~3
