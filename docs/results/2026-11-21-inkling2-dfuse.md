@@ -1753,8 +1753,8 @@ normal-step span is the real cost. Where the -70 dispatches and -0.77 ms come fr
 
   The two methods agree within 0.5 tok/s. A clean second pair would take another quiet slot of about 8 minutes.
 - **Context for the brief.** Its 50-52 / 48.3 tok/s were measured at a88db4620. The tip's "before" runs 72 / 67 tok/s
-  with the same 613 dispatches, so the difference comes from other lanes merged since (pack12 in_proj / wo / unembed,
-  prefill, token feedback), not from this lane.
+  with the same 613 dispatches, so the difference comes from other lanes merged since (pack12's in_proj / wo / unembed
+  among them), not from this lane.
 - **Opt-in, not in "after":** `INTARSIA_INK_MOE_T1` gains 0.27 / 0.29 ms per token (job G), bitwise.
 
 ### Why the targets are not met (jobs Q and K)
