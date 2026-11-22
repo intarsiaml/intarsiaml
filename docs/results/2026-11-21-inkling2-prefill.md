@@ -79,6 +79,15 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
    Next, in order: prefill cb batching (57 ms / chunk), router NAX, MoE unpack sharing; also the non-metal4 ink_in_proj
    m 31-63 fix (brief 7).
 
+9. 2026-11-22 (coordinator, via SendMessage): command-buffer batching closed; cold-start page-in (~0.2 s) parked (serve
+   keep-warm covers it, no residency work). While #10982 / #11105 / #11109 wait: (1) from existing traces (no new endor jobs)
+   rank steady-state prefill ops at chunk 2048 (chunks 1+, warm) by ms/chunk next to each op's M5 Max NAX compute floor:
+   experts, looped blend, attention, in_proj, router, everything over 5 ms/chunk; (2) pick the op with the largest
+   ms-above-floor not covered by router NAX / v65, write a one-paragraph plan (expected ms/chunk saved, bitwise vs
+   within-gates), build it on a new branch off the ink/prefill tip, flag default off; (3) compile checks on bespin, CPU tests on
+   spark2, GPU only in endor fleetq slots, no local builds on endor; (4) report the ranking and the pick; the coordinator
+   answers within the hour on disagreement, otherwise keep building.
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
