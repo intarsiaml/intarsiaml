@@ -1059,4 +1059,16 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   moe_experts / moe_experts_mxfp8 0 fail. spark1 #11529: CUDA plan show json 35B / 8B byte-identical, HIP check-only clean;
   its work dir (~/intarsiaml-inknoop: spark1 has no ~/intarsiaml checkout, so the fallback) removed, 3.9 GB.
 - PR #492 opened from ink/batch-land (03e22a76b).
+- PR #492: all 6 CI jobs green on 03e22a76b; **merged** at 2474c17b9. Worktree .worktrees/ink-batch-land and branch
+  ink/batch-land (local and origin) removed; ink/batch untouched.
+
+## Gumbel device sampler default-on for Inkling-2 on Metal (USER DECISION 1)
+
+- Branch ink/gumbel-land (worktree .worktrees/ink-gumbel-land), change 82e27a833, main (#492) merged at 45710801c. New recipe key
+  `[tuning.<backend>] gumbel_sampling`, set only in recipes/inkling2.toml under `[tuning.metal]`; `INTARSIA_GUMBEL_SAMPLING`
+  wins when set (`1` on, else off: `0` reverts); `Model::gumbel_wanted` resolves it for plan.rs and the model gate; docs rows
+  in tuning.md, recipes.md, LOG.md.
+- CPU checks (endor #11550, CPU slot): workspace check; core gumbel + recipe 22/22 (incl. switch-vs-recipe cases); models
+  recipe_gumbel 1/1 (only Inkling-2 on Metal sets it), recipes_doc 3/3, recipe_macro 1/1, gumbel_engine 1/1; docs_env_vars 2/2.
+- GPU gates queued as endor #11554 (quiet): plan show main vs land, greedy md5, gumbel tests, serve smoke unset / =0, ABBA.
 
