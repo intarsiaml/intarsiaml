@@ -14,6 +14,8 @@ pub mod disable;
 pub mod dsv41;
 pub mod exl3;
 pub mod hostmem;
+pub mod inkmix;
+pub mod inkmoe;
 pub mod kernels;
 pub mod quantmoe;
 
