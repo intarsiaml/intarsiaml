@@ -257,6 +257,12 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     is >= 1.01 at 4k, 8k and 16k; fleetq `--quiet gpu,cpu`, honest `--expect`. (3) After the result, flip or not, remove the
     sweep forms s3 / s4 / s8 / s9 / s16 / s18 / s24; keep s6, s12 and the env var. (4) If it flips, land it with the rest of
     ink/prefill, and report whether ink/prefill has anything else ready for main and what its PR would contain.
+27. 2026-11-22 (coordinator, via SendMessage): NSG 6: one more job with a cool-down. One fleetq job on endor
+    (`--quiet gpu,cpu`, `--expect 40`): idle up to 20 min inside the slot so the GPU leaves its slow state; a short p8k reading
+    every 5 min; as soon as p8k >= 2736, run rg3.sh's ABAB at once, same rule (median ratio >= 1.01 at 4k, 8k, 16k -> flip);
+    if p8k never reaches 2736 within 20 min, stop and report the readings, no pairs. Before queueing, read the batch lane's
+    slow-state clock test (#11375) for the recovery time and set the idle time from it if it says more than 20 min. If it
+    flips, it lands on ink/prefill with the measurement tools; tell the coordinator when ready, it routes the PR.
 
 ## Status
 
