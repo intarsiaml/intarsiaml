@@ -182,6 +182,17 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     **Done:** the p1k pairs were appended to #11282 (kp1.sh). The binary is copied to .scratch/bin9k (61980c882). The prompt
     .scratch/p1k.txt is the first half of p2k.txt; generate prints the token count.
 
+19. 2026-11-22 (coordinator, via SendMessage): option (c). Judge 4k by engine generate timing, the same instrument as 1k
+    and 8k (bitwise output, real saving: localeval spread does not decide). (1) p4k generate pairs, 3 alternating off / on,
+    binary 61980c882 (.scratch/bin9k), next to the p1k pairs: in #11282 if its expected time still covers it, else #11290,
+    else a new quiet slot. (2) **Rule, fixed before any numbers: default-on only if BOTH hold: 4k generate median on >=
+    1.00x median off, AND 1k generate median on >= 0.98x median off.** Both hold: send ink-metal 61980c882 with the numbers.
+    Either fails: stays opt-in, FINAL, no further round. (3) Label the 4k evidence generate timing; keep the failed
+    localeval 4k pair 2 in the doc.
+    **Placement:** #11282 was queued with --expect 15 and already carries the K-step sweep plus the p1k pairs, so it does not
+    cover 6 more runs. The p4k pairs go in #11290 (--expect 35). The p1k pairs stay in #11282. The prompt
+    .scratch/p4k.txt is the first half of p8k.txt (~4k tokens; generate prints the count).
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
