@@ -251,6 +251,11 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   default-on if >= +1 % at g256. (2) Verify unembed / wo goes to ink-cuda-attn: send shapes, call counts and the exact bit
   contract (which decode kernel the verify rows must equal) in 3-5 lines. (3) Draft MLP fp8: skip. g64: after (1), a load-time
   warmup of the draft's first-call path (cuBLASLt / cutlass lazy init, first splitkv) if < 30 min; report the load-time cost.
+- (coordinator, 34th) Head kernel default-on stands; no g64 warmup (note that nsys's first-call cost explained the stall). PR prep:
+  don't poll; #488 (ink/metal -> main) is in CI, coordinator messages on merge. Meanwhile, from #11462 (no new job unless needed):
+  rank this lane's costs (MoE experts, ConvMix, controller blend and loop kernels) for spec-off g256 and spec-on verify passes,
+  ms / token with each one's bandwidth floor; build the top item if its bound is >= 0.3 ms / token (same gate: md5, rows-exact or
+  bitwise tests, ABAB); if none reaches 0.3, say so and stop.
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
@@ -843,7 +848,7 @@ Spec off g256 unchanged (`a0e6f47bc45f`, 36.50 tok/s). nsys (128 tokens): head 7
 
 Without a profiler, g64 spec on (France, 64 tokens, head kernel on) is 1720 / 1717 ms = 36.62 / 36.70 tok/s, ids `ec9a19c14b2d`:
 level with spec off (36.53-36.76). The 148 ms first-draft stall of #11462 was mostly nsys's own first-call cost (the merge gate
-without nsys had on64 only 14 ms over off). `CUDA_MODULE_LOADING=EAGER` (every module loaded at start): decode 1679 / 1685 ms
+without nsys had on64 1748 ms vs 1714 spec off with split-K on: 34 ms). `CUDA_MODULE_LOADING=EAGER` (every module loaded at start): decode 1679 / 1685 ms
 (37.51 / 37.40 tok/s, -38 ms, same ids) for +2-4 s process wall. So lazy first-use loading costs ~38 ms once per process; a
 targeted load-time warmup would save at most that for one-shot `generate`, and serve pays it once. Not built (well under the
 brief's bar of being worth a load-time cost); `CUDA_MODULE_LOADING=EAGER` is the switch for a one-shot user who wants it.
