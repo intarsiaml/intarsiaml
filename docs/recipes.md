@@ -120,6 +120,18 @@ activation, no bias (`Op::ShortConv`, `crates/intarsia-core/src/model/short_conv
 | `kind` | string | required | `"gemma4"` (the only layout implemented). |
 | `prefix` | string | required | Tensor prefix of the whole layer, e.g. `"model.language_model.layers.{i}"`. Everything under it (attention, dense MLP, router, experts, the five norms, `layer_scalar`) is found by the fixed Gemma 4 names. Head sizes, KV heads, sliding window, rope tables, soft-cap and expert counts come from `config.json` (`ModelDims::gemma`, `layer_types`). Use `pattern = ["gemma"]` and `[layer.norms] pre_gemma = <input_layernorm>`. |
 
+### `[layer.ink]` (Inkling-2 layer, `recipes/inkling2.toml`)
+
+| Key | Type | Default | What it controls |
+|---|---|---|---|
+| `kind` | string | required | `"inkling2"` (the only layout implemented). |
+| `prefix` | string | required | Tensor prefix of one physical layer, e.g. `"model.llm.layers.{i}"`. Attention (`attn.*`), the short convs, the router and the NVFP4 or MXFP8 experts (by stored dtype) are found by the fixed Inkling-2 names; SWA vs full attention comes from `local_layer_ids` and must agree with the tensors present. |
+| `root` | string | required | Prefix of the model-level tensors: `attn_res.*` (depth-mix queries), `middle_cycle_cross_pass_*queries`, `embed_norm`. |
+
+Use `pattern = ["ink"]` and no `[layer.norms]` (the depth mixes carry their own norms). The visit table (prelude, looped core,
+coda), state slots and workspace come from `config.json` (`ModelDims::ink`); `embed` and `lm_head` name the padded
+`vocab_size` tables, of which the first `unpadded_vocab_size` rows are used. Port spec: docs/plans/2026-11-21-inkling2-port.md.
+
 ### `[layer.dsv41_attn]`, `[layer.dsv41_moe]` (DeepSeek-V4.1, `recipes/deepseek_v41.toml`)
 
 Name the checkpoint layout of the DeepSeek-V4.1 graph (`intarsia_core::dsv41`, contract in docs/design/dsv41-ops.md):
@@ -199,7 +211,7 @@ wrappers). Omit the table unless the family names a field differently from Huggi
 
 | Key | Type | Default | What it controls |
 |---|---|---|---|
-| `chat_turns` | string | none | Turn format of the model's chat template (`"chatml"`): which rows of a chat prompt the model is asked to predict; the KL floor skips system and user turns. Fallback for a golden whose metadata names no known format. |
+| `chat_turns` | string | none | Turn format of the model's chat template (`"chatml"`, `"llama3"`, `"inkling2"`): which rows of a chat prompt the model is asked to predict; the KL floor skips system and user turns. Fallback for a golden whose metadata names no known format, or a format this tokenizer cannot resolve. |
 | `reuse_logit_tol` | float | built-in constant | Prefix-reuse judge: rounding scale in nats of log-probability over the top-5 tokens within which a warm and a cold distribution count as one. Measure once on a known-good build, never derive per run. |
 | `reuse_kl_tol` | float | built-in constant | Prefix-reuse judge: largest KL(cold ‖ warm) in nats that still counts as rounding. |
 | `ref_noise_factor` | float | `1.0` | Factor on the measured reference noise of the golden for the KL floor (floor = max(class floor, factor × noise)). A per-golden value wins. It only does anything when a noise record exists for the golden in use (`golden/ref_noise/<golden file>.json`, the golden's metadata, or `--ref-noise`); without one the floor is the class floor alone. Set it from a measured ratio of engine KL to the noise, plus margin, and cite both in a comment. `gemma4` sets 1.1 against its HF f32-compute golden (the rule "engine-vs-f32 KL <= factor x HF-bf16-vs-f32 KL": the record `golden/ref_noise/gemma4-26b-a4b-nvfp4-fp32.safetensors.json` is HF's own bf16 forward measured against that golden, 2.362e-1; the engine reads 1.01x prefill and 0.86x decode of it; docs/results/2026-10-22-g4g-gemma4-gates.md). Both goldens and both records ship in `golden/`, and `onboard` / `qualify` find the f32 one by model name (names containing `fp32` outrank others) |
