@@ -401,7 +401,8 @@ mod tests {
         let _one = ONE.lock().unwrap_or_else(|e| e.into_inner());
         ENABLED.store(1, Ordering::Relaxed);
         P.with(|p| *p.borrow_mut() = Prof::default());
-        // synced, unsynced, then two launches: only the one after a synced iteration counts
+        // synced, unsynced, synced, synced: the launches of iterations 2 and 4 follow a synced iteration and count; the launch
+        // of iteration 3 follows the unsynced one and does not
         for synced in [true, false, true, true] {
             iter_begin();
             mark_launch_begin();
@@ -411,7 +412,7 @@ mod tests {
             decoded(1);
             iter_end(1_000_000);
         }
-        P.with(|p| assert_eq!(p.borrow().acc[Kind::DecodeOnly as usize].gaps, 1));
+        P.with(|p| assert_eq!(p.borrow().acc[Kind::DecodeOnly as usize].gaps, 2));
         ENABLED.store(2, Ordering::Relaxed);
     }
 
