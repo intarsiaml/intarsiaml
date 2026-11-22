@@ -409,6 +409,52 @@ mod tests {
             .collect()
     }
 
+    /// Host cost of one sampled decode step on an Inkling-2-Mini-sized row (lane ink-hostgap): the logit soft-cap and
+    /// `sample_row_in` with a reused scratch, at the checkpoint's default (temperature 1, no top-k / top-p) and others. Prints
+    /// medians; asserts nothing. `cargo test --release -p intarsia-core --lib sampler_host_cost -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn sampler_host_cost() {
+        let n = 200058;
+        let mut rng = SplitMix64::new(3);
+        let raw = bf16_row(&mut rng, n, 3.0);
+        let med = |f: &mut dyn FnMut()| {
+            let mut v: Vec<f64> = (0..41)
+                .map(|_| {
+                    let t = std::time::Instant::now();
+                    f();
+                    t.elapsed().as_secs_f64() * 1e3
+                })
+                .collect();
+            v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            v[v.len() / 2]
+        };
+        let mut row = raw.clone();
+        let cap = 30.0f32;
+        let ms = med(&mut || {
+            row.copy_from_slice(&raw);
+            for x in row.iter_mut() {
+                *x = cap * (*x / cap).tanh();
+            }
+            std::hint::black_box(&row);
+        });
+        println!("softcap (copy + tanh) n={n}: {ms:.3} ms");
+        let ms = med(&mut || {
+            std::hint::black_box(argmax(std::hint::black_box(&row)));
+        });
+        println!("argmax n={n}: {ms:.3} ms");
+        let mut sc = SampleScratch::default();
+        for (t, k, tp) in [(1.0f32, 0usize, 1.0f32), (0.7, 0, 1.0), (1.0, 0, 0.95), (0.7, 20, 0.95), (1.0, 64, 1.0)] {
+            let p = SamplingParams { temperature: t, top_k: k, top_p: tp };
+            let mut u = 0.0f32;
+            let ms = med(&mut || {
+                u = (u + 0.37) % 1.0;
+                std::hint::black_box(sample_row_in(&row, &p, u, &mut sc));
+            });
+            println!("sample_row_in n={n} T={t} top_k={k} top_p={tp}: {ms:.3} ms");
+        }
+    }
+
     /// The radix-keyed path picks exactly what the comparator sort picks, for every draw.
     #[test]
     fn keyed_sort_matches_comparator_sort() {

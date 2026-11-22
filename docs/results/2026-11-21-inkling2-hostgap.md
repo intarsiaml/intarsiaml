@@ -58,6 +58,65 @@ with Fable's 0.1.
 
 MEASUREMENT_A_PLACEHOLDER
 
+## Item 3: argmax (commit 942f72f31)
+
+The trace's `argmax_f32` dispatch takes 170-177 us for one 200058-element f32 row (0.8 MB; at 560 GB/s that is 1.4 us of
+bytes). The cause is the shape, not the kernel. `MetalBackend` takes `argmax_f32_v4` (1024 threads, 8 float4 loads in flight per
+thread; 12-15 us on Qwen3's 151936 in docs/results/2026-10-14-metal-phase-b.md) only when `V % 4 == 0`. Inkling's head is the
+unpadded vocab, V = 200058, and 200058 % 4 = 2. So it fell back to the 256-thread scalar `argmax_t`: one load in flight per
+thread, latency-bound.
+
+`argmax_f32_v4t` (kernels/metal/dense_ops.metal) is `argmax_f32_v4` for any V:
+
+- Row r starts at element r * V. Its 0-3 elements before the first 16-byte boundary go to threads 0..head-1 as single loads,
+  the aligned body goes as float4 chunks with the same 8-in-flight loop, and the 0-3 elements after the last chunk go to
+  threads 0..tail-1.
+- Each thread visits its elements in increasing index order (head < body < tail), so strict `>` keeps the lowest index of its
+  own maximum.
+- The cross-thread resolution is `argmax_f32`'s: the same index for every input (lowest index of the maximum, NaN never wins,
+  an empty or all -inf row gives 0).
+
+The launcher keeps `argmax_f32_v4` for V % 4 == 0, so Qwen3 / the 35B run the kernel they ran before. `INTARSIA_METAL_ARGMAX_V4T=0`
+restores the scalar kernel. Checks:
+
+- `tests/lowlat.rs::argmax_tail_path_matches_host`: V in {200058, 151937, 1001, 4099, 7, 5, 3, 2, 1}, 1-5 rows (rows starting
+  4 / 8 / 12 bytes past a boundary), byte offsets 0 and 16; ties of the maximum at the first and last element, NaN / -inf /
+  +-0 mixtures, all -inf / NaN rows.
+- `argmax_tail_kernel_is_the_vector_kernel_on_aligned_rows`: v4t by hand on V % 4 == 0 rows gives v4's indices.
+- The admission sweep gains V = 101 and 4099.
+- `examples/argmax_cost.rs` times the three kernels.
+
+GPU results: ARGMAX_RESULTS_PLACEHOLDER
+
+## Item 4: the sampled path (code reading; host-profile numbers pending)
+
+Sampled decode (temperature > 0) does not take token feedback: `Model::feedback_ok` is reached only for greedy
+(`HeadMode::LastArgmax`). Every sampled step is therefore the plain path, with the GPU idle from the end of the step until the
+next step's first commit. Per token, on the host:
+
+1. `synchronize`, then the 0.8 MB f32 logits download (`head_to_host`).
+2. The soft-cap `30 * tanh(x / 30)` over all 200058 logits (`Model::softcap_logits`).
+3. `Sampler::sample` (`sample_row_in`). At the checkpoint's default (`generation_config.json`: temperature 1.0, no top-k, no
+   top-p; what `serve` applies to a request that sends none) this is 200058 sort keys, a 3-pass radix sort of all of them, and
+   200058 f64 `exp` plus divides, then the walk. With top_k = 20 it is a `select_nth` over 200058 instead of the sort.
+4. `on_token`, then the encode of the next step's first dispatches.
+
+Host cost estimate: HOSTCOST_PLACEHOLDER
+
+What can and cannot remove it while keeping the token bitwise the same:
+
+- A device sampler cannot be bitwise the host one: the host softmax and walk are in f64, which Metal GPUs do not have. A device
+  sampler would draw with the same law but not the same draw for a given seed. That is a numerics change and needs a decision
+  (CUDA / HIP made the same trade for batched top-k rows, `INTARSIA_DEVICE_SAMPLING`, with an exactness argument for
+  `top_k == k`).
+- No partial sort shortcut exists at temperature 1 with no top-k. The walk's total is the f64 sum of every term in sorted
+  order. A term drops out of that sum exactly only below half an ulp of the running sum (2^-53 at sum 1), i.e. for logits
+  more than 36.7 * T below the maximum, and with soft-capped logits in (-30, 30) almost every token stays in.
+- What does keep it bitwise: split the per-element work across threads. The soft-cap, the key build, the exp and the divides
+  are all per element. The radix sort is stable, so per-chunk histograms and scatter give the same order. The f64 sum stays
+  sequential (about 0.15 ms). Worth building only if the measured host share is large: the profile columns `softcap` and
+  `accept` of `hp_t1` / `hp_t07` in #10840.
+
 ## Item 5: the speculative draft cycle without a host round trip (proposal, not built)
 
 Read from `ink/mtp` 7c0a2a956 (`crates/intarsia-core/src/model/dspark.rs`, `model/dflash.rs`); the DSpark cycle has three host
