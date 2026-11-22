@@ -653,4 +653,10 @@ The defaults on Metal are E's best, bit for bit. The full test suite passes with
 
   The accuracy tool exits 1 on G2 because the decode-mode rows are above the limit. The prefill rows, which are the gated
   numbers in ink-metal's table, pass.
-- The flip 2f952f697 (and ink/dfuse up to 00c81dda7) is ready to merge once ink-metal's NE fix lands.
+- **Merge condition.** The flip 2f952f697 (and ink/dfuse up to 00c81dda7) merges after ink-metal's NE fix (7eca1b012,
+  gate #11179). The merged tree then needs a decode-mode G2 rerun with the defaults and with `INTARSIA_INK_MIX_HOIST=0`;
+  both must pass and give the same bytes.
+  - The fix is host-side: `mix_geom` goes back to the fewest NE that fits, NE 3 at D 2304.
+  - The plain and the hoisted (`ink_mix_row_h_e*`) instances take NE from that same `mix_geom` (inkmix.rs, the pipeline
+    table indexed by NE with a hoist offset), so the one fix should cover both. The rerun checks that.
+  - inkling2_mix_decode_cpu passed here and on the faulty base, so it is no evidence for this point.
