@@ -121,7 +121,8 @@ fn in_proj_rows_exact() {
     let n: usize = ns.iter().sum();
     let w = Ht::rand(DType::Bf16, &[n, d], 0.03, &mut rng);
     for s in [1usize, 3] {
-        for r in [1usize, 2, 3, 4, 5, 7, 8, 9, 12, 16] {
+        // every compiled row count (the ink_in_proj_gemvx forms at 2..=16)
+        for r in [1usize, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] {
             let x = Ht::rand(DType::Bf16, &[s, r, d], 1.0, &mut rng);
             let outs: Vec<Ht> = ns.iter().map(|&k| Ht::zeros(DType::Bf16, &[r, k])).collect();
             let multi = run(&be, INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj, &[x.clone(), w.clone()], &outs, &OpAttrs::default(), r > 1, None);
@@ -130,6 +131,31 @@ fn in_proj_rows_exact() {
                 let one = run(&be, INK_IN_PROJ_BF16_GEMV, Op::InkInProj, &[x.row(t), w.clone()], &outs1, &OpAttrs::default(), false, None);
                 for j in 0..3 {
                     assert_eq!(out_row(&multi[j], &[r, ns[j]], 2, t), one[j], "S={s} R={r} row {t} segment {j}");
+                }
+            }
+        }
+    }
+}
+
+/// The chunk form (more than 16 rows: full chunks of 16 on the grid's y axis, then the tail as its own launch; both take
+/// `ink_in_proj_gemvx` by default) is bitwise the 1-row launch per row.
+#[test]
+fn in_proj_chunks_rows_exact() {
+    let be = backend();
+    let mut rng = Rng(0x4d5e6f);
+    let (d, ns) = (2304usize, [6552usize, 1056, 1056]);
+    let n: usize = ns.iter().sum();
+    let w = Ht::rand(DType::Bf16, &[n, d], 0.03, &mut rng);
+    for s in [1usize, 3] {
+        for r in [17usize, 40] {
+            let x = Ht::rand(DType::Bf16, &[s, r, d], 1.0, &mut rng);
+            let outs: Vec<Ht> = ns.iter().map(|&k| Ht::zeros(DType::Bf16, &[r, k])).collect();
+            let multi = run(&be, INK_IN_PROJ_BF16_GEMV_CHUNKS, Op::InkInProj, &[x.clone(), w.clone()], &outs, &OpAttrs::default(), false, None);
+            for t in 0..r {
+                let outs1: Vec<Ht> = ns.iter().map(|&k| Ht::zeros(DType::Bf16, &[1, k])).collect();
+                let one = run(&be, INK_IN_PROJ_BF16_GEMV, Op::InkInProj, &[x.row(t), w.clone()], &outs1, &OpAttrs::default(), false, None);
+                for j in 0..3 {
+                    assert_eq!(out_row(&multi[j], &[r, ns[j]], 2, t), one[j], "chunks S={s} R={r} row {t} segment {j}");
                 }
             }
         }
