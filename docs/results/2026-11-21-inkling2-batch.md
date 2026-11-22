@@ -5,6 +5,14 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 
 ## Briefs received
 
+- 2026-11-22 (main): stop accepted; (a)+(b) approved. (a) batch_step and batch_prof take real-text prompts: fixed,
+  deterministic tokenized corpus slice, a different slice per row, same slices every run; record expert union per MoE call
+  (mean and max per B); keep random-id mode behind a flag. (b) same quiet job: INTARSIA_INK_MOE=auto vs union-fused at
+  B 1/8/16, median of 3, greedy md5 per stream equal across arms. Build and test the bench change now (bench-only). Queue the
+  quiet job only after ink-metal's combined gate #11206 passes, on the final ink/metal tree, ~40 min. After it: pick the B16
+  candidate from a trace at the realistic union (same rules: >= 6 ms real build, 3-6 report, < 3 drop). If union-fused wins
+  at B>1 bitwise, propose flipping Auto with the numbers.
+
 - 2026-11-22 (main): MoE fixed-launch candidate approved. Step 1 profile: queue after ink-metal's combined gate passes, on the
   final ink/metal tree; one quiet slot (~30 min), kernel trace B 2/4/8/12/16, MoE time vs union size. Decide on the real
   (untraced) B16 fixed part: >= 6 ms build fused MoE launches (gate+up and down per layer over union experts in one grid,
