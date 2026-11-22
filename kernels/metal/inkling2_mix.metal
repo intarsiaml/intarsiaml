@@ -194,8 +194,9 @@ inline float ip_dot8w(thread const IpW8& w, uint4 x) {
     return a;
 }
 
-// bind and grid as ink_in_proj_gemv (P = 1, RB = R).
-template <int R, int SG, int U>
+// bind and grid as ink_in_proj_gemv with P weight rows per virtual threadgroup and RB = R. P only shares each x chunk load
+// (and its use) between the P weight rows; every (weight row, row) accumulator sees the same chunks in the same order.
+template <int R, int P, int SG, int U>
 kernel void ink_in_proj_gemvx(device const uint4* W [[buffer(0)]],
                               device const uint4* X [[buffer(1)]],
                               device ushort* Y0 [[buffer(2)]],
@@ -206,7 +207,7 @@ kernel void ink_in_proj_gemvx(device const uint4* W [[buffer(0)]],
                               uint2 ngrid2 [[threadgroups_per_grid]],
                               uint sg [[simdgroup_index_in_threadgroup]],
                               uint lane [[thread_index_in_simdgroup]]) {
-    threadgroup float part[R * SG];
+    threadgroup float part[P * R * SG];
     constexpr uint lanes = 32 * SG;
     constexpr uint block = lanes * U;
     const uint k8 = p.k / 8;
@@ -222,53 +223,66 @@ kernel void ink_in_proj_gemvx(device const uint4* W [[buffer(0)]],
         } else {
             lt = vt - p.g0 - p.g1; n = p.n2; wrow = p.n0 + p.n1; xo = p.xo2; Y = Y2; ys = p.ys2;
         }
-        const uint row0 = lt;  // P = 1: one weight row per virtual threadgroup (row0 < n always)
-        device const uint4* wr = W + (ulong)wrow * k8 + (ulong)row0 * k8;
+        const uint row0 = lt * P;
+        device const uint4* wr[P];
+        for (int q = 0; q < P; ++q) wr[q] = W + (ulong)wrow * k8 + (ulong)min(row0 + q, n - 1) * k8;
         device const uint4* Xs = X + xo / 8 + (ulong)r0 * k8;
         const uint nblk = k8 / block;
         uint i = tid;
-        float acc[R];
-        for (int r = 0; r < R; ++r) acc[r] = 0.0f;
+        float acc[P * R];
+        for (int j = 0; j < P * R; ++j) acc[j] = 0.0f;
         for (uint b = 0; b < nblk; ++b, i += block) {
-            IpW8 wv[U];
-            for (int u = 0; u < U; ++u) wv[u] = ip_unpack8(wr[i + lanes * u]);
+            IpW8 wv[P][U];
+            for (int q = 0; q < P; ++q)
+                for (int u = 0; u < U; ++u) wv[q][u] = ip_unpack8(wr[q][i + lanes * u]);
             for (int r = 0; r < R; ++r) {
                 uint4 xv[U];
                 for (int u = 0; u < U; ++u) xv[u] = Xs[(ulong)r * k8 + i + lanes * u];
-                for (int u = 0; u < U; ++u) acc[r] += ip_dot8w(wv[u], xv[u]);
+                for (int q = 0; q < P; ++q)
+                    for (int u = 0; u < U; ++u) acc[q * R + r] += ip_dot8w(wv[q][u], xv[u]);
             }
         }
         for (i = nblk * block + tid; i < k8; i += lanes) {
-            const IpW8 wv = ip_unpack8(wr[i]);
-            for (int r = 0; r < R; ++r) acc[r] += ip_dot8w(wv, Xs[(ulong)r * k8 + i]);
-        }
-        if (SG == 1) {
+            IpW8 wv[P];
+            for (int q = 0; q < P; ++q) wv[q] = ip_unpack8(wr[q][i]);
             for (int r = 0; r < R; ++r) {
-                const float t = simd_sum(acc[r]);
-                if (lane == uint(r)) Y[ys + (ulong)(r0 + uint(r)) * n + row0] = f2bf(t);
+                const uint4 xv = Xs[(ulong)r * k8 + i];
+                for (int q = 0; q < P; ++q) acc[q * R + r] += ip_dot8w(wv[q], xv);
+            }
+        }
+        // accumulator j = q * R + r: weight row row0 + q, activation row r
+        if (SG == 1) {
+            for (int j = 0; j < P * R; ++j) {
+                const float t = simd_sum(acc[j]);
+                const uint q = uint(j) / uint(R), r = uint(j) % uint(R);
+                if (lane == uint(j) % 32 && row0 + q < n) Y[ys + (ulong)(r0 + r) * n + row0 + q] = f2bf(t);
             }
         } else {
-            for (int r = 0; r < R; ++r) {
-                const float s = simd_sum(acc[r]);
-                if (lane == 0) part[r * SG + sg] = s;
+            for (int j = 0; j < P * R; ++j) {
+                const float s = simd_sum(acc[j]);
+                if (lane == 0) part[j * SG + sg] = s;
             }
             threadgroup_barrier(mem_flags::mem_threadgroup);
-            if (tid < uint(R)) {
+            if (tid < uint(P * R)) {
+                const uint q = tid / uint(R), r = tid % uint(R);
                 float t = part[tid * SG];
-                for (int q = 1; q < SG; ++q) t += part[tid * SG + q];
-                Y[ys + (ulong)(r0 + tid) * n + row0] = f2bf(t);
+                for (int k = 1; k < SG; ++k) t += part[tid * SG + k];
+                if (row0 + q < n) Y[ys + (ulong)(r0 + r) * n + row0 + q] = f2bf(t);
             }
             threadgroup_barrier(mem_flags::mem_threadgroup);  // `part` is rewritten by the next row
         }
     }
 }
 
-#define IPX_INST(R, SG, U)                                                                                            \
-    template [[host_name("ink_in_proj_gemvx_r" #R "s" #SG "u" #U)]] kernel void ink_in_proj_gemvx<R, SG, U>(IP_ARGS);
+#define IPX_INST(R, P, SG, U)                                                                                         \
+    template [[host_name("ink_in_proj_gemvx_r" #R "p" #P "s" #SG "u" #U)]] kernel void                              \
+    ink_in_proj_gemvx<R, P, SG, U>(IP_ARGS);
 #define IPX_CFG(SG, U)                                                                                                \
-    IPX_INST(2, SG, U) IPX_INST(3, SG, U) IPX_INST(4, SG, U) IPX_INST(5, SG, U) IPX_INST(6, SG, U) IPX_INST(7, SG, U)  \
-    IPX_INST(8, SG, U) IPX_INST(9, SG, U) IPX_INST(10, SG, U) IPX_INST(11, SG, U) IPX_INST(12, SG, U)                \
-    IPX_INST(13, SG, U) IPX_INST(14, SG, U) IPX_INST(15, SG, U) IPX_INST(16, SG, U)
+    IPX_INST(2, 1, SG, U) IPX_INST(3, 1, SG, U) IPX_INST(4, 1, SG, U) IPX_INST(5, 1, SG, U) IPX_INST(6, 1, SG, U)     \
+    IPX_INST(7, 1, SG, U) IPX_INST(8, 1, SG, U) IPX_INST(9, 1, SG, U) IPX_INST(10, 1, SG, U) IPX_INST(11, 1, SG, U)   \
+    IPX_INST(12, 1, SG, U) IPX_INST(13, 1, SG, U) IPX_INST(14, 1, SG, U) IPX_INST(15, 1, SG, U)                      \
+    IPX_INST(16, 1, SG, U) IPX_INST(4, 2, SG, U) IPX_INST(8, 2, SG, U) IPX_INST(16, 2, SG, U) IPX_INST(4, 4, SG, U)   \
+    IPX_INST(8, 4, SG, U) IPX_INST(16, 4, SG, U)
 IPX_CFG(8, 2)
 
 // ================================================================================================================

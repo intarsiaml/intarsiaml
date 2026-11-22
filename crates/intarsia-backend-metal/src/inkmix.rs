@@ -229,26 +229,45 @@ fn proj_grid_cap() -> usize {
     *C.get_or_init(|| std::env::var("INTARSIA_INK_PROJ_GRID").ok().and_then(|v| v.parse().ok()).unwrap_or(usize::MAX))
 }
 
-/// `ink_in_proj_gemvx_r<R>s8u2` (lane ink-batch): the multi-row form for R = 2..=16 decode rows of the default family, bitwise
-/// `ink_in_proj_gemv_r<R>p1s8u2b<R>` (weight chunk unpacked once for all rows, per-row epilogue on its own thread).
-fn projx_shader_name(r: usize) -> &'static str {
-    static T: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
+/// The `ink_in_proj_gemvx` instances (lane ink-batch, `IPX_CFG` in inkling2_mix.metal), default family only: (R, P) with
+/// P = 1 for R = 2..=16 and P = 2 / 4 for R = 4, 8, 16. Bitwise `ink_in_proj_gemv_r<R>p1s8u2b<R>` per row (weight chunk
+/// unpacked once for all rows, P weight rows sharing each x load, per-output epilogue on its own thread).
+pub const PROJX_INSTS: [(usize, usize); 21] = [
+    (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1), (11, 1), (12, 1), (13, 1), (14, 1), (15, 1),
+    (16, 1), (4, 2), (8, 2), (16, 2), (4, 4), (8, 4), (16, 4),
+];
+
+fn projx_shader_name(r: usize, p: usize) -> &'static str {
+    static T: std::sync::OnceLock<std::collections::HashMap<(usize, usize), &'static str>> = std::sync::OnceLock::new();
     T.get_or_init(|| {
-        (0..=PROJ_ROWS_MAX)
-            .map(|r| -> &'static str {
-                let (sg, u) = (PROJ_DEFAULT.sg, PROJ_DEFAULT.u);
-                Box::leak(format!("ink_in_proj_gemvx_r{r}s{sg}u{u}").into_boxed_str())
-            })
+        let (sg, u) = (PROJ_DEFAULT.sg, PROJ_DEFAULT.u);
+        PROJX_INSTS
+            .iter()
+            .map(|&(r, p)| ((r, p), &*Box::leak(format!("ink_in_proj_gemvx_r{r}p{p}s{sg}u{u}").into_boxed_str())))
             .collect()
-    })[r]
+    })
+    .get(&(r, p))
+    .copied()
+    .expect("compiled ink_in_proj_gemvx instance")
 }
 
-/// Whether R-row launches (R >= 2) of the default family use `ink_in_proj_gemvx` (default on; `INTARSIA_INK_PROJ_X=0` keeps
-/// `ink_in_proj_gemv`, the same bits). Only with the default P / RB / family, so the measurement knobs keep their kernel.
-fn projx_on(r: usize, cfg: ProjCfg, p: usize, rb: usize) -> bool {
-    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    let on = *ON.get_or_init(|| std::env::var("INTARSIA_INK_PROJ_X").map_or(true, |v| v != "0"));
-    on && r >= 2 && cfg.sg == PROJ_DEFAULT.sg && cfg.u == PROJ_DEFAULT.u && p == 1 && rb == r
+/// The `ink_in_proj_gemvx` instance for an R-row launch (R >= 2) of the default family, or None (the old form). Default on;
+/// `INTARSIA_INK_PROJ_X=0` keeps `ink_in_proj_gemv` (the same bits). `INTARSIA_INK_PROJ_XP=<p>` picks the weight rows per
+/// threadgroup where that instance exists (measurement knob, same bits; default 1). Only with the default family and the
+/// launcher's own P / RB, so the old measurement knobs keep their kernel.
+fn projx_pick(r: usize, cfg: ProjCfg, p: usize, rb: usize) -> Option<(usize, &'static str)> {
+    static OV: std::sync::OnceLock<(bool, usize)> = std::sync::OnceLock::new();
+    let (on, xp) = *OV.get_or_init(|| {
+        (
+            std::env::var("INTARSIA_INK_PROJ_X").map_or(true, |v| v != "0"),
+            std::env::var("INTARSIA_INK_PROJ_XP").ok().and_then(|v| v.parse().ok()).unwrap_or(1),
+        )
+    });
+    if !(on && r >= 2 && cfg.sg == PROJ_DEFAULT.sg && cfg.u == PROJ_DEFAULT.u && p == 1 && rb == r) {
+        return None;
+    }
+    let xp = if PROJX_INSTS.contains(&(r, xp)) { xp } else { 1 };
+    Some((xp, projx_shader_name(r, xp)))
 }
 
 /// The e4m3 GEMV families compiled in (`IP8_CFG`): (simdgroups, 8-byte weight chunks per lane per step).
@@ -318,7 +337,7 @@ pub fn shader_names() -> Vec<&'static str> {
             v.push(proj8_shader_name(r, p, sg, u, rb));
         }
     }
-    v.extend((2..=PROJ_ROWS_MAX).map(projx_shader_name));
+    v.extend(PROJX_INSTS.iter().map(|&(r, p)| projx_shader_name(r, p)));
     v.extend(row_shaders());
     v
 }
@@ -524,7 +543,7 @@ impl MetalBackend {
                 continue;
             }
             let (p, rb) = proj_inst(r);
-            let name = if projx_on(r, cfg, p, rb) { projx_shader_name(r) } else { proj_shader_name(r, p, cfg.sg, cfg.u, rb) };
+            let (p, name) = projx_pick(r, cfg, p, rb).unwrap_or((p, proj_shader_name(r, p, cfg.sg, cfg.u, rb)));
             let g = ns.map(|n| n.div_ceil(p));
             // the tail: x and y bound at its first row (x keeps the full-chunk segment offsets)
             let yskip: Vec<usize> = ys.iter().zip(&ns).map(|(y, &n)| y.skip as usize + r0 * n).collect();
