@@ -5,6 +5,11 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 
 ## Briefs received
 
+- 2026-11-22 (main): #11181 accepted; NE 3 costs nothing batched, RB16 stays off, B16 slowdown closed as not reproducible;
+  skip the paired pre-merge vs merged run. (1) Send ink-metal (af43898d63e5b5190) the exact B=1/8/16 batched-step command for
+  its combined post-merge gate (that number becomes the reference). (2) Propose the next batched-decode candidate for B=16
+  (~60 ms/step, ~267 tok/s), with a per-kernel breakdown of the B16 step if available and the estimated gain.
+
 - 2026-11-22 (main): move #11174 (NE/RB speed A/B) behind ink-metal's NE fix gate #11179 (fix 7eca1b012, NE 3 fallback at
   D 2304): release it, requeue the same script, flags and log, update the monitor.
 
