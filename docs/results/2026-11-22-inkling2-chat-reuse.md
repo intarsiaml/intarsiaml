@@ -85,3 +85,10 @@ and were scored afterwards with the job's own scoring code; gate B ran as its ow
   Three turns, reasoning on (effort 0.9), replies 1169 and 1200 tokens: turn 2 (2358 rows) cached 1957 = turn 1's prompt, TTFT
   0.305 s vs 1.238 s off; turn 3 (3043 rows) cached 2358 = turn 2's prompt, 0.405 s vs 1.405 s; all three turns' text equal to
   off's. Device memory in use, idle solo server: on 33.08 GiB, off 32.91 GiB (+0.17 GiB = one 174 MiB snapshot).
+
+## Coordinator ruling (2026-11-22 ~17:30): merge on the coordinator's judgement, default on
+
+1. When gate B (#11649) passes, open the PR from `ink/chat-reuse`, with the TTFT table, the memory numbers (solo +0.17 GiB, B16
+   as measured) and the revert env (`INTARSIA_INK_RING_SNAPSHOT=0`) in the body.
+2. Hold the merge for the #491 freeze, as with #496. After #491 lands: merge main in, rerun md5 and the chat-reuse tests, then
+   tell the coordinator, who merges #496 and this PR one after the other.
