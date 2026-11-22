@@ -37,6 +37,14 @@ fn ink_attn_fused_env() -> Option<bool> {
     })
 }
 
+/// `INTARSIA_INK_PREFILL_FUSED=1` (opt-in, default off; lane ink-cuda-attn, briefs 30a / 30b): prefill chunks (more than 16 rows)
+/// take the fused `InkAttnDecode` where the backend admits it (CUDA `ink_attn_prefill_bf16`: the flash kernel forms the rel bias,
+/// no `[T,H,E]` table), else the pair. Bitwise the pair either way. Read once.
+fn ink_prefill_fused_env() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("INTARSIA_INK_PREFILL_FUSED").is_ok_and(|v| v.trim() == "1"))
+}
+
 /// Whether a visit's attention of `rows` rows ending at context `ctx` (positions `0..ctx`) takes the fused `InkAttnDecode`
 /// instead of the pair, on Metal. From lane ink-m-attn's per-visit timings (docs/results/2026-11-21-inkling2-metal-attn.md),
 /// keyed on the keys a row reads (`ctx`, at most the window on an SWA visit): 1 row fused up to 4096 keys (measured: fused wins at
@@ -1071,8 +1079,8 @@ impl Model {
                             })
                 }
             };
-            // prefill chunks (brief 30a): op 75 wherever the backend admits it (CUDA), else the pair
-            let want_fused = !dumping && if t <= 16 { rule || !pair_rows } else { batch.is_none() };
+            // prefill chunks (briefs 30a / 30b, INTARSIA_INK_PREFILL_FUSED=1): op 75 where the backend admits it (CUDA), else the pair
+            let want_fused = !dumping && if t <= 16 { rule || !pair_rows } else { batch.is_none() && ink_prefill_fused_env() };
             let fused = want_fused.then(|| {
                 let mut fa = aa.clone();
                 fa.ink = InkAttrs { kv_ring: l.local, ..pa.ink };
