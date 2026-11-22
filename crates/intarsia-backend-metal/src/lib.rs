@@ -1323,6 +1323,9 @@ impl MetalBackend {
                 )
             });
         }
+        if kernel == crate::inkprefill::LOGITS_BF16_NAX && call.op == Op::Logits {
+            return self.launch_logits_nax(call);
+        }
         if kernel == kernels::MATMUL_BF16_NAX && call.op == Op::Matmul {
             return self.launch_nax(kernel, call);
         }

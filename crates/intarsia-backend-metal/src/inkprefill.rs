@@ -64,6 +64,7 @@ pub fn metal4_shaders() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = names().iter().flat_map(|&(g, d)| [g, d]).collect();
     v.push(NAX3_GATHER);
     v.extend(BLEND_SHADERS);
+    v.extend(ROUTER_TILES.iter().map(|t| t.0));
     v
 }
 
@@ -244,5 +245,49 @@ pub fn trace(name: &str) {
     if !s.iter().any(|x| x == name) {
         s.push(name.to_string());
         eprintln!("ink-prefill trace: {name}");
+    }
+}
+
+/// `Op::Logits` for M > 16 on the accelerators (kernels/metal/inkling2_router_nax.metal): the Inkling-2 router (N 128, K 2304)
+/// of prefill chunks, which `logits_bf16` runs at ~4 TFLOP/s. Registered in kernels.rs (`NAX_KERNELS`).
+pub const LOGITS_BF16_NAX: &str = "logits_bf16_nax";
+
+/// (entry point, BM, BN, simdgroups).
+pub const ROUTER_TILES: [(&str, u32, u32, u32); 2] = [("ink_logits_nax_t32x32w1", 32, 32, 1), ("ink_logits_nax_t64x64w4", 64, 64, 4)];
+
+/// Rows above which `logits_bf16_nax` takes a Logits call.
+pub const LOGITS_NAX_MIN_M: usize = 17;
+
+/// Registration predicate of `logits_bf16_nax`: M > 16, unless `INTARSIA_INK_ROUTER_NAX=0`.
+pub fn logits_nax_ok(s: &intarsia_core::ShapeInfo) -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    s.m >= LOGITS_NAX_MIN_M && s.k >= 16 && *ON.get_or_init(|| std::env::var("INTARSIA_INK_ROUTER_NAX").map_or(true, |v| v != "0"))
+}
+
+impl crate::MetalBackend {
+    pub(crate) fn launch_logits_nax(&self, call: &intarsia_core::OpCall) -> intarsia_core::Result<()> {
+        use intarsia_core::{DType, Error};
+        let (i, o) = (&call.inputs, &call.outputs);
+        let (m, k, n) = (i[0].shape[0], i[0].shape[1], i[1].shape[0]);
+        if m * n == 0 {
+            return Ok(());
+        }
+        if i[1].shape[1] != k || o[0].shape != [m, n] || o[0].dtype != DType::F32 {
+            return Err(Error::invalid("logits_bf16_nax: shape mismatch / f32 output"));
+        }
+        // small N (the router's 128): 32 x 32 tiles on one simdgroup for occupancy; else 64 x 64 on four
+        let (name, bm, bn, sg) = if n <= 256 { ROUTER_TILES[0] } else { ROUTER_TILES[1] };
+        let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}' (metal4.0 library not loaded)")))?;
+        let (x, w, y) = (
+            self.bind(&i[0], DType::Bf16, false, "x")?,
+            self.bind(&i[1], DType::Bf16, false, "w")?,
+            self.bind(&o[0], DType::F32, true, "y")?,
+        );
+        let d = |v: usize| u32::try_from(v).map_err(|_| Error::invalid("logits_bf16_nax: dim exceeds u32"));
+        let p = crate::gemm_nax::NaxParams { m: d(m)?, n: d(n)?, k: d(k)?, swz_log: 0, s0: x.skip, s1: w.skip, s2: y.skip, pad: 0 };
+        let v = crate::gemm_nax::NaxVariant { shader: name, pair_shader: name, bm, bn, sg };
+        self.with_encoder(|enc| {
+            crate::gemm_nax::encode_nax(enc, pso, &v, (&x.mtl, x.off), (&w.mtl, w.off), (&y.mtl, y.off), &p);
+        })
     }
 }
