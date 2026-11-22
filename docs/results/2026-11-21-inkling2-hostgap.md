@@ -28,6 +28,12 @@ Status: in progress. Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwar
   sampled-path host-timer breakdown meanwhile. (Both reservations, 22:27 and 23:26, were refused by fleetq with 409:
   collisions with our own waiting jobs; reported back.)
 
+- 2026-11-21 (coordinator): go-ahead for option (a) of item 2: Metal `generate` defaults to `--profile-every 0`. Conditions: its
+  own commit (revertable alone); `generate` says in its `top ops` line that profiling is off and how to turn it on; the
+  `--profile-every` help text and the CLI comment updated; a docs/benchmarking.md note that Metal `generate` tok/s from before
+  the change is 12-25 % low, plus a LOG.md row.
+- 2026-11-21 (coordinator): build #10829 let ahead of the line (done 22:02, exit 0).
+
 ## Measurement (before)
 
 ### The integration trace, re-read (no new GPU run)
