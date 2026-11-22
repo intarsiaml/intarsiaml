@@ -168,6 +168,12 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
 - p8k generate pairs (all exit 0, non-empty): split off 2581 / 2708, split on 2851 / 2821 tok/s.
 - Rerun with absolute paths: #11272 (psab2.sh).
 
+17. 2026-11-22 (coordinator, via SendMessage): with probe rep 3 matching, cleared under brief 15 to build the ConvMix + looped
+    blend fusion (bitwise, flag off) without waiting. Also one measure-only K-step probe of the MoE prefill kernel: 2x and 4x
+    the current K tile (fewer barriers / staging rounds), balanced-128, 3 reps each, in the fusion's first quiet slot if it
+    fits; default unchanged. Reason: the unexplained ~10 us of 15.2 us per tile is ~60 ms per chunk, more than the fusion's
+    ~15. Report fusion ms/chunk with the bitwise result, and K-step us/call per arm.
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
