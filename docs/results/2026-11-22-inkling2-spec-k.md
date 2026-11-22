@@ -120,3 +120,8 @@ The passes are the k7 run's anchors, not each rule's own walk. With our p1 (cand
 On greedy and code, k5 / k7 lose 2-17% under every rule: an extra verified row costs about 21% of a plain step (r / P = 0.21),
 and drafts 4-7 are accepted too rarely to pay for it. The long-context rows are single prompts of 32-51 passes (the 4k prompt is a
 counting continuation, 95.7% acceptance), so they are leads for the quiet job, not results. Full tables: `.scratch/sim_c64.txt`.
+
+## Coordinator ruling (2026-11-22 ~17:30)
+
+Wait for probe 2 (#11646) and the timed sweep. With r / P at 0.21 and k5 / k7 losing on greedy and code, build no cut rule unless
+the timed sweep shows >= 2% at some length on more than one prompt. The long single prompts' +7-15% has too few passes to count.
