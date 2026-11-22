@@ -494,6 +494,15 @@ by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
   B16 +27 %" regression above was measured against #11181 and is withdrawn. B16 aggregate is 194-207 tok/s with random ids
   (#11328 final) and 182-199 with real text (#11261): **below the 230 tok/s target**. (This doc made no above-230 claim.)
   #11347's guard and box check are unchanged (B1 and localeval decode).
+- 2026-11-22 (coordinator): ink/fp8 gates passed (#11338 real-model forced fallback md5 identical x5; #11345 quiet, B1 65.0,
+  batched == solo x4 with the screen on): merge 538a9c283 (code final 72900194e), never 5295a81b4, screen opt-in; then build,
+  Metal suite, greedy md5 64 / 256 with every new switch unset unchanged, admission, one fleetq slot (cpu load for build and
+  tests, quiet gpu,cpu for md5), tree-killing job script; report the merge commit, no push. Lane: trial merge found that
+  538a9c283 makes the screen **default on on Metal** (screen.rs `wanted`: unset -> `backend == "metal"`; LOG entry "goes
+  default on on Metal"; tuning row "default on on Metal since 2026-11-22"), against "the screen stays opt-in". Merge aborted,
+  nothing committed, ink/metal unchanged at d14028792.
+- 2026-11-22 (coordinator): HOLD: 538a9c283 contains 89270fb58 (screen default on). ink-fp8 commits a one-commit revert of the
+  default (unset -> off, `=1` -> on) and sends the hash; merge that, with the same post-merge checks.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
