@@ -10,6 +10,18 @@ P12 / screen). Never restore an old bench source without `--digest` for a refere
 
 ## Briefs received
 
+- 2026-11-22 ~16:30 (main): #497 approved. After main says #491 landed: rebase onto that main, rerun md5 64 / 256 and the
+  inkling2 Metal tests, then merge. T1 default-on is in; DNU3 stays opt-in. Write the remaining gu ~4 us and dn ~5 us per
+  visit into section 35 as the open gap. **Brief 36 (router fold, timebox 1 day; start only after #497 is merged):** new
+  branch from main after #491, worktree .worktrees/ink-router-fold/. Router today 0.59 ms per token vs 0.05 floor; dispatching
+  it twice adds 7.7 us, skipping it saves 0.54 ms. First read mlx-serve's design (router dots inside its `mid` kernel after
+  the norm, up to `small_rows` rows; notes .worktrees/mlx-serve-src/src/plugins/inkling2/AGENTS.md rules 1 and 9, code
+  kernels.zig `mid` / `routerRows`, kernels/mid.metal; read, don't copy). Choose between folding into the norm / blend kernel
+  and into the expert kernel, one paragraph of reasons before building. Bitwise required (router reduction order and top-k
+  tie order); if only non-bitwise works, stop and report with the expert-pick drift on G2 / G3. Gates: md5 64 / 256 and
+  self-goldens identical, rows_exact, batched == solo digests at B 8 / B 16, inkling2 Metal tests, quiet ABBA >= 2% of the
+  token at short and 5k.
+
 - 2026-11-22 ~16:00 (main): merge freeze on main for ~60 min until PR #491 (CUDA mixmoe) lands: no merge or push to
   main; keep running gates and timing; stack any PR as ready to merge; main says when #491 is in, then rebase onto that main
   before merging.
@@ -1620,5 +1632,9 @@ MXFP8 at one row (4 visits): gate+up 84 us, down 43 us, 510-520 GB/s (inkmoe_ben
 - `plan show` Qwen3-8B: byte-identical to main 17b999272.
 - With G1: batched == solo digests (batch_step B 1 / 8 / 16 digests unchanged, inkling2_batch 8/8).
 
-PR: branch `ink/moe-35` (main 17b999272 + T1 port, default-on; DNU3 opt-in). Merge waits for main's #491 freeze, then a
+**Open gap at one row (no bitwise lever found):** gate+up ~4 us per visit over its stream floor (45.7 vs 41.8 us with T1;
+ALU-heavy, load and math serialised per lane, one wave), down ~5 us (26.4 vs 21.6; latency-bound chain). x 44 visits:
+~0.4 ms per token.
+
+PR: branch `ink/moe-35` (main 17b999272 + T1 port, default-on; DNU3 opt-in), #497, approved by main ~16:30. Merge waits for main's #491 freeze, then a
 rebase onto that main.
