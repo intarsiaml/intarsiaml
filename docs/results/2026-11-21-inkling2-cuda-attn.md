@@ -2,7 +2,18 @@
 
 ## Briefs received
 
-(none yet)
+1. 2026-11-21 (coordinator, via SendMessage): **Approved: route CUDA to the fused op 75 for t <= ATTN_DECODE_MAX_ROWS**,
+   with the rule as proposed, accepting the one exception (full 4k at 4 rows). Conditions:
+   - make the edit on ink/cuda-attn as its own commit;
+   - touch only that condition in `model/inkling2.rs`, so the Metal arm stays byte-identical (dfuse and batch also edit
+     that file; keep the diff minimal);
+   - gate: the tiny Inkling model on CUDA (spark1) gives bitwise-identical logits / tokens with the rule on and with the
+     pair forced, and `plan show` on Metal is unchanged (checkable from the code: the Metal arm is untouched);
+   - record this brief and report the hash.
+   Done: d536ff099. The tiny-model gate is blocked until the mixmoe ops exist on CUDA.
+2. 2026-11-21 (coordinator): **Accepted the op-level `inkling2_attn.rs` gate** as cover for d536ff099 for now. The tiny-model
+   on/off gate runs once ink-cuda-mixmoe has its ops; the coordinator forwards the ref. Next lever, my pick with the reason:
+   the 4-row full-4k case (131 vs 122 us) or the full-32k 1-row case (736 us).
 
 ## Summary
 
@@ -66,10 +77,108 @@ checks five runs against each other:
 
 The test compares q / rel / k / v / o, both conv rings and both caches. Passes (fleetq #10799).
 
-## Decode timing
+## Decode timing (fleetq #10963, final build, tile floor 256)
 
-(pending)
+`crates/intarsia-backend-cuda/tests/inkling2_attn_bench.rs` (`INTARSIA_INK_BENCH=1`). The figures are microseconds per
+visit, replayed from a captured CUDA graph (eager is 1-5 us higher). 16 visits rotate over their own operands so the
+K / V never sits in L2. "KV" is the K + V bytes a visit reads; the floor is KV / 273 GB/s. The faster of pair and fused is
+in bold.
 
-## Prefill timing
+| layer | ctx | rows | prologue | attn | pair | fused (op 75) | KV MB | floor us |
+|---|---|---|---|---|---|---|---|---|
+| SWA | 512 | 1 | 8.2 | 23.9 | 41.6 | **28.7** | 2.1 | 7.7 |
+| SWA | 512 | 4 | 8.5 | 34.4 | 44.5 | **37.7** | 2.1 | 7.7 |
+| SWA | 512 | 16 | 12.0 | 50.0 | 61.2 | **57.3** | 2.2 | 7.9 |
+| SWA | 4k | 1 | 8.2 | 35.1 | 47.4 | **40.8** | 4.2 | 15.4 |
+| SWA | 4k | 4 | 8.5 | 46.5 | 53.7 | **47.8** | 4.2 | 15.4 |
+| SWA | 4k | 16 | 11.8 | 60.3 | 70.0 | **69.6** | 4.2 | 15.4 |
+| full | 512 | 1 | 8.2 | 22.5 | 39.3 | **29.7** | 2.1 | 7.7 |
+| full | 512 | 4 | 8.4 | 35.9 | 41.2 | **37.0** | 2.1 | 7.7 |
+| full | 512 | 16 | 13.4 | 51.2 | 58.5 | **56.1** | 2.2 | 7.9 |
+| full | 4k | 1 | 8.1 | 97.2 | 110.9 | **108.5** | 16.8 | 61.5 |
+| full | 4k | 4 | 8.3 | 115.9 | **119.5** | 123.9 | 16.8 | 61.5 |
+| full | 4k | 16 | 13.7 | 146.1 | **156.3** | 161.5 | 16.8 | 61.7 |
+| full | 32k | 1 | 8.1 | 732.8 | 732.6 | **715.4** | 134.2 | 491.7 |
+| full | 32k | 4 | 8.4 | 756.6 | 761.1 | **749.7** | 134.2 | 491.7 |
+| full | 32k | 16 | 11.6 | 829.8 | **845.1** | 846.3 | 134.3 | 491.9 |
 
-(pending)
+SWA visits read at most the 1024-key window, so SWA 32k is SWA 4k. On CUDA the fused op 75 is at least as fast as the pair
+by 1-13 us at 1-4 rows (SWA 512, 1 row: 28.7 vs 41.6), and within 5 us elsewhere. The pair wins at full 4k with 4 / 16
+rows (by 4-5 us, after the last prologue fix) and ties at full 32k with 16 rows. Approved rule, commit d536ff099: on CUDA,
+fused for every visit of 1..16 rows.
+
+Tile floor sweep (`INTARSIA_INK_SPLIT_KEYS`, fleetq #10866, before the prologue fix, so compare the attention and fused
+columns only):
+
+| case | attn 64 / 128 / 256 | fused 64 / 128 / 256 |
+|---|---|---|
+| SWA 512, 1 row | 18.9 / 20.0 / 23.6 | 34.2 / 31.6 / 31.0 |
+| SWA 4k, 1 row | 36.0 / 35.5 / 32.7 | 52.1 / 53.5 / 40.2 |
+| SWA 4k, 16 rows | 81.8 / 71.8 / 63.2 | 128.7 / 112.5 / 85.6 |
+| full 4k, 16 rows | 178.4 / 175.3 / 145.4 | 226.2 / 218.2 / 173.7 |
+| full 32k, 1 row | 750 / 735 / 745 | 761 / 758 / 745 |
+
+256 is the default. Fewer, longer blocks mean fewer partials to merge, and the fused kernel redoes less per block.
+
+### Launches per visit
+
+| path | launches |
+|---|---|
+| pair, decode / verify (1..16 rows) | 3: `ink_prologue_k`, `ink_tile_k`, `ink_tile_comb_k` (2 when every row has one tile: host position, keys <= 256) |
+| fused op 75 | 2: `ink_tile_k<.., true>`, `ink_tile_comb_k` (+ `ink_kv_write_k` / `ink_ring_write_k` only when T exceeds Cr - window + 1 or Rr - K + 1: never at the real shapes) |
+| prefill chunk (2048 rows) | 4: `ink_prologue_k`, `ink_ring_write_k` (T > Rr - K + 1), `ink_flash_k`, `ink_kv_write_k` |
+| `rel_sink_attn_bf16` at T > 16 (rows-exact path, not normally selected) | 2 per 16-row slice |
+
+## Prefill timing (2048-row chunk, fleetq #10963)
+
+| layer | ctx before | prologue | attn (flash) | pair | KV MB |
+|---|---|---|---|---|---|
+| SWA | 0 | 1224.9 | 1221.4 | 2450.1 | 4.2 |
+| SWA | 2k | 1307.2 | 1581.3 | 2803.6 | 4.2 |
+| SWA | 30k | 1205.5 | 1600.0 | 2837.0 | 4.2 |
+| full | 0 | 1171.1 | 1429.2 | 2484.9 | 8.4 |
+| full | 2k | 1203.3 | 2293.6 | 3640.1 | 16.8 |
+| full | 30k | 1215.8 | 14282.0 | 15631.1 | 134.2 |
+
+The contract's `rel [T,H,E]` costs 2048 x 24 x 1024 x 2 B = 100 MB per chunk. That is 0.37 ms to write plus 0.37 ms to read
+at the bandwidth floor, and the bias fetch dominates SWA flash (every key is biased there, since window = E). The flash
+kernel against the split-KV port at the same rows (fleetq #10804): 1.25 vs 10.8 ms (SWA ctx 0), 14.3 vs 1093 ms (full 30k).
+Full 30k flash: 2048 x 24 x 32768 x 128 x 4 = 0.82 TFLOP in 14.3 ms, about 58 TFLOPS.
+
+## Full-32k decode: what was tried (brief 2)
+
+Pick: full 32k at 1 row (736 us against a 492 us floor) over full 4k at 4 rows (+9 us, verify only). The 32k case costs about
+240 us above the floor on every full layer of every long-context token.
+
+Hypothesis tested: wave quantisation (33 tiles x 8 heads = 264 blocks on 48 SMs) or one 70 KB-smem block per SM with
+1-deep prefetch. Results, attention microseconds (graph), fleetq #10948:
+
+| setting | full 4k, 1 row | full 32k, 1 row | full 32k, 16 rows |
+|---|---|---|---|
+| default (at most 40 tiles, 2 stages) | 94.0 | 716 | 842 |
+| at most 64 tiles | 98.6 | 746 | 861 |
+| at most 96 tiles | 99.7 | 709 | 838 |
+| 1 stage (2 blocks / SM) | 96.4 | 704 | 808 |
+| 1 stage, at most 96 tiles | 97.9 | 723 | 836 |
+
+All within noise, so neither the tile count nor occupancy is the limit. The defaults stay; the knobs remain as diagnostics.
+The kernels sit at about 180-190 GB/s on both the SWA (40 blocks) and the full (264 blocks) visits: about 6-8 us per
+32 KB sub-chunk per block, far above DRAM latency. That points at the per-sub-chunk serial path of one block: stage, wait,
+three `__syncthreads`, 16 keys of mma per warp. 8B bf16 GEMV decode reaches about 257 GB/s on this box, so about 1.4x is
+left. ncu cannot run here (RmProfilingAdminOnly = 1), so the next step needs either profiling rights or the restructure in
+idea 1 below.
+
+## Next ideas (ranked)
+
+1. **Decode tile kernel: more keys per warp per barrier.** Each warp takes 64 keys per sub-chunk (4 mma k-groups)
+   instead of 16, giving 256-key sub-chunks with a quarter of the barriers. Or load K / V fragments straight from
+   global, with no shared-memory staging, for M <= 48 rows. Target: full 32k from 716 to about 520 us.
+2. **Contract idea for main: attention computes the bias from r and relproj.** It would drop the `rel [T,H,E]` tensor:
+   100 MB per 2048-row chunk written and read, about 0.75 ms at the floor. The prologue's rel tail is most of its
+   1.6 ms per chunk, and the bias fetch dominates SWA flash. Not changed here: it is a contract change.
+3. **Fold the tile combine into the tile kernel** (last block of a row merges in tile order, counter in scratch zeroed by
+   the last block): one launch fewer per visit, about 3-5 us at decode.
+4. **Flash prefill:** stage the bias slice with cp.async per sub-chunk; 128-row query blocks for full layers (14.3 ms at
+   30k is about 58 TFLOPS).
+5. Full 4k at 4 rows (fused 9 us slower than the pair): the fused blocks each redo the call's q / r jobs; share them
+   through a 1-block pre-pass if verify rows matter.

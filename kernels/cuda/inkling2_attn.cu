@@ -52,7 +52,7 @@ struct InkP {
     float* scr;
     bf16* stg;  // fused: staged K / V rows for ink_kv_write_k ([2][T][Hk][D])
     const int* pos;
-    int t, h, hk, d, dr, e, k, rr, cr, pos0, flags, tau_floor, window, nq, pw, sk, toff;
+    int t, h, hk, d, dr, e, k, rr, cr, pos0, flags, tau_floor, window, nq, pw, sk, toff, maxt;
     float qk_clip, rel_clip, eps, tau_alpha, scale, cscale;
 };
 
@@ -186,14 +186,15 @@ __device__ __forceinline__ void ink_rel_g(const float (*r)[32], int G, const bf1
 // prologue and the fused decode kernel produce the same bits whatever their block shapes.
 // ------------------------------------------------------------------------------------------------------------------------
 
-constexpr int JMAX = 8;  // elements per lane (head_dim <= 256)
+constexpr int JMAX = 8;  // most elements per lane (head_dim <= 256); a kernel instantiates J = ceil(head_dim / 32) <= JMAX
 
 // conv'd K (or V) row of kv head kvh at call row t: v[i] = channel lane + 32 i; returns the sum of squares (every lane)
+template <int J>
 __device__ __forceinline__ float job_conv(const InkP& p, const bf16* x, const bf16* ring, const bf16* taps, unsigned t, unsigned pos0,
                                           unsigned kvh, unsigned lane, float* v) {
     float ss = 0.0f;
 #pragma unroll
-    for (int i = 0; i < JMAX; ++i) {
+    for (int i = 0; i < J; ++i) {
         const unsigned c = lane + 32 * i;
         v[i] = 0.0f;
         if (c < (unsigned)p.d) {
@@ -205,13 +206,14 @@ __device__ __forceinline__ float job_conv(const InkP& p, const bf16* x, const bf
 }
 
 // q (r = false: D elements) or r (r = true: dr elements) of query head h at call row t, after scale, clip and tau (rounded)
+template <int J>
 __device__ __forceinline__ void job_qr(const InkP& p, unsigned t, unsigned h, unsigned pp, bool r, unsigned lane, float* v) {
     const unsigned n = r ? p.dr : p.d;
     const size_t off = (size_t)t * p.nq + (r ? (size_t)p.h * p.d + h * p.dr : (size_t)h * p.d);
     const bf16* sc = r ? p.rs + h * p.dr : p.qs + h * p.d;
     float ss = 0.0f;
 #pragma unroll
-    for (int i = 0; i < JMAX; ++i) {
+    for (int i = 0; i < J; ++i) {
         const unsigned c = lane + 32 * i;
         v[i] = 0.0f;
         if (c < n) {
@@ -223,7 +225,7 @@ __device__ __forceinline__ void job_qr(const InkP& p, unsigned t, unsigned h, un
     const float tau = ink_tau(p, pp);
     const bool use_tau = p.tau_floor > 0;
 #pragma unroll
-    for (int i = 0; i < JMAX; ++i) v[i] = ink_qr(v[i], ss, r ? p.rel_clip : p.qk_clip, use_tau, tau);
+    for (int i = 0; i < J; ++i) v[i] = ink_qr(v[i], ss, r ? p.rel_clip : p.qk_clip, use_tau, tau);
 }
 
 __device__ __forceinline__ float k_out(float v, float ss, const InkP& p) { return rA(__fmul_rn(v, ink_clipf(ss, p.qk_clip))); }
@@ -231,7 +233,8 @@ __device__ __forceinline__ float v_out(float v, float ss, const InkP& p) { retur
 
 // InkKvPrologue. Grid (Hk, T), 256 threads (8 warps): warps take the jobs k, v, q_0 .., r_0 .. in turn, then all threads the rel
 // tail (3 x E elements of a 16-long chain each).
-__global__ void __launch_bounds__(256, 2) ink_prologue_k(InkP p) {
+template <int J>
+__global__ void __launch_bounds__(256, J <= 4 ? 3 : 2) ink_prologue_k(InkP p) {
     __shared__ float rsh[4][32];
     const unsigned tid = threadIdx.x, lane = tid & 31, warp = tid >> 5, nw = blockDim.x >> 5;
     const unsigned kvh = blockIdx.x, t = blockIdx.y;
@@ -243,26 +246,26 @@ __global__ void __launch_bounds__(256, 2) ink_prologue_k(InkP p) {
     const bool lead = blockIdx.z == 0;
     const unsigned njobs = 2 + 2 * G;
     for (unsigned job = lead ? warp : 2 + G + warp; job < njobs; job += nw) {
-        float v[JMAX];
+        float v[J];
         if (job < 2) {
-            const float ss = job_conv(p, job ? p.pv : p.pk, job ? p.vr : p.kr, job ? p.vt : p.kt, t, pos0, kvh, lane, v);
+            const float ss = job_conv<J>(p, job ? p.pv : p.pk, job ? p.vr : p.kr, job ? p.vt : p.kt, t, pos0, kvh, lane, v);
             bf16* dst = (job ? p.vo : p.ko) + ((size_t)t * p.hk + kvh) * D;
 #pragma unroll
-            for (int i = 0; i < JMAX; ++i) {
+            for (int i = 0; i < J; ++i) {
                 const unsigned c = lane + 32 * i;
                 if (c < D) dst[c] = f2b(job ? v_out(v[i], ss, p) : k_out(v[i], ss, p));
             }
         } else if (job < 2 + G) {
             const unsigned h = kvh * G + (job - 2);
-            job_qr(p, t, h, pp, false, lane, v);
+            job_qr<J>(p, t, h, pp, false, lane, v);
 #pragma unroll
-            for (int i = 0; i < JMAX; ++i) {
+            for (int i = 0; i < J; ++i) {
                 const unsigned c = lane + 32 * i;
                 if (c < D) p.qo[((size_t)t * H + h) * D + c] = f2b(v[i]);
             }
         } else {
             const unsigned g = job - 2 - G;
-            job_qr(p, t, kvh * G + g, pp, true, lane, v);
+            job_qr<J>(p, t, kvh * G + g, pp, true, lane, v);
             if (lane < dr) rsh[g][lane] = v[0];
         }
     }
@@ -562,15 +565,16 @@ __global__ void ink_kv_write_k(InkP p, const bf16* kn, const bf16* vn) {
 // m-tiles of 16; block = 4 warps per m-tile (warp = (m-tile, group)).
 
 constexpr int CH = 64;    // keys per staged sub-chunk
-constexpr int MAXT = 40;  // most tiles per row (the scratch stride)
+constexpr int MAXT = 96;  // most tiles per row: the scratch stride; the row rule's limit is InkP::maxt (<= MAXT)
+constexpr int MAXT_DEFAULT = 40;
 
-__host__ __device__ __forceinline__ int tile_s(int vis, int min_s) {
+__host__ __device__ __forceinline__ int tile_s(int vis, int min_s, int maxt) {
     int s = min_s;
-    while ((vis + s - 2) / s + 1 > MAXT) s <<= 1;
+    while ((vis + s - 2) / s + 1 > maxt) s <<= 1;
     return s;
 }
 
-__host__ __device__ __forceinline__ int row_s(int pp, int window, int min_s) { return tile_s(pp - (int)ink_lo(pp, window) + 1, min_s); }
+__host__ __device__ __forceinline__ int row_s(int pp, int window, int min_s, int maxt) { return tile_s(pp - (int)ink_lo(pp, window) + 1, min_s, maxt); }
 
 // The tile classes of a call: rows 0 .. rb-1 have tile size sa (tiles ta .. ta + na - 1), rows rb .. T-1 size sb (tb ..). S is
 // non-decreasing in the position, and changes at most once in 16 rows.
@@ -578,16 +582,16 @@ struct TileGeo {
     int sa, sb, rb, ta, na, tb, nb;
 };
 
-__host__ __device__ __forceinline__ TileGeo tile_geo(int pos0, int T, int window, int min_s) {
+__host__ __device__ __forceinline__ TileGeo tile_geo(int pos0, int T, int window, int min_s, int maxt) {
     TileGeo g;
-    g.sa = row_s(pos0, window, min_s);
+    g.sa = row_s(pos0, window, min_s, maxt);
     g.rb = T;
     for (int t = 1; t < T; ++t)
-        if (row_s(pos0 + t, window, min_s) != g.sa) {
+        if (row_s(pos0 + t, window, min_s, maxt) != g.sa) {
             g.rb = t;
             break;
         }
-    g.sb = g.rb < T ? row_s(pos0 + g.rb, window, min_s) : g.sa;
+    g.sb = g.rb < T ? row_s(pos0 + g.rb, window, min_s, maxt) : g.sa;
     g.ta = (int)ink_lo(pos0, window) / g.sa;
     g.na = (pos0 + g.rb - 1) / g.sa - g.ta + 1;
     g.tb = 0;
@@ -646,6 +650,8 @@ struct TileSmem {
 // call's keys in the tile) instead of reading q / k / v / rel. blockDim = 128 * nmt.
 template <int D, bool FUSED>
 __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages) {
+    const int maxt = p.maxt;
+    constexpr int J = (D + 31) / 32;
     using SM = TileSmem<D>;
     constexpr int LD = SM::LD, NKS = D / 16, NDB = D / 8;
     extern __shared__ __align__(16) unsigned char sm[];
@@ -656,7 +662,7 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages)
     const int kvh = blockIdx.x;
     const bool ring = (p.flags & F_RING) != 0;
     const int pos0 = ink_pos0(p);
-    const TileGeo geo = tile_geo(pos0, T, p.window, min_s);
+    const TileGeo geo = tile_geo(pos0, T, p.window, min_s, maxt);
     int S, tau, r0, r1;
     if ((int)blockIdx.y < geo.na) {
         S = geo.sa, tau = geo.ta + blockIdx.y, r0 = 0, r1 = geo.rb;
@@ -691,23 +697,23 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages)
         bf16* Qt = KV;
         const int njobs = 2 * M + 2 * nown;
         for (int job = warp; job < njobs; job += nw) {
-            float v[JMAX];
+            float v[J];
             if (job < 2 * M) {
                 const int mi = job % M, t = mi / G, h = kvh * G + mi % G;
                 const bool r = job >= M;
-                job_qr(p, t, h, pos0 + t, r, lane, v);
+                job_qr<J>(p, t, h, pos0 + t, r, lane, v);
                 if (!r) {
 #pragma unroll
-                    for (int i = 0; i < JMAX; ++i)
+                    for (int i = 0; i < J; ++i)
                         if (lane + 32 * i < D) Qt[mi * D + lane + 32 * i] = f2b(v[i]);
                 } else if (lane < dr) {
                     rsh[mi * dr + lane] = v[0];
                 }
             } else {
                 const int jj = job - 2 * M, kind = jj & 1, t = on0 - pos0 + (jj >> 1);
-                const float ss = job_conv(p, kind ? p.pv : p.pk, kind ? p.vr : p.kr, kind ? p.vt : p.kt, t, pos0, kvh, lane, v);
+                const float ss = job_conv<J>(p, kind ? p.pv : p.pk, kind ? p.vr : p.kr, kind ? p.vt : p.kt, t, pos0, kvh, lane, v);
 #pragma unroll
-                for (int i = 0; i < JMAX; ++i)
+                for (int i = 0; i < J; ++i)
                     if (lane + 32 * i < D) own[((size_t)kind * T + t) * D + lane + 32 * i] = f2b(kind ? v_out(v[i], ss, p) : k_out(v[i], ss, p));
             }
         }
@@ -803,9 +809,13 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages)
     stage(c0, 0);
     cp_commit();
     for (int ci = c0; ci <= c1; ++ci) {
-        const int buf = (ci - c0) & 1, jb = ci * CH;
+        const int buf = stages == 1 ? 0 : (ci - c0) & 1, jb = ci * CH;
         __syncthreads();  // the previous sub-chunk's compute is done with the other buffer and Bs
-        if (ci < c1) stage(ci + 1, buf ^ 1);
+        if (stages == 1) {
+            if (ci > c0) stage(ci, 0);  // one buffer: no prefetch (other resident blocks hide the latency)
+        } else if (ci < c1) {
+            stage(ci + 1, buf ^ 1);
+        }
         cp_commit();
         // the raw rel bias of the sub-chunk's keys (zero at distances >= E and for masked keys)
         const bool need_bias = pmin - (jb + CH - 1) < E;
@@ -823,7 +833,8 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages)
                 Bs[x] = b;
             }
         }
-        cp_wait<1>();
+        if (stages == 1) cp_wait<0>();
+        else cp_wait<1>();
         __syncthreads();
         const int kb = grp * 16;
         if (jb + kb + 15 < jlo || jb + kb > jhi) continue;  // the group's keys hold none of the block's
@@ -1133,10 +1144,11 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
 
 // the tile partials of a (row, query head) merged in tile order, then the sink and the gate. Grid (H, T), threads >= D.
 __global__ void ink_tile_comb_k(InkP p, int min_s) {
+    const int maxt = p.maxt;
     const unsigned tid = threadIdx.x;
     const unsigned h = blockIdx.x, t = blockIdx.y, D = p.d, H = p.h;
     if (tid >= D) return;
-    const int pp = ink_pos0(p) + t, lo = (int)ink_lo(pp, p.window), S = row_s(pp, p.window, min_s);
+    const int pp = ink_pos0(p) + t, lo = (int)ink_lo(pp, p.window), S = row_s(pp, p.window, min_s, maxt);
     const int ns = pp / S - lo / S + 1;
     if (ns == 1) return;
     const size_t base = ((size_t)t * H + h) * MAXT;
@@ -1249,36 +1261,54 @@ int tile_min(const ik_ink_attrs* a) { return a->split_keys > 0 ? (a->split_keys 
 
 // grid y (tile slots) of a tile launch and whether any row can have more than one tile (device position: capacity bounds)
 void tile_grid(const InkP& p, bool dev, int min_s, unsigned* ny, bool* multi) {
+    const int maxt = p.maxt;
     if (!dev) {
-        const TileGeo g = tile_geo(p.pos0, p.t, p.window, min_s);
+        const TileGeo g = tile_geo(p.pos0, p.t, p.window, min_s, maxt);
         *ny = (unsigned)(g.na + g.nb);
         bool m = false;
         for (int t = 0; t < p.t; ++t) {
-            const int pp = p.pos0 + t, S = row_s(pp, p.window, min_s);
+            const int pp = p.pos0 + t, S = row_s(pp, p.window, min_s, maxt);
             if (pp / S != (int)ink_lo(pp, p.window) / S) m = true;
         }
         *multi = m;
         return;
     }
     const int vmax = p.window > 0 ? (p.window < p.cr ? p.window : p.cr) : p.cr;
-    const int smax = tile_s(vmax, min_s);
-    *ny = smax == min_s ? (unsigned)((vmax + smax - 2) / smax + 2) : (unsigned)(2 * (MAXT + 1));
+    const int smax = tile_s(vmax, min_s, maxt);
+    *ny = smax == min_s ? (unsigned)((vmax + smax - 2) / smax + 2) : (unsigned)(2 * (maxt + 1));
     *multi = true;
+}
+
+// diagnostics read once: INTARSIA_INK_TILE_STAGES (1 / 2), INTARSIA_INK_MAXT (tiles per row, 2..MAXT)
+int env_int(const char* name, int dflt, int lo, int hi) {
+    const char* e = getenv(name);
+    if (!e) return dflt;
+    const int v = atoi(e);
+    return v < lo || v > hi ? dflt : v;
+}
+int tile_stages_env() {
+    static int v = env_int("INTARSIA_INK_TILE_STAGES", 2, 1, 2);
+    return v;
+}
+int tile_maxt() {
+    static int v = env_int("INTARSIA_INK_MAXT", MAXT_DEFAULT, 2, MAXT);
+    return v;
 }
 
 template <int D, bool FUSED>
 int launch_tile_d(const InkP& p, int min_s, unsigned ny, cudaStream_t st) {
+    const int maxt = p.maxt;
     const int G = p.h / p.hk, nmt = (p.t * G + 15) / 16;
     bool one_sub;
     if (p.pos) {
         const int vmax = p.window > 0 ? (p.window < p.cr ? p.window : p.cr) : p.cr;
-        one_sub = tile_s(vmax, min_s) == CH;
+        one_sub = tile_s(vmax, min_s, maxt) == CH;
     } else {
-        const TileGeo g = tile_geo(p.pos0, p.t, p.window, min_s);
+        const TileGeo g = tile_geo(p.pos0, p.t, p.window, min_s, maxt);
         one_sub = g.sa == CH && g.sb == CH;
     }
-    // one stage when no block has a second sub-chunk (every tile S = CH)
-    const int stages = (min_s == CH && one_sub) ? 1 : 2;
+    // one stage when no block has a second sub-chunk (every tile S = CH), or INTARSIA_INK_TILE_STAGES=1 (diagnostic)
+    const int stages = ((min_s == CH && one_sub) || tile_stages_env() == 1) ? 1 : 2;
     const size_t smem = TileSmem<D>::bytes(p.t, G, p.dr, FUSED, stages);
     static bool attr = false;
     if (!attr) {
@@ -1367,7 +1397,8 @@ extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk,
     // (kv head, row) (each slice block redoes the r jobs). The elements' arithmetic does not depend on the slicing.
     unsigned nz = p.t <= 4 ? (unsigned)((p.e + 255) / 256) : 1u;
     if (nz > 8) nz = 8;
-    ink_prologue_k<<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
+    if (p.d <= 128) ink_prologue_k<4><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
+    else ink_prologue_k<JMAX><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
     if (!fused) {
         const size_t n = (size_t)p.t * p.hk * p.d;
         ink_ring_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p);
@@ -1434,6 +1465,7 @@ static int rel_sink_attn(const ik_tensor* q, const ik_tensor* k, const ik_tensor
         // the tile kernel (K / V read once for all rows of a call) on slices of at most 16 rows in order: every row of
         // every T is bitwise the 1-row call (rows-exact); a slice reads the cache rows the slices before it wrote
         const int min_s = tile_min(a);
+        p.maxt = tile_maxt();
         for (int r0 = 0; r0 < p.t; r0 += MAXROWS) {
             InkP ps = p;
             const int n = p.t - r0 < MAXROWS ? p.t - r0 : MAXROWS;
@@ -1540,6 +1572,7 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
     if (kv_fused) p.flags |= F_KV_WRITE;
     if (ring_fused) p.flags |= F_RING_WRITE;
     const int min_s = tile_min(a);
+    p.maxt = tile_maxt();
     unsigned ny;
     bool multi;
     tile_grid(p, pos != nullptr, min_s, &ny, &multi);
