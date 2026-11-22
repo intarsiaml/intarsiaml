@@ -233,6 +233,28 @@ Full 32k at 1 row is now 613 us against a read-only ceiling for this pattern of 
 16-row full-layer cases did not gain and may have lost 3-7 us. In those cases ptxas reports a 72-88 B spill for
 `ink_tile_k<128>` at 168 registers, and the partial last tile now falls on one warp.
 
+## Combine fold (idea 3, brief 5 step 2): tried, reverted
+
+Prize, from nsys (`--cuda-graph-trace=node`, fleetq #11040; median per visit): `ink_tile_comb_k` takes 2.2-3.7 us at
+ctx 512 / 4k with 1-16 rows, 8-10 us at full 32k with 1-4 rows, and 22 us at full 32k with 16 rows. The gap before it is
+0.6-1.4 us.
+
+Attempt: the last-arriving block of each (kv head, row) merged that row's G heads in tile order. The merge body was shared
+with the kernel, so the bits were the same. Counters were a zero-initialised `__device__` array, reset by the last block.
+Gate (fleetq #11054) with the fold on and off: all ADMITTED, and the 45 rows-exact cases bitwise. Fused us, graph, fold on
+vs off (2 runs each):
+
+| case | 1 row | 4 rows | 16 rows |
+|---|---|---|---|
+| SWA 512 | 31.6 vs 28.2 | 57.5 vs 37.9 | 90.3 vs 58.0 |
+| full 4k | 95.9 vs 90.9 | 136.3 vs 102.9 | 228.8 vs 165.7 |
+| full 32k | 622 vs 609 | 731 vs 655 | 919 vs 806 |
+
+It loses everywhere. All rows of a call end on the same last tile, so a single block per kv head merges T x 3 heads x 128
+dims serially from L2. The separate kernel spreads that work over 24 x T blocks. Reverted (the code is not kept). A fold
+would need the merge spread over the tile blocks, which is a different design. A cheaper next step is to make
+`ink_tile_comb_k` itself faster at 32k / 16 rows (22 us: one thread per dim walks 33 partials twice).
+
 ## Next ideas (ranked)
 
 1. **Decode tile kernel: more keys per warp per barrier.** Each warp takes 64 keys per sub-chunk (4 mma k-groups)
@@ -241,8 +263,8 @@ Full 32k at 1 row is now 613 us against a read-only ceiling for this pattern of 
 2. **Contract idea for main: attention computes the bias from r and relproj.** It would drop the `rel [T,H,E]` tensor:
    100 MB per 2048-row chunk written and read, about 0.75 ms at the floor. The prologue's rel tail is most of its
    1.6 ms per chunk, and the bias fetch dominates SWA flash. Not changed here: it is a contract change.
-3. **Fold the tile combine into the tile kernel** (last block of a row merges in tile order, counter in scratch zeroed by
-   the last block): one launch fewer per visit, about 3-5 us at decode.
+3. **Faster tile combine** (the fold was tried and lost, see above): `ink_tile_comb_k` costs 2-4 us at short ctx and
+   22 us at full 32k with 16 rows. Use a warp per (row, head) over the partials, or PDL so it overlaps the tile kernel's tail.
 4. **Flash prefill:** stage the bias slice with cp.async per sub-chunk; 128-row query blocks for full layers (14.3 ms at
    30k is about 58 TFLOPS).
 5. Full 4k at 4 rows (fused 9 us slower than the pair): the fused blocks each redo the call's q / r jobs; share them
