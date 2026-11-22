@@ -30,7 +30,10 @@ mod imp {
     const HK: usize = 8;
     const DH: usize = 128;
     const DR: usize = 16;
-    const E: usize = 1024;
+    /// rel extent; `INK_ATTN_BENCH_E` overrides it (timing probes only: E = 1 drops the rel gathers)
+    fn rel_e() -> usize {
+        std::env::var("INK_ATTN_BENCH_E").ok().and_then(|s| s.parse().ok()).unwrap_or(1024)
+    }
     const K: usize = 4;
     const RR: usize = K - 1 + 16;
 
@@ -73,6 +76,7 @@ mod imp {
         let (win, ring, cr) = if full { (0, false, ctx + rows + 16) } else { (1024, true, 1040) };
         let a = attrs(win, ring, full, pos0);
         let (pq, pk, pv) = (buf(be, rows * nqw, rng, 1.0), buf(be, rows * pw, rng, 1.0), buf(be, rows * pw, rng, 1.0));
+        let E = rel_e();
         let w: Vec<Buffer> = [K * ckv, K * ckv, H * DH, H * DR, DR * E].iter().map(|&n| buf(be, n, rng, 1.0)).collect();
         let (kr, vr) = (buf(be, RR * ckv, rng, 1.0), buf(be, RR * ckv, rng, 1.0));
         let (q, rel, k, v, o) = (buf(be, rows * H * DH, rng, 1.0), buf(be, rows * H * E, rng, 1.0), buf(be, rows * ckv, rng, 1.0), buf(be, rows * ckv, rng, 1.0), buf(be, rows * H * DH, rng, 1.0));
@@ -171,7 +175,9 @@ mod imp {
             }
         }
         let rows_set: &[usize] = if prefill { &[2048] } else { &[1, 4, 16] };
-        let ctxs: &[usize] = if prefill { &[0, 2048, 30720] } else { &[512, 4096, 32768] };
+        // `INK_ATTN_BENCH_CTXS=0,2048,4096` overrides the context list
+        let ctx_env: Option<Vec<usize>> = std::env::var("INK_ATTN_BENCH_CTXS").ok().map(|s| s.split(',').map(|x| x.parse().unwrap()).collect());
+        let ctxs: &[usize] = match &ctx_env { Some(v) => v, None if prefill => &[0, 2048, 30720], None => &[512, 4096, 32768] };
         for &full in &[false, true] {
             for &ctx in ctxs {
                 for &rows in rows_set {

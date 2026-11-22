@@ -459,6 +459,42 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### Attention per call, brief 21 step 1 (#11370; ink_attn_bench `--prefill`, 2048 rows, 4 layers x 10 reps, measure only)
+
+`INK_ATTN_BENCH_E=1` shrinks the rel tensor from [2048, 24, 1024] (100 MB per call) to [2048, 24, 1]: the prologue no longer
+writes it and the NAX kernel's per-score gather is gone (timing only, the numerics are wrong). NAX kernel µs per call;
+rep 1 shown, rep 2 E=1 agrees within 10 %, rep 2 E=1024 ran in a slow GPU clock state (SWA 1.29-1.47 ms, prologue up to
+1.26 ms) and is not used.
+
+| visit | E 1024 prologue | E 1 prologue | E 1024 NAX attn | E 1 NAX attn | floor at 62 TFLOP/s |
+|---|---:|---:|---:|---:|---:|
+| SWA ctx 0 | 977 | 500 | 862 | 732 | 310 |
+| SWA ctx 2k / 4k / 16k | 979 | 492-555 | 1142-1153 | 927-987 | 416 |
+| full ctx 0 | 997 | 543 | 1084 | 918 | 310 |
+| full ctx 2k | 1030 | 631 | 2806 | 2396 | 1250 |
+| full ctx 4k | 1095 | 552 | 4627 | 3507 | 2080 |
+| full ctx 16k | 1144 | 668 | 14805 | 12356 | 7070 |
+
+The bench agrees with the model trace (SWA 1.16 ms, full 2.34 / 3.61 ms at ctx 2k / 4k, `.scratch/bp3/k256a.jsonl`).
+Floor = 4 x rows x keys seen x 128 x 24 heads / 62 TFLOP/s (QK + PV, no softmax).
+
+Where the ~40 ms per chunk above floor goes (40 SWA + 8 full visits, chunk at ctx 2k / 4k):
+
+- **rel tensor, prologue write: ~22 ms** (0.98 -> ~0.52 ms per visit x 48). The prologue's bias GEMV writes 100 MB per visit.
+- **rel tensor, attention gather + footprint: ~11 ms at ctx 2k, ~17 ms at ctx 4k** (SWA 0.19 ms x 40; full 0.41 / 1.12 ms
+  x 8). The full-visit part grows with context although the gather only covers distance < 1024, so part of it is the 100 MB
+  scratch per visit evicting K / V from the system-level cache (the scratch note above), not the gather itself.
+- **The rest, ~0.5 ms per SWA visit above floor even without rel:** masking + online softmax + the 32-key tile loop
+  (E 1 SWA runs at ~27 TFLOP/s vs 62). Not attacked: no tight bound.
+
+**Bound for step 2:** removing the rel round trip saves at most ~33-39 ms per 655 ms chunk (5-6 %), less whatever computing
+the bias in the attention kernel costs. Earlier `ink.rel_mode` 1 (16 FMAs per score, branch `ink/prefill-rel`) cost more than it
+saved. Proposed build (needs a go-ahead; rel_mode 1 is the already approved contract variant, so no new contract): a mode-1
+NAX kernel that computes the bias per (query tile, key tile) as one 16-deep MMA, q_rel [BQ x 16] x table [16 x (BQ + 31)
+distances], into threadgroup memory (BQ 32: 32 x 63 x 4 B = 8 KB), then gathers from threadgroup memory instead of device
+memory. Extra MMA ~ (BQ + 31) / 32 x 16 / 128 = 25 % of the QK MMA at BQ 32; scratch drops by 100 MB per visit. Ceiling
+after that cost: ~25-30 ms per chunk, ~4 % end to end at 4k and 8k (>= 2 %). Not built yet.
+
 ### Prologue split default-on gate (#11272, binary 61980c882, serve recipe chunk 2048, localeval speed-plain, order off / on / off / on)
 
 | prompt tok | prefill pair 1 (off -> on) | pair 2 | decode pair 1 | decode pair 2 |
