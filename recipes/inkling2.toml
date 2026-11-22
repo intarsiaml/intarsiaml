@@ -25,7 +25,7 @@ lm_head = { tensor = "model.llm.unembed" }   # bf16, not tied; logits = 30 tanh(
 
 [defaults]
 kv_dtype = "bf16"
-max_batch = 1
+max_batch = 16                  # the cap of --max-batch (batched decode, lane ink-batch); without the flag one sequence at a time
 
 [accuracy]
 chat_turns = "inkling2"       # one open token per role, <|end_message|> closes (crates/intarsia-cli/src/cmd/accuracy/turns.rs)

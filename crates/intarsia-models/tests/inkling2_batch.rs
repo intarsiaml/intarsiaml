@@ -7,6 +7,8 @@
 //! `INTARSIA_INKLING2_BACKEND=metal` runs the same tests on Metal (row-exact kernels for the B-row ops, the `_rows`
 //! row-table kernels for the stateful ones). Skipped (loudly) without the fixture; fails under `CI=1`.
 
+mod common;
+use common::ByteCodec;
 use intarsia_core::model::{HeadMode, LoadOptions, Model, StepOut};
 use intarsia_core::recipe::ModelDims;
 use intarsia_core::state::SequenceState;
@@ -64,7 +66,9 @@ fn load_on(dir: &Path, backend: Arc<dyn intarsia_core::Backend>, rows: usize) ->
         &LoadOptions { max_seq: 128, prefill_chunk: chunk(), graphs: false, ..Default::default() },
         Arc::new(Telemetry::new()),
     )?;
-    m.enable_batch(rows)?;
+    if rows > 1 {
+        m.enable_batch(rows)?;
+    }
     m.configure_plan(&Default::default(), None)?;
     Ok(m)
 }
@@ -312,4 +316,75 @@ fn inkling2_batch_failed_pass_resets_every_sequence() {
     for k in 0..3 {
         step(&m, &mut solo, &mut bat, &[0, 1, 2], &format!("after reset {k}"));
     }
+}
+
+use intarsia_core::{BatchedEngine, BatchedOptions, Engine, EngineMeta, GenEvent, GenRequest, LocalEngine};
+use std::sync::mpsc::Receiver;
+use std::time::Duration;
+
+fn meta() -> EngineMeta {
+    // no EOS id: every request runs to max_tokens
+    EngineMeta { id: "inkling2-tiny".into(), eos_ids: vec![], ..Default::default() }
+}
+
+fn collect(rx: &Receiver<GenEvent>) -> (Vec<u32>, usize) {
+    let mut ids = vec![];
+    loop {
+        match rx.recv_timeout(Duration::from_secs(300)).expect("engine stalled") {
+            GenEvent::Token { id, .. } => ids.push(id),
+            GenEvent::Done { completion_tokens, .. } => return (ids, completion_tokens),
+            GenEvent::Error { message } => panic!("engine error: {message}"),
+        }
+    }
+}
+
+/// Greedy requests at prompt lengths before / across the window and the rel extent, 40 tokens each, one sampled with a seed.
+fn requests(n: usize) -> Vec<GenRequest> {
+    let lens = [3usize, 9, 14, 30, 6, 21, 2, 45, 12];
+    (0..n)
+        .map(|i| {
+            let mut r = GenRequest {
+                prompt: (0..lens[i % lens.len()]).map(|k| tok(i, k)).collect(),
+                max_tokens: 40 + (i % 3) * 5,
+                ignore_eos: true,
+                ..Default::default()
+            };
+            if i % 4 == 3 {
+                r.temperature = 0.9;
+                r.top_k = 20;
+                r.seed = Some(11 + i as u64);
+            }
+            r
+        })
+        .collect()
+}
+
+/// The batching engine (4 slots, 9 requests at once: they queue, run batched, finish at different times, slots are recycled)
+/// serves every request token for token as the one-sequence engine, and batched passes did run.
+#[test]
+fn inkling2_batched_engine_equals_solo_engine() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let n = 9;
+    let tel = Arc::new(Telemetry::new());
+    let solo = LocalEngine::new(load(&dir, 1), Arc::new(ByteCodec), meta(), tel).unwrap();
+    let want: Vec<(Vec<u32>, usize)> = requests(n)
+        .into_iter()
+        .map(|r| {
+            // a throw-away request first, so no prefix of the previous case is reused
+            let flush = GenRequest { prompt: vec![95, 94, 93], max_tokens: 1, ignore_eos: true, ..Default::default() };
+            collect(&solo.submit(flush).unwrap());
+            collect(&solo.submit(r).unwrap())
+        })
+        .collect();
+    let tel = Arc::new(Telemetry::new());
+    let mut o = BatchedOptions::new(4, 64);
+    o.prefix_reuse = false;
+    let eng = BatchedEngine::new(load(&dir, 4), Arc::new(ByteCodec), meta(), tel, o).unwrap();
+    let rxs: Vec<_> = requests(n).into_iter().map(|r| eng.submit(r).unwrap()).collect();
+    for (i, (rx, w)) in rxs.iter().zip(&want).enumerate() {
+        let got = collect(rx);
+        assert_eq!(&got, w, "request {i}");
+    }
+    let m = eng.metrics();
+    assert!(m.batch_hist[2..].iter().sum::<u64>() > 0, "no batched decode pass ran: {:?}", m.batch_hist);
 }

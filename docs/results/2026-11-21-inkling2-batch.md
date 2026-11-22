@@ -12,6 +12,9 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   do not design out several rows of one sequence (draft verify across streams), do not build it; one line on what it needs.
   (4) Throughput through localeval (local-model-bench) at 1/4/8/16 streams under `fleetq --quiet gpu,cpu`, oMLX's 94 tok/s
   at 16 streams in the same table.
+- 2026-11-21 (coordinator): Metal `generate` defaults to `--profile-every 16` (every 16th step waits on 419 command buffers,
+  about 4 ms/token of fake gap; real single-stream greedy is about 15.76 ms = 63.4 tok/s). Use `--profile-every 0` for every
+  engine-side decode timing, the solo no-regression check included; localeval through serve is unaffected.
 
 ## 1. Design note (contract delta, written before any kernel)
 
