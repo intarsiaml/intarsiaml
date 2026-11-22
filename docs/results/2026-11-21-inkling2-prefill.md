@@ -105,6 +105,11 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
     **This lane:** 45887198b is not an ancestor of 378dc214e (the #11109 binary) or of the ink/prefill tip, so the original
     limits apply to #11109.
 
+12. 2026-11-22 (coordinator, via SendMessage): this lane cherry-picks ed27f4462 onto ink/prefill-merge itself; cargo check +
+    the cpu Inkling tests on bespin; then send ink-metal (af43898d63e5b5190) the one new merge hash in place of the old one (ink-metal
+    never cherry-picks lane code). The prefill_chunk = 2048 recipe commit goes on top only if #11109 passes G2/G3 at 2048; if
+    not, send the hash without it and tell the coordinator. ink-metal holds merges until the bisect lands (~04:15).
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
