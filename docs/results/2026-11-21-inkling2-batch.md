@@ -1235,3 +1235,19 @@ rows-exact contract requires: per (weight row, row) the same 256-lane split, sim
 simdgroup-matrix GEMM) goes lower: **(b), parked** (main: batched rows would no longer match solo output; it returns only if
 the MoE work also falls short). What stays: gemvx default-on (`INTARSIA_INK_PROJ_X=0` reverts), `INTARSIA_INK_PROJ_XP` (P 2 / 4,
 slower, measurement knob).
+
+## 31. MoE at B 16 (c)
+
+Code reading (kernels/metal/inkling2_moe.metal): in union mode the gate+up grid is (I / 16 row blocks, pairs) and the down
+grid (H / 32, pairs); a threadgroup works only if its pair leads a run of up to 4 (`INK_XR`) pairs of one expert, else it
+returns after `ink_lead` (ballots over the earlier pairs). The leader loads each weight chunk once but decodes it again for
+every served pair inside `ink_chunk_dot` (NVFP4 nibbles -> half2, the same for every pair), and the down kernel re-loads and
+re-decodes the chunk per pair (`ink_dn_row` per pair). Per element and pair that is ~4 decode ops next to ~1.5 x-extract
+ops and 1 fma, which fits "time follows pairs, not union" (29a).
+
+- Step 1 (measure, #11487 queued): `inkmoe_bench` NVFP4 at 8 / 16 rows with `INKMOE_POOL` (new: every token's experts from
+  one pool of u per call; unset ~82 at 16 rows, 64, 24, 12), all policies, gate+up / down split.
+- Candidate (bitwise, opt-in `INTARSIA_INK_MOE_DEC1=1`, 02857d7ad): decode each chunk once into 16 half2 + scales and run every
+  served pair's unchanged fma chain on it (gate+up and down union kernels; down also loads the chunk once). #11489 queued:
+  inkmoe rows-exact (every policy, routing incl. pool12 / identical / invalid / duplicates, T 2-16, NVFP4 and MXFP8) with
+  DEC1 0 and 1, then us/call DEC1 0 vs 1 at pools unset / 64 / 24, A B B A.
