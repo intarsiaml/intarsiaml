@@ -510,6 +510,64 @@ cycle (`Seq::prepare_with`, the branch DSpark and DFlash take) is its own class 
 
 The S1 / S2 host work inside `draft` is ink-mtp's `INTARSIA_DSPARK_PROFILE` split.
 
+## Item 6: the device sampler (Gumbel-max, opt-in; branch `ink/hostgap-gumbel`, c4c1f48e6)
+
+Built on a side branch so that #10943 still measures the `ink/hostgap` it was queued for (measAB builds b4 from that HEAD). It
+merges into `ink/hostgap` after #10943 has run.
+
+**What it does.** A plain-temperature request (temperature > 0, `top_k` 0, `top_p` 1, no constraint, no logit trace, so no
+logprobs; not while it speculates; host rows up to `min_tokens`) draws each token on the device. Serve's default Inkling request
+(the checkpoint's temperature 1.0, no top-k or top-p) is such a request. Only 4 bytes come back instead of the 200058-float row.
+On Metal the step runs the greedy token-feedback pipeline (step N+1 is encoded before step N's token is read), so the 3.56 ms
+host share of a t1.0 step (soft-cap 1.37 + sampler 2.10, item 4) and the 800 KB download leave the critical path.
+
+**Definition** (`crates/intarsia-core/src/gumbel.rs`; the cpu op calls it, the Metal kernel mirrors it):
+token = argmax_i(c(l_i) / T + g_i), ties to the smaller id; c = the head's softcap, exactly `sampler::softcap`'s formula (cap
+0 = none); g_i = -ln(E_i), E_i = -ln(1 - w_i) (its series to w^5 below 1/16), w_i = min((f32(x_i) + 0.5) 2^-32, 1 - 2^-24);
+x_i = word 0 of Philox4x32-10 with key (seed lo, seed hi) and counter (token id i, absolute position, 0, 0). The position is the
+number of tokens before the sampled one. No batch row enters the key, so a row draws the same token solo or batched. A request
+without a seed gets a fresh one (time mixed with a process counter).
+
+**Where:**
+- `Op::GumbelArgmax` (discriminant 96; 96..=99 reserved for this lane): logits `[R,V]` f32, keys `[R,4]` i32 (u32 bits: seed lo,
+  seed hi, position, bits of 1/T), out `[R]` i32, attr `scale` = cap. cpu reference / fast (one shared function); Metal
+  `gumbel_argmax_f32` (one threadgroup of 1024 threads per row, `precise::` log / tanh). CUDA and HIP list it unsupported.
+  Admission sweep rows: R 1 / 5, V 100 / 101 / 4096 / 4099 / 200058, cap 0 / 30.
+- `HeadMode::LastGumbel(GumbelHead { seed, inv_t })`: `Model::forward` (prefill head and plain steps), `feedback_step` (token
+  feedback), `forward_batch` (per-row keys uploaded before the step, one `GumbelArgmax` over the step's rows).
+  `Model::gumbel_ok`: the switch, one device (no peers, no remote rank, replicated head) and a selectable kernel, decided on
+  first use. Otherwise every request keeps the host sampler.
+- Keys: a per-request table, filled before the request's first device-sampled step (prefill, plain path) and, for feedback
+  decode, once before the loop for every token the request may still sample. A feedback step only reads its own row and never
+  writes. Metal's `upload` synchronizes, and a step is encoded while the one before runs, so a per-step write would serialize
+  the pipeline or race it.
+- `Seq::head_mode`: the eligibility above. A comment there says any future feature that changes logits before sampling
+  (min_p, penalties, logit_bias) must exclude `LastGumbel` (coordinator).
+- Switch: `INTARSIA_GUMBEL_SAMPLING=1`, default off for every model (docs/tuning.md row). It changes which token a seed draws,
+  so a default flip is a separate decision.
+
+**Checks so far:**
+| check | where | result |
+|---|---|---|
+| core lib (Philox Random123 known answers; x = 0 and x = 2^32 - 1 edge words; g finite for 10^6 random words and both ends; series vs ln; chi-square of 40000 draws at T 0.7 and 1.0, softcap 30 on, and off; fixed seed; ties; Seq eligibility incl. logprobs / trace, top-k, top-p, min_tokens, speculation, switch off, model without the sampler; fresh seeds) | spark2 #11013 (c4c1f48e6) | 247 passed, 0 failed |
+| cpu backend, whole suite (GumbelArgmax ref == fast == definition, rows independent of R) | spark2 #11018 | 17 binaries ok, 0 failed |
+| `gumbel_engine` (tiny model: fixed seed same stream on the same and a fresh engine; another seed moves the streams; batched B 4 / 8 == solo, device and host rows mixed; switch off = host sampler, host rows unchanged) | spark2 #11013 | pass |
+| `batch_engine` 10/10, `engine` 10/10, `batch` 6/6, `docs_env_vars` 2/2 | spark2 #11013 | pass |
+| macOS compile: Metal crate with tests, cli `--features metal`, Metal kernel-list pin | bespin #11014 (no Xcode there: the shader compiles on endor) | pass |
+| Metal: shader build, `tests/gumbel.rs` (Metal == definition at V 101 / 4099 / 200058, cap 0 / 30; rows independent; key at an offset; chi-square of the Metal draws at T 0.7 / 1.0, softcap on / off), admission, md5 gates (greedy and host-sampled unchanged; device-sampled feedback on == off, twice == once, 5k), t1.0 timing on / off / greedy (short, 5k, 5 reps), host profile, G1-G3, plan show and Metal model tests for other models | endor #11017, queued behind #10943 (`.scratch/endorgumbel.sh`, summary `.scratch/gmb/summary.txt`) | pending |
+
+**Kernel cost (estimate, to be measured in #11017).** One threadgroup per row runs on one GPU core. Per element the kernel does
+Philox (10 rounds), up to two `precise::log`, and `precise::tanh` with the cap. That is about 150 integer and float ops, roughly
+0.15-0.3 ms for Inkling's 200058 rows, against the 3.5 ms it removes. If it shows up, the next step is a split over several
+threadgroups per row with a second reduce pass. The argmax with ties to the smaller id does not depend on the partition, so
+the tokens stay the same.
+
+**Batched decode and MTP draft verify.** Batched rows are covered (`forward_batch`, cpu-tested at B 4 / 8). Inkling batching
+waits for ink/batch. Keyed (seed-exact) MTP drafting and sampled speculation keep the host sampler (`Seq::head_mode`
+requires no speculation). A device-sampled verify would need the same key per drafted row (position = row's absolute
+position): the Gumbel draw of a verify row equals the plain step's draw only if both use that key. That is possible, but not
+built.
+
 ## CPU checks (spark2)
 
 The checks ran on spark2 under `~/intarsiaml-ink-hostgap/src`: an exact `git archive` of the commit, without the docs/results
