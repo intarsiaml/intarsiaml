@@ -1041,7 +1041,7 @@ mod tests {
             .chain(intarsia_core::dsv41::ops::OPS.iter().filter(|op| !crate::dsv41::TABLE.iter().any(|(_, o)| o == *op)))
             .copied()
             .collect();
-        const NOT_ON_CUDA: [Op; 25] = [
+        const NOT_ON_CUDA: [Op; 30] = [
             Op::ShortConv,
             Op::DynConv,
             Op::RopeScaled,

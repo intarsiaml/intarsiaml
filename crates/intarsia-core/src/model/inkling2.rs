@@ -669,8 +669,8 @@ pub(super) fn load(
     let (mut visits, n_stack) = plan_visits(&ink)?;
     push_slots(&mut visits, &ink, dims, act, slot_specs);
     let ws = InkWs::alloc(b, mt, act, dims, &ink, n_stack)?;
-    *bytes += qbytes.get();
     let msg_q_all = if ink.looped() { Some(queries(&mut put, all_q4, 4 * n_core)?) } else { None };
+    *bytes += qbytes.get();
     Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, msg_q_all, ws, dims: ink })
 }
 
