@@ -1192,3 +1192,32 @@ kernels table 7/7 (incl. the metal4 count). Box cold at start (B 16 58.07). InkI
   dfuse's 522 GB/s = 983 us vs 970 measured): ~0. At the 614 GB/s roofline instead of 490, the situ floor is 456 us and the
   bound 8.8 ms, but no Inkling NVFP4 kernel has measured above ~500 GB/s.
 - **(c) bound ~3.7 ms (up to ~8.8 at roofline) vs (a)'s 3.8 ms: not >= 2x. Order: (a) first, then (c) if (a) gives < 2 ms.**
+
+**#11463 gates for gemvx default-on (10:15-10:31, quiet, tree cd128d1af, every switch unset; `.scratch/gate_projx.log`): green.**
+Metal suite: rows_exact 11/11, inkmix 5/5, rows_single 2/2, quick_coverage 1/1, gumbel 2/2, inkling2 11/11, inkling2_batch 8/8
+(Metal, real model), core ops ids 7/7, docs_env_vars 2/2. Admission: ink_in_proj 8 admitted, conv_mix 1, ink_attn_decode 1,
+moe_experts 4, matmul_p12 4, 0 fail / reject. Greedy md5 64 `65cde8f35a1802e3e2fadb44d94d080d`, 256
+`61fd59fecb5e0d72ffd08f2c6d07855a` = ink/metal's. Batched digests identical in all 8 runs, X=0 and X=1 alike (B 1
+`6d7e5d70e4d0014a`, B 8 `4eceea81c044812c`, B 16 `65fc922062715df4`, = #11352's NE 3 digests).
+
+Speed, warm box (start B 16 sample 69.01, end 72.97 / ALU 179.8), B 8 / B 16 batched step ms, order 0 1 0 1 1 0 1 0:
+
+| pair | X=0 | X=1 | B 16 diff | B 8 diff |
+|---|---|---|---:|---:|
+| runs 1 / 2 | 45.30 / 82.09 | 45.31 / 80.88 | -1.21 | +0.01 |
+| runs 3 / 4 | 48.65 / 79.17 | 43.63 / 78.25 | -0.92 | -5.02 |
+| runs 6 / 5 | 52.46 / 80.56 | 47.96 / 75.71 | -4.85 | -4.50 |
+| runs 8 / 7 | 40.62 / 75.01 | 44.74 / 75.17 | +0.16 | +4.12 |
+
+- B 16: mean -1.7 ms, median -1.1 ms per step, 3 of 4 pairs negative; the warm-box noise (+-4 ms) is larger than the effect.
+  Consistent with the microbench (-12 us x 48 calls = -0.6 ms cold). Warm B 16 75-82 ms here. **gemvx is default-on**
+  (bitwise, all gates green), `INTARSIA_INK_PROJ_X=0` reverts, docs/tuning.md has the row.
+
+**#11466 slice form (10:44-10:58, warm; tree c969909ee; `.scratch/slice.log`): bitwise, slower.** inkmix rows-exact passes
+with `INTARSIA_INK_PROJ_SLICE=1` at slice rows 64 / 16 / 200 (5/5 each), rows_exact 11/11. us/call S 1, A B C D D C B A:
+gemvx 4 / 8 / 16 rows 75.4 / 126.4 / 192.0 and 75.5 / 115.1 / 195.7; slice (64 rows per group) 96.9 / 145.5 / 266.6 and
+95.1 / 151.3 / 245.6; 32 and 128 rows per group the same within noise. So x re-reads were not the cost: staging x once per
+slice made it slower (+70 us at 16 rows: the scratch round trip and a second launch, with the same simd_sums). **(a) gives
+< 2 ms: stays opt-in (`INTARSIA_INK_PROJ_SLICE`), not default.** What remains per 16-row call is the bitwise reduction itself:
+16 simd_sums per (weight row, simdgroup), 1.1 M per call (vs 69 k at 1 row), which the contract fixes. In_proj rows closed
+at gemvx; next per main's rule: (c) MoE.
