@@ -22,6 +22,11 @@
    3. Then idea 3 (the combine folded into the tile kernel), if rows-exact stays bitwise.
    4. Idea 2 (contract change): not now; Metal shares the contract, revisit after decode. Idea 4 later.
    Scope: only this worktree; timing runs on a spark1 slot with --quiet gpu,cpu; no tool call or wait over 4 minutes.
+4. 2026-11-21 (coordinator, rule for all Inkling lanes): this session and its worktrees run on endor, the Metal timing
+   box. No local cargo build / check / test there outside a fleetq slot, since that skews endor's quiet timing jobs.
+   CUDA builds and tests stay on spark1 / spark2 through fleetq. Reading files, git and local edits are fine. (Before
+   this rule the lane ran `cargo check` / `cargo test --lib` for the CUDA crate and one tiny-model refusal test locally;
+   from now on it runs none.)
 
 ## Summary
 
