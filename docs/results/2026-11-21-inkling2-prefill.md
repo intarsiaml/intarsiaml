@@ -88,6 +88,14 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
    spark2, GPU only in endor fleetq slots, no local builds on endor; (4) report the ranking and the pick; the coordinator
    answers within the hour on disagreement, otherwise keep building.
 
+10. 2026-11-22 (coordinator, via SendMessage): agreed on all three: router NAX stays reverted (+0.9 % is not worth a
+    shared Logits candidate), v65 and dq1 are dead. Next, while #11119 / #11105 wait: (1) MoE NVFP4 diagnosis in this doc
+    before any new variant, from traces or counters: (a) rows-per-expert distribution per visit at 2048 (min / median / max,
+    experts under 16 rows), (b) per-expert kernel time vs rows (fixed cost), (c) dequant vs MMA share of the inner loop,
+    (d) gather / scatter and routing time between expert calls; (2) then propose one variant with expected ms/chunk and why
+    v65 / dq1 missed, and send diagnosis + proposal before building; (3) if MoE has nothing above ~20 ms/chunk recoverable,
+    take the ConvMix + looped blend fusion (~15 ms) instead, bitwise, flag off. Compile on bespin, GPU only in endor slots.
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
