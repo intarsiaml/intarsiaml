@@ -1037,7 +1037,20 @@ fn row_masks(engine: &dyn Engine, g: &Golden, prompts: &[(String, PromptRef)], r
         };
         return Ok(RowMasks { scored: prompts.iter().map(|p| vec![true; p.1.ids.len()]).collect(), how });
     };
-    let resolved = fmt.resolve(&|t| engine.tokenize(t, false).map_err(|e| anyhow!("{e}")))?;
+    let tok = |t: &str| engine.tokenize(t, false).map_err(|e| anyhow!("{e}"));
+    // a golden whose `template` metadata names a format this tokenizer cannot resolve (the Inkling-2 goldens say `chatml`, the
+    // tool's default) falls back to the recipe's `[accuracy] chat_turns`; where the golden's format resolves nothing changes
+    let (fmt, src, resolved) = match fmt.resolve(&tok) {
+        Ok(r) => (fmt, src, r),
+        Err(e) => match from_recipe()? {
+            Some((f, s)) if src == "golden template" && !std::ptr::eq(f, fmt) => {
+                let r = f.resolve(&tok)?;
+                eprintln!("accuracy: the golden's template {:?} does not fit this tokenizer ({e}); using {} ({s})", fmt.name, f.name);
+                (f, format!("{s}, golden template {:?} does not fit the tokenizer", fmt.name), r)
+            }
+            _ => return Err(e),
+        },
+    };
     let scored: Vec<Vec<bool>> = prompts
         .iter()
         .zip(&kinds)
