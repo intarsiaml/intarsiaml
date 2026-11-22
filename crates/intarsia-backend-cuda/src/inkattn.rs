@@ -12,6 +12,8 @@
 //! * `rel_sink_attn_bf16_flash` (T > 16, priority 5): flash attention for prefill chunks, then the cache-write pass. Not
 //!   bitwise the rows-exact kernel (like Metal's `rel_sink_attn_bf16_nax`).
 //! * `ink_attn_decode_bf16` (op 75, 1..=16 rows): the two in one stage-1 kernel, bitwise the pair.
+//! * `ink_attn_prefill_bf16` (op 75, more than 16 rows): the prologue writes r instead of the rel table, the flash kernel forms
+//!   the bias; bitwise the pair with `rel_sink_attn_bf16_flash`.
 
 use crate::kernels::ARCH;
 use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
@@ -21,6 +23,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("rel_sink_attn_bf16", Op::RelSinkAttn),
     ("rel_sink_attn_bf16_flash", Op::RelSinkAttn),
     ("ink_attn_decode_bf16", Op::InkAttnDecode),
+    ("ink_attn_prefill_bf16", Op::InkAttnDecode),
 ];
 
 /// bf16-rounded outputs: a one-ulp flip is allowed (the backend's shared budget).
@@ -62,6 +65,16 @@ fn flash_ok(s: &ShapeInfo) -> bool {
     attn_ok(s) && s.head_dim >= 16 && s.m > intarsia_core::inkling2::ops::ATTN_DECODE_MAX_ROWS
 }
 
+/// Prefill chunks of `InkAttnDecode` (brief 30a): the prologue + flash with the rel bias formed in the kernel.
+fn prefill_ok(s: &ShapeInfo) -> bool {
+    flash_ok(s) && s.n_heads / s.n_kv_heads <= 3
+}
+
+/// q [T,H,D], k / v [T,Hk,D] and r [T,H,dr] bf16 (dr <= 16 is checked at launch, sized for 32).
+pub fn prefill_scratch(s: &ShapeInfo) -> usize {
+    (s.m * s.n_heads * s.head_dim + 2 * s.m * s.n_kv_heads * s.head_dim + s.m * s.n_heads * 32) * 2
+}
+
 /// `attn_scratch` plus the staged K / V cache rows `[2][T][Hk][D]` bf16 of the fused kernel.
 pub fn decode_scratch(s: &ShapeInfo) -> usize {
     attn_scratch(s) + 2 * s.m * s.n_kv_heads * s.head_dim * 2
@@ -80,6 +93,8 @@ pub fn all() -> Vec<KernelImpl> {
                 // prefill chunks: priority over the rows-exact kernel (like Metal's rel_sink_attn_bf16_nax), not bitwise it
                 "rel_sink_attn_bf16_flash" => k.weights(bf).when(flash_ok).priority(5),
                 "ink_attn_decode_bf16" => k.weights(bf).when(decode_ok).scratch(decode_scratch),
+                // prefill chunks: bitwise the pair (prologue + rel_sink_attn_bf16_flash)
+                "ink_attn_prefill_bf16" => k.weights(bf).when(prefill_ok).scratch(prefill_scratch),
                 other => unreachable!("inkling2 attention kernel {other} has no registration"),
             }
         })
@@ -212,7 +227,7 @@ mod launch {
                     }
                     "rel_sink_attn_bf16" => ik_rel_sink_attn_bf16(i(0), i(1), i(2), i(3), i(4), i(5), i(6), ap, on(0), on(1), on(2), sc, pos, s),
                     "rel_sink_attn_bf16_flash" => ik_rel_sink_attn_bf16_flash(i(0), i(1), i(2), i(3), i(4), i(5), i(6), ap, on(0), on(1), on(2), sc, pos, s),
-                    "ink_attn_decode_bf16" => ik_ink_attn_decode_bf16(
+                    "ink_attn_decode_bf16" | "ink_attn_prefill_bf16" => ik_ink_attn_decode_bf16(
                         i(0),
                         i(1),
                         i(2),

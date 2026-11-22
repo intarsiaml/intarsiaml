@@ -467,6 +467,51 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     }
                 }
             }
+            if !quick {
+                // prefill chunks (brief 30a: op 75 above 16 rows where a backend admits it), the real model: sliding (ring of
+                // 1040, before and past a wrap) and full layers (linear cache, dynamic conv + tau), context 0 and > 0
+                let (h, hk, dh, dr, e, kk) = (24usize, 8usize, 128usize, 16usize, 1024usize, 4usize);
+                let ckv = hk * dh;
+                let rr = kk - 1 + 16;
+                for t in [17usize, 64, 2048] {
+                    for (win, ring, pos0) in [(1024usize, true, 0usize), (1024, true, 3001), (0, false, 0), (0, false, 1500)] {
+                        let dynamic = !ring;
+                        let cr = if ring { 1040 } else { pos0 + t + 64 };
+                        let pw = if dynamic { ckv + hk * kk } else { ckv };
+                        let kc = rand_t(rng, W, &[hk, cr, dh], 1.5);
+                        let vc = rand_t(rng, W, &[hk, cr, dh], 1.0);
+                        let inputs = vec![
+                            rand_t(rng, W, &[t, nq(h, dh, dr)], 1.0),
+                            rand_t(rng, W, &[t, pw], 1.0),
+                            rand_t(rng, W, &[t, pw], 1.0),
+                            rand_t(rng, W, &[kk, ckv], 0.5),
+                            rand_t(rng, W, &[kk, ckv], 0.5),
+                            pos_t(rng, W, &[h, dh], 0.2, 3.0),
+                            pos_t(rng, W, &[h, dr], 0.2, 1.5),
+                            rand_t(rng, W, &[dr, e], 0.25),
+                            kc.clone(),
+                            vc.clone(),
+                        ];
+                        let outputs = vec![
+                            out(W, &[t, h * dh]),
+                            inout(kc),
+                            inout(vc),
+                            inout(rand_t(rng, W, &[rr, ckv], 1.0)),
+                            inout(rand_t(rng, W, &[rr, ckv], 1.0)),
+                        ];
+                        let mut a = OpAttrs { pos0, n_heads: h, n_kv_heads: hk, head_dim: dh, window: win, scale: (dh as f32).powf(-0.5), ..a0.clone() };
+                        a.ink.qk_clip = 16.0 * 2f32.sqrt();
+                        a.ink.rel_clip = 2.0;
+                        a.ink.dyn_conv = dynamic;
+                        a.ink.d_rel = dr;
+                        a.ink.kv_ring = ring;
+                        if dynamic {
+                            (a.ink.tau_floor, a.ink.tau_alpha) = (1024, 0.1);
+                        }
+                        push(format!("prefill T={t} W={win} ring={ring} Cr={cr} Rr={rr} pos0={pos0} dyn={dynamic} bf16"), inputs, outputs, a);
+                    }
+                }
+            }
         }
         Op::MoeExpertsMxfp8 => {
             let mut shapes: Vec<(usize, usize, usize, usize, usize)> = vec![(1, 16, 4, 64, 32), (7, 16, 4, 64, 64), (16, 16, 4, 128, 32), (40, 16, 4, 64, 32)];

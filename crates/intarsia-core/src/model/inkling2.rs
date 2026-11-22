@@ -1071,7 +1071,8 @@ impl Model {
                             })
                 }
             };
-            let want_fused = !dumping && t <= 16 && (rule || !pair_rows);
+            // prefill chunks (brief 30a): op 75 wherever the backend admits it (CUDA), else the pair
+            let want_fused = !dumping && if t <= 16 { rule || !pair_rows } else { batch.is_none() };
             let fused = want_fused.then(|| {
                 let mut fa = aa.clone();
                 fa.ink = InkAttrs { kv_ring: l.local, ..pa.ink };

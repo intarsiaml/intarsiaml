@@ -95,7 +95,7 @@ fn visit(be: &dyn Backend, window: usize, ring: bool, cr: usize, t: usize, pos0:
         a.clone(),
     );
     att.scratch = scratch(be, "rel_sink_attn_bf16", &att);
-    let fused = (t <= 16).then(|| {
+    let fused = Some(()).map(|()| {
         let mut inputs = pro_in;
         inputs.push(tr(&kc, &[HK, cr, DH]));
         inputs.push(tr(&vc, &[HK, cr, DH]));
@@ -105,13 +105,18 @@ fn visit(be: &dyn Backend, window: usize, ring: bool, cr: usize, t: usize, pos0:
             vec![tr(&o, &[t, H * DH]), tr(&kc, &[HK, cr, DH]), tr(&vc, &[HK, cr, DH]), tr(&kr, &[RR, ckv]), tr(&vr, &[RR, ckv])],
             a,
         );
-        f.scratch = scratch(be, "ink_attn_decode_bf16", &f);
+        f.scratch = scratch(be, fused_name(t), &f);
         f
     });
     Visit { pro, att, fused }
 }
 
 /// Microseconds per visit of `body` over all visits: (eager, graph replay).
+/// Op 75's kernel: the stage-1 decode kernel to 16 rows, the prefill (r in flash) kernel above.
+fn fused_name(t: usize) -> &'static str {
+    if t > 16 { "ink_attn_prefill_bf16" } else { "ink_attn_decode_bf16" }
+}
+
 fn time(be: &dyn Backend, visits: &[Visit], reps: usize, body: &dyn Fn(&Visit)) -> (f64, f64) {
     for v in visits {
         body(v);
@@ -179,7 +184,7 @@ fn ink_attn_timing() {
                     launch("ink_kv_prologue_bf16", &v.pro);
                     launch(an, &v.att);
                 });
-                let fused = if visits[0].fused.is_some() { Some(time(be, &visits, reps, &|v| launch("ink_attn_decode_bf16", v.fused.as_ref().unwrap()))) } else { None };
+                let fused = if visits[0].fused.is_some() { Some(time(be, &visits, reps, &|v| launch(fused_name(t), v.fused.as_ref().unwrap()))) } else { None };
                 let vis = if ring { (ctx + t).min(window) } else { ctx + t };
                 let kv_mb = (vis * HK * DH * 2 * 2) as f64 / 1e6;
                 let f = fused.map_or("-".to_string(), |(e, g)| format!("{e:.1} / {g:.1}"));

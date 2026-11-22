@@ -229,7 +229,8 @@ pub enum Op {
     InkInProj,
     /// Inkling-2 sublayer boundary: `SconvRes`, then the next depth mix, optional blend and norm.
     ConvMix,
-    /// Inkling-2 fused decode attention (1..=16 rows): exactly `RelSinkAttn(InkKvPrologue(..))` (lane ink-m-attn).
+    /// Inkling-2 fused attention (decode rows; prefill chunks where a backend admits them): exactly
+    /// `RelSinkAttn(InkKvPrologue(..))` (lane ink-m-attn).
     InkAttnDecode,
     // reserved ONCE (2026-11-21, coordinator): placeholder discriminants 76..=95 for the Inkling-2 lanes, four each (ink-dfuse
     // 76-79, ink-pack12 80-83, ink-d1row 84-87, ink-fp8 88-91, ink-mtp 92-95). A lane replaces only its own placeholders, in

@@ -214,6 +214,12 @@ impl Backend for CpuBackend {
                 fr.name = format!("{}_rows", f.name);
                 [rr.row_table(), fr.row_table()]
             });
+            // InkAttnDecode: decode / verify rows only (prefill chunks take the pair; inkling2::ops module doc)
+            if op == Op::InkAttnDecode {
+                let rows: intarsia_core::registry::Predicate = |s| s.m <= intarsia_core::inkling2::ops::ATTN_DECODE_MAX_ROWS;
+                r = r.when(rows);
+                f = f.when(rows);
+            }
             v.push(r);
             v.push(f);
             v.extend(twins.into_iter().flatten());
