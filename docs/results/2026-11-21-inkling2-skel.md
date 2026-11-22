@@ -27,3 +27,4 @@ Status: in progress.
 - G1(b) budget = **3x** the oracle's own teacher-forced bf16 error (`tf_check(factor=3)`), not 2x.
 - G2: KL21 mean <= 4e-3 (short), <= 6e-3 (long). G3: <= 1.05e-2 (short), <= 1.65e-2 (long), 1.4e-2 (4k). Plus confident rows (p1 - p2 >= 0.5): top-1 misses within the section i allowance (at most 1 per 2000).
 - Metal lanes ink/m-attn, ink/m-mix, ink/m-moe branched from 3feffee6e: op contracts stay stable; message main before any change.
+- Op 75 is reserved for lane ink-m-attn's `InkAttnDecode` (InkKvPrologue + RelSinkAttn fused, decode rows 1..16). This lane never appends at 75 (a new op of mine takes 76, after telling main); the model graph keeps emitting the pair 70 + 71.
