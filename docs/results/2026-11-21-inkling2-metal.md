@@ -993,7 +993,12 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
 - PR #488 CI rerun on a63d06c97: all 6 jobs green (ubuntu cargo test 15 m 9 s). **Merged** into main at 57e1b3332 (merge
   commit). Follow-up: ink/fp8 22689e76c (df7eb7f80, screened greedy head default-on on Metal, Inkling only) merged into
   ink/metal at cdf954b26 with no conflicts; its code differs from ink-fp8's checked tree (#11458, all green) only by this
-  lane's two test-only fixes (040748800, 35a1f17bf). Linux CI steps on bespin for cdf954b26: running.
+  lane's two test-only fixes (040748800, 35a1f17bf).
+- Correction: bespin is a Mac Studio (macOS, M5 Max), not Linux. #11484 (the par test x10) ran on macOS, and the "CI ubuntu
+  steps" run #11492 on cdf954b26 did not mirror CI: its 6 failing test binaries (gdn_verify_metal, inkling2_mix_decode_cpu
+  and the like) all fail at `MetalBackend::new()` / `MetalBackend::arc()`: no Metal device in that ssh session; 141 binaries
+  passed, and nothing failed outside Metal device creation. The ubuntu check for the follow-up is the PR's CI. (That run also
+  touched no GPU work beyond those failed device opens, though it ran as `--load cpu`.)
 - Metal #11440 done (exit 0, 09:29:18-09:59:11, quiet gpu,cpu): 256 greedy ids identical base vs dev for Qwen3-8B (short sha
   d619ede5, 4k feb11f5c) and Llama-3.1-8B-Instruct (short 25bbc20f, 4k eda51e94); `plan show` txt and json byte-identical for
   both. `kernels test --backend metal` 0 FAIL on both: base 56 kernels / 1335 cases, dev 86 kernels / 2915 cases (the Inkling,
