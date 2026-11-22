@@ -984,6 +984,11 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
 - PR #488 opened from 81270f405 (= d111c798a + 040748800 + results doc), without df7eb7f80. spark1 cleanup (#11477 / #11478):
   ~/intarsiaml-inknoop (23 GB: trees, test targets, binaries) removed, one leftover memguard (pid 1397270) stopped; nothing of
   this lane left in spark1's home dir.
+- PR #488 CI: 5 of 6 jobs green; ubuntu `cargo test` failed one test, `par::tests::prewake_keeps_every_task_once_and_measures_the_wait`
+  (`expect("measured")`: the shared pool was held by other tests, so this test's runs went inline and measured nothing). Fix
+  35a1f17bf (test only, coordinator's shape): every-task-once stays strict; the wait is asserted only when a run measured it.
+  bespin #11484: intarsia-core lib 257 passed in each of 10 runs (plain, INTARSIA_HOST_THREADS=4 x5, pool on with
+  --test-threads 2 x3, par:: alone). An endor run queued first (#11483) was cancelled before it started (endor queue).
 - Metal #11440 done (exit 0, 09:29:18-09:59:11, quiet gpu,cpu): 256 greedy ids identical base vs dev for Qwen3-8B (short sha
   d619ede5, 4k feb11f5c) and Llama-3.1-8B-Instruct (short 25bbc20f, 4k eda51e94); `plan show` txt and json byte-identical for
   both. `kernels test --backend metal` 0 FAIL on both: base 56 kernels / 1335 cases, dev 86 kernels / 2915 cases (the Inkling,
