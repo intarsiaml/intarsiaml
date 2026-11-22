@@ -120,6 +120,9 @@ pub struct ModelArgs {
     /// `dflash_config`, `model.safetensors`). CUDA and the CPU backend, single sequence, greedy requests; the target's
     /// embedding and lm_head are used for the draft. A DSpine draft (`tencent/Qwen3.8-27B-DSpine-b16`; cpu and Metal) defaults
     /// `--spec-k` to 3, not the b16 block's 15 (k = 3 measured fastest on Metal; a 16-row verify has not been gated there).
+    /// Inkling-2: the model's own directory (its DSpark draft, `mtp.safetensors` + `mtp_config`; cpu and Metal; up to
+    /// `--spec-k` drafts per pass, fewer when the draft's confidence drops below `INTARSIA_DSPARK_TAU`, default 0.6). Greedy
+    /// requests only: sampled requests take plain steps, so their distribution is unchanged.
     #[arg(long)]
     pub spec_draft: Option<PathBuf>,
     /// With `--spec dflash`: the DCOCO corrector (arXiv 2610.12570) picks each block's tokens from the draft's top-16
