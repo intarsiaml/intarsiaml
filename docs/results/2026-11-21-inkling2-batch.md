@@ -749,3 +749,30 @@ Control vs #11261, side by side (main asked that the two be visibly identical):
 
 The only difference is the batch list (no B 8). #11297 differed from both by `/usr/bin/time -l`, `INTARSIA_INK_PACK12=0`
 (no such switch on e4ebcfe77) and stdout to a file.
+
+## 24. Box-slow control and the B 8 / 16 regression toggles (#11328, quiet, 06:49-~07:25; `.scratch/toggle-11328.log`)
+
+**Control** (#11261's e4ebcfe77 binary, real text, solo + B 16, 1 rep): solo 59.7 tok/s, B 16 90.53 ms: just inside the
+rule (>= 58, <= 92), so the toggles ran. Swap 21.07 / 21.5 GB before and after, +4 swap-ins.
+
+**Toggles** (random ids, #11181's args, `INTARSIA_INK_PACK12=0` everywhere; final tree aede2ff72; the screened head is opt-in
+on ink/metal and no run logged "screened greedy head on"). Batched step ms:
+
+| arm | B 1 | B 8 | B 16 |
+|---|---:|---:|---:|
+| ref 8546d143f | 17.08 | 51.17 | 89.73 |
+| final default | 16.04 | 48.91 | 82.31 |
+| final, dfuse 4 off (ROUTE_FUSED / MSG_PRE / MIX_HOIST / BLEND_NORM_C = 0) | 16.05 | 52.64 | 79.29 |
+| final, hostgap off (HOST_THREADS=1, ARGMAX_V4T=0) | 15.57 | 50.30 | 77.96 |
+| final, dfuse + hostgap off | 16.54 | 47.34 | 77.03 |
+| final default (2) | 15.39 | 46.79 | 79.06 |
+| ref 8546d143f (2) | 16.45 | 52.13 | 86.44 |
+
+**Verdict: no code regression.** In one slot the old tree is not faster than the final one; it is ~8% slower at B 16
+(ref 86-90 vs final 77-82). No switch recovers #11181's 34.93 / 59.96 ms. Main accepted: no bisect.
+
+**Where #11181 sits in time** (fleetq log and log-file times, 11-22, EST): #10900 ~00:09, ink/batch 76cedfc93: B 16 71.2 ms.
+#11057 ~02:xx, merged 8546d143f: 79-81. **#11181 ~03:15-03:49, 8546d143f: 59.96.** #11261 05:52-05:58, e4ebcfe77, random
+run: 74.84. #11266 (ink-metal), c918e9fda: 76.20. #11328 06:49+: ref 86-90, final 77-82. So #11181 is the outlier, not the
+start of a slowdown: the same 8546d143f code measured 79-81 before it and 86-90 after it. Its slot also had the orphaned
+idle 11 GB serve resident (section 14). The GPU-time vs gap diagnostic (queued) is meant to show what differs.
