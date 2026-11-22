@@ -435,3 +435,31 @@ Why the MoE costs this much: at the default prefill chunk of 256 rows a chunk ha
 expert), so every chunk streams all 128 experts' weights again: 573 MB per visit and chunk, x 48 visits x 17 chunks = ~467 GB
 per 4k prefill, ~2.5 s at ~185 GB/s, which is the measured 2526 ms. The GEMM is starved of rows, not slow per FLOP (25 TFLOP
 of expert math in 2.5 s is 10 TFLOP/s). First fix (brief 22): a larger prefill chunk (1024, 2048; Metal runs 2048).
+
+## Prefill chunk sweep at 4k (spark2 #11318, `--quiet gpu,cpu`, P12 on, 4161-token prompt, 64 greedy tokens)
+
+| chunk | prefill ms (rep 1 / 2) | tok/s | decode tok/s | peak RSS | greedy md5 (64 tok) |
+|---|---|---|---|---|---|
+| 256 (default) | 3704 / 3719 | 1123 / 1119 | 33.30 / 33.29 | 19.44 GB | `cbed4e2c…` |
+| 1024 | 2202 / 2179 | 1889 / 1910 | 33.20 / 33.22 | 19.44 GB | `cbed4e2c…` |
+| 2048 | 1963 / 1946 | 2120 / 2138 | 33.31 / 33.34 | 19.44 GB | `cbed4e2c…` |
+
+Same greedy tokens at every chunk; peak RSS unchanged (the 2048-row scratch fits in the existing pools).
+
+nsys (prefill window only):
+
+| | chunk 1024 | chunk 2048 |
+|---|---|---|
+| span / GPU busy | 2415 / 1885.5 ms | 2177 / 1645.5 ms |
+| idle gaps | 529.5 ms (22%) | 531.5 ms (24%) |
+| kernels | 7549 | 5855 |
+| MoE experts (`ink_moe_mma_kernel`) | 1110.2 ms, 480 launches | 883.1 ms, 288 launches |
+| other | 492.8 ms | 475.2 ms |
+| mix / conv / blend | 240.4 ms, 3548 launches | 243.0 ms, 3108 launches |
+| in_proj / matmul (cuBLAS, mma) | 39.5 ms | 41.6 ms |
+
+Idle-gap breakdown at chunk 2048 (`.scratch/gaps.sh`): 5257 gaps under 5 µs sum to 11.2 ms; 9 gaps over 1 ms sum to 516.1 ms, and two of them are 339.2 ms (`rmsnorm` -> first cuBLAS `nvjet_sm121_tst_mma_192x160x64`) and 150.7 ms (`ink_ring` -> first `nvjet_sm121_tss_mma_64x104x64`). Runtime API in the same window: `cuLibraryLoadData` 31 calls 461 ms, `cuKernelGetFunction` 144 calls 303 ms. So the idle time is first-use lazy module loading of cuBLAS kernels in a fresh CLI process, not launch latency. Steady-state (warm serve) prefill at 2048 should approach GPU busy, about 1.65 s = ~2500 tok/s at 4k; not yet measured warm.
+
+Gates at chunk 2048: G2 short PASS (KL21 2.376e-3, 0/363 confident misses), G2 long PASS (3.124e-3, 1/1206), G3 4k PASS (9.671e-3, 2/8229).
+
+Prefill ranking after this: chunk 2048 is a 1.9x prefill win with identical tokens and gates, so flip it (coordinator call). After that, MoE experts are 54% of warm GPU time (883 ms); the next prefill lever is the MoE MMA kernel (W4A4 FP4 tensor cores as vLLM's sm120 path does), then "other" (475 ms, unclassified kernels). Decode MoE repack (~9% decode) remains the decode lever.
