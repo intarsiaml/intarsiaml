@@ -372,4 +372,52 @@ Options, by expected gain per 4-row verify pass:
 Recommendation: run (1); build (2) if the probe shows the gather and `dn_u` above about 10% of the experts time at 4 rows,
 else stop here and report. Expected total from (2) + (3): about 1-5% of the verify pass, 1-4% of decode tok/s.
 
+### Adaptive draft length, offline simulation (brief item 3, design only, CPU: spark2 #11150)
+
+`tools/inkling2_dspark_adaptive.py` walks each text as the engine does. From an anchor, a cycle picks k, accepts
+min(m(t), k) of the oracle's drafts, and moves on by accepted + 1. Cost model, fitted to the measured Metal runs:
+- a plain step is 16.0 ms, each extra verify row +2.9 ms;
+- the drafter is 3.8 ms per cycle it runs (block, head, Markov steps, ingest);
+- a skipped drafter (k = 0) pays only the ingest, 0.7 ms.
+
+The model reproduces the measured fixed policies on greedy within about 1-2%: k3 tau 0.8 81.7 modelled vs 80.64 measured,
+k2 tau 0.6 80.9 vs 79.84. Ids are identical for every policy. Policies:
+- **cumulative p1:** the drafter runs every cycle; draft j is kept while the product of drafts 1..j's top-1 probabilities is
+  >= c (an estimate of P(all j accepted)). A row pays when P x ms per token (about 12.4) > 2.9 ms, i.e. c of about 0.23.
+- **EMA:** a running per-draft acceptance estimate a picks kmax in 0..K by expected tokens per ms; k = 0 skips the drafter,
+  with a k = 1 probe after 8 idle cycles.
+
+Greedy golden (12 texts, the model's own greedy path), modelled tok/s:
+
+| policy | tok/s | vs k3 tau 0.8 | tokens / verify pass | rows / pass |
+|---|---:|---:|---:|---:|
+| spec off | 62.5 | 0.765 | - | 1 |
+| fixed k2 tau 0.6 | 80.9 | 0.990 | 2.25 | 2.79 |
+| **fixed k3 tau 0.8 (chosen)** | 81.7 | 1.000 | 2.56 | 3.12 |
+| fixed k3 tau 0.6 | 84.2 | 1.029 | 2.50 | 3.35 |
+| cumulative p1 >= 0.35, kmax 3 | 84.9 | 1.039 | 2.33 | 3.38 |
+| cumulative p1 >= 0.5, kmax 3 | 85.2 | 1.042 | 2.42 | 3.25 |
+| cumulative p1 >= 0.35, kmax 4 | 86.1 | 1.053 | 2.47 | 3.77 |
+| cumulative p1 >= 0.5, kmax 4 | 87.0 | 1.064 | 2.57 | 3.58 |
+| EMA lambda 0.1, kmax 3, tau 0.6 | 84.1 | 1.029 | 2.48 | 3.23 |
+| EMA lambda 0.1, kmax 4, cumulative p1 >= 0.35 | 85.0 | 1.040 | 2.35 | 3.29 |
+
+Oracle "prose" (2 human texts, teacher-forced): every policy is 0.90-1.04x of k3 tau 0.8, and all are at or below spec off
+(59-62 vs 62.5 modelled). The best are EMA lambda 0.1 + cumulative p1 >= 0.25 (62.2) and EMA lambda 0.2 tau 0.6 (61.4).
+This set is not what decode sees. It scores the draft on human-written text (P(>=1) 0.408), while decode follows the model's
+own greedy continuation. The engine measured 67.8% acceptance and +18% tok/s on its continuations of these prompts (k2
+tau 0.6, #10874), and localeval +26% at 1-16k. So the prose rows are a lower bound for text the model did not write, e.g. a
+rewrite, not a forecast of decode speed.
+
+Reading:
+- The best greedy policy gains about 4-6% over k3 tau 0.8: a per-row cumulative cut (c 0.35-0.5) with kmax 4.
+- The EMA alone adds nothing on greedy; on hard text it can skip the drafter, which none of the others do.
+- The model's gate sensitivity is uncertain. It says tau 0.6 beats 0.8 by 3%, but on Metal they measured equal (80.46 vs
+  80.64). Gains of this size are within the model's error until measured.
+
+Recommendation, not built:
+1. Implement the cumulative cut (c, kmax as env knobs, default off): a few lines in `dspark_draft_inner`'s gate.
+2. Measure c 0.35 / 0.5 at kmax 3 / 4 against k3 tau 0.8 in one quiet job, with real prose continuations (prose.json).
+3. Add the EMA skip only if a workload with low acceptance (rewrites, code edits) turns out to matter.
+
 RESULTS_PLACEHOLDER
