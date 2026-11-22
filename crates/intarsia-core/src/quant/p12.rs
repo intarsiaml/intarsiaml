@@ -34,6 +34,12 @@ pub const ENV: &str = "INTARSIA_INK_PACK12";
 /// Most activation rows a P12 kernel takes (decode and verify; prefill chunks keep the bf16 weights).
 pub const ROWS_MAX: usize = 16;
 
+/// Most rows for which Inkling-2 takes the P12 copy of in_proj and wo; larger calls take the resident bf16 weight (the same
+/// output bits, the kernels are bitwise twins). On endor (M5 Max, #10919) P12 is faster at 1 and 4 rows (in_proj 1.24x /
+/// 1.07x, wo 1.22x / 1.15x) and slower at 16 (0.64x / 0.70x, both ALU-bound). 4 rows also covers MTP k3 verify. The
+/// unembed takes P12 at every row count up to [`ROWS_MAX`] (1.31x at 1 row, still faster at 16).
+pub const DENSE_ROWS_MAX: usize = 4;
+
 /// Bytes of one packed row of K elements.
 pub const fn row_bytes(k: usize) -> usize {
     3 * k / 2

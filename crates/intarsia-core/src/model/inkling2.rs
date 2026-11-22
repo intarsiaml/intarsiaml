@@ -146,7 +146,7 @@ pub(super) struct InkLayer {
     /// `[D, H*Dh]`, bf16 as stored or quantised (`INTARSIA_INK_ATTN_QUANT`).
     pub wo: QTensor,
     /// `INTARSIA_INK_PACK12=1` (lane ink-pack12; lossless): the bf16 in-projection stack and wo as P12 too
-    /// (`quant::p12`), for the 1..=16-row calls where the backend has the kernels; prefill chunks keep the bf16 weights.
+    /// (`quant::p12`), for the 1..=`DENSE_ROWS_MAX`-row calls where the backend has the kernels; larger calls keep the bf16.
     pub in_p12: Option<QTensor>,
     pub wo_p12: Option<QTensor>,
     /// Attention-input norms `[3, D]` (SWA: `attn_norm` three times; full: q / k / v input norms).
@@ -916,10 +916,11 @@ impl Model {
             let pk = TensorRef::new(ws.pk.clone(), act, &[t, l.nk]);
             let pv = TensorRef::new(ws.pv.clone(), act, &[t, l.nk]);
             match &l.in_w {
-                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=16 rows where the backend admits it, else the bf16 stack
+                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows where the backend admits it, else the
+                // bf16 stack (the same bits)
                 InkInW::Stacked(w) => {
                     let mut done = false;
-                    if let Some(p) = l.in_p12.as_ref().filter(|_| t <= crate::quant::p12::ROWS_MAX) {
+                    if let Some(p) = l.in_p12.as_ref().filter(|_| t <= crate::quant::p12::DENSE_ROWS_MAX) {
                         let mut c = OpCall::new(Op::InkInProj, vec![xs(nx), p.parts[0].clone(), p.parts[1].clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default());
                         c.exact_rows = self.verifying();
                         if self.registry.select(&c).is_ok() {
@@ -1038,9 +1039,10 @@ impl Model {
             }
             let aproj = plane(&ws.aproj, act, 0, t, d);
             {
-                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=16 rows where the backend admits it, else wo as loaded
+                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows where the backend admits it, else wo as
+                // loaded (the same bits)
                 let mut done = false;
-                if let Some(p) = l.wo_p12.as_ref().filter(|_| t <= crate::quant::p12::ROWS_MAX) {
+                if let Some(p) = l.wo_p12.as_ref().filter(|_| t <= crate::quant::p12::DENSE_ROWS_MAX) {
                     let mut c = p.call(o.clone(), aproj.clone());
                     c.exact_rows = self.verifying();
                     if self.registry.select(&c).is_ok() {

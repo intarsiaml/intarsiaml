@@ -131,7 +131,7 @@ impl Fam {
             [
                 g("INTARSIA_P12_U_PROJ", 2, Fam::Proj.unrolls()),
                 g("INTARSIA_P12_U_RT", 2, Fam::Rt.unrolls()),
-                g("INTARSIA_P12_U_F32O", 4, Fam::F32o.unrolls()),
+                g("INTARSIA_P12_U_F32O", 2, Fam::F32o.unrolls()),
             ]
         });
         c[self as usize]
