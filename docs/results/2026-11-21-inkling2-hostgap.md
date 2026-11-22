@@ -537,7 +537,37 @@ Target: the 1.33 ms soft-cap + sampler share at t1.0 (#10943). The host sampler 
 | models batch / batch_engine (incl. `batched_sampled_equals_solo`) / engine, server lib (incl. `json_schema_batched_sampled_equals_solo`), all three switches on, pool at 8 (tiny vocabularies: the value sort does not engage below 32768 logits; the pre-wake does); docs_env_vars | spark2 #11081 | 6 + 10 + 10, 69, 2: pass |
 | microbench, spark2 (`--load cpu`, shared): value sort vs pair sort on the pool | spark2 #11081 | 0.67-0.74 vs 0.91-0.97 ms (-25 to -30 %), bf16 and f32 rows |
 | microbench, the row work (copy + soft-cap + sample, T 1) after a 15 ms idle gap, without / with pre-wake | spark2 #11081 | 1.53 / 1.14 ms, then 1.65 / 1.76 ms: spark2's shared CPU is too noisy to tell; endor decides |
-| endor, first in #11037 (folded in by the coordinator): one binary from `.scratch/item7`, arms cumulative off / P / PQ / PQV at t1.0 and t0.7, short and 5k, 5 interleaved reps after a warm-up; md5 identical across all arms on every run, plus off vs PQV at top-p 0.95 (t1.0 / t0.7, seeds 7 / 11, short, and 5k at t1.0), seed 11 plain, top-k 20; host profile t1.0 off vs PQV; the microbench with QoS 0 / 1 and VSORT 0 / 1 as separate processes | endor #11037, section 7 (`.scratch/i7/summary.txt`) | pending |
+| endor, first in #11037 (folded in by the coordinator): one binary from `.scratch/item7`, arms cumulative off / P / PQ / PQV at t1.0 and t0.7, short and 5k, 5 interleaved reps after a warm-up; md5 identical across all arms on every run, plus off vs PQV at top-p 0.95 (t1.0 / t0.7, seeds 7 / 11, short, and 5k at t1.0), seed 11 plain, top-k 20; host profile t1.0 off vs PQV; the microbench with QoS 0 / 1 and VSORT 0 / 1 as separate processes | endor #11037, section 7 (02:14-02:29; `.scratch/i7/summary.txt`) | below |
+
+**Endor #11037 section 7 (binary from fb38fe4a5, checked to contain the switches):**
+
+| median tok/s (5 reps) | off | P (pre-wake) | PQ (+ QoS) | PQV (+ value sort) |
+|---|---:|---:|---:|---:|
+| t1.0, short | 57.34 | 57.42 (+0.14 %) | 57.45 (+0.19 %) | 57.60 (+0.45 %) |
+| t0.7, short | 57.33 | 57.31 (-0.03 %) | 57.29 (-0.07 %) | 57.59 (+0.45 %) |
+| t1.0, 5k | 54.43 | 54.45 (+0.04 %) | 54.24 (-0.35 %) | 54.46 (+0.06 %) |
+| t0.7, 5k | 54.42 | 54.51 (+0.17 %) | 54.32 (-0.18 %) | 54.67 (+0.46 %) |
+
+- **Bitwise: yes.** One md5 per workload over all 24 runs (4 arms x 6). Off vs PQV is identical at top-p 0.95 (t1.0 / t0.7,
+  seeds 7 / 11, and 5k), at seed 11 plain, and at top-k 20 / top-p 0.95.
+- **Host profile, t1.0 (one run each), off -> PQV:** wall 17.66 -> 17.39 ms; sync 15.33 -> 15.20; soft-cap 0.29 -> 0.29;
+  accept 1.12 -> 1.04; step-setup 0.88 -> 0.83; GPU idle gap 1.46 -> 1.37 ms. The spinning workers did not slow the GPU
+  (sync did not grow).
+- **The pre-wake did not work, and the soft-cap is unchanged.** The microbench shows why. `thread::sleep(15 ms)` on endor
+  slept 18-22 ms: the measured `prewake` -> `run` estimate came out 20.5-22.5 ms where the bench slept for 15. macOS coalesces
+  timers by several ms, so a ~14 ms timed wait cannot hit a 0.7 ms window, and the workers were still asleep when the logits
+  landed. The bench's after-a-gap timings are bimodal (median 1.2-1.9 ms, p90 4.5-4.9 ms), with or without pre-wake.
+- **QoS: no gain**, slightly below off at 5k. **Value sort: +0.26 to +0.64 % on top of PQ, and the sampler is 0.09 ms faster
+  in the loop.** But endor's isolated microbench does not show it faster than the pair sort (0.80-1.03 ms either way;
+  spark2 showed -25 %).
+- **Merge rule (>= base, bitwise):** PQV meets it on all four workloads. P is level (within noise), and PQ is not
+  (-0.35 % at 5k).
+
+**#11037's device-sampler part did not run.** Its build failed. The job copied `ink/hostgap`'s `target/` into the side
+worktree, and the copy's fresh mtimes made cargo treat `intarsia-core` as up to date (same lockfile and features as the copied
+build), so `intarsia-backend-metal` compiled against an old `Op` without `GumbelArgmax`. Section 7 was not affected: its build
+recompiled `intarsia-core`, and the binary contains the new switches. Fix for the rerun: touch every workspace source after
+copying `target/` (or build without the copy).
 
 Merge rule (coordinator): at least base and bitwise identical, per switch. Each default-on decision gets its own evidence
 from the cumulative arms.
