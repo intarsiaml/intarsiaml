@@ -431,6 +431,22 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
   defaults, pk12check (G2 short + md5 vs the combined-gate tip, batch_step defaults vs P12=0 ABAB x3), localeval speed-plain
   and conc-plain-1k (serve PID sampled for peak memory via lsof), batch_step x3.
 
+### Gumbel merge check #11277 (pinned 3c2d6a732), PASS
+
+| Check | Result |
+|---|---|
+| Metal rows_exact / gumbel | 11 / 2 pass |
+| core op ids (GumbelArgmax 77, InkRoute 76, ALL 96) | 7/7 |
+| cpu gumbel reference | 1/1 |
+| hostgap step 5: default path vs c918e9fda, every switch unset | greedy 64 / 256 md5 65cde8f35... / 61fd59fecb5... SAME; G2 short 2.087e-3 / 2.928e-3, self-golden tensors IDENTICAL |
+| `kernels test --op gumbel_argmax` | `gumbel_argmax_f32` 20 cases, max_abs 0, ADMITTED |
+| serve smoke `INTARSIA_GUMBEL_SAMPLING=1` | log `device sampler (INTARSIA_GUMBEL_SAMPLING): on, kernel gumbel_argmax_f32`; default request HTTP 200 with 32 tokens; sampled stream (temperature 1.0, seed 7) 48 tokens; the same seeded stream twice: identical (md5 4b845d3c...) |
+
+The script's own smoke verdict printed "INVALID (empty)": its parser read only `content`, and Inkling's default (thinking)
+template puts the first 32-48 tokens in `reasoning_content`, so `content` was empty. Re-parsed from the saved responses
+(`.scratch/gum/r_*.json|txt`, both fields): the text above. The script now reads both fields. The device sampler stays off
+by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
+
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
 | Tree | KL21 scored | max | chat_system | chat_reasoning |
