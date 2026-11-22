@@ -453,6 +453,7 @@ mod tests {
     fn screen_finds_the_argmax() {
         let mut rng = Rng(0x5c4ee7);
         let (k, n) = (256usize, 512usize);
+        let mut refused = 0usize;
         for trial in 0..400 {
             let kind = trial % 8;
             // weights: bf16 values; a quarter of the trials put duplicate rows (exact ties) or huge / tiny magnitudes
@@ -494,7 +495,16 @@ mod tests {
             let s = if amax > 0.0 { amax / crate::quant::fp8::MAX } else { 1.0 };
             let q: Vec<u8> = w.iter().map(|x| crate::dtype::f32_to_fp8_e4m3(x / s)).collect();
             let wb: Vec<u8> = w.iter().flat_map(|x| bf_bits(*x).to_le_bytes()).collect();
-            let beta = row_bounds(DType::Bf16, &wb, &q, s, n, k).unwrap();
+            // a head with a row norm of 2^20 or more is refused (the model then keeps the full head): nothing to screen
+            let beta = match row_bounds(DType::Bf16, &wb, &q, s, n, k) {
+                Ok(b) => b,
+                Err(_) => {
+                    let wmax = (0..n).map(|r| w[r * k..(r + 1) * k].iter().map(|&v| (v as f64) * (v as f64)).sum::<f64>().sqrt()).fold(0f64, f64::max);
+                    assert!(wmax >= W_NORM_MAX * (1.0 - 1e-3), "trial {trial}: refused with row norms {wmax:.3e}");
+                    refused += 1;
+                    continue;
+                }
+            };
             let t = crate::quant::reference::e4m3_table();
             // device-like values: the exact logits in one summation order, the screen in another
             let x: Vec<f32> = (0..n).map(|r| h.iter().zip(&w[r * k..(r + 1) * k]).fold(0f32, |acc, (a, b)| a.mul_add(*b, acc))).collect();
@@ -530,6 +540,7 @@ mod tests {
                 assert_eq!(argmax_row(&cand, cnt, &y), want, "trial {trial} kind {kind} cap {cap} cnt {cnt}");
             }
         }
+        assert!(refused <= 100, "{refused} of 400 trials refused by the row-norm cap");
     }
 
     #[test]
