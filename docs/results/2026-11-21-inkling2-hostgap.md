@@ -57,3 +57,45 @@ synchronizes around every op (`Model::exec_call_one` with `profile`), 419 one-di
 with Fable's 0.1.
 
 MEASUREMENT_A_PLACEHOLDER
+
+## Item 5: the speculative draft cycle without a host round trip (proposal, not built)
+
+Read from `ink/mtp` 7c0a2a956 (`crates/intarsia-core/src/model/dspark.rs`, `model/dflash.rs`); the DSpark cycle has three host
+syncs, each followed by host work the GPU waits through:
+
+| sync | where | host work before the GPU has more |
+|---|---|---|
+| S1 | `dspark_ingest` (lazy flush of the verified rows) | download 4 taps x rows x H, `mix` (alpha-weighted tap sum + rms norm) per draft layer, upload per layer |
+| S2 | `dspark_draft`, after the block pass and the base head | download hw / fw / base logits (kmax x V bf16, 2.8 MB at kmax 7), top-64 per row, the r-dim Markov recurrence and the gate |
+| S3 | `forward_verify_run` | the verify rows' argmax (4 B per row), accept, `on_token` per accepted token |
+
+The end state is the token-feedback pattern (`model/feedback.rs`) applied to a cycle: the host reads one small record per cycle
+and has already encoded the next cycle behind it.
+
+What ink-hostgap would provide (generic, no op-sequence dependence):
+
+- H1. A per-cycle record `[n_acc, bonus, k_eff, drafts[7]]` (i32, 40 B) read with the existing `Backend::fence` / `read_after`,
+  the only host read of a cycle.
+- H2. Encode-ahead: cycle c+1 encoded and held (`Backend::hold`, as `feedback_step`) before cycle c's record is read, released
+  when it is. A stop or a constrained request discards the held cycle (`feedback_discard`).
+
+What it needs from the drafter and the target (ops and op contracts: ink-mtp, m-attn, dfuse; not this lane):
+
+- M1. The ingest mix on the device: the weighted sum of 4 taps then RmsNorm. All k+1 verify rows are ingested
+  unconditionally; rejected rows land past the draft cache's device length and are overwritten, as the block scratch already is.
+- M2. The Markov head on the device (top-64 of each base row, the recurrence, the gate), writing drafts and k_eff into the
+  record. Metal has no `topk_rows` today (`supports_topk` false), which is why ink-mtp's device top-k falls back to the host.
+- M3. A verify of kmax + 1 rows always (rows past k_eff computed and ignored), so the verify can be encoded before k_eff is
+  known, and an accept op: drafts vs the verify argmax, giving n_acc and the bonus token.
+- M4. Every position-dependent op of the next cycle takes its position from a device buffer, because `st.len` after a cycle
+  depends on n_acc. The generic Metal attention / KV append / rope have this (`pos_bind`, `use_dev`); Inkling's own ops
+  (`InkKvPrologue`, `RelSinkAttn` / `InkAttnDecode`, the ring slot index) take host `pos0` today. This is the expensive part, and
+  an op-contract change for m-attn and dfuse.
+
+Order of value: S2 is worth removing first. Its host work is the longest (2.8 MB download, top-64 over 7 rows of 200058, the
+recurrence) and it sits in the middle of the cycle. S1 and S3 each cost only the host work before the next encode. Before any of
+it, the per-cycle host ms should be measured. `INTARSIA_DSPARK_PROFILE=1` prints flush / block / head / step0 / ingest. The cycle
+is about 20-25 ms modelled, so a 1 ms host gap per cycle is 4-5 %.
+
+Batched decode (ink-batch keeps graphs off there): the same record per row, with the batch step's existing device top-k path
+for sampled rows (`HeadMode::LastTopK`, CUDA / HIP only). Metal would need `topk_rows` first.
