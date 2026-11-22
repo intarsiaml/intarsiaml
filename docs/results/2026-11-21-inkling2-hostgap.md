@@ -69,6 +69,27 @@ Status: waiting on endor #10943 (items 2 and 3 timing); code done and CPU-checke
   compaction). Build it now, gated by batched sampled tokens identical at B = 4 / 16 on the tiny model on spark2, so it can
   ride in #10943 if the build lands before that job starts.
 
+- 2026-11-21 (coordinator, answers + next build):
+  1. **Waiting on #10943:** the lane starts its own background waiter that returns when #10943 ends.
+  2. **B = 8 instead of 16 in the CPU gate:** accepted.
+  3. **The 35B B = 16 gate:** no. It costs a tight-memory endor job and does not check Inkling. The real Inkling check runs in
+     ink-batch after both branches merge: batched-sampled == solo with the pool at its default and at `INTARSIA_HOST_THREADS=1`.
+  4. **json_schema on the batched sampled path:** write that test now. Tiny model, CPU, pool on vs `INTARSIA_HOST_THREADS=1`,
+     bitwise tokens, on spark2 (`--load cpu`).
+  5. **The ink/metal merge waits for #10943:** agreed. The criterion is unchanged: 5k and t0.7 within 1 % or faster.
+  6. **Next build, after #10943 (the bigger lever):** a device sampler for plain-temperature rows. Serve's default request
+     (temperature 1.0, no top-k or top-p) downloads the full 200k row and samples on the host: about 22 ms per token against
+     16.9 greedy.
+     - Method: Gumbel-max on the device, argmax(softcap(l) / T + g) with g = -log(-log(u)). The device already has the softcap
+       and `argmax_f32_v4t`.
+     - RNG: a counter-based Philox keyed on (seed, row, position), so a fixed seed gives fixed output.
+     - Scope: only rows with no top-k, top-p, min-p, penalties, stop masks or constraints. Every other row keeps today's path.
+     - Opt-in, default off, the lane names the switch. It changes which token a given seed produces, so a default flip is a
+       separate decision.
+     - Tests: a chi-square test of the draw distribution against the exact softmax (small vocab, many draws); a fixed seed
+       gives the same tokens across runs; batch == solo bitwise.
+     - Measure: sampled decode tok/s at t1.0 with the switch on vs off, and vs greedy, in a quiet endor slot.
+
 ## Measurement (before)
 
 ### The integration trace, re-read (no new GPU run)
