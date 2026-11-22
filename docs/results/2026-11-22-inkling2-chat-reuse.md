@@ -133,3 +133,37 @@ rows. So the reused rows must come from passes of >= 17 rows, and the resume poi
   3. #496, after the 05:45 night speed run passes
   4. this PR, after all its gates pass
 - Before merging either of this lane's PRs: merge main in, rerun md5 and the affected tests, and ask the coordinator for the go.
+
+## Gates on bdcdee4b1, the 17-row fix (#11659, endor `--quiet gpu,cpu`, main binary 22303d704): all pass
+
+- T PASS: tiny Metal `inkling2_chat_reuse` 6/6 (with `inkling2_chat_short_remainder_matches_cold`: a 10-row remainder resumes 3
+  rows earlier, bitwise the cold prefill), `inkling2` 11/11, `inkling2_batch` 8/8. CPU on bespin (#11658): the same plus
+  `inkling2_dspark` 3/3, `docs_env_vars` 2/2 and intarsia-core lib 260/260.
+- M PASS: md5 64 `65cde8f3...` and 256 `61fd59fe...`, the same for main, on and off.
+- G PASS: G2 short / long and G3 short / long / 4k self-goldens, on vs main, every tensor bitwise identical.
+- C PASS, solo server, on vs off (off = full re-prefill), text equal everywhere:
+
+| flow | turn-2 prompt | on: reused / TTFT | off: reused / TTFT |
+|---|---:|---:|---:|
+| ~4.6k chat, 189-token reply | 4633 | 4575 / 0.137 s | 0 / 2.108 s |
+| ~16k chat, 256-token reply | 16152 | 16125 / 0.135 s | 0 / 6.918 s |
+| ~4.6k completions, 40 decoded, turn 2 = prompt + 3 tokens | 4560 | 4543 (17 before the end) / 0.075 s | 0 / 1.780 s |
+| 3 turns, reasoning on: turn 2 (reply 1169 before) | 2358 | 1957 / 0.274 s | 0 / 1.187 s |
+| 3 turns: turn 3 (reply 1200 before) | 3043 | 2358 / 0.384 s | 0 / 1.547 s |
+
+- B PASS: B16 serve, 16 concurrent chats. Every turn 2 resumed 3 rows before its turn-1 prompt end (14-row remainders, now 17),
+  and all 16 turn-2 replies equal off and the solo server, forward and shuffled. Device memory in use at start: on 46.02 GiB, off
+  43.30 GiB (+2.72 GiB, the 16 snapshots as planned).
+- R PASS (B16, token-id `/v1/completions`, 16 prompts of 600-660 rows with distinct first tokens, so no request reuses another's
+  rows; turn 2 = turn-1 prompt + 1 / 2 / 8 / 13 / 16 / 17 / 18 / 40 tokens, twice each; reference = the 16 turn-2 prompts cold,
+  0 rows reused):
+  - on, forward and shuffled (turn 1 = 40 tokens decoded, so only the snapshot can serve): resume points 16 / 15 / 9 / 4 / 1 / 0 /
+    0 / 0 rows before the turn-1 prompt end, as the 17-row rule says; all 16 turn-2 replies equal the cold ones.
+  - snapshot off (`INTARSIA_INK_RING_SNAPSHOT=0`, turn 1 = 4 tokens, so the live rings can serve): remainders 1 and 2 go cold
+    (the back-off leaves the live margin), the others resume as on, except two that went cold (8 and 17 in the second half); all
+    16 turn-2 replies equal the cold ones.
+  - main 22303d704 (informational, the same snapshot-off flow): resumes at the prompt end with 2..16-row remainders (1 row before
+    it for the 1-token remainder), and 8 of 16 turn-2 replies differ from the cold ones. That is main's latent bug, which the fix
+    removes.
+
+Marker `.scratch/gate_pass_bdcdee4b1`.
