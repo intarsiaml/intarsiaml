@@ -273,6 +273,16 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   changes by default (split-K blend, MX4 draft head, each with its revert env), every gate by job number, the no-op results.
   Merge only on all-green CI; no force-push; no other lanes' branches. Box: stay on spark2 (`~/intarsiaml-ink-cuda-mixmoe`, its
   baselines); Stage A runs there.
+- (coordinator, 36b) PR #489 merged as main `693f6440e`: merge it once #11498 / #11502 are green, rerun the Inkling CUDA md5s
+  if the merge touches engine code or recipes, then push and open the PR.
+- (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
+  chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
+  is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
+  instead of a plain stage B, ONE expert layout serving both the decode rows path and a block-scaled prefill GEMM, built
+  together. Before building (3), send a design note: layout, kernel path (CUTLASS / cuBLASLt block-scaled or own), expected ms
+  per 8k chunk, effort, quality plan (not bitwise: G3 prefill short / long / 4k within budget; decode unchanged if decode does
+  not use it). Lever 3 (mix row kernels spread over D, ~0.48 s at 8k) goes to cuda-attn after this PR merges; it will touch
+  the ink_row files on main.
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
@@ -899,3 +909,10 @@ unchanged; model g256 spec off 36.66 -> 33.10 tok/s with the same ids. Cause: th
 of dynamic shared memory per block (dn 41 KB), so 1 (gu) / 2 (dn) blocks per SM against the register-limited occupancy of the
 plain kernel; and at a union of 8 each warp has one expert, so `cp.async.wait_all` exposes the whole load before any math.
 Reverted; the job was stopped after the first ABAB pair.
+
+## CUDA no-op on other models (brief 35; #11498, spark2)
+
+Branch `6cbbff7bf` (this lane + ink/cuda-mtp + main `57e1b3332`) against main `57e1b3332`, both built `--features cuda` in the
+same job: Qwen3-8B greedy 256 (chat, no-think) short-0 identical ids (md5 `3d425d4ebaa1`, 15.64 vs 15.67 tok/s) and 4k-0
+identical (md5 `f10cca037c96`, 15.10 both); `plan show` JSON and text byte-identical for the 8B (8973 / 1548 B) and the 35B
+NVFP4 (15570 / 4017 B); `kernels test --quick` on the branch: 128 kernels, 1556 cases, rc 0; ink_rows 8/8.
