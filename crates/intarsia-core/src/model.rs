@@ -2500,6 +2500,9 @@ impl Model {
                     self.backend.download(&self.ws.logits, 0, l, self.stream)?;
                     Ok(l.chunks_exact(v * 4).map(logits_row).collect())
                 })?;
+                for r in rows.iter_mut() {
+                    self.softcap_logits(r);
+                }
             }
             VerifyRead::TopK(k, rows) => {
                 // lane samphost: the top-k of the q rows in one device call, read before the drafter's hooks reuse `ws.logits`
@@ -2514,6 +2517,9 @@ impl Model {
                     } else {
                         StepOut::TopK { ids: tid[r * k..(r + 1) * k].to_vec(), vals: tval[r * k..(r + 1) * k].to_vec() }
                     });
+                }
+                for o in rows.iter_mut() {
+                    self.softcap_step(o);
                 }
             }
         }
@@ -2723,6 +2729,9 @@ impl Model {
                     })?;
                 }
                 (None, _) => {}
+            }
+            for o in rows.iter_mut() {
+                self.softcap_step(o);
             }
             logits.push(rows);
             lo += q.len();
@@ -5624,6 +5633,17 @@ impl Model {
             for x in out.iter_mut() {
                 *x = cap * (*x / cap).tanh();
             }
+        }
+    }
+
+    /// [`Model::softcap_logits`] on a verify row read back for a sampler: the whole row, or a device-side top-k's values (the cap
+    /// is monotone, so the ids and their order stay). The verify head writes pre-softcap logits into `ws.logits` (its device
+    /// argmax is unaffected); a sampled verify must see decode's capped distribution (lane ink-mtp; found by ink-cuda-attn).
+    fn softcap_step(&self, o: &mut StepOut) {
+        match o {
+            StepOut::Logits(l) => self.softcap_logits(l),
+            StepOut::TopK { vals, .. } => self.softcap_logits(vals),
+            _ => {}
         }
     }
 
