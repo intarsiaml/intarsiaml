@@ -89,6 +89,10 @@ pub(super) struct Dspark {
     /// Folded `unembed . hidden_out`: weight `[V, r]` (device), bias `[V]` (host, bf16-rounded).
     fold_w: QTensor,
     fold_b: Vec<f32>,
+    /// `INTARSIA_DSPARK_HEAD` (`mxfp4` default, `fp8`, `bf16`): the draft's own quantised copy of the target unembed for the base
+    /// logits (the draft only proposes, so its head needs no exactness; mxfp4 reads 0.24 GB per cycle instead of 0.92). `None`: the
+    /// target's bf16 head.
+    head: Option<QTensor>,
     /// Host copy of the fold weight (`[V, r]` bf16 bits), for the candidate head.
     fold_host: Vec<u16>,
     /// `INTARSIA_DSPARK_CAND` (default 64): the Markov bias is applied to each step's top-`cand` base logits only (the base read
@@ -296,6 +300,25 @@ pub(super) fn load(
         act_quant: false,
     };
     eprintln!("dspark: Markov fold [{} x {r}] in {:.1} s", dims.vocab, t0.elapsed().as_secs_f64());
+    let hq = std::env::var("INTARSIA_DSPARK_HEAD").unwrap_or_else(|_| "mxfp4".into());
+    let kind = match hq.trim() {
+        "mxfp4" => Some(crate::quant::head::HeadQuant::Mxfp4),
+        "fp8" => Some(crate::quant::head::HeadQuant::Fp8),
+        "bf16" | "0" | "off" | "" => None,
+        other => return Err(Error::invalid(format!("INTARSIA_DSPARK_HEAD={other}: mxfp4, fp8 or bf16"))),
+    };
+    let head = match kind {
+        Some(kind) => {
+            let t1 = Instant::now();
+            let n_all = ui.shape[0];
+            let hq = crate::quant::head::quantize_host(kind, DType::Bf16, target.bytes(unembed_name)?, n_all, h, 0, dims.vocab)?;
+            let q = hq.upload(b)?;
+            add_bytes(q.parts.iter().map(|p| p.nbytes() as u64).sum());
+            eprintln!("dspark: draft head {} [{} x {h}] in {:.1} s", kind.name(), dims.vocab, t1.elapsed().as_secs_f64());
+            Some(q)
+        }
+        None => None,
+    };
     let es = act.size_bytes();
     let alloc = |elems: usize| -> Result<Buffer> {
         add_bytes((elems * es) as u64);
@@ -348,6 +371,7 @@ pub(super) fn load(
         fold_w,
         fold_b,
         fold_host: fw_bits,
+        head,
         cand: std::env::var("INTARSIA_DSPARK_CAND").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(64),
         tau,
         bufs,
@@ -558,7 +582,7 @@ impl Model {
         let hs = n.rows(1, kmax);
         let vocab = self.dims.vocab;
         let base = self.view(&bf.base, act, &[kmax, vocab]);
-        self.proj(&hs, head, &base, profile)?;
+        self.proj(&hs, ds.head.as_ref().unwrap_or(head), &base, profile)?;
         let hw = self.view(&bf.hw, DType::F32, &[kmax, 3 * r]);
         self.exec(Op::Logits, vec![hs, ds.w_h.clone()], vec![hw], OpAttrs::default(), profile)?;
         let dstate = st.dflash.as_ref().unwrap();
