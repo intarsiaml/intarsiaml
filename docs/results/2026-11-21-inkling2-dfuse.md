@@ -1042,7 +1042,7 @@ The self-golden tensors are identical; the files differ only in metadata. Greedy
 lane's defaults md5 from job F. The flip stands (merge b1a4f3f62, no revert). These supersede job F's decode-mode numbers,
 which predate the NE fix.
 
-### Job N (#11362, queued 07:15, snapshot .scratch/snap8 = 914738f23; measurement only): NVFP4 experts at 1 row
+### Job N (#11362, 07:25-07:28, snapshot .scratch/snap8 = 914738f23; measurement only): NVFP4 experts at 1 row
 
 - **Shape at T = 1.** 8 experts per visit, 35.83 MB: gate+up 23.89 MB, down 11.94 MB. The GPU has 40 cores.
   - Gate+up (`ink_moe_gu_nv_a_x`, union): 576 threadgroups of 128 threads (16 rows each, 8 lanes per row, 9 chunk pairs per
@@ -1066,4 +1066,67 @@ which predate the NE fix.
   (crates/intarsia-backend-metal/src/lib.rs:790; lib.rs:13-15 names concurrent dispatch with targeted barriers as a phase B
   option). The only concurrent dispatch is in the ICB path (decode.rs:179). So every dispatch waits for the one before; the
   overlap bound comes later.
+
+### Job N results (raw/N_*)
+
+- **Box: OK.** Median span of reps 1-3 is 13.328 ms; the re-check after the benches read 13.294. Greedy md5 is
+  d03580fb... in all 5 reps.
+- **Streaming floor of one 1-row visit** (raw/N_moebw.txt; no math, every byte loaded once, GPU time, 5 layer copies
+  rotating). An empty dependent dispatch costs 0.81 us.
+
+  | Read | Best config | us / visit | GB/s |
+  |---|---|---|---|
+  | gate+up regions alone (23.89 MB) | 4 loads in flight, 1024 threads, 2304 TGs | 41.76 | 572 |
+  | down regions alone (11.94 MB) | 4 loads in flight, 512 threads, 2304 TGs | 21.57 | 554 |
+  | both, two dependent dispatches (35.83 MB) | best of each | **63.73** | 562 |
+  | both, one dispatch (no dependency) | 2 loads in flight, 1024 threads, 4608 TGs | 61.76 | 580 |
+  | both, two dispatches, at the shipped geometry (1 load, 128 threads, 576 / 288 TGs) | | 71.06 | 504 |
+  | 29 experts (the 4-row union), two dispatches | best 8-expert configs | 223.15 | 582 |
+
+- **Shipped kernels, 1 row** (raw/N_moe_split.txt, wall time of synced batches): 81.9-84.2 us per visit, 426-438 GB/s.
+  Gate+up is 49.7 us (480 GB/s), down 33.3-34.2 us (349-359 GB/s). Fused-down threads 64 / 128 / 256 change nothing
+  (32.6-34.6). At 4 rows the default is 271 us, 487 GB/s (gate+up 520, down 423); m-moe's doc number of 535 does not
+  reproduce on this tree.
+- **1-row variants of the real kernels** (raw/N_moevar.txt, GPU time; prototypes, nothing shipped):
+
+  | Variant | gate+up us | down us | visit us | vs shipped |
+  |---|---|---|---|---|
+  | shipped (run twice) | 47.94 / 48.18 | 31.27 / 31.36 | 79.70 / 79.76 | |
+  | down 2 chunks ahead (dn_nb2) | 47.96 | **27.10** | **77.46** | -2.24 |
+  | down 8 lanes per row, 576 TGs (dn_ld8) | 47.90 | 29.49 | 77.87 | -1.83 |
+  | dn_ld8 + 256 threads | 49.50 | 28.72 | 77.69 | -2.01 |
+  | down 16 lanes per row (dn_ld16) | 47.91 | 30.38 | 78.64 | -1.06 |
+  | gate+up 16 lanes per row, 1152 TGs (gu_lg16) | 48.15 | 31.37 | 81.10 | +1.40 |
+  | gate+up 256 threads (gu_sg8) | 48.62 | 31.41 | 80.29 | +0.59 |
+  | gate+up 2 chunks ahead (gu_nb2) | 52.00 | 32.57 | 86.65 | +6.95 |
+  | gate+up 4 lanes per row (gu_lg4) | 59.60 | 31.39 | 90.93 | +11.23 |
+
+  The "max abs vs shipped" column reads 0 for every variant. With these weights that is weak evidence: every byte was
+  filled with 0x22, and the bf16 roundings of g, u and y hide most order changes. The next probe uses random weights.
+- **Why 438 GB/s at 1 row.**
+  1. Dispatch size is a small part. A perfect stream of the 8 experts reaches 562 GB/s as two dependent dispatches,
+     against 582 for the 29-expert union: about 2 us per visit.
+  2. The dependency between gate+up and down costs about 2 us per visit (63.73 against 61.76 for one dispatch), i.e.
+     about 0.09 ms per token. A persistent gate+up -> down kernel has little to win, so the forward-progress question
+     does not need answering.
+  3. Gate+up runs at the no-math streaming speed of its own geometry: 47.9 us against 47.7 for a no-math kernel of 576
+     TGs x 128 threads with 1 load in flight. Its ceiling is the geometry. But more loads in flight, more threads or more
+     TGs in the real kernel do not help (gu_nb2, gu_sg8, gu_lg16), so per-thread work and registers limit it, not the
+     memory system.
+  4. The fused down runs 7 us over its geometry's no-math time (31.3 against 24.4): its per-lane chain (two slots in
+     sequence per simdgroup, 18 chunks with one load in flight, the barrier and the k-order sum) is latency-bound. Two
+     chunks ahead takes 4.2 us of it.
+- **Ceilings at 44 visits per token.**
+  - Bound: shipped minus the perfect two-dispatch stream = (79.70 - 63.73) x 44 = 0.70 ms. A kernel that does the math
+    cannot reach it fully.
+  - Measured: the best variant (dn_nb2) saves 2.24 us per visit = **0.099 ms per token**, under the 0.3 ms bar. Nothing
+    built.
+- **One more probe before item 1 is closed (job N2).** The candidates not yet tried are aimed at the gate+up's per-thread
+  cost:
+  - a T = 1 instance with one pair per leader (INK_XR 1 instead of 4), fewer registers, bitwise for T = 1 calls;
+  - down with 3 or 4 chunks ahead;
+  - combinations with dn_nb2.
+
+  Random weights for the numerics check, and each variant's maxTotalThreadsPerThreadgroup as an occupancy hint. If the
+  best measured combination stays under 0.3 ms per token, item 1 stops and item 2 starts.
 

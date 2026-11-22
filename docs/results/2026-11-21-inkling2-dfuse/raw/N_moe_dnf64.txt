@@ -1,0 +1,13 @@
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T=    1 Auto         all           83.4 us/call (min     83.1)  union   8.0 experts   429.7 GB/s
+nv T=    1 Auto         gate+up       49.7 us/call (min     49.6)  union   8.0 experts   480.4 GB/s
+nv T=    1 Auto         down          33.3 us/call (min     33.2)  union   8.0 experts   359.2 GB/s
+nv T=    1 Union        all           84.1 us/call (min     83.8)  union   8.0 experts   426.3 GB/s
+nv T=    1 Union        gate+up       49.7 us/call (min     49.4)  union   8.0 experts   480.3 GB/s
+nv T=    1 Union        down          34.1 us/call (min     34.0)  union   8.0 experts   349.8 GB/s
+nv T=    1 Pair         all           83.7 us/call (min     83.6)  union   8.0 experts   428.0 GB/s
+nv T=    1 Pair         gate+up       50.0 us/call (min     49.7)  union   8.0 experts   477.6 GB/s
+nv T=    1 Pair         down          33.6 us/call (min     33.4)  union   8.0 experts   355.9 GB/s
+nv T=    1 Fused        all           83.5 us/call (min     82.9)  union   8.0 experts   429.0 GB/s
+nv T=    1 Fused        gate+up       51.4 us/call (min     50.8)  union   8.0 experts   464.6 GB/s
+nv T=    1 Fused        down          34.6 us/call (min     34.5)  union   8.0 experts   345.3 GB/s
