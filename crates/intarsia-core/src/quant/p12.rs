@@ -312,7 +312,36 @@ pub fn random_weight(rng: &mut crate::rng::SplitMix64, n: usize, k: usize, std: 
 /// 1.2k: 197 vs 182 us per visit; decode-ALU bound), while wo (48 vs 59 us) and the unembed (2873 vs 3756 us) gain. The
 /// kernel stays registered (`INTARSIA_INK_P12_IN_PROJ=1` packs it anyway, for measurement).
 pub fn pack_in_proj(backend: &str) -> bool {
-    backend != "cuda" || std::env::var("INTARSIA_INK_P12_IN_PROJ").is_ok_and(|v| v.trim() == "1")
+    backend != "cuda" || std::env::var("INTARSIA_INK_P12_IN_PROJ").is_ok_and(|v| v.trim() == "1") || in_proj_gemv(backend)
+}
+
+/// `INTARSIA_INK_IN_PROJ_GEMV` (lane ink-cuda-attn): `=1` / `=0` force the GEMV form on / off; unset, [`in_proj_gemv`]
+/// decides per backend. Read once.
+pub fn in_proj_gemv_env() -> Option<bool> {
+    static ON: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| match std::env::var("INTARSIA_INK_IN_PROJ_GEMV").map(|v| v.trim().to_string()) {
+        Ok(v) if v == "1" => Some(true),
+        Ok(v) if v == "0" => Some(false),
+        _ => None,
+    })
+}
+
+/// The in-projection at 1..=[`ROWS_MAX`] rows in the GEMV form (one warp per weight row; on CUDA
+/// `ink_in_proj_{bf16,p12}_gemv`, bitwise twins) instead of the mma form, and its P12 copy packed and used at every such row
+/// count. Default on for CUDA (brief 31, user decision 6, 2026-11-22: +8-9 % spec-off decode; G2 short decode drift 3.73e-3
+/// -> 4.43e-3 accepted, no precision loss in the f64 test), off elsewhere; `INTARSIA_INK_IN_PROJ_GEMV=0` reverts. Rows-exact
+/// either way; the forms sum in different orders, so the switch moves the model's output bits.
+pub fn in_proj_gemv(backend: &str) -> bool {
+    in_proj_gemv_env().unwrap_or(backend == "cuda")
+}
+
+/// Most rows of an in-projection call that take its P12 copy: [`DENSE_ROWS_MAX`], or [`ROWS_MAX`] in the GEMV form.
+pub fn in_proj_rows_max(backend: &str) -> usize {
+    if in_proj_gemv(backend) {
+        ROWS_MAX
+    } else {
+        DENSE_ROWS_MAX
+    }
 }
 
 /// What `INTARSIA_INK_PACK12` (`env`) decides on the backend named `backend`, which registers the P12 kernels

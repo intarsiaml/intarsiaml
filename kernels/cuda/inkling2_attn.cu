@@ -45,6 +45,7 @@ constexpr int F_RING = 2;       // K / V caches are rings
 constexpr int F_KV_WRITE = 4;   // cache write in the attention kernel (else ink_kv_write_k after it)
 constexpr int F_RING_WRITE = 16;  // conv-ring write in the kernel (else ink_ring_write_k after it)
 constexpr int F_AL32 = 64;       // tile kernel: the K / V cache bases are 32-byte aligned (32-byte loads of the cache rows)
+constexpr int F_R_OUT = 128;     // prologue (op 75 prefill): write r [T,H,dr] to relo instead of the rel tail
 constexpr int F_READONLY = 32;    // diagnostic (INTARSIA_INK_TILE_READONLY=1): the tile kernel only reads its K / V (no output)
 
 struct InkP {
@@ -281,6 +282,11 @@ __global__ void __launch_bounds__(256, J <= 4 ? 3 : 2) ink_prologue_k(InkP p) {
         }
     }
     __syncthreads();
+    if (p.flags & F_R_OUT) {
+        // op 75 prefill: the flash kernel forms the rel bias itself from r (the same chain); r is rounded already
+        for (unsigned x = tid; x < G * dr; x += blockDim.x) p.relo[((size_t)t * H + kvh * G + x / dr) * dr + x % dr] = f2b(rsh[x / dr][x % dr]);
+        return;
+    }
     const unsigned per = (E + gridDim.z - 1) / gridDim.z, e1 = min(E, (blockIdx.z + 1) * per);
     for (unsigned e = blockIdx.z * per + tid; e < e1; e += blockDim.x) {
         float rv[4];
@@ -1393,7 +1399,10 @@ __global__ void __launch_bounds__(384) ink_tile_staged_k(InkP p, int min_s, int 
 
 constexpr int FBR = 64;  // query rows per block
 
-template <int D>
+// RIN (op 75 prefill, InkAttnDecode above 16 rows): p.rel is r [T,H,dr] (rounded), and the bias of (row, head, d) is formed
+// here as ink_rel_g forms it (the same chain from 0, j ascending, then the bf16 round): bitwise the table path. Shared memory
+// after K / V: r of the block's rows [FBR][G][16] f32, then the relproj columns of a sub-chunk's distances [FBR + CH][16] f32.
+template <int D, bool RIN>
 __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
     using SM = TileSmem<D>;
     constexpr int LD = SM::LD, NKS = D / 16, NDB = D / 8;
@@ -1458,7 +1467,29 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
     float m[2] = {-INFINITY, -INFINITY}, l[2] = {0.0f, 0.0f};
     const float qsc = __fmul_rn(p.scale, LOG2E);
     const bf16* relh[2] = {rt[0] < T ? p.rel + ((size_t)rt[0] * H + h) * E : p.rel, rt[1] < T ? p.rel + ((size_t)rt[1] * H + h) * E : p.rel};
+    float* rS = (float*)(sm + TileSmem<D>::KV);
+    float* wS = rS + FBR * G * 16;
+    if constexpr (RIN) {
+        for (int x = tid; x < FBR * G * 16; x += blockDim.x) {
+            const int r = x / (G * 16), g = x / 16 % G, j = x % 16, t = rb + r;
+            rS[x] = (t < T && j < dr) ? b2f(p.rel[((size_t)t * H + kvh * G + g) * dr + j]) : 0.0f;
+        }
+    }
     const int c0 = jlo / CH, c1 = jhi / CH;
+    // RIN: the relproj columns of a sub-chunk's distances d = pos0 + rb + i - (jb + CH - 1), i in [0, FBR + CH), go through
+    // registers one sub-chunk ahead (loaded before the previous sub-chunk's math, stored after its barrier): x = tid + 384 w
+    // (G = 3 only) -> (j = x / (FBR + CH), i = x % (FBR + CH)); distances outside [0, E) or j >= dr are zero and not loaded
+    constexpr int WN = ((FBR + CH) * 16 + 383) / 384;
+    unsigned short wreg[RIN ? WN : 1];
+    auto wload = [&](int ci) {
+        const int db = pos0 + rb - (ci * CH + CH - 1);
+#pragma unroll
+        for (int w = 0; w < WN; ++w) {
+            const int x = tid + 384 * w, j = x / (FBR + CH), d = db + x % (FBR + CH);
+            wreg[w] = (x < (FBR + CH) * 16 && j < dr && d >= 0 && d < E) ? __ldg((const unsigned short*)p.rp + (size_t)j * E + d) : (unsigned short)0;
+        }
+    };
+    if constexpr (RIN) wload(c0);
     stage(c0, 0);
     cp_commit();
     for (int ci = c0; ci <= c1; ++ci) {
@@ -1466,6 +1497,15 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
         __syncthreads();
         if (ci < c1) stage(ci + 1, buf ^ 1);
         cp_commit();
+        const int dbase = pos0 + rb - (jb + CH - 1);
+        if constexpr (RIN) {
+#pragma unroll
+            for (int w = 0; w < WN; ++w) {
+                const int x = tid + 384 * w;
+                if (x < (FBR + CH) * 16) wS[(x % (FBR + CH)) * 16 + x / (FBR + CH)] = __uint_as_float((unsigned)wreg[w] << 16);
+            }
+            if (ci < c1) wload(ci + 1);
+        }
         cp_wait<1>();
         __syncthreads();
         if (!wact || jb + CH - 1 < wlo || jb > whi) continue;
@@ -1476,13 +1516,51 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
             if (jb + kb + 15 < wlo || jb + kb > whi) continue;
             // the bias loads first: they do not depend on the scores, so their latency overlaps the QK^T mma
             float bb[2][4];
+            // RIN: the warp's smallest distance in this 16-key step is pos0 + w0 - (jb + kb + 15); at or past E no score is biased
+            if (RIN && pos0 + w0 - (jb + kb + 15) >= E) {
 #pragma unroll
-            for (int nb = 0; nb < 2; ++nb)
+                for (int nb = 0; nb < 2; ++nb) bb[nb][0] = bb[nb][1] = bb[nb][2] = bb[nb][3] = 0.0f;
+            } else if constexpr (RIN) {
 #pragma unroll
-                for (int e = 0; e < 4; ++e) {
-                    const int k = e >> 1, j = jb + kb + nb * 8 + 2 * c4 + (e & 1), d = rhi[k] - j;
-                    bb[nb][e] = (j >= rlo[k] && d >= 0 && d < E) ? __bfloat162float(relh[k][d]) : 0.0f;
+                for (int k = 0; k < 2; ++k) {
+                    const float4* rr4 = (const float4*)(rS + ((rq * 16 + g8 + 8 * k) * G + gh) * 16);
+                    float r[16];
+#pragma unroll
+                    for (int q4 = 0; q4 < 4; ++q4) {
+                        const float4 v4 = rr4[q4];
+                        r[4 * q4] = v4.x, r[4 * q4 + 1] = v4.y, r[4 * q4 + 2] = v4.z, r[4 * q4 + 3] = v4.w;
+                    }
+#pragma unroll
+                    for (int nb = 0; nb < 2; ++nb)
+#pragma unroll
+                        for (int u = 0; u < 2; ++u) {
+                            const int j = jb + kb + nb * 8 + 2 * c4 + u, d = rhi[k] - j;
+                            float b = 0.0f;
+                            if (j >= rlo[k] && d >= 0 && d < E) {
+                                const float4* w4 = (const float4*)(wS + (d - dbase) * 16);
+                                float a = 0.0f;
+#pragma unroll
+                                for (int q4 = 0; q4 < 4; ++q4) {
+                                    const float4 w = w4[q4];
+                                    if (4 * q4 < dr) a = __fmaf_rn(r[4 * q4], w.x, a);
+                                    if (4 * q4 + 1 < dr) a = __fmaf_rn(r[4 * q4 + 1], w.y, a);
+                                    if (4 * q4 + 2 < dr) a = __fmaf_rn(r[4 * q4 + 2], w.z, a);
+                                    if (4 * q4 + 3 < dr) a = __fmaf_rn(r[4 * q4 + 3], w.w, a);
+                                }
+                                b = b2f(f2b(a));
+                            }
+                            bb[nb][2 * k + u] = b;
+                        }
                 }
+            } else {
+#pragma unroll
+                for (int nb = 0; nb < 2; ++nb)
+#pragma unroll
+                    for (int e = 0; e < 4; ++e) {
+                        const int k = e >> 1, j = jb + kb + nb * 8 + 2 * c4 + (e & 1), d = rhi[k] - j;
+                        bb[nb][e] = (j >= rlo[k] && d >= 0 && d < E) ? __bfloat162float(relh[k][d]) : 0.0f;
+                    }
+            }
             float s[2][4];
 #pragma unroll
             for (int i = 0; i < 2; ++i) s[i][0] = s[i][1] = s[i][2] = s[i][3] = 0.0f;
@@ -1787,24 +1865,30 @@ int launch_tile(const InkP& p, int min_s, unsigned ny, cudaStream_t st) {
 
 bool tile_dims(int d) { return d == 16 || d == 32 || d == 64 || d == 128; }
 
-template <int D>
+// the RIN kernel's shared memory past K / V: r [FBR][G][16] and the distance columns [FBR + CH][16], f32
+constexpr size_t flash_rin_bytes(int g) { return (size_t)(FBR * g + FBR + CH) * 16 * 4; }
+
+template <int D, bool RIN>
 int launch_flash_d(const InkP& p, cudaStream_t st) {
     const int G = p.h / p.hk;
+    const size_t smem = TileSmem<D>::KV + (RIN ? flash_rin_bytes(G) : 0);
     static bool attr = false;
     if (!attr) {
-        if (cudaFuncSetAttribute(ink_flash_k<D>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)TileSmem<D>::KV) != cudaSuccess) return IK_ERR_LAUNCH;
+        const size_t mx = TileSmem<D>::KV + (RIN ? flash_rin_bytes(3) : 0);
+        if (cudaFuncSetAttribute(ink_flash_k<D, RIN>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)mx) != cudaSuccess) return IK_ERR_LAUNCH;
         attr = true;
     }
-    ink_flash_k<D><<<dim3(p.hk, (p.t + FBR - 1) / FBR), 128 * G, TileSmem<D>::KV, st>>>(p);
+    ink_flash_k<D, RIN><<<dim3(p.hk, (p.t + FBR - 1) / FBR), 128 * G, smem, st>>>(p);
     return IK_OK;
 }
 
+template <bool RIN>
 int launch_flash(const InkP& p, cudaStream_t st) {
     switch (p.d) {
-        case 16: return launch_flash_d<16>(p, st);
-        case 32: return launch_flash_d<32>(p, st);
-        case 64: return launch_flash_d<64>(p, st);
-        case 128: return launch_flash_d<128>(p, st);
+        case 16: return launch_flash_d<16, RIN>(p, st);
+        case 32: return launch_flash_d<32, RIN>(p, st);
+        case 64: return launch_flash_d<64, RIN>(p, st);
+        case 128: return launch_flash_d<128, RIN>(p, st);
         default: return IK_ERR_SHAPE;
     }
 }
@@ -1910,7 +1994,7 @@ static int rel_sink_attn(const ik_tensor* q, const ik_tensor* k, const ik_tensor
     if (flash) {
         // prefill chunks (rel_sink_attn_bf16_flash): flash attention, the cache write after it
         if (!tile_dims(p.d)) return IK_ERR_SHAPE;
-        IK_TRY(launch_flash(p, st));
+        IK_TRY(launch_flash<false>(p, st));
         const size_t n = (size_t)p.t * p.hk * p.d;
         ink_kv_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p, p.kn, p.vn);
         return ik_launch_status();
@@ -1987,6 +2071,55 @@ extern "C" int ik_rel_sink_attn_bf16_flash(const ik_tensor* q, const ik_tensor* 
     return rel_sink_attn(q, k, v, kc_in, vc_in, rel, pq, a, o, kc, vc, scratch, pos, stream, true);
 }
 
+// InkAttnDecode above 16 rows (prefill chunks): the prologue writes q / k / v and r (not the rel table) to scratch, then the
+// flash kernel forms the bias from r; bitwise the pair (prologue + rel_sink_attn_bf16_flash). Scratch: q [T,H,D], k / v
+// [T,Hk,D], r [T,H,dr] bf16.
+static int ink_attn_prefill(InkP& p, const ik_ink_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc, const ik_scratch* scratch,
+                            const ik_tensor* pos, void* stream) {
+    const int G = p.h / p.hk;
+    if (pos || G != 3 || p.dr > 16 || !tile_dims(p.d)) return IK_ERR_SHAPE;  // G = 3: the RIN staging's thread count
+    if (!ik_aligned16(kc->data) || !ik_aligned16(vc->data)) return IK_ERR_INVALID_ARG;
+    const size_t nq = (size_t)p.t * p.h * p.d, nkv = (size_t)p.t * p.hk * p.d, nr = (size_t)p.t * p.h * p.dr;
+    if (!scratch || !scratch->data || scratch->bytes < (int64_t)((nq + 2 * nkv + nr) * 2) || !ik_aligned16(scratch->data)) return IK_ERR_INVALID_ARG;
+    p.cr = (int)kc->shape[1];
+    p.window = (int)a->window;
+    p.scale = a->scale;
+    p.sk = split_keys(a);
+    p.pos0 = (int)a->pos0;
+    p.pos = nullptr;
+    if (a->kv_ring != 0) p.flags |= F_RING;
+    if (!fits_u32((int64_t)p.hk * p.cr * p.d)) return IK_ERR_SHAPE;
+    bf16* s = (bf16*)scratch->data;
+    p.qo = s;
+    p.ko = s + nq;
+    p.vo = s + nq + nkv;
+    p.relo = s + nq + 2 * nkv;
+    cudaStream_t st = IK_STREAM(stream);
+    // the prologue as ink_kv_prologue_bf16 launches it for T > 4 (one block per (kv head, row)), r out instead of rel
+    InkP pp = p;
+    pp.flags |= F_R_OUT;
+    const bool ring_fused = p.t + p.k <= p.rr + 1;
+    if (ring_fused) pp.flags |= F_RING_WRITE;
+    if (p.d <= 128) ink_prologue_k<4><<<dim3(p.hk, p.t, 1), 256, 0, st>>>(pp);
+    else ink_prologue_k<JMAX><<<dim3(p.hk, p.t, 1), 256, 0, st>>>(pp);
+    if (!ring_fused) {
+        const size_t n = (size_t)p.t * p.hk * p.d;
+        ink_ring_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(pp);
+    }
+    InkP pa = p;
+    pa.flags &= ~(F_RING_WRITE | F_R_OUT);
+    pa.q = p.qo;
+    pa.kn = p.ko;
+    pa.vn = p.vo;
+    pa.rel = p.relo;
+    pa.out = mb(o);
+    pa.kc = mb(kc);
+    pa.vc = mb(vc);
+    IK_TRY(launch_flash<true>(pa, st));
+    ink_kv_write_k<<<(unsigned)((nkv + 255) / 256), 256, 0, st>>>(pa, pa.kn, pa.vn);
+    return ik_launch_status();
+}
+
 extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,
                                        const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp, const ik_tensor* kc_in, const ik_tensor* vc_in,
                                        const ik_ink_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc, ik_tensor* kring, ik_tensor* vring,
@@ -2002,7 +2135,8 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
     IK_TRY(chk(vc, 3));
     if (p.t == 0) return IK_OK;
     const int G = p.h / p.hk;
-    if (p.t > MAXROWS || G > 3 || !tile_dims(p.d)) return IK_ERR_SHAPE;
+    if (p.t > MAXROWS) return ink_attn_prefill(p, a, o, kc, vc, scratch, pos, stream);
+    if (G > 3 || !tile_dims(p.d)) return IK_ERR_SHAPE;
     if (!ik_aligned16(kc->data) || !ik_aligned16(vc->data)) return IK_ERR_INVALID_ARG;
     p.cr = (int)kc->shape[1];
     p.window = (int)a->window;

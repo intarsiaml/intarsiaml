@@ -94,12 +94,22 @@ fn bench_proj(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
     let copies = 4; // 4 x 40 MB
     let ws: Vec<Buffer> = (0..copies).map(|c| bf16_buf(be, &[n, D], 100 + c as u64, (D as f32).powf(-0.5))).collect();
     let wbytes = (n * D * 2) as f64;
+    // the same weights packed to P12 (the generator of bf16_buf, replayed on the host)
+    let p12w: Vec<intarsia_core::quant::QTensor> = (0..copies)
+        .map(|c| {
+            let mut rng = intarsia_core::rng::SplitMix64::new(100 + c as u64);
+            let v = rng.normal_vec(n * D, (D as f32).powf(-0.5));
+            let host = HostTensor::from_f32_as(DType::Bf16, &[n, D], &v);
+            intarsia_core::quant::p12::pack_bytes(&host.data, n, D, 0).unwrap().upload(be).unwrap()
+        })
+        .collect();
+    let p12bytes = p12w[0].parts.iter().map(|t| t.nbytes()).sum::<usize>() as f64;
     println!("== InkInProj [{n}, {D}] bf16, {copies} weight copies of {:.1} MB", wbytes / 1e6);
     for &tr in rows {
         for s in [1usize, 3] {
             let xb = bf16_buf(be, &[s, tr, D], 7 + tr as u64, 1.0);
             let outs: Vec<Buffer> = ns.iter().map(|&nn| be.alloc(tr * nn * 2, MemKind::Device).unwrap()).collect();
-            let names: Vec<&str> = if tr <= 16 { vec!["ink_in_proj_bf16_mma"] } else { vec!["ink_in_proj_bf16_cublas", "ink_in_proj_bf16_mma"] };
+            let names: Vec<&str> = if tr <= 16 { vec!["ink_in_proj_bf16_mma", "ink_in_proj_bf16_gemv"] } else { vec!["ink_in_proj_bf16_cublas", "ink_in_proj_bf16_mma"] };
             for kname in names {
                 let k = kern(ks, kname);
                 let calls: Vec<OpCall> = (0..copies)
@@ -116,6 +126,30 @@ fn bench_proj(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
                 let reps = if tr > 64 { 20 } else { 200 };
                 let (us, mn) = time(be, kname, &calls, reps);
                 println!("proj T={tr:5} S={s} {kname:26} {us:9.1} us (min {mn:8.1})  {:6.1} GB/s weights", wbytes / (us * 1e-6) / 1e9);
+            }
+            if tr <= 16 {
+                // lane ink-cuda-attn (brief 24): the P12 copy of the same weights (lossless, 0.75x bytes) through the P12
+                // InkInProj kernel; INTARSIA_INK_P12_CP=0 times the direct kernel, unset the staged (cp.async) one
+                for kname in ["ink_in_proj_p12_mma", "ink_in_proj_p12_gemv"] {
+                let k = kern(ks, kname);
+                let calls: Vec<OpCall> = (0..copies)
+                    .map(|c| {
+                        let call = OpCall::new(
+                            Op::InkInProj,
+                            vec![t(&xb, DType::Bf16, &[s, tr, D]), p12w[c].parts[0].clone(), p12w[c].parts[1].clone()],
+                            ns.iter().zip(&outs).map(|(&nn, b)| t(b, DType::Bf16, &[tr, nn])).collect(),
+                            OpAttrs::default(),
+                        );
+                        with_scratch(be, &k, call)
+                    })
+                    .collect();
+                let (us, mn) = time(be, kname, &calls, 200);
+                println!(
+                    "proj T={tr:5} S={s} {kname:26} {us:9.1} us (min {mn:8.1})  {:6.1} GB/s codes, {:6.1} GB/s bf16-equivalent",
+                    p12bytes / (us * 1e-6) / 1e9,
+                    wbytes / (us * 1e-6) / 1e9
+                );
+                }
             }
             if s == 1 && tr <= 16 {
                 // the existing best bf16 GEMV over the stacked weight (one launch, `rows_exact` twin) for comparison
@@ -314,10 +348,53 @@ fn bench_mix(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
     }
 }
 
+/// Lane ink-cuda-attn (brief 26): the verify pass's wo [2304 x 3072] and unembed [200058 x 2304] at 1..=8 rows, the bf16 rows
+/// GEMV (what verify runs today) against the P12 rows kernel on the same weights (4 rotating copies of wo; one unembed).
+fn bench_vhead(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
+    for &(n, k, f32o, copies) in &[(2304usize, 3072usize, false, 4usize), (200058, 2304, true, 1)] {
+        let (bf_name, bf_op, pk_name) =
+            if f32o { ("logits_bf16_gemv_rows", Op::Logits, "matmul_p12_logits_gemv_rows") } else { ("matmul_bf16_gemv_rows", Op::Matmul, "matmul_p12_gemv_rows") };
+        let odt = if f32o { DType::F32 } else { DType::Bf16 };
+        let ws: Vec<(Buffer, intarsia_core::quant::QTensor)> = (0..copies)
+            .map(|c| {
+                let mut rng = intarsia_core::rng::SplitMix64::new(300 + c as u64);
+                let v = rng.normal_vec(n * k, (k as f32).powf(-0.5));
+                let host = HostTensor::from_f32_as(DType::Bf16, &[n, k], &v);
+                let b = be.alloc(host.data.len(), MemKind::Device).unwrap();
+                be.upload(&b, 0, &host.data, 0).unwrap();
+                (b, intarsia_core::quant::p12::pack_bytes(&host.data, n, k, 0).unwrap().upload(be).unwrap())
+            })
+            .collect();
+        println!("== {} [{n}, {k}], {copies} weight copies", if f32o { "unembed" } else { "wo" });
+        for &m in rows {
+            let x = bf16_buf(be, &[m, k], 7 + m as u64, 1.0);
+            let o = be.alloc((m * n * odt.size_bytes()).max(16), MemKind::Device).unwrap();
+            for (kname, p12) in [(bf_name, false), (pk_name, true)] {
+                let kk = kern(ks, kname);
+                let calls: Vec<OpCall> = ws
+                    .iter()
+                    .map(|(b, q)| {
+                        let ins = if p12 {
+                            vec![t(&x, DType::Bf16, &[m, k]), q.parts[0].clone(), q.parts[1].clone()]
+                        } else {
+                            vec![t(&x, DType::Bf16, &[m, k]), t(b, DType::Bf16, &[n, k])]
+                        };
+                        let mut c = OpCall::new(if p12 { Op::MatmulP12 } else { bf_op }, ins, vec![t(&o, odt, &[m, n])], OpAttrs::default());
+                        c.exact_rows = true;
+                        with_scratch(be, &kk, c)
+                    })
+                    .collect();
+                let (us, mn) = time(be, kname, &calls, if f32o { 40 } else { 400 });
+                println!("vhead M={m:2} {kname:30} {us:9.1} us (min {mn:8.1})");
+            }
+        }
+    }
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let what: Vec<&str> = {
-        let w: Vec<&str> = args.iter().map(|s| s.as_str()).filter(|a| matches!(*a, "proj" | "moe" | "mix")).collect();
+        let w: Vec<&str> = args.iter().map(|s| s.as_str()).filter(|a| matches!(*a, "proj" | "moe" | "mix" | "vhead")).collect();
         if w.is_empty() {
             vec!["proj", "moe", "mix"]
         } else {
@@ -331,6 +408,7 @@ fn main() {
         match w {
             "proj" => bench_proj(&*be, &ks, if rows.is_empty() { &[1, 2, 4, 8, 16, 2048] } else { &rows }),
             "moe" => bench_moe(&*be, &ks, if rows.is_empty() { &[1, 4, 16, 2048] } else { &rows }),
+            "vhead" => bench_vhead(&*be, &ks, if rows.is_empty() { &[1, 2, 3, 4, 5, 6, 7, 8] } else { &rows }),
             "mix" => bench_mix(&*be, &ks, if rows.is_empty() { &[1, 4, 16, 2048] } else { &rows }),
             _ => {}
         }

@@ -41,7 +41,7 @@ fn backend() -> Arc<dyn intarsia_core::Backend> {
         #[cfg(target_os = "macos")]
         Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
-        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or metal"),
+        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or metal (CUDA registers no row-table kernels for Inkling-2)"),
     }
 }
 
