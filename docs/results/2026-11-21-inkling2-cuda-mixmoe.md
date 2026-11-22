@@ -730,3 +730,26 @@ mix` T=4 loop_blend 30.7 -> 41.0 us (S=1), conv_mix 36.9 -> 47.2 us; T=1 unchang
 to 16 rows x D = 2304 with one CTA after a serial thread-0 partial sum, a tail longer than the launch it saves: nsys (64 tokens) gate 10.1 us + norm 5.3 us
 per call unfused vs 20.3 us fused (3072 calls). Removed in the
 next commit (no env switch left).
+
+### Controller h split-K for decode / verify chunks (bitwise; default on, `INTARSIA_INK_BLEND_SPLITK=0` reverts)
+
+`ink_ctl_kernel` (ink_mix.cu, `5488b8f6d`): for blend chunks of rc <= 16 rows the k range of each 16-row h tile is spread over
+2 x 64-k blocks per warp, 4 warps per CTA (S=1: 18 CTAs x 4 tiles; S=3: 18 x 12). Every warp computes each 16-k step's mma
+tile from zero, as `mma_add` in `ink_mma_gemv` does, and stores it; the last CTA per tile (counter zeroed by the row kernel) adds
+the tiles in k order into an f32 from 0 and rounds once: the same chain of f32 adds as `ink_mma_gemv` / its deep form, so h has
+the same bits. Prefill chunks (rc > 16) keep `ink_mma_gemv`. Scratch +3.5 MB at S=3, D=2304, G=64.
+
+Gate #11430 (spark2, `--quiet gpu,cpu`, `.scratch/skgate.sh`): ink_rows 7/7; loop_blend 27 and conv_mix 532 cases ADMITTED;
+greedy 256 ids md5 `a0e6f47bc45f` in all 6 runs; decode (graphed, spec off, 256 tok) 36.02 / 35.85 / 36.02 tok/s off vs 36.54 /
+36.65 / 36.45 on (+1.6 %). nsys, 64 tokens: controller h `ink_mma_gemv_deep` 3024 x 18.1 us + 48 x 22.3 us (55.9 ms) ->
+`ink_ctl_kernel` 3072 x 11.5 us (35.2 ms), -0.32 ms / token. `ink_bench mix`:
+
+| case | split-K off | on |
+|---|---|---|
+| loop_blend T=1 S=1 / S=3 | 28.7 / 32.8 us | 22.6 / 28.7 us |
+| loop_blend T=4 S=1 / S=3 | 30.0 / 35.7 us | 24.8 / 32.1 us |
+| conv_mix N4 Q1 T=1 S=1 / S=3 | 34.9 / 40.5 us | 28.7 / 35.3 us |
+| conv_mix N4 Q1 T=4 S=1 / S=3 | 36.9 / 43.5 us | 31.4 / 38.2 us |
+
+Default on because it is bitwise (brief 30 rule 2 made split-K opt-in because a split normally changes h's bits; this one does
+not). Branch decode: 34.36 -> ~36.5 tok/s (MoE prefetch, row hoist, controller split-K).
