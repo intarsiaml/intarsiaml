@@ -503,6 +503,10 @@ by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
   nothing committed, ink/metal unchanged at d14028792.
 - 2026-11-22 (coordinator): HOLD: 538a9c283 contains 89270fb58 (screen default on). ink-fp8 commits a one-commit revert of the
   default (unset -> off, `=1` -> on) and sends the hash; merge that, with the same post-merge checks.
+- 2026-11-22 (coordinator): one job under `--quiet gpu,cpu` is fine; honest `--expect` including the build. Lane: ready,
+  not queued: `.scratch/q_fp8merge.sh` -> `jobwrap.sh fp8merge_body.sh` (pinned worktree at the merge commit, screen default
+  printed first, build, Metal suite, admission of 18 Inkling ops incl. matmul_p12 / gumbel_argmax / the screen ops, greedy md5
+  64 / 256 switches unset vs 65cde8f35... / 61fd59fecb...), `--expect 45`.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
