@@ -36,6 +36,14 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
   one built at 22:32 (#10898) from f55bfe8b7's code; the tree at 23:14 was e3f92beff, which differs from f55bfe8b7 only in
   `tests/inkling2.rs` and docs. The 2343bb720 merge (23:32) is docs only, so #10890's binary equals the tip's code.
 
+- 2026-11-21 (coordinator, rule for all lanes): this session and every worktree run on endor, so no local cargo build / check /
+  test or shader compile on endor outside a fleetq slot. macOS compile checks: bespin (`fleetq run --host bespin --load cpu
+  --mem 6 --expect <min>`, a `git archive` copy in ~/intarsiaml-<lane>, toolchain in ~/.cargo/bin; no GPU timing or real model
+  there). CPU tests: spark2. GPU work: endor fleetq jobs. Reading files, git and editing locally are fine. For #10890: it ran
+  while other lanes built and tested on endor (ink-pack12 around 23:35); compare its localeval decode numbers with the baseline
+  62.5 / 62.0 / 60.6 / 57.5 tok/s at 142 / 1k / 4k / 16k, and if any length is more than 1 % lower mark the run possibly
+  contaminated and requeue it.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
