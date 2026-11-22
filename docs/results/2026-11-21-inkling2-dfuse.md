@@ -781,6 +781,12 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
     - real-model md5 and self-golden equality with the switch off;
     - admission at T = 1, 4, 16.
   - **Switch.** A new switch, off by default, like the hoist.
+  - **Build cost to know up front.** The hand-off needs MSL 3.2's device-scope fences, so the split instance must be compiled
+    -std=metal4.0 (METAL4_SOURCES), as ink_route is. That means cutting the row kernel's body out of inkling2_mix.metal (3.1)
+    into a header shared with a metal4.0 file: the same step op 77 was waiting on. With pack12 now merged, it is free
+    unless ink/batch still edits the mix shader. Without the metal4 library, the current kernel stays: the same fallback as
+    InkRoute in tests/inkctrl_nometal4.rs. The per-row counters use the backend's sync arena (sync.rs), as ink_route does;
+    the encoder is not touched.
 - **Step 1, before building (needs the go-ahead): a probe.** Add an `--evict MB` mode to `ink_ctrl_bench` that streams a
   buffer of about 256 MB between units, so the bench reproduces the stream's 13-18 us. Then time a phase-1-only split
   prototype in the bench, with no model run and no shipped kernel.
