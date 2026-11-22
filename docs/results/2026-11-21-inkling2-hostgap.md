@@ -1,6 +1,6 @@
 # Inkling-2-Mini Metal decode: host gap (lane ink-hostgap, 2026-11-21)
 
-Status: #10943 done (items 2 and 3 measured: no regression, sampled decode +2.7-3.6 %, md5 identical); the device sampler (item 6) waits on endor #11037; ink/metal merge cleared. Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwarded to e61f392fd), not pushed.
+Status: #10943 done (items 2 and 3 measured: no regression, sampled decode +2.7-3.6 %, md5 identical); item 7 timed (#11037 section 7: bitwise, PQV +0.45 %, opt-in); the device sampler (item 6) waits on endor #11152 / #11153 (#11037's build failed); ink-metal's merge of 9a38f0224 is approved but held with the whole merge queue (#11048 decode-mode G2). Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwarded to e61f392fd), not pushed.
 
 ## Briefs received
 
@@ -144,6 +144,11 @@ Status: #10943 done (items 2 and 3 measured: no regression, sampled decode +2.7-
   4. Timing: interleaved ABAB at t1.0 and t0.7, short and 5k. Fold it into #11037 if that has not started, else queue one
      short quiet job.
   5. Merge rule: >= base and bitwise identical.
+- 2026-11-22 (coordinator, in the ink-metal doc, copied here): ink/hostgap 9a38f0224 is ready (spark2 #11072, bespin
+  #11073). ink-metal merges it after #11048 passes, before fp8 and pack12, and leaves the later fb38fe4a5 (opt-in pre-wake /
+  QoS / vsort, untimed at the time) out. State: #11048 failed its decode-mode G2 rows, so every queued merge, this one
+  included, is held until the bisect #11142 lands and the fix passes. fb38fe4a5 has since been timed (#11037 section 7,
+  below): bitwise identical, PQV +0.45 %, still opt-in.
 
 ## Measurement (before)
 
@@ -567,7 +572,10 @@ Target: the 1.33 ms soft-cap + sampler share at t1.0 (#10943). The host sampler 
 worktree, and the copy's fresh mtimes made cargo treat `intarsia-core` as up to date (same lockfile and features as the copied
 build), so `intarsia-backend-metal` compiled against an old `Op` without `GumbelArgmax`. Section 7 was not affected: its build
 recompiled `intarsia-core`, and the binary contains the new switches. Fix for the rerun: touch every workspace source after
-copying `target/` (or build without the copy).
+copying `target/` (or build without the copy). Requeued 2026-11-22 02:40 as two jobs: #11152 (`--load cpu`, `.scratch/endorgumbel_build.sh`: touch
+every tracked file under `crates/`, release build, Metal and 8B model test binaries `--no-run`; `.scratch/gmb/prebuild.txt`)
+and #11153 (`--quiet gpu,cpu`, `--expect 90`, `.scratch/endorgumbel2.sh`: sections A / B / C / E of #11037 unchanged, no
+section 7). #11037's own summary and build log are kept as `.scratch/gmb/summary_11037.txt` / `build_11037.log`.
 
 Merge rule (coordinator): at least base and bitwise identical, per switch. Each default-on decision gets its own evidence
 from the cumulative arms.
@@ -686,7 +694,7 @@ without a seed gets a fresh one (time mixed with a process counter).
 | `batch_engine` 10/10, `engine` 10/10, `batch` 6/6, `docs_env_vars` 2/2 | spark2 #11013 | pass |
 | wide cpu run on 717139638 (stderr decision line, serve admission of `gumbel_argmax`): core, cpu backend, cli, server (all targets, no fail-fast); `gumbel_engine`, `batch_engine` | spark2 #11034 | 43 binaries ok; 1 failure, `refnoise::rescore_cuda_round7_from_the_committed_table`, which reads `docs/results/2026-10-21-cuda-round7/raw/` that the job's copy left out (`git archive` excluded `docs/results/*/**`), not code; models 2/2 ok |
 | macOS compile: Metal crate with tests, cli `--features metal`, Metal kernel-list pin | bespin #11014 (no Xcode there: the shader compiles on endor) | pass |
-| Metal: shader build first; the whole Metal crate incl. `tests/gumbel.rs` (Metal == definition at V 101 / 4099 / 200058, cap 0 / 30; rows independent; key at an offset; chi-square of the Metal draws at T 0.7 / 1.0, softcap on / off); admission (`gumbel_argmax`, `argmax`); md5 gates (greedy and host-sampled unchanged; device-sampled feedback on == off, twice == once, 5k; every switch-on run must log the device sampler on); t1.0 timing on / off / greedy, short and 5k, 5 reps; host profile; serve smoke with the switch on; `plan show` Qwen3-8B / 35B / Inkling with the switch default-off vs the reference binary; Qwen3-8B (and tiny GDN) Metal model tests | endor #11037 (trimmed, `--expect 100`), queued last in line behind #10943 (`.scratch/endorgumbel.sh`, summary `.scratch/gmb/summary.txt`) | pending |
+| Metal: shader build first; the whole Metal crate incl. `tests/gumbel.rs` (Metal == definition at V 101 / 4099 / 200058, cap 0 / 30; rows independent; key at an offset; chi-square of the Metal draws at T 0.7 / 1.0, softcap on / off); admission (`gumbel_argmax`, `argmax`); md5 gates (greedy and host-sampled unchanged; device-sampled feedback on == off, twice == once, 5k; every switch-on run must log the device sampler on); t1.0 timing on / off / greedy, short and 5k, 5 reps; host profile; serve smoke with the switch on; `plan show` Qwen3-8B / 35B / Inkling with the switch default-off vs the reference binary; Qwen3-8B (and tiny GDN) Metal model tests | endor #11037 (trimmed): build failed (stale cloned `target/`, E0599), no gate ran; rerun #11152 (build, `--load cpu`) + #11153 (quiet, `.scratch/endorgumbel2.sh`, summary `.scratch/gmb/summary.txt`), 16th / 17th in line at 02:40 | pending |
 
 **Kernel cost (estimate, to be measured in #11017).** One threadgroup per row runs on one GPU core. Per element the kernel does
 Philox (10 rounds), up to two `precise::log`, and `precise::tanh` with the cap. That is about 150 integer and float ops, roughly
