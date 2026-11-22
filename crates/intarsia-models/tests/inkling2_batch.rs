@@ -153,6 +153,55 @@ fn inkling2_batch_equals_solo_2_5_16() {
     }
 }
 
+/// The rows a sampler reads from batched decode are softcapped as the solo step's (the fixture's
+/// `final_logit_softcapping` is 30): full-logit rows bitwise the solo capped logits, and top-k rows (device top-k on a
+/// backend that has it, else logits) bitwise the k largest of the solo capped logits, with the same ids. Mixed modes in one
+/// batch, 2 / 5 / 16 sequences.
+#[test]
+fn inkling2_batch_sampler_rows_are_softcapped() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let m = load(&dir, 16);
+    let all = [1usize, 7, 8, 9, 12, 13, 3, 30, 17, 64, 5, 41, 2, 24, 50, 11];
+    let mut max_d = 0f32;
+    for n in [2usize, 5, 16] {
+        let (mut solo, mut bat) = pair(&m, &all[..n]);
+        for step in 0..3 {
+            let ids: Vec<u32> = (0..n).map(|s| tok(s, solo[s].len)).collect();
+            let want: Vec<Vec<f32>> =
+                (0..n).map(|s| logits(m.forward(&mut solo[s], &[ids[s]], HeadMode::LastLogits, None).unwrap())).collect();
+            let modes: Vec<HeadMode> =
+                (0..n).map(|s| match (s + step) % 3 { 0 => HeadMode::LastLogits, 1 => HeadMode::LastTopK(8), _ => HeadMode::LastTopK(40) }).collect();
+            let mut refs: Vec<&mut SequenceState> = bat.iter_mut().collect();
+            let got = m.forward_batch(&mut refs, &ids, &modes).unwrap();
+            for (s, (g, w)) in got.into_iter().zip(&want).enumerate() {
+                let what = format!("{n} sequences, step {step}, row {s} ({:?})", modes[s]);
+                match (g, modes[s]) {
+                    (StepOut::Logits(g), _) => {
+                        for (a, b) in g.iter().zip(w) {
+                            max_d = max_d.max((a - b).abs());
+                        }
+                        assert!(g == *w, "{what}: logits row differs from the solo capped logits");
+                    }
+                    (StepOut::TopK { ids: ti, vals }, HeadMode::LastTopK(k)) => {
+                        assert_eq!(ti.len(), k, "{what}: top-k length");
+                        for (&i, &v) in ti.iter().zip(&vals) {
+                            max_d = max_d.max((v - w[i as usize]).abs());
+                        }
+                        let mut order: Vec<usize> = (0..w.len()).collect();
+                        order.sort_by(|&a, &b| w[b].partial_cmp(&w[a]).unwrap().then(a.cmp(&b)));
+                        let want_vals: Vec<f32> = order[..k].iter().map(|&i| w[i]).collect();
+                        let got_vals: Vec<f32> = ti.iter().map(|&i| w[i as usize]).collect();
+                        assert_eq!(vals, got_vals, "{what}: top-k values are not the solo capped logits of their ids");
+                        assert_eq!(vals, want_vals, "{what}: top-k values are not the k largest solo capped logits");
+                    }
+                    (other, mode) => panic!("{what}: {mode:?} gave {other:?}"),
+                }
+            }
+        }
+    }
+    eprintln!("batched sampler rows vs solo capped logits: max |d| = {max_d:e}");
+}
+
 /// Argmax rows (device argmax of the batched head) are the solo step's tokens.
 #[test]
 fn inkling2_batch_argmax_equals_solo() {
