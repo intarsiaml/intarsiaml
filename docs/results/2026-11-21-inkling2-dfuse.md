@@ -1,6 +1,6 @@
 # Inkling-2-Mini decode controller fusion on Metal (lane ink-dfuse, 2026-11-21)
 
-Status: in progress. Changes 1-3 are committed and timed (no gain). Changes 4-5 (load order in the row kernels) are compile-checked on bespin and queued with the per-switch attribution in #10964 (snapshot c98e435a0). The real-model bitwise gate and G2 / G3 are queued in #10952. Branch `ink/dfuse` (from `ink/metal` a88db4620), worktree `.worktrees/ink-dfuse`. Not pushed.
+Status: in progress. Changes 1-3 are committed and timed (no gain). Changes 4-5 (load order in the row kernels) are compile-checked on bespin and queued with the per-switch attribution in #10964 (snapshot 61e954172). The real-model bitwise gate and G2 / G3 are queued in #10952. Branch `ink/dfuse` (from `ink/metal` a88db4620), worktree `.worktrees/ink-dfuse`. Not pushed.
 
 ## Briefs received
 
@@ -75,6 +75,14 @@ Status: in progress. Changes 1-3 are committed and timed (no gain). Changes 4-5 
   toolchain in ~/.cargo/bin); CPU tests on spark2; GPU work in endor fleetq jobs. Reading files, git and editing locally are
   fine. This lane: the compile checks of changes (1) and (2) ran on bespin (#10992, #10995, #10997: the shader through
   MTLDevice runtime compile, `cargo check --release -p intarsia-backend-metal --examples --tests`).
+- 2026-11-22 ~00:30 (coordinator, after the #10952 gate): the gate of changes 1-3 is accepted. Flag: under load the blend
+  tail's slowest batch was 205 ms per 200 calls (~1 ms per call) against 15.4 ms for ink_route. A ticketed in-dispatch
+  hand-off could be spinning on threadgroups that are not co-resident, which risks a stall or hang under real contention
+  (serve with batching, another process on the GPU).
+  1. In #10964 also report the tail's unloaded per-call time and its p99 / max.
+  2. Answer in this doc: is the hand-off bounded under contention, and does it need every threadgroup co-resident?
+  3. The tail can be default-on only if its worst case is bounded and #10964 shows a real decode gain. Otherwise it stays
+     opt-in or is dropped. Route and msg are judged on their own timing.
 
 ## Probes (endor, before any code)
 
@@ -233,5 +241,29 @@ In-stream microbench (`examples/ink_ctrl_bench.rs`, raw/ctrl_bench_C.md; us per 
 - Stress under real GPU load (coordinator condition 3): 12 rounds of the 12000-call watchdog stress ran while the G2 / G3
   model runs loaded the GPU. Every round exited 0 and every call was bitwise. The slowest batch of 200 calls took up to 15.4 ms
   for ink_route (watchdog 270 s) and up to 205 ms for the blend tail (watchdog 660 s). No timeout.
+
+### The blend tail's hand-off: bounded, no co-residency needed (coordinator question, 2026-11-22)
+
+- **Bounded, and no threadgroup has to be co-resident.** A threadgroup's role comes from a ticket it takes from an atomic
+  when it starts (`inkling2_ctrl.metal`, `ink_blend_tail`), not from its grid index. Tickets below S x G are h items, which
+  never wait. A gate item holds a ticket of at least S x G, and it can only have drawn that ticket after all S x G h items
+  drew theirs, so every h item it waits on has already started. The one assumption is that a started threadgroup keeps
+  making progress while other threadgroups of the same dispatch run. Metal documents no forward-progress guarantee, but it
+  also documents no case where a running threadgroup is parked in favour of its siblings, and a switch to another process
+  stops and resumes the whole context. So a gate item spins for at most the remaining time of its stream's h items that are
+  already running. It never waits on a threadgroup that has not been scheduled. Threadgroups that have not started
+  are not waited on by anyone, so the dispatch needs no forward-progress guarantee and no co-residency. The norm runs in the
+  gate item that finishes last (a counter it increments), which waits on nothing. Every counter is reset inside the dispatch
+  by its last user, so nothing carries over between calls or between two steps in flight.
+- **Cost under contention.** Gate items that are waiting occupy their slots and poll one device atomic. If another process
+  holds most of the cores, the h items run slower and the waiting gate items hold their slots longer. That is a slowdown
+  bounded by the h items' time, not a stall.
+- **The 205 ms per 200 calls is mostly host time, not spinning.** The stress test's batch time is wall time for encoding 200
+  calls, each with a freshly allocated and uploaded output buffer (up to 3 x 16 x 2304 bf16), plus the wait. The case mix
+  (D 2304 / 200 / 320, rows 1-16, S 1 / 3) is about 7 ms of GPU work per 200 calls at the microbench's per-call times. The
+  same stress without load (#10879) had a slowest batch of 193 ms; under load it was 72-205 ms over 12 rounds. ink_route's
+  outputs are tiny, which explains its 4-15 ms. #10964 measures the tail's per-call GPU time directly
+  (`ink_ctrl_bench --tail-dist 2000`: one command buffer per dispatch, median / p99 / max), unloaded and while a second
+  process (`.scratch/gpuload.swift`) keeps every GPU core streaming.
 
 PENDING_ATTRIBUTION
