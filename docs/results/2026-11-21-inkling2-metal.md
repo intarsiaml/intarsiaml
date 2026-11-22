@@ -16,7 +16,7 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 | `ink/m-moe` | 98317825d | MoeRoute, NVFP4 SiTU experts, MXFP8 experts (decode + NAX prefill) | `build.rs` (metal4 sources, launcher sources), `kernels.rs` (metal4 list, TABLE, the count test): kept both |
 | `ink/m-mix` | d99d2c0fc (in progress) | InkInProj (73), ConvMix (74), AttnResMix (67), LoopBlend (68), SconvRes (69) | `build.rs`, `kernels.rs`, `lib.rs` (module, launch dispatch): kept all three lanes' entries |
 
-`intarsia kernels test --backend metal --op <op>`, every Inkling op (fleetq job, `.scratch/kt.sh`): all ADMITTED.
+`intarsia kernels test --backend metal --op <op>`, every Inkling op (fleetq #10681): all ADMITTED.
 
 | op | kernel | cases | fail | result |
 |---|---|---:|---:|---|
