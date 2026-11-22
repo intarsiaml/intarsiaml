@@ -352,6 +352,10 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
   probe `INTARSIA_INK_MOE_NAXSKIP` goes behind a new `ink-probe` cargo feature (env var and its tuning row removed, no shader
   change; bespin #11237 check clean with and without the feature, docs_env_vars 2/2, cpu inkling2 8/8). After merging:
   docs_env_vars and one Metal build on the merged tree; no speed gate (default path unchanged).
+- 2026-11-22 (coordinator): every script that starts `intarsia serve` starts it in its own process group, and an EXIT trap
+  TERMs serve, then TERM / KILL the group, checks the port is closed and the group empty (STOP FAILED otherwise); reuse
+  ink-batch's `serve_lib.sh`. Lane: copied to `.scratch/serve_lib.sh`; `serve_le2.sh` uses `start_group` / `stop_group` for
+  both servers (separate .log / .err); tested with a dummy server: normal stop and an early `exit 3` both close the port.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
