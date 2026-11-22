@@ -94,6 +94,12 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
   than the interleaved rep spread; (2) a microbench gain alone is not enough (#10882: fewer dispatches, no decode gain);
   (3) everything else stays opt-in or is dropped; (4) send the per-switch real-step table and the hash to the coordinator
   before ink-metal merges anything.
+- 2026-11-22 ~01:45 (coordinator, go-ahead for job E): best = route + msg + hoist + norm_c is the candidate; dropping the
+  tail is right. Rule for E (#11003): best goes default-on, as one commit with per-switch env offs, if E shows (a) best beats
+  every off rep by more than the off spread at short AND 5k, and (b) G1-G3 pass with best on and greedy md5 equals off. A
+  switch whose leave-one-out costs nothing beyond the spread stays opt-in (minimal default set). Send E's table and the hash;
+  ink-metal then merges ink/dfuse. Fusion should stack with P12 (controllers touch no dense weights); the combined gate on
+  ink-metal confirms it.
 
 ## Probes (endor, before any code)
 
