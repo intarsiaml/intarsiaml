@@ -4,7 +4,28 @@ Branch `ink/m-mix` (worktree `.worktrees/ink-m-mix`, base `3feffee6e`). Target e
 
 ## 0. Briefs received
 
-- None after the initial brief (no SendMessage course corrections arrived during the lane).
+- None during the lane itself.
+- 2026-11-21, coordinator, after the final report: ink-metal merges ink/m-mix at `47570539e`. (1) Commit the two better defaults
+  (gate 4 rows per threadgroup, NE 4 for the row kernel) as one separate commit, revertable alone; (2) one short endor job
+  (default load, honest --expect, build from that commit) running tests/inkmix.rs, rows-exact and admission for the affected
+  kernels plus the 1/16/2048-row bench lines before/after; tiny/CPU parts to spark2 if any; (3) report pass/fail and the
+  numbers, ink-metal merges once it passes. Ideas 1-2 are taken (ink-dfuse: gate+norm fusion and one message mix per pass;
+  ink-prefill: blend prefill); idea 3 goes to ink-batch.
+- 2026-11-21, coordinator, after the shared-slot check: do not merge `25ff7864a` on those numbers. One quiet run
+  (`--quiet gpu,cpu --expect 8`): LoopBlend, ConvMix with blend and plain ConvMix at 1 / 16 / 2048 rows, old vs new defaults
+  alternating in one job (env override, one binary), >= 5 reps each, medians. Both hold -> ink-metal merges `25ff7864a`; only NE 4
+  holds -> add a commit putting BLEND_RB back to 16, that gets merged; neither -> nothing merged. ink-dfuse replaces the gate +
+  norm dispatches with one ticketed dispatch for <= 16 rows (INTARSIA_INK_BLEND_TAIL), so weight the 2048-row line. Record,
+  report the table, stop; keep the worktree until the merge.
+- 2026-11-21, coordinator: finish the quiet LoopBlend run (1 / 16 / 2048 rows), report it, then stop editing inkmix.rs;
+  row-kernel work moves to ink-dfuse (splitting the kernels across threadgroups at T = 1). Both defaults hold -> `25ff7864a`
+  merges into ink/metal; only the row-kernel default holds -> revert BLEND_RB to 16 in its own commit and send the hash.
+- 2026-11-21, coordinator, rule for all Inkling lanes: this session and the worktrees run on endor, so no local cargo build /
+  check / test or shader compile on endor outside a fleetq slot (it skews quiet timing jobs). macOS compile checks on bespin
+  (`fleetq run --host bespin --load cpu --mem 6 --expect <min>`, a `git archive` copy in ~/intarsiaml-<lane>, toolchain in
+  ~/.cargo/bin); CPU tests on spark2; GPU work as endor fleetq jobs. Reading, git and editing locally are fine. This lane ran a
+  few unslotted local commands before the rule (one `cargo check -p intarsia-core`, a few `xcrun metal -c` shader compiles, each
+  seconds long); all builds and tests otherwise ran in endor fleetq slots.
 
 ## 1. What was built
 
@@ -247,3 +268,34 @@ Full-attention visits (8) use the Q=3 ConvMix into them (+2.9 us each). The outp
 5. **InkInProj fp8 / NVFP4 variants** for the opt-in quantized-projection path (perf-strategy lever 4): the same segment-select
    GEMV over fp8 weights would halve the 39.9 MB per visit.
 
+
+## 7. Defaults switch check (commit `25ff7864a`, fleetq #10893, default load, not a quiet slot)
+
+- `tests/inkmix.rs` 3/3 pass (bitwise rows-exact at NE 4 / gate 4 rows); full admission: conv_mix 532/0 (max_abs 4.57e-3),
+  attn_res_mix 97/0, sconv_res 64/0, loop_blend 27/0, all ADMITTED.
+- Bench, same job, before (binary of `3ab0a36e1`) / after, us at 1 / 16 rows: ConvMix plain 8.55 / 9.10 -> 8.90 / 9.64; ConvMix +
+  blend S=3 34.1 / 71.6 -> 36.2 / 65.0; AttnResMix 6.36 / 6.53 -> 5.87 / 5.92; LoopBlend S=3 26.3 / 67.4 -> 36.1 / 83.1 (p10-p90
+  32.8-40.6 and 76-92: noisy, the slot was shared). 2048-row lines were not in this job (the quiet sweep in 3.5 has them).
+- Reading: decode is within +-5 % except LoopBlend, whose after-run is noisy and contradicts the quiet sweep (3.5: 24.9 / 55.3 us
+  at gate 4 rows); it needs one `--quiet gpu,cpu` rerun before the gate change is trusted for decode. Raw: `raw/defaults_check.log`.
+
+## 8. Quiet defaults run (fleetq #10909, `--quiet gpu,cpu`, one binary at `5f3970858`, env override, rounds alternated)
+
+Old = `INTARSIA_INK_MIX_NE=3 INTARSIA_INK_BLEND_RB=16`, new = the `25ff7864a` defaults (NE 4, gate 4 rows). us per call, median of
+5 reps per round; round 1 / round 2. Raw: `raw/quiet_defaults.log`.
+
+| case | rows | old | new | change |
+|---|---:|---:|---:|---:|
+| ConvMix plain | 1 | 8.47 / 8.47 | 8.43 / 8.45 | -0.4 % |
+| ConvMix plain | 16 | 9.05 / 9.05 | 9.15 / 9.20 | +1.4 % |
+| ConvMix plain | **2048** | 275.4 / 274.5 | 232.5 / 232.6 | **-15.4 %** |
+| ConvMix + blend S=3 | 1 | 33.73 / 33.88 | 34.58 / 34.49 | +2.3 % |
+| ConvMix + blend S=3 | 16 | 73.35 / 70.31 | 61.71 / 61.66 | -14 % |
+| ConvMix + blend S=3 | **2048** | 4244 / 4248 | 4187 / 4163 | **-1.7 %** |
+| LoopBlend S=3 | 1 | 24.73 / 24.90 | 24.84 / 24.74 | 0 % |
+| LoopBlend S=3 | 16 | 62.95 / 62.76 | 54.27 / 55.31 | -13 % |
+| LoopBlend S=3 | **2048** | 3923 / 3924 | 3871 / 3875 | **-1.3 %** |
+
+Both settings hold, and every 2048-row line improves. The shared-slot LoopBlend regression in section 7 does not reproduce
+(p10-p90 here is within 0.3 %). The one cost is ConvMix + blend at 1 row, +0.8 us (+2.3 %), from the NE 4 row kernel's pair
+write; ink-dfuse's T = 1 split of the row kernels supersedes that path. Verdict per the brief: `25ff7864a` merges as is.
