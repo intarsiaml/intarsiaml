@@ -228,6 +228,25 @@ evidence that NE 4 is wrong rather than merely reordered remains G2 against the 
 (2) the dump ranking is all `expert_ids` (discrete, uninformative); localizing the NE 4 fault needs the ranking without them
 (next step for the NE 4 lane).
 
+### Merges after the NE fix (2026-11-22)
+
+- Coordinator brief: hostgap 9a38f0224 only if every commit in it is covered by a passed gate (no Gumbel device sampler),
+  else hold until #11182; order hostgap, fp8, prefill, dfuse last, then the combined gate; pack12 after #11194 with its own
+  G2 short + md5 check against the combined-gate tip. Lane: **case 1 applies**: `git grep GumbelArgmax|gumbel` on
+  9a38f0224's crates/ and kernels/ finds nothing; its Gumbel commits are results-doc only (design, op contract notes). Its
+  code is the host sampler pool, row-parallel batched accept, hostprof and the json_schema batched test, covered by #10943
+  (merge rule met), spark2 #10951 / #10958 / #10968 and bespin #11073.
+
+| Merge | Commit | Conflicts |
+|---|---|---|
+| ink/hostgap 9a38f0224 | (fast-forward-free merge) | none |
+| ink/fp8 05438a81f | 26fdda63d | inkmix.rs launch match: kept the fp8 GEMV arm and m-mix/batch's `CONV_MIX_BF16_ROWS` |
+| ink/prefill-merge 05f1c702e | 9d6764682 | inkmix.rs / kernels.rs registration lists: kept fp8's two GEMVs and prefill's `ink_in_proj_bf16_gemv_chunks` |
+| ink/dfuse 00c81dda7 (flip 2f952f697) | b1a4f3f62 | op 76: `InkRoute` replaces the reserved `InkReserved76` in place (77..=95 and fp8's 88-90 kept, `ALL` stays 96); every registration list both sides (cpu fast / reference, cuda / hip exclusion lists, metal build.rs sources, kernels.rs table / register / admission filter, lib.rs dispatch); inkling2.rs both env helpers and `msg_q_all` after fp8's byte count; the mix shader keeps fp8's IP8 instances and dfuse's `ink_blend_norm_c` |
+
+dfuse is last, so its merge b1a4f3f62 is the commit to revert (`git revert -m 1 b1a4f3f62`) if a dfuse check fails.
+Checks: bespin #11199 (workspace `cargo check --tests`, core / cpu tests, cpu inkling2, docs_env_vars), then the combined gate.
+
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
 | Tree | KL21 scored | max | chat_system | chat_reasoning |
