@@ -165,6 +165,9 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   with the defaults, confirmed executed (not the skip path); (3) if either fails, do not merge the flip; report the arm and
   the KL. Fold into #11179 or the post-merge baseline, whichever is first. Lane: #11179 runs on the NE fix alone (no
   dfuse), so both checks go in the combined gate (`.scratch/combgate.sh`, section "dfuse flip check").
+- 2026-11-22 (coordinator): clarification: the combined gate runs after the merges, so if either dfuse check fails, revert
+  the flip's merge commit on ink/metal (`git revert -m 1 <merge>`) before anything else lands on top, then report the failing
+  run and its KL. The rest of the plan is approved. Lane: merge dfuse last, so its merge commit is the tip when the gate runs.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
