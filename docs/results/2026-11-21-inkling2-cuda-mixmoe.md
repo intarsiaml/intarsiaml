@@ -282,6 +282,8 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   the default-on commits for CUDA spec and in_proj GEMV (briefs 31, 32) as a follow-up PR; do not hold #491. Next: gu+dn in one
   launch per layer, build only if bitwise, timebox half a day, keep only at >= 1 % at g256 spec-off in a quiet ABBA, else record
   and stop.
+- (coordinator, 40th, endor rule from ink-metal) `git push` runs the pre-push hook, which runs two `cargo test`s, so every push
+  from endor is a cargo run: push only inside a fleetq slot, e.g. `fleetq run --host endor --load cpu --expect 10 -- git push ...`.
 - (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
   chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
   is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
