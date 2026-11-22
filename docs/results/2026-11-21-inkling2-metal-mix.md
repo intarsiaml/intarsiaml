@@ -42,7 +42,7 @@ table rows, shader lists, the pinned-list test ignores the new-op kernels), `bui
 
 ### 1.2 The row kernel (ConvMix / AttnResMix / SconvRes)
 
-- One threadgroup per row, ceil(D / NE) threads (NE = 3 at D = 2304: 768 threads), thread `tid` owns elements `tid + j * tpg`.
+- One threadgroup per row, ceil(D / NE) threads (NE = 3 at D 2304: 768 threads; NE 4 measured better for prefill, section 3.5), thread `tid` owns elements `tid + j * tpg`.
 - Conv: K taps read position-indexed (`p - l >= pos0` from the call's x, else ring row `(p - l) % Rr`, negative positions zero),
   `y = rA((sum + x) * (K+1)^-0.5)`, then `last` = `rA((res + addend) + y)` (sum), `res + y` (f32) or `y`. The ring rows of the
   call's last `Rr` positions are written in-kernel when no row of the launch reads a ring row another row writes
@@ -181,6 +181,24 @@ per-source branches). One dependent launch of a trivial kernel costs about 4 us 
 two launch costs.
 
 
+### 3.5 Gate geometry and row-kernel width (`raw/blendsweep.log`, binary of `4531bfefc`)
+
+- The gate refactor did not move the timings: LoopBlend S=3 at the old geometry (64 channels, 16 rows per threadgroup) 25.1 / 62.8
+  us at 1 / 16 rows (3.4: 25.5 / 62.7), ConvMix + blend S=3 34.2 / 37.9 / 70.6 us at 1 / 4 / 16 rows (3.4: 35.4 / 39.0 / 71.7).
+- Rows per gate threadgroup: 4 rows is 12 % faster at 16 rows (55.3 vs 62.8 us), equal at 1 row (24.9) and 1 % faster at 2048
+  rows (3878 vs 3924 us); 64 or 128 channels per threadgroup are equal, 256 is slower. **Recommended default: 4 rows, 64
+  channels** (`BLEND_RB = 4`; bits identical, the admission sweep with `INTARSIA_INK_BLEND_RB=4` gives the same max_abs /
+  rel_l2, `raw/adm-knobs.log`). The
+  geometry barely moves the 2048-row blend, so its cost is in the h projection and the per-chunk launches, not the gate shape.
+- Row kernel NE 4 (576 threads per row at D 2304) against NE 3 (768): ConvMix plain 8.45 vs 8.46 us at 1 row, 233 vs 274 us at
+  2048 rows (-15 %); ConvMix Q=3 11.9 vs 11.4 us (+4 %, 8 visits per token); AttnResMix N=4 Q=1 5.41 vs 5.60 us, 137 vs 149 us at
+  2048. **Recommended default: NE 4 from D 2048** (`mix_geom`). NE changes the per-row reduction tree (fixed per D, so still
+  rows-exact) and needs one admission + rows-exact run at NE 4 before it is switched.
+- **Not switched in this branch:** both are two-line changes in `inkmix.rs` (`BLEND_RB`, `mix_geom`); the verification build sat
+  behind 11 queued endor jobs at the end of the lane, so HEAD keeps the verified NE 3 / 16-row defaults that every table here
+  measures. Expected effect: 2048-row ConvMix plain 274 -> 233 us, AttnResMix 149 -> 137 us, 16-row LoopBlend 63 -> 55 us,
+  decode unchanged within 4 %.
+
 ## 4. Launches per visit (decode, my ops)
 
 Visit composition from spec a2 / a12 / a15 and the contract's ConvMix: each visit has two sublayer boundaries (after the attention
@@ -217,15 +235,15 @@ Full-attention visits (8) use the Q=3 ConvMix into them (+2.9 us each). The outp
    floor without a persistent kernel. Also for the skeleton: the loop messages of one pass share their sources (the bank), so
    one AttnResMix with Q = 12 x 4 per pass replaces 12 calls (the kernel takes any Q).
 2. **Blend prefill.** 145 ms per 2048-row chunk. The h projection at 16 rows per chunk is ALU-bound; above 16 rows a NAX GEMM
-   for h (as InkInProj prefill does, not bitwise decode) and a gate geometry sweep (rows / channels per threadgroup are free
-   knobs: `INTARSIA_INK_BLEND_RB`, `_CS`) are the next steps.
+   for h (as InkInProj prefill does, not bitwise decode) is the next step; the gate geometry is already swept (3.5: at most 1 %
+   at 2048 rows). Larger blend chunks (fewer launches per 2048 rows) cost scratch (21 MB per 256 rows).
 3. **A matrix-unit rows-exact GEMV family for 9-16 rows.** InkInProj and `wo` at 16 rows run at 241-269 GB/s against 107 us for NAX.
    A simdgroup-matrix form whose 1-row launch uses the same 8x8 accumulation (x padded to 8 rows) would keep G0 and should take
    16-row verify to about the 8-row cost; the 1-row decode must then be re-measured (it must stay at ~570 GB/s).
 4. **Row-kernel latency.** 8.5 us per ConvMix is about two launch costs; the remaining serial chain is the conv loads, three
    threadgroup reductions and the stores. Prefill at 2048 rows (274 us) is far from the ~100 us byte floor: more rows per
    threadgroup for long chunks is possible only if the per-row reduction tree stays the same (it is per row already, so a
-   multi-row threadgroup that keeps 768 threads per row is a free choice).
+   multi-row threadgroup that keeps the per-row thread count is a free choice).
 5. **InkInProj fp8 / NVFP4 variants** for the opt-in quantized-projection path (perf-strategy lever 4): the same segment-select
    GEMV over fp8 weights would halve the 39.9 MB per visit.
 
