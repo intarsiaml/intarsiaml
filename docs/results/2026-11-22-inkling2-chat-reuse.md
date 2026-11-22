@@ -92,3 +92,27 @@ and were scored afterwards with the job's own scoring code; gate B ran as its ow
    as measured) and the revert env (`INTARSIA_INK_RING_SNAPSHOT=0`) in the body.
 2. Hold the merge for the #491 freeze, as with #496. After #491 lands: merge main in, rerun md5 and the chat-reuse tests, then
    tell the coordinator, who merges #496 and this PR one after the other.
+
+**#11649, gate B: FAIL** on b7351ee4b (endor; B16 serve, 16 concurrent chats sharing a 20-paragraph system preamble).
+- Turn 1 was identical across all arms: on (forward), on (shuffled), off, and the solo server.
+- On turn 2, on forward == on shuffled, and every conversation resumed at its turn-1 prompt end. But 7 of 16 replies (0, 1, 2, 3,
+  7, 10, 15) differed from off and from the solo server. Off == solo on all 16.
+- Memory in use at start: on 46.02 GiB, off 43.30 GiB (+2.72 GiB, the 16 snapshots as planned).
+
+**Cause.** Every turn 2 had a 14-row remainder (808 prompt rows, 794 resumed).
+- Inkling-2 on Metal runs passes of 2..=16 rows on the row-exact kernels (`inkling2::ink_rows_exact`). Those are bitwise the decode
+  step per row, not the fast prefill kernels that a full re-prefill runs for those rows.
+- Metal's reuse rule (`prefix_reuse_min_pass_rows` = 2) assumes any split of a prompt into passes of >= 2 rows is bitwise. That was
+  measured on Qwen3-8B, and it does not hold for Inkling-2.
+- The solo flows above had remainders of 27-685 rows. The tiny Metal tests use chunk 16, where every pass is row-exact. So neither
+  caught it.
+- main has the same latent issue for any Inkling-2 resume with a 2..=16-row remainder, but the 16-row margin made such resumes rare.
+
+**Fix (bdcdee4b1).** `Model::model_min_pass_rows`: for Inkling-2 on Metal with a prefill chunk above 16, the minimum pass is 17
+rows. So the reused rows must come from passes of >= 17 rows, and the resume point backs off until the remainder has >= 17 rows
+(791 instead of 794 here), which is still inside the ring margin below the snapshot.
+- New tiny test `inkling2_chat_short_remainder_matches_cold` (chunk 64). On Metal, a 10-row remainder resumes at 13, bitwise the
+  cold prefill. On cpu (any cut) nothing changes.
+- Gate C gains a "short remainder" flow (`/v1/completions`, turn 2 = turn 1's prompt + a few tokens; the expected resume is 17
+  rows before the prompt's end).
+- The full gate set reruns on the new code.
