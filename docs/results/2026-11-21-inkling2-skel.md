@@ -54,8 +54,8 @@ Op contracts unchanged since the first message to main (3feffee6e).
 | G1 state | chunks 7 and 13 and prefill 9 + token-by-token decode == one-shot prefill, bitwise; rollback by length (speculative tail), prompt reuse at 30 of 40, refusal past the margin, reset to 0; two interleaved sequences == solo; failed pass resets; NoKernel names each op the graph emits (`SconvRes` is not emitted: `ConvMix` covers it) |
 | G2 short | KL21 2.994e-3 (<= 4e-3), confident misses 0 / 363 (<= 1), top-1 99.30 % |
 | G2 long | KL21 3.879e-3 (<= 6e-3), confident misses 1 / 1206 (<= 2), top-1 99.04 % |
-| G3 short | KL21 9.06e-3 (<= 1.05e-2), confident misses 0 / 367, top-1 97.89 % (G3_SHORT_TOOL) |
-| G3 long | KL21 1.410e-2 (<= 1.65e-2), confident misses 0 / 1211, top-1 97.51 % (G3_LONG_TOOL) |
+| G3 short | KL21 9.218e-3 (`accuracy --golden`, <= 1.05e-2; side script 9.06e-3), confident misses 0 / 367, top-1 97.89 % |
+| G3 long | KL21 1.416e-2 (`accuracy --golden`, <= 1.65e-2; side script 1.410e-2), confident misses 0 / 1211, top-1 97.51 % |
 | G3 4k | G3_4K |
 
 KL21 and confident misses: `intarsia accuracy --golden ... --mode prefill --write-self-golden`, the misses (and a KL21 re-check that
@@ -73,7 +73,8 @@ question: capital of France. Need answer accurately. France's capital is Paris. 
 ## Speed (cpu, endor M5 Max, f64 reference kernels)
 
 Decode 1.75 tok/s (chat, 22-token prompt, 48 tokens; 0.27 before the SiTU experts ran their rows in parallel); prefill of the
-long set (1569 positions, 256-row chunks) 621 s before grouping the prefill experts by expert. Weights 13.3 GB, peak RSS about 28 GB.
+long set (1569 positions, 256-row chunks, model load included) 621 s before grouping the prefill experts by expert, 278 s after
+(5.6 tok/s; bitwise the same self-golden on the short set). Weights 13.3 GB, peak RSS about 28 GB.
 Top ops per decode token: `moe_experts` 22.6 s / 2112 calls, `rel_sink_attn` 2.7 s, `conv_mix` 2.2 s, `ink_in_proj` 2.1 s.
 
 ## Not done / limits
