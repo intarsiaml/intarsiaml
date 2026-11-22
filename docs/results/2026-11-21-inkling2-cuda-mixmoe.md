@@ -790,3 +790,51 @@ Clean merge (model.rs, model/inkling2.rs, load.rs auto-merged; no conflicts). Ga
   `20261122-100712-adhoc-intarsia-cuda-mixmoe-merge-mtp-smoke`, 128 forced tokens, 1 rep): 1036 tok prompt TTFT 0.47 s, prefill
   2200 tok/s, decode 42.2 tok/s (peak 75.3); 9251 tok prompt TTFT 3.59 s, prefill 2578 (marginal 2635), decode 50.4 (peak 84.6).
   No error / panic / capture-failure lines in the serve log; stopped clean, port closed.
+
+## Spec-on decode profile (brief 32; #11462, spark2, nsys graph nodes, merged binary)
+
+A cycle = one draft + its verify pass or plain step. g256 spec on: 25.3 ms / token wall, 24.0 GPU busy, 132 cycles of 49 ms,
+1.93 tokens per cycle (spec off 27.6 ms / token). GPU idle with spec on 1.4 ms / token (spec off 0.4). Per-kernel at g256 spec
+on (ms / token): MoE gu 6.56, in_proj `ink_mma_gemv` 4.52, MoE dn 3.60, bf16 `gemv_kernel` 3.29 (verify unembed + wo + draft
+layers), draft head `mxfp4_gemv_kernel` 1.26, P12 1.16.
+
+| target | ms / token at g256 spec on | evidence | owner / status |
+|---|---|---|---|
+| 1. draft head MXFP4 GEMV (200058 x 2304, M = 7, once per cycle) | ~0.7 | 2.44 ms per call, 100 GB/s: the exact-rows draft takes the generic warp-per-row GEMV (72 groups per row: 2-3 per lane, activations re-read per row) | built, below |
+| 2. verify unembed and wo on bf16 instead of P12 | ~0.4 + ~0.27 | unembed `gemv_kernel` 3.87 ms per verify pass vs P12 2.92 at decode; wo 78.7 vs 49.6 us (`inkling2.rs:1132` takes wo_p12 only for t <= DENSE_ROWS_MAX = 4) | handed to ink-cuda-attn (brief 33) |
+| 3. draft MLP layers (bf16, 6 x 177 us per cycle, ~240 GB/s) | ~0.55 | only fewer bytes help (fp8 layers), which trades acceptance | skipped (brief 33) |
+
+Verify-pass MoE: gu 259 us vs 116 at decode (2.2x for ~4.5 rows): the expert union, bandwidth-bound; no target.
+
+g64 spec on (36.05 vs 36.76 tok/s): not acceptance (31.6 %, near g256's 34.1 %). The first draft has one 148 ms host stall
+before the first cuBLASLt / cutlass kernel (lazy init) and 23 ms before the first splitkv: 171 ms one-off, ~2.7 ms / token over
+64 tokens; without it on64 is ~1728 ms vs off 1724.
+
+## DSpark draft head: `matmul_mxfp4_gemv_ink_rows` (default on, `INTARSIA_INK_MX4HEAD=0` reverts)
+
+kernels/cuda/ink_mx4head.cu (`6b20dd184`), registered in inkmoe.rs as a rows-exact `MatmulMxfp4` kernel for 5..=8 rows and
+K <= 3072, W4A16 (priority 5, above `matmul_mxfp4_gemv_rows`). Bitwise `mxfp4_gemv_kernel` per element (same per-group fmaf
+chain, same lane order, same warp_sum); one warp owns 4 output rows and loads every group it owns for them up front (NI = 3 at
+K 2304), each activation group once for the 4 rows. Probe (.scratch/mx4head_probe.cu, 3 rotated weight copies, M = 7):
+
+| kernel at M = 7 | us | GB/s | bitwise gemv |
+|---|---|---|---|
+| `mxfp4_gemv_kernel` (current) | 2443 | 100 | - |
+| `mxfp4_mma` (tensor core, row-invariant) | 1375 | 178 | no |
+| mr R2 / mrC R4 / mrC R6 / R8 (registers held per m, spills at R8) | 1920 / 1452 / 1727 / 3574 | | yes |
+| **D: all groups preloaded, R 4** | **1382** | **177** | **yes, 0 of 1.4M differ** |
+
+M 5 / 8: 1109 / 1453 us. ptxas: the NI 3 / 2 instances 0 spills (NI 1 spilled: K <= 1024 runs the NI 2 instance).
+
+Gate #11481 (spark2, `--quiet gpu,cpu`, `.scratch/hdgate.sh`): ink_rows 8/8 (new `ink_mxfp4_head_bitwise_gemv`: bitwise
+`matmul_mxfp4_gemv_rows`, M 5..8, both out dtypes, N tails, K 1 / 33 / 72 / 96 groups); `kernels test --op matmul_mxfp4`
+6 kernels ADMITTED (the new one 12 cases, max_abs 9.8e-8). Greedy, spec on (DSpark), ABAB x 3:
+
+| | head off | head on |
+|---|---|---|
+| g256 tok/s | 40.96 / 40.94 / 40.93 | 41.92 / 41.93 / 41.93 (+2.4 %) |
+| g1.2k tok/s | 42.99 / 43.05 / 42.70 | 44.17 / 44.08 / 44.03 (+2.7 %) |
+| ids md5 g256 / g1.2k | `a0e6f47bc45f` / `aaaa65a7ac70` | same |
+| acceptance g256 / g1.2k | 34.1 % / 43.0 % | same |
+
+Spec off g256 unchanged (`a0e6f47bc45f`, 36.50 tok/s). nsys (128 tokens): head 72 x 2418.6 us -> 71 x 1439.0 us.
