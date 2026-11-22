@@ -1016,6 +1016,7 @@ mod tests {
         "gdn_delta_rule_bf16_pre:gdn_delta_rule",
         "gdn_delta_rule_bf16_rows:gdn_delta_rule",
         "ink_attn_decode_bf16:ink_attn_decode",
+        "ink_attn_decode_bf16_rows:ink_attn_decode",
         "ink_kv_prologue_bf16:ink_kv_prologue",
         "kv_append_bf16:kv_append",
         "kv_append_bf16_rows:kv_append",

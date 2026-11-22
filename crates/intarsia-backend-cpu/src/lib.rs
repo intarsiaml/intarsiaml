@@ -202,17 +202,18 @@ impl Backend for CpuBackend {
                 r = r.situ();
                 f = f.situ();
             }
-            // the Inkling-2 row-table forms (batched decode, `rowtab.rs`): twins `<kernel>_rows`, selected only with a table
-            if intarsia_core::inkling2::ops::ROW_TABLE_OPS.contains(&op) {
+            // the Inkling-2 row-table forms (batched decode, `rowtab.rs`): twins `<kernel>_rows`, selected only with a table;
+            // after the base kernels (admission takes an op's first reference kernel as its oracle)
+            let twins = intarsia_core::inkling2::ops::ROW_TABLE_OPS.contains(&op).then(|| {
                 let mut rr = r.clone();
                 rr.name = format!("{}_rows", r.name);
                 let mut fr = f.clone();
                 fr.name = format!("{}_rows", f.name);
-                v.push(rr.row_table());
-                v.push(fr.row_table());
-            }
+                [rr.row_table(), fr.row_table()]
+            });
             v.push(r);
             v.push(f);
+            v.extend(twins.into_iter().flatten());
         }
         v
     }
