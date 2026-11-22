@@ -775,6 +775,11 @@ Serve smoke: FAIL, from the base again. `serve` refused to load Inkling: `moe_ex
 admission bug fixed by 761a1561b, on ink/hostgap through the ink/metal merge and not in the side branch's base. So the serve
 smoke with the switch on has not run yet.
 
+Merge: ink/hostgap merged into the side branch at 04:02, `ink/hostgap-gumbel` 899401ce8. One conflict, in `docs/tuning.md`:
+the item 7 rows and the `INTARSIA_GUMBEL_SAMPLING` row are all kept. Checks of that tree: bespin (macOS compile of the Metal
+tests, the cli with `--features metal`, intarsia-models tests; the kernel-list test; `.scratch/bespingumbelm.sh`) and spark2
+(core lib, cpu backend, gumbel_engine, batch_engine, engine, batch, docs_env_vars, server batch_tests; `.scratch/spark2gumbelm.sh`).
+
 Still to run, on the side branch merged with ink/hostgap: the `rows_exact` test, the gumbel Metal tests (chi-square included)
 and the serve smoke with the switch on. Per the coordinator, no separate job now: this goes into the hand-off note to ink-metal
 as a check on the merged tree.

@@ -15,6 +15,7 @@ mod fast;
 mod fault;
 mod fused_ref;
 mod ink_ref;
+mod screen_ref;
 mod gdn_ref;
 mod mem;
 mod quant_ref;
@@ -112,7 +113,7 @@ fn implements_ext(op: Op) -> bool {
 fn tol_for(op: Op) -> Tol {
     match op {
         // pure data movement / integer results: must match bit for bit
-        Op::Embedding | Op::KvAppend | Op::Argmax | Op::Sample | Op::GumbelArgmax => Tol::EXACT,
+        Op::Embedding | Op::KvAppend | Op::Argmax | Op::Sample | Op::GumbelArgmax | Op::HeadScreen | Op::ScreenArgmax => Tol::EXACT,
         // bf16-rounded outputs: one-ulp flips allowed
         _ => Tol::new(1.5e-2, 6e-3),
     }
@@ -181,7 +182,8 @@ impl Backend for CpuBackend {
 
     fn kernels(&self) -> Vec<KernelImpl> {
         let mut v = Vec::new();
-        for op in Op::ALL {
+        // the reserved placeholder discriminants (`Op::is_reserved`) have no kernels
+        for op in Op::ALL.into_iter().filter(|o| !o.is_reserved()) {
             let mut r = KernelImpl::new(op, format!("ref_{}", op.as_str()), "cpu")
                 .exact(Exactness::Exact)
                 .tol(Tol::EXACT)

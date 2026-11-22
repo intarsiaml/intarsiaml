@@ -1041,7 +1041,7 @@ mod tests {
             .chain(intarsia_core::dsv41::ops::OPS.iter().filter(|op| !crate::dsv41::TABLE.iter().any(|(_, o)| o == *op)))
             .copied()
             .collect();
-        const NOT_ON_CUDA: [Op; 27] = [
+        const NOT_ON_CUDA: [Op; 31] = [
             Op::ShortConv,
             Op::DynConv,
             Op::RopeScaled,
@@ -1069,10 +1069,16 @@ mod tests {
             Op::InkInProj,
             Op::ConvMix,
             Op::InkAttnDecode,
-            // the device sampler (lane ink-hostgap): cpu and Metal only, CUDA keeps the host sampler (`Model::gumbel_ok`)
+            // the screened greedy head (lane ink-fp8): cpu and Metal only
+            Op::HeadScreen,
+            Op::LogitsGather,
+            Op::ScreenArgmax,
+            Op::InkRoute,
+            // the device sampler (lane ink-hostgap, slot 77): cpu and Metal only, CUDA keeps the host sampler (`Model::gumbel_ok`)
             Op::GumbelArgmax,
         ];
-        for op in Op::ALL {
+        // the reserved placeholder discriminants (`Op::is_reserved`) are exempt
+        for op in Op::ALL.into_iter().filter(|o| !o.is_reserved()) {
             if !not_on_cuda.contains(&op) {
                 assert!(table.iter().any(|(_, o)| *o == op), "no cuda kernel for {op}");
             }

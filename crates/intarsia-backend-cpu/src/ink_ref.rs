@@ -287,11 +287,15 @@ pub fn run(call: &OpCall, fast: bool) -> Result<()> {
         Op::InkKvPrologue => prologue(call),
         Op::RelSinkAttn => attention(call),
         Op::InkAttnDecode => attn_decode(call),
+        Op::InkRoute => route(call, fast),
         Op::MoeExpertsMxfp8 => experts_mxfp8(call),
-        Op::InkInProj if fast => in_proj_fast(call),
+        // e4m3 weights (lane ink-fp8): the reference is also the fast path (f64, rows in parallel)
+        Op::InkInProj if fast && i.len() == 2 => in_proj_fast(call),
         Op::InkInProj => {
             let (s, t, d, a) = (i[0].shape[0], i[0].shape[1], i[0].shape[2], i[0].dtype);
             let (x, w) = (rd(&i[0])?, rd(&i[1])?);
+            // `scale * sum(x * e4m3(w))` per pack, `MatmulFp8`'s W8A16 order; 1 for float weights
+            let sc: Vec<f64> = if i.len() == 3 { rd(&i[2])? } else { vec![1.0; 3] };
             let mut row0 = 0;
             for (j, out) in o.iter().enumerate() {
                 let n = out.shape[1];
@@ -301,7 +305,8 @@ pub fn run(call: &OpCall, fast: bool) -> Result<()> {
                     .into_par_iter()
                     .map(|idx| {
                         let (ti, ni) = (idx / n, idx % n);
-                        round(a, xs[ti * d..(ti + 1) * d].iter().zip(&ws[ni * d..(ni + 1) * d]).map(|(p, q)| p * q).sum())
+                        let dot: f64 = xs[ti * d..(ti + 1) * d].iter().zip(&ws[ni * d..(ni + 1) * d]).map(|(p, q)| p * q).sum();
+                        round(a, if i.len() == 3 { dot * sc[j] } else { dot })
                     })
                     .collect();
                 wr(out, &y)?;
@@ -408,6 +413,26 @@ fn attn_decode(call: &OpCall) -> Result<()> {
     let (pro, att) = intarsia_core::inkling2::ops::attn_decode_parts(call, tmp(qs), tmp(rs), tmp(ks), tmp(vs));
     prologue(&pro)?;
     attention(&att)
+}
+
+/// `InkRoute`: `Logits` (x . w^T, f32) into the call's logits or a temporary, then `MoeRoute` on them; bitwise that pair by
+/// construction (the same kernel set's `Logits`, `dsv41_ref`'s `MoeRoute`).
+fn route(call: &OpCall, fast: bool) -> Result<()> {
+    let (i, o) = (&call.inputs, &call.outputs);
+    let (t, e) = (i[0].shape[0], i[1].shape[0]);
+    let logits = if absent(&o[2]) {
+        TensorRef::new(intarsia_core::backend::Buffer::new(crate::mem::CpuBuffer::zeroed((t * e * 4).max(1))), DType::F32, &[t, e])
+    } else {
+        o[2].clone()
+    };
+    let lg = OpCall::new(Op::Logits, vec![i[0].clone(), i[1].clone()], vec![logits.clone()], OpAttrs::default());
+    if fast {
+        crate::fast::run(&lg)?;
+    } else {
+        crate::reference::run(&lg)?;
+    }
+    let rt = OpCall::new(Op::MoeRoute, vec![logits, i[2].clone()], vec![o[0].clone(), o[1].clone()], call.attrs.clone());
+    crate::dsv41_ref::run(&rt)
 }
 
 fn eps_of(at: &OpAttrs) -> f64 {
