@@ -239,6 +239,9 @@ pub struct DflashState {
     /// drafted costs the draft only a copy; the rows (a prefix of the stash survives a rollback) go in as one batch before the
     /// next DFlash draft.
     pub lazy: bool,
+    /// The DSpark draft (`model/dspark.rs`): device ring of `f_rnn` rows by position (`FRNN_RING` x H, act; allocated at the
+    /// first ingest), `None` otherwise.
+    pub frnn: Option<crate::backend::Buffer>,
 }
 
 impl DflashState {

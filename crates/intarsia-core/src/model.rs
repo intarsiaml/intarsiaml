@@ -50,6 +50,8 @@ pub use verify_attn::{cuda_verify_attn_rows_env, cuda_verify_attn_rows_on, verif
 pub(crate) mod dcoco;
 pub(crate) mod dflash;
 mod dflash2;
+mod dspark;
+pub use dspark::DsparkConfig;
 mod dspine;
 pub mod dflash_tree;
 pub(crate) mod mtp;
@@ -1755,8 +1757,9 @@ impl Model {
                 if tp.world > 1 {
                     return Err(Error::Unsupported("tensor parallelism of Inkling-2".into()));
                 }
-                if opts.mtp || opts.dflash.is_some() {
-                    return Err(Error::Unsupported("speculative drafters (--spec mtp / dflash) on Inkling-2".into()));
+                // the model's own DSpark draft (`--spec dflash --spec-draft <model dir>`, `model/dspark.rs`) is the one drafter it takes
+                if opts.mtp || opts.dflash.as_ref().is_some_and(|d| d.config.dspark.is_none()) {
+                    return Err(Error::Unsupported("speculative drafters other than its DSpark draft (--spec dflash --spec-draft <model dir>) on Inkling-2".into()));
                 }
                 let ic = recipe.layer.other.get("ink").ok_or_else(|| Error::model("recipe [layer.ink] missing"))?;
                 let field = |k: &str| ic.get(k).and_then(|v| v.as_str()).map(String::from).ok_or_else(|| Error::model(format!("recipe [layer.ink] needs '{k}'")));
@@ -1850,7 +1853,8 @@ impl Model {
                 });
                 let t0 = Instant::now();
                 let shard = dflash_tp.then_some((tp.rank, tp.world));
-                let head = dflash::load_head(dl, b, dims, recipe, main_attn, &|n| weights_bytes.set(weights_bytes.get() + n), mt, act, shard)?;
+                let unembed = resolve(src, &recipe.top.lm_head.tensor).unwrap_or_default();
+                let head = dflash::load_head(dl, b, dims, recipe, main_attn, &|n| weights_bytes.set(weights_bytes.get() + n), mt, act, shard, (src, &unembed))?;
                 eprintln!(
                     "dflash: draft of {} layers (taps {:?}, block {}{}) loaded in {:.1} s",
                     head.n_layers(),
@@ -2581,6 +2585,9 @@ impl Model {
                     self.backend.download(&self.ws.logits, 0, l, self.stream)?;
                     Ok(l.chunks_exact(v * 4).map(logits_row).collect())
                 })?;
+                for r in rows.iter_mut() {
+                    self.softcap_logits(r);
+                }
             }
             VerifyRead::TopK(k, rows) => {
                 // lane samphost: the top-k of the q rows in one device call, read before the drafter's hooks reuse `ws.logits`
@@ -2595,6 +2602,9 @@ impl Model {
                     } else {
                         StepOut::TopK { ids: tid[r * k..(r + 1) * k].to_vec(), vals: tval[r * k..(r + 1) * k].to_vec() }
                     });
+                }
+                for o in rows.iter_mut() {
+                    self.softcap_step(o);
                 }
             }
         }
@@ -2805,6 +2815,9 @@ impl Model {
                 }
                 (None, _) => {}
             }
+            for o in rows.iter_mut() {
+                self.softcap_step(o);
+            }
             logits.push(rows);
             lo += q.len();
         }
@@ -2988,8 +3001,11 @@ impl Model {
                 }
             }
         } else {
-            let logits = self.view(&self.ws.logits, DType::F32, &[q, v]);
-            self.proj(&hn.rows(0, q), self.head()?, &logits, profile)?;
+            // the head as a decode step runs it ([`Model::head_proj`]): Inkling-2's P12 unembed where loaded, here at `exact_rows`
+            // its `_rows` twin (the same shaders as the 1-row decode head), else the head as loaded. A verify row's logits are then
+            // bitwise its decode step's; the bf16 rows kernel against the 1-row P12 head differed by an ulp in some logits
+            // (tests/inkling2_verify_softcap.rs on Metal, lane ink-spec-land #11532 / #11553).
+            self.head_proj(&hn.rows(0, q), q, profile)?;
         }
         let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("verify head without its buffer"))?;
         let logits = self.view(&self.ws.logits, DType::F32, &[q, v]);
@@ -5697,6 +5713,17 @@ impl Model {
         if let Some(cap) = self.dims.gemma.as_ref().map(|g| g.softcap).or(self.dims.ink.as_ref().map(|i| i.softcap)).filter(|&c| c > 0.0) {
             // per element `cap * tanh(x / cap)`, on the host pool for a long row (lane ink-hostgap)
             crate::sampler::softcap(out, cap);
+        }
+    }
+
+    /// [`Model::softcap_logits`] on a verify row read back for a sampler: the whole row, or a device-side top-k's values (the cap
+    /// is monotone, so the ids and their order stay). The verify head writes pre-softcap logits into `ws.logits` (its device
+    /// argmax is unaffected); a sampled verify must see decode's capped distribution (lane ink-mtp; found by ink-cuda-attn).
+    fn softcap_step(&self, o: &mut StepOut) {
+        match o {
+            StepOut::Logits(l) => self.softcap_logits(l),
+            StepOut::TopK { vals, .. } => self.softcap_logits(vals),
+            _ => {}
         }
     }
 

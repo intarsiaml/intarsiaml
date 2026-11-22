@@ -65,6 +65,12 @@ impl SafeTensors {
         if paths.is_empty() {
             return Err(Error::model(format!("no safetensors files in {}", dir.display())));
         }
+        Self::open_files(&paths)
+    }
+
+    /// Open these safetensors files (one source over all of them).
+    pub fn open_files(paths: &[std::path::PathBuf]) -> Result<SafeTensors> {
+        let paths = paths.to_vec();
         let mut files = Vec::new();
         let mut entries = BTreeMap::new();
         for (fi, p) in paths.iter().enumerate() {
