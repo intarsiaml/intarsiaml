@@ -909,3 +909,10 @@ unchanged; model g256 spec off 36.66 -> 33.10 tok/s with the same ids. Cause: th
 of dynamic shared memory per block (dn 41 KB), so 1 (gu) / 2 (dn) blocks per SM against the register-limited occupancy of the
 plain kernel; and at a union of 8 each warp has one expert, so `cp.async.wait_all` exposes the whole load before any math.
 Reverted; the job was stopped after the first ABAB pair.
+
+## CUDA no-op on other models (brief 35; #11498, spark2)
+
+Branch `6cbbff7bf` (this lane + ink/cuda-mtp + main `57e1b3332`) against main `57e1b3332`, both built `--features cuda` in the
+same job: Qwen3-8B greedy 256 (chat, no-think) short-0 identical ids (md5 `3d425d4ebaa1`, 15.64 vs 15.67 tok/s) and 4k-0
+identical (md5 `f10cca037c96`, 15.10 both); `plan show` JSON and text byte-identical for the 8B (8973 / 1548 B) and the 35B
+NVFP4 (15570 / 4017 B); `kernels test --quick` on the branch: 128 kernels, 1556 cases, rc 0; ink_rows 8/8.
