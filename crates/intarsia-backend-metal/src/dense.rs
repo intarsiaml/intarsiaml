@@ -121,8 +121,18 @@ impl MetalBackend {
 
     /// Encode one dispatch of shader `name`: `binds` at indices 0.., then `p` as inline constants.
     pub(crate) fn dispatch<P: Copy>(&self, name: &str, binds: &[&Bind], p: &P, grid: Grid) -> Result<()> {
+        self.dispatch_opt(name, binds, p, grid, false)
+    }
+
+    /// [`MetalBackend::dispatch`] of a kernel that reaches buffers through device addresses (a row table): the registered
+    /// indirect set is declared resident in the encoder first.
+    pub(crate) fn dispatch_ind<P: Copy>(&self, name: &str, binds: &[&Bind], p: &P, grid: Grid) -> Result<()> {
+        self.dispatch_opt(name, binds, p, grid, true)
+    }
+
+    fn dispatch_opt<P: Copy>(&self, name: &str, binds: &[&Bind], p: &P, grid: Grid, ind: bool) -> Result<()> {
         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
-        self.with_encoder(|enc| {
+        let body = |enc: &objc2::runtime::ProtocolObject<dyn objc2_metal::MTLComputeCommandEncoder>| {
             enc.setComputePipelineState(pso);
             for (i, b) in binds.iter().enumerate() {
                 // SAFETY: the offset lies inside the buffer (TensorRef bounds were checked by `OpCall::check`).
@@ -142,7 +152,12 @@ impl MetalBackend {
                     MTLSize { width: threads, height: 1, depth: 1 },
                 ),
             }
-        })
+        };
+        if ind {
+            self.with_encoder_ind(body)
+        } else {
+            self.with_encoder(body)
+        }
     }
 
     /// Launch one of the dense kernels (everything `kernels::TABLE` lists except `matmul_bf16_gemv`).

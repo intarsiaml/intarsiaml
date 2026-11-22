@@ -25,6 +25,33 @@ fn pos_t(rng: &mut SplitMix64, dt: DType, shape: &[usize], lo: f32, hi: f32) -> 
     HostTensor::from_f32_as(dt, shape, &v)
 }
 
+/// A stacked e4m3 `InkInProj` weight `[sum ns, d]` and its per-pack scales `[3]` (lane ink-fp8): normal values of scale `std`,
+/// each pack quantised with `amax / 448` of its own rows, so the packs get different scales.
+fn fp8_stack(rng: &mut SplitMix64, ns: [usize; 3], d: usize, std: f32) -> (HostTensor, HostTensor) {
+    let mut data = Vec::with_capacity(ns.iter().sum::<usize>() * d);
+    let mut sc = [0f32; 3];
+    for (j, &n) in ns.iter().enumerate() {
+        // pack j at 1, 1/4, 4 times `std`: scales that differ by powers of two and by non-powers
+        let v = rng.normal_vec(n * d, std * [1.0, 0.25, 3.7][j]);
+        let amax = v.iter().fold(0f32, |m, x| m.max(x.abs()));
+        sc[j] = if amax > 0.0 { amax / crate::quant::fp8::MAX } else { 1.0 };
+        data.extend(v.iter().map(|x| crate::dtype::f32_to_fp8_e4m3(x / sc[j])));
+    }
+    (HostTensor::new(DType::Fp8E4m3, vec![ns.iter().sum(), d], data).expect("sized"), HostTensor::from_f32(&[3], &sc))
+}
+
+/// A stacked P12 `InkInProj` weight (lane ink-pack12): weight-like bf16 rows, pack j at its own scale (1, 1/4, 3.7 times `std`,
+/// so the per-row bases differ between segments), packed losslessly; `adversarial` adds `p12::random_weight`'s hard rows.
+fn p12_stack(rng: &mut SplitMix64, ns: [usize; 3], d: usize, std: f32, adversarial: bool) -> (HostTensor, HostTensor) {
+    let mut w = Vec::with_capacity(ns.iter().sum::<usize>() * d);
+    for (j, &n) in ns.iter().enumerate() {
+        w.extend(crate::quant::p12::random_weight(rng, n, d, std * [1.0, 0.25, 3.7][j], adversarial));
+    }
+    let p = crate::quant::p12::pack(&w, ns.iter().sum(), d, 0).expect("p12 pack");
+    let mut parts = p.host_parts().into_iter();
+    (parts.next().unwrap(), parts.next().unwrap())
+}
+
 fn none() -> HostTensor {
     HostTensor::zeros(DType::Bf16, &[0])
 }
@@ -362,6 +389,26 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     }
                 }
             }
+            if quick {
+                // the quick sweep's case for the prefill kernels (`rel_sink_attn_bf16_nax`): the first mid-size case above
+                for (win, ring, cr, t, pos0) in [(64usize, true, 80usize, 40usize, 0usize)] {
+                    let (h, hk, dh, dr, e) = (6usize, 2usize, 128usize, 16usize, 48usize);
+                    let inputs = vec![
+                        rand_t(rng, W, &[t, h, dh], 1.5),
+                        rand_t(rng, W, &[t, hk, dh], 1.5),
+                        rand_t(rng, W, &[t, hk, dh], 1.0),
+                        rand_t(rng, W, &[hk, cr, dh], 1.5),
+                        rand_t(rng, W, &[hk, cr, dh], 1.0),
+                        rand_t(rng, W, &[t, h, e], 1.0),
+                        rand_t(rng, W, &[t, nq(h, dh, dr)], 2.0),
+                    ];
+                    let outputs = vec![out(W, &[t, h * dh]), inout(inputs[3].clone()), inout(inputs[4].clone())];
+                    let mut a = OpAttrs { pos0, n_heads: h, n_kv_heads: hk, head_dim: dh, window: win, scale: (dh as f32).powf(-0.5), ..a0.clone() };
+                    a.ink.kv_ring = ring;
+                    a.ink.d_rel = dr;
+                    push(format!("mid T={t} H={h} Hk={hk} Dh={dh} W={win} E={e} ring={ring} Cr={cr} pos0={pos0} bf16"), inputs, outputs, a);
+                }
+            }
         }
         Op::InkAttnDecode => {
             // (H, Hk, Dh, dr, E, K, window, ring, cache rows, dyn+tau, positions, qk clip): small shapes and the real model
@@ -504,6 +551,25 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                         for s in [1usize, 3] {
                             let inputs = vec![rand_t(rng, dt, &[s, t, d], 1.0), rand_t(rng, W, &[ns.iter().sum(), d], (d as f32).powf(-0.5))];
                             push(format!("T={t} S={s} D={d} N={ns:?} {dt}"), inputs, ns.iter().map(|&n| out(dt, &[t, n])).collect(), a0.clone());
+                            // e4m3 weights with per-pack scales (lane ink-fp8)
+                            let (w, sc) = fp8_stack(rng, ns, d, (d as f32).powf(-0.5));
+                            let inputs = vec![rand_t(rng, dt, &[s, t, d], 1.0), w, sc];
+                            push(format!("T={t} S={s} D={d} N={ns:?} {dt} e4m3"), inputs, ns.iter().map(|&n| out(dt, &[t, n])).collect(), a0.clone());
+                        }
+                    }
+                }
+            }
+            // P12 codes + aux (lane ink-pack12; bf16 activations, the form the model uses), appended so the cases above keep their data
+            for &t in rows {
+                for &(d, ns) in &shapes {
+                    if d > D && t > 1 {
+                        continue;
+                    }
+                    for s in [1usize, 3] {
+                        for adv in [false, true] {
+                            let (w, aux) = p12_stack(rng, ns, d, (d as f32).powf(-0.5), adv);
+                            let inputs = vec![rand_t(rng, DType::Bf16, &[s, t, d], 1.0), w, aux];
+                            push(format!("T={t} S={s} D={d} N={ns:?} bf16 p12 adversarial={adv}"), inputs, ns.iter().map(|&n| out(DType::Bf16, &[t, n])).collect(), a0.clone());
                         }
                     }
                 }

@@ -552,6 +552,9 @@ pub struct Model {
     /// Replicated head: only rank 0 holds it (and runs the final norm's consumer), the other ranks stop after the last layer.
     /// Vocab-parallel head (`vocab_par`): every rank holds its `V / world` rows of it.
     lm_head: Option<QTensor>,
+    /// Inkling-2, `INTARSIA_INK_PACK12` (lane ink-pack12; lossless; default on Metal): the bf16 unembed rows as P12 too, run
+    /// by every head group the backend admits (all of them are 1..=16 rows); the bf16 view stays for the rest.
+    head_p12: Option<QTensor>,
     /// The lm_head is split over the ranks by vocabulary rows (`LoadOptions::tp_vocab`): every rank runs its half and the
     /// halves are all-gathered into rank 0's `ws.logits`.
     vocab_par: bool,
@@ -560,6 +563,8 @@ pub struct Model {
     draft_head: Option<QTensor>,
     /// `--mtp-draft-subset`: the token id of each `draft_head` row (lane dsubset).
     draft_map: Option<DraftMap>,
+    /// `INTARSIA_INK_HEAD_SCREEN=1` (lane ink-fp8, opt-in): the screened greedy head's fp8 copy, bounds and workspace.
+    head_screen: Option<HeadScreenW>,
     layers: Arc<Vec<Vec<Block>>>,
     /// Scratch of the Gemma 4 layers (`None` for every other model).
     gemma: Option<GemmaWs>,
@@ -627,6 +632,8 @@ pub struct Model {
     /// Set for the duration of a speculative verify pass ([`Model::forward_verify`]): every op call is marked
     /// `OpCall::exact_rows`, so the registry gives it a row-exact kernel (or fails). Never set otherwise.
     exact_rows: std::sync::atomic::AtomicBool,
+    /// The running verify reads only the tokens (`VerifyRead::None`), so the screened greedy head may serve it (lane ink-fp8).
+    verify_tokens_only: std::sync::atomic::AtomicBool,
     /// Inside [`Model::forward_prefill`] with row-invariant prefill on: every call of the pass carries `OpCall::prefill_inv`, so
     /// the registry gives it a `row_invariant` kernel (or fails). Never set otherwise.
     prefill_inv: std::sync::atomic::AtomicBool,
@@ -1093,7 +1100,33 @@ impl Model {
             // the rows this rank's head covers
             let (n, axis) = if vocab_par { (vh, Some(ShardAxis::Rows)) } else { (dims.vocab, None) };
             if let Some(ik) = &dims.ink {
-                // Inkling-2: the first `unpadded_vocab_size` rows of the padded bf16 unembed (a view, a16)
+                // Inkling-2: the first `unpadded_vocab_size` rows of the padded bf16 unembed (a view, a16); with a head quant
+                // (opt-in, lane ink-fp8) those rows quantised, so the padded rows never set the fp8 scale
+                if let Some(kind) = head_quant {
+                    let nm = resolve(src, &lh.tensor)?;
+                    let i = src.info(&nm).ok_or_else(|| Error::model(format!("lm_head tensor '{nm}' missing")))?;
+                    if i.shape != [ik.vocab_padded, dims.hidden] || !matches!(i.dtype, DType::Bf16 | DType::F16 | DType::F32) {
+                        return Err(Error::model(format!("{}: inkling2 unembed is {} {:?}", crate::quant::head::ENV, i.dtype, i.shape)));
+                    }
+                    let t0 = std::time::Instant::now();
+                    let all = &src.bytes(&nm)?[..dims.vocab * dims.hidden * i.dtype.size_bytes()];
+                    let q = crate::quant::head::load_rows(kind, b, i.dtype, all, dims.vocab, 0, dims.vocab, dims.hidden)?;
+                    weights_bytes.set(weights_bytes.get() + q.weight_bytes() as u64);
+                    let note = format!(
+                        "lm_head quantised to {} ({} of {} unembed rows x {}, {:.2} GB; {} = {}, {:.1} s)",
+                        kind.name(),
+                        dims.vocab,
+                        ik.vocab_padded,
+                        dims.hidden,
+                        q.weight_bytes() as f64 / 1e9,
+                        crate::quant::head::ENV,
+                        kind.name(),
+                        t0.elapsed().as_secs_f64()
+                    );
+                    eprintln!("{note}");
+                    *head_quant_note.borrow_mut() = Some(note);
+                    return Ok(Some(q));
+                }
                 let t = load(&lh.tensor, 0, Some(&[ik.vocab_padded, dims.hidden]))?;
                 return Ok(Some(dense(t.rows(0, dims.vocab), dims.vocab)));
             }
@@ -1170,6 +1203,71 @@ impl Model {
                 load_head(false)?
             }
             r => r?,
+        };
+        // the lossless 12-bit copy of the Inkling-2 unembed (lane ink-pack12): the replicated bf16 head only
+        let head_p12 = match (&dims.ink, &lm_head) {
+            (Some(_), Some(h)) if crate::quant::p12::enabled(b) && head_quant.is_none() && !vocab_par && h.format == crate::quant::BF16 => {
+                let nm = resolve(src, &lh.tensor)?;
+                let i = src.info(&nm).ok_or_else(|| Error::model(format!("lm_head tensor '{nm}' missing")))?;
+                if i.dtype != DType::Bf16 {
+                    None
+                } else {
+                    let mut st = inkling2::P12Stats::default();
+                    let q = st.pack(b, &src.bytes(&nm)?[..dims.vocab * dims.hidden * 2], dims.vocab, dims.hidden)?;
+                    weights_bytes.set(weights_bytes.get() + st.bytes as u64);
+                    eprintln!("{}", st.note(&format!("unembed ({} rows)", dims.vocab)));
+                    Some(q)
+                }
+            }
+            _ => None,
+        };
+
+        // the screened greedy head (lane ink-fp8, opt-in; crate::screen): an fp8 copy of the bf16 head and its row bounds
+        let head_screen = if std::env::var(crate::screen::ENV).is_ok_and(|v| v.trim() == "1") {
+            let reason = if dims.ink.is_none() {
+                Some("only Inkling-2 has it")
+            } else if tp.rank != 0 || vocab_par {
+                Some("not with a sharded head")
+            } else if head_quant.is_some() {
+                Some("the head itself is quantised (INTARSIA_LMHEAD_QUANT)")
+            } else {
+                None
+            };
+            match reason {
+                Some(r) => {
+                    eprintln!("{}: off ({r})", crate::screen::ENV);
+                    None
+                }
+                None => {
+                    let t0 = std::time::Instant::now();
+                    let nm = resolve(src, &lh.tensor)?;
+                    let i = src.info(&nm).ok_or_else(|| Error::model(format!("lm_head tensor '{nm}' missing")))?;
+                    let (v, d) = (dims.vocab, dims.hidden);
+                    let all = &src.bytes(&nm)?[..v * d * i.dtype.size_bytes()];
+                    let hq = crate::quant::head::quantize_host(crate::quant::head::HeadQuant::Fp8, i.dtype, all, v, d, 0, v)?;
+                    let sc = hq.parts[1].to_f32()[0];
+                    let beta = crate::screen::row_bounds(i.dtype, all, &hq.parts[0].data, sc, v, d)?;
+                    let cap = std::env::var(crate::screen::CAP_ENV).ok().and_then(|c| c.trim().parse().ok()).filter(|&c: &usize| c >= 1).unwrap_or(crate::screen::CAP_DEFAULT);
+                    let rows = 16usize; // decode, verify (<= 16 rows)
+                    let q = hq.upload(b)?;
+                    let bb: Vec<u8> = beta.iter().flat_map(|x| x.to_le_bytes()).collect();
+                    let beta = TensorRef::new(crate::backend::upload_new(b, &bb)?, DType::F32, &[v]);
+                    let a = b.alloc(rows * v * 4, MemKind::Device)?;
+                    let cand = b.alloc(rows * cap * 4, MemKind::Device)?;
+                    let cnt = b.alloc(rows * 4 + 16, MemKind::Device)?;
+                    let added = q.weight_bytes() as u64 + bb.len() as u64;
+                    weights_bytes.set(weights_bytes.get() + added);
+                    eprintln!(
+                        "{}: screened greedy head on (fp8 copy {:.2} GB + bounds, cap {cap}, {:.1} s)",
+                        crate::screen::ENV,
+                        added as f64 / 1e9,
+                        t0.elapsed().as_secs_f64()
+                    );
+                    Some(HeadScreenW { q, beta, a, cand, cnt, cap, rows, ok: std::sync::OnceLock::new() })
+                }
+            }
+        } else {
+            None
         };
 
         // scaled rotary embedding: the finished frequency table, uploaded once (rotary_dim as the attention blocks resolve it)
@@ -1585,7 +1683,15 @@ impl Model {
                 let names = inkling2::InkNames { layer: field("prefix")?, root: field("root")? };
                 let mut nbytes = 0u64;
                 let t0 = Instant::now();
-                let m = inkling2::load(b, src, dims, &names, act, mt, &mut slot_specs, &mut nbytes)?;
+                // opt-in quantised attention projections (lane ink-fp8): the variable wins over the recipe
+                let attn_quant = {
+                    let env = std::env::var(inkling2::ATTN_QUANT_ENV).ok();
+                    crate::quant::head::HeadQuant::resolve(env.as_deref(), recipe.ink_attn_quant(backend.name()))?
+                };
+                if let Some(k) = attn_quant {
+                    eprintln!("inkling2: attention projections quantised to {} at load ({} = {}; changes outputs)", k.name(), inkling2::ATTN_QUANT_ENV, k.name());
+                }
+                let m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, &mut slot_specs, &mut nbytes)?;
                 weights_bytes.set(weights_bytes.get() + nbytes);
                 eprintln!("inkling2: {} layers, {} visits, {} state slots, loaded in {:.1} s", m.layers.len(), m.visits.len(), slot_specs.len(), t0.elapsed().as_secs_f64());
                 layers = (0..dims.n_layers).map(|li| vec![Block::Ink(li)]).collect();
@@ -1899,8 +2005,10 @@ impl Model {
             embed,
             final_norm,
             lm_head,
+            head_p12,
             draft_head,
             draft_map,
+            head_screen,
             layers: Arc::new(layers),
             gemma: gemma_ws,
             ink: ink_model,
@@ -1934,6 +2042,7 @@ impl Model {
             remote: None,
             tp_aborted: std::sync::atomic::AtomicBool::new(false),
             exact_rows: std::sync::atomic::AtomicBool::new(false),
+            verify_tokens_only: std::sync::atomic::AtomicBool::new(false),
             prefill_inv: std::sync::atomic::AtomicBool::new(false),
             inv_on: std::sync::atomic::AtomicBool::new(inv_want),
             reuse_exact: std::sync::atomic::AtomicBool::new(false),
@@ -2355,11 +2464,13 @@ impl Model {
             Err(e) => Err(e),
             Ok(None) => {
                 self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+                self.verify_tokens_only.store(matches!(rows, VerifyRead::None), std::sync::atomic::Ordering::Relaxed);
                 let run = (|| -> Result<TensorRef> {
                     let hn = self.run_chunk(st, ids, profile)?;
                     self.verify_head(&hn, q, profile)?;
                     Ok(hn)
                 })();
+                self.verify_tokens_only.store(false, std::sync::atomic::Ordering::Relaxed);
                 self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
                 run
             }
@@ -2792,6 +2903,13 @@ impl Model {
                 }
             }
         } else {
+            // tokens only (`VerifyRead::None`): the screened greedy head when it is on (`INTARSIA_INK_HEAD_SCREEN`)
+            if self.verify_tokens_only.load(std::sync::atomic::Ordering::Relaxed) {
+                let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("verify head without its buffer"))?;
+                if self.screened_argmax(&hn.rows(0, q), q, &self.view(tok, DType::I32, &[q]), profile)? {
+                    return Ok(());
+                }
+            }
             let logits = self.view(&self.ws.logits, DType::F32, &[q, v]);
             self.proj(&hn.rows(0, q), self.head()?, &logits, profile)?;
         }
@@ -2919,7 +3037,7 @@ impl Model {
         let nv = self.view(&self.ws.n, self.act, &[t, self.dims.hidden]);
         let mut dump = InkTensors::new();
         let pos0 = st.len;
-        self.ink_pass(st, &self.view(&self.ws.ids, DType::I32, &[t]), t, pos0, &nv, false, tf, Some(&mut dump), None)?;
+        self.ink_pass(st, None, &self.view(&self.ws.ids, DType::I32, &[t]), t, pos0, &nv, false, tf, Some(&mut dump), None)?;
         let mut logits = Vec::with_capacity(t * self.dims.vocab);
         for r0 in (0..t).step_by(LOGIT_ROWS) {
             logits.extend(self.head_logits(&nv, r0, LOGIT_ROWS.min(t - r0), false)?);
@@ -4071,23 +4189,22 @@ impl Model {
 
         if self.ink.is_some() {
             // Inkling-2 runs its own visit table (`model/inkling2.rs`) and leaves the final normed hidden state in `ws.n`
-            let Seqs::One(st) = seqs else {
-                return Err(Error::Unsupported("batched or packed passes of Inkling-2".into()));
+            // a batched decode step (lane ink-batch): one row per sequence, the stateful ops in their row-table form on the
+            // table and positions `forward_batch` uploaded (`upload_row_table`), row 0's state as the carrier
+            let (st, batch) = match seqs {
+                Seqs::One(st) => (st, None),
+                Seqs::Batch(sts) if dpos.is_none() && !sts.is_empty() => {
+                    let pos = self.batch_pos.as_ref().ok_or_else(|| Error::invalid("inkling2 batched step without row tables"))?;
+                    let max_pos = sts.iter().map(|s| s.len).max().unwrap_or(0);
+                    (sts[0], Some(inkling2::InkBatch { rows: sts.len(), pos: self.view(pos, DType::I32, &[sts.len()]), max_pos }))
+                }
+                _ => return Err(Error::Unsupported("packed passes of Inkling-2".into())),
             };
+            let pos0 = batch.as_ref().map_or(pos0, |b| b.max_pos);
             let ids_t = ids_at.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t]));
             let nv = self.view(&ws.n, act, &[t, h]);
-            // passes of 2..=16 rows take the row-exact kernels on Metal (`inkling2::ink_rows_exact`), so any schedule of such
-            // passes (decode, a small chunk, a rolled-back verify-sized pass) leaves the state a token-by-token decode would
-            let mark = !self.verifying() && inkling2::ink_rows_exact(self.backend.name(), t);
-            if mark {
-                self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
-            }
             // a captured decode step (`dpos`): pos0 is 0 and the positioned ops read the device position
-            let r = self.ink_pass(st, &ids_t, t, pos0, &nv, profile, None, None, dpos);
-            if mark {
-                self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
-            }
-            r?;
+            self.ink_pass(st, batch.as_ref(), &ids_t, t, pos0, &nv, profile, None, None, dpos)?;
             return Ok(nv);
         }
 
@@ -5502,11 +5619,79 @@ impl Model {
     /// [`Model::head_to_device`] with the argmax written to `tok` (`i32 [1]`).
     fn head_to_device_into(&self, hn: &TensorRef, row: usize, profile: bool, tok: TensorRef) -> Result<()> {
         let x = hn.rows(row, 1);
+        if self.screened_argmax(&x, 1, &tok, profile)? {
+            return Ok(());
+        }
         let logits = self.head_proj(&x, 1, profile)?;
         if self.tp.rank != 0 {
             return Ok(()); // a vocab-parallel peer: its half is in the gather, the argmax is rank 0's
         }
         self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
+    }
+
+    /// The screened greedy head (`crate::screen`, `INTARSIA_INK_HEAD_SCREEN=1`): the argmax of the `c` rows `x` into `tok`
+    /// (`i32 [c]`), bitwise the full head's; `ws.logits` then holds the gathered candidates, not the full rows. `false`: off,
+    /// or the head's `Logits` kernel is not one the gather reproduces (then the caller runs the full head).
+    fn screened_argmax(&self, x: &TensorRef, c: usize, tok: &TensorRef, profile: bool) -> Result<bool> {
+        let Some(hs) = self.head_screen.as_ref() else { return Ok(false) };
+        if c > hs.rows || self.vocab_par || self.recorder.lock().unwrap().is_some() {
+            return Ok(false);
+        }
+        let (v, d) = (self.dims.vocab, self.dims.hidden);
+        let logits = self.view(&self.ws.logits, DType::F32, &[c, v]);
+        // the gather repeats these kernels' per-row arithmetic (gemv_f32o_v and its multi-row form, the cpu dot); any other
+        // head kernel, and the screen not admitted on this backend: the full head
+        let ok = *hs.ok.get_or_init(|| {
+            let head = match self.head() {
+                Ok(h) => h,
+                Err(_) => return false,
+            };
+            let xs = self.view(&self.ws.n, self.act, &[1, d]);
+            let pick = |m: usize, exact: bool| {
+                let mut call = head.call(self.view(&self.ws.n, self.act, &[m, d]), self.view(&self.ws.logits, DType::F32, &[m, v]));
+                call.exact_rows = exact;
+                self.registry.select(&call).map(|k| k.name.clone()).unwrap_or_default()
+            };
+            let good = |n: &str| matches!(n, "logits_bf16_gemv" | "logits_bf16_gemv_rows" | "cpu_f32_logits");
+            let kernels_ok = good(&pick(1, false)) && (2..=hs.rows).all(|m| good(&pick(m, true)));
+            let a = TensorRef::new(hs.a.clone(), DType::F32, &[1, v]);
+            let cand = TensorRef::new(hs.cand.clone(), DType::I32, &[1, hs.cap]);
+            let cnt = TensorRef::new(hs.cnt.clone(), DType::I32, &[1]);
+            let screen_ok = [
+                OpCall::new(Op::HeadScreen, vec![a.clone(), xs.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default()),
+                OpCall::new(Op::LogitsGather, vec![xs.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![self.view(&self.ws.logits, DType::F32, &[1, v])], OpAttrs::default()),
+                OpCall::new(Op::ScreenArgmax, vec![cand, cnt, self.view(&self.ws.logits, DType::F32, &[1, v])], vec![self.view(&self.ws.tok, DType::I32, &[1])], OpAttrs::default()),
+            ]
+            .iter()
+            .all(|c| self.registry.select(c).is_ok());
+            if !(kernels_ok && screen_ok) {
+                eprintln!("{}: off (head kernel '{}' or the screen kernels are not available here)", crate::screen::ENV, pick(1, false));
+            }
+            kernels_ok && screen_ok
+        });
+        if !ok {
+            return Ok(false);
+        }
+        let head = self.head()?;
+        let a = TensorRef::new(hs.a.clone(), DType::F32, &[c, v]);
+        let cand = TensorRef::new(hs.cand.clone(), DType::I32, &[c, hs.cap]);
+        let cnt = TensorRef::new(hs.cnt.clone(), DType::I32, &[c]);
+        // a 2..=16-row group takes the rows-exact kernels, as `head_proj` marks it (the gathered bits are those rows')
+        let mark = c > 1 && !self.verifying();
+        if mark {
+            self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        let r = (|| -> Result<()> {
+            let sc = hs.q.call(x.clone(), a.clone());
+            self.exec(sc.op, sc.inputs, sc.outputs, sc.attrs, profile)?;
+            self.exec(Op::HeadScreen, vec![a, x.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default(), profile)?;
+            self.exec(Op::LogitsGather, vec![x.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![logits.clone()], OpAttrs::default(), profile)?;
+            self.exec(Op::ScreenArgmax, vec![cand, cnt, logits], vec![tok.clone()], OpAttrs::default(), profile)
+        })();
+        if mark {
+            self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        }
+        r.map(|_| true)
     }
 
     /// The head projection of `c` rows `x`. Replicated head (rank 0): `[c, V]` f32 logits in `ws.logits`. Vocab-parallel
@@ -5520,7 +5705,29 @@ impl Model {
         let v = self.dims.vocab;
         if !self.vocab_par {
             let logits = self.view(&self.ws.logits, DType::F32, &[c, v]);
-            self.proj(x, self.head()?, &logits, profile)?;
+            // Inkling-2 on Metal: a 2..=16-row head group takes the row-exact kernel like the pass itself
+            // (`inkling2::ink_rows_exact`), so a prefill row scores as its decode step would; no other model has `ink`
+            let mark = self.ink.is_some() && !self.verifying() && inkling2::ink_rows_exact(self.backend.name(), c);
+            if mark {
+                self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+            let r = match self.head_p12.as_ref().filter(|_| c <= crate::quant::p12::ROWS_MAX) {
+                // the P12 head where the backend admits it (the same bits as the bf16 head), else the head as loaded
+                Some(p) => {
+                    let mut call = p.call(x.clone(), logits.clone());
+                    call.exact_rows = self.verifying();
+                    if self.registry.select(&call).is_ok() {
+                        self.exec_call(call, profile)
+                    } else {
+                        self.proj(x, self.head()?, &logits, profile)
+                    }
+                }
+                None => self.proj(x, self.head()?, &logits, profile),
+            };
+            if mark {
+                self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+            }
+            r?;
             return Ok(logits);
         }
         let (w, vh) = (self.tp.world, v / self.tp.world);
@@ -5679,4 +5886,20 @@ mod weights_named_tests {
         // an unknown weight dtype names nothing
         assert!(weights_named(&index, &inputs, None).is_empty());
     }
+}
+
+/// The screened greedy head's state (`INTARSIA_INK_HEAD_SCREEN=1`, lane ink-fp8; `crate::screen`).
+struct HeadScreenW {
+    /// The fp8 copy of the head (`[V, D]` e4m3, one scale).
+    q: QTensor,
+    /// The per-row bounds `[V]` f32 (`screen::row_bounds`).
+    beta: TensorRef,
+    /// Screen values `[rows, V]` f32, candidates `[rows, cap]` i32, counts `[rows]` i32.
+    a: Buffer,
+    cand: Buffer,
+    cnt: Buffer,
+    cap: usize,
+    rows: usize,
+    /// Whether this backend's head kernel is one the gather reproduces (decided on first use).
+    ok: std::sync::OnceLock<bool>,
 }

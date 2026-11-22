@@ -33,6 +33,20 @@ pub fn matmul_fp8_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, act_q
     }
 }
 
+/// `MatmulP12` (lane ink-pack12): a weight-like bf16 weight packed losslessly; `odt` bf16 = `Matmul`, f32 = `Logits`.
+pub fn matmul_p12_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, odt: DType, adversarial: bool) -> HostCall {
+    let w = crate::quant::p12::random_weight(rng, n, k, (k as f32).powf(-0.5), adversarial);
+    let p = crate::quant::p12::pack(&w, n, k, 0).expect("p12 pack");
+    let x = rand_t(rng, DType::Bf16, &[m, k], 1.0);
+    let mut parts = p.host_parts().into_iter();
+    HostCall {
+        op: Op::MatmulP12,
+        inputs: vec![x, parts.next().unwrap(), parts.next().unwrap()],
+        outputs: vec![OutSpec::new(odt, &[m, n])],
+        attrs: OpAttrs::default(),
+    }
+}
+
 pub fn matmul_nvfp4_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, xdt: DType, odt: DType) -> HostCall {
     let q = nvfp4::random_rows(rng, n, k);
     let x = rand_t(rng, xdt, &[m, k], 1.0);
@@ -500,6 +514,29 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 }
             }
         }
+        Op::MatmulP12 => {
+            // decode / verify rows (the P12 kernels take 1..=16 rows); small shapes with tails, then the real Inkling-2 wo
+            // [2304, 3072] and unembed [200058, 2304] (rows 1 / 4 / 16)
+            let ms: &[usize] = if quick { &[1, 5] } else { &[1, 2, 3, 4, 7, 8, 16] };
+            let shapes: &[(usize, usize)] = if quick { &[(64, 64), (37, 96)] } else { &[(64, 64), (37, 96), (130, 2304), (61, 3072)] };
+            for &m in ms {
+                for &(n, k) in shapes {
+                    for odt in [DType::Bf16, DType::F32] {
+                        for adv in [false, true] {
+                            push(format!("M={m} N={n} K={k} out={odt} adversarial={adv}"), matmul_p12_case(&mut rng, m, n, k, odt, adv));
+                        }
+                    }
+                }
+            }
+            if !quick {
+                for &m in &[1usize, 4, 16] {
+                    push(format!("real wo M={m} N=2304 K=3072 out=bf16"), matmul_p12_case(&mut rng, m, 2304, 3072, DType::Bf16, false));
+                }
+                for &m in &[1usize, 4, 16] {
+                    push(format!("real unembed M={m} N=200058 K=2304 out=f32"), matmul_p12_case(&mut rng, m, 200058, 2304, DType::F32, false));
+                }
+            }
+        }
         Op::MatmulMxfp4 => {
             let ms: &[usize] = if quick { &[1, 5] } else { &[1, 3, 8, 9, 40] };
             let mut nk = vec![(64usize, 64usize), (40, 96)];
@@ -944,13 +981,15 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             call.attrs.norm_topk
         ),
         Op::MoeExperts => format!(
-            "T={} E={} K={} H={} I={} {}",
+            "T={} E={} K={} H={} I={} {}{}",
             i[0].shape[0].min(caps.rows),
             i[3].shape[0].min(32).max(i[1].shape[1]),
             i[1].shape[1],
             i[0].shape[1],
             i[3].shape[1] / 2,
-            i[0].dtype
+            i[0].dtype,
+            // Inkling-2's SiTU experts are another case (and cache entry); the suffix is empty for every other model
+            if call.attrs.ink.situ { " situ" } else { "" }
         ),
         Op::MoeCombine => format!("T={} H={} {}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
         Op::MatmulPair => format!(
@@ -1098,7 +1137,16 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
         Op::MoeExperts => {
             let k = i[1].shape[1];
             let e = i[3].shape[0].min(32).max(k);
-            experts_case(rng, i[0].shape[0].min(caps.rows), e, k, i[0].shape[1], i[3].shape[1] / 2, i[0].dtype)
+            let mut c = experts_case(rng, i[0].shape[0].min(caps.rows), e, k, i[0].shape[1], i[3].shape[1] / 2, i[0].dtype);
+            if call.attrs.ink.situ {
+                // Inkling-2 SiTU (a `.situ()` kernel only accepts these): the call's caps, routing weights around 8 / K as the
+                // model's route_scale gives them (the sweep's rule)
+                let t = c.inputs[2].shape[0];
+                let w: Vec<f32> = c.inputs[2].to_f32().iter().map(|v| v * 8.0).collect();
+                c.inputs[2] = HostTensor::from_f32(&[t, k], &w);
+                c.attrs.ink = call.attrs.ink;
+            }
+            c
         }
         Op::MoeCombine => combine_case(rng, i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
         Op::MatmulPair => matmul_pair_case(

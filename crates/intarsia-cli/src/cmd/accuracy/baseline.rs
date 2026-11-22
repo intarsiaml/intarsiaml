@@ -65,6 +65,13 @@ pub struct ModeStats {
     pub mean_kl21_scored: Option<f64>,
     #[serde(default)]
     pub scored_positions: Option<usize>,
+    /// Rows where the reference's top-1 probability leads its top-2 by at least 0.5, and our top-1 misses among them (the
+    /// Inkling-2 gates G2 / G3 count these; docs/plans/2026-11-21-inkling2-port.md section i). Over all rows. Reported, not
+    /// compared with a baseline. `None`: written before the metric existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confident_rows: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confident_misses: Option<usize>,
     /// Gate definitions that changed in October, with the verdict under the old and the current definition
     /// (`gatedefs.rs`). Informational. Absent in baselines written before it existed. The qualify verdict JSON copies
     /// this object, so it carries them too.
@@ -94,6 +101,11 @@ pub struct PromptStats {
     pub mean_kl21_scored: Option<f64>,
     #[serde(default)]
     pub scored_positions: Option<usize>,
+    /// Confident rows of the reference and our top-1 misses among them (see [`ModeStats::confident_rows`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confident_rows: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confident_misses: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

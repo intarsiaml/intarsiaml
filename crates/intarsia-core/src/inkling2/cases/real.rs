@@ -1,7 +1,7 @@
 //! Real-shape admission cases of the Inkling-2 mix / conv / in-projection ops (lane ink-m-mix), appended to `super::sweep`
 //! outside `--quick`.
 
-use super::{inout, none, out, pos_t, rand_t, K, W};
+use super::{fp8_stack, inout, none, out, p12_stack, pos_t, rand_t, K, W};
 use crate::admission::Case;
 use crate::dtype::DType;
 use crate::exec::{HostCall, OutSpec};
@@ -33,6 +33,28 @@ pub(super) fn real_cases(op: Op, rng: &mut SplitMix64) -> Vec<Case> {
                     }
                     let inputs = vec![rand_t(rng, bf, &[s, t, RD], 1.0), rand_t(rng, W, &[ns.iter().sum(), RD], (RD as f32).powf(-0.5))];
                     push(format!("real T={t} S={s} D={RD} N={ns:?} bf16"), inputs, ns.iter().map(|&n| out(bf, &[t, n])).collect(), a0.clone());
+                }
+            }
+            // e4m3 weights with per-pack scales (lane ink-fp8: INTARSIA_INK_ATTN_QUANT=fp8), decode / verify / prefill rows
+            for &t in &[1usize, 4, 16, 2048] {
+                for s in [1usize, 3] {
+                    if t == 2048 && s == 1 {
+                        continue;
+                    }
+                    let (w, sc) = fp8_stack(rng, ns, RD, (RD as f32).powf(-0.5));
+                    let inputs = vec![rand_t(rng, bf, &[s, t, RD], 1.0), w, sc];
+                    push(format!("real T={t} S={s} D={RD} N={ns:?} bf16 e4m3"), inputs, ns.iter().map(|&n| out(bf, &[t, n])).collect(), a0.clone());
+                }
+            }
+            // P12 codes + aux (lane ink-pack12: INTARSIA_INK_PACK12=1), decode / verify rows (the P12 kernels take 1..=16 rows),
+            // the SWA stack [6552, 1024, 1024] and the full-attention one with the dynamic-conv taps [6552, 1056, 1056]
+            for &t in &[1usize, 4, 16] {
+                for s in [1usize, 3] {
+                    for ns in [[6552usize, 1024, 1024], ns] {
+                        let (w, aux) = p12_stack(rng, ns, RD, (RD as f32).powf(-0.5), false);
+                        let inputs = vec![rand_t(rng, bf, &[s, t, RD], 1.0), w, aux];
+                        push(format!("real T={t} S={s} D={RD} N={ns:?} bf16 p12"), inputs, ns.iter().map(|&n| out(bf, &[t, n])).collect(), a0.clone());
+                    }
                 }
             }
         }

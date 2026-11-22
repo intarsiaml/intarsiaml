@@ -1066,8 +1066,15 @@ mod tests {
             Op::BridgeCode,
             Op::BridgeGate,
             Op::BridgeWrite,
+            // the screened greedy head (lane ink-fp8): cpu and Metal only
+            Op::HeadScreen,
+            Op::LogitsGather,
+            Op::ScreenArgmax,
+            // lossless 12-bit weights (lane ink-pack12): cpu and Metal only
+            Op::MatmulP12,
         ];
-        for op in Op::ALL {
+        // the reserved placeholder discriminants (`Op::is_reserved`) are exempt
+        for op in Op::ALL.into_iter().filter(|o| !o.is_reserved()) {
             if !not_on_cuda.contains(&op) {
                 assert!(table.iter().any(|(_, o)| *o == op), "no cuda kernel for {op}");
             }
