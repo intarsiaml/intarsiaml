@@ -11,12 +11,9 @@
    (emit 75 on decode when the backend admits it, else the pair) belongs to the integration lane: leave the model code
    alone and write the selection rule into this doc.
 
-Note (end of lane): the coordinator's message above was written here on arrival. Since then the context was compacted, and
-the message itself is no longer visible to the lane. A confirmation request went to main at the end of the lane. Until
-main confirms, treat `InkAttnDecode` (commits 44fba0140, eb2176981 and the fused launcher in inkattn.rs) as separable:
-- shared files touched: crates/intarsia-core/src/ops.rs (`Op`, `ALL`, `as_str`, arity, check/shape dispatch),
-  inkling2/ops.rs (`OPS`, `POSITIONED`, contract, check, shape), the cpu reference, the HIP / CUDA unsupported lists;
-- if another lane also appended an op as 75, renumber.
+2. 2026-11-21, end of lane (coordinator, via SendMessage): **Confirmed: discriminant 75 (`InkAttnDecode`) is this lane's.**
+   The coordinator checked the ops.rs diffs on ink/skel, ink/m-mix and ink/m-moe against 3feffee6e. None appends an op at
+   75 or above. Lane done, no further work.
 
 ## Summary
 
