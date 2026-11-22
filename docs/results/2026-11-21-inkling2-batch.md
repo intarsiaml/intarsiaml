@@ -94,6 +94,18 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   RB 16: approved, a batched-only override in mix_geom / blend_geom, written by ink-dfuse (a194e917d8f92b542, owns the
   inkmix.rs row kernels now; m-mix lane closed): send dfuse the exact lines, solo defaults stay. Solo rtvar: inconclusive,
   stays unmerged; retry in a later quiet slot only if cheap (0.6 % at best).
+- 2026-11-22 (coordinator, relaying ink-hostgap): a side worktree whose target/ was cloned (cp -cR, APFS clone) keeps the
+  origin's mtimes, so cargo can keep old crates as fresh and build stale code. If a target was cloned: touch every tracked
+  file under crates/ before each build (or cargo clean -p intarsia-core -p intarsia-backend-metal), and each arm's log must
+  show those crates compiling; for the HOIST=1 check, confirm the hoisted kernel dispatched.
+  Done: `cp -cR` here preserves mtimes (checked). Every side target of this lane was cloned (ink-batch/target from ink-metal
+  at the start; base-, rtvar-, dfuse-target from it). The queued five-arm A/B and #11104 now touch all tracked files under
+  crates/, kernels/, recipes/ of each tree before its build and grep the `Compiling intarsia-*` lines; #11104's dfuse tree
+  carries an uncommitted scratch-only `eprintln` that names the first hoisted mix dispatch with and without a row table
+  (tests run with --nocapture). Exposure of past results: ink-batch/target was cloned before this lane's first build, from
+  a newer ink-metal tip, so the very first tiny runs (before the 21:5x ink/metal merge) may have mixed in ink-metal code
+  (they were all rerun after the merge); #11057's rtvar build (its target cloned at job start, 15 s build) is treated as
+  unverified: the A/B's arm C rebuilds it from touched sources.
 
 ## 1. Design note (contract delta, written before any kernel)
 
