@@ -137,7 +137,7 @@ bias gather + mask per score element, no causal tile skipping beyond the key ran
    for vis <= 64 already gives 22.8 us; for more splits a two-phase grid or simdgroup broadcast). That removes the 16-row and
    32k losses.
 5. NAX full-layer chunks: skip fully masked tiles and fold the bias into a per-tile band load. At 30 k context that would
-   take the 8 full visits from 22 ms toward the ~10 ms the plain flash NAX kernel takes at this size.
+   cut the 22 ms full visit at 30 k (not measured against the plain flash NAX kernel at this size).
 
 ## Files
 
