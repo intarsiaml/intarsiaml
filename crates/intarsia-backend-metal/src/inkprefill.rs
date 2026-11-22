@@ -268,6 +268,34 @@ pub fn trace(name: &str) {
     }
 }
 
+/// Diagnostic (`INTARSIA_INK_MOE_DUMP=<file>`, slow: a synchronize per call): append the rows per expert of every prefill
+/// experts call (T > 16) as one line `<nv|mx> T=<t> <count of expert 0> .. <count of expert E-1>`.
+pub fn moe_dump_path() -> Option<&'static str> {
+    static P: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    P.get_or_init(|| std::env::var("INTARSIA_INK_MOE_DUMP").ok().filter(|v| !v.is_empty())).as_deref()
+}
+
+impl crate::MetalBackend {
+    pub(crate) fn moe_dump(&self, ids: &intarsia_core::backend::TensorRef, t: usize, k: usize, e: usize, mx: bool) -> intarsia_core::Result<()> {
+        use intarsia_core::backend::Backend;
+        use std::io::Write;
+        let Some(path) = moe_dump_path() else { return Ok(()) };
+        self.synchronize(0)?;
+        let mut raw = vec![0u8; t * k * 4];
+        self.download(&ids.buf, ids.offset, &mut raw, 0)?;
+        let mut c = vec![0usize; e];
+        for w in raw.chunks_exact(4) {
+            let id = i32::from_le_bytes([w[0], w[1], w[2], w[3]]);
+            if (0..e as i32).contains(&id) {
+                c[id as usize] += 1;
+            }
+        }
+        let line = format!("{} T={t} {}\n", if mx { "mx" } else { "nv" }, c.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(" "));
+        let mut f = std::fs::OpenOptions::new().create(true).append(true).open(path).map_err(|err| intarsia_core::Error::backend(format!("moe dump {path}: {err}")))?;
+        f.write_all(line.as_bytes()).map_err(|err| intarsia_core::Error::backend(format!("moe dump {path}: {err}")))
+    }
+}
+
 /// Dequant-once scratch (bf16 gate+up and down weights of every expert), grown on demand and kept for the process.
 static DQ_SCRATCH: std::sync::Mutex<Option<(intarsia_core::backend::Buffer, usize)>> = std::sync::Mutex::new(None);
 

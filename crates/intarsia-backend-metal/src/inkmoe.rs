@@ -378,6 +378,10 @@ impl MetalBackend {
         let hb = at(&sc, o_h);
         let fi = mx as usize;
         if t > DEC_MAX_ROWS && nax_enabled() && self.has_metal4() && self.pso(NAX_GU[fi][0]).is_some() {
+            // lane ink-prefill diagnostic: rows per expert of this call (INTARSIA_INK_MOE_DUMP, off by default)
+            if crate::inkprefill::moe_dump_path().is_some() {
+                self.moe_dump(ids, t, k, e, mx)?;
+            }
             // grouped by expert (moe.metal's moe_group reads the rows per tile from p.f), h by slot, y by pair, then the gather
             let (pb, offb, tb, yb) = (at(&sc, 0), at(&sc, o_off), at(&sc, o_tiles), at(&sc, o_y));
             let (ti, tm) = tile_rows(pairs, e);

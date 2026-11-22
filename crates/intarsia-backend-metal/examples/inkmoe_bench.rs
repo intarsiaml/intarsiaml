@@ -114,7 +114,12 @@ fn main() {
             let mut unions = Vec::new();
             let calls: Vec<OpCall> = (0..ncalls)
                 .map(|c| {
-                    let (ids, ws) = intarsia_core::quant::cases::random_routing(&mut rng, tr, E, K);
+                    let (mut ids, ws) = intarsia_core::quant::cases::random_routing(&mut rng, tr, E, K);
+                    // lane ink-prefill diagnostics: INKMOE_ACTIVE=n (n experts, balanced) or INKMOE_ROUTES=<dump file> (the
+                    // rows per expert of real calls, INTARSIA_INK_MOE_DUMP lines of this T, cycled)
+                    if let Some(cnt) = synth_counts(tr, c, mx) {
+                        ids = HostTensor::from_i32(&[tr, K], &ids_from_counts(&cnt, tr));
+                    }
                     let mut seen = [false; E];
                     for &id in &ids.to_i32().unwrap() {
                         seen[id as usize] = true;
@@ -219,4 +224,50 @@ fn main() {
             set_policy(Policy::Auto);
         }
     }
+}
+
+#[cfg(target_os = "macos")]
+const DE: usize = 128;
+#[cfg(target_os = "macos")]
+const DK: usize = 8;
+
+/// Rows per expert for the diagnostic routings (see INKMOE_ACTIVE / INKMOE_ROUTES), or None for the random routing.
+#[cfg(target_os = "macos")]
+fn synth_counts(tr: usize, call: usize, mx: bool) -> Option<Vec<usize>> {
+    let pairs = tr * DK;
+    if let Some(n) = std::env::var("INKMOE_ACTIVE").ok().and_then(|v| v.parse::<usize>().ok()) {
+        let n = n.clamp(DK, DE);
+        return Some((0..DE).map(|e| if e < n { pairs / n + usize::from(e < pairs % n) } else { 0 }).collect());
+    }
+    let path = std::env::var("INKMOE_ROUTES").ok()?;
+    let tag = if mx { "mx" } else { "nv" };
+    let lines: Vec<Vec<usize>> = std::fs::read_to_string(&path)
+        .ok()?
+        .lines()
+        .filter_map(|l| {
+            let mut it = l.split_whitespace();
+            (it.next()? == tag && it.next()? == format!("T={tr}")).then(|| it.filter_map(|v| v.parse().ok()).collect::<Vec<usize>>())
+        })
+        .filter(|c| c.len() == DE && c.iter().sum::<usize>() == pairs)
+        .collect();
+    if lines.is_empty() {
+        return None;
+    }
+    Some(lines[call % lines.len()].clone())
+}
+
+/// Top-k ids realizing `cnt` rows per expert: the experts' pairs laid out slot-major (index j * T + r), so an expert (at
+/// most T rows) never lands twice in one row.
+#[cfg(target_os = "macos")]
+fn ids_from_counts(cnt: &[usize], tr: usize) -> Vec<i32> {
+    let mut flat = Vec::with_capacity(tr * DK);
+    for (e, &c) in cnt.iter().enumerate() {
+        flat.extend(std::iter::repeat_n(e as i32, c));
+    }
+    let mut ids = vec![0i32; tr * DK];
+    for (i, &e) in flat.iter().enumerate() {
+        let (j, r) = (i / tr, i % tr);
+        ids[r * DK + j] = e;
+    }
+    ids
 }
