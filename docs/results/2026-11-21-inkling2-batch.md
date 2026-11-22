@@ -5,6 +5,17 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 
 ## Briefs received
 
+- 2026-11-22 (main): batched-regression check is mine. (1) Wait for #11266's synthetic batch_step x3 on c918e9fda: B16
+  within 5% of 59.96 ms = no regression, #11261 a bad slot, stop. (2) If confirmed: runtime switches in one binary on the
+  final tree, random prompts, #11181 protocol, one quiet slot, pages warm, order alternated, 8546d143f binary as reference
+  arm; suspects (a) fp8 screened greedy head, (b) dfuse controller switches at B>1, (c) hostgap host pool / argmax_v4t
+  (INTARSIA_HOST_THREADS=1, INTARSIA_METAL_ARGMAX_V4T=0); env names from docs_env_vars. (3) Only if no switch explains it,
+  bisect the merges in one slot. Report B8/B16 per arm and the culprit with its switch; fix/revert is main's call. May fold
+  into #11297 if long enough, else queue right after. Later from ink-metal: the combined gate on 7e5e6010e (pre-pack12,
+  not quiet) logged B 2/5/16 at 23.5 / 27.7 / 74.9 ms, so B16 matches #11261 and any regression predates pack12 (fp8,
+  prefill, dfuse or hostgap); consider a B16-only path (screened head, per-row controller loop). ink-metal sends #11266's
+  B1/8/16 (and its pack12 on/off arm) when it lands.
+
 - 2026-11-22 (main, priority, CPU only): ink-mtp suspects batched-decode sampler readbacks skip the final logit softcap
   (model.rs batch-head top-k path ~2594-2612: LastTopK vals and LastLogits rows; model/batch.rs; softcap only in head_logits
   and graph_decode_step). (1) Test first: batched rows, top-k values and full logits, bitwise == one-sequence decode's capped
