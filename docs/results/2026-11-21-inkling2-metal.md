@@ -274,6 +274,30 @@ and batch 6/6, cuda / hip lib 34 / 31, docs_env_vars 2/2. Combined gate: endor #
   reference). The Gumbel code is on `ink/hostgap-gumbel` (336e20250: `GumbelArgmax = 96`, appended after the reserved block,
   so `ALL` becomes 97), not on `ink/hostgap`. Trial merges on the current tip: both ink/hostgap-gumbel and ink/pack12
   conflict only in the op lists (ops.rs, cpu fast / reference / lib, cuda / hip kernels; pack12 also model/inkling2.rs).
+- 2026-11-22 (coordinator): do not append `GumbelArgmax` as op 96 (ALL 97); put it in the lowest free reserved slot, as
+  InkRoute, so `ALL` stays 96. Check ink/mtp first (DSpark draft ops said to use 92-95). Add a reserved op slot map here;
+  every lane that adds an op claims a slot in it first. The gumbel check asserts `GumbelArgmax == <slot>` and `ALL == 96`.
+
+## Reserved op slot map (Inkling-2 block 76..=95, `ALL` = 96)
+
+Claim a slot here before adding an op; replace the placeholder in place (same position in the enum, `ALL`, `as_str`, arity).
+
+| Slot | Op | Branch | State |
+|---|---|---|---|
+| 76 | `InkRoute` (router GEMV + MoeRoute) | ink/dfuse | merged (b1a4f3f62) |
+| 77 | `GumbelArgmax` (device Gumbel sampler) | ink/hostgap-gumbel | claimed; on its branch as 96 (appended), moved to 77 at merge |
+| 78-79 | reserved | ink/dfuse block | free (dfuse-route uses only 76) |
+| 80 | `MatmulP12` | ink/pack12 | on its branch, not merged (waits for #11194) |
+| 81-83 | reserved | ink/pack12 block | free |
+| 84-87 | reserved | ink/d1row block | free (d1row's kernels were not merged; the lane is gone) |
+| 88 | `HeadScreen` | ink/fp8 | merged (26fdda63d) |
+| 89 | `LogitsGather` | ink/fp8 | merged |
+| 90 | `ScreenArgmax` | ink/fp8 | merged |
+| 91 | reserved | ink/fp8 block | free |
+| 92-95 | reserved, claimed for the DSpark drafter device ops ((c) top-k ids / values + p1, tap mixes) | ink/mtp | claimed by the mtp brief (mtp doc, 2026-11-21); no op on ink/mtp 85265f9d5 / b12b1afeb yet (its ops.rs ends at InkAttnDecode, ALL 76) |
+
+Lane note on 77: it is the lowest free slot but sits in dfuse's block; dfuse's current work (dfuse-route 120cfe4b9) adds no op,
+so 78-79 stay for it. If the coordinator prefers to keep lane blocks whole, 84 (the gone d1row block) is the alternative.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
