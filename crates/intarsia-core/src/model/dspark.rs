@@ -721,7 +721,15 @@ impl Model {
                 break;
             }
             if prof && i == 0 {
-                eprintln!("dspark: ms flush {:.2} block {:.2} head {:.2} step0 {:.2}", ms(t_in), ms(t_block - t_in), ms(t_head - t_block), ms(t0.elapsed() - t_head));
+                static LAST: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
+                let cyc = LAST.lock().unwrap().replace(t0).map_or(0.0, |l| ms(t0 - l));
+                eprintln!(
+                    "dspark: ms flush {:.2} block {:.2} head {:.2} step0 {:.2} cycle {cyc:.2}",
+                    ms(t_in),
+                    ms(t_block - t_in),
+                    ms(t_head - t_block),
+                    ms(t0.elapsed() - t_head)
+                );
             }
             out.push(best as u32);
             prev = best;
