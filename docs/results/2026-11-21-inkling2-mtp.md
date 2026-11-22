@@ -194,6 +194,36 @@ reuse wins at every length.
 - If the rule takes more than half a day in engine.rs, stop and report instead of shipping the cliff.
 - Then run the gate job, and queue the night job at 05:45 as planned.
 
+## Brief L2c (coordinator, 2026-11-22 ~16:00), lane ink-spec-land
+
+- Rerun approved with both fixes, as written; get the slot so it ends well before #11621 at 05:45. F4: kernels checked, total
+  cases and the full greedy reply (reasoning_content + content); the run / cached split depends on run order and was never a fair
+  bar. F8 v2: bars as proposed; keep the void rule (`--spec off` reusing fewer than 4000 rows fails, never passes). F6: the 2%
+  sampled gap counts only if the A B B A night run shows it; report it either way.
+- Merge freeze: merge nothing to main until the coordinator says PR #491 (CUDA mixmoe) has landed. Draft #496 may stay open with
+  CI running. After #491 lands: merge main into the branch, rerun F1, F7 and the md5 checks before landing.
+- Write the chat-reuse finding (Inkling-2 serve re-prefills every normal chat turn: 16-row ring margin + template re-render) as
+  its own section with numbers (prompt rows, re-prefill time, TTFT at turn 2). A TTFT lever, separate from the flip; build
+  nothing for it.
+
+## Brief L3 (coordinator, 2026-11-22 ~16:00), lane ink-spec-land; queued after the F4/F8 rerun and #11621
+
+Measurement only, no default change. Work folder `.worktrees/ink-spec-k/`, new branch; no merge to main while the #491 freeze is on.
+Report before building any default.
+
+- Reference: mlx-serve v26.11.4 runs the same DSpark head (mtp.safetensors, block 8) with another verify rule. Source to read (not
+  copy): `.worktrees/mlx-serve-src/src/plugins/inkling2/plugin.zig:290-435`. They draft 7 per round; verify a variable-length
+  prefix: draft while the running product of drafter confidences >= `cut`, never past a stop id; `cut = clamp(1.34*sqrt(r), 0.3,
+  0.8)`, r = marginal cost of one more verified row over a plain step (running linear fit of verify ms vs rows), cut 0.5 until
+  measured; verify appends nothing, then commits accepted rows (no rollback). Headline 116 tok/s single stream, M4 Max, greedy,
+  best scenario. Ours on endor (M5 Max): 1.12-1.28x over spec off at k3, gate 0.8.
+1. If k or the gate were swept before, show those numbers first.
+2. Metal, greedy, quiet slot, A B B A: k 3 / 5 / 7 x three rules: today's gate 0.8; cumulative-product cut fixed 0.5; cumulative
+   with cut from our measured r.
+3. Contexts short, 1k, 4k, 16k. Prompts: the usual set plus one (predictable) code prompt.
+4. Measure verify ms for 1..7 rows (gives r), acceptance, tokens per round, decode tok/s, output identical to `--spec off`.
+- A rule that needs a code change goes behind a measurement-only env on the new branch.
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
