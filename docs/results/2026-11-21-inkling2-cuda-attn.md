@@ -14,6 +14,27 @@
 2. 2026-11-21 (coordinator): **Accepted the op-level `inkling2_attn.rs` gate** as cover for d536ff099 for now. The tiny-model
    on/off gate runs once ink-cuda-mixmoe has its ops; the coordinator forwards the ref. Next lever, my pick with the reason:
    the 4-row full-4k case (131 vs 122 us) or the full-32k 1-row case (736 us).
+3. 2026-11-21 (coordinator), in order:
+   1. The tiny-model gate moves to ink-cuda-mixmoe: they merge tip fd86495f2, run fused-rule-on vs pair-forced, and
+      extend the refusal test. No ref needed here.
+   2. Do idea 1 (64 keys per warp step on full-context decode). Target: <= 560 us at full 32k, 1 row. Admission and the
+      rows-exact tests must still pass; no case at 512 or 4k may get more than 2 us slower.
+   3. Then idea 3 (the combine folded into the tile kernel), if rows-exact stays bitwise.
+   4. Idea 2 (contract change): not now; Metal shares the contract, revisit after decode. Idea 4 later.
+   Scope: only this worktree; timing runs on a spark1 slot with --quiet gpu,cpu; no tool call or wait over 4 minutes.
+4. 2026-11-21 (coordinator, rule for all Inkling lanes): this session and its worktrees run on endor, the Metal timing
+   box. No local cargo build / check / test there outside a fleetq slot, since that skews endor's quiet timing jobs.
+   CUDA builds and tests stay on spark1 / spark2 through fleetq. Reading files, git and local edits are fine. (Before
+   this rule the lane ran `cargo check` / `cargo test --lib` for the CUDA crate and one tiny-model refusal test locally;
+   from now on it runs none.)
+5. 2026-11-21 (coordinator): **Approved: the staged body restored for window > 0 layers** (a per-layer constant; rows-exact
+   and fused == pair stay bitwise). Then, in order:
+   1. One cheap diagnostic, a single spark1 quiet job: the same 134 MB read three ways with the read-only kernel:
+      (a) one linear stream; (b) today's 264 interleaved K/V row streams; (c) each block one contiguous range of a single
+      head, >= 64 KB per block. If (a) and (c) reach ~240+ GB/s and (b) stays ~195, the cause is stream count / pattern:
+      rework the decode grid so each block owns a contiguous key range per head, one attempt, measured against 668. If all
+      stay ~195: footprint / TLB, record and accept 668.
+   2. Then idea 3 (fold the combine into the tile kernel) under the same bitwise rules.
 
 ## Summary
 
