@@ -104,6 +104,16 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
   The coordinator relays the hoist row-table test (`INTARSIA_INK_MIX_HOIST=1`) to ink-batch and routes the no-metal4
   `ink_in_proj` NoKernel at m 31-63 to ink-prefill. The missed dispatch and controller targets are accepted as stated: the
   evidence beats the target. The ink_route cold-load lever goes in this doc as the next item; it is not built until E is in.
+- 2026-11-22 ~02:20 (coordinator, go-ahead): build ink_route candidate 1 now, without waiting for job E.
+  1. Keep job E (#11003) exactly as finalized: do not touch the tree or hash it runs (.scratch/snap3, ac2371c81).
+  2. Build on a new branch ink/dfuse-route off 05d46d30b, in a fresh git worktree at
+     /opt/code/intarsiaml/.worktrees/ink-dfuse/.scratch/route with its own target dir. Use only that path.
+  3. Candidate 1 only: load each weight row and x row before the first dot product, with the same reduction order, behind a
+     new switch INTARSIA_INK_ROUTE_PRELOAD (default off). It must be bitwise with off at 1 and 16 rows.
+  4. Compile check and the Inkling model tests on bespin (--load cpu). Then queue one timing job on endor after E: off vs on,
+     short prompt and 5k, interleaved, `--quiet gpu,cpu`, honest --expect.
+  5. Candidates 2 and 3 (top-8 tail, cross-layer prefetch) stay unbuilt. Report candidate 1's numbers first.
+  Report: the bitwise result, us per ink_route call (real stream vs warm), ms per step, and the branch hash.
 
 ## Probes (endor, before any code)
 
