@@ -7,6 +7,9 @@
 //!
 //!   cargo run --release -p intarsia-backend-metal --example inkmoe_bench [-- nv|mx] [rows ...]
 //!
+//! `INKMOE_ROUTES=<file>:<P1>,<P2>,...` (lane ink-mtp): real routing instead of the random one. The file is i16 expert ids
+//! `[48 visits, P_i positions, 8]` per text, one after another (the oracle's `expert_ids`, tools/inkling2_dspark_ref.py); a
+//! T-row call takes T consecutive positions of one visit of one text, as a verify pass does.
 //! `INKMOE_POOL=<u>`: draw every token's experts from one random pool of u per call (smaller unions, more pairs per expert).
 //!
 //! Run it inside a fleetq slot (`fleetq run --host endor --quiet gpu,cpu --mem 8 ...`).
@@ -46,6 +49,22 @@ fn main() {
     if let Some(n) = std::env::var("INKMOE_DNF_THREADS").ok().and_then(|v| v.parse().ok()) {
         set_dnf_threads(n);
     }
+    // real routing: per text, ids [48][P][8]
+    let routes: Option<Vec<(usize, Vec<i16>)>> = std::env::var("INKMOE_ROUTES").ok().map(|v| {
+        let (f, ps) = v.split_once(':').expect("INKMOE_ROUTES=<file>:<P1>,<P2>,...");
+        let raw = std::fs::read(f).expect("routes file");
+        let all: Vec<i16> = raw.chunks_exact(2).map(|c| i16::from_le_bytes([c[0], c[1]])).collect();
+        let mut off = 0;
+        ps.split(',')
+            .map(|p| {
+                let p: usize = p.parse().unwrap();
+                let n = 48 * p * K;
+                let seg = all[off..off + n].to_vec();
+                off += n;
+                (p, seg)
+            })
+            .collect()
+    });
     let be = MetalBackend::new().expect("metal backend");
     let ks = be.kernels();
     let t = |b: &Buffer, dt: DType, shape: &[usize]| TensorRef {
@@ -122,7 +141,7 @@ fn main() {
                         .ok()
                         .and_then(|v| v.parse::<usize>().ok())
                         .filter(|&u| u >= K && u < E);
-                    let (ids, ws) = match pool {
+                    let (mut ids, ws) = match pool {
                         None => intarsia_core::quant::cases::random_routing(&mut rng, tr, E, K),
                         Some(u) => {
                             let (sub, _) = intarsia_core::quant::cases::random_routing(&mut rng, 1, E, u);
@@ -132,6 +151,13 @@ fn main() {
                             (HostTensor::from_i32(&[tr, K], &mapped), ws)
                         }
                     };
+                    if let Some(rs) = &routes {
+                        // T consecutive positions of one visit of one text
+                        let (p, seg) = &rs[(rng.next_u64() as usize) % rs.len()];
+                        let (v, s0) = ((rng.next_u64() as usize) % 48, (rng.next_u64() as usize) % (p - tr.min(*p) + 1));
+                        let picked: Vec<i32> = (0..tr * K).map(|j| seg[(v * p + s0 + j / K) * K + j % K] as i32).collect();
+                        ids = HostTensor::from_i32(&[tr, K], &picked);
+                    }
                     let mut seen = [false; E];
                     for &id in &ids.to_i32().unwrap() {
                         seen[id as usize] = true;

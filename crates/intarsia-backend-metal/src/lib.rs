@@ -51,8 +51,8 @@ pub mod nvfp4;
 pub mod p12;
 pub mod profile;
 mod rowtab;
-pub mod inkctrl;
 mod sync;
+pub mod inkctrl;
 mod topk;
 
 pub use buffer::{MetalBuffer, MtlBuffer};

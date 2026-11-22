@@ -1122,8 +1122,7 @@ mod tests {
     /// op gains or loses a kernel) and `short_conv` (LFM2, lane nab2: a new op, no existing op changes), and lane dm's DFlash2 draft kernels (`dyn_conv_bf16`, a
     /// new op; `attn_decode_bf16_window`, `.ext()` and priority -1, so no plain call can pick it), so the plan has the same candidates as before.
     /// Lane ink-hostgap's device sampler adds `gumbel_argmax_f32` for its new op (`gumbel_argmax`): no existing op gains a candidate.
-    /// Lane ink-mtp adds `hc_pre_bf16` (`HcPre` had no Metal kernel: the DSpark draft's
-    /// device tap mix).
+    /// Lane ink-mtp adds `hc_pre_bf16` (`HcPre` had no Metal kernel: the DSpark draft's device tap mix).
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();
