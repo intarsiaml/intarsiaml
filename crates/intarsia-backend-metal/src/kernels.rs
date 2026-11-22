@@ -334,6 +334,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::fp8::SHADERS);
     v.extend(crate::nvfp4::SHADERS);
     v.extend(crate::inkmoe::SHADERS);
+    v.extend(crate::topk::SHADERS);
     v.extend(GEMV_A8_VARIANTS.iter().map(|g| g.name));
     v.extend([GEMV_SCALAR.name, COPY_U4, READ_XOR_U4, ZERO_U4, ZERO_BYTES, COPY_BYTES]);
     v.extend([GEMM_O_BF16, GEMM_O_F32, GEMV_F32O_V, GEMV_F32O_SCALAR]);

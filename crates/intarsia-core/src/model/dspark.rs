@@ -98,6 +98,8 @@ pub(super) struct Dspark {
     /// `INTARSIA_DSPARK_CAND` (default 64): the Markov bias is applied to each step's top-`cand` base logits only (the base read
     /// once per cycle, every step on the host); 0: the exact head (the full fold GEMV and both rows downloaded every step).
     cand: usize,
+    /// The device top-k failed once (a backend without `topk_rows`): the host takes the candidates from then on.
+    host_topk: std::sync::atomic::AtomicBool,
     tau: f32,
     bufs: DsBufs,
 }
@@ -125,6 +127,8 @@ struct DsBufs {
     frnn: Buffer,
     hw: Buffer,
     fw: Buffer,
+    /// device top-k of the base rows (`Backend::topk_rows`): ids i32 `[7, cand]`, values f32 `[7, cand]`, NaN flags, scratch
+    tk: [Buffer; 4],
 }
 
 fn bf16_bits(x: f32) -> u16 {
@@ -366,6 +370,7 @@ pub(super) fn load(
         frnn: alloc(h)?,
         hw: f32buf((BLOCK - 1) * 3 * r)?,
         fw: f32buf(3 * r)?,
+        tk: [f32buf((BLOCK - 1) * 64)?, f32buf((BLOCK - 1) * 64)?, f32buf(BLOCK)?, f32buf((BLOCK - 1) * 32 * 64 * 2)?],
     };
     let mut feat = Vec::with_capacity(nt);
     for _ in 0..nt {
@@ -388,7 +393,8 @@ pub(super) fn load(
         fold_b,
         fold_host: fw_bits,
         head,
-        cand: std::env::var("INTARSIA_DSPARK_CAND").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(64),
+        cand: std::env::var("INTARSIA_DSPARK_CAND").ok().and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(64).min(64),
+        host_topk: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DSPARK_DEVICE_TOPK").is_ok_and(|v| v == "0")),
         tau,
         bufs,
     };
@@ -621,7 +627,28 @@ impl Model {
         let latent_t = self.view(&bf.latent, act, &[1, r]);
         let fold_t = self.view(&bf.fold, act, &[1, vocab]);
         // candidate head: the top-`cand` base logits of every draft row, from one download
-        let cands: Vec<Vec<(usize, f32)>> = if ds.cand > 0 {
+        let dev = if ds.cand > 0 && !ds.host_topk.load(std::sync::atomic::Ordering::Relaxed) {
+            let c = ds.cand.min(vocab);
+            let t = |b: &Buffer, dt: DType, shape: &[usize]| TensorRef::new(b.clone(), dt, shape);
+            let (ib, vb, nb) = (t(&bf.tk[0], DType::I32, &[kmax, c]), t(&bf.tk[1], DType::F32, &[kmax, c]), t(&bf.tk[2], DType::I32, &[kmax]));
+            match self.backend.topk_rows(&base, c, &ib, &vb, &nb, &t(&bf.tk[3], DType::F32, &[kmax * 32 * c * 2]), self.stream) {
+                Ok(()) => Some(c),
+                Err(e) => {
+                    eprintln!("dspark: device top-k unavailable ({e}); the host takes the candidates");
+                    ds.host_topk.store(true, std::sync::atomic::Ordering::Relaxed);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        let cands: Vec<Vec<(usize, f32)>> = if let Some(c) = dev {
+            self.backend.synchronize(self.stream)?;
+            let ids = self.ds_download(&bf.tk[0], DType::I32, 0, kmax * c)?;
+            let vals = self.ds_download(&bf.tk[1], DType::F32, 0, kmax * c)?;
+            let nan = self.ds_download(&bf.tk[2], DType::I32, 0, kmax)?;
+            (0..kmax).map(|i| if nan[i] != 0.0 { Vec::new() } else { (0..c).map(|j| (ids[i * c + j] as usize, vals[i * c + j])).collect() }).collect()
+        } else if ds.cand > 0 {
             let base_all = self.ds_download(&bf.base, act, 0, kmax * vocab)?;
             base_all
                 .chunks_exact(vocab)
