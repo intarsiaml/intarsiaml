@@ -51,13 +51,13 @@ pub(crate) fn ink_attn_fused_rule(rows: usize, local: bool, ctx: usize, window: 
     }
 }
 
-/// Whether an Inkling-2 pass of `t` rows runs under `exact_rows` (the row-exact kernels): on Metal for 2..=16 rows (the 1-row
+/// Whether an Inkling-2 pass of `t` rows runs under `exact_rows` (the row-exact kernels): on Metal and CUDA for 2..=16 rows (the 1-row
 /// kernels are the reference the rows kernels are bitwise to), unless `INTARSIA_INK_ROWS_EXACT=0`. Larger passes (prefill
 /// chunks) take the fast kernels and are not bitwise a decode step's rows on Metal.
 pub(crate) fn ink_rows_exact(backend: &str, t: usize) -> bool {
     static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     let off = *OFF.get_or_init(|| std::env::var("INTARSIA_INK_ROWS_EXACT").is_ok_and(|v| v.trim() == "0"));
-    !off && backend == "metal" && (2..=16).contains(&t)
+    !off && (backend == "metal" || backend == "cuda") && (2..=16).contains(&t)
 }
 
 /// Where a partial lives (see the module doc).
