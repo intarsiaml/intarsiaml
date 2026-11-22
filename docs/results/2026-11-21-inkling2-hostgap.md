@@ -1,6 +1,6 @@
 # Inkling-2-Mini Metal decode: host gap (lane ink-hostgap, 2026-11-21)
 
-Status: in progress again (coordinator, items 1-3 below). Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwarded to e61f392fd), not pushed.
+Status: waiting on endor #10943 (items 2 and 3 timing); code done and CPU-checked. Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwarded to e61f392fd), not pushed.
 
 ## Briefs received
 
@@ -359,6 +359,32 @@ accepts the remainder.
 - **#10958 (e4299fe24):** the same suites pass, plus `batch_engine` 10/10 with the pool at 8, 3, 1 and the default.
 
 **Endor** (#10943, in-loop host profile, against the <= 1 ms target for soft-cap + sampler at t1.0): ENDOR_SAMPLER_PLACEHOLDER
+
+**Gate changes and limits, reported to main:**
+- **B = 16 became B = 8.** The coordinator asked for B = 4 / 16 on the tiny model; the cpu backend allows at most 8 batch rows.
+  The case of more rows than threads is covered by the run at 3 threads.
+- **Not reachable on Inkling yet.** In this branch `enable_batch` refuses Inkling (`Block::Ink(_) => false`), so the default-on
+  row-parallel accept first runs on Inkling once ink/batch merges. Before then nothing exercises it on the real model.
+- **A possible B = 16 real-model gate:** `batch_metal_real.rs::real_35b_batched_engine_equals_the_local_engine` (BatchedEngine,
+  sampled rows, Metal) run with `INTARSIA_HOST_THREADS=8`. Offered to main, not run.
+- **Not tested:** a constrained (json_schema) request through the batched sampled path with the pool on. On the pool, the
+  constraint's mask and apply run on worker threads. The compiler proves `Send`; no test exercises it.
+
+## Pending: #10943 (endor, quiet, `--expect 35`)
+
+Results land in `.scratch/mAB/summary.txt`. Script: `.scratch/measAB.sh`. `.scratch/b4.ready` = e4299fe24; the job builds HEAD
+at its start as b4 and refuses a HEAD that lacks e4299fe24.
+
+1. ABAB base vs b1, 5 reps per arm, after one warm-up per arm: short greedy, 5k greedy, t0.7 seed 7. Medians and deltas, for the
+   merge rule (5k and t0.7 within 1 %).
+2. The sampled md5 gate b1 vs b4: t0.7 and t1.0 at seeds 7 and 11, and t0.7 with top-k 20 / top-p 0.95. Also b4 with the pool
+   on vs b4 at `INTARSIA_HOST_THREADS=1`.
+3. ABAB b1 vs b4, 5 reps per arm: 5k, t0.7, t1.0. b4 is what would merge.
+4. The b4 host profile at t1.0 and t0.7 (soft-cap + sampler in the loop, for the <= 1 ms target), the microbench, and the phase
+   timing.
+
+Merging ink/metal into this branch is held until #10943 has run, so b4 stays the code the gates measure.
+`git merge-tree HEAD ink/metal` is clean today.
 
 ## Item 5: the speculative draft cycle without a host round trip (proposal, not built; dropped)
 
