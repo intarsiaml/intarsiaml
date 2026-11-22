@@ -192,4 +192,22 @@ tokens per pass (2.2-2.6) promised more. Most of it is GPU work (block 2.6 ms, h
 host time in total). Verify and the k choice are behind it: k2 is the best fixed setting, and k7 pays for 8-row verifies that
 mostly reject.
 
+### Decode tok/s after the drafter work (#10874, `--quiet gpu,cpu`, binary 17c67dacf)
+
+Same sets and flags as #10806. 17c67dacf adds the row-exact draft kernels (2-16 rows), the vectorised Markov head and the merge
+of ink/metal (rows-exact ConvMix, serve fix). The spec-off baseline also moved (60.21 -> 62.58), so compare within this table.
+Every row is token-identical to spec off.
+
+| set, policy | tok/s | vs off | tokens / verify pass | acceptance |
+|---|---:|---:|---:|---:|
+| greedy, spec off | 62.58 | 1.00 | - | - |
+| greedy, k2 tau 0.6 | 79.84 | 1.28 | 2.23 | 67.5% |
+| greedy, k3 tau 0.6 | 80.46 | 1.29 | 2.40 | 57.0% |
+| **greedy, k3 tau 0.8** | **80.64** | **1.29** | 2.54 | 72.0% |
+| prose, spec off | 63.35 | 1.00 | - | - |
+| prose, k2 tau 0.6 | 74.46 | 1.18 | 2.16 | 67.8% |
+
+Drafter per cycle (k3 tau 0.6, profile on, 525 cycles): block 1.75 ms (was 2.64), head 1.20 ms (1.34), Markov 0.59 ms (0.70),
+ingest 0.75 ms (0.94): about 4.3 ms, down from 5.6. k2 and k3 are now within 1%; tau 0.8 trades fewer drafts for the same speed.
+
 RESULTS_PLACEHOLDER
