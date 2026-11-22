@@ -1013,6 +1013,8 @@ fn rows_exact_registrations_are_pinned() {
             "ink_in_proj_bf16_gemv_rows",
             // lane ink-fp8 (e4m3 InkInProj)
             "ink_in_proj_f8_gemv_rows",
+            // lane ink-pack12 (lossless P12 weights): bitwise their bf16 twins, tests/p12.rs
+            "ink_in_proj_p12_gemv_rows",
             "logits_bf16_gemv_rows",
             // lane ink-fp8 (screened greedy head)
             "logits_gather_f32o_v",
@@ -1020,6 +1022,8 @@ fn rows_exact_registrations_are_pinned() {
             "matmul_fp8_gemv_rows",
             "matmul_mxfp4_gemv_rows",
             "matmul_nvfp4_gemv_rows",
+            "matmul_p12_gemv_rows",
+            "matmul_p12_logits_gemv_rows",
             "matmul_pair_bf16_gemv_rows",
             "moe_experts_bf16_rows",
             // lane ink-m-moe (Inkling-2-Mini): G-B test in tests/inkmoe.rs

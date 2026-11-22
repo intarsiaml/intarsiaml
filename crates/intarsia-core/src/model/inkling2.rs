@@ -177,6 +177,11 @@ pub(super) struct InkLayer {
     pub relproj: TensorRef,
     /// `[D, H*Dh]`, bf16 as stored or quantised (`INTARSIA_INK_ATTN_QUANT`).
     pub wo: QTensor,
+    /// `INTARSIA_INK_PACK12` (lane ink-pack12; lossless; default on Metal): the bf16 in-projection stack and wo as P12
+    /// too (`quant::p12`), for the 1..=`DENSE_ROWS_MAX`-row calls where the backend has the kernels; larger calls keep the
+    /// bf16.
+    pub in_p12: Option<QTensor>,
+    pub wo_p12: Option<QTensor>,
     /// Attention-input norms `[3, D]` (SWA: `attn_norm` three times; full: q / k / v input norms).
     pub norm3: TensorRef,
     pub mlp_norm: TensorRef,
@@ -338,6 +343,46 @@ fn host(src: &dyn WeightSource, name: &str) -> Result<(Vec<usize>, Vec<f32>)> {
     Ok((info.shape.clone(), crate::weights::to_f32_vec(info.dtype, src.bytes(name)?)?))
 }
 
+fn wdt_of(src: &dyn WeightSource, root: &str) -> DType {
+    src.info(&format!("{root}.embed.weight")).map(|i| i.dtype).unwrap_or(DType::Bf16)
+}
+
+/// Totals of the P12 packs made at load (`INTARSIA_INK_PACK12`, lane ink-pack12).
+#[derive(Default)]
+pub(crate) struct P12Stats {
+    pub elems: usize,
+    pub escapes: usize,
+    /// device bytes of the packs (codes + aux)
+    pub bytes: usize,
+    pub tensors: usize,
+    pub secs: f64,
+}
+
+impl P12Stats {
+    /// Pack a bf16 `[n, k]` weight (little-endian bytes) and upload it as a `p12` [`QTensor`].
+    pub(crate) fn pack(&mut self, b: &dyn Backend, w: &[u8], n: usize, k: usize) -> Result<QTensor> {
+        let t0 = std::time::Instant::now();
+        let p = crate::quant::p12::pack_bytes(w, n, k, 0)?;
+        self.secs += t0.elapsed().as_secs_f64();
+        self.elems += n * k;
+        self.escapes += p.escapes();
+        self.bytes += p.bytes();
+        self.tensors += 1;
+        p.upload(b)
+    }
+    pub(crate) fn note(&self, what: &str) -> String {
+        format!(
+            "P12 ({}=0 turns it off): {what} packed lossless to 12 bits ({} tensors, {:.3} GB, was {:.3} GB bf16; escapes {:.2e}; {:.1} s)",
+            crate::quant::p12::ENV,
+            self.tensors,
+            self.bytes as f64 / 1e9,
+            (2 * self.elems) as f64 / 1e9,
+            self.escapes as f64 / self.elems.max(1) as f64,
+            self.secs
+        )
+    }
+}
+
 fn encode(dt: DType, v: &[f32]) -> Result<Vec<u8>> {
     super::gemma::encode_floats(dt, v)
 }
@@ -383,6 +428,10 @@ pub(super) fn load(
     let s = (d as f32).powf(-0.5);
     // device bytes of the quantised projections (`attn_quant`), added to `bytes` at the end
     let qbytes = std::cell::Cell::new(0u64);
+    // lossless 12-bit copies of the bf16 in-projection and wo (lane ink-pack12, default on Metal); not with a quantised
+    // projection
+    let pack12 = crate::quant::p12::enabled(b) && attn_quant.is_none() && wdt_of(src, &names.root) == DType::Bf16;
+    let mut p12_stats = P12Stats::default();
     let mut put = |data: &[u8], dt: DType, shape: &[usize]| -> Result<TensorRef> {
         let buf = crate::backend::upload_new(b, data)?;
         *bytes += data.len() as u64;
@@ -445,6 +494,7 @@ pub(super) fn load(
         }
         let nq = nq_width(h, dh, dr);
         let nk = ckv + if local { 0 } else { hk * kc };
+        let in_p12 = if pack12 { Some(p12_stats.pack(b, &stacked, nq + 2 * nk, d)?) } else { None };
         let in_w = match attn_quant {
             None => InkInW::Stacked(put(&stacked, wdt, &[nq + 2 * nk, d])?),
             Some(kind) => {
@@ -621,6 +671,7 @@ pub(super) fn load(
         let sconv = |put: &mut dyn FnMut(&[u8], DType, &[usize]) -> Result<TensorRef>, n: &str| lag_major(put, &t(&format!("{n}.weight")), d);
         let attn_sconv = sconv(&mut put, "attn_sconv")?;
         let mlp_sconv = sconv(&mut put, "mlp_sconv")?;
+        let wo_p12 = if pack12 { Some(p12_stats.pack(b, src.bytes(&t("attn.wo_ud.weight"))?, d, h * dh)?) } else { None };
         layers.push(InkLayer {
             local,
             first: li % ink.block == 0,
@@ -650,6 +701,8 @@ pub(super) fn load(
                     }
                 }
             },
+            in_p12,
+            wo_p12,
             norm3,
             mlp_norm: direct(&t("mlp_norm.weight"), Some(&[d]))?.reshaped(&[1, d]),
             attn_sconv,
@@ -671,6 +724,10 @@ pub(super) fn load(
     let ws = InkWs::alloc(b, mt, act, dims, &ink, n_stack)?;
     let msg_q_all = if ink.looped() { Some(queries(&mut put, all_q4, 4 * n_core)?) } else { None };
     *bytes += qbytes.get();
+    if pack12 {
+        *bytes += p12_stats.bytes as u64;
+        eprintln!("{}", p12_stats.note("in_proj + wo"));
+    }
     Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, msg_q_all, ws, dims: ink })
 }
 
@@ -941,7 +998,22 @@ impl Model {
             let pk = TensorRef::new(ws.pk.clone(), act, &[t, l.nk]);
             let pv = TensorRef::new(ws.pv.clone(), act, &[t, l.nk]);
             match &l.in_w {
-                InkInW::Stacked(w) => ex(Op::InkInProj, vec![xs(nx), w.clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default())?,
+                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows where the backend admits it, else the
+                // bf16 stack (the same bits)
+                InkInW::Stacked(w) => {
+                    let mut done = false;
+                    if let Some(p) = l.in_p12.as_ref().filter(|_| t <= crate::quant::p12::DENSE_ROWS_MAX) {
+                        let mut c = OpCall::new(Op::InkInProj, vec![xs(nx), p.parts[0].clone(), p.parts[1].clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default());
+                        c.exact_rows = self.verifying();
+                        if self.registry.select(&c).is_ok() {
+                            self.exec_call(c, profile)?;
+                            done = true;
+                        }
+                    }
+                    if !done {
+                        ex(Op::InkInProj, vec![xs(nx), w.clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default())?;
+                    }
+                }
                 InkInW::Fp8 { w, scales, packs } => {
                     // the e4m3 InkInProj where the backend has a kernel for it (INTARSIA_INK_FP8_PROJ=0: always the packs)
                     let mut c = OpCall::new(Op::InkInProj, vec![xs(nx), w.clone(), scales.clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default());
@@ -1064,8 +1136,21 @@ impl Model {
             }
             let aproj = plane(&ws.aproj, act, 0, t, d);
             {
-                let c = l.wo.call(o, aproj.clone());
-                ex(c.op, c.inputs, c.outputs, c.attrs)?;
+                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows where the backend admits it, else wo as
+                // loaded (the same bits)
+                let mut done = false;
+                if let Some(p) = l.wo_p12.as_ref().filter(|_| t <= crate::quant::p12::DENSE_ROWS_MAX) {
+                    let mut c = p.call(o.clone(), aproj.clone());
+                    c.exact_rows = self.verifying();
+                    if self.registry.select(&c).is_ok() {
+                        self.exec_call(c, profile)?;
+                        done = true;
+                    }
+                }
+                if !done {
+                    let c = l.wo.call(o, aproj.clone());
+                    ex(c.op, c.inputs, c.outputs, c.attrs)?;
+                }
             }
             put(format!("{tag}.attn_proj"), &aproj)?;
 

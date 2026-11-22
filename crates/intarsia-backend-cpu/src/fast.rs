@@ -48,7 +48,10 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::GeluGlu => gelu_glu(call),
         Op::Argmax => argmax_op(call),
         Op::Sample => sample_op(call),
-        Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => Err(Error::invalid(format!("{}: reserved discriminant", call.op))),
+        Op::GumbelArgmax => crate::reference::gumbel_argmax(call),
+        // lossless P12 weights (lane ink-pack12): the decoded bf16 weight through the bf16 op
+        Op::MatmulP12 => run(&crate::p12_ref::as_bf16(call)?),
+        Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => Err(Error::invalid(format!("{}: reserved discriminant", call.op))),
     }
 }
 

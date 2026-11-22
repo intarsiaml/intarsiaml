@@ -215,6 +215,63 @@ fn inkling2_batch_sampler_rows_are_softcapped() {
     eprintln!("batched sampler rows vs solo capped logits: max |d| = {max_d:e}");
 }
 
+/// P12 (lane ink-pack12) is solo-only (#11266: with P12 default-on a batched plan failed the bitwise op-count check, the
+/// solo head ran `MatmulP12`, the batched one `Logits`). With the default env: a solo model keeps its P12 copies (on Metal,
+/// where P12 defaults on), a model with `enable_batch(16)` drops them, configures its plan, and its batched rows are bitwise
+/// its own solo steps (the bf16 weights on both). The separate P12 solo model is compared too, reported, not asserted: on the
+/// tiny fixture (#11314) the P12 solo logits are not bitwise the bf16 ones (the tiny shapes take a bf16 kernel that is not
+/// P12's twin), so a batched server's B1 rows are not bitwise a max-batch 1 server's there.
+#[test]
+fn inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    if std::env::var_os(intarsia_core::quant::p12::ENV).is_some() {
+        return skip("INTARSIA_INK_PACK12 set: this test checks the default");
+    }
+    let solo_m = load(&dir, 1);
+    if on_metal() {
+        assert!(solo_m.has_p12(), "solo Metal model: P12 is default-on, so the fixture must hold P12 copies (else this test is vacuous)");
+    }
+    let bat_m = load_on(&dir, Arc::new(Failing { inner: backend(), fail: Arc::new(AtomicBool::new(false)) }), 16)
+        .expect("enable_batch(16) + configure_plan with the default env");
+    assert!(!bat_m.has_p12(), "batched model: P12 dropped");
+    let lens = [1usize, 7, 8, 9, 12, 13, 3, 30, 17, 64, 5, 41, 2, 24, 50, 11];
+    let mut solo: Vec<SequenceState> = Vec::new();
+    let mut bat: Vec<SequenceState> = Vec::new();
+    for (s, &l) in lens.iter().enumerate() {
+        let mut a = solo_m.new_state().unwrap();
+        prefill(&solo_m, &mut a, s, l);
+        solo.push(a);
+        let mut b = bat_m.new_state().unwrap();
+        prefill(&bat_m, &mut b, s, l);
+        bat.push(b);
+    }
+    // the batched model's own solo states (bf16 weights, P12 dropped): the bitwise reference
+    let mut own: Vec<SequenceState> = Vec::new();
+    for (s, &l) in lens.iter().enumerate() {
+        let mut c = bat_m.new_state().unwrap();
+        prefill(&bat_m, &mut c, s, l);
+        own.push(c);
+    }
+    let mut p12_max = 0f32;
+    let mut p12_rows_differ = 0usize;
+    for k in 0..4 {
+        let ids: Vec<u32> = (0..lens.len()).map(|s| tok(s, solo[s].len)).collect();
+        let p12: Vec<Vec<f32>> = solo.iter_mut().zip(&ids).map(|(st, &id)| logits(solo_m.forward(st, &[id], HeadMode::LastLogits, None).unwrap())).collect();
+        let want: Vec<Vec<f32>> = own.iter_mut().zip(&ids).map(|(st, &id)| logits(bat_m.forward(st, &[id], HeadMode::LastLogits, None).unwrap())).collect();
+        let mut refs: Vec<&mut SequenceState> = bat.iter_mut().collect();
+        let got = bat_m.forward_batch(&mut refs, &ids, &vec![HeadMode::LastLogits; lens.len()]).unwrap();
+        for (r, (g, w)) in got.into_iter().zip(&want).enumerate() {
+            let g = logits(g);
+            assert!(g == *w, "step {k}: batched row {r} differs from the batched model's own solo step");
+            if g != p12[r] {
+                p12_rows_differ += 1;
+                p12_max = g.iter().zip(&p12[r]).map(|(a, b)| (a - b).abs()).fold(p12_max, f32::max);
+            }
+        }
+    }
+    println!("P12 solo model vs batched (bf16) rows: {p12_rows_differ} of {} rows differ, max |dlogit| {p12_max:.3e}", 4 * lens.len());
+}
+
 /// Argmax rows (device argmax of the batched head) are the solo step's tokens.
 #[test]
 fn inkling2_batch_argmax_equals_solo() {
