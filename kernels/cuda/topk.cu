@@ -8,6 +8,7 @@
 // merges the S*k candidates of its row with the same rounds. NaN never wins; a row that holds a NaN is flagged (the host falls back
 // to its comparator path for such a row, whose NaN behaviour is not a total order).
 #include "ik_launch.h"
+#include "ik_internal.h"
 #include <limits.h>
 
 namespace {
@@ -49,15 +50,23 @@ IK_DEVI Cand block_best(Cand c, Cand* sm) {
     return r;
 }
 
-__global__ void __launch_bounds__(kThreads) topk_stage1(const float* __restrict__ x, int64_t V, int k, float* __restrict__ cv,
+// a row element as f32 (bf16 widens exactly, so the order is the bf16 values' order)
+IK_DEVI float ld_f(const float* p) { return *p; }
+IK_DEVI float ld_f(const ik_bf16* p) { return ik_b2f(*p); }
+
+template <typename T>
+__global__ void __launch_bounds__(kThreads) topk_stage1(const T* __restrict__ x, int64_t V, int k, float* __restrict__ cv,
                                                        int* __restrict__ ci, int* __restrict__ nan_flag) {
     __shared__ Cand sm[kWarps];
     const int64_t row = blockIdx.y;
     const int64_t per = (V + kSlices - 1) / kSlices;
     const int64_t lo = (int64_t)blockIdx.x * per, hi = min(lo + per, V);
-    const float* r = x + row * V;
+    const T* r = x + row * V;
     bool has_nan = false;
-    for (int64_t j = lo + threadIdx.x; j < hi; j += kThreads) has_nan |= (r[j] != r[j]);
+    for (int64_t j = lo + threadIdx.x; j < hi; j += kThreads) {
+        const float v = ld_f(r + j);
+        has_nan |= (v != v);
+    }
     if (has_nan) atomicOr(nan_flag + row, 1);
     Cand prev = {0.f, -1};
     float* ov = cv + (row * kSlices + blockIdx.x) * k;
@@ -65,7 +74,7 @@ __global__ void __launch_bounds__(kThreads) topk_stage1(const float* __restrict_
     for (int t = 0; t < k; ++t) {
         Cand best = {0.f, -1};
         for (int64_t j = lo + threadIdx.x; j < hi; j += kThreads) {
-            const float v = r[j];
+            const float v = ld_f(r + j);
             if (v != v) continue;
             if (prev.i >= 0 && !before(prev.v, prev.i, v, (int)j)) continue;  // not strictly after the previous pick
             Cand c = {v, (int)j};
@@ -116,11 +125,13 @@ __global__ void __launch_bounds__(kThreads) topk_stage2(const float* __restrict_
 
 extern "C" {
 
-// logits f32 [R, V] -> ids i32 [R, k], vals f32 [R, k], nan i32 [R] (1: the row holds a NaN; its entries are not meaningful).
+// logits f32 or bf16 [R, V] -> ids i32 [R, k], vals f32 [R, k] (a bf16 value widened exactly), nan i32 [R] (1: the row holds a
+// NaN; its entries are not meaningful). bf16 rows: the DSpark draft's base logits (lane ink-cuda-mtp).
 // scratch >= R * 32 * k * 8 bytes. 1 <= k <= 64, k <= V.
 int ik_topk_f32(const ik_tensor* logits, int64_t k, ik_tensor* ids, ik_tensor* vals, ik_tensor* nan, const ik_scratch* scratch,
                 void* stream) {
-    IK_TRY(ik_check(logits, IK_DTYPE_F32, 2));
+    const bool bf = logits->dtype == IK_DTYPE_BF16;
+    IK_TRY(ik_check(logits, bf ? IK_DTYPE_BF16 : IK_DTYPE_F32, 2));
     IK_TRY(ik_check(ids, IK_DTYPE_I32, 2));
     IK_TRY(ik_check(vals, IK_DTYPE_F32, 2));
     IK_TRY(ik_check(nan, IK_DTYPE_I32, 1));
@@ -136,7 +147,10 @@ int ik_topk_f32(const ik_tensor* logits, int64_t k, ik_tensor* ids, ik_tensor* v
     float* cv = (float*)scratch->data;
     int* ci = (int*)((char*)scratch->data + R * kSlices * k * 4);
     if (cudaMemsetAsync(nan->data, 0, R * 4, s) != cudaSuccess) return IK_ERR_LAUNCH;
-    topk_stage1<<<dim3(kSlices, (unsigned)R), kThreads, 0, s>>>((const float*)logits->data, V, (int)k, cv, ci, (int*)nan->data);
+    if (bf)
+        topk_stage1<ik_bf16><<<dim3(kSlices, (unsigned)R), kThreads, 0, s>>>((const ik_bf16*)logits->data, V, (int)k, cv, ci, (int*)nan->data);
+    else
+        topk_stage1<float><<<dim3(kSlices, (unsigned)R), kThreads, 0, s>>>((const float*)logits->data, V, (int)k, cv, ci, (int*)nan->data);
     IK_TRY(ik_launch_status());
     topk_stage2<<<(unsigned)R, kThreads, 0, s>>>(cv, ci, (int)k, (int*)ids->data, (float*)vals->data);
     return ik_launch_status();
