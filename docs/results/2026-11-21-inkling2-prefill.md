@@ -449,6 +449,24 @@ Against brief 8: G2 / G3 pass; serve log ok; 4k and 16k prefill faster beyond sp
 - **4k decode, pair 1:** -1.5 % (localeval calls it noise; brief 8 asks for within 1 %). Pair 2 is -0.3 %.
 Recipe committed on the coordinator's call (brief 13): ink/prefill-merge 05f1c702e.
 
+### MoE step-1 probe (#11235, inkmoe_bench with `ink-probe`, built in-slot at 16442b2ff; brief 15)
+
+Balanced routing (128 experts x 128 rows, 256 tiles per call), µs per call, mean of 3 reps (each rep's spread under 0.3 %):
+
+| Arm | full | gu only | dn only | full saved vs control | per tile |
+|---|---:|---:|---:|---:|---:|
+| A normal kernels | 6202 | 4061 | 2392 | | |
+| 0 probe copy, unchanged (control) | 6188 | 4059 | 2392 | | |
+| B bit copy instead of the NVFP4 decode | 5796 | 3764 | 2304 | 392 | **1.5 µs** |
+| C no weight / scale loads from DRAM | 5442 | 3660 | 2044 | 746 | **2.9 µs** |
+
+- The control matches the normal kernels to within 0.2 %, so the probe copy is a fair baseline.
+- **Rule result (brief 15): neither.** B saves 1.5 µs per tile, not the 6 µs needed. C is 2.9 µs of the 15.2 µs per-tile cost, so it does not dominate.
+- Together B and C explain ~4.5 µs per tile. The remaining ~10 µs is the K loop's structure: 36 steps of 64 over K = 2304 per gate+up tile, each with a threadgroup stage, two barriers and a matmul2d issue. That is inference from the probes, not measured directly.
+- **MoE decode work stops here.** Next is the ConvMix + looped blend fusion, as brief 10 says.
+- Real replayed routing was not usable: the control averaged 9.3 ms against a 7.2 ms minimum (interference), and B ran slower than normal. Random bit patterns likely make special values in the matmul. The decision uses the balanced runs.
+- This #11235 build is also brief 16's endor smoke: the bench built with `ink-probe` on endor (31f117a00 included) and ran.
+
 ### Brief 7 fix check (#11105, built in-slot at 92e7e273f, which contains ed27f4462)
 
 | Check | Result |
