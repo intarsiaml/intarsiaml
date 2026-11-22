@@ -146,6 +146,12 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
   Requeue R as `sh <path>/jobR.sh` with the same flags, and check that it really runs. Done 05:01: jobR.sh is now
   executable, R is requeued as **#11258** with the command `sh .../jobR.sh` and the same flags, and fleetq estimates a start
   around 11:00.
+- 2026-11-22 ~06:00 (coordinator): drop the preload and leave ink/dfuse-route unmerged; skip candidates 2 and 3 (their
+  combined ceiling is about 0.18 ms per token, roughly 1.2 % of the 15 ms step, and 3 needs a contract change). Next:
+  break the ~3.2 ms per token of per-dispatch controllers down by op (ms per token, dispatches, share) from the existing
+  trace without a new job, and propose the single next target with a ceiling of at least 0.3 ms per token, with its bitwise
+  plan. Do not build until the coordinator answers. Before any further decode-mode G2 comparison, move onto the ink/metal
+  tip that has the NE fix (done 06:05: merged ink/metal 1c1ee202c as 10cf8988d, which includes 7eca1b012).
 
 ## Probes (endor, before any code)
 
@@ -699,4 +705,89 @@ off = best (route + msg + hoist + norm_c); on = best + `INTARSIA_INK_ROUTE_PRELO
   - The cold-load gap stays: 12.33 us per call in the stream against 8.62 warm, about 0.18 ms per token.
   - Candidates 2 (a shorter top-8 tail) and 3 (cross-layer prefetch, which needs a contract note) are unbuilt and wait
     for the coordinator.
+
+### Controller breakdown by op (06:05, from the existing trace, no new job)
+
+Source: job E's per-dispatch trace with best on (.scratch/E/disp_best.jsonl, ac2371c81). That is the same code as job R's
+off arm and as the defaults on the tip. R's own trace was removed with the route worktree; only its summary is kept
+(raw/R_disp_summary.txt, 3.210 ms per token, which agrees to within 1 %). Splitting by call type:
+raw/E_disp_best_calltype.txt (raw/calltype.py). The measurement uses one command buffer per launch. Its per-dispatch GPU busy,
+16.01 ms, is 0.92 ms above the normal-step span (15.09 ms), so each dispatch is overstated by about 1.7 us on average.
+
+| Controller dispatch | ms / token | Dispatches / token | Median us | Share |
+|---|---|---|---|---|
+| ConvMix row kernel, calls with the blend (conv + mix + pair) | 0.885 | 46 | 18.37 | 27 % |
+| ConvMix row kernel, calls without the blend | 0.727 | 50 | 13.3 to 15.4 | 22 % |
+| ink_route (op 76) | 0.593 | 48 | 12.37 | 18 % |
+| blend gate (`ink_blend_gate`, ConvMix #2) | 0.400 | 46 | 8.42 | 12 % |
+| blend h GEMV (ConvMix #1) | 0.272 | 46 | 5.23 | 8 % |
+| blend norm (`ink_blend_norm_c`, ConvMix #3) | 0.210 | 46 | 4.50 | 6 % |
+| AttnResMix (loop messages) | 0.098 | 4 | 24.15 | 3 % |
+| LoopBlend (pair, h GEMV, gate, norm) | 0.059 | 8 | 4.5 to 9.9 | 2 % |
+| **all controllers** | **3.243** | **294** | | 100 % |
+
+The calls without the blend split as follows:
+- 24 per token on the attention side (after wo, before the router), at 14.46 us.
+- 23 per token on the MLP side (after the experts, before in_proj), at 13.27 / 15.42 us.
+- 3 others.
+
+The row kernel is half the controller time (1.61 ms per token, 96 dispatches). ink_route's remaining lever is capped at
+about 0.18 ms. The fused blend tail was tried and was slower (change 3).
+
+### Proposed next target: the ConvMix row kernel's cold cost in the stream (not built; waits for the coordinator)
+
+- **Gap.** The same instance costs far less in `ink_ctrl_bench`, where 48 operand sets rotate and stay in the system
+  cache (raw/R_bench.md, T = 1, hoist + norm_c), than in the stream:
+
+  | Call | Bench (us) | Stream (us) | Gap (us) |
+  |---|---|---|---|
+  | attention side, plain | 5.96 | 14.46 | 8.5 |
+  | MLP side, plain, Q 3 | 9.99 | 13.27 | 3.3 |
+  | blend call S = 1, whole (4 dispatches) | 20.07 | 36.5 | 16.4 |
+
+  After taking off the ~1.7 us per dispatch that the measurement adds, the row kernel's stream-over-bench gap is about
+  0.5-0.75 ms per token. That is the ceiling: the row kernel running in the stream as fast as it runs with its operands
+  cached.
+- **Cause, as far as the data goes.** In the stream each visit's controller weights are cold: about 200 MB of expert
+  weights pass between two visits. Those weights are the conv taps (4 rows), the queries (f32, Q rows) and the norm rows, as
+  is the 8-source mix chain. One threadgroup per row runs all of it on one GPU core. A single threadgroup can stream about
+  60 GB/s (tgbw probe, #10793), so bandwidth is not the limit: about 80 KB per call is about 1.3 us. The cost is the
+  dependent rounds:
+  1. the loads, then reduction 1 (the source squares and query dots, partials in simdgroup order, softmax in simdgroup 0);
+  2. the weighted sum;
+  3. reduction 2 (the norm, or the pair's mix / msg squares), then the stores.
+  
+  The hoist cut the load rounds before reduction 1 to one; the rest of the chain is untouched.
+- **Lever: split the row's phase 1 across threadgroups by source, with a counted hand-off.** Same contract, no new op, no
+  backend-encoder change.
+  - A row gets G <= NS threadgroups of the current size (TPG threads; 768 at D 2304 after the NE fix). TG g loads source g's
+    row (TG 0 also does the conv and writes y / sum / ring as now). Each computes reduction 1's partials for its source
+    (its squares, and its dot with each query of the batch) with the current thread layout. The partials go to device
+    scratch [row, NV, nsg].
+  - Each TG then does a device fence and an atomic add on the row's counter, as ink_route already does before its last
+    threadgroup routes. The last TG to arrive runs the rest of the current kernel unchanged: it sums the partials in
+    simdgroup order (eight at a time in the HO instance), runs the softmax, the weighted sum, reduction 2 and the stores. It
+    then resets the counter. The other TGs exit, so nothing spins and no co-residency is assumed. Its source, norm and msg
+    rows were just loaded by the other cores (phase 1 also touches the norm and msg rows), so its loads hit the cache.
+  - **Why it is bitwise.** Every partial is computed by the same thread index, over the same elements, in the same fma order,
+    with simd_sum over the same 32 lanes as today. The last TG adds them in the same order and then runs today's code. So
+    the coefficients, the mix, the norm and the outputs keep their bits at every NE, NS, QB, K and row count, and in the
+    row-table form: the counter and scratch are per row, so the change stays row-local, as the batch lane requires.
+  - **Tests**, before any timing:
+    - tests/inkload.rs-style equality with the plain instance: SconvRes, ConvMix with and without the blend, AttnResMix;
+      widths of every NE, K 1..5, rows 1..16, Q 1 / 3 / 48, host and device pos, the row-table form;
+    - rows-exact;
+    - the batched-decode tests on Metal;
+    - real-model md5 and self-golden equality with the switch off;
+    - admission at T = 1, 4, 16.
+  - **Switch.** A new switch, off by default, like the hoist.
+- **Step 1, before building (needs the go-ahead): a probe.** Add an `--evict MB` mode to `ink_ctrl_bench` that streams a
+  buffer of about 256 MB between units, so the bench reproduces the stream's 13-18 us. Then time a phase-1-only split
+  prototype in the bench, with no model run and no shipped kernel.
+  - Go if the evict-mode bench reproduces the stream within about 2 us, and the split saves at least 3 us per call (at
+    least 0.3 ms per token over 96 calls).
+  - Otherwise stop and report what the probe shows.
+- **Alternative held back:** prefetching the next visit's controller rows from the previous row kernel. It is a cross-op
+  change (contract note) with the same ceiling, so it is only worth it if the probe shows the split cannot hide the cold
+  rounds.
 
