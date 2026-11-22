@@ -10,6 +10,58 @@ P12 / screen). Never restore an old bench source without `--digest` for a refere
 
 ## Briefs received
 
+- 2026-11-22 ~16:00 (main): merge freeze on main for ~60 min until PR #491 (CUDA mixmoe) lands: no merge or push to
+  main; keep running gates and timing; stack any PR as ready to merge; main says when #491 is in, then rebase onto that main
+  before merging.
+
+- 2026-11-22 ~15:55 (main), brief 34 closed, agreed: move section 34's logs into the committed raw folder, remove
+  .worktrees/ink-batch-34; ink-metal owns the mix chain-split lever. **Brief 35:** this lane owns the MoE expert kernels (gu
+  and dn), solo and batched. Solo profile (ink-metal, main 17b999272): MoE experts 4.14 ms per token vs 3.15 floor, 411 GB/s,
+  96 dispatches per token; B 16 (doc 32): gu 20.03 vs 17.6, dn 11.14 vs 8.8. (1) Per-kernel trace of solo gu and dn at short
+  context: per launch GB/s, threadgroups vs the 40 cores and waves, last-wave fill, rows per expert slice, time in the 8 active
+  experts' loads vs reductions / epilogue; explain the 411 GB/s. (2) Bitwise fix, same per-output reduction order (grid reshape
+  across the active experts, gu + dn wave fill, one launch for all active experts' slices); timebox 1.5 days; keep only at >= 2%
+  of the solo token at short and 5k, or >= 2% of the B 16 step, in quiet ABBA; gates md5 64 / 256 and self-goldens identical,
+  batched == solo digests, rows_exact, inkmoe tests. New branch from current main, worktree .worktrees/ink-moe-35; endor rules
+  unchanged.
+
+- 2026-11-22 ~15:40 (main), brief 34 change: drop item 2 (mix / blend / norm launches); lane ink-metal owns those kernels
+  for solo and rows (its solo profile: conv_mix 234 dispatches per token). Keep going on item 1, in_proj at B 16, only.
+
+- 2026-11-22 ~15:05 (main): report only when brief 34 has a result (a lever built and gated, or closed with numbers); no
+  queued / waiting notes.
+
+- 2026-11-22 ~14:40 (main), brief 34: agreed on levers 1-3; keep ink/batch-attn as a local record branch (unpushed), remove
+  its worktree. Two gaps the ranking skipped: (1) in_proj 9.03 vs 3.5 ms floor (5.5 ms, the biggest absolute gap): per-call
+  kernel trace of gemvx at B16, achieved GB/s, occupancy, threadgroup count; why ~40% of bandwidth while the solo GEMV is near
+  the floor: the rows-exact per-row reduction order, or tiling / grid? If a bitwise fix exists (more rows per threadgroup with
+  the same per-row dot order, a better grid), build it, timebox half a day, keep only at >= 2% of the B16 step in a quiet ABBA
+  with identical digests. (2) mix/blend/norm 3.68 ms over 244 launches vs ~0.3: count launches per class; if merging adjacent
+  row ops into one launch is bitwise and saves >= 1 ms per B16 step, build it under the same rule, else record and stop. New
+  branch from current main, worktree .worktrees/ink-batch-34. Endor: cargo and git push only in --load cpu slots, ABBA in one
+  quiet slot.
+
+- 2026-11-22 (main): new endor rule (found by ink-metal): `git push` runs the repo's pre-push hook, which runs two `cargo test`s,
+  so every push from endor is a cargo run: push only inside a fleetq slot, e.g. `fleetq run --host endor --load cpu --expect 10
+  -- git push ...`. No reply needed.
+
+- 2026-11-22 ~13:40 (main), brief 33: (lever 3) ROWS_SINGLE head + wo: flip if B16 >= 2% with identical digests, then gates;
+  small PR from main 2474c17b9 (has #492), worktree .worktrees/ink-batch-rs. (lever 1) attention at B16 (10.45 vs 5.9 ms): GO, this
+  lane owns the batched attention decode kernels now (ink-m-attn and dfuse closed); batched == solo bitwise per row at B 2/8/16;
+  the 1-row solo kernel and its path untouched; timebox 1 day; first a one-paragraph plan in doc 32 (where the 4.5 ms goes: KV
+  re-reads per row, occupancy, SWA vs full split), build only the part that explains most. (lever 2) MoE: measure the idle union
+  threadgroup share first; build leader compaction only if idle >= 1 ms per B16 step, else record and stop. New code branches from
+  main 2474c17b9, not ef2598549. Endor: cargo only in --load cpu slots, ABBA timing in one quiet slot.
+
+- 2026-11-22 ~12:35 (main), brief 32: ef2598549 goes to the ink-metal lane, which lands it as a PR (gemvx + decode-once);
+  no history rewrite on ink/batch, new commits on top are fine. Profile before building the idle-threadgroup item:
+  (1) one B16 real-text step, per-command-buffer GPU trace, warm, early in the slot before the slow state; rank op classes
+  by ms per step (MoE gu / dn, in_proj, attention, mix/blend controllers, unembed, gaps). (2) Next to each class its floor:
+  bytes / ~546 GB/s (union experts and dense weights read once per step) or FLOPs / peak, whichever is larger. (3) Top 3
+  levers with ms saved, bitwise or not, and effort. Under half a day, bitwise and >= 2% of the step: build and gate;
+  otherwise report first. The idle union threadgroups item competes like any other lever. Endor: fleetq; cargo only in
+  --load cpu slots; timing ABBA in one slot with absolute numbers.
+
 - 2026-11-22 ~12:00 (main, all Metal lanes): on endor every cargo build / check / test runs inside a fleetq slot with
   `--load cpu`; no bare cargo or rustc on endor (a stray rustc, pid 47475, 95% CPU, ran inside prefill's quiet slot #11508 at
   11:51). Endor's GPU is in its slow state now (p8k 2152 vs 2880 at load 1.6): report each arm's absolute ms per step next
@@ -1337,3 +1389,236 @@ Real text, box cold at start (B 16 sample 56.35) and slow within minutes (end 64
 **Where B 16 stands (warm, real text).** in_proj gemvx ~-0.6-1 ms, MoE decode-once ~-2.2 ms per step; both bitwise and
 default-on. Remaining bitwise MoE headroom at union ~62 is ~1-2 ms (the bandwidth floor); in_proj's remaining cost is the
 contract's reduction ((b), parked).
+
+## 32. B 16 real-text step profile, floors and levers (brief 32)
+
+**#11542 (13:10-13:13, quiet; tip 3278fbe6d = ef2598549 + doc, built in #11527 `--load cpu`; `.scratch/prof32.log`,
+`.scratch/p32/`).** `batch_prof --ctx 1024 --b 16 --steps 12 --warm 3 --prompts text`, one 6-step warm-up, then cb trace, kernel
+trace, kernel trace, cb trace, untraced. Box cold at start: warm-up 59.35 ms, cb run 1 63.00 ms (13:11:03); by 13:11:49 the cb run
+was 71.94 and the end check slow (ALU 189.5 ms). Kernel shares scaled to the cb busy of the paired run; the table uses the early
+pair (kernel run 2 / cb run 1: wall 63.00, GPU busy 62.04, scale 0.875). The late pair (71.94 wall) has the same shares within
+0.2 points.
+
+Floors at 546 GB/s. "Per visit" = the bytes each launch must read (48 visits: prelude 6 + core 12 x 3 passes + coda 6; a looped
+layer's weights are re-read on each pass because pass p + 1 needs pass p's output). "Once per step" = the brief's floor, every
+physical layer's weights (for MoE: the union over a layer's visits) read once. FLOP floor at 15.6 TFLOP/s (the fp32 FMA rate the
+ALU check measures; the bitwise kernels use scalar fma).
+
+| class | ms / step | share | floor per visit | floor once per step | FLOP floor | gap to per-visit floor |
+|---|---:|---:|---:|---:|---:|---:|
+| MoE experts gate+up | 20.03 | 31.8% | 17.6 (situ 44 x 62.3 x 2.99 MB = 15.1; MXFP8 4 x 62 x 5.5 MB = 2.5) | ~12.5 | 2.6 | 2.4 |
+| MoE experts down | 11.14 | 17.7% | 8.8 (7.5 + 1.3) | ~6.3 | 1.3 | 2.4 |
+| attention decode | 10.45 | 16.6% | 5.9 (KV 16 rows x 1024 x 8 x 128 x 2 x 2 B = 67 MB x 48) | 5.9 | 0.6 | **4.5** |
+| in_proj | 9.03 | 14.3% | 3.5 (48 x 39.9 MB) | 1.75 | 2.0 | 5.5 (non-bitwise only, (b)) |
+| unembed | 3.74 | 5.9% | 1.69 (922 MB once) | 1.69 | 0.9 | **2.05** |
+| mix / blend / norm (244 launches) | 3.68 | 5.8% | ~0.3 (tiny planes) | ~0.3 | ~0 | ~3 (launch-bound) |
+| dense GEMV (wo, 96 launches) | 2.86 | 4.5% | 1.25 (48 x 14.2 MB) | 0.62 | 0.6 | 1.6 |
+| MoE route + gather | 1.07 | 1.7% | small | | | <1 |
+| gaps (wall - busy) | 0.96 | 1.5% | 0 | | | 0.96 |
+| **total** | **63.00** | | **~39** | **~29** | | |
+
+- Once-per-step for MoE: the 12 core layers' expert union over 3 passes (estimated ~111 of 128 if the passes' choices were
+  independent) instead of 3 x 62. Unreachable without reading a core layer's experts for all 3 passes at once, which the loop's
+  data dependence forbids; listed because the brief asks for it.
+- The head and wo run as **two 8-row launches each** (`row_chunks` halves 9..16 rows; trace: 2 x `logits_bf16_gemv_rows` t 8,
+  1.80 ms each, i.e. each half reads the whole 922 MB head at ~510 GB/s; 96 = 48 x 2 wo halves). The opt-in one-launch form
+  (`INTARSIA_METAL_ROWS_SINGLE=1`, `_mr8t<T>` shaders, bitwise, built in this lane, section 9) reads the weights once. Section 9's
+  A/B (#10900) saw no gain inside its run-order bias; the trace now says each half pays full DRAM time.
+
+**Top 3 levers (ms per B 16 step, cold numbers):**
+
+| # | lever | ms saved (ceiling) | bitwise | effort | rule |
+|---|---|---:|---|---|---|
+| 1 | attention decode at the KV floor (10.45 -> ~6) | up to 4.5 (7%) | yes (per-row math stays) | > half day; needs a look at why 2x the KV bytes time (split choice / occupancy at 16 rows); kernel owned by ink-m-attn / ink-dfuse | report first |
+| 2 | MoE to the per-visit floor (31.2 -> ~26.4), incl. the idle union threadgroups (non-leaders that ballot and exit; ~half of the 72 x 128 gu / 72 x 128 dn grid) | up to 4.8 (7.6%); idle-TG part unknown, likely <= 1 | yes | idle TGs: leader compaction needs a device-side leader list + indirect dispatch, ~1 day; first a cheap measurement of the idle share | report first; measure the idle share before building |
+| 3 | head + wo as one launch (`INTARSIA_METAL_ROWS_SINGLE=1`, exists) | head ~1.7-2.0, wo up to ~1.2 (3-5%) | yes (rows_single tests) | measure + gate only, < 2 h | **measure and gate now** |
+
+Not in the top 3: in_proj (5.5 ms, only non-bitwise, parked as (b)); mix / blend / norm (~3 ms, 244 launches, would need fusion
+across controller ops, > 1 day).
+
+Next: #11560 (queued): kernel trace with `INTARSIA_METAL_ROWS_SINGLE=1` (head / wo per launch) and batch_step B 8 / B 16 real
+text off / on / on / off with digests, early in a slot. If B 16 gains >= 2% with identical digests: flip default, then gates.
+
+**32a. Plan for lever 1, batched attention decode (brief 33; code on `ink/batch-attn` from main 2474c17b9, worktree
+`.worktrees/ink-batch-attn`).** Where the 4.5 ms goes, from the kernel (`ink_attn_dec<GP 3, RT>`, kernels/metal/inkling2_attn.metal)
+and the trace: **not KV re-reads** (each row reads only its own sequence's K / V once; the 67 MB per call are distinct bytes, so no
+sharing across rows exists), and **not SWA vs full** (at ctx 1024 the window is 1024, so both layer kinds see 1024 keys and 16
+splits of 64). It is **latency at limited occupancy**: a call is 8 kv heads x 16 splits x 16 rows = 2048 threadgroups of 128
+threads, each a serial chain of q / r staging, 4 barriers, the rel bias (16 dependent fma reads per element), then only 8 key
+steps per simdgroup, each a dependent 16-byte K / V load followed by its math (no load in flight while it computes), then the
+merge and a partial write. One row alone (the solo call, 128 threadgroups) takes ~20-30 us; 16 rows take 246 us, ~8x one row
+for 16x the threadgroups, i.e. the grid runs in roughly 8 waves of latency-bound threadgroups at 272 GB/s. Occupancy is held
+down by ~10 KB of threadgroup memory per group and the row-table form's registers (it declares `kcv[16]` / `vcv[16]` for the
+T-row case although a row-table row has at most one own key). **Build:** (1) the row-table kernel with its own-key arrays sized
+1 (same code path for nnew <= 1, so the same bits) and (2) the key loop pipelined PD = 4 steps deep, ported from ink-d1row's
+`ink_attn_body_p` (7d04f4ec2; bitwise the plain loop in 396 cases there; it lost at 1 row, where the bus is idle anyway, but here
+each group's chain length times the wave count is the cost). Both as switches of the row-table launcher only; the 1-row solo
+kernel and its dispatch untouched. Measure base / (1) / (2) / (1)+(2) per call (kernel trace) and B 16 step ABBA; keep what
+explains most. Gate: batched == solo bitwise per row at B 2 / 8 / 16 (inkling2_batch digests + the rows-exact attention test).
+
+**32b. Lever 1 / lever 2 builds (branch `ink/batch-attn` from main 2474c17b9, worktree `.worktrees/ink-batch-attn`).**
+- 3eb059670: row-table fused decode variants `ink_attn_dec_rows_g{1,2,3}_{n1,p4,n1p4}` (own-key arrays sized 1; key loop
+  pipelined 4 deep, `ink_attn_body_p` ported from ink-d1row 7d04f4ec2 with the row-table's PT instead of `p.t`; the plain
+  body differs from d1row's only in that PT parameter), selected by the measurement knob `INTARSIA_INK_ATTN_ROWS`; the 1-row
+  decode kernel instances and dispatch are unchanged (template defaults NN 16, PD 0 reproduce them).
+- 22eef28e7: `INTARSIA_INK_MOE_DIAG_EXIT=1` (diagnostic: every expert threadgroup returns after the union leader election,
+  outputs unwritten) and union-leader counts in `inkmoe_bench`. Idle cost per call ~= (diag-exit call time) x (1 - leaders /
+  128); build leader compaction only if that is >= 1 ms per B 16 step (brief 33).
+- Jobs: #11563 (`--load gpu,cpu`): build, inkling2_batch (tiny, every row bitwise the solo step, ring wraps) under each
+  variant, inkling2_attn, rows_exact, inkmoe, lib kernels; then (quiet) per-variant B 16 attention trace, batch_step B 8 / 16
+  text ABBA with digests, and the MoE diag A B B A at pools 64 / unset.
+
+**32c. Lever 3 result, #11560 (13:38-13:47, quiet; tip binaries sha e5d5b7c53e9e4929; `.scratch/rs32.log`): no flip, closed.**
+The box was slow throughout (warm-up B 16 82.1 ms, end ALU 190 ms / 10.8 TFLOP/s), so the absolute numbers are the slow state's.
+- Trace with `INTARSIA_METAL_ROWS_SINGLE=1`: head one launch 4684.5 us (vs 2 x 1.80 ms = 3.60 ms as halves in #11542), wo 92.1 us
+  per launch, 48 / step = 4.42 ms (vs 96 x 34.1 us = 3.27 ms). **The one-launch `_mr8t` form is slower** than the two halves:
+  the halves overlap on the GPU, while one launch does the 8-row pass and the tail pass in series inside each threadgroup.
+- batch_step text, B 8 / B 16 ms (off / on pairs, order 0 1 1 0 1 0 0 1): B 16 116.56* / 96.84, 95.64 / 97.47, 99.48 / 94.30,
+  95.26 / 97.86 (*run 1 cold-start outlier); B 8 63.97 / 62.56, 60.81 / 62.65, 58.84 / 56.16, 60.02 / 60.87. No consistent
+  gain. Digests identical in all 8 runs (B 8 `cf7c80eee29f176a`, B 16 `fadddc1af8732357`).
+- ROWS_SINGLE stays opt-in and off; no PR (.worktrees/ink-batch-rs not created). The 2-launch halves are the better form here.
+- #11563 / #11568 invalid: the shader failed to compile (`rv` declared twice in `ink_attn_dec`: the prefetch registers and the
+  prologue's r vector), build.rs only warns, so the binaries had no metallib and every Metal test failed at backend creation
+  (error text from short slot #11571). #11568 (the quiet timing job) still ran on that binary: no usable numbers, discarded.
+  Fixed in 1d828e206 (registers renamed `pfk` / `pfv`); the build job now stops if build.rs reports no metallib, and the timing
+  job starts only if the test job shows no FAILED / panicked. Re-queued as #11574. (The fix was checked with one `xcrun metal -c`
+  of that shader on endor outside a slot, a few seconds of one CPU core; no cargo.)
+
+**32d. Lever 1 and lever 2 results (#11574 tests, #11576 quiet, 14:11-14:21; ink/batch-attn 1d828e206; logs
+`.worktrees/ink-batch-attn/.scratch/attnA.log` / `attnB.log`).**
+
+Tests (#11574, `--load gpu,cpu`): inkling2_batch 8/8 (tiny, every row bitwise the solo step, B 2 / 5 / 16, ring wraps,
+rollback, failed pass) under `INTARSIA_INK_ATTN_ROWS` base, n1, p4 and n1p4; inkling2_attn 1/1, rows_exact 11/11, inkmoe 2/2,
+lib kernels 7/7. Real model: digests identical in all 8 batch_step runs across the variants (B 1 `67843d1dbf0249f5`, B 8
+`74478685fe7299e9`, B 16 `846a505a4055b0ba`, = ef2598549's).
+
+**Lever 1, attention: neither variant helps; the plan's hypothesis is refuted.** Kernel trace, B 16 real text, attention
+decode per call (traced; the same harness for every arm): base median 203.3 us, n1 201.5, p4 260.7, n1p4 257.7. Trimming the
+own-key arrays changes nothing (registers were not the limit), and the pipelined key loop is ~28% slower (its 4-deep K / V
+register ring costs more occupancy than the extra loads in flight buy). batch_step B 16 (order base n1p4 p4 n1 n1 p4 n1p4 base):
+88.84 / 89.56 / 95.97 / 88.45 / 84.37 / 85.16 / 78.33 / 81.50 ms, B 8 49.20 / 53.13 / 51.29 / 48.70 / 48.86 / 48.83 / 51.01
+/ 49.42: no variant beats base beyond the slot's drift (slow box, end ALU 164 ms). Both the solo and the batched call run at
+~300 GB/s (solo 4.2 MB in ~15 us; batched 67 MB in ~200 us), so the batched form already overlaps the rows; what limits both
+is bytes in flight per core = resident threadgroups x the 4 KB a threadgroup has outstanding. Inside the bitwise contract the
+per-key dot (16 lanes x 8 elements, shuffle tree), the key-to-simdgroup assignment, the 4-simdgroup merge and the 64-key split
+are fixed (all set the rounding), so the free variables are load timing and occupancy; load timing lost here, occupancy has
+~10 KB of threadgroup memory that the merge needs. **Recommendation: stop lever 1 within the bitwise contract** (the variants
+stay on ink/batch-attn as a measurement knob, not merged). A faster attention needs a different split / reduction shape, i.e.
+non-bitwise against the solo kernel, or a solo-kernel change that both paths share (outside this brief).
+
+**Lever 2, idle union threadgroups: below the 1 ms rule; recorded, not built.** `INTARSIA_INK_MOE_DIAG_EXIT=1` (every
+threadgroup returns after the leader election), NVFP4 16 rows, A B B A: pool 64 (union 56.9, leaders 59.5 of 128 columns):
+50.5 / 50.4 us per call (gate+up 23.3, down 27.6) vs 936 / 624 us normal; pool unset (union 83.2, leaders 83.6): 54.2 / 54.2 us
+vs 1052 / 1179 us. Idle share at the real-text union (~62): 50.5 us x (1 - 59.5 / 128) = 27 us per call, x 48 calls = **1.3 ms
+per B 16 step as a serial upper bound** (the diag grid runs alone; in a real call the idle groups overlap the leaders' work, so
+the real cost is lower), and compaction adds a leader-list pre-kernel per call (~48 x 3-5 us = 0.15-0.25 ms). Net <= ~1.1 ms
+and likely ~0.5: not >= 1 ms with any confidence. Recorded and stopped per brief 33.
+
+## 34. Brief 34: in_proj B 16 gap and mix / blend / norm launches (closed, nothing kept)
+
+Branch `ink/batch-34` (from main 3f79f70ed; local record, unpushed, not for merge): c7ad2a823 x-resident in_proj
+`ink_in_proj_gemvr_r<R>` behind `INTARSIA_INK_PROJ_R=<groups>` (opt-in), 8d29604fd the same with the next weight row loaded one
+iteration ahead; `ink/batch-34-diag` 2cb222440 is a diag-only, non-bitwise tree (ip_dot8w without the x unpack). Logs and scripts in
+`docs/results/2026-11-21-inkling2-batch/raw/b34/` (projr.log #11583, projr2.log #11584, diagx.log #11589, diagx2.log #11594;
+projr.sh, diagx.sh, diagx2.sh, psoinfo.swift).
+
+**(1) in_proj.** `ink_mix_bench proj` (weights rotated past the system cache), us per call, S 1, default gemvx P 1 RB = R:
+R 4 71.1, R 8 80.4, R 16 149.6 (269 GB/s; floor ~73 us at 546 GB/s). R 4 and R 8 sit on the bandwidth floor; the whole gap
+is R 8 -> R 16, which grows ~linearly with rows (~9 us per row past 8): fits time = max(73 us, R x 9.2 us).
+
+- x-resident form (x of the R rows read once per threadgroup, chunk tid in registers, the 32 trailing chunks in threadgroup
+  memory; a small grid loops over the weight rows): bitwise (inkmix 5/5 at PROJ_R 80 / 320 / 1280, incl. rows_exact 1..16
+  and chunks 17 / 40), but slower at every grid: R 16 181-237 us (best 180.7 at 640 groups) vs 149.6; R 8 91-147 vs 80.4.
+  With the one-ahead weight prefetch: R 16 180.7-185.3, R 8 98-106. So the x re-reads from cache are not the R 16 limit.
+- PSO `maxTotalThreadsPerThreadgroup` is 1024 for gemv r1, gemvx r4 / r8 / r16, gemvr r8 / r16: no register cap visible.
+- ALU diag (x unpack removed, wrong values; ABAB A B A B B A B A in one quiet slot, box in the slow state): R 16 base
+  277 / 238 / 222 / 239 us vs diag 216 / 210 / 213 / 214 (median -10%); R 8 too noisy (83-169). Removing one of the ~3 ALU ops
+  per element and row buys ~10% of in_proj; an f32 x copy would cost x load bytes on top. Ceiling ~10% x 9.03 ms = ~0.9 ms
+  per B 16 step (~1.2%), under the 2% bar.
+- Closed. Not tested: the per weight row epilogue (16 simd_sums, a barrier, a 16-thread 8-partial sum) as the per-row slope;
+  a non-bitwise diag skipping it would show it, but a bitwise fix keeps the same reduction tree.
+
+**(2) mix / blend / norm** (dropped from this lane by main ~15:40, owned by ink-metal; the numbers below stay as input). Kernel traces of real decode (`realprof/k2|k12|k16.jsonl`, median us per launch at B 2 / 12 / 16):
+`conv_mix_bf16_rows` (the row kernel, 96 / step) 17.0 / 16.9 / 16.5, flat in B: one threadgroup per row, the cost is its
+dependent load / reduction chain, not the launch. The blend launches (#1 46 / step 7.2 / 16.5 / 22.6, #2 11.5 / 20.0 / 23.1,
+#3 4.5 / 6.0 / 6.5) grow with B. Launch overhead: 0.88 us per dependent dispatch (ink-dfuse #11336), so all 244 launches
+cost ~0.21 ms per step; merging adjacent row ops saves at most that, under the 1 ms bar. Closed, not built. A lever with
+more room would split one row's chain over several threadgroups (per-simdgroup partials to device memory, summed in the same
+order in a second pass: bitwise possible), ceiling ~half of the 1.6 ms row-kernel time; not in this brief's scope.
+
+## 35. Brief 35: MoE expert kernels (gu, dn), solo and batched
+
+Branch `ink/moe-35` from main 17b999272, worktree `.worktrees/ink-moe-35`. Raw logs and scripts:
+`docs/results/2026-11-21-inkling2-batch/raw/b35/`. Harness: ink-dfuse's moevar (`raw/moevar.swift`, `moevar_gen.py`;
+the real shader text with substitutions, compiled at run time, random weights, 5 rotating layer copies, GPU time),
+extended with an ALU-only diag (every threadgroup reads the same few weight rows, cache-resident), a residency probe
+(a device atomic counting threadgroups in flight) and a constant-table decode variant.
+
+### Step 1: why 411-450 GB/s at one row (M1 #11601, M2 #11604, M3 #11606)
+
+Shape per NVFP4 visit at T 1: 8 experts, 35.83 MB (gate+up 23.89, down 11.94). 44 NVFP4 visits + 4 MXFP8 per token.
+
+| | gate+up `ink_moe_gu_nv_a_x` | fused down `ink_moe_dn_f_nv_a_bf16` |
+|---|---|---|
+| grid | 72 row blocks x 8 experts = 576 TGs x 128 threads | 1 x 288 TGs x 128 threads |
+| rows per TG / expert slice | 16 gate + 16 up rows of one expert; 72 TGs per expert | 8 output rows, all 8 experts (simdgroup k % 4: 2 slots in sequence) |
+| per lane | 8 lanes per row, 9 chunk pairs (gate, up), 1 chunk in flight | 4 lanes per row, 9 chunks per slot x 2 slots, 1 in flight |
+| TGs per core (40 cores) / resident at once | 14.4 / **all 576 in flight** (one wave) | 7.2 / **all 288 in flight** (one wave) |
+| shipped us (moevar) | 47.8-49.9 (480-500 GB/s) | 29.1-36.1 (330-410 GB/s) |
+| no-math stream of the same bytes (dfuse N, best geometry / own geometry) | 41.8 / 47.7 | 21.6 / 24.4 |
+| ALU-only (math, x loads, epilogue; weights cache-resident) | 27.9 (24.1 with one pair per leader) | 15.7 |
+| in the real model (kernel trace, commits serialised, 64 tokens) | median 57.8 | median 31.4 |
+
+MXFP8 at one row (4 visits): gate+up 84 us, down 43 us, 510-520 GB/s (inkmoe_bench). Real-model trace 88.6 / 44.2.
+
+- Both kernels run as a single wave (residency probe: every threadgroup of the grid is in flight at once; there is no last
+  wave to fill). The time is each lane's serial chain: load, decode + fma, next chunk, with 1 chunk in flight.
+- Gate+up is ALU-heavy: its math alone is 58% of its time (27.9 of 47.8 us). It runs at its own geometry's no-math speed
+  (47.7) because the decode / fma of one chunk and the next chunk's load do not overlap within a lane, and every lane on the
+  chip is in the same phase. More loads in flight or more threadgroups (dfuse N: gu_nb2, gu_sg8, gu_lg16) cost registers or
+  add work and do not help; dropping the 4-slot arrays (one pair per leader) takes 2 us.
+- The fused down is latency-bound: half the threads of gate+up, twice the dependent chain (2 slots in sequence), math 15.7
+  of 29-31 us. 3 chunks ahead takes ~4.5 us; 256 threads (one slot per simdgroup) is slower (33.9), and 3 ahead + 256
+  threads (27.8) is slower than 3 ahead alone (26.4).
+- So 411-450 GB/s = gate+up at ~490 (ALU-bound chain) + down at ~370 (latency-bound chain) + the dependent dispatch between
+  them (~2 us, dfuse N). Perfect stream of the visit: 63.7 us (562 GB/s); shipped 77-81.
+- Dead end: decode by a 256-entry constant table (same values, bitwise): ALU-only gate+up 35.0 vs 24.1 us, the shipped
+  kernel 48.3-49.4 vs 47.9 (constant-cache lookups with divergent indices cost more than the bit decode).
+
+### Step 2: levers
+
+- **T = 1 (`INTARSIA_INK_MOE_T1`, ink-dfuse fcd05b172, ported onto main):** one pair per union leader in gate+up and 3
+  chunks ahead in the fused down; same chunk order and fma chain. moevar visit 72.2-72.8 us vs 80.2-81.7 shipped (M3).
+- **T > 1 (`INTARSIA_INK_MOE_DNU3`, new, opt-in):** the by-pair down `ink_moe_dn_u3_*` with 3 chunks ahead (the decode-once
+  leaders too). inkmoe_bench down: T 4 random 102 -> 87 us, pool 62 94 / 97 -> 84 / 85; T 8 random 176 / 187 -> 148, pool
+  62 150 / 167 -> 142 / 151; T 16 too noisy in M3 (the box went slow mid-run). MXFP8 T 16 pool 62: 283 / 287 -> 289 / 290
+  (no gain). Crossed rows-exact sweep (T-row calls on dn_u3, one-row references on the shipped kernels): 7520 launches,
+  bitwise.
+
+### G1 (#11615, 15:10-15:25, tree a1a7b0cf2): OFF = defaults, ON = T1 + DNU3
+
+- md5 64 `65cde8f3...` and 256 `61fd59fe...` OFF = ON; inkling2_batch (Metal) with ON 8/8; batch_step digests identical
+  in all 8 runs (B 1 `67843d1dbf0249f5`, B 8 `74478685fe7299e9`, B 16 `846a505a4055b0ba`).
+- **Solo (generate, 257 tokens, decode tok/s, ABAB):** short OFF 76.12 / 76.22 / 76.04 / 76.37, ON 77.97 / 77.66 / 77.88 /
+  77.90: **+2.2%** (every pair). 5k (prompt4k, ~5.2k context) OFF 70.05 / 70.79 / 70.62, ON 72.46 / 72.61 / 72.72:
+  **+3.0%** (every pair). Over the 2% bar at both.
+- **B 16 (batch_step real text, batched ms/step, A B B A B A A B):** OFF 69.64 / 67.94 / 66.33 / 66.78, ON 65.19 / 67.20 /
+  67.23 / 66.25: -1.8% mean, pairs -4.45 / -0.74 / +0.90 / -0.53: under the bar. B 8: OFF 36.71 / 37.36 / 37.44 / 36.47, ON
+  37.91 / 37.22 / 37.56 / 37.52 (+1.5%, two pairs +1.1 / +1.2 ms): the microbench gain at 8 rows does not show in the step.
+  B 1 column (T = 1 through the batch path): 14.82 / 14.86 / 14.86 / 14.78 -> 14.62 / 14.51 / 14.51 / 14.59.
+- Decision by the rule: **T1 default-on** (solo bar met; DNU3 plays no part at T = 1). **DNU3 stays opt-in** (B 16 under
+  the bar, B 8 possibly worse).
+
+### G2 (#11624, tree 74be1f7fa: T1 default-on; OFF = `INTARSIA_INK_MOE_T1=0`): green
+
+- rustfmt clean. Metal: inkmoe 2/2 (crossed T1 and DNU3 sweeps), rows_exact 11/11 (4 ignored); models (Metal): inkling2
+  11/11, inkling2_batch 8/8; docs_env_vars 2/2.
+- Admission `moe_experts`: 4 admitted, 0 fail / reject, OFF and ON.
+- md5 64 `65cde8f35a1802e3e2fadb44d94d080d`, 256 `61fd59fecb5e0d72ffd08f2c6d07855a`, OFF = ON (= ink/metal reference).
+- G2 / G3 short and long: self-goldens OFF vs ON EQUAL in all four; decode-mode G2 2.928e-3 short / 2.761e-3 long, G3
+  8.420e-3 / 1.229e-2 (the same as ink-metal's #11206 and dfuse's job G).
+- `plan show` Qwen3-8B: byte-identical to main 17b999272.
+- With G1: batched == solo digests (batch_step B 1 / 8 / 16 digests unchanged, inkling2_batch 8/8).
+
+PR: branch `ink/moe-35` (main 17b999272 + T1 port, default-on; DNU3 opt-in). Merge waits for main's #491 freeze, then a
+rebase onto that main.
