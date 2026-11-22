@@ -82,6 +82,30 @@ Metadata: `model`, `backend`, `hidden_size`, `vocab_size`, `draft_vocab` (0 = fu
 
 The head's cache and rows are the serving ones: the K / V-only shortcut a prompt catch-up normally takes runs the full layer here so each row's output exists (the cache is bitwise the same), and the lm_head runs for every row (the serving catch-up does it for the last row only, so a dump is slower than a prefill). Serving is unchanged when no dump is running. Tests: `crates/intarsia-models/tests/mtp.rs` (`mtp_dump_*`, `engine_mtp_dump_*`: row p equals the engine's own `mtp_draft` at that position; the dumped hidden rows through the head alone give the same argmax), `crates/intarsia-cli/src/cmd/mtp_dump.rs` (file format).
 
+## Inkling-2-Mini fp8 fast mode (opt-in)
+
+bf16 stays the default and matches vLLM exactly. The fast mode quantises the attention projections and the unembed to fp8 e4m3
+at load (one f32 scale per pack or tensor, W8A16). It changes outputs.
+
+| Turn on with | Environment | Recipe (`[tuning.<backend>]`) |
+|---|---|---|
+| attention (in-projection packs + `wo`) | `INTARSIA_INK_ATTN_QUANT=fp8` | `ink_attn_quant = "fp8"` |
+| unembed (200058 real rows) | `INTARSIA_LMHEAD_QUANT=fp8` | `lm_head_quant = "fp8"` |
+
+The environment variable wins over the recipe key; `off` keeps bf16. No shipped recipe sets either key.
+
+Measured on endor (M5 Max), `docs/results/2026-11-21-inkling2-fp8.md`. KL21 is the mean against the vLLM golden (G3 bounds 1.05e-2
+short, 1.65e-2 long). Misses are confident-row top-1 misses (allowance 1 short, 2 long).
+
+| Mode | Decode tok/s | Metal KL21 short / long | Metal misses | KL21 vs our bf16 (Metal) |
+|---|---:|---|---|---|
+| bf16 (default) | 64.2 | 8.25e-3 / 1.24e-2 | 0 / 0 | - |
+| fp8 attention + fp8 unembed | 77.7 (+21 %) | 9.58e-3 / 1.42e-2 | 1 / 1 | 3.1e-3 / 4.6e-3 |
+
+On cpu the same mode gives 8.96e-3 / 1.28e-2 with 0 misses. fp8 attention alone gives 72.6 tok/s and the fp8 unembed alone 67.8.
+`INTARSIA_INK_ATTN_QUANT=mxfp4` is available for experiments but fails G3 (2.3e-2 / 3.7e-2 KL, 4 / 8 misses on Metal); do not
+use it for serving.
+
 ## Environment variables
 
 Every `INTARSIA_*` name that appears in `crates/`, `kernels/`, `scripts/`, `tools/` or `.github/` has a row. A test
