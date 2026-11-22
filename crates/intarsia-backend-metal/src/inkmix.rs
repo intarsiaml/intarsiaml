@@ -19,6 +19,10 @@ use objc2_metal::{MTLComputeCommandEncoder, MTLSize};
 pub const INK_IN_PROJ_BF16_GEMV: &str = "ink_in_proj_bf16_gemv";
 pub const INK_IN_PROJ_BF16_GEMV_ROWS: &str = "ink_in_proj_bf16_gemv_rows";
 pub const INK_IN_PROJ_BF16_NAX: &str = "ink_in_proj_bf16_nax";
+/// Ordinary calls above `PROJ_GEMV_ORDINARY_MAX` rows without the NAX GEMM (no metal4.0 library, or operands it refuses):
+/// the multi-row GEMV in 16-row chunks (`in_proj_rows`), every row bitwise its 1-row launch, so bitwise the GEMV forms the
+/// neighbouring row counts take (lane ink-prefill, brief 7: m > 16 had no kernel without metal4).
+pub const INK_IN_PROJ_BF16_GEMV_CHUNKS: &str = "ink_in_proj_bf16_gemv_chunks";
 
 /// inkling2_mix_nax.metal entry points (metal4.0 library), one per `gemm_nax::NAX_VARIANTS` tile, in that order.
 pub const NAX_SHADERS: [&str; 5] = [
@@ -34,6 +38,7 @@ pub const KERNELS: &[(&str, Op)] = &[
     (INK_IN_PROJ_BF16_GEMV, Op::InkInProj),
     (INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj),
     (INK_IN_PROJ_BF16_NAX, Op::InkInProj),
+    (INK_IN_PROJ_BF16_GEMV_CHUNKS, Op::InkInProj),
     (CONV_MIX_BF16, Op::ConvMix),
     (ATTN_RES_MIX_BF16, Op::AttnResMix),
     (SCONV_RES_BF16, Op::SconvRes),
@@ -67,6 +72,14 @@ pub fn register(k: KernelImpl) -> KernelImpl {
             .tol(BF16_TOL)
             .priority(-1)
             .rows_exact(),
+        // below the NAX GEMM (priority 5): taken only where it is not, e.g. without the metal4.0 library
+        INK_IN_PROJ_BF16_GEMV_CHUNKS => k
+            .acts(bf)
+            .weights(bf)
+            .when(|s| s.m > PROJ_GEMV_ORDINARY_MAX)
+            .exact(Exactness::Deterministic)
+            .tol(BF16_TOL)
+            .priority(0),
         // prefill (the `matmul_bf16_nax` rule: M >= 2, above the GEMV); a segment is bitwise `matmul_bf16_nax` on it
         INK_IN_PROJ_BF16_NAX => k
             .acts(bf)
@@ -241,6 +254,13 @@ impl MetalBackend {
         crate::inkprefill::set_exact(call.exact_rows); // lane ink-prefill: row-exact calls keep the GEMV blend
         match (kernel, call.op) {
             (INK_IN_PROJ_BF16_GEMV | INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj) => self.launch_in_proj_gemv(call),
+            (INK_IN_PROJ_BF16_GEMV_CHUNKS, Op::InkInProj) => {
+                let (i, o) = (&call.inputs, &call.outputs);
+                if i[0].dtype != DType::Bf16 || i[1].dtype != DType::Bf16 || o.iter().any(|y| y.dtype != DType::Bf16) {
+                    return Err(Error::invalid("ink_in_proj_bf16_gemv_chunks: bf16 only"));
+                }
+                self.in_proj_rows(&i[0], &i[1], o, i[0].shape[0])
+            }
             (INK_IN_PROJ_BF16_NAX, Op::InkInProj) => self.launch_in_proj_nax(call),
             (CONV_MIX_BF16 | ATTN_RES_MIX_BF16 | SCONV_RES_BF16 | LOOP_BLEND_BF16, _) => self.launch_mix(kernel, call),
             _ => Err(Error::invalid(format!("metal: {kernel} does not run {}", call.op))),
