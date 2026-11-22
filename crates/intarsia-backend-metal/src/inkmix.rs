@@ -243,6 +243,10 @@ impl MetalBackend {
         if i[0].dtype != bf || i[1].dtype != bf || o.iter().any(|y| y.dtype != bf) {
             return Err(Error::invalid("ink_in_proj_bf16_gemv: bf16 only"));
         }
+        let t = i[0].shape[1];
+        if t > PROJ_ROWS_MAX {
+            return Err(Error::invalid(format!("ink_in_proj_bf16_gemv: {t} rows (at most {PROJ_ROWS_MAX})")));
+        }
         self.in_proj_rows(&i[0], &i[1], o, i[0].shape[0])
     }
 
@@ -304,14 +308,11 @@ impl MetalBackend {
         if t == 0 {
             return Ok(());
         }
-        if t > PROJ_ROWS_MAX {
-            return Err(Error::invalid(format!("ink_in_proj_bf16_gemv: {t} rows (at most {PROJ_ROWS_MAX})")));
-        }
         let ns = [o[0].shape[1], o[1].shape[1], o[2].shape[1]];
         let (xb, wb) = (self.mbuf(&i[0].buf)?, self.mbuf(&i[1].buf)?);
         let (xo, wo) = (xb.base + i[0].offset, wb.base + i[1].offset);
         if d % 8 != 0 || xo % 16 != 0 || wo % 16 != 0 {
-            // three multi-row GEMVs on views (each row bitwise its own 1-row Matmul GEMV)
+            // multi-row GEMVs on views, 16 rows at a time (each row bitwise its own 1-row Matmul GEMV)
             let mut row0 = 0;
             for (j, y) in o.iter().enumerate() {
                 if ns[j] == 0 {
@@ -319,46 +320,63 @@ impl MetalBackend {
                 }
                 let x = i[0].rows(j.min(s - 1), 1).reshaped(&[t, d]);
                 let w = i[1].rows(row0, ns[j]);
-                self.launch_matmul_rows(&OpCall::new(Op::Matmul, vec![x, w], vec![y.clone()], OpAttrs::default()))?;
+                for r0 in (0..t).step_by(PROJ_ROWS_MAX) {
+                    let n = (t - r0).min(PROJ_ROWS_MAX);
+                    let call = OpCall::new(Op::Matmul, vec![x.rows(r0, n), w.clone()], vec![y.rows(r0, n)], OpAttrs::default());
+                    self.launch_matmul_rows(&call)?;
+                }
                 row0 += ns[j];
             }
             return Ok(());
         }
-        let cfg = proj_cfg();
-        let (p, rb) = proj_inst(t);
-        let name = proj_shader_name(t, p, cfg.sg, cfg.u, rb);
+        // whole chunks of 16 rows on the grid's y axis, then the tail rows as one launch of their own row count: every row
+        // is computed exactly as by a launch of 16 (or of the tail's count), so bitwise its 1-row launch
+        let (full, tail) = if t <= PROJ_ROWS_MAX { (0, t) } else { (t / PROJ_ROWS_MAX, t % PROJ_ROWS_MAX) };
         let ys: Vec<_> = o.iter().enumerate().map(|(j, y)| self.bind(y, bf, true, ["pq", "pk", "pv"][j])).collect::<Result<_>>()?;
-        let g = ns.map(|n| n.div_ceil(p));
         let xoff = |j: usize| -> Result<u32> { dim(j.min(s - 1) * t * d, "x offset") };
-        let prm = InkProjP {
-            k: dim(d, "D")?,
-            n: [dim(ns[0], "Nq")?, dim(ns[1], "Nk")?, dim(ns[2], "Nv")?],
-            xo1: xoff(1)?,
-            xo2: xoff(2)?,
-            ys: [ys[0].skip, ys[1].skip, ys[2].skip],
-            g0: dim(g[0], "groups")?,
-            g1: dim(g[1], "groups")?,
-            gtot: dim(g.iter().sum::<usize>(), "groups")?,
-        };
-        let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
-        let groups = g.iter().sum::<usize>().min(proj_grid_cap());
-        let threads = cfg.sg as usize * 32;
-        self.with_encoder(|enc| {
-            enc.setComputePipelineState(pso);
-            // SAFETY: offsets inside the buffers (OpCall::check), W and x 16-byte aligned (checked above).
-            unsafe {
-                enc.setBuffer_offset_atIndex(Some(&wb.mtl), wo, 0);
-                enc.setBuffer_offset_atIndex(Some(&xb.mtl), xo, 1);
-                for (j, y) in ys.iter().enumerate() {
-                    enc.setBuffer_offset_atIndex(Some(&y.mtl), y.off, 2 + j);
-                }
+        let cfg = proj_cfg();
+        for (r, r0, chunks) in [(PROJ_ROWS_MAX, 0, full), (tail, full * PROJ_ROWS_MAX, 1)] {
+            if chunks == 0 || r == 0 {
+                continue;
             }
-            crate::set_bytes(enc, &prm, 5);
-            enc.dispatchThreadgroups_threadsPerThreadgroup(
-                MTLSize { width: groups, height: 1, depth: 1 },
-                MTLSize { width: threads, height: 1, depth: 1 },
-            );
-        })
+            let (p, rb) = proj_inst(r);
+            let name = proj_shader_name(r, p, cfg.sg, cfg.u, rb);
+            let g = ns.map(|n| n.div_ceil(p));
+            // the tail: x and y bound at its first row (x keeps the full-chunk segment offsets)
+            let yskip: Vec<usize> = ys.iter().zip(&ns).map(|(y, &n)| y.skip as usize + r0 * n).collect();
+            let prm = InkProjP {
+                k: dim(d, "D")?,
+                n: [dim(ns[0], "Nq")?, dim(ns[1], "Nk")?, dim(ns[2], "Nv")?],
+                xo1: xoff(1)?,
+                xo2: xoff(2)?,
+                ys: [dim(yskip[0], "y skip")?, dim(yskip[1], "y skip")?, dim(yskip[2], "y skip")?],
+                g0: dim(g[0], "groups")?,
+                g1: dim(g[1], "groups")?,
+                gtot: dim(g.iter().sum::<usize>(), "groups")?,
+            };
+            let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
+            let groups = g.iter().sum::<usize>().min(proj_grid_cap());
+            let threads = cfg.sg as usize * 32;
+            let xo_r = xo + r0 * d * 2;
+            self.with_encoder(|enc| {
+                enc.setComputePipelineState(pso);
+                // SAFETY: offsets inside the buffers (OpCall::check), W and x 16-byte aligned (checked above; r0 * D * 2 is a
+                // multiple of 16 as D % 8 == 0).
+                unsafe {
+                    enc.setBuffer_offset_atIndex(Some(&wb.mtl), wo, 0);
+                    enc.setBuffer_offset_atIndex(Some(&xb.mtl), xo_r, 1);
+                    for (j, y) in ys.iter().enumerate() {
+                        enc.setBuffer_offset_atIndex(Some(&y.mtl), y.off, 2 + j);
+                    }
+                }
+                crate::set_bytes(enc, &prm, 5);
+                enc.dispatchThreadgroups_threadsPerThreadgroup(
+                    MTLSize { width: groups, height: chunks, depth: 1 },
+                    MTLSize { width: threads, height: 1, depth: 1 },
+                );
+            })?;
+        }
+        Ok(())
     }
 }
 
@@ -383,8 +401,10 @@ pub const MIX_NE: [usize; 4] = [1, 2, 3, 4];
 pub const MIX_D_MAX: usize = 4096;
 /// Stored sources + last the depth mix holds in registers (`MX_NMAX`).
 pub const MIX_SOURCES_MAX: usize = 8;
-/// Rows per blend chunk (the h GEMV takes at most [`PROJ_ROWS_MAX`] rows per launch), streams and controller rank bounds.
-pub const BLEND_ROWS: usize = PROJ_ROWS_MAX;
+/// Rows per blend chunk (its scratch holds that many rows: 21 MB at D 2304, S 3), streams and controller rank bounds.
+pub const BLEND_ROWS: usize = 256;
+/// Rows per `ink_blend_gate` threadgroup (`BLEND_RB` in the shader).
+pub const BLEND_RB: usize = 16;
 pub const BLEND_STREAMS_MAX: usize = 3;
 pub const BLEND_G_MAX: usize = 128;
 /// Channels per slice of `ink_blend_gate` (one thread each).
@@ -485,10 +505,11 @@ pub fn row_shaders() -> Vec<&'static str> {
 }
 
 /// Scratch of the blend path (ConvMix with msg, LoopBlend) for rows of `d` channels, regions 256-byte aligned:
-/// dest f32 [3, 16, D], pair bf16 [3, 16, 2D], h bf16 [3, 16, G <= 128], y f32 [3, 16, D], partial f32 [3, 16, nsl].
-fn blend_layout(d: usize) -> [usize; 6] {
+/// dest f32 [3, rows, D], pair bf16 [3, rows, 2D], h bf16 [3, rows, G <= 128], y f32 [3, rows, D], partial f32 [3, rows, nsl],
+/// rows = the call's rows up to [`BLEND_ROWS`].
+fn blend_layout(d: usize, rows: usize) -> [usize; 6] {
     let r = |b: usize| b.next_multiple_of(256);
-    let (s, rows) = (BLEND_STREAMS_MAX, BLEND_ROWS);
+    let (s, rows) = (BLEND_STREAMS_MAX, rows.clamp(1, BLEND_ROWS));
     let dest = r(s * rows * d * 4);
     let pair = r(s * rows * 2 * d * 2);
     let h = r(s * rows * BLEND_G_MAX * 2);
@@ -498,7 +519,7 @@ fn blend_layout(d: usize) -> [usize; 6] {
 }
 
 pub fn blend_scratch(s: &intarsia_core::ShapeInfo) -> usize {
-    blend_layout(s.k.max(1))[5]
+    blend_layout(s.k.max(1), s.m)[5]
 }
 
 /// A `[n]` view of `bytes` bytes at `off` of the scratch, as `dt`.
@@ -687,7 +708,7 @@ impl MetalBackend {
         if s > BLEND_STREAMS_MAX || g > BLEND_G_MAX || g == 0 {
             return Err(Error::invalid(format!("metal blend: {s} streams, rank {g} (at most {BLEND_STREAMS_MAX} / {BLEND_G_MAX})")));
         }
-        let lay = blend_layout(d);
+        let lay = blend_layout(d, out.shape[1]);
         let pair = sview(scratch, lay[1], bf, s * n * 2 * d);
         let h = sview(scratch, lay[2], bf, s * n * g);
         let yv = sview(scratch, lay[3], f32t, s * n * d);
@@ -753,7 +774,7 @@ impl MetalBackend {
             gate,
             &[&dest_b, &msg_b, &h_b, &gain_b, &forget_b, &y_b, &part_b],
             &pg,
-            crate::dense::Grid::Groups { x: s * slices, y: 1, threads: BLEND_CS },
+            crate::dense::Grid::Groups { x: s * slices, y: n.div_ceil(BLEND_RB), threads: BLEND_CS },
         )?;
         let (nrm_b, out_b) = (self.bind(norm, bf, false, "norm")?, self.bind(out, bf, true, "out")?);
         let mut pn = p;
@@ -790,7 +811,7 @@ impl MetalBackend {
                 let scratch = call.scratch.as_ref().ok_or_else(|| Error::invalid("metal conv_mix_bf16: the blend needs the scratch (OpCall::scratch)"))?;
                 let d = i[0].shape[1];
                 let nq = i[5].shape[0];
-                let lay = blend_layout(d);
+                let lay = blend_layout(d, t);
                 for t0 in (0..t).step_by(BLEND_ROWS) {
                     let n = (t - t0).min(BLEND_ROWS);
                     let dest = TensorRef { shape: vec![nq, n, d], ..sview(scratch, lay[0], DType::F32, nq * n * d) };
