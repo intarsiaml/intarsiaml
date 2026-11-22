@@ -1,7 +1,7 @@
 //! Rows-exact gate of the Inkling-2-Mini attention kernels on CUDA (`ink_kv_prologue_bf16`, `rel_sink_attn_bf16`,
 //! `ink_attn_decode_bf16`; src/inkattn.rs): an R-row InkKvPrologue + RelSinkAttn pair equals, bit for bit, R one-row pairs at
 //! positions pos0 .. pos0 + R made in order (outputs q / rel / k / v / o and the final conv rings and K / V caches), with host
-//! and with device positions; and `InkAttnDecode` at R rows and at R x 1 row equals the pair. Real shapes (24 / 8 heads,
+//! and with device positions (T up to 40: `rel_sink_attn_bf16` runs a long call as 16-row slices); and `InkAttnDecode` at R rows and at R x 1 row equals the pair. Real shapes (24 / 8 heads,
 //! head_dim 128, d_rel 16, extent 1024, K 4, conv ring 19 rows): sliding layers (window 1024, ring of 1040 rows, positions
 //! before, at and across the ring wrap) and full layers (linear cache, dynamic taps, tau, positions across the rel extent and
 //! at 8180 with empty trailing splits). Numerics against the f64 reference are `intarsia kernels test --backend cuda --op ..`.
@@ -243,7 +243,7 @@ fn rows_exact_real_shapes() {
     let full_long = Layer { window: 0, ring: false, cr: 8300, dynamic: true };
     let mut n = 0;
     for (l, poss) in [(&swa, vec![0usize, 1030, 2100, 1020]), (&full, vec![3, 1018, 3000, 1500]), (&full_long, vec![8180])] {
-        for &t in &[2usize, 4, 7, 16] {
+        for &t in &[2usize, 4, 7, 16, 40] {
             for &pos0 in poss.iter() {
                 let inp = make(l, t, (t * 977 + pos0) as u64);
                 let multi = run(be, l, &inp, t, pos0, t, false, false);
@@ -254,6 +254,9 @@ fn rows_exact_real_shapes() {
                 same(&multi, &one_dev, &format!("{what} (device position)"));
                 // InkAttnDecode: R rows, R x 1 row (host and device position) all bitwise the unfused pair
                 for (rows, dev) in [(t, false), (1, false), (1, true)] {
+                    if rows > 16 {
+                        continue; // InkAttnDecode takes at most 16 rows
+                    }
                     let f = run(be, l, &inp, t, pos0, rows, dev, true);
                     same(&multi, &f, &format!("{what} (InkAttnDecode, {rows}-row calls, device position {dev})"));
                 }

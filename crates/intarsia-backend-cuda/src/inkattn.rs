@@ -6,10 +6,11 @@
 //!
 //! * `ink_kv_prologue_bf16`: one launch (plus the conv-ring write pass when a long chunk would overwrite ring rows other rows
 //!   still read: T > Rr - K + 1).
-//! * `rel_sink_attn_bf16`: split-KV stage 1 ((kv head, split, row) blocks), the combine when a row can have more than one split,
-//!   and the cache-write pass when the write could race the reads (ring, T > Cr - window + 1). Any T; rows-exact (row t of a
-//!   T-row call is bitwise the 1-row call at its position, host or device position): the split count and the key partition
-//!   are functions of the row's position and the window only.
+//! * `rel_sink_attn_bf16`: the tensor-core tile kernel (absolute key tiles shared by the rows of a call, K / V read once per
+//!   call) plus the tile combine, on slices of at most 16 rows in order; rows-exact for every T, host or device position: a
+//!   row's tiles and reduction order are functions of its position and the window only. Head dim 8: the split-KV kernel.
+//! * `rel_sink_attn_bf16_flash` (T > 16, priority 5): flash attention for prefill chunks, then the cache-write pass. Not
+//!   bitwise the rows-exact kernel (like Metal's `rel_sink_attn_bf16_nax`).
 //! * `ink_attn_decode_bf16` (op 75, 1..=16 rows): the two in one stage-1 kernel, bitwise the pair.
 
 use crate::kernels::ARCH;
@@ -18,6 +19,7 @@ use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 pub const TABLE: &[(&str, Op)] = &[
     ("ink_kv_prologue_bf16", Op::InkKvPrologue),
     ("rel_sink_attn_bf16", Op::RelSinkAttn),
+    ("rel_sink_attn_bf16_flash", Op::RelSinkAttn),
     ("ink_attn_decode_bf16", Op::InkAttnDecode),
 ];
 
@@ -45,21 +47,19 @@ fn decode_ok(s: &ShapeInfo) -> bool {
     attn_ok(s) && s.head_dim >= 16 && s.m <= intarsia_core::inkling2::ops::ATTN_DECODE_MAX_ROWS
 }
 
-/// Decode / verify rows (T <= 16): the tile partials, f32 `acc [T,H,MAXT,D]` + `(m, l) [T,H,MAXT]`. Prefill chunks run the
-/// flash kernel (no scratch), except head_dim 8 or `INTARSIA_INK_PREFILL=splitkv`: the split-KV partials (`MAXS` = 32 per row).
+/// The tile kernel's partials of one slice of at most 16 rows, f32 `acc [T,H,MAXT,D]` + `(m, l) [T,H,MAXT]` (head_dim 8: the
+/// split-KV kernel's, `MAXS` = 32 per row, every row).
 pub fn attn_scratch(s: &ShapeInfo) -> usize {
-    if s.m <= intarsia_core::inkling2::ops::ATTN_DECODE_MAX_ROWS {
-        s.m * s.n_heads * MAX_SPLIT * (s.head_dim + 2) * 4
-    } else if matches!(s.head_dim, 16 | 32 | 64 | 128) && !prefill_splitkv() {
-        0
-    } else {
+    if s.head_dim == 8 {
         s.m * s.n_heads * 32 * (s.head_dim + 2) * 4
+    } else {
+        s.m.min(intarsia_core::inkling2::ops::ATTN_DECODE_MAX_ROWS) * s.n_heads * MAX_SPLIT * (s.head_dim + 2) * 4
     }
 }
 
-/// `INTARSIA_INK_PREFILL=splitkv`: prefill chunks on the split-KV kernel (diagnostic; the kernel library reads the same variable).
-fn prefill_splitkv() -> bool {
-    std::env::var("INTARSIA_INK_PREFILL").is_ok_and(|v| v == "splitkv")
+/// Prefill chunks (more than 16 rows) on the flash kernel.
+fn flash_ok(s: &ShapeInfo) -> bool {
+    attn_ok(s) && s.head_dim >= 16 && s.m > intarsia_core::inkling2::ops::ATTN_DECODE_MAX_ROWS
 }
 
 /// `attn_scratch` plus the staged K / V cache rows `[2][T][Hk][D]` bf16 of the fused kernel.
@@ -77,6 +77,8 @@ pub fn all() -> Vec<KernelImpl> {
             match *name {
                 "ink_kv_prologue_bf16" => k.when(prologue_ok),
                 "rel_sink_attn_bf16" => k.weights(bf).when(attn_ok).scratch(attn_scratch),
+                // prefill chunks: priority over the rows-exact kernel (like Metal's rel_sink_attn_bf16_nax), not bitwise it
+                "rel_sink_attn_bf16_flash" => k.weights(bf).when(flash_ok).priority(5),
                 "ink_attn_decode_bf16" => k.weights(bf).when(decode_ok).scratch(decode_scratch),
                 other => unreachable!("inkling2 attention kernel {other} has no registration"),
             }
@@ -130,6 +132,7 @@ mod launch {
     extern "C" {
         fn ik_ink_kv_prologue_bf16(pq: T, pk: T, pv: T, kt: T, vt: T, qs: T, rs: T, rp: T, a: A, q: TM, rel: TM, k: TM, v: TM, kr: TM, vr: TM, pos: T, s: S) -> c_int;
         fn ik_rel_sink_attn_bf16(q: T, k: T, v: T, kc_in: T, vc_in: T, rel: T, pq: T, a: A, o: TM, kc: TM, vc: TM, sc: SC, pos: T, s: S) -> c_int;
+        fn ik_rel_sink_attn_bf16_flash(q: T, k: T, v: T, kc_in: T, vc_in: T, rel: T, pq: T, a: A, o: TM, kc: TM, vc: TM, sc: SC, pos: T, s: S) -> c_int;
         fn ik_ink_attn_decode_bf16(
             pq: T,
             pk: T,
@@ -208,6 +211,7 @@ mod launch {
                         ik_ink_kv_prologue_bf16(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), ap, on(0), on(1), on(2), on(3), on(4), on(5), pos, s)
                     }
                     "rel_sink_attn_bf16" => ik_rel_sink_attn_bf16(i(0), i(1), i(2), i(3), i(4), i(5), i(6), ap, on(0), on(1), on(2), sc, pos, s),
+                    "rel_sink_attn_bf16_flash" => ik_rel_sink_attn_bf16_flash(i(0), i(1), i(2), i(3), i(4), i(5), i(6), ap, on(0), on(1), on(2), sc, pos, s),
                     "ink_attn_decode_bf16" => ik_ink_attn_decode_bf16(
                         i(0),
                         i(1),

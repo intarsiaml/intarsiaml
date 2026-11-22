@@ -33,6 +33,12 @@ int ik_rel_sink_attn_bf16(const ik_tensor* q, const ik_tensor* k, const ik_tenso
                           const ik_tensor* rel, const ik_tensor* pq, const ik_ink_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc,
                           const ik_scratch* scratch, const ik_tensor* pos, void* stream);
 
+/* RelSinkAttn on flash attention for prefill chunks (rel_sink_attn_bf16_flash; T > 16, head_dim 16..128): same operands,
+ * no scratch; not bitwise the decode path (the registry picks it for prefill only, as Metal's _nax kernel). */
+int ik_rel_sink_attn_bf16_flash(const ik_tensor* q, const ik_tensor* k, const ik_tensor* v, const ik_tensor* kc_in, const ik_tensor* vc_in,
+                                const ik_tensor* rel, const ik_tensor* pq, const ik_ink_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc,
+                                const ik_scratch* scratch, const ik_tensor* pos, void* stream);
+
 /* InkAttnDecode: RelSinkAttn(InkKvPrologue(..)) for 1..16 rows, bitwise the pair of the two launchers above. Inputs as the
  * prologue's plus the caches; outputs o, k / v cache, k / v conv ring (all in place but o). */
 int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,

@@ -52,7 +52,7 @@ struct InkP {
     float* scr;
     bf16* stg;  // fused: staged K / V rows for ink_kv_write_k ([2][T][Hk][D])
     const int* pos;
-    int t, h, hk, d, dr, e, k, rr, cr, pos0, flags, tau_floor, window, nq, pw, sk;
+    int t, h, hk, d, dr, e, k, rr, cr, pos0, flags, tau_floor, window, nq, pw, sk, toff;
     float qk_clip, rel_clip, eps, tau_alpha, scale, cscale;
 };
 
@@ -60,7 +60,8 @@ __device__ __forceinline__ float b2f(bf16 x) { return __bfloat162float(x); }
 __device__ __forceinline__ bf16 f2b(float x) { return __float2bfloat16_rn(x); }
 __device__ __forceinline__ float rA(float x) { return b2f(f2b(x)); }
 
-__device__ __forceinline__ int ink_pos0(const InkP& p) { return p.pos ? max(p.pos[0], 0) : p.pos0; }
+// toff: row offset of a slice of a longer call (the launcher shifts the row pointers and the host pos0 by it)
+__device__ __forceinline__ int ink_pos0(const InkP& p) { return p.pos ? max(p.pos[0], 0) + p.toff : p.pos0; }
 
 __host__ __device__ __forceinline__ unsigned ink_lo(unsigned pp, unsigned window) {
     return (window > 0 && pp + 1 > window) ? pp + 1 - window : 0u;
@@ -1021,6 +1022,15 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
 #pragma unroll 1
         for (int kb = 0; kb < CH; kb += 16) {
             if (jb + kb + 15 < wlo || jb + kb > whi) continue;
+            // the bias loads first: they do not depend on the scores, so their latency overlaps the QK^T mma
+            float bb[2][4];
+#pragma unroll
+            for (int nb = 0; nb < 2; ++nb)
+#pragma unroll
+                for (int e = 0; e < 4; ++e) {
+                    const int k = e >> 1, j = jb + kb + nb * 8 + 2 * c4 + (e & 1), d = rhi[k] - j;
+                    bb[nb][e] = (j >= rlo[k] && d >= 0 && d < E) ? __bfloat162float(relh[k][d]) : 0.0f;
+                }
             float s[2][4];
 #pragma unroll
             for (int i = 0; i < 2; ++i) s[i][0] = s[i][1] = s[i][2] = s[i][3] = 0.0f;
@@ -1038,11 +1048,7 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
                 for (int e = 0; e < 4; ++e) {
                     const int k = e >> 1, j = jb + kb + nb * 8 + 2 * c4 + (e & 1);
                     float v = -INFINITY;
-                    if (j >= rlo[k] && j <= rhi[k]) {
-                        const int d = rhi[k] - j;
-                        const float b = d < E ? __bfloat162float(relh[k][d]) : 0.0f;
-                        v = __fmaf_rn(s[nb][e], qsc, __fmul_rn(b, LOG2E));
-                    }
+                    if (j >= rlo[k] && j <= rhi[k]) v = __fmaf_rn(s[nb][e], qsc, __fmul_rn(bb[nb][e], LOG2E));
                     s[nb][e] = v;
                     mx[k] = fmaxf(mx[k], v);
                 }
@@ -1290,18 +1296,14 @@ int launch_flash(const InkP& p, cudaStream_t st) {
     }
 }
 
-// INTARSIA_INK_PREFILL=splitkv / INTARSIA_INK_DECODE=splitkv: the split-KV kernel for T > 16 / T <= 16 (diagnostics for
-// timing comparisons; the split-KV decode path is rows-exact itself but not bitwise the tile kernel or InkAttnDecode)
+// INTARSIA_INK_DECODE=splitkv: rel_sink_attn_bf16 on the split-KV kernel (diagnostic for timing comparisons; rows-exact itself
+// but not bitwise the tile kernel or InkAttnDecode)
 bool env_is(const char* name, int* cache) {
     if (*cache < 0) {
         const char* e = getenv(name);
         *cache = e && strcmp(e, "splitkv") == 0;
     }
     return *cache == 1;
-}
-bool prefill_splitkv() {
-    static int v = -1;
-    return env_is("INTARSIA_INK_PREFILL", &v);
 }
 bool decode_splitkv() {
     static int v = -1;
@@ -1342,9 +1344,9 @@ extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk,
     return ik_launch_status();
 }
 
-extern "C" int ik_rel_sink_attn_bf16(const ik_tensor* q, const ik_tensor* k, const ik_tensor* v, const ik_tensor* kc_in, const ik_tensor* vc_in,
-                                     const ik_tensor* rel, const ik_tensor* pq, const ik_ink_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc,
-                                     const ik_scratch* scratch, const ik_tensor* pos, void* stream) {
+static int rel_sink_attn(const ik_tensor* q, const ik_tensor* k, const ik_tensor* v, const ik_tensor* kc_in, const ik_tensor* vc_in, const ik_tensor* rel,
+                         const ik_tensor* pq, const ik_ink_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc, const ik_scratch* scratch,
+                         const ik_tensor* pos, void* stream, bool flash) {
     (void)kc_in;
     (void)vc_in;
     if (!a) return IK_ERR_INVALID_ARG;
@@ -1388,28 +1390,53 @@ extern "C" int ik_rel_sink_attn_bf16(const ik_tensor* q, const ik_tensor* k, con
     p.kc = mb(kc);
     p.vc = mb(vc);
     p.pos = pos ? (const int*)pos->data : nullptr;
-    const bool kv_fused = !ring || p.t + p.window <= p.cr + 1;
-    if (kv_fused) p.flags |= F_KV_WRITE;
     cudaStream_t st = IK_STREAM(stream);
-    if (p.t <= MAXROWS && tile_dims(p.d) && !decode_splitkv()) {
-        // decode / verify rows: the tile kernel (K / V read once for all rows; rows-exact)
-        const int min_s = tile_min(a);
-        unsigned ny;
-        bool multi;
-        tile_grid(p, pos != nullptr, min_s, &ny, &multi);
-        if (multi) {
-            if (!scratch || !scratch->data || scratch->bytes < (int64_t)p.t * p.h * MAXT * (p.d + 2) * 4) return IK_ERR_INVALID_ARG;
-            p.scr = (float*)scratch->data;
-        }
-        IK_TRY(launch_tile<false>(p, min_s, ny, st));
-        if (multi) ink_tile_comb_k<<<dim3(p.h, p.t), (p.d + 31) / 32 * 32, 0, st>>>(p, min_s);
-    } else if (tile_dims(p.d) && !prefill_splitkv()) {
-        // prefill chunks: flash attention, the cache write after it
+    if (flash) {
+        // prefill chunks (rel_sink_attn_bf16_flash): flash attention, the cache write after it
+        if (!tile_dims(p.d)) return IK_ERR_SHAPE;
         IK_TRY(launch_flash(p, st));
         const size_t n = (size_t)p.t * p.hk * p.d;
         ink_kv_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p, p.kn, p.vn);
         return ik_launch_status();
-    } else {
+    }
+    if (tile_dims(p.d) && !decode_splitkv()) {
+        // the tile kernel (K / V read once for all rows of a call) on slices of at most 16 rows in order: every row of
+        // every T is bitwise the 1-row call (rows-exact); a slice reads the cache rows the slices before it wrote
+        const int min_s = tile_min(a);
+        for (int r0 = 0; r0 < p.t; r0 += MAXROWS) {
+            InkP ps = p;
+            const int n = p.t - r0 < MAXROWS ? p.t - r0 : MAXROWS;
+            ps.t = n;
+            ps.toff = r0;
+            ps.pos0 = p.pos0 + r0;
+            ps.q = p.q + (size_t)r0 * p.h * p.d;
+            ps.kn = p.kn + (size_t)r0 * p.hk * p.d;
+            ps.vn = p.vn + (size_t)r0 * p.hk * p.d;
+            ps.rel = p.rel + (size_t)r0 * p.h * p.e;
+            ps.pq = p.pq + (size_t)r0 * p.nq;
+            ps.out = p.out + (size_t)r0 * p.h * p.d;
+            const bool kv_fused = !ring || n + p.window <= p.cr + 1;
+            if (kv_fused) ps.flags |= F_KV_WRITE;
+            unsigned ny;
+            bool multi;
+            tile_grid(ps, pos != nullptr, min_s, &ny, &multi);
+            if (multi) {
+                if (!scratch || !scratch->data || scratch->bytes < (int64_t)n * p.h * MAXT * (p.d + 2) * 4) return IK_ERR_INVALID_ARG;
+                ps.scr = (float*)scratch->data;
+            }
+            IK_TRY(launch_tile<false>(ps, min_s, ny, st));
+            if (multi) ink_tile_comb_k<<<dim3(p.h, n), (p.d + 31) / 32 * 32, 0, st>>>(ps, min_s);
+            if (!kv_fused) {
+                const size_t nn = (size_t)n * p.hk * p.d;
+                ink_kv_write_k<<<(unsigned)((nn + 255) / 256), 256, 0, st>>>(ps, ps.kn, ps.vn);
+            }
+        }
+        return ik_launch_status();
+    }
+    // the split-KV kernel (head_dim 8, or INTARSIA_INK_DECODE=splitkv)
+    const bool kv_fused = !ring || p.t + p.window <= p.cr + 1;
+    if (kv_fused) p.flags |= F_KV_WRITE;
+    {
         unsigned gy, nb;
         attn_geometry(p, pos != nullptr, &gy, &nb);
         if (gy > 1) {
@@ -1429,6 +1456,18 @@ extern "C" int ik_rel_sink_attn_bf16(const ik_tensor* q, const ik_tensor* k, con
         ink_kv_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p, p.kn, p.vn);
     }
     return ik_launch_status();
+}
+
+extern "C" int ik_rel_sink_attn_bf16(const ik_tensor* q, const ik_tensor* k, const ik_tensor* v, const ik_tensor* kc_in, const ik_tensor* vc_in,
+                                     const ik_tensor* rel, const ik_tensor* pq, const ik_ink_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc,
+                                     const ik_scratch* scratch, const ik_tensor* pos, void* stream) {
+    return rel_sink_attn(q, k, v, kc_in, vc_in, rel, pq, a, o, kc, vc, scratch, pos, stream, false);
+}
+
+extern "C" int ik_rel_sink_attn_bf16_flash(const ik_tensor* q, const ik_tensor* k, const ik_tensor* v, const ik_tensor* kc_in, const ik_tensor* vc_in,
+                                           const ik_tensor* rel, const ik_tensor* pq, const ik_ink_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc,
+                                           const ik_scratch* scratch, const ik_tensor* pos, void* stream) {
+    return rel_sink_attn(q, k, v, kc_in, vc_in, rel, pq, a, o, kc, vc, scratch, pos, stream, true);
 }
 
 extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,
