@@ -302,6 +302,7 @@ impl MetalBackend {
         // lane ink-prefill hook: prefill chunks as the prologue without rel + the rel product per 8-row block (inkprefill.rs)
         if crate::inkprefill::prologue_split(t) {
             crate::inkprefill::trace("prologue split");
+            crate::inkprefill::note_prologue_split();
             let [nr, rl] = crate::inkprefill::SPLIT_SHADERS;
             let (pso_nr, pso_rl) = (self.ink_pso(nr)?, self.ink_pso(rl)?);
             let th_nr = d.max(32).next_multiple_of(32);

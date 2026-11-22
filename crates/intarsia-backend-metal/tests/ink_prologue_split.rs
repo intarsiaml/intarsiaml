@@ -79,10 +79,13 @@ fn run(be: &MetalBackend, t: usize, pos0: usize, rr: usize, dynamic: bool, split
         a,
     );
     call.check().unwrap();
+    let runs0 = intarsia_backend_metal::inkprefill::prologue_split_runs();
     intarsia_backend_metal::inkprefill::set_prologue_split(Some(split));
     be.launch("ink_kv_prologue_bf16", &call, 0).unwrap();
     be.synchronize(0).unwrap();
     intarsia_backend_metal::inkprefill::set_prologue_split(None);
+    // the split kernels must have run exactly when asked (no split-off vs split-off comparison)
+    assert_eq!(intarsia_backend_metal::inkprefill::prologue_split_runs() - runs0, usize::from(split), "T={t}: split path taken = {split}?");
     vec![read(be, &q, t * H * DH), read(be, &rel, t * H * E), read(be, &k, t * ckv), read(be, &v, t * ckv), read(be, &kr, rr * ckv), read(be, &vr, rr * ckv)]
 }
 

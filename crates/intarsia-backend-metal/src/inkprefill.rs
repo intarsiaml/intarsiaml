@@ -159,6 +159,17 @@ pub fn prologue_split(rows: usize) -> bool {
 
 static SPLIT_FORCE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0xFF);
 
+static SPLIT_RUNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// Prologue calls that took the split kernels so far (tests assert the split path really ran).
+pub fn prologue_split_runs() -> usize {
+    SPLIT_RUNS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+pub(crate) fn note_prologue_split() {
+    SPLIT_RUNS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+
 /// Tests: force [`prologue_split`] on / off (`None` = the environment).
 pub fn set_prologue_split(v: Option<bool>) {
     SPLIT_FORCE.store(v.map_or(0xFF, u8::from), std::sync::atomic::Ordering::Relaxed);
