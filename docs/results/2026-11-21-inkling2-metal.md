@@ -90,6 +90,20 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 `plan show --model ~/models/Qwen3-8B --backend metal`: byte-identical stdout and stderr, base (b5e283927, built with
 `--features metal`) vs this branch.
 
+## Tests
+
+| Suite | Where / job | Tree | Result |
+|---|---|---|---|
+| `cargo test --release --no-fail-fast -p intarsia-core -p intarsia-backend-cpu -p intarsia-cli` | spark2 #10868 (`git archive` of 41c93f814) | 41c93f814 | 40 binaries, 0 failed |
+| `cargo test --release --no-fail-fast -p intarsia-backend-metal` | endor #10867 | f55bfe8b7 (m-mix 47570539e merged) | 46 binaries, 213 passed, 0 failed (incl. `every_metal_kernel_has_a_quick_case`, `rows_exact_registrations_are_pinned`) |
+| `cargo test -p intarsia-models --test inkling2`, cpu and `INTARSIA_INKLING2_BACKEND=metal` | endor #10715 | before the serve / m-mix merges | 8 / 8 each |
+| `docs_env_vars` | endor #10898 | f55bfe8b7 | 2 / 2 |
+| `admission::plan_case_tests` (new SiTU case test) | endor | 761a1561b | 3 / 3 |
+
+Two failures found and fixed on the way: `quick_coverage` (`rel_sink_attn_bf16_nax` had no quick case; a quick-only copy of
+the first mid-size NAX case, full sweep unchanged) and `rows_exact_registrations_are_pinned` (m-mix's
+`ink_in_proj_bf16_gemv_rows` added to the pin list; its G-B test is `tests/inkmix.rs::in_proj_rows_exact`).
+
 ## Gates
 
 Real-model runs on endor through fleetq (#10690, rerun on the final code #10721, same numbers to the last digit), checkpoint
