@@ -96,6 +96,15 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
     v65 / dq1 missed, and send diagnosis + proposal before building; (3) if MoE has nothing above ~20 ms/chunk recoverable,
     take the ConvMix + looped blend fusion (~15 ms) instead, bitwise, flag off. Compile on bespin, GPU only in endor slots.
 
+11. 2026-11-22 (coordinator, via SendMessage): note for reading #11109. ink-metal found a G2 decode-mode regression on
+    ink/metal since the m-mix/batch merge 45887198b (decode rows 1.109e-2 short / 9.205e-3 long vs limits 4e-3 / 6e-3, from
+    chat_reasoning and chat_system; prefill-mode G2 passes; bisect #11142 running). If the ink/prefill base contains that
+    merge, judge the chunk change by 2048 vs 256 on the same binary (prefill-mode G2 and G3 within limits, decode-mode G2 no
+    worse than the 256 arm within 5 %), report both arms, and do not stop on the known decode failure alone. If the base
+    predates it (decode rows near 2.6e-3), the original limits apply unchanged.
+    **This lane:** 45887198b is not an ancestor of 378dc214e (the #11109 binary) or of the ink/prefill tip, so the original
+    limits apply to #11109.
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
