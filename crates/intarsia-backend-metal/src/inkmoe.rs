@@ -40,7 +40,7 @@ const ROUTE: &str = "ink_moe_route";
 const GATHER: [&str; 2] = ["ink_moe_gather_bf16", "ink_moe_gather_f32"];
 
 /// Shader entry points of kernels/metal/inkling2_moe.metal.
-pub const SHADERS: [&str; 23] = [
+pub const SHADERS: [&str; 31] = [
     ROUTE,
     "ink_moe_gu_nv_a_x",
     "ink_moe_gu_nv_a",
@@ -64,6 +64,15 @@ pub const SHADERS: [&str; 23] = [
     "ink_moe_dn_f_mx_u_f32",
     GATHER[0],
     GATHER[1],
+    // one-row NVFP4 instances ([`t1_enabled`])
+    "ink_moe_gu1_nv_a_x",
+    "ink_moe_gu1_nv_a",
+    "ink_moe_gu1_nv_u_x",
+    "ink_moe_gu1_nv_u",
+    "ink_moe_dn_f3_nv_a_bf16",
+    "ink_moe_dn_f3_nv_u_bf16",
+    "ink_moe_dn_f3_nv_a_f32",
+    "ink_moe_dn_f3_nv_u_f32",
 ];
 
 /// The grouped prefill GEMMs on the neural accelerators (kernels/metal/inkling2_moe_nax.metal, metal4.0 library), by
@@ -183,6 +192,33 @@ pub fn set_dnf_threads(n: usize) {
 
 fn dnf_threads() -> usize {
     DNF_THREADS.load(Ordering::Relaxed)
+}
+
+static T1: AtomicU8 = AtomicU8::new(255);
+static T1_SERVED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// `INTARSIA_INK_MOE_T1=1` (default off, lane ink-dfuse): one-row NVFP4 calls (T = 1, the decode step at one row) take
+/// `ink_moe_gu1_nv_*` (one pair per union leader) and `ink_moe_dn_f3_nv_*` (3 down chunks loaded ahead). Same bits as the
+/// shipped instances (kernels/metal/inkling2_moe.metal); T > 1, MXFP8 and the grouped prefill GEMMs are unchanged.
+pub fn t1_enabled() -> bool {
+    let v = T1.load(Ordering::Relaxed);
+    if v == 255 {
+        let on = matches!(std::env::var("INTARSIA_INK_MOE_T1").as_deref(), Ok("1") | Ok("on"));
+        T1.store(on as u8, Ordering::Relaxed);
+        on
+    } else {
+        v == 1
+    }
+}
+
+/// Tests and benchmarks: force [`t1_enabled`] on or off for this process (`None`: back to the environment).
+pub fn set_t1(v: Option<bool>) {
+    T1.store(v.map_or(255, |b| b as u8), Ordering::Relaxed);
+}
+
+/// How many decode calls took the one-row instances (tests assert that the switch reached the kernels).
+pub fn t1_served() -> usize {
+    T1_SERVED.load(Ordering::Relaxed)
 }
 
 /// Set the decode policy for this process (benchmarks and tests).
@@ -450,6 +486,11 @@ impl MetalBackend {
         let fmt = if mx { "mx" } else { "nv" };
         let al = if a16 { "a" } else { "u" };
         let pol = policy();
+        // one-row NVFP4: the gu1 / dn_f3 instances (same bits)
+        let t1 = !mx && t == 1 && t1_enabled();
+        if t1 && T1_SERVED.fetch_add(1, Ordering::Relaxed) == 0 {
+            eprintln!("inkmoe: one-row NVFP4 calls served by ink_moe_gu1_nv_* / ink_moe_dn_f3_nv_* (INTARSIA_INK_MOE_T1)");
+        }
         let (uni_gu, fused) = match pol {
             Policy::Auto => (true, t == 1),
             Policy::Union => (true, false),
@@ -459,7 +500,7 @@ impl MetalBackend {
         };
         // gate + up
         p.dims[5] = epi | if uni_gu { 4 } else { 0 } | if uni_gu { dec1_bits() } else { 0 };
-        let gu = format!("ink_moe_gu_{fmt}_{al}{}", if ax { "_x" } else { "" });
+        let gu = format!("ink_moe_gu{}_{fmt}_{al}{}", if t1 { "1" } else { "" }, if ax { "_x" } else { "" });
         let rb = inter.div_ceil(GU_ROWS);
         let g1 = if uni_gu {
             MTLSize { width: rb, height: pairs, depth: 1 }
@@ -475,7 +516,7 @@ impl MetalBackend {
         }
         if fused {
             p.dims[5] = epi;
-            let dn = format!("ink_moe_dn_f_{fmt}_{al}_{}", if o32 == 1 { "f32" } else { "bf16" });
+            let dn = format!("ink_moe_dn_f{}_{fmt}_{al}_{}", if t1 { "3" } else { "" }, if o32 == 1 { "f32" } else { "bf16" });
             let g2 = MTLSize { width: t, height: h.div_ceil(DNF_ROWS), depth: 1 };
             return self.ink_dispatch(&dn, &[&hb, &ib, &wb, &w2, &s2, &gb, &ob], &p, g2, dnf_threads());
         }
