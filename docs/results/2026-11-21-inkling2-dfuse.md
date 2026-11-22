@@ -914,3 +914,37 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
   their barriers, the softmax in simdgroup 0, and the stores. Only a restructured kernel could cut it, and that has no
   measured ceiling yet.
 
+### Roofline job L (#11336, queued 06:47, snapshot .scratch/snap7 = 91355d5f7, code = afaf4e8c9; measurement only)
+
+- **Method.** Multi-dispatch timing only.
+  - Each class is measured by its lane's existing microbench at the real shapes: many launches per command buffer, each
+    on its own operand set, with the weights rotating past the system cache.
+  - The class times (per call x calls per token from probe P's trace) are summed against the measured step. What is left
+    over is the cost the benches do not see: dependencies between different kernels, and the per-dispatch launch cost.
+  - The benches: ink_p12_bench (InkInProj S 1 / 3, wo, unembed), ink_attn_bench (attention core, ctx 512 / 4096 / 32768),
+    inkmoe_bench (NVFP4 and MXFP8 experts, 1 row), ink_ctrl_bench (router, controllers, LoopBlend), argmax_cost, and
+    dispatch_cost (cost per dependent dispatch in one serial command buffer).
+- **Box check first.** Rep 0 is dropped; the median span of reps 1-3 must lie in 12.64-13.97 ms (13.3 +- 5 %), otherwise
+  the job prints BOX SLOW and stops. One more rep runs at the end.
+- **Bytes per token by class** at native widths (raw/roof_bytes.py; bf16 dense, experts as stored):
+
+  | Class | MB / token | ms at 614 GB/s |
+  |---|---|---|
+  | in_proj (wq, wr, gate, sink, wk, wv) | 1902 | 3.10 |
+  | wo | 680 | 1.11 |
+  | experts, NVFP4 (44 visits) | 1577 | 2.57 |
+  | experts, MXFP8 (4 visits) | 263 | 0.43 |
+  | router | 28 | 0.05 |
+  | controllers | 113 | 0.18 |
+  | small (norms, sconv) | 7 | 0.01 |
+  | unembed | 922 | 1.50 |
+  | **total** | **5492** | **8.94** |
+
+  The KV read is small at the short prompt: about 4 KB per context token per visit, so about 30 MB per token at a context of
+  150.
+- **What reduced precision changes** (ink-fp8's lane; from tools/inkling2_floor.py):
+  - The tip runs P12, which is lossless, for the dense projections and the unembed: about 12/16 of the bf16 bytes plus
+    escapes. The P12 bench reports the exact bytes.
+  - fp8 (e4m3) would bring the projections from 2582 MB (bf16) to 1301 MB and the unembed from 922 to 465 MB. Against P12,
+    that is about -0.64 GB, or -1.0 ms per token at 614 GB/s, if it hits the same GB/s.
+
