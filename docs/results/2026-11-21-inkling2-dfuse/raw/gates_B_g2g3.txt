@@ -1,0 +1,22 @@
+== mode: prefill ==
+OVERALL                    569    98.95   3.201e-3   2.380e-3   2.380e-3   2.364e-1   0.0679   0.0666    96.34     79.3%      0
+prefill KL threshold [21-way KL]: static floor 4.000e-3 | no ref noise measured for this golden => effective 4.000e-3 bound by static floor; KL 2.380e-3 PASS
+== mode: decode (teacher-forced) ==
+OVERALL                    128    97.66   2.440e-3   2.589e-3   2.589e-3   5.308e-2   0.0173   0.0166    94.22     84.4%      0
+decode KL threshold [21-way KL]: static floor 4.000e-3 | no ref noise measured for this golden => effective 4.000e-3 bound by static floor; KL 2.589e-3 PASS
+golden gate: PASS
+== mode: prefill ==
+OVERALL                   1569    99.17   3.771e-3   3.418e-3   3.418e-3   6.816e-1   0.0407   0.0406    94.46     47.6%      0
+prefill KL threshold [21-way KL]: static floor 6.000e-3 | no ref noise measured for this golden => effective 6.000e-3 bound by static floor; KL 3.418e-3 PASS
+== mode: decode (teacher-forced) ==
+OVERALL                    160    97.50   2.342e-3   2.474e-3   2.474e-3   5.308e-2   0.0196   0.0195    94.12     81.2%      0
+decode KL threshold [21-way KL]: static floor 6.000e-3 | no ref noise measured for this golden => effective 6.000e-3 bound by static floor; KL 2.474e-3 PASS
+golden gate: PASS
+== mode: prefill ==
+OVERALL                    569    97.89   9.662e-3   8.391e-3   8.391e-3   4.449e-1   0.0679   0.0670    92.90     39.7%      0
+prefill KL threshold [21-way KL]: static floor 1.050e-2 | no ref noise measured for this golden => effective 1.050e-2 bound by static floor; KL 8.391e-3 PASS
+golden gate: PASS
+== mode: prefill ==
+OVERALL                   1569    97.64   1.312e-2   1.248e-2   1.248e-2   6.706e-1   0.0414   0.0409    89.66     18.0%      0
+prefill KL threshold [21-way KL]: static floor 1.650e-2 | no ref noise measured for this golden => effective 1.650e-2 bound by static floor; KL 1.248e-2 PASS
+golden gate: PASS

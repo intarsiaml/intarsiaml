@@ -211,4 +211,27 @@ In-stream microbench (`examples/ink_ctrl_bench.rs`, raw/ctrl_bench_C.md; us per 
   it across the rows), and the gate items spin on a counter while the h items run. Recommendation: leave it off (or drop it).
 - Message precompute: per-dispatch trace attn_res_mix 229 -> 102 us per token (26 -> 4 calls).
 
+### Real-model gate of changes 1-3 (fleetq #10952, snapshot f4702646a, raw/gates_B_*.txt)
+
+- Bitwise, every switch alone and all three against all off:
+  - 1 row: 64 greedy tokens, text md5: EQUAL for route, msg, tail and all.
+  - 16 rows: the G2-short prompts prefilled in 16-row chunks, so every pass runs the 16-row paths. Self-golden tensor bytes
+    are EQUAL for all four (`raw/stcmp.py`). The file md5s differ only by the header's build time and run metadata.
+- The fused kernels ran (kernel traces): 1-row decode 613 -> 447 dispatches per step, 16-row passes 805 -> 591. ink_route_bf16
+  replaces 48 logits_bf16_gemv + 48 moe_route_f32. attn_res_mix 26 -> 4 calls. Blended conv_mix 4 -> 2 dispatches.
+- G2 / G3 with all three on: PASS.
+
+| gate | KL21 (scored rows) | limit | top-1 | confident rows, misses |
+|---|---:|---:|---:|---|
+| G2 short, prefill | 2.380e-3 | 4.0e-3 | 98.95 % | 363, 0 (allowance 1) |
+| G2 short, decode (teacher-forced) | 2.589e-3 | 4.0e-3 | 97.66 % | |
+| G2 long, prefill | 3.418e-3 | 6.0e-3 | 99.17 % | 1206, 1 (allowance 2) |
+| G2 long, decode (teacher-forced) | 2.474e-3 | 6.0e-3 | 97.50 % | |
+| G3 short (vLLM golden), prefill | 8.391e-3 | 1.05e-2 | 97.89 % | 367, 0 (allowance 1) |
+| G3 long (vLLM golden), prefill | 1.248e-2 | 1.65e-2 | 97.64 % | 1211, 0 (allowance 2) |
+
+- Stress under real GPU load (coordinator condition 3): 12 rounds of the 12000-call watchdog stress ran while the G2 / G3
+  model runs loaded the GPU. Every round exited 0 and every call was bitwise. The slowest batch of 200 calls took up to 15.4 ms
+  for ink_route (watchdog 270 s) and up to 205 ms for the blend tail (watchdog 660 s). No timeout.
+
 PENDING_ATTRIBUTION
