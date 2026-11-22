@@ -208,35 +208,41 @@ inline void in2_mm_impl(device const ushort* A, device const int* pairs, device 
             threadgroup_barrier(mem_flags::mem_threadgroup);
         }
     }
-    if (DB) threadgroup_barrier(mem_flags::mem_threadgroup);
-    {
-        extents<int, SN, SM> ec;
-        array<int, 2> st = {1, int(MOE_LC)};
-        tensor<threadgroup float, extents<int, SN, SM>, tensor_inline> tC(smem + sr * MOE_LC + sc, ec, st);
-        ct.store(tC);
-    }
-    threadgroup_barrier(mem_flags::mem_threadgroup);
-    if (MODE == 0) {
-        const float g0 = FMT == 0 ? gsc[e * 3] : 1.f, g1 = FMT == 0 ? gsc[e * 3 + 1] : 1.f;
-        for (uint q = tid; q < BM * 32u; q += 128u) {
-            const uint r = q / 32u, c = q % 32u;
-            if (r >= rows || n0 + c >= I) continue;
-            const float g = moe_rb(smem[r * MOE_LC + c] * g0), u = moe_rb(smem[r * MOE_LC + 32 + c] * g1);
-            out[(ulong)(s0 + r) * I + n0 + c] = f2bf(in2_act(p.f, g, u, wts[pairs[s0 + r]], p.f0, p.f1));
+    // epilogue through threadgroup memory in row halves of at most 64 rows (BM 128 would need 35 kB at once)
+    constexpr uint EH = TM > 64 ? 64 : TM;
+    for (uint hp = 0; hp < TM / EH; ++hp) {
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (sr / EH == hp) {
+            extents<int, SN, SM> ec;
+            array<int, 2> st = {1, int(MOE_LC)};
+            tensor<threadgroup float, extents<int, SN, SM>, tensor_inline> tC(smem + (sr - hp * EH) * MOE_LC + sc, ec, st);
+            ct.store(tC);
         }
-    } else {
-        const float g2 = FMT == 0 ? gsc[e * 3 + 2] : 1.f;
-        for (uint q = tid; q < BM * MOE_WR; q += 128u) {
-            const uint r = q / MOE_WR, c = q % MOE_WR;
-            if (r >= rows || n0 + c >= H) continue;
-            out[(ulong)pairs[s0 + r] * H + n0 + c] = f2bf(smem[r * MOE_LC + c] * g2);
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        const uint r0 = hp * EH;
+        if (MODE == 0) {
+            const float g0 = FMT == 0 ? gsc[e * 3] : 1.f, g1 = FMT == 0 ? gsc[e * 3 + 1] : 1.f;
+            for (uint q = tid; q < EH * 32u; q += 128u) {
+                const uint r = q / 32u, c = q % 32u;
+                if (r0 + r >= rows || r0 + r >= BM || n0 + c >= I) continue;
+                const float g = moe_rb(smem[r * MOE_LC + c] * g0), u = moe_rb(smem[r * MOE_LC + 32 + c] * g1);
+                out[(ulong)(s0 + r0 + r) * I + n0 + c] = f2bf(in2_act(p.f, g, u, wts[pairs[s0 + r0 + r]], p.f0, p.f1));
+            }
+        } else {
+            const float g2 = FMT == 0 ? gsc[e * 3 + 2] : 1.f;
+            for (uint q = tid; q < EH * MOE_WR; q += 128u) {
+                const uint r = q / MOE_WR, c = q % MOE_WR;
+                if (r0 + r >= rows || r0 + r >= BM || n0 + c >= H) continue;
+                out[(ulong)pairs[s0 + r0 + r] * H + n0 + c] = f2bf(smem[r * MOE_LC + c] * g2);
+            }
         }
     }
 }
 
 // threadgroup memory in float4: NBUF x (A + B) staged tiles, reused by the f32 epilogue
+#define IN2_EH(TM) ((TM) > 64 ? 64 : (TM))
 #define IN2_SMEM(TM, BK, NBUF) \
-    ((((NBUF) * ((TM) + MOE_WR) * ((BK) + 8) * 2) > (TM) * MOE_LC * 4 ? ((NBUF) * ((TM) + MOE_WR) * ((BK) + 8) * 2) : (TM) * MOE_LC * 4) / 16)
+    ((((NBUF) * ((TM) + MOE_WR) * ((BK) + 8) * 2) > IN2_EH(TM) * MOE_LC * 4 ? ((NBUF) * ((TM) + MOE_WR) * ((BK) + 8) * 2) : IN2_EH(TM) * MOE_LC * 4) / 16)
 
 #define IN2_MM(NAME, FMT, MODE, BM, BK, V)                                                                              \
     kernel void NAME(device const ushort* A [[buffer(0)]], device const int* pairs [[buffer(1)]],                       \
@@ -266,3 +272,7 @@ IN2_SET(nv, 0, 64, 64, 16)
 IN2_SET(nv, 0, 64, 64, 28)
 IN2_SET(mx, 1, 64, 64, 1)
 IN2_SET(mx, 1, 64, 32, 3)
+IN2_SET(nv, 0, 128, 64, 1)
+IN2_SET(nv, 0, 128, 32, 3)
+IN2_SET(mx, 1, 128, 64, 1)
+IN2_SET(mx, 1, 128, 32, 3)

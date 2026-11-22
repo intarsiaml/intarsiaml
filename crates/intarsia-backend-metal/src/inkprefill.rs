@@ -17,6 +17,10 @@ pub const NAX2: &[(usize, usize, &str)] = &[
     (0, 64, "m64_k64_v28"),
     (1, 64, "m64_k64_v1"),
     (1, 64, "m64_k32_v3"),
+    (0, 128, "m128_k64_v1"),
+    (0, 128, "m128_k32_v3"),
+    (1, 128, "m128_k64_v1"),
+    (1, 128, "m128_k32_v3"),
 ];
 
 const FMT: [&str; 2] = ["nv", "mx"];
@@ -110,20 +114,31 @@ pub fn set_skip(v: u8) {
 }
 
 /// Prefill blend chunks (rows > 16): the h projection on the NAX GEMM (InkInProj's prefill kernel) instead of the 16-row
-/// GEMV passes. `INTARSIA_INK_BLEND_NAX=1` turns it on (measurement default: off).
+/// GEMV passes. `INTARSIA_INK_BLEND_NAX=1` takes only this step, `0` neither (default 2: this and the gate below).
 pub fn blend_nax(rows: usize) -> bool {
-    rows > 16 && blend_level() >= 1
+    rows > 16 && blend_level() >= 1 && !EXACT.with(|e| e.get())
+}
+
+thread_local! {
+    /// The current mix call's `exact_rows` (set by inkmix.rs `launch_inkmix`): row-exact calls keep m-mix's GEMV path.
+    static EXACT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Called by inkmix.rs for every mix call: whether it promises row-exact results.
+pub fn set_exact(v: bool) {
+    EXACT.with(|e| e.set(v));
 }
 
 /// Prefill blend chunks: the gate + norm on the accelerators too (kernels/metal/inkling2_blend_nax.metal),
 /// `INTARSIA_INK_BLEND_NAX=2`.
 pub fn blend_gate_nax(rows: usize) -> bool {
-    rows > 16 && blend_level() >= 2
+    blend_nax(rows) && blend_level() >= 2
 }
 
 fn blend_level() -> u8 {
     static L: std::sync::OnceLock<u8> = std::sync::OnceLock::new();
-    *L.get_or_init(|| std::env::var("INTARSIA_INK_BLEND_NAX").ok().and_then(|v| v.parse().ok()).unwrap_or(0))
+    // default 2 (lane ink-prefill: admitted, ~2.5x faster blend on 2048-row chunks); 0 restores m-mix's GEMV path
+    *L.get_or_init(|| std::env::var("INTARSIA_INK_BLEND_NAX").ok().and_then(|v| v.parse().ok()).unwrap_or(2))
 }
 
 /// Entry points of inkling2_blend_nax.metal.

@@ -227,6 +227,7 @@ fn dim(v: usize, what: &str) -> Result<u32> {
 
 impl MetalBackend {
     pub(crate) fn launch_inkmix(&self, kernel: &str, call: &OpCall) -> Result<()> {
+        crate::inkprefill::set_exact(call.exact_rows); // lane ink-prefill: row-exact calls keep the GEMV blend
         match (kernel, call.op) {
             (INK_IN_PROJ_BF16_GEMV | INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj) => self.launch_in_proj_gemv(call),
             (INK_IN_PROJ_BF16_NAX, Op::InkInProj) => self.launch_in_proj_nax(call),

@@ -89,6 +89,8 @@ fn prefill_forms_match_the_first_generation_at_2048_rows() {
         call.scratch = Some(TensorRef::new(be.alloc(need.max(16), MemKind::Device).unwrap(), DType::U8, &[need]));
         let run = |form: Option<&str>| -> Vec<f32> {
             set_form(form);
+            // poison the output first (bf16 0xFFFF = NaN), so a form that writes nothing cannot pass as the last one's result
+            be.upload(&out, 0, &vec![0xFFu8; T * H * 2], 0).unwrap();
             be.launch(kname, &call, 0).unwrap();
             be.synchronize(0).unwrap();
             read_bf16(&be, &out, T * H)
