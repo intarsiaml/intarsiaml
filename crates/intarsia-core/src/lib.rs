@@ -23,6 +23,7 @@ pub mod inkling2;
 pub mod memplan;
 pub mod model;
 pub mod ops;
+pub mod par;
 pub mod plan;
 pub mod prefix_store;
 pub mod quant;

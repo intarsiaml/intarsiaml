@@ -5477,9 +5477,8 @@ impl Model {
     /// Gemma 4 final logit soft-capping; monotonic, so the device argmax of `head_argmax` is unaffected.
     pub(super) fn softcap_logits(&self, out: &mut [f32]) {
         if let Some(cap) = self.dims.gemma.as_ref().map(|g| g.softcap).or(self.dims.ink.as_ref().map(|i| i.softcap)).filter(|&c| c > 0.0) {
-            for x in out.iter_mut() {
-                *x = cap * (*x / cap).tanh();
-            }
+            // per element `cap * tanh(x / cap)`, on the host pool for a long row (lane ink-hostgap)
+            crate::sampler::softcap(out, cap);
         }
     }
 
