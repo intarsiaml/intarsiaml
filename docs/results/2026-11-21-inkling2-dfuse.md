@@ -534,4 +534,24 @@ call in the stream. ConvMix row kernel 18.25 -> 15.67 us. AttnResMix 238 -> 98 u
 Result files: /opt/code/deepeval/results/20261122-021312-adhoc-endor-intarsia-metal-dfuse-e-off,
 /opt/code/deepeval/results/20261122-021343-adhoc-endor-intarsia-metal-dfuse-e-best.
 
+### The default-on flip (prepared, held for rule (b))
+
+- **Change**: snapshot 6318887b5 = ac2371c81's code + the flip; the patch is .scratch/flip.patch; not yet a branch commit.
+  - `INTARSIA_INK_ROUTE_FUSED` and `INTARSIA_INK_MSG_PRE`: unset / `auto` = on for Metal, off elsewhere. `0` / `off` or
+    `1` / `on` force either way.
+  - `INTARSIA_INK_MIX_HOIST` and `INTARSIA_INK_BLEND_NORM_C` (Metal kernels only): unset = on; `0` / `off` = the plain
+    kernels.
+  - The cpu default path is unchanged (auto = the pair / per visit), and so are other models.
+- **Checks so far:**
+  - bespin #11141: cargo check of the Metal crate (examples + tests), and the Inkling model tests on cpu (inkling2 8 / 8,
+    inkling2_batch 6 / 6).
+  - spark2 #11143: docs_env_vars.
+- **Job F** (#11145, queued after R; `.scratch/jobF.sh`) checks the flip on Metal:
+  1. Every env setting against job E: no env, all `=1`, all `=0`, each switch `=0`. It compares greedy md5 and
+     dispatches per step; no env must equal E's best.
+  2. The 16-row self-golden with the defaults against E's best.
+  3. G2 in both modes with the defaults.
+- The flip becomes one ink/dfuse commit (tree = 6318887b5's) once job R shows all-off == best in G2's decode mode. It merges
+  into ink/metal only after ink-metal's decode-mode G2 is fixed or explained (coordinator).
+
 PENDING_ATTRIBUTION
