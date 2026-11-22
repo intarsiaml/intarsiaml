@@ -124,11 +124,11 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
     commit on ac2371c81: one commit, with per-switch env offs. It merges into ink/metal only after ink-metal's decode G2 is
     fixed or explained.
   - Send R's G2 numbers to ink-metal (af43898d63e5b5190) too, as a data point for their bisect.
-- 2026-11-22 ~03:20 (coordinator): keep the widened F (#11145) and R (#11111) where they are in line; do not requeue or
+- 2026-11-22 ~03:03 (coordinator): keep the widened F (#11145) and R (#11111) where they are in line; do not requeue or
   trim them. Requeueing costs about 10 h, and the full-default Metal suite is worth about 25 min more before the flip
   merges. One guard: a job that starts as a backfill gets SIGTERM at its old --expect, so both scripts must write each
   step's result to the log as it finishes. Next time a job is widened, put the new --expect in a fresh job, unless that job
-  is deep in a queue like this one. Done 03:25: every step of R and F prints its result as it finishes, and a TERM trap
+  is deep in a queue like this one. Done 03:04: every step of R and F prints its result as it finishes, and a TERM trap
   names the step that was cut.
 
 ## Probes (endor, before any code)
@@ -478,7 +478,7 @@ interleaved reps.
   served (expect on 10 of 10, off 0 of 10). bespin #11163 checked the counter build. Job F got the same touch and run check.
 - Queue at 02:51: R (#11111) is 4th behind #11104 on endor; fleetq estimates a start around 12:30 if the jobs ahead end on
   time. F (#11145) follows R.
-- 03:10: R keeps its slot useful if the preload test fails. The failure is recorded, the preload arms are dropped, and the
+- 03:00: R keeps its slot useful if the preload test fails. The failure is recorded, the preload arms are dropped, and the
   off / all-off G2 comparison still runs. Timing is skipped in that case.
 
 ### Job E (#11003, 02:01-02:14, snapshot ac2371c81; raw/E_*)
@@ -568,7 +568,7 @@ Result files: /opt/code/deepeval/results/20261122-021312-adhoc-endor-intarsia-me
   3. G2 in both modes with the defaults.
 - The flip becomes one ink/dfuse commit (tree = 6318887b5's) once job R shows all-off == best in G2's decode mode. It merges
   into ink/metal only after ink-metal's decode-mode G2 is fixed or explained (coordinator).
-- **F retargeted (03:10) to the tip 00c81dda7** (the flip + ink/metal dbec19036 merged; snapshot .scratch/snap5; the old
+- **F retargeted (03:00) to the tip 00c81dda7** (the flip + ink/metal dbec19036 merged; snapshot .scratch/snap5; the old
   script is jobF.v1.sh). Since the flip, no Metal test suite has run with the new defaults, and the merge adds
   tests/inkling2_mix_decode_cpu.rs. That test launches the mix ops by name, so the defaults choose the hoisted and norm_c
   kernels. F now runs, with the defaults and again with all four switches off:
