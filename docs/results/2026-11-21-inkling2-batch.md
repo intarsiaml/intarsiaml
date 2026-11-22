@@ -494,3 +494,40 @@ arms in order fwd / rev / fwd. Batched step ms per rep, median, and aggregate to
   faster than every earlier figure (pre-merge #10900 71 ms; merged #11057 79-81 ms). This job ran without a pre-merge arm, so
   it cannot say what changed; the earlier figures came from other jobs (load, run order, the rtvar build or flags may differ).
   Before trusting the 230 target as met (266.9 here), a paired pre-merge vs merged run in one quiet job is still needed.
+
+## 18. Batched baseline handed to ink-metal; next B=16 candidate (proposal, 2026-11-22)
+
+**Baseline command** (sent to ink-metal af43898d63e5b5190 for its combined post-merge gate; quiet slot, median of 3 reps;
+reference = column 3 batched step ms and column 6 aggregate tok/s):
+`cargo build --release -p intarsia-models --example batch_step` then
+`INTARSIA_METAL_TEST_MODEL=<Inkling-2-Mini snapshot> ./target/release/examples/batch_step --ctx 1024 --rounds 2 --steps 16 --batches 1,8,16`.
+Reference from #11181: B1 16.40 ms / 61.0, B8 34.93 / 229.0, B16 59.96 / 266.9 tok/s.
+
+**B=16 step breakdown.** The only per-kernel trace is #10885 (section 8: pre-merge tree, kernel-mode trace, shares only, traced
+sum 84.1 ms). Scaled to today's 60 ms step, assuming the shares held (the m-mix merge changed the mix kernels, which sit in
+"everything else"):
+
+| op | share at B 16 | ~ms of 60 | B 8 -> 16 growth (traced) |
+|---|---:|---:|---:|
+| MoE experts bf16 rows (gate+up / down / gather, 132 launches) | 40% | 24 | +4.9 ms (+17%) |
+| ink_attn_decode_bf16_rows | 14% | 8.6 | +1.5 |
+| ink_in_proj_bf16_gemv_rows | 14% | 8.4 | +3.6 |
+| wo bf16 GEMV rows (two chunks above 8) | 8% | 4.6 | +3.6 |
+| unembed + router logits | 8% | 4.6 | +1.9 |
+| MoE mxfp8 visits | 5% | 3.1 | +1.3 |
+| everything else | 11% | 6.4 | -0.7 |
+
+**Candidate: the fixed part of the MoE expert launches at B 16.** Top-8 of 128 gives an expected union of ~52 experts per layer
+at B 8 and ~82 at B 16 (+59%), but traced MoE time grew only 29.1 -> 33.9 ms (+17%). A two-point fit t = a + b * union gives
+b ~0.16 ms per union expert per step (~6.7 us per expert per layer, near weight-read speed) and a ~21 ms traced (~15 ms of the
+real step) that does not scale with the experts touched: per-launch tail and occupancy over 132 launches with few rows per
+expert, plus the gather. Removing it (fewer, fuller launches: gate+up and down per layer over all union experts in one grid,
+gather folded into down, per-row reduction order unchanged so rows stay bitwise) is the largest lever left.
+Estimate: 3-7 ms per step, so B 16 at 53-57 ms, ~280-300 tok/s (+5-13%).
+The fit has only two points from the old tree, so step 1 is one quiet profile job on the final tree: kernel trace at
+B 2/4/8/12/16, MoE time against union size. It confirms or kills the fixed part before any kernel is written.
+Second candidate: ink_in_proj rows (+3.6 ms from B 8 to 16; gain ~2 ms if it scales like wo would with a single read).
+The single-read 16-row GEMV already failed for wo/logits (#10900), so this is ranked lower.
+
+For the localeval `conc-plain-1k` cell (117.7 tok/s at 16), the bigger lever is still prefill and how prefill chunks share
+steps with a full decode batch (section 14), not the decode step.
