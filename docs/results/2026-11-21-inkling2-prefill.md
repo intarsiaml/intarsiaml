@@ -531,6 +531,23 @@ Timing (#11322, p8k, --prefill-chunk 2048):
 | 1024 | 2542 | 2509 | 2521 | 2521 | +6.7 % |
 | 2048 | 2527 | 2476 | 2481 | 2481 | +5.0 % |
 
+Trace rerun (#11344, 07:01:24-07:01:53, safe_run, no leftovers; order 2048, 256, 1024, 256), ms per chunk, chunks 1 + 2:
+
+| op | piece 2048 | 256 (a) | 1024 | 256 (b) | ps0 (256, earlier) |
+|---|---:|---:|---:|---:|---:|
+| moe_experts_situ_bf16 | 367.0 | 323.0 | 354.1 | 323.5 | 323.0 |
+| conv_mix_bf16 | **61.6** | 75.5 | **61.8** | 76.0 | 75.7 |
+| rel_sink_attn_bf16_nax | 79.6 | 70.3 | 76.7 | 70.3 | 70.3 |
+| ink_in_proj_bf16_nax | 70.7 | 61.6 | 67.9 | 61.6 | 61.6 |
+| ink_kv_prologue_bf16 | 54.9 | 48.0 | 52.9 | 47.9 | 48.0 |
+| **GPU total** | **718.9** | 654.4 | **695.1** | 655.8 | 654.8 |
+
+- **conv_mix -14 ms per chunk at 1024 and 2048**, but every op the change does not touch runs **+9 to 14 % slower** with the larger pieces.
+- That pattern holds in both orders: the two piece-256 runs bracket the others and match ps0 exactly. So it comes from the piece, not from the box.
+- Net GPU time per chunk is **+40 ms (1024) and +64 ms (2048)** in kernel-trace mode.
+- Likely cause: the larger scratch (85 / 170 MB vs 21 MB) evicts the weights from the system-level cache, or adds memory traffic. That is not measured. Kernel-trace mode times each dispatch separately, so it can over-state the effect.
+- This contradicts #11322's p8k tok/s (+5 to 7 %, fixed order). The gate #11348 (randomized order, rule fixed in advance) decides.
+
 - Scratch for the blend: ~21 MB (256), ~85 MB (1024), ~170 MB (2048).
 - Not decided: the default. Proposal to the coordinator: piece 1024 default-on (best tok/s, half the scratch of 2048), after a gate run (G2 / G3 short and long at chunk 2048 plus an interleaved speed check). Bitwise, so G2 / G3 should not move.
 
