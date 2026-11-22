@@ -552,6 +552,9 @@ pub struct Model {
     /// Replicated head: only rank 0 holds it (and runs the final norm's consumer), the other ranks stop after the last layer.
     /// Vocab-parallel head (`vocab_par`): every rank holds its `V / world` rows of it.
     lm_head: Option<QTensor>,
+    /// Inkling-2, `INTARSIA_INK_PACK12=1` (lane ink-pack12; lossless): the bf16 unembed rows as P12 too, run by every head
+    /// group the backend admits (all of them are 1..=16 rows); the bf16 view stays for the rest.
+    head_p12: Option<QTensor>,
     /// The lm_head is split over the ranks by vocabulary rows (`LoadOptions::tp_vocab`): every rank runs its half and the
     /// halves are all-gathered into rank 0's `ws.logits`.
     vocab_par: bool,
@@ -1196,6 +1199,23 @@ impl Model {
                 load_head(false)?
             }
             r => r?,
+        };
+        // the lossless 12-bit copy of the Inkling-2 unembed (lane ink-pack12): the replicated bf16 head only
+        let head_p12 = match (&dims.ink, &lm_head) {
+            (Some(_), Some(h)) if crate::quant::p12::enabled() && head_quant.is_none() && !vocab_par && h.format == crate::quant::BF16 => {
+                let nm = resolve(src, &lh.tensor)?;
+                let i = src.info(&nm).ok_or_else(|| Error::model(format!("lm_head tensor '{nm}' missing")))?;
+                if i.dtype != DType::Bf16 {
+                    None
+                } else {
+                    let mut st = inkling2::P12Stats::default();
+                    let q = st.pack(b, &src.bytes(&nm)?[..dims.vocab * dims.hidden * 2], dims.vocab, dims.hidden)?;
+                    weights_bytes.set(weights_bytes.get() + st.bytes as u64);
+                    eprintln!("{}", st.note(&format!("unembed ({} rows)", dims.vocab)));
+                    Some(q)
+                }
+            }
+            _ => None,
         };
 
         // scaled rotary embedding: the finished frequency table, uploaded once (rotary_dim as the attention blocks resolve it)
@@ -1933,6 +1953,7 @@ impl Model {
             embed,
             final_norm,
             lm_head,
+            head_p12,
             draft_head,
             draft_map,
             layers: Arc::new(layers),
@@ -5541,7 +5562,19 @@ impl Model {
             if mark {
                 self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
             }
-            let r = self.proj(x, self.head()?, &logits, profile);
+            let r = match self.head_p12.as_ref().filter(|_| c <= crate::quant::p12::ROWS_MAX) {
+                // the P12 head where the backend admits it (the same bits as the bf16 head), else the head as loaded
+                Some(p) => {
+                    let mut call = p.call(x.clone(), logits.clone());
+                    call.exact_rows = self.verifying();
+                    if self.registry.select(&call).is_ok() {
+                        self.exec_call(call, profile)
+                    } else {
+                        self.proj(x, self.head()?, &logits, profile)
+                    }
+                }
+                None => self.proj(x, self.head()?, &logits, profile),
+            };
             if mark {
                 self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
             }

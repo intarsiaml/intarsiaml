@@ -47,7 +47,9 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::GeluGlu => gelu_glu(call),
         Op::Argmax => argmax_op(call),
         Op::Sample => sample_op(call),
-        Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 => Err(Error::invalid(format!("{}: reserved discriminant", call.op))),
+        // lossless P12 weights (lane ink-pack12): the decoded bf16 weight through the bf16 op
+        Op::MatmulP12 => run(&crate::p12_ref::as_bf16(call)?),
+        Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 => Err(Error::invalid(format!("{}: reserved discriminant", call.op))),
     }
 }
 

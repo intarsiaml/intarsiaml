@@ -17,6 +17,7 @@ mod fused_ref;
 mod ink_ref;
 mod gdn_ref;
 mod mem;
+mod p12_ref;
 mod quant_ref;
 mod reference;
 

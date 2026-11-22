@@ -289,6 +289,8 @@ pub fn run(call: &OpCall, fast: bool) -> Result<()> {
         Op::InkAttnDecode => attn_decode(call),
         Op::MoeExpertsMxfp8 => experts_mxfp8(call),
         // e4m3 weights (lane ink-fp8): the reference is also the fast path (f64, rows in parallel)
+        // P12 codes (lane ink-pack12): the float form over the decoded weight
+        Op::InkInProj if i.len() == 3 && i[1].dtype == intarsia_core::DType::U8 => run(&crate::p12_ref::as_bf16(call)?, fast),
         Op::InkInProj if fast && i.len() == 2 => in_proj_fast(call),
         Op::InkInProj => {
             let (s, t, d, a) = (i[0].shape[0], i[0].shape[1], i[0].shape[2], i[0].dtype);

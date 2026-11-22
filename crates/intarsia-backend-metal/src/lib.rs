@@ -46,6 +46,7 @@ mod moe;
 pub mod multirow;
 pub mod mxfp4;
 pub mod nvfp4;
+pub mod p12;
 pub mod profile;
 mod rowtab;
 
@@ -1379,6 +1380,9 @@ impl MetalBackend {
         }
         if inkmix::KERNELS.iter().any(|k| k.0 == kernel) {
             return self.launch_inkmix(kernel, call);
+        }
+        if p12::KERNELS.iter().any(|k| k.0 == kernel) {
+            return self.launch_p12(kernel, call);
         }
         if bridge::KERNELS.iter().any(|k| k.0 == kernel) {
             return self.launch_bridge(kernel, call);
