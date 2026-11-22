@@ -189,6 +189,50 @@ three `__syncthreads`, 16 keys of mma per warp. 8B bf16 GEMV decode reaches abou
 left. ncu cannot run here (RmProfilingAdminOnly = 1), so the next step needs either profiling rights or the restructure in
 idea 1 below.
 
+## Full-32k decode: read pattern (brief 5, commit a5e3ede16)
+
+Diagnostic `.scratch/bw.cu` (fleetq #11016, #11019-#11021): the 134 MB K + V of one full-32k visit
+(8 kv heads x 32832 keys x 128 dims, bf16), read and discarded by a read-only kernel. There are 16 rotating copies (the
+bench's footprint) unless noted.
+
+| read pattern | us per visit | GB/s |
+|---|---|---|
+| (a) one linear stream, 768 x 256 threads | 534 | 252 |
+| (b) the tile kernel's pattern: 4 warps round-robin over 16-key blocks, 16 B per lane | 637 | 211 |
+| (b) with 1 copy (134 MB footprint) | 647 | 208 |
+| (c) each block reads its contiguous K then V range, 128 threads | 570-579 | 232-236 |
+| b2: (b), but each warp owns a contiguous quarter of the tile | 605 | 222 |
+| b3: (b) with 4 16-key blocks in flight | 673-690 | 195-200 |
+| b4: (b), but each load instruction covers 2 whole rows (not fragment layout) | 577 | 233 |
+| b5: (b) with 32 B loads (`ld.global.v8.b32`) | 607 | 221 |
+| b6: 32 B loads + warp-contiguous quarters (fragment-compatible) | 577 | 233 |
+| b7: 32 B loads + 64 contiguous keys per warp per 256-key slab | 595 | 226 |
+
+1 copy and 16 copies run at the same speed, so TLB and footprint are not the limit. The access shape is the limit: in
+fragment layout, a 16 B load instruction touches 8 rows x 64 B. 32 B loads (8 rows x 128 B) plus long per-warp runs recover
+most of the gap to (c).
+
+The one rework attempt is b6 in the direct body (full layers):
+- Warp group g owns the tile quarter `tk0 + g S/4 ..`, in key order, so the key-to-warp map stays absolute and the kernel
+  stays rows-exact.
+- With head_dim >= 64, W = 16 dims per lane and chunk. That is one 32 B load from the cache when both bases are 32-byte
+  aligned (`F_AL32`), else two 16 B loads with the same values.
+- The bias is staged per step of 4 x 64 keys, one 64-key run per warp.
+
+Gate on fleetq #11036: all ADMITTED, 0 fails, and the 45 rows-exact cases bitwise. Fused op 75, graph us, against the
+staged-SWA tip (#11016), one run each:
+
+| case | 1 row | 4 rows | 16 rows |
+|---|---|---|---|
+| full 32k | 657 -> **613** | 721 -> **649** | 787 -> 784 |
+| full 4k | 89.4 -> 87.9 | 104.7 -> 99.6 | 157.8 -> 164.8 |
+| full 512 | 27.7 -> 28.2 | 37.1 -> 37.5 | 53.2 -> 56.8 |
+| SWA (staged body, unchanged) | 28.5-38.2 -> 30.6-40.6 | | |
+
+Full 32k at 1 row is now 613 us against a read-only ceiling for this pattern of about 577 (b6) and a floor of 492. The
+16-row full-layer cases did not gain and may have lost 3-7 us. In those cases ptxas reports a 72-88 B spill for
+`ink_tile_k<128>` at 168 registers, and the partial last tile now falls on one warp.
+
 ## Next ideas (ranked)
 
 1. **Decode tile kernel: more keys per warp per barrier.** Each warp takes 64 keys per sub-chunk (4 mma k-groups)
