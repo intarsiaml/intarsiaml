@@ -114,6 +114,16 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
      short prompt and 5k, interleaved, `--quiet gpu,cpu`, honest --expect.
   5. Candidates 2 and 3 (top-8 tail, cross-layer prefetch) stay unbuilt. Report candidate 1's numbers first.
   Report: the bitwise result, us per ink_route call (real stream vs warm), ms per step, and the branch hash.
+- 2026-11-22 ~02:30 (coordinator): hold the flip. Rule (a) is a clean pass: -4.0 % short / -3.8 % 5k per step, all four
+  switches needed, localeval +4.1 % / +4.6 %.
+  - Decode-mode G2 has gone to ink-metal as a probable regression on the ink/metal tip. ink-metal will gate decode-mode rows
+    from now on, bisect f55bfe8b7 / 331238a4e (m-mix) / 45887198b (batch), and compare the two outlier rows against the fp32
+    oracle.
+  - Job R's (#11111) G2 decode-mode check (off vs best vs best + preload, one binary) is the switch-side proof. If off ==
+    best in decode mode there, rule (b) clears for these switches whatever the base turns out to be. Then make the flip
+    commit on ac2371c81: one commit, with per-switch env offs. It merges into ink/metal only after ink-metal's decode G2 is
+    fixed or explained.
+  - Send R's G2 numbers to ink-metal (af43898d63e5b5190) too, as a data point for their bisect.
 
 ## Probes (endor, before any code)
 
