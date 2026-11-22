@@ -228,6 +228,46 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     }
                 }
             }
+            if !quick {
+                // the real model at decode / verify rows and one prefill chunk: K 4, conv ring 3 + 16 rows, tau floor 1024
+                // (positions before, at and far past it), positions that wrap the conv ring
+                let (h, hk, dh, dr, e, kk) = (24usize, 8usize, 128usize, 16usize, 1024usize, 4usize);
+                let (ckv, rr) = (hk * dh, kk - 1 + 16);
+                for (t, pos0s) in [(1usize, vec![0usize, 1023, 8192]), (4, vec![1021, 8190]), (16, vec![5, 1016, 8192]), (2048, vec![2048])] {
+                    for pos0 in pos0s {
+                        for dynamic in [false, true] {
+                            let pw = if dynamic { ckv + hk * kk } else { ckv };
+                            let inputs = vec![
+                                rand_t(rng, W, &[t, nq(h, dh, dr)], 1.0),
+                                rand_t(rng, W, &[t, pw], 1.0),
+                                rand_t(rng, W, &[t, pw], 1.0),
+                                rand_t(rng, W, &[kk, ckv], 0.5),
+                                rand_t(rng, W, &[kk, ckv], 0.5),
+                                pos_t(rng, W, &[h, dh], 0.2, 3.0),
+                                pos_t(rng, W, &[h, dr], 0.2, 1.5),
+                                rand_t(rng, W, &[dr, e], 0.25),
+                            ];
+                            let outputs = vec![
+                                out(W, &[t, h, dh]),
+                                out(W, &[t, h, e]),
+                                out(W, &[t, hk, dh]),
+                                out(W, &[t, hk, dh]),
+                                inout(rand_t(rng, W, &[rr, ckv], 1.0)),
+                                inout(rand_t(rng, W, &[rr, ckv], 1.0)),
+                            ];
+                            let mut a = OpAttrs { pos0, n_heads: h, n_kv_heads: hk, head_dim: dh, ..a0.clone() };
+                            a.ink.qk_clip = 16.0 * 2f32.sqrt();
+                            a.ink.rel_clip = 2.0;
+                            a.ink.dyn_conv = dynamic;
+                            a.ink.d_rel = dr;
+                            if dynamic {
+                                (a.ink.tau_floor, a.ink.tau_alpha) = (1024, 0.1);
+                            }
+                            push(format!("real T={t} pos0={pos0} dyn={dynamic} tau={dynamic} Rr={rr} bf16"), inputs, outputs, a);
+                        }
+                    }
+                }
+            }
         }
         Op::RelSinkAttn => {
             // (H, Hk, Dh, dr, window, E, ring, cache rows, positions)
@@ -266,6 +306,37 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                             a.ink.kv_ring = ring;
                             a.ink.d_rel = dr;
                             push(format!("T={t} H={h} Hk={hk} Dh={dh} W={win} E={e} ring={ring} Cr={cr} pos0={pos0} {dt}"), inputs, outputs, a);
+                        }
+                    }
+                }
+            }
+            if !quick {
+                // the real model: sliding layers (window 1024, ring of 1040 rows: positions before the window fills, straddling
+                // 1024, wrapping the ring) and full layers (linear cache, positions straddling the 1024 rel extent, 8192), rows
+                // 1 / 4 / 16 and one 2048-token prefill chunk of each
+                let (h, hk, dh, dr, e) = (24usize, 8usize, 128usize, 16usize, 1024usize);
+                let lin = 8192 + 2048;
+                let shapes: [(usize, bool, usize, Vec<(usize, Vec<usize>)>); 2] = [
+                    (1024, true, 1040, vec![(1, vec![0, 1023, 2100]), (4, vec![1021, 1038, 5000]), (16, vec![1016, 1030, 3000]), (2048, vec![2048])]),
+                    (0, false, lin, vec![(1, vec![1023, 8192]), (4, vec![1022]), (16, vec![1016, 8180]), (2048, vec![1024])]),
+                ];
+                for (win, ring, cr, rows) in shapes {
+                    for (t, poss) in rows {
+                        for pos0 in poss {
+                            let inputs = vec![
+                                rand_t(rng, W, &[t, h, dh], 1.5),
+                                rand_t(rng, W, &[t, hk, dh], 1.5),
+                                rand_t(rng, W, &[t, hk, dh], 1.0),
+                                rand_t(rng, W, &[hk, cr, dh], 1.5),
+                                rand_t(rng, W, &[hk, cr, dh], 1.0),
+                                rand_t(rng, W, &[t, h, e], 1.0),
+                                rand_t(rng, W, &[t, nq(h, dh, dr)], 2.0),
+                            ];
+                            let outputs = vec![out(W, &[t, h * dh]), inout(inputs[3].clone()), inout(inputs[4].clone())];
+                            let mut a = OpAttrs { pos0, n_heads: h, n_kv_heads: hk, head_dim: dh, window: win, scale: (dh as f32).powf(-0.5), ..a0.clone() };
+                            a.ink.kv_ring = ring;
+                            a.ink.d_rel = dr;
+                            push(format!("real T={t} W={win} ring={ring} Cr={cr} pos0={pos0} bf16"), inputs, outputs, a);
                         }
                     }
                 }
