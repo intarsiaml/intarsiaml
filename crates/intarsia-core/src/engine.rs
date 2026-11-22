@@ -2740,6 +2740,11 @@ impl Seq {
         };
         if let Some((tok, mode)) = prep {
             let pos = st.len;
+            // a sampled step's soft-cap and draw run on the host pool once the logits land: have its workers hot by then
+            // (`INTARSIA_HOST_PREWAKE=1`, lane ink-hostgap item 7; the same tokens either way)
+            if mode == HeadMode::LastLogits && !self.greedy && crate::par::prewake_enabled() {
+                crate::par::prewake();
+            }
             let out = {
                 let _s = crate::hostprof::span(crate::hostprof::Cat::StepSetup);
                 crate::hostprof::mark_launch_begin();

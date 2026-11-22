@@ -41,6 +41,12 @@ fn order_key(l: f32) -> u32 {
     !m
 }
 
+/// The logit of an [`order_key`] (-0.0 comes back as +0.0, which ties with it everywhere the sampler uses it).
+fn key_value(k: u32) -> f32 {
+    let m = !k;
+    f32::from_bits(if m & 0x8000_0000 != 0 { m & 0x7fff_ffff } else { !m })
+}
+
 /// Sort `keys` (key << 32 | index, built in index order) by the high 32 bits. Stable LSD radix, so equal keys
 /// keep ascending index: the same total order as sorting the whole u64.
 fn radix_sort_hi(keys: &mut Vec<u64>, tmp: &mut Vec<u64>) {
@@ -84,8 +90,18 @@ pub struct SampleScratch {
     tmp: Vec<u64>,
     idx: Vec<u32>,
     probs: Vec<f64>,
-    /// per-chunk radix histograms / offsets ([`radix_sort_hi_par`])
+    /// per-chunk radix histograms / offsets ([`radix_sort_hi_par`], [`radix_sort_u32_par`])
     hist: Vec<usize>,
+    /// [`sample_row_vsort`]'s value keys and the sort's second buffer
+    vkeys: Vec<u32>,
+    vtmp: Vec<u32>,
+}
+
+/// `INTARSIA_SAMPLER_VSORT=1` (read once; lane ink-hostgap item 7, default off until its endor gate): the threaded sampler sorts
+/// 32-bit value keys ([`sample_row_vsort`]) instead of `key << 32 | index` pairs ([`sample_row_par`]). The same token.
+fn vsort_on() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_SAMPLER_VSORT").is_ok_and(|v| v.trim() == "1"))
 }
 
 /// Rows at least this long take the threaded path ([`sample_row_par`], [`softcap`]) when the host pool is on
@@ -130,7 +146,8 @@ pub fn sample_row_in(logits: &[f32], p: &SamplingParams, u: f32, s: &mut SampleS
     // the threaded path sorts the whole row: a top-k row's `select_nth` and its few candidates gain nothing from the pool
     let full = p.top_k == 0 || p.top_k >= n;
     if full && n >= PAR_MIN && n <= u32::MAX as usize && crate::par::enabled() {
-        return sample_row_par(logits, p, u, s, 2 * crate::par::threads());
+        let chunks = 2 * crate::par::threads();
+        return if vsort_on() { sample_row_vsort(logits, p, u, s, chunks) } else { sample_row_par(logits, p, u, s, chunks) };
     }
     sample_row_seq(logits, p, u, s)
 }
@@ -192,6 +209,171 @@ fn sample_row_par(logits: &[f32], p: &SamplingParams, u: f32, s: &mut SampleScra
     }
     radix_sort_hi_par(keys, &mut s.tmp, &mut s.hist, chunks);
     walk_par(logits, p, u, keys, &mut s.probs, chunks)
+}
+
+/// [`sample_row_par`] with half the sort traffic (lane ink-hostgap item 7): it sorts the 32-bit [`order_key`]s alone, without the
+/// index. What the draw needs from the sorted order depends on the values only: the softmax terms, their f64 total (ties are
+/// equal terms, so their order cannot change a sum), the top-p cut and the walk. The walk's stop position `j` then names a value
+/// and its rank `r` among the equal values before it; the token is the `r`-th smallest index holding that value, which is
+/// exactly the index at position `j` of [`sample_row_par`]'s stable order. The divisions by the total (and by the top-p sum) are
+/// done for the walked prefix only: the same operation on the same values, so the same bits. Bit for bit the token of the
+/// one-thread path, for any `chunks`; NaN rows and top-k rows go where [`sample_row_par`] sends them.
+fn sample_row_vsort(logits: &[f32], p: &SamplingParams, u: f32, s: &mut SampleScratch, chunks: usize) -> usize {
+    use crate::par::{run, SharedMut};
+    let n = logits.len();
+    if p.top_k > 0 && p.top_k < n {
+        return sample_row_seq(logits, p, u, s);
+    }
+    let ch = n.div_ceil(chunks.max(1));
+    let nc = n.div_ceil(ch);
+    let keys = &mut s.vkeys;
+    keys.resize(n, 0);
+    let nan = std::sync::atomic::AtomicBool::new(false);
+    let kp = SharedMut(keys.as_mut_ptr());
+    run(nc, &|c| {
+        let (a, b) = (c * ch, ((c + 1) * ch).min(n));
+        let mut seen = false;
+        for (i, &l) in logits.iter().enumerate().take(b).skip(a) {
+            seen |= l.is_nan();
+            // SAFETY: chunk c owns keys[a..b].
+            unsafe { *kp.at(i) = order_key(l) };
+        }
+        if seen {
+            nan.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+    });
+    if nan.load(std::sync::atomic::Ordering::Relaxed) {
+        return sample_row_cmp(logits, p, u);
+    }
+    radix_sort_u32_par(keys, &mut s.vtmp, &mut s.hist, chunks);
+    let keys = &s.vkeys[..];
+    // the softmax terms, in sorted order (the same expression as `walk_par`, on the same values)
+    let maxl = key_value(keys[0]) as f64;
+    let inv_t = 1.0 / p.temperature as f64;
+    let probs = &mut s.probs;
+    probs.resize(n, 0.0);
+    let pp = SharedMut(probs.as_mut_ptr());
+    run(nc, &|c| {
+        for j in c * ch..((c + 1) * ch).min(n) {
+            // SAFETY: chunk c owns probs[c * ch..].
+            unsafe { *pp.at(j) = ((key_value(keys[j]) as f64 - maxl) * inv_t).exp() };
+        }
+    });
+    let total: f64 = probs.iter().sum();
+    let target = u as f64;
+    let mut len = n;
+    let mut stop = None;
+    if p.top_p < 1.0 {
+        let mut cum = 0.0;
+        for (j, q) in probs.iter().enumerate() {
+            cum += q / total;
+            if cum >= p.top_p as f64 {
+                len = j + 1;
+                break;
+            }
+        }
+        let cut: f64 = probs[..len].iter().map(|q| q / total).sum();
+        let mut acc = 0.0;
+        for (j, q) in probs[..len].iter().enumerate() {
+            acc += q / total / cut;
+            if target < acc {
+                stop = Some(j);
+                break;
+            }
+        }
+    } else {
+        let mut acc = 0.0;
+        for (j, q) in probs.iter().enumerate() {
+            acc += q / total;
+            if target < acc {
+                stop = Some(j);
+                break;
+            }
+        }
+    }
+    let j = stop.unwrap_or(len - 1);
+    // the token: the r-th smallest index whose key is keys[j], r = how many equal keys precede position j
+    let kj = keys[j];
+    let mut first = j;
+    while first > 0 && keys[first - 1] == kj {
+        first -= 1;
+    }
+    let r = j - first;
+    let mut counts = vec![0usize; nc];
+    let cp = SharedMut(counts.as_mut_ptr());
+    run(nc, &|c| {
+        let k = logits[c * ch..((c + 1) * ch).min(n)].iter().filter(|&&l| order_key(l) == kj).count();
+        // SAFETY: chunk c owns counts[c].
+        unsafe { *cp.at(c) = k };
+    });
+    let mut before = 0;
+    for (c, &k) in counts.iter().enumerate() {
+        if before + k > r {
+            let mut left = r - before;
+            for i in c * ch..((c + 1) * ch).min(n) {
+                if order_key(logits[i]) == kj {
+                    if left == 0 {
+                        return i;
+                    }
+                    left -= 1;
+                }
+            }
+        }
+        before += k;
+    }
+    unreachable!("the walk's key {kj:#x} (rank {r}) is not in the row")
+}
+
+/// [`radix_sort_hi_par`] for bare 32-bit keys (ascending): 8-bit digits in 4 passes, `chunks / 2` parts, a pass skipped when
+/// every key has the same digit there.
+fn radix_sort_u32_par(keys: &mut Vec<u32>, tmp: &mut Vec<u32>, hist: &mut Vec<usize>, chunks: usize) {
+    use crate::par::{run, SharedMut};
+    const BITS: u32 = 8;
+    const B: usize = 1 << BITS;
+    let n = keys.len();
+    tmp.resize(n, 0);
+    let ch = n.div_ceil(chunks.div_ceil(2).max(1)).max(1);
+    let nc = n.div_ceil(ch);
+    hist.clear();
+    hist.resize(nc * B, 0);
+    for d in 0..32 / BITS {
+        let shift = BITS * d;
+        hist.fill(0);
+        let (hp, src) = (SharedMut(hist.as_mut_ptr()), &keys[..]);
+        run(nc, &|c| {
+            // SAFETY: chunk c owns hist[c * B..(c + 1) * B].
+            let h = unsafe { std::slice::from_raw_parts_mut(hp.at(c * B), B) };
+            for &k in &src[c * ch..((c + 1) * ch).min(n)] {
+                h[((k >> shift) as usize) & (B - 1)] += 1;
+            }
+        });
+        let mut sum = 0usize;
+        let mut one_digit = false;
+        for b in 0..B {
+            let mut tot = 0usize;
+            for c in 0..nc {
+                let x = hist[c * B + b];
+                hist[c * B + b] = sum;
+                sum += x;
+                tot += x;
+            }
+            one_digit |= tot == n;
+        }
+        if one_digit {
+            continue;
+        }
+        let (hp, dp, src) = (SharedMut(hist.as_mut_ptr()), SharedMut(tmp.as_mut_ptr()), &keys[..]);
+        run(nc, &|c| {
+            // SAFETY: chunk c owns its offsets hist[c * B..(c + 1) * B]; the offsets give every key its own slot in tmp.
+            let off = unsafe { std::slice::from_raw_parts_mut(hp.at(c * B), B) };
+            for &k in &src[c * ch..((c + 1) * ch).min(n)] {
+                let b = ((k >> shift) as usize) & (B - 1);
+                unsafe { *dp.at(off[b]) = k };
+                off[b] += 1;
+            }
+        });
+        std::mem::swap(keys, tmp);
+    }
 }
 
 /// Stable LSD radix sort of `keys` by their high 32 bits, each pass as per-part histograms, offsets bucket-major and part-minor,
@@ -652,6 +834,52 @@ mod tests {
             });
             println!("sample_row_in n={n} T={t} top_k={k} top_p={tp}: {ms:.3} ms (host pool, {} threads)", crate::par::threads());
         }
+        // item 7: the value-key sort (`sample_row_vsort`) against the pair sort (`sample_row_par`), on this bf16 row (many ties)
+        // and on an f32 row (few ties, as a head's f32 logits after the soft-cap)
+        let f32row: Vec<f32> = row.iter().map(|&x| x + (rng.next_f32() - 0.5) * 1e-3).collect();
+        let chunks = 2 * crate::par::threads();
+        for (name, r) in [("bf16 row", &row), ("f32 row", &f32row)] {
+            for (t, tp) in [(1.0f32, 1.0f32), (0.7, 1.0), (1.0, 0.95)] {
+                let p = SamplingParams { temperature: t, top_k: 0, top_p: tp };
+                let mut u = 0.0f32;
+                let a = med(&mut || {
+                    u = (u + 0.37) % 1.0;
+                    std::hint::black_box(sample_row_par(r, &p, u, &mut sc, chunks));
+                });
+                let b = med(&mut || {
+                    u = (u + 0.37) % 1.0;
+                    std::hint::black_box(sample_row_vsort(r, &p, u, &mut sc, chunks));
+                });
+                println!("{name} T={t} top_p={tp}: pair sort {a:.3} ms, value sort {b:.3} ms (host pool)");
+            }
+        }
+        // item 7: the row work after a 15 ms idle gap (a decode step's GPU wait), without and with `par::prewake` before it
+        let p = SamplingParams { temperature: 1.0, top_k: 0, top_p: 1.0 };
+        for pre in [false, true, false, true] {
+            let mut u = 0.0f32;
+            let mut v: Vec<f64> = (0..41)
+                .map(|_| {
+                    if pre {
+                        crate::par::prewake();
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(15));
+                    let t = std::time::Instant::now();
+                    row.copy_from_slice(&f32row);
+                    softcap(&mut row, cap);
+                    u = (u + 0.37) % 1.0;
+                    std::hint::black_box(sample_row_in(&row, &p, u, &mut sc));
+                    t.elapsed().as_secs_f64() * 1e3
+                })
+                .collect();
+            v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            println!(
+                "after a 15 ms gap, copy + softcap + sample T=1: median {:.3} ms, p90 {:.3} ms ({}; estimate {:?})",
+                v[v.len() / 2],
+                v[v.len() * 9 / 10],
+                if pre { "prewake" } else { "no prewake" },
+                crate::par::prewake_estimate()
+            );
+        }
     }
 
     /// Lane ink-hostgap: the threaded path (`sample_row_par`, any chunk count, forced on short rows too) picks exactly the token
@@ -680,7 +908,7 @@ mod tests {
         let mut nan = bf16_row(&mut rng, 50000, 2.0);
         nan[777] = f32::NAN;
         rows.push(nan);
-        let (mut s1, mut s2) = (SampleScratch::default(), SampleScratch::default());
+        let (mut s1, mut s2, mut s3) = (SampleScratch::default(), SampleScratch::default(), SampleScratch::default());
         for row in &rows {
             let n = row.len();
             for &t in &[0.3f32, 0.7, 1.0, 1.5] {
@@ -701,6 +929,7 @@ mod tests {
                             for &u in &draws {
                                 let want = sample_row_seq(row, &p, u, &mut s1);
                                 assert_eq!(sample_row_par(row, &p, u, &mut s2, chunks), want, "n {n} t {t} k {k} tp {tp} u {u} chunks {chunks}");
+                                assert_eq!(sample_row_vsort(row, &p, u, &mut s3, chunks), want, "vsort: n {n} t {t} k {k} tp {tp} u {u} chunks {chunks}");
                             }
                         }
                     }
