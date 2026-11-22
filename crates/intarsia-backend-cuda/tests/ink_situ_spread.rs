@@ -33,6 +33,8 @@ fn ink_situ_admission_spread() {
     let mk = |t: &HostTensor| TensorRef::new(Buffer::new(P(t.nbytes())), t.dtype, &t.shape);
     let mut a = shape.attrs.clone();
     (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
+    // INTARSIA_SITU_SPREAD_AQ=1: the W4A4 activation mode (`ink.act_quant = 1`)
+    a.ink.act_quant = std::env::var("INTARSIA_SITU_SPREAD_AQ").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
     let call = OpCall::new(
         Op::MoeExperts,
         shape.inputs.iter().map(mk).collect(),
@@ -60,7 +62,8 @@ fn ink_situ_admission_spread() {
     let q = |p: f64| rels[((rels.len() - 1) as f64 * p) as usize].0;
     let fails = rels.iter().filter(|r| r.0 > ck.tol_for(DType::Bf16).rel_l2 as f64).count();
     println!(
-        "T={t} cases {n}: rel_l2 median {:.2e} p90 {:.2e} p99 {:.2e} max {:.2e} (seed {}); over tol {fails}",
+        "T={t} aq={} cases {n}: rel_l2 median {:.2e} p90 {:.2e} p99 {:.2e} max {:.2e} (seed {}); over tol {fails}",
+        call.attrs.ink.act_quant,
         q(0.5),
         q(0.9),
         q(0.99),

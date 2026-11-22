@@ -231,16 +231,20 @@ fn ink_experts_rows_exact() {
             let ids = HostTensor::new(DType::I32, vec![t, k], idv.iter().flat_map(|v| v.to_le_bytes()).collect()).unwrap();
             let ws = HostTensor::from_f32(&[t, k], &ws.to_f32().iter().map(|v| v * 8.0).collect::<Vec<_>>());
             let x = rnd(&mut rng, DType::Bf16, &[t, h], 1.0);
-            for (kname, op, act) in [
-                ("moe_experts_situ_bf16", Op::MoeExperts, "situ"),
-                ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "situ"),
-                ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "silu"),
-                ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "gelu"),
+            // aq 1: the W4A4 activation mode (`ink.act_quant`, situ only)
+            for (kname, op, act, aq) in [
+                ("moe_experts_situ_bf16", Op::MoeExperts, "situ", 0u8),
+                ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "situ", 0),
+                ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "silu", 0),
+                ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "gelu", 0),
+                ("moe_experts_situ_bf16", Op::MoeExperts, "situ", 1),
+                ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "situ", 1),
             ] {
                 let mut a = OpAttrs { top_k: k, gelu: act == "gelu", ..OpAttrs::default() };
                 if act == "situ" {
                     (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
                 }
+                a.ink.act_quant = aq;
                 let wts = if op == Op::MoeExperts { &nv_w } else { &mx_w };
                 let run = |kn: &str, x: HostTensor, ids: HostTensor, ws: HostTensor, rows: usize| -> Vec<HostTensor> {
                     let mut v: Vec<&HostTensor> = vec![&x, &ids, &ws];
@@ -255,7 +259,7 @@ fn ink_experts_rows_exact() {
                 }
                 for r in 0..t {
                     let one = run(kname, row_of(&x, 0, r), row_of(&ids, 0, r), row_of(&ws, 0, r), 1);
-                    assert_rows_eq(&format!("{kname} {act} T={t} {routing}"), &full[0], 0, r, &one[0]);
+                    assert_rows_eq(&format!("{kname} {act} aq={aq} T={t} {routing}"), &full[0], 0, r, &one[0]);
                 }
             }
         }
@@ -302,9 +306,15 @@ fn ink_experts_rows_exact_128_experts() {
         let (ids, ws) = random_routing(&mut rng, t, e, k);
         let ws = HostTensor::from_f32(&[t, k], &ws.to_f32().iter().map(|v| v * 8.0).collect::<Vec<_>>());
         let x = rnd(&mut rng, DType::Bf16, &[t, h], 1.0);
-        for (kname, op) in [("moe_experts_situ_bf16", Op::MoeExperts), ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8)] {
+        for (kname, op, aq) in [
+            ("moe_experts_situ_bf16", Op::MoeExperts, 0u8),
+            ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, 0),
+            ("moe_experts_situ_bf16", Op::MoeExperts, 1),
+            ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, 1),
+        ] {
             let mut a = OpAttrs { top_k: k, ..OpAttrs::default() };
             (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
+            a.ink.act_quant = aq;
             let wts = if op == Op::MoeExperts { &nv_w } else { &mx_w };
             let run = |kn: &str, x: HostTensor, ids: HostTensor, ws: HostTensor, rows: usize| -> Vec<HostTensor> {
                 let mut v: Vec<&HostTensor> = vec![&x, &ids, &ws];
@@ -317,7 +327,7 @@ fn ink_experts_rows_exact_128_experts() {
             assert_eq!(full[0].data, full2[0].data, "{kname}_rows differs from {kname} at T={t}");
             for r in 0..t {
                 let one = run(kname, row_of(&x, 0, r), row_of(&ids, 0, r), row_of(&ws, 0, r), 1);
-                assert_rows_eq(&format!("{kname} E=128 T={t}"), &full[0], 0, r, &one[0]);
+                assert_rows_eq(&format!("{kname} aq={aq} E=128 T={t}"), &full[0], 0, r, &one[0]);
             }
         }
     }
@@ -522,15 +532,18 @@ fn ink_experts_mma_chunk_invariant() {
         shape[0] = n;
         HostTensor::new(v.dtype, shape, v.data[r0 * rb..(r0 + n) * rb].to_vec()).unwrap()
     };
-    for (kname, op, act) in [
-        ("moe_experts_situ_bf16", Op::MoeExperts, "situ"),
-        ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "situ"),
-        ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "silu"),
+    for (kname, op, act, aq) in [
+        ("moe_experts_situ_bf16", Op::MoeExperts, "situ", 0u8),
+        ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "situ", 0),
+        ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "silu", 0),
+        ("moe_experts_situ_bf16", Op::MoeExperts, "situ", 1),
+        ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "situ", 1),
     ] {
         let mut a = OpAttrs { top_k: k, ..OpAttrs::default() };
         if act == "situ" {
             (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
         }
+        a.ink.act_quant = aq;
         let wts = if op == Op::MoeExperts { &nv_w } else { &mx_w };
         let run = |x: &HostTensor, ids: &HostTensor, ws: &HostTensor, n: usize| -> HostTensor {
             let mut v: Vec<&HostTensor> = vec![x, ids, ws];
@@ -540,7 +553,7 @@ fn ink_experts_mma_chunk_invariant() {
         let full = run(&x, &ids, &ws, t);
         for (r0, n) in [(0usize, 520usize), (87, 513)] {
             let part = run(&rows(&x, r0, n), &rows(&ids, r0, n), &rows(&ws, r0, n), n);
-            assert_eq!(rows(&full, r0, n).data, part.data, "{kname} {act}: rows {r0}..{} differ between T {t} and T {n}", r0 + n);
+            assert_eq!(rows(&full, r0, n).data, part.data, "{kname} {act} aq={aq}: rows {r0}..{} differ between T {t} and T {n}", r0 + n);
         }
         // against the SIMT kernels (another k order): the bf16 budget
         intarsia_backend_cuda::inkmoe::set_mma_min(i32::MAX);
@@ -550,7 +563,9 @@ fn ink_experts_mma_chunk_invariant() {
         let num: f64 = fa.iter().zip(&fb).map(|(p, q)| ((p - q) as f64).powi(2)).sum();
         let den: f64 = fb.iter().map(|q| (*q as f64).powi(2)).sum();
         let rel = (num / den).sqrt();
-        println!("mma vs simt {kname} {act}: rel_l2 {rel:.3e}");
-        assert!(rel < 3e-3, "{kname} {act}: tensor-core path rel_l2 {rel} against the SIMT kernels");
+        println!("mma vs simt {kname} {act} aq={aq}: rel_l2 {rel:.3e}");
+        // W4A4: a 1-ulp difference of an h element can move its e2m1 code (or the row amax), so the bound is wider
+        let bound = if aq == 1 { 2e-2 } else { 3e-3 };
+        assert!(rel < bound, "{kname} {act} aq={aq}: tensor-core path rel_l2 {rel} against the SIMT kernels");
     }
 }
