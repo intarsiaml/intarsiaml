@@ -287,7 +287,11 @@ streams): aggregate 50.8 / 51.6 / 50.9 tok/s at 1 / 4 / 16 streams, per-stream 5
 
 `intarsia bench speed` against the same server failed at calibration ("no tokens received", `crates/intarsia-bench/src/speed.rs:324`);
 the plain chat request and localeval's streaming requests work, so it is the bench's calibration call, not the server.
-Not investigated further (localeval is the comparable number).
+Cause and fix (b9dd0d6b4): the bench sizes prompts with 1-token probes; Inkling-2's first generated token is a block
+marker (`<|content_thinking|>`) the server's text stream drops, so a 1-token request streams only usage, and the bench
+discarded that usage. A probe with usage and no text now counts (measured calls still need text). Test
+`speed::tests::calibration_takes_a_probe_whose_first_token_releases_no_text` (spark2: intarsia-bench 25 / 25; fails without
+the fix). Not rerun against the real server here.
 
 Repeated prompt (prefix reuse path): two identical greedy chat requests gave identical choices.
 
