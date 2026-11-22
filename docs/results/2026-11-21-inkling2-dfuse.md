@@ -554,4 +554,21 @@ Result files: /opt/code/deepeval/results/20261122-021312-adhoc-endor-intarsia-me
 - The flip becomes one ink/dfuse commit (tree = 6318887b5's) once job R shows all-off == best in G2's decode mode. It merges
   into ink/metal only after ink-metal's decode-mode G2 is fixed or explained (coordinator).
 
+### Rule (b): decode-mode G2 is the ink/metal tip's, bit for bit (02:35)
+
+ink/metal's merge gate #11048 ran on 45887198b, the same code as the merged 0ee1bec29 but without any of this lane's code
+paths. Its G2 decode-mode numbers equal E's with best on to every printed digit: short 1.109e-2, long 9.205e-3, chat_system
+2.376e-2, chat_reasoning 5.808e-2, max row 0.4334. Prefill also matches: 2.719e-3 / 3.544e-3.
+
+The self-goldens of the two runs are byte-identical for G2 short, G2 long, G3 short and G3 long (`raw/stcmp.py`). That
+includes the teacher-forced decode rows (`dec_pos_*`, `dec_topk_ids_*`, ... are in the files). So the decode-mode rows above
+the floor come from the ink/metal tip, not the switches: with all four switches on, the output is bitwise the tip's. Rule (b)
+clears for the switches.
+
+Job R (#11111) still runs its same-binary off / best / best + preload G2 comparison, as one more data point.
+
+**The flip is committed:** 2f952f697 on ink/dfuse. Its code is ac2371c81 + the flip, with only docs commits in between.
+Job F (#11145) checks the new defaults on Metal. It merges into ink/metal after ink-metal's decode-mode G2 is fixed or
+explained.
+
 PENDING_ATTRIBUTION
