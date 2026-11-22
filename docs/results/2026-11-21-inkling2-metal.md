@@ -182,6 +182,7 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
 - 2026-11-22 (coordinator, SendMessage): ink-batch found an endor slow state that slows B16 by 30-50% while B1 barely moves (same binary: B16 61 ms now, 77-90 ms at 06:49), which the B1 / localeval guard cannot see. For the queued baseline's batch_step section C: take one B16 sample first; if it is more than 5% over about 60 ms (fast-state reference at the final tree), mark the batched numbers BOX SLOW and do not record them as a reference. Solo and localeval parts keep their own guard. Done: `.scratch/serve_le2_body.sh` section C runs a B16 probe (`--batches 16`, same ctx / rounds / steps as the reps), limit 63.0 ms; it prints `BOX FAST|SLOW|UNKNOWN` and tags every rep row `[box ...]`. Only FAST rows count as a reference; UNKNOWN (probe row not parsed) counts as not a reference.
 - 2026-11-22 (coordinator, SendMessage): #11387 may be contaminated 07:56:30-07:56:45 by an unslotted `cargo check --release -p intarsia-backend-metal` from ink-dfuse on endor (about 14 s CPU, metallib compile, no GPU). Find the arm / localeval case covering that window; if its numbers stand out against the other reps, rerun it inside the baseline slot or a short follow-up slot before recording; if normal, note the window. Status: the window falls in section A, localeval speed-plain (started 07:55:56, server on 8098); the per-request timestamps decide which case.
 - 2026-11-22 (coordinator, SendMessage): `metal4_shaders_are_the_nax_variants_and_not_metal3_shaders` counts 110 Metal 4 shaders, expects 65, on the integration tree and on a3cb54621; likely from an ink/* merge into ink/metal. Check whether #11363 ran that suite; find the merge that raised the count; update the expectation (legit NAX variants, one-line reason) or fix the build (Metal 3 leak); full Metal suite green before main; record here; bisect on bespin or in a fleetq slot.
+- 2026-11-22 (coordinator, SendMessage): prepare ink/metal for main (471 ahead / 7 behind origin/main, nothing pushed). 1. `git push -u origin ink/metal` as backup, no merge yet. 2. Merge origin/main; mechanical conflicts only, else stop and report. 3. Footprint: `git diff --name-only origin/main HEAD` minus docs/, backend-metal, kernels/metal, scripts; summarize shared files (core, models, cli, cpu, cuda, hip, recipes). 4. No-op checks in fleetq slots: Metal on endor (`--quiet gpu,cpu`): `plan show` identical to main for Qwen3-8B and Llama-3.1-8B, `kernels test` 0 FAIL, 256 greedy ids identical to main for qwen3-8b short and 4k, goldens qwen3-8b-fp32 / -long, `cargo test --workspace`; if CUDA / HIP files touched: `plan show` on spark1 (35B + 8B JSON identical) and `kernels test --quick`. Metal `generate --profile-every 0` default changes timing output by design (hostgap a); ids must match. 5. Send results and every default that changes vs main; do not open the PR.
 
 ## NE fix gate #11179 (tree 65dbc2870 = fix 7eca1b012 + test/docs)
 
@@ -931,3 +932,19 @@ row (pos 57, golden margin 0.77) 0.011 -> 0.303. chat_reasoning: the error **gro
 decode rows**: pos 92-104 old 0.007-0.018, new 0.036, 0.023, 0.123, 0.029, 0.131, **0.431** (pos 103, margin 0.06),
 0.119. Mean 1.0e-2 -> 5.8e-2. Prefill rows of the same prompts barely move. Growth over successive decode steps points at
 state written by the 1-row decode path (conv rings, KV), not at a single near-tie row.
+
+## Metal 4 shader-count test (coordinator brief 2026-11-22)
+
+`metal4_shaders_are_the_nax_variants_and_not_metal3_shaders` (backend-metal `kernels.rs` unit test) failed on ink/metal: 110
+Metal 4 shaders against an expected 65. Cause: d03224697 (ink/prefill: MoE prefill forms nax2 / nax3) added
+`inkprefill::metal4_shaders()` (the nax2 / nax3 gate-up and down shaders per format, the nax3 gather, the two blend
+shaders) to `metal4_shaders()` but not to the test's expected sum; it came into ink/metal with ink/prefill at merge 9d6764682.
+Found by `git log -S` on the shader list, not by a run bisect. These are NAX shaders in the metal4 library, not Metal 3 shaders: the
+test's other two asserts (no overlap with `shader_names()`, no duplicates) are unchanged. Fix 8e0ff6af6 adds the
+`inkprefill` term to the expected count. #11363 missed it because its Metal suite ran named integration tests
+(rows_exact, inkmix, rows_single, quick_coverage, gumbel, inkling2, inkling2_batch), not the backend-metal lib unit tests.
+Full Metal suite at 8e0ff6af6, fleetq #11427 (09:14:55-09:17:57, exit 0, INTARSIA_* unset): `cargo test --release -p
+intarsia-backend-metal --no-fail-fast` exit 0, 54 test binaries ok, 0 failed, the shader-count test ok; intarsia-models with
+the Inkling backend on metal: inkling2 11/11, inkling2_batch 7/7, batch_metal 1/1, prefix_store_metal 1/1, mtp_store_metal
+2/2, gdn_verify_metal 2/2 (batch_metal, prefix_store_metal and mtp_store_metal finish in 0.00 s: they need a real-model env
+var that was unset, so they ran their skip path). ink/metal's Metal suite is green.
