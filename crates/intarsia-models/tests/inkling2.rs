@@ -407,7 +407,20 @@ fn inkling2_tiny_verify_rows_equal_decode_bitwise() {
             for (j, &id) in ids[p..p + r].iter().enumerate() {
                 let intarsia_core::model::StepOut::Logits(one) = m.forward(&mut b, &[id], HeadMode::LastLogits, None).unwrap() else { panic!() };
                 let diff = rows[j].iter().zip(&one).position(|(x, y)| x.to_bits() != y.to_bits());
-                assert!(diff.is_none(), "{}: verify R={r} at pos {p}, row {j}: logit {diff:?} differs from the 1-row decode", m.backend.name());
+                assert!(
+                    diff.is_none(),
+                    "{}: verify R={r} at pos {p}, row {j}: logit {diff:?} differs from the 1-row decode (rel l2 {:.3e}, len {} vs {}, \
+                     argmax {} vs {}, pick {}, first values {:?} vs {:?})",
+                    m.backend.name(),
+                    rel_l2(&rows[j], &one),
+                    rows[j].len(),
+                    one.len(),
+                    argmax(&rows[j]),
+                    argmax(&one),
+                    picks[j],
+                    &rows[j][..3],
+                    &one[..3]
+                );
                 assert_eq!(picks[j] as usize, argmax(&one), "verify R={r} at pos {p}, row {j}: greedy pick");
             }
         }
