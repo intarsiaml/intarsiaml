@@ -5,6 +5,9 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 
 ## Briefs received
 
+- 2026-11-22 (main): move #11174 (NE/RB speed A/B) behind ink-metal's NE fix gate #11179 (fix 7eca1b012, NE 3 fallback at
+  D 2304): release it, requeue the same script, flags and log, update the monitor.
+
 - 2026-11-22 (main): bisect names m-mix's NE 4 from D 2048 (25ff7864a) as the G2 decode culprit; NE=3 restores base KL;
   BLEND_RB and InkMixP cleared for accuracy; ink-metal is fixing. Do not requeue the five-arm b8reg; queue ONE trimmed quiet
   job on the merged tip: tip default | tip INTARSIA_INK_MIX_NE=3 | tip NE=3 + BLEND_RB=16, B=1/8/16, 3 reps. Report #11104's
