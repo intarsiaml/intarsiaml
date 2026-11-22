@@ -970,3 +970,6 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   spark1-vllm (34 GB). tatooine #11444 (`--load cpu`, no GPU work, radiance untouched): `--features hip` release build of both
   trees in the dev image with their own target volumes, then the hip crate's lib unit tests with GPUs hidden
   (`HIP_VISIBLE_DEVICES=-1`), failure sets compared. Pending.
+- #11444 was already capped (CARGO_BUILD_JOBS=8, trees built one after the other; the hip build.rs runs hipcc serially). Added
+  at 09:25:59 inside its slot: `.scratch/noop/tat_memguard.sh` on tatooine logs MemAvailable every 5 s and removes the
+  inknoop containers below 8 GB; it exits after 150 s with none running. First reading 26 GB available during the base build.
