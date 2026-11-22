@@ -266,6 +266,21 @@ unembed 1.59 ms (floor 1.65).
 Host-side: no gap at batch 1 in normal steps; the profiler steps (every 16th, `generate` only) and the eager encode are lane
 ink-hostgap's (graph replay / ICB is blocked as described in Changes item 8).
 
+### Against the other engines (localeval speed-plain, decode tok/s / marginal prefill tok/s)
+
+| prompt tok | **intarsia Metal bf16 W4A16** (endor, #10890) | oMLX oQ4e + DSpark (endor) | llama.cpp Q8_0 Metal (endor) | vLLM (spark2, GB10) |
+|---:|---:|---:|---:|---:|
+| ~145 | **63.4** / - | 50.7 / - | 33.0 / - | 36.8 / - |
+| ~1020 | **61.5** / 1689 | 47.7 / - | 32.9 / 122 | 38.4 / 4018 |
+| ~4110 | **60.0** / 1573 | 41.1 / 1368 | 32.8 / 126 | 42.8 / 2772 |
+| ~16455 | **56.7** / 1406 | 44.2 / 1270 | 31.9 / 122 | 38.7 / 2902 |
+
+Runs: ours 20261121-231510-adhoc-endor-intarsia-metal-ink-metal; oMLX 20261120-222536-endor-inkling-omlx-none-endor-omlx-oq4e-dspark
+(its decode includes DSpark speculation; ours is spec-off); llama.cpp 20261120-232156-endor-inkling-llama-none-endor-llama-metal-q8;
+vLLM 20261120-192706-spark2-inkling-none-quick-spec-effnone (another machine, for reference). On endor this is 1.25-1.46x
+oMLX's decode and 1.1x its prefill at 4k-16k, and 1.8-1.9x llama.cpp's decode; vLLM on the GB10 prefills 1.8-2x faster.
+Against the byte floor (102 tok/s at 560 GB/s), 63 tok/s is 62 %.
+
 ### localeval (`--tier adhoc --cells speed-plain,conc-plain-1k`, #10890)
 
 `intarsia serve --backend metal --max-batch 1 --max-seq 20480`, run 20261121-231510-adhoc-endor-intarsia-metal-ink-metal in
