@@ -182,6 +182,25 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
      unknown).
   5. Coordinate with ink-fp8, which owns reduced-precision weights: count bytes at native bf16, and note what fp8 would
      change.
+- 2026-11-22 ~07:10 (coordinator, after job L): no dfuse build, agreed. Main removed .scratch/snap7. No m-moe or Metal
+  attention lane is active now, so this lane takes the next item:
+  1. **NVFP4 experts at 1 row** (gap 1.03 ms, inferred 0.65). Measure first:
+     - why 1 row reaches 438 GB/s against 535 at 4 rows: threadgroup count against the core count, occupancy, per-call
+       latency;
+     - microbench candidate configs at 1 row (more threadgroups by a split over N or K, tile shape) for a measured 1-row
+       ceiling.
+
+     Build only if the measured gain is at least 0.3 ms per token. Avoid the persistent gate+up -> down kernel unless
+     forward progress can be shown safe on Metal.
+  2. If 1 does not clear the bar: **the attention core** (1.07 ms gap, 23-24 us per call, flat in context). Find what the
+     fixed per-call latency is made of, then the same rule.
+  3. Then **the 0.98 ms of transitions**: check whether the decode encoder uses concurrent dispatch with explicit
+     barriers. If it does not, bound what overlap of independent kernels could save.
+
+  Gates for any build: rows-exact or tolerance-justified admission, G2 / G3, greedy md5 at 64 / 256 tokens unchanged, and
+  3 alternating reps against the tip. Each build gets its own commit with an env revert, and stays opt-in until the gates
+  pass. Box check first, as in L. Jobs use fleetq --quiet gpu,cpu with an honest --expect; the job script runs its body in
+  its own process group and kills the tree on TERM.
 
 ## Probes (endor, before any code)
 
@@ -993,9 +1012,11 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
        measured kernel.
      - Owner: the attention lane (m-attn / ink-metal).
   3. **Experts NVFP4, 1.03 ms gap** (438 GB/s at 1 row).
-     - Measured bound: the same kernels stream at 535 GB/s at 4 rows (m-moe results doc). At that rate the 1-row call would
-       be 67 us instead of 81.8, which is 0.65 ms per token. The 1-row split is gate+up 50 us at 480 GB/s, and down 33 us at
-       355 GB/s, about 10 us over streaming.
+     - Inferred from 4-row data, not measured at 1 row: the same kernels stream at 535 GB/s at 4 rows (m-moe results doc).
+       At that rate the 1-row call would be 67 us instead of 81.8, which is 0.65 ms per token.
+     - Bound from 1-row data: m-moe's 1-row split is gate+up 50 us at 480 GB/s and down 33 us at 355 GB/s. If down ran at
+       gate+up's rate it would take about 24 us, which is 9 us x 44 visits = about 0.40 ms per token. That clears 0.3 ms
+       with no assumption about more rows.
      - Owner: m-moe. Its doc names the lever: one persistent gate+up -> down kernel, which has a forward-progress caveat.
 
   Also measured:
@@ -1010,3 +1031,13 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
   here. The best-supported item over the bar is the NVFP4 1-row experts (measured bound 0.65 ms, owner m-moe); after it come
   the attention core (bounded 0.33-0.58 ms) and the projections' GEMV rate (bound 0.35 ms).
 
+### Current G1-G3 with the flip (ink-metal's combined gate #11206, tree 7e5e6010e: NE fix + hostgap / fp8 / prefill / dfuse)
+
+ink-metal's combined gate ran this lane's merge condition after the flip landed (ink-metal results doc, "Combined gate
+#11206", PASS):
+- decode-mode G2 short: 2.928e-3 with the defaults and 2.928e-3 with `INTARSIA_INK_MIX_HOIST=0` (limit 4e-3);
+- decode-mode G2 long: 2.761e-3 / 2.761e-3 (limit 6e-3).
+
+The self-golden tensors are identical; the files differ only in metadata. Greedy md5 on that tree is 65cde8f35..., this
+lane's defaults md5 from job F. The flip stands (merge b1a4f3f62, no revert). These supersede job F's decode-mode numbers,
+which predate the NE fix.
