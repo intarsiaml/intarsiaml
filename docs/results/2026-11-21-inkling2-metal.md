@@ -15,6 +15,13 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
   lane stays the integration owner: merge lane branches when they report done with passing gates and rerun G1-G3 after each
   merge; next in line are m-mix's final tip and ink/serve aaad4c9b6 (chat / reasoning / tools).
 
+- 2026-11-21 (coordinator): merge ink/serve (done at b447e3da4, which superseded the aaad4c9b6 the scope brief named);
+  append ink/serve's Metal smoke, the `--profile-every 0` decode runs and ink-hostgap's measurement A to the serve job and
+  release #10812; move the `--no-fail-fast` core / cpu / cli rerun to spark2 (#10868) and keep only the metal crate on endor.
+- 2026-11-21 (coordinator): merge ink/m-mix at 47570539e (InkInProj GEMV up to 8 rows, blend gate knobs, docs / raw) before
+  #10867 starts, record it here, and take no default flips from m-mix (those come later as their own commit). ink-batch
+  merges this lane's 761a1561b (serve admission fix).
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
@@ -22,7 +29,7 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 | `ink/skel` | b5e283927 | base: cpu port, model block, loader, recipe, tiny tests | - |
 | `ink/m-attn` | 9410a9b67 | InkKvPrologue (70), RelSinkAttn (71, split-KV + NAX prefill), InkAttnDecode (75) | none |
 | `ink/m-moe` | 98317825d | MoeRoute, NVFP4 SiTU experts, MXFP8 experts (decode + NAX prefill) | `build.rs` (metal4 sources, launcher sources), `kernels.rs` (metal4 list, TABLE, the count test): kept both |
-| `ink/m-mix` | d99d2c0fc (in progress) | InkInProj (73), ConvMix (74), AttnResMix (67), LoopBlend (68), SconvRes (69) | `build.rs`, `kernels.rs`, `lib.rs` (module, launch dispatch): kept all three lanes' entries |
+| `ink/m-mix` | 47570539e (merged at 606fd36e4; earlier tips 3e14f6aa3, d99d2c0fc) | InkInProj (73), ConvMix (74), AttnResMix (67), LoopBlend (68), SconvRes (69) | `build.rs`, `kernels.rs`, `lib.rs` (module, launch dispatch): kept all three lanes' entries |
 
 `intarsia kernels test --backend metal --op <op>`, every Inkling op (fleetq #10681): all ADMITTED.
 
@@ -82,6 +89,20 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 
 `plan show --model ~/models/Qwen3-8B --backend metal`: byte-identical stdout and stderr, base (b5e283927, built with
 `--features metal`) vs this branch.
+
+## Tests
+
+| Suite | Where / job | Tree | Result |
+|---|---|---|---|
+| `cargo test --release --no-fail-fast -p intarsia-core -p intarsia-backend-cpu -p intarsia-cli` | spark2 #10868 (`git archive` of 41c93f814) | 41c93f814 | 40 binaries, 0 failed |
+| `cargo test --release --no-fail-fast -p intarsia-backend-metal` | endor #10867 | f55bfe8b7 (m-mix 47570539e merged) | 46 binaries, 213 passed, 0 failed (incl. `every_metal_kernel_has_a_quick_case`, `rows_exact_registrations_are_pinned`) |
+| `cargo test -p intarsia-models --test inkling2`, cpu and `INTARSIA_INKLING2_BACKEND=metal` | endor #10715 | before the serve / m-mix merges | 8 / 8 each |
+| `docs_env_vars` | endor #10898 | f55bfe8b7 | 2 / 2 |
+| `admission::plan_case_tests` (new SiTU case test) | endor | 761a1561b | 3 / 3 |
+
+Two failures found and fixed on the way: `quick_coverage` (`rel_sink_attn_bf16_nax` had no quick case; a quick-only copy of
+the first mid-size NAX case, full sweep unchanged) and `rows_exact_registrations_are_pinned` (m-mix's
+`ink_in_proj_bf16_gemv_rows` added to the pin list; its G-B test is `tests/inkmix.rs::in_proj_rows_exact`).
 
 ## Gates
 
@@ -145,5 +166,53 @@ Run-to-run spread is about +-5 % (the two default runs: 49.9 and 45.5), so the c
 fused-vs-pair choice are inside the noise at short context; the fused rule saves ~0.35 ms / token by lane ink-m-attn's
 harness, which is ~2 %. A larger prefill chunk is a clear prefill win (1.8x at 5k): the recipe default 256 is a candidate
 for a later lane (memory: the workspace grows with the chunk; not changed here).
+
+### Traces (raw, `docs/results/2026-11-21-inkling2-metal/`)
+
+| File | Run | What it shows |
+|---|---|---|
+| `prof_kernel.jsonl` | #10730, `INTARSIA_METAL_PROFILE=kernel`, 33 tokens | op order and labels of a decode step (613 dispatches); durations inflated (one waited command buffer per launch) |
+| `prof_cb.jsonl` | #10730, `cb`, 65 tokens, `--profile-every 16` | normal steps = 2 command buffers (16 + 597 dispatches), 15.8 ms; profiled steps 419 buffers (Fable review section 0.1) |
+| `prof_cb1.jsonl` | #10756, `cb`, `INTARSIA_METAL_COMMIT_EVERY=1`, 33 tokens | **not per dispatch for normal steps**: with token feedback the step is held and committed as 16 + 597 dispatches regardless of the commit cadence; 29 normal steps, median wall 15.86 ms, GPU busy 15.82 ms (the 3034 one-dispatch buffers are the prefill and the profiled steps) |
+| `prof_cb2.jsonl` | #(queued), the same with `INTARSIA_TOKEN_FEEDBACK=0 --profile-every 0` | the per-dispatch timeline of an unprofiled step (labels by position from `prof_kernel.jsonl`, `prof_cb1.py`) |
+
+Analysis scripts: `prof.py` (kernel trace per op), `prof_cb1.py` (per-dispatch labels by position).
+
+### Per-op profile of one decode token (short context)
+
+Launches: **417 op calls and 613 Metal dispatches per decode token** (the plan's calls/step: 96 ConvMix, 49 Logits = 48 router
++ unembed, 48 each of InkInProj / wo GEMV / InkAttnDecode / MoeRoute, 44 + 4 experts calls of 2 dispatches each, 26 AttnResMix,
+2 LoopBlend + 2 RmsNorm, embedding, argmax). A normal (unprofiled) step is **2 command buffers** (16 + 597 dispatches), wall
+15.86 ms, GPU busy 15.82 ms (#10756, 29 steps): no measurable host gap at batch 1 short context. That is **63 tok/s**
+of GPU time per token; the 50-52 tok/s `generate` figures above include the `--profile-every 16` steps.
+
+Per-op times: kernel mode (`prof_kernel.jsonl`, one waited buffer per launch) sums to 43.7 ms / token, 2.8x the real step and
+not uniformly (small kernels 4-7x). The table below is the Fable review's correction (`.worktrees/ink-fable/decode-profile-review.md`
+section 0.2) of the same runs: per-op GPU times of the profiled steps with ~1.8 us of per-buffer cost removed, scaled to the
+normal 15.76 ms step. Floor = the term's bytes at 560 GB/s (perf-strategy section 1).
+
+| Component | ms / token | share | floor ms | excess ms | launches / token |
+|---|---:|---:|---:|---:|---:|
+| Attention projections: InkInProj (48 x 73 us) + wo GEMV (48 x 27 us) | 4.78 | 30 % | 4.63 (2.58 GB) | 0.15 | 96 |
+| Experts: 44 NVFP4 SiTU (89 us) + 4 MXFP8 (135 us) | 4.50 | 29 % | 3.28 (1.84 GB) | 1.22 | 96 dispatches |
+| Controllers: ConvMix (96), MoeRoute (48), router GEMV (48), AttnResMix (26), LoopBlend (2) | 3.19 | 20 % | 0.25 (0.14 GB) | **2.94** | 220 calls, ~350 dispatches |
+| Unembed (922 MB in 1.58 ms = 580 GB/s) | 1.58 | 10 % | 1.65 (0.92 GB) | 0 | 1 |
+| Fused attention InkAttnDecode (48 x 32 us) | 1.52 | 10 % | 0.08 | 1.44 | 48 |
+| argmax | 0.17 | 1 % | 0 | 0.17 | 1 |
+| **Total** | **15.76** | | **9.9** | **5.9** | 613 dispatches |
+
+### Ranked costs (what to attack, by ms over the floor)
+
+1. **Controllers, 2.9 ms over a 0.25 ms floor.** 96 ConvMix (46 blended at ~38 us, 4 dispatches each; 50 plain at ~16 us),
+   48 MoeRoute (~10 us), 48 router GEMVs (~4 us), 26 AttnResMix. Latency-bound launches with the bus idle: fusion (lane ink-dfuse).
+2. **Fused attention, 1.4 ms over floor** at short context: 48 x 32 us for a few KB of KV each. Fewer, wider threadgroups at
+   short ctx, or folding attention into the controller fusion.
+3. **Experts, 1.2 ms over floor**: per-call fixed cost (2 dispatches, union grouping) at 89 us vs ~65 us of bytes.
+4. **Attention projections, at the floor** (0.15 ms over); the lever there is fewer bytes (the review's section 0.3: lossless
+   12-bit bf16 packing), not kernel speed.
+5. **Unembed, at the floor** (580 GB/s); argmax 0.17 ms in one launch (a single-threadgroup tail; small).
+
+Host-side: no gap at batch 1 in normal steps; the profiler steps (every 16th, `generate` only) and the eager encode are lane
+ink-hostgap's (graph replay / ICB is blocked as described in Changes item 8).
 
 SPEED_REST
