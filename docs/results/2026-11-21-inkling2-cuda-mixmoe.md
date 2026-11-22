@@ -181,6 +181,11 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   activation memory and give the job a --mem peak; if 2048 is bitwise / within tolerance and faster, send numbers (the
   coordinator decides default-on); then the rest of the top 3.
 
+- (coordinator, 23rd) 24ab7961d acked: the 2e-3 NVFP4 situ tol is justified by the 600-case sweep (max 9.5e-4, all 1-ulp bf16;
+  numbers in the "serve on spark1 refused to load" section), passed to the attention lane for the spark1 servediag rerun.
+  (1) The Metal half stays out of the Inkling integration merge until #11301 passes Metal build + admission; if #11301 fails,
+  revert only the Metal constant and report. (2) Go ahead with the CUDA prefill chunk sweep, then the rest of the prefill top 3.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
