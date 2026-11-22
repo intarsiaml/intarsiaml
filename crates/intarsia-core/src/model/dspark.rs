@@ -474,6 +474,11 @@ impl Dspark {
     }
 }
 
+fn dspark_dump() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_DSPARK_DUMP").is_ok_and(|v| v.trim() == "1"))
+}
+
 fn dspark_profile() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var("INTARSIA_DSPARK_PROFILE").is_ok_and(|v| v == "1"))
@@ -836,6 +841,20 @@ impl Model {
             let p1 = 1.0 / z;
             if crate::spec::trace_enabled() {
                 eprintln!("dspark: pos {p0} step {i} draft {best} p1 {p1:.3}");
+            }
+            // `INTARSIA_DSPARK_DUMP=1` (lane ink-cuda-mtp; backend comparisons): the step's capped log-probabilities over the
+            // terms above the threshold, as id:logp pairs, for top-1 agreement and KL between two backends at equal positions
+            if dspark_dump() {
+                let mut terms: Vec<(usize, f32)> = ids
+                    .iter()
+                    .zip(&xs)
+                    .filter(|&(_, &v)| v > thr)
+                    .map(|(&j, &v)| (j, sc * (v / sc).tanh() - cmax - z.ln()))
+                    .collect();
+                terms.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
+                terms.truncate(64);
+                let body: Vec<String> = terms.iter().map(|(j, l)| format!("{j}:{l:.6}")).collect();
+                eprintln!("dspark-dump: pos {p0} step {i} prev {prev} draft {best} p1 {p1:.6} | {}", body.join(" "));
             }
             if p1 < ds.tau {
                 break;

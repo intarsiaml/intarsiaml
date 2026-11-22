@@ -703,6 +703,13 @@ struct CacheFile {
     entries: BTreeMap<String, CacheEntry>,
 }
 
+/// The generator of one exact-shape admission case, seeded from its label (op, shape, activation, dtypes, situ): a case's data,
+/// and so its verdict, no longer depends on which other calls the plan admitted before it (lane ink-cuda-mixmoe: a different
+/// serve plan on spark1 drew other data for the same situ case and flipped it at rel_l2 1.04e-3).
+fn case_rng(call: &OpCall) -> SplitMix64 {
+    SplitMix64::new(0x1a7a ^ fnv1a(&case_label(call, &CAPS).unwrap_or_default()))
+}
+
 fn fnv1a(s: &str) -> u64 {
     let mut h = 0xcbf29ce484222325u64;
     for b in s.bytes() {
@@ -737,7 +744,7 @@ impl Cache {
     fn open(opts: &PlanOptions, fp: &str, backend: &str, arch: &str) -> Cache {
         let mut c = Cache {
             path: None,
-            file: CacheFile { version: 1, fingerprint: fp.to_string(), ..Default::default() },
+            file: CacheFile { version: 2, fingerprint: fp.to_string(), ..Default::default() },
             dirty: false,
         };
         if opts.no_cache {
@@ -750,7 +757,7 @@ impl Cache {
             let path = dir.join(format!("{backend}-{arch}-{:016x}.json", fnv1a(fp)));
             if let Ok(text) = std::fs::read_to_string(&path) {
                 if let Ok(f) = serde_json::from_str::<CacheFile>(&text) {
-                    if f.version == 1 && f.fingerprint == fp {
+                    if f.version == 2 && f.fingerprint == fp {
                         c.file = f;
                     }
                 }
@@ -820,7 +827,6 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
     let cand_kernels = cand.kernels();
     let mut sum = AdmitSummary::default();
     let same_backend = reference.name() == cand.name();
-    let mut rng = SplitMix64::new(0x1a7a);
     // lane mtt: with `lazy`, a call whose result is cached under its label ([`case_label`], the label its case would get)
     // is answered from the cache without building the case; its call is kept in `skipped`. The first call that has to be
     // built replays the skipped ones through the generator first (in order, data dropped), so it and every later case
@@ -903,13 +909,14 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
                         }
                         continue;
                     }
-                    // not answered by the cache: from here on the eager loop, on the generator state it would have
+                    // not answered by the cache: from here on the eager loop (each case has its own generator, `case_rng`, so the
+                    // replay below only keeps the build count; it no longer moves any later case's data)
                     lazy = false;
                     for call in skipped.drain(..) {
-                        sum.cases_built += usize::from(case_from_call(&call, &CAPS, &mut rng).is_some());
+                        sum.cases_built += usize::from(case_from_call(&call, &CAPS, &mut case_rng(&call)).is_some());
                     }
                 }
-                let (host, label) = match c.as_ref().and_then(|c| case_from_call(&c.call, &CAPS, &mut rng)) {
+                let (host, label) = match c.as_ref().and_then(|c| case_from_call(&c.call, &CAPS, &mut case_rng(&c.call))) {
                     Some(x) => x,
                     None => {
                         // an op without an exact-shape case builder: its own sweep decides, once per kernel

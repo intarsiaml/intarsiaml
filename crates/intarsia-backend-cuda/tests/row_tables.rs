@@ -419,6 +419,34 @@ fn device_topk_is_the_host_candidate_order() {
     let gn = rig.down(&nan);
     assert_eq!((i32::from_le_bytes(gn[0..4].try_into().unwrap()), i32::from_le_bytes(gn[4..8].try_into().unwrap())), (0, 1));
     println!("G-B topk_f32: {checked} (id, value) pairs equal to the host order (V 248320 / 151936 / 1000 / 70, R <= 16, k <= 64), NaN row flagged");
+    // bf16 rows (the DSpark draft's base logits, lane ink-cuda-mtp): the order of the bf16 values (ties likely: by index), the
+    // values widened exactly
+    let mut rng = SplitMix64::new(0x7b16);
+    for &(v, rows, k) in &[(201024usize, 3usize, 64usize), (1000, 7, 64), (70, 2, 8)] {
+        let raw = rng.normal_vec(v * rows, 2.0);
+        let data: Vec<f32> = raw.iter().map(|x| half::bf16::from_f32(*x).to_f32()).collect();
+        let logits = rig.bf16(&data, &[rows, v]);
+        let ids = rig.poison(rows * k * 4, DType::I32, &[rows, k]);
+        let vals = rig.poison(rows * k * 4, DType::F32, &[rows, k]);
+        let nan = rig.poison(rows * 4, DType::I32, &[rows]);
+        let sbuf = rig.put_bytes(&vec![0u8; rows * 32 * k * 8], DType::U8, &[rows * 32 * k * 8]);
+        rig.be.topk_rows(&logits, k, &ids, &vals, &nan, &sbuf, 0).unwrap();
+        rig.be.synchronize(0).unwrap();
+        let (gi, gv) = (rig.down(&ids), rig.down(&vals));
+        for r in 0..rows {
+            let row = &data[r * v..(r + 1) * v];
+            let mut order: Vec<u32> = (0..v as u32).collect();
+            let cmp = |a: &u32, b: &u32| row[*b as usize].partial_cmp(&row[*a as usize]).unwrap().then(a.cmp(b));
+            order.sort_unstable_by(cmp);
+            for j in 0..k {
+                let id = i32::from_le_bytes(gi[(r * k + j) * 4..(r * k + j) * 4 + 4].try_into().unwrap());
+                let val = f32::from_le_bytes(gv[(r * k + j) * 4..(r * k + j) * 4 + 4].try_into().unwrap());
+                assert_eq!(id as u32, order[j], "bf16 v {v} rows {rows} k {k} row {r} rank {j}");
+                assert_eq!(val.to_bits(), row[order[j] as usize].to_bits(), "bf16 v {v} row {r} rank {j} value");
+            }
+        }
+    }
+    println!("G-B topk bf16 rows: equal to the host order (V 201024 / 1000 / 70)");
 }
 
 /// Timing (ignored; `--ignored --nocapture timing_gdn_rows`): the batched-decode GDN launches at the 35B shape for M rows,

@@ -153,7 +153,7 @@ pub fn run(call: &OpCall) -> Result<()> {
             let od = o[0].dtype;
             if a.ink.situ && t > 1 {
                 // a prefill chunk: each expert's rows decoded once for all its tokens (same sums, same bits as per token)
-                let out = situ_grouped(&ex, &x, &ids, &wts, t, k, dt, od, a.ink.gate_cap as f64, a.ink.up_cap as f64);
+                let out = situ_grouped(&ex, &x, &ids, &wts, t, k, dt, od, a.ink.gate_cap as f64, a.ink.up_cap as f64, a.ink.act_quant == 1);
                 return wr(&o[0], &out);
             }
             let rows: Vec<Vec<f64>> = (0..t)
@@ -161,7 +161,7 @@ pub fn run(call: &OpCall) -> Result<()> {
                 .map(|ti| {
                     let (xr, ir, wr_) = (&x[ti * h..(ti + 1) * h], &ids[ti * k..(ti + 1) * k], &wts[ti * k..(ti + 1) * k]);
                     if a.ink.situ {
-                        situ_token(&ex, xr, ir, wr_, dt, od, a.ink.gate_cap as f64, a.ink.up_cap as f64)
+                        situ_token(&ex, xr, ir, wr_, dt, od, a.ink.gate_cap as f64, a.ink.up_cap as f64, a.ink.act_quant == 1)
                     } else {
                         r::moe_experts_token_act(&ex, xr, ir, wr_, dt, od, a.gelu)
                     }
@@ -181,10 +181,13 @@ pub fn run(call: &OpCall) -> Result<()> {
 /// `r::moe_experts_token_situ` with the rows of each expert in parallel (decode has one token): the same f64 sums in the same
 /// order per output value, so the bits are those of the serial reference.
 #[allow(clippy::too_many_arguments)]
-fn situ_token(ex: &r::ExpertsRef, x: &[f32], ids: &[i32], weights: &[f32], dt: intarsia_core::DType, od: intarsia_core::DType, gc: f64, uc: f64) -> Vec<f64> {
+fn situ_token(ex: &r::ExpertsRef, x: &[f32], ids: &[i32], weights: &[f32], dt: intarsia_core::DType, od: intarsia_core::DType, gc: f64, uc: f64, aq: bool) -> Vec<f64> {
     use intarsia_core::quant::nvfp4::GROUP;
     let (h, i) = (ex.h, ex.i);
     let sig = |z: f64| 1.0 / (1.0 + (-z).exp());
+    // W4A4 (`ink.act_quant = 1`): x -> (xq, outer), a -> (aq, outer_a); the sums run over the quantised values times the row scale
+    let (xq, ox) = if aq { quant_nv(x) } else { (x.to_vec(), 1.0) };
+    let x = &xq[..];
     let ys: Vec<Vec<f64>> = ids
         .par_iter()
         .zip(weights.par_iter())
@@ -204,20 +207,21 @@ fn situ_token(ex: &r::ExpertsRef, x: &[f32], ids: &[i32], weights: &[f32], dt: i
                     || vec![0f64; h],
                     |row, rr| {
                         r::nvfp4_row(gw, gsb, g3[0], rr, h, row);
-                        let g = r::round(dt, (0..h).map(|c| x[c] as f64 * row[c]).sum());
+                        let g = r::round(dt, ox * (0..h).map(|c| x[c] as f64 * row[c]).sum::<f64>());
                         r::nvfp4_row(gw, gsb, g3[1], i + rr, h, row);
-                        let u = r::round(dt, (0..h).map(|c| x[c] as f64 * row[c]).sum());
+                        let u = r::round(dt, ox * (0..h).map(|c| x[c] as f64 * row[c]).sum::<f64>());
                         r::round(dt, gc * (g / gc).tanh() * sig(g) * uc * (u / uc).tanh() * w as f64)
                     },
                 )
                 .collect();
+            let (act, oa) = if aq { quant_nv_f64(&act) } else { (act, 1.0) };
             (0..h)
                 .into_par_iter()
                 .map_init(
                     || vec![0f64; i],
                     |row, rr| {
                         r::nvfp4_row(dw, dsb, g3[2], rr, i, row);
-                        r::round(dt, (0..i).map(|c| act[c] * row[c]).sum())
+                        r::round(dt, oa * (0..i).map(|c| act[c] * row[c]).sum::<f64>())
                     },
                 )
                 .collect()
@@ -233,10 +237,19 @@ fn situ_token(ex: &r::ExpertsRef, x: &[f32], ids: &[i32], weights: &[f32], dt: i
 /// [`situ_token`] for `t` tokens at once, grouped by expert: every (token, slot) value is the same f64 sum in the same order, and
 /// the slots of a token are summed in slot order, so the result is bit for bit the per-token one.
 #[allow(clippy::too_many_arguments)]
-fn situ_grouped(ex: &r::ExpertsRef, x: &[f32], ids: &[i32], weights: &[f32], t: usize, k: usize, dt: intarsia_core::DType, od: intarsia_core::DType, gc: f64, uc: f64) -> Vec<f64> {
+fn situ_grouped(ex: &r::ExpertsRef, x: &[f32], ids: &[i32], weights: &[f32], t: usize, k: usize, dt: intarsia_core::DType, od: intarsia_core::DType, gc: f64, uc: f64, aq: bool) -> Vec<f64> {
     use intarsia_core::quant::nvfp4::GROUP;
     let (h, i) = (ex.h, ex.i);
     let sig = |z: f64| 1.0 / (1.0 + (-z).exp());
+    // W4A4: every token's (xq, outer) once (as situ_token)
+    let (xq, ox): (Vec<f32>, Vec<f64>) = if aq {
+        let rows: Vec<(Vec<f32>, f64)> = (0..t).into_par_iter().map(|ti| quant_nv(&x[ti * h..(ti + 1) * h])).collect();
+        let ox = rows.iter().map(|r| r.1).collect();
+        (rows.into_iter().flat_map(|r| r.0).collect(), ox)
+    } else {
+        (x.to_vec(), vec![1.0; t])
+    };
+    let x = &xq[..];
     // (expert, [(token * k + slot)])
     let mut by: Vec<Vec<usize>> = vec![Vec::new(); ex.e];
     for (j, &id) in ids.iter().enumerate().take(t * k) {
@@ -266,14 +279,21 @@ fn situ_grouped(ex: &r::ExpertsRef, x: &[f32], ids: &[i32], weights: &[f32], t: 
                         js.iter()
                             .map(|&j| {
                                 let xr = &x[(j / k) * h..(j / k + 1) * h];
-                                let g = r::round(dt, (0..h).map(|c| xr[c] as f64 * rg[c]).sum());
-                                let u = r::round(dt, (0..h).map(|c| xr[c] as f64 * ru[c]).sum());
+                                let g = r::round(dt, ox[j / k] * (0..h).map(|c| xr[c] as f64 * rg[c]).sum::<f64>());
+                                let u = r::round(dt, ox[j / k] * (0..h).map(|c| xr[c] as f64 * ru[c]).sum::<f64>());
                                 r::round(dt, gc * (g / gc).tanh() * sig(g) * uc * (u / uc).tanh() * weights[j] as f64)
                             })
                             .collect()
                     },
                 )
                 .collect();
+            // W4A4: quantise each pair's a row (act[.][p]) and keep its row scale
+            let (act, oa): (Vec<Vec<f64>>, Vec<f64>) = if aq {
+                let cols: Vec<(Vec<f64>, f64)> = (0..n).map(|p| quant_nv_f64(&(0..i).map(|q| act[q][p]).collect::<Vec<f64>>())).collect();
+                ((0..i).map(|q| cols.iter().map(|c| c.0[q]).collect()).collect(), cols.iter().map(|c| c.1).collect())
+            } else {
+                (act, vec![1.0; n])
+            };
             // y[c][p]
             let y: Vec<Vec<f64>> = (0..h)
                 .into_par_iter()
@@ -281,7 +301,7 @@ fn situ_grouped(ex: &r::ExpertsRef, x: &[f32], ids: &[i32], weights: &[f32], t: 
                     || vec![0f64; i],
                     |row, c| {
                         r::nvfp4_row(dw, dsb, g3[2], c, i, row);
-                        (0..n).map(|p| r::round(dt, (0..i).map(|q| act[q][p] * row[q]).sum())).collect()
+                        (0..n).map(|p| r::round(dt, oa[p] * (0..i).map(|q| act[q][p] * row[q]).sum::<f64>())).collect()
                     },
                 )
                 .collect();
@@ -303,4 +323,16 @@ fn situ_grouped(ex: &r::ExpertsRef, x: &[f32], ids: &[i32], weights: &[f32], t: 
         acc.iter_mut().for_each(|a| *a = r::round(od, *a));
     }
     out
+}
+
+/// The W4A4 NVFP4 quantiser of one row (`intarsia_core::inkling2::actq::nvfp4_row`): `xq` (exact) and the row scale.
+fn quant_nv(x: &[f32]) -> (Vec<f32>, f64) {
+    let (q, o) = intarsia_core::inkling2::actq::nvfp4_row(x);
+    (q, o as f64)
+}
+
+/// [`quant_nv`] of a row of bf16-exact f64 values (the rounded expert activation).
+fn quant_nv_f64(a: &[f64]) -> (Vec<f64>, f64) {
+    let (q, o) = quant_nv(&a.iter().map(|v| *v as f32).collect::<Vec<f32>>());
+    (q.into_iter().map(|v| v as f64).collect(), o)
 }
