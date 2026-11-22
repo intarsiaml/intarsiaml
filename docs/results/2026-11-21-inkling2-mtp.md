@@ -940,6 +940,9 @@ What changes:
   without drafting; before, it re-prefilled the whole prompt to draft. With at most 128 reusable rows (a chat template's
   preamble: a new conversation) it re-prefills from 0 and drafts, as before. The literal rule ("any reusable prefix") would never
   draft again on a server whose conversations share a template preamble, hence the threshold. Output is unchanged either way.
+  Coordinator (2026-11-22, L2b): the 128 threshold is approved. Consequence, stated in the PR: on a server whose conversations
+  share a system prompt longer than 128 rows, one sampled request turns drafting off for later greedy conversations reusing that
+  prompt (prefix reuse and output kept, no speculation speed-up).
   Test: `tests/inkling2_dspark.rs` `dspark_unsynced_draft_keeps_the_prefix_and_skips_drafting` (tiny fixture, cpu / Metal).
 
 Gate rules (set before the gates ran). Job: endor, default load, flip tip vs main 22303d704 built in the same job; every
