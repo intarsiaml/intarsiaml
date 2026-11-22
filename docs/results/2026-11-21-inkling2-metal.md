@@ -371,6 +371,14 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
   sources touched), then runs `pk12check.sh` on it first (G2 short, md5 vs the combined-gate tip, the P12 on/off batch_step
   arm; a B16 on/off > 1.02 stops the job before localeval), then localeval speed-plain / conc-plain-1k and batch_step; each
   run is counted only with exit 0 and non-empty output (NOT COUNTED otherwise).
+- 2026-11-22 (ink-hostgap lane): take ink/hostgap-gumbel 252757e09 (GumbelArgmax in slot 77). Clarification: "default path
+  bitwise equal" means this lane adds no change with its switches unset: check the merged tree against the pre-merge tip,
+  every switch unset, not against a 9a38f0224 binary (252757e09 carries ink/metal's later code, the NE fix included).
+  Lane: merged at 3c2d6a732 (reserved lists drop 77 and 80, op test asserts GumbelArgmax == 77 and ALL == 96, cuda
+  `NOT_ON_CUDA` slice form with MatmulP12 and GumbelArgmax). bespin #11276: workspace check clean, core lib / cpu / cuda / hip
+  / cpu inkling2 8+1 / batch 6 / docs_env_vars all pass. Metal check `.scratch/gumbelcheck.sh` (rows_exact, gumbel, op ids,
+  cpu gumbel ref, then greedy 64 / 256 md5 and G2 short self-golden tensors vs c918e9fda's outputs from the baseline's
+  pk12check) queued behind #11266, whose outputs it needs.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
