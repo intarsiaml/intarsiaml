@@ -833,6 +833,10 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
 #[test]
 fn inkling2_tiny_screened_head_one_row_only() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    // the screened head's ops (HeadScreen, LogitsGather, ScreenArgmax) are cpu and Metal only: CUDA refuses the screen=1 load
+    if backend().name() == "cuda" {
+        return skip("no screened-head kernels on CUDA");
+    }
     let mut m = load_screen(&dir, chunk(), "1");
     m.enable_verify(16).unwrap();
     assert!(m.head_screen_stats().is_some(), "INTARSIA_INK_HEAD_SCREEN=1 loads the screen on the tiny model");
@@ -884,6 +888,10 @@ fn inkling2_tiny_screened_head_one_row_only() {
 #[test]
 fn inkling2_tiny_screen_keeps_batching() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    // the screened head's ops (HeadScreen, LogitsGather, ScreenArgmax) are cpu and Metal only: CUDA refuses the screen=1 load
+    if backend().name() == "cuda" {
+        return skip("no screened-head kernels on CUDA");
+    }
     let plan = |screen: &str| -> std::result::Result<(), String> {
         let mut m = load_screen(&dir, chunk(), screen);
         m.enable_batch(4).map_err(|e| format!("enable_batch: {e}"))?;
