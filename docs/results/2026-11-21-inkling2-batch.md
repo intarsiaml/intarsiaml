@@ -1277,3 +1277,33 @@ call, us, order 0 1 1 0:
   decode's registers for nothing). Next (d9c7ff580): `INTARSIA_INK_MOE_DEC1=<n>` decodes once only for leaders serving >= n
   pairs; #11506 queued: rows-exact at n 1 / 2 / 3, bench n 0 / 2 / 3, then batch_step real text and random ids, n 0 vs 2,
   A B A B with digests.
+
+**#11506 (11:36-11:51, warm; tree d9c7ff580; `.scratch/dec2.log`), threshold n = pairs a leader must serve.** inkmoe rows-exact
+passes at n 1 / 2 / 3. `inkmoe_bench` Auto, whole call, us, order 0 2 3 3 2 0:
+
+| rows / union | n 0 | n 2 | n 3 | n 3 | n 2 | n 0 |
+|---|---:|---:|---:|---:|---:|---:|
+| 8 / 51 | 458.8 | 461.9 | 455.0 | 453.8 | 450.5 | 452.0 |
+| 16 / 83 | 740.3 | 752.6 | 738.2 | 735.3 | 732.5 | 742.6 |
+| 8 / 42 | 391.9 | 384.6 | 393.1 | 395.4 | 386.8 | 392.0 |
+| 16 / 57 | 618.7 | 551.5 | 570.2 | 567.2 | 554.2 | 618.4 |
+| 8 / 23 | 330.2 | 275.8 | 286.6 | 284.5 | 275.3 | 332.1 |
+| 16 / 24 | 585.6 | 462.2 | 469.0 | 467.5 | 460.5 | 584.8 |
+
+n 2 removes the loss at 8 / 42 and is the best everywhere: -65 us (-11%) at the real-text-like 16 / 57, -125 us at 16 / 24.
+
+batch_step, B 8 / B 16 batched ms, digests identical between arms in every run (text B 16 `846a505a4055b0ba`, random
+`65fc922062715df4`):
+
+| prompts | pair | n 0 | n 2 | B 16 diff | B 8 diff |
+|---|---|---|---|---:|---:|
+| text | 1 / 2 | 40.48 / 75.24 | 38.60 / 73.92 | -1.32 | -1.88 |
+| text | 3 / 4 | 41.50 / 77.09 | 39.07 / 73.40 | -3.69 | -2.43 |
+| random | 5 / 6 | 37.47 / 77.15 | 35.60 / 66.12 | -11.03 | -1.87 |
+| random | 7 / 8 | 40.82 / 73.54 | 35.29 / 68.06 | -5.48 | -5.53 |
+
+- **Real text, warm: B 16 -1.3 / -3.7 ms per step (mean -2.5, ~3%), B 8 -1.9 / -2.4 ms.** Random ids (rows share experts):
+  B 16 -5.5 / -11.0 ms. Bitwise.
+- Default flipped to n = 2 (5f6a7dc90; `INTARSIA_INK_MOE_DEC1=0` reverts, docs/tuning.md row). Gates queued as #11515: Metal
+  suite, admission (moe_experts, moe_experts_mxfp8, ink_in_proj, moe_route), greedy md5 64 / 256, B 1/8/16 real text n 0 vs 2
+  A B A B B A B A with digests.
