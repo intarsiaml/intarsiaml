@@ -94,6 +94,15 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   ms: ink_row, the small mma_gemv calls, moe_route; more blocks or fuse into neighbours); (2) MoE experts 170 -> >= 230 GB/s
   (~2-3 ms); (3) CUDA P12 stays a listed candidate. Per item: us before / after and eager tok/s.
 
+- (coordinator, 12th) Merge ink-cuda-attn's B=1 graph decode ink/cuda-graph 5fa5a88bd (on 8f7d5cd3a; tiny graph == eager bitwise
+  over 31 steps, greedy 64/256 md5 equal, G2 decode 3.729e-3 / 3.145e-3 as eager; eager -> graph 30.54 -> 31.54 short, 29.88 ->
+  31.20 at 1.2k, 29.33 -> 30.50 at 5k; idle 1.46 -> 0.39 ms/token; touches only inkling2.rs, model.rs, the tiny test) after
+  the running job, before the next timing job. Rule: every new or changed decode kernel stays capturable and keeps
+  decode_position_stable (no kernel choice on context length or host position at 1 row; position from the device; "decode
+  graph disabled" means not done). Order unchanged: tiny ops (~4.4 ms: ink_row 2.07, 1-/3-block ink_mma_gemv 1.94, moe_route
+  0.36), then experts 170 -> 230 GB/s. CUDA P12 moves to ink-cuda-attn (ink/cuda-p12); accept its p12 weight arm hook in the
+  ink_in_proj dispatch and keep the bf16 in_proj reduction order unchanged. Report the next tiny-ops numbers with graphs on.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
