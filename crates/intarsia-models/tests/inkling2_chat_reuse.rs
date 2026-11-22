@@ -216,3 +216,29 @@ fn inkling2_chat_snapshots_per_sequence() {
     assert!(ra == wa[20..], "sequence a");
     assert!(rb == wb[20..], "sequence b");
 }
+
+/// The remainder after the resume point runs as passes the cold prefill would run too: on Metal, Inkling-2 passes of 2..=16 rows
+/// take the row-exact kernels (not bitwise the fast prefill kernels' rows), so a short remainder moves the resume point back
+/// until the remainder has 17 rows (still within the ring margin below the snapshot). Prefill chunk 64 here (every pass of this
+/// test above 16 rows takes the fast kernels on Metal). On cpu (any cut) the resume point stays at the prompt end.
+#[test]
+fn inkling2_chat_short_remainder_matches_cold() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
+    let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
+    let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
+    let src = SafeTensors::open_dir(&dir).unwrap();
+    let opts = LoadOptions { max_seq: 128, prefill_chunk: 64, graphs: false, ..Default::default() };
+    let m = Model::load(backend(), &recipe, &dims, &src, &opts, Arc::new(Telemetry::new())).unwrap();
+    let metal = std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() == Ok("metal");
+    let ids = ids();
+    for (turn2, want_keep) in [(30usize, if metal { 13 } else { 20 }), (40, 20)] {
+        let mut st = m.new_state().unwrap();
+        prefill(&m, &mut st, &ids[..20]);
+        decode(&m, &mut st, &reply(18, 8));
+        let cold_rows = cold(&m, &ids[..turn2]);
+        let (keep, rows) = resume(&m, &mut st, &ids[..turn2]);
+        assert_eq!(keep, want_keep, "turn 2 of {turn2} rows resumes at {want_keep}");
+        assert!(rows == cold_rows[keep..], "turn 2 of {turn2} rows: rows differ from a cold prefill");
+    }
+}

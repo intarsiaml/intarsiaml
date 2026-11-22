@@ -974,6 +974,19 @@ impl Model {
         r
     }
 
+    /// [`Backend::prefix_reuse_min_pass_rows`] for this model: Inkling-2 on Metal runs passes of 2..=16 rows under the row-exact
+    /// kernels (`inkling2::ink_rows_exact`), whose rows are not bitwise the fast prefill kernels' rows, so a reused prefix and the
+    /// remainder after it both need passes of 17 rows or more (lane ink-spec-land: with the ring snapshot a chat's turn 2 resumed
+    /// with a 14-row remainder and differed from a full re-prefill, fleetq #11649). With a prefill chunk of 16 or less every pass
+    /// is row-exact (bitwise the decode step per row), so the backend's rule stands.
+    fn model_min_pass_rows(&self, n: usize) -> usize {
+        if self.ink.is_some() && self.prefill_chunk() > 16 && inkling2::ink_rows_exact(self.backend.name(), 2) {
+            n.max(17)
+        } else {
+            n
+        }
+    }
+
     fn reuse_len_policy(&self, st: &SequenceState, plen: usize, want: usize) -> usize {
         let over = prefix_reuse_override();
         if st.has_recurrent() {
@@ -996,7 +1009,11 @@ impl Model {
         let chunk = self.prefill_chunk().max(1);
         let avoid = self.backend.avoid_single_row_prefill();
         // a prefill tail peel can end the remainder in a 1-row pass the schedule below does not show
-        let min_rows = self.backend.prefix_reuse_min_pass_rows().filter(|_| over.is_none() && self.prefill_peel == 0);
+        let min_rows = self
+            .backend
+            .prefix_reuse_min_pass_rows()
+            .map(|n| self.model_min_pass_rows(n))
+            .filter(|_| over.is_none() && self.prefill_peel == 0);
         if let Some(n) = min_rows {
             let mut cut = st.wide_reuse_len(want, n);
             // the remainder runs as the schedule says from the cut: back off until none of its passes is below `n` rows
