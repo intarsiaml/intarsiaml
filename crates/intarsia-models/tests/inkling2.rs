@@ -297,7 +297,8 @@ fn inkling2_tiny_chunked_and_decode_match_prefill_bitwise() {
     for &id in &ids[9..] {
         rows.extend(all_logits(&m, &mut st, &[id]));
     }
-    assert_eq!(rows, whole, "prefill then decode");
+    let first = (0..rows.len()).find(|&i| rows[i] != whole[i]);
+    assert!(first.is_none(), "prefill then decode: first differing row {first:?} of {}", rows.len());
 }
 
 /// Rollback by length (a rejected speculative tail, a prompt edit) within the ring margin, and the refusal past it.
@@ -394,6 +395,32 @@ impl Backend for Wrapped {
     fn synchronize(&self, s: StreamId) -> intarsia_core::Result<()> {
         self.inner.synchronize(s)
     }
+    // the scheduling hints and stream calls the Metal backend overrides, so a wrapped Metal backend runs the same schedule
+    fn avoid_single_row_prefill(&self) -> bool {
+        self.inner.avoid_single_row_prefill()
+    }
+    fn prefix_reuse_any_cut(&self) -> bool {
+        self.inner.prefix_reuse_any_cut()
+    }
+    fn prefix_reuse_min_pass_rows(&self) -> Option<usize> {
+        self.inner.prefix_reuse_min_pass_rows()
+    }
+    fn zero(&self, dst: &Buffer, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.zero(dst, s)
+    }
+    fn hold(&self, s: StreamId, after: usize) -> intarsia_core::Result<()> {
+        self.inner.hold(s, after)
+    }
+    fn release(&self, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.release(s)
+    }
+    fn discard(&self, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.discard(s)
+    }
+    // zero-copy weights: the Metal GEMV variant follows the weight's alignment, so uploaded copies could take another one
+    fn wrap_host(&self, mem: Arc<dyn intarsia_core::backend::HostMemory>, offset: usize, len: usize) -> Option<Buffer> {
+        self.inner.wrap_host(mem, offset, len)
+    }
 }
 
 /// A pass that fails half-way leaves the sequence empty (its rings half-written), and the next prefill is the clean one.
@@ -404,13 +431,21 @@ fn inkling2_tiny_failed_pass_resets_the_sequence() {
     let whole = logits_chunked(&dir, chunk(), &ids);
     let fail = Arc::new(AtomicBool::new(false));
     let m = load_with(&dir, chunk(), Arc::new(Wrapped { inner: backend(), drop: vec![], fail: fail.clone() })).unwrap();
+    {
+        let mut c = m.new_state().unwrap();
+        let ctl = all_logits(&m, &mut c, &ids);
+        let first = (0..ctl.len()).find(|&i| ctl[i] != whole[i]);
+        assert!(first.is_none(), "wrapped backend, no failure: first differing row {first:?} (the wrapper must run what the backend runs)");
+    }
     let mut st = m.new_state().unwrap();
     all_logits(&m, &mut st, &ids[..20]);
     fail.store(true, Ordering::SeqCst);
     assert!(m.forward(&mut st, &ids[20..], HeadMode::LastLogits, None).is_err());
     fail.store(false, Ordering::SeqCst);
     assert_eq!(st.len, 0, "a failed pass resets the sequence");
-    assert_eq!(all_logits(&m, &mut st, &ids), whole);
+    let again = all_logits(&m, &mut st, &ids);
+    let first = (0..again.len()).find(|&i| again[i] != whole[i]);
+    assert!(first.is_none(), "after the reset: first differing row {first:?} of {}", again.len());
 }
 
 /// A backend without one of the Inkling-2 kernels refuses the load, naming the op (CUDA and HIP register none of them).
