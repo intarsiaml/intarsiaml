@@ -5,6 +5,15 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 
 ## Briefs received
 
+- 2026-11-22 (main): endor checked 06:33-06:40: no tensorfold process, kev idle, no thermal / performance warnings, AC high
+  power, no other model server; swap nearly full (21.07 / 21.5 GB), which fits the system page-ins but not our slowness
+  (0 major faults, slow in low-page-in runs too). (1) Let #11297 finish; its numbers are labelled "box-slow, not speed".
+  (2) Control in the same slot if --expect covers it, else a fresh quiet slot: #11261's exact binary, args and input
+  type, solo + B16, 1 rep. If it reproduces ~61-65 tok/s solo and 80-88 ms B16, the box is fine and the slowdown is
+  #11297's config: find which. If slow too, the box is slow: release and requeue #11297's speed half later. (3) #11309
+  (correctness) stays queued either way; hold #11306's timing until the control answers, and if the box is slow requeue
+  #11306 rather than run it. Record the control result and this rule here.
+
 - 2026-11-22 (main): batched-regression check is mine. (1) Wait for #11266's synthetic batch_step x3 on c918e9fda: B16
   within 5% of 59.96 ms = no regression, #11261 a bad slot, stop. (2) If confirmed: runtime switches in one binary on the
   final tree, random prompts, #11181 protocol, one quiet slot, pages warm, order alternated, 8546d143f binary as reference
