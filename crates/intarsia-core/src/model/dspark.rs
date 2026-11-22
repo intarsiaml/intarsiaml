@@ -226,7 +226,23 @@ pub(super) fn load(
         return Err(Error::model(format!("DSpark config {c:?}: needs 4 taps, block {BLOCK}, whole GQA groups")));
     }
     let (qdim, kvdim, inter) = (c.n_heads * hd, c.n_kv_heads * hd, c.intermediate);
-    let lin = |p: &str, n: usize, k: usize| super::dflash::lin(src, b, add_bytes, p, n, k);
+    // `INTARSIA_DSPARK_LAYERS=fp8` (opt-in): the draft layers' projections as e4m3 with one scale per tensor (W8A16), half the
+    // bytes of the block pass; drafts only propose, so this moves acceptance, never the output
+    let layers_fp8 = std::env::var("INTARSIA_DSPARK_LAYERS").is_ok_and(|v| v.trim() == "fp8");
+    let lin = |p: &str, n: usize, k: usize| -> Result<QTensor> {
+        if !layers_fp8 {
+            return super::dflash::lin(src, b, add_bytes, p, n, k);
+        }
+        let name = format!("{p}.weight");
+        let info = src.info(&name).ok_or_else(|| Error::model(format!("DSpark tensor '{name}' missing")))?;
+        if info.shape != [n, k] {
+            return Err(Error::model(format!("DSpark tensor '{name}' is {:?}, expected [{n}, {k}]", info.shape)));
+        }
+        let hq = crate::quant::head::quantize_host(crate::quant::head::HeadQuant::Fp8, info.dtype, src.bytes(&name)?, n, k, 0, n)?;
+        let q = hq.upload(b)?;
+        add_bytes(q.parts.iter().map(|t| t.nbytes() as u64).sum());
+        Ok(q)
+    };
     let norm_w = |name: &str, n: usize| -> Result<TensorRef> {
         let t = load_tensor(b, src, name, Some(&[n]))?;
         add_bytes(t.nbytes() as u64);
