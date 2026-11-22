@@ -87,6 +87,15 @@ Status: in progress. Branch `ink/mtp` (not pushed, not merged).
   otherwise the cut stays opt-in and the flip keeps k3 tau 0.8. Commit the cut in .worktrees/ink-mtp-cut only after #11214
   passes; if #11188 reaches the front first, release and requeue it behind the others (never build uncommitted or failing
   code). Send the refit correction with the #11214 result.
+- 2026-11-22 (coordinator, SendMessage): the fused-down kernel goes to a fresh lane; this lane keeps the flip. (1) Write a
+  self-contained build brief as a section of this doc (design, rows-exact contract, files, bench and admission commands, gates,
+  probe numbers); worktree .worktrees/ink-mtp-dn from ink/mtp-cut 5d73d0fa8; the lane starts only if quiet #11231 confirms down
+  >= 10% of experts time at T = 4, else parked. (2) Flip rule unchanged (prefill within 2% of off at all 4 lengths, sampled
+  prefill equal to off, decode gain kept). Localeval 4k at -6% fails today; if #11226's engine runs show 4k / 16k equal, the 4k
+  number counts as noise only if one more ABAB at 4k lands within 2% (queue it only after #11226); if engine 4k shows a real
+  gap, find the ingest cost before any flip. (3) The -1.7 pp acceptance gap at k1 tau 0 is not blocking: note it as a known
+  difference. (4) Cut: wait for #11227 (counts only with ids equal off, prose not worse, greedy > k3 tau 0.8 beyond spread at
+  every length); keep the clean-tree + passed-tests guard on every queued build job.
 
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
@@ -472,7 +481,9 @@ Recommendation, not built (superseded by the 2026-11-22 brief: cut built, sweep 
 | k1 tau 0 | 69.4% | 71.1% (earlier run) |
 | prose k3 tau 0.8 | 72.7% | |
 
-  k1 tau 0 is 1.7 pp lower, the only gap over 1 pp; the k2 / k3 policies match within 0.2 pp.
+  k1 tau 0 is 1.7 pp lower, the only gap over 1 pp; the k2 / k3 policies match within 0.2 pp. Known difference, not blocking
+  (not the flip's config): the device mix rounds to bf16 once before the norm, which the host mix did not, and k1 tau 0 drafts
+  on every step, so it shows the most. The host number is from an earlier run, not interleaved.
 - Ingest of a prefill chunk: 2.25 ms (synced).
 - serve smoke under admitted kernels only (34 kernels, 221 cases): greedy 1.4k and 9.8k-token requests HTTP 200 with verify
   passes; a t1.0 request HTTP 200 with no change in the spec counters (sampled requests do not draft).
@@ -518,5 +529,75 @@ gate+up's 397. Down bytes at 19 experts are 28.4 MB: about 52 µs at 550 GB/s, s
    A/B, the bench ran under load.
 2. A down kernel that reads each union expert once and keeps the k-order token sum (bitwise): design in the message to the
    coordinator.
+
+### Build brief: union-grouped fused down for the Inkling-2 experts (lane ink-mtp-dn, not started)
+
+Starts only if the quiet probe #11231 (`.worktrees/ink-mtp/.scratch/gate_d_moe_probe.txt`) shows the down phase >= 10% of
+experts time at T = 4; otherwise parked.
+
+**Goal.** At 2-4 decode / verify rows (T), the NVFP4 down projection reads each union expert's weights once for all the rows
+routed to it, and sums each token's K results in k order in the same launch. Target: down at T = 4 from about 80-89 µs to
+about 55-60 µs per visit (floor about 52 µs: 19.0 experts x 4.48 MB / 3 at 550 GB/s). That is about 1.0-1.5 ms per 4-row
+verify pass over 44 NVFP4 visits (about 5%); MXFP8 (4 visits) optional.
+
+**Where.**
+- Worktree `.worktrees/ink-mtp-dn`, branch `ink/mtp-dn` from `ink/mtp-cut` 5d73d0fa8. Do not push or merge; commit often.
+- Kernel: `kernels/metal/inkling2_moe.metal`. The header comment (lines 1-30) is the contract. The existing down kernels are
+  `ink_moe_dn_u_*` (down per pair, 4 lanes per row, union leaders via `INK_XR` = 4), `ink_moe_dn_f_*` (one threadgroup holds
+  8 output rows of one token and all K slots, then sums in k order) and `ink_moe_gather_*`.
+- Launcher: `crates/intarsia-backend-metal/src/inkmoe.rs`. The `SHADERS` list holds the pipeline names; `Policy` (Auto,
+  Union, Pair, Fused, UnionFused) is set by `INTARSIA_INK_MOE` and `set_policy`; `DEC_MAX_ROWS` = 16; `set_probe` gives the
+  gate+up / down split. Add a policy (e.g. `UnionDownFused`, `INTARSIA_INK_MOE=udf`) that runs the union gate+up and then the
+  new down. Default stays `Auto` (flag default off).
+- Tests: `crates/intarsia-backend-metal/tests/inkmoe.rs`. Add the policy to `POLICIES` (line 206), so
+  `ink_moe_rows_are_bitwise_the_one_row_calls` (T 2..=16, routings random / identical / pooled / invalid ids) and
+  `ink_moe_negative_control` cover it.
+- Bench: `crates/intarsia-backend-metal/examples/inkmoe_bench.rs`, with `INKMOE_ROUTES` (real routing) and `INKMOE_PROBE=1`.
+
+**Design.**
+1. Grid: one threadgroup per block of 8 output rows (H = 2304, so 288 threadgroups), across all T tokens of the call.
+2. The threadgroup walks the union of experts, in the same leader order as the union gate+up. For each expert it reads that
+   block's down rows once and computes, from L1, every pair (token, k) routed to that expert.
+3. Each pair's dot uses exactly `ink_moe_dn_u`'s lane-strided chunk order, fma chain, shuffle-xor reduction (1, 2, 4) and the
+   `bf16(dot * gs)` rounding.
+4. The y values sit in threadgroup memory: T x K x 8 bf16, 2 KB at T = 16.
+5. After a barrier, each token's 8 rows are summed over k = 0..K-1 in k order in f32 and written as bf16, the same as
+   `ink_moe_gather` / `dn_f`.
+6. Invalid ids (negative or >= E) contribute nothing, as today.
+
+**Contract (must keep).** Rows-exact as the `.metal` header states: a pair's value never depends on T, on the routing of other
+tokens, on union or not, or on the kernel. Same chunk order, same fma chain, same reduction, same roundings; the token sum is
+always in k order. So the new policy is bitwise every other policy, and a T-row call is bitwise the T one-row calls. No
+atomics, no order-dependent reductions.
+
+**Commands** (on endor every GPU run takes a fleetq slot: `fleetq run --host endor --expect MIN --label ...`, timing with
+`--quiet gpu,cpu`; compile on bespin, CPU tests on spark2):
+- Bitwise test: `cargo test --release -p intarsia-backend-metal --test inkmoe`.
+- Admission: `target/release/intarsia kernels test --backend metal --op moe_experts` (and `--op moe_experts_mxfp8` if touched).
+- Bench, quiet:
+  `INKMOE_PROBE=1 INKMOE_ROUTES=.worktrees/ink-mtp/.scratch/routing_i16.bin:357,296,700 cargo run --release -p intarsia-backend-metal --example inkmoe_bench -- nv 1 2 3 4`
+  (the routing file holds i16 expert ids [48 visits, P, 8] for three texts, from the oracle's `expert_ids`).
+- Shaders compile with `xcrun -sdk macosx metal -c -std=metal3.1 -O3 -fno-fast-math`; `thread_position_in_threadgroup` needs
+  `uint2` when mixed with `uint2` grid arguments.
+
+**Gates.**
+1. `tests/inkmoe.rs` bitwise with the new policy, T 2..=16, every routing.
+2. Admission ADMITTED.
+3. Quiet bench: down at T = 2 / 3 / 4 below the best existing policy by more than the spread, and T = 1 not slower.
+4. Model-level: greedy golden x 128 token-identical to spec off, with `INTARSIA_INK_MOE=udf` and DSpark k3 tau 0.8, Metal.
+5. Quiet tok/s ABAB, k3 tau 0.8, against `Auto`.
+
+The default flip is a separate decision for the coordinator.
+
+**Probe numbers** (gate A, default load, real routing; µs per call, mean):
+
+| T | union | Auto all | Auto gate+up | Auto down | UnionFused all / down | Fused all / down | Pair all / down |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 8.0 | 90.5 | 53.9 | 33.0 | - | 87.8 / 33.1 | 89.1 / 34.2 |
+| 2 | 12.7 | 145.0 | 87.9 | 55.8 | 138.1 / 50.6 | 132.2 / 50.2 | 143.9 / 48.4 |
+| 3 | 15.9 | 178.7 | 110.7 | 68.9 | 177.3 / 70.0 | 180.0 / 65.6 | 178.7 / 62.9 |
+| 4 | 19.0 | 247.1 (min 230.0) | 142.8 | 89.0 | 225.1 / 80.3 | 233.0 / 79.8 | 234.6 / 80.2 |
+
+Down runs at 318-354 GB/s at T = 4, against gate+up's 379-403. The quiet repeat (#11231) replaces these numbers when it lands.
 
 RESULTS_PLACEHOLDER
