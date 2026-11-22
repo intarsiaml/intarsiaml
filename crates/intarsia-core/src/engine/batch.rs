@@ -1378,6 +1378,10 @@ impl Engine for BatchedEngine {
         self.env.codec.apply_chat_template(messages, opts)
     }
 
+    fn chat_ids(&self, messages: &[Value], opts: &ChatOpts) -> Result<Option<Vec<u32>>> {
+        self.env.codec.encode_chat(messages, opts)
+    }
+
     fn tokenizer_json(&self) -> Option<String> {
         self.env.codec.tokenizer_json()
     }
