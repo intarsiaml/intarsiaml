@@ -106,6 +106,14 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   a newer ink-metal tip, so the very first tiny runs (before the 21:5x ink/metal merge) may have mixed in ink-metal code
   (they were all rerun after the merge); #11057's rtvar build (its target cloned at job start, 15 s build) is treated as
   unverified: the A/B's arm C rebuilds it from touched sources.
+- 2026-11-22 (coordinator, build hazard 2 from pack12 #11066): `cargo test -p intarsia-cli --test <x>` rebuilds
+  target/<profile>/intarsia without `--features metal` over the backend binary; later CLI steps fail ("built without the
+  Metal backend") and md5 of two empty outputs reads SAME. Rules: build the backend binary last (or tests in their own
+  --target-dir); count md5 / self-golden matches only when both runs exit 0 with non-empty output. Reply only if affected.
+  Checked: no script of this lane runs `cargo test -p intarsia-cli`; intarsia-models has no metal feature (the backend is a
+  plain dependency), so its test builds do not change batch_step. Past matches all had non-empty output and exit 0 (G2:
+  EXIT 0 x 4, tensors compared one by one; generate outputs 1025 / 946 bytes). Not affected. Hardened anyway: #11104 compares
+  digests only when both runs produced all three, and the timing job's text comparison requires non-empty files.
 
 ## 1. Design note (contract delta, written before any kernel)
 
