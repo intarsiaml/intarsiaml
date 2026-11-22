@@ -80,7 +80,9 @@ kernel void head_screen_f32(device const float* A [[buffer(0)]],
         L = max(L, s_part[j]);
         anybad |= s_bad[j];
     }
+    device int* cr = cand + (ulong)t * p.c;
     if (anybad != 0 || !isfinite(L)) {
+        for (uint j = tid; j < p.c; j += tgs) cr[j] = -1;
         if (tid == 0) cnt[t] = SC_NONFINITE;
         return;
     }
@@ -99,7 +101,7 @@ kernel void head_screen_f32(device const float* A [[buffer(0)]],
         all += s_cnt[j];
     }
     uint pos = base + pre;
-    device int* cr = cand + (ulong)t * p.c;
+    for (uint j = all + tid; j < p.c; j += tgs) cr[j] = -1;  // slots past the candidates (contract: -1)
     if (mine != 0 && pos < p.c) {
         for (uint n = n0; n < n1 && pos < p.c; ++n) {
             if (sc_lohi(a[n], hn, beta[n]).y >= L) cr[pos++] = (int)n;
