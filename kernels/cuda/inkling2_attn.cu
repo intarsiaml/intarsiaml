@@ -833,17 +833,26 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
         const bool need_bias = pmin - min(sb + SL - 1, jhi) < E;
         if (need_bias) {
             __syncthreads();  // the previous slab's Bs reads (and, fused, region 0's q reads) are done
-            for (int x = tid; x < nmt * 16 * SL; x += blockDim.x) {
-                const int mi = x / SL, i = x % SL, j = sb + i;
-                bf16 b = __float2bfloat16_rn(0.0f);
-                if (mi < M && j >= jlo && j <= jhi) {
-                    const int t = mi / G, pp = pos0 + t, d = pp - j;
-                    if (t >= r0 && t < r1 && d >= 0 && d < E && j >= (int)ink_lo(pp, p.window)) {
-                        if (FUSED) b = f2b(ink_rel(rsh + mi * dr, p.rp, dr, E, d));
-                        else b = p.rel[((size_t)t * H + kvh * G + mi % G) * E + d];
+            // in batches of 8 per thread: the loads of a batch are independent, then the stores
+            constexpr int BU = 8;
+            for (int x0 = tid; x0 < nmt * 16 * SL; x0 += BU * blockDim.x) {
+                bf16 bv[BU];
+#pragma unroll
+                for (int u = 0; u < BU; ++u) {
+                    const int x = x0 + u * blockDim.x;
+                    const int mi = x / SL, i = x % SL, j = sb + i;
+                    bv[u] = __float2bfloat16_rn(0.0f);
+                    if (x < nmt * 16 * SL && mi < M && j >= jlo && j <= jhi) {
+                        const int t = mi / G, pp = pos0 + t, d = pp - j;
+                        if (t >= r0 && t < r1 && d >= 0 && d < E && j >= (int)ink_lo(pp, p.window)) {
+                            if (FUSED) bv[u] = f2b(ink_rel(rsh + mi * dr, p.rp, dr, E, d));
+                            else bv[u] = __ldg(p.rel + ((size_t)t * H + kvh * G + mi % G) * E + d);
+                        }
                     }
                 }
-                Bs[x] = b;
+#pragma unroll
+                for (int u = 0; u < BU; ++u)
+                    if (x0 + u * blockDim.x < nmt * 16 * SL) Bs[x0 + u * blockDim.x] = bv[u];
             }
             __syncthreads();
         }
