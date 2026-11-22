@@ -202,6 +202,13 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   rows bitwise equal T=1 decode rows, greedy md5 spec on vs off under act_quant=1; both on the act_quant=1 gate list). Measure
   decode tok/s act_quant 1 vs 0. ink_ref.rs quantizer matches the GPU exactly; admission rows-exact up to GEMM accumulation.
   sm_121a fine if the default build still works for everything else and other CUDA tests pass; report the build.rs change.
+- (coordinator, 26th) Priority change: CUDA decode first, W4A4 after (ink-cuda-attn d049cd622: 30.06 ms GPU busy/token vs
+  19.8 ms floor; 6.5 ms of the gap in this lane's classes: MoE 2.61, mix/conv ~2.0 = 124 single-block launches at 17 us,
+  controllers ~1.2, router 0.48). (1) Let the W4A4 build run plus its admission and rows-exact tests, record status, park W4A4
+  (G3 / spec gates later). (2) First the mix/conv row kernels (cut the 124 single-block launches: fuse or multi-block), then the
+  decode MoE repack (197 vs 273 GB/s), then controllers and router. (3) Gates: rows-exact or tolerance-justified admission,
+  G2/G3, greedy md5 unchanged spec off and on, graphed decode tok/s with spread; default candidate only if bitwise or within
+  plan tolerances; own commit with a revert switch each. (4) Measure decode spec off and on.
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 

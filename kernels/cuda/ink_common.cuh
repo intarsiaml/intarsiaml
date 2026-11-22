@@ -45,6 +45,12 @@ struct InkMmaArgs {
     float* ho;
 };
 int64_t ink_moe_mma_scratch_bytes(int64_t P, int64_t E, int64_t H, int64_t I);
+
+/* ink_moe_fp4_sm120a.cu: the W4A4 prefill experts on the FP4 tensor core (NVFP4, situ, aq; x already quantised to the codes
+ * xq [T,H/2] / e4m3 scales xs [T,H/16] with a.xo). Available only in an sm_121a / sm_120a build (else IK_ERR_UNSUPPORTED). */
+int ink_moe_fp4_available();
+int64_t ink_moe_fp4_scratch_bytes(int64_t P, int64_t E, int64_t H, int64_t I);
+int ink_moe_fp4(const InkMmaArgs& a, const uint8_t* xq, const uint8_t* xs, void* scratch, int out_f32, cudaStream_t s);
 int ink_moe_mma(const InkMmaArgs& a, void* scratch, int out_f32, cudaStream_t s);
 
 IK_DEVI float ink_rbf(float v) { return ik_b2f(ik_f2b(v)); }

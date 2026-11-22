@@ -44,9 +44,11 @@ __global__ void __launch_bounds__(256) ink_actq_nv_kernel(const ik_bf16* __restr
             const ik_bf16 hi = ik_f2b(__fmul_rn(aq_e2m1_val(code[2 * i + 1]), s));
             o[i] = (uint32_t)*reinterpret_cast<const unsigned short*>(&lo) | ((uint32_t)*reinterpret_cast<const unsigned short*>(&hi) << 16);
         }
-        ik_bf16* dst = xq + row * C + b * 16;
-        *reinterpret_cast<uint4*>(dst) = make_uint4(o[0], o[1], o[2], o[3]);
-        *reinterpret_cast<uint4*>(dst + 8) = make_uint4(o[4], o[5], o[6], o[7]);
+        if (xq) {
+            ik_bf16* dst = xq + row * C + b * 16;
+            *reinterpret_cast<uint4*>(dst) = make_uint4(o[0], o[1], o[2], o[3]);
+            *reinterpret_cast<uint4*>(dst + 8) = make_uint4(o[4], o[5], o[6], o[7]);
+        }
         if (codes) {
             uint32_t p0 = 0, p1 = 0;
 #pragma unroll

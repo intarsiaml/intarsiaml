@@ -412,6 +412,16 @@ int mma_min_pairs() {
     return g_mma_min;
 }
 
+// W4A4 NVFP4 prefill on the FP4 tensor core (ink_moe_fp4_sm120a.cu) where the build has it; INTARSIA_INK_MOE_FP4=0: the bf16
+// tensor-core path on the dequantised xq (the same values up to the f32 accumulation order)
+int fp4_on() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_INK_MOE_FP4");
+        return ink_moe_fp4_available() && !(e && e[0] == '0') ? 1 : 0;
+    }();
+    return v;
+}
+
 // W4A4 scratch in front of the layout below: xq bf16 [T,H] | xo f32 [T] | ho f32 [P] (inkmoe.rs `aq_scratch`)
 int64_t aq_bytes(int64_t T, int64_t P, int64_t H) { return ((T * H * 2 + 255) & ~(int64_t)255) + ((T * 4 + 255) & ~(int64_t)255) + ((P * 4 + 255) & ~(int64_t)255); }
 
@@ -428,6 +438,18 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool r
         ik_bf16* xq = (ik_bf16*)b0;
         float* xo = (float*)(b0 + ((a.T * (int64_t)a.H * 2 + 255) & ~(int64_t)255));
         ho = (float*)((char*)xo + (((int64_t)a.T * 4 + 255) & ~(int64_t)255));
+        sc_rest.data = b0 + ab;
+        sc_rest.bytes = sc_in->bytes - ab;
+        // NVFP4 prefill chunks: the FP4 tensor core on the packed operands (in the xq region: codes [T,H/2] | scales [T,H/16])
+        if (FMT == FMT_NV && !rows_kernel && P > mma_min_pairs() && a.H % 128 == 0 && a.I % 128 == 0 && g_probe == 0 && fp4_on() &&
+            sc_rest.bytes >= ink_moe_fp4_scratch_bytes(P, a.E, a.H, a.I) && (reinterpret_cast<uintptr_t>(sc_rest.data) & 15u) == 0) {
+            uint8_t* codes = (uint8_t*)b0;
+            uint8_t* scl = codes + (((int64_t)a.T * (a.H / 2) + 255) & ~(int64_t)255);
+            IK_TRY(ink_actq_nv(a.x, a.T, a.H, nullptr, xo, codes, scl, st));
+            const InkMmaArgs m{a.x, a.ids, a.wts, a.guw, a.gus, a.dnw, a.dns, a.gs, a.out, a.T, a.K, a.E, a.H, a.I, FMT, ACT, a.gc, a.uc,
+                               1, xo, nullptr};
+            return ink_moe_fp4(m, codes, scl, sc_rest.data, out_f32, st);
+        }
         if (FMT == FMT_NV) {
             IK_TRY(ink_actq_nv(a.x, a.T, a.H, xq, xo, nullptr, nullptr, st));
             a.xo = xo;
@@ -436,8 +458,6 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool r
             ho = nullptr;
         }
         a.x = xq;
-        sc_rest.data = b0 + ab;
-        sc_rest.bytes = sc_in->bytes - ab;
         sc = &sc_rest;
     }
     if (!rows_kernel && P > mma_min_pairs() && a.H % 128 == 0 && a.I % 128 == 0 && g_probe == 0 && sc && sc->data &&

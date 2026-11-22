@@ -85,7 +85,7 @@ IK_DEVI void aq_mx_block(const float* v, float* q) {
     for (int j = 0; j < 32; ++j) q[j] = __fmul_rn(aq_e4m3r(fminf(fmaxf(__fmul_rn(v[j], inv), -448.f), 448.f)), scale);
 }
 
-/* ink_actq.cu launchers. rows of C bf16 values (row stride C), in place allowed (xq == x).
+/* ink_actq.cu launchers. rows of C bf16 values (row stride C), in place allowed (xq == x); NVFP4 xq may be null (operands only).
  * NVFP4: C % 16 == 0, outer [rows] f32; codes [rows, C/2] / scales [rows, C/16] (e4m3) optional (null).
  * MXFP8: C % 32 == 0. */
 int ink_actq_nv(const ik_bf16* x, int64_t rows, int C, ik_bf16* xq, float* outer, uint8_t* codes, uint8_t* scales, cudaStream_t s);

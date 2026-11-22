@@ -44,8 +44,21 @@ fn aq_scratch(s: &ShapeInfo) -> usize {
     }
 }
 
+/// The W4A4 FP4 tensor-core layout (kernels/cuda/ink_moe_fp4_sm120a.cu `ink_moe_fp4_scratch_bytes`): the tensor-core layout plus
+/// the h operands (codes `[P, I/2]`, e4m3 scales `[P, I/16]`, row scales `[P]` f32).
+fn fp4_scratch(s: &ShapeInfo) -> usize {
+    let r = |x: usize| (x + 255) & !255;
+    let p = s.m * s.top_k;
+    moe_experts_mma_scratch(s) + r(p * s.n / 2) + r(p * s.n / 16) + r(p * 4)
+}
+
 fn ordinary_scratch(s: &ShapeInfo) -> usize {
-    aq_scratch(s) + moe_experts_scratch(s).max(moe_experts_mma_scratch(s))
+    let base = moe_experts_scratch(s).max(moe_experts_mma_scratch(s));
+    if s.act_quant == 0 {
+        base
+    } else {
+        aq_scratch(s) + base.max(fp4_scratch(s))
+    }
 }
 
 fn rows_scratch(s: &ShapeInfo) -> usize {
