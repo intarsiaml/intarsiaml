@@ -68,6 +68,22 @@ with Fable's 0.1.
 
 MEASUREMENT_A_PLACEHOLDER
 
+## Correctness (fleetq #10839, endor, 22:26-22:28)
+
+base = ink/metal e61f392fd, b1 = ink/hostgap at 63e0d1895 (argmax v4t, the solo host profile, the generate profile default).
+Script `.scratch/measC.sh`, raw `.scratch/mC/`.
+
+| check | result |
+|---|---|
+| Metal tests `lowlat` / `dense` / `g0b_small` (incl. `argmax_tail_path_matches_host`, `argmax_tail_kernel_is_the_vector_kernel_on_aligned_rows`, `argmax_vector_path_matches_host`, `argmax_ties_nan_and_all_neg_inf`, `argmax_rows`) | 10 + 7 + 7 passed |
+| `kernels test --backend metal --op argmax` (sweep now has V = 101) | `argmax_f32`, `argmax_bf16` ADMITTED, 4 cases each, max_abs 0 |
+| greedy 256 tokens (lighthouse prompt, `--profile-every 0`), token feedback | md5 d64363ea... base = b1 |
+| the same on the plain path (`INTARSIA_TOKEN_FEEDBACK=0`) | md5 d64363ea... base = b1 = feedback path |
+| t 0.7 seed 7, 256 tokens | md5 c10264d0... base = b1 |
+| G2 short (oracle W4A16 top-20, `--max-mean-kl 4e-3`) | PASS both |
+| G2 short self-golden (top-64 rows, prefill + decode modes) base vs b1 | 48 tensors, 0 differ: bitwise identical |
+| `plan show` Qwen3-8B / Qwen3.6-35B-A3B-NVFP4 / Inkling-2-Mini, base vs b1 | stdout identical (21 / 59 / 31 lines); stderr differs only in the "loaded in X s" timing line |
+
 ## Item 3: argmax (commit 942f72f31)
 
 The trace's `argmax_f32` dispatch takes 170-177 us for one 200058-element f32 row (0.8 MB; at 560 GB/s that is 1.4 us of
