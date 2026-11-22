@@ -145,19 +145,151 @@ kernel void ink_in_proj_gemv(device const uint4* W [[buffer(0)]],
 
 // The exploration set (benchmarked in docs/results/2026-11-21-inkling2-metal-mix.md); the launcher's table in inkmix.rs
 // lists what it uses.
-#define IP_CFG(SG, U)                                                                                                 \
-    IP_INST(1, 1, SG, U, 1) IP_INST(1, 2, SG, U, 1) IP_INST(1, 4, SG, U, 1)                                           \
-    IP_INST(2, 1, SG, U, 2) IP_INST(2, 2, SG, U, 2) IP_INST(3, 1, SG, U, 3) IP_INST(3, 2, SG, U, 3)                   \
-    IP_INST(4, 1, SG, U, 4) IP_INST(4, 2, SG, U, 4) IP_INST(5, 1, SG, U, 5) IP_INST(6, 1, SG, U, 6)                   \
-    IP_INST(7, 1, SG, U, 7) IP_INST(8, 1, SG, U, 8) IP_INST(8, 2, SG, U, 4) IP_INST(9, 1, SG, U, 9)                   \
-    IP_INST(10, 1, SG, U, 10) IP_INST(11, 1, SG, U, 11) IP_INST(12, 1, SG, U, 12) IP_INST(13, 1, SG, U, 13)           \
-    IP_INST(14, 1, SG, U, 14) IP_INST(15, 1, SG, U, 15) IP_INST(16, 1, SG, U, 16) IP_INST(16, 1, SG, U, 8)            \
-    IP_INST(16, 2, SG, U, 8)
+#define IP_CFG_ROWS(INST, SG, U)                                                                                                 \
+    INST(1, 1, SG, U, 1) INST(1, 2, SG, U, 1) INST(1, 4, SG, U, 1)                                           \
+    INST(2, 1, SG, U, 2) INST(2, 2, SG, U, 2) INST(3, 1, SG, U, 3) INST(3, 2, SG, U, 3)                   \
+    INST(4, 1, SG, U, 4) INST(4, 2, SG, U, 4) INST(5, 1, SG, U, 5) INST(6, 1, SG, U, 6)                   \
+    INST(7, 1, SG, U, 7) INST(8, 1, SG, U, 8) INST(8, 2, SG, U, 4) INST(9, 1, SG, U, 9)                   \
+    INST(10, 1, SG, U, 10) INST(11, 1, SG, U, 11) INST(12, 1, SG, U, 12) INST(13, 1, SG, U, 13)           \
+    INST(14, 1, SG, U, 14) INST(15, 1, SG, U, 15) INST(16, 1, SG, U, 16) INST(16, 1, SG, U, 8)            \
+    INST(16, 2, SG, U, 8)
+
+#define IP_CFG(SG, U) IP_CFG_ROWS(IP_INST, SG, U)
 
 IP_CFG(8, 2)
 IP_CFG(9, 1)
 IP_CFG(3, 3)
 IP_CFG(1, 9)
+
+// ================================================================================================================
+// InkInProj over e4m3 weights (lane ink-fp8, opt-in INTARSIA_INK_ATTN_QUANT=fp8; W8A16): y_j = bf16(scale_j * x . e4m3(W_j)^T).
+// The bf16 GEMV above with 8-byte weight chunks (8 e4m3 codes) against the same 16-byte activation chunks, the same lane ->
+// chunk mapping and reduction tree for every R (rows-exact as the bf16 kernel). e4m3 decodes as value / 256 (the fp8.metal
+// half trick, subnormals included); the 256 is folded into the per-pack scale. No NaN check: the loader's quantiser
+// saturates at 448 and never writes the NaN codes 0x7F / 0xFF.
+// ================================================================================================================
+
+// two e4m3 bytes at bits 0..7 and 16..23 of t -> value / 256 (fp8.metal fp8_x2)
+inline float2 ip8_x2(uint t) {
+    const uint h = ((t & 0x007F007Fu) << 7) | ((t & 0x00800080u) << 8);
+    return float2(as_type<half2>(h));
+}
+
+// 8 e4m3 weights (uint2, element order 0..7) . 8 bf16 activations, the fma chain of ip_dot8 (result / 256)
+inline float ip8_dot8(uint2 w, uint4 x) {
+    const float2 a0 = ip8_x2(w.x), b0 = ip8_x2(w.x >> 8), a1 = ip8_x2(w.y), b1 = ip8_x2(w.y >> 8);
+    float a = a0.x * ip_lo(x.x);
+    a = fma(b0.x, ip_hi(x.x), a);
+    a = fma(a0.y, ip_lo(x.y), a);
+    a = fma(b0.y, ip_hi(x.y), a);
+    a = fma(a1.x, ip_lo(x.z), a);
+    a = fma(b1.x, ip_hi(x.z), a);
+    a = fma(a1.y, ip_lo(x.w), a);
+    a = fma(b1.y, ip_hi(x.w), a);
+    return a;
+}
+
+// ip_rows with e4m3 weight rows (W: 8-byte chunks, row stride k8)
+template <int RB, int P, int U, int SG>
+inline void ip8_rows(device const uint2* W, uint row0, uint nvalid, device const uint4* X, uint k8, uint sg, uint lane,
+                     threadgroup float* part, thread float* out) {
+    constexpr uint lanes = 32 * SG;
+    constexpr uint block = lanes * U;
+    device const uint2* wr[P];
+    for (int q = 0; q < P; ++q) wr[q] = W + (ulong)min(row0 + q, nvalid - 1) * k8;
+    const uint nblk = k8 / block;
+    uint i = sg * 32 + lane;
+    float acc[P * RB];
+    for (int j = 0; j < P * RB; ++j) acc[j] = 0.0f;
+    for (uint b = 0; b < nblk; ++b, i += block) {
+        uint2 wv[P][U];
+        for (int q = 0; q < P; ++q)
+            for (int u = 0; u < U; ++u) wv[q][u] = wr[q][i + lanes * u];
+        for (int r = 0; r < RB; ++r) {
+            uint4 xv[U];
+            for (int u = 0; u < U; ++u) xv[u] = X[(ulong)r * k8 + i + lanes * u];
+            for (int q = 0; q < P; ++q)
+                for (int u = 0; u < U; ++u) acc[q * RB + r] += ip8_dot8(wv[q][u], xv[u]);
+        }
+    }
+    for (i = nblk * block + sg * 32 + lane; i < k8; i += lanes) {
+        uint2 wv[P];
+        for (int q = 0; q < P; ++q) wv[q] = wr[q][i];
+        for (int r = 0; r < RB; ++r) {
+            const uint4 xv = X[(ulong)r * k8 + i];
+            for (int q = 0; q < P; ++q) acc[q * RB + r] += ip8_dot8(wv[q], xv);
+        }
+    }
+    if (SG == 1) {
+        for (int j = 0; j < P * RB; ++j) out[j] = simd_sum(acc[j]);
+        return;
+    }
+    for (int j = 0; j < P * RB; ++j) {
+        const float s = simd_sum(acc[j]);
+        if (lane == 0) part[j * SG + sg] = s;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (int j = 0; j < P * RB; ++j) {
+        float t = part[j * SG];
+        for (int q = 1; q < SG; ++q) t += part[j * SG + q];
+        out[j] = t;
+    }
+}
+
+// bind: 0 W [n0+n1+n2, K] e4m3 (8-byte aligned), 1 X [S, T, K] bf16 (16-byte aligned), 2 Y0, 3 Y1, 4 Y2, 5 InkProjP,
+// 6 scales [3] f32. Grid as ink_in_proj_gemv.
+template <int R, int P, int SG, int U, int RB>
+kernel void ink_in_proj_f8_gemv(device const uint2* W [[buffer(0)]],
+                                device const uint4* X [[buffer(1)]],
+                                device ushort* Y0 [[buffer(2)]],
+                                device ushort* Y1 [[buffer(3)]],
+                                device ushort* Y2 [[buffer(4)]],
+                                constant InkProjP& p [[buffer(5)]],
+                                device const float* sc [[buffer(6)]],
+                                uint tg [[threadgroup_position_in_grid]],
+                                uint ngrid [[threadgroups_per_grid]],
+                                uint sg [[simdgroup_index_in_threadgroup]],
+                                uint lane [[thread_index_in_simdgroup]]) {
+    static_assert(R % RB == 0, "R must be a multiple of RB");
+    threadgroup float part[P * R * SG];
+    const uint k8 = p.k / 8;
+    for (uint vt = tg; vt < p.gtot; vt += ngrid) {
+        uint lt, n, wrow, xo, ys;
+        float scale;
+        device ushort* Y;
+        if (vt < p.g0) {
+            lt = vt; n = p.n0; wrow = 0; xo = 0; Y = Y0; ys = p.ys0; scale = sc[0];
+        } else if (vt < p.g0 + p.g1) {
+            lt = vt - p.g0; n = p.n1; wrow = p.n0; xo = p.xo1; Y = Y1; ys = p.ys1; scale = sc[1];
+        } else {
+            lt = vt - p.g0 - p.g1; n = p.n2; wrow = p.n0 + p.n1; xo = p.xo2; Y = Y2; ys = p.ys2; scale = sc[2];
+        }
+        scale *= 256.0f;
+        const uint row0 = lt * P;
+        device const uint2* Ws = W + (ulong)wrow * k8;
+        device const uint4* Xs = X + xo / 8;
+        float t[P * R];
+        for (int rb = 0; rb < R; rb += RB) {
+            float tb[P * RB];
+            ip8_rows<RB, P, U, SG>(Ws, row0, n, Xs + (ulong)rb * k8, k8, sg, lane, part + rb * P * SG, tb);
+            for (int q = 0; q < P; ++q)
+                for (int r = 0; r < RB; ++r) t[q * R + rb + r] = tb[q * RB + r];
+        }
+        if (sg == 0 && lane == 0) {
+            for (int q = 0; q < P; ++q)
+                if (row0 + q < n)
+                    for (int r = 0; r < R; ++r) Y[ys + (ulong)r * n + row0 + q] = f2bf(t[q * R + r] * scale);
+        }
+        if (SG > 1) threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+}
+
+#define IP8_ARGS device const uint2*, device const uint4*, device ushort*, device ushort*, device ushort*, \
+    constant InkProjP&, device const float*, uint, uint, uint, uint
+#define IP8_INST(R, P, SG, U, RB)                                                                                     \
+    template [[host_name("ink_in_proj_f8_gemv_r" #R "p" #P "s" #SG "u" #U "b" #RB)]] kernel void                     \
+    ink_in_proj_f8_gemv<R, P, SG, U, RB>(IP8_ARGS);
+#define IP8_CFG(SG, U) IP_CFG_ROWS(IP8_INST, SG, U)
 
 // ================================================================================================================
 // Row kernels: SconvRes, ConvMix (conv + residual + depth mix + norm), AttnResMix. One threadgroup per row, TPG threads,
@@ -607,3 +739,8 @@ kernel void ink_blend_norm(device const float* yi [[buffer(0)]],
     for (uint c = tid; c < d; c += tpg)
         out[p.sk[3] + ((ulong)s * p.ocount + p.t0 + r) * d + c] = f2bf(yr[c] * inv * bf2f(nrm[p.sk[2] + (ulong)s * d + c]));
 }
+
+IP8_CFG(8, 2)
+IP8_CFG(8, 4)
+IP8_CFG(4, 4)
+IP8_CFG(16, 1)
