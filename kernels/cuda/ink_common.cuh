@@ -23,6 +23,25 @@ struct InkSegs {
 /* ink_proj.cu: one launch of the tensor-core GEMV over the segments (T rows each, D % 16 == 0, 16-byte aligned rows). */
 int ink_mma_gemv(const InkSegs& sg, int T, int D, cudaStream_t st);
 
+/* ink_moe_mma.cu: the tensor-core prefill experts (fmt 0 NVFP4 with gs, 1 MXFP8; act 0 silu, 1 gelu, 2 situ). H % 128 == 0,
+ * I % 128 == 0; scratch of ink_moe_mma_scratch_bytes. */
+struct InkMmaArgs {
+    const ik_bf16* x;
+    const int* ids;
+    const float* wts;
+    const uint8_t* guw;
+    const uint8_t* gus;
+    const uint8_t* dnw;
+    const uint8_t* dns;
+    const float* gs;
+    void* out;
+    int T, K, E, H, I;
+    int fmt, act;
+    float gc, uc;
+};
+int64_t ink_moe_mma_scratch_bytes(int64_t P, int64_t E, int64_t H, int64_t I);
+int ink_moe_mma(const InkMmaArgs& a, void* scratch, int out_f32, cudaStream_t s);
+
 IK_DEVI float ink_rbf(float v) { return ik_b2f(ik_f2b(v)); }
 
 /* an absent optional operand: a null tensor or a zero-element one */

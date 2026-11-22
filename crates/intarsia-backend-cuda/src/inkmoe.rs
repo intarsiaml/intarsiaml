@@ -5,7 +5,7 @@
 //! the pairs routed to it; a T-row call is bitwise T one-row calls, so the `_rows` twins are the same launchers.
 
 use crate::kernels::ARCH;
-use intarsia_core::quant::ops::moe_experts_scratch;
+use intarsia_core::quant::ops::{moe_experts_mma_scratch, moe_experts_scratch};
 use intarsia_core::{DType, Exactness, KernelImpl, Op, Tol};
 
 pub const TABLE: &[(&str, Op)] = &[
@@ -34,8 +34,9 @@ pub fn all() -> Vec<KernelImpl> {
                 .acts(bf)
                 .exact(Exactness::Deterministic)
                 .tol(MOE_TOL)
-                .tol_f32(F32_TOL)
-                .scratch(moe_experts_scratch);
+                .tol_f32(F32_TOL);
+            // the ordinary kernels take the tensor-core path above 512 pairs (its scratch holds the tile table too)
+            let k = if name.ends_with("_rows") { k.scratch(moe_experts_scratch) } else { k.scratch(moe_experts_mma_scratch) };
             match *name {
                 "moe_experts_situ_bf16" => k
                     .weights([DType::U8])
@@ -70,6 +71,20 @@ pub fn all() -> Vec<KernelImpl> {
             }
         })
         .collect()
+}
+
+/// Tests / benchmarks: an ordinary experts call takes the tensor-core path (ink_moe_mma.cu) above this many pairs.
+pub fn set_mma_min(pairs: i32) {
+    #[cfg(ik_cuda)]
+    {
+        extern "C" {
+            fn ik_ink_moe_set_mma_min(v: std::ffi::c_int);
+        }
+        // SAFETY: sets a plain int of the kernel library.
+        unsafe { ik_ink_moe_set_mma_min(pairs) }
+    }
+    #[cfg(not(ik_cuda))]
+    let _ = pairs;
 }
 
 /// Benchmarks only: 1 launches only the gate+up kernel of an experts call, 2 only the down kernel (the output is garbage).

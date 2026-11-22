@@ -20,6 +20,7 @@
 #include "ik_cuda_abi_ink.h"
 #include "ink_common.cuh"
 #include <climits>
+#include <stdlib.h>
 
 namespace {
 
@@ -389,9 +390,24 @@ __global__ void ink_moe_gather_kernel(MoeArgs a) {
 
 int64_t rnd(int64_t v) { return (v + 255) & ~(int64_t)255; }
 
+// pairs above which an ordinary (not `_rows`) call takes the tensor-core path (ink_moe_mma.cu); INTARSIA_INK_MOE_MMA_MIN overrides
+int g_mma_min = -1;  // < 0: not read yet
+int mma_min_pairs() {
+    if (g_mma_min < 0) {
+        const char* e = getenv("INTARSIA_INK_MOE_MMA_MIN");
+        g_mma_min = e ? atoi(e) : kDecPairs;
+    }
+    return g_mma_min;
+}
+
 template <int FMT, int ACT>
-int run(MoeArgs a, int out_f32, const ik_scratch* sc, cudaStream_t st) {
+int run(MoeArgs a, int out_f32, const ik_scratch* sc, cudaStream_t st, bool rows_kernel) {
     const int64_t P = (int64_t)a.T * a.K;
+    if (!rows_kernel && P > mma_min_pairs() && a.H % 128 == 0 && a.I % 128 == 0 && g_probe == 0 && sc && sc->data &&
+        sc->bytes >= ink_moe_mma_scratch_bytes(P, a.E, a.H, a.I) && (reinterpret_cast<uintptr_t>(sc->data) & 15u) == 0) {
+        const InkMmaArgs m{a.x, a.ids, a.wts, a.guw, a.gus, a.dnw, a.dns, a.gs, a.out, a.T, a.K, a.E, a.H, a.I, FMT, ACT, a.gc, a.uc};
+        return ink_moe_mma(m, sc->data, out_f32, st);
+    }
     const int64_t need = rnd(P * 4) + rnd((int64_t)(a.E + 1) * 4) * 2 + rnd(P * a.I * 2) + rnd(P * a.H * 2);
     if (!sc || !sc->data || sc->bytes < need) return IK_ERR_INVALID_ARG;
     char* base = (char*)sc->data;
@@ -446,10 +462,15 @@ int common_checks(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts
 extern "C" {
 
 void ik_ink_moe_probe(int v) { g_probe = v; }
+void ik_ink_moe_set_mma_min(int pairs) { g_mma_min = pairs; }
 
-int ik_moe_experts_situ_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw,
-                             const ik_tensor* gus, const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc,
-                             float gate_cap, float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+}  // extern "C"
+
+namespace {
+
+int situ_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw, const ik_tensor* gus,
+              const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc, float gate_cap, float up_cap, ik_tensor* out,
+              const ik_scratch* scratch, void* stream, bool rows_kernel) {
     int of = 0;
     IK_TRY(common_checks(x, ids, wts, out, &of));
     IK_TRY(ik_check_a(guw, IK_DTYPE_U8, 3, 16));
@@ -475,18 +496,12 @@ int ik_moe_experts_situ_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_
     a.out = out->data;
     a.T = (int)T, a.K = (int)ids->shape[1], a.E = (int)E, a.H = (int)H, a.I = (int)I;
     a.gc = gate_cap, a.uc = up_cap;
-    return run<FMT_NV, ACT_SITU>(a, of, scratch, IK_STREAM(stream));
+    return run<FMT_NV, ACT_SITU>(a, of, scratch, IK_STREAM(stream), rows_kernel);
 }
 
-int ik_moe_experts_situ_bf16_rows(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw,
-                                  const ik_tensor* gus, const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc,
-                                  float gate_cap, float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream) {
-    return ik_moe_experts_situ_bf16(x, ids, wts, guw, gus, dnw, dns, gsc, gate_cap, up_cap, out, scratch, stream);
-}
-
-int ik_moe_experts_mxfp8_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* w13,
-                              const ik_tensor* s13, const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap,
-                              float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+int mxfp8_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* w13, const ik_tensor* s13,
+               const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap, float up_cap, ik_tensor* out,
+               const ik_scratch* scratch, void* stream, bool rows_kernel) {
     int of = 0;
     IK_TRY(common_checks(x, ids, wts, out, &of));
     IK_TRY(ik_check_a(w13, IK_DTYPE_FP8_E4M3, 3, 16));
@@ -512,17 +527,39 @@ int ik_moe_experts_mxfp8_bf16(const ik_tensor* x, const ik_tensor* ids, const ik
     a.gc = gate_cap, a.uc = up_cap;
     cudaStream_t st = IK_STREAM(stream);
     switch (act) {
-        case ACT_SILU: return run<FMT_MX, ACT_SILU>(a, of, scratch, st);
-        case ACT_GELU: return run<FMT_MX, ACT_GELU>(a, of, scratch, st);
-        case ACT_SITU: return run<FMT_MX, ACT_SITU>(a, of, scratch, st);
+        case ACT_SILU: return run<FMT_MX, ACT_SILU>(a, of, scratch, st, rows_kernel);
+        case ACT_GELU: return run<FMT_MX, ACT_GELU>(a, of, scratch, st, rows_kernel);
+        case ACT_SITU: return run<FMT_MX, ACT_SITU>(a, of, scratch, st, rows_kernel);
         default: return IK_ERR_INVALID_ARG;
     }
+}
+
+}  // namespace
+
+extern "C" {
+
+int ik_moe_experts_situ_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw,
+                             const ik_tensor* gus, const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc,
+                             float gate_cap, float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return situ_impl(x, ids, wts, guw, gus, dnw, dns, gsc, gate_cap, up_cap, out, scratch, stream, false);
+}
+
+int ik_moe_experts_situ_bf16_rows(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw,
+                                  const ik_tensor* gus, const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc,
+                                  float gate_cap, float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return situ_impl(x, ids, wts, guw, gus, dnw, dns, gsc, gate_cap, up_cap, out, scratch, stream, true);
+}
+
+int ik_moe_experts_mxfp8_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* w13,
+                              const ik_tensor* s13, const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap,
+                              float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return mxfp8_impl(x, ids, wts, w13, s13, w2, s2, act, gate_cap, up_cap, out, scratch, stream, false);
 }
 
 int ik_moe_experts_mxfp8_bf16_rows(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* w13,
                                    const ik_tensor* s13, const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap,
                                    float up_cap, ik_tensor* out, const ik_scratch* scratch, void* stream) {
-    return ik_moe_experts_mxfp8_bf16(x, ids, wts, w13, s13, w2, s2, act, gate_cap, up_cap, out, scratch, stream);
+    return mxfp8_impl(x, ids, wts, w13, s13, w2, s2, act, gate_cap, up_cap, out, scratch, stream, true);
 }
 
 }  // extern "C"

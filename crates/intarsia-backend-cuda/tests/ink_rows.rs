@@ -18,6 +18,8 @@ use std::sync::Arc;
 
 struct Rig {
     be: Arc<dyn Backend>,
+    /// device copies of large inputs (the expert weights), keyed by host address and length: uploaded once
+    cache: std::cell::RefCell<std::collections::HashMap<(usize, usize), TensorRef>>,
 }
 
 /// an output: dtype, shape, initial contents (in-place state) or None (0xA5 fill: NaN in bf16 / f32)
@@ -26,7 +28,7 @@ type Out = (DType, Vec<usize>, Option<HostTensor>);
 impl Rig {
     fn new(test: &str) -> Option<Rig> {
         match intarsia_backend_cuda::create(0) {
-            Ok(be) => Some(Rig { be }),
+            Ok(be) => Some(Rig { be, cache: Default::default() }),
             Err(e) => {
                 common::skip(test, &format!("no usable CUDA device ({e})"));
                 None
@@ -35,6 +37,19 @@ impl Rig {
     }
 
     fn put(&self, t: &HostTensor) -> TensorRef {
+        if t.nbytes() >= 1 << 20 {
+            let key = (t.data.as_ptr() as usize, t.nbytes());
+            if let Some(r) = self.cache.borrow().get(&key) {
+                return r.clone();
+            }
+            let r = self.put_new(t);
+            self.cache.borrow_mut().insert(key, r.clone());
+            return r;
+        }
+        self.put_new(t)
+    }
+
+    fn put_new(&self, t: &HostTensor) -> TensorRef {
         let buf = self.be.alloc(t.nbytes().max(16), MemKind::Device).unwrap();
         self.be.zero(&buf, 0).unwrap();
         if t.nbytes() > 0 {
@@ -44,6 +59,10 @@ impl Rig {
     }
 
     fn run(&self, kernel: &str, op: Op, inputs: &[HostTensor], outs: &[Out], attrs: &OpAttrs) -> Vec<HostTensor> {
+        self.run_r(kernel, op, &inputs.iter().collect::<Vec<_>>(), outs, attrs)
+    }
+
+    fn run_r(&self, kernel: &str, op: Op, inputs: &[&HostTensor], outs: &[Out], attrs: &OpAttrs) -> Vec<HostTensor> {
         let ins: Vec<TensorRef> = inputs.iter().map(|t| self.put(t)).collect();
         let outputs: Vec<TensorRef> = outs
             .iter()
@@ -166,6 +185,8 @@ fn mx_bytes(rng: &mut SplitMix64, n: usize) -> Vec<u8> {
 #[test]
 fn ink_experts_rows_exact() {
     let Some(rig) = Rig::new("ink_experts_rows_exact") else { return };
+    // the SIMT kernels at every T (the tensor-core prefill path is not bitwise them: `ink_experts_mma_chunk_invariant`)
+    intarsia_backend_cuda::inkmoe::set_mma_min(i32::MAX);
     let mut rng = SplitMix64::new(0x2c);
     let (e, k, h, i) = (32usize, 8usize, 2304usize, 1152usize);
     let ex = random_experts(&mut rng, e, h, i);
@@ -208,19 +229,19 @@ fn ink_experts_rows_exact() {
                     (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
                 }
                 let wts = if op == Op::MoeExperts { &nv_w } else { &mx_w };
-                let call_in = |x: HostTensor, ids: HostTensor, ws: HostTensor| -> Vec<HostTensor> {
-                    let mut v = vec![x, ids, ws];
-                    v.extend(wts.iter().cloned());
-                    v
+                let run = |kn: &str, x: HostTensor, ids: HostTensor, ws: HostTensor, rows: usize| -> Vec<HostTensor> {
+                    let mut v: Vec<&HostTensor> = vec![&x, &ids, &ws];
+                    v.extend(wts.iter());
+                    rig.run_r(kn, op, &v, &[(DType::Bf16, vec![rows, h], None)], &a)
                 };
-                let full = rig.run(kname, op, &call_in(x.clone(), ids.clone(), ws.clone()), &[(DType::Bf16, vec![t, h], None)], &a);
+                let full = run(kname, x.clone(), ids.clone(), ws.clone(), t);
                 if t <= 16 {
                     let rows_k = format!("{kname}_rows");
-                    let full2 = rig.run(&rows_k, op, &call_in(x.clone(), ids.clone(), ws.clone()), &[(DType::Bf16, vec![t, h], None)], &a);
+                    let full2 = run(&rows_k, x.clone(), ids.clone(), ws.clone(), t);
                     assert_eq!(full[0].data, full2[0].data, "{rows_k} differs from {kname}");
                 }
                 for r in 0..t {
-                    let one = rig.run(kname, op, &call_in(row_of(&x, 0, r), row_of(&ids, 0, r), row_of(&ws, 0, r)), &[(DType::Bf16, vec![1, h], None)], &a);
+                    let one = run(kname, row_of(&x, 0, r), row_of(&ids, 0, r), row_of(&ws, 0, r), 1);
                     assert_rows_eq(&format!("{kname} {act} T={t} {routing}"), &full[0], 0, r, &one[0]);
                 }
             }
@@ -236,12 +257,12 @@ fn ink_experts_rows_exact() {
     let mut a = OpAttrs { top_k: k, ..OpAttrs::default() };
     (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
     let mk = |x: &HostTensor| {
-        let mut v = vec![x.clone(), ids.clone(), ws.clone()];
-        v.extend(nv_w.iter().cloned());
-        v
+        let mut v: Vec<&HostTensor> = vec![x, &ids, &ws];
+        v.extend(nv_w.iter());
+        rig.run_r("moe_experts_situ_bf16", Op::MoeExperts, &v, &[(DType::Bf16, vec![t, h], None)], &a)
     };
-    let o1 = rig.run("moe_experts_situ_bf16", Op::MoeExperts, &mk(&x), &[(DType::Bf16, vec![t, h], None)], &a);
-    let o2 = rig.run("moe_experts_situ_bf16", Op::MoeExperts, &mk(&x2), &[(DType::Bf16, vec![t, h], None)], &a);
+    let o1 = mk(&x);
+    let o2 = mk(&x2);
     for r in 0..t - 1 {
         assert_eq!(row_of(&o1[0], 0, r).data, row_of(&o2[0], 0, r).data, "negative control: row {r} changed");
     }
@@ -385,5 +406,64 @@ fn ink_attn_res_mix_and_blend_rows_exact() {
                 }
             }
         }
+    }
+}
+
+/// The tensor-core prefill experts: a row's value does not depend on the chunk (T 600 against its first 520 rows and a
+/// 513-row window from row 87), NVFP4 situ and MXFP8 situ / silu; and it stays within the bf16 budget of the SIMT kernels.
+#[test]
+fn ink_experts_mma_chunk_invariant() {
+    let Some(rig) = Rig::new("ink_experts_mma_chunk_invariant") else { return };
+    intarsia_backend_cuda::inkmoe::set_mma_min(512);
+    let mut rng = SplitMix64::new(0x5f);
+    let (e, k, h, i) = (128usize, 8usize, 2304usize, 1152usize);
+    let ex = random_experts(&mut rng, e, h, i);
+    let nv_w = vec![ex.gate_up_w.clone(), ex.gate_up_s.clone(), ex.down_w.clone(), ex.down_s.clone(), ex.gscales.clone()];
+    let mx_w = vec![
+        HostTensor::new(DType::Fp8E4m3, vec![e, 2 * i, h], mx_bytes(&mut rng, e * 2 * i * h)).unwrap(),
+        HostTensor::new(DType::U8, vec![e, 2 * i, h / 32], (0..e * 2 * i * h / 32).map(|_| 116 + (rng.next_u64() % 4) as u8).collect()).unwrap(),
+        HostTensor::new(DType::Fp8E4m3, vec![e, h, i], mx_bytes(&mut rng, e * h * i)).unwrap(),
+        HostTensor::new(DType::U8, vec![e, h, i / 32], (0..e * h * i / 32).map(|_| 116 + (rng.next_u64() % 4) as u8).collect()).unwrap(),
+    ];
+    let t = 600;
+    let (ids, ws) = random_routing(&mut rng, t, e, k);
+    let ws = HostTensor::from_f32(&[t, k], &ws.to_f32().iter().map(|v| v * 8.0).collect::<Vec<_>>());
+    let x = rnd(&mut rng, DType::Bf16, &[t, h], 1.0);
+    let rows = |v: &HostTensor, r0: usize, n: usize| -> HostTensor {
+        let rb = v.nbytes() / v.shape[0];
+        let mut shape = v.shape.clone();
+        shape[0] = n;
+        HostTensor::new(v.dtype, shape, v.data[r0 * rb..(r0 + n) * rb].to_vec()).unwrap()
+    };
+    for (kname, op, act) in [
+        ("moe_experts_situ_bf16", Op::MoeExperts, "situ"),
+        ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "situ"),
+        ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8, "silu"),
+    ] {
+        let mut a = OpAttrs { top_k: k, ..OpAttrs::default() };
+        if act == "situ" {
+            (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
+        }
+        let wts = if op == Op::MoeExperts { &nv_w } else { &mx_w };
+        let run = |x: &HostTensor, ids: &HostTensor, ws: &HostTensor, n: usize| -> HostTensor {
+            let mut v: Vec<&HostTensor> = vec![x, ids, ws];
+            v.extend(wts.iter());
+            rig.run_r(kname, op, &v, &[(DType::Bf16, vec![n, h], None)], &a).remove(0)
+        };
+        let full = run(&x, &ids, &ws, t);
+        for (r0, n) in [(0usize, 520usize), (87, 513)] {
+            let part = run(&rows(&x, r0, n), &rows(&ids, r0, n), &rows(&ws, r0, n), n);
+            assert_eq!(rows(&full, r0, n).data, part.data, "{kname} {act}: rows {r0}..{} differ between T {t} and T {n}", r0 + n);
+        }
+        // against the SIMT kernels (another k order): the bf16 budget
+        intarsia_backend_cuda::inkmoe::set_mma_min(i32::MAX);
+        let simt = run(&x, &ids, &ws, t);
+        intarsia_backend_cuda::inkmoe::set_mma_min(512);
+        let (fa, fb) = (full.to_f32(), simt.to_f32());
+        let num: f64 = fa.iter().zip(&fb).map(|(p, q)| ((p - q) as f64).powi(2)).sum();
+        let den: f64 = fb.iter().map(|q| (*q as f64).powi(2)).sum();
+        let rel = (num / den).sqrt();
+        println!("mma vs simt {kname} {act}: rel_l2 {rel:.3e}");
+        assert!(rel < 3e-3, "{kname} {act}: tensor-core path rel_l2 {rel} against the SIMT kernels");
     }
 }

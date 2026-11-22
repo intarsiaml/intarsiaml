@@ -73,6 +73,9 @@ int ik_moe_experts_mxfp8_bf16_rows(const ik_tensor* x, const ik_tensor* ids, con
 
 /* Benchmarks only: 1 launches only the gate+up kernel of an experts call, 2 only the down kernel (the output is garbage). */
 void ik_ink_moe_probe(int v);
+/* Tests / benchmarks: an ordinary experts call takes the tensor-core path above this many pairs (default 512, env
+ * INTARSIA_INK_MOE_MMA_MIN; INT_MAX: never). */
+void ik_ink_moe_set_mma_min(int pairs);
 
 #ifdef __cplusplus
 }
