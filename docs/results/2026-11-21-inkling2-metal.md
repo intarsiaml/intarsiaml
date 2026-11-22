@@ -461,7 +461,7 @@ by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
 - Metal tests at defaults: inkling2 9/9; inkling2_batch 6/7: the batched plan configured ("pack12 off: batched plan
   (max-batch 16); 17 P12 tensors dropped"), but the new test's cross-model assertion failed: batched (bf16) rows were not
   bitwise the separate P12 solo model's rows on the tiny fixture. P12 solo is therefore not bitwise the bf16 path at the
-  tiny shapes (on the real model #11194 found P12 default == off bitwise). Fix c4 (this commit): the test asserts batched ==
+  tiny shapes (on the real model #11194 found P12 default == off bitwise). Fix cb61e0847: the test asserts batched ==
   the batched model's own solo steps (bitwise) and P12 on solo / off batched, and prints the P12-vs-bf16 row count and max
   |dlogit| (not asserted). bespin: cpu inkling2_batch 7/7. To the pack12 lane: the "bitwise twin" claim does not hold at
   tiny shapes.
