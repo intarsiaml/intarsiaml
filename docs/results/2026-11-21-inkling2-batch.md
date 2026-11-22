@@ -10,6 +10,12 @@ P12 / screen). Never restore an old bench source without `--digest` for a refere
 
 ## Briefs received
 
+- 2026-11-22 ~12:00 (main, all Metal lanes): on endor every cargo build / check / test runs inside a fleetq slot with
+  `--load cpu`; no bare cargo or rustc on endor (a stray rustc, pid 47475, 95% CPU, ran inside prefill's quiet slot #11508 at
+  11:51). Endor's GPU is in its slow state now (p8k 2152 vs 2880 at load 1.6): report each arm's absolute ms per step next
+  to the deltas. (ink-batch: all its cargo runs are inside its own quiet slots; it has run bare `rustfmt --check` on single
+  files, ~0.1 s each; from now on those go through a `--load cpu` slot too.)
+
 - 2026-11-22 ~11:05 (main): gemvx default-on stands. Remove the slice form's kernel and switch from the branch (not opt-in),
   keep its numbers in section 30 (as with rel2 and probe B). Note that the remaining in_proj cost is the bitwise reduction the
   contract requires, so only a non-rows-exact kernel goes lower: parked as (b). Go on MoE, measure first, bound and rule as
