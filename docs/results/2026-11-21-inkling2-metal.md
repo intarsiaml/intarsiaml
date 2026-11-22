@@ -1052,4 +1052,11 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   models inkling2 + inkling2_batch on Metal, inkling2_batch on cpu; docs_env_vars; kernels test ink_in_proj / moe_experts /
   moe_experts_mxfp8). spark1 #11529 (CPU: CUDA builds of both, plan show --json 35B / 8B; HIP check-only as CI; work dir removed
   at the end).
+- Landing checks green. endor #11528 (12:52-12:58): plan show text + JSON byte-identical to main for Qwen3-8B, Llama and
+  Inkling-2 (no Inkling diff); solo greedy md5 64 / 256 identical to main (65cde8f3 / 61fd59fe); batch_step B 1 / 8 / 16
+  asserted batched == solo, 14.96 / 32.62 / 58.39 ms; backend-metal inkmix 5/5, inkmoe 2/2, rows_exact 11/11, lib 18/18;
+  models inkling2 (Metal) 11/11, inkling2_batch Metal 8/8 and cpu 8/8; docs_env_vars 2/2; kernels test ink_in_proj /
+  moe_experts / moe_experts_mxfp8 0 fail. spark1 #11529: CUDA plan show json 35B / 8B byte-identical, HIP check-only clean;
+  its work dir (~/intarsiaml-inknoop: spark1 has no ~/intarsiaml checkout, so the fallback) removed, 3.9 GB.
+- PR #492 opened from ink/batch-land (03e22a76b).
 
