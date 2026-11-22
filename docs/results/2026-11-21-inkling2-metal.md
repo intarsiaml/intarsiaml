@@ -253,7 +253,7 @@ and batch 6/6, cuda / hip lib 34 / 31, docs_env_vars 2/2. Combined gate: endor #
 
 - 2026-11-22 (ink-batch lane): batched-step baseline for the post-merge quiet run: `batch_step --ctx 1024 --rounds 2 --steps 16
   --batches 1,8,16`, 3 reps, median of columns 3 (batched step ms) and 6 (batched tok/s); reference #11181 (tip 8546d143f,
-  before the NE fix): B1 16.40 ms / 61.0 tok/s, B8 34.93 / 229.0, B16 59.96 / 266.9; NE 3 measured equal (B16 59.77 / 267.7),
+  before the NE fix): B1 16.40 ms / 61.0 tok/s, B8 34.93 / 229.0, B16 59.96 / 266.9 [**invalid as a speed reference**, see the correction below]; NE 3 measured equal (B16 59.77 / 267.7),
   which confirms the slot-noise reading of #11179's speed rows (NE 3 costs nothing).
 - 2026-11-22 (coordinator): merges and the op 76 resolution accepted. Release #11205 and reserve the gate `--in 1m` (no
   `--quiet`); add a plan / admission check on Inkling: InkRoute registered as op 76, nothing on 77..=95. Lane: added
@@ -397,7 +397,7 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
   61fd59fecb5... = the combined-gate tip.
 - batch_step (random-id prompts, synthetic) with `INTARSIA_INK_PACK12=0`, batched step ms per rep: B1 15.36 / 15.39 / 15.38
   (median 15.38), B8 44.72 / 41.25 / 41.55 (41.55), B16 74.45 / 77.93 / 76.20 (76.20). Against #11181 (8546d143f: B1 16.40, B8
-  34.93, B16 59.96): **B8 +19 %, B16 +27 %, B1 -6 %**. The batched regression is confirmed and not pack12; 7e5e6010e (pre-pack12,
+  34.93, B16 59.96): **B8 +19 %, B16 +27 %, B1 -6 %** [withdrawn: #11181 is invalid as a reference, see the correction below]. The batched regression is confirmed and not pack12; 7e5e6010e (pre-pack12,
   unquiet) already had B16 74.9 ms, so it came in with hostgap / fp8 / prefill / dfuse.
 - **P12 default-on breaks the batched plan**: batch_step with defaults panics in all 3 reps at batch_step.rs:68
   (`configure_plan(..).unwrap()` after `enable_batch(16)`). #11194 covered solo paths only. Reported to the coordinator: revert
@@ -488,6 +488,12 @@ by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
   (carries 14821ba77, fallback groups read the unembed once, and 81f07e427, screen off on misaligned heads). Not merged at
   all until fp8's batch_step requeue passes its box check and #11338 (real-model forced fallback, md5 = off) passes; the test
   `inkling2_tiny_screen_keeps_batching` has not run yet. The screen stays opt-in either way.
+- 2026-11-22 (coordinator): **correction of the batched reference**. #11181 is invalid as a speed reference (no digests,
+  binary gone, the same code measured 79-90 ms at B16 before and after it): drop its 59.96 ms / 266.9 tok/s (and B8 34.93).
+  The batched reference is #11266 (c918e9fda, quiet, random ids, P12=0): B1 15.38, B8 41.55, **B16 76.20 ms**. The "B8 +19 %,
+  B16 +27 %" regression above was measured against #11181 and is withdrawn. B16 aggregate is 194-207 tok/s with random ids
+  (#11328 final) and 182-199 with real text (#11261): **below the 230 tok/s target**. (This doc made no above-230 claim.)
+  #11347's guard and box check are unchanged (B1 and localeval decode).
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
