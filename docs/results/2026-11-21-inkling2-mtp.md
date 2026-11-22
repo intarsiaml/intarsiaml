@@ -824,7 +824,11 @@ on 840adbca6 over the old main.
   plan show byte-identical for all three models, B3 ~1.4k greedy HTTP 200 with verify passes 0 -> 13, B2 t1.0 HTTP 200 with
   spec steps unchanged. All pass.
 - Main moved to 3f79f70ed (#495 svfflip: `sampled_verify_fast` recipe key, CUDA 35B only; load.rs in the batched loader,
-  model.rs doc comments), merged as b6f331152 without conflict. Recheck A1 / A2 / B2 / B3 against it: see the job below.
+  model.rs doc comments), merged as b6f331152 without conflict. Recheck #11579 (code b6f331152 vs main 3f79f70ed): A1 md5 equal, A2 byte-identical (3 models), B3 HTTP 200 with
+  verify passes 0 -> 13, B2 t1.0 HTTP 200 with spec steps unchanged; pushed be12d4946, whose CI (run 45061016361) was all green.
+- Main moved to 17b999272 (#494: the device Gumbel sampler default-on for Inkling-2 on Metal, through the recipe), merged without
+  conflict. It changes the sampled path B2 exercises under `--spec dflash`, so A1 / A2 / B2 / B3 are rechecked against it before
+  the merge (#11580-ish, below in the PR).
 - The speed job's first try (#11556) aborted on its own guard: `serve` runs a supervisor whose child holds the port, and the
   guard wanted the supervisor's pid; fixed to accept a descendant, requeued as #11564.
 
