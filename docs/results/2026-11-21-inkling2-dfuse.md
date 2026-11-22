@@ -100,6 +100,10 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
   switch whose leave-one-out costs nothing beyond the spread stays opt-in (minimal default set). Send E's table and the hash;
   ink-metal then merges ink/dfuse. Fusion should stack with P12 (controllers touch no dense weights); the combined gate on
   ink-metal confirms it.
+- 2026-11-22 ~02:10 (coordinator): E (#11003) keeps its place in the queue (fleetq has no reorder; --force needs the user).
+  The coordinator relays the hoist row-table test (`INTARSIA_INK_MIX_HOIST=1`) to ink-batch and routes the no-metal4
+  `ink_in_proj` NoKernel at m 31-63 to ink-prefill. The missed dispatch and controller targets are accepted as stated: the
+  evidence beats the target. The ink_route cold-load lever goes in this doc as the next item; it is not built until E is in.
 
 ## Probes (endor, before any code)
 
@@ -407,5 +411,20 @@ and the real step is 0.155 ms slower with it on. Decision (coordinator: agreed):
   4. G2 / G3 with best on
   5. normal-step span of off / best / the four leave-one-outs: short prompt 6 interleaved reps, 5k prompt 4 reps
   6. the per-dispatch trace (controller ms per token), localeval speed 128 / 5120 off vs best (`serve_lib.sh` teardown)
+
+### Next item (named, not built until job E is in): ink_route's cold-load chain
+
+`ink_route_bf16` costs 12.17 us per call in the stream (per-dispatch trace, #10964) against 8.60 us warm in the microbench:
+about 3.6 us x 48 calls, roughly 0.17 ms per token above warm, and 0.58 ms per token in all. Its bytes are small (590 KB of
+router weight per visit, about 1 us at 560 GB/s), so like the ConvMix row kernel before the hoist, its cost is latency. The
+candidates, in the order to try:
+1. Issue each simdgroup's whole weight row (9 uint4 per lane at D 2304) and its x row before the first dot, instead of
+   chunk by chunk, keeping the fma order (bitwise, as the hoist).
+2. Shorten the last threadgroup's routing (sigmoid, top-8 of 128, renorm in one simdgroup after the hand-off fence). It is
+   already rank-based (`INTARSIA_INK_ROUTE_RANK`, 8.60 vs 9.55 us warm).
+3. A system-cache prefetch of the next visit's router rows from an earlier dispatch. This is a cross-op change, so it needs a
+   contract note first.
+Measure the same way as the hoist: microbench warm vs rotating sets, the per-dispatch trace, and the normal-step span with
+interleaved reps.
 
 PENDING_ATTRIBUTION
