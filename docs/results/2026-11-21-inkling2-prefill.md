@@ -135,6 +135,15 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
     Also: docs_env_vars would have failed on the merge (this lane's four variables had no rows). ink/prefill-merge is now
     **297cebadc** with the rows; ink-metal takes it after its combined gate #11206 and keeps this lane's row text.
 
+15. 2026-11-22 (coordinator, via SendMessage): MoE step-1 probe APPROVED with an extra arm and guards. (1) One endor job,
+    same binary: (A) normal, (B) bit copy instead of the decode arithmetic, (C) weights constant (no NVFP4 weight loads from
+    DRAM; decode ALU, staging, MMA and stores kept); real replayed routing + balanced-128, 3 reps each. (2) Probe bits not
+    reachable from serve / generate (cfg / feature for the bench only, or refuse outside the bench); admission never lists them;
+    removed or cfg-gated before any merge. (3) Rule: B saves >= 6 us/tile -> build the exact cheaper decode (new file, default
+    off, bitwise vs moe_blk_bf16 on real rows), report before any flip; C dominates -> send a one-paragraph weight-reuse idea
+    before building; neither -> stop MoE, go to the ConvMix + blend fusion. (4) small-expert GEMV side option parked. Queue
+    behind #11221.
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
