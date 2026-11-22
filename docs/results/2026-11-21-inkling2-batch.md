@@ -56,6 +56,12 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   Lane audit: every build and test of this lane ran inside an endor fleetq slot except one `cargo check -p intarsia-core`
   at 21:1x, before any timing job of this lane. Every quiet timing job queued now (#10900 A/B, solo A/B, #10811) builds inside
   its own slot before timing, so nothing outside a slot overlaps it.
+- 2026-11-21 (coordinator): in ink-metal #10890 `intarsia bench speed` failed at its calibration call ("no tokens received")
+  against the Metal serve, while chat and localeval streaming worked; ink-metal is fixing it. #10946 must not end on that
+  failure: merge their fix before #10946 builds (hash to follow) or skip the bench step. Done: #10946 now runs localeval
+  `conc-plain-1k` first, then the bench as a non-fatal step with a 30 min watchdog. Solo baseline from #10890: at
+  `--max-batch 1` `conc-plain-1k` is serialized, 50.8-51.6 tok/s aggregate at 1 / 4 / 16 streams; the `--max-batch 16` run is
+  compared against it.
 
 ## 1. Design note (contract delta, written before any kernel)
 
