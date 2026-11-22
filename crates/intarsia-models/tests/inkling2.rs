@@ -322,6 +322,28 @@ fn inkling2_tiny_logits_dump() {
     println!("dump: {} rows, top-1 {:?}", rows.len(), rows.iter().map(|r| argmax(r)).collect::<Vec<_>>());
 }
 
+/// Diagnostics (`INTARSIA_INKLING2_CHUNK_SCAN=1`): which prefill chunk sizes give the one-token-at-a-time logits bit for bit,
+/// and the first differing row of the others.
+#[test]
+fn inkling2_tiny_chunk_scan() {
+    if std::env::var_os("INTARSIA_INKLING2_CHUNK_SCAN").is_none() {
+        return;
+    }
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let m = load(&dir, 1);
+    let mut st = m.new_state().unwrap();
+    let mut dec = Vec::new();
+    for &id in &ids {
+        dec.extend(all_logits(&m, &mut st, &[id]));
+    }
+    for chunk in 1..=16 {
+        let got = logits_chunked(&dir, chunk, &ids);
+        let first = got.iter().zip(&dec).position(|(a, b)| a != b);
+        println!("scan chunk {chunk:2}: first row differing from decode {first:?}");
+    }
+}
+
 /// Rollback by length (a rejected speculative tail, a prompt edit) within the ring margin, and the refusal past it.
 #[test]
 fn inkling2_tiny_rollback_by_length() {
