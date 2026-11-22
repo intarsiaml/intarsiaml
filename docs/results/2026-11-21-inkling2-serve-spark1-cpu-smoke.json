@@ -1,0 +1,75 @@
+{
+ "chat_effort_none": {
+  "seconds": 27.4,
+  "layout": "<|message_model|> <|content_thinking|> <29 text tokens> <|end_message|> <|message_model|> <|content_text|> <1 text tokens> <|end_message|>",
+  "message": {
+   "role": "assistant",
+   "content": "Paris",
+   "reasoning_content": "The user asks for the capital of France, one word. Need answer only. Capital of France is Paris. Ensure one word. No extra."
+  },
+  "finish_reason": "stop",
+  "usage": {
+   "prompt_tokens": 25,
+   "completion_tokens": 37,
+   "total_tokens": 62,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   }
+  }
+ },
+ "chat_effort_default_stream": {
+  "seconds": 36.6,
+  "stream": {
+   "reasoning_content": "The user asks: What is the capital of France? Answer in one word. Need answer one word. Capital of France is Paris. Need final only one word. Ensure no extra punctuation? One word: Paris.",
+   "content": "Paris",
+   "tool_calls": [],
+   "finish": "stop"
+  }
+ },
+ "tool_call_effort_none": {
+  "seconds": 55.8,
+  "layout": "<|message_model|> <|content_thinking|> <25 text tokens> <|end_message|> <|message_model|> <3 text tokens> <|content_invoke_tool_json|> <25 text tokens> <|end_message|>",
+  "message": {
+   "role": "assistant",
+   "content": null,
+   "reasoning_content": "The user wants weather in Paris using the tool. Need call get_weather with city Paris. Then answer based on result.",
+   "tool_calls": [
+    {
+     "id": "call-592aaa340003",
+     "type": "function",
+     "function": {
+      "name": "get_weather",
+      "arguments": "{\"city\":\"Paris\"}"
+     }
+    }
+   ]
+  },
+  "finish_reason": "tool_calls",
+  "usage": {
+   "prompt_tokens": 103,
+   "completion_tokens": 60,
+   "total_tokens": 163,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   }
+  }
+ },
+ "json_schema_effort_none": {
+  "seconds": 32.8,
+  "layout": "<|message_model|> <|content_thinking|> <29 text tokens> <|end_message|> <|message_model|> <|content_text|> <9 text tokens> <|end_message|>",
+  "message": {
+   "role": "assistant",
+   "content": "{\"capital\": \"Paris\"}",
+   "reasoning_content": "The user asks for the capital of France, one word. Need answer only. Capital of France is Paris. Ensure one word. No extra."
+  },
+  "finish_reason": "stop",
+  "usage": {
+   "prompt_tokens": 25,
+   "completion_tokens": 45,
+   "total_tokens": 70,
+   "prompt_tokens_details": {
+    "cached_tokens": 0
+   }
+  }
+ }
+}

@@ -1125,6 +1125,7 @@ dependencies = [
  "llguidance",
  "serde",
  "serde_json",
+ "tokenizers",
  "tokio",
  "tokio-stream",
  "tower",
