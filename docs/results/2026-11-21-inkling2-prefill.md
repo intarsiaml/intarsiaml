@@ -273,7 +273,8 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     gpu,cpu job at 03:00 (or fleetq's earliest slot after 02:00), generous `--expect`; same box check (p8k >= 2736 first, else
     stop and log the readings). If it passes the flip bar (bitwise, >= 1 % at 4k / 8k / 16k): commit NSG 6 default-on as its
     own commit on ink/prefill (`INTARSIA_INK_NAX_SG=12` reverts) and message the coordinator the hash; it routes it to the
-    landing lane. Leave a background waiter on the job, then stop.
+    landing lane. Leave a background waiter on the job, then stop. **Queued:** fleetq #11543, reserved Mon 03:00, 45 min,
+    `--quiet gpu,cpu`, output `.scratch/rg4-night.out` (the day run's files moved to `.scratch/rg4-11517*`).
 
 ## Status
 
