@@ -104,6 +104,9 @@ pub(super) struct Dspark {
     /// The device top-k failed once (a backend without `topk_rows`): the host takes the candidates from then on.
     host_topk: std::sync::atomic::AtomicBool,
     tau: f32,
+    /// `INTARSIA_DSPARK_CUT` (default off): also stop once the product of the kept drafts' top-1 probabilities (an estimate of
+    /// P(all accepted)) falls below this; with `INTARSIA_DSPARK_TAU=0` it is the only gate. The draft length cap is `--spec-k`.
+    cut: Option<f32>,
     bufs: DsBufs,
 }
 
@@ -441,6 +444,7 @@ pub(super) fn load(
         cand: std::env::var("INTARSIA_DSPARK_CAND").ok().and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(64).min(64),
         host_topk: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DSPARK_DEVICE_TOPK").is_ok_and(|v| v == "0")),
         tau,
+        cut: std::env::var("INTARSIA_DSPARK_CUT").ok().and_then(|v| v.trim().parse::<f32>().ok()).filter(|c| *c > 0.0),
         bufs,
     };
     Ok((ds, feat))
@@ -739,6 +743,7 @@ impl Model {
         let mut state = vec![0f32; r];
         let mut prev = next as usize;
         let mut out = Vec::with_capacity(kmax);
+        let mut cum = 1.0f32;
         let sc = ds.c.softcap;
         let latent_t = self.view(&bf.latent, act, &[1, r]);
         let fold_t = self.view(&bf.fold, act, &[1, vocab]);
@@ -833,6 +838,12 @@ impl Model {
             }
             if p1 < ds.tau {
                 break;
+            }
+            if let Some(c) = ds.cut {
+                cum *= p1;
+                if cum < c {
+                    break;
+                }
             }
             if prof && i == 0 {
                 static LAST: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
