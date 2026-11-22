@@ -263,6 +263,11 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     if p8k never reaches 2736 within 20 min, stop and report the readings, no pairs. Before queueing, read the batch lane's
     slow-state clock test (#11375) for the recovery time and set the idle time from it if it says more than 20 min. If it
     flips, it lands on ink/prefill with the measurement tools; tell the coordinator when ready, it routes the PR.
+    **#11375 / #11393 (ink-batch section 28):** the slowdown is a power / thermal governor. The GPU drops from P13 to P6-P9
+    after ~1.5 min of sustained load; fast windows came back within ~2-3 min of lighter load (07:22 -> 07:25). Nothing there
+    says recovery takes more than 20 min, so the idle cap stays at 20 min, with readings at 0 / 5 / 10 / 15 / 20 min. Main's
+    rule 28b for that lane makes the warm steady state the primary serving number. Here the coordinator asked for the cold
+    gate explicitly, so this run gates on p8k >= 2736.
 
 ## Status
 
