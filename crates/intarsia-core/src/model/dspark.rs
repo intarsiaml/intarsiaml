@@ -89,6 +89,11 @@ pub(super) struct Dspark {
     /// Folded `unembed . hidden_out`: weight `[V, r]` (device), bias `[V]` (host, bf16-rounded).
     fold_w: QTensor,
     fold_b: Vec<f32>,
+    /// Host copy of the fold weight (`[V, r]` bf16 bits), for the candidate head.
+    fold_host: Vec<u16>,
+    /// `INTARSIA_DSPARK_CAND` (default 64): the Markov bias is applied to each step's top-`cand` base logits only (the base read
+    /// once per cycle, every step on the host); 0: the exact head (the full fold GEMV and both rows downloaded every step).
+    cand: usize,
     tau: f32,
     bufs: DsBufs,
 }
@@ -342,6 +347,8 @@ pub(super) fn load(
         w1,
         fold_w,
         fold_b,
+        fold_host: fw_bits,
+        cand: std::env::var("INTARSIA_DSPARK_CAND").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(64),
         tau,
         bufs,
     };
@@ -573,6 +580,22 @@ impl Model {
         let sc = ds.c.softcap;
         let latent_t = self.view(&bf.latent, act, &[1, r]);
         let fold_t = self.view(&bf.fold, act, &[1, vocab]);
+        // candidate head: the top-`cand` base logits of every draft row, from one download
+        let cands: Vec<Vec<(usize, f32)>> = if ds.cand > 0 {
+            let base_all = self.ds_download(&bf.base, act, 0, kmax * vocab)?;
+            base_all
+                .chunks_exact(vocab)
+                .map(|row| {
+                    let mut idx: Vec<(usize, f32)> = row.iter().copied().enumerate().collect();
+                    let c = ds.cand.min(vocab);
+                    idx.select_nth_unstable_by(c - 1, |a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
+                    idx.truncate(c);
+                    idx
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         for i in 0..kmax {
             let w1 = &ds.w1[prev * r..(prev + 1) * r];
             let mut raw = vec![0f32; 3 * r];
@@ -593,16 +616,27 @@ impl Model {
                 state[c] = rbf(keep + upd);
                 latent[c] = rbf(rbf(raw[2 * r + c]).tanh());
             }
-            self.ds_upload_bf16(&bf.latent, &latent)?;
-            self.proj(&latent_t, &ds.fold_w, &fold_t, profile)?;
-            self.backend.synchronize(self.stream)?;
-            let fo = self.ds_download(&bf.fold, act, 0, vocab)?;
-            let br = self.ds_download(&bf.base, act, i * vocab, vocab)?;
-            // x = bf(base + bf(fold + fold_b)); softcap is monotone: argmax on x (first index on ties)
-            let xs: Vec<f32> = br.iter().zip(&fo).zip(&ds.fold_b).map(|((b, f), fb)| rbf(b + rbf(f + fb))).collect();
+            // x = bf(base + bf(fold + fold_b)) (the candidates' ids alongside); softcap is monotone: argmax on x (first index on ties)
+            let (ids, xs): (Vec<usize>, Vec<f32>) = if ds.cand > 0 {
+                cands[i]
+                    .iter()
+                    .map(|&(v, b)| {
+                        let w = &ds.fold_host[v * r..(v + 1) * r];
+                        let f: f32 = w.iter().zip(&latent).map(|(&a, &l)| from_bits(a) * l).sum();
+                        (v, rbf(b + rbf(f + ds.fold_b[v])))
+                    })
+                    .unzip()
+            } else {
+                self.ds_upload_bf16(&bf.latent, &latent)?;
+                self.proj(&latent_t, &ds.fold_w, &fold_t, profile)?;
+                self.backend.synchronize(self.stream)?;
+                let fo = self.ds_download(&bf.fold, act, 0, vocab)?;
+                let br = self.ds_download(&bf.base, act, i * vocab, vocab)?;
+                ((0..vocab).collect(), br.iter().zip(&fo).zip(&ds.fold_b).map(|((b, f), fb)| rbf(b + rbf(f + fb))).collect())
+            };
             let (mut best, mut bx) = (0usize, f32::NEG_INFINITY);
-            for (j, &v) in xs.iter().enumerate() {
-                if v > bx {
+            for (&j, &v) in ids.iter().zip(&xs) {
+                if v > bx || (v == bx && j < best) {
                     bx = v;
                     best = j;
                 }
