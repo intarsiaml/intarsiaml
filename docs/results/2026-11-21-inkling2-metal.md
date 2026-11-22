@@ -402,6 +402,34 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
 - **P12 default-on breaks the batched plan**: batch_step with defaults panics in all 3 reps at batch_step.rs:68
   (`configure_plan(..).unwrap()` after `enable_batch(16)`). #11194 covered solo paths only. Reported to the coordinator: revert
   e215c2fca or restrict P12 to R=1; held. The pack12 arm's rule could not apply (no P12-on numbers).
+- The real error (serve at `--max-batch 16`, #11266 section B, `serve_8099.err`; batch_step's panic is the same call):
+  `unsupported: a 2-row batched step runs logits 1 times where 0 follow from the solo decode step (0): the two would fuse
+  differently, so rows would not be bitwise the solo step` (plan.rs:593, the op-multiset check). The solo step runs the
+  unembed as `MatmulP12` (no `Logits`), the batched step as `Logits`. in_proj / wo would trip the same check above
+  `DENSE_ROWS_MAX` = 4 rows. Not run (job exited with the server): conc-plain-1k and section C. speed-plain exited 3 (NOT
+  COUNTED: the 1024 cell rejected for spread); peak memory invalid (sampled the process-group leader, not the server).
+- 2026-11-22 (coordinator): do not revert e215c2fca; P12 solo-only: decided before the plan, packing kept only for solo
+  plans, a batched plan logs "pack12 off: batched plan (max-batch N)", an explicit `INTARSIA_INK_PACK12=1` with batching warns
+  and stays off, never panics; get the real error first; regression test (Metal, enable_batch(16), default env, batched rows
+  == solo rows, P12 off there and on solo); next endor slot: batch_step B 1/8/16 configures at defaults and matches the P12=0
+  timing, solo md5 and G2 unchanged with P12 on. The B8 / B16 regression is ink-batch's bisect.
+- Lane, 063f7b55f: the decision sits in `Model::enable_batch` (n > 1), not `Model::load`: every library caller (batch_step,
+  the inkling2_batch / gumbel_engine / structured_batch tests, serve) loads with default `LoadOptions` and calls
+  `enable_batch` after, so the loader cannot know the batch size; enable_batch drops the head's and every layer's P12 copies
+  before anything copies the model (buffers freed with their last Arc; the KV budget measured at load is not raised), logs
+  `pack12 off: batched plan (max-batch N); K P12 tensors dropped`, and warns on `INTARSIA_INK_PACK12=1`. A batched server
+  therefore serves B1 requests without P12 too. `Model::has_p12` for tests. Test
+  `inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo` (default env only): solo model has P12 on Metal
+  (asserted, so it is not vacuous), the enable_batch(16) model configures and has none, its 16 batched rows x 4 steps equal
+  the P12 solo model's steps bitwise. bespin #11311: workspace check clean, cpu inkling2_batch 7/7 (P12 is off on cpu, so the
+  Metal half runs on endor), other-model batch 6/6, core lib 255.
+- 2026-11-22 (coordinator): hold the ink/fp8 merge of 5295a81b4 (screened-head default flip) until the fp8 lane's batched
+  B 1/8/16 check (screen off vs on, P12=0) or ink-batch's toggle job clears the screen; the B16 hunt first. Lane: not merged.
+- #11277 pinned (advisor): gumbelcheck.sh now runs in a detached worktree at exactly 3c2d6a732 (HEAD and clean checked), so
+  the P12 commit does not change what it tests.
+- Item-4 job: the quiet baseline rerun on 063f7b55f (tag p12solo): Metal inkling2_batch (with the new test) and inkling2 at
+  defaults, pk12check (G2 short + md5 vs the combined-gate tip, batch_step defaults vs P12=0 ABAB x3), localeval speed-plain
+  and conc-plain-1k (serve PID sampled for peak memory via lsof), batch_step x3.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
