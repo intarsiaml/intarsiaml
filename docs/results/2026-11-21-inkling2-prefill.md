@@ -344,6 +344,15 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### Brief 7 fix check (#11105, built in-slot at 92e7e273f, which contains ed27f4462)
+
+| Check | Result |
+|---|---|
+| tiny inkling2 suite, Metal, metal4 forced off | 8 passed, 0 failed (no NoKernel) |
+| tiny inkling2 suite, Metal | 8 passed, 0 failed |
+| inkmix rows-exact tests, metal4 off / on | 3 passed / 3 passed |
+| admission ink_in_proj, metal4 off | gemv 18 shapes, gemv_rows 24, **gemv_chunks 11 shapes ADMITTED** (max_abs 2.79e-3, rel_l2 1.84e-5) |
+
 ### MoE NVFP4 diagnosis (brief 10; in progress, (a) and (b) wait for #11132)
 
 Per visit, warm chunks 1 and 2 of the 8k kernel trace: 7.35 ms. That is the same as the random-routing bench (7.29 ms), so the
