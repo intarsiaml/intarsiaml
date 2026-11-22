@@ -135,7 +135,7 @@ the first mid-size NAX case, full sweep unchanged) and `rows_exact_registrations
 
 ## Gates
 
-Real-model runs on endor through fleetq (#10690, rerun on the final code #10721, same numbers to the last digit), checkpoint
+Real-model runs on endor through fleetq (#10690, rerun #10721, and rerun on the tip de2b5c9bc in #10901 after the ink/serve, SiTU-admission and m-mix 47570539e merges: the same numbers to the last digit each time), checkpoint
 b85c3cfa, W4A16, bf16, `intarsia accuracy --backend metal --max-seq 4096 --golden ... --write-self-golden`; KL21 = the tool's
 "KL21 scored" column; confident-row misses from the skel lane's side script (`p1 - p2 >= 0.5` on the golden) over the
 self-golden's prefill rows.
@@ -313,4 +313,10 @@ tool_choice required, json_schema and streamed json_schema); localeval quality s
 at the smoke server's default 4096 context (4018 output tokens of thinking), not a correctness signal. G1 tiny on Metal
 rerun in the same slot: 8 / 8.
 
-SPEED_REST
+### Tip check (#10901, tree de2b5c9bc)
+
+G2 / G3 short and long identical to #10721 (above); `kernels test --backend metal` for all 11 Inkling ops: every kernel
+ADMITTED (18 kernels, including m-mix's widened `ink_in_proj_bf16_gemv` at 18 cases); the intarsia-models Metal tests
+(batch_metal 1, batch_metal_real 3, gdn_verify_metal 7, mtp_store_metal 2, prefix_store_metal 1, hybrid_reuse_real 2,
+prefix_reuse_real 6, batch_recurrent 15): all pass; Qwen3-8B `plan show --backend metal`: stdout and stderr byte-identical
+to the base b5e283927.
