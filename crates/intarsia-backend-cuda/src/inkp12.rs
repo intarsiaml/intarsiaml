@@ -8,7 +8,8 @@
 //! * `_rows`: the `rows_exact` registrations, == `matmul_bf16_gemv_rows` / `logits_bf16_gemv_rows`.
 //! * `ink_in_proj_p12_mma[_rows]` == `ink_in_proj_bf16_mma[_rows]` (inkmix.rs), 1..=16 rows.
 //!
-//! The P12 copies are made only under `INTARSIA_INK_PACK12=1` on CUDA (`p12::decide`; default off here).
+//! The P12 copies are made by default on CUDA (`p12::decide`; `INTARSIA_INK_PACK12=0` turns them off), for wo and the
+//! unembed only (`p12::pack_in_proj`: the P12 in_proj is slower here, its kernel stays registered).
 
 use crate::kernels::ARCH;
 use intarsia_core::quant::p12::ROWS_MAX;
