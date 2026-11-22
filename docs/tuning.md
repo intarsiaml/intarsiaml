@@ -82,6 +82,30 @@ Metadata: `model`, `backend`, `hidden_size`, `vocab_size`, `draft_vocab` (0 = fu
 
 The head's cache and rows are the serving ones: the K / V-only shortcut a prompt catch-up normally takes runs the full layer here so each row's output exists (the cache is bitwise the same), and the lm_head runs for every row (the serving catch-up does it for the last row only, so a dump is slower than a prefill). Serving is unchanged when no dump is running. Tests: `crates/intarsia-models/tests/mtp.rs` (`mtp_dump_*`, `engine_mtp_dump_*`: row p equals the engine's own `mtp_draft` at that position; the dumped hidden rows through the head alone give the same argmax), `crates/intarsia-cli/src/cmd/mtp_dump.rs` (file format).
 
+## Inkling-2-Mini fp8 fast mode (opt-in)
+
+bf16 stays the default and matches vLLM exactly. The fast mode quantises the attention projections and the unembed to fp8 e4m3
+at load (one f32 scale per pack or tensor, W8A16). It changes outputs.
+
+| Turn on with | Environment | Recipe (`[tuning.<backend>]`) |
+|---|---|---|
+| attention (in-projection packs + `wo`) | `INTARSIA_INK_ATTN_QUANT=fp8` | `ink_attn_quant = "fp8"` |
+| unembed (200058 real rows) | `INTARSIA_LMHEAD_QUANT=fp8` | `lm_head_quant = "fp8"` |
+
+The environment variable wins over the recipe key; `off` keeps bf16. No shipped recipe sets either key.
+
+Measured on endor (M5 Max), `docs/results/2026-11-21-inkling2-fp8.md`. KL21 is the mean against the vLLM golden (G3 bounds 1.05e-2
+short, 1.65e-2 long). Misses are confident-row top-1 misses (allowance 1 short, 2 long).
+
+| Mode | Decode tok/s | Metal KL21 short / long | Metal misses | KL21 vs our bf16 (Metal) |
+|---|---:|---|---|---|
+| bf16 (default) | 64.2 | 8.25e-3 / 1.24e-2 | 0 / 0 | - |
+| fp8 attention + fp8 unembed | 77.7 (+21 %) | 9.58e-3 / 1.42e-2 | 1 / 1 | 3.1e-3 / 4.6e-3 |
+
+On cpu the same mode gives 8.96e-3 / 1.28e-2 with 0 misses. fp8 attention alone gives 72.6 tok/s and the fp8 unembed alone 67.8.
+`INTARSIA_INK_ATTN_QUANT=mxfp4` is available for experiments but fails G3 (2.3e-2 / 3.7e-2 KL, 4 / 8 misses on Metal); do not
+use it for serving.
+
 ## Environment variables
 
 Every `INTARSIA_*` name that appears in `crates/`, `kernels/`, `scripts/`, `tools/` or `.github/` has a row. A test
@@ -574,6 +598,8 @@ numerics (`INTARSIA_CUDA_FAST_PREFILL`, `INTARSIA_CUDA_MOE_NVFP4`, `INTARSIA_TP_
 | `INTARSIA_INK_ATTN_QUANT_STATS` | `crates/intarsia-core/src/model/inkling2.rs:409` | off (only `1`) | Diagnostic for `INTARSIA_INK_ATTN_QUANT`: one stderr line per layer with each in-projection segment's amax / rms (a segment far below its pack's amax loses e4m3 range to the shared scale). | no (logging only) |
 | `INTARSIA_INK_FP8_PROJ` | `crates/intarsia-core/src/model/inkling2.rs:58` | on (only `0` disables) | Under `INTARSIA_INK_ATTN_QUANT=fp8`: the in-projection runs as one e4m3 `InkInProj` (scales `[3]`, one per pack) where the backend has a kernel for the call (Metal, 1..=16 rows), else as its three `MatmulFp8` packs; `0` always takes the packs (A/B). Read once per process. | no against the packs in value semantics (same weights and scales; the kernels sum in a different order) |
 | `INTARSIA_INK_FP8_PROJ_CFG` | `crates/intarsia-backend-metal/src/inkmix.rs:206` | `s8u2` | Shader family of the e4m3 `InkInProj` GEMV on Metal (`s<simdgroups>u<8-byte chunks per lane per step>`: `s8u2`, `s8u4`, `s4u4`, `s16u1`); measurement knob (lane ink-fp8). Read once per process. | yes between families (each is rows-exact on its own; they sum in different orders) |
+| `INTARSIA_INK_HEAD_SCREEN` | `crates/intarsia-core/src/screen.rs:61` | off (only `1`) | Inkling-2 only (lane ink-fp8, opt-in): the screened greedy head. An fp8 copy of the bf16 unembed and a rigorous per-row error bound pick every row that can be the argmax (`HeadScreen`); only those rows are rescored with the bf16 weights by a kernel that repeats the head's `Logits` arithmetic (`LogitsGather`), so the token is bitwise the full head's argmax, ties included (`ScreenArgmax`). Greedy single-row heads only; sampling, logits and top-k reads keep the full head. Needs `INTARSIA_LMHEAD_QUANT` off and a replicated head; turns itself off (stderr says why) when the head's `Logits` kernel is not `gemv_f32o_v` / its multi-row form / the cpu dot. Adds the fp8 copy (0.46 GB) and 0.8 MB of bounds. Contract and proof: the `crate::screen` module doc. | no (exact by construction; gate in `docs/results/2026-11-21-inkling2-fp8.md`) |
+| `INTARSIA_INK_HEAD_SCREEN_CAP` | `crates/intarsia-core/src/screen.rs:64` | `64` | Under `INTARSIA_INK_HEAD_SCREEN=1`: the most candidates a row rescores; a row with more (or a non-finite screen value) rescores the full head in the same launches. 64 leaves about 2.8 % of positions to the full head on the short golden set. | no |
 | `INTARSIA_TP_ARNORM` | `crates/intarsia-cli/src/common.rs:299` | off (HIP tp=2 only has it; `=0` opts out, any other value asks for it) | Fuse each block-end all-reduce with the standalone residual add + rmsnorm after it (`Comm::all_reduce_add_rmsnorm`, `kernels/hip/ar_norm.hip`; LoadOptions::tp_arnorm); needs row-local fusion on at tp=2. | no by construction (bit for bit the unfused pair, tested); GPU gates pending (`scripts/tp2-hip/stages-arnorm.sh`) |
 | `INTARSIA_TP_NO_COMM` | `crates/intarsia-core/src/model.rs:718` | off (set and not 0 enables) | Skips the TP all-reduce communication to time a run without comm; output is not valid. | yes (skips all-reduce so results are wrong) |
 | `INTARSIA_GRAPH_LOCK` | `crates/intarsia-backend-hip/src/device.rs:85` | on (`=0` turns it off) | HIP: one graph API call at a time process-wide (capture with instantiate, and each launch), so the two ranks of a tp group never capture or launch concurrently. Without it the 27B tp=2 batched/solo reproduction lost kernels in a replay within 1 to 9 reps (LOG 2026-10-26, results doc section 10). tp=1 never contends. | no |

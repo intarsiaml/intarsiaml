@@ -331,6 +331,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::inkattn::shader_names());
     v.extend(crate::inkmix::shader_names());
     v.extend(crate::p12::shader_names());
+    v.extend(crate::screen::shader_names());
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
     v.extend(crate::nvfp4::SHADERS);
@@ -453,6 +454,10 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::p12::MATMUL_P12_LOGITS_GEMV_ROWS, Op::MatmulP12),
     (crate::p12::INK_IN_PROJ_P12_GEMV, Op::InkInProj),
     (crate::p12::INK_IN_PROJ_P12_GEMV_ROWS, Op::InkInProj),
+    // lane ink-fp8: the screened greedy head (screen.rs)
+    (crate::screen::KERNELS[0].0, Op::HeadScreen),
+    (crate::screen::KERNELS[1].0, Op::LogitsGather),
+    (crate::screen::KERNELS[2].0, Op::ScreenArgmax),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -869,6 +874,7 @@ pub fn all() -> Vec<KernelImpl> {
                 n if crate::inkmoe::KERNELS.iter().any(|e| e.0 == n) => crate::inkmoe::register(n, k),
                 n if crate::inkmix::KERNELS.iter().any(|e| e.0 == n) => crate::inkmix::register(k),
                 n if crate::p12::KERNELS.iter().any(|e| e.0 == n) => crate::p12::register(k),
+                n if crate::screen::KERNELS.iter().any(|e| e.0 == n) => crate::screen::register(k),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -1074,6 +1080,8 @@ mod tests {
         got.retain(|g| !crate::inkmix::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
         // the P12 kernels (lane ink-pack12) serve MatmulP12 and the P12 form of InkInProj only: no existing call gains a candidate
         got.retain(|g| !crate::p12::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
+        // the screened greedy head (screen.rs, lane ink-fp8): new ops only
+        got.retain(|g| !crate::screen::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
         got.sort();
         if MAIN_KERNEL_LIST.is_empty() {
             panic!("LIST {}", got.join(" "));

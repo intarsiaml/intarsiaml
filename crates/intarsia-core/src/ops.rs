@@ -258,12 +258,12 @@ pub enum Op {
     InkReserved86,
     /// Reserved Inkling-2 discriminant 87 (lane ink-d1row): no semantics yet; `OpCall::check` refuses it.
     InkReserved87,
-    /// Reserved Inkling-2 discriminant 88 (lane ink-fp8): no semantics yet; `OpCall::check` refuses it.
-    InkReserved88,
-    /// Reserved Inkling-2 discriminant 89 (lane ink-fp8): no semantics yet; `OpCall::check` refuses it.
-    InkReserved89,
-    /// Reserved Inkling-2 discriminant 90 (lane ink-fp8): no semantics yet; `OpCall::check` refuses it.
-    InkReserved90,
+    /// Screened greedy head: candidate rows of the bf16 head from an fp8 copy and a rigorous per-row bound (`crate::screen`).
+    HeadScreen,
+    /// `Logits` over the screen's candidate rows (or the full head), bitwise the backend's `Logits` per value (`crate::screen`).
+    LogitsGather,
+    /// Argmax over the gathered candidates (or the full row), `Argmax` semantics (`crate::screen`).
+    ScreenArgmax,
     /// Reserved Inkling-2 discriminant 91 (lane ink-fp8): no semantics yet; `OpCall::check` refuses it.
     InkReserved91,
     /// Reserved Inkling-2 discriminant 92 (lane ink-mtp): no semantics yet; `OpCall::check` refuses it.
@@ -371,9 +371,9 @@ impl Op {
         Op::InkReserved85,
         Op::InkReserved86,
         Op::InkReserved87,
-        Op::InkReserved88,
-        Op::InkReserved89,
-        Op::InkReserved90,
+        Op::HeadScreen,
+        Op::LogitsGather,
+        Op::ScreenArgmax,
         Op::InkReserved91,
         Op::InkReserved92,
         Op::InkReserved93,
@@ -472,9 +472,9 @@ impl Op {
             Op::InkReserved85 => "ink_reserved_85",
             Op::InkReserved86 => "ink_reserved_86",
             Op::InkReserved87 => "ink_reserved_87",
-            Op::InkReserved88 => "ink_reserved_88",
-            Op::InkReserved89 => "ink_reserved_89",
-            Op::InkReserved90 => "ink_reserved_90",
+            Op::HeadScreen => "head_screen",
+            Op::LogitsGather => "logits_gather",
+            Op::ScreenArgmax => "screen_argmax",
             Op::InkReserved91 => "ink_reserved_91",
             Op::InkReserved92 => "ink_reserved_92",
             Op::InkReserved93 => "ink_reserved_93",
@@ -572,7 +572,10 @@ impl Op {
             Op::ConvMix => (11, 4),
             Op::InkAttnDecode => (10, 5),
             Op::MatmulP12 => (3, 1),
-            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved88 | Op::InkReserved89 | Op::InkReserved90 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => (0, 0),
+            Op::HeadScreen => (3, 2),
+            Op::LogitsGather => (4, 1),
+            Op::ScreenArgmax => (3, 1),
+            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => (0, 0),
         }
     }
 }
@@ -1132,7 +1135,8 @@ impl OpCall {
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::check(self)?,
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::check(self)?,
             Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode => crate::inkling2::ops::check(self)?,
-            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved88 | Op::InkReserved89 | Op::InkReserved90 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => unreachable!("refused above"),
+            Op::HeadScreen | Op::LogitsGather | Op::ScreenArgmax => crate::screen::check(self)?,
+            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => unreachable!("refused above"),
         }
         Ok(())
     }
@@ -1312,7 +1316,8 @@ impl ShapeInfo {
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::shape(call, &mut s),
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::shape(call, &mut s),
             Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode => crate::inkling2::ops::shape(call, &mut s),
-            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved88 | Op::InkReserved89 | Op::InkReserved90 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => {}
+            Op::HeadScreen | Op::LogitsGather | Op::ScreenArgmax => crate::screen::shape(call, &mut s),
+            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => {}
         }
         let _ = o;
         s

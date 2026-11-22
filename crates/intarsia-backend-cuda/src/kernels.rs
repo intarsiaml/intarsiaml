@@ -1069,6 +1069,10 @@ mod tests {
             Op::InkInProj,
             Op::ConvMix,
             Op::InkAttnDecode,
+            // the screened greedy head (lane ink-fp8): cpu and Metal only
+            Op::HeadScreen,
+            Op::LogitsGather,
+            Op::ScreenArgmax,
         ];
         // the reserved placeholder discriminants (`Op::is_reserved`) are exempt
         for op in Op::ALL.into_iter().filter(|o| !o.is_reserved()) {
