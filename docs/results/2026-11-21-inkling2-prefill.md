@@ -219,6 +219,12 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     4k and 8k, with the bound accounting for scratch footprint. (3) Any build: bitwise or tolerance-justified admission,
     G2 / G3 short and long, md5 64 / 256, then the brief-20 gate shape (box check, generate timing 1k / 4k / 8k in random
     order, rule fixed before the runs). (4) General note in the doc (below). safe_run as before.
+22. 2026-11-22 (coordinator, via SendMessage): go ahead with the timing-only probe of B (exact interior-tile path, the
+    28 ms bucket). On A: do **not** amend rel_mode 1's bitwise contract. If A is still worth it after B, build it as a NEW
+    opt-in mode (e.g. rel_mode 2) with its own tolerance contract against the f64 reference, default off; mode 0 / 1 and the
+    md5 64 / 256 references stay untouched. Hold A until B's probe is in, then report B's measured gain plus A's bound on top
+    of B (they may overlap) before building anything. Any default flip that changes md5 is the user's call: bring it to the
+    coordinator with G2 / G3 numbers.
 
 ## Status
 
