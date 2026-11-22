@@ -69,6 +69,9 @@ oracle's continuation); chat "What is the capital of France?" -> `<|message_mode
 question: capital of France. Need answer accurately. France's capital is Paris. ..." (the oracle's).
 
 `plan show --model ~/models/Qwen3-8B --backend cpu`: byte-identical before / after (stdout and stderr).
+`cargo test --release` over the workspace minus `intarsia-backend-metal` and the eight GPU test files of `intarsia-models`
+(`batch_metal`, `batch_metal_real`, `batch_recurrent`, `gdn_verify_metal`, `hybrid_reuse_real`, `prefix_reuse_real`,
+`mtp_store_metal`, `prefix_store_metal`: no GPU in this lane): all pass. `scripts/prepush.sh`: pass.
 
 ## Speed (cpu, endor M5 Max, f64 reference kernels)
 
