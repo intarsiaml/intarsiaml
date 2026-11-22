@@ -1111,6 +1111,7 @@ impl Model {
             lm_head: self.lm_head.clone(),
             draft_head: None,
             draft_map: None,
+            head_screen: None,
             layers: self.layers.clone(),
             gemma: None,
             ink: None,

@@ -29,10 +29,11 @@ const F32_TOL: Tol = Tol::new(1e-3, 2e-4);
 pub fn register(k: KernelImpl) -> KernelImpl {
     let bf = [DType::Bf16];
     match k.name.as_str() {
-        HEAD_SCREEN_F32 => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
+        // every kernel here computes each activation row on its own: rows-exact
+        HEAD_SCREEN_F32 => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT).rows_exact(),
         // the 16-byte form of gemv_f32o_v: K % 8 == 0 (alignment is checked at launch)
-        LOGITS_GATHER_F32O_V => k.acts(bf).weights(bf).when(|s| s.k % 8 == 0).exact(Exactness::Deterministic).tol(F32_TOL),
-        SCREEN_ARGMAX_F32 => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
+        LOGITS_GATHER_F32O_V => k.acts(bf).weights(bf).when(|s| s.k % 8 == 0).exact(Exactness::Deterministic).tol(F32_TOL).rows_exact(),
+        SCREEN_ARGMAX_F32 => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT).rows_exact(),
         other => unreachable!("screen kernel {other}"),
     }
 }

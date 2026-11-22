@@ -560,6 +560,8 @@ pub struct Model {
     draft_head: Option<QTensor>,
     /// `--mtp-draft-subset`: the token id of each `draft_head` row (lane dsubset).
     draft_map: Option<DraftMap>,
+    /// `INTARSIA_INK_HEAD_SCREEN=1` (lane ink-fp8, opt-in): the screened greedy head's fp8 copy, bounds and workspace.
+    head_screen: Option<HeadScreenW>,
     layers: Arc<Vec<Vec<Block>>>,
     /// Scratch of the Gemma 4 layers (`None` for every other model).
     gemma: Option<GemmaWs>,
@@ -1196,6 +1198,54 @@ impl Model {
                 load_head(false)?
             }
             r => r?,
+        };
+
+        // the screened greedy head (lane ink-fp8, opt-in; crate::screen): an fp8 copy of the bf16 head and its row bounds
+        let head_screen = if std::env::var(crate::screen::ENV).is_ok_and(|v| v.trim() == "1") {
+            let reason = if dims.ink.is_none() {
+                Some("only Inkling-2 has it")
+            } else if tp.rank != 0 || vocab_par {
+                Some("not with a sharded head")
+            } else if head_quant.is_some() {
+                Some("the head itself is quantised (INTARSIA_LMHEAD_QUANT)")
+            } else {
+                None
+            };
+            match reason {
+                Some(r) => {
+                    eprintln!("{}: off ({r})", crate::screen::ENV);
+                    None
+                }
+                None => {
+                    let t0 = std::time::Instant::now();
+                    let nm = resolve(src, &lh.tensor)?;
+                    let i = src.info(&nm).ok_or_else(|| Error::model(format!("lm_head tensor '{nm}' missing")))?;
+                    let (v, d) = (dims.vocab, dims.hidden);
+                    let all = &src.bytes(&nm)?[..v * d * i.dtype.size_bytes()];
+                    let hq = crate::quant::head::quantize_host(crate::quant::head::HeadQuant::Fp8, i.dtype, all, v, d, 0, v)?;
+                    let sc = hq.parts[1].to_f32()[0];
+                    let beta = crate::screen::row_bounds(i.dtype, all, &hq.parts[0].data, sc, v, d)?;
+                    let cap = std::env::var(crate::screen::CAP_ENV).ok().and_then(|c| c.trim().parse().ok()).filter(|&c: &usize| c >= 1).unwrap_or(crate::screen::CAP_DEFAULT);
+                    let rows = 16usize; // decode, verify (<= 16 rows)
+                    let q = hq.upload(b)?;
+                    let bb: Vec<u8> = beta.iter().flat_map(|x| x.to_le_bytes()).collect();
+                    let beta = TensorRef::new(crate::backend::upload_new(b, &bb)?, DType::F32, &[v]);
+                    let a = b.alloc(rows * v * 4, MemKind::Device)?;
+                    let cand = b.alloc(rows * cap * 4, MemKind::Device)?;
+                    let cnt = b.alloc(rows * 4 + 16, MemKind::Device)?;
+                    let added = q.weight_bytes() as u64 + bb.len() as u64;
+                    weights_bytes.set(weights_bytes.get() + added);
+                    eprintln!(
+                        "{}: screened greedy head on (fp8 copy {:.2} GB + bounds, cap {cap}, {:.1} s)",
+                        crate::screen::ENV,
+                        added as f64 / 1e9,
+                        t0.elapsed().as_secs_f64()
+                    );
+                    Some(HeadScreenW { q, beta, a, cand, cnt, cap, rows, ok: std::sync::OnceLock::new() })
+                }
+            }
+        } else {
+            None
         };
 
         // scaled rotary embedding: the finished frequency table, uploaded once (rotary_dim as the attention blocks resolve it)
@@ -1935,6 +1985,7 @@ impl Model {
             lm_head,
             draft_head,
             draft_map,
+            head_screen,
             layers: Arc::new(layers),
             gemma: gemma_ws,
             ink: ink_model,
@@ -5517,11 +5568,79 @@ impl Model {
     /// [`Model::head_to_device`] with the argmax written to `tok` (`i32 [1]`).
     fn head_to_device_into(&self, hn: &TensorRef, row: usize, profile: bool, tok: TensorRef) -> Result<()> {
         let x = hn.rows(row, 1);
+        if self.screened_argmax(&x, 1, &tok, profile)? {
+            return Ok(());
+        }
         let logits = self.head_proj(&x, 1, profile)?;
         if self.tp.rank != 0 {
             return Ok(()); // a vocab-parallel peer: its half is in the gather, the argmax is rank 0's
         }
         self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
+    }
+
+    /// The screened greedy head (`crate::screen`, `INTARSIA_INK_HEAD_SCREEN=1`): the argmax of the `c` rows `x` into `tok`
+    /// (`i32 [c]`), bitwise the full head's; `ws.logits` then holds the gathered candidates, not the full rows. `false`: off,
+    /// or the head's `Logits` kernel is not one the gather reproduces (then the caller runs the full head).
+    fn screened_argmax(&self, x: &TensorRef, c: usize, tok: &TensorRef, profile: bool) -> Result<bool> {
+        let Some(hs) = self.head_screen.as_ref() else { return Ok(false) };
+        if c > hs.rows || self.vocab_par || self.recorder.lock().unwrap().is_some() {
+            return Ok(false);
+        }
+        let (v, d) = (self.dims.vocab, self.dims.hidden);
+        let logits = self.view(&self.ws.logits, DType::F32, &[c, v]);
+        // the gather repeats these kernels' per-row arithmetic (gemv_f32o_v and its multi-row form, the cpu dot); any other
+        // head kernel, and the screen not admitted on this backend: the full head
+        let ok = *hs.ok.get_or_init(|| {
+            let head = match self.head() {
+                Ok(h) => h,
+                Err(_) => return false,
+            };
+            let xs = self.view(&self.ws.n, self.act, &[1, d]);
+            let pick = |m: usize, exact: bool| {
+                let mut call = head.call(self.view(&self.ws.n, self.act, &[m, d]), self.view(&self.ws.logits, DType::F32, &[m, v]));
+                call.exact_rows = exact;
+                self.registry.select(&call).map(|k| k.name.clone()).unwrap_or_default()
+            };
+            let good = |n: &str| matches!(n, "logits_bf16_gemv" | "logits_bf16_gemv_rows" | "cpu_f32_logits");
+            let kernels_ok = good(&pick(1, false)) && (2..=hs.rows).all(|m| good(&pick(m, true)));
+            let a = TensorRef::new(hs.a.clone(), DType::F32, &[1, v]);
+            let cand = TensorRef::new(hs.cand.clone(), DType::I32, &[1, hs.cap]);
+            let cnt = TensorRef::new(hs.cnt.clone(), DType::I32, &[1]);
+            let screen_ok = [
+                OpCall::new(Op::HeadScreen, vec![a.clone(), xs.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default()),
+                OpCall::new(Op::LogitsGather, vec![xs.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![self.view(&self.ws.logits, DType::F32, &[1, v])], OpAttrs::default()),
+                OpCall::new(Op::ScreenArgmax, vec![cand, cnt, self.view(&self.ws.logits, DType::F32, &[1, v])], vec![self.view(&self.ws.tok, DType::I32, &[1])], OpAttrs::default()),
+            ]
+            .iter()
+            .all(|c| self.registry.select(c).is_ok());
+            if !(kernels_ok && screen_ok) {
+                eprintln!("{}: off (head kernel '{}' or the screen kernels are not available here)", crate::screen::ENV, pick(1, false));
+            }
+            kernels_ok && screen_ok
+        });
+        if !ok {
+            return Ok(false);
+        }
+        let head = self.head()?;
+        let a = TensorRef::new(hs.a.clone(), DType::F32, &[c, v]);
+        let cand = TensorRef::new(hs.cand.clone(), DType::I32, &[c, hs.cap]);
+        let cnt = TensorRef::new(hs.cnt.clone(), DType::I32, &[c]);
+        // a 2..=16-row group takes the rows-exact kernels, as `head_proj` marks it (the gathered bits are those rows')
+        let mark = c > 1 && !self.verifying();
+        if mark {
+            self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        let r = (|| -> Result<()> {
+            let sc = hs.q.call(x.clone(), a.clone());
+            self.exec(sc.op, sc.inputs, sc.outputs, sc.attrs, profile)?;
+            self.exec(Op::HeadScreen, vec![a, x.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default(), profile)?;
+            self.exec(Op::LogitsGather, vec![x.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![logits.clone()], OpAttrs::default(), profile)?;
+            self.exec(Op::ScreenArgmax, vec![cand, cnt, logits], vec![tok.clone()], OpAttrs::default(), profile)
+        })();
+        if mark {
+            self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        }
+        r.map(|_| true)
     }
 
     /// The head projection of `c` rows `x`. Replicated head (rank 0): `[c, V]` f32 logits in `ws.logits`. Vocab-parallel
@@ -5704,4 +5823,20 @@ mod weights_named_tests {
         // an unknown weight dtype names nothing
         assert!(weights_named(&index, &inputs, None).is_empty());
     }
+}
+
+/// The screened greedy head's state (`INTARSIA_INK_HEAD_SCREEN=1`, lane ink-fp8; `crate::screen`).
+struct HeadScreenW {
+    /// The fp8 copy of the head (`[V, D]` e4m3, one scale).
+    q: QTensor,
+    /// The per-row bounds `[V]` f32 (`screen::row_bounds`).
+    beta: TensorRef,
+    /// Screen values `[rows, V]` f32, candidates `[rows, cap]` i32, counts `[rows]` i32.
+    a: Buffer,
+    cand: Buffer,
+    cnt: Buffer,
+    cap: usize,
+    rows: usize,
+    /// Whether this backend's head kernel is one the gather reproduces (decided on first use).
+    ok: std::sync::OnceLock<bool>,
 }
