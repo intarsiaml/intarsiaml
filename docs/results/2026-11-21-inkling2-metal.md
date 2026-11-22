@@ -191,6 +191,7 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
 - 2026-11-22 (ink-fp8, SendMessage): screened greedy head default-on for Metal (Inkling only, `INTARSIA_INK_HEAD_SCREEN=0` reverts) at df7eb7f80, ink/fp8 tip 22689e76c (merges ink/metal baa2395dd); gates #11426 and #11446, post-flip checks #11458 green. Held per the coordinator: merged into ink/metal only after the main PR lands.
 - 2026-11-22 (coordinator, SendMessage): open the follow-up PR once bespin is green on cdf954b26. Before it: plan show for Qwen3-8B and Llama on Metal byte-identical vs main 57e1b3332 (CPU-only build + plan show), result in the PR body. ink-dfuse sends ink/dfuse-land (on a63d06c97: INTARSIA_INK_DEBUG_DISPATCHES debug env, off by default, ink_ctrl_bench --probe example, results doc; no T1), its check #11488 on endor: if green before the PR merges, merge into ink/metal and push to the same PR with a line in the body; else a separate small PR later. Merge on all-green CI.
 - 2026-11-22 (coordinator, SendMessage): ink/dfuse-land ready, tip e63dbcdc6 on a63d06c97, no T1 (ink_ctrl_bench --probe, INTARSIA_INK_DEBUG_DISPATCHES debug counter off by default, results doc); endor #11488 / #11500 green (docs_env_vars 2/2, Metal Inkling 13/13, models 20/20, plan show Qwen3-8B / Llama identical). Not into #489; let #489's CI finish untouched. After #489 merges: merge main into ink/dfuse-land; build the release binary and ink_ctrl_bench and run docs_env_vars on endor in a CPU slot; open a small PR with those checks in the body; merge on all-green CI.
+- 2026-11-22 (coordinator, SendMessage): rule for all Metal lanes: on endor every cargo build / check / test runs inside a fleetq slot with `--load cpu`; no bare cargo or rustc on endor (a stray rustc, pid 47475, 95% CPU, ran inside prefill's quiet slot #11508 at 11:51; timing gates fp8 #11510 and batch #11515 are queued). This lane's endor cargo runs around then: #11493 (11:26-11:27) and #11512 (12:01-12:02), both in slots; none at 11:51.
 
 ## NE fix gate #11179 (tree 65dbc2870 = fix 7eca1b012 + test/docs)
 
@@ -1006,6 +1007,8 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   693f6440e. ink/dfuse-land (e63dbcdc6) then goes as its own small PR from branch ink/dfuse-land-pr (worktree
   .worktrees/ink-dfuse-pr), main merged in at f3f2a7767; code diff vs main: `examples/ink_ctrl_bench.rs` (+117) and the
   `INTARSIA_INK_DEBUG_DISPATCHES` counter in model/inkling2.rs (+23, off by default), plus its results doc and raw files.
+- dfuse-land check after the main merge (endor #11512, CPU slot, f3f2a7767): release CLI build clean, ink_ctrl_bench build
+  clean, docs_env_vars 2/2. PR #490 opened from ink/dfuse-land-pr.
 - Metal #11440 done (exit 0, 09:29:18-09:59:11, quiet gpu,cpu): 256 greedy ids identical base vs dev for Qwen3-8B (short sha
   d619ede5, 4k feb11f5c) and Llama-3.1-8B-Instruct (short 25bbc20f, 4k eda51e94); `plan show` txt and json byte-identical for
   both. `kernels test --backend metal` 0 FAIL on both: base 56 kernels / 1335 cases, dev 86 kernels / 2915 cases (the Inkling,
