@@ -448,9 +448,12 @@ fn inkling2_tiny_verify_graph_replays_equal_decode_bitwise() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     let ids = prompt(&dir);
     let mut m = load(&dir, chunk());
+    // the tests load with graphs off: on for the verify passes, off for the 1-row decode they are compared against
+    m.set_graphs(true);
     if !m.graph_stats().enabled {
         return skip("graphs not usable on this backend");
     }
+    m.set_graphs(false);
     m.enable_verify(4).unwrap();
     let cap = m.dims.ink.as_ref().map_or(0.0, |i| i.softcap);
     for r in 2..=4usize {
@@ -463,7 +466,9 @@ fn inkling2_tiny_verify_graph_replays_equal_decode_bitwise() {
         let mut p = p0;
         let mut passes = 0u64;
         while p + r <= ids.len() {
+            m.set_graphs(true);
             let (picks, mut rows) = m.forward_verify_logits(&mut a, &ids[p..p + r]).unwrap();
+            m.set_graphs(false);
             if cap > 0.0 {
                 rows.iter_mut().flatten().for_each(|x| *x = cap * (*x / cap).tanh());
             }
