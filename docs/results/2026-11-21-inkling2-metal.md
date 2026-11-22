@@ -1009,6 +1009,8 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   `INTARSIA_INK_DEBUG_DISPATCHES` counter in model/inkling2.rs (+23, off by default), plus its results doc and raw files.
 - dfuse-land check after the main merge (endor #11512, CPU slot, f3f2a7767): release CLI build clean, ink_ctrl_bench build
   clean, docs_env_vars 2/2. PR #490 opened from ink/dfuse-land-pr.
+- PR #490: all 6 CI jobs green on f3f2a7767; **merged** at 1f226a2e3. Worktree .worktrees/ink-dfuse-pr and branch
+  ink/dfuse-land-pr (local and origin) removed. ink/dfuse-land itself is ink-dfuse's and stays.
 - Metal #11440 done (exit 0, 09:29:18-09:59:11, quiet gpu,cpu): 256 greedy ids identical base vs dev for Qwen3-8B (short sha
   d619ede5, 4k feb11f5c) and Llama-3.1-8B-Instruct (short 25bbc20f, 4k eda51e94); `plan show` txt and json byte-identical for
   both. `kernels test --backend metal` 0 FAIL on both: base 56 kernels / 1335 cases, dev 86 kernels / 2915 cases (the Inkling,
