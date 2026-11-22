@@ -22,6 +22,14 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
   #10867 starts, record it here, and take no default flips from m-mix (those come later as their own commit). ink-batch
   merges this lane's 761a1561b (serve admission fix).
 
+- 2026-11-21 (coordinator): merge ink/d1row-doc 5b0b0bd2f (docs only: docs/results/2026-11-21-inkling2-d1row/ and its results
+  doc; the d1row kernels lost and stay unmerged on ink/d1row); check the diff touches only docs/results/; ops 84-87 are free
+  again (mark them free in an op reservation note if ink/metal has one: it has none). Done: merge 2343bb720, 27 files, all under
+  docs/results/.
+- 2026-11-21 (coordinator): guard the two `intarsia_backend_metal` uses in tests/inkling2.rs with `cfg(target_os = "macos")`
+  (Linux test builds of intarsia-models failed), check on spark2, commit separately. Done: e3f92beff; `cargo check --tests -p
+  intarsia-models` EXIT 0 on spark2 and clean on endor.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
@@ -29,6 +37,7 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 | `ink/skel` | b5e283927 | base: cpu port, model block, loader, recipe, tiny tests | - |
 | `ink/m-attn` | 9410a9b67 | InkKvPrologue (70), RelSinkAttn (71, split-KV + NAX prefill), InkAttnDecode (75) | none |
 | `ink/m-moe` | 98317825d | MoeRoute, NVFP4 SiTU experts, MXFP8 experts (decode + NAX prefill) | `build.rs` (metal4 sources, launcher sources), `kernels.rs` (metal4 list, TABLE, the count test): kept both |
+| `ink/d1row-doc` | 5b0b0bd2f | d1row results (docs only; kernels not merged) | none; diff only docs/results/ |
 | `ink/m-mix` | 47570539e (merged at 606fd36e4; earlier tips 3e14f6aa3, d99d2c0fc) | InkInProj (73), ConvMix (74), AttnResMix (67), LoopBlend (68), SconvRes (69) | `build.rs`, `kernels.rs`, `lib.rs` (module, launch dispatch): kept all three lanes' entries |
 
 `intarsia kernels test --backend metal --op <op>`, every Inkling op (fleetq #10681): all ADMITTED.
