@@ -21,7 +21,7 @@ const METAL4_STD: &str = "-std=metal4.0";
 /// other file keeps `METAL_STD` and so stays bitwise identical to what was admitted before this list existed. Add a file
 /// here only when it needs a metal4.0 feature; its host names go in `kernels::METAL4_SHADERS`.
 const METAL4_SOURCES: &[&str] =
-    &["gemm_nax_bf16.metal", "attention_flash_nax.metal", "gemm_nax_fp8.metal", "moe_nax.metal", "mxfp4_naxd.metal"];
+    &["gemm_nax_bf16.metal", "attention_flash_nax.metal", "gemm_nax_fp8.metal", "moe_nax.metal", "mxfp4_naxd.metal", "inkling2_mix_nax.metal"];
 
 /// Rust sources that decide which kernel a call takes and with which grid / bindings (GEMV variant choice by alignment,
 /// dense launch geometry, the kernel table, the copy / zero launchers). Their hash goes into `Backend::fingerprint`, so

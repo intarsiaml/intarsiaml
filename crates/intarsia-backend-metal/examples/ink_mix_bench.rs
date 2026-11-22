@@ -268,10 +268,128 @@ mod imp {
 
 #[cfg(target_os = "macos")]
 mod imp_mix {
+    use crate::imp::{bench, bf_buf, f32_buf, t, Case, D};
     use intarsia_backend_metal::bench::Rng;
+    use intarsia_backend_metal::inkmix::*;
     use intarsia_backend_metal::MetalBackend;
+    use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
+    use intarsia_core::{DType, Op, OpAttrs, OpCall, ShapeInfo};
 
-    pub fn run(_be: &MetalBackend, _trace: &std::path::Path, _rng: &mut Rng, _rows: &[usize], _reps: usize) {
-        println!("mix: not built yet");
+    const K: usize = 4;
+    const RR: usize = K - 1 + 16;
+    const G: usize = 64;
+
+    fn none(be: &MetalBackend) -> TensorRef {
+        let b = be.alloc(16, MemKind::Device).unwrap();
+        TensorRef { buf: b, offset: 0, dtype: DType::Bf16, shape: vec![0] }
+    }
+
+    fn with_scratch(be: &MetalBackend, mut call: OpCall) -> OpCall {
+        let n = blend_scratch(&ShapeInfo::from_call(&call));
+        let b: Buffer = be.alloc(n, MemKind::Device).unwrap();
+        call.scratch = Some(TensorRef { buf: b, offset: 0, dtype: DType::U8, shape: vec![n] });
+        call
+    }
+
+    /// ConvMix with res + addend + sum, N stored sources, Q queries, norm or a blend of S streams.
+    fn conv_mix(be: &MetalBackend, rng: &mut Rng, r: usize, n: usize, q: usize, s: usize, pos0: usize) -> Case {
+        let bf = DType::Bf16;
+        let mut ins = vec![
+            t(&bf_buf(be, r * D, 1.0, rng), bf, &[r, D]),
+            t(&bf_buf(be, K * D, 0.5, rng), bf, &[K, D]),
+            t(&bf_buf(be, r * D, 1.0, rng), bf, &[r, D]),
+            t(&bf_buf(be, r * D, 1.0, rng), bf, &[r, D]),
+            t(&bf_buf(be, n * r * D, 1.0, rng), bf, &[n, r, D]),
+            t(&f32_buf(be, q * D, 0.02, rng), DType::F32, &[q, D]),
+            t(&bf_buf(be, s.max(q) * D, 1.0, rng), bf, &[if s > 0 { s } else { q }, D]),
+        ];
+        if s > 0 {
+            ins.push(t(&f32_buf(be, s * r * D, 1.0, rng), DType::F32, &[s, r, D]));
+            ins.push(t(&bf_buf(be, s * G * 2 * D, 0.015, rng), bf, &[s, G, 2 * D]));
+            ins.push(t(&bf_buf(be, s * D * G, 0.25, rng), bf, &[s, D, G]));
+            ins.push(t(&bf_buf(be, s * D * G, 0.25, rng), bf, &[s, D, G]));
+        } else {
+            ins.extend([none(be), none(be), none(be), none(be)]);
+        }
+        let outs = vec![
+            t(&bf_buf(be, r * D, 0.0, rng), bf, &[r, D]),
+            t(&bf_buf(be, RR * D, 1.0, rng), bf, &[RR, D]),
+            t(&bf_buf(be, r * D, 0.0, rng), bf, &[r, D]),
+            t(&bf_buf(be, s.max(q) * r * D, 0.0, rng), bf, &[if s > 0 { s } else { q }, r, D]),
+        ];
+        let call = OpCall::new(Op::ConvMix, ins, outs, OpAttrs { pos0, eps: 1e-6, ..Default::default() });
+        Case { kernel: CONV_MIX_BF16, call: with_scratch(be, call) }
+    }
+
+    fn attn_res(be: &MetalBackend, rng: &mut Rng, r: usize, n: usize, q: usize, norm: bool) -> Case {
+        let bf = DType::Bf16;
+        let ins = vec![
+            t(&bf_buf(be, n * r * D, 1.0, rng), bf, &[n, r, D]),
+            t(&bf_buf(be, r * D, 1.0, rng), bf, &[r, D]),
+            none(be),
+            t(&f32_buf(be, q * D, 0.02, rng), DType::F32, &[q, D]),
+            if norm { t(&bf_buf(be, q * D, 1.0, rng), bf, &[q, D]) } else { none(be) },
+        ];
+        let o = if norm { t(&bf_buf(be, q * r * D, 0.0, rng), bf, &[q, r, D]) } else { t(&f32_buf(be, q * r * D, 0.0, rng), DType::F32, &[q, r, D]) };
+        Case { kernel: ATTN_RES_MIX_BF16, call: OpCall::new(Op::AttnResMix, ins, vec![o], OpAttrs { eps: 1e-6, ..Default::default() }) }
+    }
+
+    fn loop_blend(be: &MetalBackend, rng: &mut Rng, r: usize, s: usize) -> Case {
+        let bf = DType::Bf16;
+        let ins = vec![
+            t(&f32_buf(be, r * D, 1.0, rng), DType::F32, &[1, r, D]),
+            t(&f32_buf(be, s * r * D, 1.0, rng), DType::F32, &[s, r, D]),
+            t(&bf_buf(be, s * G * 2 * D, 0.015, rng), bf, &[s, G, 2 * D]),
+            t(&bf_buf(be, s * D * G, 0.25, rng), bf, &[s, D, G]),
+            t(&bf_buf(be, s * D * G, 0.25, rng), bf, &[s, D, G]),
+            t(&bf_buf(be, s * D, 1.0, rng), bf, &[s, D]),
+        ];
+        let o = t(&bf_buf(be, s * r * D, 0.0, rng), bf, &[s, r, D]);
+        let call = OpCall::new(Op::LoopBlend, ins, vec![o], OpAttrs { eps: 1e-6, ..Default::default() });
+        Case { kernel: LOOP_BLEND_BF16, call: with_scratch(be, call) }
+    }
+
+    fn sconv(be: &MetalBackend, rng: &mut Rng, r: usize, pos0: usize) -> Case {
+        let bf = DType::Bf16;
+        let ins = vec![
+            t(&bf_buf(be, r * D, 1.0, rng), bf, &[r, D]),
+            t(&bf_buf(be, K * D, 0.5, rng), bf, &[K, D]),
+            t(&bf_buf(be, r * D, 1.0, rng), bf, &[r, D]),
+            t(&bf_buf(be, r * D, 1.0, rng), bf, &[r, D]),
+        ];
+        let outs = vec![
+            t(&bf_buf(be, r * D, 0.0, rng), bf, &[r, D]),
+            t(&bf_buf(be, RR * D, 1.0, rng), bf, &[RR, D]),
+            t(&bf_buf(be, r * D, 0.0, rng), bf, &[r, D]),
+        ];
+        Case { kernel: SCONV_RES_BF16, call: OpCall::new(Op::SconvRes, ins, outs, OpAttrs { pos0, ..Default::default() }) }
+    }
+
+    pub fn run(be: &MetalBackend, trace: &std::path::Path, rng: &mut Rng, rows: &[usize], reps: usize) {
+        let mut rows = rows.to_vec();
+        if !rows.contains(&2048) {
+            rows.push(2048);
+        }
+        type Mk = Box<dyn Fn(&MetalBackend, &mut Rng, usize) -> Case>;
+        let kinds: Vec<(&str, Mk)> = vec![
+            ("ConvMix N=4 Q=1 norm (plain boundary)", Box::new(|b, r, n| conv_mix(b, r, n, 4, 1, 0, 1000))),
+            ("ConvMix N=4 Q=3 norm (into a full layer)", Box::new(|b, r, n| conv_mix(b, r, n, 4, 3, 0, 1000))),
+            ("ConvMix N=3 Q=1 blend S=3 (looped attn in)", Box::new(|b, r, n| conv_mix(b, r, n, 3, 1, 3, 1000))),
+            ("ConvMix N=3 Q=1 blend S=1 (looped mlp in)", Box::new(|b, r, n| conv_mix(b, r, n, 3, 1, 1, 1000))),
+            ("AttnResMix N=4 Q=1 norm", Box::new(|b, r, n| attn_res(b, r, n, 4, 1, true))),
+            ("AttnResMix N=2 Q=4 f32 (loop messages)", Box::new(|b, r, n| attn_res(b, r, n, 2, 4, false))),
+            ("LoopBlend S=3", Box::new(|b, r, n| loop_blend(b, r, n, 3))),
+            ("SconvRes res+add+sum", Box::new(|b, r, n| sconv(b, r, n, 1000))),
+        ];
+        println!("{:<44} {:>9} {:>9} {:>9}", "mix case (D 2304)", "us/call", "p10", "p90");
+        for (name, mk) in &kinds {
+            for &r in &rows {
+                let sets = if r >= 2048 { 4 } else { 48 };
+                let cases: Vec<Case> = (0..sets).map(|_| mk(be, rng, r)).collect();
+                let _ = bench(be, trace, &cases, 3);
+                let (m, lo, hi) = bench(be, trace, &cases, if r >= 2048 { reps.min(10) } else { reps });
+                println!("{:<44} {m:>9.2} {lo:>9.2} {hi:>9.2}", format!("{name} R={r}"));
+            }
+        }
     }
 }

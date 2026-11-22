@@ -18,11 +18,22 @@ use objc2_metal::{MTLComputeCommandEncoder, MTLSize};
 
 pub const INK_IN_PROJ_BF16_GEMV: &str = "ink_in_proj_bf16_gemv";
 pub const INK_IN_PROJ_BF16_GEMV_ROWS: &str = "ink_in_proj_bf16_gemv_rows";
+pub const INK_IN_PROJ_BF16_NAX: &str = "ink_in_proj_bf16_nax";
+
+/// inkling2_mix_nax.metal entry points (metal4.0 library), one per `gemm_nax::NAX_VARIANTS` tile, in that order.
+pub const NAX_SHADERS: [&str; 5] = [
+    "ink_in_proj_nax_t64x64w4",
+    "ink_in_proj_nax_t128x64w4",
+    "ink_in_proj_nax_t32x32w1",
+    "ink_in_proj_nax_t32x128w2",
+    "ink_in_proj_nax_t64x64w2",
+];
 
 /// Every kernel of this module, with its op (the `kernels::TABLE` rows).
 pub const KERNELS: &[(&str, Op)] = &[
     (INK_IN_PROJ_BF16_GEMV, Op::InkInProj),
     (INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj),
+    (INK_IN_PROJ_BF16_NAX, Op::InkInProj),
     (CONV_MIX_BF16, Op::ConvMix),
     (ATTN_RES_MIX_BF16, Op::AttnResMix),
     (SCONV_RES_BF16, Op::SconvRes),
@@ -48,6 +59,14 @@ pub fn register(k: KernelImpl) -> KernelImpl {
             .tol(BF16_TOL)
             .priority(-1)
             .rows_exact(),
+        // prefill (the `matmul_bf16_nax` rule: M >= 2, above the GEMV); a segment is bitwise `matmul_bf16_nax` on it
+        INK_IN_PROJ_BF16_NAX => k
+            .acts(bf)
+            .weights(bf)
+            .when(|s| s.m >= crate::gemm_nax::NAX_MIN_M && s.k >= 16)
+            .exact(Exactness::Deterministic)
+            .tol(BF16_TOL)
+            .priority(5),
         // one threadgroup per row, the same code for every row count: rows-exact by construction (tests/inkmix.rs), so no
         // separate verify twin; chunk-invariant for prefill too
         CONV_MIX_BF16 => k
@@ -210,6 +229,7 @@ impl MetalBackend {
     pub(crate) fn launch_inkmix(&self, kernel: &str, call: &OpCall) -> Result<()> {
         match (kernel, call.op) {
             (INK_IN_PROJ_BF16_GEMV | INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj) => self.launch_in_proj_gemv(call),
+            (INK_IN_PROJ_BF16_NAX, Op::InkInProj) => self.launch_in_proj_nax(call),
             (CONV_MIX_BF16 | ATTN_RES_MIX_BF16 | SCONV_RES_BF16 | LOOP_BLEND_BF16, _) => self.launch_mix(kernel, call),
             _ => Err(Error::invalid(format!("metal: {kernel} does not run {}", call.op))),
         }
@@ -224,6 +244,56 @@ impl MetalBackend {
             return Err(Error::invalid("ink_in_proj_bf16_gemv: bf16 only"));
         }
         self.in_proj_rows(&i[0], &i[1], o, i[0].shape[0])
+    }
+
+    /// `InkInProj` prefill: one NAX grid over the three segments, the tile of `gemm_nax::pick_variant(T, N)`.
+    fn launch_in_proj_nax(&self, call: &OpCall) -> Result<()> {
+        let (i, o) = (&call.inputs, &call.outputs);
+        let bf = DType::Bf16;
+        let (s, t, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+        if t == 0 {
+            return Ok(());
+        }
+        let ns = [o[0].shape[1], o[1].shape[1], o[2].shape[1]];
+        let v = crate::gemm_nax::pick_variant(t, ns.iter().sum());
+        let vi = crate::gemm_nax::NAX_VARIANTS.iter().position(|x| x.shader == v.shader).expect("NAX tile");
+        let name = NAX_SHADERS[vi];
+        let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}' (metal4.0 library not loaded)")))?;
+        let (x, w) = (self.bind(&i[0], bf, false, "x")?, self.bind(&i[1], bf, false, "w")?);
+        let ys: Vec<_> = o.iter().enumerate().map(|(j, y)| self.bind(y, bf, true, ["pq", "pk", "pv"][j])).collect::<Result<_>>()?;
+        let xoff = |j: usize| -> Result<u32> { dim(j.min(s - 1) * t * d, "x offset") };
+        let p = [
+            dim(t, "T")?,
+            dim(d, "D")?,
+            dim(ns[0], "Nq")?,
+            dim(ns[1], "Nk")?,
+            dim(ns[2], "Nv")?,
+            xoff(1)?,
+            xoff(2)?,
+            x.skip,
+            w.skip,
+            ys[0].skip,
+            ys[1].skip,
+            ys[2].skip,
+        ];
+        let tiles_n: usize = ns.iter().map(|n| n.div_ceil(v.bn as usize)).sum();
+        let tiles_m = t.div_ceil(v.bm as usize);
+        self.with_encoder(|enc| {
+            enc.setComputePipelineState(pso);
+            // SAFETY: offsets inside the buffers (OpCall::check), 4-byte aligned with the skips in `p`.
+            unsafe {
+                enc.setBuffer_offset_atIndex(Some(&x.mtl), x.off, 0);
+                enc.setBuffer_offset_atIndex(Some(&w.mtl), w.off, 1);
+                for (j, y) in ys.iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&y.mtl), y.off, 2 + j);
+                }
+            }
+            crate::set_bytes(enc, &p, 5);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: tiles_n, height: tiles_m, depth: 1 },
+                MTLSize { width: v.threads() as usize, height: 1, depth: 1 },
+            );
+        })
     }
 
     /// `y_j = x[min(j, s-1)] . W_j^T` (x `[s, T, D]`, W the three segments stacked, y_j `[T, n_j]`), T <= 16, one dispatch.

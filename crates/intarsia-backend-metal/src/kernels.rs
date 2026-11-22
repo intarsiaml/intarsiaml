@@ -289,6 +289,7 @@ pub fn metal4_shaders() -> Vec<&'static str> {
     v.extend(crate::fp8::NAX_FP8_SHADERS.iter().flatten());
     v.extend(crate::moe::NAX_MM_GU.iter().chain(&crate::moe::NAX_MM_DN));
     v.extend(crate::mxfp4::NAXD_FORMS.iter().flat_map(|f| [f.0, f.1]));
+    v.extend(crate::inkmix::NAX_SHADERS);
     v
 }
 
@@ -309,6 +310,7 @@ pub const NAX_KERNELS: &[&str] = &[
     crate::fp8::MATMUL_FP8_NAX,
     crate::nvfp4::MATMUL_NVFP4_NAX,
     crate::mxfp4::MATMUL_MXFP4_NAX,
+    crate::inkmix::INK_IN_PROJ_BF16_NAX,
 ];
 
 pub fn requires_metal4(kernel: &str) -> bool {
@@ -420,6 +422,7 @@ pub const TABLE: &[(&str, Op)] = &[
     // Inkling-2 depth mix / conv / in-projection (inkmix.rs)
     (crate::inkmix::INK_IN_PROJ_BF16_GEMV, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj),
+    (crate::inkmix::INK_IN_PROJ_BF16_NAX, Op::InkInProj),
     (crate::inkmix::CONV_MIX_BF16, Op::ConvMix),
     (crate::inkmix::ATTN_RES_MIX_BF16, Op::AttnResMix),
     (crate::inkmix::SCONV_RES_BF16, Op::SconvRes),
@@ -1002,6 +1005,8 @@ mod tests {
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();
+        // the Inkling-2 kernels serve new ops only (inkmix.rs): no existing op gains a candidate
+        got.retain(|g| !crate::inkmix::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
         got.sort();
         if MAIN_KERNEL_LIST.is_empty() {
             panic!("LIST {}", got.join(" "));
