@@ -416,7 +416,7 @@ pub const MIX_SOURCES_MAX: usize = 8;
 pub const BLEND_ROWS: usize = 256;
 /// Rows per `ink_blend_gate` threadgroup. With [`BLEND_CS`] a launch-shape choice only: a channel's gate value and the 32-channel
 /// partial sums do not depend on it (`INTARSIA_INK_BLEND_RB` / `_CS` measurement knobs).
-pub const BLEND_RB: usize = 16;
+pub const BLEND_RB: usize = 4;
 
 fn blend_geom() -> (usize, usize) {
     static G: std::sync::OnceLock<(usize, usize)> = std::sync::OnceLock::new();
@@ -489,13 +489,16 @@ struct InkBlendP {
     sk: [u32; 8],
 }
 
-/// (NE, threads per threadgroup) of the row kernels for rows of `d` elements: the fewest elements per thread that fit in
-/// 1024 threads (`INTARSIA_INK_MIX_NE=<ne>` forces another compiled NE: a measurement knob that changes the reduction order,
+/// (NE, threads per threadgroup) of the row kernels for rows of `d` elements: 4 from D 2048, below that the fewest elements per
+/// thread that fit in 1024 threads (`INTARSIA_INK_MIX_NE=<ne>` forces another compiled NE: a measurement knob that changes the reduction order,
 /// fixed per D, so still rows-exact).
 fn mix_geom(d: usize) -> (usize, usize) {
     static OV: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
     let ov = *OV.get_or_init(|| std::env::var("INTARSIA_INK_MIX_NE").ok().and_then(|v| v.parse().ok()).filter(|n| MIX_NE.contains(n)));
-    let ne = ov.filter(|&n| n * 1024 >= d).unwrap_or_else(|| MIX_NE.iter().copied().find(|&n| n * 1024 >= d).unwrap_or(4));
+    // NE 4 from D 2048 (576 threads at D 2304): same decode latency as NE 3, 15 % faster 2048-row prefill
+    // (docs/results/2026-11-21-inkling2-metal-mix.md section 3.5)
+    let fit = MIX_NE.iter().copied().find(|&n| n * 1024 >= d).unwrap_or(4);
+    let ne = ov.filter(|&n| n * 1024 >= d).unwrap_or(if d >= 2048 { 4 } else { fit });
     (ne, d.div_ceil(ne).next_multiple_of(32).clamp(32, 1024))
 }
 
