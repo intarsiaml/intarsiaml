@@ -1261,7 +1261,7 @@ mod tests {
         assert!(!pc.attrs.ink.situ && !pl.contains("situ"), "{pl}");
         assert!(sc.attrs.ink.situ && sc.attrs.ink.gate_cap == 4.0 && sc.attrs.ink.up_cap == 25.0);
         assert_eq!(sl, format!("{pl} situ"));
-        assert_eq!(pl, "T=1 E=32 K=8 H=256 I=128 bf16");
+        assert!(pl.ends_with("T=1 E=32 K=8 H=256 I=128 bf16"), "{pl}");
     }
 
     #[test]

@@ -298,3 +298,16 @@ drift: chat_system pos 47..62 is 0.000 everywhere except pos 57 (0.139, golden m
 pos 34 0.046; chat_multiturn pos 95 0.030 (margin 1.00); chat_reasoning pos 90..105 stays at 0.000-0.028 with no growth
 (Metal's regression grew to 0.431 over those rows). chat_system pos 57 is the row that regressed on Metal too (0.011 -> 0.303).
 Next: per-module replay of chat_system pos 57 against the oracle.
+
+## Merged tip with ink/cuda-p12 fc773d0fc (613dbacda; spark2 #11211, `--quiet gpu,cpu`, graphs on, P12 default on)
+
+Serve admission fix (65daa3e7a; the P12 branch had the same fix, its form kept at the merge): `serve` loads Inkling-2 on CUDA
+under the admitted-only rule (23 kernels, 119 cases, none rejected) and answers. Gate: ink_rows 7/7, backend-cuda lib 35/35,
+tiny 13/13 (tests/inkling2_capture.rs compiles), core quant::cases 2/2; greedy 256 short ids md5 a0e6f47... over 2 runs
+(unchanged from 8f7d5cd3a: P12 and the deep GEMV keep the bits).
+
+| prompt | prefill | decode tok/s (256 forced) | before P12 merge (#11144) |
+|---|---|---|---|
+| 15 tokens | 98-108 ms | 34.56 / 34.62 | 32.77 / 32.63 |
+| 1261 tokens | 1295 ms (974 tok/s) | 33.98 | 32.31 (#11158) |
+| 6672 tokens | 5775 ms (1155 tok/s) | 33.02 | 31.16 |
