@@ -198,6 +198,17 @@ mod imp {
                         let nr: Vec<&Case> = nx.iter().collect();
                         let (nm, _, _) = time(&be, &trace, &nr, r);
                         println!("  nax attn {nm:>8.2} us per chunk (fallbacks so far {})", intarsia_backend_metal::inkattn::nax_fallbacks());
+                        // `INK_ATTN_BENCH_HASH=1`: FNV-1a of the NAX outputs (fixed seed), to compare kernel variants bitwise
+                        if std::env::var("INK_ATTN_BENCH_HASH").is_ok() {
+                            be.synchronize(0).unwrap();
+                            let mut h: u64 = 0xcbf29ce484222325;
+                            for c in &nx {
+                                for b in be.download_row_major(&c.call.outputs[0]).unwrap() {
+                                    h = (h ^ b as u64).wrapping_mul(0x100000001b3);
+                                }
+                            }
+                            println!("  nax out hash {h:016x}");
+                        }
                     }
                     let kind = if full { "full" } else { "swa " };
                     println!(
