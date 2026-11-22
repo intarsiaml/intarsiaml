@@ -253,3 +253,13 @@ Full-attention visits (8) use the Q=3 ConvMix into them (+2.9 us each). The outp
 5. **InkInProj fp8 / NVFP4 variants** for the opt-in quantized-projection path (perf-strategy lever 4): the same segment-select
    GEMV over fp8 weights would halve the 39.9 MB per visit.
 
+
+## 7. Defaults switch check (commit `25ff7864a`, fleetq #10893, default load, not a quiet slot)
+
+- `tests/inkmix.rs` 3/3 pass (bitwise rows-exact at NE 4 / gate 4 rows); full admission: conv_mix 532/0 (max_abs 4.57e-3),
+  attn_res_mix 97/0, sconv_res 64/0, loop_blend 27/0, all ADMITTED.
+- Bench, same job, before (binary of `3ab0a36e1`) / after, us at 1 / 16 rows: ConvMix plain 8.55 / 9.10 -> 8.90 / 9.64; ConvMix +
+  blend S=3 34.1 / 71.6 -> 36.2 / 65.0; AttnResMix 6.36 / 6.53 -> 5.87 / 5.92; LoopBlend S=3 26.3 / 67.4 -> 36.1 / 83.1 (p10-p90
+  32.8-40.6 and 76-92: noisy, the slot was shared). 2048-row lines were not in this job (the quiet sweep in 3.5 has them).
+- Reading: decode is within +-5 % except LoopBlend, whose after-run is noisy and contradicts the quiet sweep (3.5: 24.9 / 55.3 us
+  at gate 4 rows); it needs one `--quiet gpu,cpu` rerun before the gate change is trusted for decode. Raw: `raw/defaults_check.log`.
