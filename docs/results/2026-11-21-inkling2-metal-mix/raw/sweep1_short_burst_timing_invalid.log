@@ -1,0 +1,117 @@
+fleetq: #10572 running on endor: .scratch/sweep1.sh
+== cfg s8u2 P=1
+InkInProj R=1 S=1                               112.70    111.34    124.01    354.4
+InkInProj R=1 S=3                               119.39    115.75    178.76    334.7
+== cfg s8u2 P=2
+InkInProj R=1 S=1                               114.57    112.12    139.90    348.7
+InkInProj R=1 S=3                               115.39    111.67    176.75    346.3
+== cfg s8u2 P=4
+InkInProj R=1 S=1                               112.64    110.71    137.28    354.6
+InkInProj R=1 S=3                               114.14    111.88    148.69    350.1
+== cfg s8u2 rows 4 default
+InkInProj R=4 S=1                               115.87    113.85    131.10    345.3
+InkInProj R=4 S=3                               116.56    115.18    129.98    343.6
+== cfg s8u2 rows 8 default
+InkInProj R=8 S=1                               150.46    147.82    171.58    266.5
+InkInProj R=8 S=3                               161.08    150.86    203.03    249.4
+== cfg s8u2 rows 16 default
+InkInProj R=16 S=1                              418.54    414.33    429.04     96.2
+InkInProj R=16 S=3                              415.03    413.25    426.76     97.4
+== cfg s8u2 8 P2
+InkInProj R=8 S=1                               181.80    179.51    195.69    220.6
+InkInProj R=8 S=3                               183.78    180.94    196.36    218.6
+== cfg s8u2 16 RB8
+InkInProj R=16 S=1                              501.05    497.78    507.56     80.4
+InkInProj R=16 S=3                              501.72    498.08    507.31     80.6
+== cfg s8u2 16 P2
+InkInProj R=16 S=1                              392.40    387.90    410.84    102.6
+InkInProj R=16 S=3                              392.29    387.83    414.80    103.0
+== cfg s9u1 P=1
+InkInProj R=1 S=1                               112.33    111.21    120.32    355.6
+InkInProj R=1 S=3                               112.57    111.58    125.95    354.9
+== cfg s9u1 P=2
+InkInProj R=1 S=1                               114.47    112.02    124.02    349.0
+InkInProj R=1 S=3                               113.82    111.44    127.11    351.0
+== cfg s9u1 P=4
+InkInProj R=1 S=1                               113.73    111.04    130.24    351.2
+InkInProj R=1 S=3                               113.23    110.97    125.15    352.9
+== cfg s9u1 rows 4 default
+InkInProj R=4 S=1                               124.38    119.96    138.66    321.7
+InkInProj R=4 S=3                               118.46    117.20    137.84    338.1
+== cfg s9u1 rows 8 default
+InkInProj R=8 S=1                               162.72    158.94    169.66    246.4
+InkInProj R=8 S=3                               164.81    161.43    169.24    243.8
+== cfg s9u1 rows 16 default
+InkInProj R=16 S=1                              429.30    425.16    447.77     93.8
+InkInProj R=16 S=3                              431.66    307.42    475.76     93.6
+== cfg s9u1 8 P2
+InkInProj R=8 S=1                               202.45    200.56    232.74    198.1
+InkInProj R=8 S=3                               203.45    202.09    215.48    197.5
+== cfg s9u1 16 RB8
+InkInProj R=16 S=1                              622.62    616.75    628.48     64.7
+InkInProj R=16 S=3                              624.39    620.13    629.13     64.7
+== cfg s9u1 16 P2
+InkInProj R=16 S=1                              442.93    436.49    463.81     90.9
+InkInProj R=16 S=3                              445.07    440.77    461.14     90.8
+== cfg s3u3 P=1
+InkInProj R=1 S=1                               114.50    112.58    120.36    348.9
+InkInProj R=1 S=3                               114.15    111.90    127.94    350.0
+== cfg s3u3 P=2
+InkInProj R=1 S=1                               115.32    113.40    144.98    346.4
+InkInProj R=1 S=3                               119.07    114.74    160.22    335.5
+== cfg s3u3 P=4
+InkInProj R=1 S=1                               117.87    115.61    136.18    338.9
+InkInProj R=1 S=3                               117.79    116.29    127.68    339.2
+== cfg s3u3 rows 4 default
+InkInProj R=4 S=1                               118.98    115.10    124.49    336.3
+InkInProj R=4 S=3                               127.24    116.68    259.01    314.7
+== cfg s3u3 rows 8 default
+InkInProj R=8 S=1                               156.81    153.30    172.48    255.7
+InkInProj R=8 S=3                               158.77    155.77    169.19    253.0
+== cfg s3u3 rows 16 default
+InkInProj R=16 S=1                              355.98    342.12    372.66    113.1
+InkInProj R=16 S=3                              357.61    347.88    372.41    113.0
+== cfg s3u3 8 P2
+InkInProj R=8 S=1                               151.02    145.80    179.23    265.5
+InkInProj R=8 S=3                               155.90    152.22    166.92    257.7
+== cfg s3u3 16 RB8
+InkInProj R=16 S=1                              360.06    352.53    377.28    111.9
+InkInProj R=16 S=3                              357.65    340.83    410.04    113.0
+== cfg s3u3 16 P2
+InkInProj R=16 S=1                              322.29    310.07    377.57    125.0
+InkInProj R=16 S=3                              323.51    308.56    344.63    124.9
+== cfg s1u9 P=1
+InkInProj R=1 S=1                               124.14    117.85    143.36    321.8
+InkInProj R=1 S=3                               118.22    114.41    131.83    338.0
+== cfg s1u9 P=2
+InkInProj R=1 S=1                               118.65    114.29    122.47    336.7
+InkInProj R=1 S=3                               116.93    114.96    119.66    341.7
+== cfg s1u9 P=4
+InkInProj R=1 S=1                               135.60    132.42    141.97    294.6
+InkInProj R=1 S=3                               133.35    132.17    139.82    299.6
+== cfg s1u9 rows 4 default
+InkInProj R=4 S=1                               118.64    116.81    135.40    337.3
+InkInProj R=4 S=3                               118.65    116.46    124.56    337.5
+== cfg s1u9 rows 8 default
+InkInProj R=8 S=1                               152.45    133.69    199.93    263.0
+InkInProj R=8 S=3                               132.88    129.16    150.58    302.3
+== cfg s1u9 rows 16 default
+InkInProj R=16 S=1                              243.28    228.71    264.24    165.6
+InkInProj R=16 S=3                              240.90    233.98    269.28    167.8
+== cfg s1u9 8 P2
+InkInProj R=8 S=1                               212.50    201.96    229.08    188.7
+InkInProj R=8 S=3                               216.31    206.02    263.63    185.7
+== cfg s1u9 16 RB8
+InkInProj R=16 S=1                              235.18    219.61    261.13    171.3
+InkInProj R=16 S=3                              235.66    227.59    254.08    171.5
+== cfg s1u9 16 P2
+InkInProj R=16 S=1                              347.84    338.27    360.58    115.8
+InkInProj R=16 S=3                              347.46    333.76    363.00    116.3
+case                                           us/call       p10       p90     GB/s
+3 x Matmul GEMV (per visit) R=1                  90.00     89.03    106.42    443.9
+3 x Matmul GEMV (per visit) R=4                 100.03     96.50    124.73    400.3
+3 x Matmul GEMV (per visit) R=16                179.06    176.24    192.09    225.8
+wo Matmul [2304,3072] R=1 (matmul_bf16_gemv)     33.09     32.72     39.02    428.1
+wo Matmul [2304,3072] R=4 (matmul_bf16_gemv_rows)     34.57     33.77     42.79    410.8
+wo Matmul [2304,3072] R=16 (matmul_bf16_gemv_rows)     60.16     59.91     64.73    238.1
+fleetq: #10572 done (exit 0)

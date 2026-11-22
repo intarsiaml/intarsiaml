@@ -55,7 +55,8 @@ table rows, shader lists, the pinned-list test ignores the new-op kernels), `bui
   lanes of a query with xor shuffles. Then the weighted sum, and the norm (one more reduction) or the f32 mix.
 - With a blend (ConvMix with msg), the same launch also writes the controller pair `rA([d w(d), m w(m)])` of every stream.
 - Every per-row reduction order is fixed by (D, N, Q), never by T or by the row's position in the launch, so the kernels are
-  rows-exact and chunk-invariant (prefill rows are bitwise the decode rows).
+  rows-exact and chunk-invariant (prefill rows are bitwise the decode rows; tested bitwise to 300 rows at D 64 and to 40 rows at
+  D 2304, which covers the blend's 16-row h-GEMV chunks and tail at K 4608 and the deferred ring write).
 
 ### 1.3 The blend (LoopBlend, ConvMix with msg)
 
@@ -92,7 +93,7 @@ rows). Needs G % 8 == 0 and 16-byte aligned gain / forget (the checkpoint's are)
 - Rows-exact tests, `cargo test -p intarsia-backend-metal --test inkmix` (3 tests, pass): an R-row call is compared bitwise with R
   one-row calls made in order (the ring carried between them), every output and the final ring: InkInProj R = 1..16 (real
   shape, S 1 and 3); ConvMix / SconvRes at D 2304 (Rr 19) and D 64 (Rr 7, so rows past 4 read rows the call writes) for T = 1, 2,
-  3, 7, 16, 40, 300, pos0 0 / 2 / 29, host and device position, every epilogue and mix variant, blend S 1 and 3; AttnResMix and
+  3, 7, 16, 40, 300 (D 2304: up to 40), pos0 0 / 2 / 29, host and device position, every epilogue and mix variant, blend S 1 and 3; AttnResMix and
   LoopBlend R up to 300 (two blend chunks, the h GEMV's chunks and tail).
 - Plan-level classification: the row kernels are each op's only Metal kernel, so a verify or batched step picks the same kernel
   as the solo step (`plan::check_batch_ops` accepts that); InkInProj's verify rows pick the `rows_exact` twin.
@@ -112,8 +113,10 @@ sample so the GPU runs at its working clock. Median of 10-15 samples; p10 / p90 
 Important: an earlier version of the bench (one short command buffer per sample, the GPU idle in between) under-reported every
 kernel by 25-40 % (the existing `matmul_bf16_gemv` read 326 GB/s at [8664, 2304]); the numbers below are from the fixed method.
 
-Raw: `.scratch/final_proj.log`, `.scratch/mix3.log` in the worktree (not committed; numbers copied here). Binary built from
-`d580d471b` (the kernels of HEAD).
+Raw logs and the scripts that produced them: `docs/results/2026-11-21-inkling2-metal-mix/raw/` (`final_proj.log`, `mix3.log`,
+`sweep3.log`, `blendsweep.log`; `sweep1_short_burst_timing_invalid.log` is the first sweep under the broken timing method). Binary
+for 3.1-3.4 built from `d580d471b`; the later gate refactor (`9e818db11`: rows per threadgroup and the partial index from the
+launch parameters) is checked against it in `blendsweep.log` (section 3.5).
 
 ### 3.1 InkInProj decode / verify (real shape: W [6552 + 1056 + 1056, 2304] bf16 = 39.9 MB, byte floor 65.0 us at 614 GB/s)
 
@@ -130,7 +133,7 @@ Raw: `.scratch/final_proj.log`, `.scratch/mix3.log` in the worktree (not committ
 - 16 rows are ALU-bound (the bf16 unpack of x costs one op per fma): 241 GB/s, no better than the existing multi-row Matmul GEMV
   (260) and slower than NAX (107 us, not rows-exact). The exact_rows path must stay on the GEMV family; ordinary 2-8-row calls now
   take the GEMV (`ink_in_proj_bf16_gemv` registered for 1..=8 rows at priority 6, above NAX), 9 and more take NAX.
-- Exploration (same harness, `.scratch/sweep3.log`): families (8,2) / (9,1) / (3,3) / (1,9) were within 3 % of each other at 1-4 rows;
+- Exploration (same harness, `raw/sweep3.log`): families (8,2) / (9,1) / (3,3) / (1,9) were within 3 % of each other at 1-4 rows;
   (1,9) is best at 16 rows (147 us with 8-row passes) but 3 % slower at 1 row, so the decode-optimal (8,2) is the default (the family
   must be the same for every row count). P = 2 weight rows per threadgroup and grid-stride caps were slower or equal.
 

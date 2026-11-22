@@ -1,0 +1,30 @@
+fleetq: #10635 running on endor: bash -c 'for op in ink_in_proj conv_mix attn_res_mix sconv_res loop_blend; do ./target/release/intarsia kernels test --backend metal --op $op 2>&1 | tail -8; done'
+fleetq: #10635 went ahead of the line and must end within 28m (by Sat 20:26); it is stopped then
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+ink_in_proj    ink_in_proj_bf16_gemv           6      0    2.682e-4    1.194e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_gemv_rows     24      0    8.278e-4    1.412e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_nax           23      0    3.145e-3    7.463e-5  ADMITTED
+3 kernels, 53 cases in 18.4s
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+1 kernels, 532 cases in 11.2s
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+attn_res_mix   attn_res_mix_bf16              97      0    2.016e-3    3.523e-5  ADMITTED
+1 kernels, 97 cases in 1.0s
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+sconv_res      sconv_res_bf16                 64      0    1.880e-3    1.234e-5  ADMITTED
+1 kernels, 64 cases in 1.0s
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.637e-4  ADMITTED
+1 kernels, 27 cases in 2.1s
+fleetq: #10635 done (exit 0)
