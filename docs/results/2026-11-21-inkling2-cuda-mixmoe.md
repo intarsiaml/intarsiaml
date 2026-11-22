@@ -290,6 +290,11 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
 - (coordinator, 42nd) #491 is merged as main `8c7bb7cb1`, and the freeze is lifted. Delete the remote branch. Go ahead with gu+dn
   in one launch per layer: bitwise only, half-day timebox, kept only at >= 1 % at g256 spec-off in a quiet ABBA. Merge order on
   main for now: #497, then the CUDA flips PR. **Ask the coordinator before merging anything.**
+- (coordinator, 43rd) Keep `ink/cuda-moe-fuse` as a local record branch. Run the combined gate: PDL at T <= 2 plus the stage A
+  repack, in the default config too, since spec goes default-on on CUDA with the flips PR, so most decode is T=4 verify where
+  PDL is off. Quiet ABBA, both arms, g256 spec off and spec on. Keep it only at >= 2 % spec off with no loss spec on, or
+  >= 1 % spec on. Bitwise as before. If it passes, prepare a PR but do not merge. Merge order: #497, the CUDA flips PR, then
+  chat-reuse; ask first.
 - (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
   chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
   is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
