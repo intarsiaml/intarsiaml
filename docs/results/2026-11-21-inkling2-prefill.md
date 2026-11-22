@@ -235,6 +235,13 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     G2 / G3 and speed numbers. **B:** exact but no gain: remove inkling2_attn_nax_int.metal and INTARSIA_INK_NAX_INT from the
     branch, keep the measurements in the doc. The softmax / exp / rescale bucket (~0.53 ms per SWA visit over floor) is next
     after A; do not start it yet.
+24. 2026-11-22 (coordinator, via SendMessage): the Metal 4 shader-count test fails on ink/prefill (d03224697 added
+    inkprefill::metal4_shaders() without the test's sum); cherry-pick or merge ink/metal's one-line fix 8e0ff6af6 before
+    adding the rel_mode 2 shaders, and note it here. **Done / checked:** ink/prefill already carries its own fix (87e5dc2c6,
+    same line); cherry-picking 8e0ff6af6 on top double-counts (126 vs 188), so it was dropped, and
+    `metal4_shaders_are_the_nax_variants_and_not_metal3_shaders` passes at the ink/prefill tip (8db176ed5). The rel_mode 2
+    branch `ink/prefill-rel2` merged ink/metal 5ef24b165 (contains 8e0ff6af6; the merge kept one copy of the line), and the
+    test passes there before and after NAX_R2 joined `inkattn::metal4_shader_names()` (which the sum counts).
 
 ## Status
 
