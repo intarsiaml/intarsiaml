@@ -129,5 +129,7 @@ split counts in one launch are exercised.
 Other models (same branch): `intarsia-core` 232 + doc tests, `intarsia-backend-cpu` (admission quick sweep included),
 `intarsia-models` `batch`, `batch_recurrent` (15, cpu), `batch_metal`, `inkling2` (8, cpu and Metal), `intarsia-backend-metal`
 lib (kernel-list golden gains `ink_attn_decode_bf16_rows` only; `conv_mix_bf16_rows` is an Inkling op, outside the golden) and
-its `inkling2_attn`, `inkmix`, `row_tables`, `rows_exact` tests: pass. `plan show --model ~/models/Qwen3-8B --backend metal`:
+its `inkling2_attn` (1), `inkmix` (3), `row_tables` (8), `rows_exact` (10 of 11) tests: pass (#10815). The 11th,
+`rows_exact_registrations_are_pinned`, fails identically on the base a88db4620 (#10818): ink/m-mix's
+`ink_in_proj_bf16_gemv_rows` is `rows_exact` but not in the pin list; not touched here (integration lane). `plan show --model ~/models/Qwen3-8B --backend metal`:
 stdout and stderr byte-identical to a88db4620 (#10785).
