@@ -1,6 +1,6 @@
 # Inkling-2-Mini Metal decode: host gap (lane ink-hostgap, 2026-11-21)
 
-Status: in progress. Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwarded to e61f392fd), not pushed.
+Status: done (lane stopped by the coordinator after #10839 / #10840 / #10888). Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwarded to e61f392fd), not pushed.
 
 ## Briefs received
 
@@ -68,7 +68,74 @@ The mean is the brief's 19.8 / 15.8 ms; the median is the normal step. The diffe
 synchronizes around every op (`Model::exec_call_one` with `profile`), 419 one-dispatch buffers, 77-82 ms each. This agrees
 with Fable's 0.1.
 
-MEASUREMENT_A_PLACEHOLDER
+### Summary: before and after
+
+| per token, Inkling-2-Mini Metal decode, endor M5 Max | before (integration lane, `generate` default `--profile-every 16`) | after (this branch, default `--profile-every 0`) |
+|---|---:|---:|
+| wall, mean (cb trace, 19-token prompt) | 19.99 ms | 16.86 ms |
+| GPU busy, mean | 16.65 ms | 16.67 ms |
+| GPU idle, mean | 3.34 ms (16.7 %) | 0.19 ms (1.1 %) |
+| GPU idle, median | 0.001 ms | 0.001 ms |
+| wall / busy / idle at a 5051-token prompt, median (mean idle) | not traced | 18.08 / 18.08 / 0.001 ms (0.005; 0.03 %) |
+| greedy decode tok/s, short prompt (`generate`, no profiler) | 50-52 | 63.7, 64.2 |
+| greedy decode tok/s, 5051-token prompt | 48.3 | 55.8 (base binary at p0: 57.3) |
+
+Where the 4 ms went: it was the profiler, not the host. With `--profile-every 16`, every 16th step synchronises around each op
+(419 waited command buffers, 77-82 ms). Unprofiled steps already ran back to back. Token feedback holds each step's rest until
+the previous token is read, and that rest is committed 0.30 ms (median) before the GPU needs it.
+
+Target, wall <= GPU busy + 0.5 ms:
+- **Greedy:** met at both prompt lengths.
+- **Sampled decode:** not met. See item 4: 2.4-3.6 ms of host work per token while the GPU is idle.
+
+The cb traces of #10840 carry the cb profiler's own cost, so their busy time (16.6 ms) is above the 15.6-15.7 ms per token
+that the unprofiled tok/s implies.
+
+### Measurement A and the timing runs (fleetq #10840, endor, quiet gpu + cpu, 22:28-22:31)
+
+Script: `.scratch/measT.sh`; raw output: `.scratch/mT/`.
+- **base:** ink/metal e61f392fd.
+- **b1:** the branch at 63e0d1895, the binary #10839 checked.
+- **b3:** the branch at 5b487b79c, used for the host-profile, cb-trace and Qwen3 runs.
+
+All runs are `generate --profile-every 0` with no profiler in the environment. They are single runs, and the first run of the
+job was cold.
+
+| run | base decode tok/s | b1 decode tok/s | md5 (base = b1) |
+|---|---:|---:|---|
+| greedy, 256 tokens, 19-token prompt, run 1 | 56.85 (cold: prefill 1185 ms) | 63.68 | d64363ea |
+| greedy, run 2 | 63.08 | 64.18 | d64363ea |
+| temperature 0.7, seed 7, 256 tokens | 54.91 | 51.86 | c10264d0 |
+| greedy, 128 tokens, 5051-token prompt | 57.33 | 55.76 | 6376fdf5 |
+
+Measurement A (the coordinator's three numbers):
+- **b1:** greedy 63.68 and 64.18 tok/s, temperature 0.7: 51.86 tok/s.
+- **base:** greedy 63.08 tok/s (warm run), temperature 0.7: 54.91 tok/s.
+
+The greedy gain of b1 over base, about 1 %, is argmax's 0.16 ms of GPU time per step.
+
+The temperature-0.7 and 5k differences between base and b1 (-5.5 % and -2.7 %) are single runs.
+- For sampled decode, base and b1 run the same code apart from profiler-gated branches (one atomic load each).
+- At 5k, decode is GPU-bound (idle 0.03 %).
+- Not repeated or investigated: the lane stopped here.
+- **Not verified:** these are `generate` numbers, not localeval runs (see "Not done").
+
+Host profile (b3, `INTARSIA_HOST_PROFILE=1`, 255 decode steps, ms per step):
+
+| path | wall | encode | sync (GPU) | softcap | sampler (`accept`) | other host | host gap (GPU idle) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| greedy, token feedback (default) | 16.77 | 0.99 (`launch`, overlapped: held behind the running step) | 15.74 | - | - | 0.04 | 0.015 |
+| greedy, plain path (`INTARSIA_TOKEN_FEEDBACK=0`) | 16.23 | 0.98 (`step-setup`; the GPU starts after the first 4 dispatches) | 15.23 | - | - | 0.01 | 0.018 |
+| temperature 0.7 | 19.59 | 1.21 | 15.99 | 0.68 | 1.67 | 0.05 | 2.40 |
+| temperature 1.0 (checkpoint default) | 21.98 | 1.71 | 16.72 | 1.37 | 2.10 | 0.09 | 3.56 |
+
+The cb trace of the temperature-0.7 path (b3) agrees: 21.13 ms wall against 16.51 ms busy (median), 4.55 ms idle, 29 % of
+the step.
+
+`--profile-every` default on other models (b3, Qwen3-8B, 128 tokens):
+- new default: 31.06 tok/s, `top ops: off (pass --profile-every 16)`
+- `--profile-every 16`: 29.56 tok/s
+- md5 749132e0 is the same for both
 
 ## Correctness (fleetq #10839, endor, 22:26-22:28)
 
@@ -114,7 +181,18 @@ restores the scalar kernel. Checks:
 - The admission sweep gains V = 101 and 4099.
 - `examples/argmax_cost.rs` times the three kernels.
 
-GPU results: ARGMAX_RESULTS_PLACEHOLDER
+GPU results (#10839, #10840; `examples/argmax_cost.rs`, us per dispatch, median of 15 buffers of 200 dispatches):
+
+| kernel | V | hot (one row) | rotating (48 rows, 38 MB) |
+|---|---:|---:|---:|
+| `argmax_f32` (scalar, what Inkling ran) | 200058 | 83.4 | 235.8 |
+| `argmax_f32_v4t` (new) | 200058 | 13.5 | 13.9 |
+| `argmax_f32` (scalar) | 151936 | 63.8 | 175.7 |
+| `argmax_f32_v4` (Qwen3's, unchanged) | 151936 | 11.3 | 11.9 |
+| `argmax_f32_v4t` on aligned rows (not taken there) | 151936 | 11.1 | 11.8 |
+
+The target was <= 25 us, met: 172 us in the decode trace becomes about 14 us, about 0.16 ms of GPU time per greedy step. The
+Metal tests and `kernels test --op argmax` pass, and the greedy md5 and G2-short self-golden are bitwise base = b1 (#10839).
 
 ## Item 4: the sampled path (code reading; host-profile numbers pending)
 
@@ -129,7 +207,24 @@ next step's first commit. Per token, on the host:
    200058 f64 `exp` plus divides, then the walk. With top_k = 20 it is a `select_nth` over 200058 instead of the sort.
 4. `on_token`, then the encode of the next step's first dispatches.
 
-Host cost estimate: HOSTCOST_PLACEHOLDER
+Host cost, measured: `sampler::tests::sampler_host_cost` on endor's CPU inside #10840 (n = 200058, median of 41).
+
+| step | ms |
+|---|---:|
+| soft-cap (copy + tanh) | 0.67 |
+| host argmax | 0.20 |
+| `sample_row_in`, T 1, no top-k / top-p (checkpoint default) | 1.43 |
+| `sample_row_in`, T 0.7, no top-k | 1.40 |
+| `sample_row_in`, T 1, top-p 0.95 | 1.43 |
+| `sample_row_in`, T 0.7, top-k 20, top-p 0.95 | 0.19 |
+| `sample_row_in`, T 1, top-k 64 | 0.19 |
+
+In the decode loop the same work costs more than in the microbench. There the host profile shows softcap 0.68-1.37 ms and
+sampler 1.67-2.10 ms per token, a host gap of 2.4-3.6 ms; the bench runs with a warm cache.
+
+This is the remaining host gap of Inkling decode, about 12-16 % of a sampled step. Served requests that send no sampling
+parameters get it: `serve` applies the checkpoint's temperature 1.0, no top-k. Not built here; the lane stopped. The bitwise
+option is below.
 
 What can and cannot remove it while keeping the token bitwise the same:
 
@@ -213,3 +308,64 @@ cycle (`Seq::prepare_with`, the branch DSpark and DFlash take) is its own class 
 - `gpu-idle-gap` = host time from the verify's token download to the next draft's start
 
 The S1 / S2 host work inside `draft` is ink-mtp's `INTARSIA_DSPARK_PROFILE` split.
+
+## CPU checks (spark2)
+
+The checks ran on spark2 under `~/intarsiaml-ink-hostgap/src`: an exact `git archive` of the commit, without the docs/results
+raw dirs or golden/. spark2 has no /opt/code.
+
+- **#10873, on 6c0f4a5d9:** all pass.
+  - hostprof 2/2.
+  - `dflash_cpu` 7/7, with and without `INTARSIA_HOST_PROFILE=1`; the spec-on == spec-off id tests pass under the profiler.
+    93 `spec-cycle` lines.
+  - docs_env_vars 2/2 and the cli build pass.
+  - This run showed 18-20 ms "gaps" from stale sync marks, fixed in 5b487b79c.
+- **#10888, on 5b487b79c:**
+  - `dflash_cpu` 7/7 both ways, with gaps now 0.007-0.033 ms. docs_env_vars and the cli build pass.
+  - The new hostprof test failed: its expected count was wrong (2 gaps, not 1), not the code. Fixed in cd886d57b.
+- **#10899, on cd886d57b:** hostprof 3/3, `dflash_cpu` with the profiler 7/7.
+
+## Batched decode and MTP draft verify
+
+- **Batched decode:** there was no host-gap work for it in this lane. ink-batch keeps graphs off there. A batched step would need
+  the per-row form of the same pieces: a device-side token read per row, which `forward_batch` already does with its single
+  download per step, and device top-k for sampled rows (`HeadMode::LastTopK`). Metal has `topk_rows` now (ink/mtp c770aaef3),
+  but `supports_topk` stays false.
+- **MTP draft verify:** see item 5 (dropped: host time is under 5 % of a cycle).
+
+## Not done (lane stopped by the coordinator after the three jobs)
+
+- **localeval:** speed numbers are from `generate` (engine-timed decode tok/s), not localeval. No `localeval speed` run was made.
+  The brief asked for localeval; the coordinator's rescope replaced it with measurement A.
+- **Gates:** G1, G2 long and G3 were not rerun on Metal; only G2 short was (PASS, self-golden bitwise base = branch). The argmax
+  change picks tokens and does not touch logits, the greedy md5s are identical, and the branch adds no other numerics change.
+- **Other-model tests:** the Qwen3 and 35B MoE real-model Metal tests were not run. Instead: `plan show` is identical for Qwen3-8B
+  / 35B / Inkling, Qwen3-8B's greedy md5 is the same at the new default and at `--profile-every 16`, and Qwen3 / the 35B keep
+  `argmax_f32_v4` (V % 4 == 0).
+- **Encode-ahead, chunked commits, cheaper encoding, ICB replay:** not built. Greedy decode has no host gap to remove (0.015 ms
+  per step), and Metal already commits in chunks (`FIRST_COMMIT` 4, `COMMIT_EVERY` 128).
+- **The sampled path:** not built. It is the remaining real gap, 2.4-3.6 ms per token (item 4). The bitwise option is to split
+  the per-element work (soft-cap, sort keys, exp, divides) across threads, with the radix sort stable per chunk and the f64 sum
+  kept sequential. A device sampler would change the draw and needs a decision.
+
+## Defaults and flags
+
+- **Metal `generate --profile-every` default 16 -> 0** (63e0d1895): every model on Metal; CUDA / HIP / cpu unchanged. Coordinator
+  go-ahead, LOG.md row. Revert that commit alone to undo it.
+- **`argmax_f32_v4t`** (942f72f31): on by default for f32 argmax rows with V % 4 != 0, on any model. Of the fleet's Metal models
+  only Inkling-2-Mini has such a head. Qwen3 / the 35B (V % 4 == 0) run the kernel they ran before. `INTARSIA_METAL_ARGMAX_V4T=0`
+  turns it off. Same result by construction and by test.
+- **`INTARSIA_HOST_PROFILE`** (e6e5d4314, 6c0f4a5d9, 5b487b79c, cd886d57b): opt-in, measures only.
+
+## Commits (ink/hostgap, not pushed)
+
+| commit | what |
+|---|---|
+| 942f72f31 | Metal `argmax_f32_v4t` for V % 4 != 0, `INTARSIA_METAL_ARGMAX_V4T`, tests, admission V = 101 / 4099, `examples/argmax_cost.rs` |
+| e6e5d4314 | `INTARSIA_HOST_PROFILE` in the solo decode loop, `softcap` column |
+| 63e0d1895 | Metal `generate` defaults to `--profile-every 0`; `top ops: off` line; docs/benchmarking.md note; LOG.md row |
+| c1841a9b3 | ignored `sampler_host_cost` microbench |
+| 6c0f4a5d9 | host profile: the spec cycle as its own class (engine.rs only, approved by ink-mtp) |
+| 5b487b79c | host profile: no gap from a stale sync mark; greedy token read split into sync |
+| cd886d57b | host profile: test expectation fix |
+| f2c338e39, 2229ae919, 6855e486a, f71919c9a, 78e50d649, a3ba38768, this one | results doc |
