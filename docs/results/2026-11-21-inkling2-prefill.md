@@ -425,7 +425,7 @@ Recipe committed on the coordinator's call (brief 13): ink/prefill-merge 05f1c70
 | inkmix rows-exact tests, metal4 off / on | 3 passed / 3 passed |
 | admission ink_in_proj, metal4 off | gemv 18 shapes, gemv_rows 24, **gemv_chunks 11 shapes ADMITTED** (max_abs 2.79e-3, rel_l2 1.84e-5) |
 
-### MoE NVFP4 diagnosis (brief 10; in progress, (a) and (b) wait for #11132)
+### MoE NVFP4 diagnosis (brief 10; #11187 for (a) and (b))
 
 Per visit, warm chunks 1 and 2 of the 8k kernel trace: 7.35 ms. That is the same as the random-routing bench (7.29 ms), so the
 real routing costs nothing extra on average.
@@ -438,6 +438,42 @@ real routing costs nothing extra on average.
 | down (`#2`) | 2.50 | 110.0 | 87 GFLOP: 35 TFLOP/s (floor 1.4 ms) |
 | gather / weighted combine (`#3`) | 0.22 | 9.8 | ~85 MB (y 75 MB read, out 9.4 MB written): ~385 GB/s, at DRAM speed |
 | router logits (separate op) | 0.32 | 15.2 | |
+
+(a) Rows per expert, real routing (INTARSIA_INK_MOE_DUMP, 8k prompt, chunk 2048, 132 NVFP4 calls at T = 2048):
+- Median rows per expert per call: 69. The minimum is 0 (median 4 experts empty per call, up to 54). The maximum is median 1184 and up to 2048: one expert takes every row.
+- Pooled percentiles: p5 1, p25 19, p50 65, p75 154, p95 456.
+- **Experts under 16 rows: median 27 per call (up to 85).**
+- 64-row tiles per call: median 325 against 256 balanced (+27 %); 21 % of tile rows are padding. 128-row tiles would be 203.
+- MXFP8 (12 calls): the same shape (median 61, 30 experts under 16 rows, 325 tiles).
+
+(b) Time against rows per expert (inkmoe_bench, NVFP4, 2048 rows unless noted, µs per call; `gu` = gate+up only, `dn` = down
+only):
+
+| Routing | full | gu only | dn only | 64-row tiles |
+|---|---:|---:|---:|---:|
+| random (this run) | 8268 | 5596 | 3031 | ~330 |
+| **real (replayed dump)** | **7250** | 5831 | 2690 | 325 |
+| balanced, 128 experts x 128 rows | 6202 | 4064 | 2397 | 256 |
+| balanced, 96 | 6669 | 4422 | 2505 | 288 |
+| balanced, 64 x 256 rows | 6050 | 4008 | 2305 | 256 |
+| balanced, 32 x 512 | 5965 | 3972 | 2255 | 256 |
+| balanced, 16 x 1024 | 5904 | 3945 | 2214 | 256 |
+| balanced, 8 x 2048 | 5868 | 3926 | 2193 | 256 |
+| random, T = 256 / 512 / 1024 | 2026 / 3050 / 4192 | | | |
+
+Reading:
+- **The cost per expert is not the problem.** 8 experts and 128 experts with the same full tiles differ by only 0.33 ms (2.6 µs per expert).
+- **The cost per tile is.** Fit `time = tiles x D + rows x a` to real (325 tiles) and balanced 128 (256 tiles), same 16384 rows: D = 15.2 µs per tile, a = 0.141 µs per row.
+- Per call that is 325 x 15.2 = 4.9 ms of 7.25 ms paid once per tile whatever its rows: every tile decodes and streams its expert's 64-column x 2304 weight slab.
+- The rows-proportional part (A loads, MMA, epilogue) is only 2.3 ms.
+- Real routing costs 1.05 ms per call over balanced. That is 46 ms per chunk, all from the 69 extra partial tiles.
+- The T sweep's intercept (~1 ms at T = 256) is the weights streamed once per call (0.57 GB NVFP4).
+- Floors for scale: MMA 4.2 ms per call. With D at 0 the call would be ~2.3 ms, bound by the MMA instead.
+
+Why v65 and dq1 missed:
+- v65 (two 64-row halves share one decoded stage, 256 threads) halves decodes per full 128 rows. But it raised the rows term: 11.0 ms in the bench.
+- dq1 removes the per-tile decode, but writes and re-reads 2 GB of bf16 weights per call (decode 9.3 ms at ~220 GB/s). It moved the cost to memory.
+- m128 (one 128-row tile) cut tiles to ~203 but blew registers / staging: 13-17.5 ms.
 
 (c) Inner loop, from the nax2 m64_k64_v1 probes (7.38 ms full, the gen1 schedule within 1 %):
 - Dropping the MMA saves 0.9 ms (6.35 ms left), so the accelerators are mostly hidden.
