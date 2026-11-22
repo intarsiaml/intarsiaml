@@ -70,6 +70,18 @@ fn chunk() -> usize {
     }
 }
 
+/// Load with `INTARSIA_INK_HEAD_SCREEN` set to `screen` for this load only. The variable is read at load time; a process-wide
+/// lock keeps two such loads (the tests run in parallel) from seeing each other's value, and it is removed again before the
+/// lock is released, so other tests load with it unset.
+fn load_screen(dir: &Path, chunk: usize, screen: &str) -> Model {
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    std::env::set_var("INTARSIA_INK_HEAD_SCREEN", screen);
+    let m = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| load(dir, chunk)));
+    std::env::remove_var("INTARSIA_INK_HEAD_SCREEN");
+    m.unwrap_or_else(|e| std::panic::resume_unwind(e))
+}
+
 fn load(dir: &Path, chunk: usize) -> Model {
     load_with(dir, chunk, backend()).unwrap()
 }
@@ -480,8 +492,7 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
 #[test]
 fn inkling2_tiny_screened_verify_fallback_reads_the_head_once() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
-    std::env::set_var("INTARSIA_INK_HEAD_SCREEN", "1");
-    let mut m = load(&dir, chunk());
+    let mut m = load_screen(&dir, chunk(), "1");
     m.enable_verify(16).unwrap();
     assert!(m.head_screen_stats().is_some(), "INTARSIA_INK_HEAD_SCREEN=1 loads the screen on the tiny model");
     let ids = prompt(&dir);
@@ -525,8 +536,7 @@ fn inkling2_tiny_screened_verify_fallback_reads_the_head_once() {
 fn inkling2_tiny_screen_keeps_batching() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     let plan = |screen: &str| -> std::result::Result<(), String> {
-        std::env::set_var("INTARSIA_INK_HEAD_SCREEN", screen);
-        let mut m = load(&dir, chunk());
+        let mut m = load_screen(&dir, chunk(), screen);
         m.enable_batch(4).map_err(|e| format!("enable_batch: {e}"))?;
         m.configure_plan(&Default::default(), None).map(|_| ()).map_err(|e| format!("configure_plan: {e}"))
     };
