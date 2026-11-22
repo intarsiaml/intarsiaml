@@ -15,6 +15,10 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 - 2026-11-21 (coordinator): Metal `generate` defaults to `--profile-every 16` (every 16th step waits on 419 command buffers,
   about 4 ms/token of fake gap; real single-stream greedy is about 15.76 ms = 63.4 tok/s). Use `--profile-every 0` for every
   engine-side decode timing, the solo no-regression check included; localeval through serve is unaffected.
+- 2026-11-21 (coordinator): endor's quiet-GPU line is 14+ jobs (about 9 h). Correctness runs (#10810 mixed-context
+  batched == solo, the G2-bitwise part of #10795) go as default-gpu-load jobs with short honest `--expect` (they share the box
+  and backfill); only tok/s (#10773, the tok/s of #10795, #10811) stays `--quiet gpu,cpu`. ink-metal fixed the rows_exact pin
+  list at a0751f302: merge ink/metal.
 
 ## 1. Design note (contract delta, written before any kernel)
 
