@@ -1000,3 +1000,32 @@ after; no other process used the GPU (< 25 ms each per sample).
 not a gate. Every endor speed claim: short warm-up, then arms ABAB or ABBA in one slot; gain = per-pair difference; state
 cold or warm; the warm steady state (B 16 ~73-75 ms at the final tree, ~215-220 tok/s) is the primary number, the cold
 ~59-61 ms (262-273 tok/s) a best case. #11393 is the last slot spent on the slow state's cause.
+
+**28c. #11393 (08:33-08:40, quiet; B 16 step vs GPU P-state; `.scratch/pstep.log`, `.scratch/pstep/`), the last slot on the
+slow state's cause.** Ten batched-only runs (`batch_prof --b 16 --steps 300 --warm 8`, random ids, ctx 1024, new process each,
+~30 s apart) with a 100 ms IOReport P-state trace; each step's CLOCK_UPTIME_RAW marks joined to the trace (`.scratch/pscorr.py`).
+
+- Box: start ALU 159.7 ms at P13 94% (B 16 sample 74.48 ms); end ALU 190.8 ms at P8-P11 (B 16 69.83). thermal "fair" both.
+- Run medians 67.4-69.2 ms (one 73.8, the run with the lowest mean state 8.72); every run's mean P-state index 8.7-9.9.
+- **Per step, B 16 time follows the P-state the GPU runs it at: Pearson r = -0.939 over 3,000 steps.**
+
+| mean P-state index under the step | steps | median step ms |
+|---|---:|---:|
+| 6-7 | 22 | 85.25 |
+| 7-8 | 69 | 78.80 |
+| 8-9 | 787 | 75.08 |
+| 9-10 | 641 | 69.54 |
+| 10-11 | 1,429 | 66.89 |
+| 11-12 | 52 | 64.55 |
+
+- The B 16 workload never ran at P12-P13 in this slot, even while the ALU kernel got P13 seconds before. Extrapolating the
+  table one or two states up gives ~59-62 ms, the cold "fast" number. So: **fast state = the GPU runs B 16 at P12-P13; slow
+  (warm) state = P8-P10.** The B 16 step is clock-sensitive (~2.5-4 ms per state); B 1 (bandwidth-bound) is not.
+- Why the GPU picks the lower states: not idle gaps (GPU busy 64.4 of 65.8 ms per step in #11355, so the utilization-driven
+  governor sees ~98% busy), and not another process. The system reports thermal state "fair" at every check, and the ALU
+  kernel itself drops to P6-P9 after ~1.5 min of load: a power / thermal limit the system applies to the GPU. B 16 draws
+  more power per unit of time than the ALU kernel (DRAM traffic + ALU), so it sits lower under the same limit.
+- **Actionable in software?** No direct lever: macOS exposes no API to request a GPU P-state, and our dispatch pattern does
+  not leave the GPU idle. The indirect lever is energy per step: fewer bytes moved and less wasted ALU at B 16 (MoE 52-55%
+  of the step) lowers power, which lets the governor hold a higher state. That is the existing optimization work, so no
+  separate item. **Topic closed.** Warm steady state (~68-75 ms B 16) is the primary serving number from here on (28b).
