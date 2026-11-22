@@ -1884,6 +1884,9 @@ impl Model {
         let inv_want = opts.row_invariant_prefill.or_else(row_invariant_override).unwrap_or_else(|| b.row_invariant_prefill())
             && slot_specs.iter().all(|s| matches!(s, SlotSpec::AttnKv { .. }))
             && tp.world == 1;
+        // the host pool for the logits row work (soft-cap, sampler): on for Inkling-2 by default, off for every other model until its
+        // own gates pass (lane ink-hostgap; `INTARSIA_HOST_THREADS` sets it for every model)
+        crate::par::set_model_default(ink_model.is_some());
         let mut model = Model {
             backend,
             registry,

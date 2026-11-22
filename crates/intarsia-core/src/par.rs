@@ -3,8 +3,10 @@
 //! (docs/results/2026-11-21-inkling2-hostgap.md). Work is split into tasks by index and every task writes only its own outputs,
 //! so a result never depends on which thread ran which task: the callers get the same bits as the one-thread loop.
 //!
-//! `INTARSIA_HOST_THREADS` (read once): threads that share a task list, the calling thread included. Unset: the smaller of 8 and
-//! `available_parallelism`; `1` (or `0`): no pool, every task runs on the caller in order.
+//! Whether the callers use the pool ([`enabled`]): `INTARSIA_HOST_THREADS` (read once) is the threads that share a task list, the
+//! calling thread included, for every model; `1` (or `0`) turns the pool off. Unset: the model decides at load
+//! ([`set_model_default`]: on for Inkling-2, off for every other model until its own gates pass) with the smaller of 8 and
+//! `available_parallelism` threads.
 //!
 //! One caller at a time uses the workers; a second, concurrent caller runs its tasks itself (same result). Workers spin for
 //! [`SPIN`] after a task list before they block, so the phases of one token do not pay a wake-up each.
@@ -16,13 +18,30 @@ use std::time::{Duration, Instant};
 /// How long an idle worker spins for the next task list before it blocks.
 const SPIN: Duration = Duration::from_micros(300);
 
-/// Threads that share a task list, the caller included (`INTARSIA_HOST_THREADS`; at least 1).
+/// `INTARSIA_HOST_THREADS` as given (read once): `None` when unset or not a number.
+fn env_threads() -> Option<usize> {
+    static N: OnceLock<Option<usize>> = OnceLock::new();
+    *N.get_or_init(|| std::env::var("INTARSIA_HOST_THREADS").ok().and_then(|v| v.trim().parse::<usize>().ok()))
+}
+
+/// Threads that share a task list, the caller included: `INTARSIA_HOST_THREADS`, else the smaller of 8 and the cores (at least 1).
 pub fn threads() -> usize {
-    static N: OnceLock<usize> = OnceLock::new();
-    *N.get_or_init(|| {
-        let auto = std::thread::available_parallelism().map_or(1, |n| n.get()).min(8);
-        std::env::var("INTARSIA_HOST_THREADS").ok().and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(auto).max(1)
-    })
+    env_threads().unwrap_or_else(|| std::thread::available_parallelism().map_or(1, |n| n.get()).min(8)).max(1)
+}
+
+/// The loaded model's default for [`enabled`] when `INTARSIA_HOST_THREADS` is unset.
+static MODEL_DEFAULT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Set by `Model::load`: whether this model's host row work uses the pool when `INTARSIA_HOST_THREADS` is unset (Inkling-2 on,
+/// every other model off). Results never depend on it.
+pub fn set_model_default(on: bool) {
+    MODEL_DEFAULT.store(on, Ordering::Relaxed);
+}
+
+/// Whether the host row work (`sampler::softcap`, `sampler::sample_row_in`) splits a long row across the pool: more than one
+/// [`threads`], and `INTARSIA_HOST_THREADS` set, or unset and the model's default on.
+pub fn enabled() -> bool {
+    threads() > 1 && (env_threads().is_some() || MODEL_DEFAULT.load(Ordering::Relaxed))
 }
 
 /// Run `f(i)` for every `i` in `0..n` on the pool and the calling thread; returns when all have returned. A panic in a task is

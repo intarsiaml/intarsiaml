@@ -84,14 +84,13 @@ pub struct SampleScratch {
     tmp: Vec<u64>,
     idx: Vec<u32>,
     probs: Vec<f64>,
-    /// the top-p candidates' normalised probabilities ([`walk_lazy`])
-    qn: Vec<f64>,
     /// per-chunk radix histograms / offsets ([`radix_sort_hi_par`])
     hist: Vec<usize>,
 }
 
-/// Rows at least this long take the threaded path ([`sample_row_par`], [`softcap`]) when the host pool has more than one thread
-/// (lane ink-hostgap: Inkling-2-Mini's 200058 logits). Shorter rows keep the one-thread loop, whose results are the same.
+/// Rows at least this long take the threaded path ([`sample_row_par`], [`softcap`]) when the host pool is on
+/// ([`crate::par::enabled`]; lane ink-hostgap: Inkling-2-Mini's 200058 logits). Shorter rows keep the one-thread loop, whose
+/// results are the same.
 pub const PAR_MIN: usize = 32768;
 
 /// The logit soft-cap `cap * tanh(x / cap)` of every element, in place: per element the same expression as the one-thread loop,
@@ -99,7 +98,7 @@ pub const PAR_MIN: usize = 32768;
 pub fn softcap(out: &mut [f32], cap: f32) {
     let n = out.len();
     let t = crate::par::threads();
-    if n < PAR_MIN || t <= 1 {
+    if n < PAR_MIN || !crate::par::enabled() {
         for x in out.iter_mut() {
             *x = cap * (*x / cap).tanh();
         }
@@ -128,9 +127,10 @@ pub fn sample_row_in(logits: &[f32], p: &SamplingParams, u: f32, s: &mut SampleS
         return argmax(logits);
     }
     let n = logits.len();
-    let t = crate::par::threads();
-    if n >= PAR_MIN && t > 1 && n <= u32::MAX as usize {
-        return sample_row_par(logits, p, u, s, 2 * t);
+    // the threaded path sorts the whole row: a top-k row's `select_nth` and its few candidates gain nothing from the pool
+    let full = p.top_k == 0 || p.top_k >= n;
+    if full && n >= PAR_MIN && n <= u32::MAX as usize && crate::par::enabled() {
+        return sample_row_par(logits, p, u, s, 2 * crate::par::threads());
     }
     sample_row_seq(logits, p, u, s)
 }
@@ -160,15 +160,18 @@ fn sample_row_seq(logits: &[f32], p: &SamplingParams, u: f32, s: &mut SampleScra
 
 /// [`sample_row_in`] with its per-element work in `chunks` tasks on the host pool (lane ink-hostgap): the sort keys and the NaN
 /// check, a stable chunked LSD radix sort (all keys are distinct, `key << 32 | index`, so every correct sort gives the same
-/// order), the softmax terms; the f64 sums, the top-p cut and the walk stay sequential in the same order. Bit for bit the token
-/// of the one-thread path, for any `chunks`.
+/// order), the softmax terms and their divides; the f64 sums, the top-p cut and the walk stay sequential in the same order.
+/// Bit for bit the token of the one-thread path, for any `chunks`. A top-k row (`0 < top_k < n`) is handed to that path.
+/// The scratch keeps its lengths from call to call (every element is overwritten), so a fixed vocabulary zero-fills nothing.
 fn sample_row_par(logits: &[f32], p: &SamplingParams, u: f32, s: &mut SampleScratch, chunks: usize) -> usize {
     use crate::par::{run, SharedMut};
     let n = logits.len();
+    if p.top_k > 0 && p.top_k < n {
+        return sample_row_seq(logits, p, u, s);
+    }
     let ch = n.div_ceil(chunks.max(1));
     let nc = n.div_ceil(ch);
     let keys = &mut s.keys;
-    keys.clear();
     keys.resize(n, 0);
     let nan = std::sync::atomic::AtomicBool::new(false);
     let kp = SharedMut(keys.as_mut_ptr());
@@ -187,26 +190,8 @@ fn sample_row_par(logits: &[f32], p: &SamplingParams, u: f32, s: &mut SampleScra
     if nan.load(std::sync::atomic::Ordering::Relaxed) {
         return sample_row_cmp(logits, p, u);
     }
-    let keep = if p.top_k > 0 && p.top_k < n { p.top_k } else { n };
-    if keep < n {
-        keys.select_nth_unstable(keep - 1);
-        keys.truncate(keep);
-        keys.sort_unstable();
-    } else {
-        radix_sort_hi_par(keys, &mut s.tmp, &mut s.hist, chunks);
-    }
-    let m = keys.len();
-    s.idx.clear();
-    s.idx.resize(m, 0);
-    let (ip, kr) = (SharedMut(s.idx.as_mut_ptr()), &keys[..]);
-    let mch = m.div_ceil(chunks.max(1));
-    run(m.div_ceil(mch), &|c| {
-        for i in c * mch..((c + 1) * mch).min(m) {
-            // SAFETY: chunk c owns idx[c * mch..].
-            unsafe { *ip.at(i) = kr[i] as u32 };
-        }
-    });
-    walk_lazy(logits, p, u, &s.idx, &mut s.probs, &mut s.qn, chunks)
+    radix_sort_hi_par(keys, &mut s.tmp, &mut s.hist, chunks);
+    walk_par(logits, p, u, keys, &mut s.probs, chunks)
 }
 
 /// Stable LSD radix sort of `keys` by their high 32 bits (11-bit digits, as [`radix_sort_hi`]), each pass as per-chunk
@@ -217,7 +202,6 @@ fn radix_sort_hi_par(keys: &mut Vec<u64>, tmp: &mut Vec<u64>, hist: &mut Vec<usi
     const BITS: u32 = 11;
     const B: usize = 1 << BITS;
     let n = keys.len();
-    tmp.clear();
     tmp.resize(n, 0);
     let ch = n.div_ceil(chunks.max(1)).max(1);
     let nc = n.div_ceil(ch);
@@ -263,56 +247,58 @@ fn radix_sort_hi_par(keys: &mut Vec<u64>, tmp: &mut Vec<u64>, hist: &mut Vec<usi
     }
 }
 
-/// [`walk_in`] over the sorted candidates `idx` with the softmax terms filled on the host pool, then the same sequential f64
-/// operations in the same order: the total, the top-p cut on the normalised terms and their renormalisation, the walk to `u`.
-/// The normalisation is done as the walk reaches a candidate, which gives the values `cut_in` stores.
-fn walk_lazy(logits: &[f32], p: &SamplingParams, u: f32, idx: &[u32], probs: &mut Vec<f64>, qn: &mut Vec<f64>, chunks: usize) -> usize {
+/// [`walk_in`] over the sorted keys (their low 32 bits are the candidate indices): the same per-element operations as `cut_in`
+/// (the exp terms, then each divided by the f64 total; after a top-p cut each divided by the cut's sum), the element-wise ones
+/// on the host pool, the sums, the cut and the walk sequential in the same order. The same probabilities, so the same token.
+fn walk_par(logits: &[f32], p: &SamplingParams, u: f32, keys: &[u64], probs: &mut Vec<f64>, chunks: usize) -> usize {
     use crate::par::{run, SharedMut};
-    let m = idx.len();
-    let maxl = logits[idx[0] as usize] as f64;
+    let m = keys.len();
+    let id = |j: usize| keys[j] as u32 as usize;
+    let maxl = logits[id(0)] as f64;
     let inv_t = 1.0 / p.temperature as f64;
-    probs.clear();
     probs.resize(m, 0.0);
-    let pp = SharedMut(probs.as_mut_ptr());
     let ch = m.div_ceil(chunks.max(1));
-    run(m.div_ceil(ch), &|c| {
+    let nc = m.div_ceil(ch);
+    let pp = SharedMut(probs.as_mut_ptr());
+    run(nc, &|c| {
         for j in c * ch..((c + 1) * ch).min(m) {
             // SAFETY: chunk c owns probs[c * ch..].
-            unsafe { *pp.at(j) = ((logits[idx[j] as usize] as f64 - maxl) * inv_t).exp() };
+            unsafe { *pp.at(j) = ((logits[id(j)] as f64 - maxl) * inv_t).exp() };
         }
     });
     let total: f64 = probs.iter().sum();
-    let target = u as f64;
+    let div = |len: usize, by: f64| {
+        let ch = len.div_ceil(chunks.max(1)).max(1);
+        run(len.div_ceil(ch), &|c| {
+            for j in c * ch..((c + 1) * ch).min(len) {
+                // SAFETY: chunk c owns probs[c * ch..]; `len <= m`.
+                unsafe { *pp.at(j) /= by };
+            }
+        });
+    };
+    div(m, total);
+    let mut len = m;
     if p.top_p < 1.0 {
         let mut cum = 0.0;
-        let mut cut = m;
-        for (j, &e) in probs.iter().enumerate() {
-            cum += e / total;
+        for (j, q) in probs.iter().enumerate() {
+            cum += q;
             if cum >= p.top_p as f64 {
-                cut = j + 1;
+                len = j + 1;
                 break;
             }
         }
-        qn.clear();
-        qn.extend(probs[..cut].iter().map(|&e| e / total));
-        let s: f64 = qn.iter().sum();
-        let mut acc = 0.0;
-        for (j, &q) in qn.iter().enumerate() {
-            acc += q / s;
-            if target < acc {
-                return idx[j] as usize;
-            }
-        }
-        return idx[cut - 1] as usize;
+        let s: f64 = probs[..len].iter().sum();
+        div(len, s);
     }
+    let target = u as f64;
     let mut acc = 0.0;
-    for (j, &e) in probs.iter().enumerate() {
-        acc += e / total;
+    for (j, q) in probs[..len].iter().enumerate() {
+        acc += q;
         if target < acc {
-            return idx[j] as usize;
+            return id(j);
         }
     }
-    idx[m - 1] as usize
+    id(len - 1)
 }
 
 /// The comparator-sort path (NaN logits: `partial_cmp` has no total order there, so keep the old behaviour).
@@ -627,6 +613,8 @@ mod tests {
             v.sort_by(|a, b| a.partial_cmp(b).unwrap());
             v[v.len() / 2]
         };
+        // the pool as Inkling-2's load sets it (`INTARSIA_HOST_THREADS=1` for the one-thread rows everywhere)
+        crate::par::set_model_default(true);
         let mut row = raw.clone();
         let cap = 30.0f32;
         let ms = med(&mut || {
@@ -717,13 +705,17 @@ mod tests {
                 }
             }
         }
-        // the public entry takes the threaded path for a long row and still agrees
+        // the public entry takes the threaded path for a long row (pool on, as Inkling-2's load sets it) and still agrees, also
+        // with top-k on (which it hands to the one-thread path)
+        crate::par::set_model_default(true);
         let row = &rows[13];
         assert_eq!(row.len(), 200058);
         let p = SamplingParams { temperature: 1.0, top_k: 0, top_p: 1.0 };
         for _ in 0..32 {
             let u = rng.next_f32();
             assert_eq!(sample_row_in(row, &p, u, &mut s2), sample_row_seq(row, &p, u, &mut s1));
+            let pk = SamplingParams { temperature: 0.7, top_k: 20, top_p: 0.95 };
+            assert_eq!(sample_row_in(row, &pk, u, &mut s2), sample_row_seq(row, &pk, u, &mut s1));
         }
         // soft-cap: threaded == one-thread loop, bit for bit
         for n in [10usize, PAR_MIN - 1, PAR_MIN, 200058] {
