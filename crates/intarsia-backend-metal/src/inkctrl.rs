@@ -43,6 +43,36 @@ fn blend_tail_env() -> bool {
     *V.get_or_init(|| matches!(std::env::var("INTARSIA_INK_BLEND_TAIL").ok().as_deref().map(str::trim), Some("1") | Some("on")))
 }
 
+/// A default-off kernel switch of this lane: its environment variable (`1` / `on`: on; unset / `0` / `off`: off), or forced
+/// for this process by [`Switch::set`] (tests and benchmarks; every switch gives the same bits on or off).
+pub struct Switch {
+    forced: std::sync::atomic::AtomicU8,
+    env: &'static str,
+    val: std::sync::OnceLock<bool>,
+}
+
+impl Switch {
+    const fn new(env: &'static str) -> Self {
+        Self { forced: std::sync::atomic::AtomicU8::new(0), env, val: std::sync::OnceLock::new() }
+    }
+
+    /// Force on or off, `None` = back to the environment.
+    pub fn set(&self, on: Option<bool>) {
+        self.forced.store(match on { None => 0, Some(true) => 1, Some(false) => 2 }, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub fn on(&self) -> bool {
+        match self.forced.load(std::sync::atomic::Ordering::Relaxed) {
+            1 => true,
+            2 => false,
+            _ => *self.val.get_or_init(|| matches!(std::env::var(self.env).ok().as_deref().map(str::trim), Some("1") | Some("on"))),
+        }
+    }
+}
+
+/// `INTARSIA_INK_MIX_HOIST`: the row kernels' `ink_mix_row_h_*` instances (every operand load before its first use).
+pub static MIX_HOIST: Switch = Switch::new("INTARSIA_INK_MIX_HOIST");
+
 /// Whether a blend chunk of `n` rows (controller rank `g`, width `d`) takes the fused tail: the metal4.0 library, at most
 /// [`BLEND_TAIL_ROWS_MAX`] rows, G % 8 == 0 and G <= 128 (the gate's register rows), and the switch on.
 pub(crate) fn blend_tail_on(be: &MetalBackend, n: usize, g: usize, d: usize) -> bool {
