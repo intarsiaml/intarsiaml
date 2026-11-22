@@ -834,3 +834,17 @@ diagnostic #11350 was released before it started.
 6. The batched-regression hunt (#11266 vs #11181 "+19% / +27%", the #11328 toggles): the comparison base was #11181. The
    toggles themselves (in one slot, ref vs final) are valid and show no code regression.
 7. Section 17's residency caveat ("not borderline") assumed #11181 was a valid absolute figure.
+
+## 26. Input from ink-dfuse for the B 16 lever plan (2026-11-22)
+
+ink-dfuse's B 1 roofline: job #11336, `docs/results/2026-11-21-inkling2-dfuse.md` "Job L results", raw
+`docs/results/2026-11-21-inkling2-dfuse/raw/L_*` (L_roofline.txt; per-class multi-dispatch microbenches at real shapes,
+weights rotated past the system cache, x calls per token). Peak 614 GB/s. Achieved at 1 row: InkInProj P12 532 / 524 GB/s
+(bf16 563 / 569), wo P12 507 (bf16 550), unembed P12 576 (bf16 582), NVFP4 experts 438, MXFP8 experts 522, router 69,
+controllers 66; attention core latency-bound (23-24 us per call); 0.88 us per dependent dispatch (543 dispatches = 0.48 ms
+per step); the classes sum to 12.33 of 13.31 ms. For B 16: attention at ctx 512, 16 rows: fused SWA 123.4 us, full 130.8 us,
+and the separate prologue + attention pair (97.2 / 97.7 us per visit) is faster than fused there; ctx 4096, 16 rows: fused
+219 us SWA, 561 us full. NVFP4 experts at 16 rows (m-moe's doc): 750-770 us per visit, 484-497 GB/s on a union of ~83
+experts. The p12 / MoE / ctrl benches take a rows argument but ran at 1 row only. Nothing of ink-dfuse's is in flight on the
+B > 1 row kernels (in_proj rows, ConvMix row kernel, attention decode rows, MoE decode); the dfuse flip 2f952f697 (hoist,
+norm_c, route, msg on by default on Metal) is in ink/metal 29e75b835, each with its own `=0`.
