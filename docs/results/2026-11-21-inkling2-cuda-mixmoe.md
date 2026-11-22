@@ -259,6 +259,14 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
 - (coordinator, 35th) #488 merged: main is `57e1b3332` (Inkling on Metal / cpu). When the current build item allows: merge main into
   this branch, run the CUDA no-op check on other models (Qwen3-8B greedy 256 short / 4k bit-identical to main, plan show JSON for
   the 35B and 8B, kernels test --quick), send the result; do not open the PR.
+- (coordinator, 36th) MoE expert repack: build it in place, in stages; no 25 GB second copy. Stage A (~half a day, go / no-go):
+  load-time repack behind a switch, default off; only the decode `_rows` path learns the layout, everything else stays on the
+  old one by refusing the switch whenever prefill or W4A4 would run; microbench NVFP4 T=1/2/4 vs today, g256 decode tok/s A/B
+  spec off and on (rotated order), rows bitwise; continue only if g256 spec-off decode >= +1.2 %, else stop, revert, report.
+  Stage B: `ink_moe_mma` (prefill) and W4A4 learn the layout; prefill 4k / 8k tok/s within -1 %; G2 / G3 unchanged (bitwise
+  expected); then default-on with a one-env revert. Next report: one line with the MoE gu+dn bandwidth floor per token at g256
+  (bytes read / measured peak); if 8.8 ms is far above it, name the next lever after the repack. Finish brief 35 first (no-op
+  #11498 and re-verify #11502 green, then "your PR"). Box: spark1 via fleetq, same worktree.
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
