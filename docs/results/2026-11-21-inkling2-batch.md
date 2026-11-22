@@ -696,3 +696,26 @@ backend has no `supports_topk`, so on cpu only logits rows run).
   Mutation (batch.rs without its two `softcap_logits` calls): the new test FAILS at the logits assertion, so it detects a
   missing cap. (spark2 cannot build this test file: its dev-dependency `intarsia-backend-metal` is macOS-only.)
 - Metal tiny with device top-k: queued (endor, default load).
+
+## 23. #11297: warm rep + paired auto vs union-fused on real text, BOX-SLOW (not speed); control rule
+
+`.scratch/realmoe2-11297.log`, tree e4ebcfe77, quiet slot. The whole box ran ~50% slow: solo decode 45-52 tok/s (61-65 in
+#11261, same binary source and args), batched B 16 120-130 ms (80-88). System page-ins per run 5k-57k pages while our
+process had 0 major faults and ~1.7 M page reclaims every run (each run is a fresh process, so the warm rep cannot warm the
+next run's mappings; reclaims are minor faults on resident pages). Main found no other model server, kev idle, no thermal
+warnings, swap 21.07 / 21.5 GB. **Labelled box-slow, not speed.**
+
+| B | rep 1 auto / uf | rep 2 uf / auto | rep 3 auto / uf |
+|---:|---|---|---|
+| 8 | 64.03 / 74.04 | 62.55 / 66.73 | 69.63 / 64.94 |
+| 16 | 130.31 / 128.32 | 127.82 / 125.91 | 123.61 / 123.22 |
+
+(warm rep, untimed: B 8 67.27, B 16 120.92 ms). Paired diff uf - auto at B 16: -2.0, +1.9, -0.4 ms (mean -0.2); at B 8:
++10.0, -4.2, -4.7 (mean +0.4). Digests identical across arms. Even in a slow box there is no policy difference beyond
+noise; no flip proposal from this.
+
+**Control rule (main):** a control with #11261's binary (e4ebcfe77 build, kept at `.scratch/ctl/batch_step`), args and
+real-text input, solo + B 16, 1 rep. Solo >= 58 tok/s and B 16 <= 92 ms means the box is fine and #11297's config is the
+cause (find which). Otherwise the box is slow: requeue #11297's speed half and the toggles later. Combined job
+`.scratch/ctl_then_toggle.sh`: the control first, the regression toggles only if the box is fine (#11306 and the separate
+control job were released so that the toggles cannot run first). #11309 (tiny Metal softcap, correctness) stays queued.
