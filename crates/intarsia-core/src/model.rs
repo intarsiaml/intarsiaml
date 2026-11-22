@@ -626,7 +626,7 @@ pub struct Model {
     draft_head: Option<QTensor>,
     /// `--mtp-draft-subset`: the token id of each `draft_head` row (lane dsubset).
     draft_map: Option<DraftMap>,
-    /// `INTARSIA_INK_HEAD_SCREEN=1` (lane ink-fp8, opt-in): the screened greedy head's fp8 copy, bounds and workspace.
+    /// `INTARSIA_INK_HEAD_SCREEN` (lane ink-fp8, default on Metal): the screened greedy head's fp8 copy, bounds and workspace.
     head_screen: Option<HeadScreenW>,
     layers: Arc<Vec<Vec<Block>>>,
     /// Scratch of the Gemma 4 layers (`None` for every other model).
@@ -1286,8 +1286,8 @@ impl Model {
             _ => None,
         };
 
-        // the screened greedy head (lane ink-fp8; crate::screen): an fp8 copy of the bf16 head and its row bounds. Opt-in
-        // (`INTARSIA_INK_HEAD_SCREEN=1`, `crate::screen::wanted`); the load notes below only when the variable is set or the
+        // the screened greedy head (lane ink-fp8; crate::screen): an fp8 copy of the bf16 head and its row bounds. Default on
+        // Metal (`INTARSIA_INK_HEAD_SCREEN=0` off, `crate::screen::wanted`); the load notes below only when the variable is set or the
         // model is Inkling-2
         let screen_env = std::env::var(crate::screen::ENV).ok();
         let head_screen = if crate::screen::wanted(screen_env.as_deref(), b.name()) && (dims.ink.is_some() || screen_env.is_some()) {

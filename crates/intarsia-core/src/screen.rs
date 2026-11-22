@@ -1,4 +1,4 @@
-//! Exact screened greedy head (lane ink-fp8, opt-in `INTARSIA_INK_HEAD_SCREEN=1`; ops 88-90, 91 stays reserved).
+//! Exact screened greedy head (lane ink-fp8, default on Metal, `INTARSIA_INK_HEAD_SCREEN=0` off; ops 88-90, 91 reserved).
 //!
 //! Greedy decode only needs the argmax of the bf16 head, `x_n = Logits(h, W_n)` (f32, the device `Logits` kernel). An fp8 copy
 //! `q` of the head (one scale `s`) gives screen values `a_n = MatmulFp8(h, q_n)`; a rigorous per-row bound picks every row that
@@ -136,17 +136,18 @@ pub fn metric() -> String {
 pub const W_NORM_MAX: f64 = 1048576.0;
 
 /// `INTARSIA_INK_HEAD_SCREEN`: the screened greedy head (Inkling-2 only; needs `INTARSIA_LMHEAD_QUANT` unset: the head stays
-/// bf16, the fp8 copy is the screen's). Opt-in: `1` / `on` / `true`: on (every backend with the screen kernels, the cpu
-/// reference ops included); unset or anything else: off. See [`wanted`].
+/// bf16, the fp8 copy is the screen's). `0` / `off` / `false`: off; `1` / `on` / `true`: on (every backend with the screen
+/// kernels, the cpu reference ops included); unset or anything else: on for Metal, off elsewhere. See [`wanted`].
 pub const ENV: &str = "INTARSIA_INK_HEAD_SCREEN";
 
 /// Whether the screen is asked for: the value of [`ENV`] (if set) and the backend's name.
-pub fn wanted(env: Option<&str>, _backend: &str) -> bool {
+pub fn wanted(env: Option<&str>, backend: &str) -> bool {
     match env.map(|v| v.trim().to_ascii_lowercase()) {
         Some(v) if matches!(v.as_str(), "0" | "off" | "false") => false,
         Some(v) if matches!(v.as_str(), "1" | "on" | "true") => true,
-        // opt-in: a default needs its gate first (rigorous bound, longer B16 ABAB); the backend argument stays for it
-        _ => false,
+        // default on Metal (brief 14 gate #11426 items 1, 2, 3a, plus brief 16's exact batched-step check), off elsewhere;
+        // `INTARSIA_INK_HEAD_SCREEN=0` reverts. The loader still applies it to Inkling-2 only.
+        _ => backend == "metal",
     }
 }
 
@@ -623,10 +624,10 @@ mod tests {
 
     #[test]
     fn opt_in_only() {
-        assert!(!wanted(None, "metal") && !wanted(None, "cpu") && !wanted(None, "cuda"));
+        assert!(wanted(None, "metal") && !wanted(None, "cpu") && !wanted(None, "cuda") && !wanted(None, "hip"));
         assert!(!wanted(Some("0"), "metal") && !wanted(Some(" off "), "metal") && !wanted(Some("FALSE"), "metal"));
         assert!(wanted(Some("1"), "cpu") && wanted(Some("on"), "metal") && wanted(Some(" TRUE "), "metal"));
-        assert!(!wanted(Some(""), "metal") && !wanted(Some("x"), "cpu"));
+        assert!(wanted(Some(""), "metal") && !wanted(Some("x"), "cpu"));
     }
 
     #[test]
