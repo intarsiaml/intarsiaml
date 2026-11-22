@@ -60,7 +60,7 @@ impl Model {
         if rows == 0 || t <= rows || self.tp.world != 1 || !self.peers.is_empty() || self.remote.is_some() {
             return Vec::new();
         }
-        if self.recorder.lock().unwrap().is_some() || self.gemma.is_some() {
+        if self.recorder.lock().unwrap().is_some() || self.gemma.is_some() || self.ink.is_some() {
             return Vec::new();
         }
         let n = self.layers.len();

@@ -103,6 +103,8 @@ pub struct KernelImpl {
     /// every row count the predicate accepts. A call with `OpCall::prefill_inv` selects only kernels marked so (and fails if none
     /// fits); ordinary calls select them as usual.
     pub row_invariant: bool,
+    /// Implements the Inkling-2 SiTU expert activation (`OpAttrs::ink.situ`, `ShapeInfo::situ`). Off by default.
+    pub situ: bool,
 }
 
 fn always(_: &ShapeInfo) -> bool {
@@ -130,7 +132,14 @@ impl KernelImpl {
             ext: false,
             frag: false,
             row_invariant: false,
+            situ: false,
         }
+    }
+
+    /// Mark the kernel as implementing the Inkling-2 SiTU expert activation (`ShapeInfo::situ`).
+    pub fn situ(mut self) -> Self {
+        self.situ = true;
+        self
     }
 
     /// Mark the kernel as reading tagged (non-row-major) weight layouts (`ShapeInfo::frag`).
@@ -238,7 +247,7 @@ impl KernelImpl {
     pub fn accepts(&self, s: &ShapeInfo) -> bool {
         let act_ok = self.acts.is_empty() || s.act.is_none_or(|d| self.acts.contains(&d));
         let w_ok = self.weights.is_empty() || s.weight.is_none_or(|d| self.weights.contains(&d));
-        act_ok && w_ok && (self.ext || !s.ext) && (self.frag || !s.frag) && (self.when)(s)
+        act_ok && w_ok && (self.ext || !s.ext) && (self.frag || !s.frag) && (self.situ || !s.situ) && (self.when)(s)
     }
 }
 

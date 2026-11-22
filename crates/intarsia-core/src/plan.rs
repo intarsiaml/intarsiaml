@@ -480,7 +480,9 @@ fn no_kernel_message(backend: &str, arch: &str, ref_only: &str, missing: &BTreeM
 /// Ops a batched step runs once per sequence (the attention core on that sequence's own cache, and with the hybrid opt-in
 /// `Model::allow_recurrent_batch` the GatedDeltaNet conv and delta rule and LFM2's `ShortConv` on that sequence's own recurrent state); every
 /// other op runs once for all rows. `GateSplitQkNormRopeKv` holds the per-row cache append like `QkNormRopeKv`.
-const PER_ROW_OPS: [Op; 11] = [
+/// The Inkling-2 row-table ops (`inkling2::ops::ROW_TABLE_OPS`) run once per sequence the same way (one row-table call standing
+/// for the `B` one-row calls of the solo steps).
+const PER_ROW_OPS: [Op; 16] = [
     Op::QkNormRopeKv,
     Op::GateSplitQkNormRopeKv,
     Op::QkNorm,
@@ -492,6 +494,11 @@ const PER_ROW_OPS: [Op; 11] = [
     Op::GdnDeltaRule,
     Op::GdnConvDelta,
     Op::ShortConv,
+    Op::SconvRes,
+    Op::InkKvPrologue,
+    Op::RelSinkAttn,
+    Op::ConvMix,
+    Op::InkAttnDecode,
 ];
 
 /// Ops whose every output row depends on its own input row alone (no reduction across rows, no per-token state): a call
@@ -846,6 +853,19 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
             .collect();
         let mut pending: BTreeSet<String> = untested.iter().filter(|n| !is_rt(n)).cloned().collect();
         pending.extend(twins.iter().cloned());
+        // the device sampler (lane ink-hostgap, `INTARSIA_GUMBEL_SAMPLING=1`): its head runs outside the planned passes, so no
+        // planned call selects its kernel; tested by its op's sweep, as a twin's base is, else `serve` (admitted kernels only)
+        // would never run it
+        let extra: BTreeSet<String> = if crate::gumbel::enabled_from_env() {
+            cand_kernels
+                .iter()
+                .filter(|k| k.op == Op::GumbelArgmax && model.registry.admission(&k.name) == Some(Admission::Untested))
+                .map(|k| k.name.clone())
+                .collect()
+        } else {
+            BTreeSet::new()
+        };
+        pending.extend(extra.iter().cloned());
         if pending.is_empty() {
             break;
         }
@@ -869,7 +889,7 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
             let mut handled_sweep = false;
             // a twin's base that no planned call uses is tested by its sweep alone
             let items: Vec<Option<PlannedCall>> =
-                if work.is_empty() && twins.contains(&kname) { vec![None] } else { work.into_iter().map(Some).collect() };
+                if work.is_empty() && (twins.contains(&kname) || extra.contains(&kname)) { vec![None] } else { work.into_iter().map(Some).collect() };
             for c in items {
                 // (a call without a label has no case: `case_from_call` returns `None` for it before it draws anything, and
                 // its kernel's sweep decides below, lazy or not)

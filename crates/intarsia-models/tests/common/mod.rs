@@ -41,6 +41,7 @@ pub fn dims() -> ModelDims {
         short_conv: None,
         moe: None,
         gemma: None,
+        ink: None,
     }
 }
 

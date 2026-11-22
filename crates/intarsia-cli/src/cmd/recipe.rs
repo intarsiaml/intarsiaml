@@ -1325,7 +1325,27 @@ fn coverage(
                         cov.problems.push("recipe has a gemma block but no [layer.gemma] prefix".into());
                     }
                 }
+                "ink" => {
+                    // Inkling-2 (`model/inkling2.rs`): the names both layer kinds (SWA and full attention) carry; the kind-specific
+                    // conv taps and input norms are checked against local_layer_ids at load
+                    if let Some(p) = r.layer.other.get("ink").and_then(|m| m.get("prefix")).and_then(Value::as_str) {
+                        let p = e(p);
+                        for t in [
+                            "attn.wq_du", "attn.wr_du", "attn.gate_attn", "attn.attn_sink_proj", "attn.wk_dv", "attn.wv_dv", "attn.wo_ud",
+                            "attn.q_l2_clip.scale", "attn.rel_l2_clip.scale", "attn.rel_logits_proj.proj", "attn_sconv", "mlp_sconv", "mlp_norm",
+                            "mlp.gate", "mlp.gate.bias", "mlp.experts.w13_weight", "mlp.experts.w2_weight",
+                        ] {
+                            add(format!("{p}.{t}"));
+                        }
+                    } else {
+                        cov.problems.push("recipe has an ink block but no [layer.ink] prefix".into());
+                    }
+                }
                 other => cov.problems.push(format!("block '{other}' is not implemented in this build")),
+            }
+            if b == "ink" {
+                // the Inkling-2 layer has no residual pre-norm: its depth mixes carry their own norms
+                continue;
             }
             match r.layer.norms.get(&format!("pre_{b}")) {
                 Some(n) => add(e(n)),

@@ -1,0 +1,130 @@
+Sat Nov 21 23:06:26 EST 2026
+== off rep 1: finish=length prompt=19 (cached 0) completion=129 | prefill 286 ms (66.4 tok/s) | decode 1979 ms (64.69 tok/s)
+steps 124  dispatches/step 613  buffers/step 2
+  span      ms/step median  15.439 mean  15.457 min  15.206 max  16.116
+  busy      ms/step median  15.438 mean  15.456 min  15.206 max  16.116
+  idle      ms/step median   0.001 mean   0.001 min   0.001 max   0.001
+  slack     ms/step median   0.310 mean   0.307 min   0.249 max   0.366
+  cut_gpu   ms/step median   0.411 mean   0.413 min   0.400 max   0.473
+  rest_gap  ms/step median   0.000 mean   0.000 min   0.000 max   0.001
+  total: wall 1916.6 ms busy 1916.5 ms idle 0.01 %
+== on rep 1: finish=length prompt=19 (cached 0) completion=129 | prefill 290 ms (65.4 tok/s) | decode 1991 ms (64.27 tok/s)
+steps 124  dispatches/step 447  buffers/step 2
+  span      ms/step median  15.539 mean  15.554 min  15.224 max  15.989
+  busy      ms/step median  15.538 mean  15.553 min  15.223 max  15.988
+  idle      ms/step median   0.001 mean   0.001 min   0.001 max   0.001
+  slack     ms/step median   0.324 mean   0.321 min   0.267 max   0.352
+  cut_gpu   ms/step median   0.428 mean   0.429 min   0.415 max   0.453
+  rest_gap  ms/step median   0.000 mean   0.000 min   0.000 max   0.001
+  total: wall 1928.7 ms busy 1928.6 ms idle 0.01 %
+== off rep 2: finish=length prompt=19 (cached 0) completion=129 | prefill 280 ms (67.7 tok/s) | decode 1990 ms (64.31 tok/s)
+steps 124  dispatches/step 613  buffers/step 2
+  span      ms/step median  15.492 mean  15.554 min  15.223 max  16.277
+  busy      ms/step median  15.491 mean  15.552 min  15.223 max  16.115
+  idle      ms/step median   0.001 mean   0.002 min   0.001 max   0.169
+  slack     ms/step median   0.308 mean   0.306 min   0.243 max   0.435
+  cut_gpu   ms/step median   0.414 mean   0.416 min   0.399 max   0.434
+  rest_gap  ms/step median   0.000 mean   0.002 min   0.000 max   0.168
+  total: wall 1928.7 ms busy 1928.4 ms idle 0.01 %
+== on rep 2: finish=length prompt=19 (cached 0) completion=129 | prefill 303 ms (62.6 tok/s) | decode 1995 ms (64.16 tok/s)
+steps 124  dispatches/step 447  buffers/step 2
+  span      ms/step median  15.558 mean  15.583 min  15.205 max  16.734
+  busy      ms/step median  15.557 mean  15.582 min  15.204 max  16.733
+  idle      ms/step median   0.001 mean   0.001 min   0.001 max   0.002
+  slack     ms/step median   0.324 mean   0.319 min   0.240 max   0.360
+  cut_gpu   ms/step median   0.429 mean   0.430 min   0.412 max   0.471
+  rest_gap  ms/step median   0.000 mean   0.000 min   0.000 max   0.001
+  total: wall 1932.3 ms busy 1932.2 ms idle 0.01 %
+== per-dispatch off
+30 decode steps: GPU busy 16335 us, span 16074 us, dispatches 613
+| ink_in_proj_bf16_gemv | 3485 | 48 | 72.12 |  |
+| moe_experts_situ_bf16 | 2563 | 44 | 58.00 |  |
+| ink_attn_decode_bf16 | 1651 | 48 | 34.08 |  |
+| conv_mix_bf16 | 1616 | 96 | 16.62 | ctrl |
+| unembed | 1559 | 1 | 1558.06 |  |
+| moe_experts_situ_bf16#1 | 1401 | 44 | 31.75 |  |
+| matmul_bf16_gemv | 1320 | 48 | 27.33 |  |
+| moe_route_f32 | 501 | 48 | 10.42 | ctrl |
+| conv_mix_bf16#3 | 427 | 46 | 9.25 | ctrl |
+| conv_mix_bf16#2 | 370 | 46 | 7.75 | ctrl |
+| moe_experts_mxfp8_bf16 | 358 | 4 | 89.10 |  |
+| conv_mix_bf16#1 | 268 | 46 | 5.13 | ctrl |
+| attn_res_mix_bf16 | 229 | 26 | 8.88 | ctrl |
+| router_gemv | 225 | 48 | 4.69 | ctrl |
+| moe_experts_mxfp8_bf16#1 | 178 | 4 | 44.17 |  |
+| argmax_f32 | 173 | 1 | 172.50 |  |
+| loop_blend_bf16#3 | 19 | 2 | 9.46 | ctrl |
+| loop_blend_bf16#2 | 18 | 2 | 9.42 | ctrl |
+| loop_blend_bf16#1 | 14 | 2 | 7.00 | ctrl |
+| loop_blend_bf16 | 14 | 2 | 7.00 | ctrl |
+| other | 10 | 4 | 2.17 |  |
+| rmsnorm_bf16 | 9 | 2 | 4.69 |  |
+| embedding_bf16 | 3 | 1 | 2.88 |  |
+CONTROLLERS (per-dispatch, pipelined): 3.701 ms per token
+== per-dispatch on
+30 decode steps: GPU busy 16085 us, span 16012 us, dispatches 447
+| ink_in_proj_bf16_gemv | 3480 | 48 | 72.00 |  |
+| moe_experts_situ_bf16 | 2556 | 44 | 57.88 |  |
+| ink_attn_decode_bf16 | 1647 | 48 | 34.04 |  |
+| conv_mix_bf16 | 1609 | 96 | 16.63 | ctrl |
+| unembed | 1558 | 1 | 1551.00 |  |
+| moe_experts_situ_bf16#1 | 1400 | 44 | 31.71 |  |
+| matmul_bf16_gemv | 1319 | 48 | 27.29 |  |
+| conv_mix_bf16#1 | 988 | 46 | 19.50 | ctrl |
+| ink_route_bf16 | 694 | 48 | 14.46 | ctrl |
+| moe_experts_mxfp8_bf16 | 357 | 4 | 88.58 |  |
+| moe_experts_mxfp8_bf16#1 | 177 | 4 | 44.17 |  |
+| argmax_f32 | 172 | 1 | 172.35 |  |
+| attn_res_mix_bf16 | 102 | 4 | 25.69 | ctrl |
+| loop_blend_bf16#1 | 47 | 2 | 23.04 | ctrl |
+| other | 27 | 4 | 2.25 |  |
+| loop_blend_bf16 | 14 | 2 | 7.00 | ctrl |
+| rmsnorm_bf16 | 9 | 2 | 4.77 |  |
+| embedding_bf16 | 3 | 1 | 2.92 |  |
+CONTROLLERS (per-dispatch, pipelined): 3.455 ms per token
+== per-op off
+normal steps 41: wall 16016 us (62.44 tok/s), GPU busy 16016 us, dispatches 613 (held cut + rest)
+profiled steps 2: 419 op calls, GPU 17594 us; per-buffer fixed cost c = 3.77 us
+| moe_experts_situ_bf16 nd2 | 4378 | 4212 | 44 | 98.2 |  |
+| ink_in_proj_bf16_gemv | 3956 | 3775 | 48 | 81.6 |  |
+| conv_mix_bf16 nd4 | 1830 | 1657 | 46 | 38.1 | ctrl |
+| ink_attn_decode_bf16 | 1702 | 1521 | 48 | 35.6 |  |
+| unembed | 1622 | 1619 | 1 | 1622.4 |  |
+| matmul_bf16_gemv | 1535 | 1354 | 48 | 31.8 |  |
+| conv_mix_bf16 nd1 | 786 | 598 | 50 | 15.8 | ctrl |
+| moe_experts_mxfp8_bf16 nd2 | 586 | 570 | 4 | 145.4 |  |
+| moe_route_f32 | 499 | 318 | 48 | 10.4 | ctrl |
+| attn_res_mix_bf16 | 245 | 147 | 26 | 9.5 | ctrl |
+| router_gemv | 206 | 25 | 48 | 4.3 | ctrl |
+| argmax_f32 | 171 | 167 | 1 | 171.1 |  |
+| loop_blend_bf16 nd4 | 59 | 52 | 2 | 29.4 | ctrl |
+| rmsnorm_bf16 | 9 | 1 | 2 | 4.5 |  |
+| other | 7 | -1 | 2 | 3.3 |  |
+| embedding_bf16 | 3 | -1 | 1 | 3.0 |  |
+CONTROLLERS per token: 3.625 ms raw, 2.797 ms corrected (c = 3.77 us per call)
+== per-op on
+normal steps 41: wall 15587 us (64.16 tok/s), GPU busy 15586 us, dispatches 447 (held cut + rest)
+profiled steps 2: 349 op calls, GPU 15914 us; per-buffer fixed cost c = 0.94 us
+| moe_experts_situ_bf16 nd2 | 3846 | 3805 | 44 | 87.1 |  |
+| ink_in_proj_bf16_gemv | 3405 | 3360 | 48 | 70.6 |  |
+| conv_mix_bf16 nd2 | 1795 | 1752 | 46 | 36.5 | ctrl |
+| ink_attn_decode_bf16 | 1707 | 1662 | 48 | 35.5 |  |
+| unembed | 1536 | 1535 | 1 | 1536.1 |  |
+| matmul_bf16_gemv | 1295 | 1250 | 48 | 26.9 |  |
+| conv_mix_bf16 nd1 | 773 | 726 | 50 | 15.4 | ctrl |
+| ink_route_bf16 | 680 | 634 | 48 | 14.2 | ctrl |
+| moe_experts_mxfp8_bf16 nd2 | 524 | 520 | 4 | 130.0 |  |
+| argmax_f32 | 174 | 173 | 1 | 173.7 |  |
+| attn_res_mix_bf16 | 102 | 99 | 4 | 25.4 | ctrl |
+| loop_blend_bf16 nd2 | 57 | 55 | 2 | 28.5 | ctrl |
+| rmsnorm_bf16 | 9 | 7 | 2 | 4.7 |  |
+| other | 7 | 5 | 2 | 3.3 |  |
+| embedding_bf16 | 3 | 2 | 1 | 2.8 |  |
+CONTROLLERS per token: 3.407 ms raw, 3.267 ms corrected (c = 0.94 us per call)
+5k off rep 1: finish=length prompt=5051 (cached 0) completion=128 | prefill 3652 ms (1382.9 tok/s) | decode 2107 ms (60.28 tok/s)
+5k on rep 1: finish=length prompt=5051 (cached 0) completion=128 | prefill 3379 ms (1494.7 tok/s) | decode 2091 ms (60.75 tok/s)
+5k off rep 2: finish=length prompt=5051 (cached 0) completion=128 | prefill 3536 ms (1428.5 tok/s) | decode 2092 ms (60.71 tok/s)
+5k on rep 2: finish=length prompt=5051 (cached 0) completion=128 | prefill 3442 ms (1467.5 tok/s) | decode 2082 ms (61.00 tok/s)
+localeval off exit 0
+localeval on exit 0
+Sat Nov 21 23:09:24 EST 2026

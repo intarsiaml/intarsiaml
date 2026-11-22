@@ -1,0 +1,9 @@
+12 launches (distinct operands) per command buffer, 60 reps; GPU us per launch: median p10 p90
+floor: add_bf16 x32                              3.48     3.44     4.06
+pf ctx 512: no prefetch: 128.20 us per visit (gemv40 + attn + wo)
+pf ctx 512: prefetch 50% of wo in 1 plane(s): 125.24 us per visit
+pf ctx 512: prefetch 50% of wo in 2 plane(s): 127.96 us per visit
+pf ctx 512: prefetch 50% of wo in 4 plane(s): 126.39 us per visit
+pf ctx 512: prefetch 100% of wo in 4 plane(s): 132.09 us per visit
+pf ctx 512: prefetch 100% of wo in 8 plane(s): 130.31 us per visit
+pf ctx 512: no prefetch: 123.49 us per visit (gemv40 + attn + wo)

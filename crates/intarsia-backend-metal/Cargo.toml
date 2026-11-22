@@ -11,6 +11,9 @@ build = "build.rs"
 [features]
 # Test-only fault injection: `synchronize` fails or panics when intarsia-core's armed fault is set (see intarsia-core/src/fault.rs).
 fault-inject = ["intarsia-core/fault-inject"]
+# Lane ink-prefill timing probes of the grouped prefill experts (WRONG RESULTS): only `inkmoe_bench` built with this
+# feature can set them (inkprefill.rs `set_skip`).
+ink-probe = []
 
 [dependencies]
 intarsia-core = { workspace = true }

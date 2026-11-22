@@ -30,22 +30,37 @@ pub struct TurnFormat {
     pub close: &'static str,
     /// Roles whose turns the model is not asked to predict.
     pub hidden_roles: &'static [&'static str],
+    /// The role is the open marker itself (Inkling-2: `<|message_user|>`): `hidden_roles` are then the hidden turns' open
+    /// markers and `open` is unused.
+    pub role_in_open: bool,
 }
 
 /// ChatML (Qwen): `<|im_start|>role\ncontent<|im_end|>\n`.
 pub const CHATML: TurnFormat =
-    TurnFormat { name: "chatml", open: "<|im_start|>", close: "<|im_end|>", hidden_roles: &["system", "user"] };
+    TurnFormat { name: "chatml", open: "<|im_start|>", close: "<|im_end|>", hidden_roles: &["system", "user"], role_in_open: false };
 
 /// Llama 3 / 3.1: `<|start_header_id|>role<|end_header_id|>\n\ncontent<|eot_id|>`. The role follows the open marker directly; the
 /// header-close token and the blank line after it are inside the hidden span (open .. close).
 pub const LLAMA3: TurnFormat =
-    TurnFormat { name: "llama3", open: "<|start_header_id|>", close: "<|eot_id|>", hidden_roles: &["system", "user"] };
+    TurnFormat { name: "llama3", open: "<|start_header_id|>", close: "<|eot_id|>", hidden_roles: &["system", "user"], role_in_open: false };
+
+/// Inkling-2: `<|message_user|><|content_text|>text<|end_message|>`, one open token per role (docs/plans/2026-11-21-inkling2-port.md
+/// section e). System, user and tool-result turns are hidden; a model turn (`<|message_model|>`, possibly several `<|end_message|>`
+/// for thinking and text) is scored.
+pub const INKLING2: TurnFormat = TurnFormat {
+    name: "inkling2",
+    open: "",
+    close: "<|end_message|>",
+    hidden_roles: &["<|message_system|>", "<|message_user|>", "<|message_tool|>"],
+    role_in_open: true,
+};
 
 /// Turn format by name (the golden's `template` metadata or the recipe's `chat_turns`).
 pub fn format_named(name: &str) -> Option<&'static TurnFormat> {
     match name.trim().to_ascii_lowercase().as_str() {
         "chatml" => Some(&CHATML),
         "llama3" => Some(&LLAMA3),
+        "inkling2" => Some(&INKLING2),
         _ => None,
     }
 }
@@ -56,6 +71,8 @@ pub struct Turns {
     pub format: &'static str,
     open: u32,
     close: u32,
+    /// `TurnFormat::role_in_open`: the hidden turns' open tokens (`open` and `hidden` unused).
+    hidden_opens: Vec<u32>,
     /// Token ids of each hidden role's name.
     hidden: Vec<Vec<u32>>,
 }
@@ -69,8 +86,12 @@ impl TurnFormat {
                 other => bail!("turn format {}: {what} {text:?} is not a single token (got {other:?})", self.name),
             }
         };
-        let open = single("turn-open marker", self.open)?;
         let close = single("turn-close marker", self.close)?;
+        if self.role_in_open {
+            let hidden_opens = self.hidden_roles.iter().map(|r| single("turn-open marker", r)).collect::<Result<Vec<_>>>()?;
+            return Ok(Turns { format: self.name, open: u32::MAX, close, hidden_opens, hidden: Vec::new() });
+        }
+        let open = single("turn-open marker", self.open)?;
         let mut hidden = Vec::new();
         for role in self.hidden_roles {
             // opener and role together: the role must tokenize right after the opener, as in a rendered prompt
@@ -80,7 +101,7 @@ impl TurnFormat {
                 _ => bail!("turn format {}: {:?} does not tokenize as the turn-open token plus the role (got {ids:?})", self.name, format!("{}{}", self.open, role)),
             }
         }
-        Ok(Turns { format: self.name, open, close, hidden })
+        Ok(Turns { format: self.name, open, close, hidden_opens: Vec::new(), hidden })
     }
 }
 
@@ -91,12 +112,13 @@ impl Turns {
         let mut scored = vec![true; n];
         let mut t = 0;
         while t < n {
-            if ids[t] != self.open {
+            let opened = if self.hidden_opens.is_empty() { ids[t] == self.open } else { self.hidden_opens.contains(&ids[t]) };
+            if !opened {
                 t += 1;
                 continue;
             }
             let after = &ids[t + 1..];
-            if !self.hidden.iter().any(|r| after.starts_with(r)) {
+            if self.hidden_opens.is_empty() && !self.hidden.iter().any(|r| after.starts_with(r)) {
                 t += 1; // an assistant turn (or an unknown role): scored
                 continue;
             }
@@ -253,5 +275,24 @@ mod tests {
     fn formats_by_name() {
         assert_eq!(format_named("ChatML").map(|f| f.name), Some("chatml"));
         assert!(format_named("hf").is_none());
+    }
+
+    #[test]
+    fn inkling2_hides_system_and_user_turns_by_their_open_token() {
+        // 1 = <|message_system|>, 2 = <|message_user|>, 3 = <|message_tool|>, 9 = <|end_message|>, 7 = <|message_model|>
+        let tok = |s: &str| -> Result<Vec<u32>> {
+            Ok(vec![match s {
+                "<|message_system|>" => 1,
+                "<|message_user|>" => 2,
+                "<|message_tool|>" => 3,
+                "<|end_message|>" => 9,
+                _ => bail!("unknown {s}"),
+            }])
+        };
+        let t = INKLING2.resolve(&tok).unwrap();
+        // sys(0) text end(2) user(3) text end(5) model(6) text end(8) text
+        let ids = [1, 40, 9, 2, 41, 9, 7, 42, 9, 43];
+        let want = [false, false, true, false, false, true, true, true, true, true];
+        assert_eq!(t.scored_rows(&ids), want);
     }
 }

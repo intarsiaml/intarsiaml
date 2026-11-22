@@ -134,6 +134,11 @@ pub fn eos_ids(dir: &Path, cfg: &Value) -> Vec<u32> {
 /// ExLlamaV3 checkpoints declare `quant_method = "exl3"` in `config.json` or a sidecar `quantization_config.json`.
 pub fn read_quant_scheme(dir: &Path) -> Result<Option<QuantScheme>> {
     let p = dir.join("hf_quant_config.json");
+    // Inkling-2's hf_quant_config.json is a per-tensor table (`model.parameter_groups`: nvfp4 / mxfp8 / bf16 / f32), not a ModelOpt
+    // scheme; its loader takes every format from the stored tensors (`model/inkling2.rs`)
+    if p.exists() && read_json(&p)?.pointer("/model/parameter_groups").is_some() {
+        return Ok(None);
+    }
     if !p.exists() {
         // AMD Quark declares its scheme in config.json (`quantization_config.quant_method = "quark"`, top level or
         // under text_config); other quant_methods keep the old behaviour (tensor detection only)

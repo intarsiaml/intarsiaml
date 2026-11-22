@@ -1,0 +1,92 @@
+  moe_experts    moe_experts_situ_bf16  ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=16 K=4 H=64 I=32 bf16 situ
+  moe_experts    moe_experts_situ_bf16  ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 E=16 K=4 H=64 I=32 bf16 situ
+  moe_experts    moe_experts_situ_bf16  ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 E=16 K=4 H=128 I=64 bf16 situ
+  moe_experts    moe_experts_situ_bf16  ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 E=16 K=4 H=64 I=32 bf16 situ
+  moe_experts    moe_experts_situ_bf16  ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=128 K=8 H=2304 I=1152 bf16 situ
+  moe_experts    moe_experts_situ_bf16  ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 E=32 K=8 H=256 I=128 bf16 situ
+  moe_experts    moe_experts_situ_bf16  ok    max_abs=9.124e-4 rel_l2=5.622e-5 T=4 E=32 K=8 H=2304 I=1152 bf16 situ
+  moe_experts    moe_experts_situ_bf16  ok    max_abs=1.748e-3 rel_l2=1.451e-4 T=16 E=32 K=8 H=2304 I=1152 bf16 situ
+  moe_experts    moe_experts_situ_bf16  ok    max_abs=2.941e-3 rel_l2=2.099e-4 T=2048 E=128 K=8 H=2304 I=1152 bf16 situ
+op             kernel                      cases   fail     max_abs      rel_l2  result
+moe_experts    moe_experts_situ_bf16           9      0    2.941e-3    2.099e-4  ADMITTED
+1 kernels, 9 cases in 26.2s
+       27.76 real       240.41 user         1.23 sys
+          4930207744  maximum resident set size
+  moe_experts    moe_experts_situ_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=16 K=4 H=64 I=32 bf16 situ
+  moe_experts    moe_experts_situ_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 E=16 K=4 H=64 I=32 bf16 situ
+  moe_experts    moe_experts_situ_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 E=16 K=4 H=128 I=64 bf16 situ
+  moe_experts    moe_experts_situ_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=128 K=8 H=2304 I=1152 bf16 situ
+  moe_experts    moe_experts_situ_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 E=32 K=8 H=256 I=128 bf16 situ
+  moe_experts    moe_experts_situ_bf16_rows ok    max_abs=9.124e-4 rel_l2=5.622e-5 T=4 E=32 K=8 H=2304 I=1152 bf16 situ
+  moe_experts    moe_experts_situ_bf16_rows ok    max_abs=1.748e-3 rel_l2=1.451e-4 T=16 E=32 K=8 H=2304 I=1152 bf16 situ
+op             kernel                      cases   fail     max_abs      rel_l2  result
+moe_experts    moe_experts_situ_bf16_rows      7      0    1.748e-3    1.451e-4  ADMITTED
+1 kernels, 7 cases in 4.9s
+        4.99 real         5.73 user         0.56 sys
+          4387749888  maximum resident set size
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=16 K=4 H=64 I=32 silu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=16 K=4 H=64 I=32 gelu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=16 K=4 H=64 I=32 situ bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 E=16 K=4 H=64 I=64 silu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 E=16 K=4 H=64 I=64 gelu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 E=16 K=4 H=64 I=64 situ bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 E=16 K=4 H=128 I=32 silu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 E=16 K=4 H=128 I=32 gelu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 E=16 K=4 H=128 I=32 situ bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 E=16 K=4 H=64 I=32 silu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 E=16 K=4 H=64 I=32 gelu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 E=16 K=4 H=64 I=32 situ bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=4.371e-4 rel_l2=6.050e-5 T=1 E=8 K=8 H=2304 I=1152 silu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=2.058e-3 rel_l2=1.634e-4 T=1 E=8 K=8 H=2304 I=1152 gelu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=1.453e-3 rel_l2=1.190e-4 T=1 E=8 K=8 H=2304 I=1152 situ bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=9.766e-4 rel_l2=1.237e-4 T=4 E=32 K=8 H=2304 I=1152 situ bf16 (real)
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=9.766e-4 rel_l2=2.990e-5 T=16 E=32 K=8 H=2304 I=1152 situ bf16 (real)
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16 ok    max_abs=3.378e-3 rel_l2=2.453e-4 T=2048 E=128 K=8 H=2304 I=1152 situ bf16 (real)
+op             kernel                      cases   fail     max_abs      rel_l2  result
+moe_experts_mxfp8 moe_experts_mxfp8_bf16         18      0    3.378e-3    2.453e-4  ADMITTED
+1 kernels, 18 cases in 16.4s
+       16.56 real        99.05 user         1.12 sys
+          4549066752  maximum resident set size
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=16 K=4 H=64 I=32 silu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=16 K=4 H=64 I=32 gelu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 E=16 K=4 H=64 I=32 situ bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 E=16 K=4 H=64 I=64 silu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 E=16 K=4 H=64 I=64 gelu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 E=16 K=4 H=64 I=64 situ bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 E=16 K=4 H=128 I=32 silu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 E=16 K=4 H=128 I=32 gelu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 E=16 K=4 H=128 I=32 situ bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=4.371e-4 rel_l2=6.050e-5 T=1 E=8 K=8 H=2304 I=1152 silu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=2.058e-3 rel_l2=1.634e-4 T=1 E=8 K=8 H=2304 I=1152 gelu bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=1.453e-3 rel_l2=1.190e-4 T=1 E=8 K=8 H=2304 I=1152 situ bf16
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=9.766e-4 rel_l2=1.237e-4 T=4 E=32 K=8 H=2304 I=1152 situ bf16 (real)
+  moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows ok    max_abs=9.766e-4 rel_l2=2.990e-5 T=16 E=32 K=8 H=2304 I=1152 situ bf16 (real)
+op             kernel                      cases   fail     max_abs      rel_l2  result
+moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows     14      0    2.058e-3    1.634e-4  ADMITTED
+1 kernels, 14 cases in 5.9s
+        6.04 real         4.47 user         0.52 sys
+          2649374720  maximum resident set size
+  moe_route      moe_route_f32          ok    max_abs=2.980e-8 rel_l2=7.288e-8 T=1 E=64 K=6
+  moe_route      moe_route_f32          ok    max_abs=2.980e-8 rel_l2=4.830e-8 T=1 E=64 K=6
+  moe_route      moe_route_f32          ok    max_abs=2.980e-8 rel_l2=8.029e-8 T=5 E=64 K=6
+  moe_route      moe_route_f32          ok    max_abs=2.980e-8 rel_l2=6.765e-8 T=5 E=64 K=6
+  moe_route      moe_route_f32          ok    max_abs=2.980e-8 rel_l2=7.024e-8 T=17 E=64 K=6
+  moe_route      moe_route_f32          ok    max_abs=4.470e-8 rel_l2=7.376e-8 T=17 E=64 K=6
+  moe_route      moe_route_f32          ok    max_abs=1.111e-7 rel_l2=6.650e-8 inkling T=1 E=128 K=8 Sigmoid norm=true temp=1
+  moe_route      moe_route_f32          ok    max_abs=9.897e-8 rel_l2=9.806e-8 inkling T=1 E=128 K=8 SqrtSoftplus norm=true temp=1
+  moe_route      moe_route_f32          ok    max_abs=9.369e-8 rel_l2=8.270e-8 inkling T=1 E=128 K=8 Softmax norm=true temp=1
+  moe_route      moe_route_f32          ok    max_abs=5.972e-8 rel_l2=4.824e-8 inkling T=1 E=128 K=8 Sigmoid norm=false temp=0.7
+  moe_route      moe_route_f32          ok    max_abs=1.120e-7 rel_l2=7.293e-8 inkling T=4 E=128 K=8 Sigmoid norm=true temp=1
+  moe_route      moe_route_f32          ok    max_abs=8.916e-8 rel_l2=6.011e-8 inkling T=4 E=128 K=8 SqrtSoftplus norm=true temp=1
+  moe_route      moe_route_f32          ok    max_abs=1.329e-7 rel_l2=8.700e-8 inkling T=4 E=128 K=8 Softmax norm=true temp=1
+  moe_route      moe_route_f32          ok    max_abs=5.971e-8 rel_l2=3.426e-8 inkling T=4 E=128 K=8 Sigmoid norm=false temp=0.7
+  moe_route      moe_route_f32          ok    max_abs=1.094e-7 rel_l2=6.271e-8 inkling T=16 E=128 K=8 Sigmoid norm=true temp=1
+  moe_route      moe_route_f32          ok    max_abs=1.942e-7 rel_l2=5.818e-8 inkling T=16 E=128 K=8 SqrtSoftplus norm=true temp=1
+  moe_route      moe_route_f32          ok    max_abs=1.265e-7 rel_l2=6.995e-8 inkling T=16 E=128 K=8 Softmax norm=true temp=1
+  moe_route      moe_route_f32          ok    max_abs=5.961e-8 rel_l2=4.351e-8 inkling T=16 E=128 K=8 Sigmoid norm=false temp=0.7
+  moe_route      moe_route_f32          ok    max_abs=2.048e-7 rel_l2=6.629e-8 inkling T=2048 E=128 K=8 Sigmoid norm=true temp=1
+op             kernel                      cases   fail     max_abs      rel_l2  result
+moe_route      moe_route_f32                  19      0    2.048e-7    9.806e-8  ADMITTED
+1 kernels, 19 cases in 0.3s
+        0.34 real         0.09 user         0.15 sys
+          2200797184  maximum resident set size

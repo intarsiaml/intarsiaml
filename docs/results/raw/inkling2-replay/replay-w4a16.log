@@ -1,0 +1,12 @@
+loaded in 0s
+v00 L00 p0 swa   attn rel 1.80e-03 (T=12065, max pos 12064)  moe rel 7.76e-02
+v05 L05 p0 full  attn rel 1.82e-03 (T=12065, max pos 12064) tau max|d| 6.1e-08  moe rel 7.51e-02
+v11 L11 p0 full  attn rel 2.60e-03 (T=12065, max pos 12064) tau max|d| 6.1e-08  moe rel 1.03e-01
+v17 L17 p0 full  attn rel 2.43e-03 (T=12065, max pos 12064) tau max|d| 6.1e-08  moe rel 9.57e-02
+v20 L08 p1 swa   attn rel 2.16e-03 (T=12065, max pos 12064)  moe rel 1.06e-01
+v23 L11 p1 full  attn rel 2.76e-03 (T=12065, max pos 12064) tau max|d| 6.1e-08  moe rel 1.06e-01
+v29 L17 p1 full  attn rel 2.22e-03 (T=12065, max pos 12064) tau max|d| 6.1e-08  moe rel 9.91e-02
+v41 L17 p2 full  attn rel 1.92e-03 (T=12065, max pos 12064) tau max|d| 6.1e-08  moe rel 8.80e-02
+v47 L23 p0 full  attn rel 2.26e-03 (T=12065, max pos 12064) tau max|d| 6.1e-08  moe rel 3.32e-02
+done in 54s
+replay worst: attention 2.76e-03, moe 1.06e-01

@@ -247,6 +247,41 @@ pub fn moe_experts_token_act(
     acc.iter().map(|v| round(out_dt, *v)).collect()
 }
 
+/// `MoeExperts` for one token with the Inkling-2 SiTU activation (`OpAttrs::ink.situ`, contract in `inkling2::ops`):
+/// `a = rA(gate_cap tanh(g / gate_cap) sigmoid(g) up_cap tanh(u / up_cap) w_k)` (routing weight before w2), `y = rA(a . W2)`,
+/// `out = rA(sum_k y)`; `g`, `u` rounded to `dt` as in [`expert_forward_act`].
+#[allow(clippy::too_many_arguments)]
+pub fn moe_experts_token_situ(ex: &ExpertsRef, x: &[f32], ids: &[i32], weights: &[f32], dt: DType, out_dt: DType, gate_cap: f64, up_cap: f64) -> Vec<f64> {
+    let (h, i) = (ex.h, ex.i);
+    let sig = |z: f64| 1.0 / (1.0 + (-z).exp());
+    let mut acc = vec![0f64; h];
+    let mut row = vec![0f64; h.max(i)];
+    for (&id, &w) in ids.iter().zip(weights) {
+        if id < 0 || id as usize >= ex.e {
+            continue;
+        }
+        let expert = id as usize;
+        let gw = &ex.gate_up_w[expert * 2 * i * (h / 2)..(expert + 1) * 2 * i * (h / 2)];
+        let gsb = &ex.gate_up_s[expert * 2 * i * (h / GROUP)..(expert + 1) * 2 * i * (h / GROUP)];
+        let dw = &ex.down_w[expert * h * (i / 2)..(expert + 1) * h * (i / 2)];
+        let dsb = &ex.down_s[expert * h * (i / GROUP)..(expert + 1) * h * (i / GROUP)];
+        let g3 = &ex.gscales[expert * 3..expert * 3 + 3];
+        let mut act = vec![0f64; i];
+        for r in 0..i {
+            nvfp4_row(gw, gsb, g3[0], r, h, &mut row);
+            let g = round(dt, (0..h).map(|c| x[c] as f64 * row[c]).sum());
+            nvfp4_row(gw, gsb, g3[1], i + r, h, &mut row);
+            let u = round(dt, (0..h).map(|c| x[c] as f64 * row[c]).sum());
+            act[r] = round(dt, gate_cap * (g / gate_cap).tanh() * sig(g) * up_cap * (u / up_cap).tanh() * w as f64);
+        }
+        for (r, a) in acc.iter_mut().enumerate() {
+            nvfp4_row(dw, dsb, g3[2], r, i, &mut row);
+            *a += round(dt, (0..i).map(|c| act[c] * row[c]).sum());
+        }
+    }
+    acc.iter().map(|v| round(out_dt, *v)).collect()
+}
+
 /// `MoeCombine`: `round(routed + round(round(sigmoid(gate)) * shared))`.
 pub fn moe_combine(routed: &[f32], shared: &[f32], gate: &[f32], t: usize, h: usize, dt: DType) -> Vec<f64> {
     let mut out = vec![0f64; t * h];

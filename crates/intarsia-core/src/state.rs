@@ -38,6 +38,10 @@ pub enum RingKind {
     WindowKv,
     /// The compressor's pending group (`Op::CompressPool`).
     CompressTail,
+    /// Inkling-2 sliding-window KV (`Op::RelSinkAttn`; each plane is `[Hk, rows, Dh]`, row `p % rows` on the middle axis).
+    InkKv,
+    /// Inkling-2 short-conv input windows (`Op::InkKvPrologue`, `Op::ConvMix`): two planes `[rows, C]`.
+    InkConv,
 }
 
 /// What a [`SlotSpec::Shared`] holds.

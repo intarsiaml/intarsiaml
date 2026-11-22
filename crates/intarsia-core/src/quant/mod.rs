@@ -22,6 +22,7 @@ pub mod moe;
 pub mod mxfp4;
 pub mod nvfp4;
 pub mod ops;
+pub mod p12;
 pub mod reference;
 pub mod scheme;
 
@@ -152,6 +153,11 @@ impl HostQTensor {
             }
             MXFP4 => mxfp4::dequant_rows(&self.parts[0].data, &self.parts[1].data, self.n, self.k),
             EXL3 => exl3::dequant_parts(&self.parts),
+            p12::P12 => p12::decode_parts(&self.parts[0].data, &self.parts[1].data, self.n, self.k)
+                .expect("valid p12 weight")
+                .into_iter()
+                .map(|b| f32::from_bits((b as u32) << 16))
+                .collect(),
             FP8_E4M3 => {
                 let ws = self.parts[1].to_f32()[0];
                 self.parts[0].to_f32().into_iter().map(|v| v * ws).collect()
@@ -181,6 +187,7 @@ fn op_for(format: QuantId, f32_out: bool) -> Op {
         MXFP4 => Op::MatmulMxfp4,
         EXL3 => Op::MatmulExl3,
         FP8_E4M3 => Op::MatmulFp8,
+        p12::P12 => Op::MatmulP12,
         _ if f32_out => Op::Logits,
         _ => Op::Matmul,
     }

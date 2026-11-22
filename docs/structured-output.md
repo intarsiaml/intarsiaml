@@ -230,3 +230,22 @@ from the content after the split, never from inside the think block.
   `docs/results/2026-10-21-j1-structured.md`.
 - `crates/intarsia-server/tests/api.rs` (mock engine): `reasoning_content` and `thinking` blocks, streaming and not, alone, under `response_format`, and under required / auto tools; thinking off is unchanged.
 - `scripts/r2-reasoning/endor-slot.sh`: the Metal e2e (docs/results/2026-10-21-r2-reasoning.md).
+
+## Inkling-2 (`reasoning_parser = "inkling"`, `tool_parser = "inkling"`)
+
+Lane ink-serve, docs/results/2026-11-21-inkling2-serve.md. The model writes typed blocks whose markers are special tokens
+(`<|message_model|><|content_thinking|>...<|end_message|>`, `<|content_text|>`, `<|content_invoke_tool_json|>{"name":..,"args":{..}}`),
+which the text stream drops, so the server reads the output by token id (`crates/intarsia-server/src/inkling.rs`, the transitions of
+vLLM's `parser/inkling.py`): `reasoning_content`, `content`, `tool_calls`, in streaming and non-streaming replies. Only
+`/v1/chat/completions` (the Anthropic route answers 400).
+
+- Prompt: `Engine::chat_ids` (the codec's renderer, `crates/intarsia-models/src/inkling_chat.rs`, a port of vLLM's
+  `render_inkling2_messages`), not the jinja template. `reasoning_effort` (request field or `chat_template_kwargs`, the latter wins;
+  a name, a number in [0, 0.99] or a numeric string, default 0.9) becomes the `Thinking effort level:` block; effort `none` still
+  lets the model write a short thinking block, so reasoning is always split. Text typed by the user never becomes a framing token.
+- `tools`: declared in a leading `tool_declare` block. `tool_choice: none` hides them, a named choice declares only that tool; named,
+  `required` and `parallel_tool_calls: false` add an instruction text to the prompt and constrain **nothing** (vLLM's behaviour: no
+  Inkling tool grammar).
+- `response_format` (json_schema, json_object): the reply is framed by a grammar, any number of free thinking blocks then the text
+  block whose payload alone is the JSON (`content` is that payload). Not applied when a tool is forced (`required` / named).
+- Images, audio and the Anthropic route are refused (text model only).
