@@ -255,12 +255,32 @@ NAX path in this lane (blend, router, MoE tiles) was tuned and timed at 2048 row
 `[tuning.metal] prefill_chunk = 2048` in the recipe (as qwen3 / qwen3_5_moe). Check queued as #11109: G2/G3 short+long at
 2048, then speed-plain ABAB serve 256 vs 2048 on the same binary.
 
+### The "host gap" is a cold first chunk, not a per-chunk cost (cb trace .scratch/e2e/kw1.cb.jsonl, #10972, 8k prompt)
+
+Idle per 2048-row chunk (span minus GPU busy, chunks split at `embedding_bf16`):
+
+| chunk | command buffers | span ms | busy ms | idle ms |
+|---:|---:|---:|---:|---:|
+| 0 | 513 | 850.0 | 638.9 | 211.1 |
+| 1 | 18 | 657.6 | 657.6 | 0.0 |
+| 2 | 18 | 756.7 | 756.7 | 0.0 |
+| 3 (1890 rows) | 18 | 733.8 | 733.7 | 0.0 |
+
+The earlier "57 ms per chunk" was this lane's 229 ms prefill idle divided by 4 chunks; it all sits in chunk 0. Of chunk 0's 211 ms,
+44 ms is the host committing late, and 167 ms is the GPU starting a committed buffer late. That late start is ~3.7 ms on the
+**first** visit of each layer's routed experts (visits 1-18 and 43-48; the second and third core passes and every later chunk
+start in 0.1 ms) plus one 17 ms on the first attention. This matches first-touch page-in of each layer's weights, once per
+process. Chunks 1-3 run as 128-dispatch buffers with no measurable gap. A warm server (keep-warm on, localeval's per-round
+warmup) does not pay it. Batching prefill command buffers therefore has nothing to remove in steady state. Not built;
+brief 8's first next item is closed by this measurement. (A cold `generate` pays ~0.2 s once; prefetching the expert weights at load would
+remove that and belongs to the residency / keep-warm owner.)
+
 ## Next ideas (ranked)
 
 1. MoE experts (54% of the chunk): the gen1 kernel is staging / decode bound, not MMA bound (no-matmul probe 6.3 of 7.3 ms).
    Try decoding each weight block into threadgroup memory once per BN x BK step shared by two M tiles of the same expert
    (2 x 64 rows, 256 threads), and an fp8/fp4 -> bf16 decode with fewer ALU ops; the 128-thread m128 form is not the way.
-2. Host gap: 57 ms per chunk (8%) is the next-largest single item; prefill command-buffer batching.
+2. Host gap: closed. It is a once-per-process first-touch cost in chunk 0, 0 ms in later chunks (section above).
 3. Router as a NAX GEMM (logits_bf16 runs at 3.9 TFLOP/s: 14 ms -> ~1 ms per chunk).
 4. rel_mode: stage the bias per (tile, distance band) in threadgroup memory instead of 16 FMAs per score; then re-measure
    (branch ink/prefill-rel).
