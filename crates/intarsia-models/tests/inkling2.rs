@@ -811,9 +811,14 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
         // CUDA: every op has a kernel: the attention ops (lane ink-cuda-attn, inkattn.rs), the in-projection, mix / conv ops and
         // the MXFP8 experts (lane ink-cuda-mixmoe, inkmix.rs / inkmoe.rs)
         let on_cuda = |t: &[(&str, Op)]| t.iter().any(|(_, o)| *o == op);
-        let lanes = on_cuda(intarsia_backend_cuda::inkattn::TABLE) || on_cuda(intarsia_backend_cuda::inkmix::TABLE) || on_cuda(intarsia_backend_cuda::inkmoe::TABLE);
-        assert!(lanes, "cuda {op}: no lane table lists it");
-        assert!(intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
+        // except InkRoute (op 76, lane ink-dfuse): Metal only and optional; CUDA runs the router matmul + MoeRoute
+        if op == Op::InkRoute {
+            assert!(!intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
+        } else {
+            let lanes = on_cuda(intarsia_backend_cuda::inkattn::TABLE) || on_cuda(intarsia_backend_cuda::inkmix::TABLE) || on_cuda(intarsia_backend_cuda::inkmoe::TABLE);
+            assert!(lanes, "cuda {op}: no lane table lists it");
+            assert!(intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
+        }
         assert!(intarsia_backend_hip::kernels::UNIMPLEMENTED.contains(&op), "hip {op}");
         // Metal: every op has a kernel (lanes ink-m-attn, ink-m-moe, ink-m-mix); the table alone, no device
         // (a macOS-only dev-dependency, so the check is too)
