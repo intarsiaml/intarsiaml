@@ -66,6 +66,14 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   Inkling's first generated token is a block marker the text stream drops, so a max_tokens 1 probe returned usage only and
   counted as "no tokens received"). Cherry-pick it before #10946 builds; keep the non-fatal bench step. Done: cherry-picked as
   6b5ff520f before #10946 started (it builds the tip at job start); the bench step stays non-fatal.
+- 2026-11-22 (coordinator, after #10914): ink-metal merges ink/batch bbc0bec00 into ink/metal after #10901, right after
+  ink/m-mix 52b337aa9 (both touch the mix shader), and messages the merge hash. (1) Get the 0.6 % back: from that ink/metal
+  tip make the row-table branch compile-time (Metal function constant or a separate pipeline variant), so the solo path
+  compiles without MX_ROWTAB; shader / pipeline only (ink-dfuse owns the inkmix.rs row kernels for fusion: touch no more
+  than needed). (2) Correctness: rows-exact and batched == solo at B 2 / 5 / 16, run on endor in a default-load slot; macOS
+  compile checks on bespin; no local builds. (3) Timing: if the two-pass curve job has not started, fold a solo ABAB
+  (merged tip vs variant, 6 reps, --profile-every 0) into it; else one short quiet job. (4) Merge criterion: solo >= the
+  merged tip and batched output identical; report the hash.
 
 ## 1. Design note (contract delta, written before any kernel)
 
