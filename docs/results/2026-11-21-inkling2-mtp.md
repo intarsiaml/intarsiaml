@@ -971,3 +971,33 @@ Gate rules (set before the gates ran). Job: endor, default load, flip tip vs mai
   means of six runs each: decode DSpark / off > 1 at every length; serve TTFT and prefill within 2% of off at 1k, 4k and 16k.
   Also t=1.0 decode (generate, seed 7, 256 tokens, 150 and 5000 prompt tokens, A B B A): default vs off reported. Otherwise stop
   and report.
+
+### Default-on gates, first run (#11620, endor, default load, code 6d70c6fa7 vs main 22303d704): 2 checks failed
+
+- F1 PASS: md5 default == `--spec off` == main at 64 (65cde8f3...) and 256 (61fd59fe...); the default run speculated (57 verify
+  passes, 80.7% acceptance, 2.61 tokens per pass), `--spec off` did not.
+- F2 PASS: Metal `plan show` byte-identical to main for Qwen3-8B (json 8371 B / txt 1342 B) and Llama-3.1-8B (7983 / 1411 B).
+  Info: Inkling's one-sequence plan now differs from main's by 12 lines (the draft's calls), as expected.
+- F3 PASS: default server, ~1.4k greedy request HTTP 200 with verify passes 0 -> 13; t1.0 request HTTP 200, steps unchanged.
+- F4 FAIL as written ("admission line equal to main's"): main's server line read "30 kernel(s) checked, 113 case(s) run, 0
+  cached", the flip's "30 kernel(s) checked, 22 case(s) run, 91 cached". The admission cache persists across servers, and main's
+  ran first, so the split follows run order; kernels (30) and total cases (113) are the same. No draft was loaded. Both greedy
+  replies were HTTP 200 with an empty `content` (Inkling reasons first and 48 tokens ended inside `reasoning_content`), and the
+  `reasoning_content` texts are identical (238 chars). The script never compared them, since the admission check failed first.
+- F5 PASS: no `mtp.safetensors`: rc 0, one "not applied: no draft" line, no speculation, md5 equal to main's.
+- F6 PASS: t=1.0 seed 7, ids identical default vs `--spec off`, no verify pass, at 150 and 5000 prompt tokens. Decode (default
+  load, one run each, on before off): 71.52 vs 73.07 and 67.54 vs 69.00 tok/s, about 2% lower with the default; the night job
+  measures it A B B A.
+- F7 PASS: dspark_default (1), recipe (16), recipes_doc (3), recipe_gumbel (1), docs_env_vars (2); on Metal inkling2_dspark (4,
+  with the L2a test), inkling2_dspark_cut (1), inkling2_verify_softcap (1).
+- F8 FAIL as designed, no evidence about the rule. The chat flow reused 0 prompt rows on every server, `--spec off` included
+  (cached_tokens 0 at turn 2, 4593 prompt tokens), so the default server's greedy turn had no prefix to keep. With p = 0 it
+  drafted (11 verify passes), which is the rule's behaviour. The client also timed only `content` deltas, so TTFT was None
+  everywhere. Cause of the 0 reuse: Inkling-2's sliding-window ring slots let a request resume only within 16 rows
+  (`INK_RING_MARGIN`) of the cached sequence's end, and the chat template re-renders the history (the turn-1 reply replaced, its
+  reasoning dropped), so the common prefix ends ~30 rows before the cached end. Consequence beyond this gate: in serve, Inkling-2
+  multi-turn chat reuses the KV prefix only when the new prompt extends the cached tokens almost exactly (e.g. `/v1/completions`
+  continuations).
+- Lane stopped here, as the rule says. The night job #11621 will not run without the pass marker. A rerun with fixed
+  measurement (F4: kernels and total cases, reply = reasoning + content; F8: a `/v1/completions` continuation with an 8-token
+  sampled turn) waits on the coordinator.
