@@ -1057,7 +1057,7 @@ Measured in #11634 on the `--spec off` server (main's behaviour, unchanged by th
 | new short chat prompt | 21 | 0 | 0.093 s |
 
 - Turn 2 re-prefills all 4593 rows (about 1.5 s, ~3.0k rows/s) where an exact continuation takes 0.085 s: 18x the TTFT at ~4.6k.
-  It grows with the conversation (prefill is about linear in rows up to 16k: section "Speed").
+  It grows with the conversation's length, since the whole history is prefilled again each turn.
 - Cause, two parts: (1) the chat template re-renders the history (turn 1's reply replaced by its final text, the reasoning
   dropped), so turn 2's tokens leave the cached sequence about 30 rows before its end; (2) Inkling-2's sliding-window layers keep
   ring slots with a 16-row margin (`INK_RING_MARGIN`, `model/inkling2.rs`), so a request can resume only within 16 rows of the
