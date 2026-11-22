@@ -482,6 +482,19 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### rel_mode 2 gate rule (fixed before the runs; brief 23; binary bin11 = ink/prefill-rel2 8bef1619a, chunk 2048)
+
+Arms: mode 0 (unset) vs `INTARSIA_INK_REL_MODE=2` (sliding-window layers only, the default of that switch; #11447 showed
+the mode-2 kernel 10-24 % slower on full visits). One endor slot, `--quiet gpu,cpu`, safe_run.
+1. Quality: G2 / G3 short and long with mode 2 under the usual limits (G2 4e-3 / 6e-3, G3 1.05e-2 / 1.65e-2), and the
+   mode-0 KL lines unchanged from the references above (2.087e-3 / 3.239e-3 / 8.420e-3 / 1.229e-2).
+2. Decode: greedy md5 at 64 / 256 tokens with mode 0 must equal a2ab7b3d0e3d15d0fae1ccf6816ac7dc / cbd62660cd829e0009878cd8c1a3e362;
+   decode tok/s of the 256-token runs, mode 2 vs mode 0, within +-3 %.
+3. Speed: one warm-up generate, then 4k / 8k / 16k prompts (p4k, p8k, p16k = p8k twice), pairs in ABAB order (0, 2, 0, 2),
+   3 pairs per length, `generate --max-tokens 1`; per-pair ratio mode 2 / mode 0, median of the 3. Prefill ms of these runs
+   is the end-to-end TTFT. **Worth proposing a flip** if the median ratio is >= 1.02 at 4k and 8k and >= 1.00 at 16k, with 1
+   and 2 passing. Otherwise mode 2 stays opt-in.
+
 ### rel_mode 2, first kernel (brief 23; branch `ink/prefill-rel2` 36a90c66d = ink/prefill + ink/metal 5ef24b165 + rel_mode 1)
 
 `kernels/metal/inkling2_attn_nax_r2.metal`, `INTARSIA_INK_REL_MODE=2` (default 0). Per key tile, each simdgroup forms its 16
