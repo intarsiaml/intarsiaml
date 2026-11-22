@@ -295,4 +295,22 @@ the fix). Not rerun against the real server here.
 
 Repeated prompt (prefix reuse path): two identical greedy chat requests gave identical choices.
 
+### `generate` at `--profile-every 0` (#10890, after localeval; the honest engine decode number)
+
+| Run | prefill | decode tok/s |
+|---|---|---:|
+| 19-token raw prompt, 256 tokens, three runs | 283-286 ms | **64.3 / 64.0 / 62.5** |
+| 5051-token prompt, chunk 256 (default), 128 tokens | 3655 ms = **1382 tok/s** | 59.7 |
+| 5051-token prompt, `--prefill-chunk 2048` | 2209 ms = **2286 tok/s** | 60.1 |
+
+ink-hostgap's measurement A in the same slot (`.worktrees/ink-hostgap/.scratch/mA/summary.txt`, copy in `.scratch/`): greedy
+63.9 / 64.1 tok/s (md5 identical), `INTARSIA_TOKEN_FEEDBACK=0` 60.9 (same md5), temperature 0.7 55.8; cb trace of 125 greedy
+steps: 2 buffers / 613 dispatches per step, span 15.55 ms median, GPU idle 1 us per step.
+
+ink/serve's smoke on Metal (`scripts/inkling2-serve-smoke.sh` with `--backend metal`, #10890): every chat / reasoning / tool /
+json_schema case answered correctly (effort none / high, multi-turn system, tool_call, tool result follow-up,
+tool_choice required, json_schema and streamed json_schema); localeval quality smoke gsm8k 2 / 2; ifeval 2 replies truncated
+at the smoke server's default 4096 context (4018 output tokens of thinking), not a correctness signal. G1 tiny on Metal
+rerun in the same slot: 8 / 8.
+
 SPEED_REST
