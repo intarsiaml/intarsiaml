@@ -400,7 +400,7 @@ mod tests {
         let mut rows: Vec<Vec<u16>> = Vec::new();
         // +-0, subnormals, the max exponent / inf / nan, one row of all escapes (alternating far exponents), a K-tail escape
         rows.push((0..k).map(|i| if i % 2 == 0 { 0x0000 } else { 0x8000 }).collect());
-        rows.push((0..k).map(|i| (i as u16 % 3) * 0x8000 / 2 | (i as u16 % 127 + 1)).collect());
+        rows.push((0..k).map(|i| (i as u16 % 3).wrapping_mul(0x8000) / 2 | (i as u16 % 127 + 1)).collect()); // wrapping: the values the release-built test used
         rows.push((0..k).map(|i| [0x7F80, 0xFF80, 0x7FC1, 0x7F7F, 0x3F80][i % 5]).collect());
         rows.push((0..k).map(|i| if i % 2 == 0 { 0x0001 } else { 0x7F7F }).collect());
         let mut tail: Vec<u16> = (0..k).map(|i| 0x3C00 | (i as u16 & 0x7F)).collect();
