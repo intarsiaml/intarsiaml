@@ -245,7 +245,16 @@ evidence that NE 4 is wrong rather than merely reordered remains G2 against the 
 | ink/dfuse 00c81dda7 (flip 2f952f697) | b1a4f3f62 | op 76: `InkRoute` replaces the reserved `InkReserved76` in place (77..=95 and fp8's 88-90 kept, `ALL` stays 96); every registration list both sides (cpu fast / reference, cuda / hip exclusion lists, metal build.rs sources, kernels.rs table / register / admission filter, lib.rs dispatch); inkling2.rs both env helpers and `msg_q_all` after fp8's byte count; the mix shader keeps fp8's IP8 instances and dfuse's `ink_blend_norm_c` |
 
 dfuse is last, so its merge b1a4f3f62 is the commit to revert (`git revert -m 1 b1a4f3f62`) if a dfuse check fails.
-Checks: bespin #11199 (workspace `cargo check --tests`, core / cpu tests, cpu inkling2, docs_env_vars), then the combined gate.
+Checks: bespin #11199 / #11200 failed to compile (fixed in 7e5e6010e: `msg_q_all` before fp8's byte count in inkling2.rs, no
+`InkReserved76` arms in the cpu backends, `NOT_ON_CUDA` 30, tuning rows for `INTARSIA_INK_MOE_NAX2` / `_MOE_NAXSKIP` /
+`_BLEND_NAX` / `_PREFILL_TRACE` (missing on the prefill branch itself) and `INTARSIA_INK_NE_CHILD_OUT`); #11202-#11204 on
+7e5e6010e: workspace `cargo check --tests` clean, intarsia-core / -backend-cpu tests all pass (core lib 240), cpu inkling2 8/8
+and batch 6/6, cuda / hip lib 34 / 31, docs_env_vars 2/2. Combined gate: endor #11205 (`.scratch/combgate.sh`).
+
+- 2026-11-22 (ink-batch lane): batched-step baseline for the post-merge quiet run: `batch_step --ctx 1024 --rounds 2 --steps 16
+  --batches 1,8,16`, 3 reps, median of columns 3 (batched step ms) and 6 (batched tok/s); reference #11181 (tip 8546d143f,
+  before the NE fix): B1 16.40 ms / 61.0 tok/s, B8 34.93 / 229.0, B16 59.96 / 266.9; NE 3 measured equal (B16 59.77 / 267.7),
+  which confirms the slot-noise reading of #11179's speed rows (NE 3 costs nothing).
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
