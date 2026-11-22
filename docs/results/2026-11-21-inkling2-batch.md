@@ -10,6 +10,16 @@ P12 / screen). Never restore an old bench source without `--digest` for a refere
 
 ## Briefs received
 
+- 2026-11-22 ~07:45 (main): #11352 X/Y show the same binary at 61 ms vs 77-90 in #11328: endor has a slow state hitting B16
+  hard and B1 barely. Finish #11352 as planned. Then (1) re-label: #11181 consistent with a fast-state run (still unverifiable,
+  no digests, but not "the outlier"); fast-state reference = final ~59-61 ms B16 (262-273 tok/s, above 230); slow state ~77-90.
+  Place runs by time: #10900, #11057, #11261, #11266, #11297, #11328 slow; #11181, #11345, #11352 fast. (2) Hypothesis: GPU
+  clock drops in the slow state (B16 compute-heavy, B1 bandwidth-bound). Add a compute-bound box check to every batched timing
+  job: pure-ALU Metal kernel (FMA loop, no memory, ~1 s), time logged next to B1 and a B16 sample; find a non-root way to read
+  GPU frequency / performance state (ioreg, IOReport), no sudo. (3) Box check for batched comparisons: B16 within 5% of the
+  fast-state reference, else BOX SLOW, no result; keep same-slot ABAB. (4) Record slow-state windows with timestamps.
+  Report the ALU-check result.
+
 - 2026-11-22 (main): ink-fp8's quiet #11345 (~07:00-07:30, ink/metal a7cba52f4 + ink/fp8 72900194e, P12 off, screen off;
   box check B1 65.0 tok/s; batched == solo in 4 runs) measured screen off B1 15.39 / 15.53, B8 33.91 / 38.99, B16 63.25 /
   65.40 ms (#11181-like, ~250 tok/s) in the same hour as my 77-90. Before #11352 runs, diff the setups from the logs
@@ -878,3 +888,71 @@ env (x2), Y = #11328's saved binary + env (x2), Z = this tree's bench with the s
 then the digest-backed NE arms. The "230 not met" claim is on hold until this is settled.
 
 **27a. Embedded metallibs (07:10).** Carved from the two saved binaries (`MTLB` header, size at +16). Metal-4 lib identical in both (1,752,900 B, sha `f9d9e393bb68cfd5`). Main lib: fp8 #11345 9,203,071 B (`7e2f54d16b093c5e`) vs #11328 9,203,007 B (`119340e9ad7e9551`), 64 B apart, the same 1,064 function names. Consistent with the `screen.metal` diff only (head screen is opt-in and off in both arms). So the GPU code the two runs used is the same apart from an unused kernel; the 63 vs 77-90 ms gap is either host code or box state. The same-slot side-by-side arms X/Y at the head of #11352 decide which.
+
+## 28. Endor slow state: #11352 side-by-side, relabelled runs, ALU box check (#11352 07:14-07:22, #11355 07:22-07:26)
+
+**#11352, one quiet slot, every run ~40 s back to back, B 16 batched step ms (file mtimes):**
+
+| run | time | arm | B 1 tok/s | B 8 ms | B 16 ms |
+|---|---|---|---:|---:|---:|
+| 1 | 07:15:44 | X fp8 #11345 binary + env | 65.0 | 33.92 | 58.67 |
+| 2 | 07:16:21 | Y #11328 binary + env | 63.5 | 34.14 | 61.04 |
+| 3 | 07:17:01 | X | 64.1 | 34.36 | 63.78 |
+| 4 | 07:17:39 | Y | 64.7 | 34.58 | 63.61 |
+| 5 | 07:18:19 | Z this tree (80334ed1a), no digest | 64.9 | 34.11 | 63.30 |
+| 6 | 07:18:58 | NE 3 (default), digest | 64.9 | 35.37 | 70.85 |
+| 7 | 07:19:38 | NE 4, digest | 63.1 | 40.15 | 72.83 |
+| 8 | 07:20:19 | NE 4, digest | 62.5 | 38.32 | 74.38 |
+| 9 | 07:20:59 | NE 3, digest | 63.7 | 37.12 | 71.25 |
+| 10 | 07:21:40 | NE 3, digest | 64.7 | 41.51 | 77.23 |
+| 11 | 07:22:21 | NE 4, digest | 63.8 | 40.62 | 73.68 |
+
+- X and Y: the same code runs the same in one slot (58.7-63.8 ms). The #11328 binary measured 77-90 ms in its own slot, so the
+  gap to #11345 was box state, not code.
+- The box drifted inside the slot: B 16 rose from 58.7 to 71-77 ms over 7 minutes of back-to-back load while B 1 stayed at
+  62.5-65.0 tok/s. `--digest` costs nothing: digests are computed after the timed loop (`batch_step.rs` ~177), so runs 6-11
+  are slower from the drift, not from the flag (Z, same binary without digest, ran 63.30 ms 40 s before run 6 at 70.85).
+- NE 3 vs NE 4: no speed result (the drift exceeds the arm difference; medians 71.25 vs 73.68 with one inverted pair). The
+  digests differ: B 1 identical, B 8 / B 16 rows differ (row 2 of both, e.g. `4aad0881c883b783` NE 3 vs `fff302d90d8827f3`
+  NE 4), stable across the reps of each arm. NE 4 is not the same computation as NE 3 on random ids. NE 3 stays the default.
+
+**Relabel (main, 07:45).** Fast state: B 16 ~59-61 ms at the final tree (262-273 tok/s, above 230). Slow state: ~77-90 ms.
+By time (11-22, EST): slow #10900 (~00:09, 71.2), #10956 (00:21, ~82), #11057 (~02:xx, 79-81), #11261 (05:52-05:58),
+#11266 (05:58-06:08, 76.20), #11297 (06:27-06:35), #11328 (06:49-06:57, 77-90). Fast #11181 (~03:15-03:49, 59.96),
+#11345 (07:01-07:04, 63.3-65.4), #11352 runs 1-5 (07:15-07:18, 58.7-63.8). #11181 stays unverifiable (no digests) but is
+consistent with a fast-state run, not an outlier. #11352 runs 6-11 (07:19-07:22) drifted to 71-77 within one slot.
+Section 25's list of decisions that used #11181 now reads against the fast-state reference, not against 77-90.
+
+**Box check (from now on, every batched timing job).** `.scratch/boxcheck.sh BINARY [env]`: the ALU kernel below, then
+`batch_step --batches 1,16 --rounds 1 --steps 16 --prompts random`, per-process GPU time over that sample
+(`.scratch/gpuclients.py`, ioreg `AGXDeviceUserClient` `AppUsage.accumulatedGPUTime`, no root), thermal state
+(`ProcessInfo.thermalState`) and a verdict: B 16 <= 1.05 x 61.0 ms = BOX OK, else BOX SLOW (no result). Batched comparisons
+stay same-slot ABAB.
+
+**ALU check.** `.scratch/alucheck/alucheck.swift`: 2^20 threads, 8 independent fp32 FMA chains each, one store per thread at
+the end; self-calibrated to ~160 ms per command buffer, 5 buffers (~0.8 s); GPU time from GPUStartTime..GPUEndTime. GPU
+P-state residency over the same window from IOReport ("GPU Stats" / "GPU Performance States", libIOReport via dlopen, no
+root). States are reported as P1..P15; the pmgr voltage-states tables do not map 1:1 to 15 states, so no MHz yet.
+
+| check | time | ALU ms (TFLOP/s) | P-states under ALU | thermal | B 1 tok/s | B 16 ms | verdict |
+|---|---|---:|---|---|---:|---:|---|
+| #11355 start | 07:23:15 | 160.88 (15.64) | P13 94.3%, P12 5.5% | (not logged) | 64.1 | 75.24 | BOX SLOW |
+| #11355 end | 07:25:44 | 160.76 (15.57) | P13 94.4%, P12 5.4% | fair | 65.0 | 64.43 | BOX SLOW (5.6% over) |
+
+- **Result: the ALU time does not track the B 16 slowdown.** B 16 moved 75.24 -> 64.43 ms (17%) while the ALU kernel stayed at
+  160.8 ms (0.1%) and sat in the same P-state mix both times. So the GPU's clock under a compute load did not drop in the slow
+  state. Not yet excluded: the P-state the B 16 workload itself runs at (DVFS follows the load; the ALU kernel saturates and
+  may get P13 regardless), and memory-fabric / SLC clocks, which an ALU kernel does not see.
+- No other GPU user: per-process GPU time over each B 16 sample and over the whole #11355 job (157 s) was < 40 ms for every
+  other process (Herdr, WebKit, BambuStudio, Chrome); `pmset -g therm` records no thermal or performance warning.
+- #11355 itself moved within one job too: B 8 text 38.86 ms (07:23) vs B 8 random 33.72, B 16 text cb 70.61, B 16 random
+  untraced 62.13 ms. Its by-class tables (shares stable: MoE 52-55%, attention 16-17%, in_proj 12-15%) are usable as
+  shares; the absolute ms carry the state.
+- Next: #11375 (queued) runs ~9 min of sustained B 16 with a 500 ms P-state trace throughout, a box check every ~80 s and
+  `pmset -g therm` before / after, to see whether the B 16 step follows the P-state under the B 16 load itself.
+
+**Slow-state windows seen so far (11-22 EST):** ~00:09-02:xx (#10900, #10956, #11057); 05:52-06:57 (#11261 to #11328,
+continuous GPU jobs from many lanes since 05:00); 07:19-07:23 (#11352 runs 6-11 and #11355's start check, after ~5 min of
+continuous load in that slot). Fast: ~03:15-03:49, 07:01-07:04, 07:15-07:18, 07:24-07:26 (partly). The 07:15 -> 07:22 drift
+under steady load and the recovery by 07:25 look like a load-history (heat) effect rather than a scheduled job; to be
+confirmed by #11375's trace.
