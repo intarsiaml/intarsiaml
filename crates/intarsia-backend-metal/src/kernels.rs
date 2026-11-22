@@ -330,6 +330,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::bridge::shader_names());
     v.extend(crate::inkattn::shader_names());
     v.extend(crate::inkmix::shader_names());
+    v.extend(crate::screen::shader_names());
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
     v.extend(crate::nvfp4::SHADERS);
@@ -445,6 +446,10 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkmix::ATTN_RES_MIX_BF16, Op::AttnResMix),
     (crate::inkmix::SCONV_RES_BF16, Op::SconvRes),
     (crate::inkmix::LOOP_BLEND_BF16, Op::LoopBlend),
+    // lane ink-fp8: the screened greedy head (screen.rs)
+    (crate::screen::KERNELS[0].0, Op::HeadScreen),
+    (crate::screen::KERNELS[1].0, Op::LogitsGather),
+    (crate::screen::KERNELS[2].0, Op::ScreenArgmax),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -860,6 +865,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .scratch(crate::rowtab::attn_scratch),
                 n if crate::inkmoe::KERNELS.iter().any(|e| e.0 == n) => crate::inkmoe::register(n, k),
                 n if crate::inkmix::KERNELS.iter().any(|e| e.0 == n) => crate::inkmix::register(k),
+                n if crate::screen::KERNELS.iter().any(|e| e.0 == n) => crate::screen::register(k),
                 other => unreachable!("kernel {other} has no registration"),
             }
         })
@@ -1063,6 +1069,8 @@ mod tests {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();
         // the Inkling-2 kernels serve new ops only (inkmix.rs): no existing op gains a candidate
         got.retain(|g| !crate::inkmix::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
+        // the screened greedy head (screen.rs, lane ink-fp8): new ops only
+        got.retain(|g| !crate::screen::KERNELS.iter().any(|e| g.starts_with(&format!("{}:", e.0))));
         got.sort();
         if MAIN_KERNEL_LIST.is_empty() {
             panic!("LIST {}", got.join(" "));

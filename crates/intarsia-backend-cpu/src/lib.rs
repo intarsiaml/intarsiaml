@@ -15,6 +15,7 @@ mod fast;
 mod fault;
 mod fused_ref;
 mod ink_ref;
+mod screen_ref;
 mod gdn_ref;
 mod mem;
 mod quant_ref;
@@ -111,7 +112,7 @@ fn implements_ext(op: Op) -> bool {
 fn tol_for(op: Op) -> Tol {
     match op {
         // pure data movement / integer results: must match bit for bit
-        Op::Embedding | Op::KvAppend | Op::Argmax | Op::Sample => Tol::EXACT,
+        Op::Embedding | Op::KvAppend | Op::Argmax | Op::Sample | Op::HeadScreen | Op::ScreenArgmax => Tol::EXACT,
         // bf16-rounded outputs: one-ulp flips allowed
         _ => Tol::new(1.5e-2, 6e-3),
     }

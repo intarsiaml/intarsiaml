@@ -31,6 +31,7 @@ pub mod registry;
 pub mod rng;
 pub mod rope;
 pub mod sampler;
+pub mod screen;
 pub mod scheduler;
 pub mod spec;
 pub mod state;
