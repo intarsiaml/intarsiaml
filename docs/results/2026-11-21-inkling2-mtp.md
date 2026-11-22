@@ -329,4 +329,40 @@ work in the chunk's command stream ((ii)). The new Metal kernel `hc_pre_bf16` se
 f32 fma chain over the taps, one bf16 rounding, bitwise the host sum (test `hc_pre_matches_host_sum`). The mix now rounds to
 bf16 once before the norm, which the host version did not; drafts only propose, so this can move acceptance but never a token.
 
+### Plan: the experts at 2-4 verify rows (brief item 5, not built)
+
+What exists. Verify rows already run union-grouped experts by default (`inkmoe.rs` `Policy::Auto`: union gate+up, then
+union down by pair + gather for T >= 2, fused down at T = 1). Each expert's weights are read once per call for all the rows
+routed to it; ink-m-moe measured this at 488-493 GB/s (NVFP4) at 4 rows, against about 530-550 GB/s streaming. So the
+"union-fused pass" the brief names is mostly in place. The op table agrees: experts grow 11.9 -> 23.1 (x1.94) from 1 to 4
+rows while the real union grows 8 -> 18.9 (x2.36), so the cost follows the bytes of the union.
+
+Floor arithmetic, real routing, NVFP4 expert 4.48 MB:
+
+| | 1 row | 4 rows |
+|---|---:|---:|
+| bytes per visit (8 vs 18.9 experts) | 35.8 MB | 84.7 MB |
+| at the measured GB/s (430 / 490) | 83 µs | 173 µs |
+| at 550 GB/s | | 154 µs |
+
+Over 44 NVFP4 visits the 4-row pass pays about +4.0 ms for experts, and the 4 MXFP8 visits about +0.7 ms. Reaching streaming
+speed would save at most about 0.8 ms of a 4-row pass (3-4%). The union itself (which experts, how many bytes) is fixed by the
+routing.
+
+Options, by expected gain per 4-row verify pass:
+1. **Measure first** (one default-load job): per-visit µs at T = 1..4 with real routing ids (the ink-m-moe bench used random
+   routing: union 29.5 at 4 rows, not 18.9), the gate+up / down split (`set_probe`), and policies union / union-fused.
+   Building more is only worth it if this shows the 4-row path well below about 490 GB/s.
+2. **Union down fused with the k-order token sum** (a `dn_f` that is union-grouped): removes the gather launch and the `y`
+   round trip per visit. About 5-10 µs x 48 visits = 0.25-0.5 ms (1-2%). Bitwise by construction (same per-pair order, token
+   sum in k order), checked by `tests/inkmoe.rs`.
+3. **Gate+up / down tuned for unions of 12-19 experts** (threadgroup shape, chunks in flight): up to the 0.8 ms streaming
+   bound (3-4%).
+4. Outside the experts, the per-pass fixed cost is the bigger target at k2-k3: conv_mix (15.7 profiled ms per pass),
+   ink_in_proj and the head barely grow with rows, but they are paid on every pass. That is the ink-metal / hostgap lanes'
+   work, not this lane's.
+
+Recommendation: run (1); build (2) if the probe shows the gather and `dn_u` above about 10% of the experts time at 4 rows,
+else stop here and report. Expected total from (2) + (3): about 1-5% of the verify pass, 1-4% of decode tok/s.
+
 RESULTS_PLACEHOLDER
