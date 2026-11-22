@@ -74,6 +74,11 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   compile checks on bespin; no local builds. (3) Timing: if the two-pass curve job has not started, fold a solo ABAB
   (merged tip vs variant, 6 reps, --profile-every 0) into it; else one short quiet job. (4) Merge criterion: solo >= the
   merged tip and batched output identical; report the hash.
+- 2026-11-22 (ink-metal, coordinator): ink/m-mix merged into ink/metal at 331238a4e, ink/batch bbc0bec00 at 45887198b, tip
+  8546d143f (docs only); no textual conflicts. m-mix changed `mix_geom` (NE 4 from D 2048) and `BLEND_RB` 16 -> 4, so the
+  row-table mix path now runs at NE 4 (md5s differ from before: reduction order). Merge gate #11048 (default load) reruns
+  tiny B 2 / 5 / 16, rows_single, rows_exact, real-model batch_step mixed contexts, G2 / G3. Branch the compile-time
+  MX_ROWTAB variant from 8546d143f; its solo ABAB's base arm is 8546d143f (not f55bfe8b7).
 
 ## 1. Design note (contract delta, written before any kernel)
 
