@@ -491,6 +491,14 @@ Against brief 8: G2 / G3 pass; serve log ok; 4k and 16k prefill faster beyond sp
 - **4k decode, pair 1:** -1.5 % (localeval calls it noise; brief 8 asks for within 1 %). Pair 2 is -0.3 %.
 Recipe committed on the coordinator's call (brief 13): ink/prefill-merge 05f1c702e.
 
+### Prologue split 4k by engine generate timing (#11290, brief 19; binary 61980c882, 3950-token prompt, 3 alternating pairs)
+
+off 1968.3 / 2008.4 / 1979.5, on 1984.5 / 1699.7 / 1891.6 tok/s. All runs exit 0 with non-empty output.
+**Median on / off = 1891.6 / 1979.5 = 0.956x: fails the 4k rule (>= 1.00x).** Together with 1k (1.007x, passes) and
+localeval 4k pair 2 (2413 -> 2400, failed, above), **the split stays opt-in. This is final under brief 19; no further
+round.** ink/prologue-split-merge 61980c882 is not sent to ink-metal. The kernel itself remains bitwise and 24 ms/chunk
+faster in the trace (above). 8k (+3.6 %) and 16k (+4 to 8 %) were faster; at 4k end-to-end time does not show the saving.
+
 ### MoE K-step probe (#11282, brief 17; inkmoe_bench with ink-probe at 62a8b282c, balanced 128 experts, 3 reps)
 
 Device threadgroup memory limit (MTLDevice.maxThreadgroupMemoryLength on endor): **32768 B**.
