@@ -456,4 +456,72 @@ interleaved reps.
   5. Normal-step span: short prompt 6 interleaved reps, 5k 4 reps.
 - The ink/dfuse docs check of the tail removal passed on spark2 (#11103).
 
+### Job E (#11003, 02:01-02:14, snapshot ac2371c81; raw/E_*)
+
+best = route + msg + hoist + norm_c. off = no switch set, which is the ink/metal 0ee1bec29 graph.
+
+**Correctness:**
+- Fail-fast passed: inkload, ink_route vs the pair, and the no-metal4 fallback.
+- inkmix rows-exact with best on: pass.
+- **G1** (tiny inkling2 on Metal, best on): 8 / 8.
+- Batched decode on Metal (inkling2_batch: batch == solo, row tables): 6 / 6 off and 6 / 6 with best on, so the row-table
+  form also passes with the hoist on.
+- Tiny without metal4: the same 3 tests fail off and with best on. All three are NoKernel for `ink_in_proj` (10 prefill
+  shapes); routed to ink-prefill.
+- Admission with best on: ink_route 124, conv_mix 532, sconv_res 64, attn_res_mix 97, loop_blend 27 cases, all ADMITTED.
+- plan show for Qwen3-8B and Llama-3.1-8B-Instruct: byte-identical to the base binary.
+- Real model, best vs off: EQUAL at 1 row (64 greedy tokens, text md5) and at 16 rows (self-golden tensor bytes).
+
+**G2 / G3 with best on.** Prefill (the gated mode, as in ink-metal's gate table) passes everywhere. G3 passes. G2's
+teacher-forced decode rows, which ink-metal reports but does not gate, are above the 4e-3 / 6e-3 floors, so the tool exits 1:
+
+| gate | prefill KL21 (limit) | decode KL21 (teacher-forced) | top-1 prefill | confident rows, misses |
+|---|---:|---:|---:|---|
+| G2 short | 2.719e-3 (4e-3) PASS | 1.109e-2 (#10952: 2.589e-3) | 98.77 % | 363, 0 (1) |
+| G2 long | 3.544e-3 (6e-3) PASS | 9.205e-3 (#10952: 2.474e-3) | 99.04 % | 1206, 1 (2) |
+| G3 short | 8.069e-3 (1.05e-2) PASS | | 97.72 % | 367, 0 (1) |
+| G3 long | 1.227e-2 (1.65e-2) PASS | | 97.39 % | 1211, 0 (2) |
+
+The decode KL comes from two rows: chat_reasoning (prompt KL 5.8e-2, one row at 0.43 nats) and chat_system (2.4e-2, one row
+at 0.30). The cpu reference has a 0.61-nat chat_reasoning row in the same mode (ink-metal doc). The prefill numbers also moved
+between #10952 and E (2.380e-3 -> 2.719e-3 short) while best == off bitwise in prefill. That points at the ink/metal
+0ee1bec29 merge (NE 4 row geometry, a different reduction order) rather than the switches. But best == off has not been shown
+for the teacher-forced decode rows themselves. Job R (#11111) now first runs G2 short / long in both modes with all switches
+off, with best, and with best + preload on one binary, and compares their self-goldens. ink/metal's own merge gate #11048
+(45887198b, the same code) covers G2 for the tip. **Rule (b) is open until then.**
+
+**Timing**: cb-trace normal-step span, ms per step, 256-token decode, interleaved reps.
+
+| config | disp / step short (5k) | short: reps | median | vs best | 5k: reps | median | vs best |
+|---|---:|---|---:|---:|---|---:|---:|
+| off | 613 (621) | 15.678, 15.680, 15.738, 15.774, 15.708, 15.709 | 15.709 | +0.623 | 16.633, 16.653, 16.565, 16.593 | 16.613 | +0.625 |
+| **best** | 543 (551) | 15.069, 15.113, 15.176, 15.093, 15.041, 15.078 | **15.085** | | 15.999, 15.980, 15.961, 15.995 | **15.988** | |
+| best - route | 591 (599) | 15.142 ... 15.214 | 15.191 | +0.105 | 16.139 ... 16.092 | 16.104 | +0.116 |
+| best - msg | 565 (573) | 15.296 ... 15.291 | 15.283 | +0.198 | 16.185 ... 16.177 | 16.181 | +0.193 |
+| best - hoist | 543 (551) | 15.184 ... 15.261 | 15.256 | +0.171 | 16.156 ... 16.150 | 16.153 | +0.165 |
+| best - norm_c | 543 (551) | 15.361 ... 15.444 | 15.376 | +0.290 | 16.244 ... 16.232 | 16.258 | +0.270 |
+
+- **Rule (a): PASS at both lengths.**
+  - Short: min(off) - max(best) = 0.502 ms against an off spread of 0.096 ms.
+  - 5k: 0.566 ms against 0.088 ms.
+  - Step time: -4.0 % short, -3.8 % 5k.
+- **Leave-one-out: every switch costs more than the off spread when removed**, so all four belong in the default set:
+  - route +0.105 / +0.116 ms
+  - msg +0.198 / +0.193 ms
+  - hoist +0.171 / +0.165 ms
+  - norm_c +0.290 / +0.270 ms
+
+**Per-dispatch trace** (one buffer per dispatch, inflated): controllers 3.897 -> 3.243 ms per token. ink_route is 12.37 us per
+call in the stream. ConvMix row kernel 18.25 -> 15.67 us. AttnResMix 238 -> 98 us per token.
+
+**localeval speed** (decode tok/s, median of 3; through `serve_lib.sh`, no orphan: no intarsia listener after the job):
+
+| prompt | off | best | change |
+|---|---:|---:|---:|
+| 138 / 133 tokens | 64.3 (64.3-64.4) | 67.0 (65.9-67.0) | +4.1 % |
+| 5157 / 5158 tokens | 60.2 (60.1-60.4) | 63.0 (62.9-63.1) | +4.6 % |
+
+Result files: /opt/code/deepeval/results/20261122-021312-adhoc-endor-intarsia-metal-dfuse-e-off,
+/opt/code/deepeval/results/20261122-021343-adhoc-endor-intarsia-metal-dfuse-e-best.
+
 PENDING_ATTRIBUTION

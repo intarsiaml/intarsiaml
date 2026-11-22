@@ -1,0 +1,39 @@
+prefill chunk 256 (default)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 1.7 s
+accuracy: thinkingmachines/Inkling-2-Mini on Apple M5 Max (vocab 200058, weights/act/kv bf16/bf16)
+accuracy: the golden's template "chatml" does not fit this tokenizer (turn format chatml: turn-close marker "<|im_end|>" is not a single token (got [27, 91, 315, 62, 406, 91, 29])); using inkling2 (recipe inkling2)
+KL row mask: inkling2 (recipe inkling2, golden template "chatml" does not fit the tokenizer): 0 of 1569 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /opt/code/intarsiaml/golden/inkling2-mini-vllm-long-top20.safetensors (10 prompts, 1569 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine vllm 0.1.dev25855+g7cb5dae22 | model thinkingmachines/Inkling-2-Mini | revision not in the model root path | dtype server | KV dtype auto | template chatml
+  reference cache config: {"_block_size_resolved": "True", "_extensible_kv_cache_resolved": "True", "block_size": "16", "cache_dtype": "auto", "cache_hit_alignment_tokens": "None", "effective_attention_block_size": "64", "enable_extensible_kv_cache": "True", "enable_mamba_shared_prefix_checkpoint": "False", "enable_prefix_caching": "False", "engine": "0", "gpu_memory_utilization": "0.3", "hash_block_size": "None", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_layout": "None", "kv_cache_max_concurrency": "3.286881307063912", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "26926", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "None", "mamba_cache_dtype": "auto", "mamba_cache_mode": "none", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "auto", "num_cpu_blocks": "None", "num_gpu_blocks": "6840", "num_gpu_blocks_override": "None", "prefix_cache_retention_interval": "0", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "simple_cpu_offload_num_blocks": "None", "skip_page_size_padded": "None", "sliding_window": "None", "swa_bounded_replay": "True", "use_kda_recoverssm": "False", "use_replayssm": "False", "user_specified_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server", "cache_salt": "not used (prefix cache not controlled: unverified whether prompt_logprobs requests read cached fp8 KV blocks)"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len 8192 | launch flags: not observable through the API; note: vllm/vllm-openai:inkling-2-mini (vLLM 0.1.dev25855+g7cb5dae22) on spark2 (GB10), docker run --gpus all --ipc host --network host --shm-size 16g, args: thinkingmachines/Inkling-2-Mini --served-model-name inkling-2-mini --tensor-parallel-size 1 --max-model-len 8192 --gpu-memory-utilization 0.30 --max-num-seqs 16 --reasoning-parser inkling --no-enable-prefix-caching (plain decoding, no speculative config, KV cache dtype auto); weights snapshot ed40e7da625f594fc9c4990f5f66be24873c22d7 (model-00001-of-00001.safetensors sha256 65e60f51...; identical blobs in b85c3cfa...); run tag run1
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 1.7e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+reference noise: ignored (--no-ref-noise): the KL floor is the class floor alone
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 35    35   100.00   1.044e-3   1.063e-3   1.063e-3   5.687e-3   0.0495   0.0499    94.86     35/35      0
+story                 40    40    90.00   5.316e-3   5.163e-3   5.163e-3   1.767e-2   0.0751   0.0726    96.50     12/40      0
+code                 101   101    99.01   7.336e-4   6.960e-4   6.960e-4   1.681e-2   0.0133   0.0130    95.25     8/101      0
+science               87    87    97.70   3.670e-3   3.662e-3   3.662e-3   2.247e-2   0.0413   0.0399    95.86     56/87      0
+chat_short            36    36    97.22   2.888e-2   2.080e-2   2.080e-2   5.217e-1   0.1893   0.1871    87.78     35/36      0
+chat_system           63    63    98.41   2.523e-2   2.237e-2   2.237e-2   5.217e-1   0.1224   0.1224    89.52     27/63      0
+chat_multiturn       101   101    98.02   1.099e-2   8.992e-3   8.992e-3   2.645e-1   0.0689   0.0671    89.11     3/101      0
+chat_reasoning       106   106    98.11   1.090e-2   8.418e-3   8.418e-3   2.748e-1   0.0708   0.0700    93.40    80/106      0
+long_prose_300       300   300    98.33   1.884e-2   1.904e-2   1.904e-2   8.415e-1   0.0198   0.0181    88.07    48/300      0
+long_prose_700       700   700    96.71   1.313e-2   1.277e-2   1.277e-2   6.442e-1   0.0291   0.0301    88.51     9/700      0
+OVERALL                   1569    97.39   1.299e-2   1.227e-2   1.227e-2   8.415e-1   0.0414   0.0412    90.01     19.9%      0
+prefill floor [4bit]: top-1 (all rows) 97.39% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 1.227e-2 (need <= 1.7e-2) ok [all rows, n=1569: 1.227e-2, reported only] | tail mass (all rows) ours 0.0412 vs ref 0.0414, excess -0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill confident rows (golden p1 - p2 >= 0.5, all rows): 1211 of 1569, top-1 misses 0 (reported, not gated)
+prefill KL threshold [21-way KL]: static floor 1.650e-2 | no ref noise measured for this golden => effective 1.650e-2 bound by static floor; KL 1.227e-2 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 1.227e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.227e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 43.8% of positions before the first argmax divergence, worst prompt 1.3% (informational)
+
+wrote self-golden /opt/code/intarsiaml/.worktrees/ink-dfuse/.scratch/E/g3-long-self.safetensors (top-64 rows of modes prefill for 10 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+EXIT 0

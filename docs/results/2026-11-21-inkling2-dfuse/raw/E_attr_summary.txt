@@ -1,0 +1,28 @@
+== short: off reps [15.678, 15.68, 15.738, 15.774, 15.708, 15.709] spread 0.096 (without the slowest off rep 0.060)
+| config | dispatches / step | reps (ms / step) | median | vs off median | vs best median | engine decode tok/s (median) |
+|---|---:|---|---:|---:|---:|---:|
+| off | 613 | 15.678, 15.680, 15.738, 15.774, 15.708, 15.709 | 15.709 | +0.000 | +0.623 | 63.48 |
+| best | 543 | 15.069, 15.113, 15.176, 15.093, 15.041, 15.078 | 15.085 | -0.623 | +0.000 | 66.05 |
+| no_route | 591 | 15.142, 15.190, 15.284, 15.150, 15.191, 15.214 | 15.191 | -0.518 | +0.105 | 65.66 |
+| no_msg | 565 | 15.296, 15.253, 15.408, 15.237, 15.275, 15.291 | 15.283 | -0.425 | +0.198 | 65.31 |
+| no_hoist | 543 | 15.184, 15.221, 15.253, 15.260, 15.382, 15.261 | 15.256 | -0.452 | +0.171 | 65.48 |
+| no_normc | 543 | 15.361, 15.390, 15.431, 15.346, 15.335, 15.444 | 15.376 | -0.333 | +0.290 | 64.92 |
+RULE(a) short: min(off) - max(best) = 0.502 ms vs off spread 0.096 -> PASS; median(best) vs min(off) - spread: 15.085 vs 15.582 -> PASS; (without the slowest off rep: gap 0.502 vs 0.060 -> PASS)
+LOO short no_route: costs +0.105 ms vs best -> NEEDED (> spread) (spread 0.096, 0.060 w/o slowest)
+LOO short no_msg: costs +0.198 ms vs best -> NEEDED (> spread) (spread 0.096, 0.060 w/o slowest)
+LOO short no_hoist: costs +0.171 ms vs best -> NEEDED (> spread) (spread 0.096, 0.060 w/o slowest)
+LOO short no_normc: costs +0.290 ms vs best -> NEEDED (> spread) (spread 0.096, 0.060 w/o slowest)
+== 5k: off reps [16.633, 16.653, 16.565, 16.593] spread 0.088 (without the slowest off rep 0.068)
+| config | dispatches / step | reps (ms / step) | median | vs off median | vs best median | engine decode tok/s (median) |
+|---|---:|---|---:|---:|---:|---:|
+| off | 621 | 16.633, 16.653, 16.565, 16.593 | 16.613 | +0.000 | +0.625 | 60.07 |
+| best | 551 | 15.999, 15.980, 15.961, 15.995 | 15.988 | -0.625 | +0.000 | 62.41 |
+| no_route | 599 | 16.139, 16.075, 16.116, 16.092 | 16.104 | -0.509 | +0.116 | 61.93 |
+| no_msg | 573 | 16.185, 16.172, 16.286, 16.177 | 16.181 | -0.432 | +0.193 | 61.64 |
+| no_hoist | 551 | 16.156, 16.129, 16.201, 16.150 | 16.153 | -0.460 | +0.165 | 61.72 |
+| no_normc | 551 | 16.244, 16.289, 16.272, 16.232 | 16.258 | -0.355 | +0.270 | 61.27 |
+RULE(a) 5k: min(off) - max(best) = 0.566 ms vs off spread 0.088 -> PASS; median(best) vs min(off) - spread: 15.988 vs 16.477 -> PASS; (without the slowest off rep: gap 0.566 vs 0.068 -> PASS)
+LOO 5k no_route: costs +0.116 ms vs best -> NEEDED (> spread) (spread 0.088, 0.068 w/o slowest)
+LOO 5k no_msg: costs +0.193 ms vs best -> NEEDED (> spread) (spread 0.088, 0.068 w/o slowest)
+LOO 5k no_hoist: costs +0.165 ms vs best -> NEEDED (> spread) (spread 0.088, 0.068 w/o slowest)
+LOO 5k no_normc: costs +0.270 ms vs best -> NEEDED (> spread) (spread 0.088, 0.068 w/o slowest)
