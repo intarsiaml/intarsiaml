@@ -162,6 +162,12 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
     check with and without the feature clean, docs_env_vars 2/2, cpu inkling2 8/8. The same change is on ink/prefill as
     31f117a00, so #11235 builds it with the feature on endor (the smoke).
 
+Brief 14 ABAB, first attempt (#11221, binary 61980c882):
+- Build, bitwise and rows-exact (split default on) pass. All four serves logged "prefill chunk 2048 (recipe inkling2, metal)".
+- **The localeval arm never ran**, because of a script bug: the log redirect was relative inside `cd /opt/code/deepeval`, so localeval exited 1 before starting.
+- p8k generate pairs (all exit 0, non-empty): split off 2581 / 2708, split on 2851 / 2821 tok/s.
+- Rerun with absolute paths: #11272 (psab2.sh).
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
