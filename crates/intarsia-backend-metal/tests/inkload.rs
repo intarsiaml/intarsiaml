@@ -2,13 +2,14 @@
 //! Lane ink-dfuse: the load-order variants of the Inkling-2 row kernels are bitwise the kernels they replace.
 //! `INTARSIA_INK_MIX_HOIST` (`ink_mix_row_h_*`: every operand load before its first use) on vs off for SconvRes, ConvMix (with
 //! and without the blend) and AttnResMix over the widths of every compiled NE, taps K 1..5 (K > 4 keeps the loop), rows 1..16,
-//! the model's ring and a short one, host and device positions, one and two query batches. Rows-exact with the switch on is
-//! tests/inkmix.rs run with the variable set.
+//! the model's ring and a short one, host and device positions, one and two query batches; `INTARSIA_INK_BLEND_NORM_C`
+//! (`ink_blend_norm_c`, one channel per thread) on vs off for LoopBlend and the ConvMix blend. Rows-exact with the switches
+//! on is tests/inkmix.rs run with the variables set.
 
 mod common;
 use common::*;
 use intarsia_backend_metal::bench::{f32_to_bf16, Rng};
-use intarsia_backend_metal::inkctrl::{set_blend_tail, MIX_HOIST};
+use intarsia_backend_metal::inkctrl::{set_blend_tail, BLEND_NORM_C, MIX_HOIST};
 use intarsia_backend_metal::inkmix::*;
 use intarsia_backend_metal::MetalBackend;
 use intarsia_core::backend::{Backend, MemKind, TensorRef};
@@ -60,10 +61,11 @@ fn down(be: &MetalBackend, t: &TensorRef) -> Vec<u8> {
     v
 }
 
-/// Run `kernel` on fresh copies of `ins` / `outs` with the switch set (hoist, unused); every output's bytes.
+/// Run `kernel` on fresh copies of `ins` / `outs` with the switches set (hoist, norm_c); every output's bytes.
 #[allow(clippy::too_many_arguments)]
 fn run(be: &MetalBackend, kernel: &str, op: Op, ins: &[Ht], outs: &[Ht], attrs: &OpAttrs, dev_pos: Option<i32>, sw: (bool, bool)) -> Vec<Vec<u8>> {
     MIX_HOIST.set(Some(sw.0));
+    BLEND_NORM_C.set(Some(sw.1));
     set_blend_tail(Some(false));
     let it: Vec<TensorRef> = ins.iter().map(|h| h.up(be)).collect();
     let ot: Vec<TensorRef> = outs.iter().map(|h| h.up(be)).collect();
@@ -81,6 +83,7 @@ fn run(be: &MetalBackend, kernel: &str, op: Op, ins: &[Ht], outs: &[Ht], attrs: 
     be.launch(kernel, &call, 0).unwrap();
     be.synchronize(0).unwrap();
     MIX_HOIST.set(None);
+    BLEND_NORM_C.set(None);
     set_blend_tail(None);
     ot.iter().map(|t| down(be, t)).collect()
 }
@@ -210,3 +213,45 @@ fn mix_hoist_is_bitwise() {
     eprintln!("{n} cases: ink_mix_row_h is bitwise ink_mix_row");
 }
 
+#[test]
+fn blend_norm_c_is_bitwise() {
+    let be = backend();
+    let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut rng = Rng(0xb1e0);
+    let (bf, f) = (DType::Bf16, DType::F32);
+    let mut n = 0;
+    for &(d, g) in &[(2304usize, 64usize), (200, 64), (256, 8), (320, 128), (1000, 16)] {
+        for &r in &[1usize, 2, 3, 4, 7, 16, 40] {
+            for &(s, sd) in &[(3usize, 1usize), (3, 3), (1, 1)] {
+                let ins = vec![
+                    Ht::rand(f, &[sd, r, d], 1.0, &mut rng),
+                    Ht::rand(f, &[s, r, d], 1.0, &mut rng),
+                    Ht::rand(bf, &[s, g, 2 * d], (2.0 * d as f32).powf(-0.5), &mut rng),
+                    Ht::rand(bf, &[s, d, g], 0.25, &mut rng),
+                    Ht::rand(bf, &[s, d, g], 0.25, &mut rng),
+                    Ht::pos(&[s, d], &mut rng),
+                ];
+                let outs = vec![Ht::zeros(bf, &[s, r, d])];
+                let a = OpAttrs { eps: 1e-6, ..OpAttrs::default() };
+                let off = run(&be, LOOP_BLEND_BF16, Op::LoopBlend, &ins, &outs, &a, None, (false, false));
+                let on = run(&be, LOOP_BLEND_BF16, Op::LoopBlend, &ins, &outs, &a, None, (false, true));
+                assert_eq!(on, off, "LoopBlend D={d} G={g} R={r} S={s} Sd={sd}");
+                n += 1;
+            }
+            if g != 64 {
+                continue;
+            }
+            for &mix in &[(3usize, 1usize, false, 3usize), (5, 3, false, 3), (2, 1, false, 1)] {
+                let (ins, outs) = conv_io(&mut rng, Op::ConvMix, r, d, 4, 19, (true, true, true), mix);
+                let a = OpAttrs { pos0: 5, eps: 1e-6, ..OpAttrs::default() };
+                let off = run(&be, CONV_MIX_BF16, Op::ConvMix, &ins, &outs, &a, None, (false, false));
+                let on = run(&be, CONV_MIX_BF16, Op::ConvMix, &ins, &outs, &a, None, (false, true));
+                let both = run(&be, CONV_MIX_BF16, Op::ConvMix, &ins, &outs, &a, None, (true, true));
+                assert_eq!(on, off, "ConvMix blend D={d} R={r} mix={mix:?}: norm_c");
+                assert_eq!(both, off, "ConvMix blend D={d} R={r} mix={mix:?}: hoist + norm_c");
+                n += 1;
+            }
+        }
+    }
+    eprintln!("{n} cases: ink_blend_norm_c is bitwise ink_blend_norm");
+}

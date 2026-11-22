@@ -525,7 +525,7 @@ fn row_names() -> Vec<&'static str> {
 /// The row-kernel entry points of inkling2_mix.metal (`MX_NS`), and the ring / blend helpers.
 pub fn row_shaders() -> Vec<&'static str> {
     let mut v = row_names();
-    v.extend(["ink_ring_write", "ink_blend_pair", "ink_blend_gate_g1", "ink_blend_gate_g8", "ink_blend_gate_g16", "ink_blend_norm"]);
+    v.extend(["ink_ring_write", "ink_blend_pair", "ink_blend_gate_g1", "ink_blend_gate_g8", "ink_blend_gate_g16", "ink_blend_norm", "ink_blend_norm_c"]);
     v
 }
 
@@ -836,6 +836,15 @@ impl MetalBackend {
         let (nrm_b, out_b) = (self.bind(norm, bf, false, "norm")?, self.bind(out, bf, true, "out")?);
         let mut pn = p;
         pn.sk = [0, 0, nrm_b.skip, out_b.skip, 0, 0, 0, 0];
+        if crate::inkctrl::BLEND_NORM_C.on() {
+            // one channel per thread, the partials summed in the same order: bitwise ink_blend_norm
+            return self.dispatch(
+                "ink_blend_norm_c",
+                &[&y_b, &part_b, &nrm_b, &out_b],
+                &pn,
+                crate::dense::Grid::Groups { x: s * n, y: d.div_ceil(256), threads: 256 },
+            );
+        }
         self.dispatch("ink_blend_norm", &[&y_b, &part_b, &nrm_b, &out_b], &pn, crate::dense::Grid::Groups { x: s * n, y: 1, threads: 256 })
     }
 

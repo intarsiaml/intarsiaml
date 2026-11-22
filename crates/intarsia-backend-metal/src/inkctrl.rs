@@ -72,6 +72,8 @@ impl Switch {
 
 /// `INTARSIA_INK_MIX_HOIST`: the row kernels' `ink_mix_row_h_*` instances (every operand load before its first use).
 pub static MIX_HOIST: Switch = Switch::new("INTARSIA_INK_MIX_HOIST");
+/// `INTARSIA_INK_BLEND_NORM_C`: the blend norm with one channel per thread (`ink_blend_norm_c`).
+pub static BLEND_NORM_C: Switch = Switch::new("INTARSIA_INK_BLEND_NORM_C");
 
 /// Whether a blend chunk of `n` rows (controller rank `g`, width `d`) takes the fused tail: the metal4.0 library, at most
 /// [`BLEND_TAIL_ROWS_MAX`] rows, G % 8 == 0 and G <= 128 (the gate's register rows), and the switch on.

@@ -718,3 +718,33 @@ kernel void ink_blend_norm(device const float* yi [[buffer(0)]],
     for (uint c = tid; c < d; c += tpg)
         out[p.sk[3] + ((ulong)s * p.ocount + p.t0 + r) * d + c] = f2bf(yr[c] * inv * bf2f(nrm[p.sk[2] + (ulong)s * d + c]));
 }
+
+// The same with one channel per thread (lane ink-dfuse, `INTARSIA_INK_BLEND_NORM_C`): grid (S * rows, ceil(D / tpg)). The y and
+// norm loads go out before the partial sum, which every thread adds in the same order as above (eight loads in flight, the
+// adds in order from 0): bitwise ink_blend_norm, one cold round instead of D / tpg.
+kernel void ink_blend_norm_c(device const float* yi [[buffer(0)]],
+                             device const float* partial [[buffer(1)]],
+                             device const ushort* nrm [[buffer(2)]],
+                             device ushort* out [[buffer(3)]],
+                             constant InkBlendP& p [[buffer(4)]],
+                             uint2 gid2 [[threadgroup_position_in_grid]],
+                             uint2 tid2 [[thread_position_in_threadgroup]],
+                             uint2 tpg2 [[threads_per_threadgroup]]) {
+    const uint tid = tid2.x, tpg = tpg2.x;
+    const uint s = gid2.x / p.rows, r = gid2.x % p.rows, d = p.d;
+    const uint c = gid2.y * tpg + tid;
+    const uint cc = min(c, d - 1);
+    const float yv = yi[((ulong)s * p.rows + r) * d + cc];
+    const ushort nv = nrm[p.sk[2] + (ulong)s * d + cc];
+    device const float* pr = partial + ((ulong)s * p.rows + r) * p.nsl;
+    float ss = 0.0f;
+    uint j = 0;
+    for (; j + 8 <= p.nsl; j += 8) {
+        float v[8];
+        for (int k = 0; k < 8; ++k) v[k] = pr[j + uint(k)];
+        for (int k = 0; k < 8; ++k) ss += v[k];
+    }
+    for (; j < p.nsl; ++j) ss += pr[j];
+    const float inv = precise::rsqrt(ss / float(d) + p.eps);
+    if (c < d) out[p.sk[3] + ((ulong)s * p.ocount + p.t0 + r) * d + c] = f2bf(yv * inv * bf2f(nv));
+}
