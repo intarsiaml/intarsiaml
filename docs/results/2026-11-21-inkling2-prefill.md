@@ -155,6 +155,12 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
     grep scripts / .scratch job files / docs for INTARSIA_INK_MOE_NAXSKIP and move live users to the feature build or note
     them gone. Checks: builds with and without ink-probe, docs_env_vars passes, cpu inkling2 passes; one endor smoke inside
     #11235's feature build. Send the hash (small merge after 297cebadc lands). Probe guards for #11235 ok; rule as before.
+    **Done:** ink/prefill-naxskip **2455b7abc** (on 297cebadc) adds `ink-probe = []`. `nax_skip()` is 0 without the feature,
+    `set_skip` exists only with it, the env var is gone, the docs/tuning.md row is dropped, and inkmoe_bench asserts that
+    INKMOE_NAXSKIPS needs the feature. Users grep: no script or job file sets INTARSIA_INK_MOE_NAXSKIP; the lane's job files
+    use the bench's INKMOE_NAXSKIPS, and the one still queued (#11235, mp1.sh) builds with the feature. Bespin #11237:
+    check with and without the feature clean, docs_env_vars 2/2, cpu inkling2 8/8. The same change is on ink/prefill as
+    31f117a00, so #11235 builds it with the feature on endor (the smoke).
 
 ## Status
 
