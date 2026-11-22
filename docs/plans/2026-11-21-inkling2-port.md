@@ -12,7 +12,7 @@ window 1024 = rel_extent 1024, conv K=4, 128 experts top-8, expert inter I=1152,
 
 ## a. Formulas (text forward)
 
-Notation: `rms(x, w) = x * rsqrt(mean(x^2) + 1e-6) * w` over the last dim (all eps are 1e-6). `bf(x)` = round to bf16 (where vLLM
+Notation: `rms(x, w) = x * rsqrt(mean(x^2) + eps) * w` over the last dim. Two separate eps (both 1e-6 in this checkpoint, keep them separate op attrs): the per-source RMS inside the depth mix is a **fixed 1e-6** (`ops/attn_res.py:252`), every RMSNorm uses `rms_norm_eps`. `bf(x)` = round to bf16 (where vLLM
 stores bf16; the oracle's `--rounding vllm`). Linear `y = x W^T`, W `[out, in]` as stored. "Visit" = one (layer, pass) execution.
 
 | # | Step | Formula | vLLM source |
@@ -23,20 +23,20 @@ stores bf16; the oracle's `--rounding vllm`). Linear `y = x W^T`, W `[out, in]` 
 | a3 | Attention inputs | Layer 0: `x_j = bf(rms(x0, norm_j))`. Else `m = attn_res(blocks, partial, attn_q[i])`, `x_j = bf(rms(m_j, norm_j))`. SWA: one input, `norm = attn_norm`, `x_q = x_k = x_v`. Full: three inputs with `q_input_norm`, `k_input_norm`, `v_input_norm`. Loop passes ≥1: see a12 (SWA layers then get three different inputs, all normed with `attn_norm`). | `model.py:318-325`, `loop.py:225-251` |
 | a4 | Projections | From `x_q`: `q = wq_du` `[3072]`, `r = wr_du` `[384 = 24×16]`, `gate = gate_attn` `[3072]`, `sink = attn_sink_proj` `[24]`; from `x_k`: `k = wk_dv` `[1024]`; from `x_v`: `v = wv_dv` `[1024]`. `_du`/`_dv`/`_ud` only name the factor (d=model dim, u=q-head space, v=kv space); every tensor is a plain `[out, in]` linear. vLLM fuses them as rows `[q, r, gate, sink, k, v]` (`_shards`). All outputs bf16. | `attention.py:217-239, 330-348` |
 | a5 | Head layout | q `[24,128]` head-major, r `[24,16]`, k/v `[8,128]`; q head h uses kv head `h // 3`. | |
-| a6 | Short convs (K=4, causal, zero before position 0) | **Static** (`k_sconv`,`v_sconv` on SWA layers; `attn_sconv`, `mlp_sconv` on all): weight `[C,1,4]`, tap 3 = current token: `y_t = (Σ_{k=0..3} w[c,k]·x_{t-3+k} + x_t) · 5^-0.5`. **Dynamic** (k/v on full layers): `static_w [4,C]`, tap 0 = current; per-token taps `dyn = weight_proj(x_k)` (resp. `x_v`; the normed attention input, not k) `[T, 8×4]` laid out `[head][lag]`: `y_t = (Σ_{l=0..3} (static_w[l,c] + dyn[t, c//128, l])·x_{t-l} + x_t) · 9^-0.5`. Conv input `x` is the bf16 projection; accumulate fp32; `y` rounded to bf16. The residual inside is `+ x_t`; the block residual is separate (a15). Hidden-stream inputs: `attn_sconv` convolves the `wo_ud` output, `mlp_sconv` the MoE output. | `ops/sconv.py:12-19, 96-183, 298, 951` |
+| a6 | Short convs (K=4, causal, zero before position 0) | **Static** (`k_sconv`,`v_sconv` on SWA layers; `attn_sconv`, `mlp_sconv` on all): weight `[C,1,4]`, tap 3 = current token: `y_t = (Σ_{k=0..3} w[c,k]·x_{t-3+k} + x_t) · 5^-0.5`. **Dynamic** (k/v on full layers): `static_w [4,C]`, tap 0 = current; per-token taps `dyn = weight_proj(x_k)` (resp. `x_v`; the normed attention input, not k) `[T, 8×4]` laid out `[head][lag]`: `y_t = (Σ_{l=0..3} (static_w[l,c] + dyn[t, c//128, l])·x_{t-l} + x_t) · 9^-0.5`. Conv input `x` is the projection **rounded to the conv-state dtype (bf16) at the op boundary**, and every reader (the current tap, earlier rows of the same call, later calls) sees that rounded value (`ops/sconv.py:138-145, 254-255`); K/V likewise as stored in the cache. This is what makes an R-row call equal R 1-row calls bitwise (G0). Accumulate fp32; `y` rounded to bf16. The residual inside is `+ x_t`; the block residual is separate (a15). Hidden-stream inputs: `attn_sconv` convolves the `wo_ud` output, `mlp_sconv` the MoE output. | `ops/sconv.py:12-19, 96-183, 298, 951` |
 | a7 | k / v / q / r post-processing | `k = bf(clip(bf(conv_k), 22.627))`; `v = bf(rms(bf(conv_v), no gamma))`; `q = bf(clip(q ⊙ q_l2_clip.scale, 22.627))`; `r = bf(clip(r ⊙ rel_l2_clip.scale, 8.0))`, per head row. `clip(x,θ) = x·min(θ/(‖x‖₂+1e-6), 1)`. θ_qk = `qk_l2_clip_threshold` = 16√2. | `ops/sconv.py:795-813`, `ops/norm.py:73-82` |
 | a8 | Log scaling (full layers only) | `tau(pos) = 1 + 0.1·ln(max((pos+1)/8192, 1))`, fp32, absolute position. `q = bf(q_clipped · tau)`, `r = bf(r_clipped · tau)` (rounded after the clip, then scaled). Never k. tau = 1 for pos < 8192. | `ops/attention.py:341-365`, `ops/norm.py:80-81` |
 | a9 | Relative bias | `rel[t,h,d] = bf(Σ_j r[t,h,j]·rel_logits_proj[j,d])` (fp32 accumulate), table `[16, E]`, E = window (SWA, `rel_extent = sliding_window_size`) or `rel_extent` (full). `d = pos_q − pos_k`. SWA: keys with `0 ≤ d < 1024` only (window = 1023 back + self). Full: all `d ≥ 0` visible; bias = `rel[d]` for `d < 1024`, **0** for `d ≥ 1024`. | `ops/sconv.py:466-489` (`shift_rel_proj`), `attention.py:207-209` |
 | a10 | Attention + sink | `s_{t,j} = q_t·k_j / √128 + rel[t,h,d]` (bias **not** scaled). Softmax over visible keys plus one extra logit `sink[t,h]` with value 0: `o = Σ_j e^{s_j} v_j / (Σ_j e^{s_j} + e^{sink})`. vLLM computes `o_softmax · sigmoid(lse − sink)`, identical. The sink logit is per token, per head (projected from `x_q`), sign +. | `ops/attention.py:81-82, 272-314` |
 | a11 | Output gate | `o' = bf(o · sigmoid(gate))` (gate per channel, `[3072]`), `attn_proj = bf(o' · wo_ud^T)`; `attn_out = bf(sconv_static(attn_proj; attn_sconv))`. | `ops/attention.py:297-299`, `model.py:358` |
-| a12 | Loop (passes) | Visit order: layers 0-5 (prelude), 6-17 ×3 (passes 0,1,2), 18-23 (coda) = 48 visits; visit index v (0..47) is the cache-slot and MTP-tap index. At (6, p=0): save `prelude = (blocks, partial)`. At (6, p≥1): `bank = blocks[len(prelude.blocks)+1:] + [partial]` (= [block of layers 6-11, partial of 12-17] of the previous pass), then restore `prelude`. In a pass p ≥ 1 visit of layer i: `msg = attn_res(bank[:-1], bank[-1], MQ[i-6])` (4 fp32 rows: q, k, v, mlp; no norm). Each sublayer input is blended before its norm: `dest` = the fp32 mix of a3 (SWA: broadcast to 3 rows), `blend(dest, msg) = (1 − tanh(f))·dest + tanh(g)·msg` with `h = bf(bf([rms(dest), rms(msg)]) · down^T)` (`down [64, 2D]`, dest half first), `g = h·gain^T`, `f = h·forget^T` (fp32 out). Then a3's norms (rows q,k,v; SWA: `attn_norm` ×3), and for the MLP input `blend(mix_mlp, msg_mlp)` then `mlp_norm`. Controllers: `controllers.{attn,k,v,mlp}` = streams q, k, v, MLP (llama.cpp calls them q/k/v/ffn). | `loop.py:37-63, 199-316, 318-398` |
-| a13 | Router | `l = x·gate.weight^T` (fp32), `sel = sigmoid(l) + gate.bias` (bias fp32, selection only), top-8 by `sel` (ties → lower id), `γ_k = sigmoid(l_k) / Σ_sel sigmoid(l) · 8` (computed as softmax of logsigmoid; no eps). | `ops/moe.py:32-64, 110-145` |
+| a12 | Loop (passes) | Visit order: layers 0-5 (prelude), 6-17 ×3 (passes 0,1,2), 18-23 (coda) = 48 visits; visit index v (0..47) is the cache-slot and MTP-tap index. At (6, p=0): save `prelude = (blocks, partial)`. At (6, p≥1): `bank = blocks[len(prelude.blocks)+1:] + [partial]` (= [block of layers 6-11, partial of 12-17] of the previous pass), then restore `prelude`. In a pass p ≥ 1 visit of layer i: `msg = attn_res(bank[:1], bank[1], MQ[i-6])` (exactly two bank entries, `loop.py:228-236`: the core must be two attn-res blocks; the loader refuses other shapes) (4 fp32 rows: q, k, v, mlp; no norm). Each sublayer input is blended before its norm: `dest` = the fp32 mix of a3 (SWA: broadcast to 3 rows), `blend(dest, msg) = (1 − tanh(f))·dest + tanh(g)·msg` with `h = bf(bf([rms(dest), rms(msg)]) · down^T)` (`down [64, 2D]`, dest half first), `g = h·gain^T`, `f = h·forget^T` (fp32 out). Then a3's norms (rows q,k,v; SWA: `attn_norm` ×3), and for the MLP input `blend(mix_mlp, msg_mlp)` then `mlp_norm`. Controllers: `controllers.{attn,k,v,mlp}` = streams q, k, v, MLP (llama.cpp calls them q/k/v/ffn). | `loop.py:37-63, 199-316, 318-398` |
+| a13 | Router | `l = x·gate.weight^T` (fp32), `sel = sigmoid(l) + gate.bias` (bias fp32, selection only), top-8 by `sel` (ties → lower id), `γ_k = sigmoid(l_k) / Σ_sel sigmoid(l) · route_scale` (route_scale = 8 here, equal to top-k only by coincidence; computed as softmax of logsigmoid; no eps). | `ops/moe.py:32-64, 110-145` |
 | a14 | Experts (SiTU) | `h = x·W13_e^T` `[2I]`, rows **interleaved**: `gate = h[0::2]`, `up = h[1::2]` (bf16 GEMM out). `a = bf(4·tanh(gate/4) · sigmoid(gate) · 25·tanh(up/25) · γ)` (sigmoid of the **uncapped** gate; γ applied **before** w2). `y = Σ_e bf(a·W2_e^T)` fp32 combine, rounded once to bf16. Activation quant (vLLM SM100/SM12x only): section c. | `ops/activation.py:61-78, 209-278`, `ops/moe_sm90.py:111-157`, `moe.py:261-312` |
 | a15 | Block residual | Layer i with `i % 6 == 0` ("first"): `mlp_in = attn_res(blocks + [partial], attn_out, mlp_q[i], mlp_norm)`, then `blocks.push(partial)`, `partial' = bf(attn_out + mc)`. Else `mlp_in = attn_res(blocks, partial + attn_out, …)`, `partial' = bf((partial + attn_out) + mc)` (fp32 sum in that order). `mc = bf(sconv_static(MoE(mlp_in); mlp_sconv))`. Blocks: [embed, L0-5, L6-11, L12-17, L18-23 partial]; at most 4 stored + partial. | `model.py:332-381`, `ops/sconv.py:379-385` |
 | a16 | Output | `h = attn_res(blocks, partial, output_query, norm)`; `logits = h·unembed^T` (bf16 weights, fp32 out); `logits = 30·tanh(logits/30)`; keep columns `[0, 200058)` (padded rows 200058..201023 dropped). | `model.py:426-431`, `configs.py`, `Inkling2LogitsProcessor` |
 
 Rounding points vLLM uses (oracle `--rounding vllm`): the residual stack and partials, every linear output, every normed mix, conv outputs,
-clipped q/k/r, rel logits, gated attention output, expert GEMM outputs, SiTU output, MoE output. Mixes fed to blends and the blends
+clipped q/k/r, rel logits, the **unnormalized attention probabilities before P·V** (row sums stay fp32, `ops/attention.py:807`), gated attention output, expert GEMM outputs, SiTU output, MoE output. Mixes fed to blends and the blends
 themselves stay fp32. The default oracle (`--rounding none`) keeps everything in fp32 (bf16 weights).
 
 ## b. Persistent state per sequence
@@ -46,7 +46,8 @@ themselves stay fp32. The default oracle (`--rounding none`) keeps everything in
 | KV, SWA | 40 (layers 0-4, 6-10, 12-16 ×3 passes for the core ones, 18-22) | ring of 1024 positions × K,V `[8,128]` | bf16 | 4 KiB/token, capped at 4 MiB per visit |
 | KV, full | 8 (visits 5, 11, 17, 23, 29, 35, 41, 47 = layers 5, 11×3, 17×3, 23 … see note) | append-only K,V `[8,128]` | bf16 | 4 KiB/token per visit |
 | Conv windows | 48 | last K−1 = 3 inputs of 4 streams: k 1024, v 1024, attn-out 2304, mlp-out 2304 (= 6656 ch) | bf16 (vLLM stores the bf16 conv input) | 39 KiB per visit, 1.9 MiB per sequence |
-| Within-token only | – | block stack (≤4 + partial), bank (2), prelude copy, messages | f32 workspace | not persistent |
+| Within-token only | – | block stack (≤4 + partial), bank (2), prelude copy, messages | f32 workspace | not persistent (but the MTP taps are exported from it, section f) |
+| Prefix snapshot (reuse past the ring margin) | 40 SWA + 48 conv | full SWA rings + conv windows | bf16 | **168 MB SWA + 1.9 MB conv per stored prefix**; full-visit KV truncates by length |
 
 Note: full visits are v5 (L5), v11/v23/v35 (L11 passes 0-2), v17/v29/v41 (L17 passes 0-2), v47 (L23).
 
@@ -102,8 +103,9 @@ Quant formats (checked bit-exactly against `mx.dequantize` on endor for one expe
 |---|---|---|
 | NVFP4 (`amax_denominator`) | `W[n,k] = e2m1(code) · e4m3(scale[n, k/16]) · (amax[e] / denom)`; low nibble = even column; e2m1 = {0, .5, 1, 1.5, 2, 3, 4, 6} with bit 3 the sign | `denom = 2688 = 6·448`, so `amax/denom` is exactly ModelOpt's `weight_scale_2` (per expert; gate and up share the w13 value). Maps 1:1 onto intarsiaml's `MoeExperts` NVFP4 layout + `gscales [E,3] = (w13_amax, w13_amax, w2_amax)/2688` (`quant/moe.rs:76,511-520`), after de-interleaving w13 rows (and their scale rows) into gate-then-up. Not new. |
 | MXFP8 | `W[n,k] = e4m3(w) · 2^(scale[n, k/32] − 127)` | `hf_quant_config` says `weight_block_shape [32,32]`, but the stored scales are `[N, K/32]` and differ row to row: it is 1×32. **New** format for intarsiaml (no MXFP8 anywhere; `MatmulFp8Block` is 2-D, cpu-only). |
-| Activations, NVFP4 group (vLLM SM100 / SM12x; GB10 is SM121) | per token: `amax = max|x|` over the whole row, `enc = 1536/amax`, block-16 e4m3 scale, e2m1 values; GEMM row scale `(x_amax/1536)·(w_amax/2688)` | `ops/moe.py:307-354`, `ops/activation.py:163-173`. The w2 input is quantized after `·γ`. The per-block rule `fouroversix_mae` (block scale `bmax/6` or `bmax/4`, smaller error; 1536 = 4·384 keeps both ≤ 448) is **inferred**: `ops/nvfp4.py` is not in the extract. |
-| Activations, MXFP8 group | block-32 e8m0 scale, e4m3 values | `ops/mxfp8.py` not in the extract; the oracle uses the OCP rule `2^(floor(log2 bmax) − 8)`. |
+| Activations, NVFP4 group (vLLM SM100 / SM12x; GB10 is SM121) | per token on the **bf16** row, fp32 math: `enc = min(1536/amax, FP32_MAX)`, `dec = 1/enc`, `outer = amax·(1/1536)`; per 16-block `s6 = e4m3(min(bmax·(enc·(1/6)), 448))`, `s4 = e4m3(min(bmax·(enc·0.25), 448))`; `q = e2m1_rne_satfinite(x · min(1/(s·dec), FP32_MAX))` (ties to the even code: 0.25→0, 0.75→1, 1.25→1, 1.75→2, 2.5→2, 3.5→4, 5→4); `err = Σ|q·s·outer − x|` summed by adjacent pairs; **s4 only if err4 < err6**. GEMM: `Σ (q_a s_a)(q_w s_w)` fp32 (`dot_scaled` e2m1) × row scale `(x_amax·w_amax)·rcp(1536·denominator)`, bf16 out | `ops/nvfp4.py:28-130, 189-249` (`_e2m1`, `_block_scales`, `_quantize_block`, `_quantize_columns`, `_quantize_row`), used by `ops/moe.py:307-343` (gate/up input) and `ops/activation.py:62-78, 122-206` (down input = bf16 SiTU·γ). The SiTU there uses an `ex2.approx`/`rcp.approx` sigmoid and `tanh.approx` softcaps (`activation.py:20-58`). |
+| Activations, MXFP8 group | per 32: `scale = amax/448` rounded **up** to a power of two (fp32 bit trick `(bits + 0x7FFFFF) & 0x7F800000`; exponent 0 if `≤ 2^-127`, max 254); `v = e4m3(clamp(x/scale, ±448))`. SM12x GEMM dequantizes both sides to bf16 (exact for e4m3·2^k) and runs a bf16 `tl.dot`, fp32 acc | `ops/mxfp8.py:15-30`, `ops/moe_sm120.py:77-160` |
+| Which path the GB10 goldens ran | **W4A4**: SM121 is capability family 120 → `sm120 = True`; `humming_nvfp4` needs `--moe-backend humming` (default `auto`, `config/vllm.py:1152-1154`), absent from the launch line, so experts run `bmm_sm120` on the quantized rows (`moe.py:153-159, 243-292`). Even `humming` on SM12x consumes the same W4A4 quantized rows (`moe_humming.py:64-73`); only SM90 (Hopper) is W4A16. | |
 | vLLM on SM90 (Hopper) | **W4A16**: Humming GEMMs on bf16 activations (`ops/moe_sm90.py:1-9`, `moe.py:204-224`) | So vLLM itself ships both numerics; oMLX is W4A16 too. |
 
 ## d. Three-way diff: vLLM vs llama.cpp vs oMLX
@@ -168,20 +170,25 @@ Existing coverage per step (backend columns: c / m / cu / h = cpu / metal / cuda
 | Attention with rel bias by distance + per-query sink + window, G=3 | `AttnSparse` has sinks (DSv4.1 MQA); Metal split-KV supports G ∈ {1,2,4,8} | – | – | – | – | **new** |
 | W4A4 activation QDQ | `ActQdq` (DSv4.1 fake quant, other formats) | – | – | – | – | new mode of the expert op (switchable) |
 
-Proposed new `Op`s, appended after `BridgeWrite` (66) in one commit, in this order (each with an f64 cpu reference first):
+Op set (revised after the review, finding 10; the skeleton lane owns the Rust contract and numbering, appended after `BridgeWrite` = 66).
+Launch-granularity ops, each with an f64 cpu reference; the small reference ops (`AttnResMix`, `LoopBlend`, `SconvRes`) stay as the
+cpu decomposition the fused ops are tested against:
 
-| id | Op | Semantics (section a rows) |
-|---|---|---|
-| 67 | `AttnResMix` | a2: N bf16/f32 sources + optional addend, Q queries, optional per-query norm rows → bf16 normed or f32 out. Also serves messages (a12) and the output mix (a16). |
-| 68 | `LoopBlend` | a12: S streams of (dest f32, msg f32) → pair rms → `down` → gain/forget → blend → per-stream RMSNorm → bf16. |
-| 69 | `SconvRes` | a6 static: K=4 taps, `(conv + x)/√5`, optional `(res + addend) + y` epilogue (a15), conv window read/written by position. |
-| 70 | `InkKvPrologue` | a6 dynamic or static K/V conv, k clip, v unit-RMS, KV write (ring or linear); q clip ⊙ scale, r clip ⊙ scale, tau, rel = r·rel_proj. |
-| 71 | `RelSinkAttn` | a9-a11: GQA G=3, distance-indexed bias (zero past the extent on full layers), window or none, per-query sink, sigmoid gate epilogue. Decode and prefill kernels, same semantics. |
-| 72 | `MoeExpertsMxfp8` | a14 over MXFP8 weights (layers 20-23), same epilogue attrs as the NVFP4 op. |
+| Op | Semantics (section a rows) |
+|---|---|
+| `InkInProj` | one GEMM over the stacked `[q \| r \| gate \| sink \| k \| v \| k_taps \| v_taps]` rows with a **row-range input select** (rows 0..6552 read `x_q`, k + k_taps read `x_k`, v + v_taps read `x_v`), so it is one launch on all 48 visits (28 visits have three distinct inputs) |
+| `InkKvPrologue` | a6 static or dynamic K/V conv (ring taps, slot-dtype rounding), k clip, v unit-RMS, KV write (ring or linear); q clip ⊙ scale, r clip ⊙ scale, tau, `rel = r·rel_proj`. Per-row positions |
+| `RelSinkAttn` | a9-a11: GQA G=3, distance-indexed bias (zero past the extent on full layers), window or none, per-query sink, bf16 P, sigmoid gate epilogue. Decode/verify kernel reads the ring in place; prefill kernel reads `[ring tail \|\| chunk]`. Whether it fuses with `InkKvPrologue` for decode (one threadgroup per kv head) is the skeleton lane's call |
+| `ConvMix` | `SconvRes` (a6 static, `+x`, 5^-0.5) + block residual (a15) + the **next** `AttnResMix` (a2, 1 or 3 queries, push-first-layer rule) + optional `LoopBlend` (a12, messages on looped visits) + norm → bf16 sublayer inputs. Two instances per visit: attention side (→ `mlp_in`) and MLP side (→ next visit's attention inputs); the MLP-side one may also run the router GEMV + top-k (a13) |
+| `InkMsgMix` | a12 messages: `attn_res(bank[:1], bank[1], MQ)` → 4 fp32 rows; once per looped visit (may fold into `ConvMix`) |
+| `MoeExperts` + `situ` attr, `MoeExpertsMxfp8` | a14 over NVFP4 (existing op, new activation attr) and MXFP8 weights (layers 20-23, new); `act_quant ∈ {w4a16, w4a4}` |
+| reused | `Embedding`, `RmsNorm`, `MoeRoute` (if not folded into `ConvMix`), `Matmul` (wo, unembed) |
 
-`MoeRoute`, `MoeExperts` (+ `situ` attr via `.ext()`), `Matmul`, `RmsNorm`, `Embedding`, host softcap are reused. This is close to Fable's
-"seven macro-ops" (`.worktrees/ink-fable/perf-strategy.md` §9); the difference is that I keep the router and NVFP4 experts on the existing
-ops (DSv4.1's `MoeRoute` already has exactly a13's semantics) instead of a fused `ink_mix_route`; fusion can come later as a kernel variant.
+Contract points the op list must carry: per-row positions (tau and the ring row are per row, never per call); an MTP tap export
+(the partial entering visits 5, 23, 41 and the final-norm output, `loop.py:372-373`) out of the otherwise non-persistent workspace;
+greedy argmax on the **raw** logits on device (softcap is monotone), so the host softcap never blocks device token feedback.
+Launch budget: about 6-7 launches per plain visit and 7-8 per looped visit, about 350 per token against about 700 with the
+unfused list (review finding 10).
 
 Block shape and the loop:
 - `Block::Inkling2(InklingLayer)` per **physical** layer (like `Block::Gemma`): all weights of layer i (stacked, 16-byte-aligned in_proj
@@ -193,6 +200,19 @@ Block shape and the loop:
 - `SlotSpec`s per visit: SWA → `Ring { rows: 1024 + margin, width: 1024, planes: 2 (K, V), dtype: bf16, kind: WindowKv }`;
   full → `AttnKv { n_kv_heads: 8, head_dim: 128, dtype: bf16 }`; conv → `Ring { rows: 3 + margin, width: 6656, planes: 1, dtype: bf16,
   kind: ConvWindow (new) }`.
+- Ring semantics (vLLM addresses both caches by absolute position and never overwrites a row a call still needs, `ops/sconv.py:5-10,
+  137-145, 804-813`):
+  - `margin ≥ (max verify rows − 1) + rollback depth`; with `SPEC_K_MAX` 6, **margin ≥ 6** for both ring kinds. Position `p` lives in
+    row `p % rows`.
+  - Decode and verify kernels read the ring **in place** as at most two contiguous segments, recovering each key's position from its
+    row index; never linearize into a `[W+T, D]` copy (that is 4 MiB per SWA visit, 168 MB per token).
+  - Prefill chunks longer than the margin read `[ring tail ‖ chunk]` (keys of the chunk come from the call's own rows), then write
+    only the last `rows` positions of the chunk. Conv: the at most 3 pre-chunk taps come from the ring, the rest from the chunk, and the
+    last `rows` positions are written back. (The oracle's `VisitState.append` does the same.)
+  - Writes happen before the attention read within a call (KV of the call's own rows is visible to its later rows).
+  - Slot-dtype rule (a6): K, V and conv inputs are rounded to the slot dtype at the op boundary; same-call and later readers see only
+    the rounded value. Required for G0's rows-exact property.
+  - Prefix reuse past the margin needs a snapshot: 168 MB of SWA rings + 1.9 MB of conv per stored prefix (section b).
 - Conv state as `Ring` vs `Recurrent` (Fable asks): `Recurrent` rolls back speculative rows through the per-row stash (`state.rs:204-206`),
   i.e. a copy of every recurrent slot per verify row (1.9 MB × rows per step, plus a launch per slot class); prefix reuse goes through
   snapshots. `Ring` rolls back by length within `margin` with no copies (`state.rs:20-26`), at the price of position-indexed tap reads in
@@ -211,9 +231,8 @@ Block shape and the loop:
 Agreement with Fable's port requirements (§9): 1 visit table — agree; 2 stacked in_proj — agree; 3 macro-ops — agree with the
 reuse noted above; 4 workspace not state — agree; storing blocks unit-RMS once is exact enough (normalization is idempotent up to the
 1e-6 eps) but the partial must stay raw (it feeds the residual); 5 conv as Ring — agree; 6 rows-exact — agree; 7 activation quant as a
-switchable mode — agree, **default W4A16** (see gate below); 8 drafter as a second model — agree. Disagreement: Fable calls W4A4 "the
-reference numerics"; vLLM itself runs W4A16 on Hopper, oMLX is W4A16, and the oracle numbers below show the W4A16 oracle is already
-within vLLM's own batch noise of the W4A4 golden.
+switchable mode — agree, **default W4A16** (see gate below); 8 drafter as a second model — agree. Fable's review withdrew "W4A4 is the
+reference numerics" as a default; W4A4 stays the fast GB10 prefill mode, gated statistically (G3), not by bit match.
 
 **Gate definitions ("exact")**: section i.
 
@@ -264,16 +283,17 @@ fp8 unembed (164) or 4-bit dense. The native path's realistic target on endor is
 ## i. Oracle (`tools/inkling2_ref.py`), measurements, gate
 
 Run with `uv run --project tools python tools/inkling2_ref.py <mode>`; real-model runs on endor via `fleetq run --host endor --load cpu
---mem 30 …`. Peak RSS 18 GB (dense weights fp32, experts read per expert from the mmapped file, 6 GB LRU of dequantized experts). Prefill
+--mem 30 …`. Peak RSS 18-21 GB for short prompts, 34 GB at 1100 tokens (dense weights fp32, experts read per expert from the mmapped file, 6 GB LRU of dequantized experts). Prefill
 of 100 tokens ≈ 20 s, decode ≈ 1 s/token on endor's CPU.
 
 | Mode | What |
 |---|---|
-| `run --prompt … [--chat] [--dump DIR] [--max-layers N]` | logits; `--dump` writes `promptN.safetensors` with `embed`, `vNN.{partial_in, attn_in_q/k/v, q, k, v, rel, sink, attn_proj, attn_out, mlp_in, router_logits, expert_ids, expert_w, moe_out, partial_out}`, `final_hidden`, `logits` (NN = visit 00..47); `--max-layers N` runs the first N **visits** in execution order, then a16 on the state reached |
+| `run --prompt … [--chat] [--dump DIR] [--max-layers N]` | logits; `--dump` writes `promptN.safetensors` with `embed`, `vNN.{partial_in, blocks, bank, attn_in_q/k/v, q, k, v, rel, sink, attn_proj, attn_out, mlp_in, router_logits, router_sel, route_margin, expert_ids, expert_w, moe_out, partial_out}`, `final.{blocks, partial}`, `final_hidden`, `logits` (NN = visit 00..47); `--max-layers N` runs the first N **visits** in execution order, then a16 on the state reached |
 | `gen`, `greedycmp --golden greedy.json` | greedy decode (stateful path), first divergence vs vLLM's greedy text |
 | `cmp --golden X.safetensors [--out Y]` | top-1 and 21-way KL vs an `intarsia-golden-topk-v1` file; `--out` writes the oracle's own top-20 golden |
-| `selftest` | whole-sequence prefill vs 3-chunk prefill vs token-by-token decode |
-| `tiny` | writes `golden/inkling2-tiny/` (config, `hf_quant_config.json`, 1.2 MB checkpoint in the real names and formats, `ref_logits.safetensors` with f64 / f32 / bf16-rounded logits and the f64 top-2 margins of a 40-token prompt, `ref_dump_{f64,bf16}.safetensors` with every per-visit activation of the f64 run and of the oracle at vLLM's bf16 rounding points). Routing is input-dependent (14-16 of 16 experts used per visit); the seed is the one with the widest top-k margin, and tiny mode asserts f32 routing = f64 routing at every visit |
+| `selftest [--chunks a,b,c] [--no-decode] [--prompt-file F --n-tokens N]` | whole-sequence prefill vs chunked prefill vs token-by-token decode |
+| `mkcapture`, `replay --capture DIR [--visits ...]` | write a synthetic module-boundary capture / run `Ref.attention` and `Ref.moe` on a captured vLLM run (layout in the code above `make_capture`: `attn_vNN` with positions, x_q, x_k, x_v, out, optional tau; `moe_vNN` with x, out; optional `meta.json`) and print the relative error per visit. Tested on a synthetic tiny capture: 0 error at matching settings, 0.16 MoE error when replaying a W4A4 capture at W4A16 |
+| `tiny` | writes `golden/inkling2-tiny/`: config, `hf_quant_config.json`, checkpoint in the real names and formats, `ref_logits.safetensors` (f64 / f32 / bf16-rounded logits, f64 top-2 margins of a 40-token prompt), `ref_dump_f64`, `ref_dump_bf16` (free-running) and `ref_dump_bf16_tf` (teacher-forced: every visit fed the f64 run's `partial_in`, `blocks`, `bank`). Config chosen so every branch bites: `qk_l2_clip_threshold` 3.0, `head_dim` 32 ≠ `d_rel` 16, softcaps 2.0 / 1.5, window 8 < extent 12 < 40 tokens, `n_floor` 4, full layers 3 (core) and 7, MXFP8 layers 6-7, 3 passes, top-4 of 16 with route_scale 8. The seed search accepts a seed only if q and k clip on 25-75 % of rows per layer kind (now 37-62 %), f32 routing = f64 routing at every visit, and then takes the widest top-k margin. 13-16 of 16 experts are used per visit |
 | knobs | `--dtype float64`, `--rounding none|vllm`, `--act-quant w4a16|w4a4` |
 
 Checks run:
@@ -281,8 +301,14 @@ Checks run:
 - State: the stateful path keeps an explicit 1024-row ring for SWA KV and 3-tap conv windows. Tiny model (window 8, extent 12,
   n_floor 4 so tau ≠ 1, 40 tokens, full layers 3 (core) and 7, MXFP8 layers 6-7, 3 passes): prefill vs chunked (13/14/13) vs
   token-by-token agree to **~1e-12 relative in float64** (f32: top-1 identical, max abs 9.4e-4 vs f64). Real model (`selftest`, 17 tokens, f32): chunked and token-by-token vs prefill max rel 1.5e-6, top-1 identical; peak RSS 20.8 GB.
-  The tiny random net is chaotic under bf16 activations: per-visit relative error grows ~1.6× per visit (v00 1.0e-2, v03 2.5e-2, …,
-  logits top-1 only 18 % vs f64) without a single routing flip, so bf16 backends cannot gate on its logits (G1 below).
+  The tiny random net is chaotic under bf16 activations when free-running (partial_out error 1e-2 at v00, above 1 from v08, routing
+  differs on 1-13 of 40 rows from v01), so bf16 backends gate teacher-forced (G1(b)): every visit's tensors at bf16 rounding are
+  within 9e-3 of f64 (non-routed tensors; routed ones on routable rows ≤ 1.2e-2).
+- G1(b) mutation check (`tools/inkling2_mutants.py`, one config key changed, teacher-forced bf16 vs the fixture's budget): control 0
+  failures; no q/k clip 155, θ_qk 3.3 instead of 3.0: 90, no rel clip 139, up softcap off 32, gate softcap off 32, final softcap off 1,
+  tau off 40, route_scale = top-k 48, window 9 instead of 8: 98; eps 1e-5 instead of 1e-6 passes (below bf16 resolution).
+- Ring on real weights: 1100 tokens of `docs/ARCHITECTURE.md` as chunks 700 / 399 / 1 (the second chunk crosses position 1024, so ring
+  wrap-around and `[ring tail ‖ chunk]` reads run on all 40 SWA visits) vs one whole prefill: max rel 1.3e-5, top-1 identical; peak RSS 34 GB.
 - Generation (W4A16, rounding none): raw `"The capital of France is"` → " Paris.\n\nA. Noun clause …"; `"def fibonacci(n):"` → a
   correct recursive body; chat (effort 0) → `<|message_model|><|content_thinking|>The user asks a simple factual question … <|end_message|>
   <|message_model|><|content_text|>The capital of France is Paris.<|end_message|><|content_model_end_sampling|>`.
@@ -293,16 +319,22 @@ Against the vLLM goldens (`golden/inkling2-mini-vllm-*`, GB10, W4A4, batch-1 seq
 | Oracle variant | short (569 pos) top-1 / KL21 | long (1569 pos) top-1 / KL21 | 4k |
 |---|---|---|---|
 | W4A16, rounding none (default) | **98.24 % / 6.35e-3** | **97.64 % / 1.24e-2** | **95.87 % / 9.84e-3** (13096 pos) |
-| W4A16, rounding vllm | 97.72 % / 6.06e-3 | 97.51 % / 1.23e-2 | – |
-| W4A4 (inferred quantizer), rounding none | 95.61 % / 1.19e-2 | – | – |
-| W4A4 (inferred), rounding vllm | 97.36 % / 9.62e-3 | – | – |
+| W4A16, rounding vllm (measured before bf16 P was added to `--rounding vllm`) | 97.72 % / 6.06e-3 | 97.51 % / 1.23e-2 | – |
+| W4A4 exact (`ops/nvfp4.py`, `ops/mxfp8.py`), rounding none | 97.01 % / 1.04e-2 | 96.94 % / 1.54e-2 | – |
+| W4A4 exact, rounding vllm (closest to vLLM's numerics) | 96.31 % / 1.32e-2 | 96.62 % / 1.81e-2 | 95.58 % / 1.19e-2 |
+| W4A4 with my earlier inferred quantizer (superseded) | none 95.61 % / 1.19e-2, vllm 97.36 % / 9.62e-3 | – | – |
 
-Oracle variants against each other (short set, `tools/golden_cmp.py`): none vs vllm rounding 98.42 % / 1.5e-3 (pure bf16-activation
-noise; long set 98.79 % / 2.7e-3); W4A16 vs W4A4 (inferred) 96.7 % / 1.0e-2. Reading: the W4A16 fp32 oracle sits inside vLLM's own batch-composition noise of the
-W4A4 golden; adding my inferred W4A4 quantizer moves it **away** (its noise is not vLLM's noise), so the inferred `fouroversix` rule is
-probably not bit-exact, and reproducing W4A4 is worth nothing until `ops/nvfp4.py` / `ops/mxfp8.py` are extracted. On the 4k set the oracle is about twice vLLM's own concurrent noise there (97.5-98.3 % / 4.6-5.8e-3), but flat by position:
-per 1024-token bucket 94.4-98.0 % with no step at the SWA window (1024) or the rel extent, so the window / extent / ring logic holds
-on real weights; the gap tracks low-confidence text (golden top-1 p ≈ 0.6-0.7 on docs and chat). Agreement does not
+Oracle variants against each other (`tools/golden_cmp.py`, long set unless noted): W4A16 none vs vllm rounding 98.79 % / 2.7e-3
+(short 98.42 % / 1.5e-3); W4A16 vs exact W4A4 (none) 98.09 % / 1.16e-2; **exact W4A4 none vs exact W4A4 vllm-rounding 96.94 % /
+1.92e-2**. Reading: with the bit-faithful quantizer, two runs whose activations differ only by bf16 rounding land 1.9e-2 apart, more
+than either is from vLLM. The per-16-block 4-vs-6 choice and the e2m1 codes are discontinuous in the input, so the W4A4 noise
+pattern depends on the exact upstream bits; an engine that is not bitwise identical to vLLM up to each quantizer gets an
+independent noise draw, and W4A4 then sits about one W4A4-noise further from the golden than W4A16 does. So W4A16 stays the
+oracle default and the G2/G3 reference; W4A4 is a selectable mode for speed, not for accuracy against these goldens.
+On the 4k set the oracle is about twice vLLM's own concurrent noise there (97.5-98.3 % / 4.6-5.8e-3), but flat by position:
+per 1024-token bucket 94.4-98.0 % with no step at the SWA window (1024) or the rel extent, so the window / extent logic holds on real
+weights within about 2e-3 KL (bucket standard error); `cmp` is one whole-prompt prefill, so the ring is not exercised there, and tau
+(positions ≥ 8191) is not reached by any golden: both rest on the 1100-token selftest above and on the capture replay (section j); the gap tracks low-confidence text (golden top-1 p ≈ 0.6-0.7 on docs and chat). Agreement does not
 degrade with position (long_prose_700 per-100-token top-1 91-100 %, lowest where the golden itself is least confident).
 
 Greedy (first 48 tokens vs `golden/inkling2-mini-vllm-greedy.json`, tokens matched before the first divergence): count 48, story 13,
@@ -315,23 +347,39 @@ continuation stays coherent and on-topic. Divergences are at near-ties (`' ** 0.
 | Gate | Compares | Threshold | Basis |
 |---|---|---|---|
 | G0 op | each new op's kernel vs its f64 cpu reference; R = 1..16 rows | op tolerance; **bitwise rows-exact** (row r of an R-row call = the 1-row call) | engine convention; needed for greedy-exact speculation |
-| G1 tiny | (a) the f32-activation path (cpu reference ops) on `golden/inkling2-tiny` vs `logits_f64`; (b) every backend's bf16 path vs `ref_dump_f64` | (a) top-1 identical at all 40 positions, max abs logit error ≤ 1e-2 (f32 oracle: 9.4e-4); (b) per dumped tensor of visits v00-v03: rel err(backend, f64) ≤ 2 × rel err(`ref_dump_bf16`, f64) + 1e-3; and prefill = chunked = decode (bitwise for rows-exact kernels) | the fixture hits window/extent edges, tau ≠ 1, 3 passes, both full-layer kinds, MXFP8; its logits are chaotic under bf16 (see checks) |
-| G2 oracle | real model, W4A16, vs this oracle's own top-20 (`golden/oracle/inkling2-mini-oracle-w4a16-{short,long}-top20.safetensors`, rounding none) | top-1 ≥ 98 %, KL21 ≤ 4e-3 mean, short and long | a bf16-activation engine should land near the oracle's own none-vs-vllm-rounding distance (short 98.4 % / 1.5e-3, long 98.8 % / 2.7e-3) |
-| G3 vLLM | real model vs the vLLM W4A4 goldens, short and long | top-1 ≥ 97 %, KL21 ≤ 8e-3 mean (short); ≥ 97 %, ≤ 1.3e-2 (long); ≥ 95 %, ≤ 1.1e-2 (4k) | the W4A16 oracle measures 98.2 % / 6.4e-3, 97.6 % / 1.24e-2, 95.9 % / 9.8e-3; vLLM's concurrent self-noise is 97-98 % / up to 1.2e-2 |
+| G1 tiny | (a) the f32-activation path (cpu reference ops) on `golden/inkling2-tiny` vs `logits_f64`; (b) every backend's bf16 path, **teacher-forced per visit** (fed `ref_dump_f64`'s `vNN.partial_in`, `vNN.blocks`, `vNN.bank`, `final.*` as one 40-token prefill), vs `ref_dump_f64` | (a) top-1 identical at all 40 positions, max abs logit error ≤ 1e-2 (f32 oracle: 9.2e-4). (b) per visit (all 16) and per dumped tensor: rel err ≤ max(2 × the oracle's own error in `ref_dump_bf16_tf`, 1e-3). Rows whose f64 top-k margin (`route_margin`) exceeds 5 × the oracle's max \|`router_sel`\| error at that visit are routable: identical expert sets required there, and `expert_w` (compared by expert id), `moe_out` (routable rows) and `partial_out` (rows whose last 4 rows are routable, for `mlp_sconv`) are compared on those rows only. Plus prefill = chunked = decode, bitwise for rows-exact kernels. Reference comparator: `tf_check` in the oracle | the fixture hits clips, window/extent edges, tau ≠ 1, 3 passes, both full-layer kinds, MXFP8; the mutation check shows each of those breaks the gate. Legitimate numerics variants (teacher-forced): fp32 activations pass; an extra bf16 round on the fp32 mixes fails 1 tensor (v10 `partial_out`, 2.6 × the oracle's error). At 3 × every mutant still fails (no q/k clip 109, θ 3.3: 44, others unchanged), so 3 × (`tf_check(factor=3)`) is the safer budget if a backend stores mixes in bf16 |
+| G2 oracle | real model, W4A16, vs this oracle's own top-20 (`golden/oracle/inkling2-mini-oracle-w4a16-{short,long}-top20.safetensors`, rounding none) | KL21 mean ≤ 4e-3 (short), ≤ 6e-3 (long); **confident rows** (oracle `p1 − p2 ≥ 0.5`: 363 of 569 short, 1206 of 1569 long): top-1 identical, at most 1 miss per 2000; raw top-1 ≥ 97 % as a tripwire only | a correct bf16 engine (proxy: the oracle at `--rounding vllm`) scores KL 1.5e-3 / 2.7e-3, 0 confident misses, raw top-1 98.4 % / 98.8 %: 2.2-2.7 × KL headroom. Exact W4A4 against it: KL 1.2e-2, 2 confident misses on long, so a W4A4 mode does not have to pass G2 |
+| G3 vLLM | real model vs the vLLM W4A4 goldens (short, long, 4k) | KL21 mean ≤ oracle + 4e-3: **1.05e-2 (short), 1.65e-2 (long), 1.4e-2 (4k)**; at most 1 confident-row miss per 2000 (golden `p1 − p2 ≥ 0.5`: 367 / 1211 / 8229 rows); raw top-1 is reported, not gated | oracle: 6.4e-3 / 1.24e-2 / 9.8e-3 KL, 0 / 0 / 1 confident misses. Correct bf16 engine (proxy): 6.1e-3 / 1.23e-2 KL, 0 / 0 misses: 4e-3 headroom. Exact W4A4 (rounding vllm): 1.32e-2 / 1.81e-2 / 1.19e-2, 1 miss on long and 1 on 4k, so a W4A4 mode passes short and 4k, not long. G3 cannot resolve bugs below about 5e-3 KL: the resolving gates are G0, G1 and G2 |
 
+All disagreements against vLLM are near-ties: on confident rows the oracle misses 0 of 367 (short), 0 of 1211 (long), 1 of 8229 (4k).
 "Exact" therefore means: bitwise rows-exact against our own 1-row path (G0), and within G1-G3 against the references. W4A16 is the
-default numerics; a W4A4 mode, if built, must pass the same G3 and is not required for G2.
+default numerics. The noise model (why W4A4 is not the reference although vLLM ran W4A4): see the reading above the gate table.
 
-## j. Open questions
+## j. Changes since f38cd515a, open questions
+
+Changes since f38cd515a (the full vLLM `ops/` tree is now in `.worktrees/ink-official/models/inkling2/nvidia/ops/`):
+
+| # | Change | Where |
+|---|---|---|
+| 1 | Exact activation quantizers written out: NVFP4 `fouroversix_mae` (bf16 input, `enc/dec/outer`, e4m3 6- and 4-based block scales, e2m1 RNE-satfinite, pairwise error, strict `err4 < err6`); **MXFP8 scale = amax/448 rounded up to a power of two** (my earlier OCP `floor(log2 amax) − 8` guess was wrong for ~19 % of blocks) | section c |
+| 2 | Settled: the GB10 goldens are **W4A4** (SM121 → family 120 → `bmm_sm120`; no `--moe-backend`, default `auto`; even `humming` on SM12x is W4A4). Only Hopper runs W4A16 | section c |
+| 3 | Oracle `--act-quant w4a4` now implements (1) line for line (`fake_quant_nvfp4_act`, `fake_quant_mxfp8_act`); W4A16 stays the default | `tools/inkling2_ref.py` |
+| 4 | Re-measured: exact W4A4 is **further** from the W4A4 goldens than W4A16 (long 96.6 % / 1.8e-2 vs 97.6 % / 1.2e-2), and two exact-W4A4 runs differing only in bf16 rounding are 1.9e-2 apart. W4A4 noise is a fresh draw per implementation, so G2/G3 keep the W4A16 oracle as reference; thresholds unchanged | section i |
+| 5 | Controller numerics confirmed equal to the oracle: `pair_rms_norm` → bf16 `[rms(dest), rms(msg)]`, bf16 `hidden`, fp32 `gain_forget`, unfused fp32 blend (`enable_fp_fusion=False`), then RMSNorm·w → bf16 (`ops/loop.py:18-132`, `loop.py:112-130`). No oracle change | a12 |
+| 6 | Summation order (informational, oracle unchanged): `linear_k_groups` / `k_group_partials` accumulate fp32 per 1024-wide K group and sum the groups in order (`ops/linear.py:202-290`); used for the router logits (`ops/moe.py:978`, K = 2304 → 3 groups), the dynamic conv taps (`sconv.py:106`) and the per-stream controller `down` (`loop.py:60`, K = 4608 → 5 groups). The batched controller path uses `torch.bmm` instead. Only near-tie top-k routing can notice; port kernels should be rows-exact, not order-matched | a6, a12, a13 |
+| 7 | **Tiny fixture regenerated** (review BLOCKER 1): θ_qk 3.0 (q and k now clip on 37-62 % of rows per layer kind, asserted), head_dim 32 ≠ d_rel, softcaps 2.0 / 1.5 so they bite; new seed. Rust tests must use the new files | `golden/inkling2-tiny/`, section i |
+| 8 | **G1(b) is teacher-forced per visit** (BLOCKER 2): new `ref_dump_bf16_tf`, `blocks` / `bank` / `router_sel` / `route_margin` in every dump, `tf_check` reference comparator, routable-row rule, mutation check `tools/inkling2_mutants.py` | section i |
+| 9 | G2 / G3 rewritten as KL + confident-row top-1 with measured headroom; what a correct bf16 engine scores is in the table (MAJOR 4) | section i |
+| 10 | Ring semantics (margin ≥ 6, in-place two-segment reads, prefill `[ring tail ‖ chunk]`, write-before-read) and the slot-dtype rounding rule; prefix snapshot sizes (findings 8, 9) | a6, b, f |
+| 11 | Op list revised to launch granularity: `InkInProj` (row-range input select), `ConvMix` (SconvRes + residual + next AttnResMix + optional LoopBlend + norm, router may fold in), per-row positions, MTP tap export, device argmax on raw logits (finding 10). The skeleton lane owns the contract | f |
+| 12 | Minors: `· route_scale` not `· 8` (a13); message mix uses exactly `bank[:1]`, `bank[1]`, loader refuses other core shapes (a12, oracle asserts); two eps attrs (a, notation); bf16 P before P·V added to `--rounding vllm`; ring duplicate-row write fixed; query-blocked attention (12k-token replay fits in memory) | a, oracle |
+| 13 | New oracle modes `replay` / `mkcapture` for the vLLM module-boundary capture (finding 7); `selftest --chunks/--no-decode/--prompt-file/--n-tokens` | oracle, section i |
+
+Still open:
 
 | Question | Why it matters | Pointer |
 |---|---|---|
-| Exact NVFP4 activation quantizer (`fouroversix_mae` tie rules, e2m1/e4m3 rounding, the `FP32_MAX` clamp) and the MXFP8 activation rule | only needed for a bit-faithful W4A4 mode | `ops/nvfp4.py`, `ops/mxfp8.py` missing; used at `ops/moe.py:14-15, 327-342`, `ops/activation.py:10-11, 171-173` |
-| `ops/loop.py` (`pair_rms_norm`, `blend_rms_norm`): exact rounding of the batched controller path | the oracle follows the per-stream reference `Inkling2MessageController.forward` (`loop.py:55-63`); the batched path may round `hidden` differently | `loop.py:31, 112-130` |
-| `ops/linear.py` (`linear_k_groups`, fp32 1024-wide K groups) | summation order only | `sconv.py:100-107`, `loop.py:30` |
-| `ops/block_scales.py`, `ops/gemv.py`, `ops/__init__.py` | SM100 layout / dispatch only | `moe.py:31`, `model.py:67` |
-| Whether the GB10 golden used `moe_backend=humming` (W4A16 on SM12x) or the default (W4A4) | decides which numerics the golden is; the golden doc's launch line has no `--moe-backend`, so presumably the default W4A4 path | `moe.py:150-158`, golden doc "Reference server" |
+| The W4A4 SiTU uses `ex2.approx`/`rcp.approx` sigmoid and `tanh.approx` softcaps; the oracle uses exact functions | only for a bitwise W4A4 mode, which (4) shows is not worth chasing | `ops/activation.py:20-58` |
+| Batched controller (`torch.bmm`, cuBLAS order) vs per-stream `linear_k_groups`: which one the loop model runs at batch 1 | summation order only | `loop.py:60, 112-130` |
 | llama.cpp's SITU op and GGUF gate/up order | three-way diff completeness only | `ggml` not in the extract |
-
-Missing vLLM files to extract from the image (one `docker cp` of `vllm/models/inkling2/nvidia/ops/`): `nvfp4.py`, `mxfp8.py`, `loop.py`,
-`linear.py`, `block_scales.py`, `gemv.py`, `__init__.py`.
+| tau on real weights and W4A4 exactness | no golden reaches position 8191; W4A4 emulation exactness is unproven | `replay` on the spark2 capture (`golden/inkling2-capture/`, pending); expected attention rel err ≈ 3e-3 at `--rounding vllm` |

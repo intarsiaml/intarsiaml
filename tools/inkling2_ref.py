@@ -14,12 +14,11 @@ Two numerics knobs:
 * `--rounding vllm`: activations are rounded to bf16 at the points vLLM stores
   them in bf16 (residual stack, projections, conv outputs, ...), to get closer
   to vLLM's logits.
-* `--act-quant w4a4`: fake-quantize the expert activations like vLLM's SM100 /
-  SM12x paths (NVFP4 per-token amax / 1536 with the "four over six" block
-  scale choice; MXFP8 per-32 e8m0). The scale *formulas* are from
-  `ops/moe.py:_quantize_x` / `ops/activation.py`; the per-block 4-vs-6 choice
-  and the e2m1 / e4m3 rounding come from `ops/nvfp4.py`, which is NOT in the
-  extracted sources, so that part is inferred (spec section c).
+* `--act-quant w4a4`: fake-quantize the expert activations exactly like vLLM's
+  SM100 / SM12x paths (`ops/nvfp4.py` "fouroversix_mae": per-token amax / 1536,
+  per-16 e4m3 scale 6- or 4-based by smaller error; `ops/mxfp8.py`: per-32
+  round-up power-of-two scale), on the bf16 activation (spec section c). This
+  is what the GB10 goldens ran (SM121, default MoE backend).
 
 Experts stay quantized (read per expert from the mmapped safetensors) and are
 dequantized only when selected, through a small LRU.
@@ -46,7 +45,7 @@ from pathlib import Path
 
 import torch
 from safetensors import safe_open
-from safetensors.torch import save_file
+from safetensors.torch import load_file, save_file
 
 torch.set_grad_enabled(False)
 
@@ -211,40 +210,63 @@ def round_e4m3(x: torch.Tensor) -> torch.Tensor:
     return x.to(torch.float32).clamp(-448, 448).to(torch.float8_e4m3fn).to(torch.float32).to(x.dtype)
 
 
+FP32_MAX = torch.finfo(torch.float32).max
+
+
+def _pair_tree_sum(e: torch.Tensor) -> torch.Tensor:
+    """Sum the last dim (a power of two) by adjacent pairs, as `_block_error` / `_candidate`."""
+    while e.shape[-1] > 1:
+        e = e.reshape(*e.shape[:-1], -1, 2)
+        e = e[..., 0] + e[..., 1]
+    return e
+
+
 def fake_quant_nvfp4_act(x: torch.Tensor) -> torch.Tensor:
-    """Per-token NVFP4 activation QDQ as in vLLM `_quantize_x` (ops/moe.py:307-343): outer
-    scale amax/1536, e4m3 block scales per 16. INFERRED (ops/nvfp4.py not extracted): the
-    `fouroversix_mae` rule picks, per block, the block scale bmax/6 or bmax/4 (in the
-    encoder-scaled domain) with the smaller absolute error."""
+    """Per-token NVFP4 activation QDQ, exactly vLLM `ops/nvfp4.py` `_quantize_row` /
+    `_quantize_block` ("fouroversix_mae"), used by `ops/moe.py:_quantize_x` (gate/up input) and
+    `ops/activation.py:_situ_quantize_kernel` (down input). fp32 math on the bf16 input:
+    enc = min(1536 / amax, FP32_MAX), dec = 1 / enc, outer = amax * (1/1536); per 16-block
+    s6 = e4m3(min(bmax * (enc / 6), 448)), s4 = e4m3(min(bmax * (enc / 4), 448));
+    q = e2m1_rne_satfinite(x * min(1 / (s * dec), FP32_MAX)); err = pairwise-sum |q*s*outer - x|;
+    s4 wins only if err4 < err6 (strict). Returns q * s * outer (the GEMM applies outer through
+    its row scale (x_amax * w_amax) / (1536 * denominator))."""
+    shape, dt = x.shape, x.dtype
+    x = x.to(torch.bfloat16).to(torch.float32)
     amax = x.abs().amax(-1, keepdim=True)
-    enc = torch.clamp(1536.0 / amax, max=torch.finfo(torch.float32).max)
-    xs = x * enc
-    b = xs.reshape(*x.shape[:-1], -1, 16)
+    enc = torch.clamp(torch.tensor(1536.0) / amax, max=FP32_MAX)
+    dec = 1.0 / enc
+    outer = amax * torch.tensor(1.0 / 1536.0, dtype=torch.float32)
+    b = x.reshape(*shape[:-1], -1, 16)
     bmax = b.abs().amax(-1, keepdim=True)
-    best, best_err = None, None
-    for div in (6.0, 4.0):
-        sc = round_e4m3(bmax / div)
-        safe = torch.where(sc == 0, torch.ones_like(sc), sc)
-        q = round_e2m1(b / safe) * sc
-        err = (q - b).abs().sum(-1, keepdim=True)
-        if best is None:
-            best, best_err = q, err
-        else:
-            take = err < best_err
-            best = torch.where(take, q, best)
-            best_err = torch.where(take, err, best_err)
-    return (best.reshape(x.shape) / enc).to(x.dtype)
+    enc_b, dec_b, outer_b = enc[..., None], dec[..., None], outer[..., None]
+    cands = []
+    for factor in (torch.tensor(1.0 / 6.0, dtype=torch.float32), torch.tensor(0.25, dtype=torch.float32)):
+        sc = torch.clamp(bmax * (enc_b * factor), max=448.0).to(torch.float8_e4m3fn).to(torch.float32)
+        inv = torch.clamp(1.0 / (sc * dec_b), max=FP32_MAX)
+        q = round_e2m1(b * inv)
+        rec = (q * sc) * outer_b
+        cands.append((rec, _pair_tree_sum((rec - b).abs())))
+    (rec6, err6), (rec4, err4) = cands
+    rec = torch.where(err4 < err6, rec4, rec6)  # err: [..., blocks, 1]
+    return rec.reshape(shape).to(dt)
 
 
 def fake_quant_mxfp8_act(x: torch.Tensor) -> torch.Tensor:
-    """Per-32 MXFP8 QDQ, OCP MX rule (INFERRED: ops/mxfp8.py not extracted): scale
-    2^(floor(log2 bmax) - 8), values rounded to e4m3."""
-    b = x.reshape(*x.shape[:-1], -1, 32)
-    bmax = b.abs().amax(-1, keepdim=True)
-    e = torch.floor(torch.log2(torch.where(bmax > 0, bmax, torch.ones_like(bmax)))) - 8
-    sc = torch.exp2(e)
-    q = round_e4m3(b / sc) * sc
-    return q.reshape(x.shape).to(x.dtype)
+    """Per-32 MXFP8 QDQ, exactly vLLM `ops/mxfp8.py:_mxfp8_block`: scale = amax / 448 rounded UP
+    to a power of two (bit trick on the fp32 exponent; exponent 0 for scale <= 2^-127, capped at
+    254), values clamp(x / scale, +-448) rounded to e4m3. Input is the bf16 activation."""
+    shape, dt = x.shape, x.dtype
+    x = x.to(torch.bfloat16).to(torch.float32)
+    b = x.reshape(*shape[:-1], -1, 32)
+    raw = b.abs().amax(-1, keepdim=True) * torch.tensor(1.0 / 448.0, dtype=torch.float32)
+    bits = raw.view(torch.int32).to(torch.int64)
+    ex = ((bits + 0x007FFFFF) & 0x7F800000) >> 23
+    ex = torch.where(raw <= 2.0**-127, torch.zeros_like(ex), torch.clamp(ex, max=254))
+    scale = torch.clamp(torch.exp2((ex - 127).to(torch.float32)), min=2.0**-127)
+    scale = torch.where(ex == 0, torch.full_like(scale, 2.0**-127), scale)
+    inv = torch.where(ex == 0, torch.full_like(scale, 2.0**127), 1.0 / scale)
+    v = torch.clamp(b * inv, -448.0, 448.0).to(torch.float8_e4m3fn).to(torch.float32)
+    return (v * scale).reshape(shape).to(dt)
 
 
 # --------------------------------------------------------------------------------------
@@ -360,6 +382,8 @@ class VisitState:
             self.k = k.new_zeros((self.ring, *k.shape[1:]))
             self.v = v.new_zeros((self.ring, *v.shape[1:]))
             self.pos = torch.full((self.ring,), -1, dtype=torch.long)
+        if pos.shape[0] > self.ring:  # only the last `ring` positions survive (avoid duplicate-index writes)
+            k, v, pos = k[-self.ring :], v[-self.ring :], pos[-self.ring :]
         rows = pos % self.ring
         self.k[rows] = k
         self.v[rows] = v
@@ -398,6 +422,8 @@ class Ref:
         self.capture_router = False
         self.margins: list | None = None
         self.router_log: list = []
+        # tiny-mode coverage: (kind, "q"|"k") -> [clipped rows, rows]
+        self.clip_stats: dict | None = None
         D = self.c.hidden
         # a2: checkpoint queries are raw; vLLM pre-scales them by D**-0.5 at load.
         s = D**-0.5
@@ -500,6 +526,13 @@ class Ref:
         st.set_conv("v", vxp)
         kc = self.r(kc).reshape(T, Hk, Dh)
         vc = self.r(vc).reshape(T, Hk, Dh)
+        if self.clip_stats is not None:
+            kind = "swa" if local else "full"
+            for name, x in (("q", q * w[pre + "q_l2_clip.scale"]), ("k", kc)):
+                n_ = x.pow(2).sum(-1).sqrt()
+                acc = self.clip_stats.setdefault((kind, name), [0, 0])
+                acc[0] += int((c.qk_clip / (n_ + 1e-6) < 1).sum())
+                acc[1] += n_.numel()
         k = self.r(self.l2clip(kc, c.qk_clip))  # a7: k clip, no scale
         v = self.r(self.rms(vc))  # a7: v RMSNorm without gamma
         q = self.r(self.l2clip(q, c.qk_clip, w[pre + "q_l2_clip.scale"]))
@@ -525,23 +558,30 @@ class Ref:
         G = H // Hk
         Kh = K_.repeat_interleave(G, dim=1)  # [S, H, D]
         Vh = V_.repeat_interleave(G, dim=1)
-        s = torch.einsum("thd,shd->hts", q, Kh) * Dh**-0.5
-        dist = pos[:, None] - Pk[None, :]  # [T, S]
         E = relp.shape[1]
-        vis = dist >= 0
-        if local:
-            vis = vis & (dist < c.window)
-        # a9: bias rel[t,h,dist] for dist < extent, 0 beyond (full layers only reach there)
-        idx = dist.clamp(0, E - 1)
-        bias = torch.gather(rel.permute(1, 0, 2), 2, idx[None].expand(H, -1, -1))
-        bias = torch.where((dist < E)[None], bias, torch.zeros_like(bias))
-        s = torch.where(vis[None], s + bias, torch.full_like(s, -math.inf))
-        # a10: per-query sink logit of a zero-value key
-        sk = sink.t()[:, :, None]  # [H, T, 1]
-        m = torch.maximum(s.amax(-1, keepdim=True), sk)
-        e = torch.exp(s - m)
-        den = e.sum(-1, keepdim=True) + torch.exp(sk - m)
-        o = torch.einsum("hts,shd->thd", e / den, Vh).reshape(T, H * Dh)
+        relT = rel.permute(1, 0, 2)  # [H, T, E]
+        o = torch.empty((T, H, Dh), dtype=q.dtype)
+        QB = 512  # query rows per block (bounds the [H, rows, S] score tensor for long prompts)
+        for q0 in range(0, T, QB):
+            q1 = min(T, q0 + QB)
+            s_ = torch.einsum("thd,shd->hts", q[q0:q1], Kh) * Dh**-0.5
+            dist = pos[q0:q1, None] - Pk[None, :]  # [t, S]
+            vis = dist >= 0
+            if local:
+                vis = vis & (dist < c.window)
+            # a9: bias rel[t,h,dist] for dist < extent, 0 beyond (full layers only reach there)
+            idx = dist.clamp(0, E - 1)
+            bias = torch.gather(relT[:, q0:q1], 2, idx[None].expand(H, -1, -1))
+            bias = torch.where((dist < E)[None], bias, torch.zeros_like(bias))
+            s_ = torch.where(vis[None], s_ + bias, torch.full_like(s_, -math.inf))
+            # a10: per-query sink logit of a zero-value key
+            sk = sink[q0:q1].t()[:, :, None]  # [H, t, 1]
+            m = torch.maximum(s_.amax(-1, keepdim=True), sk)
+            e = torch.exp(s_ - m)
+            den = e.sum(-1, keepdim=True) + torch.exp(sk - m)
+            # vLLM stores the unnormalized probabilities in bf16 for P.V; the row sum stays fp32
+            o[q0:q1] = torch.einsum("hts,shd->thd", self.r(e), Vh) / den.permute(1, 0, 2)
+        o = o.reshape(T, H * Dh)
         o = self.r(o * torch.sigmoid(gate))  # a11: sigmoid output gate
         return self.lin(o, w[pre + "wo_ud.weight"])
 
@@ -558,6 +598,8 @@ class Ref:
         ls = torch.nn.functional.logsigmoid(torch.gather(logits, 1, order))
         gam = torch.softmax(ls, dim=-1) * c.route_scale  # = sigmoid_i / sum_sel sigmoid * 8
         self.d(f"{tag}.router_logits", logits)
+        self.d(f"{tag}.router_sel", sel)
+        self.d(f"{tag}.route_margin", srt.values[:, c.topk - 1] - srt.values[:, c.topk])
         self.d(f"{tag}.expert_ids", order.to(torch.float32))
         self.d(f"{tag}.expert_w", gam)
         if self.capture_router:
@@ -603,7 +645,9 @@ class Ref:
             nw = torch.stack([w[f"layers.{L}.{s}_input_norm.weight"] for s in "qkv"])
         msgs = None
         if p > 0:  # a12: messages from the previous pass's bank
-            msgs = self.attn_res(bank[:-1], bank[-1], self.msg_q[L - c.core.start])  # [4, T, D] fp32
+            # vLLM mixes exactly bank[:1] + bank[1] (loop.py:228-236): the core is two blocks
+            assert len(bank) == 2, "inkling2 loop needs a core of exactly two attn-res blocks"
+            msgs = self.attn_res(bank[:1], bank[1], self.msg_q[L - c.core.start])  # [4, T, D] fp32
         if not blocks:  # layer 0: no mix, direct norm of the embedding
             dests = partial[None].expand(n_in, -1, -1)
         else:
@@ -622,7 +666,7 @@ class Ref:
         self.d(f"{tag}.attn_in_v", ins[2])
         a = self.attention(L, ins[0], ins[1], ins[2], pos, st, tag)
         self.d(f"{tag}.attn_proj", a)
-        # a6: attention-output short conv (no residual inside; static taps)
+        # a6: attention-output short conv (static taps, `+ x` inside, no block residual)
         ac, axp = self.conv_static(a, w[f"layers.{L}.attn_sconv.weight"].reshape(c.hidden, -1), st.conv_hist("attn", c.hidden, a))
         st.set_conv("attn", axp)
         attn_out = self.r(ac)
@@ -675,8 +719,20 @@ class Ref:
                     blocks, partial = list(prelude[0]), prelude[1]
             tag = f"v{vi:02d}"
             self.d(f"{tag}.partial_in", partial)
+            if blocks:
+                self.d(f"{tag}.blocks", torch.stack(blocks))
+            if p > 0:
+                self.d(f"{tag}.bank", torch.stack(bank))
             blocks, partial = self.visit(vi, L, p, blocks, partial, bank if p > 0 else None, pos, state.visits[vi], tag)
-        # a16: output mix, final norm, unembed, softcap, drop the padded vocab
+        self.d("final.blocks", torch.stack(blocks))
+        self.d("final.partial", partial)
+        logits = self.head(blocks, partial)
+        state.len += T
+        return logits
+
+    def head(self, blocks, partial):
+        """a16: output mix, final norm, unembed, softcap, drop the padded vocab."""
+        c, w = self.c, self.w
         h = self.attn_res(blocks, partial, self.out_q, w["norm.weight"][None])[0]
         self.d("final_hidden", h)
         logits = h @ w["unembed.weight"].t()
@@ -684,8 +740,28 @@ class Ref:
             logits = c.softcap * torch.tanh(logits / c.softcap)
         logits = logits[:, : c.vocab_real]
         self.d("logits", logits)
-        state.len += T
         return logits
+
+    def teacher_forced(self, ids: torch.Tensor, ref_dump: dict) -> dict:
+        """Run every visit (and a1, a16) of a whole-prompt prefill on the REFERENCE run's inputs
+        (`vNN.partial_in`, `vNN.blocks`, `vNN.bank`, `final.*`, rounded to this run's storage
+        dtype), so per-visit errors do not compound. Returns this run's dump with the same names."""
+        c = self.c
+        T = ids.shape[0]
+        pos = torch.arange(T)
+        self.dump = {}
+        emb = self.w["embed.weight"][ids].to(self.dtype)
+        self.d("embed", self.r(self.rms(emb, self.w["embed_norm.weight"])))
+        get = lambda k: self.r(ref_dump[k].to(self.dtype))
+        for vi, (L, p) in enumerate(c.visits()):
+            tag = f"v{vi:02d}"
+            blocks = list(get(f"{tag}.blocks")) if f"{tag}.blocks" in ref_dump else []
+            bank = list(get(f"{tag}.bank")) if p > 0 else None
+            st = VisitState(c.window if L in c.local else None, c.k_conv)
+            self.visit(vi, L, p, blocks, get(f"{tag}.partial_in"), bank, pos, st, tag)
+        self.head(list(get("final.blocks")), get("final.partial"))
+        out, self.dump = self.dump, None
+        return out
 
 
 # --------------------------------------------------------------------------------------
@@ -724,17 +800,17 @@ def tiny_config() -> dict:
             "unpadded_vocab_size": 300,
             "num_attention_heads": 6,
             "num_key_value_heads": 2,
-            "head_dim": 16,
+            "head_dim": 32,  # != d_rel, so a head_dim / d_rel stride mix-up shows
             "swa_num_attention_heads": 6,
             "swa_num_key_value_heads": 2,
-            "swa_head_dim": 16,
+            "swa_head_dim": 32,
             "d_rel": 16,
             "rel_extent": 12,
             "sliding_window_size": 8,
             "local_layer_ids": [0, 1, 2, 4, 5, 6],
             "sconv_kernel_size": 4,
             "rms_norm_eps": 1e-6,
-            "qk_l2_clip_threshold": 22.627416997969522,
+            "qk_l2_clip_threshold": 3.0,  # low enough that q and k rows clip (asserted in tiny mode)
             "rel_l2_clip_threshold": 8.0,
             "log_scaling_n_floor": 4,
             "log_scaling_alpha": 0.1,
@@ -745,8 +821,8 @@ def tiny_config() -> dict:
             "num_experts_per_tok": 4,
             "n_shared_experts": 0,
             "intermediate_size": 32,
-            "mlp_gate_softcap": 4.0,
-            "mlp_up_softcap": 25.0,
+            "mlp_gate_softcap": 2.0,  # low enough to bite at tiny activation scale
+            "mlp_up_softcap": 1.5,  # low enough to bite at tiny activation scale
             "route_scale": 8.0,
             "use_gate_bias": True,
             "final_logit_softcapping": 30.0,
@@ -821,10 +897,12 @@ def make_tiny(out: Path, seed: int = 0):
         T[a + "attn.wr_du.weight"] = rn(H * R, D, s=D**-0.5 * 2).to(bf)
         T[a + "attn.gate_attn.weight"] = rn(H * Dh, D, s=D**-0.5).to(bf)
         T[a + "attn.attn_sink_proj.weight"] = rn(H, D, s=D**-0.5).to(bf)
-        T[a + "attn.wk_dv.weight"] = rn(Hk * Dh, D, s=D**-0.5 * 1.0).to(bf)
+        # SWA k (static conv) runs ~25 % larger than full k (dynamic conv): scale it so both clip on about half the rows
+        T[a + "attn.wk_dv.weight"] = rn(Hk * Dh, D, s=D**-0.5 * (0.85 if i in local else 1.0)).to(bf)
         T[a + "attn.wv_dv.weight"] = rn(Hk * Dh, D, s=D**-0.5).to(bf)
         T[a + "attn.wo_ud.weight"] = rn(D, H * Dh, s=(H * Dh) ** -0.5 * 0.5).to(bf)
-        T[a + "attn.q_l2_clip.scale"] = un(H, Dh, lo=0.2, hi=3.0).to(bf)  # some heads clip, most not
+        # per-head factor around the clip point (q norm ~4.6 before the scale, theta 3): about half the q rows clip
+        T[a + "attn.q_l2_clip.scale"] = (un(H, 1, lo=0.35, hi=0.95) * un(H, Dh, lo=0.8, hi=1.2)).to(bf)
         T[a + "attn.rel_l2_clip.scale"] = un(H, R, lo=0.2, hi=1.5).to(bf)
         T[a + "attn.rel_logits_proj.proj"] = rn(R, ext, s=0.25).to(bf)
         if i in local:
@@ -882,6 +960,63 @@ def make_tiny(out: Path, seed: int = 0):
 # drivers
 
 
+TF_SKIP = ("expert_ids", "blocks", "bank", "partial_in", "partial", "route_margin")
+ROUTED = ("expert_w", "moe_out", "partial_out")
+
+
+def _by_expert(d: dict, g: str) -> torch.Tensor:
+    """Routing weights reordered by expert id (slot order is not part of the contract)."""
+    ids = d[f"{g}.expert_ids"]
+    return torch.gather(d[f"{g}.expert_w"], 1, torch.argsort(ids, -1))
+
+
+def tf_check(test: dict, f64: dict, oracle_tf: dict, verbose: bool = False, factor: float = 2.0) -> list[str]:
+    """G1(b): compare a backend's teacher-forced dump `test` with the f64 dump, per visit and
+    tensor. Budget: rel err <= max(2 x the oracle's own teacher-forced bf16 error, 1e-3).
+    Rows whose f64 top-k margin exceeds 5 x the oracle's max |router_sel| error at that visit
+    are "routable": the backend must pick the same expert set there, and the routing-dependent
+    tensors (expert_w, moe_out, partial_out) are compared on those rows only. Returns failures."""
+    fails = []
+    grp = lambda k: k.split(".")[0] if "." in k else "head"
+    groups = sorted({grp(k) for k in f64})
+    for g in groups:
+        rows = None
+        if f"{g}.route_margin" in f64:
+            sel_err = (oracle_tf[f"{g}.router_sel"] - f64[f"{g}.router_sel"]).abs().max()
+            rows = f64[f"{g}.route_margin"] > 5 * sel_err
+            # partial_out also sees moe_out of the previous K-1 rows through mlp_sconv
+            conv_rows = rows.clone()
+            for lag in range(1, 4):
+                conv_rows[lag:] &= rows[:-lag]
+            want = torch.sort(f64[f"{g}.expert_ids"][rows], -1).values
+            for name, d in (("oracle", oracle_tf), ("test", test)):
+                got = torch.sort(d[f"{g}.expert_ids"][rows], -1).values
+                if not torch.equal(got, want):
+                    fails.append(f"{g}: {name} expert set differs on routable rows")
+        line = []
+        for k in sorted(x for x in f64 if grp(x) == g):
+            name = k.split(".", 1)[-1]
+            if name in TF_SKIP:
+                continue
+            if name == "expert_w":
+                ref, t, o = (_by_expert(x, g).double() for x in (f64, test, oracle_tf))
+            else:
+                ref, t, o = f64[k].double(), test[k].double(), oracle_tf[k].double()
+            if rows is not None and name in ROUTED:
+                m_ = conv_rows if name == "partial_out" else rows
+                ref, t, o = ref[m_], t[m_], o[m_]
+            nrm = ref.norm().clamp(min=1e-30)
+            e_o, e_t = ((o - ref).norm() / nrm).item(), ((t - ref).norm() / nrm).item()
+            budget = max(factor * e_o, 1e-3)
+            line.append(f"{name}={e_t:.1e}/{budget:.1e}")
+            if e_t > budget:
+                fails.append(f"{k}: rel err {e_t:.3e} > budget {budget:.3e}")
+        if verbose:
+            n_r = "" if rows is None else f" routable {int(rows.sum())}/{rows.numel()}"
+            print(f"{g}{n_r}: " + " ".join(line))
+    return fails
+
+
 def build(model_dir: Path, dtype, rounding="none", act_quant="w4a16", cache_gb=6.0):
     cfg = Cfg.load(model_dir)
     w = Weights(model_dir, cfg, dtype, cache_gb)
@@ -898,20 +1033,99 @@ def run_chunks(ref: Ref, ids: list[int], chunks: list[int]) -> torch.Tensor:
     return torch.cat(outs)
 
 
-def selftest(ref: Ref, ids: list[int]) -> float:
+def selftest(ref: Ref, ids: list[int], chunks: list[int] | None = None, decode: bool = True) -> float:
     """Whole-sequence prefill vs chunked prefill (crossing a boundary) vs token-by-token."""
     n = len(ids)
     a = run_chunks(ref, ids, [n])
-    split = [n // 3, n // 3 + 1, n - 2 * (n // 3) - 1]
-    b = run_chunks(ref, ids, split)
-    c = run_chunks(ref, ids, [1] * n)
+    split = chunks or [n // 3, n // 3 + 1, n - 2 * (n // 3) - 1]
+    assert sum(split) == n, (split, n)
+    runs = [(f"chunked {'/'.join(map(str, split))}", run_chunks(ref, ids, split))]
+    if decode:
+        runs.append(("decode", run_chunks(ref, ids, [1] * n)))
     worst = 0.0
-    for name, x in (("chunked", b), ("decode", c)):
+    for name, x in runs:
         diff = (x - a).abs().max().item()
         rel = diff / a.abs().max().item()
         same = (x.argmax(-1) == a.argmax(-1)).float().mean().item()
         print(f"selftest {name:8s} vs prefill: max|d|={diff:.3e} rel={rel:.3e} top1 agree={same:.3f}")
         worst = max(worst, rel)
+    return worst
+
+
+# --------------------------------------------------------------------------------------
+# module-boundary replay (spec section i, review finding 7)
+#
+# Capture layout (one directory, one whole prompt, all 48 visits):
+#   meta.json               optional {"ids": [...], "visits": [{"visit": v, "layer": L, "pass": p}, ...]}
+#   attn_vNN.safetensors    positions i64 [T]; x_q bf16 [T, D]; x_k, x_v bf16 [T, D] (optional on SWA
+#                           pass-0 visits: then = x_q); out bf16 [T, D] = Inkling2Attention.forward output
+#                           (wo_ud output, before attn_sconv); optional tau f32 [T]
+#   moe_vNN.safetensors     x bf16 [T, D] (mlp_in); out bf16 [T, D] = Inkling2MoE.forward output
+# Chunked-prefill captures are concatenated per visit along T before writing (attention over a
+# whole-sequence prefill is a pure function of these inputs).
+
+
+def make_capture(ref: Ref, ids: list[int], out: Path):
+    """Write a synthetic capture in the replay layout from one oracle run (for testing `replay`)."""
+    out.mkdir(parents=True, exist_ok=True)
+    ref.dump = {}
+    ref.forward(torch.tensor(ids), SeqState(ref.c))
+    d, bf = ref.dump, torch.bfloat16
+    T = len(ids)
+    meta = {"ids": ids, "visits": []}
+    for vi, (L, p) in enumerate(ref.c.visits()):
+        t = f"v{vi:02d}"
+        meta["visits"].append({"visit": vi, "layer": L, "pass": p})
+        att = {"positions": torch.arange(T), "x_q": d[f"{t}.attn_in_q"].to(bf), "out": d[f"{t}.attn_proj"].to(bf)}
+        if p > 0 or L not in ref.c.local:
+            att["x_k"], att["x_v"] = d[f"{t}.attn_in_k"].to(bf), d[f"{t}.attn_in_v"].to(bf)
+        save_file({k: v.contiguous() for k, v in att.items()}, str(out / f"attn_{t}.safetensors"))
+        save_file({"x": d[f"{t}.mlp_in"].to(bf).contiguous(), "out": d[f"{t}.moe_out"].to(bf).contiguous()},
+                  str(out / f"moe_{t}.safetensors"))
+    (out / "meta.json").write_text(json.dumps(meta))
+    ref.dump = None
+    print(f"synthetic capture of {T} tokens, {len(meta['visits'])} visits -> {out}")
+
+
+def replay(ref: Ref, cap: Path, only: list[int] | None):
+    """Run Ref.attention and Ref.moe on captured module inputs; print relative error per visit."""
+    c = ref.c
+    meta = json.loads((cap / "meta.json").read_text()) if (cap / "meta.json").exists() else {}
+    vis = {m["visit"]: (m["layer"], m["pass"]) for m in meta.get("visits", [])} or dict(enumerate(c.visits()))
+    for vi, (L, p) in sorted(vis.items()):
+        assert (L, p) == c.visits()[vi], f"capture visit {vi} is ({L}, {p}), the model says {c.visits()[vi]}"
+    rel = lambda x, y: ((x.double() - y.double()).norm() / y.double().norm().clamp(min=1e-30)).item()
+    worst = {"attn": 0.0, "moe": 0.0}
+    for vi in sorted(vis):
+        if only is not None and vi not in only:
+            continue
+        L, p = vis[vi]
+        t = f"v{vi:02d}"
+        line = f"{t} L{L:02d} p{p} {'swa ' if L in c.local else 'full'}"
+        fa = cap / f"attn_{t}.safetensors"
+        if fa.exists():
+            g = load_file(str(fa))
+            xq = g["x_q"].to(ref.dtype)
+            xk = g["x_k"].to(ref.dtype) if "x_k" in g else xq
+            xv = g["x_v"].to(ref.dtype) if "x_v" in g else xq
+            pos = g["positions"].long()
+            st = VisitState(c.window if L in c.local else None, c.k_conv)
+            o = ref.attention(L, xq, xk, xv, pos, st, t)
+            e = rel(o, g["out"])
+            worst["attn"] = max(worst["attn"], e)
+            line += f"  attn rel {e:.2e} (T={xq.shape[0]}, max pos {int(pos.max())})"
+            if "tau" in g and L not in c.local and c.n_floor is not None:
+                tau = 1.0 + c.alpha * torch.log(torch.clamp((pos + 1).double() / c.n_floor, min=1.0))
+                line += f" tau max|d| {(tau - g['tau'].double()).abs().max().item():.1e}"
+        fm = cap / f"moe_{t}.safetensors"
+        if fm.exists():
+            g = load_file(str(fm))
+            o = ref.moe(L, g["x"].to(ref.dtype), t)
+            e = rel(o, g["out"])
+            worst["moe"] = max(worst["moe"], e)
+            line += f"  moe rel {e:.2e}"
+        print(line, flush=True)
+    print(f"replay worst: attention {worst['attn']:.2e}, moe {worst['moe']:.2e}")
     return worst
 
 
@@ -988,7 +1202,7 @@ def cmp_golden(ref: Ref, path: Path, out: Path | None, only: str | None):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("mode", choices=["run", "gen", "selftest", "tiny", "cmp", "greedycmp"])
+    ap.add_argument("mode", choices=["run", "gen", "selftest", "tiny", "cmp", "greedycmp", "replay", "mkcapture"])
     ap.add_argument("--model", type=Path, default=SNAPSHOT)
     ap.add_argument("--dtype", choices=["float32", "float64"], default="float32")
     ap.add_argument("--rounding", choices=["none", "vllm"], default="none")
@@ -1004,6 +1218,12 @@ def main():
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--golden", type=Path, default=None)
     ap.add_argument("--seed", type=int, default=0, help="tiny: first seed tried")
+    ap.add_argument("--chunks", default=None, help="selftest: comma-separated chunk sizes (default thirds)")
+    ap.add_argument("--no-decode", action="store_true", help="selftest: skip the token-by-token run")
+    ap.add_argument("--prompt-file", type=Path, default=None, help="text file used as one more prompt")
+    ap.add_argument("--n-tokens", type=int, default=None, help="truncate every prompt to this many tokens")
+    ap.add_argument("--capture", type=Path, default=None, help="replay / mkcapture: capture directory")
+    ap.add_argument("--visits", default=None, help="replay: comma-separated visit indices (default all)")
     ap.add_argument("--only", default=None, help="cmp: comma-separated prompt names")
     ap.add_argument("--expert-cache-gb", type=float, default=6.0)
     a = ap.parse_args()
@@ -1018,13 +1238,24 @@ def main():
             make_tiny(out, seed)
             r64 = build(out, torch.float64)
             r64.margins = []
+            r64.clip_stats = {}
             run_chunks(r64, ids, [len(ids)])
             m = min(r64.margins)
-            print(f"tiny seed {seed}: min top-k routing margin {m:.3e}")
-            if best is None or m > best[1]:
+            fr = {k: v[0] / v[1] for k, v in r64.clip_stats.items()}
+            ok = all(0.25 <= f <= 0.75 for f in fr.values())
+            # G1(a) needs f32 routing = f64 routing at every visit
+            r64.dump, r32 = {}, build(out, torch.float32)
+            r32.dump = {}
+            run_chunks(r64, ids, [len(ids)])
+            run_chunks(r32, ids, [len(ids)])
+            ok = ok and all(torch.equal(r64.dump[k], r32.dump[k]) for k in r64.dump if k.endswith("expert_ids"))
+            print(f"tiny seed {seed}: min top-k routing margin {m:.3e}, clip fractions "
+                  + " ".join(f"{k[0]}-{k[1]} {f:.2f}" for k, f in sorted(fr.items())) + ("" if ok else " (rejected)"))
+            if ok and (best is None or m > best[1]):
                 best = (seed, m)
-            if m > 2e-2:
+            if ok and m > 2e-2:
                 break
+        assert best is not None, "no seed with q / k clip fractions in [0.25, 0.75]"
         make_tiny(out, best[0])
         print(f"tiny: using seed {best[0]} (min routing margin {best[1]:.3e})")
         res = {"prompt_ids": ids}
@@ -1043,12 +1274,29 @@ def main():
             r.dump = {}
             run_chunks(r, ids, [len(ids)])
             dumps[name] = r.dump
+        # BLOCKER-1 coverage: q and k clips must fire on a real fraction of rows, per layer kind
+        rc = build(out, torch.float64)
+        rc.clip_stats = {}
+        run_chunks(rc, ids, [len(ids)])
+        for (kind, name), (n_clip, n_all) in sorted(rc.clip_stats.items()):
+            frac = n_clip / n_all
+            print(f"tiny clip coverage {kind:4s} {name}: {n_clip}/{n_all} = {frac:.2f}")
+        for (kind, name), (n_clip, n_all) in rc.clip_stats.items():
+            assert 0.2 <= n_clip / n_all <= 0.8, f"{kind} {name} clip fraction {n_clip / n_all:.2f} outside [0.2, 0.8]"
+        # BLOCKER-2: teacher-forced bf16 dump (every visit fed the f64 run's inputs)
+        tf = build(out, torch.float32, "vllm").teacher_forced(torch.tensor(ids), dumps["f64"])
+        dumps["bf16_tf"] = tf
+        fails = tf_check(tf, dumps["f64"], tf, verbose=True)
+        assert not fails, fails
+        worst = max(((tf[k].double() - dumps["f64"][k].double()).norm() / dumps["f64"][k].double().norm().clamp(min=1e-30)).item()
+                    for k in tf if k.split(".", 1)[-1] not in TF_SKIP + ROUTED)
+        print(f"tiny teacher-forced bf16 vs f64: worst per-tensor rel err {worst:.2e} (non-routed tensors)")
         eid = [k for k in dumps["f64"] if k.endswith("expert_ids")]
         # G1(a) relies on f32 routing = f64 routing at every visit
         bad = [k for k in eid if not torch.equal(dumps["f64"][k], dumps["f32"][k])]
         assert not bad, f"f32 routing differs from f64 at {bad}"
         print("tiny distinct experts per visit:", [torch.unique(dumps["f64"][k]).numel() for k in sorted(eid)])
-        for name in ("f64", "bf16"):  # bf16 = the oracle at vLLM's rounding points: G1(b)'s error budget
+        for name in ("f64", "bf16", "bf16_tf"):  # bf16_tf: G1(b)'s error budget
             save_file({k: v.contiguous() for k, v in dumps[name].items()}, str(out / f"ref_dump_{name}.safetensors"),
                       metadata={"ids": json.dumps(ids), "run": name, "note": "values stored as f32"})
         f64 = res["float64"]
@@ -1071,15 +1319,24 @@ def main():
     prompts: list[list[int]] = []
     if a.ids:
         prompts.append([int(x) for x in a.ids.split(",")])
-    if a.prompt:
+    if a.prompt or a.prompt_file:
         tok = tokenizer(a.model)
-        for p in a.prompt:
-            text = chat_prompt(p, a.effort) if a.chat else p
+        texts = [chat_prompt(p, a.effort) if a.chat else p for p in a.prompt]
+        if a.prompt_file:
+            texts.append(a.prompt_file.read_text())
+        for text in texts:
             prompts.append(tok.encode(text, add_special_tokens=False).ids)
+    if a.n_tokens:
+        prompts = [ids[: a.n_tokens] for ids in prompts]
 
-    if a.mode == "selftest":
+    if a.mode == "replay":
+        replay(ref, a.capture, [int(v) for v in a.visits.split(",")] if a.visits else None)
+    elif a.mode == "mkcapture":
+        make_capture(ref, prompts[0], a.capture)
+    elif a.mode == "selftest":
         for ids in prompts:
-            worst = selftest(ref, ids)
+            chunks = [int(x) for x in a.chunks.split(",")] if a.chunks else None
+            worst = selftest(ref, ids, chunks, not a.no_decode)
             print(f"selftest worst rel {worst:.3e}")
     elif a.mode == "run":
         for n, ids in enumerate(prompts):
