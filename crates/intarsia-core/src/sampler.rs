@@ -727,6 +727,89 @@ mod tests {
         }
     }
 
+    /// Where the threaded sampler's time goes (lane ink-hostgap): each phase of `sample_row_par` timed alone, medians of 41, on the
+    /// pool as Inkling-2's load sets it. Prints; asserts nothing.
+    /// `cargo test --release -p intarsia-core --lib sampler_par_phases -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn sampler_par_phases() {
+        use crate::par::{run, SharedMut};
+        crate::par::set_model_default(true);
+        let n = 200058;
+        let mut rng = SplitMix64::new(3);
+        let mut row = bf16_row(&mut rng, n, 3.0);
+        softcap(&mut row, 30.0);
+        let chunks = 2 * crate::par::threads();
+        let med = |f: &mut dyn FnMut()| {
+            let mut v: Vec<f64> = (0..41)
+                .map(|_| {
+                    let t = std::time::Instant::now();
+                    f();
+                    t.elapsed().as_secs_f64() * 1e3
+                })
+                .collect();
+            v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            v[v.len() / 2]
+        };
+        let mut keys = vec![0u64; n];
+        let (mut tmp, mut hist) = (Vec::new(), Vec::new());
+        let ch = n.div_ceil(chunks);
+        let t_keys = med(&mut || {
+            let kp = SharedMut(keys.as_mut_ptr());
+            run(n.div_ceil(ch), &|c| {
+                for i in c * ch..((c + 1) * ch).min(n) {
+                    unsafe { *kp.at(i) = (order_key(row[i]) as u64) << 32 | i as u64 };
+                }
+            });
+        });
+        let unsorted = keys.clone();
+        let t_sort = med(&mut || {
+            keys.copy_from_slice(&unsorted);
+            radix_sort_hi_par(&mut keys, &mut tmp, &mut hist, chunks);
+        });
+        let t_copy = med(&mut || keys.copy_from_slice(&unsorted));
+        radix_sort_hi_par(&mut keys, &mut tmp, &mut hist, chunks);
+        let mut probs = vec![0f64; n];
+        let maxl = row[keys[0] as u32 as usize] as f64;
+        let t_exp = med(&mut || {
+            let pp = SharedMut(probs.as_mut_ptr());
+            run(n.div_ceil(ch), &|c| {
+                for j in c * ch..((c + 1) * ch).min(n) {
+                    unsafe { *pp.at(j) = (row[keys[j] as u32 as usize] as f64 - maxl).exp() };
+                }
+            });
+        });
+        let mut total = 0.0;
+        let t_sum = med(&mut || total = std::hint::black_box(probs.iter().sum::<f64>()));
+        let t_div = med(&mut || {
+            let pp = SharedMut(probs.as_mut_ptr());
+            run(n.div_ceil(ch), &|c| {
+                for j in c * ch..((c + 1) * ch).min(n) {
+                    unsafe { *pp.at(j) = *pp.at(j) / total * total };
+                }
+            });
+        });
+        let qs: Vec<f64> = probs.iter().map(|e| e / total).collect();
+        let mut depth = Vec::new();
+        let t_walk = med(&mut || {
+            let target = rng.next_f32() as f64;
+            let mut acc = 0.0;
+            let mut d = qs.len();
+            for (j, q) in qs.iter().enumerate() {
+                acc += q;
+                if target < acc {
+                    d = j;
+                    break;
+                }
+            }
+            depth.push(d);
+        });
+        let t_empty = med(&mut || run(chunks, &|_| {}));
+        depth.sort();
+        println!("threads {} chunks {chunks} n {n}", crate::par::threads());
+        println!("keys {t_keys:.3} ms | radix sort {:.3} ms (incl. copy {t_copy:.3}) | exp {t_exp:.3} | f64 total {t_sum:.3} | divide {t_div:.3} | walk {t_walk:.3} (median depth {}) | empty run {t_empty:.4}", t_sort - t_copy, depth[depth.len() / 2]);
+    }
+
     /// The radix-keyed path picks exactly what the comparator sort picks, for every draw.
     #[test]
     fn keyed_sort_matches_comparator_sort() {
