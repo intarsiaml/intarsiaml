@@ -45,7 +45,7 @@ from pathlib import Path
 
 import torch
 from safetensors import safe_open
-from safetensors.torch import save_file
+from safetensors.torch import load_file, save_file
 
 torch.set_grad_enabled(False)
 
@@ -1033,20 +1033,99 @@ def run_chunks(ref: Ref, ids: list[int], chunks: list[int]) -> torch.Tensor:
     return torch.cat(outs)
 
 
-def selftest(ref: Ref, ids: list[int]) -> float:
+def selftest(ref: Ref, ids: list[int], chunks: list[int] | None = None, decode: bool = True) -> float:
     """Whole-sequence prefill vs chunked prefill (crossing a boundary) vs token-by-token."""
     n = len(ids)
     a = run_chunks(ref, ids, [n])
-    split = [n // 3, n // 3 + 1, n - 2 * (n // 3) - 1]
-    b = run_chunks(ref, ids, split)
-    c = run_chunks(ref, ids, [1] * n)
+    split = chunks or [n // 3, n // 3 + 1, n - 2 * (n // 3) - 1]
+    assert sum(split) == n, (split, n)
+    runs = [(f"chunked {'/'.join(map(str, split))}", run_chunks(ref, ids, split))]
+    if decode:
+        runs.append(("decode", run_chunks(ref, ids, [1] * n)))
     worst = 0.0
-    for name, x in (("chunked", b), ("decode", c)):
+    for name, x in runs:
         diff = (x - a).abs().max().item()
         rel = diff / a.abs().max().item()
         same = (x.argmax(-1) == a.argmax(-1)).float().mean().item()
         print(f"selftest {name:8s} vs prefill: max|d|={diff:.3e} rel={rel:.3e} top1 agree={same:.3f}")
         worst = max(worst, rel)
+    return worst
+
+
+# --------------------------------------------------------------------------------------
+# module-boundary replay (spec section i, review finding 7)
+#
+# Capture layout (one directory, one whole prompt, all 48 visits):
+#   meta.json               optional {"ids": [...], "visits": [{"visit": v, "layer": L, "pass": p}, ...]}
+#   attn_vNN.safetensors    positions i64 [T]; x_q bf16 [T, D]; x_k, x_v bf16 [T, D] (optional on SWA
+#                           pass-0 visits: then = x_q); out bf16 [T, D] = Inkling2Attention.forward output
+#                           (wo_ud output, before attn_sconv); optional tau f32 [T]
+#   moe_vNN.safetensors     x bf16 [T, D] (mlp_in); out bf16 [T, D] = Inkling2MoE.forward output
+# Chunked-prefill captures are concatenated per visit along T before writing (attention over a
+# whole-sequence prefill is a pure function of these inputs).
+
+
+def make_capture(ref: Ref, ids: list[int], out: Path):
+    """Write a synthetic capture in the replay layout from one oracle run (for testing `replay`)."""
+    out.mkdir(parents=True, exist_ok=True)
+    ref.dump = {}
+    ref.forward(torch.tensor(ids), SeqState(ref.c))
+    d, bf = ref.dump, torch.bfloat16
+    T = len(ids)
+    meta = {"ids": ids, "visits": []}
+    for vi, (L, p) in enumerate(ref.c.visits()):
+        t = f"v{vi:02d}"
+        meta["visits"].append({"visit": vi, "layer": L, "pass": p})
+        att = {"positions": torch.arange(T), "x_q": d[f"{t}.attn_in_q"].to(bf), "out": d[f"{t}.attn_proj"].to(bf)}
+        if p > 0 or L not in ref.c.local:
+            att["x_k"], att["x_v"] = d[f"{t}.attn_in_k"].to(bf), d[f"{t}.attn_in_v"].to(bf)
+        save_file({k: v.contiguous() for k, v in att.items()}, str(out / f"attn_{t}.safetensors"))
+        save_file({"x": d[f"{t}.mlp_in"].to(bf).contiguous(), "out": d[f"{t}.moe_out"].to(bf).contiguous()},
+                  str(out / f"moe_{t}.safetensors"))
+    (out / "meta.json").write_text(json.dumps(meta))
+    ref.dump = None
+    print(f"synthetic capture of {T} tokens, {len(meta['visits'])} visits -> {out}")
+
+
+def replay(ref: Ref, cap: Path, only: list[int] | None):
+    """Run Ref.attention and Ref.moe on captured module inputs; print relative error per visit."""
+    c = ref.c
+    meta = json.loads((cap / "meta.json").read_text()) if (cap / "meta.json").exists() else {}
+    vis = {m["visit"]: (m["layer"], m["pass"]) for m in meta.get("visits", [])} or dict(enumerate(c.visits()))
+    for vi, (L, p) in sorted(vis.items()):
+        assert (L, p) == c.visits()[vi], f"capture visit {vi} is ({L}, {p}), the model says {c.visits()[vi]}"
+    rel = lambda x, y: ((x.double() - y.double()).norm() / y.double().norm().clamp(min=1e-30)).item()
+    worst = {"attn": 0.0, "moe": 0.0}
+    for vi in sorted(vis):
+        if only is not None and vi not in only:
+            continue
+        L, p = vis[vi]
+        t = f"v{vi:02d}"
+        line = f"{t} L{L:02d} p{p} {'swa ' if L in c.local else 'full'}"
+        fa = cap / f"attn_{t}.safetensors"
+        if fa.exists():
+            g = load_file(str(fa))
+            xq = g["x_q"].to(ref.dtype)
+            xk = g["x_k"].to(ref.dtype) if "x_k" in g else xq
+            xv = g["x_v"].to(ref.dtype) if "x_v" in g else xq
+            pos = g["positions"].long()
+            st = VisitState(c.window if L in c.local else None, c.k_conv)
+            o = ref.attention(L, xq, xk, xv, pos, st, t)
+            e = rel(o, g["out"])
+            worst["attn"] = max(worst["attn"], e)
+            line += f"  attn rel {e:.2e} (T={xq.shape[0]}, max pos {int(pos.max())})"
+            if "tau" in g and L not in c.local and c.n_floor is not None:
+                tau = 1.0 + c.alpha * torch.log(torch.clamp((pos + 1).double() / c.n_floor, min=1.0))
+                line += f" tau max|d| {(tau - g['tau'].double()).abs().max().item():.1e}"
+        fm = cap / f"moe_{t}.safetensors"
+        if fm.exists():
+            g = load_file(str(fm))
+            o = ref.moe(L, g["x"].to(ref.dtype), t)
+            e = rel(o, g["out"])
+            worst["moe"] = max(worst["moe"], e)
+            line += f"  moe rel {e:.2e}"
+        print(line, flush=True)
+    print(f"replay worst: attention {worst['attn']:.2e}, moe {worst['moe']:.2e}")
     return worst
 
 
@@ -1123,7 +1202,7 @@ def cmp_golden(ref: Ref, path: Path, out: Path | None, only: str | None):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("mode", choices=["run", "gen", "selftest", "tiny", "cmp", "greedycmp"])
+    ap.add_argument("mode", choices=["run", "gen", "selftest", "tiny", "cmp", "greedycmp", "replay", "mkcapture"])
     ap.add_argument("--model", type=Path, default=SNAPSHOT)
     ap.add_argument("--dtype", choices=["float32", "float64"], default="float32")
     ap.add_argument("--rounding", choices=["none", "vllm"], default="none")
@@ -1139,6 +1218,12 @@ def main():
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--golden", type=Path, default=None)
     ap.add_argument("--seed", type=int, default=0, help="tiny: first seed tried")
+    ap.add_argument("--chunks", default=None, help="selftest: comma-separated chunk sizes (default thirds)")
+    ap.add_argument("--no-decode", action="store_true", help="selftest: skip the token-by-token run")
+    ap.add_argument("--prompt-file", type=Path, default=None, help="text file used as one more prompt")
+    ap.add_argument("--n-tokens", type=int, default=None, help="truncate every prompt to this many tokens")
+    ap.add_argument("--capture", type=Path, default=None, help="replay / mkcapture: capture directory")
+    ap.add_argument("--visits", default=None, help="replay: comma-separated visit indices (default all)")
     ap.add_argument("--only", default=None, help="cmp: comma-separated prompt names")
     ap.add_argument("--expert-cache-gb", type=float, default=6.0)
     a = ap.parse_args()
@@ -1234,15 +1319,24 @@ def main():
     prompts: list[list[int]] = []
     if a.ids:
         prompts.append([int(x) for x in a.ids.split(",")])
-    if a.prompt:
+    if a.prompt or a.prompt_file:
         tok = tokenizer(a.model)
-        for p in a.prompt:
-            text = chat_prompt(p, a.effort) if a.chat else p
+        texts = [chat_prompt(p, a.effort) if a.chat else p for p in a.prompt]
+        if a.prompt_file:
+            texts.append(a.prompt_file.read_text())
+        for text in texts:
             prompts.append(tok.encode(text, add_special_tokens=False).ids)
+    if a.n_tokens:
+        prompts = [ids[: a.n_tokens] for ids in prompts]
 
-    if a.mode == "selftest":
+    if a.mode == "replay":
+        replay(ref, a.capture, [int(v) for v in a.visits.split(",")] if a.visits else None)
+    elif a.mode == "mkcapture":
+        make_capture(ref, prompts[0], a.capture)
+    elif a.mode == "selftest":
         for ids in prompts:
-            worst = selftest(ref, ids)
+            chunks = [int(x) for x in a.chunks.split(",")] if a.chunks else None
+            worst = selftest(ref, ids, chunks, not a.no_decode)
             print(f"selftest worst rel {worst:.3e}")
     elif a.mode == "run":
         for n, ids in enumerate(prompts):
