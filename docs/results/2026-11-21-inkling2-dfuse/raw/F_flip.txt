@@ -1,0 +1,9 @@
+defaults: ok md5 65cde8f35a1802e3e2fadb44d94d080d bytes      255 dispatches/step 543 decode 954 ms (66.03 tok/s)
+all1: ok md5 65cde8f35a1802e3e2fadb44d94d080d bytes      255 dispatches/step 543 decode 954 ms (66.05 tok/s)
+all0: ok md5 65cde8f35a1802e3e2fadb44d94d080d bytes      255 dispatches/step 613 decode 990 ms (63.61 tok/s)
+route0: ok md5 65cde8f35a1802e3e2fadb44d94d080d bytes      255 dispatches/step 591 decode 955 ms (65.95 tok/s)
+msg0: ok md5 65cde8f35a1802e3e2fadb44d94d080d bytes      255 dispatches/step 565 decode 986 ms (63.92 tok/s)
+hoist0: ok md5 65cde8f35a1802e3e2fadb44d94d080d bytes      255 dispatches/step 543 decode 959 ms (65.72 tok/s)
+normc0: ok md5 65cde8f35a1802e3e2fadb44d94d080d bytes      255 dispatches/step 543 decode 963 ms (65.41 tok/s)
+E best md5 (ac2371c81, env on): 65cde8f35a1802e3e2fadb44d94d080d; E off md5: 65cde8f35a1802e3e2fadb44d94d080d
+16-row self-golden, defaults vs E best: EQUAL

@@ -1,0 +1,6 @@
+with blend: 46.0 per token, median 16.37 us, 779 us/token
+alone, prev matmul_p12_gemv, next ink_route_bf16: 24.0 per token, median 12.37 us, 297 us/token
+alone, prev moe_experts_situ_bf16, next ink_in_proj_p12_gemv: 20.0 per token, median 11.79 us, 260 us/token
+alone, prev moe_experts_mxfp8_bf16, next ink_in_proj_p12_gemv: 3.0 per token, median 14.13 us, 48 us/token
+alone, prev moe_experts_situ_bf16, next other: 2.0 per token, median 8.92 us, 18 us/token
+alone, prev moe_experts_mxfp8_bf16, next matmul_p12_logits_gemv: 1.0 per token, median 14.00 us, 14 us/token

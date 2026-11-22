@@ -1,0 +1,10 @@
+EXIT inkmoe 0: 2 passed, 0 failed
+INKMOE Nv negctl T=2: 2110 bytes differ, first at 4610 (last token at 4608), max |out| 14.6875
+INKMOE Nv negctl T=16: 2135 bytes differ, first at 69120 (last token at 69120), max |out| 21.5
+INKMOE Mx negctl T=2: 2130 bytes differ, first at 4610 (last token at 4608), max |out| 0.75
+INKMOE Mx negctl T=16: 2100 bytes differ, first at 69122 (last token at 69120), max |out| 1.03125
+INKMOE Nv bitwise: 1000 multi-row calls over 640 token rows equal the one-row calls
+INKMOE Nv INTARSIA_INK_MOE_T1 false: 0 one-row calls took the gu1 / dn_f3 instances
+INKMOE Nv bitwise: 1000 multi-row calls over 640 token rows equal the one-row calls
+INKMOE Nv INTARSIA_INK_MOE_T1 true: 3840 one-row calls took the gu1 / dn_f3 instances
+EXIT models_on 0: 16 passed, 0 failed

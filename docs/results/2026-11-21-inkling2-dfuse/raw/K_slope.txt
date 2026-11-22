@@ -1,0 +1,4 @@
+short: k 0: span 13.309, 13.359 disp/step 543 md5 same; k 50: span 13.351, 13.355 disp/step 593 md5 same; k 100: span 13.404, 13.366 disp/step 643 md5 same; k 200: span 13.482, 13.587 disp/step 743 md5 same
+SLOPE short: 1.03 us per dispatch (se 0.20), intercept 13.312 ms/step; md5 across k: all equal
+5k: k 0: span 14.322, 14.264 disp/step 551 md5 same; k 50: span 14.294, 14.282 disp/step 601 md5 same; k 100: span 14.333, 14.290 disp/step 651 md5 same; k 200: span 14.434, 14.474 disp/step 751 md5 same
+SLOPE 5k: 0.85 us per dispatch (se 0.19), intercept 14.262 ms/step; md5 across k: all equal

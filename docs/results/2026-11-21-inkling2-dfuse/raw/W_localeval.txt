@@ -1,0 +1,40 @@
+localeval 1 arm A (after 81bb8c4b8) exit 0 
+[localeval]   5000 tok rep 3/3: prompt=5025 ttft=1.84s prefill=2732 tok/s decode=70.5 tok/s peak=97.4 tok/s out=128
+- result file: `results/20261122-104910-adhoc-endor-intarsia-metal-ink-dfuse-after-81bb8c4b8/result.json`
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+[localeval] saved /opt/code/deepeval/results/20261122-104910-adhoc-endor-intarsia-metal-ink-dfuse-after-81bb8c4b8/result.json
+server group 18704 stopped, port 8111 closed
+localeval 2 arm B (before-switches-off 81bb8c4b8) exit 0 
+[localeval]   5000 tok rep 3/3: prompt=5016 ttft=1.91s prefill=2632 tok/s decode=65.9 tok/s peak=96.5 tok/s out=128
+- result file: `results/20261122-104941-adhoc-endor-intarsia-metal-ink-dfuse-before-switches-off-81bb8c4b8/result.json`
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+[localeval] saved /opt/code/deepeval/results/20261122-104941-adhoc-endor-intarsia-metal-ink-dfuse-before-switches-off-81bb8c4b8/result.json
+server group 23368 stopped, port 8112 closed
+localeval 3 arm B (before-switches-off 81bb8c4b8) exit 0 
+[localeval]   5000 tok rep 3/3: prompt=5015 ttft=2.44s prefill=2057 tok/s decode=66.3 tok/s peak=98.1 tok/s out=128
+- result file: `results/20261122-105008-adhoc-endor-intarsia-metal-ink-dfuse-before-switches-off-81bb8c4b8/result.json`
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+[localeval] saved /opt/code/deepeval/results/20261122-105008-adhoc-endor-intarsia-metal-ink-dfuse-before-switches-off-81bb8c4b8/result.json
+server group 24318 stopped, port 8113 closed
+localeval 4 arm A (after 81bb8c4b8) exit 0 
+[localeval]   5000 tok rep 3/3: prompt=5019 ttft=2.66s prefill=1886 tok/s decode=65.0 tok/s peak=88.2 tok/s out=128
+- result file: `results/20261122-105039-adhoc-endor-intarsia-metal-ink-dfuse-after-81bb8c4b8/result.json`
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+[localeval] saved /opt/code/deepeval/results/20261122-105039-adhoc-endor-intarsia-metal-ink-dfuse-after-81bb8c4b8/result.json
+server group 25258 stopped, port 8114 closed

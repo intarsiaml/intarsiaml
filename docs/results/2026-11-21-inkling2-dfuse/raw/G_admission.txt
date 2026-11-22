@@ -1,0 +1,8 @@
+== admission off
+moe_experts    moe_experts_situ_bf16          10      0    3.472e-3    2.099e-4  ADMITTED
+moe_experts    moe_experts_situ_bf16_rows      7      0    1.748e-3    1.451e-4  ADMITTED
+EXIT kt_off 0
+== admission on
+moe_experts    moe_experts_situ_bf16          10      0    3.472e-3    2.099e-4  ADMITTED
+moe_experts    moe_experts_situ_bf16_rows      7      0    1.748e-3    1.451e-4  ADMITTED
+EXIT kt_on 0

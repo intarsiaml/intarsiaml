@@ -1,0 +1,4 @@
+EXIT metal_defaults 0: 8 passed, 0 failed
+EXIT metal_alloff 0: 8 passed, 0 failed
+EXIT models_defaults 0: 17 passed, 0 failed
+EXIT models_alloff 0: 17 passed, 0 failed

@@ -1,0 +1,20 @@
+| what | T | us per call (median) | p10 | p90 |
+|---|---:|---:|---:|---:|
+| router pair (logits_bf16_gemv + moe_route_f32) | 1 | 9.53 | 9.46 | 9.58 |
+| ink_route_bf16 (fused) | 1 | 8.53 | 8.48 | 8.57 |
+| loop_blend S=3 (4 dispatches): off | 1 | 25.45 | 25.17 | 25.62 |
+| loop_blend S=3 (4 dispatches): norm_c | 1 | 19.76 | 19.64 | 19.93 |
+| loop_blend S=1 (4 dispatches): off | 1 | 19.99 | 19.94 | 20.17 |
+| loop_blend S=1 (4 dispatches): norm_c | 1 | 14.77 | 14.64 | 14.96 |
+| conv_mix attn side, plain: off | 1 | 8.67 | 8.62 | 8.70 |
+| conv_mix attn side, plain: hoist | 1 | 6.34 | 6.30 | 6.37 |
+| conv_mix attn side, blend S=1: off | 1 | 27.95 | 27.89 | 28.07 |
+| conv_mix attn side, blend S=1: hoist | 1 | 25.33 | 25.25 | 25.53 |
+| conv_mix attn side, blend S=1: norm_c | 1 | 22.38 | 22.30 | 22.75 |
+| conv_mix attn side, blend S=1: hoist + norm_c | 1 | 19.92 | 19.86 | 20.01 |
+| conv_mix mlp side, plain (Q 3): off | 1 | 11.43 | 11.39 | 11.46 |
+| conv_mix mlp side, plain (Q 3): hoist | 1 | 10.35 | 10.31 | 10.39 |
+| conv_mix mlp side, blend S=3: off | 1 | 35.96 | 35.88 | 36.03 |
+| conv_mix mlp side, blend S=3: hoist | 1 | 36.85 | 36.59 | 37.08 |
+| conv_mix mlp side, blend S=3: norm_c | 1 | 31.52 | 31.22 | 31.81 |
+| conv_mix mlp side, blend S=3: hoist + norm_c | 1 | 31.19 | 31.12 | 31.34 |

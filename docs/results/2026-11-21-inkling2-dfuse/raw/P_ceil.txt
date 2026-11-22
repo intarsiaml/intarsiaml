@@ -1,0 +1,7 @@
+| call site | calls / token | stream row kernel (us) | bench cached | bench evict | gap stream - cached (us) | ms / token |
+|---|---:|---:|---:|---:|---:|---:|
+| attn side, plain | 24.0 | 12.37 | 10.65 | 57.29 | 1.72 | 0.041 |
+| attn side, blend S=1 | 23.0 | 15.46 | 13.58 | 56.36 | 1.88 | 0.043 |
+| mlp side, plain (Q 3) | 26.0 | 11.98 | 15.38 | 72.61 | 0.00 | 0.000 |
+| mlp side, blend S=3 | 23.0 | 17.42 | 21.43 | 84.16 | 0.00 | 0.000 |
+CEILING (row kernel, stream - cached, all calls): 0.085 ms per token -> STOP (under 0.3 ms)

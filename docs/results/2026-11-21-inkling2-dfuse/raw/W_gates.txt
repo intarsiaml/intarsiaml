@@ -1,0 +1,8 @@
+== g2-short: OVERALL 569 98.59 2.609e-3 2.087e-3 2.087e-3 1.637e-1 0.0679 0.0669 96.56 79.3% 0|OVERALL 128 99.22 2.744e-3 2.928e-3 2.928e-3 5.677e-2 0.0173 0.0167 93.59 97.7% 0| EXIT 0
+   self-golden vs job G (fcd05b172, off): EQUAL
+== g3-short: OVERALL 569 97.54 9.342e-3 8.420e-3 8.420e-3 3.871e-1 0.0679 0.0672 93.08 39.7% 0| EXIT 0
+   self-golden vs job G (fcd05b172, off): EQUAL
+== g2-long: OVERALL 1569 99.30 3.463e-3 3.239e-3 3.239e-3 6.918e-1 0.0407 0.0407 94.74 48.7% 0|OVERALL 160 98.75 2.609e-3 2.761e-3 2.761e-3 5.677e-2 0.0196 0.0196 93.75 91.9% 0| EXIT 0
+   self-golden vs job G (fcd05b172, off): EQUAL
+== g3-long: OVERALL 1569 97.39 1.278e-2 1.229e-2 1.229e-2 6.494e-1 0.0414 0.0411 89.83 18.0% 0| EXIT 0
+   self-golden vs job G (fcd05b172, off): EQUAL
