@@ -1320,3 +1320,19 @@ per token. Times are L's `ink_attn_bench --fused`, rows 1, raw/L_b_attn.txt. The
    and what replaces md5 for them, is the coordinator's call (asked 2026-11-22 ~09:15).
 6. **State.** InkAttnDecode writes the KV cache and the conv ring, and `ink_attn_dec<GP, RT>` is shared with ink-batch's
    row-table form. Before any build: message main, and run `inkling2_batch` and the attention rows-exact tests.
+
+### Coordinator go-ahead for item 2 (2026-11-22 ~09:20, verbatim in substance)
+
+- **The probe plan and the pre-registered rule above are approved as written.**
+- **(a) Non-bitwise variants are in scope, but opt-in only (default off).** In place of md5 their gate requires:
+  1. G2/G3 within ink-metal's thresholds;
+  2. decode-mode G2 no worse than now;
+  3. rows-exact and the state tests still bitwise, so the split choice depends only on context and shape, never on T or
+     the batch row count, and T = 1 and the rows form split identically.
+
+  Making a non-bitwise variant default-on is the **user's** call, not the coordinator's. If one clears 0.3 ms/token in the
+  real-step ABAB, bring the coordinator its G2/G3 numbers and the coordinator will put it to the user. Same-bits variants
+  that clear the bar can go default-on under this lane's rule.
+- **(b) Any build that touches `ink_attn_dec<GP, RT>` goes to the coordinator before it starts.** ink-batch's rows form
+  shares the template, and ink-batch is working on the B > 1 in_proj now. The gate runs `inkling2_batch` and the
+  attention rows-exact tests.
