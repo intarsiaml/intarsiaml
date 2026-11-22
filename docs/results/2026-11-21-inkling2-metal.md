@@ -304,6 +304,13 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
   if ink/batch is merged before the baseline runs, add `--prompts random` to batch_step to keep the same reference. The
   real-text number comes from ink-batch's job after #11206. Lane: ink/batch is not merged; `serve_le2.sh` adds
   `--prompts random` automatically when batch_step knows the flag.
+- 2026-11-22 (coordinator): speed condition on the pack12 merge. Quiet #11183 (P12 vs bf16 us/call): R=1 in_proj
+  1.22-1.27x, wo 1.22x, unembed 1.32x; R=4 in_proj S=1 1.05x, S=3 1.11x then 0.92x (noisy), wo 1.15x, unembed 1.33x; R=8/16
+  never measured, but default-on P12 runs batched decode (B 8/16) and the DSpark verify (4 rows). So the quiet baseline runs
+  batch_step B 1/8/16 (`--prompts random`, 3 reps) with defaults vs `INTARSIA_INK_PACK12=0` on the same binary: B16 with P12
+  more than 2 % slower -> flip only the R=1 paths, or stop and report; within 2 % the flip stands. #11194 still required.
+  Lane: arm D in `serve_le2.sh` (ABAB x3, medians of the batched step ms per B, on/off ratio, the 1.02 rule printed); it runs
+  only if pack12 is merged, so the order is #11206 -> (#11194 passes) pack12 merge + `pk12check.sh` -> quiet baseline.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
