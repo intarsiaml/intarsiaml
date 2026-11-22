@@ -3,7 +3,21 @@
 Batched decode of 2..=16 sequences in one step (`Model::forward_batch`) for Inkling-2-Mini, CPU reference and Metal.
 Branch `ink/batch` from `ink/metal` 1dacac3a8.
 
+## Standing rule (main, 2026-11-22)
+
+A speed number counts as a reference only if its log has the per-row token digests and the plan lines (plan / policy /
+P12 / screen). Never restore an old bench source without `--digest` for a reference run.
+
 ## Briefs received
+
+- 2026-11-22 (main): one quiet slot (~35 min): NE 3 vs 4 batched plus the final default aede2ff72 as the digest-backed
+  batched reference; B 1/8/16, random ids, --digest on every arm, 3 alternating reps, plan / policy / P12 / screen lines
+  logged. Section 17's item holds only if NE 4 is within noise of NE 3 at B 8 / 16 and the digests match; if NE 4 costs more,
+  report it; do not revert 7eca1b012 without main. ink-metal is told to use #11266 as the batched reference. Then plan
+  (measure only): verified B 16 aggregate 194-207 tok/s random / 182-199 real text is under 230; closing it needs ~80 -> 70 ms
+  per step at B 16 with the GPU busy 82 of 83 ms. Break the B 16 step into GPU time per kernel class at the final tree,
+  re-check the dropped MoE candidate against the real ~80 ms base, propose the top levers with ceilings in ms per step, build
+  only those >= 3 ms per step; coordinate with dfuse (its roofline covers B 1).
 
 - 2026-11-22 (main): audit #11181 from its logs (no slot): exact args, env, input type, binary path / hash; --digest per batch vs
   a normal-speed run of the same tree; steps and rounds run; any skip, fallback or different plan. Digests match = same
