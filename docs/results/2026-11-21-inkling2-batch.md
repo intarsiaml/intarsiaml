@@ -335,3 +335,14 @@ never come back as logits, section 8 note). The levers above 8 rows are GPU kern
 Serve probe #10947 at ink/batch 38e487a5d: `intarsia serve --backend metal --max-batch 16 --max-seq 8192` starts in 62 s
 ("continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 256") and answers a chat request; the admission
 refusal of #10811 is gone with ink/metal 761a1561b.
+
+## 12. #10946 is invalid: it measured another lane's server
+
+#10946's own `intarsia serve` loaded, then failed to bind (`bind 127.0.0.1:8099: Address already in use`, supervisor exit
+78). Port 8099 was held by ink-dfuse's `intarsia serve ... --max-batch 1 --port 8099` (pid 53955, running since 23:07), so
+the script's readiness probe answered and localeval `conc-plain-1k` (50.8 / 52.1 / 52.6 tok/s at 1 / 4 / 16 streams,
+deepeval results/20261122-004010-adhoc-endor-intarsia-metal-ink-batch, unanimis 9be1ea95) measured that `--max-batch 1`
+server, not this lane's: **not a `--max-batch 16` result.** (It matches #10890's serialized 50.8-51.6.) Peak RSS in the log
+is of the failed start. Fix: the script now takes a free port from 8131 up, and after readiness checks that the listener is
+this job's binary (and still the same pid before the bench); rerun queued. The serve probe #10947 (port 8097, "listening on
+http://127.0.0.1:8097" in its own log) was its own server and stands.
