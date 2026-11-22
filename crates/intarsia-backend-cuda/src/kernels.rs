@@ -616,12 +616,13 @@ pub fn all() -> Vec<KernelImpl> {
     v.extend(crate::inkattn::all());
     v.extend(crate::inkmix::all());
     v.extend(crate::inkmoe::all());
+    v.extend(crate::inkp12::all());
     v
 }
 
 /// (launcher name, op) of every launcher: this file's table plus the quantised/MoE table.
 pub fn full_table() -> Vec<(&'static str, Op)> {
-    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).chain(crate::exl3::TABLE.iter()).chain(crate::dsv41::TABLE.iter()).chain(crate::inkattn::TABLE.iter()).chain(crate::inkmix::TABLE.iter()).chain(crate::inkmoe::TABLE.iter()).copied().collect()
+    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).chain(crate::exl3::TABLE.iter()).chain(crate::dsv41::TABLE.iter()).chain(crate::inkattn::TABLE.iter()).chain(crate::inkmix::TABLE.iter()).chain(crate::inkmoe::TABLE.iter()).chain(crate::inkp12::TABLE.iter()).copied().collect()
 }
 
 #[cfg(test)]
@@ -1070,8 +1071,6 @@ mod tests {
             Op::HeadScreen,
             Op::LogitsGather,
             Op::ScreenArgmax,
-            // lossless 12-bit weights (lane ink-pack12): cpu and Metal only
-            Op::MatmulP12,
         ];
         // the reserved placeholder discriminants (`Op::is_reserved`) are exempt
         for op in Op::ALL.into_iter().filter(|o| !o.is_reserved()) {
@@ -1091,6 +1090,7 @@ mod tests {
             include_str!("../../../kernels/cuda/ik_cuda_abi_dsv41.h"),
             include_str!("../../../kernels/cuda/ik_cuda_abi_ink.h"),
             include_str!("../../../kernels/cuda/ik_cuda_abi_inkmm.h"),
+            include_str!("../../../kernels/cuda/ik_cuda_abi_inkp12.h"),
         ]
         .concat();
         for (name, _) in full_table() {
@@ -1263,6 +1263,8 @@ mod tests {
             .filter(|k| !intarsia_core::inkling2::ops::OPS.contains(&k.op))
             // the Inkling-2 experts (inkmoe.rs) serve only `ink.situ` calls of `MoeExperts`
             .filter(|k| !k.situ)
+            // the P12 GEMVs (inkp12.rs, lane ink-cuda-p12) serve only `MatmulP12`, which no earlier model's plan contains
+            .filter(|k| k.op != Op::MatmulP12)
             .map(|k| format!("{}:{}", k.name, k.op))
             .collect();
         got.sort();

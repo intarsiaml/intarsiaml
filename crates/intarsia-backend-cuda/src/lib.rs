@@ -17,6 +17,7 @@ pub mod hostmem;
 pub mod inkattn;
 pub mod inkmix;
 pub mod inkmoe;
+pub mod inkp12;
 pub mod kernels;
 pub mod quantmoe;
 
