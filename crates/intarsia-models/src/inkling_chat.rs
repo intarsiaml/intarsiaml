@@ -582,7 +582,8 @@ mod tests {
             (0.125, "0.12"),
             (0.123, "0.12"),
             (0.005, "0"),
-            (0.0051, "0.01"),
+            (0.0051, "0"),
+            (0.0151, "0.02"),
         ] {
             assert_eq!(effort_text(e).unwrap(), format!("Thinking effort level: {want}"), "{e}");
         }

@@ -57,6 +57,9 @@ pub struct GrammarEnv {
     close: Tag,
     /// The single `</think>` token, when the tokenizer has one (needed to gate a constraint behind the think block).
     think_close: Option<u32>,
+    /// Inkling-2's block markers `<|message_model|>`, `<|content_text|>`, `<|content_thinking|>`, `<|end_message|>` when the
+    /// vocabulary has them: a JSON constraint is then framed in blocks ([`GrammarEnv::compile_with`]).
+    ink: Option<[u32; 4]>,
 }
 
 impl GrammarEnv {
@@ -98,12 +101,20 @@ impl GrammarEnv {
         };
         let (open, close) = (tag("<tool_call>"), tag("</tool_call>"));
         let think_close = tag(THINK_CLOSE).id;
+        let ink = (|| {
+            Some([
+                tag(crate::inkling::MESSAGE_MODEL).id?,
+                tag(crate::inkling::CONTENT_TEXT).id?,
+                tag(crate::inkling::CONTENT_THINKING).id?,
+                tag(crate::inkling::END_MESSAGE).id?,
+            ])
+        })();
         let env: TokEnv = Arc::new(ModelTokEnv { trie, tokenize });
         let mut factory =
             ParserFactory::new(&env, InferenceCapabilities::default(), &SlicedBiasComputer::general_slices())
                 .map_err(|e| format!("structured output: {e}"))?;
         factory.quiet();
-        Ok(GrammarEnv { factory, vocab, open, close, think_close })
+        Ok(GrammarEnv { factory, vocab, open, close, think_close, ink })
     }
 
     /// [`GrammarEnv::compile_with`] with thinking off: the grammar starts at the first generated token.
@@ -117,7 +128,7 @@ impl GrammarEnv {
     /// `think`: the request has thinking on, so the constraint applies only after the `</think>` token; the think
     /// section before it is unconstrained (and nothing in it, a `<tool_call>` included, triggers the grammar).
     pub fn compile_with(&self, plan: &Plan, think: bool) -> Result<Arc<dyn ConstraintSpec>, String> {
-        let gate = if think {
+        let gate = if think && self.ink.is_none() {
             Some(self.think_close.ok_or("thinking with structured output needs a model whose tokenizer has a single </think> token")?)
         } else {
             None
@@ -126,6 +137,16 @@ impl GrammarEnv {
         // `</think>\n\n<tool_call>` in its training); it is optional, and the reasoning parser trims it from the content
         let lead = if think { r#""\n\n"? "# } else { "" };
         let (grammar, trigger) = match plan {
+            // Inkling-2 (vLLM's `InklingParser.adjust_request`): any number of free thinking blocks, then the text block
+            // whose payload alone is the JSON; the reply's content is that payload
+            Plan::Json(schema) if self.ink.is_some() => {
+                let [model, text, thinking, end] = self.ink.unwrap();
+                let lark = format!(
+                    "start: think* <[{model}]> <[{text}]> %json {} <[{end}]>\nthink: <[{model}]> <[{thinking}]> /(?s:.*)/ <[{end}]>\n",
+                    compact(schema)
+                );
+                (TopLevelGrammar::from_lark(lark), None)
+            }
             Plan::Json(schema) if think => {
                 (TopLevelGrammar::from_lark(format!("start: {lead}%json {}\n", compact(schema))), None)
             }
