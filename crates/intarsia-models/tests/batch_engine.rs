@@ -199,11 +199,12 @@ fn batched_equals_solo_plain() {
     }
 }
 
-/// Lane ink-hostgap: every request sampled, B = 4 and 16. With the host pool on (`INTARSIA_HOST_THREADS` > 1) a decode step's rows
-/// are accepted one per pool task (`Scheduler::accept_rows`); the streams must be the solo ones, as with the pool off.
+/// Lane ink-hostgap: every request sampled, B = 4 and 8 (the cpu backend's batch cap, `SERVE_MAX_BATCH`; B = 16 needs a backend
+/// that allows it). With the host pool on (`INTARSIA_HOST_THREADS` > 1; run it at 3 too, fewer threads than rows) a decode step's
+/// rows are accepted one per pool task (`Scheduler::accept_rows`); the streams must be the solo ones, as with the pool off.
 #[test]
 fn batched_sampled_equals_solo() {
-    for (seed, rows) in [(7u64, 4usize), (23, 16)] {
+    for (seed, rows) in [(7u64, 4usize), (23, 8)] {
         check_cases(seed, rows, None, 40, cases_sampled);
     }
 }
