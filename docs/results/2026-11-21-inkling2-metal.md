@@ -76,6 +76,13 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   clean on macOS). Merge it after #11048 passes, before fp8 and pack12; leave its later fb38fe4a5 (opt-in pre-wake / QoS /
   vsort, untimed) out.
 
+- 2026-11-22 (coordinator): add ink/prefill to the merge queue, after hostgap, fp8 and pack12 and before the ONE combined gate
+  (which includes it: rows-exact, G2 / G3, md5, batched == solo B 2 / 5 / 16, then the localeval baseline). Its gate: localeval
+  speed-plain #10967, base e3f92beff vs 378dc214e: prefill 1k +11.5 / +12.0 %, 4k +21.5 %, 16k +9.4 / +7.0 %, decode within
+  1 % everywhere. ink-prefill sends the exact hash: 378dc214e, or a recipe commit on top (`[tuning.metal] prefill_chunk = 2048`
+  in recipes/inkling2.toml) if its #11109 passes. With the recipe commit in, the combined gate and the baseline run at chunk
+  2048 (say so: earlier Inkling Metal localeval numbers were at chunk 256). Report the merged tip hash.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
