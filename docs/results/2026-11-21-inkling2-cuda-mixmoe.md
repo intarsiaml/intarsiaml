@@ -247,6 +247,10 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   ink/metal's main PR merges: merge main in, CUDA no-op check on other models (Qwen3-8B greedy 256 short / 4k bit-identical to
   main, plan show JSON for 35B and 8B, kernels test --quick), report; coordinator takes the PR. Spec on by default stays opt-in
   (deployment call for the user).
+- (coordinator, 33rd) (1) Draft head small-M kernel: go; gate md5 identical, acceptance not lower, ABAB tok/s g256 and g1.2k;
+  default-on if >= +1 % at g256. (2) Verify unembed / wo goes to ink-cuda-attn: send shapes, call counts and the exact bit
+  contract (which decode kernel the verify rows must equal) in 3-5 lines. (3) Draft MLP fp8: skip. g64: after (1), a load-time
+  warmup of the draft's first-call path (cuBLASLt / cutlass lazy init, first splitkv) if < 30 min; report the load-time cost.
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
