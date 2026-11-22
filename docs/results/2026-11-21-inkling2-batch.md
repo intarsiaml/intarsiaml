@@ -315,3 +315,23 @@ pairs), about 0.1 ms per token. Suspects, all in code the solo step runs: the `M
 ring pointer in the mix kernel's conv loop, the 32 bytes added to `InkP` / `InkMixP` (set_bytes), and the per-call
 `row-table` checks in `ink_pass` / `OpCall::check`. Not chased here (inside the criterion); a compile-time row-table variant of
 the mix shader would remove the first two if it matters.
+
+## 11. Host gap of the batched step (#10956, default load: shares only) and the serve probe (#10947)
+
+`batch_prof --ctx 1024`, `INTARSIA_METAL_PROFILE=cb` (command-buffer timeline; the trace costs time itself, so the wall
+times are above the untraced run beside each), GPU busy = union of the command buffers inside each step, median of 12:
+
+| B | wall ms | GPU busy ms | host gap ms | command buffers / step |
+|---:|---:|---:|---:|---:|
+| 2 | 30.91 | 30.45 | 0.46 | 7 |
+| 8 | 43.19 | 42.54 | 0.65 | 7 |
+| 16 | 83.05 | 82.22 | 0.83 | 7 |
+
+The batched step is GPU-bound: under 1 ms of host gap at every B. So the 17 ms that the kernel-mode trace (#10885) did not
+account for between B 8 and B 16 is GPU time the per-launch trace under-counts (one command buffer per launch changes
+overlap and cache state), not host work; the coordinator's host-softcap hypothesis is out on this evidence too (greedy rows
+never come back as logits, section 8 note). The levers above 8 rows are GPU kernels.
+
+Serve probe #10947 at ink/batch 38e487a5d: `intarsia serve --backend metal --max-batch 16 --max-seq 8192` starts in 62 s
+("continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 256") and answers a chat request; the admission
+refusal of #10811 is gone with ink/metal 761a1561b.
