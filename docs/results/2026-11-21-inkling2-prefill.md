@@ -206,6 +206,11 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     Also noted: #11322's 1.6x-slow piece-256 / 1024 traces are most likely the orphaned batch_step of ink-metal's #11314
     (GPU busy outside fleetq until 06:48:20; the 256 trace ran 06:48:07-06:48:21, the 1024 trace 06:48:21-06:48:32), not a
     device state as first written. The p8k pairs all started after 06:48:39. The traces are rerun as #11344.
+    **Status:** gate job .scratch/gp1.sh queued after this rule was written. Binary bin10 = de1e0568a, --prefill-chunk 2048.
+    - Box check: below 0.95 x 2362 = BOX SLOW, stop. Above +5 % is recorded but does not stop the job: the rule targets a slow box.
+    - md5 runs use p4k (3950 tokens -> chunks of 2048 + 1902, so the pieces matter).
+    - Both gp1 and bp3 run under .scratch/safe_run.py: own session / process group, the group killed on TERM / INT / HUP,
+      leftovers listed and killed at the end. Tested locally with sleep children, on both the leftover path and the TERM path.
 
 ## Status
 
