@@ -974,3 +974,8 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
 - #11444 was already capped (CARGO_BUILD_JOBS=8, trees built one after the other; the hip build.rs runs hipcc serially). Added
   at 09:25:59 inside its slot: `.scratch/noop/tat_memguard.sh` on tatooine logs MemAvailable every 5 s and removes the
   inknoop containers below 8 GB; it exits after 150 s with none running. First reading 26 GB available during the base build.
+- #11444 done (exit 0, 09:24:41-09:30:27): `--features hip` release build of base 608bc4408 and dev d111c798a both exit 0
+  (1 m 38 s each, intarsia-backend-hip and intarsia-cli compiled in each); hip crate lib tests with GPUs hidden: 31 passed,
+  0 failed on both; failure sets identical (empty). No GPU work; radiance untouched. Memguard: 63 readings, minimum 26 GB
+  available (09:25:59, base build), last 29 GB (09:31:10, no containers), 0 kills. Cleanup in fleetq #11448: memguard log and
+  script, both source trees and both cargo-target volumes removed from tatooine; nothing of this lane left in its home dir.
