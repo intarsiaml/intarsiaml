@@ -156,6 +156,17 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
   the Metal crate (examples + tests) and every models test target; cpu Inkling tests 9 / 9 and 6 / 6; cpu ink_route 1 / 1;
   docs_env_vars 2 / 2. No Metal run of 10cf8988d exists yet (flip + NE fix + pack12 + gumbel together); the next endor
   job will be the first.
+- 2026-11-22 ~06:15 (coordinator, go-ahead): run step 4's probe on 10cf8988d, measuring only; the merge is fine, no rebase
+  needed. Run order inside the slot:
+  1. re-trace the controllers on the tip (NE 3 now);
+  2. the row kernel alone with the pair stage at S = 1 and S = 3, with and without `--evict`;
+  3. the stop rule: if the ceiling over all 96 calls is under 0.3 ms per token, stop and report;
+  4. only if it clears 0.3 ms, prototype the split in the evict bench; the go bar is 0.3 ms saved, measured.
+
+  No shipped-kernel or metal4 header changes until the coordinator answers, because the header cut affects op 77's path
+  too. Heads-up: ink-batch is chasing a possible B16 batched regression on the merged tree (about 75 ms against 60), with
+  the dfuse merges among the suspects. If ink-batch asks which switch disables which controller change at B > 1, answer
+  that first.
 
 ## Probes (endor, before any code)
 
