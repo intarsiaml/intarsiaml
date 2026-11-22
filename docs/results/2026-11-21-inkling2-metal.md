@@ -77,7 +77,37 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 
 ## Gates
 
-GATES_PLACEHOLDER
+Real-model runs on endor through fleetq (#10690, rerun on the final code #10721, same numbers to the last digit), checkpoint
+b85c3cfa, W4A16, bf16, `intarsia accuracy --backend metal --max-seq 4096 --golden ... --write-self-golden`; KL21 = the tool's
+"KL21 scored" column; confident-row misses from the skel lane's side script (`p1 - p2 >= 0.5` on the golden) over the
+self-golden's prefill rows.
+
+| Gate | Golden | KL21 (limit) | confident misses (allowance) | top-1 | cpu skel |
+|---|---|---|---|---|---|
+| G1(a) | tiny f64 | cpu only (f32 activations; Metal kernels are bf16) | | | pass |
+| G1(b) | tiny `ref_dump_bf16_tf`, `tf_check(factor=3)` | 0 failures, all 16 visits; every tensor at about 1/3 of its budget | | | 0 failures |
+| G1 state | tiny | chunks 7 / 13 == 16-row passes == prefill 9 + decode, bitwise; rollback by length, reuse at 30, refusal past the margin, reset to 0; interleaved == solo; failed pass resets | | | pass |
+| G2 short | oracle W4A16 short | **2.380e-3** (4e-3) | 0 / 363 (1) | 98.95 % | 2.994e-3, 0 |
+| G2 long | oracle W4A16 long | **3.418e-3** (6e-3) | 1 / 1206 (2) | 99.17 % | 3.879e-3, 1 |
+| G3 short | vLLM short | **8.391e-3** (1.05e-2) | 0 / 367 (1) | 97.89 % | 9.218e-3, 0 |
+| G3 long | vLLM long | **1.248e-2** (1.65e-2) | 0 / 1211 (2) | 97.64 % | 1.416e-2, 0 |
+
+Decode mode (teacher-forced decode rows, which exercise the 1-row kernels and the fused attention; reported, not gated):
+G2 short 2.589e-3 over 128 rows (cpu: 9.275e-3, one chat_reasoning row at 0.61 nats; Metal's worst row 5.3e-2), G2 long
+2.474e-3 over 160 rows. The 4k G3 set was not run on Metal (out of this lane's gate list; cpu passed it).
+
+On the tiny fixture the 40-row single prefill (NAX / prefill kernels) against the 16-row passes free-running is rel l2 0.67,
+top-1 12/40: the tiny random net is chaotic under bf16 (spec section i), so that comparison is printed, not gated; the prefill
+kernels are gated teacher-forced (G1(b) is one 40-row pass).
+
+Bitwise on real weights (19-token raw prompt, 64 greedy tokens, #10721): `INTARSIA_INK_ATTN_FUSED` unset / `0` / `1` and
+`INTARSIA_INK_ROWS_EXACT=0` give the same text (md5 identical). Peak memory footprint of `generate` at `--max-seq 4096`:
+16.0 GB (`/usr/bin/time -l`; RSS 27.3 GB counts the mmapped checkpoint).
+
+Greedy text on Metal (W4A16): raw "The capital of France is" -> " Paris.\n\nA. Noun\n\nB. Pronoun\n\nC. Adjective ..." (the
+oracle's continuation shape); chat "What is the capital of France?" -> thinking "The user asks a simple factual question:
+capital of France. Need answer accurately. France's capital is Paris. ..." then "Paris." (the cpu / oracle text); the
+lighthouse prompt continues into a coherent story.
 
 ## Speed
 
