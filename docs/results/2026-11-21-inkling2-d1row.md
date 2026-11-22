@@ -107,16 +107,16 @@ never selects it).
 | greedy text, pipelined vs plain (`INTARSIA_INK_ATTN_PIPE` / `INTARSIA_INK_MOE_PIPE` 0 vs 1) | short prompt 64 tokens and 5k prompt 32 tokens: identical md5 |
 | G2 short / long (oracle goldens, decode + prefill) | PASS: decode KL21 2.589e-3 (<= 4e-3) / 2.474e-3 (<= 6e-3); prefill 2.380e-3 / 3.418e-3 |
 | G3 short / long (vLLM goldens, prefill) | PASS: 8.391e-3 (<= 1.05e-2) / 1.248e-2 (<= 1.65e-2) |
-| self-goldens vs ink-metal's base run (`.scratch/py/st_cmp.py`) | **every tensor bitwise identical** (G2 short 48, long 60; G3 short 24, long 30; only build metadata differs) |
+| self-goldens vs ink-metal's base run (`2026-11-21-inkling2-d1row/st_cmp.py`) | **every tensor bitwise identical** (G2 short 48, long 60; G3 short 24, long 30; only build metadata differs) |
 
 So the output bits are the base's: no gate was re-recorded and nothing moved.
 
-## Timing (job Q, fleetq #10852, `--quiet gpu,cpu`, build 4f16e91f4; raw in `.scratch/Q/`)
+## Timing (job Q, fleetq #10852, `--quiet gpu,cpu`, build 4f16e91f4; raw in `2026-11-21-inkling2-d1row/`: bench outputs, job logs, per-op and step-period summaries, scripts; the jsonl traces were not kept)
 
 "plain" is the base kernels (identical code to ink/metal), "pipe" the pipelined forms of this lane. Bench numbers are GPU
 us per launch in the lanes' harnesses (many launches per command buffer, operands rotating); in-stream numbers come from
 a per-dispatch trace of a real decode (`INTARSIA_TOKEN_FEEDBACK=0 INTARSIA_METAL_COMMIT_EVERY=1
-INTARSIA_METAL_FIRST_COMMIT=0 --profile-every 0`, short prompt, 24 steps, `.scratch/py/cb1_ops.py`). They are one command
+INTARSIA_METAL_FIRST_COMMIT=0 --profile-every 0`, short prompt, 24 steps, `2026-11-21-inkling2-d1row/cb1_ops.py`, summaries `cb1_ops_pipe{0,1}.txt`). They are one command
 buffer per launch, so each in-stream number carries ~3 us of per-buffer cost the bench does not: compare plain vs pipe
 within a column, not across.
 
@@ -169,7 +169,7 @@ gu = pipelined gate+up only, dn = pipelined down only. The target (<= 75 us benc
   reason: in the stream the experts live in the mmapped checkpoint, in the bench in Metal-allocated buffers, so TLB /
   page-walk cost would hit the 16 random expert rows of gate+up first. That is a hypothesis; not measured here.
 
-### Decode step period (engine, `generate --profile-every 0`, cb trace, `.scratch/py/step_period.py`)
+### Decode step period (engine, `generate --profile-every 0`, cb trace, `2026-11-21-inkling2-d1row/step_period.py`, `step_periods.txt`)
 
 Short prompt (19 tokens), 256 tokens each run. ABBA order, two runs per config; median period over all steps of both:
 
