@@ -31,6 +31,12 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   plan-shape case builder dropped `attrs.ink`, so the SiTU kernels were never admitted). Fixed in ink-metal 761a1561b
   (quant/cases.rs, test `situ_experts_case_keeps_the_ink_attrs`). Merge ink/metal at or after 761a1561b now; #10811's script
   must build from that tip at job start, not use a prebuilt binary.
+- 2026-11-21 (coordinator, for the 8-vs-16 profile): ink-m-mix measured InkInProj at the real shape: 1 row 69.8 us, 8 rows
+  83.3 us, 16 rows 168 us (241 GB/s, arithmetic-limited; the three-Matmul form is no faster at 16 rows, 260 GB/s), about
+  +4 ms per step from 8 to 16 rows over 48 visits. Their idea 3, a matrix-unit GEMV for 9..16 rows bitwise equal to the 1-row
+  kernel, is my call after the profile: build it only if InkInProj is the biggest share and it can stay bitwise per row.
+  ink-metal is merging ink/m-mix 47570539e (InkInProj up to 8 rows on the GEMV instead of NAX): re-merge ink/metal before the
+  next batch timing.
 
 ## 1. Design note (contract delta, written before any kernel)
 
