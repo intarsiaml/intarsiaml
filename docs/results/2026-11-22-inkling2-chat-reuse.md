@@ -168,3 +168,11 @@ rows. So the reused rows must come from passes of >= 17 rows, and the resume poi
     removes.
 
 Marker `.scratch/gate_pass_bdcdee4b1`.
+
+## Coordinator rulings (2026-11-22 ~17:30-17:45)
+
+- New merge order: #497, then the CUDA flips PR, then this PR, then #496 (after #11621 passes).
+- Open the PR when push #11668 lands. Body: the C table, B16 memory (+2.72 GiB), the R result including main's 8/16 mismatch as
+  the bug it fixes, and `INTARSIA_INK_RING_SNAPSHOT=0` as the revert.
+- On the go: merge main in, rerun md5 and the tiny / chat-reuse tests, then merge.
+- Push from endor (bespin and the Sparks cannot push to GitHub). #11668 stays queued with `--load cpu`.
