@@ -638,7 +638,7 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
             if !quick {
                 ishapes.extend([(1, 128, 8, 2304, 1152), (3, 32, 8, 256, 128)]);
                 // lane ink-m-moe: verify rows at the real H / I, and a real prefill chunk (bf16 only: the cpu reference's cost)
-                ishapes.extend([(4, 32, 8, 2304, 1152), (16, 32, 8, 2304, 1152), (2048, 128, 8, 2304, 1152)]);
+                ishapes.extend([(4, 32, 8, 2304, 1152), (16, 32, 8, 2304, 1152), (2048, 128, 8, 2304, 1152), (64, 128, 8, 2304, 1152)]);
             }
             for (t, e, k, h, i) in ishapes {
                 for dt in ACT {

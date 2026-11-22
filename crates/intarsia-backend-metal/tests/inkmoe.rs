@@ -120,7 +120,19 @@ impl Rig {
 
     /// An expert call of `n` tokens from row `r0`, writing `out` at row `r0`, with its scratch. `epi`: 0 silu, 1 gelu, 2 situ.
     #[allow(clippy::too_many_arguments)]
-    fn call(&self, w: &[TensorRef], x: &TensorRef, ids: &TensorRef, ws: &TensorRef, out: &Buffer, odt: DType, r0: usize, n: usize, epi: u8, rows: bool) -> OpCall {
+    fn call(
+        &self,
+        w: &[TensorRef],
+        x: &TensorRef,
+        ids: &TensorRef,
+        ws: &TensorRef,
+        out: &Buffer,
+        odt: DType,
+        r0: usize,
+        n: usize,
+        epi: u8,
+        rows: bool,
+    ) -> OpCall {
         let esz = odt.size_bytes();
         let mut ins = vec![x.rows(r0, n), ids.rows(r0, n), ws.rows(r0, n)];
         ins.extend(w.iter().cloned());
@@ -129,7 +141,12 @@ impl Rig {
             (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
         }
         let op = if self.f == Fmt::Nv { Op::MoeExperts } else { Op::MoeExpertsMxfp8 };
-        let mut c = OpCall::new(op, ins, vec![TensorRef { buf: out.clone(), offset: r0 * H * esz, dtype: odt, shape: vec![n, H] }], a);
+        let mut c = OpCall::new(
+            op,
+            ins,
+            vec![TensorRef { buf: out.clone(), offset: r0 * H * esz, dtype: odt, shape: vec![n, H] }],
+            a,
+        );
         c.check().unwrap();
         let kern = if rows { &self.rows } else { &self.solo };
         assert!(kern.accepts(&ShapeInfo::from_call(&c)), "{} does not accept the call", kern.name);
@@ -139,7 +156,11 @@ impl Rig {
     }
 
     fn name(&self, rows: bool) -> String {
-        if rows { self.rows.name.clone() } else { self.solo.name.clone() }
+        if rows {
+            self.rows.name.clone()
+        } else {
+            self.solo.name.clone()
+        }
     }
 }
 
@@ -214,7 +235,8 @@ fn rows_exact(f: Fmt) {
                         set_policy(Policy::Auto);
                         let ys = guarded(be, tot - 16);
                         for r in 0..tr {
-                            be.launch(&rig.name(false), &rig.call(&w, &x, &idt, &wst, &ys, odt, r, 1, epi, false), 0).unwrap();
+                            be.launch(&rig.name(false), &rig.call(&w, &x, &idt, &wst, &ys, odt, r, 1, epi, false), 0)
+                                .unwrap();
                         }
                         let a = dl(be, &ys, tot);
                         assert!(a[..tot - 16].iter().any(|&v| v != 0 && v != 0xEE), "output looks unwritten");
@@ -222,7 +244,12 @@ fn rows_exact(f: Fmt) {
                             set_policy(pol);
                             for rows in [true, false] {
                                 let yb = guarded(be, tot - 16);
-                                be.launch(&rig.name(rows), &rig.call(&w, &x, &idt, &wst, &yb, odt, 0, tr, epi, rows), 0).unwrap();
+                                be.launch(
+                                    &rig.name(rows),
+                                    &rig.call(&w, &x, &idt, &wst, &yb, odt, 0, tr, epi, rows),
+                                    0,
+                                )
+                                .unwrap();
                                 let b = dl(be, &yb, tot);
                                 let what = format!("{f:?} T={tr} routing={name} epi={epi} out={odt} w_off={w_off} x_off={x_off} {pol:?} rows={rows}");
                                 assert_eq!(differing(&a, &b), 0, "T-row call vs one-row calls, {what}");
@@ -231,7 +258,12 @@ fn rows_exact(f: Fmt) {
                             // one-row calls under this policy too
                             let yb = guarded(be, tot - 16);
                             for r in 0..tr {
-                                be.launch(&rig.name(false), &rig.call(&w, &x, &idt, &wst, &yb, odt, r, 1, epi, false), 0).unwrap();
+                                be.launch(
+                                    &rig.name(false),
+                                    &rig.call(&w, &x, &idt, &wst, &yb, odt, r, 1, epi, false),
+                                    0,
+                                )
+                                .unwrap();
                             }
                             assert_eq!(differing(&a, &dl(be, &yb, tot)), 0, "{f:?} one-row calls under {pol:?}");
                         }
@@ -276,8 +308,14 @@ fn ink_moe_negative_control() {
             let (a, b) = (dl(be, &ya, tot), dl(be, &yb, tot));
             let first = a.iter().zip(&b).position(|(p, q)| p != q).unwrap_or(usize::MAX);
             let d = differing(&a, &b);
-            let amax = a[..tot - 16].chunks_exact(2).map(|c| f32::from_bits((u16::from_le_bytes([c[0], c[1]]) as u32) << 16).abs()).fold(0f32, f32::max);
-            eprintln!("INKMOE {f:?} negctl T={tr}: {d} bytes differ, first at {first} (last token at {}), max |out| {amax}", (tr - 1) * H * 2);
+            let amax = a[..tot - 16]
+                .chunks_exact(2)
+                .map(|c| f32::from_bits((u16::from_le_bytes([c[0], c[1]]) as u32) << 16).abs())
+                .fold(0f32, f32::max);
+            eprintln!(
+                "INKMOE {f:?} negctl T={tr}: {d} bytes differ, first at {first} (last token at {}), max |out| {amax}",
+                (tr - 1) * H * 2
+            );
             assert!(d > 0, "{f:?} T={tr}: the changed activation changed nothing");
             assert!(first >= (tr - 1) * H * 2, "{f:?} T={tr}: a byte before the last token changed");
         }

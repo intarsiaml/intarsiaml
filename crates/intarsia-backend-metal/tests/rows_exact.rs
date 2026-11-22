@@ -1014,6 +1014,9 @@ fn rows_exact_registrations_are_pinned() {
             "matmul_nvfp4_gemv_rows",
             "matmul_pair_bf16_gemv_rows",
             "moe_experts_bf16_rows",
+            // lane ink-m-moe (Inkling-2-Mini): G-B test in tests/inkmoe.rs
+            "moe_experts_mxfp8_bf16_rows",
+            "moe_experts_situ_bf16_rows",
         ]
     );
     // the three new kernels take 2..=8 rows (the solo kernels keep M = 1)

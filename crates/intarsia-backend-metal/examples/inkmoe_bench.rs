@@ -35,14 +35,23 @@ fn main() {
     };
     let rows: Vec<usize> = {
         let r: Vec<usize> = args.iter().filter_map(|a| a.parse().ok()).collect();
-        if r.is_empty() { vec![1, 4, 16, 2048] } else { r }
+        if r.is_empty() {
+            vec![1, 4, 16, 2048]
+        } else {
+            r
+        }
     };
     if let Some(n) = std::env::var("INKMOE_DNF_THREADS").ok().and_then(|v| v.parse().ok()) {
         set_dnf_threads(n);
     }
     let be = MetalBackend::new().expect("metal backend");
     let ks = be.kernels();
-    let t = |b: &Buffer, dt: DType, shape: &[usize]| TensorRef { buf: b.clone(), offset: 0, dtype: dt, shape: shape.to_vec() };
+    let t = |b: &Buffer, dt: DType, shape: &[usize]| TensorRef {
+        buf: b.clone(),
+        offset: 0,
+        dtype: dt,
+        shape: shape.to_vec(),
+    };
     let fill = |bytes: usize, seed: u64, f: &dyn Fn(u64) -> u8| -> Buffer {
         let mut r = Rng(seed | 1);
         let v: Vec<u8> = (0..bytes).map(|_| f(r.next_u64())).collect();
@@ -59,7 +68,11 @@ fn main() {
         let mx = fmt == "mx";
         let layers = if mx { 3 } else { 5 };
         let ebytes = if mx { 8_211_456usize } else { 4_478_976 };
-        println!("== {} experts, {layers} layer copies of {:.0} MB", if mx { "MXFP8" } else { "NVFP4" }, (E * ebytes) as f64 / 1e6);
+        println!(
+            "== {} experts, {layers} layer copies of {:.0} MB",
+            if mx { "MXFP8" } else { "NVFP4" },
+            (E * ebytes) as f64 / 1e6
+        );
         let w: Vec<Vec<TensorRef>> = (0..layers)
             .map(|l| {
                 let s = 1000 * l as u64;
@@ -72,7 +85,13 @@ fn main() {
                     ]
                 } else {
                     let gs = be.alloc(E * 12, MemKind::Device).unwrap();
-                    be.upload(&gs, 0, &vec![0.05f32; E * 3].iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<u8>>(), 0).unwrap();
+                    be.upload(
+                        &gs,
+                        0,
+                        &vec![0.05f32; E * 3].iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<u8>>(),
+                        0,
+                    )
+                    .unwrap();
                     vec![
                         t(&fill(E * 2 * I * H / 2, s + 1, &nib), DType::U8, &[E, 2 * I, H / 2]),
                         t(&fill(E * 2 * I * H / 16, s + 2, &nvsc), DType::Fp8E4m3, &[E, 2 * I, H / 16]),
@@ -106,7 +125,8 @@ fn main() {
                     let wb = be.alloc(tr * K * 4, MemKind::Device).unwrap();
                     let w8: Vec<f32> = ws.to_f32().iter().map(|v| v * 8.0).collect();
                     be.upload(&wb, 0, &HostTensor::from_f32(&[tr, K], &w8).data, 0).unwrap();
-                    let mut ins = vec![t(&xb, DType::Bf16, &[tr, H]), t(&ib, DType::I32, &[tr, K]), t(&wb, DType::F32, &[tr, K])];
+                    let mut ins =
+                        vec![t(&xb, DType::Bf16, &[tr, H]), t(&ib, DType::I32, &[tr, K]), t(&wb, DType::F32, &[tr, K])];
                     ins.extend(w[c % layers].iter().cloned());
                     let mut a = OpAttrs { top_k: K, ..OpAttrs::default() };
                     (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
@@ -114,7 +134,8 @@ fn main() {
                     let mut call = OpCall::new(op, ins, vec![t(&out, DType::Bf16, &[tr, H])], a);
                     call.check().unwrap();
                     let need = kern.scratch_bytes(&ShapeInfo::from_call(&call));
-                    call.scratch = Some(TensorRef::new(be.alloc(need.max(16), MemKind::Device).unwrap(), DType::U8, &[need]));
+                    call.scratch =
+                        Some(TensorRef::new(be.alloc(need.max(16), MemKind::Device).unwrap(), DType::U8, &[need]));
                     call
                 })
                 .collect();
@@ -128,34 +149,34 @@ fn main() {
             };
             let probes: &[u8] = if std::env::var("INKMOE_PROBE").is_ok() && tr <= 16 { &[0, 1, 2] } else { &[0] };
             for &pol in pols {
-              for &probe in probes {
-                set_policy(pol);
-                set_probe(probe);
-                let run = |reps: usize| {
-                    for r in 0..reps {
-                        be.launch(kname, &calls[r % ncalls], 0).unwrap();
+                for &probe in probes {
+                    set_policy(pol);
+                    set_probe(probe);
+                    let run = |reps: usize| {
+                        for r in 0..reps {
+                            be.launch(kname, &calls[r % ncalls], 0).unwrap();
+                        }
+                        be.synchronize(0).unwrap();
+                    };
+                    run(ncalls.min(8));
+                    let reps = if tr > 64 { 12 } else { 240 };
+                    let mut v = Vec::new();
+                    for _ in 0..5 {
+                        let t0 = Instant::now();
+                        run(reps);
+                        v.push(t0.elapsed().as_secs_f64() / reps as f64 * 1e6);
                     }
-                    be.synchronize(0).unwrap();
-                };
-                run(ncalls.min(8));
-                let reps = if tr > 64 { 12 } else { 240 };
-                let mut v = Vec::new();
-                for _ in 0..5 {
-                    let t0 = Instant::now();
-                    run(reps);
-                    v.push(t0.elapsed().as_secs_f64() / reps as f64 * 1e6);
-                }
-                v.sort_by(|a, b| a.partial_cmp(b).unwrap());
-                let us = v[2];
-                let gbs = mean_union * ebytes as f64 / (us * 1e-6) / 1e9;
-                let what = ["all", "gate+up", "down"][probe as usize];
-                let gbs = gbs * [1.0, 0.6667, 0.3333][probe as usize];
-                println!(
+                    v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    let us = v[2];
+                    let gbs = mean_union * ebytes as f64 / (us * 1e-6) / 1e9;
+                    let what = ["all", "gate+up", "down"][probe as usize];
+                    let gbs = gbs * [1.0, 0.6667, 0.3333][probe as usize];
+                    println!(
                     "{fmt} T={tr:5} {:12} {what:8} {us:9.1} us/call (min {:8.1})  union {mean_union:5.1} experts  {gbs:6.1} GB/s",
                     format!("{pol:?}"),
                     v[0]
                 );
-              }
+                }
             }
             set_probe(0);
             set_policy(Policy::Auto);

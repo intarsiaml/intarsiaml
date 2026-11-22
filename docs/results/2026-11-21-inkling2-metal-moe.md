@@ -67,20 +67,27 @@ This is moe_nax.metal's grouped GEMM with the format (NVFP4, MXFP8) and the epil
 | Kernel | Cases | Fail | max_abs | rel_l2 | Result |
 |---|---:|---:|---:|---:|---|
 | moe_route_f32 | 19 | 0 | 2.0e-7 | 9.8e-8 | ADMITTED |
-| moe_experts_situ_bf16 | 9 | 0 | 2.9e-3 | 2.1e-4 | ADMITTED |
+| moe_experts_situ_bf16 | 10 | 0 | 3.5e-3 | 2.1e-4 | ADMITTED |
 | moe_experts_situ_bf16_rows | 7 | 0 | 1.7e-3 | 1.5e-4 | ADMITTED |
-| moe_experts_mxfp8_bf16 | 18 | 0 | 3.4e-3 | 2.5e-4 | ADMITTED |
+| moe_experts_mxfp8_bf16 | 19 | 0 | 3.4e-3 | 2.5e-4 | ADMITTED |
 | moe_experts_mxfp8_bf16_rows | 14 | 0 | 2.1e-3 | 1.6e-4 | ADMITTED |
 
 - The tolerance is the Metal MoE budget `Tol(1.5e-2, 1e-3)`; the router uses `Tol(1e-3, 2e-4)`. Ids are compared exactly.
 - Cases with f32 activations are skipped (the kernels take bf16 x only).
 
-New cases, all appended on their own streams so the existing cases keep their data:
+New cases, appended so the existing cases keep their data (the router and NVFP4 cases on their own streams, the MXFP8 cases after the existing ones on the shared stream):
 - **Router**, in `dsv41/cases.rs` (the DSv4.1 cases use sqrt-softplus, E 64, K 6): Inkling's sigmoid, E 128, K 8, scale 8, renorm, at rows 1, 4, 16 and 2048, plus the other score functions and no-renorm / temperature 0.7 at the decode widths.
-- **NVFP4 situ**, in `quant/cases.rs`: real H and I at 4 and 16 rows over 32 experts, and a 2048-row chunk over 128 experts (bf16).
-- **MXFP8 situ**, in `inkling2/cases.rs`: the same three shapes.
+- **NVFP4 situ**, in `quant/cases.rs`: real H and I at 4 and 16 rows over 32 experts, a 2048-row chunk over 128 experts, and a 64-row chunk over 128 experts, which takes the 8-row NAX tile at the real K (bf16).
+- **MXFP8 situ**, in `inkling2/cases.rs`: the same four shapes.
 
 The full-sweep run of the expert kernels takes about 26 s, most of it the f64 reference of the 2048-row chunk.
+
+On the cpu backend the new cases are ADMITTED too. A full `moe_experts` sweep there takes 61 s and `moe_experts_mxfp8` 28 s; most of that is the 2048-row cases.
+
+Other checks:
+- `cargo test -p intarsia-core -p intarsia-backend-cpu`: green.
+- The Metal lib tests: green.
+- `tests/moe.rs`, `rows_exact.rs` and `moe_verify16.rs` (the 35B): green. The `rows_exact` registration pin now lists the two new `_rows` kernels.
 
 **Not checked:** the new router cases also run against CUDA's `moe_route` (sigmoid at E = 128), and no CUDA box was used here.
 
@@ -98,7 +105,7 @@ Setup:
 | 1 | 8 | 83 (82-85) | 430 | 128-134 | 490-511 |
 | 4 | 29.5 | 268-271 | 488-493 | 454-480 | 505-535 |
 | 16 | 83.2 | 750-770 (3 runs); 1030-1135 in 2 noisy runs | 484-497 | 1236-1351 | 506-553 |
-| 2048 (prefill chunk) | 128 | 11 900 | 22.5 TFLOP/s bf16-equivalent | 12 700 | 21 TFLOP/s |
+| 2048 (prefill chunk) | 128 | 11 900 | 48 (compute-bound: 22.5 TFLOP/s) | 12 700 | 83 (21 TFLOP/s) |
 
 Endor's GPU is shared with standing services, and the 16-row numbers moved by up to 45 % between runs on otherwise idle slots; the 1-row and 4-row numbers moved by 1-3 %. The table gives the range over 3-4 runs.
 
@@ -128,6 +135,8 @@ Per token at one row: 44 NVFP4 visits x 83 µs + 4 MXFP8 visits x ~130 µs = 4.1
 | 128 | 1984 | 5105 | 2845 | 5846 |
 
 NVFP4 at 32 rows is about 10 % better on the decode kernels. A threshold of 32 for NVFP4 is a possible follow-up; the verify and prefill paths rarely land there.
+
+Raw output: `docs/results/2026-11-21-inkling2-metal-moe/raw/` (final bench, crossover, probe and fused-down A/B, admission).
 
 ## Limits
 

@@ -314,9 +314,9 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                 }
             }
             // lane ink-m-moe: situ (the model's epilogue) at the real H / I: verify rows over 32 experts and a real prefill chunk
-            // (bf16, 128 experts); appended so the cases above keep their data
+            // (bf16, 128 experts) and a short chunk on the 8-row prefill tile at the real K; appended so the cases above keep their data
             if !quick {
-                for (t, e) in [(4usize, 32usize), (16, 32), (2048, 128)] {
+                for (t, e) in [(4usize, 32usize), (16, 32), (2048, 128), (64, 128)] {
                     let (k, hd, i) = (8usize, 2304usize, 1152usize);
                     let n13 = e * 2 * i * hd;
                     let w13: Vec<u8> = (0..n13).map(|_| { let r = rng.next_u64(); ((r & 0x80) as u8) | ((4 + (r >> 8) % 7) as u8) << 3 | ((r >> 16) & 7) as u8 }).collect();

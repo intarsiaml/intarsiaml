@@ -274,7 +274,9 @@ impl MetalBackend {
         };
         let (t, e, k) = (lg.shape[0], lg.shape[1], call.attrs.top_k);
         if e > MAX_EXPERTS || k == 0 || k > MAX_K || k > e {
-            return Err(Error::invalid(format!("metal moe_route: E = {e}, K = {k} (needs E <= {MAX_EXPERTS}, K in 1..={MAX_K})")));
+            return Err(Error::invalid(format!(
+                "metal moe_route: E = {e}, K = {k} (needs E <= {MAX_EXPERTS}, K in 1..={MAX_K})"
+            )));
         }
         if t == 0 {
             return Ok(());
@@ -351,8 +353,9 @@ impl MetalBackend {
         }
         let a16 = w13.off % 16 == 0 && w2.off % 16 == 0;
         let ax = (xb.off + 2 * xb.skip as usize) % 16 == 0;
-        let scratch =
-            call.scratch.as_ref().ok_or_else(|| Error::invalid("metal inkling2 experts: the scratch workspace (OpCall::scratch) is missing"))?;
+        let scratch = call.scratch.as_ref().ok_or_else(|| {
+            Error::invalid("metal inkling2 experts: the scratch workspace (OpCall::scratch) is missing")
+        })?;
         let r = |v: usize| (v + 255) & !255;
         let (o_off, o_tiles, o_h) = (r(pairs * 4), r(pairs * 4) + r((e + 1) * 4), r(pairs * 4) + 2 * r((e + 1) * 4));
         let o_y = o_h + r(pairs * inter * 2);
@@ -384,7 +387,13 @@ impl MetalBackend {
                 use objc2_metal::MTLComputePipelineState;
                 s.maxTotalThreadsPerThreadgroup().min(1024)
             });
-            self.ink_dispatch("moe_group", &[&ib, &pb, &offb, &tb], &pg, MTLSize { width: 1, height: 1, depth: 1 }, gt)?;
+            self.ink_dispatch(
+                "moe_group",
+                &[&ib, &pb, &offb, &tb],
+                &pg,
+                MTLSize { width: 1, height: 1, depth: 1 },
+                gt,
+            )?;
             let max_tiles = pairs.div_ceil(tm) + pairs.min(e);
             let ggu = MTLSize { width: inter.div_ceil(32), height: max_tiles, depth: 1 };
             self.ink_dispatch(NAX_GU[fi][ti], &[&xb, &pb, &offb, &tb, &w13, &s13, &gb, &wb, &hb], &p, ggu, 128)?;
@@ -407,7 +416,11 @@ impl MetalBackend {
         p.dims[5] = epi | if uni_gu { 4 } else { 0 };
         let gu = format!("ink_moe_gu_{fmt}_{al}{}", if ax { "_x" } else { "" });
         let rb = inter.div_ceil(GU_ROWS);
-        let g1 = if uni_gu { MTLSize { width: rb, height: pairs, depth: 1 } } else { MTLSize { width: pairs, height: rb, depth: 1 } };
+        let g1 = if uni_gu {
+            MTLSize { width: rb, height: pairs, depth: 1 }
+        } else {
+            MTLSize { width: pairs, height: rb, depth: 1 }
+        };
         let probe = PROBE.load(Ordering::Relaxed);
         if probe != 2 {
             self.ink_dispatch(&gu, &[&xb, &ib, &wb, &w13, &s13, &gb, &hb], &p, g1, 128)?;
@@ -426,7 +439,11 @@ impl MetalBackend {
         let yb = at(&sc, o_y);
         let dn = format!("ink_moe_dn_u_{fmt}_{al}");
         let nb = h.div_ceil(DNU_ROWS);
-        let g2 = if uni_dn { MTLSize { width: nb, height: pairs, depth: 1 } } else { MTLSize { width: pairs, height: nb, depth: 1 } };
+        let g2 = if uni_dn {
+            MTLSize { width: nb, height: pairs, depth: 1 }
+        } else {
+            MTLSize { width: pairs, height: nb, depth: 1 }
+        };
         self.ink_dispatch(&dn, &[&hb, &ib, &w2, &s2, &gb, &yb], &p, g2, 128)?;
         p.dims[5] = epi;
         let gg = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };
