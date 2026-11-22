@@ -482,6 +482,36 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### rel_mode 2, first kernel (brief 23; branch `ink/prefill-rel2` 36a90c66d = ink/prefill + ink/metal 5ef24b165 + rel_mode 1)
+
+`kernels/metal/inkling2_attn_nax_r2.metal`, `INTARSIA_INK_REL_MODE=2` (default 0). Per key tile, each simdgroup forms its 16
+rows' bias over 64 distances as two 16 x 32 x 16 matmuls, r [16 x 16] x relproj, rounds to bf16 into its own 2 KB
+threadgroup slice (24 KB at s12) and gathers from it. Contract: mode 1's operands, held to the NAX kernel's BF16_TOL vs the f64
+reference (ops.rs doc); mode 0 / 1 unchanged.
+
+Checks (#11436): admission `--op rel_sink_attn` ADMITTED (NAX 22 cases incl. 7 new rel_mode 2: max_abs 2.2e-3 .. 5.5e-3,
+rel_l2 1.3e-3 .. 1.6e-3, same range as mode 0's 5.46e-3 / 1.50e-3), `--op ink_kv_prologue` ADMITTED 123 / 123, Metal
+`rel_mode_1_pair_is_the_mode_0_pair_bitwise` ok, metal lib tests 18 / 18 (shader count), core lib 257 ok, cpu ink_rel_mode ok.
+
+Per call, µs, median of 4 (bench, 2048 rows), mode 0 vs mode 2, prologue / NAX attention:
+
+| visit | mode 0 | mode 2 |
+|---|---:|---:|
+| SWA ctx 0 | 980 / 966 | 782 / 932 |
+| SWA ctx 2k | 980 / 1253 | 782 / 1253 |
+| SWA ctx 4k | 981 / 1275 | 784 / 1258 |
+| SWA ctx 16k | 981 / 1313 | 783 / 1257 |
+| full ctx 0 | 997 / 1111 | 796 / 1117 |
+| full ctx 2k | 1004 / 2466 | 797 / 2722 |
+| full ctx 4k | 1030 / 3763 | 799 / 4241 |
+| full ctx 16k | 1074 / 12484 | 798 / 15454 |
+
+The prologue saves ~0.2 ms per visit (~9.5 ms per chunk). SWA attention is flat: forming the bias costs about what the
+device gather cost. Full visits get 10-24 % slower although most of their tiles need no bias; suspected occupancy from the
+24 KB of threadgroup memory. Net at ctx 4k ~ -6 ms per chunk, at 16k a loss. Next probe (#a25): mode 1 / mode 2 at NSG 6
+(12 KB) and the mode 1 kernel's cost on full visits (mode 2 could take the mode 1 kernel for full visits: it is bitwise mode 0,
+so inside mode 2's tolerance).
+
 ### Attention probe B, interior-tile fast path (brief 22; `kernels/metal/inkling2_attn_nax_int.metal`, `INTARSIA_INK_NAX_INT`)
 
 Round 1 (#11391, 7a5230f18): interior = all 16 rows of the simdgroup see every key of the tile and every distance < E.
