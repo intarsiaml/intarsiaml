@@ -722,6 +722,12 @@ inkling2_real_decode_ne. Ubuntu CI never compiles them. So A4's test step moves 
 `INTARSIA_METAL_TEST_MODEL` = the checkpoint). A5 reruns on the final code in the same spark1 job (#11534 ran it on 8f481dad2,
 before 840adbca6 touched `load.rs`).
 
+Speed protocol (after A and B pass; branch tip binary, endor, one `--quiet gpu,cpu` slot): `serve --backend metal --max-batch 1
+--max-seq 20480` per arm (off, DSpark), localeval `suite --tier adhoc --cells speed-plain` (143 / 1k / 4k / 16k
+prompt tokens, 256 forced output tokens, 3 reps each), DSpark at its defaults (k3, gate 0.8); the DSpark arm declared `--lane spec:dspark --drafter dspark`, off `--lane
+plain`. Order: one warm-up run (off, `--no-unim`, discarded), then off, DSpark, DSpark, off (ABBA). Reported per length: decode
+tok/s, prefill tok/s and TTFT of each run, the arm means (absolute) and DSpark / off ratios, plus the A-to-A and B-to-B drift.
+
 ### Gate results
 
 - A4, first pass (bespin #11530, code 8f481dad2): CI's check steps all finished (workspace; metal; cuda and hip cfgs
@@ -747,42 +753,6 @@ before 840adbca6 touched `load.rs`).
     **FAIL: `inkling2_verify_softcap` on Metal**: "row 0: 81 of 300 verify logits differ from the capped decode logits (max |d|
     9.536743e-7)". The test had run on cpu only before (spark2 #11295 / #11296). The lane stopped here (rule: report, do not
     re-rule); the speed job #11533 aborted on its guard (no pass marker), nothing timed. Diagnosis job: #11553.
-
-### Speed (#11564, endor M5 Max, one `--quiet gpu,cpu` slot, binary bfaccd447 = this branch on main 2474c17b9)
-
-`serve --backend metal --max-batch 1 --max-seq 20480`, localeval `suite --tier adhoc --cells speed-plain` (256 forced output
-tokens, 3 reps per size), warm-up run (off, discarded) then off, DSpark, DSpark, off. DSpark at its opt-in defaults (k3, gate
-0.8). The DSpark arms verified as `spec:dspark` from the server counters (passes 1676 / 1721, acceptance 77.5% / 74.4%, 2.54 /
-2.47 tokens per pass); off as `plain`. Run ids `20261122-1351*-...-2-off`, `-1354*-3-dspark`, `-1356*-4-dspark`, `-1358*-5-off`
-under /opt/code/deepeval/results (unanimis 67d7d2c4, ddcfa518, c7f15a12, b564899c). The last off run rejected its 1k cell on
-prefill spread (1392-1731 tok/s); its median is used as is. Medians; the arm value is the mean of its two runs:
-
-| prompt tok | decode off (A1 / A2) | decode DSpark (B1 / B2) | decode x | prefill off | prefill DSpark | prefill DSpark / off | TTFT off s | TTFT DSpark s |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 141 | 67.9 (67.6 / 68.2) | 76.3 (77.7 / 75.0) | 1.12 | - | - | - | 0.18 | 0.19 |
-| 1020 | 66.2 (65.8 / 66.6) | 74.1 (72.4 / 75.7) | 1.12 | 1511 | 1661 | 1.10 | 0.68 | 0.61 |
-| 4110 | 65.2 (64.8 / 65.5) | 83.5 (84.5 / 82.6) | 1.28 | 1959 | 1883 | 0.96 | 2.10 | 2.18 |
-| 16457 | 60.3 (59.5 / 61.1) | 70.2 (68.9 / 71.6) | 1.17 | 2054 | 1986 | 0.97 | 8.03 | 8.29 |
-
-Drift inside the slot: off's two runs agree on decode within 2.5%, but its 16k TTFT moved 8.42 -> 7.64 s (prefill 1954 -> 2154),
-more than the DSpark-off gap (+0.25 s); the localeval prefill / TTFT columns are inside that noise at 4k and 16k (and DSpark
-"wins" at 1k). Engine-reported prefill in the same slot (`generate`, no HTTP, greedy, 3 reps interleaved):
-
-| prompt tok | off ms (reps) | DSpark ms (reps) | DSpark / off |
-|---:|---:|---:|---:|
-| 1021 | 593 (596, 593, 590) | 596 (593, 596, 600) | 1.005 |
-| 4108 | 1329 (1318, 1329, 1356) | 1330 (1325, 1371, 1330) | 1.001 |
-| 16455 | 7476 (6879, 7698, 7476) | 7516 (7591, 7516, 7466) | 1.005 |
-
-Synced ingest profile (`INTARSIA_DSPARK_PROFILE=1`, 11 chunks of >= 100 rows, 1955 rows average): 4.12 ms of draft ingest per
-prefill chunk, i.e. about 33 ms over a 16k prompt (8 chunks of 2048), 0.4% of its 7.5 s prefill. On today's main the draft's
-prompt ingest costs about 0.5% of prefill at every length (the -6% / -7% of #10991 was the host ingest, gone since 85265f9d5).
-
-Acceptance isolation (greedy golden x 128, same slot): DSpark with the screen on, with `INTARSIA_INK_HEAD_SCREEN=0`, and with
-`INTARSIA_INK_PACK12=0`: all 69.6%, 478 passes, 2.47 tokens per pass, ids identical (and equal to spec off with the screen
-off). Neither the screen nor P12 moved acceptance; the 71.8% -> 69.6% shift from 85265f9d5 is other main numerics (bit-exact
-for the target's own tokens, not for the taps the draft reads). Decode there: screen 84.29, no screen 83.37, P12 off 81.15 tok/s
-(spec off without the screen 69.12).
 
 ### The A3 failure: cause and fix (#11553, coordinator decision (a))
 
@@ -824,12 +794,50 @@ on 840adbca6 over the old main.
   inkling2 11, inkling2_batch 8, inkling2_dspark 3, inkling2_dspark_cut 1, inkling2_verify_softcap 1, gdn_verify_metal 7,
   inkling2_mix_decode_cpu 2, inkling2_real_decode_ne 4; docs_env_vars 2; the merged `inkmoe_bench` example builds;
   `kernels test --op hc_pre` admitted.
+- A4 on Linux (spark1 #11540, code 840adbca6 over main 1f226a2e3, `CI` unset): CI's test step minus metal / cuda / hip, 147
+  test binaries ok, 0 failed (docs_env_vars, inkling2_dspark, inkling2_dspark_cut, inkling2_verify_softcap among them).
+  The same job's A5 at 840adbca6 passed too.
+- A5 at the final code (spark1 #11557, branch bfaccd447 vs main 2474c17b9): CUDA `plan show` byte-identical (35B json 15570 B /
+  txt 4017 B, 8B json 8973 B / txt 1548 B); HIP check-only, both targets, finish.
+- The PR's CI on 4f155e476 (= code bfaccd447): all six jobs green (cargo check linux, cuda cfgs, hip cfgs, macOS metal; cargo
+  test linux 16m30s; reproducible build).
 - The speed job's first try (#11556) aborted on its own guard: `serve` runs a supervisor whose child holds the port, and the
   guard wanted the supervisor's pid; fixed to accept a descendant, requeued as #11564.
 
-Speed protocol (after A and B pass; branch tip binary, endor, one `--quiet gpu,cpu` slot): `serve --backend metal --max-batch 1
---max-seq 20480` per arm (off, DSpark), localeval `suite --tier adhoc --cells speed-plain` (143 / 1k / 4k / 16k
-prompt tokens, 256 forced output tokens, 3 reps each), DSpark at its defaults (k3, gate 0.8); the DSpark arm declared `--lane spec:dspark --drafter dspark`, off `--lane
-plain`. Order: one warm-up run (off, `--no-unim`, discarded), then off, DSpark, DSpark, off (ABBA). Reported per length: decode
-tok/s, prefill tok/s and TTFT of each run, the arm means (absolute) and DSpark / off ratios, plus the A-to-A and B-to-B drift.
+### Speed (#11564, endor M5 Max, one `--quiet gpu,cpu` slot, binary bfaccd447 = this branch on main 2474c17b9)
+
+`serve --backend metal --max-batch 1 --max-seq 20480`, localeval `suite --tier adhoc --cells speed-plain` (256 forced output
+tokens, 3 reps per size), warm-up run (off, discarded) then off, DSpark, DSpark, off. DSpark at its opt-in defaults (k3, gate
+0.8). The DSpark arms verified as `spec:dspark` from the server counters (passes 1676 / 1721, acceptance 77.5% / 74.4%, 2.54 /
+2.47 tokens per pass); off as `plain`. Run ids `20261122-1351*-...-2-off`, `-1354*-3-dspark`, `-1356*-4-dspark`, `-1358*-5-off`
+under /opt/code/deepeval/results (unanimis 67d7d2c4, ddcfa518, c7f15a12, b564899c). The last off run rejected its 1k cell on
+prefill spread (1392-1731 tok/s); its median is used as is. Medians; the arm value is the mean of its two runs:
+
+| prompt tok | decode off (A1 / A2) | decode DSpark (B1 / B2) | decode x | prefill off | prefill DSpark | prefill DSpark / off | TTFT off s | TTFT DSpark s |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 141 | 67.9 (67.6 / 68.2) | 76.3 (77.7 / 75.0) | 1.12 | - | - | - | 0.18 | 0.19 |
+| 1020 | 66.2 (65.8 / 66.6) | 74.1 (72.4 / 75.7) | 1.12 | 1511 | 1661 | 1.10 | 0.68 | 0.61 |
+| 4110 | 65.2 (64.8 / 65.5) | 83.5 (84.5 / 82.6) | 1.28 | 1959 | 1883 | 0.96 | 2.10 | 2.18 |
+| 16457 | 60.3 (59.5 / 61.1) | 70.2 (68.9 / 71.6) | 1.17 | 2054 | 1986 | 0.97 | 8.03 | 8.29 |
+
+Drift inside the slot: off's two runs agree on decode within 2.5%, but its 16k TTFT moved 8.42 -> 7.64 s (prefill 1954 -> 2154),
+more than the DSpark-off gap (+0.25 s); the localeval prefill / TTFT columns are inside that noise at 4k and 16k (and DSpark
+"wins" at 1k). Engine-reported prefill in the same slot (`generate`, no HTTP, greedy, 3 reps interleaved):
+
+| prompt tok | off ms (reps) | DSpark ms (reps) | DSpark / off |
+|---:|---:|---:|---:|
+| 1021 | 593 (596, 593, 590) | 596 (593, 596, 600) | 1.005 |
+| 4108 | 1329 (1318, 1329, 1356) | 1330 (1325, 1371, 1330) | 1.001 |
+| 16455 | 7476 (6879, 7698, 7476) | 7516 (7591, 7516, 7466) | 1.005 |
+
+Synced ingest profile (`INTARSIA_DSPARK_PROFILE=1`, 11 chunks of >= 100 rows, 1955 rows average): 4.12 ms of draft ingest per
+prefill chunk, i.e. about 33 ms over a 16k prompt (8 chunks of 2048), 0.4% of its 7.5 s prefill. On today's main the draft's
+prompt ingest costs about 0.5% of prefill at every length (the -6% / -7% of #10991 was the host ingest, gone since 85265f9d5).
+
+Acceptance isolation (greedy golden x 128, same slot): DSpark with the screen on, with `INTARSIA_INK_HEAD_SCREEN=0`, and with
+`INTARSIA_INK_PACK12=0`: all 69.6%, 478 passes, 2.47 tokens per pass, ids identical (and equal to spec off with the screen
+off). Neither the screen nor P12 moved acceptance; the 71.8% -> 69.6% shift from 85265f9d5 is other main numerics (bit-exact
+for the target's own tokens, not for the taps the draft reads). Decode there: screen 84.29, no screen 83.37, P12 off 81.15 tok/s
+(spec off without the screen 69.12).
+
 
