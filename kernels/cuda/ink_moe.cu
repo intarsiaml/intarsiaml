@@ -64,7 +64,22 @@ struct MoeArgs {
     const float* ho;
     // L2 prefetch of each warp's expert rows before its loads (INTARSIA_INK_MOE_PF, default on; bitwise: no value changes)
     int pf;
+    // programmatic dependent launch of down after gate_up (INTARSIA_INK_MOE_PDL): down's blocks become resident in gate_up's tail,
+    // group the pairs and prefetch their rows into L2, then wait for gate_up's grid (h complete and visible); no value changes
+    int pdl;
 };
+
+// griddepcontrol (sm_90+): no-ops for a grid launched without the programmatic-serialization attribute
+IK_DEVI void pdl_trigger() {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
+    asm volatile("griddepcontrol.launch_dependents;" ::: "memory");
+#endif
+}
+IK_DEVI void pdl_wait() {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
+    asm volatile("griddepcontrol.wait;" ::: "memory");
+#endif
+}
 
 // The warp's lanes request every 128-byte line of [p, p + bytes) into L2 at once: DRAM then streams the warp's whole
 // contiguous row block (gu: 4 consecutive gate rows, 4 up rows; dn: 8 consecutive rows; and their scales) instead of the
@@ -247,6 +262,7 @@ IK_DEVI int64_t srow_bytes(int k) { return FMT == FMT_NV ? k / 16 : k / 32; }
 // ---- gate + up ---------------------------------------------------------------------------------------------------------
 template <int FMT, int ACT>
 __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
+    if (a.pdl) pdl_trigger();
     __shared__ SmemGroups sg;
     const Groups gr = get_groups(a, sg);
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
@@ -338,11 +354,21 @@ __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
     const int rr = on ? r : H - 1;
     const int nch = I / 32;
     const int64_t wb = row_bytes<FMT>(I), sb = srow_bytes<FMT>(I);
+    if (a.pdl) {
+        // in gate_up's tail: this block's expert rows into L2 (the same lines as the loop's prefetch), then wait for h
+        const int nr = min(kDnRows, H - r0);
+        for (int d = warp; d < gr.nd; d += kWarpsB) {
+            const int e = gr.dexp[d];
+            warp_pf_l2(a.dnw + ((int64_t)e * H + r0) * wb, nr * wb, lane);
+            warp_pf_l2(a.dns + ((int64_t)e * H + r0) * sb, nr * sb, lane);
+        }
+        pdl_wait();
+    }
     for (int d = warp; d < gr.nd; d += kWarpsB) {
         const int e = gr.dexp[d];
         const uint8_t* wd = a.dnw + ((int64_t)e * H + rr) * wb;
         const uint8_t* sd = a.dns + ((int64_t)e * H + rr) * sb;
-        if (a.pf) {
+        if (a.pf && !a.pdl) {
             const int nr = min(kDnRows, H - r0);
             warp_pf_l2(a.dnw + ((int64_t)e * H + r0) * wb, nr * wb, lane);
             warp_pf_l2(a.dns + ((int64_t)e * H + r0) * sb, nr * sb, lane);
@@ -456,6 +482,15 @@ int moe_pf_on() {
     return v;
 }
 
+// INTARSIA_INK_MOE_PDL=1: down launched as a programmatic dependent of gate_up (decode kernels, 16-bit activations)
+int moe_pdl_on() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_INK_MOE_PDL");
+        return e && e[0] == '1' ? 1 : 0;
+    }();
+    return v;
+}
+
 template <int FMT, int ACT>
 int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool rows_kernel) {
     const int64_t P = (int64_t)a.T * a.K;
@@ -512,6 +547,7 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool r
         ink_moe_group_kernel<<<1, 1024, 0, st>>>(a);
         IK_TRY(ik_launch_status());
     }
+    a.pdl = !a.aq && g_probe == 0 && moe_pdl_on();
     if (g_probe != 2) {
         ink_moe_gu_kernel<FMT, ACT><<<(a.I + kGuRows - 1) / kGuRows, kThreads, 0, st>>>(a);
         IK_TRY(ik_launch_status());
@@ -524,8 +560,23 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool r
     }
     if (g_probe != 1) {
         const unsigned g = (unsigned)((a.H + kDnRows - 1) / kDnRows);
-        if (out_f32) ink_moe_dn_kernel<FMT, ACT, float><<<g, kThreads, 0, st>>>(a);
-        else ink_moe_dn_kernel<FMT, ACT, ik_bf16><<<g, kThreads, 0, st>>>(a);
+        if (a.pdl) {
+            cudaLaunchConfig_t cfg{};
+            cfg.gridDim = dim3(g);
+            cfg.blockDim = dim3(kThreads);
+            cfg.stream = st;
+            cudaLaunchAttribute at[1];
+            at[0].id = cudaLaunchAttributeProgrammaticStreamSerialization;
+            at[0].val.programmaticStreamSerializationAllowed = 1;
+            cfg.attrs = at;
+            cfg.numAttrs = 1;
+            if (out_f32) cudaLaunchKernelEx(&cfg, ink_moe_dn_kernel<FMT, ACT, float>, a);
+            else cudaLaunchKernelEx(&cfg, ink_moe_dn_kernel<FMT, ACT, ik_bf16>, a);
+        } else if (out_f32) {
+            ink_moe_dn_kernel<FMT, ACT, float><<<g, kThreads, 0, st>>>(a);
+        } else {
+            ink_moe_dn_kernel<FMT, ACT, ik_bf16><<<g, kThreads, 0, st>>>(a);
+        }
         IK_TRY(ik_launch_status());
         if (a.table) {
             const dim3 gg((unsigned)((a.H + 255) / 256), (unsigned)a.T);
