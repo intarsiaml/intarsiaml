@@ -193,7 +193,7 @@ fn in_proj_p12_bitwise_bf16() {
 
 /// The GEMV form of InkInProj (lane ink-cuda-attn, brief 25): the P12 kernel is bitwise its bf16 twin at every row count,
 /// and an R-row call's row t is bitwise the 1-row call on that row (rows-exact). Launched by name: the registry only offers
-/// them under INTARSIA_INK_IN_PROJ_GEMV=1.
+/// them unless INTARSIA_INK_IN_PROJ_GEMV=0.
 #[test]
 fn in_proj_gemv_twins_rows_exact() {
     let Some(be) = device() else { return };

@@ -24,7 +24,7 @@ int ik_ink_in_proj_p12_mma(const ik_tensor* x, const ik_tensor* codes, const ik_
                            ik_tensor* pv, void* stream);
 int ik_ink_in_proj_p12_mma_rows(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* pq, ik_tensor* pk,
                                 ik_tensor* pv, void* stream);
-/* InkInProj in the GEMV form (opt-in INTARSIA_INK_IN_PROJ_GEMV=1): one warp per stacked weight row, 1..=16 rows, rows-exact;
+/* InkInProj in the GEMV form (default on, INTARSIA_INK_IN_PROJ_GEMV=0 off): one warp per stacked weight row, 1..=16 rows, rows-exact;
  * the P12 launcher is bitwise the bf16 one. */
 int ik_ink_in_proj_bf16_gemv(const ik_tensor* x, const ik_tensor* w, ik_tensor* pq, ik_tensor* pk, ik_tensor* pv, void* stream);
 int ik_ink_in_proj_p12_gemv(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* pq, ik_tensor* pk,

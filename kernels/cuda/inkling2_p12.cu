@@ -237,7 +237,7 @@ p12_in_proj_kernel(P12Segs sg, const uint8_t* __restrict__ codes, const uint32_t
     }
 }
 
-// ---- InkInProj in the GEMV form (lane ink-cuda-attn, brief 25; opt-in INTARSIA_INK_IN_PROJ_GEMV=1) ------------------------
+// ---- InkInProj in the GEMV form (lane ink-cuda-attn, brief 25; default on, INTARSIA_INK_IN_PROJ_GEMV=0 off) ------------------------
 // One warp per row of the stacked weight [Nq + Nk + Nv, D], the body of p12_gemv_kernel (M activation rows, each row's sum
 // in the same lane / chunk / warp-sum order whatever M: rows-exact), its segment's activation plane and output. P12 = true
 // decodes the codes, false loads the bf16 weight: the two are bitwise equal (the same words reach the same arithmetic).

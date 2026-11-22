@@ -983,7 +983,7 @@ impl Model {
                 // INTARSIA_INK_IN_PROJ_GEMV) where the backend admits it, else the bf16 stack (the same bits)
                 InkInW::Stacked(w) => {
                     let mut done = false;
-                    if let Some(p) = l.in_p12.as_ref().filter(|_| t <= crate::quant::p12::in_proj_rows_max()) {
+                    if let Some(p) = l.in_p12.as_ref().filter(|_| t <= crate::quant::p12::in_proj_rows_max(self.backend.name())) {
                         let mut c = OpCall::new(Op::InkInProj, vec![xs(nx), p.parts[0].clone(), p.parts[1].clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default());
                         c.exact_rows = self.verifying();
                         if self.registry.select(&c).is_ok() {

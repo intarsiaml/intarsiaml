@@ -22,18 +22,18 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_p12_logits_gemv_rows", Op::MatmulP12),
     ("ink_in_proj_p12_mma", Op::InkInProj),
     ("ink_in_proj_p12_mma_rows", Op::InkInProj),
-    // the GEMV form (lane ink-cuda-attn, brief 25; only under INTARSIA_INK_IN_PROJ_GEMV=1): a bf16 / P12 pair, bitwise twins
+    // the GEMV form (lane ink-cuda-attn, brief 25; default on since brief 31, INTARSIA_INK_IN_PROJ_GEMV=0 off): a bf16 / P12 pair, bitwise twins
     ("ink_in_proj_bf16_gemv", Op::InkInProj),
     ("ink_in_proj_bf16_gemv_rows", Op::InkInProj),
     ("ink_in_proj_p12_gemv", Op::InkInProj),
     ("ink_in_proj_p12_gemv_rows", Op::InkInProj),
 ];
 
-/// `INTARSIA_INK_IN_PROJ_GEMV=1` (opt-in, default off): InkInProj at 1..=16 rows in the GEMV form (one warp per weight row)
-/// instead of the mma form. Rows-exact either way, but the two forms sum in different orders, so the switch moves the
+/// InkInProj at 1..=16 rows in the GEMV form (one warp per weight row) instead of the mma form: default on (brief 31),
+/// `INTARSIA_INK_IN_PROJ_GEMV=0` reverts. Rows-exact either way, but the two forms sum in different orders, so the switch moves the
 /// model's output bits (lane ink-cuda-attn, docs/results/2026-11-21-inkling2-cuda-attn.md).
 pub fn in_proj_gemv_on() -> bool {
-    intarsia_core::quant::p12::in_proj_gemv_env()
+    intarsia_core::quant::p12::in_proj_gemv("cuda")
 }
 
 const BF16_TOL: Tol = Tol::new(1.5e-2, 6e-3);
