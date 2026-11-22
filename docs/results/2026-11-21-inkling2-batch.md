@@ -1131,4 +1131,4 @@ system cache, A B B A after a warm-up. Box label: start cold (B 16 61.15 ms, ALU
   kernel, by pack12's contract). The R = 1 instances, the T = 1 dispatch and the P12 path are unchanged.
   `INTARSIA_INK_PROJ_X=0` keeps the old form (docs/tuning.md). The chunk form (> 16 rows, prefill without the NAX library)
   routes its 16-row chunks and tail through it too; `in_proj_chunks_rows_exact` (new) checks it. Estimate (op counts):
-  ~184 -> 110-130 us at 16 rows, ~2.5-3.5 ms per B 16 step. #11439-ish (queued): build, Metal tests, X=0 vs X=1 us/call.
+  ~184 -> 110-130 us at 16 rows, ~2.5-3.5 ms per B 16 step. #11442 (queued): build, Metal tests, X=0 vs X=1 us/call.
