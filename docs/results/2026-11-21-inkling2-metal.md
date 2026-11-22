@@ -379,6 +379,11 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
   / cpu inkling2 8+1 / batch 6 / docs_env_vars all pass. Metal check `.scratch/gumbelcheck.sh` (rows_exact, gumbel, op ids,
   cpu gumbel ref, then greedy 64 / 256 md5 and G2 short self-golden tensors vs c918e9fda's outputs from the baseline's
   pk12check) queued behind #11266, whose outputs it needs.
+- 2026-11-22 (ink-hostgap lane): #11277 must also run (1) `kernels test --backend metal --op gumbel_argmax` (ADMITTED) and
+  (2) a serve smoke with `INTARSIA_GUMBEL_SAMPLING=1`: log shows "device sampler (INTARSIA_GUMBEL_SAMPLING): on", a default
+  request returns 200 with text, a sampled stream (temperature 1.0, seed 7) returns tokens, the same seeded request twice
+  gives identical text (never ran in #11182). Lane: both added to `gumbelcheck.sh` before #11277 started (serve through
+  `serve_lib.sh`, port 8097).
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
