@@ -37,6 +37,22 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
      visit (gu 5.25, dn 2.79, gather 0.25) vs the bench's 7.3: the stream's routing is less balanced than random. Any MoE
      default is decided on the in-stream per-chunk time (#10884 profiles m128 in-stream), not on the bench.
 
+5. 2026-11-21 (coordinator, via SendMessage): next steps in order.
+   1. Merge gate for ink/prefill b178a17f9: localeval speed-plain at 1k / 4k / 16k, base ink/metal vs this branch, own fleetq
+      slot via the local-model-bench skill. Pass: prefill / TTFT better at 4k and 16k, decode tok/s within 1% at every length.
+      On pass, send the hash to the coordinator (the integration lane merges).
+   2. Router microbench crash: find the cause before the merge; harness -> fix or drop the bench; kernel at some shape -> fix
+      and add the shape to admission.
+   3. Host gap (57 ms / chunk, ~8%): batch the prefill command buffers (first among the speed items).
+   4. Router on the accelerators: 14 ms -> ~1 ms per chunk.
+   5. MoE (319 of 646 ms): first the shared-unpacked-tile idea (one unpack feeding two row tiles of the same expert); second, as a
+      measured experiment, dequant each active expert's weights once per chunk into a bf16 scratch + accelerator matmul. Report
+      µs per chunk vs the current kernel for each. Default-on only if bitwise or G2/G3 pass, and faster by the median of 3
+      interleaved reps.
+   6. rel bias variant: parked; ink/prefill-rel stays unmerged, graph default off.
+   Work only in this worktree; non-Metal tests on spark2 (`--load cpu`); timing on endor `--quiet gpu,cpu`; no call or wait
+   over 4 min.
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
