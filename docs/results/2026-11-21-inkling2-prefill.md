@@ -335,6 +335,33 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### MoE NVFP4 diagnosis (brief 10; in progress, (a) and (b) wait for #11132)
+
+Per visit, warm chunks 1 and 2 of the 8k kernel trace: 7.35 ms. That is the same as the random-routing bench (7.29 ms), so the
+real routing costs nothing extra on average.
+
+| Dispatch | ms / visit | ms / chunk (44 visits) | Rate |
+|---|---:|---:|---|
+| moe_route_f32 (top-k) | 0.020 | 0.95 | |
+| moe_group (count, scan, tile table) | 0.019 | 0.85 | |
+| gate + up (`#1`) | 4.61 | 202.6 | 174 GFLOP: 38 TFLOP/s (floor 2.8 ms) |
+| down (`#2`) | 2.50 | 110.0 | 87 GFLOP: 35 TFLOP/s (floor 1.4 ms) |
+| gather / weighted combine (`#3`) | 0.22 | 9.8 | ~85 MB (y 75 MB read, out 9.4 MB written): ~385 GB/s, at DRAM speed |
+| router logits (separate op) | 0.32 | 15.2 | |
+
+(c) Inner loop, from the nax2 m64_k64_v1 probes (7.38 ms full, the gen1 schedule within 1 %):
+- Dropping the MMA saves 0.9 ms (6.35 ms left), so the accelerators are mostly hidden.
+- Loads + epilogue alone take 2.51 ms. That leaves ~3.8 ms for the NVFP4 -> bf16 decode and the threadgroup staging.
+- The loads are mostly weight streaming: each 64-row tile re-reads its expert's 64-column weight slab. At ~2.5 tiles per
+  expert that is ~1.3 GB of NVFP4 per call, ~2.3 ms at 550 GB/s.
+- Decode and staging scale with the same tile count.
+
+So per call: ~3.8 ms decode + staging, ~2.5 ms loads + epilogue, ~0.9 ms exposed MMA, against an MMA floor of 4.2 ms.
+
+(d) Routing, grouping and gather between the expert dispatches: 11.6 ms per chunk (route 0.95, group 0.85, gather 9.8). The
+gather runs at DRAM speed. Folding it into the down epilogue would save at most ~10 ms, and not bitwise (the combine order
+changes). In the cb-mode trace the gaps between these dispatches are 0.
+
 ## Next ideas (ranked)
 
 1. MoE experts (54% of the chunk): the gen1 kernel is staging / decode bound, not MMA bound (no-matmul probe 6.3 of 7.3 ms).
