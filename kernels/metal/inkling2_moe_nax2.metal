@@ -124,11 +124,23 @@ inline void in2_mm_impl(device const ushort* A, device const int* pairs, device 
     device const uchar* wp = W + wrow * (FMT == 0 ? KD / 2 : KD);
     device const uchar* sp = S + (MODE == 0 ? p.s1 : p.s2) + wrow * (FMT == 0 ? KD / 16 : KD / 32);
     uint2 wv[NB];
-    uint4 wx[NB];
+    uint4 wx[NB];       // MXFP8 words, or (FMT 2) the first 8 of the block's 16 pre-decoded bf16
+    uint4 wy[NB];       // FMT 2: the last 8
     uint sv[NB];
+    // FMT 2 (dequant-once experiment): W is bf16 [rows, KD] decoded by ink_moe_dq_nv; S is unused
+    device const uchar* wq = W + wrow * (ulong)KD * 2u;
+    auto fetch_dq = [&](uint k1) {
+        for (uint q = 0; q < NB; ++q) {
+            const uint gk = k1 + (bq + q) * 16u;
+            const bool ok = bok && gk < KD;
+            wx[q] = ok ? *(device const uint4*)(wq + gk * 2u) : uint4(0u);
+            wy[q] = ok ? *(device const uint4*)(wq + gk * 2u + 16u) : uint4(0u);
+        }
+    };
     uint4 av[PA ? NA : 1];
     if (FMT == 0) moe_fetch<NB>(wp, sp, bok, bq, 0u, KD, wv, sv);
-    else in2_fetch_mx<NB>(wp, sp, bok, bq, 0u, KD, wx, sv);
+    else if (FMT == 1) in2_fetch_mx<NB>(wp, sp, bok, bq, 0u, KD, wx, sv);
+    else fetch_dq(0u);
     if (PA) in2_load_a<NA, AC, BM, NT>(ap, tid, 0u, KD, av);
     const uint sr = (sg / CG) * SM, sc = (sg % CG) * SN;
 
@@ -167,7 +179,12 @@ inline void in2_mm_impl(device const ushort* A, device const int* pairs, device 
         if (!NODEC) {
             for (uint q = 0; q < NB; ++q) {
                 if (FMT == 0) moe_blk_bf16(wv[q], moe_sc(sv[q]), Bs + br * LD + (bq + q) * 16u);
-                else in2_blk_mx(wx[q], sv[q], Bs + br * LD + (bq + q) * 16u);
+                else if (FMT == 1) in2_blk_mx(wx[q], sv[q], Bs + br * LD + (bq + q) * 16u);
+                else {
+                    threadgroup uint4* d = (threadgroup uint4*)(Bs + br * LD + (bq + q) * 16u);
+                    d[0] = wx[q];
+                    d[1] = wy[q];
+                }
             }
         } else {
             // keep the loads live: one word per thread into the tile
@@ -178,7 +195,8 @@ inline void in2_mm_impl(device const ushort* A, device const int* pairs, device 
     };
     auto fetch = [&](uint k1) {
         if (FMT == 0) moe_fetch<NB>(wp, sp, bok, bq, k1, KD, wv, sv);
-        else in2_fetch_mx<NB>(wp, sp, bok, bq, k1, KD, wx, sv);
+        else if (FMT == 1) in2_fetch_mx<NB>(wp, sp, bok, bq, k1, KD, wx, sv);
+        else fetch_dq(k1);
         if (PA) in2_load_a<NA, AC, BM, NT>(ap, tid, k1, KD, av);
     };
     auto mma = [&](uint b) {
@@ -226,7 +244,7 @@ inline void in2_mm_impl(device const ushort* A, device const int* pairs, device 
         threadgroup_barrier(mem_flags::mem_threadgroup);
         const uint r0 = hp * EH;
         if (MODE == 0) {
-            const float g0 = FMT == 0 ? gsc[e * 3] : 1.f, g1 = FMT == 0 ? gsc[e * 3 + 1] : 1.f;
+            const float g0 = FMT != 1 ? gsc[e * 3] : 1.f, g1 = FMT != 1 ? gsc[e * 3 + 1] : 1.f;
             for (uint q = tid; q < EH * 32u; q += NT) {
                 const uint r = q / 32u, c = q % 32u;
                 if (r0 + r >= rows || r0 + r >= BM || n0 + c >= I) continue;
@@ -234,7 +252,7 @@ inline void in2_mm_impl(device const ushort* A, device const int* pairs, device 
                 out[(ulong)(s0 + r0 + r) * I + n0 + c] = f2bf(in2_act(p.f, g, u, wts[pairs[s0 + r0 + r]], p.f0, p.f1));
             }
         } else {
-            const float g2 = FMT == 0 ? gsc[e * 3 + 2] : 1.f;
+            const float g2 = FMT != 1 ? gsc[e * 3 + 2] : 1.f;
             for (uint q = tid; q < EH * MOE_WR; q += NT) {
                 const uint r = q / MOE_WR, c = q % MOE_WR;
                 if (r0 + r >= rows || r0 + r >= BM || n0 + c >= H) continue;
@@ -282,4 +300,27 @@ IN2_SET(nv, 0, 128, 32, 3)
 IN2_SET(mx, 1, 128, 64, 1)
 IN2_SET(mx, 1, 128, 32, 3)
 IN2_SET(nv, 0, 128, 64, 65)
+IN2_SET(dq, 2, 64, 64, 1)
 IN2_SET(mx, 1, 128, 64, 65)
+
+// Dequant-once experiment (brief 5 item 5b): every NVFP4 16-element block of W [rows, KD / 2] (scales S [rows, KD / 16]) to
+// the same 16 bf16 the grouped kernel would stage (moe_blk_bf16's arithmetic), into D [rows, KD] bf16. One thread per block.
+kernel void ink_moe_dq_nv(device const uchar* W [[buffer(0)]], device const uchar* S [[buffer(1)]], device uint4* D [[buffer(2)]],
+                          constant uint4& rk [[buffer(3)]], uint g [[thread_position_in_grid]]) {
+    const uint KD = rk.y, nb = KD / 16u;
+    if (g >= rk.x * nb) return;
+    const uint r = g / nb, b = g % nb;
+    const uint2 v = uint2(*(device const packed_uint2*)(W + (ulong)r * (KD / 2) + b * 8u));
+    const float s = moe_sc((uint)S[rk.z + (ulong)r * nb + b]);  // rk.z: the scale binding's leading-element skip
+    uint o[8];
+    for (int i = 0; i < 2; ++i) {
+        float2 c[4];
+        for (int k = 0; k < 4; ++k) c[k] = moe_x2((v[i] >> (4 * k)) & 0x000F000Fu) * s;
+        o[4 * i] = moe_pack(c[0].x, c[1].x);
+        o[4 * i + 1] = moe_pack(c[2].x, c[3].x);
+        o[4 * i + 2] = moe_pack(c[0].y, c[1].y);
+        o[4 * i + 3] = moe_pack(c[2].y, c[3].y);
+    }
+    D[(ulong)g * 2u] = uint4(o[0], o[1], o[2], o[3]);
+    D[(ulong)g * 2u + 1u] = uint4(o[4], o[5], o[6], o[7]);
+}

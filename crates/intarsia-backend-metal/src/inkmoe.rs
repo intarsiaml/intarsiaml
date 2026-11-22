@@ -390,6 +390,16 @@ impl MetalBackend {
             let (gu_k, dn_k, tm) = form.map_or((NAX_GU[fi][ti], NAX_DN[fi][ti], tm), |f| (f.gu, f.dn, f.tm));
             let bn3 = form.and_then(|f| f.bn3);
             let nt = form.map_or(128, |f| f.threads);
+            // dequant-once experiment: the weights decoded to bf16 first, the format-2 kernels read them (S unused)
+            let dqw = if form.is_some_and(|f| f.dq) {
+                Some(self.ink_dq_weights(&w13, &s13, &w2, &s2, e * 2 * inter, h, e * h, inter)?)
+            } else {
+                None
+            };
+            let (w13, w2) = match &dqw {
+                Some((a, b)) => (at(a, 0), at(b, 0)),
+                None => (at(&w13, 0), at(&w2, 0)),
+            };
             crate::inkprefill::trace(gu_k);
             let mut pg = p;
             pg.dims[5] = tm as u32;

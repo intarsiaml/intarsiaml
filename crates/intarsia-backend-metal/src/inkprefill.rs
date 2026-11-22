@@ -24,9 +24,14 @@ pub const NAX2: &[(usize, usize, &str)] = &[
     // V & 64: 256 threads, one decoded weight stage shared by the two 64-row halves of a 128-row tile (brief 5 item 5a)
     (0, 128, "m128_k64_v65"),
     (1, 128, "m128_k64_v65"),
+    // format 2: pre-decoded bf16 weights (dequant-once experiment, brief 5 item 5b); selected as `dq1` on NVFP4 calls
+    (2, 64, "m64_k64_v1"),
 ];
 
-const FMT: [&str; 2] = ["nv", "mx"];
+const FMT: [&str; 3] = ["nv", "mx", "dq"];
+
+/// The dequant kernel of the dequant-once experiment (NVFP4 blocks -> bf16, inkling2_moe_nax2.metal).
+pub const DQ_NV: &str = "ink_moe_dq_nv";
 
 /// Third-generation entry points (kernels/metal/inkling2_moe_nax3.metal, A read from device in slot order, the weight tile
 /// double-buffered) as (format, tile rows, tile columns BN, suffix). Selected as `nax3_<suffix>`.
@@ -51,6 +56,8 @@ pub struct Form {
     pub bn3: Option<usize>,
     /// Threads per threadgroup of the gu / dn kernels.
     pub threads: usize,
+    /// Dequant-once: decode the weights to a bf16 scratch first (format-2 kernels).
+    pub dq: bool,
 }
 
 /// (gu, dn) shader names of each `NAX2` entry, then of each `NAX3` entry.
@@ -68,6 +75,7 @@ fn names() -> &'static [(&'static str, &'static str)] {
 pub fn metal4_shaders() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = names().iter().flat_map(|&(g, d)| [g, d]).collect();
     v.push(NAX3_GATHER);
+    v.push(DQ_NV);
     v.extend(BLEND_SHADERS);
     v.extend(ROUTER_TILES.iter().map(|t| t.0));
     v
@@ -94,11 +102,18 @@ pub fn moe_nax(mx: bool, tm: usize) -> Option<Form> {
         let _ = tm; // an explicitly selected form runs at any row count (its tile may exceed the mean rows per expert)
         let i = NAX3.iter().position(|&(ff, _, _, s)| ff == f && s == w3)?;
         let (gu, dn) = names()[NAX2.len() + i];
-        return Some(Form { gu, dn, tm: NAX3[i].1, bn3: Some(NAX3[i].2), threads: 128 });
+        return Some(Form { gu, dn, tm: NAX3[i].1, bn3: Some(NAX3[i].2), threads: 128, dq: false });
+    }
+    if want == "dq1" {
+        if mx {
+            return None;
+        }
+        let i = NAX2.iter().position(|&(ff, _, _)| ff == 2)?;
+        return Some(Form { gu: names()[i].0, dn: names()[i].1, tm: NAX2[i].1, bn3: None, threads: 128, dq: true });
     }
     let i = NAX2.iter().position(|&(ff, _, s)| ff == f && s == want.as_str())?;
     let threads = if NAX2[i].2.rsplit('_').next().and_then(|v| v.strip_prefix('v')).and_then(|v| v.parse::<u32>().ok()).is_some_and(|v| v & 64 != 0) { 256 } else { 128 };
-    Some(Form { gu: names()[i].0, dn: names()[i].1, tm: NAX2[i].1, bn3: None, threads })
+    Some(Form { gu: names()[i].0, dn: names()[i].1, tm: NAX2[i].1, bn3: None, threads, dq: false })
 }
 
 /// Timing probe of the grouped prefill path (`INTARSIA_INK_MOE_NAXSKIP`, a bit set; wrong results): 1 skips gate+up, 2 the
@@ -295,5 +310,43 @@ impl crate::MetalBackend {
         self.with_encoder(|enc| {
             crate::gemm_nax::encode_nax(enc, pso, &v, (&x.mtl, x.off), (&w.mtl, w.off), (&y.mtl, y.off), &p);
         })
+    }
+}
+
+/// Dequant-once scratch (bf16 gate+up and down weights of every expert), grown on demand and kept for the process.
+static DQ_SCRATCH: std::sync::Mutex<Option<(intarsia_core::backend::Buffer, usize)>> = std::sync::Mutex::new(None);
+
+impl crate::MetalBackend {
+    /// Dequant-once experiment: decode w13 [rows13, H / 2] and w2 [rows2, I / 2] (NVFP4, scales s13 / s2) to bf16 in a
+    /// scratch and return the two binds to hand the format-2 kernels as W.
+    pub(crate) fn ink_dq_weights(
+        &self,
+        w13: &crate::dense::Bind,
+        s13: &crate::dense::Bind,
+        w2: &crate::dense::Bind,
+        s2: &crate::dense::Bind,
+        rows13: usize,
+        h: usize,
+        rows2: usize,
+        i: usize,
+    ) -> intarsia_core::Result<(crate::dense::Bind, crate::dense::Bind)> {
+        use intarsia_core::backend::{Backend, MemKind};
+        let (b13, b2) = (rows13 * h * 2, rows2 * i * 2);
+        let need = b13 + b2;
+        let mut g = DQ_SCRATCH.lock().unwrap();
+        if g.as_ref().is_none_or(|(_, n)| *n < need) {
+            *g = Some((self.alloc(need, MemKind::Device)?, need));
+        }
+        let buf = g.as_ref().unwrap().0.clone();
+        drop(g);
+        let t13 = intarsia_core::backend::TensorRef { buf: buf.clone(), offset: 0, dtype: intarsia_core::DType::U8, shape: vec![b13] };
+        let t2 = intarsia_core::backend::TensorRef { buf, offset: b13, dtype: intarsia_core::DType::U8, shape: vec![b2] };
+        let (d13, d2) = (self.bind(&t13, intarsia_core::DType::U8, true, "dq13")?, self.bind(&t2, intarsia_core::DType::U8, true, "dq2")?);
+        for (w, s, d, rows, kd) in [(w13, s13, &d13, rows13, h), (w2, s2, &d2, rows2, i)] {
+            let rk = [rows as u32, kd as u32, s.skip, 0u32];
+            let n = rows * kd / 16;
+            self.dispatch(DQ_NV, &[w, s, d], &rk, crate::dense::Grid::Groups { x: n.div_ceil(256), y: 1, threads: 256 })?;
+        }
+        Ok((d13, d2))
     }
 }
