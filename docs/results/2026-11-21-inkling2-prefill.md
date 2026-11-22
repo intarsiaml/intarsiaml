@@ -482,6 +482,23 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### rel_mode 0 / 1 / 2 x NSG 12 / 6, per call (#11447, bench 2048 rows, µs prologue / NAX attention, median of 2)
+
+| visit | m0 s12 | m1 s12 | m2 s12 | m2 s6 | m0 s6 |
+|---|---:|---:|---:|---:|---:|
+| SWA ctx 2k | 980 / 1167 | 782 / 3055 | 783 / 1255 | 782 / 1128 | 980 / 1148 |
+| SWA ctx 4k | 980 / 1242 | 783 / 3062 | 783 / 1257 | 783 / 1132 | 980 / 1192 |
+| SWA ctx 16k | 979 / 1234 | 782 / 3082 | 783 / 1254 | 784 / 1127 | 981 / 1134 |
+| full ctx 2k | 997 / 2563 | 798 / 4999 | 797 / 2726 | 797 / 2415 | 998 / 2436 |
+| full ctx 4k | 996 / 3659 | 798 / 6639 | 798 / 4245 | 797 / 3812 | 997 / 3440 |
+| full ctx 16k | 1070 / 12200 | 797 / 15497 | 797 / 14030 | 797 / 12906 | 1133 / 11784 |
+
+- Mode 1's 16-FMA chain is 2.5x slower on SWA: not a fallback for full visits.
+- Mode 2 still loses on full visits at 4k / 16k at either NSG, so the switch applies mode 2 to sliding-window layers only
+  (8bef1619a; `INTARSIA_INK_REL2_LAYERS=all` for every layer).
+- Side finding, exact and not acted on: NSG 6 (`INTARSIA_INK_NAX_SG=6`) is 2-8 % faster than the default 12 for mode 0 too,
+  and mode 2 gains more from it (SWA 1.13 vs mode 0 s12 1.17-1.24 ms). A candidate for after the gate, measured end to end.
+
 ### rel_mode 2 gate rule (fixed before the runs; brief 23; binary bin11 = ink/prefill-rel2 8bef1619a, chunk 2048)
 
 Arms: mode 0 (unset) vs `INTARSIA_INK_REL_MODE=2` (sliding-window layers only, the default of that switch; #11447 showed
