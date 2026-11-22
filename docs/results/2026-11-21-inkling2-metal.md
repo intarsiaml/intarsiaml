@@ -119,7 +119,15 @@ lighthouse prompt continues into a coherent story.
 
 ## Speed
 
-### Engine timing (`intarsia generate`, greedy, fleetq #10730 `--quiet gpu,cpu`)
+**Correction (Fable review, `.worktrees/ink-fable/decode-profile-review.md` section 0):** every `generate` number in the table
+below ran with `generate`'s default `--profile-every 16` on Metal (`crates/intarsia-cli/src/common.rs:357`): every 16th
+decode step runs as ~419 waited command buffers (77-82 ms). So the 19.8 ms / 50-52 tok/s decode figures, and the "about 20 %
+host gap" in my first message, are **profiler-inflated**. Normal steps in the same cb trace are 15.76 ms (about 63.4 tok/s) with
+1 us median GPU idle: no real host gap. The kernel-mode per-op shares are inflated 2.8x and unevenly (small kernels 4-7x);
+the corrected split is the review's section 0.2 and the table under "Per-op profile" below. Decode numbers from here on use
+`--profile-every 0` (serve, and so localeval, already does).
+
+### Engine timing (`intarsia generate`, greedy, fleetq #10730 `--quiet gpu,cpu`, `--profile-every 16`: inflated, see above)
 
 19-token raw prompt, 256 tokens; decode = (tokens - 1) / decode wall time, prefill includes the first-call warm-up.
 
