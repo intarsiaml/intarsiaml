@@ -145,6 +145,14 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   on the unfixed tree (show it on 331238a4e) and passes on the fix; (3) gate: G2 short both modes (decode ~2.6e-3), greedy
   md5 non-empty, tok/s 1-row short vs the tip, what the fix costs; (4) then the merge queue: hostgap, fp8, pack12 after
   #11161, prefill (new hash), dfuse, then the combined gate. Message the gate job id; the coordinator nests it.
+- 2026-11-22 (ink-fp8 lane): take ink/fp8 05438a81f (follow-up to a810fbb5c): the screen md5 rerun #11113 was vacuous
+  under serve (plan dry runs never recorded the screen ops, so serve never admitted them); 05438a81f records them in dry
+  runs. Default path unaffected (screen opt-in, off). bespin #11178 check passes; rerun 3 queued, needs "screen SERVED" in
+  both logs.
+- 2026-11-22 (coordinator): #11179 not nested (60 min outlives the correctness slots); the line ahead of it is cleared, so it
+  starts in ~1-1.5 h. pack12's model gate #11161 (24 GB, ~20 min) runs inside #11179; if the tok/s rounds overlap it
+  (log ink-pack12/.scratch/flip2_job.log), say so rather than trusting the numbers. fp8: merge 05438a81f only after its rerun
+  3 shows "screen SERVED" in both logs.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
