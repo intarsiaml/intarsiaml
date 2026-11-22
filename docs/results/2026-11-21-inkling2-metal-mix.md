@@ -20,6 +20,12 @@ Branch `ink/m-mix` (worktree `.worktrees/ink-m-mix`, base `3feffee6e`). Target e
 - 2026-11-21, coordinator: finish the quiet LoopBlend run (1 / 16 / 2048 rows), report it, then stop editing inkmix.rs;
   row-kernel work moves to ink-dfuse (splitting the kernels across threadgroups at T = 1). Both defaults hold -> `25ff7864a`
   merges into ink/metal; only the row-kernel default holds -> revert BLEND_RB to 16 in its own commit and send the hash.
+- 2026-11-21, coordinator, rule for all Inkling lanes: this session and the worktrees run on endor, so no local cargo build /
+  check / test or shader compile on endor outside a fleetq slot (it skews quiet timing jobs). macOS compile checks on bespin
+  (`fleetq run --host bespin --load cpu --mem 6 --expect <min>`, a `git archive` copy in ~/intarsiaml-<lane>, toolchain in
+  ~/.cargo/bin); CPU tests on spark2; GPU work as endor fleetq jobs. Reading, git and editing locally are fine. This lane ran a
+  few unslotted local commands before the rule (one `cargo check -p intarsia-core`, a few `xcrun metal -c` shader compiles, each
+  seconds long); all builds and tests otherwise ran in endor fleetq slots.
 
 ## 1. What was built
 
