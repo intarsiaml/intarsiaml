@@ -490,6 +490,33 @@ NAX µs per call, median of 4:
 - The in-kernel bias gather is bigger than the E 1 probe suggested: INT 2 takes 0.36-0.44 ms off each SWA visit
   (~14-18 ms per chunk), so A's in-kernel term is larger than its doc estimate (7.6 ms).
 
+Round 2 (#11423, e0f44dd13): interior tiles also when every distance >= E (no bias), so full visits' far tiles take the fast
+path. **Admission** `intarsia kernels test --backend metal -m <Inkling-2-Mini> --kernel rel_sink_attn_bf16_nax`: INT 0 and
+INT 1 both ADMITTED, 7 / 7, identical max_abs 5.464e-3, rel_l2 1.500e-3. **Bitwise:** INT 1 hashes equal INT 0's in all
+6 configs again. NAX µs per call, median of 4 (spread within an arm is up to +-10 %):
+
+| visit | INT 0 | INT 1 (exact) | INT 2 (no bias, interior) |
+|---|---:|---:|---:|
+| SWA ctx 0 | 920 | 891 | 604 |
+| SWA ctx 2k | 1198 | 1171 | 839 |
+| SWA ctx 4k | 1191 | 1199 | 859 |
+| SWA ctx 16k | 1231 | 1174 | 893 |
+| full ctx 0 | 1145 | 1044 | 717 |
+| full ctx 2k | 2584 | 2340 | 1939 |
+| full ctx 4k | 4013 | 3536 | 3170 |
+| full ctx 16k | 12491 | 12491 | 11105 |
+
+**B verdict:** the exact path saves ~1-4 ms per chunk (SWA 0-5 %, full 0-12 %, inside the noise for SWA), under 1 % end to
+end. Below the 2 % bar: no build, no gate; the probe kernel stays opt-in (`INTARSIA_INK_NAX_INT`, default off). The mask
+tests were not the 28 ms: with E 1 the SWA kernel is still ~0.95 ms against a 0.42 ms floor, so that bucket is the softmax /
+exp / rescale work around 32-key tiles, which B does not touch.
+
+**A's bound on top of B:** INT 2 shows the in-kernel bias gather costs ~0.33 ms per SWA visit (~13 ms per chunk) and
+~0.4 ms per full visit (~3 ms), more than the E 1 estimate. With the prologue's rel write (~22 ms) the removable total is
+~38 ms per chunk; A still has to form the bias (16-deep MMA, ~19 % of the QK MMA) and gather it from threadgroup memory,
+so the net is ~17-33 ms per chunk, **~2-4 % end to end at 4k / 8k**. B and A overlap only in the few full-visit tiles B
+already speeds up.
+
 ### Attention per call, brief 21 step 1 (#11370; ink_attn_bench `--prefill`, 2048 rows, 4 layers x 10 reps, measure only)
 
 `INK_ATTN_BENCH_E=1` shrinks the rel tensor from [2048, 24, 1024] (100 MB per call) to [2048, 24, 1]: the prologue no longer
