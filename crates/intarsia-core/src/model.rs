@@ -629,6 +629,8 @@ pub struct Model {
     /// Set for the duration of a speculative verify pass ([`Model::forward_verify`]): every op call is marked
     /// `OpCall::exact_rows`, so the registry gives it a row-exact kernel (or fails). Never set otherwise.
     exact_rows: std::sync::atomic::AtomicBool,
+    /// The running verify reads only the tokens (`VerifyRead::None`), so the screened greedy head may serve it (lane ink-fp8).
+    verify_tokens_only: std::sync::atomic::AtomicBool,
     /// Inside [`Model::forward_prefill`] with row-invariant prefill on: every call of the pass carries `OpCall::prefill_inv`, so
     /// the registry gives it a `row_invariant` kernel (or fails). Never set otherwise.
     prefill_inv: std::sync::atomic::AtomicBool,
@@ -2019,6 +2021,7 @@ impl Model {
             remote: None,
             tp_aborted: std::sync::atomic::AtomicBool::new(false),
             exact_rows: std::sync::atomic::AtomicBool::new(false),
+            verify_tokens_only: std::sync::atomic::AtomicBool::new(false),
             prefill_inv: std::sync::atomic::AtomicBool::new(false),
             inv_on: std::sync::atomic::AtomicBool::new(inv_want),
             reuse_exact: std::sync::atomic::AtomicBool::new(false),
@@ -2440,11 +2443,13 @@ impl Model {
             Err(e) => Err(e),
             Ok(None) => {
                 self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+                self.verify_tokens_only.store(matches!(rows, VerifyRead::None), std::sync::atomic::Ordering::Relaxed);
                 let run = (|| -> Result<TensorRef> {
                     let hn = self.run_chunk(st, ids, profile)?;
                     self.verify_head(&hn, q, profile)?;
                     Ok(hn)
                 })();
+                self.verify_tokens_only.store(false, std::sync::atomic::Ordering::Relaxed);
                 self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
                 run
             }
@@ -2877,6 +2882,13 @@ impl Model {
                 }
             }
         } else {
+            // tokens only (`VerifyRead::None`): the screened greedy head when it is on (`INTARSIA_INK_HEAD_SCREEN`)
+            if self.verify_tokens_only.load(std::sync::atomic::Ordering::Relaxed) {
+                let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("verify head without its buffer"))?;
+                if self.screened_argmax(&hn.rows(0, q), q, &self.view(tok, DType::I32, &[q]), profile)? {
+                    return Ok(());
+                }
+            }
             let logits = self.view(&self.ws.logits, DType::F32, &[q, v]);
             self.proj(&hn.rows(0, q), self.head()?, &logits, profile)?;
         }
