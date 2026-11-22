@@ -1075,3 +1075,17 @@ they are upper bounds, in warm-state ms.
   their roofline covers B 1, and they have nothing in flight on the B > 1 in_proj rows kernel (section 26).
 - Everything else is below the 3 ms bar; none built.
 - Gains are reported per the 28b rule: ABAB pairs in one slot after warm-up, warm number primary.
+
+**29a. Corrections from the per-op trace (`.scratch/brk/k16text.jsonl`, traced ms, not scaled to busy).**
+- in_proj: one call = the stacked [6552 + 1056 + 1056, 2304] bf16 rows = 39.9 MB (ink_mix_bench `NS`), 48 calls per step
+  (not 24 x 20 MB). Per call: 182.0 us at 16 rows, 112.9 us at 8 rows; floor 71 us at 560 GB/s bf16 (53 us at P12's 0.75x
+  bytes). So 2.6x over the bf16 floor at 16 rows, not 6x; ceiling 48 x (182 - 71) us = **~5.3 ms** per step (bf16), ~6.2 ms with
+  P12 bytes. Still above 3 ms. The launcher already reads each weight row once for all 16 activation rows (R 16, P 1, RB 16:
+  one threadgroup per weight row, 16 accumulators per lane); what repeats is the activation load: every weight row's
+  threadgroup reloads all 16 x rows (16 x 4.6 KB per 4.6 KB of weights), ~320 MB of cache reads per call. `INTARSIA_INK_PROJ_P`
+  (weight rows sharing one x load) and `INTARSIA_INK_PROJ_RB` are same-bits knobs; #11426-ish (queued, `.scratch/inproj.sh`)
+  measures them at 1-16 rows with P12 next to it.
+- MoE: per step 44 `moe_experts_situ_bf16_rows` calls (gate+up 415.9 us, down 233.8 us, gather 6.1 us = 655.8 us per call at
+  union 62.5, 28.9 ms) plus 4 MXFP8 calls (634.7 + 329.0 + 6.2 = 969.9 us, 3.9 ms). The situ part's floor at 490 GB/s is 25.1
+  ms (44 x 62.5 x 4.48 MB), at 580 GB/s 21.2 ms: ceiling **~4-8 ms**, not 12 (section 29 mixed busy-scaled ms with floors).
+  gate+up runs at ~450 GB/s, down at ~400 GB/s: the down projection is the weaker half.
