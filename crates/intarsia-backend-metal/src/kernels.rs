@@ -901,6 +901,7 @@ mod tests {
                 + 2 * crate::mxfp4::NAXD_FORMS.len()
                 + crate::inkattn::metal4_shader_names().len()
                 + crate::inkmoe::metal4_shaders().count()
+                + crate::inkmix::NAX_SHADERS.len()
         );
         assert!(!shader_names().iter().any(|n| m4.contains(n)));
         let set: HashSet<_> = m4.iter().collect();

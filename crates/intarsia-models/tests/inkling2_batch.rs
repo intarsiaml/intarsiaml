@@ -256,6 +256,30 @@ impl Backend for Failing {
     fn batch_row_cap(&self) -> usize {
         self.inner.batch_row_cap().max(16)
     }
+    fn avoid_single_row_prefill(&self) -> bool {
+        self.inner.avoid_single_row_prefill()
+    }
+    fn prefix_reuse_any_cut(&self) -> bool {
+        self.inner.prefix_reuse_any_cut()
+    }
+    fn prefix_reuse_min_pass_rows(&self) -> Option<usize> {
+        self.inner.prefix_reuse_min_pass_rows()
+    }
+    fn zero(&self, dst: &Buffer, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.zero(dst, s)
+    }
+    fn hold(&self, s: StreamId, after: usize) -> intarsia_core::Result<()> {
+        self.inner.hold(s, after)
+    }
+    fn release(&self, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.release(s)
+    }
+    fn discard(&self, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.discard(s)
+    }
+    fn wrap_host(&self, mem: Arc<dyn intarsia_core::backend::HostMemory>, offset: usize, len: usize) -> Option<Buffer> {
+        self.inner.wrap_host(mem, offset, len)
+    }
 }
 
 /// A batched pass that fails half-way resets every sequence of the batch (their rings are half-written); each one then

@@ -39,13 +39,14 @@ fn ink_attn_fused_env() -> Option<bool> {
 
 /// Whether a visit's attention of `rows` rows ending at context `ctx` (positions `0..ctx`) takes the fused `InkAttnDecode`
 /// instead of the pair, on Metal. From lane ink-m-attn's per-visit timings (docs/results/2026-11-21-inkling2-metal-attn.md),
-/// keyed on the keys a row reads (`ctx`, at most the window on an SWA visit): 1 row fused up to 8192 keys (measured: fused wins at
-/// 512 / 1024 / 4096 keys, the pair at 32768), 2..=4 rows fused up to 512 keys (pair at 1024 SWA), more rows the pair (the
-/// fused threadgroups each redo the row's q / r and their split's bias). A later lane retunes the thresholds here.
+/// keyed on the keys a row reads (`ctx`, at most the window on an SWA visit): 1 row fused up to 4096 keys (measured: fused wins at
+/// 512 / 1024 / 4096 keys, the pair at 32768; 8k / 16k not measured, so the pair there), 2..=4 rows fused up to 512 keys (pair at
+/// 1024 SWA), more rows the pair (the fused threadgroups each redo the row's q / r and their split's bias). A later lane retunes
+/// the thresholds here.
 pub(crate) fn ink_attn_fused_rule(rows: usize, local: bool, ctx: usize, window: usize) -> bool {
     let keys = if local && window > 0 { ctx.min(window) } else { ctx };
     match rows {
-        1 => keys <= 8192,
+        1 => keys <= 4096,
         2..=4 => keys <= 512,
         _ => false,
     }
@@ -641,6 +642,32 @@ impl Model {
     /// standalone); `dump`: collect the oracle-named intermediates (tests).
     #[allow(clippy::too_many_arguments)]
     pub(super) fn ink_pass(
+        &self,
+        st: &SequenceState,
+        batch: Option<&InkBatch>,
+        ids: &TensorRef,
+        t: usize,
+        pos0: usize,
+        out: &TensorRef,
+        profile: bool,
+        tf: Option<&InkTensors>,
+        dump: Option<&mut InkTensors>,
+    ) -> Result<()> {
+        // passes of 2..=16 rows take the row-exact kernels on Metal ([`ink_rows_exact`]), so any schedule of such passes
+        // (decode, a small chunk, a rolled-back verify-sized pass) leaves the state a token-by-token decode would
+        let mark = !self.verifying() && ink_rows_exact(self.backend.name(), t);
+        if mark {
+            self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        let r = self.ink_pass_rows(st, batch, ids, t, pos0, out, profile, tf, dump);
+        if mark {
+            self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        }
+        r
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn ink_pass_rows(
         &self,
         st: &SequenceState,
         batch: Option<&InkBatch>,

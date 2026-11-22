@@ -97,13 +97,15 @@ kernel void ink_in_proj_gemv(device const uint4* W [[buffer(0)]],
                              device ushort* Y1 [[buffer(3)]],
                              device ushort* Y2 [[buffer(4)]],
                              constant InkProjP& p [[buffer(5)]],
-                             uint tg [[threadgroup_position_in_grid]],
-                             uint ngrid [[threadgroups_per_grid]],
+                             uint2 tg2 [[threadgroup_position_in_grid]],
+                             uint2 ngrid2 [[threadgroups_per_grid]],
                              uint sg [[simdgroup_index_in_threadgroup]],
                              uint lane [[thread_index_in_simdgroup]]) {
     static_assert(R % RB == 0, "R must be a multiple of RB");
     threadgroup float part[P * R * SG];
     const uint k8 = p.k / 8;
+    // grid y = chunk of R rows (the blend's h projection over a long chunk; InkInProj launches one)
+    const uint tg = tg2.x, ngrid = ngrid2.x, r0 = tg2.y * uint(R);
     // grid-stride over the virtual threadgroups: every in-flight threadgroup works on neighbouring rows (the bits of a
     // row do not depend on which threadgroup computes it)
     for (uint vt = tg; vt < p.gtot; vt += ngrid) {
@@ -118,7 +120,7 @@ kernel void ink_in_proj_gemv(device const uint4* W [[buffer(0)]],
         }
         const uint row0 = lt * P;
         device const uint4* Ws = W + (ulong)wrow * k8;
-        device const uint4* Xs = X + xo / 8;
+        device const uint4* Xs = X + xo / 8 + (ulong)r0 * k8;
         float t[P * R];
         for (int rb = 0; rb < R; rb += RB) {
             float tb[P * RB];
@@ -129,14 +131,14 @@ kernel void ink_in_proj_gemv(device const uint4* W [[buffer(0)]],
         if (sg == 0 && lane == 0) {
             for (int q = 0; q < P; ++q)
                 if (row0 + q < n)
-                    for (int r = 0; r < R; ++r) Y[ys + (ulong)r * n + row0 + q] = f2bf(t[q * R + r]);
+                    for (int r = 0; r < R; ++r) Y[ys + (ulong)(r0 + uint(r)) * n + row0 + q] = f2bf(t[q * R + r]);
         }
         if (SG > 1) threadgroup_barrier(mem_flags::mem_threadgroup);  // `part` is rewritten by the next row
     }
 }
 
 #define IP_ARGS device const uint4*, device const uint4*, device ushort*, device ushort*, device ushort*, \
-    constant InkProjP&, uint, uint, uint, uint
+    constant InkProjP&, uint2, uint2, uint, uint
 #define IP_INST(R, P, SG, U, RB)                                                                                      \
     template [[host_name("ink_in_proj_gemv_r" #R "p" #P "s" #SG "u" #U "b" #RB)]] kernel void                        \
     ink_in_proj_gemv<R, P, SG, U, RB>(IP_ARGS);
@@ -539,6 +541,8 @@ inline float bl_dot8(uint4 w, uint4 x) {
     return a;
 }
 
+constant uint BLEND_RB = 16;  // rows per gate threadgroup (src/inkmix.rs BLEND_RB)
+
 template <int GC>
 kernel void ink_blend_gate(device const float* dest [[buffer(0)]],
                            device const float* msg [[buffer(1)]],
@@ -548,10 +552,12 @@ kernel void ink_blend_gate(device const float* dest [[buffer(0)]],
                            device float* yo [[buffer(5)]],
                            device float* partial [[buffer(6)]],
                            constant InkBlendP& p [[buffer(7)]],
-                           uint gidx [[threadgroup_position_in_grid]],
-                           uint tid [[thread_position_in_threadgroup]],
+                           uint2 gid2 [[threadgroup_position_in_grid]],
+                           uint2 tid2 [[thread_position_in_threadgroup]],
                            uint lane [[thread_index_in_simdgroup]],
                            uint sg [[simdgroup_index_in_threadgroup]]) {
+    const uint gidx = gid2.x, tid = tid2.x;
+    const uint rb0 = gid2.y * BLEND_RB, rb1 = min(rb0 + BLEND_RB, p.rows);  // the rows of this threadgroup
     const uint nsl = p.nsl / 2;  // channel slices
     const uint s = gidx / nsl, sl = gidx % nsl, d = p.d, g8 = p.g / 8;
     const uint c = sl * p.cs + tid;
@@ -565,7 +571,7 @@ kernel void ink_blend_gate(device const float* dest [[buffer(0)]],
         gw[j] = (uint(j) < g8) ? gr[j] : uint4(0);
         fw[j] = (uint(j) < g8) ? fr[j] : uint4(0);
     }
-    for (uint r = 0; r < p.rows; ++r) {
+    for (uint r = rb0; r < rb1; ++r) {
         device const uint4* hr = h + ((ulong)s * p.rows + r) * g8;
         float gn = 0.0f, fg = 0.0f;
         for (int j = 0; j < GC; ++j) {
@@ -587,13 +593,13 @@ kernel void ink_blend_gate(device const float* dest [[buffer(0)]],
 }
 template [[host_name("ink_blend_gate_g1")]] kernel void ink_blend_gate<1>(device const float*, device const float*,
     device const uint4*, device const ushort*, device const ushort*, device float*, device float*, constant InkBlendP&,
-    uint, uint, uint, uint);
+    uint2, uint2, uint, uint);
 template [[host_name("ink_blend_gate_g8")]] kernel void ink_blend_gate<8>(device const float*, device const float*,
     device const uint4*, device const ushort*, device const ushort*, device float*, device float*, constant InkBlendP&,
-    uint, uint, uint, uint);
+    uint2, uint2, uint, uint);
 template [[host_name("ink_blend_gate_g16")]] kernel void ink_blend_gate<16>(device const float*, device const float*,
     device const uint4*, device const ushort*, device const ushort*, device float*, device float*, constant InkBlendP&,
-    uint, uint, uint, uint);
+    uint2, uint2, uint, uint);
 
 // bind: 0 y f32 [S, rows, D] (scratch), 1 partial f32 [S, rows, nsl], 2 norm [S, D], 3 out bf16 [S, ocount, D], 4 InkBlendP.
 // Grid: S * rows threadgroups.
