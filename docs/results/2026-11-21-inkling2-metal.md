@@ -122,6 +122,17 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   no Metal toolchain); its first GPU run is in #11142 (tip, 331238a4e, 331238a4e with `INTARSIA_INK_BLEND_RB=16`), before the
   G2 bisect arms.
 
+- 2026-11-22 (coordinator): build hazard 1: a target/ cloned from another tree (cp -c) has newer mtimes than the checked-out
+  sources, so cargo keeps the other tree's crates and can build the wrong commit silently. Check the bisect's builds.
+  Lane: the #11142 trees had no target yet (not run); bisect.sh now touches every tracked file after the clone and logs
+  HEAD plus the Compiling count for core / backend-metal / models / cli per tree. #11048 built in this worktree's own target
+  (no clone): not affected.
+- 2026-11-22 (coordinator): build hazard 2: `cargo test -p intarsia-cli --test <x>` without the backend feature rebuilds
+  target/<profile>/intarsia without Metal. Build the backend binary last or give tests their own target dir; count md5 /
+  self-golden matches only with exit 0 and non-empty output. Lane: mergegate.sh and combgate.sh run docs_env_vars with
+  `--features metal` (binary keeps Metal; #11048's G2 logs show real KL values, so not affected); bisect.sh runs only
+  intarsia-models tests in the debug profile, which do not rebuild target/release/intarsia.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
