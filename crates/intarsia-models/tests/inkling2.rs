@@ -427,7 +427,12 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
         assert!(msg.contains(op.as_str()), "{op}: {msg}");
     }
     for op in intarsia_core::inkling2::ops::OPS {
-        assert!(!intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
+        // CUDA: every op has a kernel: the attention ops (lane ink-cuda-attn, inkattn.rs), the in-projection, mix / conv ops and
+        // the MXFP8 experts (lane ink-cuda-mixmoe, inkmix.rs / inkmoe.rs)
+        let on_cuda = |t: &[(&str, Op)]| t.iter().any(|(_, o)| *o == op);
+        let lanes = on_cuda(intarsia_backend_cuda::inkattn::TABLE) || on_cuda(intarsia_backend_cuda::inkmix::TABLE) || on_cuda(intarsia_backend_cuda::inkmoe::TABLE);
+        assert!(lanes, "cuda {op}: no lane table lists it");
+        assert!(intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
         assert!(intarsia_backend_hip::kernels::UNIMPLEMENTED.contains(&op), "hip {op}");
         // Metal: every op has a kernel (lanes ink-m-attn, ink-m-moe, ink-m-mix); the table alone, no device
         assert!(intarsia_backend_metal::kernels::all().iter().any(|k| k.op == op), "metal {op}");

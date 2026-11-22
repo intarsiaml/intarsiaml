@@ -611,6 +611,7 @@ pub fn all() -> Vec<KernelImpl> {
     v.extend(crate::quantmoe::all());
     v.extend(crate::exl3::all());
     v.extend(crate::dsv41::all());
+    v.extend(crate::inkattn::all());
     v.extend(crate::inkmix::all());
     v.extend(crate::inkmoe::all());
     v
@@ -618,7 +619,7 @@ pub fn all() -> Vec<KernelImpl> {
 
 /// (launcher name, op) of every launcher: this file's table plus the quantised/MoE table.
 pub fn full_table() -> Vec<(&'static str, Op)> {
-    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).chain(crate::exl3::TABLE.iter()).chain(crate::dsv41::TABLE.iter()).chain(crate::inkmix::TABLE.iter()).chain(crate::inkmoe::TABLE.iter()).copied().collect()
+    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).chain(crate::exl3::TABLE.iter()).chain(crate::dsv41::TABLE.iter()).chain(crate::inkattn::TABLE.iter()).chain(crate::inkmix::TABLE.iter()).chain(crate::inkmoe::TABLE.iter()).copied().collect()
 }
 
 #[cfg(test)]
@@ -1041,6 +1042,7 @@ mod tests {
         let not_on_cuda: Vec<Op> = NOT_ON_CUDA
             .iter()
             .chain(intarsia_core::dsv41::ops::OPS.iter().filter(|op| !crate::dsv41::TABLE.iter().any(|(_, o)| o == *op)))
+            // Inkling-2 (lane ink-skel): the ops without a CUDA kernel yet; the model refuses to load naming the op
             .chain(intarsia_core::inkling2::ops::OPS.iter().filter(|op| !table.iter().any(|(_, o)| o == *op)))
             .copied()
             .collect();
@@ -1079,6 +1081,7 @@ mod tests {
             include_str!("../../../kernels/cuda/ik_cuda_abi_g4.h"),
             include_str!("../../../kernels/cuda/ik_cuda_abi_dsv41.h"),
             include_str!("../../../kernels/cuda/ik_cuda_abi_ink.h"),
+            include_str!("../../../kernels/cuda/ik_cuda_abi_inkmm.h"),
         ]
         .concat();
         for (name, _) in full_table() {

@@ -15,7 +15,7 @@
 // any T is rows-exact (the in-projection's prefill takes cuBLAS instead: it re-reads the weights per chunk).
 #include "ik_launch.h"
 #include "ik_quant.cuh"
-#include "ik_cuda_abi_ink.h"
+#include "ik_cuda_abi_inkmm.h"
 #include "ink_common.cuh"
 
 namespace {

@@ -1,6 +1,6 @@
 //! Kernel table and device dispatch of the Inkling-2-Mini experts (lane ink-cuda-mixmoe): `MoeExperts` with the SiTU
 //! activation over NVFP4 (`.situ()` and only situ calls, so the 35B / Gemma NVFP4 calls keep their kernels), and
-//! `MoeExpertsMxfp8` (silu / gelu / situ). Kernels in kernels/cuda/ink_moe.cu (ABI kernels/cuda/ik_cuda_abi_ink.h); the router
+//! `MoeExpertsMxfp8` (silu / gelu / situ). Kernels in kernels/cuda/ink_moe.cu (ABI kernels/cuda/ik_cuda_abi_inkmm.h); the router
 //! (`MoeRoute`) is DSv4.1's `moe_route` (dsv41.rs). Union-grouped decode: each expert's rows are read once per call for all
 //! the pairs routed to it; a T-row call is bitwise T one-row calls, so the `_rows` twins are the same launchers.
 

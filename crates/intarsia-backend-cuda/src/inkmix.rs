@@ -1,6 +1,6 @@
 //! Kernel table and device dispatch of the Inkling-2-Mini in-projection and sublayer-boundary ops (lane ink-cuda-mixmoe):
 //! `InkInProj` (73), `ConvMix` (74), `AttnResMix` (67), `SconvRes` (69), `LoopBlend` (68). Kernels in kernels/cuda/ink_proj.cu
-//! and ink_mix.cu, ABI kernels/cuda/ik_cuda_abi_ink.h; contract `intarsia_core::inkling2::ops`, admitted against the cpu
+//! and ink_mix.cu, ABI kernels/cuda/ik_cuda_abi_inkmm.h; contract `intarsia_core::inkling2::ops`, admitted against the cpu
 //! reference (`ink_ref`) by `intarsia kernels test --backend cuda --op <op>`. bf16 activations (the model's dtype).
 //!
 //! * `ink_in_proj_bf16_mma`: the tensor-core GEMV, one launch for the three segments, T <= 16 (decode, verify); its twin

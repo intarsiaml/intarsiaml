@@ -468,7 +468,11 @@ impl Backend for CudaBackend {
         if let Some(r) = self.launch_dsv41(kernel, call, stream) {
             return r;
         }
-        if let Some(r) = self.launch_inkmix(kernel, call, stream).or_else(|| self.launch_inkmoe(kernel, call, stream)) {
+        if let Some(r) = self
+            .launch_inkattn(kernel, call, stream)
+            .or_else(|| self.launch_inkmix(kernel, call, stream))
+            .or_else(|| self.launch_inkmoe(kernel, call, stream))
+        {
             return r;
         }
         match kernels::TABLE.iter().find(|(n, _)| *n == kernel) {

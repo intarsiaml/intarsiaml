@@ -18,7 +18,7 @@
 //   norm   rA(y inv(y) norm) with the partials in slice order
 // in chunks of kBlendRows rows (the scratch holds one chunk).
 #include "ik_launch.h"
-#include "ik_cuda_abi_ink.h"
+#include "ik_cuda_abi_inkmm.h"
 #include "ink_common.cuh"
 
 namespace {

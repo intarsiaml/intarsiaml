@@ -17,7 +17,7 @@
 // Scratch: the core `moe_experts_scratch` layout: pairs int[P] | offsets int[E+1] | active int[E+1] | h bf16[P,I] | y bf16[P,H].
 #include "ik_launch.h"
 #include "ik_quant.cuh"
-#include "ik_cuda_abi_ink.h"
+#include "ik_cuda_abi_inkmm.h"
 #include "ink_common.cuh"
 #include <climits>
 #include <stdlib.h>
