@@ -155,7 +155,9 @@ fn main() {
             let probes: &[u8] = if std::env::var("INKMOE_PROBE").is_ok() && tr <= 16 { &[0, 1, 2] } else { &[0] };
             if tr > 16 {
                 // lane ink-prefill: the grouped prefill forms x timing probes (INKMOE_NAX2_FORMS, INKMOE_NAXSKIPS)
-                use intarsia_backend_metal::inkprefill::{set_form, set_skip};
+                use intarsia_backend_metal::inkprefill::set_form;
+                #[cfg(feature = "ink-probe")]
+                use intarsia_backend_metal::inkprefill::set_skip;
                 let list = |k: &str, d: &str| std::env::var(k).unwrap_or_else(|_| d.to_string());
                 let forms = list("INKMOE_NAX2_FORMS", "0");
                 let skips = list("INKMOE_NAXSKIPS", "0");
@@ -170,7 +172,10 @@ fn main() {
                         #[cfg(not(feature = "ink-probe"))]
                         assert!(pr == "a", "INKMOE_PROBES needs the ink-probe feature");
                         set_form(Some(form));
+                        #[cfg(feature = "ink-probe")]
                         set_skip(skip.parse().unwrap());
+                        #[cfg(not(feature = "ink-probe"))]
+                        assert!(skip == "0", "INKMOE_NAXSKIPS needs the ink-probe feature");
                         let run = |reps: usize| {
                             for r in 0..reps {
                                 be.launch(kname, &calls[r % ncalls], 0).unwrap();
@@ -197,6 +202,7 @@ fn main() {
                 #[cfg(feature = "ink-probe")]
                 intarsia_backend_metal::inkprefill::set_moe_probe(None);
                 set_form(None);
+                #[cfg(feature = "ink-probe")]
                 set_skip(0);
                 continue;
             }

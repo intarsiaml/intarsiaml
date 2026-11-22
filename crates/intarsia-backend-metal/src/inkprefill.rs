@@ -147,21 +147,24 @@ pub fn moe_nax(mx: bool, tm: usize) -> Option<Form> {
     Some(Form { gu: names()[i].0, dn: names()[i].1, tm: NAX2[i].1, bn3: None, threads, dq: false })
 }
 
-/// Timing probe of the grouped prefill path (`INTARSIA_INK_MOE_NAXSKIP`, a bit set; wrong results): 1 skips gate+up, 2 the
-/// down, 4 the gather. `moe_group` always runs.
+/// Timing probe of the grouped prefill path (WRONG RESULTS; bench builds with the `ink-probe` feature only, no environment
+/// variable): bit 1 skips gate+up, 2 the down, 4 the gather. `moe_group` always runs. Always 0 without the feature.
 pub fn nax_skip() -> u8 {
-    let v = SKIP.load(std::sync::atomic::Ordering::Relaxed);
-    if v != 0xFF {
-        return v;
+    #[cfg(feature = "ink-probe")]
+    {
+        SKIP.load(std::sync::atomic::Ordering::Relaxed)
     }
-    let e = std::env::var("INTARSIA_INK_MOE_NAXSKIP").ok().and_then(|v| v.parse().ok()).unwrap_or(0u8) & 7;
-    SKIP.store(e, std::sync::atomic::Ordering::Relaxed);
-    e
+    #[cfg(not(feature = "ink-probe"))]
+    {
+        0
+    }
 }
 
-static SKIP: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0xFF);
+#[cfg(feature = "ink-probe")]
+static SKIP: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
 
-/// Benchmarks: set the timing probe bits (see [`nax_skip`]).
+/// Benchmarks built with the `ink-probe` feature: set the timing probe bits (see [`nax_skip`]).
+#[cfg(feature = "ink-probe")]
 pub fn set_skip(v: u8) {
     SKIP.store(v & 7, std::sync::atomic::Ordering::Relaxed);
 }
