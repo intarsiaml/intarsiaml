@@ -10,6 +10,11 @@ P12 / screen). Never restore an old bench source without `--digest` for a refere
 
 ## Briefs received
 
+- 2026-11-22 ~11:05 (main): gemvx default-on stands. Remove the slice form's kernel and switch from the branch (not opt-in),
+  keep its numbers in section 30 (as with rel2 and probe B). Note that the remaining in_proj cost is the bitwise reduction the
+  contract requires, so only a non-rows-exact kernel goes lower: parked as (b). Go on MoE, measure first, bound and rule as
+  briefed.
+
 - 2026-11-22 ~10:30 (main): gemvx: let #11463 run; if green, default-on is fine (bitwise, -12 us/call) with the revert
   switch and a docs/tuning.md row. Before choosing (a) vs (c), bound (c) from existing traces (<= 20 min, no new job): MoE ms
   share of a B16 step, mean union vs the 128 pairs, ms/step saved if each expert's weights were read once per step instead of
@@ -1221,3 +1226,12 @@ slice made it slower (+70 us at 16 rows: the scratch round trip and a second lau
 < 2 ms: stays opt-in (`INTARSIA_INK_PROJ_SLICE`), not default.** What remains per 16-row call is the bitwise reduction itself:
 16 simd_sums per (weight row, simdgroup), 1.1 M per call (vs 69 k at 1 row), which the contract fixes. In_proj rows closed
 at gemvx; next per main's rule: (c) MoE.
+
+**30b. Slice form removed; in_proj rows closed.** The slice form (c969909ee) is reverted on the branch (kernels
+`ink_in_proj_slice1` / `_slice2`, `INTARSIA_INK_PROJ_SLICE` / `_SLICE_ROWS`, the rows kernel's scratch, the tuning rows); its
+numbers stay above. The remaining in_proj cost at 16 rows (~150 us cold vs the 71 us DRAM floor) is the reduction the
+rows-exact contract requires: per (weight row, row) the same 256-lane split, simd_sum per simdgroup and sg-order sum as the
+1-row kernel, 16 x the reductions of a 1-row call. Only a non-rows-exact kernel (one reduction order for all rows, e.g. a
+simdgroup-matrix GEMM) goes lower: **(b), parked** (main: batched rows would no longer match solo output; it returns only if
+the MoE work also falls short). What stays: gemvx default-on (`INTARSIA_INK_PROJ_X=0` reverts), `INTARSIA_INK_PROJ_XP` (P 2 / 4,
+slower, measurement knob).
