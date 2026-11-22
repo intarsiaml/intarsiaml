@@ -167,6 +167,21 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
   too. Heads-up: ink-batch is chasing a possible B16 batched regression on the merged tree (about 75 ms against 60), with
   the dfuse merges among the suspects. If ink-batch asks which switch disables which controller change at B > 1, answer
   that first.
+- 2026-11-22 ~06:45 (coordinator): probe P acknowledged; stopping on the 0.085 ms ceiling was correct. Main removed
+  .scratch/snap6 (afaf4e8c9 is on ink/dfuse). **Next item: a measured roofline for Metal decode at the tip.** The step is
+  13.3 ms (74.8 tok/s), against a bandwidth floor of about 8.9 ms (5.49 GB at 614 GB/s). Find where the ~4.4 ms goes.
+  1. Measure only, with multi-dispatch timing, not per-dispatch command buffers (those overstate small kernels). Break
+     the step into classes: attention projections, attention core, MoE experts (gate+up, down), router, unembed,
+     controllers (row kernel, blend gate, h GEMV, norm_c, AttnResMix, LoopBlend), everything else. For each class: ms per
+     token, bytes read, achieved GB/s, and the gap to 614 GB/s in ms.
+  2. Also measure the pure dispatch cost: 543 dispatches per step, at the cost per dispatch inside one command buffer.
+  3. Output: the top 3 gaps in ms per token, each with a measured or bounded ceiling for its fix. Propose building only an
+     item whose ceiling is at least 0.3 ms per token, the same rule as P. Do not touch shipped kernels.
+  4. Run it in a fleetq slot with --quiet gpu,cpu and an honest --expect. Check the box first: if the tip's default step is
+     not about 13.3 ms (within 5 %), report BOX SLOW and stop (endor ran about 50 % slow from 06:27 to 06:35, cause
+     unknown).
+  5. Coordinate with ink-fp8, which owns reduced-precision weights: count bytes at native bf16, and note what fp8 would
+     change.
 
 ## Probes (endor, before any code)
 
