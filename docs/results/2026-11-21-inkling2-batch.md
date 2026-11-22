@@ -782,3 +782,41 @@ on ink/metal and no run logged "screened greedy head on"). Batched step ms:
 run: 74.84. #11266 (ink-metal), c918e9fda: 76.20. #11328 06:49+: ref 86-90, final 77-82. So #11181 is the outlier, not the
 start of a slowdown: the same 8546d143f code measured 79-81 before it and 86-90 after it. Its slot also had the orphaned
 idle 11 GB serve resident (section 14). The GPU-time vs gap diagnostic (queued) is meant to show what differs.
+
+## 25. #11181 audit: INVALID (no digests, unverifiable binary)
+
+Evidence from `.scratch/nerb-11181.log` and `.scratch/nerb.sh`:
+- Args: `batch_step --ctx 1024 --rounds 2 --steps 16 --batches 1,8,16`; random-id prompts (8546d143f's own bench, no
+  `--prompts`); env per arm only `INTARSIA_METAL_TEST_MODEL` plus the arm's switch (`INTARSIA_INK_MIX_NE=3`,
+  `INTARSIA_INK_BLEND_RB=16`). Binary `.scratch/base-target/release/examples/batch_step`, built in the job from `.scratch/base`
+  at 8546d143f (`Finished ... in 10.81s` after touching sources).
+- **No digests:** the script restores 8546d143f's `batch_step.rs` (`git checkout -- crates/intarsia-models/examples/batch_step.rs`),
+  which has no `--digest`, and the log keeps only the table rows (`grep '^\| (1|8|16) |panicked'`). So there is no token
+  digest to compare with a normal-speed run of the same tree, and no plan, policy, P12, screen or fallback lines.
+- **Binary not recoverable:** `base-target` was rebuilt at e4ebcfe77 (#11261) and aede2ff72 (#11328); there is no hash.
+  `.scratch/base` is clean now, but its state at 03:15 (it had served #11057 / #11104 arms) cannot be checked.
+- Rounds and steps: 2 x 16 per arm as given. Its only internal check is batch_step's batched == solo token assert (it did not
+  fire), which a different but self-consistent kernel set would also pass.
+- What stands out: solo per token was normal (B 8 "B solo steps" 131.43 ms = 16.4 ms per token) while batched was ~25% faster
+  than every other run of the same code (79-81 before, 86-90 after). All 9 of its runs agree (B 16 59.75-60.61), so it is
+  not one noisy run. Something in that slot or build made batched steps faster, and it cannot be identified from the log.
+
+Per main's rule (digests missing), **#11181 is invalid as a speed reference.** The box matches #10956's GPU-bound
+~82 ms at B 16 (wall 83.05 vs GPU busy 82.22, 00:21) and the 77-90 ms of #11261 / #11266 / #11328. The endor-state
+diagnostic #11350 was released before it started.
+
+**Decisions and comparisons that used #11181's numbers (all to be read against ~77-90 ms at B 16, not 60):**
+1. Section 17: "NE 4 / BLEND_RB cost nothing batched" (main accepted: NE 3 fine, RB16 off). Its arms were interleaved in one
+   slot, so the relative result may still hold, but it is not verified bitwise. ink-metal's NE fix 7eca1b012 relied on it
+   for "no batched cost".
+2. Section 17 / main: "the 71 -> 80 ms B 16 slowdown is closed as not reproducible". That rested on #11181's 60 ms; with
+   #11181 out, the merged tree's B 16 is ~77-82 ms, consistent with #11057's 79-81.
+3. Section 18: the batched baseline sent to ink-metal for its combined post-merge gate (B 1 16.40 / B 8 34.93 / B 16 59.96 ms,
+   266.9 tok/s) as "the reference". ink-metal's #11266 (76.20 ms) is the better random-prompt reference.
+4. "266.9 tok/s at 16 streams, above the 230 target" (sections 17-18, messages to main). Not established: verified figures
+   are 194-207 tok/s random ids (#11328 final) and 182-199 real text (#11261).
+5. Section 18's B 16 breakdown scaled to "today's 60 ms step" and the MoE estimate "B 16 53-57 ms, 280-300 tok/s". The MoE
+   candidate was dropped on #11261's real-text traces anyway (section 21).
+6. The batched-regression hunt (#11266 vs #11181 "+19% / +27%", the #11328 toggles): the comparison base was #11181. The
+   toggles themselves (in one slot, ref vs final) are valid and show no code regression.
+7. Section 17's residency caveat ("not borderline") assumed #11181 was a valid absolute figure.
