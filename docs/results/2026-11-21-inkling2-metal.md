@@ -30,6 +30,12 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
   (Linux test builds of intarsia-models failed), check on spark2, commit separately. Done: e3f92beff; `cargo check --tests -p
   intarsia-models` EXIT 0 on spark2 and clean on endor.
 
+- 2026-11-21 (coordinator): #10890 is already running (started ~23:14); #10890 and #10901 build from this working tree, so no
+  code changes here until #10901 has finished its build (docs-only commits are fine); when #10890 reports, record which
+  commit it built. Recorded: its `cargo build` ran at 23:14:12 and finished in 0.27 s (nothing to rebuild), so the binary is the
+  one built at 22:32 (#10898) from f55bfe8b7's code; the tree at 23:14 was e3f92beff, which differs from f55bfe8b7 only in
+  `tests/inkling2.rs` and docs. The 2343bb720 merge (23:32) is docs only, so #10890's binary equals the tip's code.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
