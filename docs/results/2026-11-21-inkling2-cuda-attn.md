@@ -35,6 +35,13 @@
       rework the decode grid so each block owns a contiguous key range per head, one attempt, measured against 668. If all
       stay ~195: footprint / TLB, record and accept 668.
    2. Then idea 3 (fold the combine into the tile kernel) under the same bitwise rules.
+6. 2026-11-22 (coordinator): brief 5 accepted (read-pattern gain kept, fold revert right). (1) Rebuild the spark1 build
+   dir from tip 7628e87cb (fleetq, --load cpu) so no stale fold binary is left. (2) Message ink-cuda-mixmoe
+   (a4fb1801b5d47a28b) the tip 7628e87cb to merge; it owns the merged CUDA line and the real-model G2/G3. (3) Brief 6, once
+   mixmoe's merged tip passes real-model G2/G3 on CUDA: one nsys profile of real-model greedy decode at ctx 1k and 8k (quiet
+   fleetq slot, memory budgeted per the Spark OOM rules); report tok/s and the top 5 ops by time with their byte floors;
+   attention work again only if it is in the top 3, else send the coordinator the top item with a one-paragraph plan before
+   building.
 
 ## Summary
 
