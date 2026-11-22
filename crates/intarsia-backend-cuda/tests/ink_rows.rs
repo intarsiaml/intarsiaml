@@ -282,6 +282,47 @@ fn ink_experts_rows_exact() {
     assert_ne!(row_of(&o1[0], 0, t - 1).data, row_of(&o2[0], 0, t - 1).data, "negative control: the changed row did not change");
 }
 
+/// Inkling-2-Mini's 128 experts at decode sizes (the real model's 1-row step failed: the ordinary kernels' scratch was sized
+/// for the tensor-core layout only, 256 bytes short of the SIMT one at E = 128): the ordinary kernel runs at T = 1..16 and a
+/// T-row call is bitwise T one-row calls and its `_rows` twin, NVFP4 situ and MXFP8 situ.
+#[test]
+fn ink_experts_rows_exact_128_experts() {
+    let Some(rig) = Rig::new("ink_experts_rows_exact_128_experts") else { return };
+    let mut rng = SplitMix64::new(0x80);
+    let (e, k, h, i) = (128usize, 8usize, 256usize, 128usize);
+    let ex = random_experts(&mut rng, e, h, i);
+    let nv_w = vec![ex.gate_up_w.clone(), ex.gate_up_s.clone(), ex.down_w.clone(), ex.down_s.clone(), ex.gscales.clone()];
+    let mx_w = vec![
+        HostTensor::new(DType::Fp8E4m3, vec![e, 2 * i, h], mx_bytes(&mut rng, e * 2 * i * h)).unwrap(),
+        HostTensor::new(DType::U8, vec![e, 2 * i, h / 32], (0..e * 2 * i * h / 32).map(|_| 116 + (rng.next_u64() % 4) as u8).collect()).unwrap(),
+        HostTensor::new(DType::Fp8E4m3, vec![e, h, i], mx_bytes(&mut rng, e * h * i)).unwrap(),
+        HostTensor::new(DType::U8, vec![e, h, i / 32], (0..e * h * i / 32).map(|_| 116 + (rng.next_u64() % 4) as u8).collect()).unwrap(),
+    ];
+    for t in [1usize, 2, 4, 16] {
+        let (ids, ws) = random_routing(&mut rng, t, e, k);
+        let ws = HostTensor::from_f32(&[t, k], &ws.to_f32().iter().map(|v| v * 8.0).collect::<Vec<_>>());
+        let x = rnd(&mut rng, DType::Bf16, &[t, h], 1.0);
+        for (kname, op) in [("moe_experts_situ_bf16", Op::MoeExperts), ("moe_experts_mxfp8_bf16", Op::MoeExpertsMxfp8)] {
+            let mut a = OpAttrs { top_k: k, ..OpAttrs::default() };
+            (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
+            let wts = if op == Op::MoeExperts { &nv_w } else { &mx_w };
+            let run = |kn: &str, x: HostTensor, ids: HostTensor, ws: HostTensor, rows: usize| -> Vec<HostTensor> {
+                let mut v: Vec<&HostTensor> = vec![&x, &ids, &ws];
+                v.extend(wts.iter());
+                rig.run_r(kn, op, &v, &[(DType::Bf16, vec![rows, h], None)], &a)
+            };
+            let full = run(kname, x.clone(), ids.clone(), ws.clone(), t);
+            assert!(full[0].to_f32().iter().all(|v| v.is_finite()), "{kname} T={t}: non-finite output");
+            let full2 = run(&format!("{kname}_rows"), x.clone(), ids.clone(), ws.clone(), t);
+            assert_eq!(full[0].data, full2[0].data, "{kname}_rows differs from {kname} at T={t}");
+            for r in 0..t {
+                let one = run(kname, row_of(&x, 0, r), row_of(&ids, 0, r), row_of(&ws, 0, r), 1);
+                assert_rows_eq(&format!("{kname} E=128 T={t}"), &full[0], 0, r, &one[0]);
+            }
+        }
+    }
+}
+
 /// ConvMix / SconvRes: a T-row call against T one-row calls at pos0 + r, the ring carried
 #[test]
 fn ink_conv_mix_rows_exact() {

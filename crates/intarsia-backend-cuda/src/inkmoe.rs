@@ -6,7 +6,7 @@
 
 use crate::kernels::ARCH;
 use intarsia_core::quant::ops::{moe_experts_mma_scratch, moe_experts_scratch};
-use intarsia_core::{DType, Exactness, KernelImpl, Op, Tol};
+use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 
 pub const TABLE: &[(&str, Op)] = &[
     ("moe_experts_situ_bf16", Op::MoeExperts),
@@ -24,6 +24,13 @@ pub const MAX_K: usize = 64;
 /// Most rows of the `_rows` twins (`kernels::ROWS_MAX`).
 pub const ROWS_MAX: usize = crate::kernels::ROWS_MAX;
 
+/// Scratch of an ordinary experts kernel: the SIMT layout (`moe_experts_scratch`, two `[E + 1]` tables) or the tensor-core one
+/// (`moe_experts_mma_scratch`), whichever is larger. The tensor-core layout alone is 256 bytes short of the SIMT one at 128
+/// experts and few pairs (a decode step: the launcher refused the call).
+fn ordinary_scratch(s: &ShapeInfo) -> usize {
+    moe_experts_scratch(s).max(moe_experts_mma_scratch(s))
+}
+
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
     TABLE
@@ -35,8 +42,9 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(MOE_TOL)
                 .tol_f32(F32_TOL);
-            // the ordinary kernels take the tensor-core path above 512 pairs (its scratch holds the tile table too)
-            let k = if name.ends_with("_rows") { k.scratch(moe_experts_scratch) } else { k.scratch(moe_experts_mma_scratch) };
+            // the ordinary kernels take the tensor-core path above 512 pairs (its scratch holds the tile table too) and the
+            // SIMT path at or below it, so they reserve the larger of the two layouts
+            let k = if name.ends_with("_rows") { k.scratch(moe_experts_scratch) } else { k.scratch(ordinary_scratch) };
             match *name {
                 "moe_experts_situ_bf16" => k
                     .weights([DType::U8])
@@ -182,6 +190,21 @@ mod launch {
                 )));
             }
             Ok(())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// An ordinary kernel's scratch covers the SIMT layout at every pair count, Inkling-2-Mini's 128 experts included.
+    #[test]
+    fn ordinary_scratch_covers_both_layouts() {
+        for (m, experts) in [(1, 128), (2, 128), (16, 128), (64, 128), (1, 16), (300, 128)] {
+            let s = ShapeInfo { m, top_k: 8, experts, n: 1152, k: 2304, ..Default::default() };
+            assert!(ordinary_scratch(&s) >= moe_experts_scratch(&s), "m={m} E={experts}");
+            assert!(ordinary_scratch(&s) >= moe_experts_mma_scratch(&s), "m={m} E={experts}");
         }
     }
 }
