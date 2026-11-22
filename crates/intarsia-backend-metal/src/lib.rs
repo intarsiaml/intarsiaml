@@ -41,6 +41,7 @@ pub mod gemm_nax;
 mod host;
 pub mod inkmoe;
 pub mod inkmix;
+pub mod screen;
 pub mod kernels;
 mod moe;
 pub mod multirow;
@@ -1403,6 +1404,9 @@ impl MetalBackend {
         }
         if inkmix::KERNELS.iter().any(|k| k.0 == kernel) {
             return self.launch_inkmix(kernel, call);
+        }
+        if screen::KERNELS.iter().any(|k| k.0 == kernel) {
+            return self.launch_screen(kernel, call);
         }
         if bridge::KERNELS.iter().any(|k| k.0 == kernel) {
             return self.launch_bridge(kernel, call);

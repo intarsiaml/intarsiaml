@@ -58,6 +58,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MatmulMxfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
         Op::BridgeNorm | Op::BridgeCode | Op::BridgeGate | Op::BridgeWrite => crate::bridge_ref::run(call),
         Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode => crate::ink_ref::run(call, false),
+        Op::HeadScreen | Op::LogitsGather | Op::ScreenArgmax => crate::screen_ref::run(call, false),
         Op::MatmulExl3 => crate::exl3_ref::run(call),
         Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41_ref::run(call),
         Op::MatmulPair
@@ -312,6 +313,7 @@ pub fn run(call: &OpCall) -> Result<()> {
             }
             Ok(())
         }
+        Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => Err(Error::invalid(format!("{}: reserved discriminant", call.op))),
     }
 }
 
