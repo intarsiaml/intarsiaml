@@ -195,3 +195,15 @@ launch (#10877, pass); `rows_exact` 11 / 11 and the backend lib tests 18 / 18 in
 
 Expected gain: about 0.9 GB of re-read per step each for wo (48 visits) and the unembed, about 3 ms at 16 rows. A/B on the
 batched step: queued (quiet slot).
+
+## 6. Real-checkpoint correctness (#10844, default gpu load)
+
+* **Solo path unchanged**: `intarsia accuracy --backend metal --max-seq 4096 --write-self-golden` on the G2 oracle goldens,
+  base a88db4620 vs this branch (bf6eac934 + docs): every tensor of the self-goldens bitwise identical (short 48 / 48,
+  long 60 / 60; the files differ only in the `built_unix` / `self_meta` metadata). G2 short KL21 2.380e-3 (gate 4e-3), the
+  integration lane's figure; both arms exit 0 on short and long.
+* **Batched == solo on the real model at mixed positions**: `batch_step --ctx 600 --ctx-spread 150` (sequence i at
+  600 + 150 i: 600..2850, so the 1040-row SWA rings of the later sequences have wrapped while the early ones have not, and the
+  full visits read up to 2.9k positions), B = 2, 5, 16, 8 steps: batched tokens == solo tokens every step (asserted).
+  Its timings were taken under a shared (non-quiet) slot and are not reported as speed.
+* Tiny tests on the same build: cpu 6 / 6, Metal 6 / 6; `rows_exact_registrations_are_pinned` pass after the ink/metal fix.
