@@ -999,6 +999,8 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   and the like) all fail at `MetalBackend::new()` / `MetalBackend::arc()`: no Metal device in that ssh session; 141 binaries
   passed, and nothing failed outside Metal device creation. The ubuntu check for the follow-up is the PR's CI. (That run also
   touched no GPU work beyond those failed device opens, though it ran as `--load cpu`.)
+- Follow-up `plan show` on Metal, main 57e1b3332 vs cdf954b26 (endor #11493, `--load cpu`): Qwen3-8B and Llama-3.1-8B text
+  and JSON byte-identical. Follow-up PR opened from ink/metal.
 - Metal #11440 done (exit 0, 09:29:18-09:59:11, quiet gpu,cpu): 256 greedy ids identical base vs dev for Qwen3-8B (short sha
   d619ede5, 4k feb11f5c) and Llama-3.1-8B-Instruct (short 25bbc20f, 4k eda51e94); `plan show` txt and json byte-identical for
   both. `kernels test --backend metal` 0 FAIL on both: base 56 kernels / 1335 cases, dev 86 kernels / 2915 cases (the Inkling,
