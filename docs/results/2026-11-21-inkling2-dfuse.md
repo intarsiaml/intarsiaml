@@ -472,6 +472,8 @@ interleaved reps.
   served (expect on 10 of 10, off 0 of 10). bespin #11163 checked the counter build. Job F got the same touch and run check.
 - Queue at 02:51: R (#11111) is 4th behind #11104 on endor; fleetq estimates a start around 12:30 if the jobs ahead end on
   time. F (#11145) follows R.
+- 03:10: R keeps its slot useful if the preload test fails. The failure is recorded, the preload arms are dropped, and the
+  off / all-off G2 comparison still runs. Timing is skipped in that case.
 
 ### Job E (#11003, 02:01-02:14, snapshot ac2371c81; raw/E_*)
 
@@ -560,6 +562,18 @@ Result files: /opt/code/deepeval/results/20261122-021312-adhoc-endor-intarsia-me
   3. G2 in both modes with the defaults.
 - The flip becomes one ink/dfuse commit (tree = 6318887b5's) once job R shows all-off == best in G2's decode mode. It merges
   into ink/metal only after ink-metal's decode-mode G2 is fixed or explained (coordinator).
+- **F retargeted (03:10) to the tip 00c81dda7** (the flip + ink/metal dbec19036 merged; snapshot .scratch/snap5; the old
+  script is jobF.v1.sh). Since the flip, no Metal test suite has run with the new defaults, and the merge adds
+  tests/inkling2_mix_decode_cpu.rs. That test launches the mix ops by name, so the defaults choose the hoisted and norm_c
+  kernels. F now runs, with the defaults and again with all four switches off:
+  - inkload, inkctrl, inkctrl_nometal4 and inkmix;
+  - the models' Inkling tests on Metal: inkling2 (G1 tiny), inkling2_batch and inkling2_mix_decode_cpu.
+
+  After the tests it runs the admission of the five ops, `plan show` for Qwen3-8B and Llama-3.1-8B against the base binary,
+  the env matrix, and G2 (both modes) and G3 with confident rows. Each self-golden is byte-compared with E's best.
+  No test relied on the old defaults: the only test that sets the switches (inkload) sets both arms explicitly.
+- bespin #11167: the merge 00c81dda7 passes cargo check (Metal crate examples + tests, every models test target) and the cpu
+  Inkling tests (8 / 8, 6 / 6).
 
 ### Rule (b): decode-mode G2 is the ink/metal tip's, bit for bit (02:35)
 
