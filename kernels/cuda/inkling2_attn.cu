@@ -186,14 +186,15 @@ __device__ __forceinline__ void ink_rel_g(const float (*r)[32], int G, const bf1
 // prologue and the fused decode kernel produce the same bits whatever their block shapes.
 // ------------------------------------------------------------------------------------------------------------------------
 
-constexpr int JMAX = 8;  // elements per lane (head_dim <= 256)
+constexpr int JMAX = 8;  // most elements per lane (head_dim <= 256); a kernel instantiates J = ceil(head_dim / 32) <= JMAX
 
 // conv'd K (or V) row of kv head kvh at call row t: v[i] = channel lane + 32 i; returns the sum of squares (every lane)
+template <int J>
 __device__ __forceinline__ float job_conv(const InkP& p, const bf16* x, const bf16* ring, const bf16* taps, unsigned t, unsigned pos0,
                                           unsigned kvh, unsigned lane, float* v) {
     float ss = 0.0f;
 #pragma unroll
-    for (int i = 0; i < JMAX; ++i) {
+    for (int i = 0; i < J; ++i) {
         const unsigned c = lane + 32 * i;
         v[i] = 0.0f;
         if (c < (unsigned)p.d) {
@@ -205,13 +206,14 @@ __device__ __forceinline__ float job_conv(const InkP& p, const bf16* x, const bf
 }
 
 // q (r = false: D elements) or r (r = true: dr elements) of query head h at call row t, after scale, clip and tau (rounded)
+template <int J>
 __device__ __forceinline__ void job_qr(const InkP& p, unsigned t, unsigned h, unsigned pp, bool r, unsigned lane, float* v) {
     const unsigned n = r ? p.dr : p.d;
     const size_t off = (size_t)t * p.nq + (r ? (size_t)p.h * p.d + h * p.dr : (size_t)h * p.d);
     const bf16* sc = r ? p.rs + h * p.dr : p.qs + h * p.d;
     float ss = 0.0f;
 #pragma unroll
-    for (int i = 0; i < JMAX; ++i) {
+    for (int i = 0; i < J; ++i) {
         const unsigned c = lane + 32 * i;
         v[i] = 0.0f;
         if (c < n) {
@@ -223,7 +225,7 @@ __device__ __forceinline__ void job_qr(const InkP& p, unsigned t, unsigned h, un
     const float tau = ink_tau(p, pp);
     const bool use_tau = p.tau_floor > 0;
 #pragma unroll
-    for (int i = 0; i < JMAX; ++i) v[i] = ink_qr(v[i], ss, r ? p.rel_clip : p.qk_clip, use_tau, tau);
+    for (int i = 0; i < J; ++i) v[i] = ink_qr(v[i], ss, r ? p.rel_clip : p.qk_clip, use_tau, tau);
 }
 
 __device__ __forceinline__ float k_out(float v, float ss, const InkP& p) { return rA(__fmul_rn(v, ink_clipf(ss, p.qk_clip))); }
@@ -231,7 +233,8 @@ __device__ __forceinline__ float v_out(float v, float ss, const InkP& p) { retur
 
 // InkKvPrologue. Grid (Hk, T), 256 threads (8 warps): warps take the jobs k, v, q_0 .., r_0 .. in turn, then all threads the rel
 // tail (3 x E elements of a 16-long chain each).
-__global__ void __launch_bounds__(256, 2) ink_prologue_k(InkP p) {
+template <int J>
+__global__ void __launch_bounds__(256, J <= 4 ? 3 : 2) ink_prologue_k(InkP p) {
     __shared__ float rsh[4][32];
     const unsigned tid = threadIdx.x, lane = tid & 31, warp = tid >> 5, nw = blockDim.x >> 5;
     const unsigned kvh = blockIdx.x, t = blockIdx.y;
@@ -243,26 +246,26 @@ __global__ void __launch_bounds__(256, 2) ink_prologue_k(InkP p) {
     const bool lead = blockIdx.z == 0;
     const unsigned njobs = 2 + 2 * G;
     for (unsigned job = lead ? warp : 2 + G + warp; job < njobs; job += nw) {
-        float v[JMAX];
+        float v[J];
         if (job < 2) {
-            const float ss = job_conv(p, job ? p.pv : p.pk, job ? p.vr : p.kr, job ? p.vt : p.kt, t, pos0, kvh, lane, v);
+            const float ss = job_conv<J>(p, job ? p.pv : p.pk, job ? p.vr : p.kr, job ? p.vt : p.kt, t, pos0, kvh, lane, v);
             bf16* dst = (job ? p.vo : p.ko) + ((size_t)t * p.hk + kvh) * D;
 #pragma unroll
-            for (int i = 0; i < JMAX; ++i) {
+            for (int i = 0; i < J; ++i) {
                 const unsigned c = lane + 32 * i;
                 if (c < D) dst[c] = f2b(job ? v_out(v[i], ss, p) : k_out(v[i], ss, p));
             }
         } else if (job < 2 + G) {
             const unsigned h = kvh * G + (job - 2);
-            job_qr(p, t, h, pp, false, lane, v);
+            job_qr<J>(p, t, h, pp, false, lane, v);
 #pragma unroll
-            for (int i = 0; i < JMAX; ++i) {
+            for (int i = 0; i < J; ++i) {
                 const unsigned c = lane + 32 * i;
                 if (c < D) p.qo[((size_t)t * H + h) * D + c] = f2b(v[i]);
             }
         } else {
             const unsigned g = job - 2 - G;
-            job_qr(p, t, kvh * G + g, pp, true, lane, v);
+            job_qr<J>(p, t, kvh * G + g, pp, true, lane, v);
             if (lane < dr) rsh[g][lane] = v[0];
         }
     }
@@ -648,6 +651,7 @@ struct TileSmem {
 template <int D, bool FUSED>
 __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages) {
     const int maxt = p.maxt;
+    constexpr int J = (D + 31) / 32;
     using SM = TileSmem<D>;
     constexpr int LD = SM::LD, NKS = D / 16, NDB = D / 8;
     extern __shared__ __align__(16) unsigned char sm[];
@@ -693,23 +697,23 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages)
         bf16* Qt = KV;
         const int njobs = 2 * M + 2 * nown;
         for (int job = warp; job < njobs; job += nw) {
-            float v[JMAX];
+            float v[J];
             if (job < 2 * M) {
                 const int mi = job % M, t = mi / G, h = kvh * G + mi % G;
                 const bool r = job >= M;
-                job_qr(p, t, h, pos0 + t, r, lane, v);
+                job_qr<J>(p, t, h, pos0 + t, r, lane, v);
                 if (!r) {
 #pragma unroll
-                    for (int i = 0; i < JMAX; ++i)
+                    for (int i = 0; i < J; ++i)
                         if (lane + 32 * i < D) Qt[mi * D + lane + 32 * i] = f2b(v[i]);
                 } else if (lane < dr) {
                     rsh[mi * dr + lane] = v[0];
                 }
             } else {
                 const int jj = job - 2 * M, kind = jj & 1, t = on0 - pos0 + (jj >> 1);
-                const float ss = job_conv(p, kind ? p.pv : p.pk, kind ? p.vr : p.kr, kind ? p.vt : p.kt, t, pos0, kvh, lane, v);
+                const float ss = job_conv<J>(p, kind ? p.pv : p.pk, kind ? p.vr : p.kr, kind ? p.vt : p.kt, t, pos0, kvh, lane, v);
 #pragma unroll
-                for (int i = 0; i < JMAX; ++i)
+                for (int i = 0; i < J; ++i)
                     if (lane + 32 * i < D) own[((size_t)kind * T + t) * D + lane + 32 * i] = f2b(kind ? v_out(v[i], ss, p) : k_out(v[i], ss, p));
             }
         }
@@ -1393,7 +1397,8 @@ extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk,
     // (kv head, row) (each slice block redoes the r jobs). The elements' arithmetic does not depend on the slicing.
     unsigned nz = p.t <= 4 ? (unsigned)((p.e + 255) / 256) : 1u;
     if (nz > 8) nz = 8;
-    ink_prologue_k<<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
+    if (p.d <= 128) ink_prologue_k<4><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
+    else ink_prologue_k<JMAX><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
     if (!fused) {
         const size_t n = (size_t)p.t * p.hk * p.d;
         ink_ring_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p);
