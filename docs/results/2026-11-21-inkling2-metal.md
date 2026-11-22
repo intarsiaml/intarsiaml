@@ -50,6 +50,17 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
   runs the engine bench at 1-16 streams): compare the calibration call with chat / localeval, repro on a tiny-model serve on
   spark2 if needed (not endor), fix on ink/metal with a test, send the hash.
 
+- 2026-11-22 (coordinator): m-mix is done (quiet #10909: ConvMix at 2048 rows 15 % faster, blend at 16 rows 13-14 % faster,
+  +0.8 us at 1 row, which dfuse's T=1 split replaces). After #10901, merge ink/m-mix 52b337aa9 (with 25ff7864a, the defaults
+  change: NE 4 row tiling, gate rows) and gate the merged tip (rows-exact kernels test, G2 / G3, greedy md5); #10901 does not
+  cover it. Send the hash; brief here first.
+- 2026-11-22 (coordinator, supersedes the separate m-mix gate): ink/batch passed its criterion (#10914: solo decode -0.62 %,
+  identical output). After #10901 merge m-mix 52b337aa9 first, then ink/batch bbc0bec00 (177cfd2f5 plus docs). Both touch the
+  mix shader / inkmix.rs (m-mix: NE 4 tiling, gate-rows default; batch: the MX_ROWTAB row-table branch, longer InkP / InkMixP
+  params): keep both, a kernel-body conflict is a semantic merge. ONE gate on the merged tip: shader compile, rows-exact
+  kernels test, G2 / G3, greedy md5 against the current tip, ink-batch's batched == solo at B = 2 / 5 / 16. Send the hash to
+  the coordinator and ink-batch (a716d7e057a6fbfc3).
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
