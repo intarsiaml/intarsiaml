@@ -916,3 +916,12 @@ Branch `6cbbff7bf` (this lane + ink/cuda-mtp + main `57e1b3332`) against main `5
 same job: Qwen3-8B greedy 256 (chat, no-think) short-0 identical ids (md5 `3d425d4ebaa1`, 15.64 vs 15.67 tok/s) and 4k-0
 identical (md5 `f10cca037c96`, 15.10 both); `plan show` JSON and text byte-identical for the 8B (8973 / 1548 B) and the 35B
 NVFP4 (15570 / 4017 B); `kernels test --quick` on the branch: 128 kernels, 1556 cases, rc 0; ink_rows 8/8.
+
+## Inkling on CUDA after the main merges (#11502, spark2, tree `611d17464` = main `693f6440e` merged)
+
+- Tiny `inkling2` cpu 17/17; cuda 15/17: the two screened-head tests from #489 (`inkling2_tiny_screened_head_one_row_only`,
+  `inkling2_tiny_screen_keeps_batching`) force `INTARSIA_INK_HEAD_SCREEN=1`, whose ops are cpu / Metal only, so the CUDA load
+  is refused; they now skip on CUDA (`dd250e728`; rerun in #11520). Tiny `inkling2_dspark` 3/3 cpu and cuda.
+- Greedy ids md5, spec off and spec on (DSpark, verify graph): g64 `ec9a19c14b2d`, g256 `a0e6f47bc45f`, g1.2k `aaaa65a7ac70`
+  in all six runs, as before both merges. Decode tok/s spec off 36.67 / 36.46 / 35.98, spec on 36.88 / 41.82 / 43.99
+  (acceptance 31.6 / 34.1 / 43.0 %).
