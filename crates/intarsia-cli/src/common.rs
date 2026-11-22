@@ -60,7 +60,8 @@ pub struct ModelArgs {
     /// KV cache dtype override (bf16, f16, f32, fp8_e4m3); default from the recipe.
     #[arg(long)]
     pub kv_dtype: Option<String>,
-    /// Time every Nth step per op (default: every step on cpu, every 16th on GPUs, never for `serve` on metal; 0 = never).
+    /// Time every Nth step per op (default: every step on cpu, every 16th on CUDA / HIP, never on metal; 0 = never). A profiled
+    /// step synchronises around every op: on Metal (no decode graphs) such a step costs about five normal ones.
     #[arg(long)]
     pub profile_every: Option<u32>,
     /// Run the single-token decode step eagerly instead of replaying a captured CUDA graph (A/B and debugging).
@@ -354,7 +355,7 @@ impl ModelArgs {
                 prefill_chunk: self.prefill_chunk.unwrap_or(intarsia_core::recipe::DEFAULT_PREFILL_CHUNK),
                 act_dtype: None,
                 kv_dtype,
-                profile_every: self.profile_every.unwrap_or(if self.backend == "cpu" { 1 } else { 16 }),
+                profile_every: self.profile_every.unwrap_or(default_profile_every(&self.backend)),
                 mem_budget: self.mem_budget.map(|g| (g * (1u64 << 30) as f64) as u64),
                 fp8_act: self.fp8_act.as_deref().map(intarsia_core::quant::Fp8Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
                 mxfp4_act: self.mxfp4_act.as_deref().map(intarsia_core::quant::Mxfp4Act::parse).transpose().map_err(|e| anyhow::anyhow!("{e}"))?,
@@ -436,11 +437,6 @@ impl ModelArgs {
     pub fn for_serving(mut self) -> Self {
         self.admit = true;
         self.require_admitted = true;
-        // Metal has no decode graphs, so a profiled step synchronises around every op: at the default N = 16 that
-        // costs about 12% of served decode. CUDA/HIP keep their default (graph decode profiles far less often).
-        if self.profile_every.is_none() && self.backend == "metal" {
-            self.profile_every = Some(0);
-        }
         // The driver drops its wiring of the weight files about a second after their last use, so the first request after
         // a pause pays ~170 ms for it again (Qwen3-8B): a server keeps it warm. `generate`, `plan`, `doctor` and the accuracy
         // tools use the weights at once and exit, they keep the old behaviour.
@@ -564,6 +560,18 @@ pub fn run_tp_worker(a: TpWorkerArgs) -> Result<()> {
     }
 }
 
+/// `--profile-every` when it is not given: every step on cpu, every 16th on CUDA / HIP (graph decode profiles a step far less often
+/// than it replays one), never on Metal. Metal has no decode graphs, so a profiled step synchronises around every op: 77-82 ms
+/// against a 15.8 ms Inkling-2-Mini step, about 12 % of Qwen3-8B / 35B decode and 20 % of Inkling's at N = 16
+/// (docs/results/2026-11-21-inkling2-hostgap.md). `serve` had 0 on Metal before; `generate` too since lane ink-hostgap.
+fn default_profile_every(backend: &str) -> u32 {
+    match backend {
+        "cpu" => 1,
+        "metal" => 0,
+        _ => 16,
+    }
+}
+
 /// Row-local fusion under tensor parallelism (`LoadOptions::tp_fusion`; acts only at world > 1). On by default for CUDA
 /// (user decision 2026-10-21 17:13, docs/results/2026-10-21-tp2-cuda-graphs.md) and for HIP at tp > 1 (user decisions 2026-10-21,
 /// after the soak in docs/results/2026-10-21-hs-hip-fusion-soak.md, and 2026-10-25, gate vs tp1: docs/results/2026-10-25-tp2-hip.md),
@@ -664,12 +672,16 @@ mod tests {
     }
 
     #[test]
-    fn serve_on_metal_does_not_profile_by_default() {
+    fn metal_does_not_profile_by_default() {
         assert_eq!(profile_every(&["--backend", "metal"], true), 0);
         assert_eq!(profile_every(&["--backend", "metal", "--profile-every", "16"], true), 16);
-        assert_eq!(profile_every(&["--backend", "metal"], false), 16);
+        assert_eq!(profile_every(&["--backend", "metal"], false), 0);
+        assert_eq!(profile_every(&["--backend", "metal", "--profile-every", "16"], false), 16);
         assert_eq!(profile_every(&["--backend", "cuda"], true), 16);
+        assert_eq!(profile_every(&["--backend", "cuda"], false), 16);
+        assert_eq!(profile_every(&["--backend", "hip"], false), 16);
         assert_eq!(profile_every(&["--backend", "cpu"], true), 1);
+        assert_eq!(profile_every(&["--backend", "cpu"], false), 1);
     }
 
     #[test]

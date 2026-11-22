@@ -50,7 +50,7 @@ All of these are in the shared model-argument group of `crates/intarsia-cli/src/
 | FP8 activations | `--fp8-act static\|none` | recipe `[defaults] fp8_act` | **yes** (W8A8 vs W8A16) | `accuracy` against a golden; decode tok/s |
 | MXFP4 activations | `--mxfp4-act dynamic\|none\|fp8` (`fp8` = W4A8, HIP only), recipe `[tuning.<backend>] mxfp4_act`, then `[defaults] mxfp4_act` | the recipe's key (Qwen3.8-27B MXFP4: `fp8`, W4A8, on HIP since 2026-10-27; `none`, W4A16, elsewhere since 2026-10-26), else what the checkpoint declares | **yes** | as above |
 | Context and KV memory | `--max-seq N`, `--kv-fraction F`, `--mem-budget GiB` | 4096, 0.5, measured free memory | no | `plan show` prints the planned context; `bench speed --sizes` up to it |
-| Step profiling | `--profile-every N` | every step on cpu, every 16th on GPUs, never for `serve` on metal; 0 = never | no, but profiled steps are slower and bias throughput | **Use `--profile-every 0` for every number you will quote**; use 1 only to read the per-op table (`generate --op-table`) |
+| Step profiling | `--profile-every N` | every step on cpu, every 16th on CUDA / HIP, never on metal (`generate` too since 2026-11-21); 0 = never | no, but profiled steps are slower and bias throughput | **Use `--profile-every 0` for every number you will quote**; use 1 only to read the per-op table (`generate --op-table`) |
 | Reference kernels | `--reference` | off | **yes** (f64 oracle kernels; fails at load on backends without reference kernels, e.g. cuda) | accuracy oracle, not speed |
 | Admission | `--admit`, `--no-admission-cache` | `serve` always admits | no | `intarsia kernels test --model` |
 
