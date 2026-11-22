@@ -101,9 +101,19 @@ pub fn metric() -> String {
 /// Row norms of the head (bf16 and fp8 copy) must stay below this (`2^20`) for the screen (checked at load, `row_bounds`).
 pub const W_NORM_MAX: f64 = 1048576.0;
 
-/// `INTARSIA_INK_HEAD_SCREEN`: `1` = the screened greedy head (needs `INTARSIA_LMHEAD_QUANT` unset: the head stays bf16, the
-/// fp8 copy is the screen's); unset / anything else = off.
+/// `INTARSIA_INK_HEAD_SCREEN`: the screened greedy head (Inkling-2 only; needs `INTARSIA_LMHEAD_QUANT` unset: the head stays
+/// bf16, the fp8 copy is the screen's). Unset: on on Metal, off elsewhere; `0` / `off` / `false`: off; `1` / `on` / `true`: on
+/// on every backend (the cpu reference ops included). See [`wanted`].
 pub const ENV: &str = "INTARSIA_INK_HEAD_SCREEN";
+
+/// Whether the screen is asked for: the value of [`ENV`] (if set) and the backend's name.
+pub fn wanted(env: Option<&str>, backend: &str) -> bool {
+    match env.map(|v| v.trim().to_ascii_lowercase()) {
+        Some(v) if matches!(v.as_str(), "0" | "off" | "false") => false,
+        Some(v) if matches!(v.as_str(), "1" | "on" | "true") => true,
+        _ => backend == "metal",
+    }
+}
 
 /// Candidate cap per row (`INTARSIA_INK_HEAD_SCREEN_CAP`, default 64): rows with more candidates rescore the full head.
 pub const CAP_ENV: &str = "INTARSIA_INK_HEAD_SCREEN_CAP";
@@ -539,6 +549,14 @@ mod tests {
         assert_eq!(screen_row(&[0.0, 0.5, 1.0, 2.0], &h, &big_beta, &mut cand), NONFINITE);
         let c = screen_row(&[0.0, 0.5, 1.0, 2.0], &h, &beta, &mut cand) as usize;
         assert!((1..=4).contains(&c) && cand[c..].iter().all(|&x| x == -1));
+    }
+
+    #[test]
+    fn default_on_metal_only() {
+        assert!(wanted(None, "metal") && !wanted(None, "cpu") && !wanted(None, "cuda"));
+        assert!(!wanted(Some("0"), "metal") && !wanted(Some(" off "), "metal") && !wanted(Some("FALSE"), "metal"));
+        assert!(wanted(Some("1"), "cpu") && wanted(Some("on"), "metal"));
+        assert!(wanted(Some(""), "metal") && !wanted(Some("x"), "cpu"));
     }
 
     /// The flush-to-zero part of the bound: `hn` keeps its floor for an all-zero or subnormal-scale row, and a head row norm of
