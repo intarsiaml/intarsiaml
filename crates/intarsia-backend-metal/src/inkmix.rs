@@ -511,16 +511,22 @@ struct InkBlendP {
     sk: [u32; 8],
 }
 
-/// (NE, threads per threadgroup) of the row kernels for rows of `d` elements: 4 from D 2048, below that the fewest elements per
-/// thread that fit in 1024 threads (`INTARSIA_INK_MIX_NE=<ne>` forces another compiled NE: a measurement knob that changes the reduction order,
-/// fixed per D, so still rows-exact).
+/// (NE, threads per threadgroup) of the row kernels for rows of `d` elements: the fewest elements per thread that fit in 1024
+/// threads, so NE 3 (768 threads) at D 2304 (`INTARSIA_INK_MIX_NE=<ne>` forces another compiled NE: a measurement knob that
+/// changes the reduction order, fixed per D, so still rows-exact).
+///
+/// TODO(ink-metal): m-mix 25ff7864a made NE 4 the default from D 2048 (576 threads at D 2304; 15 % faster 2048-row prefill
+/// in docs/results/2026-11-21-inkling2-metal-mix.md section 3.5). On the real model that took decode-mode G2 short from
+/// 2.589e-3 to 1.109e-2 with an error that grows over the decode rows (state-like), while NE 3 is bitwise the pre-merge tree
+/// (bisect #11142, docs/results/2026-11-21-inkling2-metal.md). The kernels at NE 4 match the cpu reference on synthetic
+/// D 2304 calls (tests/inkling2_mix_decode_cpu.rs), so the fault needs the real call layout; not found yet. Suspects: a call
+/// layout the synthetic test lacks (views with element skips, outputs aliasing stored sources, the device position).
+/// tests/inkling2_real_decode_ne.rs gates the default against NE 3 on the real model and reports NE 4 forced.
 fn mix_geom(d: usize) -> (usize, usize) {
     static OV: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
     let ov = *OV.get_or_init(|| std::env::var("INTARSIA_INK_MIX_NE").ok().and_then(|v| v.parse().ok()).filter(|n| MIX_NE.contains(n)));
-    // NE 4 from D 2048 (576 threads at D 2304): same decode latency as NE 3, 15 % faster 2048-row prefill
-    // (docs/results/2026-11-21-inkling2-metal-mix.md section 3.5)
     let fit = MIX_NE.iter().copied().find(|&n| n * 1024 >= d).unwrap_or(4);
-    let ne = ov.filter(|&n| n * 1024 >= d).unwrap_or(if d >= 2048 { 4 } else { fit });
+    let ne = ov.filter(|&n| n * 1024 >= d).unwrap_or(fit);
     (ne, d.div_ceil(ne).next_multiple_of(32).clamp(32, 1024))
 }
 
