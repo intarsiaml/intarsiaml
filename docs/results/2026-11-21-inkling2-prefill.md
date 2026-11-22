@@ -242,6 +242,14 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     `metal4_shaders_are_the_nax_variants_and_not_metal3_shaders` passes at the ink/prefill tip (8db176ed5). The rel_mode 2
     branch `ink/prefill-rel2` merged ink/metal 5ef24b165 (contains 8e0ff6af6; the merge kept one copy of the line), and the
     test passes there before and after NAX_R2 joined `inkattn::metal4_shader_names()` (which the sum counts).
+25. 2026-11-22 (coordinator, via SendMessage): rel_mode 2: agreed, no flip; leave it on `ink/prefill-rel2`, do **not** merge it
+    into ink/prefill or ink/metal (an opt-in mode worth ~1 % that changes output is not worth carrying). **Go on NAX_SG:**
+    (1) sweep `INTARSIA_INK_NAX_SG` over 4 / 6 / 8 / 12 (16 if valid) per call at the 4k / 8k / 16k shapes, mode 0, one quiet
+    endor slot; (2) exactness of the best value: bitwise vs 12 by construction or only to tolerance; show G2 self-goldens
+    byte-identical and greedy md5 64 / 256 identical; (3) speed: end-to-end prefill tok/s and TTFT at 4k / 8k / 16k, best SG vs
+    12, warm-up then 3 ABAB pairs; (4) rule: bitwise and median >= +1 % end to end -> flip default-on in its own commit with a
+    revert env var, a docs/tuning.md row and a LOG row, send the hash; not bitwise -> report, no flip. Then the softmax /
+    rescale bucket, bounded first (share of prefill ms at 8k, best-case saving); build only if the bound is >= 3 %.
 
 ## Status
 
