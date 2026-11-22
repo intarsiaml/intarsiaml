@@ -970,7 +970,7 @@ def _by_expert(d: dict, g: str) -> torch.Tensor:
     return torch.gather(d[f"{g}.expert_w"], 1, torch.argsort(ids, -1))
 
 
-def tf_check(test: dict, f64: dict, oracle_tf: dict, verbose: bool = False) -> list[str]:
+def tf_check(test: dict, f64: dict, oracle_tf: dict, verbose: bool = False, factor: float = 2.0) -> list[str]:
     """G1(b): compare a backend's teacher-forced dump `test` with the f64 dump, per visit and
     tensor. Budget: rel err <= max(2 x the oracle's own teacher-forced bf16 error, 1e-3).
     Rows whose f64 top-k margin exceeds 5 x the oracle's max |router_sel| error at that visit
@@ -1007,7 +1007,7 @@ def tf_check(test: dict, f64: dict, oracle_tf: dict, verbose: bool = False) -> l
                 ref, t, o = ref[m_], t[m_], o[m_]
             nrm = ref.norm().clamp(min=1e-30)
             e_o, e_t = ((o - ref).norm() / nrm).item(), ((t - ref).norm() / nrm).item()
-            budget = max(2 * e_o, 1e-3)
+            budget = max(factor * e_o, 1e-3)
             line.append(f"{name}={e_t:.1e}/{budget:.1e}")
             if e_t > budget:
                 fails.append(f"{k}: rel err {e_t:.3e} > budget {budget:.3e}")
