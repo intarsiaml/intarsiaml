@@ -392,7 +392,8 @@ fn inkling2_tiny_chunk_scan() {
 fn inkling2_tiny_verify_rows_equal_decode_bitwise() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     let ids = prompt(&dir);
-    let m = load(&dir, chunk());
+    let mut m = load(&dir, chunk());
+    m.enable_verify(4).unwrap();
     for &p in &[5usize, 9, 17, 26] {
         for r in 2..=4usize {
             if p + r > ids.len() {
