@@ -825,7 +825,7 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
   change (contract note) with the same ceiling, so it is only worth it if the probe shows the split cannot hide the cold
   rounds.
 
-### Probe job P (#11305, queued 06:30, snapshot .scratch/snap6 = afaf4e8c9; measurement only)
+### Probe job P (#11305, 06:37-06:39, snapshot .scratch/snap6 = afaf4e8c9; measurement only)
 
 - **afaf4e8c9** adds `ink_ctrl_bench --probe [--evict MB,..]`, example code only.
   - It covers the four ConvMix call sites with the default switches, timed per dispatch label. Each dispatch runs in its
@@ -854,4 +854,48 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
   - `INTARSIA_INK_BLEND_NORM_C=0`: the one-channel-per-thread blend norm, at any row count.
 
   All four at `=0` give the pre-dfuse kernels. Bisect order: all off first, then one at a time.
+
+### Job P results: the row-kernel ceiling is 0.085 ms per token, so STOP (raw/P_*)
+
+- **The tip (afaf4e8c9 = 10cf8988d + the probe; NE 3, pack12, gumbel; the defaults).**
+  - Normal step: 13.31 / 13.33 ms, 74.8 / 74.6 tok/s (engine bench, short prompt). A first, cold rep read 14.94 ms.
+  - 543 dispatches per step. Greedy md5 d03580fb172c4b088977979647b67712: not E's, since the base changed (NE 3, pack12).
+  - Per-dispatch controllers: 2.972 ms per token (E on ac2371c81: 3.243).
+
+  | Controller dispatch on the tip | ms / token | Dispatches / token | Median us |
+  |---|---|---|---|
+  | ConvMix row kernel, with the blend | 0.779 | 46 | 16.37 |
+  | ConvMix row kernel, plain | 0.637 | 50 | 11.8 to 14.1 |
+  | ink_route | 0.569 | 48 | 11.81 |
+  | blend gate (#2) | 0.376 | 46 | 8.17 |
+  | blend h GEMV (#1) | 0.264 | 46 | 5.00 |
+  | blend norm_c (#3) | 0.199 | 46 | 4.29 |
+  | AttnResMix | 0.092 | 4 | 22.81 |
+  | LoopBlend | 0.056 | 8 | 4.5 to 9.6 |
+  | **all** | **2.972** | **294** | |
+
+  The row kernel is faster at NE 3 in the stream (14.00 us median against 15.67 at NE 4).
+- **The probe** (T = 1, one command buffer per dispatch on both sides). Row kernel alone, us:
+
+  | Call site | Stream | Bench cached | Bench, 96 MB evicted | Bench, 256 MB evicted |
+  |---|---|---|---|---|
+  | attention side, plain | 12.37 | 10.65 | 48.95 | 57.29 |
+  | attention side, blend S = 1 | 15.46 | 13.58 | 42.89 | 56.36 |
+  | MLP side, plain, Q 3 | 11.98 | 15.38 | 60.32 | 72.61 |
+  | MLP side, blend S = 3 | 17.42 | 21.43 | 68.07 | 84.16 |
+
+  The bench's MLP shapes (4 stored sources, Q 3) cost more than the model's MLP calls, so the stream is under the bench there.
+- **Ceiling** (raw/P_ceil.py output): sum of (stream - cached) x calls = 0.041 + 0.043 + 0 + 0 = **0.085 ms per token**,
+  under the 0.3 ms bar. Stop rule: stop. No prototype was built.
+- **What this shows.**
+  - The row kernel's operands are not cold in the stream. With a real eviction (96 or 256 MB) the kernel takes 43-84 us,
+    3-5x its stream cost, so in the stream they come from the cache.
+  - Its stream cost is its own cached cost plus about 2 us. The cold-load hypothesis behind the split (and behind the
+    hoist's stream-vs-warm reasoning) does not hold on the tip; a split for memory-level parallelism has nothing to win.
+  - The per-dispatch command buffer costs a small kernel much more than the ~1.5 us average: the attention-side plain row
+    kernel is 5.96 us in the multi-dispatch bench (raw/R_bench.md, NE 4) against 10.65 here. So the per-dispatch
+    controller totals overstate the real controller time, perhaps by up to 1 ms per token.
+- **Not measured.** What is left in the row kernel is its own dependent chain: two full-row reductions per query batch with
+  their barriers, the softmax in simdgroup 0, and the stores. Only a restructured kernel could cut it, and that has no
+  measured ceiling yet.
 

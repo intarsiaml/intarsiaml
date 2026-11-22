@@ -1,0 +1,24 @@
+30 decode steps: GPU busy 14114 us, span 14041 us, dispatches 543
+| ink_in_proj_p12_gemv | 2788 | 48 | 57.96 |  |
+| moe_experts_situ_bf16 | 2539 | 44 | 57.58 |  |
+| ink_attn_decode_bf16 | 1652 | 48 | 34.21 |  |
+| conv_mix_bf16 | 1417 | 96 | 14.00 | ctrl |
+| moe_experts_situ_bf16#1 | 1371 | 44 | 31.12 |  |
+| matmul_p12_logits_gemv | 1170 | 1 | 1171.42 |  |
+| matmul_p12_gemv | 1084 | 48 | 22.50 |  |
+| ink_route_bf16 | 569 | 48 | 11.81 | ctrl |
+| conv_mix_bf16#2 | 376 | 46 | 8.17 | ctrl |
+| moe_experts_mxfp8_bf16 | 355 | 4 | 88.37 |  |
+| conv_mix_bf16#1 | 264 | 46 | 5.00 | ctrl |
+| conv_mix_bf16#3 | 199 | 46 | 4.29 | ctrl |
+| moe_experts_mxfp8_bf16#1 | 176 | 4 | 43.88 |  |
+| attn_res_mix_bf16 | 92 | 4 | 22.81 | ctrl |
+| loop_blend_bf16#2 | 19 | 2 | 9.62 | ctrl |
+| argmax_f32 | 15 | 1 | 15.15 |  |
+| loop_blend_bf16 | 14 | 2 | 7.13 | ctrl |
+| loop_blend_bf16#1 | 14 | 2 | 7.08 | ctrl |
+| rmsnorm_bf16 | 9 | 2 | 4.50 |  |
+| loop_blend_bf16#3 | 9 | 2 | 4.50 | ctrl |
+| other | 9 | 4 | 2.23 |  |
+| embedding_bf16 | 3 | 1 | 2.88 |  |
+CONTROLLERS (per-dispatch, pipelined): 2.972 ms per token
