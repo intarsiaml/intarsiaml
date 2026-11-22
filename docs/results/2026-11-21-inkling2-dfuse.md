@@ -1,6 +1,6 @@
 # Inkling-2-Mini decode controller fusion on Metal (lane ink-dfuse, 2026-11-21)
 
-Status: in progress. Changes 1-3 are committed and timed (no gain). Changes 4-5 (load order in the row kernels) are compile-checked on bespin and queued with the per-switch attribution in #10964 (snapshot 61e954172). The real-model bitwise gate and G2 / G3 are queued in #10952. Branch `ink/dfuse` (from `ink/metal` a88db4620), worktree `.worktrees/ink-dfuse`. Not pushed.
+Status: in progress. Changes 1-5 are committed, default off, and bitwise on the real model. G2 / G3 pass for 1-3 (#10952). Per-switch timing (#10964): best = route + msg + hoist + norm_c is -0.67 ms per step. The tail is dropped. Job E (#11003) confirms with 6 reps and runs the final gates before any default changes. Branch `ink/dfuse` (from `ink/metal` a88db4620), worktree `.worktrees/ink-dfuse`. Not pushed.
 
 ## Briefs received
 
@@ -89,6 +89,11 @@ Status: in progress. Changes 1-3 are committed and timed (no gain). Changes 4-5 
   free port per job, and a check after readiness that the listener is our own pid. (2) Flag this lane's quiet results from
   23:07 until the kill, say whether any conclusion depends on them, and note that #10964's first minutes overlapped. Done:
   see "The orphan server" under Results; `.scratch/serve_lib.sh` is the fixed teardown, used by jobC.sh and job E.
+- 2026-11-22 ~01:35 (coordinator): teardown fix and flags accepted; dropping the tail agreed. Rule for the committed
+  switches, as for the other lossless lanes: (1) default-on only if bitwise (shown) AND the real-step timing gain is larger
+  than the interleaved rep spread; (2) a microbench gain alone is not enough (#10882: fewer dispatches, no decode gain);
+  (3) everything else stays opt-in or is dropped; (4) send the per-switch real-step table and the hash to the coordinator
+  before ink-metal merges anything.
 
 ## Probes (endor, before any code)
 
@@ -304,5 +309,68 @@ use", exit 78). The readiness probe then answered from the off server.
 bitwise, timing and the per-dispatch trace. A recovery block appended to the running script rebuilt the binary and reran
 those steps in the same slot (the first-pass logs are in `.scratch/D/first/`). Job scripts now build the metal binary after
 any `cargo test` of intarsia-cli.
+
+### Load-order switches and per-switch attribution (fleetq #10964, snapshot 61e954172 = commits 88b2b089c / f64199417 / fe16c5654, raw/*_D*)
+
+**Correctness:**
+- `tests/inkload.rs`: hoist on == off in 1980 cases, norm_c on == off in 147 cases.
+- inkctrl and the no-metal4 test pass. `tests/inkmix.rs` rows-exact passes with both switches on.
+- Admission with both on: conv_mix 532, sconv_res 64, attn_res_mix 97, loop_blend 27 cases, all ADMITTED.
+- The tiny model on Metal with both on (G1) passes, and docs_env_vars passes.
+- Real model, off vs hoist / norm_c / both / best (route + msg + hoist + norm_c): EQUAL at 1 row (64 greedy tokens, text
+  md5) and at 16 rows (G2-short prompts in 16-row chunks, self-golden tensor bytes).
+
+**Normal-step timing**: cb trace, span median per 256-token decode, 3 interleaved reps, short prompt, `--profile-every 0`.
+
+| config | dispatches / step | reps (ms / step) | median | vs off (median) | vs off's fastest rep (15.514) |
+|---|---:|---|---:|---:|---:|
+| off (= ink/metal) | 613 | 15.514, 17.185, 15.724 | 15.724 | | |
+| route (76) | 565 | 15.501, 15.569, 15.598 | 15.569 | -0.155 | +0.055 |
+| msg (per pass) | 591 | 15.389, 15.968, 15.570 | 15.570 | -0.154 | +0.056 |
+| tail | 517 | 15.577, 15.890, 15.879 | 15.879 | +0.155 | +0.365 |
+| route + msg | 543 | 15.415, 15.592, 15.376 | 15.415 | -0.309 | -0.099 |
+| hoist | 613 | 15.469, 15.524, 15.526 | 15.524 | -0.200 | +0.010 |
+| norm_c | 613 | 15.388, 15.482, 15.272 | 15.388 | -0.336 | -0.126 |
+| hoist + norm_c | 613 | 15.205, 15.435, 15.131 | 15.205 | -0.519 | -0.309 |
+| best: route + msg + hoist + norm_c | 543 | 15.058, 15.063, 14.933 | 15.058 | -0.666 | -0.456 |
+
+Off's second rep (17.185) is an outlier; its other two reps differ by 0.21 ms. Only hoist + norm_c and best beat off by more
+than that spread in every rep. Every single switch alone stays within about one spread. The tail is slower. Job E (#11003)
+repeats this with 6 interleaved reps and leave-one-out configs before any default changes.
+
+**Per-dispatch trace** (one buffer per dispatch, which inflates small kernels; raw/disp_D.txt): controllers go from 3.694 to
+2.981 ms per token with best on.
+
+| kernel (in-stream us per call) | off | best |
+|---|---:|---:|
+| ConvMix row kernel (96 per token) | 16.50 | 13.75 |
+| blend norm (46) | 9.29 | 4.38 |
+| blend gate (46) | 8.37 | 8.12 |
+| blend h GEMV (46) | 5.08 | 5.06 |
+| router GEMV + MoeRoute (48) | 4.46 + 10.38 | ink_route 12.17 |
+| AttnResMix, us per token | 230 (26 calls) | 90 (4 calls) |
+
+**Microbench** (`ink_ctrl_bench`, 48 rotating operand sets, us per call, T = 1 / 4 / 16; raw/ctrl_bench_D.md):
+- Attention-side plain ConvMix: 8.36 / 8.53 / 8.81 off, 5.96 / 6.13 / 6.30 with hoist.
+- MLP-side plain ConvMix (Q 3): 11.25 / 11.49 / 12.67 off, 9.99 / 10.22 / 10.80 with hoist.
+- Blend S=1 (attention side): 27.81 off, 25.28 hoist, 22.38 norm_c, 20.07 both (T = 1).
+- Blend S=3 (MLP side): 35.80 off, 36.54 hoist, 31.37 norm_c, 31.70 both (T = 1). At T = 16: 92.01 off, 74.12 hoist,
+  70.92 norm_c.
+- Router: ink_route with rank selection 8.60 / 8.82 / 13.06, without it 9.55 / 9.72 / 13.06, the pair 9.65 / 10.65 /
+  24.19.
+
+**The blend tail's per-call distribution** (coordinator brief 2026-11-22; `ink_ctrl_bench --tail-dist 2000`, one buffer per
+dispatch, us; raw/tail_dist_*_D.md):
+
+| case | unloaded: off median / p99 / max | unloaded: tail median / p99 / max | under gpuload: off median / p99 / max | under gpuload: tail median / p99 / max |
+|---|---|---|---|---|
+| T=1 S=3 | 31.3 / 118.2 / 124.7 | 43.8 / 58.5 / 71.0 | 156.5 / 608.2 / 920.6 | 107.1 / 543.5 / 766.4 |
+| T=1 S=1 | 27.4 / 106.9 / 142.1 | 23.8 / 27.3 / 32.1 | 130.6 / 539.7 / 891.5 | 73.5 / 501.4 / 906.1 |
+| T=4 S=3 | 37.3 / 159.9 / 176.8 | 89.3 / 117.5 / 139.8 | 212.9 / 720.7 / 979.9 | 214.6 / 689.8 / 852.4 |
+| T=16 S=3 | 92.6 / 359.2 / 399.4 | 234.2 / 340.6 / 384.5 | 257.5 / 983.8 / 1314.5 | 405.3 / 864.3 / 1097.0 |
+
+Under a second process that keeps every core streaming, the tail's maximum stays below the four-dispatch path's. Its worst
+case is bounded, which matches the analysis above. But its median is higher at T=1 S=3, T=4 and T=16 (T=1 S=1 is a wash),
+and the real step is 0.155 ms slower with it on. Decision (coordinator: agreed): drop the tail.
 
 PENDING_ATTRIBUTION
