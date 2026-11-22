@@ -152,16 +152,18 @@ Status: #10943 done (items 2 and 3 measured: no regression, sampled decode +2.7-
 - 2026-11-22 (coordinator, build hazard 2, found by pack12 #11066): `cargo test -p intarsia-cli --test <x>` rebuilds
   `target/<profile>/intarsia` without `--features metal` over the backend binary. Rules: build the backend binary last (or give
   tests their own `--target-dir`); count md5 / self-golden matches only when both runs exit 0 with non-empty output. Checked
-  (03:05): no past result here is affected. Every endor measurement ran a copy in `.scratch/bin` or `.scratch/i7` taken right
+  (02:50): no past result here is affected. Every endor measurement ran a copy in `.scratch/bin` or `.scratch/i7` taken right
   after its `--features metal` build (`cpucheck.sh` ran docs_env_vars before its build; `build1.sh` copied b1 before its CLI
   tests, which had `--features metal`), and none of the 197 `.out` files in mA / mC / mAB / i7 is empty. #11152 / #11153 run no
   intarsia-cli test and copy each binary right after its build. `endorgumbel2.sh` now counts a match only for exit 0 and
   non-empty output on both sides (INVALID otherwise), plan show included; serve's twice-identical needs non-empty text.
 - 2026-11-22 (coordinator): ink-metal's NE fix gate #11179 holds every merge. Keep #11152; release #11153 and requeue the same
   script so it lands right behind #11179; section F's self-golden compare targets the post-fix ink-metal tip (NE fix 7eca1b012,
-  NE 3 at D 2304) once #11179 passes. Done (03:40): #11153 released, requeued as #11182 (9th; #11180 / #11181 were queued
+  NE 3 at D 2304) once #11179 passes. Done (03:18): #11153 released, requeued as #11182 (9th; #11180 / #11181 were queued
   between). ink/metal 431a68aec merged into ink/hostgap (ff65d7f63); the item 7 tree moved to ff65d7f63, so #11152 builds the
-  branch-tip binary from post-fix code. `.scratch/copyfix.sh` copies #11179's self-goldens and binary to `.scratch/gref_fix` /
+  branch-tip binary from post-fix code. #11152 done 03:29-03:31, exit 0: gumbel tree 336e20250 built with intarsia-core
+  recompiled (the E0599 is gone), Metal and 8B model test binaries built; `.scratch/i7/intarsia-h7f` built from ff65d7f63 with
+  its G1 / 8B test binaries (`.scratch/gmb/prebuild.txt`). `.scratch/copyfix.sh` copies #11179's self-goldens and binary to `.scratch/gref_fix` /
   `.scratch/bin/intarsia-im7ec` when it ends; F compares against those (pre-fix `gref` shown too).
 
 ## Measurement (before)
