@@ -116,3 +116,20 @@ rows. So the reused rows must come from passes of >= 17 rows, and the resume poi
 - Gate C gains a "short remainder" flow (`/v1/completions`, turn 2 = turn 1's prompt + a few tokens; the expected resume is 17
   rows before the prompt's end).
 - The full gate set reruns on the new code.
+
+## Coordinator rulings (2026-11-22 ~17:00-17:15)
+
+- The fix is approved: a minimum pass of 17 rows for Inkling-2 on Metal when the chunk is above 16, plus `wide_reuse_len` for the
+  cached rows. Two additions before the PR:
+  1. Gate R (B16): set the turn-2 remainders on purpose to cover 1, 2, 8, 13, 16, 17, 18 and 40 rows across the 16 slots. All 16
+     turn-2 replies must be identical to the full re-prefill, in both forward and shuffled order.
+  2. Add a snapshot=0 arm to that sweep, since main has the same latent issue for 2-16-row remainders. The PR body says the change
+     also fixes main's `/v1/completions` resumes.
+- The back-off must stay within the 16-row ring margin. Any remainder that would need more falls back to a cold prefill (gate 3).
+  Open the PR only when all gates pass.
+- #491 merged as main 8c7bb7cb1; the freeze is lifted. Merge order on main:
+  1. #497
+  2. the CUDA flips PR
+  3. #496, after the 05:45 night speed run passes
+  4. this PR, after all its gates pass
+- Before merging either of this lane's PRs: merge main in, rerun md5 and the affected tests, and ask the coordinator for the go.
