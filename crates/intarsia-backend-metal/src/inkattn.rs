@@ -53,6 +53,10 @@ pub fn nax_scratch(s: &ShapeInfo) -> usize {
 
 /// `InkAttnDecode` (op 75): the fused decode attention.
 pub const INK_ATTN_DECODE_BF16: &str = "ink_attn_decode_bf16";
+/// Its row-table form (lane ink-batch, `OpCall::rows`): row r the T = 1 call of sequence r at its own position.
+pub const INK_ATTN_DECODE_BF16_ROWS: &str = "ink_attn_decode_bf16_rows";
+const DEC_ROWS: [&str; 3] = ["ink_attn_dec_rows_g1", "ink_attn_dec_rows_g2", "ink_attn_dec_rows_g3"];
+const COMB_ROWS: &str = "ink_attn_comb_rows_bf16";
 const COMB: &str = "ink_attn_comb_bf16";
 const KV_WRITE: &str = "ink_kv_write_bf16";
 
@@ -69,9 +73,10 @@ fn split_keys() -> usize {
 const NSG: usize = 4;
 
 pub fn shader_names() -> Vec<&'static str> {
-    let mut v = vec![INK_KV_PROLOGUE_BF16, RING_WRITE, COMB, KV_WRITE];
+    let mut v = vec![INK_KV_PROLOGUE_BF16, RING_WRITE, COMB, KV_WRITE, COMB_ROWS];
     v.extend(S1);
     v.extend(DEC);
+    v.extend(DEC_ROWS);
     v
 }
 
@@ -104,6 +109,13 @@ struct InkP {
     f2: f32,
     f3: f32,
     sk: [u32; 16],
+    /// Row-table form (lane ink-batch): table stride, first entry, the table's GPU address (lo, hi), the state carriers' byte
+    /// offsets.
+    rts: u32,
+    rti: u32,
+    tab_lo: u32,
+    tab_hi: u32,
+    roff: [u32; 4],
 }
 
 fn u(v: usize, what: &str) -> Result<u32> {
@@ -220,6 +232,7 @@ impl MetalBackend {
             INK_KV_PROLOGUE_BF16 => self.launch_ink_prologue(call),
             REL_SINK_ATTN_BF16 => self.launch_rel_sink(call),
             INK_ATTN_DECODE_BF16 => self.launch_ink_decode(call),
+            INK_ATTN_DECODE_BF16_ROWS => self.launch_ink_decode_rows(call),
             REL_SINK_ATTN_BF16_NAX => self.launch_rel_sink_nax(call),
             _ => Err(Error::NoKernel(format!("metal kernel '{kernel}' for op '{}'", call.op))),
         }
@@ -502,6 +515,111 @@ impl MetalBackend {
             }
             if !ring_fused {
                 encode(enc, rw, &[&binds[1], &binds[2], &binds[11], &binds[12], &pos_b], &pr, None, t * hk * d);
+            }
+        })
+    }
+
+    /// The row-table form of `InkAttnDecode` (`inkling2::ops`, "Row tables"): threadgroup row r is the T = 1 decode call of
+    /// sequence r at `pos[r]` (the device-position form of the solo launch: the same split policy per row, the cache and
+    /// conv-ring writes always in-kernel), on its caches / rings at table entries `index .. index + 4` and its own T = 1
+    /// scratch block.
+    fn launch_ink_decode_rows(&self, call: &OpCall) -> Result<()> {
+        let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
+        let ink = &a.ink;
+        let bf = DType::Bf16;
+        let (t, h, hk, d, dr) = (i[0].shape[0], a.n_heads, a.n_kv_heads, a.head_dim, ink.d_rel);
+        let rows = call.rows.as_ref().ok_or_else(|| Error::invalid("metal ink_attn_decode_bf16_rows: no row table"))?;
+        if t == 0 {
+            return Ok(());
+        }
+        let g = h / hk;
+        let (k, e, cr) = (i[3].shape[0], i[7].shape[1], o[1].shape[1]);
+        let ring = ink.kv_ring;
+        if e > 1024 || dr > 32 || t > 16 || !(1..=3).contains(&g) || !matches!(d, 8 | 16 | 32 | 64 | 128) {
+            return Err(Error::invalid(format!("metal {INK_ATTN_DECODE_BF16_ROWS}: E {e} <= 1024, d_rel {dr} <= 32, T {t} <= 16, group {g} <= 3, head_dim {d}")));
+        }
+        for (x, w) in [(&o[1], "k cache"), (&o[2], "v cache")] {
+            self.ink_aligned16(x, w)?;
+        }
+        let names = ["pq", "pk", "pv", "k taps", "v taps", "q scale", "r scale", "rel proj"];
+        let mut binds: Vec<Bind> = Vec::with_capacity(16);
+        for (x, w) in i.iter().take(8).zip(names) {
+            binds.push(self.bind(x, bf, false, w)?);
+        }
+        // row 0's caches / rings (carriers: the kernel reaches every row's through the table)
+        binds.push(self.bind(&o[1], bf, true, "k cache")?);
+        binds.push(self.bind(&o[2], bf, true, "v cache")?);
+        binds.push(self.bind(&o[0], bf, true, "out")?);
+        binds.push(self.bind(&o[3], bf, true, "k ring")?);
+        binds.push(self.bind(&o[4], bf, true, "v ring")?);
+        let pos = call.pos.as_ref().ok_or_else(|| Error::invalid("metal ink_attn_decode_bf16_rows: no positions"))?;
+        let pos_b = self.bind(pos, DType::I32, false, "pos")?;
+        if pos_b.skip != 0 {
+            return Err(Error::invalid("metal ink_attn_decode_bf16_rows: the positions must be 4-byte aligned in their buffer"));
+        }
+        // every row at a device position: the grid covers the most splits any row can have
+        let vmax = if a.window > 0 { a.window.min(cr) } else { cr };
+        let gy = nsplit(vmax);
+        let tb = tg_bytes(g * bias_rows(vmax, e) * 4);
+        let scratch = call.scratch.as_ref().ok_or_else(|| Error::invalid("metal ink_attn_decode_bf16_rows: the scratch workspace (OpCall::scratch) is missing"))?;
+        let need = t * h * MAX_SPLIT * (d + 2) * 4;
+        if scratch.numel() * scratch.dtype.size_bytes() < need {
+            return Err(Error::invalid("metal ink_attn_decode_bf16_rows: scratch too small"));
+        }
+        let sc = self.bind(scratch, scratch.dtype, true, "scratch")?;
+        if sc.skip != 0 || (self.mbuf(&scratch.buf)?.base + scratch.offset) % 16 != 0 {
+            return Err(Error::invalid("metal ink_attn_decode_bf16_rows: scratch must be 16-byte aligned"));
+        }
+        let tab = intarsia_core::backend::Backend::device_address(self, &rows.ptrs.buf).ok_or_else(|| Error::invalid("metal: no device address for the row table"))? + rows.ptrs.offset as u64;
+        let mut p = InkP {
+            t: u(t, "T")?,
+            h: u(h, "H")?,
+            hk: u(hk, "Hk")?,
+            d: u(d, "D")?,
+            dr: u(dr, "dr")?,
+            e: u(e, "E")?,
+            k: u(k, "K")?,
+            rr: u(o[3].shape[0], "Rr")?,
+            cr: u(cr, "Cr")?,
+            pos0: 0,
+            use_dev: 1,
+            // a T = 1 call per row: the cache and conv-ring writes never race a read
+            flags: u32::from(ink.dyn_conv) | if ring { 2 } else { 0 } | 4 | 16,
+            tau_floor: u(ink.tau_floor, "tau_floor")?,
+            window: u(a.window, "window")?,
+            nq: u(i[0].shape[1], "Nq")?,
+            pw: u(i[1].shape[1], "pk width")?,
+            qk_clip: ink.qk_clip,
+            rel_clip: ink.rel_clip,
+            eps: a.eps,
+            tau_alpha: ink.tau_alpha,
+            scale: a.scale,
+            f3: f32::from_bits(u(split_keys(), "split keys")?),
+            cscale: if ink.dyn_conv { ((2 * k + 1) as f32).powf(-0.5) } else { ((k + 1) as f32).powf(-0.5) },
+            rts: u(rows.stride, "row table stride")?,
+            rti: u(rows.index, "row table entry")?,
+            tab_lo: tab as u32,
+            tab_hi: (tab >> 32) as u32,
+            roff: [u(o[1].offset, "k cache offset")?, u(o[2].offset, "v cache offset")?, u(o[3].offset, "k ring offset")?, u(o[4].offset, "v ring offset")?],
+            ..Default::default()
+        };
+        for (s, b) in p.sk.iter_mut().zip(&binds) {
+            *s = b.skip;
+        }
+        u(need, "scratch bytes")?;
+        u(hk * cr * d, "cache elements")?;
+        let mut pc = p;
+        pc.sk = [0; 16];
+        pc.sk[6] = binds[0].skip;
+        pc.sk[7] = binds[10].skip;
+        let dec = self.ink_pso(DEC_ROWS[g - 1])?;
+        let comb = self.ink_pso(COMB_ROWS)?;
+        let mut all: Vec<&Bind> = binds[..8].iter().collect();
+        all.extend([&binds[8], &binds[9], &binds[10], &binds[11], &binds[12], &pos_b, &sc]);
+        self.with_encoder_ind(|enc| {
+            encode_tg(enc, dec, &all, &p, Some((hk, gy, t, NSG * 32)), 0, &[tb, tg_bytes(2 * d * 2)]);
+            if gy > 1 {
+                encode(enc, comb, &[&binds[0], &binds[10], &pos_b, &sc], &pc, Some((h, t, 1, d.max(32).next_multiple_of(32))), 0);
             }
         })
     }
