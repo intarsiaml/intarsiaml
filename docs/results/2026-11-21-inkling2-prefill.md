@@ -29,7 +29,13 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
 
 ## Status
 
-In progress; tables below are filled as measurements land.
+- **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
+  h by the InkInProj NAX GEMM, gate + norm by `ink_blend_gf_nax` + `ink_blend_yn` (kernels/metal/inkling2_blend_nax.metal).
+  `INTARSIA_INK_BLEND_NAX=0` restores m-mix's GEMV path. G2 / G3 with it on: see Gates.
+- **Opt-in, not faster:** MoE prefill forms nax2 / nax3 (`INTARSIA_INK_MOE_NAX2=<form>`); all bitwise the first generation
+  at 2048 rows, none faster (table below). 128-row tiles pending.
+- **Side branch `ink/prefill-rel` (4212f2e45), not merged:** `ink.rel_mode` (approved contract variant): cpu reference +
+  bitwise test pass; Metal mode 1 measured slower end to end, so the graph default is off. Admission and G3-with-mode-1 pending.
 
 ## Floors
 
@@ -58,3 +64,73 @@ Measured per call by the lanes' benches on endor (`--quiet gpu,cpu`), this lane'
 On 7.3 vs 11.9 ms per MoE visit: m-moe's 2048-row number was taken with the same bench (cycled weight copies, union = all 128
 experts) on a shared GPU; this lane's runs at `--quiet gpu,cpu` gave 7.3 ms (NVFP4) / 7.6 ms (MXFP8) on the same code, so the
 11.9 ms looks like GPU contention rather than a setup difference (not investigated further).
+
+## Measurements (endor, `--quiet gpu,cpu`)
+
+### End-to-end prefill, chunk 2048 (`intarsia generate --max-tokens 1`, two runs each; fleetq #10779)
+
+| Config | 2k (1921 tok) | 8k (8034) | 12k (12190) |
+|---|---:|---:|---:|
+| ink/metal baseline (gen1 everything) | 1588 / 1558 | 1753 / 1606 | 1777 / 1776 |
+| blend NAX (level 2) | | 1989 / 1902 | |
+| MoE nax3_m64_n128_k32 | | 1752 / 1727 | |
+| MoE m64_k32_v3 | | 1900 / 2011 (noise: the microbench says slower) | |
+| rel_mode 0 (wt-rel binary) | | 1910 / 1703 | 1798 / 1831 |
+| rel_mode 1 | | 1733 / 1787 | 1646 / 1733 |
+
+Run-to-run spread at 8k is up to 10%; the interleaved 3-round A/B is #10884. oMLX: ~1300 tok/s marginal prefill.
+
+### Where a 2048-row chunk goes (baseline, 8k prompt, kernel trace / cb trace)
+
+cb trace: 4 chunks in 4014 ms, GPU busy 94%, idle 232 ms (~58 ms per chunk host gap). Kernel trace, GPU ms per chunk:
+
+| Op | ms / chunk |
+|---|---:|
+| MoE experts NVFP4 (gu 231, dn 123, gather 11) | 366 |
+| ConvMix (incl. the looped-visit blend) | 174 |
+| RelSinkAttn NAX | 78 |
+| InkInProj NAX | 72 |
+| InkKvPrologue | 55 |
+| MoE experts MXFP8 | 35 |
+| wo (matmul_bf16_nax) | 26 |
+| router (logits_bf16, 0.31 ms at 3.9 TFLOP/s) | 16 |
+| LoopBlend | 9 |
+| AttnResMix, MoeRoute, rest | 5 |
+| **GPU sum** | **837** (+ ~58 host gap = the ~920 ms ink/metal saw at 5k) |
+
+The 700 ms model missed the blend's real size (ConvMix 174 vs 29 + ~100 estimated), the e2e routing being less balanced
+than random (gu 5.25 ms vs 4.84 per visit), attention at 8k context, and the router.
+
+### MoE experts NVFP4, 2048 rows, µs per call (gu only = skip 2, dn only = skip 1)
+
+| Form | full | gu only | dn only | Note |
+|---|---:|---:|---:|---|
+| gen1 (ink/m-moe) | 7287 | 4845 | 2698 | 35.8 TFLOP/s |
+| nax2 m64_k64_v1 (A prefetch) | 7381 | 5408 | 2798 | |
+| nax2 m64_k32_v3 (double-buffered) | 8502 | 6884 | 4496 | |
+| nax2 m32_k64_v3 | 14257 | | | |
+| nax2 v8 (no matmul, probe) | 6348 | | | MMA hides under staging |
+| nax2 v28 (loads + epilogue only, probe) | 2510 | | | |
+| nax3 m64_n64_k64 (A from device) | 12595 | | | device-tensor A is slow |
+| nax3 m64_n128_k32 | 14190 | | | |
+MXFP8: gen1 7690, m64_k32_v3 7424 (-3.5%), m64_k64_v1 7598, nax3 9450 / 13327.
+
+Reading: dropping the matmul saves only 0.9 ms, so the kernel is bound by weight decode + threadgroup staging (~3.8 ms)
+and loads / epilogue (~2.5 ms), not by the accelerators. With 64-row tiles every expert (mean 128 rows) decodes its weights
+twice; the 128-row forms (m128_*) decode them once: pending (#10875 build, #10884 timing).
+
+### Blend on 2048 rows (ink_mix_bench, µs)
+
+| Call | GEMV (m-mix) | level 1 (NAX h) | level 2 (NAX h + gate) |
+|---|---:|---:|---:|
+| ConvMix blend S=3 | 4277 | 3165 | 1625 |
+| ConvMix blend S=1 | 1783 | 1688 | 1066 |
+| LoopBlend S=3 | 4370 | 3030 | 1338 |
+
+### Admission and tests
+
+- `intarsia kernels test --backend metal`: moe_experts / moe_experts_mxfp8 ADMITTED with every form forced (trace confirms
+  the form ran; worst case unchanged, 3.472e-3 / 2.099e-4 and 3.378e-3 / 2.453e-4), loop_blend / conv_mix ADMITTED at blend
+  levels 0 / 1 / 2 (3.226e-3 / 2.640e-4; trace confirms the NAX blend ran on the 40-row cases).
+- `tests/ink_prefill_moe.rs` (2048 rows, real shape, output poisoned between runs): every nax2 / nax3 form bitwise gen1.
+- `ink.rel_mode` (wt-rel): cpu `ink_rel_mode` (mode 1 == mode 0 bitwise over the InkAttnDecode sweep) and `ink_attn_decode` pass.
