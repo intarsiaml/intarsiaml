@@ -1,0 +1,8 @@
+BITWISE 1-row decode (64 greedy tokens, text md5): hoist vs off: EQUAL (d41d8cd98f00b204e9800998ecf8427e vs d41d8cd98f00b204e9800998ecf8427e)
+BITWISE 16-row passes (G2 short, prefill chunk 16, self-golden tensor bytes): hoist vs off: 
+BITWISE 1-row decode (64 greedy tokens, text md5): normc vs off: EQUAL (d41d8cd98f00b204e9800998ecf8427e vs d41d8cd98f00b204e9800998ecf8427e)
+BITWISE 16-row passes (G2 short, prefill chunk 16, self-golden tensor bytes): normc vs off: 
+BITWISE 1-row decode (64 greedy tokens, text md5): new vs off: EQUAL (d41d8cd98f00b204e9800998ecf8427e vs d41d8cd98f00b204e9800998ecf8427e)
+BITWISE 16-row passes (G2 short, prefill chunk 16, self-golden tensor bytes): new vs off: 
+BITWISE 1-row decode (64 greedy tokens, text md5): best vs off: EQUAL (d41d8cd98f00b204e9800998ecf8427e vs d41d8cd98f00b204e9800998ecf8427e)
+BITWISE 16-row passes (G2 short, prefill chunk 16, self-golden tensor bytes): best vs off: 

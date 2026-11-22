@@ -445,7 +445,7 @@ use", exit 78). The readiness probe then answered from the off server.
 `cargo test --release -p intarsia-cli --test docs_env_vars` (step 2) rebuilt `target/release/intarsia` without
 `--features metal`. Every model step after it failed at once ("built without the Metal backend"): admission, real-model
 bitwise, timing and the per-dispatch trace. A recovery block appended to the running script rebuilt the binary and reran
-those steps in the same slot (the first-pass logs are in `.scratch/D/first/`). Job scripts now build the metal binary after
+those steps in the same slot (the first-pass logs were in `.scratch/D/first/`, archived as raw/D_first/). Job scripts now build the metal binary after
 any `cargo test` of intarsia-cli.
 
 ### Load-order switches and per-switch attribution (fleetq #10964, snapshot 61e954172 = commits 88b2b089c / f64199417 / fe16c5654, raw/*_D*)
@@ -564,7 +564,7 @@ interleaved reps.
   - (#11107) `cargo check` of the Metal crate (examples + tests).
   - (#11107) the Inkling model tests on cpu (inkling2, inkling2_batch) with the switches off and on.
   - (#11110) docs_env_vars.
-- **Job R** (#11111, queued behind E; `.scratch/route/.scratch/jobR.sh`). off = best, on = best + preload.
+- **Job R** (#11111, queued behind E; `.scratch/route/.scratch/jobR.sh`, archived as raw/R_jobR.sh; the route worktree is removed). off = best, on = best + preload.
   1. The preload bitwise test against the pair: rows 1..16 and 40; D 2304, 64, 3000, 4096, 4104 and the 2-byte form.
   2. The stress test with it on, and admission.
   3. Real-model bitwise at 1 and 16 rows.
@@ -652,7 +652,7 @@ Result files: /opt/code/deepeval/results/20261122-021312-adhoc-endor-intarsia-me
 
 ### The default-on flip (prepared, held for rule (b))
 
-- **Change**: snapshot 6318887b5 = ac2371c81's code + the flip; the patch is .scratch/flip.patch; not yet a branch commit.
+- **Change**: snapshot 6318887b5 = ac2371c81's code + the flip; the patch was .scratch/flip.patch, since committed as 2f952f697 (raw/F_flip.txt has F's env matrix).
   - `INTARSIA_INK_ROUTE_FUSED` and `INTARSIA_INK_MSG_PRE`: unset / `auto` = on for Metal, off elsewhere. `0` / `off` or
     `1` / `on` force either way.
   - `INTARSIA_INK_MIX_HOIST` and `INTARSIA_INK_BLEND_NORM_C` (Metal kernels only): unset = on; `0` / `off` = the plain
@@ -786,7 +786,7 @@ off = best (route + msg + hoist + norm_c); on = best + `INTARSIA_INK_ROUTE_PRELO
 
 ### Controller breakdown by op (06:05, from the existing trace, no new job)
 
-Source: job E's per-dispatch trace with best on (.scratch/E/disp_best.jsonl, ac2371c81). That is the same code as job R's
+Source: job E's per-dispatch trace with best on (.scratch/E/disp_best.jsonl, ac2371c81; archived as raw/E_disp_best.jsonl.gz). That is the same code as job R's
 off arm and as the defaults on the tip. R's own trace was removed with the route worktree; only its summary is kept
 (raw/R_disp_summary.txt, 3.210 ms per token, which agrees to within 1 %). Splitting by call type:
 raw/E_disp_best_calltype.txt (raw/calltype.py). The measurement uses one command buffer per launch. Its per-dispatch GPU busy,
@@ -906,7 +906,7 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
   4. The ceiling.
 
   No prototype is in this job; step 4 of the go-ahead (the split) is built only if the ceiling clears 0.3 ms. A watcher
-  (.scratch/watchP.sh) reports the start and the build step. fleetq estimates a start around 12:05.
+  (.scratch/watchP.sh, archived as raw/watchP.sh) reports the start and the build step. fleetq estimates a start around 12:05.
 - **For ink-batch (B16 hunt):** which switch disables which controller change at B > 1. Every change is per row or
   rows-exact and applies up to 16 rows:
   - `INTARSIA_INK_ROUTE_FUSED=0`: op 76, the router GEMV + MoeRoute fused, used when t <= 16 rows. B16 decode is t = 16;
@@ -1742,9 +1742,8 @@ normal-step span is the real cost. Where the -70 dispatches and -0.77 ms come fr
   - Identical config A fell from 75.6 to 65.9 tok/s between runs 1 and 4.
   - 5k prefill fell about 30 % in both arms. All four switches are gated at <= 16 rows (route `t <= 16`, messages
     `INK_MSG_PRE_ROWS` = 16, the mix kernels T <= 16), so 2048-row prefill chunks do not touch them.
-  - Cause not identified. The fleetq log shows no other slotted job on endor at 10:49-10:51. One coincidence:
-    #11483 (core lib tests, CPU, endor) left the endor queue at 10:49:15 and reappeared on bespin at 10:49:27.
-    It is not shown to be the cause.
+  - The coordinator classes this as an endor box effect, likely thermal: a known issue, already with the user. Not
+    chased. (The fleetq log shows no other slotted job on endor at 10:49-10:51.)
 - **Reported numbers: pair 1** (runs 1-2), with the engine's own normal-step traces as support. Those traces were
   taken at 10:46, before localeval, while the box matched job K's 13.28 ms label.
 - **Pair 1 is weak on its own.** It is one run per arm in the order A then B, so nothing cancels drift. Run 2 may already
@@ -1759,8 +1758,8 @@ normal-step span is the real cost. Where the -70 dispatches and -0.77 ms come fr
 | 5k (localeval, pair 1) | 67.5 | 70.5 | +3.0 |
 
   The two methods agree within 0.5 tok/s.
-- **Not queued, the coordinator's call:** a clean rerun of about 8 minutes of quiet slot, A B B A, with a cb short-prompt
-  label before and after each localeval run, dropping any run whose label is above about 13.5 ms.
+- **No rerun (coordinator decision).** Three sources agree: step ms (-4.8 %), localeval pair 1 (-4.5 %) and the engine's
+  own runs.
 - **Context for the brief.** Its 50-52 / 48.3 tok/s were measured at a88db4620. The tip's "before" runs 72 / 67 tok/s
   with the same 613 dispatches, so the difference comes from other lanes merged since (pack12's in_proj / wo / unembed
   among them), not from this lane.
@@ -1782,3 +1781,23 @@ normal-step span is the real cost. Where the -70 dispatches and -0.77 ms come fr
   (0.84). Probe P put the row kernel's cold-operand ceiling at 0.085 ms per token. Change 3 (the fused blend tail) was
   slower net. The controllers' byte floor is about 0.25 ms per token, but the measured levers all stopped short of the
   0.3 ms bar.
+
+### Coordinator decisions at wrap-up (2026-11-22 ~11:15, verbatim in substance) and lane close
+
+1. **No ABBA rerun.** Pair 2's 30 % slowdown is recorded as an endor box effect, likely thermal.
+2. **Landing.** Branch `ink/dfuse-land` from ink/metal's current tip carries:
+   - 88d28e48a: `INTARSIA_INK_DEBUG_DISPATCHES`, debug only, off by default;
+   - afaf4e8c9: `ink_ctrl_bench --probe`;
+   - this results doc and its raw files.
+
+   **T1 (fcd05b172) stays on ink/dfuse**, because an opt-in without a measured win is not worth carrying. ink-metal owns
+   merges into ink/metal and takes the branch after PR #488. The branch is checked (docs_env_vars, the Metal Inkling tests,
+   plan show of Qwen3-8B) before its tip goes to the coordinator.
+3. **Cleanup.**
+   - ink/dfuse is pushed to origin as T1's backup.
+   - .scratch's raw traces are deleted, after every file this doc cites was moved into raw/:
+     - E_disp_best.jsonl.gz;
+     - D_first/;
+     - watchP.sh;
+     - W_selfgoldens/: the tip's G2 / G3 self-goldens, byte-equal to job G's.
+   - Then the ink-dfuse worktree is removed.
