@@ -489,7 +489,8 @@ impl Op {
     /// A reserved placeholder discriminant (`InkReserved76` ..= `InkReserved95`): no kernels, refused by `OpCall::check`, exempt
     /// from every backend's kernel-coverage tests.
     pub fn is_reserved(self) -> bool {
-        (Op::InkReserved76 as usize..=Op::InkReserved95 as usize).contains(&(self as usize))
+        // by name, so a lane that replaces its placeholder in place does not touch this
+        self.as_str().starts_with("ink_reserved_")
     }
 
     /// (number of inputs, number of outputs)
@@ -1569,8 +1570,12 @@ mod tests {
         assert_eq!(Op::ALL.last(), Some(&Op::InkReserved95), "the last of the reserved block");
         for (j, op) in Op::ALL.iter().enumerate() {
             assert_eq!(*op as usize, j, "{op}");
-            assert_eq!(op.is_reserved(), (76..=95).contains(&j), "{op}");
+            if op.is_reserved() {
+                assert!((76..=95).contains(&j), "{op}");
+                assert_eq!(op.as_str(), format!("ink_reserved_{j}"));
+            }
         }
+        assert!(!Op::InkAttnDecode.is_reserved() && Op::InkReserved76.is_reserved());
         let r = OpCall::new(Op::InkReserved80, vec![], vec![], OpAttrs::default());
         assert!(r.check().unwrap_err().to_string().contains("reserved"));
         assert_eq!(Op::parse("ink_reserved_95"), Some(Op::InkReserved95));
