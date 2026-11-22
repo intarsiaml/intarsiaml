@@ -1,7 +1,10 @@
 # Inkling-2-Mini end to end on Metal (lane ink-metal, 2026-11-21)
 
-Status: runs end to end on Metal (endor, M5 Max); G1, G2 and G3 short / long pass; first speed numbers and a decode profile
-below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
+Status: Inkling-2-Mini runs end to end on Metal (endor, M5 Max): G1, G2 and G3 short / long pass (last full check #10901 on
+de2b5c9bc; the m-mix final + ink/batch merge gate is #11048, see the end), `intarsia serve` loads and serves chat / reasoning /
+tools / json_schema. Decode 63-64 tok/s at short context (`--profile-every 0`, localeval 63.4), 56.7 at 16k; prefill 1.4-1.7k
+tok/s (chunk 256), 2.3k at chunk 2048. Open: batched decode now merged (ink/batch) but not yet gated here, TP / MTP / prefix store
+refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 
 ## Briefs received
 
@@ -137,7 +140,10 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 |---|---|---|---|
 | `cargo test --release --no-fail-fast -p intarsia-core -p intarsia-backend-cpu -p intarsia-cli` | spark2 #10868 (`git archive` of 41c93f814) | 41c93f814 | 40 binaries, 0 failed |
 | `cargo test --release --no-fail-fast -p intarsia-backend-metal` | endor #10867 | f55bfe8b7 (m-mix 47570539e merged) | 46 binaries, 213 passed, 0 failed (incl. `every_metal_kernel_has_a_quick_case`, `rows_exact_registrations_are_pinned`) |
-| `cargo test -p intarsia-models --test inkling2`, cpu and `INTARSIA_INKLING2_BACKEND=metal` | endor #10715 | before the serve / m-mix merges | 8 / 8 each |
+| `cargo test -p intarsia-models --test inkling2`, cpu and `INTARSIA_INKLING2_BACKEND=metal` | endor #10715 (both); Metal again in #10890 | #10890: e3f92beff (m-mix 47570539e, ink/serve merged) | 8 / 8 each |
+| intarsia-models Metal tests: batch_metal, batch_metal_real, gdn_verify_metal, mtp_store_metal, prefix_store_metal, hybrid_reuse_real, prefix_reuse_real, batch_recurrent | endor #10901 | de2b5c9bc | 1, 3, 7, 2, 1, 2, 6, 15 passed, 0 failed |
+| `cargo check --tests -p intarsia-models` on Linux (cfg guard e3f92beff) | spark2 | e3f92beff | 0 errors |
+| intarsia-bench (calibration probe fix b9dd0d6b4) | spark2 | b9dd0d6b4 | 25 / 25; the new test fails without the fix |
 | `docs_env_vars` | endor #10898 | f55bfe8b7 | 2 / 2 |
 | `admission::plan_case_tests` (new SiTU case test) | endor | 761a1561b | 3 / 3 |
 
