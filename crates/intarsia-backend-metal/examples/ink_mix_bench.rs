@@ -389,7 +389,11 @@ mod imp_mix {
             ("SconvRes res+add+sum", Box::new(|b, r, n| sconv(b, r, n, 1000))),
         ];
         println!("{:<44} {:>9} {:>9} {:>9}", "mix case (D 2304)", "us/call", "p10", "p90");
+        let only = std::env::var("INK_BENCH_ONLY").unwrap_or_default();
         for (name, mk) in &kinds {
+            if !only.is_empty() && !name.contains(only.as_str()) {
+                continue;
+            }
             for &r in &rows {
                 let sets = if r >= 2048 { 4 } else { 48 };
                 let cases: Vec<Case> = (0..sets).map(|_| mk(be, rng, r)).collect();

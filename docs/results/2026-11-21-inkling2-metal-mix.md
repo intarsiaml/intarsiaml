@@ -10,7 +10,7 @@ Branch `ink/m-mix` (worktree `.worktrees/ink-m-mix`, base `3feffee6e`). Target e
 
 | Kernel (registry name) | Op | Rows | Shader(s) | Form |
 |---|---|---|---|---|
-| `ink_in_proj_bf16_gemv` | InkInProj (73) | 1 | `ink_in_proj_gemv_r1p1s8u2b1` | one GEMV dispatch over the stacked `[Nq+Nk+Nv, D]` weight; the threadgroup's segment picks its x block (`x[min(j, S-1)]`), so S = 1 and S = 3 are the same launch |
+| `ink_in_proj_bf16_gemv` | InkInProj (73) | 1..8 (ordinary calls; priority above NAX) | `ink_in_proj_gemv_r1p1s8u2b1` | one GEMV dispatch over the stacked `[Nq+Nk+Nv, D]` weight; the threadgroup's segment picks its x block (`x[min(j, S-1)]`), so S = 1 and S = 3 are the same launch |
 | `ink_in_proj_bf16_gemv_rows` | InkInProj | 1..16, `rows_exact` | `ink_in_proj_gemv_r<R>p1s8u2b<R>` | the same family with R rows sharing one weight pass; row r bitwise the 1-row launch |
 | `ink_in_proj_bf16_nax` | InkInProj | >= 2 (prefill) | `ink_in_proj_nax_t*` (metal4.0 library) | NAX GEMM over the three segments in one grid; the tile is `gemm_nax::pick_variant(T, N)`, each segment bitwise `matmul_bf16_nax` on it |
 | `conv_mix_bf16` | ConvMix (74) | any | `ink_mix_row_e<NE>n<NS>q<QB>` (+ blend: `ink_in_proj_gemv` over `down`, `ink_blend_gate_g*`, `ink_blend_norm`) | one threadgroup per row: conv + residual / sum + depth mix + norm (or the blend's pair) |
@@ -103,12 +103,76 @@ Method: `ink_mix_bench` (this lane's example). GPU time per call from the backen
 operand set rotated over more than the system cache (12 x 40 MB weights for InkInProj), about 30 ms of back-to-back GPU work per
 sample so the GPU runs at its working clock. Median of 10-15 samples; p10 / p90 in the raw logs. Every run in a
 `fleetq run --quiet gpu,cpu` slot; machine reference `scripts/metal-speed-gate/refbw.py` (mlx, 1 GiB GEMV stream) read
-FINAL_REFBW GB/s around the runs (baseline 554).
+561.8 / 559.2 GB/s around the runs (baseline 554).
 
 Important: an earlier version of the bench (one short command buffer per sample, the GPU idle in between) under-reported every
 kernel by 25-40 % (the existing `matmul_bf16_gemv` read 326 GB/s at [8664, 2304]); the numbers below are from the fixed method.
 
-FINAL_TABLES
+Raw: `.scratch/final_proj.log`, `.scratch/mix3.log` in the worktree (not committed; numbers copied here). Binary built from
+`d580d471b` (the kernels of HEAD).
+
+### 3.1 InkInProj decode / verify (real shape: W [6552 + 1056 + 1056, 2304] bf16 = 39.9 MB, byte floor 65.0 us at 614 GB/s)
+
+| rows | InkInProj S=1 us | S=3 us | GB/s (S=3) | % of 614 | 3 x `matmul_bf16_gemv(_rows)` us (3 launches) | GB/s | `matmul_bf16_nax` on the stacked shape us |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 69.6 | 69.8 | **572** | **93 %** | 73.1 | 546 | - |
+| 2 | 70.4 | 71.9 | 557 | 91 % | 76.9 | 520 | 106.3 |
+| 4 | 72.6 | 72.5 | **552** | 90 % | 77.9 | 514 | 107.3 |
+| 8 | 83.3 | 83.3 | 482 | 79 % | 82.8 | 485 | 106.4 |
+| 16 | 161.8 | 167.9 | **241** | 39 % | 155.6 | 260 | 106.9 |
+
+- Decode (1 row) streams at 572 GB/s, 93 % of the 614 GB/s byte floor and above the machine reference (mlx 1 GiB GEMV, 560 GB/s in
+  the same slot); the three-launch Matmul form reaches 546. Rows 1-4 cost almost nothing over one row.
+- 16 rows are ALU-bound (the bf16 unpack of x costs one op per fma): 241 GB/s, no better than the existing multi-row Matmul GEMV
+  (260) and slower than NAX (107 us, not rows-exact). The exact_rows path must stay on the GEMV family; ordinary 2-8-row calls now
+  take the GEMV (`ink_in_proj_bf16_gemv` registered for 1..=8 rows at priority 6, above NAX), 9 and more take NAX.
+- Exploration (same harness, `.scratch/sweep3.log`): families (8,2) / (9,1) / (3,3) / (1,9) were within 3 % of each other at 1-4 rows;
+  (1,9) is best at 16 rows (147 us with 8-row passes) but 3 % slower at 1 row, so the decode-optimal (8,2) is the default (the family
+  must be the same for every row count). P = 2 weight rows per threadgroup and grid-stride caps were slower or equal.
+
+### 3.2 `wo` (the existing Matmul, [2304, 3072] bf16 = 14.2 MB, floor 23.1 us)
+
+| rows | kernel | us | GB/s | % of 614 |
+|---:|---|---:|---:|---:|
+| 1 | `matmul_bf16_gemv` | 25.7 | **551** | 90 % |
+| 2 | `matmul_bf16_gemv_rows` | 26.5 | 535 | 87 % |
+| 4 | `matmul_bf16_gemv_rows` | 27.8 | 511 | 83 % |
+| 8 | `matmul_bf16_gemv_rows` | 29.3 | 486 | 79 % |
+| 16 | `matmul_bf16_gemv_rows` | 53.2 | 269 | 44 % (ALU-bound, as above) |
+
+`wo_ud` is 16-byte aligned in the checkpoint, so these are the serving kernels' numbers. No new kernel needed at decode.
+
+### 3.3 Prefill, one 2048-row chunk
+
+| op | kernel | us | |
+|---|---|---:|---|
+| InkInProj S=1 / S=3 | `ink_in_proj_bf16_nax` | 1297 / 1295 | 63 TFLOP/s (one grid, the three segments) |
+| wo | `matmul_bf16_nax` | 467 | 62 TFLOP/s |
+| ConvMix, N=4 Q=1 norm | `conv_mix_bf16` | 274 | + 1 deferred ring-write launch |
+| ConvMix, N=4 Q=3 norm | `conv_mix_bf16` | 395 | |
+| ConvMix + blend S=3 / S=1 | `conv_mix_bf16` | 4238 / 1791 | 8 chunks x 4-5 launches |
+| AttnResMix N=4 Q=1 norm / N=2 Q=4 f32 | `attn_res_mix_bf16` | 149 / 216 | |
+| LoopBlend S=3 | `loop_blend_bf16` | 3928 | |
+| SconvRes | `sconv_res_bf16` | 118 | |
+
+### 3.4 Row ops at decode / verify (D 2304, us per call, one launch unless noted)
+
+| case | 1 row | 4 rows | 16 rows | launches |
+|---|---:|---:|---:|---:|
+| ConvMix N=4 Q=1 norm (plain sublayer boundary) | **8.5** | 8.7 | 9.0 | 1 |
+| ConvMix N=4 Q=3 norm (into a full-attention layer) | 11.4 | 11.5 | 12.3 | 1 |
+| ConvMix N=3 Q=1 + blend S=3 (looped attention input) | 35.4 | 39.0 | 71.7 | 4 |
+| ConvMix N=3 Q=1 + blend S=1 (looped MLP input) | 27.7 | 31.3 | 53.9 | 4 |
+| AttnResMix N=4 Q=1 norm | 5.6 | 5.6 | 6.0 | 1 |
+| AttnResMix N=2 Q=4 f32 (loop messages) | 5.2 | 5.3 | 5.6 | 1 |
+| LoopBlend S=3 | 25.5 | 30.4 | 62.7 | 4 |
+| SconvRes res + addend + sum | 4.4 | 4.4 | 4.6 | 1 |
+
+The row kernel went from 22.3 us (ConvMix plain, first version) to 8.5 us: the softmax moved onto the lanes of simdgroup 0 (22.3 ->
+16.8), then the template over sources / query batch with all loads issued up front (16.8 -> 8.5; the loads had serialized behind
+per-source branches). One dependent launch of a trivial kernel costs about 4 us here (SconvRes 4.4 us), so the plain ConvMix is about
+two launch costs.
+
 
 ## 4. Launches per visit (decode, my ops)
 
@@ -116,11 +180,20 @@ Visit composition from spec a2 / a12 / a15 and the contract's ConvMix: each visi
 output, after the MLP output), each one ConvMix; looped visits (passes 1 and 2 of layers 6-17, 24 of the 48) blend both sublayer
 inputs (attention side S = 3 streams q/k/v, MLP side S = 1) and need the message mix.
 
-FINAL_LAUNCHES
+| visit kind | my launches (+ `wo`) | us at 1 row | us at 4 rows | us at 16 rows |
+|---|---|---:|---:|---:|
+| plain (24 visits: prelude, pass 0, coda) | InkInProj 1 + ConvMix 2 = **3** (+1) | 69.6 + 8.5 + 8.5 = **86.6** (+25.7) | 90.0 (+27.8) | 179.8 (+53.2) |
+| looped (24 visits: passes 1-2 of layers 6-17) | InkInProj 1 + message AttnResMix 1 + ConvMix-blend S=1 4 + ConvMix-blend S=3 4 = **10** (+1) | 69.8 + 5.2 + 27.7 + 35.4 = **138.1** (+25.7) | 148.1 (+27.8) | 299.1 (+53.2) |
+| per token (48 visits) | 24 x 3 + 24 x 10 = **312** (+48) | 5.39 ms (+1.23) | 5.71 ms (+1.33) | 11.5 ms (+2.55) |
+
+Full-attention visits (8) use the Q=3 ConvMix into them (+2.9 us each). The output mix (a16) is one more AttnResMix per token
+(~5.6 us). Prefill per 2048-row chunk, same composition: plain visit 1297 + 2 x 274 = 1.85 ms, looped visit 1295 + 216 + 1791 +
+4238 = 7.54 ms, so 225 ms per chunk for my ops (+ 22 ms wo), of which the 48 blends are 145 ms.
+
 
 ## 5. Limits
 
-- InkInProj at 16 rows is ALU-bound (~246 GB/s; the 8-row form 476). The x unpack costs one ALU op per fma; the existing
+- InkInProj at 16 rows is ALU-bound (241-249 GB/s; the 8-row form 482). The x unpack costs one ALU op per fma; the existing
   three-Matmul form is no faster (242 GB/s). Fixing it needs a matrix-unit form (below).
 - The blend is 4 launches (row + pair, h GEMV, gate, norm): the one-launch ConvMix target holds only without it.
 - The row kernels are latency-bound at decode: one threadgroup per row on one GPU core.
@@ -130,4 +203,22 @@ FINAL_LAUNCHES
 
 ## 6. Next ideas (ranked)
 
-FINAL_IDEAS
+1. **Blend launches (decode).** 192 of the 312 launches per token and 1.5 ms of the 5.4 ms are the 48 blends (4 launches each).
+   A gate + norm fusion with a last-threadgroup reduction (device atomics and `atomic_thread_fence`, which needs the metal3.2 /
+   metal4.0 library; this library is metal3.1) cuts one launch each with bitwise the same reduction tree (the norm already sums
+   the 32-channel partials in channel order). Folding the h projection in too needs a grid-wide dependency, so 3 launches is the
+   floor without a persistent kernel. Also for the skeleton: the loop messages of one pass share their sources (the bank), so
+   one AttnResMix with Q = 12 x 4 per pass replaces 12 calls (the kernel takes any Q).
+2. **Blend prefill.** 145 ms per 2048-row chunk. The h projection at 16 rows per chunk is ALU-bound; above 16 rows a NAX GEMM
+   for h (as InkInProj prefill does, not bitwise decode) and a gate geometry sweep (rows / channels per threadgroup are free
+   knobs: `INTARSIA_INK_BLEND_RB`, `_CS`) are the next steps.
+3. **A matrix-unit rows-exact GEMV family for 9-16 rows.** InkInProj and `wo` at 16 rows run at 241-269 GB/s against 107 us for NAX.
+   A simdgroup-matrix form whose 1-row launch uses the same 8x8 accumulation (x padded to 8 rows) would keep G0 and should take
+   16-row verify to about the 8-row cost; the 1-row decode must then be re-measured (it must stay at ~570 GB/s).
+4. **Row-kernel latency.** 8.5 us per ConvMix is about two launch costs; the remaining serial chain is the conv loads, three
+   threadgroup reductions and the stores. Prefill at 2048 rows (274 us) is far from the ~100 us byte floor: more rows per
+   threadgroup for long chunks is possible only if the per-row reduction tree stays the same (it is per row already, so a
+   multi-row threadgroup that keeps 768 threads per row is a free choice).
+5. **InkInProj fp8 / NVFP4 variants** for the opt-in quantized-projection path (perf-strategy lever 4): the same segment-select
+   GEMV over fp8 weights would halve the 39.9 MB per visit.
+
