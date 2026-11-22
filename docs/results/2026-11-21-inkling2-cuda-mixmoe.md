@@ -114,6 +114,25 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   coordinator's call; (4) split-K blend h parked until step 2 restores headroom; (5) InkRoute port later. ncu permission:
   correct not to change it; the coordinator raises it with the user.
 
+- (coordinator, 14th) Build hazard: `cargo test -p intarsia-cli --test <x>` rebuilds target/<profile>/intarsia without
+  `--features cuda`. Rules: build the backend binary last or give tests their own target dir; count md5 / self-golden matches
+  only when both runs exit 0 with non-empty output. Checked: not affected here (build.sh copies the cuda binary to
+  `bin/intarsia` right after building it; this lane's tests are intarsia-models / intarsia-backend-cuda only; every compared
+  ids md5 is non-empty, `a0e6f47...`, with `finish=` lines).
+
+- (ink-cuda-attn, coordinator-approved) After the current job, merge ink/cuda-p12 fc773d0fc (local branch in
+  .worktrees/ink-cuda-p12; contains ink/cuda-graph 5fa5a88bd, ink/pack12 and CUDA P12). P12 default-on on CUDA
+  (INTARSIA_INK_PACK12=0 off) packs wo and the unembed only; the in-projection stays bf16 (`p12::pack_in_proj`), so
+  ink_in_proj_bf16_mma stays on decode. Its gate (spark1 #11172): greedy 64/256 md5 on == off, G2 decode identical, tiny 13/13,
+  bitwise 4/4; decode short 31.6 -> 33.0, 1.2k 31.1 -> 32.5, 5k 30.5 -> 31.8 tok/s.
+
+- (coordinator, 15th) For the next pick after the P12 merge: cuda-attn's nsys at 1.2k, P12 on, graphs (#11172, 30.89 ms GPU /
+  token; ink/cuda-attn 40644991c, "Decode step at 1.2k with P12 on"): MoE gu 6026 us (19.3 %), dn 3261 (10.4 %), ink_row 2074
+  (6.6 %), blend h mma_gemv 1946 (6.2 %; build without this lane's deep GEMV ba7a9fcdc), blend_gate 480, moe_route 368: ~45 %
+  of the step. cuda-attn takes in_proj and the SWA tiles: hands off. Report MoE gu / dn GB/s vs ~273 and the top candidate
+  with an estimated gain. Answer (from those timings and config dims, NVFP4 0.5625 B / weight, top-8, 44 visits): gu 1051 MB
+  -> 174 GB/s, dn 525 MB -> 161 GB/s; at 240 GB/s both save ~2.7 ms / token. Candidate in the doc section below.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
@@ -178,7 +197,11 @@ Decode gate (fleetq #11079): G2 decode (teacher-forced, 16 positions per prompt)
 confident misses on the decode rows; long 3.145e-3 (budget 6e-3), 0 / 119. Greedy eager, profile off: 64 tokens of raw "The
 capital of France is" and 256 forced tokens of a short prompt, ids md5 identical over 2 runs (and the 256 text over 3 more in
 #11085). G3 4k prefill (#11068): KL21 9.754e-3 (budget 1.4e-2), 5 / 8229 confident misses (budget 9), top-1 95.76 %.
-Metal token comparison: queued on endor.
+Metal token comparison (endor #11156, ink/metal binary built 2026-11-22 00:09, snapshot b85c3cfa6, whose config / index / quant
+config md5 and weight-file size equal spark2's ed40e7da6; the ed40e7da6 snapshot on endor has no config.json): Metal is
+md5-stable over 2 runs too (ids g64 fa9f4b4a..., g256 550cd932...). CUDA vs Metal greedy ids, first divergence (not gated):
+64-token raw "The capital of France is" at token 7 (CUDA 164452, Metal 68014); 256-token hash-map prompt at token 69
+(150149 vs 150837). The top-1 margins at those tokens were not measured; both backends pass G2 decode on their own.
 
 ### Eager greedy speed (fleetq #11085, `--quiet gpu,cpu`, `--profile-every 0`, vLLM retro resident and idle)
 
