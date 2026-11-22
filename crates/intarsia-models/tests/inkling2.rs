@@ -435,15 +435,15 @@ fn inkling2_tiny_verify_rows_equal_decode_bitwise() {
     }
 }
 
-/// The captured verify-only pass (`INTARSIA_VERIFY_GRAPH=1`, `Model::verify_replay`): ONE state runs R-row verify passes
+/// The captured verify-only pass (`Model::verify_replay`; default on for Inkling-2 on CUDA, `INTARSIA_VERIFY_GRAPH=0` off): ONE state runs R-row verify passes
 /// back to back, so one recording per R is replayed at several positions (through the window and the rel extent), and every
 /// row is the 1-row decode bit for bit (after the final softcap, as above). A position baked into the recording would show
 /// here; a fresh state per pass would not. Asserts that replays happened (a failed capture falls back to the eager pass,
-/// which passes the comparison too). Skipped without the env (the switch is read once per process: run this test alone).
+/// which passes the comparison too). Skipped where graphs are unusable (cpu) and under `INTARSIA_VERIFY_GRAPH=0`.
 #[test]
 fn inkling2_tiny_verify_graph_replays_equal_decode_bitwise() {
-    if std::env::var("INTARSIA_VERIFY_GRAPH").ok().as_deref() != Some("1") {
-        return skip("INTARSIA_VERIFY_GRAPH=1 not set");
+    if std::env::var("INTARSIA_VERIFY_GRAPH").ok().as_deref() == Some("0") {
+        return skip("INTARSIA_VERIFY_GRAPH=0");
     }
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     let ids = prompt(&dir);

@@ -658,7 +658,8 @@ impl Model {
     /// real model).
     pub(super) fn verify_graph_ok(&self, st: &SequenceState, q: usize, profile: bool) -> bool {
         !profile
-            && verify_graph_env_on()
+            // unset: on for Inkling-2 on CUDA (lane ink-cuda-mtp; bitwise the eager pass), off elsewhere; `0` off, `1` on
+            && verify_graph_env().unwrap_or(self.ink.is_some() && self.backend.name() == "cuda")
             && self.graphs.usable(self)
             && self.graphs.spec_fail.load(Ordering::Relaxed) < SPEC_CAPTURE_FAILURES_MAX
             // Inkling-2 runs no AttnPrefill / AttnDecode: its verify attention is the rows-exact InkAttnDecode at the device
@@ -764,9 +765,10 @@ fn spec_graph_tp_env_on() -> bool {
     *ON.get_or_init(|| std::env::var("INTARSIA_SPEC_GRAPH_TP").is_ok_and(|v| v == "1"))
 }
 
-/// `INTARSIA_VERIFY_GRAPH=1` turns the captured verify-only pass on (default off: at tp=1 on HIP it gains 0.2-2% over the eager
-/// pass, lane dfh window 3; default-on is decided at tp=2 from an interleaved measurement), read once.
-fn verify_graph_env_on() -> bool {
-    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| std::env::var("INTARSIA_VERIFY_GRAPH").is_ok_and(|v| v == "1"))
+/// `INTARSIA_VERIFY_GRAPH`: `1` turns the captured verify-only pass on, `0` off; unset = the model's default (on for Inkling-2
+/// on CUDA, lane ink-cuda-mtp; off elsewhere: at tp=1 on HIP it gains 0.2-2% over the eager pass, lane dfh window 3, and
+/// default-on there is decided at tp=2 from an interleaved measurement), read once.
+fn verify_graph_env() -> Option<bool> {
+    static ON: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_VERIFY_GRAPH").ok().map(|v| v == "1"))
 }
