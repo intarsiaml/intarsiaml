@@ -49,6 +49,8 @@ fn backend() -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
         #[cfg(target_os = "macos")]
         Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
+        #[cfg(not(target_os = "macos"))]
+        Ok("metal") => panic!("INTARSIA_INKLING2_BACKEND=metal: the Metal backend is macOS only"),
         Ok("cuda") => intarsia_backend_cuda::create(0).unwrap(),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
         Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal or cuda"),
@@ -301,7 +303,8 @@ fn inkling2_tiny_chunked_and_decode_match_prefill_bitwise() {
     for &id in &ids[9..] {
         rows.extend(all_logits(&m, &mut st, &[id]));
     }
-    assert_eq!(rows, whole, "prefill then decode");
+    let first = (0..rows.len()).find(|&i| rows[i] != whole[i]);
+    assert!(first.is_none(), "prefill then decode: first differing row {first:?} of {}", rows.len());
 }
 
 /// The captured decode step (CUDA graph: the positioned ops read the device position) gives the eager decode's logits bit for
@@ -482,6 +485,32 @@ impl Backend for Wrapped {
     fn synchronize(&self, s: StreamId) -> intarsia_core::Result<()> {
         self.inner.synchronize(s)
     }
+    // the scheduling hints and stream calls the Metal backend overrides, so a wrapped Metal backend runs the same schedule
+    fn avoid_single_row_prefill(&self) -> bool {
+        self.inner.avoid_single_row_prefill()
+    }
+    fn prefix_reuse_any_cut(&self) -> bool {
+        self.inner.prefix_reuse_any_cut()
+    }
+    fn prefix_reuse_min_pass_rows(&self) -> Option<usize> {
+        self.inner.prefix_reuse_min_pass_rows()
+    }
+    fn zero(&self, dst: &Buffer, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.zero(dst, s)
+    }
+    fn hold(&self, s: StreamId, after: usize) -> intarsia_core::Result<()> {
+        self.inner.hold(s, after)
+    }
+    fn release(&self, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.release(s)
+    }
+    fn discard(&self, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.discard(s)
+    }
+    // zero-copy weights: the Metal GEMV variant follows the weight's alignment, so uploaded copies could take another one
+    fn wrap_host(&self, mem: Arc<dyn intarsia_core::backend::HostMemory>, offset: usize, len: usize) -> Option<Buffer> {
+        self.inner.wrap_host(mem, offset, len)
+    }
 }
 
 /// Records (op, kernel, the first row of output 0 when its leading dim is the pass's rows) of every launch.
@@ -573,13 +602,66 @@ fn inkling2_tiny_failed_pass_resets_the_sequence() {
     let whole = logits_chunked(&dir, chunk(), &ids);
     let fail = Arc::new(AtomicBool::new(false));
     let m = load_with(&dir, chunk(), Arc::new(Wrapped { inner: backend(), drop: vec![], fail: fail.clone() })).unwrap();
+    {
+        let mut c = m.new_state().unwrap();
+        let ctl = all_logits(&m, &mut c, &ids);
+        let first = (0..ctl.len()).find(|&i| ctl[i] != whole[i]);
+        assert!(first.is_none(), "wrapped backend, no failure: first differing row {first:?} (the wrapper must run what the backend runs)");
+    }
     let mut st = m.new_state().unwrap();
     all_logits(&m, &mut st, &ids[..20]);
     fail.store(true, Ordering::SeqCst);
     assert!(m.forward(&mut st, &ids[20..], HeadMode::LastLogits, None).is_err());
     fail.store(false, Ordering::SeqCst);
     assert_eq!(st.len, 0, "a failed pass resets the sequence");
-    assert_eq!(all_logits(&m, &mut st, &ids), whole);
+    let again = all_logits(&m, &mut st, &ids);
+    let first = (0..again.len()).find(|&i| again[i] != whole[i]);
+    assert!(first.is_none(), "after the reset: first differing row {first:?} of {}", again.len());
+}
+
+/// `INTARSIA_INK_PACK12=1` (lane ink-pack12) on cpu, whose reference registers the P12 kernels, packs at load and gives the
+/// bf16 logits bit for bit, over 1-row decode steps and 4- and 5-row passes (both sides of `quant::p12::DENSE_ROWS_MAX`).
+/// On a backend without the P12 kernels (`MatmulP12` dropped, as CUDA and HIP register none) the forced `1` keeps the bf16
+/// weights instead of packing. The variable is read at load, so this runs only when the test binary has it set to `1`.
+#[test]
+fn inkling2_tiny_p12_forced_on() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    if !std::env::var(intarsia_core::quant::p12::ENV).is_ok_and(|v| v.trim() == "1") {
+        eprintln!("inkling2_tiny_p12_forced_on: skipped (run with INTARSIA_INK_PACK12=1)");
+        return;
+    }
+    let ids = prompt(&dir);
+    // the backend under test (INTARSIA_INKLING2_BACKEND: cpu by default, cuda for lane ink-cuda-p12)
+    let cpu = backend();
+    let packed = load_with(&dir, chunk(), cpu.clone()).unwrap();
+    let no_p12 = Arc::new(Wrapped { inner: cpu, drop: vec![Op::MatmulP12], fail: Arc::new(AtomicBool::new(false)) });
+    let plain = load_with(&dir, chunk(), no_p12).unwrap();
+    assert!(
+        packed.weights_bytes > plain.weights_bytes,
+        "the cpu load packs ({} B) and the one without P12 kernels keeps bf16 only ({} B)",
+        packed.weights_bytes,
+        plain.weights_bytes
+    );
+    // 8 one-row steps, then passes of 4 and 5 rows, then one-row steps to the end
+    let mut cuts = vec![0usize];
+    for _ in 0..8 {
+        cuts.push(cuts.last().unwrap() + 1);
+    }
+    for n in [4, 5, 4, 5] {
+        cuts.push(cuts.last().unwrap() + n);
+    }
+    while *cuts.last().unwrap() < ids.len() {
+        cuts.push(cuts.last().unwrap() + 1);
+    }
+    let run = |m: &Model| {
+        let mut st = m.new_state().unwrap();
+        let n = ids.len();
+        cuts.windows(2).filter(|w| w[0] < n).flat_map(|w| all_logits(m, &mut st, &ids[w[0]..w[1].min(n)])).collect::<Vec<_>>()
+    };
+    let (a, b) = (run(&packed), run(&plain));
+    assert_eq!(a.len(), ids.len());
+    let first = (0..a.len()).find(|&i| a[i] != b[i]);
+    assert!(first.is_none(), "P12 vs bf16 logits: first differing row {first:?} of {}", a.len());
 }
 
 /// A backend without one of the Inkling-2 kernels refuses the load, naming the op (CUDA and HIP register none of them).
@@ -604,6 +686,7 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
         assert!(intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
         assert!(intarsia_backend_hip::kernels::UNIMPLEMENTED.contains(&op), "hip {op}");
         // Metal: every op has a kernel (lanes ink-m-attn, ink-m-moe, ink-m-mix); the table alone, no device
+        // (a macOS-only dev-dependency, so the check is too)
         #[cfg(target_os = "macos")]
         assert!(intarsia_backend_metal::kernels::all().iter().any(|k| k.op == op), "metal {op}");
     }

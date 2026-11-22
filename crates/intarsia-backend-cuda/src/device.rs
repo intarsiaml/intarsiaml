@@ -472,6 +472,7 @@ impl Backend for CudaBackend {
             .launch_inkattn(kernel, call, stream)
             .or_else(|| self.launch_inkmix(kernel, call, stream))
             .or_else(|| self.launch_inkmoe(kernel, call, stream))
+            .or_else(|| self.launch_inkp12(kernel, call, stream))
         {
             return r;
         }

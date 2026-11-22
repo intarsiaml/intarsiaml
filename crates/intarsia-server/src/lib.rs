@@ -14,6 +14,7 @@
 mod anthropic;
 mod api;
 pub mod health;
+mod inkling;
 mod metrics;
 mod midsystem;
 mod openai;

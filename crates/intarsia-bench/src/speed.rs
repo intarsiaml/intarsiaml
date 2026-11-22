@@ -321,7 +321,11 @@ impl Client {
         }
         let end = Instant::now();
         if first.is_none() {
-            return CallResult::failed(start, "no tokens received".into());
+            // keep the server's counts: a 1-token calibration probe of a model whose first token is a format marker
+            // (Inkling-2's `<|content_thinking|>`, dropped from the text stream) releases no text but has its usage
+            let mut r = CallResult::failed(start, NO_TOKENS.into());
+            (r.prompt_tokens, r.completion_tokens) = (pt, ct.unwrap_or(0));
+            return r;
         }
         CallResult { ok: true, error: None, prompt_tokens: pt, completion_tokens: ct.unwrap_or(chunks), start, first, end }
     }
@@ -422,10 +426,19 @@ fn floor_pct(decode: Option<f64>, cfg: &SpeedConfig) -> (Option<f64>, Option<f64
 // ---------------------------------------------------------------------------------------------
 // The sweep
 
+/// The error of a streamed call that released no text.
+const NO_TOKENS: &str = "no tokens received";
+
+/// A calibration probe (1 token) is usable when it has the server's prompt count: a call that released no text but
+/// whose usage says it generated its token (a model that opens with a format marker the text stream drops) counts.
+fn probe_ok(r: &CallResult) -> bool {
+    r.ok || (r.error.as_deref() == Some(NO_TOKENS) && r.prompt_tokens > 0 && r.completion_tokens > 0)
+}
+
 fn calibrate(c: &Client) -> Result<(f64, f64)> {
     let mut rng = Rng::from_clock();
     let a = c.chat(&make_prompt(0, &mut rng), 1, false);
-    if !a.ok {
+    if !probe_ok(&a) {
         bail!("calibration call failed: {}", a.error.unwrap_or_else(|| "unknown error".into()));
     }
     // A few hundred filler sentences measure the per-sentence cost best; a small context window gets a shorter
@@ -436,7 +449,7 @@ fn calibrate(c: &Client) -> Result<(f64, f64)> {
             continue;
         }
         let b = c.chat(&make_prompt(n, &mut rng), 1, false);
-        if !b.ok {
+        if !probe_ok(&b) {
             last_err = b.error;
             continue;
         }
@@ -759,6 +772,12 @@ mod tests {
     /// The fake server; with `metrics` it also answers `GET /metrics` with graph counters that grow with every chat
     /// call (9 replays, 1 eager step per call, 1 capture in total, no profiled steps), like intarsia's server.
     fn fake_server_opt(metrics: bool) -> String {
+        fake_server_full(metrics, false)
+    }
+
+    /// With `marker`, every reply opens with a token that releases no text (as Inkling-2's `<|content_thinking|>` in the
+    /// server's text stream): a `max_tokens: 1` call streams only its usage.
+    fn fake_server_full(metrics: bool, marker: bool) -> String {
         let l = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = l.local_addr().unwrap();
         let calls = Arc::new(std::sync::atomic::AtomicU64::new(0));
@@ -802,10 +821,12 @@ mod tests {
                     calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     let pt = txt.matches("Note ").count() * 12 + 20;
                     let mut out = String::from("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n");
-                    for i in 0..10 {
+                    let one = txt.contains("\"max_tokens\":1,") || txt.contains("\"max_tokens\":1}");
+                    let n = if one { 1 } else { 10 };
+                    for i in usize::from(marker)..n {
                         out.push_str(&format!("data: {{\"choices\":[{{\"delta\":{{\"content\":\"t{i}\"}}}}]}}\n\n"));
                     }
-                    out.push_str(&format!("data: {{\"choices\":[],\"usage\":{{\"prompt_tokens\":{pt},\"completion_tokens\":10}}}}\n\ndata: [DONE]\n\n"));
+                    out.push_str(&format!("data: {{\"choices\":[],\"usage\":{{\"prompt_tokens\":{pt},\"completion_tokens\":{n}}}}}\n\ndata: [DONE]\n\n"));
                     let _ = s.write_all(out.as_bytes());
                 });
             }
@@ -839,6 +860,29 @@ mod tests {
         let (lo, hi) = (rows[0]["decode_tok_s_min"].as_f64().unwrap(), rows[0]["decode_tok_s_max"].as_f64().unwrap());
         assert!(lo <= rows[0]["decode_tok_s"].as_f64().unwrap() && rows[0]["decode_tok_s"].as_f64().unwrap() <= hi);
         assert!(rows[0]["decode_tok_s_stdev"].as_f64().is_some());
+    }
+
+    #[test]
+    fn calibration_takes_a_probe_whose_first_token_releases_no_text() {
+        // Inkling-2 through intarsia serve: the 1-token probes stream no text, only usage ("no tokens received" before)
+        let cfg = SpeedConfig {
+            url: fake_server_full(false, true), model: "fake".into(), api_key: None, sizes: vec![128, 512], gen: 10,
+            reps: 1, warmup: 1, concurrency: vec![], conc_size: 128, gb_per_token: None, bandwidth_gbs: None,
+            label: "t".into(), thinking: None, timeout_s: 20, out_dir: None, fingerprint: Map::new(), at_most: false,
+        };
+        let res = run_speed(&cfg).unwrap();
+        let rows = res["rows"].as_array().unwrap();
+        assert_eq!(rows.len(), 2);
+        assert!(rows[1]["prompt_tokens"].as_f64().unwrap() > rows[0]["prompt_tokens"].as_f64().unwrap());
+        // a measured call still needs text: the rows have timings
+        assert!(rows[0]["decode_tok_s"].as_f64().is_some(), "{:?}", rows[0]);
+        // a probe without usage is still a failure
+        let start = Instant::now();
+        let mut r = CallResult::failed(start, NO_TOKENS.into());
+        assert!(!probe_ok(&r));
+        (r.prompt_tokens, r.completion_tokens) = (40, 1);
+        assert!(probe_ok(&r));
+        assert!(!probe_ok(&CallResult::failed(start, "HTTP 500: x".into())));
     }
 
     #[test]

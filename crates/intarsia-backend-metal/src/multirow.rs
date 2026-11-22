@@ -104,9 +104,32 @@ pub fn default_per_tg(_family: Family, _rows: usize) -> usize {
     1
 }
 
+/// Families with a one-launch 9..=16-row form (`<base>_mr8t<T>`, gemv_multirow.metal; lane ink-batch).
+pub const TAIL_FAMILIES: [Family; 3] = [Family::Matmul16, Family::MatmulA8, Family::Logits];
+
+fn tail_table() -> &'static std::collections::HashMap<(Family, usize), &'static str> {
+    static T: std::sync::OnceLock<std::collections::HashMap<(Family, usize), &'static str>> = std::sync::OnceLock::new();
+    T.get_or_init(|| {
+        let mut m = std::collections::HashMap::new();
+        for f in TAIL_FAMILIES {
+            for t in 1..=8usize {
+                let n: &'static str = Box::leak(format!("{}_mr8t{t}", f.base()).into_boxed_str());
+                m.insert((f, 8 + t), n);
+            }
+        }
+        m
+    })
+}
+
+/// Host name of the one-launch form of `family` for `rows` (9..=16) activation rows: an 8-row pass then a `rows - 8` pass,
+/// the weights read from DRAM once (lane ink-batch). Same bits as two chunk launches (every row is the 1-row kernel's).
+pub fn shader_tail(family: Family, rows: usize) -> Option<&'static str> {
+    tail_table().get(&(family, rows)).copied()
+}
+
 /// Host names of every multi-row shader (for the pipeline table).
 pub fn shader_names() -> Vec<&'static str> {
-    let mut v: Vec<&'static str> = name_table().values().copied().collect();
+    let mut v: Vec<&'static str> = name_table().values().copied().chain(tail_table().values().copied()).collect();
     v.sort();
     v
 }
@@ -260,7 +283,7 @@ impl MetalBackend {
         } else {
             None
         };
-        let Some(set) = set.filter(|_| MR_ROWS.contains(&m)) else {
+        let Some(set) = set.filter(|&f| MR_ROWS.contains(&m) || (crate::rows_single(crate::multirow::MATMUL_BF16_GEMV_ROWS, m) && shader_tail(f, m).is_some())) else {
             // scalar kernels / unsupported row count: R ordinary 1-row launches (bit-exact by construction)
             for r in 0..m {
                 let plan = self.plan_gemv(&single(&x.rows(r, 1), w, &y.rows(r, 1)))?;
@@ -281,8 +304,10 @@ impl MetalBackend {
             }
             return Ok(());
         };
-        let per_tg = default_per_tg(set, m);
-        let name = shader(set, m, per_tg).expect("compiled row count");
+        // 9..=16 rows in one launch (`INTARSIA_METAL_ROWS_SINGLE`, `crate::rows_single`): `row_chunks` did not split the call
+        let tail = crate::rows_single(crate::multirow::MATMUL_BF16_GEMV_ROWS, m).then(|| shader_tail(set, m)).flatten();
+        let per_tg = if tail.is_some() { 1 } else { default_per_tg(set, m) };
+        let name = tail.unwrap_or_else(|| shader(set, m, per_tg).expect("compiled row count"));
         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
         let params = GemvParams { k: k as u32, n: n as u32, y_skip: ((yo & 3) / 2) as u32, ..Default::default() };
         self.with_encoder(|enc| {
@@ -407,7 +432,8 @@ impl MetalBackend {
             return Err(Error::backend("metal: output buffer is read-only (wrapped host memory)"));
         }
         let (wo, xo, yo) = (wb.base + w.offset, xb.base + x.offset, yb.base + y.offset);
-        if !(k % 8 == 0 && wo % 16 == 0 && xo % 16 == 0 && yo % 4 == 0) || !MR_ROWS.contains(&m) {
+        let tail = crate::rows_single(LOGITS_BF16_GEMV_ROWS, m).then(|| shader_tail(Family::Logits, m)).flatten();
+        if !(k % 8 == 0 && wo % 16 == 0 && xo % 16 == 0 && yo % 4 == 0) || !(MR_ROWS.contains(&m) || tail.is_some()) {
             for r in 0..m {
                 self.launch_dense(
                     crate::kernels::LOGITS_BF16_GEMV,
@@ -416,8 +442,8 @@ impl MetalBackend {
             }
             return Ok(());
         }
-        let per_sg = default_per_tg(Family::Logits, m);
-        let name = shader(Family::Logits, m, per_sg).expect("compiled row count");
+        let per_sg = if tail.is_some() { 1 } else { default_per_tg(Family::Logits, m) };
+        let name = tail.unwrap_or_else(|| shader(Family::Logits, m, per_sg).expect("compiled row count"));
         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
         let params = GemvParams { k: k as u32, n: n as u32, ..Default::default() };
         self.with_encoder(|enc| {

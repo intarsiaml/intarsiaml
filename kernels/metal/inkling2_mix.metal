@@ -97,13 +97,15 @@ kernel void ink_in_proj_gemv(device const uint4* W [[buffer(0)]],
                              device ushort* Y1 [[buffer(3)]],
                              device ushort* Y2 [[buffer(4)]],
                              constant InkProjP& p [[buffer(5)]],
-                             uint tg [[threadgroup_position_in_grid]],
-                             uint ngrid [[threadgroups_per_grid]],
+                             uint2 tg2 [[threadgroup_position_in_grid]],
+                             uint2 ngrid2 [[threadgroups_per_grid]],
                              uint sg [[simdgroup_index_in_threadgroup]],
                              uint lane [[thread_index_in_simdgroup]]) {
     static_assert(R % RB == 0, "R must be a multiple of RB");
     threadgroup float part[P * R * SG];
     const uint k8 = p.k / 8;
+    // grid y = chunk of R rows (the blend's h projection over a long chunk; InkInProj launches one)
+    const uint tg = tg2.x, ngrid = ngrid2.x, r0 = tg2.y * uint(R);
     // grid-stride over the virtual threadgroups: every in-flight threadgroup works on neighbouring rows (the bits of a
     // row do not depend on which threadgroup computes it)
     for (uint vt = tg; vt < p.gtot; vt += ngrid) {
@@ -118,7 +120,7 @@ kernel void ink_in_proj_gemv(device const uint4* W [[buffer(0)]],
         }
         const uint row0 = lt * P;
         device const uint4* Ws = W + (ulong)wrow * k8;
-        device const uint4* Xs = X + xo / 8;
+        device const uint4* Xs = X + xo / 8 + (ulong)r0 * k8;
         float t[P * R];
         for (int rb = 0; rb < R; rb += RB) {
             float tb[P * RB];
@@ -129,33 +131,165 @@ kernel void ink_in_proj_gemv(device const uint4* W [[buffer(0)]],
         if (sg == 0 && lane == 0) {
             for (int q = 0; q < P; ++q)
                 if (row0 + q < n)
-                    for (int r = 0; r < R; ++r) Y[ys + (ulong)r * n + row0 + q] = f2bf(t[q * R + r]);
+                    for (int r = 0; r < R; ++r) Y[ys + (ulong)(r0 + uint(r)) * n + row0 + q] = f2bf(t[q * R + r]);
         }
         if (SG > 1) threadgroup_barrier(mem_flags::mem_threadgroup);  // `part` is rewritten by the next row
     }
 }
 
 #define IP_ARGS device const uint4*, device const uint4*, device ushort*, device ushort*, device ushort*, \
-    constant InkProjP&, uint, uint, uint, uint
+    constant InkProjP&, uint2, uint2, uint, uint
 #define IP_INST(R, P, SG, U, RB)                                                                                      \
     template [[host_name("ink_in_proj_gemv_r" #R "p" #P "s" #SG "u" #U "b" #RB)]] kernel void                        \
     ink_in_proj_gemv<R, P, SG, U, RB>(IP_ARGS);
 
 // The exploration set (benchmarked in docs/results/2026-11-21-inkling2-metal-mix.md); the launcher's table in inkmix.rs
 // lists what it uses.
-#define IP_CFG(SG, U)                                                                                                 \
-    IP_INST(1, 1, SG, U, 1) IP_INST(1, 2, SG, U, 1) IP_INST(1, 4, SG, U, 1)                                           \
-    IP_INST(2, 1, SG, U, 2) IP_INST(2, 2, SG, U, 2) IP_INST(3, 1, SG, U, 3) IP_INST(3, 2, SG, U, 3)                   \
-    IP_INST(4, 1, SG, U, 4) IP_INST(4, 2, SG, U, 4) IP_INST(5, 1, SG, U, 5) IP_INST(6, 1, SG, U, 6)                   \
-    IP_INST(7, 1, SG, U, 7) IP_INST(8, 1, SG, U, 8) IP_INST(8, 2, SG, U, 4) IP_INST(9, 1, SG, U, 9)                   \
-    IP_INST(10, 1, SG, U, 10) IP_INST(11, 1, SG, U, 11) IP_INST(12, 1, SG, U, 12) IP_INST(13, 1, SG, U, 13)           \
-    IP_INST(14, 1, SG, U, 14) IP_INST(15, 1, SG, U, 15) IP_INST(16, 1, SG, U, 16) IP_INST(16, 1, SG, U, 8)            \
-    IP_INST(16, 2, SG, U, 8)
+#define IP_CFG_ROWS(INST, SG, U)                                                                                                 \
+    INST(1, 1, SG, U, 1) INST(1, 2, SG, U, 1) INST(1, 4, SG, U, 1)                                           \
+    INST(2, 1, SG, U, 2) INST(2, 2, SG, U, 2) INST(3, 1, SG, U, 3) INST(3, 2, SG, U, 3)                   \
+    INST(4, 1, SG, U, 4) INST(4, 2, SG, U, 4) INST(5, 1, SG, U, 5) INST(6, 1, SG, U, 6)                   \
+    INST(7, 1, SG, U, 7) INST(8, 1, SG, U, 8) INST(8, 2, SG, U, 4) INST(9, 1, SG, U, 9)                   \
+    INST(10, 1, SG, U, 10) INST(11, 1, SG, U, 11) INST(12, 1, SG, U, 12) INST(13, 1, SG, U, 13)           \
+    INST(14, 1, SG, U, 14) INST(15, 1, SG, U, 15) INST(16, 1, SG, U, 16) INST(16, 1, SG, U, 8)            \
+    INST(16, 2, SG, U, 8)
+
+#define IP_CFG(SG, U) IP_CFG_ROWS(IP_INST, SG, U)
 
 IP_CFG(8, 2)
 IP_CFG(9, 1)
 IP_CFG(3, 3)
 IP_CFG(1, 9)
+
+// ================================================================================================================
+// InkInProj over e4m3 weights (lane ink-fp8, opt-in INTARSIA_INK_ATTN_QUANT=fp8; W8A16): y_j = bf16(scale_j * x . e4m3(W_j)^T).
+// The bf16 GEMV above with 8-byte weight chunks (8 e4m3 codes) against the same 16-byte activation chunks, the same lane ->
+// chunk mapping and reduction tree for every R (rows-exact as the bf16 kernel). e4m3 decodes as value / 256 (the fp8.metal
+// half trick, subnormals included); the 256 is folded into the per-pack scale. No NaN check: the loader's quantiser
+// saturates at 448 and never writes the NaN codes 0x7F / 0xFF.
+// ================================================================================================================
+
+// two e4m3 bytes at bits 0..7 and 16..23 of t -> value / 256 (fp8.metal fp8_x2)
+inline float2 ip8_x2(uint t) {
+    const uint h = ((t & 0x007F007Fu) << 7) | ((t & 0x00800080u) << 8);
+    return float2(as_type<half2>(h));
+}
+
+// 8 e4m3 weights (uint2, element order 0..7) . 8 bf16 activations, the fma chain of ip_dot8 (result / 256)
+inline float ip8_dot8(uint2 w, uint4 x) {
+    const float2 a0 = ip8_x2(w.x), b0 = ip8_x2(w.x >> 8), a1 = ip8_x2(w.y), b1 = ip8_x2(w.y >> 8);
+    float a = a0.x * ip_lo(x.x);
+    a = fma(b0.x, ip_hi(x.x), a);
+    a = fma(a0.y, ip_lo(x.y), a);
+    a = fma(b0.y, ip_hi(x.y), a);
+    a = fma(a1.x, ip_lo(x.z), a);
+    a = fma(b1.x, ip_hi(x.z), a);
+    a = fma(a1.y, ip_lo(x.w), a);
+    a = fma(b1.y, ip_hi(x.w), a);
+    return a;
+}
+
+// ip_rows with e4m3 weight rows (W: 8-byte chunks, row stride k8)
+template <int RB, int P, int U, int SG>
+inline void ip8_rows(device const uint2* W, uint row0, uint nvalid, device const uint4* X, uint k8, uint sg, uint lane,
+                     threadgroup float* part, thread float* out) {
+    constexpr uint lanes = 32 * SG;
+    constexpr uint block = lanes * U;
+    device const uint2* wr[P];
+    for (int q = 0; q < P; ++q) wr[q] = W + (ulong)min(row0 + q, nvalid - 1) * k8;
+    const uint nblk = k8 / block;
+    uint i = sg * 32 + lane;
+    float acc[P * RB];
+    for (int j = 0; j < P * RB; ++j) acc[j] = 0.0f;
+    for (uint b = 0; b < nblk; ++b, i += block) {
+        uint2 wv[P][U];
+        for (int q = 0; q < P; ++q)
+            for (int u = 0; u < U; ++u) wv[q][u] = wr[q][i + lanes * u];
+        for (int r = 0; r < RB; ++r) {
+            uint4 xv[U];
+            for (int u = 0; u < U; ++u) xv[u] = X[(ulong)r * k8 + i + lanes * u];
+            for (int q = 0; q < P; ++q)
+                for (int u = 0; u < U; ++u) acc[q * RB + r] += ip8_dot8(wv[q][u], xv[u]);
+        }
+    }
+    for (i = nblk * block + sg * 32 + lane; i < k8; i += lanes) {
+        uint2 wv[P];
+        for (int q = 0; q < P; ++q) wv[q] = wr[q][i];
+        for (int r = 0; r < RB; ++r) {
+            const uint4 xv = X[(ulong)r * k8 + i];
+            for (int q = 0; q < P; ++q) acc[q * RB + r] += ip8_dot8(wv[q], xv);
+        }
+    }
+    if (SG == 1) {
+        for (int j = 0; j < P * RB; ++j) out[j] = simd_sum(acc[j]);
+        return;
+    }
+    for (int j = 0; j < P * RB; ++j) {
+        const float s = simd_sum(acc[j]);
+        if (lane == 0) part[j * SG + sg] = s;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (int j = 0; j < P * RB; ++j) {
+        float t = part[j * SG];
+        for (int q = 1; q < SG; ++q) t += part[j * SG + q];
+        out[j] = t;
+    }
+}
+
+// bind: 0 W [n0+n1+n2, K] e4m3 (8-byte aligned), 1 X [S, T, K] bf16 (16-byte aligned), 2 Y0, 3 Y1, 4 Y2, 5 InkProjP,
+// 6 scales [3] f32. Grid as ink_in_proj_gemv.
+template <int R, int P, int SG, int U, int RB>
+kernel void ink_in_proj_f8_gemv(device const uint2* W [[buffer(0)]],
+                                device const uint4* X [[buffer(1)]],
+                                device ushort* Y0 [[buffer(2)]],
+                                device ushort* Y1 [[buffer(3)]],
+                                device ushort* Y2 [[buffer(4)]],
+                                constant InkProjP& p [[buffer(5)]],
+                                device const float* sc [[buffer(6)]],
+                                uint tg [[threadgroup_position_in_grid]],
+                                uint ngrid [[threadgroups_per_grid]],
+                                uint sg [[simdgroup_index_in_threadgroup]],
+                                uint lane [[thread_index_in_simdgroup]]) {
+    static_assert(R % RB == 0, "R must be a multiple of RB");
+    threadgroup float part[P * R * SG];
+    const uint k8 = p.k / 8;
+    for (uint vt = tg; vt < p.gtot; vt += ngrid) {
+        uint lt, n, wrow, xo, ys;
+        float scale;
+        device ushort* Y;
+        if (vt < p.g0) {
+            lt = vt; n = p.n0; wrow = 0; xo = 0; Y = Y0; ys = p.ys0; scale = sc[0];
+        } else if (vt < p.g0 + p.g1) {
+            lt = vt - p.g0; n = p.n1; wrow = p.n0; xo = p.xo1; Y = Y1; ys = p.ys1; scale = sc[1];
+        } else {
+            lt = vt - p.g0 - p.g1; n = p.n2; wrow = p.n0 + p.n1; xo = p.xo2; Y = Y2; ys = p.ys2; scale = sc[2];
+        }
+        scale *= 256.0f;
+        const uint row0 = lt * P;
+        device const uint2* Ws = W + (ulong)wrow * k8;
+        device const uint4* Xs = X + xo / 8;
+        float t[P * R];
+        for (int rb = 0; rb < R; rb += RB) {
+            float tb[P * RB];
+            ip8_rows<RB, P, U, SG>(Ws, row0, n, Xs + (ulong)rb * k8, k8, sg, lane, part + rb * P * SG, tb);
+            for (int q = 0; q < P; ++q)
+                for (int r = 0; r < RB; ++r) t[q * R + rb + r] = tb[q * RB + r];
+        }
+        if (sg == 0 && lane == 0) {
+            for (int q = 0; q < P; ++q)
+                if (row0 + q < n)
+                    for (int r = 0; r < R; ++r) Y[ys + (ulong)r * n + row0 + q] = f2bf(t[q * R + r] * scale);
+        }
+        if (SG > 1) threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+}
+
+#define IP8_ARGS device const uint2*, device const uint4*, device ushort*, device ushort*, device ushort*, \
+    constant InkProjP&, device const float*, uint, uint, uint, uint
+#define IP8_INST(R, P, SG, U, RB)                                                                                     \
+    template [[host_name("ink_in_proj_f8_gemv_r" #R "p" #P "s" #SG "u" #U "b" #RB)]] kernel void                     \
+    ink_in_proj_f8_gemv<R, P, SG, U, RB>(IP8_ARGS);
+#define IP8_CFG(SG, U) IP_CFG_ROWS(IP8_INST, SG, U)
 
 // ================================================================================================================
 // Row kernels: SconvRes, ConvMix (conv + residual + depth mix + norm), AttnResMix. One threadgroup per row, TPG threads,
@@ -168,7 +302,10 @@ constant uint MX_ADD = 4u;
 constant uint MX_SUM = 8u;
 constant uint MX_NORM = 16u;  // mix output normed (bf16), else the f32 mix
 constant uint MX_RING = 32u;  // write the ring rows of this launch's rows here (no row of the launch reads a row written)
-constant uint MX_PAIR = 64u;  // blend path: also write the controller pair rA([d w(d), m w(m)]) of each stream (bf16 scratch)
+constant uint MX_PAIR = 64u;
+// row-table form (lane ink-batch, `OpCall::rows`): row t is the T = 1 conv of sequence t at posb[t], on the ring whose address
+// is table entry [t, rti] (+ roff bytes); no in-call history, the ring row always written here
+constant uint MX_ROWTAB = 128u;  // blend path: also write the controller pair rA([d w(d), m w(m)]) of each stream (bf16 scratch)
 
 constant float SRC_EPS = 1e-6f;
 constant int MX_NMAX = 8;     // stored sources + last
@@ -182,6 +319,8 @@ struct InkMixP {
     float eps, cscale, fpad0, fpad1;
     // leading bf16 elements per binding: x, taps, res, add, y, ring, sum, src, norm, out
     uint sk[12];
+    uint rts, rti, tab_lo, tab_hi;  // MX_ROWTAB: table stride, entry, the table's GPU address
+    uint roff, rpad0, rpad1, rpad2; // MX_ROWTAB: the ring carrier's byte offset
 };
 
 // v[j] (j < nr) summed over the threadgroup: simd_sum, then the simdgroup partials in sg order. All threads get red[].
@@ -270,11 +409,18 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
     }
     float last[NE];
     if (conv) {
-        const int pos = p.use_dev ? posb[0] : int(p.pos0);
-        const int pp = pos + int(t);
+        const bool rt = (p.flags & MX_ROWTAB) != 0;
+        // the row-table form: row t is a T = 1 call at posb[t] (in-call row index 0, its x row at t)
+        const int pos = rt ? posb[t] : p.use_dev ? posb[0] : int(p.pos0);
+        const int pp = pos + (rt ? 0 : int(t));
+        const int xoff = rt ? int(t) : 0;
         device const ushort* xr = x + p.sk[0];
         device const ushort* tr = taps + p.sk[1];
-        device const ushort* rg = ring + p.sk[5];
+        device ushort* rg = ring + p.sk[5];
+        if (rt) {
+            device const ulong* tab = reinterpret_cast<device const ulong*>(as_type<ulong>(uint2(p.tab_lo, p.tab_hi)));
+            rg = reinterpret_cast<device ushort*>(tab[(ulong)t * p.rts + p.rti] + p.roff);
+        }
         float acc[NE], xc[NE], rv[NE], av[NE];
         for (int j = 0; j < NE; ++j) {
             acc[j] = 0.0f;
@@ -284,7 +430,7 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
         }
         for (uint l = 0; l < p.k; ++l) {
             const int qq = pp - int(l);
-            device const ushort* bp = qq >= pos ? xr + (ulong)(qq - pos) * d : rg + (ulong)(uint(max(qq, 0)) % p.rr) * d;
+            device const ushort* bp = qq >= pos ? xr + (ulong)(qq - pos + xoff) * d : rg + (ulong)(uint(max(qq, 0)) % p.rr) * d;
             device const ushort* tl = tr + (ulong)l * d;
             for (int j = 0; j < NE; ++j) {
                 const float xv = qq >= 0 ? bf2f(bp[cc[j]]) : 0.0f;
@@ -302,8 +448,8 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
                 if (hres && hsum) sum[p.sk[6] + o] = f2bf(lv);
             }
         }
-        if ((p.flags & MX_RING) != 0 && int(t) >= int(p.t) - int(p.rr)) {
-            device ushort* wr = ring + p.sk[5] + (ulong)(uint(pp) % p.rr) * d;
+        if ((p.flags & MX_RING) != 0 && (rt || int(t) >= int(p.t) - int(p.rr))) {
+            device ushort* wr = rg + (ulong)(uint(pp) % p.rr) * d;
             for (int j = 0; j < NE; ++j)
                 if (on[j]) wr[cc[j]] = xr[(ulong)t * d + cc[j]];
         }
@@ -512,7 +658,7 @@ kernel void ink_blend_pair(device const float* dest [[buffer(0)]],
 }
 
 // bind: 0 dest f32, 1 msg f32, 2 h bf16 [S, rows, G] (scratch), 3 gain [S, D, G], 4 forget [S, D, G], 5 y f32 [S, rows, D]
-// (scratch), 6 partial f32 [S, rows, nsl] (scratch; nsl = 2 per channel slice, one per simdgroup), 7 InkBlendP. Grid: S *
+// (scratch), 6 partial f32 [S, rows, nsl] (scratch; nsl = one per 32 channels, cs / 32 per channel slice), 7 InkBlendP. Grid: S *
 // slices threadgroups of `cs` = 64 threads (one channel each). The channel's gain / forget rows stay in registers for all
 // rows of the chunk; G % 8 == 0, G <= 8 * GC.
 inline float bl_dot8(uint4 w, uint4 x) {
@@ -536,11 +682,14 @@ kernel void ink_blend_gate(device const float* dest [[buffer(0)]],
                            device float* yo [[buffer(5)]],
                            device float* partial [[buffer(6)]],
                            constant InkBlendP& p [[buffer(7)]],
-                           uint gidx [[threadgroup_position_in_grid]],
-                           uint tid [[thread_position_in_threadgroup]],
+                           uint2 gid2 [[threadgroup_position_in_grid]],
+                           uint2 tid2 [[thread_position_in_threadgroup]],
                            uint lane [[thread_index_in_simdgroup]],
                            uint sg [[simdgroup_index_in_threadgroup]]) {
-    const uint nsl = p.nsl / 2;  // channel slices
+    const uint gidx = gid2.x, tid = tid2.x;
+    const uint rb0 = gid2.y * p.pad0, rb1 = min(rb0 + p.pad0, p.rows);  // the rows of this threadgroup (pad0 = rows per group)
+    const uint spg = p.cs / 32;          // simdgroups (32-channel partials) per channel slice
+    const uint nsl = p.nsl / spg;        // channel slices
     const uint s = gidx / nsl, sl = gidx % nsl, d = p.d, g8 = p.g / 8;
     const uint c = sl * p.cs + tid;
     const bool on = c < d;
@@ -553,7 +702,7 @@ kernel void ink_blend_gate(device const float* dest [[buffer(0)]],
         gw[j] = (uint(j) < g8) ? gr[j] : uint4(0);
         fw[j] = (uint(j) < g8) ? fr[j] : uint4(0);
     }
-    for (uint r = 0; r < p.rows; ++r) {
+    for (uint r = rb0; r < rb1; ++r) {
         device const uint4* hr = h + ((ulong)s * p.rows + r) * g8;
         float gn = 0.0f, fg = 0.0f;
         for (int j = 0; j < GC; ++j) {
@@ -570,18 +719,18 @@ kernel void ink_blend_gate(device const float* dest [[buffer(0)]],
             yo[((ulong)s * p.rows + r) * d + c] = yv;
         }
         const float ss = simd_sum(yv * yv);
-        if (lane == 0) partial[((ulong)s * p.rows + r) * p.nsl + sl * 2 + sg] = ss;
+        if (lane == 0) partial[((ulong)s * p.rows + r) * p.nsl + sl * spg + sg] = ss;
     }
 }
 template [[host_name("ink_blend_gate_g1")]] kernel void ink_blend_gate<1>(device const float*, device const float*,
     device const uint4*, device const ushort*, device const ushort*, device float*, device float*, constant InkBlendP&,
-    uint, uint, uint, uint);
+    uint2, uint2, uint, uint);
 template [[host_name("ink_blend_gate_g8")]] kernel void ink_blend_gate<8>(device const float*, device const float*,
     device const uint4*, device const ushort*, device const ushort*, device float*, device float*, constant InkBlendP&,
-    uint, uint, uint, uint);
+    uint2, uint2, uint, uint);
 template [[host_name("ink_blend_gate_g16")]] kernel void ink_blend_gate<16>(device const float*, device const float*,
     device const uint4*, device const ushort*, device const ushort*, device float*, device float*, constant InkBlendP&,
-    uint, uint, uint, uint);
+    uint2, uint2, uint, uint);
 
 // bind: 0 y f32 [S, rows, D] (scratch), 1 partial f32 [S, rows, nsl], 2 norm [S, D], 3 out bf16 [S, ocount, D], 4 InkBlendP.
 // Grid: S * rows threadgroups.
@@ -601,3 +750,8 @@ kernel void ink_blend_norm(device const float* yi [[buffer(0)]],
     for (uint c = tid; c < d; c += tpg)
         out[p.sk[3] + ((ulong)s * p.ocount + p.t0 + r) * d + c] = f2bf(yr[c] * inv * bf2f(nrm[p.sk[2] + (ulong)s * d + c]));
 }
+
+IP8_CFG(8, 2)
+IP8_CFG(8, 4)
+IP8_CFG(4, 4)
+IP8_CFG(16, 1)

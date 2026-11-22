@@ -108,12 +108,22 @@ pub struct ChatReq {
     response_format: Option<Value>,
     #[serde(default)]
     chat_template_kwargs: Option<Map<String, Value>>,
+    /// OpenAI's `reasoning_effort` (and vLLM's `continue_final_message`): read by the Inkling-2 renderer, which turns them into
+    /// the `Thinking effort level:` block and an open final turn. `chat_template_kwargs` of the same name wins, as in vLLM.
+    #[serde(default)]
+    reasoning_effort: Option<Value>,
+    #[serde(default)]
+    continue_final_message: Option<bool>,
     #[serde(flatten)]
     common: CommonParams,
 }
 
 fn tool_call(id: String, name: &str, arguments: &Value) -> Value {
-    json!({"id": id, "type": "function", "function": {"name": name, "arguments": arguments.to_string()}})
+    tool_call_str(id, name, &arguments.to_string())
+}
+
+fn tool_call_str(id: String, name: &str, arguments: &str) -> Value {
+    json!({"id": id, "type": "function", "function": {"name": name, "arguments": arguments}})
 }
 
 /// Streaming deltas for parsed output pieces; `n` counts the tool calls so far (their `index`).
@@ -179,22 +189,52 @@ async fn chat_inner(
     let tool_format = ToolFormat::from_parser(info.tool_parser.as_deref());
     let parallel = req.parallel_tool_calls.unwrap_or(true);
     let has_response_format = format.is_some();
-    let (plan, parse_tools) = structured::choose(format, &tools, &choice, parallel, tool_format).map_err(bad)?;
-    let stage = structured::tool_stage(parse_tools, tool_format, &tools, has_response_format, &choice, parallel);
+    // Inkling-2 (`reasoning_parser = "inkling"`): blocks parsed by token id (docs/results/2026-11-21-inkling2-serve.md). As in
+    // vLLM a JSON response format is framed in blocks unless the request forces a tool call, and required / named tool choices
+    // constrain nothing (the renderer tells the model in the prompt).
+    let ink = info.reasoning_parser.as_deref() == Some("inkling");
+    let (plan, parse_tools) = if ink {
+        let forced = !tools.is_empty() && !matches!(choice, structured::Choice::None | structured::Choice::Auto);
+        (format.filter(|_| !forced), None)
+    } else {
+        structured::choose(format, &tools, &choice, parallel, tool_format).map_err(bad)?
+    };
+    let stage = if ink { None } else { structured::tool_stage(parse_tools, tool_format, &tools, has_response_format, &choice, parallel) };
+    let ink_ids = if ink {
+        let ids = blocking_as(&st.engine, F, |e| Ok(crate::inkling::Ids::from_engine(e))).await?;
+        Some(ids.ok_or_else(|| ApiError::bad_request(F, "this model's tokenizer has no Inkling block markers"))?)
+    } else {
+        None
+    };
 
-    // Content-part arrays become plain strings (templates call string methods).
+    // Content-part arrays become plain strings (templates call string methods). The Inkling renderer reads the parts itself.
     let mut messages = Vec::with_capacity(req.messages.len());
     for m in &req.messages {
         let Value::Object(o) = m else { return Err(ApiError::bad_request(F, "each message must be an object")) };
         let mut o = o.clone();
-        let content = flatten_content(o.get("content").unwrap_or(&Value::Null), F)?;
-        o.insert("content".into(), Value::String(content));
+        if !ink {
+            let content = flatten_content(o.get("content").unwrap_or(&Value::Null), F)?;
+            o.insert("content".into(), Value::String(content));
+        }
         messages.push(Value::Object(o));
     }
     let mid_mode = crate::midsystem::Mode::from_env();
-    let had_mid_system = crate::midsystem::has_mid_system(&messages);
-    let messages = crate::midsystem::rewrite(messages, mid_mode);
+    let had_mid_system = !ink && crate::midsystem::has_mid_system(&messages);
+    let messages = if ink { messages } else { crate::midsystem::rewrite(messages, mid_mode) };
     let mut opts = ChatOpts { add_generation_prompt: true, tools: req.tools.clone(), ..Default::default() };
+    if ink {
+        // what the renderer reads (the other models' templates never see these)
+        if let Some(e) = &req.reasoning_effort {
+            opts.extra.insert("reasoning_effort".into(), e.clone());
+        }
+        if let Some(c) = &req.tool_choice {
+            opts.extra.insert("tool_choice".into(), c.clone());
+        }
+        opts.extra.insert("parallel_tool_calls".into(), json!(parallel));
+        if let Some(c) = req.continue_final_message {
+            opts.extra.insert("continue_final_message".into(), json!(c));
+        }
+    }
     if let Some(kw) = &req.chat_template_kwargs {
         for (k, v) in kw {
             if k == "enable_thinking" {
@@ -210,12 +250,17 @@ async fn chat_inner(
     let enable_thinking = opts.enable_thinking;
     let has_reasoning_parser = info.reasoning_parser.is_some();
     let (think, prompt) = blocking_as(&st.engine, F, move |e| {
+        // a model with its own renderer (Inkling-2) gives the ids; its prompt ends between messages, so the reasoning is split
+        // from the answer whatever the prompt says
+        if let Some(ids) = e.chat_ids(&messages, &opts)? {
+            return Ok((has_reasoning_parser, ids));
+        }
         let text = e.apply_chat_template(&messages, &opts).map_err(|err| crate::midsystem::explain(err, had_mid_system))?;
         Ok((structured::splits_reasoning(enable_thinking, has_reasoning_parser, &text), e.tokenize(&text, false)?))
     })
     .await?;
     let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens, &st.sampling_defaults)?;
-    structured::attach(&st, F, &mut gen, plan, think).await?;
+    structured::attach(&st, F, &mut gen, plan, think && !ink).await?;
     let rx = start(&st, F, gen)?;
 
     let id = st.new_id("chatcmpl");
@@ -238,7 +283,21 @@ async fn chat_inner(
         let mut message = json!({"role": "assistant", "content": c.text});
         let mut finish = finish_str(c.finish);
         let mut answer = c.text.clone();
-        if think {
+        if let Some(ids) = ink_ids {
+            let token_ids = c.ids.clone();
+            let outs = blocking_as(&st.engine, F, move |e| {
+                Ok(crate::inkling::Stream::parse_ids(ids, &token_ids, &mut |run: &[u32]| e.detokenize(run).unwrap_or_default()))
+            })
+            .await?;
+            let r = crate::inkling::collect(outs);
+            message["reasoning_content"] = r.reasoning.map_or(Value::Null, Value::String);
+            message["content"] = r.content.map_or(Value::Null, Value::String);
+            if !r.calls.is_empty() {
+                message["tool_calls"] = r.calls.iter().map(|(n, a)| tool_call_str(st.new_id("call"), n, &crate::inkling::arguments_string(a))).collect();
+                // as vLLM: a reply with calls ends with `tool_calls`, a cut-off one too
+                finish = "tool_calls";
+            }
+        } else if think {
             let (reasoning, content) = ThinkStream::parse_all(&c.text, stage.map_or(ThinkRule::Plain, |s| s.think), stage.map(|s| s.parser(&tools)));
             message["reasoning_content"] = reasoning.map_or(Value::Null, Value::String);
             answer = content.unwrap_or_default();
@@ -286,9 +345,13 @@ async fn chat_inner(
     let mut rp = think.then(|| stage.map_or_else(|| ThinkStream::new(ThinkRule::Plain, None), |s| s.thinker(&tools)));
     let mut ncalls = 0usize;
     let st2 = st.clone();
+    let mut ip = ink_ids.map(crate::inkling::Stream::new);
     let sse = sse_from(rx, vec![first], move |ev| match ev {
         Some(GenEvent::Token { id: tid, text }) => {
-            if let Some(rp) = rp.as_mut() {
+            if let Some(ip) = ip.as_mut() {
+                let outs = ip.push(tid, &text);
+                crate::inkling::deltas(outs, &mut ncalls, &|| st2.new_id("call")).into_iter().map(|d| sse_json(None, &chunk(d, None, inc))).collect()
+            } else if let Some(rp) = rp.as_mut() {
                 think_deltas(&st2, rp.push(&text), &mut tp, &mut ncalls)
                     .into_iter()
                     .map(|d| sse_json(None, &chunk(d, None, inc)))
@@ -312,7 +375,11 @@ async fn chat_inner(
         Some(GenEvent::Done { finish_reason, prompt_tokens, completion_tokens, cached_tokens, stop_sequence, prefill_chunk, .. }) => {
             done = true;
             let mut out = Vec::new();
-            if let Some(rp) = rp.as_mut() {
+            if let Some(ip) = ip.as_mut() {
+                for d in crate::inkling::deltas(ip.finish(), &mut ncalls, &|| st2.new_id("call")) {
+                    out.push(sse_json(None, &chunk(d, None, inc)));
+                }
+            } else if let Some(rp) = rp.as_mut() {
                 let mut ds = think_deltas(&st2, rp.finish(), &mut tp, &mut ncalls);
                 if let Some(tp) = tp.as_mut() {
                     ds.extend(tool_deltas(&st2, tp.finish(), &mut ncalls));
