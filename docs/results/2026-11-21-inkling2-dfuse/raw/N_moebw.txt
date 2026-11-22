@@ -1,0 +1,305 @@
+Apple M5 Max, 5 layer copies of 573 MB (2.87 GB)
+empty dependent dispatch: 0.81 us
+| A (gate+up, 8 experts) | U | threads/TG | TGs | us/visit | GB/s |
+|---|---:|---:|---:|---:|---:|
+| A (gate+up, 8 experts) | 1 | 128 | 72 | 54.96 | 434.6 |
+| A (gate+up, 8 experts) | 1 | 128 | 144 | 44.73 | 534.0 |
+| A (gate+up, 8 experts) | 1 | 128 | 288 | 49.31 | 484.5 |
+| A (gate+up, 8 experts) | 1 | 128 | 576 | 47.72 | 500.6 |
+| A (gate+up, 8 experts) | 1 | 128 | 1152 | 45.41 | 526.1 |
+| A (gate+up, 8 experts) | 1 | 128 | 2304 | 45.35 | 526.7 |
+| A (gate+up, 8 experts) | 1 | 256 | 72 | 44.72 | 534.1 |
+| A (gate+up, 8 experts) | 1 | 256 | 144 | 47.44 | 503.5 |
+| A (gate+up, 8 experts) | 1 | 256 | 288 | 47.48 | 503.2 |
+| A (gate+up, 8 experts) | 1 | 256 | 576 | 43.59 | 548.0 |
+| A (gate+up, 8 experts) | 1 | 256 | 1152 | 43.83 | 545.1 |
+| A (gate+up, 8 experts) | 1 | 256 | 2304 | 42.68 | 559.7 |
+| A (gate+up, 8 experts) | 1 | 512 | 72 | 53.25 | 448.6 |
+| A (gate+up, 8 experts) | 1 | 512 | 144 | 45.60 | 523.8 |
+| A (gate+up, 8 experts) | 1 | 512 | 288 | 44.21 | 540.4 |
+| A (gate+up, 8 experts) | 1 | 512 | 576 | 44.05 | 542.3 |
+| A (gate+up, 8 experts) | 1 | 512 | 1152 | 43.79 | 545.5 |
+| A (gate+up, 8 experts) | 1 | 512 | 2304 | 42.78 | 558.4 |
+| A (gate+up, 8 experts) | 1 | 1024 | 72 | 46.16 | 517.5 |
+| A (gate+up, 8 experts) | 1 | 1024 | 144 | 42.83 | 557.7 |
+| A (gate+up, 8 experts) | 1 | 1024 | 288 | 44.23 | 540.1 |
+| A (gate+up, 8 experts) | 1 | 1024 | 576 | 42.76 | 558.7 |
+| A (gate+up, 8 experts) | 1 | 1024 | 1152 | 42.33 | 564.3 |
+| A (gate+up, 8 experts) | 1 | 1024 | 2304 | 43.18 | 553.2 |
+| A (gate+up, 8 experts) | 2 | 128 | 72 | 43.28 | 552.0 |
+| A (gate+up, 8 experts) | 2 | 128 | 144 | 44.93 | 531.7 |
+| A (gate+up, 8 experts) | 2 | 128 | 288 | 43.93 | 543.7 |
+| A (gate+up, 8 experts) | 2 | 128 | 576 | 44.67 | 534.8 |
+| A (gate+up, 8 experts) | 2 | 128 | 1152 | 44.26 | 539.7 |
+| A (gate+up, 8 experts) | 2 | 128 | 2304 | 45.79 | 521.7 |
+| A (gate+up, 8 experts) | 2 | 256 | 72 | 51.78 | 461.3 |
+| A (gate+up, 8 experts) | 2 | 256 | 144 | 43.85 | 544.7 |
+| A (gate+up, 8 experts) | 2 | 256 | 288 | 44.10 | 541.7 |
+| A (gate+up, 8 experts) | 2 | 256 | 576 | 44.78 | 533.4 |
+| A (gate+up, 8 experts) | 2 | 256 | 1152 | 44.78 | 533.5 |
+| A (gate+up, 8 experts) | 2 | 256 | 2304 | 45.02 | 530.6 |
+| A (gate+up, 8 experts) | 2 | 512 | 72 | 46.36 | 515.3 |
+| A (gate+up, 8 experts) | 2 | 512 | 144 | 43.39 | 550.6 |
+| A (gate+up, 8 experts) | 2 | 512 | 288 | 45.76 | 522.0 |
+| A (gate+up, 8 experts) | 2 | 512 | 576 | 47.51 | 502.8 |
+| A (gate+up, 8 experts) | 2 | 512 | 1152 | 44.29 | 539.3 |
+| A (gate+up, 8 experts) | 2 | 512 | 2304 | 42.27 | 565.1 |
+| A (gate+up, 8 experts) | 2 | 1024 | 72 | 45.00 | 530.8 |
+| A (gate+up, 8 experts) | 2 | 1024 | 144 | 43.12 | 554.0 |
+| A (gate+up, 8 experts) | 2 | 1024 | 288 | 44.83 | 532.9 |
+| A (gate+up, 8 experts) | 2 | 1024 | 576 | 44.12 | 541.4 |
+| A (gate+up, 8 experts) | 2 | 1024 | 1152 | 42.99 | 555.7 |
+| A (gate+up, 8 experts) | 2 | 1024 | 2304 | 41.99 | 569.0 |
+| A (gate+up, 8 experts) | 4 | 128 | 72 | 43.07 | 554.7 |
+| A (gate+up, 8 experts) | 4 | 128 | 144 | 42.90 | 556.8 |
+| A (gate+up, 8 experts) | 4 | 128 | 288 | 42.94 | 556.3 |
+| A (gate+up, 8 experts) | 4 | 128 | 576 | 43.13 | 553.9 |
+| A (gate+up, 8 experts) | 4 | 128 | 1152 | 44.62 | 535.3 |
+| A (gate+up, 8 experts) | 4 | 128 | 2304 | 47.55 | 502.4 |
+| A (gate+up, 8 experts) | 4 | 256 | 72 | 46.91 | 509.2 |
+| A (gate+up, 8 experts) | 4 | 256 | 144 | 43.26 | 552.2 |
+| A (gate+up, 8 experts) | 4 | 256 | 288 | 44.38 | 538.2 |
+| A (gate+up, 8 experts) | 4 | 256 | 576 | 46.04 | 518.8 |
+| A (gate+up, 8 experts) | 4 | 256 | 1152 | 46.67 | 511.9 |
+| A (gate+up, 8 experts) | 4 | 256 | 2304 | 43.33 | 551.4 |
+| A (gate+up, 8 experts) | 4 | 512 | 72 | 45.83 | 521.3 |
+| A (gate+up, 8 experts) | 4 | 512 | 144 | 44.70 | 534.4 |
+| A (gate+up, 8 experts) | 4 | 512 | 288 | 45.13 | 529.4 |
+| A (gate+up, 8 experts) | 4 | 512 | 576 | 45.38 | 526.4 |
+| A (gate+up, 8 experts) | 4 | 512 | 1152 | 42.49 | 562.2 |
+| A (gate+up, 8 experts) | 4 | 512 | 2304 | 41.97 | 569.2 |
+| A (gate+up, 8 experts) | 4 | 1024 | 72 | 45.57 | 524.2 |
+| A (gate+up, 8 experts) | 4 | 1024 | 144 | 43.90 | 544.2 |
+| A (gate+up, 8 experts) | 4 | 1024 | 288 | 46.78 | 510.7 |
+| A (gate+up, 8 experts) | 4 | 1024 | 576 | 43.20 | 553.0 |
+| A (gate+up, 8 experts) | 4 | 1024 | 1152 | 42.50 | 562.1 |
+| A (gate+up, 8 experts) | 4 | 1024 | 2304 | 41.76 | 572.1 |
+BEST A (gate+up, 8 experts): 41.76 us/visit, 572.1 GB/s (U 4, 1024 threads/TG, 2304 TGs)
+| B (down, 8 experts) | U | threads/TG | TGs | us/visit | GB/s |
+|---|---:|---:|---:|---:|---:|
+| B (down, 8 experts) | 1 | 128 | 72 | 28.21 | 423.4 |
+| B (down, 8 experts) | 1 | 128 | 144 | 22.34 | 534.7 |
+| B (down, 8 experts) | 1 | 128 | 288 | 24.37 | 490.1 |
+| B (down, 8 experts) | 1 | 128 | 576 | 23.62 | 505.7 |
+| B (down, 8 experts) | 1 | 128 | 1152 | 22.52 | 530.3 |
+| B (down, 8 experts) | 1 | 128 | 2304 | 23.87 | 500.4 |
+| B (down, 8 experts) | 1 | 256 | 72 | 22.18 | 538.5 |
+| B (down, 8 experts) | 1 | 256 | 144 | 23.80 | 501.9 |
+| B (down, 8 experts) | 1 | 256 | 288 | 23.77 | 502.5 |
+| B (down, 8 experts) | 1 | 256 | 576 | 22.54 | 529.8 |
+| B (down, 8 experts) | 1 | 256 | 1152 | 22.03 | 542.1 |
+| B (down, 8 experts) | 1 | 256 | 2304 | 21.94 | 544.4 |
+| B (down, 8 experts) | 1 | 512 | 72 | 28.96 | 412.5 |
+| B (down, 8 experts) | 1 | 512 | 144 | 23.33 | 511.9 |
+| B (down, 8 experts) | 1 | 512 | 288 | 23.19 | 515.1 |
+| B (down, 8 experts) | 1 | 512 | 576 | 22.09 | 540.6 |
+| B (down, 8 experts) | 1 | 512 | 1152 | 21.88 | 546.0 |
+| B (down, 8 experts) | 1 | 512 | 2304 | 21.81 | 547.7 |
+| B (down, 8 experts) | 1 | 1024 | 72 | 24.16 | 494.4 |
+| B (down, 8 experts) | 1 | 1024 | 144 | 22.10 | 540.4 |
+| B (down, 8 experts) | 1 | 1024 | 288 | 22.52 | 530.3 |
+| B (down, 8 experts) | 1 | 1024 | 576 | 22.71 | 525.8 |
+| B (down, 8 experts) | 1 | 1024 | 1152 | 21.75 | 549.1 |
+| B (down, 8 experts) | 1 | 1024 | 2304 | 21.64 | 551.8 |
+| B (down, 8 experts) | 2 | 128 | 72 | 22.49 | 531.2 |
+| B (down, 8 experts) | 2 | 128 | 144 | 22.56 | 529.4 |
+| B (down, 8 experts) | 2 | 128 | 288 | 22.99 | 519.6 |
+| B (down, 8 experts) | 2 | 128 | 576 | 22.80 | 523.9 |
+| B (down, 8 experts) | 2 | 128 | 1152 | 23.34 | 511.8 |
+| B (down, 8 experts) | 2 | 128 | 2304 | 24.19 | 493.7 |
+| B (down, 8 experts) | 2 | 256 | 72 | 24.23 | 492.9 |
+| B (down, 8 experts) | 2 | 256 | 144 | 22.49 | 531.0 |
+| B (down, 8 experts) | 2 | 256 | 288 | 22.99 | 519.5 |
+| B (down, 8 experts) | 2 | 256 | 576 | 23.00 | 519.4 |
+| B (down, 8 experts) | 2 | 256 | 1152 | 24.89 | 479.9 |
+| B (down, 8 experts) | 2 | 256 | 2304 | 22.91 | 521.4 |
+| B (down, 8 experts) | 2 | 512 | 72 | 24.52 | 487.1 |
+| B (down, 8 experts) | 2 | 512 | 144 | 22.87 | 522.3 |
+| B (down, 8 experts) | 2 | 512 | 288 | 22.94 | 520.7 |
+| B (down, 8 experts) | 2 | 512 | 576 | 22.94 | 520.8 |
+| B (down, 8 experts) | 2 | 512 | 1152 | 22.03 | 542.3 |
+| B (down, 8 experts) | 2 | 512 | 2304 | 21.58 | 553.3 |
+| B (down, 8 experts) | 2 | 1024 | 72 | 22.87 | 522.2 |
+| B (down, 8 experts) | 2 | 1024 | 144 | 22.14 | 539.5 |
+| B (down, 8 experts) | 2 | 1024 | 288 | 22.43 | 532.6 |
+| B (down, 8 experts) | 2 | 1024 | 576 | 22.30 | 535.7 |
+| B (down, 8 experts) | 2 | 1024 | 1152 | 21.62 | 552.4 |
+| B (down, 8 experts) | 2 | 1024 | 2304 | 21.84 | 546.9 |
+| B (down, 8 experts) | 4 | 128 | 72 | 22.23 | 537.2 |
+| B (down, 8 experts) | 4 | 128 | 144 | 22.51 | 530.7 |
+| B (down, 8 experts) | 4 | 128 | 288 | 22.47 | 531.6 |
+| B (down, 8 experts) | 4 | 128 | 576 | 23.05 | 518.1 |
+| B (down, 8 experts) | 4 | 128 | 1152 | 23.23 | 514.2 |
+| B (down, 8 experts) | 4 | 128 | 2304 | 23.27 | 513.2 |
+| B (down, 8 experts) | 4 | 256 | 72 | 23.50 | 508.2 |
+| B (down, 8 experts) | 4 | 256 | 144 | 23.38 | 510.8 |
+| B (down, 8 experts) | 4 | 256 | 288 | 23.84 | 501.0 |
+| B (down, 8 experts) | 4 | 256 | 576 | 24.37 | 490.2 |
+| B (down, 8 experts) | 4 | 256 | 1152 | 25.11 | 475.6 |
+| B (down, 8 experts) | 4 | 256 | 2304 | 21.94 | 544.5 |
+| B (down, 8 experts) | 4 | 512 | 72 | 23.26 | 513.6 |
+| B (down, 8 experts) | 4 | 512 | 144 | 22.80 | 523.9 |
+| B (down, 8 experts) | 4 | 512 | 288 | 23.07 | 517.7 |
+| B (down, 8 experts) | 4 | 512 | 576 | 22.01 | 542.6 |
+| B (down, 8 experts) | 4 | 512 | 1152 | 21.98 | 543.5 |
+| B (down, 8 experts) | 4 | 512 | 2304 | 21.57 | 553.8 |
+| B (down, 8 experts) | 4 | 1024 | 72 | 23.23 | 514.2 |
+| B (down, 8 experts) | 4 | 1024 | 144 | 22.55 | 529.7 |
+| B (down, 8 experts) | 4 | 1024 | 288 | 22.60 | 528.5 |
+| B (down, 8 experts) | 4 | 1024 | 576 | 22.41 | 533.0 |
+| B (down, 8 experts) | 4 | 1024 | 1152 | 21.99 | 543.1 |
+| B (down, 8 experts) | 4 | 1024 | 2304 | 22.04 | 541.9 |
+BEST B (down, 8 experts): 21.57 us/visit, 553.8 GB/s (U 4, 512 threads/TG, 2304 TGs)
+| F (gate+up + down, 8 experts, one dispatch) | U | threads/TG | TGs | us/visit | GB/s |
+|---|---:|---:|---:|---:|---:|
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 128 | 144 | 68.81 | 520.7 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 128 | 288 | 76.81 | 466.5 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 128 | 576 | 69.13 | 518.3 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 128 | 1152 | 65.90 | 543.7 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 128 | 2304 | 65.35 | 548.3 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 128 | 4608 | 64.35 | 556.9 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 256 | 144 | 75.66 | 473.6 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 256 | 288 | 71.94 | 498.1 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 256 | 576 | 67.29 | 532.5 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 256 | 1152 | 65.24 | 549.2 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 256 | 2304 | 63.81 | 561.5 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 256 | 4608 | 63.43 | 564.9 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 512 | 144 | 72.16 | 496.5 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 512 | 288 | 68.04 | 526.7 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 512 | 576 | 67.79 | 528.6 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 512 | 1152 | 66.12 | 541.9 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 512 | 2304 | 64.33 | 557.0 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 512 | 4608 | 63.45 | 564.7 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 1024 | 144 | 66.97 | 535.0 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 1024 | 288 | 66.88 | 535.7 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 1024 | 576 | 65.14 | 550.1 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 1024 | 1152 | 64.71 | 553.7 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 1024 | 2304 | 62.54 | 572.9 |
+| F (gate+up + down, 8 experts, one dispatch) | 1 | 1024 | 4608 | 61.87 | 579.1 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 128 | 144 | 63.18 | 567.2 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 128 | 288 | 64.80 | 552.9 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 128 | 576 | 65.82 | 544.4 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 128 | 1152 | 66.23 | 541.0 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 128 | 2304 | 68.23 | 525.2 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 128 | 4608 | 66.91 | 535.6 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 256 | 144 | 66.75 | 536.8 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 256 | 288 | 66.56 | 538.3 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 256 | 576 | 66.01 | 542.8 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 256 | 1152 | 65.59 | 546.3 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 256 | 2304 | 64.92 | 551.9 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 256 | 4608 | 64.47 | 555.8 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 512 | 144 | 64.52 | 555.3 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 512 | 288 | 66.31 | 540.4 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 512 | 576 | 66.23 | 541.0 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 512 | 1152 | 64.99 | 551.3 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 512 | 2304 | 66.65 | 537.6 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 512 | 4608 | 63.74 | 562.1 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 1024 | 144 | 65.13 | 550.1 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 1024 | 288 | 64.67 | 554.0 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 1024 | 576 | 65.00 | 551.2 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 1024 | 1152 | 62.96 | 569.2 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 1024 | 2304 | 62.36 | 574.6 |
+| F (gate+up + down, 8 experts, one dispatch) | 2 | 1024 | 4608 | 61.76 | 580.2 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 128 | 144 | 63.23 | 566.7 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 128 | 288 | 63.62 | 563.2 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 128 | 576 | 64.09 | 559.0 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 128 | 1152 | 65.41 | 547.8 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 128 | 2304 | 65.92 | 543.6 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 128 | 4608 | 66.79 | 536.5 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 256 | 144 | 64.32 | 557.1 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 256 | 288 | 65.26 | 549.1 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 256 | 576 | 65.39 | 548.0 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 256 | 1152 | 65.96 | 543.2 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 256 | 2304 | 65.35 | 548.3 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 256 | 4608 | 62.51 | 573.2 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 512 | 144 | 64.40 | 556.4 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 512 | 288 | 65.84 | 544.2 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 512 | 576 | 66.75 | 536.8 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 512 | 1152 | 64.63 | 554.4 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 512 | 2304 | 62.73 | 571.2 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 512 | 4608 | 62.07 | 577.3 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 1024 | 144 | 65.28 | 548.9 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 1024 | 288 | 65.73 | 545.2 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 1024 | 576 | 64.87 | 552.3 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 1024 | 1152 | 63.91 | 560.7 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 1024 | 2304 | 63.00 | 568.7 |
+| F (gate+up + down, 8 experts, one dispatch) | 4 | 1024 | 4608 | 62.81 | 570.5 |
+BEST F (gate+up + down, 8 experts, one dispatch): 61.76 us/visit, 580.2 GB/s (U 2, 1024 threads/TG, 4608 TGs)
+AB best A, best B: 63.73 us/visit, 562.2 GB/s over 35.83 MB
+AB shipped TG counts (U 1, 128 threads): 71.06 us/visit, 504.2 GB/s over 35.83 MB
+AB 29 experts (4-row union), best 8-expert configs: 223.15 us/visit, 582.1 GB/s over 129.89 MB
+| A (gate+up, 29 experts) | U | threads/TG | TGs | us/visit | GB/s |
+|---|---:|---:|---:|---:|---:|
+| A (gate+up, 29 experts) | 1 | 128 | 261 | 172.56 | 501.8 |
+| A (gate+up, 29 experts) | 1 | 128 | 522 | 151.83 | 570.3 |
+| A (gate+up, 29 experts) | 1 | 128 | 1044 | 154.16 | 561.7 |
+| A (gate+up, 29 experts) | 1 | 128 | 2088 | 151.51 | 571.5 |
+| A (gate+up, 29 experts) | 1 | 128 | 4176 | 151.48 | 571.7 |
+| A (gate+up, 29 experts) | 1 | 128 | 8352 | 150.93 | 573.7 |
+| A (gate+up, 29 experts) | 1 | 256 | 261 | 152.56 | 567.6 |
+| A (gate+up, 29 experts) | 1 | 256 | 522 | 157.38 | 550.2 |
+| A (gate+up, 29 experts) | 1 | 256 | 1044 | 154.36 | 561.0 |
+| A (gate+up, 29 experts) | 1 | 256 | 2088 | 152.52 | 567.8 |
+| A (gate+up, 29 experts) | 1 | 256 | 4176 | 153.23 | 565.1 |
+| A (gate+up, 29 experts) | 1 | 256 | 8352 | 149.47 | 579.3 |
+| A (gate+up, 29 experts) | 1 | 512 | 261 | 155.10 | 558.3 |
+| A (gate+up, 29 experts) | 1 | 512 | 522 | 152.89 | 566.4 |
+| A (gate+up, 29 experts) | 1 | 512 | 1044 | 153.09 | 565.6 |
+| A (gate+up, 29 experts) | 1 | 512 | 2088 | 151.75 | 570.6 |
+| A (gate+up, 29 experts) | 1 | 512 | 4176 | 150.28 | 576.2 |
+| A (gate+up, 29 experts) | 1 | 512 | 8352 | 147.42 | 587.4 |
+| A (gate+up, 29 experts) | 1 | 1024 | 261 | 155.92 | 555.4 |
+| A (gate+up, 29 experts) | 1 | 1024 | 522 | 156.58 | 553.0 |
+| A (gate+up, 29 experts) | 1 | 1024 | 1044 | 152.37 | 568.3 |
+| A (gate+up, 29 experts) | 1 | 1024 | 2088 | 153.10 | 565.6 |
+| A (gate+up, 29 experts) | 1 | 1024 | 4176 | 151.24 | 572.5 |
+| A (gate+up, 29 experts) | 1 | 1024 | 8352 | 148.63 | 582.6 |
+| A (gate+up, 29 experts) | 2 | 128 | 261 | 152.19 | 569.0 |
+| A (gate+up, 29 experts) | 2 | 128 | 522 | 157.14 | 551.0 |
+| A (gate+up, 29 experts) | 2 | 128 | 1044 | 155.99 | 555.1 |
+| A (gate+up, 29 experts) | 2 | 128 | 2088 | 153.90 | 562.7 |
+| A (gate+up, 29 experts) | 2 | 128 | 4176 | 157.12 | 551.1 |
+| A (gate+up, 29 experts) | 2 | 128 | 8352 | 153.41 | 564.5 |
+| A (gate+up, 29 experts) | 2 | 256 | 261 | 156.03 | 555.0 |
+| A (gate+up, 29 experts) | 2 | 256 | 522 | 159.53 | 542.8 |
+| A (gate+up, 29 experts) | 2 | 256 | 1044 | 158.18 | 547.4 |
+| A (gate+up, 29 experts) | 2 | 256 | 2088 | 156.32 | 553.9 |
+| A (gate+up, 29 experts) | 2 | 256 | 4176 | 154.09 | 562.0 |
+| A (gate+up, 29 experts) | 2 | 256 | 8352 | 153.40 | 564.5 |
+| A (gate+up, 29 experts) | 2 | 512 | 261 | 154.09 | 562.0 |
+| A (gate+up, 29 experts) | 2 | 512 | 522 | 155.05 | 558.5 |
+| A (gate+up, 29 experts) | 2 | 512 | 1044 | 152.91 | 566.3 |
+| A (gate+up, 29 experts) | 2 | 512 | 2088 | 152.54 | 567.7 |
+| A (gate+up, 29 experts) | 2 | 512 | 4176 | 153.55 | 563.9 |
+| A (gate+up, 29 experts) | 2 | 512 | 8352 | 147.60 | 586.7 |
+| A (gate+up, 29 experts) | 2 | 1024 | 261 | 163.56 | 529.4 |
+| A (gate+up, 29 experts) | 2 | 1024 | 522 | 152.99 | 566.0 |
+| A (gate+up, 29 experts) | 2 | 1024 | 1044 | 154.19 | 561.6 |
+| A (gate+up, 29 experts) | 2 | 1024 | 2088 | 151.83 | 570.3 |
+| A (gate+up, 29 experts) | 2 | 1024 | 4176 | 148.95 | 581.4 |
+| A (gate+up, 29 experts) | 2 | 1024 | 8352 | 147.16 | 588.4 |
+| A (gate+up, 29 experts) | 4 | 128 | 261 | 149.45 | 579.4 |
+| A (gate+up, 29 experts) | 4 | 128 | 522 | 151.79 | 570.5 |
+| A (gate+up, 29 experts) | 4 | 128 | 1044 | 152.50 | 567.8 |
+| A (gate+up, 29 experts) | 4 | 128 | 2088 | 153.32 | 564.8 |
+| A (gate+up, 29 experts) | 4 | 128 | 4176 | 154.91 | 559.0 |
+| A (gate+up, 29 experts) | 4 | 128 | 8352 | 155.22 | 557.9 |
+| A (gate+up, 29 experts) | 4 | 256 | 261 | 160.63 | 539.1 |
+| A (gate+up, 29 experts) | 4 | 256 | 522 | 162.94 | 531.5 |
+| A (gate+up, 29 experts) | 4 | 256 | 1044 | 162.21 | 533.8 |
+| A (gate+up, 29 experts) | 4 | 256 | 2088 | 154.65 | 559.9 |
+| A (gate+up, 29 experts) | 4 | 256 | 4176 | 155.88 | 555.5 |
+| A (gate+up, 29 experts) | 4 | 256 | 8352 | 149.50 | 579.2 |
+| A (gate+up, 29 experts) | 4 | 512 | 261 | 156.19 | 554.4 |
+| A (gate+up, 29 experts) | 4 | 512 | 522 | 160.37 | 539.9 |
+| A (gate+up, 29 experts) | 4 | 512 | 1044 | 154.84 | 559.3 |
+| A (gate+up, 29 experts) | 4 | 512 | 2088 | 153.78 | 563.1 |
+| A (gate+up, 29 experts) | 4 | 512 | 4176 | 150.57 | 575.1 |
+| A (gate+up, 29 experts) | 4 | 512 | 8352 | 148.16 | 584.5 |
+| A (gate+up, 29 experts) | 4 | 1024 | 261 | 156.66 | 552.7 |
+| A (gate+up, 29 experts) | 4 | 1024 | 522 | 153.78 | 563.1 |
+| A (gate+up, 29 experts) | 4 | 1024 | 1044 | 152.69 | 567.1 |
+| A (gate+up, 29 experts) | 4 | 1024 | 2088 | 150.49 | 575.4 |
+| A (gate+up, 29 experts) | 4 | 1024 | 4176 | 152.58 | 567.5 |
+| A (gate+up, 29 experts) | 4 | 1024 | 8352 | 149.19 | 580.4 |
+BEST A (gate+up, 29 experts): 147.16 us/visit, 588.4 GB/s (U 2, 1024 threads/TG, 8352 TGs)

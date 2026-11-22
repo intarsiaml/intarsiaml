@@ -1,0 +1,22 @@
+device: Apple M5 Max; 2000 chained dispatches per command buffer, median of 15
+
+kernel                                           serial   concurrent+barrier   concurrent, no barrier
+add_bf16, 1 tg x 32 thr (near-empty)             0.92us               1.11us                   0.12us
+rmsnorm_add_bf16 H=4096, 64 thr                 18.43us              19.60us                   0.20us
+rmsnorm_add_bf16 H=4096, 128 thr                10.36us              10.18us                   0.12us
+rmsnorm_add_bf16 H=4096, 256 thr                 5.81us               6.25us                   0.12us
+rmsnorm_add_bf16 H=4096, 512 thr                 4.08us               4.44us                   0.12us
+rmsnorm_add_bf16 H=4096, 1024 thr                4.78us               5.15us                   0.12us
+rmsnorm_bf16 H=4096, 128 thr                     8.53us               9.00us                   0.12us
+rmsnorm_bf16 H=4096, 256 thr                     5.01us               5.33us                   0.12us
+rmsnorm_bf16 H=4096, 512 thr                     3.56us               3.83us                   0.11us
+rmsnorm_bf16 H=4096, 1024 thr                    4.40us               4.76us                   0.11us
+rmsnorm_add_bf16_ex16 H=4096, 256 thr (new)      2.31us               2.69us                   0.11us
+rmsnorm_bf16_ex16 H=4096, 256 thr (new)          1.97us               2.37us                   0.12us
+rmsnorm_bf16_ex1 (qk_norm) 32 rows x 128, 128 thr (new)     1.48us               1.86us                   0.50us
+rope_bf16 q [1,32,128], 16 tg x 256 thr          2.10us               2.21us                   0.33us
+argmax_f32 V=151936, 256 thr                    63.71us              63.90us                   1.25us
+argmax_f32_v4 V=151936, 1024 thr (new)          12.11us              12.38us                   0.32us
+rmsnorm_bf16 (qk_norm) 32 rows x 128, 32 thr     2.18us               2.39us                   0.50us
+rmsnorm_bf16 (qk_norm) 32 rows x 128, 128 thr     1.56us               1.84us                   0.48us
+rmsnorm_bf16 (qk_norm) 32 rows x 128, 256 thr     1.69us               2.07us                   0.51us

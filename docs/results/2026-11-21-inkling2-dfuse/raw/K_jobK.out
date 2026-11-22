@@ -1,0 +1,161 @@
+fleetq: #11450 waiting (#4 in line): in line behind #11442 "intarsiaml inkling batch: ink_in_proj_gemvx build + Metal rows-exact tests + us/call X=0 vs 1 (2-16 rows)" (claude-57ee98d5) on endor
+fleetq:   #11442 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11442 set, or it will wait for #11442 to be released.
+fleetq: #11450 waiting (#3 in line): in line behind #11446 "intarsiaml inkling fp8: brief 16 exact 3b (Metal dispatch trace of B8/B16 batched steps, screen off vs on)" (claude-57ee98d5) on endor
+fleetq:   #11446 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11446 set, or it will wait for #11446 to be released.
+fleetq: #11450 waiting (#2 in line): in line behind #11447 "intarsiaml inkling prefill: rel_mode 0/1/2 x NSG 12/6 attention timing (measure only)" (claude-57ee98d5) on endor
+fleetq:   #11447 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11447 set, or it will wait for #11447 to be released.
+fleetq: #11450 waiting (#1 in line): needs gpu quiet on endor, but #11447 "intarsiaml inkling prefill: rel_mode 0/1/2 x NSG 12/6 attention timing (measure only)" (claude-57ee98d5) loads it
+fleetq:   #11447 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11447 set, or it will wait for #11447 to be released.
+fleetq: #11450 running on endor: sh .scratch/jobK.sh
+STEP build
+STEP bits
+MD5 64 tokens (ok): unset 65cde8f35a1802e3e2fadb44d94d080d (job G: 65cde8f35a1802e3e2fadb44d94d080d), k=200 65cde8f35a1802e3e2fadb44d94d080d: EQUAL
+PLAN Qwen3-8B, base f55bfe8b7 vs 88d28e48a: byte-identical
+PLAN Llama-3.1-8B-Instruct, base f55bfe8b7 vs 88d28e48a: byte-identical
+STEP real-step slope
+box0 k 0 short steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.954 mean 14.112 min 13.194 max 19.180  decode 3616 ms (70.79 tok/s) md5 d03580fb172c4b088977979647b67712
+wu k 0 short steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.447 mean 13.488 min 13.176 max 14.071  decode 3457 ms (74.04 tok/s) md5 d03580fb172c4b088977979647b67712
+short_1_k0 k 0 short steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.309 mean 13.326 min 13.106 max 13.957  decode 3416 ms (74.94 tok/s) md5 d03580fb172c4b088977979647b67712
+short_2_k50 k 50 short steps 252 dispatches/step 593 buffers/step 2  span ms/step median 13.351 mean 13.452 min 13.117 max 21.217  decode 3447 ms (74.27 tok/s) md5 d03580fb172c4b088977979647b67712
+short_3_k100 k 100 short steps 252 dispatches/step 643 buffers/step 2  span ms/step median 13.404 mean 13.545 min 13.163 max 21.023  decode 3470 ms (73.77 tok/s) md5 d03580fb172c4b088977979647b67712
+short_4_k200 k 200 short steps 252 dispatches/step 743 buffers/step 2  span ms/step median 13.482 mean 13.520 min 13.272 max 14.368  decode 3464 ms (73.90 tok/s) md5 d03580fb172c4b088977979647b67712
+short_5_k200 k 200 short steps 252 dispatches/step 743 buffers/step 2  span ms/step median 13.587 mean 13.710 min 13.274 max 25.202  decode 3513 ms (72.88 tok/s) md5 d03580fb172c4b088977979647b67712
+short_6_k100 k 100 short steps 252 dispatches/step 643 buffers/step 2  span ms/step median 13.366 mean 13.401 min 13.161 max 13.984  decode 3435 ms (74.53 tok/s) md5 d03580fb172c4b088977979647b67712
+short_7_k50 k 50 short steps 252 dispatches/step 593 buffers/step 2  span ms/step median 13.355 mean 13.387 min 13.173 max 14.106  decode 3432 ms (74.60 tok/s) md5 d03580fb172c4b088977979647b67712
+short_8_k0 k 0 short steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.359 mean 13.366 min 13.079 max 14.032  decode 3426 ms (74.73 tok/s) md5 d03580fb172c4b088977979647b67712
+5k_1_k0 k 0 5k steps 252 dispatches/step 551 buffers/step 2  span ms/step median 14.322 mean 14.560 min 14.107 max 22.977  decode 3734 ms (68.57 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+5k_2_k50 k 50 5k steps 252 dispatches/step 601 buffers/step 2  span ms/step median 14.294 mean 14.511 min 14.165 max 41.351  decode 3719 ms (68.84 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+5k_3_k100 k 100 5k steps 252 dispatches/step 651 buffers/step 2  span ms/step median 14.333 mean 14.431 min 14.186 max 17.865  decode 3702 ms (69.15 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+5k_4_k200 k 200 5k steps 252 dispatches/step 751 buffers/step 2  span ms/step median 14.434 mean 14.593 min 14.261 max 24.378  decode 3740 ms (68.45 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+5k_5_k200 k 200 5k steps 252 dispatches/step 751 buffers/step 2  span ms/step median 14.474 mean 14.849 min 14.276 max 28.030  decode 3806 ms (67.26 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+5k_6_k100 k 100 5k steps 252 dispatches/step 651 buffers/step 2  span ms/step median 14.290 mean 14.318 min 14.169 max 15.360  decode 3670 ms (69.76 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+5k_7_k50 k 50 5k steps 252 dispatches/step 601 buffers/step 2  span ms/step median 14.282 mean 14.384 min 14.153 max 16.876  decode 3689 ms (69.39 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+5k_8_k0 k 0 5k steps 252 dispatches/step 551 buffers/step 2  span ms/step median 14.264 mean 14.317 min 14.131 max 15.385  decode 3669 ms (69.76 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+short: k 0: span 13.309, 13.359 disp/step 543 md5 same; k 50: span 13.351, 13.355 disp/step 593 md5 same; k 100: span 13.404, 13.366 disp/step 643 md5 same; k 200: span 13.482, 13.587 disp/step 743 md5 same
+SLOPE short: 1.03 us per dispatch (se 0.20), intercept 13.312 ms/step; md5 across k: all equal
+5k: k 0: span 14.322, 14.264 disp/step 551 md5 same; k 50: span 14.294, 14.282 disp/step 601 md5 same; k 100: span 14.333, 14.290 disp/step 651 md5 same; k 200: span 14.434, 14.474 disp/step 751 md5 same
+SLOPE 5k: 0.85 us per dispatch (se 0.19), intercept 14.262 ms/step; md5 across k: all equal
+cb_short_1_k0.jsonl: steps 252 dispatches/step 543  GPU busy 13.308 ms  host encode 13.291 ms (24.48 us/dispatch)  lead (GPU end - last commit) 13.223 ms
+cb_short_8_k0.jsonl: steps 252 dispatches/step 543  GPU busy 13.356 ms  host encode 13.321 ms (24.53 us/dispatch)  lead (GPU end - last commit) 13.249 ms
+cb_short_4_k200.jsonl: steps 252 dispatches/step 743  GPU busy 13.477 ms  host encode 13.442 ms (18.09 us/dispatch)  lead (GPU end - last commit) 13.371 ms
+cb_short_5_k200.jsonl: steps 252 dispatches/step 743  GPU busy 13.568 ms  host encode 13.551 ms (18.24 us/dispatch)  lead (GPU end - last commit) 13.472 ms
+cb_5k_1_k0.jsonl: steps 252 dispatches/step 551  GPU busy 14.321 ms  host encode 14.301 ms (25.95 us/dispatch)  lead (GPU end - last commit) 14.226 ms
+cb_5k_8_k0.jsonl: steps 252 dispatches/step 551  GPU busy 14.263 ms  host encode 14.245 ms (25.85 us/dispatch)  lead (GPU end - last commit) 14.156 ms
+cb_5k_4_k200.jsonl: steps 252 dispatches/step 751  GPU busy 14.431 ms  host encode 14.405 ms (19.18 us/dispatch)  lead (GPU end - last commit) 14.326 ms
+cb_5k_5_k200.jsonl: steps 252 dispatches/step 751  GPU busy 14.467 ms  host encode 14.435 ms (19.22 us/dispatch)  lead (GPU end - last commit) 14.358 ms
+STEP host encode vs GPU (token feedback off: plain 128-dispatch buffers give host encode per dispatch)
+plain k=0: encode buffers 1032: host us/dispatch median 1.19 mean 1.28 min 0.93 | steps 247 dispatches/step 543 buffers/step 6  span ms/step median 13.758 mean 13.793 min 13.420 max 14.513  busy ms/step median 13.351 mean 13.385 min 13.116 max 14.089  idle ms/step median 0.407 mean 0.408 min 0.265 max 0.587  total: wall 3406.8 ms busy 3306.1 ms idle 2.96 %  | decode 3538 ms (72.35 tok/s) md5 d03580fb172c4b088977979647b67712
+plain k=200: encode buffers 1288: host us/dispatch median 0.96 mean 1.04 min 0.82 | steps 247 dispatches/step 743 buffers/step 7  span ms/step median 13.844 mean 13.902 min 13.517 max 15.505  busy ms/step median 13.490 mean 13.552 min 13.323 max 14.627  idle ms/step median 0.357 mean 0.350 min 0.173 max 0.878  total: wall 3433.9 ms busy 3347.4 ms idle 2.52 %  | decode 3561 ms (71.88 tok/s) md5 d03580fb172c4b088977979647b67712
+STEP harness chains (engine settings) + dispatch_cost
+EXIT dispcost 0
+device Apple M5 Max; 1000 dispatches of 1 tg x 32 threads per command buffer; us per dispatch, median of 9
+GPU us per dispatch
+kernel  shared tracked serial*    shared untracked serial   private tracked serial    private untracked serial  shared tracked conc+bar   shared untracked conc+bar shared tracked conc nobar 
+empty   1.057                     0.756                     0.736                     0.747                     0.978                     0.969                     0.130                     
+empty_b 0.699                     0.739                     0.724                     0.765                     0.943                     1.018                     0.128                     
+write   0.666                     0.664                     0.665                     0.666                     1.084                     1.012                     0.124                     
+rmw     0.940                     0.880                     0.917                     0.925                     1.398                     1.161                     0.121                     
+add3    0.820                     0.846                     0.829                     0.845                     1.303                     1.292                     0.127                     
+chain   0.944                     0.946                     0.951                     0.922                     1.357                     1.497                     0.129                     
+chain8  0.978                     0.915                     0.979                     0.950                     1.526                     1.553                     0.130                     
+host encode wall us per dispatch (command buffer create -> endEncoding)
+  add3 private tracked serial 0.159
+  add3 private untracked serial 0.171
+  add3 shared tracked concBarrier 0.337
+  add3 shared tracked concNone 0.153
+  add3 shared tracked serial 0.156
+  add3 shared untracked concBarrier 0.333
+  add3 shared untracked serial 0.156
+  chain private tracked serial 0.184
+  chain private untracked serial 0.150
+  chain shared tracked concBarrier 0.310
+  chain shared tracked concNone 0.148
+  chain shared tracked serial 0.155
+  chain shared untracked concBarrier 0.304
+  chain shared untracked serial 0.168
+  chain8 private tracked serial 0.236
+  chain8 private untracked serial 0.241
+  chain8 shared tracked concBarrier 0.402
+  chain8 shared tracked concNone 0.222
+  chain8 shared tracked serial 0.232
+  chain8 shared untracked concBarrier 0.404
+  chain8 shared untracked serial 0.227
+  empty private tracked serial 0.110
+  empty private untracked serial 0.109
+  empty shared tracked concBarrier 0.277
+  empty shared tracked concNone 0.102
+  empty shared tracked serial 0.110
+  empty shared untracked concBarrier 0.277
+  empty shared untracked serial 0.108
+  empty_b private tracked serial 0.116
+  empty_b private untracked serial 0.123
+  empty_b shared tracked concBarrier 0.291
+  empty_b shared tracked concNone 0.114
+  empty_b shared tracked serial 0.141
+  empty_b shared untracked concBarrier 0.292
+  empty_b shared untracked serial 0.124
+  rmw private tracked serial 0.132
+  rmw private untracked serial 0.130
+  rmw shared tracked concBarrier 0.303
+  rmw shared tracked concNone 0.128
+  rmw shared tracked serial 0.128
+  rmw shared untracked concBarrier 0.304
+  rmw shared untracked serial 0.128
+  write private tracked serial 0.128
+  write private untracked serial 0.129
+  write shared tracked concBarrier 0.299
+  write shared tracked concNone 0.124
+  write shared tracked serial 0.130
+  write shared untracked concBarrier 0.301
+  write shared untracked serial 0.130
+* the engine's setting (MetalBackend::alloc, with_encoder)
+EXIT dispatch_cost 0
+device: Apple M5 Max; 2000 chained dispatches per command buffer, median of 15
+
+kernel                                           serial   concurrent+barrier   concurrent, no barrier
+add_bf16, 1 tg x 32 thr (near-empty)             0.92us               1.11us                   0.12us
+rmsnorm_add_bf16 H=4096, 64 thr                 18.43us              19.60us                   0.20us
+STEP prologue split (attnprobe token mode)
+EXIT probe 0
+CAL PASS
+bits ctx 150 swa: p0 EQUAL
+bits ctx 150 full: p0 EQUAL
+token ctx   150 ship     1.073 ms/token (min 1.069 max 1.075)  vs ship   +0.000
+token ctx   150 p0     1.072 ms/token (min 1.070 max 1.078)  vs ship   -0.000
+token ctx   150 nopro     0.660 ms/token (min 0.659 max 0.663)  vs ship   -0.413
+token ctx   150 noclip     0.969 ms/token (min 0.966 max 0.972)  vs ship   -0.104
+token ctx   150 noconv     1.108 ms/token (min 1.105 max 1.114)  vs ship   +0.035
+token ctx   150 nobias     0.831 ms/token (min 0.826 max 0.834)  vs ship   -0.242
+bits ctx 512 swa: p0 EQUAL
+bits ctx 512 full: p0 EQUAL
+token ctx   512 ship     1.164 ms/token (min 1.163 max 1.167)  vs ship   +0.000
+token ctx   512 p0     1.171 ms/token (min 1.169 max 1.172)  vs ship   +0.007
+token ctx   512 nopro     0.803 ms/token (min 0.802 max 0.806)  vs ship   -0.361
+token ctx   512 noclip     1.094 ms/token (min 1.094 max 1.095)  vs ship   -0.070
+token ctx   512 noconv     1.167 ms/token (min 1.160 max 1.169)  vs ship   +0.003
+token ctx   512 nobias     0.862 ms/token (min 0.859 max 0.863)  vs ship   -0.302
+bits ctx 5180 swa: p0 EQUAL
+bits ctx 5180 full: p0 EQUAL
+token ctx  5180 ship     1.869 ms/token (min 1.868 max 1.983)  vs ship   +0.000
+token ctx  5180 p0     1.862 ms/token (min 1.859 max 1.867)  vs ship   -0.007
+token ctx  5180 nopro     1.383 ms/token (min 1.380 max 1.393)  vs ship   -0.486
+token ctx  5180 noclip     1.789 ms/token (min 1.779 max 1.829)  vs ship   -0.081
+token ctx  5180 noconv     1.707 ms/token (min 1.702 max 1.722)  vs ship   -0.163
+token ctx  5180 nobias     1.612 ms/token (min 1.607 max 1.626)  vs ship   -0.258
+STEP ink_attn_bench (L's bench, full-512 row)
+EXIT attn_bench 0
+floor: add_bf16 x32                              3.54     3.53     3.80
+swa  ctx    512 rows    1: prologue    10.82  attn    16.24 (16.17..16.39)  pair/visit    29.64  fused    22.97
+swa  ctx   4096 rows    1: prologue    10.84  attn    20.35 (20.28..20.56)  pair/visit    35.01  fused    31.65
+full ctx    512 rows    1: prologue    10.96  attn    16.19 (16.08..16.39)  pair/visit    30.22  fused    23.12
+full ctx   4096 rows    1: prologue    10.85  attn    60.85 (60.26..61.48)  pair/visit    78.51  fused    61.56
+STEP box label (end)
+box2 k 0 short steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.280 mean 13.304 min 13.107 max 13.695  decode 3410 ms (75.08 tok/s) md5 d03580fb172c4b088977979647b67712
+Sun Nov 22 10:06:18 EST 2026
+build Sun Nov 22 10:06:48 EST 2026
+bits Sun Nov 22 10:07:04 EST 2026
+slope Sun Nov 22 10:09:41 EST 2026
+chains Sun Nov 22 10:09:51 EST 2026
+done Sun Nov 22 10:10:35 EST 2026
+body exit 0
+fleetq: #11450 done (exit 0)

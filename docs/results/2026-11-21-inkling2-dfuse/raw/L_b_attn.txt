@@ -1,0 +1,20 @@
+16 launches (distinct operands) per command buffer, 60 reps; GPU us per launch: median p10 p90
+floor: add_bf16 x32                              3.50     3.48     3.75
+swa  ctx    512 rows    1: prologue    10.84  attn    16.27 (16.22..16.45)  pair/visit    29.67  fused    23.09
+swa  ctx    512 rows    4: prologue    10.52  attn    27.55 (27.39..27.91)  pair/visit    41.03  fused    35.77
+swa  ctx    512 rows   16: prologue    15.08  attn    80.20 (80.14..80.70)  pair/visit    97.17  fused   123.41
+swa  ctx   4096 rows    1: prologue    10.78  attn    20.41 (20.33..20.65)  pair/visit    35.16  fused    31.36
+swa  ctx   4096 rows    4: prologue    10.48  attn    43.66 (43.57..44.05)  pair/visit    56.79  fused    60.87
+swa  ctx   4096 rows   16: prologue    15.08  attn   142.66 (142.56..142.98)  pair/visit   160.72  fused   219.11
+swa  ctx  32768 rows    1: prologue    11.30  attn    21.06 (21.00..21.52)  pair/visit    36.04  fused    32.34
+swa  ctx  32768 rows    4: prologue    10.47  attn    43.62 (43.53..44.28)  pair/visit    56.67  fused    60.74
+swa  ctx  32768 rows   16: prologue    15.04  attn   142.99 (142.52..144.79)  pair/visit   168.37  fused   223.02
+full ctx    512 rows    1: prologue    12.69  attn    17.66 (17.31..18.48)  pair/visit    32.95  fused    24.34
+full ctx    512 rows    4: prologue    11.14  attn    27.71 (27.36..28.48)  pair/visit    41.45  fused    35.79
+full ctx    512 rows   16: prologue    15.53  attn    80.23 (80.13..80.56)  pair/visit    97.67  fused   130.78
+full ctx   4096 rows    1: prologue    10.88  attn    60.94 (60.68..61.52)  pair/visit    78.91  fused    62.32
+full ctx   4096 rows    4: prologue    10.98  attn   150.60 (150.39..151.48)  pair/visit   165.89  fused   158.35
+full ctx   4096 rows   16: prologue    15.53  attn   496.52 (496.09..496.77)  pair/visit   520.86  fused   561.46
+full ctx  32768 rows    1: prologue    10.85  attn   338.50 (334.20..341.89)  pair/visit   349.24  fused   374.97
+full ctx  32768 rows    4: prologue    10.80  attn   952.03 (951.84..952.30)  pair/visit   970.40  fused  1056.51
+full ctx  32768 rows   16: prologue    15.50  attn  3941.95 (3497.41..4078.72)  pair/visit  3795.14  fused  4503.54

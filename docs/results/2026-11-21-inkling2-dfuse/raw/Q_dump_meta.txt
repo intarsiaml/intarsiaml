@@ -1,0 +1,8 @@
+swa 150 cr 1040 scratch 403456
+full 150 cr 167 scratch 403456
+swa 512 cr 1040 scratch 403456
+full 512 cr 529 scratch 403456
+swa 4096 cr 1040 scratch 403456
+full 4096 cr 4113 scratch 403456
+swa 5180 cr 1040 scratch 403456
+full 5180 cr 5197 scratch 403456

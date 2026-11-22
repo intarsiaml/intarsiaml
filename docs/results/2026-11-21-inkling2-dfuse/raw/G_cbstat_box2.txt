@@ -1,0 +1,8 @@
+steps 252  dispatches/step 543  buffers/step 2
+  span      ms/step median  13.243 mean  13.261 min  13.077 max  13.818
+  busy      ms/step median  13.242 mean  13.260 min  13.076 max  13.817
+  idle      ms/step median   0.001 mean   0.001 min   0.001 max   0.011
+  slack     ms/step median   0.273 mean   0.270 min   0.192 max   0.317
+  cut_gpu   ms/step median   0.372 mean   0.373 min   0.362 max   0.398
+  rest_gap  ms/step median   0.000 mean   0.001 min   0.000 max   0.011
+  total: wall 3341.7 ms busy 3341.5 ms idle 0.01 %

@@ -1,0 +1,61 @@
+device Apple M5 Max; 1000 dispatches of 1 tg x 32 threads per command buffer; us per dispatch, median of 9
+GPU us per dispatch
+kernel  shared tracked serial*    shared untracked serial   private tracked serial    private untracked serial  shared tracked conc+bar   shared untracked conc+bar shared tracked conc nobar 
+empty   1.057                     0.756                     0.736                     0.747                     0.978                     0.969                     0.130                     
+empty_b 0.699                     0.739                     0.724                     0.765                     0.943                     1.018                     0.128                     
+write   0.666                     0.664                     0.665                     0.666                     1.084                     1.012                     0.124                     
+rmw     0.940                     0.880                     0.917                     0.925                     1.398                     1.161                     0.121                     
+add3    0.820                     0.846                     0.829                     0.845                     1.303                     1.292                     0.127                     
+chain   0.944                     0.946                     0.951                     0.922                     1.357                     1.497                     0.129                     
+chain8  0.978                     0.915                     0.979                     0.950                     1.526                     1.553                     0.130                     
+host encode wall us per dispatch (command buffer create -> endEncoding)
+  add3 private tracked serial 0.159
+  add3 private untracked serial 0.171
+  add3 shared tracked concBarrier 0.337
+  add3 shared tracked concNone 0.153
+  add3 shared tracked serial 0.156
+  add3 shared untracked concBarrier 0.333
+  add3 shared untracked serial 0.156
+  chain private tracked serial 0.184
+  chain private untracked serial 0.150
+  chain shared tracked concBarrier 0.310
+  chain shared tracked concNone 0.148
+  chain shared tracked serial 0.155
+  chain shared untracked concBarrier 0.304
+  chain shared untracked serial 0.168
+  chain8 private tracked serial 0.236
+  chain8 private untracked serial 0.241
+  chain8 shared tracked concBarrier 0.402
+  chain8 shared tracked concNone 0.222
+  chain8 shared tracked serial 0.232
+  chain8 shared untracked concBarrier 0.404
+  chain8 shared untracked serial 0.227
+  empty private tracked serial 0.110
+  empty private untracked serial 0.109
+  empty shared tracked concBarrier 0.277
+  empty shared tracked concNone 0.102
+  empty shared tracked serial 0.110
+  empty shared untracked concBarrier 0.277
+  empty shared untracked serial 0.108
+  empty_b private tracked serial 0.116
+  empty_b private untracked serial 0.123
+  empty_b shared tracked concBarrier 0.291
+  empty_b shared tracked concNone 0.114
+  empty_b shared tracked serial 0.141
+  empty_b shared untracked concBarrier 0.292
+  empty_b shared untracked serial 0.124
+  rmw private tracked serial 0.132
+  rmw private untracked serial 0.130
+  rmw shared tracked concBarrier 0.303
+  rmw shared tracked concNone 0.128
+  rmw shared tracked serial 0.128
+  rmw shared untracked concBarrier 0.304
+  rmw shared untracked serial 0.128
+  write private tracked serial 0.128
+  write private untracked serial 0.129
+  write shared tracked concBarrier 0.299
+  write shared tracked concNone 0.124
+  write shared tracked serial 0.130
+  write shared untracked concBarrier 0.301
+  write shared untracked serial 0.130
+* the engine's setting (MetalBackend::alloc, with_encoder)

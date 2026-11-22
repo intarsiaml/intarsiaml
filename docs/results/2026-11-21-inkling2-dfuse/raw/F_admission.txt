@@ -1,0 +1,10 @@
+conv_mix       conv_mix_bf16                 532      0    4.566e-3    1.181e-3  ADMITTED
+EXIT kt_conv_mix 0
+ink_route      ink_route_bf16                124      0    1.975e-7    1.350e-7  ADMITTED
+EXIT kt_ink_route 0
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.640e-4  ADMITTED
+EXIT kt_loop_blend 0
+attn_res_mix   attn_res_mix_bf16              97      0    2.016e-3    3.402e-5  ADMITTED
+EXIT kt_attn_res_mix 0
+sconv_res      sconv_res_bf16                 64      0    1.880e-3    1.234e-5  ADMITTED
+EXIT kt_sconv_res 0

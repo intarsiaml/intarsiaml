@@ -1,0 +1,2 @@
+PLAN Qwen3-8B, base f55bfe8b7 vs tip 00c81dda7: byte-identical (stdout       21 lines)
+PLAN Llama-3.1-8B-Instruct, base f55bfe8b7 vs tip 00c81dda7: byte-identical (stdout       22 lines)

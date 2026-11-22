@@ -1,0 +1,7 @@
+device: Apple M5 Max; 200 dispatches per command buffer, median of 15 (us per dispatch)
+kernel                                    V        hot   rotating
+argmax_f32 (scalar)                  200058    83.11us   198.18us
+argmax_f32_v4t                       200058    13.48us    13.80us
+argmax_f32 (scalar)                  151936    63.45us   138.53us
+argmax_f32_v4                        151936    11.19us    11.77us
+argmax_f32_v4t                       151936    11.07us    11.61us
