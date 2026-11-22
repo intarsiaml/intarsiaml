@@ -77,8 +77,11 @@ with Fable's 0.1.
 | GPU idle, mean | 3.34 ms (16.7 %) | 0.19 ms (1.1 %) |
 | GPU idle, median | 0.001 ms | 0.001 ms |
 | wall / busy / idle at a 5051-token prompt, median (mean idle) | not traced | 18.08 / 18.08 / 0.001 ms (0.005; 0.03 %) |
-| greedy decode tok/s, short prompt (`generate`, no profiler) | 50-52 | 63.7, 64.2 |
-| greedy decode tok/s, 5051-token prompt | 48.3 | 55.8 (base binary at p0: 57.3) |
+| greedy decode tok/s, short prompt (`generate`, no profiler) | 50-52 (base binary at p0: 63.1) | 63.7, 64.2 |
+| greedy decode tok/s, 5051-token prompt | 48.3 (base binary at p0: 57.3) | 55.8 |
+
+Most of the 50 -> 64 is the profiler default: the base binary at `--profile-every 0` already runs at 63.1. The code's own greedy
+gain is about 1 %, the faster argmax.
 
 Where the 4 ms went: it was the profiler, not the host. With `--profile-every 16`, every 16th step synchronises around each op
 (419 waited command buffers, 77-82 ms). Unprofiled steps already ran back to back. Token feedback holds each step's rest until
@@ -114,11 +117,20 @@ Measurement A (the coordinator's three numbers):
 
 The greedy gain of b1 over base, about 1 %, is argmax's 0.16 ms of GPU time per step.
 
-The temperature-0.7 and 5k differences between base and b1 (-5.5 % and -2.7 %) are single runs.
-- For sampled decode, base and b1 run the same code apart from profiler-gated branches (one atomic load each).
-- At 5k, decode is GPU-bound (idle 0.03 %).
-- Not repeated or investigated: the lane stopped here.
-- **Not verified:** these are `generate` numbers, not localeval runs (see "Not done").
+The temperature-0.7 and 5k differences between base and b1 (-5.5 % and -2.7 %) are single runs, and there is a confound:
+every base run finished before any b1 run, with no interleave. The code does not explain either difference:
+- **Sampled decode** never dispatches argmax. There b1 differs from base only by host-profile spans that are off (one atomic
+  load each).
+- **At 5k** decode is GPU-bound (idle 0.03 %), and b1's only GPU-side change is the faster argmax.
+
+One quiet ABAB job of about 5 min would settle it. Not run: the lane stopped. These are `generate` numbers, not localeval runs
+(see "Not done").
+
+The final code (5b487b79c, b3) with `INTARSIA_HOST_PROFILE=1` gives the same tokens:
+- greedy feedback and plain path: md5 d64363ea
+- temperature 0.7: c10264d0
+
+The profiler changes no output on the real model either.
 
 Host profile (b3, `INTARSIA_HOST_PROFILE=1`, 255 decode steps, ms per step):
 
