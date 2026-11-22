@@ -1393,9 +1393,12 @@ proposed.**
   - The harness has full 512 equal to SWA 512 (22.52 / 22.53): same keys, same splits, the dyn conv adds about nothing.
   - L's own full-512 row is its noisiest: the unfused attention p10..p90 is 17.31..18.48 there, against 16.22..16.45 for
     SWA 512.
-  - I read the miss as L's single-run noise, not a harness fault, since the bits (which depend on the split geometry) match.
-  - Stated plainly: the bar was not met at that point. The decision below compares variants with ship inside one
+  - The cause is not established. A geometry error is ruled out, since the bits (which depend on the split geometry)
+    match. Independent evidence that the harness tracks the stream: sk32 gains 0.117 ms/token in the harness and 0.103 in
+    the real step at short.
+  - Stated plainly: the bar was not met at that point. The no-build decision below compares variants with ship inside one
     harness, so it does not depend on that row.
+  - Before this harness is the basis for any build, L's ink_attn_bench full-512 row must be rerun in the same slot.
 
 **Stage 1: no-math kernels (token mode, cold K / V, ms per token; ship = 1.074 / 1.168 / 1.864 at ctx 150 / 512 / 5180).**
 
@@ -1439,3 +1442,17 @@ proposed.**
 | (ii) prologue | <= 0.41 short, <= 0.48 at 5k (nopro) | A ceiling for deleting the prologue, not for doing it faster. The same-bits overlap of loads already failed for K/V (early). The rest is serial reductions, precise sqrt / divide and the 16-deep r . relproj chain, whose order is fixed by the bits. |
 
 Neither has a measured lever >= 0.3. A pair (i) + (ii) might reach it only if (ii) recovers more than half its bound.
+
+**Two findings outside the attention verdict.**
+- **Dispatch cost.**
+  - The harness's empty dependent dispatch costs 3.32 us (pr_floor: one read-modify-write of a device word, serial
+    encoder, 256 in a chain). L's own bench floor (add_bf16 through the backend) was 3.50 us. Dropping comb saves 3.2
+    us per visit (token mode) and 3.9 (warm16).
+  - Roofline L priced a dependent dispatch at dispatch_cost's 0.88 us (raw add_bf16, same buffers every time, 2000 per
+    command buffer). That gave its 0.48 ms per step and its controller bound of 294 x 0.88 = 0.26 ms.
+  - If a transition in the real chain costs about 3.3 us, those bounds are about 4x low: cutting 543 -> 350 dispatches
+    would be worth about 0.6 ms per token, not 0.17. That would reopen this lane's original dispatch target.
+  - Not proven: what separates 0.88 from 3.3 (a true data dependency, private vs shared storage, the backend's launch
+    path) has not been measured.
+- **5k residual.** The cold-KV harness grows 0.79 ms/token from ctx 150 to 5180, but the real step grows 0.93 (job Q:
+  14.27 vs 13.34; job G: 0.92). About 0.14 ms/token at 5k is not explained by the attention core.
