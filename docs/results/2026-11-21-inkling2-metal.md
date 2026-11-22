@@ -15,6 +15,13 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
   lane stays the integration owner: merge lane branches when they report done with passing gates and rerun G1-G3 after each
   merge; next in line are m-mix's final tip and ink/serve aaad4c9b6 (chat / reasoning / tools).
 
+- 2026-11-21 (coordinator): merge ink/serve (done at b447e3da4, which superseded the aaad4c9b6 the scope brief named);
+  append ink/serve's Metal smoke, the `--profile-every 0` decode runs and ink-hostgap's measurement A to the serve job and
+  release #10812; move the `--no-fail-fast` core / cpu / cli rerun to spark2 (#10868) and keep only the metal crate on endor.
+- 2026-11-21 (coordinator): merge ink/m-mix at 47570539e (InkInProj GEMV up to 8 rows, blend gate knobs, docs / raw) before
+  #10867 starts, record it here, and take no default flips from m-mix (those come later as their own commit). ink-batch
+  merges this lane's 761a1561b (serve admission fix).
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
@@ -22,7 +29,7 @@ below. Branch `ink/metal` (not pushed, not merged). Op contracts unchanged.
 | `ink/skel` | b5e283927 | base: cpu port, model block, loader, recipe, tiny tests | - |
 | `ink/m-attn` | 9410a9b67 | InkKvPrologue (70), RelSinkAttn (71, split-KV + NAX prefill), InkAttnDecode (75) | none |
 | `ink/m-moe` | 98317825d | MoeRoute, NVFP4 SiTU experts, MXFP8 experts (decode + NAX prefill) | `build.rs` (metal4 sources, launcher sources), `kernels.rs` (metal4 list, TABLE, the count test): kept both |
-| `ink/m-mix` | d99d2c0fc (in progress) | InkInProj (73), ConvMix (74), AttnResMix (67), LoopBlend (68), SconvRes (69) | `build.rs`, `kernels.rs`, `lib.rs` (module, launch dispatch): kept all three lanes' entries |
+| `ink/m-mix` | 47570539e (merged at 606fd36e4; earlier tips 3e14f6aa3, d99d2c0fc) | InkInProj (73), ConvMix (74), AttnResMix (67), LoopBlend (68), SconvRes (69) | `build.rs`, `kernels.rs`, `lib.rs` (module, launch dispatch): kept all three lanes' entries |
 
 `intarsia kernels test --backend metal --op <op>`, every Inkling op (fleetq #10681): all ADMITTED.
 
