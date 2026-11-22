@@ -631,29 +631,57 @@ __device__ __forceinline__ uint32_t pack_bf16(bf16 lo, bf16 hi) {
     return (uint32_t)__bfloat16_as_ushort(lo) | ((uint32_t)__bfloat16_as_ushort(hi) << 16);
 }
 
+constexpr int SL = 256;  // keys per bias slab of the tile kernel
+
 template <int D>
 struct TileSmem {
-    static constexpr int LD = D + 8;                                   // padded row (elements): conflict-free ldmatrix
-    static constexpr size_t KV = (size_t)2 * 2 * CH * LD * 2;          // [stage][k / v][CH][LD] bf16
-    __host__ __device__ static size_t bias(int nmt) { return (size_t)nmt * 16 * CH * 2; }  // [nmt * 16][CH] bf16 (raw rel values)
+    static constexpr int LD = D + 8;                           // flash: padded row (elements), conflict-free ldmatrix
+    static constexpr size_t KV = (size_t)2 * 2 * CH * LD * 2;  // flash: [stage][k / v][CH][LD] bf16
+    // tile kernel region 0: the q rows of a fused block (before the key loop), then the warp states of the group merge
+    __host__ __device__ static size_t r0(int m, bool fused) {
+        const size_t merge = (size_t)((m + 15) / 16) * (D / 8 * 4 + 4) * 32 * 4;
+        const size_t q = fused ? (size_t)m * D * 2 : 0;
+        return ((merge > q ? merge : q) + 15) / 16 * 16;
+    }
+    __host__ __device__ static size_t bias(int nmt) { return (size_t)nmt * 16 * SL * 2; }  // [nmt * 16][SL] bf16 (raw rel values)
     __host__ __device__ static size_t rsh(int m, int dr) { return ((size_t)m * dr * 4 + 15) / 16 * 16; }
     __host__ __device__ static size_t own(int t) { return (size_t)2 * t * D * 2; }
-    // stages = 1 when every tile of the call is one sub-chunk (S = CH: no next sub-chunk to prefetch)
-    __host__ __device__ static size_t kv(int stages) { return KV / 2 * stages; }
-    __host__ __device__ static size_t bytes(int t, int g, int dr, bool fused, int stages) {
+    __host__ __device__ static size_t bytes(int t, int g, int dr, bool fused) {
         const int m = t * g, nmt = (m + 15) / 16;
-        return kv(stages) + bias(nmt) + (fused ? rsh(m, dr) + own(t) : 0);
+        return r0(m, fused) + bias(nmt) + (fused ? rsh(m, dr) + own(t) : 0);
     }
 };
+
+// movmatrix: transpose an 8 x 8 b16 matrix held one 32-bit pair per lane (row lane / 4, columns 2 (lane % 4) ..)
+__device__ __forceinline__ uint32_t movt(uint32_t x) {
+    uint32_t y;
+    asm volatile("movmatrix.sync.aligned.m8n8.trans.b16 %0, %1;\n" : "=r"(y) : "r"(x));
+    return y;
+}
+
+// W bf16 values (W = 4 or 8) of one key row as W / 2 packed pairs
+template <int W>
+__device__ __forceinline__ void ldw(const bf16* src, uint32_t* r) {
+    if constexpr (W == 8) {
+        const uint4 v = *(const uint4*)src;
+        r[0] = v.x, r[1] = v.y, r[2] = v.z, r[3] = v.w;
+    } else {
+        const uint2 v = *(const uint2*)src;
+        r[0] = v.x, r[1] = v.y;
+    }
+}
 
 // One block per (kv head, tile slot y). FUSED: the prologue's jobs in the block (q / r of every row, the conv'd K / V of the
 // call's keys in the tile) instead of reading q / k / v / rel. blockDim = 128 * nmt.
 template <int D, bool FUSED>
-__global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages) {
+__global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
     const int maxt = p.maxt;
     constexpr int J = (D + 31) / 32;
     using SM = TileSmem<D>;
-    constexpr int LD = SM::LD, NKS = D / 16, NDB = D / 8;
+    // a lane reads W consecutive dims of a key row per chunk of 4 W dims; NCH chunks per row. The dims of a chunk feed the
+    // mma k index (QK^T) and n index (PV) in a fixed permuted order, the same for every row: so the K / V of a step go
+    // straight from memory into fragments (V transposed with movmatrix), no shared-memory staging and no block barriers
+    constexpr int NDB = D / 8, W = D >= 32 ? 8 : 4, NCH = D / (4 * W), RPC = W / 2, KPC = W / 4;
     extern __shared__ __align__(16) unsigned char sm[];
     const int G = p.h / p.hk, T = p.t, M = T * G, nmt = (M + 15) / 16;
     const int H = p.h, Hk = p.hk, Cr = p.cr, E = p.e, dr = p.dr;
@@ -685,7 +713,7 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages)
     if (jhi < 0) return;
 
     bf16* KV = (bf16*)sm;
-    const size_t kvb = SM::kv(stages);
+    const size_t kvb = SM::r0(M, FUSED);
     bf16* Bs = (bf16*)(sm + kvb);
     float* rsh = (float*)(sm + kvb + SM::bias(nmt));
     bf16* own = (bf16*)(sm + kvb + SM::bias(nmt) + SM::rsh(M, dr));
@@ -745,7 +773,7 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages)
     }
 
     // this thread's two query rows (mma C layout: rows g8 and g8 + 8 of the warp's m-tile)
-    const int g8 = lane >> 2, c4 = lane & 3, lm = lane >> 3, lr = lane & 7;
+    const int g8 = lane >> 2, c4 = lane & 3;
     int rmi[2], rlo[2], rhi[2];
 #pragma unroll
     for (int k = 0; k < 2; ++k) {
@@ -760,43 +788,37 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages)
             }
         }
     }
-    // Q fragments (A operand, 16 x D of the m-tile) into registers
-    uint32_t qf[NKS][4];
+    // Q fragments (A operand, 16 x D of the m-tile), permuted: mma (chunk ch, half h) k index 2 c + e <-> dim
+    // ch 4W + c W + 4 h + e, k index 2 c + 8 + e <-> dim ch 4W + c W + 4 h + 2 + e (the same map for the K rows)
+    uint32_t qf[NCH * KPC][4];
 #pragma unroll
     for (int k = 0; k < 2; ++k) {
         const int mi = rmi[k];
         const bf16* qrow = nullptr;
         if (mi < M) qrow = FUSED ? (const bf16*)KV + (size_t)mi * D : p.q + ((size_t)(mi / G) * H + kvh * G + mi % G) * D;
 #pragma unroll
-        for (int ks = 0; ks < NKS; ++ks) {
-            qf[ks][k] = qrow ? *(const uint32_t*)(qrow + ks * 16 + 2 * c4) : 0u;
-            qf[ks][2 + k] = qrow ? *(const uint32_t*)(qrow + ks * 16 + 8 + 2 * c4) : 0u;
+        for (int ch = 0; ch < NCH; ++ch) {
+            uint32_t r[RPC];
+#pragma unroll
+            for (int i = 0; i < RPC; ++i) r[i] = 0u;
+            if (qrow) ldw<W>(qrow + ch * 4 * W + c4 * W, r);
+#pragma unroll
+            for (int h = 0; h < KPC; ++h) {
+                qf[ch * KPC + h][k] = r[2 * h];
+                qf[ch * KPC + h][2 + k] = r[2 * h + 1];
+            }
         }
     }
-    if (FUSED) __syncthreads();  // the KV region held q
 
     const bf16* kcb = p.kc + (size_t)kvh * Cr * D;
     const bf16* vcb = p.vc + (size_t)kvh * Cr * D;
-    auto stage = [&](int ci, int buf) {
-        const int jb = ci * CH;
-        constexpr int CPR = D / 8;  // 16-byte chunks per row
-        for (int x = tid; x < 2 * CH * CPR; x += blockDim.x) {
-            const int kind = x / (CH * CPR), r = (x / CPR) % CH, cc = x % CPR;
-            const int j = jb + r;
-            bf16* dst = KV + ((size_t)(buf * 2 + kind) * CH + r) * LD + cc * 8;
-            if (j < jlo || j > jhi) {
-                *(uint4*)dst = make_uint4(0, 0, 0, 0);
-            } else if (j >= pos0) {
-                if (FUSED) {
-                    *(uint4*)dst = *(const uint4*)(own + ((size_t)kind * T + (j - pos0)) * D + cc * 8);
-                } else {
-                    cp_async16(dst, (kind ? p.vn : p.kn) + ((size_t)(j - pos0) * Hk + kvh) * D + cc * 8, true);
-                }
-            } else {
-                const int row = ring ? j % Cr : j;
-                cp_async16(dst, (kind ? vcb : kcb) + (size_t)row * D + cc * 8, true);
-            }
+    // row of key j (inside the block's key range) of K (kind 0) or V (kind 1)
+    auto krow = [&](int kind, int j) -> const bf16* {
+        if (j >= pos0) {
+            if (FUSED) return own + ((size_t)kind * T + (j - pos0)) * D;
+            return (kind ? p.vn : p.kn) + ((size_t)(j - pos0) * Hk + kvh) * D;
         }
+        return (kind ? vcb : kcb) + (size_t)(ring ? j % Cr : j) * D;
     };
 
     float o[NDB][4];
@@ -805,25 +827,16 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages)
     float m[2] = {-INFINITY, -INFINITY}, l[2] = {0.0f, 0.0f};
     const float qsc = __fmul_rn(p.scale, LOG2E);
 
-    const int c0 = jlo / CH, c1 = jhi / CH;
-    stage(c0, 0);
-    cp_commit();
-    for (int ci = c0; ci <= c1; ++ci) {
-        const int buf = stages == 1 ? 0 : (ci - c0) & 1, jb = ci * CH;
-        __syncthreads();  // the previous sub-chunk's compute is done with the other buffer and Bs
-        if (stages == 1) {
-            if (ci > c0) stage(ci, 0);  // one buffer: no prefetch (other resident blocks hide the latency)
-        } else if (ci < c1) {
-            stage(ci + 1, buf ^ 1);
-        }
-        cp_commit();
-        // the raw rel bias of the sub-chunk's keys (zero at distances >= E and for masked keys)
-        const bool need_bias = pmin - (jb + CH - 1) < E;
+    // 16-key blocks kb (absolute) with (kb / 16) % 4 == grp, in key order. The bias is staged per slab of SL keys when some
+    // row of the block has a distance < E in it; a (row, key) gets the same value staged or not (zero at d >= E).
+    for (int sb = jlo / SL * SL; sb <= jhi; sb += SL) {
+        const bool need_bias = pmin - min(sb + SL - 1, jhi) < E;
         if (need_bias) {
-            for (int x = tid; x < nmt * 16 * CH; x += blockDim.x) {
-                const int mi = x / CH, i = x % CH, j = jb + i;
+            __syncthreads();  // the previous slab's Bs reads (and, fused, region 0's q reads) are done
+            for (int x = tid; x < nmt * 16 * SL; x += blockDim.x) {
+                const int mi = x / SL, i = x % SL, j = sb + i;
                 bf16 b = __float2bfloat16_rn(0.0f);
-                if (mi < M) {
+                if (mi < M && j >= jlo && j <= jhi) {
                     const int t = mi / G, pp = pos0 + t, d = pp - j;
                     if (t >= r0 && t < r1 && d >= 0 && d < E && j >= (int)ink_lo(pp, p.window)) {
                         if (FUSED) b = f2b(ink_rel(rsh + mi * dr, p.rp, dr, E, d));
@@ -832,77 +845,87 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages)
                 }
                 Bs[x] = b;
             }
+            __syncthreads();
         }
-        if (stages == 1) cp_wait<0>();
-        else cp_wait<1>();
-        __syncthreads();
-        const int kb = grp * 16;
-        if (jb + kb + 15 < jlo || jb + kb > jhi) continue;  // the group's keys hold none of the block's
-        const bf16* Ks = KV + (size_t)(buf * 2) * CH * LD;
-        const bf16* Vs = KV + (size_t)(buf * 2 + 1) * CH * LD;
-        float s[2][4];
+        for (int kb = sb + grp * 16; kb < sb + SL && kb <= jhi; kb += 64) {
+            if (kb + 15 < jlo) continue;  // the block's keys start later
+            // K and V rows of keys kb + nb * 8 + g8 (zero outside the block's key range)
+            uint32_t kr[2][NCH][RPC], vr[2][NCH][RPC];
 #pragma unroll
-        for (int i = 0; i < 2; ++i) s[i][0] = s[i][1] = s[i][2] = s[i][3] = 0.0f;
+            for (int nb = 0; nb < 2; ++nb) {
+                const int j = kb + nb * 8 + g8;
+                const bool ok = j >= jlo && j <= jhi;
 #pragma unroll
-        for (int ks = 0; ks < NKS; ++ks) {
-            uint32_t b0, b1, b2, b3;
-            ldsm_x4(b0, b1, b2, b3, Ks + (size_t)(kb + (lm >> 1) * 8 + lr) * LD + ks * 16 + (lm & 1) * 8);
-            mma_bf16(s[0], qf[ks], b0, b1);
-            mma_bf16(s[1], qf[ks], b2, b3);
-        }
-        // scores (log2 domain), masks, online softmax per row
-        float mx[2] = {-INFINITY, -INFINITY};
+                for (int ch = 0; ch < NCH; ++ch) {
 #pragma unroll
-        for (int nb = 0; nb < 2; ++nb) {
-#pragma unroll
-            for (int e = 0; e < 4; ++e) {
-                const int k = e >> 1, i = kb + nb * 8 + 2 * c4 + (e & 1), j = jb + i;
-                float v = -INFINITY;
-                if (j >= rlo[k] && j <= rhi[k]) {
-                    const float b = need_bias ? __bfloat162float(Bs[rmi[k] * CH + i]) : 0.0f;
-                    v = __fmaf_rn(s[nb][e], qsc, __fmul_rn(b, LOG2E));
+                    for (int r = 0; r < RPC; ++r) kr[nb][ch][r] = vr[nb][ch][r] = 0u;
+                    if (ok) {
+                        ldw<W>(krow(0, j) + ch * 4 * W + c4 * W, kr[nb][ch]);
+                        ldw<W>(krow(1, j) + ch * 4 * W + c4 * W, vr[nb][ch]);
+                    }
                 }
-                s[nb][e] = v;
-                mx[k] = fmaxf(mx[k], v);
             }
-        }
-        uint32_t pa[2][2];
+            float sc[2][4];
 #pragma unroll
-        for (int k = 0; k < 2; ++k) {
-            mx[k] = fmaxf(mx[k], __shfl_xor_sync(0xffffffffu, mx[k], 1));
-            mx[k] = fmaxf(mx[k], __shfl_xor_sync(0xffffffffu, mx[k], 2));
-            const float mn = fmaxf(m[k], mx[k]);
-            const float mu = mn == -INFINITY ? 0.0f : mn;
-            const float corr = exp2f(m[k] - mu);
-            m[k] = mn;
-            const bf16 q0 = f2b(exp2f(s[0][2 * k] - mu)), q1 = f2b(exp2f(s[0][2 * k + 1] - mu));
-            const bf16 q2 = f2b(exp2f(s[1][2 * k] - mu)), q3 = f2b(exp2f(s[1][2 * k + 1] - mu));
-            const float ps = __fadd_rn(__fadd_rn(__fadd_rn(b2f(q0), b2f(q1)), b2f(q2)), b2f(q3));
-            l[k] = __fmaf_rn(l[k], corr, ps);
-            pa[0][k] = pack_bf16(q0, q1);
-            pa[1][k] = pack_bf16(q2, q3);
+            for (int i = 0; i < 2; ++i) sc[i][0] = sc[i][1] = sc[i][2] = sc[i][3] = 0.0f;
 #pragma unroll
-            for (int i = 0; i < NDB; ++i) {
-                o[i][2 * k] = __fmul_rn(o[i][2 * k], corr);
-                o[i][2 * k + 1] = __fmul_rn(o[i][2 * k + 1], corr);
+            for (int ch = 0; ch < NCH; ++ch)
+#pragma unroll
+                for (int h = 0; h < KPC; ++h)
+#pragma unroll
+                    for (int nb = 0; nb < 2; ++nb) mma_bf16(sc[nb], qf[ch * KPC + h], kr[nb][ch][2 * h], kr[nb][ch][2 * h + 1]);
+            // scores (log2 domain), masks, online softmax per row
+            float mx[2] = {-INFINITY, -INFINITY};
+#pragma unroll
+            for (int nb = 0; nb < 2; ++nb) {
+#pragma unroll
+                for (int e = 0; e < 4; ++e) {
+                    const int k = e >> 1, j = kb + nb * 8 + 2 * c4 + (e & 1);
+                    float v = -INFINITY;
+                    if (j >= rlo[k] && j <= rhi[k]) {
+                        const float b = need_bias ? __bfloat162float(Bs[rmi[k] * SL + (j - sb)]) : 0.0f;
+                        v = __fmaf_rn(sc[nb][e], qsc, __fmul_rn(b, LOG2E));
+                    }
+                    sc[nb][e] = v;
+                    mx[k] = fmaxf(mx[k], v);
+                }
             }
-        }
-        const uint32_t a[4] = {pa[0][0], pa[0][1], pa[1][0], pa[1][1]};
+            uint32_t pa[2][2];
 #pragma unroll
-        for (int dp = 0; dp < NDB / 2; ++dp) {
-            uint32_t b0, b1, b2, b3;
-            ldsm_x4_t(b0, b1, b2, b3, Vs + (size_t)(kb + (lm & 1) * 8 + lr) * LD + (dp * 2 + (lm >> 1)) * 8);
-            mma_bf16(o[dp * 2], a, b0, b1);
-            mma_bf16(o[dp * 2 + 1], a, b2, b3);
+            for (int k = 0; k < 2; ++k) {
+                mx[k] = fmaxf(mx[k], __shfl_xor_sync(0xffffffffu, mx[k], 1));
+                mx[k] = fmaxf(mx[k], __shfl_xor_sync(0xffffffffu, mx[k], 2));
+                const float mn = fmaxf(m[k], mx[k]);
+                const float mu = mn == -INFINITY ? 0.0f : mn;
+                const float corr = exp2f(m[k] - mu);
+                m[k] = mn;
+                const bf16 q0 = f2b(exp2f(sc[0][2 * k] - mu)), q1 = f2b(exp2f(sc[0][2 * k + 1] - mu));
+                const bf16 q2 = f2b(exp2f(sc[1][2 * k] - mu)), q3 = f2b(exp2f(sc[1][2 * k + 1] - mu));
+                const float ps = __fadd_rn(__fadd_rn(__fadd_rn(b2f(q0), b2f(q1)), b2f(q2)), b2f(q3));
+                l[k] = __fmaf_rn(l[k], corr, ps);
+                pa[0][k] = pack_bf16(q0, q1);
+                pa[1][k] = pack_bf16(q2, q3);
+#pragma unroll
+                for (int i = 0; i < NDB; ++i) {
+                    o[i][2 * k] = __fmul_rn(o[i][2 * k], corr);
+                    o[i][2 * k + 1] = __fmul_rn(o[i][2 * k + 1], corr);
+                }
+            }
+            // O += P V: n-block i = ch RPC + jj holds dims ch 4W + (n / 2) W + 2 jj + n % 2 (n = 0..7); its B fragments are the
+            // V rows of the two 8-key halves, transposed
+            const uint32_t a[4] = {pa[0][0], pa[0][1], pa[1][0], pa[1][1]};
+#pragma unroll
+            for (int ch = 0; ch < NCH; ++ch)
+#pragma unroll
+                for (int jj = 0; jj < RPC; ++jj) mma_bf16(o[ch * RPC + jj], a, movt(vr[0][ch][jj]), movt(vr[1][ch][jj]));
         }
     }
-    cp_wait<0>();
 #pragma unroll
     for (int k = 0; k < 2; ++k) {
         l[k] = __fadd_rn(l[k], __shfl_xor_sync(0xffffffffu, l[k], 1));
         l[k] = __fadd_rn(l[k], __shfl_xor_sync(0xffffffffu, l[k], 2));
     }
-    // merge the four key groups of each m-tile in order (0 + 1) + 2 + 3; the KV region is free now
+    // merge the four key groups of each m-tile in order (0 + 1) + 2 + 3 (warp states in region 0)
     float* mb = (float*)sm;
     constexpr int SLOT = (2 * NDB + 2) * 32;  // floats per warp state: o (4 NDB) ... stored as [NDB * 4 + 4][32]
     for (int q = 1; q < 4; ++q) {
@@ -951,7 +974,7 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages)
             for (int i = 0; i < NDB; ++i)
 #pragma unroll
                 for (int e = 0; e < 2; ++e) {
-                    const int dim = i * 8 + 2 * c4 + e;
+                    const int dim = (i / RPC) * 4 * W + c4 * W + 2 * (i % RPC) + e;
                     const float gate = b2f(p.pq[pr + H * D + H * dr + h * D + dim]);
                     p.out[((size_t)t * H + h) * D + dim] = ink_finish(o[i][2 * k + e], m[k], l[k], sink2, gate);
                 }
@@ -960,7 +983,7 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s, int stages)
 #pragma unroll
             for (int i = 0; i < NDB; ++i)
 #pragma unroll
-                for (int e = 0; e < 2; ++e) p.scr[slotp * D + i * 8 + 2 * c4 + e] = o[i][2 * k + e];
+                for (int e = 0; e < 2; ++e) p.scr[slotp * D + (i / RPC) * 4 * W + c4 * W + 2 * (i % RPC) + e] = o[i][2 * k + e];
             if (c4 == 0) {
                 float* ml = p.scr + (size_t)T * H * MAXT * D;
                 ml[slotp * 2] = m[k];
@@ -1279,16 +1302,12 @@ void tile_grid(const InkP& p, bool dev, int min_s, unsigned* ny, bool* multi) {
     *multi = true;
 }
 
-// diagnostics read once: INTARSIA_INK_TILE_STAGES (1 / 2), INTARSIA_INK_MAXT (tiles per row, 2..MAXT)
+// diagnostic read once: INTARSIA_INK_MAXT (tiles per row, 2..MAXT)
 int env_int(const char* name, int dflt, int lo, int hi) {
     const char* e = getenv(name);
     if (!e) return dflt;
     const int v = atoi(e);
     return v < lo || v > hi ? dflt : v;
-}
-int tile_stages_env() {
-    static int v = env_int("INTARSIA_INK_TILE_STAGES", 2, 1, 2);
-    return v;
 }
 int tile_maxt() {
     static int v = env_int("INTARSIA_INK_MAXT", MAXT_DEFAULT, 2, MAXT);
@@ -1297,26 +1316,15 @@ int tile_maxt() {
 
 template <int D, bool FUSED>
 int launch_tile_d(const InkP& p, int min_s, unsigned ny, cudaStream_t st) {
-    const int maxt = p.maxt;
     const int G = p.h / p.hk, nmt = (p.t * G + 15) / 16;
-    bool one_sub;
-    if (p.pos) {
-        const int vmax = p.window > 0 ? (p.window < p.cr ? p.window : p.cr) : p.cr;
-        one_sub = tile_s(vmax, min_s, maxt) == CH;
-    } else {
-        const TileGeo g = tile_geo(p.pos0, p.t, p.window, min_s, maxt);
-        one_sub = g.sa == CH && g.sb == CH;
-    }
-    // one stage when no block has a second sub-chunk (every tile S = CH), or INTARSIA_INK_TILE_STAGES=1 (diagnostic)
-    const int stages = ((min_s == CH && one_sub) || tile_stages_env() == 1) ? 1 : 2;
-    const size_t smem = TileSmem<D>::bytes(p.t, G, p.dr, FUSED, stages);
+    const size_t smem = TileSmem<D>::bytes(p.t, G, p.dr, FUSED);
     static bool attr = false;
     if (!attr) {
-        const size_t most = TileSmem<D>::bytes(MAXROWS, 3, 32, FUSED, 2);
+        const size_t most = TileSmem<D>::bytes(MAXROWS, 3, 32, FUSED);
         if (cudaFuncSetAttribute(ink_tile_k<D, FUSED>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)most) != cudaSuccess) return IK_ERR_LAUNCH;
         attr = true;
     }
-    ink_tile_k<D, FUSED><<<dim3(p.hk, ny), 128 * nmt, smem, st>>>(p, min_s, stages);
+    ink_tile_k<D, FUSED><<<dim3(p.hk, ny), 128 * nmt, smem, st>>>(p, min_s);
     return IK_OK;
 }
 
