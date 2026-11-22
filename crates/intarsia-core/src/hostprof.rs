@@ -105,6 +105,9 @@ struct Prof {
     rows: usize,
     /// instant the last decode step's sync returned
     last_sync_end: Option<Instant>,
+    /// the running iteration marked a sync end (an iteration that did not leaves no `last_sync_end` for the next one: a stale
+    /// mark would count everything since as a gap)
+    synced_this: bool,
     /// the previous iteration was decode-only or a spec cycle (the gap is only meaningful between two of those)
     prev_decode_only: bool,
     gap_this: Option<u128>,
@@ -171,7 +174,11 @@ pub fn mark_sync_end() {
     if !enabled() {
         return;
     }
-    P.with(|p| p.borrow_mut().last_sync_end = Some(Instant::now()));
+    P.with(|p| {
+        let mut p = p.borrow_mut();
+        p.last_sync_end = Some(Instant::now());
+        p.synced_this = true;
+    });
 }
 
 /// A decode step ran with `rows` rows.
@@ -230,6 +237,7 @@ pub fn iter_begin() {
         p.decoded = false;
         p.prefilled = false;
         p.spec = false;
+        p.synced_this = false;
         p.rows = 0;
         p.gap_this = None;
     });
@@ -264,6 +272,9 @@ pub fn iter_end(wall_ns: u128) {
         let gap = p.gap_this;
         let rows = p.rows as u64;
         p.prev_decode_only = matches!(k, Kind::DecodeOnly | Kind::Spec);
+        if !p.synced_this {
+            p.last_sync_end = None;
+        }
         let a = &mut p.acc[k as usize];
         a.iters += 1;
         a.since_print += 1;
@@ -380,6 +391,27 @@ mod tests {
         });
         let l = P.with(|p| render(Kind::DecodeOnly as usize, &p.borrow().acc[Kind::DecodeOnly as usize]));
         assert!(l.contains("decode-only") && l.contains("gpu-idle-gap"), "{l}");
+        ENABLED.store(2, Ordering::Relaxed);
+    }
+
+    /// A gap is counted only from a sync end marked in the previous iteration: one whose step was not split into launch and sync
+    /// (a path without the hooks) leaves none, so the next launch does not count everything since an older sync as a gap.
+    #[test]
+    fn a_gap_needs_a_sync_in_the_previous_iteration() {
+        let _one = ONE.lock().unwrap_or_else(|e| e.into_inner());
+        ENABLED.store(1, Ordering::Relaxed);
+        P.with(|p| *p.borrow_mut() = Prof::default());
+        // synced, unsynced, then two launches: only the one after a synced iteration counts
+        for synced in [true, false, true, true] {
+            iter_begin();
+            mark_launch_begin();
+            if synced {
+                mark_sync_end();
+            }
+            decoded(1);
+            iter_end(1_000_000);
+        }
+        P.with(|p| assert_eq!(p.borrow().acc[Kind::DecodeOnly as usize].gaps, 1));
         ENABLED.store(2, Ordering::Relaxed);
     }
 

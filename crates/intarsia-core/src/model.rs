@@ -5627,6 +5627,12 @@ impl Model {
         if self.recorder.lock().unwrap().is_some() {
             return Ok(0);
         }
+        if crate::hostprof::enabled() {
+            // host profile: the wait for the step on its own (the 4-byte download then finds nothing pending)
+            let _w = crate::hostprof::span(crate::hostprof::Cat::Sync);
+            self.backend.synchronize(self.stream)?;
+            crate::hostprof::mark_sync_end();
+        }
         let mut b = [0u8; 4];
         self.backend.download(&self.ws.tok, 0, &mut b, self.stream)?;
         Ok(i32::from_le_bytes(b) as u32)
