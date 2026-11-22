@@ -575,10 +575,16 @@ recompiled `intarsia-core`, and the binary contains the new switches. Fix for th
 copying `target/` (or build without the copy). Requeued 2026-11-22 02:40 as two jobs: #11152 (`--load cpu`, `.scratch/endorgumbel_build.sh`: touch
 every tracked file under `crates/`, release build, Metal and 8B model test binaries `--no-run`; `.scratch/gmb/prebuild.txt`)
 and #11153 (`--quiet gpu,cpu`, `--expect 90`, `.scratch/endorgumbel2.sh`: sections A / B / C / E of #11037 unchanged, no
-section 7), plus a section F for the brief's G1-G3 rerun on the `ink/hostgap` code tip (fb38fe4a5, the item 7 binary with its
-switches unset): G2 / G3 short and long, each self-golden compared bitwise with ink-metal's for the same base code (844d81e8b,
+section 7), plus a section F, run FIRST so a failed side-branch build cannot cost it, for the brief's G1-G3 rerun on the
+`ink/hostgap` code tip (fb38fe4a5, a fresh build `.scratch/i7/intarsia-h7f` from #11152, since h7 came from a cloned `target/`;
+item 7 switches unset): G2 / G3 short and long, each self-golden compared bitwise with ink-metal's for the same base code (844d81e8b,
 from its 02:29 merge-gate run, copied to `.scratch/gref`; that run's G2 decode rows FAIL, the known ink/metal regression, so
-the test here is bitwise equality, not the limits), and `tests/inkling2.rs` (G1) on cpu and Metal. #11037's own summary and build log are kept as `.scratch/gmb/summary_11037.txt` / `build_11037.log`.
+the test here is bitwise equality, not the limits), `tests/inkling2.rs` (G1) on cpu and Metal, the 8B (and tiny GDN) intarsia-models Metal tests in the item 7 tree, and `plan show`
+for Qwen3-8B / 35B / Inkling against ink-metal's binary (`.scratch/bin/intarsia-im844`, its 02:29 build of 844d81e8b code).
+Section E's checks cover the side branch, which sits on the pre-merge 9a53e7c5e. The 35B Metal model tests do not run on
+either (coordinator's trim). Both side trees' tracked `crates/` files were also touched locally at 02:45 (an edit, no build), so
+#11153 builds correctly even if #11152 never runs. F adds about 25 min, so `--expect 90` is short; the job keeps its place in
+line (no deadline in normal queue order). #11037's own summary and build log are kept as `.scratch/gmb/summary_11037.txt` / `build_11037.log`.
 
 Merge rule (coordinator): at least base and bitwise identical, per switch. Each default-on decision gets its own evidence
 from the cumulative arms.
