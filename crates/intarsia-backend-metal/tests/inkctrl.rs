@@ -31,9 +31,10 @@ fn be() -> Option<MetalBackend> {
     Some(b)
 }
 
-/// A device tensor of `dt` with `shape`, filled from `vals` (bf16 or f32 / i32 bytes), at byte `off` of its buffer.
+/// A device tensor of `dt` with `shape` at byte `off` of its own buffer, filled from `bytes` (empty: left as allocated).
 fn dev(be: &MetalBackend, dt: DType, shape: &[usize], bytes: &[u8], off: usize) -> TensorRef {
-    let b = be.alloc((off + bytes.len()).max(16), MemKind::Device).unwrap();
+    let need = off + shape.iter().product::<usize>() * dt.size_bytes();
+    let b = be.alloc((off + bytes.len()).max(need).max(16), MemKind::Device).unwrap();
     if !bytes.is_empty() {
         be.upload(&b, off, bytes, 0).unwrap();
     }
