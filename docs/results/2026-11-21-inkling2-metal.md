@@ -447,6 +447,13 @@ template puts the first 32-48 tokens in `reasoning_content`, so `content` was em
 (`.scratch/gum/r_*.json|txt`, both fields): the text above. The script now reads both fields. The device sampler stays off
 by default (`INTARSIA_GUMBEL_SAMPLING` unset = off).
 
+- 2026-11-22 (coordinator): **slow-box guard for #11314** (130-min quiet baseline): endor ran ~50 % slow 06:27-06:35 (#11297:
+  same binary and inputs as #11261 gave 47-50 tok/s solo instead of 61-65, no other fleetq job; not tensorfold, kev, thermal
+  or power; cause not found). Check the first decode numbers as they land (batch_step B1 in the pk12check arm, then localeval
+  1k decode): B1 < 58 tok/s or 1k decode < 58 tok/s (#11272 gave ~62) -> stop the job, release the slot, report "BOX SLOW"
+  with the numbers, record nothing as a baseline; in range -> let it run and say so here. Lane: a watcher checks the first
+  B1 batched tok/s line and the first localeval 1k decode and stops the job on a miss.
+
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
 | Tree | KL21 scored | max | chat_system | chat_reasoning |
