@@ -769,6 +769,24 @@ bitwise claimed). Merged as bfaccd447 (conflict: `inkmoe_bench.rs`, both routing
 2474c17b9 (A1 / A2 main built in the same job), and A5 reruns on spark1 against it (#11557). #11540 (A4 Linux test step, A5) ran
 on 840adbca6 over the old main.
 
+### Re-gate on the final code (#11555, endor, default load, code bfaccd447 = fix 03292acab + main 2474c17b9): all pass
+
+- A1: g64 65cde8f35a1802e3e2fadb44d94d080d, g256 61fd59fecb5e0d72ffd08f2c6d07855a, equal to main 2474c17b9's (built in the job).
+- A2: Metal `plan show` byte-identical to main 2474c17b9, text and json: Qwen3-8B, Llama-3.1-8B, Inkling-2-Mini (same sizes as
+  in #11532).
+- B1: ids identical spec off vs DSpark on the 12 greedy golden prompts x 128 and both prose texts ("--spec-k defaults to 3"
+  seen). Greedy golden 74.41 -> 86.72 tok/s (default load), 478 passes, acceptance 69.6%, 2.47 tokens per pass (unchanged by
+  the head fix); prose 73.63 -> 80.08 tok/s, 73.8%, 2.60.
+- B3: serve, admitted kernels only (43 kernels, 195 cases on the plan shapes): ~1.4k-token greedy request (1425 prompt tokens)
+  HTTP 200, verify passes 0 -> 13 (27 proposed, 21 accepted). B2 serve half: t1.0 request HTTP 200, spec steps unchanged.
+- A3: every binary passes, now including `inkling2_verify_softcap` on Metal (bitwise; with `INTARSIA_INK_PACK12=0` it passes
+  too): metal `--lib` 18, dense 11, topk 1, inkmix 5, inkmoe 2, rows_exact 11, screen 4, inkling2_attn 1, inkctrl 2; models
+  inkling2 11, inkling2_batch 8, inkling2_dspark 3, inkling2_dspark_cut 1, inkling2_verify_softcap 1, gdn_verify_metal 7,
+  inkling2_mix_decode_cpu 2, inkling2_real_decode_ne 4; docs_env_vars 2; the merged `inkmoe_bench` example builds;
+  `kernels test --op hc_pre` admitted.
+- The speed job's first try (#11556) aborted on its own guard: `serve` runs a supervisor whose child holds the port, and the
+  guard wanted the supervisor's pid; fixed to accept a descendant, requeued as #11564.
+
 Speed protocol (after A and B pass; branch tip binary, endor, one `--quiet gpu,cpu` slot): `serve --backend metal --max-batch 1
 --max-seq 20480` per arm (off, DSpark), localeval `suite --tier adhoc --cells speed-plain` (143 / 1k / 4k / 16k
 prompt tokens, 256 forced output tokens, 3 reps each), DSpark at its defaults (k3, gate 0.8); the DSpark arm declared `--lane spec:dspark --drafter dspark`, off `--lane
