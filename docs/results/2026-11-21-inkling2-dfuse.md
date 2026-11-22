@@ -885,7 +885,7 @@ about 0.18 ms. The fused blend tail was tried and was slower (change 3).
   | MLP side, blend S = 3 | 17.42 | 21.43 | 68.07 | 84.16 |
 
   The bench's MLP shapes (4 stored sources, Q 3) cost more than the model's MLP calls, so the stream is under the bench there.
-- **Ceiling** (raw/P_ceil.py output): sum of (stream - cached) x calls = 0.041 + 0.043 + 0 + 0 = **0.085 ms per token**,
+- **Ceiling** (raw/P_ceil.txt): sum of (stream - cached) x calls = 0.041 + 0.043 + 0 + 0 = **0.085 ms per token**,
   under the 0.3 ms bar. Stop rule: stop. No prototype was built.
 - **What this shows.**
   - The row kernel's operands are not cold in the stream. With a real eviction (96 or 256 MB) the kernel takes 43-84 us,
