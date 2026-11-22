@@ -187,6 +187,7 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
 - 2026-11-22 (coordinator, SendMessage): tatooine #11444: 29 GB free is tight for two HIP release builds; uncapped cargo runs 24 jobs. If not capped, add the spark1 memguard (MemAvailable every 5 s, kill the job's processes below 8 GB). If restarting, build the trees one after the other with CARGO_BUILD_JOBS=8. radiance must stay up.
 - 2026-11-22 (coordinator, SendMessage): work files stay inside the project's .worktrees/, never in ~. When #11444 ends, copy the memguard log's last reading and minimum MemAvailable here, then delete tatooine:~/intarsiaml-inknoop-memguard.log. Next time put such a log under the tatooine checkout's .worktrees/ink-noop/. (Also in ~ from this lane, to remove when their jobs end: tatooine ~/intarsiaml-inknoop-{base,dev} and ~/intarsiaml-inknoop-memguard.sh, spark1 ~/intarsiaml-inknoop.)
 - 2026-11-22 (coordinator, SendMessage): ink/fp8 will send df7eb7f80 (head screen default on, Metal, Inkling only; INTARSIA_INK_HEAD_SCREEN=0 off). Do not add it under the main PR: the no-op checks cover d111c798a and the PR merges that tree. Finish #11455, open the PR, merge on green. Then merge ink/fp8's flip into ink/metal as a follow-up once ink/fp8 reports its post-flip checks green (endor, ~30 min).
+- 2026-11-22 (coordinator, SendMessage): go with d111c798a + docs + 040748800 (gates a test-file arm; the no-op checks stand), Linux workspace rerun compared with base, then the PR from that tip, df7eb7f80 out. PR body names 040748800 as the one code change after the no-op check and why. CI's ubuntu job is the final check before merging. Note the unqueued cargo check in the doc and move on.
 
 ## NE fix gate #11179 (tree 65dbc2870 = fix 7eca1b012 + test/docs)
 
@@ -971,6 +972,12 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   `quick_coverage` does not compile on Linux (`intarsia_backend_metal::kernels` is cfg'd out), the same error on base and dev.
   Rerun as #11455 with `--exclude intarsia-backend-metal --exclude intarsia-backend-hip` (CI's exclusions minus cuda, which
   runs here on its GPU). Memguard minimum 61 GB available, 0 kills. (#11453 was a script error, nothing ran.)
+- #11455 found a real Linux build break of the dev tree: `crates/intarsia-models/tests/inkling2_batch.rs:41` named
+  `intarsia_backend_metal` without `#[cfg(target_os = "macos")]` (the Metal dev-dependency is macOS-only; inkling2.rs gates
+  the same arm), so `cargo test --workspace` (metal / hip excluded, as CI) did not compile on Linux. Fix 040748800 gates that
+  match arm; test file only, no binary or macOS test changes, so the no-op checks above stand (coordinator). Incident: one
+  unqueued `cargo check --target x86_64-unknown-linux-gnu` on endor while checking the fix; it failed within seconds (target
+  not installed), no load.
 - Metal #11440 done (exit 0, 09:29:18-09:59:11, quiet gpu,cpu): 256 greedy ids identical base vs dev for Qwen3-8B (short sha
   d619ede5, 4k feb11f5c) and Llama-3.1-8B-Instruct (short 25bbc20f, 4k eda51e94); `plan show` txt and json byte-identical for
   both. `kernels test --backend metal` 0 FAIL on both: base 56 kernels / 1335 cases, dev 86 kernels / 2915 cases (the Inkling,
