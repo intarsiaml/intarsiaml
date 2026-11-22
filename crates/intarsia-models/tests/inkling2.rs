@@ -361,7 +361,13 @@ fn inkling2_tiny_rollback_by_length() {
     st.truncate(32, &*m.backend).unwrap();
     assert_eq!(all_logits(&m, &mut st, &ids[32..]), whole[32..].to_vec(), "after rollback to 32");
     // prompt reuse (`Model::reuse_len`): within the margin the prefix is kept, past it the sequence starts over
-    assert_eq!(m.reuse_len(&st, 40, 30), 30);
+    // (CUDA keeps its conservative policy, `prefix_reuse_any_cut` false and no `prefix_reuse_min_pass_rows`: a cut off the
+    // cold-prefill ladder starts over, which is safe; the resume below then prefills the whole prompt)
+    if m.backend.name() == "cuda" {
+        assert!(matches!(m.reuse_len(&st, 40, 30), 0 | 30));
+    } else {
+        assert_eq!(m.reuse_len(&st, 40, 30), 30);
+    }
     assert_eq!(m.reuse_len(&st, 40, 10), 0);
     // a cut beyond the ring margin (16) is refused, and restorable_len says so
     assert_eq!(st.restorable_len(10), 0);
@@ -473,6 +479,7 @@ impl Backend for Logged {
         self.inner.launch(kernel, call, stream)?;
         let t = self.rows.load(Ordering::SeqCst);
         let mut row = Vec::new();
+        let shapes: Vec<String> = call.outputs.iter().map(|o| format!("{:?}", o.shape)).collect();
         if let Some(o) = call.outputs.first() {
             if o.shape.first() == Some(&t) && t > 0 {
                 self.inner.synchronize(stream)?;
@@ -481,7 +488,7 @@ impl Backend for Logged {
                 row = data;
             }
         }
-        self.log.lock().unwrap().push((call.op.to_string(), kernel.to_string(), row));
+        self.log.lock().unwrap().push((call.op.to_string(), format!("{kernel} out {}", shapes.join(" ")), row));
         Ok(())
     }
     fn synchronize(&self, s: StreamId) -> intarsia_core::Result<()> {
@@ -513,7 +520,7 @@ fn inkling2_tiny_launch_diff() {
     let mut shown = 0;
     for (i, (x, y)) in a.iter().zip(b.iter()).enumerate() {
         let same = !x.2.is_empty() && x.2.len() == y.2.len() && x.2 == y.2;
-        if !same && shown < 12 {
+        if !same && shown < 40 {
             println!("diff #{i}: {} {} vs {} {} (row bytes {} / {}, equal {})", x.0, x.1, y.0, y.1, x.2.len(), y.2.len(), x.2 == y.2);
             shown += 1;
         }

@@ -3734,7 +3734,18 @@ impl Model {
                 HeadMode::AllLogits => {
                     let cb = on_row.as_mut().unwrap();
                     for (r, c) in self.head_groups(mode, chunk.len(), last) {
-                        let flat = self.head_logits(&hn, r, c, profile)?;
+                        // Inkling-2: a head group of 2..=16 rows takes the row-exact head (as its pass does), so each row's
+                        // logits are the one-row decode head's bits whatever the chunking (on CUDA the ordinary head is
+                        // cuBLAS from 5 rows)
+                        let mark = self.dims.ink.is_some() && !self.verifying() && inkling2::ink_rows_exact(self.backend.name(), c);
+                        if mark {
+                            self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+                        }
+                        let flat = self.head_logits(&hn, r, c, profile);
+                        if mark {
+                            self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+                        }
+                        let flat = flat?;
                         for i in 0..c {
                             cb(base + r + i, &flat[i * self.dims.vocab..(i + 1) * self.dims.vocab])?;
                         }

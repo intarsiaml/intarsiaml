@@ -1048,7 +1048,7 @@ mod tests {
             .chain(intarsia_core::inkling2::ops::OPS.iter().filter(|op| !table.iter().any(|(_, o)| o == *op)))
             .copied()
             .collect();
-        const NOT_ON_CUDA: [Op; 17] = [
+        const NOT_ON_CUDA: &[Op] = &[
             Op::ShortConv,
             Op::DynConv,
             Op::RopeScaled,
