@@ -1,6 +1,6 @@
 //! Diagnostic (lane ink-cuda-attn, brief 27): the precision of the InkInProj kernels at the real shape on real decode inputs.
 //! Env-gated, no-op without `INTARSIA_INK_PREC_MODEL` (checkpoint dir); `INTARSIA_INK_PREC_GOLDEN` (a top-k golden whose
-//! `ids_0` is the prompt), `INTARSIA_INK_PREC_PREFILL` (default 32) and `INTARSIA_INK_PREC_STEPS` (default 20). CUDA only.
+//! `ids_<INTARSIA_INK_PREC_PROMPT>` is the prompt, default 0), `INTARSIA_INK_PREC_PREFILL` (default 32) and `INTARSIA_INK_PREC_STEPS` (default 20). CUDA only.
 //!
 //! Runs the real model on CUDA (default kernels: today's mma in_proj), prefill then one-token decode steps, and keeps every
 //! visit's in_proj inputs (`attn_in_q / k / v`, bf16 values) for visits 0..=5 (= layers 0..=5, layer 5 full attention). For each
@@ -98,8 +98,9 @@ fn inkling2_in_proj_precision() {
     let golden = env("INTARSIA_INK_PREC_GOLDEN").expect("INTARSIA_INK_PREC_GOLDEN");
     let pre: usize = env("INTARSIA_INK_PREC_PREFILL").map_or(32, |v| v.parse().unwrap());
     let steps: usize = env("INTARSIA_INK_PREC_STEPS").map_or(20, |v| v.parse().unwrap());
-    let ids = golden_ids(&golden, 0);
-    assert!(pre + steps <= ids.len());
+    let pi: usize = env("INTARSIA_INK_PREC_PROMPT").map_or(0, |v| v.parse().unwrap());
+    let ids = golden_ids(&golden, pi);
+    assert!(pre + steps <= ids.len(), "prefill {pre} + steps {steps} > prompt {pi} of {} tokens", ids.len());
 
     let be: Arc<dyn Backend> = intarsia_backend_cuda::create(0).unwrap();
     let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
