@@ -319,7 +319,7 @@ pub fn pack_in_proj(backend: &str) -> bool {
 /// (`Op::MatmulP12`: Metal and the cpu reference) or not (CUDA, HIP): whether to pack, and a load-log note when a forced
 /// `1` is not honoured. `0` / `off` / `false`: never. `1` / `on` / `true`: wherever the kernels exist; a backend without
 /// them keeps the bf16 weights and says so (it never packs and then fails at plan or dispatch). Unset (or anything else):
-/// Metal and CUDA (default-on on CUDA since lane ink-cuda-p12, spark1 #11157: decode +2.3 % short / +3.0 % 1.2k / +3.0 % 5k,
+/// Metal and CUDA (default-on on CUDA since lane ink-cuda-p12, spark1 #11172: decode +4.4 % short / +4.3 % 1.2k / +4.5 % 5k,
 /// bitwise at model level), where they register the kernels.
 pub fn decide(env: Option<&str>, backend: &str, has_kernels: bool) -> (bool, Option<String>) {
     match env.map(str::trim) {
