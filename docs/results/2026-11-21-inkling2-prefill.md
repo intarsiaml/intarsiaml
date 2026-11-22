@@ -482,6 +482,34 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### rel_mode 2 gate (#11461, bin11 8bef1619a, rule above): quality and decode pass, speed FAILS the bar; stays opt-in
+
+1. Quality (all PASS; mode 0 equals the references exactly):
+
+| gate | limit | mode 0 | mode 2 |
+|---|---:|---:|---:|
+| G2 short | 4e-3 | 2.087e-3 | 2.101e-3 |
+| G2 long | 6e-3 | 3.239e-3 | 3.382e-3 |
+| G3 short | 1.05e-2 | 8.420e-3 | 8.503e-3 |
+| G3 long | 1.65e-2 | 1.229e-2 | 1.291e-2 |
+
+2. Decode: mode 0 md5 64 / 256 = a2ab7b3d... / cbd62660... (references, unchanged). Mode 2 changes the text (64: a7227430...,
+   256: 5b200ba7...), as its contract allows. Decode tok/s, mode 0 vs 2: 64 tokens 70.67 vs 70.61 (-0.1 %); 256 tokens 68.49
+   vs 70.63 (+3.1 %, mode 2 faster, just outside the +-3 % band in the favourable direction; decode rows never take mode 2,
+   and the two 256-token runs decode different text, so this is noise, not an effect).
+3. Speed (warm-up, then ABAB, 3 pairs, prefill tok/s mode 0 -> mode 2; prefill ms = TTFT):
+
+| prompt | pair ratios | median | need | TTFT ms mode 0 | TTFT ms mode 2 |
+|---|---|---:|---:|---|---|
+| 4k (3950) | 1.0017 / 1.0079 / 1.0087 | 1.0079 | 1.02 | 1470 / 1467 / 1468 | 1467 / 1456 / 1454 |
+| 8k (8034) | 1.0086 / 1.0091 / 1.0017 | 1.0086 | 1.02 | 2789 / 2790 / 2788 | 2766 / 2765 / 2783 |
+| 16k (16068) | 1.0099 / 1.0337 / 1.0121 | 1.0121 | 1.00 | 5540 / 5740 / 5638 | 5486 / 5553 / 5570 |
+
+**Verdict:** mode 2 is ~+0.8 % at 4k and 8k and +1.2 % at 16k, consistently the faster arm in all 9 pairs, but below the
+2 % bar at 4k and 8k: no flip proposed; `INTARSIA_INK_REL_MODE=2` stays opt-in on `ink/prefill-rel2`. Why the bound
+(~3 %) was not reached: the mode-2 attention kernel only breaks even with the device gather on SWA visits, so the gain is the
+prologue's skipped rel write (~0.2 ms x 40 visits = ~8 ms per chunk), and the full layers stay in mode 0.
+
 ### rel_mode 0 / 1 / 2 x NSG 12 / 6, per call (#11447, bench 2048 rows, µs prologue / NAX attention, median of 2)
 
 | visit | m0 s12 | m1 s12 | m2 s12 | m2 s6 | m0 s6 |
