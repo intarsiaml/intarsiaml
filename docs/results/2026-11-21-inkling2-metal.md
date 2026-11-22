@@ -1116,4 +1116,11 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
 - Serve re-measure reserved as fleetq #11567 at Mon 05:10 (after fp8 #11549, reserved 03:50 for 75 min, so 04:40 would
   overlap), quiet gpu,cpu: greedy box check first (stop below 70 tok/s), serve A / B in ABBA order, 3 streamed t=1.0
   256-token requests per arm after a warm-up, closing box check (`.scratch/gumbel_serve_night.sh`).
+- PR #494: first CI run failed to compile `tests/mtp.rs` (two `BackendTuning` literals lacked the new field; fixed in
+  b33759da6, `cargo check --workspace --all-targets` clean, #11572). Then main moved (#482, #495 svfflip added
+  `sampled_verify_fast` to the same literals): merged at 2d8916f3b keeping both fields; re-check #11578 (all targets clean,
+  core lib 260/260, recipe_gumbel, recipes_doc, gumbel_engine, sampled_verify_fast_off, docs_env_vars). All 6 CI jobs green;
+  **merged** at 17b999272. The Gumbel sampler is default-on for Inkling-2 on Metal on main (`INTARSIA_GUMBEL_SAMPLING=0`
+  reverts). Worktree .worktrees/ink-gumbel-land removed (after a premature removal and re-creation when the first merge
+  attempt hit the conflict); branch ink/gumbel-land kept. Night serve re-measure #11567 (Mon 05:10) still reserved.
 
