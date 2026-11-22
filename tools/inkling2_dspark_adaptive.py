@@ -8,10 +8,15 @@ A run is a trajectory: from the first anchor of a text, each cycle picks a draft
 emits accepted + 1, so the next anchor is t + accepted + 1 (as the engine walks the text). Off-path anchors (vLLM's near-ties
 against the W4A16 oracle) accept nothing. Ids are identical whatever k is: only the time moves.
 
-Cost model (ms), fitted to the measured Metal runs (#10874, docs/results/2026-11-21-inkling2-mtp.md): a plain step 16.0, each
-extra verify row +2.9, the drafter 3.8 per cycle it runs (block pass, head, Markov steps, ingest); a cycle whose policy skips
-the drafter (k = 0) still ingests its row (0.7). It reproduces the measured fixed policies within about 1%: k3 tau 0.6
-81.0 modelled vs 80.46 measured tok/s, k2 tau 0.6 80.7 vs 79.84, k3 tau 0.8 (the fit point) 80.6.
+Cost model (ms; `--fit` prints the check): a plain step 1000 / 62.58 (spec off, #10874). The drafter, from its measured profile
+split (k3 tau 0.6, docs/results/2026-11-21-inkling2-mtp.md): block pass + ingest 2.5 per cycle, the head 0.40 per row it computes
+(the cap k: the base logits of every draft row in one call), the Markov head 0.25 per step it runs (kept + 1 when the gate stops
+early, k when it does not). A cycle that skips the drafter (k = 0) still ingests its row (0.7). Each extra verify row costs ROW,
+the one parameter fitted (least squares) to the measured fixed policies k2 tau 0.6, k3 tau 0.6 and k3 tau 0.8; `--fit` prints the
+residuals and the k4 / k3 ratio against #10806's (69.24 / 68.50 = 1.011, tau 0.6, an older binary).
+
+(The first version, a flat 3.8 ms drafter per cycle and ROW 2.9, overrated the policies that draft more: k3 tau 0.6 84.2
+modelled against 80.46 measured.)
 
 Run from `tools/`: uv run python inkling2_dspark_adaptive.py --out <draft out dir> [--json results.json]
 """
@@ -27,7 +32,9 @@ from safetensors.torch import load_file
 
 from inkling2_dspark_ref import match_len
 
-PLAIN, ROW, DRAFT, INGEST = 16.0, 2.9, 3.8, 0.7
+PLAIN, INGEST = 1000.0 / 62.58, 0.7
+D_FIXED, D_HEAD_ROW, D_STEP = 2.5, 0.40, 0.25
+ROW = 2.9  # replaced by the fit in main()
 
 
 def load(out: Path) -> dict[str, list[dict]]:
@@ -56,18 +63,27 @@ def gate(p1, k, tau):
     return n
 
 
+def steps_run(n, cap):
+    """Markov steps the drafter runs to keep n drafts under the cap: the step that fails the gate runs too."""
+    return min(n + 1, cap)
+
+
 def simulate(texts, policy) -> dict:
-    """policy(state, p1) -> (run_drafter, k_eff); state is the policy's own dict, updated by policy.observe."""
+    """policy.choose(state, p1) -> (run_drafter, k_eff, cap); state is the policy's own dict, updated by policy.observe."""
     toks = ms = cycles = passes = drafted = 0
     for recs in texts:
         t = min(recs)
         st: dict = {}
         while t in recs:
             m, p1 = recs[t]
-            run, k = policy.choose(st, p1)
+            run, k, cap = policy.choose(st, p1)
             acc = 0 if m < 0 else min(m, k)
             policy.observe(st, k, acc, run)
-            cost = PLAIN + (DRAFT if run else 0.0 if getattr(policy, "off", False) else INGEST) + ROW * k
+            if run:
+                draft = D_FIXED + D_HEAD_ROW * cap + D_STEP * steps_run(k, cap)
+            else:
+                draft = 0.0 if getattr(policy, "off", False) else INGEST
+            cost = PLAIN + draft + ROW * k
             toks += acc + 1
             ms += cost
             cycles += 1
@@ -84,7 +100,7 @@ class Off:
     off, label = True, "spec off"
 
     def choose(self, st, p1):
-        return False, 0
+        return False, 0, 0
 
     def observe(self, st, k, acc, run):
         pass
@@ -97,7 +113,7 @@ class Fixed:
         self.k, self.tau, self.label = k, tau, f"fixed k{k} tau {tau}"
 
     def choose(self, st, p1):
-        return True, gate(p1, self.k, self.tau)
+        return True, gate(p1, self.k, self.tau), self.k
 
     def observe(self, st, k, acc, run):
         pass
@@ -117,7 +133,7 @@ class Cumulative:
             if prod < self.c:
                 break
             n += 1
-        return True, n
+        return True, n, self.kmax
 
     def observe(self, st, k, acc, run):
         pass
@@ -138,13 +154,13 @@ class Ema:
         best, bk = -1.0, 0
         for k in range(0, self.kmax + 1):
             e = 1 + sum(a ** j for j in range(1, k + 1))
-            cost = PLAIN + (DRAFT + ROW * k if k else INGEST)
+            cost = PLAIN + (D_FIXED + (D_HEAD_ROW + D_STEP + ROW) * k if k else INGEST)
             if e / cost > best:
                 best, bk = e / cost, k
         if bk == 0:
             st["idle"] = st.get("idle", 0) + 1
             if st["idle"] < self.probe:
-                return False, 0
+                return False, 0, 0
             bk = 1
         st["idle"] = 0
         k = gate(p1, bk, self.tau)
@@ -156,7 +172,7 @@ class Ema:
                     break
                 n += 1
             k = n
-        return True, k
+        return True, k, bk
 
     def observe(self, st, k, acc, run):
         a = st.get("a", self.prior)
@@ -171,7 +187,22 @@ def main():
     ap.add_argument("--json", type=Path)
     args = ap.parse_args()
     sets = load(args.out)
-    pols = [Off(), Fixed(1, 0.6), Fixed(2, 0.6), Fixed(3, 0.6), Fixed(3, 0.8), Fixed(3, 0.9), Fixed(2, 0.8)]
+    # fit ROW to the measured fixed policies (#10874, greedy golden, tok/s)
+    global ROW
+    meas = [(Fixed(2, 0.6), 79.84), (Fixed(3, 0.6), 80.46), (Fixed(3, 0.8), 80.64)]
+    best = None
+    for r10 in range(150, 451):
+        ROW = r10 / 100
+        err = sum((simulate(sets["greedy"], p)["tok_s"] / m - 1) ** 2 for p, m in meas)
+        if best is None or err < best[0]:
+            best = (err, ROW)
+    ROW = best[1]
+    print(f"fit: ROW {ROW:.2f} ms per extra verify row")
+    for p, m in meas:
+        print(f"  {p.label}: modelled {simulate(sets['greedy'], p)['tok_s']:.2f}, measured {m}")
+    k4 = simulate(sets["greedy"], Fixed(4, 0.6))["tok_s"] / simulate(sets["greedy"], Fixed(3, 0.6))["tok_s"]
+    print(f"  k4 / k3 at tau 0.6: modelled {k4:.3f}, measured 1.011 (#10806, older binary)")
+    pols = [Off(), Fixed(4, 0.6), Fixed(4, 0.8), Fixed(1, 0.6), Fixed(2, 0.6), Fixed(3, 0.6), Fixed(3, 0.8), Fixed(3, 0.9), Fixed(2, 0.8)]
     pols += [Cumulative(c, km) for km in (3, 4) for c in (0.15, 0.25, 0.35, 0.5)]
     pols += [Ema(lam, 3, tau) for lam in (0.05, 0.1, 0.2) for tau in (0.0, 0.6, 0.8)]
     pols += [Ema(lam, km, 0.0, c) for lam in (0.1, 0.2) for km in (3, 4) for c in (0.25, 0.35)]
