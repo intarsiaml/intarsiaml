@@ -149,6 +149,11 @@ mod imp {
         let mut call = OpCall::new(op, ins, vec![ys], attrs);
         call.exact_rows = multi;
         call.check().unwrap();
+        if fmt == Fmt::Mxfp4 {
+            // the plan-reserved workspace of the mxfp4 GEMV (activations staged once)
+            let n = intarsia_backend_metal::mxfp4::scratch(&intarsia_core::ShapeInfo::from_call(&call)).max(16);
+            call.scratch = Some(t(&be.alloc(n, MemKind::Device).unwrap(), DType::U8, &[n]));
+        }
         Case { kernel, call }
     }
 
