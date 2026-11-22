@@ -1088,3 +1088,23 @@ repacked layout. Two ways to get there:
   second model cannot hold.
 - **(b)** teach the two tensor-core prefill kernels the repacked address map. Their tile loads would gather the same bytes from
   the permuted runs, so the same bits by construction. Estimate: half a day plus a gate. Not started (needs a go).
+
+## Repacked tensor-core prefill (brief 44; `585133870`, pre-gate #11685)
+
+`ink_moe_mma` now reads the repack's address map (`rp_piece`: a 16-byte payload / 2-byte scale chunk j of row q sits at piece
+(j / L) * 32 + q * L + j % L of its R-row block). The tile copies and scale reads fetch the same bytes, so the dequantised tile
+and every product are the plain layout's. Repacked chunks above 512 pairs take the tensor-core prefill again. `ink_moe_fp4` is
+unchanged: repacked calls refuse W4A4, the only mode that reaches it.
+
+- **Bitwise:** `ink_rows` 9/9; the repack test now compares an 80-row (640-pair, tensor-core) call against the plain layout's
+  80-row call. Tiny cuda 17/17 with repack + PDL; moe_experts admitted (16 kernels / 121 cases).
+- **Output ids:** g1.2k `aaaa65a7ac70` with both arms, spec off and on (it was `4b44e4ab3ff3` before this change). g64 and g256
+  ids are identical A vs B, spec off and on.
+- **3.6k prompt prefill, spec off (rotated 0 1 1 0 0 1):** A 786 / 794 / 779 ms (mean 786), B 779 / 780 / 772 ms (mean 777).
+  No loss; B is 1.1 % faster, within noise. It was 2847 ms before this change.
+- **Kernel cost:** ink_bench MoE T=2048, 2 passes: A 7706.7 / 7686.0 us, B 7892.7 / 7877.8 us (+2.5 % in the MoE kernel alone).
+  A row's 64-byte unit now comes from four 16-byte pieces spread over the block's run, instead of one contiguous 64-byte run.
+  End to end it is inside the noise (MoE is a fraction of a prefill chunk).
+- **Single runs, not the gate:** spec off g256 36.57 -> 37.46 tok/s; spec on g256 47.12 -> 47.74.
+
+The final quiet ABBA waits for main with #498, then a rebase.
