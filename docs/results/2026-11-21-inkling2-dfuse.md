@@ -83,6 +83,12 @@ Status: in progress. Changes 1-3 are committed and timed (no gain). Changes 4-5 
   2. Answer in this doc: is the hand-off bounded under contention, and does it need every threadgroup co-resident?
   3. The tail can be default-on only if its worst case is bounded and #10964 shows a real decode gain. Otherwise it stays
      opt-in or is dropped. Route and msg are judged on their own timing.
+- 2026-11-22 ~01:25 (coordinator): #10882 (`.scratch/jobC.sh`) left an orphan `intarsia serve --port 8099 --max-batch 1`
+  (pids 53944 + child 53955, ~20 GB resident) running from 23:07 outside any slot. ink-batch's #10946 probe hit it. The
+  coordinator killed it. (1) Fix the teardown in every job script: `trap 'kill $SRV_PID; wait' EXIT` on the serve parent, a
+  free port per job, and a check after readiness that the listener is our own pid. (2) Flag this lane's quiet results from
+  23:07 until the kill, say whether any conclusion depends on them, and note that #10964's first minutes overlapped. Done:
+  see "The orphan server" under Results; `.scratch/serve_lib.sh` is the fixed teardown, used by jobC.sh and job E.
 
 ## Probes (endor, before any code)
 
@@ -195,7 +201,7 @@ token; left for after those lanes land.
 | decode step, one command buffer (cb trace, 124 steps, median; 2 reps) | 15.44 / 15.49 ms | 15.54 / 15.56 ms |
 | `generate` decode, short prompt (129 tokens; 2 reps) | 64.7 / 64.3 tok/s | 64.3 / 64.2 tok/s |
 | `generate` decode, 5051-token prompt (128 tokens; 2 reps) | 60.3 / 60.7 tok/s | 60.8 / 61.0 tok/s |
-| localeval speed decode, 136 / 5136 prompt tokens | 65.0 / 61.6 tok/s | 65.1 / 61.8 tok/s |
+| localeval speed decode, 136 / 5136 prompt tokens | 65.0 / 61.6 tok/s | invalid: the on server never bound its port, so this run measured the off server (orphan, below) |
 | controllers, per-dispatch trace (pipelined, one buffer per dispatch) | 3.70 ms | 3.46 ms |
 | controllers, profiled steps (one waited buffer per op call, corrected) | 2.80 ms | 3.27 ms |
 
@@ -265,5 +271,38 @@ In-stream microbench (`examples/ink_ctrl_bench.rs`, raw/ctrl_bench_C.md; us per 
   outputs are tiny, which explains its 4-15 ms. #10964 measures the tail's per-call GPU time directly
   (`ink_ctrl_bench --tail-dist 2000`: one command buffer per dispatch, median / p99 / max), unloaded and while a second
   process (`.scratch/gpuload.swift`) keeps every GPU core streaming.
+
+### The orphan server (2026-11-21 23:07 until the coordinator killed it at about 01:20)
+
+**Cause.** `.scratch/jobC.sh` started each server as `run $m $B serve ... &`, where `run` is a shell function. So `$!` was the
+function's subshell, and `kill $SP` killed the subshell, not the server supervisor. The off server (port 8099, Inkling
+resident, idle) outlived the job. When the on server started it could not bind 8099 (`serve_on.log`: "Address already in
+use", exit 78). The readiness probe then answered from the off server.
+
+**Effects on this lane's results:**
+- #10882: the localeval row (65.0 / 61.6 vs 65.1 / 61.8) is invalid, because both arms measured the off server; it is marked
+  so in the table. The cb traces, `generate` and 5k rows ran before 23:07 and are unaffected. No conclusion of this lane rests
+  on the localeval row: "no decode gain" stands on the cb-trace step spans.
+- #10952 (00:18-00:22): bitwise equality and the G2 / G3 KL are deterministic outputs, so they are unaffected. The stress
+  batch wall times (72-205 ms) ran with the idle server holding ~20 GB. The only conclusion drawn from them is "no hang,
+  every call bitwise".
+- #10964 (from 01:18): its tests are bitwise checks (unaffected). The microbench (01:19-01:21) overlapped the server's last
+  minute or so. Its comparisons are A/B within one process, run back to back, and an idle resident server weighs on both
+  arms alike. The per-switch normal-step timing and the per-dispatch trace ran in the job's recovery block from 01:21 on,
+  after the kill.
+
+**Fix.** `.scratch/serve_lib.sh` (sourced by jobC.sh and job E):
+- `serve_start` runs the server on a free port of its own, through `env` (so `$!` is the supervisor itself).
+- After readiness it checks that the port's listener is the supervisor or its child.
+- `serve_stop` sends SIGTERM to the supervisor, waits, and kills any listener of ours that is left.
+- An EXIT trap stops a server that is still up when the job ends.
+
+### #10964 first pass: the binary lost its Metal feature
+
+`cargo test --release -p intarsia-cli --test docs_env_vars` (step 2) rebuilt `target/release/intarsia` without
+`--features metal`. Every model step after it failed at once ("built without the Metal backend"): admission, real-model
+bitwise, timing and the per-dispatch trace. A recovery block appended to the running script rebuilt the binary and reran
+those steps in the same slot (the first-pass logs are in `.scratch/D/first/`). Job scripts now build the metal binary after
+any `cargo test` of intarsia-cli.
 
 PENDING_ATTRIBUTION
