@@ -260,6 +260,67 @@ and batch 6/6, cuda / hip lib 34 / 31, docs_env_vars 2/2. Combined gate: endor #
   (`cargo test -p intarsia-core --lib ops::`, `kernels test --op ink_route`, Inkling `plan show` must list `ink_route` and no
   `ink_reserved`). The reservation was refused twice (409: collides with waiting quiet jobs #11183, then #11185 / #11188 /
   #11194), so the gate is queued normally as #11206 (9th); the coordinator was told.
+- 2026-11-22 (coordinator): leave #11206 in line (the jobs ahead are real gates of other lanes). Have the follow-ons ready to
+  queue when their triggers pass: (1) the quiet baseline: localeval plus batch_step B 1/8/16, median of 3; (2) the pack12
+  merge with G2 short (defaults) + md5 against the combined-gate tip, after #11194; (3) the ink-hostgap Gumbel merge check
+  (rows_exact + the gumbel Metal tests on the merged tree), after #11182. No other endor jobs until #11206 passes.
+- 2026-11-22 (coordinator): batch_step's random-id prompts route nearly every row to the same experts (union ~23 per MoE call
+  at B16 vs ~82 for independent routing): record it as "synthetic random-id prompts, regression reference only", not
+  real-traffic speed; the real-traffic number is localeval's concurrent run; ink-batch sends a real-text mode after #11206.
+- Lane, follow-ons ready (not queued): `.scratch/q_baseline.sh` -> `serve_le2.sh` (quiet gpu,cpu, --mem 32, ~80 min: A
+  speed-plain at max-batch 1 / max-seq 20480 with the prefill-chunk line and the server's peak memory, B conc-plain-1k at
+  max-batch 16 / max-seq 8192, C batch_step x3 labelled synthetic); `.scratch/pk12check.sh` (G2 short both modes + confident
+  rows, md5 64 / 256 vs `.scratch/cg/`); `.scratch/gumbelcheck.sh` (metal rows_exact + gumbel, core op ids, cpu gumbel
+  reference). The Gumbel code is on `ink/hostgap-gumbel` (336e20250: `GumbelArgmax = 96`, appended after the reserved block,
+  so `ALL` becomes 97), not on `ink/hostgap`. Trial merges on the current tip: both ink/hostgap-gumbel and ink/pack12
+  conflict only in the op lists (ops.rs, cpu fast / reference / lib, cuda / hip kernels; pack12 also model/inkling2.rs).
+- 2026-11-22 (coordinator): do not append `GumbelArgmax` as op 96 (ALL 97); put it in the lowest free reserved slot, as
+  InkRoute, so `ALL` stays 96. Check ink/mtp first (DSpark draft ops said to use 92-95). Add a reserved op slot map here;
+  every lane that adds an op claims a slot in it first. The gumbel check asserts `GumbelArgmax == <slot>` and `ALL == 96`.
+
+## Reserved op slot map (Inkling-2 block 76..=95, `ALL` = 96)
+
+Claim a slot here before adding an op; replace the placeholder in place (same position in the enum, `ALL`, `as_str`, arity).
+
+| Slot | Op | Branch | State |
+|---|---|---|---|
+| 76 | `InkRoute` (router GEMV + MoeRoute) | ink/dfuse | merged (b1a4f3f62) |
+| 77 | `GumbelArgmax` (device Gumbel sampler) | ink/hostgap-gumbel | claimed; on its branch as 96 (appended), moved to 77 at merge |
+| 78-79 | reserved | ink/dfuse block | free (dfuse-route uses only 76) |
+| 80 | `MatmulP12` | ink/pack12 | on its branch, not merged (waits for #11194) |
+| 81-83 | reserved | ink/pack12 block | free |
+| 84-87 | reserved | ink/d1row block | free (d1row's kernels were not merged; the lane is gone) |
+| 88 | `HeadScreen` | ink/fp8 | merged (26fdda63d) |
+| 89 | `LogitsGather` | ink/fp8 | merged |
+| 90 | `ScreenArgmax` | ink/fp8 | merged |
+| 91 | reserved | ink/fp8 block | free |
+| 92-95 | reserved, claimed for the DSpark drafter device ops ((c) top-k ids / values + p1, tap mixes) | ink/mtp | claimed by the mtp brief (mtp doc, 2026-11-21); no op on ink/mtp 85265f9d5 / b12b1afeb yet (its ops.rs ends at InkAttnDecode, ALL 76) |
+
+Lane note on 77: it is the lowest free slot but sits in dfuse's block; dfuse's current work (dfuse-route 120cfe4b9) adds no op,
+so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need not stay whole; the map is accepted.
+
+- 2026-11-22 (ink-batch lane): ink/batch dcff9e8c4 / ff9f65bf9 (bench only, not on ink/metal) switch batch_step's default
+  prompts to real text (`--prompts text`). The gate and the baseline on ink/metal's own tree keep the random-id reference;
+  if ink/batch is merged before the baseline runs, add `--prompts random` to batch_step to keep the same reference. The
+  real-text number comes from ink-batch's job after #11206. Lane: ink/batch is not merged; `serve_le2.sh` adds
+  `--prompts random` automatically when batch_step knows the flag.
+- 2026-11-22 (coordinator): speed condition on the pack12 merge. Quiet #11183 (P12 vs bf16 us/call): R=1 in_proj
+  1.22-1.27x, wo 1.22x, unembed 1.32x; R=4 in_proj S=1 1.05x, S=3 1.11x then 0.92x (noisy), wo 1.15x, unembed 1.33x; R=8/16
+  never measured, but default-on P12 runs batched decode (B 8/16) and the DSpark verify (4 rows). So the quiet baseline runs
+  batch_step B 1/8/16 (`--prompts random`, 3 reps) with defaults vs `INTARSIA_INK_PACK12=0` on the same binary: B16 with P12
+  more than 2 % slower -> flip only the R=1 paths, or stop and report; within 2 % the flip stands. #11194 still required.
+  Lane: arm D in `serve_le2.sh` (ABAB x3, medians of the batched step ms per B, on/off ratio, the 1.02 rule printed); it runs
+  only if pack12 is merged, so the order is #11206 -> (#11194 passes) pack12 merge + `pk12check.sh` -> quiet baseline.
+- 2026-11-22 (ink-prefill lane): take ink/prefill-merge 297cebadc instead of 05f1c702e: one docs commit, tuning.md rows for
+  `INTARSIA_INK_BLEND_NAX` / `_MOE_NAX2` / `_MOE_NAXSKIP` / `_PREFILL_TRACE` (bespin #11216 docs_env_vars 2/2), no code.
+  Lane: ink/metal already has rows for these four (7e5e6010e, written at the merge); 297cebadc merges after #11206 (the gate
+  tree stays fixed), keeping the lane's own row text and dropping mine, so each variable has one row.
+- 2026-11-22 (coordinator): confirms 297cebadc after #11206, the prefill lane's row text, one row per variable. Prologue split
+  (ink/prologue-split-merge 61980c882, default-on) is not ready: waits on speed check #11221; hash only if it passes.
+- 2026-11-22 (coordinator): merge ink/prefill-naxskip 2455b7abc (parent 297cebadc) right after 297cebadc: the wrong-results
+  probe `INTARSIA_INK_MOE_NAXSKIP` goes behind a new `ink-probe` cargo feature (env var and its tuning row removed, no shader
+  change; bespin #11237 check clean with and without the feature, docs_env_vars 2/2, cpu inkling2 8/8). After merging:
+  docs_env_vars and one Metal build on the merged tree; no speed gate (default path unchanged).
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
