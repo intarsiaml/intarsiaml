@@ -1038,3 +1038,17 @@ var that was unset, so they ran their skip path). ink/metal's Metal suite is gre
   0 failed on both; failure sets identical (empty). No GPU work; radiance untouched. Memguard: 63 readings, minimum 26 GB
   available (09:25:59, base build), last 29 GB (09:31:10, no containers), 0 kills. Cleanup in fleetq #11448: memguard log and
   script, both source trees and both cargo-target volumes removed from tatooine; nothing of this lane left in its home dir.
+
+## Landing ink/batch (coordinator brief 2026-11-22)
+
+- Branch ink/batch-land from origin/main 1f226a2e3 (worktree .worktrees/ink-batch-land), ink/batch ef2598549 merged at
+  03e22a76b with no conflicts (main's #489 / #490 and 040748800's macOS gate in inkling2_batch.rs kept). Code vs main: 7 files
+  +433/-5, all in backend-metal (inkmix.rs, inkmoe.rs, inkmoe_bench example, tests/inkmix.rs), kernels/metal
+  (inkling2_mix.metal, inkling2_moe.metal) and one models test (inkling2_batch.rs: batched sampler rows softcapped). No core,
+  cli, cpu, cuda, hip or recipe file.
+- Checks queued: endor #11528 (quiet gpu,cpu: Metal builds of main and land; plan show Qwen3-8B / Llama / Inkling; greedy md5
+  64 / 256 main vs land; batch_step B 1 / 8 / 16 asserting batched == solo; backend-metal inkmix / inkmoe / rows_exact / lib;
+  models inkling2 + inkling2_batch on Metal, inkling2_batch on cpu; docs_env_vars; kernels test ink_in_proj / moe_experts /
+  moe_experts_mxfp8). spark1 #11529 (CPU: CUDA builds of both, plan show --json 35B / 8B; HIP check-only as CI; work dir removed
+  at the end).
+
