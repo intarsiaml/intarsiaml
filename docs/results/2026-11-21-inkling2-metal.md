@@ -153,6 +153,11 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   starts in ~1-1.5 h. pack12's model gate #11161 (24 GB, ~20 min) runs inside #11179; if the tok/s rounds overlap it
   (log ink-pack12/.scratch/flip2_job.log), say so rather than trusting the numbers. fp8: merge 05438a81f only after its rerun
   3 shows "screen SERVED" in both logs.
+- 2026-11-22 (ink-prefill lane): merge ink/prefill-merge at 05f1c702e instead of 96740cbe2: 96740cbe2 plus
+  `[tuning.metal] prefill_chunk = 2048` in recipes/inkling2.toml (#11109: G2/G3 pass at 2048; prefill +62 % at 1k,
+  +52-70 % at 4k, +69-71 % at 16k; 1k cell rejected for spread in both 2048 runs; 4k decode -1.5 % / -0.3 %). Bespin #11191
+  recipe tests pass. Combined gate: confirm serve logs "prefill chunk 2048" without the flag; record peak memory at 16k
+  (first measurement). Revert = 05f1c702e alone.
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
