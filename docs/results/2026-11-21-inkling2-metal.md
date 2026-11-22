@@ -420,3 +420,10 @@ At B = 1 the teacher-forced decode path (`forward_logits_decode`, engine.rs:984)
 `model.forward`, never `forward_batch`, so no call has `rows`; ink/batch's inkling2.rs changes are no-ops there (batch None:
 `pair_rows` true, the same fused rule). It did change solo-path kernels (inkling2_attn.metal, gemv_multirow.metal,
 multirow.rs), which the bisect covers.
+
+Per-row decode KL21 against the golden, previous tip (#10901 self-golden) vs 45887198b (#11048), G2 short
+(`docs/results/2026-11-21-inkling2-metal/decrows.py`): six of eight prompts are unchanged within noise. chat_system: one
+row (pos 57, golden margin 0.77) 0.011 -> 0.303. chat_reasoning: the error **grows across the consecutive teacher-forced
+decode rows**: pos 92-104 old 0.007-0.018, new 0.036, 0.023, 0.123, 0.029, 0.131, **0.431** (pos 103, margin 0.06),
+0.119. Mean 1.0e-2 -> 5.8e-2. Prefill rows of the same prompts barely move. Growth over successive decode steps points at
+state written by the 1-row decode path (conv rings, KV), not at a single near-tie row.
