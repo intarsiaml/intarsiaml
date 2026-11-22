@@ -186,6 +186,14 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   (1) The Metal half stays out of the Inkling integration merge until #11301 passes Metal build + admission; if #11301 fails,
   revert only the Metal constant and report. (2) Go ahead with the CUDA prefill chunk sweep, then the rest of the prefill top 3.
 
+- (coordinator, 24th) Approved: prefill chunk 2048 the CUDA default for Inkling-2 on ink/cuda-mixmoe (1.9x at 4k, md5
+  identical, G2 / G3 pass, RSS unchanged). (1) Make the change, record the revert (`--prefill-chunk 256` or the recipe line),
+  same recipe mechanism as Metal; no push / merge into main. (2) Measure warm serve prefill at 2048 (spark1 or spark2, fleetq
+  `--quiet gpu,cpu`, `--mem` budgeted): one untimed warm request, then ~1k / 4k / 9k prompts x2; check the ~2500 tok/s
+  estimate, report TTFT and decode. (3) Then start prefill MoE MMA W4A4 on the FP4 tensor cores (moe_sm120 way); same gates
+  (rows-exact or tolerance-justified admission, G2 / G3, greedy md5 or explained drift); decode MoE repack after. (4) Metal
+  half of 24ab7961d out of any merge until #11301 passes.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
@@ -458,8 +466,19 @@ nsys (prefill window only):
 | mix / conv / blend | 240.4 ms, 3548 launches | 243.0 ms, 3108 launches |
 | in_proj / matmul (cuBLAS, mma) | 39.5 ms | 41.6 ms |
 
-Idle-gap breakdown at chunk 2048 (`.scratch/gaps.sh`): 5257 gaps under 5 µs sum to 11.2 ms; 9 gaps over 1 ms sum to 516.1 ms, and two of them are 339.2 ms (`rmsnorm` -> first cuBLAS `nvjet_sm121_tst_mma_192x160x64`) and 150.7 ms (`ink_ring` -> first `nvjet_sm121_tss_mma_64x104x64`). Runtime API in the same window: `cuLibraryLoadData` 31 calls 461 ms, `cuKernelGetFunction` 144 calls 303 ms. So the idle time is first-use lazy module loading of cuBLAS kernels in a fresh CLI process, not launch latency. Steady-state (warm serve) prefill at 2048 should approach GPU busy, about 1.65 s = ~2500 tok/s at 4k; not yet measured warm.
+Idle-gap breakdown at chunk 2048 (`.scratch/gaps.sh`): 5257 gaps under 5 µs sum to 11.2 ms; 9 gaps over 1 ms sum to 516.1 ms, and two of them are 339.2 ms (`rmsnorm` -> first cuBLAS `nvjet_sm121_tst_mma_192x160x64`) and 150.7 ms (`ink_ring` -> first `nvjet_sm121_tss_mma_64x104x64`). Runtime API in the same window: `cuLibraryLoadData` 31 calls 461 ms, `cuKernelGetFunction` 144 calls 303 ms. These are first-use stalls before the first cuBLAS GEMM shapes, not launch latency. They are not CUDA's lazy module
+loading: `CUDA_MODULE_LOADING=EAGER` leaves the CLI prefill unchanged (#11326: LAZY 1945 ms, EAGER 1945 / 1940 ms, same md5),
+so the stall is inside cuBLAS(Lt) first use (its own library loads / heuristics) or host-side first touch. Whether it recurs
+per request is what the warm serve run (brief 24 item 2) measures.
 
 Gates at chunk 2048: G2 short PASS (KL21 2.376e-3, 0/363 confident misses), G2 long PASS (3.124e-3, 1/1206), G3 4k PASS (9.671e-3, 2/8229).
 
 Prefill ranking after this: chunk 2048 is a 1.9x prefill win with identical tokens and gates, so flip it (coordinator call). After that, MoE experts are 54% of warm GPU time (883 ms); the next prefill lever is the MoE MMA kernel (W4A4 FP4 tensor cores as vLLM's sm120 path does), then "other" (475 ms, unclassified kernels). Decode MoE repack (~9% decode) remains the decode lever.
+
+### Chunk 2048 default (brief 24 item 1)
+
+`recipes/inkling2.toml` gains `[tuning.cuda] prefill_chunk = 2048` (the same `resolve_prefill_chunk` mechanism the other
+families use; other backends keep the default). Revert: `--prefill-chunk 256` per run, or delete that section.
+
+Metal admission #11301 (endor, the Metal half of 24ab7961d: situ tol + per-case seeding): 28 kernels admitted `yes` at both
+`--max-seq 20480` and `--mem-budget 30 --max-seq 12288`, none refused, rc 0. That clears brief 23 / 24 item 4 for the Metal half.
