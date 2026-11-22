@@ -688,7 +688,8 @@ A. Spec off (the default) is a no-op vs main.
   - A3 (endor, Metal, branch): every test binary passes with 0 failed and no panic: `intarsia-backend-metal` `--lib` (kernel
     pin list) and `--test` dense, topk, inkmix, inkmoe, rows_exact, screen, inkling2_attn, inkctrl; `intarsia-models` with
     `INTARSIA_INKLING2_BACKEND=metal --test-threads 1`: inkling2, inkling2_batch, inkling2_dspark, inkling2_dspark_cut,
-    inkling2_verify_softcap; `intarsia-cli --features metal --test docs_env_vars`; `kernels test --backend metal --op hc_pre`
+    inkling2_verify_softcap; `intarsia-models` gdn_verify_metal, inkling2_mix_decode_cpu, inkling2_real_decode_ne (see the
+    amendment below); `intarsia-cli --features metal --test docs_env_vars`; `kernels test --backend metal --op hc_pre`
     admits its kernel.
   - A4 (bespin, macOS, CPU slot): CI's check steps (`cargo check --workspace --locked`; metal; cuda / hip cfgs `--all-targets`)
     finish without error, and CI's test step (`cargo test --workspace --locked --no-fail-fast` minus metal / cuda / hip) has
@@ -707,6 +708,15 @@ B. DSpark k3, gate 0.8 (branch, endor, Metal).
   - B3: `serve --max-batch 1 --max-seq 20480` with DSpark (admitted kernels only): one ~1.4k-token greedy chat request returns
     HTTP 200 and `intarsia_spec_steps_total` > 0 after it.
 C. The PR's own CI (ubuntu check / test, macOS metal check, cuda / hip cfgs, reproducible build): every job green before merge.
+
+Amendment (before #11532 ran, after bespin #11530): A4's test step on bespin (code 8f481dad2) had 7 failed binaries. One is real:
+`docs_env_vars` (no rows for `INTARSIA_DSPARK_CUT`, `_DEVICE_TOPK`, `_ROWS_KERNELS`; fixed in e7cfbc65b). The other six are
+`#![cfg(target_os = "macos")]` Metal binaries of intarsia-models that cannot run on bespin (no Xcode Metal toolchain there, so no
+metallib: "the metallib was not built"; and the script's `CI=0` trips their skip asserts): gdn_verify_metal, inkling2_mix_decode_cpu,
+inkling2_real_decode_ne. Ubuntu CI never compiles them. So A4's test step moves to Linux (spark1, CPU slot, `CI` unset, same rule:
+0 failed binaries, on the final code), and A3 on endor adds those three binaries (the real decode one with
+`INTARSIA_METAL_TEST_MODEL` = the checkpoint). A5 reruns on the final code in the same spark1 job (#11534 ran it on 8f481dad2,
+before 840adbca6 touched `load.rs`).
 
 Speed protocol (after A and B pass; branch tip binary, endor, one `--quiet gpu,cpu` slot): `serve --backend metal --max-batch 1
 --max-seq 20480` per arm (off, DSpark), localeval `suite --tier adhoc --cells speed-plain` (143 / 1k / 4k / 16k
