@@ -1687,3 +1687,83 @@ difference, and a concurrent encoder with barriers costs more per transition tha
   6. localeval speed (sizes 128 / 5000, gen 128, 3 reps; serve --max-batch 1 --max-seq 8192) in the order A B B A.
 - **unanimis:** job K's finding is captured as record 46fa531e (about 1 us per dependent dispatch, tracking makes no
   difference, conc + barrier is dearer).
+
+## Final results (job W #11465, 10:43-10:51, tip 81bb8c4b8; raw/W_*)
+
+**The lane's shipped changes (route fusion, per-pass messages, mix hoist, blend norm per channel; all default on for
+Metal) cut 70 dispatches per token (613 -> 543) and 0.77 ms of controller GPU time per token (per-dispatch method).
+Decode is about 4.5-5 % faster: +3.3 tok/s at a short prompt and +3.0 at 5k (localeval, first pair).** Outputs are
+bitwise unchanged. Both targets are **not met**: 543 dispatches (target <= 350) and 2.97 ms controllers (target <= 1 ms).
+
+### Gates at the tip (all pass)
+
+- **Metal tests:** backend-metal Inkling tests 13 / 13 (inkmoe, inkling2_attn, inkctrl, inkctrl_nometal4, inkmix,
+  inkload). Models on Metal 20 / 20: inkling2 (**G1 tiny**), inkling2_batch, inkling2_mix_decode_cpu.
+- **Greedy md5, after vs before:** equal at 64 and 256 tokens, and equal to job G's (65cde8f3..., 61fd59fe...).
+- **G2 (decode mode, oracle golden), mean KL:**
+  - short: 2.928e-3, threshold 4e-3;
+  - long: 2.761e-3, threshold 6e-3.
+
+  Both equal ink-metal's #11206. The full-sequence rows are 2.087e-3 / 3.239e-3.
+- **G3 (prefill mode, vLLM golden), mean KL:**
+  - short: 8.420e-3, threshold 1.05e-2;
+  - long: 1.229e-2, threshold 1.65e-2.
+- **Self-goldens:** all four are byte-equal to job G's (fcd05b172).
+- **plan show:** Qwen3-8B and Llama-3.1-8B are byte-identical to the base binary.
+
+### Dispatches and controllers per token (before = the same binary with the four switches at 0)
+
+| | Brief (a88db4620) | Before (switches off) | After (tip defaults) | Change |
+|---|---|---|---|---|
+| Dispatches per token (normal step, short) | 613 | 613 | **543** | -70 |
+| Dispatches per token (normal step, 5k) | | 621 | 551 | -70 |
+| Controller dispatches per token | | 364 | **294** | -70 |
+| Controller GPU ms per token (per-dispatch method, job E's) | 29 % share | 3.743 | **2.972** | **-0.771** |
+| Per-dispatch GPU busy per token (ms) | 15.8 | 15.010 | 14.096 | -0.914 |
+| Normal-step span (ms per token), short / 5k | 19.8 wall | 13.930 / 14.877 | 13.263 / 14.195 | -0.667 / -0.682 |
+
+The per-dispatch method runs one command buffer per dispatch, so it overstates each dispatch by about 1.7 us; the
+normal-step span is the real cost. Where the -70 dispatches and -0.77 ms come from (raw/W_disp_*.txt):
+- router GEMV + MoeRoute -> InkRoute: -48 dispatches, -0.13 ms (0.705 -> 0.579);
+- per-pass messages: AttnResMix 26 -> 4 per token, -22 dispatches, -0.14 ms;
+- ConvMix row kernel with the hoisted loads: -0.25 ms (1.651 -> 1.402);
+- blend norm per channel: -0.23 ms (0.429 -> 0.203).
+
+### Decode speed (localeval speed, serve --max-batch 1 --max-seq 8192, 128 generated tokens, median of 3 reps)
+
+| Run (order) | Arm | ~135-token prompt decode tok/s | 5k-token prompt decode tok/s | 5k prefill tok/s (box state) |
+|---|---|---|---|---|
+| 1 | after | **75.6** | **70.5** | 2869 |
+| 2 | before | **72.3** | **67.5** | 2679 |
+| 3 | before | 67.3 | 65.3 | 2031 |
+| 4 | after | 65.9 | 65.0 | 1886 |
+
+- **Runs 3 and 4 are contaminated by a slow box state, not by the code.** Identical config A fell from 75.6 to 65.9
+  tok/s between runs 1 and 4. 5k prefill fell 30 % in both arms, and prefill is outside the switches' T <= 16 decode scope.
+  The fleetq log shows no other slotted job on endor in 10:49-10:51; the cause was not identified.
+- **Reported numbers: pair 1** (runs 1-2), cross-checked by the engine's own normal-step traces from the same slot
+  before localeval:
+
+| Prompt | Before (tok/s) | After (tok/s) | Gain |
+|---|---|---|---|
+| short (engine) | 71.54 | 75.22 | +3.7 |
+| 5k (engine) | 67.01 | 70.28 | +3.3 |
+| short (localeval, pair 1) | 72.3 | 75.6 | +3.3 |
+| 5k (localeval, pair 1) | 67.5 | 70.5 | +3.0 |
+
+  The two methods agree within 0.5 tok/s. A clean second pair would take another quiet slot of about 8 minutes.
+- **Context for the brief.** Its 50-52 / 48.3 tok/s were measured at a88db4620. The tip's "before" runs 72 / 67 tok/s
+  with the same 613 dispatches, so the difference comes from other lanes merged since (pack12 in_proj / wo / unembed,
+  prefill, token feedback), not from this lane.
+- **Opt-in, not in "after":** `INTARSIA_INK_MOE_T1` gains 0.27 / 0.29 ms per token (job G), bitwise.
+
+### Why the targets are not met (jobs Q and K)
+
+- **Dispatches.** In the real step, one more dependent dispatch costs about 1 us (1.03 short, 0.85 at 5k). Reaching
+  350 dispatches (-193) would save about 0.2 ms per token. This slope prices a near-empty transition; a fusion of real
+  kernels also saves their ramp, tail and own work. For example, the attention comb's nocomb bound is 0.15 ms against
+  0.05 at the slope. No remaining candidate measured >= 0.3 ms per token.
+- **Controllers.** The remaining 2.97 ms (per-dispatch) is mostly the ConvMix row kernel (1.40) and its blend stages
+  (0.84). Probe P put the row kernel's cold-operand ceiling at 0.085 ms per token. Change 3 (the fused blend tail) was
+  slower net. The controllers' byte floor is about 0.25 ms per token, but the measured levers all stopped short of the
+  0.3 ms bar.

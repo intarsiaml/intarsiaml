@@ -1,0 +1,6 @@
+normal A short: steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.263 mean 13.280 min 13.024 max 13.869  decode 3403 ms (75.22 tok/s) md5 d03580fb172c4b088977979647b67712
+normal A 5k: steps 252 dispatches/step 551 buffers/step 2  span ms/step median 14.195 mean 14.214 min 14.068 max 14.754  decode 3643 ms (70.28 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+per-dispatch A: 30 decode steps: GPU busy 14096 us, span 14028 us, dispatches 543; CONTROLLERS (per-dispatch, pipelined): 2.972 ms per token
+normal B short: steps 252 dispatches/step 613 buffers/step 2  span ms/step median 13.930 mean 13.961 min 13.769 max 14.879  decode 3578 ms (71.54 tok/s) md5 d03580fb172c4b088977979647b67712
+normal B 5k: steps 252 dispatches/step 621 buffers/step 2  span ms/step median 14.877 mean 14.905 min 14.770 max 15.498  decode 3820 ms (67.01 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+per-dispatch B: 30 decode steps: GPU busy 15010 us, span 14734 us, dispatches 613; CONTROLLERS (per-dispatch, pipelined): 3.743 ms per token
