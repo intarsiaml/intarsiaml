@@ -32,15 +32,30 @@ inline float dot8(uint4 w, uint4 x) {
     return a;
 }
 
+// Row indirection (lane ink-fp8, the screened greedy head's `LogitsGather`, crates/intarsia-core/src/screen.rs): with
+// p.pad0 = C > 0 this same function and pipeline compute the candidate rows of one activation row instead of every row, so a
+// gathered logit is this kernel's own output for that row, by construction. cnt[0] in 1..=C: slot j computes row cand[j] and
+// writes Y[y_skip + j] (j < cnt[0]); any other cnt[0] (above the cap, or the screen's non-finite mark): every row, as the
+// plain launch. The plain launch (pad0 = 0, `Logits`) binds Y at 4 and 5 and never reads them.
 kernel void gemv_f32o_v(device const uint4* W [[buffer(0)]],
                         device const uint4* X [[buffer(1)]],
                         device float* Y [[buffer(2)]],
                         constant GemvParams& p [[buffer(3)]],
+                        device const int* cand [[buffer(4)]],
+                        device const int* cnt [[buffer(5)]],
                         uint tg [[threadgroup_position_in_grid]],
                         uint sg [[simdgroup_index_in_threadgroup]],
                         uint lane [[thread_index_in_simdgroup]]) {
     const uint k8 = p.k / 8;
-    const uint row = tg * 4 + sg;
+    const uint slot = tg * 4 + sg;
+    uint row = slot;
+    if (p.pad0 != 0) {
+        const int ct = cnt[0];
+        if (ct >= 1 && (uint)ct <= p.pad0) {
+            if (slot >= (uint)ct) return;  // the whole simdgroup: slot is uniform in it
+            row = (uint)cand[slot];
+        }
+    }
     device const uint4* wr = W + (ulong)min(row, p.n - 1) * k8;  // rows past N read a valid row and are not stored
     float acc = 0.0f;
     const uint block = 32 * 4;
@@ -54,7 +69,7 @@ kernel void gemv_f32o_v(device const uint4* W [[buffer(0)]],
     }
     for (i = nblk * block + lane; i < k8; i += 32) acc += dot8(wr[i], X[i]);
     const float s = simd_sum(acc);
-    if (lane == 0 && row < p.n) Y[p.y_skip + row] = s;
+    if (lane == 0 && slot < p.n) Y[p.y_skip + slot] = s;
 }
 
 kernel void gemv_f32o_scalar(device const ushort* W [[buffer(0)]],

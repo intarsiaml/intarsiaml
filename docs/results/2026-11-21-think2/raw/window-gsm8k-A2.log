@@ -1,0 +1,3 @@
+[07:03:55 +0s] window gsm8k-A2 mode A set gsm8k limit default max_tokens 16384; fleetq job 10501; vLLM counters (success gen_tokens) 2984 1254008
+[08:36:35 +5560s] vLLM counters after: 3184 1695887
+[08:36:35 +5560s] window end

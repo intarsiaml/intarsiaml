@@ -1,0 +1,10 @@
+B-smoke-gsm8k run_id=20261121-011046-adhoc-think2-B-smoke-gsm8k
+A-smoke-gsm8k run_id=20261121-011140-adhoc-think2-A-smoke-gsm8k
+B-smoke-bbh run_id=20261121-011243-adhoc-think2-B-smoke-bbh
+A-smoke-bbh run_id=20261121-011346-adhoc-think2-A-smoke-bbh
+A-bbh-A1 run_id=20261121-014832-adhoc-think2-A-bbh-A1
+B-bbh-B run_id=20261121-030001-adhoc-think2-B-bbh-B
+A-bbh-A2 run_id=20261121-033803-adhoc-think2-A-bbh-A2
+A-gsm8k-A1 run_id=20261121-045002-adhoc-think2-A-gsm8k-A1
+B-gsm8k-B run_id=20261121-061428-adhoc-think2-B-gsm8k-B
+A-gsm8k-A2 run_id=20261121-070356-adhoc-think2-A-gsm8k-A2

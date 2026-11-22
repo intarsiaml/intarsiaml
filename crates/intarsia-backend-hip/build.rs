@@ -60,7 +60,7 @@ fn main() {
     println!("cargo:rustc-check-cfg=cfg(ik_hip)");
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=../../kernels");
-    for v in ["ROCM_PATH", "HIP_PATH", "INTARSIA_HIP_ARCH", "INTARSIA_NO_HIP", "INTARSIA_HIP_CHECK_ONLY"] {
+    for v in ["ROCM_PATH", "HIP_PATH", "INTARSIA_HIP_ARCH", "INTARSIA_NO_HIP", "INTARSIA_HIP_CHECK_ONLY", "INTARSIA_HIP_KERNELS_NOBUNDLE"] {
         println!("cargo:rerun-if-env-changed={v}");
     }
     let arch = std::env::var("INTARSIA_HIP_ARCH").unwrap_or_else(|_| "gfx1201".into());
@@ -159,7 +159,14 @@ fn main() {
 
     println!("cargo:rustc-cfg=ik_hip");
     println!("cargo:rustc-link-search=native={}", out.display());
-    println!("cargo:rustc-link-lib=static=intarsia_hip_kernels");
+    // Lane rocm102-bisect (debugging only, off by default): INTARSIA_HIP_KERNELS_NOBUNDLE=1 keeps the kernel archive out of the
+    // rlib, so the final link reads libintarsia_hip_kernels.a from the -L path and a re-run of the captured link command can
+    // swap in an archive mixed from two compilers' objects (scripts/rocm102/bisect/).
+    if std::env::var("INTARSIA_HIP_KERNELS_NOBUNDLE").map(|v| v == "1").unwrap_or(false) {
+        println!("cargo:rustc-link-lib=static:-bundle=intarsia_hip_kernels");
+    } else {
+        println!("cargo:rustc-link-lib=static=intarsia_hip_kernels");
+    }
     for d in lib_dirs(&hipcc) {
         println!("cargo:rustc-link-search=native={}", d.display());
         // also usable at run time without LD_LIBRARY_PATH when the loader cache does not know ROCm

@@ -1,0 +1,643 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.27
+   Compiling quote v1.0.47
+   Compiling libc v0.2.190
+   Compiling serde_core v1.0.229
+   Compiling itoa v1.0.18
+   Compiling serde v1.0.229
+   Compiling cfg-if v1.0.5
+   Compiling allocator-api2 v0.2.21
+   Compiling foldhash v0.2.0
+   Compiling equivalent v1.0.2
+   Compiling memchr v2.8.3
+   Compiling log v0.4.34
+   Compiling ident_case v1.0.1
+   Compiling strsim v0.11.1
+   Compiling zmij v1.0.23
+   Compiling serde_json v1.0.154
+   Compiling smallvec v1.16.3
+   Compiling zerocopy v0.8.62
+   Compiling version_check v0.9.5
+   Compiling thiserror v2.0.21
+   Compiling either v1.19.0
+   Compiling ryu v1.0.23
+   Compiling bitflags v2.13.2
+   Compiling heck v0.5.0
+   Compiling rustversion v1.0.23
+   Compiling getrandom v0.3.4
+   Compiling crossbeam-utils v0.8.23
+   Compiling bytes v1.12.1
+   Compiling pin-project-lite v0.2.17
+   Compiling crossbeam-epoch v0.9.21
+   Compiling unicode-segmentation v1.13.3
+   Compiling once_cell v1.21.4
+   Compiling parking_lot_core v0.9.12
+   Compiling crossbeam-deque v0.8.8
+   Compiling httparse v1.10.1
+   Compiling itertools v0.14.0
+   Compiling static_assertions v1.1.0
+   Compiling scopeguard v1.2.0
+   Compiling rayon-core v1.13.0
+   Compiling futures-core v0.3.34
+   Compiling percent-encoding v2.3.2
+   Compiling ahash v0.8.12
+   Compiling lock_api v0.4.14
+   Compiling fnv v1.0.7
+   Compiling generic-array v0.14.7
+   Compiling signal-hook v0.3.18
+   Compiling find-msvc-tools v0.1.14
+   Compiling shlex v2.0.1
+   Compiling hashbrown v0.17.1
+   Compiling hashbrown v0.16.1
+   Compiling regex-syntax v0.8.11
+   Compiling unicode-width v0.2.2
+   Compiling anyhow v1.0.104
+   Compiling rustix v1.1.5
+   Compiling typenum v1.20.1
+   Compiling pkg-config v0.3.34
+   Compiling cc v1.8.0
+   Compiling critical-section v1.2.0
+   Compiling indoc v2.0.8
+   Compiling powerfmt v0.2.1
+   Compiling num_threads v0.1.7
+   Compiling num-conv v0.2.2
+   Compiling linux-raw-sys v0.12.1
+   Compiling tower-service v0.3.3
+   Compiling deranged v0.5.8
+   Compiling http v1.5.0
+   Compiling castaway v0.2.4
+   Compiling convert_case v0.10.0
+   Compiling ref-cast v1.0.27
+   Compiling litrs v1.0.1
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+   Compiling time-core v0.1.9
+   Compiling aho-corasick v1.1.5
+   Compiling line-clipping v0.3.8
+   Compiling sync_wrapper v1.0.2
+   Compiling futures-task v0.3.34
+   Compiling paste v1.0.15
+   Compiling httpdate v1.0.3
+   Compiling indexmap v2.14.2
+   Compiling lru v0.18.5
+   Compiling minimal-lexical v0.2.1
+   Compiling esaxx-rs v0.1.10
+   Compiling tower-layer v0.3.3
+   Compiling slab v0.4.12
+   Compiling atomic-waker v1.1.2
+   Compiling document-features v0.2.12
+   Compiling form_urlencoded v1.2.2
+   Compiling utf8parse v0.2.2
+   Compiling nom v7.1.3
+   Compiling macro_rules_attribute-proc_macro v0.2.3
+   Compiling futures-util v0.3.34
+   Compiling borrow-or-share v0.2.4
+   Compiling io-uring v0.7.15
+   Compiling errno v0.3.14
+   Compiling mio v1.2.4
+   Compiling socket2 v0.6.5
+   Compiling base64 v0.13.1
+   Compiling signal-hook-registry v1.4.8
+   Compiling http-body v1.1.0
+   Compiling rand_core v0.9.5
+   Compiling parking_lot v0.12.5
+   Compiling rayon v1.12.0
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling http-body-util v0.1.5
+   Compiling mime v0.3.17
+   Compiling pastey v0.2.3
+   Compiling base64 v0.23.1
+   Compiling unicode-truncate v2.0.1
+   Compiling signal-hook-mio v0.2.5
+   Compiling time v0.3.55
+   Compiling digest v0.10.7
+   Compiling anstyle-parse v1.0.0
+   Compiling axum-core v0.5.6
+   Compiling ureq-proto v0.6.4
+   Compiling unicode-normalization-alignments v0.1.12
+   Compiling anstyle-query v1.1.5
+   Compiling macro_rules_attribute v0.2.3
+   Compiling llguidance v1.9.1
+   Compiling winnow v1.0.4
+   Compiling utf8-zero v0.8.1
+   Compiling onig_sys v69.9.3
+   Compiling memo-map v0.3.4
+   Compiling regex-automata v0.4.18
+   Compiling matchit v0.8.4
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling anstyle v1.0.14
+   Compiling unicode_categories v0.1.1
+   Compiling cpufeatures v0.2.17
+   Compiling colorchoice v1.0.5
+   Compiling serde_path_to_error v0.1.20
+   Compiling serde_spanned v1.1.2
+   Compiling toml_parser v1.1.5+spec-1.1.0
+   Compiling ureq v3.4.2
+   Compiling anstream v1.0.0
+   Compiling toml_datetime v0.7.5+spec-1.1.0
+   Compiling sha2 v0.10.9
+   Compiling sysinfo v0.37.2
+   Compiling tracing-core v0.1.36
+   Compiling clap_lex v1.1.1
+   Compiling intarsia-backend-hip v0.0.1 (/work/crates/intarsia-backend-hip)
+   Compiling winnow v0.7.15
+   Compiling toml_writer v1.1.3+spec-1.1.0
+   Compiling memmap2 v0.9.11
+   Compiling clap_builder v4.6.7
+   Compiling rayon-cond v0.4.0
+   Compiling darling_core v0.24.1
+   Compiling darling_core v0.20.11
+   Compiling serde_derive v1.0.229
+   Compiling zerocopy-derive v0.8.62
+   Compiling thiserror-impl v2.0.21
+   Compiling strum_macros v0.28.0
+   Compiling bytemuck_derive v1.12.1
+   Compiling tokio-macros v2.7.2
+   Compiling derive_more-impl v2.1.1
+   Compiling ref-cast-impl v1.0.27
+   Compiling monostate-impl v0.1.18
+   Compiling regex v1.13.1
+   Compiling tracing-attributes v0.1.31
+   Compiling toml v0.9.12+spec-1.1.0
+   Compiling monostate v0.1.18
+   Compiling clap_derive v4.6.7
+   Compiling tokio v1.53.2
+   Compiling bytemuck v1.25.2
+   Compiling derive_more v2.1.1
+   Compiling crossterm v0.29.0
+   Compiling kasuari v0.4.12
+   Compiling tracing v0.1.44
+   Compiling darling_macro v0.20.11
+   Compiling strum v0.28.0
+   Compiling darling_macro v0.24.1
+   Compiling darling v0.20.11
+   Compiling derive_builder_core v0.20.2
+   Compiling darling v0.24.1
+   Compiling instability v0.3.14
+   Compiling clap v4.6.7
+   Compiling derive_builder_macro v0.20.2
+   Compiling derive_builder v0.20.2
+   Compiling compact_str v0.9.1
+   Compiling serde_urlencoded v0.7.1
+   Compiling fluent-uri v0.3.2
+   Compiling dary_heap v0.3.9
+   Compiling spm_precompiled v0.1.4
+   Compiling minijinja v2.24.0
+   Compiling toktrie v1.9.1
+   Compiling ratatui-core v0.1.2
+   Compiling hyper v1.12.0
+   Compiling tower v0.5.3
+   Compiling tokio-stream v0.1.19
+   Compiling ratatui-widgets v0.3.2
+   Compiling ratatui-crossterm v0.1.2
+   Compiling hyper-util v0.1.21
+   Compiling axum v0.8.9
+   Compiling half v2.7.1
+   Compiling ppv-lite86 v0.2.21
+   Compiling referencing v0.29.1
+   Compiling derivre v0.3.13
+   Compiling ratatui-macros v0.7.2
+   Compiling ratatui v0.30.2
+   Compiling intarsia-core v0.0.1 (/work/crates/intarsia-core)
+   Compiling rand_chacha v0.9.0
+   Compiling intarsia-bench v0.0.1 (/work/crates/intarsia-bench)
+   Compiling rand v0.9.5
+   Compiling minijinja-contrib v2.24.0
+   Compiling intarsia-tui v0.0.1 (/work/crates/intarsia-tui)
+   Compiling onig v6.5.3
+   Compiling tokenizers v0.22.2
+   Compiling intarsia-ui v0.0.1 (/work/crates/intarsia-ui)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1254:4
+     |
+1254 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling intarsia-backend-cpu v0.0.1 (/work/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/work/crates/intarsia-engram)
+   Compiling intarsia-server v0.0.1 (/work/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/work/crates/intarsia-models)
+warning: function `split_calls` is never used
+   --> crates/intarsia-server/src/structured.rs:223:8
+    |
+223 | pub fn split_calls(text: &str, format: ToolFormat, tools: &[Tool]) -> (Option<String>, Vec<(String, Value)>) {
+    |        ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: associated functions `new`, `parse_all`, and `parse_all_with` are never used
+    --> crates/intarsia-server/src/structured.rs:930:12
+     |
+ 928 | impl ToolParser {
+     | --------------- associated functions in this implementation
+ 929 |     /// A parser for one response; `tools` are the request's (only the XML format reads them).
+ 930 |     pub fn new(format: ToolFormat, tools: &[Tool]) -> ToolParser {
+     |            ^^^
+...
+1045 |     pub fn parse_all(text: &str, format: ToolFormat, tools: &[Tool]) -> Vec<Piece> {
+     |            ^^^^^^^^^
+...
+1049 |     pub fn parse_all_with(text: &str, format: ToolFormat, tools: &[Tool], mode: ToolMode) -> Vec<Piece> {
+     |            ^^^^^^^^^^^^^^
+
+warning: associated function `parse_all` is never used
+    --> crates/intarsia-server/src/structured.rs:1424:12
+     |
+1329 | impl ReasoningParser {
+     | -------------------- associated function in this implementation
+...
+1424 |     pub fn parse_all(text: &str) -> (Option<String>, Option<String>) {
+     |            ^^^^^^^^^
+
+warning: `intarsia-server` (lib) generated 3 warnings
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+   Compiling intarsia-cli v0.0.1 (/work/crates/intarsia-cli)
+warning: `intarsia-backend-hip` (lib) generated 6 warnings
+warning: variable does not need to be mutable
+    --> crates/intarsia-cli/src/cmd/qualify.rs:1889:13
+     |
+1889 |         let mut v: Vec<String> = vec![
+     |             ----^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 1m 57s
+   Compiling serde_core v1.0.229
+   Compiling serde_json v1.0.154
+   Compiling serde v1.0.229
+   Compiling hashbrown v0.17.1
+   Compiling either v1.19.0
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+   Compiling rayon v1.12.0
+   Compiling indexmap v2.14.2
+   Compiling bytemuck_derive v1.12.1
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling bytemuck v1.25.2
+   Compiling thiserror v2.0.21
+   Compiling zerocopy-derive v0.8.62
+   Compiling zerocopy v0.8.62
+   Compiling half v2.7.1
+   Compiling intarsia-core v0.0.1 (/work/crates/intarsia-core)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1254:4
+     |
+1254 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling intarsia-backend-cpu v0.0.1 (/work/crates/intarsia-backend-cpu)
+   Compiling intarsia-backend-hip v0.0.1 (/work/crates/intarsia-backend-hip)
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 6 warnings
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: unused import: `Backend`
+  --> crates/intarsia-backend-hip/tests/gdn_verify_snap.rs:11:30
+   |
+11 | use intarsia_core::backend::{Backend, MemKind};
+   |                              ^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `Backend`
+   --> crates/intarsia-backend-hip/tests/admission.rs:143:25
+    |
+143 |     use intarsia_core::{Backend as _, DType, HostTensor, Op, OpAttrs};
+    |                         ^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` on by default
+
+warning: `intarsia-backend-hip` (test "gdn_verify_snap") generated 1 warning
+warning: unnecessary parentheses around closure body
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:52:45
+   |
+52 |     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+   |                                             ^           ^
+   |
+   = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+   |
+52 -     let ids: Vec<i32> = (0..t).flat_map(|_| (0..k as i32)).collect();
+52 +     let ids: Vec<i32> = (0..t).flat_map(|_| 0..k as i32).collect();
+   |
+
+warning: unnecessary parentheses around closure body
+  --> crates/intarsia-backend-hip/tests/quantmoe.rs:58:48
+   |
+58 |     let ids: Vec<i32> = (0..1024).flat_map(|_| (0..k as i32)).collect();
+   |                                                ^           ^
+   |
+help: remove these parentheses
+   |
+58 -     let ids: Vec<i32> = (0..1024).flat_map(|_| (0..k as i32)).collect();
+58 +     let ids: Vec<i32> = (0..1024).flat_map(|_| 0..k as i32).collect();
+   |
+
+warning: `intarsia-backend-hip` (test "admission") generated 1 warning
+warning: variable does not need to be mutable
+    --> crates/intarsia-backend-hip/tests/rows_exact.rs:1114:9
+     |
+1114 |     let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
+     |         ----^^^^
+     |         |
+     |         help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-backend-hip` (test "quantmoe") generated 2 warnings (run `cargo fix --test "quantmoe"` to apply 2 suggestions)
+warning: `intarsia-backend-hip` (lib test) generated 6 warnings (6 duplicates)
+warning: `intarsia-backend-hip` (test "rows_exact") generated 1 warning (run `cargo fix --test "rows_exact"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 15.66s
+  Executable unittests src/lib.rs (/target/release/deps/intarsia_backend_hip-fc3efd7d13bae4aa)
+  Executable tests/a8_served.rs (/target/release/deps/a8_served-d50fc949c6eeda88)
+  Executable tests/admission.rs (/target/release/deps/admission-436357379a704e17)
+  Executable tests/ar_norm.rs (/target/release/deps/ar_norm-0ee5753fd1d14b70)
+  Executable tests/ar_push.rs (/target/release/deps/ar_push-5984d5831e2266e2)
+  Executable tests/ar_wht6.rs (/target/release/deps/ar_wht6-f1b479fcf834706d)
+  Executable tests/attention.rs (/target/release/deps/attention-1e769c865987adc7)
+  Executable tests/comm.rs (/target/release/deps/comm-3f00de4f34953f0a)
+  Executable tests/decode_v2.rs (/target/release/deps/decode_v2-ece65a2a52e3819e)
+  Executable tests/device_pos.rs (/target/release/deps/device_pos-69157cf4ffca06a0)
+  Executable tests/flash_v2.rs (/target/release/deps/flash_v2-4d39ae482d80da9e)
+  Executable tests/fp8_f8.rs (/target/release/deps/fp8_f8-8a45da309935f9f3)
+  Executable tests/fp8_mma_v2.rs (/target/release/deps/fp8_mma_v2-9070f2a2e7811a08)
+  Executable tests/fp8_pair_shapes.rs (/target/release/deps/fp8_pair_shapes-8be680d02604fe2b)
+  Executable tests/frag_layout.rs (/target/release/deps/frag_layout-41fbfe45ab96e765)
+  Executable tests/fused_decode.rs (/target/release/deps/fused_decode-e9b11a0c7deb9f83)
+  Executable tests/fusion_p1.rs (/target/release/deps/fusion_p1-a4d8bb19f7aa244d)
+  Executable tests/fusion_p2.rs (/target/release/deps/fusion_p2-0e3b01a74935052a)
+  Executable tests/gdn_timing.rs (/target/release/deps/gdn_timing-8bfe49a9aa03c382)
+  Executable tests/gdn_v2.rs (/target/release/deps/gdn_v2-1113730ae5c5aa5a)
+  Executable tests/gdn_verify_snap.rs (/target/release/deps/gdn_verify_snap-1516c626e92353a5)
+  Executable tests/matmul_bench.rs (/target/release/deps/matmul_bench-821f5af20b83828a)
+  Executable tests/moe_block.rs (/target/release/deps/moe_block-9bbe8a1dbc842643)
+  Executable tests/moe_pairs.rs (/target/release/deps/moe_pairs-0f6fc079a2ad8e0a)
+  Executable tests/moe_v3.rs (/target/release/deps/moe_v3-545fdfa2700f45eb)
+  Executable tests/mxfp4_a8.rs (/target/release/deps/mxfp4_a8-b31ffe3c0d902af6)
+  Executable tests/mxfp4_a8_fuse.rs (/target/release/deps/mxfp4_a8_fuse-24c1764bdc97a1e6)
+  Executable tests/mxfp4_decode.rs (/target/release/deps/mxfp4_decode-53ab9bd883710181)
+  Executable tests/mxfp4_fold.rs (/target/release/deps/mxfp4_fold-b48693e749c54561)
+  Executable tests/mxfp4_v2.rs (/target/release/deps/mxfp4_v2-118b5ffb2ed92e21)
+  Executable tests/packed_rows.rs (/target/release/deps/packed_rows-1d12f4b7d75a731f)
+  Executable tests/pf_flash_vp.rs (/target/release/deps/pf_flash_vp-73fcdb9d481a6ffb)
+  Executable tests/qk_rope_kv.rs (/target/release/deps/qk_rope_kv-0298da6973cf637a)
+  Executable tests/quantmoe.rs (/target/release/deps/quantmoe-4d7424f44bd0327f)
+  Executable tests/quick_coverage.rs (/target/release/deps/quick_coverage-6db8b369063d7b0d)
+  Executable tests/quick_coverage_wmma.rs (/target/release/deps/quick_coverage_wmma-0316b23580dbe049)
+  Executable tests/round6_selection.rs (/target/release/deps/round6_selection-b79b1b788d4ddba6)
+  Executable tests/row_tables.rs (/target/release/deps/row_tables-5513eb43c0895419)
+  Executable tests/rows_exact.rs (/target/release/deps/rows_exact-a907226ec5b40278)
+  Executable tests/rows_registry.rs (/target/release/deps/rows_registry-b287f1f7596acd31)
+  Executable tests/split_trigger.rs (/target/release/deps/split_trigger-058b475d1f088874)
+  Executable tests/splitkv_occ.rs (/target/release/deps/splitkv_occ-f062c9e41e946b98)
+  Executable tests/splitkv_r8.rs (/target/release/deps/splitkv_r8-dde96137410d7c64)
+  Executable tests/staging.rs (/target/release/deps/staging-f44743639b4e42c0)
+  Executable tests/topk.rs (/target/release/deps/topk-5fc438c231946c93)
+  Executable tests/tp_partial_math.rs (/target/release/deps/tp_partial_math-e9e2677dcc69d39b)
+  Executable tests/tp_partial_sum.rs (/target/release/deps/tp_partial_sum-155185e8f9cff6b3)
+  Executable tests/verify_attn_rows.rs (/target/release/deps/verify_attn_rows-066a7926d51bd950)
+  Executable tests/verify_gemv_bench.rs (/target/release/deps/verify_gemv_bench-a54abc627e332b7b)
+  Executable tests/vocab_split.rs (/target/release/deps/vocab_split-e6d27ccc9e570955)
+  Executable tests/win_splitkv.rs (/target/release/deps/win_splitkv-4a3e6fee2f005c39)
+  Executable tests/wmma_folds.rs (/target/release/deps/wmma_folds-1dc4ae60425965ee)
+   Compiling indexmap v2.14.2
+   Compiling bitflags v2.13.2
+   Compiling syn v2.0.119
+   Compiling smallvec v1.16.3
+   Compiling serde v1.0.229
+   Compiling serde_spanned v1.1.2
+   Compiling toml_datetime v0.7.5+spec-1.1.0
+   Compiling intarsia-backend-cuda v0.0.1 (/work/crates/intarsia-backend-cuda)
+   Compiling onig v6.5.3
+   Compiling io-uring v0.7.15
+   Compiling unicode-normalization-alignments v0.1.12
+   Compiling toml v0.9.12+spec-1.1.0
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+   Compiling compact_str v0.9.1
+   Compiling dary_heap v0.3.9
+   Compiling spm_precompiled v0.1.4
+   Compiling serde_json v1.0.154
+   Compiling minijinja v2.24.0
+   Compiling darling_core v0.20.11
+   Compiling zerocopy-derive v0.8.62
+   Compiling monostate-impl v0.1.18
+   Compiling monostate v0.1.18
+   Compiling zerocopy v0.8.62
+   Compiling darling_macro v0.20.11
+   Compiling darling v0.20.11
+   Compiling derive_builder_core v0.20.2
+   Compiling derive_builder_macro v0.20.2
+   Compiling derive_builder v0.20.2
+   Compiling minijinja-contrib v2.24.0
+   Compiling half v2.7.1
+   Compiling ppv-lite86 v0.2.21
+   Compiling ahash v0.8.12
+   Compiling rand_chacha v0.9.0
+   Compiling intarsia-core v0.0.1 (/work/crates/intarsia-core)
+   Compiling rand v0.9.5
+   Compiling tokenizers v0.22.2
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1254:4
+     |
+1254 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling intarsia-backend-cpu v0.0.1 (/work/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/work/crates/intarsia-engram)
+   Compiling intarsia-backend-hip v0.0.1 (/work/crates/intarsia-backend-hip)
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+   Compiling intarsia-models v0.0.1 (/work/crates/intarsia-models)
+warning: `intarsia-backend-hip` (lib) generated 6 warnings
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: value assigned to `reason` is never read
+    --> crates/intarsia-models/tests/batch_cuda_real.rs:1640:45
+     |
+1640 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+     |                                             ^^^^^^
+     |
+     = help: maybe it is overwritten before being read?
+     = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:265:8
+    |
+265 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 19.50s
+  Executable tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-356c54bc339f3eff)
+  Executable tests/batch_recurrent.rs (/target/release/deps/batch_recurrent-77b00129c7a597e8)
+  Executable tests/mtp.rs (/target/release/deps/mtp-71bf1b6f8b3f6b4d)

@@ -1,0 +1,198 @@
+{
+ "runs": {
+  "A1": {
+   "n": 150,
+   "correct": 140,
+   "score": 0.9333,
+   "two_se": 0.0407,
+   "truncated": 1,
+   "finish": {
+    "stop": 149,
+    "length": 1
+   },
+   "think_mean": 1963.2,
+   "think_median": 1550.5,
+   "think_p90": 3002,
+   "think_max": 16383,
+   "answer_mean": 6.8,
+   "total_mean": 1973.1,
+   "empty": 1,
+   "no_thinking": 0,
+   "inline_think": 0,
+   "wall_s": 4179.8,
+   "tok_sum_vs_server_mean_abs": 3.1,
+   "mean_output_tokens_localeval": 1973.06,
+   "scores": null,
+   "task_scores": [
+    {
+     "Task": "dyck_languages",
+     "Score": 0.8666666666666667
+    },
+    {
+     "Task": "multistep_arithmetic_two",
+     "Score": 1.0
+    },
+    {
+     "Task": "logical_deduction_seven_objects",
+     "Score": 1.0
+    },
+    {
+     "Task": "geometric_shapes",
+     "Score": 0.8
+    },
+    {
+     "Task": "tracking_shuffled_objects_seven_objects",
+     "Score": 1.0
+    }
+   ]
+  },
+  "A2": {
+   "n": 150,
+   "correct": 138,
+   "score": 0.92,
+   "two_se": 0.0443,
+   "truncated": 1,
+   "finish": {
+    "stop": 149,
+    "length": 1
+   },
+   "think_mean": 2031.3,
+   "think_median": 1580.5,
+   "think_p90": 2999,
+   "think_max": 16317,
+   "answer_mean": 6.8,
+   "total_mean": 2041.6,
+   "empty": 1,
+   "no_thinking": 0,
+   "inline_think": 0,
+   "wall_s": 4307.3,
+   "tok_sum_vs_server_mean_abs": 3.5,
+   "mean_output_tokens_localeval": 2041.57,
+   "scores": null,
+   "task_scores": [
+    {
+     "Task": "dyck_languages",
+     "Score": 0.8666666666666667
+    },
+    {
+     "Task": "multistep_arithmetic_two",
+     "Score": 1.0
+    },
+    {
+     "Task": "logical_deduction_seven_objects",
+     "Score": 1.0
+    },
+    {
+     "Task": "geometric_shapes",
+     "Score": 0.7333333333333333
+    },
+    {
+     "Task": "tracking_shuffled_objects_seven_objects",
+     "Score": 1.0
+    }
+   ]
+  },
+  "B": {
+   "n": 150,
+   "correct": 137,
+   "score": 0.9133,
+   "two_se": 0.0459,
+   "truncated": 2,
+   "finish": {
+    "stop": 148,
+    "length": 2
+   },
+   "think_mean": 1977.5,
+   "think_median": 1466.5,
+   "think_p90": 2684,
+   "think_max": 16384,
+   "answer_mean": 6.8,
+   "total_mean": 1988.2,
+   "empty": 2,
+   "no_thinking": 0,
+   "inline_think": 0,
+   "wall_s": 2248.0,
+   "tok_sum_vs_server_mean_abs": 4.0,
+   "mean_output_tokens_localeval": 1988.21,
+   "scores": null,
+   "task_scores": [
+    {
+     "Task": "dyck_languages",
+     "Score": 0.8666666666666667
+    },
+    {
+     "Task": "multistep_arithmetic_two",
+     "Score": 1.0
+    },
+    {
+     "Task": "logical_deduction_seven_objects",
+     "Score": 1.0
+    },
+    {
+     "Task": "geometric_shapes",
+     "Score": 0.7333333333333333
+    },
+    {
+     "Task": "tracking_shuffled_objects_seven_objects",
+     "Score": 0.9666666666666667
+    }
+   ]
+  }
+ },
+ "pairs": {
+  "A1:A2": {
+   "n": 150,
+   "same": 146,
+   "only_first": 3,
+   "only_second": 1,
+   "both": 137,
+   "neither": 9,
+   "mcnemar_p": 0.625,
+   "tok_ratio": 1.035,
+   "tok_ratio_ci": [
+    0.973,
+    1.103
+   ],
+   "longer": 78,
+   "shorter": 70,
+   "sign_p": 0.5652,
+   "think_ratio": 1.035
+  },
+  "A1:B": {
+   "n": 150,
+   "same": 143,
+   "only_first": 5,
+   "only_second": 2,
+   "both": 135,
+   "neither": 8,
+   "mcnemar_p": 0.4531,
+   "tok_ratio": 1.008,
+   "tok_ratio_ci": [
+    0.94,
+    1.091
+   ],
+   "longer": 71,
+   "shorter": 78,
+   "sign_p": 0.6232,
+   "think_ratio": 1.007
+  },
+  "A2:B": {
+   "n": 150,
+   "same": 145,
+   "only_first": 3,
+   "only_second": 2,
+   "both": 135,
+   "neither": 10,
+   "mcnemar_p": 1.0,
+   "tok_ratio": 0.974,
+   "tok_ratio_ci": [
+    0.92,
+    1.03
+   ],
+   "longer": 68,
+   "shorter": 81,
+   "sign_p": 0.3256,
+   "think_ratio": 0.973
+  }
+ }
+}

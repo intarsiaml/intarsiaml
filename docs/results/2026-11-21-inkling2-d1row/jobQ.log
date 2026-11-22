@@ -1,0 +1,79 @@
+fleetq: #10852 waiting (#20 in line): in line behind #10749 "intarsiaml inkling m-mix: blend geometry + NE4 sweep" (claude-57ee98d5) on endor
+fleetq:   #10749 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10749 set, or it will wait for #10749 to be released.
+fleetq: #10852 waiting (#19 in line): in line behind #10756 "intarsiaml inkling metal: per-dispatch decode trace" (claude-57ee98d5) on endor
+fleetq:   #10756 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10756 set, or it will wait for #10756 to be released.
+fleetq: #10852 waiting (#18 in line): in line behind #10764 "intarsiaml inkling fp8: dense projection microbench (bf16 vs fp8 vs mxfp4)" (claude-57ee98d5) on endor
+fleetq:   #10764 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10764 set, or it will wait for #10764 to be released.
+fleetq: #10852 waiting (#17 in line): in line behind #10770 "intarsiaml inkling fp8: full-model Metal decode tok/s per quant mode" (claude-57ee98d5) on endor
+fleetq:   #10770 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10770 set, or it will wait for #10770 to be released.
+fleetq: #10852 waiting (#15 in line): in line behind #10773 "intarsiaml inkling batch: real-model batch_step 1-16 streams" (claude-57ee98d5) on endor
+fleetq:   #10773 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10773 set, or it will wait for #10773 to be released.
+fleetq: #10852 waiting (#12 in line): in line behind #10779 "intarsiaml inkling prefill: build + MoE nax2/nax3 admission + sweep + e2e baseline" (claude-57ee98d5) on endor
+fleetq:   #10779 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10779 set, or it will wait for #10779 to be released.
+fleetq: #10852 waiting (#10 in line): in line behind #10781 "intarsiaml inkling metal: intarsia serve + bench speed + localeval speed-plain/conc-plain-1k" (claude-57ee98d5) on endor
+fleetq:   #10781 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10781 set, or it will wait for #10781 to be released.
+fleetq: #10852 waiting (#9 in line): in line behind #10806 "intarsiaml inkling mtp: DSpark decode tok/s (off, k1-3, tau sweep)" (claude-57ee98d5) on endor
+fleetq:   #10806 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10806 set, or it will wait for #10806 to be released.
+fleetq: #10852 waiting (#8 in line): in line behind #10811 "intarsiaml inkling batch: serve --max-batch 16 + engine bench 1-16 + localeval conc-plain-1k" (claude-57ee98d5) on endor
+fleetq:   #10811 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10811 set, or it will wait for #10811 to be released.
+fleetq: #10852 waiting (#7 in line): in line behind #10839 "intarsiaml inkling hostgap: correctness (metal tests, argmax admission, md5 + G2 bitwise base vs branch, plan show)" (claude-57ee98d5) on endor
+fleetq:   #10839 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10839 set, or it will wait for #10839 to be released.
+fleetq: #10852 waiting (#5 in line): in line behind #10840 "intarsiaml inkling hostgap: timing (A runs base vs branch, 5k, argmax_cost, host profile, cb traces, Qwen3-8B default vs p16)" (claude-57ee98d5) on endor
+fleetq:   #10840 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10840 set, or it will wait for #10840 to be released.
+fleetq: #10852 waiting (#4 in line): in line behind #10844 "intarsiaml inkling batch: correctness (build, tiny, G2 bitwise base vs branch, mixed-context batched==solo)" (claude-57ee98d5) on endor
+fleetq:   #10844 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10844 set, or it will wait for #10844 to be released.
+fleetq: #10852 waiting (#3 in line): in line behind #10845 "intarsiaml inkling batch: solo decode tok/s base vs branch" (claude-57ee98d5) on endor
+fleetq:   #10845 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10845 set, or it will wait for #10845 to be released.
+fleetq: #10852 waiting (#2 in line): in line behind #10850 "intarsiaml inkling d1row: build + bitwise tests + admission + G1-G3 + greedy identity" (claude-57ee98d5) on endor
+fleetq:   #10850 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10850 set, or it will wait for #10850 to be released.
+fleetq: #10852 waiting (#1 in line): needs gpu,cpu quiet on endor, but #10850 "intarsiaml inkling d1row: build + bitwise tests + admission + G1-G3 + greedy identity" (claude-57ee98d5) loads it
+fleetq:   #10850 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=10850 set, or it will wait for #10850 to be released.
+fleetq: #10852 running on endor: .scratch/jobQ.sh
+moe nv a 0
+moe mx 0
+moe probe 0
+moe dnf256 0
+moe nv b 0
+attn table 0
+attn short 0
+attn short cold 0
+measB 0
+pf 84 0
+pf 512 0
+measB cb1 0
+short attn=0 moe=0: finish=length prompt=19 (cached 0) completion=256 | prefill 1394 ms (13.6 tok/s) | decode 3991 ms (63.89 tok/s)
+short attn=1 moe=1: finish=length prompt=19 (cached 0) completion=256 | prefill 291 ms (65.3 tok/s) | decode 4053 ms (62.92 tok/s)
+short attn=1 moe=0: finish=length prompt=19 (cached 0) completion=256 | prefill 292 ms (65.1 tok/s) | decode 4104 ms (62.14 tok/s)
+short attn=0 moe=1: finish=length prompt=19 (cached 0) completion=256 | prefill 282 ms (67.4 tok/s) | decode 4001 ms (63.73 tok/s)
+short attn=1 moe=gu: finish=length prompt=19 (cached 0) completion=256 | prefill 293 ms (64.8 tok/s) | decode 4041 ms (63.10 tok/s)
+short attn=1 moe=dn: finish=length prompt=19 (cached 0) completion=256 | prefill 284 ms (67.0 tok/s) | decode 4026 ms (63.33 tok/s)
+short attn=1 moe=dn: finish=length prompt=19 (cached 0) completion=256 | prefill 283 ms (67.1 tok/s) | decode 4073 ms (62.61 tok/s)
+short attn=1 moe=gu: finish=length prompt=19 (cached 0) completion=256 | prefill 280 ms (67.7 tok/s) | decode 4014 ms (63.53 tok/s)
+short attn=0 moe=1: finish=length prompt=19 (cached 0) completion=256 | prefill 275 ms (69.1 tok/s) | decode 4001 ms (63.74 tok/s)
+short attn=1 moe=0: finish=length prompt=19 (cached 0) completion=256 | prefill 278 ms (68.2 tok/s) | decode 3985 ms (63.99 tok/s)
+short attn=1 moe=1: finish=length prompt=19 (cached 0) completion=256 | prefill 269 ms (70.7 tok/s) | decode 4020 ms (63.43 tok/s)
+short attn=0 moe=0: finish=length prompt=19 (cached 0) completion=256 | prefill 280 ms (67.9 tok/s) | decode 3948 ms (64.60 tok/s)
+short pd8: finish=length prompt=19 (cached 0) completion=256 | prefill 289 ms (65.9 tok/s) | decode 4245 ms (60.07 tok/s)
+short pd8: finish=length prompt=19 (cached 0) completion=256 | prefill 277 ms (68.5 tok/s) | decode 4106 ms (62.11 tok/s)
+5k attn=0 moe=0: finish=length prompt=5051 (cached 0) completion=128 | prefill 3458 ms (1460.7 tok/s) | decode 2115 ms (60.04 tok/s)
+5k attn=1 moe=1: finish=length prompt=5051 (cached 0) completion=128 | prefill 3747 ms (1348.0 tok/s) | decode 2190 ms (58.00 tok/s)
+5k attn=1 moe=1: finish=length prompt=5051 (cached 0) completion=128 | prefill 3820 ms (1322.3 tok/s) | decode 2195 ms (57.85 tok/s)
+5k attn=0 moe=0: finish=length prompt=5051 (cached 0) completion=128 | prefill 3899 ms (1295.6 tok/s) | decode 2229 ms (56.98 tok/s)
+cb1 0 0
+cb1 1 0
+localeval pipe0 exit 3
+[localeval]    1024 r4 p0: in=1017 out=254 ttft=0.930s prefill=1094 decode=62.0
+[localeval]   16384 r5 p0: in=16454 out=254 ttft=12.999s prefill=1266 decode=56.0
+[localeval]   16384 r6 p0: in=16455 out=254 ttft=12.635s prefill=1302 decode=57.5
+- REJECTED speed-plain 1024: spread (prefill_rejected True, decode_rejected False)
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+localeval pipe1 exit 3
+[localeval]    1024 r2 p3: in=1024 out=254 ttft=0.961s prefill=1066 decode=60.1
+[localeval]   16384 r3 p0: in=16456 out=254 ttft=12.127s prefill=1357 decode=55.8
+[localeval]   16384 r4 p0: in=16460 out=254 ttft=12.415s prefill=1326 decode=55.2
+- REJECTED speed-plain 16384: spread (prefill_rejected True, decode_rejected False)
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+done
+fleetq: #10852 done (exit 0)

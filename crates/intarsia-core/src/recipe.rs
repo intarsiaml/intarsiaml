@@ -429,6 +429,10 @@ pub struct BackendTuning {
     /// when `INTARSIA_MTP_QUANT` is not set. Drafts only (the verified output is unchanged). Only `recipes/qwen3_5_vl.toml` (Qwen3.8-27B) sets it, `"mix"` on
     /// CUDA (user decision 2026-11-08, lane mxd).
     pub mtp_quant: Option<String>,
+    /// Inkling-2 only: quantise the attention projections (the stacked in-projection, as three q / k / v packs, and `wo`) at load on
+    /// this backend (`"fp8"` or `"mxfp4"`, [`crate::quant::head::HeadQuant`]) when `INTARSIA_INK_ATTN_QUANT` is not set. It changes
+    /// outputs; no shipped recipe sets it (lane ink-fp8, `docs/results/2026-11-21-inkling2-fp8.md`).
+    pub ink_attn_quant: Option<String>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -493,6 +497,11 @@ impl Recipe {
     /// The recipe's `lm_head_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
     pub fn lm_head_quant(&self, backend: &str) -> Option<&str> {
         self.tuning.backends.get(backend).and_then(|b| b.lm_head_quant.as_deref())
+    }
+
+    /// The recipe's `ink_attn_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
+    pub fn ink_attn_quant(&self, backend: &str) -> Option<&str> {
+        self.tuning.backends.get(backend).and_then(|b| b.ink_attn_quant.as_deref())
     }
 
     /// The recipe's `mtp_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
@@ -773,6 +782,9 @@ impl Recipe {
         for v in self.tuning.backends.values().filter_map(|b| b.mtp_quant.as_deref()) {
             crate::quant::head::parse_mtp_quant(v)?;
         }
+        for v in self.tuning.backends.values().filter_map(|b| b.ink_attn_quant.as_deref()) {
+            crate::quant::head::HeadQuant::parse(v)?;
+        }
         self.accuracy.ppl_form()?;
         if self.accuracy.max_ppl.is_some_and(|m| !(m.is_finite() && m > 0.0)) {
             return Err(Error::model("recipe [accuracy] max_ppl must be a positive number"));
@@ -850,6 +862,10 @@ pub struct ModelDims {
     pub moe: Option<crate::quant::moe::MoeConfig>,
     /// Gemma 4 text-model dimensions (`model_type = "gemma4_text"`); `None` for every other family.
     pub gemma: Option<GemmaDims>,
+    /// Inkling-2 text-model dimensions (`model_type = "inkling2_loop_text"`); `None` for every other family. Not serialised when
+    /// absent, so the dims JSON of every other model is unchanged.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ink: Option<crate::inkling2::config::InkDims>,
 }
 
 /// What a Gemma 4 text config adds to [`ModelDims`] (HF `Gemma4TextConfig`): sliding / global attention layers with their
@@ -1054,6 +1070,9 @@ impl ModelDims {
 
 impl ModelDims {
     pub fn from_hf_config(cfg: &serde_json::Value, keys: &ConfigKeys) -> Result<ModelDims> {
+        if let Some(ink) = crate::inkling2::config::InkDims::from_hf_config(cfg)? {
+            return Self::from_inkling(cfg, keys, ink);
+        }
         check_supported(cfg)?;
         let tc = text_config(cfg);
         let gemma = GemmaDims::from_hf_config(cfg)?;
@@ -1211,6 +1230,39 @@ impl ModelDims {
                 None
             },
             gemma,
+            ink: None,
+        })
+    }
+
+    /// Inkling-2 (`InkDims::from_hf_config` matched): no rope, no dense FFN, the real vocabulary (`unpadded_vocab_size`) as `vocab`.
+    fn from_inkling(cfg: &serde_json::Value, keys: &ConfigKeys, ink: crate::inkling2::config::InkDims) -> Result<ModelDims> {
+        let tc = text_config(cfg);
+        let u = |k: &str| tc.get(k).and_then(|v| v.as_u64()).map(|v| v as usize).ok_or_else(|| Error::model(format!("config.json missing '{k}'")));
+        let rms_eps = tc.get(&keys.rms_eps).and_then(|v| v.as_f64()).ok_or_else(|| Error::model(format!("config.json missing '{}' (no default is assumed)", keys.rms_eps)))?;
+        let n_layers = u(&keys.num_layers)?;
+        if ink.local.len() != n_layers {
+            return Err(Error::model("inkling2 config: local_layer_ids / num_hidden_layers mismatch"));
+        }
+        Ok(ModelDims {
+            hidden: u(&keys.hidden_size)?,
+            n_layers,
+            n_heads: u(&keys.num_heads)?,
+            n_kv_heads: u(&keys.num_kv_heads)?,
+            head_dim: u(&keys.head_dim)?,
+            intermediate: 0,
+            vocab: tc.get("unpadded_vocab_size").and_then(|v| v.as_u64()).map(|v| v as usize).unwrap_or(ink.vocab_padded),
+            rms_eps: rms_eps as f32,
+            rope_theta: 0.0,
+            partial_rotary_factor: 1.0,
+            rope_scaling: RopeScaling::None,
+            tie_embeddings: false,
+            max_positions: tc.get("model_max_length").and_then(|v| v.as_u64()).map(|v| v as usize).unwrap_or(1 << 20),
+            layer_types: Vec::new(),
+            linear: None,
+            short_conv: None,
+            moe: None,
+            gemma: None,
+            ink: Some(ink),
         })
     }
 }

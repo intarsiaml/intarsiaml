@@ -1,0 +1,19 @@
+15:02:48 stages start; head=bd15509 code-tree=9712db1e34dc dirty=no; STEPS=list tp2
+15:05:54 batch r10 exit 0 (10 items)
+15:06:10 batch r7 exit 0 (1 items)
+15:06:25 batch r10 exit 0 (1 items)
+15:06:40 batch r10 exit 0 (1 items)
+20:03:12 x-c7 gen=0 acc=0 24s | /work/.bisect/logs/win3/x-c7.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 7.3853e-13 (limit 1.0000e-4) ok; top-1 flips 0.0000e0 (limit 2.7000e1) ok;golden gate: PASS;
+20:03:30 x-c10 gen=0 acc=1 18s | /work/.bisect/logs/win3/x-c10.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 8.5756e-3 (limit 1.0000e-4) FAIL; top-1 flips 2.2800e2 (limit 2.7000e1) FAIL;golden gate: FAIL;
+20:03:48 x-c10dl7 gen=0 acc=1 18s | /work/.bisect/logs/win3/x-c10dl7.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 8.5756e-3 (limit 1.0000e-4) FAIL; top-1 flips 2.2800e2 (limit 2.7000e1) FAIL;golden gate: FAIL;
+20:04:06 x-c7nc gen=0 acc=1 18s | /work/.bisect/logs/win3/x-c7nc.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 8.5756e-3 (limit 1.0000e-4) FAIL; top-1 flips 2.2800e2 (limit 2.7000e1) FAIL;golden gate: FAIL;
+20:04:24 x-c10nc gen=0 acc=1 18s | /work/.bisect/logs/win3/x-c10nc.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 8.5756e-3 (limit 1.0000e-4) FAIL; top-1 flips 2.2800e2 (limit 2.7000e1) FAIL;golden gate: FAIL;
+20:04:42 x-c10dl7nc gen=0 acc=1 18s | /work/.bisect/logs/win3/x-c10dl7nc.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 8.5756e-3 (limit 1.0000e-4) FAIL; top-1 flips 2.2800e2 (limit 2.7000e1) FAIL;golden gate: FAIL;
+20:05:00 x-c7fix gen=0 acc=0 18s | /work/.bisect/logs/win3/x-c7fix.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 7.3853e-13 (limit 1.0000e-4) ok; top-1 flips 0.0000e0 (limit 2.7000e1) ok;golden gate: PASS;
+20:05:18 x-c10fix gen=0 acc=0 18s | /work/.bisect/logs/win3/x-c10fix.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 7.3853e-13 (limit 1.0000e-4) ok; top-1 flips 0.0000e0 (limit 2.7000e1) ok;golden gate: PASS;
+20:05:36 f7 gen=0 acc=0 18s | /work/.bisect/logs/win3/f7.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 7.3853e-13 (limit 1.0000e-4) ok; top-1 flips 0.0000e0 (limit 2.7000e1) ok;golden gate: PASS;
+20:05:54 f10 gen=0 acc=0 18s | /work/.bisect/logs/win3/f10.gen.err:ids: [324, 55965, 557, 26606] |  mean KL(21-way) 7.3853e-13 (limit 1.0000e-4) ok; top-1 flips 0.0000e0 (limit 2.7000e1) ok;golden gate: PASS;
+20:06:10 tp2-r7ctl gen=- acc=0 15s |  |  mean KL(21-way) 1.8737e-13 (limit 1.0000e-4) ok; top-1 flips 0.0000e0 (limit 2.7000e1) ok;golden gate: PASS;
+20:06:25 tp2-r10ctl gen=- acc=1 15s |  |  mean KL(21-way) 8.5879e-3 (limit 1.0000e-4) FAIL; top-1 flips 2.0500e2 (limit 2.7000e1) FAIL;golden gate: FAIL;
+20:06:40 tp2-f10 gen=- acc=0 15s |  |  mean KL(21-way) 1.8737e-13 (limit 1.0000e-4) ok; top-1 flips 0.0000e0 (limit 2.7000e1) ok;golden gate: PASS;
+15:06:40 stages done

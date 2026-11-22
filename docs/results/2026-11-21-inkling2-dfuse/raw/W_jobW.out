@@ -1,0 +1,82 @@
+fleetq: #11465 waiting (#3 in line): in line behind #11463 "intarsiaml inkling batch: ink_in_proj_gemvx gates (Metal suite, admission, md5 64/256, B1/8/16 X0 vs X1 ABAB digests)" (claude-57ee98d5) on endor
+fleetq:   #11463 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11463 set, or it will wait for #11463 to be released.
+fleetq: #11465 waiting (#2 in line): in line behind #11464 "intarsiaml inkling fp8: brief 18 fp8 modes vs default (bf16+screen), 256 + 5k, 3 rotated rounds; measure only" (claude-57ee98d5) on endor
+fleetq:   #11464 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11464 set, or it will wait for #11464 to be released.
+fleetq: #11465 waiting (#1 in line): needs gpu quiet on endor, but #11464 "intarsiaml inkling fp8: brief 18 fp8 modes vs default (bf16+screen), 256 + 5k, 3 rotated rounds; measure only" (claude-57ee98d5) loads it
+fleetq:   #11464 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11464 set, or it will wait for #11464 to be released.
+fleetq: #11465 running on endor: sh .scratch/jobW.sh
+STEP build
+STEP Metal tests at the tip
+EXIT metal_ink 0: 13 passed, 0 failed
+EXIT models_metal 0: 20 passed, 0 failed
+STEP md5 A vs B
+MD5 64 tokens: A 65cde8f35a1802e3e2fadb44d94d080d, B 65cde8f35a1802e3e2fadb44d94d080d: EQUAL (job G off: 64 65cde8f35a1802e3e2fadb44d94d080d, 256 61fd59fecb5e0d72ffd08f2c6d07855a)
+MD5 256 tokens: A 61fd59fecb5e0d72ffd08f2c6d07855a, B 61fd59fecb5e0d72ffd08f2c6d07855a: EQUAL (job G off: 64 65cde8f35a1802e3e2fadb44d94d080d, 256 61fd59fecb5e0d72ffd08f2c6d07855a)
+STEP G2 / G3 at the tip
+== g2-short: OVERALL 569 98.59 2.609e-3 2.087e-3 2.087e-3 1.637e-1 0.0679 0.0669 96.56 79.3% 0|OVERALL 128 99.22 2.744e-3 2.928e-3 2.928e-3 5.677e-2 0.0173 0.0167 93.59 97.7% 0| EXIT 0
+   self-golden vs job G (fcd05b172, off): EQUAL
+== g3-short: OVERALL 569 97.54 9.342e-3 8.420e-3 8.420e-3 3.871e-1 0.0679 0.0672 93.08 39.7% 0| EXIT 0
+   self-golden vs job G (fcd05b172, off): EQUAL
+== g2-long: OVERALL 1569 99.30 3.463e-3 3.239e-3 3.239e-3 6.918e-1 0.0407 0.0407 94.74 48.7% 0|OVERALL 160 98.75 2.609e-3 2.761e-3 2.761e-3 5.677e-2 0.0196 0.0196 93.75 91.9% 0| EXIT 0
+   self-golden vs job G (fcd05b172, off): EQUAL
+== g3-long: OVERALL 1569 97.39 1.278e-2 1.229e-2 1.229e-2 6.494e-1 0.0414 0.0411 89.83 18.0% 0| EXIT 0
+   self-golden vs job G (fcd05b172, off): EQUAL
+STEP plan show
+PLAN Qwen3-8B, base f55bfe8b7 vs 81bb8c4b8: byte-identical
+PLAN Llama-3.1-8B-Instruct, base f55bfe8b7 vs 81bb8c4b8: byte-identical
+STEP traces
+normal A short: steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.263 mean 13.280 min 13.024 max 13.869  decode 3403 ms (75.22 tok/s) md5 d03580fb172c4b088977979647b67712
+normal A 5k: steps 252 dispatches/step 551 buffers/step 2  span ms/step median 14.195 mean 14.214 min 14.068 max 14.754  decode 3643 ms (70.28 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+per-dispatch A: 30 decode steps: GPU busy 14096 us, span 14028 us, dispatches 543; CONTROLLERS (per-dispatch, pipelined): 2.972 ms per token
+normal B short: steps 252 dispatches/step 613 buffers/step 2  span ms/step median 13.930 mean 13.961 min 13.769 max 14.879  decode 3578 ms (71.54 tok/s) md5 d03580fb172c4b088977979647b67712
+normal B 5k: steps 252 dispatches/step 621 buffers/step 2  span ms/step median 14.877 mean 14.905 min 14.770 max 15.498  decode 3820 ms (67.01 tok/s) md5 d108e0e9a0d7e87a756b1b319f5d6df7
+per-dispatch B: 30 decode steps: GPU busy 15010 us, span 14734 us, dispatches 613; CONTROLLERS (per-dispatch, pipelined): 3.743 ms per token
+STEP localeval (order A B B A)
+localeval 1 arm A (after 81bb8c4b8) exit 0 
+[localeval]   5000 tok rep 3/3: prompt=5025 ttft=1.84s prefill=2732 tok/s decode=70.5 tok/s peak=97.4 tok/s out=128
+- result file: `results/20261122-104910-adhoc-endor-intarsia-metal-ink-dfuse-after-81bb8c4b8/result.json`
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+[localeval] saved /opt/code/deepeval/results/20261122-104910-adhoc-endor-intarsia-metal-ink-dfuse-after-81bb8c4b8/result.json
+server group 18704 stopped, port 8111 closed
+localeval 2 arm B (before-switches-off 81bb8c4b8) exit 0 
+[localeval]   5000 tok rep 3/3: prompt=5016 ttft=1.91s prefill=2632 tok/s decode=65.9 tok/s peak=96.5 tok/s out=128
+- result file: `results/20261122-104941-adhoc-endor-intarsia-metal-ink-dfuse-before-switches-off-81bb8c4b8/result.json`
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+[localeval] saved /opt/code/deepeval/results/20261122-104941-adhoc-endor-intarsia-metal-ink-dfuse-before-switches-off-81bb8c4b8/result.json
+server group 23368 stopped, port 8112 closed
+localeval 3 arm B (before-switches-off 81bb8c4b8) exit 0 
+[localeval]   5000 tok rep 3/3: prompt=5015 ttft=2.44s prefill=2057 tok/s decode=66.3 tok/s peak=98.1 tok/s out=128
+- result file: `results/20261122-105008-adhoc-endor-intarsia-metal-ink-dfuse-before-switches-off-81bb8c4b8/result.json`
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+[localeval] saved /opt/code/deepeval/results/20261122-105008-adhoc-endor-intarsia-metal-ink-dfuse-before-switches-off-81bb8c4b8/result.json
+server group 24318 stopped, port 8113 closed
+localeval 4 arm A (after 81bb8c4b8) exit 0 
+[localeval]   5000 tok rep 3/3: prompt=5019 ttft=2.66s prefill=1886 tok/s decode=65.0 tok/s peak=88.2 tok/s out=128
+- result file: `results/20261122-105039-adhoc-endor-intarsia-metal-ink-dfuse-after-81bb8c4b8/result.json`
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+[localeval] saved /opt/code/deepeval/results/20261122-105039-adhoc-endor-intarsia-metal-ink-dfuse-after-81bb8c4b8/result.json
+server group 25258 stopped, port 8114 closed
+Sun Nov 22 10:43:46 EST 2026
+build Sun Nov 22 10:44:05 EST 2026
+tests Sun Nov 22 10:45:14 EST 2026
+gates Sun Nov 22 10:46:13 EST 2026
+traces Sun Nov 22 10:46:53 EST 2026
+done Sun Nov 22 10:51:06 EST 2026
+body exit 0
+fleetq: #11465 done (exit 0)

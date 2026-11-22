@@ -1,0 +1,5 @@
+case                                           us/call       p10       p90     GB/s
+B wo GEMV [2304,3072]: first read 48.34 us (293 GB/s), second read 24.15 us (586 GB/s), ratio 0.500
+B wo GEMV [2304,3072] per-call command buffers: first 36.90 us, second 32.25 us, ratio 0.874
+B InkInProj [8664,2304]: first read 137.97 us (289 GB/s), second read 132.62 us (301 GB/s), ratio 0.961
+B InkInProj [8664,2304] per-call command buffers: first 146.63 us, second 146.96 us, ratio 1.002

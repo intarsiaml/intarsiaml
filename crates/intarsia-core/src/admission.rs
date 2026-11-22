@@ -82,6 +82,12 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
     if crate::dsv41::ops::OPS.contains(&op) {
         return crate::dsv41::cases::sweep(op, cfg);
     }
+    if crate::inkling2::ops::OPS.contains(&op) {
+        return crate::inkling2::cases::sweep(op, cfg);
+    }
+    if crate::screen::OPS.contains(&op) {
+        return crate::screen::sweep(op, cfg);
+    }
     let mut rng = SplitMix64::new(cfg.seed ^ (op as u64).wrapping_mul(0x9E37));
     let mut cases = Vec::new();
     let quick = cfg.quick;
@@ -703,7 +709,8 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
             }
         }
         Op::Argmax | Op::Sample => {
-            let vs: &[usize] = if quick { &[100] } else { &[100, 4096] };
+            // V % 4 != 0 too (101, 4099; Inkling-2's head has 200058 rows): rows that are not 16-byte aligned (lane ink-hostgap)
+            let vs: &[usize] = if quick { &[100, 101] } else { &[100, 101, 4096, 4099] };
             for &r in &[1usize, 5] {
                 for &v in vs {
                     for dt in [DType::F32, DType::Bf16] {
@@ -732,6 +739,30 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                                 );
                             }
                         }
+                    }
+                }
+            }
+        }
+        Op::GumbelArgmax => {
+            // the device sampler (lane ink-hostgap): rows with their own seed, position and 1/T, with and without the softcap;
+            // V % 4 != 0 too (Inkling-2's head has 200058 rows)
+            let vs: &[usize] = if quick { &[100, 101] } else { &[100, 101, 4096, 4099, 200058] };
+            for &r in &[1usize, 5] {
+                for &v in vs {
+                    for cap in [0.0f32, 30.0] {
+                        let logits = rand_t(&mut rng, DType::F32, &[r, v], 8.0);
+                        let keys: Vec<i32> = (0..r)
+                            .flat_map(|j| crate::gumbel::key_row(rng.next_u64(), 17 + 1000 * j, [1.0f32, 0.7, 1.3][j % 3]))
+                            .collect();
+                        push(
+                            format!("R={r} V={v} cap={cap}"),
+                            HostCall {
+                                op,
+                                inputs: vec![logits, HostTensor::from_i32(&[r, 4], &keys)],
+                                outputs: vec![OutSpec::new(DType::I32, &[r])],
+                                attrs: OpAttrs { scale: cap, ..attrs() },
+                            },
+                        );
                     }
                 }
             }
@@ -1778,6 +1809,31 @@ mod plan_case_tests {
     }
     fn t(dt: DType, shape: &[usize]) -> TensorRef {
         TensorRef::new(Buffer::new(P(shape.iter().product::<usize>() * dt.size_bytes() + 16)), dt, shape)
+    }
+
+    #[test]
+    fn situ_experts_case_keeps_the_ink_attrs() {
+        // Inkling-2's SiTU experts: only `.situ()` kernels accept the call, so its plan-shape case must carry the attrs (else
+        // `require_admitted` finds no admitted kernel for the model's own shapes, as `intarsia serve` did on Metal)
+        let mut a = OpAttrs::default();
+        a.top_k = 4;
+        a.ink.situ = true;
+        a.ink.gate_cap = 4.0;
+        a.ink.up_cap = 25.0;
+        let call = OpCall::new(
+            Op::MoeExperts,
+            vec![t(DType::Bf16, &[1, 64]), t(DType::I32, &[1, 4]), t(DType::F32, &[1, 4]), t(DType::Bf16, &[16, 64, 64])],
+            vec![t(DType::Bf16, &[1, 64])],
+            a,
+        );
+        let caps = ShapeCaps { rows: 32, n: 1024, pos0: 100, emb_vocab: 64 };
+        let (hc, label) = case_from_call(&call, &caps, &mut SplitMix64::new(1)).unwrap();
+        assert!(hc.attrs.ink.situ && hc.attrs.ink.gate_cap == 4.0 && hc.attrs.ink.up_cap == 25.0);
+        assert!(label.ends_with(" situ"), "{label}");
+        let mut plain = call.clone();
+        plain.attrs.ink = Default::default();
+        let (hp, lp) = case_from_call(&plain, &caps, &mut SplitMix64::new(1)).unwrap();
+        assert!(!hp.attrs.ink.situ && !lp.contains("situ"), "{lp}");
     }
 
     #[test]

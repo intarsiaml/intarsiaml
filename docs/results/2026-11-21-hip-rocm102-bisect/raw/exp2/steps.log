@@ -1,0 +1,14 @@
+15:01:28 tu c7nc exit 0
+15:01:31 tu c10nc exit 0
+15:01:34 tu c10dl7nc exit 0
+15:01:37 tu c7fix exit 0
+15:01:41 tu c10fix exit 0 
+15:01:41 relink x-c7nc exit 0
+15:01:42 relink x-c10nc exit 0
+15:01:42 relink x-c10dl7nc exit 0
+15:01:43 relink x-c7fix exit 0
+15:01:43 relink x-c10fix exit 0
+15:01:44 relink f10 exit 0
+15:01:44 relink f7 exit 0
+15:01:44 objs c7fix != c7
+15:01:44 objs c10fix != c10

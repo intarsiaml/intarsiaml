@@ -128,10 +128,17 @@ reads them before and after the measured reps of each size (warmup excluded) and
 * `--require-graphs`: exit non-zero (after saving) if the server does not export the counters or any measured size replayed
   zero graphs. The acceptance procedure passes it for our server. 0 replays means the run measured the Phase 1a eager path.
 
-**Profiled steps bias the number.** With `--profile-every N` (default 16 on GPU, 1 on cpu, 0 for `serve` on metal) every Nth decode step runs eagerly
+**Profiled steps bias the number.** With `--profile-every N` (default 16 on CUDA / HIP, 1 on cpu, 0 on metal) every Nth decode step runs eagerly
 with per-op synchronisation: about 6% of the steps at N = 16, each far slower than a replay. A throughput measurement runs the
 server with `--profile-every 0` so that no step is profiled, on every arm. vLLM has no such steps, so profiling only ever
 penalises our side. The as-shipped default can be reported as an extra, separately labelled arm, never as the A/B number.
+
+**Metal `generate` before 2026-11-21 profiled every 16th step.** Until lane ink-hostgap (docs/results/2026-11-21-inkling2-hostgap.md)
+only `serve` defaulted to `--profile-every 0` on Metal; `generate` timed every 16th decode step, and a profiled Metal step
+synchronises around every op (no decode graphs: 77-82 ms against a 15.8 ms Inkling-2-Mini step). So Metal `generate` decode
+tok/s recorded before that change without an explicit `--profile-every 0` is 12-25 % lower than the real decode rate (about 12 %
+on Qwen3-8B / the 35B, 20 % on Inkling-2-Mini: 50.5 against 63.4 tok/s). Compare only runs taken with the same setting; the
+`steps=... (profiled N)` line of `generate` says which.
 
 **One run per arm is not a result.** Run-to-run and server-restart variation on the GB10 is of the order of the margin the
 Phase 1 gate is decided on (76 against 78 tok/s). The A/B uses interleaved rounds (below), a discarded warmup call per size,

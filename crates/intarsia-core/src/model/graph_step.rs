@@ -307,6 +307,8 @@ impl Model {
         self.graphs.usable(self)
             && !self.graphs.batched_off.load(Ordering::Relaxed)
             && self.row_tab.is_some()
+            // Inkling-2's batched step runs eagerly (its solo step has no graph either; the restart copies are host-issued)
+            && self.ink.is_none()
             && self.recorder.lock().unwrap().is_none()
             && !std::env::var("INTARSIA_BATCH_GRAPHS").is_ok_and(|v| v == "0")
     }

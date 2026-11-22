@@ -1,0 +1,3 @@
+[01:48:31 +0s] window bbh-A1 mode A set bbh limit default max_tokens 16384; fleetq job 10491; vLLM counters (success gen_tokens) 2480 191265
+[02:58:14 +4183s] vLLM counters after: 2632 519992
+[02:58:14 +4183s] window end

@@ -64,7 +64,7 @@ JSON shape (`schema_version` 1; additive changes keep the version, breaking ones
 | `decode_profiled_steps` | The subset of `decode_eager_steps` that ran with per-op profiling, which synchronises around every op and so skews timings. | `intarsia_decode_profiled_steps_total` (counter) |
 | `device.*` | Name, backend, arch, total memory, **free memory measured at snapshot time**, unified-memory flag. | `intarsia_device_free_bytes` |
 | `ops.<op>.calls` | Launch count per op id (`embedding`, `rmsnorm`, `rmsnorm_add`, `qk_norm`, `rope`, `matmul`, `logits`, `kv_append`, `attn_prefill`, `attn_decode`, `silu_glu`, `argmax`, ...). | `intarsia_op_calls_total{op}` |
-| `ops.<op>.timed_calls`, `ops.<op>.time_ms` | Launches whose duration was measured, and their cumulative milliseconds. Timing needs a device sync, so GPU backends sample (`LoadOptions::profile_every`, default 16 on GPUs; every step on cpu-ref). Estimated per-launch cost is `time_ms / timed_calls`; the share of step time per op is `time_ms` normalised across ops. | `intarsia_op_seconds_total{op}` |
+| `ops.<op>.timed_calls`, `ops.<op>.time_ms` | Launches whose duration was measured, and their cumulative milliseconds. Timing needs a device sync, so GPU backends sample (`LoadOptions::profile_every`; the CLI default is 16 on CUDA / HIP, 0 (never) on Metal, every step on cpu-ref). Estimated per-launch cost is `time_ms / timed_calls`; the share of step time per op is `time_ms` normalised across ops. | `intarsia_op_seconds_total{op}` |
 
 Notes for consumers:
 

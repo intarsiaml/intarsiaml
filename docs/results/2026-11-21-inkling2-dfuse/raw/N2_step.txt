@@ -1,0 +1,5 @@
+step 0 steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.257 mean 13.284 min 13.039 max 13.866  decode 3404 ms (75.20 tok/s) md5 d03580fb172c4b088977979647b67712
+step 1 steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.283 mean 13.307 min 13.038 max 14.228  decode 3411 ms (75.06 tok/s) md5 d03580fb172c4b088977979647b67712
+step 2 steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.240 mean 13.299 min 13.022 max 14.267  decode 3409 ms (75.09 tok/s) md5 d03580fb172c4b088977979647b67712
+step 3 steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.275 mean 13.315 min 13.083 max 14.358  decode 3412 ms (75.02 tok/s) md5 d03580fb172c4b088977979647b67712
+step 4 steps 252 dispatches/step 543 buffers/step 2  span ms/step median 13.264 mean 13.296 min 13.086 max 14.024  decode 3408 ms (75.12 tok/s) md5 d03580fb172c4b088977979647b67712

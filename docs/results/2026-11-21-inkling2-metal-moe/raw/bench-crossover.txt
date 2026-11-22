@@ -1,0 +1,18 @@
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T=   16 Auto         all          749.7 us/call (min    735.2)  union  83.2 experts   497.3 GB/s
+nv T=   32 Auto         all         1324.7 us/call (min   1314.2)  union 112.6 experts   380.7 GB/s
+nv T=   64 Auto         all         1574.1 us/call (min   1541.1)  union 126.2 experts   359.1 GB/s
+nv T=  128 Auto         all         1984.0 us/call (min   1972.3)  union 127.8 experts   288.6 GB/s
+== MXFP8 experts, 3 layer copies of 1051 MB
+mx T=   16 Auto         all         1302.9 us/call (min   1215.1)  union  83.2 experts   524.7 GB/s
+mx T=   32 Auto         all         1765.6 us/call (min   1704.7)  union 112.6 experts   523.6 GB/s
+mx T=   64 Auto         all         2057.7 us/call (min   1996.3)  union 126.2 experts   503.6 GB/s
+mx T=  128 Auto         all         2845.1 us/call (min   2830.5)  union 127.8 experts   369.0 GB/s
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T=   64 Auto         all         2358.0 us/call (min   2357.2)  union 126.2 experts   239.7 GB/s
+nv T=  128 Auto         all         5104.5 us/call (min   5095.1)  union 127.8 experts   112.2 GB/s
+== MXFP8 experts, 3 layer copies of 1051 MB
+mx T=   64 Auto         all         2836.2 us/call (min   2833.6)  union 126.2 experts   365.3 GB/s
+mx T=  128 Auto         all         5845.7 us/call (min   5838.1)  union 127.8 experts   179.6 GB/s
+
+[exited with code 0]

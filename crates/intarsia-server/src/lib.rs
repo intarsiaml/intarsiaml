@@ -14,6 +14,7 @@
 mod anthropic;
 mod api;
 pub mod health;
+mod inkling;
 mod metrics;
 mod midsystem;
 mod openai;
@@ -326,6 +327,7 @@ async fn prometheus(State(st): State<AppState>) -> Response {
         Ok((snap, info, batch)) => {
             let mut body = metrics::render(&snap, &info, &st.metrics);
             body.push_str(&st.sampling_defaults.metric());
+            body.push_str(&intarsia_core::screen::metric());
             if let Some(b) = batch {
                 body.push_str(&metrics::render_batch(&b));
             }

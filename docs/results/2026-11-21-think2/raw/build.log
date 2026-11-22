@@ -1,0 +1,32 @@
+fleetq: #10486 waiting (#1 in line): needs 55 GB on spark2; 23 GB free of 116
+fleetq: #10486 running on spark2: bash scripts/think2/build.sh
+build start 00:56:29 sha 5d78422ae3f5ef9e167d577602afe79f0a3501a3
+cargo pgid 488245
+00:56:31 avail 72 GB
+00:56:51 avail 71 GB
+00:57:12 avail 71 GB
+00:57:33 avail 71 GB
+00:57:54 avail 71 GB
+00:58:15 avail 71 GB
+00:58:36 avail 72 GB
+00:58:56 avail 72 GB
+00:59:17 avail 72 GB
+00:59:38 avail 70 GB
+00:59:59 avail 70 GB
+01:00:19 avail 70 GB
+01:00:40 avail 72 GB
+01:01:01 avail 72 GB
+01:01:22 avail 72 GB
+01:01:43 avail 72 GB
+01:02:03 avail 72 GB
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5m 47s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.4T  141G  97% /
+Mem:             121          48          38           0          37          73
+build end 01:02:24 stamp think2-5d78422ae3f5
+fleetq: #10486 done (exit 0)
+rc=0

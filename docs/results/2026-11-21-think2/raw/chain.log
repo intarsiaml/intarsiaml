@@ -1,0 +1,102 @@
+01:16:15 start bbh-A1
+fleetq: #10491 waiting (#1 in line): needs gpu quiet on spark2, but #10490 "drill: restart drill 35B (10 stages: SIGTERM x3, SIGKILL x5 incl. child/supervisor-only, disk-tier)" (claude-overnight-drill) loads it
+fleetq: #10491 waiting (#1 in line): needs spark2 quiet, but its GPU is 83% busy with work fleetq does not track
+fleetq: #10491 running on spark2: bash scripts/think2/window.sh A bbh bbh-A1
+[01:48:31 +0s] window bbh-A1 mode A set bbh limit default max_tokens 16384; fleetq job 10491; vLLM counters (success gen_tokens) 2480 191265
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261121-014832-adhoc-think2-A-bbh-A1/result.json
+[localeval] logged to unanimis: 36745219-36f5-4d3b-a00c-0a8bcb1def67
+A-bbh-A1 run_id=20261121-014832-adhoc-think2-A-bbh-A1
+[02:58:14 +4183s] vLLM counters after: 2632 519992
+[02:58:14 +4183s] window end
+fleetq: #10491 done (exit 0)
+02:58:14 end bbh-A1 rc=0
+02:58:14 start bbh-B
+fleetq: #10493 waiting (#1 in line): needs spark2 quiet, but requests not tracked by fleetq are in flight: spark2-vllm (1 in flight)
+fleetq: #10493 running on spark2: bash scripts/think2/window.sh B bbh bbh-B
+[02:58:31 +0s] window bbh-B mode B set bbh limit default max_tokens 16384; fleetq job 10493; vLLM counters (success gen_tokens) 2632 519992
+[02:58:33 +2s] vLLM /v1/models: 200; earlyoom active; free: Mem:             121          47          57           0          17          74
+[02:58:34 +3s] binary: intarsia 0.0.1
+[02:58:34 +3s] serve B: ~/intarsiaml-think2/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[03:00:00 +89s] serve B up; MemAvailable MB: 47924; cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)|--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)|quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)|--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off|batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build ca3b30a3912f8e7a, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)|prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)|batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 83.2s, context 131072 tokens|
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261121-030001-adhoc-think2-B-bbh-B/result.json
+[localeval] logged to unanimis: 1ee3c10f-5f20-4adc-b59d-32de41099dd0
+B-bbh-B run_id=20261121-030001-adhoc-think2-B-bbh-B
+[03:37:35 +2344s] min MemAvailable MB (time MB): 03:37:34 39152; KILLED lines: 0; warn/error lines in serve log: 0
+[03:37:35 +2344s] clock (SM MHz at util>90): n=1081 min=2379 mean=2392
+[03:37:35 +2344s] vLLM counters after: 2632 519992
+[03:38:01 +2370s] window end
+fleetq: #10493 done (exit 0)
+03:38:02 end bbh-B rc=0
+03:38:02 start bbh-A2
+fleetq: #10494 running on spark2: bash scripts/think2/window.sh A bbh bbh-A2
+[03:38:02 +0s] window bbh-A2 mode A set bbh limit default max_tokens 16384; fleetq job 10494; vLLM counters (success gen_tokens) 2632 519992
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261121-033803-adhoc-think2-A-bbh-A2/result.json
+[localeval] logged to unanimis: 05b623f0-5ac4-4d59-ae22-250f6330fef9
+A-bbh-A2 run_id=20261121-033803-adhoc-think2-A-bbh-A2
+[04:49:53 +4311s] vLLM counters after: 2784 858995
+[04:49:53 +4311s] window end
+fleetq: #10494 done (exit 0)
+04:49:53 end bbh-A2 rc=0
+04:49:53 start gsm8k-A1
+fleetq: #10495 waiting (#1 in line): needs spark2 quiet, but requests not tracked by fleetq are in flight: spark2-vllm (1 in flight)
+fleetq: #10495 running on spark2: bash scripts/think2/window.sh A gsm8k gsm8k-A1
+[04:50:01 +0s] window gsm8k-A1 mode A set gsm8k limit default max_tokens 16384; fleetq job 10495; vLLM counters (success gen_tokens) 2784 858995
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261121-045002-adhoc-think2-A-gsm8k-A1/result.json
+[localeval] logged to unanimis: 7e4e2de7-a5a9-4fcc-9aaa-a79a54f8af67
+A-gsm8k-A1 run_id=20261121-045002-adhoc-think2-A-gsm8k-A1
+[06:12:51 +4970s] vLLM counters after: 2984 1254008
+[06:12:51 +4970s] window end
+fleetq: #10495 done (exit 0)
+06:12:51 end gsm8k-A1 rc=0
+06:12:51 start gsm8k-B
+fleetq: #10499 waiting (#1 in line): needs spark2 quiet, but requests not tracked by fleetq are in flight: spark2-vllm (1 in flight)
+fleetq: #10499 running on spark2: bash scripts/think2/window.sh B gsm8k gsm8k-B
+[06:13:01 +0s] window gsm8k-B mode B set gsm8k limit default max_tokens 16384; fleetq job 10499; vLLM counters (success gen_tokens) 2984 1254008
+[06:13:03 +2s] vLLM /v1/models: 200; earlyoom active; free: Mem:             121          47          57           0          17          74
+[06:13:03 +2s] binary: intarsia 0.0.1
+[06:13:04 +3s] serve B: ~/intarsiaml-think2/bin/intarsia serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8191 --host 0.0.0.0 --served-model-name guidance --max-seq 131072 --mem-budget 40 --profile-every 0 --max-batch 2 --prefix-store on
+[06:14:27 +86s] serve B up; MemAvailable MB: 47942; cuda attention: verify rows of one sequence read the KV cache once: on (INTARSIA_CUDA_ATTN_KV_ONCE=0 turns it off)|--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|prefix store: recipe's macro prefill (8192 rows) off with --max-batch > 1 (the workspace is planned without it)|quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)|--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)|batched MTP N=2 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp): a sequence drafts while at most 2 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off|batched MTP verify: batched_verify true (INTARSIA_BATCHED_VERIFY or recipe [tuning.cuda] batched_verify), verify_topk true (INTARSIA_VERIFY_TOPK or recipe verify_topk)|prefix store: the backend's packed prefill is off with --max-batch > 1|prefix store: on (build ca3b30a3912f8e7a, 0 entries loaded, boundaries [248045], chunk-invariant backend: false)|prefix store: new host buffers: page-aligned mappings, 2 MiB-aligned with MADV_HUGEPAGE (1) (INTARSIA_PREFIX_STORE_PREFAULT)|prefix store: --spec mtp drafts on store requests (the MTP head's context restarts where a request resumes; INTARSIA_MTP_STORE=0: drafting requests bypass the store)|batched MTP: sampled requests (temperature > 0) draft too, seed-exact (INTARSIA_BATCHED_MTP_SAMPLED=0: plain steps)|loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 80.7s, context 131072 tokens|
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261121-061428-adhoc-think2-B-gsm8k-B/result.json
+[localeval] logged to unanimis: f540c9b6-95cd-4fe0-8928-3879ed167e34
+B-gsm8k-B run_id=20261121-061428-adhoc-think2-B-gsm8k-B
+[07:03:28 +3027s] min MemAvailable MB (time MB): 07:02:58 38720; KILLED lines: 0; warn/error lines in serve log: 0
+[07:03:28 +3027s] clock (SM MHz at util>90): n=1415 min=2392 mean=2392
+[07:03:28 +3027s] vLLM counters after: 2984 1254008
+[07:03:54 +3053s] window end
+fleetq: #10499 done (exit 0)
+07:03:54 end gsm8k-B rc=0
+07:03:54 start gsm8k-A2
+fleetq: #10501 running on spark2: bash scripts/think2/window.sh A gsm8k gsm8k-A2
+[07:03:55 +0s] window gsm8k-A2 mode A set gsm8k limit default max_tokens 16384; fleetq job 10501; vLLM counters (success gen_tokens) 2984 1254008
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261121-070356-adhoc-think2-A-gsm8k-A2/result.json
+[localeval] logged to unanimis: 56e3d9bb-799d-437d-baf2-049f55e54254
+A-gsm8k-A2 run_id=20261121-070356-adhoc-think2-A-gsm8k-A2
+[08:36:35 +5560s] vLLM counters after: 3184 1695887
+[08:36:35 +5560s] window end
+fleetq: #10501 done (exit 0)
+08:36:35 end gsm8k-A2 rc=0
+08:36:35 chain done

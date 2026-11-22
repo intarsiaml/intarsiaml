@@ -1,0 +1,17 @@
+
+running 4 tests
+test batched_engine_with_macro_prefill_equals_plain_solo ... ok
+test batched_engine_with_packed_prefill_equals_solo ... ok
+test macro_prefill_equals_the_plain_chunk_schedule ... ok
+test macro_prefill_keeps_chunk_snapshots_for_reuse ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 24.90s
+
+
+running 3 tests
+test batched_mtp_with_packed_prefill_equals_solo ... ok
+test mtp_macro_prefill_keeps_chunk_snapshots_with_the_heads_position ... ok
+test mtp_model_takes_the_macro_prefill_pass_and_the_head_follows ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 67 filtered out; finished in 3.88s
+

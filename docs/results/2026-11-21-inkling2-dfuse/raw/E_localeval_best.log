@@ -1,0 +1,45 @@
+[localeval] calibrated: 22.4 tokens/sentence, 46 base tokens, ctx=20480
+[localeval]    128 tok rep 1/3: prompt=133 ttft=0.14s prefill=935 tok/s decode=67.0 tok/s peak=72.3 tok/s out=128
+[localeval]    128 tok rep 2/3: prompt=131 ttft=0.14s prefill=934 tok/s decode=65.9 tok/s peak=73.1 tok/s out=128
+[localeval]    128 tok rep 3/3: prompt=133 ttft=0.14s prefill=943 tok/s decode=67.0 tok/s peak=78.3 tok/s out=128
+[localeval]   5120 tok rep 1/3: prompt=5159 ttft=3.17s prefill=1627 tok/s decode=63.1 tok/s peak=84.3 tok/s out=128
+[localeval]   5120 tok rep 2/3: prompt=5156 ttft=3.17s prefill=1629 tok/s decode=63.0 tok/s peak=81.2 tok/s out=128
+[localeval]   5120 tok rep 3/3: prompt=5158 ttft=3.34s prefill=1546 tok/s decode=62.9 tok/s peak=88.7 tok/s out=128
+# localeval: adhoc — 2026-11-22T02:13
+
+- model: `inkling-2-mini` on ? (?), url `http://127.0.0.1:63546/v1`
+- thinking: default; run kind: speed; label: endor-intarsia-metal-dfuse-e-best
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git 2c5524c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://127.0.0.1:63546/v1 --model inkling-2-mini --sizes 128,5120 --label endor-intarsia-metal-dfuse-e-best --recipe endor: env INTARSIA_INK_ROUTE_FUSED=1 INTARSIA_INK_MSG_PRE=1 INTARSIA_INK_MIX_HOIST=1 INTARSIA_INK_BLEND_NORM_C=1 intarsia serve --backend metal --max-batch 1 --max-seq 20480 (intarsiaml ink/dfuse ac2371c81: ink/metal 0ee1bec29 + lane switches route / msg / hoist / norm_c on)`
+- result file: `results/20261122-021343-adhoc-endor-intarsia-metal-dfuse-e-best/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+endor: env INTARSIA_INK_ROUTE_FUSED=1 INTARSIA_INK_MSG_PRE=1 INTARSIA_INK_MIX_HOIST=1 INTARSIA_INK_BLEND_NORM_C=1 intarsia serve --backend metal --max-batch 1 --max-seq 20480 (intarsiaml ink/dfuse ac2371c81: ink/metal 0ee1bec29 + lane switches route / msg / hoist / norm_c on)
+````
+
+## Speed sweep
+
+served `inkling-2-mini`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 133 | 0.14 | 935 (934–943) * | - | 67.0 (65.9–67.0) | 73.1 (72.3–78.3) | - | - | 128 |
+| 5158 | 3.17 | 1627 (1546–1629) | 1659 | 63.0 (62.9–63.1) | 84.3 (81.2–88.7) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261122-021343-adhoc-endor-intarsia-metal-dfuse-e-best/result.json
+[localeval] logged to unanimis: ad7631dd-5585-4cab-a53f-024bcb023e60

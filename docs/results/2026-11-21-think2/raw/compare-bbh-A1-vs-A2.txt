@@ -1,0 +1,10 @@
+# compare: 20261121-014832-adhoc-think2-A-bbh-A1 → 20261121-033803-adhoc-think2-A-bbh-A2
+
+Speed differences under 10% are marked noise (fleet finding 6a7efe40). Quality differences inside ~2 standard errors are marked noise.
+
+| benchmark | A | B | Δ | 2·SE | verdict |
+|---|---:|---:|---:|---:|---|
+| bbh | 0.933 (n=150) | 0.920 (n=150) | -0.013 | ±0.060 | noise |
+
+- A: `guidance` @ http://spark-fa00:8000/v1 thinking=on (2026-11-21T01:48:32-05:00)
+- B: `guidance` @ http://spark-fa00:8000/v1 thinking=on (2026-11-21T03:38:03-05:00)

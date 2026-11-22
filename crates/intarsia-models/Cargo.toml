@@ -33,3 +33,6 @@ libc = { workspace = true }  # tests/batch_cuda_real.rs: host stack dump of ever
 # Batched-decode bitwise gate on the real Metal kernels (tests/batch_metal.rs; skips without the model)
 [target.'cfg(target_os = "macos")'.dev-dependencies]
 intarsia-backend-metal = { workspace = true }
+# examples/screen_batch_trace.rs: Metal API hooks of the screened-head batched-step check (lane ink-fp8, brief 16)
+objc2 = "0.6"
+objc2-metal = "0.3"
