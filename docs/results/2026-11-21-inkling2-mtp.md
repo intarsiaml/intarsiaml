@@ -107,6 +107,20 @@ Status: in progress. Branch `ink/mtp` (not pushed, not merged).
   bug. Any sampled spec path (rejection sampling, Gumbel acceptance) must sample from the capped logits, so fix it before
   sampled spec is enabled on any backend, with a test: a sampled verify-pass distribution equal to plain sampled decode
   (chi-square), or at least the verify logits equal to the decode logits after softcap. Report the commit.
+- 2026-11-22 (coordinator, SendMessage): 36cbb9536 ships with the Inkling merge, no hotfix on main (main is not affected:
+  only Gemma 4 caps there, and Gemma 4 cannot load the MTP head that every sampled spec path needs). **Condition before
+  sampled speculation is turned on for Inkling-2:** a test that runs sampled verify with softcap 30 and checks the verify rows
+  are capped before sampling.
+  Status (ink/mtp-softcap 36cbb9536), `crates/intarsia-models/tests/inkling2_verify_softcap.rs`
+  (`verify_logits_rows_are_the_softcapped_decode_logits`):
+  - covers `Model::forward_verify_logits`, the readback the sampled verify calls (engine.rs `forward_verify_logits` call in
+    the sampled pass), on the tiny Inkling-2 with `final_logit_softcapping` 30: verify rows bitwise the one-token decode steps'
+    capped logits; unfixed it fails (299 / 300 differ, max |d| 0.45);
+  - does not cover `forward_verify_topk` (device top-k; CPU has no device top-k, so it falls back to whole rows), so run the
+    same test on Metal / CUDA with device sampling on before enabling sampled spec there;
+  - does not run an engine-level sampled verify: Inkling-2 has no sampled spec path yet (`engine.rs` admits sampled requests
+    only under `--spec mtp`). Whoever wires sampled DSpark adds the engine-level test (accepted-token distribution vs plain
+    sampled decode, chi-square) in the same change.
 
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
