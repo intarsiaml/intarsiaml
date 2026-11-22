@@ -35,6 +35,13 @@
       rework the decode grid so each block owns a contiguous key range per head, one attempt, measured against 668. If all
       stay ~195: footprint / TLB, record and accept 668.
    2. Then idea 3 (fold the combine into the tile kernel) under the same bitwise rules.
+6. 2026-11-22 (coordinator): brief 5 accepted (read-pattern gain kept, fold revert right). (1) Rebuild the spark1 build
+   dir from tip 7628e87cb (fleetq, --load cpu) so no stale fold binary is left. (2) Message ink-cuda-mixmoe
+   (a4fb1801b5d47a28b) the tip 7628e87cb to merge; it owns the merged CUDA line and the real-model G2/G3. (3) Brief 6, once
+   mixmoe's merged tip passes real-model G2/G3 on CUDA: one nsys profile of real-model greedy decode at ctx 1k and 8k (quiet
+   fleetq slot, memory budgeted per the Spark OOM rules); report tok/s and the top 5 ops by time with their byte floors;
+   attention work again only if it is in the top 3, else send the coordinator the top item with a one-paragraph plan before
+   building.
 
 ## Summary
 
@@ -189,6 +196,72 @@ three `__syncthreads`, 16 keys of mma per warp. 8B bf16 GEMV decode reaches abou
 left. ncu cannot run here (RmProfilingAdminOnly = 1), so the next step needs either profiling rights or the restructure in
 idea 1 below.
 
+## Full-32k decode: read pattern (brief 5, commit a5e3ede16)
+
+Diagnostic `.scratch/bw.cu` (fleetq #11016, #11019-#11021): the 134 MB K + V of one full-32k visit
+(8 kv heads x 32832 keys x 128 dims, bf16), read and discarded by a read-only kernel. There are 16 rotating copies (the
+bench's footprint) unless noted.
+
+| read pattern | us per visit | GB/s |
+|---|---|---|
+| (a) one linear stream, 768 x 256 threads | 534 | 252 |
+| (b) the tile kernel's pattern: 4 warps round-robin over 16-key blocks, 16 B per lane | 637 | 211 |
+| (b) with 1 copy (134 MB footprint) | 647 | 208 |
+| (c) each block reads its contiguous K then V range, 128 threads | 570-579 | 232-236 |
+| b2: (b), but each warp owns a contiguous quarter of the tile | 605 | 222 |
+| b3: (b) with 4 16-key blocks in flight | 673-690 | 195-200 |
+| b4: (b), but each load instruction covers 2 whole rows (not fragment layout) | 577 | 233 |
+| b5: (b) with 32 B loads (`ld.global.v8.b32`) | 607 | 221 |
+| b6: 32 B loads + warp-contiguous quarters (fragment-compatible) | 577 | 233 |
+| b7: 32 B loads + 64 contiguous keys per warp per 256-key slab | 595 | 226 |
+
+1 copy and 16 copies run at the same speed, so TLB and footprint are not the limit. The access shape is the limit: in
+fragment layout, a 16 B load instruction touches 8 rows x 64 B. 32 B loads (8 rows x 128 B) plus long per-warp runs recover
+most of the gap to (c).
+
+The one rework attempt is b6 in the direct body (full layers):
+- Warp group g owns the tile quarter `tk0 + g S/4 ..`, in key order, so the key-to-warp map stays absolute and the kernel
+  stays rows-exact.
+- With head_dim >= 64, W = 16 dims per lane and chunk. That is one 32 B load from the cache when both bases are 32-byte
+  aligned (`F_AL32`), else two 16 B loads with the same values.
+- The bias is staged per step of 4 x 64 keys, one 64-key run per warp.
+
+Gate on fleetq #11036: all ADMITTED, 0 fails, and the 45 rows-exact cases bitwise. Fused op 75, graph us, against the
+staged-SWA tip (#11016), one run each:
+
+| case | 1 row | 4 rows | 16 rows |
+|---|---|---|---|
+| full 32k | 657 -> **613** | 721 -> **649** | 787 -> 784 |
+| full 4k | 89.4 -> 87.9 | 104.7 -> 99.6 | 157.8 -> 164.8 |
+| full 512 | 27.7 -> 28.2 | 37.1 -> 37.5 | 53.2 -> 56.8 |
+| SWA (staged body, unchanged) | 28.5-38.2 -> 30.6-40.6 | | |
+
+Full 32k at 1 row is now 613 us against a read-only ceiling for this pattern of about 577 (b6) and a floor of 492. The
+16-row full-layer cases did not gain and may have lost 3-7 us. In those cases ptxas reports a 72-88 B spill for
+`ink_tile_k<128>` at 168 registers, and the partial last tile now falls on one warp.
+
+## Combine fold (idea 3, brief 5 step 2): tried, reverted
+
+Prize, from nsys (`--cuda-graph-trace=node`, fleetq #11040; median per visit): `ink_tile_comb_k` takes 2.2-3.7 us at
+ctx 512 / 4k with 1-16 rows, 8-10 us at full 32k with 1-4 rows, and 22 us at full 32k with 16 rows. The gap before it is
+0.6-1.4 us.
+
+Attempt: the last-arriving block of each (kv head, row) merged that row's G heads in tile order. The merge body was shared
+with the kernel, so the bits were the same. Counters were a zero-initialised `__device__` array, reset by the last block.
+Gate (fleetq #11054) with the fold on and off: all ADMITTED, and the 45 rows-exact cases bitwise. Fused us, graph, fold on
+vs off (2 runs each):
+
+| case | 1 row | 4 rows | 16 rows |
+|---|---|---|---|
+| SWA 512 | 31.6 vs 28.2 | 57.5 vs 37.9 | 90.3 vs 58.0 |
+| full 4k | 95.9 vs 90.9 | 136.3 vs 102.9 | 228.8 vs 165.7 |
+| full 32k | 622 vs 609 | 731 vs 655 | 919 vs 806 |
+
+It loses everywhere. All rows of a call end on the same last tile, so a single block per kv head merges T x 3 heads x 128
+dims serially from L2. The separate kernel spreads that work over 24 x T blocks. Reverted (the code is not kept). A fold
+would need the merge spread over the tile blocks, which is a different design. A cheaper next step is to make
+`ink_tile_comb_k` itself faster at 32k / 16 rows (22 us: one thread per dim walks 33 partials twice).
+
 ## Next ideas (ranked)
 
 1. **Decode tile kernel: more keys per warp per barrier.** Each warp takes 64 keys per sub-chunk (4 mma k-groups)
@@ -197,8 +270,8 @@ idea 1 below.
 2. **Contract idea for main: attention computes the bias from r and relproj.** It would drop the `rel [T,H,E]` tensor:
    100 MB per 2048-row chunk written and read, about 0.75 ms at the floor. The prologue's rel tail is most of its
    1.6 ms per chunk, and the bias fetch dominates SWA flash. Not changed here: it is a contract change.
-3. **Fold the tile combine into the tile kernel** (last block of a row merges in tile order, counter in scratch zeroed by
-   the last block): one launch fewer per visit, about 3-5 us at decode.
+3. **Faster tile combine** (the fold was tried and lost, see above): `ink_tile_comb_k` costs 2-4 us at short ctx and
+   22 us at full 32k with 16 rows. Use a warp per (row, head) over the partials, or PDL so it overlaps the tile kernel's tail.
 4. **Flash prefill:** stage the bias slice with cp.async per sub-chunk; 128-row query blocks for full layers (14.3 ms at
    30k is about 58 TFLOPS).
 5. Full 4k at 4 rows (fused 9 us slower than the pair): the fused blocks each redo the call's q / r jobs; share them

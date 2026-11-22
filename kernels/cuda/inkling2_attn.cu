@@ -44,6 +44,7 @@ constexpr int F_DYN = 1;        // dynamic conv taps
 constexpr int F_RING = 2;       // K / V caches are rings
 constexpr int F_KV_WRITE = 4;   // cache write in the attention kernel (else ink_kv_write_k after it)
 constexpr int F_RING_WRITE = 16;  // conv-ring write in the kernel (else ink_ring_write_k after it)
+constexpr int F_AL32 = 64;       // tile kernel: the K / V cache bases are 32-byte aligned (32-byte loads of the cache rows)
 constexpr int F_READONLY = 32;    // diagnostic (INTARSIA_INK_TILE_READONLY=1): the tile kernel only reads its K / V (no output)
 
 struct InkP {
@@ -558,8 +559,9 @@ __global__ void ink_kv_write_k(InkP p, const bf16* kn, const bf16* vn) {
 //
 // Row t (position p, first key lo) cuts the keys into absolute tiles of S keys, S = tile_s(p - lo + 1): the smallest MIN_S * 2^k
 // for which an interval of that many keys meets at most MAXT tiles. Its partial over tile tau is a function of (p, lo, S,
-// tau) only: the tile's keys go in 64-key sub-chunks; inside one, warp group grp takes keys 16 grp .. 16 grp + 15 (QK^T and PV
-// with mma.sync m16n8k16, bf16 in, f32 out, P rounded to bf16); the four groups merge in order 0 + 1 + 2 + 3. A row with one
+// tau) only: warp group grp takes the tile's quarter grp (direct body, full layers) or, per 64-key sub-chunk, keys 16 grp ..
+// 16 grp + 15 (staged body, SWA layers), in key order (QK^T and PV with mma.sync m16n8k16, bf16 in, f32 out, P rounded to
+// bf16); the four groups merge in order 0 + 1 + 2 + 3. A row with one
 // tile is finished in the block, else the partials merge in tile order (ink_tile_comb_k). So a row's bits do not depend on the
 // other rows of the call, T or the grid: rows-exact. One block per (kv head, tile) serves every row whose class (S) it has:
 // the K / V of a tile are read once for all rows. The M = T * G query rows (row t, head g at M index t G + g) are cut into
@@ -660,16 +662,26 @@ __device__ __forceinline__ uint32_t movt(uint32_t x) {
     return y;
 }
 
-// W bf16 values (W = 4 or 8) of one key row as W / 2 packed pairs
+// W bf16 values (W = 4, 8 or 16) of one key row as W / 2 packed pairs; W = 16 as two 16-byte loads (any address space)
 template <int W>
 __device__ __forceinline__ void ldw(const bf16* src, uint32_t* r) {
-    if constexpr (W == 8) {
+    if constexpr (W == 16) {
+        const uint4 a = *(const uint4*)src, b = *(const uint4*)(src + 8);
+        r[0] = a.x, r[1] = a.y, r[2] = a.z, r[3] = a.w, r[4] = b.x, r[5] = b.y, r[6] = b.z, r[7] = b.w;
+    } else if constexpr (W == 8) {
         const uint4 v = *(const uint4*)src;
         r[0] = v.x, r[1] = v.y, r[2] = v.z, r[3] = v.w;
     } else {
         const uint2 v = *(const uint2*)src;
         r[0] = v.x, r[1] = v.y;
     }
+}
+
+// 16 bf16 of a global row in one 32-byte load (src 32-byte aligned)
+__device__ __forceinline__ void ldg32(const bf16* src, uint32_t* r) {
+    asm volatile("ld.global.v8.b32 {%0,%1,%2,%3,%4,%5,%6,%7}, [%8];\n"
+                 : "=r"(r[0]), "=r"(r[1]), "=r"(r[2]), "=r"(r[3]), "=r"(r[4]), "=r"(r[5]), "=r"(r[6]), "=r"(r[7])
+                 : "l"(src));
 }
 
 // One block per (kv head, tile slot y). FUSED: the prologue's jobs in the block (q / r of every row, the conv'd K / V of the
@@ -681,8 +693,10 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
     using SM = TileSmem<D>;
     // a lane reads W consecutive dims of a key row per chunk of 4 W dims; NCH chunks per row. The dims of a chunk feed the
     // mma k index (QK^T) and n index (PV) in a fixed permuted order, the same for every row: so the K / V of a step go
-    // straight from memory into fragments (V transposed with movmatrix), no shared-memory staging and no block barriers
-    constexpr int NDB = D / 8, W = D >= 32 ? 8 : 4, NCH = D / (4 * W), RPC = W / 2, KPC = W / 4;
+    // straight from memory into fragments (V transposed with movmatrix), no shared-memory staging and no block barriers.
+    // W = 16 (D >= 64): one 32-byte load per lane and chunk from the cache when its bases are 32-byte aligned (F_AL32), two
+    // 16-byte loads otherwise (same values, same bits)
+    constexpr int NDB = D / 8, W = D >= 64 ? 16 : D >= 32 ? 8 : 4, NCH = D / (4 * W), RPC = W / 2, KPC = W / 4;
     extern __shared__ __align__(16) unsigned char sm[];
     const int G = p.h / p.hk, T = p.t, M = T * G, nmt = (M + 15) / 16;
     const int H = p.h, Hk = p.hk, Cr = p.cr, E = p.e, dr = p.dr;
@@ -830,10 +844,16 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
     const bool ro = (p.flags & F_READONLY) != 0;
     uint32_t rofold = 0;
 
-    // 16-key blocks kb (absolute) with (kb / 16) % 4 == grp, in key order. The bias is staged per slab of SL keys when some
-    // row of the block has a distance < E in it; a (row, key) gets the same value staged or not (zero at d >= E).
-    for (int sb = jlo / SL * SL; sb <= jhi; sb += SL) {
-        const bool need_bias = pmin - min(sb + SL - 1, jhi) < E;
+    // Group grp owns the quarter tk0 + grp Q .. + Q - 1 of the tile (Q = S / 4), in key order: each warp streams one
+    // contiguous range. Step s: group grp takes its keys tk0 + grp Q + s CW .. + CW - 1 (16-key blocks). The bias of a
+    // step's 4 CW keys is staged (SL = 4 CW) when some row of the block has a distance < E in them; a (row, key) gets the
+    // same value staged or not (zero at d >= E).
+    const int Q = S / 4, CW = Q % 64 == 0 ? 64 : Q % 48 == 0 ? 48 : Q % 32 == 0 ? 32 : 16, nstep = Q / CW;  // S % 64 == 0
+    const bool al32 = (p.flags & F_AL32) != 0;
+    for (int s = 0; s < nstep; ++s) {
+        const int kq0 = tk0 + s * CW;  // group 0's first key of the step; group g's is kq0 + g Q
+        if (kq0 + 3 * Q + CW - 1 < jlo || kq0 > jhi) continue;  // no key of the block in the step (block-uniform)
+        const bool need_bias = pmin - min(kq0 + 3 * Q + CW - 1, jhi) < E;
         if (need_bias) {
             __syncthreads();  // the previous slab's Bs reads (and, fused, region 0's q reads) are done
             // in batches of 8 per thread: the loads of a batch are independent, then the stores
@@ -843,7 +863,7 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
 #pragma unroll
                 for (int u = 0; u < BU; ++u) {
                     const int x = x0 + u * blockDim.x;
-                    const int mi = x / SL, i = x % SL, j = sb + i;
+                    const int mi = x / SL, i = x % SL, j = kq0 + (i / CW) * Q + i % CW;
                     bv[u] = __float2bfloat16_rn(0.0f);
                     if (x < nmt * 16 * SL && mi < M && j >= jlo && j <= jhi) {
                         const int t = mi / G, pp = pos0 + t, d = pp - j;
@@ -859,7 +879,8 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
             }
             __syncthreads();
         }
-        for (int kb = sb + grp * 16; kb < sb + SL && kb <= jhi; kb += 64) {
+        const int kg0 = kq0 + grp * Q;
+        for (int kb = kg0; kb < kg0 + CW && kb <= jhi; kb += 16) {
             if (kb + 15 < jlo) continue;  // the block's keys start later
             // K and V rows of keys kb + nb * 8 + g8 (zero outside the block's key range)
             uint32_t kr[2][NCH][RPC], vr[2][NCH][RPC];
@@ -872,8 +893,13 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
 #pragma unroll
                     for (int r = 0; r < RPC; ++r) kr[nb][ch][r] = vr[nb][ch][r] = 0u;
                     if (ok) {
-                        ldw<W>(krow(0, j) + ch * 4 * W + c4 * W, kr[nb][ch]);
-                        ldw<W>(krow(1, j) + ch * 4 * W + c4 * W, vr[nb][ch]);
+                        if (W == 16 && al32 && j < pos0) {
+                            ldg32(krow(0, j) + ch * 4 * W + c4 * W, kr[nb][ch]);
+                            ldg32(krow(1, j) + ch * 4 * W + c4 * W, vr[nb][ch]);
+                        } else {
+                            ldw<W>(krow(0, j) + ch * 4 * W + c4 * W, kr[nb][ch]);
+                            ldw<W>(krow(1, j) + ch * 4 * W + c4 * W, vr[nb][ch]);
+                        }
                     }
                 }
             }
@@ -904,7 +930,7 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
                     const int k = e >> 1, j = kb + nb * 8 + 2 * c4 + (e & 1);
                     float v = -INFINITY;
                     if (j >= rlo[k] && j <= rhi[k]) {
-                        const float b = need_bias ? __bfloat162float(Bs[rmi[k] * SL + (j - sb)]) : 0.0f;
+                        const float b = need_bias ? __bfloat162float(Bs[rmi[k] * SL + grp * CW + (j - kg0)]) : 0.0f;
                         v = __fmaf_rn(sc[nb][e], qsc, __fmul_rn(b, LOG2E));
                     }
                     sc[nb][e] = v;
@@ -1734,6 +1760,7 @@ int launch_tile_d(const InkP& p, int min_s, unsigned ny, cudaStream_t st) {
     }
     InkP q = p;
     if (tile_readonly()) q.flags |= F_READONLY;
+    if (((uintptr_t)p.kc | (uintptr_t)p.vc) % 32 == 0) q.flags |= F_AL32;
     ink_tile_k<D, FUSED><<<dim3(p.hk, ny), 128 * nmt, smem, st>>>(q, min_s);
     return IK_OK;
 }
