@@ -859,9 +859,13 @@ Numbers from #11564 (localeval, one quiet slot, binary bfaccd447) and #11575 / #
 
 - The TTFT objection that held the flip (#10991: prefill -6% / -7% at 4k / 16k) is gone: it was the host ingest, replaced by the
   device ingest (85265f9d5). The draft ingest now costs 4.1 ms per 2048-row prefill chunk, about 0.5% of prefill.
-- The decode gain shrank from #10991's 1.26-1.44x to 1.12-1.28x. Spec-off decode on main got faster (63.6 -> 67.9 at 141), DSpark
-  did not (80.2 -> 76.3, different slot and day). Likely reason, not measured: main's screened head (#489) and in_proj changes speed
-  the 1-row step; a verify pass runs the full head over its 2-4 rows. A multi-row screened head for verify is the matching lever.
+- The decode gain shrank from #10991's 1.26-1.44x to 1.12-1.28x. Spec-off decode on main got faster (63.6 -> 67.9 at 141), while
+  DSpark got about 5% slower in absolute terms at every length (80.2 -> 76.3, 77.5 -> 74.1, 87.5 -> 83.5, 72.1 -> 70.2; different
+  slot and day). Off's gain fits main's 1-row work (screened head #489, P12). The screen is worth only about 1% to DSpark
+  (84.29 vs 83.37 tok/s with `INTARSIA_INK_HEAD_SCREEN=0`, same slot), since a verify pass runs the full head over its 2-4 rows.
+  DSpark's absolute drop is not explained yet. Untested candidates: #492's 2-16-row paths, which are exactly what a verify pass
+  runs (revert switches `INTARSIA_INK_PROJ_X=0`, `INTARSIA_INK_MOE_DEC1=0`), and the greedy acceptance drop 71.8% -> 69.6% (not
+  from the screen or P12, see the isolation above). One quiet-slot A/B with those two switches would settle it.
 - f130b8855's conditions still fit today's main: no `--spec`, Metal, one rank in process, `--max-batch` unset or <= 1, the
   checkpoint's `mtp_config` + `mtp.safetensors` present, `INTARSIA_SPEC_DEFAULT` not 0. Since #492 the recipe's `max_batch = 16` is
   only the cap of `--max-batch`; without the flag serve runs one sequence, so a default server would speculate. Greedy-only holds
