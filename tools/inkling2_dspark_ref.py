@@ -522,11 +522,47 @@ def run_analyze(args):
     (args.out / "analysis.json").write_text(json.dumps(out, indent=1))
 
 
+def make_tiny_dspark(tiny_dir: Path, out: Path, seed: int = 0):
+    """A random DSpark draft for the tiny target (`golden/inkling2-tiny`): `out/config.json` (the tiny config plus an
+    `mtp_config`) and `out/mtp.safetensors`. Window 8 < the test prompts, so the local layers' window bites."""
+    cfg = json.loads((tiny_dir / "config.json").read_text())
+    tc = cfg.get("text_config", cfg)
+    D, V = tc["hidden_size"], tc["vocab_size"]
+    n_vis = len(ir.Cfg.load(tiny_dir).visits())
+    mc = {"hidden_size": D, "num_hidden_layers": 3, "num_attention_heads": 4, "num_key_value_heads": 2, "head_dim": 16,
+          "intermediate_size": 96, "rms_norm_eps": 1e-6, "rope_theta": 1e6, "local_layer_ids": [0, 2], "sliding_window_size": 8,
+          "block_size": 8, "markov_rank": 16, "markov_head_type": "rnn_hidden", "q_bias": False, "o_bias": False,
+          "target_layer_ids": [2, 6, 10, n_vis]}
+    cfg["mtp_config"] = mc
+    g = torch.Generator().manual_seed(seed)
+    rn = lambda *s, sc=1.0: (torch.randn(*s, generator=g) * sc).to(torch.bfloat16)
+    un = lambda *s: (0.5 + torch.rand(*s, generator=g)).to(torch.bfloat16)
+    H, KV, hd, I, r = mc["num_attention_heads"], mc["num_key_value_heads"], mc["head_dim"], mc["intermediate_size"], mc["markov_rank"]
+    w = {"fuse_weight": rn(4, 4), "mask_embed": rn(D), "norm.weight": un(D)}
+    for i in range(3):
+        p = f"layers.{i}."
+        w.update({p + "input_layernorm.weight": un(D), p + "post_attention_layernorm.weight": un(D), p + "dflare_norm.weight": un(D),
+                  p + "self_attn.q_proj.weight": rn(H * hd, D, sc=D**-0.5), p + "self_attn.k_proj.weight": rn(KV * hd, D, sc=D**-0.5),
+                  p + "self_attn.v_proj.weight": rn(KV * hd, D, sc=D**-0.5), p + "self_attn.o_proj.weight": rn(D, H * hd, sc=(H * hd) ** -0.5),
+                  p + "self_attn.k_proj_ctx.weight": rn(KV * hd, D, sc=D**-0.5), p + "self_attn.v_proj_ctx.weight": rn(KV * hd, D, sc=D**-0.5),
+                  p + "self_attn.q_norm.weight": un(hd), p + "self_attn.k_norm.weight": un(hd), p + "self_attn.k_norm_ctx.weight": un(hd),
+                  p + "mlp.gate_proj.weight": rn(I, D, sc=D**-0.5), p + "mlp.up_proj.weight": rn(I, D, sc=D**-0.5),
+                  p + "mlp.down_proj.weight": rn(D, I, sc=I**-0.5)})
+    w.update({"markov_head.markov_w1.weight": rn(V, r), "markov_head.rnn_proj.weight": rn(3 * r, 2 * r + 2 * D, sc=(2 * r + 2 * D) ** -0.5),
+              "markov_head.rnn_proj.bias": rn(3 * r, sc=0.1), "markov_head.hidden_out.weight": rn(D, r, sc=r**-0.5),
+              "markov_head.hidden_out.bias": rn(D, sc=0.1), "markov_head.dflare_norm.weight": un(D)})
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "config.json").write_text(json.dumps(cfg, indent=1) + "\n")
+    save_file({k: v.contiguous() for k, v in w.items()}, str(out / "mtp.safetensors"))
+    print(f"wrote {out}: {len(w)} tensors, taps {mc['target_layer_ids']}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("mode", choices=["taps", "draft", "analyze"])
+    ap.add_argument("mode", choices=["taps", "draft", "analyze", "tiny"])
     ap.add_argument("--model", type=Path, default=ir.SNAPSHOT)
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--tiny", type=Path, default=Path(__file__).resolve().parent.parent / "golden" / "inkling2-tiny")
     ap.add_argument("--golden", type=Path, default=Path("/opt/code/intarsiaml/golden"))
     ap.add_argument("--set", choices=["greedy", "prose", "all"], default="all")
     ap.add_argument("--only", default=None)
@@ -543,6 +579,8 @@ def main():
     ap.add_argument("--cheap-draft-gb", type=float, default=0.5)
     ap.add_argument("--draft-fixed-us", type=float, default=300.0)
     args = ap.parse_args()
+    if args.mode == "tiny":
+        return make_tiny_dspark(args.tiny, args.out)
     {"taps": run_taps, "draft": run_draft, "analyze": run_analyze}[args.mode](args)
 
 

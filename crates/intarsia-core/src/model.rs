@@ -50,6 +50,8 @@ pub use verify_attn::{cuda_verify_attn_rows_env, cuda_verify_attn_rows_on, verif
 pub(crate) mod dcoco;
 pub(crate) mod dflash;
 mod dflash2;
+mod dspark;
+pub use dspark::DsparkConfig;
 mod dspine;
 pub mod dflash_tree;
 pub(crate) mod mtp;
@@ -1574,8 +1576,9 @@ impl Model {
                 if tp.world > 1 {
                     return Err(Error::Unsupported("tensor parallelism of Inkling-2".into()));
                 }
-                if opts.mtp || opts.dflash.is_some() {
-                    return Err(Error::Unsupported("speculative drafters (--spec mtp / dflash) on Inkling-2".into()));
+                // the model's own DSpark draft (`--spec dflash --spec-draft <model dir>`, `model/dspark.rs`) is the one drafter it takes
+                if opts.mtp || opts.dflash.as_ref().is_some_and(|d| d.config.dspark.is_none()) {
+                    return Err(Error::Unsupported("speculative drafters other than its DSpark draft (--spec dflash --spec-draft <model dir>) on Inkling-2".into()));
                 }
                 let ic = recipe.layer.other.get("ink").ok_or_else(|| Error::model("recipe [layer.ink] missing"))?;
                 let field = |k: &str| ic.get(k).and_then(|v| v.as_str()).map(String::from).ok_or_else(|| Error::model(format!("recipe [layer.ink] needs '{k}'")));
@@ -1661,7 +1664,8 @@ impl Model {
                 });
                 let t0 = Instant::now();
                 let shard = dflash_tp.then_some((tp.rank, tp.world));
-                let head = dflash::load_head(dl, b, dims, recipe, main_attn, &|n| weights_bytes.set(weights_bytes.get() + n), mt, act, shard)?;
+                let unembed = resolve(src, &recipe.top.lm_head.tensor).unwrap_or_default();
+                let head = dflash::load_head(dl, b, dims, recipe, main_attn, &|n| weights_bytes.set(weights_bytes.get() + n), mt, act, shard, (src, &unembed))?;
                 eprintln!(
                     "dflash: draft of {} layers (taps {:?}, block {}{}) loaded in {:.1} s",
                     head.n_layers(),

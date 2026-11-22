@@ -682,6 +682,11 @@ impl Model {
 
         // the attention inputs of the next visit are already in X (the previous MLP-side ConvMix computed them)
         let mut x_ready = false;
+        let (ds_taps, ds_feat): (&[usize], &[Buffer]) = match self.dflash.as_ref().filter(|h| h.dspark.is_some()) {
+            Some(h) if t <= h.feat_rows => (&h.taps, &h.feat),
+            Some(_) => return Err(Error::invalid(format!("inkling2: a pass of {t} rows is longer than the DSpark tap buffers"))),
+            None => (&[], &[]),
+        };
         let n_vis = im.visits.len();
         for (vi, v) in im.visits.iter().enumerate() {
             let l = &im.layers[v.layer];
@@ -701,6 +706,10 @@ impl Model {
                 // a12: bank = [the block after the prelude's, the partial], then the prelude is back (it never left the stack)
                 self.ink_copy(&plane(&ws.bank, act, 0, t, d), &stack(v.bank_stack, 1).reshaped(&[t, d]))?;
                 self.ink_copy(&plane(&ws.bank, act, 1, t, d), &self.ink_loc(v.bank_partial, t))?;
+            }
+            // the DSpark draft's taps (`model/dspark.rs`): the partial entering visits 5, 23, 41 of every pass
+            if let Some(ti) = ds_taps.iter().position(|&x| x == vi) {
+                self.ink_copy(&TensorRef::new(ds_feat[ti].clone(), act, &[t, d]), &partial)?;
             }
             let ctrl = l.ctrl.as_ref();
             if looped && ctrl.is_none() {
@@ -935,6 +944,10 @@ impl Model {
             ex(Op::AttnResMix, vec![stack(0, nb), p, none(act, &[0]), im.out_q.clone(), im.final_norm.clone()], vec![out.reshaped(&[1, t, d])], a0)?;
         }
         put("final_hidden".into(), out)?;
+        // the DSpark draft's last tap: the final-norm output (`target_layer_ids` 48 = one past the last visit)
+        if let Some(ti) = ds_taps.iter().position(|&x| x == n_vis) {
+            self.ink_copy(&TensorRef::new(ds_feat[ti].clone(), act, &[t, d]), out)?;
+        }
         if let Some(dm) = dump {
             dm.extend(extra);
         }

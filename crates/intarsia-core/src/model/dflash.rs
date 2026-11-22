@@ -75,6 +75,9 @@ pub struct DflashConfig {
     /// A DSpine checkpoint (`model/dspine.rs`, `tencent/Qwen3.8-27B-DSpine-b16`): a causal plain-Qwen3 block with a code bridge
     /// after every layer and a refinement tail. `v2` is set for it as well (the DFlash2 backbone path, without the conv).
     pub spine: Option<SpineConfig>,
+    /// An Inkling-2 DSpark draft (`model/dspark.rs`, the target's own `mtp.safetensors`): taps are target visits, the other
+    /// geometry fields above are unused.
+    pub dspark: Option<super::dspark::DsparkConfig>,
 }
 
 /// The DSpine code bridge's geometry (`dflash_config.selected_prefix_code_bridge`, `code_bridge_second_pass`).
@@ -135,11 +138,18 @@ pub(super) struct DflashHead {
     /// Run the DFlash2 block pass and its head on the row-exact (`_rows`) kernels (`INTARSIA_DFLASH_ROWS_KERNELS`, default
     /// on for a DFlash2 draft, off for DFlash v1; [`Model::dflash_set_rows_kernels`]): a speed choice only, the drafts never reach the output.
     rows_kernels: std::sync::atomic::AtomicBool,
+    /// An Inkling-2 DSpark draft (`model/dspark.rs`): then `layers` and `fc` are empty and `v2` is `None`.
+    pub(super) dspark: Option<Box<super::dspark::Dspark>>,
+    /// Rows each `feat` staging buffer holds.
+    pub(super) feat_rows: usize,
 }
 
 impl DflashHead {
     /// Draft layers (either kind).
     pub(super) fn n_layers(&self) -> usize {
+        if let Some(ds) = &self.dspark {
+            return ds.n_layers();
+        }
         self.v2.as_ref().map_or(self.layers.len(), |d| d.layers.len())
     }
 }
@@ -166,8 +176,36 @@ pub(super) fn load_head(
     rows: usize,
     act: DType,
     shard: Option<(usize, usize)>,
+    target: (&dyn WeightSource, &str),
 ) -> Result<DflashHead> {
     let (c, src) = (&dl.config, &*dl.src);
+    if let Some(dc) = &c.dspark {
+        if shard.is_some() || dl.dcoco {
+            return Err(Error::Unsupported("the DSpark draft split over ranks or with --dcoco".into()));
+        }
+        let (ds, feat) = super::dspark::load(dl, dc, target.0, target.1, b, dims, add_bytes, rows, act)?;
+        let norm = ds_norm_ref(&ds);
+        return Ok(DflashHead {
+            layers: Vec::new(),
+            fc: Vec::new(),
+            hidden_norm: norm.clone(),
+            norm,
+            taps: ds.taps().to_vec(),
+            feat,
+            mask_id: 0,
+            block: dc.block - 1,
+            dcoco: None,
+            v2: None,
+            eps: dc.eps,
+            norm_offset: 0.0,
+            script: Mutex::new(None),
+            profile: Default::default(),
+            full_head: None,
+            rows_kernels: std::sync::atomic::AtomicBool::new(false),
+            dspark: Some(Box::new(ds)),
+            feat_rows: rows,
+        });
+    }
     if c.v2 {
         return load_head2(dl, b, dims, add_bytes, rows, act, shard);
     }
@@ -271,7 +309,13 @@ pub(super) fn load_head(
         profile: Default::default(),
         full_head: None,
         rows_kernels: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DFLASH_ROWS_KERNELS").is_ok_and(|v| v == "1")),
+        dspark: None,
+        feat_rows: rows,
     })
+}
+
+fn ds_norm_ref(ds: &super::dspark::Dspark) -> TensorRef {
+    ds.norm_ref()
 }
 
 /// `fc` `[H, taps * H]` split by columns into one `[H, H]` projection per tap.
@@ -358,6 +402,8 @@ fn load_head2(
         // proposals, greedy verify decides every token): draft 21.1 -> 13.8 ms at tp=2 (the generic WMMA GEMM ran at half the
         // bandwidth). INTARSIA_DFLASH_ROWS_KERNELS=0 restores the generic kernels.
         rows_kernels: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DFLASH_ROWS_KERNELS").map_or(true, |v| v != "0")),
+        dspark: None,
+        feat_rows: rows,
     })
 }
 
@@ -384,12 +430,15 @@ impl Model {
     pub(super) fn new_dflash_state(&self, cap: usize) -> Result<Option<Box<DflashState>>> {
         let Some(head) = &self.dflash else { return Ok(None) };
         let specs = self.dflash_slot_specs(head);
-        Ok(Some(Box::new(DflashState { kv: SequenceState::new(&*self.backend, &specs, cap)?, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false })))
+        Ok(Some(Box::new(DflashState { kv: SequenceState::new(&*self.backend, &specs, cap)?, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false, frnn: Vec::new() })))
     }
 
     /// The draft's context cache slots: one attention slot per draft layer, in the draft's own geometry for DFlash2 (activation
     /// dtype), the target's for DFlash.
     fn dflash_slot_specs(&self, head: &DflashHead) -> Vec<SlotSpec> {
+        if let Some(ds) = &head.dspark {
+            return ds.slot_specs();
+        }
         match &head.v2 {
             Some(d2) => (0..d2.layers.len())
                 .map(|_| SlotSpec::AttnKv { n_kv_heads: d2.n_kv_heads, head_dim: d2.head_dim, dtype: self.act })
@@ -454,6 +503,9 @@ impl Model {
                 }
                 Ok(())
             } else {
+                if let Some(ds) = &head.dspark {
+                    return self.dspark_ingest(ds, &mut d, &head.feat, t, profile);
+                }
                 self.dspine_dump_taps(head, d.kv.len, &head.feat, t)?;
                 self.dflash_ingest(head, &mut d.kv, &head.feat, t, profile)
             }
@@ -489,6 +541,14 @@ impl Model {
     fn dflash_flush(&self, head: &DflashHead, d: &mut DflashState, profile: bool) -> Result<()> {
         let n = d.pending;
         if n == 0 {
+            return Ok(());
+        }
+        if let Some(ds) = &head.dspark {
+            let store = std::mem::take(&mut d.store);
+            let r = self.dspark_ingest(ds, d, &store, n, profile);
+            d.store = store;
+            r?;
+            d.pending = 0;
             return Ok(());
         }
         self.dspine_dump_taps(head, d.kv.len, &d.store, n)?;
@@ -632,6 +692,20 @@ impl Model {
                 "DFlash state at {} (active {}, synced {}), sequence at {}",
                 d.kv.len, d.active, d.synced, st.len
             )));
+        }
+        if let Some(ds) = &head.dspark {
+            let _ = (t_flush, t_start);
+            let mut drafts = self.dspark_draft(ds, st, next, k)?;
+            if let Some(f) = head.script.lock().unwrap().as_ref() {
+                // tests: the script's drafts (as many as it gives, up to `k`), whatever the confidence gate kept
+                let mut seq = st.tokens.clone();
+                seq.push(next);
+                let s: Vec<u32> = f(&seq, k).into_iter().filter(|&x| (x as usize) < self.dims.vocab).take(k).collect();
+                if !s.is_empty() {
+                    drafts = s;
+                }
+            }
+            return Ok(drafts);
         }
         // a DSpine block is causal: its first `k + 1` rows are those of the whole block, so only they run
         let t = if head.v2.as_ref().is_some_and(|d2| d2.spine.is_some()) { head.block.min(k + 1) } else { head.block };
@@ -984,6 +1058,9 @@ impl Model {
     /// admission cover them. Nothing without the drafter.
     pub(super) fn dflash_dry_run(&self) -> Result<()> {
         let Some(head) = &self.dflash else { return Ok(()) };
+        if head.dspark.is_some() {
+            return Ok(()); // the DSpark draft downloads to the host between its steps: it never runs inside a recorded pass
+        }
         if self.recorder.lock().unwrap().is_none() {
             return Err(Error::invalid("dflash_dry_run outside a dry run"));
         }
@@ -1003,7 +1080,7 @@ impl Model {
         let one = |mut kv: SequenceState, kd: usize| -> Result<()> {
             self.dflash_ingest(head, &mut kv, &head.feat, t, false)?;
             let mut st = crate::plan::phantom_state(&[], cap, kv.len);
-            st.dflash = Some(Box::new(DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false }));
+            st.dflash = Some(Box::new(DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false, frnn: Vec::new() }));
             // a split draft (lane dh): this rank's part as it runs it (rank 0 or a peer), without starting the other ranks
             let link = match (self.dflash_tp, self.tp.rank) {
                 (false, _) => DraftLink2::Solo,

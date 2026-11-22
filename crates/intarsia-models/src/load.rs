@@ -383,6 +383,10 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
     let top = |k: &str| -> Result<usize> {
         cfg.get(k).and_then(Value::as_u64).map(|v| v as usize).ok_or_else(|| Error::model(format!("{}: '{k}' missing", cfg_path.display())))
     };
+    // an Inkling-2 checkpoint with its DSpark draft (`mtp_config`, `mtp.safetensors`): `--spec-draft` is the model's own directory
+    if let Some(m) = cfg.get("mtp_config").filter(|_| dir.join("mtp.safetensors").exists()) {
+        return open_dspark(dir, &cfg, m, &cfg_path, dcoco);
+    }
     let d = cfg.get("dflash_config").ok_or_else(|| Error::model(format!("{}: not a DFlash draft (no dflash_config)", cfg_path.display())))?;
     let dn = |k: &str| d.get(k).and_then(Value::as_u64).unwrap_or(0) as usize;
     let layer_ids: Vec<usize> = d
@@ -427,6 +431,7 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
         selector_rank: dn("selector_rank"),
         selector_top_k: dn("selector_top_k"),
         spine: None,
+        dspark: None,
     };
     let src: Arc<dyn WeightSource> = Arc::new(SchemedSource::open(dir)?);
     let mut config = config;
@@ -468,6 +473,55 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
             )));
         }
     }
+    Ok(intarsia_core::model::DflashLoad { src, config, dcoco })
+}
+
+/// The Inkling-2 DSpark draft (`mtp.safetensors` beside the target, `mtp_config` in its `config.json`); semantics in
+/// `intarsia_core::model::dspark` (vLLM `models/inkling2/nvidia/dspark.py`).
+fn open_dspark(dir: &Path, cfg: &Value, m: &Value, cfg_path: &Path, dcoco: bool) -> Result<intarsia_core::model::DflashLoad> {
+    let bad = |k: &str| Error::model(format!("{}: mtp_config.{k} missing or invalid", cfg_path.display()));
+    let u = |k: &str| m.get(k).and_then(Value::as_u64).map(|v| v as usize).ok_or_else(|| bad(k));
+    let list = |k: &str| -> Result<Vec<usize>> {
+        m.get(k).and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_u64).map(|v| v as usize).collect()).ok_or_else(|| bad(k))
+    };
+    if m.get("markov_head_type").and_then(Value::as_str) != Some("rnn_hidden") {
+        return Err(Error::Unsupported(format!("{}: a DSpark draft whose markov_head_type is not rnn_hidden", cfg_path.display())));
+    }
+    if m.get("q_bias").and_then(Value::as_bool) == Some(true) || m.get("o_bias").and_then(Value::as_bool) == Some(true) {
+        return Err(Error::Unsupported(format!("{}: a DSpark draft with projection biases", cfg_path.display())));
+    }
+    let text = cfg.get("text_config").unwrap_or(cfg);
+    let dc = intarsia_core::model::DsparkConfig {
+        n_layers: u("num_hidden_layers")?,
+        n_heads: u("num_attention_heads")?,
+        n_kv_heads: u("num_key_value_heads")?,
+        head_dim: u("head_dim")?,
+        intermediate: u("intermediate_size")?,
+        eps: m.get("rms_norm_eps").and_then(Value::as_f64).unwrap_or(1e-6) as f32,
+        theta: m.get("rope_theta").and_then(Value::as_f64).ok_or_else(|| bad("rope_theta"))? as f32,
+        local: list("local_layer_ids")?,
+        window: u("sliding_window_size")?,
+        block: u("block_size")?,
+        rank: u("markov_rank")?,
+        taps: list("target_layer_ids")?,
+        softcap: text.get("final_logit_softcapping").and_then(Value::as_f64).unwrap_or(30.0) as f32,
+    };
+    let config = intarsia_core::model::DflashConfig {
+        layer_ids: dc.taps.clone(),
+        block: dc.block - 1,
+        hidden: u("hidden_size")?,
+        n_layers: dc.n_layers,
+        intermediate: dc.intermediate,
+        n_heads: dc.n_heads,
+        n_kv_heads: dc.n_kv_heads,
+        head_dim: dc.head_dim,
+        rms_eps: dc.eps,
+        rope_theta: dc.theta,
+        sliding_window: dc.window,
+        dspark: Some(dc),
+        ..Default::default()
+    };
+    let src: Arc<dyn WeightSource> = Arc::new(SafeTensors::open_files(&[dir.join("mtp.safetensors")])?);
     Ok(intarsia_core::model::DflashLoad { src, config, dcoco })
 }
 
