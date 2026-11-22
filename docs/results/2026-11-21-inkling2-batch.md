@@ -434,7 +434,7 @@ stream count; deepeval results/20261122-024220-adhoc-endor-intarsia-metal-ink-ba
 |---:|---:|---:|---:|---:|---:|
 | 1 | 46.5 (46.5, 46.5, 50.8) | 46.5 | 0.90 | 50.8 | |
 | 4 | 84.6 (84.6, 84.6, 84.7) | 21.2 | 1.23 | 52.1 | |
-| 16 | **117.7** (117.7, 118.1, 113.6) | 7.4 | 1.68 | 51.6 | 94 |
+| 16 | **117.7** (117.7, 118.1, 113.6) | 7.4 | 1.68 | 52.6 | 94 |
 
 16 streams: 2.2x the serialized server, 1.25x oMLX. **`intarsia bench speed`** (calibration fix in; 1024-token prompts,
 128 generated): single stream decode 60.2-61.3 tok/s (prefill 1.3-1.45k tok/s); concurrency rows (every stream prefills its
