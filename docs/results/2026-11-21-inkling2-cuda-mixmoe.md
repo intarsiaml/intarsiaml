@@ -215,6 +215,14 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   pending until both branches are merged (coordinator coordinates). Next: the cheaper row-kernel prefetch, then the
   thread-block cluster split. W4A4 stays parked until its own tolerance sweep. Confirm ink_fp4_kernel ran before quoting any
   T=2048 FP4 number.
+- (coordinator, 28th) Cluster split dropped: OK. MoE repack approved, probe first (~2-3 h cap, measure only), on spark1, T=1,
+  same grid / threads: (a) no-math stream of the current layout, (b) no-math stream of the proposed repacked layout, (c) the
+  shipped kernel. Build only if (b) clearly beats (a) with room for >= 1 ms / token; if (a) ~ (b), layout is not the limit:
+  report and pick the next item (Metal ink-dfuse found per-thread work, not layout, was its limit). Load-time memory: repack
+  expert by expert into the final buffer, never a full second copy; poll `free -g` on the first load and kill below 10 GB
+  available; fleetq `--mem` = load peak. Prefill moves to the new layout, so the gate adds prefill tok/s at 2k and 8k before /
+  after, besides bitwise rows-exact, greedy md5, decode tok/s with spread. Ownership: InkInProj (8.7 ms) and the attention
+  projections are ink-cuda-attn's (item d); stay off them. MoE, mix/conv, blend, controllers and router stay here.
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
