@@ -230,9 +230,9 @@ pub enum Op {
     ConvMix,
     /// Inkling-2 fused decode attention (1..=16 rows): exactly `RelSinkAttn(InkKvPrologue(..))` (lane ink-m-attn).
     InkAttnDecode,
-    // reserved ONCE (2026-11-21, coordinator): placeholder discriminants 76..=95 for the Inkling-2 lanes, four each (ink-dfuse
-    // 76-79, ink-pack12 80-83, ink-d1row 84-87, ink-fp8 88-91, ink-mtp 92-95). A lane replaces only its own placeholders, in
-    // place, keeping the order. They have no kernels anywhere and are exempt from the kernel-coverage tests (`Op::is_reserved`).
+    // placeholder discriminants 76..=83 (2026-11-21): ink-dfuse's 76-79 (its results doc) and ink-pack12's 80-83 (its brief),
+    // so 80 can exist before 76-79 land. A lane replaces only its own placeholders, in place, keeping the order. They have no
+    // kernels anywhere and are exempt from the kernel-coverage tests (`Op::is_reserved`).
     /// Reserved Inkling-2 discriminant 76 (lane ink-dfuse): no semantics yet; `OpCall::check` refuses it.
     InkReserved76,
     /// Reserved Inkling-2 discriminant 77 (lane ink-dfuse): no semantics yet; `OpCall::check` refuses it.
@@ -249,30 +249,6 @@ pub enum Op {
     InkReserved82,
     /// Reserved Inkling-2 discriminant 83 (lane ink-pack12): no semantics yet; `OpCall::check` refuses it.
     InkReserved83,
-    /// Reserved Inkling-2 discriminant 84 (lane ink-d1row): no semantics yet; `OpCall::check` refuses it.
-    InkReserved84,
-    /// Reserved Inkling-2 discriminant 85 (lane ink-d1row): no semantics yet; `OpCall::check` refuses it.
-    InkReserved85,
-    /// Reserved Inkling-2 discriminant 86 (lane ink-d1row): no semantics yet; `OpCall::check` refuses it.
-    InkReserved86,
-    /// Reserved Inkling-2 discriminant 87 (lane ink-d1row): no semantics yet; `OpCall::check` refuses it.
-    InkReserved87,
-    /// Reserved Inkling-2 discriminant 88 (lane ink-fp8): no semantics yet; `OpCall::check` refuses it.
-    InkReserved88,
-    /// Reserved Inkling-2 discriminant 89 (lane ink-fp8): no semantics yet; `OpCall::check` refuses it.
-    InkReserved89,
-    /// Reserved Inkling-2 discriminant 90 (lane ink-fp8): no semantics yet; `OpCall::check` refuses it.
-    InkReserved90,
-    /// Reserved Inkling-2 discriminant 91 (lane ink-fp8): no semantics yet; `OpCall::check` refuses it.
-    InkReserved91,
-    /// Reserved Inkling-2 discriminant 92 (lane ink-mtp): no semantics yet; `OpCall::check` refuses it.
-    InkReserved92,
-    /// Reserved Inkling-2 discriminant 93 (lane ink-mtp): no semantics yet; `OpCall::check` refuses it.
-    InkReserved93,
-    /// Reserved Inkling-2 discriminant 94 (lane ink-mtp): no semantics yet; `OpCall::check` refuses it.
-    InkReserved94,
-    /// Reserved Inkling-2 discriminant 95 (lane ink-mtp): no semantics yet; `OpCall::check` refuses it.
-    InkReserved95,
 }
 
 /// `BridgeCode` among the two single-output-shape bridge ops (they share a shape check).
@@ -281,7 +257,7 @@ fn call_op_is_code(op: Op) -> bool {
 }
 
 impl Op {
-    pub const ALL: [Op; 96] = [
+    pub const ALL: [Op; 84] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -366,18 +342,6 @@ impl Op {
         Op::InkReserved81,
         Op::InkReserved82,
         Op::InkReserved83,
-        Op::InkReserved84,
-        Op::InkReserved85,
-        Op::InkReserved86,
-        Op::InkReserved87,
-        Op::InkReserved88,
-        Op::InkReserved89,
-        Op::InkReserved90,
-        Op::InkReserved91,
-        Op::InkReserved92,
-        Op::InkReserved93,
-        Op::InkReserved94,
-        Op::InkReserved95,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -467,18 +431,6 @@ impl Op {
             Op::InkReserved81 => "ink_reserved_81",
             Op::InkReserved82 => "ink_reserved_82",
             Op::InkReserved83 => "ink_reserved_83",
-            Op::InkReserved84 => "ink_reserved_84",
-            Op::InkReserved85 => "ink_reserved_85",
-            Op::InkReserved86 => "ink_reserved_86",
-            Op::InkReserved87 => "ink_reserved_87",
-            Op::InkReserved88 => "ink_reserved_88",
-            Op::InkReserved89 => "ink_reserved_89",
-            Op::InkReserved90 => "ink_reserved_90",
-            Op::InkReserved91 => "ink_reserved_91",
-            Op::InkReserved92 => "ink_reserved_92",
-            Op::InkReserved93 => "ink_reserved_93",
-            Op::InkReserved94 => "ink_reserved_94",
-            Op::InkReserved95 => "ink_reserved_95",
         }
     }
 
@@ -486,7 +438,7 @@ impl Op {
         Op::ALL.iter().copied().find(|o| o.as_str() == s)
     }
 
-    /// A reserved placeholder discriminant (`InkReserved76` ..= `InkReserved95`): no kernels, refused by `OpCall::check`, exempt
+    /// A reserved placeholder discriminant (`InkReserved76` ..= `InkReserved83`): no kernels, refused by `OpCall::check`, exempt
     /// from every backend's kernel-coverage tests.
     pub fn is_reserved(self) -> bool {
         // by name, so a lane that replaces its placeholder in place does not touch this
@@ -570,7 +522,7 @@ impl Op {
             Op::InkInProj => (2, 3),
             Op::ConvMix => (11, 4),
             Op::InkAttnDecode => (10, 5),
-            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved88 | Op::InkReserved89 | Op::InkReserved90 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => (0, 0),
+            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 => (0, 0),
         }
     }
 }
@@ -1129,7 +1081,7 @@ impl OpCall {
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::check(self)?,
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::check(self)?,
             Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode => crate::inkling2::ops::check(self)?,
-            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved88 | Op::InkReserved89 | Op::InkReserved90 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => unreachable!("refused above"),
+            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 => unreachable!("refused above"),
         }
         Ok(())
     }
@@ -1308,7 +1260,7 @@ impl ShapeInfo {
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::shape(call, &mut s),
             Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::shape(call, &mut s),
             Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode => crate::inkling2::ops::shape(call, &mut s),
-            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved88 | Op::InkReserved89 | Op::InkReserved90 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => {}
+            Op::InkReserved76 | Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 => {}
         }
         let _ = o;
         s
@@ -1567,20 +1519,20 @@ mod tests {
         }
         assert_eq!(Op::ALL[Op::InkAttnDecode as usize], Op::InkAttnDecode);
         assert_eq!(Op::InkAttnDecode as usize, 75, "the fused decode attention, appended after ConvMix");
-        // the reserved Inkling-2 placeholders 76..=95, in order, last in `Op::ALL`
+        // the reserved Inkling-2 placeholders 76..=83, in order, last in `Op::ALL`
         assert_eq!(Op::InkReserved76 as usize, 76);
-        assert_eq!(Op::ALL.last(), Some(&Op::InkReserved95), "the last of the reserved block");
+        assert_eq!(Op::ALL.last(), Some(&Op::InkReserved83), "the last of the reserved block");
         for (j, op) in Op::ALL.iter().enumerate() {
             assert_eq!(*op as usize, j, "{op}");
             if op.is_reserved() {
-                assert!((76..=95).contains(&j), "{op}");
+                assert!((76..=83).contains(&j), "{op}");
                 assert_eq!(op.as_str(), format!("ink_reserved_{j}"));
             }
         }
         assert!(!Op::InkAttnDecode.is_reserved() && Op::InkReserved76.is_reserved());
         let r = OpCall::new(Op::InkReserved80, vec![], vec![], OpAttrs::default());
         assert!(r.check().unwrap_err().to_string().contains("reserved"));
-        assert_eq!(Op::parse("ink_reserved_95"), Some(Op::InkReserved95));
+        assert_eq!(Op::parse("ink_reserved_83"), Some(Op::InkReserved83));
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));
