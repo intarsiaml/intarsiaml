@@ -107,6 +107,13 @@ const DNF_ROWS: usize = 8;
 
 /// bf16 expert outputs (the Metal MoE budget, `kernels::MOE_TOL`).
 const MOE_TOL: Tol = Tol::new(1.5e-2, 1e-3);
+/// NVFP4 situ experts: rel_l2 2e-3 (abs as MOE_TOL). Lane ink-cuda-mixmoe swept 600 admission-built situ cases on CUDA (the Metal
+/// situ kernels take the same budget: same contract, same bf16 output rounding)
+/// (tests/ink_situ_spread.rs in intarsia-backend-cuda: T 1 and 4, E 32, H 2304, I 1152, judge of plan admission): worst
+/// rel_l2 9.50e-4, every differing output exactly 1 bf16 ulp (~5 % of the elements, scattered), so the error is the bf16
+/// output rounding of the routing-weighted (x 8) sum; a serve plan on spark1 drew a 1.04e-3 case of that tail and refused to
+/// load. Coordinator rule, brief 22 of docs/results/2026-11-21-inkling2-cuda-mixmoe.md.
+const SITU_TOL: Tol = Tol::new(1.5e-2, 2e-3);
 /// f32 router weights.
 const ROUTE_TOL: Tol = Tol::new(1e-3, 2e-4);
 
@@ -187,7 +194,7 @@ pub fn register(name: &str, k: KernelImpl) -> KernelImpl {
             .situ()
             .when(|s| s.situ && s.experts <= MAX_EXPERTS && s.top_k <= MAX_K && s.k % 32 == 0 && s.n % 32 == 0)
             .exact(Exactness::Deterministic)
-            .tol(MOE_TOL)
+            .tol(SITU_TOL)
             .scratch(intarsia_core::quant::ops::moe_experts_scratch),
         MOE_EXPERTS_SITU_BF16_ROWS => k
             .acts(bf)
@@ -202,7 +209,7 @@ pub fn register(name: &str, k: KernelImpl) -> KernelImpl {
                     && s.n % 32 == 0
             })
             .exact(Exactness::Deterministic)
-            .tol(MOE_TOL)
+            .tol(SITU_TOL)
             .priority(-1)
             .rows_exact()
             .scratch(intarsia_core::quant::ops::moe_experts_scratch),
