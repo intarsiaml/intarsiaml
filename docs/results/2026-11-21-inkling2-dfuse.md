@@ -437,4 +437,23 @@ candidates, in the order to try:
 Measure the same way as the hoist: microbench warm vs rotating sets, the per-dispatch trace, and the normal-step span with
 interleaved reps.
 
+### ink_route candidate 1: preload (branch ink/dfuse-route, ed14676a6; not yet timed)
+
+- **Kernel.** `ink_route_p9` / `ink_route_p16` (`INTARSIA_INK_ROUTE_PRELOAD`, default off). Each simdgroup loads its whole
+  weight row and the x row before the first dot: 9 uint4 per lane at D 2304, up to 16. The dot8 terms are added in the same
+  ascending order as `rt_logit_v`'s block loop and tail (m = 4b + u, then 4 nblk + r), so the logits are bitwise. It covers
+  the 16-byte form with D <= 4096; everything else keeps `ink_route`.
+- **Checks so far, on bespin:**
+  - (#11107) runtime MSL compile: the three pipelines admit 1024 threads.
+  - (#11107) `cargo check` of the Metal crate (examples + tests).
+  - (#11107) the Inkling model tests on cpu (inkling2, inkling2_batch) with the switches off and on.
+  - (#11110) docs_env_vars.
+- **Job R** (#11111, queued behind E; `.scratch/route/.scratch/jobR.sh`). off = best, on = best + preload.
+  1. The preload bitwise test against the pair: rows 1..16 and 40; D 2304, 64, 3000, 4096, 4104 and the 2-byte form.
+  2. The stress test with it on, and admission.
+  3. Real-model bitwise at 1 and 16 rows.
+  4. us per ink_route call in the stream (per-dispatch trace) and in the microbench.
+  5. Normal-step span: short prompt 6 interleaved reps, 5k 4 reps.
+- The ink/dfuse docs check of the tail removal passed on spark2 (#11103).
+
 PENDING_ATTRIBUTION
