@@ -208,3 +208,35 @@ Ops whose reduction order differs from Metal's: ink_in_proj (one k16 tensor-core
 matmul / logits GEMV (warp-shuffle tree vs simdgroup tree), the MoE SIMT dot products (warp tree per row), the CUDA attention
 kernels (ink-cuda-attn's split and tile order), and the cuBLAS head at prefill. None are approximations (fp32 accumulation
 everywhere, bf16 rounding points as in the contract), but further CUDA changes must not trade accuracy for speed.
+
+## Latency-bound small ops and MoE experts, bitwise only (graphs on, after merging ink/cuda-graph 5fa5a88bd)
+
+Per-kernel GPU time per token from nsys (spark2 #11092, eager, 64 tokens; `ink_row` per slot from the SQLite export):
+
+| kernel | calls / token | us / call | ms / token |
+|---|---|---|---|
+| ink_mma_gemv, in-projection (135-136 blocks) | 48 | 173-197 | ~8.9 |
+| ink_mma_gemv, blend controller h (G 64: 1 or 3 blocks) | 24 + 24 | 40.1 / 40.9 | 1.95 |
+| ink_row_kernel (one 768-thread block per row) | 124 | 4.0-18.5 (plain-visit ConvMix with mix + norm: 17.9) | 2.09 |
+| ink_blend_gate / ink_blend_norm | 48 / 48 | 9.8 / 5.5 | 0.74 |
+| moe_route | 48 | 8.1 | 0.39 |
+| ink_moe_gu / ink_moe_dn (NVFP4) | 44 / 44 | ~120 / ~66 | 8.2 |
+
+| change | bitwise check | before | after |
+|---|---|---|---|
+| blend h GEMV deep prefetch (ba7a9fcdc): separate kernel for grids <= 8 blocks, 4 k blocks in flight, same mma / fp32 chain | `ink_gemv_deep_bitwise` (deep == plain, G 64/128, S 1/3, R 1..40), ink_rows 7/7, tiny 12/12, greedy ids md5 equal | loop_blend T=1 35.9 us (S 1) / 40.4 (S 3); T=4 36.8 / 41.0; T=16 47.1 / 50.9 | 28.7 / 32.8; 29.4 / 35.6; 38.9 / 43.0 |
+| (kept) | | greedy, graphs on: short 31.58 / 31.47, 5k 30.26 tok/s | short 32.77 / 32.63, 5k 31.16 tok/s (#11144) |
+| row kernel: all independent loads first + tap loop unroll | greedy md5 equal | conv_mix N4 Q1 norm 14.3 us | 16.2 us: reverted |
+| blend GEMV PF 4 inside the shared kernel (with `break` in the stage loop) | greedy md5 equal | loop_blend T=1 36.4 | 43.1: reverted (stage arrays likely went to local memory) |
+| MoE gu / dn: next chunk's raw bytes loaded one ahead | greedy md5 equal | nv T=1 184.7 us (194 GB/s) | 185.4: no change, reverted |
+| MoE gu / dn: persistent grid (resident blocks, grouping once) | greedy md5 equal | nv T=1 187.9 us | 186.6: no change, reverted |
+
+Not done, and why. (1) ink_row: its reductions are "per-thread partial in element order, warp butterfly, warp partials in warp
+order" with the block size and elements per thread fixed by D, so any change of block shape changes the bits; the load hoist
+did not help, so it is not a load-issue problem. A bitwise multi-SM form needs a thread-block cluster with DSMEM keeping the
+same thread-to-element map and warp order (large; gain unknown without counters). GPU performance counters are not
+accessible to this user on spark2 (ncu: ERR_NVGPUCTRPERM), so stall reasons could not be read. (2) MoE experts: two bitwise
+restructurings (prefetch, persistence) moved nothing; the SIMT kernels are not limited by load latency or waves as assumed.
+Reaching ~230 GB/s needs a different inner loop (e.g. tensor-core decode GEMV over the expert rows), which is not bitwise the
+current SIMT chain: a numerics change. (3) moe_route (8 us, one warp) and the blend gate / norm: fusion into neighbours means
+a fused op in core (Metal's InkRoute op 76 is on ink/dfuse, not merged), outside this lane's files now.
