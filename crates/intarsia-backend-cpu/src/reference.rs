@@ -75,6 +75,8 @@ pub fn run(call: &OpCall) -> Result<()> {
         | Op::GateSplitQkNormRopeKv
         | Op::GdnConvDelta
         | Op::MoeBlock => crate::fused_ref::run(call, run),
+        // lossless P12 weights (lane ink-pack12): the decoded bf16 weight through the bf16 op
+        Op::MatmulP12 => run(&crate::p12_ref::as_bf16(call)?),
         Op::Embedding => {
             let ids = {
                 let b = crate::mem::bytes(&i[0])?;
@@ -313,7 +315,7 @@ pub fn run(call: &OpCall) -> Result<()> {
             }
             Ok(())
         }
-        Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved80 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => Err(Error::invalid(format!("{}: reserved discriminant", call.op))),
+        Op::InkReserved77 | Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => Err(Error::invalid(format!("{}: reserved discriminant", call.op))),
     }
 }
 

@@ -171,6 +171,8 @@ pub const UNIMPLEMENTED: &[Op] = &[
     Op::LogitsGather,
     Op::ScreenArgmax,
     Op::InkRoute,
+    // lossless 12-bit weights (lane ink-pack12): cpu and Metal only
+    Op::MatmulP12,
 ];
 
 /// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the

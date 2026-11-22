@@ -18,6 +18,7 @@ mod ink_ref;
 mod screen_ref;
 mod gdn_ref;
 mod mem;
+mod p12_ref;
 mod quant_ref;
 mod reference;
 mod rowtab;
