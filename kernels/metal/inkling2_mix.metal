@@ -221,7 +221,10 @@ inline float rbf(float v) { return bf2f(f2bf(v)); }
 
 // bind: 0 x [T,C] (ConvMix / SconvRes) or last [R,D] (AttnResMix), 1 taps [K,C], 2 res, 3 addend, 4 y, 5 ring [Rr,C] (rw),
 // 6 sum, 7 src [N,T,D], 8 queries [Q,D] f32, 9 norm [Q,D], 10 out bf16, 11 out f32, 12 pos i32, 13 InkMixP.
-template <int NE>
+// NE elements per thread, NS = N + 1 sources (stored + last), QB queries per reduction batch: all compile-time, so the
+// per-thread arrays stay in registers and every load of a row is issued unconditionally (clamped addresses, masked values)
+// before the first use (the loads of one thread overlap instead of serializing behind branches).
+template <int NE, int NS, int QB>
 kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
                         device const ushort* taps [[buffer(1)]],
                         device const ushort* res [[buffer(2)]],
@@ -244,115 +247,114 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
                         uint lane [[thread_index_in_simdgroup]],
                         uint sg [[simdgroup_index_in_threadgroup]],
                         uint nsg [[simdgroups_per_threadgroup]]) {
+    static_assert(NS <= MX_NMAX && QB <= MX_QB, "mix instance");
+    constexpr int NV = NS + QB * NS;  // reduced values per batch: source squares, then the dots [qi][n]
     threadgroup float part[(MX_NMAX + MX_QB * MX_NMAX) * 32];
-    threadgroup float red[MX_NMAX + MX_QB * MX_NMAX];
+    threadgroup float red[32];
     const uint d = p.d;
     const uint t = p.t0 + row;
     const bool conv = (p.flags & MX_CONV) != 0;
     const bool hres = (p.flags & MX_RES) != 0, hadd = (p.flags & MX_ADD) != 0, hsum = (p.flags & MX_SUM) != 0;
+    uint cc[NE];
+    bool on[NE];
+    for (int j = 0; j < NE; ++j) {
+        const uint c = tid + uint(j) * tpg;
+        on[j] = c < d;
+        cc[j] = min(c, d - 1);
+    }
+    // the stored sources first (independent of the conv: their loads overlap it)
+    float xs[NS][NE];
+    for (int n = 0; n < NS - 1; ++n) {
+        device const ushort* sr = src + p.sk[7] + ((ulong)n * p.t + t) * d;
+        for (int j = 0; j < NE; ++j) xs[n][j] = on[j] ? bf2f(sr[cc[j]]) : 0.0f;
+    }
     float last[NE];
     if (conv) {
         const int pos = p.use_dev ? posb[0] : int(p.pos0);
         const int pp = pos + int(t);
-        x += p.sk[0];
-        taps += p.sk[1];
+        device const ushort* xr = x + p.sk[0];
+        device const ushort* tr = taps + p.sk[1];
+        device const ushort* rg = ring + p.sk[5];
+        float acc[NE], xc[NE], rv[NE], av[NE];
         for (int j = 0; j < NE; ++j) {
-            const uint c = tid + uint(j) * tpg;
-            last[j] = 0.0f;
-            if (c >= d) continue;
-            float acc = 0.0f;
-            for (uint l = 0; l < p.k; ++l) {
-                const int qq = pp - int(l);
-                float xv = 0.0f;
-                if (qq >= pos) {
-                    xv = bf2f(x[(ulong)(qq - pos) * d + c]);
-                } else if (qq >= 0) {
-                    xv = bf2f(ring[p.sk[5] + (ulong)(uint(qq) % p.rr) * d + c]);
-                }
-                acc = fma(bf2f(taps[(ulong)l * d + c]), xv, acc);
+            acc[j] = 0.0f;
+            xc[j] = bf2f(xr[(ulong)t * d + cc[j]]);
+            rv[j] = hres ? bf2f(res[p.sk[2] + (ulong)t * d + cc[j]]) : 0.0f;
+            av[j] = hadd ? bf2f(add[p.sk[3] + (ulong)t * d + cc[j]]) : 0.0f;
+        }
+        for (uint l = 0; l < p.k; ++l) {
+            const int qq = pp - int(l);
+            device const ushort* bp = qq >= pos ? xr + (ulong)(qq - pos) * d : rg + (ulong)(uint(max(qq, 0)) % p.rr) * d;
+            device const ushort* tl = tr + (ulong)l * d;
+            for (int j = 0; j < NE; ++j) {
+                const float xv = qq >= 0 ? bf2f(bp[cc[j]]) : 0.0f;
+                acc[j] = fma(bf2f(tl[cc[j]]), xv, acc[j]);
             }
-            const float xc = bf2f(x[(ulong)t * d + c]);
-            const float yv = rbf((acc + xc) * p.cscale);
-            y[p.sk[4] + (ulong)t * d + c] = f2bf(yv);
+        }
+        for (int j = 0; j < NE; ++j) {
+            const ulong o = (ulong)t * d + cc[j];
+            const float yv = rbf((acc[j] + xc[j]) * p.cscale);
             float lv = yv;
-            if (hres) {
-                const float rv = bf2f(res[p.sk[2] + (ulong)t * d + c]);
-                if (hsum) {
-                    const float av = hadd ? bf2f(add[p.sk[3] + (ulong)t * d + c]) : 0.0f;
-                    lv = rbf((rv + av) + yv);
-                    sum[p.sk[6] + (ulong)t * d + c] = f2bf(lv);
-                } else {
-                    lv = rv + yv;
-                }
+            if (hres) lv = hsum ? rbf((rv[j] + av[j]) + yv) : rv[j] + yv;
+            last[j] = on[j] ? lv : 0.0f;
+            if (on[j]) {
+                y[p.sk[4] + o] = f2bf(yv);
+                if (hres && hsum) sum[p.sk[6] + o] = f2bf(lv);
             }
-            last[j] = lv;
-            if ((p.flags & MX_RING) != 0 && int(t) >= int(p.t) - int(p.rr)) {
-                ring[p.sk[5] + (ulong)(uint(pp) % p.rr) * d + c] = x[(ulong)t * d + c];
-            }
+        }
+        if ((p.flags & MX_RING) != 0 && int(t) >= int(p.t) - int(p.rr)) {
+            device ushort* wr = ring + p.sk[5] + (ulong)(uint(pp) % p.rr) * d;
+            for (int j = 0; j < NE; ++j)
+                if (on[j]) wr[cc[j]] = xr[(ulong)t * d + cc[j]];
         }
     } else {
         for (int j = 0; j < NE; ++j) {
-            const uint c = tid + uint(j) * tpg;
-            last[j] = 0.0f;
-            if (c >= d) continue;
-            float lv = bf2f(x[p.sk[0] + (ulong)t * d + c]);
-            if (hadd) lv = lv + bf2f(add[p.sk[3] + (ulong)t * d + c]);
-            last[j] = lv;
+            float lv = bf2f(x[p.sk[0] + (ulong)t * d + cc[j]]);
+            if (hadd) lv = lv + bf2f(add[p.sk[3] + (ulong)t * d + cc[j]]);
+            last[j] = on[j] ? lv : 0.0f;
         }
     }
     if (p.q == 0) return;
+    for (int j = 0; j < NE; ++j) xs[NS - 1][j] = last[j];
 
     // ---- depth mix over the N stored sources and `last` ----
-    const int ns = int(p.n) + 1;
-    float xs[MX_NMAX][NE];
-    for (int n = 0; n < MX_NMAX; ++n) {
-        for (int j = 0; j < NE; ++j) {
-            const uint c = tid + uint(j) * tpg;
-            float v = 0.0f;
-            if (n < ns - 1 && c < d) v = bf2f(src[p.sk[7] + ((ulong)n * p.t + t) * d + c]);
-            if (n == ns - 1) v = last[j];
-            xs[n][j] = v;
-        }
-    }
     const bool norm = (p.flags & MX_NORM) != 0;
-    for (uint q0 = 0; q0 < p.q; q0 += MX_QB) {
-        const int nq = int(min(uint(MX_QB), p.q - q0));
-        // one reduction: the source sums of squares (first batch only) and the query dots, [qi][n] after them
-        float v[MX_NMAX + MX_QB * MX_NMAX];
-        for (int n = 0; n < MX_NMAX; ++n) {
+    for (uint q0 = 0; q0 < p.q; q0 += QB) {
+        const int nq = int(min(uint(QB), p.q - q0));
+        float v[NV];
+        for (int n = 0; n < NS; ++n) {
             float a = 0.0f;
             for (int j = 0; j < NE; ++j) a = fma(xs[n][j], xs[n][j], a);
             v[n] = a;
         }
-        for (int qi = 0; qi < MX_QB; ++qi) {
+        for (int qi = 0; qi < QB; ++qi) {
+            device const float* qr = qry + (ulong)min(q0 + uint(qi), p.q - 1) * d;
             float qv[NE];
-            for (int j = 0; j < NE; ++j) {
-                const uint c = tid + uint(j) * tpg;
-                qv[j] = (qi < nq && c < d) ? qry[(ulong)(q0 + qi) * d + c] : 0.0f;
-            }
-            for (int n = 0; n < MX_NMAX; ++n) {
+            for (int j = 0; j < NE; ++j) qv[j] = (qi < nq && on[j]) ? qr[cc[j]] : 0.0f;
+            for (int n = 0; n < NS; ++n) {
                 float a = 0.0f;
                 for (int j = 0; j < NE; ++j) a = fma(qv[j], xs[n][j], a);
-                v[MX_NMAX + qi * MX_NMAX + n] = a;
+                v[NS + qi * NS + n] = a;
             }
         }
         // partials per simdgroup, then simdgroup 0 finishes: lane L = (query qi = L / 8, source n = L % 8) sums its dot
         // and source n's squares over the simdgroups (in sg order), and the softmax over n runs across the 8 lanes of a
-        // query (butterfly max / sum). The coefficients p[qi,n] * w[n] go to `coefs` for every thread.
-        for (int j = 0; j < MX_NMAX + MX_QB * MX_NMAX; ++j) {
+        // query (butterfly max / sum). The coefficients p[qi,n] * w[n] go to `red` for every thread.
+        for (int j = 0; j < NV; ++j) {
             const float sj = simd_sum(v[j]);
             if (lane == 0) part[j * 32 + sg] = sj;
         }
         threadgroup_barrier(mem_flags::mem_threadgroup);
         if (sg == 0) {
             const int qi = int(lane) / MX_NMAX, n = int(lane) % MX_NMAX;
+            const bool ok = qi < nq && n < NS;
+            const int jd = ok ? NS + qi * NS + n : 0, js = n < NS ? n : 0;
             float dt = 0.0f, sq = 0.0f;
             for (uint k = 0; k < nsg; ++k) {
-                dt += part[(MX_NMAX + lane) * 32 + k];
-                sq += part[n * 32 + k];
+                dt += part[jd * 32 + k];
+                sq += part[js * 32 + k];
             }
-            const bool ok = qi < nq && n < ns;
-            const float wn = n < ns ? precise::rsqrt(sq / float(d) + SRC_EPS) : 0.0f;
+            const float wn = precise::rsqrt(sq / float(d) + SRC_EPS);
             const float l = ok ? dt * wn : -INFINITY;
             float m = max(l, simd_shuffle_xor(l, ushort(1)));
             m = max(m, simd_shuffle_xor(m, ushort(2)));
@@ -364,73 +366,70 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
             red[lane] = ok ? e / se * wn : 0.0f;
         }
         threadgroup_barrier(mem_flags::mem_threadgroup);
-        float coef[MX_QB][MX_NMAX];
-        for (int qi = 0; qi < MX_QB; ++qi)
-            for (int n = 0; n < MX_NMAX; ++n) coef[qi][n] = red[qi * MX_NMAX + n];
-        threadgroup_barrier(mem_flags::mem_threadgroup);  // red is reused below
-        float mix[MX_QB][NE];
-        for (int qi = 0; qi < MX_QB; ++qi)
+        float mix[QB][NE];
+        for (int qi = 0; qi < QB; ++qi) {
+            float coef[NS];
+            for (int n = 0; n < NS; ++n) coef[n] = red[qi * MX_NMAX + n];
             for (int j = 0; j < NE; ++j) {
                 float a = 0.0f;
-                for (int n = 0; n < MX_NMAX; ++n)
-                    if (n < ns) a = fma(coef[qi][n], xs[n][j], a);
+                for (int n = 0; n < NS; ++n) a = fma(coef[n], xs[n][j], a);
                 mix[qi][j] = a;
             }
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);  // red is reused below
         if (norm) {
-            float ss[MX_QB];
-            for (int qi = 0; qi < MX_QB; ++qi) {
+            float ss[QB];
+            for (int qi = 0; qi < QB; ++qi) {
                 float a = 0.0f;
                 for (int j = 0; j < NE; ++j) a = fma(mix[qi][j], mix[qi][j], a);
                 ss[qi] = a;
             }
             mx_reduce_t(ss, part, red, tid, lane, sg, nsg);
-            for (int qi = 0; qi < MX_QB; ++qi) {
+            for (int qi = 0; qi < QB; ++qi) {
                 if (qi >= nq) continue;
                 const float inv = precise::rsqrt(red[qi] / float(d) + p.eps);
                 const uint q = q0 + uint(qi);
-                for (int j = 0; j < NE; ++j) {
-                    const uint c = tid + uint(j) * tpg;
-                    if (c >= d) continue;
-                    const float g = bf2f(nrm[p.sk[8] + (ulong)q * d + c]);
-                    outb[p.sk[9] + ((ulong)q * p.ocount + (t - p.orow0)) * d + c] = f2bf(mix[qi][j] * inv * g);
-                }
+                device const ushort* nr = nrm + p.sk[8] + (ulong)q * d;
+                device ushort* orow = outb + p.sk[9] + ((ulong)q * p.ocount + (t - p.orow0)) * d;
+                for (int j = 0; j < NE; ++j)
+                    if (on[j]) orow[cc[j]] = f2bf(mix[qi][j] * inv * bf2f(nr[cc[j]]));
             }
+            threadgroup_barrier(mem_flags::mem_threadgroup);  // red is reused by the next batch
         } else {
-            for (int qi = 0; qi < MX_QB; ++qi) {
+            for (int qi = 0; qi < QB; ++qi) {
                 if (qi >= nq) continue;
-                const uint q = q0 + uint(qi);
-                for (int j = 0; j < NE; ++j) {
-                    const uint c = tid + uint(j) * tpg;
-                    if (c < d) outf[((ulong)q * p.ocount + (t - p.orow0)) * d + c] = mix[qi][j];
-                }
+                device float* orow = outf + ((ulong)(q0 + uint(qi)) * p.ocount + (t - p.orow0)) * d;
+                for (int j = 0; j < NE; ++j)
+                    if (on[j]) orow[cc[j]] = mix[qi][j];
             }
             if ((p.flags & MX_PAIR) != 0) {
                 // the controller pair of each stream: dest = mix[Q == 1 ? 0 : s] (unnormed, f32), m = msg[s, t]
-                float mv[MX_QB][NE];
-                float v2[2 * MX_QB];
-                for (int qi = 0; qi < MX_QB; ++qi) {
+                constexpr int SB = MX_QB;
+                float mv[SB][NE];
+                float v2[2 * SB];
+                for (int si = 0; si < SB; ++si) {
+                    device const float* mr = msg + ((ulong)min(uint(si), max(p.nstream, 1u) - 1) * p.t + t) * d;
                     float a = 0.0f, b = 0.0f;
+                    const int qi = QB == 1 ? 0 : min(si, QB - 1);
                     for (int j = 0; j < NE; ++j) {
-                        const uint c = tid + uint(j) * tpg;
-                        mv[qi][j] = (uint(qi) < p.nstream && c < d) ? msg[((ulong)qi * p.t + t) * d + c] : 0.0f;
+                        mv[si][j] = (uint(si) < p.nstream && on[j]) ? mr[cc[j]] : 0.0f;
                         a = fma(mix[qi][j], mix[qi][j], a);
-                        b = fma(mv[qi][j], mv[qi][j], b);
+                        b = fma(mv[si][j], mv[si][j], b);
                     }
-                    v2[qi] = a;
-                    v2[MX_QB + qi] = b;
+                    v2[si] = a;
+                    v2[SB + si] = b;
                 }
                 mx_reduce_t(v2, part, red, tid, lane, sg, nsg);
-                for (int si = 0; si < MX_QB; ++si) {
+                for (int si = 0; si < SB; ++si) {
                     if (uint(si) >= p.nstream) continue;
-                    const int qi = p.q == 1 ? 0 : si;
-                    const float wd = precise::rsqrt(red[qi] / float(d) + SRC_EPS);
-                    const float wm = precise::rsqrt(red[MX_QB + si] / float(d) + SRC_EPS);
+                    const int qi = (QB == 1 || p.q == 1) ? 0 : min(si, QB - 1);
+                    const float wd = precise::rsqrt(red[p.q == 1 ? 0 : si] / float(d) + SRC_EPS);
+                    const float wm = precise::rsqrt(red[SB + si] / float(d) + SRC_EPS);
                     device ushort* pr = pair + ((ulong)si * p.ocount + (t - p.orow0)) * 2 * d;
                     for (int j = 0; j < NE; ++j) {
-                        const uint c = tid + uint(j) * tpg;
-                        if (c >= d) continue;
-                        pr[c] = f2bf(mix[qi][j] * wd);
-                        pr[d + c] = f2bf(mv[si][j] * wm);
+                        if (!on[j]) continue;
+                        pr[cc[j]] = f2bf(mix[qi][j] * wd);
+                        pr[d + cc[j]] = f2bf(mv[si][j] * wm);
                     }
                 }
             }
@@ -441,12 +440,14 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
 #define MX_ARGS device const ushort*, device const ushort*, device const ushort*, device const ushort*, device ushort*,   \
     device ushort*, device ushort*, device const ushort*, device const float*, device const ushort*, device ushort*,     \
     device float*, device const int*, device const float*, device ushort*, constant InkMixP&, uint, uint, uint, uint, uint, uint
-#define MX_INST(NE) template [[host_name("ink_mix_row_e" #NE)]] kernel void ink_mix_row<NE>(MX_ARGS);
-MX_INST(1)
-MX_INST(2)
-MX_INST(3)
-MX_INST(4)
-MX_INST(9)
+#define MX_INST(NE, NS, QB)                                                                                           \
+    template [[host_name("ink_mix_row_e" #NE "n" #NS "q" #QB)]] kernel void ink_mix_row<NE, NS, QB>(MX_ARGS);
+#define MX_NS(NE, QB) MX_INST(NE, 1, QB) MX_INST(NE, 2, QB) MX_INST(NE, 3, QB) MX_INST(NE, 4, QB) MX_INST(NE, 5, QB)     \
+    MX_INST(NE, 6, QB) MX_INST(NE, 7, QB) MX_INST(NE, 8, QB)
+MX_NS(1, 1) MX_NS(1, 4)
+MX_NS(2, 1) MX_NS(2, 4)
+MX_NS(3, 1) MX_NS(3, 4)
+MX_NS(4, 1) MX_NS(4, 4)
 
 // ---- deferred ring write: ring row (pos + t) % Rr = x[t] for the rows t in [max(t0, T - Rr), t0 + nrows) of a launch whose
 // rows also read the ring. bind: 0 x [T,C], 1 ring [Rr,C], 2 pos i32, 3 InkMixP (d, t, t0, pad0 = nrows, rr, pos0, use_dev,

@@ -203,7 +203,7 @@ pub fn shader_names() -> Vec<&'static str> {
             v.push(proj_shader_name(r, p, sg, u, rb));
         }
     }
-    v.extend(ROW_SHADERS);
+    v.extend(row_shaders());
     v
 }
 
@@ -377,8 +377,8 @@ pub const ATTN_RES_MIX_BF16: &str = "attn_res_mix_bf16";
 pub const SCONV_RES_BF16: &str = "sconv_res_bf16";
 pub const LOOP_BLEND_BF16: &str = "loop_blend_bf16";
 
-/// Elements per thread compiled into `ink_mix_row_e<NE>` (`MX_INST`); a row of D elements runs on ceil(D / NE) threads.
-pub const MIX_NE: [usize; 5] = [1, 2, 3, 4, 9];
+/// Elements per thread compiled into `ink_mix_row_e<NE>..` (`MX_NS`); a row of D elements runs on ceil(D / NE) threads.
+pub const MIX_NE: [usize; 4] = [1, 2, 3, 4];
 /// Widest row the row kernels take (NE 4 x 1024 threads).
 pub const MIX_D_MAX: usize = 4096;
 /// Stored sources + last the depth mix holds in registers (`MX_NMAX`).
@@ -453,33 +453,36 @@ struct InkBlendP {
 fn mix_geom(d: usize) -> (usize, usize) {
     static OV: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
     let ov = *OV.get_or_init(|| std::env::var("INTARSIA_INK_MIX_NE").ok().and_then(|v| v.parse().ok()).filter(|n| MIX_NE.contains(n)));
-    let ne = ov.filter(|&n| n * 1024 >= d).unwrap_or_else(|| MIX_NE.iter().copied().find(|&n| n * 1024 >= d).unwrap_or(9));
+    let ne = ov.filter(|&n| n * 1024 >= d).unwrap_or_else(|| MIX_NE.iter().copied().find(|&n| n * 1024 >= d).unwrap_or(4));
     (ne, d.div_ceil(ne).next_multiple_of(32).clamp(32, 1024))
 }
 
-fn mix_row_shader(ne: usize) -> &'static str {
-    match ne {
-        1 => "ink_mix_row_e1",
-        2 => "ink_mix_row_e2",
-        3 => "ink_mix_row_e3",
-        4 => "ink_mix_row_e4",
-        _ => "ink_mix_row_e9",
-    }
+/// `ink_mix_row_e<NE>n<NS>q<QB>`: NS = stored sources + 1 (1 when the call mixes nothing), QB = 1 for one query, else 4.
+fn mix_row_shader(ne: usize, ns: usize, qb: usize) -> &'static str {
+    static T: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
+    let t = T.get_or_init(row_names);
+    let (ei, qi) = (MIX_NE.iter().position(|&e| e == ne).expect("compiled NE"), usize::from(qb > 1));
+    t[(ei * 2 + qi) * MIX_SOURCES_MAX + ns - 1]
 }
 
-pub const ROW_SHADERS: [&str; 11] = [
-    "ink_mix_row_e1",
-    "ink_mix_row_e2",
-    "ink_mix_row_e3",
-    "ink_mix_row_e4",
-    "ink_mix_row_e9",
-    "ink_ring_write",
-    "ink_blend_pair",
-    "ink_blend_gate_g1",
-    "ink_blend_gate_g8",
-    "ink_blend_gate_g16",
-    "ink_blend_norm",
-];
+fn row_names() -> Vec<&'static str> {
+    let mut v = Vec::new();
+    for ne in MIX_NE {
+        for qb in [1, 4] {
+            for ns in 1..=MIX_SOURCES_MAX {
+                v.push(&*Box::leak(format!("ink_mix_row_e{ne}n{ns}q{qb}").into_boxed_str()));
+            }
+        }
+    }
+    v
+}
+
+/// The row-kernel entry points of inkling2_mix.metal (`MX_NS`), and the ring / blend helpers.
+pub fn row_shaders() -> Vec<&'static str> {
+    let mut v = row_names();
+    v.extend(["ink_ring_write", "ink_blend_pair", "ink_blend_gate_g1", "ink_blend_gate_g8", "ink_blend_gate_g16", "ink_blend_norm"]);
+    v
+}
 
 /// Scratch of the blend path (ConvMix with msg, LoopBlend) for rows of `d` channels, regions 256-byte aligned:
 /// dest f32 [3, 16, D], pair bf16 [3, 16, 2D], h bf16 [3, 16, G <= 128], y f32 [3, 16, D], partial f32 [3, 16, nsl].
@@ -647,7 +650,8 @@ impl MetalBackend {
             sk: [xb.skip, taps_b.skip, res_b.skip, add_b.skip, y_b.skip, ring_b.skip, sum_b.skip, src_b.skip, nrm_b.skip, outb.skip, 0, 0],
         };
         let binds = [&xb, &taps_b, &res_b, &add_b, &y_b, &ring_b, &sum_b, &src_b, &qry_b, &nrm_b, &outb, &outf, &pos_b, &msg_b, &pair_b];
-        self.dispatch(mix_row_shader(ne), &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
+        let (ns_i, qb) = if nq == 0 { (1, 1) } else { (ns + 1, if nq == 1 { 1 } else { 4 }) };
+        self.dispatch(mix_row_shader(ne, ns_i, qb), &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
         if conv && !safe {
             // ink_ring_write reads `pad0` (here `nrows`) as the launch's row count
             let pw = p;
