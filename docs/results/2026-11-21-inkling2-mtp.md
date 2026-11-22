@@ -29,6 +29,9 @@ Status: in progress. Branch `ink/mtp` (not pushed, not merged).
   take discriminants 92-95; ink-hostgap owns (a) device argmax over the R verify rows with the accepted length and (d) the single
   per-cycle readback. Send the interface after the #10806 profile (relayed to hostgap). Remove the 7 x V head download + host
   top-64 sync first ((c) on device). Greedy-only DSpark is fine: say so in the doc and the serve / CLI `--spec` help.
+- 2026-11-21 (coordinator, SendMessage): endor's quiet-GPU line is about 9 h. Move the token-identity checks out of #10806 into
+  a default-GPU-load job with a short --expect (backfills); keep #10806 for tok/s plus the DSPARK_PROFILE run. ink-metal fixed
+  the rows_exact pin-list test at a0751f302: merge ink/metal.
 
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
