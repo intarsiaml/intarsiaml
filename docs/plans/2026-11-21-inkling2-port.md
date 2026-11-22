@@ -319,7 +319,7 @@ Against the vLLM goldens (`golden/inkling2-mini-vllm-*`, GB10, W4A4, batch-1 seq
 | Oracle variant | short (569 pos) top-1 / KL21 | long (1569 pos) top-1 / KL21 | 4k |
 |---|---|---|---|
 | W4A16, rounding none (default) | **98.24 % / 6.35e-3** | **97.64 % / 1.24e-2** | **95.87 % / 9.84e-3** (13096 pos) |
-| W4A16, rounding vllm (with bf16 P; before it: 97.72 % / 6.06e-3, 97.51 % / 1.23e-2) | 97.36 % / 6.58e-3 | 97.26 % / 1.20e-2 | – |
+| W4A16, rounding vllm (with bf16 P; before it: 97.72 % / 6.06e-3, 97.51 % / 1.23e-2) | 97.54 % / 6.58e-3 | 97.26 % / 1.20e-2 | – |
 | W4A4 exact (`ops/nvfp4.py`, `ops/mxfp8.py`), rounding none | 97.01 % / 1.04e-2 | 96.94 % / 1.54e-2 | – |
 | W4A4 exact, rounding vllm (closest to vLLM's numerics; before bf16 P) | 96.31 % / 1.32e-2 | 96.62 % / 1.81e-2 | 95.58 % / 1.19e-2 |
 | W4A4 with my earlier inferred quantizer (superseded) | none 95.61 % / 1.19e-2, vllm 97.36 % / 9.62e-3 | – | – |
