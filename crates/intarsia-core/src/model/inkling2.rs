@@ -782,7 +782,7 @@ impl Model {
                 && t <= 16
                 && match ink_attn_fused_env() {
                     Some(f) => f,
-                    None => self.backend.name() == "metal" && ink_attn_fused_rule(t, l.local, pos0 + t, ink.window),
+                    None => (self.backend.name() == "metal" && ink_attn_fused_rule(t, l.local, pos0 + t, ink.window)) || self.backend.name() == "cuda",
                 };
             let fused = want_fused.then(|| {
                 let mut fa = aa.clone();
