@@ -283,6 +283,9 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   per 8k chunk, effort, quality plan (not bitwise: G3 prefill short / long / 4k within budget; decode unchanged if decode does
   not use it). Lever 3 (mix row kernels spread over D, ~0.48 s at 8k) goes to cuda-attn after this PR merges; it will touch
   the ink_row files on main.
+- (coordinator, RULE, 38th) This session and all `.worktrees` live ON endor. Every cargo / rustc / rustfmt run on endor goes
+  inside `fleetq run --host endor --load cpu --expect N ...` (or on a Spark / bespin in a CPU slot). No exceptions for quick
+  checks: unslotted `cargo check` / `cargo test` at 12:40-12:44 EST spoiled another lane's `--quiet gpu,cpu` timing (#11517).
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
