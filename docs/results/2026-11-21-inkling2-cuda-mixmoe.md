@@ -611,3 +611,13 @@ the kernel was paying integer issue, not DRAM latency.
 With `INTARSIA_INK_MOE_FP4=1` the T=2048 w4a4 case launches `ink_fp4_kernel` (gate+up and down) + `ink_fp4_sum_kernel`; with
 `=0` it runs `ink_moe_mma_kernel` instead. So the T=2048 NVFP4 W4A4 admission (rel_l2 2.72e-4, max_abs 7.9e-3) is the FP4
 tensor-core path; the bf16-MMA fallback gives the same figures to 4 digits.
+
+### Cluster split: premise checked, not built
+
+ptxas (`-Xptxas -v`, after the hoist): `ink_row_kernel<3>` (the instance for D 2304, 768 threads) uses 80 registers with
+**0 B spills**; only NE 5 / 6 spill (264 / 84 B; unused by this model). The earlier "spills before and after" was the widest
+instance. With no spills, a cluster split buys only more SMs issuing for a 10.2 us kernel: at most ~0.5 ms / token of the
+remaining 1.27. Decode GPU time per token now (#11401 trace, hoist on): ink_mma_gemv (InkInProj) 8.7 ms, NVFP4 MoE gu + dn
+5.2 + 2.9 ms, P12 unembed 2.9, attention p12 gemv 2.2, ink_row 1.27, blend gate + norm + deep gemv ~1.6, moe_route 0.38.
+The MoE kernels run at ~190 (gu) / ~170 (dn) GB/s at T=1; the repack to ~240 GB/s saves ~1.9 ms / token (~7 %), the largest
+lever in this lane's classes.
