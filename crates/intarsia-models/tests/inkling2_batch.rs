@@ -162,8 +162,8 @@ fn inkling2_batch_sampler_rows_are_softcapped() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     // cpu: the backend with device-side top-k (`CpuBackend::arc_topk`), so `LastTopK` rows take the device top-k path; Metal has
     // no `supports_topk`, so its sampled rows are logits rows (the host sampler takes the top-k there)
-    let be = if on_metal() { backend() } else { intarsia_backend_cpu::CpuBackend::arc_topk() };
-    let m = load_on(&dir, be, 16).unwrap();
+    let inner = if on_metal() { backend() } else { intarsia_backend_cpu::CpuBackend::arc_topk() };
+    let m = load_on(&dir, Arc::new(Failing { inner, fail: Arc::new(AtomicBool::new(false)) }), 16).unwrap();
     let all = [1usize, 7, 8, 9, 12, 13, 3, 30, 17, 64, 5, 41, 2, 24, 50, 11];
     let mut max_d = 0f32;
     for n in [2usize, 5, 16] {
@@ -318,6 +318,22 @@ impl Backend for Failing {
     }
     fn device_address(&self, buf: &Buffer) -> Option<u64> {
         self.inner.device_address(buf)
+    }
+    fn supports_topk(&self) -> bool {
+        self.inner.supports_topk()
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn topk_rows(
+        &self,
+        logits: &intarsia_core::TensorRef,
+        k: usize,
+        ids: &intarsia_core::TensorRef,
+        vals: &intarsia_core::TensorRef,
+        nan: &intarsia_core::TensorRef,
+        scratch: &intarsia_core::TensorRef,
+        s: StreamId,
+    ) -> intarsia_core::Result<()> {
+        self.inner.topk_rows(logits, k, ids, vals, nan, scratch, s)
     }
     fn batch_row_cap(&self) -> usize {
         self.inner.batch_row_cap().max(16)
