@@ -1,0 +1,13 @@
+== MXFP8 experts, 3 layer copies of 1051 MB
+mx T=    1 Auto         all          126.3 us/call (min    125.8)  union   8.0 experts   520.1 GB/s
+mx T=    1 Auto         gate+up       84.4 us/call (min     83.3)  union   8.0 experts   518.8 GB/s
+mx T=    1 Auto         down          42.9 us/call (min     42.7)  union   8.0 experts   510.8 GB/s
+mx T=    1 Union        all          129.0 us/call (min    128.4)  union   8.0 experts   509.2 GB/s
+mx T=    1 Union        gate+up       85.1 us/call (min     83.3)  union   8.0 experts   514.8 GB/s
+mx T=    1 Union        down          45.2 us/call (min     45.0)  union   8.0 experts   484.9 GB/s
+mx T=    1 Pair         all          127.9 us/call (min    127.8)  union   8.0 experts   513.5 GB/s
+mx T=    1 Pair         gate+up       83.7 us/call (min     83.0)  union   8.0 experts   523.3 GB/s
+mx T=    1 Pair         down          44.4 us/call (min     44.3)  union   8.0 experts   492.8 GB/s
+mx T=    1 Fused        all          125.5 us/call (min    125.2)  union   8.0 experts   523.6 GB/s
+mx T=    1 Fused        gate+up       83.7 us/call (min     83.2)  union   8.0 experts   523.4 GB/s
+mx T=    1 Fused        down          43.5 us/call (min     43.4)  union   8.0 experts   503.9 GB/s

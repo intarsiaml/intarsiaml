@@ -1,0 +1,87 @@
+fleetq: #11615 waiting (#1 in line): needs gpu quiet on endor, but #11614 "intarsiaml ink-metal mixsplit: prototype build + inkmix tests + md5 (correctness), retry" (claude-57ee98d5) loads it
+fleetq:   #11614 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11614 set, or it will wait for #11614 to be released.
+fleetq: #11615 running on endor: bash g1.sh a1a7b0cf2
+fleetq: #11615 went ahead of the line and must end within 11h44m (by Mon 03:00); it is stopped then
+tree a1a7b0cf2; modified files: 0
+    Finished `release` profile [optimized] target(s) in 20.04s
+    Finished `release` profile [optimized] target(s) in 12.20s
+== inkling2_batch ON
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.38s
+md5 64 OFF 65cde8f35a1802e3e2fadb44d94d080d decode 832 ms (75.68 tok/s)
+md5 64 ON 65cde8f35a1802e3e2fadb44d94d080d decode 831 ms (75.82 tok/s)
+md5 256 OFF 61fd59fecb5e0d72ffd08f2c6d07855a decode 3352 ms (76.06 tok/s)
+md5 256 ON 61fd59fecb5e0d72ffd08f2c6d07855a decode 3277 ms (77.82 tok/s)
+== warm-up
+short OFF decode 3363 ms (76.12 tok/s) md5 d03580fb
+short ON decode 3283 ms (77.97 tok/s) md5 d03580fb
+short ON decode 3296 ms (77.66 tok/s) md5 d03580fb
+short OFF decode 3359 ms (76.22 tok/s) md5 d03580fb
+short OFF decode 3367 ms (76.04 tok/s) md5 d03580fb
+short ON decode 3287 ms (77.88 tok/s) md5 d03580fb
+short ON decode 3286 ms (77.90 tok/s) md5 d03580fb
+short OFF decode 3352 ms (76.37 tok/s) md5 d03580fb
+5k OFF decode 3654 ms (70.05 tok/s) md5 dd799cbb
+5k ON decode 3533 ms (72.46 tok/s) md5 dd799cbb
+5k ON decode 3526 ms (72.61 tok/s) md5 dd799cbb
+5k OFF decode 3617 ms (70.79 tok/s) md5 dd799cbb
+5k OFF decode 3625 ms (70.62 tok/s) md5 dd799cbb
+5k ON decode 3521 ms (72.72 tok/s) md5 dd799cbb
+== B16 warm-up
+== run 1 OFF 15:19:38
+| 1 | 14.76 | 14.82 | 1.00x | 67.7 | 67.5 | 27.3 |
+| 8 | 118.47 | 36.71 | 3.23x | 67.5 | 217.9 | 36.6 |
+| 16 | 236.42 | 69.64 | 3.39x | 67.7 | 229.7 | - |
+  digest B1 67843d1dbf0249f5
+  digest B8 74478685fe7299e9
+  digest B16 846a505a4055b0ba
+== run 2 ON 15:20:18
+| 1 | 14.67 | 14.62 | 1.00x | 68.2 | 68.4 | 27.3 |
+| 8 | 116.57 | 37.91 | 3.07x | 68.6 | 211.0 | 36.6 |
+| 16 | 233.09 | 65.19 | 3.58x | 68.6 | 245.5 | - |
+  digest B1 67843d1dbf0249f5
+  digest B8 74478685fe7299e9
+  digest B16 846a505a4055b0ba
+== run 3 ON 15:20:59
+| 1 | 14.60 | 14.51 | 1.01x | 68.5 | 68.9 | 27.3 |
+| 8 | 117.39 | 37.22 | 3.15x | 68.1 | 215.0 | 36.6 |
+| 16 | 233.30 | 67.20 | 3.47x | 68.6 | 238.1 | - |
+  digest B1 67843d1dbf0249f5
+  digest B8 74478685fe7299e9
+  digest B16 846a505a4055b0ba
+== run 4 OFF 15:21:39
+| 1 | 14.77 | 14.86 | 0.99x | 67.7 | 67.3 | 27.3 |
+| 8 | 118.50 | 37.36 | 3.17x | 67.5 | 214.1 | 36.6 |
+| 16 | 237.04 | 67.94 | 3.49x | 67.5 | 235.5 | - |
+  digest B1 67843d1dbf0249f5
+  digest B8 74478685fe7299e9
+  digest B16 846a505a4055b0ba
+== run 5 ON 15:22:20
+| 1 | 14.56 | 14.51 | 1.00x | 68.7 | 68.9 | 27.3 |
+| 8 | 116.47 | 37.56 | 3.10x | 68.7 | 213.0 | 36.6 |
+| 16 | 233.24 | 67.23 | 3.47x | 68.6 | 238.0 | - |
+  digest B1 67843d1dbf0249f5
+  digest B8 74478685fe7299e9
+  digest B16 846a505a4055b0ba
+== run 6 OFF 15:23:01
+| 1 | 14.80 | 14.86 | 1.00x | 67.6 | 67.3 | 27.3 |
+| 8 | 118.57 | 37.44 | 3.17x | 67.5 | 213.6 | 36.6 |
+| 16 | 237.28 | 66.33 | 3.58x | 67.4 | 241.2 | - |
+  digest B1 67843d1dbf0249f5
+  digest B8 74478685fe7299e9
+  digest B16 846a505a4055b0ba
+== run 7 OFF 15:23:41
+| 1 | 14.79 | 14.78 | 1.00x | 67.6 | 67.7 | 27.3 |
+| 8 | 118.62 | 36.47 | 3.25x | 67.4 | 219.3 | 36.6 |
+| 16 | 237.69 | 66.78 | 3.56x | 67.3 | 239.6 | - |
+  digest B1 67843d1dbf0249f5
+  digest B8 74478685fe7299e9
+  digest B16 846a505a4055b0ba
+== run 8 ON 15:24:22
+| 1 | 14.46 | 14.59 | 0.99x | 69.1 | 68.6 | 27.3 |
+| 8 | 116.14 | 37.52 | 3.09x | 68.9 | 213.2 | 36.6 |
+| 16 | 232.49 | 66.25 | 3.51x | 68.8 | 241.5 | - |
+  digest B1 67843d1dbf0249f5
+  digest B8 74478685fe7299e9
+  digest B16 846a505a4055b0ba
+g1 done
+fleetq: #11615 done (exit 0)

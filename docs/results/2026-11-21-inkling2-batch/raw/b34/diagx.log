@@ -1,0 +1,24 @@
+fleetq: #11589 waiting (#1 in line): needs gpu quiet on endor, but #11588 "intarsiaml inkling metal: solo greedy decode ranking on main 17b999272 (box check, cb + kernel traces short/5k/16k; measure only)" (claude-57ee98d5) loads it
+fleetq:   #11588 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11588 set, or it will wait for #11588 to be released.
+fleetq: #11589 running on endor: bash .scratch/diagx.sh 8d29604fd 2cb222440
+fleetq: #11589 went ahead of the line and must end within 12h14m (by Mon 03:00); it is stopped then
+    Finished `release` profile [optimized] target(s) in 15.49s
+    Finished `release` profile [optimized] target(s) in 12.61s
+== tree 8d29604fd
+InkInProj R=4 S=1                                71.82     71.44     72.75    557.1
+InkInProj R=8 S=1                                87.09     81.64     90.56    460.4
+InkInProj R=16 S=1                              281.98    241.76    321.82    142.8
+== tree 2cb222440
+InkInProj R=4 S=1                                75.64     72.99     79.71    529.0
+InkInProj R=8 S=1                               134.78    107.95    148.69    297.5
+InkInProj R=16 S=1                              212.93    193.34    226.29    189.1
+== tree 2cb222440
+InkInProj R=4 S=1                                78.41     73.61     81.64    510.3
+InkInProj R=8 S=1                               132.03    119.83    140.02    303.7
+InkInProj R=16 S=1                              196.89    177.61    208.56    204.6
+== tree 8d29604fd
+InkInProj R=4 S=1                                80.80     74.80    113.65    495.2
+InkInProj R=8 S=1                               137.60    128.29    152.44    291.4
+InkInProj R=16 S=1                              225.99    206.75    248.40    178.2
+diagx done
+fleetq: #11589 done (exit 0)

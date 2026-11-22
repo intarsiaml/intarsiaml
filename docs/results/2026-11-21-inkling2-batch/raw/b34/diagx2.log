@@ -1,0 +1,28 @@
+fleetq: #11594 running on endor: bash .scratch/diagx2.sh 8d29604fd 2cb222440
+fleetq: #11594 went ahead of the line and must end within 12h12m (by Mon 03:00); it is stopped then
+== tree 8d29604fd
+InkInProj R=8 S=1                                82.70     80.77     91.58    484.8
+InkInProj R=16 S=1                              276.98    241.70    304.19    145.4
+== tree 2cb222440
+InkInProj R=8 S=1                               121.36    101.69    134.54    330.4
+InkInProj R=16 S=1                              215.56    204.06    228.99    186.8
+== tree 8d29604fd
+InkInProj R=8 S=1                               150.55    108.32    184.33    266.4
+InkInProj R=16 S=1                              237.67    196.93    259.94    169.5
+== tree 2cb222440
+InkInProj R=8 S=1                               115.55     90.67    135.91    347.0
+InkInProj R=16 S=1                              210.44    174.06    300.25    191.4
+== tree 2cb222440
+InkInProj R=8 S=1                               128.21    107.70    152.75    312.8
+InkInProj R=16 S=1                              213.07    181.40    263.18    189.0
+== tree 8d29604fd
+InkInProj R=8 S=1                               169.34     99.58    235.44    236.8
+InkInProj R=16 S=1                              221.99    197.04    230.64    181.4
+== tree 2cb222440
+InkInProj R=8 S=1                               107.17     91.52    137.07    374.1
+InkInProj R=16 S=1                              214.47    193.45    233.06    187.8
+== tree 8d29604fd
+InkInProj R=8 S=1                               128.39     97.72    148.16    312.3
+InkInProj R=16 S=1                              238.97    229.47    251.40    168.5
+diagx2 done
+fleetq: #11594 done (exit 0)
