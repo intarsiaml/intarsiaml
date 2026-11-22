@@ -1367,3 +1367,75 @@ variants are macro switches on a probe copy of the shader.
   ABC CBA order. This is for information only; the bits differ.
 - (Housekeeping: this job's first draft was written over the original `.scratch/jobA.sh` from 2026-11-21. That script
   belonged to the superseded first correctness pass; the rerun's script is archived as raw/jobA2.sh.)
+
+### Job Q results (#11433, 09:20-09:24; raw/Q_probe.txt, Q_speed.txt, Q_jobQ.out)
+
+**Bottom line:** the stage-1 ceiling is large (0.74 ms/token at short, 1.06 at 5k). No pre-registered stage-2 variant comes
+near 0.3. The same-bits lookahead family gains at most 0.02 ms/token and is slower at ctx 512 and 5k. The best
+non-bitwise variant, split keys 32, gains about 0.1 ms/token at short and nothing at 5k. **By the rule, no build is
+proposed.**
+
+**Calibration.**
+- Bitwise: PASS. The shipped copy, and p0 (the probe source with every switch off), equal the backend on out, k / v
+  caches and k / v rings at all 8 points (SWA / full x ctx 150 / 512 / 4096 / 5180). So the harness's InkP, split count,
+  bias table and flags are the backend's.
+- Timing against L (raw/L_b_attn.txt, fused rows 1):
+
+| Point | L (us/visit) | Harness ship (us/visit) | Difference |
+|---|---|---|---|
+| SWA ctx 512 | 23.09 | 22.53 | -2.4 % |
+| full ctx 512 | 24.34 | 22.52 | **-7.5 %** |
+| SWA ctx 4096 | 31.36 | 30.59 | -2.5 % |
+| full ctx 4096 | 62.32 | 60.90 | -2.3 % |
+| empty dependent dispatch | 3.50 | 3.32 | |
+
+  Three of four points are inside the 5 % bar. **Full ctx 512 misses it at -7.5 %.**
+  - The harness has full 512 equal to SWA 512 (22.52 / 22.53): same keys, same splits, the dyn conv adds about nothing.
+  - L's own full-512 row is its noisiest: the unfused attention p10..p90 is 17.31..18.48 there, against 16.22..16.45 for
+    SWA 512.
+  - I read the miss as L's single-run noise, not a harness fault, since the bits (which depend on the split geometry) match.
+  - Stated plainly: the bar was not met at that point. The decision below compares variants with ship inside one
+    harness, so it does not depend on that row.
+
+**Stage 1: no-math kernels (token mode, cold K / V, ms per token; ship = 1.074 / 1.168 / 1.864 at ctx 150 / 512 / 5180).**
+
+| Variant | ctx 150 (short) | ctx 512 | ctx 5180 (5k) | What it removes |
+|---|---|---|---|---|
+| nocomb | -0.153 | -0.186 | -0.279 | the combine dispatch (about one 3.3 us dependent dispatch per visit) |
+| nopro | -0.411 | -0.365 | -0.484 | prologue arithmetic plus its rel-proj / tap / ring loads |
+| nomath | -0.215 | -0.283 | -0.252 | key-loop score / softmax / merge arithmetic |
+| skel_c (nopro + nomath, with comb) | -0.638 | -0.626 | -0.811 | |
+| **skel** (no arithmetic, no comb) | **-0.741** | **-0.784** | **-1.062** | stage-1 ceiling |
+| bytes (byte stream, same grid) | -0.860 | -0.896 | -1.184 | |
+
+- **Ceiling >= 0.3 at both prompts, so stage 2 ran.** The three parts are roughly additive: comb + prologue + loop =
+  0.78 at short, against 0.74 for skel. The per-visit numbers in warm16 tell the same story (raw/Q_probe.txt).
+
+**Stage 2: variants (ms per token, minus = faster).**
+
+| Variant | Bits | ctx 150 | ctx 512 | ctx 5180 |
+|---|---|---|---|---|
+| la1 / la2 / la4 (key-loop lookahead) | equal | +0.001 / -0.003 / -0.005 | +0.019 / +0.042 / +0.093 | +0.057 / +0.142 / +0.251 |
+| early2 / early4 (first K/V loads before the prologue) | equal | -0.020 / -0.020 | +0.011 / +0.063 | +0.181 / +0.288 |
+| sk32 (split keys 32) | differs (max 5e-7) | **-0.117** | -0.124 | -0.023 |
+| sk128 | differs | +0.226 | +0.333 | +0.240 |
+
+- The key loop is not load-latency-bound. Holding more loads in flight costs more (registers) than it hides.
+- **Real step, split keys (information only; md5 differs as expected), mean of 2 runs, ms/step against sk 64:**
+  - short: sk32 **-0.103**, sk128 +0.441;
+  - 5k: sk32 +0.009, sk128 +0.178.
+
+  This matches the harness: sk32 gains about 0.1 at short and nothing at 5k. Box label 13.245 / 13.246 at the start and
+  13.288 at the end: normal.
+
+**Decision (pre-registered rule).** Stage 1 >= 0.3 at both prompts. But no stage-2 variant reaches a microbench gain of
+0.3 ms/token at either prompt (best: sk32 -0.12 at short, non-bitwise), so no build is proposed.
+
+**What the attribution leaves open (not pre-registered, for the coordinator).**
+
+| Candidate | Measured bound (ms/token) | Notes |
+|---|---|---|
+| (i) fold the combine into the last-arriving split threadgroup (device counter + fence) | <= 0.15 short, <= 0.28 at 5k (nocomb) | The partials can be merged in split order with comb's arithmetic, so it can stay bitwise. Under 0.3 alone at both prompts. |
+| (ii) prologue | <= 0.41 short, <= 0.48 at 5k (nopro) | A ceiling for deleting the prologue, not for doing it faster. The same-bits overlap of loads already failed for K/V (early). The rest is serial reductions, precise sqrt / divide and the 16-deep r . relproj chain, whose order is fixed by the bits. |
+
+Neither has a measured lever >= 0.3. A pair (i) + (ii) might reach it only if (ii) recovers more than half its bound.

@@ -1,0 +1,133 @@
+== cal: shipped copy (and p0) vs the backend's ink_attn_decode_bf16, one visit each
+cal swa_150 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_150 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_150 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_150 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_512 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_512 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_512 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_512 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_4096 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_4096 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_4096 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_4096 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_5180 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal swa_5180 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_5180 ship: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+cal full_5180 p0: out EQUAL, kc1 EQUAL, vc1 EQUAL, kr1 EQUAL, vr1 EQUAL
+CAL PASS
+floor: empty dependent dispatch 3.321 us
+== warm16: 16 operand sets of one kind, 8 passes per command buffer; us per visit
+warm16 swa  ctx   512 ship    22.533 us/visit (min 22.482 max 32.793)  vs ship   +0.000
+warm16 swa  ctx   512 p0    22.782 us/visit (min 22.710 max 27.358)  vs ship   +0.249
+warm16 swa  ctx   512 nocomb    18.655 us/visit (min 18.563 max 18.756)  vs ship   -3.878
+warm16 swa  ctx   512 nopro    15.962 us/visit (min 15.910 max 16.013)  vs ship   -6.571
+warm16 swa  ctx   512 nomath    16.292 us/visit (min 16.118 max 16.365)  vs ship   -6.241
+warm16 swa  ctx   512 skel_c     9.804 us/visit (min 9.739 max 9.868)  vs ship  -12.729
+warm16 swa  ctx   512 skel     6.505 us/visit (min 6.423 max 6.516)  vs ship  -16.028
+warm16 swa  ctx   512 bytes     4.280 us/visit (min 4.229 max 4.292)  vs ship  -18.253
+warm16 swa  ctx   512 la1    22.919 us/visit (min 22.748 max 23.023)  vs ship   +0.386
+warm16 swa  ctx   512 la2    23.398 us/visit (min 23.237 max 23.434)  vs ship   +0.866
+warm16 swa  ctx   512 la4    23.975 us/visit (min 23.808 max 23.994)  vs ship   +1.442
+warm16 swa  ctx   512 early2    22.692 us/visit (min 22.515 max 22.739)  vs ship   +0.159
+warm16 swa  ctx   512 early4    23.400 us/visit (min 23.319 max 23.488)  vs ship   +0.868
+warm16 swa  ctx   512 sk32    19.983 us/visit (min 19.852 max 20.112)  vs ship   -2.549
+warm16 swa  ctx   512 sk128    29.107 us/visit (min 28.949 max 29.151)  vs ship   +6.575
+warm16 full ctx   512 ship    22.520 us/visit (min 22.473 max 22.568)  vs ship   +0.000
+warm16 full ctx   512 p0    22.661 us/visit (min 22.622 max 22.777)  vs ship   +0.141
+warm16 full ctx   512 nocomb    18.670 us/visit (min 18.602 max 18.801)  vs ship   -3.850
+warm16 full ctx   512 nopro    16.011 us/visit (min 15.982 max 16.070)  vs ship   -6.509
+warm16 full ctx   512 nomath    16.696 us/visit (min 16.626 max 16.743)  vs ship   -5.823
+warm16 full ctx   512 skel_c     9.876 us/visit (min 9.846 max 9.929)  vs ship  -12.644
+warm16 full ctx   512 skel     6.530 us/visit (min 6.493 max 6.584)  vs ship  -15.990
+warm16 full ctx   512 bytes     4.291 us/visit (min 4.266 max 4.323)  vs ship  -18.229
+warm16 full ctx   512 la1    22.862 us/visit (min 22.829 max 22.981)  vs ship   +0.343
+warm16 full ctx   512 la2    23.329 us/visit (min 23.184 max 23.408)  vs ship   +0.810
+warm16 full ctx   512 la4    23.974 us/visit (min 23.918 max 24.034)  vs ship   +1.454
+warm16 full ctx   512 early2    22.639 us/visit (min 22.565 max 22.725)  vs ship   +0.119
+warm16 full ctx   512 early4    23.460 us/visit (min 23.412 max 23.550)  vs ship   +0.940
+warm16 full ctx   512 sk32    20.010 us/visit (min 19.968 max 20.168)  vs ship   -2.510
+warm16 full ctx   512 sk128    29.029 us/visit (min 28.873 max 29.058)  vs ship   +6.509
+warm16 swa  ctx  4096 ship    30.590 us/visit (min 30.530 max 30.630)  vs ship   +0.000
+warm16 swa  ctx  4096 p0    30.639 us/visit (min 30.517 max 30.788)  vs ship   +0.049
+warm16 swa  ctx  4096 nocomb    25.548 us/visit (min 25.517 max 25.747)  vs ship   -5.042
+warm16 swa  ctx  4096 nopro    19.947 us/visit (min 19.918 max 20.084)  vs ship  -10.643
+warm16 swa  ctx  4096 nomath    26.624 us/visit (min 26.493 max 26.903)  vs ship   -3.966
+warm16 swa  ctx  4096 skel_c    14.732 us/visit (min 14.662 max 15.021)  vs ship  -15.858
+warm16 swa  ctx  4096 skel    10.117 us/visit (min 10.039 max 10.434)  vs ship  -20.473
+warm16 swa  ctx  4096 bytes     7.818 us/visit (min 7.732 max 7.995)  vs ship  -22.772
+warm16 swa  ctx  4096 la1    31.175 us/visit (min 31.037 max 31.282)  vs ship   +0.585
+warm16 swa  ctx  4096 la2    31.694 us/visit (min 31.568 max 31.819)  vs ship   +1.104
+warm16 swa  ctx  4096 la4    32.722 us/visit (min 32.601 max 32.784)  vs ship   +2.132
+warm16 swa  ctx  4096 early2    31.539 us/visit (min 31.402 max 31.649)  vs ship   +0.949
+warm16 swa  ctx  4096 early4    32.816 us/visit (min 32.754 max 32.887)  vs ship   +2.226
+warm16 swa  ctx  4096 sk32    30.483 us/visit (min 30.414 max 30.570)  vs ship   -0.107
+warm16 swa  ctx  4096 sk128    36.685 us/visit (min 36.592 max 36.902)  vs ship   +6.095
+warm16 full ctx  4096 ship    60.896 us/visit (min 60.761 max 61.447)  vs ship   +0.000
+warm16 full ctx  4096 p0    64.350 us/visit (min 64.166 max 64.539)  vs ship   +3.453
+warm16 full ctx  4096 nocomb    55.010 us/visit (min 54.733 max 55.271)  vs ship   -5.886
+warm16 full ctx  4096 nopro    59.462 us/visit (min 59.189 max 59.691)  vs ship   -1.434
+warm16 full ctx  4096 nomath    49.951 us/visit (min 49.354 max 50.625)  vs ship  -10.945
+warm16 full ctx  4096 skel_c    43.487 us/visit (min 43.413 max 44.462)  vs ship  -17.410
+warm16 full ctx  4096 skel    35.058 us/visit (min 34.936 max 35.493)  vs ship  -25.838
+warm16 full ctx  4096 bytes    32.266 us/visit (min 32.194 max 32.466)  vs ship  -28.630
+warm16 full ctx  4096 la1    69.021 us/visit (min 68.976 max 69.605)  vs ship   +8.125
+warm16 full ctx  4096 la2    74.135 us/visit (min 73.883 max 74.743)  vs ship  +13.239
+warm16 full ctx  4096 la4    72.948 us/visit (min 72.602 max 73.490)  vs ship  +12.052
+warm16 full ctx  4096 early2    71.342 us/visit (min 70.658 max 72.340)  vs ship  +10.446
+warm16 full ctx  4096 early4    75.497 us/visit (min 75.216 max 75.748)  vs ship  +14.601
+warm16 full ctx  4096 sk32    61.001 us/visit (min 60.886 max 61.526)  vs ship   +0.105
+warm16 full ctx  4096 sk128    61.235 us/visit (min 60.230 max 61.291)  vs ship   +0.339
+== token: 40 SWA + 8 full visits per token, NT distinct token sets, 2 passes per command buffer; ms per token
+bits ctx 150 swa: p0 EQUAL, skel_c DIFF(max 0.14), skel DIFF(max 0.14), la1 EQUAL, la2 EQUAL, la4 EQUAL, early2 EQUAL, early4 EQUAL, sk32 DIFF(max 5.59e-09), sk128 DIFF(max 3.73e-09)
+bits ctx 150 full: p0 EQUAL, skel_c DIFF(max 0.139), skel DIFF(max 0.139), la1 EQUAL, la2 EQUAL, la4 EQUAL, early2 EQUAL, early4 EQUAL, sk32 DIFF(max 4.77e-07), sk128 DIFF(max 4.77e-07)
+token ctx   150 ship     1.074 ms/token (min 1.068 max 1.077)  vs ship   +0.000
+token ctx   150 p0     1.077 ms/token (min 1.070 max 1.078)  vs ship   +0.002
+token ctx   150 nocomb     0.921 ms/token (min 0.921 max 0.923)  vs ship   -0.153
+token ctx   150 nopro     0.664 ms/token (min 0.659 max 0.664)  vs ship   -0.411
+token ctx   150 nomath     0.859 ms/token (min 0.852 max 0.864)  vs ship   -0.215
+token ctx   150 skel_c     0.436 ms/token (min 0.434 max 0.438)  vs ship   -0.638
+token ctx   150 skel     0.334 ms/token (min 0.333 max 0.335)  vs ship   -0.741
+token ctx   150 bytes     0.214 ms/token (min 0.214 max 0.216)  vs ship   -0.860
+token ctx   150 la1     1.075 ms/token (min 1.073 max 1.080)  vs ship   +0.001
+token ctx   150 la2     1.072 ms/token (min 1.070 max 1.081)  vs ship   -0.003
+token ctx   150 la4     1.069 ms/token (min 1.068 max 1.074)  vs ship   -0.005
+token ctx   150 early2     1.054 ms/token (min 1.049 max 1.057)  vs ship   -0.020
+token ctx   150 early4     1.055 ms/token (min 1.048 max 1.057)  vs ship   -0.020
+token ctx   150 sk32     0.958 ms/token (min 0.952 max 0.962)  vs ship   -0.117
+token ctx   150 sk128     1.300 ms/token (min 1.298 max 1.305)  vs ship   +0.226
+bits ctx 512 swa: p0 EQUAL, skel_c DIFF(max 0.0757), skel DIFF(max 0.0757), la1 EQUAL, la2 EQUAL, la4 EQUAL, early2 EQUAL, early4 EQUAL, sk32 DIFF(max 1.49e-08), sk128 DIFF(max 1.49e-08)
+bits ctx 512 full: p0 EQUAL, skel_c DIFF(max 0.0776), skel DIFF(max 0.0776), la1 EQUAL, la2 EQUAL, la4 EQUAL, early2 EQUAL, early4 EQUAL, sk32 EQUAL, sk128 EQUAL
+token ctx   512 ship     1.168 ms/token (min 1.167 max 1.169)  vs ship   +0.000
+token ctx   512 p0     1.173 ms/token (min 1.171 max 1.176)  vs ship   +0.005
+token ctx   512 nocomb     0.982 ms/token (min 0.979 max 0.983)  vs ship   -0.186
+token ctx   512 nopro     0.803 ms/token (min 0.801 max 0.804)  vs ship   -0.365
+token ctx   512 nomath     0.885 ms/token (min 0.884 max 0.887)  vs ship   -0.283
+token ctx   512 skel_c     0.542 ms/token (min 0.542 max 0.544)  vs ship   -0.626
+token ctx   512 skel     0.384 ms/token (min 0.383 max 0.391)  vs ship   -0.784
+token ctx   512 bytes     0.272 ms/token (min 0.270 max 0.274)  vs ship   -0.896
+token ctx   512 la1     1.187 ms/token (min 1.183 max 1.189)  vs ship   +0.019
+token ctx   512 la2     1.210 ms/token (min 1.208 max 1.217)  vs ship   +0.042
+token ctx   512 la4     1.261 ms/token (min 1.259 max 1.264)  vs ship   +0.093
+token ctx   512 early2     1.179 ms/token (min 1.177 max 1.180)  vs ship   +0.011
+token ctx   512 early4     1.231 ms/token (min 1.228 max 1.234)  vs ship   +0.063
+token ctx   512 sk32     1.044 ms/token (min 1.041 max 1.044)  vs ship   -0.124
+token ctx   512 sk128     1.501 ms/token (min 1.497 max 1.502)  vs ship   +0.333
+bits ctx 5180 swa: p0 EQUAL, skel_c DIFF(max 0.0542), skel DIFF(max 0.0542), la1 EQUAL, la2 EQUAL, la4 EQUAL, early2 EQUAL, early4 EQUAL, sk32 DIFF(max 2.38e-07), sk128 DIFF(max 2.38e-07)
+bits ctx 5180 full: p0 EQUAL, skel_c DIFF(max 0.026), skel DIFF(max 0.026), la1 EQUAL, la2 EQUAL, la4 EQUAL, early2 EQUAL, early4 EQUAL, sk32 EQUAL, sk128 EQUAL
+token ctx  5180 ship     1.864 ms/token (min 1.855 max 1.886)  vs ship   +0.000
+token ctx  5180 p0     1.856 ms/token (min 1.847 max 1.864)  vs ship   -0.008
+token ctx  5180 nocomb     1.585 ms/token (min 1.585 max 1.590)  vs ship   -0.279
+token ctx  5180 nopro     1.381 ms/token (min 1.374 max 1.384)  vs ship   -0.484
+token ctx  5180 nomath     1.612 ms/token (min 1.608 max 1.624)  vs ship   -0.252
+token ctx  5180 skel_c     1.053 ms/token (min 1.052 max 1.060)  vs ship   -0.811
+token ctx  5180 skel     0.802 ms/token (min 0.796 max 0.806)  vs ship   -1.062
+token ctx  5180 bytes     0.680 ms/token (min 0.678 max 0.702)  vs ship   -1.184
+token ctx  5180 la1     1.921 ms/token (min 1.918 max 1.941)  vs ship   +0.057
+token ctx  5180 la2     2.006 ms/token (min 2.001 max 2.011)  vs ship   +0.142
+token ctx  5180 la4     2.116 ms/token (min 2.105 max 2.130)  vs ship   +0.251
+token ctx  5180 early2     2.046 ms/token (min 2.041 max 2.046)  vs ship   +0.181
+token ctx  5180 early4     2.152 ms/token (min 2.149 max 2.163)  vs ship   +0.288
+token ctx  5180 sk32     1.841 ms/token (min 1.837 max 1.851)  vs ship   -0.023
+token ctx  5180 sk128     2.104 ms/token (min 2.100 max 2.107)  vs ship   +0.240
+done
