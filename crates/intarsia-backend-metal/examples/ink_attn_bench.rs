@@ -65,7 +65,7 @@ mod imp {
     }
 
     /// The prologue + attention pair of one visit (shared intermediates), `full`: full-attention layer.
-    pub fn visit(be: &MetalBackend, rng: &mut Rng, rows: usize, ctx: usize, full: bool) -> (Case, Case) {
+    pub fn visit(be: &MetalBackend, rng: &mut Rng, rows: usize, ctx: usize, full: bool) -> (Case, Case, Option<Case>) {
         let ckv = HK * DH;
         let pw = if full { ckv + HK * K } else { ckv };
         let nqw = nq(H, DH, DR);
@@ -89,10 +89,26 @@ mod imp {
             vec![t(&o, &[rows, H * DH]), t(&kc, &[HK, cr, DH]), t(&vc, &[HK, cr, DH])],
             a,
         );
-        let need = be.kernels().iter().find(|k| k.name == "rel_sink_attn_bf16").unwrap().scratch_bytes(&ShapeInfo::from_call(&att));
+        let need = ["rel_sink_attn_bf16", "rel_sink_attn_bf16_nax"]
+            .iter()
+            .map(|n| be.kernels().iter().find(|k| k.name == *n).map_or(0, |k| k.scratch_bytes(&ShapeInfo::from_call(&att))))
+            .max()
+            .unwrap();
         let sb = be.alloc(need.max(16), MemKind::Device).unwrap();
         att.scratch = Some(TensorRef { buf: sb, offset: 0, dtype: DType::U8, shape: vec![need.max(16)] });
-        (Case { kernel: "ink_kv_prologue_bf16", call: pro }, Case { kernel: "rel_sink_attn_bf16", call: att })
+        let fused = (rows <= 16).then(|| {
+            let mut f = OpCall::new(
+                Op::InkAttnDecode,
+                [pro.inputs.clone(), vec![t(&kc, &[HK, cr, DH]), t(&vc, &[HK, cr, DH])]].concat(),
+                vec![t(&o, &[rows, H * DH]), t(&kc, &[HK, cr, DH]), t(&vc, &[HK, cr, DH]), t(&kr, &[RR, ckv]), t(&vr, &[RR, ckv])],
+                pro.attrs.clone(),
+            );
+            let need = be.kernels().iter().find(|k| k.name == "ink_attn_decode_bf16").unwrap().scratch_bytes(&ShapeInfo::from_call(&f));
+            let sb = be.alloc(need.max(16), MemKind::Device).unwrap();
+            f.scratch = Some(TensorRef { buf: sb, offset: 0, dtype: DType::U8, shape: vec![need.max(16)] });
+            Case { kernel: "ink_attn_decode_bf16", call: f }
+        });
+        (Case { kernel: "ink_kv_prologue_bf16", call: pro }, Case { kernel: "rel_sink_attn_bf16", call: att }, fused)
     }
 
     fn floor_case(be: &MetalBackend, rng: &mut Rng) -> Case {
@@ -157,7 +173,7 @@ mod imp {
             for &ctx in ctxs {
                 for &rows in rows_set {
                     let n = if prefill { layers.min(4) } else { layers };
-                    let vs: Vec<(Case, Case)> = (0..n).map(|_| visit(&be, &mut rng, rows, ctx, full)).collect();
+                    let vs: Vec<(Case, Case, Option<Case>)> = (0..n).map(|_| visit(&be, &mut rng, rows, ctx, full)).collect();
                     let pro: Vec<&Case> = vs.iter().map(|v| &v.0).collect();
                     let att: Vec<&Case> = vs.iter().map(|v| &v.1).collect();
                     let both: Vec<&Case> = vs.iter().flat_map(|v| [&v.0, &v.1]).collect();
@@ -166,9 +182,17 @@ mod imp {
                     let (pm, _, _) = time(&be, &trace, &pro, r);
                     let (am, alo, ahi) = time(&be, &trace, &att, r);
                     let (bm, _, _) = time(&be, &trace, &both, r);
+                    let fu: Vec<&Case> = vs.iter().filter_map(|v| v.2.as_ref()).collect();
+                    let fm = if fu.is_empty() { f64::NAN } else { time(&be, &trace, &fu, r).0 };
+                    if prefill {
+                        let nx: Vec<Case> = vs.iter().map(|v| Case { kernel: "rel_sink_attn_bf16_nax", call: v.1.call.clone() }).collect();
+                        let nr: Vec<&Case> = nx.iter().collect();
+                        let (nm, _, _) = time(&be, &trace, &nr, r);
+                        println!("  nax attn {nm:>8.2} us per chunk (fallbacks so far {})", intarsia_backend_metal::inkattn::nax_fallbacks());
+                    }
                     let kind = if full { "full" } else { "swa " };
                     println!(
-                        "{kind} ctx {ctx:>6} rows {rows:>4}: prologue {pm:>8.2}  attn {am:>8.2} ({alo:.2}..{ahi:.2})  pair/visit {:>8.2}",
+                        "{kind} ctx {ctx:>6} rows {rows:>4}: prologue {pm:>8.2}  attn {am:>8.2} ({alo:.2}..{ahi:.2})  pair/visit {:>8.2}  fused {fm:>8.2}",
                         2.0 * bm
                     );
                 }

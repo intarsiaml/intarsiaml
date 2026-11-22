@@ -21,6 +21,36 @@ pub const REL_SINK_ATTN_BF16: &str = "rel_sink_attn_bf16";
 const RING_WRITE: &str = "ink_ring_write_bf16";
 const S1: [&str; 3] = ["ink_attn_s1_g1", "ink_attn_s1_g2", "ink_attn_s1_g3"];
 const DEC: [&str; 3] = ["ink_attn_dec_g1", "ink_attn_dec_g2", "ink_attn_dec_g3"];
+/// `RelSinkAttn` prefill (T > 16) on the neural accelerators (inkling2_attn_nax.metal, metal4.0 library).
+pub const REL_SINK_ATTN_BF16_NAX: &str = "rel_sink_attn_bf16_nax";
+const NAX: [&str; 2] = ["ink_attn_nax_s6", "ink_attn_nax_s12"];
+const KV_STAGE: &str = "ink_kv_stage_bf16";
+static NAX_FALLBACKS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// `rel_sink_attn_bf16_nax` launches that ran the split-KV kernel instead (device position, misaligned operands, a
+/// window past the staging bound).
+pub fn nax_fallbacks() -> u64 {
+    NAX_FALLBACKS.load(std::sync::atomic::Ordering::Relaxed)
+}
+/// Most window the NAX launcher stages (its scratch bound).
+const NAX_MAX_WINDOW: usize = 4096;
+
+/// The metal4.0 shaders of this module.
+pub fn metal4_shader_names() -> Vec<&'static str> {
+    vec![NAX[0], NAX[1], KV_STAGE]
+}
+
+/// Shapes `rel_sink_attn_bf16_nax` takes: prefill chunks (more rows than a verify call), head_dim 128, group 3.
+pub fn nax_ok(s: &ShapeInfo) -> bool {
+    s.m > intarsia_core::inkling2::ops::ATTN_DECODE_MAX_ROWS && s.head_dim == 128 && s.n_kv_heads > 0 && s.n_heads == 3 * s.n_kv_heads
+}
+
+/// Scratch of `rel_sink_attn_bf16_nax`: the staging rows of a ring prefill, `[2][Hk][T + window + 31][D]` bf16 (window <=
+/// `NAX_MAX_WINDOW`), plus what the split-KV fallback needs.
+pub fn nax_scratch(s: &ShapeInfo) -> usize {
+    (2 * s.n_kv_heads * (s.m + NAX_MAX_WINDOW + 32) * s.head_dim * 2).max(attn_scratch(s))
+}
+
 /// `InkAttnDecode` (op 75): the fused decode attention.
 pub const INK_ATTN_DECODE_BF16: &str = "ink_attn_decode_bf16";
 const COMB: &str = "ink_attn_comb_bf16";
@@ -154,6 +184,7 @@ impl MetalBackend {
             INK_KV_PROLOGUE_BF16 => self.launch_ink_prologue(call),
             REL_SINK_ATTN_BF16 => self.launch_rel_sink(call),
             INK_ATTN_DECODE_BF16 => self.launch_ink_decode(call),
+            REL_SINK_ATTN_BF16_NAX => self.launch_rel_sink_nax(call),
             _ => Err(Error::NoKernel(format!("metal kernel '{kernel}' for op '{}'", call.op))),
         }
     }
@@ -429,5 +460,91 @@ impl MetalBackend {
                 encode(enc, rw, &[&binds[1], &binds[2], &binds[11], &binds[12], &pos_b], &pr, None, t * hk * d);
             }
         })
+    }
+
+    fn launch_rel_sink_nax(&self, call: &OpCall) -> Result<()> {
+        let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
+        let bf = DType::Bf16;
+        let (t, h, hk, d) = (i[0].shape[0], a.n_heads, a.n_kv_heads, a.head_dim);
+        if t == 0 {
+            return Ok(());
+        }
+        let cr = o[1].shape[1];
+        let e = i[5].shape[2];
+        let ring = a.ink.kv_ring;
+        let al = |x: &intarsia_core::backend::TensorRef| self.mbuf(&x.buf).map(|m| (m.base + x.offset) % 16 == 0);
+        let aligned = al(&i[0])? && al(&i[1])? && al(&i[2])? && al(&o[0])? && al(&o[1])? && al(&o[2])?;
+        let lo0 = if a.window > 0 { (a.pos0 + 1).saturating_sub(a.window) } else { 0 };
+        let kbase = if ring { lo0 / 32 * 32 } else { 0 };
+        let rows = a.pos0 + t - kbase;
+        let stage_bytes = 2 * hk * rows * d * 2;
+        let fits = if ring {
+            a.window <= NAX_MAX_WINDOW && call.scratch.as_ref().is_some_and(|s| s.numel() * s.dtype.size_bytes() >= stage_bytes)
+        } else {
+            a.pos0 + t <= cr
+        };
+        if call.pos.is_some() || !aligned || h != 3 * hk || d != 128 || !fits {
+            NAX_FALLBACKS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            return self.launch_rel_sink(call);
+        }
+        let q = self.bind(&i[0], bf, false, "q")?;
+        let kn = self.bind(&i[1], bf, false, "k")?;
+        let vn = self.bind(&i[2], bf, false, "v")?;
+        let kc = self.bind(&o[1], bf, true, "k cache")?;
+        let vc = self.bind(&o[2], bf, true, "v cache")?;
+        let rel = self.bind(&i[5], bf, false, "rel")?;
+        let pq = self.bind(&i[6], bf, false, "pq")?;
+        let out = self.bind(&o[0], bf, true, "out")?;
+        let base = InkP {
+            t: u(t, "T")?,
+            h: u(h, "H")?,
+            hk: u(hk, "Hk")?,
+            d: u(d, "D")?,
+            dr: u(a.ink.d_rel, "dr")?,
+            e: u(e, "E")?,
+            cr: u(cr, "Cr")?,
+            pos0: u(a.pos0, "pos0")?,
+            flags: if ring { 2 } else { 0 },
+            window: u(a.window, "window")?,
+            nq: u(i[6].shape[1], "Nq")?,
+            scale: a.scale,
+            ..Default::default()
+        };
+        // the cache write pass (`ink_kv_write_bf16` reads k / v at sk 1, 2 and the caches at sk 3, 4: all 0 here)
+        let pw = InkP { sk: [0; 16], ..base };
+        let mut pa = InkP { sk: [0; 16], ..base };
+        pa.sk[3] = rel.skip;
+        pa.sk[4] = pq.skip;
+        u(hk * rows * d, "staged elements")?;
+        let static_sg = {
+            static SG: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+            *SG.get_or_init(|| std::env::var("INTARSIA_INK_NAX_SG").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(12))
+        };
+        let (nax, nsg) = if static_sg == 6 { (NAX[0], 6) } else { (NAX[1], 12) };
+        let bq = 16 * (nsg / 3);
+        let pso = self.ink_pso(nax)?;
+        let wr = self.ink_pso(KV_WRITE)?;
+        let st = self.ink_pso(KV_STAGE)?;
+        if ring {
+            let sc = self.bind(call.scratch.as_ref().expect("checked"), DType::U8, true, "scratch")?;
+            if sc.skip != 0 || (self.mbuf(&call.scratch.as_ref().unwrap().buf)?.base + call.scratch.as_ref().unwrap().offset) % 16 != 0 {
+                return self.launch_rel_sink(call);
+            }
+            let ks = Bind { mtl: sc.mtl.clone(), off: sc.off, skip: 0 };
+            let vs = Bind { mtl: sc.mtl.clone(), off: sc.off + hk * rows * d * 2, skip: 0 };
+            let ps = InkP { sk: [0; 16], rr: u(kbase, "kbase")?, k: u(rows, "S")?, f2: f32::from_bits(u(lo0, "lo")?), ..base };
+            let pn = InkP { cr: u(rows, "S")?, rr: u(kbase, "kbase")?, ..pa };
+            self.with_encoder(|enc| {
+                encode(enc, st, &[&kn, &vn, &kc, &vc, &ks, &vs, ], &ps, None, hk * rows * d / 8);
+                encode(enc, pso, &[&q, &ks, &vs, &rel, &pq, &out], &pn, Some((t.div_ceil(bq), hk, 1, nsg * 32)), 0);
+                encode(enc, wr, &[&kn, &vn, &kc, &vc, &q], &pw, None, t * hk * d);
+            })
+        } else {
+            let pn = InkP { cr: u(cr, "Cr")?, rr: 0, ..pa };
+            self.with_encoder(|enc| {
+                encode(enc, wr, &[&kn, &vn, &kc, &vc, &q], &pw, None, t * hk * d);
+                encode(enc, pso, &[&q, &kc, &vc, &rel, &pq, &out], &pn, Some((t.div_ceil(bq), hk, 1, nsg * 32)), 0);
+            })
+        }
     }
 }

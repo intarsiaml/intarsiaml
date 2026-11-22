@@ -289,6 +289,7 @@ pub fn metal4_shaders() -> Vec<&'static str> {
     v.extend(crate::fp8::NAX_FP8_SHADERS.iter().flatten());
     v.extend(crate::moe::NAX_MM_GU.iter().chain(&crate::moe::NAX_MM_DN));
     v.extend(crate::mxfp4::NAXD_FORMS.iter().flat_map(|f| [f.0, f.1]));
+    v.extend(crate::inkattn::metal4_shader_names());
     v
 }
 
@@ -309,6 +310,7 @@ pub const NAX_KERNELS: &[&str] = &[
     crate::fp8::MATMUL_FP8_NAX,
     crate::nvfp4::MATMUL_NVFP4_NAX,
     crate::mxfp4::MATMUL_MXFP4_NAX,
+    crate::inkattn::REL_SINK_ATTN_BF16_NAX,
 ];
 
 pub fn requires_metal4(kernel: &str) -> bool {
@@ -421,6 +423,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkattn::INK_KV_PROLOGUE_BF16, Op::InkKvPrologue),
     (crate::inkattn::REL_SINK_ATTN_BF16, Op::RelSinkAttn),
     (crate::inkattn::INK_ATTN_DECODE_BF16, Op::InkAttnDecode),
+    (crate::inkattn::REL_SINK_ATTN_BF16_NAX, Op::RelSinkAttn),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -641,6 +644,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .scratch(crate::inkattn::decode_scratch),
+                // prefill chunks on the neural accelerators (falls back to the split-KV kernel for what it cannot take)
+                crate::inkattn::REL_SINK_ATTN_BF16_NAX => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::inkattn::nax_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(5)
+                    .scratch(crate::inkattn::nax_scratch),
                 // the sliding-window decode: the plain decode shaders over the window's keys (dflash.rs). `.ext()`: the only Metal
                 // kernel that takes `OpAttrs::window > 0`; priority -1 keeps every plain call on the kernel it had.
                 crate::dflash::ATTN_DECODE_BF16_WINDOW => k
@@ -856,6 +868,7 @@ mod tests {
                 + 2 * crate::gemm_nax::NAX_VARIANTS.len()
                 + 8
                 + 2 * crate::mxfp4::NAXD_FORMS.len()
+                + crate::inkattn::metal4_shader_names().len()
         );
         assert!(!shader_names().iter().any(|n| m4.contains(n)));
         let set: HashSet<_> = m4.iter().collect();
@@ -1001,6 +1014,7 @@ mod tests {
         "qk_norm_rope_kv_bf16:qk_norm_rope_kv",
         "qk_norm_rope_kv_bf16_rows:qk_norm_rope_kv",
         "rel_sink_attn_bf16:rel_sink_attn",
+        "rel_sink_attn_bf16_nax:rel_sink_attn",
         "rmsnorm_add_bf16:rmsnorm_add",
         "rmsnorm_bf16:rmsnorm",
         "rope_bf16:rope",
