@@ -678,3 +678,20 @@ More CTAs at the same pattern change nothing; longer contiguous runs per instruc
 against the shipped kernel, under the 0.8 ms bar. **MoE at T=1 closed** (brief 29). A low-cost follow-up if wanted later:
 gu at 1-2 rows / warp and dn at 2 rows / warp in the shipped kernels (same layout, ~0.5 ms / token, needs its own bitwise check
 since the lane-to-chunk map and the shuffle tree change).
+
+## LoopBlend controller GEMV probe (spark2, fleetq `--quiet gpu,cpu`; `.scratch/blend_probe.cu`, no math, 2 passes agree)
+
+The controller h projection (`ink_mma_gemv_deep`, 47 calls / token at 18.3 us, 0.86 ms) streams one 64 x 4608 bf16 stream
+(590 KB) per 4-warp CTA, 1-3 CTAs per call. One CTA, one stream, 128 rotating copies:
+
+| per-SM loads | us / call | GB/s |
+|---|---|---|
+| register double buffer kPF 4 (the shipped kernel's loads) | 14.7 | 40 |
+| kPF 2 | 13.8 | 43 |
+| cp.async shared ring, 8 stages (64 KB) / 12 stages (96 KB) | 10.3 / 10.2 | 57 / 58 |
+| kPF 4 + 8 / 16 / 32 helper CTAs issuing L2 prefetch | 12.2-12.4 | 47-48 |
+
+One SM tops out near 57 GB/s. A bitwise kernel (same per-tile mma sequence, a cp.async ring for the loads) gets ~1.4x: ~0.25
+ms / token. Only more SMs (split-K) go further: ~3-4 us per call, ~0.7 ms / token, but it changes h's bits, so it needs the
+same split and reduction order at every T (decode, verify, prefill) and G2 / G3 + prefill gates. Asked the coordinator which;
+meanwhile the bitwise gate + norm fuse (~0.2 ms).
