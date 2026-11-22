@@ -1,6 +1,6 @@
 # Inkling-2-Mini Metal decode: host gap (lane ink-hostgap, 2026-11-21)
 
-Status: #10943 done (items 2 and 3 measured: no regression, sampled decode +2.7-3.6 %, md5 identical); item 7 timed (#11037 section 7: bitwise, PQV +0.45 %, opt-in); the device sampler (item 6) waits on endor #11152 / #11153 (#11037's build failed); ink-metal's merge of 9a38f0224 is approved but held with the whole merge queue (#11048 decode-mode G2). Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwarded to e61f392fd), not pushed.
+Status (2026-11-22 04:05): greedy and device-sampled decode meet the target (GPU-idle gap 0.001-0.011 ms per token); the host sampler, still the default for sampled rows, does not (1.37 ms). Device sampler (item 6, opt-in, side branch `ink/hostgap-gumbel`): every gate passed on endor #11182; t1.0 decode +12.0 % short / +10.8 % 5k, within 0.16 ms per token of greedy. Not merged yet: the merged-tree check (rows_exact, gumbel Metal tests, serve smoke with the switch on) goes into the ink-metal hand-off, and the default flip is the coordinator's call. Branch tip: G1-G3 pass, bitwise ink-metal's post-fix tip (#11182 section F). Item 7 bitwise, PQV +0.45 %, opt-in. ink-metal's merge of ink/hostgap is approved and waits on the merge queue. Branch `ink/hostgap`, not pushed.
 
 ## Briefs received
 
@@ -210,6 +210,9 @@ with Fable's 0.1.
 | sampled t0.7 seed 7, base at p0 vs b1 | 56.18 | 56.26 (+0.14 %) |
 | sampled t0.7 seed 7, b1 vs b4 (host pool) | 56.11 | 57.64 (+2.73 %) |
 | sampled t1.0 seed 7, b1 vs b4 (host pool) | 55.69 (17.96 ms / token) | 57.69 (+3.59 %; 17.33 ms / token) |
+| **#11182, quiet x5, medians:** sampled t1.0 seed 7 short, host sampler vs device sampler (opt-in) | 57.57 (17.37 ms) | 64.46 (+11.97 %; 15.51 ms; greedy 65.13) |
+| sampled t1.0 seed 7, 5051-token prompt, host vs device sampler | 54.88 (18.22 ms) | 60.83 (+10.84 %; 16.44 ms; greedy 61.43) |
+| GPU-idle gap per token, t1.0 short (host profile) | 1.371 ms (host sampler) | 0.011 ms (device sampler) |
 
 The 55.8 vs 57.3 (5k, -2.7 %) and the t0.7 -5.5 % of the earlier runs do not reproduce in #10943's interleaved quiet runs:
 the branch is 1.5 % faster at 5k and level at t0.7. Those earlier runs were not interleaved and ran while local builds loaded
@@ -224,7 +227,8 @@ the previous token is read, and that rest is committed 0.30 ms (median) before t
 
 Target, wall <= GPU busy + 0.5 ms:
 - **Greedy:** met at both prompt lengths.
-- **Sampled decode:** not met. See item 4: 2.4-3.6 ms of host work per token while the GPU is idle.
+- **Sampled decode:** met with the device sampler (opt-in; 0.011 ms gap per token, #11182). Not met with the host sampler, the
+  default: 1.37 ms per token at t1.0 after items 3b and 7 (from 2.4-3.6 ms in item 4).
 
 The cb traces of #10840 carry the cb profiler's own cost, so their busy time (16.6 ms) is above the 15.6-15.7 ms per token
 that the unprofiled tok/s implies.
@@ -725,9 +729,57 @@ without a seed gets a fresh one (time mixed with a process counter).
 | `batch_engine` 10/10, `engine` 10/10, `batch` 6/6, `docs_env_vars` 2/2 | spark2 #11013 | pass |
 | wide cpu run on 717139638 (stderr decision line, serve admission of `gumbel_argmax`): core, cpu backend, cli, server (all targets, no fail-fast); `gumbel_engine`, `batch_engine` | spark2 #11034 | 43 binaries ok; 1 failure, `refnoise::rescore_cuda_round7_from_the_committed_table`, which reads `docs/results/2026-10-21-cuda-round7/raw/` that the job's copy left out (`git archive` excluded `docs/results/*/**`), not code; models 2/2 ok |
 | macOS compile: Metal crate with tests, cli `--features metal`, Metal kernel-list pin | bespin #11014 (no Xcode there: the shader compiles on endor) | pass |
-| Metal: shader build first; the whole Metal crate incl. `tests/gumbel.rs` (Metal == definition at V 101 / 4099 / 200058, cap 0 / 30; rows independent; key at an offset; chi-square of the Metal draws at T 0.7 / 1.0, softcap on / off); admission (`gumbel_argmax`, `argmax`); md5 gates (greedy and host-sampled unchanged; device-sampled feedback on == off, twice == once, 5k; every switch-on run must log the device sampler on); t1.0 timing on / off / greedy, short and 5k, 5 reps; host profile; serve smoke with the switch on; `plan show` Qwen3-8B / 35B / Inkling with the switch default-off vs the reference binary; Qwen3-8B (and tiny GDN) Metal model tests | endor #11037 (trimmed): build failed (stale cloned `target/`, E0599), no gate ran; rerun #11152 (build, `--load cpu`) + #11153 (quiet, `.scratch/endorgumbel2.sh`, summary `.scratch/gmb/summary.txt`), 16th / 17th in line at 02:40 | pending |
+| Metal: shader build first; the whole Metal crate incl. `tests/gumbel.rs` (Metal == definition at V 101 / 4099 / 200058, cap 0 / 30; rows independent; key at an offset; chi-square of the Metal draws at T 0.7 / 1.0, softcap on / off); admission (`gumbel_argmax`, `argmax`); md5 gates (greedy and host-sampled unchanged; device-sampled feedback on == off, twice == once, 5k; every switch-on run must log the device sampler on); t1.0 timing on / off / greedy, short and 5k, 5 reps; host profile; serve smoke with the switch on; `plan show` Qwen3-8B / 35B / Inkling with the switch default-off vs the reference binary; Qwen3-8B (and tiny GDN) Metal model tests | endor #11182 (03:49-04:01, quiet; `.scratch/gmb/summary.txt`) | see **Endor results** below: all device-sampler gates pass; 2 failures, both from the side branch's pre-merge base |
 
-**Kernel cost (estimate, to be measured in #11017).** One threadgroup per row runs on one GPU core. Per element the kernel does
+**Endor results (#11182, side branch 336e20250 on its pre-merge base 9a53e7c5e; reference binary b4 = that base's code).**
+
+Correctness (every match below had exit 0 and non-empty output on both sides):
+- Metal crate: 46 test binaries ok, 1 failed. Both gumbel tests pass: `metal_draws_are_the_reference_draws_and_rows_are_independent`
+  and `metal_draws_follow_the_softmax_at_t07_and_t1_with_the_softcap` (the chi-square on the Metal draws). The failure is
+  `rows_exact_registrations_are_pinned`: `ink_in_proj_bf16_gemv_rows` is registered but not pinned. That is the pin fix
+  a0751f302, which ink/hostgap has from the ink/metal merge and the side branch's base does not. The gumbel commits do not
+  touch `rows_exact.rs`.
+- Admission: `kernels test --op gumbel_argmax` 20 cases, max_abs 0, ADMITTED; `argmax` unchanged (16 cases, ADMITTED).
+- Switch on, greedy: md5 d64363ea... = switch off = the measurement-A reference.
+- Host-sampled rows are unchanged: t0.7 seed 7 and t1.0 seed 7 with the switch off, and t0.7 top-k 20 with the switch on (not
+  eligible, so the host sampler runs), are each identical to b4's outputs.
+- Device-sampled: token feedback on == off at t1.0 / t0.7, seeds 7 / 11, short prompt, and at t1.0 seed 7 with the 5k prompt;
+  t1.0 seed 7 run twice == once. Every switch-on run logged `device sampler (INTARSIA_GUMBEL_SAMPLING): on, kernel
+  gumbel_argmax_f32`. The device-sampled text differs from the host-sampled text for the same seed, as expected (another
+  draw), and reads as normal text.
+
+Timing, quiet, 5 interleaved reps after a warm-up, `generate --profile-every 0`, medians:
+
+| t1.0 seed 7 | short (256 tokens) | 5051-token prompt (128 tokens) |
+|---|---:|---:|
+| host sampler (switch off; pool on, the Inkling default) | 57.57 tok/s, 17.37 ms / token | 54.88 tok/s, 18.22 ms |
+| device sampler (switch on) | **64.46 tok/s, 15.51 ms (+11.97 %)** | **60.83 tok/s, 16.44 ms (+10.84 %)** |
+| greedy (reference) | 65.13 tok/s, 15.35 ms | 61.43 tok/s, 16.28 ms |
+
+Device-sampled decode costs 0.16 ms per token more than greedy at both lengths: the Gumbel kernel against the argmax. That is
+within the 0.15-0.3 ms estimate below.
+
+Host profile, t1.0 seed 7, short, decode only, 255 steps:
+| | wall / token | GPU-idle gap / token | host work on the critical path |
+|---|---:|---:|---|
+| host sampler | 17.241 ms | 1.371 ms | step-setup 0.875, soft-cap 0.257, accept (sampler) 1.070 |
+| device sampler | 15.555 ms | **0.011 ms** | launch 0.733, encoded while the previous step runs; sync 14.795 is the wait for the GPU |
+
+So with the device sampler, sampled decode meets the target (wall <= GPU busy + 0.5 ms): the gap is 0.011 ms per token.
+
+Other models: `plan show` Qwen3-8B / 35B / Inkling, side branch vs b4, stdout identical (21 / 59 / 31 lines); stderr identical
+except load-time lines (35B MTP drafter 0.6 vs 0.4 s, Inkling 1.8 vs 1.7 s). The Qwen3-8B / tiny-GDN intarsia-models Metal
+tests pass (`batch_metal` 1, `gdn_verify_metal` all, `prefix_store_metal` 1). No 35B Metal model test (coordinator's trim).
+
+Serve smoke: FAIL, from the base again. `serve` refused to load Inkling: `moe_experts` has no admitted kernel. That is the SiTU
+admission bug fixed by 761a1561b, on ink/hostgap through the ink/metal merge and not in the side branch's base. So the serve
+smoke with the switch on has not run yet.
+
+Still to run, on the side branch merged with ink/hostgap: the `rows_exact` test, the gumbel Metal tests (chi-square included)
+and the serve smoke with the switch on. Per the coordinator, no separate job now: this goes into the hand-off note to ink-metal
+as a check on the merged tree.
+
+**Kernel cost (estimate; measured above as 0.16 ms per token over the argmax).** One threadgroup per row runs on one GPU core. Per element the kernel does
 Philox (10 rounds), up to two `precise::log`, and `precise::tanh` with the cap. That is about 150 integer and float ops, roughly
 0.15-0.3 ms for Inkling's 200058 rows, against the 3.5 ms it removes. If it shows up, the next step is a split over several
 threadgroups per row with a second reduce pass. The argmax with ties to the smaller id does not depend on the partition, so
@@ -801,7 +853,8 @@ touch. So the branch's logits are bitwise the integration tip's.
 
 ## Open items (2026-11-22 02:50)
 
-- **Device sampler (item 6):** Metal gates and the t1.0 timing wait on #11152 / #11153 (the build in #11037 failed, see item 7).
+- **Device sampler (item 6):** endor gates passed (#11182). Still open: the merged-tree check (rows_exact, gumbel Metal tests,
+  serve smoke with the switch on), which goes into the ink-metal hand-off; and the default, a separate decision.
 - **G1-G3 on the branch tip, the 8B Metal model tests, `plan show` on the branch tip:** done, #11182 section F (all pass, G2 / G3
   self-goldens bitwise ink-metal's post-fix tip; section "Gates on the branch tip").
 - **35B MoE Metal model tests:** not run on this branch (coordinator's trim: a tight-memory endor job that does not check
@@ -811,7 +864,7 @@ touch. So the branch's logits are bitwise the integration tip's.
   4k / 16k, which becomes the Metal baseline and includes this branch.
 - **Encode-ahead, chunked commits, cheaper encoding, ICB replay:** not built. Greedy decode has no host gap to remove (0.015 ms
   per step), and Metal already commits in chunks (`FIRST_COMMIT` 4, `COMMIT_EVERY` 128).
-- **Sampled decode, target wall <= GPU busy + 0.5 ms:** not met with the default host sampler. Items 3b and 7 cut the host share
+- **Sampled decode, target wall <= GPU busy + 0.5 ms:** met with the device sampler (opt-in), not met with the default host sampler. Items 3b and 7 cut the host share
   at t1.0 to 1.33 ms (soft-cap 0.27 + sampler 1.06) and a little more with PQV (+0.45 %). The device sampler removes the
   readback and the host sampler for plain-temperature rows; it changes the draw, so its default is a separate decision.
 
