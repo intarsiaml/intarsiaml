@@ -332,19 +332,31 @@ It gives the same probabilities as before, so the same token.
 - `sampler::threaded_sampler_matches_the_one_thread_path`: every chunk count, ties, +-0, -inf, NaN, top-k / top-p /
   temperature, all-equal rows; the public entry point with top-k on and off; the soft-cap bitwise.
 - `par::tests::every_task_runs_once`: concurrent callers, panics.
-- `batch_engine::batched_sampled_equals_solo`: every request sampled, B = 4 and 16, against solo; run with the pool on (8),
-  off (1) and at the default.
+- `batch_engine::batched_sampled_equals_solo`: every request sampled, B = 4 and 8, against solo. The cpu backend caps batch
+  rows at `SERVE_MAX_BATCH` = 8, so `enable_batch(16)` is refused on the tiny model; rows > threads is covered by running at
+  `INTARSIA_HOST_THREADS=3`. Run with the pool at 8, 3, 1 and the default.
 
 **spark2 microbench** (Grace, 8 threads, warm, 200058 logits, ms; one thread -> pool):
 
 | step | aed3dc496 | 8d8ac6c78 | a2f2b87b9 |
 |---|---:|---:|---:|
-| soft-cap | 1.05 -> 0.23 | 1.05 -> 0.25 | SPARK_A2F_SOFTCAP |
-| sampler, T 1, no top-k | 1.84 -> 1.06 | 1.87 -> 1.01 | SPARK_A2F_T1 |
-| sampler, T 0.7, top-k 20, top-p 0.95 | 0.28 -> 0.34 | 0.27 -> 0.27 | SPARK_A2F_K20 |
+| soft-cap | 1.05 -> 0.23 | 1.05 -> 0.25 | 1.05 -> 0.26 |
+| sampler, T 1, no top-k | 1.84 -> 1.06 | 1.87 -> 1.01 | 1.86 -> 0.94 |
+| sampler, T 0.7, top-k 20, top-p 0.95 | 0.28 -> 0.34 | 0.27 -> 0.27 | 0.28 -> 0.28 |
+
+These are `--load cpu` slots, shared with other lanes' builds, so the numbers carry noise of about 0.1 ms (the a2f2b87b9 soft-cap
+read 0.37 ms in #10951 and 0.26 ms in #10958).
 
 Phase split of the threaded sampler on ce292492b (before the radix fix): keys 0.04, radix sort 0.63, exp 0.15, f64 total 0.10,
-divide 0.04, walk 0.00 ms (median walk depth 22). After the fix: SPARK_A2F_PHASES.
+divide 0.04, walk 0.00 ms (median walk depth 22). After the fix (a2f2b87b9, #10958): keys 0.04, radix sort 0.53, exp 0.17,
+f64 total 0.10, divide 0.03 ms. The cache-line explanation was only part of it: the sort fell 0.63 -> 0.53 ms, not to the
+0.2 ms expected. It is the largest phase left. Not chased further: spark2's shared CPU cannot settle it, and the coordinator
+accepts the remainder.
+
+**spark2 checks:**
+- **#10951 (a2f2b87b9):** core lib 237/237; core scheduler / herd / fault_inject 11 + 52; docs_env_vars; the cli build.
+  `batched_sampled_equals_solo` failed in setup only (B = 16 refused by the cpu cap).
+- **#10958 (e4299fe24):** the same suites pass, plus `batch_engine` 10/10 with the pool at 8, 3, 1 and the default.
 
 **Endor** (#10943, in-loop host profile, against the <= 1 ms target for soft-cap + sampler at t1.0): ENDOR_SAMPLER_PLACEHOLDER
 
