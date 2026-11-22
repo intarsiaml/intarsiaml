@@ -71,7 +71,7 @@ rows). Needs G % 8 == 0 and 16-byte aligned gain / forget (the checkpoint's are)
 
 | op | kernel | cases | fail | max_abs | rel_l2 | result |
 |---|---|---:|---:|---:|---:|---|
-| ink_in_proj | ink_in_proj_bf16_gemv | 6 | 0 | 2.68e-4 | 1.19e-5 | ADMITTED |
+| ink_in_proj | ink_in_proj_bf16_gemv | 18 | 0 | 4.63e-4 | 1.19e-5 | ADMITTED |
 | ink_in_proj | ink_in_proj_bf16_gemv_rows | 24 | 0 | 8.28e-4 | 1.41e-5 | ADMITTED |
 | ink_in_proj | ink_in_proj_bf16_nax | 23 | 0 | 3.15e-3 | 7.46e-5 | ADMITTED |
 | conv_mix | conv_mix_bf16 | 532 | 0 | 4.53e-3 | 1.18e-3 | ADMITTED |
@@ -79,6 +79,10 @@ rows). Needs G % 8 == 0 and 16-byte aligned gain / forget (the checkpoint's are)
 | sconv_res | sconv_res_bf16 | 64 | 0 | 1.88e-3 | 1.23e-5 | ADMITTED |
 | loop_blend | loop_blend_bf16 | 27 | 0 | 3.23e-3 | 2.64e-4 | ADMITTED |
 
+- The same sweep with the blend's gate geometry changed (`INTARSIA_INK_BLEND_CS=256 _RB=4` and `=32 / 64`) gives the identical
+  max_abs / rel_l2 for every kernel, as the per-channel arithmetic and the 32-channel partial tree do not depend on it.
+- Also run: `cargo test -p intarsia-backend-metal --lib` (18 pass), `--test quick_coverage` (pass), `kernels test --quick` for
+  the five ops (all ADMITTED).
 - Tolerances: bf16 outputs `Tol(1.5e-2, 6e-3)` (one bf16 ulp, `BF16_TOL` of the other bf16 Metal kernels), f32 mix outputs
   `Tol(1e-3, 2e-4)` (`F32_TOL`).
 - Real-shape cases added (`cases/real.rs`, full sweep only): D 2304; InkInProj [6552 + 1056 + 1056, 2304] with S = 1 and 3 at
