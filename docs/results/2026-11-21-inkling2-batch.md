@@ -1132,3 +1132,22 @@ system cache, A B B A after a warm-up. Box label: start cold (B 16 61.15 ms, ALU
   `INTARSIA_INK_PROJ_X=0` keeps the old form (docs/tuning.md). The chunk form (> 16 rows, prefill without the NAX library)
   routes its 16-row chunks and tail through it too; `in_proj_chunks_rows_exact` (new) checks it. Estimate (op counts):
   ~184 -> 110-130 us at 16 rows, ~2.5-3.5 ms per B 16 step. #11442 (queued): build, Metal tests, X=0 vs X=1 us/call.
+
+**#11442 (09:59-10:02, quiet, tree 9ffcfd562; `.scratch/projx.log`).** Build clean; Metal tests all pass: inkmix 5/5 (rows-exact
+at every R 1..=16, S 1 and 3, and the new chunk-form test at 17 / 40 rows), p12 4/4 (P12 T=1 bitwise bf16), rows_exact 11/11,
+kernels table 7/7 (incl. the metal4 count). Box cold at start (B 16 58.07). InkInProj us/call, S 1, order X0 X1 X1 X0:
+
+| rows | X=0 (old) | X=1 (gemvx) | X=1 | X=0 | per-pair diff |
+|---:|---:|---:|---:|---:|---:|
+| 2 | 71.33 | 70.30 | 71.11 | 70.95 | -1.0 / +0.2 |
+| 4 | 72.87 | 72.27 | 73.57 | 71.96 | -0.6 / +1.6 |
+| 8 | 82.49 | 80.70 | 80.68 | 91.50 | -1.8 / -10.8 |
+| 16 | 162.12 | 151.99 | 151.24 | 173.92 | -10.1 / -22.7 |
+
+- Bitwise and faster, but less than estimated: ~-10 to -23 us per call at 16 rows (~0.5-1.1 ms per B 16 step), within the
+  noise at 2-4 rows. The unpack / epilogue work was not the main cost.
+- Remaining cost at 16 rows (~150 us vs ~71 floor): the x reads. Every weight row's threadgroup loads all 16 x rows (16 x 4.6 KB
+  per 4.6 KB of weights), ~640 MB of cache reads per call, ~4 TB/s at 150 us. Next (401604c38, #11457 queued): gemvx with
+  P = 2 / 4 weight rows per threadgroup sharing each x load (`INTARSIA_INK_PROJ_XP`, same bits; the old kernel's P 2 lost to
+  re-unpacking and RB passes), measured X0 / XP1 / XP2 / XP4 at 4 / 8 / 16 rows, A B C D D C B A, with inkmix rows-exact at
+  each XP.
