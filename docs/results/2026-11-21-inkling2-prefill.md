@@ -222,6 +222,26 @@ cb trace: 4 chunks in 2948 ms (737 ms / chunk), GPU busy 92%, idle 57 ms / chunk
 | AttnResMix + LoopBlend + MoeRoute + rest | 8 |
 | **GPU sum** | **646** |
 
+### localeval speed-plain, base ink/metal e3f92beff vs this branch 378dc214e (#10967, serve --max-batch 1, ABAB)
+
+Brief 5 item 1. `localeval compare` per pair (its rule: under 10 % = noise; "rejected A" = the base run failed the spread check):
+
+| prompt tok | prefill tok/s pair 1 (base -> branch) | pair 2 | decode tok/s pair 1 | pair 2 |
+|---:|---|---|---|---|
+| ~1k | 1004 -> 1119 (+11.5 %, rejected A) | 1034 -> 1158 (+12.0 %, faster) | 59.1 -> 60.5 | 61.1 -> 61.1 |
+| ~4k | 1116 -> 1357 (+21.5 %, faster) | 1226 -> 1258 (+2.6 %, rejected A) | 57.7 -> 60.0 | 59.8 -> 59.5 |
+| ~16k | 1193 -> 1304 (+9.4 %, noise) | 1261 -> 1348 (+7.0 %, noise) | 54.6 -> 56.0 | 56.8 -> 56.3 |
+
+Verdict against brief 5 (prefill better at 4k and 16k, decode within 1 %): 4k better in the one valid pair (+21.5 %); 16k
++7 to +9 % in both pairs, under localeval's 10 % noise line; decode within 1 % or better everywhere a pair is valid (worst
+-0.9 % at 16k). So: no regression, prefill up, but 16k is not a clean "faster" by localeval's rule.
+
+**Why serve is ~1300 tok/s while `generate --prefill-chunk 2048` is ~2700:** `recipes/inkling2.toml` sets no
+`prefill_chunk`, so serve and `intarsia accuracy` run **256-row chunks** (serve-2.log: "prefill chunk 256 (default)"). Every
+NAX path in this lane (blend, router, MoE tiles) was tuned and timed at 2048 rows, and G2/G3 above ran at 256. Proposal:
+`[tuning.metal] prefill_chunk = 2048` in the recipe (as qwen3 / qwen3_5_moe). Check queued as #11109: G2/G3 short+long at
+2048, then speed-plain ABAB serve 256 vs 2048 on the same binary.
+
 ## Next ideas (ranked)
 
 1. MoE experts (54% of the chunk): the gen1 kernel is staging / decode bound, not MMA bound (no-matmul probe 6.3 of 7.3 ms).
@@ -231,4 +251,4 @@ cb trace: 4 chunks in 2948 ms (737 ms / chunk), GPU busy 92%, idle 57 ms / chunk
 3. Router as a NAX GEMM (logits_bf16 runs at 3.9 TFLOP/s: 14 ms -> ~1 ms per chunk).
 4. rel_mode: stage the bias per (tile, distance band) in threadgroup memory instead of 16 FMAs per score; then re-measure
    (branch ink/prefill-rel).
-5. localeval `speed-plain` not run by this lane (left to the integration lane's serve runs).
+5. Metal prefill chunk 2048 in the recipe (serve and accuracy use 256 today): pending #11109.
