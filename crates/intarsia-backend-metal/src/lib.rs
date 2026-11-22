@@ -36,6 +36,7 @@ pub mod flash_nax;
 pub mod fp8;
 mod fused;
 mod gdn;
+mod inkattn;
 pub mod gemm_nax;
 mod host;
 pub mod kernels;
@@ -1367,6 +1368,9 @@ impl MetalBackend {
         ) && call.op == Op::MatmulNvfp4
         {
             return self.launch_nvfp4(kernel, call);
+        }
+        if matches!(kernel, inkattn::INK_KV_PROLOGUE_BF16 | inkattn::REL_SINK_ATTN_BF16) {
+            return self.launch_inkattn(kernel, call);
         }
         if bridge::KERNELS.iter().any(|k| k.0 == kernel) {
             return self.launch_bridge(kernel, call);

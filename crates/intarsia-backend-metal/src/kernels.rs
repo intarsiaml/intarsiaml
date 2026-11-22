@@ -323,6 +323,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::gdn::shader_names());
     v.extend(crate::dflash::shader_names());
     v.extend(crate::bridge::shader_names());
+    v.extend(crate::inkattn::shader_names());
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
     v.extend(crate::nvfp4::SHADERS);
@@ -416,6 +417,9 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::bridge::BRIDGE_CODE_BF16, Op::BridgeCode),
     (crate::bridge::BRIDGE_GATE_BF16, Op::BridgeGate),
     (crate::bridge::BRIDGE_WRITE_BF16, Op::BridgeWrite),
+    // Inkling-2-Mini attention (inkattn.rs, lane ink-m-attn)
+    (crate::inkattn::INK_KV_PROLOGUE_BF16, Op::InkKvPrologue),
+    (crate::inkattn::REL_SINK_ATTN_BF16, Op::RelSinkAttn),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -620,6 +624,15 @@ pub fn all() -> Vec<KernelImpl> {
                 crate::bridge::BRIDGE_NORM_BF16 | crate::bridge::BRIDGE_CODE_BF16 | crate::bridge::BRIDGE_GATE_BF16 | crate::bridge::BRIDGE_WRITE_BF16 => {
                     k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL)
                 }
+                // Inkling-2-Mini attention (inkattn.rs): f32 math, bf16 stores at the contract's rounding points; rows-exact by construction
+                crate::inkattn::INK_KV_PROLOGUE_BF16 => k.acts(bf).when(crate::inkattn::prologue_ok).exact(Exactness::Deterministic).tol(BF16_TOL),
+                crate::inkattn::REL_SINK_ATTN_BF16 => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::inkattn::attn_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .scratch(crate::inkattn::attn_scratch),
                 // the sliding-window decode: the plain decode shaders over the window's keys (dflash.rs). `.ext()`: the only Metal
                 // kernel that takes `OpAttrs::window > 0`; priority -1 keeps every plain call on the kernel it had.
                 crate::dflash::ATTN_DECODE_BF16_WINDOW => k
@@ -947,6 +960,7 @@ mod tests {
         "gdn_delta_rule_bf16:gdn_delta_rule",
         "gdn_delta_rule_bf16_pre:gdn_delta_rule",
         "gdn_delta_rule_bf16_rows:gdn_delta_rule",
+        "ink_kv_prologue_bf16:ink_kv_prologue",
         "kv_append_bf16:kv_append",
         "kv_append_bf16_rows:kv_append",
         "logits_bf16:logits",
@@ -977,6 +991,7 @@ mod tests {
         "qk_norm_bf16:qk_norm",
         "qk_norm_rope_kv_bf16:qk_norm_rope_kv",
         "qk_norm_rope_kv_bf16_rows:qk_norm_rope_kv",
+        "rel_sink_attn_bf16:rel_sink_attn",
         "rmsnorm_add_bf16:rmsnorm_add",
         "rmsnorm_bf16:rmsnorm",
         "rope_bf16:rope",
