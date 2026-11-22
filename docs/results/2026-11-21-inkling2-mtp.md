@@ -103,6 +103,10 @@ Status: in progress. Branch `ink/mtp` (not pushed, not merged).
   logits, unreachable today. Fix as one small commit: apply the cap wherever verify rows are read as probabilities, or a hard
   assert that sampled verify is unreachable plus a comment that the rows are pre-softcap. Bitwise-neutral for greedy (md5
   equal). Do not change it while #11226 / #11227 are pending on the current binary.
+- 2026-11-22 (coordinator, SendMessage, from the CUDA attention lane ink/cuda-mtp b1d84ba5b): the same verify_head pre-softcap
+  bug. Any sampled spec path (rejection sampling, Gumbel acceptance) must sample from the capped logits, so fix it before
+  sampled spec is enabled on any backend, with a test: a sampled verify-pass distribution equal to plain sampled decode
+  (chi-square), or at least the verify logits equal to the decode logits after softcap. Report the commit.
 
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
