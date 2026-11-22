@@ -755,7 +755,8 @@ impl MetalBackend {
                 TensorRef { shape: vec![n, if j < s { g } else { 0 }], ..hv }
             })
             .collect();
-        self.in_proj_rows(&xs, &wd, &hs, s)?;
+        // lane ink-prefill hook: prefill chunks take the InkInProj NAX GEMM for h (inkprefill.rs)
+        if crate::inkprefill::blend_nax(n) && self.has_metal4() { self.launch_in_proj_nax(&OpCall::new(Op::InkInProj, vec![xs.clone(), wd.clone()], hs.clone(), OpAttrs::default()))?; } else { self.in_proj_rows(&xs, &wd, &hs, s)?; }
         let (h_b, gain_b, forget_b, y_b, part_b) = (
             self.bind(&h, bf, false, "h")?,
             self.bind(gain, bf, false, "gain")?,

@@ -106,3 +106,10 @@ static SKIP: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0xFF
 pub fn set_skip(v: u8) {
     SKIP.store(v & 7, std::sync::atomic::Ordering::Relaxed);
 }
+
+/// Prefill blend chunks (rows > 16): the h projection on the NAX GEMM (InkInProj's prefill kernel) instead of the 16-row
+/// GEMV passes. `INTARSIA_INK_BLEND_NAX=1` turns it on (measurement default: off).
+pub fn blend_nax(rows: usize) -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    rows > 16 && *ON.get_or_init(|| std::env::var("INTARSIA_INK_BLEND_NAX").is_ok_and(|v| v != "0"))
+}
