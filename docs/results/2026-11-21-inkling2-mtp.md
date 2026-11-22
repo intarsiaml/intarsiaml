@@ -424,7 +424,29 @@ Reading:
 - The model's gate sensitivity is uncertain. It says tau 0.6 beats 0.8 by 3%, but on Metal they measured equal (80.46 vs
   80.64). Gains of this size are within the model's error until measured.
 
-Recommendation, not built:
+**Correction (refit, spark2 #11165 / #11210).** The flat 3.8 ms drafter overrated the policies that draft more (k3 tau 0.6:
+84.2 modelled vs 80.46 measured, a 4.6% miss, the size of the gain above). The refit takes the drafter from its profile split:
+- 2.5 ms per cycle (block + ingest);
+- 0.40 ms per head row (the cap k);
+- 0.25 ms per Markov step run.
+
+It fits one parameter: 3.16 ms per extra verify row. Measured points: k2 tau 0.6 80.06 vs 79.84, k3 tau 0.6 81.24 vs 80.46,
+k3 tau 0.8 79.38 vs 80.64 (all within 1.6%); k4 / k3 at tau 0.6 1.001 vs 1.011 measured (#10806). Refit, vs k3 tau 0.8:
+
+| policy | greedy tok/s | vs base | oracle prose tok/s | vs base |
+|---|---:|---:|---:|---:|
+| fixed k3 tau 0.8 (base) | 79.4 | 1.000 | 58.8 | 1.000 |
+| fixed k3 tau 0.6 | 81.2 | 1.023 | | |
+| fixed k4 tau 0.6 | 81.3 | 1.024 | | |
+| cumulative 0.35, kmax 3 | 81.5 | 1.026 | 57.5 | 0.978 |
+| cumulative 0.5, kmax 3 | 82.1 | 1.034 | 58.9 | 1.002 |
+| cumulative 0.35, kmax 4 | 81.0 | 1.020 | 56.2 | 0.956 |
+| cumulative 0.5, kmax 4 | 82.2 | 1.036 | 57.6 | 0.981 |
+
+The modelled gain is +2-4%, no longer +4-6%, which is inside the model's error (the fit misses k3 tau 0.8 by -1.6% and k3
+tau 0.6 by +1.0%). The endor sweep #11188 decides. On oracle prose, c 0.35 costs 2-4%; c 0.5 is neutral.
+
+Recommendation, not built (superseded by the 2026-11-22 brief: cut built, sweep queued):
 1. Implement the cumulative cut (c, kmax as env knobs, default off): a few lines in `dspark_draft_inner`'s gate.
 2. Measure c 0.35 / 0.5 at kmax 3 / 4 against k3 tau 0.8 in one quiet job, with real prose continuations (prose.json).
 3. Add the EMA skip only if a workload with low acceptance (rewrites, code edits) turns out to matter.
