@@ -845,3 +845,42 @@ for the target's own tokens, not for the taps the draft reads). Decode there: sc
 (spec off without the screen 69.12).
 
 
+
+### Default-on proposal (lane ink-spec-land, for the coordinator; not built)
+
+Numbers from #11564 (localeval, one quiet slot, binary bfaccd447) and #11575 / #11555 (gates):
+
+| prompt tok | decode off -> DSpark tok/s | x | TTFT cost, engine (generate) | TTFT, localeval |
+|---:|---:|---:|---:|---:|
+| 141 | 67.9 -> 76.3 | 1.12 | - | 0.18 -> 0.19 s |
+| 1k | 66.2 -> 74.1 | 1.12 | +3 ms (+0.5%) | 0.68 -> 0.61 s |
+| 4k | 65.2 -> 83.5 | 1.28 | +1 ms (+0.1%) | 2.10 -> 2.18 s |
+| 16k | 60.3 -> 70.2 | 1.17 | +40 ms (+0.5%) | 8.03 -> 8.29 s (off itself moved 8.42 -> 7.64) |
+
+- The TTFT objection that held the flip (#10991: prefill -6% / -7% at 4k / 16k) is gone: it was the host ingest, replaced by the
+  device ingest (85265f9d5). The draft ingest now costs 4.1 ms per 2048-row prefill chunk, about 0.5% of prefill.
+- The decode gain shrank from #10991's 1.26-1.44x to 1.12-1.28x. Spec-off decode on main got faster (63.6 -> 67.9 at 141), DSpark
+  did not (80.2 -> 76.3, different slot and day). Likely reason, not measured: main's screened head (#489) and in_proj changes speed
+  the 1-row step; a verify pass runs the full head over its 2-4 rows. A multi-row screened head for verify is the matching lever.
+- f130b8855's conditions still fit today's main: no `--spec`, Metal, one rank in process, `--max-batch` unset or <= 1, the
+  checkpoint's `mtp_config` + `mtp.safetensors` present, `INTARSIA_SPEC_DEFAULT` not 0. Since #492 the recipe's `max_batch = 16` is
+  only the cap of `--max-batch`; without the flag serve runs one sequence, so a default server would speculate. Greedy-only holds
+  per request (B2: a t1.0 request runs no verify pass and pays no ingest); the device Gumbel sampler in flight (#11554) gates on its
+  own and does not see the draft. f130b8855 needs a rebase: `git merge-tree` against this branch shows 4 textual conflicts
+  (common.rs, dspark.rs, spec.rs, tuning.md), all from the k3 / 0.8 defaults this PR already lands; what is left of it is
+  `dspark_default()` in load.rs and its test. load.rs merges without conflict but would then hold both this PR's k3 block and the
+  flip's; keep one.
+- Deploy: the drafter is the checkpoint's own `mtp.safetensors` (636 MB, same snapshot, described by `config.json`'s
+  `mtp_config`); there is nothing extra to download or convert. A model copy that names files one by one drops it (e.g.
+  `scripts/inkling2-spark-copy-model.sh`), and with the flip a missing file silently means no speculation, so the deploy check is
+  "the server log shows `the DSpark default of Inkling-2 on metal`". Costs on every Metal start, greedy requests or not: +6.1 s
+  load (5.9 s of it the Markov fold [200058 x 256], cacheable) and about 1 GB (0.64 GB draft file + the folded heads; RSS not
+  measured).
+- Who gains: greedy requests only. Serve's default sampling is t1.0, so chat clients that send a temperature get no speedup.
+
+Draft-ingest TTFT idea (asked for; not built, below the bar): run the last prefill chunk's ingest after the first token's logits
+are read back, so the first token does not wait for it (bitwise: drafts never reach the output and the ingest order is unchanged,
+only later in the stream). Saves at most one chunk's ingest, 4.1 ms: 0.6% of TTFT at 1k, 0.05% at 16k; about 2-3 h of work. Fully
+overlapping every chunk's ingest (a second Metal queue, event-ordered after the chunk's tap writes) could hide up to 33 ms at 16k
+(0.4%) if the GPU had idle capacity during prefill GEMMs, which it mostly does not; about a day. Neither is worth building: the
+cost they remove is smaller than the TTFT noise of one quiet slot.
