@@ -130,6 +130,12 @@ Status: in progress. Changes 1-5 are committed, default off, and bitwise on the 
   step's result to the log as it finishes. Next time a job is widened, put the new --expect in a fresh job, unless that job
   is deep in a queue like this one. Done 03:04: every step of R and F prints its result as it finishes, and a TERM trap
   names the step that was cut.
+- 2026-11-22 ~03:12 (coordinator, FYI):
+  - batch's #11104 ran this lane's row-table tests (ac2371c81) on Metal with `INTARSIA_INK_MIX_HOIST=1` and `=0`. Every
+    group passed both ways (6 / 6, 3 / 3, 8 / 8), so the batched path is clear for the hoist.
+  - The bisect cleared the flip's accuracy question: the decode-mode G2 excess comes from m-mix NE 4 (25ff7864a), not from
+    dfuse, and ink-metal is fixing it.
+  - The flip 2f952f697 now waits only on that fix and on F (#11145).
 
 ## Probes (endor, before any code)
 
@@ -593,6 +599,9 @@ the floor come from the ink/metal tip, not the switches: with all four switches 
 clears for the switches.
 
 Job R (#11111) still runs its same-binary off / best / best + preload G2 comparison, as one more data point.
+
+**Cause found (coordinator, ~03:12):** ink-metal's bisect puts the decode-mode G2 excess on m-mix NE 4 (25ff7864a), not on
+dfuse, and ink-metal is fixing it.
 
 **The flip is committed:** 2f952f697 on ink/dfuse. Its code is ac2371c81 + the flip, with only docs commits in between.
 Job F (#11145) checks the new defaults on Metal. It merges into ink/metal after ink-metal's decode-mode G2 is fixed or
