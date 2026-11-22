@@ -347,3 +347,30 @@ Not rerun (coordinator). The decode columns are therefore not like for like: vLL
 
 Serve load: 228 s, admission 26 kernels / 103 cases, none rejected. After the stop: port 8090 closed, no serve process left
 (2804216 and its --child 2804217 gone), memory back to the 41-42 GB baseline (vLLM retro 38 GB).
+
+## MoE decode loads-only probe (brief 16; spark2 #11275, `--quiet gpu,cpu`; probe code env-gated, uncommitted, reverted)
+
+`INTARSIA_INK_MOE_LOADS_ONLY=1` replaced the NVFP4 gu / dn inner loop by the same loads (weights, scales, activations) xor-ed
+together, no fp4 decode and no dot; `=2` also dropped the activation loads. ink_bench moe (128 experts, top-8, realistic union,
+layer copies beyond the cache), GB/s of expert bytes:
+
+| T | union | gate+up normal / loads-only / weights-only | down normal / loads-only / weights-only |
+|---|---|---|---|
+| 1 | 8.0 | 199.7 / 200.1 / 200.9 | 186.1 / 182.8 / 185.5 |
+| 2 | 15.5 | 204.3 / 204.6 / 205.8 | 192.7 / 186.8 / 195.5 |
+| 4 | 29.0 | 205.4 / 205.7 / 206.6 | 192.4 / 192.2 / 195.6 |
+| 16 | 83.0 | 199.3 / 199.2 / 201.3 | 176.5 / 177.9 / 181.5 |
+
+In the model at the #11172 shape (1.2k prompt, P12 on, graphs, nsys, 60 tokens): gu 5893 -> 5840 us / token, dn 3247 -> 3251
+(48 calls each: 44 NVFP4 + 4 MXFP8, the probe touches NVFP4 only; NVFP4 + MXFP8 bytes give ~208 / ~189 GB/s). Decode itself
+33.21 -> 33.42 tok/s.
+
+Reading: removing all arithmetic (and even the activation reads) moves nothing, so the kernels are not compute-bound; GB/s is
+flat from 8 to 83 experts, so it is not a fixed per-launch cost either. The bound is the weight-load pattern (per warp
+instruction: dn 8 rows x 64 B, gu 4 rows x 128 B in two matrices far apart, plus 2-byte scale loads in a separate stream),
+against ~238 GB/s for the bf16 decode GEMV's long contiguous rows. Worse of gu / dn loads-only: 178-192 GB/s (<= 195): by
+the brief-16 rule the route is the load-time weight repack (contiguous per-warp streams, scales interleaved, same lane -> chunk
+map, so bitwise). Estimate at ~235 GB/s: gu + dn 9.1 -> ~7.4 ms / token (~1.7 ms, ~5-6 %), the same rate gain at T = 2..4
+(DSpark verify rows). Cost: the tensor-core prefill path (ink_moe_mma) and the `_rows` twins read the same weights, so they
+move to the new layout too (or the experts are kept twice: ~17 GB more); about 1-1.5 days. Not built: the coordinator picks
+between this and the prefill GEMMs after the prefill profile (brief 20).
