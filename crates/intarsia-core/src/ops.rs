@@ -22,6 +22,7 @@
 //! | `GeluGlu` | gate `[T,I]`, up `[T,I]` | `[T,I]` (= `gelu_tanh(gate) * up`, `gelu_pytorch_tanh`: `0.5 x (1 + tanh(sqrt(2/pi) (x + 0.044715 x^3)))`, f32 inside, one rounding) | |
 //! | `Argmax` | logits `[R,V]` | `[R]` i32 | |
 //! | `Sample` | logits `[R,V]`, u `[R]` f32 in [0,1) | `[R]` i32 | temperature, top_k, top_p |
+//! | `GumbelArgmax` | logits `[R,V]` f32, keys `[R,4]` i32 (u32 bits: seed lo, seed hi, position, bits of 1/T) | `[R]` i32 (= argmax of `softcap(l) / T` + Philox Gumbel noise, exactly `gumbel::argmax_row`) | scale (the softcap cap, 0 = none) | device sampler, discriminant 96 (lane ink-hostgap) |
 //! | `MatmulFp8` | x `[M,K]`, w `[N,K]` fp8_e4m3, scales `[2]` f32 = (weight_scale, input_scale) | `[M,N]` (bf16/f16/f32) | see `quant::fp8` |
 //! | `MatmulExl3` | x `[M,K]`, trellis `[K/16,N/16,8*k2]` i16, suh `[K]` f16, svh `[N]` f16, codebook `[1]` i32 (0 3inst, 1 mcg, 2 mul1) | `[M,N]` (bf16/f16/f32) | see `quant::exl3` |
 //! | `MatmulNvfp4` | x `[M,K]`, w `[N,K/2]` u8 (e2m1 pairs), block scales `[N,K/16]` fp8_e4m3, global `[1]` f32 | `[M,N]` (bf16/f16/f32) | see `quant::nvfp4` |
@@ -230,6 +231,10 @@ pub enum Op {
     ConvMix,
     /// Inkling-2 fused decode attention (1..=16 rows): exactly `RelSinkAttn(InkKvPrologue(..))` (lane ink-m-attn).
     InkAttnDecode,
+    /// Device sampler (lane ink-hostgap): Gumbel-max over `softcap(logits) / T` with Philox noise keyed on (seed, position,
+    /// token id), exactly `gumbel::argmax_row`. Discriminants 96..=99 are reserved for ink-hostgap (76..=95 for other lanes), so
+    /// ops are numbered there, never a bare append that could collide when branches merge.
+    GumbelArgmax = 96,
 }
 
 /// `BridgeCode` among the two single-output-shape bridge ops (they share a shape check).
@@ -238,7 +243,7 @@ fn call_op_is_code(op: Op) -> bool {
 }
 
 impl Op {
-    pub const ALL: [Op; 76] = [
+    pub const ALL: [Op; 77] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -315,6 +320,7 @@ impl Op {
         Op::InkInProj,
         Op::ConvMix,
         Op::InkAttnDecode,
+        Op::GumbelArgmax,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -396,6 +402,7 @@ impl Op {
             Op::InkInProj => "ink_in_proj",
             Op::ConvMix => "conv_mix",
             Op::InkAttnDecode => "ink_attn_decode",
+            Op::GumbelArgmax => "gumbel_argmax",
         }
     }
 
@@ -480,6 +487,7 @@ impl Op {
             Op::InkInProj => (2, 3),
             Op::ConvMix => (11, 4),
             Op::InkAttnDecode => (10, 5),
+            Op::GumbelArgmax => (2, 1),
         }
     }
 }
@@ -1012,6 +1020,21 @@ impl OpCall {
                     return bad("out must be i32 [R]".into());
                 }
             }
+            Op::GumbelArgmax => {
+                rank(&i[0], 2, "logits")?;
+                if i[0].dtype != DType::F32 {
+                    return bad("logits must be f32".into());
+                }
+                if i[1].dtype != DType::I32 || i[1].shape != [i[0].shape[0], 4] {
+                    return bad("keys must be i32 [R,4]".into());
+                }
+                if o[0].dtype != DType::I32 || o[0].shape != [i[0].shape[0]] {
+                    return bad("out must be i32 [R]".into());
+                }
+                if !(self.attrs.scale >= 0.0 && self.attrs.scale.is_finite()) {
+                    return bad(format!("cap {} must be finite and >= 0", self.attrs.scale));
+                }
+            }
             Op::MatmulFp8
             | Op::MatmulNvfp4
             | Op::MoeTopk
@@ -1186,7 +1209,7 @@ impl ShapeInfo {
                 s.kv_len = call.attrs.pos0 + s.m;
                 s.weight = Some(i[1].dtype); // kv dtype
             }
-            Op::Argmax | Op::Sample => {
+            Op::Argmax | Op::Sample | Op::GumbelArgmax => {
                 s.m = i[0].shape[0];
                 s.n = i[0].shape[1];
             }
@@ -1467,8 +1490,11 @@ mod tests {
             assert_eq!(*op as usize, 67 + j, "{op}");
             assert_eq!(Op::ALL[67 + j], *op);
         }
-        assert_eq!(Op::ALL.last(), Some(&Op::InkAttnDecode), "the last of the Inkling-2 block");
+        assert_eq!(Op::ALL[75], Op::InkAttnDecode, "the last of the Inkling-2 block");
         assert_eq!(Op::InkAttnDecode as usize, 75, "the fused decode attention, appended after ConvMix");
+        // 96..=99: lane ink-hostgap's reserved numbers, the last entries of `Op::ALL`
+        assert_eq!(Op::GumbelArgmax as usize, 96, "the device sampler, at its reserved number");
+        assert_eq!(Op::ALL.last(), Some(&Op::GumbelArgmax));
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

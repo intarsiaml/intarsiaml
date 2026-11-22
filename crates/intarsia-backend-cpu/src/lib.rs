@@ -111,7 +111,7 @@ fn implements_ext(op: Op) -> bool {
 fn tol_for(op: Op) -> Tol {
     match op {
         // pure data movement / integer results: must match bit for bit
-        Op::Embedding | Op::KvAppend | Op::Argmax | Op::Sample => Tol::EXACT,
+        Op::Embedding | Op::KvAppend | Op::Argmax | Op::Sample | Op::GumbelArgmax => Tol::EXACT,
         // bf16-rounded outputs: one-ulp flips allowed
         _ => Tol::new(1.5e-2, 6e-3),
     }

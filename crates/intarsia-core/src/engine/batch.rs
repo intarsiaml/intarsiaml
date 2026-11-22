@@ -1098,6 +1098,8 @@ pub struct BatchedEngine {
     recurrent: bool,
     /// Lane mtp-sampled: sampled requests draft too ([`BatchedOptions::mtp_sampled`] under `--spec mtp`).
     mtp_sampled: bool,
+    /// The model runs the device sampler ([`Model::gumbel_ok`], lane ink-hostgap).
+    gumbel: bool,
     /// Lane samp64: [`BatchedOptions::sampled_ctx_k`].
     sampled_ctx_k: Vec<(usize, usize)>,
     /// The prefix store (`EngineMeta::prefix_store`); with `--spec mtp` a restore restarts the slot's MTP head context
@@ -1220,6 +1222,7 @@ impl BatchedEngine {
         }
         let vocab = model.dims.vocab;
         let verify_rows = model.verify_rows();
+        let gumbel = model.gumbel_ok();
         if let Some(s) = &store {
             s.announce(&telemetry);
             if mtp {
@@ -1303,7 +1306,7 @@ impl BatchedEngine {
                 store_slot,
             };
         let engine = if opts.hold_start { BatchEngine::spawn_held(slots, cfg)? } else { BatchEngine::spawn(slots, cfg)? };
-        Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent, store, solo_chunk, mtp_sampled, sampled_ctx_k })
+        Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent, store, solo_chunk, mtp_sampled, gumbel, sampled_ctx_k })
     }
 
     /// Let an engine built with [`BatchedOptions::hold_start`] start scheduling (no effect on any other engine).
@@ -1395,6 +1398,7 @@ impl Engine for BatchedEngine {
         let (etx, erx) = channel();
         let plen = req.prompt.len();
         let mut seq = Seq::build(&self.env, req, etx.clone(), self.verify_rows, self.recurrent);
+        seq.gate_gumbel(self.gumbel);
         if self.mtp_sampled {
             // lane mtp-sampled: a sampled request drafts too, seed-exact (`engine/keyed.rs`)
             seq.enable_keyed(self.env.spec.mode, self.verify_rows);

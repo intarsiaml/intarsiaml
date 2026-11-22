@@ -190,6 +190,9 @@ pub const ARGMAX_F32_V4: &str = "argmax_f32_v4";
 /// `argmax_f32_v4` for any V (rows not 16-byte aligned: V % 4 != 0), lane ink-hostgap; the launcher takes it where `argmax_f32_v4`
 /// does not apply, unless `INTARSIA_METAL_ARGMAX_V4T=0`. Same result as `argmax_f32`.
 pub const ARGMAX_F32_V4T: &str = "argmax_f32_v4t";
+/// The device sampler (`Op::GumbelArgmax`, lane ink-hostgap): Gumbel-max over `softcap(l) / T` with Philox noise, one threadgroup
+/// per row (kernels/metal/dense_ops.metal; `intarsia_core::gumbel` is the definition).
+pub const GUMBEL_ARGMAX_F32: &str = "gumbel_argmax_f32";
 
 /// `INTARSIA_METAL_ARGMAX_V4T`: `0` sends f32 argmax rows with V % 4 != 0 back to the 256-thread scalar `argmax_f32`; unset or anything
 /// else takes `argmax_f32_v4t` (same result, 172 -> see docs/results/2026-11-21-inkling2-hostgap.md on Inkling-2's 200058 logits).
@@ -360,7 +363,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8, GEMV_PAIR_BF16_R1, GEMV_PAIR_BF16_R1_A8]);
     v.extend(RMSNORM_EX);
     v.extend(RMSNORM_ADD_EX);
-    v.extend([ARGMAX_F32_V4, ARGMAX_F32_V4T]);
+    v.extend([ARGMAX_F32_V4, ARGMAX_F32_V4T, GUMBEL_ARGMAX_F32]);
     v.extend(EXPERIMENT_SHADERS);
     v.extend(crate::multirow::shader_names());
     v.extend(crate::rowtab::shader_names());
@@ -388,6 +391,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (SILU_GLU_BF16, Op::SiluGlu),
     (ARGMAX_F32, Op::Argmax),
     (ARGMAX_BF16, Op::Argmax),
+    (GUMBEL_ARGMAX_F32, Op::GumbelArgmax),
     (ATTN_PREFILL_BF16, Op::AttnPrefill),
     (ATTN_PREFILL_BF16_FLASH, Op::AttnPrefill),
     (ATTN_PREFILL_BF16_FLASH_NAX, Op::AttnPrefill),
@@ -501,6 +505,9 @@ pub fn all() -> Vec<KernelImpl> {
                 }
                 ARGMAX_F32 => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
                 ARGMAX_BF16 => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
+                // the device sampler: run-to-run identical; the token is the cpu reference's unless two candidates lie within
+                // the ulp-level difference of Metal's and Rust's tanh / log (admission checks it bit for bit)
+                GUMBEL_ARGMAX_F32 => k.acts([DType::F32]).exact(Exactness::Deterministic).tol(Tol::EXACT),
                 // causal GQA, f32 online softmax; `weights` is the K cache dtype (bf16 only, as KvAppend). Same
                 // predicate and tolerance as the hip `attn_prefill_bf16` / `attn_decode_bf16`.
                 ATTN_PREFILL_BF16 | ATTN_DECODE_BF16 => k
@@ -1015,6 +1022,7 @@ mod tests {
         "gdn_delta_rule_bf16:gdn_delta_rule",
         "gdn_delta_rule_bf16_pre:gdn_delta_rule",
         "gdn_delta_rule_bf16_rows:gdn_delta_rule",
+        "gumbel_argmax_f32:gumbel_argmax",
         "ink_attn_decode_bf16:ink_attn_decode",
         "ink_kv_prologue_bf16:ink_kv_prologue",
         "kv_append_bf16:kv_append",
@@ -1067,6 +1075,7 @@ mod tests {
     /// origin/main's (`4962d8fa`) plus the two ops added by rope scaling / projection bias (`add_bias`, `rope_scaled`: no existing
     /// op gains or loses a kernel) and `short_conv` (LFM2, lane nab2: a new op, no existing op changes), and lane dm's DFlash2 draft kernels (`dyn_conv_bf16`, a
     /// new op; `attn_decode_bf16_window`, `.ext()` and priority -1, so no plain call can pick it), so the plan has the same candidates as before.
+    /// Lane ink-hostgap's device sampler adds `gumbel_argmax_f32` for its new op (`gumbel_argmax`): no existing op gains a candidate.
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();

@@ -410,7 +410,55 @@ pub enum HeadMode {
     /// and their token ids, in the sampler's order (`StepOut::TopK`), instead of the whole `[V]` row. Exact for a sampler with
     /// `top_k == k`: `Sampler::sample_topk` draws the token host sampling would.
     LastTopK(usize),
+    /// Device sampler (`INTARSIA_GUMBEL_SAMPLING=1`, lane ink-hostgap): the token of the last position drawn on the device by
+    /// Gumbel-max (`Op::GumbelArgmax`, `crate::gumbel`), 4 bytes back like `LastArgmax`. For plain-temperature rows only
+    /// ([`Model::gumbel_ok`], `Seq::head_mode`).
+    LastGumbel(GumbelHead),
 }
+
+/// The per-request part of a device-sampled row's key (`HeadMode::LastGumbel`): the seed and `1 / T` as f32 bits. The
+/// position completes it per token ([`GumbelHead::key`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GumbelHead {
+    pub seed: u64,
+    pub inv_t: u32,
+}
+
+impl GumbelHead {
+    pub fn new(seed: u64, temperature: f32) -> GumbelHead {
+        GumbelHead { seed, inv_t: (1.0 / temperature).to_bits() }
+    }
+
+    /// The `GumbelArgmax` key of the token at absolute position `pos` (the number of tokens before it), as
+    /// `gumbel::key_row(seed, pos, T)` builds it.
+    pub fn key(&self, pos: usize) -> [i32; 4] {
+        [self.seed as u32 as i32, (self.seed >> 32) as u32 as i32, pos as u32 as i32, self.inv_t as i32]
+    }
+}
+
+/// The device sampler's buffers ([`Model::gumbel_ok`]): the key table of the request being decoded and the batched step's
+/// keys and tokens.
+pub(crate) struct GumbelBufs {
+    /// Keys `i32 [rows, 4]` of positions `lo .. lo + rows` of one request (`head`), written before the request's first
+    /// device-sampled step ([`Model::gumbel_prepare`]) and only read after: a feedback step encoded while the one before runs
+    /// reads its own row, so no write can race a kernel that has not run yet.
+    table: Mutex<GumbelTable>,
+    /// A batched step's keys `i32 [BATCH_MAX_ROWS, 4]` (uploaded before the step) and tokens `i32 [BATCH_MAX_ROWS]`.
+    batch_keys: Buffer,
+    batch_tok: Buffer,
+}
+
+#[derive(Default)]
+struct GumbelTable {
+    buf: Option<Buffer>,
+    cap_rows: usize,
+    head: Option<GumbelHead>,
+    lo: usize,
+    rows: usize,
+}
+
+/// Rows the key table is filled with when a plain step finds its position outside it (feedback steps never refill).
+const GUMBEL_TABLE_ROWS: usize = 4096;
 
 /// What a solo verify pass reads back of its rows besides the greedy tokens ([`Model::forward_verify_run`]).
 enum VerifyRead<'a> {
@@ -706,6 +754,9 @@ pub struct Model {
     /// Device-side top-k sampling buffers (R3b): ids `i32 [BATCH_MAX_ROWS, 64]`, values `f32 [..]`, NaN flags `i32 [BATCH_MAX_ROWS]`
     /// and the kernel's scratch. `Some` when the backend has `topk_rows` and `INTARSIA_DEVICE_SAMPLING` is not `0` (default on).
     topk: Option<TopkBufs>,
+    /// The device sampler (`INTARSIA_GUMBEL_SAMPLING=1`, lane ink-hostgap): decided and allocated on first use
+    /// ([`Model::gumbel_ok`]); `None` inside when it is off or the model cannot run it.
+    gumbel: std::sync::OnceLock<Option<GumbelBufs>>,
     /// Batched decode with a vocab-parallel head (`vocab_par`, every rank): the gather tile `f32 [world, BATCH_MAX_ROWS * V /
     /// world]`, rank-major as the all-gather leaves it; rank 0 then copies it into `ws.logits` as row-major `[b, V]`
     /// ([`Model::batch_head`]). Allocated by [`Model::enable_batch`].
@@ -1975,6 +2026,7 @@ impl Model {
             row_tab: None,
             batch_pos: None,
             topk: None,
+            gumbel: std::sync::OnceLock::new(),
             batch_tile: None,
             tp_batch_mutant: std::sync::atomic::AtomicU8::new(0),
             coll_trace: coll_trace::CollTrace::new(std::env::var("INTARSIA_TP_COLL_TRACE").is_ok_and(|v| v == "1")),
@@ -3152,6 +3204,13 @@ impl Model {
         on_row: Option<RowCallback<'_>>,
     ) -> Result<StepOut> {
         let pos = st.len;
+        if let HeadMode::LastGumbel(h) = mode {
+            if !self.gumbel_ok() {
+                return Err(Error::invalid("HeadMode::LastGumbel on a model without the device sampler (Model::gumbel_ok)"));
+            }
+            // the key of the pass's sampled token (position st.len + ids.len()), written now, before anything is in flight
+            self.gumbel_cover(h, pos + ids.len(), true)?;
+        }
         self.det_tap_begin();
         let r = if self.remote.is_some() {
             self.forward_remote(st, ids, mode, on_row)
@@ -3694,6 +3753,9 @@ impl Model {
                     let head = match mode {
                         HeadMode::LastLogits if last => self.head_logits(&hn, total - 1, 1, profile).map(|l| out = StepOut::Logits(l)),
                         HeadMode::LastArgmax if last => self.head_argmax(&hn, total - 1, profile).map(|t| out = StepOut::Token(t)),
+                        HeadMode::LastGumbel(h) if last => {
+                            self.head_gumbel(&hn, total - 1, h, st.len + total, profile).map(|t| out = StepOut::Token(t))
+                        }
                         _ => Ok(()),
                     };
                     if let Err(e) = head {
@@ -3724,13 +3786,13 @@ impl Model {
             ci += 1;
             let base = st.len;
             let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
-            if ids.len() == 1 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) {
+            if ids.len() == 1 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_)) {
                 self.telemetry.decode_eager_step(profile);
             }
             // a chunk whose rows feed no head: the last layer's work after its cache writes is dead (opt-in)
             let feeds_head = match mode {
                 HeadMode::None => false,
-                HeadMode::LastLogits | HeadMode::LastArgmax => last,
+                HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_) => last,
                 HeadMode::AllLogits => true,
                 HeadMode::LastTopK(_) => false, // rejected by check_forward
             };
@@ -3748,6 +3810,9 @@ impl Model {
                 }
                 HeadMode::LastArgmax if last => {
                     out = StepOut::Token(self.head_argmax(&hn, chunk.len() - 1, profile)?);
+                }
+                HeadMode::LastGumbel(h) if last => {
+                    out = StepOut::Token(self.head_gumbel(&hn, chunk.len() - 1, h, base + chunk.len(), profile)?);
                 }
                 HeadMode::AllLogits => {
                     let cb = on_row.as_mut().unwrap();
@@ -3780,7 +3845,7 @@ impl Model {
     fn macro_plan(&self, st: &SequenceState, chunks: &[&[u32]], mode: HeadMode) -> (usize, usize) {
         if self.macro_rows == 0
             || chunks.len() < 2
-            || !matches!(mode, HeadMode::None | HeadMode::LastLogits | HeadMode::LastArgmax)
+            || !matches!(mode, HeadMode::None | HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_))
             || !st.has_recurrent()
             || !self.pack_capable()
         {
@@ -5552,7 +5617,7 @@ impl Model {
     /// collective, so rank 0 (which owns the logits) and the peers must issue the same sequence of groups.
     fn head_groups(&self, mode: HeadMode, len: usize, last: bool) -> Vec<(usize, usize)> {
         match mode {
-            HeadMode::LastLogits | HeadMode::LastArgmax if last => vec![(len - 1, 1)],
+            HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_) if last => vec![(len - 1, 1)],
             HeadMode::AllLogits => {
                 // groups of `LOGIT_ROWS` rows by the prefill rule too: a 1-row group runs the decode GEMV, which is not
                 // bitwise the same row inside a >= 2-row group, so a `k * LOGIT_ROWS + 1` chunk would score its last
@@ -5653,6 +5718,110 @@ impl Model {
         let mut b = [0u8; 4];
         self.backend.download(&self.ws.tok, 0, &mut b, self.stream)?;
         Ok(i32::from_le_bytes(b) as u32)
+    }
+
+    /// The device sampler ([`HeadMode::LastGumbel`]) is on for this model: `INTARSIA_GUMBEL_SAMPLING=1`, one device (no
+    /// tensor-parallel peer, no remote rank, replicated head) and a `GumbelArgmax` kernel the registry selects for a `[1, V]`
+    /// row (CUDA and HIP have none: they keep the host sampler). Decided, and the buffers allocated, on first use.
+    pub fn gumbel_ok(&self) -> bool {
+        self.gumbel_bufs().is_some()
+    }
+
+    fn gumbel_bufs(&self) -> Option<&GumbelBufs> {
+        self.gumbel
+            .get_or_init(|| {
+                if !crate::gumbel::enabled_from_env()
+                    || self.tp.world != 1
+                    || !self.peers.is_empty()
+                    || self.remote.is_some()
+                    || self.vocab_par
+                    || self.lm_head.is_none()
+                {
+                    return None;
+                }
+                let probe = OpCall::new(
+                    Op::GumbelArgmax,
+                    vec![self.view(&self.ws.logits, DType::F32, &[1, self.dims.vocab]), self.view(&self.ws.tok, DType::I32, &[1, 4])],
+                    vec![self.view(&self.ws.tok, DType::I32, &[1])],
+                    OpAttrs { scale: self.softcap_cap(), ..OpAttrs::default() },
+                );
+                if probe.check().is_err() || self.registry.select(&probe).is_err() {
+                    return None;
+                }
+                let m = Self::BATCH_MAX_ROWS;
+                Some(GumbelBufs {
+                    table: Mutex::new(GumbelTable::default()),
+                    batch_keys: self.backend.alloc(m * 16, MemKind::Device).ok()?,
+                    batch_tok: self.backend.alloc(m * 4, MemKind::Device).ok()?,
+                })
+            })
+            .as_ref()
+    }
+
+    /// The head's softcap (Gemma-2, Inkling-2), 0 when the model has none: the cap `GumbelArgmax` applies, the one
+    /// [`Model::softcap_logits`] applies on the host.
+    fn softcap_cap(&self) -> f32 {
+        self.dims.gemma.as_ref().map(|g| g.softcap).or(self.dims.ink.as_ref().map(|i| i.softcap)).filter(|&c| c > 0.0).unwrap_or(0.0)
+    }
+
+    /// Write the keys of positions `lo .. lo + n` of the request with key `h` into the table (synchronous upload: call it with
+    /// nothing in flight that reads the table). Feedback decode calls it once before its loop for every token it may sample.
+    pub(crate) fn gumbel_prepare(&self, h: GumbelHead, lo: usize, n: usize) -> Result<()> {
+        let g = self.gumbel_bufs().ok_or_else(|| Error::invalid("gumbel_prepare without the device sampler"))?;
+        let mut t = g.table.lock().unwrap();
+        let n = n.max(1);
+        if t.cap_rows < n {
+            t.buf = Some(self.backend.alloc(n * 16, MemKind::Device)?);
+            t.cap_rows = n;
+        }
+        let rows: Vec<u8> = (lo..lo + n).flat_map(|p| h.key(p)).flat_map(i32::to_le_bytes).collect();
+        self.backend.upload(t.buf.as_ref().expect("allocated"), 0, &rows, self.stream)?;
+        (t.head, t.lo, t.rows) = (Some(h), lo, n);
+        Ok(())
+    }
+
+    /// The key row (`i32 [1, 4]`) of position `pos` of request `h` in the table. Outside the table: `refill` fills it from
+    /// `pos` on ([`GUMBEL_TABLE_ROWS`] rows, a plain step before its pass); otherwise (a feedback step, encoded while the step
+    /// before runs) it is an error, never a write.
+    fn gumbel_cover(&self, h: GumbelHead, pos: usize, refill: bool) -> Result<TensorRef> {
+        let g = self.gumbel_bufs().ok_or_else(|| Error::invalid("LastGumbel without the device sampler"))?;
+        let covered = |t: &GumbelTable| t.head == Some(h) && t.lo <= pos && pos < t.lo + t.rows;
+        if !covered(&g.table.lock().unwrap()) {
+            if !refill {
+                return Err(Error::invalid(format!("device sampler: no key for position {pos} (gumbel_prepare first)")));
+            }
+            self.gumbel_prepare(h, pos, GUMBEL_TABLE_ROWS)?;
+        }
+        let t = g.table.lock().unwrap();
+        let buf = t.buf.as_ref().expect("a covered table has its buffer");
+        Ok(self.view(buf, DType::I32, &[t.cap_rows, 4]).rows(pos - t.lo, 1))
+    }
+
+    /// lm_head + `GumbelArgmax` of one row with the key of position `pos`, the token written to `tok` (`i32 [1]`).
+    pub(crate) fn head_gumbel_into(&self, hn: &TensorRef, row: usize, h: GumbelHead, pos: usize, refill: bool, profile: bool, tok: TensorRef) -> Result<()> {
+        let key = self.gumbel_cover(h, pos, refill)?;
+        let logits = self.head_proj(&hn.rows(row, 1), 1, profile)?;
+        self.exec(Op::GumbelArgmax, vec![logits, key], vec![tok], OpAttrs { scale: self.softcap_cap(), ..OpAttrs::default() }, profile)
+    }
+
+    /// [`Model::head_argmax`] with the device sampler: the token drawn for position `pos`.
+    fn head_gumbel(&self, hn: &TensorRef, row: usize, h: GumbelHead, pos: usize, profile: bool) -> Result<u32> {
+        self.head_gumbel_into(hn, row, h, pos, true, profile, self.view(&self.ws.tok, DType::I32, &[1]))?;
+        if self.recorder.lock().unwrap().is_some() {
+            return Ok(0);
+        }
+        if crate::hostprof::enabled() {
+            let _w = crate::hostprof::span(crate::hostprof::Cat::Sync);
+            self.backend.synchronize(self.stream)?;
+            crate::hostprof::mark_sync_end();
+        }
+        let mut b = [0u8; 4];
+        self.backend.download(&self.ws.tok, 0, &mut b, self.stream)?;
+        let t = i32::from_le_bytes(b) as u32;
+        if t as usize >= self.dims.vocab {
+            return Err(Error::backend(format!("device sampler: token {t} >= vocab {}", self.dims.vocab)));
+        }
+        Ok(t)
     }
 
     /// The output head (rank 0 only).

@@ -47,6 +47,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::GeluGlu => gelu_glu(call),
         Op::Argmax => argmax_op(call),
         Op::Sample => sample_op(call),
+        Op::GumbelArgmax => crate::reference::gumbel_argmax(call),
     }
 }
 

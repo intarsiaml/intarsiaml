@@ -1041,7 +1041,7 @@ mod tests {
             .chain(intarsia_core::dsv41::ops::OPS.iter().filter(|op| !crate::dsv41::TABLE.iter().any(|(_, o)| o == *op)))
             .copied()
             .collect();
-        const NOT_ON_CUDA: [Op; 25] = [
+        const NOT_ON_CUDA: [Op; 27] = [
             Op::ShortConv,
             Op::DynConv,
             Op::RopeScaled,
@@ -1069,6 +1069,8 @@ mod tests {
             Op::InkInProj,
             Op::ConvMix,
             Op::InkAttnDecode,
+            // the device sampler (lane ink-hostgap): cpu and Metal only, CUDA keeps the host sampler (`Model::gumbel_ok`)
+            Op::GumbelArgmax,
         ];
         for op in Op::ALL {
             if !not_on_cuda.contains(&op) {
