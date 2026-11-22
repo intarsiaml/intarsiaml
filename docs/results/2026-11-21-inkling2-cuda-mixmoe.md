@@ -1002,3 +1002,8 @@ main merge: workspace check, mtp 17/17, inkling2 69/69 (endor #11581); Inkling C
 Then main moved to 17b999272 (#494 gumbel). That merge had two conflicts, `recipe.rs` and `mtp.rs`, and both keep both sides.
 Endor #11599 passed: workspace check, mtp 17/17, inkling2 69/69, plan 10/10, recipe_gumbel, prepush. Spark2 #11600 passed:
 ink_rows 8/8, tiny cuda 17/17, Inkling CUDA md5 g64 / g256 / g1.2k unchanged with spec off and on.
+Then main 22303d704 (#493 ink/spec-land) was merged, with main's side taken in every conflict. Two checks failed afterwards and
+are fixed in `8d3030018`: the DSpark rows were duplicated in `docs/tuning.md` (main's copies kept), and the tiny verify tests
+applied the softcap twice (main now caps verify rows). Endor #11638 passed: workspace check, mtp, dspark, inkling2, plan,
+gumbel, prepush. Spark2 #11637 passed: ink_rows, tiny cuda 17/17, Inkling CUDA md5 unchanged with spec off and on (spec-on
+decode at g256 is now 46.9 tok/s after #493's DSpark defaults).
