@@ -1,6 +1,6 @@
 # Inkling-2-Mini decode controller fusion on Metal (lane ink-dfuse, 2026-11-21)
 
-Status: in progress (correctness and first timing done; per-switch attribution and the real-model bitwise gate queued). Branch `ink/dfuse` (from `ink/metal` a88db4620), worktree `.worktrees/ink-dfuse`. Not pushed.
+Status: in progress. Changes 1-3 are committed and timed (no gain). Changes 4-5 (load order in the row kernels) are compile-checked on bespin and queued with the per-switch attribution in #10964 (snapshot c98e435a0). The real-model bitwise gate and G2 / G3 are queued in #10952. Branch `ink/dfuse` (from `ink/metal` a88db4620), worktree `.worktrees/ink-dfuse`. Not pushed.
 
 ## Briefs received
 
@@ -54,6 +54,27 @@ Status: in progress (correctness and first timing done; per-switch attribution a
   3. The ticketed blend tail is fine as described. Keep the watchdog stress in #10879 and report its max wait.
   4. Fold the build-only job into #10879. Commit each step separately once its gate passes; defaults stay off until #10882's
      timing shows a gain. Done: all three switches default off (`=1` turns each on).
+- 2026-11-21 ~23:40 (this lane to the coordinator): op 74's row kernels are latency chains of cold loads at T <= 16 (one to
+  three threadgroups per call): (1) `ink_mix_row` with every operand load issued before the first use (compile-time K <= 4,
+  first query batch, norm and msg rows), (2) `ink_blend_norm` one channel per thread, (3) maybe a system-cache prefetch of the
+  blend weights from the row dispatch. All bitwise, no contract change. #10952 / #10964 pinned to a snapshot at f4702646a.
+- 2026-11-21 ~23:45 (coordinator, go-ahead):
+  1. Base: build on ink/metal; leave ink/batch's posb[t] / ring-pointer / xoff setup lines alone so the merge stays local
+     (ink/batch will not land in ink/metal soon).
+  2. Order: (1) and (2) first, each behind its own default-off switch. (3) only if (1)+(2) leave measurable latency in the
+     h GEMV / gate.
+  3. Dropping the blend tail after #10964: agreed.
+  4. No endor `--load cpu` window (24 jobs behind #10890 until about Sunday morning). Compile checks on bespin:
+     `fleetq run --host bespin --load cpu --mem 6 --expect <honest>`; cargo check of the Metal crate, and the shader through
+     MTLDevice runtime compile if possible. No GPU timing and no real model on bespin (unanimis services, ~14 GB spare).
+  5. Endor: ONE combined job for (1)+(2): build, bitwise tests (tests/inkmix.rs, rows-exact), admission, then the per-switch
+     normal-step timing, all under `--quiet gpu,cpu` with an honest --expect.
+- 2026-11-21 ~23:55 (coordinator, rule for all Inkling lanes): this session and every worktree run on endor, so no local
+  cargo build / check / test or shader compile on endor outside a fleetq slot (they skew the quiet timing jobs). macOS compile
+  checks on bespin (`fleetq run --host bespin --load cpu --mem 6 --expect <min>`, a git archive in ~/intarsiaml-<lane>, the
+  toolchain in ~/.cargo/bin); CPU tests on spark2; GPU work in endor fleetq jobs. Reading files, git and editing locally are
+  fine. This lane: the compile checks of changes (1) and (2) ran on bespin (#10992, #10995, #10997: the shader through
+  MTLDevice runtime compile, `cargo check --release -p intarsia-backend-metal --examples --tests`).
 
 ## Probes (endor, before any code)
 
@@ -104,6 +125,34 @@ and finishes without waiting, so there is no deadlock without a forward-progress
 second counter) runs the stream's norm. Every value is computed by the same code as the three dispatches it replaces
 (`ink_in_proj_gemv` per row, `ink_blend_gate`, `ink_blend_norm`). Blended ConvMix 4 -> 2 dispatches, LoopBlend 4 -> 2.
 Only with the default in-projection family (`INTARSIA_INK_PROJ_CFG` unset).
+
+### 4. Load order in the row kernels (`INTARSIA_INK_MIX_HOIST`, no contract change)
+
+Why: in the stream the ConvMix row kernel costs 16.6 us per call (96 per token, 1.6 ms, half the controller time) against 8.5
+us in the warm microbench. At T <= 16 a row is one threadgroup (768 threads at D 2304), so nothing hides its latency, and its
+cost is the chain of dependent cold loads (ink-d1row's cold-cache finding: ~200 MB of weights pass between two visits). The
+chain in `ink_mix_row`: the conv loops over a runtime K (4), and each tap's taps row and x / ring row are loaded only after the
+previous fma (4 rounds); the queries are loaded after the conv's stores (the compiler cannot move loads above possibly aliasing
+stores: +1); the norm rows and the blend's msg rows after the reductions (+1 to 2); the simdgroup partials are summed by a
+serial loop of threadgroup loads.
+
+`ink_mix_row_h_*` (template flag HO, `kernels/metal/inkling2_mix.metal`): for K <= 4 every tap's taps row, x row and ring row
+are loaded (clamped addresses) before the first fma, and only the ring rows wait on pos; whether a tap reads x or the ring
+depends on the row's index in the call, not on pos. The first query batch, its norm rows and the msg rows are loaded at the
+kernel start. The partial sums read eight values at a time, with the adds in the same order. Same values and the same fma and
+add order: bitwise the plain instance (`tests/inkload.rs`: SconvRes, ConvMix with and without the blend, AttnResMix; widths of
+every NE, K 1..5, rows 1..16, the model's ring and a short one, host and device pos, one and two query batches, Q 48). K > 4
+keeps the loop. Every NE 3 instance admits 1024 threads (bespin runtime compile), and the switch falls back to the plain
+instance when a pipeline admits fewer threads than the row needs. The row-table form of ink/batch only changes the pos / ring
+pointer lines above the loop, so the merge stays local.
+
+### 5. The blend norm, one channel per thread (`INTARSIA_INK_BLEND_NORM_C`, no contract change)
+
+`ink_blend_norm` runs S x rows threadgroups of 256 threads. At T = 1 that is 3 threadgroups, and each thread loads its 9 y /
+norm values one loop iteration at a time (9 serial cold rounds; 9.3 us per call in the stream, 46 per token).
+`ink_blend_norm_c` runs S x rows x ceil(D / 256) threadgroups, one channel per thread. Each thread loads y and norm first, then
+sums the partials in the same order (eight loads in flight). It is bitwise `ink_blend_norm` (`tests/inkload.rs`: LoopBlend
+and the ConvMix blend, D 200..2304, G 8..128, rows 1..40, with and without HO).
 
 ### Not done: op 77 (ConvMix + router)
 
