@@ -278,7 +278,7 @@ impl Model {
         Ok(self.spec_step_read(st, next, k, None)?.map(|(p, _)| p))
     }
 
-    /// Lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST=1`): whether a sampled request's draft and verify pass can run as
+    /// Lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST`, default-on for the 35B on CUDA, lane svfflip): whether a sampled request's draft and verify pass can run as
     /// [`Model::spec_step_rows`] (the captured step, one rank, no remote ranks).
     pub fn spec_step_rows_ok(&self, st: &SequenceState, next: u32, k: usize) -> bool {
         self.peers.is_empty() && self.remote.is_none() && self.spec_step_ok(st, next, k)

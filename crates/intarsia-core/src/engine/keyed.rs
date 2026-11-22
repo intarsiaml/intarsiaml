@@ -50,7 +50,7 @@ impl Seq {
             return Ok(Prep::Draft(k));
         }
         if !defer && model.sampled_verify_fast() && !super::mtp_verify_check() && model.spec_step_rows_ok(st, self.tok, k) {
-            // lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST=1`): draft and verify as one replay of the captured step, as a greedy
+            // lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST`): draft and verify as one replay of the captured step, as a greedy
             // request's pass, with the rows read back for the draws (top-k where `Seq::verify_topk` allows it); the replay is
             // the eager draft and verify pass bit for bit, so the rows and drafts are the eager ones
             let t0 = crate::spec::trace_enabled().then(std::time::Instant::now);
@@ -99,7 +99,7 @@ impl Seq {
             return Ok(Prep::Verify(ids));
         }
         let t_pass = crate::spec::trace_enabled().then(std::time::Instant::now);
-        // lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST=1`): the rows as their device-side top-k where every row's plain step
+        // lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST`): the rows as their device-side top-k where every row's plain step
         // would sample from it (`Seq::verify_topk`), so neither the whole rows nor the host's whole-row selection
         let fast = model.sampled_verify_fast().then(|| self.verify_topk(ids.len())).flatten();
         let rows: Vec<StepOut> = match fast {

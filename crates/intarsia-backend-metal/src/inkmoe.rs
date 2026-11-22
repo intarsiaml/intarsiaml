@@ -101,6 +101,18 @@ pub const DEC_MAX_ROWS: usize = 16;
 const MAX_EXPERTS: usize = 1024;
 const MAX_K: usize = 32;
 /// gate+up rows per threadgroup (4 simdgroups x 4 rows), down rows per threadgroup of `dn_u` (4 x 8) and of `dn_f`.
+/// Union gate+up / down (lane ink-batch): leaders serving at least n pairs decode each weight chunk once for all of them
+/// (flag bit 3, n in bits 4..6); the same bits. Default n = 2 (docs/results/2026-11-21-inkling2-batch.md section 31);
+/// `INTARSIA_INK_MOE_DEC1=<n>` (1..=4) sets n, `=0` turns it off.
+fn dec1_bits() -> u32 {
+    static B: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+    *B.get_or_init(|| match std::env::var("INTARSIA_INK_MOE_DEC1").ok().and_then(|v| v.parse::<u32>().ok()) {
+        Some(0) => 0,
+        Some(n @ 1..=4) => 8 | (n << 4),
+        _ => 8 | (2 << 4),
+    })
+}
+
 const GU_ROWS: usize = 16;
 const DNU_ROWS: usize = 32;
 const DNF_ROWS: usize = 8;
@@ -446,7 +458,7 @@ impl MetalBackend {
             Policy::UnionFused => (true, true),
         };
         // gate + up
-        p.dims[5] = epi | if uni_gu { 4 } else { 0 };
+        p.dims[5] = epi | if uni_gu { 4 } else { 0 } | if uni_gu { dec1_bits() } else { 0 };
         let gu = format!("ink_moe_gu_{fmt}_{al}{}", if ax { "_x" } else { "" });
         let rb = inter.div_ceil(GU_ROWS);
         let g1 = if uni_gu {
@@ -468,7 +480,7 @@ impl MetalBackend {
             return self.ink_dispatch(&dn, &[&hb, &ib, &wb, &w2, &s2, &gb, &ob], &p, g2, dnf_threads());
         }
         let uni_dn = uni_gu;
-        p.dims[5] = epi | if uni_dn { 4 } else { 0 };
+        p.dims[5] = epi | if uni_dn { 4 } else { 0 } | if uni_dn { dec1_bits() } else { 0 };
         let yb = at(&sc, o_y);
         let dn = format!("ink_moe_dn_u_{fmt}_{al}");
         let nb = h.div_ceil(DNU_ROWS);

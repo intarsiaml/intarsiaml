@@ -2487,7 +2487,7 @@ impl Model {
         Ok((r, rows))
     }
 
-    /// Lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST=1`, [`Model::set_sampled_verify_fast`]): [`Model::forward_verify_logits`] with
+    /// Lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST`, [`Model::set_sampled_verify_fast`]): [`Model::forward_verify_logits`] with
     /// every row read back as its device-side top-`k` (`StepOut::TopK`, the `k` largest logits and their ids in the sampler's
     /// order, `k <= TOPK_MAX`) instead of the whole `[V]` row: what a plain batched decode step with device-side sampling hands
     /// the sampler for the same logits bits, so `Sampler::sample_topk` draws the token `Sampler::sample` would draw from the
@@ -2519,7 +2519,8 @@ impl Model {
 
     /// Lane samphost: turn on the solo verify pass's top-`k` rows for sampled requests ([`Model::forward_verify_topk`], used by
     /// the batching engine's keyed drafting and by a batched verify pass of one sequence asking for `HeadMode::LastTopK`).
-    /// Off by default (`INTARSIA_SAMPLED_VERIFY_FAST`, `BatchedOptions::sampled_verify_fast`).
+    /// The model itself starts with it off; the loader turns it on by default for the 35B recipe on CUDA (lane svfflip, recipe key
+    /// `[tuning.cuda] sampled_verify_fast`; `INTARSIA_SAMPLED_VERIFY_FAST=0` turns it off, `=1` forces it on; `BatchedOptions::sampled_verify_fast`).
     pub fn set_sampled_verify_fast(&mut self, on: bool) {
         self.sampled_verify_fast = on;
     }

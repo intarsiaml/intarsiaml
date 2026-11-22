@@ -89,7 +89,7 @@ pub struct TelemetrySnapshot {
     pub spec_copy_steps: u64,
     pub spec_copy_proposed: u64,
     pub spec_copy_accepted: u64,
-    /// Lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST=1`): sampled verify passes run on their own that read their rows back as the
+    /// Lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST`, on by default for the 35B on CUDA since lane svfflip): sampled verify passes run on their own that read their rows back as the
     /// device-side top-k, and those that read whole rows although the switch is on (the request's sampling did not allow it).
     pub spec_verify_topk_solo: u64,
     pub spec_verify_topk_fallback: u64,
