@@ -212,6 +212,14 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     - Both gp1 and bp3 run under .scratch/safe_run.py: own session / process group, the group killed on TERM / INT / HUP,
       leftovers listed and killed at the end. Tested locally with sleep children, on both the leftover path and the TERM path.
 
+21. 2026-11-22 (coordinator, via SendMessage): piece 1024 accepted as opt-in, final (default 256). Next: (b) attention,
+    ~40 ms per chunk above its floor (~6 % of a 655 ms chunk). (1) Measure first, per attention call at chunk 2048 and
+    4k / 8k context: bytes, FLOPs, achieved rate vs floor, and where the 40 ms goes (QK, softmax, PV, KV loads, launch count,
+    occupancy, SWA vs full layers). (2) Propose a build only if a measured or tightly bounded ceiling is >= 2 % end to end at
+    4k and 8k, with the bound accounting for scratch footprint. (3) Any build: bitwise or tolerance-justified admission,
+    G2 / G3 short and long, md5 64 / 256, then the brief-20 gate shape (box check, generate timing 1k / 4k / 8k in random
+    order, rule fixed before the runs). (4) General note in the doc (below). safe_run as before.
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
@@ -693,6 +701,14 @@ So per call: ~3.8 ms decode + staging, ~2.5 ms loads + epilogue, ~0.9 ms exposed
 (d) Routing, grouping and gather between the expert dispatches: 11.6 ms per chunk (route 0.95, group 0.85, gather 9.8). The
 gather runs at DRAM speed. Folding it into the down epilogue would save at most ~10 ms, and not bitwise (the combine order
 changes). In the cb-mode trace the gaps between these dispatches are 0.
+
+## General note: scratch footprint (brief 21)
+
+A prefill scratch footprint above ~21 MB measurably slows prefill ops it does not touch. Blend piece 1024 / 2048 (scratch
+~85 / 170 MB vs ~21 MB) made MoE, attention, in_proj and the prologue +9 to 14 % slower in a clean, bracketed trace (#11344),
+which cancelled the blend's own 14 ms saving end to end (#11348). The cause is likely system-level-cache eviction of the
+weights, but that is not measured. **Every new prefill kernel reports its scratch size, and its end-to-end gate is judged
+with that scratch in place.**
 
 ## Next ideas (ranked)
 
