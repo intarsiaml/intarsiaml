@@ -163,6 +163,24 @@ hand the coordinator a default-on proposal. User approved the lane on 2026-11-22
   reached it) ran outside a slot; every later push goes through fleetq.
   Report to the coordinator with job numbers at: merge result, gate results, speed table, PR link, default-on proposal.
 
+## Brief L2 (coordinator, 2026-11-22 ~14:40), lane ink-spec-land
+
+Merge #493 on all-green CI as planned. User decision 5 (2026-11-22, "do what you would recommend", relayed by the coordinator)
+covers spec default-on on Metal as well as CUDA. After #493 merges, make Metal DSpark default-on for Inkling-2 as its own PR from
+main, in a new worktree `.worktrees/ink-spec-flip`, removed after merge.
+- Mechanism: the recipe default (`mtp_default_k` or its DSpark equivalent) in `recipes/inkling2.toml` `[tuning.metal]`, k3 /
+  gate 0.8. Revert: `INTARSIA_SPEC_DEFAULT=0` or `--spec off`. Drafter weights missing at load: spec stays off, one stderr line,
+  never a load error.
+- Sampled requests: #494 (device Gumbel sampler default-on) is in flight; spec requests stay on the host sampler. Measure t=1.0
+  decode, short and 5k: spec default vs spec off with the device sampler. Sampled requests take whichever is faster; if plain
+  wins, sampled requests skip spec by default. Same seed must give the same tokens as the chosen path's opt-in run.
+- A batched server (`--max-batch` > 1) must not change output or get slower; turn spec off there if needed.
+- Gates: greedy md5 on == off at 64 / 256; plan show for Qwen3-8B and Llama identical to main; serve smoke; a night quiet slot
+  after #11567 (`fleetq --at 05:45` or the earliest slot after it), box check first: serve-path TTFT and prefill, spec default
+  vs off, at 1k / 4k / 16k, ABBA x3 (more reps: today's 4k / 16k localeval cells favoured off by 3-4%, inside noise).
+- Bar: decode gain kept at every length; serve TTFT and prefill within 2% at every length. Otherwise stop and report.
+- Endor rules unchanged: cargo and git push only inside `--load cpu` slots.
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
