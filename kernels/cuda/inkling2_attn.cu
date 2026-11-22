@@ -44,6 +44,7 @@ constexpr int F_DYN = 1;        // dynamic conv taps
 constexpr int F_RING = 2;       // K / V caches are rings
 constexpr int F_KV_WRITE = 4;   // cache write in the attention kernel (else ink_kv_write_k after it)
 constexpr int F_RING_WRITE = 16;  // conv-ring write in the kernel (else ink_ring_write_k after it)
+constexpr int F_READONLY = 32;    // diagnostic (INTARSIA_INK_TILE_READONLY=1): the tile kernel only reads its K / V (no output)
 
 struct InkP {
     const bf16 *pq, *pk, *pv, *kt, *vt, *qs, *rs, *rp;
@@ -826,6 +827,8 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
     for (int i = 0; i < NDB; ++i) o[i][0] = o[i][1] = o[i][2] = o[i][3] = 0.0f;
     float m[2] = {-INFINITY, -INFINITY}, l[2] = {0.0f, 0.0f};
     const float qsc = __fmul_rn(p.scale, LOG2E);
+    const bool ro = (p.flags & F_READONLY) != 0;
+    uint32_t rofold = 0;
 
     // 16-key blocks kb (absolute) with (kb / 16) % 4 == grp, in key order. The bias is staged per slab of SL keys when some
     // row of the block has a distance < E in it; a (row, key) gets the same value staged or not (zero at d >= E).
@@ -873,6 +876,15 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
                         ldw<W>(krow(1, j) + ch * 4 * W + c4 * W, vr[nb][ch]);
                     }
                 }
+            }
+            if (ro) {
+#pragma unroll
+                for (int nb = 0; nb < 2; ++nb)
+#pragma unroll
+                    for (int ch = 0; ch < NCH; ++ch)
+#pragma unroll
+                        for (int r = 0; r < RPC; ++r) rofold ^= kr[nb][ch][r] ^ vr[nb][ch][r];
+                continue;
             }
             float sc[2][4];
 #pragma unroll
@@ -933,6 +945,10 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
     for (int k = 0; k < 2; ++k) {
         l[k] = __fadd_rn(l[k], __shfl_xor_sync(0xffffffffu, l[k], 1));
         l[k] = __fadd_rn(l[k], __shfl_xor_sync(0xffffffffu, l[k], 2));
+    }
+    if (ro) {
+        if (rofold == 0x9e3779b9u) p.out[0] = f2b(0.0f);  // keeps the loads
+        return;
     }
     // merge the four key groups of each m-tile in order (0 + 1) + 2 + 3 (warp states in region 0)
     float* mb = (float*)sm;
@@ -1318,6 +1334,10 @@ int env_int(const char* name, int dflt, int lo, int hi) {
     const int v = atoi(e);
     return v < lo || v > hi ? dflt : v;
 }
+bool tile_readonly() {
+    static int v = env_int("INTARSIA_INK_TILE_READONLY", 0, 0, 1);
+    return v == 1;
+}
 int tile_maxt() {
     static int v = env_int("INTARSIA_INK_MAXT", MAXT_DEFAULT, 2, MAXT);
     return v;
@@ -1333,7 +1353,9 @@ int launch_tile_d(const InkP& p, int min_s, unsigned ny, cudaStream_t st) {
         if (cudaFuncSetAttribute(ink_tile_k<D, FUSED>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)most) != cudaSuccess) return IK_ERR_LAUNCH;
         attr = true;
     }
-    ink_tile_k<D, FUSED><<<dim3(p.hk, ny), 128 * nmt, smem, st>>>(p, min_s);
+    InkP q = p;
+    if (tile_readonly()) q.flags |= F_READONLY;
+    ink_tile_k<D, FUSED><<<dim3(p.hk, ny), 128 * nmt, smem, st>>>(q, min_s);
     return IK_OK;
 }
 
