@@ -121,6 +121,14 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
     sent to ink-metal. **Peak memory at 16k / chunk 2048: not logged by serve** (only the 19.53 GB keep-warm residency of
     the weights); ink-metal's combined gate measures it.
 
+14. 2026-11-22 (coordinator, via SendMessage): prologue split default-on APPROVED on ink/prologue-split, conditional: (1) the
+    flip in its own commit, `INTARSIA_INK_PROLOGUE_SPLIT=0` reverts it, docs/tuning.md says default on and how to turn it
+    off; (2) localeval ABAB on that one binary (=0 vs =1, >= 2 rounds each, fleetq --quiet gpu,cpu); keep only if split-on
+    prefill beats off by more than the off-run spread at 4k, 8k and 16k, is not slower at 1k, decode within 1 %, and both
+    arms exit 0 with non-empty output; (3) pass: send hash + numbers (ink-metal merges after the current merge); fail: stays
+    opt-in, report. Order on endor: #11187 first, the ABAB after, both behind the existing queue. The MoE proposal still goes
+    to the coordinator before building.
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
