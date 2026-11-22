@@ -136,6 +136,37 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   `.scratch/bisect.sh` with FLEETQ_JOB=11104 (batch correctness slot, default load, 20 GB), expected start ~03:47 when #11093
   ends; same `.scratch/bisect_job.log` and `.scratch/bis/out/`. The #11142 client exits 4 on release: expected, do not
   requeue. Coordinator messages the lane when it lands.
+- 2026-11-22 (ink-prefill lane): merge ink/prefill-merge at 96740cbe2 instead of 378dc214e (coordinator brief 12):
+  378dc214e plus the cherry-picked brief 7 fix ed27f4462 (`ink_in_proj_bf16_gemv_chunks`, NoKernel at m 31-63 without
+  metal4); endor #11105 tiny Metal 8/8 and inkmix rows-exact 3/3 with metal4 off and on, gemv_chunks ADMITTED on 11 shapes;
+  bespin #11173 check clean. If #11109 passes at chunk 2048, one more commit (`prefill_chunk = 2048`) replaces this hash.
+- 2026-11-22 (coordinator): bisect landed; culprit NE 4 from D 2048 (m-mix 25ff7864a); BLEND_RB, InkMixP and ink/batch
+  cleared. Fix brief: (1) find the NE 4 bug (30 min timebox), else NE 3 back at D 2304 with a TODO; (2) a test that fails
+  on the unfixed tree (show it on 331238a4e) and passes on the fix; (3) gate: G2 short both modes (decode ~2.6e-3), greedy
+  md5 non-empty, tok/s 1-row short vs the tip, what the fix costs; (4) then the merge queue: hostgap, fp8, pack12 after
+  #11161, prefill (new hash), dfuse, then the combined gate. Message the gate job id; the coordinator nests it.
+
+## Bisect #11142 (G2 short, decode mode, KL21 scored)
+
+| Tree | KL21 scored | max | chat_system | chat_reasoning |
+|---|---|---|---|---|
+| f55bfe8b7 (pre-merge) | 2.589e-3 | 5.308e-2 | 2.395e-3 | 1.009e-2 |
+| 331238a4e (m-mix merge) | 1.109e-2 | 4.334e-1 | 2.376e-2 | 5.808e-2 |
+| 45887198b (+ ink/batch) | 1.109e-2 | 4.334e-1 | 2.376e-2 | 5.808e-2 |
+| 331238a4e, `INTARSIA_INK_MIX_NE=3` | 2.589e-3 (identical to base) | 5.308e-2 | 2.395e-3 | 1.009e-2 |
+| 331238a4e, NE 3 + `INTARSIA_INK_BLEND_RB=16` | 2.589e-3 | 5.308e-2 | 2.395e-3 | 1.009e-2 |
+
+All three trees recompiled core / backend-metal / models / cli (4/4). The synthetic D 2304 mix-vs-cpu test
+(inkling2_mix_decode_cpu.rs) passed on the tip, on 331238a4e and with RB 16 (NE 4 rel L2 <= 1.7e-3, same as NE 3), so it
+does not catch the fault.
+
+Fix (7eca1b012): the bug was not found in the 30 min timebox (the NE 4 kernel reads and writes only its own channels and
+covers D 2304 exactly; reductions are nsg-agnostic; the NS 8 / QB 4 instance passed the synthetic test, so a pipeline
+thread limit is unlikely). `mix_geom` is back to the fewest NE that fits (NE 3 at D 2304) with a TODO naming the suspects:
+a real call layout the synthetic test lacks (views with element skips, outputs aliasing stored sources, device position).
+New test `inkling2_real_decode_ne.rs` (1dfd554e6): real checkpoint, 48-token prefill of the golden's chat_system prompt,
+24 teacher-forced decode steps, per-step KL(NE 3 || default) <= 2e-3; NE 4 forced is reported with the dumped decode-step
+tensors furthest from NE 3 (to localize the bug later). Gate job: #11179 (`.scratch/fixgate.sh`).
 
 ## Integrated
 
