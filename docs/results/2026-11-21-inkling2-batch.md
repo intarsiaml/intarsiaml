@@ -540,3 +540,23 @@ The single-read 16-row GEMV already failed for wo/logits (#10900), so this is ra
 
 For the localeval `conc-plain-1k` cell (117.7 tok/s at 16), the bigger lever is still prefill and how prefill chunks share
 steps with a full decode batch (section 14), not the decode step.
+
+## 19. The MoE candidate's premise does not hold (checked before queuing the profile)
+
+Two facts from the code and the existing #10885 trace (`.scratch/prof/k{8,16}.jsonl`, whose MoE labels carry the distinct
+experts `n` and the pairs `k` of each call, `label_moe_routing`):
+
+1. **The proposed launch structure already exists.** `inkmoe.rs` `launch_ink_experts` at T <= 16 already runs gate+up
+   union-grouped over all pairs in one grid, then union down, then the gather (3 launches per MoE call, 44 calls per step =
+   the 132). Down fused with the k-order token sum (`ink_moe_dn_f`, one launch, no gather) also exists:
+   `INTARSIA_INK_MOE=union-fused` (or `fused`), all policies bitwise. `Auto` picks fused only at T = 1. So the code change I
+   proposed is mostly an env flag, not a new kernel.
+2. **In batch_step / batch_prof the rows share experts far more than real traffic would.** Distinct experts per MoE call:
+   B 8 mean 20.9 (median 21, max 29), B 16 mean 23.3 (median 23, max 36). For independent routing, top-8 of 128 would give
+   ~52 and ~82. Doubling the rows added only ~2.4 experts per call. The bench prompts are uniform-random token ids, and the
+   rows evidently route to almost the same experts (likely they decode the same few tokens). So the +17% MoE growth from
+   B 8 to 16 is per-pair work at a nearly constant union. My two-point "fixed part" fit assumed union 52 -> 82 and is void.
+   It also means the 266.9 tok/s B 16 figure is optimistic for real prompts, where the union and the MoE weight reads per
+   step would be several times larger.
+
+Not queued: the step-1 profile as specified (MoE time vs union size) cannot vary the union with this bench. Reported to main.
