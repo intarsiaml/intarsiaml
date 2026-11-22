@@ -15,7 +15,7 @@
 
 mod common;
 use common::*;
-use intarsia_backend_metal::inkmoe::{set_policy, set_t1, t1_served, Policy};
+use intarsia_backend_metal::inkmoe::{dnu3_served, set_dnu3, set_policy, set_t1, t1_served, Policy};
 use intarsia_backend_metal::MetalBackend;
 use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
 use intarsia_core::quant::cases::{random_experts, random_routing};
@@ -295,6 +295,16 @@ fn ink_moe_rows_are_bitwise_the_one_row_calls() {
     }
     set_t1(None);
     rows_exact(Fmt::Mx);
+    // the by-pair down with 3 chunks ahead (INTARSIA_INK_MOE_DNU3): the T-row calls take ink_moe_dn_u3_*, the one-row
+    // references the shipped kernels, so the compare crosses them
+    set_dnu3(Some(true));
+    let n0 = dnu3_served();
+    rows_exact(Fmt::Nv);
+    rows_exact(Fmt::Mx);
+    let n = dnu3_served() - n0;
+    eprintln!("INKMOE INTARSIA_INK_MOE_DNU3 on: {n} by-pair down launches took the dn_u3 instances");
+    assert!(n > 0, "INTARSIA_INK_MOE_DNU3 on, but no launch took the dn_u3 instances");
+    set_dnu3(None);
 }
 
 /// The compare can see a difference: one changed activation of the last token changes its output bytes, and only those.

@@ -40,7 +40,7 @@ const ROUTE: &str = "ink_moe_route";
 const GATHER: [&str; 2] = ["ink_moe_gather_bf16", "ink_moe_gather_f32"];
 
 /// Shader entry points of kernels/metal/inkling2_moe.metal.
-pub const SHADERS: [&str; 31] = [
+pub const SHADERS: [&str; 35] = [
     ROUTE,
     "ink_moe_gu_nv_a_x",
     "ink_moe_gu_nv_a",
@@ -73,6 +73,11 @@ pub const SHADERS: [&str; 31] = [
     "ink_moe_dn_f3_nv_u_bf16",
     "ink_moe_dn_f3_nv_a_f32",
     "ink_moe_dn_f3_nv_u_f32",
+    // down per pair, 3 chunks ahead ([`dnu3_enabled`])
+    "ink_moe_dn_u3_nv_a",
+    "ink_moe_dn_u3_nv_u",
+    "ink_moe_dn_u3_mx_a",
+    "ink_moe_dn_u3_mx_u",
 ];
 
 /// The grouped prefill GEMMs on the neural accelerators (kernels/metal/inkling2_moe_nax.metal, metal4.0 library), by
@@ -214,6 +219,33 @@ pub fn t1_enabled() -> bool {
 /// Tests and benchmarks: force [`t1_enabled`] on or off for this process (`None`: back to the environment).
 pub fn set_t1(v: Option<bool>) {
     T1.store(v.map_or(255, |b| b as u8), Ordering::Relaxed);
+}
+
+static DNU3: AtomicU8 = AtomicU8::new(255);
+static DNU3_SERVED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// How many by-pair down launches took the `ink_moe_dn_u3_*` instances.
+pub fn dnu3_served() -> usize {
+    DNU3_SERVED.load(Ordering::Relaxed)
+}
+
+/// `INTARSIA_INK_MOE_DNU3=1` (default off, lane ink-batch brief 35): the by-pair down of decode calls (T > 1 under the Auto
+/// policy) takes `ink_moe_dn_u3_*`, which loads 3 weight chunks ahead per lane. Same chunk order, fma chain and reductions:
+/// same bits.
+pub fn dnu3_enabled() -> bool {
+    let v = DNU3.load(Ordering::Relaxed);
+    if v == 255 {
+        let on = matches!(std::env::var("INTARSIA_INK_MOE_DNU3").as_deref(), Ok("1") | Ok("on"));
+        DNU3.store(on as u8, Ordering::Relaxed);
+        on
+    } else {
+        v == 1
+    }
+}
+
+/// Tests and benchmarks: force [`dnu3_enabled`] on or off for this process (`None`: back to the environment).
+pub fn set_dnu3(v: Option<bool>) {
+    DNU3.store(v.map_or(255, |b| b as u8), Ordering::Relaxed);
 }
 
 /// How many decode calls took the one-row instances (tests assert that the switch reached the kernels).
@@ -523,7 +555,11 @@ impl MetalBackend {
         let uni_dn = uni_gu;
         p.dims[5] = epi | if uni_dn { 4 } else { 0 } | if uni_dn { dec1_bits() } else { 0 };
         let yb = at(&sc, o_y);
-        let dn = format!("ink_moe_dn_u_{fmt}_{al}");
+        let dnu3 = dnu3_enabled();
+        if dnu3 {
+            DNU3_SERVED.fetch_add(1, Ordering::Relaxed);
+        }
+        let dn = format!("ink_moe_dn_u{}_{fmt}_{al}", if dnu3 { "3" } else { "" });
         let nb = h.div_ceil(DNU_ROWS);
         let g2 = if uni_dn {
             MTLSize { width: nb, height: pairs, depth: 1 }

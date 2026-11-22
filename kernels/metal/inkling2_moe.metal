@@ -489,8 +489,10 @@ inline float ink_dn_row(device const uchar* wr, device const uchar* sr, device c
     return s;
 }
 
-// down per pair. Union: grid (H / 32, pairs), else (pairs, H / 32). y [T*K, H] bf16 by pair.
-template <uint FMT, bool A16>
+// down per pair. Union: grid (H / 32, pairs), else (pairs, H / 32). y [T*K, H] bf16 by pair. NB: chunks a lane loads
+// ahead per step (INK_NB; 3 in the ink_moe_dn_u3_* instances, lane ink-batch brief 35); chunk order and fma chain per
+// pair do not depend on it.
+template <uint FMT, bool A16, uint NB = INK_NB>
 inline void ink_dn_u_impl(device const ushort* h, device const int* ids, device const uchar* w2, device const uchar* s2,
                           device const float* gsc, device ushort* y, constant OpP& p, uint2 tg, uint sg, uint lane) {
     const uint E = p.b, H = p.d, I = p.e, P = p.a * p.c;
@@ -512,7 +514,23 @@ inline void ink_dn_u_impl(device const ushort* h, device const int* ids, device 
         // reduction of ink_dn_row, unchanged
         float s[INK_XR];
         for (uint q = 0; q < INK_XR; ++q) s[q] = 0.f;
-        for (uint c = li; c < nc; c += INK_LD) {
+        uint c = li;
+        for (; c + (NB - 1u) * INK_LD < nc; c += NB * INK_LD) {
+            InkChunk<FMT> kw[NB];
+            _Pragma("clang loop unroll(full)")
+            for (uint j = 0; j < NB; ++j) kw[j] = ink_load<FMT, A16>(wr, sr, c + j * INK_LD);
+            _Pragma("clang loop unroll(full)")
+            for (uint j = 0; j < NB; ++j) {
+                const InkDec<FMT> d = ink_decode<FMT>(kw[j]);
+                for (uint q = 0; q < INK_XR; ++q) {
+                    if (q >= rows) break;
+                    uint xw[16];
+                    ink_xload<true>(h + (ulong)pl[q] * I, c + j * INK_LD, xw);
+                    s[q] = ink_dec_dot<FMT>(d, xw, s[q]);
+                }
+            }
+        }
+        for (; c < nc; c += INK_LD) {
             const InkDec<FMT> d = ink_decode<FMT>(ink_load<FMT, A16>(wr, sr, c));
             for (uint q = 0; q < INK_XR; ++q) {
                 if (q >= rows) break;
@@ -532,7 +550,7 @@ inline void ink_dn_u_impl(device const ushort* h, device const int* ids, device 
     }
     for (uint q = 0; q < INK_XR; ++q) {
         if (q >= rows) break;
-        const float t = ink_dn_row<FMT, A16>(wr, sr, h + (ulong)pl[q] * I, nc, li);
+        const float t = ink_dn_row<FMT, A16, NB>(wr, sr, h + (ulong)pl[q] * I, nc, li);
         if (li == 0u && n < H) y[(ulong)pl[q] * H + n] = f2bf(t * g2);
     }
 }
@@ -600,13 +618,14 @@ inline void ink_gather_impl(device const ushort* y, device const int* ids, devic
                      uint lane [[thread_index_in_simdgroup]]) {                                                         \
         ink_gu_impl<FMT, A16, AX, XR>(x, ids, wts, w13, s13, gsc, h, p, tg, sg, lane);                                  \
     }
-#define INK_DN_U(NAME, FMT, A16)                                                                                        \
+#define INK_DN_U(NAME, FMT, A16) INK_DN_U_NB(NAME, FMT, A16, INK_NB)
+#define INK_DN_U_NB(NAME, FMT, A16, NB)                                                                                 \
     kernel void NAME(device const ushort* h [[buffer(0)]], device const int* ids [[buffer(1)]],                        \
                      device const uchar* w2 [[buffer(2)]], device const uchar* s2 [[buffer(3)]],                        \
                      device const float* gsc [[buffer(4)]], device ushort* y [[buffer(5)]],                             \
                      constant OpP& p [[buffer(6)]], uint2 tg [[threadgroup_position_in_grid]],                          \
                      uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {             \
-        ink_dn_u_impl<FMT, A16>(h, ids, w2, s2, gsc, y, p, tg, sg, lane);                                               \
+        ink_dn_u_impl<FMT, A16, NB>(h, ids, w2, s2, gsc, y, p, tg, sg, lane);                                           \
     }
 #define INK_DN_F(NAME, FMT, A16, OUT) INK_DN_F_NB(NAME, FMT, A16, OUT, INK_NB)
 #define INK_DN_F_NB(NAME, FMT, A16, OUT, NB)                                                                            \
@@ -651,6 +670,11 @@ INK_DN_F_NB(ink_moe_dn_f3_nv_a_bf16, 0, true, ushort, 3u)
 INK_DN_F_NB(ink_moe_dn_f3_nv_u_bf16, 0, false, ushort, 3u)
 INK_DN_F_NB(ink_moe_dn_f3_nv_a_f32, 0, true, float, 3u)
 INK_DN_F_NB(ink_moe_dn_f3_nv_u_f32, 0, false, float, 3u)
+// down per pair with 3 chunks loaded ahead per lane (`INTARSIA_INK_MOE_DNU3`, lane ink-batch brief 35): same bits
+INK_DN_U_NB(ink_moe_dn_u3_nv_a, 0, true, 3u)
+INK_DN_U_NB(ink_moe_dn_u3_nv_u, 0, false, 3u)
+INK_DN_U_NB(ink_moe_dn_u3_mx_a, 1, true, 3u)
+INK_DN_U_NB(ink_moe_dn_u3_mx_u, 1, false, 3u)
 
 #define INK_GATHER(NAME, OUT)                                                                                           \
     kernel void NAME(device const ushort* y [[buffer(0)]], device const int* ids [[buffer(1)]],                        \
