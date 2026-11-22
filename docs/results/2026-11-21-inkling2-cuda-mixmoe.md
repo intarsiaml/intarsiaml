@@ -855,3 +855,33 @@ without nsys had on64 1748 ms vs 1714 spec off with split-K on: 34 ms). `CUDA_MO
 (37.51 / 37.40 tok/s, -38 ms, same ids) for +2-4 s process wall. So lazy first-use loading costs ~38 ms once per process; a
 targeted load-time warmup would save at most that for one-shot `generate`, and serve pays it once. Not built (well under the
 brief's bar of being worth a load-time cost); `CUDA_MODULE_LOADING=EAGER` is the switch for a one-shot user who wants it.
+
+Serve smoke with the head kernel (#11490, spec on, 1k, localeval `intarsia-cuda-mixmoe-mx4head-smoke`): loads, answers, stops
+clean. Its decode figure (57.9 tok/s vs 42.2 in #11431 at the same size) is not like-for-like and is not cited; the serve
+admission count (38 kernels / 231 cases) is unchanged, so serve admission did not cover the head kernel: #11481's `kernels test`
+is its admission evidence. The same job found `kernel_list_is_unchanged_by_core_op_fusion_p1` failing on the new name; pinned
+in `d3abfa9b6` (5..8 rows at K <= 3072: no other model has that MXFP4 shape).
+
+## This lane's costs (brief 34; from #11462, ms / token at g256)
+
+| kernel | spec off | spec on | floor / evidence | bound (ms / token) |
+|---|---|---|---|---|
+| MoE gu + dn (NVFP4, 44 layers + MXFP8 4) | 8.80 | 10.17 | loads set the pace (#11417: kernel 7-9 % over its no-math loads); any layout tops out ~225 GB/s at this geometry (#11417 / brief 29) | repack ~0.5-0.6 (the only item >= 0.3) |
+| `ink_row_kernel` (ConvMix / SconvRes / AttnResMix rows) | 1.28 (124 calls x 10.3 us) | 0.70 | launch / latency bound; hoist done, prefetch and cluster split dead ends | < 0.3 without new fusion |
+| LoopBlend: `ink_ctl` + gate + norm | 1.28 (48 x 26.6 us) | 0.75 | controller stream 590 KB = 2.2 us at 273 GB/s; split-K done; gate + norm fuse a dead end | < 0.3 left without a different fusion |
+| `moe_route_kernel` | 0.38 | 0.20 | one small launch per layer; fusing it needs `InkRoute` on CUDA (Metal: -0.11 ms / step) | ~0.1-0.2 |
+| `ink_tile_staged_k` + `ink_tile_k` | 1.67 | 1.17 | attention (ink-cuda-attn), not this lane | - |
+
+Only the MoE repack clears 0.3 ms / token. It was parked under brief 29's 1 ms bar; it is not built here without a go (it changes
+the expert layout that `ink_moe_mma` (prefill), the `_rows` path and W4A4 all read: either all of them learn the layout, or a
+second copy of the experts is kept, ~16 GB for the NVFP4 experts).
+
+### Dead end: MoE NVFP4 decode staging (`9be9868a9`, reverted `6cbbff7bf`)
+
+A cheaper way to get the contiguous loads without a repack: each warp copies its expert row block to shared memory with
+contiguous 16-byte `cp.async` (512 B per warp instruction), then runs the same chunk loop (bitwise by construction). Gate #11491:
+`kernels test` ADMITTED, but `ink_bench` NVFP4 180 -> 234 us (T=1), 592 -> 726 (T=4), 1686 -> 1780 (T=16), MXFP8 (not staged)
+unchanged; model g256 spec off 36.66 -> 33.10 tok/s with the same ids. Cause: the gu slice is 8 warps x 2 x 4 x 1296 B = 83 KB
+of dynamic shared memory per block (dn 41 KB), so 1 (gu) / 2 (dn) blocks per SM against the register-limited occupancy of the
+plain kernel; and at a union of 8 each warp has one expert, so `cp.async.wait_all` exposes the whole load before any math.
+Reverted; the job was stopped after the first ABAB pair.
