@@ -273,6 +273,16 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   changes by default (split-K blend, MX4 draft head, each with its revert env), every gate by job number, the no-op results.
   Merge only on all-green CI; no force-push; no other lanes' branches. Box: stay on spark2 (`~/intarsiaml-ink-cuda-mixmoe`, its
   baselines); Stage A runs there.
+- (coordinator, 36b) PR #489 merged as main `693f6440e`: merge it once #11498 / #11502 are green, rerun the Inkling CUDA md5s
+  if the merge touches engine code or recipes, then push and open the PR.
+- (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
+  chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
+  is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
+  instead of a plain stage B, ONE expert layout serving both the decode rows path and a block-scaled prefill GEMM, built
+  together. Before building (3), send a design note: layout, kernel path (CUTLASS / cuBLASLt block-scaled or own), expected ms
+  per 8k chunk, effort, quality plan (not bitwise: G3 prefill short / long / 4k within budget; decode unchanged if decode does
+  not use it). Lever 3 (mix row kernels spread over D, ~0.48 s at 8k) goes to cuda-attn after this PR merges; it will touch
+  the ink_row files on main.
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
