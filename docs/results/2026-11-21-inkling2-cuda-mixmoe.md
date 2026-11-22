@@ -228,6 +228,11 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   stream reaches ~250 GB/s (>= 0.8 ms / token against the shipped kernel), report before building; else close MoE at T=1 and
   go to LoopBlend, then the router. Confirm the spark2 runs held a fleetq slot (they did: #11417 and the pass-2 job, both
   `fleetq run --quiet gpu,cpu`).
+- (coordinator, 30th) Before choosing bitwise ring vs split-K for the controller GEMV, check split-N (output columns of h over
+  more CTAs, each keeping the full k loop and per-tile mma k-sequence: bitwise). Report h's N and the CTA count. Rule: (1) split-N
+  reaches ~8+ CTAs per call -> build it (bitwise, default-on allowed, gate as option 1), skip the ring; (2) N too narrow ->
+  split-K opt-in, default off (G2 / G3, md5 drift, prefill 2k / 8k gates; default-on is the user's call), optionally the
+  bitwise ring as default meanwhile if it fits in ~half a day. Gate + norm fuse first.
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
