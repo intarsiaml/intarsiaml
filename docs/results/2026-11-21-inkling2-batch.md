@@ -421,3 +421,28 @@ was 78), while solo moved only about 2-4 %. The batched step got slower between 
 with the variant). Candidates: m-mix's new defaults (mix_geom NE 4 from D 2048, `BLEND_RB` 16 -> 4) applied to the row-table
 mix path, other ink/metal changes in the merge (25 files), or rtvar itself. Quiet A/B queued: ink/batch vs 8546d143f vs
 8546d143f with `INTARSIA_INK_MIX_NE=3` / `INTARSIA_INK_BLEND_RB=16` vs rtvar, B 1 / 8 / 16, forward then reversed order.
+
+## 14. Engine path: `intarsia serve --max-batch 16` (#11093, quiet, ink/batch f64368dbb)
+
+Own server checked (port 8131, listener = this job's binary, pid 85510). ink/batch here is the pre-m-mix-merge code (the
+#10900 curve: B 16 71-78 ms in batch_step).
+
+**localeval `conc-plain-1k`** (closed loop, ~1k-token prompts, ~254 generated tokens per request, temperature 0, 3 reps per
+stream count; deepeval results/20261122-02xx-adhoc-endor-intarsia-metal-ink-batch):
+
+| streams | aggregate decode tok/s (median; reps) | per-stream | TTFT s | `--max-batch 1` (#10890) | oMLX |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 46.5 (46.5, 46.5, 50.8) | 46.5 | 0.90 | 50.8 | |
+| 4 | 84.6 (84.6, 84.6, 84.7) | 21.2 | 1.23 | 51.x | |
+| 16 | **117.7** (117.7, 118.1, 113.6) | 7.4 | 1.68 | 51.6 | 94 |
+
+16 streams: 2.3x the serialized server, 1.25x oMLX. **`intarsia bench speed`** (calibration fix in; 1024-token prompts,
+128 generated): single stream decode 60.2-61.3 tok/s (prefill 1.3-1.45k tok/s); concurrency rows (every stream prefills its
+prompt each request, TTFT 13.4 s at 16 when 16 prompts arrive together): 2: 73.6, 4: 83.0, 8: 91.6, 16: 93.3 tok/s aggregate.
+
+Why the serve path sits well under batch_step's 200+ at 16: the workload is mostly prefill. At 16 streams localeval ran 80
+requests (80 x ~1k = ~82k prompt tokens) in 172 s; at the measured ~1.4k tok/s prefill that is ~55 s of prefill, which the
+engine interleaves with decode steps (busy prefill chunk 256), so decode runs at roughly 20.3k tokens / ~117 s = ~173 tok/s
+when it runs, and the batch is short of 16 rows while new requests prefill. The next levers on this cell are prefill speed and
+how prefill shares steps with a full decode batch, not the batched decode step. Peak RSS not recorded (the `time -l` wrapper
+was killed with the server; script fixed to stop the child instead next time). Job exit 1 is that kill, not a failure.
