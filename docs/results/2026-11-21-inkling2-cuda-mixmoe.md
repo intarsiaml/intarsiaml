@@ -133,6 +133,15 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   with an estimated gain. Answer (from those timings and config dims, NVFP4 0.5625 B / weight, top-8, 44 visits): gu 1051 MB
   -> 174 GB/s, dn 525 MB -> 161 GB/s; at 240 GB/s both save ~2.7 ms / token. Candidate in the doc section below.
 
+- (coordinator, 16th) MoE probe plan APPROVED. Order: serve admission fix (#11158), P12 merge fc773d0fc and its localeval first;
+  then the loads-only probe. Probe: timebox 45 min, own fleetq slot `--quiet gpu,cpu`; the loads-only kernel is bench-only
+  (env-gated or a separate binary, never default path, never merged); measure gu and dn separately at the #11172 shape (1.2k,
+  P12 on, graphs). Decide by the worse of gu / dn loads-only GB/s: >= 230 compute-bound -> leaner bitwise inner loop (more rows
+  per warp, same lane->chunk map and shuffle tree, LUT / prmt fp4 decode); <= 195 pattern is the ceiling -> load-time weight
+  repack (contiguous per-warp streams), bitwise; 195-230 -> report numbers before building either. Either build needs greedy md5
+  equal to the pre-change run, the CUDA test suite green, and an nsys step time showing the gain. Two attempts at one route
+  without a gain: stop and report which assumption broke. ink_row stays parked.
+
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
 Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8`). Not pushed or merged into main.
