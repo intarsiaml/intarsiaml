@@ -5,6 +5,15 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
 
 ## Briefs received
 
+- 2026-11-22 (main): MoE fixed-launch candidate approved. Step 1 profile: queue after ink-metal's combined gate passes, on the
+  final ink/metal tree; one quiet slot (~30 min), kernel trace B 2/4/8/12/16, MoE time vs union size. Decide on the real
+  (untraced) B16 fixed part: >= 6 ms build fused MoE launches (gate+up and down per layer over union experts in one grid,
+  gather folded into down, per-row order unchanged); 3-6 ms report to main first; < 3 ms drop and report in_proj with its
+  estimate. Before editing check file overlap with ink-prefill (MoE NVFP4 prefill, #11187) and ink-dfuse (ink_route preload,
+  #11190); if the same MoE dispatch files, tell main before writing code. Build gate: rows bitwise vs pre-change tree at
+  B 1/8/16 (greedy md5 per stream), Metal suite green, admission OK, quiet B 1/8/16 median of 3 showing the gain. Two
+  attempts without gain: stop and name the broken assumption. conc-plain-1k prefill interleave: not mine yet, raise after.
+
 - 2026-11-22 (main): #11181 accepted; NE 3 costs nothing batched, RB16 stays off, B16 slowdown closed as not reproducible;
   skip the paired pre-merge vs merged run. (1) Send ink-metal (af43898d63e5b5190) the exact B=1/8/16 batched-step command for
   its combined post-merge gate (that number becomes the reference). (2) Propose the next batched-decode candidate for B=16
