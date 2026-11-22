@@ -299,7 +299,9 @@ fn usage(prompt_tokens: usize, cached_tokens: usize, output_tokens: usize) -> Va
 }
 
 fn err_event(message: &str) -> Event {
-    sse_json(Some("error"), &json!({"type": "error", "error": {"type": "api_error", "message": message}}))
+    // as the 503 of the same case (ApiError::body): the server is unavailable, not failed
+    let ty = if is_shutdown_cut(message) { "overloaded_error" } else { "api_error" };
+    sse_json(Some("error"), &json!({"type": "error", "error": {"type": ty, "message": message}}))
 }
 
 pub async fn messages(

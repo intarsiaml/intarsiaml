@@ -410,6 +410,10 @@ pub struct BackendTuning {
     /// Sampled rows of a batched verify pass as the device-side top-k (lane mtp2s, [`Recipe::resolve_verify_topk`]); needs
     /// `batched_verify`. Unset: off. `INTARSIA_VERIFY_TOPK` wins both ways (`1` on, `0` off). Per backend only, set only where measured.
     pub verify_topk: Option<bool>,
+    /// A sampled request's own verify pass as the captured draft-and-verify step with device-side top-k rows (lane samphost, default-on by lane
+    /// svfflip, [`Recipe::resolve_sampled_verify_fast`]); acts with batched MTP and sampled drafting. Unset: off. `INTARSIA_SAMPLED_VERIFY_FAST` wins both ways
+    /// (`1` on, `0` off). Per backend only, set only where measured (the Qwen3.6-35B-A3B on CUDA, docs/results/2026-11-20-samphost.md, 2026-11-20-samp2s.md).
+    pub sampled_verify_fast: Option<bool>,
     /// MXFP4 projections on this backend: the activation mode when `--mxfp4-act` is not given (`"dynamic"`, `"none"` or `"fp8"`;
     /// wins over `[defaults] mxfp4_act`, loses to the flag). For a mode only some backends implement: the Qwen3.8-27B sets `"fp8"`
     /// (W4A8) under `[tuning.hip]`, so CUDA and Metal keep the `[defaults]` W4A16.
@@ -568,6 +572,11 @@ impl Recipe {
     /// The recipe's verify top-k setting for `backend` (`[tuning.<backend>] verify_topk`); `None`: not set (off). `INTARSIA_VERIFY_TOPK` wins.
     pub fn resolve_verify_topk(&self, backend: &str) -> Option<bool> {
         self.tuning.backends.get(backend).and_then(|b| b.verify_topk)
+    }
+
+    /// The recipe's sampled-verify fast path for `backend` (`[tuning.<backend>] sampled_verify_fast`); `None`: not set (off). `INTARSIA_SAMPLED_VERIFY_FAST` wins.
+    pub fn resolve_sampled_verify_fast(&self, backend: &str) -> Option<bool> {
+        self.tuning.backends.get(backend).and_then(|b| b.sampled_verify_fast)
     }
 
     /// Prefill tail peel for `backend` ([`crate::scheduler::peel_tail`]): the recipe's value for that backend, then its
