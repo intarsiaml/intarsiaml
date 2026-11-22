@@ -200,6 +200,13 @@ fn bench_moe(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
                 })
                 .collect();
             let mean_union = unions.iter().sum::<usize>() as f64 / unions.len() as f64;
+            if tr * K > 512 {
+                // the SIMT pair-table path at this size, for comparison (the default is the tensor-core path)
+                intarsia_backend_cuda::inkmoe::set_mma_min(i32::MAX);
+                let (us, mn) = time(be, kname, &calls, 3);
+                println!("moe {} T={tr:5} simt     {us:9.1} us (min {mn:8.1})  union {mean_union:5.1}", if mx { "mx" } else { "nv" });
+                intarsia_backend_cuda::inkmoe::set_mma_min(512);
+            }
             let probes: &[i32] = if probe_env && tr <= 16 { &[0, 1, 2] } else { &[0] };
             for &probe in probes {
                 intarsia_backend_cuda::inkmoe::set_probe(probe);

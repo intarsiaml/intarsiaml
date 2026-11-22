@@ -19,7 +19,9 @@ use std::sync::Arc;
 struct Rig {
     be: Arc<dyn Backend>,
     /// device copies of large inputs (the expert weights), keyed by host address and length: uploaded once
-    cache: std::cell::RefCell<std::collections::HashMap<(usize, usize), TensorRef>>,
+    cache: std::cell::RefCell<std::collections::HashMap<(usize, usize, u64), TensorRef>>,
+    /// on only in the experts tests, whose large inputs are the weights (alive for the whole test)
+    cache_on: std::cell::Cell<bool>,
 }
 
 /// an output: dtype, shape, initial contents (in-place state) or None (0xA5 fill: NaN in bf16 / f32)
@@ -28,7 +30,7 @@ type Out = (DType, Vec<usize>, Option<HostTensor>);
 impl Rig {
     fn new(test: &str) -> Option<Rig> {
         match intarsia_backend_cuda::create(0) {
-            Ok(be) => Some(Rig { be, cache: Default::default() }),
+            Ok(be) => Some(Rig { be, cache: Default::default(), cache_on: Default::default() }),
             Err(e) => {
                 common::skip(test, &format!("no usable CUDA device ({e})"));
                 None
@@ -37,13 +39,18 @@ impl Rig {
     }
 
     fn put(&self, t: &HostTensor) -> TensorRef {
+        // (keyed by address, length and a sample of the bytes: a dropped tensor's address can be reused by a new one)
         if t.nbytes() >= 1 << 20 {
-            let key = (t.data.as_ptr() as usize, t.nbytes());
+            let n = t.nbytes();
+            let fp = (0..64).fold(0xcbf29ce484222325u64, |h, j| (h ^ t.data[j * (n - 1) / 63] as u64).wrapping_mul(0x100000001b3));
+            let key = (t.data.as_ptr() as usize, n, fp);
             if let Some(r) = self.cache.borrow().get(&key) {
                 return r.clone();
             }
             let r = self.put_new(t);
-            self.cache.borrow_mut().insert(key, r.clone());
+            if self.cache_on.get() {
+                self.cache.borrow_mut().insert(key, r.clone());
+            }
             return r;
         }
         self.put_new(t)
@@ -187,6 +194,7 @@ fn ink_experts_rows_exact() {
     let Some(rig) = Rig::new("ink_experts_rows_exact") else { return };
     // the SIMT kernels at every T (the tensor-core prefill path is not bitwise them: `ink_experts_mma_chunk_invariant`)
     intarsia_backend_cuda::inkmoe::set_mma_min(i32::MAX);
+    rig.cache_on.set(true);
     let mut rng = SplitMix64::new(0x2c);
     let (e, k, h, i) = (32usize, 8usize, 2304usize, 1152usize);
     let ex = random_experts(&mut rng, e, h, i);
@@ -415,6 +423,7 @@ fn ink_attn_res_mix_and_blend_rows_exact() {
 fn ink_experts_mma_chunk_invariant() {
     let Some(rig) = Rig::new("ink_experts_mma_chunk_invariant") else { return };
     intarsia_backend_cuda::inkmoe::set_mma_min(512);
+    rig.cache_on.set(true);
     let mut rng = SplitMix64::new(0x5f);
     let (e, k, h, i) = (128usize, 8usize, 2304usize, 1152usize);
     let ex = random_experts(&mut rng, e, h, i);
