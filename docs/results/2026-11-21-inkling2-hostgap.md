@@ -111,6 +111,10 @@ Status: waiting on endor #10943 (items 2 and 3 timing); code done and CPU-checke
   16777215.5 rounds to 2^24, so u = 1 and g = +inf: about 1 token in 84 at V = 200058 would be uniform noise. It also leaves only
   24 bits near u = 1, where the winners come from. The op takes w = (f32(x) + 0.5) 2^-32 (u = 1 - w), E = -ln(1 - w) by its
   series below w = 1/16 and by `ln` above, g = -ln(E): full relative precision at the top, no u = 1.
+- 2026-11-21 (coordinator): the w = (f32(x) + 0.5) 2^-32 form is OK (series below 1/16, precise ln above). Addition: f32(x)
+  rounds to 2^32 for x >= 2^32 - 128 (w = 1, E = inf, g = -inf: harmless, but) so w is clamped to at most 1 - 2^-24 and g is
+  always finite, which keeps the admission and NaN / inf checks clean. Two more tests: the x = 2^32 - 1 and x = 0 edge cases,
+  and a property test that g is finite for random x. Keys as an i32 `[R,4]` tensor of u32 bit patterns: OK.
 
 ## Measurement (before)
 
