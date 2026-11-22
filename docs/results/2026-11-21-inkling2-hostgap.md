@@ -34,6 +34,16 @@ Status: in progress. Branch `ink/hostgap` (from ink/metal a88db4620, fast-forwar
   the change is 12-25 % low, plus a LOG.md row.
 - 2026-11-21 (coordinator): build #10829 let ahead of the line (done 22:02, exit 0).
 
+- 2026-11-21 (coordinator, relaying ink-mtp): (1) approved: `INTARSIA_HOST_PROFILE` hooks in the spec loop in `engine.rs`,
+  profiling lines only; stay out of `crates/intarsia-core/src/model/dspark.rs` (ink-mtp's, changing fast). (2) Correction to
+  the item-5 note: Metal now has `Backend::topk_rows` (ink/mtp c770aaef3: two dispatches, f32 / bf16, k <= 64, sampler-order
+  ties; `supports_topk` stays false), so S2 downloads 7 x 64 ids + values (about 3.6 KB), not 2.8 MB, and the host Markov head
+  over 64 candidates is pure arithmetic; fix the M2 line with a note. (3) ink-mtp queued the per-cycle split (flush / block /
+  head / markov / wall / ingest) as a default-load backfill job; H1 / H2 still wait on those numbers. Go ahead with the
+  engine.rs hooks if small: a real check (build + the tiny spec test), its own commit, no new GPU job for them.
+- 2026-11-21 (coordinator): H1 / H2 not to be built until S1 + S2 + S3 is shown to be well over 1 ms per cycle; #10839 stays
+  queued.
+
 ## Measurement (before)
 
 ### The integration trace, re-read (no new GPU run)
@@ -125,7 +135,7 @@ syncs, each followed by host work the GPU waits through:
 | sync | where | host work before the GPU has more |
 |---|---|---|
 | S1 | `dspark_ingest` (lazy flush of the verified rows) | download 4 taps x rows x H, `mix` (alpha-weighted tap sum + rms norm) per draft layer, upload per layer |
-| S2 | `dspark_draft`, after the block pass and the base head | download hw / fw / base logits (kmax x V bf16, 2.8 MB at kmax 7), top-64 per row, the r-dim Markov recurrence and the gate |
+| S2 | `dspark_draft`, after the block pass and the base head | download hw / fw and the device top-64 of each base row (7 x 64 ids + values, about 3.6 KB; corrected, see below), the r-dim Markov recurrence over the 64 candidates and the gate |
 | S3 | `forward_verify_run` | the verify rows' argmax (4 B per row), accept, `on_token` per accepted token |
 
 The end state is the token-feedback pattern (`model/feedback.rs`) applied to a cycle: the host reads one small record per cycle
@@ -142,8 +152,11 @@ What it needs from the drafter and the target (ops and op contracts: ink-mtp, m-
 
 - M1. The ingest mix on the device: the weighted sum of 4 taps then RmsNorm. All k+1 verify rows are ingested
   unconditionally; rejected rows land past the draft cache's device length and are overwritten, as the block scratch already is.
-- M2. The Markov head on the device (top-64 of each base row, the recurrence, the gate), writing drafts and k_eff into the
-  record. Metal has no `topk_rows` today (`supports_topk` false), which is why ink-mtp's device top-k falls back to the host.
+- M2. The Markov head on the device (the recurrence over the 64 candidates and the gate), writing drafts and k_eff into the
+  record. The top-64 is on the device already. Corrected 2026-11-21 (ink-mtp via the coordinator): the first version of this
+  note said Metal had no `topk_rows`, so the base rows (2.8 MB at kmax 7) came to the host. ink/mtp c770aaef3 added
+  `Backend::topk_rows` on Metal (two dispatches, f32 / bf16, k <= 64, sampler-order ties; `supports_topk` stays false), so S2 now
+  downloads about 3.6 KB, and the host Markov head over 64 candidates is pure arithmetic.
 - M3. A verify of kmax + 1 rows always (rows past k_eff computed and ignored), so the verify can be encoded before k_eff is
   known, and an accept op: drafts vs the verify argmax, giving n_acc and the bonus token.
 - M4. Every position-dependent op of the next cycle takes its position from a device buffer, because `st.len` after a cycle
@@ -151,10 +164,21 @@ What it needs from the drafter and the target (ops and op contracts: ink-mtp, m-
   (`InkKvPrologue`, `RelSinkAttn` / `InkAttnDecode`, the ring slot index) take host `pos0` today. This is the expensive part, and
   an op-contract change for m-attn and dfuse.
 
-Order of value: S2 is worth removing first. Its host work is the longest (2.8 MB download, top-64 over 7 rows of 200058, the
-recurrence) and it sits in the middle of the cycle. S1 and S3 each cost only the host work before the next encode. Before any of
+Order of value: S1 and S2 sit in the middle of the cycle, and S3 costs only the host work before the next draft. With the device
+top-64 (correction above), S2's host part is a 3.6 KB read and arithmetic over 7 x 64 candidates. Which sync is worth removing
+is for ink-mtp's per-cycle split to show (flush / block / head / markov / wall / ingest). Before any of
 it, the per-cycle host ms should be measured. `INTARSIA_DSPARK_PROFILE=1` prints flush / block / head / step0 / ingest. The cycle
 is about 20-25 ms modelled, so a 1 ms host gap per cycle is 4-5 %.
 
 Batched decode (ink-batch keeps graphs off there): the same record per row, with the batch step's existing device top-k path
-for sampled rows (`HeadMode::LastTopK`, CUDA / HIP only). Metal would need `topk_rows` first.
+for sampled rows (`HeadMode::LastTopK`). Metal now has `topk_rows` (ink/mtp c770aaef3), but `supports_topk` stays false, so the
+batch step does not take it on Metal yet.
+
+Spec-loop host profile (commit below, approved by ink-mtp): with `INTARSIA_HOST_PROFILE=1` the solo loop's eager draft + verify
+cycle (`Seq::prepare_with`, the branch DSpark and DFlash take) is its own class `spec-cycle`. Its columns:
+- `draft` and `verify` (each including its device time and syncs), netted out of `prepare`
+- `rows` = tokens per cycle
+- `on_token` of the cycle's tokens
+- `gpu-idle-gap` = host time from the verify's token download to the next draft's start
+
+The S1 / S2 host work inside `draft` is ink-mtp's `INTARSIA_DSPARK_PROFILE` split.
