@@ -13,4 +13,8 @@ Status: in progress. Branch `ink/mtp` (not pushed, not merged).
   4. Device-side accept / verify readback is ink-hostgap's job: send interface needs to the coordinator, who relays.
   5. Measure Metal decode with `--profile-every 0` (real greedy about 63.4 tok/s; the default profiler adds about 4 ms/token).
 
+- 2026-11-21 (coordinator, SendMessage): endor's queue is about 5 h deep. Move the real-model CPU token-identity job (#10807) to
+  spark2's CPU (released on endor, resubmitted there); keep the Metal decode tok/s job (#10806) on endor. Every other CPU-only
+  job of this lane goes to a Spark.
+
 RESULTS_PLACEHOLDER
