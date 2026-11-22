@@ -146,4 +146,15 @@ fused-vs-pair choice are inside the noise at short context; the fused rule saves
 harness, which is ~2 %. A larger prefill chunk is a clear prefill win (1.8x at 5k): the recipe default 256 is a candidate
 for a later lane (memory: the workspace grows with the chunk; not changed here).
 
+### Traces (raw, `docs/results/2026-11-21-inkling2-metal/`)
+
+| File | Run | What it shows |
+|---|---|---|
+| `prof_kernel.jsonl` | #10730, `INTARSIA_METAL_PROFILE=kernel`, 33 tokens | op order and labels of a decode step (613 dispatches); durations inflated (one waited command buffer per launch) |
+| `prof_cb.jsonl` | #10730, `cb`, 65 tokens, `--profile-every 16` | normal steps = 2 command buffers (16 + 597 dispatches), 15.8 ms; profiled steps 419 buffers (Fable review section 0.1) |
+| `prof_cb1.jsonl` | #10756, `cb`, `INTARSIA_METAL_COMMIT_EVERY=1`, 33 tokens | **not per dispatch for normal steps**: with token feedback the step is held and committed as 16 + 597 dispatches regardless of the commit cadence; 29 normal steps, median wall 15.86 ms, GPU busy 15.82 ms (the 3034 one-dispatch buffers are the prefill and the profiled steps) |
+| `prof_cb2.jsonl` | #(queued), the same with `INTARSIA_TOKEN_FEEDBACK=0 --profile-every 0` | the per-dispatch timeline of an unprofiled step (labels by position from `prof_kernel.jsonl`, `prof_cb1.py`) |
+
+Analysis scripts: `prof.py` (kernel trace per op), `prof_cb1.py` (per-dispatch labels by position).
+
 SPEED_REST
