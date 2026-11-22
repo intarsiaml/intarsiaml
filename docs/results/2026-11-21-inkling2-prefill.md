@@ -549,6 +549,27 @@ Trace rerun (#11344, 07:01:24-07:01:53, safe_run, no leftovers; order 2048, 256,
 - This contradicts #11322's p8k tok/s (+5 to 7 %, fixed order). The gate #11348 (randomized order, rule fixed in advance) decides.
 
 - Scratch for the blend: ~21 MB (256), ~85 MB (1024), ~170 MB (2048).
+
+Gate (#11348, brief 20; binary de1e0568a, --prefill-chunk 2048, 07:11:45-07:14:43, safe_run: no leftovers):
+- (2) Box check: p8k default 2731 tok/s, which is +16 % over the 2362 reference, so not slow. The 2362 came from #11322; clean endor runs since are ~2700.
+- (1) G2 / G3 at piece 256 vs 1024: KL lines **identical**. G2 short 2.087e-3, long 3.239e-3; G3 short 8.420e-3, long 1.229e-2.
+- (1) Greedy md5 identical at 64 tokens (a2ab7b3d0e3d15d0fae1ccf6816ac7dc) and at 256 tokens (cbd62660cd829e0009878cd8c1a3e362).
+- (3) Engine generate timing, tok/s, order per pair as logged:
+
+| length | pair 1 | pair 2 | pair 3 | median 256 | median 1024 | ratio | need |
+|---|---|---|---|---:|---:|---:|---|
+| 1k (929) | 1024 first: 1123 / 1258 | 256 first: 1300 / 1307 | 1024 first: 1234 / 1326 | 1300 | 1234 | **0.949** | >= 0.98: **FAIL** |
+| 4k (3950) | 256 first: 2305 / 2474 | 2427 / 2397 | 2413 / 2506 | 2413 | 2474 | 1.025 | >= 1.00: pass |
+| 8k (8034) | 256 first: 2372 / 2739 | 2743 / 2799 | 2738 / 2348 | 2738 | 2739 | 1.000 | >= 1.00: pass |
+
+(pair entries are 256 / 1024.)
+
+**Result: 1k fails, so piece 1024 stays opt-in. This is final under brief 20, with no further round.**
+- The default stays 256. INTARSIA_INK_BLEND_PIECE stays as an opt-in knob on ink/blend-piece (bitwise).
+- The 8k timings have one ~2350 outlier in each arm, the same size as the first-run-in-process slowdowns seen elsewhere.
+- The trace rerun's extra time on untouched ops (+9 to 14 %) fits the 1k loss and the flat 8k result.
+
+
 - Not decided: the default. Proposal to the coordinator: piece 1024 default-on (best tok/s, half the scratch of 2048), after a gate run (G2 / G3 short and long at chunk 2048 plus an interleaved speed check). Bitwise, so G2 / G3 should not move.
 
 ### Prologue split 4k by engine generate timing (#11290, brief 19; binary 61980c882, 3950-token prompt, 3 alternating pairs)
