@@ -1313,3 +1313,27 @@ batch_step, B 8 / B 16 batched ms, digests identical between arms in every run (
 - Default flipped to n = 2 (5f6a7dc90; `INTARSIA_INK_MOE_DEC1=0` reverts, docs/tuning.md row). Gates queued as #11515: Metal
   suite, admission (moe_experts, moe_experts_mxfp8, ink_in_proj, moe_route), greedy md5 64 / 256, B 1/8/16 real text n 0 vs 2
   A B A B B A B A with digests.
+
+**#11515 gates for decode-once default-on (n 2), 12:06-12:26, tree 5f6a7dc90, every switch unset; `.scratch/gate_dec1.log`:
+green.** Metal suite: rows_exact 11/11, inkmix 5/5, rows_single 2/2, quick_coverage 1/1, gumbel 2/2, inkling2 11/11,
+inkling2_batch 8/8, core ops ids 7/7, docs_env_vars 2/2. Admission: moe_experts 4, moe_experts_mxfp8 2, ink_in_proj 8, moe_route
+1 admitted, 0 fail / reject. Greedy md5 64 `65cde8f35a1802e3e2fadb44d94d080d`, 256 `61fd59fecb5e0d72ffd08f2c6d07855a`
+(= ink/metal). Digests identical in all 8 runs (text B 1 `67843d1dbf0249f5`, B 8 `74478685fe7299e9`, B 16 `846a505a4055b0ba`).
+
+Real text, box cold at start (B 16 sample 56.35) and slow within minutes (end 64.73, ALU 176.3), batched ms per step:
+
+| pair | n 0 B 8 / B 16 | n 2 B 8 / B 16 | B 16 diff | B 8 diff |
+|---|---|---|---:|---:|
+| runs 1 / 2 | 51.83 / 84.47 | 50.46 / 82.72 | -1.75 | -1.37 |
+| runs 3 / 4 | 44.56 / 80.41 | 42.75 / 74.64 | -5.77 | -1.81 |
+| runs 6 / 5 | 43.49 / 77.38 | 41.07 / 82.94 | +5.56 | -2.42 |
+| runs 8 / 7 | 44.29 / 84.90 | 41.70 / 78.56 | -6.34 | -2.59 |
+
+- B 8: -1.4 to -2.6 ms in all four pairs (mean -2.0, ~4.5%). B 16: mean -2.1 ms, 3 of 4 pairs negative, the box noise (+-5 ms in
+  this slow state) is larger than the effect. With #11506's two text pairs (-1.3, -3.7), six B 16 text pairs: median -2.7,
+  mean -2.2 ms. Decode-once stays default-on (n 2).
+- Warm real-text B 16 at the tip: ~74-85 ms (190-215 tok/s) in this window; the cold best case ~56 ms.
+
+**Where B 16 stands (warm, real text).** in_proj gemvx ~-0.6-1 ms, MoE decode-once ~-2.2 ms per step; both bitwise and
+default-on. Remaining bitwise MoE headroom at union ~62 is ~1-2 ms (the bandwidth floor); in_proj's remaining cost is the
+contract's reduction ((b), parked).
