@@ -43,7 +43,7 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
   h by the InkInProj NAX GEMM, gate + norm by `ink_blend_gf_nax` + `ink_blend_yn` (kernels/metal/inkling2_blend_nax.metal).
   `INTARSIA_INK_BLEND_NAX=0` restores m-mix's GEMV path. G2 / G3 with it on: see Gates.
 - **Opt-in, not faster:** MoE prefill forms nax2 / nax3 (`INTARSIA_INK_MOE_NAX2=<form>`); all bitwise the first generation
-  at 2048 rows, none faster (table below). 128-row tiles pending.
+  at 2048 rows, none faster in the bench or in the stream (tables below), including the 128-row tiles.
 - **Side branch `ink/prefill-rel` (4212f2e45), not merged:** `ink.rel_mode` (approved contract variant): cpu reference +
   bitwise test pass; Metal mode 1 measured slower end to end, so the graph default is off. Tests and admission pass; G3 with mode 1 not run (off by default).
 
@@ -127,7 +127,9 @@ MXFP8: gen1 7690, m64_k32_v3 7424 (-3.5%), m64_k64_v1 7598, nax3 9450 / 13327.
 
 Reading: dropping the matmul saves only 0.9 ms, so the kernel is bound by weight decode + threadgroup staging (~3.8 ms)
 and loads / epilogue (~2.5 ms), not by the accelerators. With 64-row tiles every expert (mean 128 rows) decodes its weights
-twice; the 128-row forms (m128_*) decode them once: pending (#10875 build, #10884 timing).
+twice. The 128-row forms (m128_*, decode once per expert) are much slower (NVFP4 m128_k64_v1 17542, m128_k32_v3 12991;
+MXFP8 18005 / 13995 µs; in-stream 1600 / 2000 tok/s at 8k vs 2643): 8 A chunks per thread per step and a 64 x 32 sub-tile per
+simdgroup cost more than the halved decode saves. The gen1 kernel stays the default.
 
 ### Blend on 2048 rows (ink_mix_bench, µs)
 
@@ -160,3 +162,44 @@ twice; the 128-row forms (m128_*) decode them once: pending (#10875 build, #1088
 
 All PASS. Tests: `inkmix` (3, incl. the rows-exact blend at 40 / 300 rows: exact_rows calls keep the GEMV path), `inkmoe` (2),
 `ink_prefill_moe` pass.
+
+### Interleaved end-to-end A/B, chunk 2048 (#10884, bin4 = ink/metal a0751f302 + this lane; 2 runs per round)
+
+| Config | 2k | 8k (rounds 1 / 2 / 3) | 12k |
+|---|---:|---:|---:|
+| `INTARSIA_INK_BLEND_NAX=0` (ink/metal path) | 1796 / 1823 | 1810*, 2457 / 2468, 2208 / 2464, 2356 | 2373 / 2496 |
+| **default (NAX blend)** | **1935 / 1952** | **2630, 2595 / 2718, 2609 / 2683, 2626** | **2652 / 2812** |
+| MoE m128_k64_v1 | | 1616, 1570 / 1621, 1589 / 1617, 1595 | |
+| MoE m128_k32_v3 | | 2022, 1974 / 2018, 2019 / 2025, 1975 | |
+
+(* first run of the job, cold.) Median gain of the NAX blend: 2k +7%, 8k +9% (2440 -> 2640), 12k +12% (2435 -> 2730).
+These absolute numbers are ~40% above the #10779 baseline (same commit but ink/metal a88db4620, and a busier box); compare
+only within this table. oMLX ~1300, EXO 1750, target 2300-3100.
+
+### Per-chunk split with the default (8k prompt, kernel trace, ms per 2048-row chunk)
+
+cb trace: 4 chunks in 2948 ms (737 ms / chunk), GPU busy 92%, idle 57 ms / chunk.
+
+| Op | ms / chunk |
+|---|---:|
+| MoE experts NVFP4 | 319 |
+| ConvMix (incl. the NAX blend) | 75 |
+| RelSinkAttn NAX | 67 |
+| InkInProj NAX | 62 |
+| InkKvPrologue | 48 |
+| MoE experts MXFP8 | 30 |
+| wo | 23 |
+| router (logits_bf16) | 14 |
+| AttnResMix + LoopBlend + MoeRoute + rest | 8 |
+| **GPU sum** | **646** |
+
+## Next ideas (ranked)
+
+1. MoE experts (54% of the chunk): the gen1 kernel is staging / decode bound, not MMA bound (no-matmul probe 6.3 of 7.3 ms).
+   Try decoding each weight block into threadgroup memory once per BN x BK step shared by two M tiles of the same expert
+   (2 x 64 rows, 256 threads), and an fp8/fp4 -> bf16 decode with fewer ALU ops; the 128-thread m128 form is not the way.
+2. Host gap: 57 ms per chunk (8%) is the next-largest single item; prefill command-buffer batching.
+3. Router as a NAX GEMM (logits_bf16 runs at 3.9 TFLOP/s: 14 ms -> ~1 ms per chunk).
+4. rel_mode: stage the bias per (tile, distance band) in threadgroup memory instead of 16 FMAs per score; then re-measure
+   (branch ink/prefill-rel).
+5. localeval `speed-plain` not run by this lane (left to the integration lane's serve runs).
