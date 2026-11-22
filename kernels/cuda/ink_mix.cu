@@ -20,6 +20,7 @@
 #include "ik_launch.h"
 #include "ik_cuda_abi_inkmm.h"
 #include "ink_common.cuh"
+#include "ik_quant.cuh"
 
 namespace {
 
@@ -91,7 +92,7 @@ struct RowArgs {
     int64_t pos0;
     const int* pos;
     float eps;
-    int* ctr;   // blend gate + norm fuse: counters [nctr] the row kernel zeroes (block 0) before the gate kernel runs
+    int* ctr;   // controller split-K: tile counters [nctr] the row kernel zeroes (block 0) before ink_ctl_kernel runs
     int nctr;
     int hoist;  // conv taps outer (one row pointer / ring modulo per tap); set by launch_rows (INTARSIA_INK_ROW_HOIST, default on)
 };
@@ -331,9 +332,7 @@ __global__ void ink_ring_kernel(const ik_bf16* __restrict__ x, ik_bf16* __restri
 __global__ void __launch_bounds__(kGateCh) ink_blend_gate_kernel(const ik_bf16* __restrict__ h, const ik_bf16* __restrict__ gain,
                                                                  const ik_bf16* __restrict__ forget, const float* __restrict__ dbuf,
                                                                  const float* __restrict__ msg, float* __restrict__ ybuf,
-                                                                 float* __restrict__ part, int Tc, int T, int t0, int D, int G,
-                                                                 int* ctr, const ik_bf16* __restrict__ norm, ik_bf16* __restrict__ out,
-                                                                 float eps) {
+                                                                 float* __restrict__ part, int Tc, int T, int t0, int D, int G) {
     __shared__ float hs[kGateRows][kGMax];
     __shared__ float red[kGateRows][kGateCh / 32];
     const int s = blockIdx.y;
@@ -386,32 +385,6 @@ __global__ void __launch_bounds__(kGateCh) ink_blend_gate_kernel(const ik_bf16* 
         for (int w = 0; w < kGateCh / 32; ++w) q += red[threadIdx.x][w];
         part[((int64_t)s * Tc + r0 + threadIdx.x) * gridDim.x + blockIdx.x] = q;
     }
-    if (!ctr) return;
-    // fused norm (ctr set): the last slice block of this (stream, row block) does ink_blend_norm_kernel's work for its rows, with
-    // the same sums in the same order and the same expressions (bitwise)
-    __shared__ int last;
-    __shared__ float rinv[kGateRows];
-    __threadfence();
-    __syncthreads();
-    if (threadIdx.x == 0) last = atomicAdd(ctr + (int64_t)s * gridDim.z + blockIdx.z, 1) == (int)gridDim.x - 1;
-    __syncthreads();
-    if (!last) return;
-    __threadfence();
-    const int nsl = gridDim.x;
-    if (threadIdx.x == 0) {
-        for (int r = 0; r < rows; ++r) {
-            float q = 0.f;
-            for (int i = 0; i < nsl; ++i) q += __ldcg(part + ((int64_t)s * Tc + r0 + r) * nsl + i);
-            rinv[r] = 1.f / sqrtf(q / (float)D + eps);
-        }
-    }
-    __syncthreads();
-    for (int r = 0; r < rows; ++r) {
-        const float* yr = ybuf + ((int64_t)s * Tc + r0 + r) * D;
-        ik_bf16* orow = out + ((int64_t)s * T + t0 + r0 + r) * D;
-        const float rr = rinv[r];
-        for (int c2 = threadIdx.x; c2 < D; c2 += blockDim.x) orow[c2] = ik_f2b(__ldcg(yr + c2) * rr * ik_b2f(norm[(int64_t)s * D + c2]));
-    }
 }
 
 // norm: out[s, t] = rA(y inv(y) norm[s]); the slice partials summed in slice order
@@ -430,6 +403,100 @@ __global__ void ink_blend_norm_kernel(const float* __restrict__ ybuf, const floa
     for (int c = threadIdx.x; c < D; c += blockDim.x) orow[c] = ik_f2b(yr[c] * r * ik_b2f(norm[(int64_t)s * D + c]));
 }
 
+// ---- controller h projection for decode / verify chunks (rc <= 16): bitwise split-K --------------------------------------
+// ink_mma_gemv (ink_proj.cu) computes every 16-k step's tile product from zero (t = A.B + 0) and adds it into c in k order:
+// c = ((0 + t_0) + t_1) + ... . Here many warps compute their own k range's t_k (the same fragment loads and mma per step) and
+// store them; the last CTA of each tile then folds them in k order with the same f32 adds and rounds like ink_mma_gemv: the
+// same bits, with the stream spread over gridDim.x x tiles CTAs instead of 1-3. Part layout per tile: [nk][16 rows][T].
+constexpr int kCtlKB = 2;  // 64-k blocks per warp
+
+IK_DEVI void ctl_mma(float* t, const uint32_t* a, const uint32_t* b, const uint32_t* x, int st) {
+    t[0] = t[1] = t[2] = t[3] = 0.f;
+    ik_mma_bf16_16816(t, a[2 * st], b[2 * st], a[2 * st + 1], b[2 * st + 1], x[2 * st], x[2 * st + 1]);
+}
+
+__global__ void __launch_bounds__(128) ink_ctl_kernel(InkSegs sg, int T, int D, float* __restrict__ part, int* __restrict__ ctr) {
+    const int warp = threadIdx.x >> 5, lane = threadIdx.x & 31;
+    const int tile = blockIdx.y;
+    int j = 0;
+    while (j + 1 < sg.nseg && tile >= sg.t0[j + 1]) ++j;
+    const InkSeg s = sg.s[j];
+    const int n0 = (tile - sg.t0[j]) * 16;
+    const int g = lane >> 2, c = lane & 3;
+    const int ra = min(n0 + g, s.n - 1), rb = min(n0 + g + 8, s.n - 1);
+    const bool two = T > 8;
+    const int xa = g, xb = 8 + g;
+    const bool ha = xa < T, hb = two && xb < T;
+    const ik_bf16* wa = s.w + (int64_t)ra * D + 16 * c;
+    const ik_bf16* wb = s.w + (int64_t)rb * D + 16 * c;
+    const ik_bf16* pa = s.x + (int64_t)(ha ? xa : 0) * D + 16 * c;
+    const ik_bf16* pb = s.x + (int64_t)(hb ? xb : 0) * D + 16 * c;
+    const int nblk = D / 64, nk = D / 16;
+    float* tp = part + (int64_t)tile * nk * 16 * T;
+    const uint4 z = make_uint4(0, 0, 0, 0);
+    const int b0 = (blockIdx.x * 4 + warp) * kCtlKB;
+    uint4 A0[kCtlKB], A1[kCtlKB], B0[kCtlKB], B1[kCtlKB], X0[kCtlKB], X1[kCtlKB], Y0[kCtlKB], Y1[kCtlKB];
+#pragma unroll
+    for (int q = 0; q < kCtlKB; ++q) {
+        const int kb = (b0 + q < nblk ? b0 + q : 0) * 64;
+        A0[q] = __ldcs(reinterpret_cast<const uint4*>(wa + kb)), A1[q] = __ldcs(reinterpret_cast<const uint4*>(wa + kb + 8));
+        B0[q] = __ldcs(reinterpret_cast<const uint4*>(wb + kb)), B1[q] = __ldcs(reinterpret_cast<const uint4*>(wb + kb + 8));
+        X0[q] = ha ? __ldg(reinterpret_cast<const uint4*>(pa + kb)) : z, X1[q] = ha ? __ldg(reinterpret_cast<const uint4*>(pa + kb + 8)) : z;
+        Y0[q] = hb ? __ldg(reinterpret_cast<const uint4*>(pb + kb)) : z, Y1[q] = hb ? __ldg(reinterpret_cast<const uint4*>(pb + kb + 8)) : z;
+    }
+#pragma unroll
+    for (int q = 0; q < kCtlKB; ++q) {
+        if (b0 + q >= nblk) break;
+        const uint32_t a[8] = {A0[q].x, A0[q].y, A0[q].z, A0[q].w, A1[q].x, A1[q].y, A1[q].z, A1[q].w};
+        const uint32_t b[8] = {B0[q].x, B0[q].y, B0[q].z, B0[q].w, B1[q].x, B1[q].y, B1[q].z, B1[q].w};
+        const uint32_t x[8] = {X0[q].x, X0[q].y, X0[q].z, X0[q].w, X1[q].x, X1[q].y, X1[q].z, X1[q].w};
+        const uint32_t y[8] = {Y0[q].x, Y0[q].y, Y0[q].z, Y0[q].w, Y1[q].x, Y1[q].y, Y1[q].z, Y1[q].w};
+#pragma unroll
+        for (int st = 0; st < 4; ++st) {
+            const int kk = (b0 + q) * 4 + st;
+            float t[4];
+            ctl_mma(t, a, b, x, st);
+#pragma unroll
+            for (int e = 0; e < 4; ++e) {
+                const int m = 2 * c + (e & 1), nl = g + (e >> 1) * 8;
+                if (m < T) tp[((int64_t)kk * 16 + nl) * T + m] = t[e];
+            }
+            if (two) {
+                ctl_mma(t, a, b, y, st);
+#pragma unroll
+                for (int e = 0; e < 4; ++e) {
+                    const int m = 8 + 2 * c + (e & 1), nl = g + (e >> 1) * 8;
+                    if (m < T) tp[((int64_t)kk * 16 + nl) * T + m] = t[e];
+                }
+            }
+        }
+    }
+    // the last CTA of this tile folds t_0 .. t_{nk-1} in order
+    __shared__ int last;
+    __threadfence();
+    __syncthreads();
+    if (threadIdx.x == 0) last = atomicAdd(ctr + tile, 1) == (int)gridDim.x - 1;
+    __syncthreads();
+    if (!last) return;
+    __threadfence();
+    for (int o = threadIdx.x; o < 16 * T; o += blockDim.x) {
+        const int nl = o / T, m = o % T, n = n0 + nl;
+        if (n >= s.n) continue;
+        float acc = 0.f;
+        const float* src = tp + (int64_t)nl * T + m;
+        for (int kk = 0; kk < nk; ++kk) acc += __ldcg(src + (int64_t)kk * 16 * T);
+        s.out[(int64_t)m * s.n + n] = ik_f2b(acc);
+    }
+}
+
+int ctl_splitk_on() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_INK_BLEND_SPLITK");
+        return e && e[0] == '0' ? 0 : 1;
+    }();
+    return v;
+}
+
 int64_t rnd(int64_t v) { return (v + 255) & ~(int64_t)255; }
 
 struct BlendScratch {
@@ -438,14 +505,16 @@ struct BlendScratch {
     ik_bf16* h;
     float* ybuf;
     float* part;
-    int* ctr;
+    int* ctr;    // [tiles] controller split-K counters
+    float* tpart;  // controller split-K partials [tiles][nk][16][min(rc, 16)]
 };
 
 int64_t blend_bytes(int64_t s, int64_t r, int64_t d, int64_t g) {
     const int64_t rc = r < kBlendRows ? r : kBlendRows;
     const int64_t nsl = (d + kGateCh - 1) / kGateCh;
     return rnd(s * rc * 2 * d * 2) + rnd(s * rc * d * 4) + rnd(s * rc * g * 2) + rnd(s * rc * d * 4) + rnd(s * rc * nsl * 4) +
-           rnd(s * ((rc + kGateRows - 1) / kGateRows) * 4);
+           rnd(s * ((g + 15) / 16) * 4) +
+           rnd(s * ((g + 15) / 16) * 16 * (rc < kGateRows ? rc : kGateRows) * (2 * d / 16) * 4);
 }
 
 BlendScratch blend_carve(void* base, int64_t s, int64_t rc, int64_t d, int64_t g) {
@@ -463,6 +532,8 @@ BlendScratch blend_carve(void* base, int64_t s, int64_t rc, int64_t d, int64_t g
     b.part = (float*)p;
     p += rnd(s * rc * nsl * 4);
     b.ctr = (int*)p;
+    p += rnd(s * ((g + 15) / 16) * 4);
+    b.tpart = (float*)p;
     return b;
 }
 
@@ -472,14 +543,6 @@ int row_threads(int D, int* ne) {
     *ne = e;
     const int th = (D + e - 1) / e;
     return (th + 31) / 32 * 32;
-}
-
-int blend_fuse_on() {
-    static const int v = [] {
-        const char* e = getenv("INTARSIA_INK_BLEND_FUSE");
-        return e && e[0] == '0' ? 0 : 1;
-    }();
-    return v;
 }
 
 int row_hoist_on() {
@@ -529,24 +592,31 @@ int run_blend(RowArgs a, const ik_tensor* down, const ik_tensor* gain, const ik_
         r.t0 = t0;
         r.pair = b.pair;
         r.dbuf = b.dbuf;
-        // gate + norm in one launch for decode / verify chunks (INTARSIA_INK_BLEND_FUSE=0: the separate norm kernel)
-        const bool fuse = rc <= kGateRows && blend_fuse_on();
-        if (fuse) {
+        // controller h for decode / verify chunks: bitwise split-K (INTARSIA_INK_BLEND_SPLITK=0: ink_mma_gemv)
+        const int tiles = S * ((G + 15) / 16);
+        const bool splitk = rc <= kGateRows && (2 * D) % 64 == 0 && ctl_splitk_on();
+        if (splitk) {
             r.ctr = b.ctr;
-            r.nctr = S;
+            r.nctr = tiles;  // the split-K tile counters, zeroed by the row kernel
         }
         IK_TRY(launch_rows(r, rc, st));
         InkSegs sg{};
         sg.nseg = S;
         for (int s = 0; s < S; ++s)
             sg.s[s] = InkSeg{b.pair + (int64_t)s * rc * 2 * D, (const ik_bf16*)down->data + (int64_t)s * G * 2 * D, b.h + (int64_t)s * rc * G, G};
-        IK_TRY(ink_mma_gemv(sg, rc, 2 * D, st));
+        if (splitk) {
+            sg.t0[0] = 0;
+            for (int s2 = 0; s2 < S; ++s2) sg.t0[s2 + 1] = sg.t0[s2] + (G + 15) / 16;
+            const int nblk = 2 * D / 64, warps = (nblk + kCtlKB - 1) / kCtlKB;
+            ink_ctl_kernel<<<dim3((unsigned)((warps + 3) / 4), (unsigned)tiles), 128, 0, st>>>(sg, rc, 2 * D, b.tpart, b.ctr);
+            IK_TRY(ik_launch_status());
+        } else {
+            IK_TRY(ink_mma_gemv(sg, rc, 2 * D, st));
+        }
         const dim3 gg((unsigned)nsl, (unsigned)S, (unsigned)((rc + kGateRows - 1) / kGateRows));
         ink_blend_gate_kernel<<<gg, kGateCh, 0, st>>>(b.h, (const ik_bf16*)gain->data, (const ik_bf16*)forget->data, b.dbuf, a.msg, b.ybuf,
-                                                     b.part, rc, T, t0, D, G, fuse ? b.ctr : nullptr, (const ik_bf16*)norm->data,
-                                                     (ik_bf16*)out->data, a.eps);
+                                                     b.part, rc, T, t0, D, G);
         IK_TRY(ik_launch_status());
-        if (fuse) continue;
         ink_blend_norm_kernel<<<dim3((unsigned)rc, (unsigned)S), 256, 0, st>>>(b.ybuf, b.part, (const ik_bf16*)norm->data,
                                                                                 (ik_bf16*)out->data, rc, T, t0, D, nsl, a.eps);
         IK_TRY(ik_launch_status());

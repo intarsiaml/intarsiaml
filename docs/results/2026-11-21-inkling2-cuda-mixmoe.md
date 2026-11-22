@@ -233,6 +233,13 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   reaches ~8+ CTAs per call -> build it (bitwise, default-on allowed, gate as option 1), skip the ring; (2) N too narrow ->
   split-K opt-in, default off (G2 / G3, md5 drift, prefill 2k / 8k gates; default-on is the user's call), optionally the
   bitwise ring as default meanwhile if it fits in ~half a day. Gate + norm fuse first.
+- (coordinator, 31st) Merge `ink/cuda-mtp` at `427652506` into this branch now (this branch is the CUDA integration line): DSpark
+  drafter on CUDA (`--spec dflash --spec-draft <dir>`) and the verify graph, default-on for Inkling on CUDA only
+  (`INTARSIA_VERIFY_GRAPH=0` reverts; cuda-attn gate #11418 passed). Watch `model.rs` (spec admission) and `load.rs` (mtp lane's
+  allow-list fix); keep both intents, stop and report if a conflict is not mechanical. Then in a fleetq slot: (1) build, ink_rows,
+  tiny tests (cuda + cpu), verify-graph test; (2) greedy md5 64 / 256 / 1.2k spec off (must stay `a0e6f47bc45f` etc.); (3) spec-on
+  md5 and tok/s with the verify graph default-on; (4) serve smoke at 1k and 9k. Send the merge hash and numbers; the gate + norm
+  fuse and split-N work continue after.
 
 # Inkling-2-Mini CUDA in-projection, mix / conv and MoE kernels (lane ink-cuda-mixmoe, spark2 GB10)
 
@@ -713,3 +720,13 @@ warp each; 24 + 24 calls / token). No-math, shipped register loads:
 
 Spreading the same warps over more SMs gains 5-12 %: each warp's serial load chain (147 KB over 288 k-steps) is the limit,
 not the SM. N is too narrow -> rule 2: split-K as an opt-in (default off), after the gate + norm fuse.
+
+### Gate + norm fuse (brief 30 step 1): slower, removed
+
+`2a876a6a0` folded `ink_blend_norm_kernel` into the gate kernel (last slice block of each (stream, row block) sums the slice
+partials and writes the normed rows: same sums, same order, bitwise). Gate (fleetq `--quiet gpu,cpu`, `.scratch/fusegate.sh`):
+greedy md5 `a0e6f47bc45f` both ways, but decode 36.11 / 35.91 / 36.14 tok/s fuse off vs 35.55 / 35.75 / 35.80 fuse on (#11425), and `ink_bench
+mix` T=4 loop_blend 30.7 -> 41.0 us (S=1), conv_mix 36.9 -> 47.2 us; T=1 unchanged. Cause: the last block does the norm for up
+to 16 rows x D = 2304 with one CTA after a serial thread-0 partial sum, a tail longer than the launch it saves: nsys (64 tokens) gate 10.1 us + norm 5.3 us
+per call unfused vs 20.3 us fused (3072 calls). Removed in the
+next commit (no env switch left).

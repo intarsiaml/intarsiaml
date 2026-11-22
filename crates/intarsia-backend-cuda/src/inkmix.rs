@@ -44,7 +44,8 @@ pub fn blend_bytes(s: usize, r: usize, d: usize, g: usize) -> usize {
     let rc = r.min(BLEND_ROWS);
     let nsl = d.div_ceil(GATE_CH);
     rnd(s * rc * 2 * d * 2) + rnd(s * rc * d * 4) + rnd(s * rc * g * 2) + rnd(s * rc * d * 4) + rnd(s * rc * nsl * 4)
-        + rnd(s * rc.div_ceil(GATE_ROWS) * 4)
+        + rnd(s * g.div_ceil(16) * 4)
+        + rnd(s * g.div_ceil(16) * 16 * rc.min(GATE_ROWS) * (2 * d / 16) * 4)
 }
 
 /// ConvMix: the blend's scratch at its bounds (S and G are not in `ShapeInfo`): 3 streams, rank 128.
