@@ -404,7 +404,31 @@ impl MetalBackend {
                         Grid::Groups { x: r, y: 1, threads: ARGMAX_V4_THREADS },
                     );
                 }
+                // V % 4 != 0 (Inkling-2's unpadded 200058-row head): the float4 form with each row's unaligned head and tail
+                // done by single loads, the same result (lowest index of the maximum); 172 us -> see kernels/metal/dense_ops.metal
+                if kernel == ARGMAX_F32 && l.skip == 0 && l.off % 16 == 0 && argmax_v4t_enabled() {
+                    return self.dispatch(
+                        ARGMAX_F32_V4T,
+                        &[&l, &out],
+                        &p,
+                        Grid::Groups { x: r, y: 1, threads: ARGMAX_V4_THREADS },
+                    );
+                }
                 self.dispatch(kernel, &[&l, &out], &p, Grid::Groups { x: r, y: 1, threads: ROW_THREADS })
+            }
+            // the device sampler (lane ink-hostgap): one threadgroup per row, the cap in f0 (0 = no softcap)
+            GUMBEL_ARGMAX_F32 => {
+                let (r, v) = (i[0].shape[0], i[0].shape[1]);
+                if r == 0 {
+                    return Ok(());
+                }
+                let (l, keys, out) = (
+                    self.bind(&i[0], DType::F32, false, "logits")?,
+                    self.bind(&i[1], DType::I32, false, "keys")?,
+                    self.bind(&o[0], DType::I32, true, "out")?,
+                );
+                let p = OpP { dims: [dim(v, "V")?, 0, 0, 0, 0, 0, 0, 0], f0: a.scale, ..Default::default() };
+                self.dispatch(kernel, &[&l, &keys, &out], &p, Grid::Groups { x: r, y: 1, threads: ARGMAX_V4_THREADS })
             }
             ATTN_PREFILL_BF16 | ATTN_DECODE_BF16 => {
                 let (t, n, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);

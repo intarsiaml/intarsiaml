@@ -132,6 +132,8 @@ pub const TABLE: &[(&str, Op)] = &[
 /// The DeepSeek-V4.1 ops (lane 1a, `intarsia_core::dsv41::ops::OPS`) are not ported: the model is CUDA-first (TP=2 over two Sparks).
 pub const UNIMPLEMENTED: &[Op] = &[
     Op::Sample,
+    // the device sampler (lane ink-hostgap): cpu and Metal only, HIP keeps the host sampler (`Model::gumbel_ok`)
+    Op::GumbelArgmax,
     Op::MatmulExl3,
     Op::RopeScaled,
     Op::AddBias,
@@ -166,7 +168,13 @@ pub const UNIMPLEMENTED: &[Op] = &[
     Op::InkInProj,
     Op::ConvMix,
     Op::InkAttnDecode,
+    // the screened greedy head (lane ink-fp8): cpu and Metal only
+    Op::HeadScreen,
+    Op::LogitsGather,
+    Op::ScreenArgmax,
     Op::InkRoute,
+    // lossless 12-bit weights (lane ink-pack12): cpu and Metal only
+    Op::MatmulP12,
 ];
 
 /// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the
@@ -575,7 +583,8 @@ mod tests {
         let names: HashSet<_> = table.iter().map(|(n, _)| *n).collect();
         assert_eq!(names.len(), table.len());
         // every op is either implemented here or listed as not ported yet
-        for op in Op::ALL {
+        // the reserved placeholder discriminants (`Op::is_reserved`) are exempt
+        for op in Op::ALL.into_iter().filter(|o| !o.is_reserved()) {
             let have = table.iter().any(|(_, o)| *o == op);
             assert!(have != UNIMPLEMENTED.contains(&op), "{op}: implemented = {have}, listed unimplemented = {}", UNIMPLEMENTED.contains(&op));
         }

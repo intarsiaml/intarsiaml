@@ -356,8 +356,9 @@ impl Model {
             HeadMode::LastTopK(k) => self.topk.is_some() && (1..=Self::TOPK_MAX).contains(&k) && k < self.dims.vocab,
             _ => false,
         };
-        if !matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) && !topk_ok {
-            return Err(Error::invalid("forward_batch rows return logits, a token or (device sampling) the top-k"));
+        let gumbel_ok = matches!(mode, HeadMode::LastGumbel(_)) && self.gumbel_ok();
+        if !matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) && !topk_ok && !gumbel_ok {
+            return Err(Error::invalid("forward_batch rows return logits, a token, (device sampling) the top-k or a device-sampled token"));
         }
         Self::check_forward(st, &[id], if topk_ok { HeadMode::LastLogits } else { mode }, false)?;
         if st.has_recurrent() && !self.recurrent_batch {
@@ -415,15 +416,34 @@ impl Model {
         if !self.peers.is_empty() {
             return self.forward_batch_tp(states, ids, modes, profile);
         }
+        // device-sampled rows (lane ink-hostgap): every row's key, written before the step (a row that is not device-sampled
+        // gets a zero key; its draw is never read). The keys hold the row's own position, never its batch slot, so the draw
+        // is the solo step's.
+        let gumbel = modes.iter().any(|m| matches!(m, HeadMode::LastGumbel(_)));
+        if gumbel {
+            let g = self.gumbel_bufs().ok_or_else(|| Error::invalid("LastGumbel rows without the device sampler"))?;
+            let keys: Vec<u8> = (0..b)
+                .flat_map(|r| match modes[r] {
+                    HeadMode::LastGumbel(h) => h.key(states[r].len + 1),
+                    _ => [0; 4],
+                })
+                .flat_map(i32::to_le_bytes)
+                .collect();
+            self.backend.upload(&g.batch_keys, 0, &keys, self.stream)?;
+        }
         self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         let run = (|| -> Result<()> {
             let refs: Vec<&SequenceState> = states.iter().map(|s| &**s).collect();
-            if !profile && self.graph_batch_step(&refs, ids)? {
+            if !gumbel && !profile && self.graph_batch_step(&refs, ids)? {
                 return Ok(());
             }
             self.upload_row_table(&refs)?;
             let hn = self.run_layers(Seqs::Batch(&refs), ids, profile, None, true, None)?;
-            self.batch_head(&hn, b, profile)
+            self.batch_head(&hn, b, profile)?;
+            if gumbel {
+                self.batch_gumbel(b, profile)?;
+            }
+            Ok(())
         })();
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         if run.is_err() && self.ink.is_some() {
@@ -461,6 +481,11 @@ impl Model {
         if modes.contains(&HeadMode::LastArgmax) {
             self.backend.download(tok, 0, &mut toks, self.stream)?;
         }
+        let mut gtoks = vec![0u8; b * 4];
+        if modes.iter().any(|m| matches!(m, HeadMode::LastGumbel(_))) {
+            let g = self.gumbel_bufs().ok_or_else(|| Error::invalid("LastGumbel rows without the device sampler"))?;
+            self.backend.download(&g.batch_tok, 0, &mut gtoks, self.stream)?;
+        }
         // device-side sampling (R3b): the top-k of every row that asked, one kernel for the step, three small downloads
         let kmax = modes.iter().filter_map(|m| if let HeadMode::LastTopK(k) = m { Some(*k) } else { None }).max().unwrap_or(0);
         let top = if kmax > 0 { Some(self.batch_topk(b, kmax)?) } else { None };
@@ -491,6 +516,10 @@ impl Model {
                 out.push(match modes[r] {
                     HeadMode::LastArgmax => {
                         let c = &toks[r * 4..r * 4 + 4];
+                        StepOut::Token(i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32)
+                    }
+                    HeadMode::LastGumbel(_) => {
+                        let c = &gtoks[r * 4..r * 4 + 4];
                         StepOut::Token(i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32)
                     }
                     HeadMode::LastTopK(k) if top.as_ref().is_some_and(|t| t.2[r] == 0) => {
@@ -806,6 +835,16 @@ impl Model {
     /// logits sees the replicated head's layout. A peer stops after the gather. Each logit is the row-exact kernel's dot
     /// product of one head row with one input row, the same kernel as for the full head (`Model::check_vocab_split` covers
     /// the batched row counts), so the bits are the replicated head's; and per row the one-row kernel's, the solo step's.
+    /// The device sampler over a batched step's `[b, V]` logits in `ws.logits` with the keys `forward_batch` uploaded: one
+    /// `GumbelArgmax` for every row (one threadgroup per row on Metal, so a row's draw does not depend on `b`).
+    fn batch_gumbel(&self, b: usize, profile: bool) -> Result<()> {
+        let g = self.gumbel_bufs().ok_or_else(|| Error::invalid("LastGumbel rows without the device sampler"))?;
+        let logits = self.view(&self.ws.logits, DType::F32, &[b, self.dims.vocab]);
+        let keys = self.view(&g.batch_keys, DType::I32, &[b, 4]);
+        let tok = self.view(&g.batch_tok, DType::I32, &[b]);
+        self.exec(Op::GumbelArgmax, vec![logits, keys], vec![tok], OpAttrs { scale: self.softcap_cap(), ..OpAttrs::default() }, profile)
+    }
+
     pub(super) fn batch_head(&self, hn: &TensorRef, b: usize, profile: bool) -> Result<()> {
         let v = self.dims.vocab;
         if self.vocab_par {
@@ -1143,6 +1182,7 @@ impl Model {
         let mut plan = self.plan.clone();
         plan.workspace_bytes = bytes;
         let mut t = Model {
+            head_p12: self.head_p12.clone(),
             backend: self.backend.clone(),
             registry,
             dims: self.dims.clone(),
@@ -1159,6 +1199,7 @@ impl Model {
             lm_head: self.lm_head.clone(),
             draft_head: None,
             draft_map: None,
+            head_screen: None,
             layers: self.layers.clone(),
             gemma: None,
             ink: None,
@@ -1191,6 +1232,7 @@ impl Model {
             remote: None,
             tp_aborted: std::sync::atomic::AtomicBool::new(false),
             exact_rows: std::sync::atomic::AtomicBool::new(false),
+            verify_tokens_only: std::sync::atomic::AtomicBool::new(false),
             prefill_inv: std::sync::atomic::AtomicBool::new(false),
             inv_on: std::sync::atomic::AtomicBool::new(self.row_invariant_prefill()),
             reuse_exact: std::sync::atomic::AtomicBool::new(self.reuse_exact.load(std::sync::atomic::Ordering::Relaxed)),
@@ -1214,6 +1256,7 @@ impl Model {
             row_tab: None,
             batch_pos: None,
             topk: None,
+            gumbel: std::sync::OnceLock::new(),
             batch_tile: None,
             tp_batch_mutant: std::sync::atomic::AtomicU8::new(0),
             coll_trace: super::coll_trace::CollTrace::new(false),

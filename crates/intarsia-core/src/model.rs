@@ -410,7 +410,55 @@ pub enum HeadMode {
     /// and their token ids, in the sampler's order (`StepOut::TopK`), instead of the whole `[V]` row. Exact for a sampler with
     /// `top_k == k`: `Sampler::sample_topk` draws the token host sampling would.
     LastTopK(usize),
+    /// Device sampler (`INTARSIA_GUMBEL_SAMPLING=1`, lane ink-hostgap): the token of the last position drawn on the device by
+    /// Gumbel-max (`Op::GumbelArgmax`, `crate::gumbel`), 4 bytes back like `LastArgmax`. For plain-temperature rows only
+    /// ([`Model::gumbel_ok`], `Seq::head_mode`).
+    LastGumbel(GumbelHead),
 }
+
+/// The per-request part of a device-sampled row's key (`HeadMode::LastGumbel`): the seed and `1 / T` as f32 bits. The
+/// position completes it per token ([`GumbelHead::key`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GumbelHead {
+    pub seed: u64,
+    pub inv_t: u32,
+}
+
+impl GumbelHead {
+    pub fn new(seed: u64, temperature: f32) -> GumbelHead {
+        GumbelHead { seed, inv_t: (1.0 / temperature).to_bits() }
+    }
+
+    /// The `GumbelArgmax` key of the token at absolute position `pos` (the number of tokens before it), as
+    /// `gumbel::key_row(seed, pos, T)` builds it.
+    pub fn key(&self, pos: usize) -> [i32; 4] {
+        [self.seed as u32 as i32, (self.seed >> 32) as u32 as i32, pos as u32 as i32, self.inv_t as i32]
+    }
+}
+
+/// The device sampler's buffers ([`Model::gumbel_ok`]): the key table of the request being decoded and the batched step's
+/// keys and tokens.
+pub(crate) struct GumbelBufs {
+    /// Keys `i32 [rows, 4]` of positions `lo .. lo + rows` of one request (`head`), written before the request's first
+    /// device-sampled step ([`Model::gumbel_prepare`]) and only read after: a feedback step encoded while the one before runs
+    /// reads its own row, so no write can race a kernel that has not run yet.
+    table: Mutex<GumbelTable>,
+    /// A batched step's keys `i32 [BATCH_MAX_ROWS, 4]` (uploaded before the step) and tokens `i32 [BATCH_MAX_ROWS]`.
+    batch_keys: Buffer,
+    batch_tok: Buffer,
+}
+
+#[derive(Default)]
+struct GumbelTable {
+    buf: Option<Buffer>,
+    cap_rows: usize,
+    head: Option<GumbelHead>,
+    lo: usize,
+    rows: usize,
+}
+
+/// Rows the key table is filled with when a plain step finds its position outside it (feedback steps never refill).
+const GUMBEL_TABLE_ROWS: usize = 4096;
 
 /// What a solo verify pass reads back of its rows besides the greedy tokens ([`Model::forward_verify_run`]).
 enum VerifyRead<'a> {
@@ -443,9 +491,17 @@ thread_local! {
 /// At most this many rows wait in this thread's logits pool.
 const LOGITS_POOL_MAX: usize = 8;
 
-/// A logits row of the f32 little-endian `bytes`, in a vector of this thread's pool when one is there.
+/// Rows recycled on a host pool worker (batched rows accepted on the pool, `Scheduler::accept_rows`), for the step's thread
+/// to take back: a worker never downloads logits, so its own pool would only hold them. At most [`LOGITS_SPILL_MAX`].
+static LOGITS_SPILL: std::sync::Mutex<Vec<Vec<f32>>> = std::sync::Mutex::new(Vec::new());
+const LOGITS_SPILL_MAX: usize = 64;
+
+/// A logits row of the f32 little-endian `bytes`, in a vector of this thread's pool (or the pool workers' spill) when one is there.
 pub(crate) fn logits_row(bytes: &[u8]) -> Vec<f32> {
-    let mut out = LOGITS_POOL.with(|p| p.borrow_mut().pop()).unwrap_or_default();
+    let mut out = LOGITS_POOL
+        .with(|p| p.borrow_mut().pop())
+        .or_else(|| LOGITS_SPILL.lock().unwrap_or_else(|e| e.into_inner()).pop())
+        .unwrap_or_default();
     out.clear();
     out.extend(bytes.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])));
     out
@@ -454,6 +510,13 @@ pub(crate) fn logits_row(bytes: &[u8]) -> Vec<f32> {
 /// Hand a logits row ([`StepOut::Logits`]) back once it is read, for [`logits_row`] to reuse on this thread.
 pub fn recycle_logits(v: Vec<f32>) {
     if v.capacity() == 0 {
+        return;
+    }
+    if crate::par::on_worker() {
+        let mut s = LOGITS_SPILL.lock().unwrap_or_else(|e| e.into_inner());
+        if s.len() < LOGITS_SPILL_MAX {
+            s.push(v);
+        }
         return;
     }
     LOGITS_POOL.with(|p| {
@@ -552,6 +615,9 @@ pub struct Model {
     /// Replicated head: only rank 0 holds it (and runs the final norm's consumer), the other ranks stop after the last layer.
     /// Vocab-parallel head (`vocab_par`): every rank holds its `V / world` rows of it.
     lm_head: Option<QTensor>,
+    /// Inkling-2, `INTARSIA_INK_PACK12` (lane ink-pack12; lossless; default on Metal): the bf16 unembed rows as P12 too, run
+    /// by every head group the backend admits (all of them are 1..=16 rows); the bf16 view stays for the rest.
+    head_p12: Option<QTensor>,
     /// The lm_head is split over the ranks by vocabulary rows (`LoadOptions::tp_vocab`): every rank runs its half and the
     /// halves are all-gathered into rank 0's `ws.logits`.
     vocab_par: bool,
@@ -560,6 +626,8 @@ pub struct Model {
     draft_head: Option<QTensor>,
     /// `--mtp-draft-subset`: the token id of each `draft_head` row (lane dsubset).
     draft_map: Option<DraftMap>,
+    /// `INTARSIA_INK_HEAD_SCREEN=1` (lane ink-fp8, opt-in): the screened greedy head's fp8 copy, bounds and workspace.
+    head_screen: Option<HeadScreenW>,
     layers: Arc<Vec<Vec<Block>>>,
     /// Scratch of the Gemma 4 layers (`None` for every other model).
     gemma: Option<GemmaWs>,
@@ -627,6 +695,8 @@ pub struct Model {
     /// Set for the duration of a speculative verify pass ([`Model::forward_verify`]): every op call is marked
     /// `OpCall::exact_rows`, so the registry gives it a row-exact kernel (or fails). Never set otherwise.
     exact_rows: std::sync::atomic::AtomicBool,
+    /// The running verify reads only the tokens (`VerifyRead::None`), so the screened greedy head may serve it (lane ink-fp8).
+    verify_tokens_only: std::sync::atomic::AtomicBool,
     /// Inside [`Model::forward_prefill`] with row-invariant prefill on: every call of the pass carries `OpCall::prefill_inv`, so
     /// the registry gives it a `row_invariant` kernel (or fails). Never set otherwise.
     prefill_inv: std::sync::atomic::AtomicBool,
@@ -691,6 +761,9 @@ pub struct Model {
     /// Device-side top-k sampling buffers (R3b): ids `i32 [BATCH_MAX_ROWS, 64]`, values `f32 [..]`, NaN flags `i32 [BATCH_MAX_ROWS]`
     /// and the kernel's scratch. `Some` when the backend has `topk_rows` and `INTARSIA_DEVICE_SAMPLING` is not `0` (default on).
     topk: Option<TopkBufs>,
+    /// The device sampler (`INTARSIA_GUMBEL_SAMPLING=1`, lane ink-hostgap): decided and allocated on first use
+    /// ([`Model::gumbel_ok`]); `None` inside when it is off or the model cannot run it.
+    gumbel: std::sync::OnceLock<Option<GumbelBufs>>,
     /// Batched decode with a vocab-parallel head (`vocab_par`, every rank): the gather tile `f32 [world, BATCH_MAX_ROWS * V /
     /// world]`, rank-major as the all-gather leaves it; rank 0 then copies it into `ws.logits` as row-major `[b, V]`
     /// ([`Model::batch_head`]). Allocated by [`Model::enable_batch`].
@@ -1093,7 +1166,33 @@ impl Model {
             // the rows this rank's head covers
             let (n, axis) = if vocab_par { (vh, Some(ShardAxis::Rows)) } else { (dims.vocab, None) };
             if let Some(ik) = &dims.ink {
-                // Inkling-2: the first `unpadded_vocab_size` rows of the padded bf16 unembed (a view, a16)
+                // Inkling-2: the first `unpadded_vocab_size` rows of the padded bf16 unembed (a view, a16); with a head quant
+                // (opt-in, lane ink-fp8) those rows quantised, so the padded rows never set the fp8 scale
+                if let Some(kind) = head_quant {
+                    let nm = resolve(src, &lh.tensor)?;
+                    let i = src.info(&nm).ok_or_else(|| Error::model(format!("lm_head tensor '{nm}' missing")))?;
+                    if i.shape != [ik.vocab_padded, dims.hidden] || !matches!(i.dtype, DType::Bf16 | DType::F16 | DType::F32) {
+                        return Err(Error::model(format!("{}: inkling2 unembed is {} {:?}", crate::quant::head::ENV, i.dtype, i.shape)));
+                    }
+                    let t0 = std::time::Instant::now();
+                    let all = &src.bytes(&nm)?[..dims.vocab * dims.hidden * i.dtype.size_bytes()];
+                    let q = crate::quant::head::load_rows(kind, b, i.dtype, all, dims.vocab, 0, dims.vocab, dims.hidden)?;
+                    weights_bytes.set(weights_bytes.get() + q.weight_bytes() as u64);
+                    let note = format!(
+                        "lm_head quantised to {} ({} of {} unembed rows x {}, {:.2} GB; {} = {}, {:.1} s)",
+                        kind.name(),
+                        dims.vocab,
+                        ik.vocab_padded,
+                        dims.hidden,
+                        q.weight_bytes() as f64 / 1e9,
+                        crate::quant::head::ENV,
+                        kind.name(),
+                        t0.elapsed().as_secs_f64()
+                    );
+                    eprintln!("{note}");
+                    *head_quant_note.borrow_mut() = Some(note);
+                    return Ok(Some(q));
+                }
                 let t = load(&lh.tensor, 0, Some(&[ik.vocab_padded, dims.hidden]))?;
                 return Ok(Some(dense(t.rows(0, dims.vocab), dims.vocab)));
             }
@@ -1170,6 +1269,71 @@ impl Model {
                 load_head(false)?
             }
             r => r?,
+        };
+        // the lossless 12-bit copy of the Inkling-2 unembed (lane ink-pack12): the replicated bf16 head only
+        let head_p12 = match (&dims.ink, &lm_head) {
+            (Some(_), Some(h)) if crate::quant::p12::enabled(b) && head_quant.is_none() && !vocab_par && h.format == crate::quant::BF16 => {
+                let nm = resolve(src, &lh.tensor)?;
+                let i = src.info(&nm).ok_or_else(|| Error::model(format!("lm_head tensor '{nm}' missing")))?;
+                if i.dtype != DType::Bf16 {
+                    None
+                } else {
+                    let mut st = inkling2::P12Stats::default();
+                    let q = st.pack(b, &src.bytes(&nm)?[..dims.vocab * dims.hidden * 2], dims.vocab, dims.hidden)?;
+                    weights_bytes.set(weights_bytes.get() + st.bytes as u64);
+                    eprintln!("{}", st.note(&format!("unembed ({} rows)", dims.vocab)));
+                    Some(q)
+                }
+            }
+            _ => None,
+        };
+
+        // the screened greedy head (lane ink-fp8, opt-in; crate::screen): an fp8 copy of the bf16 head and its row bounds
+        let head_screen = if std::env::var(crate::screen::ENV).is_ok_and(|v| v.trim() == "1") {
+            let reason = if dims.ink.is_none() {
+                Some("only Inkling-2 has it")
+            } else if tp.rank != 0 || vocab_par {
+                Some("not with a sharded head")
+            } else if head_quant.is_some() {
+                Some("the head itself is quantised (INTARSIA_LMHEAD_QUANT)")
+            } else {
+                None
+            };
+            match reason {
+                Some(r) => {
+                    eprintln!("{}: off ({r})", crate::screen::ENV);
+                    None
+                }
+                None => {
+                    let t0 = std::time::Instant::now();
+                    let nm = resolve(src, &lh.tensor)?;
+                    let i = src.info(&nm).ok_or_else(|| Error::model(format!("lm_head tensor '{nm}' missing")))?;
+                    let (v, d) = (dims.vocab, dims.hidden);
+                    let all = &src.bytes(&nm)?[..v * d * i.dtype.size_bytes()];
+                    let hq = crate::quant::head::quantize_host(crate::quant::head::HeadQuant::Fp8, i.dtype, all, v, d, 0, v)?;
+                    let sc = hq.parts[1].to_f32()[0];
+                    let beta = crate::screen::row_bounds(i.dtype, all, &hq.parts[0].data, sc, v, d)?;
+                    let cap = std::env::var(crate::screen::CAP_ENV).ok().and_then(|c| c.trim().parse().ok()).filter(|&c: &usize| c >= 1).unwrap_or(crate::screen::CAP_DEFAULT);
+                    let rows = 16usize; // decode, verify (<= 16 rows)
+                    let q = hq.upload(b)?;
+                    let bb: Vec<u8> = beta.iter().flat_map(|x| x.to_le_bytes()).collect();
+                    let beta = TensorRef::new(crate::backend::upload_new(b, &bb)?, DType::F32, &[v]);
+                    let a = b.alloc(rows * v * 4, MemKind::Device)?;
+                    let cand = b.alloc(rows * cap * 4, MemKind::Device)?;
+                    let cnt = b.alloc(rows * 4 + 16, MemKind::Device)?;
+                    let added = q.weight_bytes() as u64 + bb.len() as u64;
+                    weights_bytes.set(weights_bytes.get() + added);
+                    eprintln!(
+                        "{}: screened greedy head on (fp8 copy {:.2} GB + bounds, cap {cap}, {:.1} s)",
+                        crate::screen::ENV,
+                        added as f64 / 1e9,
+                        t0.elapsed().as_secs_f64()
+                    );
+                    Some(HeadScreenW { q, beta, a, cand, cnt, cap, rows, ok: std::sync::OnceLock::new(), served: Default::default() })
+                }
+            }
+        } else {
+            None
         };
 
         // scaled rotary embedding: the finished frequency table, uploaded once (rotary_dim as the attention blocks resolve it)
@@ -1585,7 +1749,15 @@ impl Model {
                 let names = inkling2::InkNames { layer: field("prefix")?, root: field("root")? };
                 let mut nbytes = 0u64;
                 let t0 = Instant::now();
-                let m = inkling2::load(b, src, dims, &names, act, mt, &mut slot_specs, &mut nbytes)?;
+                // opt-in quantised attention projections (lane ink-fp8): the variable wins over the recipe
+                let attn_quant = {
+                    let env = std::env::var(inkling2::ATTN_QUANT_ENV).ok();
+                    crate::quant::head::HeadQuant::resolve(env.as_deref(), recipe.ink_attn_quant(backend.name()))?
+                };
+                if let Some(k) = attn_quant {
+                    eprintln!("inkling2: attention projections quantised to {} at load ({} = {}; changes outputs)", k.name(), inkling2::ATTN_QUANT_ENV, k.name());
+                }
+                let m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, &mut slot_specs, &mut nbytes)?;
                 weights_bytes.set(weights_bytes.get() + nbytes);
                 eprintln!("inkling2: {} layers, {} visits, {} state slots, loaded in {:.1} s", m.layers.len(), m.visits.len(), slot_specs.len(), t0.elapsed().as_secs_f64());
                 layers = (0..dims.n_layers).map(|li| vec![Block::Ink(li)]).collect();
@@ -1884,6 +2056,9 @@ impl Model {
         let inv_want = opts.row_invariant_prefill.or_else(row_invariant_override).unwrap_or_else(|| b.row_invariant_prefill())
             && slot_specs.iter().all(|s| matches!(s, SlotSpec::AttnKv { .. }))
             && tp.world == 1;
+        // the host pool for the logits row work (soft-cap, sampler): on for Inkling-2 by default, off for every other model until its
+        // own gates pass (lane ink-hostgap; `INTARSIA_HOST_THREADS` sets it for every model)
+        crate::par::set_model_default(ink_model.is_some());
         let mut model = Model {
             backend,
             registry,
@@ -1899,8 +2074,10 @@ impl Model {
             embed,
             final_norm,
             lm_head,
+            head_p12,
             draft_head,
             draft_map,
+            head_screen,
             layers: Arc::new(layers),
             gemma: gemma_ws,
             ink: ink_model,
@@ -1934,6 +2111,7 @@ impl Model {
             remote: None,
             tp_aborted: std::sync::atomic::AtomicBool::new(false),
             exact_rows: std::sync::atomic::AtomicBool::new(false),
+            verify_tokens_only: std::sync::atomic::AtomicBool::new(false),
             prefill_inv: std::sync::atomic::AtomicBool::new(false),
             inv_on: std::sync::atomic::AtomicBool::new(inv_want),
             reuse_exact: std::sync::atomic::AtomicBool::new(false),
@@ -1957,6 +2135,7 @@ impl Model {
             row_tab: None,
             batch_pos: None,
             topk: None,
+            gumbel: std::sync::OnceLock::new(),
             batch_tile: None,
             tp_batch_mutant: std::sync::atomic::AtomicU8::new(0),
             coll_trace: coll_trace::CollTrace::new(std::env::var("INTARSIA_TP_COLL_TRACE").is_ok_and(|v| v == "1")),
@@ -2355,11 +2534,13 @@ impl Model {
             Err(e) => Err(e),
             Ok(None) => {
                 self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+                self.verify_tokens_only.store(matches!(rows, VerifyRead::None), std::sync::atomic::Ordering::Relaxed);
                 let run = (|| -> Result<TensorRef> {
                     let hn = self.run_chunk(st, ids, profile)?;
                     self.verify_head(&hn, q, profile)?;
                     Ok(hn)
                 })();
+                self.verify_tokens_only.store(false, std::sync::atomic::Ordering::Relaxed);
                 self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
                 run
             }
@@ -2792,6 +2973,13 @@ impl Model {
                 }
             }
         } else {
+            // tokens only (`VerifyRead::None`): the screened greedy head when it is on (`INTARSIA_INK_HEAD_SCREEN`)
+            if self.verify_tokens_only.load(std::sync::atomic::Ordering::Relaxed) {
+                let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("verify head without its buffer"))?;
+                if self.screened_argmax(&hn.rows(0, q), q, &self.view(tok, DType::I32, &[q]), profile)? {
+                    return Ok(());
+                }
+            }
             let logits = self.view(&self.ws.logits, DType::F32, &[q, v]);
             self.proj(&hn.rows(0, q), self.head()?, &logits, profile)?;
         }
@@ -3134,6 +3322,13 @@ impl Model {
         on_row: Option<RowCallback<'_>>,
     ) -> Result<StepOut> {
         let pos = st.len;
+        if let HeadMode::LastGumbel(h) = mode {
+            if !self.gumbel_ok() {
+                return Err(Error::invalid("HeadMode::LastGumbel on a model without the device sampler (Model::gumbel_ok)"));
+            }
+            // the key of the pass's sampled token (position st.len + ids.len()), written now, before anything is in flight
+            self.gumbel_cover(h, pos + ids.len(), true)?;
+        }
         self.det_tap_begin();
         let r = if self.remote.is_some() {
             self.forward_remote(st, ids, mode, on_row)
@@ -3676,6 +3871,9 @@ impl Model {
                     let head = match mode {
                         HeadMode::LastLogits if last => self.head_logits(&hn, total - 1, 1, profile).map(|l| out = StepOut::Logits(l)),
                         HeadMode::LastArgmax if last => self.head_argmax(&hn, total - 1, profile).map(|t| out = StepOut::Token(t)),
+                        HeadMode::LastGumbel(h) if last => {
+                            self.head_gumbel(&hn, total - 1, h, st.len + total, profile).map(|t| out = StepOut::Token(t))
+                        }
                         _ => Ok(()),
                     };
                     if let Err(e) = head {
@@ -3706,13 +3904,13 @@ impl Model {
             ci += 1;
             let base = st.len;
             let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
-            if ids.len() == 1 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax) {
+            if ids.len() == 1 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_)) {
                 self.telemetry.decode_eager_step(profile);
             }
             // a chunk whose rows feed no head: the last layer's work after its cache writes is dead (opt-in)
             let feeds_head = match mode {
                 HeadMode::None => false,
-                HeadMode::LastLogits | HeadMode::LastArgmax => last,
+                HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_) => last,
                 HeadMode::AllLogits => true,
                 HeadMode::LastTopK(_) => false, // rejected by check_forward
             };
@@ -3730,6 +3928,9 @@ impl Model {
                 }
                 HeadMode::LastArgmax if last => {
                     out = StepOut::Token(self.head_argmax(&hn, chunk.len() - 1, profile)?);
+                }
+                HeadMode::LastGumbel(h) if last => {
+                    out = StepOut::Token(self.head_gumbel(&hn, chunk.len() - 1, h, base + chunk.len(), profile)?);
                 }
                 HeadMode::AllLogits => {
                     let cb = on_row.as_mut().unwrap();
@@ -3762,7 +3963,7 @@ impl Model {
     fn macro_plan(&self, st: &SequenceState, chunks: &[&[u32]], mode: HeadMode) -> (usize, usize) {
         if self.macro_rows == 0
             || chunks.len() < 2
-            || !matches!(mode, HeadMode::None | HeadMode::LastLogits | HeadMode::LastArgmax)
+            || !matches!(mode, HeadMode::None | HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_))
             || !st.has_recurrent()
             || !self.pack_capable()
         {
@@ -5455,6 +5656,13 @@ impl Model {
         if self.recorder.lock().unwrap().is_some() {
             return Ok(Vec::new());
         }
+        if crate::hostprof::enabled() {
+            // host profile: the wait for the step on its own (`download` then finds nothing pending)
+            let _w = crate::hostprof::span(crate::hostprof::Cat::Sync);
+            self.backend.synchronize(self.stream)?;
+            crate::hostprof::mark_sync_end();
+        }
+        let _tail = crate::hostprof::span(crate::hostprof::Cat::StepTail);
         // the reused download buffer and pooled row of the decode paths (`with_logits_bytes`; eager one-row decode steps land here)
         let mut out = with_logits_bytes(c * v * 4, |bytes| -> Result<Vec<f32>> {
             self.backend.download(&self.ws.logits, 0, bytes, self.stream)?;
@@ -5471,6 +5679,7 @@ impl Model {
                 }
             }
         }
+        let _cap = crate::hostprof::span(crate::hostprof::Cat::Softcap);
         self.softcap_logits(&mut out);
         Ok(out)
     }
@@ -5478,9 +5687,8 @@ impl Model {
     /// Gemma 4 final logit soft-capping; monotonic, so the device argmax of `head_argmax` is unaffected.
     pub(super) fn softcap_logits(&self, out: &mut [f32]) {
         if let Some(cap) = self.dims.gemma.as_ref().map(|g| g.softcap).or(self.dims.ink.as_ref().map(|i| i.softcap)).filter(|&c| c > 0.0) {
-            for x in out.iter_mut() {
-                *x = cap * (*x / cap).tanh();
-            }
+            // per element `cap * tanh(x / cap)`, on the host pool for a long row (lane ink-hostgap)
+            crate::sampler::softcap(out, cap);
         }
     }
 
@@ -5492,11 +5700,112 @@ impl Model {
     /// [`Model::head_to_device`] with the argmax written to `tok` (`i32 [1]`).
     fn head_to_device_into(&self, hn: &TensorRef, row: usize, profile: bool, tok: TensorRef) -> Result<()> {
         let x = hn.rows(row, 1);
+        if self.screened_argmax(&x, 1, &tok, profile)? {
+            return Ok(());
+        }
         let logits = self.head_proj(&x, 1, profile)?;
         if self.tp.rank != 0 {
             return Ok(()); // a vocab-parallel peer: its half is in the gather, the argmax is rank 0's
         }
         self.exec(Op::Argmax, vec![logits], vec![tok], OpAttrs::default(), profile)
+    }
+
+    /// The screened greedy head (`crate::screen`, `INTARSIA_INK_HEAD_SCREEN=1`): the argmax of the `c` rows `x` into `tok`
+    /// (`i32 [c]`), bitwise the full head's; `ws.logits` then holds the gathered candidates, not the full rows. `false`: off,
+    /// or the head's `Logits` kernel is not one the gather reproduces (then the caller runs the full head).
+    fn screened_argmax(&self, x: &TensorRef, c: usize, tok: &TensorRef, profile: bool) -> Result<bool> {
+        let Some(hs) = self.head_screen.as_ref() else { return Ok(false) };
+        if c > hs.rows || self.vocab_par {
+            return Ok(false);
+        }
+        // a plan dry run records the screen calls too (so `serve`, admitted kernels only, admits their kernels on the plan
+        // shapes), then reports `false` so the full head is recorded as well; the first-use check below runs only for real
+        let recording = self.recorder.lock().unwrap().is_some();
+        let (v, d) = (self.dims.vocab, self.dims.hidden);
+        let logits = self.view(&self.ws.logits, DType::F32, &[c, v]);
+        let head_kernel = |m: usize, exact: bool| -> String {
+            match self.head() {
+                Ok(head) => {
+                    let mut call = head.call(self.view(&self.ws.n, self.act, &[m, d]), self.view(&self.ws.logits, DType::F32, &[m, v]));
+                    call.exact_rows = exact;
+                    self.registry.select(&call).map(|k| k.name.clone()).unwrap_or_default()
+                }
+                Err(_) => String::new(),
+            }
+        };
+        let good = |n: &str| matches!(n, "logits_bf16_gemv" | "logits_bf16_gemv_rows" | "cpu_f32_logits");
+        // the gather repeats these kernels' per-row arithmetic (gemv_f32o_v and its multi-row form, the cpu dot); any other
+        // head kernel, and the screen not admitted on this backend: the full head
+        // (the one-row head kernel decides once; a `c`-row group checks its own rows-exact kernel below, since `serve` may not
+        // admit `logits_bf16_gemv_rows` when no plan shape takes it)
+        let ok = recording
+            || *hs.ok.get_or_init(|| {
+            let head = match self.head() {
+                Ok(h) => h,
+                Err(_) => return false,
+            };
+            let xs = self.view(&self.ws.n, self.act, &[1, d]);
+            let kernels_ok = good(&head_kernel(1, false));
+            let a = TensorRef::new(hs.a.clone(), DType::F32, &[1, v]);
+            let cand = TensorRef::new(hs.cand.clone(), DType::I32, &[1, hs.cap]);
+            let cnt = TensorRef::new(hs.cnt.clone(), DType::I32, &[1]);
+            // the screen calls run with `exact_rows` set (screened_argmax), so a backend whose screen kernels are registered
+            // rows-exact (Metal) selects them
+            let screen_ok = [
+                OpCall::new(Op::HeadScreen, vec![a.clone(), xs.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default()),
+                OpCall::new(Op::LogitsGather, vec![xs.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![self.view(&self.ws.logits, DType::F32, &[1, v])], OpAttrs::default()),
+                OpCall::new(Op::ScreenArgmax, vec![cand, cnt, self.view(&self.ws.logits, DType::F32, &[1, v])], vec![self.view(&self.ws.tok, DType::I32, &[1])], OpAttrs::default()),
+            ]
+            .into_iter()
+            .all(|mut c| {
+                c.exact_rows = true;
+                self.registry.select(&c).is_ok()
+            });
+            if !(kernels_ok && screen_ok) {
+                eprintln!(
+                    "{}: off (head kernel '{}' {}, screen kernels {})",
+                    crate::screen::ENV,
+                    head_kernel(1, false),
+                    if kernels_ok { "ok" } else { "not one the gather reproduces" },
+                    if screen_ok { "selectable" } else { "not selectable (not registered or not admitted)" }
+                );
+            }
+            kernels_ok && screen_ok
+        });
+        if !ok || (c > 1 && !recording && !good(&head_kernel(c, true))) {
+            return Ok(false);
+        }
+        let head = self.head()?;
+        let a = TensorRef::new(hs.a.clone(), DType::F32, &[c, v]);
+        let cand = TensorRef::new(hs.cand.clone(), DType::I32, &[c, hs.cap]);
+        let cnt = TensorRef::new(hs.cnt.clone(), DType::I32, &[c]);
+        // a 2..=16-row group takes the rows-exact kernels, as `head_proj` marks it (the gathered bits are those rows')
+        let mark = c > 1 && !self.verifying();
+        if mark {
+            self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        let r = (|| -> Result<()> {
+            let sc = hs.q.call(x.clone(), a.clone());
+            self.exec(sc.op, sc.inputs, sc.outputs, sc.attrs, profile)?;
+            // the screen ops are per-row by contract; their Metal kernels are registered rows-exact, which a call selects
+            // only with `exact_rows` set (Registry::select)
+            let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);
+            let r = (|| -> Result<()> {
+                self.exec(Op::HeadScreen, vec![a, x.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default(), profile)?;
+                self.exec(Op::LogitsGather, vec![x.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![logits.clone()], OpAttrs::default(), profile)?;
+                self.exec(Op::ScreenArgmax, vec![cand, cnt, logits], vec![tok.clone()], OpAttrs::default(), profile)
+            })();
+            self.exact_rows.store(prev, std::sync::atomic::Ordering::Relaxed);
+            r?;
+            if !recording && !hs.served.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                eprintln!("{}: first screened head step served ({c} row(s))", crate::screen::ENV);
+            }
+            Ok(())
+        })();
+        if mark {
+            self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        }
+        r.map(|_| !recording) // recorded only: the caller records the full head too
     }
 
     /// The head projection of `c` rows `x`. Replicated head (rank 0): `[c, V]` f32 logits in `ws.logits`. Vocab-parallel
@@ -5516,7 +5825,19 @@ impl Model {
             if mark {
                 self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
             }
-            let r = self.proj(x, self.head()?, &logits, profile);
+            let r = match self.head_p12.as_ref().filter(|_| c <= crate::quant::p12::ROWS_MAX) {
+                // the P12 head where the backend admits it (the same bits as the bf16 head), else the head as loaded
+                Some(p) => {
+                    let mut call = p.call(x.clone(), logits.clone());
+                    call.exact_rows = self.verifying();
+                    if self.registry.select(&call).is_ok() {
+                        self.exec_call(call, profile)
+                    } else {
+                        self.proj(x, self.head()?, &logits, profile)
+                    }
+                }
+                None => self.proj(x, self.head()?, &logits, profile),
+            };
             if mark {
                 self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
             }
@@ -5536,7 +5857,7 @@ impl Model {
     /// collective, so rank 0 (which owns the logits) and the peers must issue the same sequence of groups.
     fn head_groups(&self, mode: HeadMode, len: usize, last: bool) -> Vec<(usize, usize)> {
         match mode {
-            HeadMode::LastLogits | HeadMode::LastArgmax if last => vec![(len - 1, 1)],
+            HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_) if last => vec![(len - 1, 1)],
             HeadMode::AllLogits => {
                 // groups of `LOGIT_ROWS` rows by the prefill rule too: a 1-row group runs the decode GEMV, which is not
                 // bitwise the same row inside a >= 2-row group, so a `k * LOGIT_ROWS + 1` chunk would score its last
@@ -5628,9 +5949,128 @@ impl Model {
         if self.recorder.lock().unwrap().is_some() {
             return Ok(0);
         }
+        if crate::hostprof::enabled() {
+            // host profile: the wait for the step on its own (the 4-byte download then finds nothing pending)
+            let _w = crate::hostprof::span(crate::hostprof::Cat::Sync);
+            self.backend.synchronize(self.stream)?;
+            crate::hostprof::mark_sync_end();
+        }
         let mut b = [0u8; 4];
         self.backend.download(&self.ws.tok, 0, &mut b, self.stream)?;
         Ok(i32::from_le_bytes(b) as u32)
+    }
+
+    /// The device sampler ([`HeadMode::LastGumbel`]) is on for this model: `INTARSIA_GUMBEL_SAMPLING=1`, one device (no
+    /// tensor-parallel peer, no remote rank, replicated head) and a `GumbelArgmax` kernel the registry selects for a `[1, V]`
+    /// row (CUDA and HIP have none: they keep the host sampler). Decided, and the buffers allocated, on first use.
+    pub fn gumbel_ok(&self) -> bool {
+        self.gumbel_bufs().is_some()
+    }
+
+    fn gumbel_bufs(&self) -> Option<&GumbelBufs> {
+        self.gumbel
+            .get_or_init(|| {
+                let r = self.gumbel_init();
+                // one line on stderr when the switch is set at all (so a run can show the sampler it got), none otherwise
+                if std::env::var_os("INTARSIA_GUMBEL_SAMPLING").is_some() {
+                    match &r {
+                        Ok((_, k)) => eprintln!("device sampler (INTARSIA_GUMBEL_SAMPLING): on, kernel {k}"),
+                        Err(why) => eprintln!("device sampler (INTARSIA_GUMBEL_SAMPLING): off, {why}"),
+                    }
+                }
+                r.ok().map(|(b, _)| b)
+            })
+            .as_ref()
+    }
+
+    /// [`Model::gumbel_bufs`]' decision: the buffers and the kernel name, or why the device sampler is off.
+    fn gumbel_init(&self) -> std::result::Result<(GumbelBufs, String), String> {
+        if !crate::gumbel::enabled_from_env() {
+            return Err("the switch is not 1".into());
+        }
+        if self.tp.world != 1 || !self.peers.is_empty() || self.remote.is_some() || self.vocab_par {
+            return Err("tensor parallel or remote ranks".into());
+        }
+        if self.lm_head.is_none() {
+            return Err("no lm_head on this rank".into());
+        }
+        let probe = OpCall::new(
+            Op::GumbelArgmax,
+            vec![self.view(&self.ws.logits, DType::F32, &[1, self.dims.vocab]), self.view(&self.ws.tok, DType::I32, &[1, 4])],
+            vec![self.view(&self.ws.tok, DType::I32, &[1])],
+            OpAttrs { scale: self.softcap_cap(), ..OpAttrs::default() },
+        );
+        probe.check().map_err(|e| format!("the probe call is invalid: {e}"))?;
+        let kernel = self.registry.select(&probe).map_err(|e| format!("no selectable gumbel_argmax kernel: {e}"))?.name.clone();
+        let m = Self::BATCH_MAX_ROWS;
+        let alloc = |n: usize| self.backend.alloc(n, MemKind::Device).map_err(|e| format!("buffers: {e}"));
+        Ok((GumbelBufs { table: Mutex::new(GumbelTable::default()), batch_keys: alloc(m * 16)?, batch_tok: alloc(m * 4)? }, kernel))
+    }
+
+    /// The head's softcap (Gemma-2, Inkling-2), 0 when the model has none: the cap `GumbelArgmax` applies, the one
+    /// [`Model::softcap_logits`] applies on the host.
+    fn softcap_cap(&self) -> f32 {
+        self.dims.gemma.as_ref().map(|g| g.softcap).or(self.dims.ink.as_ref().map(|i| i.softcap)).filter(|&c| c > 0.0).unwrap_or(0.0)
+    }
+
+    /// Write the keys of positions `lo .. lo + n` of the request with key `h` into the table (synchronous upload: call it with
+    /// nothing in flight that reads the table). Feedback decode calls it once before its loop for every token it may sample.
+    pub(crate) fn gumbel_prepare(&self, h: GumbelHead, lo: usize, n: usize) -> Result<()> {
+        let g = self.gumbel_bufs().ok_or_else(|| Error::invalid("gumbel_prepare without the device sampler"))?;
+        let mut t = g.table.lock().unwrap();
+        let n = n.max(1);
+        if t.cap_rows < n {
+            t.buf = Some(self.backend.alloc(n * 16, MemKind::Device)?);
+            t.cap_rows = n;
+        }
+        let rows: Vec<u8> = (lo..lo + n).flat_map(|p| h.key(p)).flat_map(i32::to_le_bytes).collect();
+        self.backend.upload(t.buf.as_ref().expect("allocated"), 0, &rows, self.stream)?;
+        (t.head, t.lo, t.rows) = (Some(h), lo, n);
+        Ok(())
+    }
+
+    /// The key row (`i32 [1, 4]`) of position `pos` of request `h` in the table. Outside the table: `refill` fills it from
+    /// `pos` on ([`GUMBEL_TABLE_ROWS`] rows, a plain step before its pass); otherwise (a feedback step, encoded while the step
+    /// before runs) it is an error, never a write.
+    fn gumbel_cover(&self, h: GumbelHead, pos: usize, refill: bool) -> Result<TensorRef> {
+        let g = self.gumbel_bufs().ok_or_else(|| Error::invalid("LastGumbel without the device sampler"))?;
+        let covered = |t: &GumbelTable| t.head == Some(h) && t.lo <= pos && pos < t.lo + t.rows;
+        if !covered(&g.table.lock().unwrap()) {
+            if !refill {
+                return Err(Error::invalid(format!("device sampler: no key for position {pos} (gumbel_prepare first)")));
+            }
+            self.gumbel_prepare(h, pos, GUMBEL_TABLE_ROWS)?;
+        }
+        let t = g.table.lock().unwrap();
+        let buf = t.buf.as_ref().expect("a covered table has its buffer");
+        Ok(self.view(buf, DType::I32, &[t.cap_rows, 4]).rows(pos - t.lo, 1))
+    }
+
+    /// lm_head + `GumbelArgmax` of one row with the key of position `pos`, the token written to `tok` (`i32 [1]`).
+    pub(crate) fn head_gumbel_into(&self, hn: &TensorRef, row: usize, h: GumbelHead, pos: usize, refill: bool, profile: bool, tok: TensorRef) -> Result<()> {
+        let key = self.gumbel_cover(h, pos, refill)?;
+        let logits = self.head_proj(&hn.rows(row, 1), 1, profile)?;
+        self.exec(Op::GumbelArgmax, vec![logits, key], vec![tok], OpAttrs { scale: self.softcap_cap(), ..OpAttrs::default() }, profile)
+    }
+
+    /// [`Model::head_argmax`] with the device sampler: the token drawn for position `pos`.
+    fn head_gumbel(&self, hn: &TensorRef, row: usize, h: GumbelHead, pos: usize, profile: bool) -> Result<u32> {
+        self.head_gumbel_into(hn, row, h, pos, true, profile, self.view(&self.ws.tok, DType::I32, &[1]))?;
+        if self.recorder.lock().unwrap().is_some() {
+            return Ok(0);
+        }
+        if crate::hostprof::enabled() {
+            let _w = crate::hostprof::span(crate::hostprof::Cat::Sync);
+            self.backend.synchronize(self.stream)?;
+            crate::hostprof::mark_sync_end();
+        }
+        let mut b = [0u8; 4];
+        self.backend.download(&self.ws.tok, 0, &mut b, self.stream)?;
+        let t = i32::from_le_bytes(b) as u32;
+        if t as usize >= self.dims.vocab {
+            return Err(Error::backend(format!("device sampler: token {t} >= vocab {}", self.dims.vocab)));
+        }
+        Ok(t)
     }
 
     /// The output head (rank 0 only).
@@ -5679,4 +6119,22 @@ mod weights_named_tests {
         // an unknown weight dtype names nothing
         assert!(weights_named(&index, &inputs, None).is_empty());
     }
+}
+
+/// The screened greedy head's state (`INTARSIA_INK_HEAD_SCREEN=1`, lane ink-fp8; `crate::screen`).
+struct HeadScreenW {
+    /// The fp8 copy of the head (`[V, D]` e4m3, one scale).
+    q: QTensor,
+    /// The per-row bounds `[V]` f32 (`screen::row_bounds`).
+    beta: TensorRef,
+    /// Screen values `[rows, V]` f32, candidates `[rows, cap]` i32, counts `[rows]` i32.
+    a: Buffer,
+    cand: Buffer,
+    cnt: Buffer,
+    cap: usize,
+    rows: usize,
+    /// Whether this backend's head kernel is one the gather reproduces (decided on first use).
+    ok: std::sync::OnceLock<bool>,
+    /// Set by the first screened step (logged once, so a gate can tell the screen really ran).
+    served: std::sync::atomic::AtomicBool,
 }

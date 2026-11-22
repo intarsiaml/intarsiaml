@@ -85,6 +85,9 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
     if crate::inkling2::ops::OPS.contains(&op) {
         return crate::inkling2::cases::sweep(op, cfg);
     }
+    if crate::screen::OPS.contains(&op) {
+        return crate::screen::sweep(op, cfg);
+    }
     let mut rng = SplitMix64::new(cfg.seed ^ (op as u64).wrapping_mul(0x9E37));
     let mut cases = Vec::new();
     let quick = cfg.quick;
@@ -706,7 +709,8 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
             }
         }
         Op::Argmax | Op::Sample => {
-            let vs: &[usize] = if quick { &[100] } else { &[100, 4096] };
+            // V % 4 != 0 too (101, 4099; Inkling-2's head has 200058 rows): rows that are not 16-byte aligned (lane ink-hostgap)
+            let vs: &[usize] = if quick { &[100, 101] } else { &[100, 101, 4096, 4099] };
             for &r in &[1usize, 5] {
                 for &v in vs {
                     for dt in [DType::F32, DType::Bf16] {
@@ -735,6 +739,30 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                                 );
                             }
                         }
+                    }
+                }
+            }
+        }
+        Op::GumbelArgmax => {
+            // the device sampler (lane ink-hostgap): rows with their own seed, position and 1/T, with and without the softcap;
+            // V % 4 != 0 too (Inkling-2's head has 200058 rows)
+            let vs: &[usize] = if quick { &[100, 101] } else { &[100, 101, 4096, 4099, 200058] };
+            for &r in &[1usize, 5] {
+                for &v in vs {
+                    for cap in [0.0f32, 30.0] {
+                        let logits = rand_t(&mut rng, DType::F32, &[r, v], 8.0);
+                        let keys: Vec<i32> = (0..r)
+                            .flat_map(|j| crate::gumbel::key_row(rng.next_u64(), 17 + 1000 * j, [1.0f32, 0.7, 1.3][j % 3]))
+                            .collect();
+                        push(
+                            format!("R={r} V={v} cap={cap}"),
+                            HostCall {
+                                op,
+                                inputs: vec![logits, HostTensor::from_i32(&[r, 4], &keys)],
+                                outputs: vec![OutSpec::new(DType::I32, &[r])],
+                                attrs: OpAttrs { scale: cap, ..attrs() },
+                            },
+                        );
                     }
                 }
             }

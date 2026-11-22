@@ -40,12 +40,15 @@ pub mod inkattn;
 pub mod gemm_nax;
 mod host;
 pub mod inkmoe;
+pub mod inkprefill;
 pub mod inkmix;
+pub mod screen;
 pub mod kernels;
 mod moe;
 pub mod multirow;
 pub mod mxfp4;
 pub mod nvfp4;
+pub mod p12;
 pub mod profile;
 mod rowtab;
 mod sync;
@@ -1408,6 +1411,12 @@ impl MetalBackend {
         }
         if inkmix::KERNELS.iter().any(|k| k.0 == kernel) {
             return self.launch_inkmix(kernel, call);
+        }
+        if p12::KERNELS.iter().any(|k| k.0 == kernel) {
+            return self.launch_p12(kernel, call);
+        }
+        if screen::KERNELS.iter().any(|k| k.0 == kernel) {
+            return self.launch_screen(kernel, call);
         }
         if inkctrl::KERNELS.iter().any(|k| k.0 == kernel) {
             return self.launch_inkctrl(kernel, call);

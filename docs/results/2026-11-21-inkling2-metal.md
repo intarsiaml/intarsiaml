@@ -132,6 +132,280 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   self-golden matches only with exit 0 and non-empty output. Lane: mergegate.sh and combgate.sh run docs_env_vars with
   `--features metal` (binary keeps Metal; #11048's G2 logs show real KL values, so not affected); bisect.sh runs only
   intarsia-models tests in the debug profile, which do not rebuild target/release/intarsia.
+- 2026-11-22 (coordinator): bisect moved up. The coordinator's waiter runs `fleetq wait 11104`, releases #11142 and runs
+  `.scratch/bisect.sh` with FLEETQ_JOB=11104 (batch correctness slot, default load, 20 GB), expected start ~03:47 when #11093
+  ends; same `.scratch/bisect_job.log` and `.scratch/bis/out/`. The #11142 client exits 4 on release: expected, do not
+  requeue. Coordinator messages the lane when it lands.
+- 2026-11-22 (ink-prefill lane): merge ink/prefill-merge at 96740cbe2 instead of 378dc214e (coordinator brief 12):
+  378dc214e plus the cherry-picked brief 7 fix ed27f4462 (`ink_in_proj_bf16_gemv_chunks`, NoKernel at m 31-63 without
+  metal4); endor #11105 tiny Metal 8/8 and inkmix rows-exact 3/3 with metal4 off and on, gemv_chunks ADMITTED on 11 shapes;
+  bespin #11173 check clean. If #11109 passes at chunk 2048, one more commit (`prefill_chunk = 2048`) replaces this hash.
+- 2026-11-22 (coordinator): bisect landed; culprit NE 4 from D 2048 (m-mix 25ff7864a); BLEND_RB, InkMixP and ink/batch
+  cleared. Fix brief: (1) find the NE 4 bug (30 min timebox), else NE 3 back at D 2304 with a TODO; (2) a test that fails
+  on the unfixed tree (show it on 331238a4e) and passes on the fix; (3) gate: G2 short both modes (decode ~2.6e-3), greedy
+  md5 non-empty, tok/s 1-row short vs the tip, what the fix costs; (4) then the merge queue: hostgap, fp8, pack12 after
+  #11161, prefill (new hash), dfuse, then the combined gate. Message the gate job id; the coordinator nests it.
+- 2026-11-22 (ink-fp8 lane): take ink/fp8 05438a81f (follow-up to a810fbb5c): the screen md5 rerun #11113 was vacuous
+  under serve (plan dry runs never recorded the screen ops, so serve never admitted them); 05438a81f records them in dry
+  runs. Default path unaffected (screen opt-in, off). bespin #11178 check passes; rerun 3 queued, needs "screen SERVED" in
+  both logs.
+- 2026-11-22 (coordinator): #11179 not nested (60 min outlives the correctness slots); the line ahead of it is cleared, so it
+  starts in ~1-1.5 h. pack12's model gate #11161 (24 GB, ~20 min) runs inside #11179; if the tok/s rounds overlap it
+  (log ink-pack12/.scratch/flip2_job.log), say so rather than trusting the numbers. fp8: merge 05438a81f only after its rerun
+  3 shows "screen SERVED" in both logs.
+- 2026-11-22 (ink-prefill lane): merge ink/prefill-merge at 05f1c702e instead of 96740cbe2: 96740cbe2 plus
+  `[tuning.metal] prefill_chunk = 2048` in recipes/inkling2.toml (#11109: G2/G3 pass at 2048; prefill +62 % at 1k,
+  +52-70 % at 4k, +69-71 % at 16k; 1k cell rejected for spread in both 2048 runs; 4k decode -1.5 % / -0.3 %). Bespin #11191
+  recipe tests pass. Combined gate: confirm serve logs "prefill chunk 2048" without the flag; record peak memory at 16k
+  (first measurement). Revert = 05f1c702e alone.
+- 2026-11-22 (coordinator): before the dfuse flip (tip 00c81dda7, doc e75e14206) lands on the NE fix 7eca1b012, check it
+  on the merged tree (NE fix + flip): the flip makes the hoisted row kernels `ink_mix_row_h_e*` the default; both they and
+  the plain ones take NE from `mix_geom`, but that combination has not run. (1) G2 decode mode twice, defaults and
+  `INTARSIA_INK_MIX_HOIST=0`: both within 4e-3 short / 6e-3 long, and byte-identical outputs; (2) inkling2_real_decode_ne.rs
+  with the defaults, confirmed executed (not the skip path); (3) if either fails, do not merge the flip; report the arm and
+  the KL. Fold into #11179 or the post-merge baseline, whichever is first. Lane: #11179 runs on the NE fix alone (no
+  dfuse), so both checks go in the combined gate (`.scratch/combgate.sh`, section "dfuse flip check").
+- 2026-11-22 (coordinator): clarification: the combined gate runs after the merges, so if either dfuse check fails, revert
+  the flip's merge commit on ink/metal (`git revert -m 1 <merge>`) before anything else lands on top, then report the failing
+  run and its KL. The rest of the plan is approved. Lane: merge dfuse last, so its merge commit is the tip when the gate runs.
+- 2026-11-22 (ink-fp8 lane): #11180 on the ink/fp8 tip passes: "screen SERVED" in both serve and generate on-logs, 12 golden
+  prompts x 256 plus 5k md5 same off vs on; plan admission 28 kernels with the screen (24 without); default unchanged
+  (head_screen None without `INTARSIA_INK_HEAD_SCREEN=1`). Take 05438a81f (or the later docs-only tip). Quiet ABAB #11189.
+- Lane: #11179's real-decode step errored on both trees (assert: chat_system has 63 ids, the test wanted 72), not a result.
+  Fixed (e0a541b16: prefill 24, decode 38); rerun of that step alone as #11195 (`.scratch/realtest.sh`).
+- 2026-11-22 (coordinator): #11179 finished 03:39; submit the realtest now (`--in 1m`, no `--quiet gpu`; #11184 is not a
+  timing run). Pass rule: unfixed FAIL, fix PASS, and the failure must be the row-57 blow-up, not a setup error (a setup
+  error on either tree = invalid). Merges wait for #11179 and this rerun. Speed flag: in #11179's unquiet slot NE 3 vs NE 4
+  gave 2k prefill 1163 / 1186 vs 1503 / 1415 tok/s (-20 %), decode after 2k 39.7 / 38.6 vs 60.9 / 54.7 (-35 %): answer
+  whether NE 4 is faster because it skips work or NE 3 is genuinely slower; the quiet A/B is #11181. Lane: #11195 released;
+  the realtest is #11197 (reserved 03:41).
+
+## NE fix gate #11179 (tree 65dbc2870 = fix 7eca1b012 + test/docs)
+
+| Check | Result |
+|---|---|
+| real decode test, unfixed / fix | INVALID on both: setup assert (chat_system has 63 ids, test wanted 72); rerun #11197 |
+| synthetic mix vs cpu | 2/2 pass |
+| metal inkmix rows-exact / rows_single | 3/3, 2/2 |
+| tiny Metal inkling2 / inkling2_batch | 8/8, 6/6 |
+| G2 short prefill / decode mode | 2.380e-3 / **2.589e-3** (limit 4e-3), PASS; confident misses 0/363 |
+| G2 long prefill / decode mode | 3.418e-3 / **2.474e-3** (limit 6e-3), PASS; confident misses 1/1206 (allowance 2) |
+| G3 short / long | 8.391e-3 / 1.248e-2 (1.05e-2 / 1.65e-2), PASS |
+| greedy md5, 64 tokens | default == NE 3 forced: 15d62682aef1efea43a627936df9bb70 (both exit 0, non-empty; = the pre-m-mix tip) |
+
+Decode-mode G2 short is byte-for-byte the pre-merge value (2.589e-3), long 2.474e-3 equals the tip-gate value before the m-mix merge.
+
+Speed in the same slot (not quiet; pack12's nested #11161 never ran, its script was not executable, so no overlap with it):
+
+| Arm | short decode (19-token prompt, 256 tokens) | 2k prefill | decode after 2k (7 tokens) |
+|---|---|---|---|
+| default (NE 3), round 1 / 2 | 41.53 / 41.82 tok/s | 1163.2 / 1186.0 tok/s | 39.75 / 38.64 tok/s |
+| NE 4 forced, round 1 / 2 | 45.88 / 41.28 tok/s | 1503.5 / 1414.6 tok/s | 60.93 / 54.66 tok/s |
+
+**Does NE 4 skip work, or is NE 3 slower on the correct work? Neither explains these numbers; they are slot noise.**
+(1) NE 4 cannot skip work at D 2304: 576 threads x 4 = 2304 elements exactly (every `on[j]` true), as NE 3's 768 x 3; the
+fault is in the values, not in the coverage. (2) The row kernels are far too small a share for a 20-35 % gap: m-mix's quiet
+sweep (mix doc section 3.5) has NE 4 vs NE 3 at 8.45 vs 8.46 us per 1-row ConvMix, 233 vs 274 us per 2048-row plain ConvMix
+and 137 vs 149 us per AttnResMix, so over a 2048-row chunk (~48 plain ConvMix + ~49 AttnResMix-class row calls) NE 4 saves at
+most ~3 ms of ~1400-1700 ms (<= 0.3 %), and at decode it is within +-4 % of ~0.4 ms of row kernels per ~15.6 ms token
+(<= 0.1 %). (3) The slot was loaded: the default's short decode here is 41.5 tok/s against 63.4-64.3 quiet (localeval #10890,
+generate), and the NE 4 rounds swing 45.9 -> 41.3 between rounds; decode after 2k is 7 tokens (115-181 ms), too short to time.
+Expected from the quiet A/B #11181: NE 3 vs NE 4 within ~1 % at prefill and decode. The answer is final when #11181 reports.
+
+### Real decode test rerun #11197 (inkling2_real_decode_ne.rs at e0a541b16)
+
+| Tree | default geometry | exit | worst per-step KL(NE 3 \|\| default) | KL at row 57 (step 33) | result |
+|---|---|---|---|---|---|
+| 331238a4e (unfixed) | NE 4 | 101 | 7.260e-2 (step 3, row 27) | 1.673e-2 | FAIL, as required |
+| 1fdd5a50a (fix) | NE 3 | 0 | 0.000e0 (bitwise, 38 steps, all dumped tensors 0) | 0 | PASS |
+
+The unfixed failure is numerical, not setup: all three children ran (prefill 24 rows of chat_system, 38 decode steps, the
+dump step); 10 of 38 steps exceed 2e-3 (step 0, row 24: 1.136e-2, so the departure is already there after the 24-row prefill
+plus one decode row; it does not grow monotonically against NE 3 the way the per-row KL against the golden did). NE 4 forced on
+the fix tree gives the same per-step KLs as the unfixed default (same kernels). Limits of the test: (1) at D 2304 there is no
+benign second geometry to calibrate 2e-3 against (NE 1 / 2 do not fit 1024 threads, so NE 3 is the only other one); the
+evidence that NE 4 is wrong rather than merely reordered remains G2 against the golden (4x worse, bitwise base at NE 3);
+(2) the dump ranking is all `expert_ids` (discrete, uninformative); localizing the NE 4 fault needs the ranking without them
+(next step for the NE 4 lane).
+
+### Merges after the NE fix (2026-11-22)
+
+- Coordinator brief: hostgap 9a38f0224 only if every commit in it is covered by a passed gate (no Gumbel device sampler),
+  else hold until #11182; order hostgap, fp8, prefill, dfuse last, then the combined gate; pack12 after #11194 with its own
+  G2 short + md5 check against the combined-gate tip. Lane: **case 1 applies**: `git grep GumbelArgmax|gumbel` on
+  9a38f0224's crates/ and kernels/ finds nothing; its Gumbel commits are results-doc only (design, op contract notes). Its
+  code is the host sampler pool, row-parallel batched accept, hostprof and the json_schema batched test, covered by #10943
+  (merge rule met), spark2 #10951 / #10958 / #10968 and bespin #11073.
+
+| Merge | Commit | Conflicts |
+|---|---|---|
+| ink/hostgap 9a38f0224 | d6a5dbced | none |
+| ink/fp8 05438a81f | 26fdda63d | inkmix.rs launch match: kept the fp8 GEMV arm and m-mix/batch's `CONV_MIX_BF16_ROWS` |
+| ink/prefill-merge 05f1c702e | 9d6764682 | inkmix.rs / kernels.rs registration lists: kept fp8's two GEMVs and prefill's `ink_in_proj_bf16_gemv_chunks` |
+| ink/dfuse 00c81dda7 (flip 2f952f697) | b1a4f3f62 | op 76: `InkRoute` replaces the reserved `InkReserved76` in place (77..=95 and fp8's 88-90 kept, `ALL` stays 96); every registration list both sides (cpu fast / reference, cuda / hip exclusion lists, metal build.rs sources, kernels.rs table / register / admission filter, lib.rs dispatch); inkling2.rs both env helpers and `msg_q_all` after fp8's byte count; the mix shader keeps fp8's IP8 instances and dfuse's `ink_blend_norm_c` |
+
+dfuse is last, so its merge b1a4f3f62 is the commit to revert (`git revert -m 1 b1a4f3f62`) if a dfuse check fails.
+Checks: bespin #11199 / #11200 failed to compile (fixed in 7e5e6010e: `msg_q_all` before fp8's byte count in inkling2.rs, no
+`InkReserved76` arms in the cpu backends, `NOT_ON_CUDA` 30, tuning rows for `INTARSIA_INK_MOE_NAX2` / `_MOE_NAXSKIP` /
+`_BLEND_NAX` / `_PREFILL_TRACE` (missing on the prefill branch itself) and `INTARSIA_INK_NE_CHILD_OUT`); #11202-#11204 on
+7e5e6010e: workspace `cargo check --tests` clean, intarsia-core / -backend-cpu tests all pass (core lib 240), cpu inkling2 8/8
+and batch 6/6, cuda / hip lib 34 / 31, docs_env_vars 2/2. Combined gate: endor #11205 (`.scratch/combgate.sh`).
+
+- 2026-11-22 (ink-batch lane): batched-step baseline for the post-merge quiet run: `batch_step --ctx 1024 --rounds 2 --steps 16
+  --batches 1,8,16`, 3 reps, median of columns 3 (batched step ms) and 6 (batched tok/s); reference #11181 (tip 8546d143f,
+  before the NE fix): B1 16.40 ms / 61.0 tok/s, B8 34.93 / 229.0, B16 59.96 / 266.9; NE 3 measured equal (B16 59.77 / 267.7),
+  which confirms the slot-noise reading of #11179's speed rows (NE 3 costs nothing).
+- 2026-11-22 (coordinator): merges and the op 76 resolution accepted. Release #11205 and reserve the gate `--in 1m` (no
+  `--quiet`); add a plan / admission check on Inkling: InkRoute registered as op 76, nothing on 77..=95. Lane: added
+  (`cargo test -p intarsia-core --lib ops::`, `kernels test --op ink_route`, Inkling `plan show` must list `ink_route` and no
+  `ink_reserved`). The reservation was refused twice (409: collides with waiting quiet jobs #11183, then #11185 / #11188 /
+  #11194), so the gate is queued normally as #11206 (9th); the coordinator was told.
+- 2026-11-22 (coordinator): leave #11206 in line (the jobs ahead are real gates of other lanes). Have the follow-ons ready to
+  queue when their triggers pass: (1) the quiet baseline: localeval plus batch_step B 1/8/16, median of 3; (2) the pack12
+  merge with G2 short (defaults) + md5 against the combined-gate tip, after #11194; (3) the ink-hostgap Gumbel merge check
+  (rows_exact + the gumbel Metal tests on the merged tree), after #11182. No other endor jobs until #11206 passes.
+- 2026-11-22 (coordinator): batch_step's random-id prompts route nearly every row to the same experts (union ~23 per MoE call
+  at B16 vs ~82 for independent routing): record it as "synthetic random-id prompts, regression reference only", not
+  real-traffic speed; the real-traffic number is localeval's concurrent run; ink-batch sends a real-text mode after #11206.
+- Lane, follow-ons ready (not queued): `.scratch/q_baseline.sh` -> `serve_le2.sh` (quiet gpu,cpu, --mem 32, ~80 min: A
+  speed-plain at max-batch 1 / max-seq 20480 with the prefill-chunk line and the server's peak memory, B conc-plain-1k at
+  max-batch 16 / max-seq 8192, C batch_step x3 labelled synthetic); `.scratch/pk12check.sh` (G2 short both modes + confident
+  rows, md5 64 / 256 vs `.scratch/cg/`); `.scratch/gumbelcheck.sh` (metal rows_exact + gumbel, core op ids, cpu gumbel
+  reference). The Gumbel code is on `ink/hostgap-gumbel` (336e20250: `GumbelArgmax = 96`, appended after the reserved block,
+  so `ALL` becomes 97), not on `ink/hostgap`. Trial merges on the current tip: both ink/hostgap-gumbel and ink/pack12
+  conflict only in the op lists (ops.rs, cpu fast / reference / lib, cuda / hip kernels; pack12 also model/inkling2.rs).
+- 2026-11-22 (coordinator): do not append `GumbelArgmax` as op 96 (ALL 97); put it in the lowest free reserved slot, as
+  InkRoute, so `ALL` stays 96. Check ink/mtp first (DSpark draft ops said to use 92-95). Add a reserved op slot map here;
+  every lane that adds an op claims a slot in it first. The gumbel check asserts `GumbelArgmax == <slot>` and `ALL == 96`.
+
+## Combined gate #11206 (tree 7e5e6010e + docs: NE fix + hostgap / fp8 / prefill / dfuse), PASS
+
+| Check | Result |
+|---|---|
+| Metal crate: rows_exact / inkmix / rows_single / quick_coverage | 11 / 4 / 2 / 1 pass |
+| docs_env_vars | 2/2 |
+| kernels test, Inkling ops (incl. `ink_route`) | 22 ADMITTED lines, no FAIL / REJECT; `ink_route_bf16` 124 cases, max_abs 1.975e-7 |
+| tiny cpu / Metal inkling2, inkling2_batch | 8/8, 6/6 on both |
+| core op ids (InkRoute 76, 77..=95 reserved, ALL 96) | 7/7 |
+| Inkling plan show | `ink_route_bf16` 48 calls / step (moe_route 0), no reserved op |
+| Qwen3-8B plan show | md5 d462e6321837c39701cd0644a6d8eebf, identical to the pre-Inkling baseline |
+| greedy 64 / 256 tokens | 65cde8f35a1802e3e2fadb44d94d080d / 61fd59fecb5e0d72ffd08f2c6d07855a, coherent (raw); chat prompt coherent (three-sentence Rayleigh answer) |
+| dfuse flip: decode G2 short, defaults vs `INTARSIA_INK_MIX_HOIST=0` | 2.928e-3 / 2.928e-3 (limit 4e-3); self-golden tensors identical (the files differ only in metadata: build time, command line) |
+| dfuse flip: decode G2 long, same | 2.761e-3 / 2.761e-3 (limit 6e-3); tensors identical |
+| real decode test (defaults) | executed, 38 steps, worst KL(NE3 \|\| default) 0 |
+| G2 short prefill / decode mode | 2.087e-3 / 2.928e-3 (4e-3); confident misses 0/363 |
+| G2 long prefill / decode mode | 3.239e-3 / 2.761e-3 (6e-3); confident misses 1/1206 (allowance 2) |
+| G3 short / long | 8.420e-3 / 1.229e-2 (1.05e-2 / 1.65e-2); confident misses 0/367, 0/1211 |
+| real-model batched == solo, B 2/5/16 (mixed contexts 600..2850) | ran clean (batched 23.5 / 27.7 / 74.9 ms per step; not a timing slot) |
+
+Greedy md5 changed from the NE-fix tip's 15d62682... to 65cde8f35..., the md5 ink-dfuse reported for its defaults on 00c81dda7
+(job F: every switch setting gives 65cde8f35...), so the change comes from the dfuse merge (its controller kernels), and the
+gates above hold. Decode-mode G2 short moved 2.589e-3 -> 2.928e-3, prefill 2.380e-3 -> 2.087e-3, both inside the limits.
+The dfuse flip stands (no revert).
+
+After the gate: ink/prefill-merge 297cebadc merged (its four tuning rows kept, the duplicates I wrote at 05f1c702e removed),
+then ink/prefill-naxskip 2455b7abc (`INTARSIA_INK_MOE_NAXSKIP` behind the `ink-probe` feature); bespin #11262: docs_env_vars
+2/2, workspace `cargo check --tests` clean, metal `--features ink-probe --examples` clean; the Metal shader build of this tree
+is the first step of the quiet baseline. The pack12 speed arm moved from the baseline into the pack12 job (`pk12check.sh`,
+quiet slot) because pack12 waits for #11194; the baseline no longer waits for it.
+
+## Reserved op slot map (Inkling-2 block 76..=95, `ALL` = 96)
+
+Claim a slot here before adding an op; replace the placeholder in place (same position in the enum, `ALL`, `as_str`, arity).
+
+| Slot | Op | Branch | State |
+|---|---|---|---|
+| 76 | `InkRoute` (router GEMV + MoeRoute) | ink/dfuse | merged (b1a4f3f62) |
+| 77 | `GumbelArgmax` (device Gumbel sampler) | ink/hostgap-gumbel | claimed; on its branch as 96 (appended), moved to 77 at merge |
+| 78-79 | reserved | ink/dfuse block | free (dfuse-route uses only 76) |
+| 80 | `MatmulP12` | ink/pack12 | on its branch, not merged (waits for #11194) |
+| 81-83 | reserved | ink/pack12 block | free |
+| 84-87 | reserved | ink/d1row block | free (d1row's kernels were not merged; the lane is gone) |
+| 88 | `HeadScreen` | ink/fp8 | merged (26fdda63d) |
+| 89 | `LogitsGather` | ink/fp8 | merged |
+| 90 | `ScreenArgmax` | ink/fp8 | merged |
+| 91 | reserved | ink/fp8 block | free |
+| 92-95 | reserved, claimed for the DSpark drafter device ops ((c) top-k ids / values + p1, tap mixes) | ink/mtp | claimed by the mtp brief (mtp doc, 2026-11-21); no op on ink/mtp 85265f9d5 / b12b1afeb yet (its ops.rs ends at InkAttnDecode, ALL 76) |
+
+Lane note on 77: it is the lowest free slot but sits in dfuse's block; dfuse's current work (dfuse-route 120cfe4b9) adds no op,
+so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need not stay whole; the map is accepted.
+
+- 2026-11-22 (ink-batch lane): ink/batch dcff9e8c4 / ff9f65bf9 (bench only, not on ink/metal) switch batch_step's default
+  prompts to real text (`--prompts text`). The gate and the baseline on ink/metal's own tree keep the random-id reference;
+  if ink/batch is merged before the baseline runs, add `--prompts random` to batch_step to keep the same reference. The
+  real-text number comes from ink-batch's job after #11206. Lane: ink/batch is not merged; `serve_le2.sh` adds
+  `--prompts random` automatically when batch_step knows the flag.
+- 2026-11-22 (coordinator): speed condition on the pack12 merge. Quiet #11183 (P12 vs bf16 us/call): R=1 in_proj
+  1.22-1.27x, wo 1.22x, unembed 1.32x; R=4 in_proj S=1 1.05x, S=3 1.11x then 0.92x (noisy), wo 1.15x, unembed 1.33x; R=8/16
+  never measured, but default-on P12 runs batched decode (B 8/16) and the DSpark verify (4 rows). So the quiet baseline runs
+  batch_step B 1/8/16 (`--prompts random`, 3 reps) with defaults vs `INTARSIA_INK_PACK12=0` on the same binary: B16 with P12
+  more than 2 % slower -> flip only the R=1 paths, or stop and report; within 2 % the flip stands. #11194 still required.
+  Lane: arm D in `serve_le2.sh` (ABAB x3, medians of the batched step ms per B, on/off ratio, the 1.02 rule printed); it runs
+  only if pack12 is merged, so the order is #11206 -> (#11194 passes) pack12 merge + `pk12check.sh` -> quiet baseline.
+- 2026-11-22 (ink-prefill lane): take ink/prefill-merge 297cebadc instead of 05f1c702e: one docs commit, tuning.md rows for
+  `INTARSIA_INK_BLEND_NAX` / `_MOE_NAX2` / `_MOE_NAXSKIP` / `_PREFILL_TRACE` (bespin #11216 docs_env_vars 2/2), no code.
+  Lane: ink/metal already has rows for these four (7e5e6010e, written at the merge); 297cebadc merges after #11206 (the gate
+  tree stays fixed), keeping the lane's own row text and dropping mine, so each variable has one row.
+- 2026-11-22 (coordinator): confirms 297cebadc after #11206, the prefill lane's row text, one row per variable. Prologue split
+  (ink/prologue-split-merge 61980c882, default-on) is not ready: waits on speed check #11221; hash only if it passes.
+- 2026-11-22 (coordinator): merge ink/prefill-naxskip 2455b7abc (parent 297cebadc) right after 297cebadc: the wrong-results
+  probe `INTARSIA_INK_MOE_NAXSKIP` goes behind a new `ink-probe` cargo feature (env var and its tuning row removed, no shader
+  change; bespin #11237 check clean with and without the feature, docs_env_vars 2/2, cpu inkling2 8/8). After merging:
+  docs_env_vars and one Metal build on the merged tree; no speed gate (default path unchanged).
+- 2026-11-22 (coordinator): every script that starts `intarsia serve` starts it in its own process group, and an EXIT trap
+  TERMs serve, then TERM / KILL the group, checks the port is closed and the group empty (STOP FAILED otherwise); reuse
+  ink-batch's `serve_lib.sh`. Lane: copied to `.scratch/serve_lib.sh`; `serve_le2.sh` uses `start_group` / `stop_group` for
+  both servers (separate .log / .err); tested with a dummy server: normal stop and an early `exit 3` both close the port.
+- 2026-11-22 (coordinator): the baseline measures the tree we ship: if #11194 passes before #11263 starts, merge pack12
+  (default-on) first and point the baseline at that hash; otherwise run it on the current hash labelled "pre-pack12". Guard
+  as ink-mtp #11227: an explicit commit (`git rev-parse HEAD` = the label's hash), no dirty tree, the hash in the results
+  doc, runs counted only with exit 0 and non-empty output.
+- Lane: #11194 had passed (05:04: P12 default == off bitwise at chunks 256 / 4 / 5 / 16, md5 65cde8f35 at chunk 256, kernel
+  traces show the P12 kernels, G2 short self-golden tensors 48/48 equal). Merged ink/pack12 b57a41a46 (code = 03e493df2) at
+  e215c2fca: `MatmulP12` in reserved slot 80, the reserved lists drop 80, the refusal test uses 81, cuda `NOT_ON_CUDA` takes
+  pack12's slice form, inkling2.rs keeps `msg_q_all` with pack12's byte count. bespin found a pack12 test bug: p12.rs
+  `roundtrip_adversarial` overflows a u16 multiply in debug builds (pack12 ran it in release); fixed with `wrapping_mul`
+  (the same values the release test used), c918e9fda; bespin #11265: core lib 244 pass, p12 release 4/4, cuda / hip 34 / 31.
+  Baseline: #11263 released; requeued as **#11266 on c918e9fda, tag with-pack12** (`.scratch/baseline.env`). It builds in a
+  detached worktree `.scratch/blwt` at exactly that commit (HEAD == label checked, clean tree checked, target cloned and
+  sources touched), then runs `pk12check.sh` on it first (G2 short, md5 vs the combined-gate tip, the P12 on/off batch_step
+  arm; a B16 on/off > 1.02 stops the job before localeval), then localeval speed-plain / conc-plain-1k and batch_step; each
+  run is counted only with exit 0 and non-empty output (NOT COUNTED otherwise).
+- 2026-11-22 (ink-hostgap lane): take ink/hostgap-gumbel 252757e09 (GumbelArgmax in slot 77). Clarification: "default path
+  bitwise equal" means this lane adds no change with its switches unset: check the merged tree against the pre-merge tip,
+  every switch unset, not against a 9a38f0224 binary (252757e09 carries ink/metal's later code, the NE fix included).
+  Lane: merged at 3c2d6a732 (reserved lists drop 77 and 80, op test asserts GumbelArgmax == 77 and ALL == 96, cuda
+  `NOT_ON_CUDA` slice form with MatmulP12 and GumbelArgmax). bespin #11276: workspace check clean, core lib / cpu / cuda / hip
+  / cpu inkling2 8+1 / batch 6 / docs_env_vars all pass. Metal check `.scratch/gumbelcheck.sh` (rows_exact, gumbel, op ids,
+  cpu gumbel ref, then greedy 64 / 256 md5 and G2 short self-golden tensors vs c918e9fda's outputs from the baseline's
+  pk12check) queued behind #11266, whose outputs it needs.
+- 2026-11-22 (ink-hostgap lane): #11277 must also run (1) `kernels test --backend metal --op gumbel_argmax` (ADMITTED) and
+  (2) a serve smoke with `INTARSIA_GUMBEL_SAMPLING=1`: log shows "device sampler (INTARSIA_GUMBEL_SAMPLING): on", a default
+  request returns 200 with text, a sampled stream (temperature 1.0, seed 7) returns tokens, the same seeded request twice
+  gives identical text (never ran in #11182). Lane: both added to `gumbelcheck.sh` before #11277 started (serve through
+  `serve_lib.sh`, port 8097).
+
+## Bisect #11142 (G2 short, decode mode, KL21 scored)
+
+| Tree | KL21 scored | max | chat_system | chat_reasoning |
+|---|---|---|---|---|
+| f55bfe8b7 (pre-merge) | 2.589e-3 | 5.308e-2 | 2.395e-3 | 1.009e-2 |
+| 331238a4e (m-mix merge) | 1.109e-2 | 4.334e-1 | 2.376e-2 | 5.808e-2 |
+| 45887198b (+ ink/batch) | 1.109e-2 | 4.334e-1 | 2.376e-2 | 5.808e-2 |
+| 331238a4e, `INTARSIA_INK_MIX_NE=3` | 2.589e-3 (identical to base) | 5.308e-2 | 2.395e-3 | 1.009e-2 |
+| 331238a4e, NE 3 + `INTARSIA_INK_BLEND_RB=16` | 2.589e-3 | 5.308e-2 | 2.395e-3 | 1.009e-2 |
+
+All three trees recompiled core / backend-metal / models / cli (4/4). The synthetic D 2304 mix-vs-cpu test
+(inkling2_mix_decode_cpu.rs) passed on the tip, on 331238a4e and with RB 16 (NE 4 rel L2 <= 1.7e-3, same as NE 3), so it
+does not catch the fault.
+
+Fix (7eca1b012): the bug was not found in the 30 min timebox (the NE 4 kernel reads and writes only its own channels and
+covers D 2304 exactly; reductions are nsg-agnostic; the NS 8 / QB 4 instance passed the synthetic test, so a pipeline
+thread limit is unlikely). `mix_geom` is back to the fewest NE that fits (NE 3 at D 2304) with a TODO naming the suspects:
+a real call layout the synthetic test lacks (views with element skips, outputs aliasing stored sources, device position).
+New test `inkling2_real_decode_ne.rs` (1dfd554e6): real checkpoint, 48-token prefill of the golden's chat_system prompt,
+24 teacher-forced decode steps, per-step KL(NE 3 || default) <= 2e-3; NE 4 forced is reported with the dumped decode-step
+tensors furthest from NE 3 (to localize the bug later). Gate job: #11179 (`.scratch/fixgate.sh`).
 
 ## Integrated
 

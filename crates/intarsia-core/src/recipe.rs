@@ -429,6 +429,10 @@ pub struct BackendTuning {
     /// when `INTARSIA_MTP_QUANT` is not set. Drafts only (the verified output is unchanged). Only `recipes/qwen3_5_vl.toml` (Qwen3.8-27B) sets it, `"mix"` on
     /// CUDA (user decision 2026-11-08, lane mxd).
     pub mtp_quant: Option<String>,
+    /// Inkling-2 only: quantise the attention projections (the stacked in-projection, as three q / k / v packs, and `wo`) at load on
+    /// this backend (`"fp8"` or `"mxfp4"`, [`crate::quant::head::HeadQuant`]) when `INTARSIA_INK_ATTN_QUANT` is not set. It changes
+    /// outputs; no shipped recipe sets it (lane ink-fp8, `docs/results/2026-11-21-inkling2-fp8.md`).
+    pub ink_attn_quant: Option<String>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -493,6 +497,11 @@ impl Recipe {
     /// The recipe's `lm_head_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
     pub fn lm_head_quant(&self, backend: &str) -> Option<&str> {
         self.tuning.backends.get(backend).and_then(|b| b.lm_head_quant.as_deref())
+    }
+
+    /// The recipe's `ink_attn_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
+    pub fn ink_attn_quant(&self, backend: &str) -> Option<&str> {
+        self.tuning.backends.get(backend).and_then(|b| b.ink_attn_quant.as_deref())
     }
 
     /// The recipe's `mtp_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
@@ -772,6 +781,9 @@ impl Recipe {
         }
         for v in self.tuning.backends.values().filter_map(|b| b.mtp_quant.as_deref()) {
             crate::quant::head::parse_mtp_quant(v)?;
+        }
+        for v in self.tuning.backends.values().filter_map(|b| b.ink_attn_quant.as_deref()) {
+            crate::quant::head::HeadQuant::parse(v)?;
         }
         self.accuracy.ppl_form()?;
         if self.accuracy.max_ppl.is_some_and(|m| !(m.is_finite() && m > 0.0)) {
