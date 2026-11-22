@@ -385,6 +385,34 @@ fn inkling2_tiny_chunk_scan() {
     }
 }
 
+/// The speculative verify pass (`Model::forward_verify_logits`, R rows through the rows-exact kernels) gives the 1-row decode
+/// steps' logits bit for bit at R = 2, 3, 4 and at several positions (before and past the window and the rel extent), and its
+/// greedy picks are the decode argmaxes: greedy spec == no spec needs exactly this (lane ink-cuda-mtp; Metal's contract).
+#[test]
+fn inkling2_tiny_verify_rows_equal_decode_bitwise() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let m = load(&dir, chunk());
+    for &p in &[5usize, 9, 17, 26] {
+        for r in 2..=4usize {
+            if p + r > ids.len() {
+                continue;
+            }
+            let mut a = m.new_state().unwrap();
+            all_logits(&m, &mut a, &ids[..p]);
+            let (picks, rows) = m.forward_verify_logits(&mut a, &ids[p..p + r]).unwrap();
+            let mut b = m.new_state().unwrap();
+            all_logits(&m, &mut b, &ids[..p]);
+            for (j, &id) in ids[p..p + r].iter().enumerate() {
+                let intarsia_core::model::StepOut::Logits(one) = m.forward(&mut b, &[id], HeadMode::LastLogits, None).unwrap() else { panic!() };
+                let diff = rows[j].iter().zip(&one).position(|(x, y)| x.to_bits() != y.to_bits());
+                assert!(diff.is_none(), "{}: verify R={r} at pos {p}, row {j}: logit {diff:?} differs from the 1-row decode", m.backend.name());
+                assert_eq!(picks[j] as usize, argmax(&one), "verify R={r} at pos {p}, row {j}: greedy pick");
+            }
+        }
+    }
+}
+
 /// Rollback by length (a rejected speculative tail, a prompt edit) within the ring margin, and the refusal past it.
 #[test]
 fn inkling2_tiny_rollback_by_length() {
