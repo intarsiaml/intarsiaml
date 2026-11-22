@@ -260,4 +260,29 @@ unembed 1.59 ms (floor 1.65).
 Host-side: no gap at batch 1 in normal steps; the profiler steps (every 16th, `generate` only) and the eager encode are lane
 ink-hostgap's (graph replay / ICB is blocked as described in Changes item 8).
 
+### localeval (`--tier adhoc --cells speed-plain,conc-plain-1k`, #10890)
+
+`intarsia serve --backend metal --max-batch 1 --max-seq 20480`, run 20261121-231510-adhoc-endor-intarsia-metal-ink-metal in
+/opt/code/deepeval/results (unanimis d9825440). Binary: f55bfe8b7's code (see Briefs). localeval ran inside #10890's slot: it
+detects the inherited `FLEETQ_JOB` and does not queue a second one (`localeval/cli.py:296`).
+
+| prompt tok | TTFT s | marginal prefill tok/s | decode tok/s | vs baseline 62.5 / 62.0 / 60.6 / 57.5 |
+|---:|---:|---:|---:|---:|
+| 146 | 0.15 | - | 63.4 | +1.4 % |
+| 1019 | 0.67 | 1689 | 61.5 | -0.8 % |
+| 4111 | 2.63 | 1573 | 60.0 | -1.0 % |
+| 16455 | 11.41 | 1406 | 56.7 | **-1.4 %** |
+
+**Possibly contaminated** (coordinator rule: other lanes built and tested on endor outside a slot around 23:35, during this
+run; the 16k row is more than 1 % under the baseline). Requeued as #11023 (speed-plain only); conclusions wait for it.
+
+conc-plain-1k: **not supported** (batched decode is refused for Inkling-2; at `--max-batch 1` the server serializes the
+streams): aggregate 50.8 / 51.6 / 50.9 tok/s at 1 / 4 / 16 streams, per-stream 50.8 / 12.9 / 3.2, TTFT 0.86 / 15.5 / 75.9 s.
+
+`intarsia bench speed` against the same server failed at calibration ("no tokens received", `crates/intarsia-bench/src/speed.rs:324`);
+the plain chat request and localeval's streaming requests work, so it is the bench's calibration call, not the server.
+Not investigated further (localeval is the comparable number).
+
+Repeated prompt (prefix reuse path): two identical greedy chat requests gave identical choices.
+
 SPEED_REST
