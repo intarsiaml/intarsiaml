@@ -83,20 +83,23 @@ pub fn metal4_shaders() -> Vec<&'static str> {
 
 /// Timing probes of the first-generation grouped NVFP4 experts at 64-row tiles (inkling2_moe_probe.metal, WRONG RESULTS):
 /// (gu, dn) of probe 0 (unchanged copy), 1 (bit copy instead of the decode arithmetic), 2 (no weight loads).
-pub const PROBE_SHADERS: [(&str, &str); 3] = [
+/// Then 3 (K tile 64, no row pad) and 4 (K tile 128, no row pad): the K-step probe (brief 17).
+pub const PROBE_SHADERS: [(&str, &str); 5] = [
     ("ink_moe_probe_gu_nv_p0", "ink_moe_probe_dn_nv_p0"),
     ("ink_moe_probe_gu_nv_p1", "ink_moe_probe_dn_nv_p1"),
     ("ink_moe_probe_gu_nv_p2", "ink_moe_probe_dn_nv_p2"),
+    ("ink_moe_probe_gu_nv_k64p0", "ink_moe_probe_dn_nv_k64p0"),
+    ("ink_moe_probe_gu_nv_k128p0", "ink_moe_probe_dn_nv_k128p0"),
 ];
 
 #[cfg(feature = "ink-probe")]
 static PROBE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0xFF);
 
-/// Benchmarks built with the `ink-probe` feature only: select probe `v` (0..=2) of [`PROBE_SHADERS`] for NVFP4 prefill
+/// Benchmarks built with the `ink-probe` feature only: select probe `v` (0..=4) of [`PROBE_SHADERS`] for NVFP4 prefill
 /// calls whose first-generation tile is 64 rows, or None for the normal kernels. No environment variable reaches it.
 #[cfg(feature = "ink-probe")]
 pub fn set_moe_probe(v: Option<u8>) {
-    PROBE.store(v.filter(|&p| p < 3).unwrap_or(0xFF), std::sync::atomic::Ordering::Relaxed);
+    PROBE.store(v.filter(|&p| (p as usize) < PROBE_SHADERS.len()).unwrap_or(0xFF), std::sync::atomic::Ordering::Relaxed);
 }
 
 /// The probe (gu, dn) for an NVFP4 call with `tm`-row tiles; always None without the `ink-probe` feature.
@@ -104,7 +107,7 @@ pub(crate) fn moe_probe(mx: bool, tm: usize) -> Option<(&'static str, &'static s
     #[cfg(feature = "ink-probe")]
     {
         let v = PROBE.load(std::sync::atomic::Ordering::Relaxed);
-        if !mx && tm == 64 && v < 3 {
+        if !mx && tm == 64 && (v as usize) < PROBE_SHADERS.len() {
             return Some(PROBE_SHADERS[v as usize]);
         }
     }

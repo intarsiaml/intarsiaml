@@ -3,6 +3,7 @@
 //   PROBE 0  unchanged (a timing control for the copy itself)
 //   PROBE 1  the NVFP4 -> bf16 decode arithmetic replaced by a bit copy (the same 32-byte threadgroup store per block)
 //   PROBE 2  no weight / scale loads from device memory: thread-dependent words feed the unchanged decode
+//   k64p0 / k128p0  PROBE 0 at K tile 64 / 128 without the threadgroup row pad (K-step probe; these give CORRECT results)
 // Reachable only from inkmoe_bench built with the `ink-probe` cargo feature (src/inkprefill.rs `set_moe_probe`); never a
 // registry kernel, so admission never lists it. Remove before relying on anything here.
 #include <metal_stdlib>
@@ -40,14 +41,14 @@ inline void prb_blk_copy(uint2 v, uint s, threadgroup bfloat* dst) {
     d[1] = uint4(v.y, v.x, v.y ^ s, v.x);
 }
 
-template <uint FMT, uint MODE, uint BM, uint BK, uint PROBE>
+template <uint FMT, uint MODE, uint BM, uint BK, uint PROBE, uint PAD = 8>
 inline void prb_mm_impl(device const ushort* A, device const int* pairs, device const int* off, device const int* tiles,
                         device const uchar* W, device const uchar* S, device const float* gsc, device const float* wts,
                         device ushort* out, constant OpP& p, threadgroup float* smem, uint2 tg, uint tid, uint sg) {
     constexpr uint TM = BM < 16 ? 16 : BM;
     constexpr uint GM = BM >= 32 ? 2 : 1;
     constexpr uint SM = TM / GM, SN = MOE_WR / (4 / GM);
-    constexpr uint LD = BK + 8;
+    constexpr uint LD = BK + PAD;
     constexpr uint AC = BK / 8;
     constexpr uint NA = (BM * AC + 127) / 128;
     constexpr uint NB = BK / 32;  // 16-element groups per thread and step
@@ -146,10 +147,10 @@ inline void prb_mm_impl(device const ushort* A, device const int* pairs, device 
     }
 }
 
-#define PRB_SMEM(TM, BK) \
-    ((((TM) + MOE_WR) * ((BK) + 8) * 2 > (TM) * MOE_LC * 4 ? ((TM) + MOE_WR) * ((BK) + 8) * 2 : (TM) * MOE_LC * 4) / 16)
+#define PRB_SMEM(TM, BK, PAD) \
+    ((((TM) + MOE_WR) * ((BK) + (PAD)) * 2 > (TM) * MOE_LC * 4 ? ((TM) + MOE_WR) * ((BK) + (PAD)) * 2 : (TM) * MOE_LC * 4) / 16)
 
-#define PRB_MM(NAME, MODE, PROBE)                                                                                       \
+#define PRB_MMK(NAME, MODE, PROBE, BK, PAD)                                                                             \
     kernel void NAME(device const ushort* A [[buffer(0)]], device const int* pairs [[buffer(1)]],                       \
                      device const int* off [[buffer(2)]], device const int* tiles [[buffer(3)]],                        \
                      device const uchar* W [[buffer(4)]], device const uchar* S [[buffer(5)]],                          \
@@ -157,9 +158,10 @@ inline void prb_mm_impl(device const ushort* A, device const int* pairs, device 
                      device ushort* out [[buffer(8)]], constant OpP& p [[buffer(9)]],                                   \
                      uint2 tg [[threadgroup_position_in_grid]], uint tid [[thread_index_in_threadgroup]],               \
                      uint sg [[simdgroup_index_in_threadgroup]]) {                                                      \
-        threadgroup float4 smem[PRB_SMEM(64, 64)];                                                                      \
-        prb_mm_impl<0, MODE, 64, 64, PROBE>(A, pairs, off, tiles, W, S, gsc, wts, out, p, (threadgroup float*)smem, tg, tid, sg); \
+        threadgroup float4 smem[PRB_SMEM(64, BK, PAD)];                                                                 \
+        prb_mm_impl<0, MODE, 64, BK, PROBE, PAD>(A, pairs, off, tiles, W, S, gsc, wts, out, p, (threadgroup float*)smem, tg, tid, sg); \
     }
+#define PRB_MM(NAME, MODE, PROBE) PRB_MMK(NAME, MODE, PROBE, 64, 8)
 
 PRB_MM(ink_moe_probe_gu_nv_p0, 0, 0)
 PRB_MM(ink_moe_probe_dn_nv_p0, 1, 0)
@@ -167,3 +169,10 @@ PRB_MM(ink_moe_probe_gu_nv_p1, 0, 1)
 PRB_MM(ink_moe_probe_dn_nv_p1, 1, 1)
 PRB_MM(ink_moe_probe_gu_nv_p2, 0, 2)
 PRB_MM(ink_moe_probe_dn_nv_p2, 1, 2)
+// K-step probes (brief 17; measure only): K tile 64 without the row pad (control for the pad), and 128 without the pad
+// (2x; 64 + 64 rows x 128 x 2 B = 32768 B, exactly the 32 KB threadgroup limit). 4x (256) does not fit 32 KB at 64-row
+// tiles and does not divide the down's K = 1152.
+PRB_MMK(ink_moe_probe_gu_nv_k64p0, 0, 0, 64, 0)
+PRB_MMK(ink_moe_probe_dn_nv_k64p0, 1, 0, 64, 0)
+PRB_MMK(ink_moe_probe_gu_nv_k128p0, 0, 0, 128, 0)
+PRB_MMK(ink_moe_probe_dn_nv_k128p0, 1, 0, 128, 0)
