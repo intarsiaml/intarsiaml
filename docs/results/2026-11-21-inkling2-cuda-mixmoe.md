@@ -974,3 +974,10 @@ complete, a per-row-block ready flag), worth ~0.3-0.5 ms / token by estimate; no
 Prefill (for brief 37): the existing W4A4 FP4 tensor-core path (`ink_moe_fp4_sm120a.cu`, block-scaled `mxf4nvf4` m16n8k64)
 already runs at 4.83 ms per 2048-row NVFP4 layer (incl. activation quantisation) vs 7.83 ms for the bf16 `ink_moe_mma`
 (ink_bench, #11520): 54 vs 33 TF/s.
+
+## PR #491 no-op evidence (brief 39; head `9ca7a7588`, same code as `cb13bd5f2`, vs main `1f226a2e3`)
+
+Metal plan show Qwen3-8B / Llama-3.1-8B / Inkling and cpu plan show Qwen3-8B / Llama: byte-identical (endor #11566). Inkling Metal greedy
+md5 g64 `65cde8f35a18` and g256 `61fd59fecb5e`, both equal to main. CUDA plan show 35B / 8B: byte-identical. CUDA 8B greedy ids are
+identical, and kernels test --quick passes 128 kernels / 1556 cases (spark2 #11547). Inkling CUDA md5 g64 / g256 / g1.2k are unchanged
+with spec off and on (#11541).
