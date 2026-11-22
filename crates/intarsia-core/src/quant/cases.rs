@@ -944,13 +944,15 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             call.attrs.norm_topk
         ),
         Op::MoeExperts => format!(
-            "T={} E={} K={} H={} I={} {}",
+            "T={} E={} K={} H={} I={} {}{}",
             i[0].shape[0].min(caps.rows),
             i[3].shape[0].min(32).max(i[1].shape[1]),
             i[1].shape[1],
             i[0].shape[1],
             i[3].shape[1] / 2,
-            i[0].dtype
+            i[0].dtype,
+            // Inkling-2's SiTU experts are another case (and cache entry); the suffix is empty for every other model
+            if call.attrs.ink.situ { " situ" } else { "" }
         ),
         Op::MoeCombine => format!("T={} H={} {}", i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
         Op::MatmulPair => format!(
@@ -1098,7 +1100,16 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
         Op::MoeExperts => {
             let k = i[1].shape[1];
             let e = i[3].shape[0].min(32).max(k);
-            experts_case(rng, i[0].shape[0].min(caps.rows), e, k, i[0].shape[1], i[3].shape[1] / 2, i[0].dtype)
+            let mut c = experts_case(rng, i[0].shape[0].min(caps.rows), e, k, i[0].shape[1], i[3].shape[1] / 2, i[0].dtype);
+            if call.attrs.ink.situ {
+                // Inkling-2 SiTU (a `.situ()` kernel only accepts these): the call's caps, routing weights around 8 / K as the
+                // model's route_scale gives them (the sweep's rule)
+                let t = c.inputs[2].shape[0];
+                let w: Vec<f32> = c.inputs[2].to_f32().iter().map(|v| v * 8.0).collect();
+                c.inputs[2] = HostTensor::from_f32(&[t, k], &w);
+                c.attrs.ink = call.attrs.ink;
+            }
+            c
         }
         Op::MoeCombine => combine_case(rng, i[0].shape[0].min(caps.rows), i[0].shape[1], i[0].dtype),
         Op::MatmulPair => matmul_pair_case(
