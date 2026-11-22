@@ -1585,3 +1585,78 @@ overlap. Measure and list only.
   concurrent encoder can only pay off if a barrier-separated transition is cheaper than a serial one. In dispatch_cost
   (untracked) it was not: 1.03 us with a barrier vs 0.88 serial. Job K's matrix measures this in the engine's tracked
   setting.
+
+### Job K results (#11450, 10:06-10:10; raw/K_*)
+
+**Bottom line: one more dependent dispatch costs about 1 us in the real decode step: 1.03 us at short (se 0.20) and
+0.85 us at 5k (se 0.19).** That is below 1.5 us, so by the coordinator's rule this lane wraps up (option a). The 3.3 us
+seen in the attention harness and L's bench floor does not occur in the real step. Hazard tracking makes no measurable
+difference, and a concurrent encoder with barriers costs more per transition than the serial one.
+
+- **Bits and plans.**
+  - Greedy md5 at 64 tokens is equal unset vs k = 200 (65cde8f3..., the same as job G).
+  - Every timing run's md5 is equal across k (short d03580fb..., 5k d108e0e9...).
+  - plan show Qwen3-8B / Llama-3.1-8B is byte-identical to the base binary.
+- **Real-step slope (span ms/step, two runs per k, order 0 50 100 200 200 100 50 0; dispatches/step 543 -> 743 as
+  intended, 2 command buffers per step throughout):**
+
+| k | short | 5k |
+|---|---|---|
+| 0 | 13.309, 13.359 | 14.322, 14.264 |
+| 50 | 13.351, 13.355 | 14.294, 14.282 |
+| 100 | 13.404, 13.366 | 14.333, 14.290 |
+| 200 | 13.482, 13.587 | 14.434, 14.474 |
+| **slope** | **1.03 us / dispatch** | **0.85 us / dispatch** |
+
+  Box label: 13.954 at the start (the first run, cold), 13.447 at warm-up, 13.280 at the end.
+- **CPU or GPU (add-on item 2).** It is GPU time.
+  - In token-feedback mode the host commits each step's last buffer 13.2-14.4 ms before the GPU finishes it, at k = 0
+    and at k = 200 (raw/K_stepenc.txt). GPU busy per step rises by 0.95 us per added dispatch at short and 0.78 at 5k.
+  - Host encode (plain mode, full 128-dispatch buffers) is 1.19 us per real dispatch and about 0.96 averaged at k = 200.
+    It is hidden while the host runs ahead.
+- **Chain matrix in the engine's setting (add-on item 1; GPU us per dispatch, 1000 per command buffer, raw/K_dispcost.txt):**
+
+| chain | shared tracked serial (engine) | shared untracked serial | private tracked serial | shared tracked conc+barrier | shared untracked conc+barrier | conc, no barrier |
+|---|---|---|---|---|---|---|
+| write | 0.666 | 0.664 | 0.665 | 1.084 | 1.012 | 0.124 |
+| rmw | 0.940 | 0.880 | 0.917 | 1.398 | 1.161 | 0.121 |
+| add3 (dispatch_cost's) | 0.820 | 0.846 | 0.829 | 1.303 | 1.292 | 0.127 |
+| chain (reads previous output) | 0.944 | 0.946 | 0.951 | 1.357 | 1.497 | 0.129 |
+| chain8 (+8 bound buffers) | 0.978 | 0.915 | 0.979 | 1.526 | 1.553 | 0.130 |
+
+  - **Tracked vs untracked: no systematic difference** (-0.06 to +0.03 us). The one outlier is `empty` (1.057 vs 0.756),
+    and `empty_b` reverses it. So hazard tracking does not explain the gap.
+  - **The barrier form costs +0.4 to +0.6 us per dependent transition** over serial. Only the ~6 independent
+    transitions per step could overlap (0.13 us). Net, a concurrent encoder would be about 0.2 ms/token slower.
+  - dispatch_cost itself, rerun: add_bf16 0.92 us serial, 1.11 with barriers.
+  - **Where 3.3 us came from: not established.** The real step (0.85-1.03 us) and this matrix (0.7-1.0 us) both
+    disagree with it. Both 3.3 us figures were taken on a lightly loaded GPU with little warm-up (the harness floor right
+    after cal; L's bench floor). The GPU clock state is a plausible cause, but unverified.
+- **Ranking at the measured slope (ms/token = removable dispatches x ~1 us; all below the 0.3 bar):**
+
+| Candidate | Dispatches removed per token | ms / token (short / 5k) | Note |
+|---|---|---|---|
+| reach the 350 target (any mix) | 193 | 0.20 / 0.16 | |
+| blend tail h GEMV + gate + norm -> 1 | 92 | 0.09 / 0.08 | change 3 (fused tail) was slower net |
+| attention comb folded into dec | 48 | 0.05 / 0.04 | the harness's nocomb (0.15 / 0.28) also counts comb's own work |
+| ink_route folded into the ConvMix | 48 | 0.05 / 0.04 | |
+| experts gate+up -> down in one launch | 48 | 0.05 / 0.04 | forward-progress caveat |
+| decode buffers untracked | 0 | about 0 | matrix: no difference |
+| concurrent encoder + barriers at real dependencies | 0 | about -0.2 (slower) | ~6 independent transitions per step |
+
+- **Ride-alongs.**
+  - **L's bench rerun:** full ctx 512 fused 23.12 us, against L's 24.34 and the harness's 22.52 (-2.6 %). With that, the
+    harness is within 5 % at all four points: SWA 512 22.97, SWA 4096 31.65, full 4096 61.56. L's full-512 row was
+    the outlier.
+  - **Prologue split (token mode, ms/token vs ship; CAL PASS again):**
+
+| Part removed | ctx 150 | ctx 512 | ctx 5180 |
+|---|---|---|---|
+| rel bias (r . relproj, 16-deep chain per distance) | **-0.242** | **-0.302** | **-0.258** |
+| q / r clip + k clip / v norm | -0.104 | -0.070 | -0.081 |
+| conv | +0.035 | +0.003 | -0.163 |
+| all (nopro) | -0.413 | -0.361 | -0.486 |
+
+    The rel bias is the largest part, but 0.24-0.30 is a bound for deleting it, not for computing it faster in the same
+    order. It reaches 0.3 only at ctx 512. Under the rule this is no build.
+- **Decision: wrap up (option a)**, per the coordinator's rule (slope < 1.5 us).
