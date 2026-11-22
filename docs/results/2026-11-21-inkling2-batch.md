@@ -47,6 +47,15 @@ Branch `ink/batch` from `ink/metal` 1dacac3a8.
   host: 16 x ~1 ms. (1) Check from code what happens per row on the host in a greedy batched step. (2) If so, greedy rows on
   the device (the solo path's softcap + argmax per row, one small readback of B ids). (3) Sampled rows keep host logits; the
   per-row softcap on the host pool waits for hostgap's a2f2b87b9. Report before building; record this brief.
+- 2026-11-21 (coordinator, rule for all Inkling lanes): this session and every worktree run ON endor; a local cargo
+  build / check / test or shader compile loads endor's CPU and skews every quiet timing job there (a possible cause of noisy
+  A/Bs). No local builds or tests on endor outside a fleetq slot. macOS compile checks: bespin
+  (`fleetq run --host bespin --load cpu --mem 6 --expect <min>`, a `git archive` copy in ~/intarsiaml-ink-batch, toolchain in
+  ~/.cargo/bin; no GPU timing or real model there). CPU tests: spark2. GPU work: endor fleetq jobs. Reading, git and editing
+  locally are fine.
+  Lane audit: every build and test of this lane ran inside an endor fleetq slot except one `cargo check -p intarsia-core`
+  at 21:1x, before any timing job of this lane. Every quiet timing job queued now (#10900 A/B, solo A/B, #10811) builds inside
+  its own slot before timing, so nothing outside a slot overlaps it.
 
 ## 1. Design note (contract delta, written before any kernel)
 
