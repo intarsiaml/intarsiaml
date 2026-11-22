@@ -285,6 +285,69 @@ What can and cannot remove it while keeping the token bitwise the same:
   sequential (about 0.15 ms). Worth building only if the measured host share is large: the profile columns `softcap` and
   `accept` of `hp_t1` / `hp_t07` in #10840.
 
+## Item 3b: the bitwise host sampler, option (a) (commits aed3dc496, 8d8ac6c78, a2f2b87b9)
+
+**What it does:**
+- `crate::par` is a persistent host pool. By default it runs min(8, cores) threads, counting the calling thread. Between task
+  lists a worker spins for 300 us, then blocks. One caller uses it at a time; a second, concurrent caller runs its tasks
+  inline. A nested `run` also runs inline.
+- Every task writes only its own outputs, so no result depends on which thread ran what.
+- **Default (approved by the coordinator):** a per-model switch set at load, on for Inkling-2-Mini and off for every other model.
+  `INTARSIA_HOST_THREADS=N` turns it on for every model with N threads; `1` turns it off.
+
+**Soft-cap:** for a row of at least 32768 entries, `cap * tanh(x / cap)` runs per element on the pool. Each element gets the
+same expression as before, so the result is bitwise the same.
+
+**Sampler:** for a row of at least 32768 entries with top-k off (`top_k` 0, Inkling's checkpoint default), `sample_row_par`
+does:
+- the sort keys and the NaN check, on the pool (a NaN row falls back to the comparator path, as before)
+- a stable chunked LSD radix sort on the pool (8-bit digits, 4 passes)
+- the softmax exp terms and their divides on the pool
+- the f64 total, the top-p cut, the cut's sum and the walk sequentially, in the same order as `cut_in`
+
+It gives the same probabilities as before, so the same token.
+
+**Why each step stays exact:**
+- The keys are distinct (`key << 32 | index`), so every correct sort gives the same order.
+- The f64 total stays sequential, as the coordinator asked: it is the floor, about 0.10 ms on spark2.
+
+**Two rules came from measurements:**
+- A top-k row keeps the one-thread path. On the pool, top-k 20 and 64 went from 0.27 to 0.34 ms, because `select_nth` and its
+  few candidates gain nothing from threads.
+- The radix sort uses 8-bit digits in 8 parts. The first version used 11-bit digits in 16 parts and took 0.63 ms of the
+  1.0 ms: each part's run of a bucket was about 6 keys, less than a cache line, so the parts shared nearly every line they wrote.
+
+**Batched serve** (`Scheduler::accept_rows`, coordinator item):
+- With the pool on and B > 1, each row of a decode step is accepted as its own pool task, and the results are handled in row
+  order afterwards.
+- A sequence's accept touches only that sequence (sampler, seeded RNG, constraint), so its token is the one the sequential
+  loop gives.
+- `BatchModel::Out` gains a `Send` bound.
+- Logits rows recycled on a worker go to a shared spill, which the step's thread takes back; no fresh 0.8 MB rows means no
+  GB10 page faults.
+- Not done: ink/batch adds the batched soft-cap (`softcap_logits` per row in model/batch.rs). It uses the within-row pool, and a
+  row-parallel soft-cap would be a small follow-up in that file.
+
+**Tests:**
+- `sampler::threaded_sampler_matches_the_one_thread_path`: every chunk count, ties, +-0, -inf, NaN, top-k / top-p /
+  temperature, all-equal rows; the public entry point with top-k on and off; the soft-cap bitwise.
+- `par::tests::every_task_runs_once`: concurrent callers, panics.
+- `batch_engine::batched_sampled_equals_solo`: every request sampled, B = 4 and 16, against solo; run with the pool on (8),
+  off (1) and at the default.
+
+**spark2 microbench** (Grace, 8 threads, warm, 200058 logits, ms; one thread -> pool):
+
+| step | aed3dc496 | 8d8ac6c78 | a2f2b87b9 |
+|---|---:|---:|---:|
+| soft-cap | 1.05 -> 0.23 | 1.05 -> 0.25 | SPARK_A2F_SOFTCAP |
+| sampler, T 1, no top-k | 1.84 -> 1.06 | 1.87 -> 1.01 | SPARK_A2F_T1 |
+| sampler, T 0.7, top-k 20, top-p 0.95 | 0.28 -> 0.34 | 0.27 -> 0.27 | SPARK_A2F_K20 |
+
+Phase split of the threaded sampler on ce292492b (before the radix fix): keys 0.04, radix sort 0.63, exp 0.15, f64 total 0.10,
+divide 0.04, walk 0.00 ms (median walk depth 22). After the fix: SPARK_A2F_PHASES.
+
+**Endor** (#10943, in-loop host profile, against the <= 1 ms target for soft-cap + sampler at t1.0): ENDOR_SAMPLER_PLACEHOLDER
+
 ## Item 5: the speculative draft cycle without a host round trip (proposal, not built; dropped)
 
 **Dropped 2026-11-21 (coordinator).** ink-mtp's per-cycle split at k3, synced:
