@@ -838,3 +838,12 @@ Gate #11481 (spark2, `--quiet gpu,cpu`, `.scratch/hdgate.sh`): ink_rows 8/8 (new
 | acceptance g256 / g1.2k | 34.1 % / 43.0 % | same |
 
 Spec off g256 unchanged (`a0e6f47bc45f`, 36.50 tok/s). nsys (128 tokens): head 72 x 2418.6 us -> 71 x 1439.0 us.
+
+### g64 spec on after the head kernel; first-call warmup not built (#11486)
+
+Without a profiler, g64 spec on (France, 64 tokens, head kernel on) is 1720 / 1717 ms = 36.62 / 36.70 tok/s, ids `ec9a19c14b2d`:
+level with spec off (36.53-36.76). The 148 ms first-draft stall of #11462 was mostly nsys's own first-call cost (the merge gate
+without nsys had on64 only 14 ms over off). `CUDA_MODULE_LOADING=EAGER` (every module loaded at start): decode 1679 / 1685 ms
+(37.51 / 37.40 tok/s, -38 ms, same ids) for +2-4 s process wall. So lazy first-use loading costs ~38 ms once per process; a
+targeted load-time warmup would save at most that for one-shot `generate`, and serve pays it once. Not built (well under the
+brief's bar of being worth a load-time cost); `CUDA_MODULE_LOADING=EAGER` is the switch for a one-shot user who wants it.
