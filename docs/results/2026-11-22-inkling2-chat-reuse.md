@@ -62,3 +62,26 @@ Keep the bitwise gate (turn 2 == a full re-prefill). Added gates:
 3. A restore whose cut is more than 16 rows below the snapshot falls back to a full prefill, with correct output.
 4. `INTARSIA_INK_RING_SNAPSHOT=0` behaves the same as main.
 Report the chat turn-2 TTFT at about 4.6k (target <= 0.2 s) and at 16k. Nothing to main during the #491 freeze.
+
+## Gates on b7351ee4b (endor M5 Max, Metal)
+
+**#11644** (`--quiet gpu,cpu`; main binary 22303d704). The job died after the solo chat flows: `gate.sh` was edited while bash
+was still reading it (a fix to the G comparison below), so its last two sections never ran. The flows' JSON results were complete
+and were scored afterwards with the job's own scoring code; gate B ran as its own job.
+- T PASS: tiny Metal tests `inkling2_chat_reuse` 5/5, `inkling2` 11/11, `inkling2_batch` 8/8 (cpu on bespin #11641: the same,
+  plus `docs_env_vars` 2/2 and intarsia-core lib 260/260).
+- M PASS: greedy md5 64 `65cde8f3...` and 256 `61fd59fe...`, identical for main, on (default) and off (`INTARSIA_INK_RING_SNAPSHOT=0`).
+- G PASS: G2 short / long and G3 short / long / 4k self-goldens, on vs main: every tensor bitwise identical (48 / 60 / 48 / 60 /
+  18 tensors). The job's whole-file `cmp` reported FAIL. That was a measurement bug: the files differ only in `__metadata__`,
+  which records the binary's path and build time. The script now compares tensors (`.scratch/st_same.py`). OVERALL lines are
+  identical too (g3-short exits 1 on main as well: its mean KL 1.204e-2 is above the 1.05e-2 bar on main, unchanged).
+- C PASS, solo server (`--max-batch 1`), on vs off (off prefills every turn again, so it is the full re-prefill reference):
+
+| chat | turn-1 prompt | turn-1 reply | turn-2 prompt | on: cached / TTFT | off: cached / TTFT | turn-2 text on == off |
+|---|---:|---:|---:|---:|---:|---|
+| ~4.6k | 4575 | 189 | 4633 | 4575 / **0.132 s** | 0 / 1.550 s | yes (and turn 1) |
+| ~16k | 16125 | 256 | 16152 | 16125 / **0.136 s** | 0 / 7.092 s | yes (and turn 1) |
+
+  Three turns, reasoning on (effort 0.9), replies 1169 and 1200 tokens: turn 2 (2358 rows) cached 1957 = turn 1's prompt, TTFT
+  0.305 s vs 1.238 s off; turn 3 (3043 rows) cached 2358 = turn 2's prompt, 0.405 s vs 1.405 s; all three turns' text equal to
+  off's. Device memory in use, idle solo server: on 33.08 GiB, off 32.91 GiB (+0.17 GiB = one 174 MiB snapshot).
