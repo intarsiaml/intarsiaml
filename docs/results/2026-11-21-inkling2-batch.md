@@ -719,3 +719,15 @@ real-text input, solo + B 16, 1 rep. Solo >= 58 tok/s and B 16 <= 92 ms means th
 cause (find which). Otherwise the box is slow: requeue #11297's speed half and the toggles later. Combined job
 `.scratch/ctl_then_toggle.sh`: the control first, the regression toggles only if the box is fine (#11306 and the separate
 control job were released so that the toggles cannot run first). #11309 (tiny Metal softcap, correctness) stays queued.
+
+Control vs #11261, side by side (main asked that the two be visibly identical):
+
+| | #11261 arms (`.scratch/realmoe.sh`) | control (`.scratch/ctl.sh`) |
+|---|---|---|
+| binary | `.scratch/base-target/.../batch_step` built from e4ebcfe77 | the same tree's build, copied to `.scratch/ctl/batch_step` |
+| input | real-text prompts (the bench default since dcff9e8c4; no `--prompts` flag) | real-text prompts (same default, no flag) |
+| args | `--ctx 1024 --rounds 2 --steps 16 --batches 1,8,16 --digest` | `--ctx 1024 --rounds 2 --steps 16 --batches 1,16 --digest` |
+| env | `INTARSIA_METAL_TEST_MODEL` only (auto arm) | `INTARSIA_METAL_TEST_MODEL` only |
+
+The only difference is the batch list (no B 8). #11297 differed from both by `/usr/bin/time -l`, `INTARSIA_INK_PACK12=0`
+(no such switch on e4ebcfe77) and stdout to a file.
