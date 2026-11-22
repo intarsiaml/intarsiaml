@@ -1007,6 +1007,8 @@ fn rows_exact_registrations_are_pinned() {
         names,
         [
             "attn_prefill_bf16_splitkv_rows",
+            // lane ink-m-mix (Inkling-2-Mini): G-B test in tests/inkmix.rs
+            "ink_in_proj_bf16_gemv_rows",
             "logits_bf16_gemv_rows",
             "matmul_bf16_gemv_rows",
             "matmul_fp8_gemv_rows",
