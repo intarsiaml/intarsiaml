@@ -94,6 +94,18 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   default-on, MTP flip, argmax v4t, profile-every 0, chunk 2048 if it lands, head screen pending) go in once at merge-to-main
   time, from the LOG section here. The env reset in the combined gate is right. Carry on with the queue.
 
+- 2026-11-22 (coordinator, before the merge queue): likely accuracy regression. ink-dfuse job E #11003 (ink/dfuse ac2371c81,
+  containing ink/metal 0ee1bec29): G2 teacher-forced DECODE rows 1.109e-2 short / 9.205e-3 long (before the ink/metal merge,
+  #10952: 2.589e-3 / 2.474e-3; limits 4e-3 / 6e-3; the tool exits 1), carried by one chat_reasoning row (0.43 nats) and one
+  chat_system row (0.30); prefill G2 2.380e-3 -> 2.719e-3. Suspects: the m-mix and / or batch merges. Do: (1) gate the decode-mode
+  G2 rows in #11048 and every later gate, same limits; (2) if #11048 shows it on 8546d143f, hold every queued merge (hostgap,
+  fp8, pack12, prefill) and bisect G2 short decode mode on f55bfe8b7, 331238a4e (m-mix), 45887198b (batch) in one default-load
+  endor job; (3) on the culprit, run the two outlier rows against the fp32 oracle (tools/inkling2_ref.py, the replay / capture
+  setup on ink/spec): farther from the oracle = a bug to fix or revert, equally close = chaotic amplification through the conv /
+  ring state (report; a gate-design question); (4) check whether `intarsia accuracy`'s teacher-forced decode path runs the
+  row-table (batched) path at B = 1 (it must take the solo path). Report each step; cc the m-mix lane (ae322a37a246f2443) or
+  ink-batch (a716d7e057a6fbfc3) if theirs.
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
