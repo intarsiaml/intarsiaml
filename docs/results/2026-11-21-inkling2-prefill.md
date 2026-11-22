@@ -174,6 +174,14 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     fits; default unchanged. Reason: the unexplained ~10 us of 15.2 us per tile is ~60 ms per chunk, more than the fusion's
     ~15. Report fusion ms/chunk with the bitwise result, and K-step us/call per arm.
 
+18. 2026-11-22 (coordinator, via SendMessage): 1k rule for the split. If #11272 pair 2 matches pair 1 (4k / 16k on above
+    off's range, decode within 1 %), settle 1k with engine generate timing, not localeval: p1k split off vs on, 3 alternating
+    pairs, binary 61980c882, inside a job already queued (#11282 or #11290), no new slot. If the on median p1k prefill is
+    >= 0.98x off and the 8k pairs hold, the split goes default-on: send ink-metal the split hash with the numbers. Below
+    0.98x it stays opt-in; report. Label the 1k evidence "generate timing" (localeval rejected the cell).
+    **Done:** the p1k pairs were appended to #11282 (kp1.sh). The binary is copied to .scratch/bin9k (61980c882). The prompt
+    .scratch/p1k.txt is the first half of p2k.txt; generate prints the token count.
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
