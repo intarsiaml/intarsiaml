@@ -465,3 +465,6 @@ was killed with the server; the script should signal the server pid, not the wra
 `ink/batch-rtvar` 2b740dee7 vs merged base 8546d143f: Metal lib / inkmix / mxfp4_gemv / rows_exact tests 18+3+5+11 pass
 (4 ignored); tiny CPU 8+6 pass; tiny Metal 8+6 pass; real model, mixed contexts, batched-token digests at B 2/5/16
 363b4c051e0fbbff / b6691f473fb73a82 / 6c18980dd1c6861f on both: BATCHED TOKENS IDENTICAL base == rtvar.
+
+ink/dfuse ac2371c81 in the same job (#11104, exit 0): row-table tests on Metal with INTARSIA_INK_MIX_HOIST=1 and =0 both
+pass (tiny inkling2_batch 6/6, inkmix 3/3, tiny state 8/8), and HOIST=1 with forced splits (INTARSIA_INK_SPLIT_KEYS=4) 6/6.
