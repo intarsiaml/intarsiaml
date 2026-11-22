@@ -1218,7 +1218,7 @@ impl Model {
                     eprintln!("{}: off ({r})", crate::screen::ENV);
                     None
                 }
-                None => {
+                None => 'screen: {
                     let t0 = std::time::Instant::now();
                     let nm = resolve(src, &lh.tensor)?;
                     let i = src.info(&nm).ok_or_else(|| Error::model(format!("lm_head tensor '{nm}' missing")))?;
@@ -1226,7 +1226,14 @@ impl Model {
                     let all = &src.bytes(&nm)?[..v * d * i.dtype.size_bytes()];
                     let hq = crate::quant::head::quantize_host(crate::quant::head::HeadQuant::Fp8, i.dtype, all, v, d, 0, v)?;
                     let sc = hq.parts[1].to_f32()[0];
-                    let beta = crate::screen::row_bounds(i.dtype, all, &hq.parts[0].data, sc, v, d)?;
+                    // a head row norm of 2^20 or more voids the flush-to-zero part of the bound: the full head then
+                    let beta = match crate::screen::row_bounds(i.dtype, all, &hq.parts[0].data, sc, v, d) {
+                        Ok(b) => b,
+                        Err(e) => {
+                            eprintln!("{}: off ({e})", crate::screen::ENV);
+                            break 'screen None;
+                        }
+                    };
                     let cap = std::env::var(crate::screen::CAP_ENV).ok().and_then(|c| c.trim().parse().ok()).filter(|&c: &usize| c >= 1).unwrap_or(crate::screen::CAP_DEFAULT);
                     let rows = 16usize; // decode, verify (<= 16 rows)
                     let q = hq.upload(b)?;
@@ -1243,6 +1250,7 @@ impl Model {
                         added as f64 / 1e9,
                         t0.elapsed().as_secs_f64()
                     );
+                    crate::screen::LOADED.store(true, std::sync::atomic::Ordering::Relaxed);
                     Some(HeadScreenW { q, beta, a, cand, cnt, cap, rows, ok: std::sync::OnceLock::new(), served: Default::default() })
                 }
             }
@@ -5677,6 +5685,9 @@ impl Model {
             })();
             self.exact_rows.store(prev, std::sync::atomic::Ordering::Relaxed);
             r?;
+            if !recording {
+                crate::screen::LAUNCHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
             if !recording && !hs.served.swap(true, std::sync::atomic::Ordering::Relaxed) {
                 eprintln!("{}: first screened head step served ({c} row(s))", crate::screen::ENV);
             }
@@ -5886,4 +5897,12 @@ struct HeadScreenW {
     ok: std::sync::OnceLock<bool>,
     /// Set by the first screened step (logged once, so a gate can tell the screen really ran).
     served: std::sync::atomic::AtomicBool,
+}
+
+impl Drop for HeadScreenW {
+    fn drop(&mut self) {
+        if std::env::var(crate::screen::STATS_ENV).is_ok_and(|v| v.trim() == "1") {
+            eprintln!("{}: {} screened launch(es)", crate::screen::ENV, crate::screen::LAUNCHES.load(std::sync::atomic::Ordering::Relaxed));
+        }
+    }
 }

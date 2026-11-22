@@ -13,11 +13,12 @@
 //!
 //! **HeadScreen.** Per row t, in f32 with these exact operations (the cpu reference [`screen_row`] and every kernel agree
 //! bitwise): `ss = sum_k fma(h_k, h_k, .)` over 32 lane partials (lane l takes k = l, l + 32, ... in order) then the xor tree
-//! (`p_l += p_{l^16}`, `^8`, `^4`, `^2`, `^1`, lane 0); `hn = sqrt(ss) * (1 + 2^-11)`; for every row n
-//! `m = fma(hn, beta_n, |a_n|)`, `lo = fma(-C, m, fma(-hn, beta_n, a_n))`, `hi = fma(C, m, fma(hn, beta_n, a_n))` with
-//! `C = 2^-20`; `L = max_n lo`; the candidates are `{n : hi_n >= L}` written in ascending n to `cand[t, ..]` (at most C_cap of
+//! (`p_l += p_{l^16}`, `^8`, `^4`, `^2`, `^1`, lane 0); `hn = fma(sqrt(ss), 1 + 2^-11, 2^-50)`; for every row n
+//! `m = fma(hn, beta_n, |a_n|)`, `lo = fma(-C, m, fma(-hn, beta_n, a_n)) - T`, `hi = fma(C, m, fma(hn, beta_n, a_n)) + T` with
+//! `C = 2^-20`, `T = 2^-96`; `L = max_n lo`; the candidates are `{n : hi_n >= L}` written in ascending n to `cand[t, ..]` (at most C_cap of
 //! them; C_cap is cand's width), `cnt[t]` their number (which may exceed C_cap); every other slot of `cand[t, ..]` is -1, so
-//! the whole output is defined. A non-finite `hn`, `a_n` or `L` sets `cnt[t] = i32::MAX` and the whole row of `cand` to -1.
+//! the whole output is defined. A non-finite `hn`, `a_n` or `L`, or any `m_n > 2^90` (NaN included), sets `cnt[t] = i32::MAX`
+//! and the whole row of `cand` to -1 (the full head).
 //!
 //! **LogitsGather.** `cnt[t]` in `1..=C_cap`: `y[t, j] = Logits(h_t, W[cand[t, j]])` for `j < cnt[t]`; otherwise (the
 //! fallback) `y[t, n] = Logits(h_t, W_n)` for every n, i.e. the full head row. Each value is bitwise the backend's `Logits`
@@ -34,7 +35,20 @@
 //! [`row_bounds`] computes `beta_n` in f64, scales it by `1 + 2^-20` and rounds it up to f32, and `hn >= ||h||` (the f32 sum
 //! of squares is within `gamma_D` of the exact one, i.e. 1.4e-4 relative at D = 2304, far inside the `2^-11` margin; the
 //! module tests check `hn >= ||h||` in f64). `C = 2^-20` (16 u) absorbs every rounding of the `lo` / `hi` formulas, so
-//! `lo_n <= x_n <= hi_n` for every row. The row n0 with `lo_{n0} = L` has `x_{n0} >= L`, so the maximum `x* >= L`, and every
+//! `lo_n <= x_n <= hi_n` for every row.
+//!
+//! *Accumulation order.* The bound holds for any summation tree of the D exact products: every kernel here (the bf16 head's
+//! `logits_bf16_gemv` / `_rows`, the e4m3 GEMV's 16-term fma chains, per-lane adds and `simd_sum`) is such a tree of
+//! correctly rounded f32 adds or fmas plus one scale multiply, whose depth is at most D + 1 (`gamma_{D+2}` covers it; Higham,
+//! *Accuracy and Stability*, Lemma 3.1 / eq. 4.4). e4m3 codes decode exactly (through half, value / 256; the 256 sits in the
+//! scale, an exact power of two).
+//!
+//! *Flush to zero, overflow.* A device may flush f32 subnormals: each flushed operand or result moves a sum by at most
+//! `2^-126` times an entry magnitude, so with row norms below `2^20` (checked at load, [`row_bounds`]) both dot products
+//! gain at most `2 (D + 2) 2^-126 (1 + sqrt(D) 2^20) < 2^-99` absolute, inside `T`; flushed squares lower `ss` by at most
+//! `D 2^-126`, i.e. `||h||` by at most `sqrt(D) 2^-63 < 2^-57`, inside the `2^-50` floor of `hn` (scaled by `beta_n`, that
+//! is the `hn * beta_n` term). No partial sum overflows while `m_n <= 2^90`: every partial sum is at most `(1 + g) ||h|| ||W_n||`
+//! and `||W_n|| <= beta_n / g`, so it stays below `2^90 2^24 < 2^127`; a row with a larger `m_n` takes the full head. The row n0 with `lo_{n0} = L` has `x_{n0} >= L`, so the maximum `x* >= L`, and every
 //! row with `x_n = x*` has `hi_n >= x_n = x* >= L`: every maximiser is a candidate. The rescoring reproduces each `x_n`
 //! bitwise and ScreenArgmax takes the lowest index of their maximum, which is `Argmax` over the full row.
 //!
@@ -55,6 +69,37 @@ pub const WIDEN: f32 = 1.0 / (1u32 << 20) as f32;
 
 /// The `hn` margin (`1 + 2^-11`).
 pub const HN_MARGIN: f32 = 1.0 + 1.0 / 2048.0;
+
+/// The `hn` floor (`2^-50`): covers squares a flush-to-zero device drops (at most `D * 2^-126` of `||h||^2`).
+pub const HN_FLOOR: f32 = 8.881784197001252e-16;
+
+/// The absolute widening of `lo` / `hi` (`2^-96`): covers the flush-to-zero errors of both dot products.
+pub const T_ABS: f32 = 1.262177448353619e-29;
+
+/// A row whose `m_n = hn * beta_n + |a_n|` exceeds this (`2^90`) takes the full head: below it no partial sum can overflow.
+pub const M_MAX: f32 = 1.2379400392853803e27;
+
+/// Screened head launches in this process (one per screened step, any row count), and whether a screen is loaded at all.
+pub static LAUNCHES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static LOADED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// `INTARSIA_INK_HEAD_SCREEN_STATS=1`: print the launch count when the model is dropped (a scope check for runs without
+/// `/metrics`).
+pub const STATS_ENV: &str = "INTARSIA_INK_HEAD_SCREEN_STATS";
+
+/// The Prometheus lines of the launch counter (`serve`'s `/metrics`), empty when no screen is loaded.
+pub fn metric() -> String {
+    if !LOADED.load(std::sync::atomic::Ordering::Relaxed) {
+        return String::new();
+    }
+    format!(
+        "# HELP intarsia_head_screen_launches_total Screened greedy head launches (INTARSIA_INK_HEAD_SCREEN).\n# TYPE intarsia_head_screen_launches_total counter\nintarsia_head_screen_launches_total {}\n",
+        LAUNCHES.load(std::sync::atomic::Ordering::Relaxed)
+    )
+}
+
+/// Row norms of the head (bf16 and fp8 copy) must stay below this (`2^20`) for the screen (checked at load, `row_bounds`).
+pub const W_NORM_MAX: f64 = 1048576.0;
 
 /// `INTARSIA_INK_HEAD_SCREEN`: `1` = the screened greedy head (needs `INTARSIA_LMHEAD_QUANT` unset: the head stays bf16, the
 /// fp8 copy is the screen's); unset / anything else = off.
@@ -162,15 +207,15 @@ pub fn row_norm(h: &[f32]) -> f32 {
             p[l] = q[l] + q[l ^ off];
         }
     }
-    p[0].sqrt() * HN_MARGIN
+    p[0].sqrt().mul_add(HN_MARGIN, HN_FLOOR)
 }
 
 /// `(lo, hi)` of one screen value.
 #[inline]
 pub fn lo_hi(a: f32, hn: f32, beta: f32) -> (f32, f32) {
     let m = hn.mul_add(beta, a.abs());
-    let lo = (-WIDEN).mul_add(m, (-hn).mul_add(beta, a));
-    let hi = WIDEN.mul_add(m, hn.mul_add(beta, a));
+    let lo = (-WIDEN).mul_add(m, (-hn).mul_add(beta, a)) - T_ABS;
+    let hi = WIDEN.mul_add(m, hn.mul_add(beta, a)) + T_ABS;
     (lo, hi)
 }
 
@@ -183,7 +228,8 @@ pub fn screen_row(a: &[f32], h: &[f32], beta: &[f32], cand: &mut [i32]) -> i32 {
     }
     let mut l = f32::NEG_INFINITY;
     for (n, &an) in a.iter().enumerate() {
-        if !an.is_finite() {
+        // `m <= M_MAX` is false for NaN too
+        if !an.is_finite() || !(hn.mul_add(beta[n], an.abs()) <= M_MAX) {
             return NONFINITE;
         }
         l = l.max(lo_hi(an, hn, beta[n]).0);
@@ -247,6 +293,9 @@ pub fn row_bounds(dt: DType, w: &[u8], q: &[u8], s: f32, n: usize, k: usize) -> 
             e2 += (wv - qv) * (wv - qv);
             w2 += wv * wv;
             q2 += qv * qv;
+        }
+        if !(w2.sqrt() < W_NORM_MAX && q2.sqrt() < W_NORM_MAX) {
+            return Err(Error::invalid(format!("row_bounds: head row {r} norm {:.3e} / {:.3e} is not below 2^20", w2.sqrt(), q2.sqrt())));
         }
         let b = (e2.sqrt() + g * (w2.sqrt() + q2.sqrt())) * (1.0 + f64::powi(2.0, -20));
         let mut f = b as f32;
@@ -483,5 +532,30 @@ mod tests {
         let hinf = vec![f32::MAX; 8];
         assert_eq!(screen_row(&[0.0, 0.5, 1.0, 2.0], &hinf, &beta, &mut cand), NONFINITE);
         assert!(!candidate_path(NONFINITE, 4) && !candidate_path(0, 4) && !candidate_path(5, 4) && candidate_path(4, 4));
+        // m_n above 2^90 (finite, but a partial sum could overflow): the full head; every unwritten slot is -1
+        assert_eq!(screen_row(&[0.0, 2e27, 1.0, 2.0], &h, &beta, &mut cand), NONFINITE);
+        assert_eq!(cand, vec![-1; 4]);
+        let big_beta = vec![1e27f32; 4];
+        assert_eq!(screen_row(&[0.0, 0.5, 1.0, 2.0], &h, &big_beta, &mut cand), NONFINITE);
+        let c = screen_row(&[0.0, 0.5, 1.0, 2.0], &h, &beta, &mut cand) as usize;
+        assert!((1..=4).contains(&c) && cand[c..].iter().all(|&x| x == -1));
+    }
+
+    /// The flush-to-zero part of the bound: `hn` keeps its floor for an all-zero or subnormal-scale row, and a head row norm of
+    /// 2^20 or more makes `row_bounds` refuse (the caller then turns the screen off).
+    #[test]
+    fn ftz_floor_and_norm_cap() {
+        assert!(row_norm(&[0.0f32; 64]) >= HN_FLOOR);
+        let tiny: Vec<f32> = (0..2304).map(|i| f32::from_bits(1 + (i as u32 % 7) * 0x10000)).collect();
+        let exact = tiny.iter().map(|&x| (x as f64) * (x as f64)).sum::<f64>().sqrt();
+        assert!(row_norm(&tiny) as f64 >= exact + (2304f64).sqrt() * f64::powi(2.0, -63));
+        let (n, k) = (2usize, 16usize);
+        let bf = |x: f32| (x.to_bits() >> 16) as u16;
+        let enc = |v: &[f32]| v.iter().flat_map(|&x| bf(x).to_le_bytes()).collect::<Vec<u8>>();
+        let q = vec![0x38u8; n * k]; // e4m3 1.0
+        assert!(row_bounds(DType::Bf16, &enc(&vec![1.0f32; n * k]), &q, 1.0, n, k).is_ok());
+        let mut w = vec![1.0f32; n * k];
+        w[k] = 4.0e6; // row 1 norm >= 2^20
+        assert!(row_bounds(DType::Bf16, &enc(&w), &q, 1.0, n, k).is_err());
     }
 }
