@@ -237,6 +237,135 @@ p12_in_proj_kernel(P12Segs sg, const uint8_t* __restrict__ codes, const uint32_t
     }
 }
 
+// The staged in-projection (lane ink-cuda-attn, brief 24; INTARSIA_INK_P12_CP, default on, `0` = the kernel above): the same
+// tile, decode and mma chain, but the codes of the next kCpStages - 1 k blocks stream into shared memory with cp.async while
+// the current block decodes. A warp's 16 rows x 96 bytes (64 of plane A, 32 of plane B) per k block are 96 16-byte pieces,
+// three per lane; the warp reads its own staging only (no block barrier). The registers p12_dec sees are the bytes p12_raw
+// would load, so every output is bitwise the kernel above (and the bf16 twin). The direct kernel put about 0.8 MB of codes in
+// flight across its 540 warps at the decode shapes and ran at ~150 GB/s; this one keeps kCpStages - 1 blocks in flight per warp.
+constexpr int kCpStages = 4;
+constexpr int kCpRow = 112;                       // padded row stride (bytes): 96 + 16, 28 words, no bank conflict over 8 rows
+constexpr int kCpStage = 16 * kCpRow;             // one warp's k block
+constexpr int kCpWarpBytes = kCpStages * kCpStage;
+
+__global__ void __launch_bounds__(kProjWarps * IK_WARP)
+p12_in_proj_cp_kernel(P12Segs sg, const uint8_t* __restrict__ codes, const uint32_t* __restrict__ aux, int64_t nrows, int T, int D) {
+    extern __shared__ __align__(16) uint8_t cp_smem[];
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int tile = blockIdx.x * kProjWarps + warp;
+    int j = 0;
+    while (j + 1 < sg.nseg && tile >= sg.t0[j + 1]) ++j;
+    if (tile >= sg.t0[sg.nseg]) return;
+    const P12Seg s = sg.s[j];
+    const int n0 = (tile - sg.t0[j]) * 16;
+    const int m0 = blockIdx.y * 16;
+    const int g = lane >> 2, c = lane & 3;
+    const int ra = min(n0 + g, s.n - 1), rb = min(n0 + g + 8, s.n - 1);
+    const bool two = T - m0 > 8;
+    const int xa = m0 + g, xb = m0 + 8 + g;
+    const bool ha = xa < T, hb = two && xb < T;
+    P12Row wa = p12_row(codes, aux, nrows, (int64_t)s.r0 + ra, D);
+    P12Row wb = p12_row(codes, aux, nrows, (int64_t)s.r0 + rb, D);
+    const ik_bf16* pa = s.x + (int64_t)(ha ? xa : 0) * D + 16 * c;
+    const ik_bf16* pb = s.x + (int64_t)(hb ? xb : 0) * D + 16 * c;
+    float c0[4] = {0.f, 0.f, 0.f, 0.f}, c1[4] = {0.f, 0.f, 0.f, 0.f};
+    const uint4 z = make_uint4(0, 0, 0, 0);
+    const int kmain = D & ~63;
+    const int cc = 2 * c;
+    uint8_t* sm = cp_smem + warp * kCpWarpBytes;
+    // this lane's three pieces of a k block: piece q = lane + 32 i, row q / 6, part q % 6 (0..3 plane A, 4..5 plane B)
+    const uint8_t* src[3];
+    int dst[3];
+    const int64_t rowb = 3 * (int64_t)D / 2;
+#pragma unroll
+    for (int i = 0; i < 3; ++i) {
+        const int q = lane + 32 * i, r = q / 6, part = q % 6;
+        const int row = min(n0 + r, s.n - 1);
+        const uint8_t* base = codes + ((int64_t)s.r0 + row) * rowb;
+        src[i] = part < 4 ? base + 16 * part : base + D + 16 * (part - 4);
+        dst[i] = r * kCpRow + 16 * part;
+    }
+    const int nkb = kmain / 64;
+    auto issue = [&](int kbi) {
+        if (kbi < nkb) {
+            uint8_t* st = sm + (kbi % kCpStages) * kCpStage;
+#pragma unroll
+            for (int i = 0; i < 3; ++i) {
+                const int part = (lane + 32 * i) % 6;
+                ik_cp_async16(st + dst[i], src[i] + (part < 4 ? (int64_t)kbi * 64 : (int64_t)kbi * 32), 16);
+            }
+        }
+        ik_cp_async_commit();  // an empty group past the end keeps the wait count uniform
+    };
+    if (kmain > 0) {
+#pragma unroll
+        for (int i = 0; i < kCpStages - 1; ++i) issue(i);
+        uint4 X0 = ha ? ld_act(pa) : z, X1 = ha ? ld_act(pa + 8) : z;
+        uint4 Y0 = hb ? ld_act(pb) : z, Y1 = hb ? ld_act(pb + 8) : z;
+        for (int kbi = 0; kbi < nkb; ++kbi) {
+            ik_cp_async_wait_group<kCpStages - 2>();
+            __syncwarp();
+            const uint8_t* st = sm + (kbi % kCpStages) * kCpStage;
+            const uint4 qa = *reinterpret_cast<const uint4*>(st + g * kCpRow + 16 * c);
+            const uint2 qb = *reinterpret_cast<const uint2*>(st + g * kCpRow + 64 + 8 * c);
+            const uint4 qa8 = *reinterpret_cast<const uint4*>(st + (g + 8) * kCpRow + 16 * c);
+            const uint2 qb8 = *reinterpret_cast<const uint2*>(st + (g + 8) * kCpRow + 64 + 8 * c);
+            __syncwarp();  // every lane has its words before the buffer is refilled below
+            issue(kbi + kCpStages - 1);
+            const int kb = kbi * 64;
+            const int ck0 = kb / 8 + cc;
+            const uint4 A0 = p12_dec(wa, P12Raw{make_uint2(qa.x, qa.y), qb.x}, ck0), A1 = p12_dec(wa, P12Raw{make_uint2(qa.z, qa.w), qb.y}, ck0 + 1);
+            const uint4 B0 = p12_dec(wb, P12Raw{make_uint2(qa8.x, qa8.y), qb8.x}, ck0), B1 = p12_dec(wb, P12Raw{make_uint2(qa8.z, qa8.w), qb8.y}, ck0 + 1);
+            const uint32_t a[8] = {A0.x, A0.y, A0.z, A0.w, A1.x, A1.y, A1.z, A1.w};
+            const uint32_t b[8] = {B0.x, B0.y, B0.z, B0.w, B1.x, B1.y, B1.z, B1.w};
+            const uint32_t x[8] = {X0.x, X0.y, X0.z, X0.w, X1.x, X1.y, X1.z, X1.w};
+            const uint32_t y[8] = {Y0.x, Y0.y, Y0.z, Y0.w, Y1.x, Y1.y, Y1.z, Y1.w};
+            const int kn = kb + 64;
+            if (kn < kmain) {
+                if (ha) X0 = ld_act(pa + kn), X1 = ld_act(pa + kn + 8);
+                if (hb) Y0 = ld_act(pb + kn), Y1 = ld_act(pb + kn + 8);
+            }
+#pragma unroll
+            for (int stp = 0; stp < 4; ++stp) {
+                mma_add(c0, a[2 * stp], b[2 * stp], a[2 * stp + 1], b[2 * stp + 1], x[2 * stp], x[2 * stp + 1]);
+                if (two) mma_add(c1, a[2 * stp], b[2 * stp], a[2 * stp + 1], b[2 * stp + 1], y[2 * stp], y[2 * stp + 1]);
+            }
+        }
+        ik_cp_async_wait_all();
+    }
+    for (int kb = kmain; kb < D; kb += 16) {
+        const int o = kb - 16 * c + 4 * c;
+        const int ch = (kb + 4 * c) / 8;
+        const uint4 Aw = p12_load(wa, ch), Bw = p12_load(wb, ch);
+        const uint2 A = (c & 1) ? make_uint2(Aw.z, Aw.w) : make_uint2(Aw.x, Aw.y);
+        const uint2 B = (c & 1) ? make_uint2(Bw.z, Bw.w) : make_uint2(Bw.x, Bw.y);
+        const uint2 X = ha ? __ldg(reinterpret_cast<const uint2*>(pa + o)) : make_uint2(0, 0);
+        const uint2 Y = hb ? __ldg(reinterpret_cast<const uint2*>(pb + o)) : make_uint2(0, 0);
+        mma_add(c0, A.x, B.x, A.y, B.y, X.x, X.y);
+        if (two) mma_add(c1, A.x, B.x, A.y, B.y, Y.x, Y.y);
+    }
+#pragma unroll
+    for (int nt = 0; nt < 2; ++nt) {
+        if (nt == 1 && !two) break;
+        const float* cr = nt ? c1 : c0;
+#pragma unroll
+        for (int e = 0; e < 4; ++e) {
+            const int m = m0 + nt * 8 + 2 * c + (e & 1);
+            const int n = n0 + g + (e >> 1) * 8;
+            if (m < T && n < s.n) s.out[(int64_t)m * s.n + n] = ik_f2b(cr[e]);
+        }
+    }
+}
+
+bool p12_cp_on() {
+    static int v = -1;
+    if (v < 0) {
+        const char* e = getenv("INTARSIA_INK_P12_CP");
+        v = (e && e[0] == '0') ? 0 : 1;
+    }
+    return v == 1;
+}
+
 }  // namespace
 
 extern "C" {
@@ -299,8 +428,14 @@ int ik_ink_in_proj_p12_mma(const ik_tensor* x, const ik_tensor* codes, const ik_
     if (tiles == 0) return IK_OK;
     const dim3 grid((unsigned)((tiles + kProjWarps - 1) / kProjWarps), (unsigned)((T + 15) / 16));
     if (grid.y > 65535) return IK_ERR_SHAPE;
-    p12_in_proj_kernel<<<grid, kProjWarps * IK_WARP, 0, IK_STREAM(stream)>>>(sg, (const uint8_t*)codes->data,
-                                                                            (const uint32_t*)aux->data, nsum, (int)T, (int)D);
+    if (p12_cp_on() && D % 64 == 0 && D <= 65536) {
+        const int smem = kProjWarps * kCpWarpBytes;
+        p12_in_proj_cp_kernel<<<grid, kProjWarps * IK_WARP, smem, IK_STREAM(stream)>>>(sg, (const uint8_t*)codes->data,
+                                                                                      (const uint32_t*)aux->data, nsum, (int)T, (int)D);
+    } else {
+        p12_in_proj_kernel<<<grid, kProjWarps * IK_WARP, 0, IK_STREAM(stream)>>>(sg, (const uint8_t*)codes->data,
+                                                                                (const uint32_t*)aux->data, nsum, (int)T, (int)D);
+    }
     return ik_launch_status();
 }
 int ik_ink_in_proj_p12_mma_rows(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* pq, ik_tensor* pk,

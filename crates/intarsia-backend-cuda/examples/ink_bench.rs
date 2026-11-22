@@ -94,6 +94,16 @@ fn bench_proj(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
     let copies = 4; // 4 x 40 MB
     let ws: Vec<Buffer> = (0..copies).map(|c| bf16_buf(be, &[n, D], 100 + c as u64, (D as f32).powf(-0.5))).collect();
     let wbytes = (n * D * 2) as f64;
+    // the same weights packed to P12 (the generator of bf16_buf, replayed on the host)
+    let p12w: Vec<intarsia_core::quant::QTensor> = (0..copies)
+        .map(|c| {
+            let mut rng = intarsia_core::rng::SplitMix64::new(100 + c as u64);
+            let v = rng.normal_vec(n * D, (D as f32).powf(-0.5));
+            let host = HostTensor::from_f32_as(DType::Bf16, &[n, D], &v);
+            intarsia_core::quant::p12::pack_bytes(&host.data, n, D, 0).unwrap().upload(be).unwrap()
+        })
+        .collect();
+    let p12bytes = p12w[0].parts.iter().map(|t| t.nbytes()).sum::<usize>() as f64;
     println!("== InkInProj [{n}, {D}] bf16, {copies} weight copies of {:.1} MB", wbytes / 1e6);
     for &tr in rows {
         for s in [1usize, 3] {
@@ -116,6 +126,29 @@ fn bench_proj(be: &dyn Backend, ks: &[KernelImpl], rows: &[usize]) {
                 let reps = if tr > 64 { 20 } else { 200 };
                 let (us, mn) = time(be, kname, &calls, reps);
                 println!("proj T={tr:5} S={s} {kname:26} {us:9.1} us (min {mn:8.1})  {:6.1} GB/s weights", wbytes / (us * 1e-6) / 1e9);
+            }
+            if tr <= 16 {
+                // lane ink-cuda-attn (brief 24): the P12 copy of the same weights (lossless, 0.75x bytes) through the P12
+                // InkInProj kernel; INTARSIA_INK_P12_CP=0 times the direct kernel, unset the staged (cp.async) one
+                let kname = "ink_in_proj_p12_mma";
+                let k = kern(ks, kname);
+                let calls: Vec<OpCall> = (0..copies)
+                    .map(|c| {
+                        let call = OpCall::new(
+                            Op::InkInProj,
+                            vec![t(&xb, DType::Bf16, &[s, tr, D]), p12w[c].parts[0].clone(), p12w[c].parts[1].clone()],
+                            ns.iter().zip(&outs).map(|(&nn, b)| t(b, DType::Bf16, &[tr, nn])).collect(),
+                            OpAttrs::default(),
+                        );
+                        with_scratch(be, &k, call)
+                    })
+                    .collect();
+                let (us, mn) = time(be, kname, &calls, 200);
+                println!(
+                    "proj T={tr:5} S={s} {kname:26} {us:9.1} us (min {mn:8.1})  {:6.1} GB/s codes, {:6.1} GB/s bf16-equivalent",
+                    p12bytes / (us * 1e-6) / 1e9,
+                    wbytes / (us * 1e-6) / 1e9
+                );
             }
             if s == 1 && tr <= 16 {
                 // the existing best bf16 GEMV over the stacked weight (one launch, `rows_exact` twin) for comparison
