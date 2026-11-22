@@ -629,3 +629,26 @@ remaining 1.27. Decode GPU time per token now (#11401 trace, hoist on): ink_mma_
 5.2 + 2.9 ms, P12 unembed 2.9, attention p12 gemv 2.2, ink_row 1.27, blend gate + norm + deep gemv ~1.6, moe_route 0.38.
 The MoE kernels run at ~190 (gu) / ~170 (dn) GB/s at T=1; the repack to ~240 GB/s saves ~1.9 ms / token (~7 %), the largest
 lever in this lane's classes.
+
+## MoE repack probe (brief 28; spark2 #11417 + pass 2, `--quiet gpu,cpu`; standalone `.scratch/moe_layout_probe.cu`)
+
+Run on spark2 (the lane's build tree; same GB10 as spark1). No-math streams at T=1 with the shipped kernels' grid and threads
+(gu: I/4 blocks x 256 threads, warp = expert, 4 rows x 8 lanes; dn: H/8 blocks, 8 rows x 4 lanes; 8 experts out of 128, 64
+random expert sets rotating over 4 weight copies), xor-folding the loaded words. Repacked layout: per (expert, row block) one
+contiguous run, iteration-major `[iter][lane][payload]` then `[iter][lane][scales]`, so each warp load is one contiguous
+1 KB (gu) / 512 B (dn) piece. Two passes each, they agree within 2 %:
+
+| T=1, per call | gu | dn |
+|---|---|---|
+| (a) current layout, no math | 117.0 us / 204 GB/s | 63.4-65.1 us / 183-188 GB/s |
+| (a') current layout + L2 prefetch (= the shipped kernel's loads) | 109.8-110.8 us / 216-218 GB/s | 59.5-61.4 us / 195-201 GB/s |
+| (b) repacked, no math (prefetch adds nothing) | 106.0-107.1 us / 223-226 GB/s | 52.9-53.1 us / 225 GB/s |
+| (c) shipped kernel in the model (PF on, #11396 nsys) | 118.2 us | 66.1 us |
+| shipped kernel, ch loop unrolled by 3 (ink_bench, NVFP4 T=1 / 4 / 16) | no change: 180.0 vs 180.3 / 590 vs 590 / 1684 vs 1678 us | |
+
+Reading: the shipped kernel runs ~7-9 % above its own loads' no-math time, so its math is mostly hidden and the loads set the
+pace. Against the fair baseline (a'), the repacked stream saves ~4 us (gu) + ~7 us (dn) = ~11 us per NVFP4 layer, ~0.49
+ms / token over 44 layers (~0.6 ms if the math overhead scales), **below the 1 ms bar: the repack is not built** (brief 28 rule).
+Any layout reaches only ~225 GB/s at this geometry (82 % of 273); the remaining gap is the thread geometry / per-SM request
+rate, not the layout. The unroll-by-3 change was reverted (no effect). Next item: the LoopBlend path (deep gemv 0.86 +
+gate 0.49 + norm 0.25 ms / token) and the router (0.38 ms).
