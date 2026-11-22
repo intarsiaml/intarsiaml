@@ -317,6 +317,10 @@ so 78-79 stay for it. Coordinator (2026-11-22): slot 77 confirmed, blocks need n
   tree stays fixed), keeping the lane's own row text and dropping mine, so each variable has one row.
 - 2026-11-22 (coordinator): confirms 297cebadc after #11206, the prefill lane's row text, one row per variable. Prologue split
   (ink/prologue-split-merge 61980c882, default-on) is not ready: waits on speed check #11221; hash only if it passes.
+- 2026-11-22 (coordinator): merge ink/prefill-naxskip 2455b7abc (parent 297cebadc) right after 297cebadc: the wrong-results
+  probe `INTARSIA_INK_MOE_NAXSKIP` goes behind a new `ink-probe` cargo feature (env var and its tuning row removed, no shader
+  change; bespin #11237 check clean with and without the feature, docs_env_vars 2/2, cpu inkling2 8/8). After merging:
+  docs_env_vars and one Metal build on the merged tree; no speed gate (default path unchanged).
 
 ## Bisect #11142 (G2 short, decode mode, KL21 scored)
 
