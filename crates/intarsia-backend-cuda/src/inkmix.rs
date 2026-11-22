@@ -214,3 +214,18 @@ mod launch {
         }
     }
 }
+
+/// Tests / benchmarks: 0 keeps every tensor-core GEMV call (in-projection, blend h) on the one-block-ahead form; 1 (default)
+/// lets calls of few blocks take the deep-prefetch form. The bits are the same either way (tests/ink_rows.rs).
+pub fn set_gemv_deep(v: i32) {
+    #[cfg(ik_cuda)]
+    {
+        extern "C" {
+            fn ik_ink_gemv_deep(v: std::ffi::c_int);
+        }
+        // SAFETY: sets a plain int of the kernel library.
+        unsafe { ik_ink_gemv_deep(v) }
+    }
+    #[cfg(not(ik_cuda))]
+    let _ = v;
+}
