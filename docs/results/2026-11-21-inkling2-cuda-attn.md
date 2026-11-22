@@ -144,3 +144,41 @@ The contract's `rel [T,H,E]` costs 2048 x 24 x 1024 x 2 B = 100 MB per chunk. Th
 at the bandwidth floor, and the bias fetch dominates SWA flash (every key is biased there, since window = E). The flash
 kernel against the split-KV port at the same rows (fleetq #10804): 1.25 vs 10.8 ms (SWA ctx 0), 14.3 vs 1093 ms (full 30k).
 Full 30k flash: 2048 x 24 x 32768 x 128 x 4 = 0.82 TFLOP in 14.3 ms, about 58 TFLOPS.
+
+## Full-32k decode: what was tried (brief 2)
+
+Pick: full 32k at 1 row (736 us against a 492 us floor) over full 4k at 4 rows (+9 us, verify only). The 32k case costs about
+240 us above the floor on every full layer of every long-context token.
+
+Hypothesis tested: wave quantisation (33 tiles x 8 heads = 264 blocks on 48 SMs) or one 70 KB-smem block per SM with
+1-deep prefetch. Results, attention microseconds (graph), fleetq #10948:
+
+| setting | full 4k, 1 row | full 32k, 1 row | full 32k, 16 rows |
+|---|---|---|---|
+| default (at most 40 tiles, 2 stages) | 94.0 | 716 | 842 |
+| at most 64 tiles | 98.6 | 746 | 861 |
+| at most 96 tiles | 99.7 | 709 | 838 |
+| 1 stage (2 blocks / SM) | 96.4 | 704 | 808 |
+| 1 stage, at most 96 tiles | 97.9 | 723 | 836 |
+
+All within noise, so neither the tile count nor occupancy is the limit. The defaults stay; the knobs remain as diagnostics.
+The kernels sit at about 180-190 GB/s on both the SWA (40 blocks) and the full (264 blocks) visits: about 6-8 us per
+32 KB sub-chunk per block, far above DRAM latency. That points at the per-sub-chunk serial path of one block: stage, wait,
+three `__syncthreads`, 16 keys of mma per warp. 8B bf16 GEMV decode reaches about 257 GB/s on this box, so about 1.4x is
+left. ncu cannot run here (RmProfilingAdminOnly = 1), so the next step needs either profiling rights or the restructure in
+idea 1 below.
+
+## Next ideas (ranked)
+
+1. **Decode tile kernel: more keys per warp per barrier.** Each warp takes 64 keys per sub-chunk (4 mma k-groups)
+   instead of 16, giving 256-key sub-chunks with a quarter of the barriers. Or load K / V fragments straight from
+   global, with no shared-memory staging, for M <= 48 rows. Target: full 32k from 716 to about 520 us.
+2. **Contract idea for main: attention computes the bias from r and relproj.** It would drop the `rel [T,H,E]` tensor:
+   100 MB per 2048-row chunk written and read, about 0.75 ms at the floor. The prologue's rel tail is most of its
+   1.6 ms per chunk, and the bias fetch dominates SWA flash. Not changed here: it is a contract change.
+3. **Fold the tile combine into the tile kernel** (last block of a row merges in tile order, counter in scratch zeroed by
+   the last block): one launch fewer per visit, about 3-5 us at decode.
+4. **Flash prefill:** stage the bias slice with cp.async per sub-chunk; 128-row query blocks for full layers (14.3 ms at
+   30k is about 58 TFLOPS).
+5. Full 4k at 4 rows (fused 9 us slower than the pair): the fused blocks each redo the call's q / r jobs; share them
+   through a 1-block pre-pass if verify rows matter.
