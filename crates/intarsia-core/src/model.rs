@@ -1243,7 +1243,7 @@ impl Model {
                         added as f64 / 1e9,
                         t0.elapsed().as_secs_f64()
                     );
-                    Some(HeadScreenW { q, beta, a, cand, cnt, cap, rows, ok: std::sync::OnceLock::new() })
+                    Some(HeadScreenW { q, beta, a, cand, cnt, cap, rows, ok: std::sync::OnceLock::new(), served: Default::default() })
                 }
             }
         } else {
@@ -5618,13 +5618,18 @@ impl Model {
             let a = TensorRef::new(hs.a.clone(), DType::F32, &[1, v]);
             let cand = TensorRef::new(hs.cand.clone(), DType::I32, &[1, hs.cap]);
             let cnt = TensorRef::new(hs.cnt.clone(), DType::I32, &[1]);
+            // the screen calls run with `exact_rows` set (screened_argmax), so a backend whose screen kernels are registered
+            // rows-exact (Metal) selects them
             let screen_ok = [
                 OpCall::new(Op::HeadScreen, vec![a.clone(), xs.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default()),
                 OpCall::new(Op::LogitsGather, vec![xs.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![self.view(&self.ws.logits, DType::F32, &[1, v])], OpAttrs::default()),
                 OpCall::new(Op::ScreenArgmax, vec![cand, cnt, self.view(&self.ws.logits, DType::F32, &[1, v])], vec![self.view(&self.ws.tok, DType::I32, &[1])], OpAttrs::default()),
             ]
-            .iter()
-            .all(|c| self.registry.select(c).is_ok());
+            .into_iter()
+            .all(|mut c| {
+                c.exact_rows = true;
+                self.registry.select(&c).is_ok()
+            });
             if !(kernels_ok && screen_ok) {
                 eprintln!("{}: off (head kernel '{}' or the screen kernels are not available here)", crate::screen::ENV, pick(1, false));
             }
@@ -5645,9 +5650,20 @@ impl Model {
         let r = (|| -> Result<()> {
             let sc = hs.q.call(x.clone(), a.clone());
             self.exec(sc.op, sc.inputs, sc.outputs, sc.attrs, profile)?;
-            self.exec(Op::HeadScreen, vec![a, x.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default(), profile)?;
-            self.exec(Op::LogitsGather, vec![x.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![logits.clone()], OpAttrs::default(), profile)?;
-            self.exec(Op::ScreenArgmax, vec![cand, cnt, logits], vec![tok.clone()], OpAttrs::default(), profile)
+            // the screen ops are per-row by contract; their Metal kernels are registered rows-exact, which a call selects
+            // only with `exact_rows` set (Registry::select)
+            let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);
+            let r = (|| -> Result<()> {
+                self.exec(Op::HeadScreen, vec![a, x.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default(), profile)?;
+                self.exec(Op::LogitsGather, vec![x.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![logits.clone()], OpAttrs::default(), profile)?;
+                self.exec(Op::ScreenArgmax, vec![cand, cnt, logits], vec![tok.clone()], OpAttrs::default(), profile)
+            })();
+            self.exact_rows.store(prev, std::sync::atomic::Ordering::Relaxed);
+            r?;
+            if !hs.served.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                eprintln!("{}: first screened head step served ({c} row(s))", crate::screen::ENV);
+            }
+            Ok(())
         })();
         if mark {
             self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -5851,4 +5867,6 @@ struct HeadScreenW {
     rows: usize,
     /// Whether this backend's head kernel is one the gather reproduces (decided on first use).
     ok: std::sync::OnceLock<bool>,
+    /// Set by the first screened step (logged once, so a gate can tell the screen really ran).
+    served: std::sync::atomic::AtomicBool,
 }
