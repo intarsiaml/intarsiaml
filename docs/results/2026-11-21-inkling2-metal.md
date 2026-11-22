@@ -83,6 +83,13 @@ refused, decode graph replay blocked (Changes item 8). Branch `ink/metal` (not p
   in recipes/inkling2.toml) if its #11109 passes. With the recipe commit in, the combined gate and the baseline run at chunk
   2048 (say so: earlier Inkling Metal localeval numbers were at chunk 256). Report the merged tip hash.
 
+- 2026-11-22 (coordinator): queue item 3 changed. fp8's #10974 screen md5 gate was vacuous (the opt-in head screen never ran
+  in the "on" runs); fixed on ink/fp8 a810fbb5c (opt-in screen code only; bespin #11112 compiles), rerun queued on endor. The
+  default path is proven (#10941 bit-identity, #11055 admission) and the screen is off by default, so do not wait for the
+  rerun: merge ink/fp8 a810fbb5c (or a newer tip touching only docs or the screen) when fp8 is next; it unblocks pack12. Add
+  one LOG line (below). A failing rerun is fixed by the fp8 lane in a follow-up and does not block the combined gate, which
+  runs with every fp8 env var unset (the default path).
+
 ## Integrated
 
 | Branch | Head | What | Conflicts |
@@ -373,3 +380,7 @@ ADMITTED (18 kernels, including m-mix's widened `ink_in_proj_bf16_gemv` at 18 ca
 (batch_metal 1, batch_metal_real 3, gdn_verify_metal 7, mtp_store_metal 2, prefix_store_metal 1, hybrid_reuse_real 2,
 prefix_reuse_real 6, batch_recurrent 15): all pass; Qwen3-8B `plan show --backend metal`: stdout and stderr byte-identical
 to the base b5e283927.
+
+## LOG
+
+- INTARSIA_INK_HEAD_SCREEN opt-in: md5 gate pending (rerun of #10974)
