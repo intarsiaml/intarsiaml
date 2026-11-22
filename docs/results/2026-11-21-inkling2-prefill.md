@@ -53,6 +53,13 @@ Branch `ink/prefill` from 1dacac3a8 (ink/metal). Not pushed or merged. Every GPU
    Work only in this worktree; non-Metal tests on spark2 (`--load cpu`); timing on endor `--quiet gpu,cpu`; no call or wait
    over 4 min.
 
+6. 2026-11-21 (coordinator, via SendMessage; rule for all Inkling lanes): this session runs on endor, so no local
+   cargo build / check / test or shader compiles outside a fleetq slot (they load endor's CPU and skew quiet timing jobs).
+   macOS compile checks on bespin (`fleetq run --host bespin --load cpu --mem 6 --expect <min>`, a git-archive copy in
+   ~/intarsiaml-<lane>, toolchain in ~/.cargo/bin; no GPU timing or real model there); CPU tests on spark2; GPU work as endor
+   fleetq jobs. Reading files, git and editing locally are fine. (Before this rule this lane ran a few local `cargo check` and
+   `xcrun metal -c` checks on endor; from here on they go to bespin.)
+
 ## Status
 
 - **Default-on (commit 355791b1a):** the loop blend of prefill chunks (rows > 16, not `exact_rows`) on the accelerators:
