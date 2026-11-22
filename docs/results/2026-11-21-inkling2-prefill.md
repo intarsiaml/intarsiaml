@@ -465,6 +465,31 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### Attention probe B, interior-tile fast path (brief 22; `kernels/metal/inkling2_attn_nax_int.metal`, `INTARSIA_INK_NAX_INT`)
+
+Round 1 (#11391, 7a5230f18): interior = all 16 rows of the simdgroup see every key of the tile and every distance < E.
+INT 1 is the exact path, INT 2 also drops the bias on interior tiles (timing only). Bitwise: the bench output hash (fixed
+seed, 4 visits, SWA and full at ctx 0 / 2k / 4k) is identical for INT 0 and INT 1 in all 6 configs; INT 2 differs, as
+expected. Admission was not run: the CLI binary lacked `--features metal` (fixed in round 2). The box was in its slower
+clock state (INT 0 SWA 1.22-1.28 ms vs 1.14 in #11370), but the arms are interleaved (0 1 2 0 1 2, two reps).
+NAX µs per call, median of 4:
+
+| visit | INT 0 | INT 1 (exact) | INT 2 (no bias, interior) |
+|---|---:|---:|---:|
+| SWA ctx 0 | 907 | 860 | 598 |
+| SWA ctx 2k | 1233 | 1155 | 793 |
+| SWA ctx 4k | 1279 | 1149 | 799 |
+| SWA ctx 16k | 1218 | 1155 | 868 |
+| full ctx 0 | 1079 | 1069 | 739 |
+| full ctx 2k | 2562 | 2574 | 2104 |
+| full ctx 4k | 3854 | 4225 | 3577 |
+| full ctx 16k | 12244 | 13580 | 12171 |
+
+- Exact path: SWA -5 to -10 % (~0.08-0.13 ms x 40 = 3-5 ms per chunk), but full visits at ctx 4k / 16k get +10 %: their far
+  tiles (distance >= E) fail the interior test and pay the extra branch. Net per chunk at 4k: ~0. Round 2 adds the far class.
+- The in-kernel bias gather is bigger than the E 1 probe suggested: INT 2 takes 0.36-0.44 ms off each SWA visit
+  (~14-18 ms per chunk), so A's in-kernel term is larger than its doc estimate (7.6 ms).
+
 ### Attention per call, brief 21 step 1 (#11370; ink_attn_bench `--prefill`, 2048 rows, 4 layers x 10 reps, measure only)
 
 `INK_ATTN_BENCH_E=1` shrinks the rel tensor from [2048, 24, 1024] (100 MB per call) to [2048, 24, 1]: the prologue no longer
