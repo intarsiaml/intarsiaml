@@ -1801,3 +1801,13 @@ normal-step span is the real cost. Where the -70 dispatches and -0.77 ms come fr
      - watchP.sh;
      - W_selfgoldens/: the tip's G2 / G3 self-goldens, byte-equal to job G's.
    - Then the ink-dfuse worktree is removed.
+
+### Land branch check (ink/dfuse-land 49138c643; endor CPU slots #11488 + #11500; raw/LAND_*)
+
+- **Build:** the Metal binary and `ink_ctrl_bench` build.
+- **Tests:** docs_env_vars 2 / 2. Metal Inkling tests 13 / 13 (inkmoe, inkling2_attn, inkctrl, inkctrl_nometal4, inkmix,
+  inkload). Models on Metal 20 / 20 (inkling2 = G1 tiny, inkling2_batch, inkling2_mix_decode_cpu).
+- **plan show:** Qwen3-8B and Llama-3.1-8B are byte-identical to the base binary.
+  - #11488's first plan show errored. Its docs_env_vars test had rebuilt `target/release/intarsia` without the metal
+    feature.
+  - #11500 rebuilt the Metal binary and reran plan show.
