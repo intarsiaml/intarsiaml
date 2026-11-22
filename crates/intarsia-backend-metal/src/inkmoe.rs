@@ -520,8 +520,8 @@ impl MetalBackend {
         let pol = policy();
         // one-row NVFP4: the gu1 / dn_f3 instances (same bits)
         let t1 = !mx && t == 1 && t1_enabled();
-        if t1 && T1_SERVED.fetch_add(1, Ordering::Relaxed) == 0 {
-            eprintln!("inkmoe: one-row NVFP4 calls served by ink_moe_gu1_nv_* / ink_moe_dn_f3_nv_* (INTARSIA_INK_MOE_T1)");
+        if t1 {
+            T1_SERVED.fetch_add(1, Ordering::Relaxed);
         }
         let (uni_gu, fused) = match pol {
             Policy::Auto => (true, t == 1),
@@ -548,7 +548,11 @@ impl MetalBackend {
         }
         if fused {
             p.dims[5] = epi;
-            let dn = format!("ink_moe_dn_f{}_{fmt}_{al}_{}", if t1 { "3" } else { "" }, if o32 == 1 { "f32" } else { "bf16" });
+            let dn = format!(
+                "ink_moe_dn_f{}_{fmt}_{al}_{}",
+                if t1 { "3" } else { "" },
+                if o32 == 1 { "f32" } else { "bf16" }
+            );
             let g2 = MTLSize { width: t, height: h.div_ceil(DNF_ROWS), depth: 1 };
             return self.ink_dispatch(&dn, &[&hb, &ib, &wb, &w2, &s2, &gb, &ob], &p, g2, dnf_threads());
         }
