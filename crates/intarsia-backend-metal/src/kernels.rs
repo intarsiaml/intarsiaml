@@ -443,6 +443,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkattn::INK_KV_PROLOGUE_BF16, Op::InkKvPrologue),
     (crate::inkattn::REL_SINK_ATTN_BF16, Op::RelSinkAttn),
     (crate::inkattn::INK_ATTN_DECODE_BF16, Op::InkAttnDecode),
+    (crate::inkattn::INK_ATTN_DECODE_BF16_ROWS, Op::InkAttnDecode),
     (crate::inkattn::REL_SINK_ATTN_BF16_NAX, Op::RelSinkAttn),
     // lane ink-m-moe: the Inkling-2-Mini router and experts (inkmoe.rs)
     (crate::inkmoe::KERNELS[0].0, Op::MoeRoute),
@@ -455,6 +456,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkmix::INK_IN_PROJ_BF16_GEMV_ROWS, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_BF16_NAX, Op::InkInProj),
     (crate::inkmix::CONV_MIX_BF16, Op::ConvMix),
+    (crate::inkmix::CONV_MIX_BF16_ROWS, Op::ConvMix),
     (crate::inkmix::ATTN_RES_MIX_BF16, Op::AttnResMix),
     (crate::inkmix::SCONV_RES_BF16, Op::SconvRes),
     (crate::inkmix::LOOP_BLEND_BF16, Op::LoopBlend),
@@ -681,6 +683,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .scratch(crate::inkattn::decode_scratch),
+                // the row-table form (batched decode, lane ink-batch): row r the T = 1 call of sequence r; inkling2_batch.rs
+                crate::inkattn::INK_ATTN_DECODE_BF16_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::inkattn::decode_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .scratch(crate::inkattn::decode_scratch)
+                    .row_table(),
                 // prefill chunks on the neural accelerators (falls back to the split-KV kernel for what it cannot take)
                 crate::inkattn::REL_SINK_ATTN_BF16_NAX => k
                     .acts(bf)
@@ -1024,6 +1035,7 @@ mod tests {
         "gdn_delta_rule_bf16_rows:gdn_delta_rule",
         "gumbel_argmax_f32:gumbel_argmax",
         "ink_attn_decode_bf16:ink_attn_decode",
+        "ink_attn_decode_bf16_rows:ink_attn_decode",
         "ink_kv_prologue_bf16:ink_kv_prologue",
         "kv_append_bf16:kv_append",
         "kv_append_bf16_rows:kv_append",

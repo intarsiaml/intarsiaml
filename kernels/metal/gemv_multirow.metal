@@ -358,3 +358,105 @@ INST_MR_ALL(gemv_pair_bf16_rt_a8u4s8, device const uint2*, device const uint2*, 
 INST_SPLIT(gemv_pair_bf16_rt_a8u4s8, device const uint2*, device const uint2*, device const uint2*, device ushort*, device ushort*, constant PairParams&, uint, uint, uint)
 INST_MR_ALL(gemv_f32o_v, device const uint4*, device const uint4*, device float*, constant GemvParams&, uint, uint, uint)
 INST_SPLIT(gemv_f32o_v, device const uint4*, device const uint4*, device float*, constant GemvParams&, uint, uint, uint)
+
+// ---- 9..16 rows in ONE launch (lane ink-batch; host opt-in INTARSIA_METAL_ROWS_SINGLE) -----------------------------------
+// `<base>_mr8t<T>`: 8 + T activation rows (T = 1..8), P = 1, as two passes inside each threadgroup / simdgroup: rows 0..8,
+// then rows 8..8+T. The weights come from DRAM once per launch (the second pass re-reads the threadgroup's weight row from
+// cache) instead of once per 8-row chunk launch. Every (weight row, activation row) accumulator is the mirrored 1-row
+// kernel's (same lane mapping, UNROLL, SG, reduction order: the pass helpers above), so row r is bitwise the 1-row launch.
+template <int RT>
+kernel void gemv_bf16_rt_u2s8_mrt(device const uint4* W [[buffer(0)]],
+                                  device const uint4* X [[buffer(1)]],
+                                  device ushort* Y [[buffer(2)]],
+                                  constant GemvParams& p [[buffer(3)]],
+                                  uint tg [[threadgroup_position_in_grid]],
+                                  uint sg [[simdgroup_index_in_threadgroup]],
+                                  uint lane [[thread_index_in_simdgroup]]) {
+    threadgroup float part[(8 + RT) * 8];
+    const uint k8 = p.k / 8;
+    const uint row0 = tg;
+    float ta[8], tb[RT];
+    rt_rows16<8, 1, 2, 8>(W, row0, p.n, X, k8, sg, lane, part, ta);
+    rt_rows16<RT, 1, 2, 8>(W, row0, p.n, X + (ulong)8 * k8, k8, sg, lane, part + 8 * 8, tb);
+    if (sg == 0 && lane == 0 && row0 < p.n) {
+        for (int r = 0; r < 8; ++r) Y[p.y_skip + (ulong)r * p.n + row0] = to_bf16(ta[r]);
+        for (int r = 0; r < RT; ++r) Y[p.y_skip + (ulong)(8 + r) * p.n + row0] = to_bf16(tb[r]);
+    }
+}
+
+template <int RT>
+kernel void gemv_bf16_rt_a8u4s8_mrt(device const uint2* W [[buffer(0)]],
+                                    device const uint2* X [[buffer(1)]],
+                                    device ushort* Y [[buffer(2)]],
+                                    constant GemvParams& p [[buffer(3)]],
+                                    uint tg [[threadgroup_position_in_grid]],
+                                    uint sg [[simdgroup_index_in_threadgroup]],
+                                    uint lane [[thread_index_in_simdgroup]]) {
+    threadgroup float part[(8 + RT) * 8];
+    const uint k4 = p.k / 4;
+    const uint row0 = tg;
+    float ta[8], tb[RT];
+    rt_rows8<8, 1, 4, 8>(W, row0, p.n, X, k4, sg, lane, part, ta);
+    rt_rows8<RT, 1, 4, 8>(W, row0, p.n, X + (ulong)8 * k4, k4, sg, lane, part + 8 * 8, tb);
+    if (sg == 0 && lane == 0 && row0 < p.n) {
+        for (int r = 0; r < 8; ++r) Y[p.y_skip + (ulong)r * p.n + row0] = to_bf16(ta[r]);
+        for (int r = 0; r < RT; ++r) Y[p.y_skip + (ulong)(8 + r) * p.n + row0] = to_bf16(tb[r]);
+    }
+}
+
+// One pass of gemv_f32o_v_mr (P = 1): RB rows of Xb against the simdgroup's weight row, f32 out at rows rbase.. of Y.
+// The loop is gemv_f32o_v_mr's pass body verbatim (same block, unroll, lane mapping, accumulation and simd_sum).
+template <int RB>
+inline void f32o_pass(device const uint4* wr0, device const uint4* Xb, uint k8, uint lane, device float* Y, uint y_skip, uint n,
+                      uint rbase, uint row0) {
+    float acc[RB];
+    for (int j = 0; j < RB; ++j) acc[j] = 0.0f;
+    const uint block = 32 * 4;
+    const uint nblk = k8 / block;
+    uint i = lane;
+    for (uint b = 0; b < nblk; ++b, i += block) {
+        uint4 wv[4];
+        for (int u = 0; u < 4; ++u) wv[u] = wr0[i + 32 * u];
+        for (int r = 0; r < RB; ++r) {
+            uint4 xv[4];
+            for (int u = 0; u < 4; ++u) xv[u] = Xb[(ulong)r * k8 + i + 32 * u];
+            for (int u = 0; u < 4; ++u) acc[r] += dot8(wv[u], xv[u]);
+        }
+    }
+    for (i = nblk * block + lane; i < k8; i += 32) {
+        const uint4 wv = wr0[i];
+        for (int r = 0; r < RB; ++r) {
+            const uint4 xv = Xb[(ulong)r * k8 + i];
+            acc[r] += dot8(wv, xv);
+        }
+    }
+    for (int r = 0; r < RB; ++r) {
+        const float s = simd_sum(acc[r]);
+        if (lane == 0 && row0 < n) Y[y_skip + (ulong)(rbase + r) * n + row0] = s;
+    }
+}
+
+template <int RT>
+kernel void gemv_f32o_v_mrt(device const uint4* W [[buffer(0)]],
+                            device const uint4* X [[buffer(1)]],
+                            device float* Y [[buffer(2)]],
+                            constant GemvParams& p [[buffer(3)]],
+                            uint tg [[threadgroup_position_in_grid]],
+                            uint sg [[simdgroup_index_in_threadgroup]],
+                            uint lane [[thread_index_in_simdgroup]]) {
+    const uint k8 = p.k / 8;
+    const uint row0 = tg * 4 + sg;
+    device const uint4* wr0 = W + (ulong)min(row0, p.n - 1) * k8;  // rows past N read a valid row, not stored
+    f32o_pass<8>(wr0, X, k8, lane, Y, p.y_skip, p.n, 0, row0);
+    f32o_pass<RT>(wr0, X + (ulong)8 * k8, k8, lane, Y, p.y_skip, p.n, 8, row0);
+}
+
+#define INST_T(KERNEL, T, ...) template [[host_name(#KERNEL "_mr8t" #T)]] kernel void KERNEL##_mrt<T>(__VA_ARGS__);
+#define INST_T_ALL(KERNEL, ...)                                                                                       \
+    INST_T(KERNEL, 1, __VA_ARGS__) INST_T(KERNEL, 2, __VA_ARGS__) INST_T(KERNEL, 3, __VA_ARGS__)                      \
+    INST_T(KERNEL, 4, __VA_ARGS__) INST_T(KERNEL, 5, __VA_ARGS__) INST_T(KERNEL, 6, __VA_ARGS__)                      \
+    INST_T(KERNEL, 7, __VA_ARGS__) INST_T(KERNEL, 8, __VA_ARGS__)
+
+INST_T_ALL(gemv_bf16_rt_u2s8, device const uint4*, device const uint4*, device ushort*, constant GemvParams&, uint, uint, uint)
+INST_T_ALL(gemv_bf16_rt_a8u4s8, device const uint2*, device const uint2*, device ushort*, constant GemvParams&, uint, uint, uint)
+INST_T_ALL(gemv_f32o_v, device const uint4*, device const uint4*, device float*, constant GemvParams&, uint, uint, uint)

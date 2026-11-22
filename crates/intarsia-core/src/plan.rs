@@ -480,7 +480,9 @@ fn no_kernel_message(backend: &str, arch: &str, ref_only: &str, missing: &BTreeM
 /// Ops a batched step runs once per sequence (the attention core on that sequence's own cache, and with the hybrid opt-in
 /// `Model::allow_recurrent_batch` the GatedDeltaNet conv and delta rule and LFM2's `ShortConv` on that sequence's own recurrent state); every
 /// other op runs once for all rows. `GateSplitQkNormRopeKv` holds the per-row cache append like `QkNormRopeKv`.
-const PER_ROW_OPS: [Op; 11] = [
+/// The Inkling-2 row-table ops (`inkling2::ops::ROW_TABLE_OPS`) run once per sequence the same way (one row-table call standing
+/// for the `B` one-row calls of the solo steps).
+const PER_ROW_OPS: [Op; 16] = [
     Op::QkNormRopeKv,
     Op::GateSplitQkNormRopeKv,
     Op::QkNorm,
@@ -492,6 +494,11 @@ const PER_ROW_OPS: [Op; 11] = [
     Op::GdnDeltaRule,
     Op::GdnConvDelta,
     Op::ShortConv,
+    Op::SconvRes,
+    Op::InkKvPrologue,
+    Op::RelSinkAttn,
+    Op::ConvMix,
+    Op::InkAttnDecode,
 ];
 
 /// Ops whose every output row depends on its own input row alone (no reduction across rows, no per-token state): a call

@@ -170,7 +170,10 @@ constant uint MX_ADD = 4u;
 constant uint MX_SUM = 8u;
 constant uint MX_NORM = 16u;  // mix output normed (bf16), else the f32 mix
 constant uint MX_RING = 32u;  // write the ring rows of this launch's rows here (no row of the launch reads a row written)
-constant uint MX_PAIR = 64u;  // blend path: also write the controller pair rA([d w(d), m w(m)]) of each stream (bf16 scratch)
+constant uint MX_PAIR = 64u;
+// row-table form (lane ink-batch, `OpCall::rows`): row t is the T = 1 conv of sequence t at posb[t], on the ring whose address
+// is table entry [t, rti] (+ roff bytes); no in-call history, the ring row always written here
+constant uint MX_ROWTAB = 128u;  // blend path: also write the controller pair rA([d w(d), m w(m)]) of each stream (bf16 scratch)
 
 constant float SRC_EPS = 1e-6f;
 constant int MX_NMAX = 8;     // stored sources + last
@@ -184,6 +187,8 @@ struct InkMixP {
     float eps, cscale, fpad0, fpad1;
     // leading bf16 elements per binding: x, taps, res, add, y, ring, sum, src, norm, out
     uint sk[12];
+    uint rts, rti, tab_lo, tab_hi;  // MX_ROWTAB: table stride, entry, the table's GPU address
+    uint roff, rpad0, rpad1, rpad2; // MX_ROWTAB: the ring carrier's byte offset
 };
 
 // v[j] (j < nr) summed over the threadgroup: simd_sum, then the simdgroup partials in sg order. All threads get red[].
@@ -272,11 +277,18 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
     }
     float last[NE];
     if (conv) {
-        const int pos = p.use_dev ? posb[0] : int(p.pos0);
-        const int pp = pos + int(t);
+        const bool rt = (p.flags & MX_ROWTAB) != 0;
+        // the row-table form: row t is a T = 1 call at posb[t] (in-call row index 0, its x row at t)
+        const int pos = rt ? posb[t] : p.use_dev ? posb[0] : int(p.pos0);
+        const int pp = pos + (rt ? 0 : int(t));
+        const int xoff = rt ? int(t) : 0;
         device const ushort* xr = x + p.sk[0];
         device const ushort* tr = taps + p.sk[1];
-        device const ushort* rg = ring + p.sk[5];
+        device ushort* rg = ring + p.sk[5];
+        if (rt) {
+            device const ulong* tab = reinterpret_cast<device const ulong*>(as_type<ulong>(uint2(p.tab_lo, p.tab_hi)));
+            rg = reinterpret_cast<device ushort*>(tab[(ulong)t * p.rts + p.rti] + p.roff);
+        }
         float acc[NE], xc[NE], rv[NE], av[NE];
         for (int j = 0; j < NE; ++j) {
             acc[j] = 0.0f;
@@ -286,7 +298,7 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
         }
         for (uint l = 0; l < p.k; ++l) {
             const int qq = pp - int(l);
-            device const ushort* bp = qq >= pos ? xr + (ulong)(qq - pos) * d : rg + (ulong)(uint(max(qq, 0)) % p.rr) * d;
+            device const ushort* bp = qq >= pos ? xr + (ulong)(qq - pos + xoff) * d : rg + (ulong)(uint(max(qq, 0)) % p.rr) * d;
             device const ushort* tl = tr + (ulong)l * d;
             for (int j = 0; j < NE; ++j) {
                 const float xv = qq >= 0 ? bf2f(bp[cc[j]]) : 0.0f;
@@ -304,8 +316,8 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
                 if (hres && hsum) sum[p.sk[6] + o] = f2bf(lv);
             }
         }
-        if ((p.flags & MX_RING) != 0 && int(t) >= int(p.t) - int(p.rr)) {
-            device ushort* wr = ring + p.sk[5] + (ulong)(uint(pp) % p.rr) * d;
+        if ((p.flags & MX_RING) != 0 && (rt || int(t) >= int(p.t) - int(p.rr))) {
+            device ushort* wr = rg + (ulong)(uint(pp) % p.rr) * d;
             for (int j = 0; j < NE; ++j)
                 if (on[j]) wr[cc[j]] = xr[(ulong)t * d + cc[j]];
         }
@@ -514,7 +526,7 @@ kernel void ink_blend_pair(device const float* dest [[buffer(0)]],
 }
 
 // bind: 0 dest f32, 1 msg f32, 2 h bf16 [S, rows, G] (scratch), 3 gain [S, D, G], 4 forget [S, D, G], 5 y f32 [S, rows, D]
-// (scratch), 6 partial f32 [S, rows, nsl] (scratch; nsl = 2 per channel slice, one per simdgroup), 7 InkBlendP. Grid: S *
+// (scratch), 6 partial f32 [S, rows, nsl] (scratch; nsl = one per 32 channels, cs / 32 per channel slice), 7 InkBlendP. Grid: S *
 // slices threadgroups of `cs` = 64 threads (one channel each). The channel's gain / forget rows stay in registers for all
 // rows of the chunk; G % 8 == 0, G <= 8 * GC.
 inline float bl_dot8(uint4 w, uint4 x) {
@@ -528,8 +540,6 @@ inline float bl_dot8(uint4 w, uint4 x) {
     a = fma(ip_hi(w.w), ip_hi(x.w), a);
     return a;
 }
-
-constant uint BLEND_RB = 16;  // rows per gate threadgroup (src/inkmix.rs BLEND_RB)
 
 template <int GC>
 kernel void ink_blend_gate(device const float* dest [[buffer(0)]],
@@ -545,8 +555,9 @@ kernel void ink_blend_gate(device const float* dest [[buffer(0)]],
                            uint lane [[thread_index_in_simdgroup]],
                            uint sg [[simdgroup_index_in_threadgroup]]) {
     const uint gidx = gid2.x, tid = tid2.x;
-    const uint rb0 = gid2.y * BLEND_RB, rb1 = min(rb0 + BLEND_RB, p.rows);  // the rows of this threadgroup
-    const uint nsl = p.nsl / 2;  // channel slices
+    const uint rb0 = gid2.y * p.pad0, rb1 = min(rb0 + p.pad0, p.rows);  // the rows of this threadgroup (pad0 = rows per group)
+    const uint spg = p.cs / 32;          // simdgroups (32-channel partials) per channel slice
+    const uint nsl = p.nsl / spg;        // channel slices
     const uint s = gidx / nsl, sl = gidx % nsl, d = p.d, g8 = p.g / 8;
     const uint c = sl * p.cs + tid;
     const bool on = c < d;
@@ -576,7 +587,7 @@ kernel void ink_blend_gate(device const float* dest [[buffer(0)]],
             yo[((ulong)s * p.rows + r) * d + c] = yv;
         }
         const float ss = simd_sum(yv * yv);
-        if (lane == 0) partial[((ulong)s * p.rows + r) * p.nsl + sl * 2 + sg] = ss;
+        if (lane == 0) partial[((ulong)s * p.rows + r) * p.nsl + sl * spg + sg] = ss;
     }
 }
 template [[host_name("ink_blend_gate_g1")]] kernel void ink_blend_gate<1>(device const float*, device const float*,

@@ -1,0 +1,3 @@
+case                                           us/call       p10       p90     GB/s
+B wo GEMV [2304,3072]: first read 25.70 us (551 GB/s), second read 15.16 us (934 GB/s), ratio 0.590
+B InkInProj [8664,2304]: first read 70.64 us (565 GB/s), second read 54.88 us (728 GB/s), ratio 0.777

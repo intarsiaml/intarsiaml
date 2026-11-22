@@ -1,0 +1,36 @@
+== 0:0
+gen_short_0:0_1.jsonl: 248 steps, period median 15619 us (p10 15376, p90 15900), GPU busy 15618 us -> 64.0 tok/s
+gen_short_0:0_12.jsonl: 248 steps, period median 15453 us (p10 15284, p90 15689), GPU busy 15452 us -> 64.7 tok/s
+all: median period 15525 us -> 64.41 tok/s
+== 1:1
+gen_short_1:1_11.jsonl: 248 steps, period median 15694 us (p10 15535, p90 16146), GPU busy 15693 us -> 63.7 tok/s
+gen_short_1:1_2.jsonl: 248 steps, period median 15886 us (p10 15554, p90 16195), GPU busy 15885 us -> 62.9 tok/s
+all: median period 15773 us -> 63.40 tok/s
+== 1:0
+gen_short_1:0_10.jsonl: 248 steps, period median 15580 us (p10 15424, p90 15855), GPU busy 15579 us -> 64.2 tok/s
+gen_short_1:0_3.jsonl: 248 steps, period median 16063 us (p10 15719, p90 16343), GPU busy 16063 us -> 62.3 tok/s
+all: median period 15820 us -> 63.21 tok/s
+== 0:1
+gen_short_0:1_4.jsonl: 248 steps, period median 15681 us (p10 15505, p90 15910), GPU busy 15680 us -> 63.8 tok/s
+gen_short_0:1_9.jsonl: 248 steps, period median 15673 us (p10 15450, p90 15955), GPU busy 15672 us -> 63.8 tok/s
+all: median period 15677 us -> 63.79 tok/s
+== 1:gu
+gen_short_1:gu_5.jsonl: 248 steps, period median 15820 us (p10 15537, p90 16147), GPU busy 15819 us -> 63.2 tok/s
+gen_short_1:gu_8.jsonl: 248 steps, period median 15659 us (p10 15485, p90 16061), GPU busy 15658 us -> 63.9 tok/s
+all: median period 15751 us -> 63.49 tok/s
+== 1:dn
+gen_short_1:dn_6.jsonl: 248 steps, period median 15733 us (p10 15510, p90 16071), GPU busy 15732 us -> 63.6 tok/s
+gen_short_1:dn_7.jsonl: 248 steps, period median 15921 us (p10 15536, p90 16451), GPU busy 15920 us -> 62.8 tok/s
+all: median period 15831 us -> 63.17 tok/s
+== pd8
+gen_short_pd8_13.jsonl: 248 steps, period median 16563 us (p10 16294, p90 16989), GPU busy 16562 us -> 60.4 tok/s
+gen_short_pd8_14.jsonl: 248 steps, period median 16056 us (p10 15891, p90 16355), GPU busy 16055 us -> 62.3 tok/s
+all: median period 16325 us -> 61.26 tok/s
+== 5k 0:0
+gen_5k_0:0_15.jsonl: 120 steps, period median 16598 us (p10 16376, p90 16938), GPU busy 16598 us -> 60.2 tok/s
+gen_5k_0:0_18.jsonl: 120 steps, period median 17442 us (p10 16966, p90 18123), GPU busy 17441 us -> 57.3 tok/s
+all: median period 16948 us -> 59.00 tok/s
+== 5k 1:1
+gen_5k_1:1_16.jsonl: 120 steps, period median 17157 us (p10 16811, p90 17566), GPU busy 17156 us -> 58.3 tok/s
+gen_5k_1:1_17.jsonl: 120 steps, period median 17131 us (p10 16817, p90 17712), GPU busy 17130 us -> 58.4 tok/s
+all: median period 17144 us -> 58.33 tok/s
